@@ -1,0 +1,28 @@
+# 项目依赖项
+
+# 核心依赖
+python>=3.8
+
+# 图谱数据库
+graphiti-core>=0.28.0
+neo4j>=5.0.0
+networkx>=2.8.0
+
+# 权限控制
+opa-python
+
+# 智能体对话
+openharness
+
+# 网络框架（用于可视化界面）
+flask
+
+# 数据处理
+pandas
+numpy
+
+# 时间处理
+python-dateutil
+
+# 序列化
+jsonpickle
