@@ -3292,115 +3292,198 @@ class SkillRegistry:
 
 ---
 
-### ADR-005: 分层 Agent 架构（通用 + 领域）
+### ADR-005: 分层 Agent 架构（OpenHarness 原生 + 领域扩展）
 
 **状态**: 已接受
 
-**上下文**: 系统定位为通用本体驱动平台，Agent 需要区分**平台级通用 Agent** 和**领域特定 Agent**。
+**上下文**: 系统定位为通用本体驱动平台，Agent 需要：
+1. 复用 OpenHarness 原生能力，保持框架可升级
+2. 支持其他业务 Agent 的集成管理
+3. 区分平台级通用 Agent 和领域特定 Agent
 
-**决策**: 采用分层 Agent 架构
+**决策**: 采用分层 Agent 架构，深度集成 OpenHarness
 
 ```
-┌─────────────────────────────────────────────────────────────────────┐
-│                        Agent 分层架构                                 │
-├─────────────────────────────────────────────────────────────────────┤
-│                                                                     │
-│  ┌─────────────────────────────────────────────────────────────┐    │
-│  │  Layer 1: 平台通用 Agent（所有工作空间共享）                 │    │
-│  ├─────────────────────────────────────────────────────────────┤    │
-│  │  ┌───────────┐  ┌───────────┐  ┌───────────┐              │    │
-│  │  │   Router  │  │Coordinatr │  │  Observer │              │    │
-│  │  │  Agent    │  │  Agent    │  │  Agent    │              │    │
-│  │  └───────────┘  └───────────┘  └───────────┘              │    │
-│  │  • 意图识别     • 多 Agent 协调   • 系统状态监控            │    │
-│  │  • 会话路由     • 冲突仲裁        • 异常检测                │    │
-│  └─────────────────────────────────────────────────────────────┘    │
-│                              ↓                                       │
-│  ┌─────────────────────────────────────────────────────────────┐    │
-│  │  Layer 2: 工作空间级 Agent（按场景实例化）                  │    │
-│  ├─────────────────────────────────────────────────────────────┤    │
-│  │                                                             │    │
-│  │  ┌─────────────┐  ┌─────────────┐  ┌─────────────┐        │    │
-│  │  │    战争分析  │  │    金融分析  │  │    医疗诊断  │  ...  │    │
-│  │  │   Workspace  │  │   Workspace  │  │   Workspace  │        │    │
-│  │  ├─────────────┤  ├─────────────┤  ├─────────────┤        │    │
-│  │  │ Intelligence│  │ Analyzer    │  │ Diagnostian │        │    │
-│  │  │ Commander   │  │ Advisor     │  │ Specialist  │        │    │
-│  │  │ Operations  │  │ Executor    │  │ Nurse       │        │    │
-│  │  └─────────────┘  └─────────────┘  └─────────────┘        │    │
-│  │                                                             │    │
-│  └─────────────────────────────────────────────────────────────┘    │
-│                                                                     │
-└─────────────────────────────────────────────────────────────────────┘
+┌───────────────────────────────────────────────────────────────────────────┐
+│                         Agent 分层架构 (OpenHarness Native)                │
+├───────────────────────────────────────────────────────────────────────────┤
+│                                                                           │
+│  ┌─────────────────────────────────────────────────────────────────────┐  │
+│  │  Layer 1: OpenHarness 原生 Agent（平台通用）                         │  │
+│  ├─────────────────────────────────────────────────────────────────────┤  │
+│  │                                                                     │  │
+│  │   OpenHarness Engine                                               │  │
+│  │   ┌─────────┐  ┌─────────┐  ┌─────────┐  ┌─────────┐              │  │
+│  │   │  Tool   │  │ Memory  │  │Permiss- │  │  Hook   │              │  │
+│  │   │Registry │  │Manager  │  │   ion   │  │Manager  │              │  │
+│  │   └─────────┘  └─────────┘  └─────────┘  └─────────┘              │  │
+│  │                                                                     │  │
+│  │   ┌─────────────────────────────────────────────────────────────┐  │  │
+│  │   │  Swarm Orchestrator (OpenHarness)                           │  │  │
+│  │   │  • 多 Agent 协同    • 任务分发    • 结果聚合                 │  │  │
+│  │   └─────────────────────────────────────────────────────────────┘  │  │
+│  │                                                                     │  │
+│  │   OpenHarness Plugins (可扩展)                                     │  │
+│  │   ┌─────────┐  ┌─────────┐  ┌─────────┐  ┌─────────┐              │  │
+│  │   │ Router  │  │Coordin- │  │Observer │  │ Memory  │              │  │
+│  │   │ Plugin  │  │ator     │  │ Plugin  │  │ Plugin  │              │  │
+│  │   │(内置)   │  │Plugin   │  │(内置)   │  │(内置)   │              │  │
+│  │   └─────────┘  └─────────┘  └─────────┘  └─────────┘              │  │
+│  │                                                                     │  │
+│  │   MCP Integration (外部系统集成)                                    │  │
+│  │   ┌─────────┐  ┌─────────┐  ┌─────────┐                           │  │
+│  │   │   MCP   │  │   MCP   │  │   MCP   │    ...                    │  │
+│  │   │ Server1 │  │ Server2 │  │ ServerN  │                           │  │
+│  │   └─────────┘  └─────────┘  └─────────┘                           │  │
+│  └─────────────────────────────────────────────────────────────────────┘  │
+│                              ↓                                           │
+│  ┌─────────────────────────────────────────────────────────────────────┐  │
+│  │  Layer 2: 领域特定 Agent（工作空间实例化）                          │  │
+│  ├─────────────────────────────────────────────────────────────────────┤  │
+│  │                                                                     │  │
+│  │  ┌─────────────┐  ┌─────────────┐  ┌─────────────┐                │  │
+│  │  │    战争分析  │  │    金融分析  │  │    医疗诊断  │  ...          │  │
+│  │  │   Workspace │  │   Workspace │  │   Workspace │                │  │
+│  │  ├─────────────┤  ├─────────────┤  ├─────────────┤                │  │
+│  │  │ Intelligence│  │ Analyzer   │  │ Diagnostian │                │  │
+│  │  │ Commander   │  │ Advisor    │  │ Specialist  │                │  │
+│  │  │ Operations  │  │ Executor   │  │ Nurse       │                │  │
+│  │  └─────────────┘  └─────────────┘  └─────────────┘                │  │
+│  │                                                                     │  │
+│  └─────────────────────────────────────────────────────────────────────┘  │
+│                                                                           │
+│  ┌─────────────────────────────────────────────────────────────────────┐  │
+│  │  Layer 3: 外部业务 Agent 集成（第三方系统）                          │  │
+│  ├─────────────────────────────────────────────────────────────────────┤  │
+│  │  ┌───────────┐  ┌───────────┐  ┌───────────┐                      │  │
+│  │  │ External  │  │ External  │  │ External  │                      │  │
+│  │  │ Agent API │  │ Agent SDK │  │ MCP Bridge│                      │  │
+│  │  └───────────┘  └───────────┘  └───────────┘                      │  │
+│  │  • REST/WebSocket 接口  • Python/JS SDK  • MCP 协议兼容             │  │
+│  └─────────────────────────────────────────────────────────────────────┘  │
+│                                                                           │
+└───────────────────────────────────────────────────────────────────────────┘
 ```
 
-**Layer 1: 平台通用 Agent**
+**Layer 1: OpenHarness 原生 Agent（平台通用）**
 
-| Agent | 职责 | 作用域 |
-|-------|------|--------|
-| **Router Agent** | 意图识别、会话路由 | 全局 |
-| **Coordinator Agent** | 多 Agent 协调、冲突仲裁 | 全局 |
-| **Observer Agent** | 系统状态监控、异常检测 | 全局 |
-| **Memory Agent** | 跨工作空间记忆管理 | 全局 |
+| 组件 | 类型 | 说明 | 可升级性 |
+|------|------|------|----------|
+| **Engine** | 核心 | Agent Loop + Tool 调度 | ✅ 原生支持 |
+| **Swarm** | 核心 | 多 Agent 协同编排 | ✅ 原生支持 |
+| **Memory Manager** | 内置 Plugin | 记忆管理（桥接 Graphiti） | ✅ 热插拔 |
+| **Permission** | 内置 Plugin | 权限检查（桥接 OPA） | ✅ 热插拔 |
+| **Router Plugin** | 扩展 Plugin | 意图识别 + 会话路由 | ✅ 可扩展 |
+| **Coordinator Plugin** | 扩展 Plugin | 多 Agent 协调 | ✅ 可扩展 |
+| **MCP Integration** | 扩展 | 外部系统集成 | ✅ 标准协议 |
 
-**Layer 2: 领域特定 Agent（以战争分析为例）**
-
-| Agent | OODA 阶段 | 职责 |
-|-------|-----------|------|
-| **Intelligence Agent** | Observe + Orient | 情报采集、威胁识别、态势评估 |
-| **Commander Agent** | Decide | 方案评估、决策生成、风险分析 |
-| **Operations Agent** | Act | 命令执行、效果评估、反馈收集 |
-
-**Agent 实例化机制**：
+**Layer 2: 领域特定 Agent（OpenHarness Skill 封装）**
 
 ```python
-# core/agent_factory.py
-class AgentFactory:
-    """Agent 工厂 - 根据工作空间类型实例化"""
+# 领域 Agent 通过 Skill 封装，集成到 OpenHarness
+class BattlefieldIntelligenceAgent:
+    """战争分析 - Intelligence Agent"""
     
-    def create_workspace_agents(self, workspace_type: str) -> List[Agent]:
-        """创建工作空间级 Agent"""
-        
-        if workspace_type == "battlefield":
-            return [
-                IntelligenceAgent(name="battlefield_intel"),
-                CommanderAgent(name="battlefield_commander"),
-                OperationsAgent(name="battlefield_ops"),
-            ]
-        elif workspace_type == "finance":
-            return [
-                AnalyzerAgent(name="finance_analyzer"),
-                AdvisorAgent(name="finance_advisor"),
-                ExecutorAgent(name="finance_executor"),
-            ]
-        elif workspace_type == "medical":
-            return [
-                DiagnosticianAgent(name="medical_diagon"),
-                SpecialistAgent(name="medical_specialist"),
-                NurseAgent(name="medical_nurse"),
-            ]
-        else:
-            # 自定义工作空间：使用通用模板
-            return self._create_generic_agents(workspace_type)
-    
-    def _create_generic_agents(self, workspace_type: str) -> List[Agent]:
-        """通用 Agent 模板"""
-        return [
-            GenericObserverAgent(name=f"{workspace_type}_observer"),
-            GenericAnalyzerAgent(name=f"{workspace_type}_analyzer"),
-            GenericExecutorAgent(name=f"{workspace_type}_executor"),
+    def __init__(self, openharness_client):
+        self.client = openharness_client
+        # 挂载领域 Skill
+        self.skills = [
+            "intelligence/situation_analysis",
+            "intelligence/threat_detection",
+            "ontology/query",
         ]
+    
+    async def observe(self, context: Context) -> Observation:
+        """Observe: 情报采集"""
+        result = await self.client.execute(
+            skills=self.skills,
+            input={"query": context.query, "workspace": context.workspace}
+        )
+        return Observation(data=result)
+    
+    async def orient(self, observation: Observation) -> Understanding:
+        """Orient: 态势理解"""
+        # 调用 Graphiti 进行时序推理
+        graphiti_result = await self._query_graphiti(observation)
+        return Understanding(situation=graphiti_result)
+```
+
+**Layer 3: 外部业务 Agent 集成**
+
+```python
+# core/external_agent_bridge.py
+class ExternalAgentBridge:
+    """外部 Agent 集成桥接器"""
+    
+    def __init__(self, openharness_client):
+        self.client = openharness_client
+        self.registries = {}  # agent_type -> registry
+    
+    async def register_agent(self, agent_config: ExternalAgentConfig):
+        """注册外部 Agent"""
+        if agent_config.protocol == "mcp":
+            await self._register_mcp_agent(agent_config)
+        elif agent_config.protocol == "rest":
+            await self._register_rest_agent(agent_config)
+        elif agent_config.protocol == "websocket":
+            await self._register_ws_agent(agent_config)
+        else:
+            raise UnsupportedProtocolError(agent_config.protocol)
+    
+    async def invoke_agent(self, agent_id: str, input_data: dict) -> dict:
+        """调用外部 Agent"""
+        registry = self.registries.get(agent_id)
+        if not registry:
+            raise AgentNotFoundError(agent_id)
+        return await registry.invoke(input_data)
+```
+
+**OpenHarness 升级兼容性设计**：
+
+```python
+# core/openharness_compatibility.py
+class OpenHarnessCompatibilityLayer:
+    """
+    OpenHarness 兼容性抽象层
+    目标：解耦业务逻辑与框架细节，支持框架平滑升级
+    """
+    
+    # 抽象接口（业务层使用）
+    ABSTRACT_METHODS = [
+        "create_agent",
+        "invoke_agent",
+        "register_tool",
+        "attach_memory",
+        "check_permission",
+    ]
+    
+    # 版本兼容性映射
+    VERSION_COMPATIBILITY = {
+        "1.x": {"breaking": ["ToolRegistry"], "additions": ["MCP"]},
+        "2.x": {"breaking": [], "additions": ["Swarm", "Hook"]},
+        # 未来版本兼容...
+    }
+    
+    def check_upgrade_compatibility(self, target_version: str) -> UpgradeReport:
+        """检查升级兼容性"""
+        breaking_changes = self._get_breaking_changes(target_version)
+        return UpgradeReport(
+            compatible=len(breaking_changes) == 0,
+            breaking_changes=breaking_changes,
+            migration_guide=self._generate_guide(breaking_changes)
+        )
 ```
 
 **后果**:
+- ✅ **框架原生**：深度集成 OpenHarness，复用成熟能力
+- ✅ **可升级**：兼容性抽象层支持框架平滑升级
+- ✅ **可扩展**：Plugin 机制支持新增通用 Agent
+- ✅ **第三方集成**：Layer 3 支持外部业务 Agent 接入
 - ✅ **平台无关**：通用 Agent 不绑定领域逻辑
-- ✅ **场景扩展**：新增工作空间类型只需实现领域 Agent
-- ✅ **资源隔离**：工作空间级 Agent 仅在其命名空间内运行
-- ✅ **职责清晰**：通用 Agent 处理平台事务，领域 Agent 处理业务逻辑
 - ❌ 架构复杂度增加
-- ❌ 需要管理两层 Agent 的生命周期
+- ❌ 需要管理三层 Agent 的生命周期
 
-**可逆性**: 高。OpenHarness Swarm 支持动态调整 Agent 角色。
+**可逆性**: 高。业务 Agent 通过 Skill 封装，解耦框架依赖。
 
 ---
 
