@@ -3292,24 +3292,113 @@ class SkillRegistry:
 
 ---
 
-### ADR-005: 三 Agent 角色分工
+### ADR-005: 分层 Agent 架构（通用 + 领域）
 
 **状态**: 已接受
 
-**上下文**: 需要明确 Intelligence/Commander/Operations 职责边界
+**上下文**: 系统定位为通用本体驱动平台，Agent 需要区分**平台级通用 Agent** 和**领域特定 Agent**。
 
-**决策**:
+**决策**: 采用分层 Agent 架构
 
-- Intelligence: 感知 + 理解（Observe + Orient）
-- Commander: 决策（Decide）
-- Operations: 执行（Act）
+```
+┌─────────────────────────────────────────────────────────────────────┐
+│                        Agent 分层架构                                 │
+├─────────────────────────────────────────────────────────────────────┤
+│                                                                     │
+│  ┌─────────────────────────────────────────────────────────────┐    │
+│  │  Layer 1: 平台通用 Agent（所有工作空间共享）                 │    │
+│  ├─────────────────────────────────────────────────────────────┤    │
+│  │  ┌───────────┐  ┌───────────┐  ┌───────────┐              │    │
+│  │  │   Router  │  │Coordinatr │  │  Observer │              │    │
+│  │  │  Agent    │  │  Agent    │  │  Agent    │              │    │
+│  │  └───────────┘  └───────────┘  └───────────┘              │    │
+│  │  • 意图识别     • 多 Agent 协调   • 系统状态监控            │    │
+│  │  • 会话路由     • 冲突仲裁        • 异常检测                │    │
+│  └─────────────────────────────────────────────────────────────┘    │
+│                              ↓                                       │
+│  ┌─────────────────────────────────────────────────────────────┐    │
+│  │  Layer 2: 工作空间级 Agent（按场景实例化）                  │    │
+│  ├─────────────────────────────────────────────────────────────┤    │
+│  │                                                             │    │
+│  │  ┌─────────────┐  ┌─────────────┐  ┌─────────────┐        │    │
+│  │  │    战争分析  │  │    金融分析  │  │    医疗诊断  │  ...  │    │
+│  │  │   Workspace  │  │   Workspace  │  │   Workspace  │        │    │
+│  │  ├─────────────┤  ├─────────────┤  ├─────────────┤        │    │
+│  │  │ Intelligence│  │ Analyzer    │  │ Diagnostian │        │    │
+│  │  │ Commander   │  │ Advisor     │  │ Specialist  │        │    │
+│  │  │ Operations  │  │ Executor    │  │ Nurse       │        │    │
+│  │  └─────────────┘  └─────────────┘  └─────────────┘        │    │
+│  │                                                             │    │
+│  └─────────────────────────────────────────────────────────────┘    │
+│                                                                     │
+└─────────────────────────────────────────────────────────────────────┘
+```
+
+**Layer 1: 平台通用 Agent**
+
+| Agent | 职责 | 作用域 |
+|-------|------|--------|
+| **Router Agent** | 意图识别、会话路由 | 全局 |
+| **Coordinator Agent** | 多 Agent 协调、冲突仲裁 | 全局 |
+| **Observer Agent** | 系统状态监控、异常检测 | 全局 |
+| **Memory Agent** | 跨工作空间记忆管理 | 全局 |
+
+**Layer 2: 领域特定 Agent（以战争分析为例）**
+
+| Agent | OODA 阶段 | 职责 |
+|-------|-----------|------|
+| **Intelligence Agent** | Observe + Orient | 情报采集、威胁识别、态势评估 |
+| **Commander Agent** | Decide | 方案评估、决策生成、风险分析 |
+| **Operations Agent** | Act | 命令执行、效果评估、反馈收集 |
+
+**Agent 实例化机制**：
+
+```python
+# core/agent_factory.py
+class AgentFactory:
+    """Agent 工厂 - 根据工作空间类型实例化"""
+    
+    def create_workspace_agents(self, workspace_type: str) -> List[Agent]:
+        """创建工作空间级 Agent"""
+        
+        if workspace_type == "battlefield":
+            return [
+                IntelligenceAgent(name="battlefield_intel"),
+                CommanderAgent(name="battlefield_commander"),
+                OperationsAgent(name="battlefield_ops"),
+            ]
+        elif workspace_type == "finance":
+            return [
+                AnalyzerAgent(name="finance_analyzer"),
+                AdvisorAgent(name="finance_advisor"),
+                ExecutorAgent(name="finance_executor"),
+            ]
+        elif workspace_type == "medical":
+            return [
+                DiagnosticianAgent(name="medical_diagon"),
+                SpecialistAgent(name="medical_specialist"),
+                NurseAgent(name="medical_nurse"),
+            ]
+        else:
+            # 自定义工作空间：使用通用模板
+            return self._create_generic_agents(workspace_type)
+    
+    def _create_generic_agents(self, workspace_type: str) -> List[Agent]:
+        """通用 Agent 模板"""
+        return [
+            GenericObserverAgent(name=f"{workspace_type}_observer"),
+            GenericAnalyzerAgent(name=f"{workspace_type}_analyzer"),
+            GenericExecutorAgent(name=f"{workspace_type}_executor"),
+        ]
+```
 
 **后果**:
-- ✅ 单一职责：每个 Agent 专注一个阶段
-- ✅ 易于扩展：新增 Agent 类型不影响现有逻辑
-- ✅ 审计友好：每步操作可追溯到具体 Agent
-- ❌ Agent 间通信开销
-- ❌ 状态同步挑战
+- ✅ **平台无关**：通用 Agent 不绑定领域逻辑
+- ✅ **场景扩展**：新增工作空间类型只需实现领域 Agent
+- ✅ **资源隔离**：工作空间级 Agent 仅在其命名空间内运行
+- ✅ **职责清晰**：通用 Agent 处理平台事务，领域 Agent 处理业务逻辑
+- ❌ 架构复杂度增加
+- ❌ 需要管理两层 Agent 的生命周期
 
 **可逆性**: 高。OpenHarness Swarm 支持动态调整 Agent 角色。
 
