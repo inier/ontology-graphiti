@@ -64,25 +64,34 @@ def generate_simulation_data():
                 }
             }
             data["locations"].append(location)
-    
-    # 生成军事单位
+
+    # 从配置中获取交战方
     factions = BATTLEFIELD_CONFIG["factions"]
-    unit_types = ["步兵", "装甲", "炮兵", "防空", "侦察"]
+
+    # 生成军事单位
+    unit_types = ["步兵", "装甲", "航空", "特种部队"]
     for faction in factions:
-        for i in range(1, 4):
+        for i in range(1, 3):
+            # 随机选择一个位置作为单位所在区域
+            location = random.choice(data["locations"]) if data["locations"] else None
+            location_id = location["id"] if location else None
+            # 从位置ID中提取区域（如 "LOC_A_1" -> "A"）
+            area = location_id.split("_")[1] if location_id and len(location_id.split("_")) > 1 else None
+
             unit = {
                 "id": f"UNIT_{faction['name'][:2]}_{i}",
                 "type": "MilitaryUnit",
                 "properties": {
                     "name": f"{faction['name']} {unit_types[i-1]}部队{i}",
                     "type": unit_types[i-1],
-                    "strength": random.randint(100, 1000),
+                    "strength": random.randint(50, 200),
                     "equipment": random.sample(["步枪", "坦克", "火炮", "导弹", "雷达"], random.randint(1, 3)),
                     "status": random.choice(["待命", "行动中", "受损"]),
-                    "affiliation": faction['name']
+                    "affiliation": faction['name'],
+                    "area": area
                 },
                 "relationships": {
-                    "located_at": random.choice(data["locations"])["id"] if data["locations"] else None,
+                    "located_at": location_id,
                     "attached_to": None,
                     "engaged_with": []
                 }
@@ -93,6 +102,12 @@ def generate_simulation_data():
     weapon_types = ["雷达", "导弹", "火炮", "防空系统", "无人机"]
     for faction in factions:
         for i in range(1, 3):
+            # 随机选择一个位置作为武器所在区域
+            location = random.choice(data["locations"]) if data["locations"] else None
+            location_id = location["id"] if location else None
+            # 从位置ID中提取区域（如 "LOC_A_1" -> "A"）
+            area = location_id.split("_")[1] if location_id and len(location_id.split("_")) > 1 else None
+
             weapon = {
                 "id": f"WEAPON_{faction['name'][:2]}_{i}",
                 "type": "WeaponSystem",
@@ -101,10 +116,11 @@ def generate_simulation_data():
                     "type": weapon_types[i-1],
                     "range": random.uniform(5, 100),
                     "status": random.choice(["正常", "受损", "维修中"]),
-                    "affiliation": faction['name']
+                    "affiliation": faction['name'],
+                    "area": area
                 },
                 "relationships": {
-                    "located_at": random.choice(data["locations"])["id"] if data["locations"] else None,
+                    "located_at": location_id,
                     "operated_by": random.choice(data["military_units"])["id"] if data["military_units"] else None
                 }
             }

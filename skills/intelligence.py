@@ -45,8 +45,8 @@ def analyze_battlefield():
     
     # 分析结果
     analysis = {
-        "total_entities": stats["node_count"],
-        "entity_types": stats["type_count"],
+        "total_entities": stats.get("total_entities", 0),
+        "entity_types": stats.get("entity_types", {}),
         "battlefield_status": "活跃",
         "recommendations": [
             "加强对B区的侦察",

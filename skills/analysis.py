@@ -214,8 +214,8 @@ def get_battlefield_summary():
 
     return {
         "status": "success",
-        "total_entities": stats.get("node_count", 0),
-        "entity_types": stats.get("type_count", {}),
+        "total_entities": stats.get("total_entities", 0),
+        "entity_types": stats.get("entity_types", {}),
         "graph_mode": stats.get("mode", "unknown"),
         "recommendations": [
             "持续监控敌方雷达活动",

@@ -11,7 +11,6 @@ sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 from skills import register_skill
 from core.graph_manager import BattlefieldGraphManager
-from visualization.visualization import BattlefieldVisualization
 from data.simulation_data import load_simulation_data
 
 manager = BattlefieldGraphManager()
@@ -150,7 +149,7 @@ def generate_battlefield_report():
         "timestamp": datetime.now().isoformat(),
         "report_title": "战场态势综合报告",
         "summary": {
-            "total_entities": stats.get("node_count", 0),
+            "total_entities": stats.get("total_entities", 0),
             "force_comparison": {
                 "blue_force": {"units": blue_units, "weapons": blue_weapons},
                 "red_force": {"units": red_units, "weapons": red_weapons}

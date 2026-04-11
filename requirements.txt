@@ -16,6 +16,8 @@ openharness
 
 # 网络框架（用于可视化界面）
 flask
+fastapi
+uvicorn
 
 # 数据处理
 pandas
@@ -26,3 +28,6 @@ python-dateutil
 
 # 序列化
 jsonpickle
+
+# 配置管理
+python-dotenv

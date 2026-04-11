@@ -76,15 +76,14 @@ class SelfCorrectingOrchestrator:
         # 转换为小写进行关键词匹配
         query_lower = query.lower()
         
-        # 搜索雷达
-        if "雷达" in query_lower and ("搜索" in query_lower or "看看" in query_lower):
-            # 提取区域
-            area_match = re.search(r'[A-E]区', query)
-            area = area_match.group(0)[0] if area_match else None
+        # 搜索雷达 - 关键词更灵活
+        if "雷达" in query_lower:
+            area_match = re.search(r'([A-E])\s*区', query)
+            area = area_match.group(1) if area_match else None
             return "search_radar", {"area": area}
-        
+
         # 分析战场态势
-        elif "分析" in query_lower and "战场" in query_lower:
+        elif "战场" in query_lower and "分析" in query_lower:
             return "analyze_battlefield", {}
         
         # 攻击目标

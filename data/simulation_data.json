@@ -6,11 +6,11 @@
       "properties": {
         "name": "A区地点1",
         "coordinates": [
-          6.2692088371017025,
-          46.36783709937661
+          37.92000015849584,
+          2.7796565991692335
         ],
         "area": "A",
-        "terrain": "森林"
+        "terrain": "平原"
       },
       "relationships": {
         "contains": [],
@@ -23,11 +23,11 @@
       "properties": {
         "name": "A区地点2",
         "coordinates": [
-          73.13253439617598,
-          51.25336573818501
+          56.80754876471694,
+          11.40757735816582
         ],
         "area": "A",
-        "terrain": "山地"
+        "terrain": "森林"
       },
       "relationships": {
         "contains": [],
@@ -40,11 +40,11 @@
       "properties": {
         "name": "A区地点3",
         "coordinates": [
-          96.7249765755314,
-          82.1655614906433
+          97.18944229827177,
+          84.12196416757601
         ],
         "area": "A",
-        "terrain": "城市"
+        "terrain": "平原"
       },
       "relationships": {
         "contains": [],
@@ -57,11 +57,11 @@
       "properties": {
         "name": "B区地点1",
         "coordinates": [
-          4.1904272771197455,
-          56.610551295148134
+          97.97606792078933,
+          63.37193430366972
         ],
         "area": "B",
-        "terrain": "山地"
+        "terrain": "城市"
       },
       "relationships": {
         "contains": [],
@@ -74,8 +74,8 @@
       "properties": {
         "name": "B区地点2",
         "coordinates": [
-          60.29286980325512,
-          9.90876622289123
+          2.746737086715445,
+          67.88381887268626
         ],
         "area": "B",
         "terrain": "山地"
@@ -91,8 +91,8 @@
       "properties": {
         "name": "B区地点3",
         "coordinates": [
-          29.62174203023611,
-          16.09088119916351
+          27.007149776225482,
+          45.322643973570706
         ],
         "area": "B",
         "terrain": "山地"
@@ -108,11 +108,11 @@
       "properties": {
         "name": "C区地点1",
         "coordinates": [
-          60.87322721288876,
-          29.6813704271898
+          71.75516870507114,
+          1.17053602305357
         ],
         "area": "C",
-        "terrain": "平原"
+        "terrain": "城市"
       },
       "relationships": {
         "contains": [],
@@ -125,11 +125,11 @@
       "properties": {
         "name": "C区地点2",
         "coordinates": [
-          22.44047356153346,
-          64.00337735765908
+          80.47769028786304,
+          21.568420012806566
         ],
         "area": "C",
-        "terrain": "城市"
+        "terrain": "山地"
       },
       "relationships": {
         "contains": [],
@@ -142,11 +142,11 @@
       "properties": {
         "name": "C区地点3",
         "coordinates": [
-          48.44338457062752,
-          96.75777746080799
+          69.41408076681375,
+          86.00807901376493
         ],
         "area": "C",
-        "terrain": "平原"
+        "terrain": "城市"
       },
       "relationships": {
         "contains": [],
@@ -159,11 +159,11 @@
       "properties": {
         "name": "D区地点1",
         "coordinates": [
-          84.16491164788825,
-          6.92109899999841
+          91.82381966835605,
+          28.029552907633825
         ],
         "area": "D",
-        "terrain": "城市"
+        "terrain": "山地"
       },
       "relationships": {
         "contains": [],
@@ -176,11 +176,11 @@
       "properties": {
         "name": "D区地点2",
         "coordinates": [
-          31.613397162156343,
-          75.8261760399183
+          72.62331076537836,
+          61.31232583772562
         ],
         "area": "D",
-        "terrain": "森林"
+        "terrain": "山地"
       },
       "relationships": {
         "contains": [],
@@ -193,8 +193,8 @@
       "properties": {
         "name": "D区地点3",
         "coordinates": [
-          28.41365940185703,
-          88.7676212990021
+          28.514728554827073,
+          70.11601613858294
         ],
         "area": "D",
         "terrain": "山地"
@@ -210,11 +210,11 @@
       "properties": {
         "name": "E区地点1",
         "coordinates": [
-          24.497712609255938,
-          65.39685148188903
+          17.449614753325516,
+          7.63437196543676
         ],
         "area": "E",
-        "terrain": "山地"
+        "terrain": "城市"
       },
       "relationships": {
         "contains": [],
@@ -227,11 +227,11 @@
       "properties": {
         "name": "E区地点2",
         "coordinates": [
-          83.5766462982113,
-          70.05066549101095
+          45.247423772393645,
+          16.874759009773054
         ],
         "area": "E",
-        "terrain": "平原"
+        "terrain": "森林"
       },
       "relationships": {
         "contains": [],
@@ -244,11 +244,11 @@
       "properties": {
         "name": "E区地点3",
         "coordinates": [
-          57.682552610288305,
-          32.84657010538743
+          49.69769623294523,
+          7.695264335292085
         ],
         "area": "E",
-        "terrain": "城市"
+        "terrain": "森林"
       },
       "relationships": {
         "contains": [],
@@ -263,15 +263,16 @@
       "properties": {
         "name": "Blue Force 步兵部队1",
         "type": "步兵",
-        "strength": 876,
+        "strength": 81,
         "equipment": [
-          "坦克"
+          "步枪"
         ],
-        "status": "行动中",
-        "affiliation": "Blue Force"
+        "status": "待命",
+        "affiliation": "Blue Force",
+        "area": "E"
       },
       "relationships": {
-        "located_at": "LOC_A_2",
+        "located_at": "LOC_E_3",
         "attached_to": null,
         "engaged_with": []
       }
@@ -282,38 +283,17 @@
       "properties": {
         "name": "Blue Force 装甲部队2",
         "type": "装甲",
-        "strength": 768,
+        "strength": 145,
         "equipment": [
           "步枪",
-          "雷达",
-          "火炮"
-        ],
-        "status": "待命",
-        "affiliation": "Blue Force"
-      },
-      "relationships": {
-        "located_at": "LOC_A_1",
-        "attached_to": null,
-        "engaged_with": []
-      }
-    },
-    {
-      "id": "UNIT_Bl_3",
-      "type": "MilitaryUnit",
-      "properties": {
-        "name": "Blue Force 炮兵部队3",
-        "type": "炮兵",
-        "strength": 447,
-        "equipment": [
-          "导弹",
-          "火炮",
-          "坦克"
+          "雷达"
         ],
         "status": "行动中",
-        "affiliation": "Blue Force"
+        "affiliation": "Blue Force",
+        "area": "D"
       },
       "relationships": {
-        "located_at": "LOC_A_3",
+        "located_at": "LOC_D_1",
         "attached_to": null,
         "engaged_with": []
       }
@@ -324,15 +304,17 @@
       "properties": {
         "name": "Red Force 步兵部队1",
         "type": "步兵",
-        "strength": 299,
+        "strength": 199,
         "equipment": [
-          "步枪"
+          "导弹",
+          "雷达"
         ],
-        "status": "受损",
-        "affiliation": "Red Force"
+        "status": "行动中",
+        "affiliation": "Red Force",
+        "area": "B"
       },
       "relationships": {
-        "located_at": "LOC_A_1",
+        "located_at": "LOC_B_3",
         "attached_to": null,
         "engaged_with": []
       }
@@ -343,36 +325,18 @@
       "properties": {
         "name": "Red Force 装甲部队2",
         "type": "装甲",
-        "strength": 528,
+        "strength": 132,
         "equipment": [
-          "火炮"
-        ],
-        "status": "待命",
-        "affiliation": "Red Force"
-      },
-      "relationships": {
-        "located_at": "LOC_E_2",
-        "attached_to": null,
-        "engaged_with": []
-      }
-    },
-    {
-      "id": "UNIT_Re_3",
-      "type": "MilitaryUnit",
-      "properties": {
-        "name": "Red Force 炮兵部队3",
-        "type": "炮兵",
-        "strength": 220,
-        "equipment": [
-          "雷达",
           "坦克",
-          "导弹"
+          "雷达",
+          "步枪"
         ],
         "status": "行动中",
-        "affiliation": "Red Force"
+        "affiliation": "Red Force",
+        "area": "D"
       },
       "relationships": {
-        "located_at": "LOC_E_1",
+        "located_at": "LOC_D_2",
         "attached_to": null,
         "engaged_with": []
       }
@@ -383,16 +347,17 @@
       "properties": {
         "name": "Green Insurgents 步兵部队1",
         "type": "步兵",
-        "strength": 948,
+        "strength": 105,
         "equipment": [
-          "火炮",
-          "导弹"
+          "导弹",
+          "坦克"
         ],
         "status": "待命",
-        "affiliation": "Green Insurgents"
+        "affiliation": "Green Insurgents",
+        "area": "C"
       },
       "relationships": {
-        "located_at": "LOC_C_1",
+        "located_at": "LOC_C_2",
         "attached_to": null,
         "engaged_with": []
       }
@@ -403,36 +368,17 @@
       "properties": {
         "name": "Green Insurgents 装甲部队2",
         "type": "装甲",
-        "strength": 395,
+        "strength": 64,
         "equipment": [
+          "火炮",
           "步枪"
         ],
-        "status": "待命",
-        "affiliation": "Green Insurgents"
+        "status": "受损",
+        "affiliation": "Green Insurgents",
+        "area": "E"
       },
       "relationships": {
-        "located_at": "LOC_B_1",
-        "attached_to": null,
-        "engaged_with": []
-      }
-    },
-    {
-      "id": "UNIT_Gr_3",
-      "type": "MilitaryUnit",
-      "properties": {
-        "name": "Green Insurgents 炮兵部队3",
-        "type": "炮兵",
-        "strength": 694,
-        "equipment": [
-          "雷达",
-          "坦克",
-          "导弹"
-        ],
-        "status": "待命",
-        "affiliation": "Green Insurgents"
-      },
-      "relationships": {
-        "located_at": "LOC_B_1",
+        "located_at": "LOC_E_3",
         "attached_to": null,
         "engaged_with": []
       }
@@ -443,15 +389,17 @@
       "properties": {
         "name": "Yellow Neutral 步兵部队1",
         "type": "步兵",
-        "strength": 961,
+        "strength": 164,
         "equipment": [
-          "步枪"
+          "坦克",
+          "雷达"
         ],
-        "status": "行动中",
-        "affiliation": "Yellow Neutral"
+        "status": "受损",
+        "affiliation": "Yellow Neutral",
+        "area": "D"
       },
       "relationships": {
-        "located_at": "LOC_B_2",
+        "located_at": "LOC_D_2",
         "attached_to": null,
         "engaged_with": []
       }
@@ -462,34 +410,13 @@
       "properties": {
         "name": "Yellow Neutral 装甲部队2",
         "type": "装甲",
-        "strength": 842,
+        "strength": 76,
         "equipment": [
-          "步枪",
           "导弹"
         ],
         "status": "行动中",
-        "affiliation": "Yellow Neutral"
-      },
-      "relationships": {
-        "located_at": "LOC_D_1",
-        "attached_to": null,
-        "engaged_with": []
-      }
-    },
-    {
-      "id": "UNIT_Ye_3",
-      "type": "MilitaryUnit",
-      "properties": {
-        "name": "Yellow Neutral 炮兵部队3",
-        "type": "炮兵",
-        "strength": 798,
-        "equipment": [
-          "步枪",
-          "导弹",
-          "雷达"
-        ],
-        "status": "受损",
-        "affiliation": "Yellow Neutral"
+        "affiliation": "Yellow Neutral",
+        "area": "B"
       },
       "relationships": {
         "located_at": "LOC_B_2",
@@ -505,13 +432,14 @@
       "properties": {
         "name": "Blue Force 雷达1",
         "type": "雷达",
-        "range": 92.29593627656412,
-        "status": "正常",
-        "affiliation": "Blue Force"
+        "range": 9.4683740863206,
+        "status": "受损",
+        "affiliation": "Blue Force",
+        "area": "E"
       },
       "relationships": {
-        "located_at": "LOC_A_3",
-        "operated_by": "UNIT_Gr_1"
+        "located_at": "LOC_E_2",
+        "operated_by": "UNIT_Ye_2"
       }
     },
     {
@@ -520,13 +448,14 @@
       "properties": {
         "name": "Blue Force 导弹2",
         "type": "导弹",
-        "range": 72.87788646974316,
-        "status": "受损",
-        "affiliation": "Blue Force"
+        "range": 84.31326974102153,
+        "status": "维修中",
+        "affiliation": "Blue Force",
+        "area": "A"
       },
       "relationships": {
-        "located_at": "LOC_D_2",
-        "operated_by": "UNIT_Bl_1"
+        "located_at": "LOC_A_2",
+        "operated_by": "UNIT_Ye_2"
       }
     },
     {
@@ -535,13 +464,14 @@
       "properties": {
         "name": "Red Force 雷达1",
         "type": "雷达",
-        "range": 27.14072901857834,
+        "range": 95.45860181614778,
         "status": "正常",
-        "affiliation": "Red Force"
+        "affiliation": "Red Force",
+        "area": "A"
       },
       "relationships": {
-        "located_at": "LOC_B_1",
-        "operated_by": "UNIT_Ye_1"
+        "located_at": "LOC_A_1",
+        "operated_by": "UNIT_Re_1"
       }
     },
     {
@@ -550,13 +480,14 @@
       "properties": {
         "name": "Red Force 导弹2",
         "type": "导弹",
-        "range": 41.07650980670871,
-        "status": "维修中",
-        "affiliation": "Red Force"
+        "range": 20.48156852223168,
+        "status": "正常",
+        "affiliation": "Red Force",
+        "area": "B"
       },
       "relationships": {
-        "located_at": "LOC_B_3",
-        "operated_by": "UNIT_Gr_2"
+        "located_at": "LOC_B_2",
+        "operated_by": "UNIT_Re_1"
       }
     },
     {
@@ -565,13 +496,14 @@
       "properties": {
         "name": "Green Insurgents 雷达1",
         "type": "雷达",
-        "range": 8.98517483209422,
+        "range": 16.69676779541261,
         "status": "维修中",
-        "affiliation": "Green Insurgents"
+        "affiliation": "Green Insurgents",
+        "area": "D"
       },
       "relationships": {
-        "located_at": "LOC_A_2",
-        "operated_by": "UNIT_Gr_2"
+        "located_at": "LOC_D_2",
+        "operated_by": "UNIT_Re_2"
       }
     },
     {
@@ -580,13 +512,14 @@
       "properties": {
         "name": "Green Insurgents 导弹2",
         "type": "导弹",
-        "range": 9.99135118122577,
+        "range": 24.784470098052406,
         "status": "受损",
-        "affiliation": "Green Insurgents"
+        "affiliation": "Green Insurgents",
+        "area": "D"
       },
       "relationships": {
         "located_at": "LOC_D_1",
-        "operated_by": "UNIT_Gr_2"
+        "operated_by": "UNIT_Bl_1"
       }
     },
     {
@@ -595,13 +528,14 @@
       "properties": {
         "name": "Yellow Neutral 雷达1",
         "type": "雷达",
-        "range": 63.0744586034757,
-        "status": "维修中",
-        "affiliation": "Yellow Neutral"
+        "range": 18.652600041932338,
+        "status": "受损",
+        "affiliation": "Yellow Neutral",
+        "area": "B"
       },
       "relationships": {
-        "located_at": "LOC_E_2",
-        "operated_by": "UNIT_Bl_3"
+        "located_at": "LOC_B_1",
+        "operated_by": "UNIT_Gr_2"
       }
     },
     {
@@ -610,13 +544,14 @@
       "properties": {
         "name": "Yellow Neutral 导弹2",
         "type": "导弹",
-        "range": 91.11654314630547,
+        "range": 60.72893146404009,
         "status": "受损",
-        "affiliation": "Yellow Neutral"
+        "affiliation": "Yellow Neutral",
+        "area": "D"
       },
       "relationships": {
-        "located_at": "LOC_C_1",
-        "operated_by": "UNIT_Gr_3"
+        "located_at": "LOC_D_3",
+        "operated_by": "UNIT_Bl_2"
       }
     }
   ],
@@ -627,7 +562,7 @@
       "properties": {
         "name": "A区医院1",
         "type": "医院",
-        "status": "受损"
+        "status": "正常"
       },
       "relationships": {
         "located_at": "LOC_E_3"
@@ -639,10 +574,10 @@
       "properties": {
         "name": "A区学校2",
         "type": "学校",
-        "status": "受损"
+        "status": "关闭"
       },
       "relationships": {
-        "located_at": "LOC_A_2"
+        "located_at": "LOC_E_1"
       }
     },
     {
@@ -651,7 +586,7 @@
       "properties": {
         "name": "B区医院1",
         "type": "医院",
-        "status": "关闭"
+        "status": "正常"
       },
       "relationships": {
         "located_at": "LOC_A_2"
@@ -666,7 +601,7 @@
         "status": "受损"
       },
       "relationships": {
-        "located_at": "LOC_D_1"
+        "located_at": "LOC_E_1"
       }
     },
     {
@@ -675,10 +610,10 @@
       "properties": {
         "name": "C区医院1",
         "type": "医院",
-        "status": "正常"
+        "status": "受损"
       },
       "relationships": {
-        "located_at": "LOC_A_2"
+        "located_at": "LOC_C_3"
       }
     },
     {
@@ -690,7 +625,7 @@
         "status": "正常"
       },
       "relationships": {
-        "located_at": "LOC_C_3"
+        "located_at": "LOC_D_1"
       }
     },
     {
@@ -699,10 +634,10 @@
       "properties": {
         "name": "D区医院1",
         "type": "医院",
-        "status": "关闭"
+        "status": "受损"
       },
       "relationships": {
-        "located_at": "LOC_C_3"
+        "located_at": "LOC_B_2"
       }
     },
     {
@@ -711,10 +646,10 @@
       "properties": {
         "name": "D区学校2",
         "type": "学校",
-        "status": "关闭"
+        "status": "正常"
       },
       "relationships": {
-        "located_at": "LOC_E_2"
+        "located_at": "LOC_B_1"
       }
     },
     {
@@ -723,10 +658,10 @@
       "properties": {
         "name": "E区医院1",
         "type": "医院",
-        "status": "受损"
+        "status": "正常"
       },
       "relationships": {
-        "located_at": "LOC_E_1"
+        "located_at": "LOC_C_3"
       }
     },
     {
@@ -735,10 +670,10 @@
       "properties": {
         "name": "E区学校2",
         "type": "学校",
-        "status": "关闭"
+        "status": "受损"
       },
       "relationships": {
-        "located_at": "LOC_C_3"
+        "located_at": "LOC_D_3"
       }
     }
   ],
@@ -747,16 +682,16 @@
       "id": "EVENT_1",
       "type": "BattleEvent",
       "properties": {
-        "type": "攻击",
-        "timestamp": "2026-04-09T03:28:12.035493",
+        "type": "补给",
+        "timestamp": "2026-04-07T00:22:58.389002",
         "description": "战场事件1",
         "outcome": "平局"
       },
       "relationships": {
         "involves": [
-          "UNIT_Ye_3"
+          "UNIT_Ye_1"
         ],
-        "occurs_at": "LOC_E_1"
+        "occurs_at": "LOC_B_1"
       }
     },
     {
@@ -764,33 +699,32 @@
       "type": "BattleEvent",
       "properties": {
         "type": "防御",
-        "timestamp": "2026-04-08T02:46:59.035853",
+        "timestamp": "2026-04-05T08:57:26.389516",
         "description": "战场事件2",
-        "outcome": "失败"
+        "outcome": "成功"
       },
       "relationships": {
         "involves": [
-          "UNIT_Bl_1",
-          "UNIT_Gr_3"
+          "UNIT_Gr_2",
+          "UNIT_Gr_1"
         ],
-        "occurs_at": "LOC_B_2"
+        "occurs_at": "LOC_B_3"
       }
     },
     {
       "id": "EVENT_3",
       "type": "BattleEvent",
       "properties": {
-        "type": "防御",
-        "timestamp": "2026-04-08T11:37:11.035871",
+        "type": "侦察",
+        "timestamp": "2026-04-04T04:50:00.389788",
         "description": "战场事件3",
-        "outcome": "平局"
+        "outcome": "成功"
       },
       "relationships": {
         "involves": [
-          "UNIT_Re_2",
-          "UNIT_Re_3"
+          "UNIT_Re_2"
         ],
-        "occurs_at": "LOC_E_2"
+        "occurs_at": "LOC_E_1"
       }
     },
     {
@@ -798,32 +732,33 @@
       "type": "BattleEvent",
       "properties": {
         "type": "补给",
-        "timestamp": "2026-04-07T10:20:58.035903",
+        "timestamp": "2026-04-05T11:38:18.389849",
         "description": "战场事件4",
-        "outcome": "失败"
+        "outcome": "成功"
       },
       "relationships": {
         "involves": [
-          "UNIT_Re_3",
-          "UNIT_Re_3"
+          "UNIT_Bl_2",
+          "UNIT_Ye_1"
         ],
-        "occurs_at": "LOC_C_2"
+        "occurs_at": "LOC_E_1"
       }
     },
     {
       "id": "EVENT_5",
       "type": "BattleEvent",
       "properties": {
-        "type": "侦察",
-        "timestamp": "2026-04-04T14:19:47.035917",
+        "type": "攻击",
+        "timestamp": "2026-04-06T14:18:08.389904",
         "description": "战场事件5",
-        "outcome": "失败"
+        "outcome": "平局"
       },
       "relationships": {
         "involves": [
+          "UNIT_Bl_1",
           "UNIT_Ye_1"
         ],
-        "occurs_at": "LOC_C_1"
+        "occurs_at": "LOC_E_3"
       }
     },
     {
@@ -831,82 +766,83 @@
       "type": "BattleEvent",
       "properties": {
         "type": "防御",
-        "timestamp": "2026-04-04T22:52:54.035930",
+        "timestamp": "2026-04-08T14:55:38.389963",
         "description": "战场事件6",
-        "outcome": "成功"
+        "outcome": "平局"
       },
       "relationships": {
         "involves": [
-          "UNIT_Gr_1",
-          "UNIT_Bl_3"
+          "UNIT_Ye_1",
+          "UNIT_Bl_1"
         ],
-        "occurs_at": "LOC_A_1"
+        "occurs_at": "LOC_E_1"
       }
     },
     {
       "id": "EVENT_7",
       "type": "BattleEvent",
       "properties": {
-        "type": "攻击",
-        "timestamp": "2026-04-05T05:36:44.035942",
+        "type": "补给",
+        "timestamp": "2026-04-08T06:29:14.389998",
         "description": "战场事件7",
-        "outcome": "平局"
+        "outcome": "失败"
       },
       "relationships": {
         "involves": [
-          "UNIT_Re_1",
-          "UNIT_Ye_3"
+          "UNIT_Ye_2",
+          "UNIT_Re_2"
         ],
-        "occurs_at": "LOC_D_2"
+        "occurs_at": "LOC_D_3"
       }
     },
     {
       "id": "EVENT_8",
       "type": "BattleEvent",
       "properties": {
-        "type": "攻击",
-        "timestamp": "2026-04-05T21:29:55.035956",
+        "type": "侦察",
+        "timestamp": "2026-04-05T17:23:35.390028",
         "description": "战场事件8",
-        "outcome": "失败"
+        "outcome": "成功"
       },
       "relationships": {
         "involves": [
-          "UNIT_Bl_3",
-          "UNIT_Gr_1"
+          "UNIT_Gr_2",
+          "UNIT_Re_1"
         ],
-        "occurs_at": "LOC_A_2"
+        "occurs_at": "LOC_B_2"
       }
     },
     {
       "id": "EVENT_9",
       "type": "BattleEvent",
       "properties": {
-        "type": "撤退",
-        "timestamp": "2026-04-05T12:15:34.035970",
+        "type": "补给",
+        "timestamp": "2026-04-07T01:28:37.390056",
         "description": "战场事件9",
-        "outcome": "成功"
+        "outcome": "失败"
       },
       "relationships": {
         "involves": [
           "UNIT_Bl_2"
         ],
-        "occurs_at": "LOC_C_3"
+        "occurs_at": "LOC_B_2"
       }
     },
     {
       "id": "EVENT_10",
       "type": "BattleEvent",
       "properties": {
-        "type": "防御",
-        "timestamp": "2026-04-08T19:40:59.035982",
+        "type": "撤退",
+        "timestamp": "2026-04-08T10:03:14.390080",
         "description": "战场事件10",
         "outcome": "失败"
       },
       "relationships": {
         "involves": [
-          "UNIT_Ye_2"
+          "UNIT_Ye_1",
+          "UNIT_Re_2"
         ],
-        "occurs_at": "LOC_C_1"
+        "occurs_at": "LOC_B_3"
       }
     }
   ],
@@ -915,35 +851,34 @@
       "id": "MISSION_1",
       "type": "Mission",
       "properties": {
-        "type": "补给",
-        "status": "失败",
-        "priority": "低",
-        "deadline": "2026-04-11T23:54:20.035997"
+        "type": "救援",
+        "status": "计划中",
+        "priority": "高",
+        "deadline": "2026-04-16T22:14:09.390110"
       },
       "relationships": {
-        "assigned_to": "UNIT_Bl_2",
+        "assigned_to": "UNIT_Gr_2",
         "targets": [
-          "WEAPON_Re_2"
+          "WEAPON_Gr_1"
         ],
-        "located_at": "LOC_A_1"
+        "located_at": "LOC_D_1"
       }
     },
     {
       "id": "MISSION_2",
       "type": "Mission",
       "properties": {
-        "type": "攻击",
+        "type": "补给",
         "status": "完成",
-        "priority": "高",
-        "deadline": "2026-04-14T23:54:20.036009"
+        "priority": "中",
+        "deadline": "2026-04-15T22:14:09.390133"
       },
       "relationships": {
-        "assigned_to": "UNIT_Bl_3",
+        "assigned_to": "UNIT_Ye_2",
         "targets": [
-          "WEAPON_Bl_1",
-          "WEAPON_Gr_1"
+          "WEAPON_Ye_2"
         ],
-        "located_at": "LOC_B_3"
+        "located_at": "LOC_E_1"
       }
     },
     {
@@ -951,17 +886,17 @@
       "type": "Mission",
       "properties": {
         "type": "补给",
-        "status": "失败",
+        "status": "计划中",
         "priority": "低",
-        "deadline": "2026-04-10T23:54:20.036020"
+        "deadline": "2026-04-16T22:14:09.390159"
       },
       "relationships": {
-        "assigned_to": "UNIT_Bl_2",
+        "assigned_to": "UNIT_Gr_1",
         "targets": [
-          "WEAPON_Ye_2",
-          "WEAPON_Re_1"
+          "WEAPON_Gr_1",
+          "WEAPON_Bl_1"
         ],
-        "located_at": "LOC_E_1"
+        "located_at": "LOC_E_2"
       }
     },
     {
@@ -969,33 +904,34 @@
       "type": "Mission",
       "properties": {
         "type": "救援",
-        "status": "计划中",
+        "status": "失败",
         "priority": "高",
-        "deadline": "2026-04-12T23:54:20.036031"
+        "deadline": "2026-04-15T22:14:09.390181"
       },
       "relationships": {
-        "assigned_to": "UNIT_Bl_3",
+        "assigned_to": "UNIT_Re_1",
         "targets": [
-          "WEAPON_Gr_1"
+          "WEAPON_Ye_2",
+          "WEAPON_Ye_2"
         ],
-        "located_at": "LOC_C_3"
+        "located_at": "LOC_C_1"
       }
     },
     {
       "id": "MISSION_5",
       "type": "Mission",
       "properties": {
-        "type": "补给",
-        "status": "进行中",
-        "priority": "低",
-        "deadline": "2026-04-12T23:54:20.036042"
+        "type": "攻击",
+        "status": "完成",
+        "priority": "高",
+        "deadline": "2026-04-11T22:14:09.390204"
       },
       "relationships": {
-        "assigned_to": "UNIT_Gr_3",
+        "assigned_to": "UNIT_Re_1",
         "targets": [
-          "WEAPON_Re_1"
+          "WEAPON_Bl_2"
         ],
-        "located_at": "LOC_A_3"
+        "located_at": "LOC_A_2"
       }
     }
   ]

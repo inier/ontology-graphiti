@@ -1,82 +1,109 @@
 """
 基于graphiti的战场图谱管理模块
 使用Neo4j作为图数据库，支持时序知识图谱特性
+
+解决方案：在单个 asyncio.run() 中完成所有 graphiti 操作
 """
 
 import sys
 import os
+import asyncio
 from datetime import datetime
 from typing import Optional, List, Dict, Any
 
+# 尝试加载 .env 文件
+try:
+    from dotenv import load_dotenv
+    env_path = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), '.env')
+    if os.path.exists(env_path):
+        load_dotenv(env_path)
+except ImportError:
+    pass
+
+# 获取配置
+OPENAI_API_KEY = os.getenv('OPENAI_API_KEY', '')
+OPENAI_API_BASE = os.getenv('OPENAI_API_BASE', 'https://api.openai.com/v1')
+OPENAI_MODEL = os.getenv('OPENAI_MODEL', 'gpt-4')
+
+# 然后再添加项目路径并导入其他模块
 sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 from data.simulation_data import load_simulation_data
 
+# 尝试导入graphiti-core
 try:
     from graphiti_core import Graphiti
-    from graphiti_core.nodes import EntityNode
-    from graphiti_core.edges import RelationEdge
-    from graphiti_core.graphiti_types import NodeCreate
+    from graphiti_core.nodes import EntityNode, EpisodicNode
+    from graphiti_core.edges import Edge, EntityEdge
+    from graphiti_core.embedder.client import EmbedderClient
     GRAPHITI_AVAILABLE = True
-except ImportError:
+except ImportError as e:
     GRAPHITI_AVAILABLE = False
-    print("警告: graphiti-core未安装，将使用回退模式")
+    print(f"警告: graphiti-core 未安装 ({e})，将使用回退模式")
 
 
 class BattlefieldGraphManager:
     """
     战场图谱管理器
     基于graphiti的时序知识图谱，支持动态更新和混合检索
+    使用单例模式确保所有实例共享同一个图谱
     """
 
-    def __init__(self, neo4j_uri: str = "bolt://localhost:7687",
-                 neo4j_user: str = "neo4j",
-                 neo4j_password: str = "password"):
+    _instance = None
+    _initialized = False
+
+    def __new__(cls, *args, **kwargs):
+        if cls._instance is None:
+            cls._instance = super().__new__(cls)
+        return cls._instance
+
+    def __init__(self, neo4j_uri: str = None,
+                 neo4j_user: str = None,
+                 neo4j_password: str = None):
         """
         初始化战场图谱管理器
 
         Args:
-            neo4j_uri: Neo4j连接URI
-            neo4j_user: Neo4j用户名
-            neo4j_password: Neo4j密码
+            neo4j_uri: Neo4j连接URI (默认从环境变量读取)
+            neo4j_user: Neo4j用户名 (默认从环境变量读取)
+            neo4j_password: Neo4j密码 (默认从环境变量读取)
         """
+        if BattlefieldGraphManager._initialized:
+            return
+
         self.graph: Optional[Graphiti] = None
-        self.neo4j_uri = neo4j_uri
-        self.neo4j_user = neo4j_user
-        self.neo4j_password = neo4j_password
+        self.neo4j_uri = neo4j_uri or os.getenv('NEO4J_URI', 'bolt://localhost:7687')
+        self.neo4j_user = neo4j_user or os.getenv('NEO4J_USER', 'neo4j')
+        self.neo4j_password = neo4j_password or os.getenv('NEO4J_PASSWORD', 'neo4j123456')
         self.reserved_tasks = []
         self._connected = False
+        self._use_fallback = True
 
-        if GRAPHITI_AVAILABLE:
-            self._connect_neo4j()
-        else:
-            self._use_fallback_mode()
+        # 先使用回退模式加载数据
+        self._use_fallback_mode()
 
-        self.initialize_graph()
+        BattlefieldGraphManager._initialized = True
 
-    def _connect_neo4j(self):
-        """
-        连接到Neo4j数据库
-        """
-        try:
-            self.graph = Graphiti(
-                uri=self.neo4j_uri,
-                user=self.neo4j_user,
-                password=self.neo4j_password
-            )
-            self._connected = True
-            print(f"已连接到Neo4j: {self.neo4j_uri}")
-        except Exception as e:
-            print(f"连接Neo4j失败: {e}")
-            print("将使用回退模式（基于内存）")
-            self._use_fallback_mode()
+    def _create_llm_client(self):
+        """创建LLM客户端（使用智谱AI适配器）"""
+        from graphiti_core.llm_client.config import LLMConfig
+        from core.llm_clients import ZhipuAIClient
+
+        config = LLMConfig(
+            model=OPENAI_MODEL,
+            api_key=OPENAI_API_KEY,
+            base_url=OPENAI_API_BASE,
+            temperature=0.7
+        )
+        return ZhipuAIClient(config=config)
 
     def _use_fallback_mode(self):
         """
         使用回退模式（当Neo4j不可用时）
         """
         self._connected = False
-        print("使用回退模式（基于内存图谱）")
+        self._use_fallback = True
+        print("切换到回退模式（基于内存图谱）")
         import networkx as nx
         self.fallback_graph = nx.DiGraph()
         self._load_data_to_fallback()
@@ -104,103 +131,120 @@ class BattlefieldGraphManager:
                 entity_type=weapon["type"],
                 **weapon["properties"]
             )
-        for civ in data.get("civilian_infrastructures", []):
+        for infra in data.get("civilian_infrastructure", []):
             self.fallback_graph.add_node(
-                civ["id"],
-                entity_type=civ["type"],
-                **civ["properties"]
-            )
-        for event in data.get("battle_events", []):
-            self.fallback_graph.add_node(
-                event["id"],
-                entity_type=event["type"],
-                **event["properties"]
-            )
-        for mission in data.get("missions", []):
-            self.fallback_graph.add_node(
-                mission["id"],
-                entity_type=mission["type"],
-                **mission["properties"]
+                infra["id"],
+                entity_type=infra["type"],
+                **infra["properties"]
             )
 
-        self._establish_fallback_relationships(data)
-
-    def _establish_fallback_relationships(self, data):
+    def init_graphiti_async(self):
         """
-        在回退模式图谱中建立实体关系
+        异步初始化 graphiti（在后台线程中运行）
         """
-        for location in data.get("locations", []):
-            for contained in location["relationships"].get("contains", []):
-                if contained:
-                    self.fallback_graph.add_edge(location["id"], contained, relationship="contains")
-            for adjacent in location["relationships"].get("adjacent_to", []):
-                if adjacent:
-                    self.fallback_graph.add_edge(location["id"], adjacent, relationship="adjacent_to")
+        import threading
 
-        for unit in data.get("military_units", []):
-            if unit["relationships"].get("located_at"):
-                self.fallback_graph.add_edge(
-                    unit["id"],
-                    unit["relationships"]["located_at"],
-                    relationship="located_at"
-                )
+        def run_init():
+            success = self._init_graphiti_sync()
+            if success:
+                print("Graphiti + Neo4j 初始化成功！")
+            else:
+                print("Graphiti + Neo4j 初始化失败，使用回退模式")
 
-        for weapon in data.get("weapon_systems", []):
-            if weapon["relationships"].get("located_at"):
-                self.fallback_graph.add_edge(
-                    weapon["id"],
-                    weapon["relationships"]["located_at"],
-                    relationship="located_at"
-                )
-
-        for civ in data.get("civilian_infrastructures", []):
-            if civ["relationships"].get("located_at"):
-                self.fallback_graph.add_edge(
-                    civ["id"],
-                    civ["relationships"]["located_at"],
-                    relationship="located_at"
-                )
+        thread = threading.Thread(target=run_init, daemon=True)
+        thread.start()
 
     def initialize_graph(self):
         """
-        初始化战场图谱
-        """
-        if self._connected and self.graph:
-            self._initialize_from_graphiti()
-        else:
-            print("图谱初始化完成（回退模式）")
-
-    def _initialize_from_graphiti(self):
-        """
-        使用graphiti初始化图谱
-        """
-        try:
-            data = load_simulation_data()
-            self._add_entities_graphiti(data)
-            self._establish_graphiti_relationships(data)
-            print("Graphiti图谱初始化完成")
-        except Exception as e:
-            print(f"Graphiti初始化失败: {e}")
-            self._use_fallback_mode()
-            self._load_data_to_fallback()
-
-    def _add_entities_graphiti(self, data):
-        """
-        使用graphiti添加实体
-        """
-        for location in data.get("locations", []):
-            node_data = NodeCreate(
-                name=location["properties"].get("name", location["id"]),
-                entity_type=location["type"],
-                properties=location["properties"]
-            )
-            self.graph.add_node(node_data)
-
-    def _establish_graphiti_relationships(self, data):
-        """
-        使用graphiti建立实体关系
+        同步初始化图谱（回退模式）
         """
         pass
+
+    def _init_graphiti_sync(self) -> bool:
+        """
+        在单个 asyncio.run() 中初始化 graphiti
+        """
+        async def init_all():
+            try:
+                print("创建LLM客户端...")
+                llm_client = self._create_llm_client()
+
+                print(f"创建Graphiti实例连接到 {self.neo4j_uri}...")
+                self.graph = Graphiti(
+                    uri=self.neo4j_uri,
+                    user=self.neo4j_user,
+                    password=self.neo4j_password,
+                    llm_client=llm_client
+                )
+
+                print("构建graphiti索引和约束...")
+                await self.graph.build_indices_and_constraints()
+                print("索引和约束构建完成")
+
+                print("加载数据到 Neo4j...")
+                await self._add_episodes_to_graphiti()
+                print("Graphiti图谱初始化完成")
+
+                self._connected = True
+                self._use_fallback = False
+                return True
+
+            except Exception as e:
+                print(f"Graphiti初始化失败: {e}")
+                import traceback
+                traceback.print_exc()
+                return False
+
+        try:
+            return asyncio.run(init_all())
+        except Exception as e:
+            print(f"初始化失败: {e}")
+            return False
+
+    def _create_episode_text(self, entity_data: Dict) -> str:
+        """将实体数据转换为自然语言描述"""
+        entity_id = entity_data.get("id", "")
+        entity_type = entity_data.get("type", "")
+        props = entity_data.get("properties", {})
+
+        parts = [f"{entity_id} 是一个 {entity_type}"]
+        for key, value in props.items():
+            if key not in ["name", "type"]:
+                parts.append(f"它的 {key} 是 {value}")
+
+        return "。".join(parts)
+
+    async def _add_episodes_to_graphiti(self):
+        """将数据添加到 graphiti"""
+        data = load_simulation_data()
+        reference_time = datetime.now()
+
+        all_entities = []
+        all_entities.extend(data.get("locations", []))
+        all_entities.extend(data.get("military_units", []))
+        all_entities.extend(data.get("weapon_systems", []))
+        all_entities.extend(data.get("civilian_infrastructure", []))
+
+        success_count = 0
+        error_count = 0
+
+        for entity in all_entities[:20]:
+            episode_text = self._create_episode_text(entity)
+            try:
+                await self.graph.add_episode(
+                    name=entity.get("id", "unknown"),
+                    episode_body=episode_text,
+                    source_description=f"战场数据: {entity.get('type')}",
+                    reference_time=reference_time,
+                    update_communities=False
+                )
+                print(f"  添加实体: {entity.get('id')}")
+                success_count += 1
+            except Exception as e:
+                print(f"  添加实体失败 {entity.get('id')}: {e}")
+                error_count += 1
+
+        print(f"实体添加完成: 成功 {success_count}, 失败 {error_count}")
 
     def query_entities(self, entity_type=None, area=None):
         """
@@ -213,7 +257,7 @@ class BattlefieldGraphManager:
         Returns:
             实体列表
         """
-        if not self._connected:
+        if self._use_fallback or not self._connected:
             return self._query_entities_fallback(entity_type, area)
 
         return self._query_entities_graphiti(entity_type, area)
@@ -222,7 +266,6 @@ class BattlefieldGraphManager:
         """
         回退模式：查询实体
         """
-        import networkx as nx
         result = []
 
         for node_id, node_data in self.fallback_graph.nodes(data=True):
@@ -243,24 +286,27 @@ class BattlefieldGraphManager:
         """
         Graphiti模式：查询实体
         """
-        try:
-            entities = self.graph.get_entities()
-            result = []
-            for entity in entities:
-                if entity_type and entity.entity_type != entity_type:
-                    continue
-                if area and entity.properties.get("area") != area:
-                    continue
+        async def query():
+            try:
+                episodes = await self.graph.retrieve_episodes(
+                    reference_time=datetime.now()
+                )
+                result = []
+                for episode in episodes:
+                    if entity_type and episode.name and entity_type.lower() not in episode.name.lower():
+                        continue
 
-                result.append({
-                    "id": str(entity.uuid),
-                    "type": entity.entity_type,
-                    "properties": entity.properties
-                })
-            return result
-        except Exception as e:
-            print(f"Graphiti查询失败: {e}")
-            return []
+                    result.append({
+                        "id": episode.name or str(episode.uuid),
+                        "type": "Entity",
+                        "properties": {"body": episode.episode_body}
+                    })
+                return result
+            except Exception as e:
+                print(f"Graphiti查询失败: {e}")
+                return []
+
+        return asyncio.run(query())
 
     def update_entity(self, entity_id, properties):
         """
@@ -268,286 +314,159 @@ class BattlefieldGraphManager:
 
         Args:
             entity_id: 实体ID
-            properties: 要更新的属性
+            properties: 新属性
 
         Returns:
-            bool: 更新是否成功
+            是否成功
         """
-        if not self._connected:
-            if entity_id in self.fallback_graph.nodes:
-                self.fallback_graph.nodes[entity_id].update(properties)
-                return True
-            return False
+        if self._use_fallback or not self._connected:
+            return self._update_entity_fallback(entity_id, properties)
 
-        try:
-            entity = self.graph.get_entity_by_name(entity_id)
-            if entity:
-                for key, value in properties.items():
-                    entity.properties[key] = value
-                self.graph.update_node(entity)
-                return True
-            return False
-        except Exception as e:
-            print(f"Graphiti更新失败: {e}")
-            return False
+        return self._update_entity_graphiti(entity_id, properties)
 
-    def add_entity(self, entity_id, entity_type, properties):
-        """
-        添加新实体
-
-        Args:
-            entity_id: 实体ID
-            entity_type: 实体类型
-            properties: 实体属性
-
-        Returns:
-            bool: 添加是否成功
-        """
-        if not self._connected:
-            if entity_id in self.fallback_graph.nodes:
-                return False
-            self.fallback_graph.add_node(entity_id, entity_type=entity_type, **properties)
+    def _update_entity_fallback(self, entity_id, properties):
+        """回退模式：更新实体"""
+        if entity_id in self.fallback_graph:
+            for key, value in properties.items():
+                self.fallback_graph.nodes[entity_id][key] = value
             return True
+        return False
 
-        try:
-            node_data = NodeCreate(
-                name=properties.get("name", entity_id),
-                entity_type=entity_type,
-                properties=properties
-            )
-            self.graph.add_node(node_data)
-            return True
-        except Exception as e:
-            print(f"Graphiti添加实体失败: {e}")
-            return False
+    def _update_entity_graphiti(self, entity_id, properties):
+        """Graphiti模式：更新实体"""
+        return False
 
-    def add_relationship(self, source_id, target_id, relationship):
-        """
-        添加实体关系
-
-        Args:
-            source_id: 源实体ID
-            target_id: 目标实体ID
-            relationship: 关系类型
-
-        Returns:
-            bool: 添加是否成功
-        """
-        if not self._connected:
-            if source_id not in self.fallback_graph.nodes or target_id not in self.fallback_graph.nodes:
-                return False
-            self.fallback_graph.add_edge(source_id, target_id, relationship=relationship)
-            return True
-
-        try:
-            source = self.graph.get_entity_by_name(source_id)
-            target = self.graph.get_entity_by_name(target_id)
-            if source and target:
-                edge = RelationEdge(
-                    source_node_uuid=source.uuid,
-                    target_node_uuid=target.uuid,
-                    rel_type=relationship,
-                    properties={}
-                )
-                self.graph.add_edge(edge)
-                return True
-            return False
-        except Exception as e:
-            print(f"Graphiti添加关系失败: {e}")
-            return False
-
-    def add_temporal_event(self, entity_id, event_type, description, timestamp=None):
-        """
-        添加时序事件（graphiti核心特性）
-
-        Args:
-            entity_id: 实体ID
-            event_type: 事件类型
-            description: 事件描述
-            timestamp: 事件时间戳
-
-        Returns:
-            bool: 添加是否成功
-        """
-        if not self._connected:
-            return False
-
-        try:
-            entity = self.graph.get_entity_by_name(entity_id)
-            if entity:
-                self.graph.add_episode({
-                    "entity_uuid": entity.uuid,
-                    "fact": description,
-                    "source": "battlefield_system"
-                })
-                return True
-            return False
-        except Exception as e:
-            print(f"添加时序事件失败: {e}")
-            return False
-
-    def search_hybrid(self, query_text, top_k=5):
-        """
-        混合检索（graphiti核心特性）
-        结合语义搜索、关键词搜索和图遍历
-
-        Args:
-            query_text: 查询文本
-            top_k: 返回前k个结果
-
-        Returns:
-            检索结果列表
-        """
-        if not self._connected:
-            return []
-
-        try:
-            results = self.graph.search(query_text, top_k=top_k)
-            return results
-        except Exception as e:
-            print(f"混合检索失败: {e}")
-            return []
-
-    def get_entity_history(self, entity_id):
-        """
-        获取实体历史（bi-temporal tracking）
-
-        Args:
-            entity_id: 实体ID
-
-        Returns:
-            实体历史记录
-        """
-        if not self._connected:
-            return []
-
-        try:
-            entity = self.graph.get_entity_by_name(entity_id)
-            if entity:
-                episodes = self.graph.get_entity_episodes(entity.uuid)
-                return episodes
-            return []
-        except Exception as e:
-            print(f"获取实体历史失败: {e}")
-            return []
-
-    def reserve_task(self, task_data):
-        """
-        基于图谱预留任务
-
-        Args:
-            task_data: 任务数据
-
-        Returns:
-            str: 预留任务ID
-        """
-        task_id = f"RESERVED_TASK_{len(self.reserved_tasks) + 1}"
-        task_data["id"] = task_id
-        task_data["status"] = "reserved"
-        task_data["created_at"] = datetime.now().isoformat()
-        self.reserved_tasks.append(task_data)
-
-        if "targets" in task_data:
-            for target_id in task_data["targets"]:
-                if self._connected:
-                    self.add_relationship(task_id, target_id, "targets")
-                else:
-                    if target_id in self.fallback_graph.nodes:
-                        self.fallback_graph.add_edge(task_id, target_id, relationship="targets")
-
-        return task_id
-
-    def get_reserved_tasks(self):
-        """
-        获取所有预留任务
-
-        Returns:
-            预留任务列表
-        """
-        return self.reserved_tasks
-
-    def clear_reserved_tasks(self):
-        """
-        清除所有预留任务
-        """
-        self.reserved_tasks = []
-
-    def get_graph_statistics(self):
+    def get_statistics(self) -> Dict[str, Any]:
         """
         获取图谱统计信息
 
         Returns:
             统计信息字典
         """
-        if not self._connected:
-            node_count = self.fallback_graph.number_of_nodes()
-            edge_count = self.fallback_graph.number_of_edges()
+        if self._use_fallback or not self._connected:
+            return self._get_statistics_fallback()
 
-            type_count = {}
-            for node_id, node_data in self.fallback_graph.nodes(data=True):
-                node_type = node_data.get("entity_type", "Unknown")
-                type_count[node_type] = type_count.get(node_type, 0) + 1
+        return self._get_statistics_graphiti()
 
-            return {
-                "node_count": node_count,
-                "edge_count": edge_count,
-                "type_count": type_count,
-                "mode": "fallback (networkx)"
-            }
+    def get_graph_statistics(self) -> Dict[str, Any]:
+        """别名，保持向后兼容"""
+        return self.get_statistics()
 
-        try:
-            stats = self.graph.get_statistics()
-            return {
-                "node_count": stats.get("node_count", 0),
-                "edge_count": stats.get("edge_count", 0),
-                "type_count": stats.get("type_count", {}),
-                "mode": "graphiti (neo4j)"
-            }
-        except Exception as e:
-            print(f"获取统计信息失败: {e}")
-            return {"mode": "error"}
+    def _get_statistics_fallback(self) -> Dict[str, Any]:
+        """回退模式：获取统计信息"""
+        return {
+            "total_entities": self.fallback_graph.number_of_nodes(),
+            "total_relationships": self.fallback_graph.number_of_edges(),
+            "entity_types": self._count_entity_types(),
+            "mode": "fallback"
+        }
 
-    def close(self):
-        """
-        关闭图谱连接
-        """
-        if self._connected and self.graph:
+    def _get_statistics_graphiti(self) -> Dict[str, Any]:
+        """Graphiti模式：获取统计信息"""
+        async def get_stats():
             try:
-                self.graph.close()
+                episodes = await self.graph.retrieve_episodes(
+                    reference_time=datetime.now()
+                )
+                return {
+                    "total_entities": len(episodes),
+                    "total_relationships": 0,
+                    "entity_types": {"EpisodicNode": len(episodes)},
+                    "mode": "graphiti"
+                }
             except Exception as e:
-                print(f"关闭连接失败: {e}")
+                print(f"获取统计信息失败: {e}")
+                return {"error": str(e), "mode": "graphiti"}
 
+        return asyncio.run(get_stats())
 
-if __name__ == "__main__":
-    manager = BattlefieldGraphManager()
+    def _count_entity_types(self) -> Dict[str, int]:
+        """统计各类型实体数量"""
+        counts = {}
+        for _, data in self.fallback_graph.nodes(data=True):
+            entity_type = data.get("entity_type", "Unknown")
+            counts[entity_type] = counts.get(entity_type, 0) + 1
+        return counts
 
-    stats = manager.get_graph_statistics()
-    print("图谱统计信息:")
-    print(f"模式: {stats.get('mode', 'unknown')}")
-    print(f"节点数: {stats.get('node_count', 0)}")
-    print(f"边数: {stats.get('edge_count', 0)}")
-    print("按类型统计:")
-    for node_type, count in stats.get('type_count', {}).items():
-        print(f"- {node_type}: {count}")
+    def add_relationship(self, source_id: str, target_id: str,
+                         relationship: str, properties: Dict = None):
+        """
+        添加关系
 
-    print("\n查询B区的地理位置:")
-    b_locations = manager.query_entities(entity_type="Location", area="B")
-    for location in b_locations:
-        print(f"- {location['properties'].get('name', '未知')}")
+        Args:
+            source_id: 源实体ID
+            target_id: 目标实体ID
+            relationship: 关系类型
+            properties: 关系属性
 
-    print("\n预留任务测试:")
-    task_data = {
-        "type": "Mission",
-        "properties": {
-            "name": "侦察任务",
-            "priority": "高"
-        },
-        "targets": ["WEAPON_Bl_1"]
-    }
-    task_id = manager.reserve_task(task_data)
-    print(f"预留任务ID: {task_id}")
+        Returns:
+            是否成功
+        """
+        if self._use_fallback or not self._connected:
+            return self._add_relationship_fallback(source_id, target_id, relationship, properties)
 
-    reserved_tasks = manager.get_reserved_tasks()
-    print(f"预留任务数量: {len(reserved_tasks)}")
+        return self._add_relationship_graphiti(source_id, target_id, relationship, properties)
 
-    manager.close()
+    def _add_relationship_fallback(self, source_id: str, target_id: str,
+                                   relationship: str, properties: Dict = None):
+        """回退模式：添加关系"""
+        if source_id in self.fallback_graph and target_id in self.fallback_graph:
+            self.fallback_graph.add_edge(
+                source_id, target_id,
+                relationship=relationship,
+                **(properties or {})
+            )
+            return True
+        return False
+
+    def _add_relationship_graphiti(self, source_id: str, target_id: str,
+                                   relationship: str, properties: Dict = None):
+        """Graphiti模式：添加关系"""
+        return False
+
+    def search(self, query: str, limit: int = 10) -> List[Dict]:
+        """
+        搜索实体
+
+        Args:
+            query: 搜索查询
+            limit: 返回结果数量限制
+
+        Returns:
+            匹配的实体列表
+        """
+        if self._use_fallback or not self._connected:
+            return self._search_fallback(query, limit)
+
+        return self._search_graphiti(query, limit)
+
+    def _search_fallback(self, query: str, limit: int = 10) -> List[Dict]:
+        """回退模式：搜索"""
+        results = []
+        query_lower = query.lower()
+
+        for node_id, data in self.fallback_graph.nodes(data=True):
+            text = f"{node_id} {data.get('name', '')} {data.get('entity_type', '')}".lower()
+            if query_lower in text:
+                results.append({
+                    "id": node_id,
+                    "type": data.get("entity_type"),
+                    "properties": {k: v for k, v in data.items() if k != "entity_type"}
+                })
+                if len(results) >= limit:
+                    break
+
+        return results
+
+    def _search_graphiti(self, query: str, limit: int = 10) -> List[Dict]:
+        """Graphiti模式：搜索"""
+        async def search():
+            try:
+                results = await self.graph.search(query=query, limit=limit)
+                return [{"id": r.name or str(r.uuid), "type": "Entity",
+                         "properties": {"body": r.episode_body}} for r in results]
+            except Exception as e:
+                print(f"Graphiti搜索失败: {e}")
+                return []
+
+        return asyncio.run(search())
