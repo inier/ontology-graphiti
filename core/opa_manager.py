@@ -5,7 +5,12 @@ OPA权限管理模块
 import sys
 import os
 import json
-from opa import OPAClient
+
+# OPA 客户端为可选依赖，Phase 1-A 集成真实 OPA 时再启用
+try:
+    from opa import OPAClient
+except ImportError:
+    OPAClient = None
 
 # 确保当前目录在Python路径中
 sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))

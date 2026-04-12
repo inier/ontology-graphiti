@@ -470,3 +470,164 @@ class BattlefieldGraphManager:
                 return []
 
         return asyncio.run(search())
+
+    def add_entity(self, entity_id: str, entity_type: str, properties: Dict[str, Any]) -> bool:
+        """
+        添加实体到图谱
+
+        Args:
+            entity_id: 实体ID
+            entity_type: 实体类型
+            properties: 实体属性
+
+        Returns:
+            是否添加成功
+        """
+        if self._use_fallback or not self._connected:
+            return self._add_entity_fallback(entity_id, entity_type, properties)
+        return self._add_entity_graphiti(entity_id, entity_type, properties)
+
+    def _add_entity_fallback(self, entity_id: str, entity_type: str,
+                              properties: Dict[str, Any]) -> bool:
+        """回退模式：添加实体"""
+        if entity_id in self.fallback_graph:
+            # 实体已存在，更新属性
+            self.fallback_graph.nodes[entity_id]["entity_type"] = entity_type
+            for k, v in properties.items():
+                self.fallback_graph.nodes[entity_id][k] = v
+        else:
+            self.fallback_graph.add_node(
+                entity_id,
+                entity_type=entity_type,
+                **properties
+            )
+        return True
+
+    def _add_entity_graphiti(self, entity_id: str, entity_type: str,
+                              properties: Dict[str, Any]) -> bool:
+        """Graphiti模式：添加实体（通过 Episode）"""
+        async def add():
+            try:
+                parts = [f"{entity_id} 是一个 {entity_type}"]
+                for key, value in properties.items():
+                    parts.append(f"它的 {key} 是 {value}")
+                episode_text = "。".join(parts)
+
+                await self.graph.add_episode(
+                    name=entity_id,
+                    episode_body=episode_text,
+                    source_description=f"战场数据: {entity_type}",
+                    reference_time=datetime.now(),
+                    update_communities=False
+                )
+                return True
+            except Exception as e:
+                print(f"Graphiti添加实体失败: {e}")
+                return False
+
+        return asyncio.run(add())
+
+    def get_entity_history(self, entity_id: str) -> List[Dict]:
+        """
+        获取实体的历史变更记录
+
+        Args:
+            entity_id: 实体ID
+
+        Returns:
+            历史记录列表（回退模式返回空列表）
+        """
+        if self._use_fallback or not self._connected:
+            # 回退模式不支持时态查询，返回空列表
+            print(f"警告: 回退模式不支持时态查询 (entity_id={entity_id})")
+            return []
+
+        # Graphiti模式：查询 episode 历史
+        async def get_history():
+            try:
+                episodes = await self.graph.retrieve_episodes(
+                    reference_time=datetime.now()
+                )
+                return [
+                    {
+                        "entity_id": e.name or str(e.uuid),
+                        "timestamp": str(getattr(e, 'created_at', 'unknown')),
+                        "body": e.episode_body
+                    }
+                    for e in episodes
+                    if e.name == entity_id or (hasattr(e, 'uuid') and str(e.uuid) == entity_id)
+                ]
+            except Exception as e:
+                print(f"Graphiti查询实体历史失败: {e}")
+                return []
+
+        return asyncio.run(get_history())
+
+    def search_hybrid(self, query_text: str, top_k: int = 5) -> List[Dict]:
+        """
+        混合检索（向量 + 关键词），回退模式委托给 search()
+
+        Args:
+            query_text: 查询文本
+            top_k: 返回前k个结果
+
+        Returns:
+            检索结果列表
+        """
+        if self._use_fallback or not self._connected:
+            # 回退模式：委托给关键词搜索
+            return self._search_fallback(query_text, limit=top_k)
+
+        # Graphiti模式：使用 graphiti 的 search
+        async def hybrid_search():
+            try:
+                results = await self.graph.search(query=query_text, limit=top_k)
+                return [
+                    {
+                        "id": r.name or str(r.uuid),
+                        "type": "Entity",
+                        "properties": {"body": r.episode_body},
+                        "score": getattr(r, 'score', None)
+                    }
+                    for r in results
+                ]
+            except Exception as e:
+                print(f"Graphiti混合检索失败: {e}")
+                return self._search_fallback(query_text, limit=top_k)
+
+        return asyncio.run(hybrid_search())
+
+    def reserve_task(self, task_data: Dict) -> str:
+        """
+        预留任务，分配唯一任务ID
+
+        Args:
+            task_data: 任务数据字典
+
+        Returns:
+            任务ID
+        """
+        import uuid
+        task_id = f"TASK-{uuid.uuid4().hex[:8].upper()}"
+        task_data["id"] = task_id
+        task_data["status"] = "reserved"
+        task_data["created_at"] = datetime.now().isoformat()
+        self.reserved_tasks.append(task_data)
+        print(f"任务已预留: {task_id}")
+        return task_id
+
+    def get_reserved_tasks(self) -> List[Dict]:
+        """
+        获取所有预留任务
+
+        Returns:
+            预留任务列表
+        """
+        return list(self.reserved_tasks)
+
+    def clear_reserved_tasks(self) -> None:
+        """
+        清空所有预留任务
+        """
+        self.reserved_tasks.clear()
+        print("所有预留任务已清空")

@@ -32,9 +32,9 @@ def test_graph_manager():
     print("\n=== 测试图谱管理器 ===")
     manager = BattlefieldGraphManager()
     stats = manager.get_graph_statistics()
-    assert stats["node_count"] > 0, "图谱构建失败"
-    print(f"图谱构建成功，节点数: {stats['node_count']}")
-    print(f"实体类型统计: {stats['type_count']}")
+    assert stats["total_entities"] > 0, "图谱构建失败"
+    print(f"图谱构建成功，节点数: {stats['total_entities']}")
+    print(f"实体类型统计: {stats['entity_types']}")
     
     # 测试查询功能
     locations = manager.query_entities(entity_type="Location", area="B")

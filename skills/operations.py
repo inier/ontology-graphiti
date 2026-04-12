@@ -45,7 +45,8 @@ def attack_target(target_id, user_role):
                 break
 
     if not target:
-        return {"status": "error", "message": "目标不存在"}
+        # Fail-close: 目标不存在时也拒绝，避免绕过权限检查
+        return {"status": "denied", "message": "目标不存在或无法确认目标身份"}
 
     # 检查权限
     allowed = opa_manager.check_permission(user_role, "attack", target)

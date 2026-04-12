@@ -31,3 +31,6 @@ jsonpickle
 
 # 配置管理
 python-dotenv
+
+# HTTP 客户端
+httpx
