@@ -11,7 +11,29 @@
         "usedAt": 1775899638028,
         "industryId": "02-Engineering"
       }
+    ],
+    "18fd0dc5ef6b41989ef09055301756ac": [
+      {
+        "expertId": "SoftwareArchitect",
+        "name": "Yara",
+        "profession": "软件架构师",
+        "avatarUrl": "https://acc-1258344699.cos.accelerate.myqcloud.com/workbuddy/experts/avatars/02-Engineering/SoftwareArchitect/SoftwareArchitect.png",
+        "promptUrl": "https://acc-1258344699.cos.accelerate.myqcloud.com/workbuddy/experts/experts/02-Engineering/SoftwareArchitect/SoftwareArchitect_zh.md",
+        "usedAt": 1775922553730,
+        "industryId": "02-Engineering"
+      }
+    ],
+    "01acce86c9cc4f2d83913e5825e496b7": [
+      {
+        "expertId": "SoftwareArchitect",
+        "name": "Yara",
+        "profession": "软件架构师",
+        "avatarUrl": "https://acc-1258344699.cos.accelerate.myqcloud.com/workbuddy/experts/avatars/02-Engineering/SoftwareArchitect/SoftwareArchitect.png",
+        "promptUrl": "https://acc-1258344699.cos.accelerate.myqcloud.com/workbuddy/experts/experts/02-Engineering/SoftwareArchitect/SoftwareArchitect_zh.md",
+        "usedAt": 1775931370842,
+        "industryId": "02-Engineering"
+      }
     ]
   },
-  "lastUpdated": 1775913790402
+  "lastUpdated": 1775931442299
 }

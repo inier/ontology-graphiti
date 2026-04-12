@@ -2,8 +2,13 @@
 
 ## 项目概述
 - **项目路径**: `/Users/caec/workspace/ontology/graphiti`
-- **系统定位**: 战场情报分析与打击决策系统，基于 Palantir AIP 架构
+- **系统定位**: 战场情报分析与打击决策系统，参考 Palantir AIP 架构
 - **技术核心**: OpenHarness + Graphiti + Python Skill + OPA
+
+## 关键技术来源（2026-04-11 更新）
+- **OpenHarness**: HKUDS（香港大学数据科学实验室）开源项目
+  - GitHub: https://github.com/HKUDS/OpenHarness
+  - 协议: MIT
 
 ## 架构设计 v2.0（2026-04-11）
 
@@ -42,6 +47,15 @@
 - ADR-003: OPA 作为策略治理引擎（已接受）
 - ADR-004: Skill 双层并行策略（已接受）
 - ADR-005: 三 Agent 角色分工（已接受）
+- ADR-006: OpenHarness 复用策略 v3.0（已接受）
+
+### OpenHarness 复用矩阵（2026-04-11）
+
+| 类别 | 组件 | 复用方式 |
+|------|------|----------|
+| **✅ 完全复用** | Agent Loop、Tool框架、Skill格式、Plugin系统、Provider管理 | 开箱即用 |
+| **⚠️ 适配复用** | Memory (→Graphiti)、Permissions (→OPA)、Coordinator (→三Agent) | 桥接适配 |
+| **🔴 独立扩展** | 战场本体、56领域Skills、时序推理、态势可视化 | 自研 |
 
 ### 演进路线
 
