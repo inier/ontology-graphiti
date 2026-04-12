@@ -472,8 +472,589 @@ ontology/
 
 ---
 
-## 7. 版本历史
+---
+
+## 7. 模拟推演本体增强
+
+### 7.1 模拟推演实体定义
+
+```python
+# ontology/simulation_ontology.py
+
+class SimulationEntityCategory(str, Enum):
+    """模拟推演实体类别"""
+    SIMULATION_SCENARIO = "simulation_scenario"           # 模拟场景
+    SIMULATION_PARAMETERS = "simulation_parameters"       # 模拟参数
+    SIMULATION_VERSION = "simulation_version"             # 模拟版本
+    SIMULATION_EXECUTION = "simulation_execution"         # 模拟执行
+    SIMULATION_RESULT = "simulation_result"               # 模拟结果
+    WHAT_IF_ANALYSIS = "what_if_analysis"                 # What-if分析
+    SENSITIVITY_ANALYSIS = "sensitivity_analysis"         # 敏感性分析
+    COMPARISON_ANALYSIS = "comparison_analysis"           # 对比分析
+
+class SimulationScenarioType(str, Enum):
+    """模拟场景类型"""
+    DECISION_ANALYSIS = "decision_analysis"               # 决策分析
+    RESOURCE_ALLOCATION = "resource_allocation"           # 资源分配
+    RISK_ASSESSMENT = "risk_assessment"                   # 风险评估
+    WHAT_IF_EXPLORATION = "what_if_exploration"           # What-if探索
+    PERFORMANCE_EVALUATION = "performance_evaluation"     # 性能评估
+    TRAINING_SCENARIO = "training_scenario"               # 训练场景
+
+class SimulationStatus(str, Enum):
+    """模拟状态"""
+    DRAFT = "draft"                 # 草稿
+    READY = "ready"                 # 就绪
+    RUNNING = "running"             # 运行中
+    PAUSED = "paused"               # 已暂停
+    COMPLETED = "completed"         # 已完成
+    FAILED = "failed"               # 失败
+    CANCELLED = "cancelled"         # 已取消
+
+class SimulationScenario(BaseEntity):
+    """模拟场景实体"""
+    category: EntityCategory = EntityCategory.SIMULATION_SCENARIO
+    
+    scenario_type: SimulationScenarioType
+    scenario_name: str
+    description: str = ""
+    
+    # 基础配置
+    base_scenario_id: Optional[str] = None     # 基于哪个场景创建
+    base_version_id: Optional[str] = None      # 基于哪个版本创建
+    
+    # 参数配置
+    parameter_schema: Dict[str, Any] = Field(default_factory=dict)  # 参数Schema定义
+    default_parameters: Dict[str, Any] = Field(default_factory=dict)  # 默认参数
+    
+    # 执行配置
+    max_duration_seconds: int = 3600           # 最大执行时长
+    resource_limits: Dict[str, Any] = Field(default_factory=dict)    # 资源限制
+    isolation_level: str = "strict"            # 隔离级别: strict/moderate/relaxed
+    
+    # 状态管理
+    status: SimulationStatus = SimulationStatus.DRAFT
+    created_by: str = ""                       # 创建者
+    last_modified_by: str = ""                 # 最后修改者
+    last_modified_at: datetime = Field(default_factory=datetime.now)
+    
+    # 统计信息
+    execution_count: int = 0                    # 执行次数
+    success_rate: float = 0.0                   # 成功率
+    average_duration_seconds: float = 0.0       # 平均执行时长
+    
+    # 关联
+    versions: List[str] = Field(default_factory=list)          # 版本列表
+    current_version_id: Optional[str] = None    # 当前版本ID
+    executions: List[str] = Field(default_factory=list)        # 执行记录
+    recent_results: List[str] = Field(default_factory=list)    # 最近结果
+
+class SimulationVersion(BaseEntity):
+    """模拟版本实体"""
+    category: EntityCategory = EntityCategory.SIMULATION_VERSION
+    
+    scenario_id: str                            # 所属场景
+    version_number: str                         # 版本号 (v1.0.0, v1.0.1, etc.)
+    parent_version_id: Optional[str] = None     # 父版本ID (用于分支)
+    
+    # 变更信息
+    changes: Dict[str, Any] = Field(default_factory=dict)      # 变更内容
+    change_summary: str = ""                    # 变更摘要
+    change_author: str = ""                     # 变更作者
+    
+    # 参数快照
+    parameter_snapshot: Dict[str, Any] = Field(default_factory=dict)  # 参数快照
+    
+    # 配置快照
+    configuration_snapshot: Dict[str, Any] = Field(default_factory=dict)  # 配置快照
+    
+    # 状态
+    is_current: bool = False                    # 是否为当前版本
+    is_stable: bool = False                     # 是否为稳定版本
+    
+    # 执行记录
+    execution_ids: List[str] = Field(default_factory=list)     # 使用该版本的执行
+    success_count: int = 0                      # 成功次数
+    failure_count: int = 0                      # 失败次数
+    
+    # 回滚信息
+    rollback_target_id: Optional[str] = None    # 可回滚到的目标版本
+    rollback_compatibility: bool = True         # 回滚兼容性
+
+class SimulationExecution(BaseEntity):
+    """模拟执行实体"""
+    category: EntityCategory = EntityCategory.SIMULATION_EXECUTION
+    
+    scenario_id: str                            # 所属场景
+    version_id: str                             # 使用的版本
+    execution_number: int = 0                   # 执行编号
+    
+    # 执行配置
+    parameters: Dict[str, Any] = Field(default_factory=dict)   # 执行参数
+    configuration: Dict[str, Any] = Field(default_factory=dict)  # 执行配置
+    
+    # 状态追踪
+    status: SimulationStatus = SimulationStatus.READY
+    start_time: Optional[datetime] = None       # 开始时间
+    end_time: Optional[datetime] = None         # 结束时间
+    duration_seconds: Optional[float] = None    # 执行时长
+    
+    # 资源使用
+    resource_usage: Dict[str, Any] = Field(default_factory=dict)  # 资源使用情况
+    resource_limits_violated: bool = False      # 是否违反资源限制
+    
+    # 执行环境
+    sandbox_id: Optional[str] = None            # 沙箱ID
+    environment_id: Optional[str] = None        # 环境ID
+    
+    # 结果
+    result_id: Optional[str] = None             # 结果实体ID
+    result_status: Optional[str] = None         # 结果状态
+    error_message: Optional[str] = None         # 错误信息
+    stack_trace: Optional[str] = None           # 堆栈跟踪
+    
+    # 监控
+    progress_percentage: float = 0.0            # 进度百分比
+    checkpoints: List[Dict[str, Any]] = Field(default_factory=list)  # 检查点
+    metrics_snapshots: List[Dict[str, Any]] = Field(default_factory=list)  # 指标快照
+    
+    # 实时数据
+    realtime_data_url: Optional[str] = None     # 实时数据URL
+    websocket_connections: int = 0              # WebSocket连接数
+
+class SimulationResult(BaseEntity):
+    """模拟结果实体"""
+    category: EntityCategory = EntityCategory.SIMULATION_RESULT
+    
+    execution_id: str                           # 对应的执行
+    scenario_id: str                            # 所属场景
+    version_id: str                             # 使用的版本
+    
+    # 原始结果
+    raw_data: Dict[str, Any] = Field(default_factory=dict)      # 原始数据
+    processed_data: Dict[str, Any] = Field(default_factory=dict)  # 处理后的数据
+    
+    # 指标数据
+    performance_metrics: Dict[str, float] = Field(default_factory=dict)  # 性能指标
+    business_metrics: Dict[str, float] = Field(default_factory=dict)    # 业务指标
+    quality_metrics: Dict[str, float] = Field(default_factory=dict)     # 质量指标
+    
+    # 详细结果
+    detailed_results: List[Dict[str, Any]] = Field(default_factory=list)  # 详细结果
+    events_log: List[Dict[str, Any]] = Field(default_factory=list)        # 事件日志
+    state_changes: List[Dict[str, Any]] = Field(default_factory=list)     # 状态变更
+    
+    # 分析结果
+    insights: List[str] = Field(default_factory=list)          # 洞察发现
+    recommendations: List[str] = Field(default_factory=list)   # 建议推荐
+    warnings: List[str] = Field(default_factory=list)          # 警告信息
+    errors: List[str] = Field(default_factory=list)            # 错误信息
+    
+    # 可视化数据
+    visualization_configs: Dict[str, Any] = Field(default_factory=dict)  # 可视化配置
+    chart_data: Dict[str, Any] = Field(default_factory=dict)            # 图表数据
+    report_data: Dict[str, Any] = Field(default_factory=dict)           # 报告数据
+    
+    # 版本管理
+    result_version: str = "1.0.0"               # 结果版本
+    is_baseline: bool = False                   # 是否为基线结果
+    comparison_ids: List[str] = Field(default_factory=list)  # 对比结果ID
+    
+    # 存储信息
+    storage_size_bytes: int = 0                 # 存储大小
+    compression_ratio: float = 1.0              # 压缩比
+    retention_period_days: int = 30             # 保留天数
+
+class WhatIfAnalysis(BaseEntity):
+    """What-if分析实体"""
+    category: EntityCategory = EntityCategory.WHAT_IF_ANALYSIS
+    
+    base_scenario_id: str                       # 基础场景
+    base_execution_id: str                      # 基础执行
+    
+    # 参数变化
+    parameter_changes: Dict[str, Any] = Field(default_factory=dict)      # 参数变化
+    change_description: str = ""                # 变化描述
+    
+    # 分析配置
+    analysis_type: str = "sensitivity"          # 分析类型: sensitivity/impact/trend
+    analysis_depth: str = "detailed"            # 分析深度: quick/detailed/comprehensive
+    
+    # 执行状态
+    status: SimulationStatus = SimulationStatus.READY
+    execution_ids: List[str] = Field(default_factory=list)      # 相关执行
+    result_ids: List[str] = Field(default_factory=list)         # 相关结果
+    
+    # 分析结果
+    impact_scores: Dict[str, float] = Field(default_factory=dict)        # 影响得分
+    sensitivity_coefficients: Dict[str, float] = Field(default_factory=dict)  # 敏感性系数
+    trend_analysis: Dict[str, Any] = Field(default_factory=dict)         # 趋势分析
+    
+    # 洞察发现
+    key_insights: List[str] = Field(default_factory=list)       # 关键洞察
+    risk_assessments: List[str] = Field(default_factory=list)   # 风险评估
+    opportunity_areas: List[str] = Field(default_factory=list)  # 机会领域
+    
+    # 推荐
+    parameter_recommendations: Dict[str, Any] = Field(default_factory=dict)  # 参数推荐
+    strategy_recommendations: List[str] = Field(default_factory=list)        # 策略推荐
+```
+
+### 7.2 模拟推演关系定义
+
+```python
+# ontology/simulation_relations.py
+
+class SimulationRelationType(str, Enum):
+    """模拟推演关系类型"""
+    # 场景管理关系
+    HAS_VERSION = "HAS_VERSION"                 # 场景有版本
+    IS_CURRENT_VERSION = "IS_CURRENT_VERSION"   # 是当前版本
+    IS_BASED_ON = "IS_BASED_ON"                 # 基于
+    
+    # 执行关系
+    EXECUTED_WITH = "EXECUTED_WITH"             # 使用执行
+    PRODUCED_RESULT = "PRODUCED_RESULT"         # 产生结果
+    USED_PARAMETERS = "USED_PARAMETERS"         # 使用参数
+    
+    # 分析关系
+    COMPARES_WITH = "COMPARES_WITH"             # 与...对比
+    ANALYZES_IMPACT = "ANALYZES_IMPACT"         # 分析影响
+    SHOWS_SENSITIVITY = "SHOWS_SENSITIVITY"     # 显示敏感性
+    
+    # 版本管理
+    BRANCHED_FROM = "BRANCHED_FROM"             # 从...分支
+    MERGED_INTO = "MERGED_INTO"                 # 合并到
+    ROLLBACK_TO = "ROLLBACK_TO"                 # 回滚到
+    
+    # 决策集成
+    SIMULATES_DECISION = "SIMULATES_DECISION"   # 模拟决策
+    EVALUATES_PLAN = "EVALUATES_PLAN"           # 评估方案
+    OPTIMIZES_PARAMETERS = "OPTIMIZES_PARAMETERS"  # 优化参数
+
+# 模拟推演关系约束
+SIMULATION_RELATION_CONSTRAINTS = {
+    SimulationRelationType.HAS_VERSION: RelationConstraints(
+        source_categories=[SimulationEntityCategory.SIMULATION_SCENARIO],
+        target_categories=[SimulationEntityCategory.SIMULATION_VERSION],
+        valid_properties=["is_current", "stability"]
+    ),
+    SimulationRelationType.EXECUTED_WITH: RelationConstraints(
+        source_categories=[SimulationEntityCategory.SIMULATION_SCENARIO],
+        target_categories=[SimulationEntityCategory.SIMULATION_EXECUTION],
+        valid_properties=["execution_number", "status"]
+    ),
+    SimulationRelationType.PRODUCED_RESULT: RelationConstraints(
+        source_categories=[SimulationEntityCategory.SIMULATION_EXECUTION],
+        target_categories=[SimulationEntityCategory.SIMULATION_RESULT],
+        valid_properties=["result_type", "quality_score"]
+    ),
+    SimulationRelationType.COMPARES_WITH: RelationConstraints(
+        source_categories=[SimulationEntityCategory.SIMULATION_RESULT],
+        target_categories=[SimulationEntityCategory.SIMULATION_RESULT],
+        valid_properties=["comparison_metric", "difference_score"]
+    ),
+    SimulationRelationType.SIMULATES_DECISION: RelationConstraints(
+        source_categories=[SimulationEntityCategory.SIMULATION_SCENARIO],
+        target_categories=[EntityCategory.STRIKE_ORDER],
+        valid_properties=["decision_quality", "simulation_fidelity"]
+    ),
+}
+```
+
+### 7.3 模拟推验证证规则
+
+```python
+# ontology/simulation_validators.py
+
+class SimulationOntologyValidator(OntologyValidator):
+    """模拟推验证证器"""
+    
+    @staticmethod
+    def validate_simulation_scenario(
+        scenario: SimulationScenario
+    ) -> List[str]:
+        """验证模拟场景"""
+        errors = []
+        
+        # 参数Schema验证
+        if scenario.parameter_schema:
+            errors.extend(
+                SimulationOntologyValidator._validate_parameter_schema(
+                    scenario.parameter_schema
+                )
+            )
+        
+        # 默认参数验证
+        if scenario.default_parameters:
+            errors.extend(
+                SimulationOntologyValidator._validate_parameters(
+                    scenario.default_parameters,
+                    scenario.parameter_schema
+                )
+            )
+        
+        # 资源限制验证
+        if scenario.resource_limits:
+            errors.extend(
+                SimulationOntologyValidator._validate_resource_limits(
+                    scenario.resource_limits
+                )
+            )
+        
+        # 状态一致性验证
+        if scenario.status == SimulationStatus.RUNNING:
+            if not scenario.current_version_id:
+                errors.append("Running scenario must have a current version")
+        
+        return errors
+    
+    @staticmethod
+    def validate_simulation_version(
+        version: SimulationVersion
+    ) -> List[str]:
+        """验证模拟版本"""
+        errors = []
+        
+        # 版本号格式验证
+        if not SimulationOntologyValidator._validate_version_number(
+            version.version_number
+        ):
+            errors.append(f"Invalid version number format: {version.version_number}")
+        
+        # 参数快照验证
+        if version.parameter_snapshot:
+            errors.extend(
+                SimulationOntologyValidator._validate_parameter_snapshot(
+                    version.parameter_snapshot
+                )
+            )
+        
+        # 回滚兼容性验证
+        if version.rollback_target_id and not version.rollback_compatibility:
+            errors.append("Rollback target specified but compatibility is false")
+        
+        # 执行统计验证
+        if version.success_count + version.failure_count != len(version.execution_ids):
+            errors.append("Execution count mismatch with success+failure count")
+        
+        return errors
+    
+    @staticmethod
+    def validate_simulation_execution(
+        execution: SimulationExecution
+    ) -> List[str]:
+        """验证模拟执行"""
+        errors = []
+        
+        # 状态机验证
+        if not SimulationOntologyValidator._validate_state_transition(
+            execution.status
+        ):
+            errors.append(f"Invalid state transition for {execution.status}")
+        
+        # 时间一致性验证
+        if execution.end_time and execution.start_time:
+            if execution.end_time < execution.start_time:
+                errors.append("End time cannot be before start time")
+            
+            if execution.duration_seconds:
+                expected_duration = (
+                    execution.end_time - execution.start_time
+                ).total_seconds()
+                if abs(execution.duration_seconds - expected_duration) > 1:
+                    errors.append("Duration does not match start/end times")
+        
+        # 进度验证
+        if execution.progress_percentage < 0 or execution.progress_percentage > 100:
+            errors.append("Progress percentage must be between 0 and 100")
+        
+        # 资源限制检查
+        if execution.resource_limits_violated:
+            if not execution.resource_usage:
+                errors.append("Resource usage must be recorded when limits violated")
+        
+        return errors
+    
+    @staticmethod
+    def validate_simulation_result(
+        result: SimulationResult
+    ) -> List[str]:
+        """验证模拟结果"""
+        errors = []
+        
+        # 结果完整性验证
+        if not result.raw_data and not result.processed_data:
+            errors.append("Result must have either raw or processed data")
+        
+        # 指标验证
+        metrics = [
+            result.performance_metrics,
+            result.business_metrics,
+            result.quality_metrics
+        ]
+        
+        for metric_dict in metrics:
+            for key, value in metric_dict.items():
+                if not isinstance(value, (int, float)):
+                    errors.append(f"Metric {key} must be a number, got {type(value)}")
+        
+        # 存储大小验证
+        if result.storage_size_bytes < 0:
+            errors.append("Storage size cannot be negative")
+        
+        # 压缩比验证
+        if result.compression_ratio <= 0:
+            errors.append("Compression ratio must be positive")
+        
+        # 版本格式验证
+        if not SimulationOntologyValidator._validate_version_number(
+            result.result_version
+        ):
+            errors.append(f"Invalid result version format: {result.result_version}")
+        
+        return errors
+    
+    @staticmethod
+    def validate_what_if_analysis(
+        analysis: WhatIfAnalysis
+    ) -> List[str]:
+        """验证What-if分析"""
+        errors = []
+        
+        # 参数变化验证
+        if not analysis.parameter_changes:
+            errors.append("What-if analysis must have parameter changes")
+        
+        # 分析类型验证
+        valid_analysis_types = ["sensitivity", "impact", "trend", "comprehensive"]
+        if analysis.analysis_type not in valid_analysis_types:
+            errors.append(f"Invalid analysis type: {analysis.analysis_type}")
+        
+        # 分析深度验证
+        valid_depths = ["quick", "detailed", "comprehensive"]
+        if analysis.analysis_depth not in valid_depths:
+            errors.append(f"Invalid analysis depth: {analysis.analysis_depth}")
+        
+        # 结果一致性验证
+        if analysis.status == SimulationStatus.COMPLETED:
+            if not analysis.result_ids:
+                errors.append("Completed analysis must have result IDs")
+            if not analysis.key_insights:
+                errors.append("Completed analysis must have key insights")
+        
+        # 相关性验证
+        if analysis.execution_ids and not analysis.result_ids:
+            errors.append("If executions exist, corresponding results should exist")
+        
+        return errors
+```
+
+### 7.4 模拟推演本体管理器（简化版本）
+
+```python
+# ontology/simulation_ontology_manager.py
+
+class SimulationOntologyManager(OntologyManager):
+    """模拟推演本体管理器"""
+    
+    async def create_simulation_scenario(
+        self,
+        scenario_data: Dict[str, Any],
+        created_by: str
+    ) -> Tuple[str, str]:
+        """
+        创建模拟场景
+        返回: (scenario_id, scenario_version_id)
+        """
+        # 创建场景实体
+        scenario = SimulationScenario(
+            **scenario_data,
+            created_by=created_by,
+            last_modified_by=created_by
+        )
+        
+        # 验证场景
+        errors = SimulationOntologyValidator.validate_simulation_scenario(scenario)
+        if errors:
+            raise ValidationError(f"Scenario validation failed: {errors}")
+        
+        # 注册场景
+        scenario_id = await self.register_entity(scenario)
+        
+        # 创建初始版本
+        version = SimulationVersion(
+            scenario_id=scenario_id,
+            version_number="v1.0.0",
+            change_summary="Initial version",
+            change_author=created_by,
+            parameter_snapshot=scenario.default_parameters,
+            configuration_snapshot=scenario.model_dump(),
+            is_current=True,
+            is_stable=True
+        )
+        
+        # 注册版本
+        version_id = await self.register_entity(version)
+        
+        # 建立场景-版本关系
+        await self.register_relation(
+            source_id=scenario_id,
+            target_id=version_id,
+            relation_type=SimulationRelationType.HAS_VERSION,
+            properties={"is_current": True}
+        )
+        
+        return scenario_id, version_id
+    
+    async def execute_simulation(
+        self,
+        scenario_id: str,
+        version_id: str,
+        parameters: Dict[str, Any],
+        execution_config: Dict[str, Any],
+        executed_by: str
+    ) -> Tuple[str, str]:
+        """
+        执行模拟
+        返回: (execution_id, result_id)
+        """
+        # 创建执行实体
+        execution = SimulationExecution(
+            scenario_id=scenario_id,
+            version_id=version_id,
+            parameters=parameters,
+            configuration=execution_config,
+            status=SimulationStatus.READY
+        )
+        
+        # 注册执行
+        execution_id = await self.register_entity(execution)
+        
+        # 创建结果占位符
+        result = SimulationResult(
+            execution_id=execution_id,
+            scenario_id=scenario_id,
+            version_id=version_id
+        )
+        
+        result_id = await self.register_entity(result)
+        
+        # 建立执行-结果关系
+        await self.register_relation(
+            source_id=execution_id,
+            target_id=result_id,
+            relation_type=SimulationRelationType.PRODUCED_RESULT
+        )
+        
+        return execution_id, result_id
+```
+
+---
+
+## 8. 版本历史
 
 | 版本 | 日期 | 变更说明 |
 |------|------|---------|
 | 1.0.0 | 2026-04-11 | 初始版本 |
+| 1.1.0 | 2026-04-12 | 新增模拟推演本体支持，包括场景、版本、执行、结果等实体定义，以及与决策推荐的深度集成 |

@@ -353,8 +353,497 @@ decision_recommendation:
 
 ---
 
-## 6. 版本历史
+## 6. 模拟推演集成
+
+### 6.1 模拟推演适配器
+
+```python
+# core/decision_recommendation/simulation_adapter.py
+
+class SimulationDecisionAdapter:
+    """
+    模拟推演决策适配器 - 支持在沙箱环境中执行决策推荐
+    """
+    
+    def __init__(
+        self, 
+        decision_engine: DecisionRecommendationEngine,
+        simulation_client: SimulationClient
+    ):
+        self.engine = decision_engine
+        self.sim_client = simulation_client
+        
+    async def simulate_decision_scenario(
+        self,
+        scenario_config: Dict[str, Any],
+        parameters: Dict[str, Any]
+    ) -> SimulationResult:
+        """
+        在模拟环境中执行决策场景
+        """
+        # 1. 创建模拟沙箱
+        sandbox_id = await self.sim_client.create_sandbox(
+            scenario_type="decision_analysis",
+            config=scenario_config
+        )
+        
+        try:
+            # 2. 注入参数
+            injected_params = await self.sim_client.inject_parameters(
+                sandbox_id,
+                parameters
+            )
+            
+            # 3. 执行决策分析
+            targets = injected_params.get("targets", [])
+            constraints = injected_params.get("constraints", {})
+            
+            # 生成打击方案
+            strike_plans = await self.engine.generate_strike_plans(
+                targets, 
+                constraints
+            )
+            
+            # 评估风险
+            risk_assessments = []
+            for plan in strike_plans:
+                risk = await self.engine.assess_risks(plan, constraints)
+                risk_assessments.append(risk)
+            
+            # 排序方案
+            ranked_plans = await self.engine.rank_plans(strike_plans)
+            
+            # 4. 捕获结果
+            result = await self.sim_client.capture_result(
+                sandbox_id,
+                {
+                    "strike_plans": [
+                        p.dict() for p in strike_plans
+                    ],
+                    "risk_assessments": [
+                        r.dict() for r in risk_assessments
+                    ],
+                    "ranked_plans": [
+                        p.dict() for p in ranked_plans
+                    ],
+                    "best_plan": ranked_plans[0].dict() if ranked_plans else None
+                }
+            )
+            
+            return result
+            
+        finally:
+            # 5. 清理沙箱
+            await self.sim_client.cleanup_sandbox(sandbox_id)
+    
+    async def compare_decision_strategies(
+        self,
+        base_scenario: Dict[str, Any],
+        strategy_variants: List[Dict[str, Any]]
+    ) -> ComparisonResult:
+        """
+        对比不同决策策略的效果
+        """
+        simulation_tasks = []
+        
+        for variant in strategy_variants:
+            # 合并基础配置和变体
+            scenario_config = {**base_scenario, **variant}
+            
+            task = asyncio.create_task(
+                self.simulate_decision_scenario(
+                    scenario_config,
+                    variant.get("parameters", {})
+                )
+            )
+            simulation_tasks.append((variant["name"], task))
+        
+        # 等待所有模拟完成
+        results = []
+        for name, task in simulation_tasks:
+            try:
+                result = await task
+                results.append({
+                    "strategy_name": name,
+                    "result": result
+                })
+            except Exception as e:
+                results.append({
+                    "strategy_name": name,
+                    "error": str(e)
+                })
+        
+        # 对比分析
+        comparison = await self._compare_results(results)
+        
+        return comparison
+    
+    async def what_if_analysis(
+        self,
+        base_plan: StrikePlan,
+        what_if_changes: Dict[str, Any]
+    ) -> WhatIfResult:
+        """
+        What-if分析：如果改变某些参数会怎样
+        """
+        # 复制基础方案并应用修改
+        modified_plan = base_plan.copy(update=what_if_changes)
+        
+        # 重新评估风险
+        modified_risk = await self.engine.assess_risks(
+            modified_plan,
+            base_plan.constraints
+        )
+        
+        # 计算变化
+        changes = self._calculate_changes(
+            base_plan, 
+            modified_plan,
+            base_plan.risk_assessment,
+            modified_risk
+        )
+        
+        return WhatIfResult(
+            modified_plan=modified_plan,
+            modified_risk=modified_risk,
+            changes=changes,
+            recommendations=self._generate_recommendations(changes)
+        )
+```
+
+### 6.2 Web界面集成
+
+```python
+# ui/decision_simulation/components.py
+
+class DecisionSimulationDashboard:
+    """
+    决策模拟推演Web界面
+    """
+    
+    def __init__(self, api_client: APIClient):
+        self.api = api_client
+        
+    def render_dashboard(self) -> Dashboard:
+        """
+        渲染模拟推演控制面板
+        """
+        return Dashboard(
+            title="决策模拟推演系统",
+            layout=[
+                # 参数配置面板
+                self._render_parameter_panel(),
+                
+                # 方案对比面板
+                self._render_comparison_panel(),
+                
+                # 结果可视化面板
+                self._render_visualization_panel(),
+                
+                # 版本管理面板
+                self._render_version_panel()
+            ]
+        )
+    
+    def _render_parameter_panel(self) -> Component:
+        """
+        参数配置面板
+        """
+        return ParameterPanel(
+            title="推演参数配置",
+            parameters=[
+                Parameter(
+                    name="target_selection",
+                    label="目标选择策略",
+                    type="select",
+                    options=[
+                        {"value": "priority", "label": "优先级优先"},
+                        {"value": "risk", "label": "风险优先"},
+                        {"value": "mixed", "label": "混合策略"}
+                    ],
+                    default="mixed"
+                ),
+                Parameter(
+                    name="risk_tolerance",
+                    label="风险容忍度",
+                    type="slider",
+                    min=0,
+                    max=100,
+                    default=50,
+                    step=5
+                ),
+                Parameter(
+                    name="weapon_constraints",
+                    label="武器使用约束",
+                    type="multi-select",
+                    options=[
+                        {"value": "no_collateral", "label": "零附带损伤"},
+                        {"value": "minimum_cost", "label": "成本最小化"},
+                        {"value": "maximum_effect", "label": "效果最大化"}
+                    ],
+                    default=["maximum_effect"]
+                )
+            ],
+            on_change=self._handle_parameter_change
+        )
+    
+    def _render_comparison_panel(self) -> Component:
+        """
+        方案对比面板
+        """
+        return ComparisonPanel(
+            title="多方案对比",
+            metrics=[
+                "success_rate",
+                "risk_score", 
+                "estimated_cost",
+                "collateral_damage"
+            ],
+            on_select=self._handle_plan_selection
+        )
+    
+    def _handle_parameter_change(self, params: Dict[str, Any]):
+        """
+        处理参数变更
+        """
+        # 创建新方案版本
+        new_version = self.api.create_version({
+            "parameters": params,
+            "description": "参数调整版本"
+        })
+        
+        # 执行模拟推演
+        result = self.api.run_simulation(
+            scenario_id=current_scenario_id,
+            version_id=new_version.id
+        )
+        
+        # 更新结果展示
+        self._update_results(result)
+    
+    def _handle_plan_selection(self, plan_id: str):
+        """
+        处理方案选择
+        """
+        # 获取方案详情
+        plan_details = self.api.get_plan_details(plan_id)
+        
+        # 显示详细分析
+        self._show_plan_analysis(plan_details)
+```
+
+### 6.3 模拟推演配置
+
+```yaml
+# config/simulation_decision.yaml
+simulation_decision:
+  # 推演参数
+  parameters:
+    # 目标选择
+    target_selection:
+      strategies:
+        - name: "priority_based"
+          description: "基于威胁等级优先级"
+          algorithm: "multi_criteria_decision"
+          criteria_weights:
+            threat_level: 0.4
+            strategic_value: 0.3
+            proximity: 0.2
+            vulnerability: 0.1
+        
+        - name: "risk_averse"
+          description: "风险规避策略"
+          algorithm: "risk_minimization"
+          risk_weights:
+            collateral: 0.4
+            counterattack: 0.3
+            escalation: 0.2
+            political: 0.1
+    
+    # 武器选择
+    weapon_selection:
+      optimization_goal: "maximize_effectiveness"
+      constraints:
+        max_cost: 1000000
+        min_success_rate: 0.7
+        max_collateral: 10
+        
+  # 推演场景
+  scenarios:
+    - name: "quick_strike"
+      description: "快速打击场景"
+      time_limit: 300  # 5分钟
+      resources: "limited"
+      objectives:
+        - "eliminate_high_value_target"
+        - "minimize_collateral"
+    
+    - name: "sustained_operation"
+      description: "持续作战场景"
+      time_limit: 1800  # 30分钟
+      resources: "extended"
+      objectives:
+        - "multiple_targets"
+        - "terrain_control"
+        - "force_projection"
+  
+  # 评估指标
+  metrics:
+    primary:
+      - "mission_success"
+      - "risk_level"
+      - "resource_efficiency"
+    
+    secondary:
+      - "decision_quality"
+      - "response_time"
+      - "adaptability"
+  
+  # 推演参数范围
+  parameter_ranges:
+    risk_tolerance:
+      min: 0
+      max: 100
+      step: 5
+      default: 50
+    
+    weapon_constraints:
+      options: ["precision", "stealth", "speed", "power"]
+      default: ["precision", "stealth"]
+```
+
+### 6.4 测试用例
+
+```python
+# tests/decision_simulation/test_simulation.py
+
+class TestDecisionSimulation:
+    
+    async def test_simulation_decision_scenario(self):
+        """测试模拟推演决策场景"""
+        engine = DecisionRecommendationEngine(
+            graphiti_client=mock_graphiti,
+            opa_manager=mock_opa
+        )
+        
+        adapter = SimulationDecisionAdapter(
+            decision_engine=engine,
+            simulation_client=mock_simulation
+        )
+        
+        # 执行模拟推演
+        result = await adapter.simulate_decision_scenario(
+            scenario_config={
+                "name": "test_strike",
+                "type": "precision_strike"
+            },
+            parameters={
+                "targets": [
+                    {"id": "t1", "name": "Target A", "threat_level": 8}
+                ],
+                "constraints": {
+                    "risk_tolerance": 60,
+                    "time_limit": 600
+                }
+            }
+        )
+        
+        # 验证结果
+        assert result.status == "completed"
+        assert "strike_plans" in result.data
+        assert len(result.data["strike_plans"]) > 0
+        
+        # 验证最佳方案
+        best_plan = result.data.get("best_plan")
+        assert best_plan is not None
+        assert best_plan["priority_score"] >= 0
+        assert best_plan["risk_score"] >= 0
+    
+    async def test_compare_decision_strategies(self):
+        """测试决策策略对比"""
+        adapter = SimulationDecisionAdapter(
+            decision_engine=mock_engine,
+            simulation_client=mock_simulation
+        )
+        
+        # 定义策略变体
+        strategies = [
+            {
+                "name": "aggressive",
+                "parameters": {
+                    "risk_tolerance": 80,
+                    "target_selection": "priority"
+                }
+            },
+            {
+                "name": "conservative", 
+                "parameters": {
+                    "risk_tolerance": 30,
+                    "target_selection": "risk"
+                }
+            }
+        ]
+        
+        # 执行对比
+        comparison = await adapter.compare_decision_strategies(
+            base_scenario={
+                "targets": test_targets,
+                "resources": test_resources
+            },
+            strategy_variants=strategies
+        )
+        
+        # 验证对比结果
+        assert len(comparison.results) == 2
+        assert "aggressive" in comparison.results
+        assert "conservative" in comparison.results
+        assert comparison.best_strategy in ["aggressive", "conservative"]
+        
+        # 验证分析报告
+        assert comparison.analysis is not None
+        assert "insights" in comparison.analysis
+        assert "recommendations" in comparison.analysis
+    
+    async def test_what_if_analysis(self):
+        """测试What-if分析"""
+        engine = DecisionRecommendationEngine(
+            graphiti_client=mock_graphiti,
+            opa_manager=mock_opa
+        )
+        
+        # 生成基础方案
+        base_plan = await engine.generate_strike_plans(
+            targets=test_targets,
+            constraints=test_constraints
+        )[0]
+        
+        adapter = SimulationDecisionAdapter(
+            decision_engine=engine,
+            simulation_client=mock_simulation
+        )
+        
+        # 执行What-if分析
+        what_if_result = await adapter.what_if_analysis(
+            base_plan=base_plan,
+            what_if_changes={
+                "weapon_type": "guided_missile",
+                "attack_range": 500
+            }
+        )
+        
+        # 验证结果
+        assert what_if_result.modified_plan is not None
+        assert what_if_result.changes is not None
+        assert "risk_score_change" in what_if_result.changes
+        assert "success_rate_change" in what_if_result.changes
+        assert len(what_if_result.recommendations) > 0
+```
+
+---
+
+## 7. 版本历史
 
 | 版本 | 日期 | 变更说明 |
 |------|------|---------|
 | 1.0.0 | 2026-04-11 | 初始版本 |
+| 1.1.0 | 2026-04-12 | 新增模拟推演集成支持，包括适配器、Web界面和测试用例 |
