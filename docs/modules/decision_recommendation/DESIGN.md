@@ -1,5 +1,7 @@
 # Decision Recommendation 决策推荐模块设计文档
 
+> **优先级**: P1 | **相关 ADR**: ADR-001, ADR-002, ADR-004
+
 ## 1. 模块概述
 
 ### 1.1 模块定位
@@ -847,3 +849,11 @@ class TestDecisionSimulation:
 |------|------|---------|
 | 1.0.0 | 2026-04-11 | 初始版本 |
 | 1.1.0 | 2026-04-12 | 新增模拟推演集成支持，包括适配器、Web界面和测试用例 |
+
+---
+
+**相关文档**:
+- [Graphiti 客户端模块设计](../graphiti_client/DESIGN.md)
+- [Ontology 本体管理层设计](../ontology/DESIGN.md)
+- [Swarm 编排模块设计](../swarm_orchestrator/DESIGN.md)
+- [安全策略文档](../../security/SECURITY.md)

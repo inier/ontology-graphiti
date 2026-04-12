@@ -1,5 +1,7 @@
 # Skills 领域工具层设计文档
 
+> **优先级**: P0 | **相关 ADR**: ADR-004, ADR-014
+
 ## 1. 模块概述
 
 ### 1.1 模块定位
@@ -909,3 +911,10 @@ async def get_workflow_status(workflow_id: str) -> Dict[str, Any]:
 |------|------|---------|
 | 1.0.0 | 2026-04-11 | 初始版本 |
 | 1.1.0 | 2026-04-12 | 新增技能编排器、工作流引擎、协调机制和API接口 |
+
+---
+
+**相关文档**:
+- [OpenHarness 桥接模块设计](../openharness_bridge/DESIGN.md)
+- [Swarm 编排模块设计](../swarm_orchestrator/DESIGN.md)
+- [安全策略文档](../../security/SECURITY.md)

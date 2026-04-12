@@ -1,5 +1,7 @@
 # Graphiti 客户端模块设计文档
 
+> **优先级**: P0 | **相关 ADR**: ADR-002, ADR-006
+
 ## 1. 模块概述
 
 ### 1.1 模块定位
@@ -840,3 +842,11 @@ class GraphitiErrorHandler:
 |------|------|---------|
 | 1.0.0 | 2026-04-11 | 初始版本 |
 | 1.1.0 | 2026-04-12 | 新增三级缓存架构、性能监控、连接池管理和错误重试机制 |
+
+---
+
+**相关文档**:
+- [Ontology 本体管理层设计](../ontology/DESIGN.md)
+- [Decision Recommendation 决策推荐模块设计](../decision_recommendation/DESIGN.md)
+- [OpenHarness 桥接模块设计](../openharness_bridge/DESIGN.md)
+- [安全策略文档](../../security/SECURITY.md)

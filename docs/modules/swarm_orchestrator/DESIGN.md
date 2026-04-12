@@ -1,5 +1,7 @@
 # Swarm 编排模块设计文档
 
+> **优先级**: P0 | **相关 ADR**: ADR-005, ADR-025
+
 ## 1. 模块概述
 
 ### 1.1 模块定位
@@ -1441,3 +1443,11 @@ swarm_orchestrator:
 |------|------|---------|
 | 1.0.0 | 2026-04-11 | 初始版本 |
 | 1.1.0 | 2026-04-12 | 新增故障恢复机制、状态持久化、健康监控和断路器模式 |
+
+---
+
+**相关文档**:
+- [OpenHarness 桥接模块设计](../openharness_bridge/DESIGN.md)
+- [Skills 领域工具层设计](../skills/DESIGN.md)
+- [Decision Recommendation 决策推荐模块设计](../decision_recommendation/DESIGN.md)
+- [安全策略文档](../../security/SECURITY.md)

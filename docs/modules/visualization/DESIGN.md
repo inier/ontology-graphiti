@@ -1,5 +1,7 @@
 # Visualization 可视化模块设计文档
 
+> **优先级**: P1 | **相关 ADR**: ADR-007, ADR-015
+
 ## 1. 模块概述
 
 ### 1.1 模块定位
@@ -912,3 +914,11 @@ simulation_visualization:
 |------|------|---------|
 | 1.0.0 | 2026-04-11 | 初始版本 |
 | 1.1.0 | 2026-04-12 | 新增模拟推演可视化增强，包括实时推演、方案对比、What-if分析等高级功能 |
+
+---
+
+**相关文档**:
+- [Graphiti 客户端模块设计](../graphiti_client/DESIGN.md)
+- [Ontology 本体管理层设计](../ontology/DESIGN.md)
+- [Decision Recommendation 决策推荐模块设计](../decision_recommendation/DESIGN.md)
+- [安全策略文档](../../security/SECURITY.md)

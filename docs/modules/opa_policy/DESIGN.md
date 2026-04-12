@@ -1,5 +1,7 @@
 # OPA 策略管理模块设计文档
 
+> **优先级**: P0 | **相关 ADR**: ADR-003, ADR-009
+
 ## 1. 模块概述
 
 ### 1.1 模块定位
@@ -645,3 +647,11 @@ class PolicyMonitor:
 |------|------|---------|
 | 1.0.0 | 2026-04-11 | 初始版本 |
 | 1.1.0 | 2026-04-12 | 新增策略调试工具、性能优化、监控审计功能 |
+
+---
+
+**相关文档**:
+- [权限校验模块设计](../permission_checker/DESIGN.md)
+- [Hook 系统模块设计](../hook_system/DESIGN.md)
+- [OpenHarness 桥接模块设计](../openharness_bridge/DESIGN.md)
+- [安全策略文档](../../security/SECURITY.md)

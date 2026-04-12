@@ -1,18 +1,22 @@
 # OpenHarness 桥接模块设计文档
 
+> **优先级**: P0 | **相关 ADR**: ADR-001, ADR-005, ADR-006
+
 ## 1. 模块概述
 
 ### 1.1 模块定位
 
-`openharness_bridge` 是连接 OpenHarness 基础设施层与战场业务逻辑的核心桥接适配器。它将 OpenHarness 的通用 Agent 框架、Tool 调度、记忆管理和权限控制适配到战场情报分析与打击决策系统的特定需求。
+`openharness_bridge` 是基于 **OpenHarness 原生扩展点**（Plugin/Memory Plugin/Permission Plugin/Skill）的领域适配层。它通过 ADR-005 定义的分层 Agent 架构，将 OpenHarness 的通用 Agent 框架、Tool 调度、记忆管理和权限控制适配到战场情报分析与打击决策系统的特定需求。
+
+> **注意**: 本模块定位为"适配层"而非"桥接中间件"。所有集成通过 OpenHarness 原生扩展点实现（参见 ADR-005），不引入独立中间件。
 
 ### 1.2 核心职责
 
 | 职责 | 描述 |
 |------|------|
-| Agent 适配 | 将 OpenHarness 原生 Agent 配置适配到三 Agent 角色（Commander/Intelligence/Operations） |
-| Memory 桥接 | 将 OpenHarness Memory 替换为 Graphiti 双时态知识图谱 |
-| Permission 桥接 | 将 OpenHarness Permission 替换为 OPA 策略引擎 |
+| Agent 适配 | 将 OpenHarness 原生 Agent 配置适配到三 Agent 角色（Commander/Intelligence/Operations），通过 Skill 封装领域能力（ADR-005 Layer 2） |
+| Memory 适配 | 通过 OpenHarness Memory Plugin 扩展点，将 Graphiti 双时态知识图谱注册为 OpenHarness 记忆后端 |
+| Permission 适配 | 通过 OpenHarness Permission Plugin 扩展点，将 OPA 策略引擎注册为权限后端 |
 | Tool 标准化 | 将战场领域 Skills 转换为 OpenHarness 原生 Tool 接口 |
 | Hooks 管理 | 注册和管理 OpenHarness 生命周期钩子 |
 
@@ -20,7 +24,7 @@
 
 ```
 ┌─────────────────────────────────────────────────────────────────────────────┐
-│                         OpenHarness 桥接模块                                 │
+│                         OpenHarness 领域适配层                                 │
 ├─────────────────────────────────────────────────────────────────────────────┤
 │                                                                              │
 │  ┌─────────────────────────────────────────────────────────────────────┐    │
@@ -59,14 +63,14 @@ from typing import Optional, Dict, Any, List
 from enum import Enum
 
 class BridgeStatus(str, Enum):
-    """桥接模块状态"""
+    """适配模块状态"""
     INITIALIZING = "initializing"
     READY = "ready"
     DEGRADED = "degraded"
     ERROR = "error"
 
 class BridgeConfig(BaseModel):
-    """桥接配置"""
+    """适配层配置"""
     opa_url: str = Field(default="http://localhost:8181")
     graphiti_url: str = Field(default="http://localhost:7474")
     neo4j_url: str = Field(default="bolt://localhost:7687")
@@ -87,7 +91,7 @@ class BridgeHealth(BaseModel):
     errors: List[str] = Field(default_factory=list)
 
 class BridgeManager:
-    """OpenHarness 桥接管理器"""
+    """OpenHarness 领域适配层管理器（基于原生扩展点）"""
 
     def __init__(self, config: BridgeConfig):
         self.config = config
@@ -518,9 +522,9 @@ class BridgeManagerImpl(BridgeManager):
     async def initialize(self) -> None:
         """初始化所有桥接组件"""
         self._start_time = datetime.now()
-        logger.info("Initializing OpenHarness Bridge...")
+        logger.info("Initializing OpenHarness Adapter...")
 
-        # 1. 初始化 Memory Bridge (Graphiti)
+        # 1. 初始化 Memory Adapter (Graphiti Memory Plugin)
         if self.config.enable_memory_bridge:
             self._memory_bridge = GraphitiMemoryAdapter(
                 graphiti_url=self.config.graphiti_url,
@@ -530,15 +534,15 @@ class BridgeManagerImpl(BridgeManager):
                 }
             )
             await self._memory_bridge.connect()
-            logger.info("Graphiti Memory Bridge initialized")
+            logger.info("Graphiti Memory Plugin initialized")
 
-        # 2. 初始化 Permission Bridge (OPA)
+        # 2. 初始化 Permission Adapter (OPA Permission Plugin)
         if self.config.enable_permission_bridge:
             self._permission_bridge = OPAPermissionAdapter(
                 opa_url=self.config.opa_url
             )
             await self._permission_bridge.health_check()
-            logger.info("OPA Permission Bridge initialized")
+            logger.info("OPA Permission Plugin initialized")
 
         # 3. 初始化 Skill Registry
         self._skill_registry = SkillRegistry()
@@ -1402,3 +1406,12 @@ async def test_framework_failover():
 |------|------|---------|
 | 1.0.0 | 2026-04-11 | 初始版本 |
 | 1.1.0 | 2026-04-12 | 新增框架抽象层，支持OpenHarness/LangGraph/CrewAI热切换和故障转移 |
+
+---
+
+**相关文档**:
+- [Graphiti 客户端模块设计](../graphiti_client/DESIGN.md)
+- [OPA 策略管理模块设计](../opa_policy/DESIGN.md)
+- [Skills 领域工具层设计](../skills/DESIGN.md)
+- [Swarm 编排模块设计](../swarm_orchestrator/DESIGN.md)
+- [安全策略文档](../../security/SECURITY.md)

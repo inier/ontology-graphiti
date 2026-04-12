@@ -1,5 +1,7 @@
 # Hook System 模块设计文档
 
+> **优先级**: P1 | **相关 ADR**: ADR-027
+
 ## 1. 模块概述
 
 **版本**: 1.0.0 | **日期**: 2026-04-12 | **作者**: 平台架构组
@@ -1705,7 +1707,7 @@ ws.onmessage = (event) => {
 ---
 
 **相关文档**:
-- [OpenHarness Hook规范](../openharness_bridge/DESIGN.md)
+- [OpenHarness领域适配指南](../openharness_bridge/DESIGN.md)
 - [权限校验模块设计](../permission_checker/DESIGN.md)
 - [MCP协议集成模块设计](../mcp_protocol/DESIGN.md)
 - [安全策略文档](../../security/SECURITY.md)

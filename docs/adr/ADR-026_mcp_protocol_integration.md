@@ -190,8 +190,7 @@ Graphiti系统需要与多种外部战场仿真系统集成，包括：
 
 1. [MCP协议规范](https://spec.modelcontextprotocol.io/)
 2. [MCP协议集成模块设计](../modules/mcp_protocol/DESIGN.md)
-3. [战场仿真器集成指南](../../external/battlefield_simulator/README.md)
-4. [安全策略文档](../../security/SECURITY.md)
+3. [安全策略文档](../../security/SECURITY.md)
 
 ## 决策记录
 
