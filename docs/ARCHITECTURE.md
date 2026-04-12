@@ -24,6 +24,9 @@
 7. [三 Agent 协同编排设计](#7-三-agent-协同编排设计)
 8. [OODA 闭环实现](#8-ooda-闭环实现)
 9. [数据架构](#9-数据架构)
+   - [9.1 数据流总览](#91-数据流总览)
+   - [9.2 存储层次](#92-存储层次)
+   - [9.3 模拟推演引擎架构](#95-模拟推演引擎架构)
 10. [技术选型与权衡](#10-技术选型与权衡)
 11. [前端界面架构](#11-前端界面架构)
 12. [管理后台架构](#12-管理后台架构)
@@ -1553,6 +1556,661 @@ class OODALoop:
 | **时序存储** | Graphiti Episode | 双时态事实 | [valid_from, valid_to, recorded_at] |
 | **结构化存储** | PostgreSQL | 业务主数据 | 打击命令、授权配置 |
 | **对象存储** | S3/MinIO | 文件资产 | 战场图像、雷达回波 |
+| **模拟推演存储** | Redis + 临时PostgreSQL | 沙箱推演数据、方案版本 | 推演结果、参数快照 |
+
+---
+
+## 9.5 模拟推演引擎架构
+
+### 9.5.1 核心定位
+
+模拟推演引擎为Graphiti系统提供**沙箱式推演能力**，支持用户通过Web界面配置参数、模拟不同方案、预演结果，同时保证生产环境的完全隔离。每个推演方案都有独立的版本管理和回退能力。
+
+### 9.5.2 系统架构
+
+```
+┌─────────────────────────────────────────────────────────────┐
+│                模拟推演系统架构 (Simulation Architecture)      │
+├─────────────────────────────────────────────────────────────┤
+│                                                             │
+│  ┌─────────────────────────────────────────────────────┐   │
+│  │                 Web界面层 (UI Layer)                 │   │
+│  │  ┌──────────┐ ┌──────────┐ ┌──────────┐            │   │
+│  │  │方案管理器│ │参数编辑器│ │结果看板  │            │   │
+│  │  │Scenario │ │Parameter │ │Dashboard │            │   │
+│  │  │Manager   │ │Editor    │ │          │            │   │
+│  │  └─────┬────┘ └────┬────┘ └────┬────┘            │   │
+│  └────────┼────────────┼───────────┼─────────────────┘   │
+│           │            │           │                     │
+│  ┌────────┴────────────┴───────────┴─────────────────┐   │
+│  │              API网关层 (API Gateway)                │   │
+│  │  ┌────────────┐  ┌────────────┐  ┌────────────┐   │   │
+│  │  │方案管理API │  │推演执行API │  │版本管理API │   │   │
+│  │  │Scenario    │  │Simulation  │  │Version     │   │   │
+│  │  │Management  │  │Execution   │  │Management  │   │   │
+│  │  └─────┬──────┘  └─────┬──────┘  └─────┬──────┘   │   │
+│  └────────┼───────────────┼────────────────┼─────────┘   │
+│           │               │                │             │
+│  ┌────────┴───────────────┴────────────────┴─────────┐   │
+│  │             核心引擎层 (Core Engine)               │   │
+│  │  ┌──────────────────────────────────────────┐    │   │
+│  │  │        模拟沙箱 (Simulation Sandbox)      │    │   │
+│  │  │  ┌─────────┐  ┌─────────┐  ┌─────────┐   │    │   │
+│  │  │  │环境隔离 │  │参数注入 │  │结果捕获 │   │    │   │
+│  │  │  │Isolated │  │Parameter│  │Result   │   │    │   │
+│  │  │  │Environ. │  │Injection│  │Capture  │   │    │   │
+│  │  │  └─────────┘  └─────────┘  └─────────┘   │    │   │
+│  │  └──────────────────────────────────────────┘    │   │
+│  └──────────────────────────────────────────────────┘   │
+│                                                             │
+│  ┌─────────────────────────────────────────────────────┐   │
+│  │             数据存储层 (Data Storage)                │   │
+│  │  ┌──────────┐  ┌──────────┐  ┌──────────┐          │   │
+│  │  │方案版本库│  │推演结果库│  │参数快照库│          │   │
+│  │  │Scenario  │  │Simulation│  │Parameter │          │   │
+│  │  │Versioning│  │Result    │  │Snapshots │          │   │
+│  │  │Repo      │  │Store     │  │Store     │          │   │
+│  │  └──────────┘  └──────────┘  └──────────┘          │   │
+│  └─────────────────────────────────────────────────────┘   │
+│                                                             │
+└─────────────────────────────────────────────────────────────┘
+```
+
+### 9.5.3 核心组件设计
+
+#### 1. 模拟沙箱 (SimulationSandbox)
+- **环境隔离**: Docker容器或命名空间隔离
+- **参数注入**: 运行时参数动态注入
+- **结果捕获**: 实时捕获推演结果和指标
+- **资源限制**: CPU、内存、网络限制
+
+#### 2. 方案版本管理器 (ScenarioVersionManager)
+- **Git-style版本控制**: 支持分支、合并、回退
+- **参数快照**: 每次参数调整自动创建快照
+- **差异对比**: 可视化显示版本间差异
+- **一键回滚**: 快速恢复到任意历史版本
+
+#### 3. 参数配置系统 (ParameterConfigSystem)
+- **动态Schema**: 基于推演类型动态生成参数配置界面
+- **实时验证**: 参数合法性实时验证
+- **依赖管理**: 参数间依赖关系管理
+- **批量操作**: 支持参数批量修改和导入导出
+
+#### 4. 推演结果分析器 (SimulationResultAnalyzer)
+- **多维度分析**: KPI指标、趋势分析、异常检测
+- **对比分析**: 多方案并行对比
+- **What-if分析**: 参数敏感性分析
+- **可视化生成**: 自动生成分析报告和可视化图表
+
+### 9.5.4 与现有系统集成
+
+#### 1. 与Graphiti集成
+- **数据隔离**: 推演使用临时Graphiti实例
+- **本体复用**: 复用生产环境的本体定义
+- **结果回写**: 推演结果可选择性回写到生产环境
+
+#### 2. 与OPA集成
+- **策略校验**: 推演过程中执行OPA策略校验
+- **策略沙箱**: 新策略可在推演环境中测试
+- **合规检查**: 推演方案的合规性验证
+
+#### 3. 与Skills集成
+- **技能复用**: 复用现有Python Skills
+- **技能测试**: 新技能在推演环境中验证
+- **性能评估**: 技能性能在推演中评估
+
+### 9.5.5 数据流设计
+
+```
+┌─────────────────────────────────────────────────────────────────────────────┐
+│                          模拟推演数据流                                        │
+├─────────────────────────────────────────────────────────────────────────────┤
+│                                                                             │
+│  ┌─────────────┐     ┌─────────────┐     ┌─────────────┐                  │
+│  │   Web界面    │────►│  API网关     │────►│ 模拟推演引擎  │                  │
+│  │   (配置)     │     │             │     │             │                  │
+│  └─────────────┘     └─────────────┘     └──────┬──────┘                  │
+│                                                  │                         │
+│  ┌─────────────┐     ┌─────────────┐     ┌──────┴──────┐                  │
+│  │  参数配置库  │◄────│ 参数注入器   │◄────│ 方案版本管理器 │                  │
+│  │             │     │             │     │             │                  │
+│  └─────────────┘     └─────────────┘     └─────────────┘                  │
+│                                                  │                         │
+│  ┌─────────────┐     ┌─────────────┐     ┌──────┴──────┐                  │
+│  │  Graphiti   │◄────│  推演执行器  │◄────│  模拟沙箱    │                  │
+│  │  (临时实例)  │     │             │     │             │                  │
+│  └──────┬──────┘     └─────────────┘     └─────────────┘                  │
+│         │                                 │                                │
+│  ┌──────┴──────┐     ┌─────────────┐     ┌─────────────┐                  │
+│  │  结果捕获器  │────►│ 结果分析器   │────►│ 可视化生成器  │                  │
+│  │             │     │             │     │             │                  │
+│  └─────────────┘     └─────────────┘     └─────────────┘                  │
+│                                                  │                         │
+│  ┌─────────────┐     ┌─────────────┐     ┌──────┴──────┐                  │
+│  │  结果存储    │◄────│ 报告生成器   │◄────│ 对比分析器   │                  │
+│  │             │     │             │     │             │                  │
+│  └─────────────┘     └─────────────┘     └─────────────┘                  │
+│                                                                             │
+└─────────────────────────────────────────────────────────────────────────────┘
+```
+
+### 9.5.6 API集成设计
+
+#### 1. 方案管理API
+```python
+# 方案创建和配置
+POST   /api/v1/simulation/scenarios          # 创建新方案
+GET    /api/v1/simulation/scenarios          # 获取方案列表
+GET    /api/v1/simulation/scenarios/{id}     # 获取方案详情
+PUT    /api/v1/simulation/scenarios/{id}     # 更新方案
+DELETE /api/v1/simulation/scenarios/{id}     # 删除方案
+
+# 参数配置
+GET    /api/v1/simulation/scenarios/{id}/parameters/schema    # 获取参数schema
+PUT    /api/v1/simulation/scenarios/{id}/parameters           # 更新参数
+POST   /api/v1/simulation/scenarios/{id}/parameters/preview   # 参数预览
+```
+
+#### 2. 版本管理API
+```python
+# 版本控制
+GET    /api/v1/simulation/scenarios/{id}/versions             # 版本列表
+POST   /api/v1/simulation/scenarios/{id}/versions             # 创建新版本
+GET    /api/v1/simulation/scenarios/{id}/versions/{version_id} # 获取版本详情
+POST   /api/v1/simulation/scenarios/{id}/versions/{version_id}/revert  # 回退到版本
+GET    /api/v1/simulation/scenarios/{id}/versions/{v1}/compare/{v2}    # 版本对比
+```
+
+#### 3. 推演执行API
+```python
+# 推演执行
+POST   /api/v1/simulation/scenarios/{id}/run                  # 执行推演
+GET    /api/v1/simulation/executions                         # 推演执行列表
+GET    /api/v1/simulation/executions/{execution_id}          # 获取执行详情
+POST   /api/v1/simulation/executions/{execution_id}/pause    # 暂停推演
+POST   /api/v1/simulation/executions/{execution_id}/resume   # 恢复推演
+POST   /api/v1/simulation/executions/{execution_id}/cancel   # 取消推演
+
+# 实时推演
+WS     /ws/simulation/{execution_id}                         # WebSocket实时数据
+GET    /api/v1/simulation/executions/{execution_id}/stream   # SSE流式数据
+```
+
+#### 4. 结果分析API
+```python
+# 结果获取
+GET    /api/v1/simulation/executions/{execution_id}/results  # 获取推演结果
+GET    /api/v1/simulation/executions/{execution_id}/metrics  # 获取指标数据
+GET    /api/v1/simulation/executions/{execution_id}/events   # 获取事件日志
+
+# 分析功能
+POST   /api/v1/simulation/analysis/compare                   # 对比分析
+POST   /api/v1/simulation/analysis/what-if                   # What-if分析
+GET    /api/v1/simulation/analysis/sensitivity/{param}       # 参数敏感性分析
+
+# 可视化
+GET    /api/v1/simulation/visualizations/{type}              # 获取可视化配置
+POST   /api/v1/simulation/visualizations/generate            # 生成可视化
+GET    /api/v1/simulation/reports/{execution_id}             # 获取分析报告
+```
+
+### 9.5.7 与决策推荐模块集成
+
+模拟推演引擎与决策推荐模块深度集成，支持以下功能：
+
+#### 1. 决策方案推演
+```python
+# 决策推演流程
+1. 决策推荐模块生成打击方案 → 2. 模拟推演引擎执行方案推演 → 
+3. 分析推演结果 → 4. 优化方案参数 → 5. 生成最终推荐
+
+# 集成接口
+class DecisionSimulationIntegration:
+    async def simulate_decision_scenario(
+        self,
+        decision_plan: DecisionPlan,
+        simulation_config: SimulationConfig
+    ) -> SimulationResult:
+        """在模拟环境中推演决策方案"""
+        # 1. 创建决策推演场景
+        scenario = await self.create_decision_scenario(decision_plan)
+        
+        # 2. 配置推演参数
+        parameters = self.extract_simulation_parameters(decision_plan)
+        
+        # 3. 执行推演
+        result = await self.simulation_engine.run_scenario(
+            scenario_id=scenario.id,
+            parameters=parameters
+        )
+        
+        # 4. 分析决策效果
+        decision_effectiveness = self.analyze_decision_effectiveness(result)
+        
+        # 5. 生成优化建议
+        recommendations = self.generate_optimization_recommendations(
+            decision_plan,
+            result,
+            decision_effectiveness
+        )
+        
+        return {
+            "simulation_result": result,
+            "decision_effectiveness": decision_effectiveness,
+            "optimization_recommendations": recommendations
+        }
+```
+
+#### 2. 多方案并行推演对比
+```python
+# 并行推演多个决策方案
+async def compare_decision_plans(
+    self,
+    decision_plans: List[DecisionPlan],
+    comparison_metrics: List[str]
+) -> ComparisonResult:
+    """对比多个决策方案的效果"""
+    
+    # 并行执行推演
+    simulation_tasks = []
+    for plan in decision_plans:
+        task = asyncio.create_task(
+            self.simulate_decision_scenario(plan, default_config)
+        )
+        simulation_tasks.append((plan, task))
+    
+    # 收集结果
+    results = []
+    for plan, task in simulation_tasks:
+        try:
+            result = await task
+            results.append({
+                "plan": plan,
+                "result": result
+            })
+        except Exception as e:
+            results.append({
+                "plan": plan,
+                "error": str(e)
+            })
+    
+    # 对比分析
+    comparison = await self.analyze_comparison(results, comparison_metrics)
+    
+    return {
+        "results": results,
+        "comparison": comparison,
+        "best_plan": self.identify_best_plan(comparison),
+        "insights": self.extract_insights(comparison)
+    }
+```
+
+#### 3. 参数敏感性分析
+```python
+# 分析决策参数对结果的影响
+async def analyze_parameter_sensitivity(
+    self,
+    base_decision_plan: DecisionPlan,
+    parameter_ranges: Dict[str, Tuple[float, float]]
+) -> SensitivityAnalysis:
+    """分析决策参数敏感性"""
+    
+    sensitivity_results = {}
+    
+    for param_name, (min_val, max_val) in parameter_ranges.items():
+        # 测试参数范围内的不同值
+        test_values = np.linspace(min_val, max_val, 10)
+        
+        param_results = []
+        for test_value in test_values:
+            # 创建参数变体
+            variant_plan = self.create_parameter_variant(
+                base_decision_plan,
+                {param_name: test_value}
+            )
+            
+            # 执行推演
+            result = await self.simulate_decision_scenario(
+                variant_plan,
+                default_config
+            )
+            
+            param_results.append({
+                "parameter_value": test_value,
+                "result": result
+            })
+        
+        # 计算敏感性
+        sensitivity = self.calculate_sensitivity(param_results)
+        sensitivity_results[param_name] = sensitivity
+    
+    return {
+        "base_plan": base_decision_plan,
+        "parameter_ranges": parameter_ranges,
+        "sensitivity_results": sensitivity_results,
+        "recommendations": self.generate_parameter_recommendations(
+            sensitivity_results
+        )
+    }
+```
+
+### 9.5.8 与可视化模块集成
+
+模拟推演引擎与可视化模块集成，提供丰富的可视化能力：
+
+#### 1. 实时推演可视化
+```python
+# 实时可视化数据流
+class RealTimeVisualizationStream:
+    async def stream_simulation_updates(
+        self,
+        execution_id: str,
+        client_ws: WebSocket
+    ):
+        """向客户端推送实时推演可视化数据"""
+        async for update in self.simulation_monitor.get_updates(execution_id):
+            # 生成可视化数据
+            viz_data = await self.visualization_generator.generate_realtime(
+                update
+            )
+            
+            # 通过WebSocket推送
+            await client_ws.send_json({
+                "type": "visualization_update",
+                "data": viz_data,
+                "timestamp": datetime.now()
+            })
+```
+
+#### 2. 方案对比可视化
+```python
+# 多方案对比可视化
+async def generate_comparison_visualization(
+    self,
+    scenarios: List[Scenario],
+    comparison_config: ComparisonConfig
+) -> Dict[str, Any]:
+    """生成方案对比可视化"""
+    
+    # 收集各方案数据
+    scenario_data = []
+    for scenario in scenarios:
+        data = await self.collect_scenario_data(scenario)
+        scenario_data.append(data)
+    
+    # 生成对比可视化
+    comparison_viz = await self.visualization_generator.generate_comparison(
+        scenario_data,
+        comparison_config
+    )
+    
+    return {
+        "scenarios": [s.name for s in scenarios],
+        "visualization": comparison_viz,
+        "interactive_features": {
+            "filtering": True,
+            "drilldown": True,
+            "highlighting": True
+        }
+    }
+```
+
+#### 3. What-if分析可视化
+```python
+# What-if分析可视化
+async def generate_what_if_visualization(
+    self,
+    base_scenario: Scenario,
+    what_if_variants: List[Dict[str, Any]]
+) -> Dict[str, Any]:
+    """生成What-if分析可视化"""
+    
+    # 执行What-if分析
+    what_if_results = await self.perform_what_if_analysis(
+        base_scenario,
+        what_if_variants
+    )
+    
+    # 生成可视化
+    what_if_viz = await self.visualization_generator.generate_what_if(
+        what_if_results
+    )
+    
+    return {
+        "base_scenario": base_scenario.name,
+        "what_if_variants": what_if_variants,
+        "results": what_if_results,
+        "visualization": what_if_viz,
+        "insights": self.extract_what_if_insights(what_if_results)
+    }
+```
+
+### 9.5.9 安全与隔离机制
+
+#### 1. 沙箱安全
+```yaml
+sandbox_security:
+  # 资源限制
+  resource_limits:
+    cpu: "2"            # 最大2个CPU核心
+    memory: "4G"        # 最大4GB内存
+    disk: "10G"         # 最大10GB磁盘空间
+    network: "disabled" # 默认禁用网络
+  
+  # 进程隔离
+  process_isolation:
+    type: "docker"      # 使用Docker容器
+    privileged: false   # 非特权模式
+    readonly_rootfs: true # 只读根文件系统
+  
+  # 文件系统隔离
+  filesystem:
+    tmpfs: ["/tmp"]     # 内存文件系统
+    volumes:            # 挂载卷
+      - type: "bind"
+        source: "./config"
+        target: "/config"
+        readonly: true
+```
+
+#### 2. 数据隔离
+```python
+# 数据隔离实现
+class DataIsolationLayer:
+    async def create_isolated_environment(
+        self,
+        scenario_id: str
+    ) -> IsolatedEnvironment:
+        """创建隔离的数据环境"""
+        
+        # 1. 创建临时数据库
+        temp_db = await self.create_temp_database(scenario_id)
+        
+        # 2. 复制必要的生产数据（脱敏）
+        sanitized_data = await self.sanitize_production_data(
+            required_data_types
+        )
+        await self.copy_to_temp_db(temp_db, sanitized_data)
+        
+        # 3. 配置数据访问层
+        data_access = await self.configure_data_access(
+            temp_db,
+            isolation_rules
+        )
+        
+        return IsolatedEnvironment(
+            database=temp_db,
+            data_access=data_access,
+            cleanup_hook=self.cleanup_temp_data
+        )
+```
+
+#### 3. 访问控制
+```python
+# 基于角色的访问控制
+class SimulationAccessControl:
+    async def check_access(
+        self,
+        user: User,
+        operation: str,
+        resource: SimulationResource
+    ) -> bool:
+        """检查模拟推演访问权限"""
+        
+        # 角色权限检查
+        required_roles = self.get_required_roles(operation, resource)
+        user_roles = await self.get_user_roles(user)
+        
+        if not set(required_roles).intersection(user_roles):
+            return False
+        
+        # 资源所有权检查
+        if operation in ["modify", "delete", "execute"]:
+            if not await self.is_resource_owner(user, resource):
+                return False
+        
+        # 工作空间权限检查
+        if not await self.has_workspace_access(user, resource.workspace_id):
+            return False
+        
+        return True
+```
+
+### 9.5.10 监控与运维
+
+#### 1. 监控指标
+```yaml
+monitoring_metrics:
+  simulation:
+    total_executions: "推演执行总数"
+    success_rate: "推演成功率"
+    average_duration: "平均推演时长"
+    concurrent_simulations: "并发推演数"
+    resource_utilization: "资源使用率"
+  
+  sandbox:
+    creation_time: "沙箱创建时间"
+    isolation_breaches: "隔离违规次数"
+    cleanup_success: "清理成功率"
+  
+  performance:
+    api_response_time: "API响应时间"
+    data_processing_time: "数据处理时间"
+    visualization_generation_time: "可视化生成时间"
+  
+  business:
+    scenario_usage: "方案使用频率"
+    parameter_adjustments: "参数调整次数"
+    what_if_analyses: "What-if分析次数"
+```
+
+#### 2. 告警规则
+```yaml
+alert_rules:
+  simulation_failure:
+    condition: "success_rate < 95% over 5min"
+    severity: "warning"
+    action: "notify_engineering"
+  
+  resource_exhaustion:
+    condition: "memory_usage > 90% for 2min"
+    severity: "critical"
+    action: "scale_resources"
+  
+  isolation_breach:
+    condition: "isolation_breaches > 0"
+    severity: "critical"
+    action: "block_sandbox"
+  
+  performance_degradation:
+    condition: "api_response_time > 5s for 1min"
+    severity: "warning"
+    action: "investigate_bottleneck"
+```
+
+#### 3. 运维策略
+```yaml
+operations:
+  # 容量规划
+  capacity_planning:
+    max_concurrent_simulations: 50
+    max_scenario_storage: "100GB"
+    max_version_history: 1000
+  
+  # 备份策略
+  backup:
+    frequency: "daily"
+    retention: "30 days"
+    location: "s3://backup/simulation"
+  
+  # 清理策略
+  cleanup:
+    temp_data_retention: "24 hours"
+    old_versions_retention: "7 days"
+    failed_executions_retention: "3 days"
+  
+  # 扩展策略
+  scaling:
+    auto_scale: true
+    min_instances: 2
+    max_instances: 10
+    scale_up_threshold: "cpu > 80% for 5min"
+    scale_down_threshold: "cpu < 30% for 10min"
+```
+┌─────────────┐    ┌──────────────┐    ┌──────────────┐
+│  参数配置    │───►│   模拟沙箱   │───►│   推演执行   │
+│ Web界面     │    │ 环境初始化   │    │ 引擎执行     │
+└─────────────┘    └──────┬───────┘    └──────┬───────┘
+                          │                    │
+                    ┌─────▼──────┐      ┌─────▼──────┐
+                    │  参数注入   │      │  结果捕获   │
+                    │ 动态配置   │      │ 实时监控    │
+                    └────────────┘      └─────┬──────┘
+                                               │
+                                     ┌─────────▼─────────┐
+                                     │   分析与可视化    │
+                                     │ 指标计算/报告生成 │
+                                     └─────────┬─────────┘
+                                               │
+                                     ┌─────────▼─────────┐
+                                     │   版本管理        │
+                                     │ 快照/回滚/对比    │
+                                     └───────────────────┘
+```
+
+### 9.5.6 安全与隔离机制
+
+#### 1. 沙箱安全
+- **资源配额**: 每个沙箱独立的CPU/内存/存储限制
+- **网络策略**: 限制沙箱的网络访问权限
+- **文件系统**: 只读基础镜像，写时复制
+- **进程隔离**: 容器级或系统级隔离
+
+#### 2. 数据安全
+- **临时存储**: 推演数据自动生命周期管理
+- **数据脱敏**: 生产数据在推演前脱敏处理
+- **访问控制**: 基于角色的推演方案访问控制
+- **审计日志**: 所有推演操作记录完整审计日志
+
+#### 3. 参数安全
+- **输入验证**: 所有参数严格验证，防止注入攻击
+- **范围限制**: 数值参数范围限制，防止越界
+- **依赖检查**: 参数间依赖关系验证
+- **权限控制**: 参数修改需要相应权限
+
+### 9.5.7 监控与运维
+
+#### 1. 关键监控指标
+- **推演性能**: 推演成功率、平均时长、资源使用率
+- **沙箱健康**: 沙箱创建时间、隔离状态、资源使用
+- **版本管理**: 版本创建频率、存储使用、回退次数
+- **用户体验**: 界面响应时间、操作成功率
+
+#### 2. 告警机制
+- **推演失败**: 连续推演失败告警
+- **资源超限**: 沙箱资源使用超限告警
+- **存储告警**: 版本存储空间不足告警
+- **性能下降**: 推演性能显著下降告警
 
 ---
 
@@ -3665,1320 +4323,55 @@ const AuditLogViewer: React.FC = () => {
 
 ## 17. 架构决策记录（ADR）
 
-### ADR-001: Agent 基础设施（OpenHarness + LangGraph）
-
-**状态**: 已接受
-
-**上下文**: 需要构建多 Agent 协同系统，面临自研 vs 复用选择。
-
-**决策**: 采用双层架构：
-1. **核心层**: OpenHarness（企业级 Agent 基础设施）
-2. **灵活层**: LangGraph（自定义工作流和领域 Agent 扩展）
-
-```
-┌─────────────────────────────────────────────────────────────────────┐
-│                    Agent 基础设施架构                                 │
-├─────────────────────────────────────────────────────────────────────┤
-│                                                                     │
-│  ┌─────────────────────────────────────────────────────────────┐   │
-│  │  Layer 1: OpenHarness Core (开源)                         │   │
-│  ├─────────────────────────────────────────────────────────────┤   │
-│  │                                                             │   │
-│  │   GitHub: HKUDS/OpenHarness (MIT)                        │   │
-│  │                                                             │   │
-│  │   ┌─────────┐  ┌─────────┐  ┌─────────┐  ┌─────────┐   │   │
-│  │   │  Tool   │  │ Memory  │  │Permiss- │  │  Hook   │   │   │
-│  │   │Registry │  │Manager  │  │   ion   │  │Manager  │   │   │
-│  │   └─────────┘  └─────────┘  └─────────┘  └─────────┘   │   │
-│  │                                                             │   │
-│  │   ┌─────────────────────────────────────────────────┐   │   │
-│  │   │  Swarm Orchestrator                              │   │   │
-│  │   │  • 多 Agent 协同  • 任务分发  • 结果聚合       │   │   │
-│  │   └─────────────────────────────────────────────────┘   │   │
-│  │                                                             │   │
-│  │   ┌─────────┐  ┌─────────┐  ┌─────────┐               │   │
-│  │   │   MCP   │  │Plugins  │  │   LLM   │               │   │
-│  │   │Client   │  │         │  │ Bridge  │               │   │
-│  │   └─────────┘  └─────────┘  └─────────┘               │   │
-│  └─────────────────────────────────────────────────────────────┘   │
-│                              ↓                                       │
-│  ┌─────────────────────────────────────────────────────────────┐   │
-│  │  Layer 2: LangGraph (灵活扩展)                             │   │
-│  ├─────────────────────────────────────────────────────────────┤   │
-│  │                                                             │   │
-│  │   • 自定义工作流编排                                        │   │
-│  │   • 领域特定 Agent 快速原型                                │   │
-│  │   • 实验性功能验证                                          │   │
-│  │   • 与 OpenHarness 通过 API 互通                           │   │
-│  │                                                             │   │
-│  └─────────────────────────────────────────────────────────────┘   │
-│                                                                     │
-└─────────────────────────────────────────────────────────────────────┘
-```
-
-**开源组件**：
-
-| 组件 | 协议 | 地址 |
-|------|------|------|
-| OpenHarness | MIT | github.com/HKUDS/OpenHarness |
-| LangGraph | MIT | github.com/langchain-ai/langgraph |
-| LangChain | MIT | github.com/langchain-ai/langchain |
-
-**选择理由**：
-
-| 维度 | OpenHarness | LangGraph |
-|------|-------------|-----------|
-| **定位** | 企业级 Agent 平台 | 灵活工作流框架 |
-| **多 Agent** | ✅ Swarm 编排 | ✅ 图结构 |
-| **Permission** | ✅ OPA 集成 | ❌ 需自行实现 |
-| **Memory** | ✅ Graphiti 桥接 | ⚠️ 需自行实现 |
-| **学习曲线** | ⭐⭐⭐⭐ | ⭐⭐ |
-| **定制灵活度** | ⭐⭐⭐ | ⭐⭐⭐⭐⭐ |
-
-**后果**:
-- ✅ **开源免费**：OpenHarness + LangGraph 均 MIT 协议
-- ✅ **功能完整**：OpenHarness 提供 Permission/Memory/Hook 企业级能力
-- ✅ **灵活扩展**：LangGraph 支持自定义工作流和快速原型
-- ✅ **可迁移**：两层通过标准 API 解耦
-- ❌ 双框架学习成本
-- ❌ 集成复杂度
-
-**可逆性**: 高。两层均通过标准 API 解耦，可独立替换。
-
----
-
-### ADR-002: Graphiti 作为双时态知识图谱
-
-**状态**: 已接受
-
-**上下文**: 需要支撑"当时发生了什么"的历史回溯和时间区间查询
-
-**决策**: Graphiti 作为 Memory 层，Neo4j 作为底层图数据库
-
-**后果**:
-- ✅ 原生支持双时态（valid_time + transaction_time）
-- ✅ Episode 设计天然匹配战场事件流
-- ✅ 支持时序推理和 RAG 增强
-- ❌ Graphiti 相对新兴，社区较小
-- ❌ 需适配 OpenHarness Memory 接口
-
-**可逆性**: 中。替换为纯 Neo4j 或其他图数据库需重写记忆层。
-
----
-
-### ADR-003: OPA 策略治理引擎（MVP + 生产化）
-
-**状态**: 已接受
-
-**上下文**: 系统需要完整的策略治理能力，支持高危操作校验、细粒度权限控制、策略可视化管理和热更新。
-
-**决策**: OPA 作为统一策略引擎，覆盖所有策略场景，采用 MVP 快速验证 + 生产化平滑演进策略。
-
-```
-┌───────────────────────────────────────────────────────────────────────────┐
-│                         OPA 策略治理架构                                   │
-├───────────────────────────────────────────────────────────────────────────┤
-│                                                                           │
-│  ┌─────────────────────────────────────────────────────────────────────┐ │
-│  │  策略管理接口层（AdminConsole）                                       │ │
-│  ├─────────────────────────────────────────────────────────────────────┤ │
-│  │  ┌──────────────┐  ┌──────────────┐  ┌──────────────┐              │ │
-│  │  │ Markdown 编辑 │  │  可视化编辑器 │  │   策略测试   │              │ │
-│  │  │  (SKILL.md)  │  │  (图形化)     │  │   (在线 REPL)│              │ │
-│  │  └──────────────┘  └──────────────┘  └──────────────┘              │ │
-│  └─────────────────────────────────────────────────────────────────────┘ │
-│                              ↓                                           │
-│  ┌─────────────────────────────────────────────────────────────────────┐ │
-│  │  策略转换引擎                                                         │ │
-│  ├─────────────────────────────────────────────────────────────────────┤ │
-│  │  ┌─────────────────────────────────────────────────────────────┐   │ │
-│  │  │  Markdown (.md)  ───→  JSON Schema  ───→  Rego (.rego)    │   │ │
-│  │  │                                                              │   │ │
-│  │  │  ## 策略名称                                                   │   │ │
-│  │  │  ### 条件                                                     │   │ │
-│  │  │  - user.role == "admin"                                      │   │ │
-│  │  │  ### 操作                                                      │   │ │
-│  │  │  - allow: true                                               │   │ │
-│  │  │                                                              │   │ │
-│  │  │  ↓ 转换                                                       │   │ │
-│  │  │                                                              │   │ │
-│  │  │  package policy.admin                                         │   │ │
-│  │  │  allow { input.user.role == "admin" }                        │   │ │
-│  │  └─────────────────────────────────────────────────────────────┘   │ │
-│  └─────────────────────────────────────────────────────────────────────┘ │
-│                              ↓                                           │
-│  ┌─────────────────────────────────────────────────────────────────────┐ │
-│  │  OPA Bundle 服务                                                   │ │
-│  ├─────────────────────────────────────────────────────────────────────┤ │
-│  │  ┌─────────────┐  ┌─────────────┐  ┌─────────────┐                  │ │
-│  │  │   Bundle   │  │   Version   │  │   Cache    │                  │ │
-│  │  │   Server   │  │  Manager    │  │  Manager   │                  │ │
-│  │  └─────────────┘  └─────────────┘  └─────────────┘                  │ │
-│  │         ↓                ↓                ↓                           │ │
-│  │  ┌─────────────────────────────────────────────────────────────┐   │ │
-│  │  │  OPA Server (Docker)                                       │   │ │
-│  │  │  • /v1/policies      • /v1/data       • /v1/compile        │   │ │
-│  │  └─────────────────────────────────────────────────────────────┘   │ │
-│  └─────────────────────────────────────────────────────────────────────┘ │
-│                              ↓                                           │
-│  ┌─────────────────────────────────────────────────────────────────────┐ │
-│  │  策略覆盖场景                                                        │ │
-│  ├─────────────────────────────────────────────────────────────────────┤ │
-│  │  ┌─────────────┐  ┌─────────────┐  ┌─────────────┐                  │ │
-│  │  │   身份权限  │  │   Skill    │  │   本体     │                  │ │
-│  │  │  (RBAC)    │  │  (细粒度)  │  │  (节点)    │                  │ │
-│  │  └─────────────┘  └─────────────┘  └─────────────┘                  │ │
-│  │  ┌─────────────┐  ┌─────────────┐  ┌─────────────┐                  │ │
-│  │  │   数据权限  │  │   API 权限  │  │   UI 权限  │                  │ │
-│  │  │ (工作空间)  │  │  (网关)     │  │  (界面)    │                  │ │
-│  │  └─────────────┘  └─────────────┘  └─────────────┘                  │ │
-│  └─────────────────────────────────────────────────────────────────────┘ │
-│                                                                           │
-└───────────────────────────────────────────────────────────────────────────┘
-```
-
-### 1. Markdown 策略格式规范
-
-```markdown
-# SKILL-permission.md - Skill 执行权限策略
-# 元数据
-name: skill_permission
-version: 1.0.0
-description:
-  zh: Skill 执行权限控制
-  en: Skill Execution Permission Control
-scope: workspace  # global | workspace
-
-# 策略规则
-rules:
-  - id: admin_full_access
-    condition: user.role == "admin"
-    effect: allow
-    priority: 100
-
-  - id: editor_skill_access
-    condition: user.role == "editor" and skill.category in ["intelligence", "analysis"]
-    effect: allow
-    priority: 50
-
-  - id: viewer_readonly
-    condition: user.role == "viewer"
-    effect: allow
-    conditions:
-      - skill.mode == "read"
-    effect_conditions:
-      - not skill.mode in ["write", "execute"]
-
-  - id: skill_disabled
-    condition: skill.name in user.disabled_skills
-    effect: deny
-    priority: 200
-
-# 默认策略
-default:
-  effect: deny
-```
-
-### 2. 策略转换引擎
-
-```python
-# core/policy/markdown_to_rego.py
-class MarkdownPolicyConverter:
-    """Markdown 策略转 Rego 转换器"""
-    
-    def convert(self, markdown_content: str) -> str:
-        """Markdown → Rego"""
-        policy = self._parse_markdown(markdown_content)
-        
-        rego_parts = [
-            f'package {policy.name.replace("-", ".")}',
-            '',
-            'default allow := false',
-            '',
-        ]
-        
-        # 生成规则
-        for rule in sorted(policy.rules, key=lambda r: r.priority):
-            rego_parts.extend(self._rule_to_rego(rule))
-        
-        return '\n'.join(rego_parts)
-    
-    def _rule_to_rego(self, rule: PolicyRule) -> List[str]:
-        """单个规则转 Rego"""
-        lines = [
-            f'# {rule.id}',
-            f'allow if {{',
-        ]
-        
-        # 条件
-        if rule.conditions:
-            for cond in rule.conditions:
-                lines.append(f'    {self._expr_to_rego(cond)}')
-        else:
-            lines.append(f'    {self._expr_to_rego(rule.condition)}')
-        
-        lines.append('}')
-        
-        # 效果条件
-        if rule.effect_conditions:
-            lines.append(f'allow if {{')
-            for ec in rule.effect_conditions:
-                lines.append(f'    not ({self._expr_to_rego(ec)})')
-            lines.append('}')
-        
-        return lines
-```
-
-### 3. 策略热更新机制
-
-```python
-# core/policy/hot_reload_manager.py
-class PolicyHotReloadManager:
-    """策略热更新管理器"""
-    
-    def __init__(self, opa_client: OPAClient):
-        self.opa = opa_client
-        self.version_manager = PolicyVersionManager()
-        self.bundle_server = BundleServer()
-    
-    async def reload_policy(self, policy_name: str, markdown_content: str):
-        """
-        热更新单个策略
-        流程: Markdown → Rego → Version → Bundle → OPA
-        """
-        # 1. Markdown → Rego
-        converter = MarkdownPolicyConverter()
-        rego_content = converter.convert(markdown_content)
-        
-        # 2. 版本管理
-        version = await self.version_manager.create_version(
-            policy_name=policy_name,
-            content=rego_content,
-            checksum=self._md5(rego_content)
-        )
-        
-        # 3. 生成 Bundle
-        bundle = await self.bundle_server.create_bundle([
-            PolicyBundle(
-                name=policy_name,
-                files=[{
-                    "path": f"policies/{policy_name}.rego",
-                    "content": rego_content
-                }]
-            )
-        ])
-        
-        # 4. 推送到 OPA
-        await self.opa.load_bundle(bundle)
-        
-        # 5. 发布更新事件
-        await self.event_bus.publish(PolicyReloadedEvent(
-            policy_name=policy_name,
-            version=version,
-            timestamp=datetime.now()
-        ))
-    
-    async def batch_reload(self, policies: List[Policy]):
-        """批量热更新"""
-        async with self._lock:
-            for policy in policies:
-                await self.reload_policy(policy.name, policy.markdown_content)
-    
-    async def rollback(self, policy_name: str, target_version: str):
-        """回滚到指定版本"""
-        version = await self.version_manager.get_version(policy_name, target_version)
-        await self.reload_policy(policy_name, version.content)
-```
-
-### 4. 策略管理界面设计
-
-```typescript
-// frontend: PolicyManagement
-const PolicyManagement: React.FC = () => {
-  const [policies, setPolicies] = useState<Policy[]>([]);
-  const [selectedPolicy, setSelectedPolicy] = useState<Policy | null>(null);
-  const [testInput, setTestInput] = useState<TestInput>({});
-  const [testResult, setTestResult] = useState<TestResult | null>(null);
-
-  // 策略列表
-  const policyList = policies.map(p => ({
-    key: p.name,
-    label: p.name,
-    version: p.version,
-    status: p.enabled ? 'active' : 'inactive'
-  }));
-
-  // Markdown 编辑器
-  const handleMarkdownChange = async (markdown: string) => {
-    setSelectedPolicy({ ...selectedPolicy, markdown_content: markdown });
-  };
-
-  // 实时预览 Rego
-  const handlePreview = async () => {
-    const rego = await api.convertMarkdownToRego(selectedPolicy.markdown_content);
-    setSelectedPolicy({ ...selectedPolicy, rego_content: rego });
-  };
-
-  // 在线测试
-  const handleTest = async () => {
-    const result = await api.testPolicy({
-      policy_name: selectedPolicy.name,
-      input: testInput
-    });
-    setTestResult(result);
-  };
-
-  // 保存并生效
-  const handleSaveAndApply = async () => {
-    await api.saveAndReload(selectedPolicy);
-    message.success('策略已更新并生效');
-  };
-
-  // 版本历史
-  const handleViewHistory = async () => {
-    const versions = await api.getPolicyVersions(selectedPolicy.name);
-    setSelectedPolicy({ ...selectedPolicy, versions });
-  };
-
-  // 回滚
-  const handleRollback = async (version: string) => {
-    await api.rollbackPolicy(selectedPolicy.name, version);
-    message.success('已回滚到指定版本');
-  };
-
-  return (
-    <Split horizontal defaultSizes={[250, '1fr']}>
-      {/* 左侧：策略列表 */}
-      <Panel header="策略列表">
-        <Tree
-          treeData={policyList}
-          onSelect={(keys) => {
-            const policy = policies.find(p => p.name === keys[0]);
-            setSelectedPolicy(policy);
-          }}
-        />
-        <Button onClick={handleCreateNew}>新建策略</Button>
-      </Panel>
-
-      {/* 右侧：策略编辑器 */}
-      <Panel header={selectedPolicy?.name}>
-        <Tabs>
-          <TabPane key="editor" tab="编辑器">
-            <Row gutter={16}>
-              <Col span={12}>
-                <Title level={5}>Markdown 格式</Title>
-                <MarkdownEditor
-                  value={selectedPolicy?.markdown_content}
-                  onChange={handleMarkdownChange}
-                  height={400}
-                />
-                <Button onClick={handlePreview}>预览 Rego</Button>
-              </Col>
-              <Col span={12}>
-                <Title level={5}>Rego 输出</Title>
-                <CodeBlock
-                  code={selectedPolicy?.rego_content || ''}
-                  language="rego"
-                  height={400}
-                />
-              </Col>
-            </Row>
-          </TabPane>
-
-          <TabPane key="test" tab="在线测试">
-            <Form layout="vertical">
-              <Form.Item label="测试输入 (JSON)">
-                <TextArea
-                  value={JSON.stringify(testInput, null, 2)}
-                  onChange={(e) => setTestInput(JSON.parse(e.target.value))}
-                  rows={10}
-                />
-              </Form.Item>
-              <Button onClick={handleTest}>执行测试</Button>
-            </Form>
-            
-            {testResult && (
-              <Result
-                allowed={testResult.allowed}
-                reasons={testResult.reasons}
-                trace={testResult.trace}
-              />
-            )}
-          </TabPane>
-
-          <TabPane key="history" tab="版本历史">
-            <Timeline>
-              {selectedPolicy?.versions.map(v => (
-                <Timeline.Item key={v.version}>
-                  <Text strong>{v.version}</Text>
-                  <Text type="secondary">{v.created_at}</Text>
-                  <Text>{v.changes}</Text>
-                  <Button onClick={() => handleRollback(v.version)}>回滚</Button>
-                </Timeline.Item>
-              ))}
-            </Timeline>
-          </TabPane>
-        </Tabs>
-
-        <Button type="primary" onClick={handleSaveAndApply}>
-          保存并生效
-        </Button>
-      </Panel>
-    </Split>
-  );
-};
-```
-
-### 5. MVP 快速验证策略
-
-| MVP 阶段 | 策略 | 说明 |
-|----------|------|------|
-| **Phase 0** | 简化 OPA | 单 Bundle + 手动推送 |
-| **Phase 1** | Markdown 策略 | 策略转换 + 在线测试 |
-| **Phase 2** | 热更新 | Bundle 自动推送 |
-| **Phase 3** | 完整管理 | 版本管理 + 回滚 + 审计 |
-
-```python
-# core/policy/mvp_policy_manager.py
-"""
-MVP 快速验证 - 简化策略管理器
-"""
-class MVPClaimManager:
-    """MVP 阶段使用，简单直接"""
-    
-    def __init__(self, opa_url: str = "http://localhost:8181"):
-        self.opa = OPAClient(url=opa_url)
-        self.policies_dir = Path("policies/mvp")
-    
-    async def check(self, user: str, action: str, resource: str) -> bool:
-        """极简权限检查"""
-        return await self.opa.evaluate({
-            "input": {"user": user, "action": action, "resource": resource}
-        })
-    
-    async def reload_all(self):
-        """手动重载所有策略"""
-        for policy_file in self.policies_dir.glob("*.rego"):
-            content = policy_file.read_text()
-            await self.opa.put_policy(policy_file.stem, content)
-    
-    async def create_policy(self, name: str, markdown: str):
-        """创建策略 (Markdown → Rego → OPA)"""
-        converter = MarkdownPolicyConverter()
-        rego = converter.convert(markdown)
-        
-        policy_file = self.policies_dir / f"{name}.rego"
-        policy_file.write_text(rego)
-        
-        await self.opa.put_policy(name, rego)
-```
-
-### 6. 全场景策略覆盖
-
-| 场景 | 包路径 | 说明 |
-|------|--------|------|
-| **身份权限** | `auth.rbac` | 用户角色、资源访问 |
-| **Skill 权限** | `skill.permission` | 技能执行、参数校验 |
-| **本体访问** | `ontology.access` | 节点读写、属性过滤 |
-| **数据权限** | `data.workspace` | 工作空间数据隔离 |
-| **API 网关** | `api.gateway` | 请求速率、IP 白名单 |
-| **UI 权限** | `ui.config` | 界面元素、菜单项 |
-
-**后果**:
-- ✅ **全场景覆盖**：OPA 一个引擎覆盖所有策略场景
-- ✅ **Markdown 友好**：降低 Rego 学习成本
-- ✅ **可视化**：管理界面支持图形化编辑和测试
-- ✅ **热更新**：策略修改即时生效，无需重启
-- ✅ **版本控制**：完整策略历史，支持回滚
-- ✅ **Fail-close**：默认拒绝，安全性高
-- ❌ 引入 OPA 服务（Docker 容器）
-- ❌ Markdown → Rego 转换需维护
-
-**可逆性**: 中。保留 JSON 格式可降级到纯 Rego。
-
----
-
-### ADR-004: 统一 Skill 体系架构
-
-**状态**: 已接受
-
-**上下文**: 现有 Python Skills 积累需要与 OpenHarness Markdown Skills 生态统一，实现技能的热插拔和统一管理。
-
-**决策**: 统一到 OpenHarness Skill 体系，采用 Markdown 定义 + Python 实现的双层结构：
-
-```
-┌─────────────────────────────────────────────────────────────────┐
-│                      OpenHarness Skill 生态                      │
-├─────────────────────────────────────────────────────────────────┤
-│  ┌───────────────┐    ┌───────────────┐    ┌───────────────┐  │
-│  │   Markdown    │    │   Python      │    │   Skill       │  │
-│  │   Definition  │ →  │   Executor    │ →  │   Registry    │  │
-│  │   (SKILL.md)  │    │   (Wrapper)   │    │   (Hot Reload)│  │
-│  └───────────────┘    └───────────────┘    └───────────────┘  │
-│         ↑                    ↑                    ↑            │
-│         │                    │                    │            │
-│  ┌──────┴────────────────────┴────────────────────┴──────┐    │
-│  │                    Skill 元数据                         │    │
-│  │  name, version, category, inputs, outputs, permissions  │    │
-│  └─────────────────────────────────────────────────────────┘    │
-└─────────────────────────────────────────────────────────────────┘
-```
-
-**Skill 结构规范**：
-
-```yaml
-# SKILL.md - Skill 元数据定义
-name: "battlefield_situation"
-version: "1.0.0"
-category: "intelligence"  # intelligence | operations | analysis | visualization
-description:
-  zh: "战场态势分析技能"
-  en: "Battlefield Situation Analysis Skill"
-permissions:  # OPA 策略关联
-  - "read:ontology"
-  - "read:simulation_data"
-inputs:
-  - name: "query"
-    type: "string"
-    required: true
-  - name: "workspace_id"
-    type: "string"
-    required: true
-outputs:
-  - name: "situation_report"
-    type: "object"
-python_executor: "skills/intelligence/battlefield_situation.py"  # Python 实现路径
-hot_reload: true  # 支持热更新
-```
-
-**统一 Skill 注册流程**：
-
-```python
-# core/skill_registry.py
-class SkillRegistry:
-    """统一 Skill 注册中心"""
-    
-    def register(self, skill_path: str) -> SkillMetadata:
-        """注册 Skill"""
-        # 1. 解析 SKILL.md
-        metadata = self._parse_skill_md(skill_path)
-        
-        # 2. 验证 Python Executor 存在
-        executor_path = skill_path / metadata.python_executor
-        if not executor_path.exists():
-            raise SkillValidationError(f"Executor not found: {executor_path}")
-        
-        # 3. 加载到内存
-        module = importlib.import_module(
-            metadata.python_executor.replace("/", ".").replace(".py", "")
-        )
-        metadata.executor = getattr(module, "execute")
-        
-        # 4. 注册到 OPA
-        self._register_permissions(metadata)
-        
-        # 5. 发布事件
-        event_bus.publish(SkillRegisteredEvent(metadata))
-        
-        return metadata
-    
-    def unregister(self, skill_name: str) -> bool:
-        """注销 Skill"""
-        # 1. 从内存移除
-        metadata = self._skills.pop(skill_name)
-        
-        # 2. 从 OPA 移除权限
-        self._unregister_permissions(metadata)
-        
-        # 3. 发布事件
-        event_bus.publish(SkillUnregisteredEvent(skill_name))
-        
-        return True
-```
-
-**后果**:
-- ✅ 统一管理：所有 Skill 通过 Registry 集中管理
-- ✅ 热插拔：新增/禁用/启用无需重启
-- ✅ 权限控制：Skill 级别权限与 OPA 策略绑定
-- ✅ 标准化：与 OpenHarness 生态完全兼容
-- ✅ 可追溯：Skill 版本历史、依赖关系清晰
-- ❌ 迁移成本：现有 Python Skills 需要包装成统一格式
-- ❌ 学习成本：需要遵循 Skill 定义规范
-
-**可逆性**: 中。保留 Python 模块可降级到纯 Python 调用。
-
----
-
-### ADR-005: 分层 Agent 架构（OpenHarness 原生 + 领域扩展）
-
-**状态**: 已接受
-
-**上下文**: 系统定位为通用本体驱动平台，Agent 需要：
-1. 复用 OpenHarness 原生能力，保持框架可升级
-2. 支持其他业务 Agent 的集成管理
-3. 区分平台级通用 Agent 和领域特定 Agent
-
-**决策**: 采用分层 Agent 架构，深度集成 OpenHarness
-
-```
-┌───────────────────────────────────────────────────────────────────────────┐
-│                         Agent 分层架构 (OpenHarness Native)                │
-├───────────────────────────────────────────────────────────────────────────┤
-│                                                                           │
-│  ┌─────────────────────────────────────────────────────────────────────┐  │
-│  │  Layer 1: OpenHarness 原生 Agent（平台通用）                         │  │
-│  ├─────────────────────────────────────────────────────────────────────┤  │
-│  │                                                                     │  │
-│  │   OpenHarness Engine                                               │  │
-│  │   ┌─────────┐  ┌─────────┐  ┌─────────┐  ┌─────────┐              │  │
-│  │   │  Tool   │  │ Memory  │  │Permiss- │  │  Hook   │              │  │
-│  │   │Registry │  │Manager  │  │   ion   │  │Manager  │              │  │
-│  │   └─────────┘  └─────────┘  └─────────┘  └─────────┘              │  │
-│  │                                                                     │  │
-│  │   ┌─────────────────────────────────────────────────────────────┐  │  │
-│  │   │  Swarm Orchestrator (OpenHarness)                           │  │  │
-│  │   │  • 多 Agent 协同    • 任务分发    • 结果聚合                 │  │  │
-│  │   └─────────────────────────────────────────────────────────────┘  │  │
-│  │                                                                     │  │
-│  │   OpenHarness Plugins (可扩展)                                     │  │
-│  │   ┌─────────┐  ┌─────────┐  ┌─────────┐  ┌─────────┐              │  │
-│  │   │ Router  │  │Coordin- │  │Observer │  │ Memory  │              │  │
-│  │   │ Plugin  │  │ator     │  │ Plugin  │  │ Plugin  │              │  │
-│  │   │(内置)   │  │Plugin   │  │(内置)   │  │(内置)   │              │  │
-│  │   └─────────┘  └─────────┘  └─────────┘  └─────────┘              │  │
-│  │                                                                     │  │
-│  │   MCP Integration (外部系统集成)                                    │  │
-│  │   ┌─────────┐  ┌─────────┐  ┌─────────┐                           │  │
-│  │   │   MCP   │  │   MCP   │  │   MCP   │    ...                    │  │
-│  │   │ Server1 │  │ Server2 │  │ ServerN  │                           │  │
-│  │   └─────────┘  └─────────┘  └─────────┘                           │  │
-│  └─────────────────────────────────────────────────────────────────────┘  │
-│                              ↓                                           │
-│  ┌─────────────────────────────────────────────────────────────────────┐  │
-│  │  Layer 2: 领域特定 Agent（工作空间实例化）                          │  │
-│  ├─────────────────────────────────────────────────────────────────────┤  │
-│  │                                                                     │  │
-│  │  ┌─────────────┐  ┌─────────────┐  ┌─────────────┐                │  │
-│  │  │    战争分析  │  │    金融分析  │  │    医疗诊断  │  ...          │  │
-│  │  │   Workspace │  │   Workspace │  │   Workspace │                │  │
-│  │  ├─────────────┤  ├─────────────┤  ├─────────────┤                │  │
-│  │  │ Intelligence│  │ Analyzer   │  │ Diagnostian │                │  │
-│  │  │ Commander   │  │ Advisor    │  │ Specialist  │                │  │
-│  │  │ Operations  │  │ Executor   │  │ Nurse       │                │  │
-│  │  └─────────────┘  └─────────────┘  └─────────────┘                │  │
-│  │                                                                     │  │
-│  └─────────────────────────────────────────────────────────────────────┘  │
-│                                                                           │
-│  ┌─────────────────────────────────────────────────────────────────────┐  │
-│  │  Layer 3: 外部业务 Agent 集成（第三方系统）                          │  │
-│  ├─────────────────────────────────────────────────────────────────────┤  │
-│  │  ┌───────────┐  ┌───────────┐  ┌───────────┐                      │  │
-│  │  │ External  │  │ External  │  │ External  │                      │  │
-│  │  │ Agent API │  │ Agent SDK │  │ MCP Bridge│                      │  │
-│  │  └───────────┘  └───────────┘  └───────────┘                      │  │
-│  │  • REST/WebSocket 接口  • Python/JS SDK  • MCP 协议兼容             │  │
-│  └─────────────────────────────────────────────────────────────────────┘  │
-│                                                                           │
-└───────────────────────────────────────────────────────────────────────────┘
-```
-
-**Layer 1: OpenHarness 原生 Agent（平台通用）**
-
-| 组件 | 类型 | 说明 | 可升级性 |
-|------|------|------|----------|
-| **Engine** | 核心 | Agent Loop + Tool 调度 | ✅ 原生支持 |
-| **Swarm** | 核心 | 多 Agent 协同编排 | ✅ 原生支持 |
-| **Memory Manager** | 内置 Plugin | 记忆管理（桥接 Graphiti） | ✅ 热插拔 |
-| **Permission** | 内置 Plugin | 权限检查（桥接 OPA） | ✅ 热插拔 |
-| **Router Plugin** | 扩展 Plugin | 意图识别 + 会话路由 | ✅ 可扩展 |
-| **Coordinator Plugin** | 扩展 Plugin | 多 Agent 协调 | ✅ 可扩展 |
-| **MCP Integration** | 扩展 | 外部系统集成 | ✅ 标准协议 |
-
-**层级关系说明**：
-
-| 层级 | 定位 | 来源 | 接入方式 | 管理 |
-|------|------|------|----------|------|
-| **Layer 2** | 平台内部扩展 | 自研 Python Skills | OpenHarness Skill 机制 | 平台内管理 |
-| **Layer 3** | 平台外部集成 | 第三方 Agent | MCP/REST/WebSocket | 外部管理 |
-
-> **关系**：Layer 2 是平台可控的内部能力，Layer 3 是平台需要对接的外部能力。两者通过不同协议接入，统一由 Layer 1 调度。
-
-**Layer 2: 领域特定 Agent（OpenHarness Skill 封装）**
-
-```python
-# 领域 Agent 通过 Skill 封装，集成到 OpenHarness
-class BattlefieldIntelligenceAgent:
-    """战争分析 - Intelligence Agent"""
-    
-    def __init__(self, openharness_client):
-        self.client = openharness_client
-        # 挂载领域 Skill
-        self.skills = [
-            "intelligence/situation_analysis",
-            "intelligence/threat_detection",
-            "ontology/query",
-        ]
-    
-    async def observe(self, context: Context) -> Observation:
-        """Observe: 情报采集"""
-        result = await self.client.execute(
-            skills=self.skills,
-            input={"query": context.query, "workspace": context.workspace}
-        )
-        return Observation(data=result)
-    
-    async def orient(self, observation: Observation) -> Understanding:
-        """Orient: 态势理解"""
-        # 调用 Graphiti 进行时序推理
-        graphiti_result = await self._query_graphiti(observation)
-        return Understanding(situation=graphiti_result)
-```
-
-**Layer 3: 外部业务 Agent 集成**
-
-```python
-# core/external_agent_bridge.py
-class ExternalAgentBridge:
-    """外部 Agent 集成桥接器"""
-    
-    def __init__(self, openharness_client):
-        self.client = openharness_client
-        self.registries = {}  # agent_type -> registry
-    
-    async def register_agent(self, agent_config: ExternalAgentConfig):
-        """注册外部 Agent"""
-        if agent_config.protocol == "mcp":
-            await self._register_mcp_agent(agent_config)
-        elif agent_config.protocol == "rest":
-            await self._register_rest_agent(agent_config)
-        elif agent_config.protocol == "websocket":
-            await self._register_ws_agent(agent_config)
-        else:
-            raise UnsupportedProtocolError(agent_config.protocol)
-    
-    async def invoke_agent(self, agent_id: str, input_data: dict) -> dict:
-        """调用外部 Agent"""
-        registry = self.registries.get(agent_id)
-        if not registry:
-            raise AgentNotFoundError(agent_id)
-        return await registry.invoke(input_data)
-```
-
-**OpenHarness 升级兼容性设计**：
-
-```python
-# core/openharness_compatibility.py
-class OpenHarnessCompatibilityLayer:
-    """
-    OpenHarness 兼容性抽象层
-    目标：解耦业务逻辑与框架细节，支持框架平滑升级
-    """
-    
-    # 抽象接口（业务层使用）
-    ABSTRACT_METHODS = [
-        "create_agent",
-        "invoke_agent",
-        "register_tool",
-        "attach_memory",
-        "check_permission",
-    ]
-    
-    # 版本兼容性映射
-    VERSION_COMPATIBILITY = {
-        "1.x": {"breaking": ["ToolRegistry"], "additions": ["MCP"]},
-        "2.x": {"breaking": [], "additions": ["Swarm", "Hook"]},
-        # 未来版本兼容...
-    }
-    
-    def check_upgrade_compatibility(self, target_version: str) -> UpgradeReport:
-        """检查升级兼容性"""
-        breaking_changes = self._get_breaking_changes(target_version)
-        return UpgradeReport(
-            compatible=len(breaking_changes) == 0,
-            breaking_changes=breaking_changes,
-            migration_guide=self._generate_guide(breaking_changes)
-        )
-```
-
-**后果**:
-- ✅ **框架原生**：深度集成 OpenHarness，复用成熟能力
-- ✅ **可升级**：兼容性抽象层支持框架平滑升级
-- ✅ **可扩展**：Plugin 机制支持新增通用 Agent
-- ✅ **第三方集成**：Layer 3 支持外部业务 Agent 接入
-- ✅ **平台无关**：通用 Agent 不绑定领域逻辑
-- ❌ 架构复杂度增加
-- ❌ 需要管理三层 Agent 的生命周期
-
-**可逆性**: 高。业务 Agent 通过 Skill 封装，解耦框架依赖。
-
----
-
-### ADR-006: OpenHarness 复用策略（完全复用 + 适配复用 + 独立扩展）
-
-**状态**: ✅ 已接受
-
-**日期**: 2026-04-11
-
-**上下文**: OpenHarness HKUDS 提供完整 Agent 基础设施（v0.1.6），需要确定复用边界：
-- 哪些能力完全复用
-- 哪些需要适配桥接
-- 哪些必须自研
-
-**决策**: 采用"三分法"复用策略
-
-```
-┌─────────────────────────────────────────────────────────────────────────────────┐
-│                           OpenHarness 复用策略                                   │
-├─────────────────────────────────────────────────────────────────────────────────┤
-│  ✅ 完全复用 (8个)                                                              │
-│     Agent Loop │ 43+ Tools │ 40+ Skills │ Memory │ Permissions │ Plugin │ Token │
-├─────────────────────────────────────────────────────────────────────────────────┤
-│  ⚠️ 适配复用 (7个)                                                              │
-│     Coordinator→三Agent │ hooks │ prompts │ commands │ mcp │ tasks │ config     │
-├─────────────────────────────────────────────────────────────────────────────────┤
-│  🔴 独立扩展 (6个)                                                              │
-│     Graphiti本体图谱 │ OPA业务策略 │ 战场本体 │ 56 Skills │ 可视化 │ 仿真数据  │
-└─────────────────────────────────────────────────────────────────────────────────┘
-```
-
-> **⚠️ 重要声明 1**: OpenHarness Memory 与 Graphiti 是**职责分明的两种机制**，**不能混用**：
-> - OpenHarness Memory = Agent 会话状态管理（CLAUDE.md、Auto-Compaction）
-> - Graphiti = 本体知识图谱（实体关系、时序推理）
->
-> **⚠️ 重要声明 2**: OpenHarness Permissions 与 OPA 是**职责互补，而非替代**：
-> - OpenHarness Permissions = **操作系统层安全**（文件路径、Shell 命令、工作目录）
-> - OPA = **业务层策略**（角色权限、工作空间隔离、业务规则校验）
-> - 两者串联执行：Permissions → OPA
-
-**复用矩阵**:
-
-| 分类 | 组件 | 复用方式 | 说明 |
-|------|------|---------|------|
-| ✅ | Agent Loop | 直接调用 | 无需桥接 |
-| ✅ | Tool 框架 | 注册到 Registry | `BattlefieldToolAdapter` |
-| ✅ | Skill 格式 | 兼容使用 | 官方 Skills 直接加载 |
-| ✅ | **Memory** | **直接复用** | 会话状态管理、CLAUDE.md 发现、Auto-Compaction |
-| ✅ | **Permissions** | **直接复用** | 操作系统层安全（文件/命令/目录） |
-| ✅ | Plugin 系统 | 安装启用 | `oh plugin install` |
-| ✅ | Provider 管理 | `oh provider add` | 无需桥接 |
-| ✅ | Token 计量 | 内置 | 无需桥接 |
-| ⚠️ | Coordinator | Swarm + 三Agent | `MultiAgentBridge` |
-| ⚠️ | Hooks | 自定义注入 | 业务策略校验注入点 |
-| ⚠️ | Commands | 保留 + 扩展 | `/strike` `/intel` |
-| ⚠️ | MCP | 协议复用 | 战场传感器 Server |
-| ⚠️ | Tasks | 复用 + 持久化 | Graphiti 持久化 |
-| ⚠️ | Config | 层级保留 | `battlefield_config.yaml` |
-| 🔴 | **Graphiti 本体图谱** | 不适用 | 实体关系、时序推理、历史回溯 |
-| 🔴 | **OPA 业务策略引擎** | 不适用 | 角色权限、工作空间隔离、业务规则 |
-| 🔴 | 战场本体 | 不适用 | Pydantic + NetworkX |
-| 🔴 | 56 领域 Skills | 不适用 | Python 模块 |
-| 🔴 | 态势可视化 | 不适用 | Plotly + Matplotlib + ECharts |
-| 🔴 | 仿真数据生成 | 不适用 | 模拟事件生成器 |
-
-**双层安全架构**:
-
-```
-Layer 1: OpenHarness Permissions (完全复用)
-└── 职责: 操作系统层安全（文件路径、Shell 命令、工作目录）
-    └── 特点: 快速（本地配置）| 粗粒度 | 无业务上下文
-
-Layer 2: OPA (独立扩展)
-└── 职责: 业务层策略（角色权限、工作空间隔离、业务规则）
-    └── 特点: 稍慢（HTTP）| 细粒度 | 丰富上下文
-
-串联执行: Permissions → OPA → 业务操作
-```
-
-**权衡分析**:
-
-| 指标 | 完全复用 | 适配复用 | 独立扩展 |
-|------|---------|---------|---------|
-| 开发成本 | **最低** | 中 | **最高** |
-| 定制化 | 受限 | 灵活 | 完全可控 |
-| 维护成本 | 低 | 中 | **高** |
-| 版本依赖 | 强 | 中 | 无 |
-| 差异化 | 低 | 中 | **高** |
-
-**后果**:
-
-- ✅ 降低 94% 基础设施代码量（5000→300行）
-- ✅ 消除 Agent Loop 自研复杂度
-- ✅ 节省 6+ 月工具开发时间
-- ✅ 双层安全（系统+业务）确保合规
-- ⚠️ 引入桥接层需维护
-- ⚠️ OpenHarness 版本升级需同步测试
-
-**可逆性**: 中。桥接层可替换为其他 Agent 框架。
-
----
-
-### ADR-007: 前端采用 React + Ant Design 技术栈
-
-**状态**: 已接受
-
-**上下文**: 需要构建战场前端和管理后台，面临技术选型决策
-
-**决策**: 采用 React 19 + TypeScript + Ant Design 6 作为前端技术栈
-
-**后果**:
-- ✅ 企业级组件库，开发效率高
-- ✅ TypeScript 类型安全
-- ✅ AntV G6 + ECharts 支持图谱可视化
-- ✅ CesiumJS 支持地理空间展示
-- ❌ 包体积较大
-- ❌ 学习曲线（对于新加入的团队成员）
-
-**可逆性**: 中。前端框架切换成本较高，但组件层可抽象。
-
----
-
-### ADR-008: 审计日志完整记录
-
-**状态**: 已接受
-
-**上下文**: 战场决策系统需要完整的操作审计追溯
-
-**决策**: 所有用户操作、Agent 操作、系统事件均记录审计日志
-
-**后果**:
-- ✅ 合规要求满足
-- ✅ 事后复盘有据可查
-- ✅ 异常行为可追溯
-- ❌ 存储成本增加
-- ❌ 需要注意敏感信息脱敏
-
-**可逆性**: 低。审计日志是合规要求，不易移除。
-
----
-
-### ADR-009: Markdown 编写 OPA 策略
-
-**状态**: 已接受
-
-**上下文**: 运维人员不熟悉 Rego 语言
-
-**决策**: 提供 Markdown 格式的策略编辑器，自动转换为 Rego
-
-**后果**:
-- ✅ 降低策略编写门槛
-- ✅ 提供语法高亮和预览
-- ✅ 可版本化管理
-- ❌ 转换层复杂度
-- ❌ 某些复杂 Rego 特性可能无法表达
-
-**可逆性**: 高。保留直接编辑 Rego 的能力作为备选。
-
----
-
-### ADR-010: 多模态文档处理可配置
-
-**状态**: 提议中
-
-**上下文**: 需要支持上传外部情报文档（图像、PDF、语音）
-
-**决策**: 多模态处理采用可插拔架构，支持配置不同模型
-
-**后果**:
-- ✅ 灵活适配不同场景
-- ✅ 可根据数据敏感度选择本地/云端模型
-- ❌ 配置复杂度增加
-- ❌ 多模型集成测试工作量大
-
-**可逆性**: 中。模型可替换，但接口需要统一。
-
----
-
-### ADR-011: 角色配置热生效
-
-**状态**: 已接受
-
-**上下文**: 需要快速调整角色权限而不重启服务
-
-**决策**: 角色配置支持手动或自动热生效
-
-**后果**:
-- ✅ 运营灵活性高
-- ✅ 可快速响应安全事件
-- ❌ 需要考虑缓存失效
-- ❌ 并发修改需要锁机制
-
-**可逆性**: 高。可降级为重启生效模式。
-
----
-
-### ADR-012: 配置组合引擎
-
-**状态**: 已接受
-
-**上下文**: 需要支持角色、技能、策略的灵活配置组合
-
-**决策**: 引入 ConfigurationProfile 概念，实现配置模板化和组合化
-
-**后果**:
-- ✅ 角色定义与技能/策略解耦
-- ✅ 支持配置模板复用
-- ✅ 可快速创建新角色
-- ❌ 配置复杂度增加
-- ❌ 需要配置验证机制
-
-**可逆性**: 高。可降级为硬编码配置。
-
----
-
-### ADR-013: 多数据源统一接入
-
-**状态**: 已接受
-
-**上下文**: 需要支持结构化和非结构化数据源的统一接入
-
-**决策**: 采用适配器模式，每种数据源有专门适配器，统一输出 DataEntity
-
-**后果**:
-- ✅ 数据源类型可扩展
-- ✅ 接入新数据源成本低
-- ✅ 统一本体映射
-- ❌ 适配器维护成本
-- ❌ 需要处理数据质量差异
-
-**可逆性**: 中。替换适配器需要修改映射规则。
-
----
-
-### ADR-014: 技能热插拔架构
-
-**状态**: 已接受
-
-**上下文**: 需要支持技能的动态注册、启用、禁用，无需重启
-
-**决策**: SkillRegistry 作为技能生命周期管理器，支持热加载
-
-**后果**:
-- ✅ 技能更新无需重启服务
-- ✅ 可灰度发布新技能
-- ✅ 故障技能可快速禁用
-- ❌ 运行时状态管理复杂
-- ❌ 需要考虑技能间依赖
-
-**可逆性**: 高。可降级为启动时加载。
-
----
-
-### ADR-015: 可扩展图表系统
-
-**状态**: 已接受
-
-**上下文**: 问答需要展示多种类型的图表，且类型需可扩展
-
-**决策**: ChartRegistry 模式，支持注册新图表类型和渲染器
-
-**后果**:
-- ✅ 新图表类型无需修改核心代码
-- ✅ 支持自定义图表
-- ✅ 渲染器可独立演进
-- ❌ 图表配置复杂度
-- ❌ 需要统一的渲染接口
-
-**可逆性**: 高。移除图表类型不影响核心功能。
-
----
-
-### ADR-016: 完备文档体系
-
-**状态**: 已接受
-
-**上下文**: 需要从设计、开发、测试到运维的完整文档支撑
-
-**决策**: 文档即代码，与代码同版本管理，自动化生成部分文档
-
-**后果**:
-- ✅ 文档与代码同步
-- ✅ 可追溯文档历史
-- ✅ 降低维护成本
-- ❌ 初始建立成本高
-- ❌ 需要持续维护
-
-**可逆性**: 低。文档体系一旦建立，移除影响知识传承。
-
----
-
-### ADR-017: 原子提交规范
-
-**状态**: 已接受
-
-**上下文**: 需要规范代码提交，每步原子功能修改都有清晰记录
-
-**决策**: 采用 Conventional Commits 规范，commitizen 工具辅助
-
-**后果**:
-- ✅ 提交历史清晰可追溯
-- ✅ 自动生成 CHANGELOG
-- ✅ 便于代码审查
-- ❌ 需要团队培训
-- ❌ 初期可能降低提交速度
-
-**可逆性**: 高。可调整为宽松规范。
-
----
-
-### ADR-018: 模拟战场数据生成引擎
-
-**状态**: 提议中
-
-**上下文**: 管理人员需要模拟战场数据功能，自动生成模拟战场变化事件，支持手工选择采用。
-
-**决策**: 设计战场模拟器（BattlefieldSimulator），基于事件驱动架构，支持：
-- 预定义事件模板（遭遇战、增援、撤退等）
-- 随机事件生成（基于概率分布）
-- 事件时间线控制（加速/减速/暂停）
-- 事件采用审核队列
-
-**后果**:
-- ✅ 支持无外部数据源的演示和培训
-- ✅ 可控的测试场景生成
-- ✅ 支持边界条件和异常场景测试
-- ❌ 需要维护事件模板库
-- ❌ 模拟数据与真实数据的边界需明确区分
-
-**可逆性**: 高。模拟器可独立部署或禁用。
-
----
-
-### ADR-019: 多模态文档处理流水线
-
-**状态**: 提议中
-
-**上下文**: 需要上传外部情报文档（PDF、Word、图片等），并基于此更新本体。
-
-**决策**: 构建多模态文档处理流水线（DocumentPipeline）：
-- **文档解析层**: PDF 解析、OCR、文本提取
-- **内容理解层**: LLM 摘要、实体识别、关系抽取
-- **本体更新层**: Graphiti 节点/边创建、Neo4j 写入
-- **独立配置**: 每个环节可配置不同模型
-
-**后果**:
-- ✅ 支持多种文档格式
-- ✅ 可独立配置各层模型
-- ✅ 流水线可监控和回滚
-- ❌ 处理延迟较高（多模态 LLM 调用）
-- ❌ 需要处理文档解析错误
-
-**可逆性**: 中。可简化处理流程或降级为纯文本处理。
-
----
-
-### ADR-020: 管理员控制台统一界面
-
-**状态**: 提议中
-
-**上下文**: 管理人员需要单独的管理界面，涵盖模拟数据管理、本体管理、配置管理等。
-
-**决策**: 设计统一管理员控制台（AdminConsole），包含：
-- **模拟数据管理**: 生成、审核、采用/拒绝
-- **本体图谱可视化**: D3.js 动态图谱、节点/边属性查看
-- **日志溯源面板**: 实时日志流、可跳转至原始事件
-- **本体编辑区**: 手动新增规则、OPA 策略、处理逻辑
-
-**后果**:
-- ✅ 集中管理，降低学习成本
-- ✅ 实时反馈，减少操作失误
-- ✅ 审计追溯能力强
-- ❌ 界面复杂度增加
-- ❌ 需要细粒度权限控制
-
-**可逆性**: 中。管理功能可分散到独立页面。
-
----
-
-### ADR-021: 战争实体标准本体库
-
-**状态**: 提议中
-
-**上下文**: 需要基础的战争实体本体，包括各实体的属性，提供中英文说明。
-
-**决策**: 构建战争实体标准本体库（WarEntityOntology）：
-- **基础实体**: 部队(Unit)、装备(Equipment)、地形(Terrain)、气象(Weather)等
-- **实体属性**: 数量、位置、状态、能力等（中英文双语）
-- **关系类型**: 指挥(commands)、部署(deploys)、位于(located_at)等
-- **本体加载器**: 支持初始化加载和增量更新
-
-**后果**:
-- ✅ 快速启动，无需从零构建本体
-- ✅ 术语统一，便于多系统集成
-- ✅ 中英文支持，便于国际协作
-- ❌ 领域特定，可能需要扩展
-- ❌ 需要持续维护实体库
-
-**可逆性**: 低。本体是系统核心，变更成本高。
-
----
-
-### ADR-022: 模拟数仓与统一查询服务
-
-**状态**: 提议中
-
-**上下文**: 需要模拟数仓的基础数据，为本体提供指标属性，本体作为统一语义层对外提供查询服务。
-
-**决策**: 构建模拟数仓与统一查询服务（DataWarehouse + QueryService）：
-- **模拟数仓**: 预计算指标数据（打击效能、生存概率等）
-- **本体映射**: 数仓字段 → Graphiti 节点属性
-- **统一查询**: GraphQL API，支持跨数据源联合查询
-- **缓存层**: Redis 缓存热点查询结果
-
-**后果**:
-- ✅ 结构化数据与本体统一访问
-- ✅ 查询性能优化（预计算 + 缓存）
-- ✅ 支持复杂分析查询
-- ❌ 数据一致性挑战
-- ❌ 需要额外存储资源
-
-**可逆性**: 中。查询服务可独立部署。
-
----
-
-### ADR-023: 多工作空间隔离架构
-
-**状态**: ✅ 已接受
-
-**上下文**: 系统需要支持多场景（战争分析、金融分析、医疗诊断等），每个场景必须完全隔离，但共享核心引擎。
-
-**决策**: 设计多工作空间（Multi-Workspace）架构：
-- **命名空间隔离**: 每个工作空间独立的 Graphiti 命名空间、OPA 命名空间
-- **工作空间管理器**: WorkspaceManager 统一管理创建、切换、导入、导出
-- **核心引擎共享**: Graphiti Core、SkillRegistry、OPA Engine 是共享基础设施
-- **配置模板**: 提供工作空间模板，支持快速创建新场景
-
-**后果**:
-- ✅ 多场景完全隔离，数据不泄露
-- ✅ 可同时运行多个场景
-- ✅ 新场景可通过模板快速创建
-- ✅ 共享核心引擎，降低资源消耗
-- ❌ 需要处理跨工作空间的查询（需要明确限定范围）
-- ❌ 工作空间级别的权限管理复杂度增加
-
-**可逆性**: 低。命名空间是核心设计，变更影响范围广。
-
----
-
-### ADR-024: 本体驱动分析核心架构
-
-**状态**: ✅ 已接受
-
-**上下文**: 本系统以 Ontology 为核心，需要确保本体在分析决策中的核心地位，而非被边缘化。
-
-**决策**: 设计 Ontology-Centric 架构：
-- **本体作为语义中枢**: 所有数据必须映射到本体节点，才能参与推理
-- **本体版本控制**: 本体变更需要版本化，支持回滚
-- **本体驱动 Skill**: Skill 执行结果必须符合本体约束
-- **本体可视化**: Graphiti 节点/边实时可视化展示
-
-**后果**:
-- ✅ 本体是系统核心，不会被边缘化
-- ✅ 数据一致性高，所有分析基于统一语义
-- ✅ 支持复杂领域推理
-- ❌ 学习成本较高，需要领域专家参与本体设计
-- ❌ 本体规模过大时，性能可能下降
-
-**可逆性**: 低。本体是核心抽象，变更代价极高。
+> 所有 ADR 已拆分为独立文件，存放在 [`docs/adr/`](adr/) 目录下。
+
+### 17.1 ADR 索引
+
+| ADR | 决策标题 | 状态 | 文件 |
+|-----|---------|------|------|
+| ADR-001 | Agent 基础设施（OpenHarness + LangGraph） | 已接受 | [adr/ADR-001_agent_基础设施openharness_langgraph.md](adr/ADR-001_agent_基础设施openharness_langgraph.md) |
+| ADR-002 | Graphiti 作为双时态知识图谱 | 已接受 | [adr/ADR-002_graphiti_作为双时态知识图谱.md](adr/ADR-002_graphiti_作为双时态知识图谱.md) |
+| ADR-003 | OPA 策略治理引擎（MVP + 生产化） | 已接受 | [adr/ADR-003_opa_策略治理引擎mvp_生产化.md](adr/ADR-003_opa_策略治理引擎mvp_生产化.md) |
+| ADR-004 | 统一 Skill 体系架构 | 已接受 | [adr/ADR-004_统一_skill_体系架构.md](adr/ADR-004_统一_skill_体系架构.md) |
+| ADR-005 | 分层 Agent 架构（OpenHarness 原生 + 领域扩展） | 已接受 | [adr/ADR-005_分层_agent_架构openharness_原生_领域扩展.md](adr/ADR-005_分层_agent_架构openharness_原生_领域扩展.md) |
+| ADR-006 | OpenHarness 复用策略（完全复用 + 适配复用 + 独立扩展） | 已接受 | [adr/ADR-006_openharness_复用策略完全复用_适配复用_独立扩展.md](adr/ADR-006_openharness_复用策略完全复用_适配复用_独立扩展.md) |
+| ADR-007 | 前端采用 React + Ant Design 技术栈 | 已接受 | [adr/ADR-007_前端采用_react_ant_design_技术栈.md](adr/ADR-007_前端采用_react_ant_design_技术栈.md) |
+| ADR-008 | 审计日志完整记录 | 已接受 | [adr/ADR-008_审计日志完整记录.md](adr/ADR-008_审计日志完整记录.md) |
+| ADR-009 | Markdown 编写 OPA 策略 | 已接受 | [adr/ADR-009_markdown_编写_opa_策略.md](adr/ADR-009_markdown_编写_opa_策略.md) |
+| ADR-010 | 多模态文档处理可配置 | 已接受 | [adr/ADR-010_多模态文档处理可配置.md](adr/ADR-010_多模态文档处理可配置.md) |
+| ADR-011 | 角色配置热生效 | 已接受 | [adr/ADR-011_角色配置热生效.md](adr/ADR-011_角色配置热生效.md) |
+| ADR-012 | 配置组合引擎 | 已接受 | [adr/ADR-012_配置组合引擎.md](adr/ADR-012_配置组合引擎.md) |
+| ADR-013 | 多数据源统一接入 | 已接受 | [adr/ADR-013_多数据源统一接入.md](adr/ADR-013_多数据源统一接入.md) |
+| ADR-014 | 技能热插拔架构 | 已接受 | [adr/ADR-014_技能热插拔架构.md](adr/ADR-014_技能热插拔架构.md) |
+| ADR-015 | 可扩展图表系统 | 已接受 | [adr/ADR-015_可扩展图表系统.md](adr/ADR-015_可扩展图表系统.md) |
+| ADR-016 | 完备文档体系 | 已接受 | [adr/ADR-016_完备文档体系.md](adr/ADR-016_完备文档体系.md) |
+| ADR-017 | 原子提交规范 | 已接受 | [adr/ADR-017_原子提交规范.md](adr/ADR-017_原子提交规范.md) |
+| ADR-018 | 模拟战场数据生成引擎 | 已接受 | [adr/ADR-018_模拟战场数据生成引擎.md](adr/ADR-018_模拟战场数据生成引擎.md) |
+| ADR-019 | 多模态文档处理流水线 | 已接受 | [adr/ADR-019_多模态文档处理流水线.md](adr/ADR-019_多模态文档处理流水线.md) |
+| ADR-020 | 管理员控制台统一界面 | 已接受 | [adr/ADR-020_管理员控制台统一界面.md](adr/ADR-020_管理员控制台统一界面.md) |
+| ADR-021 | 战争实体标准本体库 | 已接受 | [adr/ADR-021_战争实体标准本体库.md](adr/ADR-021_战争实体标准本体库.md) |
+| ADR-022 | 模拟数仓与统一查询服务 | 提议中 | [adr/ADR-022_模拟数仓与统一查询服务.md](adr/ADR-022_模拟数仓与统一查询服务.md) |
+| ADR-023 | 多工作空间隔离架构 | 已接受 | [adr/ADR-023_多工作空间隔离架构.md](adr/ADR-023_多工作空间隔离架构.md) |
+| ADR-024 | 本体驱动分析核心架构 | 已接受 | [adr/ADR-024_本体驱动分析核心架构.md](adr/ADR-024_本体驱动分析核心架构.md) |
+| ADR-025 | 基于 OpenHarness 实现多智能体协同 | 已接受 | [adr/ADR-025_openharness_integration.md](adr/ADR-025_openharness_integration.md) |
+| ADR-026 | 采用 MCP 协议作为外部系统集成标准 | 已接受 | [adr/ADR-026_mcp_protocol_integration.md](adr/ADR-026_mcp_protocol_integration.md) |
+| ADR-027 | Hook 系统作为可扩展性核心架构 | 已接受 | [adr/ADR-027_hook_system_architecture.md](adr/ADR-027_hook_system_architecture.md) |
+| ADR-028 | OPA 作为统一权限校验引擎 | 已接受 | [adr/ADR-028_permission_checker_opa_integration.md](adr/ADR-028_permission_checker_opa_integration.md) |
+| ADR-029 | 统一工具注册表架构 | 已接受 | [adr/ADR-029_tool_registry_architecture.md](adr/ADR-029_tool_registry_architecture.md) |
+
+### 17.2 ADR 分类
+
+**核心基础设施（P0）**：ADR-001, ADR-002, ADR-003, ADR-004, ADR-005, ADR-006
+
+**前端与交互**：ADR-007, ADR-014, ADR-015, ADR-020
+
+**安全与治理**：ADR-008, ADR-009, ADR-028
+
+**数据与集成**：ADR-012, ADR-013, ADR-018, ADR-021, ADR-022, ADR-026
+
+**平台架构**：ADR-010, ADR-011, ADR-016, ADR-017, ADR-019, ADR-023, ADR-024, ADR-025
+
+**扩展机制**：ADR-027, ADR-029
 
 ---
 
@@ -5531,4 +4924,4 @@ OH_PERMISSION_MODE=default
 
 ---
 
-*文档版本: 2.0 | 最后更新: 2026-04-11 | 作者: 软件架构师*
+*文档版本: 2.1 | 最后更新: 2026-04-13 | 作者: 软件架构师*

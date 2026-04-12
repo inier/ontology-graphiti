@@ -1,7 +1,7 @@
-# ADR-006: 基于 OpenHarness 实现多智能体协同
+# ADR-025: 基于 OpenHarness 实现多智能体协同
 
 ## 状态
-提议中
+已接受 | **创建日期**: 2026-04-11 | **最后更新**: 2026-04-13
 
 ## 上下文
 
@@ -117,7 +117,7 @@ OpenHarness Engine (Agent Loop)
 
 ### 需要决策的关键问题
 
-1. **Skill 体系合并策略**？统一到 OpenHarness Skill 格式（Markdown）还是保留 Python Skill（强类型）？
+1. ~~**Skill 体系合并策略**？统一到 OpenHarness Skill 格式（Markdown）还是保留 Python Skill（强类型）？~~ → **已由 ADR-004 决策：统一 Skill 双层并行策略**
 2. **LLM 模型分配**？三个 Agent 用同一个模型还是分级（Commander 强推理 + Intelligence 快分析）？
 3. **Graphiti 作为 OpenHarness Memory 的边界**？哪些状态走 Graphiti，哪些走 OpenHarness 内置 Memory？
 
@@ -128,7 +128,7 @@ OpenHarness Engine (Agent Loop)
 ### Week 1-2: 基础设施
 - [ ] 安装 OpenHarness (`uv add openharness`)
 - [ ] 配置 OpenHarness CLI 环境（模型、API）
-- [ ] 编写 `openharness_bridge.py`（Skill → Tool 桥接适配器）
+- [ ] 实现 OpenHarness 原生扩展点适配（利用 engine/tools/plugins/hooks，见 ADR-005）
 - [ ] 验证 OpenHarness Agent Loop 在项目中能跑通
 
 ### Week 3-4: 单 Agent 试点
@@ -155,9 +155,9 @@ OpenHarness Engine (Agent Loop)
 
 - OpenHarness 作为独立进程运行，通过 HTTP API 与主系统交互
 - 如需切换回自研编排，可将 OpenHarness 降级为"外部工具"而非核心引擎
-- Skill 桥接层（openharness_bridge.py）是关键的可拔插点
+- OpenHarness 原生扩展点（plugins/hooks）是关键的可拔插层，见 ADR-005
 
 ---
 
 *起草日期：2026-04-11*
-*状态：提议中，等待团队评审*
+*状态：已接受（2026-04-13 评审通过，更新过时内容）*
