@@ -42,12 +42,8 @@
 
 ### 关键设计决策
 
-- ADR-001: OpenHarness 作为 Agent 基础设施（已接受）
-- ADR-002: Graphiti 作为双时态知识图谱（已接受）
-- ADR-003: OPA 作为策略治理引擎（已接受）
-- ADR-004: Skill 双层并行策略（已接受）
-- ADR-005: 三 Agent 角色分工（已接受）
-- ADR-006: OpenHarness 复用策略 v3.0（已接受）
+ADR 文档已独立化，存放在 `docs/adr/` 目录（共 29 条，ADR-001~029），详见 `docs/adr/README.md`。
+核心 ADR：ADR-001(OpenHarness), ADR-002(Graphiti), ADR-003(OPA), ADR-004(Skill), ADR-005(分层Agent), ADR-006(复用策略)
 
 ### OpenHarness 复用矩阵（2026-04-11）
 
@@ -68,10 +64,12 @@
 | Phase 4 | 6-12月 | 高级特性 |
 
 ## 重要文档
-- `docs/ARCHITECTURE.md`（v2.0，2026-04-11，完全重写）
+- `docs/ARCHITECTURE.md`（v3.1，2026-04-13，审计修复）
+- `docs/adr/README.md`（含优先级列）
+- `docs/AUDIT_REPORT.md`（全量文档审计报告）
 
 ## 核心文件
-- `core/openharness_bridge.py`: OpenHarness 桥接适配器
 - `core/opa_client.py`: OPA 策略客户端
 - `core/graphiti_client.py`: Graphiti 客户端
 - `core/swarm_orchestrator.py`: Swarm 编排器
+- `core/openharness_bridge.py`: 已删除（2026-04-13），适配功能通过 OpenHarness 原生扩展点实现（ADR-005）
