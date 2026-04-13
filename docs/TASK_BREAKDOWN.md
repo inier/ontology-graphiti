@@ -349,3 +349,17 @@ result = await swarm.execute_mission("分析B区威胁并采取行动")
 - **ScenarioVersion**: 方案版本管理、创建分支、回退
 - **run_simulation**: 步进式推演执行
 - **compare_versions**: 版本参数对比
+
+### Phase 2 扩展: Hook System ✅
+
+| 功能模块 | 文件 | 状态 |
+|---------|------|------|
+| HookSystem | `core/hook_system.py` | ✅ |
+| 单元测试 | `tests/test_hook_system.py` | ✅ (13 tests) |
+
+#### 核心功能
+
+- **HookRegistry**: Hook 注册表，支持注册/注销/启用/禁用
+- **HookExecutor**: Hook 执行器，支持 Pre/Post/Error Hooks
+- **HookContext**: Hook 执行上下文
+- **BuiltinHooks**: 内置 Hooks（审计日志、指标收集、OPA 权限校验）
