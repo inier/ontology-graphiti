@@ -227,35 +227,40 @@ def get_battlefield_summary():
 register_skill(
     name="analyze_entity_status",
     description="分析实体状态",
-    handler=analyze_entity_status
-)
+    handler=analyze_entity_status,
+    category="analysis")
+
 
 register_skill(
     name="analyze_battle_events",
     description="分析战场事件",
-    handler=analyze_battle_events
-)
+    handler=analyze_battle_events,
+    category="analysis")
+
 
 register_skill(
     name="analyze_force_comparison",
     description="分析力量对比",
-    handler=analyze_force_comparison
-)
+    handler=analyze_force_comparison,
+    category="analysis")
+
 
 register_skill(
     name="analyze_weapon_capabilities",
     description="分析武器能力",
-    handler=analyze_weapon_capabilities
-)
+    handler=analyze_weapon_capabilities,
+    category="analysis")
+
 
 register_skill(
     name="analyze_civilian_infrastructure",
     description="分析民用基础设施",
-    handler=analyze_civilian_infrastructure
-)
+    handler=analyze_civilian_infrastructure,
+    category="analysis")
+
 
 register_skill(
     name="get_battlefield_summary",
     description="获取战场态势摘要",
-    handler=get_battlefield_summary
-)
+    handler=get_battlefield_summary,
+    category="analysis")

@@ -53,6 +53,15 @@ ADR 文档已独立化，存放在 `docs/adr/` 目录（共 29 条，ADR-001~029
 | **⚠️ 适配复用** | Memory (→Graphiti)、Permissions (→OPA)、Coordinator (→三Agent) | 桥接适配 |
 | **🔴 独立扩展** | 战场本体、56领域Skills、时序推理、态势可视化 | 自研 |
 
+### Graphiti 集成经验（2026-04-14）
+
+- **ZhipuAIClient 需三层适配**：URL 智能拼接（去尾部 `/chat/completions`）+ 字段名映射（`_normalize_fields`）+ 缺失字段填充（`_fill_missing_fields`）
+- **EpisodicNode 字段**：`content`（不是 `episode_body`），`name`，`uuid`，`created_at`
+- **EntityEdge 字段**：`name`，`fact`，`uuid`，`source_node_uuid`，`target_node_uuid`
+- **Graphiti.search()** 返回 `list[EntityEdge]`，不是 Episode
+- **Embedder 配置**：需要从 chat base_url 推导 embedding base_url（SiliconFlow 模型 `Pro/BAAI/bge-m3`）
+- **Neo4j 驱动内置指数退避重试**，必须用 `asyncio.wait_for(timeout=15)` 做快速失败
+
 ### 演进路线
 
 | Phase | 时间 | 目标 |

@@ -195,53 +195,61 @@ def search_ontology_hybrid(query_text, top_k=5):
 register_skill(
     name="query_ontology",
     description="查询本体",
-    handler=query_ontology
-)
+    handler=query_ontology,
+    category="ontology")
+
 
 register_skill(
     name="export_ontology",
     description="导出本体",
-    handler=export_ontology
-)
+    handler=export_ontology,
+    category="ontology")
+
 
 register_skill(
     name="import_ontology",
     description="导入本体",
-    handler=import_ontology
-)
+    handler=import_ontology,
+    category="ontology")
+
 
 register_skill(
     name="list_ontology_versions",
     description="列出本体版本",
-    handler=list_ontology_versions
-)
+    handler=list_ontology_versions,
+    category="ontology")
+
 
 register_skill(
     name="rollback_ontology",
     description="回滚本体版本",
-    handler=rollback_ontology
-)
+    handler=rollback_ontology,
+    category="ontology")
+
 
 register_skill(
     name="get_current_ontology",
     description="获取当前本体",
-    handler=get_current_ontology
-)
+    handler=get_current_ontology,
+    category="ontology")
+
 
 register_skill(
     name="update_ontology",
     description="更新本体",
-    handler=update_ontology
-)
+    handler=update_ontology,
+    category="ontology")
+
 
 register_skill(
     name="get_entity_history",
     description="获取实体历史",
-    handler=get_entity_history
-)
+    handler=get_entity_history,
+    category="ontology")
+
 
 register_skill(
     name="search_ontology_hybrid",
     description="混合检索本体",
-    handler=search_ontology_hybrid
-)
+    handler=search_ontology_hybrid,
+    category="ontology")

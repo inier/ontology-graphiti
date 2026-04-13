@@ -2,13 +2,18 @@
 基于graphiti的战场图谱管理模块
 使用Neo4j作为图数据库，支持时序知识图谱特性
 
+三层模式降级：
+1. Neo4j Driver 直连（无需 graphiti-core，直接 Cypher 操作）
+2. Graphiti（双时态知识图谱，需要 graphiti-core + Neo4j）
+3. NetworkX fallback（纯内存，无外部依赖）
+
 解决方案：在单个 asyncio.run() 中完成所有 graphiti 操作
 """
 
 import sys
 import os
 import asyncio
-from datetime import datetime
+from datetime import datetime, timezone
 from typing import Optional, List, Dict, Any
 
 # 尝试加载 .env 文件
@@ -30,7 +35,7 @@ sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 from data.simulation_data import load_simulation_data
 
-# 尝试导入graphiti-core
+# 尝试导入 graphiti-core（可选）
 try:
     from graphiti_core import Graphiti
     from graphiti_core.nodes import EntityNode, EpisodicNode
@@ -39,7 +44,15 @@ try:
     GRAPHITI_AVAILABLE = True
 except ImportError as e:
     GRAPHITI_AVAILABLE = False
-    print(f"警告: graphiti-core 未安装 ({e})，将使用回退模式")
+    print(f"提示: graphiti-core 未安装 ({e})，Graphiti 模式不可用")
+
+# 尝试导入 neo4j driver（可选）
+try:
+    from neo4j import GraphDatabase
+    NEO4J_DRIVER_AVAILABLE = True
+except ImportError as e:
+    NEO4J_DRIVER_AVAILABLE = False
+    print(f"提示: neo4j driver 未安装 ({e})，Neo4j 直连模式不可用")
 
 
 class BattlefieldGraphManager:
@@ -63,6 +76,11 @@ class BattlefieldGraphManager:
         """
         初始化战场图谱管理器
 
+        三层降级策略：
+        1. Neo4j Driver 直连 — 无需 graphiti-core，Cypher 直接操作
+        2. Graphiti — 双时态知识图谱，需要 graphiti-core + Neo4j
+        3. NetworkX fallback — 纯内存，零外部依赖
+
         Args:
             neo4j_uri: Neo4j连接URI (默认从环境变量读取)
             neo4j_user: Neo4j用户名 (默认从环境变量读取)
@@ -75,14 +93,98 @@ class BattlefieldGraphManager:
         self.neo4j_uri = neo4j_uri or os.getenv('NEO4J_URI', 'bolt://localhost:7687')
         self.neo4j_user = neo4j_user or os.getenv('NEO4J_USER', 'neo4j')
         self.neo4j_password = neo4j_password or os.getenv('NEO4J_PASSWORD', 'neo4j123456')
+        self.neo4j_driver = None  # Neo4j Driver 直连
+        self.fallback_graph = None  # networkx 内存图（fallback 模式时创建）
         self.reserved_tasks = []
         self._connected = False
         self._use_fallback = True
+        self._mode = "fallback"   # "neo4j_driver" | "graphiti" | "fallback"
 
-        # 先使用回退模式加载数据
-        self._use_fallback_mode()
+        # 尝试三层降级
+        self._connect()
 
         BattlefieldGraphManager._initialized = True
+
+    def _connect(self):
+        """
+        三层降级连接：Neo4j Driver → Graphiti → NetworkX fallback
+        """
+        # 第一层：Neo4j Driver 直连
+        if NEO4J_DRIVER_AVAILABLE:
+            try:
+                self.neo4j_driver = GraphDatabase.driver(
+                    self.neo4j_uri,
+                    auth=(self.neo4j_user, self.neo4j_password)
+                )
+                # 验证连接
+                self.neo4j_driver.verify_connectivity()
+                self._connected = True
+                self._use_fallback = False
+                self._mode = "neo4j_driver"
+                print(f"Neo4j Driver 直连成功: {self.neo4j_uri}")
+                # 尝试加载模拟数据到 Neo4j
+                self._load_data_to_neo4j()
+                return
+            except Exception as e:
+                print(f"Neo4j Driver 连接失败: {e}，尝试下一层")
+                if self.neo4j_driver:
+                    self.neo4j_driver.close()
+                    self.neo4j_driver = None
+
+        # 第二层：Graphiti（需要 graphiti-core + Neo4j）
+        if GRAPHITI_AVAILABLE:
+            if self._init_graphiti_sync():
+                self._mode = "graphiti"
+                return
+
+        # 第三层：NetworkX fallback
+        self._use_fallback_mode()
+
+    def _load_data_to_neo4j(self):
+        """将模拟数据加载到 Neo4j（通过 Cypher）"""
+        if not self.neo4j_driver:
+            return
+        data = load_simulation_data()
+
+        with self.neo4j_driver.session() as session:
+            # 创建唯一性约束
+            try:
+                session.run("CREATE CONSTRAINT entity_id IF NOT EXISTS FOR (e:Entity) REQUIRE e.id IS UNIQUE")
+            except Exception:
+                pass  # 约束可能已存在
+
+            all_entities = []
+            all_entities.extend(data.get("locations", []))
+            all_entities.extend(data.get("military_units", []))
+            all_entities.extend(data.get("weapon_systems", []))
+            all_entities.extend(data.get("civilian_infrastructure", []))
+
+            count = 0
+            for entity in all_entities:
+                entity_id = entity["id"]
+                entity_type = entity.get("type", "Unknown")
+                props = entity.get("properties", {})
+                # MERGE 避免重复
+                props_str = ", ".join(f"{k}: ${k}" for k in props.keys())
+                labels = f"Entity:{entity_type.replace(' ', '_')}"
+                cypher = f"MERGE (n:{labels} {{id: $eid}}) SET n += {{{props_str}}}"
+                try:
+                    params = {"eid": entity_id}
+                    params.update(props)
+                    session.run(cypher, **params)
+                    count += 1
+                except Exception as e:
+                    print(f"  Neo4j 加载实体失败 {entity_id}: {e}")
+
+            print(f"Neo4j 数据加载完成: {count} 个实体")
+
+    def _close_neo4j(self):
+        """关闭 Neo4j Driver"""
+        if self.neo4j_driver:
+            try:
+                self.neo4j_driver.close()
+            except Exception:
+                pass
 
     def _create_llm_client(self):
         """创建LLM客户端（使用智谱AI适配器）"""
@@ -96,6 +198,25 @@ class BattlefieldGraphManager:
             temperature=0.7
         )
         return ZhipuAIClient(config=config)
+
+    def _create_embedder(self):
+        """创建 Embedder（兼容 SiliconFlow 等 OpenAI 兼容 API）"""
+        try:
+            from graphiti_core.embedder.openai import OpenAIEmbedder, OpenAIEmbedderConfig
+            raw_base = OPENAI_API_BASE.rstrip('/')
+            if '/chat/completions' in raw_base:
+                embed_base = raw_base.split('/chat/completions')[0]
+            else:
+                embed_base = raw_base
+            config = OpenAIEmbedderConfig(
+                api_key=OPENAI_API_KEY,
+                base_url=embed_base,
+                embedding_model="Pro/BAAI/bge-m3"
+            )
+            return OpenAIEmbedder(config=config)
+        except Exception as e:
+            print(f"创建 Embedder 失败: {e}")
+            return None
 
     def _use_fallback_mode(self):
         """
@@ -168,17 +289,31 @@ class BattlefieldGraphManager:
             try:
                 print("创建LLM客户端...")
                 llm_client = self._create_llm_client()
+                embedder = self._create_embedder()
+                if not embedder:
+                    print("Embedder 创建失败，Graphiti 模式不可用")
+                    return False
 
                 print(f"创建Graphiti实例连接到 {self.neo4j_uri}...")
                 self.graph = Graphiti(
                     uri=self.neo4j_uri,
                     user=self.neo4j_user,
                     password=self.neo4j_password,
-                    llm_client=llm_client
+                    llm_client=llm_client,
+                    embedder=embedder,
                 )
 
-                print("构建graphiti索引和约束...")
-                await self.graph.build_indices_and_constraints()
+                # 先验证 Neo4j 连接可用性（快速失败）
+                print("验证 Neo4j 连接...")
+                try:
+                    await asyncio.wait_for(
+                        self.graph.build_indices_and_constraints(delete_existing=False),
+                        timeout=15.0
+                    )
+                except asyncio.TimeoutError:
+                    print("Neo4j 连接超时（15s），Graphiti 模式不可用")
+                    return False
+
                 print("索引和约束构建完成")
 
                 print("加载数据到 Neo4j...")
@@ -191,8 +326,6 @@ class BattlefieldGraphManager:
 
             except Exception as e:
                 print(f"Graphiti初始化失败: {e}")
-                import traceback
-                traceback.print_exc()
                 return False
 
         try:
@@ -217,7 +350,7 @@ class BattlefieldGraphManager:
     async def _add_episodes_to_graphiti(self):
         """将数据添加到 graphiti"""
         data = load_simulation_data()
-        reference_time = datetime.now()
+        reference_time = datetime.now(timezone.utc)
 
         all_entities = []
         all_entities.extend(data.get("locations", []))
@@ -233,7 +366,7 @@ class BattlefieldGraphManager:
             try:
                 await self.graph.add_episode(
                     name=entity.get("id", "unknown"),
-                    episode_body=episode_text,
+                    content=episode_text,
                     source_description=f"战场数据: {entity.get('type')}",
                     reference_time=reference_time,
                     update_communities=False
@@ -257,10 +390,36 @@ class BattlefieldGraphManager:
         Returns:
             实体列表
         """
-        if self._use_fallback or not self._connected:
-            return self._query_entities_fallback(entity_type, area)
+        if self._mode == "neo4j_driver" and self.neo4j_driver:
+            return self._query_entities_neo4j(entity_type, area)
+        if self._mode == "graphiti" and self._connected:
+            return self._query_entities_graphiti(entity_type, area)
+        return self._query_entities_fallback(entity_type, area)
 
-        return self._query_entities_graphiti(entity_type, area)
+    def _query_entities_neo4j(self, entity_type=None, area=None):
+        """Neo4j Driver 模式：查询实体"""
+        label = entity_type.replace(" ", "_") if entity_type else "Entity"
+        if area:
+            cypher = f"MATCH (n:{label}) WHERE n.area = $area RETURN n.id AS id, labels(n) AS labels, properties(n) AS props"
+            params = {"area": area}
+        else:
+            cypher = f"MATCH (n:{label}) RETURN n.id AS id, labels(n) AS labels, properties(n) AS props"
+            params = {}
+
+        try:
+            with self.neo4j_driver.session() as session:
+                result = session.run(cypher, **params)
+                return [
+                    {
+                        "id": record["id"],
+                        "type": [l for l in record["labels"] if l != "Entity"][0] if len(record["labels"]) > 1 else "Entity",
+                        "properties": record["props"]
+                    }
+                    for record in result
+                ]
+        except Exception as e:
+            print(f"Neo4j 查询失败: {e}")
+            return self._query_entities_fallback(entity_type, area)
 
     def _query_entities_fallback(self, entity_type=None, area=None):
         """
@@ -299,12 +458,12 @@ class BattlefieldGraphManager:
                     result.append({
                         "id": episode.name or str(episode.uuid),
                         "type": "Entity",
-                        "properties": {"body": episode.episode_body}
+                        "properties": {"body": episode.content}
                     })
                 return result
             except Exception as e:
-                print(f"Graphiti查询失败: {e}")
-                return []
+                print(f"Graphiti查询失败，降级到 fallback: {e}")
+                return self._query_entities_fallback(entity_type, area)
 
         return asyncio.run(query())
 
@@ -319,10 +478,26 @@ class BattlefieldGraphManager:
         Returns:
             是否成功
         """
-        if self._use_fallback or not self._connected:
-            return self._update_entity_fallback(entity_id, properties)
+        if self._mode == "neo4j_driver" and self.neo4j_driver:
+            return self._update_entity_neo4j(entity_id, properties)
+        if self._mode == "graphiti" and self._connected:
+            return self._update_entity_graphiti(entity_id, properties)
+        return self._update_entity_fallback(entity_id, properties)
 
-        return self._update_entity_graphiti(entity_id, properties)
+    def _update_entity_neo4j(self, entity_id: str, properties: Dict) -> bool:
+        """Neo4j Driver 模式：更新实体"""
+        try:
+            props_str = ", ".join(f"n.{k} = ${k}" for k in properties.keys())
+            cypher = f"MATCH (n:Entity {{id: $eid}}) SET {props_str}"
+            params = {"eid": entity_id}
+            params.update(properties)
+            with self.neo4j_driver.session() as session:
+                result = session.run(cypher, **params)
+                summary = result.consume()
+                return summary.counters.properties_set > 0
+        except Exception as e:
+            print(f"Neo4j 更新实体失败: {e}")
+            return False
 
     def _update_entity_fallback(self, entity_id, properties):
         """回退模式：更新实体"""
@@ -343,10 +518,11 @@ class BattlefieldGraphManager:
         Returns:
             统计信息字典
         """
-        if self._use_fallback or not self._connected:
-            return self._get_statistics_fallback()
-
-        return self._get_statistics_graphiti()
+        if self._mode == "neo4j_driver" and self.neo4j_driver:
+            return self._get_statistics_neo4j()
+        if self._mode == "graphiti" and self._connected:
+            return self._get_statistics_graphiti()
+        return self._get_statistics_fallback()
 
     def get_graph_statistics(self) -> Dict[str, Any]:
         """别名，保持向后兼容"""
@@ -360,6 +536,30 @@ class BattlefieldGraphManager:
             "entity_types": self._count_entity_types(),
             "mode": "fallback"
         }
+
+    def _get_statistics_neo4j(self) -> Dict[str, Any]:
+        """Neo4j Driver 模式：获取统计信息"""
+        try:
+            with self.neo4j_driver.session() as session:
+                total = session.run("MATCH (n:Entity) RETURN count(n) AS cnt").single()["cnt"]
+                # 正确语法：先 WITH 再过滤
+                type_result = session.run(
+                    "MATCH (n:Entity) "
+                    "UNWIND labels(n) AS lbl "
+                    "WITH lbl, count(n) AS cnt "
+                    "WHERE lbl <> 'Entity' "
+                    "RETURN lbl AS type, cnt"
+                )
+                entity_types = {record["type"]: record["cnt"] for record in type_result}
+                return {
+                    "total_entities": total,
+                    "total_relationships": 0,
+                    "entity_types": entity_types,
+                    "mode": "neo4j_driver",
+                }
+        except Exception as e:
+            print(f"Neo4j 统计失败: {e}")
+            return self._get_statistics_fallback()
 
     def _get_statistics_graphiti(self) -> Dict[str, Any]:
         """Graphiti模式：获取统计信息"""
@@ -375,8 +575,8 @@ class BattlefieldGraphManager:
                     "mode": "graphiti"
                 }
             except Exception as e:
-                print(f"获取统计信息失败: {e}")
-                return {"error": str(e), "mode": "graphiti"}
+                print(f"获取统计信息失败，降级到 fallback: {e}")
+                return self._get_statistics_fallback()
 
         return asyncio.run(get_stats())
 
@@ -435,10 +635,33 @@ class BattlefieldGraphManager:
         Returns:
             匹配的实体列表
         """
-        if self._use_fallback or not self._connected:
-            return self._search_fallback(query, limit)
+        if self._mode == "neo4j_driver" and self.neo4j_driver:
+            return self._search_neo4j(query, limit)
+        if self._mode == "graphiti" and self._connected:
+            return self._search_graphiti(query, limit)
+        return self._search_fallback(query, limit)
 
-        return self._search_graphiti(query, limit)
+    def _search_neo4j(self, query: str, limit: int = 10) -> List[Dict]:
+        """Neo4j Driver 模式：全文搜索"""
+        try:
+            with self.neo4j_driver.session() as session:
+                # 使用 CONTAINS 做简单文本匹配（生产环境可用全文索引）
+                cypher = (
+                    "MATCH (n:Entity) WHERE n.id CONTAINS $q OR n.name CONTAINS $q "
+                    "RETURN n.id AS id, labels(n) AS labels, properties(n) AS props LIMIT $limit"
+                )
+                result = session.run(cypher, q=query, limit=limit)
+                return [
+                    {
+                        "id": record["id"],
+                        "type": [l for l in record["labels"] if l != "Entity"][0] if len(record["labels"]) > 1 else "Entity",
+                        "properties": record["props"],
+                    }
+                    for record in result
+                ]
+        except Exception as e:
+            print(f"Neo4j 搜索失败: {e}")
+            return self._search_fallback(query, limit)
 
     def _search_fallback(self, query: str, limit: int = 10) -> List[Dict]:
         """回退模式：搜索"""
@@ -459,15 +682,25 @@ class BattlefieldGraphManager:
         return results
 
     def _search_graphiti(self, query: str, limit: int = 10) -> List[Dict]:
-        """Graphiti模式：搜索"""
+        """Graphiti模式：搜索（返回 EntityEdge 列表）"""
         async def search():
             try:
-                results = await self.graph.search(query=query, limit=limit)
-                return [{"id": r.name or str(r.uuid), "type": "Entity",
-                         "properties": {"body": r.episode_body}} for r in results]
+                results = await self.graph.search(query=query, num_results=limit)
+                return [
+                    {
+                        "id": r.name or str(r.uuid),
+                        "type": "EntityEdge",
+                        "properties": {
+                            "fact": r.fact,
+                            "source_node": r.source_node_uuid,
+                            "target_node": r.target_node_uuid,
+                        }
+                    }
+                    for r in results
+                ]
             except Exception as e:
-                print(f"Graphiti搜索失败: {e}")
-                return []
+                print(f"Graphiti搜索失败，降级到 fallback: {e}")
+                return self._search_fallback(query, limit)
 
         return asyncio.run(search())
 
@@ -483,9 +716,27 @@ class BattlefieldGraphManager:
         Returns:
             是否添加成功
         """
-        if self._use_fallback or not self._connected:
-            return self._add_entity_fallback(entity_id, entity_type, properties)
-        return self._add_entity_graphiti(entity_id, entity_type, properties)
+        if self._mode == "neo4j_driver" and self.neo4j_driver:
+            return self._add_entity_neo4j(entity_id, entity_type, properties)
+        if self._mode == "graphiti" and self._connected:
+            return self._add_entity_graphiti(entity_id, entity_type, properties)
+        return self._add_entity_fallback(entity_id, entity_type, properties)
+
+    def _add_entity_neo4j(self, entity_id: str, entity_type: str,
+                           properties: Dict[str, Any]) -> bool:
+        """Neo4j Driver 模式：添加实体"""
+        try:
+            label = f"Entity:{entity_type.replace(' ', '_')}"
+            props_str = ", ".join(f"{k}: ${k}" for k in properties.keys())
+            cypher = f"MERGE (n:{label} {{id: $eid}}) SET n += {{{props_str}}}"
+            params = {"eid": entity_id}
+            params.update(properties)
+            with self.neo4j_driver.session() as session:
+                session.run(cypher, **params)
+            return True
+        except Exception as e:
+            print(f"Neo4j 添加实体失败: {e}")
+            return False
 
     def _add_entity_fallback(self, entity_id: str, entity_type: str,
                               properties: Dict[str, Any]) -> bool:
@@ -515,15 +766,15 @@ class BattlefieldGraphManager:
 
                 await self.graph.add_episode(
                     name=entity_id,
-                    episode_body=episode_text,
+                    content=episode_text,
                     source_description=f"战场数据: {entity_type}",
-                    reference_time=datetime.now(),
+                    reference_time=datetime.now(timezone.utc),
                     update_communities=False
                 )
                 return True
             except Exception as e:
                 print(f"Graphiti添加实体失败: {e}")
-                return False
+                return self._add_entity_fallback(entity_id, entity_type, properties)
 
         return asyncio.run(add())
 
@@ -551,14 +802,14 @@ class BattlefieldGraphManager:
                 return [
                     {
                         "entity_id": e.name or str(e.uuid),
-                        "timestamp": str(getattr(e, 'created_at', 'unknown')),
-                        "body": e.episode_body
+                        "timestamp": str(e.created_at),
+                        "body": e.content
                     }
                     for e in episodes
-                    if e.name == entity_id or (hasattr(e, 'uuid') and str(e.uuid) == entity_id)
+                    if e.name == entity_id or str(e.uuid) == entity_id
                 ]
             except Exception as e:
-                print(f"Graphiti查询实体历史失败: {e}")
+                print(f"Graphiti查询实体历史失败，降级到 fallback: {e}")
                 return []
 
         return asyncio.run(get_history())
@@ -578,21 +829,25 @@ class BattlefieldGraphManager:
             # 回退模式：委托给关键词搜索
             return self._search_fallback(query_text, limit=top_k)
 
-        # Graphiti模式：使用 graphiti 的 search
+        # Graphiti模式：使用 graphiti 的 search（返回 EntityEdge）
         async def hybrid_search():
             try:
-                results = await self.graph.search(query=query_text, limit=top_k)
+                results = await self.graph.search(query=query_text, num_results=top_k)
                 return [
                     {
                         "id": r.name or str(r.uuid),
-                        "type": "Entity",
-                        "properties": {"body": r.episode_body},
-                        "score": getattr(r, 'score', None)
+                        "type": "EntityEdge",
+                        "properties": {
+                            "fact": r.fact,
+                            "source_node": r.source_node_uuid,
+                            "target_node": r.target_node_uuid,
+                        },
+                        "score": None,
                     }
                     for r in results
                 ]
             except Exception as e:
-                print(f"Graphiti混合检索失败: {e}")
+                print(f"Graphiti混合检索失败，降级到 fallback: {e}")
                 return self._search_fallback(query_text, limit=top_k)
 
         return asyncio.run(hybrid_search())

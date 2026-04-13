@@ -150,35 +150,40 @@ def query_tasks_by_status(status):
 register_skill(
     name="reserve_task",
     description="预留任务",
-    handler=reserve_task
-)
+    handler=reserve_task,
+    category="task_management")
+
 
 register_skill(
     name="get_reserved_tasks",
     description="获取所有预留任务",
-    handler=get_reserved_tasks
-)
+    handler=get_reserved_tasks,
+    category="task_management")
+
 
 register_skill(
     name="clear_reserved_tasks",
     description="清除所有预留任务",
-    handler=clear_reserved_tasks
-)
+    handler=clear_reserved_tasks,
+    category="task_management")
+
 
 register_skill(
     name="get_task_by_id",
     description="根据ID获取任务",
-    handler=get_task_by_id
-)
+    handler=get_task_by_id,
+    category="task_management")
+
 
 register_skill(
     name="cancel_task",
     description="取消任务",
-    handler=cancel_task
-)
+    handler=cancel_task,
+    category="task_management")
+
 
 register_skill(
     name="query_tasks_by_status",
     description="根据状态查询任务",
-    handler=query_tasks_by_status
-)
+    handler=query_tasks_by_status,
+    category="task_management")

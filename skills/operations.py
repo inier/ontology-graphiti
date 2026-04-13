@@ -1,6 +1,9 @@
 """
 作战技能模块
 实现战场作战相关功能
+
+Category: operations
+Danger Level: high (攻击/指挥操作需要 OPA 权限校验)
 """
 
 import sys
@@ -29,26 +32,18 @@ def attack_target(target_id, user_role):
     Returns:
         攻击结果
     """
-    # 获取图谱数据
-    graph = manager.fallback_graph if hasattr(manager, 'fallback_graph') and manager.fallback_graph else None
-
+    # 通过 manager 统一接口查询，兼容 Neo4j / Graphiti / fallback
     target = None
-    if graph:
-        for node_id in graph.nodes:
-            if node_id == target_id:
-                node_data = graph.nodes[node_id]
-                target = {
-                    "id": node_id,
-                    "type": node_data.get("entity_type"),
-                    "properties": {k: v for k, v in node_data.items() if k != "entity_type"}
-                }
-                break
+    for entity in manager.query_entities():
+        if entity["id"] == target_id:
+            target = entity
+            break
 
     if not target:
         # Fail-close: 目标不存在时也拒绝，避免绕过权限检查
         return {"status": "denied", "message": "目标不存在或无法确认目标身份"}
 
-    # 检查权限
+    # 检查权限（传入 target 的完整信息供 OPA 判断）
     allowed = opa_manager.check_permission(user_role, "attack", target)
     if not allowed:
         return {"status": "denied", "message": "权限不足或违反策略"}
@@ -76,22 +71,15 @@ def command_unit(unit_id, command, user_role):
     Returns:
         指挥结果
     """
-    # 获取图谱数据
-    graph = manager.fallback_graph if hasattr(manager, 'fallback_graph') and manager.fallback_graph else None
-
+    # 通过 manager 统一接口查询
     unit = None
-    if graph:
-        for node_id, node_data in graph.nodes(data=True):
-            if node_id == unit_id:
-                unit = {
-                    "id": node_id,
-                    "type": node_data.get("entity_type"),
-                    "properties": {k: v for k, v in node_data.items() if k != "entity_type"}
-                }
-                break
+    for entity in manager.query_entities():
+        if entity["id"] == unit_id:
+            unit = entity
+            break
 
     if not unit:
-        return {"status": "error", "message": "部队不存在"}
+        return {"status": "denied", "message": "部队不存在或无法确认目标身份"}
 
     # 检查权限
     allowed = opa_manager.check_permission(user_role, "command", unit)
@@ -113,11 +101,13 @@ def command_unit(unit_id, command, user_role):
 register_skill(
     name="attack_target",
     description="攻击目标",
-    handler=attack_target
+    handler=attack_target,
+    category="operations"
 )
 
 register_skill(
     name="command_unit",
     description="指挥部队",
-    handler=command_unit
+    handler=command_unit,
+    category="operations"
 )

@@ -221,23 +221,26 @@ def calculate_strike_damage(weapon_id, target_id):
 register_skill(
     name="calculate_distance",
     description="计算两个实体之间的距离",
-    handler=calculate_distance
-)
+    handler=calculate_distance,
+    category="computation")
+
 
 register_skill(
     name="predict_outcome",
     description="预测攻击结果",
-    handler=predict_outcome
-)
+    handler=predict_outcome,
+    category="computation")
+
 
 register_skill(
     name="analyze_threat_level",
     description="分析威胁等级",
-    handler=analyze_threat_level
-)
+    handler=analyze_threat_level,
+    category="computation")
+
 
 register_skill(
     name="calculate_strike_damage",
     description="计算打击毁伤",
-    handler=calculate_strike_damage
-)
+    handler=calculate_strike_damage,
+    category="computation")

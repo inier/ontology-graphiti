@@ -204,59 +204,68 @@ def clear_policy_history():
 register_skill(
     name="simulate_policy_execution",
     description="模拟策略执行",
-    handler=simulate_policy_execution
-)
+    handler=simulate_policy_execution,
+    category="policy")
+
 
 register_skill(
     name="get_policy_version",
     description="获取策略版本",
-    handler=get_policy_version
-)
+    handler=get_policy_version,
+    category="policy")
+
 
 register_skill(
     name="rollback_policy",
     description="回退策略版本",
-    handler=rollback_policy
-)
+    handler=rollback_policy,
+    category="policy")
+
 
 register_skill(
     name="export_policy",
     description="导出策略",
-    handler=export_policy
-)
+    handler=export_policy,
+    category="policy")
+
 
 register_skill(
     name="import_policy",
     description="导入策略",
-    handler=import_policy
-)
+    handler=import_policy,
+    category="policy")
+
 
 register_skill(
     name="list_policy_versions",
     description="列出策略版本",
-    handler=list_policy_versions
-)
+    handler=list_policy_versions,
+    category="policy")
+
 
 register_skill(
     name="rollback_policy_version",
     description="回滚策略版本",
-    handler=rollback_policy_version
-)
+    handler=rollback_policy_version,
+    category="policy")
+
 
 register_skill(
     name="check_permission",
     description="检查权限",
-    handler=check_permission
-)
+    handler=check_permission,
+    category="policy")
+
 
 register_skill(
     name="get_policy_history",
     description="获取策略执行历史",
-    handler=get_policy_history
-)
+    handler=get_policy_history,
+    category="policy")
+
 
 register_skill(
     name="clear_policy_history",
     description="清除策略执行历史",
-    handler=clear_policy_history
-)
+    handler=clear_policy_history,
+    category="policy")

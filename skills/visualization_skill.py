@@ -235,23 +235,26 @@ def generate_situation_awareness(area=None):
 register_skill(
     name="generate_map_overlay",
     description="生成地图叠加层数据",
-    handler=generate_map_overlay
-)
+    handler=generate_map_overlay,
+    category="visualization")
+
 
 register_skill(
     name="summarize_mission",
     description="生成任务摘要",
-    handler=summarize_mission
-)
+    handler=summarize_mission,
+    category="visualization")
+
 
 register_skill(
     name="generate_battlefield_report",
     description="生成战场态势报告",
-    handler=generate_battlefield_report
-)
+    handler=generate_battlefield_report,
+    category="visualization")
+
 
 register_skill(
     name="generate_situation_awareness",
     description="生成态势感知数据",
-    handler=generate_situation_awareness
-)
+    handler=generate_situation_awareness,
+    category="visualization")

@@ -242,23 +242,26 @@ def check_strike_risk(target_id, user_role):
 register_skill(
     name="recommend_strike_targets",
     description="推荐打击目标",
-    handler=recommend_strike_targets
-)
+    handler=recommend_strike_targets,
+    category="recommendation")
+
 
 register_skill(
     name="recommend_task_planning",
     description="推荐任务规划",
-    handler=recommend_task_planning
-)
+    handler=recommend_task_planning,
+    category="recommendation")
+
 
 register_skill(
     name="recommend_force_deployment",
     description="推荐兵力部署",
-    handler=recommend_force_deployment
-)
+    handler=recommend_force_deployment,
+    category="recommendation")
+
 
 register_skill(
     name="check_strike_risk",
     description="检查打击风险",
-    handler=check_strike_risk
-)
+    handler=check_strike_risk,
+    category="recommendation")

@@ -263,23 +263,26 @@ def estimate_resources(plan):
 register_skill(
     name="create_plan",
     description="创建执行计划",
-    handler=create_plan
-)
+    handler=create_plan,
+    category="planning")
+
 
 register_skill(
     name="execute_workflow",
     description="执行工作流",
-    handler=execute_workflow
-)
+    handler=execute_workflow,
+    category="planning")
+
 
 register_skill(
     name="validate_plan",
     description="验证计划可行性",
-    handler=validate_plan
-)
+    handler=validate_plan,
+    category="planning")
+
 
 register_skill(
     name="estimate_resources",
     description="估算资源需求",
-    handler=estimate_resources
-)
+    handler=estimate_resources,
+    category="planning")

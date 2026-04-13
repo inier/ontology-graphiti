@@ -63,6 +63,12 @@
 | ADR-027 | Hook 系统作为可扩展性核心架构 | 已接受 | P1 | [ADR-027](ADR-027_hook_system_architecture.md) |
 | ADR-029 | 统一工具注册表架构管理 AI Agent 工具 | 已接受 | P1 | [ADR-029](ADR-029_tool_registry_architecture.md) |
 
+### 演进决策（P1）
+
+| ADR | 决策标题 | 状态 | 优先级 | 文件 |
+|-----|---------|------|--------|------|
+| ADR-030 | Phase 1 推迟引入 OpenHarness，保留现有编排器 | 已接受 | P1 | [ADR-030](ADR-030_phase1_推迟引入openharness_保留现有编排器.md) |
+
 ---
 
 ## ADR 模板
@@ -92,4 +98,4 @@
 
 - ADR-001 ~ ADR-024：从 `ARCHITECTURE.md` 第 17 章提取的核心架构决策
 - ADR-025 ~ ADR-029：从独立 ADR 文件迁移的详细决策（原编号 ADR-006~010）
-- 新增 ADR 从 ADR-030 开始递增
+- ADR-030 ~ ：Phase 1+ 新增的演进决策，按时间顺序递增
