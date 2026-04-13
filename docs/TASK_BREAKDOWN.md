@@ -318,3 +318,17 @@ result = await swarm.execute_mission("分析B区威胁并采取行动")
 
 **关键路线**: 修复 Bug → Graphiti+Neo4j → OPA 集成 → Intelligence Agent → RAG 增强 → Demo ✅ **Phase 1 全部完成**
 **Phase 2 关键成果**: 实现 BattlefieldSwarm 编排器，完成三 Agent（Intelligence/Commander/Operations）OODA 闭环协同
+
+### Phase 2 扩展: 故障恢复与状态管理 ✅
+
+| 功能模块 | 文件 | 状态 |
+|---------|------|------|
+| FaultTolerance | `core/fault_tolerance.py` | ✅ |
+| StatePersistenceManager | `core/state_persistence.py` | ✅ |
+| HealthMonitor | `core/health_monitor.py` | ✅ |
+
+#### 核心功能
+
+- **FaultTolerance**: 6 种故障分类、断路器模式、指数退避重试、降级模式
+- **StatePersistenceManager**: Agent 状态持久化、任务检查点保存/恢复
+- **HealthMonitor**: Swarm 健康监控、指标收集、阈值告警
