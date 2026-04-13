@@ -646,12 +646,11 @@ class BattlefieldGraphManager:
         """Neo4j Driver 模式：全文搜索"""
         try:
             with self.neo4j_driver.session() as session:
-                # 使用 CONTAINS 做简单文本匹配（生产环境可用全文索引）
                 cypher = (
-                    "MATCH (n:Entity) WHERE n.id CONTAINS $q OR n.name CONTAINS $q "
+                    "MATCH (n) WHERE n.id CONTAINS $query OR n.name CONTAINS $query "
                     "RETURN n.id AS id, labels(n) AS labels, properties(n) AS props LIMIT $limit"
                 )
-                result = session.run(cypher, q=query, limit=limit)
+                result = session.run(cypher, query=query, limit=limit)
                 return [
                     {
                         "id": record["id"],
@@ -955,13 +954,12 @@ class BattlefieldGraphManager:
         try:
             with self.neo4j_driver.session() as session:
                 cypher = (
-                    "MATCH (n:Entity) "
-                    "WHERE n.id CONTAINS $q OR n.name CONTAINS $q OR "
-                    "EXISTS((n)--(m) WHERE m.id CONTAINS $q OR m.name CONTAINS $q) "
+                    "MATCH (n) "
+                    "WHERE n.id CONTAINS $query OR n.name CONTAINS $query "
                     "RETURN n.id AS id, labels(n) AS labels, properties(n) AS props "
-                    "LIMIT $limit"
+                    "LIMIT $top_k"
                 )
-                results = session.run(cypher, q=query, limit=top_k)
+                results = session.run(cypher, query=query, top_k=top_k)
                 parts = []
                 for r in results:
                     name = r["props"].get("name", r["id"])
@@ -978,6 +976,8 @@ class BattlefieldGraphManager:
 
     def _retrieve_rag_fallback(self, query: str, top_k: int) -> str:
         """Fallback 模式：内存关键词匹配"""
+        if self.fallback_graph is None:
+            return ""
         results = self._search_fallback(query, limit=top_k)
         if not results:
             return ""

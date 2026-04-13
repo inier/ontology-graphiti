@@ -184,7 +184,7 @@ python -m pytest tests/ -v  # 4/4 全部通过
 
 ---
 
-## 5. Phase 2: 三 Agent 协同 OODA（2-3 月）
+## 5. Phase 2: 三 Agent 协同 OODA（2-3 月）🔄 进行中
 
 > 按照现有 ARCHITECTURE v3.1 Phase 2 路线图执行
 
@@ -193,16 +193,69 @@ python -m pytest tests/ -v  # 4/4 全部通过
 ```
 Phase 1-B 完成
     │
-    ├── Slice 2.1: Commander Agent (方案生成 + OPA 校验 + 人工确认)
+    ├── Slice 2.1: Commander Agent (方案生成 + OPA 校验 + 人工确认) ✅
     │       │
-    ├── Slice 2.2: Operations Agent (attack_target + command_unit + 状态监控)
+    ├── Slice 2.2: Operations Agent (attack_target + command_unit + 状态监控) ✅
     │       │
-    └── Slice 2.3: Swarm 编排 (三 Agent 协同 + 通信协议 + 错误处理)
+    └── Slice 2.3: Swarm 编排 (三 Agent 协同 + 通信协议 + 错误处理) ✅
             │
-            └── Slice 2.4: 完整 OODA 闭环测试
+            └── Slice 2.4: 完整 OODA 闭环测试 ✅
 ```
 
-> Phase 2 的详细拆分可以在 Phase 1 完成后再细化，当前的设计文档已经足够详细。
+### Slice 2.1: Commander Agent ✅
+
+| 任务 | 内容 | 产出 | 状态 |
+|------|------|------|------|
+| CommanderAgent 类 | 实现决策中枢逻辑 | `core/swarm_orchestrator.py` | ✅ |
+| analyze_situation | 分析态势生成决策选项 | 根据情报数据生成多个行动方案 | ✅ |
+| _generate_options | 生成打击/监控/协调选项 | options 列表 | ✅ |
+| _select_best_option | 选择最佳决策 | 返回推荐行动 | ✅ |
+| OPA 集成 | 高危操作需审批 | requires_opa_approval | ✅ |
+
+### Slice 2.2: Operations Agent ✅
+
+| 任务 | 内容 | 产出 | 状态 |
+|------|------|------|------|
+| OperationsAgent 类 | 实现执行中枢逻辑 | `core/swarm_orchestrator.py` | ✅ |
+| execute_order | 执行指挥官命令 | 执行结果 | ✅ |
+| _execute_action | 执行单个行动 | 单个目标执行结果 | ✅ |
+| pending_confirmations | 待确认命令队列 | 人工确认机制 | ✅ |
+
+### Slice 2.3: Swarm 编排器 ✅
+
+| 任务 | 内容 | 产出 | 状态 |
+|------|------|------|------|
+| BattlefieldSwarm 主类 | 三 Agent 协同编排 | `core/swarm_orchestrator.py` | ✅ |
+| OODA 循环 | Observe→Orient→Decide→Act | 完整闭环执行 | ✅ |
+| execute_streaming | 流式进度返回 | AsyncGenerator[OODAProgress] | ✅ |
+| _initialize_agents | 初始化三 Agent | Agent 实例 | ✅ |
+| _write_episodes | 结果写入 Graphiti | Episode 写入 | ✅ |
+
+### Slice 2.4: OODA 闭环测试 ✅
+
+| 测试 | 内容 | 结果 |
+|------|------|------|
+| 完整 OODA 循环 | "分析B区威胁" 任务 | ✅ 成功，4/4 阶段完成 |
+| 流式进度 | execute_streaming | ✅ 正常 |
+| 错误处理 | RAG 降级处理 | ✅ 修复 Neo4j 语法问题 |
+| 状态持久化 | MissionResult | ✅ 记录历史 |
+
+### 核心文件
+
+- `core/swarm_orchestrator.py` (619 行) - Swarm 编排器核心实现
+
+### 验收标准
+
+```python
+# OODA 闭环测试
+swarm = BattlefieldSwarm()
+result = await swarm.execute_mission("分析B区威胁并采取行动")
+# result.mission_id: "xxx"
+# result.success: True
+# result.phases_completed: [OBSERVE, ORIENT, DECIDE, ACT]
+# result.execution_time_ms: ~150ms
+# result.final_decision: {situation_summary, threat_level, recommended_action, ...}
+```
 
 ---
 
@@ -261,6 +314,7 @@ Phase 1-B 完成
 - ✅ Phase 0-Bridge: 现有代码修复（T0-1~T0-4）
 - ✅ Phase 1-A: 基础设施验证（Slice 1.1~1.4）
 - ✅ Phase 1-B: Intelligence Agent 单体闭环（Slice 1.5~1.7）
-- ⬜ Phase 2: 三 Agent 协同 OODA（待启动）
+- ✅ Phase 2: 三 Agent 协同 OODA（Slice 2.1~2.4）
 
 **关键路线**: 修复 Bug → Graphiti+Neo4j → OPA 集成 → Intelligence Agent → RAG 增强 → Demo ✅ **Phase 1 全部完成**
+**Phase 2 关键成果**: 实现 BattlefieldSwarm 编排器，完成三 Agent（Intelligence/Commander/Operations）OODA 闭环协同
