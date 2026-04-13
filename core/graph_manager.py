@@ -12,6 +12,7 @@
 
 import sys
 import os
+import json
 import asyncio
 from datetime import datetime, timezone
 from typing import Optional, List, Dict, Any
@@ -886,3 +887,142 @@ class BattlefieldGraphManager:
         """
         self.reserved_tasks.clear()
         print("所有预留任务已清空")
+
+    def retrieve_rag_context(self, query: str, top_k: int = 5) -> str:
+        """
+        RAG 上下文检索：基于 Graphiti 的向量搜索 + Episode 回忆，
+        返回自然语言上下文段落供 LLM 参考。
+
+        三层降级：
+        1. Graphiti: search() 向量检索 + retrieve_episodes() 全量回忆
+        2. Neo4j Driver: CONTAINS 关键词匹配
+        3. Fallback: 内存关键词匹配
+
+        Args:
+            query: 查询文本
+            top_k: 返回前 k 条相关结果
+
+        Returns:
+            自然语言上下文段落（多条拼接）
+        """
+        if self._mode == "graphiti" and self._connected:
+            return self._retrieve_rag_graphiti(query, top_k)
+        if self._mode == "neo4j_driver" and self.neo4j_driver:
+            return self._retrieve_rag_neo4j(query, top_k)
+        return self._retrieve_rag_fallback(query, top_k)
+
+    def _retrieve_rag_graphiti(self, query: str, top_k: int) -> str:
+        """Graphiti 模式：向量搜索 + Episode 检索"""
+        async def retrieve():
+            try:
+                # 1. 向量语义搜索（返回 EntityEdge）
+                edges = await self.graph.search(query=query, num_results=top_k)
+                # 2. 全量 Episode 回忆
+                episodes = await self.graph.retrieve_episodes(
+                    reference_time=datetime.now()
+                )
+
+                context_parts = []
+
+                # 从语义搜索结果中提取事实
+                for edge in edges:
+                    if edge.fact:
+                        context_parts.append(f"- {edge.fact}")
+
+                # 从 Episode 中提取与 query 相关的记忆
+                query_lower = query.lower()
+                for ep in episodes[:20]:
+                    if ep.content and query_lower in ep.content.lower():
+                        context_parts.append(f"- [{ep.name}] {ep.content[:200]}")
+                    elif context_parts and len(context_parts) < top_k:
+                        # 补充一些最近的记忆（即使不完全匹配）
+                        if len(context_parts) < 3:
+                            context_parts.append(f"- [{ep.name}] {ep.content[:150]}")
+
+                if not context_parts:
+                    return ""
+
+                return "历史情报记忆：\n" + "\n".join(context_parts[:top_k])
+
+            except Exception as e:
+                print(f"Graphiti RAG 检索失败: {e}")
+                return ""
+
+        return asyncio.run(retrieve())
+
+    def _retrieve_rag_neo4j(self, query: str, top_k: int) -> str:
+        """Neo4j Driver 模式：Cypher 全文匹配"""
+        try:
+            with self.neo4j_driver.session() as session:
+                cypher = (
+                    "MATCH (n:Entity) "
+                    "WHERE n.id CONTAINS $q OR n.name CONTAINS $q OR "
+                    "EXISTS((n)--(m) WHERE m.id CONTAINS $q OR m.name CONTAINS $q) "
+                    "RETURN n.id AS id, labels(n) AS labels, properties(n) AS props "
+                    "LIMIT $limit"
+                )
+                results = session.run(cypher, q=query, limit=top_k)
+                parts = []
+                for r in results:
+                    name = r["props"].get("name", r["id"])
+                    entity_type = [l for l in r["labels"] if l != "Entity"]
+                    type_str = entity_type[0] if entity_type else "Entity"
+                    parts.append(f"- {name} ({type_str}): {json.dumps(r['props'], ensure_ascii=False, default=str)[:150]}")
+
+                if not parts:
+                    return ""
+                return "相关实体数据：\n" + "\n".join(parts)
+        except Exception as e:
+            print(f"Neo4j RAG 检索失败: {e}")
+            return self._retrieve_rag_fallback(query, top_k)
+
+    def _retrieve_rag_fallback(self, query: str, top_k: int) -> str:
+        """Fallback 模式：内存关键词匹配"""
+        results = self._search_fallback(query, limit=top_k)
+        if not results:
+            return ""
+
+        parts = []
+        for r in results:
+            name = r["properties"].get("name", r["id"])
+            entity_type = r.get("type", "Unknown")
+            parts.append(f"- {name} ({entity_type}): {json.dumps(r['properties'], ensure_ascii=False, default=str)[:150]}")
+
+        return "相关实体数据：\n" + "\n".join(parts)
+
+    def add_episode(self, name: str, content: str,
+                    source_description: str = "",
+                    reference_time=None) -> bool:
+        """
+        添加一条 Episode 到 Graphiti（供外部 Agent 使用）
+
+        Args:
+            name: Episode 名称
+            content: Episode 内容
+            source_description: 来源描述
+            reference_time: 参考时间
+
+        Returns:
+            是否成功
+        """
+        if self._use_fallback or not self._connected:
+            return False
+
+        if reference_time is None:
+            reference_time = datetime.now(timezone.utc)
+
+        async def add():
+            try:
+                await self.graph.add_episode(
+                    name=name,
+                    content=content,
+                    source_description=source_description,
+                    reference_time=reference_time,
+                    update_communities=False,
+                )
+                return True
+            except Exception as e:
+                print(f"Graphiti 添加 Episode 失败: {e}")
+                return False
+
+        return asyncio.run(add())

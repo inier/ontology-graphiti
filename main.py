@@ -10,6 +10,7 @@ sys.path.append(os.path.dirname(os.path.abspath(__file__)))
 import skills
 from core.orchestrator import SelfCorrectingOrchestrator
 from core.graph_manager import BattlefieldGraphManager
+from core.intelligence_agent import IntelligenceAgent
 
 
 def print_result(title, result):
@@ -106,6 +107,26 @@ def main():
     print("\n📍 场景 6: 实体搜索")
     entities = manager.search("雷达")
     print_result("搜索'雷达'相关实体", entities)
+
+    # === 场景 7: Intelligence Agent（LLM 驱动的 ReAct 分析） ===
+    print("\n📍 场景 7: Intelligence Agent — LLM 情报分析")
+    try:
+        intel_agent = IntelligenceAgent(user_role="intelligence_analyst")
+        report = intel_agent.analyze("分析B区威胁")
+        print_result("Intelligence Agent 分析报告", report)
+
+        # 打印元数据
+        metadata = report.get("_metadata", {})
+        trace = report.get("_trace", {})
+        print(f"\n  📊 威胁等级: {report.get('threat_level', 'N/A')}")
+        print(f"  ⏱️ 总耗时: {metadata.get('execution_time_ms', 'N/A')}ms")
+        print(f"  🔄 推理轮次: {metadata.get('iterations', 'N/A')}")
+        print(f"  🔗 Trace ID: {trace.get('trace_id', 'N/A')}")
+        print(f"  🧠 RAG: {'已启用' if metadata.get('rag_context_provided') else '未启用'}")
+        print(f"  📋 工具调用: {len(metadata.get('tool_calls', []))} 次")
+    except Exception as e:
+        print(f"❌ Intelligence Agent 执行失败: {e}")
+        print("  提示: 请确保 .env 中配置了 OPENAI_API_KEY / OPENAI_API_BASE / OPENAI_MODEL")
 
     print("\n" + "="*60)
     print("✅ 测试完成!")

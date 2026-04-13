@@ -31,6 +31,7 @@ def register_skill(name, description, handler, category="legacy"):
     SKILL_CATALOG[name] = {
         "description": description,
         "handler": handler,
+        "category": category,
     }
     get_registry().register_legacy(name, description, handler, category=category)
     print(f"技能注册成功: {name} - {description}")

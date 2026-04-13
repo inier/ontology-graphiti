@@ -64,13 +64,14 @@ ADR 文档已独立化，存放在 `docs/adr/` 目录（共 29 条，ADR-001~029
 
 ### 演进路线
 
-| Phase | 时间 | 目标 |
-|-------|------|------|
-| Phase 0 | 2-4周 | 基础设施搭建 |
-| Phase 1 | 1-2月 | 单 Agent 闭环（Intelligence） |
-| Phase 2 | 2-3月 | 三 Agent 协同 OODA |
-| Phase 3 | 3-6月 | 生产化部署 |
-| Phase 4 | 6-12月 | 高级特性 |
+| Phase | 时间 | 目标 | 状态 |
+|-------|------|------|------|
+| Phase 0 | 2-4周 | 基础设施搭建 | ✅ 已完成 |
+| Phase 1-A | 1-2月 | 四大基础设施验证（Graphiti+Neo4j, OPA, Skill基类） | ✅ 已完成 |
+| Phase 1-B | 1-2月 | 单 Agent 闭环（Intelligence Agent ReAct + RAG + 追踪） | ✅ 已完成 |
+| Phase 2 | 2-3月 | 三 Agent 协同 OODA | ⬜ 待启动 |
+| Phase 3 | 3-6月 | 生产化部署 | ⬜ |
+| Phase 4 | 6-12月 | 高级特性 | ⬜ |
 
 ## 重要文档
 - `docs/ARCHITECTURE.md`（v3.1，2026-04-13，审计修复）
