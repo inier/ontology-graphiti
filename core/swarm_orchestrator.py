@@ -306,10 +306,14 @@ class BattlefieldSwarm:
         from core.opa_manager import OPAManager
         from core.graph_manager import BattlefieldGraphManager
         from core.fault_tolerance import FaultRecoveryManager
+        from core.state_persistence import StatePersistenceManager
+        from core.health_monitor import HealthMonitor
 
         self.opa_manager = OPAManager()
         self.graph_manager = BattlefieldGraphManager()
         self.fault_manager = FaultRecoveryManager.get_instance()
+        self.state_manager = StatePersistenceManager.get_instance()
+        self.health_monitor = HealthMonitor.get_instance()
 
         self.agents = self._initialize_agents()
         self.active_missions: Dict[str, Dict[str, Any]] = {}
@@ -375,6 +379,9 @@ class BattlefieldSwarm:
             logger.warning(f"Graphiti 初始化失败: {e}")
             logger.warning("将使用 fallback 模式")
 
+        await self.health_monitor.start_monitoring()
+        logger.info("健康监控已启动")
+
         logger.info(f"已初始化 {len(self.agents)} 个 Agent")
         for agent_type, agent in self.agents.items():
             logger.info(f"  - {agent_type.value}: {type(agent).__name__}")
@@ -392,25 +399,35 @@ class BattlefieldSwarm:
             "phases_completed": [],
             "graphiti_episodes": [],
             "error": None,
+            "agent_ids": [agent_type.value for agent_type in self.agents.keys()],
         }
 
         self.active_missions[mission_id] = mission_ctx
+        await self.state_manager.save_checkpoint(mission_id, mission_ctx)
 
         try:
             observe_result = await self._observe(mission, context)
             mission_ctx["phases_completed"].append(OODAPhase.OBSERVE)
+            mission_ctx["phase_data"] = {"observe": observe_result}
+            await self.state_manager.save_checkpoint(mission_id, mission_ctx)
             logger.info(f"[{mission_id}] Observe 阶段完成")
 
             orient_result = await self._orient(observe_result, context)
             mission_ctx["phases_completed"].append(OODAPhase.ORIENT)
+            mission_ctx["phase_data"]["orient"] = orient_result
+            await self.state_manager.save_checkpoint(mission_id, mission_ctx)
             logger.info(f"[{mission_id}] Orient 阶段完成")
 
             decide_result = await self._decide(orient_result, context)
             mission_ctx["phases_completed"].append(OODAPhase.DECIDE)
+            mission_ctx["phase_data"]["decide"] = decide_result
+            await self.state_manager.save_checkpoint(mission_id, mission_ctx)
             logger.info(f"[{mission_id}] Decide 阶段完成")
 
             act_result = await self._act(decide_result, context)
             mission_ctx["phases_completed"].append(OODAPhase.ACT)
+            mission_ctx["phase_data"]["act"] = act_result
+            await self.state_manager.save_checkpoint(mission_id, mission_ctx)
             logger.info(f"[{mission_id}] Act 阶段完成")
 
             if self.config.get("ooda", {}).get("write_to_graphiti", True):
@@ -623,8 +640,25 @@ class BattlefieldSwarm:
     async def shutdown(self) -> None:
         """关闭 Swarm"""
         logger.info("BattlefieldSwarm 关闭中...")
+        await self.health_monitor.stop_monitoring()
         self.active_missions.clear()
         logger.info("BattlefieldSwarm 已关闭")
+
+    def get_health_report(self) -> Dict[str, Any]:
+        """获取健康报告"""
+        return asyncio.run(self.health_monitor.get_health_report())
+
+    def get_persistence_stats(self) -> Dict[str, Any]:
+        """获取持久化统计"""
+        return self.state_manager.get_persistence_stats()
+
+    def list_checkpoints(self) -> List[Dict[str, Any]]:
+        """列出所有检查点"""
+        return self.state_manager.list_checkpoints()
+
+    def get_fault_summary(self) -> Dict[str, Any]:
+        """获取故障汇总"""
+        return self.fault_manager.get_failure_summary()
 
     def get_mission_history(self) -> List[Dict[str, Any]]:
         """获取任务历史"""
