@@ -326,9 +326,12 @@ result = await swarm.execute_mission("分析B区威胁并采取行动")
 | FaultTolerance | `core/fault_tolerance.py` | ✅ |
 | StatePersistenceManager | `core/state_persistence.py` | ✅ |
 | HealthMonitor | `core/health_monitor.py` | ✅ |
+| 单元测试 | `tests/test_swarm.py` | ✅ (18 tests) |
+| Swarm 集成 | `core/swarm_orchestrator.py` | ✅ |
 
 #### 核心功能
 
 - **FaultTolerance**: 6 种故障分类、断路器模式、指数退避重试、降级模式
 - **StatePersistenceManager**: Agent 状态持久化、任务检查点保存/恢复
 - **HealthMonitor**: Swarm 健康监控、指标收集、阈值告警
+- **Swarm 集成**: 每个 OODA 阶段自动保存检查点、启动/停止健康监控
