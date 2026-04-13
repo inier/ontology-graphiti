@@ -647,10 +647,10 @@ class BattlefieldGraphManager:
         try:
             with self.neo4j_driver.session() as session:
                 cypher = (
-                    "MATCH (n) WHERE n.id CONTAINS $query OR n.name CONTAINS $query "
-                    "RETURN n.id AS id, labels(n) AS labels, properties(n) AS props LIMIT $limit"
+                    "MATCH (n) WHERE n.id CONTAINS $q OR n.name CONTAINS $q "
+                    "RETURN n.id AS id, labels(n) AS labels, properties(n) AS props LIMIT $lmt"
                 )
-                result = session.run(cypher, query=query, limit=limit)
+                result = session.run(cypher, q=query, lmt=limit)
                 return [
                     {
                         "id": record["id"],
@@ -665,6 +665,8 @@ class BattlefieldGraphManager:
 
     def _search_fallback(self, query: str, limit: int = 10) -> List[Dict]:
         """回退模式：搜索"""
+        if self.fallback_graph is None:
+            return []
         results = []
         query_lower = query.lower()
 
@@ -955,11 +957,11 @@ class BattlefieldGraphManager:
             with self.neo4j_driver.session() as session:
                 cypher = (
                     "MATCH (n) "
-                    "WHERE n.id CONTAINS $query OR n.name CONTAINS $query "
+                    "WHERE n.id CONTAINS $q OR n.name CONTAINS $q "
                     "RETURN n.id AS id, labels(n) AS labels, properties(n) AS props "
-                    "LIMIT $top_k"
+                    "LIMIT $lmt"
                 )
-                results = session.run(cypher, query=query, top_k=top_k)
+                results = session.run(cypher, q=query, lmt=top_k)
                 parts = []
                 for r in results:
                     name = r["props"].get("name", r["id"])

@@ -11,6 +11,7 @@ import skills
 from core.orchestrator import SelfCorrectingOrchestrator
 from core.graph_manager import BattlefieldGraphManager
 from core.intelligence_agent import IntelligenceAgent
+from core.swarm_orchestrator import BattlefieldSwarm
 
 
 def print_result(title, result):
@@ -127,6 +128,43 @@ def main():
     except Exception as e:
         print(f"❌ Intelligence Agent 执行失败: {e}")
         print("  提示: 请确保 .env 中配置了 OPENAI_API_KEY / OPENAI_API_BASE / OPENAI_MODEL")
+
+    # === 场景 8: Swarm OODA 协同（三 Agent 闭环）===
+    print("\n📍 场景 8: Swarm OODA 协同 — 三 Agent 闭环")
+    print("="*60)
+    try:
+        import asyncio
+
+        async def run_swarm_demo():
+            swarm = BattlefieldSwarm()
+            await swarm.initialize()
+
+            result = await swarm.execute_mission("分析B区威胁并采取行动")
+
+            print(f"\n✅ Swarm OODA 执行完成")
+            print(f"  Mission ID: {result.mission_id}")
+            print(f"  成功: {result.success}")
+            print(f"  完成阶段: {[p.value for p in result.phases_completed]}")
+            print(f"  耗时: {result.execution_time_ms:.2f}ms")
+
+            if result.final_decision:
+                print(f"\n  📊 最终决策:")
+                print(f"     态势摘要: {result.final_decision.get('situation_summary', 'N/A')}")
+                print(f"     威胁等级: {result.final_decision.get('threat_level', 'N/A')}")
+                rec = result.final_decision.get('recommended_action', {})
+                if rec:
+                    print(f"     推荐行动: {rec.get('description', 'N/A')}")
+                    print(f"     行动类型: {rec.get('type', 'N/A')}")
+                    print(f"     风险等级: {rec.get('risk_level', 'N/A')}")
+
+            if result.error_message:
+                print(f"  ⚠️ 错误: {result.error_message}")
+
+            await swarm.shutdown()
+
+        asyncio.run(run_swarm_demo())
+    except Exception as e:
+        print(f"❌ Swarm 执行失败: {e}")
 
     print("\n" + "="*60)
     print("✅ 测试完成!")
