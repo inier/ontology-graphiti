@@ -305,9 +305,11 @@ class BattlefieldSwarm:
 
         from core.opa_manager import OPAManager
         from core.graph_manager import BattlefieldGraphManager
+        from core.fault_tolerance import FaultRecoveryManager
 
         self.opa_manager = OPAManager()
         self.graph_manager = BattlefieldGraphManager()
+        self.fault_manager = FaultRecoveryManager.get_instance()
 
         self.agents = self._initialize_agents()
         self.active_missions: Dict[str, Dict[str, Any]] = {}
