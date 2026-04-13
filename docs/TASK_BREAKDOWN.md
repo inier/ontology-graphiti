@@ -335,3 +335,17 @@ result = await swarm.execute_mission("分析B区威胁并采取行动")
 - **StatePersistenceManager**: Agent 状态持久化、任务检查点保存/恢复
 - **HealthMonitor**: Swarm 健康监控、指标收集、阈值告警
 - **Swarm 集成**: 每个 OODA 阶段自动保存检查点、启动/停止健康监控
+
+### Phase 2 扩展: 模拟推演引擎 ✅
+
+| 功能模块 | 文件 | 状态 |
+|---------|------|------|
+| SimulationEngine | `core/simulation_engine.py` | ✅ |
+| 单元测试 | `tests/test_simulation_engine.py` | ✅ (9 tests) |
+
+#### 核心功能
+
+- **SimulationSandbox**: 沙箱隔离推演环境
+- **ScenarioVersion**: 方案版本管理、创建分支、回退
+- **run_simulation**: 步进式推演执行
+- **compare_versions**: 版本参数对比
