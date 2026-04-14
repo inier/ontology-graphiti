@@ -199,8 +199,7 @@
   <div class="grid-2">
     <div class="card">
       <h2>📋 场景列表</h2>
-      <div id="scenario-list" class="scenario-list" style="margin-bottom:16px;max-height:400px;overflow-y:auto"></div>
-      <button class="btn btn-primary" onclick="openCreateScenario()">+ 新建场景</button>
+      <div id="scenario-list" class="scenario-list" style="margin-bottom:16px;max-height:500px;overflow-y:auto"></div>
     </div>
     <div class="card">
       <h2>🔧 新建场景</h2>
@@ -210,12 +209,9 @@
       </div>
       <div class="form-group">
         <label>场景描述</label>
-        <textarea id="new-scenario-desc" rows="3" placeholder="描述场景背景..."></textarea>
+        <textarea id="new-scenario-desc" rows="4" placeholder="描述场景背景..."></textarea>
       </div>
-      <button class="btn btn-primary" onclick="createScenario()">创建场景</button>
-      <div id="scenario-detail" style="margin-top:20px;padding-top:20px;border-top:1px solid var(--border)">
-        <div style="color:var(--text2);font-size:13px">点击左侧场景查看详情</div>
-      </div>
+      <button class="btn btn-primary" onclick="createScenario()">✅ 创建场景</button>
     </div>
   </div>
 </div>
@@ -585,8 +581,6 @@ async function loadScenarios() {
   }
   // 更新所有 scenario 选择器
   updateScenarioSelects(data.scenarios);
-  // 如果有当前选中场景，加载详情
-  if (currentScenarioId) loadScenarioDetail(currentScenarioId);
 }
 
 function updateScenarioSelects(scenarios) {
@@ -611,51 +605,7 @@ async function createScenario() {
   log(`📋 新场景: ${name} (${r.scenario_id})`, 'update');
   document.getElementById('new-scenario-name').value = '';
   document.getElementById('new-scenario-desc').value = '';
-  currentScenarioId = r.scenario_id;
   loadScenarios();
-  loadScenarioDetail(r.scenario_id);
-}
-
-function openCreateScenario() {
-  document.getElementById('new-scenario-name').focus();
-  document.getElementById('new-scenario-name').scrollIntoView({ behavior: 'smooth', block: 'center' });
-}
-
-async function loadScenarioDetail(scenarioId) {
-  if (!scenarioId) return;
-  const data = await api(`/api/scenarios/${scenarioId}`);
-  const detail = document.getElementById('scenario-detail');
-  if (!detail) return;
-  if (data.error || !data.scenario) {
-    detail.innerHTML = '<div style="color:var(--text2);padding:20px">场景不存在或已删除</div>';
-    return;
-  }
-  const s = data.scenario;
-  detail.innerHTML = `
-    <div style="margin-bottom:16px">
-      <div style="font-size:16px;font-weight:600;margin-bottom:8px">${s.name}</div>
-      <div style="color:var(--text2);font-size:13px;margin-bottom:8px">${s.description || '无描述'}</div>
-      <div style="color:var(--text2);font-size:12px">创建: ${new Date(s.created_at).toLocaleString()}</div>
-    </div>
-    <div class="grid-3" style="margin-bottom:16px">
-      <div class="stat-card card">
-        <div class="value">${s.doc_count || 0}</div>
-        <div class="label">文档数</div>
-      </div>
-      <div class="stat-card card">
-        <div class="value">${s.event_count || 0}</div>
-        <div class="label">事件数</div>
-      </div>
-      <div class="stat-card card">
-        <div class="value">${s.entity_count || 0}</div>
-        <div class="label">实体数</div>
-      </div>
-    </div>
-    <div style="display:flex;gap:8px">
-      <button class="btn" onclick="deleteScenario('${s.scenario_id}')">🗑️ 删除</button>
-      <button class="btn btn-primary" onclick="showScenarioInPages('${s.scenario_id}')">📊 查看数据</button>
-    </div>
-  `;
 }
 
 async function deleteScenario(scenarioId) {
