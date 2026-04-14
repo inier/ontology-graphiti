@@ -285,14 +285,43 @@ async def set_role(request: Request):
 @app.get("/get_stats")
 async def get_stats():
     manager = BattlefieldGraphManager()
-    return JSONResponse(content=manager.get_statistics())
+    stats = manager.get_statistics()
+
+    if manager._mode == "neo4j_driver" and manager.neo4j_driver:
+        try:
+            with manager.neo4j_driver.session() as session:
+                total_result = session.run("MATCH (n) RETURN count(n) AS total")
+                total = total_result.single()["total"]
+                stats["total_all_nodes"] = total
+        except:
+            pass
+
+    return JSONResponse(content=stats)
 
 @app.get("/api/graph")
 async def get_graph():
     manager = BattlefieldGraphManager()
     nodes = []
     links = []
-    if manager._use_fallback:
+
+    if manager._mode == "neo4j_driver" and manager.neo4j_driver:
+        try:
+            with manager.neo4j_driver.session() as session:
+                result = session.run(
+                    "MATCH (n:Entity) RETURN n.id AS id, properties(n) AS props, labels(n) AS labels"
+                )
+                for record in result:
+                    props = record["props"] or {}
+                    nodes.append({
+                        'id': record["id"],
+                        'type': props.get('entity_type', record["labels"][0] if record["labels"] else 'Unknown'),
+                        'name': props.get('name', record["id"]),
+                        'properties': props
+                    })
+        except Exception as e:
+            print(f"获取 Neo4j 图数据失败: {e}")
+
+    elif manager._use_fallback and manager.fallback_graph:
         for node_id, attrs in manager.fallback_graph.nodes(data=True):
             nodes.append({
                 'id': node_id,
@@ -302,6 +331,7 @@ async def get_graph():
             })
         for source, target, attrs in manager.fallback_graph.edges(data=True):
             links.append({'source': source, 'target': target})
+
     return JSONResponse(content={'nodes': nodes, 'links': links})
 
 @app.get("/api/ontology")
