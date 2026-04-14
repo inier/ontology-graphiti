@@ -543,7 +543,6 @@ class BattlefieldGraphManager:
         try:
             with self.neo4j_driver.session() as session:
                 total = session.run("MATCH (n:Entity) RETURN count(n) AS cnt").single()["cnt"]
-                # 正确语法：先 WITH 再过滤
                 type_result = session.run(
                     "MATCH (n:Entity) "
                     "UNWIND labels(n) AS lbl "
@@ -561,6 +560,85 @@ class BattlefieldGraphManager:
         except Exception as e:
             print(f"Neo4j 统计失败: {e}")
             return self._get_statistics_fallback()
+
+    def cleanup_self_loops(self) -> Dict[str, int]:
+        """
+        清理自环关系（source_node_uuid = target_node_uuid）
+
+        Returns:
+            清理结果统计
+        """
+        if not self.neo4j_driver:
+            return {"status": "no_neo4j", "cleaned": 0}
+
+        try:
+            with self.neo4j_driver.session() as session:
+                before = session.run(
+                    "MATCH (a)-[r:RELATES_TO]->(b) "
+                    "WHERE r.source_node_uuid = r.target_node_uuid "
+                    "RETURN count(r) as cnt"
+                ).single()["cnt"]
+
+                session.run(
+                    "MATCH (a)-[r:RELATES_TO]->(b) "
+                    "WHERE r.source_node_uuid = r.target_node_uuid "
+                    "DELETE r"
+                )
+
+                after = session.run(
+                    "MATCH (a)-[r:RELATES_TO]->(b) "
+                    "WHERE r.source_node_uuid = r.target_node_uuid "
+                    "RETURN count(r) as cnt"
+                ).single()["cnt"]
+
+                cleaned = before - after
+                print(f"自环关系清理完成: 清理了 {cleaned} 条自环关系")
+
+                return {"status": "success", "cleaned": cleaned, "remaining": after}
+
+        except Exception as e:
+            print(f"自环关系清理失败: {e}")
+            return {"status": "error", "error": str(e), "cleaned": 0}
+
+    def get_relationship_stats(self) -> Dict[str, Any]:
+        """获取关系统计信息"""
+        if not self.neo4j_driver:
+            return {"status": "no_neo4j"}
+
+        try:
+            with self.neo4j_driver.session() as session:
+                result = session.run("""
+                    MATCH (a)-[r]->(b)
+                    WITH type(r) as rel_type,
+                         r.source_node_uuid IS NOT NULL as has_src,
+                         r.target_node_uuid IS NOT NULL as has_tgt,
+                         count(r) as cnt
+                    RETURN rel_type, has_src, has_tgt, sum(cnt) as total
+                    ORDER BY rel_type
+                """)
+
+                stats = {}
+                for record in result:
+                    rel_type = record["rel_type"]
+                    if rel_type not in stats:
+                        stats[rel_type] = {"total": 0, "with_uuid": 0, "without_uuid": 0}
+                    stats[rel_type]["total"] += record["total"]
+                    if record["has_src"] and record["has_tgt"]:
+                        stats[rel_type]["with_uuid"] += record["total"]
+                    else:
+                        stats[rel_type]["without_uuid"] += record["total"]
+
+                self_loops = session.run("""
+                    MATCH (a)-[r:RELATES_TO]->(b)
+                    WHERE r.source_node_uuid = r.target_node_uuid
+                    RETURN count(r) as cnt
+                """).single()["cnt"]
+
+                return {"status": "success", "relationships": stats, "self_loops": self_loops}
+
+        except Exception as e:
+            print(f"关系统计获取失败: {e}")
+            return {"status": "error", "error": str(e)}
 
     def _get_statistics_graphiti(self) -> Dict[str, Any]:
         """Graphiti模式：获取统计信息"""

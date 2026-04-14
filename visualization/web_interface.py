@@ -293,6 +293,21 @@ async def get_stats():
                 total_result = session.run("MATCH (n) RETURN count(n) AS total")
                 total = total_result.single()["total"]
                 stats["total_all_nodes"] = total
+
+                self_loops = session.run(
+                    "MATCH (a)-[r:RELATES_TO]->(b) "
+                    "WHERE r.source_node_uuid = r.target_node_uuid "
+                    "RETURN count(r) as cnt"
+                ).single()["cnt"]
+                stats["self_loops"] = self_loops
+
+                if self_loops > 0:
+                    session.run(
+                        "MATCH (a)-[r:RELATES_TO]->(b) "
+                        "WHERE r.source_node_uuid = r.target_node_uuid "
+                        "DELETE r"
+                    )
+                    stats["self_loops_cleaned"] = self_loops
         except:
             pass
 
