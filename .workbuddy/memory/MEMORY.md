@@ -69,14 +69,15 @@ ADR 文档已独立化，存放在 `docs/adr/` 目录（共 29 条，ADR-001~029
 | Phase 0 | 2-4周 | 基础设施搭建 | ✅ 已完成 |
 | Phase 1-A | 1-2月 | 四大基础设施验证（Graphiti+Neo4j, OPA, Skill基类） | ✅ 已完成 |
 | Phase 1-B | 1-2月 | 单 Agent 闭环（Intelligence Agent ReAct + RAG + 追踪） | ✅ 已完成 |
-| Phase 2 | 2-3月 | 三 Agent 协同 OODA | ⬜ 待启动 |
-| Phase 3 | 3-6月 | 生产化部署 | ⬜ |
-| Phase 4 | 6-12月 | 高级特性 | ⬜ |
+| Phase 2 | 2-3月 | 三 Agent 协同 OODA | ✅ 已完成 |
+| Phase 3 | 3-6月 | 模拟器增强（Web 可视化 + 热写入 + 标准本体格式） | ✅ 已完成 |
+| Phase 4 | 6-12月 | 生产化部署 | ⬜ |
 
 ## 重要文档
-- `docs/ARCHITECTURE.md`（v3.1，2026-04-13，审计修复）
-- `docs/adr/README.md`（含优先级列）
+- `docs/ARCHITECTURE.md`（v3.2，2026-04-15，附录 A/C 更新为新目录结构）
+- `docs/adr/README.md`（含优先级列，ADR-001~033）
 - `docs/AUDIT_REPORT.md`（全量文档审计报告）
+- `docs/RESTRUCTURE_PLAN.md`（2026-04-15，项目目录重构方案，ADR-033 配套）
 
 ## 核心文件
 - `core/opa_client.py`: OPA 策略客户端

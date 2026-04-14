@@ -315,9 +315,12 @@ result = await swarm.execute_mission("分析B区威胁并采取行动")
 - ✅ Phase 1-A: 基础设施验证（Slice 1.1~1.4）
 - ✅ Phase 1-B: Intelligence Agent 单体闭环（Slice 1.5~1.7）
 - ✅ Phase 2: 三 Agent 协同 OODA（Slice 2.1~2.4）
+- ✅ Phase 3: 模拟器增强（Slice 3.1~3.4）— OntologyDocument + 热写入 + 数据采集 + Web UI
+- ⬜ Phase 4: 生产化部署
 
-**关键路线**: 修复 Bug → Graphiti+Neo4j → OPA 集成 → Intelligence Agent → RAG 增强 → Demo ✅ **Phase 1 全部完成**
+**关键路线**: 修复 Bug → Graphiti+Neo4j → OPA 集成 → Intelligence Agent → RAG 增强 → Demo ✅ **Phase 1-3 全部完成**
 **Phase 2 关键成果**: 实现 BattlefieldSwarm 编排器，完成三 Agent（Intelligence/Commander/Operations）OODA 闭环协同
+**Phase 3 关键成果**: OntologyDocument 标准格式 + 热写入管道 + 数据采集层 + FastAPI Web 服务 + SPA 前端
 
 ### Phase 2 扩展: 故障恢复与状态管理 ✅
 
@@ -380,3 +383,89 @@ result = await swarm.execute_mission("分析B区威胁并采取行动")
 - **batch_check_permissions**: 批量权限检查
 - **AuditLogEntry**: 审计日志
 - **get_statistics**: 统计信息
+
+---
+
+## 7. Phase 3: 模拟器增强 — Web 可视化 + 实时本体热写入 ✅ 已完成
+
+> **目标**: 在 Phase 2 SimulationEngine 基础上，构建完整的事件模拟与本体构建平台
+>
+> **相关 ADR**: ADR-031, ADR-032, ADR-018 扩展
+
+### 需求背景
+
+| 需求 | 描述 | 实现状态 |
+|------|------|---------|
+| R1 Web 可视化 | 展示事件发展脉络（时间线/关系图谱/态势地图），数据来源支持联网检索归纳 | ✅ |
+| R2 交互式输入 | 手动输入动态信息、按涉事方自动随机生成、支持界面导入/导出 | ✅ |
+| R3 本体热写入 | 写入数据自动构建/扩展图谱，无需重启服务 | ✅ |
+| R4 格式统一 | 所有模拟数据使用 OntologyDocument 标准格式（ADR-032），可沉淀 | ✅ |
+| R5 参考实践 | 参考 NetLogo/oTree/Palantir/WorldModels/OpenCog 等开源实践 | ✅ |
+
+### Slice 3.1: OntologyDocument 标准化 ✅
+
+| 任务 | 内容 | 产出 | 状态 |
+|------|------|------|------|
+| Schema 定义 | Pydantic 模型 + JSON Schema 验证 | `core/ontology_document.py` | ✅ |
+| 工厂方法 | `make_battle_event_document()` 快速构造标准文档 | `core/ontology_document.py` | ✅ |
+| Schema 验证器 | 输入验证 + 错误消息 | `OntologyDocumentSchema` | ✅ |
+
+### Slice 3.2: 本体热写入管道 ✅
+
+| 任务 | 内容 | 产出 | 状态 |
+|------|------|------|------|
+| 热写入核心 | `OntologyHotWritePipeline`（验证 → 版本化 → 写入 → Hook 广播） | `core/ontology_hot_write_pipeline.py` | ✅ |
+| 版本管理器 | `OntologyVersionManager`（版本链 + diff + 回退） | `core/ontology_version_manager.py` | ✅ |
+| Hook 集成 | `ontology.updated` 事件广播 | `core/hook_system.py` 扩展 | ✅ |
+
+### Slice 3.3: 数据采集层 ✅
+
+| 任务 | 内容 | 产出 | 状态 |
+|------|------|------|------|
+| 联网检索采集 | Tavily API 集成 + DuckDuckGo 降级 + LLM 归纳 | `core/data_ingestion.py` → `NewsIngester` | ✅ |
+| 手动输入处理 | 表单/JSON/自然语言三种模式 | `core/data_ingestion.py` → `ManualInputHandler` | ✅ |
+| 随机生成器 | 涉事方行为概率模型（NetLogo 风格） | `core/data_ingestion.py` → `RandomEventGenerator` | ✅ |
+| 导入/导出 | `.odoc.json` 序列化/反序列化 | `core/data_ingestion.py` → `OntologyDocumentIO` | ✅ |
+
+### Slice 3.4: Web 可视化服务 ✅
+
+| 任务 | 内容 | 产出 | 状态 |
+|------|------|------|------|
+| FastAPI 服务 | REST API + WebSocket 实时事件流 | `core/simulator_web_service.py` | ✅ |
+| 时间线前端 | 事件时间线（按场景筛选） | `simulator_ui/index.html` 内置 | ✅ |
+| 关系图谱前端 | D3.js Force Graph（实体/关系可视化 + 红蓝阵营 + 拖拽） | `simulator_ui/index.html` 内置 | ✅ |
+| 态势地图前端 | Leaflet.js（实体标记 + 弹出详情） | `simulator_ui/index.html` 内置 | ✅ |
+| 主控台 | 统一 SPA（总览/场景管理/时间线/图谱/地图/数据写入/版本管理） | `simulator_ui/index.html` | ✅ |
+| main.py 集成 | `python main.py --web` 启动 Web 服务 | `main.py` | ✅ |
+
+### Phase 3 核心文件
+
+| 文件 | 行数 | 说明 |
+|------|------|------|
+| `core/ontology_document.py` | ~350 | OntologyDocument Pydantic 模型 + Schema 验证 + 工厂方法 |
+| `core/ontology_hot_write_pipeline.py` | ~200 | 热写入管道（验证 → 版本化 → Hook 广播） |
+| `core/ontology_version_manager.py` | ~180 | 版本链管理 + diff + 回退 |
+| `core/data_ingestion.py` | ~450 | 四大采集组件（NewsIngester/ManualInputHandler/RandomEventGenerator/OntologyDocumentIO） |
+| `core/simulator_web_service.py` | ~350 | FastAPI 服务（REST + WebSocket） |
+| `simulator_ui/index.html` | ~950 | 单页应用前端（D3.js + Leaflet.js + WebSocket 实时更新） |
+
+### 启动方式
+
+```bash
+# 启动 Web 模拟器
+python main.py --web [--port 8765]
+
+# 前端 UI:  http://localhost:8765/ui/
+# Swagger API: http://localhost:8765/docs
+# WebSocket: ws://localhost:8765/ws/events
+```
+
+### 验收标准
+
+```
+1. ✅ 模块导入验证通过（8/8 核心模块全部正常）
+2. ✅ 测试无回归（60 passed, 8 failed 均为已有 Neo4j/Graphiti 集成测试）
+3. ✅ Web 前端单页应用完整（7 个页面: 总览/场景/时间线/图谱/地图/数据写入/版本）
+4. ✅ FastAPI + WebSocket 服务端就绪
+5. ⬜ 端到端集成测试待 Neo4j 环境就绪后验证
+```

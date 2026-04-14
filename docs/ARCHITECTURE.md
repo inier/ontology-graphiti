@@ -1,6 +1,6 @@
 # 本体驱动分析决策平台 (ODAP) - 架构设计文档
 
-**版本**: 3.1 | **日期**: 2026-04-13 | **架构师**: 软件架构师
+**版本**: 3.2 | **日期**: 2026-04-15 | **架构师**: 软件架构师
 
 > **核心定位**: 构建一个**通用的本体驱动分析决策平台**，战争分析只是当前建设的**一个实例化场景**。通过工作空间机制实现多场景隔离，支持任意领域的本体建模和分析决策。
 
@@ -4854,41 +4854,111 @@ const ConfigCenter: React.FC = () => {
 
 ## A. 文件结构
 
+> **注意**: 项目已完成分层模块化重构（ADR-033），详细迁移方案见 `docs/RESTRUCTURE_PLAN.md`。
+> 以下为重构后的目标结构：
+
 ```
-graphiti-battlefield/
-├── core/
-│   ├── skills/                    # Python Skills（原生接入 OpenHarness）
-│   ├── opa_client.py              # OPA 客户端
-│   ├── graphiti_client.py         # Graphiti 客户端
-│   └── swarm_orchestrator.py     # Swarm 编排器
-├── skills/                        # Python Skills（领域工具）
-│   ├── intelligence/              # 情报类 Skills
-│   ├── operations/               # 作战类 Skills
-│   ├── analysis/                 # 分析类 Skills
-│   └── visualization/            # 可视化类 Skills
-├── policies/                      # OPA 策略
-│   ├── attack/
-│   ├── intelligence/
-│   └── common/
-├── graphiti/                      # Graphiti 配置
-│   ├── nodes/                    # 节点类型定义
-│   └── edges/                    # 边类型定义
-├── ui/                           # 前端界面
-│   └── battlefield_dashboard/
-├── docker/
-│   ├── opa/
-│   └── neo4j/
+odap/                                  # 项目根目录
+│
+├── odap/                              # Python 包根
+│   ├── __init__.py
+│   │
+│   ├── infra/                         # 【L2 基础设施层】— 无业务逻辑
+│   │   ├── graph/                     #   图谱服务（Neo4j + Graphiti）
+│   │   ├── llm/                       #   LLM 服务（ZhipuAI 等）
+│   │   ├── opa/                       #   OPA 策略引擎
+│   │   ├── events/                    #   事件/Hook 系统
+│   │   ├── resilience/                #   韧性（容错 + 健康监控 + 状态持久化）
+│   │   └── config/                    #   全局配置
+│   │
+│   ├── tools/                         # 【L3 领域工具层】— 可插拔 Skill
+│   │   ├── base.py                    #   BaseSkill / SkillInput / SkillOutput
+│   │   ├── registry.py                #   SkillRegistry / register_skill
+│   │   ├── intelligence/              #   情报工具
+│   │   ├── operations/                #   作战工具
+│   │   ├── analysis/                  #   分析工具
+│   │   ├── planning/                  #   规划工具
+│   │   ├── recommendation/            #   决策推荐工具
+│   │   ├── policy/                    #   策略工具
+│   │   ├── computation/               #   计算工具
+│   │   ├── task_management/           #   任务管理工具
+│   │   └── visualization/             #   可视化工具
+│   │
+│   ├── biz/                           # 【L4 业务领域层】— 核心业务模块
+│   │   ├── ontology/                  #   本体管理（图谱 CRUD + 版本 + 热写入）
+│   │   │   ├── schema/                #     OntologyDocument + 领域模型
+│   │   │   ├── service.py             #     OntologyManager（对外 API）
+│   │   │   ├── hot_write.py           #     热写入管道
+│   │   │   ├── version_manager.py     #     版本管理
+│   │   │   └── ingestion.py           #     数据采集（联网/手动/随机/IO）
+│   │   │
+│   │   ├── workspace/                 #   工作空间管理
+│   │   │   └── manager.py             #     WorkspaceManager（对外 API）
+│   │   │
+│   │   ├── agent/                     #   Agent 协同（OODA 三角色）
+│   │   │   ├── swarm_orchestrator.py  #     BattlefieldSwarm 编排器
+│   │   │   ├── intelligence_agent.py  #     Intelligence Agent
+│   │   │   ├── commander.py           #     Commander Agent
+│   │   │   ├── operations_agent.py    #     Operations Agent
+│   │   │   ├── collector.py           #     情报采集器
+│   │   │   └── recommender.py         #     决策推荐器
+│   │   │
+│   │   ├── permission/                #   权限管理
+│   │   │   └── checker.py
+│   │   │
+│   │   └── simulator/                 #   模拟推演
+│   │       ├── engine.py              #     SimulatorEngine
+│   │       ├── data_generator.py      #     数据生成器
+│   │       └── models.py              #     领域模型
+│   │
+│   ├── adapters/                      # 【L1 适配层】— 外部系统集成
+│   │   ├── openharness/               #   OpenHarness 适配
+│   │   └── mcp/                       #   MCP 协议适配（预留）
+│   │
+│   ├── web/                           # 【Web 服务层】
+│   │   ├── api/                       #   REST 路由
+│   │   │   ├── app.py                 #     FastAPI 应用
+│   │   │   ├── router_ontology.py     #     /api/v1/ontology/*
+│   │   │   ├── router_simulator.py    #     /api/v1/simulator/*
+│   │   │   ├── router_agent.py        #     /api/v1/agent/*
+│   │   │   ├── router_workspace.py    #     /api/v1/workspace/*
+│   │   │   └── router_system.py       #     /api/v1/system/*
+│   │   ├── ws/                        #   WebSocket
+│   │   └── static/                    #   前端 SPA
+│   │
+│   └── storage/                       # 【数据存储层】
+│       ├── scenarios/                 #   场景数据
+│       ├── versions/                  # 本体版本
+│       ├── states/                    # Agent 状态
+│       └── exports/                   # 导出文件
+│
+├── src/                               # 入口脚本
+│   ├── cli.py                         # CLI 入口
+│   └── web_server.py                  # Web 服务启动器
+│
 ├── tests/
+│   ├── conftest.py
 │   ├── unit/
 │   ├── integration/
-│   └── e2e/
+│   └── manual/
+│
 ├── docs/
 │   ├── ARCHITECTURE.md
+│   ├── TASK_BREAKDOWN.md
+│   ├── RESTRUCTURE_PLAN.md
 │   └── adr/
-├── pyproject.toml
-├── .openharness/
-│   └── config.yaml
-└── README.md
+│
+├── assets/                            # 静态资源
+├── docker/                            # 容器化配置
+├── scripts/                           # 运维脚本
+└── pyproject.toml
+```
+
+**依赖方向**:
+```
+web/    → biz/ → tools/ → infra/
+                biz/ → infra/
+adapters/ → infra/, biz/
 ```
 
 ## B. 环境变量
@@ -4909,19 +4979,70 @@ OPA_URL=http://localhost:8181
 # OpenHarness
 OH_MODEL=claude-3-5-sonnet
 OH_PERMISSION_MODE=default
+
+# LLM（扩展）
+ZHIPU_API_KEY=...
+SILICONFLOW_API_KEY=...
+TAVILY_API_KEY=...
 ```
 
 ## C. API 端点
 
+### C.1 本体管理 API
+
 | 端点 | 方法 | 描述 |
 |------|------|------|
-| `/api/v1/mission` | POST | 创建任务（触发 OODA） |
-| `/api/v1/mission/{id}` | GET | 获取任务状态 |
-| `/api/v1/mission/{id}/stream` | GET | SSE 流式响应 |
-| `/api/v1/confirm` | POST | 人工确认接口 |
-| `/api/v1/graphiti/query` | POST | Graphiti 查询 |
-| `/api/v1/opa/check` | POST | OPA 策略检查 |
+| `/api/v1/ontology/workspace` | POST | 创建工作空间 |
+| `/api/v1/ontology/workspaces` | GET | 列出工作空间 |
+| `/api/v1/ontology/workspace/{id}` | DELETE | 删除工作空间 |
+| `/api/v1/ontology/write` | POST | 热写入 OntologyDocument |
+| `/api/v1/ontology/query` | GET | 图谱查询 |
+| `/api/v1/ontology/versions/{ws_id}` | GET | 版本列表 |
+| `/api/v1/ontology/version/switch` | POST | 切换版本 |
+| `/api/v1/ontology/version/rollback` | POST | 回退版本 |
+| `/api/v1/ontology/export` | POST | 导出 |
+| `/api/v1/ontology/import` | POST | 导入 |
+
+### C.2 模拟器 API
+
+| 端点 | 方法 | 描述 |
+|------|------|------|
+| `/api/v1/simulator/scenario` | POST | 创建场景 |
+| `/api/v1/simulator/run` | POST | 启动推演 |
+| `/api/v1/simulator/pause/{id}` | POST | 暂停 |
+| `/api/v1/simulator/resume/{id}` | POST | 恢复 |
+| `/api/v1/simulator/result/{id}` | GET | 获取结果 |
+
+### C.3 Agent API
+
+| 端点 | 方法 | 描述 |
+|------|------|------|
+| `/api/v1/agent/mission` | POST | 创建任务（触发 OODA） |
+| `/api/v1/agent/mission/{id}` | GET | 获取任务状态 |
+| `/api/v1/agent/mission/{id}/stream` | GET | SSE 流式响应 |
+
+### C.4 工作空间 API
+
+| 端点 | 方法 | 描述 |
+|------|------|------|
+| `/api/v1/workspace` | POST | 创建工作空间 |
+| `/api/v1/workspace` | GET | 列出工作空间 |
+| `/api/v1/workspace/{id}` | GET | 工作空间详情 |
+| `/api/v1/workspace/{id}/switch` | POST | 切换工作空间 |
+
+### C.5 系统 API
+
+| 端点 | 方法 | 描述 |
+|------|------|------|
+| `/api/v1/system/health` | GET | 健康检查 |
+| `/api/v1/system/metrics` | GET | 系统指标 |
+
+### C.6 WebSocket
+
+| 端点 | 协议 | 描述 |
+|------|------|------|
+| `/ws/events` | WebSocket | 实时事件流（模拟推演 + 本体更新） |
 
 ---
 
-*文档版本: 2.1 | 最后更新: 2026-04-13 | 作者: 软件架构师*
+*文档版本: 3.2 | 最后更新: 2026-04-15 | 作者: 软件架构师*

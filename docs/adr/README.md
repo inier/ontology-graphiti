@@ -42,6 +42,8 @@
 | ADR-021 | 战争实体标准本体库 | 已接受 | P1 | [ADR-021](ADR-021_战争实体标准本体库.md) |
 | ADR-022 | 模拟数仓与统一查询服务 | 提议中 | P1 | [ADR-022](ADR-022_模拟数仓与统一查询服务.md) |
 | ADR-026 | 采用 MCP 协议作为外部系统集成标准 | 已接受 | P1 | [ADR-026](ADR-026_mcp_protocol_integration.md) |
+| ADR-031 | 模拟器 Web 可视化与实时本体热写入架构 | 已接受 | P0 | [ADR-031](ADR-031_simulator_web_visualization_realtime_ontology.md) |
+| ADR-032 | 标准化本体文档格式（OntologyDocument） | 已接受 | P0 | [ADR-032](ADR-032_standard_ontology_document_format.md) |
 
 ### 平台架构（P0/P1 混合）
 
@@ -68,6 +70,7 @@
 | ADR | 决策标题 | 状态 | 优先级 | 文件 |
 |-----|---------|------|--------|------|
 | ADR-030 | Phase 1 推迟引入 OpenHarness，保留现有编排器 | 已接受 | P1 | [ADR-030](ADR-030_phase1_推迟引入openharness_保留现有编排器.md) |
+| ADR-033 | 项目目录结构重构（分层模块化 odap/ 包） | 提议 | P0 | [ADR-033](ADR-033_项目目录结构重构.md) |
 
 ---
 
@@ -98,4 +101,7 @@
 
 - ADR-001 ~ ADR-024：从 `ARCHITECTURE.md` 第 17 章提取的核心架构决策
 - ADR-025 ~ ADR-029：从独立 ADR 文件迁移的详细决策（原编号 ADR-006~010）
-- ADR-030 ~ ：Phase 1+ 新增的演进决策，按时间顺序递增
+- ADR-030：Phase 1+ 演进决策（OpenHarness 推迟）
+- ADR-031 ~ ADR-032：Phase 3 模拟器增强（Web 可视化 + 标准本体格式）
+- ADR-033：Phase 3+ 项目目录结构重构（分层模块化）
+- ADR-034 ~ ：后续新增，按时间顺序递增
