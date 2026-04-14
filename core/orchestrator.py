@@ -64,50 +64,52 @@ class SelfCorrectingOrchestrator:
     def _parse_query(self, query):
         """
         解析查询，确定需要的技能和参数
-        
+
         Args:
             query: 用户查询
-            
+
         Returns:
             (skill_name, args): 技能名称和参数
         """
-        # 保存原始查询
         original_query = query
-        # 转换为小写进行关键词匹配
         query_lower = query.lower()
-        
-        # 搜索雷达 - 关键词更灵活
+
         if "雷达" in query_lower:
             area_match = re.search(r'([A-E])\s*区', query)
             area = area_match.group(1) if area_match else None
             return "search_radar", {"area": area}
 
-        # 分析战场态势
         elif "战场" in query_lower and "分析" in query_lower:
             return "analyze_battlefield", {}
-        
-        # 攻击目标
+
+        elif "打击" in query_lower and ("推荐" in query_lower or "目标" in query_lower):
+            area_match = re.search(r'([A-E])\s*区', query)
+            area = area_match.group(1) if area_match else None
+            target_type_match = re.search(r'(雷达|导弹|坦克|火炮)', query)
+            target_type = target_type_match.group(1) if target_type_match else None
+            return "recommend_strike_targets", {"user_role": self.user_role, "area": area, "target_type": target_type}
+
+        elif "力量" in query_lower and "对比" in query_lower:
+            area_match = re.search(r'([A-E])\s*区', query)
+            area = area_match.group(1) if area_match else None
+            return "analyze_force_comparison", {"area": area}
+
         elif "攻击" in query_lower:
-            # 提取目标ID，使用原始查询以保持大小写
             target_match = re.search(r'[A-Za-z_0-9]+', original_query)
             target_id = target_match.group(0) if target_match else None
             if not target_id:
-                # 尝试从查询中提取目标名称
                 if "医院" in query_lower:
-                    target_id = "CIV_A_1"  # 使用实际存在的医院ID
+                    target_id = "CIV_A_1"
                 elif "雷达" in query_lower:
-                    target_id = "WEAPON_Bl_1"  # 使用实际存在的雷达ID
+                    target_id = "WEAPON_Bl_1"
             return "attack_target", {"target_id": target_id, "user_role": self.user_role}
-        
-        # 指挥部队
+
         elif "指挥" in query_lower or "命令" in query_lower:
-            # 提取部队ID，使用原始查询以保持大小写
             unit_match = re.search(r'[A-Za-z_0-9]+', original_query)
             unit_id = unit_match.group(0) if unit_match else None
             command = original_query
             return "command_unit", {"unit_id": unit_id, "command": command, "user_role": self.user_role}
-        
-        # 默认返回分析战场态势
+
         else:
             return "analyze_battlefield", {}
 
