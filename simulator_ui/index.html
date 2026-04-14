@@ -1,0 +1,1018 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>ODAP 模拟器 v2.0</title>
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    :root {
+      --bg: #0d1117;
+      --surface: #161b22;
+      --surface2: #21262d;
+      --border: #30363d;
+      --text: #e6edf3;
+      --text2: #8b949e;
+      --red: #f85149;
+      --blue: #58a6ff;
+      --green: #3fb950;
+      --yellow: #d29922;
+      --accent: #1f6feb;
+    }
+    body { background: var(--bg); color: var(--text); font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; }
+    header {
+      background: var(--surface);
+      border-bottom: 1px solid var(--border);
+      padding: 12px 24px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+    }
+    header h1 { font-size: 18px; font-weight: 600; letter-spacing: 0.5px; }
+    header h1 span { color: var(--blue); }
+    .status-dot { width: 8px; height: 8px; border-radius: 50%; background: var(--green); display: inline-block; margin-right: 6px; animation: pulse 2s infinite; }
+    @keyframes pulse { 0%,100%{opacity:1} 50%{opacity:0.4} }
+    .ws-status { font-size: 13px; color: var(--text2); }
+    nav {
+      background: var(--surface);
+      border-bottom: 1px solid var(--border);
+      padding: 0 24px;
+      display: flex;
+      gap: 0;
+    }
+    nav a {
+      display: inline-block;
+      padding: 10px 20px;
+      color: var(--text2);
+      text-decoration: none;
+      font-size: 14px;
+      border-bottom: 2px solid transparent;
+      transition: all 0.2s;
+    }
+    nav a:hover { color: var(--text); }
+    nav a.active { color: var(--blue); border-bottom-color: var(--blue); }
+    main { padding: 24px; max-width: 1400px; margin: 0 auto; }
+    .grid-2 { display: grid; grid-template-columns: 1fr 1fr; gap: 20px; }
+    .grid-3 { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 16px; }
+    .card {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      padding: 20px;
+    }
+    .card h2 { font-size: 15px; font-weight: 600; margin-bottom: 16px; color: var(--text); }
+    .stat-card { text-align: center; padding: 16px; }
+    .stat-card .value { font-size: 32px; font-weight: 700; color: var(--blue); }
+    .stat-card .label { font-size: 13px; color: var(--text2); margin-top: 4px; }
+    btn, .btn {
+      display: inline-block;
+      padding: 8px 16px;
+      border-radius: 6px;
+      border: 1px solid var(--border);
+      background: var(--surface2);
+      color: var(--text);
+      font-size: 13px;
+      cursor: pointer;
+      text-decoration: none;
+      transition: all 0.2s;
+    }
+    .btn:hover { background: var(--border); }
+    .btn-primary { background: var(--accent); border-color: var(--accent); }
+    .btn-primary:hover { background: #1a5dd4; }
+    .btn-red { background: rgba(248,81,73,0.15); border-color: var(--red); color: var(--red); }
+    .btn-green { background: rgba(63,185,80,0.15); border-color: var(--green); color: var(--green); }
+    input, textarea, select {
+      width: 100%; padding: 8px 12px; border-radius: 6px;
+      border: 1px solid var(--border); background: var(--surface2);
+      color: var(--text); font-size: 13px; outline: none;
+    }
+    input:focus, textarea:focus, select:focus { border-color: var(--blue); }
+    label { font-size: 13px; color: var(--text2); margin-bottom: 6px; display: block; }
+    .form-group { margin-bottom: 14px; }
+    #event-log {
+      height: 240px;
+      overflow-y: auto;
+      background: var(--surface2);
+      border-radius: 6px;
+      padding: 12px;
+      font-size: 12px;
+      font-family: monospace;
+    }
+    .log-item { padding: 3px 0; border-bottom: 1px solid rgba(48,54,61,0.5); }
+    .log-item.update { color: var(--green); }
+    .log-item.error { color: var(--red); }
+    .log-item.info { color: var(--text2); }
+    .scenario-list { display: flex; flex-direction: column; gap: 8px; }
+    .scenario-item {
+      padding: 10px 14px;
+      background: var(--surface2);
+      border-radius: 6px;
+      border: 1px solid var(--border);
+      cursor: pointer;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+    }
+    .scenario-item:hover { border-color: var(--blue); }
+    .scenario-item.active { border-color: var(--blue); background: rgba(31,111,235,0.1); }
+    .scenario-name { font-size: 14px; font-weight: 500; }
+    .scenario-meta { font-size: 12px; color: var(--text2); }
+    .badge { display: inline-block; padding: 2px 8px; border-radius: 12px; font-size: 11px; }
+    .badge-blue { background: rgba(88,166,255,0.15); color: var(--blue); }
+    .badge-red { background: rgba(248,81,73,0.15); color: var(--red); }
+    .badge-green { background: rgba(63,185,80,0.15); color: var(--green); }
+    .btn-row { display: flex; gap: 8px; flex-wrap: wrap; }
+    .page { display: none; }
+    .page.active { display: block; }
+    .tabs { display: flex; gap: 0; margin-bottom: 16px; border-bottom: 1px solid var(--border); }
+    .tab { padding: 8px 16px; cursor: pointer; font-size: 13px; color: var(--text2); border-bottom: 2px solid transparent; }
+    .tab.active { color: var(--blue); border-bottom-color: var(--blue); }
+    #toast {
+      position: fixed; bottom: 24px; right: 24px;
+      padding: 12px 18px; background: var(--surface2);
+      border: 1px solid var(--border); border-radius: 8px;
+      font-size: 13px; display: none; z-index: 9999;
+    }
+    #toast.show { display: block; }
+    #toast.success { border-color: var(--green); color: var(--green); }
+    #toast.error { border-color: var(--red); color: var(--red); }
+  </style>
+</head>
+<body>
+
+<header>
+  <h1>🏛️ ODAP <span>Simulator</span> v2.0</h1>
+  <div class="ws-status">
+    <span class="status-dot" id="ws-dot" style="background:var(--yellow)"></span>
+    <span id="ws-label">连接中...</span>
+  </div>
+</header>
+
+<nav>
+  <a href="#" class="active" data-page="dashboard">总览</a>
+  <a href="#" data-page="scenarios">场景管理</a>
+  <a href="#" data-page="timeline">事件时间线</a>
+  <a href="#" data-page="graph">关系图谱</a>
+  <a href="#" data-page="map">态势地图</a>
+  <a href="#" data-page="ingest">数据写入</a>
+  <a href="#" data-page="versions">版本管理</a>
+</nav>
+
+<main>
+
+<!-- ── 总览 ─────────────────────────────────────────── -->
+<div id="page-dashboard" class="page active">
+  <div class="grid-3" style="margin-bottom:20px">
+    <div class="card stat-card">
+      <div class="value" id="stat-versions">—</div>
+      <div class="label">版本总数</div>
+    </div>
+    <div class="card stat-card">
+      <div class="value" id="stat-scenarios">—</div>
+      <div class="label">场景数</div>
+    </div>
+    <div class="card stat-card">
+      <div class="value" id="stat-ws">0</div>
+      <div class="label">WebSocket 客户端</div>
+    </div>
+  </div>
+  <div class="grid-2">
+    <div class="card">
+      <h2>📡 实时事件流</h2>
+      <div id="event-log"><div class="log-item info">等待连接...</div></div>
+    </div>
+    <div class="card">
+      <h2>⚡ 快捷操作</h2>
+      <div style="display:flex;flex-direction:column;gap:10px">
+        <button class="btn btn-primary" onclick="showPage('ingest')">📥 写入数据</button>
+        <button class="btn" onclick="showPage('scenarios')">📋 管理场景</button>
+        <button class="btn" onclick="showPage('timeline')">📅 查看时间线</button>
+        <button class="btn" onclick="showPage('graph')">🕸️ 关系图谱</button>
+        <button class="btn" onclick="refreshStats()">🔄 刷新统计</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ── 场景管理 ─────────────────────────────────────── -->
+<div id="page-scenarios" class="page">
+  <div class="grid-2">
+    <div class="card">
+      <h2>📋 场景列表</h2>
+      <div id="scenario-list" class="scenario-list" style="margin-bottom:16px;max-height:400px;overflow-y:auto"></div>
+      <button class="btn btn-primary" onclick="openCreateScenario()">+ 新建场景</button>
+    </div>
+    <div class="card">
+      <h2>🔧 新建场景</h2>
+      <div class="form-group">
+        <label>场景名称</label>
+        <input type="text" id="new-scenario-name" placeholder="如：B区遭遇战">
+      </div>
+      <div class="form-group">
+        <label>场景描述</label>
+        <textarea id="new-scenario-desc" rows="3" placeholder="描述场景背景..."></textarea>
+      </div>
+      <button class="btn btn-primary" onclick="createScenario()">创建场景</button>
+      <div id="scenario-detail" style="margin-top:20px;padding-top:20px;border-top:1px solid var(--border)">
+        <div style="color:var(--text2);font-size:13px">点击左侧场景查看详情</div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ── 事件时间线 ───────────────────────────────────── -->
+<div id="page-timeline" class="page">
+  <div class="card" style="margin-bottom:16px">
+    <div style="display:flex;gap:12px;align-items:center">
+      <div style="flex:1">
+        <label>场景</label>
+        <select id="timeline-scenario" onchange="loadTimeline()"></select>
+      </div>
+      <button class="btn" onclick="loadTimeline()">🔄 刷新</button>
+    </div>
+  </div>
+  <div class="card">
+    <h2>📅 事件时间线</h2>
+    <div id="timeline-container" style="min-height:200px"></div>
+  </div>
+</div>
+
+<!-- ── 关系图谱 ─────────────────────────────────────── -->
+<div id="page-graph" class="page">
+  <div class="card" style="margin-bottom:16px">
+    <div style="display:flex;gap:12px;align-items:center">
+      <div style="flex:1">
+        <label>场景</label>
+        <select id="graph-scenario" onchange="loadGraph()"></select>
+      </div>
+      <button class="btn" onclick="loadGraph()">🔄 刷新</button>
+    </div>
+  </div>
+  <div class="card">
+    <h2>🕸️ 实体关系图谱</h2>
+    <div style="display:flex;gap:12px;margin-bottom:12px;font-size:12px;color:var(--text2)">
+      <span>🔴 红方</span><span>🔵 蓝方</span><span>⚪ 中立</span>
+      <span style="margin-left:auto">节点大小 = 战力值 | 拖拽可调整布局</span>
+    </div>
+    <svg id="graph-svg" width="100%" height="500" style="background:var(--surface2);border-radius:6px"></svg>
+  </div>
+</div>
+
+<!-- ── 态势地图 ─────────────────────────────────────── -->
+<div id="page-map" class="page">
+  <div class="card" style="margin-bottom:16px">
+    <div style="display:flex;gap:12px;align-items:center">
+      <div style="flex:1">
+        <label>场景</label>
+        <select id="map-scenario" onchange="loadMap()"></select>
+      </div>
+      <button class="btn" onclick="loadMap()">🔄 刷新</button>
+    </div>
+  </div>
+  <div class="card">
+    <h2>🗺️ 态势地图</h2>
+    <div id="map-container" style="height:500px;border-radius:6px;overflow:hidden;position:relative;background:var(--surface2)">
+      <div id="map" style="height:100%"></div>
+    </div>
+  </div>
+</div>
+
+<!-- ── 数据写入 ─────────────────────────────────────── -->
+<div id="page-ingest" class="page">
+  <div class="grid-2">
+    <!-- 手动写入 -->
+    <div class="card">
+      <h2>✏️ 手动写入</h2>
+      <div class="tabs">
+        <div class="tab active" onclick="switchTab(this,'tab-form')">快捷表单</div>
+        <div class="tab" onclick="switchTab(this,'tab-json')">JSON 输入</div>
+        <div class="tab" onclick="switchTab(this,'tab-nl')">自然语言</div>
+      </div>
+
+      <!-- 快捷表单 -->
+      <div id="tab-form">
+        <div class="form-group">
+          <label>归属场景</label>
+          <select id="ingest-scenario"></select>
+        </div>
+        <div class="form-group">
+          <label>事件标题</label>
+          <input type="text" id="form-title" placeholder="如：红方装甲营发起进攻">
+        </div>
+        <div class="form-group">
+          <label>红方单位</label>
+          <input type="text" id="form-red" placeholder="红方装甲营">
+        </div>
+        <div class="form-group">
+          <label>蓝方单位</label>
+          <input type="text" id="form-blue" placeholder="蓝方机步营">
+        </div>
+        <div class="form-group">
+          <label>事件地点</label>
+          <input type="text" id="form-location" placeholder="B区">
+        </div>
+        <div class="form-group">
+          <label>事件类型</label>
+          <select id="form-type">
+            <option value="contact">接触 (contact)</option>
+            <option value="attack">进攻 (attack)</option>
+            <option value="retreat">撤退 (retreat)</option>
+            <option value="reinforce">增援 (reinforce)</option>
+            <option value="patrol">巡逻 (patrol)</option>
+          </select>
+        </div>
+        <button class="btn btn-primary" onclick="submitForm()">💾 写入图谱</button>
+      </div>
+
+      <!-- JSON 输入 -->
+      <div id="tab-json" style="display:none">
+        <div class="form-group">
+          <label>归属场景</label>
+          <select id="ingest-scenario-json"></select>
+        </div>
+        <div class="form-group">
+          <label>OntologyDocument JSON</label>
+          <textarea id="json-input" rows="12" placeholder="粘贴 OntologyDocument JSON..."></textarea>
+        </div>
+        <div class="btn-row">
+          <button class="btn btn-primary" onclick="submitJson()">💾 写入图谱</button>
+          <button class="btn" onclick="loadJsonExample()">📄 加载示例</button>
+        </div>
+      </div>
+
+      <!-- 自然语言 -->
+      <div id="tab-nl" style="display:none">
+        <div class="form-group">
+          <label>归属场景</label>
+          <select id="ingest-scenario-nl"></select>
+        </div>
+        <div class="form-group">
+          <label>自然语言描述</label>
+          <textarea id="nl-input" rows="6" placeholder="例如：红方装甲第3营今早8时在B区与蓝方遭遇，双方交火约20分钟，红方占据有利地形..."></textarea>
+        </div>
+        <button class="btn btn-primary" onclick="submitNL()">🤖 LLM 转换并写入</button>
+      </div>
+    </div>
+
+    <!-- 其他写入方式 -->
+    <div style="display:flex;flex-direction:column;gap:16px">
+      <!-- 联网检索 -->
+      <div class="card">
+        <h2>🌐 联网检索采集</h2>
+        <div class="form-group">
+          <label>检索关键词</label>
+          <input type="text" id="news-query" placeholder="如：叙利亚内战 2024 阿勒颇">
+        </div>
+        <div class="form-group">
+          <label>事件背景（辅助 LLM）</label>
+          <input type="text" id="news-context" placeholder="可选">
+        </div>
+        <div class="form-group">
+          <label>归属场景</label>
+          <select id="news-scenario"></select>
+        </div>
+        <button class="btn btn-primary" onclick="submitNews()">🔍 检索并归纳</button>
+        <div id="news-task-status" style="margin-top:10px;font-size:13px;color:var(--text2)"></div>
+      </div>
+
+      <!-- 随机生成 -->
+      <div class="card">
+        <h2>🎲 随机生成</h2>
+        <div class="form-group">
+          <label>涉事方（多选）</label>
+          <div style="display:flex;gap:8px;flex-wrap:wrap">
+            <label style="display:flex;gap:4px;align-items:center;margin:0">
+              <input type="checkbox" id="party-red" checked style="width:auto"> 红方
+            </label>
+            <label style="display:flex;gap:4px;align-items:center;margin:0">
+              <input type="checkbox" id="party-blue" checked style="width:auto"> 蓝方
+            </label>
+            <label style="display:flex;gap:4px;align-items:center;margin:0">
+              <input type="checkbox" id="party-neutral" style="width:auto"> 中立方
+            </label>
+          </div>
+        </div>
+        <div class="form-group">
+          <label>生成数量（1-20）</label>
+          <input type="number" id="random-count" value="3" min="1" max="20">
+        </div>
+        <div class="form-group">
+          <label>归属场景</label>
+          <select id="random-scenario"></select>
+        </div>
+        <button class="btn btn-primary" onclick="submitRandom()">🎲 随机生成并写入</button>
+      </div>
+
+      <!-- 导入/导出 -->
+      <div class="card">
+        <h2>📦 导入 / 导出</h2>
+        <div style="display:flex;flex-direction:column;gap:10px">
+          <div>
+            <label>导入 .odoc.json</label>
+            <input type="file" id="import-file" accept=".json,.odoc.json" style="margin-top:6px">
+            <div class="form-group" style="margin-top:8px">
+              <select id="import-scenario"></select>
+            </div>
+            <button class="btn btn-green" onclick="importFile()">📥 导入</button>
+          </div>
+          <hr style="border-color:var(--border)">
+          <div>
+            <label>导出场景</label>
+            <select id="export-scenario" style="margin-top:6px;margin-bottom:8px"></select>
+            <button class="btn" onclick="exportScenario()">📤 导出场景</button>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ── 版本管理 ─────────────────────────────────────── -->
+<div id="page-versions" class="page">
+  <div class="card">
+    <h2>📚 版本历史</h2>
+    <div style="display:flex;gap:8px;margin-bottom:16px">
+      <button class="btn" onclick="loadVersions()">🔄 刷新</button>
+    </div>
+    <div id="versions-list"></div>
+  </div>
+</div>
+
+</main>
+
+<div id="toast"></div>
+
+<!-- D3.js CDN -->
+<script src="https://cdn.jsdelivr.net/npm/d3@7/dist/d3.min.js"></script>
+<!-- Leaflet -->
+<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css">
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+
+<script>
+// ── 全局状态 ──────────────────────────────────────────
+const API = '';  // 同域
+let ws = null;
+let wsRetries = 0;
+let currentScenarioId = null;
+let leafletMap = null;
+let graphRendered = false;
+
+// ── 工具函数 ──────────────────────────────────────────
+function toast(msg, type='success') {
+  const el = document.getElementById('toast');
+  el.textContent = msg;
+  el.className = `show ${type}`;
+  setTimeout(() => el.className = '', 3000);
+}
+
+function log(msg, type='info') {
+  const el = document.getElementById('event-log');
+  const time = new Date().toLocaleTimeString();
+  const div = document.createElement('div');
+  div.className = `log-item ${type}`;
+  div.textContent = `[${time}] ${msg}`;
+  el.prepend(div);
+  if (el.children.length > 100) el.lastChild.remove();
+}
+
+async function api(path, opts={}) {
+  const res = await fetch(API + path, {
+    headers: {'Content-Type': 'application/json'},
+    ...opts,
+  });
+  if (!res.ok) {
+    const err = await res.json().catch(() => ({detail: res.statusText}));
+    throw new Error(err.detail || res.statusText);
+  }
+  return res.json();
+}
+
+// ── 页面导航 ──────────────────────────────────────────
+function showPage(name) {
+  document.querySelectorAll('.page').forEach(p => p.classList.remove('active'));
+  document.querySelectorAll('nav a').forEach(a => a.classList.remove('active'));
+  document.getElementById(`page-${name}`).classList.add('active');
+  document.querySelector(`nav a[data-page="${name}"]`).classList.add('active');
+
+  if (name === 'timeline') loadTimeline();
+  if (name === 'graph') loadGraph();
+  if (name === 'map') loadMap();
+  if (name === 'versions') loadVersions();
+  if (name === 'scenarios') loadScenarios();
+}
+
+document.querySelectorAll('nav a').forEach(a => {
+  a.addEventListener('click', e => { e.preventDefault(); showPage(a.dataset.page); });
+});
+
+// ── WebSocket ─────────────────────────────────────────
+function connectWS() {
+  const proto = location.protocol === 'https:' ? 'wss:' : 'ws:';
+  const url = `${proto}//${location.host}/ws/events`;
+  ws = new WebSocket(url);
+
+  ws.onopen = () => {
+    document.getElementById('ws-dot').style.background = 'var(--green)';
+    document.getElementById('ws-label').textContent = '已连接';
+    wsRetries = 0;
+    log('WebSocket 连接成功', 'update');
+  };
+
+  ws.onmessage = (evt) => {
+    try {
+      const msg = JSON.parse(evt.data);
+      if (msg.type === 'ontology_update') {
+        const d = msg.data;
+        log(`📥 本体更新 ${d.version_id}: ${d.title || d.doc_type} (实体:${d.entity_count} 关系:${d.relation_count})`, 'update');
+        refreshStats();
+        // 触发图谱/时间线自动刷新
+        if (document.getElementById('page-timeline').classList.contains('active')) loadTimeline();
+        if (document.getElementById('page-graph').classList.contains('active')) loadGraph();
+      } else if (msg.type === 'pong') {
+        // 忽略 pong
+      }
+    } catch {}
+  };
+
+  ws.onclose = () => {
+    document.getElementById('ws-dot').style.background = 'var(--red)';
+    document.getElementById('ws-label').textContent = '已断开';
+    wsRetries++;
+    const delay = Math.min(wsRetries * 2000, 30000);
+    log(`WebSocket 断开，${delay/1000}s 后重连...`, 'error');
+    setTimeout(connectWS, delay);
+  };
+
+  ws.onerror = () => {};
+
+  // 心跳
+  setInterval(() => { if (ws.readyState === 1) ws.send('ping'); }, 20000);
+}
+
+connectWS();
+
+// ── 统计 ─────────────────────────────────────────────
+async function refreshStats() {
+  try {
+    const s = await api('/api/stats');
+    document.getElementById('stat-versions').textContent = s.pipeline?.version_count ?? '—';
+    document.getElementById('stat-scenarios').textContent = s.scenarios ?? '—';
+    document.getElementById('stat-ws').textContent = s.ws_clients ?? '0';
+  } catch {}
+}
+
+// ── 场景管理 ──────────────────────────────────────────
+async function loadScenarios() {
+  const data = await api('/api/scenarios');
+  const list = document.getElementById('scenario-list');
+  list.innerHTML = '';
+  if (!data.scenarios || !data.scenarios.length) {
+    list.innerHTML = '<div style="color:var(--text2);font-size:13px">暂无场景</div>';
+    return;
+  }
+  for (const s of data.scenarios) {
+    const div = document.createElement('div');
+    div.className = `scenario-item ${s.scenario_id === currentScenarioId ? 'active' : ''}`;
+    div.innerHTML = `
+      <div>
+        <div class="scenario-name">${s.name}</div>
+        <div class="scenario-meta">${s.scenario_id} | 文档: ${s.doc_count || 0} | 事件: ${s.event_count || 0}</div>
+      </div>
+      <span class="badge badge-blue">${new Date(s.created_at).toLocaleDateString()}</span>
+    `;
+    div.onclick = () => { currentScenarioId = s.scenario_id; loadScenarios(); loadScenarioDetail(s.scenario_id); };
+    list.appendChild(div);
+  }
+  // 更新所有 scenario 选择器
+  updateScenarioSelects(data.scenarios);
+  // 如果有当前选中场景，加载详情
+  if (currentScenarioId) loadScenarioDetail(currentScenarioId);
+}
+
+function updateScenarioSelects(scenarios) {
+  const ids = ['timeline-scenario', 'graph-scenario', 'map-scenario',
+    'ingest-scenario', 'ingest-scenario-json', 'ingest-scenario-nl',
+    'news-scenario', 'random-scenario', 'import-scenario', 'export-scenario'];
+  ids.forEach(id => {
+    const el = document.getElementById(id);
+    if (!el) return;
+    const cur = el.value;
+    el.innerHTML = '<option value="">-- 不关联场景 --</option>' +
+      scenarios.map(s => `<option value="${s.scenario_id}"${s.scenario_id===cur?' selected':''}>${s.name}</option>`).join('');
+  });
+}
+
+async function createScenario() {
+  const name = document.getElementById('new-scenario-name').value.trim();
+  const desc = document.getElementById('new-scenario-desc').value.trim();
+  if (!name) { toast('请输入场景名称', 'error'); return; }
+  const r = await api('/api/scenarios', { method: 'POST', body: JSON.stringify({name, description: desc}) });
+  toast(`场景已创建: ${r.scenario_id}`);
+  log(`📋 新场景: ${name} (${r.scenario_id})`, 'update');
+  document.getElementById('new-scenario-name').value = '';
+  document.getElementById('new-scenario-desc').value = '';
+  currentScenarioId = r.scenario_id;
+  loadScenarios();
+  loadScenarioDetail(r.scenario_id);
+}
+
+function openCreateScenario() {
+  document.getElementById('new-scenario-name').focus();
+  document.getElementById('new-scenario-name').scrollIntoView({ behavior: 'smooth', block: 'center' });
+}
+
+async function loadScenarioDetail(scenarioId) {
+  if (!scenarioId) return;
+  const data = await api(`/api/scenarios/${scenarioId}`);
+  const detail = document.getElementById('scenario-detail');
+  if (!detail) return;
+  if (data.error || !data.scenario) {
+    detail.innerHTML = '<div style="color:var(--text2);padding:20px">场景不存在或已删除</div>';
+    return;
+  }
+  const s = data.scenario;
+  detail.innerHTML = `
+    <div style="margin-bottom:16px">
+      <div style="font-size:16px;font-weight:600;margin-bottom:8px">${s.name}</div>
+      <div style="color:var(--text2);font-size:13px;margin-bottom:8px">${s.description || '无描述'}</div>
+      <div style="color:var(--text2);font-size:12px">创建: ${new Date(s.created_at).toLocaleString()}</div>
+    </div>
+    <div class="grid-3" style="margin-bottom:16px">
+      <div class="stat-card card">
+        <div class="value">${s.doc_count || 0}</div>
+        <div class="label">文档数</div>
+      </div>
+      <div class="stat-card card">
+        <div class="value">${s.event_count || 0}</div>
+        <div class="label">事件数</div>
+      </div>
+      <div class="stat-card card">
+        <div class="value">${s.entity_count || 0}</div>
+        <div class="label">实体数</div>
+      </div>
+    </div>
+    <div style="display:flex;gap:8px">
+      <button class="btn" onclick="deleteScenario('${s.scenario_id}')">🗑️ 删除</button>
+      <button class="btn btn-primary" onclick="showScenarioInPages('${s.scenario_id}')">📊 查看数据</button>
+    </div>
+  `;
+}
+
+async function deleteScenario(scenarioId) {
+  if (!confirm('确定删除该场景？删除后不可恢复。')) return;
+  await api(`/api/scenarios/${scenarioId}`, { method: 'DELETE' });
+  toast('场景已删除');
+  if (currentScenarioId === scenarioId) currentScenarioId = null;
+  loadScenarios();
+}
+
+function showScenarioInPages(scenarioId) {
+  currentScenarioId = scenarioId;
+  document.getElementById('timeline-scenario').value = scenarioId;
+  document.getElementById('graph-scenario').value = scenarioId;
+  document.getElementById('map-scenario').value = scenarioId;
+  showPage('timeline');
+  loadTimeline();
+}
+
+// ── 时间线 ───────────────────────────────────────────
+async function loadTimeline() {
+  const scenarioId = document.getElementById('timeline-scenario')?.value;
+  if (!scenarioId) { document.getElementById('timeline-container').innerHTML = '<div style="color:var(--text2);padding:20px">请先选择场景</div>'; return; }
+  const data = await api(`/api/scenarios/${scenarioId}/timeline`);
+  const container = document.getElementById('timeline-container');
+  if (!data.events.length) {
+    container.innerHTML = '<div style="color:var(--text2);padding:20px">暂无事件</div>';
+    return;
+  }
+  container.innerHTML = data.events.map(ev => `
+    <div style="display:flex;gap:16px;padding:10px;border-bottom:1px solid var(--border)">
+      <div style="min-width:140px;color:var(--text2);font-size:12px">${new Date(ev.timestamp).toLocaleString()}</div>
+      <div style="flex:1">
+        <span class="badge badge-blue" style="margin-right:8px">${ev.event_type}</span>
+        <span style="font-size:14px">${ev.description || ev.event_id}</span>
+        ${ev.location ? `<span style="color:var(--text2);font-size:12px;margin-left:8px">📍 ${ev.location}</span>` : ''}
+      </div>
+      <div style="min-width:80px;text-align:right;font-size:12px;color:var(--text2)">${ev.version_id || ''}</div>
+    </div>
+  `).join('');
+}
+
+// ── 关系图谱 D3.js ────────────────────────────────────
+async function loadGraph() {
+  const scenarioId = document.getElementById('graph-scenario')?.value;
+  const svg = document.getElementById('graph-svg');
+  if (!scenarioId) { svg.innerHTML = '<text x="50%" y="50%" fill="#8b949e" text-anchor="middle" dominant-baseline="middle">请先选择场景</text>'; return; }
+
+  const data = await api(`/api/scenarios/${scenarioId}/relations`);
+  renderGraph(data.nodes || [], data.links || []);
+}
+
+function renderGraph(nodes, links) {
+  const svgEl = document.getElementById('graph-svg');
+  const W = svgEl.clientWidth || 900;
+  const H = 500;
+
+  d3.select('#graph-svg').selectAll('*').remove();
+  const svg = d3.select('#graph-svg');
+
+  if (!nodes.length) {
+    svg.append('text').attr('x', W/2).attr('y', H/2)
+      .attr('fill', '#8b949e').attr('text-anchor', 'middle').text('暂无实体数据');
+    return;
+  }
+
+  const colorMap = { red: '#f85149', blue: '#58a6ff', neutral: '#8b949e' };
+
+  const sim = d3.forceSimulation(nodes)
+    .force('link', d3.forceLink(links).id(d => d.id).distance(120))
+    .force('charge', d3.forceManyBody().strength(-300))
+    .force('center', d3.forceCenter(W/2, H/2))
+    .force('collision', d3.forceCollide(40));
+
+  const g = svg.append('g');
+  svg.call(d3.zoom().on('zoom', e => g.attr('transform', e.transform)));
+
+  // 箭头
+  svg.append('defs').append('marker')
+    .attr('id', 'arrow').attr('viewBox', '0 -5 10 10').attr('refX', 20).attr('refY', 0)
+    .attr('markerWidth', 6).attr('markerHeight', 6).attr('orient', 'auto')
+    .append('path').attr('d', 'M0,-5L10,0L0,5').attr('fill', '#8b949e');
+
+  const link = g.append('g').selectAll('line')
+    .data(links).join('line')
+    .attr('stroke', '#30363d').attr('stroke-width', 1.5).attr('marker-end', 'url(#arrow)');
+
+  const linkLabel = g.append('g').selectAll('text')
+    .data(links).join('text')
+    .attr('fill', '#8b949e').attr('font-size', 10).attr('text-anchor', 'middle')
+    .text(d => d.type);
+
+  const node = g.append('g').selectAll('g')
+    .data(nodes).join('g')
+    .call(d3.drag()
+      .on('start', (e,d) => { if (!e.active) sim.alphaTarget(0.3).restart(); d.fx=d.x; d.fy=d.y; })
+      .on('drag', (e,d) => { d.fx=e.x; d.fy=e.y; })
+      .on('end', (e,d) => { if (!e.active) sim.alphaTarget(0); d.fx=null; d.fy=null; }));
+
+  node.append('circle')
+    .attr('r', d => 16 + (d.combat_power || 0.5) * 12)
+    .attr('fill', d => colorMap[d.side] || '#8b949e')
+    .attr('fill-opacity', 0.85)
+    .attr('stroke', '#0d1117').attr('stroke-width', 2);
+
+  node.append('text')
+    .attr('text-anchor', 'middle').attr('dy', '0.35em')
+    .attr('fill', '#fff').attr('font-size', 11).attr('font-weight', 600)
+    .text(d => d.name.length > 8 ? d.name.slice(0,7)+'…' : d.name);
+
+  node.append('title').text(d => `${d.name}\n类型: ${d.type}\n战力: ${d.combat_power}`);
+
+  sim.on('tick', () => {
+    link.attr('x1', d => d.source.x).attr('y1', d => d.source.y)
+        .attr('x2', d => d.target.x).attr('y2', d => d.target.y);
+    linkLabel.attr('x', d => (d.source.x+d.target.x)/2).attr('y', d => (d.source.y+d.target.y)/2);
+    node.attr('transform', d => `translate(${d.x},${d.y})`);
+  });
+}
+
+// ── 态势地图 Leaflet ──────────────────────────────────
+async function loadMap() {
+  const scenarioId = document.getElementById('map-scenario')?.value;
+
+  if (!leafletMap) {
+    leafletMap = L.map('map').setView([39.9, 116.4], 11);
+    L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+      attribution: '© OpenStreetMap',
+      maxZoom: 18,
+    }).addTo(leafletMap);
+  }
+
+  if (!scenarioId) return;
+
+  const data = await api(`/api/scenarios/${scenarioId}/entities`);
+  // 清除旧 marker
+  leafletMap.eachLayer(l => { if (l instanceof L.Marker || l instanceof L.CircleMarker) leafletMap.removeLayer(l); });
+
+  const colorMap = { red: '#f85149', blue: '#58a6ff', neutral: '#aaa' };
+  for (const e of data.entities) {
+    const coords = e.basic_properties?.coordinates;
+    if (!coords || coords.length < 2) continue;
+    const side = e.basic_properties?.side || 'neutral';
+    const marker = L.circleMarker([coords[0], coords[1]], {
+      radius: 12,
+      fillColor: colorMap[side] || '#aaa',
+      color: '#fff',
+      weight: 2,
+      fillOpacity: 0.85,
+    });
+    marker.bindPopup(`
+      <b>${e.name}</b><br>
+      类型: ${e.entity_type}<br>
+      归属: ${side}<br>
+      状态: ${e.basic_properties?.status || '—'}<br>
+      战力: ${e.statistical_properties?.combat_power ?? '—'}
+    `);
+    marker.addTo(leafletMap);
+  }
+}
+
+// ── 数据写入 ──────────────────────────────────────────
+function switchTab(el, tabId) {
+  document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
+  el.classList.add('active');
+  ['tab-form', 'tab-json', 'tab-nl'].forEach(id => {
+    const div = document.getElementById(id);
+    if (div) div.style.display = id === tabId ? 'block' : 'none';
+  });
+}
+
+async function submitForm() {
+  const title = document.getElementById('form-title').value.trim();
+  const red = document.getElementById('form-red').value.trim() || '红方部队';
+  const blue = document.getElementById('form-blue').value.trim() || '蓝方部队';
+  const loc = document.getElementById('form-location').value.trim() || '未知地点';
+  const type = document.getElementById('form-type').value;
+  const scenarioId = document.getElementById('ingest-scenario').value;
+
+  if (!title) { toast('请输入事件标题', 'error'); return; }
+
+  const body = {
+    title, description: `${red} 与 ${blue} 在 ${loc} 发生 ${type}`,
+    scenario_id: scenarioId || undefined,
+    entities: [
+      { entity_id: `unit-red-${Date.now()}`, entity_type: 'Unit', name: red, name_en: red,
+        basic_properties: { side: 'red', location: loc, status: 'engaged' } },
+      { entity_id: `unit-blue-${Date.now()+1}`, entity_type: 'Unit', name: blue, name_en: blue,
+        basic_properties: { side: 'blue', location: loc, status: 'engaged' } },
+    ],
+    relations: [],
+    events: [
+      { event_id: `evt-${Date.now()}`, event_type: type, timestamp: new Date().toISOString(),
+        location: loc, participants: [], description: `${red} 与 ${blue} 在 ${loc} ${type}` }
+    ],
+  };
+
+  try {
+    const r = await api('/api/ingest/manual', { method: 'POST', body: JSON.stringify(body) });
+    toast(`写入成功: ${r.version_id}`);
+    log(`✅ 手动写入: ${title} → ${r.version_id}`, 'update');
+  } catch(e) { toast(`写入失败: ${e.message}`, 'error'); }
+}
+
+async function submitJson() {
+  const raw = document.getElementById('json-input').value.trim();
+  const scenarioId = document.getElementById('ingest-scenario-json').value;
+  if (!raw) { toast('请输入 JSON', 'error'); return; }
+  let body;
+  try { body = JSON.parse(raw); } catch(e) { toast('JSON 格式错误', 'error'); return; }
+  if (scenarioId) body.scenario_id = scenarioId;
+  try {
+    const r = await api('/api/ingest/manual', { method: 'POST', body: JSON.stringify(body) });
+    toast(`写入成功: ${r.version_id}`);
+  } catch(e) { toast(`写入失败: ${e.message}`, 'error'); }
+}
+
+async function submitNL() {
+  const text = document.getElementById('nl-input').value.trim();
+  const scenarioId = document.getElementById('ingest-scenario-nl').value;
+  if (!text) { toast('请输入描述文本', 'error'); return; }
+  try {
+    const r = await api('/api/ingest/text', { method: 'POST', body: JSON.stringify({text, scenario_id: scenarioId||undefined}) });
+    toast(`写入成功: ${r.version_id}`);
+    log(`🤖 NL写入: ${r.doc_id} → ${r.version_id}`, 'update');
+  } catch(e) { toast(`写入失败: ${e.message}`, 'error'); }
+}
+
+async function submitNews() {
+  const query = document.getElementById('news-query').value.trim();
+  const context = document.getElementById('news-context').value.trim();
+  const scenarioId = document.getElementById('news-scenario').value;
+  if (!query) { toast('请输入检索关键词', 'error'); return; }
+
+  const statusEl = document.getElementById('news-task-status');
+  statusEl.textContent = '⏳ 检索中...';
+  try {
+    const r = await api('/api/ingest/news', { method: 'POST', body: JSON.stringify({query, context, scenario_id: scenarioId||undefined}) });
+    statusEl.textContent = `任务 ${r.task_id} 运行中...`;
+    // 轮询状态
+    const poll = setInterval(async () => {
+      const t = await api(`/api/ingest/tasks/${r.task_id}`);
+      if (t.status === 'completed') {
+        statusEl.textContent = `✅ 完成：归纳 ${t.doc_count} 个文档`;
+        toast(`联网采集完成: ${t.doc_count} 个文档`);
+        clearInterval(poll);
+      } else if (t.status === 'failed') {
+        statusEl.textContent = `❌ 失败: ${t.error}`;
+        clearInterval(poll);
+      }
+    }, 2000);
+  } catch(e) { statusEl.textContent = `❌ ${e.message}`; }
+}
+
+async function submitRandom() {
+  const parties = [];
+  if (document.getElementById('party-red').checked) parties.push('red');
+  if (document.getElementById('party-blue').checked) parties.push('blue');
+  if (document.getElementById('party-neutral').checked) parties.push('neutral');
+  if (!parties.length) { toast('请选择至少一个涉事方', 'error'); return; }
+
+  const count = parseInt(document.getElementById('random-count').value) || 3;
+  const scenarioId = document.getElementById('random-scenario').value;
+
+  try {
+    const r = await api('/api/ingest/random', { method: 'POST',
+      body: JSON.stringify({parties, count, scenario_id: scenarioId||undefined}) });
+    toast(`随机生成 ${r.doc_count} 个事件`);
+    log(`🎲 随机生成: ${r.doc_count} 个事件`, 'update');
+  } catch(e) { toast(`生成失败: ${e.message}`, 'error'); }
+}
+
+async function importFile() {
+  const fileInput = document.getElementById('import-file');
+  const scenarioId = document.getElementById('import-scenario').value;
+  if (!fileInput.files.length) { toast('请选择文件', 'error'); return; }
+
+  const formData = new FormData();
+  formData.append('file', fileInput.files[0]);
+  if (scenarioId) formData.append('scenario_id', scenarioId);
+
+  try {
+    const res = await fetch('/api/ingest/import', { method: 'POST', body: formData });
+    const r = await res.json();
+    toast(`导入成功: ${r.doc_count} 个文档`);
+    log(`📥 导入: ${r.doc_count} 个文档`, 'update');
+  } catch(e) { toast(`导入失败: ${e.message}`, 'error'); }
+}
+
+async function exportScenario() {
+  const scenarioId = document.getElementById('export-scenario').value;
+  if (!scenarioId) { toast('请选择场景', 'error'); return; }
+  window.location.href = `/api/scenarios/${scenarioId}/export`;
+}
+
+function loadJsonExample() {
+  const example = {
+    "doc_id": "evt-demo-001",
+    "doc_type": "event",
+    "source": {"type": "manual", "confidence": 1.0},
+    "meta": {"title": "示例事件", "description": "红方与蓝方在A区发生接触"},
+    "entities": [
+      {"entity_id": "unit-red-demo", "entity_type": "Unit", "name": "红方示范营", "name_en": "Red Demo Bn",
+        "basic_properties": {"side": "red", "location": "A区", "status": "engaged"},
+        "statistical_properties": {"combat_power": 0.75, "morale": 0.80},
+        "capabilities": {"fire_range_km": 5}, "constraints": []}
+    ],
+    "relations": [],
+    "events": [
+      {"event_id": "evt-demo-e1", "event_type": "contact", "timestamp": new Date().toISOString(),
+        "location": "A区", "participants": ["unit-red-demo"], "description": "红方示范营在A区发现蓝方目标"}
+    ],
+    "actions": [], "rules": [], "constraints": [],
+    "ontology_version": {"version_id": "", "parent_version": null, "commit_message": "示例写入"}
+  };
+  document.getElementById('json-input').value = JSON.stringify(example, null, 2);
+}
+
+// ── 版本管理 ──────────────────────────────────────────
+async function loadVersions() {
+  const data = await api('/api/versions?limit=50');
+  const list = document.getElementById('versions-list');
+  if (!data.versions.length) {
+    list.innerHTML = '<div style="color:var(--text2);padding:16px">暂无版本</div>';
+    return;
+  }
+  list.innerHTML = data.versions.map(v => `
+    <div style="padding:12px;border-bottom:1px solid var(--border);display:flex;gap:16px;align-items:center">
+      <span class="badge badge-blue" style="min-width:120px;text-align:center">${v.version_id}</span>
+      <div style="flex:1">
+        <div style="font-size:13px">${v.commit_message || '无提交信息'}</div>
+        <div style="font-size:12px;color:var(--text2)">${v.doc_id} | 实体:${v.entity_count} 关系:${v.relation_count} 事件:${v.event_count}</div>
+      </div>
+      <div style="font-size:12px;color:var(--text2)">${new Date(v.created_at).toLocaleString()}</div>
+      <button class="btn" style="padding:4px 10px;font-size:12px" onclick="rollback('${v.version_id}')">↩ 回退</button>
+    </div>
+  `).join('');
+}
+
+async function rollback(versionId) {
+  if (!confirm(`确认回退到版本 ${versionId}？`)) return;
+  try {
+    const r = await api(`/api/versions/${versionId}/rollback`, { method: 'POST' });
+    toast(`已回退，新版本: ${r.new_version_id}`);
+    loadVersions();
+  } catch(e) { toast(`回退失败: ${e.message}`, 'error'); }
+}
+
+// ── 初始化 ───────────────────────────────────────────
+(async function init() {
+  await loadScenarios();
+  await refreshStats();
+
+  // 定时刷新统计
+  setInterval(refreshStats, 10000);
+})();
+</script>
+
+</body>
+</html>
