@@ -5,6 +5,7 @@
 
 import sys
 import os
+from datetime import datetime
 from contextlib import asynccontextmanager
 
 from fastapi import FastAPI, Request
@@ -15,13 +16,18 @@ sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 from core.orchestrator import SelfCorrectingOrchestrator
 from core.graph_manager import BattlefieldGraphManager
+from ontology.ontology_manager import OntologyManager
 
 orchestrator = None
+ontology_manager = None
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
-    global orchestrator
+    global orchestrator, ontology_manager
+    from ontology.battlefield_ontology import BATTLEFIELD_CONFIG
     orchestrator = SelfCorrectingOrchestrator(user_role="pilot")
+    ontology_manager = OntologyManager()
+    ontology_manager.export_ontology(description=f"2026美伊战争场景 - {len(BATTLEFIELD_CONFIG['factions'])}个参战方")
     print(f"系统初始化完成，用户角色: pilot")
     yield
     print("关闭系统")
@@ -329,6 +335,20 @@ async def reload_graph():
         "status": "success",
         "message": "数据重新加载完成",
         "statistics": stats
+    })
+
+@app.post("/api/export")
+async def export_ontology():
+    manager = OntologyManager()
+    from ontology.battlefield_ontology import BATTLEFIELD_CONFIG
+    version = datetime.now().strftime("%Y%m%d_%H%M%S")
+    description = f"2026美伊战争场景 - {len(BATTLEFIELD_CONFIG['factions'])}个参战方"
+    export_file = manager.export_ontology(version=version, description=description)
+    return JSONResponse(content={
+        "status": "success",
+        "version": version,
+        "description": description,
+        "file": export_file
     })
 
 @app.get("/api/graph")
