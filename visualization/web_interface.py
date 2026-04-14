@@ -308,16 +308,28 @@ async def get_graph():
         try:
             with manager.neo4j_driver.session() as session:
                 result = session.run(
-                    "MATCH (n:Entity) RETURN n.id AS id, properties(n) AS props, labels(n) AS labels"
+                    "MATCH (n:Entity) RETURN properties(n) AS props, labels(n) AS labels"
                 )
                 for record in result:
                     props = record["props"] or {}
+                    node_name = props.get('name', 'Unknown')
                     nodes.append({
-                        'id': record["id"],
+                        'id': node_name,
                         'type': props.get('entity_type', record["labels"][0] if record["labels"] else 'Unknown'),
-                        'name': props.get('name', record["id"]),
+                        'name': node_name,
                         'properties': props
                     })
+
+                rel_result = session.run(
+                    "MATCH (a)-[r]->(b) RETURN a.name AS source, type(r) AS rel_type, b.name AS target LIMIT 500"
+                )
+                for record in rel_result:
+                    if record["source"] and record["target"]:
+                        links.append({
+                            'source': record["source"],
+                            'target': record["target"],
+                            'type': record["rel_type"]
+                        })
         except Exception as e:
             print(f"获取 Neo4j 图数据失败: {e}")
 
