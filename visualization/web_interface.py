@@ -253,21 +253,26 @@ async def chat(request: Request):
     role = data.get('role', 'pilot')
 
     if orchestrator is None:
-        return JSONResponse(content={'response': '系统正在初始化中，请稍后...', 'type': 'error'})
+        orchestrator = SelfCorrectingOrchestrator(user_role=role)
 
-    result = orchestrator.run(message)
+    try:
+        result = orchestrator.run(message)
 
-    if isinstance(result, list):
-        response = result if len(result) > 0 else "未找到匹配的结果"
-    elif isinstance(result, dict):
-        if result.get('status') == 'denied':
-            response = result.get('message', '权限不足')
+        if isinstance(result, list):
+            response = result if len(result) > 0 else "未找到匹配的结果"
+        elif isinstance(result, dict):
+            if result.get('status') == 'denied':
+                response = result.get('message', '权限不足')
+            else:
+                response = result
         else:
-            response = result
-    else:
-        response = str(result) if result else "未找到匹配的结果"
+            response = str(result) if result else "未找到匹配的结果"
 
-    return JSONResponse(content={'response': response, 'type': 'success', 'result': result})
+        return JSONResponse(content={'response': response, 'type': 'success', 'result': result})
+    except Exception as e:
+        import traceback
+        traceback.print_exc()
+        return JSONResponse(content={'response': f'执行出错: {str(e)}', 'type': 'error'}, status_code=500)
 
 @app.post("/set_role")
 async def set_role(request: Request):
