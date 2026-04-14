@@ -319,6 +319,18 @@ async def clear_graph():
     result = manager.clear_graph()
     return JSONResponse(content=result)
 
+@app.post("/api/reload")
+async def reload_graph():
+    manager = BattlefieldGraphManager()
+    manager.clear_graph()
+    manager._load_data_to_neo4j()
+    stats = manager.get_statistics()
+    return JSONResponse(content={
+        "status": "success",
+        "message": "数据重新加载完成",
+        "statistics": stats
+    })
+
 @app.get("/api/graph")
 async def get_graph():
     manager = BattlefieldGraphManager()
