@@ -8,7 +8,7 @@
 两个注册表保持同步。
 """
 
-from skills.base import (
+from odap.tools.base import (
     BaseSkill,
     SkillInput,
     SkillOutput,
@@ -44,11 +44,20 @@ from . import operations
 from . import analysis
 from . import recommendation
 from . import task_management
-from . import ontology_management
+# ontology_management 已移至 odap.biz.ontology, 不再从 tools 导入
+# from . import ontology_management
 from . import policy
 from . import computation
-from . import visualization_skill
 from . import planning
+
+# visualization_skill 有循环依赖问题，暂不自动注册
+# 后续需要修复 visualization_skill.py 中的导入路径
+try:
+    from . import visualization
+    # 如果需要显式注册可视化技能，可以取消注释下面这行
+    # register_skill("visualization", "数据可视化技能", visualization.handler)
+except ImportError as e:
+    print(f"可视化技能模块暂不可用: {e}")
 
 # 暴露新 API
 __all__ = [
