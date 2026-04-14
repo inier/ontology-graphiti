@@ -4,13 +4,13 @@
       "id": "LOC_A_1",
       "type": "Location",
       "properties": {
-        "name": "A区地点1",
+        "name": "波斯湾地点1",
         "coordinates": [
-          37.92000015849584,
-          2.7796565991692335
+          70.03549645923916,
+          52.22620942468077
         ],
         "area": "A",
-        "terrain": "平原"
+        "terrain": "城市"
       },
       "relationships": {
         "contains": [],
@@ -21,13 +21,13 @@
       "id": "LOC_A_2",
       "type": "Location",
       "properties": {
-        "name": "A区地点2",
+        "name": "波斯湾地点2",
         "coordinates": [
-          56.80754876471694,
-          11.40757735816582
+          1.113549116574819,
+          58.93995856631109
         ],
         "area": "A",
-        "terrain": "森林"
+        "terrain": "沙漠"
       },
       "relationships": {
         "contains": [],
@@ -38,13 +38,13 @@
       "id": "LOC_A_3",
       "type": "Location",
       "properties": {
-        "name": "A区地点3",
+        "name": "波斯湾地点3",
         "coordinates": [
-          97.18944229827177,
-          84.12196416757601
+          97.77761585392925,
+          93.8085265400073
         ],
         "area": "A",
-        "terrain": "平原"
+        "terrain": "山地"
       },
       "relationships": {
         "contains": [],
@@ -55,13 +55,13 @@
       "id": "LOC_B_1",
       "type": "Location",
       "properties": {
-        "name": "B区地点1",
+        "name": "伊朗西部地点1",
         "coordinates": [
-          97.97606792078933,
-          63.37193430366972
+          13.924831726378251,
+          55.465344449279876
         ],
         "area": "B",
-        "terrain": "城市"
+        "terrain": "山地"
       },
       "relationships": {
         "contains": [],
@@ -72,13 +72,13 @@
       "id": "LOC_B_2",
       "type": "Location",
       "properties": {
-        "name": "B区地点2",
+        "name": "伊朗西部地点2",
         "coordinates": [
-          2.746737086715445,
-          67.88381887268626
+          23.242075308754018,
+          87.87890945405515
         ],
         "area": "B",
-        "terrain": "山地"
+        "terrain": "沙漠"
       },
       "relationships": {
         "contains": [],
@@ -89,13 +89,13 @@
       "id": "LOC_B_3",
       "type": "Location",
       "properties": {
-        "name": "B区地点3",
+        "name": "伊朗西部地点3",
         "coordinates": [
-          27.007149776225482,
-          45.322643973570706
+          79.68876715157316,
+          3.8723353490730195
         ],
         "area": "B",
-        "terrain": "山地"
+        "terrain": "城市"
       },
       "relationships": {
         "contains": [],
@@ -106,13 +106,13 @@
       "id": "LOC_C_1",
       "type": "Location",
       "properties": {
-        "name": "C区地点1",
+        "name": "伊拉克地点1",
         "coordinates": [
-          71.75516870507114,
-          1.17053602305357
+          53.58335080521479,
+          4.705645372055689
         ],
         "area": "C",
-        "terrain": "城市"
+        "terrain": "平原"
       },
       "relationships": {
         "contains": [],
@@ -123,13 +123,13 @@
       "id": "LOC_C_2",
       "type": "Location",
       "properties": {
-        "name": "C区地点2",
+        "name": "伊拉克地点2",
         "coordinates": [
-          80.47769028786304,
-          21.568420012806566
+          19.349780530225967,
+          7.3757022084303685
         ],
         "area": "C",
-        "terrain": "山地"
+        "terrain": "森林"
       },
       "relationships": {
         "contains": [],
@@ -140,10 +140,10 @@
       "id": "LOC_C_3",
       "type": "Location",
       "properties": {
-        "name": "C区地点3",
+        "name": "伊拉克地点3",
         "coordinates": [
-          69.41408076681375,
-          86.00807901376493
+          78.28829449351306,
+          3.0099980903043333
         ],
         "area": "C",
         "terrain": "城市"
@@ -157,10 +157,10 @@
       "id": "LOC_D_1",
       "type": "Location",
       "properties": {
-        "name": "D区地点1",
+        "name": "黎巴嫩/以色列北部地点1",
         "coordinates": [
-          91.82381966835605,
-          28.029552907633825
+          98.95685153295932,
+          85.88841049697122
         ],
         "area": "D",
         "terrain": "山地"
@@ -174,10 +174,10 @@
       "id": "LOC_D_2",
       "type": "Location",
       "properties": {
-        "name": "D区地点2",
+        "name": "黎巴嫩/以色列北部地点2",
         "coordinates": [
-          72.62331076537836,
-          61.31232583772562
+          56.14434956846828,
+          57.79415609704307
         ],
         "area": "D",
         "terrain": "山地"
@@ -191,13 +191,13 @@
       "id": "LOC_D_3",
       "type": "Location",
       "properties": {
-        "name": "D区地点3",
+        "name": "黎巴嫩/以色列北部地点3",
         "coordinates": [
-          28.514728554827073,
-          70.11601613858294
+          30.02882231026206,
+          0.29263160877999184
         ],
         "area": "D",
-        "terrain": "山地"
+        "terrain": "平原"
       },
       "relationships": {
         "contains": [],
@@ -208,13 +208,13 @@
       "id": "LOC_E_1",
       "type": "Location",
       "properties": {
-        "name": "E区地点1",
+        "name": "红海/也门地点1",
         "coordinates": [
-          17.449614753325516,
-          7.63437196543676
+          27.517452879770175,
+          57.74082738173043
         ],
         "area": "E",
-        "terrain": "城市"
+        "terrain": "森林"
       },
       "relationships": {
         "contains": [],
@@ -225,10 +225,10 @@
       "id": "LOC_E_2",
       "type": "Location",
       "properties": {
-        "name": "E区地点2",
+        "name": "红海/也门地点2",
         "coordinates": [
-          45.247423772393645,
-          16.874759009773054
+          10.18537746174073,
+          9.378293811700045
         ],
         "area": "E",
         "terrain": "森林"
@@ -242,13 +242,13 @@
       "id": "LOC_E_3",
       "type": "Location",
       "properties": {
-        "name": "E区地点3",
+        "name": "红海/也门地点3",
         "coordinates": [
-          49.69769623294523,
-          7.695264335292085
+          4.6608377994716506,
+          53.609500681690136
         ],
         "area": "E",
-        "terrain": "森林"
+        "terrain": "沙漠"
       },
       "relationships": {
         "contains": [],
@@ -258,59 +258,109 @@
   ],
   "military_units": [
     {
-      "id": "UNIT_Bl_1",
+      "id": "UNIT_US-led_Coalition_1",
       "type": "MilitaryUnit",
       "properties": {
-        "name": "Blue Force 步兵部队1",
-        "type": "步兵",
-        "strength": 81,
+        "name": "US-led Coalition 步兵师",
+        "unit_type": "步兵师",
+        "strength": 3844,
         "equipment": [
-          "步枪"
+          "M1艾布拉姆斯坦克",
+          "阿帕奇直升机",
+          "F-35战机",
+          "标枪导弹"
+        ],
+        "status": "行动中",
+        "affiliation": "US-led Coalition",
+        "area": "A"
+      },
+      "relationships": {
+        "located_at": "LOC_A_2",
+        "attached_to": null,
+        "engaged_with": []
+      }
+    },
+    {
+      "id": "UNIT_US-led_Coalition_2",
+      "type": "MilitaryUnit",
+      "properties": {
+        "name": "US-led Coalition 装甲旅",
+        "unit_type": "装甲旅",
+        "strength": 1631,
+        "equipment": [
+          "标枪导弹",
+          "M1艾布拉姆斯坦克",
+          "F-35战机"
+        ],
+        "status": "部署中",
+        "affiliation": "US-led Coalition",
+        "area": "C"
+      },
+      "relationships": {
+        "located_at": "LOC_C_1",
+        "attached_to": null,
+        "engaged_with": []
+      }
+    },
+    {
+      "id": "UNIT_Israel_1",
+      "type": "MilitaryUnit",
+      "properties": {
+        "name": "Israel 步兵旅",
+        "unit_type": "步兵旅",
+        "strength": 3477,
+        "equipment": [
+          "大卫投石索",
+          "F-16战机"
+        ],
+        "status": "行动中",
+        "affiliation": "Israel",
+        "area": "A"
+      },
+      "relationships": {
+        "located_at": "LOC_A_3",
+        "attached_to": null,
+        "engaged_with": []
+      }
+    },
+    {
+      "id": "UNIT_Israel_2",
+      "type": "MilitaryUnit",
+      "properties": {
+        "name": "Israel 装甲师",
+        "unit_type": "装甲师",
+        "strength": 634,
+        "equipment": [
+          "F-16战机",
+          "铁穹系统",
+          "大卫投石索",
+          "梅卡瓦坦克"
         ],
         "status": "待命",
-        "affiliation": "Blue Force",
-        "area": "E"
+        "affiliation": "Israel",
+        "area": "C"
       },
       "relationships": {
-        "located_at": "LOC_E_3",
+        "located_at": "LOC_C_3",
         "attached_to": null,
         "engaged_with": []
       }
     },
     {
-      "id": "UNIT_Bl_2",
+      "id": "UNIT_Iran_1",
       "type": "MilitaryUnit",
       "properties": {
-        "name": "Blue Force 装甲部队2",
-        "type": "装甲",
-        "strength": 145,
+        "name": "Iran 革命卫队步兵",
+        "unit_type": "革命卫队步兵",
+        "strength": 2968,
         "equipment": [
-          "步枪",
-          "雷达"
+          "苏式坦克",
+          "Shahed-136无人机",
+          "海豚潜艇",
+          "弹道导弹"
         ],
         "status": "行动中",
-        "affiliation": "Blue Force",
-        "area": "D"
-      },
-      "relationships": {
-        "located_at": "LOC_D_1",
-        "attached_to": null,
-        "engaged_with": []
-      }
-    },
-    {
-      "id": "UNIT_Re_1",
-      "type": "MilitaryUnit",
-      "properties": {
-        "name": "Red Force 步兵部队1",
-        "type": "步兵",
-        "strength": 199,
-        "equipment": [
-          "导弹",
-          "雷达"
-        ],
-        "status": "行动中",
-        "affiliation": "Red Force",
+        "affiliation": "Iran",
         "area": "B"
       },
       "relationships": {
@@ -320,40 +370,84 @@
       }
     },
     {
-      "id": "UNIT_Re_2",
+      "id": "UNIT_Iran_2",
       "type": "MilitaryUnit",
       "properties": {
-        "name": "Red Force 装甲部队2",
-        "type": "装甲",
-        "strength": 132,
+        "name": "Iran 装甲师",
+        "unit_type": "装甲师",
+        "strength": 4706,
         "equipment": [
-          "坦克",
-          "雷达",
-          "步枪"
+          "海豚潜艇",
+          "弹道导弹",
+          "苏式坦克"
         ],
-        "status": "行动中",
-        "affiliation": "Red Force",
+        "status": "受损",
+        "affiliation": "Iran",
         "area": "D"
       },
       "relationships": {
-        "located_at": "LOC_D_2",
+        "located_at": "LOC_D_1",
         "attached_to": null,
         "engaged_with": []
       }
     },
     {
-      "id": "UNIT_Gr_1",
+      "id": "UNIT_Hezbollah_1",
       "type": "MilitaryUnit",
       "properties": {
-        "name": "Green Insurgents 步兵部队1",
-        "type": "步兵",
-        "strength": 105,
+        "name": "Hezbollah 火箭弹部队",
+        "unit_type": "火箭弹部队",
+        "strength": 655,
         "equipment": [
-          "导弹",
-          "坦克"
+          "RPG",
+          "火箭弹",
+          "AK-47"
         ],
-        "status": "待命",
-        "affiliation": "Green Insurgents",
+        "status": "受损",
+        "affiliation": "Hezbollah",
+        "area": "A"
+      },
+      "relationships": {
+        "located_at": "LOC_A_1",
+        "attached_to": null,
+        "engaged_with": []
+      }
+    },
+    {
+      "id": "UNIT_Hezbollah_2",
+      "type": "MilitaryUnit",
+      "properties": {
+        "name": "Hezbollah 隧道武装",
+        "unit_type": "隧道武装",
+        "strength": 1102,
+        "equipment": [
+          "AK-47",
+          "反坦克导弹",
+          "火箭弹"
+        ],
+        "status": "行动中",
+        "affiliation": "Hezbollah",
+        "area": "B"
+      },
+      "relationships": {
+        "located_at": "LOC_B_2",
+        "attached_to": null,
+        "engaged_with": []
+      }
+    },
+    {
+      "id": "UNIT_IRGC-Iraq_1",
+      "type": "MilitaryUnit",
+      "properties": {
+        "name": "IRGC-Iraq 什叶派民兵",
+        "unit_type": "什叶派民兵",
+        "strength": 981,
+        "equipment": [
+          "迫击炮",
+          "轻武器"
+        ],
+        "status": "行动中",
+        "affiliation": "IRGC-Iraq",
         "area": "C"
       },
       "relationships": {
@@ -363,63 +457,66 @@
       }
     },
     {
-      "id": "UNIT_Gr_2",
+      "id": "UNIT_IRGC-Iraq_2",
       "type": "MilitaryUnit",
       "properties": {
-        "name": "Green Insurgents 装甲部队2",
-        "type": "装甲",
-        "strength": 64,
+        "name": "IRGC-Iraq 装甲部队",
+        "unit_type": "装甲部队",
+        "strength": 4774,
         "equipment": [
-          "火炮",
-          "步枪"
+          "简易爆炸装置",
+          "轻武器"
         ],
-        "status": "受损",
-        "affiliation": "Green Insurgents",
+        "status": "部署中",
+        "affiliation": "IRGC-Iraq",
         "area": "E"
       },
       "relationships": {
-        "located_at": "LOC_E_3",
+        "located_at": "LOC_E_1",
         "attached_to": null,
         "engaged_with": []
       }
     },
     {
-      "id": "UNIT_Ye_1",
+      "id": "UNIT_Houthis_1",
       "type": "MilitaryUnit",
       "properties": {
-        "name": "Yellow Neutral 步兵部队1",
-        "type": "步兵",
-        "strength": 164,
+        "name": "Houthis 步兵",
+        "unit_type": "步兵",
+        "strength": 4653,
         "equipment": [
-          "坦克",
-          "雷达"
-        ],
-        "status": "受损",
-        "affiliation": "Yellow Neutral",
-        "area": "D"
-      },
-      "relationships": {
-        "located_at": "LOC_D_2",
-        "attached_to": null,
-        "engaged_with": []
-      }
-    },
-    {
-      "id": "UNIT_Ye_2",
-      "type": "MilitaryUnit",
-      "properties": {
-        "name": "Yellow Neutral 装甲部队2",
-        "type": "装甲",
-        "strength": 76,
-        "equipment": [
-          "导弹"
+          "反舰导弹",
+          "水雷",
+          "巡航导弹",
+          "无人机"
         ],
         "status": "行动中",
-        "affiliation": "Yellow Neutral",
+        "affiliation": "Houthis",
         "area": "B"
       },
       "relationships": {
         "located_at": "LOC_B_2",
+        "attached_to": null,
+        "engaged_with": []
+      }
+    },
+    {
+      "id": "UNIT_Houthis_2",
+      "type": "MilitaryUnit",
+      "properties": {
+        "name": "Houthis 导弹部队",
+        "unit_type": "导弹部队",
+        "strength": 3007,
+        "equipment": [
+          "巡航导弹",
+          "反舰导弹"
+        ],
+        "status": "待命",
+        "affiliation": "Houthis",
+        "area": "C"
+      },
+      "relationships": {
+        "located_at": "LOC_C_2",
         "attached_to": null,
         "engaged_with": []
       }
@@ -427,131 +524,195 @@
   ],
   "weapon_systems": [
     {
-      "id": "WEAPON_Bl_1",
+      "id": "WEAPON_US-led_Coalition_1",
       "type": "WeaponSystem",
       "properties": {
-        "name": "Blue Force 雷达1",
-        "type": "雷达",
-        "range": 9.4683740863206,
+        "name": "US-led Coalition 宙斯盾雷达",
+        "weapon_type": "宙斯盾雷达",
+        "range": 385.9018038323943,
         "status": "受损",
-        "affiliation": "Blue Force",
-        "area": "E"
+        "affiliation": "US-led Coalition",
+        "area": "C"
       },
       "relationships": {
-        "located_at": "LOC_E_2",
-        "operated_by": "UNIT_Ye_2"
+        "located_at": "LOC_C_2",
+        "operated_by": "UNIT_US-led_Coalition_1"
       }
     },
     {
-      "id": "WEAPON_Bl_2",
+      "id": "WEAPON_US-led_Coalition_2",
       "type": "WeaponSystem",
       "properties": {
-        "name": "Blue Force 导弹2",
-        "type": "导弹",
-        "range": 84.31326974102153,
-        "status": "维修中",
-        "affiliation": "Blue Force",
-        "area": "A"
-      },
-      "relationships": {
-        "located_at": "LOC_A_2",
-        "operated_by": "UNIT_Ye_2"
-      }
-    },
-    {
-      "id": "WEAPON_Re_1",
-      "type": "WeaponSystem",
-      "properties": {
-        "name": "Red Force 雷达1",
-        "type": "雷达",
-        "range": 95.45860181614778,
-        "status": "正常",
-        "affiliation": "Red Force",
-        "area": "A"
-      },
-      "relationships": {
-        "located_at": "LOC_A_1",
-        "operated_by": "UNIT_Re_1"
-      }
-    },
-    {
-      "id": "WEAPON_Re_2",
-      "type": "WeaponSystem",
-      "properties": {
-        "name": "Red Force 导弹2",
-        "type": "导弹",
-        "range": 20.48156852223168,
-        "status": "正常",
-        "affiliation": "Red Force",
-        "area": "B"
-      },
-      "relationships": {
-        "located_at": "LOC_B_2",
-        "operated_by": "UNIT_Re_1"
-      }
-    },
-    {
-      "id": "WEAPON_Gr_1",
-      "type": "WeaponSystem",
-      "properties": {
-        "name": "Green Insurgents 雷达1",
-        "type": "雷达",
-        "range": 16.69676779541261,
-        "status": "维修中",
-        "affiliation": "Green Insurgents",
-        "area": "D"
-      },
-      "relationships": {
-        "located_at": "LOC_D_2",
-        "operated_by": "UNIT_Re_2"
-      }
-    },
-    {
-      "id": "WEAPON_Gr_2",
-      "type": "WeaponSystem",
-      "properties": {
-        "name": "Green Insurgents 导弹2",
-        "type": "导弹",
-        "range": 24.784470098052406,
+        "name": "US-led Coalition 战斧巡航导弹",
+        "weapon_type": "战斧巡航导弹",
+        "range": 262.3721151235492,
         "status": "受损",
-        "affiliation": "Green Insurgents",
-        "area": "D"
-      },
-      "relationships": {
-        "located_at": "LOC_D_1",
-        "operated_by": "UNIT_Bl_1"
-      }
-    },
-    {
-      "id": "WEAPON_Ye_1",
-      "type": "WeaponSystem",
-      "properties": {
-        "name": "Yellow Neutral 雷达1",
-        "type": "雷达",
-        "range": 18.652600041932338,
-        "status": "受损",
-        "affiliation": "Yellow Neutral",
-        "area": "B"
-      },
-      "relationships": {
-        "located_at": "LOC_B_1",
-        "operated_by": "UNIT_Gr_2"
-      }
-    },
-    {
-      "id": "WEAPON_Ye_2",
-      "type": "WeaponSystem",
-      "properties": {
-        "name": "Yellow Neutral 导弹2",
-        "type": "导弹",
-        "range": 60.72893146404009,
-        "status": "受损",
-        "affiliation": "Yellow Neutral",
+        "affiliation": "US-led Coalition",
         "area": "D"
       },
       "relationships": {
         "located_at": "LOC_D_3",
-        "operated_by": "UNIT_Bl_2"
+        "operated_by": "UNIT_Houthis_2"
+      }
+    },
+    {
+      "id": "WEAPON_Israel_1",
+      "type": "WeaponSystem",
+      "properties": {
+        "name": "Israel 铁穹拦截弹",
+        "weapon_type": "铁穹拦截弹",
+        "range": 417.81159914100306,
+        "status": "维修中",
+        "affiliation": "Israel",
+        "area": "D"
+      },
+      "relationships": {
+        "located_at": "LOC_D_1",
+        "operated_by": "UNIT_IRGC-Iraq_1"
+      }
+    },
+    {
+      "id": "WEAPON_Israel_2",
+      "type": "WeaponSystem",
+      "properties": {
+        "name": "Israel 杰里科导弹",
+        "weapon_type": "杰里科导弹",
+        "range": 292.98119972272724,
+        "status": "受损",
+        "affiliation": "Israel",
+        "area": "D"
+      },
+      "relationships": {
+        "located_at": "LOC_D_1",
+        "operated_by": "UNIT_Houthis_1"
+      }
+    },
+    {
+      "id": "WEAPON_Iran_1",
+      "type": "WeaponSystem",
+      "properties": {
+        "name": "Iran Shahed-136无人机",
+        "weapon_type": "Shahed-136无人机",
+        "range": 158.57326969268777,
+        "status": "待发",
+        "affiliation": "Iran",
+        "area": "C"
+      },
+      "relationships": {
+        "located_at": "LOC_C_2",
+        "operated_by": "UNIT_Iran_2"
+      }
+    },
+    {
+      "id": "WEAPON_Iran_2",
+      "type": "WeaponSystem",
+      "properties": {
+        "name": "Iran 弹道导弹",
+        "weapon_type": "弹道导弹",
+        "range": 174.2358163016329,
+        "status": "维修中",
+        "affiliation": "Iran",
+        "area": "E"
+      },
+      "relationships": {
+        "located_at": "LOC_E_1",
+        "operated_by": "UNIT_Iran_2"
+      }
+    },
+    {
+      "id": "WEAPON_Hezbollah_1",
+      "type": "WeaponSystem",
+      "properties": {
+        "name": "Hezbollah 短程火箭弹",
+        "weapon_type": "短程火箭弹",
+        "range": 64.44412173001912,
+        "status": "待发",
+        "affiliation": "Hezbollah",
+        "area": "C"
+      },
+      "relationships": {
+        "located_at": "LOC_C_3",
+        "operated_by": "UNIT_IRGC-Iraq_1"
+      }
+    },
+    {
+      "id": "WEAPON_Hezbollah_2",
+      "type": "WeaponSystem",
+      "properties": {
+        "name": "Hezbollah 反坦克导弹",
+        "weapon_type": "反坦克导弹",
+        "range": 68.44157698556751,
+        "status": "待发",
+        "affiliation": "Hezbollah",
+        "area": "C"
+      },
+      "relationships": {
+        "located_at": "LOC_C_2",
+        "operated_by": "UNIT_Iran_1"
+      }
+    },
+    {
+      "id": "WEAPON_IRGC-Iraq_1",
+      "type": "WeaponSystem",
+      "properties": {
+        "name": "IRGC-Iraq 火箭弹",
+        "weapon_type": "火箭弹",
+        "range": 402.42358572935467,
+        "status": "正常",
+        "affiliation": "IRGC-Iraq",
+        "area": "B"
+      },
+      "relationships": {
+        "located_at": "LOC_B_1",
+        "operated_by": "UNIT_Iran_1"
+      }
+    },
+    {
+      "id": "WEAPON_IRGC-Iraq_2",
+      "type": "WeaponSystem",
+      "properties": {
+        "name": "IRGC-Iraq 简易爆炸装置",
+        "weapon_type": "简易爆炸装置",
+        "range": 139.60456601250095,
+        "status": "正常",
+        "affiliation": "IRGC-Iraq",
+        "area": "C"
+      },
+      "relationships": {
+        "located_at": "LOC_C_3",
+        "operated_by": "UNIT_US-led_Coalition_2"
+      }
+    },
+    {
+      "id": "WEAPON_Houthis_1",
+      "type": "WeaponSystem",
+      "properties": {
+        "name": "Houthis 巡航导弹",
+        "weapon_type": "巡航导弹",
+        "range": 210.14645576743334,
+        "status": "维修中",
+        "affiliation": "Houthis",
+        "area": "C"
+      },
+      "relationships": {
+        "located_at": "LOC_C_3",
+        "operated_by": "UNIT_Israel_2"
+      }
+    },
+    {
+      "id": "WEAPON_Houthis_2",
+      "type": "WeaponSystem",
+      "properties": {
+        "name": "Houthis 弹道导弹",
+        "weapon_type": "弹道导弹",
+        "range": 331.1859813820339,
+        "status": "维修中",
+        "affiliation": "Houthis",
+        "area": "A"
+      },
+      "relationships": {
+        "located_at": "LOC_A_2",
+        "operated_by": "UNIT_US-led_Coalition_1"
       }
     }
   ],
@@ -560,8 +721,8 @@
       "id": "CIV_A_1",
       "type": "CivilianInfrastructure",
       "properties": {
-        "name": "A区医院1",
-        "type": "医院",
+        "name": "波斯湾医院",
+        "facility_type": "医院",
         "status": "正常"
       },
       "relationships": {
@@ -572,108 +733,108 @@
       "id": "CIV_A_2",
       "type": "CivilianInfrastructure",
       "properties": {
-        "name": "A区学校2",
-        "type": "学校",
-        "status": "关闭"
+        "name": "波斯湾学校",
+        "facility_type": "学校",
+        "status": "正常"
       },
       "relationships": {
-        "located_at": "LOC_E_1"
+        "located_at": "LOC_D_3"
       }
     },
     {
       "id": "CIV_B_1",
       "type": "CivilianInfrastructure",
       "properties": {
-        "name": "B区医院1",
-        "type": "医院",
-        "status": "正常"
-      },
-      "relationships": {
-        "located_at": "LOC_A_2"
-      }
-    },
-    {
-      "id": "CIV_B_2",
-      "type": "CivilianInfrastructure",
-      "properties": {
-        "name": "B区学校2",
-        "type": "学校",
-        "status": "受损"
-      },
-      "relationships": {
-        "located_at": "LOC_E_1"
-      }
-    },
-    {
-      "id": "CIV_C_1",
-      "type": "CivilianInfrastructure",
-      "properties": {
-        "name": "C区医院1",
-        "type": "医院",
-        "status": "受损"
-      },
-      "relationships": {
-        "located_at": "LOC_C_3"
-      }
-    },
-    {
-      "id": "CIV_C_2",
-      "type": "CivilianInfrastructure",
-      "properties": {
-        "name": "C区学校2",
-        "type": "学校",
-        "status": "正常"
+        "name": "伊朗西部医院",
+        "facility_type": "医院",
+        "status": "满负荷"
       },
       "relationships": {
         "located_at": "LOC_D_1"
       }
     },
     {
-      "id": "CIV_D_1",
+      "id": "CIV_B_2",
       "type": "CivilianInfrastructure",
       "properties": {
-        "name": "D区医院1",
-        "type": "医院",
-        "status": "受损"
+        "name": "伊朗西部学校",
+        "facility_type": "学校",
+        "status": "满负荷"
       },
       "relationships": {
-        "located_at": "LOC_B_2"
+        "located_at": "LOC_A_3"
       }
     },
     {
-      "id": "CIV_D_2",
+      "id": "CIV_C_1",
       "type": "CivilianInfrastructure",
       "properties": {
-        "name": "D区学校2",
-        "type": "学校",
-        "status": "正常"
+        "name": "伊拉克医院",
+        "facility_type": "医院",
+        "status": "满负荷"
       },
       "relationships": {
         "located_at": "LOC_B_1"
       }
     },
     {
-      "id": "CIV_E_1",
+      "id": "CIV_C_2",
       "type": "CivilianInfrastructure",
       "properties": {
-        "name": "E区医院1",
-        "type": "医院",
+        "name": "伊拉克学校",
+        "facility_type": "学校",
+        "status": "疏散中"
+      },
+      "relationships": {
+        "located_at": "LOC_D_3"
+      }
+    },
+    {
+      "id": "CIV_D_1",
+      "type": "CivilianInfrastructure",
+      "properties": {
+        "name": "黎巴嫩/以色列北部医院",
+        "facility_type": "医院",
         "status": "正常"
       },
       "relationships": {
-        "located_at": "LOC_C_3"
+        "located_at": "LOC_E_3"
+      }
+    },
+    {
+      "id": "CIV_D_2",
+      "type": "CivilianInfrastructure",
+      "properties": {
+        "name": "黎巴嫩/以色列北部学校",
+        "facility_type": "学校",
+        "status": "正常"
+      },
+      "relationships": {
+        "located_at": "LOC_C_2"
+      }
+    },
+    {
+      "id": "CIV_E_1",
+      "type": "CivilianInfrastructure",
+      "properties": {
+        "name": "红海/也门医院",
+        "facility_type": "医院",
+        "status": "受损"
+      },
+      "relationships": {
+        "located_at": "LOC_D_3"
       }
     },
     {
       "id": "CIV_E_2",
       "type": "CivilianInfrastructure",
       "properties": {
-        "name": "E区学校2",
-        "type": "学校",
-        "status": "受损"
+        "name": "红海/也门学校",
+        "facility_type": "学校",
+        "status": "满负荷"
       },
       "relationships": {
-        "located_at": "LOC_D_3"
+        "located_at": "LOC_B_2"
       }
     }
   ],
@@ -682,167 +843,170 @@
       "id": "EVENT_1",
       "type": "BattleEvent",
       "properties": {
-        "type": "补给",
-        "timestamp": "2026-04-07T00:22:58.389002",
-        "description": "战场事件1",
-        "outcome": "平局"
+        "event_type": "iron_dome_interception",
+        "timestamp": "2026-04-09T17:54:17.089830",
+        "description": "战场事件: uav_swarm_attack",
+        "outcome": "目标命中"
       },
       "relationships": {
         "involves": [
-          "UNIT_Ye_1"
+          "UNIT_Hezbollah_2",
+          "UNIT_Hezbollah_1"
         ],
-        "occurs_at": "LOC_B_1"
+        "occurs_at": "LOC_E_1"
       }
     },
     {
       "id": "EVENT_2",
       "type": "BattleEvent",
       "properties": {
-        "type": "防御",
-        "timestamp": "2026-04-05T08:57:26.389516",
-        "description": "战场事件2",
-        "outcome": "成功"
+        "event_type": "uav_swarm_attack",
+        "timestamp": "2026-04-09T00:35:06.089881",
+        "description": "战场事件: iron_dome_interception",
+        "outcome": "任务中止"
       },
       "relationships": {
         "involves": [
-          "UNIT_Gr_2",
-          "UNIT_Gr_1"
+          "UNIT_Israel_1",
+          "UNIT_Iran_1"
         ],
-        "occurs_at": "LOC_B_3"
+        "occurs_at": "LOC_E_1"
       }
     },
     {
       "id": "EVENT_3",
       "type": "BattleEvent",
       "properties": {
-        "type": "侦察",
-        "timestamp": "2026-04-04T04:50:00.389788",
-        "description": "战场事件3",
-        "outcome": "成功"
+        "event_type": "ground_engagement",
+        "timestamp": "2026-04-10T23:39:18.089897",
+        "description": "战场事件: electronic_warfare",
+        "outcome": "任务中止"
       },
       "relationships": {
         "involves": [
-          "UNIT_Re_2"
+          "UNIT_US-led_Coalition_2",
+          "UNIT_Iran_2"
         ],
-        "occurs_at": "LOC_E_1"
+        "occurs_at": "LOC_C_1"
       }
     },
     {
       "id": "EVENT_4",
       "type": "BattleEvent",
       "properties": {
-        "type": "补给",
-        "timestamp": "2026-04-05T11:38:18.389849",
-        "description": "战场事件4",
-        "outcome": "成功"
+        "event_type": "ground_engagement",
+        "timestamp": "2026-04-08T11:59:39.089911",
+        "description": "战场事件: air_strike",
+        "outcome": "目标命中"
       },
       "relationships": {
         "involves": [
-          "UNIT_Bl_2",
-          "UNIT_Ye_1"
+          "UNIT_Hezbollah_2",
+          "UNIT_IRGC-Iraq_1"
         ],
-        "occurs_at": "LOC_E_1"
+        "occurs_at": "LOC_A_1"
       }
     },
     {
       "id": "EVENT_5",
       "type": "BattleEvent",
       "properties": {
-        "type": "攻击",
-        "timestamp": "2026-04-06T14:18:08.389904",
-        "description": "战场事件5",
-        "outcome": "平局"
+        "event_type": "uav_swarm_attack",
+        "timestamp": "2026-04-12T07:05:37.089924",
+        "description": "战场事件: ground_engagement",
+        "outcome": "任务中止"
       },
       "relationships": {
         "involves": [
-          "UNIT_Bl_1",
-          "UNIT_Ye_1"
+          "UNIT_IRGC-Iraq_2",
+          "UNIT_Israel_2"
         ],
-        "occurs_at": "LOC_E_3"
+        "occurs_at": "LOC_B_3"
       }
     },
     {
       "id": "EVENT_6",
       "type": "BattleEvent",
       "properties": {
-        "type": "防御",
-        "timestamp": "2026-04-08T14:55:38.389963",
-        "description": "战场事件6",
-        "outcome": "平局"
+        "event_type": "iranian_missile_launch",
+        "timestamp": "2026-04-12T05:44:38.089937",
+        "description": "战场事件: intelligence_update",
+        "outcome": "任务中止"
       },
       "relationships": {
         "involves": [
-          "UNIT_Ye_1",
-          "UNIT_Bl_1"
+          "UNIT_Hezbollah_2",
+          "UNIT_Israel_2"
         ],
-        "occurs_at": "LOC_E_1"
+        "occurs_at": "LOC_B_3"
       }
     },
     {
       "id": "EVENT_7",
       "type": "BattleEvent",
       "properties": {
-        "type": "补给",
-        "timestamp": "2026-04-08T06:29:14.389998",
-        "description": "战场事件7",
-        "outcome": "失败"
+        "event_type": "ground_engagement",
+        "timestamp": "2026-04-10T13:24:38.089950",
+        "description": "战场事件: civilian_evacuation",
+        "outcome": "目标命中"
       },
       "relationships": {
         "involves": [
-          "UNIT_Ye_2",
-          "UNIT_Re_2"
+          "UNIT_Israel_1",
+          "UNIT_IRGC-Iraq_1"
         ],
-        "occurs_at": "LOC_D_3"
+        "occurs_at": "LOC_C_1"
       }
     },
     {
       "id": "EVENT_8",
       "type": "BattleEvent",
       "properties": {
-        "type": "侦察",
-        "timestamp": "2026-04-05T17:23:35.390028",
-        "description": "战场事件8",
-        "outcome": "成功"
+        "event_type": "uav_swarm_attack",
+        "timestamp": "2026-04-14T19:01:18.089967",
+        "description": "战场事件: iranian_missile_launch",
+        "outcome": "目标命中"
       },
       "relationships": {
         "involves": [
-          "UNIT_Gr_2",
-          "UNIT_Re_1"
+          "UNIT_Houthis_2",
+          "UNIT_Iran_1"
         ],
-        "occurs_at": "LOC_B_2"
+        "occurs_at": "LOC_C_3"
       }
     },
     {
       "id": "EVENT_9",
       "type": "BattleEvent",
       "properties": {
-        "type": "补给",
-        "timestamp": "2026-04-07T01:28:37.390056",
-        "description": "战场事件9",
-        "outcome": "失败"
+        "event_type": "air_strike",
+        "timestamp": "2026-04-09T09:08:28.090034",
+        "description": "战场事件: uav_swarm_attack",
+        "outcome": "目标命中"
       },
       "relationships": {
         "involves": [
-          "UNIT_Bl_2"
+          "UNIT_Israel_1",
+          "UNIT_Iran_2"
         ],
-        "occurs_at": "LOC_B_2"
+        "occurs_at": "LOC_E_3"
       }
     },
     {
       "id": "EVENT_10",
       "type": "BattleEvent",
       "properties": {
-        "type": "撤退",
-        "timestamp": "2026-04-08T10:03:14.390080",
-        "description": "战场事件10",
-        "outcome": "失败"
+        "event_type": "uav_swarm_attack",
+        "timestamp": "2026-04-10T11:31:56.090050",
+        "description": "战场事件: iron_dome_interception",
+        "outcome": "成功拦截"
       },
       "relationships": {
         "involves": [
-          "UNIT_Ye_1",
-          "UNIT_Re_2"
+          "UNIT_Iran_2",
+          "UNIT_IRGC-Iraq_1"
         ],
-        "occurs_at": "LOC_B_3"
+        "occurs_at": "LOC_C_2"
       }
     }
   ],
@@ -851,87 +1015,85 @@
       "id": "MISSION_1",
       "type": "Mission",
       "properties": {
-        "type": "救援",
-        "status": "计划中",
-        "priority": "高",
-        "deadline": "2026-04-16T22:14:09.390110"
+        "mission_type": "后勤补给",
+        "status": "完成",
+        "priority": "紧急",
+        "deadline": "2026-04-16T21:54:48.090065"
       },
       "relationships": {
-        "assigned_to": "UNIT_Gr_2",
+        "assigned_to": "UNIT_IRGC-Iraq_1",
         "targets": [
-          "WEAPON_Gr_1"
+          "UNIT_US-led_Coalition_1"
         ],
-        "located_at": "LOC_D_1"
+        "located_at": "LOC_B_3"
       }
     },
     {
       "id": "MISSION_2",
       "type": "Mission",
       "properties": {
-        "type": "补给",
+        "mission_type": "精确打击",
         "status": "完成",
-        "priority": "中",
-        "deadline": "2026-04-15T22:14:09.390133"
+        "priority": "低",
+        "deadline": "2026-04-19T21:54:48.090081"
       },
       "relationships": {
-        "assigned_to": "UNIT_Ye_2",
+        "assigned_to": "UNIT_US-led_Coalition_1",
         "targets": [
-          "WEAPON_Ye_2"
+          "UNIT_Hezbollah_2"
         ],
-        "located_at": "LOC_E_1"
+        "located_at": "LOC_B_1"
       }
     },
     {
       "id": "MISSION_3",
       "type": "Mission",
       "properties": {
-        "type": "补给",
-        "status": "计划中",
-        "priority": "低",
-        "deadline": "2026-04-16T22:14:09.390159"
+        "mission_type": "人道救援",
+        "status": "完成",
+        "priority": "高",
+        "deadline": "2026-04-17T21:54:48.090181"
       },
       "relationships": {
-        "assigned_to": "UNIT_Gr_1",
+        "assigned_to": "UNIT_Houthis_2",
         "targets": [
-          "WEAPON_Gr_1",
-          "WEAPON_Bl_1"
+          "UNIT_Hezbollah_2"
         ],
-        "located_at": "LOC_E_2"
+        "located_at": "LOC_D_1"
       }
     },
     {
       "id": "MISSION_4",
       "type": "Mission",
       "properties": {
-        "type": "救援",
-        "status": "失败",
+        "mission_type": "人道救援",
+        "status": "计划中",
         "priority": "高",
-        "deadline": "2026-04-15T22:14:09.390181"
+        "deadline": "2026-04-16T21:54:48.090191"
       },
       "relationships": {
-        "assigned_to": "UNIT_Re_1",
+        "assigned_to": "UNIT_IRGC-Iraq_2",
         "targets": [
-          "WEAPON_Ye_2",
-          "WEAPON_Ye_2"
+          "UNIT_US-led_Coalition_1"
         ],
-        "located_at": "LOC_C_1"
+        "located_at": "LOC_E_2"
       }
     },
     {
       "id": "MISSION_5",
       "type": "Mission",
       "properties": {
-        "type": "攻击",
+        "mission_type": "电子干扰",
         "status": "完成",
         "priority": "高",
-        "deadline": "2026-04-11T22:14:09.390204"
+        "deadline": "2026-04-19T21:54:48.090198"
       },
       "relationships": {
-        "assigned_to": "UNIT_Re_1",
+        "assigned_to": "UNIT_Houthis_1",
         "targets": [
-          "WEAPON_Bl_2"
+          "UNIT_IRGC-Iraq_2"
         ],
-        "located_at": "LOC_A_2"
+        "located_at": "LOC_C_3"
       }
     }
   ]

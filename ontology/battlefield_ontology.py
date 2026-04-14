@@ -127,45 +127,76 @@ ROLES = {
     }
 }
 
-# 战场环境配置
+# 战场环境配置 - 2026 美伊战争场景
 BATTLEFIELD_CONFIG = {
     "factions": [
         {
-            "name": "Blue Force",
+            "name": "US-led Coalition",
             "type": "coalition",
-            "strength": 10000,
-            "allies": [],
-            "enemies": ["Red Force", "Green Insurgents"]
+            "description": "美国主导的联军，包括美国和以色列",
+            "strength": 150000,
+            "allies": ["Israel"],
+            "enemies": ["Iran", "Hezbollah", "IRGC-Iraq", "Houthis"]
         },
         {
-            "name": "Red Force",
-            "type": "opposing force",
-            "strength": 8000,
-            "allies": ["Green Insurgents"],
-            "enemies": ["Blue Force"]
+            "name": "Israel",
+            "type": "nation",
+            "description": "以色列国防军，地面行动主力",
+            "strength": 170000,
+            "allies": ["US-led Coalition"],
+            "enemies": ["Iran", "Hezbollah", "IRGC-Iraq", "Houthis"]
         },
         {
-            "name": "Green Insurgents",
-            "type": "insurgent group",
-            "strength": 3000,
-            "allies": ["Red Force"],
-            "enemies": ["Blue Force"]
+            "name": "Iran",
+            "type": "nation",
+            "description": "伊朗伊斯兰革命卫队，主要对手",
+            "strength": 200000,
+            "allies": ["Hezbollah", "IRGC-Iraq", "Houthis"],
+            "enemies": ["US-led Coalition", "Israel"]
         },
         {
-            "name": "Yellow Neutral",
-            "type": "neutral",
-            "strength": 5000,
-            "allies": [],
-            "enemies": []
+            "name": "Hezbollah",
+            "type": "proxy_force",
+            "description": "黎巴嫩真主党，伊朗代理人",
+            "strength": 45000,
+            "allies": ["Iran", "IRGC-Iraq"],
+            "enemies": ["US-led Coalition", "Israel"]
+        },
+        {
+            "name": "IRGC-Iraq",
+            "type": "proxy_force",
+            "description": "伊朗革命卫队伊拉克分支",
+            "strength": 20000,
+            "allies": ["Iran", "Hezbollah"],
+            "enemies": ["US-led Coalition", "Israel"]
+        },
+        {
+            "name": "Houthis",
+            "type": "proxy_force",
+            "description": "也门胡塞武装，伊朗代理人",
+            "strength": 80000,
+            "allies": ["Iran"],
+            "enemies": ["US-led Coalition", "Israel"]
         }
     ],
-    "areas": ["A", "B", "C", "D", "E"],
+    "areas": [
+        {"id": "A", "name": "波斯湾", "description": "美军海军部署区，伊朗海军活动区"},
+        {"id": "B", "name": "伊朗西部", "description": "以色列空袭目标区，伊朗核设施集中区"},
+        {"id": "C", "name": "伊拉克", "description": "美伊边境，IRGC活动区"},
+        {"id": "D", "name": "黎巴嫩/以色列北部", "description": "真主党火箭弹发射区"},
+        {"id": "E", "name": "红海/也门", "description": "胡塞武装袭击区"}
+    ],
     "random_events": [
-        "enemy_reinforcement",
-        "equipment_failure",
-        "weather_change",
-        "civilian_protest",
-        "intelligence_update"
+        "iranian_missile_launch",
+        "uav_swarm_attack",
+        "iron_dome_interception",
+        "electronic_warfare",
+        "cyber_attack",
+        "intelligence_update",
+        "civilian_casualties",
+        "humanitarian_crisis",
+        "prisoner_exchange",
+        "ceasefire_proposal"
     ]
 }
 
