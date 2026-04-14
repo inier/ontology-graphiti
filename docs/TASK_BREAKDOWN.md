@@ -363,3 +363,20 @@ result = await swarm.execute_mission("分析B区威胁并采取行动")
 - **HookExecutor**: Hook 执行器，支持 Pre/Post/Error Hooks
 - **HookContext**: Hook 执行上下文
 - **BuiltinHooks**: 内置 Hooks（审计日志、指标收集、OPA 权限校验）
+
+### Phase 2 扩展: Permission Checker ✅
+
+| 功能模块 | 文件 | 状态 |
+|---------|------|------|
+| PermissionChecker | `core/permission_checker.py` | ✅ |
+| 单元测试 | `tests/test_permission_checker.py` | ✅ (14 tests) |
+
+#### 核心功能
+
+- **PermissionChecker**: 增强版权限校验器，单例模式
+- **PermissionResult**: 详细权限决策结果
+- **check_permission_with_conditions**: 带条件权限检查
+- **simulate_permission**: 权限模拟（What-If 分析）
+- **batch_check_permissions**: 批量权限检查
+- **AuditLogEntry**: 审计日志
+- **get_statistics**: 统计信息
