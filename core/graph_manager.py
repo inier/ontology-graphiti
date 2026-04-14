@@ -967,6 +967,43 @@ class BattlefieldGraphManager:
         self.reserved_tasks.clear()
         print("所有预留任务已清空")
 
+    def clear_graph(self) -> Dict[str, Any]:
+        """
+        清空图谱中的所有数据（仅 Neo4j 模式）
+
+        Returns:
+            清空结果统计
+        """
+        if not self.neo4j_driver:
+            return {"status": "no_neo4j", "cleared": 0}
+
+        try:
+            with self.neo4j_driver.session() as session:
+                before_nodes = session.run("MATCH (n) RETURN count(n) AS cnt").single()["cnt"]
+                before_rels = session.run("MATCH ()-[r]->() RETURN count(r) AS cnt").single()["cnt"]
+
+                session.run("MATCH (n) DETACH DELETE n")
+
+                after_nodes = session.run("MATCH (n) RETURN count(n) AS cnt").single()["cnt"]
+                after_rels = session.run("MATCH ()-[r]->() RETURN count(r) AS cnt").single()["cnt"]
+
+                cleared_nodes = before_nodes - after_nodes
+                cleared_rels = before_rels - after_rels
+
+                print(f"图谱清空完成: 删除了 {cleared_nodes} 个节点和 {cleared_rels} 条关系")
+
+                return {
+                    "status": "success",
+                    "cleared_nodes": cleared_nodes,
+                    "cleared_relationships": cleared_rels,
+                    "remaining_nodes": after_nodes,
+                    "remaining_relationships": after_rels
+                }
+
+        except Exception as e:
+            print(f"图谱清空失败: {e}")
+            return {"status": "error", "error": str(e), "cleared": 0}
+
     def retrieve_rag_context(self, query: str, top_k: int = 5) -> str:
         """
         RAG 上下文检索：基于 Graphiti 的向量搜索 + Episode 回忆，

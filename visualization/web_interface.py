@@ -313,6 +313,12 @@ async def get_stats():
 
     return JSONResponse(content=stats)
 
+@app.post("/api/clear")
+async def clear_graph():
+    manager = BattlefieldGraphManager()
+    result = manager.clear_graph()
+    return JSONResponse(content=result)
+
 @app.get("/api/graph")
 async def get_graph():
     manager = BattlefieldGraphManager()
