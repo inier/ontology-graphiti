@@ -313,11 +313,20 @@ async def get_graph():
                 for record in result:
                     props = record["props"] or {}
                     node_name = props.get('name', 'Unknown')
+
+                    clean_props = {}
+                    for key, value in props.items():
+                        if key.endswith('_embedding'):
+                            continue
+                        if not isinstance(value, (str, int, float, bool, list, dict, type(None))):
+                            continue
+                        clean_props[key] = value
+
                     nodes.append({
                         'id': node_name,
                         'type': props.get('entity_type', record["labels"][0] if record["labels"] else 'Unknown'),
                         'name': node_name,
-                        'properties': props
+                        'properties': clean_props
                     })
 
                 rel_result = session.run(
@@ -331,7 +340,8 @@ async def get_graph():
                             'type': record["rel_type"]
                         })
         except Exception as e:
-            print(f"获取 Neo4j 图数据失败: {e}")
+            import traceback
+            traceback.print_exc()
 
     elif manager._use_fallback and manager.fallback_graph:
         for node_id, attrs in manager.fallback_graph.nodes(data=True):
