@@ -310,15 +310,15 @@ class IntelligenceAgent:
 请在分析中明确引用历史情报中的相关模式（如有），并在 recommendations 中标注 "historical_patterns" 字段。
 """
 
-        system_prompt = f"""你是一个战场情报分析 Agent。你的任务是通过调用工具收集战场数据，然后综合分析生成结构化报告。
+        system_prompt = f"""你是一个领域情报分析 Agent。你的任务是通过调用工具收集领域数据，然后综合分析生成结构化报告。
 
 可用工具包括：
 - search_radar: 搜索雷达系统
 - analyze_domain: 分析领域态势
 - analyze_force_comparison: 分析力量对比
-- analyze_weapon_capabilities: 分析武器能力
-- analyze_civilian_infrastructure: 分析民用基础设施
-- analyze_battle_events: 分析战场事件
+- analyze_weapon_capabilities: 分析系统能力
+- analyze_civilian_infrastructure: 分析基础设施
+- analyze_battle_events: 分析领域事件
 - analyze_entity_status: 分析实体状态
 - query_ontology: 查询本体数据
 
@@ -544,7 +544,7 @@ if __name__ == "__main__":
     # 测试场景
     queries = [
         "分析B区威胁",
-        "当前战场态势如何？",
+        "当前领域态势如何？",
         "搜索D区的雷达系统",
     ]
 

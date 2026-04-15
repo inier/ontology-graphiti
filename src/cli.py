@@ -1,5 +1,5 @@
 """
-AIP Project Entry Point - 战场情报系统主入口
+AIP Project Entry Point - 领域情报系统主入口
 """
 
 import sys
@@ -55,7 +55,7 @@ def print_result(title, result):
 def main():
     print("""
 ╔══════════════════════════════════════════════════════════════╗
-║          🎯 战场情报系统 (Battlefield Intelligence)          ║
+║          🎯 领域情报系统 (Domain Intelligence)          ║
 ║              基于 Graphiti + OPA + Skill 架构               ║
 ╚══════════════════════════════════════════════════════════════╝
     """)
@@ -101,8 +101,8 @@ def main():
     # === 场景 5: 情报分析 ===
     print("\n📍 场景 5: 情报分析 (情报分析员)")
     analyst = SelfCorrectingOrchestrator(user_role="intelligence_analyst")
-    result = analyst.run("分析当前战场态势")
-    print_result("战场态势分析", result)
+    result = analyst.run("分析当前领域态势")
+    print_result("领域态势分析", result)
 
     # === 场景 6: 实体搜索 ===
     print("\n📍 场景 6: 实体搜索")

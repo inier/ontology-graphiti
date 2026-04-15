@@ -1,7 +1,7 @@
 """
-战场态势可视化模块
+领域态势可视化模块
 包含：
-1. 战场图谱可视化
+1. 领域图谱可视化
 2. 处置动态查看
 3. 本体可视化查询
 4. 本体属性聚合
@@ -22,7 +22,7 @@ from odap.infra.graph import GraphManager
 
 class DomainVisualization:
     """
-    战场态势可视化
+    领域态势可视化
     支持graphiti时序知识图谱特性
     """
 
@@ -32,7 +32,7 @@ class DomainVisualization:
         """
         self.graph_manager = GraphManager()
         self.action_history = []
-        print("战场态势可视化模块初始化成功")
+        print("领域态势可视化模块初始化成功")
 
     def _get_fallback_graph(self):
         """
@@ -44,7 +44,7 @@ class DomainVisualization:
     
     def visualize_graph(self, output_file=None):
         """
-        可视化战场图谱
+        可视化领域图谱
 
         Args:
             output_file: 输出文件路径
@@ -211,7 +211,7 @@ class DomainVisualization:
     
     def visualize_domain_status(self, output_file=None):
         """
-        可视化战场状态
+        可视化领域状态
         """
         stats = self.graph_manager.get_graph_statistics()
         
@@ -227,7 +227,7 @@ class DomainVisualization:
         
         if output_file:
             plt.savefig(output_file, dpi=300, bbox_inches="tight")
-            print(f"Battlefield status saved to: {output_file}")
+            print(f"Domain status saved to: {output_file}")
         else:
             plt.show()
 

@@ -1,12 +1,12 @@
 """
 情报技能模块
-实现战场情报收集和分析功能
+实现领域情报收集和分析功能
 
 Category: intelligence
 
 迁移状态：
 - RadarSearchSkill: 已迁移到 BaseSkill（新方式）
-- AnalyzeBattlefieldSkill: 已迁移到 BaseSkill（新方式）
+- AnalyzeDomainSkill: 已迁移到 BaseSkill（新方式）
 - register_skill() 保留向后兼容
 """
 
@@ -79,19 +79,19 @@ class RadarSearchSkill(BaseSkill):
 
 
 # ============================================================
-# AnalyzeBattlefieldSkill（新方式：BaseSkill）
+# AnalyzeDomainSkill（新方式：BaseSkill）
 # ============================================================
 
-class AnalyzeBattlefieldSkill(BaseSkill):
+class AnalyzeDomainSkill(BaseSkill):
     """
-    分析当前战场态势
+    分析当前领域态势
 
     从图谱获取统计信息，生成结构化态势报告和行动建议。
     """
 
     metadata = SkillMetadata(
         name="analyze_domain",
-        description="分析战场态势",
+        description="分析领域态势",
         category="intelligence",
         danger_level="low",
         requires_opa_check=False,
@@ -126,7 +126,7 @@ class AnalyzeBattlefieldSkill(BaseSkill):
 # ============================================================
 
 _radar_skill = RadarSearchSkill()
-_analyze_skill = AnalyzeBattlefieldSkill()
+_domain_skill = AnalyzeDomainSkill()
 
 
 # ============================================================
@@ -151,12 +151,12 @@ def search_radar(area=None):
 
 def analyze_domain():
     """
-    分析战场态势（旧式接口）
+    分析领域态势（旧式接口）
 
     Returns:
-        战场态势分析结果
+        领域态势分析结果
     """
-    result = _analyze_skill.run({})
+    result = _domain_skill.run({})
     if result.success:
         return result.data
     return {}
@@ -176,11 +176,11 @@ register_skill(
 
 register_skill(
     name="analyze_domain",
-    description="分析战场态势",
+    description="分析领域态势",
     handler=analyze_domain,
     category="intelligence",
 )
 
 # 用真正的 BaseSkill 实例覆盖 LegacySkillAdapter
 get_registry().register(_radar_skill)
-get_registry().register(_analyze_skill)
+get_registry().register(_domain_skill)

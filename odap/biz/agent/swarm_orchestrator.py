@@ -1,6 +1,6 @@
 """
 Swarm 编排器核心模块
-基于 OpenHarness Swarm 的多 Agent 协同编排器，实现战场三 Agent（Commander/Intelligence/Operations）的 OODA 循环协同。
+基于 OpenHarness Swarm 的多 Agent 协同编排器，实现领域三 Agent（Commander/Intelligence/Operations）的 OODA 循环协同。
 
 Phase 2: 三 Agent 协同 OODA
 - Slice 2.1: Commander Agent
@@ -298,7 +298,7 @@ class IntelligenceAgentSwarm:
 
 
 class DomainSwarm:
-    """战场多 Agent Swarm 编排器"""
+    """领域多 Agent Swarm 编排器"""
 
     def __init__(self, config: Optional[Dict[str, Any]] = None):
         self.config = config or self._default_config()

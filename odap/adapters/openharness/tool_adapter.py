@@ -1,10 +1,10 @@
 """
 OpenHarness 集成适配模块
-将 OpenHarness 的 Tool/Harness 嵌入战场情报系统
+将 OpenHarness 的 Tool/Harness 嵌入领域情报系统
 
 架构：
 - OpenHarnessToolAdapter: 将 BaseSkill 适配为 OpenHarness Tool
-- BattlefieldHarness: 继承 OpenHarness Harness，注入战场 Tool + OPA 权限
+- DomainHarness: 继承 OpenHarness Harness，注入领域 Tool + OPA 权限
 - 提供 reset/step/run_episode 等 Agent Loop 接口
 
 集成模式：OpenHarness 作为 LLM Agent Loop 引擎，
@@ -127,12 +127,12 @@ class OpenHarnessToolAdapter(Tool):
 
 
 # ============================================================
-# BattlefieldHarness: 战场情报系统 Harness
+# DomainHarness: 领域情报系统 Harness
 # ============================================================
 
-class BattlefieldHarness(Harness if OPENHARNESS_AVAILABLE else object):
+class DomainHarness(Harness if OPENHARNESS_AVAILABLE else object):
     """
-    战场情报分析 Harness
+    领域情报分析 Harness
 
     继承 OpenHarness Harness，注入：
     1. 所有已注册的 Skill（通过 OpenHarnessToolAdapter）
@@ -141,7 +141,7 @@ class BattlefieldHarness(Harness if OPENHARNESS_AVAILABLE else object):
 
     使用示例::
 
-        harness = BattlefieldHarness()
+        harness = DomainHarness()
         obs = harness.reset()
         while not harness.is_done():
             action = llm.decide(obs)
@@ -284,26 +284,26 @@ class BattlefieldHarness(Harness if OPENHARNESS_AVAILABLE else object):
 # 便捷函数
 # ============================================================
 
-def create_harness(user_role: str = "intelligence_analyst") -> Optional['BattlefieldHarness']:
+def create_harness(user_role: str = "intelligence_analyst") -> Optional['DomainHarness']:
     """
-    创建战场 Harness 实例
+    创建领域 Harness 实例
 
     Args:
         user_role: 用户角色
 
     Returns:
-        BattlefieldHarness 或 None（OpenHarness 不可用时）
+        DomainHarness 或 None（OpenHarness 不可用时）
     """
     if not OPENHARNESS_AVAILABLE:
         print("OpenHarness 未安装，使用模拟模式")
         return None
 
     try:
-        harness = BattlefieldHarness(user_role=user_role)
-        print(f"BattlefieldHarness 初始化成功: {len(harness.tools)} 个工具")
+        harness = DomainHarness(user_role=user_role)
+        print(f"DomainHarness 初始化成功: {len(harness.tools)} 个工具")
         return harness
     except Exception as e:
-        print(f"BattlefieldHarness 初始化失败: {e}")
+        print(f"DomainHarness 初始化失败: {e}")
         return None
 
 

@@ -79,7 +79,7 @@ class SelfCorrectingOrchestrator:
             area = area_match.group(1) if area_match else None
             return "search_radar", {"area": area}
 
-        elif "战场" in query_lower and "分析" in query_lower:
+        elif "领域" in query_lower and "分析" in query_lower:
             return "analyze_domain", {}
 
         elif "打击" in query_lower and ("推荐" in query_lower or "目标" in query_lower):
@@ -145,7 +145,7 @@ if __name__ == "__main__":
     result = commander.run("攻击 CIV_A_1")
     print(f"结果: {result}")
     
-    # 测试分析战场态势
-    print("\n3. 测试分析战场态势:")
-    result = commander.run("分析当前战场态势")
+    # 测试分析领域态势
+    print("\n3. 测试分析领域态势:")
+    result = commander.run("分析当前领域态势")
     print(f"结果: {result}")

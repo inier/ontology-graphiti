@@ -1,6 +1,6 @@
 """
 可视化与报告Skill模块
-实现战场态势可视化和报告生成功能
+实现领域态势可视化和报告生成功能
 """
 
 import sys
@@ -128,10 +128,10 @@ def summarize_mission(mission_id):
 
 def generate_domain_report():
     """
-    生成战场态势报告
+    生成领域态势报告
 
     Returns:
-        战场态势报告
+        领域态势报告
     """
     stats = manager.get_graph_statistics()
     data = load_simulation_data()
@@ -147,7 +147,7 @@ def generate_domain_report():
     report = {
         "status": "success",
         "timestamp": datetime.now().isoformat(),
-        "report_title": "战场态势综合报告",
+        "report_title": "领域态势综合报告",
         "summary": {
             "total_entities": stats.get("total_entities", 0),
             "force_comparison": {
@@ -248,7 +248,7 @@ register_skill(
 
 register_skill(
     name="generate_domain_report",
-    description="生成战场态势报告",
+    description="生成领域态势报告",
     handler=generate_domain_report,
     category="visualization")
 

@@ -1,5 +1,5 @@
 """
-战场情报自动收集与更新模块
+领域情报自动收集与更新模块
 """
 
 import sys
@@ -17,7 +17,7 @@ from odap.biz.simulator.data_generator import generate_random_event
 
 class IntelligenceCollector:
     """
-    战场情报收集器
+    领域情报收集器
     """
     
     def __init__(self, update_interval=30):

@@ -1,6 +1,6 @@
 """
 基于FastAPI的异步网页对话界面
-实现战场态势对话功能
+实现领域态势对话功能
 """
 
 import sys
@@ -33,8 +33,8 @@ async def lifespan(app: FastAPI):
     print("关闭系统")
 
 app = FastAPI(
-    title="战场指挥系统",
-    description="基于 Graphiti + OPA + Skill 的智能战场决策平台",
+    title="领域指挥系统",
+    description="基于 Graphiti + OPA + Skill 的智能领域决策平台",
     version="1.0.0",
     lifespan=lifespan
 )
@@ -52,7 +52,7 @@ HTML_PAGE = """<!DOCTYPE html>
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>战场指挥系统</title>
+    <title>领域指挥系统</title>
     <style>
         * { margin: 0; padding: 0; box-sizing: border-box; }
         body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; background: linear-gradient(135deg, #1a1a2e, #16213e); min-height: 100vh; color: #fff; }
@@ -85,8 +85,8 @@ HTML_PAGE = """<!DOCTYPE html>
 <body>
     <div class="container">
         <header>
-            <h1>🎯 战场指挥系统</h1>
-            <p>基于 Graphiti + OPA + Skill 的智能战场决策平台</p>
+            <h1>🎯 领域指挥系统</h1>
+            <p>基于 Graphiti + OPA + Skill 的智能领域决策平台</p>
         </header>
 
         <div class="role-selector">
@@ -96,7 +96,7 @@ HTML_PAGE = """<!DOCTYPE html>
         </div>
 
         <div class="stats">
-            <div class="stat-card"><div class="number" id="totalEntities">-</div><div class="label">战场实体</div></div>
+            <div class="stat-card"><div class="number" id="totalEntities">-</div><div class="label">领域实体</div></div>
             <div class="stat-card"><div class="number" id="totalRadars">-</div><div class="label">雷达总数</div></div>
             <div class="stat-card"><div class="number" id="totalUnits">-</div><div class="label">军事单位</div></div>
             <div class="stat-card"><div class="number" id="conversationCount">0</div><div class="label">对话轮次</div></div>
@@ -105,7 +105,7 @@ HTML_PAGE = """<!DOCTYPE html>
         <div class="quick-commands" id="quickCommands"></div>
 
         <div class="chat-container" id="chatContainer">
-            <div class="message system">您好，我是战场指挥系统的AI助手。请选择您的角色，然后输入您的指令。</div>
+            <div class="message system">您好，我是领域指挥系统的AI助手。请选择您的角色，然后输入您的指令。</div>
         </div>
 
         <div class="input-container">
@@ -124,7 +124,7 @@ var roleCommands = {
     'pilot': [
         { cmd: '帮我看看A区有没有雷达', icon: '🔍', name: 'A区雷达' },
         { cmd: '帮我看看B区有没有雷达', icon: '🔍', name: 'B区雷达' },
-        { cmd: '分析当前战场态势', icon: '📊', name: '战场态势' }
+        { cmd: '分析当前领域态势', icon: '📊', name: '领域态势' }
     ],
     'commander': [
         { cmd: '推荐打击目标', icon: '🎯', name: '打击推荐' },
@@ -132,8 +132,8 @@ var roleCommands = {
         { cmd: '分析力量对比', icon: '⚔️', name: '力量对比' }
     ],
     'intelligence_analyst': [
-        { cmd: '生成战场态势报告', icon: '📋', name: '态势报告' },
-        { cmd: '分析当前战场态势', icon: '📊', name: '战场态势' }
+        { cmd: '生成领域态势报告', icon: '📋', name: '态势报告' },
+        { cmd: '分析当前领域态势', icon: '📊', name: '领域态势' }
     ]
 };
 

@@ -235,7 +235,7 @@ class OntologyManager:
         Args:
             entity_types: 实体类型
             roles: 角色
-            domain_config: 战场配置
+            domain_config: 领域配置
         """
         if entity_types:
             self.current_ontology["entity_types"] = entity_types

@@ -245,7 +245,7 @@ class SimulatorWebService:
     def _build_app(self, static_dir: str = None) -> 'FastAPI':
         app = FastAPI(
             title="ODAP Simulator v2.0",
-            description="战场事件模拟与本体构建平台",
+            description="领域事件模拟与本体构建平台",
             version="2.0.0",
         )
 

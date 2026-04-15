@@ -1,5 +1,5 @@
 """
-战场实体模拟数据生成模块 - 2026 美伊战争场景
+领域实体模拟数据生成模块 - 领域场景
 """
 
 import random
@@ -171,7 +171,7 @@ def generate_simulation_data():
             "properties": {
                 "event_type": random.choice(event_type_map),
                 "timestamp": generate_timestamp().isoformat(),
-                "description": f"战场事件: {event_type_map[i % len(event_type_map)]}",
+                "description": f"领域事件: {event_type_map[i % len(event_type_map)]}",
                 "outcome": random.choice(["成功拦截", "目标命中", "任务中止", "双方僵持"])
             },
             "relationships": {
@@ -256,7 +256,7 @@ if __name__ == "__main__":
     print(f"- 军事单位: {len(data['military_units'])}")
     print(f"- 武器系统: {len(data['weapon_systems'])}")
     print(f"- 民用设施: {len(data['civilian_infrastructures'])}")
-    print(f"- 战场事件: {len(data['battle_events'])}")
+    print(f"- 领域事件: {len(data['battle_events'])}")
     print(f"- 任务: {len(data['missions'])}")
 
     print("\n参战方详情:")

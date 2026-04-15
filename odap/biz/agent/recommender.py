@@ -34,7 +34,7 @@ class DecisionRecommender:
         Returns:
             推荐列表
         """
-        # 收集战场情报
+        # 收集领域情报
         domain_intel = self._collect_domain_intel(area)
         
         # 分析领域态势
@@ -47,13 +47,13 @@ class DecisionRecommender:
     
     def _collect_domain_intel(self, area=None):
         """
-        收集战场情报
+        收集领域情报
         
         Args:
             area: 区域
             
         Returns:
-            战场情报
+            领域情报
         """
         # 查询军事单位
         military_units = self.graph_manager.query_entities(entity_type="MilitaryUnit", area=area)
@@ -64,7 +64,7 @@ class DecisionRecommender:
         # 查询民用设施
         civilian_infrastructures = self.graph_manager.query_entities(entity_type="CivilianInfrastructure", area=area)
         
-        # 查询战场事件
+        # 查询领域事件
         battle_events = self.graph_manager.query_entities(entity_type="BattleEvent")
         
         return {
@@ -79,10 +79,10 @@ class DecisionRecommender:
         分析领域态势
         
         Args:
-            intel: 战场情报
+            intel: 领域情报
             
         Returns:
-            战场分析结果
+            领域分析结果
         """
         # 分析军事单位状态
         military_analysis = self._analyze_military_units(intel["military_units"])
@@ -93,7 +93,7 @@ class DecisionRecommender:
         # 分析民用设施分布
         civilian_analysis = self._analyze_civilian_infrastructures(intel["civilian_infrastructures"])
         
-        # 分析战场事件
+        # 分析领域事件
         event_analysis = self._analyze_battle_events(intel["battle_events"])
         
         return {
@@ -191,10 +191,10 @@ class DecisionRecommender:
     
     def _analyze_battle_events(self, events):
         """
-        分析战场事件
+        分析领域事件
         
         Args:
-            events: 战场事件列表
+            events: 领域事件列表
             
         Returns:
             分析结果
@@ -211,7 +211,7 @@ class DecisionRecommender:
         生成推荐
         
         Args:
-            analysis: 战场分析结果
+            analysis: 领域分析结果
             user_role: 用户角色
             
         Returns:
@@ -241,7 +241,7 @@ class DecisionRecommender:
                     "risk": self._calculate_risk(unit, analysis)
                 })
         
-        # 基于战场事件的推荐
+        # 基于领域事件的推荐
         if analysis["event_analysis"]["recent_events"]:
             for event in analysis["event_analysis"]["recent_events"]:
                 if event["properties"].get("type") == "enemy_reinforcement":
@@ -264,7 +264,7 @@ class DecisionRecommender:
         
         Args:
             target: 目标
-            analysis: 战场分析结果
+            analysis: 领域分析结果
             
         Returns:
             风险等级

@@ -1,6 +1,6 @@
 """
-作战技能模块
-实现战场作战相关功能
+执行技能模块
+实现领域执行相关功能
 
 Category: operations
 Danger Level: high (攻击/指挥操作需要 OPA 权限校验)

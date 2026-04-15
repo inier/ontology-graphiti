@@ -206,7 +206,7 @@ class NewsIngester:
         url_str = urls[0] if urls else ""
 
         prompt = ONTOLOGY_EXTRACT_PROMPT.format(
-            context=context or "战场事件分析",
+            context=context or "领域事件分析",
             text=text,
             date=date_str,
             url=url_str,

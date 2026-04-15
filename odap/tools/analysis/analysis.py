@@ -1,6 +1,6 @@
 """
 分析技能模块
-实现战场态势分析和实体状态分析功能
+实现领域态势分析和实体状态分析功能
 """
 
 import sys
@@ -62,13 +62,13 @@ def analyze_entity_status(entity_id=None, entity_type=None):
 
 def analyze_battle_events(time_range=None):
     """
-    分析战场事件
+    分析领域事件
 
     Args:
         time_range: 时间范围（可选）
 
     Returns:
-        战场事件分析结果
+        领域事件分析结果
     """
     data = load_simulation_data()
     events = data.get("battle_events", [])
@@ -205,10 +205,10 @@ def analyze_civilian_infrastructure():
 
 def get_domain_summary():
     """
-    获取战场态势摘要
+    获取领域态势摘要
 
     Returns:
-        战场态势摘要
+        领域态势摘要
     """
     stats = manager.get_graph_statistics()
 
@@ -233,7 +233,7 @@ register_skill(
 
 register_skill(
     name="analyze_battle_events",
-    description="分析战场事件",
+    description="分析领域事件",
     handler=analyze_battle_events,
     category="analysis")
 
@@ -261,6 +261,6 @@ register_skill(
 
 register_skill(
     name="get_domain_summary",
-    description="获取战场态势摘要",
+    description="获取领域态势摘要",
     handler=get_domain_summary,
     category="analysis")

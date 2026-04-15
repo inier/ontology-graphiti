@@ -85,7 +85,7 @@ def create_plan(goal, constraints=None):
         plan_steps.append({
             "step": 3,
             "action": "threat_assessment",
-            "description": "威胁评估 - 分析战场态势",
+            "description": "威胁评估 - 分析领域态势",
             "estimated_time": "5分钟",
             "skills_required": ["analyze_threat_level", "generate_domain_report"]
         })

@@ -1,6 +1,6 @@
 """
 基于命令行的对话界面
-实现战场态势对话功能
+实现领域态势对话功能
 """
 
 import sys
@@ -10,9 +10,9 @@ sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 from odap.biz.agent.orchestrator import SelfCorrectingOrchestrator
 
-class BattlefieldDialogInterface:
+class DomainDialogInterface:
     """
-    战场对话界面
+    领域对话界面
     """
 
     def __init__(self, user_role="pilot"):
@@ -32,7 +32,7 @@ class BattlefieldDialogInterface:
         开始对话
         """
         print("\n" + "=" * 50)
-        print("🚀 战场指挥系统对话界面")
+        print("🚀 领域指挥系统对话界面")
         print("=" * 50)
         print("输入您的命令，系统将智能路由到对应技能")
         print("输入 'help' 查看可用命令")
@@ -91,10 +91,10 @@ class BattlefieldDialogInterface:
 
 1. 情报查询:
    - "帮我看看B区有没有雷达"
-   - "分析当前战场态势"
+   - "分析当前领域态势"
    - "查看A区的军事单位"
 
-2. 作战命令:
+2. 执行命令:
    - "攻击 RADAR_01" (需要指挥官权限)
    - "指挥 UNIT_01 执行任务"
 
@@ -103,7 +103,7 @@ class BattlefieldDialogInterface:
    - "查看我的任务"
 
 4. 分析报告:
-   - "生成战场态势报告"
+   - "生成领域态势报告"
    - "分析力量对比"
    - "推荐打击目标"
 
@@ -208,12 +208,12 @@ class BattlefieldDialogInterface:
 if __name__ == "__main__":
     import argparse
 
-    parser = argparse.ArgumentParser(description="战场指挥系统对话界面")
+    parser = argparse.ArgumentParser(description="领域指挥系统对话界面")
     parser.add_argument("--role", "-r", default="pilot",
                        choices=["pilot", "commander", "intelligence_analyst"],
                        help="选择用户角色 (默认: pilot)")
 
     args = parser.parse_args()
 
-    dialog = BattlefieldDialogInterface(user_role=args.role)
+    dialog = DomainDialogInterface(user_role=args.role)
     dialog.start_dialog()
