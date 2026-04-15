@@ -256,7 +256,7 @@ class SimulatorWebService:
 
     def _build_app(self, static_dir: str = None) -> 'FastAPI':
         app = FastAPI(
-            title="ODAP Simulator v2.0",
+            title="ODAP Mock Data Generator v2.0",
             description="领域事件模拟与本体构建平台",
             version="2.0.0",
         )
@@ -280,7 +280,7 @@ class SimulatorWebService:
 
         @app.get("/")
         async def root():
-            return {"service": "ODAP Simulator", "version": "2.0.0", "status": "running"}
+            return {"service": "ODAP Mock Data Generator", "version": "2.0.0", "status": "running"}
 
         @app.get("/health")
         async def health():
@@ -525,7 +525,7 @@ class SimulatorWebService:
                 # 发送连接确认
                 await websocket.send_text(json.dumps({
                     "type": "connected",
-                    "message": "ODAP Simulator 实时事件流",
+                    "message": "ODAP Mock Data Generator 实时事件流",
                     "timestamp": datetime.now(timezone.utc).isoformat(),
                 }))
                 while True:
@@ -573,7 +573,7 @@ class SimulatorWebService:
 
     def run(self, log_level: str = "info"):
         """启动 Web 服务"""
-        logger.info(f"启动 ODAP Simulator Web 服务: http://{self.host}:{self.port}")
+        logger.info(f"启动 ODAP Mock Data Generator Web 服务: http://{self.host}:{self.port}")
         uvicorn.run(self.app, host=self.host, port=self.port, log_level=log_level)
 
     async def start_async(self):
