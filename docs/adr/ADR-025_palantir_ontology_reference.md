@@ -1,6 +1,6 @@
-# ADR-035: Palantir AIP Ontology 参考架构
+# Palantir AIP Ontology 参考架构
 
-> **优先级**: P0 | **相关 ADR**: ADR-021, ADR-025, ADR-032, ADR-002
+> **优先级**: P0 | **相关 ADR**: ADR-032, ADR-021, ADR-002
 
 **版本**: 1.0.0 | **日期**: 2026-04-16
 
@@ -15,67 +15,6 @@
 - Properties（属性）
 - Actions（行动）
 - Rules（规则）
-
----
-
-## 2. 与其他 ADR 的关系
-
-```
-┌─────────────────────────────────────────────────────────────────────┐
-│                    本体结构定义层级关系                                      │
-├─────────────────────────────────────────────────────────────────────┤
-│                                                                     │
-│  ADR-021: 领域实体标准本体库                                         │
-│  ┌─────────────────────────────────────────────────────────────┐   │
-│  │ 定义基础实体类型 (Unit/Equipment/Location/Weather/Organization) │   │
-│  │ - 实体类型列表                                               │   │
-│  │ - 中英文名称                                                  │   │
-│  └─────────────────────────────────────────────────────────────┘   │
-│                              │                                      │
-│                              ▼                                      │
-│  ADR-035: Palantir AIP Ontology 参考架构  ← 本文档                    │
-│  ┌─────────────────────────────────────────────────────────────┐   │
-│  │ 定义本体结构规范 (Object Types/Properties/Actions/Rules)     │   │
-│  │ - 属性类型系统 (String/Integer/Float/Boolean/Timestamp/Enum) │   │
-│  │ - 行动定义 (move/attack/defend/reinforce/retreat)          │   │
-│  │ - 关系类型 (located_at/engaged_with/supports/opposes)      │   │
-│  └─────────────────────────────────────────────────────────────┘   │
-│                              │                                      │
-│                              ▼                                      │
-│  ADR-032: 标准化本体文档格式 (OntologyDocument)                      │
-│  ┌─────────────────────────────────────────────────────────────┐   │
-│  │ 定义数据流转格式 (JSON Schema)                               │   │
-│  │ - 顶层字段: entities/relations/events/actions/rules         │   │
-│  │ - 实体四类属性: basic/statistical/capabilities/constraints │   │
-│  │ - 版本化规则、Schema 验证                                   │   │
-│  └─────────────────────────────────────────────────────────────┘   │
-│                                                                     │
-└─────────────────────────────────────────────────────────────────────┘
-```
-
-### 2.1 ADR 职责划分
-
-| ADR | 层级 | 说明 |
-|-----|------|------|
-| **ADR-021** | 类型定义层 | 定义有哪些实体类型（抽象） |
-| **ADR-035** | 结构规范层 | 定义实体的属性/行为/关系（参考 Palantir） |
-| **ADR-032** | 数据格式层 | 定义如何序列化和传输（具体实现） |
-
-### 2.2 ADR-025 的角色
-
-ADR-025 (OpenHarness 多智能体协同) 与本体的关系：
-
-```
-ADR-025 定义了 OODA 闭环中的 Agent 角色：
-- Intelligence Agent → 感知本体变化 → 写入 Graphiti
-- Commander Agent → 基于本体状态决策
-- Operations Agent → 执行行动 → 更新本体
-
-ADR-035 定义的本体结构是 Agent 协作的基础：
-- Agent 通过 Object Types 理解世界
-- Agent 通过 Actions 作用于世界
-- Agent 通过 Properties 评估状态
-```
 
 ---
 
@@ -378,6 +317,6 @@ class OntologyValidator:
 
 ## 6. 相关文档
 
-- [ADR-032: 标准化本体文档格式](ADR-032_standard_ontology_document_format.md)
-- [ADR-021: 领域实体标准本体库](ADR-021_领域实体标准本体库.md)
-- [Ontology 模块](../modules/ontology/DESIGN.md)
+- [ADR-032: 标准化本体文档格式](../../adr/ADR-032_standard_ontology_document_format.md)
+- [ADR-021: 领域实体标准本体库](../../adr/ADR-021_领域实体标准本体库.md)
+- [Ontology 模块](../../modules/ontology/DESIGN.md)
