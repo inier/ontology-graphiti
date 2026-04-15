@@ -177,7 +177,7 @@ def main():
 
 
 def run_web_simulator():
-    """场景 8: 启动 ODAP Simulator Web 服务
+    """场景 8: 启动 ODAP Mock Data Web 服务
 
     提供:
     - REST API: 场景管理 / 数据写入 / 版本管理
@@ -188,17 +188,17 @@ def run_web_simulator():
     """
     import argparse
 
-    parser = argparse.ArgumentParser(description="ODAP Simulator Web 服务")
+    parser = argparse.ArgumentParser(description="ODAP Mock Data Web 服务")
     parser.add_argument("--web", action="store_true", help="启动 Web 模拟器")
     parser.add_argument("--port", type=int, default=8765, help="服务端口 (默认 8765)")
     parser.add_argument("--host", type=str, default="0.0.0.0", help="监听地址 (默认 0.0.0.0)")
     args = parser.parse_args()
 
     try:
-        from odap.web.api.app import SimulatorWebService
+        from odap.web.api.app import MockDataWebService
         print(f"""
 ╔══════════════════════════════════════════════════════════════╗
-║            🏛️ ODAP Simulator Web Service v2.0               ║
+║            🏛️ ODAP Mock Data Web Service v2.0               ║
 ╚══════════════════════════════════════════════════════════════╝
 
 📡 前端 UI:  http://{args.host}:{args.port}/ui/
@@ -208,7 +208,7 @@ def run_web_simulator():
 启动中...
 """)
 
-        service = SimulatorWebService(host=args.host, port=args.port)
+        service = MockDataWebService(host=args.host, port=args.port)
         service.run()
 
     except ImportError as e:

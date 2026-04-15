@@ -1,6 +1,6 @@
-# 战场情报分析与打击决策系统
+# 情报分析与决策系统
 
-基于 Graphiti + OPA + Skill 架构的智能战场决策系统，参考 Palantir AIP 架构设计。
+基于 Graphiti + OPA + Skill 架构的智能决策系统，参考 Palantir AIP 架构设计。
 
 ## 🏗️ 核心架构
 

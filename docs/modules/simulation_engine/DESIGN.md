@@ -1,6 +1,6 @@
 # 模拟推演引擎 (Simulation Engine) - 设计文档 v2.0
 
-> **优先级**: P0（Phase 3 核心） | **相关 ADR**: ADR-018, ADR-031, ADR-032, ADR-021, ADR-027
+> **优先级**: P0（Phase 3 核心） | **相关 ADR**: ADR-018, ADR-031, ADR-032, ADR-027
 
 **版本**: 2.0.0 | **日期**: 2026-04-14 | **基于**: Phase 2 SimulationEngine v1 + 新需求规范
 
@@ -103,7 +103,7 @@ class SimulatorWebService:
         self._clients: set[WebSocket] = set()
         
         # 挂载静态前端
-        self.app.mount("/static", StaticFiles(directory="simulator_ui"), name="static")
+        self.app.mount("/static", StaticFiles(directory="static"), name="static")
         
         # 注册路由
         self._register_routes()
@@ -264,9 +264,47 @@ class SimulatorWebService:
 
 ---
 
-## 4. Layer 2: 数据采集与归纳
+## 4. Layer 2: 数据采集与归纳（职责说明）
 
-### 4.1 联网检索采集（NewsIngester）
+> ⚠️ **重要说明**: Layer 2 数据采集与归纳属于**数据准备阶段**，职责归属 `odap/biz/ontology/mock_data/` 模块。
+>
+> Simulation Engine 的职责是**模拟推演执行**，不是数据准备。
+
+### 4.1 职责划分
+
+| 阶段 | 模块 | 职责 |
+|------|------|------|
+| **数据准备** | `mock_data/` | 联网检索、随机生成、手动输入、导入导出 |
+| **模拟推演** | `simulation_engine/` | 事件调度、状态转移、OODA 闭环、决策执行 |
+
+### 4.2 数据采集组件（位于 mock_data/）
+
+详细设计见 [Mock 数据生成模块](../../adr/README.md)。
+
+| 组件 | 位置 | 说明 |
+|------|------|------|
+| `NewsIngester` | `mock_data/` | 联网检索归纳 |
+| `ManualInputHandler` | `mock_data/` | 手动输入处理 |
+| `RandomEventGenerator` | `mock_data/` | 随机事件生成 |
+| `OntologyDocumentIO` | `mock_data/` | 导入导出管理 |
+
+### 4.3 Simulation Engine 的数据消费
+
+Simulation Engine 通过以下方式获取数据：
+
+```python
+# Simulation Engine 只负责推演执行
+# 数据来源由外部（mock_data 或其他模块）通过 API 写入
+
+class SimulationEngine:
+    def __init__(self, scenario_store: ScenarioStore):
+        self.scenario_store = scenario_store  # 通过 API 获取预置数据
+
+    async def load_scenario(self, scenario_id: str):
+        """从 scenario_store 加载预置场景数据"""
+        scenario = await self.scenario_store.get(scenario_id)
+        self.current_state = scenario.to_state()
+
 
 ```python
 # core/news_ingester.py
@@ -334,111 +372,6 @@ class NewsIngester:
         )
         response = await self.llm.complete(prompt)
         return self._parse_json_response(response)
-```
-
-### 4.2 手动输入（ManualInputHandler）
-
-```python
-class ManualInputHandler:
-    """
-    处理用户通过 Web 界面手动输入的动态信息
-    
-    输入模式：
-    1. 结构化表单（基于 JSON Schema 自动渲染）
-    2. 自由 JSON 粘贴（服务端验证）
-    3. 自然语言输入 → LLM 转换 → OntologyDocument
-    """
-    
-    async def from_form(self, form_data: dict) -> OntologyDocument:
-        """从表单数据构建 OntologyDocument"""
-    
-    async def from_json(self, raw_json: str) -> OntologyDocument:
-        """验证并解析 JSON 字符串"""
-    
-    async def from_natural_language(self, text: str) -> OntologyDocument:
-        """自然语言 → OntologyDocument（使用 LLM 转换）"""
-```
-
-### 4.3 随机生成（RandomEventGenerator）
-
-```python
-class RandomEventGenerator:
-    """
-    按涉事方和事件模板自动随机生成动态信息
-    
-    参考 NetLogo 多智能体随机行为模型：
-    - 每个涉事方有行为概率表（patrol/attack/retreat/reinforce）
-    - 基于当前状态（morale/supply/combat_power）权重调整
-    - 事件输出符合 OntologyDocument 格式
-    """
-    
-    PARTY_BEHAVIOR_PROFILES = {
-        "red": {
-            "attack": 0.4,
-            "patrol": 0.3,
-            "reinforce": 0.2,
-            "retreat": 0.1,
-        },
-        "blue": {
-            "attack": 0.3,
-            "patrol": 0.35,
-            "reinforce": 0.25,
-            "retreat": 0.1,
-        },
-        "neutral": {
-            "patrol": 0.6,
-            "evacuate": 0.3,
-            "report": 0.1,
-        }
-    }
-    
-    async def generate(
-        self,
-        parties: list[str],
-        scenario_context: dict,
-        count: int = 1,
-        use_llm_for_description: bool = True,
-    ) -> list[OntologyDocument]:
-        """
-        按涉事方生成随机事件
-        
-        参数:
-        - parties: ["red", "blue"] 参与方列表
-        - scenario_context: 当前场景状态（影响行为概率权重）
-        - count: 生成事件数量
-        - use_llm_for_description: 是否用 LLM 生成可读描述
-        """
-```
-
-### 4.4 导入/导出
-
-```python
-class OntologyDocumentIO:
-    """
-    OntologyDocument 导入/导出管理
-    
-    文件格式: .odoc.json
-    支持：单文档、场景包（多文档 + 版本链）、全量本体快照
-    """
-    
-    async def export_document(self, doc_id: str) -> bytes:
-        """导出单个文档为 .odoc.json"""
-    
-    async def export_scenario(self, scenario_id: str) -> bytes:
-        """导出整个场景（含所有事件和版本链）"""
-    
-    async def export_ontology_snapshot(self) -> bytes:
-        """导出当前全量本体快照"""
-    
-    async def import_file(self, content: bytes) -> list[OntologyDocument]:
-        """
-        导入 .odoc.json
-        步骤：
-        1. JSON Schema 验证
-        2. 冲突检测（doc_id 去重）
-        3. 版本连续性检查
-        4. 批量触发热写入
-        """
 ```
 
 ---
@@ -674,7 +607,7 @@ class OntologyEntity:
 | **Palantir AIP** | 本体对象类型/属性/行动/规则四层结构 | `OntologyDocument` 格式设计 |
 | **WorldModels** | 时序推演状态转移模型 | `SimulationEngine._simulate_step()` 增强 |
 | **OpenCog AtomSpace** | 实时知识图谱更新无需重启 | `OntologyHotWritePipeline` 热写入机制 |
-| **STANAG 5500** | 军事实体属性标准（位置/状态/能力） | `OntologyEntity` 基础属性命名 |
+| **Domain Entity Standards** | 领域实体属性标准（位置/状态/能力） | `OntologyEntity` 基础属性命名 |
 
 ---
 
@@ -724,7 +657,7 @@ class OntologyEntity:
 1. 用户输入事件关键词 → 联网检索归纳 → 写入图谱 → Web 时间线实时更新（全流程 < 30s）
 2. 手动输入动态信息 → 本体热写入 → Intelligence Agent RAG 立即感知（无需重启）
 3. Web 界面导出 .odoc.json → 重新导入 → 数据一致（往返幂等）
-4. 随机生成10个事件（红方/蓝方各5个）→ 关系图谱正确显示涉事方节点和边
+4. 随机生成10个事件 → 关系图谱正确显示节点和边
 5. 回退到历史版本 → 图谱状态恢复 → 时间线对应更新
 ```
 
@@ -740,9 +673,9 @@ class OntologyEntity:
 ---
 
 **相关文档**:
+- [ADR-018: 领域模拟推演引擎](../../adr/ADR-018_domain_simulator_engine.md)
 - [ADR-031: 模拟器 Web 可视化与实时本体热写入](../../adr/ADR-031_simulator_web_visualization_realtime_ontology.md)
 - [ADR-032: 标准化本体文档格式](../../adr/ADR-032_standard_ontology_document_format.md)
-- [ADR-018: 模拟领域数据生成引擎](../../adr/ADR-018_模拟领域数据生成引擎.md)
-- [ADR-021: 战争实体标准本体库](../../adr/ADR-021_战争实体标准本体库.md)
 - [Swarm 编排模块设计](../swarm_orchestrator/DESIGN.md)
 - [Hook 系统设计](../hook_system/DESIGN.md)
+- [Mock 数据生成模块](../../adr/README.md) - 数据准备阶段

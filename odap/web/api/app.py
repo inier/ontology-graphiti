@@ -159,17 +159,29 @@ class ScenarioStore:
 
         links = []
         entity_ids = {e["id"] for e in nodes}
+
         for doc in docs:
-            for rel in doc.get("relations", []):
-                src = rel.get("source_entity", "")
-                tgt = rel.get("target_entity", "")
-                if src in entity_ids and tgt in entity_ids:
-                    links.append({
-                        "source": src,
-                        "target": tgt,
-                        "type": rel.get("relation_type", "unknown"),
-                        "id": rel.get("relation_id", ""),
-                    })
+            for entity in doc.get("entities", []):
+                entity_id = entity.get("entity_id", "")
+                rels = entity.get("relationships", {})
+                rel_types = ["contains", "adjacent_to", "located_at", "attached_to", "engaged_with", "communicates_with", "supports", "opposes"]
+                for rel_type in rel_types:
+                    target_id = rels.get(rel_type)
+                    if target_id and target_id in entity_ids and entity_id != target_id:
+                        links.append({
+                            "source": entity_id,
+                            "target": target_id,
+                            "type": rel_type,
+                            "id": f"{entity_id}-{target_id}-{rel_type}",
+                        })
+                    for target_id in rels.get(rel_type, []):
+                        if target_id in entity_ids and entity_id != target_id:
+                            links.append({
+                                "source": entity_id,
+                                "target": target_id,
+                                "type": rel_type,
+                                "id": f"{entity_id}-{target_id}-{rel_type}",
+                            })
 
         return {"nodes": nodes, "links": links}
 
@@ -259,7 +271,7 @@ class SimulatorWebService:
 
         # 静态文件
         _static_dir = static_dir or os.path.join(
-            os.path.dirname(os.path.dirname(__file__)), "simulator_ui"
+            os.path.dirname(os.path.dirname(__file__)), "static"
         )
         if os.path.exists(_static_dir):
             app.mount("/ui", StaticFiles(directory=_static_dir, html=True), name="static")
