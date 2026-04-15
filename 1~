@@ -1,0 +1,22 @@
+Traceback (most recent call last):
+Traceback (most recent call last):
+  File "<string>", line 2, in <module>
+  File "/Users/caec/workspace/ontology/graphiti/odap/infra/graph/__init__.py", line 2, in <module>
+  File "<string>", line 2, in <module>
+  File "/Users/caec/workspace/ontology/graphiti/odap/infra/graph/__init__.py", line 2, in <module>
+    from .graph_service import BattlefieldGraphManager
+    from .graph_service import BattlefieldGraphManager
+  File "/Users/caec/workspace/ontology/graphiti/odap/infra/graph/graph_service.py", line 37, in <module>
+  File "/Users/caec/workspace/ontology/graphiti/odap/infra/graph/graph_service.py", line 37, in <module>
+    from data.simulation_data import load_simulation_data
+  File "/Users/caec/workspace/ontology/graphiti/data/__init__.py", line 13, in <module>
+    from data.simulation_data import load_simulation_data
+  File "/Users/caec/workspace/ontology/graphiti/data/__init__.py", line 13, in <module>
+    from odap.biz.simulator.data_generator import generate_simulation_data, load_simulation_data
+    from odap.biz.simulator.data_generator import generate_simulation_data, load_simulation_data
+  File "/Users/caec/workspace/ontology/graphiti/odap/biz/simulator/__init__.py", line 2, in <module>
+  File "/Users/caec/workspace/ontology/graphiti/odap/biz/simulator/__init__.py", line 2, in <module>
+    from .engine import SimulatorEngine
+    from .engine import SimulatorEngine
+ImportError: cannot import name 'SimulatorEngine' from 'odap.biz.simulator.engine' (/Users/caec/workspace/ontology/graphiti/odap/biz/simulator/engine.py)
+ImportError: cannot import name 'SimulatorEngine' from 'odap.biz.simulator.engine' (/Users/caec/workspace/ontology/graphiti/odap/biz/simulator/engine.py)
