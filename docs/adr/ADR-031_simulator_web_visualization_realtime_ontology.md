@@ -147,6 +147,6 @@ class OntologyHotWritePipeline:
 
 ## 相关 ADR
 - ADR-018: 模拟领域数据生成引擎（被本 ADR 扩展）
-- ADR-021: 领域实体标准本体库（本体格式来源）
+- ADR-036: Palantir AIP Ontology 参考架构（本体格式来源）
 - ADR-027: Hook 系统作为可扩展性核心（热写入通知机制）
 - ADR-032: 标准化本体 JSON 格式（OntologyDocument 格式定义）

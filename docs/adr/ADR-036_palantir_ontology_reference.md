@@ -1,6 +1,6 @@
-# Palantir AIP Ontology 参考架构
+# ADR-036: Palantir AIP Ontology 参考架构
 
-> **优先级**: P0 | **相关 ADR**: ADR-032, ADR-021, ADR-002
+> **优先级**: P0 | **相关 ADR**: ADR-032, ADR-002
 
 **版本**: 1.0.0 | **日期**: 2026-04-16
 
@@ -318,5 +318,5 @@ class OntologyValidator:
 ## 6. 相关文档
 
 - [ADR-032: 标准化本体文档格式](../../adr/ADR-032_standard_ontology_document_format.md)
-- [ADR-021: 领域实体标准本体库](../../adr/ADR-021_领域实体标准本体库.md)
+- [ADR-036: Palantir AIP Ontology 参考架构](../../adr/ADR-036_palantir_ontology_reference.md)
 - [Ontology 模块](../../modules/ontology/DESIGN.md)
