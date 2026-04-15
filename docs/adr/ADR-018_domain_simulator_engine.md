@@ -51,6 +51,6 @@
 详细设计见：
 - [ADR-031](ADR-031_simulator_web_visualization_realtime_ontology.md)
 - [ADR-032](ADR-032_standard_ontology_document_format.md)
-- [Simulation Engine DESIGN.md v2.0](../modules/simulation_engine/DESIGN.md)
+- [Simulator DESIGN.md v2.0](../modules/simulator/DESIGN.md)
 
 ---
