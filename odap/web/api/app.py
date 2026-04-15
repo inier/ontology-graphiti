@@ -188,8 +188,8 @@ class ScenarioStore:
         调用 graph_manager 的加载接口
         """
         try:
-            from odap.infra.graph import BattlefieldGraphManager
-            manager = BattlefieldGraphManager()
+            from odap.infra.graph import GraphManager
+            manager = GraphManager()
             manager.clear_graph()
             manager._load_data_to_neo4j()
             return {"status": "success", "synced_scenario": scenario_id}

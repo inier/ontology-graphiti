@@ -18,9 +18,9 @@ from collections import defaultdict
 
 sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
-from odap.infra.graph import BattlefieldGraphManager
+from odap.infra.graph import GraphManager
 
-class BattlefieldVisualization:
+class DomainVisualization:
     """
     战场态势可视化
     支持graphiti时序知识图谱特性
@@ -30,7 +30,7 @@ class BattlefieldVisualization:
         """
         初始化可视化模块
         """
-        self.graph_manager = BattlefieldGraphManager()
+        self.graph_manager = GraphManager()
         self.action_history = []
         print("战场态势可视化模块初始化成功")
 
@@ -99,7 +99,7 @@ class BattlefieldVisualization:
         
         nx.draw_networkx_edge_labels(graph, pos, edge_labels=edge_labels, font_size=6, font_color="#666666")
         
-        plt.title("Battlefield Situation Graph", fontsize=16)
+        plt.title("Domain Situation Graph", fontsize=16)
         plt.axis("off")
         plt.tight_layout()
         
@@ -109,7 +109,7 @@ class BattlefieldVisualization:
         else:
             plt.show()
     
-    def create_interactive_visualization(self, output_file="battlefield_visualization.html"):
+    def create_interactive_visualization(self, output_file="domain_visualization.html"):
         """
         创建交互式可视化
         """
@@ -194,12 +194,12 @@ class BattlefieldVisualization:
         
         fig = go.Figure(data=[edge_trace, node_trace],
                      layout=go.Layout(
-                        title=dict(text="Battlefield Interactive Graph", font=dict(size=16)),
+                        title=dict(text="Domain Interactive Graph", font=dict(size=16)),
                         showlegend=False,
                         hovermode="closest",
                         margin=dict(b=20,l=5,r=5,t=40),
                         annotations=[ dict(
-                            text="Battlefield Visualization",
+                            text="Domain Visualization",
                             showarrow=False,
                             xref="paper", yref="paper",
                             x=0.005, y=-0.002 ) ],
@@ -209,7 +209,7 @@ class BattlefieldVisualization:
         pio.write_html(fig, file=output_file, auto_open=False)
         print(f"Interactive visualization saved to: {output_file}")
     
-    def visualize_battlefield_status(self, output_file=None):
+    def visualize_domain_status(self, output_file=None):
         """
         可视化战场状态
         """
@@ -223,7 +223,7 @@ class BattlefieldVisualization:
         plt.figure(figsize=(10, 8))
         plt.pie(counts, labels=entity_types, colors=colors, autopct='%1.1f%%', startangle=140)
         plt.axis('equal')
-        plt.title('Battlefield Entity Distribution', fontsize=16)
+        plt.title('Domain Entity Distribution', fontsize=16)
         
         if output_file:
             plt.savefig(output_file, dpi=300, bbox_inches="tight")
@@ -479,11 +479,11 @@ class BattlefieldVisualization:
         return results
 
 if __name__ == "__main__":
-    viz = BattlefieldVisualization()
+    viz = DomainVisualization()
     
-    viz.visualize_graph("battlefield_graph.png")
-    viz.create_interactive_visualization("battlefield_visualization.html")
-    viz.visualize_battlefield_status("battlefield_status.png")
+    viz.visualize_graph("domain_graph.png")
+    viz.create_interactive_visualization("domain_visualization.html")
+    viz.visualize_domain_status("domain_status.png")
     viz.visualize_action_dynamics("action_dynamics.html")
     viz.visualize_ontology_query("ontology_query.html")
     viz.visualize_ontology_aggregation("ontology_aggregation.html")

@@ -1,4 +1,4 @@
 """Graph infrastructure module."""
-from .graph_service import BattlefieldGraphManager
+from .graph_service import GraphManager
 
-__all__ = ['BattlefieldGraphManager']
+__all__ = ['GraphManager']

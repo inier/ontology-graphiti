@@ -128,7 +128,7 @@ ROLES = {
 }
 
 # 战场环境配置 - 2026 美伊战争场景
-BATTLEFIELD_CONFIG = {
+DOMAIN_CONFIG = {
     "factions": [
         {
             "name": "US-led Coalition",
@@ -213,7 +213,7 @@ def export_ontology():
     ontology_data = {
         "entity_types": ENTITY_TYPES,
         "roles": ROLES,
-        "battlefield_config": BATTLEFIELD_CONFIG,
+        "domain_config": DOMAIN_CONFIG,
         "version": ONTOLOGY_VERSION,
         "last_updated": ONTOLOGY_LAST_UPDATED
     }
@@ -227,10 +227,10 @@ def import_ontology(json_data):
     """
     import json
     data = json.loads(json_data)
-    global ENTITY_TYPES, ROLES, BATTLEFIELD_CONFIG, ONTOLOGY_VERSION, ONTOLOGY_LAST_UPDATED
+    global ENTITY_TYPES, ROLES, DOMAIN_CONFIG, ONTOLOGY_VERSION, ONTOLOGY_LAST_UPDATED
     ENTITY_TYPES = data.get("entity_types", ENTITY_TYPES)
     ROLES = data.get("roles", ROLES)
-    BATTLEFIELD_CONFIG = data.get("battlefield_config", BATTLEFIELD_CONFIG)
+    DOMAIN_CONFIG = data.get("domain_config", DOMAIN_CONFIG)
     ONTOLOGY_VERSION = data.get("version", ONTOLOGY_VERSION)
     ONTOLOGY_LAST_UPDATED = data.get("last_updated", ONTOLOGY_LAST_UPDATED)
     return True

@@ -265,11 +265,11 @@ class IntelligenceAgentSwarm:
 
         results = {}
 
-        if "analyze_battlefield" in SKILL_CATALOG:
+        if "analyze_domain" in SKILL_CATALOG:
             try:
-                results["battlefield"] = SKILL_CATALOG["analyze_battlefield"]["handler"]()
+                results["domain"] = SKILL_CATALOG["analyze_domain"]["handler"]()
             except Exception as e:
-                logger.warning(f"analyze_battlefield 失败: {e}")
+                logger.warning(f"analyze_domain 失败: {e}")
 
         if "analyze_force_comparison" in SKILL_CATALOG:
             try:
@@ -278,8 +278,8 @@ class IntelligenceAgentSwarm:
                 logger.warning(f"analyze_force_comparison 失败: {e}")
 
         threat_level = "medium"
-        if results.get("battlefield"):
-            summary = str(results["battlefield"])
+        if results.get("domain"):
+            summary = str(results["domain"])
             if "high" in summary.lower() or "critical" in summary.lower():
                 threat_level = "high"
             elif "low" in summary.lower():
@@ -287,30 +287,30 @@ class IntelligenceAgentSwarm:
 
         self.state = AgentState.IDLE
         return {
-            "summary": results.get("battlefield", {}).get("summary", "情报收集完成"),
+            "summary": results.get("domain", {}).get("summary", "情报收集完成"),
             "threat_level": threat_level,
             "enemy_units": results.get("force_comparison", {}).get("enemy_units", []),
             "friendly_status": results.get("force_comparison", {}).get("friendly_units", []),
             "civilian_risk": [],
-            "recommendations": results.get("battlefield", {}).get("recommendations", []),
+            "recommendations": results.get("domain", {}).get("recommendations", []),
             "raw_data": results,
         }
 
 
-class BattlefieldSwarm:
+class DomainSwarm:
     """战场多 Agent Swarm 编排器"""
 
     def __init__(self, config: Optional[Dict[str, Any]] = None):
         self.config = config or self._default_config()
 
         from odap.infra.opa import OPAManager
-        from odap.infra.graph import BattlefieldGraphManager
+        from odap.infra.graph import GraphManager
         from odap.infra.resilience.fault_tolerance import FaultRecoveryManager
         from odap.infra.resilience.state_persistence import StatePersistenceManager
         from odap.infra.resilience.health_monitor import HealthMonitor
 
         self.opa_manager = OPAManager()
-        self.graph_manager = BattlefieldGraphManager()
+        self.graph_manager = GraphManager()
         self.fault_manager = FaultRecoveryManager.get_instance()
         self.state_manager = StatePersistenceManager.get_instance()
         self.health_monitor = HealthMonitor.get_instance()
@@ -370,7 +370,7 @@ class BattlefieldSwarm:
 
     async def initialize(self) -> None:
         """初始化 Swarm"""
-        logger.info("BattlefieldSwarm 初始化中...")
+        logger.info("DomainSwarm 初始化中...")
 
         try:
             self.graph_manager.initialize_graph()
@@ -629,7 +629,7 @@ class BattlefieldSwarm:
             success = self.graph_manager.add_episode(
                 name=f"mission_{datetime.now(timezone.utc).strftime('%Y%m%d%H%M%S')}",
                 content=episode_text,
-                source_description="BattlefieldSwarm/OODA",
+                source_description="DomainSwarm/OODA",
             )
 
             if success:
@@ -639,10 +639,10 @@ class BattlefieldSwarm:
 
     async def shutdown(self) -> None:
         """关闭 Swarm"""
-        logger.info("BattlefieldSwarm 关闭中...")
+        logger.info("DomainSwarm 关闭中...")
         await self.health_monitor.stop_monitoring()
         self.active_missions.clear()
-        logger.info("BattlefieldSwarm 已关闭")
+        logger.info("DomainSwarm 已关闭")
 
     def get_health_report(self) -> Dict[str, Any]:
         """获取健康报告"""
@@ -674,11 +674,11 @@ if __name__ == "__main__":
             format="%(asctime)s [%(name)s] %(message)s",
         )
 
-        swarm = BattlefieldSwarm()
+        swarm = DomainSwarm()
         await swarm.initialize()
 
         print("\n" + "=" * 60)
-        print("BattlefieldSwarm OODA 循环测试")
+        print("DomainSwarm OODA 循环测试")
         print("=" * 60)
 
         result = await swarm.execute_mission("分析B区威胁并采取行动")

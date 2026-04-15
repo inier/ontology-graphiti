@@ -16,7 +16,7 @@ import shutil
 # 确保当前目录在Python路径中
 sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
-from odap.biz.ontology.schema.battlefield import ENTITY_TYPES, ROLES, BATTLEFIELD_CONFIG
+from odap.biz.ontology.schema.domain import ENTITY_TYPES, ROLES, DOMAIN_CONFIG
 
 class OntologyManager:
     """
@@ -36,7 +36,7 @@ class OntologyManager:
         self.current_ontology = {
             "entity_types": ENTITY_TYPES,
             "roles": ROLES,
-            "battlefield_config": BATTLEFIELD_CONFIG
+            "domain_config": DOMAIN_CONFIG
         }
         self.policy_history = []  # 策略执行历史
         self._ensure_dir()
@@ -228,14 +228,14 @@ class OntologyManager:
         """
         return self.current_ontology
 
-    def update_ontology(self, entity_types=None, roles=None, battlefield_config=None):
+    def update_ontology(self, entity_types=None, roles=None, domain_config=None):
         """
         更新本体
 
         Args:
             entity_types: 实体类型
             roles: 角色
-            battlefield_config: 战场配置
+            domain_config: 战场配置
         """
         if entity_types:
             self.current_ontology["entity_types"] = entity_types
@@ -243,8 +243,8 @@ class OntologyManager:
         if roles:
             self.current_ontology["roles"] = roles
 
-        if battlefield_config:
-            self.current_ontology["battlefield_config"] = battlefield_config
+        if domain_config:
+            self.current_ontology["domain_config"] = domain_config
 
         print("本体已更新")
 
@@ -269,7 +269,7 @@ class OntologyManager:
             "description": description,
             "timestamp": datetime.datetime.now().isoformat(),
             "roles": self.current_ontology.get("roles", {}),
-            "battlefield_config": self.current_ontology.get("battlefield_config", {})
+            "domain_config": self.current_ontology.get("domain_config", {})
         }
 
         export_file = os.path.join(self.policy_dir, f"policy_{policy_name}_{version}.json")

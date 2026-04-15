@@ -162,7 +162,7 @@ odap/                                  # 项目根目录（建议从 graphiti �
 │   │   │   ├── __init__.py
 │   │   │   └── intelligence.py         # ← skills/intelligence.py
 │   │   │
-│   │   ├── operations/                 # 作战工具
+│   │   ├── operations/                 # 操作工具
 │   │   │   ├── __init__.py
 │   │   │   └── operations.py           # ← skills/operations.py
 │   │   │

@@ -78,7 +78,7 @@ graphiti/
 │
 ├── ontology/                   # 本体层
 │   ├── __init__.py
-│   ├── battlefield_ontology.py   # 战场本体定义
+│   ├── domain_ontology.py   # 领域本体定义
 │   └── ontology_manager.py       # 本体管理器
 │
 ├── visualization/              # 可视化层
@@ -132,7 +132,7 @@ graphiti/
 | Skill | 描述 |
 |-------|------|
 | search_radar | 搜索雷达 |
-| analyze_battlefield | 分析战场态势 |
+| analyze_domain | 分析战场态势 |
 
 ### 4. 作战类 (2个) - operations.py
 
@@ -150,7 +150,7 @@ graphiti/
 | analyze_force_comparison | 分析力量对比 |
 | analyze_weapon_capabilities | 分析武器能力 |
 | analyze_civilian_infrastructure | 分析民用基础设施 |
-| get_battlefield_summary | 获取战场态势摘要 |
+| get_domain_summary | 获取战场态势摘要 |
 
 ### 6. 推荐类 (4个) - recommendation.py
 
@@ -187,7 +187,7 @@ graphiti/
 |-------|------|
 | generate_map_overlay | 生成地图叠加层 |
 | summarize_mission | 生成任务摘要 |
-| generate_battlefield_report | 生成战场态势报告 |
+| generate_domain_report | 生成战场态势报告 |
 | generate_situation_awareness | 生成态势感知数据 |
 
 ### 10. 规划编排类 (4个) - planning.py
@@ -325,9 +325,9 @@ deny {
 
 运行后会生成以下文件：
 
-- `battlefield_graph.png` - 战场图谱静态图
-- `battlefield_visualization.html` - 交互式可视化
-- `battlefield_status.png` - 战场状态饼图
+- `domain_graph.png` - 领域图谱静态图
+- `domain_visualization.html` - 交互式可视化
+- `domain_status.png` - 领域状态饼图
 - `action_dynamics.html` - 处置动态查看
 - `ontology_query.html` - 本体可视化查询
 - `ontology_aggregation.html` - 本体属性聚合

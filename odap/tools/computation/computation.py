@@ -11,10 +11,10 @@ from datetime import datetime
 sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 from odap.tools import register_skill
-from odap.infra.graph import BattlefieldGraphManager
+from odap.infra.graph import GraphManager
 from odap.biz.simulator.data_generator import load_simulation_data
 
-manager = BattlefieldGraphManager()
+manager = GraphManager()
 
 def calculate_distance(entity1_id, entity2_id):
     """

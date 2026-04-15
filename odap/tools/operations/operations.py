@@ -13,11 +13,11 @@ import os
 sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 from odap.tools import register_skill
-from odap.infra.graph import BattlefieldGraphManager
+from odap.infra.graph import GraphManager
 from odap.infra.opa import OPAManager
 
 # 初始化图谱管理器和OPA管理器
-manager = BattlefieldGraphManager()
+manager = GraphManager()
 opa_manager = OPAManager()
 
 # 攻击目标

@@ -10,10 +10,10 @@ from datetime import datetime
 sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 from odap.tools import register_skill
-from odap.infra.graph import BattlefieldGraphManager
+from odap.infra.graph import GraphManager
 from odap.biz.simulator.data_generator import load_simulation_data
 
-manager = BattlefieldGraphManager()
+manager = GraphManager()
 
 def generate_map_overlay(area=None, output_file="map_overlay.json"):
     """
@@ -126,7 +126,7 @@ def summarize_mission(mission_id):
 
     return summary
 
-def generate_battlefield_report():
+def generate_domain_report():
     """
     生成战场态势报告
 
@@ -247,9 +247,9 @@ register_skill(
 
 
 register_skill(
-    name="generate_battlefield_report",
+    name="generate_domain_report",
     description="生成战场态势报告",
-    handler=generate_battlefield_report,
+    handler=generate_domain_report,
     category="visualization")
 
 

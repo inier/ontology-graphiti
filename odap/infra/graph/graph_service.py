@@ -34,7 +34,7 @@ OPENAI_MODEL = os.getenv('OPENAI_MODEL', 'gpt-4')
 # 然后再添加项目路径并导入其他模块
 sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
-from odap.biz.ontology.test_data.data_generator import load_simulation_data
+from odap.biz.ontology.mock_data.data_generator import load_simulation_data
 
 # 尝试导入 graphiti-core（可选）
 try:
@@ -56,7 +56,7 @@ except ImportError as e:
     print(f"提示: neo4j driver 未安装 ({e})，Neo4j 直连模式不可用")
 
 
-class BattlefieldGraphManager:
+class GraphManager:
     """
     图谱管理器
     基于graphiti的时序知识图谱，支持动态更新和混合检索
@@ -87,7 +87,7 @@ class BattlefieldGraphManager:
             neo4j_user: Neo4j用户名 (默认从环境变量读取)
             neo4j_password: Neo4j密码 (默认从环境变量读取)
         """
-        if BattlefieldGraphManager._initialized:
+        if GraphManager._initialized:
             return
 
         self.graph: Optional[Graphiti] = None
@@ -104,7 +104,7 @@ class BattlefieldGraphManager:
         # 尝试三层降级
         self._connect()
 
-        BattlefieldGraphManager._initialized = True
+        GraphManager._initialized = True
 
     def _connect(self):
         """

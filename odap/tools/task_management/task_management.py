@@ -10,9 +10,9 @@ from datetime import datetime
 sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 from odap.tools import register_skill
-from odap.infra.graph import BattlefieldGraphManager
+from odap.infra.graph import GraphManager
 
-manager = BattlefieldGraphManager()
+manager = GraphManager()
 
 def reserve_task(task_name, task_type, targets, priority="medium", user_role=None):
     """

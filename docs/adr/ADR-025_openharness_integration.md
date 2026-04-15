@@ -9,8 +9,8 @@
 
 Phase 2 的目标是实现多智能体协作（Commander / Intelligence / Operations Agent），当前的单编排器（`SelfCorrectingOrchestrator`）是纯规则驱动的关键词匹配，无法处理：
 
-- **复杂任务分解**：用户说"评估 B 区威胁等级并给出打击方案"需要分解为感知→分析→决策→执行多个子任务
-- **跨 Agent 状态共享**：情报 Agent 发现的新目标需要同步给指挥官和作战 Agent
+- **复杂任务分解**：用户说"评估 B 区威胁等级并给出方案"需要分解为感知→分析→决策→执行多个子任务
+- **跨 Agent 状态共享**：情报 Agent 发现的新目标需要同步给指挥官和Operations Agent
 - **动态路由**：同一条用户意图在不同领域态势下需要不同 Agent 处理
 - **OODA 闭环**：Perceive → Understand → Decide → Act 的循环协同
 
@@ -45,7 +45,7 @@ OpenHarness Engine (Agent Loop)
 ```
 ┌─────────────────────────────────────────────────────────────────┐
 │                     Commander Agent                              │
-│  角色: 战术指挥官，负责最终打击决策                                │
+│  角色: 指挥官，负责最终打击决策                                │
 │  LLM: 强推理模型（如 Claude-3.5/GPT-4）                           │
 │  输入: Intelligence Agent 的威胁评估 + Operations Agent 的可行性报告 │
 │  输出: 最终决策指令（带 OPA 权限校验）                            │
@@ -91,7 +91,7 @@ OpenHarness Engine (Agent Loop)
     │ 威胁等级评估 + 历史模式匹配
     ▼
 决策 (Decide)     → Commander Agent（多选项 + OPA 校验）
-    │ 打击方案排序 + 规则校验 + 人工确认（高危）
+    │ 方案排序 + 规则校验 + 人工确认（高危）
     ▼
 行动 (Act)        → Operations Agent
     │ 命令下发 + 执行监控 + 结果回写 Graphiti

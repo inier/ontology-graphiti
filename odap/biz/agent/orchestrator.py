@@ -80,7 +80,7 @@ class SelfCorrectingOrchestrator:
             return "search_radar", {"area": area}
 
         elif "战场" in query_lower and "分析" in query_lower:
-            return "analyze_battlefield", {}
+            return "analyze_domain", {}
 
         elif "打击" in query_lower and ("推荐" in query_lower or "目标" in query_lower):
             area_match = re.search(r'([A-E])\s*区', query)
@@ -111,7 +111,7 @@ class SelfCorrectingOrchestrator:
             return "command_unit", {"unit_id": unit_id, "command": command, "user_role": self.user_role}
 
         else:
-            return "analyze_battlefield", {}
+            return "analyze_domain", {}
 
 if __name__ == "__main__":
     # 测试编排器

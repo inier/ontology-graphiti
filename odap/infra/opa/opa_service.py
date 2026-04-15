@@ -34,7 +34,7 @@ class OPAClient:
         """调用 OPA 判断是否允许操作"""
         try:
             response = httpx.post(
-                f"{self.opa_url}/v1/data/battlefield/allow",
+                f"{self.opa_url}/v1/data/domain/allow",
                 json={
                     "input": {
                         "user_role": user_role,
@@ -59,7 +59,7 @@ class OPAClient:
         """调用 OPA 策略模拟"""
         try:
             response = httpx.post(
-                f"{self.opa_url}/v1/data/battlefield/policy_simulation",
+                f"{self.opa_url}/v1/data/domain/policy_simulation",
                 json={
                     "input": {
                         "user_role": user_role,
@@ -133,8 +133,8 @@ class OPAManager:
             try:
                 with open(rego_path, "r") as f:
                     rego_content = f.read()
-                self.opa_client.put_policy("battlefield", rego_content)
-                print("OPA 策略已加载: battlefield")
+                self.opa_client.put_policy("domain", rego_content)
+                print("OPA 策略已加载: domain")
             except Exception as e:
                 print(f"OPA 策略加载失败: {e}")
 

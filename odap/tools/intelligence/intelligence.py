@@ -27,10 +27,10 @@ from odap.tools.base import (
     get_registry,
 )
 from odap.tools import register_skill
-from odap.infra.graph import BattlefieldGraphManager
+from odap.infra.graph import GraphManager
 
 # 初始化图谱管理器
-manager = BattlefieldGraphManager()
+manager = GraphManager()
 
 
 # ============================================================
@@ -90,7 +90,7 @@ class AnalyzeBattlefieldSkill(BaseSkill):
     """
 
     metadata = SkillMetadata(
-        name="analyze_battlefield",
+        name="analyze_domain",
         description="分析战场态势",
         category="intelligence",
         danger_level="low",
@@ -104,7 +104,7 @@ class AnalyzeBattlefieldSkill(BaseSkill):
         analysis = {
             "total_entities": stats.get("total_entities", 0),
             "entity_types": stats.get("entity_types", {}),
-            "battlefield_status": "活跃",
+            "domain_status": "活跃",
             "recommendations": [
                 "加强对B区的侦察",
                 "注意敌方雷达活动",
@@ -149,7 +149,7 @@ def search_radar(area=None):
     return []
 
 
-def analyze_battlefield():
+def analyze_domain():
     """
     分析战场态势（旧式接口）
 
@@ -175,9 +175,9 @@ register_skill(
 )
 
 register_skill(
-    name="analyze_battlefield",
+    name="analyze_domain",
     description="分析战场态势",
-    handler=analyze_battlefield,
+    handler=analyze_domain,
     category="intelligence",
 )
 

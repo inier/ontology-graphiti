@@ -9,7 +9,7 @@ import random
 # 确保当前目录在Python路径中
 sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
-from odap.infra.graph import BattlefieldGraphManager
+from odap.infra.graph import GraphManager
 
 class DecisionRecommender:
     """
@@ -20,7 +20,7 @@ class DecisionRecommender:
         """
         初始化决策推荐器
         """
-        self.graph_manager = BattlefieldGraphManager()
+        self.graph_manager = GraphManager()
         print("打击决策推荐器初始化成功")
     
     def generate_recommendations(self, user_role="pilot", area=None):
@@ -35,17 +35,17 @@ class DecisionRecommender:
             推荐列表
         """
         # 收集战场情报
-        battlefield_intel = self._collect_battlefield_intel(area)
+        domain_intel = self._collect_domain_intel(area)
         
-        # 分析战场态势
-        analysis = self._analyze_battlefield(battlefield_intel)
+        # 分析领域态势
+        analysis = self._analyze_domain(domain_intel)
         
         # 生成推荐
         recommendations = self._generate_recommendations(analysis, user_role)
         
         return recommendations
     
-    def _collect_battlefield_intel(self, area=None):
+    def _collect_domain_intel(self, area=None):
         """
         收集战场情报
         
@@ -74,9 +74,9 @@ class DecisionRecommender:
             "battle_events": battle_events
         }
     
-    def _analyze_battlefield(self, intel):
+    def _analyze_domain(self, intel):
         """
-        分析战场态势
+        分析领域态势
         
         Args:
             intel: 战场情报

@@ -10,7 +10,7 @@ from datetime import datetime, timedelta
 
 sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
-from odap.biz.ontology.schema.battlefield import BATTLEFIELD_CONFIG
+from odap.biz.ontology.schema.domain import DOMAIN_CONFIG
 
 def generate_coordinates():
     return (random.uniform(0, 100), random.uniform(0, 100))
@@ -32,8 +32,8 @@ def generate_simulation_data():
         "missions": []
     }
 
-    areas = BATTLEFIELD_CONFIG["areas"]
-    factions = BATTLEFIELD_CONFIG["factions"]
+    areas = DOMAIN_CONFIG["areas"]
+    factions = DOMAIN_CONFIG["factions"]
 
     for area in areas:
         for i in range(1, 4):
@@ -204,7 +204,7 @@ def generate_simulation_data():
     return data
 
 def generate_random_event():
-    event_types = BATTLEFIELD_CONFIG["random_events"]
+    event_types = DOMAIN_CONFIG["random_events"]
     event_type = random.choice(event_types)
 
     descriptions = {
@@ -250,8 +250,8 @@ if __name__ == "__main__":
     print("=" * 50)
     print("2026 美伊战争模拟数据生成完成")
     print("=" * 50)
-    print(f"参战方: {len(BATTLEFIELD_CONFIG['factions'])}")
-    print(f"地理区域: {len(BATTLEFIELD_CONFIG['areas'])}")
+    print(f"参战方: {len(DOMAIN_CONFIG['factions'])}")
+    print(f"地理区域: {len(DOMAIN_CONFIG['areas'])}")
     print(f"- 地理位置: {len(data['locations'])}")
     print(f"- 军事单位: {len(data['military_units'])}")
     print(f"- 武器系统: {len(data['weapon_systems'])}")
@@ -260,7 +260,7 @@ if __name__ == "__main__":
     print(f"- 任务: {len(data['missions'])}")
 
     print("\n参战方详情:")
-    for f in BATTLEFIELD_CONFIG["factions"]:
+    for f in DOMAIN_CONFIG["factions"]:
         print(f"  - {f['name']}: {f['description']}")
 
     random_event = generate_random_event()

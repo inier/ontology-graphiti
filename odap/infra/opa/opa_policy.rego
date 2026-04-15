@@ -2,13 +2,13 @@
 # 定义战场角色权限和访问控制规则
 #
 # 版本: 2.0.0
-# 包名: battlefield
+# 包名: domain
 #
 # 测试（OPA CLI）:
 #   echo '{"input":{"user_role":"commander","action":"attack","resource":{"id":"RADAR_01","type":"WeaponSystem","properties":{"type":"雷达"}}}}' \
-#     | opa eval -d core/opa_policy.rego -I 'data.battlefield.allow'
+#     | opa eval -d core/opa_policy.rego -I 'data.domain.allow'
 
-package battlefield
+package domain
 
 import future.keywords.if
 import future.keywords.in
@@ -133,4 +133,4 @@ decision_reason := reason if {
 # 策略元数据
 # ============================================================
 policy_version := "2.0.0"
-policy_name := "battlefield_access_control"
+policy_name := "domain_access_control"

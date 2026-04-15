@@ -9,9 +9,9 @@ sys.path.append(os.path.dirname(os.path.abspath(__file__)))
 
 import skills
 from core.orchestrator import SelfCorrectingOrchestrator
-from core.graph_manager import BattlefieldGraphManager
+from core.graph_manager import GraphManager
 from core.intelligence_agent import IntelligenceAgent
-from core.swarm_orchestrator import BattlefieldSwarm
+from core.swarm_orchestrator import DomainSwarm
 
 
 def print_result(title, result):
@@ -63,7 +63,7 @@ def main():
     print("🔧 初始化系统...")
     print(f"   • 已加载技能: {', '.join(skills.SKILL_CATALOG.keys())}")
 
-    manager = BattlefieldGraphManager()
+    manager = GraphManager()
     stats = manager.get_statistics()
     print(f"   • 图谱状态: {stats.get('mode', 'unknown')}")
     print(f"   • 实体数量: {stats.get('total_entities', 0)}")
@@ -136,7 +136,7 @@ def main():
         import asyncio
 
         async def run_swarm_demo():
-            swarm = BattlefieldSwarm()
+            swarm = DomainSwarm()
             await swarm.initialize()
 
             result = await swarm.execute_mission("分析B区威胁并采取行动")

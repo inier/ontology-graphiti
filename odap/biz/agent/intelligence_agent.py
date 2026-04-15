@@ -27,7 +27,7 @@ load_dotenv(os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file_
 import httpx
 from odap.tools import SKILL_CATALOG, get_registry
 from odap.infra.opa import OPAManager
-from odap.infra.graph import BattlefieldGraphManager
+from odap.infra.graph import GraphManager
 
 # 结构化链路追踪日志
 logger = logging.getLogger("intelligence_agent")
@@ -84,7 +84,7 @@ class IntelligenceAgent:
     def __init__(self, user_role: str = "intelligence_analyst"):
         self.user_role = user_role
         self.opa_manager = OPAManager()
-        self.graph_manager = BattlefieldGraphManager()
+        self.graph_manager = GraphManager()
         self.llm_api_key = os.getenv('OPENAI_API_KEY', '')
         self.llm_api_base = os.getenv('OPENAI_API_BASE', '')
         self.llm_model = os.getenv('OPENAI_MODEL', '')
@@ -314,7 +314,7 @@ class IntelligenceAgent:
 
 可用工具包括：
 - search_radar: 搜索雷达系统
-- analyze_battlefield: 分析战场态势
+- analyze_domain: 分析领域态势
 - analyze_force_comparison: 分析力量对比
 - analyze_weapon_capabilities: 分析武器能力
 - analyze_civilian_infrastructure: 分析民用基础设施

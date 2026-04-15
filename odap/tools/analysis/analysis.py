@@ -9,10 +9,10 @@ import os
 sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 from odap.tools import register_skill
-from odap.infra.graph import BattlefieldGraphManager
+from odap.infra.graph import GraphManager
 from odap.biz.simulator.data_generator import load_simulation_data
 
-manager = BattlefieldGraphManager()
+manager = GraphManager()
 
 def analyze_entity_status(entity_id=None, entity_type=None):
     """
@@ -203,7 +203,7 @@ def analyze_civilian_infrastructure():
         "protected_ids": protected
     }
 
-def get_battlefield_summary():
+def get_domain_summary():
     """
     获取战场态势摘要
 
@@ -260,7 +260,7 @@ register_skill(
 
 
 register_skill(
-    name="get_battlefield_summary",
+    name="get_domain_summary",
     description="获取战场态势摘要",
-    handler=get_battlefield_summary,
+    handler=get_domain_summary,
     category="analysis")

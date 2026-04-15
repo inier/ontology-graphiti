@@ -15,7 +15,7 @@ from fastapi.middleware.cors import CORSMiddleware
 sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 from odap.biz.agent.orchestrator import SelfCorrectingOrchestrator
-from odap.infra.graph import BattlefieldGraphManager
+from odap.infra.graph import GraphManager
 from odap.biz.ontology.service import OntologyManager
 
 orchestrator = None
@@ -24,10 +24,10 @@ ontology_manager = None
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     global orchestrator, ontology_manager
-    from odap.biz.ontology.schema.battlefield import BATTLEFIELD_CONFIG
+    from odap.biz.ontology.schema.domain import DOMAIN_CONFIG
     orchestrator = SelfCorrectingOrchestrator(user_role="pilot")
     ontology_manager = OntologyManager()
-    ontology_manager.export_ontology(description=f"2026美伊战争场景 - {len(BATTLEFIELD_CONFIG['factions'])}个参战方")
+    ontology_manager.export_ontology(description=f"2026美伊战争场景 - {len(DOMAIN_CONFIG['factions'])}个参战方")
     print(f"系统初始化完成，用户角色: pilot")
     yield
     print("关闭系统")
@@ -290,7 +290,7 @@ async def set_role(request: Request):
 
 @app.get("/get_stats")
 async def get_stats():
-    manager = BattlefieldGraphManager()
+    manager = GraphManager()
     stats = manager.get_statistics()
 
     if manager._mode == "neo4j_driver" and manager.neo4j_driver:
@@ -321,13 +321,13 @@ async def get_stats():
 
 @app.post("/api/clear")
 async def clear_graph():
-    manager = BattlefieldGraphManager()
+    manager = GraphManager()
     result = manager.clear_graph()
     return JSONResponse(content=result)
 
 @app.post("/api/reload")
 async def reload_graph():
-    manager = BattlefieldGraphManager()
+    manager = GraphManager()
     manager.clear_graph()
     manager._load_data_to_neo4j()
     stats = manager.get_statistics()
@@ -340,9 +340,9 @@ async def reload_graph():
 @app.post("/api/export")
 async def export_ontology():
     manager = OntologyManager()
-    from odap.biz.ontology.schema.battlefield import BATTLEFIELD_CONFIG
+    from odap.biz.ontology.schema.domain import DOMAIN_CONFIG
     version = datetime.now().strftime("%Y%m%d_%H%M%S")
-    description = f"2026美伊战争场景 - {len(BATTLEFIELD_CONFIG['factions'])}个参战方"
+    description = f"2026美伊战争场景 - {len(DOMAIN_CONFIG['factions'])}个参战方"
     export_file = manager.export_ontology(version=version, description=description)
     return JSONResponse(content={
         "status": "success",
@@ -353,7 +353,7 @@ async def export_ontology():
 
 @app.get("/api/graph")
 async def get_graph():
-    manager = BattlefieldGraphManager()
+    manager = GraphManager()
     nodes = []
     links = []
 
@@ -411,7 +411,7 @@ async def get_graph():
 
 @app.get("/api/ontology")
 async def get_ontology():
-    manager = BattlefieldGraphManager()
+    manager = GraphManager()
     entities = []
     if manager._use_fallback:
         for node_id, attrs in manager.fallback_graph.nodes(data=True):

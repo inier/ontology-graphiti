@@ -10,10 +10,10 @@ from datetime import datetime
 sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 from odap.tools import register_skill
-from odap.infra.graph import BattlefieldGraphManager
+from odap.infra.graph import GraphManager
 from odap.biz.simulator.data_generator import load_simulation_data
 
-manager = BattlefieldGraphManager()
+manager = GraphManager()
 
 def create_plan(goal, constraints=None):
     """
@@ -73,7 +73,7 @@ def create_plan(goal, constraints=None):
             "action": "area_scan",
             "description": "区域扫描 - 搜索目标区域",
             "estimated_time": "10分钟",
-            "skills_required": ["search_radar", "analyze_battlefield"]
+            "skills_required": ["search_radar", "analyze_domain"]
         })
         plan_steps.append({
             "step": 2,
@@ -87,7 +87,7 @@ def create_plan(goal, constraints=None):
             "action": "threat_assessment",
             "description": "威胁评估 - 分析战场态势",
             "estimated_time": "5分钟",
-            "skills_required": ["analyze_threat_level", "generate_battlefield_report"]
+            "skills_required": ["analyze_threat_level", "generate_domain_report"]
         })
 
     else:
@@ -96,7 +96,7 @@ def create_plan(goal, constraints=None):
             "action": "information_gathering",
             "description": "信息收集 - 查询相关实体",
             "estimated_time": "5分钟",
-            "skills_required": ["analyze_battlefield"]
+            "skills_required": ["analyze_domain"]
         })
         plan_steps.append({
             "step": 2,
@@ -214,7 +214,7 @@ def validate_plan(plan):
     for step in plan.get("steps", []):
         if "skills_required" in step:
             for skill in step["skills_required"]:
-                if skill not in ["search_radar", "analyze_battlefield", "analyze_threat_level",
+                if skill not in ["search_radar", "analyze_domain", "analyze_threat_level",
                                 "check_strike_risk", "check_permission", "simulate_policy_execution",
                                 "attack_target", "calculate_strike_damage", "analyze_entity_status",
                                 "analyze_force_comparison"]:

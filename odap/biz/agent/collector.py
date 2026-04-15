@@ -12,7 +12,7 @@ from datetime import datetime
 # 确保当前目录在Python路径中
 sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
-from odap.infra.graph import BattlefieldGraphManager
+from odap.infra.graph import GraphManager
 from odap.biz.simulator.data_generator import generate_random_event
 
 class IntelligenceCollector:
@@ -27,7 +27,7 @@ class IntelligenceCollector:
         Args:
             update_interval: 更新间隔（秒）
         """
-        self.graph_manager = BattlefieldGraphManager()
+        self.graph_manager = GraphManager()
         self.update_interval = update_interval
         self.running = False
         self.thread = None

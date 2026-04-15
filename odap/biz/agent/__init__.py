@@ -1,4 +1,4 @@
 """Agent business module."""
-from .swarm_orchestrator import BattlefieldSwarm
+from .swarm_orchestrator import DomainSwarm
 
-__all__ = ['BattlefieldSwarm']
+__all__ = ['DomainSwarm']

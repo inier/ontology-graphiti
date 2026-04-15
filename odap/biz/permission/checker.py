@@ -156,7 +156,7 @@ class PermissionChecker:
                 allowed=basic_result,
                 decision=PermissionDecision.ALLOWED if basic_result else PermissionDecision.DENIED,
                 reason=reason,
-                matched_policy=f"battlefield/allow",
+                matched_policy=f"domain/allow",
                 execution_time_ms=(time.perf_counter() - start_time) * 1000,
             )
 

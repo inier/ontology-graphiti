@@ -10,11 +10,11 @@ import random
 sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 from odap.tools import register_skill
-from odap.infra.graph import BattlefieldGraphManager
+from odap.infra.graph import GraphManager
 from odap.infra.opa import OPAManager
 from odap.biz.simulator.data_generator import load_simulation_data
 
-manager = BattlefieldGraphManager()
+manager = GraphManager()
 opa_manager = OPAManager()
 
 def recommend_strike_targets(user_role, area=None, target_type=None):
