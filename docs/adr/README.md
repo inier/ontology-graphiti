@@ -39,7 +39,7 @@
 | ADR-012 | 配置组合引擎 | 已接受 | P1 | [ADR-012](ADR-012_配置组合引擎.md) |
 | ADR-013 | 多数据源统一接入 | 已接受 | P1 | [ADR-013](ADR-013_多数据源统一接入.md) |
 | ADR-018 | 模拟领域数据生成引擎 | 已接受 | P1 | [ADR-018](ADR-018_模拟领域数据生成引擎.md) |
-| ADR-021 | 战争实体标准本体库 | 已接受 | P1 | [ADR-021](ADR-021_战争实体标准本体库.md) |
+| ADR-021 | 领域实体标准本体库 | 已接受 | P1 | [ADR-021](ADR-021_领域实体标准本体库.md) |
 | ADR-022 | 模拟数仓与统一查询服务 | 提议中 | P1 | [ADR-022](ADR-022_模拟数仓与统一查询服务.md) |
 | ADR-026 | 采用 MCP 协议作为外部系统集成标准 | 已接受 | P1 | [ADR-026](ADR-026_mcp_protocol_integration.md) |
 | ADR-031 | 模拟器 Web 可视化与实时本体热写入架构 | 已接受 | P0 | [ADR-031](ADR-031_simulator_web_visualization_realtime_ontology.md) |
