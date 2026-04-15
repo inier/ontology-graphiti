@@ -1,0 +1,1 @@
+"""OpenHarness Adapter"""

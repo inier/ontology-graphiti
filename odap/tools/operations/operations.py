@@ -12,9 +12,9 @@ import os
 # 确保当前目录在Python路径中
 sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
-from skills import register_skill
-from core.graph_manager import BattlefieldGraphManager
-from core.opa_manager import OPAManager
+from odap.tools import register_skill
+from odap.infra.graph import BattlefieldGraphManager
+from odap.infra.opa import OPAManager
 
 # 初始化图谱管理器和OPA管理器
 manager = BattlefieldGraphManager()

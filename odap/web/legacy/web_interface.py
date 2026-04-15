@@ -14,9 +14,9 @@ from fastapi.middleware.cors import CORSMiddleware
 
 sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
-from core.orchestrator import SelfCorrectingOrchestrator
-from core.graph_manager import BattlefieldGraphManager
-from ontology.ontology_manager import OntologyManager
+from odap.biz.agent.orchestrator import SelfCorrectingOrchestrator
+from odap.infra.graph import BattlefieldGraphManager
+from odap.biz.ontology.service import OntologyManager
 
 orchestrator = None
 ontology_manager = None
@@ -24,7 +24,7 @@ ontology_manager = None
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     global orchestrator, ontology_manager
-    from ontology.battlefield_ontology import BATTLEFIELD_CONFIG
+    from odap.biz.ontology.schema.battlefield import BATTLEFIELD_CONFIG
     orchestrator = SelfCorrectingOrchestrator(user_role="pilot")
     ontology_manager = OntologyManager()
     ontology_manager.export_ontology(description=f"2026美伊战争场景 - {len(BATTLEFIELD_CONFIG['factions'])}个参战方")
@@ -340,7 +340,7 @@ async def reload_graph():
 @app.post("/api/export")
 async def export_ontology():
     manager = OntologyManager()
-    from ontology.battlefield_ontology import BATTLEFIELD_CONFIG
+    from odap.biz.ontology.schema.battlefield import BATTLEFIELD_CONFIG
     version = datetime.now().strftime("%Y%m%d_%H%M%S")
     description = f"2026美伊战争场景 - {len(BATTLEFIELD_CONFIG['factions'])}个参战方"
     export_file = manager.export_ontology(version=version, description=description)

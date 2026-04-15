@@ -25,9 +25,9 @@ from dotenv import load_dotenv
 load_dotenv(os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), '.env'))
 
 import httpx
-from skills import SKILL_CATALOG, get_registry
-from core.opa_manager import OPAManager
-from core.graph_manager import BattlefieldGraphManager
+from odap.tools import SKILL_CATALOG, get_registry
+from odap.infra.opa import OPAManager
+from odap.infra.graph import BattlefieldGraphManager
 
 # 结构化链路追踪日志
 logger = logging.getLogger("intelligence_agent")

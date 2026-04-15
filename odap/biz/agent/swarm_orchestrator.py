@@ -235,7 +235,7 @@ class OperationsAgent:
         """执行单个行动"""
         try:
             if action_type == "strike":
-                from skills import SKILL_CATALOG
+                from odap.tools import SKILL_CATALOG
                 if "attack_target" in SKILL_CATALOG:
                     result = SKILL_CATALOG["attack_target"]["handler"](
                         target_id=target_id,
@@ -261,7 +261,7 @@ class IntelligenceAgentSwarm:
         """收集情报"""
         self.state = AgentState.RUNNING
 
-        from skills import SKILL_CATALOG
+        from odap.tools import SKILL_CATALOG
 
         results = {}
 
@@ -303,11 +303,11 @@ class BattlefieldSwarm:
     def __init__(self, config: Optional[Dict[str, Any]] = None):
         self.config = config or self._default_config()
 
-        from core.opa_manager import OPAManager
-        from core.graph_manager import BattlefieldGraphManager
-        from core.fault_tolerance import FaultRecoveryManager
-        from core.state_persistence import StatePersistenceManager
-        from core.health_monitor import HealthMonitor
+        from odap.infra.opa import OPAManager
+        from odap.infra.graph import BattlefieldGraphManager
+        from odap.infra.resilience.fault_tolerance import FaultRecoveryManager
+        from odap.infra.resilience.state_persistence import StatePersistenceManager
+        from odap.infra.resilience.health_monitor import HealthMonitor
 
         self.opa_manager = OPAManager()
         self.graph_manager = BattlefieldGraphManager()

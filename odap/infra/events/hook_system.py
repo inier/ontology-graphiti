@@ -352,7 +352,7 @@ class BuiltinHooks:
     @staticmethod
     async def opa_permission_check(context: HookContext, *args, **kwargs) -> bool:
         """OPA 权限校验 Hook"""
-        from core.opa_manager import OPAManager
+        from odap.infra.opa import OPAManager
 
         user_role = context.get_data("user_role")
         operation = context.get_data("operation")

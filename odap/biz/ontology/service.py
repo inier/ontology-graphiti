@@ -16,7 +16,7 @@ import shutil
 # 确保当前目录在Python路径中
 sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
-from ontology.battlefield_ontology import ENTITY_TYPES, ROLES, BATTLEFIELD_CONFIG
+from odap.biz.ontology.schema.battlefield import ENTITY_TYPES, ROLES, BATTLEFIELD_CONFIG
 
 class OntologyManager:
     """

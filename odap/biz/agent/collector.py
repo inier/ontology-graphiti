@@ -12,8 +12,8 @@ from datetime import datetime
 # 确保当前目录在Python路径中
 sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
-from core.graph_manager import BattlefieldGraphManager
-from data.simulation_data import generate_random_event
+from odap.infra.graph import BattlefieldGraphManager
+from odap.biz.simulator.data_generator import generate_random_event
 
 class IntelligenceCollector:
     """

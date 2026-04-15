@@ -10,7 +10,7 @@ from datetime import datetime, timedelta
 
 sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
-from ontology.battlefield_ontology import BATTLEFIELD_CONFIG
+from odap.biz.ontology.schema.battlefield import BATTLEFIELD_CONFIG
 
 def generate_coordinates():
     return (random.uniform(0, 100), random.uniform(0, 100))

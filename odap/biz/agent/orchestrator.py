@@ -10,8 +10,8 @@ import re
 # 确保当前目录在Python路径中
 sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
-from skills import SKILL_CATALOG
-from core.opa_manager import OPAManager
+from odap.tools import SKILL_CATALOG
+from odap.infra.opa import OPAManager
 
 class SelfCorrectingOrchestrator:
     """

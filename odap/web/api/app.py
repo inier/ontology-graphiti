@@ -34,14 +34,14 @@ except ImportError:
     FASTAPI_AVAILABLE = False
     logger.warning("FastAPI 未安装，Web 服务不可用。请运行: pip install fastapi uvicorn python-multipart")
 
-from core.ontology_document import (
+from odap.biz.ontology.schema.document import (
     OntologyDocument, OntologyDocumentSchema, OntologyValidationError,
     DocType, SourceType
 )
-from core.ontology_hot_write_pipeline import OntologyHotWritePipeline
-from core.ontology_version_manager import OntologyVersionManager
-from core.data_ingestion import NewsIngester, ManualInputHandler, RandomEventGenerator, OntologyDocumentIO
-from core.hook_system import HookRegistry, HookPhase
+from odap.biz.ontology.hot_write import OntologyHotWritePipeline
+from odap.biz.ontology.version_manager import OntologyVersionManager
+from odap.biz.ontology.ingestion import NewsIngester, ManualInputHandler, RandomEventGenerator, OntologyDocumentIO
+from odap.infra.events import HookRegistry, HookPhase
 
 
 class ScenarioStore:
@@ -188,7 +188,7 @@ class ScenarioStore:
         调用 graph_manager 的加载接口
         """
         try:
-            from core.graph_manager import BattlefieldGraphManager
+            from odap.infra.graph import BattlefieldGraphManager
             manager = BattlefieldGraphManager()
             manager.clear_graph()
             manager._load_data_to_neo4j()

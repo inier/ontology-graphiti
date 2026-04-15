@@ -168,7 +168,7 @@ class BattlefieldHarness(Harness if OPENHARNESS_AVAILABLE else object):
         """从 SKILL_CATALOG 构建工具列表"""
         tools = []
         try:
-            from skills import SKILL_CATALOG
+            from odap.tools import SKILL_CATALOG
             for name, entry in SKILL_CATALOG.items():
                 adapter = OpenHarnessToolAdapter(
                     name=name,
@@ -314,7 +314,7 @@ def export_tool_schemas() -> List[Dict]:
     用于 LLM Agent 集成。
     """
     try:
-        from skills import SKILL_CATALOG
+        from odap.tools import SKILL_CATALOG
         return [
             OpenHarnessToolAdapter(
                 name=name,
@@ -345,7 +345,7 @@ if __name__ == "__main__":
     else:
         print("使用 fallback 模式，尝试直接列出 skills:")
         try:
-            from skills import SKILL_CATALOG
+            from odap.tools import SKILL_CATALOG
             print(f"共 {len(SKILL_CATALOG)} 个 skill 注册")
         except Exception as e:
             print(f"Skill 加载失败: {e}")

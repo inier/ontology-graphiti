@@ -14,7 +14,7 @@ from dataclasses import dataclass, field, asdict
 from datetime import datetime
 from typing import Dict, List, Optional, Any
 
-from core.ontology_document import OntologyDocument
+from odap.biz.ontology.schema.document import OntologyDocument
 
 logger = logging.getLogger("ontology_version_manager")
 

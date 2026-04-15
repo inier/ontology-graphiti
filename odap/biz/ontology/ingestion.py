@@ -18,7 +18,7 @@ from dataclasses import dataclass, field
 from datetime import datetime, timezone
 from typing import Any, Dict, List, Optional
 
-from core.ontology_document import (
+from odap.biz.ontology.schema.document import (
     OntologyDocument, OntologyEntity, OntologyRelation, OntologyEvent,
     OntologyAction, OntologyRule, OntologyConstraint, VersionRef,
     DataSource, DocumentMeta, TemporalInfo, SourceType, DocType,

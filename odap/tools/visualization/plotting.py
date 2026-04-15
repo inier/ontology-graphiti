@@ -18,7 +18,7 @@ from collections import defaultdict
 
 sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
-from core.graph_manager import BattlefieldGraphManager
+from odap.infra.graph import BattlefieldGraphManager
 
 class BattlefieldVisualization:
     """

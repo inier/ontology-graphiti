@@ -7,11 +7,10 @@ import os
 
 sys.path.append(os.path.dirname(os.path.abspath(__file__)))
 
-import skills
-from core.orchestrator import SelfCorrectingOrchestrator
-from core.graph_manager import BattlefieldGraphManager
-from core.intelligence_agent import IntelligenceAgent
-from core.swarm_orchestrator import BattlefieldSwarm
+from odap.biz.agent import BattlefieldSwarm
+from odap.biz.agent.intelligence_agent import IntelligenceAgent
+from odap.biz.agent.orchestrator import SelfCorrectingOrchestrator
+from odap.infra.graph import BattlefieldGraphManager
 
 
 def print_result(title, result):
@@ -196,7 +195,7 @@ def run_web_simulator():
     args = parser.parse_args()
 
     try:
-        from core.simulator_web_service import SimulatorWebService
+        from odap.web.api.app import SimulatorWebService
         print(f"""
 ╔══════════════════════════════════════════════════════════════╗
 ║            🏛️ ODAP Simulator Web Service v2.0               ║

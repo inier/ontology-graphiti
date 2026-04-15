@@ -10,11 +10,11 @@ import asyncio
 import logging
 from typing import Optional, Any
 
-from core.ontology_document import (
+from odap.biz.ontology.schema.document import (
     OntologyDocument, OntologyDocumentSchema, OntologyValidationError
 )
-from core.ontology_version_manager import OntologyVersionManager, OntologyVersion
-from core.hook_system import HookRegistry, HookPhase, HookContext
+from odap.biz.ontology.version_manager import OntologyVersionManager, OntologyVersion
+from odap.infra.events import HookRegistry, HookPhase, HookContext
 
 logger = logging.getLogger("ontology_hot_write")
 

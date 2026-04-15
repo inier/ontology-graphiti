@@ -1,5 +1,5 @@
 """
-基于graphiti的战场图谱管理模块
+基于graphiti的图谱管理模块
 使用Neo4j作为图数据库，支持时序知识图谱特性
 
 三层模式降级：
@@ -34,7 +34,7 @@ OPENAI_MODEL = os.getenv('OPENAI_MODEL', 'gpt-4')
 # 然后再添加项目路径并导入其他模块
 sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
-from data.simulation_data import load_simulation_data
+from odap.biz.simulator.data_generator import load_simulation_data
 
 # 尝试导入 graphiti-core（可选）
 try:
@@ -58,7 +58,7 @@ except ImportError as e:
 
 class BattlefieldGraphManager:
     """
-    战场图谱管理器
+    图谱管理器
     基于graphiti的时序知识图谱，支持动态更新和混合检索
     使用单例模式确保所有实例共享同一个图谱
     """
@@ -75,7 +75,7 @@ class BattlefieldGraphManager:
                  neo4j_user: str = None,
                  neo4j_password: str = None):
         """
-        初始化战场图谱管理器
+        初始化图谱管理器
 
         三层降级策略：
         1. Neo4j Driver 直连 — 无需 graphiti-core，Cypher 直接操作
@@ -190,7 +190,7 @@ class BattlefieldGraphManager:
     def _create_llm_client(self):
         """创建LLM客户端（使用智谱AI适配器）"""
         from graphiti_core.llm_client.config import LLMConfig
-        from core.llm_clients import ZhipuAIClient
+        from odap.infra.llm import ZhipuAIClient
 
         config = LLMConfig(
             model=OPENAI_MODEL,
@@ -368,7 +368,7 @@ class BattlefieldGraphManager:
                 await self.graph.add_episode(
                     name=entity.get("id", "unknown"),
                     content=episode_text,
-                    source_description=f"战场数据: {entity.get('type')}",
+                    source_description=f"数据: {entity.get('type')}",
                     reference_time=reference_time,
                     update_communities=False
                 )
@@ -847,7 +847,7 @@ class BattlefieldGraphManager:
                 await self.graph.add_episode(
                     name=entity_id,
                     content=episode_text,
-                    source_description=f"战场数据: {entity_type}",
+                    source_description=f"数据: {entity_type}",
                     reference_time=datetime.now(timezone.utc),
                     update_communities=False
                 )

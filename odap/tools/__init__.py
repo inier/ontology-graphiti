@@ -1,9 +1,6 @@
-"""ODAP Tools Package - Domain Tools Layer
-
-This package contains skill modules for the ODAP battlefield intelligence system.
-"""
+"""ODAP Tools Package - Domain Tools Layer"""
 from .base import BaseSkill, SkillInput, SkillOutput
-from .registry import SkillRegistry, register_skill, SKILL_CATALOG
+from .registry import SkillRegistry, register_skill, SKILL_CATALOG, get_registry
 
 __all__ = [
     'BaseSkill',
@@ -12,4 +9,5 @@ __all__ = [
     'SkillRegistry',
     'register_skill',
     'SKILL_CATALOG',
+    'get_registry',
 ]

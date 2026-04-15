@@ -19,15 +19,15 @@ sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 from typing import Optional, List
 from pydantic import Field
 
-from skills.base import (
+from odap.tools.base import (
     BaseSkill,
     SkillInput,
     SkillOutput,
     SkillMetadata,
     get_registry,
 )
-from skills import register_skill
-from core.graph_manager import BattlefieldGraphManager
+from odap.tools import register_skill
+from odap.infra.graph import BattlefieldGraphManager
 
 # 初始化图谱管理器
 manager = BattlefieldGraphManager()

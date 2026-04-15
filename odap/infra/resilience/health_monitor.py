@@ -89,8 +89,8 @@ class HealthMonitor:
 
     async def _check_swarm_components(self):
         """检查 Swarm 各组件健康状态"""
-        from core.swarm_orchestrator import BattlefieldSwarm
-        from core.fault_tolerance import FaultRecoveryManager
+        from odap.biz.agent.swarm_orchestrator import BattlefieldSwarm
+        from odap.infra.resilience.fault_tolerance import FaultRecoveryManager
 
         swarm = BattlefieldSwarm()
         fault_manager = FaultRecoveryManager.get_instance()

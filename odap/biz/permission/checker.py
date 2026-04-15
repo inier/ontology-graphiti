@@ -85,7 +85,7 @@ class PermissionChecker:
     _instance: Optional['PermissionChecker'] = None
 
     def __init__(self):
-        from core.opa_manager import OPAManager
+        from odap.infra.opa import OPAManager
 
         self.opa_manager = OPAManager()
         self.audit_logs: List[AuditLogEntry] = []

@@ -8,9 +8,9 @@ import os
 
 sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
-from skills import register_skill
-from core.graph_manager import BattlefieldGraphManager
-from data.simulation_data import load_simulation_data
+from odap.tools import register_skill
+from odap.infra.graph import BattlefieldGraphManager
+from odap.biz.simulator.data_generator import load_simulation_data
 
 manager = BattlefieldGraphManager()
 
