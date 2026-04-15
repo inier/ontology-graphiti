@@ -52,7 +52,7 @@
 
 | Bug | 文件 | 修复方式 | 状态 |
 |-----|------|---------|------|
-| `add_entity()` 未定义 | `core/graph_manager.py` | 在 `BattlefieldGraphManager` 中添加方法，fallback 模式下往 `networkx` 图添加节点 | ✅ |
+| `add_entity()` 未定义 | `core/graph_manager.py` | 在 `DomainGraphManager` 中添加方法，fallback 模式下往 `networkx` 图添加节点 | ✅ |
 | `get_entity_history()` 未定义 | 同上 | 返回空列表（fallback 模式不支持时态查询） | ✅ |
 | `search_hybrid()` 未定义 | 同上 | 委托给 `search()` 方法 | ✅ |
 | `reserve_task()` 未定义 | 同上 | 使用已有的 `self.reserved_tasks` 列表 | ✅ |
@@ -110,7 +110,7 @@ python -m pytest tests/ -v  # 4/4 全部通过
 
 | 任务 | 内容 | 产出 | 状态 |
 |------|------|------|------|
-| Rego 策略 | 完整战场交战规则（ROE） | `core/opa_policy.rego` v2.0.0 | ✅ |
+| Rego 策略 | 完整领域交战规则（ROE） | `core/opa_policy.rego` v2.0.0 | ✅ |
 | Python 客户端 | REST API 客户端重写（自动检测 + mock fallback） | `core/opa_manager.py` | ✅ |
 | 策略测试 | 单元测试通过 | `test_opa_manager` ✅ | ✅ |
 
@@ -225,7 +225,7 @@ Phase 1-B 完成
 
 | 任务 | 内容 | 产出 | 状态 |
 |------|------|------|------|
-| BattlefieldSwarm 主类 | 三 Agent 协同编排 | `core/swarm_orchestrator.py` | ✅ |
+| DomainSwarm 主类 | 三 Agent 协同编排 | `core/swarm_orchestrator.py` | ✅ |
 | OODA 循环 | Observe→Orient→Decide→Act | 完整闭环执行 | ✅ |
 | execute_streaming | 流式进度返回 | AsyncGenerator[OODAProgress] | ✅ |
 | _initialize_agents | 初始化三 Agent | Agent 实例 | ✅ |
@@ -248,7 +248,7 @@ Phase 1-B 完成
 
 ```python
 # OODA 闭环测试
-swarm = BattlefieldSwarm()
+swarm = DomainSwarm()
 result = await swarm.execute_mission("分析B区威胁并采取行动")
 # result.mission_id: "xxx"
 # result.success: True
@@ -319,7 +319,7 @@ result = await swarm.execute_mission("分析B区威胁并采取行动")
 - ⬜ Phase 4: 生产化部署
 
 **关键路线**: 修复 Bug → Graphiti+Neo4j → OPA 集成 → Intelligence Agent → RAG 增强 → Demo ✅ **Phase 1-3 全部完成**
-**Phase 2 关键成果**: 实现 BattlefieldSwarm 编排器，完成三 Agent（Intelligence/Commander/Operations）OODA 闭环协同
+**Phase 2 关键成果**: 实现 DomainSwarm 编排器，完成三 Agent（Intelligence/Commander/Operations）OODA 闭环协同
 **Phase 3 关键成果**: OntologyDocument 标准格式 + 热写入管道 + 数据采集层 + FastAPI Web 服务 + SPA 前端
 
 ### Phase 2 扩展: 故障恢复与状态管理 ✅

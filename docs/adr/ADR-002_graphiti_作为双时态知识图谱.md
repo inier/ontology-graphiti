@@ -13,7 +13,7 @@
 
 **后果**:
 - ✅ 原生支持双时态（valid_time + transaction_time）
-- ✅ Episode 设计天然匹配战场事件流
+- ✅ Episode 设计天然匹配领域事件流
 - ✅ 支持时序推理和 RAG 增强
 - ❌ Graphiti 相对新兴，社区较小
 - ❌ 需适配 OpenHarness Memory 接口

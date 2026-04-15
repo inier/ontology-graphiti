@@ -101,7 +101,7 @@
 
 ```python
 # 领域 Agent 通过 Skill 封装，集成到 OpenHarness
-class BattlefieldIntelligenceAgent:
+class DomainIntelligenceAgent:
     """战争分析 - Intelligence Agent"""
     
     def __init__(self, openharness_client):

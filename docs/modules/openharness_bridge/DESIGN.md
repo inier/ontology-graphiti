@@ -6,7 +6,7 @@
 
 ### 1.1 模块定位
 
-`openharness_bridge` 是基于 **OpenHarness 原生扩展点**（Plugin/Memory Plugin/Permission Plugin/Skill）的领域适配层。它通过 ADR-005 定义的分层 Agent 架构，将 OpenHarness 的通用 Agent 框架、Tool 调度、记忆管理和权限控制适配到战场情报分析与打击决策系统的特定需求。
+`openharness_bridge` 是基于 **OpenHarness 原生扩展点**（Plugin/Memory Plugin/Permission Plugin/Skill）的领域适配层。它通过 ADR-005 定义的分层 Agent 架构，将 OpenHarness 的通用 Agent 框架、Tool 调度、记忆管理和权限控制适配到领域情报分析与打击决策系统的特定需求。
 
 > **注意**: 本模块定位为"适配层"而非"桥接中间件"。所有集成通过 OpenHarness 原生扩展点实现（参见 ADR-005），不引入独立中间件。
 
@@ -17,7 +17,7 @@
 | Agent 适配 | 将 OpenHarness 原生 Agent 配置适配到三 Agent 角色（Commander/Intelligence/Operations），通过 Skill 封装领域能力（ADR-005 Layer 2） |
 | Memory 适配 | 通过 OpenHarness Memory Plugin 扩展点，将 Graphiti 双时态知识图谱注册为 OpenHarness 记忆后端 |
 | Permission 适配 | 通过 OpenHarness Permission Plugin 扩展点，将 OPA 策略引擎注册为权限后端 |
-| Tool 标准化 | 将战场领域 Skills 转换为 OpenHarness 原生 Tool 接口 |
+| Tool 标准化 | 将领域领域 Skills 转换为 OpenHarness 原生 Tool 接口 |
 | Hooks 管理 | 注册和管理 OpenHarness 生命周期钩子 |
 
 ### 1.3 架构位置
@@ -282,7 +282,7 @@ class OPAPermissionAdapter(PermissionBackend):
         Args:
             tool_name: Tool 名称
             tool_input: Tool 输入参数
-            context: 执行上下文（agent_id, user, battlefield_state 等）
+            context: 执行上下文（agent_id, user, domain_state 等）
 
         Returns:
             是否允许执行
@@ -646,7 +646,7 @@ class OPAPermissionHook:
             "agent_id": context.get("agent_id"),
             "user": context.get("user"),
             "role": context.get("role"),
-            "environment": context.get("battlefield_state", {}),
+            "environment": context.get("domain_state", {}),
             "timestamp": datetime.now().isoformat(),
         }
 
@@ -852,7 +852,7 @@ async def test_full_agent_loop_with_bridges():
 - openharness >= 0.1.6
 
 # 内部依赖
-- ontology.battlefield_ontology
+- ontology.domain_ontology
 - skills.* (所有领域 Skills)
 - core.opa_client
 - core.graphiti_client
@@ -1392,8 +1392,8 @@ async def test_framework_failover():
     # 4. 执行任务，应自动使用备选框架
     result = await factory.execute_with_framework(
         "commander_agent",
-        "分析战场态势",
-        {"battlefield_state": "active"}
+        "分析领域态势",
+        {"domain_state": "active"}
     )
     
     assert result["success"] == True

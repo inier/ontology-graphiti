@@ -6,7 +6,7 @@
 
 ## 上下文
 
-Graphiti作为战场仿真AI Agent平台，需要支持多种横切关注点（cross-cutting concerns）：
+Graphiti作为领域仿真AI Agent平台，需要支持多种横切关注点（cross-cutting concerns）：
 1. **权限控制**: 在工具调用前进行细粒度权限校验
 2. **审计日志**: 记录所有关键操作的完整审计轨迹
 3. **性能监控**: 收集系统性能指标，识别性能瓶颈

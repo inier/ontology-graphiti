@@ -465,7 +465,7 @@ class OntologyHotWritePipeline:
     
     def __init__(
         self,
-        graph_manager: BattlefieldGraphManager,
+        graph_manager: DomainGraphManager,
         hook_system: HookSystem,
         version_manager: OntologyVersionManager,
     ):
@@ -742,7 +742,7 @@ class OntologyEntity:
 **相关文档**:
 - [ADR-031: 模拟器 Web 可视化与实时本体热写入](../../adr/ADR-031_simulator_web_visualization_realtime_ontology.md)
 - [ADR-032: 标准化本体文档格式](../../adr/ADR-032_standard_ontology_document_format.md)
-- [ADR-018: 模拟战场数据生成引擎](../../adr/ADR-018_模拟战场数据生成引擎.md)
+- [ADR-018: 模拟领域数据生成引擎](../../adr/ADR-018_模拟领域数据生成引擎.md)
 - [ADR-021: 战争实体标准本体库](../../adr/ADR-021_战争实体标准本体库.md)
 - [Swarm 编排模块设计](../swarm_orchestrator/DESIGN.md)
 - [Hook 系统设计](../hook_system/DESIGN.md)

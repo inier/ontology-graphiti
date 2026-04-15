@@ -6,13 +6,13 @@
 
 ### 1.1 模块定位
 
-`visualization` 负责战场态势的可视化展示，包括地图渲染、关系图谱、时间线、图表等。
+`visualization` 负责领域态势的可视化展示，包括地图渲染、关系图谱、时间线、图表等。
 
 ### 1.2 可视化类型
 
 | 类型 | 用途 | 技术栈 |
 |------|------|--------|
-| 战场地图 | 态势概览 | ECharts + CesiumJS |
+| 领域地图 | 态势概览 | ECharts + CesiumJS |
 | 关系图谱 | 知识图谱展示 | AntV G6 |
 | 时间线 | 时序事件展示 | ECharts |
 | 态势图表 | 数据统计 | Plotly + Matplotlib |
@@ -31,7 +31,7 @@ from enum import Enum
 
 class VisualizationType(str, Enum):
     """可视化类型"""
-    BATTLEFIELD_MAP = "battlefield_map"
+    BATTLEFIELD_MAP = "domain_map"
     KNOWLEDGE_GRAPH = "knowledge_graph"
     TIMELINE = "timeline"
     BAR_CHART = "bar_chart"
@@ -50,13 +50,13 @@ class VisualizerService:
         """渲染可视化"""
         pass
 
-    async def render_battlefield_map(
+    async def render_domain_map(
         self,
         targets: List[Dict],
         units: List[Dict],
         options: Dict[str, Any]
     ) -> str:
-        """渲染战场地图"""
+        """渲染领域地图"""
         pass
 
     async def render_knowledge_graph(
@@ -80,14 +80,14 @@ class VisualizerService:
 
 ## 3. 核心实现
 
-### 3.1 战场地图
+### 3.1 领域地图
 
 ```python
-# visualization/battlefield_map.py
+# visualization/domain_map.py
 import json
 
-class BattlefieldMapRenderer:
-    """战场地图渲染器"""
+class DomainMapRenderer:
+    """领域地图渲染器"""
 
     def render(
         self,
@@ -136,7 +136,7 @@ class BattlefieldMapRenderer:
 
         return {
             "geo": {
-                "map": "battlefield",
+                "map": "domain",
                 " roam": True,
                 "itemStyle": {"areaColor": "#1a1a2e"}
             },
@@ -224,23 +224,23 @@ class KnowledgeGraphRenderer:
 
 ## 4. HTML 模板
 
-### 4.1 战场态势 HTML
+### 4.1 领域态势 HTML
 
 ```html
-<!-- visualization/templates/battlefield_map.html -->
+<!-- visualization/templates/domain_map.html -->
 <!DOCTYPE html>
 <html>
 <head>
-    <title>Battlefield Situation</title>
+    <title>Domain Situation</title>
     <script src="https://cdn.jsdelivr.net/npm/echarts"></script>
     <style>
-        #battlefield { width: 100%; height: 800px; }
+        #domain { width: 100%; height: 800px; }
     </style>
 </head>
 <body>
-    <div id="battlefield"></div>
+    <div id="domain"></div>
     <script>
-        const chart = echarts.init(document.getElementById('battlefield'));
+        const chart = echarts.init(document.getElementById('domain'));
         chart.setOption({{ chart_config | safe }});
     </script>
 </body>

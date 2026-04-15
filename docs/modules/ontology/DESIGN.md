@@ -6,13 +6,13 @@
 
 ### 1.1 模块定位
 
-`ontology` 是战场的领域本体模型，定义战场中的实体类型、关系类型和约束规则。是 Graphiti 图谱的数据模式基础。
+`ontology` 是领域的领域本体模型，定义领域中的实体类型、关系类型和约束规则。是 Graphiti 图谱的数据模式基础。
 
 ### 1.2 核心职责
 
 | 职责 | 描述 |
 |------|------|
-| 本体模型定义 | 定义战场实体和关系的类型系统 |
+| 本体模型定义 | 定义领域实体和关系的类型系统 |
 | 模式管理 | 管理本体的版本和变更 |
 | 验证规则 | 实体和关系的验证逻辑 |
 | Graphiti 集成 | 与 Graphiti 的无缝集成 |
@@ -25,7 +25,7 @@
 
 ```
 ┌─────────────────────────────────────────────────────────────────────────────┐
-│                         Battlefield Ontology                                │
+│                         Domain Ontology                                │
 ├─────────────────────────────────────────────────────────────────────────────┤
 │                                                                              │
 │                            ┌─────────────┐                                 │
@@ -48,7 +48,7 @@
 │                                                                              │
 │            ┌─────────────┐ ┌─────────────┐                                 │
 │            │ Intelligence│ │ StrikeOrder │                                 │
-│            │  (情报)    │ │ (打击命令)  │                                 │
+│            │  (情报)    │ │ (决策指令)  │                                 │
 │            └─────────────┘ └─────────────┘                                 │
 │                                                                              │
 └─────────────────────────────────────────────────────────────────────────────┘
@@ -57,7 +57,7 @@
 ### 2.2 核心实体定义
 
 ```python
-# ontology/battlefield_ontology.py
+# ontology/domain_ontology.py
 from pydantic import BaseModel, Field, field_validator
 from typing import List, Dict, Any, Optional
 from datetime import datetime
@@ -206,7 +206,7 @@ class IntelligenceReport(BaseEntity):
     classification: str = "secret"  # top_secret/secret/confidential/unclassified
 
 class StrikeOrder(BaseEntity):
-    """打击命令实体"""
+    """决策指令实体"""
     category: EntityCategory = EntityCategory.STRIKE_ORDER
 
     order_id: str
@@ -338,7 +338,7 @@ class OntologyValidator:
 
     @staticmethod
     def validate_strike_order(order: StrikeOrder) -> List[str]:
-        """验证打击命令"""
+        """验证决策指令"""
         errors = []
 
         # 状态流转验证
@@ -462,14 +462,14 @@ class OntologyManager:
 ```
 ontology/
 ├── __init__.py
-├── battlefield_ontology.py    # 核心实体定义
+├── domain_ontology.py    # 核心实体定义
 ├── relations.py               # 关系类型定义
 ├── validators.py              # 验证规则
 ├── ontology_manager.py        # 本体管理器
 ├── versions/                  # 版本管理
 │   └── v1.0.0.py
 └── schemas/                   # JSON Schema
-    └── battlefield.json
+    └── domain.json
 ```
 
 ---

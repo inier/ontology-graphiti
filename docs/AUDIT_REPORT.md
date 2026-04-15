@@ -122,7 +122,7 @@ ADR-001 到 ADR-029，编号连续，无缺失。✅
 - req-beta.md 定义了 Beta 阶段需求 ✅
 - ARCHITECTURE.md 涵盖了 18 章架构描述 + 第 18 章需求追溯矩阵 ✅
 - **问题**: ARCHITECTURE.md 第 18.1 章需求追溯矩阵中 ADR 编号引用存在偏移
-  - 矩阵引用 `ADR-017`=模拟战场数据生成 → 实际应为 ADR-018
+  - 矩阵引用 `ADR-017`=模拟领域数据生成 → 实际应为 ADR-018
   - 矩阵引用 `ADR-018`=多模态处理 → 实际应为 ADR-019
   - 矩阵引用 `ADR-019`=管理界面 → 实际应为 ADR-020
   - 矩阵引用 `ADR-020`=战争实体 → 实际应为 ADR-021
@@ -216,7 +216,7 @@ ADR-001 到 ADR-029，编号连续，无缺失。✅
 | 2 | ARCHITECTURE.md 目录锚点编号偏移 | ARCHITECTURE.md 目录 L29 | `9.3 模拟推演引擎架构` → `9.5` | ✅ |
 | 3 | 3 个 DESIGN.md 使用 Emoji 标题（格式不统一） | mcp_protocol, permission_checker, simulation_engine | 全部替换为数字编号格式（`## 1. 模块概述`等） | ✅ |
 | 4 | 9 个 DESIGN.md 缺少"相关文档"节 | 9 个模块文件 | 为全部 12 个 DESIGN.md 添加标准化的"相关文档"节 | ✅ |
-| 5 | mcp_protocol 引用不存在的 battlefield_simulator README | mcp_protocol/DESIGN.md, ADR-026 | 移除断链 | ✅ |
+| 5 | mcp_protocol 引用不存在的 domain_simulator README | mcp_protocol/DESIGN.md, ADR-026 | 移除断链 | ✅ |
 
 ### 修复后文档健康度
 

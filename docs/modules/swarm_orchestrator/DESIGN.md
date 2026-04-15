@@ -6,7 +6,7 @@
 
 ### 1.1 模块定位
 
-`swarm_orchestrator` 是基于 OpenHarness Swarm 的多 Agent 协同编排器，实现战场三 Agent（Commander/Intelligence/Operations）的 OODA 循环协同。
+`swarm_orchestrator` 是基于 OpenHarness Swarm 的多 Agent 协同编排器，实现领域三 Agent（Commander/Intelligence/Operations）的 OODA 循环协同。
 
 ### 1.2 核心职责
 
@@ -21,7 +21,7 @@
 
 ## 2. 接口设计
 
-### 2.1 BattlefieldSwarm 主接口
+### 2.1 DomainSwarm 主接口
 
 ```python
 # core/swarm_orchestrator/swarm.py
@@ -61,8 +61,8 @@ class MissionResult(BaseModel):
     execution_time_ms: float
     graphiti_episodes: List[str] = Field(default_factory=list)
 
-class BattlefieldSwarm:
-    """战场多 Agent Swarm"""
+class DomainSwarm:
+    """领域多 Agent Swarm"""
 
     def __init__(self, config: Dict[str, Any]): ...
 
@@ -182,7 +182,7 @@ class OODALoop:
         """Observe 阶段 - Intelligence 感知"""
         return await self.coordinator.delegate(
             agent=self.intelligence,
-            task=f"感知战场: {mission}"
+            task=f"感知领域: {mission}"
         )
 
     async def _orient(

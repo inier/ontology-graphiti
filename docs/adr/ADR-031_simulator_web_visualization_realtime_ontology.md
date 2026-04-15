@@ -146,7 +146,7 @@ class OntologyHotWritePipeline:
 **高**。Web 服务和数据采集层可独立启停。本体热写入管道通过 Hook 系统解耦，可通过禁用 Hook 回退到手动同步模式。
 
 ## 相关 ADR
-- ADR-018: 模拟战场数据生成引擎（被本 ADR 扩展）
+- ADR-018: 模拟领域数据生成引擎（被本 ADR 扩展）
 - ADR-021: 战争实体标准本体库（本体格式来源）
 - ADR-027: Hook 系统作为可扩展性核心（热写入通知机制）
 - ADR-032: 标准化本体 JSON 格式（OntologyDocument 格式定义）

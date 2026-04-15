@@ -6,7 +6,7 @@
 
 ### 1.1 模块定位
 
-`skills` 是战场领域特定工具集，通过 OpenHarness 原生 Tool 接口接入。分为四大类别：情报收集、作战执行、分析推理、可视化展示。
+`skills` 是领域领域特定工具集，通过 OpenHarness 原生 Tool 接口接入。分为四大类别：情报收集、作战执行、分析推理、可视化展示。
 
 ### 1.2 技能分类
 
@@ -30,7 +30,7 @@
 │  │ Visualization   │                                                       │
 │  │ (可视化)        │                                                       │
 │  ├─────────────────┤                                                       │
-│  │ battlefield_map │                                                       │
+│  │ domain_map │                                                       │
 │  │ timeline_gen    │                                                       │
 │  │ graph_viz       │                                                       │
 │  │ chart_render    │                                                       │
@@ -222,7 +222,7 @@ class AttackTargetSkill(BaseSkill):
                 execution_time_ms=(datetime.now() - start).total_seconds() * 1000
             )
 
-        # 创建打击命令
+        # 创建决策指令
         order = await self._create_strike_order(input_data)
 
         return AttackTargetOutput(
@@ -307,7 +307,7 @@ class PatternMatchOutput(SkillOutput):
 class PatternMatchSkill(BaseSkill):
     """模式匹配技能"""
     name = "pattern_match"
-    description = "识别战场行为模式"
+    description = "识别领域行为模式"
     category = "analysis"
 ```
 
@@ -328,33 +328,33 @@ class AnomalyDetectionOutput(SkillOutput):
 class AnomalyDetectionSkill(BaseSkill):
     """异常检测技能"""
     name = "anomaly_detection"
-    description = "检测战场异常行为"
+    description = "检测领域异常行为"
     category = "analysis"
 ```
 
 ### 2.5 可视化类技能
 
 ```python
-# skills/visualization/battlefield_map.py
-class BattlefieldMapInput(SkillInput):
-    """战场地图输入"""
+# skills/visualization/domain_map.py
+class DomainMapInput(SkillInput):
+    """领域地图输入"""
     region: str
     show_targets: bool = True
     show_units: bool = True
     show_threat_zones: bool = False
     time_range: Optional[Dict[str, str]] = None
 
-class BattlefieldMapOutput(SkillOutput):
-    """战场地图输出"""
+class DomainMapOutput(SkillOutput):
+    """领域地图输出"""
     data: Dict[str, Any] = Field(default_factory=lambda: {
         "map_url": None,
         "legend": {}
     })
 
-class BattlefieldMapSkill(BaseSkill):
-    """战场地图技能"""
-    name = "battlefield_map"
-    description = "生成战场态势地图"
+class DomainMapSkill(BaseSkill):
+    """领域地图技能"""
+    name = "domain_map"
+    description = "生成领域态势地图"
     category = "visualization"
 ```
 
@@ -453,7 +453,7 @@ skills/
 │
 └── visualization/              # 可视化类技能
     ├── __init__.py
-    ├── battlefield_map.py
+    ├── domain_map.py
     ├── timeline_gen.py
     ├── graph_viz.py
     └── chart_render.py
@@ -497,7 +497,7 @@ skills/
 
 | 技能名称 | 描述 | 危险等级 | OPA 检查 |
 |---------|------|---------|---------|
-| battlefield_map | 战场地图 | Low | 否 |
+| domain_map | 领域地图 | Low | 否 |
 | timeline_gen | 时间线生成 | Low | 否 |
 | graph_viz | 图谱可视化 | Low | 否 |
 | chart_render | 图表渲染 | Low | 否 |
@@ -541,7 +541,7 @@ class SkillOrchestrator:
         
     async def execute_workflow(self, workflow_name: str, context: Dict[str, Any]) -> Dict[str, Any]:
         """执行技能工作流"""
-        workflow = self.define_battlefield_workflows().get(workflow_name)
+        workflow = self.define_domain_workflows().get(workflow_name)
         if not workflow:
             raise ValueError(f"工作流 {workflow_name} 未定义")
         
@@ -670,8 +670,8 @@ class SkillOrchestrator:
         
         return aggregated
     
-    def define_battlefield_workflows(self) -> Dict[str, Dict[str, List[str]]]:
-        """预定义战场工作流"""
+    def define_domain_workflows(self) -> Dict[str, Dict[str, List[str]]]:
+        """预定义领域工作流"""
         return {
             "target_identification": {
                 "satellite_imagery": [],
@@ -750,7 +750,7 @@ class WorkflowEngine:
     
     def _count_steps(self, workflow_name: str) -> int:
         """计算工作流步骤数"""
-        workflow = self.orchestrator.define_battlefield_workflows().get(workflow_name, {})
+        workflow = self.orchestrator.define_domain_workflows().get(workflow_name, {})
         return len(workflow)
     
     def get_workflow_status(self, workflow_id: str) -> Optional[Dict[str, Any]]:

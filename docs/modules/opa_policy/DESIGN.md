@@ -64,13 +64,13 @@ class OPAManager:
     async def reload_policies(self) -> bool: ...
 ```
 
-### 2.2 战场领域策略接口
+### 2.2 领域领域策略接口
 
 ```python
-# core/opa_policy/battlefield_policies.py
+# core/opa_policy/domain_policies.py
 
-class BattlefieldOPAManager(OPAManager):
-    """战场领域 OPA 管理器"""
+class DomainOPAManager(OPAManager):
+    """领域领域 OPA 管理器"""
 
     async def check_attack(
         self,

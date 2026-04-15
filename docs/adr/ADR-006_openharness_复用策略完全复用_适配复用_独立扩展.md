@@ -27,7 +27,7 @@
 │     Coordinator→三Agent │ hooks │ prompts │ commands │ mcp │ tasks │ config     │
 ├─────────────────────────────────────────────────────────────────────────────────┤
 │  🔴 独立扩展 (6个)                                                              │
-│     Graphiti本体图谱 │ OPA业务策略 │ 战场本体 │ 56 Skills │ 可视化 │ 仿真数据  │
+│     Graphiti本体图谱 │ OPA业务策略 │ 领域本体 │ 56 Skills │ 可视化 │ 仿真数据  │
 └─────────────────────────────────────────────────────────────────────────────────┘
 ```
 
@@ -45,7 +45,7 @@
 | 分类 | 组件 | 复用方式 | 说明 |
 |------|------|---------|------|
 | ✅ | Agent Loop | 直接调用 | 无需桥接 |
-| ✅ | Tool 框架 | 注册到 Registry | `BattlefieldToolAdapter` |
+| ✅ | Tool 框架 | 注册到 Registry | `DomainToolAdapter` |
 | ✅ | Skill 格式 | 兼容使用 | 官方 Skills 直接加载 |
 | ✅ | **Memory** | **直接复用** | 会话状态管理、CLAUDE.md 发现、Auto-Compaction |
 | ✅ | **Permissions** | **直接复用** | 操作系统层安全（文件/命令/目录） |
@@ -55,12 +55,12 @@
 | ⚠️ | Coordinator | Swarm + 三Agent | `MultiAgentBridge` |
 | ⚠️ | Hooks | 自定义注入 | 业务策略校验注入点 |
 | ⚠️ | Commands | 保留 + 扩展 | `/strike` `/intel` |
-| ⚠️ | MCP | 协议复用 | 战场传感器 Server |
+| ⚠️ | MCP | 协议复用 | 领域传感器 Server |
 | ⚠️ | Tasks | 复用 + 持久化 | Graphiti 持久化 |
-| ⚠️ | Config | 层级保留 | `battlefield_config.yaml` |
+| ⚠️ | Config | 层级保留 | `domain_config.yaml` |
 | 🔴 | **Graphiti 本体图谱** | 不适用 | 实体关系、时序推理、历史回溯 |
 | 🔴 | **OPA 业务策略引擎** | 不适用 | 角色权限、工作空间隔离、业务规则 |
-| 🔴 | 战场本体 | 不适用 | Pydantic + NetworkX |
+| 🔴 | 领域本体 | 不适用 | Pydantic + NetworkX |
 | 🔴 | 56 领域 Skills | 不适用 | Python 模块 |
 | 🔴 | 态势可视化 | 不适用 | Plotly + Matplotlib + ECharts |
 | 🔴 | 仿真数据生成 | 不适用 | 模拟事件生成器 |

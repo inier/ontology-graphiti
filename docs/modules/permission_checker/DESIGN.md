@@ -8,7 +8,7 @@
 
 ### 1.1 核心定位
 
-权限校验模块是Graphiti系统的**安全基石**，基于Open Policy Agent (OPA)实现**统一、声明式、细粒度**的访问控制策略。通过集中式策略管理，为所有Agent操作、数据访问、工具调用提供**一致性**的安全保障，满足战场仿真系统的**最高安全要求**。
+权限校验模块是Graphiti系统的**安全基石**，基于Open Policy Agent (OPA)实现**统一、声明式、细粒度**的访问控制策略。通过集中式策略管理，为所有Agent操作、数据访问、工具调用提供**一致性**的安全保障，满足领域仿真系统的**最高安全要求**。
 
 ### 1.2 核心价值
 
@@ -683,8 +683,8 @@ get_tool_permission_required(tool_id) = perm {
 
 # 工具权限定义
 tool_permissions := {
-    "battlefield.get_scenario": "read",
-    "battlefield.simulate_attack": "execute",
+    "domain.get_scenario": "read",
+    "domain.simulate_attack": "execute",
     "radar.get_detections": "read",
     "weather.get_current": "read"
 }
@@ -1469,7 +1469,7 @@ services:
       - ./policies:/policies
       - ./data/opa:/data
     networks:
-      - battlefield-network
+      - domain-network
       
   # 权限校验服务
   permission-service:
@@ -1495,7 +1495,7 @@ services:
       - redis
       - elasticsearch
     networks:
-      - battlefield-network
+      - domain-network
       
   # Redis缓存
   redis:
@@ -1507,7 +1507,7 @@ services:
       - redis-permission-data:/data
     command: redis-server --appendonly yes
     networks:
-      - battlefield-network
+      - domain-network
       
   # Elasticsearch审计存储
   elasticsearch:
@@ -1522,14 +1522,14 @@ services:
     volumes:
       - elasticsearch-permission-data:/usr/share/elasticsearch/data
     networks:
-      - battlefield-network
+      - domain-network
 
 volumes:
   redis-permission-data:
   elasticsearch-permission-data:
 
 networks:
-  battlefield-network:
+  domain-network:
     driver: bridge
 ```
 
@@ -1637,7 +1637,7 @@ POST   /api/v1/audit/export      # 导出审计数据
   },
   "action": "execute",
   "resource_type": "tool",
-  "resource_id": "battlefield.simulate_attack",
+  "resource_id": "domain.simulate_attack",
   "resource_attributes": {
     "confidentiality_level": 2,
     "status": "available",

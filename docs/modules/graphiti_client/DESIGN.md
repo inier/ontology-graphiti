@@ -13,7 +13,7 @@
 | 能力 | 描述 |
 |------|------|
 | 双时态存储 | 支持 valid_time（有效时间）和 transaction_time（记录时间） |
-| Episode 管理 | 战场事件的时序记录 |
+| Episode 管理 | 领域事件的时序记录 |
 | 实体关系图谱 | Target、Unit、IntelligenceReport 等实体及其关系 |
 | RAG 增强推理 | 语义向量检索 + 图遍历 |
 | 时序推理 | 历史状态快照、时间窗口查询 |
@@ -137,10 +137,10 @@ class GraphitiClient:
     ) -> str: ...
 ```
 
-### 2.2 BattlefieldGraphitiClient 扩展接口
+### 2.2 DomainGraphitiClient 扩展接口
 
 ```python
-# core/graphiti_client/battlefield_extension.py
+# core/graphiti_client/domain_extension.py
 from enum import Enum
 
 class TargetType(str, Enum):
@@ -163,8 +163,8 @@ class StrikeStatus(str, Enum):
     EXECUTED = "executed"
     FAILED = "failed"
 
-class BattlefieldGraphitiClient(GraphitiClient):
-    """战场领域扩展的 Graphiti 客户端"""
+class DomainGraphitiClient(GraphitiClient):
+    """领域领域扩展的 Graphiti 客户端"""
 
     async def add_target(
         self,
@@ -245,7 +245,7 @@ class IntelligenceEpisode(BaseModel):
     categories: List[str]
 
 class StrikeEpisode(BaseModel):
-    """打击命令"""
+    """决策指令"""
     episode_id: str
     target_id: str
     weapon_type: str
@@ -286,8 +286,8 @@ class GraphitiClientImpl(GraphitiClient):
         from graphiti_core.graphiti import Graphiti
 
         self._graphiti = Graphiti(
-            graph_name=self.config.graph_name or "battlefield_graph",
-            index_name=self.config.index_name or "battlefield_index",
+            graph_name=self.config.graph_name or "domain_graph",
+            index_name=self.config.index_name or "domain_index",
             neo4j_uri=self.config.neo4j_uri,
             neo4j_user=self.config.neo4j_user,
             neo4j_password=self.config.neo4j_password,
@@ -367,8 +367,8 @@ graphiti:
     model: "text-embedding-3-small"
     dimension: 1536
 
-  graph_name: "BattlefieldGraph"
-  index_name: "battlefield_index"
+  graph_name: "DomainGraph"
+  index_name: "domain_index"
 
   query:
     default_limit: 10

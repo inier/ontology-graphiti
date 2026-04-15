@@ -1519,7 +1519,7 @@ services:
       - elasticsearch
       - opa
     networks:
-      - battlefield-network
+      - domain-network
       
   # Hook监控服务
   hook-monitor:
@@ -1538,13 +1538,13 @@ services:
       - '--storage.tsdb.retention.time=200h'
       - '--web.enable-lifecycle'
     networks:
-      - battlefield-network
+      - domain-network
 
 volumes:
   hook-metrics-data:
 
 networks:
-  battlefield-network:
+  domain-network:
     driver: bridge
 ```
 

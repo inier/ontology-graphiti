@@ -6,7 +6,7 @@
 
 ### 1.1 模块定位
 
-`decision_recommendation` 是战场决策支持系统，基于 Graphiti 知识图谱的 RAG 增强推理，为 Commander Agent 提供打击方案推荐和决策支持。
+`decision_recommendation` 是领域决策支持系统，基于 Graphiti 知识图谱的 RAG 增强推理，为 Commander Agent 提供打击方案推荐和决策支持。
 
 ### 1.2 核心职责
 
@@ -681,7 +681,7 @@ simulation_decision:
         - "minimize_collateral"
     
     - name: "sustained_operation"
-      description: "持续作战场景"
+      description: "持续作领域景"
       time_limit: 1800  # 30分钟
       resources: "extended"
       objectives:

@@ -374,7 +374,7 @@
 ```
 ┌─────────────────────────────────────────────────────────────────────────────┐
 │                           用户交互层 (User Interface)                          │
-│                    战场态势可视化 / 命令下发 / 结果展示                          │
+│                    领域态势可视化 / 命令下发 / 结果展示                          │
 └─────────────────────────────────┬───────────────────────────────────────────┘
                                   │
                                   ▼
@@ -417,7 +417,7 @@
                     ┌─────────────────────────┐
                     │    MCP Protocol         │
                     │ (外部系统集成)          │
-                    │ • 战场仿真器             │
+                    │ • 领域仿真器             │
                     │ • 雷达模拟器             │
                     │ • 气象数据源             │
                     └─────────────────────────┘
@@ -429,7 +429,7 @@
 |------|------|------|---------|
 | **L1** | OpenHarness | Agent Loop + Swarm + 工具调度 | 减少 90% Agent 基础设施代码 |
 | **L2** | Graphiti | 双时态知识图谱 + 时序推理 | 支撑"当时发生了什么"的历史回溯 |
-| **L3** | Python Skills | 领域特定工具（战场情报、打击决策），原生 Tool 接口 | 可插拔的领域能力 |
+| **L3** | Python Skills | 领域特定工具（领域情报、打击决策），原生 Tool 接口 | 可插拔的领域能力 |
 | **L4** | OPA | 策略治理 + 权限校验 | fail-close 安全边界 |
 
 ### 2.3 数据流总览
@@ -484,7 +484,7 @@
 | `plugins/` | 扩展点 | 自定义 Hook 插件 |
 | `permissions/` | 权限检查 | OPA 桥接作为 Backend |
 | `hooks/` | 生命周期 | PreTool/PostTool 事件 |
-| `mcp/` | 外部集成 | 战场仿真器、雷达模拟器 |
+| `mcp/` | 外部集成 | 领域仿真器、雷达模拟器 |
 | `memory/` | 记忆管理 | Graphiti 替换内置 Memory |
 | `coordinator/` | Swarm | 三 Agent 协同编排 |
 
@@ -500,7 +500,7 @@
 │                     │ Plugin、Provider、Token 计量                                │
 │  ⚠️ 适配复用 (7个)  │ Swarm(承载三Agent)、hooks、prompts、commands、mcp、tasks、  │
 │                     │ config                                                    │
-│  🔴 独立扩展 (6个)  │ Graphiti本体图谱、OPA业务策略、战场本体、56 Skills、       │
+│  🔴 独立扩展 (6个)  │ Graphiti本体图谱、OPA业务策略、领域本体、56 Skills、       │
 │                     │ 态势可视化、仿真数据生成                                    │
 └─────────────────────────────────────────────────────────────────────────────────┘
 ```
@@ -537,18 +537,18 @@
 |:-----------------|---------|-------------|
 | **coordinator/** | Swarm 多 Agent 协调、注册、任务分发、结果聚合 | Swarm 作为三 Agent 的运行容器 |
 | **hooks/** | PreToolUse/PostToolUse 生命周期钩子 | 作为策略注入点，在执行前调用 OPA 校验 |
-| **prompts/** | System Prompt 模板化管理 | 领域化改造，注入战场上下文、角色定义 |
-| **mcp/** | MCP 协议支持，多 Server 管理 | 扩展 Server，接入战场传感器数据源 |
+| **prompts/** | System Prompt 模板化管理 | 领域化改造，注入领域上下文、角色定义 |
+| **mcp/** | MCP 协议支持，多 Server 管理 | 扩展 Server，接入领域传感器数据源 |
 | **tasks/** | 任务状态管理、持久化接口 | 复用接口，任务数据存入 Graphiti |
-| **config/** | 多环境配置、动态加载 | 保留层级，新增 battlefield_config.yaml |
+| **config/** | 多环境配置、动态加载 | 保留层级，新增 domain_config.yaml |
 
 ##### 业务层：需要桥接的部分
 
 | 业务需求 | 框架能力 | 桥接实现 |
 |:---------|---------|---------|
 | 三 Agent 协同 | Swarm 支持多 Agent 注册 | 定义 Commander/Intelligence/Operations 三个业务角色 |
-| 战场策略校验 | hooks 机制 | 创建 BattlefieldPolicyHook，调用 OPA 检查攻击目标 |
-| 领域化指令 | commands 系统 | 新增 /strike /intel /threat 等战场命令 |
+| 领域策略校验 | hooks 机制 | 创建 DomainPolicyHook，调用 OPA 检查攻击目标 |
+| 领域化指令 | commands 系统 | 新增 /strike /intel /threat 等领域命令 |
 | 知识持久化 | tasks 持久化 | 打击任务写入 Graphiti，形成决策历史 |
 
 > **关系说明**: Swarm Coordinator **承载** 三 Agent，而非被三 Agent 替代。
@@ -708,9 +708,9 @@ class OPAPermissionHook:
             "action": tool_name,
             "resource": arguments.get("target_id"),
             "subject": context.get("user_role"),
-            "environment": context.get("battlefield_state")
+            "environment": context.get("domain_state")
         }
-        return self.opa.evaluate("battlefield.allow", opa_input)
+        return self.opa.evaluate("domain.allow", opa_input)
 ```
 
 #### 3.3.8 复用收益与权衡
@@ -795,7 +795,7 @@ Graphiti = 双时态知识图谱 = 时间维度的事实存储
 from graphiti_core.nodes import EpisodeNode, EntityNode
 from datetime import datetime
 
-# 战场实体节点
+# 领域实体节点
 class Target(EntityNode):
     """打击目标实体"""
     name: str                    # 目标名称
@@ -820,7 +820,7 @@ class IntelligenceReport(EpisodeNode):
     content: str                  # 报告内容摘要
 
 class StrikeOrder(EpisodeNode):
-    """打击命令（带执行状态）"""
+    """决策指令（带执行状态）"""
     order_id: str
     target_id: str
     weapon_type: str
@@ -857,7 +857,7 @@ rel_evidence = {
 |---------|------|------|
 | **时序查询** | "14:00-15:00 B区有哪些威胁？" | 态势回放 |
 | **状态快照** | "15:30时打击效果如何？" | 效果评估 |
-| **证据链追溯** | "这个打击命令的依据是什么？" | 决策解释 |
+| **证据链追溯** | "这个决策指令的依据是什么？" | 决策解释 |
 | **变化检测** | "过去1小时有哪些变化？" | 异常告警 |
 | **RAG 增强** | "基于历史情报推荐打击方案" | 决策支持 |
 
@@ -892,7 +892,7 @@ OpenHarness Tool 接口 (Pydantic)
 │  │   search    │  │ • command_unit   │   │
 │  │ • threat_   │  │ • route_         │   │
 │  │   assess    │  │   planning       │   │
-│  │ • battlefield│ │ • weapon_       │   │
+│  │ • domain│ │ • weapon_       │   │
 │  │   analyze   │  │   selection      │   │
 │  └─────────────┘  └─────────────────────┘   │
 │                                             │
@@ -900,7 +900,7 @@ OpenHarness Tool 接口 (Pydantic)
 │  │ Analysis    │  │   Visualization    │   │
 │  │ Skills      │  │   Skills           │   │
 │  │             │  │                    │   │
-│  │ • pattern_  │  │ • battlefield_   │   │
+│  │ • pattern_  │  │ • domain_   │   │
 │  │   match     │  │   render         │   │
 │  │ • anomaly_  │  │ • timeline_      │   │
 │  │   detect    │  │   generate       │   │
@@ -1180,14 +1180,14 @@ class OPAPermissionBackend(PermissionBackend):
 
 ```
 ┌─────────────────────────────────────────────────────────────────────────────┐
-│                    业务层：战场领域 Agent (三 Agent)                           │
+│                    业务层：领域领域 Agent (三 Agent)                           │
 │                                                                             │
 │   ┌─────────────┐  ┌─────────────┐  ┌─────────────┐                       │
 │   │ Commander   │  │Intelligence │  │ Operations  │                       │
 │   │ (决策中枢)   │  │ (感知理解)   │  │ (执行中心)   │                       │
 │   └─────────────┘  └─────────────┘  └─────────────┘                       │
 │                                                                             │
-│   定位: 战场这个特定业务领域的专业角色                                        │
+│   定位: 领域这个特定业务领域的专业角色                                        │
 └─────────────────────────────────┬───────────────────────────────────────────┘
                                   │
                                   ▼
@@ -1220,10 +1220,10 @@ class OPAPermissionBackend(PermissionBackend):
 │  • 接收 Operations 的可行性报告                                       │
 │  • 多方案排序与风险权衡                                               │
 │  • 高危操作 OPA 规则复核                                              │
-│  • 最终打击命令签发                                                   │
+│  • 最终决策指令签发                                                   │
 │                                                                      │
 │  System Prompt:                                                      │
-│  "你是战场指挥官，负责在不确定情况下做出最优决策。                    │
+│  "你是领域指挥官，负责在不确定情况下做出最优决策。                    │
 │   你的决策必须：                                                      │
 │   1. 基于 Intelligence 提供的情报                                    │
 │   2. 考虑 Operations 的执行可行性                                    │
@@ -1238,7 +1238,7 @@ class OPAPermissionBackend(PermissionBackend):
 ┌───────────────────────────────┐    ┌───────────────────────────────┐
 │     Intelligence Agent        │    │      Operations Agent          │
 │                               │    │                               │
-│  定位: 战场感知 + 态势理解     │    │  定位: 行动计划生成 + 执行     │
+│  定位: 领域感知 + 态势理解     │    │  定位: 行动计划生成 + 执行     │
 │  模型: 快速分析模型            │    │  模型: 规划模型                │
 │         (Kimi / DeepSeek-v3)  │    │         (Qwen / GPT-4o-mini)  │
 │                               │    │                               │
@@ -1267,8 +1267,8 @@ class OPAPermissionBackend(PermissionBackend):
 from openharness.coordinator import SwarmCoordinator
 from openharness.agents import AgentConfig
 
-class BattlefieldSwarm:
-    """战场多 Agent 协同"""
+class DomainSwarm:
+    """领域多 Agent 协同"""
 
     def __init__(self):
         self.coordinator = SwarmCoordinator()
@@ -1310,7 +1310,7 @@ class BattlefieldSwarm:
         # 阶段 1: Observe - Intelligence 感知
         observe_result = await self.coordinator.delegate(
             agent=self.intelligence,
-            task=f"感知战场: {mission}",
+            task=f"感知领域: {mission}",
         )
 
         # 阶段 2: Orient - Intelligence 理解
@@ -1423,7 +1423,7 @@ class BattlefieldSwarm:
 ┌────────────────────────────────────────────────────────────────────────────┐
 │                        Operations Agent                                    │
 │                                                                            │
-│  输入: 打击命令（已OPA批准）                                                │
+│  输入: 决策指令（已OPA批准）                                                │
 │  处理:                                                                      │
 │    1. weapon_selection → 选择最优武器                                       │
 │    2. route_planning → 规划打击航线                                         │
@@ -1470,7 +1470,7 @@ class OODALoop:
             "phase": "observe",
             "status": "started",
             "agent": "intelligence",
-            "message": "开始感知 B 区战场态势...",
+            "message": "开始感知 B 区领域态势...",
         }
 
         # Observe
@@ -1554,8 +1554,8 @@ class OODALoop:
 | **向量存储** | Neo4j Vector | RAG 语义搜索 | 情报文本嵌入 |
 | **图存储** | Neo4j | 实体关系 | Target-THREATENED_BY→Intelligence |
 | **时序存储** | Graphiti Episode | 双时态事实 | [valid_from, valid_to, recorded_at] |
-| **结构化存储** | PostgreSQL | 业务主数据 | 打击命令、授权配置 |
-| **对象存储** | S3/MinIO | 文件资产 | 战场图像、雷达回波 |
+| **结构化存储** | PostgreSQL | 业务主数据 | 决策指令、授权配置 |
+| **对象存储** | S3/MinIO | 文件资产 | 领域图像、雷达回波 |
 | **模拟推演存储** | Redis + 临时PostgreSQL | 沙箱推演数据、方案版本 | 推演结果、参数快照 |
 
 ---
@@ -2445,7 +2445,7 @@ jobs:
 ### 11.1 前端定位
 
 前端界面是用户与系统的交互窗口，分为两大类：
-- **战场前端**: 供不同角色（指挥官、情报分析员、操作员）使用
+- **领域前端**: 供不同角色（指挥官、情报分析员、操作员）使用
 - **管理后台**: 供管理员配置系统、管理本体、审计日志
 
 ### 11.2 技术选型
@@ -2457,14 +2457,14 @@ jobs:
 | **状态管理** | Zustand | 轻量、支持持久化 |
 | **图表** | ECharts + AntV G6 | 态势图 + 知识图谱可视化 |
 | **地图** | CesiumJS | 3D 地理空间可视化 |
-| **实时通信** | WebSocket + SSE | 实时推送战场变化 |
+| **实时通信** | WebSocket + SSE | 实时推送领域变化 |
 | **构建工具** | Vite | 快速启动、HMR |
 
-### 11.3 战场前端（C4 Level 4 - 用户视角）
+### 11.3 领域前端（C4 Level 4 - 用户视角）
 
 ```
 ┌─────────────────────────────────────────────────────────────────────────────┐
-│                           战场前端 (Battlefield Frontend)                     │
+│                           领域前端 (Domain Frontend)                     │
 ├─────────────────────────────────────────────────────────────────────────────┤
 │                                                                              │
 │  ┌─────────────────┐  ┌─────────────────┐  ┌─────────────────┐               │
@@ -2496,19 +2496,19 @@ jobs:
 │  │                      实时事件流 (Event Stream)                     │        │
 │  │  🔴 [14:30] RADAR_01 状态变更: ACTIVE → DESTROYED              │        │
 │  │  🟡 [14:28] 发现新目标: Mobile_SAM_02 (C区)                     │        │
-│  │  🟢 [14:25] 打击命令执行成功: LAUNCHER_01                      │        │
+│  │  🟢 [14:25] 决策指令执行成功: LAUNCHER_01                      │        │
 │  └─────────────────────────────────────────────────────────────────┘        │
 │                                                                              │
 └─────────────────────────────────────────────────────────────────────────────┘
 ```
 
-### 11.4 实时战场同步机制
+### 11.4 实时领域同步机制
 
 ```typescript
 // frontend/services/websocket.ts
 import { io, Socket } from 'socket.io-client';
 
-class BattlefieldSocket {
+class DomainSocket {
   private socket: Socket;
 
   constructor() {
@@ -2519,7 +2519,7 @@ class BattlefieldSocket {
     });
   }
 
-  // 订阅战场实体变化
+  // 订阅领域实体变化
   onEntityChange(callback: (entity: EntityChange) => void) {
     this.socket.on('entity:changed', callback);
   }
@@ -2541,7 +2541,7 @@ class BattlefieldSocket {
 }
 
 // 前端状态管理
-interface BattlefieldStore {
+interface DomainStore {
   entities: Map<string, Entity>;
   highlights: EntityChange[];  // 变更高亮
   pendingOrders: Order[];
@@ -3099,7 +3099,7 @@ const SimulationDashboard: React.FC = () => {
   const [selectedEvents, setSelectedEvents] = useState<string[]>([]);
 
   return (
-    <Card title="模拟战场事件">
+    <Card title="模拟领域事件">
       <Space direction="vertical" style={{ width: '100%' }}>
         <Row gutter={16}>
           <Col span={8}>
@@ -3311,7 +3311,7 @@ is_protected_target(target) if {
 
 ### 13.1 本体定位
 
-本体（Ontology）是系统的"词汇表"，定义了战场上所有实体、关系和属性。本体作为统一的语义层，支撑 Graphiti 图谱和前端展示。
+本体（Ontology）是系统的"词汇表"，定义了领域上所有实体、关系和属性。本体作为统一的语义层，支撑 Graphiti 图谱和前端展示。
 
 ### 13.2 战争实体定义（中英文）
 
@@ -3322,7 +3322,7 @@ export const BATTLEFIELD_ONTOLOGY = {
   // ===== 作战单位 =====
   Unit: {
     name: { zh: '作战单位', en: 'Unit' },
-    description: '执行作战任务的军事单位',
+    description: '执行执行任务的实体',
     attributes: {
       unit_id: { zh: '单位ID', en: 'Unit ID', type: 'string', required: true },
       unit_type: {
@@ -3405,9 +3405,9 @@ export const BATTLEFIELD_ONTOLOGY = {
     },
   },
 
-  // ===== 打击命令 =====
+  // ===== 决策指令 =====
   StrikeOrder: {
-    name: { zh: '打击命令', en: 'Strike Order' },
+    name: { zh: '决策指令', en: 'Strike Order' },
     description: '下达的打击执行命令',
     attributes: {
       order_id: { zh: '命令ID', en: 'Order ID', type: 'string' },
@@ -3428,7 +3428,7 @@ export const BATTLEFIELD_ONTOLOGY = {
   // ===== 武器装备 =====
   Weapon: {
     name: { zh: '武器装备', en: 'Weapon' },
-    description: '可用于打击的武器系统',
+    description: '可用于打击的系统',
     attributes: {
       weapon_id: { zh: '装备ID', en: 'Weapon ID', type: 'string' },
       weapon_type: { zh: '武器类型', en: 'Type', type: 'enum' },
@@ -3482,13 +3482,13 @@ export const BATTLEFIELD_RELATIONS = {
     en: 'Intelligence detected target',
   },
   'IntelligenceReport - [:EVIDENCE_FOR]-> StrikeOrder': {
-    zh: '情报为打击命令提供依据',
+    zh: '情报为决策指令提供依据',
     en: 'Intelligence provides evidence for strike order',
   },
 
   // 打击关系
   'StrikeOrder - [:TARGETS]-> Target': {
-    zh: '打击命令指向目标',
+    zh: '决策指令指向目标',
     en: 'Strike order targets',
   },
   'Weapon - [:MOUNTED_ON]-> Unit': {
@@ -3886,7 +3886,7 @@ export const SYSTEM_ROLES = {
   // ===== 操作角色 =====
   commander: {
     name: { zh: '指挥官', en: 'Commander' },
-    description: '战场最高决策者，有权下达打击命令',
+    description: '领域最高决策者，有权下达决策指令',
     permissions: {
       skills: ['*'],  // 所有技能权限
       targets: ['*'],  // 可操作所有目标
@@ -4146,9 +4146,9 @@ export const AUDIT_EVENT_TYPES = {
   POLICY_UPDATE: { zh: '策略更新', en: 'Policy Updated', category: 'security' },
 
   // ===== 高危操作 =====
-  STRIKE_ORDER_ISSUED: { zh: '打击命令下达', en: 'Strike Order Issued', category: 'critical' },
-  STRIKE_ORDER_EXECUTED: { zh: '打击命令执行', en: 'Strike Order Executed', category: 'critical' },
-  STRIKE_ORDER_CANCELLED: { zh: '打击命令取消', en: 'Strike Order Cancelled', category: 'critical' },
+  STRIKE_ORDER_ISSUED: { zh: '决策指令下达', en: 'Strike Order Issued', category: 'critical' },
+  STRIKE_ORDER_EXECUTED: { zh: '决策指令执行', en: 'Strike Order Executed', category: 'critical' },
+  STRIKE_ORDER_CANCELLED: { zh: '决策指令取消', en: 'Strike Order Cancelled', category: 'critical' },
 };
 
 // 审计日志数据结构
@@ -4214,12 +4214,12 @@ class AuditService {
       });
     });
 
-    // 打击命令
+    // 决策指令
     this.eventEmitter.on('strike:issued', (data) => {
       this.log({
         event_type: 'STRIKE_ORDER_ISSUED',
         actor: data.commander,
-        action: '下达打击命令',
+        action: '下达决策指令',
         target: data.target,
         ooda_phase: 'act',
         details: { order_id: data.order_id },
@@ -4346,7 +4346,7 @@ const AuditLogViewer: React.FC = () => {
 | ADR-015 | 可扩展图表系统 | 已接受 | [adr/ADR-015_可扩展图表系统.md](adr/ADR-015_可扩展图表系统.md) |
 | ADR-016 | 完备文档体系 | 已接受 | [adr/ADR-016_完备文档体系.md](adr/ADR-016_完备文档体系.md) |
 | ADR-017 | 原子提交规范 | 已接受 | [adr/ADR-017_原子提交规范.md](adr/ADR-017_原子提交规范.md) |
-| ADR-018 | 模拟战场数据生成引擎 | 已接受 | [adr/ADR-018_模拟战场数据生成引擎.md](adr/ADR-018_模拟战场数据生成引擎.md) |
+| ADR-018 | 模拟领域数据生成引擎 | 已接受 | [adr/ADR-018_模拟领域数据生成引擎.md](adr/ADR-018_模拟领域数据生成引擎.md) |
 | ADR-019 | 多模态文档处理流水线 | 已接受 | [adr/ADR-019_多模态文档处理流水线.md](adr/ADR-019_多模态文档处理流水线.md) |
 | ADR-020 | 管理员控制台统一界面 | 已接受 | [adr/ADR-020_管理员控制台统一界面.md](adr/ADR-020_管理员控制台统一界面.md) |
 | ADR-021 | 战争实体标准本体库 | 已接受 | [adr/ADR-021_战争实体标准本体库.md](adr/ADR-021_战争实体标准本体库.md) |
@@ -4383,8 +4383,8 @@ const AuditLogViewer: React.FC = () => {
 |---|----------|----------|----------|--------|
 | **A** | ⚠️ **通用本体驱动平台（核心定位）** | F-100 | **ADR-024, ADR-023** | P0 |
 | **B** | ⚠️ **多工作空间隔离管理** | F-101, F-102 | **ADR-023** | P0 |
-| 1 | 角色前端了解战场情况，询问战场信息，skill 可扩展 | F-001, F-030 | ADR-001, ADR-004 | P0 |
-| 2 | **模拟战场数据生成功能** | F-060 | **ADR-018** | P0 |
+| 1 | 角色前端了解领域情况，询问领域信息，skill 可扩展 | F-001, F-030 | ADR-001, ADR-004 | P0 |
+| 2 | **模拟领域数据生成功能** | F-060 | **ADR-018** | P0 |
 | 3 | **上传外部情报文档（多模态处理）** | F-061 | **ADR-019** | P0 |
 | 4 | **管理员管理界面（模拟数据、本体图谱、日志溯源）** | F-070, F-071, F-072, F-073 | **ADR-020** | P0 |
 | 5 | 配置界面分组和可视化配置 | F-080 | ADR-010, ADR-011 | P0 |
@@ -4392,7 +4392,7 @@ const AuditLogViewer: React.FC = () => {
 | 7 | **模拟数仓与统一查询服务** | F-091 | **ADR-022** | P1 |
 | 8 | OPA 策略 Markdown 自动转化 | F-012 | ADR-008 | P0 |
 | 9 | 角色管理界面（skill、OPA 策略绑定） | F-010, F-011 | ADR-010, ADR-013 | P0 |
-| 10 | Web 前端实时查看战场变化 | F-031 | ADR-006 | P0 |
+| 10 | Web 前端实时查看领域变化 | F-031 | ADR-006 | P0 |
 | 11 | 快速添加信息到问答 | F-033 | ADR-004 | P1 |
 | 12 | 审计日志功能（所有操作记录） | F-007, F-072 | ADR-007 | P0 |
 
@@ -4417,7 +4417,7 @@ const AuditLogViewer: React.FC = () => {
 | 过程可视化 | F-033 | 第11章 | ADR-006 |
 | 完备文档体系 | F-040 | 第19章 | ADR-016 |
 | 原子提交规范 | F-050 | 第16章 | ADR-017 |
-| 模拟战场数据 | F-060 | 第12章 | ADR-018 |
+| 模拟领域数据 | F-060 | 第12章 | ADR-018 |
 | 多模态文档处理 | F-061 | 第13章 | ADR-019 |
 | 管理员控制台 | F-070 | 第12章 | ADR-020 |
 | 本体图谱可视化 | F-071 | 第13章 | ADR-020 |
@@ -4451,7 +4451,7 @@ const AuditLogViewer: React.FC = () => {
 | ADR-015 | 可扩展图表系统 | F-031, F-032 |
 | ADR-016 | 完备文档体系 | F-040 |
 | ADR-017 | 原子提交规范 | F-050 |
-| ADR-018 | 模拟战场数据生成引擎 | F-060 |
+| ADR-018 | 模拟领域数据生成引擎 | F-060 |
 | ADR-019 | 多模态文档处理流水线 | F-061 |
 | ADR-020 | 管理员控制台统一界面 | F-070, F-071, F-073 |
 | ADR-021 | 战争实体标准本体库 | F-021, F-090 |
@@ -4507,7 +4507,7 @@ const AuditLogViewer: React.FC = () => {
 | F-033 | 过程可视化 | ⏳ 待开发 | Phase 2 |
 | F-040 | 完备文档体系 | ⏳ 待开发 | Phase 3 |
 | F-050 | 原子提交规范 | ✅ 已建立 | Phase 0 |
-| F-060 | 模拟战场数据 | ⏳ 待开发 | Phase 1 |
+| F-060 | 模拟领域数据 | ⏳ 待开发 | Phase 1 |
 | F-061 | 多模态文档处理 | ⏳ 待开发 | Phase 2 |
 | F-070 | 管理员控制台 | ⏳ 待开发 | Phase 2 |
 | F-071 | 本体图谱可视化 | ⏳ 待开发 | Phase 2 |
@@ -4567,7 +4567,7 @@ Week 7-8   Graphiti RAG 增强
             └─ RAG 增强推理
 
 Week 9-10  工具链完善
-            ├─ MCP 接入战场仿真器
+            ├─ MCP 接入领域仿真器
             ├─ 可视化组件
             └─ 日志/追踪集成
 
@@ -4644,14 +4644,14 @@ Week 21-24 性能优化 + 文档
 ### Phase 4: 高级特性（6-12 月）
 
 ```
-目标: 地理空间层、多模态情报、战场数字孪生
+目标: 地理空间层、多模态情报、领域数字孪生
 ```
 
 | 功能 | 描述 | 时间 |
 |------|------|------|
-| 地理空间层 | 战场态势地图，实时位置追踪 | Month 6-8 |
+| 地理空间层 | 领域态势地图，实时位置追踪 | Month 6-8 |
 | 多模态情报 | 图像识别、语音指令 | Month 8-10 |
-| 战场数字孪生 | 3D 战场仿真 | Month 10-12 |
+| 领域数字孪生 | 3D 领域仿真 | Month 10-12 |
 
 ---
 
@@ -4896,7 +4896,7 @@ odap/                                  # 项目根目录
 │   │   │   └── manager.py             #     WorkspaceManager（对外 API）
 │   │   │
 │   │   ├── agent/                     #   Agent 协同（OODA 三角色）
-│   │   │   ├── swarm_orchestrator.py  #     BattlefieldSwarm 编排器
+│   │   │   ├── swarm_orchestrator.py  #     DomainSwarm 编排器
 │   │   │   ├── intelligence_agent.py  #     Intelligence Agent
 │   │   │   ├── commander.py           #     Commander Agent
 │   │   │   ├── operations_agent.py    #     Operations Agent

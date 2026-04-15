@@ -33,12 +33,12 @@
 
 ```yaml
 # SKILL.md - Skill 元数据定义
-name: "battlefield_situation"
+name: "domain_situation"
 version: "1.0.0"
 category: "intelligence"  # intelligence | operations | analysis | visualization
 description:
-  zh: "战场态势分析技能"
-  en: "Battlefield Situation Analysis Skill"
+  zh: "领域态势分析技能"
+  en: "Domain Situation Analysis Skill"
 permissions:  # OPA 策略关联
   - "read:ontology"
   - "read:simulation_data"
@@ -52,7 +52,7 @@ inputs:
 outputs:
   - name: "situation_report"
     type: "object"
-python_executor: "skills/intelligence/battlefield_situation.py"  # Python 实现路径
+python_executor: "skills/intelligence/domain_situation.py"  # Python 实现路径
 hot_reload: true  # 支持热更新
 ```
 

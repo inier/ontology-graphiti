@@ -11,7 +11,7 @@ Phase 2 的目标是实现多智能体协作（Commander / Intelligence / Operat
 
 - **复杂任务分解**：用户说"评估 B 区威胁等级并给出打击方案"需要分解为感知→分析→决策→执行多个子任务
 - **跨 Agent 状态共享**：情报 Agent 发现的新目标需要同步给指挥官和作战 Agent
-- **动态路由**：同一条用户意图在不同战场态势下需要不同 Agent 处理
+- **动态路由**：同一条用户意图在不同领域态势下需要不同 Agent 处理
 - **OODA 闭环**：Perceive → Understand → Decide → Act 的循环协同
 
 ### 技术选项
@@ -48,7 +48,7 @@ OpenHarness Engine (Agent Loop)
 │  角色: 战术指挥官，负责最终打击决策                                │
 │  LLM: 强推理模型（如 Claude-3.5/GPT-4）                           │
 │  输入: Intelligence Agent 的威胁评估 + Operations Agent 的可行性报告 │
-│  输出: 最终打击命令（带 OPA 权限校验）                            │
+│  输出: 最终决策指令（带 OPA 权限校验）                            │
 │  权限: 最高（commander），可批准高危操作                           │
 └─────────────────────────────────────────────────────────────────┘
                               ▲
@@ -61,10 +61,10 @@ OpenHarness Engine (Agent Loop)
                               ▼
 ┌─────────────────────────────────────────────────────────────────┐
 │                   Intelligence Agent                             │
-│  角色: 战场感知 + 态势理解                                        │
+│  角色: 领域感知 + 态势理解                                        │
 │  LLM: 快速分析模型（如 Kimi/DeepSeek）      │
 │  输入: 原始传感器数据（雷达/卫星/友军）       │
-│  技能: search_radar, analyze_battlefield, threat_assessment      │
+│  技能: search_radar, analyze_domain, threat_assessment      │
 │  输出: 结构化威胁报告 → Commander                                 │
 │  记忆: Graphiti 时序图谱（实时写入 + 历史查询）                    │
 └─────────────────────────────────────────────────────────────────┘
@@ -75,7 +75,7 @@ OpenHarness Engine (Agent Loop)
 │                   Operations Agent                               │
 │  角色: 行动计划生成 + 执行                                        │
 │  LLM: 规划模型                                                   │
-│  输入: Commander 的打击命令                                       │
+│  输入: Commander 的决策指令                                       │
 │  技能: attack_target, command_unit, route_planning              │
 │  输出: 执行状态 → 回写 Graphiti + 通知 Intelligence              │
 └─────────────────────────────────────────────────────────────────┘

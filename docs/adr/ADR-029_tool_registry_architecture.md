@@ -6,13 +6,13 @@
 
 ## 上下文
 
-Graphiti作为战场仿真AI Agent平台，需要支持多种类型的工具：
+Graphiti作为领域仿真AI Agent平台，需要支持多种类型的工具：
 1. **文件系统工具**: 文件读写、目录操作、文件搜索
 2. **网络工具**: HTTP请求、WebSocket通信、网络诊断
 3. **数据处理工具**: 数据转换、分析、可视化
 4. **AI/ML工具**: 模型推理、文本处理、图像识别
 5. **系统工具**: 进程管理、系统监控、资源管理
-6. **仿真专用工具**: 战场仿真、雷达模拟、气象分析
+6. **仿真专用工具**: 领域仿真、雷达模拟、气象分析
 
 当前工具管理面临以下挑战：
 - **工具分散**: 工具实现分散在各个模块，缺乏统一管理
@@ -286,16 +286,16 @@ class SecurityLevel(Enum):
 
 ### 工具定义示例
 ```yaml
-# battlefield_simulate_attack.tool.yaml
-name: battlefield.simulate_attack
+# domain_simulate_attack.tool.yaml
+name: domain.simulate_attack
 version: 1.0.0
-description: 模拟战场攻击行动
+description: 模拟领域攻击行动
 category: simulation
 security_level: trusted
 author: "Graphiti Team"
 license: "Apache-2.0"
-tags: ["battlefield", "simulation", "combat"]
-dependencies: ["battlefield.get_scenario@^1.0.0"]
+tags: ["domain", "simulation", "combat"]
+dependencies: ["domain.get_scenario@^1.0.0"]
 
 parameters:
   - name: attacker_id
@@ -332,12 +332,12 @@ returns:
 ```python
 # 注册工具
 registry = ToolRegistry()
-registry.register_tool("battlefield.simulate_attack", "1.0.0", tool_impl)
+registry.register_tool("domain.simulate_attack", "1.0.0", tool_impl)
 
 # 执行工具
 executor = ToolExecutor(registry)
 result = await executor.execute(
-    tool_name="battlefield.simulate_attack",
+    tool_name="domain.simulate_attack",
     parameters={
         "attacker_id": "unit-001",
         "target_id": "unit-002",
@@ -352,7 +352,7 @@ result = await executor.execute(
 
 # 监控工具使用
 monitor = ToolMonitor(registry)
-stats = monitor.get_tool_stats("battlefield.simulate_attack")
+stats = monitor.get_tool_stats("domain.simulate_attack")
 print(f"工具使用次数: {stats.total_requests}")
 print(f"平均执行时间: {stats.avg_execution_time_ms}ms")
 ```
