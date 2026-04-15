@@ -34,7 +34,7 @@ OPENAI_MODEL = os.getenv('OPENAI_MODEL', 'gpt-4')
 # 然后再添加项目路径并导入其他模块
 sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
-from odap.biz.simulator.data_generator import load_simulation_data
+from odap.biz.ontology.test_data.data_generator import load_simulation_data
 
 # 尝试导入 graphiti-core（可选）
 try:
