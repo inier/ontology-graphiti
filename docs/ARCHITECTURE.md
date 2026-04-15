@@ -4908,8 +4908,9 @@ odap/                                  # 项目根目录
 │   │   │
 │   │   └── simulator/                 #   模拟推演
 │   │       ├── engine.py              #     SimulatorEngine
-│   │       ├── data_generator.py      #     数据生成器
 │   │       └── models.py              #     领域模型
+│   │
+│   │   ├── mock_data/                 #   Mock 数据生成（本体填充）
 │   │
 │   ├── adapters/                      # 【L1 适配层】— 外部系统集成
 │   │   ├── openharness/               #   OpenHarness 适配
