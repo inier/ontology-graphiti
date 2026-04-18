@@ -42,8 +42,8 @@
 
 ### 关键设计决策
 
-ADR 文档已独立化，存放在 `docs/adr/` 目录（共 29 条，ADR-001~029），详见 `docs/adr/README.md`。
-核心 ADR：ADR-001(OpenHarness), ADR-002(Graphiti), ADR-003(OPA), ADR-004(Skill), ADR-005(分层Agent), ADR-006(复用策略)
+ADR 文档已独立化，存放在 `docs/adr/` 目录（共 43 条有效，ADR-001~047，含 4 条空洞编号），详见 `docs/adr/README.md`。
+核心 ADR：ADR-001(OpenHarness), ADR-002(Graphiti), ADR-003(OPA), ADR-004(Skill), ADR-005(分层Agent), ADR-006(复用策略), ADR-045(G6+Leaflet), ADR-046(模块化单体), ADR-047(工具注册表P0分步)
 
 ### OpenHarness 复用矩阵（2026-04-11）
 
@@ -73,14 +73,56 @@ ADR 文档已独立化，存放在 `docs/adr/` 目录（共 29 条，ADR-001~029
 | Phase 3 | 3-6月 | 模拟器增强（Web 可视化 + 热写入 + 标准本体格式） | ✅ 已完成 |
 | Phase 4 | 6-12月 | 生产化部署 | ⬜ |
 
+## Phase 4 文档体系（2026-04-19 完成）
+
+九步文档流程全部完成（Step 1-9），Phase 4 规划已就绪：
+
+| Step | 产出 | 状态 |
+|------|------|------|
+| 1 | `docs/req-alpha.md` — 需求整合（26 FR + 29 NFR + 5 SI） | ✅ |
+| 2 | 六层架构 + 专家角色识别 | ✅ |
+| 3 | 18 模块划分 + ADR-007~010 | ✅ |
+| 4 | 18 个 DESIGN.md + 索引更新 | ✅ |
+| 5 | UI/DFX/测试设计文档 | ✅ |
+| 6 | `docs/TASK_BREAKDOWN.md` v2.0 — 23 工作项 + 6 Sprint | ✅ |
+| 7 | `docs/CHECKLIST.md` — 213 条验收项 | ✅ |
+| 8 | `docs/COMPLETENESS_REPORT.md` — 100% 需求覆盖 | ✅ |
+| 9 | `docs/ANOMALY_REPORT.md` — 39 条待确认项 | ✅ |
+
+### 关键路径
+WR-01→WR-03→WR-04→WR-05→WR-17→WR-18，预估 11.5 周
+
+### 待人工确认的关键决策（ANOMALY_REPORT）
+1. ~~**I-17** ReGraph vs G6~~ → ✅ ADR-045 已决策：G6
+2. ~~**I-21** Phase 4 单体 vs 微服务~~ → ✅ ADR-046 已决策：模块化单体
+3. **I-22** 审计日志存储 → ✅ ADR-042 已决策：SQLite + 文件哈希链锚点
+4. **I-36** 🟡 M-11 工具注册表 P0/P1 优先级 → ✅ ADR-047 已决策：P0 分步实现
+5. ~~ADR-039~044 待创建~~ → ✅ 已全部创建（2026-04-19）
+
+## ANOMALY_REPORT 状态（2026-04-19 更新）
+
+- **14 条亟需人工确认项 → 全部已关闭**
+- 三大关键决策：ADR-045(G6+Leaflet)、ADR-046(模块化单体)、ADR-047(工具注册表P0分步)
+- 代码清理已完成：biz/permission/ 删除、adapters/ 并入 infra/、web/legacy/ 归档、1~ 删除
+- I-24（storage/非空）和 I-28（simulator_ui/不存在）为记录修正，非操作项
+- Redis 和消息队列 Phase 4 不引入（YAGNI），Phase 5+ 再评估
+
 ## 重要文档
-- `docs/ARCHITECTURE.md`（v3.2，2026-04-15，附录 A/C 更新为新目录结构）
-- `docs/adr/README.md`（含优先级列，ADR-001~033）
+- `docs/ARCHITECTURE.md`（v3.2，2026-04-15）
+- `docs/adr/README.md`（含优先级列，ADR-001~047，全部已创建）
+- `docs/TASK_BREAKDOWN.md`（v2.0，2026-04-19，Phase 4 工作项拆分）
+- `docs/CHECKLIST.md`（v1.0，213 条验收 Checklist）
+- `docs/COMPLETENESS_REPORT.md`（v1.0，范围完整性确认）
+- `docs/ANOMALY_REPORT.md`（v1.0，39 条不相关/待确认信息）
 - `docs/AUDIT_REPORT.md`（全量文档审计报告）
-- `docs/RESTRUCTURE_PLAN.md`（2026-04-15，项目目录重构方案，ADR-033 配套）
+- `docs/RESTRUCTURE_PLAN.md`（2026-04-15，项目目录重构方案）
+- **需求文档三件套**：
+  - `docs/req-alpha.md` — v1.0 原始技术研究（归档）
+  - `docs/req-beta.md` — v1.1.0 早期需求规格（归档）
+  - `docs/req-ok.md` — v2.0.0 需求定稿（⭐ 唯一权威来源）
 
 ## 核心文件
-- `core/opa_client.py`: OPA 策略客户端
-- `core/graphiti_client.py`: Graphiti 客户端
-- `core/swarm_orchestrator.py`: Swarm 编排器
-- `core/openharness_bridge.py`: 已删除（2026-04-13），适配功能通过 OpenHarness 原生扩展点实现（ADR-005）
+- `odap/infra/graphiti/`: Graphiti 客户端
+- `odap/infra/opa/`: OPA 策略管理
+- `odap/biz/swarm/`: Swarm 编排器
+- `odap/biz/ontology/`: 本体管理引擎
