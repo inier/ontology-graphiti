@@ -1,5 +1,11 @@
 # OpenHarness 桥接模块设计文档
 
+> ⏸️ **DEFERRED — 推迟至 Phase 4** (ADR-030, 2026-04-19)
+>
+> 本模块依赖 OpenHarness 框架集成，根据 ADR-030 决策，OpenHarness 实现延期至 Phase 4。
+> 当前阶段（Phase 0-3）通过原生扩展点实现必要功能，无需本桥接层。
+> 本文档保留供 Phase 4 参考，当前不再维护。
+
 > **优先级**: P0 | **相关 ADR**: ADR-001, ADR-005, ADR-006
 
 ## 1. 模块概述

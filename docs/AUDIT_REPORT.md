@@ -118,7 +118,7 @@ ADR-001 到 ADR-029，编号连续，无缺失。✅
 
 ### 4.1 需求 → 架构 追溯
 
-- req-alpha.md 定义了核心需求基线 ✅
+- req-ok.md 定义了核心需求基线（req-alpha.md 为原始技术研究输入） ✅
 - req-beta.md 定义了 Beta 阶段需求 ✅
 - ARCHITECTURE.md 涵盖了 18 章架构描述 + 第 18 章需求追溯矩阵 ✅
 - **问题**: ARCHITECTURE.md 第 18.1 章需求追溯矩阵中 ADR 编号引用存在偏移

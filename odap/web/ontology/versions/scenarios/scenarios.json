@@ -1554,7 +1554,87 @@
           "schema_version": "1.0.0"
         }
       }
+    ],
+    "default": [
+      {
+        "doc_id": "rand-20260417-0f83fe",
+        "meta": {
+          "title": "[随机] 红方炮兵团 - retreat",
+          "description": "红方炮兵团 对 蓝方机步营 执行 retreat（位于 F区海岸线）",
+          "tags": [
+            "red",
+            "retreat",
+            "F区海岸线"
+          ],
+          "language": "zh",
+          "classification": "SIM"
+        },
+        "entities": [
+          {
+            "entity_id": "unit-red-80f30f",
+            "entity_type": "Unit",
+            "name": "红方炮兵团",
+            "name_en": "红方炮兵团",
+            "basic_properties": {
+              "side": "red",
+              "location": "F区海岸线",
+              "status": "active",
+              "unit_type": "artillery"
+            },
+            "statistical_properties": {
+              "combat_power": 0.84,
+              "morale": 0.64,
+              "supply_level": 0.6,
+              "casualty_rate": 0.036
+            },
+            "capabilities": {},
+            "constraints": []
+          },
+          {
+            "entity_id": "unit-blue-8230b7",
+            "entity_type": "Unit",
+            "name": "蓝方机步营",
+            "name_en": "蓝方机步营",
+            "basic_properties": {
+              "side": "blue",
+              "location": "F区海岸线",
+              "status": "active"
+            },
+            "statistical_properties": {
+              "combat_power": 0.49,
+              "morale": 0.89,
+              "supply_level": 0.83
+            },
+            "capabilities": {},
+            "constraints": []
+          }
+        ],
+        "events": [
+          {
+            "event_id": "evt-aba9eb6b",
+            "event_type": "retreat",
+            "timestamp": "2026-04-16T17:23:27.627259+00:00",
+            "location": "F区海岸线",
+            "coordinates": null,
+            "participants": [
+              "unit-red-80f30f",
+              "unit-blue-8230b7"
+            ],
+            "description": "红方炮兵团 对 蓝方机步营 执行 retreat（位于 F区海岸线）",
+            "outcome": {
+              "terrain_control": "lost"
+            },
+            "phase": "initial"
+          }
+        ],
+        "ontology_version": {
+          "version_id": "v20260417-005",
+          "parent_version": null,
+          "commit_message": "随机生成: 红方炮兵团 retreat",
+          "schema_version": "1.0.0"
+        }
+      }
     ]
   },
-  "updated_at": "2026-04-15T16:04:59.417980+00:00"
+  "updated_at": "2026-04-16T17:23:27.639440+00:00"
 }

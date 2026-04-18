@@ -1,5 +1,11 @@
 # Mock 数据生成引擎 (Mock Data Engine) - 设计文档
 
+> ⚠️ **已合并至 [event_simulator](../event_simulator/DESIGN.md)** (2026-04-19)
+>
+> 原 Mock 数据引擎（静态样本数据生成）与事件模拟器功能高度关联。
+> 静态数据生成作为 EventSimulator 的 TemplateEngine 子功能保留。
+> 本文档保留供历史参考，不再维护。
+
 > **优先级**: P1 | **相关 ADR**: ADR-018
 
 **版本**: 1.0.0 | **日期**: 2026-04-16

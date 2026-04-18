@@ -1,471 +1,465 @@
-# ODAP 任务拆分策略
+# ODAP 任务拆分与工作项清单
 
-> **版本**: 1.0 | **日期**: 2026-04-13 | **基于**: ARCHITECTURE v3.1 + 12 模块 DESIGN.md + 代码扫描
+> **版本**: 2.0 | **日期**: 2026-04-19 | **基于**: ARCHITECTURE_PLAN v1.0 + req-ok v2.0.0 + 18 模块 DESIGN.md + TASK_BREAKDOWN v1.1
+> **前置文档**: `docs/ARCHITECTURE_PLAN.md`（架构规划）、`docs/req-ok.md`（需求规格定稿）
 
 ---
 
-## 0. 现状诊断
+## 0. 现状总览
 
-### 文档 vs 代码差距
+### 已完成工作（Phase 0-3）
 
-| 维度 | 文档 | 实际代码 | 差距 |
-|------|------|---------|------|
-| 架构文档 | 4928 行 (v3.1) | — | 已完成 |
-| 模块设计 | 12 个 DESIGN.md (~15,000 行) | — | 已完成 |
-| ADR | 29 条 | — | 已完成 |
-| 核心代码 | — | 7 文件, ~1,666 行 | **68% 实现度** |
-| Skills | 51 个函数, 9 文件 | — | 有逻辑但无基类/无 Pydantic |
-| 测试 | — | 1 文件, 169 行 | **全部会失败** (字段名不匹配) |
+| Phase | 内容 | 状态 | 核心产出 |
+|-------|------|------|---------|
+| Phase 0-Bridge | 致命 Bug 修复 + 测试修复 | ✅ | 代码可运行，测试全部通过 |
+| Phase 1-A | Graphiti+Neo4j + OPA + Skill 基类 | ✅ | 四大基础设施独立可运行 |
+| Phase 1-B | Intelligence Agent ReAct + RAG | ✅ | 单 Agent 端到端闭环 |
+| Phase 2 | 三 Agent OODA + 故障恢复 + Hook | ✅ | DomainSwarm 编排器 |
+| Phase 3 | Web 可视化 + 热写入 + 国际化 | ✅ | FastAPI + React SPA |
 
-### 6 个致命级差距 (P0)
+### 文档资产（本次新增）
 
-| # | 差距 | 影响 |
+| 产出 | 版本 | 说明 |
+|------|------|------|
+| req-alpha.md | v1.0 | 技术研究（原始输入，归档） |
+| req-ok.md | v2.0.0 | 需求定稿（唯一权威来源） |
+| ARCHITECTURE_PLAN.md | v1.0 | 六层架构 + 18 模块 + 专家角色 + 规划清单 |
+| 7 个新模块 DESIGN.md | — | M-04/07/11/12/15/16/17 |
+| UI_DESIGN.md | v1.0 | UI 设计规范 |
+| DFX_DESIGN.md | v1.0 | 可靠性/安全/性能/可维护性设计 |
+| TEST_DESIGN.md | v1.0 | 测试策略与框架 |
+
+### 代码资产
+
+| 目录 | 模块 | 行数(估) | 对应 M-ID |
+|------|------|---------|-----------|
+| `odap/infra/graph/` | Graphiti 客户端 | ~400 | M-01 |
+| `odap/infra/opa/` | OPA 策略管理 | ~300 | M-02 |
+| `odap/biz/ontology/` | 本体管理 | ~450 | M-03 |
+| `odap/biz/workspace/` | 工作空间 | ~100 | M-04 |
+| `odap/infra/events/` | Hook 事件系统 | ~200 | M-05 |
+| `odap/adapters/` | MCP 适配 | ~150 | M-06 |
+| `odap/biz/agent/` | Agent + Router | ~700 | M-09, M-10 |
+| `odap/tools/` | Skill 工具集 | ~800 | M-08, M-11 |
+| `odap/biz/simulator/` | 模拟推演 | ~300 | M-14 |
+| `odap/web/` | API + WebSocket | ~350 | M-16 |
+| `frontend/` | React SPA | ~2000 | M-17, M-18 |
+| 缺失 | 审计日志 | 0 | M-07 |
+| 缺失 | 问答引擎 | 0 | M-12 |
+| 缺失 | 决策推荐 | 0 | M-13 |
+| 缺失 | 事件模拟器 | 0 | M-15 |
+
+---
+
+## 1. 拆分策略：垂直切片 + 架构对齐
+
+### 原则
+
+1. **垂直切片优先**：每个工作项交付端到端可验证的功能链路
+2. **架构层对齐**：工作项按 L1→L6 依赖顺序排列，下层先于上层
+3. **P0 阻塞 P1**：关键路径上的 P0 项必须先完成
+4. **代码+文档同步**：每个工作项包含设计、实现、测试三个维度
+
+### 工作项编号规则
+
+- **WR-XX**：工作项（Work Item），XX 为序号
+- 优先级：🔴 P0（阻塞）、🟡 P1（重要）、🟢 P2（增强）
+- 状态：⬜ 待开始 | 🔄 进行中 | ✅ 已完成 | ⏸️ 推迟
+
+---
+
+## 2. Phase 4 工作项清单
+
+### 2.1 L1 基础设施层（P0 关键路径）
+
+| WR | 工作项 | 模块 | 优先级 | 依赖 | 工期 | 产出 | 状态 |
+|----|--------|------|--------|------|------|------|------|
+| WR-01 | Graphiti 客户端 v2 | M-01 | 🔴 P0 | 无 | 2 周 | 对齐 DESIGN v2，增加双时态查询 + 混合检索优化 | 🔄 |
+| WR-02 | OPA 策略管理 v2（含权限校验） | M-02 | 🔴 P0 | 无 | 2 周 | 合并 permission_checker，ABAC + 热更新 Bundle | 🔄 |
+| WR-03 | 本体管理引擎 v2 | M-03 | 🔴 P0 | WR-01 | 2 周 | OntologyDocument 标准格式 + 语义层 + 可视化编辑 | 🔄 |
+| WR-04 | 工作空间管理 | M-04 | 🔴 P0 | WR-03 | 1.5 周 | Neo4j 多库隔离 + OPA Bundle 路径隔离 + 导入导出 | ⬜ |
+| WR-05 | 审计日志系统 | M-07 | 🔴 P0 | WR-04 | 1 周 | 异步 Channel + 批量落盘 + 防篡改校验链 + 时间线 | ⬜ |
+| WR-06 | Hook 系统增强 | M-05 | 🟡 P1 | WR-02 | 1 周 | 安全沙箱 + 代码签名 + 监控告警 + 与审计集成 | ⬜ |
+| WR-07 | MCP 协议适配 | M-06 | 🟡 P1 | WR-02 | 1.5 周 | Tool Server 注册 + 能力发现 + 连接池 + 健康检查 | ⬜ |
+
+### 2.2 L2 领域能力层
+
+| WR | 工作项 | 模块 | 优先级 | 依赖 | 工期 | 产出 | 状态 |
+|----|--------|------|--------|------|------|------|------|
+| WR-08 | Skill 基础设施 v2 | M-08 | 🔴 P0 | WR-01, WR-02 | 1.5 周 | BaseSkill v2 + 热插拔 + 版本管理 + 17 个 Skill 迁移 | 🔄 |
+| WR-09 | 工具注册表（分步） | M-11 | 🔴 P0+🟡 P1 | WR-08 | 1+1 周 | **Step1(P0)** 核心接口:register/discover/execute+SkillExecutor+OPA桥接；**Step2(P1)** 语义发现+健康监控+工具链+MCP+REST | ⬜ |
+| WR-10 | 事件模拟器 | M-15 | 🟡 P1 | WR-01, WR-03 | 1.5 周 | 模板管理 + 自动/手动事件生成 + 时间控制 + 与推演集成 | ⬜ |
+
+### 2.3 L3 Agent 编排层
+
+| WR | 工作项 | 模块 | 优先级 | 依赖 | 工期 | 产出 | 状态 |
+|----|--------|------|--------|------|------|------|------|
+| WR-11 | Swarm 编排器 v2 | M-09 | 🔴 P0 | WR-08 | 2 周 | 对齐 DESIGN v2，故障恢复增强 + 状态持久化优化 | 🔄 |
+| WR-12 | Agent Router v2 | M-10 | 🔴 P0 | WR-11 | 1 周 | 语义路由 + Self-Correction + 意图识别 + Worker 工厂 | ⬜ |
+
+### 2.4 L4 应用服务层
+
+| WR | 工作项 | 模块 | 优先级 | 依赖 | 工期 | 产出 | 状态 |
+|----|--------|------|--------|------|------|------|------|
+| WR-13 | 问答引擎 | M-12 | 🔴 P0 | WR-12 | 2 周 | 多轮对话 + RAG 增强 + 双时态查询 + 溯源追踪 | ⬜ |
+| WR-14 | 决策推荐引擎 | M-13 | 🟡 P1 | WR-11 | 1.5 周 | StrikePlan 生成 + 风险评估 + 多策略对比 + OPA 校验 | ⬜ |
+| WR-15 | 模拟推演引擎 v2 | M-14 | 🔴 P0 | WR-01, WR-03 | 1.5 周 | 对齐 DESIGN v2，What-if 分析 + 方案版本管理增强 | 🔄 |
+| WR-16 | 可视化引擎 | M-18 | 🟡 P1 | WR-13 | 2 周 | ReGraph/G6 图谱 + CesiumJS 地图 + ECharts 图表 | ⬜ |
+
+### 2.5 L5 API 网关层
+
+| WR | 工作项 | 模块 | 优先级 | 依赖 | 工期 | 产出 | 状态 |
+|----|--------|------|--------|------|------|------|------|
+| WR-17 | API 网关 | M-16 | 🔴 P0 | WR-05 | 2 周 | 认证鉴权 + 限流 + 路由 + OPA 集成 + WebSocket | ⬜ |
+
+### 2.6 L6 用户交互层
+
+| WR | 工作项 | 模块 | 优先级 | 依赖 | 工期 | 产出 | 状态 |
+|----|--------|------|--------|------|------|------|------|
+| WR-18 | Web 前端 v2 | M-17 | 🔴 P0 | WR-17 | 3 周 | 对齐 UI_DESIGN，问答页 + 审计页 + 工具管理 + 态势图 | ⬜ |
+
+### 2.7 横切关注点
+
+| WR | 工作项 | 优先级 | 依赖 | 工期 | 产出 | 状态 |
+|----|--------|--------|------|------|------|------|
+| WR-19 | ADR-039~044 创建 | 🔴 P0 | 无 | 0.5 周 | 6 条新增 ADR | ⬜ |
+| WR-20 | 集成测试框架搭建 | 🔴 P0 | WR-01~WR-05 | 1 周 | pytest + Docker Compose + CI | ⬜ |
+| WR-21 | 性能基准测试 | 🟡 P1 | WR-20 | 1 周 | 关键链路 P99 延迟基线 | ⬜ |
+| WR-22 | 安全审计与渗透测试 | 🟡 P1 | WR-02, WR-17 | 1 周 | OWASP Top 10 检查 + 报告 | ⬜ |
+| WR-23 | 文档一致性校验 | 🟢 P2 | WR-01~WR-18 | 0.5 周 | 文档↔代码↔测试三方对齐报告 | ⬜ |
+
+---
+
+## 3. 关键路径与依赖图
+
+```
+WR-01 (Graphiti v2) ─── WR-03 (本体 v2) ─── WR-04 (工作空间) ─── WR-05 (审计)
+  │          │                │                                     │
+  │          │                │                                     ├── WR-17 (API网关)
+  │          │                └── WR-15 (推演 v2)                   │
+  │          │                        │                             └── WR-18 (Web前端)
+  │          └── WR-10 (事件模拟)      │                                    │
+  │                                        │                             WR-16 (可视化)
+  WR-02 (OPA v2) ─── WR-08 (Skill v2) ─── WR-11 (Swarm v2) ─── WR-12 (Router)
+                     │               │                            │
+                     │        WR-09a (工具注册表 Step1)            └── WR-13 (问答引擎)
+                     └── WR-09b (工具注册表 Step2, P1)
+                                                                        │
+                                                                  WR-14 (决策推荐)
+```
+
+### 关键路径（最长依赖链）
+
+```
+WR-01 → WR-03 → WR-04 → WR-05 → WR-17 → WR-18
+(2w)     (2w)    (1.5w)   (1w)    (2w)    (3w) = 11.5 周
+```
+
+> ⚠️ ADR-047 决策：工具注册表（WR-09）升级为 P0 分步实现。Step 1 核心接口随 WR-08 并行，不阻塞关键路径；Step 2 完整能力为 P1。
+
+### 并行路径
+
+```
+Path A: WR-01 → WR-03 → WR-04 → WR-05 → WR-17 → WR-18 (11.5w)
+Path B: WR-02 → WR-08 → WR-09a → WR-11 → WR-12 → WR-13 (8.5w)
+Path C: WR-01 + WR-03 → WR-15 (5.5w)
+```
+
+**总工期估算**: 11.5 周（~3 个月），考虑并行可压缩至 **8-9 周**
+
+---
+
+## 4. 迭代规划
+
+### Sprint 1（Week 1-2）：基础设施加固
+
+| 工作项 | 内容 | 验收标准 |
+|--------|------|---------|
+| WR-01 | Graphiti v2 | 双时态查询 API 可用，混合检索 P99 < 200ms |
+| WR-02 | OPA v2 | ABAC 策略热更新，合并 permission_checker 功能 |
+| WR-19 | ADR-039~044 | 6 条 ADR 评审通过 |
+
+### Sprint 2（Week 3-4）：核心能力层
+
+| 工作项 | 内容 | 验收标准 |
+|--------|------|---------|
+| WR-03 | 本体管理 v2 | OntologyDocument CRUD + 语义层 |
+| WR-08 | Skill v2 | 17 个 Skill 全部迁移到 BaseSkill v2 |
+| WR-04 | 工作空间 | 多场景隔离 + 切换 + 导入导出 |
+
+### Sprint 3（Week 5-6）：编排与应用层
+
+| 工作项 | 内容 | 验收标准 |
+|--------|------|---------|
+| WR-11 | Swarm v2 | OODA 闭环 + 故障恢复增强 |
+| WR-09a | 工具注册表 Step1（核心接口） | register/discover/execute + SkillExecutor + OPA 桥接 |
+| WR-12 | Agent Router | 语义路由 + Self-Correction |
+| WR-05 | 审计日志 | 100% 操作覆盖 + 时间线可视化 |
+
+### Sprint 4（Week 7-8）：应用服务与网关
+
+| 工作项 | 内容 | 验收标准 |
+|--------|------|---------|
+| WR-13 | 问答引擎 | 多轮对话 + RAG + 溯源 |
+| WR-15 | 推演 v2 | What-if + 版本管理 |
+| WR-17 | API 网关 | 认证 + 限流 + 路由 + OPA 集成 |
+
+### Sprint 5（Week 9-11）：用户界面与集成
+
+| 工作项 | 内容 | 验收标准 |
+|--------|------|---------|
+| WR-18 | Web 前端 v2 | 问答页 + 审计页 + 工具管理 + 态势图 |
+| WR-20 | 集成测试 | 端到端测试全部通过 |
+| WR-14 | 决策推荐 | StrikePlan + OPA 校验 |
+
+### Sprint 6（Week 12+）：增强与优化
+
+| 工作项 | 内容 | 验收标准 |
+|--------|------|---------|
+| WR-16 | 可视化引擎 | 图谱 + 地图 + 图表渲染 |
+| WR-06 | Hook 增强 | 安全沙箱 + 监控告警 |
+| WR-07 | MCP 适配 | Tool Server + 能力发现 |
+| WR-09 | 工具注册表 | 统一注册 + 运行时发现 |
+| WR-10 | 事件模拟器 | 模板 + 自动生成 + 时间控制 |
+| WR-21 | 性能基准 | P99 延迟基线 |
+| WR-22 | 安全审计 | OWASP 检查报告 |
+
+---
+
+## 3. Phase 5：新增核心引擎（P0 关键路径）
+
+### 3.1 本体管理引擎（新增模块 MOD-05）
+
+| WR | 工作项 | 模块 | 优先级 | 依赖 | 工期 | 产出 | 状态 |
+|----|--------|------|--------|------|------|------|------|
+| WR-24 | 数据摄入审计模块 | M-05-1 | 🔴 P0 | WR-01, WR-05 | 1.5 周 | 数据来源记录 + 处理过程追踪 + 异常检测 | ⬜ |
+| WR-25 | 本体构建器模块 | M-05-2 | 🔴 P0 | WR-24 | 2 周 | 实体提取 + 关系识别 + 属性映射 + 可视化 | ⬜ |
+| WR-26 | 版本管理器模块 | M-05-3 | 🔴 P0 | WR-25 | 1.5 周 | 版本追踪 + 变更对比 + 回滚机制 + 增量更新 | ⬜ |
+| WR-27 | 验证引擎模块 | M-05-4 | 🔴 P0 | WR-25 | 1 周 | 数据质量检查 + 一致性验证 + 完整性验证 | ⬜ |
+| WR-28 | 本体管理引擎 UI | M-05-UI | 🔴 P0 | WR-24~WR-27 | 2 周 | 审计仪表盘 + 构建可视化 + 版本管理界面 | ⬜ |
+
+### 3.2 用户认知引擎（新增模块 MOD-02）
+
+| WR | 工作项 | 模块 | 优先级 | 依赖 | 工期 | 产出 | 状态 |
+|----|--------|------|--------|------|------|------|------|
+| WR-29 | 意图识别器模块 | M-02-1 | 🔴 P0 | WR-13 | 1.5 周 | 意图解析 + 角色识别 + 需求理解 | ⬜ |
+| WR-30 | 知识导航器模块 | M-02-2 | 🔴 P0 | WR-29, WR-16 | 2 周 | 知识检索 + 推理路径追踪 + 图谱导航 | ⬜ |
+| WR-31 | 解释引擎模块 | M-02-3 | 🔴 P0 | WR-30 | 2 周 | 决策解释 + 推理链可视化 + "为什么"查询 | ⬜ |
+| WR-32 | 角色视图管理器 | M-02-4 | 🔴 P0 | WR-29 | 1.5 周 | 指挥官视图 + 情报员视图 + 操作员视图 | ⬜ |
+| WR-33 | 用户认知引擎 UI | M-02-UI | 🔴 P0 | WR-29~WR-32 | 3 周 | 认知界面 + 解释可视化 + 多角色切换 | ⬜ |
+
+### 3.3 Phase 5 集成与测试
+
+| WR | 工作项 | 优先级 | 依赖 | 工期 | 产出 | 状态 |
+|----|--------|--------|------|------|------|------|
+| WR-34 | ADR-048~049 创建（本体管理/用户认知） | 🔴 P0 | 无 | 0.5 周 | 2 条新增架构决策记录 | ⬜ |
+| WR-35 | Phase 5 端到端集成测试 | 🔴 P0 | WR-24~WR-33 | 1 周 | 端到端测试通过，功能验证完整 | ⬜ |
+| WR-36 | 新增模块性能优化 | 🟡 P1 | WR-35 | 0.5 周 | 性能满足NFR要求 | ⬜ |
+| WR-37 | 新增模块安全测试 | 🟡 P1 | WR-35 | 0.5 周 | 安全审计通过 | ⬜ |
+
+---
+
+## 4. 更新后的关键路径与依赖图
+
+### 完整关键路径（最长依赖链）
+
+```
+WR-01 → WR-03 → WR-04 → WR-05 → WR-17 → WR-18
+(2w)     (2w)    (1.5w)   (1w)    (2w)    (3w) = 11.5 周
+
+└──> WR-24 → WR-25 → WR-26, WR-27 → WR-28
+     (1.5w)    (2w)    (1.5w+1w)    (2w) = 7w（并行）
+
+WR-13 → WR-29 → WR-30 → WR-31 → WR-32 → WR-33
+(2w)    (1.5w)   (2w)    (2w)    (1.5w)   (3w) = 12w（新关键路径）
+```
+
+### 更新后的总工期估算
+
+- **原关键路径**：11.5 周
+- **新关键路径**：12 周（用户认知引擎）
+- **总工期**：约 14 周（~3.5 个月），考虑并行可压缩至 **11-12 周**
+
+---
+
+## 5. Phase 5 迭代规划
+
+### Sprint 7（Week 12-13）：本体管理引擎核心
+
+| 工作项 | 内容 | 验收标准 |
+|--------|------|---------|
+| WR-34 | ADR-048~049 创建 | 2 条架构决策记录评审通过 |
+| WR-24 | 数据摄入审计模块 | 数据来源记录 + 处理过程追踪可用 |
+| WR-29 | 意图识别器模块 | 意图识别准确率 > 90% |
+
+### Sprint 8（Week 14-15）：引擎构建
+
+| 工作项 | 内容 | 验收标准 |
+|--------|------|---------|
+| WR-25 | 本体构建器模块 | 实体提取 + 关系识别 + 属性映射可用 |
+| WR-30 | 知识导航器模块 | 知识检索 + 推理路径追踪可用 |
+
+### Sprint 9（Week 16-17）：验证与解释
+
+| 工作项 | 内容 | 验收标准 |
+|--------|------|---------|
+| WR-26 | 版本管理器模块 | 版本对比 + 回滚可用 |
+| WR-27 | 验证引擎模块 | 数据质量检查 + 一致性验证可用 |
+| WR-31 | 解释引擎模块 | 决策解释 + 推理链可视化可用 |
+| WR-32 | 角色视图管理器 | 3 种角色视图可用 |
+
+### Sprint 10（Week 18-20）：UI与集成
+
+| 工作项 | 内容 | 验收标准 |
+|--------|------|---------|
+| WR-28 | 本体管理引擎 UI | 审计仪表盘 + 构建可视化可用 |
+| WR-33 | 用户认知引擎 UI | 认知界面 + 解释可视化可用 |
+| WR-35 | Phase 5 端到端集成测试 | 所有新增功能验证通过 |
+| WR-36 | 性能优化 | 满足NFR性能要求 |
+| WR-37 | 安全测试 | 安全审计通过 |
+
+---
+
+## 5. 工作项详细拆分
+
+### WR-01: Graphiti 客户端 v2
+
+| 子任务 | 内容 | 优先级 | 产出 |
+|--------|------|--------|------|
+| WR-01.1 | 双时态查询 API（valid_time + transaction_time） | P0 | `graphiti_client.py` 新增方法 |
+| WR-01.2 | 混合检索优化（向量→关键词→内存三层降级） | P0 | 检索策略重构 |
+| WR-01.3 | Episode 管理增强（批量写入 + 去重） | P1 | Episode 管理器 |
+| WR-01.4 | 连接池 + 断路器（Neo4j 连接治理） | P1 | 连接池实现 |
+| WR-01.5 | 性能监控（查询耗时 + 缓存命中率） | P2 | 监控指标 |
+| WR-01.6 | 单元测试 + 集成测试 | P0 | 测试文件 |
+
+### WR-02: OPA 策略管理 v2（含权限校验）
+
+| 子任务 | 内容 | 优先级 | 产出 |
+|--------|------|--------|------|
+| WR-02.1 | 合并 permission_checker 功能到 OPA 模块 | P0 | 代码合并 + 重构 |
+| WR-02.2 | ABAC 策略 v2（角色+属性+环境条件） | P0 | Rego 策略重写 |
+| WR-02.3 | 策略热更新 Bundle 机制 | P0 | Bundle 管理器 |
+| WR-02.4 | 策略沙箱（What-If 权限模拟） | P1 | PolicySandbox |
+| WR-02.5 | 批量权限检查 + 缓存 | P1 | BatchEvaluator + PolicyCache |
+| WR-02.6 | 单元测试 | P0 | 测试文件 |
+
+### WR-03: 本体管理引擎 v2
+
+| 子任务 | 内容 | 优先级 | 产出 |
+|--------|------|--------|------|
+| WR-03.1 | OntologyDocument 标准格式完善 | P0 | Pydantic 模型 + Schema |
+| WR-03.2 | 语义层（业务术语→图谱属性映射） | P0 | SemanticLayer |
+| WR-03.3 | 版本管理（版本链 + diff + 回退） | P0 | VersionManager |
+| WR-03.4 | 可视化编辑器后端 API | P1 | REST API |
+| WR-03.5 | 验证引擎（数据质量 + 一致性 + 完整性） | P1 | ValidationEngine |
+| WR-03.6 | 单元测试 | P0 | 测试文件 |
+
+### WR-04: 工作空间管理
+
+| 子任务 | 内容 | 优先级 | 产出 |
+|--------|------|--------|------|
+| WR-04.1 | 工作空间 CRUD + 切换 | P0 | WorkspaceManager |
+| WR-04.2 | Neo4j 多数据库隔离 | P0 | 数据库隔离适配 |
+| WR-04.3 | OPA Bundle 路径隔离 | P0 | 策略隔离适配 |
+| WR-04.4 | 场景导入/导出（.odoc.json） | P1 | 序列化/反序列化 |
+| WR-04.5 | 共享绑定（跨空间资源引用） | P2 | 共享机制 |
+| WR-04.6 | 单元测试 | P0 | 测试文件 |
+
+### WR-05: 审计日志系统
+
+| 子任务 | 内容 | 优先级 | 产出 |
+|--------|------|--------|------|
+| WR-05.1 | AuditLogger 核心（log + span） | P0 | AuditLogger |
+| WR-05.2 | 异步 Channel + 批量落盘 | P0 | 写入管道 |
+| WR-05.3 | CRITICAL 级别同步写入 | P0 | 同步写入保障 |
+| WR-05.4 | 防篡改校验链（SHA-256 链式哈希） | P1 | HashChain |
+| WR-05.5 | 时间线查询 API | P1 | 查询接口 |
+| WR-05.6 | 单元测试 | P0 | 测试文件 |
+
+### WR-13: 问答引擎
+
+| 子任务 | 内容 | 优先级 | 产出 |
+|--------|------|--------|------|
+| WR-13.1 | QAEngine 核心（ask + ask_with_tools） | P0 | QAEngine |
+| WR-13.2 | 多轮对话管理（上下文窗口 + 摘要） | P0 | DialogManager |
+| WR-13.3 | RAG 增强生成（检索→排序→注入→生成） | P0 | RAG Pipeline |
+| WR-13.4 | 双时态查询（"上周"/"事件发生时"） | P1 | TemporalQueryParser |
+| WR-13.5 | 溯源追踪（答案→源 Episode/Entity） | P0 | SourceTracer |
+| WR-13.6 | 复杂问题升级（→ Intelligence Agent） | P1 | 升级策略 |
+| WR-13.7 | 单元测试 + 集成测试 | P0 | 测试文件 |
+
+### WR-17: API 网关
+
+| 子任务 | 内容 | 优先级 | 产出 |
+|--------|------|--------|------|
+| WR-17.1 | FastAPI 路由重构（按模块分组） | P0 | 路由模块 |
+| WR-17.2 | 认证鉴权（JWT + API Key） | P0 | AuthMiddleware |
+| WR-17.3 | 限流（令牌桶 + 滑动窗口） | P0 | RateLimiter |
+| WR-17.4 | OPA 权限集成（每请求策略校验） | P0 | PermissionMiddleware |
+| WR-17.5 | WebSocket + SSE 支持 | P1 | 实时通信 |
+| WR-17.6 | 请求日志 + 审计集成 | P0 | 日志中间件 |
+| WR-17.7 | 单元测试 | P0 | 测试文件 |
+
+### WR-18: Web 前端 v2
+
+| 子任务 | 内容 | 优先级 | 产出 |
+|--------|------|--------|------|
+| WR-18.1 | 智能问答页（对话 + 图表 + 溯源） | P0 | QAChat.tsx |
+| WR-18.2 | 审计日志页（时间线 + 搜索 + 详情） | P0 | AuditTimeline.tsx |
+| WR-18.3 | 本体管理页（编辑器 + 版本 + 验证） | P0 | OntologyEditor.tsx |
+| WR-18.4 | 工作空间管理页（切换 + 导入导出） | P1 | WorkspaceManager.tsx |
+| WR-18.5 | 态势图页（CesiumJS 地图 + 实体标记） | P1 | SituationMap.tsx |
+| WR-18.6 | 工具管理页（注册表 + 能力发现） | P1 | ToolRegistry.tsx |
+| WR-18.7 | 全局状态管理（Zustand Store 重构） | P0 | Store |
+| WR-18.8 | API 层重构（axios + SWR） | P0 | API Client |
+| WR-18.9 | E2E 测试（Playwright） | P1 | 测试文件 |
+
+---
+
+## 6. 风险与缓解
+
+| 风险 | 影响 | 概率 | 缓解措施 |
+|------|------|------|---------|
+| Neo4j 性能瓶颈 | 双时态查询慢 | 中 | 引入查询缓存 + 读写分离 |
+| OPA Bundle 热更新延迟 | 策略生效不及时 | 低 | 增量 Bundle + 本地缓存 |
+| Agent LLM 响应不稳定 | 问答/决策质量波动 | 高 | Self-Correction + 人工兜底 |
+| 前端重构范围过大 | 开发周期膨胀 | 中 | 分阶段交付，P0 页面优先 |
+| 模块间接口不兼容 | 集成失败 | 中 | 契约测试 + 持续集成 |
+| OpenHarness 框架不稳定 | Phase 4 集成风险 | 低 | ADR-030 已推迟，有备选方案 |
+
+---
+
+## 7. 验收总标准
+
+### 功能验收
+
+| # | 验收项 | 涉及 WR | 标准 |
+|---|--------|---------|------|
+| V-01 | 端到端问答 | WR-13, WR-17, WR-18 | 用户提问→RAG检索→结构化回答+溯源 |
+| V-02 | 决策推荐 | WR-14, WR-11 | 情报输入→方案生成→风险评估→OPA校验 |
+| V-03 | 模拟推演 | WR-15, WR-10 | 场景配置→事件注入→沙箱推演→版本对比 |
+| V-04 | 审计追溯 | WR-05, WR-17 | 任意操作→审计日志→时间线展示→防篡改验证 |
+| V-05 | 工作空间隔离 | WR-04 | 多空间并存→资源隔离→切换→导入导出 |
+
+### 非功能验收
+
+| # | 类别 | 标准 |
 |---|------|------|
-| G1 | OPA 纯模拟 (`use_mock=True`)，从未连接 OPA 服务 | 策略治理层形同虚设 |
-| G2 | Graphiti 双时态能力未使用，永远回退 networkx | 知识图谱核心能力为零 |
-| G3 | OpenHarness 零集成，编排器自实现正则路由 | 架构基础不存在 |
-| G4 | Skill 无基类、无 Pydantic、全同步函数 | 与设计文档接口不匹配 |
-| G5 | 5 个方法被调用但未定义 (add_entity, get_entity_history, search_hybrid, reserve_task 等) | 运行时必崩 |
-| G6 | 测试断言字段名与实际返回值不匹配 | 测试全部失败 |
+| NF-01 | 性能 | 问答 P99 < 3s，图谱查询 P99 < 500ms |
+| NF-02 | 可靠性 | 单 Agent 故障不影响 Swarm，5 分钟内自动恢复 |
+| NF-03 | 安全 | OWASP Top 10 零高危，OPA 策略 100% 覆盖 |
+| NF-04 | 可维护性 | 模块间零循环依赖，新 Skill 30 分钟内可注册 |
+| NF-05 | 可测试性 | P0 模块单元测试覆盖率 > 80%，端到端测试全覆盖 |
 
 ---
 
-## 1. 拆分策略：垂直切片，而非水平分层
-
-### 核心原则
-
-**不要按模块（OpenHarness / Graphiti / OPA / Skills）水平推进，而要按端到端功能垂直切片。**
-
-原因：
-- 水平分层导致每个模块都搭了架子但不能串联验证
-- 垂直切片每次交付都能跑通一个完整功能链路
-- 更早发现模块间接口不匹配问题
-- 符合 Phase 路线图的设计意图
-
----
-
-## 2. Phase 0-Bridge: 现有代码修复（1 周）✅ 已完成
-
-> **目标**: 让现有代码能真正跑通，测试全部通过
-
-### T0-1: 修复 5 个致命 Bug ✅
-
-| Bug | 文件 | 修复方式 | 状态 |
-|-----|------|---------|------|
-| `add_entity()` 未定义 | `core/graph_manager.py` | 在 `DomainGraphManager` 中添加方法，fallback 模式下往 `networkx` 图添加节点 | ✅ |
-| `get_entity_history()` 未定义 | 同上 | 返回空列表（fallback 模式不支持时态查询） | ✅ |
-| `search_hybrid()` 未定义 | 同上 | 委托给 `search()` 方法 | ✅ |
-| `reserve_task()` 未定义 | 同上 | 使用已有的 `self.reserved_tasks` 列表 | ✅ |
-| `get_reserved_tasks()` 未定义 | 同上 | 返回 `self.reserved_tasks` | ✅ |
-| `clear_reserved_tasks()` 未定义 | 同上 | 清空 `self.reserved_tasks` | ✅ |
-
-### T0-2: 修复测试断言 ✅
-
-| 测试 | 当前 | 应修改为 | 状态 |
-|------|------|---------|------|
-| `test_graph_manager` | `stats["node_count"]` | `stats["total_entities"]` | ✅ |
-| `test_graph_manager` | `stats["type_count"]` | `stats["entity_types"]` | ✅ |
-
-### T0-3: 修复 OPA import ✅
-
-- `core/opa_manager.py` 第 8 行 `from opa import OPAClient` → `try/except ImportError`
-- 修复：移除无用 import 或添加 `try/except` | ✅
-
-### T0-4: 补全 `requirements.txt` ✅
-
-- 添加缺失的 `httpx` | ✅
-
-**验收标准**: ✅ 全部通过
-```bash
-python -m pytest tests/ -v  # 4/4 全部通过
-```
-
----
-
-## 3. Phase 1-A: 基础设施验证（2 周）✅ 已完成
-
-> **目标**: 四大核心组件独立可运行，不追求集成
-
-### Slice 1.1: OpenHarness 推迟决策（Week 5）✅
-
-> **实际调整**: 根据 ADR-030，Phase 1 不引入 OpenHarness，推迟到 Phase 2。
-
-| 任务 | 内容 | 产出 | 状态 |
-|------|------|------|------|
-| 决策记录 | 创建 ADR-030 记录推迟理由和 Phase 2 桥接方案 | `docs/adr/ADR-030_...md` | ✅ |
-
-### Slice 1.2: Graphiti + Neo4j 集成验证（Week 5-6）✅
-
-| 任务 | 内容 | 产出 | 状态 |
-|------|------|------|------|
-| Neo4j 连接 | Docker Neo4j 已运行 | `bolt://localhost:7687` 可连 | ✅ |
-| Graphiti 连接 | ZhipuAIClient + Graphiti 连接 Neo4j | `build_indices_and_constraints()` 成功 | ✅ |
-| 写入 Episode | 56 条 Episode 写入 Graphiti | 15 locations + 8 units + 8 weapons + 10 infra + 10 events + 5 missions | ✅ |
-| 查询验证 | `retrieve_episodes()` + `search()` | 能检索到写入的数据 | ✅ |
-| 回退机制 | Neo4j 不可用时优雅回退 networkx | 15 秒超时 + 自动降级 | ✅ |
-
-**关键适配**: ZhipuAIClient 三层适配（URL 拼接 + `_normalize_fields` + `_fill_missing_fields`）
-
-### Slice 1.3: OPA 策略重写（Week 6）✅
-
-| 任务 | 内容 | 产出 | 状态 |
-|------|------|------|------|
-| Rego 策略 | 完整领域交战规则（ROE） | `core/opa_policy.rego` v2.0.0 | ✅ |
-| Python 客户端 | REST API 客户端重写（自动检测 + mock fallback） | `core/opa_manager.py` | ✅ |
-| 策略测试 | 单元测试通过 | `test_opa_manager` ✅ | ✅ |
-
-> ⚠️ 真实 OPA Docker 连接未验证（代码有自动 health_check + fallback，不阻塞后续）
-
-### Slice 1.4: Skill 基类重构（Week 6）✅
-
-| 任务 | 内容 | 产出 | 状态 |
-|------|------|------|------|
-| 定义 BaseSkill | SkillInput/SkillOutput/BaseSkill 抽象基类 | `skills/base.py` | ✅ |
-| 逐步迁移 | 11 个 Skill 全部迁移到 BaseSkill | `skills/*.py` | ✅ |
-| 注册机制 | SKILL_CATALOG 适配新基类 | 向后兼容 | ✅ |
-
-**验收标准**: ✅ 全部达成
-- ~~OpenHarness 可以调用至少 1 个 Skill~~ → ADR-030 推迟到 Phase 2
-- Graphiti 可以写入/查询 Episode（非 networkx 模式）✅
-- OPA 策略检查通过（mock 模式）✅
-- 11 个 Skill 使用新基类 ✅
-
----
-
-## 4. Phase 1-B: Intelligence Agent 单体闭环（2 周）✅ 已完成
-
-> **目标**: 一个 Intelligence Agent 能独立完成 "分析 B 区威胁" 并输出结构化报告
-
-### Slice 1.5: Intelligence Agent 核心（Week 7-8）✅
-
-| 任务 | 内容 | 涉及模块 | 状态 |
-|------|------|---------|------|
-| Agent 定义 | LLM ReAct 循环 + Skill 调用 + OPA 集成 | `core/intelligence_agent.py` | ✅ |
-| 工具注册 | 从 SKILL_CATALOG 自动构建 OpenAI function calling 格式 | `_build_tools()` | ✅ |
-| 工具执行 | Skill 调用 + OPA 权限校验（operations 类） | `_execute_tool()` | ✅ |
-| 报告解析 | LLM 输出 → JSON 结构化报告 | `_extract_report()` | ✅ |
-| Graphiti 记忆 | 分析结果写入 Graphiti Episode | `_save_to_graphiti()` | ✅ |
-
-### Slice 1.6: RAG 增强推理（Week 8-9）✅
-
-| 任务 | 内容 | 涉及模块 | 状态 |
-|------|------|---------|------|
-| RAG 检索 | 三层降级（Graphiti 向量 → Neo4j 关键词 → 内存匹配） | `graph_manager.retrieve_rag_context()` | ✅ |
-| 上下文注入 | 在 system prompt 中注入历史情报记忆 | `analyze()` 中的 RAG section | ✅ |
-| 历史模式引用 | 报告中的 `historical_patterns` 字段 | LLM prompt 指令 | ✅ |
-
-### Slice 1.7: 端到端 Demo（Week 9-10）✅
-
-| 任务 | 内容 | 状态 |
-|------|------|------|
-| Demo 场景 | 用户输入 "分析 B 区威胁" → Intelligence Agent 输出结构化报告 | ✅ `main.py` 场景 7 |
-| 结构化链路追踪 | TraceSpan + 轮次/工具/LLM 子 span | ✅ |
-| 性能基线日志 | JSON 格式 logger.info（trace_id、耗时、RAG 状态） | ✅ |
-| LLM 重试机制 | 指数退避 3 次重试（应对网络超时 Error 3003） | ✅ |
-| main.py 集成 | 场景 7 演示 Intelligence Agent 完整闭环 | ✅ |
-
-**核心文件**: `core/intelligence_agent.py`（539 行）
-
-**验收标准**: ✅ 全部达成
-```
-输入: "分析 B 区威胁"
-输出: {
-  "summary": "...",
-  "threat_level": "high/medium/low/critical",
-  "enemy_units": [...],
-  "enemy_weapons": [...],
-  "civilian_risk": [...],
-  "recommendations": [...],
-  "historical_patterns": [...],  // RAG 增强
-  "_metadata": { "execution_time_ms": ..., "rag_context_provided": true, ... },
-  "_trace": { "trace_id": ..., "spans": [...] }
-}
-```
-
----
-
-## 5. Phase 2: 三 Agent 协同 OODA（2-3 月）🔄 进行中
-
-> 按照现有 ARCHITECTURE v3.1 Phase 2 路线图执行
-
-### 依赖关系
-
-```
-Phase 1-B 完成
-    │
-    ├── Slice 2.1: Commander Agent (方案生成 + OPA 校验 + 人工确认) ✅
-    │       │
-    ├── Slice 2.2: Operations Agent (attack_target + command_unit + 状态监控) ✅
-    │       │
-    └── Slice 2.3: Swarm 编排 (三 Agent 协同 + 通信协议 + 错误处理) ✅
-            │
-            └── Slice 2.4: 完整 OODA 闭环测试 ✅
-```
-
-### Slice 2.1: Commander Agent ✅
-
-| 任务 | 内容 | 产出 | 状态 |
-|------|------|------|------|
-| CommanderAgent 类 | 实现决策中枢逻辑 | `core/swarm_orchestrator.py` | ✅ |
-| analyze_situation | 分析态势生成决策选项 | 根据情报数据生成多个行动方案 | ✅ |
-| _generate_options | 生成打击/监控/协调选项 | options 列表 | ✅ |
-| _select_best_option | 选择最佳决策 | 返回推荐行动 | ✅ |
-| OPA 集成 | 高危操作需审批 | requires_opa_approval | ✅ |
-
-### Slice 2.2: Operations Agent ✅
-
-| 任务 | 内容 | 产出 | 状态 |
-|------|------|------|------|
-| OperationsAgent 类 | 实现执行中枢逻辑 | `core/swarm_orchestrator.py` | ✅ |
-| execute_order | 执行指挥官命令 | 执行结果 | ✅ |
-| _execute_action | 执行单个行动 | 单个目标执行结果 | ✅ |
-| pending_confirmations | 待确认命令队列 | 人工确认机制 | ✅ |
-
-### Slice 2.3: Swarm 编排器 ✅
-
-| 任务 | 内容 | 产出 | 状态 |
-|------|------|------|------|
-| DomainSwarm 主类 | 三 Agent 协同编排 | `core/swarm_orchestrator.py` | ✅ |
-| OODA 循环 | Observe→Orient→Decide→Act | 完整闭环执行 | ✅ |
-| execute_streaming | 流式进度返回 | AsyncGenerator[OODAProgress] | ✅ |
-| _initialize_agents | 初始化三 Agent | Agent 实例 | ✅ |
-| _write_episodes | 结果写入 Graphiti | Episode 写入 | ✅ |
-
-### Slice 2.4: OODA 闭环测试 ✅
-
-| 测试 | 内容 | 结果 |
-|------|------|------|
-| 完整 OODA 循环 | "分析B区威胁" 任务 | ✅ 成功，4/4 阶段完成 |
-| 流式进度 | execute_streaming | ✅ 正常 |
-| 错误处理 | RAG 降级处理 | ✅ 修复 Neo4j 语法问题 |
-| 状态持久化 | MissionResult | ✅ 记录历史 |
-
-### 核心文件
-
-- `core/swarm_orchestrator.py` (619 行) - Swarm 编排器核心实现
-
-### 验收标准
-
-```python
-# OODA 闭环测试
-swarm = DomainSwarm()
-result = await swarm.execute_mission("分析B区威胁并采取行动")
-# result.mission_id: "xxx"
-# result.success: True
-# result.phases_completed: [OBSERVE, ORIENT, DECIDE, ACT]
-# result.execution_time_ms: ~150ms
-# result.final_decision: {situation_summary, threat_level, recommended_action, ...}
-```
-
----
-
-## 6. 任务优先级矩阵
-
-| 优先级 | 任务 | 依赖 | 工期 | 风险 |
-|--------|------|------|------|------|
-| 🔴 P0 | T0-1 修复致命 Bug | 无 | 1 天 | 低 |
-| 🔴 P0 | T0-2 修复测试 | T0-1 | 0.5 天 | 低 |
-| 🔴 P0 | T0-3 修复 import | 无 | 0.5 天 | 低 |
-| 🟡 P1 | Slice 1.1 OpenHarness | 无 | 3 天 | 中 |
-| 🟡 P1 | Slice 1.2 Graphiti+Neo4j | 无 | 5 天 | 高 |
-| 🟡 P1 | Slice 1.3 OPA 集成 | 无 | 3 天 | 中 |
-| 🟡 P1 | Slice 1.4 Skill 基类 | 无 | 3 天 | 低 |
-| 🟢 P2 | Slice 1.5 Intel Agent | 1.1-1.4 | 7 天 | 中 |
-| 🟢 P2 | Slice 1.6 RAG 增强 | 1.2, 1.5 | 5 天 | 高 |
-| 🟢 P2 | Slice 1.7 Demo | 1.5, 1.6 | 3 天 | 低 |
-| ⚪ P3 | Phase 2 全部 | Phase 1 | 8-12 周 | 高 |
-
----
-
-## 7. 关键决策点
-
-### D1: 是否现在就引入 OpenHarness？
-
-**建议**: Phase 1 先用现有编排器 + 手动集成，Phase 2 再正式引入 OpenHarness。
-
-理由：
-- OpenHarness 文档/稳定性还在验证中
-- 现有 `SelfCorrectingOrchestrator` 满足 Phase 1 单 Agent 需求
-- 过早引入可能增加不必要的复杂度
-
-### D2: Graphiti 是否必须先有 Neo4j？
-
-**建议**: 是。Phase 1-B 的 RAG 增强依赖 Graphiti 的向量检索能力，networkx 回退模式无法替代。
-
-最低要求：一个本地 Docker Neo4j + Ollama/OpenAI Embedding。
-
-### D3: Skill 基类是否现在就重构？
-
-**建议**: 是，但要渐进式迁移。
-
-策略：
-- 定义 `BaseSkill` 抽象类
-- 新 Skill 必须继承 `BaseSkill`
-- 旧 Skill 保持兼容，逐步迁移
-- `SKILL_CATALOG` 同时支持新旧两种格式
-
----
-
-## 8. 总结
-
-**一句话**: 现有代码有 ~5,000 行实现但存在致命 Bug 和架构偏差。建议先花 1 周修桥补路（Phase 0-Bridge），再用 4 周验证四大基础设施（Phase 1-A），最后用 2-3 周打通 Intelligence Agent 端到端（Phase 1-B）。Phase 2 等Phase 1 完成后再细化。
-
-**当前进度**:
-- ✅ Phase 0-Bridge: 现有代码修复（T0-1~T0-4）
-- ✅ Phase 1-A: 基础设施验证（Slice 1.1~1.4）
-- ✅ Phase 1-B: Intelligence Agent 单体闭环（Slice 1.5~1.7）
-- ✅ Phase 2: 三 Agent 协同 OODA（Slice 2.1~2.4）
-- ✅ Phase 3: 模拟器增强（Slice 3.1~3.4）— OntologyDocument + 热写入 + 数据采集 + Web UI
-- ⬜ Phase 4: 生产化部署
-
-**关键路线**: 修复 Bug → Graphiti+Neo4j → OPA 集成 → Intelligence Agent → RAG 增强 → Demo ✅ **Phase 1-3 全部完成**
-**Phase 2 关键成果**: 实现 DomainSwarm 编排器，完成三 Agent（Intelligence/Commander/Operations）OODA 闭环协同
-**Phase 3 关键成果**: OntologyDocument 标准格式 + 热写入管道 + 数据采集层 + FastAPI Web 服务 + SPA 前端
-
-### Phase 2 扩展: 故障恢复与状态管理 ✅
-
-| 功能模块 | 文件 | 状态 |
-|---------|------|------|
-| FaultTolerance | `core/fault_tolerance.py` | ✅ |
-| StatePersistenceManager | `core/state_persistence.py` | ✅ |
-| HealthMonitor | `core/health_monitor.py` | ✅ |
-| 单元测试 | `tests/test_swarm.py` | ✅ (18 tests) |
-| Swarm 集成 | `core/swarm_orchestrator.py` | ✅ |
-
-#### 核心功能
-
-- **FaultTolerance**: 6 种故障分类、断路器模式、指数退避重试、降级模式
-- **StatePersistenceManager**: Agent 状态持久化、任务检查点保存/恢复
-- **HealthMonitor**: Swarm 健康监控、指标收集、阈值告警
-- **Swarm 集成**: 每个 OODA 阶段自动保存检查点、启动/停止健康监控
-
-### Phase 2 扩展: 模拟推演引擎 ✅
-
-| 功能模块 | 文件 | 状态 |
-|---------|------|------|
-| SimulationEngine | `core/simulation_engine.py` | ✅ |
-| 单元测试 | `tests/test_simulation_engine.py` | ✅ (9 tests) |
-
-#### 核心功能
-
-- **SimulationSandbox**: 沙箱隔离推演环境
-- **ScenarioVersion**: 方案版本管理、创建分支、回退
-- **run_simulation**: 步进式推演执行
-- **compare_versions**: 版本参数对比
-
-### Phase 2 扩展: Hook System ✅
-
-| 功能模块 | 文件 | 状态 |
-|---------|------|------|
-| HookSystem | `core/hook_system.py` | ✅ |
-| 单元测试 | `tests/test_hook_system.py` | ✅ (13 tests) |
-
-#### 核心功能
-
-- **HookRegistry**: Hook 注册表，支持注册/注销/启用/禁用
-- **HookExecutor**: Hook 执行器，支持 Pre/Post/Error Hooks
-- **HookContext**: Hook 执行上下文
-- **BuiltinHooks**: 内置 Hooks（审计日志、指标收集、OPA 权限校验）
-
-### Phase 2 扩展: Permission Checker ✅
-
-| 功能模块 | 文件 | 状态 |
-|---------|------|------|
-| PermissionChecker | `core/permission_checker.py` | ✅ |
-| 单元测试 | `tests/test_permission_checker.py` | ✅ (14 tests) |
-
-#### 核心功能
-
-- **PermissionChecker**: 增强版权限校验器，单例模式
-- **PermissionResult**: 详细权限决策结果
-- **check_permission_with_conditions**: 带条件权限检查
-- **simulate_permission**: 权限模拟（What-If 分析）
-- **batch_check_permissions**: 批量权限检查
-- **AuditLogEntry**: 审计日志
-- **get_statistics**: 统计信息
-
----
-
-## 7. Phase 3: 模拟器增强 — Web 可视化 + 实时本体热写入 ✅ 已完成
-
-> **目标**: 在 Phase 2 SimulationEngine 基础上，构建完整的事件模拟与本体构建平台
->
-> **相关 ADR**: ADR-031, ADR-032, ADR-018 扩展
-
-### 需求背景
-
-| 需求 | 描述 | 实现状态 |
-|------|------|---------|
-| R1 Web 可视化 | 展示事件发展脉络（时间线/关系图谱/态势地图），数据来源支持联网检索归纳 | ✅ |
-| R2 交互式输入 | 手动输入动态信息、按涉事方自动随机生成、支持界面导入/导出 | ✅ |
-| R3 本体热写入 | 写入数据自动构建/扩展图谱，无需重启服务 | ✅ |
-| R4 格式统一 | 所有模拟数据使用 OntologyDocument 标准格式（ADR-032），可沉淀 | ✅ |
-| R5 参考实践 | 参考 NetLogo/oTree/Palantir/WorldModels/OpenCog 等开源实践 | ✅ |
-
-### Slice 3.1: OntologyDocument 标准化 ✅
-
-| 任务 | 内容 | 产出 | 状态 |
-|------|------|------|------|
-| Schema 定义 | Pydantic 模型 + JSON Schema 验证 | `core/ontology_document.py` | ✅ |
-| 工厂方法 | `make_battle_event_document()` 快速构造标准文档 | `core/ontology_document.py` | ✅ |
-| Schema 验证器 | 输入验证 + 错误消息 | `OntologyDocumentSchema` | ✅ |
-
-### Slice 3.2: 本体热写入管道 ✅
-
-| 任务 | 内容 | 产出 | 状态 |
-|------|------|------|------|
-| 热写入核心 | `OntologyHotWritePipeline`（验证 → 版本化 → 写入 → Hook 广播） | `core/ontology_hot_write_pipeline.py` | ✅ |
-| 版本管理器 | `OntologyVersionManager`（版本链 + diff + 回退） | `core/ontology_version_manager.py` | ✅ |
-| Hook 集成 | `ontology.updated` 事件广播 | `core/hook_system.py` 扩展 | ✅ |
-
-### Slice 3.3: 数据采集层 ✅
-
-| 任务 | 内容 | 产出 | 状态 |
-|------|------|------|------|
-| 联网检索采集 | Tavily API 集成 + DuckDuckGo 降级 + LLM 归纳 | `core/data_ingestion.py` → `NewsIngester` | ✅ |
-| 手动输入处理 | 表单/JSON/自然语言三种模式 | `core/data_ingestion.py` → `ManualInputHandler` | ✅ |
-| 随机生成器 | 涉事方行为概率模型（NetLogo 风格） | `core/data_ingestion.py` → `RandomEventGenerator` | ✅ |
-| 导入/导出 | `.odoc.json` 序列化/反序列化 | `core/data_ingestion.py` → `OntologyDocumentIO` | ✅ |
-
-### Slice 3.4: Web 可视化服务 ✅
-
-| 任务 | 内容 | 产出 | 状态 |
-|------|------|------|------|
-| FastAPI 服务 | REST API + WebSocket 实时事件流 | `core/simulator_web_service.py` | ✅ |
-| 时间线前端 | 事件时间线（按场景筛选） | `simulator_ui/index.html` 内置 | ✅ |
-| 关系图谱前端 | D3.js Force Graph（实体/关系可视化 + 红蓝阵营 + 拖拽） | `simulator_ui/index.html` 内置 | ✅ |
-| 态势地图前端 | Leaflet.js（实体标记 + 弹出详情） | `simulator_ui/index.html` 内置 | ✅ |
-| 主控台 | 统一 SPA（总览/场景管理/时间线/图谱/地图/数据写入/版本管理） | `simulator_ui/index.html` | ✅ |
-| main.py 集成 | `python main.py --web` 启动 Web 服务 | `main.py` | ✅ |
-
-### Phase 3 核心文件
-
-| 文件 | 行数 | 说明 |
-|------|------|------|
-| `core/ontology_document.py` | ~350 | OntologyDocument Pydantic 模型 + Schema 验证 + 工厂方法 |
-| `core/ontology_hot_write_pipeline.py` | ~200 | 热写入管道（验证 → 版本化 → Hook 广播） |
-| `core/ontology_version_manager.py` | ~180 | 版本链管理 + diff + 回退 |
-| `core/data_ingestion.py` | ~450 | 四大采集组件（NewsIngester/ManualInputHandler/RandomEventGenerator/OntologyDocumentIO） |
-| `core/simulator_web_service.py` | ~350 | FastAPI 服务（REST + WebSocket） |
-| `simulator_ui/index.html` | ~950 | 单页应用前端（D3.js + Leaflet.js + WebSocket 实时更新） |
-
-### 启动方式
-
-```bash
-# 启动 Web 模拟器
-python main.py --web [--port 8765]
-
-# 前端 UI:  http://localhost:8765/ui/
-# Swagger API: http://localhost:8765/docs
-# WebSocket: ws://localhost:8765/ws/events
-```
-
-### 验收标准
-
-```
-1. ✅ 模块导入验证通过（8/8 核心模块全部正常）
-2. ✅ 测试无回归（60 passed, 8 failed 均为已有 Neo4j/Graphiti 集成测试）
-3. ✅ Web 前端单页应用完整（7 个页面: 总览/场景/时间线/图谱/地图/数据写入/版本）
-4. ✅ FastAPI + WebSocket 服务端就绪
-5. ⬜ 端到端集成测试待 Neo4j 环境就绪后验证
-```
+## 8. 里程碑
+
+| 里程碑 | 时间点 | 标志 |
+|--------|--------|------|
+| M1: 基础设施就绪 | Sprint 2 结束 | WR-01~04 完成，L1 层可独立运行 |
+| M2: 编排闭环 | Sprint 3 结束 | WR-11~12 完成，三 Agent 协同 v2 |
+| M3: 应用可用 | Sprint 4 结束 | WR-13, WR-17 完成，问答+网关可调 |
+| M4: 用户可感 | Sprint 5 结束 | WR-18 完成，端到端可演示 |
+| M5: 生产就绪 | Sprint 6 结束 | 全部 P0 完成，性能+安全验证通过 |

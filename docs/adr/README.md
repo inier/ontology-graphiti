@@ -65,12 +65,26 @@
 | ADR-027 | Hook 系统作为可扩展性核心架构 | 已接受 | P1 | [ADR-027](ADR-027_hook_system_architecture.md) |
 | ADR-029 | 统一工具注册表架构管理 AI Agent 工具 | 已接受 | P1 | [ADR-029](ADR-029_tool_registry_architecture.md) |
 
-### 演进决策（P1）
+### 演进决策（P0/P1 混合）
 
 | ADR | 决策标题 | 状态 | 优先级 | 文件 |
 |-----|---------|------|--------|------|
 | ADR-030 | Phase 1 推迟引入 OpenHarness，保留现有编排器 | 已接受 | P1 | [ADR-030](ADR-030_phase1_推迟引入openharness_保留现有编排器.md) |
 | ADR-033 | 项目目录结构重构（分层模块化 odap/ 包） | 提议 | P0 | [ADR-033](ADR-033_项目目录结构重构.md) |
+| ADR-045 | 前端可视化选型 — G6 + Leaflet | 已接受 | P0 | [ADR-045](ADR-045_frontend_visualization_g6_leaflet.md) |
+| ADR-046 | Phase 4 采用模块化单体部署架构 | 已接受 | P0 | [ADR-046](ADR-046_modular_monolith_deployment.md) |
+| ADR-047 | 工具注册表升级 P0 + 分步实现 | 已接受 | P0 | [ADR-047](ADR-047_tool_registry_p0_phased_implementation.md) |
+
+### 待创建 ADR
+
+| ADR | 决策标题 | 优先级 | 状态 | 文件 |
+|-----|---------|--------|------|------|
+| ADR-039 | 问答引擎架构 | P0 | ✅ 已创建 | [ADR-039](ADR-039_qa_engine_architecture.md) |
+| ADR-040 | API 网关统一入口 | P0 | ✅ 已创建 | [ADR-040](ADR-040_api_gateway_unified_entry.md) |
+| ADR-041 | 工作空间资源隔离 | P0 | ✅ 已创建 | [ADR-041](ADR-041_workspace_resource_isolation.md) |
+| ADR-042 | 审计日志存储查询 | P0 | ✅ 已创建 | [ADR-042](ADR-042_audit_log_storage_query.md) |
+| ADR-043 | Agent Router 语义路由 | P0 | ✅ 已创建 | [ADR-043](ADR-043_agent_router_semantic_routing.md) |
+| ADR-044 | 测试策略与框架 | P1 | ✅ 已创建 | [ADR-044](ADR-044_test_strategy_framework.md) |
 
 ---
 
@@ -104,4 +118,7 @@
 - ADR-030：Phase 1+ 演进决策（OpenHarness 推迟）
 - ADR-031 ~ ADR-032：Phase 3 模拟器增强（Web 可视化 + 标准本体格式）
 - ADR-033：Phase 3+ 项目目录结构重构（分层模块化）
-- ADR-034 ~ ：后续新增，按时间顺序递增
+- ADR-034 ~ ADR-038：Phase 4 文档体系（前端 i18n、本体管理+认知引擎等）
+- ADR-039 ~ ADR-044：Phase 4 待创建（问答引擎、API 网关、工作空间、审计、Agent Router、测试策略）
+- ADR-045 ~ ADR-046：Phase 4 关键决策拍板（G6+Leaflet 可视化选型、模块化单体部署）
+- ADR-047：Phase 4 优先级调整（工具注册表 P0 分步实现）

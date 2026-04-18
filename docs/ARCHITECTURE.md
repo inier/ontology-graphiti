@@ -2460,47 +2460,28 @@ jobs:
 | **实时通信** | WebSocket + SSE | 实时推送领域变化 |
 | **构建工具** | Vite | 快速启动、HMR |
 
-### 11.3 领域前端（C4 Level 4 - 用户视角）
+### 11.3 移动优先与国际化策略
 
-```
-┌─────────────────────────────────────────────────────────────────────────────┐
-│                           领域前端 (Domain Frontend)                     │
-├─────────────────────────────────────────────────────────────────────────────┤
-│                                                                              │
-│  ┌─────────────────┐  ┌─────────────────┐  ┌─────────────────┐               │
-│  │   态势概览      │  │   情报分析      │  │   指挥控制      │               │
-│  │   (Dashboard)   │  │   (Analysis)    │  │   (Command)    │               │
-│  │                 │  │                 │  │                 │               │
-│  │ • 实时地图      │  │ • 威胁报告      │  │ • 命令下发      │               │
-│  │ • 单位位置      │  │ • 目标分析      │  │ • 执行监控      │               │
-│  │ • 友军/敌军     │  │ • 模式识别      │  │ • 结果反馈      │               │
-│  │ • 变更高亮      │  │ • 证据链查看    │  │ • 历史回放      │               │
-│  └─────────────────┘  └─────────────────┘  └─────────────────┘               │
-│                                                                              │
-│  ┌─────────────────────────────────────────────────────────────────┐        │
-│  │                      智能助手 (AI Assistant)                      │        │
-│  │                                                                   │        │
-│  │  ┌─────────────────────────────────────────────────────────┐    │        │
-│  │  │  指挥官: 帮我分析 B 区的威胁情况                          │    │        │
-│  │  └─────────────────────────────────────────────────────────┘    │        │
-│  │                          │                                      │        │
-│  │                          ▼                                      │        │
-│  │  ┌─────────────────────────────────────────────────────────┐    │        │
-│  │  │  🤖 Intelligence Agent: 发现 3 个雷达，威胁等级 High     │    │        │
-│  │  │  推荐优先打击 RADAR_01，作战窗口 15 分钟                 │    │        │
-│  │  │  [添加到问答] [查看详情] [立即打击]                       │    │        │
-│  │  └─────────────────────────────────────────────────────────┘    │        │
-│  └─────────────────────────────────────────────────────────────────┘        │
-│                                                                              │
-│  ┌─────────────────────────────────────────────────────────────────┐        │
-│  │                      实时事件流 (Event Stream)                     │        │
-│  │  🔴 [14:30] RADAR_01 状态变更: ACTIVE → DESTROYED              │        │
-│  │  🟡 [14:28] 发现新目标: Mobile_SAM_02 (C区)                     │        │
-│  │  🟢 [14:25] 决策指令执行成功: LAUNCHER_01                      │        │
-│  └─────────────────────────────────────────────────────────────────┘        │
-│                                                                              │
-└─────────────────────────────────────────────────────────────────────────────┘
-```
+前端采用 **移动优先（Mobile First）** 的响应式设计策略，详见：
+
+- [ADR-037: 移动优先与国际化策略](adr/ADR-037_frontend_mobile_first_i18n.md)
+- [UI 设计 - 移动优先规范](ui/MOBILE_FIRST_DESIGN.md)
+- [UI 设计 - 组件分级管理](ui/COMPONENT_HIERARCHY.md)
+
+响应式断点设计：
+
+| 设备 | 断点 | 布局 |
+|------|------|------|
+| 手机 | < 576px | 单栏 + 底部 Tab |
+| 平板 | 576-1024px | 双栏 + 可收起侧边栏 |
+| 笔记本 | 1024-1440px | 标准两栏 |
+| 桌面 PC | 1440-1920px | 宽松两栏 |
+| 大屏 | ≥ 1920px | 三栏布局 |
+
+国际化支持：简体中文（zh-CN）、英语（en-US）
+
+### 11.4 领域前端（C4 Level 4 - 用户视角）
+
 
 ### 11.4 实时领域同步机制
 
@@ -2711,7 +2692,135 @@ registry.register({
 });
 ```
 
-#### 11.5.2 图表渲染器
+### 11.7 用户认知引擎
+
+**核心功能**：构建用户端界面，站在不同使用角色的角度，观测到自己的问题被意图识别处理到最后返回结果的可解释过程。
+
+```
+┌─────────────────────────────────────────────────────────────────────────────┐
+│                         用户认知引擎                                         │
+├─────────────────────────────────────────────────────────────────────────────┤
+│                                                                             │
+│  ┌─────────────────┐    ┌─────────────────┐    ┌─────────────────┐         │
+│  │  Intent Recognizer│   │  Knowledge Navigator│  │  Explanation Engine│      │
+│  │  • 意图识别     │    │  • 知识导航     │    │  • 过程解释     │         │
+│  │  • 需求解析     │    │  • 推理路径     │    │  • 可解释性     │         │
+│  │  • 角色识别     │    │  • 本体查询     │    │  • 可视化解释   │         │
+│  └────────┬────────┘    └────────┬────────┘    └────────┬────────┘         │
+│           │                     │                     │                    │
+│           └─────────────────────┼─────────────────────┘                    │
+│                                 ▼                                          │
+│                    ┌────────────────────────┐                              │
+│                    │  Role-based View       │                              │
+│                    │  • 指挥官视图         │                              │
+│                    │  • 情报分析员视图     │                              │
+│                    │  • 操作员视图         │                              │
+│                    └──────────┬─────────────┘                              │
+│                               │                                            │
+│                               ▼                                            │
+│                    ┌────────────────────────┐                              │
+│                    │  Result Presenter      │                              │
+│                    │  • 结果呈现           │                              │
+│                    │  • 多模态展示         │                              │
+│                    │  • 交互反馈           │                              │
+│                    └────────────────────────┘                              │
+│                                                                             │
+└─────────────────────────────────────────────────────────────────────────────┘
+```
+
+#### 11.7.1 处理流程
+
+| 阶段 | 描述 | 输出 |
+|------|------|------|
+| **问题解析** | 识别用户意图和需求 | 意图分类、需求提取 |
+| **知识检索** | 基于本体查询相关知识 | 知识图谱查询结果 |
+| **推理过程** | 基于本体进行推理 | 推理路径、决策依据 |
+| **结果生成** | 生成符合用户角色的结果 | 个性化结果 |
+| **解释生成** | 提供可理解的过程解释 | 可视化解释 |
+| **反馈收集** | 收集用户反馈 | 反馈数据 |
+
+#### 11.7.2 角色基于的视图
+
+| 角色 | 关注点 | 视图特点 |
+|------|--------|----------|
+| **指挥官** | 决策制定、全局态势 | 战略层面、决策建议、风险分析 |
+| **情报分析员** | 情报收集、分析 | 详细数据、趋势分析、异常检测 |
+| **操作员** | 执行操作、状态监控 | 执行界面、状态反馈、操作指导 |
+| **管理员** | 系统配置、监控 | 管理界面、审计日志、系统状态 |
+
+#### 11.7.3 技术实现
+
+```typescript
+// services/user_cognition_engine.ts
+
+class UserCognitionEngine {
+  private intentRecognizer: IntentRecognizer;
+  private knowledgeNavigator: KnowledgeNavigator;
+  private explanationEngine: ExplanationEngine;
+  private roleBasedView: RoleBasedView;
+  private resultPresenter: ResultPresenter;
+
+  constructor() {
+    this.intentRecognizer = new IntentRecognizer();
+    this.knowledgeNavigator = new KnowledgeNavigator();
+    this.explanationEngine = new ExplanationEngine();
+    this.roleBasedView = new RoleBasedView();
+    this.resultPresenter = new ResultPresenter();
+  }
+
+  async processUserQuery(userQuery: string, userRole: string) {
+    // 1. 意图识别
+    const intent = await this.intentRecognizer.recognize(userQuery, userRole);
+    
+    // 2. 知识检索
+    const knowledge = await this.knowledgeNavigator.navigate(
+      intent, 
+      userRole
+    );
+    
+    // 3. 推理过程
+    const reasoning = await this.knowledgeNavigator.reason(
+      intent, 
+      knowledge
+    );
+    
+    // 4. 生成结果
+    const result = await this.resultPresenter.generate(
+      intent, 
+      knowledge, 
+      reasoning, 
+      userRole
+    );
+    
+    // 5. 生成解释
+    const explanation = await this.explanationEngine.generate(
+      intent, 
+      knowledge, 
+      reasoning, 
+      result
+    );
+    
+    // 6. 角色基于的视图
+    const view = this.roleBasedView.getView(
+      userRole, 
+      result, 
+      explanation
+    );
+    
+    return {
+      intent,
+      knowledge,
+      reasoning,
+      result,
+      explanation,
+      view
+    };
+  }
+}
+
+```
+
+#### 11.7.4 图表渲染器
 
 ```typescript
 // charts/chart-renderer.ts
@@ -3607,9 +3716,123 @@ class FieldMapping:
     target_field: str                 # 目标字段
     transform_type: TransformType     # 转换类型
     transform_params: Dict[str, Any]  # 转换参数
+
+### 13.6 本体管理引擎
+
+**核心功能**：将信息采集到本体图谱构建的黑盒过程透明化，提供可视化审计界面。
+
+```
+┌─────────────────────────────────────────────────────────────────────────────┐
+│                         本体管理引擎                                         │
+├─────────────────────────────────────────────────────────────────────────────┤
+│                                                                             │
+│  ┌─────────────────┐    ┌─────────────────┐    ┌─────────────────┐         │
+│  │  Ingestion Audit│    │  Ontology Builder│    │  Version Control│         │
+│  │  • 数据来源     │    │  • 实体提取     │    │  • 版本追踪     │         │
+│  │  • 处理过程     │    │  • 关系识别     │    │  • 变更对比     │         │
+│  │  • 转换规则     │    │  • 属性映射     │    │  • 回滚机制     │         │
+│  └────────┬────────┘    └────────┬────────┘    └────────┬────────┘         │
+│           │                     │                     │                    │
+│           └─────────────────────┼─────────────────────┘                    │
+│                                 ▼                                          │
+│                    ┌────────────────────────┐                              │
+│                    │  Validation Engine    │                              │
+│                    │  • 数据质量检查       │                              │
+│                    │  • 一致性验证         │                              │
+│                    │  • 完整性验证         │                              │
+│                    └──────────┬─────────────┘                              │
+│                               │                                            │
+│                               ▼                                            │
+│                    ┌────────────────────────┐                              │
+│                    │  Audit Dashboard      │                              │
+│                    │  • 实时监控           │                              │
+│                    │  • 历史审计           │                              │
+│                    │  • 异常告警           │                              │
+│                    └────────────────────────┘                              │
+│                                                                             │
+└─────────────────────────────────────────────────────────────────────────────┘
 ```
 
-### 13.6 数据接入处理器
+#### 13.6.1 数据摄入审计流程
+
+| 阶段 | 描述 | 审计点 |
+|------|------|--------|
+| **数据采集** | 从外部源获取数据 | 数据来源、格式、时间戳 |
+| **预处理** | 数据清洗、标准化 | 清洗规则、处理结果 |
+| **标准化** | 转换为 OntologyDocument | 转换规则、映射关系 |
+| **构建** | 构建本体结构 | 实体提取、关系识别 |
+| **存储** | 写入 Graphiti/Neo4j | 写入状态、时间戳 |
+| **验证** | 数据质量检查 | 验证结果、异常信息 |
+
+#### 13.6.2 本体构建可视化
+
+**功能**：
+- 实时展示实体提取过程
+- 可视化关系识别算法
+- 属性映射配置界面
+- 构建过程时间线
+- 异常检测与告警
+
+#### 13.6.3 技术实现
+
+```python
+# services/ontology_management_engine.py
+
+class OntologyManagementEngine:
+    """本体管理引擎"""
+    
+    def __init__(self, ingestion_audit, ontology_builder, version_control, validation_engine):
+        self.ingestion_audit = ingestion_audit
+        self.ontology_builder = ontology_builder
+        self.version_control = version_control
+        self.validation_engine = validation_engine
+    
+    def process_data(self, data_source, data):
+        """处理数据并构建本体"""
+        # 1. 数据摄入审计
+        audit_id = self.ingestion_audit.start_audit(data_source, data)
+        
+        try:
+            # 2. 数据预处理
+            processed_data = self.ingestion_audit.preprocess(data)
+            
+            # 3. 标准化为 OntologyDocument
+            ontology_doc = self.ingestion_audit.standardize(processed_data)
+            
+            # 4. 构建本体
+            build_result = self.ontology_builder.build(ontology_doc)
+            
+            # 5. 验证
+            validation_result = self.validation_engine.validate(build_result)
+            
+            # 6. 版本控制
+            version_id = self.version_control.create_version(build_result)
+            
+            # 7. 完成审计
+            self.ingestion_audit.complete_audit(audit_id, {
+                'processed_data': processed_data,
+                'ontology_doc': ontology_doc,
+                'build_result': build_result,
+                'validation_result': validation_result,
+                'version_id': version_id
+            })
+            
+            return {
+                'success': True,
+                'version_id': version_id,
+                'audit_id': audit_id
+            }
+            
+        except Exception as e:
+            self.ingestion_audit.fail_audit(audit_id, str(e))
+            return {
+                'success': False,
+                'error': str(e),
+                'audit_id': audit_id
+            }
+```
+
+### 13.7 数据接入处理器
 
 ```python
 # services/data_ingestion.py
@@ -4350,6 +4573,7 @@ const AuditLogViewer: React.FC = () => {
 | ADR-019 | 多模态文档处理流水线 | 已接受 | [adr/ADR-019_多模态文档处理流水线.md](adr/ADR-019_多模态文档处理流水线.md) |
 | ADR-020 | 管理员控制台统一界面 | 已接受 | [adr/ADR-020_管理员控制台统一界面.md](adr/ADR-020_管理员控制台统一界面.md) |
 | ADR-036 | 领域实体标准本体库 | 已接受 | [adr/ADR-036_palantir_ontology_reference.md](adr/ADR-036_palantir_ontology_reference.md) |
+| ADR-037 | 前端移动优先、响应式设计和国际化策略 | 已接受 | [adr/ADR-037_frontend_mobile_first_i18n.md](adr/ADR-037_frontend_mobile_first_i18n.md) |
 | ADR-022 | 模拟数仓与统一查询服务 | 提议中 | [adr/ADR-022_模拟数仓与统一查询服务.md](adr/ADR-022_模拟数仓与统一查询服务.md) |
 | ADR-023 | 多工作空间隔离架构 | 已接受 | [adr/ADR-023_多工作空间隔离架构.md](adr/ADR-023_多工作空间隔离架构.md) |
 | ADR-024 | 本体驱动分析核心架构 | 已接受 | [adr/ADR-024_本体驱动分析核心架构.md](adr/ADR-024_本体驱动分析核心架构.md) |

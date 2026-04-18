@@ -1,5 +1,12 @@
 # Web 模块 - 设计文档
 
+> ⚠️ **已拆分至 [web_frontend](../web_frontend/DESIGN.md) + [api_gateway](../api_gateway/DESIGN.md)** (2026-04-19)
+>
+> 原 Web 模块（FastAPI 后端 + 基础前端）已按六层架构拆分：
+> - **web_frontend/**: L6 用户交互层（React SPA）
+> - **api_gateway/**: L5 API 网关层（FastAPI + 中间件）
+> 本文档保留供历史参考，不再维护。
+
 > **优先级**: P1 | **相关 ADR**: ADR-007, ADR-031
 
 **版本**: 1.1.0 | **日期**: 2026-04-16
