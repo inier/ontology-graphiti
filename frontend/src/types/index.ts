@@ -3,7 +3,10 @@ export interface Scenario {
   name: string;
   description?: string;
   created_at: string;
-  updated_at: string;
+  updated_at?: string;
+  doc_count?: number;
+  event_count?: number;
+  entity_count?: number;
 }
 
 export interface Entity {
@@ -43,10 +46,15 @@ export interface TimelineEvent {
 
 export interface Version {
   version_id: string;
-  parent_version?: string;
+  parent_version?: string | null;
   commit_message: string;
   created_at: string;
   schema_version: string;
+  doc_id?: string;
+  doc_type?: string;
+  entity_count?: number;
+  relation_count?: number;
+  event_count?: number;
 }
 
 export interface DiffResult {

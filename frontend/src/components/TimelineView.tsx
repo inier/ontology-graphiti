@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from 'react';
+import { useState } from 'react';
 import { Card, Button, Space } from 'antd';
 import { StepForwardOutlined, StepBackwardOutlined, PauseOutlined, CaretRightOutlined, ReloadOutlined } from '@ant-design/icons';
 

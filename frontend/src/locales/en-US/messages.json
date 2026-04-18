@@ -1,0 +1,75 @@
+{
+  "app": {
+    "name": "ODAP Ontology Platform",
+    "version": "Version"
+  },
+  "menu": {
+    "dashboard": "Dashboard",
+    "ontology": "Ontology",
+    "timeline": "Timeline",
+    "map": "Situation Map",
+    "simulator": "Simulator",
+    "ingest": "Data Ingest",
+    "versions": "Version Management",
+    "config": "Configuration",
+    "roles": "Role Management",
+    "policies": "OPA Policies",
+    "audit": "Audit Log",
+    "skills": "Skill Management"
+  },
+  "common": {
+    "workspace": "Workspace",
+    "search": "Search",
+    "refresh": "Refresh",
+    "add": "Add",
+    "edit": "Edit",
+    "delete": "Delete",
+    "save": "Save",
+    "cancel": "Cancel",
+    "confirm": "Confirm",
+    "loading": "Loading...",
+    "noData": "No Data",
+    "success": "Success",
+    "error": "Error"
+  },
+  "graph": {
+    "ontology": "Ontology Graph",
+    "mode": {
+      "select": "Select Mode",
+      "pan": "Pan Mode",
+      "edit": "Edit Mode"
+    },
+    "filter": {
+      "all": "Show All",
+      "unit": "Units Only",
+      "equipment": "Equipment Only",
+      "location": "Locations Only",
+      "event": "Events Only"
+    },
+    "layout": {
+      "force": "Force Directed",
+      "circular": "Circular",
+      "grid": "Grid"
+    },
+    "empty": "No graph data, please ingest data first",
+    "searchPlaceholder": "Search entities"
+  },
+  "entity": {
+    "detail": "Entity Detail",
+    "id": "Entity ID",
+    "name": "Name",
+    "type": "Type",
+    "side": "Side",
+    "properties": "Properties",
+    "relations": "Relations",
+    "history": "History"
+  },
+  "dashboard": {
+    "totalEntities": "Total Entities",
+    "totalRelations": "Total Relations",
+    "versionCount": "Version Count",
+    "onlineUsers": "Online Users",
+    "recentEvents": "Recent Events",
+    "versionTrend": "Version Trend"
+  }
+}

@@ -1,0 +1,75 @@
+{
+  "app": {
+    "name": "ODAP 本体平台",
+    "version": "版本"
+  },
+  "menu": {
+    "dashboard": "首页仪表盘",
+    "ontology": "本体图谱",
+    "timeline": "时间线",
+    "map": "态势地图",
+    "simulator": "模拟推演",
+    "ingest": "数据摄入",
+    "versions": "版本管理",
+    "config": "配置中心",
+    "roles": "角色管理",
+    "policies": "OPA 策略",
+    "audit": "审计日志",
+    "skills": "Skill 管理"
+  },
+  "common": {
+    "workspace": "工作空间",
+    "search": "搜索",
+    "refresh": "刷新",
+    "add": "添加",
+    "edit": "编辑",
+    "delete": "删除",
+    "save": "保存",
+    "cancel": "取消",
+    "confirm": "确认",
+    "loading": "加载中...",
+    "noData": "暂无数据",
+    "success": "操作成功",
+    "error": "操作失败"
+  },
+  "graph": {
+    "ontology": "本体图谱",
+    "mode": {
+      "select": "选择模式",
+      "pan": "平移模式",
+      "edit": "编辑模式"
+    },
+    "filter": {
+      "all": "显示全部",
+      "unit": "仅显示单元",
+      "equipment": "仅显示装备",
+      "location": "仅显示位置",
+      "event": "仅显示事件"
+    },
+    "layout": {
+      "force": "力导向",
+      "circular": "环形",
+      "grid": "网格"
+    },
+    "empty": "暂无图谱数据，请先通过数据摄入添加实体",
+    "searchPlaceholder": "搜索实体"
+  },
+  "entity": {
+    "detail": "实体详情",
+    "id": "实体ID",
+    "name": "名称",
+    "type": "类型",
+    "side": "方位",
+    "properties": "属性",
+    "relations": "关系",
+    "history": "历史"
+  },
+  "dashboard": {
+    "totalEntities": "实体总数",
+    "totalRelations": "关系总数",
+    "versionCount": "版本数量",
+    "onlineUsers": "在线用户",
+    "recentEvents": "最新事件",
+    "versionTrend": "版本趋势"
+  }
+}

@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { Card } from 'antd';
+
 import { TimelineView } from '../components/TimelineView';
 import { api } from '../services/api';
 

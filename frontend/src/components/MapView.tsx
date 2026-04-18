@@ -1,5 +1,7 @@
-import { useEffect, useRef } from 'react';
-import { Card, Checkbox, Space } from 'antd';
+import { useEffect, useRef, useState } from 'react';
+import { Card, Checkbox, Space, Spin } from 'antd';
+import L from 'leaflet';
+import 'leaflet/dist/leaflet.css';
 
 interface MapUnit {
   id: string;
@@ -20,91 +22,120 @@ interface MapViewProps {
 
 export function MapView({ units, showTerrain, showWeather, showTracks, onToggleLayer }: MapViewProps) {
   const mapRef = useRef<HTMLDivElement>(null);
+  const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    if (!mapRef.current || units.length === 0) return;
+    let mounted = true;
+    let map: L.Map | null = null;
 
-    const drawMap = async () => {
-      const L = await import('leaflet');
+    const init = () => {
+      try {
+        if (!mapRef.current || !mounted) return;
 
-      mapRef.current!.innerHTML = '';
+        mapRef.current.innerHTML = '';
 
-      const map = L.map(mapRef.current!).setView([39.9, 116.4], 10);
-
-      L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
-        attribution: '&copy; OpenStreetMap contributors',
-      }).addTo(map);
-
-      const sideColors: Record<string, string> = {
-        red: '#ff4d4f',
-        blue: '#1890ff',
-        neutral: '#8c8c8c',
-      };
-
-      units.forEach((unit) => {
-        const color = sideColors[unit.side] || '#8c8c8c';
-
-        const icon = L.divIcon({
-          className: 'custom-marker',
-          html: `
-            <div style="
-              width: 24px;
-              height: 24px;
-              border-radius: 50%;
-              background: ${color};
-              border: 3px solid #fff;
-              box-shadow: 0 2px 8px rgba(0,0,0,0.3);
-              display: flex;
-              align-items: center;
-              justify-content: center;
-              color: #fff;
-              font-size: 10px;
-              font-weight: bold;
-            ">
-              ${unit.side === 'red' ? 'R' : unit.side === 'blue' ? 'B' : 'N'}
-            </div>
-          `,
-          iconSize: [24, 24],
-          iconAnchor: [12, 12],
+        map = L.map(mapRef.current, {
+          center: [39.9, 116.4],
+          zoom: 10,
         });
 
-        const marker = L.marker(unit.position, { icon })
-          .addTo(map)
-          .bindPopup(`
-            <div style="min-width: 150px;">
-              <h4 style="margin: 0 0 8px; font-size: 14px;">${unit.name}</h4>
-              <div style="font-size: 12px; color: #666;">
-                <div><strong>类型:</strong> ${unit.type}</div>
-                <div><strong>状态:</strong> ${unit.status || '未知'}</div>
-                <div><strong>位置:</strong> ${unit.position.join(', ')}</div>
+        L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+          attribution: '&copy; OpenStreetMap contributors',
+        }).addTo(map);
+
+        const sideColors: Record<string, string> = {
+          red: '#ff4d4f',
+          blue: '#1890ff',
+          neutral: '#8c8c8c',
+        };
+
+        units.forEach((unit) => {
+          const color = sideColors[unit.side] || '#8c8c8c';
+
+          const icon = L.divIcon({
+            className: 'custom-marker',
+            html: `
+              <div style="
+                width: 24px;
+                height: 24px;
+                border-radius: 50%;
+                background: ${color};
+                border: 3px solid #fff;
+                box-shadow: 0 2px 8px rgba(0,0,0,0.3);
+                display: flex;
+                align-items: center;
+                justify-content: center;
+                color: #fff;
+                font-size: 10px;
+                font-weight: bold;
+              ">
+                ${unit.side === 'red' ? 'R' : unit.side === 'blue' ? 'B' : 'N'}
               </div>
-            </div>
-          `);
+            `,
+            iconSize: [24, 24],
+            iconAnchor: [12, 12],
+          });
 
-        if (showTracks) {
-          const track: [number, number][] = [
-            [unit.position[0] - 0.05, unit.position[1] - 0.05],
-            unit.position,
-          ];
-          L.polyline(track, {
-            color: color,
-            weight: 2,
-            dashArray: '5, 10',
-          }).addTo(map);
+          L.marker(unit.position, { icon })
+            .addTo(map!)
+            .bindPopup(`
+              <div style="min-width: 150px;">
+                <h4 style="margin: 0 0 8px; font-size: 14px;">${unit.name}</h4>
+                <div style="font-size: 12px; color: #666;">
+                  <div><strong>类型:</strong> ${unit.type}</div>
+                  <div><strong>状态:</strong> ${unit.status || '未知'}</div>
+                  <div><strong>位置:</strong> ${unit.position.join(', ')}</div>
+                </div>
+              </div>
+            `);
+
+          if (showTracks) {
+            const track: [number, number][] = [
+              [unit.position[0] - 0.05, unit.position[1] - 0.05],
+              unit.position,
+            ];
+            L.polyline(track, {
+              color: color,
+              weight: 2,
+              dashArray: '5, 10',
+            }).addTo(map!);
+          }
+        });
+
+        if (showTerrain) {
+          L.rectangle(
+            [[39.85, 116.35], [39.95, 116.45]],
+            { color: '#faad14', fillOpacity: 0.1, weight: 2 }
+          )
+            .bindPopup('地形: 丘陵地带')
+            .addTo(map!);
         }
-      });
 
-      if (showTerrain) {
-        L.rectangle(
-          [[39.85, 116.35], [39.95, 116.45]],
-          { color: '#faad14', fillOpacity: 0.1, weight: 2 }
-        )
-          .bindPopup('地形: 丘陵地带')
-          .addTo(map);
+        setLoading(false);
+
+        const resizeHandler = () => {
+          if (map) map.invalidateSize();
+        };
+        window.addEventListener('resize', resizeHandler);
+
+        return () => {
+          window.removeEventListener('resize', resizeHandler);
+          if (map) map.remove();
+        };
+      } catch (error) {
+        console.error('Leaflet 初始化失败:', error);
+        setLoading(false);
       }
     };
 
-    drawMap();
+    const cleanup = init();
+
+    return () => {
+      mounted = false;
+      if (cleanup && typeof cleanup === 'function') {
+        cleanup();
+      }
+    };
   }, [units, showTerrain, showWeather, showTracks]);
 
   return (
@@ -125,16 +156,22 @@ export function MapView({ units, showTerrain, showWeather, showTracks, onToggleL
       }
       style={{ borderRadius: 8 }}
     >
-      <div
-        ref={mapRef}
-        id="map"
-        style={{
-          width: '100%',
-          height: 600,
-          borderRadius: 4,
-          overflow: 'hidden',
-        }}
-      />
+      {loading ? (
+        <div style={{ height: 600, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+          <Spin description="加载地图..." />
+        </div>
+      ) : (
+        <div
+          ref={mapRef}
+          id="map"
+          style={{
+            width: '100%',
+            height: 600,
+            borderRadius: 4,
+            overflow: 'hidden',
+          }}
+        />
+      )}
     </Card>
   );
 }

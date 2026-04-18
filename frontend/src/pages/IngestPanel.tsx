@@ -59,10 +59,10 @@ export function IngestPanel() {
     try {
       const result = await api.ingestRandom();
       setHistory((prev) => [
-        { type: 'random', content: '随机生成数据', time: new Date().toLocaleTimeString() },
+        { type: 'random', content: `生成 ${result.doc_count} 个文档`, time: new Date().toLocaleTimeString() },
         ...prev,
       ]);
-      message.success(`任务已提交: ${result.task_id}`);
+      message.success(`随机数据已生成，版本: ${result.versions.join(', ')}`);
     } catch (error) {
       message.error('提交失败');
     } finally {
@@ -129,7 +129,7 @@ export function IngestPanel() {
             </Button>
           }
         >
-          {loading && <Spin tip="处理中..." style={{ width: '100%', margin: 20 }} />}
+          {loading && <Spin description="处理中..." style={{ width: '100%', margin: 20 }} />}
           <List
             dataSource={history}
             renderItem={(item) => (

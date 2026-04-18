@@ -2,21 +2,21 @@ import { useState, useEffect } from 'react';
 import { Row, Col, Card, Table, Tag, Empty } from 'antd';
 import { StatCard } from '../components/StatCard';
 import { api } from '../services/api';
-import type { Scenario } from '../types';
+import type { Scenario, Stats, PipelineStats } from '../types';
 
 export function Dashboard() {
-  const [stats, setStats] = useState<{ ingest_count: number; error_count: number; version_count: number; scenarios: number } | null>(null);
+  const [stats, setStats] = useState<PipelineStats | null>(null);
+  const [scenarioCount, setScenarioCount] = useState(0);
   const [scenarios, setScenarios] = useState<Scenario[]>([]);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
     const loadData = async () => {
       try {
-        const [statsData, scenariosData] = await Promise.all([
-          api.getStats(),
-          api.listScenarios(),
-        ]);
-        setStats(statsData.pipeline || statsData);
+        const statsData: Stats = await api.getStats();
+        const scenariosData = await api.listScenarios();
+        setStats(statsData.pipeline);
+        setScenarioCount(statsData.scenarios ?? 0);
         setScenarios(Array.isArray(scenariosData) ? scenariosData : []);
       } catch (error) {
         console.error('加载数据失败', error);
@@ -61,7 +61,7 @@ export function Dashboard() {
           <StatCard title="版本数量" value={stats?.version_count ?? 0} loading={loading} />
         </Col>
         <Col span={6}>
-          <StatCard title="场景数量" value={stats?.scenarios ?? 0} loading={loading} />
+          <StatCard title="场景数量" value={scenarioCount} loading={loading} />
         </Col>
       </Row>
 

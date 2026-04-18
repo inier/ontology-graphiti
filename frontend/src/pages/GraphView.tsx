@@ -1,11 +1,18 @@
 import { useState, useEffect } from 'react';
 import { Card, Row, Col, Tree, Tag, Empty, Spin, Select, Space, Button } from 'antd';
 import { api } from '../services/api';
-import type { Entity, Relation } from '../types';
+import type { Entity } from '../types';
+
+interface GraphRelation {
+  id: string;
+  source: string;
+  target: string;
+  type: string;
+}
 
 export function GraphView() {
   const [entities, setEntities] = useState<Entity[]>([]);
-  const [relations, setRelations] = useState<Relation[]>([]);
+  const [relations, setRelations] = useState<GraphRelation[]>([]);
   const [selectedScenario, setSelectedScenario] = useState<string>('default');
   const [loading, setLoading] = useState(false);
 
@@ -21,7 +28,7 @@ export function GraphView() {
         api.getRelations(selectedScenario),
       ]);
       setEntities(entitiesData);
-      setRelations(relationsData);
+      setRelations(relationsData.edges || []);
     } catch (error) {
       console.error('加载图数据失败', error);
     } finally {
@@ -48,10 +55,10 @@ export function GraphView() {
   };
 
   const relationList = relations.slice(0, 20).map((rel) => ({
-    id: rel.relation_id,
-    source: entities.find((e) => e.entity_id === rel.source_entity)?.name || rel.source_entity,
-    target: entities.find((e) => e.entity_id === rel.target_entity)?.name || rel.target_entity,
-    type: rel.relation_type,
+    id: rel.id,
+    source: entities.find((e) => e.entity_id === rel.source)?.name || rel.source,
+    target: entities.find((e) => e.entity_id === rel.target)?.name || rel.target,
+    type: rel.type,
   }));
 
   return (

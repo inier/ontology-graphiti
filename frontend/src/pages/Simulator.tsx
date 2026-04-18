@@ -1,4 +1,4 @@
-import { Row, Card, Alert } from 'antd';
+import { Alert } from 'antd';
 import { SimulatorConsole } from '../components/SimulatorConsole';
 
 export function Simulator() {
