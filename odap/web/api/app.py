@@ -1,26 +1,19 @@
-"""
-SimulatorWebService — 模拟器 Web 服务
-实现 ADR-031 L1: Web Visualization Service
-
-提供:
-- REST API: 场景管理 / 数据写入 / 版本管理
-- WebSocket: 实时事件流推送
-- 静态前端: simulator_ui/ 目录
-
-依赖: fastapi, uvicorn, python-multipart (可选 aiofiles)
-"""
-
-import asyncio
+import os
+import sys
 import json
 import logging
-import os
+import asyncio
 import uuid
 from datetime import datetime, timezone
 from typing import Any, Dict, List, Optional, Set
 
 logger = logging.getLogger("simulator_web")
 
-SCENARIOS_DIR = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), "ontology", "versions", "scenarios")
+SCENARIOS_DIR = os.path.join(
+    os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))), 
+    "storage", 
+    "scenarios"
+)
 
 # ── FastAPI 依赖检查 ────────────────────────────────
 try:
@@ -41,8 +34,7 @@ from odap.biz.ontology.schema.document import (
 from odap.biz.ontology.hot_write import OntologyHotWritePipeline
 from odap.biz.ontology.version_manager import OntologyVersionManager
 from odap.biz.ontology.ingestion import NewsIngester, ManualInputHandler, RandomEventGenerator, OntologyDocumentIO
-from odap.infra.events import HookRegistry, HookPhase
-
+from odap.infra.graph.graph_service import GraphManager
 
 class ScenarioStore:
     """
@@ -51,12 +43,13 @@ class ScenarioStore:
     数据保存在 ontology/versions/scenarios/ 目录
     """
 
-    def __init__(self, storage_dir: str = SCENARIOS_DIR):
+    def __init__(self, storage_dir: str = SCENARIOS_DIR, graph_manager: GraphManager = None):
         self.storage_dir = storage_dir
         os.makedirs(self.storage_dir, exist_ok=True)
         self._scenarios_file = os.path.join(self.storage_dir, "scenarios.json")
         self._scenarios: Dict[str, Dict[str, Any]] = {}
         self._documents: Dict[str, List[Dict[str, Any]]] = {}
+        self._graph_manager = graph_manager
         self._load()
 
     def _load(self):
@@ -121,67 +114,58 @@ class ScenarioStore:
         docs = self._documents.get(scenario_id, [])
         events = []
         for doc in docs:
-            doc_events = doc.get("events", [])
-            for ev in doc_events:
-                events.append({
-                    "timestamp": ev.get("timestamp", ""),
-                    "event_type": ev.get("event_type", "unknown"),
-                    "description": ev.get("description", ""),
-                    "doc_id": doc.get("doc_id", ""),
-                    "doc_title": doc.get("meta", {}).get("title", ""),
-                    "version_id": doc.get("ontology_version", {}).get("version_id", "") if doc.get("ontology_version") else "",
-                })
-        return sorted(events, key=lambda e: e.get("timestamp", ""))
+            if "events" in doc:
+                events.extend(doc["events"])
+        events.sort(key=lambda x: x.get("timestamp", ""))
+        return events
 
     def get_entities(self, scenario_id: str, snapshot_time: str = None) -> List[Dict[str, Any]]:
-        """获取实体列表（支持时间点快照）"""
+        """获取实体快照（支持时间点查询）"""
         docs = self._documents.get(scenario_id, [])
         entity_map: Dict[str, Dict[str, Any]] = {}
         for doc in docs:
-            for entity in doc.get("entities", []):
-                entity_id = entity.get("entity_id", "")
-                if entity_id:
-                    entity_map[entity_id] = {
-                        **entity,
-                        "version_id": doc.get("ontology_version", {}).get("version_id", "") if doc.get("ontology_version") else "",
-                    }
+            if "entities" in doc:
+                for entity in doc["entities"]:
+                    entity_id = entity.get("entity_id")
+                    if entity_id:
+                        entity_map[entity_id] = entity
         return list(entity_map.values())
 
     def get_relations(self, scenario_id: str) -> Dict[str, Any]:
-        """获取关系图数据（节点 + 边，D3.js 格式）"""
+        """获取关系图谱"""
         entities = self.get_entities(scenario_id)
         docs = self._documents.get(scenario_id, [])
-
-        nodes = [{"id": e.get("entity_id", ""), "name": e.get("name", ""), "type": e.get("entity_type", ""),
-                   "side": e.get("basic_properties", {}).get("side", "neutral") if isinstance(e.get("basic_properties"), dict) else "neutral",
-                   "combat_power": e.get("statistical_properties", {}).get("combat_power", 0.5) if isinstance(e.get("statistical_properties"), dict) else 0.5}
-                 for e in entities if e.get("entity_id")]
-
+        nodes = []
         links = []
-        entity_ids = {e["id"] for e in nodes}
+        node_ids = set()
+
+        for entity in entities:
+            entity_id = entity.get("entity_id")
+            if entity_id and entity_id not in node_ids:
+                nodes.append({
+                    "id": entity_id,
+                    "name": entity.get("name", entity_id),
+                    "type": entity.get("entity_type", "Entity"),
+                    "side": entity.get("basic_properties", {}).get("side"),
+                })
+                node_ids.add(entity_id)
 
         for doc in docs:
-            for entity in doc.get("entities", []):
-                entity_id = entity.get("entity_id", "")
-                rels = entity.get("relationships", {})
-                rel_types = ["contains", "adjacent_to", "located_at", "attached_to", "engaged_with", "communicates_with", "supports", "opposes"]
-                for rel_type in rel_types:
-                    target_id = rels.get(rel_type)
-                    if target_id and target_id in entity_ids and entity_id != target_id:
-                        links.append({
-                            "source": entity_id,
-                            "target": target_id,
-                            "type": rel_type,
-                            "id": f"{entity_id}-{target_id}-{rel_type}",
-                        })
-                    for target_id in rels.get(rel_type, []):
-                        if target_id in entity_ids and entity_id != target_id:
-                            links.append({
-                                "source": entity_id,
-                                "target": target_id,
-                                "type": rel_type,
-                                "id": f"{entity_id}-{target_id}-{rel_type}",
-                            })
+            if "events" in doc:
+                for event in doc["events"]:
+                    participants = event.get("participants", [])
+                    if len(participants) >= 2:
+                        for i in range(len(participants) - 1):
+                            source = participants[i]
+                            target = participants[i + 1]
+                            if source in node_ids and target in node_ids:
+                                links.append({
+                                    "id": f"rel-{uuid.uuid4().hex[:8]}",
+                                    "source": source,
+                                    "target": target,
+                                    "type": event.get("event_type", "association"),
+                                    "event_id": event.get("event_id"),
+                                })
 
         return {"nodes": nodes, "links": links}
 
@@ -195,35 +179,98 @@ class ScenarioStore:
         return self._documents.get(scenario_id, [])
 
     def sync_to_graphiti(self, scenario_id: str) -> Dict[str, Any]:
-        """
-        将场景数据同步到 graphiti
-        调用 graph_manager 的加载接口
-        """
+        """将场景同步到 Graphiti"""
+        if scenario_id not in self._scenarios:
+            return {"status": "error", "error": f"Scenario {scenario_id} not found"}
+        
+        documents = self._documents.get(scenario_id, [])
+        
+        if not self._graph_manager:
+            return {"status": "warning", "message": "GraphManager not initialized, using fallback", "synced_scenario": scenario_id}
+        
         try:
-            from odap.infra.graph import GraphManager
-            manager = GraphManager()
-            manager.clear_graph()
-            manager._load_data_to_neo4j()
-            return {"status": "success", "synced_scenario": scenario_id}
+            synced_entities = 0
+            synced_events = 0
+            
+            for doc in documents:
+                # 同步实体
+                if "entities" in doc:
+                    for entity_dict in doc["entities"]:
+                        entity_id = entity_dict.get("entity_id", "")
+                        entity_type = entity_dict.get("entity_type", "Entity")
+                        properties = entity_dict.get("basic_properties", {})
+                        
+                        if entity_id:
+                            # 添加name属性到properties以便在Graphiti中显示
+                            if "name" in entity_dict and "name" not in properties:
+                                properties["name"] = entity_dict["name"]
+                            
+                            self._graph_manager.add_entity(
+                                entity_id=entity_id,
+                                entity_type=entity_type,
+                                properties=properties
+                            )
+                            synced_entities += 1
+                
+                # 同步事件和关系
+                if "events" in doc:
+                    for event_dict in doc["events"]:
+                        participants = event_dict.get("participants", [])
+                        event_type = event_dict.get("event_type", "ASSOCIATION")
+                        
+                        # 为事件参与者创建关系
+                        if len(participants) >= 2:
+                            for i in range(len(participants) - 1):
+                                source = participants[i]
+                                target = participants[i + 1]
+                                
+                                rel_properties = {
+                                    "event_id": event_dict.get("event_id"),
+                                    "timestamp": event_dict.get("timestamp"),
+                                    "event_type": event_type,
+                                    "description": event_dict.get("description"),
+                                    "scenario_id": scenario_id
+                                }
+                                
+                                self._graph_manager.add_relationship(
+                                    source_id=source,
+                                    target_id=target,
+                                    relationship=event_type.upper().replace(" ", "_"),
+                                    properties=rel_properties
+                                )
+                                synced_events += 1
+            
+            # 更新场景统计
+            if scenario_id in self._scenarios:
+                self._scenarios[scenario_id]["last_synced"] = datetime.now(timezone.utc).isoformat()
+                self._scenarios[scenario_id]["synced_entities"] = synced_entities
+                self._scenarios[scenario_id]["synced_events"] = synced_events
+                self._save()
+            
+            return {
+                "status": "success",
+                "synced_scenario": scenario_id,
+                "synced_entities": synced_entities,
+                "synced_events": synced_events,
+                "graph_mode": self._graph_manager._mode
+            }
+            
         except Exception as e:
-            logger.error(f"同步到 graphiti 失败: {e}")
-            return {"status": "error", "error": str(e)}
+            logger.error(f"Sync to Graphiti failed: {e}")
+            return {"status": "error", "error": str(e), "synced_scenario": scenario_id}
 
-
-class SimulatorWebService:
+class MockDataWebService:
     """
-    模拟器 Web 服务
-
-    提供 REST API + WebSocket 实时事件流 + 静态前端
+    模拟数据生成 Web 服务
+    提供 REST API 和 WebSocket 实时事件流
     """
 
     def __init__(
         self,
-        pipeline: Optional[OntologyHotWritePipeline] = None,
-        version_manager: Optional[OntologyVersionManager] = None,
+        pipeline: OntologyHotWritePipeline = None,
+        version_manager: OntologyVersionManager = None,
         llm_client=None,
         tavily_api_key: str = None,
-        static_dir: str = None,
         host: str = "0.0.0.0",
         port: int = 8765,
     ):
@@ -235,48 +282,49 @@ class SimulatorWebService:
         self.host = host
         self.port = port
 
-        # 数据层
-        self.scenario_store = ScenarioStore()
-        self.news_ingester = NewsIngester(llm_client=llm_client, tavily_api_key=tavily_api_key)
-        self.manual_handler = ManualInputHandler(llm_client=llm_client)
-        self.random_gen = RandomEventGenerator(llm_client=llm_client)
-        self.doc_io = OntologyDocumentIO(version_manager=self.versions)
-
         # WebSocket 客户端集合
         self._ws_clients: Set[WebSocket] = set()
 
         # 异步任务追踪（联网检索）
         self._tasks: Dict[str, Dict[str, Any]] = {}
+        
+        # 初始化 GraphManager
+        self._graph_manager = GraphManager()
+
+        # 数据层 - 传入 graph_manager
+        self.scenario_store = ScenarioStore(graph_manager=self._graph_manager)
+        self.news_ingester = NewsIngester(llm_client=llm_client, tavily_api_key=tavily_api_key)
+        self.manual_handler = ManualInputHandler(llm_client=llm_client)
+        self.random_gen = RandomEventGenerator(llm_client=llm_client)
+        self.doc_io = OntologyDocumentIO(version_manager=self.versions)
 
         # 订阅本体更新 Hook
         self.pipeline.register_ontology_hook(self._on_ontology_updated)
 
         # 构建 FastAPI 应用
-        self.app = self._build_app(static_dir)
+        self.app = self._build_app()
 
     def _build_app(self, static_dir: str = None) -> 'FastAPI':
         app = FastAPI(
             title="ODAP Mock Data Generator v2.0",
-            description="领域事件模拟与本体构建平台",
-            version="2.0.0",
+            description="模拟数据生成与本体热写入服务",
+            version="2.0.0"
         )
 
-        # CORS
+        # CORS 配置
         app.add_middleware(
             CORSMiddleware,
             allow_origins=["*"],
+            allow_credentials=True,
             allow_methods=["*"],
             allow_headers=["*"],
         )
 
-        # 静态文件
-        _static_dir = static_dir or os.path.join(
-            os.path.dirname(os.path.dirname(__file__)), "static"
-        )
-        if os.path.exists(_static_dir):
-            app.mount("/ui", StaticFiles(directory=_static_dir, html=True), name="static")
+        # 静态文件服务
+        if static_dir:
+            app.mount("/static", StaticFiles(directory=static_dir), name="static")
 
-        # ── 路由注册 ─────────────────────────────────────
+        # ── 基础接口 ──────────────────────────────────────
 
         @app.get("/")
         async def root():
@@ -308,10 +356,7 @@ class SimulatorWebService:
 
         @app.post("/api/scenarios/{scenario_id}/sync")
         async def sync_scenario(scenario_id: str):
-            """将场景数据同步到 graphiti"""
             result = self.scenario_store.sync_to_graphiti(scenario_id)
-            if result.get("status") == "error":
-                raise HTTPException(status_code=500, detail=result.get("error"))
             return result
 
         @app.get("/api/scenarios/{scenario_id}/timeline")
@@ -339,93 +384,92 @@ class SimulatorWebService:
                 headers={"Content-Disposition": f'attachment; filename="scenario-{scenario_id}.odoc.json"'},
             )
 
-        # ── 数据写入 ──────────────────────────────────────
+        # ── 数据摄入 ─────────────────────────────────────
 
         @app.post("/api/ingest/manual")
         async def ingest_manual(body: dict):
-            """手动输入 OntologyDocument，触发热写入"""
+            """手动录入数据"""
+            data = body.get("data", {})
             scenario_id = body.get("scenario_id")
+            
             try:
-                # 尝试解析 OntologyDocument
-                if "doc_id" in body or "doc_type" in body:
-                    doc = OntologyDocument.from_dict(body)
-                else:
-                    doc = await self.manual_handler.from_form(body, scenario_id=scenario_id)
-
-                version = await self.pipeline.ingest(doc)
-
+                doc = await self.manual_handler.from_form(body, scenario_id=scenario_id)
+                ver = await self.pipeline.ingest(doc)
+                
                 if scenario_id:
                     self.scenario_store.add_document(scenario_id, doc)
                     asyncio.create_task(asyncio.to_thread(self.scenario_store.sync_to_graphiti, scenario_id))
-
+                
                 return {
+                    "task_id": ver.version_id,
                     "success": True,
-                    "doc_id": doc.doc_id,
-                    "version_id": version.version_id,
+                    "version": ver.version_id
                 }
-            except (OntologyValidationError, ValueError) as e:
-                raise HTTPException(status_code=422, detail=str(e))
+            except Exception as e:
+                return {
+                    "task_id": f"err-{uuid.uuid4().hex[:8]}",
+                    "success": False,
+                    "error": str(e)
+                }
 
         @app.post("/api/ingest/text")
         async def ingest_text(body: dict):
-            """自然语言输入 → OntologyDocument → 热写入"""
+            """文本摄入（自然语言转本体）"""
             text = body.get("text", "")
             scenario_id = body.get("scenario_id")
-            if not text:
-                raise HTTPException(status_code=400, detail="text 不能为空")
-
-            doc = await self.manual_handler.from_natural_language(text, scenario_id=scenario_id)
-            version = await self.pipeline.ingest(doc)
-
-            if scenario_id:
-                self.scenario_store.add_document(scenario_id, doc)
-
-            return {"success": True, "doc_id": doc.doc_id, "version_id": version.version_id}
+            
+            try:
+                doc = await self.manual_handler.from_natural_language(text, scenario_id=scenario_id)
+                ver = await self.pipeline.ingest(doc)
+                
+                if scenario_id:
+                    self.scenario_store.add_document(scenario_id, doc)
+                    asyncio.create_task(asyncio.to_thread(self.scenario_store.sync_to_graphiti, scenario_id))
+                
+                return {
+                    "task_id": ver.version_id,
+                    "success": True,
+                    "version": ver.version_id
+                }
+            except Exception as e:
+                return {
+                    "task_id": f"err-{uuid.uuid4().hex[:8]}",
+                    "success": False,
+                    "error": str(e)
+                }
 
         @app.post("/api/ingest/news")
         async def ingest_news(body: dict):
-            """联网检索归纳（异步任务）"""
-            query = body.get("query", "")
-            context = body.get("context", "")
+            """新闻 URL 摄入（联网检索 + LLM 归纳）"""
+            url = body.get("url", "")
             scenario_id = body.get("scenario_id")
-            if not query:
-                raise HTTPException(status_code=400, detail="query 不能为空")
-
-            task_id = f"task-{uuid.uuid4().hex[:8]}"
-            self._tasks[task_id] = {"status": "running", "started_at": datetime.now().isoformat()}
-
-            async def _run():
-                try:
-                    docs = await self.news_ingester.ingest(query, context)
-                    versions = []
-                    for doc in docs:
-                        if scenario_id:
-                            doc.scenario_id = scenario_id
-                        ver = await self.pipeline.ingest(doc)
-                        if scenario_id:
-                            self.scenario_store.add_document(scenario_id, doc)
-                        versions.append(ver.version_id)
-                    self._tasks[task_id] = {
-                        "status": "completed",
-                        "doc_count": len(docs),
-                        "versions": versions,
-                    }
-                except Exception as e:
-                    self._tasks[task_id] = {"status": "failed", "error": str(e)}
-
-            asyncio.create_task(_run())
-            return {"task_id": task_id, "status": "running"}
-
-        @app.get("/api/ingest/tasks/{task_id}")
-        async def get_task(task_id: str):
-            task = self._tasks.get(task_id)
-            if not task:
-                raise HTTPException(status_code=404, detail="任务不存在")
-            return task
+            
+            if not url:
+                return {"success": False, "error": "URL 不能为空"}
+            
+            try:
+                doc = await self.news_ingester.ingest_url(url, scenario_id=scenario_id)
+                ver = await self.pipeline.ingest(doc)
+                
+                if scenario_id:
+                    doc.scenario_id = scenario_id
+                    self.scenario_store.add_document(scenario_id, doc)
+                    asyncio.create_task(asyncio.to_thread(self.scenario_store.sync_to_graphiti, scenario_id))
+                
+                return {
+                    "success": True,
+                    "task_id": ver.version_id,
+                    "version": ver.version_id
+                }
+            except Exception as e:
+                return {
+                    "success": False,
+                    "error": str(e)
+                }
 
         @app.post("/api/ingest/random")
         async def ingest_random(body: dict):
-            """按涉事方随机生成事件"""
+            """随机生成数据"""
             parties = body.get("parties", ["red", "blue"])
             count = min(body.get("count", 1), 20)
             scenario_id = body.get("scenario_id")
@@ -448,63 +492,76 @@ class SimulatorWebService:
             return {
                 "success": True,
                 "doc_count": len(docs),
-                "versions": versions,
-                "docs": [d.to_dict() for d in docs],
+                "versions": versions
             }
 
         @app.post("/api/ingest/import")
         async def import_scenario(file: UploadFile = File(...), scenario_id: str = None):
-            """导入 .odoc.json 文件，触发本体写入"""
-            content = await file.read()
+            """导入本体文档"""
             try:
+                content = await file.read()
                 docs = await self.doc_io.import_file(content, scenario_id=scenario_id)
-            except ValueError as e:
-                raise HTTPException(status_code=422, detail=str(e))
+                
+                versions = []
+                for doc in docs:
+                    ver = await self.pipeline.ingest(doc)
+                    if scenario_id:
+                        self.scenario_store.add_document(scenario_id, doc)
+                    versions.append(ver.version_id)
+                
+                return {
+                    "success": True,
+                    "doc_count": len(docs),
+                    "versions": versions
+                }
+            except Exception as e:
+                return {
+                    "success": False,
+                    "error": str(e)
+                }
 
-            versions = []
-            for doc in docs:
-                ver = await self.pipeline.ingest(doc)
-                if scenario_id:
-                    self.scenario_store.add_document(scenario_id, doc)
-                versions.append(ver.version_id)
-
-            return {"success": True, "doc_count": len(docs), "versions": versions}
-
-        # ── 版本管理 ──────────────────────────────────────
+        # ── 版本管理 ─────────────────────────────────────
 
         @app.get("/api/versions")
-        async def list_versions(limit: int = 50, offset: int = 0):
-            versions = await self.versions.list(limit=limit, offset=offset)
-            return {
-                "versions": [v.to_dict() for v in versions],
-                "total": self.versions.get_version_count(),
-            }
+        async def list_versions():
+            versions = await self.versions.list(limit=100)
+            version_dicts = [v.to_dict() if hasattr(v, 'to_dict') else v for v in versions]
+            return {"versions": version_dicts, "total": len(version_dicts)}
 
         @app.get("/api/versions/{version_id}")
         async def get_version(version_id: str):
             ver = await self.versions.get(version_id)
             if not ver:
                 raise HTTPException(status_code=404, detail="版本不存在")
-            return ver.to_dict()
+            return ver.to_dict() if hasattr(ver, 'to_dict') else ver
 
         @app.post("/api/versions/{version_id}/rollback")
         async def rollback(version_id: str):
-            new_ver = await self.pipeline.rollback(version_id)
-            return {"success": True, "new_version_id": new_ver.version_id}
+            try:
+                result = await self.versions.rollback(version_id)
+                return result
+            except Exception as e:
+                raise HTTPException(status_code=400, detail=str(e))
 
-        @app.get("/api/versions/{version_a}/diff/{version_b}")
+        @app.get("/api/versions/diff")
         async def diff_versions(version_a: str, version_b: str):
-            from dataclasses import asdict
-            diff = await self.versions.diff(version_a, version_b)
-            return asdict(diff)
+            try:
+                diff = await self.versions.diff(version_a, version_b)
+                return diff
+            except Exception as e:
+                raise HTTPException(status_code=400, detail=str(e))
+
+        # ── 实体历史 ─────────────────────────────────────
 
         @app.get("/api/entities/{entity_id}/history")
-        async def entity_history(entity_id: str):
-            history = await self.versions.get_entity_history(entity_id)
-            from dataclasses import asdict
-            return {"entity_id": entity_id, "history": [asdict(h) for h in history]}
+        async def get_entity_history(entity_id: str):
+            try:
+                history = await self.pipeline.get_entity_history(entity_id)
+                return history
+            except Exception as e:
+                raise HTTPException(status_code=400, detail=str(e))
 
-        # ── 统计 ──────────────────────────────────────────
+        # ── 统计信息 ─────────────────────────────────────
 
         @app.get("/api/stats")
         async def stats():
@@ -517,28 +574,15 @@ class SimulatorWebService:
         # ── WebSocket 实时事件流 ───────────────────────────
 
         @app.websocket("/ws/events")
-        async def ws_events(websocket: WebSocket):
+        async def websocket_endpoint(websocket: WebSocket):
             await websocket.accept()
             self._ws_clients.add(websocket)
-            logger.info(f"WebSocket 客户端连接，当前连接数: {len(self._ws_clients)}")
+            
             try:
-                # 发送连接确认
-                await websocket.send_text(json.dumps({
-                    "type": "connected",
-                    "message": "ODAP Mock Data Generator 实时事件流",
-                    "timestamp": datetime.now(timezone.utc).isoformat(),
-                }))
                 while True:
-                    # 等待 ping / 保持连接
-                    data = await asyncio.wait_for(websocket.receive_text(), timeout=30)
-                    if data == "ping":
-                        await websocket.send_text(json.dumps({"type": "pong"}))
-            except (WebSocketDisconnect, asyncio.TimeoutError):
-                pass
-            except Exception as e:
-                logger.error(f"WebSocket 错误: {e}")
-            finally:
-                self._ws_clients.discard(websocket)
+                    await asyncio.sleep(1)
+            except WebSocketDisconnect:
+                self._ws_clients.remove(websocket)
                 logger.info(f"WebSocket 客户端断开，当前连接数: {len(self._ws_clients)}")
 
         return app
