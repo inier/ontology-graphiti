@@ -14,8 +14,10 @@ import sys
 import os
 import json
 import asyncio
+import time
 from datetime import datetime, timezone
 from typing import Optional, List, Dict, Any
+from collections import deque
 
 # 尝试加载 .env 文件
 try:
@@ -100,6 +102,25 @@ class GraphManager:
         self._connected = False
         self._use_fallback = True
         self._mode = "fallback"   # "neo4j_driver" | "graphiti" | "fallback"
+        
+        # 连接池配置
+        self.max_pool_size = 20
+        self.pool_timeout = 30  # 秒
+        self.idle_timeout = 300  # 秒
+        self.pool = []
+        self.pool_creation_times = []
+        
+        # 断路器配置
+        self.failure_threshold = 5
+        self.recovery_timeout = 60  # 秒
+        self.failure_count = 0
+        self.circuit_open = False
+        self.last_failure_time = 0
+        
+        # 性能监控
+        self.query_times = deque(maxlen=100)
+        self.cache_hits = 0
+        self.cache_misses = 0
 
         # 尝试三层降级
         self._connect()
@@ -186,6 +207,152 @@ class GraphManager:
                 self.neo4j_driver.close()
             except Exception:
                 pass
+
+    def _get_connection(self):
+        """
+        从连接池获取连接
+        实现断路器逻辑
+        """
+        # 检查断路器状态
+        if self._check_circuit():
+            raise Exception("Circuit is open, please try again later")
+        
+        # 清理过期连接
+        self._cleanup_pool()
+        
+        # 从池获取连接
+        if self.pool:
+            conn = self.pool.pop(0)
+            self.pool_creation_times.pop(0)
+            return conn
+        
+        # 池为空且未达到最大连接数，创建新连接
+        if len(self.pool) < self.max_pool_size:
+            try:
+                conn = GraphDatabase.driver(
+                    self.neo4j_uri,
+                    auth=(self.neo4j_user, self.neo4j_password)
+                )
+                conn.verify_connectivity()
+                return conn
+            except Exception as e:
+                self._record_failure()
+                raise e
+        
+        # 池已满，等待
+        start_time = time.time()
+        while time.time() - start_time < self.pool_timeout:
+            self._cleanup_pool()
+            if self.pool:
+                conn = self.pool.pop(0)
+                self.pool_creation_times.pop(0)
+                return conn
+            time.sleep(0.1)
+        
+        raise Exception(f"Connection pool timeout after {self.pool_timeout} seconds")
+
+    def _return_connection(self, conn):
+        """
+        将连接返回连接池
+        """
+        if conn:
+            self.pool.append(conn)
+            self.pool_creation_times.append(time.time())
+
+    def _cleanup_pool(self):
+        """
+        清理过期的连接
+        """
+        current_time = time.time()
+        valid_indices = []
+        for i, creation_time in enumerate(self.pool_creation_times):
+            if current_time - creation_time < self.idle_timeout:
+                valid_indices.append(i)
+            else:
+                # 关闭过期连接
+                try:
+                    self.pool[i].close()
+                except Exception:
+                    pass
+        
+        # 保留有效的连接
+        self.pool = [self.pool[i] for i in valid_indices]
+        self.pool_creation_times = [self.pool_creation_times[i] for i in valid_indices]
+
+    def _check_circuit(self):
+        """
+        检查断路器状态
+        """
+        if not self.circuit_open:
+            return False
+        
+        # 检查是否可以恢复
+        if time.time() - self.last_failure_time > self.recovery_timeout:
+            self.circuit_open = False
+            self.failure_count = 0
+            return False
+        
+        return True
+
+    def _record_failure(self):
+        """
+        记录失败，更新断路器状态
+        """
+        self.failure_count += 1
+        self.last_failure_time = time.time()
+        if self.failure_count >= self.failure_threshold:
+            self.circuit_open = True
+            print(f"Circuit opened after {self.failure_count} failures")
+
+    def _record_success(self):
+        """
+        记录成功，重置失败计数
+        """
+        if self.failure_count > 0:
+            self.failure_count = max(0, self.failure_count - 1)
+        if self.circuit_open:
+            # 尝试半开状态
+            self.circuit_open = False
+            print("Circuit closed, trying to recover")
+
+    def get_performance_metrics(self):
+        """
+        获取性能监控指标
+        """
+        if self.query_times:
+            avg_query_time = sum(self.query_times) / len(self.query_times)
+            max_query_time = max(self.query_times)
+            min_query_time = min(self.query_times)
+        else:
+            avg_query_time = 0
+            max_query_time = 0
+            min_query_time = 0
+        
+        total_cache = self.cache_hits + self.cache_misses
+        cache_hit_rate = self.cache_hits / total_cache if total_cache > 0 else 0
+        
+        return {
+            "query_times": {
+                "average": avg_query_time,
+                "max": max_query_time,
+                "min": min_query_time,
+                "count": len(self.query_times)
+            },
+            "cache": {
+                "hits": self.cache_hits,
+                "misses": self.cache_misses,
+                "hit_rate": cache_hit_rate
+            },
+            "connection_pool": {
+                "current_size": len(self.pool),
+                "max_size": self.max_pool_size
+            },
+            "circuit_breaker": {
+                "is_open": self.circuit_open,
+                "failure_count": self.failure_count,
+                "failure_threshold": self.failure_threshold
+            }
+        }
 
     def _create_llm_client(self):
         """创建LLM客户端（使用智谱AI适配器）"""
@@ -391,11 +558,25 @@ class GraphManager:
         Returns:
             实体列表
         """
-        if self._mode == "neo4j_driver" and self.neo4j_driver:
-            return self._query_entities_neo4j(entity_type, area)
-        if self._mode == "graphiti" and self._connected:
-            return self._query_entities_graphiti(entity_type, area)
-        return self._query_entities_fallback(entity_type, area)
+        start_time = time.time()
+        try:
+            if self._mode == "neo4j_driver" and self.neo4j_driver:
+                result = self._query_entities_neo4j(entity_type, area)
+            elif self._mode == "graphiti" and self._connected:
+                result = self._query_entities_graphiti(entity_type, area)
+            else:
+                result = self._query_entities_fallback(entity_type, area)
+            self._record_success()
+            return result
+        except Exception as e:
+            self._record_failure()
+            print(f"Query entities failed: {e}")
+            return self._query_entities_fallback(entity_type, area)
+        finally:
+            # 记录查询时间
+            query_time = time.time() - start_time
+            self.query_times.append(query_time)
+            print(f"Query entities took {query_time:.4f} seconds")
 
     def _query_entities_neo4j(self, entity_type=None, area=None):
         """Neo4j Driver 模式：查询实体"""
@@ -894,13 +1075,69 @@ class GraphManager:
 
         return asyncio.run(get_history())
 
-    def search_hybrid(self, query_text: str, top_k: int = 5) -> List[Dict]:
+    def query_temporal(self, valid_time=None, transaction_time=None, entity_type=None) -> List[Dict]:
+        """
+        双时态查询 API
+
+        Args:
+            valid_time: 有效时间，实体状态有效的时间点或范围
+            transaction_time: 事务时间，数据被记录到系统的时间点或范围
+            entity_type: 实体类型（可选）
+
+        Returns:
+            符合时态条件的实体列表
+        """
+        if self._use_fallback or not self._connected:
+            # 回退模式不支持时态查询，返回所有实体
+            print("警告: 回退模式不支持时态查询，返回所有实体")
+            return self.query_entities(entity_type)
+
+        # Graphiti模式：使用时态参数查询
+        async def temporal_query():
+            try:
+                # 构建查询参数
+                query_params = {}
+                if valid_time:
+                    query_params['valid_time'] = valid_time
+                if transaction_time:
+                    query_params['transaction_time'] = transaction_time
+
+                # 调用Graphiti的时态查询
+                episodes = await self.graph.retrieve_episodes(
+                    reference_time=datetime.now(),
+                    **query_params
+                )
+
+                # 过滤实体类型
+                result = []
+                for episode in episodes:
+                    if entity_type and episode.name and entity_type.lower() not in episode.name.lower():
+                        continue
+
+                    result.append({
+                        "id": episode.name or str(episode.uuid),
+                        "type": "Entity",
+                        "properties": {"body": episode.content},
+                        "valid_time": str(episode.created_at),
+                        "transaction_time": str(episode.created_at)
+                    })
+
+                return result
+            except Exception as e:
+                print(f"Graphiti时态查询失败，降级到普通查询: {e}")
+                return self.query_entities(entity_type)
+
+        return asyncio.run(temporal_query())
+
+    def search_hybrid(self, query_text: str, top_k: int = 5, vector_weight: float = 0.7, keyword_weight: float = 0.3) -> List[Dict]:
         """
         混合检索（向量 + 关键词），回退模式委托给 search()
 
         Args:
             query_text: 查询文本
             top_k: 返回前k个结果
+            vector_weight: 向量检索权重
+            keyword_weight: 关键词检索权重
 
         Returns:
             检索结果列表
@@ -912,20 +1149,65 @@ class GraphManager:
         # Graphiti模式：使用 graphiti 的 search（返回 EntityEdge）
         async def hybrid_search():
             try:
-                results = await self.graph.search(query=query_text, num_results=top_k)
-                return [
-                    {
-                        "id": r.name or str(r.uuid),
+                # 1. 向量检索（Graphiti search）
+                vector_results = await self.graph.search(query=query_text, num_results=top_k)
+                
+                # 2. 关键词检索（Neo4j CONTAINS）
+                keyword_results = []
+                if self.neo4j_driver:
+                    try:
+                        with self.neo4j_driver.session() as session:
+                            cypher = (
+                                "MATCH (n) WHERE n.id CONTAINS $q OR n.name CONTAINS $q "
+                                "RETURN n.id AS id, labels(n) AS labels, properties(n) AS props LIMIT $lmt"
+                            )
+                            result = session.run(cypher, q=query_text, lmt=top_k)
+                            keyword_results = [
+                                {
+                                    "id": record["id"],
+                                    "type": [l for l in record["labels"] if l != "Entity"][0] if len(record["labels"]) > 1 else "Entity",
+                                    "properties": record["props"],
+                                    "score": 0.5  # 默认关键词得分
+                                }
+                                for record in result
+                            ]
+                    except Exception as e:
+                        print(f"关键词检索失败: {e}")
+                
+                # 3. 合并结果并根据权重计算最终得分
+                result_map = {}
+                
+                # 处理向量检索结果
+                for i, r in enumerate(vector_results):
+                    result_id = r.name or str(r.uuid)
+                    score = (top_k - i) / top_k * vector_weight  # 排名越靠前得分越高
+                    result_map[result_id] = {
+                        "id": result_id,
                         "type": "EntityEdge",
                         "properties": {
                             "fact": r.fact,
                             "source_node": r.source_node_uuid,
                             "target_node": r.target_node_uuid,
                         },
-                        "score": None,
+                        "score": score
                     }
-                    for r in results
-                ]
+                
+                # 处理关键词检索结果
+                for i, r in enumerate(keyword_results):
+                    result_id = r["id"]
+                    score = (top_k - i) / top_k * keyword_weight  # 排名越靠前得分越高
+                    if result_id in result_map:
+                        # 如果已存在，加权合并得分
+                        result_map[result_id]["score"] += score
+                    else:
+                        # 否则添加新结果
+                        r["score"] = score
+                        result_map[result_id] = r
+                
+                # 4. 按得分排序并返回前top_k结果
+                sorted_results = sorted(result_map.values(), key=lambda x: x["score"], reverse=True)[:top_k]
+                return sorted_results
+                
             except Exception as e:
                 print(f"Graphiti混合检索失败，降级到 fallback: {e}")
                 return self._search_fallback(query_text, limit=top_k)
@@ -1143,3 +1425,62 @@ class GraphManager:
                 return False
 
         return asyncio.run(add())
+
+    def add_episodes_batch(self, episodes: List[Dict], batch_size: int = 10) -> Dict[str, Any]:
+        """
+        批量添加 Episode 到 Graphiti
+
+        Args:
+            episodes: Episode 列表，每个元素包含 name, content, source_description, reference_time
+            batch_size: 批处理大小
+
+        Returns:
+            处理结果，包含成功和失败的数量
+        """
+        if self._use_fallback or not self._connected:
+            return {"success": 0, "failed": len(episodes), "error": "Fallback mode not supported"}
+
+        async def add_batch():
+            success_count = 0
+            failed_count = 0
+            failed_episodes = []
+
+            # 去重处理
+            seen_names = set()
+            unique_episodes = []
+            for episode in episodes:
+                name = episode.get('name')
+                if name and name not in seen_names:
+                    seen_names.add(name)
+                    unique_episodes.append(episode)
+
+            # 批量处理
+            for i in range(0, len(unique_episodes), batch_size):
+                batch = unique_episodes[i:i + batch_size]
+                for episode in batch:
+                    try:
+                        name = episode.get('name')
+                        content = episode.get('content')
+                        source_description = episode.get('source_description', '')
+                        reference_time = episode.get('reference_time', datetime.now(timezone.utc))
+
+                        await self.graph.add_episode(
+                            name=name,
+                            content=content,
+                            source_description=source_description,
+                            reference_time=reference_time,
+                            update_communities=False,
+                        )
+                        success_count += 1
+                    except Exception as e:
+                        print(f"Graphiti 添加 Episode 失败 {episode.get('name')}: {e}")
+                        failed_count += 1
+                        failed_episodes.append({"episode": episode, "error": str(e)})
+
+            return {
+                "success": success_count,
+                "failed": failed_count,
+                "failed_episodes": failed_episodes
+            }
+
+        return asyncio.run(add_batch())

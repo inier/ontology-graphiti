@@ -79,10 +79,12 @@ docs/
 │   │   ├── skills/DESIGN.md
 │   │   ├── swarm_orchestrator/DESIGN.md
 │   │   ├── tool_registry/DESIGN.md             # ⭐ 新增
+│   │   ├── user_cognition_engine/DESIGN.md     # ⭐ 新增
 │   │   ├── visualization/DESIGN.md
 │   │   ├── web/DESIGN.md
 │   │   ├── web_frontend/DESIGN.md             # ⭐ 新增
-│   │   └── workspace/DESIGN.md                  # ⭐ 新增
+│   │   ├── workspace/DESIGN.md                  # ⭐ 新增
+│   │   └── ontology_management_engine/DESIGN.md # ⭐ 新增
 │   │
 │   ├── security/
 │   │   └── SECURITY.md
@@ -333,6 +335,8 @@ docs/
 | API Gateway | modules/api_gateway/DESIGN.md | ⭐ API 网关 |
 | Audit Log | modules/audit_log/DESIGN.md | ⭐ 审计日志 |
 | Workspace | modules/workspace/DESIGN.md | ⭐ 工作空间 |
+| User Cognition Engine | modules/user_cognition_engine/DESIGN.md | ⭐ 用户认知引擎 |
+| Ontology Management Engine | modules/ontology_management_engine/DESIGN.md | ⭐ 本体管理引擎 |
 
 ---
 

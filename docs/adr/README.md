@@ -63,6 +63,8 @@
 | ADR-025 | 基于 OpenHarness 实现多智能体协同 | 已接受 | P0 | [ADR-025](ADR-025_openharness_integration.md) |
 | ADR-038 | 本体管理引擎与用户认知引擎架构 | 已接受 | P0 | [ADR-038](ADR-038_本体管理引擎与用户认知引擎架构.md) |
 | ADR-046 | Phase 4 采用模块化单体部署架构 | 已接受 | P0 | [ADR-046](ADR-046_modular_monolith_deployment.md) |
+| ADR-048 | 本体管理引擎架构决策 | 已接受 | P0 | [ADR-048](ADR-048_本体管理引擎架构决策.md) |
+| ADR-049 | 用户认知引擎架构决策 | 已接受 | P0 | [ADR-049](ADR-049_用户认知引擎架构决策.md) |
 
 ### 扩展机制（P1）
 
@@ -131,6 +133,8 @@
 | ADR-045 | 前端可视化选型 — G6 + Leaflet | 已接受 | [ADR-045](ADR-045_frontend_visualization_g6_leaflet.md) |
 | ADR-046 | Phase 4 采用模块化单体部署架构 | 已接受 | [ADR-046](ADR-046_modular_monolith_deployment.md) |
 | ADR-047 | 工具注册表升级 P0 + 分步实现 | 已接受 | [ADR-047](ADR-047_tool_registry_p0_phased_implementation.md) |
+| ADR-048 | 本体管理引擎架构决策 | 已接受 | [ADR-048](ADR-048_本体管理引擎架构决策.md) |
+| ADR-049 | 用户认知引擎架构决策 | 已接受 | [ADR-049](ADR-049_用户认知引擎架构决策.md) |
 
 ---
 
@@ -168,3 +172,4 @@
 - ADR-039 ~ ADR-044：Phase 4 待创建（问答引擎、API 网关、工作空间、审计、Agent Router、测试策略）
 - ADR-045 ~ ADR-046：Phase 4 关键决策拍板（G6+Leaflet 可视化选型、模块化单体部署）
 - ADR-047：Phase 4 优先级调整（工具注册表 P0 分步实现）
+- ADR-048 ~ ADR-049：Phase 4 引擎架构决策（本体管理引擎、用户认知引擎）
