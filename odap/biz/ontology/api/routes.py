@@ -10,9 +10,11 @@ ingest_service = IngestService()
 
 # 数据模型
 class NewsIngestRequest(BaseModel):
-    query: str = Field(..., description="检索关键词")
+    url: Optional[str] = Field(default=None, description="新闻URL")
+    query: Optional[str] = Field(default=None, description="检索关键词")
     event_context: str = Field(default="", description="事件背景")
     max_sources: int = Field(default=5, description="最大检索来源数")
+    scenario_id: Optional[str] = Field(default=None, description="场景ID（仅用于兼容前端）")
 
 class ManualIngestRequest(BaseModel):
     form_data: Dict[str, Any] = Field(..., description="表单数据")
@@ -85,12 +87,26 @@ async def ingest_data(request: Dict[str, Any]):
 
 @router.post("/news", response_model=IngestResponse)
 async def ingest_from_news(request: NewsIngestRequest):
-    """从新闻摄入数据"""
-    ingest_id = await ingest_service.ingest_from_news(
-        request.query,
-        request.event_context,
-        request.max_sources
-    )
+    """从新闻摄入数据
+
+    支持两种输入模式:
+    1. URL模式: 直接传入新闻网页URL，使用免费网页抓取方案
+    2. 检索模式: 传入关键词，使用搜索引擎检索（需要API Key）
+    """
+    if request.url:
+        ingest_id = await ingest_service.ingest_from_url(
+            request.url,
+            request.event_context
+        )
+    elif request.query:
+        ingest_id = await ingest_service.ingest_from_news(
+            request.query,
+            request.event_context,
+            request.max_sources
+        )
+    else:
+        raise HTTPException(status_code=400, detail="必须提供 url 或 query 参数")
+
     status = ingest_service.get_ingest_status(ingest_id).get("status")
     return IngestResponse(ingest_id=ingest_id, status=status)
 

@@ -3,18 +3,59 @@
 import uuid
 from datetime import datetime
 from typing import Dict, Any, List, Optional
-from ..ingestion import NewsIngester, ManualInputHandler, RandomEventGenerator, OntologyDocument
+from ..ingestion import NewsIngester, ManualInputHandler, RandomEventGenerator, FreeNewsIngester, WebScraper, OntologyDocument
 from ..storage import SQLiteIngestStorage
 
 
 class IngestService:
     """数据摄入服务"""
-    
+
     def __init__(self, llm_client=None):
         self.storage = SQLiteIngestStorage()
         self.news_ingester = NewsIngester(llm_client=llm_client)
         self.manual_input_handler = ManualInputHandler(llm_client=llm_client)
         self.random_event_generator = RandomEventGenerator(llm_client=llm_client)
+        self.web_scraper = WebScraper()
+        self.free_news_ingester = FreeNewsIngester(scraper=self.web_scraper, llm_client=llm_client)
+
+    async def ingest_from_url(self, url: str, event_context: str = "") -> str:
+        """从URL摄入数据（免费方案，无需API Key）"""
+        # 创建摄入记录
+        ingest_id = str(uuid.uuid4())
+        ingest_record = {
+            'id': ingest_id,
+            'source': 'url',
+            'source_details': {'url': url, 'context': event_context},
+            'record_count': 0,
+            'status': 'processing',
+            'start_time': datetime.now().isoformat(),
+            'created_by': 'system'
+        }
+        self.storage.save_ingest_record(ingest_record)
+
+        try:
+            # 使用免费网页抓取
+            documents = await self.free_news_ingester.ingest(url, event_context=event_context)
+
+            # 保存文档
+            for doc in documents:
+                self.storage.save_ontology_document(doc)
+
+            # 更新摄入记录
+            ingest_record['status'] = 'completed'
+            ingest_record['record_count'] = len(documents)
+            ingest_record['processed_count'] = len(documents)
+            ingest_record['end_time'] = datetime.now().isoformat()
+            ingest_record['duration_seconds'] = (datetime.now() - datetime.fromisoformat(ingest_record['start_time'])).total_seconds()
+        except Exception as e:
+            # 处理错误
+            ingest_record['status'] = 'failed'
+            ingest_record['errors'] = [{'message': str(e)}]
+            ingest_record['end_time'] = datetime.now().isoformat()
+            ingest_record['duration_seconds'] = (datetime.now() - datetime.fromisoformat(ingest_record['start_time'])).total_seconds()
+
+        self.storage.update_ingest_record(ingest_id, ingest_record)
+        return ingest_id
     
     async def ingest_from_news(self, query: str, event_context: str = "", max_sources: int = 5) -> str:
         """从新闻摄入数据"""

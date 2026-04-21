@@ -1,21 +1,51 @@
 import { useState, useEffect } from 'react';
-import { Table, Card, Button, Modal, Form, Input, Space, Tag, Popconfirm, message, Row, Col, Statistic } from 'antd';
+import { Table, Card, Button, Modal, Form, Input, Space, Tag, Popconfirm, message, Row, Col, Statistic, Tabs } from 'antd';
 import { PlusOutlined, EditOutlined, DeleteOutlined, PlayCircleOutlined, StopOutlined } from '@ant-design/icons';
 import { api } from '../../shared/services/api';
 import { useWorkspace } from '../../shared/components/AppLayout';
 import type { Workspace } from '../../shared/services/api';
 
+interface Scenario {
+  scenario_id: string;
+  name: string;
+  description: string;
+  workspace_id: string;
+  ontology_id?: string;
+  doc_count: number;
+  event_count: number;
+  entity_count: number;
+  created_at: string;
+  updated_at: string;
+}
+
 export function WorkspaceManager() {
   const { reloadWorkspaces } = useWorkspace();
   const [workspaces, setWorkspaces] = useState<Workspace[]>([]);
+  const [scenarios, setScenarios] = useState<Record<string, Scenario[]>>({});
   const [loading, setLoading] = useState(true);
+  const [scenarioLoading, setScenarioLoading] = useState<Record<string, boolean>>({});
   const [modalVisible, setModalVisible] = useState(false);
+  const [scenarioModalVisible, setScenarioModalVisible] = useState(false);
   const [editingWorkspace, setEditingWorkspace] = useState<Workspace | null>(null);
+  const [editingScenario, setEditingScenario] = useState<{ workspaceId: string; scenario: Scenario | null } | null>(null);
+  const [selectedWorkspace, setSelectedWorkspace] = useState<string | null>(null);
+  const [activeTab, setActiveTab] = useState<string>('workspaces');
   const [form] = Form.useForm();
+  const [scenarioForm] = Form.useForm();
 
   useEffect(() => {
     loadWorkspaces();
   }, []);
+
+  useEffect(() => {
+    if (activeTab === 'scenarios' && workspaces.length > 0) {
+      workspaces.forEach(workspace => {
+        if (!scenarios[workspace.workspace_id]) {
+          loadScenarios(workspace.workspace_id);
+        }
+      });
+    }
+  }, [activeTab, workspaces]);
 
   const loadWorkspaces = async () => {
     try {
@@ -94,6 +124,78 @@ export function WorkspaceManager() {
       setModalVisible(false);
       loadWorkspaces();
       reloadWorkspaces();
+    } catch (error) {
+      console.error('操作失败', error);
+      message.error('操作失败');
+    }
+  };
+
+  // 场景相关函数
+  const loadScenarios = async (workspaceId: string) => {
+    try {
+      setScenarioLoading(prev => ({ ...prev, [workspaceId]: true }));
+      const data = await api.getScenarios(workspaceId);
+      setScenarios(prev => ({ ...prev, [workspaceId]: data.scenarios }));
+    } catch (error) {
+      console.error('加载场景失败', error);
+      message.error('加载场景失败');
+    } finally {
+      setScenarioLoading(prev => ({ ...prev, [workspaceId]: false }));
+    }
+  };
+
+  const handleCreateScenario = (workspaceId: string) => {
+    setEditingScenario({ workspaceId, scenario: null });
+    scenarioForm.resetFields();
+    setScenarioModalVisible(true);
+  };
+
+  const handleEditScenario = (workspaceId: string, scenario: Scenario) => {
+    setEditingScenario({ workspaceId, scenario });
+    scenarioForm.setFieldsValue({
+      name: scenario.name,
+      description: scenario.description,
+      ontology_id: scenario.ontology_id,
+    });
+    setScenarioModalVisible(true);
+  };
+
+  const handleDeleteScenario = async (workspaceId: string, scenarioId: string) => {
+    try {
+      await api.deleteScenario(workspaceId, scenarioId);
+      message.success('删除成功');
+      loadScenarios(workspaceId);
+    } catch (error) {
+      console.error('删除失败', error);
+      message.error('删除失败');
+    }
+  };
+
+  const handleScenarioSubmit = async () => {
+    try {
+      const values = await scenarioForm.validateFields();
+      if (!editingScenario) return;
+      
+      if (editingScenario.scenario) {
+        await api.updateScenario(
+          editingScenario.workspaceId,
+          editingScenario.scenario.scenario_id,
+          values.name,
+          values.description,
+          values.ontology_id
+        );
+        message.success('更新成功');
+      } else {
+        await api.createScenario(
+          editingScenario.workspaceId,
+          values.name,
+          values.description,
+          values.ontology_id
+        );
+        message.success('创建成功');
+      }
+      setScenarioModalVisible(false);
+      loadScenarios(editingScenario.workspaceId);
     } catch (error) {
       console.error('操作失败', error);
       message.error('操作失败');
@@ -199,6 +301,74 @@ export function WorkspaceManager() {
 
   const activeCount = workspaces.filter(w => w.status === 'active').length;
   const inactiveCount = workspaces.filter(w => w.status !== 'active').length;
+  const totalScenarioCount = Object.values(scenarios).reduce((sum, s) => sum + s.length, 0);
+
+  const scenarioColumns = [
+    {
+      title: '场景名称',
+      dataIndex: 'name',
+      key: 'name',
+      render: (name: string, record: Scenario) => (
+        <Space>
+          <span style={{ fontWeight: 500 }}>{name}</span>
+          {record.ontology_id && <Tag color="blue">绑定本体</Tag>}
+        </Space>
+      ),
+    },
+    {
+      title: '描述',
+      dataIndex: 'description',
+      key: 'description',
+      ellipsis: true,
+    },
+    {
+      title: '文档数',
+      dataIndex: 'doc_count',
+      key: 'doc_count',
+    },
+    {
+      title: '事件数',
+      dataIndex: 'event_count',
+      key: 'event_count',
+    },
+    {
+      title: '实体数',
+      dataIndex: 'entity_count',
+      key: 'entity_count',
+    },
+    {
+      title: '创建时间',
+      dataIndex: 'created_at',
+      key: 'created_at',
+      render: (date: string) => new Date(date).toLocaleString('zh-CN'),
+    },
+    {
+      title: '操作',
+      key: 'action',
+      width: 150,
+      render: (_: unknown, record: Scenario) => (
+        <Space size="small">
+          <Button
+            type="link"
+            icon={<EditOutlined />}
+            onClick={() => handleEditScenario(record.workspace_id, record)}
+          >
+            编辑
+          </Button>
+          <Popconfirm
+            title="确定删除此场景？"
+            onConfirm={() => handleDeleteScenario(record.workspace_id, record.scenario_id)}
+            okText="确定"
+            cancelText="取消"
+          >
+            <Button type="link" danger icon={<DeleteOutlined />}>
+              删除
+            </Button>
+          </Popconfirm>
+        </Space>
+      ),
+    },
+  ];
 
   return (
     <div style={{ padding: 24 }}>
@@ -220,28 +390,84 @@ export function WorkspaceManager() {
         </Col>
         <Col span={6}>
           <Card>
-            <Statistic title="总成员数" value={workspaces.reduce((sum, w) => sum + (w.member_count ?? 0), 0)} loading={loading} />
+            <Statistic title="总场景数" value={totalScenarioCount} loading={loading} />
           </Card>
         </Col>
       </Row>
 
-      <Card
-        title="工作空间管理"
+      <Tabs
+        activeKey={activeTab}
+        onChange={setActiveTab}
         style={{ marginTop: 16 }}
-        extra={
-          <Button type="primary" icon={<PlusOutlined />} onClick={handleCreate}>
-            创建工作空间
-          </Button>
-        }
-      >
-        <Table
-          columns={columns}
-          dataSource={workspaces}
-          rowKey="workspace_id"
-          loading={loading}
-          pagination={{ pageSize: 10 }}
-        />
-      </Card>
+        items={[
+          {
+            key: 'workspaces',
+            label: '工作空间管理',
+            children: (
+              <Card
+                title="工作空间管理"
+                extra={
+                  <Button type="primary" icon={<PlusOutlined />} onClick={handleCreate}>
+                    创建工作空间
+                  </Button>
+                }
+              >
+                <Table
+                  columns={columns}
+                  dataSource={workspaces}
+                  rowKey="workspace_id"
+                  loading={loading}
+                  pagination={{ pageSize: 10 }}
+                />
+              </Card>
+            ),
+          },
+          {
+            key: 'scenarios',
+            label: '场景管理',
+            children: (
+              <div>
+                {workspaces.map(workspace => (
+                  <Card
+                    key={workspace.workspace_id}
+                    title={
+                      <Space>
+                        <span>{workspace.name}</span>
+                        <Tag color={workspace.status === 'active' ? 'green' : 'red'}>
+                          {workspace.status === 'active' ? '活跃' : '停用'}
+                        </Tag>
+                      </Space>
+                    }
+                    style={{ marginTop: 16 }}
+                    extra={
+                      <Button
+                        type="primary"
+                        icon={<PlusOutlined />}
+                        onClick={() => {
+                          if (!scenarios[workspace.workspace_id]) {
+                            loadScenarios(workspace.workspace_id);
+                          }
+                          handleCreateScenario(workspace.workspace_id);
+                        }}
+                      >
+                        创建场景
+                      </Button>
+                    }
+                  >
+                    <Table
+                      columns={scenarioColumns}
+                      dataSource={scenarios[workspace.workspace_id] || []}
+                      rowKey="scenario_id"
+                      loading={scenarioLoading[workspace.workspace_id]}
+                      pagination={{ pageSize: 10 }}
+                    />
+                  </Card>
+                ))}
+              </div>
+            ),
+          },
+        ]}
+      />
 
       <Modal
         title={editingWorkspace ? '编辑工作空间' : '创建工作空间'}
@@ -264,6 +490,31 @@ export function WorkspaceManager() {
           </Form.Item>
           <Form.Item name="owner" label="所有者">
             <Input placeholder="请输入所有者" defaultValue="system" />
+          </Form.Item>
+        </Form>
+      </Modal>
+
+      <Modal
+        title={editingScenario?.scenario ? '编辑场景' : '创建场景'}
+        open={scenarioModalVisible}
+        onOk={handleScenarioSubmit}
+        onCancel={() => setScenarioModalVisible(false)}
+        okText={editingScenario?.scenario ? '更新' : '创建'}
+        cancelText="取消"
+      >
+        <Form form={scenarioForm} layout="vertical">
+          <Form.Item
+            name="name"
+            label="场景名称"
+            rules={[{ required: true, message: '请输入场景名称' }]}
+          >
+            <Input placeholder="请输入场景名称" />
+          </Form.Item>
+          <Form.Item name="description" label="描述">
+            <Input.TextArea rows={3} placeholder="请输入场景描述" />
+          </Form.Item>
+          <Form.Item name="ontology_id" label="绑定本体 ID（可选）">
+            <Input placeholder="请输入本体 ID" />
           </Form.Item>
         </Form>
       </Modal>

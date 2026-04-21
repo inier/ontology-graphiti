@@ -67,6 +67,23 @@ class SQLiteStorage:
             )
         ''')
         
+        # 创建场景表
+        cursor.execute('''
+            CREATE TABLE IF NOT EXISTS scenarios (
+                scenario_id TEXT PRIMARY KEY,
+                name TEXT NOT NULL,
+                description TEXT,
+                workspace_id TEXT NOT NULL,
+                ontology_id TEXT,
+                doc_count INTEGER DEFAULT 0,
+                event_count INTEGER DEFAULT 0,
+                entity_count INTEGER DEFAULT 0,
+                created_at TEXT NOT NULL,
+                updated_at TEXT NOT NULL,
+                FOREIGN KEY (workspace_id) REFERENCES workspaces (id)
+            )
+        ''')
+        
         conn.commit()
         conn.close()
     
@@ -391,3 +408,117 @@ class SQLiteStorage:
             records.append(ImportExportRecord(**record_data))
         
         return records
+    
+    # 场景相关
+    def save_scenario(self, scenario: Dict[str, Any]) -> None:
+        """保存场景"""
+        conn = sqlite3.connect(self.db_path)
+        cursor = conn.cursor()
+        
+        cursor.execute('''
+            INSERT OR REPLACE INTO scenarios 
+            (scenario_id, name, description, workspace_id, ontology_id, 
+             doc_count, event_count, entity_count, created_at, updated_at)
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+        ''', (
+            scenario['scenario_id'],
+            scenario['name'],
+            scenario.get('description', ''),
+            scenario['workspace_id'],
+            scenario.get('ontology_id'),
+            scenario.get('doc_count', 0),
+            scenario.get('event_count', 0),
+            scenario.get('entity_count', 0),
+            scenario['created_at'],
+            scenario['updated_at']
+        ))
+        
+        conn.commit()
+        conn.close()
+    
+    def get_scenario(self, scenario_id: str) -> Optional[Dict[str, Any]]:
+        """获取场景"""
+        conn = sqlite3.connect(self.db_path)
+        cursor = conn.cursor()
+        
+        cursor.execute('SELECT * FROM scenarios WHERE scenario_id = ?', (scenario_id,))
+        row = cursor.fetchone()
+        
+        conn.close()
+        
+        if not row:
+            return None
+        
+        return {
+            'scenario_id': row[0],
+            'name': row[1],
+            'description': row[2],
+            'workspace_id': row[3],
+            'ontology_id': row[4],
+            'doc_count': row[5],
+            'event_count': row[6],
+            'entity_count': row[7],
+            'created_at': row[8],
+            'updated_at': row[9]
+        }
+    
+    def get_scenarios_by_workspace(self, workspace_id: str) -> List[Dict[str, Any]]:
+        """获取工作空间下的所有场景"""
+        conn = sqlite3.connect(self.db_path)
+        cursor = conn.cursor()
+        
+        cursor.execute('SELECT * FROM scenarios WHERE workspace_id = ? ORDER BY created_at DESC', (workspace_id,))
+        rows = cursor.fetchall()
+        
+        conn.close()
+        
+        scenarios = []
+        for row in rows:
+            scenarios.append({
+                'scenario_id': row[0],
+                'name': row[1],
+                'description': row[2],
+                'workspace_id': row[3],
+                'ontology_id': row[4],
+                'doc_count': row[5],
+                'event_count': row[6],
+                'entity_count': row[7],
+                'created_at': row[8],
+                'updated_at': row[9]
+            })
+        
+        return scenarios
+    
+    def update_scenario(self, scenario_id: str, updates: Dict[str, Any]) -> None:
+        """更新场景"""
+        conn = sqlite3.connect(self.db_path)
+        cursor = conn.cursor()
+        
+        set_clause = []
+        params = []
+        
+        for key, value in updates.items():
+            if key != 'scenario_id' and key != 'workspace_id' and key != 'created_at':
+                set_clause.append(f"{key} = ?")
+                params.append(value)
+        
+        if set_clause:
+            set_clause.append("updated_at = ?")
+            params.append(datetime.now().isoformat())
+            params.append(scenario_id)
+            
+            query = f"UPDATE scenarios SET {', '.join(set_clause)} WHERE scenario_id = ?"
+            cursor.execute(query, params)
+        
+        conn.commit()
+        conn.close()
+    
+    def delete_scenario(self, scenario_id: str) -> None:
+        """删除场景"""
+        conn = sqlite3.connect(self.db_path)
+        cursor = conn.cursor()
+        
+        cursor.execute('DELETE FROM scenarios WHERE scenario_id = ?', (scenario_id,))
+        
+        conn.commit()
+        conn.close()

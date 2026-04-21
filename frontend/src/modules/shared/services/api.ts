@@ -138,22 +138,22 @@ export const api = {
     });
   },
 
-  async ingestNews(url: string, scenarioId?: string): Promise<{ success: boolean; task_id: string }> {
-    return fetchJson(`${API_BASE}/api/ingest/news`, {
+  async ingestNews(url: string, scenarioId?: string): Promise<{ success: boolean; ingest_id: string }> {
+    return fetchJson(`${API_BASE}/api/ontology/ingest/news`, {
       method: 'POST',
       body: JSON.stringify({ url, scenario_id: scenarioId }),
     });
   },
 
   async ingestRandom(scenarioId?: string): Promise<{ success: boolean; doc_count: number; versions: string[] }> {
-    return fetchJson(`${API_BASE}/api/ingest/random`, {
+    return fetchJson(`${API_BASE}/api/ontology/ingest/random`, {
       method: 'POST',
       body: JSON.stringify({ scenario_id: scenarioId }),
     });
   },
 
   async ingestManual(data: Record<string, unknown>, scenarioId?: string): Promise<{ task_id: string }> {
-    return fetchJson(`${API_BASE}/api/ingest/manual`, {
+    return fetchJson(`${API_BASE}/api/ontology/ingest/manual`, {
       method: 'POST',
       body: JSON.stringify({ data, scenario_id: scenarioId }),
     });
@@ -165,8 +165,8 @@ export const api = {
     if (scenarioId) {
       formData.append('scenario_id', scenarioId);
     }
-    
-    const response = await fetch(`${API_BASE}/api/ingest/file`, {
+
+    const response = await fetch(`${API_BASE}/api/ontology/ingest/file`, {
       method: 'POST',
       body: formData,
     });
@@ -393,5 +393,40 @@ export const api = {
 
   async getGraphDetail(graphId: string): Promise<{ graph_id: string; nodes: Array<Record<string, unknown>>; edges: Array<Record<string, unknown>> }> {
     return fetchJson(`${API_BASE}/api/graph/${graphId}`);
+  },
+
+  // ==================== 场景管理 API ====================
+
+  async createScenario(workspaceId: string, name: string, description?: string, ontologyId?: string): Promise<{ scenario_id: string; name: string; description: string; workspace_id: string; ontology_id?: string; doc_count: number; event_count: number; entity_count: number; created_at: string; updated_at: string }> {
+    return fetchJson(`${API_BASE}/api/workspaces/${workspaceId}/scenarios`, {
+      method: 'POST',
+      body: JSON.stringify({ name, description, ontology_id: ontologyId }),
+    });
+  },
+
+  async getScenarios(workspaceId: string): Promise<{ scenarios: Array<{ scenario_id: string; name: string; description: string; workspace_id: string; ontology_id?: string; doc_count: number; event_count: number; entity_count: number; created_at: string; updated_at: string }>; workspace_id: string; total: number }> {
+    return fetchJson(`${API_BASE}/api/workspaces/${workspaceId}/scenarios`);
+  },
+
+  async getScenario(workspaceId: string, scenarioId: string): Promise<{ scenario_id: string; name: string; description: string; workspace_id: string; ontology_id?: string; doc_count: number; event_count: number; entity_count: number; created_at: string; updated_at: string }> {
+    return fetchJson(`${API_BASE}/api/workspaces/${workspaceId}/scenarios/${scenarioId}`);
+  },
+
+  async updateScenario(workspaceId: string, scenarioId: string, name?: string, description?: string, ontologyId?: string): Promise<{ scenario_id: string; name: string; description: string; workspace_id: string; ontology_id?: string; doc_count: number; event_count: number; entity_count: number; created_at: string; updated_at: string }> {
+    const body: Record<string, unknown> = {};
+    if (name !== undefined) body.name = name;
+    if (description !== undefined) body.description = description;
+    if (ontologyId !== undefined) body.ontology_id = ontologyId;
+    
+    return fetchJson(`${API_BASE}/api/workspaces/${workspaceId}/scenarios/${scenarioId}`, {
+      method: 'PUT',
+      body: JSON.stringify(body),
+    });
+  },
+
+  async deleteScenario(workspaceId: string, scenarioId: string): Promise<{ status: string; message: string }> {
+    return fetchJson(`${API_BASE}/api/workspaces/${workspaceId}/scenarios/${scenarioId}`, {
+      method: 'DELETE',
+    });
   },
 };

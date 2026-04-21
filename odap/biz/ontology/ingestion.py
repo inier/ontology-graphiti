@@ -7,6 +7,7 @@
 - ManualInputHandler: 表单/JSON/自然语言 → OntologyDocument
 - RandomEventGenerator: 涉事方行为模型 → OntologyDocument（参考 NetLogo）
 - OntologyDocumentIO: 导入/导出 .odoc.json
+- WebScraper: 网页内容抓取（免费方案，无需 API Key）
 """
 
 import json
@@ -14,9 +15,19 @@ import uuid
 import random
 import logging
 import asyncio
+import os
 from dataclasses import dataclass, field
 from datetime import datetime, timezone
 from typing import Any, Dict, List, Optional
+
+# 尝试导入网页抓取依赖
+try:
+    import requests
+    from bs4 import BeautifulSoup
+    WEB_SCRAPE_AVAILABLE = True
+except ImportError:
+    WEB_SCRAPE_AVAILABLE = False
+    logging.warning("网页抓取依赖未安装，将使用 Mock 数据")
 
 from odap.biz.ontology.schema.document import (
     OntologyDocument, OntologyEntity, OntologyRelation, OntologyEvent,
@@ -102,8 +113,9 @@ class NewsIngester:
 
     def __init__(self, llm_client=None, search_api_key: str = None, tavily_api_key: str = None):
         self.llm = llm_client
-        self._search_api_key = search_api_key
-        self._tavily_api_key = tavily_api_key
+        # 优先使用传入的参数，其次从环境变量读取
+        self._search_api_key = search_api_key or os.getenv('SERPAPI_KEY', '')
+        self._tavily_api_key = tavily_api_key or os.getenv('TAVILY_API_KEY', '')
         self._use_mock = (llm_client is None)
 
     async def ingest(
@@ -160,13 +172,28 @@ class NewsIngester:
             return self._generate_mock_news_docs(query, event_context)
 
     async def _search(self, query: str, max_results: int) -> List[Dict[str, Any]]:
-        """执行联网检索（优先 Tavily，降级 DuckDuckGo）"""
+        """执行联网检索（Tavily → SerpAPI → DuckDuckGo → Mock）"""
         # Tavily
         if self._tavily_api_key:
             try:
                 return await self._search_tavily(query, max_results)
             except Exception as e:
                 logger.warning(f"Tavily 检索失败: {e}")
+
+        # SerpAPI
+        if self._search_api_key:
+            try:
+                return await self._search_serpapi(query, max_results)
+            except Exception as e:
+                logger.warning(f"SerpAPI 检索失败: {e}")
+
+        # DuckDuckGo HTML 解析（免费方案）
+        try:
+            ddg_results = await self._search_duckduckgo(query, max_results)
+            if ddg_results:
+                return ddg_results
+        except Exception as e:
+            logger.warning(f"DuckDuckGo 检索失败: {e}")
 
         # 降级 Mock
         logger.info("使用 Mock 检索结果")
@@ -186,6 +213,99 @@ class NewsIngester:
             async with session.post(url, json=payload, timeout=aiohttp.ClientTimeout(total=15)) as resp:
                 data = await resp.json()
                 return data.get("results", [])
+
+    async def _search_duckduckgo(self, query: str, max_results: int) -> List[Dict[str, Any]]:
+        """DuckDuckGo HTML 解析检索（免费方案，无需 API Key）
+
+        通过抓取 DuckDuckGo HTML 搜索结果页面，解析出搜索结果
+        """
+        if not WEB_SCRAPE_AVAILABLE:
+            logger.warning("DuckDuckGo 搜索需要 requests 和 bs4 依赖")
+            return []
+
+        try:
+            import urllib.parse
+            headers = {
+                "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36",
+                "Accept": "text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8",
+                "Accept-Language": "zh-CN,zh;q=0.9,en;q=0.8",
+            }
+
+            # 编码查询参数
+            encoded_query = urllib.parse.quote(query)
+            url = f"https://html.duckduckgo.com/html/?q={encoded_query}"
+
+            response = requests.get(url, headers=headers, timeout=15)
+            response.raise_for_status()
+
+            soup = BeautifulSoup(response.text, 'html.parser')
+
+            results = []
+            # DuckDuckGo 搜索结果容器
+            for result in soup.select('.result')[:max_results]:
+                # 获取标题和链接
+                title_elem = result.select_one('.result__title a')
+                snippet_elem = result.select_one('.result__snippet')
+                date_elem = result.select_one('.result__timestamp')
+
+                if title_elem:
+                    title = title_elem.get_text(strip=True)
+                    link = title_elem.get('href', '')
+
+                    # 清理 DuckDuckGo 的跳转 URL
+                    if link.startswith('/l/?uddg='):
+                        from urllib.parse import unquote
+                        parsed = urllib.parse.urlparse(link)
+                        link = unquote(parsed.query.split('uddg=')[-1] if 'uddg=' in link else '')
+
+                    snippet = snippet_elem.get_text(strip=True) if snippet_elem else ''
+                    date_str = date_elem.get_text(strip=True) if date_elem else ''
+
+                    results.append({
+                        "title": title,
+                        "url": link,
+                        "content": snippet,
+                        "snippet": snippet,
+                        "date": date_str,
+                    })
+
+            logger.info(f"DuckDuckGo 搜索返回 {len(results)} 条结果")
+            return results
+
+        except requests.exceptions.Timeout:
+            logger.error("DuckDuckGo 搜索请求超时")
+            return []
+        except requests.exceptions.RequestException as e:
+            logger.error(f"DuckDuckGo 搜索请求失败: {e}")
+            return []
+        except Exception as e:
+            logger.error(f"DuckDuckGo 搜索解析失败: {e}")
+            return []
+
+    async def _search_serpapi(self, query: str, max_results: int) -> List[Dict[str, Any]]:
+        """SerpAPI 搜索（备选方案，需要 API Key）"""
+        import aiohttp
+
+        url = "https://serpapi.com/search"
+        params = {
+            "q": query,
+            "api_key": self._search_api_key,
+            "num": max_results,
+            "engine": "google",
+        }
+
+        async with aiohttp.ClientSession() as session:
+            async with session.get(url, params=params, timeout=aiohttp.ClientTimeout(total=15)) as resp:
+                data = await resp.json()
+                results = []
+                for item in data.get("organic_results", [])[:max_results]:
+                    results.append({
+                        "title": item.get("title", ""),
+                        "url": item.get("link", ""),
+                        "content": item.get("snippet", ""),
+                        "snippet": item.get("snippet", ""),
+                    })
+                return results
 
     def _combine_sources(self, results: List[Dict[str, Any]]) -> str:
         """汇总多源文本"""
@@ -260,6 +380,97 @@ class NewsIngester:
         doc.meta.description = f"基于检索词 '{query}' 生成的 Mock 数据（{context or '无背景'}）"
         logger.info(f"生成 Mock 新闻文档: {doc.doc_id}")
         return [doc]
+
+    async def from_json(self, raw_json: str, scenario_id: str = None) -> OntologyDocument:
+        """验证并解析 JSON 字符串"""
+        try:
+            data = json.loads(raw_json)
+        except json.JSONDecodeError as e:
+            raise ValueError(f"JSON 格式错误: {e}")
+
+        # Schema 验证
+        result = OntologyDocumentSchema.validate(data)
+        if not result.is_valid:
+            raise ValueError(f"Schema 验证失败: {'; '.join(result.errors)}")
+
+        doc = OntologyDocument.from_dict(data)
+        if scenario_id:
+            doc.scenario_id = scenario_id
+        doc.source.type = SourceType.MANUAL.value
+
+        return doc
+
+    async def from_natural_language(self, text: str, scenario_id: str = None) -> OntologyDocument:
+        """
+        自然语言 → OntologyDocument（使用 LLM 转换）
+        如果没有 LLM，生成基础文档
+        """
+        if self.llm is None:
+            # 无 LLM：生成最简 event 文档
+            now = datetime.now(timezone.utc).isoformat()
+            doc = OntologyDocument(
+                doc_type=DocType.EVENT.value,
+                source=DataSource(type=SourceType.MANUAL.value, collected_at=now),
+                meta=DocumentMeta(title="自然语言输入", description=text[:500]),
+                scenario_id=scenario_id,
+            )
+            doc.events.append(OntologyEvent(
+                event_type="generic",
+                timestamp=now,
+                description=text[:500],
+            ))
+            doc.ontology_version.commit_message = f"自然语言输入: {text[:50]}"
+            return doc
+
+        # 使用 LLM 转换
+        prompt = f"""将以下自然语言描述转换为 OntologyDocument JSON 格式（只输出 JSON）:
+
+{text}
+
+参考格式:
+{{
+  "doc_id": "manual-xxxxx",
+  "doc_type": "event",
+  "source": {{"type": "manual", "collected_at": "{datetime.now(timezone.utc).isoformat()}", "confidence": 0.95}},
+  "meta": {{"title": "...", "description": "...", "tags": []}},
+  "entities": [...],
+  "relations": [...],
+  "events": [...],
+  "actions": [],
+  "rules": [],
+  "constraints": [],
+  "ontology_version": {{"version_id": "", "parent_version": null, "commit_message": "..."}}
+}}"""
+
+        try:
+            if hasattr(self.llm, 'complete'):
+                response = await self.llm.complete(prompt)
+            elif hasattr(self.llm, 'chat'):
+                response = await self.llm.chat([{"role": "user", "content": prompt}])
+            else:
+                response = ""
+
+            # 提取 JSON
+            text_resp = response.strip()
+            if "```json" in text_resp:
+                text_resp = text_resp.split("```json")[1].split("```")[0].strip()
+            elif "```" in text_resp:
+                text_resp = text_resp.split("```")[1].split("```")[0].strip()
+
+            data = json.loads(text_resp)
+            doc = OntologyDocument.from_dict(data)
+            if scenario_id:
+                doc.scenario_id = scenario_id
+            return doc
+        except Exception as e:
+            logger.error(f"LLM 转换失败: {e}，降级到基础文档")
+            return await self.from_natural_language.__wrapped__(self, text, scenario_id) if hasattr(
+                self.from_natural_language, '__wrapped__') else OntologyDocument(
+                doc_type=DocType.EVENT.value,
+                source=DataSource(type=SourceType.MANUAL.value),
+                meta=DocumentMeta(title="自然语言输入", description=text[:500]),
+                scenario_id=scenario_id,
+            )
 
 
 # ─────────────────────────────────────────────────
@@ -356,7 +567,7 @@ class ManualInputHandler:
 
     async def from_natural_language(self, text: str, scenario_id: str = None) -> OntologyDocument:
         """
-        自然语言 → OntologyDocument（使用 LLM 转换）
+        自然语言转 OntologyDocument（使用 LLM 转换）
         如果没有 LLM，生成基础文档
         """
         if self.llm is None:
@@ -418,13 +629,20 @@ class ManualInputHandler:
             return doc
         except Exception as e:
             logger.error(f"LLM 转换失败: {e}，降级到基础文档")
-            return await self.from_natural_language.__wrapped__(self, text, scenario_id) if hasattr(
-                self.from_natural_language, '__wrapped__') else OntologyDocument(
+            now = datetime.now(timezone.utc).isoformat()
+            doc = OntologyDocument(
                 doc_type=DocType.EVENT.value,
-                source=DataSource(type=SourceType.MANUAL.value),
+                source=DataSource(type=SourceType.MANUAL.value, collected_at=now),
                 meta=DocumentMeta(title="自然语言输入", description=text[:500]),
                 scenario_id=scenario_id,
             )
+            doc.events.append(OntologyEvent(
+                event_type="generic",
+                timestamp=now,
+                description=text[:500],
+            ))
+            doc.ontology_version.commit_message = f"自然语言输入: {text[:50]}"
+            return doc
 
 
 # ─────────────────────────────────────────────────
@@ -822,3 +1040,346 @@ class OntologyDocumentIO:
 
         logger.info(f"导入 {len(documents)} 个文档")
         return documents
+
+
+# ─────────────────────────────────────────────────
+# 网页内容抓取 - WebScraper（免费方案，无需 API Key）
+# ─────────────────────────────────────────────────
+
+class WebScraper:
+    """
+    免费网页内容抓取器
+
+    功能:
+    - 直接抓取网页内容（HTML）
+    - 提取标题、文本内容、链接
+    - 支持新闻网站、博客、文档等
+
+    优点:
+    - 完全免费，无需 API Key
+    - 轻量级实现，依赖少
+    - 支持任意网页
+
+    限制:
+    - 无法获取 JavaScript 渲染的内容
+    - 部分网站有反爬措施
+    - 不支持需要登录的内容
+    """
+
+    DEFAULT_HEADERS = {
+        "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36",
+        "Accept": "text/html,application/xhtml+xml,application/xml;q=0.9,image/webp,*/*;q=0.8",
+        "Accept-Language": "zh-CN,zh;q=0.9,en;q=0.8",
+        "Accept-Encoding": "gzip, deflate",
+        "Connection": "keep-alive",
+    }
+
+    TIMEOUT = 15
+
+    def __init__(self, headers: Dict[str, str] = None):
+        self.headers = headers or self.DEFAULT_HEADERS.copy()
+
+    def scrape(self, url: str) -> Dict[str, Any]:
+        """
+        抓取网页内容
+
+        Args:
+            url: 网页 URL
+
+        Returns:
+            Dict containing: url, title, text, links, description, publish_date
+        """
+        if not WEB_SCRAPE_AVAILABLE:
+            logger.warning(f"网页抓取依赖未安装，使用 Mock 数据: {url}")
+            return self._generate_mock_scrape(url)
+
+        logger.info(f"开始抓取网页: {url}")
+
+        try:
+            response = requests.get(url, headers=self.headers, timeout=self.TIMEOUT)
+            response.raise_for_status()
+            response.encoding = response.apparent_encoding or 'utf-8'
+
+            soup = BeautifulSoup(response.text, 'html.parser')
+
+            # 移除脚本和样式元素
+            for script in soup(["script", "style", "nav", "footer", "header", "aside"]):
+                script.decompose()
+
+            # 提取标题
+            title = self._extract_title(soup)
+
+            # 提取正文内容
+            text = self._extract_text(soup)
+
+            # 提取描述
+            description = self._extract_description(soup)
+
+            # 提取链接
+            links = self._extract_links(soup, url)
+
+            # 提取发布日期
+            publish_date = self._extract_publish_date(soup)
+
+            result = {
+                "url": url,
+                "title": title,
+                "text": text,
+                "description": description,
+                "links": links,
+                "publish_date": publish_date,
+                "status": "success"
+            }
+
+            logger.info(f"成功抓取网页: {title}")
+            return result
+
+        except requests.exceptions.Timeout:
+            logger.error(f"网页抓取超时: {url}")
+            return {"url": url, "status": "error", "error": "请求超时"}
+        except requests.exceptions.RequestException as e:
+            logger.error(f"网页抓取失败: {url}, 错误: {e}")
+            return {"url": url, "status": "error", "error": str(e)}
+        except Exception as e:
+            logger.error(f"网页抓取异常: {url}, 错误: {e}")
+            return {"url": url, "status": "error", "error": str(e)}
+
+    def _generate_mock_scrape(self, url: str) -> Dict[str, Any]:
+        """生成 Mock 抓取结果"""
+        return {
+            "url": url,
+            "title": f"Mock 网页标题 - {url.split('/')[-1]}",
+            "text": "这是一个 Mock 网页内容。在实际环境中，这里会显示从网页抓取的真实内容。由于网页抓取依赖未安装，系统使用了 Mock 数据。\n\n在实际应用中，我们会从网页中提取标题、正文、描述等信息，并将其转换为本体文档。",
+            "description": "这是一个 Mock 网页描述，模拟从网页抓取的内容。",
+            "links": [
+                {"url": url, "text": "原文链接"},
+                {"url": "https://example.com", "text": "相关链接"}
+            ],
+            "publish_date": datetime.now().strftime("%Y-%m-%d"),
+            "status": "success",
+            "mock": True
+        }
+
+    def _extract_title(self, soup: Any) -> str:
+        """提取网页标题"""
+        # 优先从 meta 标签获取
+        og_title = soup.find("meta", property="og:title")
+        if og_title:
+            return og_title.get("content", "").strip()
+
+        # 次选 h1 标签
+        h1 = soup.find("h1")
+        if h1:
+            return h1.get_text().strip()
+
+        # 最后从 title 标签获取
+        title_tag = soup.find("title")
+        if title_tag:
+            return title_tag.get_text().strip()
+
+        return "无标题"
+
+    def _extract_text(self, soup: Any) -> str:
+        """提取正文内容"""
+        # 尝试常见的内容容器
+        contentSelectors = [
+            "article",
+            "[itemprop=articleBody]",
+            ".article-content",
+            ".post-content",
+            ".entry-content",
+            ".content",
+            "main",
+            "#content"
+        ]
+
+        for selector in contentSelectors:
+            element = soup.select_one(selector)
+            if element:
+                text = element.get_text(separator="\n", strip=True)
+                if len(text) > 100:
+                    return text
+
+        # 如果没有找到，返回 body 的文本
+        body = soup.find("body")
+        if body:
+            return body.get_text(separator="\n", strip=True)
+
+        return soup.get_text(separator="\n", strip=True)
+
+    def _extract_description(self, soup: Any) -> str:
+        """提取网页描述"""
+        # 优先从 meta 标签获取
+        og_desc = soup.find("meta", property="og:description")
+        if og_desc:
+            return og_desc.get("content", "").strip()
+
+        meta_desc = soup.find("meta", attrs={"name": "description"})
+        if meta_desc:
+            return meta_desc.get("content", "").strip()
+
+        return ""
+
+    def _extract_links(self, soup: Any, base_url: str) -> List[Dict[str, str]]:
+        """提取网页链接"""
+        links = []
+        for a in soup.find_all("a", href=True)[:20]:
+            href = a["href"]
+            text = a.get_text().strip()
+
+            # 过滤空链接和锚点
+            if href and not href.startswith("#") and text:
+                # 处理相对 URL
+                if href.startswith("/"):
+                    from urllib.parse import urljoin
+                    href = urljoin(base_url, href)
+
+                links.append({"url": href, "text": text})
+
+        return links
+
+    def _extract_publish_date(self, soup: Any) -> Optional[str]:
+        """提取发布日期"""
+        # 尝试多种方式查找发布日期
+        dateSelectors = [
+            {"itemprop": "datePublished"},
+            {"property": "article:published_time"},
+            {"name": "publish-date"},
+            {"name": "date"},
+            {"class": "publish-date"},
+            {"class": "post-date"},
+        ]
+
+        for attrs in dateSelectors:
+            meta = soup.find("meta", attrs=attrs)
+            if meta:
+                date_str = meta.get("content", "") or meta.get("datetime", "")
+                if date_str:
+                    return date_str[:10] if len(date_str) >= 10 else date_str
+
+        # 尝试从时间标签获取
+        time_tag = soup.find("time")
+        if time_tag:
+            return time_tag.get("datetime", "")[:10] if time_tag.get("datetime") else None
+
+        return None
+
+
+# ─────────────────────────────────────────────────
+# 网页内容抓取集成到 NewsIngester
+# ─────────────────────────────────────────────────
+
+class FreeNewsIngester:
+    """
+    免费新闻摄入器（无需 API Key）
+
+    使用本地网页抓取 + 规则提取，而非 Tavily/SerpAPI
+    """
+
+    def __init__(self, scraper: WebScraper = None, llm_client=None):
+        self.scraper = scraper or WebScraper()
+        self.llm = llm_client
+
+    async def ingest(
+        self,
+        url: str,
+        title_hint: str = "",
+        event_context: str = "",
+    ) -> List[OntologyDocument]:
+        """
+        从 URL 抓取新闻内容并转换为 OntologyDocument
+
+        Args:
+            url: 新闻页面 URL
+            title_hint: 标题提示（可选，用于增强提取）
+            event_context: 事件背景（可选）
+
+        Returns:
+            List[OntologyDocument]
+        """
+        logger.info(f"免费新闻摄入: {url}")
+
+        try:
+            # 抓取网页内容
+            scrape_result = self.scraper.scrape(url)
+
+            if scrape_result.get("status") != "success":
+                logger.warning(f"网页抓取失败，使用 Mock: {scrape_result.get('error')}")
+                return self._generate_mock_from_url(url, title_hint, event_context)
+
+            # 构建 OntologyDocument
+            doc = self._build_document(scrape_result, event_context)
+
+            # 验证文档
+            result = OntologyDocumentSchema.validate(doc.to_dict())
+            if result.is_valid:
+                return [doc]
+            else:
+                logger.warning(f"文档验证失败: {result.errors}")
+                return [doc]
+
+        except Exception as e:
+            logger.error(f"免费新闻摄入异常: {e}")
+            return self._generate_mock_from_url(url, title_hint, event_context)
+
+    def _build_document(self, scrape_result: Dict[str, Any], context: str) -> OntologyDocument:
+        """从抓取结果构建 OntologyDocument"""
+        now = datetime.now(timezone.utc).isoformat()
+        date_str = datetime.now().strftime("%Y%m%d")
+
+        title = scrape_result.get("title", "网页内容")
+        text = scrape_result.get("text", "")
+        description = scrape_result.get("description", "")
+        url = scrape_result.get("url", "")
+        publish_date = scrape_result.get("publish_date")
+
+        # 截取前 2000 字符作为描述
+        desc = description or text[:500]
+
+        doc = OntologyDocument(
+            doc_id=f"web-{date_str}-{uuid.uuid4().hex[:6]}",
+            doc_type=DocType.EVENT.value,
+            source=DataSource(
+                type=SourceType.NEWS_INGEST.value,
+                url=url,
+                collected_at=now,
+                confidence=0.75,
+            ),
+            meta=DocumentMeta(
+                title=title,
+                description=desc,
+                tags=["网页抓取", "新闻"],
+                language="zh",
+            ),
+            ontology_version=VersionRef(commit_message=f"网页抓取: {title[:30]}"),
+        )
+
+        # 如果有内容，添加一个通用事件
+        if text:
+            doc.events.append(OntologyEvent(
+                event_type="report",
+                timestamp=publish_date or now,
+                location="未知",
+                participants=[],
+                description=text[:1000],
+                outcome={},
+                phase="initial",
+            ))
+
+        return doc
+
+    def _generate_mock_from_url(self, url: str, title: str, context: str) -> List[OntologyDocument]:
+        """从 URL 生成 Mock 文档"""
+        doc = make_battle_event_document(
+            title=title or f"网页内容: {url}",
+            red_unit="红方部队",
+            blue_unit="蓝方部队",
+            location="未知区域",
+            event_type="contact",
+            source_type=SourceType.NEWS_INGEST.value,
+        )
+        doc.source.url = url
+        doc.source.confidence = 0.5
+        doc.meta.description = f"基于 URL '{url}' 生成的 Mock 数据（{context or '无背景'}）"
+        logger.info(f"生成 Mock 网页文档: {doc.doc_id}")
+        return [doc]

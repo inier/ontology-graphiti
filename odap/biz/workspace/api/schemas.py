@@ -209,3 +209,39 @@ class ErrorResponse(BaseModel):
     """错误响应"""
     status: str = "error"
     message: str
+
+
+# 场景相关
+class CreateScenarioRequest(BaseModel):
+    """创建场景请求"""
+    name: str
+    description: str = ""
+    ontology_id: Optional[str] = None  # 绑定的本体ID
+
+
+class UpdateScenarioRequest(BaseModel):
+    """更新场景请求"""
+    name: Optional[str] = None
+    description: Optional[str] = None
+    ontology_id: Optional[str] = None
+
+
+class ScenarioResponse(BaseModel):
+    """场景响应"""
+    scenario_id: str
+    name: str
+    description: str
+    workspace_id: str
+    ontology_id: Optional[str] = None
+    doc_count: int = 0
+    event_count: int = 0
+    entity_count: int = 0
+    created_at: str
+    updated_at: str
+
+
+class ScenarioListResponse(BaseModel):
+    """场景列表响应"""
+    scenarios: List[ScenarioResponse]
+    workspace_id: str
+    total: int

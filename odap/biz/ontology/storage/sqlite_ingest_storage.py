@@ -257,6 +257,8 @@ class SQLiteIngestStorage:
                 'source': row[1],
                 'source_details': self._deserialize_json(row[2]),
                 'record_count': row[4],
+                'processed_count': row[5],
+                'failed_count': row[6],
                 'status': row[7],
                 'start_time': row[8],
                 'end_time': row[9],

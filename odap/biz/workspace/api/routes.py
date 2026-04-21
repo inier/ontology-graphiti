@@ -4,13 +4,15 @@ from fastapi import APIRouter, HTTPException, Query
 from typing import Dict, Any, List, Optional
 from ..services.workspace_service import WorkspaceService
 from ..services.isolation_service import IsolationService
+from ..services.scenario_service import ScenarioService
 from ..impl.import_export import ImportExportManager
 from .schemas import (
     CreateWorkspaceRequest, UpdateWorkspaceRequest, WorkspaceResponse, WorkspaceDetailResponse, WorkspaceListResponse,
     CreateIsolationPolicyRequest, IsolationPolicyResponse, ResourceUsageResponse,
     ExportWorkspaceRequest, ImportWorkspaceRequest, ImportExportResponse, ImportExportStatusResponse, ImportExportListResponse,
     SuccessResponse, ErrorResponse,
-    WorkspaceType, WorkspaceStatus, IsolationLevel, ImportExportStatus
+    WorkspaceType, WorkspaceStatus, IsolationLevel, ImportExportStatus,
+    CreateScenarioRequest, UpdateScenarioRequest, ScenarioResponse, ScenarioListResponse
 )
 
 router = APIRouter(prefix="/api/workspaces", tags=["workspace"])
@@ -18,6 +20,7 @@ router = APIRouter(prefix="/api/workspaces", tags=["workspace"])
 # 服务实例
 workspace_service = WorkspaceService()
 isolation_service = IsolationService()
+scenario_service = ScenarioService()
 import_export_manager = ImportExportManager()
 
 
@@ -324,6 +327,94 @@ async def cancel_import_export(record_id: str):
         if not success:
             raise HTTPException(status_code=400, detail="Cannot cancel operation")
         return SuccessResponse(message="Operation cancelled")
+    except HTTPException:
+        raise
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+# 场景相关路由
+@router.post("/{workspace_id}/scenarios", response_model=ScenarioResponse)
+async def create_scenario(workspace_id: str, request: CreateScenarioRequest):
+    """创建场景"""
+    try:
+        result = scenario_service.create_scenario(
+            workspace_id=workspace_id,
+            name=request.name,
+            description=request.description,
+            ontology_id=request.ontology_id
+        )
+        return ScenarioResponse(**result)
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@router.get("/{workspace_id}/scenarios", response_model=ScenarioListResponse)
+async def get_scenarios(workspace_id: str):
+    """获取工作空间下的所有场景"""
+    try:
+        scenarios = scenario_service.get_scenarios_by_workspace(workspace_id)
+        return ScenarioListResponse(
+            scenarios=[ScenarioResponse(**s) for s in scenarios],
+            workspace_id=workspace_id,
+            total=len(scenarios)
+        )
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@router.get("/{workspace_id}/scenarios/{scenario_id}", response_model=ScenarioResponse)
+async def get_scenario(workspace_id: str, scenario_id: str):
+    """获取场景详情"""
+    try:
+        scenario = scenario_service.get_scenario(scenario_id)
+        if not scenario or scenario.get("workspace_id") != workspace_id:
+            raise HTTPException(status_code=404, detail="Scenario not found")
+        return ScenarioResponse(**scenario)
+    except HTTPException:
+        raise
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@router.put("/{workspace_id}/scenarios/{scenario_id}", response_model=ScenarioResponse)
+async def update_scenario(workspace_id: str, scenario_id: str, request: UpdateScenarioRequest):
+    """更新场景"""
+    try:
+        # 检查场景是否存在且属于该工作空间
+        scenario = scenario_service.get_scenario(scenario_id)
+        if not scenario or scenario.get("workspace_id") != workspace_id:
+            raise HTTPException(status_code=404, detail="Scenario not found")
+        
+        updates = {}
+        if request.name is not None:
+            updates["name"] = request.name
+        if request.description is not None:
+            updates["description"] = request.description
+        if request.ontology_id is not None:
+            updates["ontology_id"] = request.ontology_id
+        
+        result = scenario_service.update_scenario(scenario_id, updates)
+        return ScenarioResponse(**result)
+    except HTTPException:
+        raise
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@router.delete("/{workspace_id}/scenarios/{scenario_id}", response_model=SuccessResponse)
+async def delete_scenario(workspace_id: str, scenario_id: str):
+    """删除场景"""
+    try:
+        # 检查场景是否存在且属于该工作空间
+        scenario = scenario_service.get_scenario(scenario_id)
+        if not scenario or scenario.get("workspace_id") != workspace_id:
+            raise HTTPException(status_code=404, detail="Scenario not found")
+        
+        success = scenario_service.delete_scenario(scenario_id)
+        if not success:
+            raise HTTPException(status_code=404, detail="Scenario not found")
+        return SuccessResponse(message="Scenario deleted")
     except HTTPException:
         raise
     except Exception as e:

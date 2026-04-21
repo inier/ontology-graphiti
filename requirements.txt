@@ -21,6 +21,8 @@ uvicorn
 # 数据处理
 pandas
 numpy
+requests
+beautifulsoup4
 
 # 时间处理
 python-dateutil
