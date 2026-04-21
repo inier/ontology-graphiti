@@ -1,413 +1,164 @@
-"""API路由"""
+from fastapi import APIRouter, HTTPException, Depends
+from pydantic import BaseModel, Field
+from typing import List, Dict, Any, Optional
+from ..services.ingest_service import IngestService
 
-from fastapi import APIRouter, HTTPException, Query
-from typing import Dict, Any, List, Optional
-from ..services.ingest_service import DataIngestService
-from ..services.build_service import OntologyBuildService
-from ..services.version_service import VersionManagementService
-from ..services.validation_service import ValidationService
-from ..impl.dashboard import AuditDashboard
-from .schemas import (
-    IngestRequest, IngestResponse, IngestStatusResponse, IngestListResponse,
-    CreateOntologyRequest, UpdateOntologyRequest, OntologyResponse, OntologyListResponse, BuildFromIngestResponse,
-    CreateVersionRequest, VersionResponse, VersionListResponse, RollbackVersionRequest, CompareVersionsRequest, MergeVersionsRequest,
-    CreateValidationRuleRequest, ValidationRuleResponse, ValidationRuleListResponse, ValidateOntologyRequest, ValidationResultResponse, FixValidationIssueRequest,
-    DashboardSummaryResponse, PerformanceMetricsResponse, ErrorTrendsResponse, TopIssuesResponse
-)
+router = APIRouter(prefix="/api/ontology/ingest", tags=["ingest"])
 
-router = APIRouter(prefix="/api/ontology-management", tags=["ontology-management"])
+# 创建全局摄入服务实例
+ingest_service = IngestService()
 
-# 服务实例
-ingest_service = DataIngestService()
-build_service = OntologyBuildService()
-version_service = VersionManagementService()
-validation_service = ValidationService()
-dashboard = AuditDashboard()
+# 数据模型
+class NewsIngestRequest(BaseModel):
+    query: str = Field(..., description="检索关键词")
+    event_context: str = Field(default="", description="事件背景")
+    max_sources: int = Field(default=5, description="最大检索来源数")
 
+class ManualIngestRequest(BaseModel):
+    form_data: Dict[str, Any] = Field(..., description="表单数据")
+    scenario_id: Optional[str] = Field(default=None, description="场景ID")
 
-# 数据摄入相关路由
-@router.post("/ingest", response_model=IngestResponse)
-async def ingest_data(request: IngestRequest):
-    """摄入数据"""
-    try:
-        ingest_id = ingest_service.ingest_data(
-            source=request.source,
-            source_details=request.source_details,
-            data=request.data
-        )
-        return IngestResponse(ingest_id=ingest_id, status="started")
-    except Exception as e:
-        raise HTTPException(status_code=500, detail=str(e))
+class JsonIngestRequest(BaseModel):
+    json_data: str = Field(..., description="JSON字符串")
+    scenario_id: Optional[str] = Field(default=None, description="场景ID")
 
+class NaturalLanguageIngestRequest(BaseModel):
+    text: str = Field(..., description="自然语言文本")
+    scenario_id: Optional[str] = Field(default=None, description="场景ID")
 
-@router.get("/ingest/{ingest_id}", response_model=IngestStatusResponse)
+class RandomEventsRequest(BaseModel):
+    parties: List[str] = Field(..., description="参与方列表")
+    scenario_context: Optional[Dict[str, Any]] = Field(default=None, description="场景上下文")
+    count: int = Field(default=1, description="生成事件数量")
+    scenario_id: Optional[str] = Field(default=None, description="场景ID")
+
+class IngestResponse(BaseModel):
+    ingest_id: str = Field(..., description="摄入ID")
+    status: str = Field(..., description="状态")
+
+class IngestStatusResponse(BaseModel):
+    id: str
+    source: str
+    status: str
+    record_count: int
+    processed_count: int
+    failed_count: int
+    start_time: str
+    end_time: Optional[str] = None
+    duration_seconds: Optional[float] = None
+    errors: Optional[List[Dict[str, Any]]] = None
+
+# API 路由
+@router.post("", response_model=IngestResponse)
+async def ingest_data(request: Dict[str, Any]):
+    """数据摄入通用接口"""
+    source_type = request.get("source_type")
+    
+    if source_type == "news":
+        query = request.get("query")
+        event_context = request.get("event_context", "")
+        max_sources = request.get("max_sources", 5)
+        ingest_id = await ingest_service.ingest_from_news(query, event_context, max_sources)
+    elif source_type == "manual":
+        form_data = request.get("form_data")
+        scenario_id = request.get("scenario_id")
+        ingest_id = await ingest_service.ingest_from_manual(form_data, scenario_id)
+    elif source_type == "json":
+        json_data = request.get("json_data")
+        scenario_id = request.get("scenario_id")
+        ingest_id = await ingest_service.ingest_from_json(json_data, scenario_id)
+    elif source_type == "natural_language":
+        text = request.get("text")
+        scenario_id = request.get("scenario_id")
+        ingest_id = await ingest_service.ingest_from_natural_language(text, scenario_id)
+    elif source_type == "random":
+        parties = request.get("parties")
+        scenario_context = request.get("scenario_context")
+        count = request.get("count", 1)
+        scenario_id = request.get("scenario_id")
+        ingest_id = await ingest_service.generate_random_events(parties, scenario_context, count, scenario_id)
+    else:
+        raise HTTPException(status_code=400, detail="Invalid source type")
+    
+    status = ingest_service.get_ingest_status(ingest_id).get("status")
+    return IngestResponse(ingest_id=ingest_id, status=status)
+
+@router.post("/news", response_model=IngestResponse)
+async def ingest_from_news(request: NewsIngestRequest):
+    """从新闻摄入数据"""
+    ingest_id = await ingest_service.ingest_from_news(
+        request.query,
+        request.event_context,
+        request.max_sources
+    )
+    status = ingest_service.get_ingest_status(ingest_id).get("status")
+    return IngestResponse(ingest_id=ingest_id, status=status)
+
+@router.post("/manual", response_model=IngestResponse)
+async def ingest_from_manual(request: ManualIngestRequest):
+    """从手动输入摄入数据"""
+    ingest_id = await ingest_service.ingest_from_manual(
+        request.form_data,
+        request.scenario_id
+    )
+    status = ingest_service.get_ingest_status(ingest_id).get("status")
+    return IngestResponse(ingest_id=ingest_id, status=status)
+
+@router.post("/json", response_model=IngestResponse)
+async def ingest_from_json(request: JsonIngestRequest):
+    """从 JSON 摄入数据"""
+    ingest_id = await ingest_service.ingest_from_json(
+        request.json_data,
+        request.scenario_id
+    )
+    status = ingest_service.get_ingest_status(ingest_id).get("status")
+    return IngestResponse(ingest_id=ingest_id, status=status)
+
+@router.post("/natural-language", response_model=IngestResponse)
+async def ingest_from_natural_language(request: NaturalLanguageIngestRequest):
+    """从自然语言摄入数据"""
+    ingest_id = await ingest_service.ingest_from_natural_language(
+        request.text,
+        request.scenario_id
+    )
+    status = ingest_service.get_ingest_status(ingest_id).get("status")
+    return IngestResponse(ingest_id=ingest_id, status=status)
+
+@router.post("/random", response_model=IngestResponse)
+async def generate_random_events(request: RandomEventsRequest):
+    """生成随机事件"""
+    ingest_id = await ingest_service.generate_random_events(
+        request.parties,
+        request.scenario_context,
+        request.count,
+        request.scenario_id
+    )
+    status = ingest_service.get_ingest_status(ingest_id).get("status")
+    return IngestResponse(ingest_id=ingest_id, status=status)
+
+@router.get("/{ingest_id}", response_model=IngestStatusResponse)
 async def get_ingest_status(ingest_id: str):
     """获取摄入状态"""
-    try:
-        status = ingest_service.get_ingest_status(ingest_id)
-        if status.get("status") == "not_found":
-            raise HTTPException(status_code=404, detail="Ingest not found")
-        return IngestStatusResponse(**status)
-    except HTTPException:
-        raise
-    except Exception as e:
-        raise HTTPException(status_code=500, detail=str(e))
+    status = ingest_service.get_ingest_status(ingest_id)
+    if not status:
+        raise HTTPException(status_code=404, detail="Ingest record not found")
+    return status
 
+@router.get("/", response_model=List[IngestStatusResponse])
+async def get_ingest_history(limit: int = 100):
+    """获取摄入历史"""
+    return ingest_service.get_ingest_history(limit)
 
-@router.get("/ingest", response_model=IngestListResponse)
-async def list_ingest_jobs(
-    page: int = Query(1, ge=1),
-    page_size: int = Query(10, ge=1, le=100),
-    status: Optional[str] = None
-):
-    """列出摄入任务"""
-    try:
-        filters = {}
-        if status:
-            filters["status"] = status
-        result = ingest_service.list_ingest_jobs(filters, page, page_size)
-        return IngestListResponse(**result)
-    except Exception as e:
-        raise HTTPException(status_code=500, detail=str(e))
+@router.get("/documents/list", response_model=List[Dict[str, Any]])
+async def get_ontology_documents(scenario_id: Optional[str] = None, limit: int = 100):
+    """获取本体文档列表"""
+    documents = ingest_service.get_ontology_documents(scenario_id, limit)
+    return [doc.to_dict() for doc in documents]
 
-
-# 本体构建相关路由
-@router.post("/ontologies", response_model=OntologyResponse)
-async def create_ontology(request: CreateOntologyRequest):
-    """创建本体"""
-    try:
-        ontology = build_service.create_ontology(
-            name=request.name,
-            description=request.description
-        )
-        return OntologyResponse(
-            ontology_id=ontology.id,
-            name=ontology.name,
-            description=ontology.description,
-            status=ontology.status.value,
-            version=ontology.version,
-            entity_count=len(ontology.entities),
-            relation_count=len(ontology.relations),
-            created_at=ontology.created_at.isoformat(),
-            updated_at=ontology.updated_at.isoformat()
-        )
-    except Exception as e:
-        raise HTTPException(status_code=500, detail=str(e))
-
-
-@router.get("/ontologies/{ontology_id}", response_model=OntologyResponse)
-async def get_ontology(ontology_id: str):
-    """获取本体"""
-    try:
-        ontology = build_service.get_ontology(ontology_id)
-        if not ontology:
-            raise HTTPException(status_code=404, detail="Ontology not found")
-        return OntologyResponse(
-            ontology_id=ontology.id,
-            name=ontology.name,
-            description=ontology.description,
-            status=ontology.status.value,
-            version=ontology.version,
-            entity_count=len(ontology.entities),
-            relation_count=len(ontology.relations),
-            created_at=ontology.created_at.isoformat(),
-            updated_at=ontology.updated_at.isoformat()
-        )
-    except HTTPException:
-        raise
-    except Exception as e:
-        raise HTTPException(status_code=500, detail=str(e))
-
-
-@router.put("/ontologies/{ontology_id}", response_model=OntologyResponse)
-async def update_ontology(ontology_id: str, request: UpdateOntologyRequest):
-    """更新本体"""
-    try:
-        updates = {}
-        if request.name is not None:
-            updates["name"] = request.name
-        if request.description is not None:
-            updates["description"] = request.description
-        if request.entities is not None:
-            updates["entities"] = request.entities
-        if request.relations is not None:
-            updates["relations"] = request.relations
-        if request.properties is not None:
-            updates["properties"] = request.properties
-        if request.status is not None:
-            updates["status"] = request.status
-        
-        ontology = build_service.update_ontology(ontology_id, updates)
-        if not ontology:
-            raise HTTPException(status_code=404, detail="Ontology not found")
-        
-        return OntologyResponse(
-            ontology_id=ontology.id,
-            name=ontology.name,
-            description=ontology.description,
-            status=ontology.status.value,
-            version=ontology.version,
-            entity_count=len(ontology.entities),
-            relation_count=len(ontology.relations),
-            created_at=ontology.created_at.isoformat(),
-            updated_at=ontology.updated_at.isoformat()
-        )
-    except HTTPException:
-        raise
-    except Exception as e:
-        raise HTTPException(status_code=500, detail=str(e))
-
-
-@router.get("/ontologies", response_model=OntologyListResponse)
-async def list_ontologies(
-    page: int = Query(1, ge=1),
-    page_size: int = Query(10, ge=1, le=100),
-    status: Optional[str] = None
-):
-    """列出本体"""
-    try:
-        filters = {}
-        if status:
-            filters["status"] = status
-        result = build_service.list_ontologies(filters, page, page_size)
-        return OntologyListResponse(**result)
-    except Exception as e:
-        raise HTTPException(status_code=500, detail=str(e))
-
-
-@router.post("/ontologies/build-from-ingest", response_model=BuildFromIngestResponse)
-async def build_from_ingest(ingest_id: str):
-    """从数据摄入构建本体"""
-    try:
-        result = build_service.build_from_ingest(ingest_id)
-        if result.get("status") == "error":
-            raise HTTPException(status_code=400, detail=result.get("message"))
-        return BuildFromIngestResponse(**result)
-    except HTTPException:
-        raise
-    except Exception as e:
-        raise HTTPException(status_code=500, detail=str(e))
-
-
-# 版本管理相关路由
-@router.post("/versions", response_model=VersionResponse)
-async def create_version(request: CreateVersionRequest):
-    """创建版本"""
-    try:
-        result = version_service.create_version(
-            ontology_id=request.ontology_id,
-            version_number=request.version_number,
-            parent_version_id=request.parent_version_id,
-            change_summary=request.change_summary
-        )
-        return VersionResponse(**result)
-    except Exception as e:
-        raise HTTPException(status_code=500, detail=str(e))
-
-
-@router.get("/versions/{version_id}", response_model=VersionResponse)
-async def get_version(version_id: str):
-    """获取版本"""
-    try:
-        result = version_service.get_version(version_id)
-        if result.get("status") == "error":
-            raise HTTPException(status_code=404, detail=result.get("message"))
-        return VersionResponse(**result)
-    except HTTPException:
-        raise
-    except Exception as e:
-        raise HTTPException(status_code=500, detail=str(e))
-
-
-@router.get("/ontologies/{ontology_id}/versions", response_model=VersionListResponse)
-async def list_versions(
-    ontology_id: str,
-    page: int = Query(1, ge=1),
-    page_size: int = Query(10, ge=1, le=100)
-):
-    """列出版本"""
-    try:
-        result = version_service.list_versions(ontology_id, None, page, page_size)
-        return VersionListResponse(**result)
-    except Exception as e:
-        raise HTTPException(status_code=500, detail=str(e))
-
-
-@router.post("/versions/rollback", response_model=VersionResponse)
-async def rollback_version(request: RollbackVersionRequest):
-    """回滚版本"""
-    try:
-        result = version_service.rollback_version(
-            ontology_id=request.ontology_id,
-            target_version_id=request.target_version_id
-        )
-        if result.get("status") == "error":
-            raise HTTPException(status_code=400, detail=result.get("message"))
-        return VersionResponse(**result)
-    except HTTPException:
-        raise
-    except Exception as e:
-        raise HTTPException(status_code=500, detail=str(e))
-
-
-@router.post("/versions/compare")
-async def compare_versions(request: CompareVersionsRequest):
-    """对比版本"""
-    try:
-        result = version_service.compare_versions(
-            source_version_id=request.source_version_id,
-            target_version_id=request.target_version_id
-        )
-        if result.get("status") == "error":
-            raise HTTPException(status_code=400, detail=result.get("message"))
-        return result
-    except HTTPException:
-        raise
-    except Exception as e:
-        raise HTTPException(status_code=500, detail=str(e))
-
-
-@router.post("/versions/merge", response_model=VersionResponse)
-async def merge_versions(request: MergeVersionsRequest):
-    """合并版本"""
-    try:
-        result = version_service.merge_versions(
-            ontology_id=request.ontology_id,
-            source_version_id=request.source_version_id,
-            target_version_id=request.target_version_id,
-            conflict_resolution=request.conflict_resolution
-        )
-        if result.get("status") == "error":
-            raise HTTPException(status_code=400, detail=result.get("message"))
-        return VersionResponse(**result)
-    except HTTPException:
-        raise
-    except Exception as e:
-        raise HTTPException(status_code=500, detail=str(e))
-
-
-# 验证相关路由
-@router.post("/validation/rules", response_model=ValidationRuleResponse)
-async def create_validation_rule(request: CreateValidationRuleRequest):
-    """创建验证规则"""
-    try:
-        result = validation_service.add_validation_rule(request.model_dump())
-        return ValidationRuleResponse(**result)
-    except Exception as e:
-        raise HTTPException(status_code=500, detail=str(e))
-
-
-@router.get("/validation/rules/{rule_id}", response_model=ValidationRuleResponse)
-async def get_validation_rule(rule_id: str):
-    """获取验证规则"""
-    try:
-        result = validation_service.get_validation_rule(rule_id)
-        if result.get("status") == "error":
-            raise HTTPException(status_code=404, detail=result.get("message"))
-        return ValidationRuleResponse(**result)
-    except HTTPException:
-        raise
-    except Exception as e:
-        raise HTTPException(status_code=500, detail=str(e))
-
-
-@router.get("/validation/rules", response_model=ValidationRuleListResponse)
-async def list_validation_rules(
-    page: int = Query(1, ge=1),
-    page_size: int = Query(10, ge=1, le=100),
-    enabled: Optional[bool] = None
-):
-    """列出验证规则"""
-    try:
-        filters = {}
-        if enabled is not None:
-            filters["enabled"] = enabled
-        result = validation_service.list_validation_rules(filters, page, page_size)
-        return ValidationRuleListResponse(**result)
-    except Exception as e:
-        raise HTTPException(status_code=500, detail=str(e))
-
-
-@router.post("/validation/validate", response_model=ValidationResultResponse)
-async def validate_ontology(request: ValidateOntologyRequest):
-    """验证本体"""
-    try:
-        result = validation_service.validate_ontology(
-            ontology_id=request.ontology_id,
-            rules=request.rules
-        )
-        return ValidationResultResponse(**result)
-    except Exception as e:
-        raise HTTPException(status_code=500, detail=str(e))
-
-
-@router.get("/validation/results/{result_id}", response_model=ValidationResultResponse)
-async def get_validation_result(result_id: str):
-    """获取验证结果"""
-    try:
-        result = validation_service.get_validation_result(result_id)
-        if result.get("status") == "error":
-            raise HTTPException(status_code=404, detail=result.get("message"))
-        return ValidationResultResponse(**result)
-    except HTTPException:
-        raise
-    except Exception as e:
-        raise HTTPException(status_code=500, detail=str(e))
-
-
-@router.post("/validation/fix")
-async def fix_validation_issue(request: FixValidationIssueRequest):
-    """修复验证问题"""
-    try:
-        result = validation_service.fix_validation_issue(
-            issue_id=request.issue_id,
-            fix_action=request.fix_action
-        )
-        return result
-    except Exception as e:
-        raise HTTPException(status_code=500, detail=str(e))
-
-
-# 审计仪表盘相关路由
-@router.get("/dashboard/summary", response_model=DashboardSummaryResponse)
-async def get_dashboard_summary():
-    """获取仪表盘摘要"""
-    try:
-        return DashboardSummaryResponse(
-            ingest_summary=dashboard.get_ingest_summary(),
-            ontology_summary=dashboard.get_ontology_summary(),
-            validation_summary=dashboard.get_validation_summary(),
-            version_summary=dashboard.get_version_summary()
-        )
-    except Exception as e:
-        raise HTTPException(status_code=500, detail=str(e))
-
-
-@router.get("/dashboard/performance", response_model=PerformanceMetricsResponse)
-async def get_performance_metrics():
-    """获取性能指标"""
-    try:
-        metrics = dashboard.get_performance_metrics()
-        return PerformanceMetricsResponse(**metrics)
-    except Exception as e:
-        raise HTTPException(status_code=500, detail=str(e))
-
-
-@router.get("/dashboard/error-trends", response_model=ErrorTrendsResponse)
-async def get_error_trends():
-    """获取错误趋势"""
-    try:
-        trends = dashboard.get_error_trends()
-        return ErrorTrendsResponse(trends=trends)
-    except Exception as e:
-        raise HTTPException(status_code=500, detail=str(e))
-
-
-@router.get("/dashboard/top-issues", response_model=TopIssuesResponse)
-async def get_top_issues(limit: int = Query(10, ge=1, le=50)):
-    """获取Top问题"""
-    try:
-        issues = dashboard.get_top_issues(limit)
-        return TopIssuesResponse(issues=issues)
-    except Exception as e:
-        raise HTTPException(status_code=500, detail=str(e))
+@router.get("/documents/{doc_id}", response_model=Dict[str, Any])
+async def get_ontology_document(doc_id: str):
+    """获取本体文档详情"""
+    doc = ingest_service.get_ontology_document(doc_id)
+    if not doc:
+        raise HTTPException(status_code=404, detail="Document not found")
+    return doc.to_dict()

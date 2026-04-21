@@ -3,7 +3,7 @@
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
-from odap.biz.ontology.api.routes import router as ontology_router
+from odap.biz.ontology.api.routes import router as ingest_router
 from odap.biz.workspace.api.routes import router as workspace_router
 from odap.biz.roles.api.routes import router as roles_router
 from odap.infra.security import audit_router
@@ -30,7 +30,7 @@ app.add_middleware(
 )
 
 # 注册路由
-app.include_router(ontology_router)
+app.include_router(ingest_router)
 app.include_router(workspace_router)
 app.include_router(roles_router)
 app.include_router(audit_router)

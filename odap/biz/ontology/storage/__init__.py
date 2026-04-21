@@ -1,8 +1,5 @@
-"""存储层"""
+"""数据摄入存储模块"""
 
-from .mongodb_storage import MongoDBStorage
-# from .postgres_storage import PostgresStorage
+from .sqlite_ingest_storage import SQLiteIngestStorage
 
-__all__ = [
-    "MongoDBStorage"
-]
+__all__ = ['SQLiteIngestStorage']
