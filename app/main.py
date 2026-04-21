@@ -5,6 +5,7 @@ from fastapi.middleware.cors import CORSMiddleware
 
 from odap.biz.ontology.api.routes import router as ontology_router
 from odap.biz.workspace.api.routes import router as workspace_router
+from odap.biz.roles.api.routes import router as roles_router
 from odap.infra.security import audit_router
 from odap.biz.skill_system.api.routes import router as skill_router
 from odap.biz.hook_system.api.routes import router as hook_router
@@ -31,6 +32,7 @@ app.add_middleware(
 # 注册路由
 app.include_router(ontology_router)
 app.include_router(workspace_router)
+app.include_router(roles_router)
 app.include_router(audit_router)
 app.include_router(skill_router)
 app.include_router(hook_router)
@@ -47,6 +49,7 @@ async def root():
         "endpoints": [
             "/api/ontology-management",
             "/api/workspace",
+            "/api/roles",
             "/api/audit",
             "/api/skill",
             "/api/hook",

@@ -6,6 +6,7 @@ import { ConfigCenter } from './modules/config';
 import { OntologyGraph, Timeline, QueryView } from './modules/ontology';
 import { IngestPanel, Simulator } from './modules/ingest';
 import { VersionHistory } from './modules/version';
+import { RoleManager } from './modules/roles';
 
 export function AppRoutes() {
   return (
@@ -21,6 +22,7 @@ export function AppRoutes() {
       <Route path="/workspace" element={<WorkspaceManager />} />
       <Route path="/audit" element={<AuditLog />} />
       <Route path="/config" element={<ConfigCenter />} />
+      <Route path="/roles" element={<RoleManager />} />
     </Routes>
   );
 }
