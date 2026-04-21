@@ -1,6 +1,5 @@
 import type { Scenario, Entity, TimelineEvent, Version, DiffResult, Stats } from '../types';
-
-const API_BASE = 'http://localhost:8001';
+import { API_BASE } from '../../../config';
 
 interface GraphNode {
   id: string;

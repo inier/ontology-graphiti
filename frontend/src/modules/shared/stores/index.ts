@@ -1,6 +1,5 @@
 import { create } from 'zustand';
-
-const API_BASE = 'http://localhost:8001';
+import { API_BASE } from '../../../config';
 
 export interface User {
   id: string;

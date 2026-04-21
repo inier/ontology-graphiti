@@ -60,7 +60,7 @@ frontend/src/
 | 构建 | Vite | HMR 极快，配置简洁 |
 | 状态管理 | Zustand | 轻量、简洁、TypeScript 友好 |
 | 路由 | React Router v6 | 声明式路由，懒加载 |
-| UI 组件库 | Ant Design 5 | 企业级组件齐全，中文友好 |
+| UI 组件库 | Ant Design 6 | 企业级组件齐全，中文友好 |
 | 图谱可视化 | D3.js + react-force-graph | 力导向布局，交互丰富 |
 | 地图 | Leaflet + react-leaflet | 轻量开源，图层丰富 |
 | 图表 | ECharts / Recharts | 可视化能力强 |
@@ -499,7 +499,7 @@ export interface ToolDescriptor {
 ### 7.1 主题配置
 
 ```typescript
-// 采用 Ant Design 5 的 Token 系统
+// 采用 Ant Design 6 的 Token 系统
 const themeConfig = {
   token: {
     colorPrimary: '#1677ff',       // 主色

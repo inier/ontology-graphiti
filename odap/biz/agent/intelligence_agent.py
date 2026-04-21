@@ -22,7 +22,11 @@ from typing import Optional, Dict, Any, List
 sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 from dotenv import load_dotenv
-load_dotenv(os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), '.env'))
+# 正确的路径构造
+base_dir = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+# .env 文件在项目根目录
+root_dir = os.path.dirname(base_dir)
+load_dotenv(os.path.join(root_dir, '.env'))
 
 import httpx
 from odap.tools import SKILL_CATALOG, get_registry
@@ -85,9 +89,11 @@ class IntelligenceAgent:
         self.user_role = user_role
         self.opa_manager = OPAManager()
         self.graph_manager = GraphManager()
-        self.llm_api_key = os.getenv('OPENAI_API_KEY', '')
-        self.llm_api_base = os.getenv('OPENAI_API_BASE', '')
-        self.llm_model = os.getenv('OPENAI_MODEL', '')
+        # 从安全配置模块读取，确保能够正确获取值
+        from odap.infra.security import security_config
+        self.llm_api_key = security_config.OPENAI_API_KEY
+        self.llm_api_base = security_config.OPENAI_API_BASE
+        self.llm_model = security_config.OPENAI_MODEL
 
         # 智能处理 base_url
         raw = self.llm_api_base.rstrip('/')
@@ -95,6 +101,18 @@ class IntelligenceAgent:
             self.llm_base = raw[:-len('/chat/completions')]
         else:
             self.llm_base = raw
+        
+        # 确保 base_url 包含协议
+        if not self.llm_base.startswith('http://') and not self.llm_base.startswith('https://'):
+            self.llm_base = 'https://' + self.llm_base
+
+        # 创建复用的 httpx 客户端，优化性能
+        import httpx
+        self.http_client = httpx.AsyncClient(
+            timeout=httpx.Timeout(120.0),
+            limits=httpx.Limits(max_connections=10),
+            follow_redirects=True
+        )
 
         # 构建工具描述
         self.tools = self._build_tools()
@@ -147,7 +165,10 @@ class IntelligenceAgent:
 
         return tools
 
-    def _call_llm(self, messages: List[Dict], tools: Optional[List[Dict]] = None,
+    from odap.infra.monitoring import monitor_performance
+
+    @monitor_performance('llm_calls', 'chat_completions')
+    async def _call_llm(self, messages: List[Dict], tools: Optional[List[Dict]] = None,
                   max_retries: int = 3) -> Dict:
         """调用 LLM Chat Completions API（含指数退避重试）"""
         url = f"{self.llm_base}/chat/completions"
@@ -168,14 +189,15 @@ class IntelligenceAgent:
         last_error = None
         for attempt in range(1, max_retries + 1):
             try:
-                response = httpx.post(url, headers=headers, json=payload, timeout=120.0)
+                response = await self.http_client.post(url, headers=headers, json=payload)
                 response.raise_for_status()
                 return response.json()
             except (httpx.TimeoutException, httpx.ConnectError) as e:
                 last_error = e
                 wait = 2 ** attempt  # 2s, 4s, 8s
                 print(f"  ⚠️ LLM 请求超时 ({attempt}/{max_retries})，{wait}s 后重试...")
-                time.sleep(wait)
+                import asyncio
+                await asyncio.sleep(wait)
             except httpx.HTTPStatusError as e:
                 last_error = e
                 # 4xx 不重试（除了 429）
@@ -183,7 +205,8 @@ class IntelligenceAgent:
                     raise
                 wait = 2 ** attempt
                 print(f"  ⚠️ LLM HTTP {e.response.status_code} ({attempt}/{max_retries})，{wait}s 后重试...")
-                time.sleep(wait)
+                import asyncio
+                await asyncio.sleep(wait)
 
         raise ConnectionError(f"LLM 调用失败（已重试 {max_retries} 次）: {last_error}")
 
@@ -223,7 +246,7 @@ class IntelligenceAgent:
         except Exception as e:
             return json.dumps({"error": f"执行失败: {e}"}, ensure_ascii=False)
 
-    def _save_to_graphiti(self, query: str, report: Dict):
+    async def _save_to_graphiti(self, query: str, report: Dict):
         """将分析过程写入 Graphiti 记忆（使用 graph_manager 的统一接口）"""
         episode_text = f"情报分析请求: {query}\n"
         episode_text += f"分析结果:\n"
@@ -235,16 +258,19 @@ class IntelligenceAgent:
             else:
                 episode_text += f"  {key}: {value}\n"
 
-        success = self.graph_manager.add_episode(
-            name=f"intel_analysis_{datetime.now(timezone.utc).strftime('%Y%m%d%H%M%S')}",
-            content=episode_text,
-            source_description=f"IntelligenceAgent/{self.user_role}",
-        )
+        try:
+            success = await self.graph_manager.add_episode(
+                name=f"intel_analysis_{datetime.now(timezone.utc).strftime('%Y%m%d%H%M%S')}",
+                content=episode_text,
+                source_description=f"IntelligenceAgent/{self.user_role}",
+            )
 
-        if success:
-            print("  [记忆] 分析结果已写入 Graphiti")
-        else:
-            print("  [记忆] Graphiti 不可用，跳过记忆写入")
+            if success:
+                print("  [记忆] 分析结果已写入 Graphiti")
+            else:
+                print("  [记忆] Graphiti 不可用，跳过记忆写入")
+        except Exception as e:
+            print(f"  [记忆] Graphiti 写入失败: {e}")
 
     def _retrieve_rag_context(self, query: str) -> str:
         """
@@ -268,7 +294,7 @@ class IntelligenceAgent:
         self._spans.append(result)
         return context
 
-    def analyze(self, query: str) -> Dict[str, Any]:
+    async def analyze(self, query: str) -> Dict[str, Any]:
         """
         执行情报分析（ReAct 循环 + RAG 增强）
 
@@ -359,7 +385,7 @@ class IntelligenceAgent:
             print(f"\n--- 轮次 {iteration + 1}/{self.MAX_ITERATIONS} ---")
 
             try:
-                response = self._call_llm(messages, tools=self.tools)
+                response = await self._call_llm(messages, tools=self.tools)
                 iter_span.add_event("llm_response", {
                     "model": self.llm_model,
                     "finish_reason": response["choices"][0].get("finish_reason", "unknown"),
@@ -434,7 +460,7 @@ class IntelligenceAgent:
                 }
 
                 # 写入 Graphiti 记忆
-                self._save_to_graphiti(query, report)
+                await self._save_to_graphiti(query, report)
 
                 # 链路追踪收尾
                 self._spans.append(iter_span.finish())
@@ -529,6 +555,11 @@ class IntelligenceAgent:
             "raw_response": content,
             "parsing": "failed"
         }
+
+    async def shutdown(self):
+        """关闭资源"""
+        if hasattr(self, 'http_client'):
+            await self.http_client.aclose()
 
 
 if __name__ == "__main__":

@@ -12,6 +12,7 @@ services:
       - NEO4J_PASSWORD=neo4j123456
       - OPA_URL=http://graphiti-policy-service:8181
       - REDIS_URL=redis://graphiti-cache:6379
+      - CORS_ORIGINS=http://localhost:5173,http://localhost:8000
     depends_on:
       - graphiti-neo4j
       - graphiti-policy-service
@@ -34,13 +35,13 @@ services:
     restart: unless-stopped
 
   graphiti-policy-service:
-    image: openpolicyagent/opa:latest
+    image: openpolicyagent/opa:0.58.0
     container_name: graphiti-policy-service
     ports:
       - "8181:8181"
     volumes:
       - ../odap/infra/opa/policies:/policies
-    command: run --server --log-level=info --set=decision_logs.console=true /policies
+    command: run --server --log-level=info --set=decision_logs.console=true
     restart: unless-stopped
 
   graphiti-cache:

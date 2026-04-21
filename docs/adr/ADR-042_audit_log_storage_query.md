@@ -132,5 +132,41 @@ class HashChain:
 - 关联 ADR-008（审计日志完整记录）
 - 关联 ADR-046（模块化单体部署 — 不引入额外数据库）
 - 关联 M-07 DESIGN.md
+- 关联 docs/modules/audit_log/GRAPHITI_INTEGRATION.md（Graphiti集成实现）
 - 关闭 ANOMALY_REPORT I-22（审计日志存储选型 → SQLite + 文件锚点）
 - 影响 WR-05（审计日志系统）
+
+## 实现变体：Graphiti集成
+
+除了 SQLite 主存储方案外，还有一种 **Graphiti 集成实现**，将审计日志作为本体存储到 Graphiti 知识图谱中。
+
+### 适用场景
+
+- 需要将审计日志与其他本体数据（如工作空间、用户行为图谱）关联分析
+- 需要利用 Graphiti 的时态查询能力进行时间维度分析
+- 需要利用 Graphiti 的图遍历能力进行关系分析
+
+### 实现方案
+
+详见：[docs/modules/audit_log/GRAPHITI_INTEGRATION.md](./docs/modules/audit_log/GRAPHITI_INTEGRATION.md)
+
+### 技术特点
+
+| 特性 | SQLite (ADR-042) | Graphiti集成 |
+|------|------------------|--------------|
+| 存储后端 | SQLite | Neo4j |
+| 数据模型 | 关系表 | 本体图 |
+| 查询能力 | SQL查询 | 图遍历、Cypher |
+| 时态支持 | 基础索引 | Graphiti双时态 |
+| 部署需求 | 零额外组件 | 复用Neo4j |
+| 防篡改 | 哈希链 | Graphiti哈希链 |
+
+### 架构关系
+
+```
+审计日志存储
+├── SQLite主存储（ADR-042）← 默认方案
+│   └── 适用于：标准审计、合规要求、防篡改
+└── Graphiti集成 ← 补充方案
+    └── 适用于：图分析、时态查询、多本体关联
+```

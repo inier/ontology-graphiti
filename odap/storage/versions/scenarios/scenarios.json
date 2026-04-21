@@ -1,22 +1,22 @@
 {
   "scenarios": {
-    "scenario-20260415-fe418d": {
-      "scenario_id": "scenario-20260415-fe418d",
+    "scenario-20260416-b43701": {
+      "scenario_id": "scenario-20260416-b43701",
       "name": "美伊战争1.0",
       "description": "",
-      "created_at": "2026-04-14T16:40:55.441174+00:00",
-      "doc_count": 16,
-      "event_count": 16,
-      "entity_count": 29
+      "created_at": "2026-04-15T16:04:27.020184+00:00",
+      "doc_count": 23,
+      "event_count": 23,
+      "entity_count": 34
     }
   },
   "documents": {
-    "scenario-20260415-fe418d": [
+    "scenario-20260416-b43701": [
       {
-        "doc_id": "rand-20260415-2c4683",
+        "doc_id": "rand-20260416-6c1e77",
         "meta": {
-          "title": "[随机] 红方装甲营 - attack",
-          "description": "红方装甲营 对 蓝方防空连 执行 attack（位于 B区遭遇地带）",
+          "title": "[随机] 红方炮兵团 - attack",
+          "description": "红方炮兵团 对 蓝方工兵连 执行 attack（位于 B区遭遇地带）",
           "tags": [
             "red",
             "attack",
@@ -27,10 +27,10 @@
         },
         "entities": [
           {
-            "entity_id": "unit-red-39478f",
+            "entity_id": "unit-red-9d630a",
             "entity_type": "Unit",
-            "name": "红方装甲营",
-            "name_en": "红方装甲营",
+            "name": "红方炮兵团",
+            "name_en": "红方炮兵团",
             "basic_properties": {
               "side": "red",
               "location": "B区遭遇地带",
@@ -38,28 +38,28 @@
               "unit_type": "artillery"
             },
             "statistical_properties": {
-              "combat_power": 0.67,
-              "morale": 0.88,
-              "supply_level": 0.71,
-              "casualty_rate": 0.016
+              "combat_power": 0.68,
+              "morale": 0.81,
+              "supply_level": 0.49,
+              "casualty_rate": 0.004
             },
             "capabilities": {},
             "constraints": []
           },
           {
-            "entity_id": "unit-blue-9d271c",
+            "entity_id": "unit-blue-8aa489",
             "entity_type": "Unit",
-            "name": "蓝方防空连",
-            "name_en": "蓝方防空连",
+            "name": "蓝方工兵连",
+            "name_en": "蓝方工兵连",
             "basic_properties": {
               "side": "blue",
               "location": "B区遭遇地带",
               "status": "active"
             },
             "statistical_properties": {
-              "combat_power": 0.88,
-              "morale": 0.63,
-              "supply_level": 0.42
+              "combat_power": 0.71,
+              "morale": 0.51,
+              "supply_level": 0.64
             },
             "capabilities": {},
             "constraints": []
@@ -67,16 +67,16 @@
         ],
         "events": [
           {
-            "event_id": "evt-15b1c33b",
+            "event_id": "evt-028b9a62",
             "event_type": "contact",
-            "timestamp": "2026-04-14T16:41:12.124618+00:00",
+            "timestamp": "2026-04-15T16:04:53.330678+00:00",
             "location": "B区遭遇地带",
             "coordinates": null,
             "participants": [
-              "unit-red-39478f",
-              "unit-blue-9d271c"
+              "unit-red-9d630a",
+              "unit-blue-8aa489"
             ],
-            "description": "红方装甲营 对 蓝方防空连 执行 attack（位于 B区遭遇地带）",
+            "description": "红方炮兵团 对 蓝方工兵连 执行 attack（位于 B区遭遇地带）",
             "outcome": {
               "terrain_control": "contested"
             },
@@ -84,14 +84,668 @@
           }
         ],
         "ontology_version": {
-          "version_id": "v20260415-029",
+          "version_id": "v20260416-001",
+          "parent_version": null,
+          "commit_message": "随机生成: 红方炮兵团 attack",
+          "schema_version": "1.0.0"
+        }
+      },
+      {
+        "doc_id": "rand-20260416-2a47c6",
+        "meta": {
+          "title": "[随机] 红方工兵营 - patrol",
+          "description": "红方工兵营 在 H区丛林 执行 patrol",
+          "tags": [
+            "red",
+            "patrol",
+            "H区丛林"
+          ],
+          "language": "zh",
+          "classification": "SIM"
+        },
+        "entities": [
+          {
+            "entity_id": "unit-red-78b352",
+            "entity_type": "Unit",
+            "name": "红方工兵营",
+            "name_en": "红方工兵营",
+            "basic_properties": {
+              "side": "red",
+              "location": "H区丛林",
+              "status": "active",
+              "unit_type": "recon"
+            },
+            "statistical_properties": {
+              "combat_power": 0.87,
+              "morale": 0.66,
+              "supply_level": 0.64,
+              "casualty_rate": 0.12
+            },
+            "capabilities": {},
+            "constraints": []
+          }
+        ],
+        "events": [
+          {
+            "event_id": "evt-c5fef023",
+            "event_type": "patrol",
+            "timestamp": "2026-04-15T16:04:53.330965+00:00",
+            "location": "H区丛林",
+            "coordinates": null,
+            "participants": [
+              "unit-red-78b352"
+            ],
+            "description": "红方工兵营 在 H区丛林 执行 patrol",
+            "outcome": {},
+            "phase": "active"
+          }
+        ],
+        "ontology_version": {
+          "version_id": "v20260416-002",
+          "parent_version": null,
+          "commit_message": "随机生成: 红方工兵营 patrol",
+          "schema_version": "1.0.0"
+        }
+      },
+      {
+        "doc_id": "rand-20260416-4df0be",
+        "meta": {
+          "title": "[随机] 蓝方海军陆战队 - recon",
+          "description": "蓝方海军陆战队 在 B区遭遇地带 执行 recon",
+          "tags": [
+            "blue",
+            "recon",
+            "B区遭遇地带"
+          ],
+          "language": "zh",
+          "classification": "SIM"
+        },
+        "entities": [
+          {
+            "entity_id": "unit-blue-25a9f9",
+            "entity_type": "Unit",
+            "name": "蓝方海军陆战队",
+            "name_en": "蓝方海军陆战队",
+            "basic_properties": {
+              "side": "blue",
+              "location": "B区遭遇地带",
+              "status": "active",
+              "unit_type": "artillery"
+            },
+            "statistical_properties": {
+              "combat_power": 0.85,
+              "morale": 0.6,
+              "supply_level": 0.41,
+              "casualty_rate": 0.089
+            },
+            "capabilities": {},
+            "constraints": []
+          }
+        ],
+        "events": [
+          {
+            "event_id": "evt-a111f171",
+            "event_type": "recon",
+            "timestamp": "2026-04-15T16:04:53.331072+00:00",
+            "location": "B区遭遇地带",
+            "coordinates": null,
+            "participants": [
+              "unit-blue-25a9f9"
+            ],
+            "description": "蓝方海军陆战队 在 B区遭遇地带 执行 recon",
+            "outcome": {},
+            "phase": "active"
+          }
+        ],
+        "ontology_version": {
+          "version_id": "v20260416-003",
+          "parent_version": null,
+          "commit_message": "随机生成: 蓝方海军陆战队 recon",
+          "schema_version": "1.0.0"
+        }
+      },
+      {
+        "doc_id": "rand-20260416-f2b407",
+        "meta": {
+          "title": "[随机] 红方装甲营 - reinforce",
+          "description": "红方装甲营 对 蓝方机步营 执行 reinforce（位于 E区山地走廊）",
+          "tags": [
+            "red",
+            "reinforce",
+            "E区山地走廊"
+          ],
+          "language": "zh",
+          "classification": "SIM"
+        },
+        "entities": [
+          {
+            "entity_id": "unit-red-a0550b",
+            "entity_type": "Unit",
+            "name": "红方装甲营",
+            "name_en": "红方装甲营",
+            "basic_properties": {
+              "side": "red",
+              "location": "E区山地走廊",
+              "status": "active",
+              "unit_type": "infantry"
+            },
+            "statistical_properties": {
+              "combat_power": 0.6,
+              "morale": 0.92,
+              "supply_level": 0.5,
+              "casualty_rate": 0.04
+            },
+            "capabilities": {},
+            "constraints": []
+          },
+          {
+            "entity_id": "unit-blue-4a211a",
+            "entity_type": "Unit",
+            "name": "蓝方机步营",
+            "name_en": "蓝方机步营",
+            "basic_properties": {
+              "side": "blue",
+              "location": "E区山地走廊",
+              "status": "active"
+            },
+            "statistical_properties": {
+              "combat_power": 0.53,
+              "morale": 0.71,
+              "supply_level": 0.68
+            },
+            "capabilities": {},
+            "constraints": []
+          }
+        ],
+        "events": [
+          {
+            "event_id": "evt-88c79193",
+            "event_type": "reinforce",
+            "timestamp": "2026-04-15T16:04:59.291012+00:00",
+            "location": "E区山地走廊",
+            "coordinates": null,
+            "participants": [
+              "unit-red-a0550b",
+              "unit-blue-4a211a"
+            ],
+            "description": "红方装甲营 对 蓝方机步营 执行 reinforce（位于 E区山地走廊）",
+            "outcome": {
+              "terrain_control": "contested"
+            },
+            "phase": "final"
+          }
+        ],
+        "ontology_version": {
+          "version_id": "v20260416-004",
+          "parent_version": null,
+          "commit_message": "随机生成: 红方装甲营 reinforce",
+          "schema_version": "1.0.0"
+        }
+      },
+      {
+        "doc_id": "rand-20260416-c1e245",
+        "meta": {
+          "title": "[随机] 蓝方防空连 - patrol",
+          "description": "蓝方防空连 在 E区山地走廊 执行 patrol",
+          "tags": [
+            "blue",
+            "patrol",
+            "E区山地走廊"
+          ],
+          "language": "zh",
+          "classification": "SIM"
+        },
+        "entities": [
+          {
+            "entity_id": "unit-blue-71a24e",
+            "entity_type": "Unit",
+            "name": "蓝方防空连",
+            "name_en": "蓝方防空连",
+            "basic_properties": {
+              "side": "blue",
+              "location": "E区山地走廊",
+              "status": "active",
+              "unit_type": "recon"
+            },
+            "statistical_properties": {
+              "combat_power": 0.71,
+              "morale": 0.68,
+              "supply_level": 0.7,
+              "casualty_rate": 0.119
+            },
+            "capabilities": {},
+            "constraints": []
+          }
+        ],
+        "events": [
+          {
+            "event_id": "evt-29fed692",
+            "event_type": "patrol",
+            "timestamp": "2026-04-15T16:04:59.291255+00:00",
+            "location": "E区山地走廊",
+            "coordinates": null,
+            "participants": [
+              "unit-blue-71a24e"
+            ],
+            "description": "蓝方防空连 在 E区山地走廊 执行 patrol",
+            "outcome": {},
+            "phase": "active"
+          }
+        ],
+        "ontology_version": {
+          "version_id": "v20260416-005",
+          "parent_version": null,
+          "commit_message": "随机生成: 蓝方防空连 patrol",
+          "schema_version": "1.0.0"
+        }
+      },
+      {
+        "doc_id": "rand-20260416-91a16d",
+        "meta": {
+          "title": "[随机] 蓝方海军陆战队 - reinforce",
+          "description": "蓝方海军陆战队 对 红方特战队 执行 reinforce（位于 B区遭遇地带）",
+          "tags": [
+            "blue",
+            "reinforce",
+            "B区遭遇地带"
+          ],
+          "language": "zh",
+          "classification": "SIM"
+        },
+        "entities": [
+          {
+            "entity_id": "unit-blue-69671f",
+            "entity_type": "Unit",
+            "name": "蓝方海军陆战队",
+            "name_en": "蓝方海军陆战队",
+            "basic_properties": {
+              "side": "blue",
+              "location": "B区遭遇地带",
+              "status": "active",
+              "unit_type": "armor"
+            },
+            "statistical_properties": {
+              "combat_power": 0.52,
+              "morale": 0.75,
+              "supply_level": 0.31,
+              "casualty_rate": 0.141
+            },
+            "capabilities": {},
+            "constraints": []
+          },
+          {
+            "entity_id": "unit-red-de45b5",
+            "entity_type": "Unit",
+            "name": "红方特战队",
+            "name_en": "红方特战队",
+            "basic_properties": {
+              "side": "red",
+              "location": "B区遭遇地带",
+              "status": "active"
+            },
+            "statistical_properties": {
+              "combat_power": 0.81,
+              "morale": 0.82,
+              "supply_level": 0.85
+            },
+            "capabilities": {},
+            "constraints": []
+          }
+        ],
+        "events": [
+          {
+            "event_id": "evt-e6e54860",
+            "event_type": "reinforce",
+            "timestamp": "2026-04-15T16:04:59.291360+00:00",
+            "location": "B区遭遇地带",
+            "coordinates": null,
+            "participants": [
+              "unit-blue-69671f",
+              "unit-red-de45b5"
+            ],
+            "description": "蓝方海军陆战队 对 红方特战队 执行 reinforce（位于 B区遭遇地带）",
+            "outcome": {
+              "terrain_control": "lost"
+            },
+            "phase": "main"
+          }
+        ],
+        "ontology_version": {
+          "version_id": "v20260416-006",
+          "parent_version": null,
+          "commit_message": "随机生成: 蓝方海军陆战队 reinforce",
+          "schema_version": "1.0.0"
+        }
+      },
+      {
+        "doc_id": "rand-20260416-69be87",
+        "meta": {
+          "title": "[随机] 红方装甲营 - attack",
+          "description": "红方装甲营 对 蓝方炮兵团 执行 attack（位于 A区北部高地）",
+          "tags": [
+            "red",
+            "attack",
+            "A区北部高地"
+          ],
+          "language": "zh",
+          "classification": "SIM"
+        },
+        "entities": [
+          {
+            "entity_id": "unit-red-b9230b",
+            "entity_type": "Unit",
+            "name": "红方装甲营",
+            "name_en": "红方装甲营",
+            "basic_properties": {
+              "side": "red",
+              "location": "A区北部高地",
+              "status": "active",
+              "unit_type": "recon"
+            },
+            "statistical_properties": {
+              "combat_power": 0.66,
+              "morale": 0.56,
+              "supply_level": 0.75,
+              "casualty_rate": 0.121
+            },
+            "capabilities": {},
+            "constraints": []
+          },
+          {
+            "entity_id": "unit-blue-9534de",
+            "entity_type": "Unit",
+            "name": "蓝方炮兵团",
+            "name_en": "蓝方炮兵团",
+            "basic_properties": {
+              "side": "blue",
+              "location": "A区北部高地",
+              "status": "active"
+            },
+            "statistical_properties": {
+              "combat_power": 0.43,
+              "morale": 0.89,
+              "supply_level": 0.52
+            },
+            "capabilities": {},
+            "constraints": []
+          }
+        ],
+        "events": [
+          {
+            "event_id": "evt-beb4cb75",
+            "event_type": "contact",
+            "timestamp": "2026-04-15T16:04:59.291509+00:00",
+            "location": "A区北部高地",
+            "coordinates": null,
+            "participants": [
+              "unit-red-b9230b",
+              "unit-blue-9534de"
+            ],
+            "description": "红方装甲营 对 蓝方炮兵团 执行 attack（位于 A区北部高地）",
+            "outcome": {
+              "terrain_control": "contested"
+            },
+            "phase": "final"
+          }
+        ],
+        "ontology_version": {
+          "version_id": "v20260416-007",
           "parent_version": null,
           "commit_message": "随机生成: 红方装甲营 attack",
           "schema_version": "1.0.0"
         }
       },
       {
-        "doc_id": "rand-20260415-139234",
+        "doc_id": "rand-20260416-f694ad",
+        "meta": {
+          "title": "[随机] 蓝方海军陆战队 - patrol",
+          "description": "蓝方海军陆战队 在 C区渡口 执行 patrol",
+          "tags": [
+            "blue",
+            "patrol",
+            "C区渡口"
+          ],
+          "language": "zh",
+          "classification": "SIM"
+        },
+        "entities": [
+          {
+            "entity_id": "unit-blue-631c40",
+            "entity_type": "Unit",
+            "name": "蓝方海军陆战队",
+            "name_en": "蓝方海军陆战队",
+            "basic_properties": {
+              "side": "blue",
+              "location": "C区渡口",
+              "status": "active",
+              "unit_type": "infantry"
+            },
+            "statistical_properties": {
+              "combat_power": 0.55,
+              "morale": 0.6,
+              "supply_level": 0.63,
+              "casualty_rate": 0.052
+            },
+            "capabilities": {},
+            "constraints": []
+          }
+        ],
+        "events": [
+          {
+            "event_id": "evt-4cf5f607",
+            "event_type": "patrol",
+            "timestamp": "2026-04-15T16:04:59.291661+00:00",
+            "location": "C区渡口",
+            "coordinates": null,
+            "participants": [
+              "unit-blue-631c40"
+            ],
+            "description": "蓝方海军陆战队 在 C区渡口 执行 patrol",
+            "outcome": {},
+            "phase": "active"
+          }
+        ],
+        "ontology_version": {
+          "version_id": "v20260416-008",
+          "parent_version": null,
+          "commit_message": "随机生成: 蓝方海军陆战队 patrol",
+          "schema_version": "1.0.0"
+        }
+      },
+      {
+        "doc_id": "rand-20260416-1ede0c",
+        "meta": {
+          "title": "[随机] 蓝方工兵连 - patrol",
+          "description": "蓝方工兵连 在 H区丛林 执行 patrol",
+          "tags": [
+            "blue",
+            "patrol",
+            "H区丛林"
+          ],
+          "language": "zh",
+          "classification": "SIM"
+        },
+        "entities": [
+          {
+            "entity_id": "unit-blue-864646",
+            "entity_type": "Unit",
+            "name": "蓝方工兵连",
+            "name_en": "蓝方工兵连",
+            "basic_properties": {
+              "side": "blue",
+              "location": "H区丛林",
+              "status": "active",
+              "unit_type": "armor"
+            },
+            "statistical_properties": {
+              "combat_power": 0.8,
+              "morale": 0.87,
+              "supply_level": 0.82,
+              "casualty_rate": 0.126
+            },
+            "capabilities": {},
+            "constraints": []
+          }
+        ],
+        "events": [
+          {
+            "event_id": "evt-377c328c",
+            "event_type": "patrol",
+            "timestamp": "2026-04-15T16:04:59.291851+00:00",
+            "location": "H区丛林",
+            "coordinates": null,
+            "participants": [
+              "unit-blue-864646"
+            ],
+            "description": "蓝方工兵连 在 H区丛林 执行 patrol",
+            "outcome": {},
+            "phase": "active"
+          }
+        ],
+        "ontology_version": {
+          "version_id": "v20260416-009",
+          "parent_version": null,
+          "commit_message": "随机生成: 蓝方工兵连 patrol",
+          "schema_version": "1.0.0"
+        }
+      },
+      {
+        "doc_id": "rand-20260416-0b9870",
+        "meta": {
+          "title": "[随机] 红方工兵营 - attack",
+          "description": "红方工兵营 对 蓝方机步营 执行 attack（位于 E区山地走廊）",
+          "tags": [
+            "red",
+            "attack",
+            "E区山地走廊"
+          ],
+          "language": "zh",
+          "classification": "SIM"
+        },
+        "entities": [
+          {
+            "entity_id": "unit-red-8a513d",
+            "entity_type": "Unit",
+            "name": "红方工兵营",
+            "name_en": "红方工兵营",
+            "basic_properties": {
+              "side": "red",
+              "location": "E区山地走廊",
+              "status": "active",
+              "unit_type": "armor"
+            },
+            "statistical_properties": {
+              "combat_power": 0.78,
+              "morale": 0.83,
+              "supply_level": 0.86,
+              "casualty_rate": 0.036
+            },
+            "capabilities": {},
+            "constraints": []
+          },
+          {
+            "entity_id": "unit-blue-4b55a4",
+            "entity_type": "Unit",
+            "name": "蓝方机步营",
+            "name_en": "蓝方机步营",
+            "basic_properties": {
+              "side": "blue",
+              "location": "E区山地走廊",
+              "status": "active"
+            },
+            "statistical_properties": {
+              "combat_power": 0.41,
+              "morale": 0.57,
+              "supply_level": 0.82
+            },
+            "capabilities": {},
+            "constraints": []
+          }
+        ],
+        "events": [
+          {
+            "event_id": "evt-b1867c11",
+            "event_type": "contact",
+            "timestamp": "2026-04-15T16:04:59.291952+00:00",
+            "location": "E区山地走廊",
+            "coordinates": null,
+            "participants": [
+              "unit-red-8a513d",
+              "unit-blue-4b55a4"
+            ],
+            "description": "红方工兵营 对 蓝方机步营 执行 attack（位于 E区山地走廊）",
+            "outcome": {
+              "terrain_control": "lost"
+            },
+            "phase": "final"
+          }
+        ],
+        "ontology_version": {
+          "version_id": "v20260416-010",
+          "parent_version": null,
+          "commit_message": "随机生成: 红方工兵营 attack",
+          "schema_version": "1.0.0"
+        }
+      },
+      {
+        "doc_id": "rand-20260416-0be5f2",
+        "meta": {
+          "title": "[随机] 蓝方装甲旅 - patrol",
+          "description": "蓝方装甲旅 在 B区遭遇地带 执行 patrol",
+          "tags": [
+            "blue",
+            "patrol",
+            "B区遭遇地带"
+          ],
+          "language": "zh",
+          "classification": "SIM"
+        },
+        "entities": [
+          {
+            "entity_id": "unit-blue-50cbc4",
+            "entity_type": "Unit",
+            "name": "蓝方装甲旅",
+            "name_en": "蓝方装甲旅",
+            "basic_properties": {
+              "side": "blue",
+              "location": "B区遭遇地带",
+              "status": "active",
+              "unit_type": "recon"
+            },
+            "statistical_properties": {
+              "combat_power": 0.87,
+              "morale": 0.72,
+              "supply_level": 0.88,
+              "casualty_rate": 0.108
+            },
+            "capabilities": {},
+            "constraints": []
+          }
+        ],
+        "events": [
+          {
+            "event_id": "evt-e3d92908",
+            "event_type": "patrol",
+            "timestamp": "2026-04-15T16:04:59.292085+00:00",
+            "location": "B区遭遇地带",
+            "coordinates": null,
+            "participants": [
+              "unit-blue-50cbc4"
+            ],
+            "description": "蓝方装甲旅 在 B区遭遇地带 执行 patrol",
+            "outcome": {},
+            "phase": "active"
+          }
+        ],
+        "ontology_version": {
+          "version_id": "v20260416-011",
+          "parent_version": null,
+          "commit_message": "随机生成: 蓝方装甲旅 patrol",
+          "schema_version": "1.0.0"
+        }
+      },
+      {
+        "doc_id": "rand-20260416-6e6654",
         "meta": {
           "title": "[随机] 蓝方炮兵团 - patrol",
           "description": "蓝方炮兵团 在 F区海岸线 执行 patrol",
@@ -105,7 +759,7 @@
         },
         "entities": [
           {
-            "entity_id": "unit-blue-d47284",
+            "entity_id": "unit-blue-17fa02",
             "entity_type": "Unit",
             "name": "蓝方炮兵团",
             "name_en": "蓝方炮兵团",
@@ -116,10 +770,10 @@
               "unit_type": "artillery"
             },
             "statistical_properties": {
-              "combat_power": 0.92,
-              "morale": 0.71,
-              "supply_level": 0.64,
-              "casualty_rate": 0.076
+              "combat_power": 0.86,
+              "morale": 0.64,
+              "supply_level": 0.69,
+              "casualty_rate": 0.026
             },
             "capabilities": {},
             "constraints": []
@@ -127,13 +781,13 @@
         ],
         "events": [
           {
-            "event_id": "evt-6da42d99",
+            "event_id": "evt-78b2d5c1",
             "event_type": "patrol",
-            "timestamp": "2026-04-14T16:41:12.127205+00:00",
+            "timestamp": "2026-04-15T16:04:59.292302+00:00",
             "location": "F区海岸线",
             "coordinates": null,
             "participants": [
-              "unit-blue-d47284"
+              "unit-blue-17fa02"
             ],
             "description": "蓝方炮兵团 在 F区海岸线 执行 patrol",
             "outcome": {},
@@ -141,212 +795,20 @@
           }
         ],
         "ontology_version": {
-          "version_id": "v20260415-030",
+          "version_id": "v20260416-012",
           "parent_version": null,
           "commit_message": "随机生成: 蓝方炮兵团 patrol",
           "schema_version": "1.0.0"
         }
       },
       {
-        "doc_id": "rand-20260415-2e3629",
+        "doc_id": "rand-20260416-eeb1e0",
         "meta": {
-          "title": "[随机] 蓝方炮兵团 - attack",
-          "description": "蓝方炮兵团 对 红方特战队 执行 attack（位于 C区渡口）",
-          "tags": [
-            "blue",
-            "attack",
-            "C区渡口"
-          ],
-          "language": "zh",
-          "classification": "SIM"
-        },
-        "entities": [
-          {
-            "entity_id": "unit-blue-571677",
-            "entity_type": "Unit",
-            "name": "蓝方炮兵团",
-            "name_en": "蓝方炮兵团",
-            "basic_properties": {
-              "side": "blue",
-              "location": "C区渡口",
-              "status": "active",
-              "unit_type": "artillery"
-            },
-            "statistical_properties": {
-              "combat_power": 0.89,
-              "morale": 0.55,
-              "supply_level": 0.72,
-              "casualty_rate": 0.144
-            },
-            "capabilities": {},
-            "constraints": []
-          },
-          {
-            "entity_id": "unit-red-f596ee",
-            "entity_type": "Unit",
-            "name": "红方特战队",
-            "name_en": "红方特战队",
-            "basic_properties": {
-              "side": "red",
-              "location": "C区渡口",
-              "status": "active"
-            },
-            "statistical_properties": {
-              "combat_power": 0.82,
-              "morale": 0.68,
-              "supply_level": 0.52
-            },
-            "capabilities": {},
-            "constraints": []
-          }
-        ],
-        "events": [
-          {
-            "event_id": "evt-48ee4735",
-            "event_type": "contact",
-            "timestamp": "2026-04-14T16:41:12.127355+00:00",
-            "location": "C区渡口",
-            "coordinates": null,
-            "participants": [
-              "unit-blue-571677",
-              "unit-red-f596ee"
-            ],
-            "description": "蓝方炮兵团 对 红方特战队 执行 attack（位于 C区渡口）",
-            "outcome": {
-              "terrain_control": "lost"
-            },
-            "phase": "main"
-          }
-        ],
-        "ontology_version": {
-          "version_id": "v20260415-031",
-          "parent_version": null,
-          "commit_message": "随机生成: 蓝方炮兵团 attack",
-          "schema_version": "1.0.0"
-        }
-      },
-      {
-        "doc_id": "rand-20260415-a716eb",
-        "meta": {
-          "title": "[随机] 红方装甲营 - patrol",
-          "description": "红方装甲营 在 D区城镇 执行 patrol",
+          "title": "[随机] 红方机步旅 - patrol",
+          "description": "红方机步旅 在 A区北部高地 执行 patrol",
           "tags": [
             "red",
             "patrol",
-            "D区城镇"
-          ],
-          "language": "zh",
-          "classification": "SIM"
-        },
-        "entities": [
-          {
-            "entity_id": "unit-red-387d63",
-            "entity_type": "Unit",
-            "name": "红方装甲营",
-            "name_en": "红方装甲营",
-            "basic_properties": {
-              "side": "red",
-              "location": "D区城镇",
-              "status": "active",
-              "unit_type": "infantry"
-            },
-            "statistical_properties": {
-              "combat_power": 0.46,
-              "morale": 0.77,
-              "supply_level": 0.68,
-              "casualty_rate": 0.035
-            },
-            "capabilities": {},
-            "constraints": []
-          }
-        ],
-        "events": [
-          {
-            "event_id": "evt-71659d04",
-            "event_type": "patrol",
-            "timestamp": "2026-04-14T16:41:12.127494+00:00",
-            "location": "D区城镇",
-            "coordinates": null,
-            "participants": [
-              "unit-red-387d63"
-            ],
-            "description": "红方装甲营 在 D区城镇 执行 patrol",
-            "outcome": {},
-            "phase": "active"
-          }
-        ],
-        "ontology_version": {
-          "version_id": "v20260415-032",
-          "parent_version": null,
-          "commit_message": "随机生成: 红方装甲营 patrol",
-          "schema_version": "1.0.0"
-        }
-      },
-      {
-        "doc_id": "rand-20260415-ead1ec",
-        "meta": {
-          "title": "[随机] 红方装甲营 - patrol",
-          "description": "红方装甲营 在 H区丛林 执行 patrol",
-          "tags": [
-            "red",
-            "patrol",
-            "H区丛林"
-          ],
-          "language": "zh",
-          "classification": "SIM"
-        },
-        "entities": [
-          {
-            "entity_id": "unit-red-ec1e94",
-            "entity_type": "Unit",
-            "name": "红方装甲营",
-            "name_en": "红方装甲营",
-            "basic_properties": {
-              "side": "red",
-              "location": "H区丛林",
-              "status": "active",
-              "unit_type": "armor"
-            },
-            "statistical_properties": {
-              "combat_power": 0.81,
-              "morale": 0.8,
-              "supply_level": 0.64,
-              "casualty_rate": 0.122
-            },
-            "capabilities": {},
-            "constraints": []
-          }
-        ],
-        "events": [
-          {
-            "event_id": "evt-3af03a60",
-            "event_type": "patrol",
-            "timestamp": "2026-04-14T16:41:12.127581+00:00",
-            "location": "H区丛林",
-            "coordinates": null,
-            "participants": [
-              "unit-red-ec1e94"
-            ],
-            "description": "红方装甲营 在 H区丛林 执行 patrol",
-            "outcome": {},
-            "phase": "active"
-          }
-        ],
-        "ontology_version": {
-          "version_id": "v20260415-033",
-          "parent_version": null,
-          "commit_message": "随机生成: 红方装甲营 patrol",
-          "schema_version": "1.0.0"
-        }
-      },
-      {
-        "doc_id": "rand-20260415-96543a",
-        "meta": {
-          "title": "[随机] 蓝方炮兵团 - reinforce",
-          "description": "蓝方炮兵团 对 红方机步旅 执行 reinforce（位于 A区北部高地）",
-          "tags": [
-            "blue",
-            "reinforce",
             "A区北部高地"
           ],
           "language": "zh",
@@ -354,39 +816,21 @@
         },
         "entities": [
           {
-            "entity_id": "unit-blue-fd4a9a",
-            "entity_type": "Unit",
-            "name": "蓝方炮兵团",
-            "name_en": "蓝方炮兵团",
-            "basic_properties": {
-              "side": "blue",
-              "location": "A区北部高地",
-              "status": "active",
-              "unit_type": "armor"
-            },
-            "statistical_properties": {
-              "combat_power": 0.72,
-              "morale": 0.66,
-              "supply_level": 0.46,
-              "casualty_rate": 0.138
-            },
-            "capabilities": {},
-            "constraints": []
-          },
-          {
-            "entity_id": "unit-red-713608",
+            "entity_id": "unit-red-e156f7",
             "entity_type": "Unit",
             "name": "红方机步旅",
             "name_en": "红方机步旅",
             "basic_properties": {
               "side": "red",
               "location": "A区北部高地",
-              "status": "active"
+              "status": "active",
+              "unit_type": "recon"
             },
             "statistical_properties": {
-              "combat_power": 0.5,
-              "morale": 0.7,
-              "supply_level": 0.74
+              "combat_power": 0.9,
+              "morale": 0.53,
+              "supply_level": 0.7,
+              "casualty_rate": 0.102
             },
             "capabilities": {},
             "constraints": []
@@ -394,77 +838,134 @@
         ],
         "events": [
           {
-            "event_id": "evt-c639fa74",
-            "event_type": "reinforce",
-            "timestamp": "2026-04-14T16:41:12.127662+00:00",
+            "event_id": "evt-fd80f644",
+            "event_type": "patrol",
+            "timestamp": "2026-04-15T16:04:59.292393+00:00",
             "location": "A区北部高地",
             "coordinates": null,
             "participants": [
-              "unit-blue-fd4a9a",
-              "unit-red-713608"
+              "unit-red-e156f7"
             ],
-            "description": "蓝方炮兵团 对 红方机步旅 执行 reinforce（位于 A区北部高地）",
+            "description": "红方机步旅 在 A区北部高地 执行 patrol",
+            "outcome": {},
+            "phase": "active"
+          }
+        ],
+        "ontology_version": {
+          "version_id": "v20260416-013",
+          "parent_version": null,
+          "commit_message": "随机生成: 红方机步旅 patrol",
+          "schema_version": "1.0.0"
+        }
+      },
+      {
+        "doc_id": "rand-20260416-ee384c",
+        "meta": {
+          "title": "[随机] 红方炮兵团 - attack",
+          "description": "红方炮兵团 对 蓝方防空连 执行 attack（位于 A区北部高地）",
+          "tags": [
+            "red",
+            "attack",
+            "A区北部高地"
+          ],
+          "language": "zh",
+          "classification": "SIM"
+        },
+        "entities": [
+          {
+            "entity_id": "unit-red-db701e",
+            "entity_type": "Unit",
+            "name": "红方炮兵团",
+            "name_en": "红方炮兵团",
+            "basic_properties": {
+              "side": "red",
+              "location": "A区北部高地",
+              "status": "active",
+              "unit_type": "artillery"
+            },
+            "statistical_properties": {
+              "combat_power": 0.45,
+              "morale": 0.81,
+              "supply_level": 0.41,
+              "casualty_rate": 0.13
+            },
+            "capabilities": {},
+            "constraints": []
+          },
+          {
+            "entity_id": "unit-blue-807e00",
+            "entity_type": "Unit",
+            "name": "蓝方防空连",
+            "name_en": "蓝方防空连",
+            "basic_properties": {
+              "side": "blue",
+              "location": "A区北部高地",
+              "status": "active"
+            },
+            "statistical_properties": {
+              "combat_power": 0.43,
+              "morale": 0.89,
+              "supply_level": 0.66
+            },
+            "capabilities": {},
+            "constraints": []
+          }
+        ],
+        "events": [
+          {
+            "event_id": "evt-5c521829",
+            "event_type": "contact",
+            "timestamp": "2026-04-15T16:04:59.292490+00:00",
+            "location": "A区北部高地",
+            "coordinates": null,
+            "participants": [
+              "unit-red-db701e",
+              "unit-blue-807e00"
+            ],
+            "description": "红方炮兵团 对 蓝方防空连 执行 attack（位于 A区北部高地）",
             "outcome": {
-              "terrain_control": "held"
+              "terrain_control": "lost"
             },
             "phase": "main"
           }
         ],
         "ontology_version": {
-          "version_id": "v20260415-034",
+          "version_id": "v20260416-014",
           "parent_version": null,
-          "commit_message": "随机生成: 蓝方炮兵团 reinforce",
+          "commit_message": "随机生成: 红方炮兵团 attack",
           "schema_version": "1.0.0"
         }
       },
       {
-        "doc_id": "rand-20260415-2c860c",
+        "doc_id": "rand-20260416-619eae",
         "meta": {
-          "title": "[随机] 蓝方炮兵团 - reinforce",
-          "description": "蓝方炮兵团 对 红方炮兵团 执行 reinforce（位于 C区渡口）",
+          "title": "[随机] 蓝方炮兵团 - patrol",
+          "description": "蓝方炮兵团 在 D区城镇 执行 patrol",
           "tags": [
             "blue",
-            "reinforce",
-            "C区渡口"
+            "patrol",
+            "D区城镇"
           ],
           "language": "zh",
           "classification": "SIM"
         },
         "entities": [
           {
-            "entity_id": "unit-blue-1cbb73",
+            "entity_id": "unit-blue-7c3db7",
             "entity_type": "Unit",
             "name": "蓝方炮兵团",
             "name_en": "蓝方炮兵团",
             "basic_properties": {
               "side": "blue",
-              "location": "C区渡口",
+              "location": "D区城镇",
               "status": "active",
               "unit_type": "recon"
             },
             "statistical_properties": {
-              "combat_power": 0.67,
-              "morale": 0.6,
-              "supply_level": 0.56,
-              "casualty_rate": 0.077
-            },
-            "capabilities": {},
-            "constraints": []
-          },
-          {
-            "entity_id": "unit-red-492c37",
-            "entity_type": "Unit",
-            "name": "红方炮兵团",
-            "name_en": "红方炮兵团",
-            "basic_properties": {
-              "side": "red",
-              "location": "C区渡口",
-              "status": "active"
-            },
-            "statistical_properties": {
-              "combat_power": 0.67,
-              "morale": 0.57,
-              "supply_level": 0.52
+              "combat_power": 0.68,
+              "morale": 0.69,
+              "supply_level": 0.42,
+              "casualty_rate": 0.026
             },
             "capabilities": {},
             "constraints": []
@@ -472,232 +973,73 @@
         ],
         "events": [
           {
-            "event_id": "evt-c22d7b2a",
-            "event_type": "reinforce",
-            "timestamp": "2026-04-14T16:41:12.128813+00:00",
-            "location": "C区渡口",
-            "coordinates": null,
-            "participants": [
-              "unit-blue-1cbb73",
-              "unit-red-492c37"
-            ],
-            "description": "蓝方炮兵团 对 红方炮兵团 执行 reinforce（位于 C区渡口）",
-            "outcome": {
-              "terrain_control": "held"
-            },
-            "phase": "initial"
-          }
-        ],
-        "ontology_version": {
-          "version_id": "v20260415-035",
-          "parent_version": null,
-          "commit_message": "随机生成: 蓝方炮兵团 reinforce",
-          "schema_version": "1.0.0"
-        }
-      },
-      {
-        "doc_id": "rand-20260415-0bfe9a",
-        "meta": {
-          "title": "[随机] 红方炮兵团 - reinforce",
-          "description": "红方炮兵团 对 蓝方海军陆战队 执行 reinforce（位于 D区城镇）",
-          "tags": [
-            "red",
-            "reinforce",
-            "D区城镇"
-          ],
-          "language": "zh",
-          "classification": "SIM"
-        },
-        "entities": [
-          {
-            "entity_id": "unit-red-47c845",
-            "entity_type": "Unit",
-            "name": "红方炮兵团",
-            "name_en": "红方炮兵团",
-            "basic_properties": {
-              "side": "red",
-              "location": "D区城镇",
-              "status": "active",
-              "unit_type": "artillery"
-            },
-            "statistical_properties": {
-              "combat_power": 0.83,
-              "morale": 0.63,
-              "supply_level": 0.3,
-              "casualty_rate": 0.106
-            },
-            "capabilities": {},
-            "constraints": []
-          },
-          {
-            "entity_id": "unit-blue-cb7b03",
-            "entity_type": "Unit",
-            "name": "蓝方海军陆战队",
-            "name_en": "蓝方海军陆战队",
-            "basic_properties": {
-              "side": "blue",
-              "location": "D区城镇",
-              "status": "active"
-            },
-            "statistical_properties": {
-              "combat_power": 0.58,
-              "morale": 0.65,
-              "supply_level": 0.52
-            },
-            "capabilities": {},
-            "constraints": []
-          }
-        ],
-        "events": [
-          {
-            "event_id": "evt-97009f7b",
-            "event_type": "reinforce",
-            "timestamp": "2026-04-14T16:41:12.129267+00:00",
+            "event_id": "evt-11b5e031",
+            "event_type": "patrol",
+            "timestamp": "2026-04-15T16:04:59.292617+00:00",
             "location": "D区城镇",
             "coordinates": null,
             "participants": [
-              "unit-red-47c845",
-              "unit-blue-cb7b03"
+              "unit-blue-7c3db7"
             ],
-            "description": "红方炮兵团 对 蓝方海军陆战队 执行 reinforce（位于 D区城镇）",
-            "outcome": {
-              "terrain_control": "contested"
-            },
-            "phase": "final"
+            "description": "蓝方炮兵团 在 D区城镇 执行 patrol",
+            "outcome": {},
+            "phase": "active"
           }
         ],
         "ontology_version": {
-          "version_id": "v20260415-036",
+          "version_id": "v20260416-015",
           "parent_version": null,
-          "commit_message": "随机生成: 红方炮兵团 reinforce",
+          "commit_message": "随机生成: 蓝方炮兵团 patrol",
           "schema_version": "1.0.0"
         }
       },
       {
-        "doc_id": "rand-20260415-e84c50",
+        "doc_id": "rand-20260416-28e4b1",
         "meta": {
-          "title": "[随机] 红方特战队 - retreat",
-          "description": "红方特战队 对 蓝方海军陆战队 执行 retreat（位于 C区渡口）",
+          "title": "[随机] 蓝方装甲旅 - attack",
+          "description": "蓝方装甲旅 对 红方炮兵团 执行 attack（位于 E区山地走廊）",
           "tags": [
-            "red",
-            "retreat",
-            "C区渡口"
+            "blue",
+            "attack",
+            "E区山地走廊"
           ],
           "language": "zh",
           "classification": "SIM"
         },
         "entities": [
           {
-            "entity_id": "unit-red-ba2f83",
+            "entity_id": "unit-blue-703508",
             "entity_type": "Unit",
-            "name": "红方特战队",
-            "name_en": "红方特战队",
+            "name": "蓝方装甲旅",
+            "name_en": "蓝方装甲旅",
             "basic_properties": {
-              "side": "red",
-              "location": "C区渡口",
+              "side": "blue",
+              "location": "E区山地走廊",
               "status": "active",
               "unit_type": "armor"
             },
             "statistical_properties": {
-              "combat_power": 0.66,
-              "morale": 0.66,
-              "supply_level": 0.7,
-              "casualty_rate": 0.116
+              "combat_power": 0.75,
+              "morale": 0.68,
+              "supply_level": 0.67,
+              "casualty_rate": 0.09
             },
             "capabilities": {},
             "constraints": []
           },
           {
-            "entity_id": "unit-blue-fc1d00",
+            "entity_id": "unit-red-c62e72",
             "entity_type": "Unit",
-            "name": "蓝方海军陆战队",
-            "name_en": "蓝方海军陆战队",
-            "basic_properties": {
-              "side": "blue",
-              "location": "C区渡口",
-              "status": "active"
-            },
-            "statistical_properties": {
-              "combat_power": 0.61,
-              "morale": 0.58,
-              "supply_level": 0.56
-            },
-            "capabilities": {},
-            "constraints": []
-          }
-        ],
-        "events": [
-          {
-            "event_id": "evt-849287e1",
-            "event_type": "retreat",
-            "timestamp": "2026-04-14T16:41:12.130597+00:00",
-            "location": "C区渡口",
-            "coordinates": null,
-            "participants": [
-              "unit-red-ba2f83",
-              "unit-blue-fc1d00"
-            ],
-            "description": "红方特战队 对 蓝方海军陆战队 执行 retreat（位于 C区渡口）",
-            "outcome": {
-              "terrain_control": "contested"
-            },
-            "phase": "final"
-          }
-        ],
-        "ontology_version": {
-          "version_id": "v20260415-037",
-          "parent_version": null,
-          "commit_message": "随机生成: 红方特战队 retreat",
-          "schema_version": "1.0.0"
-        }
-      },
-      {
-        "doc_id": "rand-20260415-968be9",
-        "meta": {
-          "title": "[随机] 红方特战队 - attack",
-          "description": "红方特战队 对 蓝方机步营 执行 attack（位于 D区城镇）",
-          "tags": [
-            "red",
-            "attack",
-            "D区城镇"
-          ],
-          "language": "zh",
-          "classification": "SIM"
-        },
-        "entities": [
-          {
-            "entity_id": "unit-red-ea820a",
-            "entity_type": "Unit",
-            "name": "红方特战队",
-            "name_en": "红方特战队",
+            "name": "红方炮兵团",
+            "name_en": "红方炮兵团",
             "basic_properties": {
               "side": "red",
-              "location": "D区城镇",
-              "status": "active",
-              "unit_type": "recon"
-            },
-            "statistical_properties": {
-              "combat_power": 0.93,
-              "morale": 0.9,
-              "supply_level": 0.54,
-              "casualty_rate": 0.038
-            },
-            "capabilities": {},
-            "constraints": []
-          },
-          {
-            "entity_id": "unit-blue-e36557",
-            "entity_type": "Unit",
-            "name": "蓝方机步营",
-            "name_en": "蓝方机步营",
-            "basic_properties": {
-              "side": "blue",
-              "location": "D区城镇",
+              "location": "E区山地走廊",
               "status": "active"
             },
             "statistical_properties": {
-              "combat_power": 0.53,
-              "morale": 0.53,
+              "combat_power": 0.83,
+              "morale": 0.72,
               "supply_level": 0.59
             },
             "capabilities": {},
@@ -706,172 +1048,16 @@
         ],
         "events": [
           {
-            "event_id": "evt-1023dca2",
+            "event_id": "evt-35a60234",
             "event_type": "contact",
-            "timestamp": "2026-04-14T16:41:12.130898+00:00",
-            "location": "D区城镇",
+            "timestamp": "2026-04-15T16:04:59.292705+00:00",
+            "location": "E区山地走廊",
             "coordinates": null,
             "participants": [
-              "unit-red-ea820a",
-              "unit-blue-e36557"
+              "unit-blue-703508",
+              "unit-red-c62e72"
             ],
-            "description": "红方特战队 对 蓝方机步营 执行 attack（位于 D区城镇）",
-            "outcome": {
-              "terrain_control": "lost"
-            },
-            "phase": "final"
-          }
-        ],
-        "ontology_version": {
-          "version_id": "v20260415-038",
-          "parent_version": null,
-          "commit_message": "随机生成: 红方特战队 attack",
-          "schema_version": "1.0.0"
-        }
-      },
-      {
-        "doc_id": "rand-20260415-a325ac",
-        "meta": {
-          "title": "[随机] 红方炮兵团 - reinforce",
-          "description": "红方炮兵团 对 蓝方装甲旅 执行 reinforce（位于 F区海岸线）",
-          "tags": [
-            "red",
-            "reinforce",
-            "F区海岸线"
-          ],
-          "language": "zh",
-          "classification": "SIM"
-        },
-        "entities": [
-          {
-            "entity_id": "unit-red-6fc394",
-            "entity_type": "Unit",
-            "name": "红方炮兵团",
-            "name_en": "红方炮兵团",
-            "basic_properties": {
-              "side": "red",
-              "location": "F区海岸线",
-              "status": "active",
-              "unit_type": "artillery"
-            },
-            "statistical_properties": {
-              "combat_power": 0.7,
-              "morale": 0.74,
-              "supply_level": 0.68,
-              "casualty_rate": 0.048
-            },
-            "capabilities": {},
-            "constraints": []
-          },
-          {
-            "entity_id": "unit-blue-4f0a0a",
-            "entity_type": "Unit",
-            "name": "蓝方装甲旅",
-            "name_en": "蓝方装甲旅",
-            "basic_properties": {
-              "side": "blue",
-              "location": "F区海岸线",
-              "status": "active"
-            },
-            "statistical_properties": {
-              "combat_power": 0.61,
-              "morale": 0.8,
-              "supply_level": 0.83
-            },
-            "capabilities": {},
-            "constraints": []
-          }
-        ],
-        "events": [
-          {
-            "event_id": "evt-78c5e136",
-            "event_type": "reinforce",
-            "timestamp": "2026-04-14T16:41:12.131145+00:00",
-            "location": "F区海岸线",
-            "coordinates": null,
-            "participants": [
-              "unit-red-6fc394",
-              "unit-blue-4f0a0a"
-            ],
-            "description": "红方炮兵团 对 蓝方装甲旅 执行 reinforce（位于 F区海岸线）",
-            "outcome": {
-              "terrain_control": "lost"
-            },
-            "phase": "initial"
-          }
-        ],
-        "ontology_version": {
-          "version_id": "v20260415-039",
-          "parent_version": null,
-          "commit_message": "随机生成: 红方炮兵团 reinforce",
-          "schema_version": "1.0.0"
-        }
-      },
-      {
-        "doc_id": "rand-20260415-ee5a60",
-        "meta": {
-          "title": "[随机] 蓝方防空连 - attack",
-          "description": "蓝方防空连 对 红方特战队 执行 attack（位于 H区丛林）",
-          "tags": [
-            "blue",
-            "attack",
-            "H区丛林"
-          ],
-          "language": "zh",
-          "classification": "SIM"
-        },
-        "entities": [
-          {
-            "entity_id": "unit-blue-2a5b20",
-            "entity_type": "Unit",
-            "name": "蓝方防空连",
-            "name_en": "蓝方防空连",
-            "basic_properties": {
-              "side": "blue",
-              "location": "H区丛林",
-              "status": "active",
-              "unit_type": "infantry"
-            },
-            "statistical_properties": {
-              "combat_power": 0.84,
-              "morale": 0.65,
-              "supply_level": 0.52,
-              "casualty_rate": 0.065
-            },
-            "capabilities": {},
-            "constraints": []
-          },
-          {
-            "entity_id": "unit-red-848baf",
-            "entity_type": "Unit",
-            "name": "红方特战队",
-            "name_en": "红方特战队",
-            "basic_properties": {
-              "side": "red",
-              "location": "H区丛林",
-              "status": "active"
-            },
-            "statistical_properties": {
-              "combat_power": 0.6,
-              "morale": 0.83,
-              "supply_level": 0.89
-            },
-            "capabilities": {},
-            "constraints": []
-          }
-        ],
-        "events": [
-          {
-            "event_id": "evt-a6855f0a",
-            "event_type": "contact",
-            "timestamp": "2026-04-14T16:41:12.131611+00:00",
-            "location": "H区丛林",
-            "coordinates": null,
-            "participants": [
-              "unit-blue-2a5b20",
-              "unit-red-848baf"
-            ],
-            "description": "蓝方防空连 对 红方特战队 执行 attack（位于 H区丛林）",
+            "description": "蓝方装甲旅 对 红方炮兵团 执行 attack（位于 E区山地走廊）",
             "outcome": {
               "terrain_control": "held"
             },
@@ -879,176 +1065,20 @@
           }
         ],
         "ontology_version": {
-          "version_id": "v20260415-040",
+          "version_id": "v20260416-016",
           "parent_version": null,
-          "commit_message": "随机生成: 蓝方防空连 attack",
+          "commit_message": "随机生成: 蓝方装甲旅 attack",
           "schema_version": "1.0.0"
         }
       },
       {
-        "doc_id": "rand-20260415-19e478",
+        "doc_id": "rand-20260416-b0b2d7",
         "meta": {
-          "title": "[随机] 红方工兵营 - attack",
-          "description": "红方工兵营 对 蓝方海军陆战队 执行 attack（位于 G区平原）",
-          "tags": [
-            "red",
-            "attack",
-            "G区平原"
-          ],
-          "language": "zh",
-          "classification": "SIM"
-        },
-        "entities": [
-          {
-            "entity_id": "unit-red-367492",
-            "entity_type": "Unit",
-            "name": "红方工兵营",
-            "name_en": "红方工兵营",
-            "basic_properties": {
-              "side": "red",
-              "location": "G区平原",
-              "status": "active",
-              "unit_type": "recon"
-            },
-            "statistical_properties": {
-              "combat_power": 0.46,
-              "morale": 0.78,
-              "supply_level": 0.42,
-              "casualty_rate": 0.117
-            },
-            "capabilities": {},
-            "constraints": []
-          },
-          {
-            "entity_id": "unit-blue-5ce3c1",
-            "entity_type": "Unit",
-            "name": "蓝方海军陆战队",
-            "name_en": "蓝方海军陆战队",
-            "basic_properties": {
-              "side": "blue",
-              "location": "G区平原",
-              "status": "active"
-            },
-            "statistical_properties": {
-              "combat_power": 0.89,
-              "morale": 0.7,
-              "supply_level": 0.88
-            },
-            "capabilities": {},
-            "constraints": []
-          }
-        ],
-        "events": [
-          {
-            "event_id": "evt-5e8421b9",
-            "event_type": "contact",
-            "timestamp": "2026-04-14T16:41:12.131865+00:00",
-            "location": "G区平原",
-            "coordinates": null,
-            "participants": [
-              "unit-red-367492",
-              "unit-blue-5ce3c1"
-            ],
-            "description": "红方工兵营 对 蓝方海军陆战队 执行 attack（位于 G区平原）",
-            "outcome": {
-              "terrain_control": "contested"
-            },
-            "phase": "initial"
-          }
-        ],
-        "ontology_version": {
-          "version_id": "v20260415-041",
-          "parent_version": null,
-          "commit_message": "随机生成: 红方工兵营 attack",
-          "schema_version": "1.0.0"
-        }
-      },
-      {
-        "doc_id": "rand-20260415-82161c",
-        "meta": {
-          "title": "[随机] 蓝方机步营 - reinforce",
-          "description": "蓝方机步营 对 红方装甲营 执行 reinforce（位于 E区山地走廊）",
+          "title": "[随机] 蓝方装甲旅 - patrol",
+          "description": "蓝方装甲旅 在 C区渡口 执行 patrol",
           "tags": [
             "blue",
-            "reinforce",
-            "E区山地走廊"
-          ],
-          "language": "zh",
-          "classification": "SIM"
-        },
-        "entities": [
-          {
-            "entity_id": "unit-blue-756d6c",
-            "entity_type": "Unit",
-            "name": "蓝方机步营",
-            "name_en": "蓝方机步营",
-            "basic_properties": {
-              "side": "blue",
-              "location": "E区山地走廊",
-              "status": "active",
-              "unit_type": "armor"
-            },
-            "statistical_properties": {
-              "combat_power": 0.53,
-              "morale": 0.51,
-              "supply_level": 0.31,
-              "casualty_rate": 0.027
-            },
-            "capabilities": {},
-            "constraints": []
-          },
-          {
-            "entity_id": "unit-red-14f8f3",
-            "entity_type": "Unit",
-            "name": "红方装甲营",
-            "name_en": "红方装甲营",
-            "basic_properties": {
-              "side": "red",
-              "location": "E区山地走廊",
-              "status": "active"
-            },
-            "statistical_properties": {
-              "combat_power": 0.84,
-              "morale": 0.82,
-              "supply_level": 0.74
-            },
-            "capabilities": {},
-            "constraints": []
-          }
-        ],
-        "events": [
-          {
-            "event_id": "evt-af2b76bc",
-            "event_type": "reinforce",
-            "timestamp": "2026-04-14T16:41:12.132037+00:00",
-            "location": "E区山地走廊",
-            "coordinates": null,
-            "participants": [
-              "unit-blue-756d6c",
-              "unit-red-14f8f3"
-            ],
-            "description": "蓝方机步营 对 红方装甲营 执行 reinforce（位于 E区山地走廊）",
-            "outcome": {
-              "terrain_control": "contested"
-            },
-            "phase": "final"
-          }
-        ],
-        "ontology_version": {
-          "version_id": "v20260415-042",
-          "parent_version": null,
-          "commit_message": "随机生成: 蓝方机步营 reinforce",
-          "schema_version": "1.0.0"
-        }
-      },
-      {
-        "doc_id": "rand-20260415-058242",
-        "meta": {
-          "title": "[随机] 红方特战队 - attack",
-          "description": "红方特战队 对 蓝方海军陆战队 执行 attack（位于 C区渡口）",
-          "tags": [
-            "red",
-            "attack",
+            "patrol",
             "C区渡口"
           ],
           "language": "zh",
@@ -1056,39 +1086,21 @@
         },
         "entities": [
           {
-            "entity_id": "unit-red-b3180e",
+            "entity_id": "unit-blue-7da86e",
             "entity_type": "Unit",
-            "name": "红方特战队",
-            "name_en": "红方特战队",
-            "basic_properties": {
-              "side": "red",
-              "location": "C区渡口",
-              "status": "active",
-              "unit_type": "artillery"
-            },
-            "statistical_properties": {
-              "combat_power": 0.78,
-              "morale": 0.6,
-              "supply_level": 0.8,
-              "casualty_rate": 0.002
-            },
-            "capabilities": {},
-            "constraints": []
-          },
-          {
-            "entity_id": "unit-blue-946bbc",
-            "entity_type": "Unit",
-            "name": "蓝方海军陆战队",
-            "name_en": "蓝方海军陆战队",
+            "name": "蓝方装甲旅",
+            "name_en": "蓝方装甲旅",
             "basic_properties": {
               "side": "blue",
               "location": "C区渡口",
-              "status": "active"
+              "status": "active",
+              "unit_type": "armor"
             },
             "statistical_properties": {
-              "combat_power": 0.67,
-              "morale": 0.81,
-              "supply_level": 0.52
+              "combat_power": 0.84,
+              "morale": 0.94,
+              "supply_level": 0.68,
+              "casualty_rate": 0.114
             },
             "capabilities": {},
             "constraints": []
@@ -1096,34 +1108,223 @@
         ],
         "events": [
           {
-            "event_id": "evt-0d08267f",
-            "event_type": "contact",
-            "timestamp": "2026-04-14T16:41:12.132208+00:00",
+            "event_id": "evt-5ffcf16c",
+            "event_type": "patrol",
+            "timestamp": "2026-04-15T16:04:59.292866+00:00",
             "location": "C区渡口",
             "coordinates": null,
             "participants": [
-              "unit-red-b3180e",
-              "unit-blue-946bbc"
+              "unit-blue-7da86e"
             ],
-            "description": "红方特战队 对 蓝方海军陆战队 执行 attack（位于 C区渡口）",
-            "outcome": {
-              "terrain_control": "lost"
-            },
-            "phase": "main"
+            "description": "蓝方装甲旅 在 C区渡口 执行 patrol",
+            "outcome": {},
+            "phase": "active"
           }
         ],
         "ontology_version": {
-          "version_id": "v20260415-043",
+          "version_id": "v20260416-017",
           "parent_version": null,
-          "commit_message": "随机生成: 红方特战队 attack",
+          "commit_message": "随机生成: 蓝方装甲旅 patrol",
           "schema_version": "1.0.0"
         }
       },
       {
-        "doc_id": "rand-20260415-b86d93",
+        "doc_id": "rand-20260416-f7d178",
+        "meta": {
+          "title": "[随机] 蓝方海军陆战队 - patrol",
+          "description": "蓝方海军陆战队 在 G区平原 执行 patrol",
+          "tags": [
+            "blue",
+            "patrol",
+            "G区平原"
+          ],
+          "language": "zh",
+          "classification": "SIM"
+        },
+        "entities": [
+          {
+            "entity_id": "unit-blue-d044ed",
+            "entity_type": "Unit",
+            "name": "蓝方海军陆战队",
+            "name_en": "蓝方海军陆战队",
+            "basic_properties": {
+              "side": "blue",
+              "location": "G区平原",
+              "status": "active",
+              "unit_type": "infantry"
+            },
+            "statistical_properties": {
+              "combat_power": 0.73,
+              "morale": 0.54,
+              "supply_level": 0.5,
+              "casualty_rate": 0.002
+            },
+            "capabilities": {},
+            "constraints": []
+          }
+        ],
+        "events": [
+          {
+            "event_id": "evt-f0ac5acd",
+            "event_type": "patrol",
+            "timestamp": "2026-04-15T16:04:59.292965+00:00",
+            "location": "G区平原",
+            "coordinates": null,
+            "participants": [
+              "unit-blue-d044ed"
+            ],
+            "description": "蓝方海军陆战队 在 G区平原 执行 patrol",
+            "outcome": {},
+            "phase": "active"
+          }
+        ],
+        "ontology_version": {
+          "version_id": "v20260416-018",
+          "parent_version": null,
+          "commit_message": "随机生成: 蓝方海军陆战队 patrol",
+          "schema_version": "1.0.0"
+        }
+      },
+      {
+        "doc_id": "rand-20260416-ab9a9f",
+        "meta": {
+          "title": "[随机] 蓝方防空连 - patrol",
+          "description": "蓝方防空连 在 B区遭遇地带 执行 patrol",
+          "tags": [
+            "blue",
+            "patrol",
+            "B区遭遇地带"
+          ],
+          "language": "zh",
+          "classification": "SIM"
+        },
+        "entities": [
+          {
+            "entity_id": "unit-blue-4c34f1",
+            "entity_type": "Unit",
+            "name": "蓝方防空连",
+            "name_en": "蓝方防空连",
+            "basic_properties": {
+              "side": "blue",
+              "location": "B区遭遇地带",
+              "status": "active",
+              "unit_type": "armor"
+            },
+            "statistical_properties": {
+              "combat_power": 0.63,
+              "morale": 0.79,
+              "supply_level": 0.86,
+              "casualty_rate": 0.015
+            },
+            "capabilities": {},
+            "constraints": []
+          }
+        ],
+        "events": [
+          {
+            "event_id": "evt-bd950e7d",
+            "event_type": "patrol",
+            "timestamp": "2026-04-15T16:04:59.293061+00:00",
+            "location": "B区遭遇地带",
+            "coordinates": null,
+            "participants": [
+              "unit-blue-4c34f1"
+            ],
+            "description": "蓝方防空连 在 B区遭遇地带 执行 patrol",
+            "outcome": {},
+            "phase": "active"
+          }
+        ],
+        "ontology_version": {
+          "version_id": "v20260416-019",
+          "parent_version": null,
+          "commit_message": "随机生成: 蓝方防空连 patrol",
+          "schema_version": "1.0.0"
+        }
+      },
+      {
+        "doc_id": "rand-20260416-c500e0",
+        "meta": {
+          "title": "[随机] 蓝方海军陆战队 - attack",
+          "description": "蓝方海军陆战队 对 红方工兵营 执行 attack（位于 F区海岸线）",
+          "tags": [
+            "blue",
+            "attack",
+            "F区海岸线"
+          ],
+          "language": "zh",
+          "classification": "SIM"
+        },
+        "entities": [
+          {
+            "entity_id": "unit-blue-f95f76",
+            "entity_type": "Unit",
+            "name": "蓝方海军陆战队",
+            "name_en": "蓝方海军陆战队",
+            "basic_properties": {
+              "side": "blue",
+              "location": "F区海岸线",
+              "status": "active",
+              "unit_type": "infantry"
+            },
+            "statistical_properties": {
+              "combat_power": 0.91,
+              "morale": 0.82,
+              "supply_level": 0.63,
+              "casualty_rate": 0.076
+            },
+            "capabilities": {},
+            "constraints": []
+          },
+          {
+            "entity_id": "unit-red-f8bcba",
+            "entity_type": "Unit",
+            "name": "红方工兵营",
+            "name_en": "红方工兵营",
+            "basic_properties": {
+              "side": "red",
+              "location": "F区海岸线",
+              "status": "active"
+            },
+            "statistical_properties": {
+              "combat_power": 0.87,
+              "morale": 0.89,
+              "supply_level": 0.61
+            },
+            "capabilities": {},
+            "constraints": []
+          }
+        ],
+        "events": [
+          {
+            "event_id": "evt-361a30e7",
+            "event_type": "contact",
+            "timestamp": "2026-04-15T16:04:59.293213+00:00",
+            "location": "F区海岸线",
+            "coordinates": null,
+            "participants": [
+              "unit-blue-f95f76",
+              "unit-red-f8bcba"
+            ],
+            "description": "蓝方海军陆战队 对 红方工兵营 执行 attack（位于 F区海岸线）",
+            "outcome": {
+              "terrain_control": "contested"
+            },
+            "phase": "final"
+          }
+        ],
+        "ontology_version": {
+          "version_id": "v20260416-020",
+          "parent_version": null,
+          "commit_message": "随机生成: 蓝方海军陆战队 attack",
+          "schema_version": "1.0.0"
+        }
+      },
+      {
+        "doc_id": "rand-20260416-6622dd",
         "meta": {
           "title": "[随机] 红方机步旅 - attack",
-          "description": "红方机步旅 对 蓝方装甲旅 执行 attack（位于 H区丛林）",
+          "description": "红方机步旅 对 蓝方防空连 执行 attack（位于 H区丛林）",
           "tags": [
             "red",
             "attack",
@@ -1134,7 +1335,7 @@
         },
         "entities": [
           {
-            "entity_id": "unit-red-baf1cb",
+            "entity_id": "unit-red-acb27c",
             "entity_type": "Unit",
             "name": "红方机步旅",
             "name_en": "红方机步旅",
@@ -1145,28 +1346,28 @@
               "unit_type": "armor"
             },
             "statistical_properties": {
-              "combat_power": 0.67,
-              "morale": 0.63,
-              "supply_level": 0.86,
-              "casualty_rate": 0.073
+              "combat_power": 0.76,
+              "morale": 0.59,
+              "supply_level": 0.57,
+              "casualty_rate": 0.056
             },
             "capabilities": {},
             "constraints": []
           },
           {
-            "entity_id": "unit-blue-af00ae",
+            "entity_id": "unit-blue-be855f",
             "entity_type": "Unit",
-            "name": "蓝方装甲旅",
-            "name_en": "蓝方装甲旅",
+            "name": "蓝方防空连",
+            "name_en": "蓝方防空连",
             "basic_properties": {
               "side": "blue",
               "location": "H区丛林",
               "status": "active"
             },
             "statistical_properties": {
-              "combat_power": 0.71,
-              "morale": 0.68,
-              "supply_level": 0.67
+              "combat_power": 0.64,
+              "morale": 0.5,
+              "supply_level": 0.45
             },
             "capabilities": {},
             "constraints": []
@@ -1174,30 +1375,266 @@
         ],
         "events": [
           {
-            "event_id": "evt-8814be06",
+            "event_id": "evt-244b3c36",
             "event_type": "contact",
-            "timestamp": "2026-04-14T16:41:12.132375+00:00",
+            "timestamp": "2026-04-15T16:04:59.293346+00:00",
             "location": "H区丛林",
             "coordinates": null,
             "participants": [
-              "unit-red-baf1cb",
-              "unit-blue-af00ae"
+              "unit-red-acb27c",
+              "unit-blue-be855f"
             ],
-            "description": "红方机步旅 对 蓝方装甲旅 执行 attack（位于 H区丛林）",
+            "description": "红方机步旅 对 蓝方防空连 执行 attack（位于 H区丛林）",
             "outcome": {
-              "terrain_control": "contested"
+              "terrain_control": "lost"
             },
-            "phase": "final"
+            "phase": "main"
           }
         ],
         "ontology_version": {
-          "version_id": "v20260415-044",
+          "version_id": "v20260416-021",
           "parent_version": null,
           "commit_message": "随机生成: 红方机步旅 attack",
+          "schema_version": "1.0.0"
+        }
+      },
+      {
+        "doc_id": "rand-20260416-f46f5f",
+        "meta": {
+          "title": "[随机] 蓝方工兵连 - retreat",
+          "description": "蓝方工兵连 对 红方装甲营 执行 retreat（位于 E区山地走廊）",
+          "tags": [
+            "blue",
+            "retreat",
+            "E区山地走廊"
+          ],
+          "language": "zh",
+          "classification": "SIM"
+        },
+        "entities": [
+          {
+            "entity_id": "unit-blue-31ead1",
+            "entity_type": "Unit",
+            "name": "蓝方工兵连",
+            "name_en": "蓝方工兵连",
+            "basic_properties": {
+              "side": "blue",
+              "location": "E区山地走廊",
+              "status": "active",
+              "unit_type": "armor"
+            },
+            "statistical_properties": {
+              "combat_power": 0.51,
+              "morale": 0.64,
+              "supply_level": 0.61,
+              "casualty_rate": 0.022
+            },
+            "capabilities": {},
+            "constraints": []
+          },
+          {
+            "entity_id": "unit-red-5be143",
+            "entity_type": "Unit",
+            "name": "红方装甲营",
+            "name_en": "红方装甲营",
+            "basic_properties": {
+              "side": "red",
+              "location": "E区山地走廊",
+              "status": "active"
+            },
+            "statistical_properties": {
+              "combat_power": 0.88,
+              "morale": 0.81,
+              "supply_level": 0.78
+            },
+            "capabilities": {},
+            "constraints": []
+          }
+        ],
+        "events": [
+          {
+            "event_id": "evt-7eb05e95",
+            "event_type": "retreat",
+            "timestamp": "2026-04-15T16:04:59.295257+00:00",
+            "location": "E区山地走廊",
+            "coordinates": null,
+            "participants": [
+              "unit-blue-31ead1",
+              "unit-red-5be143"
+            ],
+            "description": "蓝方工兵连 对 红方装甲营 执行 retreat（位于 E区山地走廊）",
+            "outcome": {
+              "terrain_control": "lost"
+            },
+            "phase": "initial"
+          }
+        ],
+        "ontology_version": {
+          "version_id": "v20260416-022",
+          "parent_version": null,
+          "commit_message": "随机生成: 蓝方工兵连 retreat",
+          "schema_version": "1.0.0"
+        }
+      },
+      {
+        "doc_id": "rand-20260416-05f9ea",
+        "meta": {
+          "title": "[随机] 蓝方装甲旅 - attack",
+          "description": "蓝方装甲旅 对 红方工兵营 执行 attack（位于 H区丛林）",
+          "tags": [
+            "blue",
+            "attack",
+            "H区丛林"
+          ],
+          "language": "zh",
+          "classification": "SIM"
+        },
+        "entities": [
+          {
+            "entity_id": "unit-blue-91cfe7",
+            "entity_type": "Unit",
+            "name": "蓝方装甲旅",
+            "name_en": "蓝方装甲旅",
+            "basic_properties": {
+              "side": "blue",
+              "location": "H区丛林",
+              "status": "active",
+              "unit_type": "recon"
+            },
+            "statistical_properties": {
+              "combat_power": 0.76,
+              "morale": 0.86,
+              "supply_level": 0.83,
+              "casualty_rate": 0.061
+            },
+            "capabilities": {},
+            "constraints": []
+          },
+          {
+            "entity_id": "unit-red-f307e0",
+            "entity_type": "Unit",
+            "name": "红方工兵营",
+            "name_en": "红方工兵营",
+            "basic_properties": {
+              "side": "red",
+              "location": "H区丛林",
+              "status": "active"
+            },
+            "statistical_properties": {
+              "combat_power": 0.52,
+              "morale": 0.82,
+              "supply_level": 0.78
+            },
+            "capabilities": {},
+            "constraints": []
+          }
+        ],
+        "events": [
+          {
+            "event_id": "evt-bc3c5d07",
+            "event_type": "contact",
+            "timestamp": "2026-04-15T16:04:59.295475+00:00",
+            "location": "H区丛林",
+            "coordinates": null,
+            "participants": [
+              "unit-blue-91cfe7",
+              "unit-red-f307e0"
+            ],
+            "description": "蓝方装甲旅 对 红方工兵营 执行 attack（位于 H区丛林）",
+            "outcome": {
+              "terrain_control": "contested"
+            },
+            "phase": "main"
+          }
+        ],
+        "ontology_version": {
+          "version_id": "v20260416-023",
+          "parent_version": null,
+          "commit_message": "随机生成: 蓝方装甲旅 attack",
+          "schema_version": "1.0.0"
+        }
+      }
+    ],
+    "default": [
+      {
+        "doc_id": "rand-20260417-0f83fe",
+        "meta": {
+          "title": "[随机] 红方炮兵团 - retreat",
+          "description": "红方炮兵团 对 蓝方机步营 执行 retreat（位于 F区海岸线）",
+          "tags": [
+            "red",
+            "retreat",
+            "F区海岸线"
+          ],
+          "language": "zh",
+          "classification": "SIM"
+        },
+        "entities": [
+          {
+            "entity_id": "unit-red-80f30f",
+            "entity_type": "Unit",
+            "name": "红方炮兵团",
+            "name_en": "红方炮兵团",
+            "basic_properties": {
+              "side": "red",
+              "location": "F区海岸线",
+              "status": "active",
+              "unit_type": "artillery"
+            },
+            "statistical_properties": {
+              "combat_power": 0.84,
+              "morale": 0.64,
+              "supply_level": 0.6,
+              "casualty_rate": 0.036
+            },
+            "capabilities": {},
+            "constraints": []
+          },
+          {
+            "entity_id": "unit-blue-8230b7",
+            "entity_type": "Unit",
+            "name": "蓝方机步营",
+            "name_en": "蓝方机步营",
+            "basic_properties": {
+              "side": "blue",
+              "location": "F区海岸线",
+              "status": "active"
+            },
+            "statistical_properties": {
+              "combat_power": 0.49,
+              "morale": 0.89,
+              "supply_level": 0.83
+            },
+            "capabilities": {},
+            "constraints": []
+          }
+        ],
+        "events": [
+          {
+            "event_id": "evt-aba9eb6b",
+            "event_type": "retreat",
+            "timestamp": "2026-04-16T17:23:27.627259+00:00",
+            "location": "F区海岸线",
+            "coordinates": null,
+            "participants": [
+              "unit-red-80f30f",
+              "unit-blue-8230b7"
+            ],
+            "description": "红方炮兵团 对 蓝方机步营 执行 retreat（位于 F区海岸线）",
+            "outcome": {
+              "terrain_control": "lost"
+            },
+            "phase": "initial"
+          }
+        ],
+        "ontology_version": {
+          "version_id": "v20260417-005",
+          "parent_version": null,
+          "commit_message": "随机生成: 红方炮兵团 retreat",
           "schema_version": "1.0.0"
         }
       }
     ]
   },
-  "updated_at": "2026-04-14T16:41:12.319562+00:00"
+  "updated_at": "2026-04-16T17:23:27.639440+00:00"
 }

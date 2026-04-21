@@ -220,6 +220,4 @@ class MockDataWebService:
 
 ## 7. 相关文档
 
-- [ADR-018: 领域模拟推演引擎](../../adr/ADR-018_domain_simulator_engine.md)
-- [Simulator 模拟推演引擎](../simulator/DESIGN.md)
 - [Ontology 本体模块](../ontology/DESIGN.md)

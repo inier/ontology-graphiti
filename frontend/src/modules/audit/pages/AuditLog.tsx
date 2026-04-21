@@ -1,0 +1,322 @@
+import { useState, useEffect } from 'react';
+import { Table, Card, Select, DatePicker, Row, Col, Tag, Statistic, Button, Space, message } from 'antd';
+import { ReloadOutlined } from '@ant-design/icons';
+import { api } from '../../shared/services/api';
+import type { AuditEvent } from '../../shared/services/api';
+import type { Dayjs } from 'dayjs';
+import dayjs from 'dayjs';
+
+const { RangePicker } = DatePicker;
+
+export function AuditLog() {
+  const [events, setEvents] = useState<AuditEvent[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [total, setTotal] = useState(0);
+  const [stats, setStats] = useState<{
+    total: number;
+    by_type: Record<string, number>;
+    by_severity: Record<string, number>;
+    by_status: Record<string, number>;
+  } | null>(null);
+
+  const [filters, setFilters] = useState({
+    event_type: undefined as string | undefined,
+    severity: undefined as string | undefined,
+    start_time: undefined as string | undefined,
+    end_time: undefined as string | undefined,
+  });
+
+  const [pagination, setPagination] = useState({
+    current: 1,
+    pageSize: 20,
+  });
+
+  useEffect(() => {
+    loadStats();
+    loadEvents();
+  }, [pagination.current, pagination.pageSize]);
+
+  useEffect(() => {
+    loadEvents();
+  }, [filters]);
+
+  const loadStats = async () => {
+    try {
+      const data = await api.getAuditStats();
+      setStats(data);
+    } catch (error) {
+      console.error('加载统计失败', error);
+    }
+  };
+
+  const loadEvents = async () => {
+    try {
+      setLoading(true);
+      const data = await api.listAuditEvents({
+        ...filters,
+        limit: pagination.pageSize,
+        offset: (pagination.current - 1) * pagination.pageSize,
+      });
+      setEvents(data.events || []);
+      setTotal(data.total);
+    } catch (error) {
+      console.error('加载审计事件失败', error);
+      message.error('加载审计事件失败');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleFilterChange = (key: keyof typeof filters, value: string | undefined) => {
+    setFilters(prev => ({ ...prev, [key]: value }));
+    setPagination(prev => ({ ...prev, current: 1 }));
+  };
+
+  const handleTimeRangeChange = (dates: [Dayjs | null, Dayjs | null] | null) => {
+    if (dates && dates[0] && dates[1]) {
+      setFilters(prev => ({
+        ...prev,
+        start_time: dates[0]?.toISOString(),
+        end_time: dates[1]?.toISOString(),
+      }));
+    } else {
+      setFilters(prev => ({
+        ...prev,
+        start_time: undefined,
+        end_time: undefined,
+      }));
+    }
+    setPagination(prev => ({ ...prev, current: 1 }));
+  };
+
+  const handleRefresh = () => {
+    loadStats();
+    loadEvents();
+  };
+
+  const getSeverityColor = (severity: string) => {
+    const colorMap: Record<string, string> = {
+      info: 'blue',
+      warning: 'orange',
+      error: 'red',
+      critical: 'purple',
+    };
+    return colorMap[severity] || 'default';
+  };
+
+  const getStatusColor = (status: string) => {
+    const colorMap: Record<string, string> = {
+      success: 'green',
+      failure: 'red',
+      warning: 'orange',
+    };
+    return colorMap[status] || 'default';
+  };
+
+  const columns = [
+    {
+      title: '时间',
+      dataIndex: 'timestamp',
+      key: 'timestamp',
+      width: 180,
+      render: (timestamp: string) => dayjs(timestamp).format('YYYY-MM-DD HH:mm:ss'),
+    },
+    {
+      title: '事件类型',
+      dataIndex: 'event_type',
+      key: 'event_type',
+      width: 150,
+      render: (type: string) => <Tag color="blue">{type}</Tag>,
+    },
+    {
+      title: '严重程度',
+      dataIndex: 'severity',
+      key: 'severity',
+      width: 100,
+      render: (severity: string) => (
+        <Tag color={getSeverityColor(severity)}>{severity.toUpperCase()}</Tag>
+      ),
+    },
+    {
+      title: '操作者',
+      dataIndex: 'actor_name',
+      key: 'actor_name',
+      width: 120,
+    },
+    {
+      title: '动作',
+      dataIndex: 'action',
+      key: 'action',
+    },
+    {
+      title: '资源类型',
+      dataIndex: 'resource_type',
+      key: 'resource_type',
+      width: 100,
+    },
+    {
+      title: '资源ID',
+      dataIndex: 'resource_id',
+      key: 'resource_id',
+      width: 120,
+      ellipsis: true,
+    },
+    {
+      title: '状态',
+      dataIndex: 'result_status',
+      key: 'result_status',
+      width: 100,
+      render: (status: string) => (
+        <Tag color={getStatusColor(status)}>{status}</Tag>
+      ),
+    },
+    {
+      title: '追踪ID',
+      dataIndex: 'trace_id',
+      key: 'trace_id',
+      width: 120,
+      ellipsis: true,
+    },
+  ];
+
+  const eventTypeOptions = [
+    { value: 'system.startup', label: '系统启动' },
+    { value: 'system.shutdown', label: '系统关闭' },
+    { value: 'system.action', label: '系统操作' },
+    { value: 'user.login', label: '用户登录' },
+    { value: 'user.logout', label: '用户登出' },
+    { value: 'workspace.create', label: '创建工作空间' },
+    { value: 'workspace.update', label: '更新工作空间' },
+    { value: 'workspace.delete', label: '删除工作空间' },
+  ];
+
+  const severityOptions = [
+    { value: 'info', label: '信息' },
+    { value: 'warning', label: '警告' },
+    { value: 'error', label: '错误' },
+    { value: 'critical', label: '严重' },
+  ];
+
+  return (
+    <div style={{ padding: 24 }}>
+      <Row gutter={[16, 16]}>
+        <Col span={6}>
+          <Card>
+            <Statistic title="总事件数" value={stats?.total ?? 0} loading={loading} />
+          </Card>
+        </Col>
+        <Col span={6}>
+          <Card>
+            <Statistic
+              title="成功事件"
+              value={stats?.by_status?.success ?? 0}
+              valueStyle={{ color: '#52c41a' }}
+            />
+          </Card>
+        </Col>
+        <Col span={6}>
+          <Card>
+            <Statistic
+              title="失败事件"
+              value={stats?.by_status?.failure ?? 0}
+              valueStyle={{ color: '#ff4d4f' }}
+            />
+          </Card>
+        </Col>
+        <Col span={6}>
+          <Card>
+            <Statistic
+              title="警告事件"
+              value={stats?.by_status?.warning ?? 0}
+              valueStyle={{ color: '#faad14' }}
+            />
+          </Card>
+        </Col>
+      </Row>
+
+      <Card title="审计日志" style={{ marginTop: 16 }}>
+        <Space wrap style={{ marginBottom: 16 }}>
+          <Select
+            placeholder="事件类型"
+            allowClear
+            style={{ width: 150 }}
+            value={filters.event_type}
+            onChange={(value) => handleFilterChange('event_type', value)}
+            options={eventTypeOptions}
+          />
+          <Select
+            placeholder="严重程度"
+            allowClear
+            style={{ width: 120 }}
+            value={filters.severity}
+            onChange={(value) => handleFilterChange('severity', value)}
+            options={severityOptions}
+          />
+          <RangePicker
+            showTime
+            onChange={handleTimeRangeChange}
+            placeholder={['开始时间', '结束时间'] as [string, string]}
+          />
+          <Button icon={<ReloadOutlined />} onClick={handleRefresh}>
+            刷新
+          </Button>
+        </Space>
+
+        <Table
+          columns={columns}
+          dataSource={events}
+          rowKey="id"
+          loading={loading}
+          pagination={{
+            current: pagination.current,
+            pageSize: pagination.pageSize,
+            total: total,
+            showSizeChanger: true,
+            showQuickJumper: true,
+            showTotal: (tot) => `共 ${tot} 条记录`,
+            onChange: (page, pageSize) => {
+              setPagination({ current: page, pageSize });
+            },
+          }}
+        />
+      </Card>
+
+      <Card title="事件统计" style={{ marginTop: 16 }}>
+        <Row gutter={[16, 16]}>
+          <Col span={12}>
+            <Card title="按事件类型" size="small">
+              {stats?.by_type && Object.entries(stats.by_type).length > 0 ? (
+                <Space direction="vertical" style={{ width: '100%' }}>
+                  {Object.entries(stats.by_type).map(([type, count]) => (
+                    <div key={type} style={{ display: 'flex', justifyContent: 'space-between' }}>
+                      <Tag>{type}</Tag>
+                      <span>{count}</span>
+                    </div>
+                  ))}
+                </Space>
+              ) : (
+                <div style={{ textAlign: 'center', color: '#999' }}>暂无数据</div>
+              )}
+            </Card>
+          </Col>
+          <Col span={12}>
+            <Card title="按严重程度" size="small">
+              {stats?.by_severity && Object.entries(stats.by_severity).length > 0 ? (
+                <Space direction="vertical" style={{ width: '100%' }}>
+                  {Object.entries(stats.by_severity).map(([severity, count]) => (
+                    <div key={severity} style={{ display: 'flex', justifyContent: 'space-between' }}>
+                      <Tag color={getSeverityColor(severity)}>{severity.toUpperCase()}</Tag>
+                      <span>{count}</span>
+                    </div>
+                  ))}
+                </Space>
+              ) : (
+                <div style={{ textAlign: 'center', color: '#999' }}>暂无数据</div>
+              )}
+            </Card>
+          </Col>
+        </Row>
+      </Card>
+    </div>
+  );
+}

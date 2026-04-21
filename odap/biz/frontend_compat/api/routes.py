@@ -9,7 +9,7 @@ import asyncio
 from datetime import datetime
 from odap.infra.security import get_audit_logger, AuditFilter, AuditEventType, AuditSeverity, ActorInfo, ResourceInfo, ActionResult
 
-router = APIRouter(prefix="/api/frontend-compat", tags=["frontend-compat"])
+router = APIRouter(prefix="/api", tags=["frontend-compat"])
 
 # 导入原始的 ScenarioStore
 import sys

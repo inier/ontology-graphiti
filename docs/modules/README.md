@@ -131,7 +131,7 @@ M-03 Ontology → M-04 Workspace → M-05 Hook → M-07 AuditLog
 
 ### M-17 Web 前端
 - **职责**: 用户交互界面，全流程可视化
-- **技术栈**: React 18 + TypeScript + Ant Design 5 + Zustand + Vite
+- **技术栈**: React 19 + TypeScript + Ant Design 6 + Zustand + Vite
 - **关键页面**: 智能问答(P0)、审计日志(P0)、工具管理(P1)
 
 ---

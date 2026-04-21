@@ -93,9 +93,11 @@ class GraphManager:
             return
 
         self.graph: Optional[Graphiti] = None
-        self.neo4j_uri = neo4j_uri or os.getenv('NEO4J_URI', 'bolt://localhost:7687')
-        self.neo4j_user = neo4j_user or os.getenv('NEO4J_USER', 'neo4j')
-        self.neo4j_password = neo4j_password or os.getenv('NEO4J_PASSWORD', 'neo4j123456')
+        # 从安全配置模块读取，确保能够正确获取值
+        from odap.infra.security import security_config
+        self.neo4j_uri = neo4j_uri or security_config.NEO4J_URI
+        self.neo4j_user = neo4j_user or security_config.NEO4J_USER
+        self.neo4j_password = neo4j_password or security_config.NEO4J_PASSWORD
         self.neo4j_driver = None  # Neo4j Driver 直连
         self.fallback_graph = None  # networkx 内存图（fallback 模式时创建）
         self.reserved_tasks = []
@@ -162,6 +164,9 @@ class GraphManager:
         # 第三层：NetworkX fallback
         self._use_fallback_mode()
 
+    from odap.infra.monitoring import monitor_performance
+
+    @monitor_performance('database_queries', 'load_data_to_neo4j')
     def _load_data_to_neo4j(self):
         """将模拟数据加载到 Neo4j（通过 Cypher）"""
         if not self.neo4j_driver:
@@ -181,22 +186,55 @@ class GraphManager:
             all_entities.extend(data.get("weapon_systems", []))
             all_entities.extend(data.get("civilian_infrastructure", []))
 
+            # 批量加载数据，提高性能
+            batch_size = 100
+            batches = [all_entities[i:i+batch_size] for i in range(0, len(all_entities), batch_size)]
             count = 0
-            for entity in all_entities:
-                entity_id = entity["id"]
-                entity_type = entity.get("type", "Unknown")
-                props = entity.get("properties", {})
-                # MERGE 避免重复
-                props_str = ", ".join(f"{k}: ${k}" for k in props.keys())
-                labels = f"Entity:{entity_type.replace(' ', '_')}"
-                cypher = f"MERGE (n:{labels} {{id: $eid}}) SET n += {{{props_str}}}"
+
+            for batch in batches:
                 try:
-                    params = {"eid": entity_id}
-                    params.update(props)
-                    session.run(cypher, **params)
-                    count += 1
+                    # 为每个实体类型生成单独的批量操作
+                    # 按实体类型分组
+                    entities_by_type = {}
+                    for entity in batch:
+                        entity_type = entity.get("type", "Unknown").replace(' ', '_')
+                        if entity_type not in entities_by_type:
+                            entities_by_type[entity_type] = []
+                        entities_by_type[entity_type].append(entity)
+                    
+                    # 对每种类型执行批量操作
+                    for entity_type, entities in entities_by_type.items():
+                        labels = f"Entity:{entity_type}"
+                        cypher = f"""
+                        UNWIND $entities AS entity
+                        MERGE (n:{labels} {{id: entity.id}})
+                        SET n += entity.properties
+                        """
+                        params = {
+                            "entities": [
+                                {
+                                    "id": entity["id"],
+                                    "properties": entity.get("properties", {})
+                                }
+                                for entity in entities
+                            ]
+                        }
+                        result = session.run(cypher, **params)
+                        count += len(entities)
                 except Exception as e:
-                    print(f"  Neo4j 加载实体失败 {entity_id}: {e}")
+                    print(f"  Neo4j 批量加载失败: {e}")
+                    # 批量失败后尝试单个加载
+                    for entity in batch:
+                        try:
+                            entity_id = entity["id"]
+                            entity_type = entity.get("type", "Unknown")
+                            props = entity.get("properties", {})
+                            labels = f"Entity:{entity_type.replace(' ', '_')}"
+                            cypher = f"MERGE (n:{labels} {{id: $eid}}) SET n += $props"
+                            session.run(cypher, eid=entity_id, props=props)
+                            count += 1
+                        except Exception as e2:
+                            print(f"  Neo4j 加载实体失败 {entity_id}: {e2}")
 
             print(f"Neo4j 数据加载完成: {count} 个实体")
 
@@ -1389,7 +1427,7 @@ class GraphManager:
 
         return "相关实体数据：\n" + "\n".join(parts)
 
-    def add_episode(self, name: str, content: str,
+    async def add_episode(self, name: str, content: str,
                     source_description: str = "",
                     reference_time=None) -> bool:
         """
@@ -1410,21 +1448,22 @@ class GraphManager:
         if reference_time is None:
             reference_time = datetime.now(timezone.utc)
 
-        async def add():
-            try:
-                await self.graph.add_episode(
-                    name=name,
-                    content=content,
-                    source_description=source_description,
-                    reference_time=reference_time,
-                    update_communities=False,
-                )
-                return True
-            except Exception as e:
-                print(f"Graphiti 添加 Episode 失败: {e}")
+        try:
+            if self.graph is None:
+                print("Graphiti 未初始化，无法添加 Episode")
                 return False
-
-        return asyncio.run(add())
+            
+            await self.graph.add_episode(
+                name=name,
+                content=content,
+                source_description=source_description,
+                reference_time=reference_time,
+                update_communities=False,
+            )
+            return True
+        except Exception as e:
+            print(f"Graphiti 添加 Episode 失败: {e}")
+            return False
 
     def add_episodes_batch(self, episodes: List[Dict], batch_size: int = 10) -> Dict[str, Any]:
         """

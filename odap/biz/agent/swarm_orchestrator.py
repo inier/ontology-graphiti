@@ -626,7 +626,7 @@ class DomainSwarm:
             episode_text += f"完成阶段: {[p.value for p in mission_ctx['phases_completed']]}\n"
             episode_text += f"最终决策: {json.dumps(mission_ctx.get('final_decision', {}), ensure_ascii=False, default=str)}"
 
-            success = self.graph_manager.add_episode(
+            success = await self.graph_manager.add_episode(
                 name=f"mission_{datetime.now(timezone.utc).strftime('%Y%m%d%H%M%S')}",
                 content=episode_text,
                 source_description="DomainSwarm/OODA",

@@ -1,0 +1,1 @@
+export { ConfigCenter } from './pages/ConfigCenter';

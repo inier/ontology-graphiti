@@ -1,0 +1,1 @@
+export { VersionHistory } from './pages/VersionHistory';

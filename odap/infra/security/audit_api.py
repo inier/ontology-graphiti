@@ -87,7 +87,7 @@ async def query_audit_events(
         
         return {
             "total": len(result),
-            "items": result,
+            "events": result,
             "limit": limit,
             "offset": offset
         }

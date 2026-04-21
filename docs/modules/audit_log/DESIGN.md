@@ -1,7 +1,7 @@
 # 审计日志模块 (Audit Logger) - 设计文档
 
-> **模块 ID**: M-07 | **优先级**: P0 | **相关 ADR**: ADR-008, ADR-042
-> **版本**: 2.0.0 | **日期**: 2026-04-19 | **架构层**: L1 基础设施层
+> **模块 ID**: M-07 | **优先级**: P0 | **相关 ADR**: ADR-008, ADR-042, GRAPHITI_INTEGRATION
+> **版本**: 2.1.0 | **日期**: 2026-04-20 | **架构层**: L1 基础设施层
 
 ---
 
@@ -300,6 +300,15 @@ class FileAuditChannel(AuditChannel):
     每日滚动，自动压缩。
     """
     ...
+
+class GraphitiAuditChannel(AuditChannel):
+    """
+    Graphiti 审计通道（Graphiti集成实现）
+
+    将审计日志存储到 Graphiti 知识图谱中，
+    支持图遍历查询和时态分析。
+    """
+    ...
 ```
 
 ### 3.4 AuditEnricher（审计丰富器）
@@ -512,8 +521,8 @@ class AuditHook:
 
 - [x] AuditEvent 模型定义
 - [x] AuditLogger 基础接口
-- [ ] SQLiteAuditChannel 实现
-- [ ] AuditSpan 耗时追踪
+- [x] SQLiteAuditChannel 实现
+- [x] AuditSpan 耗时追踪
 
 ### Phase 1
 
@@ -528,3 +537,89 @@ class AuditHook:
 - [ ] 数据保留策略自动执行
 - [ ] 审计统计与报表
 - [ ] 跨工作空间审计查询
+
+---
+
+## 10. Graphiti 集成实现
+
+### 10.1 概述
+
+除了 SQLite 主存储方案外，还实现了 **Graphiti 集成**，将审计日志作为本体存储到 Graphiti 知识图谱中。
+
+详见：[GRAPHITI_INTEGRATION.md](./GRAPHITI_INTEGRATION.md)
+
+### 10.2 审计本体模型
+
+| 实体类型 | 说明 | 关系 |
+|---------|------|------|
+| **AuditLog** | 审计日志主实体 | 关联到 User, Resource, Service |
+| **AuditUser** | 用户实体 | 执行 EXECUTED 关系 |
+| **AuditResource** | 资源实体 | 被 AFFECTED 关系 |
+| **AuditService** | 服务实体 | 生成 GENERATED 关系 |
+
+### 10.3 技术特点
+
+| 特性 | SQLite (ADR-042) | Graphiti集成 |
+|------|------------------|--------------|
+| 存储后端 | SQLite | Neo4j |
+| 数据模型 | 关系表 | 本体图 |
+| 查询能力 | SQL查询 | 图遍历、Cypher |
+| 时态支持 | 基础索引 | Graphiti双时态 |
+| 部署需求 | 零额外组件 | 复用Neo4j |
+| 防篡改 | 哈希链 | Graphiti哈希链 |
+
+### 10.4 架构关系
+
+```
+审计日志存储
+├── SQLite主存储（ADR-042）← 默认方案
+│   └── 适用于：标准审计、合规要求、防篡改
+└── Graphiti集成 ← 补充方案
+    └── 适用于：图分析、时态查询、多本体关联
+```
+
+### 10.5 使用场景
+
+- 需要将审计日志与其他本体数据关联分析
+- 需要利用 Graphiti 的时态查询能力
+- 需要进行用户行为图谱分析
+- 需要进行操作链路追踪和可视化
+
+### 10.6 快速使用
+
+```python
+from odap.infra.security import audit_log, log_audit, get_audit_logs
+
+# 装饰器方式
+@audit_log(action="INGEST_FILE", resource="file")
+async def ingest_file(request: Request, file: UploadFile = File(...)):
+    pass
+
+# 手动记录
+log_audit(action="user_login", resource="auth", user=username)
+
+# 查询审计日志
+logs = get_audit_logs(user="admin", limit=50)
+```
+
+---
+
+## 11. 文件清单
+
+### 11.1 核心文件
+
+| 文件路径 | 说明 |
+|---------|------|
+| `odap/infra/security/audit_storage.py` | 审计存储适配器（Graphiti集成） |
+| `odap/infra/security/unified_audit.py` | 统一审计模块 |
+| `odap/infra/security/__init__.py` | 安全模块导出 |
+| `odap/infra/security/config.py` | 安全配置 |
+| `odap/infra/security/jwt_auth.py` | JWT认证 |
+
+### 11.2 文档文件
+
+| 文件路径 | 说明 |
+|---------|------|
+| `docs/modules/audit_log/DESIGN.md` | 模块设计文档 |
+| `docs/modules/audit_log/GRAPHITI_INTEGRATION.md` | Graphiti集成实现文档 |
+| `docs/adr/ADR-042_audit_log_storage_query.md` | 架构决策记录 |

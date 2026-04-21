@@ -1,336 +1,174 @@
-# 情报分析与决策系统
+# Graphiti - 本体驱动分析决策平台
 
-基于 Graphiti + OPA + Skill 架构的智能决策系统，参考 Palantir AIP 架构设计。
+**Graphiti** 是一个通用的本体驱动分析决策平台（Ontology-Driven Analysis & Decision Platform, ODAP），旨在通过工作空间机制实现多场景隔离，支持任意领域的本体建模和分析决策。
 
-## 🏗️ 核心架构
+## 核心功能
 
-系统采用六层架构，参考 Palantir AIP 架构设计：
+- **本体管理**：领域本体设计、新增、更新维护
+- **Skill 管理**：技能注册、配置、热插拔
+- **多智能体调度**：意图识别、Agent 协同、OODA 闭环
+- **问答链路**：自然语言问答、图表展示、过程解释
+- **权限管控**：细粒度权限、OPA 策略、角色绑定
+- **可视化配置**：本体、技能、策略、规则统一管理
+- **事件模拟**：随机事件、自动/手动输入
+- **工作空间**：场景隔离、导入导出、切换
 
-```
-┌─────────────────────────────────────────────────────────────────┐
-│                         1. 交互层                                  │
-│                    用户/指挥官 - 自然语言指令                        │
-└─────────────────────────────────────────────────────────────────┘
-                              │
-                              ▼
-┌─────────────────────────────────────────────────────────────────┐
-│                         2. 调度层                                  │
-│              LLM Dispatcher + 语义路由 - 意图识别                  │
-└─────────────────────────────────────────────────────────────────┘
-                              │
-                              ▼
-┌─────────────────────────────────────────────────────────────────┐
-│                         3. 治理层                                  │
-│                    OPA (策略引擎) - 权限校验                       │
-└─────────────────────────────────────────────────────────────────┘
-                              │
-                              ▼
-┌─────────────────────────────────────────────────────────────────┐
-│                         4. 上下文层                                │
-│              Graphiti (检索器) - 参数提取                          │
-└─────────────────────────────────────────────────────────────────┘
-                              │
-                              ▼
-┌─────────────────────────────────────────────────────────────────┐
-│                         5. 执行层                                  │
-│                   Skill Executor - 业务逻辑执行                      │
-└─────────────────────────────────────────────────────────────────┘
-                              │
-                              ▼
-┌─────────────────────────────────────────────────────────────────┐
-│                         6. 记忆层                                  │
-│              Graphiti (写入器) - 状态更新                          │
-└─────────────────────────────────────────────────────────────────┘
-```
+## 技术栈
 
-## 📂 项目目录结构
+- **后端**：Python 3.11+, FastAPI, Neo4j/NetworkX, OpenAI API
+- **前端**：React, Ant Design, G6, Leaflet
+- **基础设施**：OpenHarness, Graphiti, OPA, MCP
+
+## 项目结构
 
 ```
 graphiti/
-├── main.py                     # 系统入口
-├── config.py                   # 配置管理
-├── requirements.txt            # 依赖列表
-│
-├── core/                       # 核心层
-│   ├── __init__.py
-│   ├── graph_manager.py        # Graphiti图谱管理
-│   ├── orchestrator.py         # 智能体编排器
-│   ├── opa_manager.py          # OPA策略管理
-│   ├── intelligence_collector.py # 情报自动收集
-│   └── decision_recommender.py  # 打击决策推荐
-│
-├── skills/                     # 技能层
-│   ├── __init__.py             # 技能自动注册
-│   ├── intelligence.py          # 情报技能 (2个)
-│   ├── operations.py            # 作战技能 (2个)
-│   ├── analysis.py              # 分析技能 (6个)
-│   ├── recommendation.py        # 推荐技能 (4个)
-│   ├── task_management.py       # 任务管理技能 (6个)
-│   ├── ontology_management.py   # 本体管理技能 (9个)
-│   ├── policy.py               # 策略技能 (10个)
-│   ├── computation.py           # 计算推理技能 (4个)
-│   ├── visualization_skill.py    # 可视化技能 (4个)
-│   └── planning.py              # 规划编排技能 (4个)
-│
-├── data/                       # 数据层
-│   ├── __init__.py
-│   └── simulation_data.py       # 模拟数据生成
-│
-├── ontology/                   # 本体层
-│   ├── __init__.py
-│   ├── domain_ontology.py   # 领域本体定义
-│   └── ontology_manager.py       # 本体管理器
-│
-├── visualization/              # 可视化层
-│   ├── __init__.py
-│   ├── visualization.py         # 态势可视化
-│   └── dialog_interface.py      # 对话界面
-│
-├── core/                       # 策略文件
-│   └── opa_policy.rego         # OPA策略定义
-│
-├── docs/                       # 文档
-│   └── req-alpha.md            # 需求文档
-│
-└── tests/                      # 测试
-    └── test_system.py           # 系统测试
+├── app/                # 主应用入口
+├── assets/             # 静态资源
+├── docker/             # Docker配置
+├── docs/               # 文档
+├── frontend/           # 前端项目
+│   ├── src/            # 前端源码
+│   └── public/         # 前端静态资源
+├── odap/               # 核心业务逻辑
+│   ├── biz/            # 业务模块
+│   │   ├── agent/              # Agent 协同模块
+│   │   ├── audit_logging/      # 审计日志模块
+│   │   ├── event_simulator/    # 事件模拟模块
+│   │   ├── frontend_compat/    # 前端兼容层
+│   │   ├── hook_system/        # Hook 系统模块
+│   │   ├── mcp_adapter/        # MCP 适配器模块
+│   │   ├── ontology/           # 本体管理模块
+│   │   ├── skill_system/       # 技能系统模块
+│   │   └── workspace/          # 工作空间管理模块
+│   ├── infra/          # 基础设施
+│   │   ├── config/             # 配置管理
+│   │   ├── events/             # 事件系统
+│   │   ├── graph/              # 图谱服务
+│   │   ├── llm/                # LLM 服务
+│   │   ├── monitoring/         # 性能监控
+│   │   ├── opa/                # OPA 策略
+│   │   ├── resilience/         # 韧性系统
+│   │   └── security/           # 安全配置
+│   ├── storage/        # 存储目录
+│   ├── tools/          # 领域工具
+│   └── web/            # Web 服务
+├── src/                # 入口脚本
+├── tests/              # 测试目录
+├── .env                # 环境变量
+├── .env.example        # 环境变量模板
+├── .gitignore          # Git 忽略文件
+├── main.py             # 主入口
+├── requirements.txt    # 依赖管理
+└── start.sh            # 启动脚本
 ```
 
-## 🎯 Skill 体系 (共56个)
+## 快速开始
 
-### 1. 记忆与感知类 (9个) - ontology_management.py
+### 环境准备
 
-| Skill | 描述 |
-|-------|------|
-| query_ontology | 查询本体 |
-| export_ontology | 导出本体 |
-| import_ontology | 导入本体 |
-| list_ontology_versions | 列出本体版本 |
-| rollback_ontology | 回滚本体版本 |
-| get_current_ontology | 获取当前本体 |
-| update_ontology | 更新本体 |
-| get_entity_history | 获取实体历史 |
-| search_ontology_hybrid | 混合检索本体 |
+1. **Python 环境**：Python 3.11+  
+2. **Neo4j**：（可选）用于生产环境  
+3. **API 密钥**：OpenAI API 密钥（用于 LLM 功能）
 
-### 2. 治理与合规类 (10个) - policy.py
-
-| Skill | 描述 |
-|-------|------|
-| simulate_policy_execution | 模拟策略执行 |
-| get_policy_version | 获取策略版本 |
-| rollback_policy | 回退策略版本 |
-| export_policy | 导出策略 |
-| import_policy | 导入策略 |
-| list_policy_versions | 列出策略版本 |
-| rollback_policy_version | 回滚策略版本 |
-| check_permission | 检查权限 |
-| get_policy_history | 获取策略执行历史 |
-| clear_policy_history | 清除策略执行历史 |
-
-### 3. 情报类 (2个) - intelligence.py
-
-| Skill | 描述 |
-|-------|------|
-| search_radar | 搜索雷达 |
-| analyze_domain | 分析战场态势 |
-
-### 4. 作战类 (2个) - operations.py
-
-| Skill | 描述 |
-|-------|------|
-| attack_target | 攻击目标 |
-| command_unit | 指挥部队 |
-
-### 5. 分析类 (6个) - analysis.py
-
-| Skill | 描述 |
-|-------|------|
-| analyze_entity_status | 分析实体状态 |
-| analyze_battle_events | 分析战场事件 |
-| analyze_force_comparison | 分析力量对比 |
-| analyze_weapon_capabilities | 分析武器能力 |
-| analyze_civilian_infrastructure | 分析民用基础设施 |
-| get_domain_summary | 获取战场态势摘要 |
-
-### 6. 推荐类 (4个) - recommendation.py
-
-| Skill | 描述 |
-|-------|------|
-| recommend_strike_targets | 推荐打击目标 |
-| recommend_task_planning | 推荐任务规划 |
-| recommend_force_deployment | 推荐兵力部署 |
-| check_strike_risk | 检查打击风险 |
-
-### 7. 任务管理类 (6个) - task_management.py
-
-| Skill | 描述 |
-|-------|------|
-| reserve_task | 预留任务 |
-| get_reserved_tasks | 获取所有预留任务 |
-| clear_reserved_tasks | 清除所有预留任务 |
-| get_task_by_id | 根据ID获取任务 |
-| cancel_task | 取消任务 |
-| query_tasks_by_status | 根据状态查询任务 |
-
-### 8. 计算推理类 (4个) - computation.py
-
-| Skill | 描述 |
-|-------|------|
-| calculate_distance | 计算距离 |
-| predict_outcome | 预测攻击结果 |
-| analyze_threat_level | 分析威胁等级 |
-| calculate_strike_damage | 计算打击毁伤 |
-
-### 9. 可视化类 (4个) - visualization_skill.py
-
-| Skill | 描述 |
-|-------|------|
-| generate_map_overlay | 生成地图叠加层 |
-| summarize_mission | 生成任务摘要 |
-| generate_domain_report | 生成战场态势报告 |
-| generate_situation_awareness | 生成态势感知数据 |
-
-### 10. 规划编排类 (4个) - planning.py
-
-| Skill | 描述 |
-|-------|------|
-| create_plan | 创建执行计划 |
-| execute_workflow | 执行工作流 |
-| validate_plan | 验证计划可行性 |
-| estimate_resources | 估算资源需求 |
-
-## 🔧 技术栈
-
-| 层级 | 技术组件 | 作用 |
-|------|----------|------|
-| **基础设施** | Python 3.8+ | 运行环境 |
-| **核心图谱** | Neo4j + Graphiti / NetworkX (回退) | 知识存储与动态记忆 |
-| **数据建模** | Pydantic | 本体定义与数据验证 |
-| **AI核心** | LangChain (可选) | 逻辑推理与生成 |
-| **前端可视化** | Plotly + Matplotlib | 3D态势感知与图谱交互 |
-| **安全** | OPA (Open Policy Agent) | 细粒度权限控制 |
-
-## 🚀 快速开始
-
-### 1. 安装依赖
+### 安装依赖
 
 ```bash
 pip install -r requirements.txt
 ```
 
-### 2. 配置 Neo4j (可选)
+### 配置环境变量
 
-如果使用 Neo4j 作为图数据库：
+复制 `.env.example` 文件为 `.env`，并填写相关配置：
 
 ```bash
-# 安装 Neo4j
-brew install neo4j  # macOS
-# 或使用 Docker
-docker pull neo4j:latest
-docker run -d -p 7474:7474 -p 7687:7687 neo4j:latest
+cp .env.example .env
+# 编辑 .env 文件，填写 OPENAI_API_KEY 等配置
 ```
 
-如果不安装 Neo4j，系统会自动使用 NetworkX 作为回退模式。
-
-### 3. 运行系统
+### 启动服务
 
 ```bash
-# 运行主程序
+# 启动 Web 服务
 python main.py
 
-# 运行测试
-python tests/test_system.py
-
-# 运行对话界面
-python visualization/dialog_interface.py
-
-# 运行可视化
-python visualization/visualization.py
+# 或使用启动脚本
+./start.sh
 ```
 
-## 📖 使用示例
+### 访问 API
 
-### 场景1: 情报查询
+- **API 文档**：http://localhost:8001/docs
+- **健康检查**：http://localhost:8001/health
+- **性能监控**：http://localhost:8001/api/v1/monitoring/performance
 
-```python
-from core.orchestrator import SelfCorrectingOrchestrator
+## 核心模块
 
-orchestrator = SelfCorrectingOrchestrator(user_role="pilot")
-result = orchestrator.run("帮我看看 B 区有没有雷达")
+### 1. 本体管理（Ontology）
+
+- **功能**：领域本体设计、新增、更新维护
+- **API**：`/api/ontology-management`
+- **模块路径**：`odap/biz/ontology/`
+
+### 2. 工作空间管理（Workspace）
+
+- **功能**：场景隔离、导入导出、切换
+- **API**：`/api/workspace`
+- **模块路径**：`odap/biz/workspace/`
+
+### 3. Agent 协同（Agent）
+
+- **功能**：意图识别、Agent 协同、OODA 闭环
+- **API**：`/api/agent`
+- **模块路径**：`odap/biz/agent/`
+
+### 4. 技能系统（Skill）
+
+- **功能**：技能注册、配置、热插拔
+- **API**：`/api/skill`
+- **模块路径**：`odap/tools/`
+
+### 5. 审计日志（Audit）
+
+- **功能**：操作审计、日志记录
+- **API**：`/api/audit`
+- **模块路径**：`odap/biz/audit_logging/`
+
+## 安全配置
+
+- **API 密钥管理**：通过 `.env` 文件配置，避免硬编码
+- **权限控制**：基于 OPA 策略的细粒度权限控制
+- **CORS 配置**：通过环境变量配置允许的来源
+- **JWT 认证**：支持基于 JWT 的 API 认证
+
+## 性能监控
+
+- **API 端点**：`/api/v1/monitoring/performance`
+- **监控指标**：LLM 调用、数据库操作、API 请求、工具执行
+- **统计信息**：平均值、中位数、最小值、最大值、P95、P99
+
+## 测试
+
+运行所有测试：
+
+```bash
+python -m pytest tests/ -v
 ```
 
-### 场景2: 权限拦截
+## CI/CD
 
-```python
-# 飞行员尝试攻击 - 会被拦截
-orchestrator.run("攻击 RADAR_01")
-# 输出: {'status': 'denied', 'message': '权限不足或违反策略'}
-```
+项目配置了 GitHub Actions CI/CD 流程，包括：
+- **测试**：运行所有单元测试和集成测试
+- **代码质量**：使用 flake8、black 和 isort 检查代码质量
+- **覆盖率**：上传测试覆盖率报告到 Codecov
 
-### 场景3: 指挥官攻击
+## 贡献
 
-```python
-# 指挥官尝试攻击 - 成功
-orchestrator = SelfCorrectingOrchestrator(user_role="commander")
-orchestrator.run("攻击 RADAR_01")
-# 输出: {'status': 'success', 'message': '成功攻击目标'}
-```
+1. **Fork 仓库**
+2. **创建分支**：`git checkout -b feature/your-feature`
+3. **提交更改**：`git commit -m "Add your feature"`
+4. **推送分支**：`git push origin feature/your-feature`
+5. **创建 PR**
 
-### 场景4: 策略拦截
-
-```python
-# 攻击民用设施 - 会被拦截
-orchestrator.run("攻击 HOSPITAL_01")
-# 输出: {'status': 'denied', 'message': '权限不足或违反策略'}
-```
-
-## 🔐 OPA 策略配置
-
-策略文件位于 `core/opa_policy.rego`，定义了角色权限和限制：
-
-```rego
-package aip.authz
-
-default allow = false
-
-# 指挥官可以攻击
-allow {
-    input.user.role == "commander"
-    input.action == "attack"
-}
-
-# 飞行员可以查看情报
-allow {
-    input.user.role == "pilot"
-    input.action == "view_intelligence"
-}
-
-# 禁止攻击民用设施
-deny {
-    input.action == "attack"
-    input.resource.type == "CivilianInfrastructure"
-}
-```
-
-## 📊 Graphiti 特性
-
-系统支持 Graphiti 的核心特性：
-
-1. **双时态数据模型**: 区分"发生时间"与"摄入时间"
-2. **混合检索**: 结合语义搜索、关键词匹配和图遍历
-3. **增量更新**: 新数据即时更新，无需全量重算
-4. **可追溯性**: 完整记录每次决策的依据
-
-## 📁 生成的文件
-
-运行后会生成以下文件：
-
-- `domain_graph.png` - 领域图谱静态图
-- `domain_visualization.html` - 交互式可视化
-- `domain_status.png` - 领域状态饼图
-- `action_dynamics.html` - 处置动态查看
-- `ontology_query.html` - 本体可视化查询
-- `ontology_aggregation.html` - 本体属性聚合
-
-## 📝 许可证
+## 许可证
 

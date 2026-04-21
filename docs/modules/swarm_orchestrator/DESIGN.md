@@ -1063,7 +1063,7 @@ class HealthMonitor:
             
             async with aiohttp.ClientSession() as session:
                 async with session.post(
-                    "http://localhost:8000/v1/completions",
+                    "http://localhost:8001/v1/completions",
                     json=test_prompt,
                     timeout=aiohttp.ClientTimeout(total=5)
                 ) as resp:

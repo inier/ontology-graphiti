@@ -1,153 +1,136 @@
 import { useState, useEffect } from 'react';
-import { Row, Col, Card, Table, Tag, Empty } from 'antd';
-import { StatCard } from '../components/StatCard';
-import { api } from '../services/api';
-import type { Scenario, Stats, PipelineStats } from '../types';
+import { Card, Row, Col, Button, Space, Typography } from 'antd';
+import { PlusOutlined, ImportOutlined, SyncOutlined, HistoryOutlined } from '@ant-design/icons';
+import { StatCard } from '../modules/shared';
+import { api } from '../modules/shared/services/api';
+import type { Scenario, Stats } from '../modules/shared/types';
+
+const { Title, Text } = Typography;
 
 export function Dashboard() {
-  const [stats, setStats] = useState<PipelineStats | null>(null);
-  const [scenarioCount, setScenarioCount] = useState(0);
   const [scenarios, setScenarios] = useState<Scenario[]>([]);
+  const [stats, setStats] = useState<Stats>({
+    total_scenarios: 0,
+    total_entities: 0,
+    total_events: 0,
+    total_versions: 0,
+    recent_activities: [],
+    pipeline: {
+      ingest_count: 0,
+      error_count: 0,
+      version_count: 0,
+      latest_version: '',
+    },
+    scenarios: 0,
+    ws_clients: 0,
+  });
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    const loadData = async () => {
-      try {
-        const statsData: Stats = await api.getStats();
-        const scenariosData = await api.listScenarios();
-        setStats(statsData.pipeline);
-        setScenarioCount(statsData.scenarios ?? 0);
-        setScenarios(Array.isArray(scenariosData) ? scenariosData : []);
-      } catch (error) {
-        console.error('加载数据失败', error);
-      } finally {
-        setLoading(false);
-      }
-    };
     loadData();
   }, []);
 
-  const columns = [
-    {
-      title: 'ID',
-      dataIndex: 'scenario_id',
-      key: 'id',
-      render: (id: string) => <Tag color="blue">{id?.substring(0, 8) || 'N/A'}</Tag>,
-    },
-    {
-      title: '名称',
-      dataIndex: 'name',
-      key: 'name',
-      render: (name: string) => name || '未命名场景',
-    },
-    {
-      title: '创建时间',
-      dataIndex: 'created_at',
-      key: 'created',
-      render: (date: string) => (date ? new Date(date).toLocaleString('zh-CN') : 'N/A'),
-    },
-  ];
+  const loadData = async () => {
+    try {
+      setLoading(true);
+      const [scenariosData, statsData] = await Promise.all([
+        api.listScenarios(),
+        api.getStats(),
+      ]);
+      setScenarios(scenariosData);
+      setStats(statsData);
+    } catch (error) {
+      console.error('加载数据失败', error);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleCreateScenario = () => {
+    console.log('创建场景');
+  };
+
+  const handleImportScenario = () => {
+    console.log('导入场景');
+  };
+
+  const handleSyncAll = () => {
+    console.log('同步所有场景');
+  };
+
+  const handleViewHistory = () => {
+    console.log('查看历史');
+  };
 
   return (
-    <div>
+    <div style={{ padding: 24 }}>
       <Row gutter={[16, 16]}>
-        <Col span={6}>
-          <StatCard title="摄入数量" value={stats?.ingest_count ?? 0} loading={loading} />
+        <Col span={18}>
+          <Title level={3}>场景管理</Title>
         </Col>
-        <Col span={6}>
-          <StatCard title="错误数量" value={stats?.error_count ?? 0} loading={loading} />
-        </Col>
-        <Col span={6}>
-          <StatCard title="版本数量" value={stats?.version_count ?? 0} loading={loading} />
-        </Col>
-        <Col span={6}>
-          <StatCard title="场景数量" value={scenarioCount} loading={loading} />
-        </Col>
-      </Row>
-
-      <Row gutter={[16, 16]} style={{ marginTop: 16 }}>
-        <Col span={16}>
-          <Card title="本体图谱预览" style={{ borderRadius: 8 }}>
-            <div
-              style={{
-                height: 320,
-                background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
-                borderRadius: 8,
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'center',
-                color: '#fff',
-                fontSize: 18,
-              }}
-            >
-              <div style={{ textAlign: 'center' }}>
-                <div style={{ fontSize: 48, marginBottom: 16 }}>🔗</div>
-                <div>本体图谱预览区域</div>
-                <div style={{ fontSize: 12, marginTop: 8, opacity: 0.8 }}>
-                  点击进入本体图谱页面查看详情
-                </div>
-              </div>
-            </div>
-          </Card>
-        </Col>
-        <Col span={8}>
-          <Card title="最新事件" style={{ borderRadius: 8 }}>
-            <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
-              <div
-                style={{
-                  padding: 12,
-                  background: '#fff2f0',
-                  borderLeft: '3px solid #ff4d4f',
-                  borderRadius: 4,
-                }}
-              >
-                <div style={{ fontSize: 12, color: '#8c8c8c' }}>10:30</div>
-                <div style={{ fontSize: 14, fontWeight: 500 }}>红方装甲营发起进攻</div>
-              </div>
-              <div
-                style={{
-                  padding: 12,
-                  background: '#f0f5ff',
-                  borderLeft: '3px solid #1890ff',
-                  borderRadius: 4,
-                }}
-              >
-                <div style={{ fontSize: 12, color: '#8c8c8c' }}>10:15</div>
-                <div style={{ fontSize: 14, fontWeight: 500 }}>蓝方增援部队到达</div>
-              </div>
-              <div
-                style={{
-                  padding: 12,
-                  background: '#fff7e6',
-                  borderLeft: '3px solid #faad14',
-                  borderRadius: 4,
-                }}
-              >
-                <div style={{ fontSize: 12, color: '#8c8c8c' }}>09:45</div>
-                <div style={{ fontSize: 14, fontWeight: 500 }}>双方在B区形成对峙</div>
-              </div>
-            </div>
-          </Card>
+        <Col span={6} style={{ textAlign: 'right' }}>
+          <Space>
+            <Button type="default" icon={<HistoryOutlined />} onClick={handleViewHistory}>
+              历史版本
+            </Button>
+            <Button type="default" icon={<ImportOutlined />} onClick={handleImportScenario}>
+              导入场景
+            </Button>
+            <Button type="default" icon={<SyncOutlined />} onClick={handleSyncAll}>
+              同步到图数据库
+            </Button>
+            <Button type="primary" icon={<PlusOutlined />} onClick={handleCreateScenario}>
+              创建场景
+            </Button>
+          </Space>
         </Col>
       </Row>
 
       <Row gutter={[16, 16]} style={{ marginTop: 16 }}>
-        <Col span={24}>
-          <Card title="场景列表" style={{ borderRadius: 8 }}>
-            {scenarios.length > 0 ? (
-              <Table
-                columns={columns}
-                dataSource={scenarios}
-                rowKey="scenario_id"
-                loading={loading}
-                pagination={{ pageSize: 5 }}
-              />
-            ) : (
-              <Empty description="暂无场景数据" />
-            )}
-          </Card>
+        <Col span={6}>
+          <StatCard title="实体数量" value={0} loading={loading} />
+        </Col>
+        <Col span={6}>
+          <StatCard title="关系数量" value={0} loading={loading} />
+        </Col>
+        <Col span={6}>
+          <StatCard title="版本数量" value={stats.pipeline?.version_count || 0} loading={loading} />
+        </Col>
+        <Col span={6}>
+          <StatCard title="摄入文档" value={stats.pipeline?.ingest_count || 0} loading={loading} />
         </Col>
       </Row>
+
+      <Card title="场景列表" style={{ marginTop: 16 }}>
+        {scenarios.map((scenario) => (
+          <Card
+            key={scenario.scenario_id}
+            style={{ marginBottom: 16, borderLeft: '4px solid #1890ff' }}
+            extra={
+              <Space>
+                <Button size="small" type="link">查看</Button>
+                <Button size="small" type="link">编辑</Button>
+                <Button size="small" danger type="link">删除</Button>
+              </Space>
+            }
+          >
+            <Row>
+              <Col span={16}>
+                <Text strong>{scenario.name}</Text>
+                <Text type="secondary" style={{ marginLeft: 8 }}>
+                  创建于 {new Date(scenario.created_at).toLocaleString()}
+                </Text>
+                <div style={{ marginTop: 8 }}>{scenario.description}</div>
+              </Col>
+              <Col span={8} style={{ textAlign: 'right' }}>
+                <Text type="secondary">
+                  实体: {scenario.entity_count || 0} | 文档: {scenario.doc_count || 0}
+                </Text>
+              </Col>
+            </Row>
+          </Card>
+        ))}
+      </Card>
     </div>
   );
 }

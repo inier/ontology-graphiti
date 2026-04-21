@@ -1,5 +1,11 @@
 import { Routes, Route } from 'react-router-dom';
-import { Dashboard, OntologyGraph, Timeline, SituationMap, Simulator, IngestPanel, VersionHistory } from './pages';
+import { Dashboard, SituationMap } from './pages';
+import { WorkspaceManager } from './modules/workspace';
+import { AuditLog } from './modules/audit';
+import { ConfigCenter } from './modules/config';
+import { OntologyGraph, Timeline, QueryView } from './modules/ontology';
+import { IngestPanel, Simulator } from './modules/ingest';
+import { VersionHistory } from './modules/version';
 
 export function AppRoutes() {
   return (
@@ -8,14 +14,13 @@ export function AppRoutes() {
       <Route path="/ontology" element={<OntologyGraph />} />
       <Route path="/timeline" element={<Timeline />} />
       <Route path="/map" element={<SituationMap />} />
+      <Route path="/query" element={<QueryView />} />
       <Route path="/simulator" element={<Simulator />} />
       <Route path="/ingest" element={<IngestPanel />} />
       <Route path="/versions" element={<VersionHistory />} />
-      <Route path="/config" element={<div style={{ padding: 24 }}>配置中心 - 建设中</div>} />
-      <Route path="/roles" element={<div style={{ padding: 24 }}>角色管理 - 建设中</div>} />
-      <Route path="/policies" element={<div style={{ padding: 24 }}>OPA 策略 - 建设中</div>} />
-      <Route path="/audit" element={<div style={{ padding: 24 }}>审计日志 - 建设中</div>} />
-      <Route path="/skills" element={<div style={{ padding: 24 }}>Skill 管理 - 建设中</div>} />
+      <Route path="/workspace" element={<WorkspaceManager />} />
+      <Route path="/audit" element={<AuditLog />} />
+      <Route path="/config" element={<ConfigCenter />} />
     </Routes>
   );
 }

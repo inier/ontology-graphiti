@@ -730,7 +730,7 @@ class WhatIfAnalysisVisualizer:
     
     <script>
         // WebSocket连接
-        const socket = io('http://localhost:8000/simulation');
+        const socket = io('http://localhost:8001/simulation');
         const charts = {};
         
         // 初始化图表

@@ -60,7 +60,23 @@ def main():
     """)
 
     print("🔧 初始化系统...")
-    print(f"   • 已加载技能: {', '.join(skills.SKILL_CATALOG.keys())}")
+    # 手动导入技能模块以确保技能被注册
+    from odap.tools import SKILL_CATALOG
+    
+    # 导入各个技能模块
+    try:
+        from odap.tools.operations import operations
+        from odap.tools.intelligence import intelligence
+        from odap.tools.analysis import analysis
+        from odap.tools.recommendation import recommendation
+        from odap.tools.task_management import task_management
+        from odap.tools.policy import policy
+        from odap.tools.computation import computation
+        from odap.tools.planning import planning
+    except ImportError as e:
+        print(f"技能模块导入失败: {e}")
+    
+    print(f"   • 已加载技能: {', '.join(SKILL_CATALOG.keys())}")
 
     manager = GraphManager()
     stats = manager.get_statistics()
@@ -111,19 +127,28 @@ def main():
     # === 场景 7: Intelligence Agent（LLM 驱动的 ReAct 分析） ===
     print("\n📍 场景 7: Intelligence Agent — LLM 情报分析")
     try:
-        intel_agent = IntelligenceAgent(user_role="intelligence_analyst")
-        report = intel_agent.analyze("分析B区威胁")
-        print_result("Intelligence Agent 分析报告", report)
+        import asyncio
+        
+        async def run_intelligence_agent():
+            intel_agent = IntelligenceAgent(user_role="intelligence_analyst")
+            try:
+                report = await intel_agent.analyze("分析B区威胁")
+                print_result("Intelligence Agent 分析报告", report)
 
-        # 打印元数据
-        metadata = report.get("_metadata", {})
-        trace = report.get("_trace", {})
-        print(f"\n  📊 威胁等级: {report.get('threat_level', 'N/A')}")
-        print(f"  ⏱️ 总耗时: {metadata.get('execution_time_ms', 'N/A')}ms")
-        print(f"  🔄 推理轮次: {metadata.get('iterations', 'N/A')}")
-        print(f"  🔗 Trace ID: {trace.get('trace_id', 'N/A')}")
-        print(f"  🧠 RAG: {'已启用' if metadata.get('rag_context_provided') else '未启用'}")
-        print(f"  📋 工具调用: {len(metadata.get('tool_calls', []))} 次")
+                # 打印元数据
+                metadata = report.get("_metadata", {})
+                trace = report.get("_trace", {})
+                print(f"\n  📊 威胁等级: {report.get('threat_level', 'N/A')}")
+                print(f"  ⏱️ 总耗时: {metadata.get('execution_time_ms', 'N/A')}ms")
+                print(f"  🔄 推理轮次: {metadata.get('iterations', 'N/A')}")
+                print(f"  🔗 Trace ID: {trace.get('trace_id', 'N/A')}")
+                print(f"  🧠 RAG: {'已启用' if metadata.get('rag_context_provided') else '未启用'}")
+                print(f"  📋 工具调用: {len(metadata.get('tool_calls', []))} 次")
+            finally:
+                # 关闭资源
+                await intel_agent.shutdown()
+        
+        asyncio.run(run_intelligence_agent())
     except Exception as e:
         print(f"❌ Intelligence Agent 执行失败: {e}")
         print("  提示: 请确保 .env 中配置了 OPENAI_API_KEY / OPENAI_API_BASE / OPENAI_MODEL")
