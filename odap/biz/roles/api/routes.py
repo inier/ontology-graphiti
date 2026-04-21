@@ -47,188 +47,61 @@ class Role(BaseModel):
     created_at: datetime
     updated_at: datetime
 
-# 模拟数据
-roles_db = [
-    {
-        "id": "1",
-        "name": "系统管理员",
-        "description": "拥有系统所有权限",
-        "role_type": RoleType.SYSTEM_ADMIN,
-        "permissions": [
-            {
-                "id": "p1",
-                "name": "系统管理",
-                "description": "系统级管理权限",
-                "scope": PermissionScope.SYSTEM,
-                "actions": ["*"]
-            }
-        ],
-        "created_at": datetime.now(),
-        "updated_at": datetime.now()
-    },
-    {
-        "id": "2",
-        "name": "项目所有者",
-        "description": "项目级管理权限",
-        "role_type": RoleType.PROJECT_OWNER,
-        "permissions": [
-            {
-                "id": "p2",
-                "name": "项目管理",
-                "description": "项目级管理权限",
-                "scope": PermissionScope.PROJECT,
-                "actions": ["read", "write", "delete"]
-            }
-        ],
-        "created_at": datetime.now(),
-        "updated_at": datetime.now()
-    },
-    {
-        "id": "3",
-        "name": "团队领导",
-        "description": "团队级管理权限",
-        "role_type": RoleType.TEAM_LEADER,
-        "permissions": [
-            {
-                "id": "p3",
-                "name": "团队管理",
-                "description": "团队级管理权限",
-                "scope": PermissionScope.PROJECT,
-                "actions": ["read", "update"]
-            }
-        ],
-        "created_at": datetime.now(),
-        "updated_at": datetime.now()
-    },
-    {
-        "id": "4",
-        "name": "成员",
-        "description": "普通成员权限",
-        "role_type": RoleType.MEMBER,
-        "permissions": [
-            {
-                "id": "p4",
-                "name": "资源访问",
-                "description": "资源级访问权限",
-                "scope": PermissionScope.RESOURCE,
-                "actions": ["read"]
-            }
-        ],
-        "created_at": datetime.now(),
-        "updated_at": datetime.now()
-    },
-    {
-        "id": "5",
-        "name": "访客",
-        "description": "访客权限",
-        "role_type": RoleType.GUEST,
-        "permissions": [
-            {
-                "id": "p5",
-                "name": "有限访问",
-                "description": "有限的资源访问权限",
-                "scope": PermissionScope.RESOURCE,
-                "actions": ["limited_read"]
-            }
-        ],
-        "created_at": datetime.now(),
-        "updated_at": datetime.now()
-    }
-]
-
-permissions_db = [
-    {
-        "id": "p1",
-        "name": "系统管理",
-        "description": "系统级管理权限",
-        "scope": PermissionScope.SYSTEM,
-        "actions": ["*"]
-    },
-    {
-        "id": "p2",
-        "name": "项目管理",
-        "description": "项目级管理权限",
-        "scope": PermissionScope.PROJECT,
-        "actions": ["read", "write", "delete"]
-    },
-    {
-        "id": "p3",
-        "name": "团队管理",
-        "description": "团队级管理权限",
-        "scope": PermissionScope.PROJECT,
-        "actions": ["read", "update"]
-    },
-    {
-        "id": "p4",
-        "name": "资源访问",
-        "description": "资源级访问权限",
-        "scope": PermissionScope.RESOURCE,
-        "actions": ["read"]
-    },
-    {
-        "id": "p5",
-        "name": "有限访问",
-        "description": "有限的资源访问权限",
-        "scope": PermissionScope.RESOURCE,
-        "actions": ["limited_read"]
-    }
-]
+# 使用SQLite存储
+from ..storage import SQLiteRoleStorage
+storage = SQLiteRoleStorage()
 
 @router.get("", response_model=List[Role])
 async def list_roles():
     """获取角色列表"""
-    return roles_db
+    return storage.list_roles()
 
 @router.get("/{role_id}", response_model=Role)
 async def get_role(role_id: str):
     """获取角色详情"""
-    for role in roles_db:
-        if role["id"] == role_id:
-            return role
-    raise HTTPException(status_code=404, detail="角色不存在")
+    role = storage.get_role(role_id)
+    if not role:
+        raise HTTPException(status_code=404, detail="角色不存在")
+    return role
 
 @router.post("", response_model=Role)
 async def create_role(role: RoleCreate):
     """创建角色"""
-    new_role = {
-        "id": str(len(roles_db) + 1),
+    role_data = {
         "name": role.name,
         "description": role.description,
         "role_type": role.role_type,
-        "permissions": [p for p in permissions_db if p["id"] in role.permissions],
-        "created_at": datetime.now(),
-        "updated_at": datetime.now()
+        "permissions": role.permissions
     }
-    roles_db.append(new_role)
-    return new_role
+    return storage.create_role(role_data)
 
 @router.put("/{role_id}", response_model=Role)
 async def update_role(role_id: str, role: RoleUpdate):
     """更新角色"""
-    for i, r in enumerate(roles_db):
-        if r["id"] == role_id:
-            if role.name is not None:
-                r["name"] = role.name
-            if role.description is not None:
-                r["description"] = role.description
-            if role.role_type is not None:
-                r["role_type"] = role.role_type
-            if role.permissions is not None:
-                r["permissions"] = [p for p in permissions_db if p["id"] in role.permissions]
-            r["updated_at"] = datetime.now()
-            return r
-    raise HTTPException(status_code=404, detail="角色不存在")
+    role_data = {}
+    if role.name is not None:
+        role_data["name"] = role.name
+    if role.description is not None:
+        role_data["description"] = role.description
+    if role.role_type is not None:
+        role_data["role_type"] = role.role_type
+    if role.permissions is not None:
+        role_data["permissions"] = role.permissions
+    
+    updated_role = storage.update_role(role_id, role_data)
+    if not updated_role:
+        raise HTTPException(status_code=404, detail="角色不存在")
+    return updated_role
 
 @router.delete("/{role_id}")
 async def delete_role(role_id: str):
     """删除角色"""
-    for i, role in enumerate(roles_db):
-        if role["id"] == role_id:
-            roles_db.pop(i)
-            return {"message": "角色删除成功"}
-    raise HTTPException(status_code=404, detail="角色不存在")
+    success = storage.delete_role(role_id)
+    if not success:
+        raise HTTPException(status_code=404, detail="角色不存在")
+    return {"message": "角色删除成功"}
 
 @router.get("/permissions/all", response_model=List[Permission])
 async def list_permissions():
     """获取所有权限"""
-    return permissions_db
+    return storage.list_permissions()
