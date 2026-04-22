@@ -1,0 +1,122 @@
+"""
+CI/CD 配置文件
+GitHub Actions 工作流
+"""
+
+name: ODAP Integration Tests
+
+on:
+  push:
+    branches: [main, develop]
+  pull_request:
+    branches: [main]
+
+jobs:
+  unit-tests:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+
+      - name: Cache pip packages
+        uses: actions/cache@v4
+        with:
+          path: ~/.cache/pip
+          key: ${{ runner.os }}-pip-${{ hashFiles('**/requirements*.txt') }}
+          restore-keys: |
+            ${{ runner.os }}-pip-
+
+      - name: Install dependencies
+        run: |
+          pip install -q pytest pytest-cov pytest-mock
+          pip install -q -e .
+
+      - name: Run unit tests
+        run: |
+          pytest tests/ -v --tb=short -m "not integration"
+
+  integration-tests:
+    runs-on: ubuntu-latest
+    services:
+      neo4j:
+        image: neo4j:5
+        ports:
+          - 7474:7474
+          - 7687:7687
+        env:
+          NEO4J_AUTH: neo4j/test123
+
+      redis:
+        image: redis:7-alpine
+        ports:
+          - 6379:6379
+
+      opa:
+        image: openpolicyagent/opa:0.58.0
+        ports:
+          - 8181:8181
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+
+      - name: Install dependencies
+        run: |
+          pip install -q pytest pytest-cov pytest-mock
+          pip install -q -e .
+
+      - name: Run integration tests
+        env:
+          NEO4J_URI: bolt://localhost:7687
+          NEO4J_USER: neo4j
+          NEO4J_PASSWORD: test123
+          OPA_URL: http://localhost:8181
+          REDIS_URL: redis://localhost:6379
+        run: |
+          pytest tests/ -v --tb=short -m "integration"
+
+  docker-tests:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Run Docker Compose tests
+        run: |
+          cd docker
+          docker compose -f docker-compose.test.yml up --abort-on-container-exit
+
+  coverage:
+    runs-on: ubuntu-latest
+    needs: [unit-tests, integration-tests]
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+
+      - name: Install dependencies
+        run: |
+          pip install -q pytest pytest-cov
+          pip install -q -e .
+
+      - name: Generate coverage report
+        run: |
+          pytest tests/ --cov=odap --cov-report=xml --cov-report=html
+
+      - name: Upload coverage to Codecov
+        uses: codecov/codecov-action@v4
+        with:
+          file: ./coverage.xml
