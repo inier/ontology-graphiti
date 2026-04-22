@@ -64,26 +64,6 @@ services:
     networks:
       - odap-test-network
 
-  # PostgreSQL (用于审计日志)
-  test-postgres:
-    image: postgres:15-alpine
-    container_name: odap-test-postgres
-    ports:
-      - "5432:5432"
-    environment:
-      - POSTGRES_DB=odap_test
-      - POSTGRES_USER=odap
-      - POSTGRES_PASSWORD=odap_test
-    volumes:
-      - test-postgres-data:/var/lib/postgresql/data
-    healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U odap"]
-      interval: 10s
-      timeout: 5s
-      retries: 5
-    networks:
-      - odap-test-network
-
   # 测试应用
   test-app:
     build:
@@ -98,7 +78,6 @@ services:
       - NEO4J_PASSWORD=test123
       - OPA_URL=http://test-opa:8181
       - REDIS_URL=redis://test-redis:6379
-      - POSTGRES_URI=postgresql://odap:odap_test@test-postgres:5432/odap_test
       - USE_DOCKER=true
     depends_on:
       test-neo4j:
@@ -106,8 +85,6 @@ services:
       test-opa:
         condition: service_healthy
       test-redis:
-        condition: service_healthy
-      test-postgres:
         condition: service_healthy
     volumes:
       - ..:/app
@@ -118,7 +95,6 @@ services:
 volumes:
   test-neo4j-data:
   test-redis-data:
-  test-postgres-data:
 
 networks:
   odap-test-network:

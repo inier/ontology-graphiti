@@ -1087,3 +1087,573 @@ async def get_graph_detail(graph_id: str):
         }
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
+
+
+# ==================== 智能问答路由 ====================
+
+@router.post("/qa/ask")
+async def ask_question(request: Request, data: Dict[str, Any]):
+    """
+    智能问答接口
+    
+    请求体:
+    {
+        "question": "用户问题",
+        "session_id": "可选的会话ID",
+        "workspace_id": "可选的工作空间ID"
+    }
+    
+    返回:
+    {
+        "session_id": "会话ID",
+        "answer": "回答内容",
+        "sources": [{"source": "来源", "excerpt": "内容摘要", "confidence": 0.9}],
+        "intent": {"type": "query", "confidence": 0.95},
+        "sources_used": ["graphiti", "rag"]
+    }
+    """
+    try:
+        from odap.biz.qa.qa_engine_v2 import QAEngineV2
+        from odap.biz.cognition.user_cognition_engine import get_cognition_engine, RoleType
+        
+        question = data.get("question", "")
+        session_id = data.get("session_id")
+        workspace_id = data.get("workspace_id")
+        user_id = data.get("user_id", "anonymous")
+        
+        if not question:
+            raise HTTPException(status_code=400, detail="问题不能为空")
+        
+        # 初始化问答引擎
+        qa_engine = QAEngineV2(use_mock=True)
+        
+        # 调用问答引擎
+        result = qa_engine.ask(
+            query=question,
+            user_id=user_id,
+            session_id=session_id
+        )
+        
+        # 记录审计日志
+        asyncio.create_task(
+            audit_logger.log_success(
+                event_type=AuditEventType.QUERY,
+                action="QA_ASK",
+                resource=ResourceInfo(
+                    resource_type="qa",
+                    resource_id=result.get("session_id", ""),
+                    resource_name="智能问答"
+                ),
+                message=f"问答完成: {question[:50]}...",
+                actor=ActorInfo(
+                    actor_type="user",
+                    actor_id=user_id,
+                    actor_name=user_id,
+                    roles=[]
+                ),
+                context={
+                    "question": question,
+                    "session_id": result.get("session_id"),
+                    "workspace_id": workspace_id,
+                    "sources_count": len(result.get("sources", []))
+                }
+            )
+        )
+        
+        return {
+            "session_id": result.get("session_id"),
+            "answer": result.get("answer", ""),
+            "sources": result.get("sources", []),
+            "dialog_state": result.get("dialog_state", "completed"),
+            "intent": {
+                "type": "query",
+                "confidence": 0.85
+            },
+            "sources_used": ["graphiti", "rag"]
+        }
+    except HTTPException:
+        raise
+    except Exception as e:
+        log_error(str(e), context="qa_ask")
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@router.get("/qa/sessions")
+async def list_qa_sessions(
+    user_id: Optional[str] = Query(None),
+    limit: int = Query(50, ge=1, le=200)
+):
+    """列出问答会话"""
+    try:
+        # 返回模拟会话列表
+        return {
+            "sessions": [],
+            "total": 0,
+            "limit": limit
+        }
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@router.get("/qa/sessions/{session_id}")
+async def get_qa_session(session_id: str):
+    """获取问答会话详情"""
+    try:
+        from odap.biz.qa.qa_engine_v2 import QAEngineV2
+        
+        qa_engine = QAEngineV2(use_mock=True)
+        history = qa_engine.get_dialog_history(session_id)
+        
+        return {
+            "session_id": session_id,
+            "messages": history,
+            "total": len(history)
+        }
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@router.delete("/qa/sessions/{session_id}")
+async def close_qa_session(session_id: str):
+    """关闭问答会话"""
+    try:
+        from odap.biz.qa.qa_engine_v2 import QAEngineV2
+        
+        qa_engine = QAEngineV2(use_mock=True)
+        qa_engine.close_dialog(session_id)
+        
+        return {"status": "success", "session_id": session_id}
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@router.get("/qa/sessions/{session_id}/history")
+async def get_qa_history(
+    session_id: str,
+    limit: int = Query(50, ge=1, le=200)
+):
+    """获取问答历史"""
+    try:
+        from odap.biz.qa.qa_engine_v2 import QAEngineV2
+        
+        qa_engine = QAEngineV2(use_mock=True)
+        history = qa_engine.get_dialog_history(session_id)
+        
+        return {
+            "session_id": session_id,
+            "history": history[-limit:],
+            "total": len(history)
+        }
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@router.post("/qa/sessions/{session_id}/feedback")
+async def submit_qa_feedback(session_id: str, data: Dict[str, Any]):
+    """提交问答反馈"""
+    try:
+        feedback = data.get("feedback", {})
+        rating = data.get("rating", 5)
+        
+        # 记录反馈
+        asyncio.create_task(
+            audit_logger.log_success(
+                event_type=AuditEventType.QUERY,
+                action="QA_FEEDBACK",
+                resource=ResourceInfo(
+                    resource_type="qa",
+                    resource_id=session_id,
+                    resource_name="问答反馈"
+                ),
+                message=f"问答反馈: 评分 {rating}",
+                actor=ActorInfo(
+                    actor_type="user",
+                    actor_id=data.get("user_id", "anonymous"),
+                    actor_name=data.get("user_id", "Anonymous"),
+                    roles=[]
+                ),
+                context={
+                    "session_id": session_id,
+                    "feedback": feedback,
+                    "rating": rating
+                }
+            )
+        )
+        
+        return {
+            "status": "success",
+            "feedback_id": f"fb_{uuid.uuid4().hex[:12]}"
+        }
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+# ==================== 用户认知引擎路由 ====================
+
+@router.post("/cognition/intent")
+async def recognize_intent(request: Request, data: Dict[str, Any]):
+    """
+    意图识别接口
+    
+    请求体:
+    {
+        "input_text": "用户输入",
+        "role": "commander|intelligence|operator|analyst|guest"
+    }
+    """
+    try:
+        from odap.biz.cognition.user_cognition_engine import get_cognition_engine, RoleType
+        
+        input_text = data.get("input_text", "")
+        role_str = data.get("role", "guest")
+        
+        # 转换角色字符串到枚举
+        try:
+            role = RoleType(role_str)
+        except ValueError:
+            role = RoleType.GUEST
+        
+        # 调用认知引擎
+        cognition_engine = get_cognition_engine()
+        result = cognition_engine.process_query(input_text, "anonymous", role)
+        
+        return {
+            "intent": result.get("intent", {}),
+            "knowledge_results": result.get("knowledge_results", []),
+            "session_id": result.get("session_id")
+        }
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@router.get("/cognition/view")
+async def get_role_view(role: str = Query(...)):
+    """获取角色视图"""
+    try:
+        from odap.biz.cognition.user_cognition_engine import get_cognition_engine, RoleType
+        
+        try:
+            role_type = RoleType(role)
+        except ValueError:
+            role_type = RoleType.GUEST
+        
+        cognition_engine = get_cognition_engine()
+        view = cognition_engine.get_role_view(role_type)
+        
+        return view
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@router.post("/cognition/navigate")
+async def navigate_knowledge(request: Request, data: Dict[str, Any]):
+    """知识图谱导航"""
+    try:
+        from odap.biz.cognition.user_cognition_engine import get_cognition_engine
+        
+        entity_id = data.get("entity_id", "")
+        direction = data.get("direction", "outbound")
+        
+        if not entity_id:
+            raise HTTPException(status_code=400, detail="entity_id不能为空")
+        
+        cognition_engine = get_cognition_engine()
+        result = cognition_engine.navigate_knowledge_graph(entity_id, direction)
+        
+        return result
+    except HTTPException:
+        raise
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@router.post("/cognition/explain")
+async def explain_decision(request: Request, data: Dict[str, Any]):
+    """决策解释"""
+    try:
+        from odap.biz.cognition.user_cognition_engine import get_cognition_engine
+        
+        decision_id = data.get("decision_id", "")
+        context = data.get("context", {})
+        
+        cognition_engine = get_cognition_engine()
+        explanation = cognition_engine.explain_decision(decision_id, context)
+        
+        return {
+            "explanation_id": explanation.explanation_id,
+            "query": explanation.query,
+            "answer": explanation.answer,
+            "confidence": explanation.confidence,
+            "reasoning_chain": [
+                {
+                    "step_id": s.step_id,
+                    "step_type": s.step_type,
+                    "description": s.description
+                }
+                for s in explanation.reasoning_chain.steps
+            ] if explanation.reasoning_chain else [],
+            "sources": explanation.sources
+        }
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+# ==================== 问数统计路由（多维度数据分析） ====================
+
+@router.get("/qa/stats")
+async def get_qa_stats(
+    workspace_id: Optional[str] = Query(None),
+    start_time: Optional[str] = Query(None),
+    end_time: Optional[str] = Query(None)
+):
+    """
+    获取问答统计数据
+    
+    返回多维度分析数据:
+    - total: 总问答数
+    - today: 今日问答数
+    - by_intent: 按意图类型统计
+    - by_source: 按来源统计
+    - by_user: 按用户统计
+    - time_distribution: 时间分布
+    """
+    try:
+        # 构建过滤器
+        filter_kwargs = {
+            "limit": 1000,
+            "order_by": "timestamp",
+            "order_desc": True
+        }
+        
+        if start_time:
+            filter_kwargs["start_time"] = datetime.fromisoformat(start_time)
+        if end_time:
+            filter_kwargs["end_time"] = datetime.fromisoformat(end_time)
+        if workspace_id:
+            filter_kwargs["workspace_id"] = workspace_id
+        
+        audit_filter = AuditFilter(**filter_kwargs)
+        
+        # 查询相关事件
+        events = await audit_logger.query(audit_filter)
+        
+        # 统计分析
+        qa_events = [e for e in events if "QA_ASK" in e.action]
+        
+        total = len(qa_events)
+        today = len([
+            e for e in qa_events
+            if e.timestamp.date() == datetime.now().date()
+        ])
+        
+        # 按意图类型统计
+        by_intent = {}
+        for event in qa_events:
+            intent_type = event.context.get("intent_type", "query") if event.context else "query"
+            by_intent[intent_type] = by_intent.get(intent_type, 0) + 1
+        
+        # 按来源统计
+        by_source = {"graphiti": 0, "rag": 0, "mock": 0}
+        for event in qa_events:
+            if event.context and "sources_used" in event.context:
+                for source in event.context["sources_used"]:
+                    if source in by_source:
+                        by_source[source] += 1
+        
+        # 时间分布（按小时）
+        time_distribution = {}
+        for event in qa_events:
+            hour = event.timestamp.hour
+            time_distribution[hour] = time_distribution.get(hour, 0) + 1
+        
+        return {
+            "total": total,
+            "today": today,
+            "by_intent": by_intent,
+            "by_source": by_source,
+            "time_distribution": time_distribution,
+            "period": {
+                "start": start_time,
+                "end": end_time
+            }
+        }
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@router.get("/qa/stats/users")
+async def get_user_qa_stats(
+    workspace_id: Optional[str] = Query(None),
+    limit: int = Query(10, ge=1, le=100)
+):
+    """获取用户问答统计"""
+    try:
+        filter_kwargs = {
+            "limit": 1000,
+            "order_by": "timestamp",
+            "order_desc": True
+        }
+        
+        if workspace_id:
+            filter_kwargs["workspace_id"] = workspace_id
+        
+        audit_filter = AuditFilter(**filter_kwargs)
+        
+        # 查询事件
+        events = await audit_logger.query(audit_filter)
+        
+        # 过滤问答事件
+        qa_events = [e for e in events if "QA_ASK" in e.action]
+        
+        # 按用户统计
+        user_stats = {}
+        for event in qa_events:
+            actor_id = event.actor.actor_id if event.actor else "anonymous"
+            if actor_id not in user_stats:
+                user_stats[actor_id] = {
+                    "user_id": actor_id,
+                    "count": 0,
+                    "first_time": event.timestamp,
+                    "last_time": event.timestamp
+                }
+            user_stats[actor_id]["count"] += 1
+            if event.timestamp > user_stats[actor_id]["last_time"]:
+                user_stats[actor_id]["last_time"] = event.timestamp
+            if event.timestamp < user_stats[actor_id]["first_time"]:
+                user_stats[actor_id]["first_time"] = event.timestamp
+        
+        # 排序并限制数量
+        sorted_users = sorted(
+            user_stats.values(),
+            key=lambda x: x["count"],
+            reverse=True
+        )[:limit]
+        
+        return {
+            "user_stats": sorted_users,
+            "total_users": len(user_stats),
+            "limit": limit
+        }
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@router.get("/qa/stats/topics")
+async def get_topic_stats(
+    workspace_id: Optional[str] = Query(None),
+    limit: int = Query(20, ge=1, le=100)
+):
+    """获取话题统计"""
+    try:
+        # 简化实现，返回模拟数据
+        # 实际应该从问答历史中提取话题
+        return {
+            "topics": [
+                {"topic": "雷达目标查询", "count": 45, "trend": "up"},
+                {"topic": "部队部署情况", "count": 32, "trend": "stable"},
+                {"topic": "威胁评估分析", "count": 28, "trend": "up"},
+                {"topic": "武器系统性能", "count": 21, "trend": "down"},
+                {"topic": "战场态势对比", "count": 18, "trend": "stable"}
+            ][:limit],
+            "limit": limit
+        }
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+# ==================== 闭环反馈路由 ====================
+
+@router.post("/feedback/action")
+async def submit_action_feedback(request: Request, data: Dict[str, Any]):
+    """
+    提交动作执行反馈
+    
+    请求体:
+    {
+        "action_id": "动作ID",
+        "decision_id": "关联的决策ID",
+        "outcome": "success|failure|partial",
+        "result_data": {},
+        "error_message": "错误信息（如果失败）"
+    }
+    """
+    try:
+        from datetime import datetime as dt
+        
+        action_id = data.get("action_id", "")
+        decision_id = data.get("decision_id")
+        outcome = data.get("outcome", "success")
+        result_data = data.get("result_data", {})
+        error_message = data.get("error_message")
+        
+        # 记录反馈
+        asyncio.create_task(
+            audit_logger.log_success(
+                event_type=AuditEventType.DATA_INGEST,
+                action="ACTION_FEEDBACK",
+                resource=ResourceInfo(
+                    resource_type="feedback",
+                    resource_id=action_id,
+                    resource_name="动作反馈"
+                ),
+                message=f"动作反馈: {outcome}",
+                actor=ActorInfo(
+                    actor_type="user",
+                    actor_id=data.get("user_id", "system"),
+                    actor_name=data.get("user_id", "System"),
+                    roles=[]
+                ),
+                context={
+                    "action_id": action_id,
+                    "decision_id": decision_id,
+                    "outcome": outcome,
+                    "result_data": result_data,
+                    "error_message": error_message,
+                    "duration_ms": data.get("duration_ms", 0)
+                }
+            )
+        )
+        
+        return {
+            "status": "success",
+            "feedback_id": f"af_{uuid.uuid4().hex[:12]}",
+            "outcome": outcome
+        }
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@router.get("/feedback/decision/{decision_id}")
+async def get_decision_feedback(decision_id: str):
+    """获取决策的反馈历史"""
+    try:
+        # 构建过滤器
+        audit_filter = AuditFilter(
+            limit=100,
+            order_by="timestamp",
+            order_desc=True
+        )
+        
+        # 查询事件
+        events = await audit_logger.query(audit_filter)
+        
+        # 过滤相关反馈
+        feedback_events = [
+            e for e in events
+            if e.context and e.context.get("decision_id") == decision_id
+        ]
+        
+        return {
+            "decision_id": decision_id,
+            "feedback_count": len(feedback_events),
+            "feedbacks": [
+                {
+                    "feedback_id": e.id,
+                    "outcome": e.context.get("outcome", "unknown"),
+                    "timestamp": e.timestamp.isoformat() if isinstance(e.timestamp, dt) else str(e.timestamp)
+                }
+                for e in feedback_events
+            ]
+        }
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))

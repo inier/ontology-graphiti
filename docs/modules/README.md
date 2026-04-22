@@ -1,13 +1,13 @@
 # 模块设计文档索引
 
-> **版本**: 2.0.0 | **更新日期**: 2026-04-19
+> **版本**: 2.2.0 | **更新日期**: 2026-04-23
 > 本文档索引了 ODAP（本体驱动 AI 平台）的所有模块设计文档。
 
 ---
 
 ## 模块总览
 
-### 活跃模块（18 个）
+### 活跃模块（17 个）
 
 | 模块 ID | 模块名称 | 路径 | 架构层 | 优先级 | 状态 |
 |---------|---------|------|--------|--------|------|
@@ -23,22 +23,25 @@
 | M-10 | Agent 路由 | `agent/DESIGN.md` | L3 Agent 编排 | P0 | ✅ 活跃 |
 | M-11 | 工具注册表 | `tool_registry/DESIGN.md` | L2 领域技能 | P0 | 🆕 新增 |
 | M-12 | 问答引擎 | `qa_engine/DESIGN.md` | L4 应用服务 | P0 | 🆕 新增 |
-| M-13 | 决策推荐 | `decision_recommendation/DESIGN.md` | L4 应用服务 | P0 | ✅ 活跃 |
+| M-13 | 决策推荐 | `decision_recommendation/DESIGN.md` | L4 应用服务 | P1 | 🆕 新增 |
 | M-14 | 模拟推演 | `simulator/DESIGN.md` | L4 应用服务 | P0 | ✅ 活跃 |
 | M-15 | 事件模拟器 | `event_simulator/DESIGN.md` | L2 领域技能 | P1 | 🆕 新增 |
 | M-16 | API 网关 | `api_gateway/DESIGN.md` | L5 网关 | P0 | 🆕 新增 |
 | M-17 | Web 前端 | `web_frontend/DESIGN.md` | L6 用户交互 | P0 | 🆕 新增 |
 | M-18 | 可视化引擎 | `visualization/DESIGN.md` | L4 应用服务 | P1 | ✅ 活跃 |
 
-### 已合并/推迟模块
+### 已推迟/待实现模块
 
 | 原模块 | 状态 | 目标 | 原因 |
 |--------|------|------|------|
-| permission_checker | ⚠️ 已合并 | → M-02 opa_policy | 与 OPA 策略管理高度重叠 |
-| mock_engine | ⚠️ 已合并 | → M-15 event_simulator | 静态数据生成作为模板引擎子功能 |
-| web | ⚠️ 已拆分 | → M-16 api_gateway + M-17 web_frontend | 按六层架构职责拆分 |
 | openharness_bridge | ⏸️ 推迟 | Phase 4 | ADR-030，OpenHarness 实现延期 |
-| infra | 📎 保留 | 辅助模块 | 基础设施辅助（GraphManager/OPAManager 等） |
+| user_cognition_engine | ⏸️ 推迟 | - | 有设计文档，Phase 4 不考虑 |
+
+> **说明**: 以下模块已合并/拆分，无需单独文档：
+> - `permission_checker` → 合并至 M-02 opa_policy
+> - `mock_engine` → 合并至 M-15 event_simulator
+> - `web` → 拆分至 M-16 api_gateway + M-17 web_frontend
+> - `ontology_management_engine` → 重构至 M-03 ontology
 
 ---
 
@@ -53,7 +56,7 @@
 │     M-16 API 网关 (认证/限流/路由/权限)                                        │
 ├──────────────────────────────────────────────────────────────────────────────┤
 │ L4  应用服务层                                                                │
-│     M-12 问答引擎 │ M-13 决策推荐 │ M-14 模拟推演 │ M-18 可视化引擎           │
+│     M-12 问答引擎 │ M-13 决策推荐 │ M-14 模拟推演 │ M-18 可视化引擎             │
 ├──────────────────────────────────────────────────────────────────────────────┤
 │ L3  Agent 编排层                                                              │
 │     M-09 Swarm 编排 │ M-10 Agent 路由                                         │
@@ -79,12 +82,14 @@ M-17 Web → M-16 Gateway → M-12 QA → M-01 Graphiti + M-08 Skill
                         M-09 Swarm (复杂问题升级)
 ```
 
-### 决策链（情报 → 分析 → 决策）
+### 决策链（情报 → 分析 → 决策 → 执行）
 
 ```
-M-15 EventSim → M-14 Simulator → M-13 DecisionRec → M-09 Swarm
-                    ↓                    ↓
-              M-01 Graphiti          M-02 OPA (策略校验)
+M-15 EventSim → M-14 Simulator → M-13 决策推荐 → M-09 Swarm → M-08 执行
+                                              ↓
+                                        M-02 OPA 校验
+                                              ↓
+                                        M-01 Graphiti
 ```
 
 ### 管理链（配置 → 生效 → 审计）
@@ -118,6 +123,11 @@ M-03 Ontology → M-04 Workspace → M-05 Hook → M-07 AuditLog
 - **职责**: 自然语言问答，RAG 增强生成，双时态查询，溯源追踪
 - **升级策略**: 简单→QAEngine 直处理，复杂→升级到 Intelligence Agent
 - **关键接口**: `QAEngine.ask()` / `QAEngine.ask_with_tools()`
+
+### M-13 决策推荐
+- **职责**: OADP 决策阶段核心，基于分析结果生成方案推荐与风险评估
+- **核心能力**: 方案生成、优先级排序、OPA 策略校验、RAG 增强推理、反馈记录
+- **关键接口**: `DecisionRecommendationEngine.generate_recommendation()` / `record_feedback()`
 
 ### M-15 事件模拟器
 - **职责**: 自动/手动生成模拟事件，驱动知识图谱状态演化

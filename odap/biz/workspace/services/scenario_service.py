@@ -4,6 +4,7 @@ from typing import Dict, Any, List, Optional
 from datetime import datetime
 from ..models.scenario import Scenario
 from ..storage import Storage
+from odap.biz.ontology.services.build_service import OntologyBuildService
 
 
 class ScenarioService:
@@ -11,11 +12,19 @@ class ScenarioService:
     
     def __init__(self):
         self.storage = Storage()
+        self.ontology_service = OntologyBuildService()
     
     def create_scenario(self, workspace_id: str, name: str, description: str = "", ontology_id: Optional[str] = None) -> Dict[str, Any]:
         """创建场景"""
         now = datetime.now().isoformat()
         scenario_id = f"scenario-{datetime.now().strftime('%Y%m%d')}-{datetime.now().strftime('%H%M%S')}"
+        
+        # 如果没有提供本体ID，自动创建一个新本体
+        if not ontology_id:
+            ontology_name = f"{name}_Ontology"
+            ontology_description = f"自动创建的本体 for 场景: {name}"
+            ontology_doc = self.ontology_service.create_ontology(ontology_name, ontology_description)
+            ontology_id = ontology_doc.id
         
         scenario = {
             'scenario_id': scenario_id,

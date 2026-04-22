@@ -20,13 +20,11 @@ from datetime import datetime
 from odap.infra.security.config import security_config
 from odap.infra.security.audit_logger import (
     AuditLogger,
-    AuditSampler,
-    AuditEnricher,
-    WorkspaceEnricher,
-    TraceEnricher,
     get_audit_logger,
-    reset_audit_logger,
-    run_sync
+    audit_info,
+    audit_warning,
+    audit_error,
+    audit_critical
 )
 from odap.infra.security.audit_models import (
     AuditEvent,

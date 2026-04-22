@@ -33,7 +33,7 @@ class SecurityConfig:
     JWT_EXPIRATION = int(os.getenv('JWT_EXPIRATION', '3600'))
 
     # CORS 配置
-    CORS_ORIGINS = [origin.strip() for origin in os.getenv('CORS_ORIGINS', 'http://localhost:3000,http://localhost:8000').split(',')]
+    CORS_ORIGINS = [origin.strip() for origin in os.getenv('CORS_ORIGINS', 'http://localhost:3000,http://localhost:8000,http://localhost:5173').split(',')]
 
     # 日志配置
     LOG_LEVEL = os.getenv('LOG_LEVEL', 'INFO')

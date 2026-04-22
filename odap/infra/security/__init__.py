@@ -61,13 +61,11 @@ from .audit_span import AuditSpan
 
 from .audit_logger import (
     AuditLogger,
-    AuditSampler,
-    AuditEnricher,
-    WorkspaceEnricher,
-    TraceEnricher,
     get_audit_logger,
-    reset_audit_logger,
-    run_sync
+    audit_info,
+    audit_warning,
+    audit_error,
+    audit_critical
 )
 
 # 统一审计接口
@@ -115,13 +113,11 @@ __all__ = [
     # 审计日志器和跨度
     'AuditSpan',
     'AuditLogger',
-    'AuditSampler',
-    'AuditEnricher',
-    'WorkspaceEnricher',
-    'TraceEnricher',
     'get_audit_logger',
-    'reset_audit_logger',
-    'run_sync',
+    'audit_info',
+    'audit_warning',
+    'audit_error',
+    'audit_critical',
 
     # 统一审计接口
     'audit_log',

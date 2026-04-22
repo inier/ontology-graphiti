@@ -429,4 +429,148 @@ export const api = {
       method: 'DELETE',
     });
   },
+
+  // ==================== 智能问答 API ====================
+
+  async askQuestion(question: string, sessionId?: string, workspaceId?: string): Promise<{
+    session_id: string;
+    answer: string;
+    sources: Array<{ source: string; excerpt: string; confidence: number }>;
+    intent: { type: string; confidence: number };
+    sources_used: string[];
+  }> {
+    return fetchJson(`${API_BASE}/api/qa/ask`, {
+      method: 'POST',
+      body: JSON.stringify({ question, session_id: sessionId, workspace_id: workspaceId }),
+    });
+  },
+
+  async listQASessions(userId?: string, limit: number = 50): Promise<{ sessions: Array<Record<string, unknown>>; total: number; limit: number }> {
+    const params = new URLSearchParams();
+    if (userId) params.set('user_id', userId);
+    params.set('limit', String(limit));
+    return fetchJson(`${API_BASE}/api/qa/sessions?${params.toString()}`);
+  },
+
+  async getQASession(sessionId: string): Promise<{ session_id: string; messages: Array<Record<string, unknown>>; total: number }> {
+    return fetchJson(`${API_BASE}/api/qa/sessions/${sessionId}`);
+  },
+
+  async closeQASession(sessionId: string): Promise<{ status: string; session_id: string }> {
+    return fetchJson(`${API_BASE}/api/qa/sessions/${sessionId}`, { method: 'DELETE' });
+  },
+
+  async getQAHistory(sessionId: string, limit: number = 50): Promise<{ session_id: string; history: Array<Record<string, unknown>>; total: number }> {
+    return fetchJson(`${API_BASE}/api/qa/sessions/${sessionId}/history?limit=${limit}`);
+  },
+
+  async submitQAFeedback(sessionId: string, feedback: Record<string, unknown>, rating: number): Promise<{ status: string; feedback_id: string }> {
+    return fetchJson(`${API_BASE}/api/qa/sessions/${sessionId}/feedback`, {
+      method: 'POST',
+      body: JSON.stringify({ feedback, rating }),
+    });
+  },
+
+  async getQAStats(workspaceId?: string, startTime?: string, endTime?: string): Promise<{
+    total: number;
+    today: number;
+    by_intent: Record<string, number>;
+    by_source: Record<string, number>;
+    time_distribution: Record<string, number>;
+    period: { start: string | null; end: string | null };
+  }> {
+    const params = new URLSearchParams();
+    if (workspaceId) params.set('workspace_id', workspaceId);
+    if (startTime) params.set('start_time', startTime);
+    if (endTime) params.set('end_time', endTime);
+    return fetchJson(`${API_BASE}/api/qa/stats?${params.toString()}`);
+  },
+
+  async getUserQAStats(workspaceId?: string, limit: number = 10): Promise<{
+    user_stats: Array<{ user_id: string; count: number; first_time: string; last_time: string }>;
+    total_users: number;
+    limit: number;
+  }> {
+    const params = new URLSearchParams();
+    if (workspaceId) params.set('workspace_id', workspaceId);
+    params.set('limit', String(limit));
+    return fetchJson(`${API_BASE}/api/qa/stats/users?${params.toString()}`);
+  },
+
+  async getTopicStats(workspaceId?: string, limit: number = 20): Promise<{
+    topics: Array<{ topic: string; count: number; trend: string }>;
+    limit: number;
+  }> {
+    const params = new URLSearchParams();
+    if (workspaceId) params.set('workspace_id', workspaceId);
+    params.set('limit', String(limit));
+    return fetchJson(`${API_BASE}/api/qa/stats/topics?${params.toString()}`);
+  },
+
+  // ==================== 用户认知引擎 API ====================
+
+  async recognizeIntent(inputText: string, role: string = 'guest'): Promise<{
+    intent: { type: string; confidence: number };
+    knowledge_results: Array<{ id: string; content: unknown; relevance: number; source: string }>;
+    session_id: string;
+  }> {
+    return fetchJson(`${API_BASE}/api/cognition/intent`, {
+      method: 'POST',
+      body: JSON.stringify({ input_text: inputText, role }),
+    });
+  },
+
+  async getRoleView(role: string): Promise<Record<string, unknown>> {
+    return fetchJson(`${API_BASE}/api/cognition/view?role=${role}`);
+  },
+
+  async navigateKnowledge(entityId: string, direction: string = 'outbound'): Promise<{
+    entity_id: string;
+    navigation_path: string[];
+    related_entities: unknown[];
+    entity_context: unknown;
+  }> {
+    return fetchJson(`${API_BASE}/api/cognition/navigate`, {
+      method: 'POST',
+      body: JSON.stringify({ entity_id: entityId, direction }),
+    });
+  },
+
+  async explainDecision(decisionId: string, context: Record<string, unknown>): Promise<{
+    explanation_id: string;
+    query: string;
+    answer: string;
+    confidence: number;
+    reasoning_chain: Array<{ step_id: string; step_type: string; description: string }>;
+    sources: string[];
+  }> {
+    return fetchJson(`${API_BASE}/api/cognition/explain`, {
+      method: 'POST',
+      body: JSON.stringify({ decision_id: decisionId, context }),
+    });
+  },
+
+  // ==================== 闭环反馈 API ====================
+
+  async submitActionFeedback(data: {
+    action_id: string;
+    decision_id?: string;
+    outcome: string;
+    result_data?: Record<string, unknown>;
+    error_message?: string;
+    duration_ms?: number;
+  }): Promise<{ status: string; feedback_id: string; outcome: string }> {
+    return fetchJson(`${API_BASE}/api/feedback/action`, {
+      method: 'POST',
+      body: JSON.stringify(data),
+    });
+  },
+
+  async getDecisionFeedback(decisionId: string): Promise<{
+    decision_id: string;
+    feedback_count: number;
+    feedbacks: Array<{ feedback_id: string; outcome: string; timestamp: string }>;
+  }> {
+    return fetchJson(`${API_BASE}/api/feedback/decision/${decisionId}`);
+  },
 };

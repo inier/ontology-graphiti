@@ -284,14 +284,6 @@ class SQLiteAuditChannel(AuditChannel):
     """
     ...
 
-class PostgresAuditChannel(AuditChannel):
-    """
-    PostgreSQL 审计通道
-
-    适用于生产环境，支持分区表、TTL 自动清理。
-    """
-    ...
-
 class FileAuditChannel(AuditChannel):
     """
     文件审计通道
@@ -533,7 +525,6 @@ class AuditHook:
 
 ### Phase 2
 
-- [ ] PostgresAuditChannel
 - [ ] 数据保留策略自动执行
 - [ ] 审计统计与报表
 - [ ] 跨工作空间审计查询

@@ -1122,8 +1122,7 @@ ontology_management_engine/
 │   └── validation_service.py # 验证服务
 ├── storage/
 │   ├── __init__.py
-│   ├── mongodb_storage.py   # MongoDB存储
-│   └── postgres_storage.py  # PostgreSQL存储
+│   └── sqlite_ingest_storage.py  # SQLite存储（审计/版本/摄入记录）
 ├── api/
 │   ├── __init__.py
 │   ├── routes.py        # API路由
@@ -1213,8 +1212,6 @@ ontology_management_engine/
 
 | 配置项 | 类型 | 默认值 | 说明 |
 |--------|------|--------|------|
-| `MONGODB_URI` | str | "mongodb://localhost:27017" | MongoDB连接 |
-| `POSTGRES_URI` | str | "postgresql://localhost:5432" | PostgreSQL连接 |
 | `NEO4J_URI` | str | "bolt://localhost:7687" | Neo4j连接 |
 | `GRAPHITI_URL` | str | "http://localhost:8000" | Graphiti服务 |
 | `LOG_LEVEL` | str | "INFO" | 日志级别 |
@@ -1232,13 +1229,9 @@ services:
     ports:
       - "8001:8000"
     environment:
-      - MONGODB_URI=mongodb://mongodb:27017
-      - POSTGRES_URI=postgresql://postgres:postgres@postgres:5432/odap
       - NEO4J_URI=bolt://neo4j:7687
       - GRAPHITI_URL=http://graphiti:8000
     depends_on:
-      - mongodb
-      - postgres
       - neo4j
       - graphiti
 ```
@@ -1306,6 +1299,7 @@ services:
 |------|------|---------|
 | 1.0.0 | 2026-04-19 | 初始版本 |
 | 1.1.0 | 2026-05-01 | 新增审计仪表盘、增强验证引擎 |
+| 1.2.0 | 2026-04-23 | 移除 MongoDB/PostgreSQL 存储，统一使用 SQLite；修正存储模块目录结构 |
 
 ---
 

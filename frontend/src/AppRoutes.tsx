@@ -7,6 +7,7 @@ import { OntologyGraph, Timeline, QueryView } from './modules/ontology';
 import { IngestPanel, Simulator } from './modules/ingest';
 import { VersionHistory } from './modules/version';
 import { RoleManager } from './modules/roles';
+import { QAChat } from './modules/qa/pages/QAChat';
 
 export function AppRoutes() {
   return (
@@ -23,6 +24,7 @@ export function AppRoutes() {
       <Route path="/audit" element={<AuditLog />} />
       <Route path="/config" element={<ConfigCenter />} />
       <Route path="/roles" element={<RoleManager />} />
+      <Route path="/qa" element={<QAChat />} />
     </Routes>
   );
 }
