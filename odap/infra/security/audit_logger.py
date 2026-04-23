@@ -9,7 +9,7 @@ import asyncio
 import uuid
 from datetime import datetime
 from typing import List, Dict, Any, Optional, Union
-from .audit_sqlite_channel import SQLiteAuditChannel
+from .audit_mongodb_channel import get_audit_channel, AuditChannel
 from .audit_models import AuditEvent, AuditFilter, AuditSeverity, AuditEventType
 
 _audit_logger_instance = None
@@ -27,14 +27,14 @@ class AuditLogger:
     - 支持多通道输出
     """
 
-    def __init__(self, channel: Optional[SQLiteAuditChannel] = None):
+    def __init__(self, channel: Optional[AuditChannel] = None):
         """
         初始化审计日志记录器
 
         Args:
             channel: 审计通道实例
         """
-        self.channel = channel or SQLiteAuditChannel()
+        self.channel = channel or get_audit_channel()
 
     async def log(self,
                  event_type: AuditEventType,
