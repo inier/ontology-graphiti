@@ -83,18 +83,21 @@ class MongoDBStorage:
     # 场景相关
     def save_scenario(self, scenario: Dict[str, Any]) -> str:
         """保存场景"""
-        if "scenario_id" not in scenario:
+        # 过滤掉 _id 字段，避免 MongoDB ObjectId 序列化问题
+        scenario_to_save = {k: v for k, v in scenario.items() if k != '_id'}
+        
+        if "scenario_id" not in scenario_to_save:
             import uuid
             from datetime import datetime, timezone
             scenario_id = f"scenario-{datetime.now().strftime('%Y%m%d')}-{uuid.uuid4().hex[:6]}"
-            scenario["scenario_id"] = scenario_id
-            scenario["created_at"] = datetime.now(timezone.utc).isoformat()
-            scenario["doc_count"] = 0
-            scenario["event_count"] = 0
-            scenario["entity_count"] = 0
+            scenario_to_save["scenario_id"] = scenario_id
+            scenario_to_save["created_at"] = datetime.now(timezone.utc).isoformat()
+            scenario_to_save["doc_count"] = 0
+            scenario_to_save["event_count"] = 0
+            scenario_to_save["entity_count"] = 0
         
-        result = self.scenarios.insert_one(scenario)
-        return scenario["scenario_id"]
+        result = self.scenarios.insert_one(scenario_to_save)
+        return scenario_to_save["scenario_id"]
     
     def get_scenario(self, scenario_id: str) -> Optional[Dict[str, Any]]:
         """获取场景"""
@@ -132,8 +135,10 @@ class MongoDBStorage:
     
     def add_scenario_document(self, scenario_id: str, document: Dict[str, Any]) -> None:
         """添加场景文档"""
-        document["scenario_id"] = scenario_id
-        self.scenario_documents.insert_one(document)
+        # 过滤掉 _id 字段，避免 MongoDB ObjectId 序列化问题
+        doc_to_save = {k: v for k, v in document.items() if k != '_id'}
+        doc_to_save["scenario_id"] = scenario_id
+        self.scenario_documents.insert_one(doc_to_save)
         
         # 更新场景统计信息
         doc_count = self.scenario_documents.count_documents({"scenario_id": scenario_id})
