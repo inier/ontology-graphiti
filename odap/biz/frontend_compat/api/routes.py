@@ -823,7 +823,12 @@ async def list_workspace_scenarios(workspace_id: str):
     """获取工作空间的场景列表（兼容前端）"""
     try:
         scenarios = scenario_store.list_scenarios()
-        workspace_scenarios = [s for s in scenarios if s.get('workspace_id') == workspace_id or not s.get('workspace_id')]
+        # 确保移除 _id 字段，避免 MongoDB ObjectId 序列化问题
+        workspace_scenarios = [
+            {k: v for k, v in s.items() if k != '_id'} 
+            for s in scenarios 
+            if s.get('workspace_id') == workspace_id or not s.get('workspace_id')
+        ]
         return {
             "scenarios": workspace_scenarios,
             "workspace_id": workspace_id,
@@ -847,6 +852,8 @@ async def create_workspace_scenario(workspace_id: str, data: Dict[str, Any]):
         )
         scenario = scenario_store.get_scenario(scenario_id)
         if scenario:
+            # 确保移除 _id 字段，避免 MongoDB ObjectId 序列化问题
+            scenario = {k: v for k, v in scenario.items() if k != '_id'}
             scenario['workspace_id'] = workspace_id
         return scenario
     except HTTPException:
@@ -862,7 +869,8 @@ async def get_workspace_scenario(workspace_id: str, scenario_id: str):
         scenario = scenario_store.get_scenario(scenario_id)
         if not scenario:
             raise HTTPException(status_code=404, detail="Scenario not found")
-        return scenario
+        # 确保移除 _id 字段
+        return {k: v for k, v in scenario.items() if k != '_id'}
     except HTTPException:
         raise
     except Exception as e:
@@ -888,7 +896,9 @@ async def update_workspace_scenario(workspace_id: str, scenario_id: str, data: D
         if updates and hasattr(scenario_store, 'update_scenario'):
             scenario_store.update_scenario(scenario_id, updates)
         
-        return scenario_store.get_scenario(scenario_id)
+        updated_scenario = scenario_store.get_scenario(scenario_id)
+        # 确保移除 _id 字段
+        return {k: v for k, v in updated_scenario.items() if k != '_id'}
     except HTTPException:
         raise
     except Exception as e:
