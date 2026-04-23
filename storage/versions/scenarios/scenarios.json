@@ -1,4 +1,62 @@
 {
   "scenarios": {
     "scenario-20260423-c55ff1": {
-      "_id": 
+      "scenario_id": "scenario-20260423-c55ff1",
+      "name": "Test Scenario",
+      "description": "Test description",
+      "created_at": "2026-04-23T15:50:04.728649+00:00",
+      "doc_count": 0,
+      "event_count": 0,
+      "entity_count": 0
+    },
+    "scenario-20260423-74f447": {
+      "scenario_id": "scenario-20260423-74f447",
+      "name": "测试场景",
+      "description": "测试场景描述",
+      "created_at": "2026-04-23T15:52:02.806281+00:00",
+      "doc_count": 0,
+      "event_count": 0,
+      "entity_count": 0
+    },
+    "scenario-20260424-828ac2": {
+      "scenario_id": "scenario-20260424-828ac2",
+      "name": "测试场景",
+      "description": "测试描述",
+      "created_at": "2026-04-23T16:34:32.844685+00:00",
+      "doc_count": 0,
+      "event_count": 0,
+      "entity_count": 0
+    },
+    "scenario-20260424-1a8396": {
+      "scenario_id": "scenario-20260424-1a8396",
+      "name": "新场景测试",
+      "description": "测试描述",
+      "created_at": "2026-04-23T16:35:35.180939+00:00",
+      "doc_count": 0,
+      "event_count": 0,
+      "entity_count": 0
+    },
+    "scenario-20260424-d5359e": {
+      "scenario_id": "scenario-20260424-d5359e",
+      "name": "新场景测试",
+      "description": "测试描述",
+      "created_at": "2026-04-23T16:51:59.750613+00:00",
+      "doc_count": 0,
+      "event_count": 0,
+      "entity_count": 0
+    },
+    "scenario-20260424-c87d69": {
+      "scenario_id": "scenario-20260424-c87d69",
+      "name": "新场景测试",
+      "description": "测试描述",
+      "created_at": "2026-04-23T16:54:06.615880+00:00",
+      "doc_count": 0,
+      "event_count": 0,
+      "entity_count": 0
+    }
+  },
+  "documents": {
+    "scenario-20260424-c87d69": []
+  },
+  "updated_at": "2026-04-23T16:54:06.676489+00:00"
+}

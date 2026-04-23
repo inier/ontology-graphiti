@@ -1,6 +1,6 @@
 """前端API兼容层 - 使用统一的工作空间管理和场景存储"""
 
-from fastapi import APIRouter, HTTPException, Query, UploadFile, File, Form, Request
+from fastapi import APIRouter, HTTPException, Query, UploadFile, File, Form, Request, Body
 from typing import Dict, Any, List, Optional
 import json
 import os
@@ -839,27 +839,36 @@ async def list_workspace_scenarios(workspace_id: str):
 
 
 @router.post("/workspaces/{workspace_id}/scenarios")
-async def create_workspace_scenario(workspace_id: str, data: Dict[str, Any]):
-    """在工作空间创建场景（兼容前端）"""
-    try:
-        workspace = workspace_service.get_workspace(workspace_id)
-        if workspace.get("status") == "error":
-            raise HTTPException(status_code=404, detail="Workspace not found")
-        
-        scenario_id = scenario_store.create(
-            name=data.get("name", "新场景"),
-            description=data.get("description", "")
-        )
-        scenario = scenario_store.get_scenario(scenario_id)
-        if scenario:
-            # 确保移除 _id 字段，避免 MongoDB ObjectId 序列化问题
-            scenario = {k: v for k, v in scenario.items() if k != '_id'}
-            scenario['workspace_id'] = workspace_id
-        return scenario
-    except HTTPException:
-        raise
-    except Exception as e:
-        raise HTTPException(status_code=500, detail=str(e))
+async def create_workspace_scenario_compat(workspace_id: str, request: Request):
+    """在工作空间创建场景（兼容前端）- 使用 Request 避免路径冲突"""
+    from pydantic import BaseModel
+    
+    # 手动解析请求体
+    body = await request.body()
+    data = json.loads(body.decode())
+    
+    # 验证工作空间
+    workspace = workspace_service.get_workspace(workspace_id)
+    if workspace.get("status") == "error":
+        raise HTTPException(status_code=404, detail="Workspace not found")
+    
+    # 创建场景
+    scenario_id = scenario_store.create(
+        name=data.get("name", "新场景"),
+        description=data.get("description", "")
+    )
+    
+    # 返回响应
+    return {
+        "scenario_id": scenario_id,
+        "name": data.get("name", "新场景"),
+        "description": data.get("description", ""),
+        "workspace_id": workspace_id,
+        "created_at": datetime.now(timezone.utc).isoformat(),
+        "doc_count": 0,
+        "event_count": 0,
+        "entity_count": 0,
+    }
 
 
 @router.get("/workspaces/{workspace_id}/scenarios/{scenario_id}")
