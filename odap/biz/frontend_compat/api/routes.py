@@ -718,9 +718,8 @@ async def list_workspaces():
     """列出工作空间（兼容前端）"""
     try:
         result = workspace_service.list_workspaces(filters={}, page=1, page_size=100)
-        workspaces = result.get("workspaces", [])
-        # 转换为前端兼容格式
-        return {"workspaces": workspaces}
+        # 直接返回结果，因为已经包含了 workspaces 字段
+        return result
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
 
