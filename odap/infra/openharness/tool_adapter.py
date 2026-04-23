@@ -21,10 +21,16 @@ sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 # OpenHarness（可选）
 try:
-    from openharness.tools.tool import Tool
-    from openharness.core.harness import Harness, Observation
+    # 尝试不同的导入路径
+    try:
+        from openharness_ai.tools.tool import Tool
+        from openharness_ai.core.harness import Harness, Observation
+    except ImportError:
+        from openharness.tools.tool import Tool
+        from openharness.core.harness import Harness, Observation
     OPENHARNESS_AVAILABLE = True
-except ImportError:
+except ImportError as e:
+    print(f"OpenHarness 导入失败: {e}")
     OPENHARNESS_AVAILABLE = False
     Tool = object  # type: ignore
     Harness = object  # type: ignore

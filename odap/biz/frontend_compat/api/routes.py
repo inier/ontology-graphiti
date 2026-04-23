@@ -1657,3 +1657,111 @@ async def get_decision_feedback(decision_id: str):
         }
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
+
+
+# ==================== OpenHarness 路由 ====================
+
+@router.get("/openharness/tools")
+async def list_openharness_tools():
+    """列出所有 OpenHarness 工具"""
+    try:
+        from odap.infra.openharness import create_harness
+        harness = create_harness()
+        if harness:
+            tools = harness.list_available_tools()
+            return {"tools": tools, "count": len(tools)}
+        return {"tools": [], "count": 0, "message": "OpenHarness 不可用"}
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@router.post("/openharness/run")
+async def run_openharness_action(data: Dict[str, Any]):
+    """运行 OpenHarness 工具"""
+    try:
+        from odap.infra.openharness import create_harness
+        harness = create_harness()
+        if not harness:
+            raise HTTPException(status_code=503, detail="OpenHarness 不可用")
+        
+        action = data.get("action")
+        if not action:
+            raise HTTPException(status_code=400, detail="action 不能为空")
+        
+        obs, reward, done, info = harness.step(action)
+        return {
+            "observation": obs,
+            "reward": reward,
+            "done": done,
+            "info": info
+        }
+    except HTTPException:
+        raise
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@router.post("/openharness/run-episode")
+async def run_openharness_episode(data: Dict[str, Any]):
+    """运行完整的 OpenHarness 会话"""
+    try:
+        from odap.infra.openharness import create_harness
+        harness = create_harness()
+        if not harness:
+            raise HTTPException(status_code=503, detail="OpenHarness 不可用")
+        
+        actions = data.get("actions", [])
+        if not isinstance(actions, list):
+            raise HTTPException(status_code=400, detail="actions 必须是数组")
+        
+        results = harness.run_episode(actions)
+        return {
+            "results": results,
+            "total_steps": len(results),
+            "done": results[-1]["done"] if results else False
+        }
+    except HTTPException:
+        raise
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@router.get("/openharness/health")
+async def check_openharness_health():
+    """检查 OpenHarness 健康状态"""
+    try:
+        from odap.infra.openharness import create_harness
+        harness = create_harness()
+        if harness:
+            tools = harness.list_available_tools()
+            return {
+                "status": "healthy",
+                "openharness_available": True,
+                "tools_count": len(tools),
+                "tools": tools[:5]  # 只返回前5个工具
+            }
+        return {
+            "status": "healthy",
+            "openharness_available": False,
+            "message": "OpenHarness 不可用，使用 fallback 模式"
+        }
+    except Exception as e:
+        return {
+            "status": "unhealthy",
+            "openharness_available": False,
+            "error": str(e)
+        }
+
+
+@router.get("/openharness/schemas")
+async def get_openharness_schemas():
+    """获取 OpenHarness 工具的 OpenAI 格式 schema"""
+    try:
+        from odap.infra.openharness import export_tool_schemas
+        schemas = export_tool_schemas()
+        return {
+            "schemas": schemas,
+            "count": len(schemas)
+        }
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))

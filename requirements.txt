@@ -11,7 +11,7 @@ networkx>=2.8.0
 opa-python
 
 # 智能体对话
-openharness
+openharness-ai @ file:///Users/caec/workspace/ontology/graphiti/openharness
 
 # 网络框架（用于可视化界面）
 flask

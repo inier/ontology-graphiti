@@ -1,0 +1,3 @@
+[submodule "openharness"]
+	path = openharness
+	url = https://github.com/HKUDS/OpenHarness.git
