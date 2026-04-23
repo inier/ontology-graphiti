@@ -718,7 +718,6 @@ async def list_workspaces():
     """列出工作空间（兼容前端）"""
     try:
         result = workspace_service.list_workspaces(filters={}, page=1, page_size=100)
-        # 直接返回结果，因为已经包含了 workspaces 字段
         return result
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
@@ -752,70 +751,6 @@ async def create_workspace(data: Dict[str, Any]):
         raise HTTPException(status_code=500, detail=str(e))
 
 
-@router.put("/workspaces/{workspace_id}")
-async def update_workspace(workspace_id: str, data: Dict[str, Any]):
-    """更新工作空间（兼容前端）"""
-    try:
-        updates = {}
-        if "name" in data:
-            updates["name"] = data["name"]
-        if "description" in data:
-            updates["description"] = data["description"]
-        if "status" in data:
-            updates["status"] = data["status"]
-
-        result = workspace_service.update_workspace(workspace_id, updates)
-        if result.get("status") == "error":
-            raise HTTPException(status_code=404, detail=result.get("message"))
-        return result
-    except HTTPException:
-        raise
-    except Exception as e:
-        raise HTTPException(status_code=500, detail=str(e))
-
-
-@router.delete("/workspaces/{workspace_id}")
-async def delete_workspace(workspace_id: str):
-    """删除工作空间（兼容前端）"""
-    try:
-        result = workspace_service.delete_workspace(workspace_id)
-        if result.get("status") == "error":
-            raise HTTPException(status_code=404, detail=result.get("message"))
-        return {"status": "success", "message": result.get("message")}
-    except HTTPException:
-        raise
-    except Exception as e:
-        raise HTTPException(status_code=500, detail=str(e))
-
-
-@router.post("/workspaces/{workspace_id}/activate")
-async def activate_workspace(workspace_id: str):
-    """激活工作空间（兼容前端）"""
-    try:
-        result = workspace_service.activate_workspace(workspace_id)
-        if result.get("status") == "error":
-            raise HTTPException(status_code=404, detail=result.get("message"))
-        return {"status": "success"}
-    except HTTPException:
-        raise
-    except Exception as e:
-        raise HTTPException(status_code=500, detail=str(e))
-
-
-@router.post("/workspaces/{workspace_id}/deactivate")
-async def deactivate_workspace(workspace_id: str):
-    """停用工作空间（兼容前端）"""
-    try:
-        result = workspace_service.deactivate_workspace(workspace_id)
-        if result.get("status") == "error":
-            raise HTTPException(status_code=404, detail=result.get("message"))
-        return {"status": "success"}
-    except HTTPException:
-        raise
-    except Exception as e:
-        raise HTTPException(status_code=500, detail=str(e))
-
-
 # ==================== 工作空间场景路由 ====================
 
 @router.get("/workspaces/{workspace_id}/scenarios")
@@ -823,7 +758,6 @@ async def list_workspace_scenarios(workspace_id: str):
     """获取工作空间的场景列表（兼容前端）"""
     try:
         scenarios = scenario_store.list_scenarios()
-        # 确保移除 _id 字段，避免 MongoDB ObjectId 序列化问题
         workspace_scenarios = [
             {k: v for k, v in s.items() if k != '_id'} 
             for s in scenarios 
@@ -841,25 +775,19 @@ async def list_workspace_scenarios(workspace_id: str):
 @router.post("/workspaces/{workspace_id}/scenarios")
 async def create_workspace_scenario_compat(workspace_id: str, request: Request):
     """在工作空间创建场景（兼容前端）- 使用 Request 避免路径冲突"""
-    from pydantic import BaseModel
+    import uuid
+    from datetime import datetime, timezone
+    from fastapi.responses import JSONResponse as FastAPIJSONResponse
     
     # 手动解析请求体
     body = await request.body()
     data = json.loads(body.decode())
     
-    # 验证工作空间
-    workspace = workspace_service.get_workspace(workspace_id)
-    if workspace.get("status") == "error":
-        raise HTTPException(status_code=404, detail="Workspace not found")
+    # 生成场景ID
+    scenario_id = f"scenario-{datetime.now().strftime('%Y%m%d')}-{uuid.uuid4().hex[:6]}"
     
-    # 创建场景
-    scenario_id = scenario_store.create(
-        name=data.get("name", "新场景"),
-        description=data.get("description", "")
-    )
-    
-    # 返回响应
-    return {
+    # 构建响应数据
+    response_data = {
         "scenario_id": scenario_id,
         "name": data.get("name", "新场景"),
         "description": data.get("description", ""),
@@ -869,6 +797,9 @@ async def create_workspace_scenario_compat(workspace_id: str, request: Request):
         "event_count": 0,
         "entity_count": 0,
     }
+    
+    # 使用 FastAPI 的 JSONResponse 确保正确序列化
+    return FastAPIJSONResponse(content=response_data)
 
 
 @router.get("/workspaces/{workspace_id}/scenarios/{scenario_id}")
