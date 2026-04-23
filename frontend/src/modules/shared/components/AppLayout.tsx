@@ -80,10 +80,10 @@ export function AppLayout({ children }: AppLayoutProps) {
     try {
       setLoading(true);
       const data = await api.listWorkspaces();
-      console.log('Workspaces data:', data); // 添加调试日志
+      console.log('Workspaces data:', data);
       setWorkspaces(data);
       if (data.length > 0) {
-        if (!currentWorkspace || !data.find(w => w.workspace_id === currentWorkspace)) {
+        if (!currentWorkspaceState || !data.find(w => w.workspace_id === currentWorkspaceState)) {
           setCurrentWorkspaceState(data[0].workspace_id);
         }
       }
