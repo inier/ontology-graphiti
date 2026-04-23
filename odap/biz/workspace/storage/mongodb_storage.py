@@ -98,7 +98,10 @@ class MongoDBStorage:
     
     def get_scenario(self, scenario_id: str) -> Optional[Dict[str, Any]]:
         """获取场景"""
-        return self.scenarios.find_one({"scenario_id": scenario_id})
+        scenario = self.scenarios.find_one({"scenario_id": scenario_id})
+        if scenario and '_id' in scenario:
+            del scenario['_id']
+        return scenario
     
     def update_scenario(self, scenario_id: str, updates: Dict[str, Any]) -> None:
         """更新场景"""
@@ -111,7 +114,21 @@ class MongoDBStorage:
     
     def list_scenarios(self) -> List[Dict[str, Any]]:
         """列出场景"""
-        return list(self.scenarios.find())
+        scenarios = list(self.scenarios.find())
+        # 过滤掉 _id 字段，因为 ObjectId 无法被 JSON 序列化
+        for scenario in scenarios:
+            if '_id' in scenario:
+                del scenario['_id']
+        return scenarios
+    
+    def get_scenarios_by_workspace(self, workspace_id: str) -> List[Dict[str, Any]]:
+        """获取工作空间的场景"""
+        scenarios = list(self.scenarios.find({"workspace_id": workspace_id}))
+        # 过滤掉 _id 字段
+        for scenario in scenarios:
+            if '_id' in scenario:
+                del scenario['_id']
+        return scenarios
     
     def add_scenario_document(self, scenario_id: str, document: Dict[str, Any]) -> None:
         """添加场景文档"""
@@ -137,7 +154,11 @@ class MongoDBStorage:
     
     def get_scenario_documents(self, scenario_id: str) -> List[Dict[str, Any]]:
         """获取场景文档"""
-        return list(self.scenario_documents.find({"scenario_id": scenario_id}))
+        documents = list(self.scenario_documents.find({"scenario_id": scenario_id}))
+        for doc in documents:
+            if '_id' in doc:
+                del doc['_id']
+        return documents
     
     def get_scenario_timeline(self, scenario_id: str) -> List[Dict[str, Any]]:
         """获取场景时间线"""

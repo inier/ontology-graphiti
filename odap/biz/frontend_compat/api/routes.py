@@ -816,6 +816,103 @@ async def deactivate_workspace(workspace_id: str):
         raise HTTPException(status_code=500, detail=str(e))
 
 
+# ==================== 工作空间场景路由 ====================
+
+@router.get("/workspaces/{workspace_id}/scenarios")
+async def list_workspace_scenarios(workspace_id: str):
+    """获取工作空间的场景列表（兼容前端）"""
+    try:
+        scenarios = scenario_store.list_scenarios()
+        workspace_scenarios = [s for s in scenarios if s.get('workspace_id') == workspace_id or not s.get('workspace_id')]
+        return {
+            "scenarios": workspace_scenarios,
+            "workspace_id": workspace_id,
+            "total": len(workspace_scenarios)
+        }
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@router.post("/workspaces/{workspace_id}/scenarios")
+async def create_workspace_scenario(workspace_id: str, data: Dict[str, Any]):
+    """在工作空间创建场景（兼容前端）"""
+    try:
+        workspace = workspace_service.get_workspace(workspace_id)
+        if workspace.get("status") == "error":
+            raise HTTPException(status_code=404, detail="Workspace not found")
+        
+        scenario_id = scenario_store.create(
+            name=data.get("name", "新场景"),
+            description=data.get("description", "")
+        )
+        scenario = scenario_store.get_scenario(scenario_id)
+        if scenario:
+            scenario['workspace_id'] = workspace_id
+        return scenario
+    except HTTPException:
+        raise
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@router.get("/workspaces/{workspace_id}/scenarios/{scenario_id}")
+async def get_workspace_scenario(workspace_id: str, scenario_id: str):
+    """获取工作空间的场景详情（兼容前端）"""
+    try:
+        scenario = scenario_store.get_scenario(scenario_id)
+        if not scenario:
+            raise HTTPException(status_code=404, detail="Scenario not found")
+        return scenario
+    except HTTPException:
+        raise
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@router.put("/workspaces/{workspace_id}/scenarios/{scenario_id}")
+async def update_workspace_scenario(workspace_id: str, scenario_id: str, data: Dict[str, Any]):
+    """更新工作空间的场景（兼容前端）"""
+    try:
+        scenario = scenario_store.get_scenario(scenario_id)
+        if not scenario:
+            raise HTTPException(status_code=404, detail="Scenario not found")
+        
+        updates = {}
+        if "name" in data:
+            updates["name"] = data["name"]
+        if "description" in data:
+            updates["description"] = data["description"]
+        if "ontology_id" in data:
+            updates["ontology_id"] = data["ontology_id"]
+        
+        if updates and hasattr(scenario_store, 'update_scenario'):
+            scenario_store.update_scenario(scenario_id, updates)
+        
+        return scenario_store.get_scenario(scenario_id)
+    except HTTPException:
+        raise
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@router.delete("/workspaces/{workspace_id}/scenarios/{scenario_id}")
+async def delete_workspace_scenario(workspace_id: str, scenario_id: str):
+    """删除工作空间的场景（兼容前端）"""
+    try:
+        scenario = scenario_store.get_scenario(scenario_id)
+        if not scenario:
+            raise HTTPException(status_code=404, detail="Scenario not found")
+        
+        if hasattr(scenario_store, 'delete_scenario'):
+            scenario_store.delete_scenario(scenario_id)
+        
+        return {"status": "success", "message": "Scenario deleted"}
+    except HTTPException:
+        raise
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+
 # ==================== 实体路由 ====================
 
 @router.get("/entities/{entity_id}/history")
