@@ -9,23 +9,23 @@ from pymongo import MongoClient
 from pymongo.collection import Collection
 from pymongo.errors import ConnectionFailure
 
-from ..audit_models import AuditEvent, AuditFilter, AuditSeverity, AuditEventType
+from .audit_models import AuditEvent, AuditFilter, AuditSeverity, AuditEventType
 from .audit_sqlite_channel import AuditChannel
 
 
 class MongoDBAuditChannel(AuditChannel):
     """MongoDB 审计通道实现
-    
+
     特性：
     - 批量写入提高性能
     - TTL 索引自动过期数据
     - 支持复杂查询和聚合
     - 高并发写入支持
     """
-    
+
     def __init__(self, connection_string: Optional[str] = None, db_name: str = "audit"):
         """初始化 MongoDB 审计通道
-        
+
         Args:
             connection_string: MongoDB 连接字符串
             db_name: 数据库名称
@@ -36,13 +36,13 @@ class MongoDBAuditChannel(AuditChannel):
         self.collection: Optional[Collection] = None
         self.batch_size = 100
         self.batch: List[Dict] = []
-        
+
         try:
             self._connect()
             self._create_indexes()
         except Exception as e:
             print(f"MongoDB 审计通道初始化失败: {e}")
-    
+
     def _connect(self):
         """建立 MongoDB 连接"""
         self.client = MongoClient(self.connection_string, serverSelectionTimeoutMS=5000)
@@ -50,7 +50,7 @@ class MongoDBAuditChannel(AuditChannel):
         self.client.admin.command('ping')
         db = self.client[self.db_name]
         self.collection = db["audit_events"]
-    
+
     def _create_indexes(self):
         """创建必要的索引"""
         if self.collection:
@@ -69,38 +69,49 @@ class MongoDBAuditChannel(AuditChannel):
                 "timestamp",
                 expireAfterSeconds=30 * 24 * 60 * 60  # 30 天
             )
-    
-    def write(self, event: AuditEvent) -> bool:
+
+    async def write(self, event: AuditEvent) -> None:
         """写入审计事件
-        
+
         Args:
             event: 审计事件对象
-        
-        Returns:
-            bool: 是否写入成功
         """
         try:
             if not self.collection:
                 self._connect()
-            
+
             event_dict = self._event_to_dict(event)
             self.batch.append(event_dict)
-            
+
             # 达到批量大小或遇到同步点时批量写入
             if len(self.batch) >= self.batch_size:
                 self._flush_batch()
-            
-            return True
+
         except Exception as e:
             print(f"写入审计事件失败: {e}")
-            return False
-    
+
+    async def write_batch(self, events: List[AuditEvent]) -> None:
+        """批量写入审计事件
+
+        Args:
+            events: 审计事件列表
+        """
+        try:
+            if not self.collection:
+                self._connect()
+
+            event_dicts = [self._event_to_dict(event) for event in events]
+            self.collection.insert_many(event_dicts)
+
+        except Exception as e:
+            print(f"批量写入审计事件失败: {e}")
+
     def _event_to_dict(self, event: AuditEvent) -> Dict[str, Any]:
         """将 AuditEvent 转换为字典
-        
+
         Args:
             event: 审计事件对象
-        
+
         Returns:
             Dict: 事件字典
         """
@@ -119,7 +130,7 @@ class MongoDBAuditChannel(AuditChannel):
             "context": event.context,
             "signature": event.signature
         }
-    
+
     def _flush_batch(self):
         """批量写入事件"""
         if self.batch and self.collection:
@@ -128,77 +139,77 @@ class MongoDBAuditChannel(AuditChannel):
                 self.batch.clear()
             except Exception as e:
                 print(f"批量写入审计事件失败: {e}")
-    
-    def query(self, audit_filter: AuditFilter) -> List[AuditEvent]:
+
+    async def query(self, filter: AuditFilter) -> List[AuditEvent]:
         """查询审计事件
-        
+
         Args:
-            audit_filter: 审计过滤器
-        
+            filter: 审计过滤器
+
         Returns:
             List[AuditEvent]: 审计事件列表
         """
         try:
             if not self.collection:
                 self._connect()
-            
+
             query = {}
-            
+
             # 构建查询条件
-            if audit_filter.event_type:
-                query["event_type"] = audit_filter.event_type.value if hasattr(audit_filter.event_type, "value") else str(audit_filter.event_type)
-            
-            if audit_filter.severity:
-                query["severity"] = audit_filter.severity.value if hasattr(audit_filter.severity, "value") else str(audit_filter.severity)
-            
-            if audit_filter.workspace_id:
-                query["workspace_id"] = audit_filter.workspace_id
-            
-            if audit_filter.start_time:
-                query["timestamp"] = {"$gte": audit_filter.start_time}
-            
-            if audit_filter.end_time:
+            if filter.event_type:
+                query["event_type"] = filter.event_type.value if hasattr(filter.event_type, "value") else str(filter.event_type)
+
+            if filter.severity:
+                query["severity"] = filter.severity.value if hasattr(filter.severity, "value") else str(filter.severity)
+
+            if filter.workspace_id:
+                query["workspace_id"] = filter.workspace_id
+
+            if filter.start_time:
+                query["timestamp"] = {"$gte": filter.start_time}
+
+            if filter.end_time:
                 if "timestamp" in query:
-                    query["timestamp"]["$lte"] = audit_filter.end_time
+                    query["timestamp"]["$lte"] = filter.end_time
                 else:
-                    query["timestamp"] = {"$lte": audit_filter.end_time}
-            
-            if audit_filter.source:
-                query["source"] = audit_filter.source
-            
+                    query["timestamp"] = {"$lte": filter.end_time}
+
+            if filter.source:
+                query["source"] = filter.source
+
             # 执行查询
             cursor = self.collection.find(query)
-            
+
             # 排序
-            if audit_filter.order_by:
-                sort_direction = -1 if audit_filter.order_desc else 1
-                cursor = cursor.sort(audit_filter.order_by, sort_direction)
-            
+            if filter.order_by:
+                sort_direction = -1 if filter.order_desc else 1
+                cursor = cursor.sort(filter.order_by, sort_direction)
+
             # 分页
-            if audit_filter.offset:
-                cursor = cursor.skip(audit_filter.offset)
-            
-            if audit_filter.limit:
-                cursor = cursor.limit(audit_filter.limit)
-            
+            if filter.offset:
+                cursor = cursor.skip(filter.offset)
+
+            if filter.limit:
+                cursor = cursor.limit(filter.limit)
+
             # 转换结果
             events = []
             for doc in cursor:
                 event = self._dict_to_event(doc)
                 if event:
                     events.append(event)
-            
+
             return events
         except Exception as e:
             print(f"查询审计事件失败: {e}")
             return []
-    
+
     def _dict_to_event(self, doc: Dict[str, Any]) -> Optional[AuditEvent]:
         """将字典转换为 AuditEvent
-        
+
         Args:
             doc: 事件字典
-        
+
         Returns:
             Optional[AuditEvent]: 审计事件对象
         """
@@ -208,12 +219,12 @@ class MongoDBAuditChannel(AuditChannel):
                 event_type = AuditEventType(doc["event_type"])
             except ValueError:
                 event_type = AuditEventType.OTHER
-            
+
             try:
                 severity = AuditSeverity(doc["severity"])
             except ValueError:
                 severity = AuditSeverity.INFO
-            
+
             return AuditEvent(
                 id=doc.get("id"),
                 event_type=event_type,
@@ -232,53 +243,57 @@ class MongoDBAuditChannel(AuditChannel):
         except Exception as e:
             print(f"转换审计事件失败: {e}")
             return None
-    
+
     def close(self):
         """关闭通道"""
         # 确保批量数据被写入
         self._flush_batch()
-        
+
         if self.client:
             self.client.close()
-    
+
+    def close_sync(self):
+        """同步关闭审计通道"""
+        self.close()
+
     def get_stats(self, workspace_id: Optional[str] = None) -> Dict[str, Any]:
         """获取审计统计信息
-        
+
         Args:
             workspace_id: 工作空间 ID
-        
+
         Returns:
             Dict: 统计信息
         """
         try:
             if not self.collection:
                 self._connect()
-            
+
             query = {}
             if workspace_id:
                 query["workspace_id"] = workspace_id
-            
+
             # 统计事件总数
             total_events = self.collection.count_documents(query)
-            
+
             # 按事件类型统计
             event_type_stats = list(self.collection.aggregate([
                 {"$match": query},
                 {"$group": {"_id": "$event_type", "count": {"$sum": 1}}}
             ]))
-            
+
             # 按严重程度统计
             severity_stats = list(self.collection.aggregate([
                 {"$match": query},
                 {"$group": {"_id": "$severity", "count": {"$sum": 1}}}
             ]))
-            
+
             # 最近 24 小时的事件数
             last_24h = datetime.utcnow() - timedelta(hours=24)
             last_24h_query = query.copy()
             last_24h_query["timestamp"] = {"$gte": last_24h}
             last_24h_events = self.collection.count_documents(last_24h_query)
-            
+
             return {
                 "total_events": total_events,
                 "event_type_stats": {item["_id"]: item["count"] for item in event_type_stats},
@@ -297,7 +312,7 @@ class MongoDBAuditChannel(AuditChannel):
 
 def get_audit_channel() -> AuditChannel:
     """获取审计通道实例
-    
+
     Returns:
         AuditChannel: 审计通道实例
     """

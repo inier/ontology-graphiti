@@ -194,7 +194,7 @@ class AuditLogger:
         self.channel.close_sync()
 
 
-def get_audit_logger(channel: Optional[SQLiteAuditChannel] = None) -> AuditLogger:
+def get_audit_logger(channel: Optional[AuditChannel] = None) -> AuditLogger:
     """
     获取审计日志记录器实例
 
