@@ -67,7 +67,7 @@ const menuItems = [
 export function AppLayout({ children }: AppLayoutProps) {
   const [collapsed, setCollapsed] = useState(false);
   const [workspaces, setWorkspaces] = useState<Workspace[]>([]);
-  const [currentWorkspace, setCurrentWorkspaceState] = useState<string>('');
+  const [currentWorkspaceState, setCurrentWorkspaceState] = useState<string>('');
   const [loading, setLoading] = useState(true);
   const navigate = useNavigate();
   const location = useLocation();
@@ -80,6 +80,7 @@ export function AppLayout({ children }: AppLayoutProps) {
     try {
       setLoading(true);
       const data = await api.listWorkspaces();
+      console.log('Workspaces data:', data); // 添加调试日志
       setWorkspaces(data);
       if (data.length > 0) {
         if (!currentWorkspace || !data.find(w => w.workspace_id === currentWorkspace)) {
@@ -108,7 +109,7 @@ export function AppLayout({ children }: AppLayoutProps) {
   };
 
   const contextValue = {
-    currentWorkspace,
+    currentWorkspace: currentWorkspaceState,
     setCurrentWorkspace: handleWorkspaceChange,
     workspaces,
     reloadWorkspaces: loadWorkspaces,
@@ -175,7 +176,7 @@ export function AppLayout({ children }: AppLayoutProps) {
                 <Spin size="small" />
               ) : workspaces.length > 0 ? (
                 <Select
-                  value={currentWorkspace || undefined}
+                  value={currentWorkspaceState || undefined}
                   onChange={handleWorkspaceChange}
                   style={{ width: 200 }}
                   options={workspaces.map(w => ({
