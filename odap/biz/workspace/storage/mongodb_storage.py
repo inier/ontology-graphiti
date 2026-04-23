@@ -18,6 +18,8 @@ class MongoDBStorage:
         self.workspaces: Collection = self.db["workspaces"]
         self.isolation_policies: Collection = self.db["isolation_policies"]
         self.import_export_records: Collection = self.db["import_export_records"]
+        self.scenarios: Collection = self.db["scenarios"]
+        self.scenario_documents: Collection = self.db["scenario_documents"]
     
     # 工作空间相关
     def save_workspace(self, workspace: Workspace) -> None:
@@ -77,3 +79,124 @@ class MongoDBStorage:
         query = filters or {}
         records = self.import_export_records.find(query).skip((page - 1) * page_size).limit(page_size)
         return [ImportExportRecord(**record) for record in records]
+    
+    # 场景相关
+    def save_scenario(self, scenario: Dict[str, Any]) -> str:
+        """保存场景"""
+        if "scenario_id" not in scenario:
+            import uuid
+            from datetime import datetime, timezone
+            scenario_id = f"scenario-{datetime.now().strftime('%Y%m%d')}-{uuid.uuid4().hex[:6]}"
+            scenario["scenario_id"] = scenario_id
+            scenario["created_at"] = datetime.now(timezone.utc).isoformat()
+            scenario["doc_count"] = 0
+            scenario["event_count"] = 0
+            scenario["entity_count"] = 0
+        
+        result = self.scenarios.insert_one(scenario)
+        return scenario["scenario_id"]
+    
+    def get_scenario(self, scenario_id: str) -> Optional[Dict[str, Any]]:
+        """获取场景"""
+        return self.scenarios.find_one({"scenario_id": scenario_id})
+    
+    def update_scenario(self, scenario_id: str, updates: Dict[str, Any]) -> None:
+        """更新场景"""
+        self.scenarios.update_one({"scenario_id": scenario_id}, {"$set": updates})
+    
+    def delete_scenario(self, scenario_id: str) -> None:
+        """删除场景"""
+        self.scenarios.delete_one({"scenario_id": scenario_id})
+        self.scenario_documents.delete_many({"scenario_id": scenario_id})
+    
+    def list_scenarios(self) -> List[Dict[str, Any]]:
+        """列出场景"""
+        return list(self.scenarios.find())
+    
+    def add_scenario_document(self, scenario_id: str, document: Dict[str, Any]) -> None:
+        """添加场景文档"""
+        document["scenario_id"] = scenario_id
+        self.scenario_documents.insert_one(document)
+        
+        # 更新场景统计信息
+        doc_count = self.scenario_documents.count_documents({"scenario_id": scenario_id})
+        
+        # 计算事件和实体数量
+        docs = list(self.scenario_documents.find({"scenario_id": scenario_id}))
+        event_count = sum(len(d.get("events", [])) for d in docs)
+        entity_count = sum(len(d.get("entities", [])) for d in docs)
+        
+        self.scenarios.update_one(
+            {"scenario_id": scenario_id},
+            {"$set": {
+                "doc_count": doc_count,
+                "event_count": event_count,
+                "entity_count": entity_count
+            }}
+        )
+    
+    def get_scenario_documents(self, scenario_id: str) -> List[Dict[str, Any]]:
+        """获取场景文档"""
+        return list(self.scenario_documents.find({"scenario_id": scenario_id}))
+    
+    def get_scenario_timeline(self, scenario_id: str) -> List[Dict[str, Any]]:
+        """获取场景时间线"""
+        docs = self.get_scenario_documents(scenario_id)
+        events = []
+        for doc in docs:
+            if "events" in doc:
+                events.extend(doc["events"])
+        events.sort(key=lambda x: x.get("timestamp", ""))
+        return events
+    
+    def get_scenario_entities(self, scenario_id: str) -> List[Dict[str, Any]]:
+        """获取场景实体"""
+        docs = self.get_scenario_documents(scenario_id)
+        entity_map = {}
+        for doc in docs:
+            if "entities" in doc:
+                for entity in doc["entities"]:
+                    entity_id = entity.get("entity_id")
+                    if entity_id:
+                        entity_map[entity_id] = entity
+        return list(entity_map.values())
+    
+    def get_scenario_relations(self, scenario_id: str) -> Dict[str, Any]:
+        """获取场景关系"""
+        entities = self.get_scenario_entities(scenario_id)
+        docs = self.get_scenario_documents(scenario_id)
+        nodes = []
+        links = []
+        node_ids = set()
+        
+        import uuid
+        
+        for entity in entities:
+            entity_id = entity.get("entity_id")
+            if entity_id and entity_id not in node_ids:
+                nodes.append({
+                    "id": entity_id,
+                    "name": entity.get("name", entity_id),
+                    "type": entity.get("entity_type", "Entity"),
+                    "side": entity.get("basic_properties", {}).get("side"),
+                })
+                node_ids.add(entity_id)
+        
+        for doc in docs:
+            if "events" in doc:
+                for event in doc["events"]:
+                    participants = event.get("participants", [])
+                    if len(participants) >= 2:
+                        for i in range(len(participants) - 1):
+                            source = participants[i]
+                            target = participants[i + 1]
+                            if source in node_ids and target in node_ids:
+                                links.append({
+                                    "id": f"rel-{uuid.uuid4().hex[:8]}",
+                                    "source": source,
+                                    "target": target,
+                                    "type": event.get("event_type", "association"),
+                                    "event_id": event.get("event_id"),
+                                })
+        
+        return {"nodes": nodes, "links": links}

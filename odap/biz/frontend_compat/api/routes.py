@@ -30,9 +30,17 @@ SCENARIOS_DIR = os.path.join(_odap_root, "storage", "versions", "scenarios")
 from odap.infra.graph.graph_service import GraphManager
 from odap.biz.workspace.services.workspace_service import WorkspaceService
 
+# 初始化存储
+try:
+    from odap.biz.workspace.storage import Storage
+    storage = Storage()
+except Exception as e:
+    print(f"Failed to initialize storage: {e}")
+    storage = None
+
 # 初始化服务
 graph_manager = GraphManager()
-scenario_store = ScenarioStore(storage_dir=SCENARIOS_DIR, graph_manager=graph_manager)
+scenario_store = ScenarioStore(storage_dir=SCENARIOS_DIR, graph_manager=graph_manager, storage=storage)
 workspace_service = WorkspaceService()
 
 # 初始化审计日志器
