@@ -35,6 +35,22 @@ except ImportError as e:
     BaseTool = object
     ToolRegistry = object
 
+# 导入 LLM 客户端
+try:
+    from .llm_client import get_llm_client, LLMClientFactory
+    LLM_CLIENT_AVAILABLE = True
+except ImportError as e:
+    print(f"⚠ LLM 客户端导入失败: {e}")
+    LLM_CLIENT_AVAILABLE = False
+
+# 导入决策引擎
+try:
+    from .decision_engine import DecisionEngine, create_decision_engine
+    DECISION_ENGINE_AVAILABLE = True
+except ImportError as e:
+    print(f"⚠ 决策引擎导入失败: {e}")
+    DECISION_ENGINE_AVAILABLE = False
+
 
 @dataclass
 class AgentAction:
@@ -175,7 +191,9 @@ class GraphitiAgentLoop:
         self._episode_history: List[Dict] = []
         self._max_steps = 50
         self._current_step = 0
+        self._decision_engine = None
         self._build_tools()
+        self._init_decision_engine()
 
     def _build_tools(self):
         """从 SKILL_CATALOG 构建工具列表"""
@@ -193,6 +211,19 @@ class GraphitiAgentLoop:
             print(f"✓ Agent Loop 初始化完成: {len(self.tools)} 个工具")
         except Exception as e:
             print(f"⚠ 构建工具列表失败: {e}")
+
+    def _init_decision_engine(self):
+        """初始化决策引擎"""
+        if DECISION_ENGINE_AVAILABLE:
+            try:
+                tools_catalog = {
+                    name: {"description": tool.description, "category": tool.category}
+                    for name, tool in self.tools.items()
+                }
+                self._decision_engine = create_decision_engine(tools_catalog)
+                print("✓ 决策引擎初始化完成")
+            except Exception as e:
+                print(f"⚠ 决策引擎初始化失败: {e}")
 
     async def run(self, user_input: str, context: Dict[str, Any] = None) -> Dict[str, Any]:
         """
@@ -249,15 +280,25 @@ class GraphitiAgentLoop:
     async def _decide_action(self, user_input: str, 
                             observation: AgentObservation,
                             context: Dict[str, Any] = None) -> Optional[AgentAction]:
-        """使用 LLM 决策下一步行动"""
-        if not self.llm_client:
-            # Fallback: 简单关键词匹配
-            return self._fallback_decide(user_input)
+        """使用 LLM 或决策引擎决策下一步行动"""
+        # 优先使用决策引擎
+        if self._decision_engine:
+            try:
+                tool_name, params, thought = self._decision_engine.decide(user_input)
+                return AgentAction(
+                    tool_name=tool_name,
+                    params=params,
+                    thought=thought,
+                )
+            except Exception as e:
+                print(f"决策引擎失败: {e}，回退到 LLM")
         
-        # 构建 prompt
-        tools_schema = [tool.to_openai_schema() for tool in self.tools.values()]
-        
-        prompt = f"""基于用户输入和当前状态，选择最合适的工具执行。
+        # 使用 LLM
+        if self.llm_client:
+            try:
+                tools_schema = [tool.to_openai_schema() for tool in self.tools.values()]
+                
+                prompt = f"""基于用户输入和当前状态，选择最合适的工具执行。
 
 用户输入: {user_input}
 可用工具: {[t.name for t in self.tools.values()]}
@@ -271,24 +312,24 @@ class GraphitiAgentLoop:
     "thought": "思考过程"
 }}
 """
+                
+                response = await self.llm_client.complete(prompt)
+                action_data = json.loads(response)
+                return AgentAction(**action_data)
+            except Exception as e:
+                print(f"LLM 决策失败: {e}")
         
-        try:
-            response = await self.llm_client.complete(prompt)
-            action_data = json.loads(response)
-            return AgentAction(**action_data)
-        except Exception as e:
-            print(f"LLM 决策失败: {e}")
-            return self._fallback_decide(user_input)
+        # 最终 Fallback
+        return self._fallback_decide(user_input)
 
     def _fallback_decide(self, user_input: str) -> Optional[AgentAction]:
         """Fallback 决策逻辑"""
         # 简单的关键词匹配
         keywords = {
-            "查询": "query_graph",
-            "搜索": "search_entities",
-            "创建": "create_entity",
-            "删除": "delete_entity",
-            "更新": "update_entity",
+            "查询": "query_entities",
+            "搜索": "search_graph",
+            "分析": "analyze_graph",
+            "工作空间": "list_workspaces",
         }
         
         for keyword, tool_name in keywords.items():
@@ -322,7 +363,18 @@ class GraphitiAgentLoop:
 
     def _is_task_complete(self, result: Dict) -> bool:
         """判断任务是否完成"""
-        # 可以根据具体业务逻辑判断
+        # 如果有错误，任务完成（避免无限循环）
+        if result.get("status") == "error":
+            return True
+        
+        # 如果成功获取了数据，认为任务完成
+        if result.get("status") == "success":
+            data = result.get("data", {})
+            # 如果返回了实体列表或分析结果，任务完成
+            if isinstance(data, list) and len(data) > 0:
+                return True
+            if isinstance(data, dict) and ("total_entities" in data or "summary" in data):
+                return True
         return False
 
     def list_tools(self) -> List[Dict]:
@@ -373,10 +425,20 @@ class OpenHarnessIntegration:
         """
         try:
             # 初始化 LLM Client
-            if provider_config and OPENHARNESS_V2_AVAILABLE:
-                self.settings = Settings()
-                # 配置 provider
-                self.llm_client = AnthropicApiClient(self.settings)
+            if LLM_CLIENT_AVAILABLE:
+                # 使用新的 LLM 客户端系统
+                if provider_config:
+                    provider_name = provider_config.get("provider", "anthropic")
+                    self.llm_client = LLMClientFactory.create_client(
+                        provider_name, 
+                        provider_config
+                    )
+                else:
+                    # 自动从配置文件加载
+                    self.llm_client = get_llm_client()
+                
+                if self.llm_client:
+                    print(f"✓ LLM 客户端初始化成功")
             
             # 初始化 Agent Loop
             self.agent_loop = GraphitiAgentLoop(
