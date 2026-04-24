@@ -535,6 +535,24 @@ class GraphManager:
                 return False
 
         try:
+            # 检查是否已经有正在运行的事件循环
+            try:
+                loop = asyncio.get_running_loop()
+                if loop.is_running():
+                    # 如果已经有事件循环在运行，在新线程中运行
+                    import threading
+                    result = [None]
+                    
+                    def run_async():
+                        result[0] = asyncio.run(init_all())
+                    
+                    thread = threading.Thread(target=run_async, daemon=True)
+                    thread.start()
+                    thread.join(timeout=60)  # 等待最多60秒
+                    return result[0] if result[0] is not None else False
+            except RuntimeError:
+                pass  # 没有运行中的事件循环
+                
             return asyncio.run(init_all())
         except Exception as e:
             print(f"初始化失败: {e}")

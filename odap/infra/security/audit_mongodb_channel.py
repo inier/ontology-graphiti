@@ -53,7 +53,7 @@ class MongoDBAuditChannel(AuditChannel):
 
     def _create_indexes(self):
         """创建必要的索引"""
-        if self.collection:
+        if self.collection is not None:
             # 时间戳索引，用于排序和范围查询
             self.collection.create_index("timestamp")
             # 工作空间 ID 索引，用于按工作空间查询
@@ -77,7 +77,7 @@ class MongoDBAuditChannel(AuditChannel):
             event: 审计事件对象
         """
         try:
-            if not self.collection:
+            if self.collection is None:
                 self._connect()
 
             event_dict = self._event_to_dict(event)
@@ -97,7 +97,7 @@ class MongoDBAuditChannel(AuditChannel):
             events: 审计事件列表
         """
         try:
-            if not self.collection:
+            if self.collection is None:
                 self._connect()
 
             event_dicts = [self._event_to_dict(event) for event in events]
@@ -133,7 +133,7 @@ class MongoDBAuditChannel(AuditChannel):
 
     def _flush_batch(self):
         """批量写入事件"""
-        if self.batch and self.collection:
+        if self.batch and self.collection is not None:
             try:
                 self.collection.insert_many(self.batch)
                 self.batch.clear()
@@ -150,7 +150,7 @@ class MongoDBAuditChannel(AuditChannel):
             List[AuditEvent]: 审计事件列表
         """
         try:
-            if not self.collection:
+            if self.collection is None:
                 self._connect()
 
             query = {}
