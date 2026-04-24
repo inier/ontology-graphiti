@@ -9,6 +9,20 @@ import { VersionHistory } from './modules/version';
 import { RoleManager } from './modules/roles';
 import { QAChat } from './modules/qa/pages/QAChat';
 
+// 临时占位组件，用于未实现的页面
+import { Alert } from 'antd';
+
+function Placeholder({ title, description }: { title: string; description?: string }) {
+  return (
+    <Alert
+      message={title}
+      description={description || `${title} 功能正在开发中`}
+      type="info"
+      showIcon
+    />
+  );
+}
+
 export function AppRoutes() {
   return (
     <Routes>
@@ -25,6 +39,8 @@ export function AppRoutes() {
       <Route path="/config" element={<ConfigCenter />} />
       <Route path="/roles" element={<RoleManager />} />
       <Route path="/qa" element={<QAChat />} />
+      <Route path="/policies" element={<Placeholder title="OPA 策略管理" />} />
+      <Route path="/skills" element={<Placeholder title="Skill 管理" />} />
     </Routes>
   );
 }

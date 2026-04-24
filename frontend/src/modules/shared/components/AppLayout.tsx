@@ -48,20 +48,41 @@ interface AppLayoutProps {
 }
 
 const menuItems = [
-  { key: '/', icon: <HomeOutlined />, label: '首页仪表盘' },
-  { key: '/ontology', icon: <BlockOutlined />, label: '本体图谱' },
-  { key: '/query', icon: <SearchOutlined />, label: '查询界面' },
-  { key: '/timeline', icon: <ClockCircleOutlined />, label: '时间线' },
-  { key: '/map', icon: <EnvironmentOutlined />, label: '态势地图' },
-  { key: '/simulator', icon: <ThunderboltOutlined />, label: '模拟推演' },
-  { key: '/ingest', icon: <UploadOutlined />, label: '数据摄入' },
-  { key: '/versions', icon: <HistoryOutlined />, label: '版本管理' },
-  { key: '/workspace', icon: <BlockOutlined />, label: '工作空间' },
-  { key: '/roles', icon: <TeamOutlined />, label: '角色管理' },
-  { key: '/config', icon: <SettingOutlined />, label: '配置中心' },
-  { key: '/policies', icon: <FileTextOutlined />, label: 'OPA 策略' },
-  { key: '/audit', icon: <AuditOutlined />, label: '审计日志' },
-  { key: '/skills', icon: <AppstoreOutlined />, label: 'Skill 管理' },
+  {
+    key: 'user-operations',
+    icon: <HomeOutlined />,
+    label: '用户操作区',
+    children: [
+      { key: '/', icon: <HomeOutlined />, label: '首页仪表盘' },
+      { key: '/query', icon: <SearchOutlined />, label: '查询界面' },
+      { key: '/timeline', icon: <ClockCircleOutlined />, label: '时间线' },
+      { key: '/map', icon: <EnvironmentOutlined />, label: '态势地图' },
+      { key: '/simulator', icon: <ThunderboltOutlined />, label: '模拟推演' },
+    ],
+  },
+  {
+    key: 'ontology-management',
+    icon: <BlockOutlined />,
+    label: '本体管理区',
+    children: [
+      { key: '/ontology', icon: <BlockOutlined />, label: '本体图谱' },
+      { key: '/ingest', icon: <UploadOutlined />, label: '数据摄入' },
+      { key: '/workspace', icon: <BlockOutlined />, label: '工作空间' },
+      { key: '/versions', icon: <HistoryOutlined />, label: '版本管理' },
+    ],
+  },
+  {
+    key: 'system-config',
+    icon: <SettingOutlined />,
+    label: '系统配置区',
+    children: [
+      { key: '/roles', icon: <TeamOutlined />, label: '角色管理' },
+      { key: '/policies', icon: <FileTextOutlined />, label: 'OPA 策略' },
+      { key: '/skills', icon: <AppstoreOutlined />, label: 'Skill 管理' },
+      { key: '/audit', icon: <AuditOutlined />, label: '审计日志' },
+      { key: '/config', icon: <SettingOutlined />, label: '配置中心' },
+    ],
+  },
 ];
 
 export function AppLayout({ children }: AppLayoutProps) {

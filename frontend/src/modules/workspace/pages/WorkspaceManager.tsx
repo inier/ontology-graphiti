@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
-import { Table, Card, Button, Modal, Form, Input, Space, Tag, Popconfirm, message, Row, Col, Statistic, Tabs } from 'antd';
-import { PlusOutlined, EditOutlined, DeleteOutlined, PlayCircleOutlined, StopOutlined } from '@ant-design/icons';
+import { Table, Card, Button, Modal, Form, Input, Space, Tag, Popconfirm, message, Row, Col, Statistic, Tabs, Spin } from 'antd';
+import { PlusOutlined, EditOutlined, DeleteOutlined, PlayCircleOutlined, StopOutlined, BuildOutlined } from '@ant-design/icons';
 import { api } from '../../shared/services/api';
 import { useWorkspace } from '../../shared/components/AppLayout';
 import type { Workspace } from '../../shared/services/api';
@@ -168,6 +168,20 @@ export function WorkspaceManager() {
     } catch (error) {
       console.error('删除失败', error);
       message.error('删除失败');
+    }
+  };
+
+  const handleBuildGraph = async (workspaceId: string, scenarioId: string) => {
+    const hide = message.loading('正在构建图谱...', 0);
+    try {
+      const result = await api.buildGraph(workspaceId, scenarioId);
+      hide();
+      message.success(`构建成功！抽取了 ${result.entity_count} 个实体，${result.event_count} 个事件`);
+      loadScenarios(workspaceId);
+    } catch (error) {
+      hide();
+      console.error('构建图谱失败', error);
+      message.error('构建图谱失败');
     }
   };
 
@@ -345,7 +359,7 @@ export function WorkspaceManager() {
     {
       title: '操作',
       key: 'action',
-      width: 150,
+      width: 250,
       render: (_: unknown, record: Scenario) => (
         <Space size="small">
           <Button
@@ -354,6 +368,13 @@ export function WorkspaceManager() {
             onClick={() => handleEditScenario(record.workspace_id, record)}
           >
             编辑
+          </Button>
+          <Button
+            type="link"
+            icon={<BuildOutlined />}
+            onClick={() => handleBuildGraph(record.workspace_id, record.scenario_id)}
+          >
+            构建图谱
           </Button>
           <Popconfirm
             title="确定删除此场景？"

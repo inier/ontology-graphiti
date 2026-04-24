@@ -713,6 +713,8 @@ async def get_trace_events(trace_id: str):
 
 # ==================== 工作空间路由（使用完整实现） ====================
 
+# 注意：更具体的路由必须放在更通用的路由前面！
+
 @router.get("/workspaces")
 async def list_workspaces():
     """列出工作空间（兼容前端）"""
@@ -737,130 +739,6 @@ async def get_workspace(workspace_id: str):
         raise HTTPException(status_code=500, detail=str(e))
 
 
-@router.post("/workspaces")
-async def create_workspace(data: Dict[str, Any]):
-    """创建工作空间（兼容前端）"""
-    try:
-        result = workspace_service.create_workspace(
-            name=data.get("name", "新工作空间"),
-            description=data.get("description", ""),
-            owner=data.get("owner", "system")
-        )
-        return result
-    except Exception as e:
-        raise HTTPException(status_code=500, detail=str(e))
-
-
-# ==================== 工作空间场景路由 ====================
-
-@router.get("/workspaces/{workspace_id}/scenarios")
-async def list_workspace_scenarios(workspace_id: str):
-    """获取工作空间的场景列表（兼容前端）"""
-    try:
-        scenarios = scenario_store.list_scenarios()
-        workspace_scenarios = [
-            {k: v for k, v in s.items() if k != '_id'} 
-            for s in scenarios 
-            if s.get('workspace_id') == workspace_id or not s.get('workspace_id')
-        ]
-        return {
-            "scenarios": workspace_scenarios,
-            "workspace_id": workspace_id,
-            "total": len(workspace_scenarios)
-        }
-    except Exception as e:
-        raise HTTPException(status_code=500, detail=str(e))
-
-
-@router.post("/workspaces/{workspace_id}/scenarios")
-async def create_workspace_scenario_compat(workspace_id: str, request: Request):
-    """在工作空间创建场景（兼容前端）- 使用 Request 避免路径冲突"""
-    import uuid
-    from datetime import datetime, timezone
-    from fastapi.responses import JSONResponse as FastAPIJSONResponse
-    
-    # 手动解析请求体
-    body = await request.body()
-    data = json.loads(body.decode())
-    
-    # 生成场景ID
-    scenario_id = f"scenario-{datetime.now().strftime('%Y%m%d')}-{uuid.uuid4().hex[:6]}"
-    
-    # 构建响应数据
-    response_data = {
-        "scenario_id": scenario_id,
-        "name": data.get("name", "新场景"),
-        "description": data.get("description", ""),
-        "workspace_id": workspace_id,
-        "created_at": datetime.now(timezone.utc).isoformat(),
-        "doc_count": 0,
-        "event_count": 0,
-        "entity_count": 0,
-    }
-    
-    # 使用 FastAPI 的 JSONResponse 确保正确序列化
-    return FastAPIJSONResponse(content=response_data)
-
-
-@router.get("/workspaces/{workspace_id}/scenarios/{scenario_id}")
-async def get_workspace_scenario(workspace_id: str, scenario_id: str):
-    """获取工作空间的场景详情（兼容前端）"""
-    try:
-        scenario = scenario_store.get_scenario(scenario_id)
-        if not scenario:
-            raise HTTPException(status_code=404, detail="Scenario not found")
-        # 确保移除 _id 字段
-        return {k: v for k, v in scenario.items() if k != '_id'}
-    except HTTPException:
-        raise
-    except Exception as e:
-        raise HTTPException(status_code=500, detail=str(e))
-
-
-@router.put("/workspaces/{workspace_id}/scenarios/{scenario_id}")
-async def update_workspace_scenario(workspace_id: str, scenario_id: str, data: Dict[str, Any]):
-    """更新工作空间的场景（兼容前端）"""
-    try:
-        scenario = scenario_store.get_scenario(scenario_id)
-        if not scenario:
-            raise HTTPException(status_code=404, detail="Scenario not found")
-        
-        updates = {}
-        if "name" in data:
-            updates["name"] = data["name"]
-        if "description" in data:
-            updates["description"] = data["description"]
-        if "ontology_id" in data:
-            updates["ontology_id"] = data["ontology_id"]
-        
-        if updates and hasattr(scenario_store, 'update_scenario'):
-            scenario_store.update_scenario(scenario_id, updates)
-        
-        updated_scenario = scenario_store.get_scenario(scenario_id)
-        # 确保移除 _id 字段
-        return {k: v for k, v in updated_scenario.items() if k != '_id'}
-    except HTTPException:
-        raise
-    except Exception as e:
-        raise HTTPException(status_code=500, detail=str(e))
-
-
-@router.delete("/workspaces/{workspace_id}/scenarios/{scenario_id}")
-async def delete_workspace_scenario(workspace_id: str, scenario_id: str):
-    """删除工作空间的场景（兼容前端）"""
-    try:
-        scenario = scenario_store.get_scenario(scenario_id)
-        if not scenario:
-            raise HTTPException(status_code=404, detail="Scenario not found")
-        
-        if hasattr(scenario_store, 'delete_scenario'):
-            scenario_store.delete_scenario(scenario_id)
-        
-        return {"status": "success", "message": "Scenario deleted"}
-    except HTTPException:
-        raise
-    except Exception as e:
-        raise HTTPException(status_code=500, detail=str(e))
 
 
 # ==================== 实体路由 ====================

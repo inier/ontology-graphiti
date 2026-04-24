@@ -47,8 +47,9 @@ class OntologyBuilder(IOntologyBuilder):
         result.end_time = datetime.now()
         result.duration_seconds = (result.end_time - result.start_time).total_seconds()
         
-        # 保存构建结果
-        self.storage.save_build_result(result)
+        # 转换为字典并保存构建结果
+        result_dict = result.model_dump()
+        self.storage.save_build_result(result_dict)
         
         return result
     
@@ -58,28 +59,52 @@ class OntologyBuilder(IOntologyBuilder):
             name=name,
             description=description
         )
-        self.storage.save_ontology_document(doc)
+        
+        # 转换为字典并保存到 MongoDB
+        doc_dict = doc.model_dump()
+        # 确保有 document_id 字段
+        doc_dict["document_id"] = doc_dict["id"]
+        self.storage.save_ontology_document(doc_dict)
+        
         return doc
     
     def update_ontology_document(self, ontology_id: str, updates: Dict[str, Any]) -> OntologyDocument:
         """更新本体文档"""
-        doc = self.storage.get_ontology_document(ontology_id)
+        doc = self.get_ontology_document(ontology_id)
         if doc:
             for key, value in updates.items():
                 if hasattr(doc, key):
                     setattr(doc, key, value)
             doc.updated_at = datetime.now()
-            self.storage.update_ontology_document(doc)
+            
+            # 转换为字典并更新
+            doc_dict = doc.model_dump()
+            doc_dict["document_id"] = doc_dict["id"]
+            self.storage.update_ontology_document(ontology_id, doc_dict)
+        
         return doc
     
     def get_ontology_document(self, ontology_id: str) -> Optional[OntologyDocument]:
         """获取本体文档"""
-        return self.storage.get_ontology_document(ontology_id)
+        doc_dict = self.storage.get_ontology_document(ontology_id)
+        if doc_dict:
+            # 将 MongoDB 的 document_id 映射回 id
+            if 'document_id' in doc_dict and 'id' not in doc_dict:
+                doc_dict['id'] = doc_dict['document_id']
+            return OntologyDocument(**doc_dict)
+        return None
     
     def list_ontology_documents(self, filters: Dict[str, Any] = None, 
                                page: int = 1, page_size: int = 10) -> List[OntologyDocument]:
         """列出本体文档"""
-        return self.storage.list_ontology_documents(filters, page, page_size)
+        doc_dicts = self.storage.list_ontology_documents(filters, page, page_size)
+        docs = []
+        for doc_dict in doc_dicts:
+            # 将 MongoDB 的 document_id 映射回 id
+            if 'document_id' in doc_dict and 'id' not in doc_dict:
+                doc_dict['id'] = doc_dict['document_id']
+            docs.append(OntologyDocument(**doc_dict))
+        return docs
     
     def validate_ontology(self, ontology_id: str) -> Dict[str, Any]:
         """验证本体"""

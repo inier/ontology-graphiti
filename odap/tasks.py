@@ -5,15 +5,13 @@ import time
 import json
 import pandas as pd
 import io
+from typing import Dict, Any
 
 
 @celery_app.task
 def process_ingest_task(task_id, ingest_type, data, scenario_id=None):
     """处理数据摄入任务"""
     try:
-        # 模拟处理时间
-        time.sleep(5)
-        
         result = {
             'task_id': task_id,
             'ingest_type': ingest_type,
@@ -25,15 +23,46 @@ def process_ingest_task(task_id, ingest_type, data, scenario_id=None):
         if ingest_type == 'text':
             # 处理文本数据
             result['content_length'] = len(data.get('text', ''))
+            
+            # 保存到场景
+            if scenario_id:
+                _save_to_scenario(scenario_id, 'text', data)
+                
         elif ingest_type == 'news':
             # 处理新闻数据
             result['url'] = data.get('url', '')
+            
+            if data.get('url') and scenario_id:
+                from odap.utils.web_scraper import WebScraper
+                scraper = WebScraper()
+                news_data = scraper.scrape_news(data.get('url'))
+                
+                if news_data:
+                    result['title'] = news_data.get('title', '')
+                    result['content_length'] = len(news_data.get('content', ''))
+                    
+                    # 保存到场景
+                    _save_to_scenario(scenario_id, 'news', news_data)
+                    result['processed_count'] = 1
+        
         elif ingest_type == 'random':
             # 处理随机数据
             result['generated_count'] = data.get('count', 10)
+            
+            if scenario_id:
+                from odap.utils.data_generator import DataGenerator
+                gen = DataGenerator()
+                sample_data = gen.generate_sample_data(data.get('count', 10))
+                _save_to_scenario(scenario_id, 'random', sample_data)
+                result['processed_count'] = len(sample_data.get('entities', []))
+                
         elif ingest_type == 'manual':
             # 处理手动录入数据
             result['data_type'] = data.get('type', 'entity')
+            
+            if scenario_id:
+                _save_to_scenario(scenario_id, 'manual', data)
+        
         elif ingest_type == 'file':
             # 处理文件数据
             result['filename'] = data.get('filename', '')
@@ -41,11 +70,30 @@ def process_ingest_task(task_id, ingest_type, data, scenario_id=None):
         
         return result
     except Exception as e:
+        import traceback
         return {
             'task_id': task_id,
             'status': 'failed',
-            'error': str(e)
+            'error': str(e),
+            'traceback': traceback.format_exc()
         }
+
+
+def _save_to_scenario(scenario_id: str, doc_type: str, data: Dict[str, Any]):
+    """保存数据到场景"""
+    try:
+        from odap.biz.workspace.storage import Storage
+        storage = Storage()
+        
+        doc = {
+            'doc_type': doc_type,
+            'data': data,
+            'created_at': time.strftime('%Y-%m-%dT%H:%M:%SZ', time.gmtime())
+        }
+        
+        storage.add_scenario_document(scenario_id, doc)
+    except Exception as e:
+        print(f"Error saving to scenario: {e}")
 
 
 @celery_app.task

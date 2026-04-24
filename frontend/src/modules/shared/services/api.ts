@@ -86,6 +86,25 @@ async function fetchJson<T>(url: string, options?: RequestInit): Promise<T> {
 
 export const api = {
   async listScenarios(): Promise<Scenario[]> {
+    try {
+      // 先尝试获取所有工作空间的场景
+      const workspacesData = await fetchJson<{ workspaces: Workspace[] }>(`${API_BASE}/api/workspaces`);
+      let allScenarios: Scenario[] = [];
+      for (const ws of workspacesData.workspaces || []) {
+        try {
+          const scenariosData = await fetchJson<{ scenarios: Scenario[] }>(`${API_BASE}/api/workspaces/${ws.workspace_id}/scenarios`);
+          allScenarios = allScenarios.concat(scenariosData.scenarios || []);
+        } catch (e) {
+          console.error(`获取工作空间 ${ws.workspace_id} 场景失败`, e);
+        }
+      }
+      if (allScenarios.length > 0) {
+        return allScenarios;
+      }
+    } catch (e) {
+      console.error('获取新路由场景失败，尝试旧路由', e);
+    }
+    // 回退到旧路由
     const data = await fetchJson<{ scenarios: Scenario[] }>(`${API_BASE}/api/scenarios`);
     return data.scenarios;
   },
@@ -427,6 +446,19 @@ export const api = {
   async deleteScenario(workspaceId: string, scenarioId: string): Promise<{ status: string; message: string }> {
     return fetchJson(`${API_BASE}/api/workspaces/${workspaceId}/scenarios/${scenarioId}`, {
       method: 'DELETE',
+    });
+  },
+
+  async buildGraph(workspaceId: string, scenarioId: string): Promise<{
+    status: string;
+    scenario_id: string;
+    ontology_id?: string;
+    entity_count: number;
+    event_count: number;
+    entities?: Array<{ id: string; type: string; name: string; properties: Record<string, unknown> }>;
+  }> {
+    return fetchJson(`${API_BASE}/api/workspaces/${workspaceId}/scenarios/${scenarioId}/build-graph`, {
+      method: 'POST',
     });
   },
 

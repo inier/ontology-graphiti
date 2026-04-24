@@ -419,3 +419,22 @@ async def delete_scenario(workspace_id: str, scenario_id: str):
         raise
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
+
+
+@router.post("/{workspace_id}/scenarios/{scenario_id}/build-graph")
+async def build_graph_for_scenario(workspace_id: str, scenario_id: str):
+    """从场景数据构建图谱"""
+    try:
+        # 检查场景是否存在且属于该工作空间
+        scenario = scenario_service.get_scenario(scenario_id)
+        if not scenario or scenario.get("workspace_id") != workspace_id:
+            raise HTTPException(status_code=404, detail="Scenario not found")
+        
+        result = scenario_service.build_graph_from_scenario(scenario_id)
+        if result.get("status") == "error":
+            raise HTTPException(status_code=400, detail=result.get("message"))
+        return result
+    except HTTPException:
+        raise
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))

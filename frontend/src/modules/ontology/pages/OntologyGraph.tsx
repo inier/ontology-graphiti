@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react';
-import { Row, Col, Card, Drawer, Descriptions, Tag, Spin, Button } from 'antd';
+import { Row, Col, Card, Drawer, Descriptions, Tag, Spin, Button, Select, Space, message } from 'antd';
 import { GraphCanvas } from '../components/GraphCanvas';
+import { api } from '../../shared/services/api';
 
 interface GraphNode {
   id: string;
@@ -16,34 +17,90 @@ interface GraphEdge {
   type: string;
 }
 
+interface Scenario {
+  scenario_id: string;
+  name: string;
+  description: string;
+  entity_count: number;
+}
+
 export function OntologyGraph() {
   const [nodes, setNodes] = useState<GraphNode[]>([]);
   const [edges, setEdges] = useState<GraphEdge[]>([]);
   const [selectedNode, setSelectedNode] = useState<GraphNode | null>(null);
   const [loading, setLoading] = useState(true);
+  const [scenarios, setScenarios] = useState<Scenario[]>([]);
+  const [selectedScenarioId, setSelectedScenarioId] = useState<string | null>(null);
 
-  const loadGraph = async () => {
+  const loadScenarios = async () => {
+    try {
+      const data = await api.listScenarios();
+      setScenarios(data);
+      if (data.length > 0) {
+        setSelectedScenarioId(data[0].scenario_id);
+      }
+    } catch (error) {
+      console.error('加载场景失败', error);
+    }
+  };
+
+  const loadGraph = async (scenarioId?: string) => {
+    if (!scenarioId) return;
     try {
       setLoading(true);
-      setNodes([]);
-      setEdges([]);
+      const result = await api.getRelations(scenarioId);
+      setNodes(result.nodes as GraphNode[]);
+      setEdges(result.edges as GraphEdge[]);
     } catch (error) {
       console.error('加载图数据失败', error);
+      message.error('加载图数据失败');
     } finally {
       setLoading(false);
     }
   };
 
   useEffect(() => {
-    loadGraph();
+    loadScenarios();
   }, []);
+
+  useEffect(() => {
+    if (selectedScenarioId) {
+      loadGraph(selectedScenarioId);
+    }
+  }, [selectedScenarioId]);
 
   const handleNodeClick = (node: GraphNode) => {
     setSelectedNode(node);
   };
 
+  const getScenarioOptions = () => {
+    return scenarios.map(scenario => ({
+      label: `${scenario.name} (${scenario.entity_count} 个实体)`,
+      value: scenario.scenario_id,
+    }));
+  };
+
   return (
-    <div>
+    <div style={{ padding: 24 }}>
+      <Row gutter={[16, 16]} style={{ marginBottom: 16 }}>
+        <Col span={24}>
+          <Space>
+            <span style={{ fontWeight: 500 }}>选择场景：</span>
+            <Select
+              style={{ width: 400 }}
+              placeholder="选择场景"
+              options={getScenarioOptions()}
+              value={selectedScenarioId}
+              onChange={(value) => setSelectedScenarioId(value)}
+            />
+            <Button
+              onClick={() => selectedScenarioId && loadGraph(selectedScenarioId)}
+            >
+              刷新
+            </Button>
+          </Space>
+        </Col>
+      </Row>
       <Row gutter={[16, 16]}>
         <Col span={24}>
           {loading ? (
@@ -57,7 +114,7 @@ export function OntologyGraph() {
               nodes={nodes}
               edges={edges}
               onNodeClick={handleNodeClick}
-              onRefresh={loadGraph}
+              onRefresh={() => selectedScenarioId && loadGraph(selectedScenarioId)}
             />
           )}
         </Col>
