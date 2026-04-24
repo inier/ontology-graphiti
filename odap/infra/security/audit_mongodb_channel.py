@@ -279,7 +279,7 @@ class MongoDBAuditChannel(AuditChannel):
         # 确保批量数据被写入
         self._flush_batch()
 
-        if self.client:
+        if self.client is not None:
             self.client.close()
 
     def close_sync(self):
@@ -296,7 +296,7 @@ class MongoDBAuditChannel(AuditChannel):
             Dict: 统计信息
         """
         try:
-            if not self.collection:
+            if self.collection is None:
                 self._connect()
 
             query = {}
