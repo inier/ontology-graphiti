@@ -419,28 +419,6 @@ export function WorkspaceManager() {
         style={{ marginTop: 16 }}
         items={[
           {
-            key: 'workspaces',
-            label: '工作空间管理',
-            children: (
-              <Card
-                title="工作空间管理"
-                extra={
-                  <Button type="primary" icon={<PlusOutlined />} onClick={handleCreate}>
-                    创建工作空间
-                  </Button>
-                }
-              >
-                <Table
-                  columns={columns}
-                  dataSource={workspaces}
-                  rowKey="workspace_id"
-                  loading={loading}
-                  pagination={{ pageSize: 10 }}
-                />
-              </Card>
-            ),
-          },
-          {
             key: 'scenarios',
             label: '场景管理',
             children: (
@@ -481,6 +459,28 @@ export function WorkspaceManager() {
                   </Card>
                 )}
               </div>
+            ),
+          },
+          {
+            key: 'workspaces',
+            label: '工作空间管理',
+            children: (
+              <Card
+                title="工作空间管理"
+                extra={
+                  <Button type="primary" icon={<PlusOutlined />} onClick={handleCreate}>
+                    创建工作空间
+                  </Button>
+                }
+              >
+                <Table
+                  columns={columns}
+                  dataSource={workspaces}
+                  rowKey="workspace_id"
+                  loading={loading}
+                  pagination={{ pageSize: 10 }}
+                />
+              </Card>
             ),
           },
         ]}
