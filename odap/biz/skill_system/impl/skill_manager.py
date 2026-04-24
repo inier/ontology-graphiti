@@ -80,7 +80,7 @@ class SkillManager(ISkillManager):
             skill_id=skill_id,
             version=version,
             implementation=implementation,
-            schema=schema or {},
+            data_schema=schema or {},
             changelog=changelog
         )
         

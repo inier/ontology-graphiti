@@ -13,7 +13,7 @@ class EventTemplate(BaseModel):
     name: str
     description: str = ""
     event_type: str
-    schema: Dict[str, Any] = Field(default_factory=dict)
+    data_schema: Dict[str, Any] = Field(default_factory=dict, alias="schema")
     created_at: datetime = Field(default_factory=datetime.now)
 
 

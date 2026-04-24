@@ -22,7 +22,7 @@ class EventSimulatorService:
             name=name,
             event_type=event_type,
             description=description,
-            schema=schema or {}
+            data_schema=schema or {}
         )
         self._templates[template.id] = template
         

@@ -28,7 +28,7 @@ class SkillVersion(BaseModel):
     id: str = Field(default_factory=lambda: str(uuid.uuid4()))
     skill_id: str
     version: str
-    schema: Dict[str, Any] = Field(default_factory=dict)
+    data_schema: Dict[str, Any] = Field(default_factory=dict, alias="schema")
     implementation: str
     changelog: str = ""
     created_at: datetime = Field(default_factory=datetime.now)
