@@ -12,8 +12,10 @@ from odap.biz.hook_system.api.routes import router as hook_router
 from odap.biz.mcp_adapter.api.routes import router as mcp_router
 from odap.biz.event_simulator.api.routes import router as event_router
 from odap.biz.frontend_compat.api.routes import router as frontend_router
+from odap.biz.openharness_agent.api.routes import router as agent_router
 from odap.infra.security import security_config
 from odap.infra.openharness import create_harness
+from odap.infra.openharness.v2_adapter import initialize_openharness
 import logging
 
 # 配置日志
@@ -22,8 +24,8 @@ logger = logging.getLogger(__name__)
 
 app = FastAPI(
     title="Graphiti API",
-    description="Graphiti 知识图谱管理系统",
-    version="1.0.0"
+    description="Graphiti 知识图谱管理系统 - 集成 OpenHarness Agent",
+    version="2.0.0"
 )
 
 # 全局变量
@@ -48,23 +50,41 @@ app.include_router(hook_router)
 app.include_router(mcp_router)
 app.include_router(event_router)
 app.include_router(frontend_router)
+app.include_router(agent_router)
 
 @app.on_event("startup")
 async def startup_event():
     """应用启动事件"""
     global harness
+    
+    # 初始化 OpenHarness v1（向后兼容）
     harness = create_harness()
     if harness:
-        logger.info(f"OpenHarness 初始化成功，可用工具: {len(harness.list_available_tools())}")
+        logger.info(f"OpenHarness v1 初始化成功，可用工具: {len(harness.list_available_tools())}")
     else:
-        logger.warning("OpenHarness 不可用，使用 fallback 模式")
+        logger.warning("OpenHarness v1 不可用")
+    
+    # 初始化 OpenHarness v2 Agent
+    try:
+        await initialize_openharness()
+        logger.info("OpenHarness v2 Agent 初始化成功")
+    except Exception as e:
+        logger.warning(f"OpenHarness v2 Agent 初始化失败: {e}")
 
 @app.get("/")
 async def root():
     """根路径"""
     return {
         "message": "Graphiti API",
-        "version": "1.0.0",
+        "version": "2.0.0",
+        "features": [
+            "知识图谱管理",
+            "工作空间管理",
+            "OpenHarness Agent",
+            "审计日志",
+            "技能系统",
+            "事件模拟"
+        ],
         "endpoints": [
             "/api/ontology-management",
             "/api/workspace",
@@ -73,14 +93,19 @@ async def root():
             "/api/skill",
             "/api/hook",
             "/api/mcp",
-            "/api/event-simulator"
+            "/api/event-simulator",
+            "/api/agent"
         ]
     }
 
 @app.get("/health")
 async def health_check():
     """健康检查"""
-    return {"status": "healthy"}
+    return {
+        "status": "healthy",
+        "openharness_v1": harness is not None,
+        "version": "2.0.0"
+    }
 
 # 添加性能监控端点
 from fastapi import APIRouter

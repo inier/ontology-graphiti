@@ -17,20 +17,49 @@ import sys
 import time
 from typing import Any, Dict, List, Optional
 
-sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+# 首先处理项目根目录
+ODAP_INFRA_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+sys.path.append(ODAP_INFRA_DIR)
+
+# 然后尝试找到 openharness 包的位置
+# 1. 先检查本地开发路径 (可能是 git submodule)
+OPENHARNESS_POSSIBLE_PATHS = [
+    os.path.join(os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))), 'openharness', 'src'),
+    '/app/openharness/src',  # Docker 容器路径
+]
+
+for possible_path in OPENHARNESS_POSSIBLE_PATHS:
+    if os.path.exists(possible_path) and possible_path not in sys.path:
+        sys.path.insert(0, possible_path)
+        print(f"Added openharness source path: {possible_path}")
 
 # OpenHarness（可选）
 try:
-    # 尝试不同的导入路径
+    # 先尝试旧版本的导入（我们代码原始期望的）
     try:
         from openharness_ai.tools.tool import Tool
         from openharness_ai.core.harness import Harness, Observation
+        print("✓ OpenHarness v1 (openharness_ai) 导入成功")
+        OPENHARNESS_AVAILABLE = True
     except ImportError:
-        from openharness.tools.tool import Tool
-        from openharness.core.harness import Harness, Observation
-    OPENHARNESS_AVAILABLE = True
-except ImportError as e:
-    print(f"OpenHarness 导入失败: {e}")
+        try:
+            from openharness.tools.tool import Tool
+            from openharness.core.harness import Harness, Observation
+            print("✓ OpenHarness v1 (openharness) 导入成功")
+            OPENHARNESS_AVAILABLE = True
+        except ImportError:
+            # 尝试检测新版本的 openharness 结构
+            try:
+                from openharness.tools.base import BaseTool
+                print("⚠ 检测到 OpenHarness v2 版本，但架构不兼容，使用 fallback 模式")
+            except ImportError:
+                print(f"⚠ OpenHarness 未找到")
+            OPENHARNESS_AVAILABLE = False
+            Tool = object  # type: ignore
+            Harness = object  # type: ignore
+            Observation = None  # type: ignore
+except Exception as e:
+    print(f"⚠ OpenHarness 导入失败: {e}")
     OPENHARNESS_AVAILABLE = False
     Tool = object  # type: ignore
     Harness = object  # type: ignore
