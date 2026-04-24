@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { Table, Card, Button, Modal, Form, Input, Space, Tag, Popconfirm, message, Row, Col, Statistic, Tabs, Spin } from 'antd';
+import { Table, Card, Button, Modal, Form, Input, Space, Tag, Popconfirm, message, Row, Col, Statistic, Tabs, Spin, Select as AntSelect } from 'antd';
 import { PlusOutlined, EditOutlined, DeleteOutlined, PlayCircleOutlined, StopOutlined, BuildOutlined } from '@ant-design/icons';
 import { api } from '../../shared/services/api';
 import { useWorkspace } from '../../shared/components/AppLayout';
@@ -39,11 +39,11 @@ export function WorkspaceManager() {
 
   useEffect(() => {
     if (activeTab === 'scenarios' && workspaces.length > 0) {
-      workspaces.forEach(workspace => {
-        if (!scenarios[workspace.workspace_id]) {
-          loadScenarios(workspace.workspace_id);
-        }
-      });
+      // 自动选择第一个工作空间（如果没有选择的话）
+      if (!selectedWorkspace && workspaces.length > 0) {
+        setSelectedWorkspace(workspaces[0].workspace_id);
+        loadScenarios(workspaces[0].workspace_id);
+      }
     }
   }, [activeTab, workspaces]);
 
@@ -448,28 +448,41 @@ export function WorkspaceManager() {
             label: '场景管理',
             children: (
               <div>
-                {workspaces.map(workspace => (
+                <Card style={{ marginBottom: 16 }}>
+                  <Space>
+                    <span style={{ fontWeight: 500 }}>选择工作空间:</span>
+                    <AntSelect
+                      placeholder="请选择工作空间"
+                      style={{ width: 200 }}
+                      value={selectedWorkspace || undefined}
+                      onChange={(value) => {
+                        setSelectedWorkspace(value);
+                        if (value && !scenarios[value]) {
+                          loadScenarios(value);
+                        }
+                      }}
+                      options={workspaces.map(w => ({
+                        value: w.workspace_id,
+                        label: w.name,
+                      }))}
+                    />
+                  </Space>
+                </Card>
+                {selectedWorkspace ? (
                   <Card
-                    key={workspace.workspace_id}
                     title={
                       <Space>
-                        <span>{workspace.name}</span>
-                        <Tag color={workspace.status === 'active' ? 'green' : 'red'}>
-                          {workspace.status === 'active' ? '活跃' : '停用'}
+                        <span>{workspaces.find(w => w.workspace_id === selectedWorkspace)?.name}</span>
+                        <Tag color={workspaces.find(w => w.workspace_id === selectedWorkspace)?.status === 'active' ? 'green' : 'red'}>
+                          {workspaces.find(w => w.workspace_id === selectedWorkspace)?.status === 'active' ? '活跃' : '停用'}
                         </Tag>
                       </Space>
                     }
-                    style={{ marginTop: 16 }}
                     extra={
                       <Button
                         type="primary"
                         icon={<PlusOutlined />}
-                        onClick={() => {
-                          if (!scenarios[workspace.workspace_id]) {
-                            loadScenarios(workspace.workspace_id);
-                          }
-                          handleCreateScenario(workspace.workspace_id);
-                        }}
+                        onClick={() => handleCreateScenario(selectedWorkspace)}
                       >
                         创建场景
                       </Button>
@@ -477,13 +490,19 @@ export function WorkspaceManager() {
                   >
                     <Table
                       columns={scenarioColumns}
-                      dataSource={scenarios[workspace.workspace_id] || []}
+                      dataSource={scenarios[selectedWorkspace] || []}
                       rowKey="scenario_id"
-                      loading={scenarioLoading[workspace.workspace_id]}
+                      loading={scenarioLoading[selectedWorkspace]}
                       pagination={{ pageSize: 10 }}
                     />
                   </Card>
-                ))}
+                ) : (
+                  <Card>
+                    <div style={{ textAlign: 'center', color: '#8c8c8c', padding: '40px 0' }}>
+                      请在上方选择一个工作空间以查看其场景
+                    </div>
+                  </Card>
+                )}
               </div>
             ),
           },
