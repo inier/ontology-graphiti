@@ -150,7 +150,7 @@ export function AppLayout({ children, currentWorkspace, onWorkspaceChange }: App
   };
 
   const contextValue = {
-    currentWorkspace: currentWorkspaceState,
+    currentWorkspace: activeWorkspaceId,
     setCurrentWorkspace: handleWorkspaceChange,
     workspaces,
     reloadWorkspaces: loadWorkspaces,

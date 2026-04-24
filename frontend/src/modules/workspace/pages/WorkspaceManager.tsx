@@ -39,9 +39,8 @@ export function WorkspaceManager() {
   useEffect(() => {
     if (activeTab === 'scenarios' && currentWorkspace) {
       // 当切换到场景管理 tab 时，加载当前工作空间的场景
-      if (!scenarios[currentWorkspace]) {
-        loadScenarios(currentWorkspace);
-      }
+      // 每次 currentWorkspace 变化时都重新加载
+      loadScenarios(currentWorkspace);
     }
   }, [activeTab, currentWorkspace]);
 
