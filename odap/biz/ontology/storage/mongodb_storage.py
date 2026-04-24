@@ -25,7 +25,7 @@ class MongoDBStorage:
         Args:
             connection_string: MongoDB 连接字符串
         """
-        self.connection_string = connection_string or os.getenv("MONGODB_URI", "mongodb://localhost:27017")
+        self.connection_string = connection_string or os.getenv("MONGODB_URI", "mongodb://graphiti-mongodb:27017")
         self.client = MongoClient(self.connection_string)
         self.db = self.client["ontology"]
         

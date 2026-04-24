@@ -1,9 +1,7 @@
-"""
-Docker Compose 测试配置
-ODAP 集成测试环境
-"""
+# Docker Compose 测试配置
+# ODAP 集成测试环境
 
-version: '3.8'
+# version: '3.8'
 
 services:
   # Neo4j 图数据库

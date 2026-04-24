@@ -5,13 +5,15 @@ from pymongo import MongoClient
 from pymongo.collection import Collection
 from ..models.workspace import Workspace
 from ..models.import_export import ImportExportRecord
+import os
 
 
 class MongoDBStorage:
     """MongoDB存储实现"""
     
-    def __init__(self, connection_string: str = "mongodb://localhost:27017"):
-        self.client = MongoClient(connection_string)
+    def __init__(self, connection_string: str = None):
+        self.connection_string = connection_string or os.getenv("MONGODB_URI", "mongodb://graphiti-mongodb:27017")
+        self.client = MongoClient(self.connection_string)
         self.db = self.client["workspace"]
         
         # 集合

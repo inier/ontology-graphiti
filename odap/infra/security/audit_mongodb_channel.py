@@ -30,7 +30,7 @@ class MongoDBAuditChannel(AuditChannel):
             connection_string: MongoDB 连接字符串
             db_name: 数据库名称
         """
-        self.connection_string = connection_string or os.getenv("MONGODB_URI", "mongodb://localhost:27017")
+        self.connection_string = connection_string or os.getenv("MONGODB_URI", "mongodb://graphiti-mongodb:27017")
         self.db_name = db_name
         self.client: Optional[MongoClient] = None
         self.collection: Optional[Collection] = None
