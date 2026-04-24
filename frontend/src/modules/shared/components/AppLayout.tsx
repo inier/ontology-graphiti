@@ -85,13 +85,19 @@ const menuItems = [
   },
 ];
 
-export function AppLayout({ children }: AppLayoutProps) {
+export function AppLayout({ children, currentWorkspace, onWorkspaceChange }: AppLayoutProps) {
   const [collapsed, setCollapsed] = useState(false);
   const [workspaces, setWorkspaces] = useState<Workspace[]>([]);
-  const [currentWorkspaceState, setCurrentWorkspaceState] = useState<string>('');
+  const [currentWorkspaceState, setCurrentWorkspaceState] = useState<string>(() => {
+    // 优先从 localStorage 读取已保存的工作空间
+    return localStorage.getItem('currentWorkspaceId') || '';
+  });
   const [loading, setLoading] = useState(true);
   const navigate = useNavigate();
   const location = useLocation();
+
+  // 优先使用 props，如果没有则使用内部状态
+  const activeWorkspaceId = currentWorkspace || currentWorkspaceState;
 
   useEffect(() => {
     loadWorkspaces();
@@ -103,9 +109,15 @@ export function AppLayout({ children }: AppLayoutProps) {
       const data = await api.listWorkspaces();
       console.log('Workspaces data:', data);
       setWorkspaces(data);
+      
+      // 如果没有设置过工作空间，或者当前工作空间不在列表中，自动选择第一个
+      const savedWorkspaceId = localStorage.getItem('currentWorkspaceId');
       if (data.length > 0) {
-        if (!currentWorkspaceState || !data.find(w => w.workspace_id === currentWorkspaceState)) {
-          setCurrentWorkspaceState(data[0].workspace_id);
+        if (!savedWorkspaceId || !data.find(w => w.workspace_id === savedWorkspaceId)) {
+          const defaultWorkspace = data[0].workspace_id;
+          setCurrentWorkspaceState(defaultWorkspace);
+          localStorage.setItem('currentWorkspaceId', defaultWorkspace);
+          onWorkspaceChange?.(defaultWorkspace);
         }
       }
     } catch (error) {
@@ -117,7 +129,15 @@ export function AppLayout({ children }: AppLayoutProps) {
   };
 
   const handleWorkspaceChange = (value: string) => {
+    // 保存到 localStorage
+    localStorage.setItem('currentWorkspaceId', value);
+    
+    // 更新内部状态
     setCurrentWorkspaceState(value);
+    
+    // 调用回调（如果提供）
+    onWorkspaceChange?.(value);
+    
     message.success('已切换工作空间');
   };
 
@@ -197,7 +217,7 @@ export function AppLayout({ children }: AppLayoutProps) {
                 <Spin size="small" />
               ) : workspaces.length > 0 ? (
                 <Select
-                  value={currentWorkspaceState || undefined}
+                  value={activeWorkspaceId || undefined}
                   onChange={handleWorkspaceChange}
                   style={{ width: 200 }}
                   options={workspaces.map(w => ({
