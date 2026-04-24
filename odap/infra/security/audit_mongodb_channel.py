@@ -54,21 +54,51 @@ class MongoDBAuditChannel(AuditChannel):
     def _create_indexes(self):
         """创建必要的索引"""
         if self.collection is not None:
-            # 时间戳索引，用于排序和范围查询
-            self.collection.create_index("timestamp")
-            # 工作空间 ID 索引，用于按工作空间查询
-            self.collection.create_index("workspace_id")
-            # 事件类型索引
-            self.collection.create_index("event_type")
-            # 严重程度索引
-            self.collection.create_index("severity")
-            # 来源索引
-            self.collection.create_index("source")
-            # TTL 索引，自动过期 30 天前的数据
-            self.collection.create_index(
-                "timestamp",
-                expireAfterSeconds=30 * 24 * 60 * 60  # 30 天
-            )
+            # 先获取现有索引列表
+            existing_indexes = self.collection.index_information()
+            
+            # 处理索引名称映射
+            index_definitions = [
+                ("timestamp", None),
+                ("workspace_id", None),
+                ("event_type", None),
+                ("severity", None),
+                ("source", None),
+                ("timestamp", {"expireAfterSeconds": 30 * 24 * 60 * 60})  # 30 天
+            ]
+            
+            for key, options in index_definitions:
+                # 构造索引名称
+                index_name = f"{key}_1" if isinstance(key, str) else '_'.join([f'{k}_{v}' for k, v in key]) if isinstance(key, list) else None
+                
+                # 检查索引是否已存在
+                index_exists = False
+                if index_name and index_name in existing_indexes:
+                    index_exists = True
+                
+                # 如果是 TTL 索引，先检查是否冲突
+                if key == "timestamp" and options and "expireAfterSeconds" in options:
+                    ttl_index_name = "timestamp_1"
+                    if ttl_index_name in existing_indexes:
+                        existing = existing_indexes[ttl_index_name]
+                        # 检查是否已有不同选项
+                        if "expireAfterSeconds" not in existing.get("options", {}):
+                            # 索引已存在但没有 TTL 选项，需要先删除
+                            try:
+                                self.collection.drop_index(ttl_index_name)
+                                index_exists = False
+                            except Exception as e:
+                                print(f"删除现有索引失败: {e}")
+                
+                # 创建索引（如果不存在）
+                if not index_exists:
+                    try:
+                        if options:
+                            self.collection.create_index(key, **options)
+                        else:
+                            self.collection.create_index(key)
+                    except Exception as e:
+                        print(f"创建索引失败: {e}")
 
     async def write(self, event: AuditEvent) -> None:
         """写入审计事件
