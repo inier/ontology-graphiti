@@ -21,6 +21,11 @@ services:
       - graphiti-mongodb
     volumes:
       - ..:/app
+    networks:
+      - graphiti-network
+    dns:
+      - 8.8.8.8
+      - 8.8.4.4
     restart: unless-stopped
 
   graphiti-neo4j:
@@ -34,6 +39,11 @@ services:
       - NEO4J_dbms_memory_heap_max__size=2G
     volumes:
       - neo4j-data:/data
+    networks:
+      - graphiti-network
+    dns:
+      - 8.8.8.8
+      - 8.8.4.4
     restart: unless-stopped
 
   graphiti-policy-service:
@@ -44,6 +54,11 @@ services:
     volumes:
       - ../odap/infra/opa/policies:/policies
     command: run --server --log-level=info --set=decision_logs.console=true
+    networks:
+      - graphiti-network
+    dns:
+      - 8.8.8.8
+      - 8.8.4.4
     restart: unless-stopped
 
   graphiti-cache:
@@ -53,6 +68,11 @@ services:
       - "6379:6379"
     volumes:
       - redis-data:/data
+    networks:
+      - graphiti-network
+    dns:
+      - 8.8.8.8
+      - 8.8.4.4
     restart: unless-stopped
 
   graphiti-mongodb:
@@ -62,9 +82,18 @@ services:
       - "27017:27017"
     volumes:
       - mongodb-data:/data/db
+    networks:
+      - graphiti-network
+    dns:
+      - 8.8.8.8
+      - 8.8.4.4
     restart: unless-stopped
 
 volumes:
   neo4j-data:
   redis-data:
   mongodb-data:
+
+networks:
+  graphiti-network:
+    driver: bridge

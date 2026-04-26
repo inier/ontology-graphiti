@@ -50,6 +50,9 @@ class IngestResponse(BaseModel):
     """摄入响应"""
     ingest_id: str
     status: str
+    source_details: Optional[Dict[str, Any]] = None
+    original_content: Optional[str] = None
+    extracted_data: Optional[Dict[str, Any]] = None
 
 
 class IngestStatusResponse(BaseModel):
@@ -64,6 +67,9 @@ class IngestStatusResponse(BaseModel):
     end_time: Optional[str] = None
     duration_seconds: Optional[float] = None
     quality_metrics: Dict[str, float]
+    source_details: Optional[Dict[str, Any]] = None
+    original_content: Optional[str] = None
+    extracted_data: Optional[Dict[str, Any]] = None
 
 
 class IngestListResponse(BaseModel):

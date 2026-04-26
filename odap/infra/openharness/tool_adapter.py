@@ -35,29 +35,32 @@ for possible_path in OPENHARNESS_POSSIBLE_PATHS:
 
 # OpenHarness（可选）
 try:
-    # 先尝试旧版本的导入（我们代码原始期望的）
+    # 尝试导入 OpenHarness v2 版本
     try:
-        from openharness_ai.tools.tool import Tool
-        from openharness_ai.core.harness import Harness, Observation
-        print("✓ OpenHarness v1 (openharness_ai) 导入成功")
+        from openharness.tools.base import BaseTool as Tool
+        from openharness.core.harness import Harness
+        from openharness.core.harness import Observation
+        print("✓ OpenHarness v2 导入成功")
         OPENHARNESS_AVAILABLE = True
     except ImportError:
+        # 尝试导入 OpenHarness v1 版本
         try:
             from openharness.tools.tool import Tool
             from openharness.core.harness import Harness, Observation
             print("✓ OpenHarness v1 (openharness) 导入成功")
             OPENHARNESS_AVAILABLE = True
         except ImportError:
-            # 尝试检测新版本的 openharness 结构
             try:
-                from openharness.tools.base import BaseTool
-                print("⚠ 检测到 OpenHarness v2 版本，但架构不兼容，使用 fallback 模式")
+                from openharness_ai.tools.tool import Tool
+                from openharness_ai.core.harness import Harness, Observation
+                print("✓ OpenHarness v1 (openharness_ai) 导入成功")
+                OPENHARNESS_AVAILABLE = True
             except ImportError:
-                print(f"⚠ OpenHarness 未找到")
-            OPENHARNESS_AVAILABLE = False
-            Tool = object  # type: ignore
-            Harness = object  # type: ignore
-            Observation = None  # type: ignore
+                print("OpenHarness 未安装，使用模拟模式")
+                OPENHARNESS_AVAILABLE = False
+                Tool = object  # type: ignore
+                Harness = object  # type: ignore
+                Observation = None  # type: ignore
 except Exception as e:
     print(f"⚠ OpenHarness 导入失败: {e}")
     OPENHARNESS_AVAILABLE = False

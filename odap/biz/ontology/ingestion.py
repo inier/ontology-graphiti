@@ -225,61 +225,103 @@ class NewsIngester:
 
         try:
             import urllib.parse
-            headers = {
-                "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36",
-                "Accept": "text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8",
-                "Accept-Language": "zh-CN,zh;q=0.9,en;q=0.8",
-            }
-
-            # 编码查询参数
+            import time
+            
+            # 尝试多个 DuckDuckGo 域名
+            domains = [
+                "https://html.duckduckgo.com/html/?q=",
+                "https://duckduckgo.com/html/?q=",
+                "https://start.duckduckgo.com/html/?q=",
+            ]
+            
             encoded_query = urllib.parse.quote(query)
-            url = f"https://html.duckduckgo.com/html/?q={encoded_query}"
+            
+            for domain in domains:
+                url = f"{domain}{encoded_query}"
+                
+                try:
+                    headers = {
+                        "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36",
+                        "Accept": "text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8",
+                        "Accept-Language": "zh-CN,zh;q=0.9,en;q=0.8",
+                    }
 
-            response = requests.get(url, headers=headers, timeout=15)
-            response.raise_for_status()
+                    logger.info(f"尝试 DuckDuckGo 搜索: {url}")
+                    response = requests.get(url, headers=headers, timeout=10)
+                    response.raise_for_status()
 
-            soup = BeautifulSoup(response.text, 'html.parser')
+                    soup = BeautifulSoup(response.text, 'html.parser')
 
-            results = []
-            # DuckDuckGo 搜索结果容器
-            for result in soup.select('.result')[:max_results]:
-                # 获取标题和链接
-                title_elem = result.select_one('.result__title a')
-                snippet_elem = result.select_one('.result__snippet')
-                date_elem = result.select_one('.result__timestamp')
+                    results = []
+                    # 尝试多个可能的结果选择器
+                    selectors = [
+                        '.result',
+                        '.web-result',
+                        '[data-testid="result"]',
+                        '.search-result',
+                    ]
+                    
+                    elements = []
+                    for selector in selectors:
+                        found = soup.select(selector)
+                        if found:
+                            logger.info(f"使用选择器 '{selector}' 找到 {len(found)} 个结果")
+                            elements = found
+                            break
+                    
+                    for result in elements[:max_results]:
+                        # 获取标题和链接
+                        title_elem = (result.select_one('.result__title a') or 
+                                     result.select_one('a[href]') or 
+                                     result.find('a', href=True))
+                        snippet_elem = (result.select_one('.result__snippet') or 
+                                       result.select_one('p') or 
+                                       result.select_one('.description'))
 
-                if title_elem:
-                    title = title_elem.get_text(strip=True)
-                    link = title_elem.get('href', '')
+                        if title_elem:
+                            title = title_elem.get_text(strip=True)
+                            link = title_elem.get('href', '')
 
-                    # 清理 DuckDuckGo 的跳转 URL
-                    if link.startswith('/l/?uddg='):
-                        from urllib.parse import unquote
-                        parsed = urllib.parse.urlparse(link)
-                        link = unquote(parsed.query.split('uddg=')[-1] if 'uddg=' in link else '')
+                            # 清理 DuckDuckGo 的跳转链接
+                            if link.startswith('/l/?uddg='):
+                                from urllib.parse import unquote
+                                parsed = urllib.parse.urlparse(link)
+                                link = unquote(parsed.query.split('uddg=')[-1] if 'uddg=' in link else '')
 
-                    snippet = snippet_elem.get_text(strip=True) if snippet_elem else ''
-                    date_str = date_elem.get_text(strip=True) if date_elem else ''
+                            snippet = snippet_elem.get_text(strip=True) if snippet_elem else ''
 
-                    results.append({
-                        "title": title,
-                        "url": link,
-                        "content": snippet,
-                        "snippet": snippet,
-                        "date": date_str,
-                    })
+                            results.append({
+                                "title": title,
+                                "url": link,
+                                "content": snippet,
+                                "snippet": snippet,
+                                "date": "",
+                            })
 
-            logger.info(f"DuckDuckGo 搜索返回 {len(results)} 条结果")
-            return results
+                    if results:
+                        logger.info(f"DuckDuckGo 搜索返回 {len(results)} 条结果")
+                        return results
 
-        except requests.exceptions.Timeout:
-            logger.error("DuckDuckGo 搜索请求超时")
+                except requests.exceptions.Timeout:
+                    logger.warning(f"DuckDuckGo 域名 {domain} 请求超时")
+                    continue
+                except requests.exceptions.ConnectionError:
+                    logger.warning(f"DuckDuckGo 域名 {domain} 连接失败")
+                    continue
+                except requests.exceptions.RequestException as e:
+                    logger.warning(f"DuckDuckGo 域名 {domain} 请求失败: {e}")
+                    continue
+                
+                # 稍微延迟后尝试下一个域名
+                time.sleep(1)
+
+            logger.warning("所有 DuckDuckGo 域名都无法访问")
             return []
-        except requests.exceptions.RequestException as e:
-            logger.error(f"DuckDuckGo 搜索请求失败: {e}")
-            return []
+
         except Exception as e:
-            logger.error(f"DuckDuckGo 搜索解析失败: {e}")
+            logger.error(f"DuckDuckGo 搜索失败: {e}")
+            import traceback
+            logger.error(traceback.format_exc())
             return []
 
     async def _search_serpapi(self, query: str, max_results: int) -> List[Dict[str, Any]]:

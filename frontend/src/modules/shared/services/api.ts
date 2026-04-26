@@ -154,6 +154,131 @@ export const api = {
 
   // ==================== 本体摄入 API ====================
 
+  /**
+   * 统一的数据摄入方法
+   * 
+   * 支持多种摄入类型，使用统一的调用格式
+   * 
+   * @param options 摄入选项
+   * @param options.type 摄入类型
+   * @param options.data 摄入数据（根据 type 不同，数据结构不同）
+   * @param options.scenario_id 场景 ID（可选）
+   * 
+   * @returns 摄入结果
+   * 
+   * @example 文本摄入
+   * ```javascript
+   * await api.ingest({
+   *   type: 'manual',
+   *   data: '红方部队进攻蓝方阵地',
+   *   scenario_id: currentScenario
+   * });
+   * ```
+   * 
+   * @example 新闻摄入
+   * ```javascript
+   * // 方式1：直接传递 URL 字符串
+   * await api.ingest({
+   *   type: 'news',
+   *   data: 'https://example.com/news',
+   *   scenario_id: currentScenario
+   * });
+   * 
+   * // 方式2：传递包含详细参数的对象
+   * await api.ingest({
+   *   type: 'news',
+   *   data: {
+   *     url: 'https://example.com/news',
+   *     event_context: '军事冲突',
+   *     max_sources: 5
+   *   },
+   *   scenario_id: currentScenario
+   * });
+   * ```
+   * 
+   * @example JSON摄入
+   * ```javascript
+   * await api.ingest({
+   *   type: 'json',
+   *   data: '{"entities": [...], "relations": [...]}',
+   *   scenario_id: currentScenario
+   * });
+   * ```
+   * 
+   * @example 自然语言摄入
+   * ```javascript
+   * await api.ingest({
+   *   type: 'natural_language',
+   *   data: '美军航母舰队在南海进行军事演习',
+   *   scenario_id: currentScenario
+   * });
+   * ```
+   * 
+   * @example 手动录入
+   * ```javascript
+   * await api.ingest({
+   *   type: 'manual',
+   *   data: {
+   *     title: '事件标题',
+   *     description: '事件描述'
+   *   },
+   *   scenario_id: currentScenario
+   * });
+   * ```
+   * 
+   * @example 随机生成
+   * ```javascript
+   * await api.ingest({
+   *   type: 'random',
+   *   data: {
+   *     parties: ['蓝方', '红方'],
+   *     count: 3
+   *   },
+   *   scenario_id: currentScenario
+   * });
+   * ```
+   */
+  async ingest(options: {
+    type: 'news' | 'manual' | 'json' | 'natural_language' | 'random';
+    data: any;
+    scenario_id?: string;
+  }): Promise<{ 
+    ingest_id: string; 
+    status: string;
+    source_details?: Record<string, unknown>;
+    original_content?: string;
+    extracted_data?: Record<string, unknown>;
+  }> {
+    switch (options.type) {
+      case 'news':
+        // data 可以是字符串 URL 或包含 url/query 的对象
+        const newsData = typeof options.data === 'string' 
+          ? { url: options.data } 
+          : options.data;
+        return this.ingestFromNews({
+          ...newsData,
+          scenario_id: options.scenario_id
+        });
+      case 'manual':
+        // data 可以是字符串或表单对象
+        return this.ingestFromManual(options.data, options.scenario_id);
+      case 'json':
+        // data 是 JSON 字符串
+        return this.ingestFromJson(options.data, options.scenario_id);
+      case 'natural_language':
+        // data 是自然语言文本
+        return this.ingestFromNaturalLanguage(options.data, options.scenario_id);
+      case 'random':
+        // data 是包含 parties 等字段的对象
+        return this.ingestRandomEvents({
+          ...options.data,
+          scenario_id: options.scenario_id
+        });
+      default:
+        throw new Error(`Unknown ingest type: ${options.type}`);
+    }
+  },
+
   async ingestOntology(data: {
     source_type: string;
     data?: string;
@@ -168,7 +293,13 @@ export const api = {
     event_context?: string;
     max_sources?: number;
     scenario_id?: string;
-  }): Promise<{ ingest_id: string; status: string }> {
+  }): Promise<{ 
+    ingest_id: string; 
+    status: string;
+    source_details?: Record<string, unknown>;
+    original_content?: string;
+    extracted_data?: Record<string, unknown>;
+  }> {
     return fetchJson(`${API_BASE}/api/ontology/ingest`, {
       method: 'POST',
       body: JSON.stringify(data),
@@ -181,28 +312,52 @@ export const api = {
     event_context?: string;
     max_sources?: number;
     scenario_id?: string;
-  }): Promise<{ ingest_id: string; status: string }> {
+  }): Promise<{ 
+    ingest_id: string; 
+    status: string;
+    source_details?: Record<string, unknown>;
+    original_content?: string;
+    extracted_data?: Record<string, unknown>;
+  }> {
     return fetchJson(`${API_BASE}/api/ontology/ingest/news`, {
       method: 'POST',
       body: JSON.stringify(request),
     });
   },
 
-  async ingestFromManual(formData: Record<string, unknown>, scenarioId?: string): Promise<{ ingest_id: string; status: string }> {
+  async ingestFromManual(formData: Record<string, unknown>, scenarioId?: string): Promise<{ 
+    ingest_id: string; 
+    status: string;
+    source_details?: Record<string, unknown>;
+    original_content?: string;
+    extracted_data?: Record<string, unknown>;
+  }> {
     return fetchJson(`${API_BASE}/api/ontology/ingest/manual`, {
       method: 'POST',
       body: JSON.stringify({ form_data: formData, scenario_id: scenarioId }),
     });
   },
 
-  async ingestFromJson(jsonData: string, scenarioId?: string): Promise<{ ingest_id: string; status: string }> {
+  async ingestFromJson(jsonData: string, scenarioId?: string): Promise<{ 
+    ingest_id: string; 
+    status: string;
+    source_details?: Record<string, unknown>;
+    original_content?: string;
+    extracted_data?: Record<string, unknown>;
+  }> {
     return fetchJson(`${API_BASE}/api/ontology/ingest/json`, {
       method: 'POST',
       body: JSON.stringify({ json_data: jsonData, scenario_id: scenarioId }),
     });
   },
 
-  async ingestFromNaturalLanguage(text: string, scenarioId?: string): Promise<{ ingest_id: string; status: string }> {
+  async ingestFromNaturalLanguage(text: string, scenarioId?: string): Promise<{ 
+    ingest_id: string; 
+    status: string;
+    source_details?: Record<string, unknown>;
+    original_content?: string;
+    extracted_data?: Record<string, unknown>;
+  }> {
     return fetchJson(`${API_BASE}/api/ontology/ingest/natural-language`, {
       method: 'POST',
       body: JSON.stringify({ text, scenario_id: scenarioId }),
@@ -214,7 +369,13 @@ export const api = {
     scenario_context?: Record<string, unknown>;
     count?: number;
     scenario_id?: string;
-  }): Promise<{ ingest_id: string; status: string }> {
+  }): Promise<{ 
+    ingest_id: string; 
+    status: string;
+    source_details?: Record<string, unknown>;
+    original_content?: string;
+    extracted_data?: Record<string, unknown>;
+  }> {
     return fetchJson(`${API_BASE}/api/ontology/ingest/random`, {
       method: 'POST',
       body: JSON.stringify(request),

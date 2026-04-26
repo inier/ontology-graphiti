@@ -406,6 +406,10 @@ class MockDataWebService:
 
         # 构建 FastAPI 应用
         self.app = self._build_app()
+        
+        # 注册本体摄入和构建路由
+        from odap.biz.ontology.api.routes import router as ontology_ingest_router
+        self.app.include_router(ontology_ingest_router)
 
     def _build_app(self, static_dir: str = None) -> 'FastAPI':
         app = FastAPI(
