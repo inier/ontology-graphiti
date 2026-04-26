@@ -3,7 +3,7 @@ import { Dashboard, SituationMap } from './pages';
 import { WorkspaceManager } from './modules/workspace';
 import { AuditLog } from './modules/audit';
 import { ConfigCenter } from './modules/config';
-import { OntologySemanticNetwork, OntologyBuilder, Timeline, QueryView } from './modules/ontology';
+import { OntologySemanticNetwork, Timeline, QueryView } from './modules/ontology';
 import { IngestPanel, Simulator } from './modules/ingest';
 import { VersionHistory } from './modules/version';
 import { RoleManager } from './modules/roles';
@@ -15,7 +15,7 @@ import { Alert } from 'antd';
 function Placeholder({ title, description }: { title: string; description?: string }) {
   return (
     <Alert
-      message={title}
+      title={title}
       description={description || `${title} 功能正在开发中`}
       type="info"
       showIcon
@@ -28,7 +28,6 @@ export function AppRoutes() {
     <Routes>
       <Route path="/" element={<Dashboard />} />
       <Route path="/ontology" element={<OntologySemanticNetwork />} />
-      <Route path="/ontology/builder" element={<OntologyBuilder />} />
       <Route path="/timeline" element={<Timeline />} />
       <Route path="/map" element={<SituationMap />} />
       <Route path="/query" element={<QueryView />} />

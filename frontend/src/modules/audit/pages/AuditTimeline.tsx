@@ -263,7 +263,7 @@ export function AuditTimeline() {
       >
         {stats.integrity_valid ? null : (
           <Alert
-            message="审计日志完整性验证失败"
+            title="审计日志完整性验证失败"
             description="检测到审计日志可能被篡改，请立即联系管理员。"
             type="error"
             showIcon

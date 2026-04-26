@@ -201,7 +201,7 @@ export function OntologyBuildProgress({
 
       {errorMessage && (
         <Alert
-          message="异常提示"
+          title="异常提示"
           description={errorMessage}
           type="warning"
           showIcon

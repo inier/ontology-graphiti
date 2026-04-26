@@ -38,6 +38,9 @@ class RandomEventsRequest(BaseModel):
 class IngestResponse(BaseModel):
     ingest_id: str = Field(..., description="摄入ID")
     status: str = Field(..., description="状态")
+    source_details: Optional[Dict[str, Any]] = Field(default=None, description="数据源详细信息")
+    original_content: Optional[str] = Field(default=None, description="原始内容")
+    extracted_data: Optional[Dict[str, Any]] = Field(default=None, description="提取的数据")
 
 class IngestStatusResponse(BaseModel):
     id: str
@@ -64,7 +67,7 @@ async def ingest_data(request: Dict[str, Any]):
         scenario_id = request.get("scenario_id")
         ingest_id = await ingest_service.ingest_from_news(query, event_context, max_sources, scenario_id)
     elif source_type == "manual":
-        form_data = request.get("form_data")
+        form_data = request.get("form_data") or request.get("data", {})
         scenario_id = request.get("scenario_id")
         ingest_id = await ingest_service.ingest_from_manual(form_data, scenario_id)
     elif source_type == "json":
@@ -84,8 +87,15 @@ async def ingest_data(request: Dict[str, Any]):
     else:
         raise HTTPException(status_code=400, detail="Invalid source type")
     
-    status = ingest_service.get_ingest_status(ingest_id).get("status")
-    return IngestResponse(ingest_id=ingest_id, status=status)
+    ingest_record = ingest_service.get_ingest_status(ingest_id)
+    status = ingest_record.get("status")
+    return IngestResponse(
+        ingest_id=ingest_id,
+        status=status,
+        source_details=ingest_record.get("source_details"),
+        original_content=ingest_record.get("original_content"),
+        extracted_data=ingest_record.get("extracted_data")
+    )
 
 @router.post("/news", response_model=IngestResponse)
 async def ingest_from_news(request: NewsIngestRequest):
@@ -111,8 +121,15 @@ async def ingest_from_news(request: NewsIngestRequest):
     else:
         raise HTTPException(status_code=400, detail="必须提供 url 或 query 参数")
 
-    status = ingest_service.get_ingest_status(ingest_id).get("status")
-    return IngestResponse(ingest_id=ingest_id, status=status)
+    ingest_record = ingest_service.get_ingest_status(ingest_id)
+    status = ingest_record.get("status")
+    return IngestResponse(
+        ingest_id=ingest_id,
+        status=status,
+        source_details=ingest_record.get("source_details"),
+        original_content=ingest_record.get("original_content"),
+        extracted_data=ingest_record.get("extracted_data")
+    )
 
 @router.post("/manual", response_model=IngestResponse)
 async def ingest_from_manual(request: ManualIngestRequest):
@@ -121,8 +138,15 @@ async def ingest_from_manual(request: ManualIngestRequest):
         request.form_data,
         request.scenario_id
     )
-    status = ingest_service.get_ingest_status(ingest_id).get("status")
-    return IngestResponse(ingest_id=ingest_id, status=status)
+    ingest_record = ingest_service.get_ingest_status(ingest_id)
+    status = ingest_record.get("status")
+    return IngestResponse(
+        ingest_id=ingest_id,
+        status=status,
+        source_details=ingest_record.get("source_details"),
+        original_content=ingest_record.get("original_content"),
+        extracted_data=ingest_record.get("extracted_data")
+    )
 
 @router.post("/json", response_model=IngestResponse)
 async def ingest_from_json(request: JsonIngestRequest):
@@ -131,8 +155,15 @@ async def ingest_from_json(request: JsonIngestRequest):
         request.json_data,
         request.scenario_id
     )
-    status = ingest_service.get_ingest_status(ingest_id).get("status")
-    return IngestResponse(ingest_id=ingest_id, status=status)
+    ingest_record = ingest_service.get_ingest_status(ingest_id)
+    status = ingest_record.get("status")
+    return IngestResponse(
+        ingest_id=ingest_id,
+        status=status,
+        source_details=ingest_record.get("source_details"),
+        original_content=ingest_record.get("original_content"),
+        extracted_data=ingest_record.get("extracted_data")
+    )
 
 @router.post("/natural-language", response_model=IngestResponse)
 async def ingest_from_natural_language(request: NaturalLanguageIngestRequest):
@@ -141,8 +172,15 @@ async def ingest_from_natural_language(request: NaturalLanguageIngestRequest):
         request.text,
         request.scenario_id
     )
-    status = ingest_service.get_ingest_status(ingest_id).get("status")
-    return IngestResponse(ingest_id=ingest_id, status=status)
+    ingest_record = ingest_service.get_ingest_status(ingest_id)
+    status = ingest_record.get("status")
+    return IngestResponse(
+        ingest_id=ingest_id,
+        status=status,
+        source_details=ingest_record.get("source_details"),
+        original_content=ingest_record.get("original_content"),
+        extracted_data=ingest_record.get("extracted_data")
+    )
 
 @router.post("/random", response_model=IngestResponse)
 async def generate_random_events(request: RandomEventsRequest):
@@ -153,8 +191,15 @@ async def generate_random_events(request: RandomEventsRequest):
         request.count,
         request.scenario_id
     )
-    status = ingest_service.get_ingest_status(ingest_id).get("status")
-    return IngestResponse(ingest_id=ingest_id, status=status)
+    ingest_record = ingest_service.get_ingest_status(ingest_id)
+    status = ingest_record.get("status")
+    return IngestResponse(
+        ingest_id=ingest_id,
+        status=status,
+        source_details=ingest_record.get("source_details"),
+        original_content=ingest_record.get("original_content"),
+        extracted_data=ingest_record.get("extracted_data")
+    )
 
 # 构建相关 API
 @router.get("/builds/{build_id}", response_model=Dict[str, Any])
@@ -232,6 +277,13 @@ async def get_ontology_document(doc_id: str):
     return doc.to_dict()
 
 
+# 先定义根路径，再定义带参数的路径
+@router.get("", response_model=List[IngestStatusResponse])
+async def get_ingest_history(limit: int = 100):
+    """获取摄入历史"""
+    return ingest_service.get_ingest_history(limit)
+
+
 @router.get("/{ingest_id}", response_model=IngestStatusResponse)
 async def get_ingest_status(ingest_id: str):
     """获取摄入状态"""
@@ -239,9 +291,3 @@ async def get_ingest_status(ingest_id: str):
     if not status:
         raise HTTPException(status_code=404, detail="Ingest record not found")
     return status
-
-
-@router.get("/", response_model=List[IngestStatusResponse])
-async def get_ingest_history(limit: int = 100):
-    """获取摄入历史"""
-    return ingest_service.get_ingest_history(limit)

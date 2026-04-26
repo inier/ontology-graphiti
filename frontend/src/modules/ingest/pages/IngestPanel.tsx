@@ -60,7 +60,42 @@ export function IngestPanel() {
   const [uploadLoading, setUploadLoading] = useState(false);
 
   useEffect(() => {
+    let cancelled = false;
+    
+    const loadHistory = async () => {
+      if (cancelled) return;
+      setLoadingHistory(true);
+      try {
+        const [ingests, builds] = await Promise.all([
+          api.getIngestHistory(20).catch(err => {
+            if (err.name === 'AbortError' || cancelled) return [];
+            throw err;
+          }),
+          api.getBuildHistory(20).catch(err => {
+            if (err.name === 'AbortError' || cancelled) return [];
+            throw err;
+          }),
+        ]);
+        if (!cancelled) {
+          setIngestHistory(ingests);
+          setBuildHistory(builds);
+        }
+      } catch (error) {
+        if (!cancelled) {
+          console.error('加载历史记录失败:', error);
+        }
+      } finally {
+        if (!cancelled) {
+          setLoadingHistory(false);
+        }
+      }
+    };
+    
     loadHistory();
+    
+    return () => {
+      cancelled = true;
+    };
   }, []);
 
   const loadHistory = async () => {
@@ -86,8 +121,8 @@ export function IngestPanel() {
     }
     try {
       setLoading(true);
-      const result = await api.ingestOntology({
-        source_type: 'manual',
+      const result = await api.ingest({
+        type: 'manual',
         data: text,
         scenario_id: currentScenario,
       });
@@ -108,8 +143,9 @@ export function IngestPanel() {
     }
     try {
       setLoading(true);
-      const result = await api.ingestFromNews({
-        url,
+      const result = await api.ingest({
+        type: 'news',
+        data: url,
         scenario_id: currentScenario,
       });
       message.success(`新闻摄入成功，摄入ID: ${result.ingest_id}`);
@@ -129,7 +165,11 @@ export function IngestPanel() {
     }
     try {
       setLoading(true);
-      const result = await api.ingestFromJson(jsonData, currentScenario);
+      const result = await api.ingest({
+        type: 'json',
+        data: jsonData,
+        scenario_id: currentScenario,
+      });
       message.success(`JSON摄入成功，摄入ID: ${result.ingest_id}`);
       setJsonData('');
       await loadHistory();
@@ -147,7 +187,11 @@ export function IngestPanel() {
     }
     try {
       setLoading(true);
-      const result = await api.ingestFromNaturalLanguage(nlDescription, currentScenario);
+      const result = await api.ingest({
+        type: 'natural_language',
+        data: nlDescription,
+        scenario_id: currentScenario,
+      });
       message.success(`自然语言摄入成功，摄入ID: ${result.ingest_id}`);
       setNlDescription('');
       await loadHistory();
@@ -161,8 +205,9 @@ export function IngestPanel() {
   const handleIngestRandom = async () => {
     try {
       setLoading(true);
-      const result = await api.ingestRandomEvents({
-        parties: ['蓝方', '红方'],
+      const result = await api.ingest({
+        type: 'random',
+        data: { parties: ['蓝方', '红方'] },
         scenario_id: currentScenario,
       });
       message.success(`随机事件生成成功，摄入ID: ${result.ingest_id}`);
@@ -181,7 +226,11 @@ export function IngestPanel() {
     }
     try {
       setLoading(true);
-      const result = await api.ingestFromManual(manualData, currentScenario);
+      const result = await api.ingest({
+        type: 'manual',
+        data: manualData,
+        scenario_id: currentScenario,
+      });
       message.success(`手动录入成功，摄入ID: ${result.ingest_id}`);
       setManualData({ title: '', description: '' });
       await loadHistory();
@@ -343,7 +392,7 @@ export function IngestPanel() {
             </Button>
           </Space>
           <Alert
-            message="提示"
+            title="提示"
             description="文本摄入后会立即触发本体构建流程，自动提取实体和关系"
             type="info"
             showIcon
@@ -367,7 +416,7 @@ export function IngestPanel() {
             开始摄入
           </Button>
           <Alert
-            message="提示"
+            title="提示"
             description="支持两种模式：1) 直接输入新闻网页URL；2) 输入关键词进行检索"
             type="info"
             showIcon
@@ -419,7 +468,7 @@ export function IngestPanel() {
             </Button>
           </Space>
           <Alert
-            message="提示"
+            title="提示"
             description="自然语言输入会自动解析实体、关系和事件，触发完整的本体构建流程"
             type="info"
             showIcon
