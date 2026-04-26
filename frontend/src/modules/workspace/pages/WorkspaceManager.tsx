@@ -131,7 +131,7 @@ export function WorkspaceManager() {
   const loadScenarios = async (workspaceId: string) => {
     try {
       setScenarioLoading(prev => ({ ...prev, [workspaceId]: true }));
-      const data = await api.getScenarios(workspaceId);
+      const data = await api.getScenariosInWorkspace(workspaceId);
       setScenarios(prev => ({ ...prev, [workspaceId]: data.scenarios }));
     } catch (error) {
       console.error('加载场景失败', error);
@@ -197,7 +197,7 @@ export function WorkspaceManager() {
         );
         message.success('更新成功');
       } else {
-        await api.createScenario(
+        await api.createScenarioInWorkspace(
           editingScenario.workspaceId,
           values.name,
           values.description,

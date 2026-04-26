@@ -170,7 +170,7 @@ export function AppLayout({ children, currentWorkspace, onWorkspaceChange }: App
   const loadScenarios = async (workspaceId: string) => {
     try {
       setScenariosLoading(true);
-      const data = await api.getScenarios(workspaceId);
+      const data = await api.getScenariosInWorkspace(workspaceId);
       console.log('Scenarios data:', data);
       setScenarios(data.scenarios || []);
       

@@ -109,6 +109,8 @@ export const api = {
     return data.scenarios;
   },
 
+  // ==================== 旧版场景 API（兼容） ====================
+
   async getScenario(scenarioId: string): Promise<Scenario> {
     return fetchJson(`${API_BASE}/api/scenarios/${scenarioId}`);
   },
@@ -149,6 +151,173 @@ export const api = {
     
     return { nodes, edges };
   },
+
+  // ==================== 本体摄入 API ====================
+
+  async ingestOntology(data: {
+    source_type: string;
+    data?: string;
+    url?: string;
+    query?: string;
+    form_data?: Record<string, unknown>;
+    json_data?: string;
+    text?: string;
+    parties?: string[];
+    scenario_context?: Record<string, unknown>;
+    count?: number;
+    event_context?: string;
+    max_sources?: number;
+    scenario_id?: string;
+  }): Promise<{ ingest_id: string; status: string }> {
+    return fetchJson(`${API_BASE}/api/ontology/ingest`, {
+      method: 'POST',
+      body: JSON.stringify(data),
+    });
+  },
+
+  async ingestFromNews(request: {
+    url?: string;
+    query?: string;
+    event_context?: string;
+    max_sources?: number;
+    scenario_id?: string;
+  }): Promise<{ ingest_id: string; status: string }> {
+    return fetchJson(`${API_BASE}/api/ontology/ingest/news`, {
+      method: 'POST',
+      body: JSON.stringify(request),
+    });
+  },
+
+  async ingestFromManual(formData: Record<string, unknown>, scenarioId?: string): Promise<{ ingest_id: string; status: string }> {
+    return fetchJson(`${API_BASE}/api/ontology/ingest/manual`, {
+      method: 'POST',
+      body: JSON.stringify({ form_data: formData, scenario_id: scenarioId }),
+    });
+  },
+
+  async ingestFromJson(jsonData: string, scenarioId?: string): Promise<{ ingest_id: string; status: string }> {
+    return fetchJson(`${API_BASE}/api/ontology/ingest/json`, {
+      method: 'POST',
+      body: JSON.stringify({ json_data: jsonData, scenario_id: scenarioId }),
+    });
+  },
+
+  async ingestFromNaturalLanguage(text: string, scenarioId?: string): Promise<{ ingest_id: string; status: string }> {
+    return fetchJson(`${API_BASE}/api/ontology/ingest/natural-language`, {
+      method: 'POST',
+      body: JSON.stringify({ text, scenario_id: scenarioId }),
+    });
+  },
+
+  async ingestRandomEvents(request: {
+    parties: string[];
+    scenario_context?: Record<string, unknown>;
+    count?: number;
+    scenario_id?: string;
+  }): Promise<{ ingest_id: string; status: string }> {
+    return fetchJson(`${API_BASE}/api/ontology/ingest/random`, {
+      method: 'POST',
+      body: JSON.stringify(request),
+    });
+  },
+
+  async getIngestStatus(ingestId: string): Promise<{
+    id: string;
+    source: string;
+    status: string;
+    record_count: number;
+    processed_count: number;
+    failed_count: number;
+    start_time: string;
+    end_time?: string;
+    duration_seconds?: number;
+    errors?: Array<{ source: string; error: string }>;
+  }> {
+    return fetchJson(`${API_BASE}/api/ontology/ingest/${ingestId}`);
+  },
+
+  async getIngestHistory(limit: number = 100): Promise<Array<{
+    id: string;
+    source: string;
+    status: string;
+    record_count: number;
+    processed_count: number;
+    failed_count: number;
+    start_time: string;
+    end_time?: string;
+    duration_seconds?: number;
+  }>> {
+    return fetchJson(`${API_BASE}/api/ontology/ingest?limit=${limit}`);
+  },
+
+  // ==================== 本体构建 API ====================
+
+  async getBuildStatus(buildId: string): Promise<{
+    build_id: string;
+    status: string;
+    document_id: string;
+    version_info?: {
+      version_id: string;
+      commit_message: string;
+    };
+    ingest_id: string;
+  }> {
+    return fetchJson(`${API_BASE}/api/ontology/ingest/builds/${buildId}`);
+  },
+
+  async getBuildHistory(limit: number = 50): Promise<Array<{
+    build_id: string;
+    status: string;
+    document_id: string;
+    version_info?: {
+      version_id: string;
+      commit_message: string;
+    };
+    ingest_id: string;
+    ingest_source: string;
+    ingest_time: string;
+  }>> {
+    return fetchJson(`${API_BASE}/api/ontology/ingest/builds?limit=${limit}`);
+  },
+
+  // ==================== 本体版本 API ====================
+
+  async getVersions(scenarioId?: string, limit: number = 50): Promise<Array<{
+    version_id: string;
+    scenario_id: string;
+    created_at: string;
+    commit_message: string;
+  }>> {
+    const params = new URLSearchParams();
+    if (scenarioId) params.set('scenario_id', scenarioId);
+    params.set('limit', String(limit));
+    return fetchJson(`${API_BASE}/api/ontology/ingest/versions?${params.toString()}`);
+  },
+
+  async rollbackVersion(versionId: string, scenarioId: string = 'default'): Promise<{
+    status: string;
+    version_id: string;
+    message: string;
+  }> {
+    return fetchJson(`${API_BASE}/api/ontology/ingest/versions/rollback?version_id=${versionId}&scenario_id=${scenarioId}`, {
+      method: 'POST',
+    });
+  },
+
+  // ==================== 本体文档 API ====================
+
+  async getOntologyDocuments(scenarioId?: string, limit: number = 100): Promise<Array<Record<string, unknown>>> {
+    const params = new URLSearchParams();
+    if (scenarioId) params.set('scenario_id', scenarioId);
+    params.set('limit', String(limit));
+    return fetchJson(`${API_BASE}/api/ontology/ingest/documents/list?${params.toString()}`);
+  },
+
+  async getOntologyDocument(docId: string): Promise<Record<string, unknown>> {
+    return fetchJson(`${API_BASE}/api/ontology/ingest/documents/${docId}`);
+  },
+
+  // ==================== 旧版摄入 API（兼容） ====================
 
   async ingestText(text: string, scenarioId?: string): Promise<{ success: boolean; task_id: string }> {
     return fetchJson(`${API_BASE}/api/ingest/text`, {
@@ -414,20 +583,20 @@ export const api = {
     return fetchJson(`${API_BASE}/api/graph/${graphId}`);
   },
 
-  // ==================== 场景管理 API ====================
+  // ==================== 场景管理 API（新版） ====================
 
-  async createScenario(workspaceId: string, name: string, description?: string, ontologyId?: string): Promise<{ scenario_id: string; name: string; description: string; workspace_id: string; ontology_id?: string; doc_count: number; event_count: number; entity_count: number; created_at: string; updated_at: string }> {
+  async createScenarioInWorkspace(workspaceId: string, name: string, description?: string, ontologyId?: string): Promise<{ scenario_id: string; name: string; description: string; workspace_id: string; ontology_id?: string; doc_count: number; event_count: number; entity_count: number; created_at: string; updated_at: string }> {
     return fetchJson(`${API_BASE}/api/workspaces/${workspaceId}/scenarios`, {
       method: 'POST',
       body: JSON.stringify({ name, description, ontology_id: ontologyId }),
     });
   },
 
-  async getScenarios(workspaceId: string): Promise<{ scenarios: Array<{ scenario_id: string; name: string; description: string; workspace_id: string; ontology_id?: string; doc_count: number; event_count: number; entity_count: number; created_at: string; updated_at: string }>; workspace_id: string; total: number }> {
+  async getScenariosInWorkspace(workspaceId: string): Promise<{ scenarios: Array<{ scenario_id: string; name: string; description: string; workspace_id: string; ontology_id?: string; doc_count: number; event_count: number; entity_count: number; created_at: string; updated_at: string }>; workspace_id: string; total: number }> {
     return fetchJson(`${API_BASE}/api/workspaces/${workspaceId}/scenarios`);
   },
 
-  async getScenario(workspaceId: string, scenarioId: string): Promise<{ scenario_id: string; name: string; description: string; workspace_id: string; ontology_id?: string; doc_count: number; event_count: number; entity_count: number; created_at: string; updated_at: string }> {
+  async getScenarioInWorkspace(workspaceId: string, scenarioId: string): Promise<{ scenario_id: string; name: string; description: string; workspace_id: string; ontology_id?: string; doc_count: number; event_count: number; entity_count: number; created_at: string; updated_at: string }> {
     return fetchJson(`${API_BASE}/api/workspaces/${workspaceId}/scenarios/${scenarioId}`);
   },
 
