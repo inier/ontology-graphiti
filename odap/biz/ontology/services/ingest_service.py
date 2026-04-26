@@ -5,6 +5,7 @@ from datetime import datetime
 from typing import Dict, Any, List, Optional
 from ..ingestion import NewsIngester, ManualInputHandler, RandomEventGenerator, FreeNewsIngester, WebScraper, OntologyDocument
 from ..storage import SQLiteIngestStorage
+from .build_service import get_builder_service
 
 
 class IngestService:
@@ -17,8 +18,9 @@ class IngestService:
         self.random_event_generator = RandomEventGenerator(llm_client=llm_client)
         self.web_scraper = WebScraper()
         self.free_news_ingester = FreeNewsIngester(scraper=self.web_scraper, llm_client=llm_client)
+        self.builder_service = get_builder_service()
 
-    async def ingest_from_url(self, url: str, event_context: str = "") -> str:
+    async def ingest_from_url(self, url: str, event_context: str = "", scenario_id: str = None) -> str:
         """从URL摄入数据（免费方案，无需API Key）"""
         # 创建摄入记录
         ingest_id = str(uuid.uuid4())
@@ -40,6 +42,26 @@ class IngestService:
             # 保存文档
             for doc in documents:
                 self.storage.save_ontology_document(doc)
+                # 触发本体构建
+                try:
+                    build_result = await self.builder_service.build_ontology(
+                        document=doc,
+                        scenario_id=scenario_id or "default",
+                        workspace_id="default",
+                        create_new_version=True
+                    )
+                    # 记录构建结果
+                    if 'build_id' in build_result:
+                        if 'builds' not in ingest_record:
+                            ingest_record['builds'] = []
+                        ingest_record['builds'].append({
+                            'build_id': build_result['build_id'],
+                            'document_id': doc.doc_id,
+                            'status': build_result.get('status'),
+                            'version_info': build_result.get('version_info')
+                        })
+                except Exception as build_error:
+                    print(f"本体构建失败: {build_error}")
 
             # 更新摄入记录
             ingest_record['status'] = 'completed'
@@ -57,7 +79,7 @@ class IngestService:
         self.storage.update_ingest_record(ingest_id, ingest_record)
         return ingest_id
     
-    async def ingest_from_news(self, query: str, event_context: str = "", max_sources: int = 5) -> str:
+    async def ingest_from_news(self, query: str, event_context: str = "", max_sources: int = 5, scenario_id: str = None) -> str:
         """从新闻摄入数据"""
         # 创建摄入记录
         ingest_id = str(uuid.uuid4())
@@ -79,7 +101,27 @@ class IngestService:
             # 保存文档
             for doc in documents:
                 self.storage.save_ontology_document(doc)
-            
+                # 触发本体构建
+                try:
+                    build_result = await self.builder_service.build_ontology(
+                        document=doc,
+                        scenario_id=scenario_id or "default",
+                        workspace_id="default",
+                        create_new_version=True
+                    )
+                    # 记录构建结果
+                    if 'build_id' in build_result:
+                        if 'builds' not in ingest_record:
+                            ingest_record['builds'] = []
+                        ingest_record['builds'].append({
+                            'build_id': build_result['build_id'],
+                            'document_id': doc.doc_id,
+                            'status': build_result.get('status'),
+                            'version_info': build_result.get('version_info')
+                        })
+                except Exception as build_error:
+                    print(f"本体构建失败: {build_error}")
+
             # 更新摄入记录
             ingest_record['status'] = 'completed'
             ingest_record['record_count'] = len(documents)
@@ -117,6 +159,26 @@ class IngestService:
             
             # 保存文档
             self.storage.save_ontology_document(doc)
+            # 触发本体构建
+            try:
+                build_result = await self.builder_service.build_ontology(
+                    document=doc,
+                    scenario_id=scenario_id or "default",
+                    workspace_id="default",
+                    create_new_version=True
+                )
+                # 记录构建结果
+                if 'build_id' in build_result:
+                    if 'builds' not in ingest_record:
+                        ingest_record['builds'] = []
+                    ingest_record['builds'].append({
+                        'build_id': build_result['build_id'],
+                        'document_id': doc.doc_id,
+                        'status': build_result.get('status'),
+                        'version_info': build_result.get('version_info')
+                    })
+            except Exception as build_error:
+                print(f"本体构建失败: {build_error}")
             
             # 更新摄入记录
             ingest_record['status'] = 'completed'
@@ -154,6 +216,26 @@ class IngestService:
             
             # 保存文档
             self.storage.save_ontology_document(doc)
+            # 触发本体构建
+            try:
+                build_result = await self.builder_service.build_ontology(
+                    document=doc,
+                    scenario_id=scenario_id or "default",
+                    workspace_id="default",
+                    create_new_version=True
+                )
+                # 记录构建结果
+                if 'build_id' in build_result:
+                    if 'builds' not in ingest_record:
+                        ingest_record['builds'] = []
+                    ingest_record['builds'].append({
+                        'build_id': build_result['build_id'],
+                        'document_id': doc.doc_id,
+                        'status': build_result.get('status'),
+                        'version_info': build_result.get('version_info')
+                    })
+            except Exception as build_error:
+                print(f"本体构建失败: {build_error}")
             
             # 更新摄入记录
             ingest_record['status'] = 'completed'
@@ -191,6 +273,26 @@ class IngestService:
             
             # 保存文档
             self.storage.save_ontology_document(doc)
+            # 触发本体构建
+            try:
+                build_result = await self.builder_service.build_ontology(
+                    document=doc,
+                    scenario_id=scenario_id or "default",
+                    workspace_id="default",
+                    create_new_version=True
+                )
+                # 记录构建结果
+                if 'build_id' in build_result:
+                    if 'builds' not in ingest_record:
+                        ingest_record['builds'] = []
+                    ingest_record['builds'].append({
+                        'build_id': build_result['build_id'],
+                        'document_id': doc.doc_id,
+                        'status': build_result.get('status'),
+                        'version_info': build_result.get('version_info')
+                    })
+            except Exception as build_error:
+                print(f"本体构建失败: {build_error}")
             
             # 更新摄入记录
             ingest_record['status'] = 'completed'
@@ -230,6 +332,26 @@ class IngestService:
             # 保存文档
             for doc in documents:
                 self.storage.save_ontology_document(doc)
+                # 触发本体构建
+                try:
+                    build_result = await self.builder_service.build_ontology(
+                        document=doc,
+                        scenario_id=scenario_id or "default",
+                        workspace_id="default",
+                        create_new_version=True
+                    )
+                    # 记录构建结果
+                    if 'build_id' in build_result:
+                        if 'builds' not in ingest_record:
+                            ingest_record['builds'] = []
+                        ingest_record['builds'].append({
+                            'build_id': build_result['build_id'],
+                            'document_id': doc.doc_id,
+                            'status': build_result.get('status'),
+                            'version_info': build_result.get('version_info')
+                        })
+                except Exception as build_error:
+                    print(f"本体构建失败: {build_error}")
             
             # 更新摄入记录
             ingest_record['status'] = 'completed'

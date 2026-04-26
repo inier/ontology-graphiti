@@ -92,7 +92,7 @@ export const QAPanel: React.FC<QAPanelProps> = ({ workspaceId, style }) => {
   };
 
   return (
-    <Card style={style} bodyStyle={{ display: 'flex', flexDirection: 'column', height: '100%', padding: 0 }}>
+    <Card style={style} styles={{ body: { display: 'flex', flexDirection: 'column', height: '100%', padding: 0 } }}>
       <div style={{ flex: 1, overflowY: 'auto', padding: '16px' }}>
         <List
           dataSource={messages}

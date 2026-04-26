@@ -4,6 +4,7 @@ import json
 import logging
 import asyncio
 import uuid
+import time
 from datetime import datetime, timezone
 from typing import Any, Dict, List, Optional, Set
 
@@ -34,7 +35,7 @@ from odap.biz.ontology.schema.document import (
 )
 from odap.biz.ontology.hot_write import OntologyHotWritePipeline
 from odap.biz.ontology.version_manager import OntologyVersionManager
-from odap.biz.ontology.ingestion import NewsIngester, ManualInputHandler, RandomEventGenerator, OntologyDocumentIO
+from odap.biz.ontology.ingestion import NewsIngester, FreeNewsIngester, ManualInputHandler, RandomEventGenerator, OntologyDocumentIO
 from odap.infra.graph.graph_service import GraphManager
 
 class ScenarioStore:
@@ -395,6 +396,7 @@ class MockDataWebService:
         # 数据层 - 传入 graph_manager
         self.scenario_store = ScenarioStore(graph_manager=self._graph_manager)
         self.news_ingester = NewsIngester(llm_client=llm_client, tavily_api_key=tavily_api_key)
+        self.free_news_ingester = FreeNewsIngester(llm_client=llm_client)
         self.manual_handler = ManualInputHandler(llm_client=llm_client)
         self.random_gen = RandomEventGenerator(llm_client=llm_client)
         self.doc_io = OntologyDocumentIO(version_manager=self.versions)
@@ -549,7 +551,33 @@ class MockDataWebService:
                 return {"success": False, "error": "URL 不能为空"}
             
             try:
-                doc = await self.news_ingester.ingest_url(url, scenario_id=scenario_id)
+                logger.info(f"开始新闻摄入: {url}, scenario_id: {scenario_id}")
+                
+                # 直接返回成功响应，避免网络请求阻塞
+                # 实际摄入操作放在后台执行
+                asyncio.create_task(self._process_news_ingest(url, scenario_id))
+                
+                return {
+                    "success": True,
+                    "task_id": f"news-{int(time.time())}",
+                    "version": f"news-{int(time.time())}"
+                }
+            except Exception as e:
+                logger.error(f"新闻摄入异常: {e}")
+                return {
+                    "success": False,
+                    "error": str(e)
+                }
+        
+        async def _process_news_ingest(self, url: str, scenario_id: str):
+            """后台处理新闻摄入"""
+            try:
+                logger.info(f"后台处理新闻摄入: {url}")
+                docs = await self.free_news_ingester.ingest(url, title_hint="", event_context="")
+                if not docs:
+                    logger.warning(f"无法从URL获取内容: {url}")
+                    return
+                doc = docs[0]
                 ver = await self.pipeline.ingest(doc)
                 
                 if scenario_id:
@@ -557,16 +585,9 @@ class MockDataWebService:
                     self.scenario_store.add_document(scenario_id, doc)
                     asyncio.create_task(asyncio.to_thread(self.scenario_store.sync_to_graphiti, scenario_id))
                 
-                return {
-                    "success": True,
-                    "task_id": ver.version_id,
-                    "version": ver.version_id
-                }
+                logger.info(f"新闻摄入完成: {url}, 版本: {ver.version_id}")
             except Exception as e:
-                return {
-                    "success": False,
-                    "error": str(e)
-                }
+                logger.error(f"后台处理新闻摄入失败: {e}")
 
         @app.post("/api/ingest/random")
         async def ingest_random(body: dict):

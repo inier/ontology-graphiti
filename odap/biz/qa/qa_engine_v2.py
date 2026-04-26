@@ -72,6 +72,7 @@ class SourceTrace:
     entity_id: Optional[str]
     confidence: float
     excerpt: str
+    source: str = ""
 
 
 class DialogManager:

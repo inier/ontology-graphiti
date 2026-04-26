@@ -126,8 +126,8 @@ class Explanation:
     query: str
     answer: str
     reasoning_chain: ReasoningChain
-    sources: List[str] = field(default_factory=list)
     confidence: float
+    sources: List[str] = field(default_factory=list)
     alternative_explanations: List[str] = field(default_factory=list)
 
 

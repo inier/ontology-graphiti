@@ -99,7 +99,10 @@ class WorkspaceService:
                 "workspace_id": workspace.id,
                 "name": workspace.name,
                 "description": workspace.description,
+                "type": workspace.type.value,
                 "status": workspace.status.value,
+                "owner": workspace.owner,
+                "created_at": workspace.created_at.isoformat(),
                 "updated_at": workspace.updated_at.isoformat()
             }
         except ValueError as e:

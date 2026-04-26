@@ -219,6 +219,14 @@ class OntologyDocument:
     # 版本链
     ontology_version: VersionRef = field(default_factory=VersionRef)
 
+    # 转化过程
+    transformation_status: str = "pending"  # pending, processing, completed, failed
+    transformation_steps: List[Dict[str, Any]] = field(default_factory=list)
+    transformation_errors: List[str] = field(default_factory=list)
+
+    # 构建历史
+    build_history: List[Dict[str, Any]] = field(default_factory=list)
+
     # 内部：场景归属
     scenario_id: Optional[str] = None
 
@@ -238,6 +246,10 @@ class OntologyDocument:
             "rules": [r.to_dict() for r in self.rules],
             "constraints": [c.to_dict() for c in self.constraints],
             "ontology_version": self.ontology_version.to_dict(),
+            "transformation_status": self.transformation_status,
+            "transformation_steps": self.transformation_steps,
+            "transformation_errors": self.transformation_errors,
+            "build_history": self.build_history,
             "scenario_id": self.scenario_id,
         }
 
@@ -311,6 +323,10 @@ class OntologyDocument:
             doc_type=data.get("doc_type", DocType.EVENT.value),
             source=DataSource(**{k: v for k, v in source_data.items() if k in DataSource.__dataclass_fields__}),
             meta=DocumentMeta(**{k: v for k, v in meta_data.items() if k in DocumentMeta.__dataclass_fields__}),
+            transformation_status=data.get("transformation_status", "pending"),
+            transformation_steps=data.get("transformation_steps", []),
+            transformation_errors=data.get("transformation_errors", []),
+            build_history=data.get("build_history", []),
             scenario_id=data.get("scenario_id"),
         )
 

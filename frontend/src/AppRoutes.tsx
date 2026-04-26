@@ -3,7 +3,7 @@ import { Dashboard, SituationMap } from './pages';
 import { WorkspaceManager } from './modules/workspace';
 import { AuditLog } from './modules/audit';
 import { ConfigCenter } from './modules/config';
-import { OntologyGraph, Timeline, QueryView } from './modules/ontology';
+import { OntologySemanticNetwork, OntologyBuilder, Timeline, QueryView } from './modules/ontology';
 import { IngestPanel, Simulator } from './modules/ingest';
 import { VersionHistory } from './modules/version';
 import { RoleManager } from './modules/roles';
@@ -27,7 +27,8 @@ export function AppRoutes() {
   return (
     <Routes>
       <Route path="/" element={<Dashboard />} />
-      <Route path="/ontology" element={<OntologyGraph />} />
+      <Route path="/ontology" element={<OntologySemanticNetwork />} />
+      <Route path="/ontology/builder" element={<OntologyBuilder />} />
       <Route path="/timeline" element={<Timeline />} />
       <Route path="/map" element={<SituationMap />} />
       <Route path="/query" element={<QueryView />} />

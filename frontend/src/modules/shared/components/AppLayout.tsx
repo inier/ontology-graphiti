@@ -15,14 +15,23 @@ import {
   AuditOutlined,
   AppstoreOutlined,
   SearchOutlined,
+  PlaySquareOutlined,
 } from '@ant-design/icons';
 import { api } from '../services/api';
+import type { Scenario } from '../types';
 
 const { Header, Sider, Content } = Layout;
 
 interface Workspace {
   workspace_id: string;
   name: string;
+}
+
+interface Scenario {
+  scenario_id: string;
+  name: string;
+  description?: string;
+  workspace_id: string;
 }
 
 interface WorkspaceContextType {
@@ -38,6 +47,22 @@ const WorkspaceContext = createContext<WorkspaceContextType>({
   workspaces: [],
   reloadWorkspaces: async () => {},
 });
+
+interface ScenarioContextType {
+  currentScenario: string;
+  setCurrentScenario: (id: string) => void;
+  scenarios: Scenario[];
+  reloadScenarios: () => Promise<void>;
+}
+
+const ScenarioContext = createContext<ScenarioContextType>({
+  currentScenario: '',
+  setCurrentScenario: () => {},
+  scenarios: [],
+  reloadScenarios: async () => {},
+});
+
+export const useScenario = () => useContext(ScenarioContext);
 
 export const useWorkspace = () => useContext(WorkspaceContext);
 
@@ -58,6 +83,7 @@ const menuItems = [
       { key: '/timeline', icon: <ClockCircleOutlined />, label: '时间线' },
       { key: '/map', icon: <EnvironmentOutlined />, label: '态势地图' },
       { key: '/simulator', icon: <ThunderboltOutlined />, label: '模拟推演' },
+      { key: '/qa', icon: <SearchOutlined />, label: '智能问答' },
     ],
   },
   {
@@ -65,10 +91,11 @@ const menuItems = [
     icon: <BlockOutlined />,
     label: '本体管理区',
     children: [
-      { key: '/ontology', icon: <BlockOutlined />, label: '本体图谱' },
+      { key: '/ontology', icon: <BlockOutlined />, label: '本体语义网络' },
       { key: '/ingest', icon: <UploadOutlined />, label: '数据摄入' },
       { key: '/workspace', icon: <BlockOutlined />, label: '工作空间' },
       { key: '/versions', icon: <HistoryOutlined />, label: '版本管理' },
+      { key: '/ontology/builder', icon: <FileTextOutlined />, label: '本体构建' },
     ],
   },
   {
@@ -92,7 +119,13 @@ export function AppLayout({ children, currentWorkspace, onWorkspaceChange }: App
     // 优先从 localStorage 读取已保存的工作空间
     return localStorage.getItem('currentWorkspaceId') || '';
   });
+  const [scenarios, setScenarios] = useState<Scenario[]>([]);
+  const [currentScenarioState, setCurrentScenarioState] = useState<string>(() => {
+    // 优先从 localStorage 读取已保存的场景
+    return localStorage.getItem('currentScenarioId') || '';
+  });
   const [loading, setLoading] = useState(true);
+  const [scenariosLoading, setScenariosLoading] = useState(false);
   const navigate = useNavigate();
   const location = useLocation();
 
@@ -102,6 +135,12 @@ export function AppLayout({ children, currentWorkspace, onWorkspaceChange }: App
   useEffect(() => {
     loadWorkspaces();
   }, []);
+
+  useEffect(() => {
+    if (activeWorkspaceId) {
+      loadScenarios(activeWorkspaceId);
+    }
+  }, [activeWorkspaceId]);
 
   const loadWorkspaces = async () => {
     try {
@@ -128,6 +167,33 @@ export function AppLayout({ children, currentWorkspace, onWorkspaceChange }: App
     }
   };
 
+  const loadScenarios = async (workspaceId: string) => {
+    try {
+      setScenariosLoading(true);
+      const data = await api.getScenarios(workspaceId);
+      console.log('Scenarios data:', data);
+      setScenarios(data.scenarios || []);
+      
+      // 如果没有设置过场景，或者当前场景不在列表中，自动选择第一个
+      const savedScenarioId = localStorage.getItem('currentScenarioId');
+      if (data.scenarios && data.scenarios.length > 0) {
+        if (!savedScenarioId || !data.scenarios.find(s => s.scenario_id === savedScenarioId)) {
+          const defaultScenario = data.scenarios[0].scenario_id;
+          setCurrentScenarioState(defaultScenario);
+          localStorage.setItem('currentScenarioId', defaultScenario);
+        }
+      } else {
+        setCurrentScenarioState('');
+        localStorage.removeItem('currentScenarioId');
+      }
+    } catch (error) {
+      console.error('加载场景列表失败:', error);
+      // 场景加载失败不显示错误，因为可能没有场景
+    } finally {
+      setScenariosLoading(false);
+    }
+  };
+
   const handleWorkspaceChange = (value: string) => {
     // 保存到 localStorage
     localStorage.setItem('currentWorkspaceId', value);
@@ -139,6 +205,16 @@ export function AppLayout({ children, currentWorkspace, onWorkspaceChange }: App
     onWorkspaceChange?.(value);
     
     message.success('已切换工作空间');
+  };
+
+  const handleScenarioChange = (value: string) => {
+    // 保存到 localStorage
+    localStorage.setItem('currentScenarioId', value);
+    
+    // 更新内部状态
+    setCurrentScenarioState(value);
+    
+    message.success('已切换场景');
   };
 
   const handleMenuClick = ({ key }: { key: string }) => {
@@ -156,104 +232,136 @@ export function AppLayout({ children, currentWorkspace, onWorkspaceChange }: App
     reloadWorkspaces: loadWorkspaces,
   };
 
+  const scenarioContextValue = {
+    currentScenario: currentScenarioState,
+    setCurrentScenario: handleScenarioChange,
+    scenarios,
+    reloadScenarios: () => loadScenarios(activeWorkspaceId),
+  };
+
   return (
     <WorkspaceContext.Provider value={contextValue}>
-      <Layout style={{ minHeight: '100vh' }}>
-        <Sider
-          collapsible
-          collapsed={collapsed}
-          onCollapse={setCollapsed}
-          style={{
-            overflow: 'auto',
-            height: '100vh',
-            position: 'fixed',
-            left: 0,
-            top: 0,
-            bottom: 0,
-            zIndex: 100,
-          }}
-        >
-          <div
+      <ScenarioContext.Provider value={scenarioContextValue}>
+        <Layout style={{ minHeight: '100vh' }}>
+          <Sider
+            collapsible
+            collapsed={collapsed}
+            onCollapse={setCollapsed}
             style={{
-              height: 64,
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'center',
-              color: '#ffffff',
-              fontSize: collapsed ? 16 : 20,
-              fontWeight: 600,
-              borderBottom: '1px solid rgba(255,255,255,0.1)',
-              cursor: 'pointer',
-            }}
-            onClick={handleLogoClick}
-          >
-            {collapsed ? 'ODAP' : 'ODAP 本体平台'}
-          </div>
-          <Menu
-            theme="dark"
-            mode="inline"
-            selectedKeys={[location.pathname]}
-            onClick={handleMenuClick}
-            items={menuItems}
-          />
-        </Sider>
-        <Layout style={{ marginLeft: collapsed ? 80 : 240, transition: 'margin-left 0.2s' }}>
-          <Header
-            style={{
-              padding: '0 24px',
-              background: '#ffffff',
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'space-between',
-              boxShadow: '0 1px 4px rgba(0,0,0,0.1)',
-              position: 'sticky',
+              overflow: 'auto',
+              height: '100vh',
+              position: 'fixed',
+              left: 0,
               top: 0,
-              zIndex: 99,
+              bottom: 0,
+              zIndex: 100,
             }}
           >
-            <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-              <span style={{ fontSize: 16, fontWeight: 500 }}>工作空间:</span>
-              {loading ? (
-                <Spin size="small" />
-              ) : workspaces.length > 0 ? (
-                <Select
-                  value={activeWorkspaceId || undefined}
-                  onChange={handleWorkspaceChange}
-                  style={{ width: 200 }}
-                  options={workspaces.map(w => ({
-                    value: w.workspace_id,
-                    label: w.name,
-                  }))}
-                />
-              ) : (
-                <span style={{ color: '#8c8c8c' }}>暂无工作空间</span>
-              )}
+            <div
+              style={{
+                height: 64,
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                color: '#ffffff',
+                fontSize: collapsed ? 16 : 20,
+                fontWeight: 600,
+                borderBottom: '1px solid rgba(255,255,255,0.1)',
+                cursor: 'pointer',
+              }}
+              onClick={handleLogoClick}
+            >
+              {collapsed ? 'ODAP' : 'ODAP 本体平台'}
             </div>
-            <div style={{ display: 'flex', alignItems: 'center', gap: 16 }}>
-              <span style={{ color: '#8c8c8c', fontSize: 14 }}>管理员</span>
-              <div
-                style={{
-                  width: 32,
-                  height: 32,
-                  borderRadius: '50%',
-                  background: '#1890ff',
-                  color: '#fff',
-                  display: 'flex',
-                  alignItems: 'center',
-                  justifyContent: 'center',
-                  fontSize: 14,
-                  fontWeight: 500,
-                }}
-              >
-                A
+            <Menu
+              theme="dark"
+              mode="inline"
+              selectedKeys={[location.pathname]}
+              onClick={handleMenuClick}
+              items={menuItems}
+            />
+          </Sider>
+          <Layout style={{ marginLeft: collapsed ? 80 : 240, transition: 'margin-left 0.2s' }}>
+            <Header
+              style={{
+                padding: '0 24px',
+                background: '#ffffff',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'space-between',
+                boxShadow: '0 1px 4px rgba(0,0,0,0.1)',
+                position: 'sticky',
+                top: 0,
+                zIndex: 99,
+              }}
+            >
+              <div style={{ display: 'flex', alignItems: 'center', gap: 24 }}>
+                {/* 工作空间选择 */}
+                <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                  <span style={{ fontSize: 14, fontWeight: 500, color: '#666' }}>工作空间:</span>
+                  {loading ? (
+                    <Spin size="small" />
+                  ) : workspaces.length > 0 ? (
+                    <Select
+                      value={activeWorkspaceId || undefined}
+                      onChange={handleWorkspaceChange}
+                      style={{ width: 180 }}
+                      options={workspaces.map(w => ({
+                        value: w.workspace_id,
+                        label: w.name,
+                      }))}
+                    />
+                  ) : (
+                    <span style={{ color: '#8c8c8c', fontSize: 14 }}>暂无工作空间</span>
+                  )}
+                </div>
+                
+                {/* 场景选择 */}
+                <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                  <span style={{ fontSize: 14, fontWeight: 500, color: '#666' }}>场景:</span>
+                  {scenariosLoading ? (
+                    <Spin size="small" />
+                  ) : scenarios.length > 0 ? (
+                    <Select
+                      value={currentScenarioState || undefined}
+                      onChange={handleScenarioChange}
+                      style={{ width: 180 }}
+                      options={scenarios.map(s => ({
+                        value: s.scenario_id,
+                        label: s.name,
+                      }))}
+                    />
+                  ) : (
+                    <span style={{ color: '#8c8c8c', fontSize: 14 }}>暂无场景</span>
+                  )}
+                </div>
               </div>
-            </div>
-          </Header>
-          <Content style={{ padding: 24, minHeight: 'calc(100vh - 64px)', background: '#f0f2f5' }}>
-            {children}
-          </Content>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 16 }}>
+                <span style={{ color: '#8c8c8c', fontSize: 14 }}>管理员</span>
+                <div
+                  style={{
+                    width: 32,
+                    height: 32,
+                    borderRadius: '50%',
+                    background: '#1890ff',
+                    color: '#fff',
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    fontSize: 14,
+                    fontWeight: 500,
+                  }}
+                >
+                  A
+                </div>
+              </div>
+            </Header>
+            <Content style={{ padding: 24, minHeight: 'calc(100vh - 64px)', background: '#f0f2f5' }}>
+              {children}
+            </Content>
+          </Layout>
         </Layout>
-      </Layout>
+      </ScenarioContext.Provider>
     </WorkspaceContext.Provider>
   );
 }

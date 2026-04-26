@@ -1,8 +1,9 @@
-export { AppLayout } from './components/AppLayout';
+export { AppLayout, useWorkspace, useScenario } from './components/AppLayout';
 export { MapView } from './components/MapView';
 export { QAPanel } from './components/QAPanel';
 export { StatCard } from './components/StatCard';
 export { ToolHealthIndicator } from './components/ToolHealthIndicator';
+export { PageHeader, ActionButton } from './components/PageHeader';
 export { api } from './services/api';
 export * from './types';
 export * from './stores';

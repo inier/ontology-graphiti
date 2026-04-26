@@ -51,7 +51,6 @@ def get_workspace_info(workspace_id: str) -> Dict[str, Any]:
         
         return {
             "workspace": workspace,
-            "statistics": workspace_service.get_workspace_statistics(workspace_id),
         }
     except Exception as e:
         return {"error": str(e)}
@@ -77,37 +76,33 @@ def create_workspace_summary(workspace_id: str = None) -> Dict[str, Any]:
             return {
                 "type": "single",
                 "workspace": {
-                    "id": workspace.get("id"),
+                    "id": workspace.get("workspace_id"),
                     "name": workspace.get("name"),
                     "description": workspace.get("description"),
                     "status": workspace.get("status"),
-                    "entity_count": workspace.get("entity_count", 0),
-                    "relation_count": workspace.get("relation_count", 0),
+                    "type": workspace.get("type"),
+                    "owner": workspace.get("owner"),
                 },
-                "summary": f"工作空间 '{workspace.get('name')}' 包含 {workspace.get('entity_count', 0)} 个实体和 {workspace.get('relation_count', 0)} 个关系。",
+                "summary": f"工作空间 '{workspace.get('name')}' 状态为 {workspace.get('status')}，类型为 {workspace.get('type')}。",
             }
         else:
             # 所有工作空间汇总
             result = workspace_service.list_workspaces(filters={}, page=1, page_size=1000)
             workspaces = result.get("workspaces", [])
             
-            total_entities = sum(w.get("entity_count", 0) for w in workspaces)
-            total_relations = sum(w.get("relation_count", 0) for w in workspaces)
-            
             return {
                 "type": "overview",
                 "total_workspaces": len(workspaces),
-                "total_entities": total_entities,
-                "total_relations": total_relations,
                 "workspaces": [
                     {
-                        "id": w.get("id"),
+                        "id": w.get("workspace_id"),
                         "name": w.get("name"),
                         "status": w.get("status"),
+                        "type": w.get("type"),
                     }
                     for w in workspaces
                 ],
-                "summary": f"共有 {len(workspaces)} 个工作空间，总计 {total_entities} 个实体和 {total_relations} 个关系。",
+                "summary": f"共有 {len(workspaces)} 个工作空间。",
             }
     except Exception as e:
         return {"error": str(e)}

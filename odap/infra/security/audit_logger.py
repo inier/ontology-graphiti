@@ -147,6 +147,74 @@ class AuditLogger:
 
         return event.id
 
+    async def log_error(self,
+                       event_type: AuditEventType,
+                       action: str,
+                       resource: "ResourceInfo",
+                       message: str,
+                       actor: "ActorInfo",
+                       context: Optional[Dict[str, Any]] = None) -> str:
+        """
+        便捷方法：记录错误日志
+
+        Args:
+            event_type: 事件类型
+            action: 操作
+            resource: 资源信息
+            message: 错误消息
+            actor: 执行主体
+            context: 上下文
+
+        Returns:
+            str: 事件 ID
+        """
+        from .audit_models import AuditSeverity
+
+        return await self.log(
+            event_type=event_type,
+            severity=AuditSeverity.HIGH,
+            actor=actor.to_dict() if hasattr(actor, 'to_dict') else actor,
+            action=action,
+            resource=resource.to_dict() if hasattr(resource, 'to_dict') else resource,
+            result={"success": False, "error": message},
+            workspace_id=actor.get("actor_id", "default") if isinstance(actor, dict) else "default",
+            context=context
+        )
+
+    async def log_success(self,
+                         event_type: AuditEventType,
+                         action: str,
+                         resource: "ResourceInfo",
+                         message: str,
+                         actor: "ActorInfo",
+                         context: Optional[Dict[str, Any]] = None) -> str:
+        """
+        便捷方法：记录成功日志
+
+        Args:
+            event_type: 事件类型
+            action: 操作
+            resource: 资源信息
+            message: 成功消息
+            actor: 执行主体
+            context: 上下文
+
+        Returns:
+            str: 事件 ID
+        """
+        from .audit_models import AuditSeverity
+
+        return await self.log(
+            event_type=event_type,
+            severity=AuditSeverity.INFO,
+            actor=actor.to_dict() if hasattr(actor, 'to_dict') else actor,
+            action=action,
+            resource=resource.to_dict() if hasattr(resource, 'to_dict') else resource,
+            result={"success": True, "message": message},
+            workspace_id=actor.get("actor_id", "default") if isinstance(actor, dict) else "default",
+            context=context
+        )
+
     async def log_batch(self, events: List[AuditEvent]) -> List[str]:
         """
         批量记录审计事件
@@ -206,8 +274,16 @@ def get_audit_logger(channel: Optional[AuditChannel] = None) -> AuditLogger:
     """
     global _audit_logger_instance
     if _audit_logger_instance is None:
+        if channel is None:
+            channel = get_audit_channel()
         _audit_logger_instance = AuditLogger(channel)
     return _audit_logger_instance
+
+
+def reset_audit_logger():
+    """重置审计日志记录器实例（用于测试或配置更改）"""
+    global _audit_logger_instance
+    _audit_logger_instance = None
 
 
 def audit_info(event_type: AuditEventType, actor: Dict[str, Any], action: str,

@@ -12,7 +12,7 @@ class MongoDBStorage:
     """MongoDB存储实现"""
     
     def __init__(self, connection_string: str = None):
-        self.connection_string = connection_string or os.getenv("MONGODB_URI", "mongodb://graphiti-mongodb:27017")
+        self.connection_string = connection_string or os.getenv("MONGODB_URI", "mongodb://localhost:27017")
         self.client = MongoClient(self.connection_string)
         self.db = self.client["workspace"]
         

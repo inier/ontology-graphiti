@@ -88,6 +88,11 @@ class DecisionEngine:
         "中部": "中部战区",
     }
 
+    # 工作空间关键词映射
+    WORKSPACE_KEYWORDS = [
+        "工作空间", "workspace", "空间"
+    ]
+
     def __init__(self, tools_catalog: Dict[str, Any]):
         self.tools_catalog = tools_catalog
 
@@ -103,12 +108,20 @@ class DecisionEngine:
         """
         user_input_lower = user_input.lower()
         
+        # 检查是否涉及工作空间
+        is_workspace_query = any(keyword in user_input for keyword in self.WORKSPACE_KEYWORDS)
+        
         # 匹配意图
         for action, config in self.INTENT_PATTERNS.items():
             for pattern in config["patterns"]:
                 if re.search(pattern, user_input_lower):
                     # 提取目标
                     target = self._extract_target(user_input)
+                    
+                    # 如果是工作空间相关查询，设置目标为 workspace
+                    if is_workspace_query:
+                        target = "workspace"
+                    
                     # 提取过滤条件
                     filters = self._extract_filters(user_input)
                     
@@ -122,7 +135,7 @@ class DecisionEngine:
         # 默认意图
         return Intent(
             action="query",
-            target="",
+            target="workspace" if is_workspace_query else "",
             filters={},
             confidence=0.5,
         )
@@ -138,6 +151,13 @@ class DecisionEngine:
             工具推荐列表（带置信度）
         """
         recommendations = []
+        
+        # 如果是工作空间相关查询，优先推荐工作空间工具
+        if intent.target == "workspace":
+            workspace_tools = ["list_workspaces", "get_workspace_info", "create_workspace_summary"]
+            for tool_name in workspace_tools:
+                if tool_name in self.tools_catalog:
+                    recommendations.append((tool_name, 0.9))
         
         # 获取意图对应的工具
         intent_config = self.INTENT_PATTERNS.get(intent.action, {})
@@ -167,7 +187,17 @@ class DecisionEngine:
         """
         params = {}
         
-        if tool_name == "query_entities":
+        if tool_name in ["list_workspaces", "create_workspace_summary"]:
+            # 工作空间工具不需要特殊参数
+            pass
+        
+        elif tool_name == "get_workspace_info":
+            # 尝试提取工作空间ID
+            ws_match = re.search(r'工作空间[是为]?\s*([\w-]+)', user_input)
+            if ws_match:
+                params["workspace_id"] = ws_match.group(1)
+        
+        elif tool_name == "query_entities":
             # 提取实体类型
             for keyword, entity_type in self.ENTITY_TYPE_MAP.items():
                 if keyword in user_input:

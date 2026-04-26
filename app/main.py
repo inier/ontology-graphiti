@@ -70,6 +70,38 @@ async def startup_event():
         logger.info("OpenHarness v2 Agent 初始化成功")
     except Exception as e:
         logger.warning(f"OpenHarness v2 Agent 初始化失败: {e}")
+    
+    # 初始化默认工作空间和场景
+    try:
+        from odap.biz.workspace.services.workspace_service import WorkspaceService
+        workspace_service = WorkspaceService()
+        
+        # 检查是否已有工作空间
+        existing = workspace_service.list_workspaces(filters={}, page=1, page_size=100)
+        if existing.get("workspaces") and len(existing.get("workspaces", [])) > 0:
+            logger.info(f"工作空间已存在，共 {len(existing['workspaces'])} 个")
+        else:
+            # 创建默认工作空间
+            default_workspace = workspace_service.create_workspace(
+                name="测试工作空间",
+                description="系统默认工作空间，用于测试和演示"
+            )
+            logger.info(f"✓ 默认工作空间已创建: {default_workspace.get('workspace_id')}")
+            
+            # 创建默认场景
+            try:
+                from odap.biz.workspace.services.scenario_service import ScenarioService
+                scenario_service = ScenarioService()
+                default_scenario = scenario_service.create_scenario(
+                    workspace_id=default_workspace.get("workspace_id"),
+                    name="默认场景",
+                    description="与默认工作空间关联的场景"
+                )
+                logger.info(f"✓ 默认场景已创建: {default_scenario.get('scenario_id')}")
+            except Exception as scene_err:
+                logger.warning(f"创建默认场景失败: {scene_err}")
+    except Exception as e:
+        logger.error(f"初始化默认工作空间失败: {e}")
 
 @app.get("/")
 async def root():

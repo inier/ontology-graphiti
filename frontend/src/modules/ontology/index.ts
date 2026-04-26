@@ -1,5 +1,6 @@
 export { GraphView } from './pages/GraphView';
-export { OntologyGraph } from './pages/OntologyGraph';
+export { OntologySemanticNetwork } from './pages/OntologySemanticNetwork';
+export { OntologyBuilder } from './pages/OntologyBuilder';
 export { Timeline } from './pages/Timeline';
 export { QueryView } from './pages/QueryView';
 export { GraphCanvas } from './components/GraphCanvas';

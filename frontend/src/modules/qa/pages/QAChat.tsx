@@ -1,7 +1,7 @@
 import { useState, useEffect, useRef } from 'react';
-import { Card, Input, Button, List, Avatar, Spin, Typography, Space, Tag, Empty, Row, Col, Statistic, Segmented, Select, DatePicker, Tabs, Progress, Tooltip, Badge } from 'antd';
-import { SendOutlined, UserOutlined, RobotOutlined, HistoryOutlined, BulbOutlined, BarChartOutlined, TeamOutlined, ClockCircleOutlined, RiseOutlined, FallOutlined } from '@ant-design/icons';
-import { api } from '../../shared/services/api';
+import { Card, Input, Button, List, Avatar, Spin, Typography, Space, Tag, Empty, Row, Col, Statistic, Segmented, Select, DatePicker, Tabs, Progress, Tooltip, Badge, message } from 'antd';
+import { SendOutlined, UserOutlined, RobotOutlined, HistoryOutlined, BulbOutlined, BarChartOutlined, TeamOutlined, ClockCircleOutlined, RiseOutlined, FallOutlined, LinkOutlined, DatabaseOutlined } from '@ant-design/icons';
+import { api, useScenario } from '../../shared';
 import dayjs from 'dayjs';
 
 const { Text, Title, Paragraph } = Typography;
@@ -38,6 +38,7 @@ interface UserStat {
 }
 
 export function QAChat() {
+  const { currentScenario } = useScenario();
   const [messages, setMessages] = useState<Message[]>([]);
   const [input, setInput] = useState('');
   const [loading, setLoading] = useState(false);
@@ -148,6 +149,37 @@ export function QAChat() {
     setLoading(true);
 
     try {
+      // 检测是否为新闻 URL
+      const urlPattern = /https?:\/\/(www\.)?[-a-zA-Z0-9@:%._\+~#=]{1,256}\.[a-zA-Z0-9()]{1,6}\b([-a-zA-Z0-9()@:%_\+.~#?&//=]*)/;
+      const urlMatch = input.match(urlPattern);
+      
+      let ingestResult = null;
+      if (urlMatch) {
+        const newsUrl = urlMatch[0];
+        
+        // 显示新闻摄入中消息
+        const ingestMessage: Message = {
+          id: `assistant-${Date.now()}-ingest`,
+          role: 'assistant',
+          content: `正在从新闻 URL 摄入数据: ${newsUrl}`,
+          timestamp: new Date().toISOString(),
+        };
+        setMessages(prev => [...prev, ingestMessage]);
+        
+        // 调用新闻摄入 API
+        ingestResult = await api.ingestNews(newsUrl, currentScenario);
+        
+        // 显示摄入成功消息
+        const ingestSuccessMessage: Message = {
+          id: `assistant-${Date.now()}-ingest-success`,
+          role: 'assistant',
+          content: `新闻摄入成功！摄入ID: ${ingestResult.task_id}`,
+          timestamp: new Date().toISOString(),
+        };
+        setMessages(prev => [...prev, ingestSuccessMessage]);
+      }
+
+      // 调用问答 API
       const result = await api.askQuestion(input, sessionId || undefined);
       setSessionId(result.session_id);
 
@@ -164,7 +196,7 @@ export function QAChat() {
       loadStats();
       loadTopicStats();
     } catch (error) {
-      console.error('问答失败', error);
+      console.error('处理失败', error);
       const errorMessage: Message = {
         id: `error-${Date.now()}`,
         role: 'assistant',
@@ -439,7 +471,7 @@ export function QAChat() {
           </Space>
         }
         style={{ flex: 1, display: 'flex', flexDirection: 'column' }}
-        bodyStyle={{ flex: 1, display: 'flex', flexDirection: 'column', overflow: 'hidden', padding: 0 }}
+        styles={{ body: { flex: 1, display: 'flex', flexDirection: 'column', overflow: 'hidden', padding: 0 } }}
       >
         <Tabs
           activeKey={activeTab}

@@ -76,16 +76,29 @@ def audit_log(action: str, resource: str = None, user: str = None, service: str 
     """
     def decorator(func):
         @wraps(func)
-        async def wrapper(request: Request, *args, **kwargs):
+        async def wrapper(*args, **kwargs):
+            # 提取 request 对象
+            request = None
+            for arg in args:
+                if hasattr(arg, "client"):
+                    request = arg
+                    break
+            if not request:
+                for key, value in kwargs.items():
+                    if hasattr(value, "client"):
+                        request = value
+                        break
+
             start_time = asyncio.get_event_loop().time() if asyncio.get_event_loop().is_running() else 0
             if start_time == 0:
                 start_time = asyncio.get_event_loop().time()
 
-            client_ip = request.client.host if request.client else "unknown"
-            user_agent = request.headers.get("user-agent", "unknown")
+            client_ip = request.client.host if request and request.client else "unknown"
+            user_agent = request.headers.get("user-agent", "unknown") if request else "unknown"
 
             try:
-                result = await func(request, *args, **kwargs)
+                # 直接调用函数，不传递 args 和 kwargs 作为位置参数
+                result = await func(*args, **kwargs)
                 execution_time = 0.1
                 duration_ms = int(execution_time * 1000)
 

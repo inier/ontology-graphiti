@@ -157,22 +157,22 @@ export const api = {
     });
   },
 
-  async ingestNews(url: string, scenarioId?: string): Promise<{ success: boolean; ingest_id: string }> {
-    return fetchJson(`${API_BASE}/api/ontology/ingest/news`, {
+  async ingestNews(url: string, scenarioId?: string): Promise<{ success: boolean; task_id: string }> {
+    return fetchJson(`${API_BASE}/api/ingest/news`, {
       method: 'POST',
       body: JSON.stringify({ url, scenario_id: scenarioId }),
     });
   },
 
   async ingestRandom(scenarioId?: string): Promise<{ success: boolean; doc_count: number; versions: string[] }> {
-    return fetchJson(`${API_BASE}/api/ontology/ingest/random`, {
+    return fetchJson(`${API_BASE}/api/ingest/random`, {
       method: 'POST',
       body: JSON.stringify({ scenario_id: scenarioId }),
     });
   },
 
   async ingestManual(data: Record<string, unknown>, scenarioId?: string): Promise<{ task_id: string }> {
-    return fetchJson(`${API_BASE}/api/ontology/ingest/manual`, {
+    return fetchJson(`${API_BASE}/api/ingest/manual`, {
       method: 'POST',
       body: JSON.stringify({ data, scenario_id: scenarioId }),
     });
@@ -185,7 +185,7 @@ export const api = {
       formData.append('scenario_id', scenarioId);
     }
 
-    const response = await fetch(`${API_BASE}/api/ontology/ingest/file`, {
+    const response = await fetch(`${API_BASE}/api/ingest/file`, {
       method: 'POST',
       body: formData,
     });

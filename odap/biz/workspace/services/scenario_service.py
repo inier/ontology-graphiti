@@ -4,7 +4,7 @@ from typing import Dict, Any, List, Optional
 from datetime import datetime
 from ..models.scenario import Scenario
 from ..storage import Storage
-from odap.biz.ontology.services.build_service import OntologyBuildService
+from odap.biz.ontology.services.build_service import OntologyBuilderService as OntologyBuildService
 
 
 class ScenarioService:

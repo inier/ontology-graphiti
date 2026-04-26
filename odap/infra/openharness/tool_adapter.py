@@ -305,10 +305,11 @@ class DomainHarness(Harness if OPENHARNESS_AVAILABLE else object):
 
     def list_available_tools(self) -> List[Dict[str, str]]:
         """列出所有可用工具"""
-        return [
-            {"name": t.name, "description": t.description, "category": t.category}
-            for t in (self.tools if hasattr(self, 'tools') else [])
-        ]
+        tools = []
+        for t in (self.tools if hasattr(self, 'tools') else []):
+            if hasattr(t, 'name'):
+                tools.append({"name": t.name, "description": t.description, "category": t.category})
+        return tools
 
     def get_episode_history(self) -> List[Dict]:
         """获取当前 episode 历史"""

@@ -30,7 +30,7 @@ class MongoDBAuditChannel(AuditChannel):
             connection_string: MongoDB 连接字符串
             db_name: 数据库名称
         """
-        self.connection_string = connection_string or os.getenv("MONGODB_URI", "mongodb://graphiti-mongodb:27017")
+        self.connection_string = connection_string or os.getenv("MONGODB_URI", "mongodb://localhost:27017")
         self.db_name = db_name
         self.client: Optional[MongoClient] = None
         self.collection: Optional[Collection] = None
@@ -42,10 +42,11 @@ class MongoDBAuditChannel(AuditChannel):
             self._create_indexes()
         except Exception as e:
             print(f"MongoDB 审计通道初始化失败: {e}")
+            raise
 
     def _connect(self):
         """建立 MongoDB 连接"""
-        self.client = MongoClient(self.connection_string, serverSelectionTimeoutMS=5000)
+        self.client = MongoClient(self.connection_string, serverSelectionTimeoutMS=2000)
         # 测试连接
         self.client.admin.command('ping')
         db = self.client[self.db_name]
@@ -346,4 +347,9 @@ def get_audit_channel() -> AuditChannel:
     Returns:
         AuditChannel: 审计通道实例
     """
-    return MongoDBAuditChannel()
+    try:
+        return MongoDBAuditChannel()
+    except Exception as e:
+        print(f"MongoDB 审计通道初始化失败，使用 SQLite 备选: {e}")
+        from .audit_sqlite_channel import SQLiteAuditChannel
+        return SQLiteAuditChannel()

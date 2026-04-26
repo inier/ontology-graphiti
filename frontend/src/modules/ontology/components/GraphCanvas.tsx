@@ -299,9 +299,9 @@ export function GraphCanvas({ nodes, edges, onNodeClick, onEdgeClick, onRefresh 
 
   if (nodes.length === 0) {
     return (
-      <Card title="本体图谱" style={{ borderRadius: 8 }}>
+      <Card title="本体语义网络" style={{ borderRadius: 8 }}>
         <div style={{ height: 600, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-          <Empty description="暂无图谱数据，请先通过数据摄入添加实体" />
+          <Empty description="暂无语义网络数据，请先通过数据摄入添加实体" />
         </div>
       </Card>
     );
@@ -309,7 +309,7 @@ export function GraphCanvas({ nodes, edges, onNodeClick, onEdgeClick, onRefresh 
 
   return (
     <Card
-      title="本体图谱"
+      title="本体语义网络"
       extra={
         <GraphToolbar
           onRefresh={onRefresh}

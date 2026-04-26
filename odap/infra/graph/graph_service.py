@@ -998,6 +998,43 @@ class GraphManager:
 
         return results
 
+    def _search_neo4j_keyword(self, query_text: str, limit: int = 5) -> List[Dict]:
+        """Neo4j 关键词检索模式"""
+        # 清理查询词：去掉所有 user:/用户: 前缀和换行
+        clean_query = query_text
+        # 去掉所有 user: / 用户: 前缀及其后面的内容（到换行为止）
+        import re
+        clean_query = re.sub(r'(?i)user:\s*[^\n]*', '', clean_query)
+        clean_query = re.sub(r'用户:\s*[^\n]*', '', clean_query)
+        # 清理换行和多余空格
+        clean_query = clean_query.replace("\n", " ").replace("\r", " ")
+        clean_query = " ".join(clean_query.split())  # 合并多余空格
+
+        print(f"[DEBUG] _search_neo4j_keyword: original='{query_text}', cleaned='{clean_query}'")
+        try:
+            with self.neo4j_driver.session() as session:
+                cypher = (
+                    "MATCH (n) "
+                    "WHERE n.id CONTAINS $q OR n.name CONTAINS $q "
+                    "RETURN n.id AS id, labels(n) AS labels, properties(n) AS props "
+                    "LIMIT $lmt"
+                )
+                result = session.run(cypher, q=clean_query, lmt=limit)
+                keyword_results = [
+                    {
+                        "id": record["id"],
+                        "type": [l for l in record["labels"] if l != "Entity"][0] if len(record["labels"]) > 1 else "Entity",
+                        "properties": record["props"],
+                        "score": 0.8
+                    }
+                    for record in result
+                ]
+                print(f"[DEBUG] Neo4j 检索返回 {len(keyword_results)} 条结果")
+                return keyword_results
+        except Exception as e:
+            print(f"Neo4j 关键词检索失败: {e}")
+            return self._search_fallback(query_text, limit=limit)
+
     def _search_graphiti(self, query: str, limit: int = 10) -> List[Dict]:
         """Graphiti模式：搜索（返回 EntityEdge 列表）"""
         async def search():
@@ -1198,16 +1235,23 @@ class GraphManager:
         Returns:
             检索结果列表
         """
-        if self._use_fallback or not self._connected:
-            # 回退模式：委托给关键词搜索
-            return self._search_fallback(query_text, limit=top_k)
+        # 优先使用 Neo4j driver（如果可用）
+        if self.neo4j_driver:
+            return self._search_neo4j_keyword(query_text, limit=top_k)
+
+        # Graphiti 模式
+        if self.graph and not self._use_fallback and self._connected:
+            return self._search_graphiti(query_text, limit=top_k)
+
+        # Fallback 模式
+        return self._search_fallback(query_text, limit=top_k)
 
         # Graphiti模式：使用 graphiti 的 search（返回 EntityEdge）
         async def hybrid_search():
             try:
                 # 1. 向量检索（Graphiti search）
                 vector_results = await self.graph.search(query=query_text, num_results=top_k)
-                
+
                 # 2. 关键词检索（Neo4j CONTAINS）
                 keyword_results = []
                 if self.neo4j_driver:
@@ -1229,10 +1273,10 @@ class GraphManager:
                             ]
                     except Exception as e:
                         print(f"关键词检索失败: {e}")
-                
+
                 # 3. 合并结果并根据权重计算最终得分
                 result_map = {}
-                
+
                 # 处理向量检索结果
                 for i, r in enumerate(vector_results):
                     result_id = r.name or str(r.uuid)
@@ -1247,7 +1291,7 @@ class GraphManager:
                         },
                         "score": score
                     }
-                
+
                 # 处理关键词检索结果
                 for i, r in enumerate(keyword_results):
                     result_id = r["id"]
@@ -1259,16 +1303,26 @@ class GraphManager:
                         # 否则添加新结果
                         r["score"] = score
                         result_map[result_id] = r
-                
+
                 # 4. 按得分排序并返回前top_k结果
                 sorted_results = sorted(result_map.values(), key=lambda x: x["score"], reverse=True)[:top_k]
                 return sorted_results
-                
+
             except Exception as e:
                 print(f"Graphiti混合检索失败，降级到 fallback: {e}")
                 return self._search_fallback(query_text, limit=top_k)
 
-        return asyncio.run(hybrid_search())
+        # 处理已在事件循环中的情况
+        try:
+            loop = asyncio.get_running_loop()
+            # 在事件循环中，创建 task
+            import concurrent.futures
+            with concurrent.futures.ThreadPoolExecutor() as pool:
+                future = pool.submit(asyncio.run, hybrid_search())
+                return future.result()
+        except RuntimeError:
+            # 没有运行中的事件循环
+            return asyncio.run(hybrid_search())
 
     def reserve_task(self, task_data: Dict) -> str:
         """
@@ -1541,3 +1595,234 @@ class GraphManager:
             }
 
         return asyncio.run(add_batch())
+
+    # ============================================================
+    # Agent 工具所需的方法
+    # ============================================================
+
+    def get_all_entities(self) -> List[Dict]:
+        """
+        获取所有实体
+        
+        Returns:
+            实体列表
+        """
+        return self.query_entities()
+
+    def get_all_relations(self) -> List[Dict]:
+        """
+        获取所有关系
+        
+        Returns:
+            关系列表
+        """
+        if self._mode == "neo4j_driver" and self.neo4j_driver:
+            return self._get_all_relations_neo4j()
+        if self._mode == "graphiti" and self._connected:
+            return []
+        return self._get_all_relations_fallback()
+
+    def _get_all_relations_neo4j(self) -> List[Dict]:
+        """Neo4j Driver 模式：获取所有关系"""
+        try:
+            with self.neo4j_driver.session() as session:
+                result = session.run("""
+                    MATCH (a)-[r]->(b)
+                    RETURN a.id AS source, b.id AS target, type(r) AS type, properties(r) AS props
+                """)
+                return [
+                    {
+                        "source": record["source"],
+                        "target": record["target"],
+                        "type": record["type"],
+                        "properties": record["props"]
+                    }
+                    for record in result
+                ]
+        except Exception as e:
+            print(f"Neo4j 获取关系失败: {e}")
+            return []
+
+    def _get_all_relations_fallback(self) -> List[Dict]:
+        """回退模式：获取所有关系"""
+        result = []
+        for source, target, data in self.fallback_graph.edges(data=True):
+            result.append({
+                "source": source,
+                "target": target,
+                "type": data.get("relationship", "RELATES_TO"),
+                "properties": {k: v for k, v in data.items() if k != "relationship"}
+            })
+        return result
+
+    def get_entity(self, entity_id: str) -> Optional[Dict]:
+        """
+        获取单个实体
+        
+        Args:
+            entity_id: 实体ID
+            
+        Returns:
+            实体信息
+        """
+        if self._mode == "neo4j_driver" and self.neo4j_driver:
+            return self._get_entity_neo4j(entity_id)
+        if self._mode == "graphiti" and self._connected:
+            return None
+        return self._get_entity_fallback(entity_id)
+
+    def _get_entity_neo4j(self, entity_id: str) -> Optional[Dict]:
+        """Neo4j Driver 模式：获取单个实体"""
+        try:
+            with self.neo4j_driver.session() as session:
+                result = session.run(
+                    "MATCH (n:Entity {id: $eid}) RETURN n.id AS id, labels(n) AS labels, properties(n) AS props",
+                    eid=entity_id
+                )
+                record = result.single()
+                if record:
+                    return {
+                        "id": record["id"],
+                        "type": [l for l in record["labels"] if l != "Entity"][0] if len(record["labels"]) > 1 else "Entity",
+                        "properties": record["props"]
+                    }
+                return None
+        except Exception as e:
+            print(f"Neo4j 获取实体失败: {e}")
+            return None
+
+    def _get_entity_fallback(self, entity_id: str) -> Optional[Dict]:
+        """回退模式：获取单个实体"""
+        if entity_id in self.fallback_graph:
+            data = self.fallback_graph.nodes[entity_id]
+            return {
+                "id": entity_id,
+                "type": data.get("entity_type"),
+                "properties": {k: v for k, v in data.items() if k != "entity_type"}
+            }
+        return None
+
+    def get_entity_relations(self, entity_id: str) -> List[Dict]:
+        """
+        获取实体的关系
+        
+        Args:
+            entity_id: 实体ID
+            
+        Returns:
+            关系列表
+        """
+        if self._mode == "neo4j_driver" and self.neo4j_driver:
+            return self._get_entity_relations_neo4j(entity_id)
+        if self._mode == "graphiti" and self._connected:
+            return []
+        return self._get_entity_relations_fallback(entity_id)
+
+    def _get_entity_relations_neo4j(self, entity_id: str) -> List[Dict]:
+        """Neo4j Driver 模式：获取实体关系"""
+        try:
+            with self.neo4j_driver.session() as session:
+                result = session.run("""
+                    MATCH (a:Entity {id: $eid})-[r]->(b)
+                    RETURN b.id AS target, type(r) AS type, properties(r) AS props
+                    UNION
+                    MATCH (a)-[r]->(b:Entity {id: $eid})
+                    RETURN a.id AS target, type(r) AS type, properties(r) AS props
+                """, eid=entity_id)
+                return [
+                    {
+                        "target": record["target"],
+                        "type": record["type"],
+                        "properties": record["props"]
+                    }
+                    for record in result
+                ]
+        except Exception as e:
+            print(f"Neo4j 获取实体关系失败: {e}")
+            return []
+
+    def _get_entity_relations_fallback(self, entity_id: str) -> List[Dict]:
+        """回退模式：获取实体关系"""
+        result = []
+        # 出边
+        for target in self.fallback_graph.successors(entity_id):
+            data = self.fallback_graph.edges[entity_id, target]
+            result.append({
+                "target": target,
+                "type": data.get("relationship", "RELATES_TO"),
+                "direction": "out"
+            })
+        # 入边
+        for source in self.fallback_graph.predecessors(entity_id):
+            data = self.fallback_graph.edges[source, entity_id]
+            result.append({
+                "target": source,
+                "type": data.get("relationship", "RELATES_TO"),
+                "direction": "in"
+            })
+        return result
+
+    def search_entities(self, keyword: str) -> List[Dict]:
+        """
+        搜索实体
+        
+        Args:
+            keyword: 搜索关键词
+            
+        Returns:
+            匹配的实体列表
+        """
+        return self.search(keyword)
+
+    def search_relations(self, keyword: str) -> List[Dict]:
+        """
+        搜索关系
+        
+        Args:
+            keyword: 搜索关键词
+            
+        Returns:
+            匹配的关系列表
+        """
+        # 关系搜索：查找包含关键词的关系
+        all_relations = self.get_all_relations()
+        keyword_lower = keyword.lower()
+        result = []
+        for relation in all_relations:
+            if (keyword_lower in relation.get("source", "").lower() or
+                keyword_lower in relation.get("target", "").lower() or
+                keyword_lower in relation.get("type", "").lower()):
+                result.append(relation)
+        return result
+
+    def analyze_graph(self) -> Dict[str, Any]:
+        """
+        分析图谱
+        
+        Returns:
+            分析结果
+        """
+        stats = self.get_statistics()
+        entities = self.get_all_entities()
+        relations = self.get_all_relations()
+        
+        # 实体类型分布
+        entity_types = {}
+        for entity in entities:
+            etype = entity.get("type", "Unknown")
+            entity_types[etype] = entity_types.get(etype, 0) + 1
+        
+        # 关系类型分布
+        relation_types = {}
+        for relation in relations:
+            rtype = relation.get("type", "Unknown")
+            relation_types[rtype] = relation_types.get(rtype, 0) + 1
+        
+        return {
+            "total_entities": len(entities),
+            "total_relations": len(relations),
+            "entity_types": entity_types,
+            "relation_types": relation_types,
+            "density": len(relations) / max(len(entities), 1),
+            "statistics": stats,
+        }

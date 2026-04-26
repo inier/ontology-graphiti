@@ -18,9 +18,7 @@ interface GraphEdge {
   type: string;
 }
 
-
-
-export function OntologyGraph() {
+export function OntologySemanticNetwork() {
   const { currentScenario } = useScenario();
   const [nodes, setNodes] = useState<GraphNode[]>([]);
   const [edges, setEdges] = useState<GraphEdge[]>([]);
@@ -46,8 +44,8 @@ export function OntologyGraph() {
       setNodes(mockData.nodes || []);
       setEdges(mockData.edges || []);
     } catch (error) {
-      console.error('加载图谱数据失败', error);
-      message.error('加载图谱数据失败');
+      console.error('加载语义网络失败', error);
+      message.error('加载语义网络失败');
     } finally {
       setLoading(false);
     }
@@ -65,7 +63,7 @@ export function OntologyGraph() {
 
   return (
     <div style={{ padding: 24 }}>
-      <PageHeader title="图谱可视化" />
+      <PageHeader title="本体语义网络" />
 
       <Row gutter={[16, 16]} style={{ marginBottom: 16 }}>
         <Col span={24}>
@@ -83,7 +81,7 @@ export function OntologyGraph() {
           {loading ? (
             <Card style={{ borderRadius: 8 }}>
               <div style={{ textAlign: 'center', padding: 100 }}>
-                <Spin description="加载图谱数据..." />
+                <Spin description="加载语义网络数据..." />
               </div>
             </Card>
           ) : (
@@ -98,7 +96,7 @@ export function OntologyGraph() {
       </Row>
 
       <Drawer
-        title="实体详情"
+        title="节点详情"
         placement="right"
         width={400}
         open={!!selectedNode}
@@ -106,7 +104,7 @@ export function OntologyGraph() {
       >
         {selectedNode && (
           <Descriptions column={1} bordered>
-            <Descriptions.Item label="实体ID">{selectedNode.id}</Descriptions.Item>
+            <Descriptions.Item label="节点ID">{selectedNode.id}</Descriptions.Item>
             <Descriptions.Item label="名称">{selectedNode.name}</Descriptions.Item>
             <Descriptions.Item label="类型">
               <Tag color="blue">{selectedNode.type}</Tag>
@@ -122,9 +120,6 @@ export function OntologyGraph() {
               <Button type="link">展开</Button>
             </Descriptions.Item>
             <Descriptions.Item label="关系">
-              <Button type="link">展开</Button>
-            </Descriptions.Item>
-            <Descriptions.Item label="历史">
               <Button type="link">展开</Button>
             </Descriptions.Item>
           </Descriptions>
