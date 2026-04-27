@@ -678,3 +678,246 @@ class QAAgentBridge:
 - [ ] 工具增强检索
 - [ ] 答案质量评估与反馈闭环
 - [ ] 语义缓存（相似问题命中）
+
+---
+
+## 10. 前端架构设计
+
+### 10.1 前端模块定位
+
+```
+┌─────────────────────────────────────────────────────────────────────────────┐
+│ L6  用户交互层                                                               │
+│     对话界面 / 问答面板                                                      │
+│     ├── QAChatPage (主容器)                                                 │
+│     ├── ChatHeader (头部导航)                                                │
+│     ├── MessageList (消息列表)                                               │
+│     ├── ChatInput (输入组件)                                                 │
+│     └── SessionDrawer (历史会话)                                              │
+├─────────────────────────────────────────────────────────────────────────────┤
+│ L5  状态管理层                                                              │
+│     ├── useQAI (问答状态管理)                                                │
+│     ├── useSession (会话管理)                                                │
+│     └── useChatStorage (持久化)                                              │
+├─────────────────────────────────────────────────────────────────────────────┤
+│ L4  服务层                                                                  │
+│     ├── API 适配层 (fetch)                                                   │
+│     └── OpenHarnessProvider (上下文)                                         │
+└─────────────────────────────────────────────────────────────────────────────┘
+```
+
+### 10.2 前端组件层次
+
+```typescript
+// 组件层次结构
+QAChatPage
+├── ChatHeader           // 头部导航栏
+├── MessageList          // 消息列表容器
+│   └── MessageItem      // 单条消息（渲染）
+├── ChatInput            // 输入区域
+│   ├── TextArea         // 文本输入
+│   └── SendButton       // 发送按钮
+└── SessionDrawer       // 历史会话抽屉（Modal）
+    └── SessionItem      // 会话列表项
+```
+
+### 10.3 状态管理架构
+
+```
+┌──────────────────────────────────────────────────────────────┐
+│                      React Component Tree                     │
+│                                                               │
+│  QAChatPage                                                  │
+│  ├── useQAI() ────────────► Messages, Status, SessionId     │
+│  ├── useSession() ────────► Sessions, CRUD Operations       │
+│  └── useChatStorage() ───► LocalStorage Persistence         │
+│                                                               │
+└──────────────────────────────────────────────────────────────┘
+```
+
+**状态分类**：
+
+| 状态类型 | 管理方式 | 说明 |
+|---------|---------|------|
+| 消息列表 | useState + useQAI | 内存状态，随会话变化 |
+| 加载状态 | useState | idle/submitting/streaming/error |
+| 会话 ID | useState + localStorage | 持久化到本地 |
+| 历史会话 | useState + useSession | 从 API 加载 |
+| 用户输入 | useState | 临时状态 |
+
+---
+
+## 11. 前端会话管理设计
+
+### 11.1 会话生命周期
+
+```
+┌─────────────┐    sendMessage     ┌──────────────┐    API     ┌─────────────┐
+│   NEW       │ ─────────────────► │   ACTIVE     │ ─────────► │  BACKEND    │
+│   (初始)    │                    │   (进行中)   │            │   Session   │
+└─────────────┘                    └──────────────┘            └─────────────┘
+       ▲                                   │
+       │                                   │ close/delete
+       │                                   ▼
+       │                            ┌──────────────┐
+       └────────────────────────────│    CLOSED    │
+                                    │    (已关闭)  │
+                                    └──────────────┘
+```
+
+### 11.2 前端会话管理组件
+
+```typescript
+// 会话管理 Hook 接口
+export interface UseSessionReturn {
+  sessions: Session[];              // 会话列表
+  loading: boolean;                // 加载状态
+  error: Error | null;             // 错误状态
+  fetchSessions: () => Promise<void>;      // 刷新列表
+  loadSession: (id: string) => Promise<Session | null>;  // 加载详情
+  deleteSession: (id: string) => Promise<boolean>;       // 删除会话
+}
+
+// 会话数据模型
+export interface Session {
+  session_id: string;        // 会话 ID
+  summary: string;          // 摘要（自动生成或手动）
+  message_count: number;    // 消息数量
+  model: string;           // 使用的 LLM 模型
+  created_at: number;       // 创建时间戳
+}
+```
+
+### 11.3 本地存储策略
+
+```typescript
+interface ChatStorageData {
+  sessionId: string | null;      // 当前会话 ID
+  messages: QAMessage[];         // 消息列表
+  currentSessionId: string | null;
+  lastUpdated: number;            // 最后更新时间
+}
+
+// 存储键生成策略
+function getStorageKey(sessionId: string | null): string {
+  return sessionId
+    ? `qa_chat_state_${sessionId}`
+    : 'qa_chat_state_default';
+}
+
+// 防抖策略：500ms
+const DEBOUNCE_MS = 500;
+```
+
+### 11.4 多会话支持
+
+```typescript
+// 切换会话流程
+async function switchSession(targetSessionId: string) {
+  // 1. 保存当前会话到本地
+  persistMessages(currentMessages, currentSessionId);
+
+  // 2. 更新当前会话 ID
+  setSessionId(targetSessionId);
+
+  // 3. 从本地加载目标会话
+  const stored = loadState(targetSessionId);
+  if (stored) {
+    setMessages(stored.messages);
+  } else {
+    // 4. 如果本地没有，从 API 加载历史
+    const session = await loadSession(targetSessionId);
+    if (session) {
+      setMessages(session.messages);
+    }
+  }
+}
+```
+
+---
+
+## 12. OpenHarness 集成设计
+
+### 12.1 Provider 配置
+
+```typescript
+// QAIProvider.tsx
+import { OpenHarnessProvider } from '@openharness/react';
+
+export function QAIProvider({ children }: QAIProviderProps) {
+  return (
+    <OpenHarnessProvider>
+      {children}
+    </OpenHarnessProvider>
+  );
+}
+```
+
+### 12.2 API 端点配置
+
+```typescript
+// 后端 API 端点
+const API_ENDPOINT = 'http://localhost:8000/api/qa/ask';
+const SESSIONS_ENDPOINT = 'http://localhost:8000/api/qa/sessions';
+```
+
+### 12.3 错误处理流程
+
+```
+┌─────────────┐    fetch    ┌──────────────┐
+│   UI       │ ──────────► │   Backend    │
+│  Component │             │   API        │
+└─────────────┘             └──────────────┘
+       ▲                           │
+       │                           │ Error Response
+       │                           ▼
+       │                    ┌──────────────┐
+       │                    │  Error       │
+       │                    │  Handler     │
+       │                    └──────────────┘
+       │                           │
+       │         ┌─────────────────┼─────────────────┐
+       │         ▼                 ▼                 ▼
+       │   ┌──────────┐     ┌──────────┐     ┌──────────┐
+       │   │ Network  │     │  Server  │     │ Timeout  │
+       │   │ Error    │     │  Error   │     │ Error    │
+       │   └──────────┘     └──────────┘     └──────────┘
+       │         │                 │                 │
+       │         └────────┬────────┴────────┬────────┘
+       │                  ▼                 ▼
+       │           ┌──────────────┐  ┌──────────────┐
+       └──────────►│  Retry/      │  │  Show Error  │
+                    │  Abort       │  │  Message     │
+                    └──────────────┘  └──────────────┘
+```
+
+---
+
+## 13. 性能优化策略
+
+### 13.1 渲染优化
+
+| 策略 | 实现方式 | 效果 |
+|------|---------|------|
+| 虚拟列表 | react-window | 支持 1000+ 消息 |
+| 懒加载 | React.lazy | 首屏加载优化 |
+| 备忘录化 | useMemo/useCallback | 减少重渲染 |
+| 防抖存储 | 500ms debounce | 减少 IO 操作 |
+
+### 13.2 网络优化
+
+| 策略 | 实现方式 | 效果 |
+|------|---------|------|
+| 请求取消 | AbortController | 停止冗余请求 |
+| 请求缓存 | SWR/React Query | 减少重复请求 |
+| 超时控制 | timeout 配置 | 避免长时间等待 |
+| 重试机制 | 指数退避 | 临时故障恢复 |
+
+### 13.3 内存优化
+
+| 策略 | 实现方式 | 效果 |
+|------|---------|------|
+| 消息截断 | 保留最近 N 条 | 控制内存占用 |
+| 图片压缩 | 缩略图展示 | 减少内存占用 |
+| 及时清理 | useEffect cleanup | 防止内存泄漏 |
+| 会话压缩 | 历史摘要 | 减少存储占用 |

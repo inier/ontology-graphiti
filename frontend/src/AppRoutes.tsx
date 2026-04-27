@@ -7,7 +7,7 @@ import { OntologySemanticNetwork, Timeline, QueryView } from './modules/ontology
 import { IngestPanel, Simulator } from './modules/ingest';
 import { VersionHistory } from './modules/version';
 import { RoleManager } from './modules/roles';
-import { QAChat } from './modules/qa/pages/QAChat';
+import { QAChatPage } from './modules/qa/pages/QAChatPage';
 
 // 临时占位组件，用于未实现的页面
 import { Alert } from 'antd';
@@ -38,7 +38,7 @@ export function AppRoutes() {
       <Route path="/audit" element={<AuditLog />} />
       <Route path="/config" element={<ConfigCenter />} />
       <Route path="/roles" element={<RoleManager />} />
-      <Route path="/qa" element={<QAChat />} />
+      <Route path="/qa" element={<QAChatPage />} />
       <Route path="/policies" element={<Placeholder title="OPA 策略管理" />} />
       <Route path="/skills" element={<Placeholder title="Skill 管理" />} />
     </Routes>

@@ -97,9 +97,133 @@ QueryUnderstanding（查询理解）
 
 **中**。QA Pipeline 和 Agent 是两个独立路径，可以分别演进。如果 QA Pipeline 能力增强（如支持工具调用），可以逐步收敛到单路径。但双层架构的接口（QueryUnderstanding 路由、DialogManager 共享）修改成本中等。
 
+---
+
+## 前端集成方案
+
+### 技术选型
+
+| 类别 | 选型 | 版本 | 说明 |
+|------|------|------|------|
+| UI 框架 | React | 19.x | 主流前端框架 |
+| 状态管理 | Zustand | 5.x | 轻量级状态管理 |
+| 组件库 | Ant Design | 6.x | 企业级 UI 组件 |
+| AI 集成 | Vercel AI SDK | 6.x | LLM 对话支持 |
+| OpenHarness | @openharness/react | 1.0.1 | OpenHarness 平台集成 |
+
+### 前端模块结构
+
+```
+frontend/src/modules/qa/
+├── providers/
+│   └── QAIProvider.tsx       # OpenHarness Provider 集成
+├── hooks/
+│   ├── useQAI.ts             # 问答交互状态管理
+│   ├── useSession.ts          # 会话管理（列表/CRUD）
+│   └── useChatStorage.ts      # localStorage 持久化
+├── components/
+│   └── SessionDrawer.tsx      # 历史会话抽屉组件
+├── pages/
+│   ├── QAChatPage.tsx         # 问答应容器页面
+│   └── QAChat.tsx            # 问答组件（含统计 Tab）
+└── index.ts                  # 模块导出
+```
+
+### 核心组件关系
+
+```
+QAChatPage (主容器)
+├── ChatHeader        # 头部导航栏
+├── MessageList       # 消息列表渲染
+├── ChatInput        # 文本输入 + 发送按钮
+└── SessionDrawer    # 历史会话抽屉
+    └── useSession   # 会话管理钩子
+```
+
+### 状态管理架构
+
+```typescript
+// useQAI - 问答状态
+interface UseQAIOptions {
+  sessionId?: string;
+  onError?: (error: Error) => void;
+}
+
+interface UseQAIReturn {
+  messages: QAMessage[];           // 消息列表
+  sendMessage: (content: string) => void;
+  status: 'idle' | 'submitting' | 'streaming' | 'error' | 'waiting_for_input';
+  sessionId: string | null;
+  clearMessages: () => void;
+  stop: () => void;                // 中止生成
+}
+
+// useSession - 会话管理
+interface UseSessionReturn {
+  sessions: Session[];
+  loading: boolean;
+  error: Error | null;
+  fetchSessions: () => Promise<void>;
+  loadSession: (sessionId: string) => Promise<Session | null>;
+  deleteSession: (sessionId: string) => Promise<boolean>;
+}
+```
+
+### API 集成
+
+**后端接口**：
+
+| 接口 | 方法 | 路径 | 说明 |
+|------|------|------|------|
+| 问答 | POST | `/api/qa/ask` | 发送问题，获取回答 |
+| 会话列表 | GET | `/api/qa/sessions` | 获取会话列表 |
+| 会话详情 | GET | `/api/qa/sessions/{id}` | 获取指定会话 |
+| 删除会话 | DELETE | `/api/qa/sessions/{id}` | 删除指定会话 |
+| 会话历史 | GET | `/api/qa/sessions/{id}/history` | 获取消息历史 |
+| 提交反馈 | POST | `/api/qa/sessions/{id}/feedback` | 提交问答反馈 |
+
+### 会话持久化策略
+
+```typescript
+// localStorage 存储键策略
+function getStorageKey(sessionId: string | null): string {
+  return sessionId
+    ? `qa_chat_state_${sessionId}`
+    : 'qa_chat_state_default';
+}
+
+// 防抖写入：500ms
+const DEBOUNCE_MS = 500;
+```
+
+### OpenHarness Provider 集成
+
+```tsx
+import { OpenHarnessProvider } from '@openharness/react';
+
+function QAIProvider({ children }: QAIProviderProps) {
+  return (
+    <OpenHarnessProvider>
+      {children}
+    </OpenHarnessProvider>
+  );
+}
+```
+
+### 错误处理机制
+
+| 错误类型 | 处理策略 | 用户体验 |
+|---------|---------|---------|
+| 网络错误 | 重试 3 次，指数退避 | 显示"网络异常" |
+| 超时错误 | AbortController 取消 | 显示"请求超时" |
+| 服务端错误 | 降级到 Mock 数据 | 显示友好错误提示 |
+| 认证错误 | 跳转登录页 | 提示重新登录 |
+
 ## 关联
 
 - 关联 ADR-002（Graphiti 知识图谱）
 - 关联 ADR-005（分层 Agent 架构）
-- 关联 M-12 DESIGN.md
+- 关联 M-12 DESIGN.md（详细架构设计）
 - 影响 WR-13（问答引擎）
+- 关联 @openharness/react 集成方案（[INTEGRATION.md](../modules/qa_engine/INTEGRATION.md)）
+- 关联 API 使用文档（[API.md](../modules/qa_engine/API.md)）
