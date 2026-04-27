@@ -1,6 +1,6 @@
 from fastapi import APIRouter, HTTPException, Depends
 from pydantic import BaseModel, Field
-from typing import List, Dict, Any, Optional
+from typing import List, Dict, Any, Optional, Union
 from ..services.ingest_service import IngestService
 from ..services.build_service import get_builder_service
 
@@ -11,28 +11,25 @@ ingest_service = IngestService()
 
 # 数据模型
 class NewsIngestRequest(BaseModel):
-    url: Optional[str] = Field(default=None, description="新闻URL")
-    query: Optional[str] = Field(default=None, description="检索关键词")
+    data: Optional[str] = Field(default=None, description="新闻URL或检索关键词")
     event_context: str = Field(default="", description="事件背景")
     max_sources: int = Field(default=5, description="最大检索来源数")
-    scenario_id: Optional[str] = Field(default=None, description="场景ID（仅用于兼容前端）")
+    scenario_id: Optional[str] = Field(default=None, description="场景ID")
 
 class ManualIngestRequest(BaseModel):
-    form_data: Dict[str, Any] = Field(..., description="表单数据")
+    data: Union[str, Dict[str, Any]] = Field(..., description="文本或表单数据")
     scenario_id: Optional[str] = Field(default=None, description="场景ID")
 
 class JsonIngestRequest(BaseModel):
-    json_data: str = Field(..., description="JSON字符串")
+    data: str = Field(..., description="JSON字符串")
     scenario_id: Optional[str] = Field(default=None, description="场景ID")
 
 class NaturalLanguageIngestRequest(BaseModel):
-    text: str = Field(..., description="自然语言文本")
+    data: str = Field(..., description="自然语言文本")
     scenario_id: Optional[str] = Field(default=None, description="场景ID")
 
 class RandomEventsRequest(BaseModel):
-    parties: List[str] = Field(..., description="参与方列表")
-    scenario_context: Optional[Dict[str, Any]] = Field(default=None, description="场景上下文")
-    count: int = Field(default=1, description="生成事件数量")
+    data: Dict[str, Any] = Field(..., description="随机事件参数")
     scenario_id: Optional[str] = Field(default=None, description="场景ID")
 
 class IngestResponse(BaseModel):
@@ -59,29 +56,34 @@ class IngestStatusResponse(BaseModel):
 async def ingest_data(request: Dict[str, Any]):
     """数据摄入通用接口"""
     source_type = request.get("source_type")
+    data = request.get("data")
     
     if source_type == "news":
-        query = request.get("query")
         event_context = request.get("event_context", "")
         max_sources = request.get("max_sources", 5)
         scenario_id = request.get("scenario_id")
-        ingest_id = await ingest_service.ingest_from_news(query, event_context, max_sources, scenario_id)
+        # 自动判断是URL还是搜索关键词
+        is_url = data.startswith(('http://', 'https://')) if data else False
+        if is_url:
+            ingest_id = await ingest_service.ingest_from_url(data, event_context, scenario_id)
+        else:
+            ingest_id = await ingest_service.ingest_from_news(data, event_context, max_sources, scenario_id)
     elif source_type == "manual":
-        form_data = request.get("form_data") or request.get("data", {})
+        form_data = data or request.get("form_data", {})
         scenario_id = request.get("scenario_id")
         ingest_id = await ingest_service.ingest_from_manual(form_data, scenario_id)
     elif source_type == "json":
-        json_data = request.get("json_data")
+        json_data = data or request.get("json_data")
         scenario_id = request.get("scenario_id")
         ingest_id = await ingest_service.ingest_from_json(json_data, scenario_id)
     elif source_type == "natural_language":
-        text = request.get("text")
+        text = data or request.get("text")
         scenario_id = request.get("scenario_id")
         ingest_id = await ingest_service.ingest_from_natural_language(text, scenario_id)
     elif source_type == "random":
-        parties = request.get("parties")
-        scenario_context = request.get("scenario_context")
-        count = request.get("count", 1)
+        parties = request.get("parties") or (isinstance(data, dict) and data.get("parties"))
+        scenario_context = request.get("scenario_context") or (isinstance(data, dict) and data.get("scenario_context"))
+        count = request.get("count", 1) or (isinstance(data, dict) and data.get("count", 1))
         scenario_id = request.get("scenario_id")
         ingest_id = await ingest_service.generate_random_events(parties, scenario_context, count, scenario_id)
     else:
@@ -105,21 +107,24 @@ async def ingest_from_news(request: NewsIngestRequest):
     1. URL模式: 直接传入新闻网页URL，使用免费网页抓取方案
     2. 检索模式: 传入关键词，使用搜索引擎检索（需要API Key）
     """
-    if request.url:
+    if not request.data:
+        raise HTTPException(status_code=400, detail="必须提供 data 参数")
+    
+    # 自动判断是URL还是搜索关键词
+    is_url = request.data.startswith(('http://', 'https://'))
+    if is_url:
         ingest_id = await ingest_service.ingest_from_url(
-            request.url,
+            request.data,
             request.event_context,
             request.scenario_id
         )
-    elif request.query:
+    else:
         ingest_id = await ingest_service.ingest_from_news(
-            request.query,
+            request.data,
             request.event_context,
             request.max_sources,
             request.scenario_id
         )
-    else:
-        raise HTTPException(status_code=400, detail="必须提供 url 或 query 参数")
 
     ingest_record = ingest_service.get_ingest_status(ingest_id)
     status = ingest_record.get("status")
@@ -135,7 +140,7 @@ async def ingest_from_news(request: NewsIngestRequest):
 async def ingest_from_manual(request: ManualIngestRequest):
     """从手动输入摄入数据"""
     ingest_id = await ingest_service.ingest_from_manual(
-        request.form_data,
+        request.data,
         request.scenario_id
     )
     ingest_record = ingest_service.get_ingest_status(ingest_id)
@@ -152,7 +157,7 @@ async def ingest_from_manual(request: ManualIngestRequest):
 async def ingest_from_json(request: JsonIngestRequest):
     """从 JSON 摄入数据"""
     ingest_id = await ingest_service.ingest_from_json(
-        request.json_data,
+        request.data,
         request.scenario_id
     )
     ingest_record = ingest_service.get_ingest_status(ingest_id)
@@ -169,7 +174,7 @@ async def ingest_from_json(request: JsonIngestRequest):
 async def ingest_from_natural_language(request: NaturalLanguageIngestRequest):
     """从自然语言摄入数据"""
     ingest_id = await ingest_service.ingest_from_natural_language(
-        request.text,
+        request.data,
         request.scenario_id
     )
     ingest_record = ingest_service.get_ingest_status(ingest_id)
@@ -186,9 +191,9 @@ async def ingest_from_natural_language(request: NaturalLanguageIngestRequest):
 async def generate_random_events(request: RandomEventsRequest):
     """生成随机事件"""
     ingest_id = await ingest_service.generate_random_events(
-        request.parties,
-        request.scenario_context,
-        request.count,
+        request.data.get("parties"),
+        request.data.get("scenario_context"),
+        request.data.get("count", 1),
         request.scenario_id
     )
     ingest_record = ingest_service.get_ingest_status(ingest_id)

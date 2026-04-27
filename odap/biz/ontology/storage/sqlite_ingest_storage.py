@@ -35,6 +35,8 @@ class SQLiteIngestStorage:
                 duration_seconds REAL,
                 errors TEXT,
                 quality_metrics TEXT,
+                extracted_data TEXT,
+                original_content TEXT,
                 created_by TEXT DEFAULT 'system'
             )
         ''')
@@ -153,8 +155,8 @@ class SQLiteIngestStorage:
             INSERT OR REPLACE INTO ingest_records 
             (id, source, source_details, data_schema, record_count, processed_count, 
              failed_count, status, start_time, end_time, duration_seconds, 
-             errors, quality_metrics, created_by)
-            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+             errors, quality_metrics, extracted_data, original_content, created_by)
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
         ''', (
             record.get('id'),
             record.get('source'),
@@ -169,6 +171,8 @@ class SQLiteIngestStorage:
             record.get('duration_seconds'),
             self._serialize_json(record.get('errors')),
             self._serialize_json(record.get('quality_metrics')),
+            self._serialize_json(record.get('extracted_data')),
+            record.get('original_content'),
             record.get('created_by', 'system')
         ))
         
@@ -203,7 +207,9 @@ class SQLiteIngestStorage:
             'duration_seconds': row[10],
             'errors': self._deserialize_json(row[11]),
             'quality_metrics': self._deserialize_json(row[12]),
-            'created_by': row[13]
+            'extracted_data': self._deserialize_json(row[13]),
+            'original_content': row[14],
+            'created_by': row[15]
         }
     
     def update_ingest_record(self, ingest_id: str, record: Dict[str, Any]) -> bool:
@@ -216,7 +222,7 @@ class SQLiteIngestStorage:
             source = ?, source_details = ?, data_schema = ?, record_count = ?, 
             processed_count = ?, failed_count = ?, status = ?, start_time = ?, 
             end_time = ?, duration_seconds = ?, errors = ?, quality_metrics = ?, 
-            created_by = ?
+            extracted_data = ?, original_content = ?, created_by = ?
             WHERE id = ?
         ''', (
             record.get('source'),
@@ -231,6 +237,8 @@ class SQLiteIngestStorage:
             record.get('duration_seconds'),
             self._serialize_json(record.get('errors')),
             self._serialize_json(record.get('quality_metrics')),
+            self._serialize_json(record.get('extracted_data')),
+            record.get('original_content'),
             record.get('created_by', 'system'),
             ingest_id
         ))
@@ -263,7 +271,9 @@ class SQLiteIngestStorage:
                 'start_time': row[8],
                 'end_time': row[9],
                 'duration_seconds': row[10],
-                'errors': self._deserialize_json(row[11])
+                'errors': self._deserialize_json(row[11]),
+                'extracted_data': self._deserialize_json(row[13]),
+                'original_content': row[14]
             })
         return records
     

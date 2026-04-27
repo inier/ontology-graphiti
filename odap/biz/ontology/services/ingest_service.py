@@ -204,6 +204,13 @@ class IngestService:
             # 收集文档ID
             document_ids = [doc.doc_id for doc in documents]
             
+            # 调试日志
+            print(f"DEBUG: documents count: {len(documents)}")
+            if documents:
+                print(f"DEBUG: first document entities: {len(documents[0].entities)}")
+                print(f"DEBUG: first document relations: {len(documents[0].relations)}")
+                print(f"DEBUG: first document events: {len(documents[0].events)}")
+            
             # 保存原始新闻数据和内容（无论搜索是否成功都设置）
             search_results = None
             if hasattr(self.news_ingester, '_search'):
@@ -248,14 +255,19 @@ class IngestService:
                 })
             
             # 设置提取数据
-            if documents and len(documents) > 0 and hasattr(documents[0], 'entities'):
+            if documents and len(documents) > 0:
+                # 计算实体、关系、事件数量
+                entities_count = sum(len(doc.entities) for doc in documents)
+                relations_count = sum(len(doc.relations) for doc in documents)
+                events_count = sum(len(doc.events) for doc in documents)
+                
                 ingest_record['extracted_data'] = {
                     'source_data': source_data,
                     'document_ids': document_ids,
                     'document_count': len(documents),
-                    'entities_count': sum(len(doc.entities) for doc in documents),
-                    'relations_count': sum(len(doc.relations) for doc in documents),
-                    'events_count': sum(len(doc.events) for doc in documents)
+                    'entities_count': entities_count,
+                    'relations_count': relations_count,
+                    'events_count': events_count
                 }
             else:
                 ingest_record['extracted_data'] = {

@@ -108,7 +108,7 @@ class NewsIngester:
     联网检索并归纳为 OntologyDocument
 
     检索链路:
-    Tavily API (首选) → SerpAPI (备选) → DuckDuckGo HTML 解析 (降级) → Mock (无API时)
+    本地 DuckDuckGo API (首选) → Tavily API → SerpAPI → DuckDuckGo HTML 解析 (降级) → Mock (无API时)
     """
 
     def __init__(self, llm_client=None, search_api_key: str = None, tavily_api_key: str = None):
@@ -116,6 +116,7 @@ class NewsIngester:
         # 优先使用传入的参数，其次从环境变量读取
         self._search_api_key = search_api_key or os.getenv('SERPAPI_KEY', '')
         self._tavily_api_key = tavily_api_key or os.getenv('TAVILY_API_KEY', '')
+        self._ddg_api_url = os.getenv('DDG_API_URL', '')
         self._use_mock = (llm_client is None)
 
     async def ingest(
@@ -172,7 +173,14 @@ class NewsIngester:
             return self._generate_mock_news_docs(query, event_context)
 
     async def _search(self, query: str, max_results: int) -> List[Dict[str, Any]]:
-        """执行联网检索（Tavily → SerpAPI → DuckDuckGo → Mock）"""
+        """执行联网检索（本地 DuckDuckGo API → Tavily → SerpAPI → DuckDuckGo HTML → Mock）"""
+        # 本地 DuckDuckGo API（首选）
+        if self._ddg_api_url:
+            try:
+                return await self._search_ddg_local(query, max_results)
+            except Exception as e:
+                logger.warning(f"本地 DuckDuckGo API 检索失败: {e}")
+
         # Tavily
         if self._tavily_api_key:
             try:
@@ -198,6 +206,31 @@ class NewsIngester:
         # 降级 Mock
         logger.info("使用 Mock 检索结果")
         return []
+
+    async def _search_ddg_local(self, query: str, max_results: int) -> List[Dict[str, Any]]:
+        """本地 DuckDuckGo API 检索"""
+        import aiohttp
+        import urllib.parse
+        
+        encoded_query = urllib.parse.quote(query)
+        url = f"{self._ddg_api_url}/search?q={encoded_query}&max_results={max_results}"
+        
+        logger.info(f"使用本地 DuckDuckGo API: {url}")
+        
+        async with aiohttp.ClientSession() as session:
+            async with session.get(url, timeout=aiohttp.ClientTimeout(total=30)) as resp:
+                data = await resp.json()
+                results = []
+                for item in data.get("results", [])[:max_results]:
+                    results.append({
+                        "title": item.get("title", ""),
+                        "url": item.get("url", ""),
+                        "content": item.get("content", item.get("snippet", "")),
+                        "snippet": item.get("snippet", item.get("content", "")),
+                        "date": item.get("date", ""),
+                    })
+                logger.info(f"本地 DuckDuckGo API 返回 {len(results)} 条结果")
+                return results
 
     async def _search_tavily(self, query: str, max_results: int) -> List[Dict[str, Any]]:
         """Tavily API 检索"""

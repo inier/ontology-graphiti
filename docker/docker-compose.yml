@@ -14,11 +14,13 @@ services:
       - REDIS_URL=redis://graphiti-cache:6379
       - MONGODB_URI=mongodb://graphiti-mongodb:27017
       - CORS_ORIGINS=http://localhost:5173,http://localhost:8000
+      - DDG_API_URL=http://graphiti-duckduckgo:8080
     depends_on:
       - graphiti-neo4j
       - graphiti-policy-service
       - graphiti-cache
       - graphiti-mongodb
+      - graphiti-duckduckgo
     volumes:
       - ..:/app
     networks:
@@ -54,6 +56,21 @@ services:
     volumes:
       - ../odap/infra/opa/policies:/policies
     command: run --server --log-level=info --set=decision_logs.console=true
+    networks:
+      - graphiti-network
+    dns:
+      - 8.8.8.8
+      - 8.8.4.4
+    restart: unless-stopped
+
+  graphiti-duckduckgo:
+    image: hub.binjie.site:7777/binjie09/duckduckgo-api
+    container_name: graphiti-duckduckgo
+    ports:
+      - "8080:8000"
+    environment:
+      - http_proxy=http://192.168.1.14:7890
+      - https_proxy=http://192.168.1.14:7890
     networks:
       - graphiti-network
     dns:

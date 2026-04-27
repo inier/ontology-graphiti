@@ -251,12 +251,9 @@ export const api = {
   }> {
     switch (options.type) {
       case 'news':
-        // data 可以是字符串 URL 或包含 url/query 的对象
-        const newsData = typeof options.data === 'string' 
-          ? { url: options.data } 
-          : options.data;
+        // 统一使用 data 字段
         return this.ingestFromNews({
-          ...newsData,
+          data: options.data,
           scenario_id: options.scenario_id
         });
       case 'manual':
@@ -271,7 +268,7 @@ export const api = {
       case 'random':
         // data 是包含 parties 等字段的对象
         return this.ingestRandomEvents({
-          ...options.data,
+          data: options.data,
           scenario_id: options.scenario_id
         });
       default:
@@ -307,10 +304,7 @@ export const api = {
   },
 
   async ingestFromNews(request: {
-    url?: string;
-    query?: string;
-    event_context?: string;
-    max_sources?: number;
+    data: string | { url?: string; query?: string; event_context?: string; max_sources?: number };
     scenario_id?: string;
   }): Promise<{ 
     ingest_id: string; 
@@ -325,7 +319,7 @@ export const api = {
     });
   },
 
-  async ingestFromManual(formData: Record<string, unknown>, scenarioId?: string): Promise<{ 
+  async ingestFromManual(data: string | Record<string, unknown>, scenarioId?: string): Promise<{ 
     ingest_id: string; 
     status: string;
     source_details?: Record<string, unknown>;
@@ -334,11 +328,11 @@ export const api = {
   }> {
     return fetchJson(`${API_BASE}/api/ontology/ingest/manual`, {
       method: 'POST',
-      body: JSON.stringify({ form_data: formData, scenario_id: scenarioId }),
+      body: JSON.stringify({ data, scenario_id: scenarioId }),
     });
   },
 
-  async ingestFromJson(jsonData: string, scenarioId?: string): Promise<{ 
+  async ingestFromJson(data: string, scenarioId?: string): Promise<{ 
     ingest_id: string; 
     status: string;
     source_details?: Record<string, unknown>;
@@ -347,11 +341,11 @@ export const api = {
   }> {
     return fetchJson(`${API_BASE}/api/ontology/ingest/json`, {
       method: 'POST',
-      body: JSON.stringify({ json_data: jsonData, scenario_id: scenarioId }),
+      body: JSON.stringify({ data, scenario_id: scenarioId }),
     });
   },
 
-  async ingestFromNaturalLanguage(text: string, scenarioId?: string): Promise<{ 
+  async ingestFromNaturalLanguage(data: string, scenarioId?: string): Promise<{ 
     ingest_id: string; 
     status: string;
     source_details?: Record<string, unknown>;
@@ -360,14 +354,12 @@ export const api = {
   }> {
     return fetchJson(`${API_BASE}/api/ontology/ingest/natural-language`, {
       method: 'POST',
-      body: JSON.stringify({ text, scenario_id: scenarioId }),
+      body: JSON.stringify({ data, scenario_id: scenarioId }),
     });
   },
 
   async ingestRandomEvents(request: {
-    parties: string[];
-    scenario_context?: Record<string, unknown>;
-    count?: number;
+    data: { parties: string[]; scenario_context?: Record<string, unknown>; count?: number };
     scenario_id?: string;
   }): Promise<{ 
     ingest_id: string; 
