@@ -281,7 +281,7 @@ export function AppLayout({ children, currentWorkspace, onWorkspaceChange }: App
               items={menuItems}
             />
           </Sider>
-          <Layout style={{ marginLeft: collapsed ? 80 : 240, transition: 'margin-left 0.2s' }}>
+          <Layout style={{ marginLeft: collapsed ? 80 : 200, transition: 'margin-left 0.2s' }}>
             <Header
               style={{
                 padding: '0 24px',
@@ -356,7 +356,7 @@ export function AppLayout({ children, currentWorkspace, onWorkspaceChange }: App
                 </div>
               </div>
             </Header>
-            <Content style={{ padding: 24, minHeight: 'calc(100vh - 64px)', background: '#f0f2f5' }}>
+            <Content style={{ padding: 16, minHeight: 'calc(100vh - 64px)', overflow: "hidden" }}>
               {children}
             </Content>
           </Layout>

@@ -1,37 +1,362 @@
-import React, { useRef, useEffect, useState } from 'react';
-import { Card, Typography, Button, Avatar, Spin, Tag, Badge, Empty, Tooltip, message } from 'antd';
-import { SendOutlined, UserOutlined, RobotOutlined, ClearOutlined, BulbOutlined, LinkOutlined, StopOutlined, HistoryOutlined } from '@ant-design/icons';
+import React, { useState } from 'react';
+import { Layout, Typography, Button, Avatar, Empty, Tooltip, message, Divider, Modal } from 'antd';
+import { SendOutlined, UserOutlined, RobotOutlined, PlusOutlined, DeleteOutlined, SettingOutlined, LeftOutlined, RightOutlined, StarOutlined } from '@ant-design/icons';
 import { useQAI } from '../hooks/useQAI';
 import type { QAMessage } from '../hooks/useQAI';
-import { SessionDrawer } from '../components/SessionDrawer';
+import { useSession } from '../hooks/useSession';
 import type { Session } from '../hooks/useSession';
-import { useBreakpoint } from '../../shared/utils/responsive';
 import { colors } from '../../shared/styles/colors';
+import { useWorkspace, useScenario } from '../../shared';
 import { css } from '@emotion/css';
 
-const { Text, Title } = Typography;
+const { Sider, Content } = Layout;
+const { Text } = Typography;
 
-interface ChatHeaderProps {
-  sessionId: string | null;
-  onClear: () => void;
-  onShowHistory: () => void;
-  isLoading: boolean;
-}
-
-const headerStyles = css`
+const sidebarStyles = css`
+  background: #ffffff !important;
+  border-right: 1px solid #e5e7eb;
+  overflow: hidden;
   display: flex;
-  align-items: center;
-  justify-content: space-between;
-  padding: 16px 20px;
-  border-bottom: 1px solid #f0f0f0;
-  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-  border-radius: 12px 12px 0 0;
+  flex-direction: column;
 
-  .header-title {
+  .sidebar-header {
+    padding: 0 10px;
+    min-height: 50px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    border-bottom: 1px solid #e5e7eb;
+  }
+
+  .sidebar-title {
     display: flex;
     align-items: center;
     gap: 10px;
+    color: #1f2937;
+  }
+
+  .sidebar-actions {
+    display: flex;
+    gap: 8px;
+  }
+
+  .sidebar-menu {
+    flex: 1;
+    overflow-y: auto;
+    padding: 8px 12px;
+  }
+
+  .session-list {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+  }
+
+  .session-item {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    padding: 4px;
+    border-radius: 3px;
+    cursor: pointer;
+    transition: all 0.2s ease;
+    border: 1px solid transparent;
+
+    &:hover {
+      background: #f3f4f6;
+    }
+
+    &.active {
+      background: rgba(99, 102, 241, 0.1);
+      border-color: rgba(99, 102, 241, 0.2);
+    }
+  }
+
+  .session-avatar {
+    width: 20px;
+    height: 20px;
+    border-radius: 10px;
+    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    display: flex;
+    align-items: center;
+    justify-content: center;
     color: white;
+    font-size: 14px;
+  }
+
+  .session-info {
+    flex: 1;
+    min-width: 0;
+  }
+
+  .session-title {
+    font-size: 13px;
+    color: #1f2937;
+    font-weight: 500;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+
+  .session-meta {
+    font-size: 11px;
+    color: #9ca3af;
+    margin-top: 2px;
+  }
+
+  .session-delete {
+    opacity: 0;
+    border-style: none;
+    transition: opacity 0.2s ease;
+    color: #9ca3af;
+
+    &:hover {
+      color: #ff4d4f;
+    }
+  }
+
+  .session-item:hover .session-delete {
+    opacity: 1;
+  }
+
+  .new-chat-btn {
+    width: 100%;
+    margin-top: 8px;
+    border: 1px dashed #d1d5db;
+    color: #4b5563;
+    background: transparent;
+
+    &:hover {
+      background: #f3f4f6;
+      border-color: #9ca3af;
+    }
+  }
+
+  .sidebar-footer {
+    padding: 16px;
+    border-top: 1px solid #e5e7eb;
+  }
+
+  .quick-actions {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 6px;
+  }
+
+  .quick-action-btn {
+    padding: 6px 12px;
+    font-size: 12px;
+    background: #f3f4f6;
+    border: none;
+    color: #4b5563;
+    border-radius: 16px;
+    transition: all 0.2s ease;
+
+    &:hover {
+      background: #e5e7eb;
+    }
+  }
+
+  .collapse-btn {
+    position: absolute;
+    right: -12px;
+    top: 50%;
+    transform: translateY(-50%);
+    width: 24px;
+    height: 24px;
+    border-radius: 50%;
+    background: white;
+    border: 1px solid #e5e7eb;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
+    z-index: 100;
+    color: #6b7280;
+
+    &:hover {
+      background: #f9fafb;
+    }
+  }
+`;
+
+function Sidebar({ 
+  sessions, 
+  activeSessionId, 
+  onSelectSession, 
+  onNewSession, 
+  onDeleteSession,
+  isCollapsed,
+  onToggleCollapse 
+}: {
+  sessions: Session[];
+  activeSessionId: string | null;
+  onSelectSession: (session: Session) => void;
+  onNewSession: () => void;
+  onDeleteSession: (sessionId: string) => void;
+  isCollapsed: boolean;
+  onToggleCollapse: () => void;
+}) {
+  const formatDate = (timestamp: string) => {
+    const date = new Date(timestamp);
+    const now = new Date();
+    const diff = now.getTime() - date.getTime();
+    const hours = Math.floor(diff / (1000 * 60 * 60));
+    
+    if (hours < 1) return '刚刚';
+    if (hours < 24) return `${hours}小时前`;
+    return date.toLocaleDateString('zh-CN', { month: 'short', day: 'numeric' });
+  };
+
+  const handleDelete = (e: React.MouseEvent, sessionId: string) => {
+    e.stopPropagation();
+    Modal.confirm({
+      title: '确认删除',
+      content: '确定要删除这个会话吗？',
+      onOk: () => {
+        onDeleteSession(sessionId);
+        message.success('会话已删除');
+      },
+    });
+  };
+
+  return (
+    <Sider 
+      className={sidebarStyles} 
+      width={isCollapsed ? 0 : 220}
+      collapsed={isCollapsed}
+      style={{ position: 'relative' }}
+    >
+      <div className="sidebar-header">
+        {!isCollapsed && (
+          <div className="sidebar-title">
+            <StarOutlined style={{ fontSize: 20, color: '#667eea' }} />
+            <Text style={{ fontSize: 16, fontWeight: 600, color: '#1f2937' }}>智能问答</Text>
+          </div>
+        )}
+        {!isCollapsed && (
+          <div className="sidebar-actions">
+            <Tooltip title="设置">
+              <Button type="text" icon={<SettingOutlined />} style={{ color: '#6b7280' }} />
+            </Tooltip>
+          </div>
+        )}
+      </div>
+
+      <div className="sidebar-menu">
+        {!isCollapsed && (
+          <Button 
+            className="new-chat-btn" 
+            icon={<PlusOutlined />} 
+            onClick={onNewSession}
+          >
+            新对话
+          </Button>
+        )}
+        {isCollapsed && (
+          <Button 
+            icon={<PlusOutlined />} 
+            onClick={onNewSession}
+            style={{ 
+              width: '100%', 
+              background: 'rgba(255,255,255,0.1)',
+              border: 'none',
+              color: 'white',
+              marginTop: 16
+            }}
+          />
+        )}
+
+        <Divider style={{ margin: '6px 0', borderColor: 'rgba(255,255,255,0.08)' }} />
+
+        <div className="session-list">
+          {sessions.length === 0 ? (
+            !isCollapsed && (
+              <Empty 
+                description={
+                  <Text style={{ color: 'rgba(255,255,255,0.5)', fontSize: 12 }}>
+                    暂无对话记录
+                  </Text>
+                }
+                image={null}
+              />
+            )
+          ) : (
+            sessions.map((session) => (
+              <div
+                key={session.session_id}
+                className={`session-item ${activeSessionId === session.session_id ? 'active' : ''}`}
+                onClick={() => onSelectSession(session)}
+              >
+                {/* <div className="session-avatar">
+                  <StarOutlined style={{ fontSize: 16 }} />
+                </div> */}
+                {!isCollapsed && (
+                  <>
+                    <div className="session-info">
+                      <div className="session-title">
+                        {session.summary || '未命名对话'}
+                      </div>
+                      <div className="session-meta">
+                        {session.message_count} 条消息 · {formatDate(session.created_at)}
+                      </div>
+                    </div>
+                    <button
+                      className="session-delete"
+                      onClick={(e) => handleDelete(e, session.session_id)}
+                    >
+                      <DeleteOutlined />
+                    </button>
+                  </>
+                )}
+              </div>
+            ))
+          )}
+        </div>
+      </div>
+
+      {!isCollapsed && (
+        <div className="sidebar-footer">
+          <Text style={{ color: 'rgba(255,255,255,0.5)', fontSize: 11, display: 'block', marginBottom: 8 }}>
+            快捷操作
+          </Text>
+          <div className="quick-actions">
+            <button className="quick-action-btn">写邮件</button>
+            <button className="quick-action-btn">写报告</button>
+            <button className="quick-action-btn">翻译</button>
+            <button className="quick-action-btn">总结</button>
+          </div>
+        </div>
+      )}
+
+      <button className="collapse-btn" onClick={onToggleCollapse}>
+        {isCollapsed ? <RightOutlined /> : <LeftOutlined />}
+      </button>
+    </Sider>
+  );
+}
+
+const chatHeaderStyles = css`
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0 10px;
+  min-height: 50px;
+  border-bottom: 1px solid #f0f0f0;
+  background: white;
+
+  .header-left {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+  }
+
+  .header-title {
+    text-align: left;
+    font-size: 16px;
+    font-weight: 600;
+    color: #1f2937;
   }
 
   .header-actions {
@@ -40,50 +365,47 @@ const headerStyles = css`
   }
 
   @media (max-width: 576px) {
-    padding: 12px 16px;
-
-    .header-title h4 {
-      font-size: 16px;
-    }
+    padding: 16px;
   }
 `;
 
-function ChatHeader({ sessionId, onClear, onShowHistory, isLoading }: ChatHeaderProps) {
-  const breakpoint = useBreakpoint();
-
+function ChatHeader({ 
+  sessionId, 
+  sessionTitle,
+  onClear, 
+  isLoading 
+}: { 
+  sessionId: string | null;
+  sessionTitle: string;
+  onClear: () => void; 
+  isLoading: boolean; 
+}) {
   return (
-    <div className={headerStyles}>
-      <div className="header-title">
-        <BulbOutlined style={{ fontSize: 20 }} />
-        <Title level={4} style={{ margin: 0, color: 'white' }}>
-          智能问答
-        </Title>
-        {sessionId && (
-          <Tag color="gold" style={{ marginLeft: 8 }}>
-            会话: {sessionId.slice(0, 8)}...
-          </Tag>
-        )}
+    <div className={chatHeaderStyles}>
+      <div className="header-left">
+        <Avatar 
+          icon={<StarOutlined />} 
+          style={{ background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)' }} 
+        />
+        <div>
+          <div className="header-title">{sessionTitle || '新对话'}</div>
+          {sessionId && (
+            <Text style={{ fontSize: 12, color: '#9ca3af' }}>
+              会话 ID: {sessionId}
+            </Text>
+          )}
+        </div>
       </div>
       <div className="header-actions">
-        <Tooltip title="查看历史会话">
-          <Button
-            type="text"
-            icon={<HistoryOutlined />}
-            onClick={onShowHistory}
-            style={{ color: 'white' }}
-          >
-            {!breakpoint.isMobile && '历史'}
-          </Button>
-        </Tooltip>
-        <Tooltip title="清除对话历史">
-          <Button
-            type="text"
-            icon={<ClearOutlined />}
+        <Tooltip title="清除对话">
+          <Button 
+            type="text" 
+            icon={<DeleteOutlined />} 
             onClick={onClear}
             loading={isLoading}
-            style={{ color: 'white' }}
+            danger
           >
-            {!breakpoint.isMobile && '清除'}
+            清除
           </Button>
         </Tooltip>
       </div>
@@ -91,20 +413,20 @@ function ChatHeader({ sessionId, onClear, onShowHistory, isLoading }: ChatHeader
   );
 }
 
-interface MessageListProps {
-  messages: QAMessage[];
-  isLoading: boolean;
-}
-
 const messageListStyles = css`
   flex: 1;
   overflow-y: auto;
-  padding: 16px 20px;
-  background: #fafafa;
+  padding: 24px;
+  background: #fefefe;
+
+  .message-wrapper {
+    max-width: 900px;
+    margin: 0 auto;
+  }
 
   .message-item {
     display: flex;
-    margin-bottom: 16px;
+    margin-bottom: 20px;
     animation: fadeIn 0.3s ease;
 
     &.user {
@@ -118,82 +440,173 @@ const messageListStyles = css`
 
   .message-avatar {
     flex-shrink: 0;
+    width: 40px;
+    height: 40px;
   }
 
   .message-content {
-    max-width: 70%;
+    max-width: 65%;
     margin: 0 12px;
 
     @media (max-width: 576px) {
-      max-width: 85%;
+      max-width: 80%;
     }
   }
 
   .message-bubble {
-    padding: 12px 16px;
-    border-radius: 12px;
+    padding: 14px 18px;
+    border-radius: 16px;
     position: relative;
 
     &.user {
       background: linear-gradient(135deg, ${colors.primary} 0%, #4096ff 100%);
       color: white;
       border-bottom-right-radius: 4px;
+      box-shadow: 0 4px 12px rgba(24, 144, 255, 0.2);
     }
 
     &.assistant {
       background: white;
-      border: 1px solid #e8e8e8;
+      border: 1px solid #e5e7eb;
       border-bottom-left-radius: 4px;
-      box-shadow: 0 2px 8px rgba(0, 0, 0, 0.06);
+      box-shadow: 0 2px 8px rgba(0, 0, 0, 0.04);
     }
   }
 
   .message-text {
-    line-height: 1.6;
+    line-height: 1.7;
+    font-size: 14px;
     white-space: pre-wrap;
     word-break: break-word;
   }
 
   .message-meta {
-    margin-top: 6px;
+    margin-top: 8px;
     display: flex;
     align-items: center;
     gap: 8px;
-    flex-wrap: wrap;
   }
 
   .message-time {
     font-size: 11px;
-    opacity: 0.7;
+    color: #9ca3af;
   }
 
   .message-sources {
-    margin-top: 10px;
-    padding-top: 10px;
-    border-top: 1px solid rgba(255, 255, 255, 0.2);
+    margin-top: 12px;
+    padding-top: 12px;
+    border-top: 1px solid rgba(0, 0, 0, 0.06);
   }
 
-  .message-sources-title {
-    font-size: 11px;
-    margin-bottom: 6px;
-    opacity: 0.8;
+  .sources-title {
+    font-size: 12px;
+    font-weight: 500;
+    color: #6b7280;
+    margin-bottom: 8px;
   }
 
-  .source-tag {
-    margin: 4px 4px 4px 0;
+  .source-card {
+    background: #f9fafb;
+    border-radius: 8px;
+    padding: 10px 14px;
+    margin-bottom: 8px;
+    border: 1px solid #f3f4f6;
+  }
+
+  .source-excerpt {
+    font-size: 13px;
+    color: #374151;
+    line-height: 1.6;
+  }
+
+  .source-info {
+    margin-top: 6px;
+    display: flex;
+    align-items: center;
+    gap: 8px;
     font-size: 11px;
+    color: #9ca3af;
   }
 
   .loading-indicator {
     display: flex;
     align-items: center;
-    gap: 8px;
-    padding: 12px 16px;
+    gap: 10px;
+    padding: 14px 18px;
     background: white;
-    border-radius: 12px;
+    border-radius: 16px;
     border-bottom-left-radius: 4px;
-    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.06);
-    max-width: 200px;
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.04);
+    max-width: 220px;
+  }
+
+  .thinking-dots {
+    display: flex;
+    gap: 4px;
+
+    span {
+      width: 6px;
+      height: 6px;
+      background: #9ca3af;
+      border-radius: 50%;
+      animation: dotPulse 1.4s infinite ease-in-out;
+
+      &:nth-child(1) { animation-delay: 0s; }
+      &:nth-child(2) { animation-delay: 0.2s; }
+      &:nth-child(3) { animation-delay: 0.4s; }
+    }
+  }
+
+  .welcome-section {
+    text-align: center;
+    padding: 60px 20px;
+  }
+
+  .welcome-icon {
+    width: 80px;
+    height: 80px;
+    margin: 0 auto 20px;
+    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    border-radius: 24px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: white;
+    font-size: 40px;
+  }
+
+  .welcome-title {
+    font-size: 24px;
+    font-weight: 600;
+    color: #1f2937;
+    margin-bottom: 8px;
+  }
+
+  .welcome-desc {
+    color: #6b7280;
+    font-size: 14px;
+    margin-bottom: 32px;
+  }
+
+  .welcome-actions {
+    display: flex;
+    flex-wrap: wrap;
+    justify-content: center;
+    gap: 12px;
+  }
+
+  .welcome-btn {
+    padding: 10px 20px;
+    background: #f3f4f6;
+    border: none;
+    border-radius: 8px;
+    font-size: 13px;
+    color: #374151;
+    transition: all 0.2s ease;
+
+    &:hover {
+      background: #e5e7eb;
+    }
   }
 
   @keyframes fadeIn {
@@ -206,12 +619,23 @@ const messageListStyles = css`
       transform: translateY(0);
     }
   }
+
+  @keyframes dotPulse {
+    0%, 80%, 100% {
+      transform: scale(0.6);
+      opacity: 0.5;
+    }
+    40% {
+      transform: scale(1);
+      opacity: 1;
+    }
+  }
 `;
 
-function MessageList({ messages, isLoading }: MessageListProps) {
-  const listRef = useRef<HTMLDivElement>(null);
+function MessageList({ messages, isLoading }: { messages: QAMessage[]; isLoading: boolean }) {
+  const listRef = React.useRef<HTMLDivElement>(null);
 
-  useEffect(() => {
+  React.useEffect(() => {
     if (listRef.current) {
       listRef.current.scrollTop = listRef.current.scrollHeight;
     }
@@ -222,93 +646,111 @@ function MessageList({ messages, isLoading }: MessageListProps) {
     return date.toLocaleTimeString('zh-CN', { hour: '2-digit', minute: '2-digit' });
   };
 
-  const renderSources = (sources: QAMessage['sources']) => {
-    if (!sources || sources.length === 0) return null;
+  const sampleQuestions = [
+    '解释一下量子计算的基本原理',
+    '写一篇关于人工智能的短文',
+    '如何学习 Python 编程',
+    '推荐一些经典电影',
+  ];
 
+  if (messages.length === 0 && !isLoading) {
     return (
-      <div className="message-sources">
-        <div className="message-sources-title">参考来源:</div>
-        {sources.slice(0, 3).map((source, idx) => (
-          <Tag key={idx} className="source-tag" icon={<LinkOutlined />}>
-            {source.source}: {source.excerpt?.slice(0, 40)}...
-          </Tag>
-        ))}
+      <div className={messageListStyles}>
+        <div className="welcome-section">
+          <div className="welcome-icon">
+            <StarOutlined />
+          </div>
+          <div className="welcome-title">智能问答助手</div>
+          <div className="welcome-desc">
+            有什么我可以帮助您的吗？
+          </div>
+          <div className="welcome-actions">
+            {sampleQuestions.map((q, idx) => (
+              <button 
+                key={idx} 
+                className="welcome-btn"
+                onClick={() => {
+                  const event = new CustomEvent('askQuestion', { detail: q });
+                  window.dispatchEvent(event);
+                }}
+              >
+                {q}
+              </button>
+            ))}
+          </div>
+        </div>
       </div>
     );
-  };
+  }
 
   return (
     <div ref={listRef} className={messageListStyles}>
-      {messages.length === 0 && !isLoading ? (
-        <Empty
-          description="开始对话吧！问我任何问题。"
-          image={Empty.PRESENTED_IMAGE_SIMPLE}
-        />
-      ) : (
-        <>
-          {messages.map((msg) => (
-            <div key={msg.id} className={`message-item ${msg.role}`}>
-              <Avatar
-                className="message-avatar"
-                icon={msg.role === 'user' ? <UserOutlined /> : <RobotOutlined />}
-                style={{
-                  background: msg.role === 'user' ? colors.primary : colors.secondary,
-                }}
-              />
-              <div className="message-content">
-                <div className={`message-bubble ${msg.role}`}>
-                  <div className="message-text">{msg.content}</div>
-                  {msg.sources && renderSources(msg.sources)}
-                </div>
-                <div className="message-meta">
-                  <span className="message-time">{formatTime(msg.timestamp)}</span>
-                  {msg.intent && (
-                    <Tag color="blue" style={{ fontSize: 10 }}>
-                      意图: {msg.intent.type}
-                    </Tag>
-                  )}
-                  {msg.sources && msg.sources.length > 0 && (
-                    <Badge count={msg.sources.length} size="small" style={{ fontSize: 10 }} />
-                  )}
-                </div>
+      <div className="message-wrapper">
+        {messages.map((msg) => (
+          <div key={msg.id} className={`message-item ${msg.role}`}>
+            <Avatar
+              className="message-avatar"
+              icon={msg.role === 'user' ? <UserOutlined /> : <RobotOutlined />}
+              style={{
+                background: msg.role === 'user' ? colors.primary : '#6b7280',
+              }}
+            />
+            <div className="message-content">
+              <div className={`message-bubble ${msg.role}`}>
+                <div className="message-text">{msg.content}</div>
+                {msg.sources && msg.sources.length > 0 && (
+                  <div className="message-sources">
+                    <div className="sources-title">参考来源</div>
+                    {msg.sources.slice(0, 3).map((source, idx) => (
+                      <div key={idx} className="source-card">
+                        <div className="source-excerpt">{source.excerpt}</div>
+                        <div className="source-info">
+                          <span>来源: {source.source || '未知'}</span>
+                          <span>置信度: {(source.confidence * 100).toFixed(0)}%</span>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </div>
+              <div className="message-meta">
+                <span className="message-time">{formatTime(msg.timestamp)}</span>
               </div>
             </div>
-          ))}
-          {isLoading && (
-            <div className="message-item assistant">
-              <Avatar
-                className="message-avatar"
-                icon={<RobotOutlined />}
-                style={{ background: colors.secondary }}
-              />
-              <div className="message-content">
-                <div className="loading-indicator">
-                  <Spin size="small" />
-                  <Text type="secondary">思考中...</Text>
+          </div>
+        ))}
+        {isLoading && (
+          <div className="message-item assistant">
+            <Avatar
+              className="message-avatar"
+              icon={<RobotOutlined />}
+              style={{ background: '#6b7280' }}
+            />
+            <div className="message-content">
+              <div className="loading-indicator">
+                <div className="thinking-dots">
+                  <span></span>
+                  <span></span>
+                  <span></span>
                 </div>
+                <Text type="secondary">正在思考...</Text>
               </div>
             </div>
-          )}
-        </>
-      )}
+          </div>
+        )}
+      </div>
     </div>
   );
 }
 
-interface ChatInputProps {
-  value: string;
-  onChange: (value: string) => void;
-  onSend: () => void;
-  onStop?: () => void;
-  isLoading: boolean;
-}
-
 const chatInputStyles = css`
-  padding: 16px 20px;
+  padding: 20px 24px;
   border-top: 1px solid #f0f0f0;
   background: white;
 
   .input-container {
+    max-width: 900px;
+    margin: 0 auto;
     display: flex;
     gap: 12px;
     align-items: flex-end;
@@ -317,17 +759,17 @@ const chatInputStyles = css`
   .input-wrapper {
     flex: 1;
     display: flex;
-    gap: 8px;
-    background: #f5f5f5;
-    border-radius: 12px;
-    padding: 8px 12px;
+    gap: 10px;
+    background: #f9fafb;
+    border-radius: 16px;
+    padding: 8px 16px;
     border: 2px solid transparent;
     transition: all 0.3s ease;
 
     &:focus-within {
       border-color: ${colors.primary};
       background: white;
-      box-shadow: 0 0 0 3px rgba(24, 144, 255, 0.1);
+      box-shadow: 0 0 0 4px rgba(24, 144, 255, 0.1);
     }
   }
 
@@ -337,35 +779,55 @@ const chatInputStyles = css`
     background: transparent;
     resize: none;
     font-size: 14px;
-    line-height: 1.5;
-    max-height: 120px;
-    padding: 4px 0;
+    line-height: 1.6;
+    max-height: 150px;
+    padding: 6px 0;
 
     &:focus {
-      box-shadow: none;
+      outline: none;
+    }
+
+    &::placeholder {
+      color: #9ca3af;
     }
   }
 
   .send-button {
     flex-shrink: 0;
-    height: 40px;
-    width: 40px;
-    border-radius: 10px;
+    width: 44px;
+    height: 44px;
+    border-radius: 12px;
     display: flex;
     align-items: center;
     justify-content: center;
     transition: all 0.3s ease;
+
+    &:hover:not(:disabled) {
+      transform: translateY(-2px);
+      box-shadow: 0 4px 12px rgba(24, 144, 255, 0.3);
+    }
+  }
+
+  .stop-button {
+    flex-shrink: 0;
+    width: 44px;
+    height: 44px;
+    border-radius: 12px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
   }
 
   .input-hint {
-    margin-top: 8px;
-    font-size: 11px;
-    color: #8c8c8c;
+    max-width: 900px;
+    margin: 10px auto 0;
+    font-size: 12px;
+    color: #9ca3af;
     text-align: center;
   }
 
   @media (max-width: 576px) {
-    padding: 12px 16px;
+    padding: 16px;
 
     .input-hint {
       display: none;
@@ -373,8 +835,20 @@ const chatInputStyles = css`
   }
 `;
 
-function ChatInput({ value, onChange, onSend, onStop, isLoading }: ChatInputProps) {
-  const inputRef = useRef<HTMLTextAreaElement>(null);
+function ChatInput({ 
+  value, 
+  onChange, 
+  onSend, 
+  onStop, 
+  isLoading 
+}: { 
+  value: string; 
+  onChange: (value: string) => void; 
+  onSend: () => void; 
+  onStop?: () => void;
+  isLoading: boolean; 
+}) {
+  const inputRef = React.useRef<HTMLTextAreaElement>(null);
 
   const handleKeyPress = (e: React.KeyboardEvent<HTMLTextAreaElement>) => {
     if (e.key === 'Enter' && !e.shiftKey) {
@@ -389,7 +863,7 @@ function ChatInput({ value, onChange, onSend, onStop, isLoading }: ChatInputProp
     onChange(e.target.value);
   };
 
-  useEffect(() => {
+  React.useEffect(() => {
     if (!isLoading && inputRef.current) {
       inputRef.current.focus();
     }
@@ -405,16 +879,16 @@ function ChatInput({ value, onChange, onSend, onStop, isLoading }: ChatInputProp
             value={value}
             onChange={handleChange}
             onKeyPress={handleKeyPress}
-            placeholder="输入您的问题，按 Enter 发送..."
+            placeholder="输入您的问题..."
             rows={1}
             disabled={isLoading}
           />
         </div>
         {isLoading ? (
           <Button
-            className="send-button"
+            className="stop-button"
             danger
-            icon={<StopOutlined />}
+            icon={<SendOutlined />}
             onClick={onStop}
           />
         ) : (
@@ -434,32 +908,43 @@ function ChatInput({ value, onChange, onSend, onStop, isLoading }: ChatInputProp
   );
 }
 
-interface QAChatPageProps {
-  className?: string;
-  style?: React.CSSProperties;
-}
-
 const pageStyles = css`
-  display: flex;
-  flex-direction: column;
   height: 100%;
-  background: white;
-  border-radius: 12px;
-  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.08);
+  background: #ffffff;
   overflow: hidden;
-
-  .page-content {
-    flex: 1;
-    display: flex;
-    flex-direction: column;
-    overflow: hidden;
-  }
+  margin: 0;
+  padding: 0;
 `;
 
-export function QAChatPage({ className, style }: QAChatPageProps) {
-  const [input, setInput] = React.useState('');
-  const [sessionDrawerOpen, setSessionDrawerOpen] = useState(false);
-  const { messages, sendMessage, isLoading, sessionId, setSessionId, clearMessages, stop } = useQAI();
+export function QAChatPage({ className, style }: { className?: string; style?: React.CSSProperties }) {
+  const [input, setInput] = useState('');
+  const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(false);
+  const [selectedSessionTitle, setSelectedSessionTitle] = useState('');
+  
+  const { currentWorkspace } = useWorkspace();
+  const { currentScenario } = useScenario();
+  
+  const { sessions, fetchSessions, deleteSession } = useSession({
+    workspaceId: currentWorkspace,
+    scenarioId: currentScenario,
+  });
+  
+  const { messages, sendMessage, isLoading, sessionId, setSessionId, clearMessages, stop } = useQAI({
+    workspaceId: currentWorkspace,
+    scenarioId: currentScenario,
+    onSessionUpdate: () => {
+      fetchSessions(currentWorkspace, currentScenario);
+    },
+  });
+
+  React.useEffect(() => {
+    const handleAskQuestion = (e: Event) => {
+      const event = e as CustomEvent<string>;
+      setInput(event.detail);
+    };
+    window.addEventListener('askQuestion', handleAskQuestion);
+    return () => window.removeEventListener('askQuestion', handleAskQuestion);
+  }, []);
 
   const handleSend = () => {
     if (!input.trim() || isLoading) return;
@@ -473,27 +958,48 @@ export function QAChatPage({ className, style }: QAChatPageProps) {
 
   const handleClear = () => {
     clearMessages();
+    setSelectedSessionTitle('');
     message.success('对话历史已清除');
   };
 
-  const handleShowHistory = () => {
-    setSessionDrawerOpen(true);
+  const handleNewSession = () => {
+    clearMessages();
+    setSelectedSessionTitle('');
+    setSessionId(null);
+    message.info('已创建新对话');
   };
 
   const handleSelectSession = (session: Session) => {
     setSessionId(session.session_id);
-    message.success(`已加载会话: ${session.summary || session.session_id}`);
+    setSelectedSessionTitle(session.summary || '智能问答');
+  };
+
+  const handleDeleteSession = (sessionId: string) => {
+    deleteSession(sessionId);
+    if (sessionId === sessionId) {
+      clearMessages();
+      setSelectedSessionTitle('');
+    }
   };
 
   return (
-    <Card className={`${pageStyles} ${className || ''}`} style={style} styles={{ body: { padding: 0, height: '100%', display: 'flex', flexDirection: 'column' } }}>
-      <ChatHeader
-        sessionId={sessionId}
-        onClear={handleClear}
-        onShowHistory={handleShowHistory}
-        isLoading={isLoading}
+    <Layout className={`${pageStyles} ${className || ''}`} style={style}>
+      <Sidebar
+        sessions={sessions}
+        activeSessionId={sessionId}
+        onSelectSession={handleSelectSession}
+        onNewSession={handleNewSession}
+        onDeleteSession={handleDeleteSession}
+        isCollapsed={isSidebarCollapsed}
+        onToggleCollapse={() => setIsSidebarCollapsed(!isSidebarCollapsed)}
       />
-      <div className="page-content">
+      <Content style={{ display: 'flex', flexDirection: 'column', height: '100%' }}>
+        <ChatHeader
+          sessionId={sessionId}
+          sessionTitle={selectedSessionTitle}
+          onClear={handleClear}
+          isLoading={isLoading}
+        />
         <MessageList messages={messages} isLoading={isLoading} />
         <ChatInput
           value={input}
@@ -502,12 +1008,7 @@ export function QAChatPage({ className, style }: QAChatPageProps) {
           onStop={handleStop}
           isLoading={isLoading}
         />
-      </div>
-      <SessionDrawer
-        open={sessionDrawerOpen}
-        onClose={() => setSessionDrawerOpen(false)}
-        onSelectSession={handleSelectSession}
-      />
-    </Card>
+      </Content>
+    </Layout>
   );
 }

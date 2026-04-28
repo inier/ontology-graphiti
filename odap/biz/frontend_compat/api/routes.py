@@ -1,6 +1,7 @@
 """前端API兼容层 - 使用统一的工作空间管理和场景存储"""
 
 from fastapi import APIRouter, HTTPException, Query, UploadFile, File, Form, Request, Body
+from fastapi.responses import StreamingResponse
 from typing import Dict, Any, List, Optional
 import json
 import os
@@ -1087,10 +1088,6 @@ async def ask_question(request: Request, data: Dict[str, Any]):
     }
     """
     try:
-        from odap.biz.qa.qa_engine_v2 import QAEngineV2
-        from odap.biz.cognition.user_cognition_engine import get_cognition_engine, RoleType
-        from odap.infra.graph.graph_service import GraphManager
-
         question = data.get("question", "")
         session_id = data.get("session_id")
         workspace_id = data.get("workspace_id")
@@ -1099,17 +1096,16 @@ async def ask_question(request: Request, data: Dict[str, Any]):
         if not question:
             raise HTTPException(status_code=400, detail="问题不能为空")
 
-        # 获取图谱管理器实例
-        graphiti_client = GraphManager()
-
-        # 初始化问答引擎（use_mock=False 使用真实图谱数据）
-        qa_engine = QAEngineV2(graphiti_client=graphiti_client, use_mock=False)
+        # 使用全局 QAEngineV2 实例（确保会话持久化）
+        qa_engine = get_qa_engine(use_mock=False)
         
         # 调用问答引擎
         result = qa_engine.ask(
             query=question,
             user_id=user_id,
-            session_id=session_id
+            session_id=session_id,
+            workspace_id=workspace_id,
+            scenario_id=data.get("scenario_id")
         )
 
         return {
@@ -1131,17 +1127,134 @@ async def ask_question(request: Request, data: Dict[str, Any]):
         raise HTTPException(status_code=500, detail=str(e))
 
 
+@router.post("/qa/ask/stream")
+async def ask_question_stream(request: Request, data: Dict[str, Any]):
+    """
+    智能问答流式接口 - 支持实时流式输出
+    
+    请求体:
+    {
+        "question": "用户问题",
+        "session_id": "可选的会话ID",
+        "workspace_id": "可选的工作空间ID"
+    }
+    
+    返回: 流式 JSON 数据
+    """
+    try:
+        question = data.get("question", "")
+        session_id = data.get("session_id")
+        workspace_id = data.get("workspace_id")
+        user_id = data.get("user_id", "anonymous")
+
+        if not question:
+            raise HTTPException(status_code=400, detail="问题不能为空")
+
+        qa_engine = get_qa_engine(use_mock=False)
+
+        async def streaming_response():
+            nonlocal session_id
+            
+            result = qa_engine.ask(
+                query=question,
+                user_id=user_id,
+                session_id=session_id,
+                workspace_id=workspace_id,
+                scenario_id=data.get("scenario_id")
+            )
+
+            response_session_id = result.get("session_id")
+            answer = result.get("answer", "")
+            sources = result.get("sources", [])
+
+            yield f'{{"type": "session_id", "value": "{response_session_id}"}}\n'
+
+            for i in range(0, len(answer), 10):
+                chunk = answer[i:i+10]
+                yield f'{{"type": "content", "value": {json.dumps(chunk)}}}\n'
+                await asyncio.sleep(0.02)
+
+            if sources:
+                yield f'{{"type": "sources", "value": {json.dumps(sources)}}}\n'
+
+            yield '{"type": "end"}\n'
+
+        return StreamingResponse(
+            streaming_response(),
+            media_type="text/plain",
+            headers={
+                "Transfer-Encoding": "chunked",
+                "Connection": "keep-alive",
+            }
+        )
+    except HTTPException:
+        raise
+    except Exception as e:
+        import logging
+        logging.error(f"QA stream error: {str(e)}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+# 全局 QAEngineV2 实例，用于会话持久化
+_qa_engine_instance = None
+
+def get_qa_engine(use_mock: bool = False) -> 'QAEngineV2':
+    """获取全局 QAEngineV2 实例"""
+    global _qa_engine_instance
+    if _qa_engine_instance is None:
+        from odap.biz.qa.qa_engine_v2 import QAEngineV2
+        from odap.infra.graph.graph_service import GraphManager
+        
+        graphiti_client = GraphManager()
+        _qa_engine_instance = QAEngineV2(graphiti_client=graphiti_client, use_mock=use_mock)
+    return _qa_engine_instance
+
+
 @router.get("/qa/sessions")
 async def list_qa_sessions(
     user_id: Optional[str] = Query(None),
+    workspace_id: Optional[str] = Query(None),
+    scenario_id: Optional[str] = Query(None),
     limit: int = Query(50, ge=1, le=200)
 ):
     """列出问答会话"""
     try:
-        # 返回模拟会话列表
+        qa_engine = get_qa_engine()
+        sessions = qa_engine.dialog_manager._sessions
+        
+        session_list = []
+        for session_id, session in sessions.items():
+            # 根据 workspace_id 过滤
+            if workspace_id and session.workspace_id != workspace_id:
+                continue
+            
+            # 根据 scenario_id 过滤
+            if scenario_id and session.scenario_id != scenario_id:
+                continue
+            
+            # 取第一条用户消息作为摘要
+            summary = ""
+            for msg in session.messages:
+                if msg.role == "user":
+                    summary = msg.content[:50] + "..." if len(msg.content) > 50 else msg.content
+                    break
+            
+            session_list.append({
+                "session_id": session.session_id,
+                "summary": summary,
+                "message_count": len(session.messages),
+                "model": "QAEngineV2",
+                "created_at": session.created_at,
+                "workspace_id": session.workspace_id,
+                "scenario_id": session.scenario_id
+            })
+        
+        # 按创建时间排序，最新的在前
+        session_list.sort(key=lambda x: x["created_at"], reverse=True)
+        
         return {
-            "sessions": [],
-            "total": 0,
+            "sessions": session_list[:limit],
+            "total": len(session_list),
             "limit": limit
         }
     except Exception as e:
@@ -1152,9 +1265,7 @@ async def list_qa_sessions(
 async def get_qa_session(session_id: str):
     """获取问答会话详情"""
     try:
-        from odap.biz.qa.qa_engine_v2 import QAEngineV2
-        
-        qa_engine = QAEngineV2(use_mock=True)
+        qa_engine = get_qa_engine(use_mock=False)
         history = qa_engine.get_dialog_history(session_id)
         
         return {
@@ -1170,9 +1281,7 @@ async def get_qa_session(session_id: str):
 async def close_qa_session(session_id: str):
     """关闭问答会话"""
     try:
-        from odap.biz.qa.qa_engine_v2 import QAEngineV2
-        
-        qa_engine = QAEngineV2(use_mock=True)
+        qa_engine = get_qa_engine(use_mock=False)
         qa_engine.close_dialog(session_id)
         
         return {"status": "success", "session_id": session_id}

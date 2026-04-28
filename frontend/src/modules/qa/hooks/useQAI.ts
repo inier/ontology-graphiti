@@ -3,6 +3,8 @@ import { message } from 'antd';
 import { useChatStorage } from './useChatStorage';
 
 const API_ENDPOINT = 'http://localhost:8000/api/qa/ask';
+const SESSIONS_ENDPOINT = 'http://localhost:8000/api/qa/sessions';
+const STREAM_API_ENDPOINT = 'http://localhost:8000/api/qa/ask/stream';
 
 export type QAMessage = {
   id: string;
@@ -15,7 +17,10 @@ export type QAMessage = {
 
 export type UseQAIOptions = {
   sessionId?: string;
+  workspaceId?: string;
+  scenarioId?: string;
   onError?: (error: Error) => void;
+  onSessionUpdate?: () => void;
 }
 
 export type UseQAIReturn = {
@@ -56,7 +61,7 @@ function createAssistantMessage(
   };
 }
 
-export function useQAI({ sessionId: initialSessionId, onError }: UseQAIOptions = {}): UseQAIReturn {
+export function useQAI({ sessionId: initialSessionId, workspaceId, scenarioId, onError, onSessionUpdate }: UseQAIOptions = {}): UseQAIReturn {
   const [sessionId, setSessionIdState] = useState<string | null>(initialSessionId || null);
   const [messages, setMessages] = useState<QAMessage[]>([]);
   const [status, setStatus] = useState<'idle' | 'submitting' | 'streaming' | 'error' | 'waiting_for_input'>('idle');
@@ -85,8 +90,41 @@ export function useQAI({ sessionId: initialSessionId, onError }: UseQAIOptions =
     persistMessages(messages, sessionId);
   }, [messages, sessionId, persistMessages]);
 
-  const setSessionId = useCallback((id: string | null) => {
-    setSessionIdState(id);
+  const setSessionId = useCallback(async (id: string | null) => {
+    if (!id) {
+      setSessionIdState(null);
+      setMessages([]);
+      return;
+    }
+
+    setStatus('submitting');
+    try {
+      const response = await fetch(`${SESSIONS_ENDPOINT}/${id}`);
+      if (!response.ok) {
+        throw new Error(`加载会话失败: ${response.status}`);
+      }
+      const data = await response.json();
+      
+      if (data.messages && Array.isArray(data.messages)) {
+        setMessages(data.messages.map((msg: any) => ({
+          id: msg.id || msg.message_id || generateId(),
+          role: msg.role as 'user' | 'assistant',
+          content: msg.content,
+          timestamp: msg.timestamp || new Date().toISOString(),
+          sources: msg.sources,
+          intent: msg.intent,
+        })));
+      } else {
+        setMessages([]);
+      }
+      setSessionIdState(id);
+      message.success('会话已加载');
+    } catch (err) {
+      const error = err instanceof Error ? err : new Error('加载会话失败');
+      message.error(error.message);
+    } finally {
+      setStatus('idle');
+    }
   }, []);
 
   const clearMessages = useCallback(() => {
@@ -105,17 +143,17 @@ export function useQAI({ sessionId: initialSessionId, onError }: UseQAIOptions =
   }, []);
 
   const sendMessage = useCallback(async (content: string) => {
-    if (!content.trim() || status === 'submitting') return;
+    if (!content.trim() || status === 'submitting' || status === 'streaming') return;
 
     const userMessage = createUserMessage(content);
     setMessages(prev => [...prev, userMessage]);
-    setStatus('submitting');
+    setStatus('streaming');
     setError(null);
 
     abortControllerRef.current = new AbortController();
 
     try {
-      const response = await fetch(API_ENDPOINT, {
+      const response = await fetch(STREAM_API_ENDPOINT, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -123,6 +161,8 @@ export function useQAI({ sessionId: initialSessionId, onError }: UseQAIOptions =
         body: JSON.stringify({
           question: content,
           session_id: sessionId,
+          workspace_id: workspaceId,
+          scenario_id: scenarioId,
         }),
         signal: abortControllerRef.current.signal,
       });
@@ -131,30 +171,122 @@ export function useQAI({ sessionId: initialSessionId, onError }: UseQAIOptions =
         throw new Error(`请求失败: ${response.status}`);
       }
 
-      const data = await response.json();
-
-      if (data.session_id && !sessionId) {
-        setSessionIdState(data.session_id);
+      const reader = response.body?.getReader();
+      if (!reader) {
+        throw new Error('无法读取响应流');
       }
 
-      const assistantMessage = createAssistantMessage(
-        data.answer || '抱歉，我没有得到有效的回答。',
-        data.sources
-      );
-      setMessages(prev => [...prev, assistantMessage]);
+      const decoder = new TextDecoder('utf-8');
+      let accumulatedContent = '';
+      let receivedSessionId = sessionId;
+      let messageId = generateId();
+
+      setMessages(prev => [...prev, {
+        id: messageId,
+        role: 'assistant',
+        content: '',
+        timestamp: new Date().toISOString(),
+      }]);
+
+      while (true) {
+        const { done, value } = await reader.read();
+        
+        if (done) {
+          break;
+        }
+
+        const chunk = decoder.decode(value, { stream: true });
+        
+        const lines = chunk.split('\n');
+        for (const line of lines) {
+          if (line.trim() === '') continue;
+          
+          try {
+            const data = JSON.parse(line);
+            
+            if (data.type === 'session_id') {
+              receivedSessionId = data.value;
+              if (!sessionId) {
+                setSessionIdState(data.value);
+              }
+            } else if (data.type === 'content') {
+              accumulatedContent += data.value;
+              setMessages(prev => {
+                const lastIndex = prev.length - 1;
+                if (lastIndex >= 0 && prev[lastIndex].role === 'assistant') {
+                  return [
+                    ...prev.slice(0, lastIndex),
+                    {
+                      ...prev[lastIndex],
+                      content: accumulatedContent,
+                    },
+                  ];
+                }
+                return prev;
+              });
+            } else if (data.type === 'sources') {
+              setMessages(prev => {
+                const lastIndex = prev.length - 1;
+                if (lastIndex >= 0 && prev[lastIndex].role === 'assistant') {
+                  return [
+                    ...prev.slice(0, lastIndex),
+                    {
+                      ...prev[lastIndex],
+                      sources: data.value,
+                    },
+                  ];
+                }
+                return prev;
+              });
+            } else if (data.type === 'end') {
+              break;
+            }
+          } catch (e) {
+            accumulatedContent += line;
+            setMessages(prev => {
+              const lastIndex = prev.length - 1;
+              if (lastIndex >= 0 && prev[lastIndex].role === 'assistant') {
+                return [
+                  ...prev.slice(0, lastIndex),
+                  {
+                    ...prev[lastIndex],
+                    content: accumulatedContent,
+                  },
+                ];
+              }
+              return prev;
+            });
+          }
+        }
+      }
+
       setStatus('idle');
+      
+      if (!sessionId && receivedSessionId) {
+        setSessionIdState(receivedSessionId);
+        onSessionUpdate?.();
+      }
     } catch (err) {
       if (err instanceof Error && err.name === 'AbortError') {
         setStatus('idle');
         return;
       }
+      
       const error = err instanceof Error ? err : new Error('发送消息失败');
       setError(error);
       setStatus('error');
       onError?.(error);
       message.error(error.message || '发生错误，请重试');
+      
+      setMessages(prev => {
+        const lastIndex = prev.length - 1;
+        if (lastIndex >= 0 && prev[lastIndex].role === 'assistant' && !prev[lastIndex].content) {
+          return [...prev.slice(0, lastIndex), createAssistantMessage('抱歉，请求失败，请重试')];
+        }
+        return prev;
+      });
     }
-  }, [sessionId, status, onError]);
+  }, [sessionId, status, onError, workspaceId, scenarioId]);
 
   return {
     messages,

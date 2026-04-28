@@ -4,6 +4,7 @@ import { DeleteOutlined, LoadingOutlined, HistoryOutlined } from '@ant-design/ic
 import { useSession } from '../hooks/useSession';
 import type { Session } from '../hooks/useSession';
 import { css } from '@emotion/css';
+import { useWorkspace, useScenario } from '../../shared';
 
 const { Text } = Typography;
 
@@ -87,13 +88,19 @@ function formatTime(timestamp: number): string {
 }
 
 export function SessionDrawer({ open, onClose, onSelectSession }: SessionDrawerProps) {
-  const { sessions, loading, fetchSessions, deleteSession } = useSession();
+  const { currentWorkspace } = useWorkspace();
+  const { currentScenario } = useScenario();
+  
+  const { sessions, loading, fetchSessions, deleteSession } = useSession({
+    workspaceId: currentWorkspace,
+    scenarioId: currentScenario,
+  });
 
   useEffect(() => {
     if (open) {
-      fetchSessions();
+      fetchSessions(currentWorkspace, currentScenario);
     }
-  }, [open, fetchSessions]);
+  }, [open, fetchSessions, currentWorkspace, currentScenario]);
 
   const handleDelete = async (e: React.MouseEvent, sessionId: string) => {
     e.stopPropagation();

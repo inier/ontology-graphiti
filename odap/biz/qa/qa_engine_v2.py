@@ -51,6 +51,8 @@ class DialogSession:
     created_at: str
     updated_at: str
     state: DialogState
+    workspace_id: Optional[str] = None
+    scenario_id: Optional[str] = None
     messages: List[DialogMessage] = field(default_factory=list)
     context: Dict[str, Any] = field(default_factory=dict)
     summary: str = ""
@@ -84,13 +86,16 @@ class DialogManager:
         self._sessions: Dict[str, DialogSession] = {}
         self._lock = threading.RLock()
 
-    def create_session(self, user_id: str) -> DialogSession:
+    def create_session(self, user_id: str, workspace_id: Optional[str] = None, 
+                      scenario_id: Optional[str] = None) -> DialogSession:
         """创建新会话"""
         import uuid
         now = datetime.now(timezone.utc).isoformat()
         session = DialogSession(
             session_id=f"SESSION-{uuid.uuid4().hex[:8].upper()}",
             user_id=user_id,
+            workspace_id=workspace_id,
+            scenario_id=scenario_id,
             created_at=now,
             updated_at=now,
             state=DialogState.NEW
@@ -157,6 +162,22 @@ class DialogManager:
         with self._lock:
             if session_id in self._sessions:
                 self._sessions[session_id].state = DialogState.COMPLETED
+
+    def get_sessions_by_workspace(self, workspace_id: str) -> List[DialogSession]:
+        """根据工作空间ID获取会话列表"""
+        with self._lock:
+            return [
+                session for session in self._sessions.values()
+                if session.workspace_id == workspace_id
+            ]
+
+    def get_sessions_by_scenario(self, scenario_id: str) -> List[DialogSession]:
+        """根据场景ID获取会话列表"""
+        with self._lock:
+            return [
+                session for session in self._sessions.values()
+                if session.scenario_id == scenario_id
+            ]
 
 
 class RAGPipeline:
@@ -342,7 +363,9 @@ class QAEngineV2:
         self._complex_patterns = [r"如果.*?会.*?", r".*?和.*?对比", r".*?的最佳.*?"]
 
     def ask(self, query: str, user_id: str = "user",
-           session_id: str = None, context: Dict = None) -> Dict[str, Any]:
+           session_id: str = None, context: Dict = None,
+           workspace_id: Optional[str] = None, 
+           scenario_id: Optional[str] = None) -> Dict[str, Any]:
         """
         问答
 
@@ -351,18 +374,25 @@ class QAEngineV2:
             user_id: 用户 ID
             session_id: 会话 ID（可选）
             context: 额外上下文
+            workspace_id: 工作空间 ID（可选）
+            scenario_id: 场景 ID（可选）
 
         Returns:
             回答结果
         """
         if not session_id:
-            session = self.dialog_manager.create_session(user_id)
+            session = self.dialog_manager.create_session(user_id, workspace_id, scenario_id)
             session_id = session.session_id
         else:
             session = self.dialog_manager.get_session(session_id)
             if not session:
-                session = self.dialog_manager.create_session(user_id)
+                session = self.dialog_manager.create_session(user_id, workspace_id, scenario_id)
                 session_id = session.session_id
+            else:
+                if workspace_id and not session.workspace_id:
+                    session.workspace_id = workspace_id
+                if scenario_id and not session.scenario_id:
+                    session.scenario_id = scenario_id
 
         self.dialog_manager.add_message(session_id, "user", query)
 
@@ -384,7 +414,10 @@ class QAEngineV2:
 
         answer = self._generate_answer(query, context_text, entities)
 
-        traces = self.source_tracer.trace(answer, query)
+        if "未找到相关信息" in answer:
+            traces = []
+        else:
+            traces = self.source_tracer.trace(answer, query)
 
         self.dialog_manager.add_message(session_id, "assistant", answer, {
             "traces": [{"source": t.source, "excerpt": t.excerpt} for t in traces],
@@ -439,6 +472,8 @@ class QAEngineV2:
 
     def _answer_general(self, query: str, context: str, entities: List[Dict]) -> str:
         """回答一般问题"""
+        if "未找到相关信息" in context:
+            return f"针对您的问题 '{query}'，未找到相关信息。"
         return f"针对您的问题 '{query}'，我找到了 {len(entities)} 条相关信息。\n\n{context[:300]}"
 
     def get_dialog_history(self, session_id: str) -> List[Dict]:

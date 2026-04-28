@@ -689,11 +689,13 @@ class QAAgentBridge:
 ┌─────────────────────────────────────────────────────────────────────────────┐
 │ L6  用户交互层                                                               │
 │     对话界面 / 问答面板                                                      │
-│     ├── QAChatPage (主容器)                                                 │
+│     ├── Sidebar (侧边栏)                                                    │
+│     │   ├── NewChatButton (新对话)                                          │
+│     │   ├── SessionList (会话列表)                                          │
+│     │   └── QuickActions (快捷操作)                                         │
 │     ├── ChatHeader (头部导航)                                                │
 │     ├── MessageList (消息列表)                                               │
-│     ├── ChatInput (输入组件)                                                 │
-│     └── SessionDrawer (历史会话)                                              │
+│     └── ChatInput (输入组件)                                                 │
 ├─────────────────────────────────────────────────────────────────────────────┤
 │ L5  状态管理层                                                              │
 │     ├── useQAI (问答状态管理)                                                │
@@ -709,22 +711,55 @@ class QAAgentBridge:
 ### 10.2 前端组件层次
 
 ```typescript
-// 组件层次结构
-QAChatPage
-├── ChatHeader           // 头部导航栏
-├── MessageList          // 消息列表容器
-│   └── MessageItem      // 单条消息（渲染）
-├── ChatInput            // 输入区域
-│   ├── TextArea         // 文本输入
-│   └── SendButton       // 发送按钮
-└── SessionDrawer       // 历史会话抽屉（Modal）
-    └── SessionItem      // 会话列表项
+// 组件层次结构（参考千问APP设计风格）
+QAChatPage (Layout)
+├── Sidebar (左侧边栏 - 可折叠)
+│   ├── SidebarHeader     // 标题栏
+│   ├── NewChatButton     // 新对话按钮
+│   ├── SessionList       // 会话列表
+│   │   └── SessionItem   // 会话项（头像、标题、时间）
+│   └── QuickActions      // 快捷操作按钮
+└── Content (主内容区)
+    ├── ChatHeader        // 头部导航栏
+    ├── MessageList       // 消息列表容器
+    │   ├── WelcomeSection // 欢迎页面（空状态）
+    │   └── MessageItem   // 单条消息
+    └── ChatInput         // 输入区域
+        ├── TextArea      // 文本输入
+        └── SendButton    // 发送/停止按钮
 ```
 
-### 10.3 状态管理架构
+### 10.3 布局设计规范
+
+| 区域 | 宽度 | 样式特征 |
+|------|------|----------|
+| Sidebar | 280px (展开) / 60px (折叠) | 深色渐变背景 (#1a1a2e → #16213e) |
+| Content | 剩余空间 | 浅色背景 (#fafafa) |
+| MessageWrapper | 最大 900px | 居中对齐 |
+
+### 10.4 交互设计规范
+
+**侧边栏交互**：
+- 悬停显示删除按钮
+- 点击会话项切换会话
+- 支持折叠/展开切换
+- 双击会话项可重命名（预留）
+
+**消息列表交互**：
+- 自动滚动到底部
+- 加载状态显示思考动画
+- 支持消息来源卡片展开
+- 支持快捷问题按钮
+
+**输入区域交互**：
+- Enter 发送，Shift+Enter 换行
+- 加载状态显示停止按钮
+- 输入框聚焦状态高亮边框
+
+### 10.5 状态管理架构
 
 ```
-┌──────────────────────────────────────────────────────────────┐
+┌──────────────────────────────────────────────┐
 │                      React Component Tree                     │
 │                                                               │
 │  QAChatPage                                                  │
@@ -732,7 +767,7 @@ QAChatPage
 │  ├── useSession() ────────► Sessions, CRUD Operations       │
 │  └── useChatStorage() ───► LocalStorage Persistence         │
 │                                                               │
-└──────────────────────────────────────────────────────────────┘
+└──────────────────────────────────────────────────────┘
 ```
 
 **状态分类**：

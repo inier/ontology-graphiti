@@ -1,4 +1,4 @@
-import { useState, useCallback } from 'react';
+import React, { useState, useCallback } from 'react';
 import { message } from 'antd';
 
 const API_BASE = 'http://localhost:8000/api/qa';
@@ -8,32 +8,41 @@ export interface Session {
   summary: string;
   message_count: number;
   model: string;
-  created_at: number;
+  created_at: string;
+  workspace_id?: string;
+  scenario_id?: string;
 }
 
 export interface UseSessionOptions {
   onError?: (error: Error) => void;
+  workspaceId?: string;
+  scenarioId?: string;
 }
 
 export interface UseSessionReturn {
   sessions: Session[];
   loading: boolean;
   error: Error | null;
-  fetchSessions: () => Promise<void>;
+  fetchSessions: (workspaceId?: string, scenarioId?: string) => Promise<void>;
   loadSession: (sessionId: string) => Promise<Session | null>;
   deleteSession: (sessionId: string) => Promise<boolean>;
 }
 
-export function useSession({ onError }: UseSessionOptions = {}): UseSessionReturn {
+export function useSession({ onError, workspaceId, scenarioId }: UseSessionOptions = {}): UseSessionReturn {
   const [sessions, setSessions] = useState<Session[]>([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<Error | null>(null);
 
-  const fetchSessions = useCallback(async () => {
+  const fetchSessions = useCallback(async (wsId?: string, scId?: string) => {
     setLoading(true);
     setError(null);
     try {
-      const response = await fetch(`${API_BASE}/sessions`);
+      const params = new URLSearchParams();
+      if (wsId) params.append('workspace_id', wsId);
+      if (scId) params.append('scenario_id', scId);
+      
+      const url = params.toString() ? `${API_BASE}/sessions?${params.toString()}` : `${API_BASE}/sessions`;
+      const response = await fetch(url);
       if (!response.ok) {
         throw new Error(`获取会话列表失败: ${response.status}`);
       }
@@ -48,6 +57,10 @@ export function useSession({ onError }: UseSessionOptions = {}): UseSessionRetur
       setLoading(false);
     }
   }, [onError]);
+
+  React.useEffect(() => {
+    fetchSessions(workspaceId, scenarioId);
+  }, [workspaceId, scenarioId, fetchSessions]);
 
   const loadSession = useCallback(async (sessionId: string): Promise<Session | null> => {
     try {
