@@ -433,6 +433,91 @@ export const api = {
     return fetchJson(`${API_BASE}/api/ontology/ingest/builds?limit=${limit}`);
   },
 
+  // ==================== 处理日志 API ====================
+
+  async getProcessLogs(ingestId: string): Promise<Array<{
+    id: string;
+    ingest_id: string;
+    stage: string;
+    operation: string;
+    details: Record<string, unknown>;
+    status: string;
+    error_message?: string;
+    duration_ms?: number;
+    timestamp: string;
+  }>> {
+    return fetchJson(`${API_BASE}/api/ontology/ingest/${ingestId}/logs`);
+  },
+
+  async getFullIngestRecord(ingestId: string): Promise<{
+    id: string;
+    source: string;
+    status: string;
+    start_time: string;
+    end_time?: string;
+    logs: Array<{
+      id: string;
+      ingest_id: string;
+      stage: string;
+      operation: string;
+      details: Record<string, unknown>;
+      status: string;
+      error_message?: string;
+      duration_ms?: number;
+      timestamp: string;
+    }>;
+    builds: Array<{
+      build_id: string;
+      status: string;
+      document_id?: string;
+      version_info?: {
+        version_id: string;
+        commit_message: string;
+      };
+      entity_count?: number;
+      relation_count?: number;
+      event_count?: number;
+    }>;
+  }> {
+    return fetchJson(`${API_BASE}/api/ontology/ingest/${ingestId}/full`);
+  },
+
+  async buildOntology(ingestId: string, scenarioId?: string): Promise<{
+    build_id: string;
+    status: string;
+    document_id?: string;
+    version_info?: {
+      version_id: string;
+      commit_message: string;
+    };
+    entity_count?: number;
+    relation_count?: number;
+    event_count?: number;
+    error?: string;
+  }> {
+    const params = scenarioId ? `?scenario_id=${encodeURIComponent(scenarioId)}` : '';
+    return fetchJson(`${API_BASE}/api/ontology/ingest/${ingestId}/build${params}`, {
+      method: 'POST',
+    });
+  },
+
+  async getIngestBuildHistory(ingestId: string): Promise<{
+    id: string;
+    ingest_id: string;
+    build_id: string;
+    version_id?: string;
+    document_id?: string;
+    entity_count: number;
+    relation_count: number;
+    event_count: number;
+    status: string;
+    start_time: string;
+    end_time?: string;
+    duration_seconds?: number;
+  }> {
+    return fetchJson(`${API_BASE}/api/ontology/ingest/${ingestId}/build-history`);
+  },
+
   // ==================== 本体版本 API ====================
 
   async getVersions(scenarioId?: string, limit: number = 50): Promise<Array<{
@@ -926,5 +1011,154 @@ export const api = {
     feedbacks: Array<{ feedback_id: string; outcome: string; timestamp: string }>;
   }> {
     return fetchJson(`${API_BASE}/api/feedback/decision/${decisionId}`);
+  },
+
+  // ==================== Skill 管理 API ====================
+
+  async listSkills(params?: {
+    page?: number;
+    page_size?: number;
+    skill_type?: string;
+    status?: string;
+    category?: string;
+  }): Promise<{
+    skills: Array<{
+      skill_id: string;
+      name: string;
+      type: string;
+      status: string;
+      category: string;
+    }>;
+    page: number;
+    page_size: number;
+    total: number;
+  }> {
+    const searchParams = new URLSearchParams();
+    if (params?.page) searchParams.set('page', String(params.page));
+    if (params?.page_size) searchParams.set('page_size', String(params.page_size));
+    if (params?.skill_type) searchParams.set('skill_type', params.skill_type);
+    if (params?.status) searchParams.set('status', params.status);
+    if (params?.category) searchParams.set('category', params.category);
+    const queryString = searchParams.toString();
+    return fetchJson(`${API_BASE}/api/skill/skills${queryString ? `?${queryString}` : ''}`);
+  },
+
+  async scanSkillsDirectory(): Promise<{
+    skills: Array<{
+      name: string;
+      category: string;
+      path: string;
+      files: string[];
+      description?: string;
+      parsed?: Record<string, unknown>;
+    }>;
+    total: number;
+  }> {
+    return fetchJson(`${API_BASE}/api/skill/scan`);
+  },
+
+  async getAllSkills(): Promise<{
+    registered: Array<Record<string, unknown>>;
+    scanned: Array<Record<string, unknown>>;
+    total_registered: number;
+    total_scanned: number;
+  }> {
+    return fetchJson(`${API_BASE}/api/skill/all`);
+  },
+
+  async getSkillCategories(): Promise<{
+    categories: Array<{
+      name: string;
+      skill_count: number;
+      path: string;
+    }>;
+  }> {
+    return fetchJson(`${API_BASE}/api/skill/categories`);
+  },
+
+  async registerSkill(data: {
+    name: string;
+    skill_type: string;
+    description?: string;
+    category?: string;
+    tags?: string[];
+  }): Promise<{
+    skill_id: string;
+    name: string;
+    type: string;
+    status: string;
+    created_at: string;
+  }> {
+    const searchParams = new URLSearchParams();
+    searchParams.set('name', data.name);
+    searchParams.set('skill_type', data.skill_type);
+    if (data.description) searchParams.set('description', data.description);
+    if (data.category) searchParams.set('category', data.category);
+    if (data.tags) searchParams.set('tags', JSON.stringify(data.tags));
+    return fetchJson(`${API_BASE}/api/skill/skills?${searchParams.toString()}`, {
+      method: 'POST',
+    });
+  },
+
+  async uploadSkillFile(file: File, category: string = 'custom'): Promise<{
+    status: string;
+    data: {
+      filename: string;
+      category: string;
+      path: string;
+      size: number;
+      parsed?: Record<string, unknown>;
+    };
+  }> {
+    const formData = new FormData();
+    formData.append('skill_file', file);
+    formData.append('category', category);
+
+    const response = await fetch(`${API_BASE}/api/skill/upload`, {
+      method: 'POST',
+      body: formData,
+    });
+
+    if (!response.ok) {
+      throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+    }
+
+    return response.json();
+  },
+
+  async toggleSkill(skillName: string, enabled: boolean): Promise<{
+    status: string;
+    message?: string;
+    enabled?: boolean;
+    skill_id?: string;
+    status?: string;
+  }> {
+    return fetchJson(`${API_BASE}/api/skill/toggle/${skillName}?enabled=${enabled}`, {
+      method: 'POST',
+    });
+  },
+
+  async activateSkill(skillId: string): Promise<{
+    skill_id: string;
+    status: string;
+  }> {
+    return fetchJson(`${API_BASE}/api/skill/skills/${skillId}/activate`, {
+      method: 'POST',
+    });
+  },
+
+  async deactivateSkill(skillId: string): Promise<{
+    skill_id: string;
+    status: string;
+  }> {
+    return fetchJson(`${API_BASE}/api/skill/skills/${skillId}/deactivate`, {
+      method: 'POST',
+    });
+  },
+
+  async getLoadedSkills(): Promise<{
+    skills: string[];
+  }> {
+    return fetchJson(`${API_BASE}/api/skill/skills/loaded`);
   },
 };
