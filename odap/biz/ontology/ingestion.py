@@ -728,7 +728,6 @@ class ManualInputHandler:
 class RandomEventGenerator:
     """
     按涉事方和事件模板自动随机生成动态信息
-
     参考 NetLogo 多智能体随机行为模型:
     - 每个涉事方有行为概率表（patrol/attack/retreat/reinforce）
     - 基于当前状态（morale/supply/combat_power）权重调整
@@ -759,17 +758,61 @@ class RandomEventGenerator:
         },
     }
 
-    # 单位名称库
+    # 单位名称库 - 扩展版本
     UNIT_NAMES = {
-        "red": ["红方装甲营", "红方机步旅", "红方炮兵团", "红方特战队", "红方工兵营", "红方防空营"],
-        "blue": ["蓝方机步营", "蓝方装甲旅", "蓝方炮兵团", "蓝方海军陆战队", "蓝方工兵连", "蓝方防空连"],
-        "neutral": ["第三方观察团", "中立方协调员", "平民撤离队"],
+        "red": [
+            "红方装甲营", "红方机步旅", "红方炮兵团", "红方特战队", "红方工兵营", "红方防空营",
+            "红方摩步连", "红方陆航旅", "红方电子对抗营", "红方后勤保障团", "红方侦察营", "红方装甲团",
+            "红方空降营", "红方装甲旅88旅", "红方合成营", "红方信息化作战单元",
+        ],
+        "blue": [
+            "蓝方机步营", "蓝方装甲旅", "蓝方炮兵团", "蓝方海军陆战队", "蓝方工兵连", "蓝方防空连",
+            "蓝方特种作战群", "蓝方空中突击营", "蓝方装甲骑兵团", "蓝方后勤支援旅", "蓝方电子战营", "蓝方炮兵旅",
+            "蓝方机械化步兵师", "蓝方快速反应部队", "蓝方两栖作战营", "蓝方空中支援联队",
+        ],
+        "neutral": [
+            "第三方观察团", "中立方协调员", "平民撤离队", "联合国维和部队", "人道主义救援组织",
+            "国际红十字会代表", "当地平民志愿者", "记者团",
+        ],
     }
 
-    # 地点库
+    # 扩展的地点库 - 包含更多类型的地点
     LOCATIONS = [
+        # 战术地点
         "A区北部高地", "B区遭遇地带", "C区渡口", "D区城镇",
         "E区山地走廊", "F区海岸线", "G区平原", "H区丛林",
+        "K区桥梁枢纽", "L区铁路交叉点", "M区机场", "N区港口设施",
+        "O区山区要塞", "P区沙漠地带", "Q区沼泽地带", "R区城市郊区",
+        # 特定地点
+        "108高地", "203号阵地", "莲花湖地区", "青河渡口", "龙山山口",
+        "虎头山阵地", "白云机场", "红星港", "友谊桥", "中央平原",
+    ]
+
+    # 装备库 - 新增
+    EQUIPMENT_TYPES = [
+        "99A式主战坦克", "96A式主战坦克", "15式轻型坦克",
+        "04A式步战车", "86A式步战车", "08式步战车",
+        "PLZ-05自行榴弹炮", "PLZ-07自行榴弹炮", "122毫米牵引炮",
+        "AH-64阿帕奇", "Mi-28浩劫", "直-10武装直升机",
+        "东风-11弹道导弹", "东风-15战术导弹", "红旗-9防空系统",
+        "翼龙无人机", "彩虹无人机", "侦察无人机",
+        "99式自行高炮", "04式弹炮合一系统", "09式轮式步战车",
+    ]
+
+    # 天气条件 - 新增
+    WEATHER_CONDITIONS = [
+        "晴朗", "多云", "阴天", "小雨", "中雨", "大雨",
+        "大雾", "小雪", "中雪", "大风", "沙尘暴", "夜间",
+    ]
+
+    # 时间段 - 新增
+    TIME_PERIODS = [
+        "凌晨", "拂晓", "上午", "中午", "下午", "傍晚", "黄昏", "夜间", "深夜",
+    ]
+
+    # 地形类型 - 新增
+    TERRAIN_TYPES = [
+        "山地", "丘陵", "平原", "丛林", "沙漠", "沼泽", "城市", "海岸", "高原", "草原",
     ]
 
     # 事件类型对应关系
@@ -782,6 +825,90 @@ class RandomEventGenerator:
         "evacuate": "evacuate",
         "report": "report",
         "cease_fire": "cease_fire",
+    }
+
+    # 行动描述模板 - 新增，更丰富的描述
+    ACTION_DESCRIPTIONS = {
+        "attack": [
+            "对{opponent}发起突然袭击，",
+            "在{location}地区与{eqp}协同进攻{opponent}，",
+            "使用无人机侦察后，对{opponent}发动精确打击，",
+            "在{terrain}地形对{opponent}实施包围进攻，",
+        ],
+        "patrol": [
+            "在{location}附近进行例行巡逻，",
+            "对{terrain}地带进行搜索排查，",
+            "在{eqp}掩护下对{location}实施巡逻，",
+            "针对可疑目标进行定点巡逻，",
+        ],
+        "reinforce": [
+            "增派{eqp}前往{location}支援，",
+            "从后方调集预备队增援{location}，",
+            "空中投送{eqp}至{location}，",
+            "通过公路机动向{location}输送增援力量，",
+        ],
+        "retreat": [
+            "因战略调整主动撤离{location}，",
+            "在{eqp}掩护下有序撤退，",
+            "受恶劣天气{weather}影响暂时后撤，",
+            "完成阻击任务后主动撤出{location}，",
+        ],
+        "recon": [
+            "派遣侦察分队前往{location}搜集情报，",
+            "使用无人机对{terrain}地带实施抵近侦察，",
+            "化装侦察员潜入{location}获取情报，",
+            "电子侦察{location}区域的敌方通讯，",
+        ],
+        "evacuate": [
+            "组织平民从{location}安全撤离，",
+            "在{weather}条件下紧急疏散当地居民，",
+            "开辟安全走廊协助民众撤离危险区域，",
+            "医疗队前往{location}执行撤离任务，",
+        ],
+        "report": [
+            "向上级汇报{location}区域态势，",
+            "观察员报告{terrain}地带的最新情况，",
+            "情报部门汇总并上报{location}侦察结果，",
+            "多方信息汇总后形成态势报告，",
+        ],
+        "cease_fire": [
+            "根据停火协议在{location}停止军事行动，",
+            "双方协商后在{terrain}地带实现停火，",
+            "联合国调停后在{location}实施停火，",
+            "暂时在{location}地区实行临时停火，",
+        ],
+    }
+
+    # 结果描述 - 新增
+    OUTCOME_DESCRIPTIONS = {
+        "attack": [
+            "摧毁敌方{count}个目标",
+            "造成敌方重大伤亡",
+            "成功突破敌方防线",
+            "占领关键阵地",
+            "击退敌方进攻",
+        ],
+        "patrol": [
+            "未发现异常情况",
+            "发现可疑目标并标记",
+            "确认区域安全",
+            "搜集到有价值情报",
+            "排除{count}处安全隐患",
+        ],
+        "reinforce": [
+            "有效增强了防御力量",
+            "及时补充了作战人员",
+            "提升了整体战斗力",
+            "巩固了防线",
+            "扭转了不利局面",
+        ],
+        "retreat": [
+            "成功保存了有生力量",
+            "避免了更大损失",
+            "撤至安全区域",
+            "完成战略转移",
+            "重新部署完毕",
+        ],
     }
 
     def __init__(self, llm_client=None):
@@ -884,10 +1011,20 @@ class RandomEventGenerator:
         now = datetime.now(timezone.utc).isoformat()
         date_str = datetime.now().strftime("%Y%m%d")
         location = random.choice(self.LOCATIONS)
+        weather = random.choice(self.WEATHER_CONDITIONS)
+        time_period = random.choice(self.TIME_PERIODS)
+        terrain = random.choice(self.TERRAIN_TYPES)
+        equipment = random.choice(self.EQUIPMENT_TYPES)
 
         actor_names = self.UNIT_NAMES.get(actor_party, ["未知部队"])
         actor_name = random.choice(actor_names)
         actor_id = f"unit-{actor_party}-{uuid.uuid4().hex[:6]}"
+
+        # 随机生成单位属性
+        unit_types = ["armor", "infantry", "artillery", "recon", "mechanized", "airborne", "armored"]
+        combat_power = round(random.uniform(0.4, 0.95), 2)
+        morale = round(random.uniform(0.5, 0.95), 2)
+        supply_level = round(random.uniform(0.3, 0.90), 2)
 
         entities = [
             OntologyEntity(
@@ -899,12 +1036,15 @@ class RandomEventGenerator:
                     "side": actor_party,
                     "location": location,
                     "status": "active",
-                    "unit_type": random.choice(["armor", "infantry", "artillery", "recon"]),
+                    "unit_type": random.choice(unit_types),
+                    "equipment": equipment,
+                    "time_period": time_period,
+                    "weather": weather,
                 },
                 statistical_properties={
-                    "combat_power": round(random.uniform(0.4, 0.95), 2),
-                    "morale": round(random.uniform(0.5, 0.95), 2),
-                    "supply_level": round(random.uniform(0.3, 0.90), 2),
+                    "combat_power": combat_power,
+                    "morale": morale,
+                    "supply_level": supply_level,
                     "casualty_rate": round(random.uniform(0.0, 0.15), 3),
                 },
             )
@@ -915,6 +1055,11 @@ class RandomEventGenerator:
         actions = []
 
         event_type = self.ACTION_TO_EVENT.get(action_type, "generic")
+
+        # 生成丰富的描述
+        description_template = random.choice(self.ACTION_DESCRIPTIONS.get(action_type, ["执行{action_type}任务"]))
+        outcome_template = random.choice(self.OUTCOME_DESCRIPTIONS.get(action_type, ["任务完成"]))
+        target_count = random.randint(1, 5)
 
         if opponent_party:
             opp_names = self.UNIT_NAMES.get(opponent_party, ["未知部队"])
@@ -950,14 +1095,28 @@ class RandomEventGenerator:
                 temporal=TemporalInfo(start_time=now, is_current=True),
             ))
 
-            description = f"{actor_name} 对 {opp_name} 执行 {action_type}（位于 {location}）"
+            # 使用模板生成描述
+            description = description_template.format(
+                opponent=opp_name,
+                location=location,
+                eqp=equipment,
+                terrain=terrain,
+                weather=weather
+            ) + outcome_template.format(count=target_count)
+
             events.append(OntologyEvent(
                 event_type=event_type,
                 timestamp=now,
                 location=location,
                 participants=[actor_id, opp_id],
                 description=description,
-                outcome={"terrain_control": random.choice(["contested", "held", "lost"])},
+                outcome={
+                    "terrain_control": random.choice(["contested", "held", "lost"]),
+                    "weather": weather,
+                    "time_period": time_period,
+                    "terrain": terrain,
+                    "target_count": target_count,
+                },
                 phase=random.choice(["initial", "main", "final"]),
             ))
             actions.append(OntologyAction(
@@ -965,21 +1124,38 @@ class RandomEventGenerator:
                 actor=actor_id,
                 target=opp_id,
                 timestamp=now,
-                parameters={"mode": random.choice(["aggressive", "cautious", "defensive"])},
+                parameters={
+                    "mode": random.choice(["aggressive", "cautious", "defensive"]),
+                    "equipment": equipment,
+                    "weather": weather,
+                },
                 status=ActionStatus.EXECUTED.value,
             ))
         else:
-            description = f"{actor_name} 在 {location} 执行 {action_type}"
+            # 使用模板生成描述
+            description = description_template.format(
+                opponent="",
+                location=location,
+                eqp=equipment,
+                terrain=terrain,
+                weather=weather
+            ) + outcome_template.format(count=target_count)
+
             events.append(OntologyEvent(
                 event_type=event_type,
                 timestamp=now,
                 location=location,
                 participants=[actor_id],
                 description=description,
+                outcome={
+                    "weather": weather,
+                    "time_period": time_period,
+                    "terrain": terrain,
+                },
                 phase="active",
             ))
 
-        title = f"[随机] {actor_name} - {action_type}"
+        title = f"[随机] {actor_name} - {action_type} ({time_period})"
         if use_llm and self.llm:
             description = await self._enrich_description(description)
 
@@ -990,7 +1166,7 @@ class RandomEventGenerator:
             meta=DocumentMeta(
                 title=title,
                 description=description,
-                tags=[actor_party, action_type, location],
+                tags=[actor_party, action_type, location, terrain, weather],
             ),
             entities=entities,
             relations=relations,
