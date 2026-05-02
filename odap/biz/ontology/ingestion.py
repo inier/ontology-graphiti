@@ -725,7 +725,45 @@ class ManualInputHandler:
 # 参考 NetLogo 多智能体行为概率模型
 # ─────────────────────────────────────────────────
 
-class RandomEventGenerator:
+# ─────────────────────────────────────────────────
+# 随机事件生成器 - 抽象基类
+# ─────────────────────────────────────────────────
+
+class BaseRandomGenerator(ABC):
+    """随机事件生成器抽象基类"""
+
+    @abstractmethod
+    async def generate(
+        self,
+        count: int = 1,
+        context: dict = None,
+        scenario_id: str = None,
+    ) -> List[OntologyDocument]:
+        """
+        生成随机事件
+
+        Args:
+            count: 生成数量
+            context: 上下文信息
+            scenario_id: 场景ID
+
+        Returns:
+            List[OntologyDocument]: 生成的事件文档列表
+        """
+        pass
+
+    @abstractmethod
+    def get_generator_name(self) -> str:
+        """获取生成器名称"""
+        pass
+
+    @abstractmethod
+    def get_generator_description(self) -> str:
+        """获取生成器描述"""
+        pass
+
+
+class RandomEventGenerator(BaseRandomGenerator):
     """
     按涉事方和事件模板自动随机生成动态信息
     参考 NetLogo 多智能体随机行为模型:
@@ -733,6 +771,19 @@ class RandomEventGenerator:
     - 基于当前状态（morale/supply/combat_power）权重调整
     - 事件输出符合 OntologyDocument 格式
     """
+
+    # 生成器类型标识
+    GENERATOR_TYPE = "military"
+    GENERATOR_NAME = "军事战争事件生成器"
+    GENERATOR_DESCRIPTION = "生成军事战争场景下的各种事件，包括进攻、巡逻、增援、撤退、侦察等行动"
+
+    def get_generator_name(self) -> str:
+        """获取生成器名称"""
+        return self.GENERATOR_NAME
+
+    def get_generator_description(self) -> str:
+        """获取生成器描述"""
+        return self.GENERATOR_DESCRIPTION
 
     # 涉事方行为概率表（参考 NetLogo）
     PARTY_BEHAVIOR_PROFILES = {
@@ -1186,6 +1237,647 @@ class RandomEventGenerator:
         except Exception:
             pass
         return basic_desc
+
+
+# ─────────────────────────────────────────────────
+# 商业事件生成器
+# ─────────────────────────────────────────────────
+
+class BusinessEventGenerator(BaseRandomGenerator):
+    """商业事件生成器 - 生成商业场景下的各种事件"""
+
+    GENERATOR_TYPE = "business"
+    GENERATOR_NAME = "商业事件生成器"
+    GENERATOR_DESCRIPTION = "生成商业场景下的各种事件，包括投资、并购、产品发布、市场变化等"
+
+    # 商业事件类型
+    BUSINESS_ACTIONS = [
+        "investment", "acquisition", "merger", "product_launch",
+        "market_expansion", "restructuring", "ipo", "partnership",
+        "regulatory_change", "market_volatility", "partnership_dissolution",
+        "market_entry", "market_exit"
+    ]
+
+    # 公司库
+    COMPANIES = {
+        "tech": [
+            "科技创新集团", "数字先锋公司", "智能科技股份", "网络创新企业",
+            "数据智能公司", "云端科技集团", "人工智能实验室", "软件巨头科技",
+        ],
+        "finance": [
+            "华夏银行", "全球投资集团", "财富管理公司", "证券金融公司",
+            "保险集团", "资产管理公司", "信托投资公司", "私募股权基金",
+        ],
+        "retail": [
+            "零售巨头集团", "连锁超市股份", "电商平台公司", "购物中心集团",
+            "品牌运营公司", "供应链管理企业", "物流配送公司", "跨境贸易集团",
+        ],
+        "manufacturing": [
+            "重工业集团", "装备制造公司", "汽车制造企业", "电子产业集团",
+            "新能源公司", "新材料科技", "化工产业股份", "精密制造企业",
+        ],
+    }
+
+    # 地点库
+    LOCATIONS = [
+        "北京CBD", "上海陆家嘴", "深圳南山", "杭州西湖",
+        "广州天河", "成都高新区", "武汉光谷", "西安高新区",
+        "南京河西", "苏州工业园", "天津滨海", "重庆两江",
+    ]
+
+    # 事件描述模板
+    EVENT_TEMPLATES = {
+        "investment": [
+            "{company}获得{amount}投资，用于{purpose}",
+            "{company}完成{amount}融资，由{investor}领投",
+            "{investor}向{company}投资{amount}",
+        ],
+        "acquisition": [
+            "{company}收购{target}，交易金额{amount}",
+            "{company}完成对{target}的收购，进军{industry}行业",
+            "{target}被{company}以{amount}收购",
+        ],
+        "merger": [
+            "{company}与{partner}合并，组建{new_company}",
+            "{company}和{partner}宣布合并，市值达{amount}",
+        ],
+        "product_launch": [
+            "{company}发布新产品{product}，定位{position}",
+            "{company}推出{purpose}产品{product}",
+            "{company}的新产品{product}正式上市",
+        ],
+        "market_expansion": [
+            "{company}宣布进入{region}市场",
+            "{company}在{region}开设首家门店",
+            "{company}完成{region}市场的战略布局",
+        ],
+        "restructuring": [
+            "{company}宣布重大战略重组",
+            "{company}进行业务调整，聚焦{focus}",
+            "{company}优化组织架构，提升效率",
+        ],
+        "ipo": [
+            "{company}在{stock_market}上市，发行价{price}",
+            "{company}IPO申请获批，即将登陆{stock_market}",
+            "{company}成功上市，融资{amount}",
+        ],
+        "partnership": [
+            "{company}与{partner}建立战略合作",
+            "{company}和{partner}签署合作协议",
+            "{company}与{partner}联合开发{product}",
+        ],
+        "regulatory_change": [
+            "{industry}行业迎来新政策，{company}积极响应",
+            "{region}出台{industry}监管新规",
+            "监管变化影响{industry}，{company}调整策略",
+        ],
+        "market_volatility": [
+            "{stock_market}波动，{company}股价{change}",
+            "市场不确定性增加，{company}调整投资策略",
+            "{stock_market}指数{change}，{industry}板块承压",
+        ],
+    }
+
+    def __init__(self, llm_client=None):
+        self.llm = llm_client
+
+    def get_generator_name(self) -> str:
+        return self.GENERATOR_NAME
+
+    def get_generator_description(self) -> str:
+        return self.GENERATOR_DESCRIPTION
+
+    async def generate(
+        self,
+        count: int = 1,
+        context: dict = None,
+        scenario_id: str = None,
+    ) -> List[OntologyDocument]:
+        """生成商业事件"""
+        docs = []
+        for _ in range(count):
+            doc = await self._build_document(context, scenario_id)
+            docs.append(doc)
+        return docs
+
+    async def _build_document(self, context: dict, scenario_id: str) -> OntologyDocument:
+        """构建商业事件文档"""
+        import random
+        now = datetime.now(timezone.utc).isoformat()
+        date_str = datetime.now().strftime("%Y%m%d")
+
+        action_type = random.choice(self.BUSINESS_ACTIONS)
+        sector = random.choice(list(self.COMPANIES.keys()))
+        company = random.choice(self.COMPANIES[sector])
+        location = random.choice(self.LOCATIONS)
+
+        company_id = f"company-{uuid.uuid4().hex[:6]}"
+
+        # 随机生成金额
+        amounts = ["1亿元", "5亿元", "10亿元", "50亿元", "100亿元", "500亿元"]
+        amount = random.choice(amounts)
+
+        # 随机生成其他相关公司
+        other_sectors = [s for s in self.COMPANIES.keys() if s != sector]
+        if other_sectors:
+            target_sector = random.choice(other_sectors)
+        else:
+            target_sector = sector
+        target = random.choice(self.COMPANIES[target_sector])
+        partner = random.choice(self.COMPANIES[random.choice(list(self.COMPANIES.keys()))])
+
+        investor = random.choice(self.COMPANIES[random.choice(list(self.COMPANIES.keys()))])
+
+        # 生成产品
+        products = ["智能平台", "解决方案", "创新产品", "生态系统", "服务平台"]
+        product = random.choice(products)
+
+        purposes = ["技术研发", "市场拓展", "产品创新", "团队建设", "产业升级"]
+        purpose = random.choice(purposes)
+
+        positions = ["高端市场", "中端市场", "大众市场", "细分市场"]
+        position = random.choice(positions)
+
+        focuses = ["核心业务", "技术创新", "数字化转型", "绿色发展"]
+        focus = random.choice(focuses)
+
+        regions = ["华东地区", "华南地区", "华北地区", "西部地区", "海外市场"]
+        region = random.choice(regions)
+
+        industries = ["科技", "金融", "制造", "零售", "医疗"]
+        industry = random.choice(industries)
+
+        stock_markets = ["上交所", "深交所", "港交所", "纽交所", "纳斯达克"]
+        stock_market = random.choice(stock_markets)
+
+        prices = ["10元", "20元", "50元", "100元", "200元"]
+        price = random.choice(prices)
+
+        changes = ["大幅上涨5%", "上涨3%", "小幅上涨1%", "下跌2%", "大幅下跌5%", "波动加剧"]
+        change = random.choice(changes)
+
+        new_companies = ["创新集团", "联合企业", "控股公司", "产业集团"]
+        new_company = random.choice(new_companies)
+
+        # 获取模板
+        template = random.choice(self.EVENT_TEMPLATES.get(action_type, ["{company}完成{action_type}"]))
+        description = template.format(
+            company=company,
+            target=target,
+            partner=partner,
+            investor=investor,
+            amount=amount,
+            product=product,
+            purpose=purpose,
+            position=position,
+            region=region,
+            industry=industry,
+            stock_market=stock_market,
+            price=price,
+            change=change,
+            new_company=new_company,
+            focus=focus,
+        )
+
+        title = f"[商业] {company} - {action_type}"
+
+        doc = OntologyDocument(
+            doc_id=f"biz-{date_str}-{uuid.uuid4().hex[:6]}",
+            doc_type=DocType.EVENT.value,
+            source=DataSource(type=SourceType.RANDOM_GEN.value, collected_at=now, confidence=0.85),
+            meta=DocumentMeta(
+                title=title,
+                description=description,
+                tags=[sector, action_type, location],
+            ),
+            entities=[
+                OntologyEntity(
+                    entity_id=company_id,
+                    entity_type="Company",
+                    name=company,
+                    basic_properties={
+                        "sector": sector,
+                        "location": location,
+                    },
+                ),
+            ],
+            events=[
+                OntologyEvent(
+                    event_type=action_type,
+                    timestamp=now,
+                    location=location,
+                    participants=[company_id],
+                    description=description,
+                    outcome={"amount": amount, "status": "announced"},
+                ),
+            ],
+            ontology_version=VersionRef(commit_message=f"商业事件: {company} {action_type}"),
+            scenario_id=scenario_id,
+        )
+        return doc
+
+
+# ─────────────────────────────────────────────────
+# 科技事件生成器
+# ─────────────────────────────────────────────────
+
+class TechEventGenerator(BaseRandomGenerator):
+    """科技事件生成器 - 生成科技领域的事件"""
+
+    GENERATOR_TYPE = "tech"
+    GENERATOR_NAME = "科技事件生成器"
+    GENERATOR_DESCRIPTION = "生成科技领域的事件，包括技术突破、产品发布、融资、学术成果等"
+
+    TECH_ACTIONS = [
+        "breakthrough", "product_launch", "research", "patent",
+        "launch", "collaboration", "award", "funding",
+        "expansion", "launch_failure", "data_breach", "partnership"
+    ]
+
+    TECH_COMPANIES = [
+        "未来科技", "智能创新", "量子实验室", "生物科技公司",
+        "新能源技术", "量子计算中心", "AI研究院", "机器人公司",
+        "元宇宙科技", "区块链实验室", "云计算中心", "大数据公司",
+        "5G创新中心", "芯片设计公司", "自动驾驶研究院", "无人机技术公司",
+    ]
+
+    RESEARCH_AREAS = [
+        "人工智能", "量子计算", "生物医药", "新能源", "材料科学",
+        "航空航天", "深海探测", "脑科学", "基因编辑", "机器人",
+    ]
+
+    LOCATIONS = [
+        "北京中关村", "上海张江", "深圳南山", "杭州云栖",
+        "武汉光谷", "成都天府", "西安高新", "苏州工业园",
+    ]
+
+    EVENT_TEMPLATES = {
+        "breakthrough": [
+            "{company}在{area}领域取得重大突破",
+            "{company}宣布{area}研究获得突破性进展",
+            "{area}领域传来好消息，{company}实现技术跨越",
+        ],
+        "product_launch": [
+            "{company}发布新一代{product}",
+            "{company}的{product}正式亮相",
+            "{company}推出革命性产品{product}",
+        ],
+        "research": [
+            "{company}启动{area}研究计划",
+            "{company}与高校合作开展{area}研究",
+            "{company}在{area}领域发表重要论文",
+        ],
+        "patent": [
+            "{company}获得{area}技术专利",
+            "{company}申请的新专利获批",
+            "{company}在{area}领域专利布局加速",
+        ],
+        "award": [
+            "{company}荣获{award}奖项",
+            "{company}的{product}获得国际认可",
+            "{company}团队因{area}研究获奖",
+        ],
+        "funding": [
+            "{company}完成{amount}融资",
+            "{company}获得{amount}投资",
+            "{company}估值达{amount}",
+        ],
+        "expansion": [
+            "{company}成立海外研发中心",
+            "{company}在{location}建立研究基地",
+            "{company}业务扩展至{area}",
+        ],
+        "partnership": [
+            "{company}与{partner}建立战略合作",
+            "{company}与{partner}联合开发{product}",
+            "{company}与科研机构合作研究{area}",
+        ],
+    }
+
+    def __init__(self, llm_client=None):
+        self.llm = llm_client
+
+    def get_generator_name(self) -> str:
+        return self.GENERATOR_NAME
+
+    def get_generator_description(self) -> str:
+        return self.GENERATOR_DESCRIPTION
+
+    async def generate(
+        self,
+        count: int = 1,
+        context: dict = None,
+        scenario_id: str = None,
+    ) -> List[OntologyDocument]:
+        """生成科技事件"""
+        docs = []
+        for _ in range(count):
+            doc = await self._build_document(context, scenario_id)
+            docs.append(doc)
+        return docs
+
+    async def _build_document(self, context: dict, scenario_id: str) -> OntologyDocument:
+        """构建科技事件文档"""
+        import random
+        now = datetime.now(timezone.utc).isoformat()
+        date_str = datetime.now().strftime("%Y%m%d")
+
+        action_type = random.choice(self.TECH_ACTIONS)
+        company = random.choice(self.TECH_COMPANIES)
+        location = random.choice(self.LOCATIONS)
+        area = random.choice(self.RESEARCH_AREAS)
+
+        company_id = f"tech-{uuid.uuid4().hex[:6]}"
+
+        amounts = ["1000万元", "5000万元", "1亿元", "5亿元", "10亿元", "20亿元"]
+        amount = random.choice(amounts)
+
+        partners = ["清华大学", "北京大学", "中科院", "华为", "阿里达摩院", "腾讯AI Lab"]
+        partner = random.choice(partners)
+
+        products = ["智能平台", "AI芯片", "量子计算机", "机器人", "无人机", "操作系统"]
+        product = random.choice(products)
+
+        awards = ["科技进步一等奖", "最佳创新奖", "国际设计大奖", "技术突破奖"]
+        award = random.choice(awards)
+
+        template = random.choice(self.EVENT_TEMPLATES.get(action_type, ["{company}完成{action_type}"]))
+        description = template.format(
+            company=company,
+            partner=partner,
+            amount=amount,
+            area=area,
+            product=product,
+            award=award,
+            location=location,
+        )
+
+        title = f"[科技] {company} - {action_type}"
+
+        doc = OntologyDocument(
+            doc_id=f"tech-{date_str}-{uuid.uuid4().hex[:6]}",
+            doc_type=DocType.EVENT.value,
+            source=DataSource(type=SourceType.RANDOM_GEN.value, collected_at=now, confidence=0.85),
+            meta=DocumentMeta(
+                title=title,
+                description=description,
+                tags=["科技", action_type, area],
+            ),
+            entities=[
+                OntologyEntity(
+                    entity_id=company_id,
+                    entity_type="TechCompany",
+                    name=company,
+                    basic_properties={
+                        "sector": "technology",
+                        "location": location,
+                        "research_area": area,
+                    },
+                ),
+            ],
+            events=[
+                OntologyEvent(
+                    event_type=action_type,
+                    timestamp=now,
+                    location=location,
+                    participants=[company_id],
+                    description=description,
+                    outcome={"research_area": area, "status": "announced"},
+                ),
+            ],
+            ontology_version=VersionRef(commit_message=f"科技事件: {company} {action_type}"),
+            scenario_id=scenario_id,
+        )
+        return doc
+
+
+# ─────────────────────────────────────────────────
+# 医疗健康事件生成器
+# ─────────────────────────────────────────────────
+
+class HealthEventGenerator(BaseRandomGenerator):
+    """医疗健康事件生成器 - 生成医疗健康领域的事件"""
+
+    GENERATOR_TYPE = "healthcare"
+    GENERATOR_NAME = "医疗健康事件生成器"
+    GENERATOR_DESCRIPTION = "生成医疗健康领域的事件，包括新药研发、临床试验、医疗突破等"
+
+    HEALTH_ACTIONS = [
+        "drug_approval", "clinical_trial", "breakthrough", "research",
+        "device_approval", "outbreak", "vaccination", "treatment",
+        "partnership", "funding", "merger", "recall"
+    ]
+
+    MEDICAL_INSTITUTIONS = [
+        "仁和医院", "第一人民医院", "中心医院", "医药研究院",
+        "生物制药公司", "医疗器械集团", "基因科技公司", "疫苗研发中心",
+        "中医研究院", "专科医院集团", "体检中心", "康复医院",
+    ]
+
+    LOCATIONS = [
+        "北京协和医院", "上海华山医院", "广州中山医院", "成都华西医院",
+        "武汉同济医院", "南京鼓楼医院", "西安西京医院", "杭州浙一医院",
+    ]
+
+    DISEASES = [
+        "癌症", "糖尿病", "心血管疾病", "阿尔茨海默症", "帕金森症",
+        "艾滋病", "流感", "新冠肺炎", "肝炎", "肺炎",
+    ]
+
+    DRUGS = [
+        "创新靶向药", "新型疫苗", "生物制剂", "基因疗法",
+        "免疫治疗药物", "中药新药", "医疗器械", "诊断试剂",
+    ]
+
+    EVENT_TEMPLATES = {
+        "drug_approval": [
+            "{institution}的{drug}获得药监局批准上市",
+            "{institution}研发的新药{drug}获批",
+            "{drug}正式上市，用于治疗{disease}",
+        ],
+        "clinical_trial": [
+            "{institution}启动{drug}临床试验",
+            "{institution}开展{disease}新疗法临床试验",
+            "{drug}的III期临床试验取得积极结果",
+        ],
+        "breakthrough": [
+            "{institution}在{disease}治疗领域取得突破",
+            "{institution}的{drug}显示显著疗效",
+            "研究人员发现治疗{disease}的新方法",
+        ],
+        "outbreak": [
+            "{location}爆发{disease}疫情",
+            "{disease}疫情在{location}扩散",
+            "{institution}报告{disease}病例增加",
+        ],
+        "vaccination": [
+            "{institution}开展新疫苗接种工作",
+            "{location}启动大规模疫苗接种",
+            "{drug}疫苗接种率达标",
+        ],
+        "treatment": [
+            "{institution}采用新疗法治疗{disease}",
+            "{institution}成功实施{technique}手术",
+            "新型{therapy}疗法在{disease}治疗中应用",
+        ],
+        "partnership": [
+            "{institution}与{partner}合作研发新药",
+            "{institution}与科研机构合作研究{disease}",
+            "{institution}与{partner}建立医疗联盟",
+        ],
+        "funding": [
+            "{institution}获得{amount}医疗研发资金",
+            "{institution}的{research}项目获批资助",
+            "{drug}研发项目融资{amount}",
+        ],
+    }
+
+    def __init__(self, llm_client=None):
+        self.llm = llm_client
+
+    def get_generator_name(self) -> str:
+        return self.GENERATOR_NAME
+
+    def get_generator_description(self) -> str:
+        return self.GENERATOR_DESCRIPTION
+
+    async def generate(
+        self,
+        count: int = 1,
+        context: dict = None,
+        scenario_id: str = None,
+    ) -> List[OntologyDocument]:
+        """生成医疗健康事件"""
+        docs = []
+        for _ in range(count):
+            doc = await self._build_document(context, scenario_id)
+            docs.append(doc)
+        return docs
+
+    async def _build_document(self, context: dict, scenario_id: str) -> OntologyDocument:
+        """构建医疗健康事件文档"""
+        import random
+        now = datetime.now(timezone.utc).isoformat()
+        date_str = datetime.now().strftime("%Y%m%d")
+
+        action_type = random.choice(self.HEALTH_ACTIONS)
+        institution = random.choice(self.MEDICAL_INSTITUTIONS)
+        location = random.choice(self.LOCATIONS)
+        disease = random.choice(self.DISEASES)
+        drug = random.choice(self.DRUGS)
+
+        institution_id = f"medical-{uuid.uuid4().hex[:6]}"
+
+        amounts = ["1000万元", "5000万元", "1亿元", "5亿元", "10亿元"]
+        amount = random.choice(amounts)
+
+        partners = ["医学院", "研究所", "制药公司", "医疗器械厂", "疾控中心"]
+        partner = random.choice(partners)
+
+        techniques = ["机器人", "微创", "介入", "定向", "无创"]
+        technique = random.choice(techniques)
+
+        therapies = ["免疫治疗", "基因治疗", "细胞治疗", "靶向治疗"]
+        therapy = random.choice(therapies)
+
+        researches = ["新药研发", "临床试验", "精准医疗", "医疗器械"]
+        research = random.choice(researches)
+
+        template = random.choice(self.EVENT_TEMPLATES.get(action_type, ["{institution}完成{action_type}"]))
+        description = template.format(
+            institution=institution,
+            partner=partner,
+            amount=amount,
+            disease=disease,
+            drug=drug,
+            location=location,
+            technique=technique,
+            therapy=therapy,
+            research=research,
+        )
+
+        title = f"[医疗] {institution} - {action_type}"
+
+        doc = OntologyDocument(
+            doc_id=f"health-{date_str}-{uuid.uuid4().hex[:6]}",
+            doc_type=DocType.EVENT.value,
+            source=DataSource(type=SourceType.RANDOM_GEN.value, collected_at=now, confidence=0.85),
+            meta=DocumentMeta(
+                title=title,
+                description=description,
+                tags=["医疗", action_type, disease],
+            ),
+            entities=[
+                OntologyEntity(
+                    entity_id=institution_id,
+                    entity_type="MedicalInstitution",
+                    name=institution,
+                    basic_properties={
+                        "type": "hospital" if "医院" in institution else "research",
+                        "location": location,
+                    },
+                ),
+            ],
+            events=[
+                OntologyEvent(
+                    event_type=action_type,
+                    timestamp=now,
+                    location=location,
+                    participants=[institution_id],
+                    description=description,
+                    outcome={"disease": disease, "status": "announced"},
+                ),
+            ],
+            ontology_version=VersionRef(commit_message=f"医疗事件: {institution} {action_type}"),
+            scenario_id=scenario_id,
+        )
+        return doc
+
+
+# ─────────────────────────────────────────────────
+# 随机事件生成器工厂
+# ─────────────────────────────────────────────────
+
+class RandomEventGeneratorFactory:
+    """随机事件生成器工厂"""
+
+    _generators = {
+        "military": RandomEventGenerator,
+        "business": BusinessEventGenerator,
+        "tech": TechEventGenerator,
+        "healthcare": HealthEventGenerator,
+    }
+
+    _descriptions = {
+        "military": "军事战争事件生成器 - 生成进攻、巡逻、增援、撤退等军事行动",
+        "business": "商业事件生成器 - 生成投资、并购、产品发布等商业事件",
+        "tech": "科技事件生成器 - 生成技术突破、产品发布等科技事件",
+        "healthcare": "医疗健康事件生成器 - 生成新药研发、临床试验等医疗事件",
+    }
+
+    @classmethod
+    def get_generator(cls, generator_type: str, llm_client=None) -> BaseRandomGenerator:
+        """获取指定类型的生成器"""
+        generator_class = cls._generators.get(generator_type)
+        if not generator_class:
+            raise ValueError(f"未知的生成器类型: {generator_type}")
+        return generator_class(llm_client=llm_client)
+
+    @classmethod
+    def get_available_generators(cls) -> dict:
+        """获取所有可用的生成器及其描述"""
+        return {
+            gen_type: {
+                "class": gen_class,
+                "description": cls._descriptions.get(gen_type, ""),
+            }
+            for gen_type, gen_class in cls._generators.items()
+        }
+
+    @classmethod
+    def list_generator_types(cls) -> list:
+        """列出所有可用的生成器类型"""
+        return list(cls._generators.keys())
 
 
 # ─────────────────────────────────────────────────

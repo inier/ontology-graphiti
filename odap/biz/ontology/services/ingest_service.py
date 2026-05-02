@@ -663,19 +663,40 @@ class IngestService:
         parties: List[str],
         scenario_context: dict = None,
         count: int = 1,
-        scenario_id: str = None
+        scenario_id: str = None,
+        generator_type: str = "military"
     ) -> str:
-        """生成随机事件"""
+        """生成随机事件
+
+        Args:
+            parties: 参与方列表（如 ["红方", "蓝方"]）
+            scenario_context: 场景上下文
+            count: 生成事件数量
+            scenario_id: 场景ID
+            generator_type: 生成器类型（military/business/tech/healthcare）
+        """
+        from ..ingestion import RandomEventGeneratorFactory
+
+        # 使用工厂类创建对应类型的生成器
+        generator = RandomEventGeneratorFactory.get_generator(generator_type, self.llm_client)
+        generator_name = generator.get_generator_name()
+
         builder = IngestRecordBuilder(
             source='random',
-            source_details={'parties': parties, 'count': count},
-            original_content=f"随机生成 {count} 个事件，参与方: {parties}",
+            source_details={
+                'parties': parties,
+                'count': count,
+                'generator_type': generator_type,
+                'generator_name': generator_name
+            },
+            original_content=f"随机生成 {count} 个{generator_name}事件，参与方: {parties}",
             record_count=count
         )
         record_id, ingest_record = self.record_manager.create(builder)
 
         try:
-            documents = await self.random_event_generator.generate(
+            # 使用对应类型的生成器
+            documents = await generator.generate(
                 parties, scenario_context, count, scenario_id
             )
 
@@ -685,9 +706,9 @@ class IngestService:
 
             source_data = [{
                 'url': '',
-                'title': '随机事件生成',
-                'text': f"随机生成 {count} 个事件，参与方: {parties}",
-                'description': f"生成了 {count} 个随机事件，包含 {stats['entities']} 个实体，{stats['relations']} 个关系，{stats['events']} 个事件",
+                'title': generator_name,
+                'text': f"随机生成 {count} 个{generator_name}事件，参与方: {parties}",
+                'description': f"生成了 {count} 个{generator_name}事件，包含 {stats['entities']} 个实体，{stats['relations']} 个关系，{stats['events']} 个事件",
                 'publish_date': get_local_time().isoformat()
             }]
 
@@ -695,6 +716,8 @@ class IngestService:
                 'source_data': source_data,
                 'document_ids': document_ids,
                 'document_count': len(documents),
+                'generator_type': generator_type,
+                'generator_name': generator_name,
                 **stats
             }
 
@@ -703,6 +726,19 @@ class IngestService:
             self.record_manager.fail(ingest_record, e)
 
         return record_id
+
+    def get_random_generator_types(self) -> List[Dict[str, str]]:
+        """获取所有可用的随机事件生成器类型"""
+        from ..ingestion import RandomEventGeneratorFactory
+        types = RandomEventGeneratorFactory.list_generator_types()
+        return [
+            {
+                "type": t,
+                "name": RandomEventGeneratorFactory.get_generator(t, None).get_generator_name(),
+                "description": RandomEventGeneratorFactory.get_generator(t, None).get_generator_description()
+            }
+            for t in types
+        ]
 
     def _build_source_data_from_scrape(
         self,

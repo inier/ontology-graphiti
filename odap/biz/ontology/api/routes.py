@@ -212,12 +212,21 @@ async def ingest_from_natural_language(request: NaturalLanguageIngestRequest):
 
 @router.post("/random", response_model=IngestResponse)
 async def generate_random_events(request: RandomEventsRequest):
-    """生成随机事件"""
+    """生成随机事件
+
+    支持多种类型的随机事件生成：
+    - military: 军事战争事件（进攻、巡逻、增援、撤退等）
+    - business: 商业事件（投资、并购、产品发布等）
+    - tech: 科技事件（技术突破、研发成果等）
+    - healthcare: 医疗健康事件（新药研发、临床试验等）
+    """
+    generator_type = request.data.get("generator_type", "military")
     ingest_id = await ingest_service.generate_random_events(
         request.data.get("parties"),
         request.data.get("scenario_context"),
         request.data.get("count", 1),
-        request.scenario_id
+        request.scenario_id,
+        generator_type
     )
     ingest_record = ingest_service.get_ingest_status(ingest_id)
     status = ingest_record.get("status")
@@ -228,6 +237,13 @@ async def generate_random_events(request: RandomEventsRequest):
         original_content=ingest_record.get("original_content"),
         extracted_data=ingest_record.get("extracted_data")
     )
+
+@router.get("/random/generators")
+async def get_random_generator_types():
+    """获取所有可用的随机事件生成器类型"""
+    return {
+        "types": ingest_service.get_random_generator_types()
+    }
 
 @router.post("/tavily", response_model=IngestResponse)
 async def ingest_from_tavily(request: TavilyIngestRequest):

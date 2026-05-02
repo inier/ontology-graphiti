@@ -114,6 +114,14 @@ export function IngestPanel() {
     description: '',
   });
 
+  // 随机事件生成器类型
+  const [generatorTypes, setGeneratorTypes] = useState<Array<{
+    type: string;
+    name: string;
+    description: string;
+  }>>([]);
+  const [selectedGeneratorType, setSelectedGeneratorType] = useState('military');
+
   const [loading, setLoading] = useState(false);
   const [ingestHistory, setIngestHistory] = useState<IngestRecord[]>([]);
   const [loadingHistory, setLoadingHistory] = useState(false);
@@ -125,6 +133,7 @@ export function IngestPanel() {
 
   useEffect(() => {
     loadHistory();
+    loadGeneratorTypes();
   }, []);
 
   const loadHistory = useCallback(async () => {
@@ -166,6 +175,18 @@ export function IngestPanel() {
       setLoadingHistory(false);
     }
   }, []);
+
+  const loadGeneratorTypes = async () => {
+    try {
+      const result = await api.getRandomGeneratorTypes();
+      setGeneratorTypes(result.types);
+      if (result.types.length > 0) {
+        setSelectedGeneratorType(result.types[0].type);
+      }
+    } catch (error) {
+      console.error('加载生成器类型失败:', error);
+    }
+  };
 
   const runBuildPipeline = async (ingestId: string, source: string) => {
     setBuildingIngestId(ingestId);
@@ -480,7 +501,10 @@ export function IngestPanel() {
       setLoading(true);
       const result = await api.ingest({
         type: 'random',
-        data: { parties: ['蓝方', '红方'] },
+        data: { 
+          parties: ['蓝方', '红方'],
+          generator_type: selectedGeneratorType
+        },
         scenario_id: currentScenario,
       });
       message.success(`随机事件生成成功，摄入ID: ${result.ingest_id}`);
@@ -860,9 +884,28 @@ export function IngestPanel() {
       children: (
         <Card style={{ marginBottom: 16 }}>
           <Paragraph>生成随机的事件数据，用于测试和演示</Paragraph>
-          <Button type="primary" onClick={handleIngestRandom} loading={loading}>
-            生成随机事件
-          </Button>
+          <Space direction="vertical" style={{ width: '100%' }}>
+            <div>
+              <Text strong>事件类型：</Text>
+              <Select
+                value={selectedGeneratorType}
+                onChange={setSelectedGeneratorType}
+                style={{ width: 300, marginLeft: 8 }}
+                options={generatorTypes.map(t => ({
+                  value: t.type,
+                  label: t.name,
+                }))}
+              />
+            </div>
+            {generatorTypes.find(t => t.type === selectedGeneratorType) && (
+              <Text type="secondary">
+                {generatorTypes.find(t => t.type === selectedGeneratorType)?.description}
+              </Text>
+            )}
+            <Button type="primary" onClick={handleIngestRandom} loading={loading}>
+              生成随机事件
+            </Button>
+          </Space>
         </Card>
       ),
     },

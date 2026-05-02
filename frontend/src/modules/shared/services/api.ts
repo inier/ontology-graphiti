@@ -359,7 +359,7 @@ export const api = {
   },
 
   async ingestRandomEvents(request: {
-    data: { parties: string[]; scenario_context?: Record<string, unknown>; count?: number };
+    data: { parties: string[]; scenario_context?: Record<string, unknown>; count?: number; generator_type?: string };
     scenario_id?: string;
   }): Promise<{ 
     ingest_id: string; 
@@ -372,6 +372,16 @@ export const api = {
       method: 'POST',
       body: JSON.stringify(request),
     });
+  },
+
+  async getRandomGeneratorTypes(): Promise<{
+    types: Array<{
+      type: string;
+      name: string;
+      description: string;
+    }>;
+  }> {
+    return fetchJson(`${API_BASE}/api/ontology/ingest/random/generators`);
   },
 
   async getIngestStatus(ingestId: string): Promise<{
