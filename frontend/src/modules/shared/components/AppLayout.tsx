@@ -15,7 +15,6 @@ import {
   AuditOutlined,
   AppstoreOutlined,
   SearchOutlined,
-  PlaySquareOutlined,
 } from '@ant-design/icons';
 import { api } from '../services/api';
 import type { Scenario } from '../types';
@@ -93,9 +92,7 @@ const menuItems = [
     children: [
       { key: '/ontology', icon: <BlockOutlined />, label: '本体语义网络' },
       { key: '/ingest', icon: <UploadOutlined />, label: '数据摄入' },
-      { key: '/workspace', icon: <BlockOutlined />, label: '工作空间' },
       { key: '/versions', icon: <HistoryOutlined />, label: '版本管理' },
-      { key: '/ontology/builder', icon: <FileTextOutlined />, label: '本体构建' },
     ],
   },
   {
@@ -103,10 +100,11 @@ const menuItems = [
     icon: <SettingOutlined />,
     label: '系统配置区',
     children: [
+      { key: '/workspace', icon: <BlockOutlined />, label: '工作空间' },
+      { key: '/audit', icon: <AuditOutlined />, label: '审计日志' },
       { key: '/roles', icon: <TeamOutlined />, label: '角色管理' },
       { key: '/policies', icon: <FileTextOutlined />, label: 'OPA 策略' },
       { key: '/skills', icon: <AppstoreOutlined />, label: 'Skill 管理' },
-      { key: '/audit', icon: <AuditOutlined />, label: '审计日志' },
       { key: '/config', icon: <SettingOutlined />, label: '配置中心' },
     ],
   },
@@ -116,12 +114,10 @@ export function AppLayout({ children, currentWorkspace, onWorkspaceChange }: App
   const [collapsed, setCollapsed] = useState(false);
   const [workspaces, setWorkspaces] = useState<Workspace[]>([]);
   const [currentWorkspaceState, setCurrentWorkspaceState] = useState<string>(() => {
-    // 优先从 localStorage 读取已保存的工作空间
     return localStorage.getItem('currentWorkspaceId') || '';
   });
   const [scenarios, setScenarios] = useState<Scenario[]>([]);
   const [currentScenarioState, setCurrentScenarioState] = useState<string>(() => {
-    // 优先从 localStorage 读取已保存的场景
     return localStorage.getItem('currentScenarioId') || '';
   });
   const [loading, setLoading] = useState(true);
@@ -129,7 +125,6 @@ export function AppLayout({ children, currentWorkspace, onWorkspaceChange }: App
   const navigate = useNavigate();
   const location = useLocation();
 
-  // 优先使用 props，如果没有则使用内部状态
   const activeWorkspaceId = currentWorkspace || currentWorkspaceState;
 
   useEffect(() => {
@@ -148,8 +143,7 @@ export function AppLayout({ children, currentWorkspace, onWorkspaceChange }: App
       const data = await api.listWorkspaces();
       console.log('Workspaces data:', data);
       setWorkspaces(data);
-      
-      // 如果没有设置过工作空间，或者当前工作空间不在列表中，自动选择第一个
+
       const savedWorkspaceId = localStorage.getItem('currentWorkspaceId');
       if (data.length > 0) {
         if (!savedWorkspaceId || !data.find(w => w.workspace_id === savedWorkspaceId)) {
@@ -173,8 +167,7 @@ export function AppLayout({ children, currentWorkspace, onWorkspaceChange }: App
       const data = await api.getScenariosInWorkspace(workspaceId);
       console.log('Scenarios data:', data);
       setScenarios(data.scenarios || []);
-      
-      // 如果没有设置过场景，或者当前场景不在列表中，自动选择第一个
+
       const savedScenarioId = localStorage.getItem('currentScenarioId');
       if (data.scenarios && data.scenarios.length > 0) {
         if (!savedScenarioId || !data.scenarios.find(s => s.scenario_id === savedScenarioId)) {
@@ -188,32 +181,21 @@ export function AppLayout({ children, currentWorkspace, onWorkspaceChange }: App
       }
     } catch (error) {
       console.error('加载场景列表失败:', error);
-      // 场景加载失败不显示错误，因为可能没有场景
     } finally {
       setScenariosLoading(false);
     }
   };
 
   const handleWorkspaceChange = (value: string) => {
-    // 保存到 localStorage
     localStorage.setItem('currentWorkspaceId', value);
-    
-    // 更新内部状态
     setCurrentWorkspaceState(value);
-    
-    // 调用回调（如果提供）
     onWorkspaceChange?.(value);
-    
     message.success('已切换工作空间');
   };
 
   const handleScenarioChange = (value: string) => {
-    // 保存到 localStorage
     localStorage.setItem('currentScenarioId', value);
-    
-    // 更新内部状态
     setCurrentScenarioState(value);
-    
     message.success('已切换场景');
   };
 
@@ -296,7 +278,6 @@ export function AppLayout({ children, currentWorkspace, onWorkspaceChange }: App
               }}
             >
               <div style={{ display: 'flex', alignItems: 'center', gap: 24 }}>
-                {/* 工作空间选择 */}
                 <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
                   <span style={{ fontSize: 14, fontWeight: 500, color: '#666' }}>工作空间:</span>
                   {loading ? (
@@ -315,8 +296,7 @@ export function AppLayout({ children, currentWorkspace, onWorkspaceChange }: App
                     <span style={{ color: '#8c8c8c', fontSize: 14 }}>暂无工作空间</span>
                   )}
                 </div>
-                
-                {/* 场景选择 */}
+
                 <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
                   <span style={{ fontSize: 14, fontWeight: 500, color: '#666' }}>场景:</span>
                   {scenariosLoading ? (
@@ -356,7 +336,7 @@ export function AppLayout({ children, currentWorkspace, onWorkspaceChange }: App
                 </div>
               </div>
             </Header>
-            <Content style={{ padding: 16, minHeight: 'calc(100vh - 64px)', overflow: "hidden" }}>
+            <Content style={{ padding: 16, minHeight: 'calc(100vh - 64px)' }}>
               {children}
             </Content>
           </Layout>

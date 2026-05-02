@@ -1000,22 +1000,34 @@ class GraphManager:
 
     def _search_neo4j_keyword(self, query_text: str, limit: int = 5) -> List[Dict]:
         """Neo4j 关键词检索模式"""
-        # 清理查询词：去掉所有 user:/用户: 前缀和换行
-        clean_query = query_text
-        # 去掉所有 user: / 用户: 前缀及其后面的内容（到换行为止）
+        # 清理查询词：提取 user:/用户: 后面的内容
         import re
-        clean_query = re.sub(r'(?i)user:\s*[^\n]*', '', clean_query)
-        clean_query = re.sub(r'用户:\s*[^\n]*', '', clean_query)
+        
+        # 提取 user: 或 用户: 后面的内容
+        matches = re.findall(r'(?i)(?:user:|用户:)\s*([^\n]+)', query_text)
+        if matches:
+            # 去重并合并
+            unique_matches = list(dict.fromkeys(matches))  # 保持顺序的去重
+            clean_query = " ".join(unique_matches)
+        else:
+            clean_query = query_text
+        
         # 清理换行和多余空格
         clean_query = clean_query.replace("\n", " ").replace("\r", " ")
         clean_query = " ".join(clean_query.split())  # 合并多余空格
 
         print(f"[DEBUG] _search_neo4j_keyword: original='{query_text}', cleaned='{clean_query}'")
+        
+        # 如果查询词为空，返回空结果
+        if not clean_query:
+            print("[DEBUG] 查询词为空，返回空结果")
+            return []
+            
         try:
             with self.neo4j_driver.session() as session:
                 cypher = (
                     "MATCH (n) "
-                    "WHERE n.id CONTAINS $q OR n.name CONTAINS $q "
+                    "WHERE n.id CONTAINS $q OR n.name CONTAINS $q OR n.properties.name CONTAINS $q "
                     "RETURN n.id AS id, labels(n) AS labels, properties(n) AS props "
                     "LIMIT $lmt"
                 )
@@ -1224,7 +1236,7 @@ class GraphManager:
 
     def search_hybrid(self, query_text: str, top_k: int = 5, vector_weight: float = 0.7, keyword_weight: float = 0.3) -> List[Dict]:
         """
-        混合检索（向量 + 关键词），回退模式委托给 search()
+        混合检索（向量 + 关键词）
 
         Args:
             query_text: 查询文本
@@ -1235,94 +1247,78 @@ class GraphManager:
         Returns:
             检索结果列表
         """
-        # 优先使用 Neo4j driver（如果可用）
+        # 回退模式：使用内存图搜索
+        if self._use_fallback or not self._connected:
+            print(f"[DEBUG] 使用回退模式搜索: '{query_text}'")
+            return self._search_fallback(query_text, limit=top_k)
+        
+        # Graphiti模式：优先使用 graphiti 的混合检索
+        if self.graph and self._connected:
+            async def hybrid_search():
+                try:
+                    # 1. 向量检索（Graphiti search）
+                    vector_results = await self.graph.search(query=query_text, num_results=top_k)
+
+                    # 2. 关键词检索（Neo4j CONTAINS）
+                    keyword_results = []
+                    if self.neo4j_driver:
+                        try:
+                            with self.neo4j_driver.session() as session:
+                                cypher = (
+                                    "MATCH (n) WHERE n.id CONTAINS $q OR n.name CONTAINS $q "
+                                    "RETURN n.id AS id, labels(n) AS labels, properties(n) AS props LIMIT $lmt"
+                                )
+                                result = session.run(cypher, q=query_text, lmt=top_k)
+                                keyword_results = [
+                                    {
+                                        "id": record["id"],
+                                        "type": [l for l in record["labels"] if l != "Entity"][0] if len(record["labels"]) > 1 else "Entity",
+                                        "properties": record["props"],
+                                        "score": 0.5  # 默认关键词得分
+                                    }
+                                    for record in result
+                                ]
+                        except Exception as e:
+                            print(f"Neo4j关键词检索失败: {e}")
+
+                    # 3. 合并结果（去重）
+                    combined = {}
+                    for r in vector_results:
+                        entity_id = r.name or str(r.uuid)
+                        combined[entity_id] = {
+                            "id": entity_id,
+                            "type": "EntityEdge",
+                            "properties": {
+                                "fact": r.fact,
+                                "source_node": r.source_node_uuid,
+                                "target_node": r.target_node_uuid,
+                            },
+                            "score": r.score if hasattr(r, 'score') else 0.7
+                        }
+
+                    for r in keyword_results:
+                        if r["id"] not in combined:
+                            combined[r["id"]] = r
+
+                    # 按得分排序
+                    final_results = sorted(combined.values(), key=lambda x: x.get("score", 0), reverse=True)[:top_k]
+                    return final_results
+
+                except Exception as e:
+                    print(f"Graphiti混合检索失败: {e}")
+                    # 降级到 Neo4j 关键词检索
+                    if self.neo4j_driver:
+                        return self._search_neo4j_keyword(query_text, limit=top_k)
+                    raise RuntimeError("Graphiti检索失败，且没有可用的降级方案")
+
+            return asyncio.run(hybrid_search())
+
+        # Neo4j driver 模式
         if self.neo4j_driver:
             return self._search_neo4j_keyword(query_text, limit=top_k)
 
-        # Graphiti 模式
-        if self.graph and not self._use_fallback and self._connected:
-            return self._search_graphiti(query_text, limit=top_k)
-
-        # Fallback 模式
-        return self._search_fallback(query_text, limit=top_k)
-
-        # Graphiti模式：使用 graphiti 的 search（返回 EntityEdge）
-        async def hybrid_search():
-            try:
-                # 1. 向量检索（Graphiti search）
-                vector_results = await self.graph.search(query=query_text, num_results=top_k)
-
-                # 2. 关键词检索（Neo4j CONTAINS）
-                keyword_results = []
-                if self.neo4j_driver:
-                    try:
-                        with self.neo4j_driver.session() as session:
-                            cypher = (
-                                "MATCH (n) WHERE n.id CONTAINS $q OR n.name CONTAINS $q "
-                                "RETURN n.id AS id, labels(n) AS labels, properties(n) AS props LIMIT $lmt"
-                            )
-                            result = session.run(cypher, q=query_text, lmt=top_k)
-                            keyword_results = [
-                                {
-                                    "id": record["id"],
-                                    "type": [l for l in record["labels"] if l != "Entity"][0] if len(record["labels"]) > 1 else "Entity",
-                                    "properties": record["props"],
-                                    "score": 0.5  # 默认关键词得分
-                                }
-                                for record in result
-                            ]
-                    except Exception as e:
-                        print(f"关键词检索失败: {e}")
-
-                # 3. 合并结果并根据权重计算最终得分
-                result_map = {}
-
-                # 处理向量检索结果
-                for i, r in enumerate(vector_results):
-                    result_id = r.name or str(r.uuid)
-                    score = (top_k - i) / top_k * vector_weight  # 排名越靠前得分越高
-                    result_map[result_id] = {
-                        "id": result_id,
-                        "type": "EntityEdge",
-                        "properties": {
-                            "fact": r.fact,
-                            "source_node": r.source_node_uuid,
-                            "target_node": r.target_node_uuid,
-                        },
-                        "score": score
-                    }
-
-                # 处理关键词检索结果
-                for i, r in enumerate(keyword_results):
-                    result_id = r["id"]
-                    score = (top_k - i) / top_k * keyword_weight  # 排名越靠前得分越高
-                    if result_id in result_map:
-                        # 如果已存在，加权合并得分
-                        result_map[result_id]["score"] += score
-                    else:
-                        # 否则添加新结果
-                        r["score"] = score
-                        result_map[result_id] = r
-
-                # 4. 按得分排序并返回前top_k结果
-                sorted_results = sorted(result_map.values(), key=lambda x: x["score"], reverse=True)[:top_k]
-                return sorted_results
-
-            except Exception as e:
-                print(f"Graphiti混合检索失败，降级到 fallback: {e}")
-                return self._search_fallback(query_text, limit=top_k)
-
-        # 处理已在事件循环中的情况
-        try:
-            loop = asyncio.get_running_loop()
-            # 在事件循环中，创建 task
-            import concurrent.futures
-            with concurrent.futures.ThreadPoolExecutor() as pool:
-                future = pool.submit(asyncio.run, hybrid_search())
-                return future.result()
-        except RuntimeError:
-            # 没有运行中的事件循环
-            return asyncio.run(hybrid_search())
+        # 没有可用的检索方式
+        raise RuntimeError("Neo4j 连接不可用，无法执行查询")
 
     def reserve_task(self, task_data: Dict) -> str:
         """
@@ -1464,7 +1460,7 @@ class GraphManager:
             with self.neo4j_driver.session() as session:
                 cypher = (
                     "MATCH (n) "
-                    "WHERE n.id CONTAINS $q OR n.name CONTAINS $q "
+                    "WHERE n.id CONTAINS $q OR n.name CONTAINS $q OR n.properties.name CONTAINS $q "
                     "RETURN n.id AS id, labels(n) AS labels, properties(n) AS props "
                     "LIMIT $lmt"
                 )

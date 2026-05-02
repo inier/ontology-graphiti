@@ -180,7 +180,7 @@ export function SimulatorConsole({ onStart, onPause, onStop }: SimulatorConsoleP
                 title="红方战力"
                 value={simState.redPower}
                 suffix="%"
-                valueStyle={{ color: '#ff4d4f' }}
+                styles={{ content: { color: '#ff4d4f' } }}
               />
               <Progress percent={simState.redPower} showInfo={false} strokeColor="#ff4d4f" style={{ marginTop: 8 }} />
             </Col>
@@ -189,7 +189,7 @@ export function SimulatorConsole({ onStart, onPause, onStop }: SimulatorConsoleP
                 title="蓝方战力"
                 value={simState.bluePower}
                 suffix="%"
-                valueStyle={{ color: '#1890ff' }}
+                styles={{ content: { color: '#1890ff' } }}
               />
               <Progress percent={simState.bluePower} showInfo={false} strokeColor="#1890ff" style={{ marginTop: 8 }} />
             </Col>
@@ -197,10 +197,10 @@ export function SimulatorConsole({ onStart, onPause, onStop }: SimulatorConsoleP
 
           <Row gutter={16} style={{ marginTop: 24 }}>
             <Col span={12}>
-              <Statistic title="红方伤亡" value={simState.redCasualties} valueStyle={{ color: '#ff4d4f' }} />
+              <Statistic title="红方伤亡" value={simState.redCasualties} styles={{ content: { color: '#ff4d4f' } }} />
             </Col>
             <Col span={12}>
-              <Statistic title="蓝方伤亡" value={simState.blueCasualties} valueStyle={{ color: '#1890ff' }} />
+              <Statistic title="蓝方伤亡" value={simState.blueCasualties} styles={{ content: { color: '#1890ff' } }} />
             </Col>
           </Row>
 

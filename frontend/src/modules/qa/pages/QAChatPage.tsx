@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { Layout, Typography, Button, Avatar, Empty, Tooltip, message, Divider, Modal } from 'antd';
-import { SendOutlined, UserOutlined, RobotOutlined, PlusOutlined, DeleteOutlined, SettingOutlined, LeftOutlined, RightOutlined, StarOutlined } from '@ant-design/icons';
+import { SendOutlined, UserOutlined, RobotOutlined, PlusOutlined, DeleteOutlined, SettingOutlined, LeftOutlined, RightOutlined, StarOutlined, HistoryOutlined } from '@ant-design/icons';
 import { useQAI } from '../hooks/useQAI';
 import type { QAMessage } from '../hooks/useQAI';
 import { useSession } from '../hooks/useSession';
@@ -765,6 +765,7 @@ const chatInputStyles = css`
     padding: 8px 16px;
     border: 2px solid transparent;
     transition: all 0.3s ease;
+    position: relative;
 
     &:focus-within {
       border-color: ${colors.primary};
@@ -826,6 +827,79 @@ const chatInputStyles = css`
     text-align: center;
   }
 
+  .history-dropdown {
+    position: absolute;
+    bottom: 100%;
+    left: 16px;
+    right: 16px;
+    margin-bottom: 8px;
+    background: #ffffff;
+    border-radius: 12px;
+    box-shadow: 0 -4px 20px rgba(0, 0, 0, 0.1);
+    border: 1px solid #e5e7eb;
+    max-height: 300px;
+    overflow: hidden;
+    display: flex;
+    flex-direction: column;
+  }
+
+  .history-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 12px 16px;
+    border-bottom: 1px solid #e5e7eb;
+    font-weight: 600;
+    color: #1f2937;
+    font-size: 14px;
+  }
+
+  .history-list {
+    flex: 1;
+    overflow-y: auto;
+    padding: 8px;
+  }
+
+  .history-item {
+    padding: 10px 12px;
+    border-radius: 8px;
+    cursor: pointer;
+    font-size: 14px;
+    color: #374151;
+    transition: background-color 0.2s;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+
+    &:hover {
+      background-color: #f3f4f6;
+    }
+  }
+
+  .history-button {
+    position: absolute;
+    right: 12px;
+    top: 50%;
+    transform: translateY(-50%);
+    background: transparent;
+    border: none;
+    color: #9ca3af;
+    cursor: pointer;
+    padding: 4px;
+    border-radius: 6px;
+    transition: all 0.2s;
+
+    &:hover {
+      color: #6b7280;
+      background-color: #f3f4f6;
+    }
+
+    svg {
+      width: 16px;
+      height: 16px;
+    }
+  }
+
   @media (max-width: 576px) {
     padding: 16px;
 
@@ -834,6 +908,70 @@ const chatInputStyles = css`
     }
   }
 `;
+
+function useInputHistory() {
+  const [history, setHistory] = React.useState<string[]>(() => {
+    const stored = localStorage.getItem('qa_input_history');
+    return stored ? JSON.parse(stored) : [];
+  });
+  const [historyIndex, setHistoryIndex] = React.useState(-1);
+
+  React.useEffect(() => {
+    localStorage.setItem('qa_input_history', JSON.stringify(history));
+  }, [history]);
+
+  const addToHistory = (text: string) => {
+    if (!text.trim()) return;
+    setHistory(prev => {
+      const filtered = prev.filter(h => h !== text.trim());
+      return [text.trim(), ...filtered].slice(0, 50);
+    });
+    setHistoryIndex(-1);
+  };
+
+  const getPrevious = (currentValue: string): string => {
+    if (history.length === 0) return currentValue;
+    
+    let newIndex: number;
+    if (historyIndex === -1) {
+      newIndex = 0;
+    } else if (historyIndex < history.length - 1) {
+      newIndex = historyIndex + 1;
+    } else {
+      newIndex = historyIndex;
+    }
+    setHistoryIndex(newIndex);
+    return history[newIndex];
+  };
+
+  const getNext = (currentValue: string): string => {
+    if (historyIndex === -1) return currentValue;
+    
+    let newIndex: number;
+    if (historyIndex > 0) {
+      newIndex = historyIndex - 1;
+    } else {
+      newIndex = -1;
+      return '';
+    }
+    setHistoryIndex(newIndex);
+    return history[newIndex];
+  };
+
+  const clearHistory = () => {
+    setHistory([]);
+    setHistoryIndex(-1);
+  };
+
+  return {
+    history,
+    historyIndex,
+    addToHistory,
+    getPrevious,
+    getNext,
+    clearHistory,
+  };
+}
 
 function ChatInput({ 
   value, 
@@ -849,11 +987,28 @@ function ChatInput({
   isLoading: boolean; 
 }) {
   const inputRef = React.useRef<HTMLTextAreaElement>(null);
+  const [showHistoryDropdown, setShowHistoryDropdown] = React.useState(false);
+  const { history, addToHistory, getPrevious, getNext } = useInputHistory();
+
+  const handleKeyDown = (e: React.KeyboardEvent<HTMLTextAreaElement>) => {
+    if (e.key === 'ArrowUp') {
+      e.preventDefault();
+      const newValue = getPrevious(value);
+      onChange(newValue);
+    } else if (e.key === 'ArrowDown') {
+      e.preventDefault();
+      const newValue = getNext(value);
+      onChange(newValue);
+    } else if (e.key === 'Escape') {
+      setShowHistoryDropdown(false);
+    }
+  };
 
   const handleKeyPress = (e: React.KeyboardEvent<HTMLTextAreaElement>) => {
     if (e.key === 'Enter' && !e.shiftKey) {
       e.preventDefault();
       if (!isLoading) {
+        addToHistory(value);
         onSend();
       }
     }
@@ -861,6 +1016,12 @@ function ChatInput({
 
   const handleChange = (e: React.ChangeEvent<HTMLTextAreaElement>) => {
     onChange(e.target.value);
+  };
+
+  const handleSelectHistory = (text: string) => {
+    onChange(text);
+    setShowHistoryDropdown(false);
+    inputRef.current?.focus();
   };
 
   React.useEffect(() => {
@@ -871,6 +1032,31 @@ function ChatInput({
 
   return (
     <div className={chatInputStyles}>
+      {showHistoryDropdown && history.length > 0 && (
+        <div className="history-dropdown">
+          <div className="history-header">
+            <span>历史记录</span>
+            <Button 
+              type="text" 
+              size="small" 
+              onClick={() => setShowHistoryDropdown(false)}
+            >
+              关闭
+            </Button>
+          </div>
+          <div className="history-list">
+            {history.slice(0, 20).map((item, index) => (
+              <div
+                key={index}
+                className="history-item"
+                onClick={() => handleSelectHistory(item)}
+              >
+                {item}
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
       <div className="input-container">
         <div className="input-wrapper">
           <textarea
@@ -879,10 +1065,18 @@ function ChatInput({
             value={value}
             onChange={handleChange}
             onKeyPress={handleKeyPress}
+            onKeyDown={handleKeyDown}
             placeholder="输入您的问题..."
             rows={1}
             disabled={isLoading}
           />
+          <button 
+            className="history-button"
+            onClick={() => setShowHistoryDropdown(!showHistoryDropdown)}
+            title="历史记录"
+          >
+            <HistoryOutlined />
+          </button>
         </div>
         {isLoading ? (
           <Button
@@ -896,13 +1090,16 @@ function ChatInput({
             className="send-button"
             type="primary"
             icon={<SendOutlined />}
-            onClick={onSend}
+            onClick={() => {
+              addToHistory(value);
+              onSend();
+            }}
             disabled={!value.trim()}
           />
         )}
       </div>
       <div className="input-hint">
-        按 Enter 发送，Shift + Enter 换行
+        按 Enter 发送，Shift + Enter 换行，↑↓ 切换历史
       </div>
     </div>
   );

@@ -8,7 +8,19 @@ import os
 # 尝试加载环境变量
 try:
     from dotenv import load_dotenv
-    load_dotenv()
+    
+    # 检测环境
+    in_docker = os.getenv('IN_DOCKER', 'false').lower() == 'true'
+    
+    if in_docker:
+        # Docker 环境：优先 .env.docker
+        print("检测到 Docker 环境，使用 .env.docker")
+        load_dotenv('.env.docker', override=True)
+    else:
+        # 本地环境：优先 .env.local
+        print("检测到本地环境，使用 .env.local")
+        load_dotenv('.env.local', override=True)
+        load_dotenv('.env', override=False)
 except ImportError:
     # 如果没有dotenv，使用默认值
     pass

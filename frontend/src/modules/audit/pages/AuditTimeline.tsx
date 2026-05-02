@@ -208,7 +208,7 @@ export function AuditTimeline() {
         </Col>
         <Col span={6}>
           <Card>
-            <Statistic title="CRITICAL 事件" value={stats.critical} valueStyle={{ color: '#ff4d4f' }} />
+            <Statistic title="CRITICAL 事件" value={stats.critical} styles={{ content: { color: '#ff4d4f' } }} />
           </Card>
         </Col>
         <Col span={6}>
@@ -217,7 +217,7 @@ export function AuditTimeline() {
               title="完整性验证"
               value={stats.integrity_valid ? '有效' : '无效'}
               prefix={<SafetyCertificateOutlined />}
-              valueStyle={{ color: stats.integrity_valid ? '#52c41a' : '#ff4d4f' }}
+              styles={{ content: { color: stats.integrity_valid ? '#52c41a' : '#ff4d4f' } }}
               extra={<Button size="small" onClick={handleVerifyIntegrity}>验证</Button>}
             />
           </Card>
@@ -292,7 +292,7 @@ export function AuditTimeline() {
       <Drawer
         title="审计事件详情"
         placement="right"
-        width={600}
+        size="large"
         onClose={() => setDrawerVisible(false)}
         open={drawerVisible}
       >

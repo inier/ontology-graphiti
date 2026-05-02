@@ -23,3 +23,16 @@ Thumbs.db
 
 # Logs
 *.log
+
+# Test databases
+*.db
+*.db-shm
+*.db-wal
+tests/data/*.db
+tests/data/*.db-shm
+tests/data/*.db-wal
+
+# Temporary data
+data/
+*.tmp
+*.temp

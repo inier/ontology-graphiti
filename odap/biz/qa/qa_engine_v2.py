@@ -188,7 +188,7 @@ class RAGPipeline:
 
     def retrieve(self, query: str, top_k: int = 5) -> List[RAGResult]:
         """
-        检索相关文档
+        检索相关信息
 
         Args:
             query: 查询文本
@@ -198,22 +198,34 @@ class RAGPipeline:
             检索结果列表
         """
         if not self.graphiti:
-            return self._mock_retrieve(query, top_k)
+            raise RuntimeError("Graphiti 连接不可用，无法执行查询")
 
         try:
             search_results = self.graphiti.search_hybrid(query, top_k)
-            return [
-                RAGResult(
-                    content=str(r.get("properties", {}).get("body", "")),
+            results = []
+            for r in search_results:
+                props = r.get("properties", {})
+                content = str(props.get("body", ""))
+                if not content:
+                    content = str(props.get("description", ""))
+                if not content:
+                    content = str(props.get("name", ""))
+                if not content:
+                    content = str(props.get("fact", ""))
+                
+                results.append(RAGResult(
+                    content=content,
                     source=r.get("id", "unknown"),
-                    score=0.8,
+                    score=r.get("score", 0.8),
                     metadata=r
-                )
-                for r in search_results
-            ]
+                ))
+            return results
+        except RuntimeError as e:
+            print(f"RAG 检索失败: {e}")
+            raise e
         except Exception as e:
             print(f"RAG 检索失败: {e}")
-            return self._mock_retrieve(query, top_k)
+            raise RuntimeError(f"RAG 检索失败: {e}")
 
     def _mock_retrieve(self, query: str, top_k: int) -> List[RAGResult]:
         """Mock 检索"""
@@ -241,10 +253,9 @@ class RAGPipeline:
         if not results:
             return "未找到相关信息。"
 
-        context_parts = ["参考信息:\n"]
+        context_parts = []
         for i, r in enumerate(results, 1):
             context_parts.append(f"[{i}] {r.content}")
-            context_parts.append(f"    来源: {r.source}\n")
 
         return "\n".join(context_parts)
 
@@ -297,44 +308,48 @@ class SourceTracer:
     def __init__(self, graphiti_client=None):
         self.graphiti = graphiti_client
 
-    def trace(self, answer: str, query: str) -> List[SourceTrace]:
+    def trace(self, answer: str, query: str, rag_results: List["RAGResult"] = None) -> List[SourceTrace]:
         """
         追踪答案来源
 
         Args:
             answer: 生成的回答
             query: 原始查询
+            rag_results: RAG检索结果
 
         Returns:
             溯源列表
         """
+        if "未找到" in answer or "无法找到" in answer or "未查询到" in answer:
+            return []
+
         traces = []
 
-        if not self.graphiti:
-            traces.append(SourceTrace(
-                episode_id="mock_episode_1",
-                entity_id=None,
-                confidence=0.8,
-                excerpt=f"基于查询 '{query}' 生成的回答"
-            ))
-            return traces
-
-        try:
-            entities = self.graphiti.query_entities()
-            for entity in entities[:3]:
+        if rag_results:
+            for r in rag_results[:3]:
+                props = r.metadata.get("properties", {}) if r.metadata else {}
+                name = props.get("name", r.source)
                 traces.append(SourceTrace(
                     episode_id=None,
-                    entity_id=entity.get("id"),
-                    confidence=0.7,
-                    excerpt=f"实体: {entity.get('id')}"
+                    entity_id=r.source,
+                    confidence=r.score,
+                    excerpt=name,
+                    source=name
                 ))
-        except Exception:
-            traces.append(SourceTrace(
-                episode_id="fallback_trace",
-                entity_id=None,
-                confidence=0.5,
-                excerpt="使用默认溯源"
-            ))
+        elif self.graphiti:
+            try:
+                entities = self.graphiti.query_entities()
+                for entity in entities[:3]:
+                    entity_name = entity.get("properties", {}).get("name", entity.get("id", ""))
+                    traces.append(SourceTrace(
+                        episode_id=None,
+                        entity_id=entity.get("id"),
+                        confidence=0.7,
+                        excerpt=entity_name,
+                        source=entity_name
+                    ))
+            except Exception:
+                pass
 
         return traces
 
@@ -396,85 +411,96 @@ class QAEngineV2:
 
         self.dialog_manager.add_message(session_id, "user", query)
 
-        dialog_context = self.dialog_manager.get_context(session_id)
-        full_query = f"{dialog_context}\n用户: {query}" if dialog_context else query
+        try:
+            dialog_context = self.dialog_manager.get_context(session_id)
+            full_query = f"{dialog_context}\n用户: {query}" if dialog_context else query
 
-        temporal_params = self.temporal_parser.parse(query)
+            temporal_params = self.temporal_parser.parse(query)
 
-        if temporal_params["has_temporal"] and self.graphiti:
-            entities = self.graphiti.query_temporal(
-                valid_time=temporal_params.get("valid_time"),
-                transaction_time=temporal_params.get("transaction_time")
-            )
-        else:
-            entities = self.graphiti.query_entities() if self.graphiti else []
+            if temporal_params["has_temporal"] and self.graphiti:
+                entities = self.graphiti.query_temporal(
+                    valid_time=temporal_params.get("valid_time"),
+                    transaction_time=temporal_params.get("transaction_time")
+                )
+            else:
+                entities = self.graphiti.query_entities() if self.graphiti else []
 
-        rag_results = self.rag_pipeline.retrieve(full_query, top_k=5)
-        context_text = self.rag_pipeline.generate_context(rag_results)
+            rag_results = self.rag_pipeline.retrieve(full_query, top_k=5)
+            context_text = self.rag_pipeline.generate_context(rag_results)
 
-        answer = self._generate_answer(query, context_text, entities)
+            answer = self._generate_answer(query, context_text, rag_results)
 
-        if "未找到相关信息" in answer:
-            traces = []
-        else:
-            traces = self.source_tracer.trace(answer, query)
+            if "未找到相关信息" in answer:
+                traces = []
+            else:
+                traces = self.source_tracer.trace(answer, query, rag_results)
 
-        self.dialog_manager.add_message(session_id, "assistant", answer, {
-            "traces": [{"source": t.source, "excerpt": t.excerpt} for t in traces],
-            "rag_results": len(rag_results)
-        })
+            self.dialog_manager.add_message(session_id, "assistant", answer, {
+                "traces": [{"source": t.source, "excerpt": t.excerpt} for t in traces],
+                "rag_results": len(rag_results)
+            })
 
-        return {
-            "session_id": session_id,
-            "answer": answer,
-            "sources": [{"source": t.source, "excerpt": t.excerpt, "confidence": t.confidence} for t in traces],
-            "dialog_state": session.state.value if session else "unknown"
-        }
+            return {
+                "session_id": session_id,
+                "answer": answer,
+                "sources": [{"source": t.source, "excerpt": t.excerpt, "confidence": t.confidence} for t in traces],
+                "dialog_state": session.state.value if session else "unknown"
+            }
+        except RuntimeError as e:
+            error_msg = str(e)
+            self.dialog_manager.add_message(session_id, "assistant", error_msg, {
+                "traces": [],
+                "rag_results": 0
+            })
+            return {
+                "session_id": session_id,
+                "answer": error_msg,
+                "sources": [],
+                "dialog_state": "error",
+                "error": error_msg
+            }
 
     def ask_with_tools(self, query: str, user_id: str = "user",
                       session_id: str = None) -> Dict[str, Any]:
         """带工具调用的问答"""
         return self.ask(query, user_id, session_id)
 
-    def _generate_answer(self, query: str, context: str, entities: List[Dict]) -> str:
+    def _generate_answer(self, query: str, context: str, rag_results: List["RAGResult"]) -> str:
         """生成回答"""
         if self.use_mock:
-            return self._mock_generate(query, context, entities)
+            return self._mock_generate(query, context, rag_results)
 
         query_lower = query.lower()
         if "雷达" in query_lower:
-            return self._answer_radar(query, context, entities)
+            return self._answer_radar(query, context, rag_results)
         elif "力量" in query_lower and "对比" in query_lower:
-            return self._answer_force_comparison(query, context, entities)
+            return self._answer_force_comparison(query, context, rag_results)
         elif any(kw in query_lower for kw in ["态势", "分析"]):
-            return self._answer_situation(query, context, entities)
+            return self._answer_situation(query, context, rag_results)
         else:
-            return self._answer_general(query, context, entities)
+            return self._answer_general(query, context, rag_results)
 
-    def _mock_generate(self, query: str, context: str, entities: List[Dict]) -> str:
+    def _mock_generate(self, query: str, context: str, rag_results: List["RAGResult"]) -> str:
         """Mock 生成回答"""
-        return f"根据您的问题 '{query}'，这是基于 {len(entities)} 个实体和上下文信息的回答。\n\n{context[:200]}..."
+        return f"根据您的问题 '{query}'，这是基于 {len(rag_results)} 条检索结果和上下文信息的回答。\n\n{context[:200]}..."
 
-    def _answer_radar(self, query: str, context: str, entities: List[Dict]) -> str:
+    def _answer_radar(self, query: str, context: str, rag_results: List["RAGResult"]) -> str:
         """回答雷达相关问题"""
-        radars = [e for e in entities if "radar" in e.get("type", "").lower()]
-        if radars:
-            return f"找到 {len(radars)} 个雷达目标:\n" + "\n".join([f"- {r.get('id')}: {r.get('properties', {})}" for r in radars[:5]])
-        return "未找到雷达目标信息。"
+        return f"找到 {len(rag_results)} 个相关目标:\n" + "\n".join([f"- {r.content}" for r in rag_results[:5]])
 
-    def _answer_force_comparison(self, query: str, context: str, entities: List[Dict]) -> str:
+    def _answer_force_comparison(self, query: str, context: str, rag_results: List["RAGResult"]) -> str:
         """回答力量对比问题"""
         return "力量对比分析:\n红方: 部队A (100人), 坦克B (20辆)\n蓝方: 部队C (80人), 坦克D (15辆)\n结论: 红方在兵力上占优势。"
 
-    def _answer_situation(self, query: str, context: str, entities: List[Dict]) -> str:
+    def _answer_situation(self, query: str, context: str, rag_results: List["RAGResult"]) -> str:
         """回答态势问题"""
-        return f"当前态势概览:\n- 监控目标总数: {len(entities)}\n- A区: 5个目标\n- B区: 3个目标\n- C区: 7个目标"
+        return f"当前态势概览:\n- 监控目标总数: {len(rag_results)}\n- A区: 5个目标\n- B区: 3个目标\n- C区: 7个目标"
 
-    def _answer_general(self, query: str, context: str, entities: List[Dict]) -> str:
+    def _answer_general(self, query: str, context: str, rag_results: List["RAGResult"]) -> str:
         """回答一般问题"""
         if "未找到相关信息" in context:
             return f"针对您的问题 '{query}'，未找到相关信息。"
-        return f"针对您的问题 '{query}'，我找到了 {len(entities)} 条相关信息。\n\n{context[:300]}"
+        return f"针对您的问题 '{query}'，我找到了 {len(rag_results)} 条相关信息。\n\n{context}"
 
     def get_dialog_history(self, session_id: str) -> List[Dict]:
         """获取对话历史"""

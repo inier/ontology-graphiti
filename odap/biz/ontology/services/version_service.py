@@ -201,3 +201,88 @@ class VersionManagementService:
             版本历史记录
         """
         return self.manager.get_version_history(ontology_id)
+    
+    def bind_version_to_scenario(self, version_id: str, scenario_id: str, is_current: bool = True) -> Dict[str, Any]:
+        """绑定版本到场景
+        
+        Args:
+            version_id: 版本ID
+            scenario_id: 场景ID
+            is_current: 是否设为当前版本
+            
+        Returns:
+            绑定结果
+        """
+        try:
+            # 先取消该场景当前版本的绑定
+            self.manager.unset_current_version(scenario_id)
+            
+            # 创建新的绑定关系
+            self.manager.bind_version(version_id, scenario_id, is_current)
+            
+            return {
+                "status": "success",
+                "version_id": version_id,
+                "scenario_id": scenario_id,
+                "is_current": is_current
+            }
+        except Exception as e:
+            return {
+                "status": "error",
+                "message": str(e)
+            }
+    
+    def get_scenarios_for_version(self, version_id: str) -> List[Dict[str, Any]]:
+        """获取版本绑定的所有场景
+        
+        Args:
+            version_id: 版本ID
+            
+        Returns:
+            场景列表
+        """
+        return self.manager.get_scenarios_by_version(version_id)
+    
+    def get_versions_for_scenario(self, scenario_id: str) -> List[Dict[str, Any]]:
+        """获取场景绑定的所有版本
+        
+        Args:
+            scenario_id: 场景ID
+            
+        Returns:
+            版本列表
+        """
+        return self.manager.get_versions_by_scenario(scenario_id)
+    
+    def unbind_version_from_scenario(self, version_id: str, scenario_id: str) -> Dict[str, Any]:
+        """解除版本与场景的绑定
+        
+        Args:
+            version_id: 版本ID
+            scenario_id: 场景ID
+            
+        Returns:
+            解绑结果
+        """
+        try:
+            self.manager.unbind_version(version_id, scenario_id)
+            return {
+                "status": "success",
+                "version_id": version_id,
+                "scenario_id": scenario_id
+            }
+        except Exception as e:
+            return {
+                "status": "error",
+                "message": str(e)
+            }
+
+
+_version_service_instance = None
+
+def get_version_service() -> VersionManagementService:
+    """获取版本管理服务实例（单例）"""
+    global _version_service_instance
+    if _version_service_instance is None:
+        _version_service_instance = VersionManagementService()
+    return _version_service_instance

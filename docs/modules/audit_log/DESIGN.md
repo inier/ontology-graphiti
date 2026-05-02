@@ -81,6 +81,22 @@ class AuditEventType(str, Enum):
     ONTOLOGY_UPDATE = "ontology.update"
     ONTOLOGY_VERSION = "ontology.version"
     ONTOLOGY_ROLLBACK = "ontology.rollback"
+    ONTOLOGY_BUILD = "ontology.build"
+
+    # 数据摄入
+    DATA_INGESTION = "data.ingestion"
+
+    # 数据转换
+    DATA_TRANSFORMATION = "data.transformation"
+
+    # 模型推理
+    MODEL_INFERENCE = "model.inference"
+
+    # 图更新
+    GRAPH_UPDATE = "graph.update"
+
+    # 版本管理
+    VERSION_CREATE = "version.create"
 
     # Agent 操作
     AGENT_EXECUTE = "agent.execute"

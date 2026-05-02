@@ -48,6 +48,10 @@ class OntologyVersion(BaseModel):
     created_by: str = "system"
     is_current: bool = False
     is_stable: bool = False
+    ingest_id: Optional[str] = None  # 关联的摄入记录ID
+    logs: List[Dict[str, Any]] = Field(default_factory=list)  # 处理日志
+    entity_count: int = 0  # 实体数量
+    relation_count: int = 0  # 关系数量
 
 
 class VersionComparison(BaseModel):

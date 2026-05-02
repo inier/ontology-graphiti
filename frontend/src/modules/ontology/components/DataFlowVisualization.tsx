@@ -167,7 +167,7 @@ function SourceDataPanel({ question, documents, searchResults, onDocumentPreview
       style={{ height: '100%', borderRadius: 8 }}
       bodyStyle={{ padding: 0 }}
     >
-      <div style={{ padding: 16 }}>
+      <div>
         <div style={{ marginBottom: 16 }}>
           <Text type="secondary" style={{ fontSize: 12, display: 'block', marginBottom: 8 }}>
             用户问题

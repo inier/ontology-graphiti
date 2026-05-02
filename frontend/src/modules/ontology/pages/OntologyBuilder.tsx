@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react';
 import { Card, Row, Col, Tabs, Button, Space, Table, Tag, Select, Input, Steps, Divider } from 'antd';
 import { DatabaseOutlined, FileTextOutlined, LayoutOutlined, PlayCircleOutlined, RollbackOutlined } from '@ant-design/icons';
-import { PageHeader, useScenario } from '../../shared';
+import { useScenario } from '../../shared';
 
 const { TextArea } = Input;
 
@@ -182,17 +182,18 @@ export function OntologyBuilder() {
   };
 
   const renderRawDataStep = () => (
-    <Card>
+    <Card size="small">
       <TextArea
-        rows={10}
+        rows={8}
         placeholder="请输入原始文本数据..."
         value={rawData}
         onChange={(e) => setRawData(e.target.value)}
-        style={{ marginBottom: 16 }}
+        style={{ marginBottom: 12 }}
       />
       <div style={{ textAlign: 'center' }}>
         <Button 
           type="primary" 
+          size="small"
           icon={<PlayCircleOutlined />}
           onClick={handleExtract}
           loading={loading}
@@ -205,8 +206,8 @@ export function OntologyBuilder() {
   );
 
   const renderExtractionStep = () => (
-    <Card>
-      <Tabs activeKey={activeTab} onChange={setActiveTab}>
+    <Card size="small">
+      <Tabs activeKey={activeTab} onChange={setActiveTab} size="small">
         <Tabs.TabPane tab="实体" key="entities">
           <Table
             dataSource={extractionResult.entities}
@@ -224,6 +225,7 @@ export function OntologyBuilder() {
               }
             ]}
             rowKey="id"
+            size="small"
           />
         </Tabs.TabPane>
         <Tabs.TabPane tab="关系" key="relations">
@@ -236,6 +238,7 @@ export function OntologyBuilder() {
               { title: '目标', dataIndex: 'target', key: 'target' }
             ]}
             rowKey="id"
+            size="small"
           />
         </Tabs.TabPane>
         <Tabs.TabPane tab="事件" key="events">
@@ -248,13 +251,15 @@ export function OntologyBuilder() {
               { title: '时间', dataIndex: 'timestamp', key: 'timestamp' }
             ]}
             rowKey="id"
+            size="small"
           />
         </Tabs.TabPane>
       </Tabs>
-      <Divider />
+      <Divider style={{ margin: '12px 0' }} />
       <div style={{ textAlign: 'center' }}>
         <Button 
           type="primary" 
+          size="small"
           icon={<DatabaseOutlined />}
           onClick={handleBuildOntology}
           loading={loading}
@@ -266,18 +271,19 @@ export function OntologyBuilder() {
   );
 
   const renderOntologyStep = () => (
-    <Card>
-      <Row gutter={16}>
+    <Card size="small">
+      <Row gutter={12}>
         <Col span={8}>
-          <Card title="版本管理" style={{ height: '100%' }}>
+          <Card style={{ height: '100%' }} size="small">
             <Select
-              style={{ width: '100%', marginBottom: 16 }}
+              style={{ width: '100%', marginBottom: 12 }}
               value={selectedVersion}
               onChange={setSelectedVersion}
               options={ontologyVersions.map(version => ({
                 label: `${version.version_id} - ${version.commit_message}`,
                 value: version.version_id
               }))}
+              size="small"
             />
             <Table
               dataSource={ontologyVersions}
@@ -307,16 +313,16 @@ export function OntologyBuilder() {
           </Card>
         </Col>
         <Col span={16}>
-          <Card title="本体定义" style={{ height: '100%' }}>
-            <div style={{ padding: 20 }}>
-              <h3>当前版本: {selectedVersion}</h3>
-              <p>实体数量: {extractionResult.entities.length}</p>
-              <p>关系数量: {extractionResult.relations.length}</p>
-              <p>事件数量: {extractionResult.events.length}</p>
-              <Divider />
-              <h4>本体结构预览</h4>
-              <div style={{ border: '1px solid #f0f0f0', padding: 16, borderRadius: 4, backgroundColor: '#fafafa' }}>
-                <pre style={{ margin: 0, fontSize: 12 }}>
+          <Card style={{ height: '100%' }} size="small">
+            <div style={{ padding: 12 }}>
+              <div>当前版本: {selectedVersion}</div>
+              <div>实体数量: {extractionResult.entities.length}</div>
+              <div>关系数量: {extractionResult.relations.length}</div>
+              <div>事件数量: {extractionResult.events.length}</div>
+              <Divider style={{ margin: '12px 0' }} />
+              <div>本体结构预览</div>
+              <div style={{ border: '1px solid #f0f0f0', padding: 12, borderRadius: 4, backgroundColor: '#fafafa', marginTop: 8 }}>
+                <pre style={{ margin: 0, fontSize: 11 }}>
                   {JSON.stringify({
                     entities: extractionResult.entities,
                     relations: extractionResult.relations,
@@ -332,10 +338,8 @@ export function OntologyBuilder() {
   );
 
   return (
-    <div style={{ padding: 24 }}>
-      <PageHeader title="本体构建" />
-      
-      <Card style={{ marginBottom: 16 }}>
+    <div>
+      <Card style={{ marginBottom: 12 }} size="small">
         <Steps
           current={currentStep}
           items={steps.map((step) => ({
@@ -343,7 +347,8 @@ export function OntologyBuilder() {
             description: step.description,
             icon: step.icon
           }))}
-          style={{ marginBottom: 24 }}
+          style={{ marginBottom: 12 }}
+          size="small"
         />
         
         <div style={{ minHeight: 400 }}>
@@ -352,11 +357,12 @@ export function OntologyBuilder() {
           {currentStep === 2 && renderOntologyStep()}
         </div>
         
-        <Divider />
+        <Divider style={{ margin: '12px 0' }} />
         
         <div style={{ textAlign: 'center' }}>
           <Space>
             <Button 
+              size="small"
               icon={<RollbackOutlined />}
               onClick={handlePrevious}
               disabled={currentStep === 0}
@@ -366,6 +372,7 @@ export function OntologyBuilder() {
             {currentStep < 2 && (
               <Button 
                 type="primary" 
+                size="small"
                 icon={<PlayCircleOutlined />}
                 onClick={handleNext}
                 loading={loading}

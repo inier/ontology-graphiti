@@ -121,7 +121,7 @@ export function SessionDrawer({ open, onClose, onSelectSession }: SessionDrawerP
         </Space>
       }
       placement="right"
-      width={400}
+      size="large"
       onClose={onClose}
       open={open}
       className={drawerStyles}

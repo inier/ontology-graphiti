@@ -398,12 +398,12 @@ export function WorkspaceManager() {
         </Col>
         <Col span={6}>
           <Card>
-            <Statistic title="活跃工作空间" value={activeCount} valueStyle={{ color: '#52c41a' }} loading={loading} />
+            <Statistic title="活跃工作空间" value={activeCount} styles={{ content: { color: '#52c41a' } }} loading={loading} />
           </Card>
         </Col>
         <Col span={6}>
           <Card>
-            <Statistic title="已停用" value={inactiveCount} valueStyle={{ color: '#ff4d4f' }} loading={loading} />
+            <Statistic title="已停用" value={inactiveCount} styles={{ content: { color: '#ff4d4f' } }} loading={loading} />
           </Card>
         </Col>
         <Col span={6}>

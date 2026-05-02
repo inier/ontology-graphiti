@@ -285,12 +285,12 @@ export function ConfigCenter() {
             </Col>
             <Col span={6}>
               <Card>
-                <Statistic title="在线集群" value={clusters.filter(c => c.status === 'active').length} valueStyle={{ color: '#52c41a' }} />
+                <Statistic title="在线集群" value={clusters.filter(c => c.status === 'active').length} styles={{ content: { color: '#52c41a' } }} />
               </Card>
             </Col>
             <Col span={6}>
               <Card>
-                <Statistic title="离线集群" value={clusters.filter(c => c.status === 'inactive').length} valueStyle={{ color: '#ff4d4f' }} />
+                <Statistic title="离线集群" value={clusters.filter(c => c.status === 'inactive').length} styles={{ content: { color: '#ff4d4f' } }} />
               </Card>
             </Col>
             <Col span={6}>

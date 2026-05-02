@@ -100,7 +100,7 @@ export function OntologyGraph() {
       <Drawer
         title="实体详情"
         placement="right"
-        width={400}
+        size="large"
         open={!!selectedNode}
         onClose={() => setSelectedNode(null)}
       >

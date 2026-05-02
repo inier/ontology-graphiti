@@ -129,6 +129,41 @@ class SQLiteIngestStorage:
             )
         ''')
         
+        # 创建处理日志表（用于保存管道每阶段的处理记录）
+        cursor.execute('''
+            CREATE TABLE IF NOT EXISTS process_logs (
+                id TEXT PRIMARY KEY,
+                ingest_id TEXT NOT NULL,
+                stage TEXT NOT NULL,
+                operation TEXT NOT NULL,
+                details TEXT,
+                status TEXT NOT NULL DEFAULT 'pending',
+                error_message TEXT,
+                duration_ms REAL,
+                timestamp TEXT NOT NULL,
+                FOREIGN KEY (ingest_id) REFERENCES ingest_records(id)
+            )
+        ''')
+        
+        # 创建构建历史表（关联摄入记录和构建结果）
+        cursor.execute('''
+            CREATE TABLE IF NOT EXISTS build_history (
+                id TEXT PRIMARY KEY,
+                ingest_id TEXT NOT NULL,
+                build_id TEXT NOT NULL,
+                version_id TEXT,
+                document_id TEXT,
+                entity_count INTEGER DEFAULT 0,
+                relation_count INTEGER DEFAULT 0,
+                event_count INTEGER DEFAULT 0,
+                status TEXT NOT NULL,
+                start_time TEXT NOT NULL,
+                end_time TEXT,
+                duration_seconds REAL,
+                FOREIGN KEY (ingest_id) REFERENCES ingest_records(id)
+            )
+        ''')
+        
         conn.commit()
         conn.close()
     
@@ -272,8 +307,10 @@ class SQLiteIngestStorage:
                 'end_time': row[9],
                 'duration_seconds': row[10],
                 'errors': self._deserialize_json(row[11]),
+                'quality_metrics': self._deserialize_json(row[12]),
                 'extracted_data': self._deserialize_json(row[13]),
-                'original_content': row[14]
+                'original_content': row[14],
+                'created_by': row[15]
             })
         return records
     
@@ -737,3 +774,140 @@ class SQLiteIngestStorage:
         """获取验证规则"""
         # 这里可以添加验证规则表的实现
         return []
+    
+    # 处理日志相关（管道每阶段的处理记录）
+    def save_process_log(self, log: Dict[str, Any]) -> str:
+        """保存处理日志（管道每阶段的处理记录）"""
+        conn = sqlite3.connect(self.db_path)
+        cursor = conn.cursor()
+        
+        cursor.execute('''
+            INSERT INTO process_logs 
+            (id, ingest_id, stage, operation, details, status, error_message, duration_ms, timestamp)
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+        ''', (
+            log.get('id'),
+            log.get('ingest_id'),
+            log.get('stage'),
+            log.get('operation'),
+            self._serialize_json(log.get('details')),
+            log.get('status', 'pending'),
+            log.get('error_message'),
+            log.get('duration_ms'),
+            log.get('timestamp')
+        ))
+        
+        conn.commit()
+        conn.close()
+        return log.get('id')
+    
+    def get_process_logs(self, ingest_id: str) -> List[Dict[str, Any]]:
+        """获取某摄入记录的所有处理日志"""
+        conn = sqlite3.connect(self.db_path)
+        cursor = conn.cursor()
+        
+        cursor.execute('SELECT * FROM process_logs WHERE ingest_id = ? ORDER BY timestamp', (ingest_id,))
+        rows = cursor.fetchall()
+        
+        conn.close()
+        
+        logs = []
+        for row in rows:
+            logs.append({
+                'id': row[0],
+                'ingest_id': row[1],
+                'stage': row[2],
+                'operation': row[3],
+                'details': self._deserialize_json(row[4]),
+                'status': row[5],
+                'error_message': row[6],
+                'duration_ms': row[7],
+                'timestamp': row[8]
+            })
+        return logs
+    
+    # 构建历史相关（关联摄入记录和构建结果）
+    def save_build_history(self, build_history: Dict[str, Any]) -> str:
+        """保存构建历史记录"""
+        conn = sqlite3.connect(self.db_path)
+        cursor = conn.cursor()
+        
+        cursor.execute('''
+            INSERT OR REPLACE INTO build_history 
+            (id, ingest_id, build_id, version_id, document_id, entity_count, 
+             relation_count, event_count, status, start_time, end_time, duration_seconds)
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+        ''', (
+            build_history.get('id'),
+            build_history.get('ingest_id'),
+            build_history.get('build_id'),
+            build_history.get('version_id'),
+            build_history.get('document_id'),
+            build_history.get('entity_count', 0),
+            build_history.get('relation_count', 0),
+            build_history.get('event_count', 0),
+            build_history.get('status'),
+            build_history.get('start_time'),
+            build_history.get('end_time'),
+            build_history.get('duration_seconds')
+        ))
+        
+        conn.commit()
+        conn.close()
+        return build_history.get('id')
+    
+    def get_build_history(self, ingest_id: str) -> Optional[Dict[str, Any]]:
+        """获取某摄入记录的构建历史"""
+        conn = sqlite3.connect(self.db_path)
+        cursor = conn.cursor()
+        
+        cursor.execute('SELECT * FROM build_history WHERE ingest_id = ? ORDER BY start_time DESC LIMIT 1', (ingest_id,))
+        row = cursor.fetchone()
+        
+        conn.close()
+        
+        if not row:
+            return None
+        
+        return {
+            'id': row[0],
+            'ingest_id': row[1],
+            'build_id': row[2],
+            'version_id': row[3],
+            'document_id': row[4],
+            'entity_count': row[5],
+            'relation_count': row[6],
+            'event_count': row[7],
+            'status': row[8],
+            'start_time': row[9],
+            'end_time': row[10],
+            'duration_seconds': row[11]
+        }
+    
+    def get_all_build_history(self, limit: int = 100) -> List[Dict[str, Any]]:
+        """获取所有构建历史记录"""
+        conn = sqlite3.connect(self.db_path)
+        cursor = conn.cursor()
+        
+        cursor.execute('SELECT * FROM build_history ORDER BY start_time DESC LIMIT ?', (limit,))
+        rows = cursor.fetchall()
+        
+        conn.close()
+        
+        history = []
+        for row in rows:
+            history.append({
+                'id': row[0],
+                'ingest_id': row[1],
+                'build_id': row[2],
+                'version_id': row[3],
+                'document_id': row[4],
+                'entity_count': row[5],
+                'relation_count': row[6],
+                'event_count': row[7],
+                'status': row[8],
+                'start_time': row[9],
+                'end_time': row[10],
+                'duration_seconds': row[11]
+            })
+        return history

@@ -98,7 +98,7 @@ export function OntologySemanticNetwork() {
       <Drawer
         title="节点详情"
         placement="right"
-        width={400}
+        size="large"
         open={!!selectedNode}
         onClose={() => setSelectedNode(null)}
       >

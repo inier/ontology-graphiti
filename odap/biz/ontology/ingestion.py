@@ -232,14 +232,14 @@ class NewsIngester:
                 logger.info(f"本地 DuckDuckGo API 返回 {len(results)} 条结果")
                 return results
 
-    async def _search_tavily(self, query: str, max_results: int) -> List[Dict[str, Any]]:
+    async def _search_tavily(self, query: str, max_results: int, search_depth: str = "basic") -> List[Dict[str, Any]]:
         """Tavily API 检索"""
         import aiohttp
         url = "https://api.tavily.com/search"
         payload = {
             "api_key": self._tavily_api_key,
             "query": query,
-            "search_depth": "basic",
+            "search_depth": search_depth,
             "max_results": max_results,
         }
         async with aiohttp.ClientSession() as session:

@@ -174,9 +174,11 @@ export function GraphCanvas({ nodes, edges, onNodeClick, onEdgeClick, onRefresh 
 
         if (graphRef.current) {
           try {
-            graphRef.current.destroy();
+            if (graphRef.current.destroy) {
+              graphRef.current.destroy();
+            }
           } catch (e) {
-            // 忽略销毁错误
+            console.warn('销毁旧图实例失败:', e);
           }
           graphRef.current = null;
         }
@@ -236,34 +238,43 @@ export function GraphCanvas({ nodes, edges, onNodeClick, onEdgeClick, onRefresh 
 
         if (!mounted) {
           try {
-            graph.destroy();
+            if (graph.destroy) {
+              graph.destroy();
+            }
           } catch (e) {
-            // 忽略销毁错误
+            console.warn('组件已卸载，销毁图实例失败:', e);
           }
           return;
         }
 
-        graph.render();
+        try {
+          graph.render();
+        } catch (e) {
+          console.error('G6 渲染失败:', e);
+          return;
+        }
 
         graph.on('node:click', (evt: any) => {
           if (!mounted) return;
           try {
-            const nodeId = evt.item.get('id');
+            const nodeId = evt.item?.get?.('id');
+            if (nodeId === undefined || nodeId === null) return;
             const node = nodes.find((n) => n.id === nodeId);
             if (node) onNodeClick?.(node);
           } catch (e) {
-            // 忽略事件处理错误
+            console.warn('节点点击事件处理错误:', e);
           }
         });
 
         graph.on('edge:click', (evt: any) => {
-          if (!mounted || !currentGraph) return;
+          if (!mounted) return;
           try {
-            const edgeId = evt.item.get('id');
+            const edgeId = evt.item?.get?.('id');
+            if (edgeId === undefined || edgeId === null) return;
             const edge = edges.find((e) => e.id === edgeId);
             if (edge) onEdgeClick?.(edge);
           } catch (e) {
-            // 忽略事件处理错误
+            console.warn('边点击事件处理错误:', e);
           }
         });
 
@@ -280,17 +291,21 @@ export function GraphCanvas({ nodes, edges, onNodeClick, onEdgeClick, onRefresh 
       mounted = false;
       if (currentGraph) {
         try {
-          currentGraph.destroy();
+          if (currentGraph.destroy) {
+            currentGraph.destroy();
+          }
         } catch (e) {
-          // 忽略销毁错误
+          console.warn('清理 currentGraph 失败:', e);
         }
         currentGraph = null;
       }
       if (graphRef.current) {
         try {
-          graphRef.current.destroy();
+          if (graphRef.current.destroy) {
+            graphRef.current.destroy();
+          }
         } catch (e) {
-          // 忽略销毁错误
+          console.warn('清理 graphRef 失败:', e);
         }
         graphRef.current = null;
       }

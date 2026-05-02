@@ -200,10 +200,9 @@ class VersionChange(BaseModel):
     changed_by: str = "system"
 
 class OntologyVersion(BaseModel):
-    """本体版本"""
+    """本体版本（全局唯一）"""
     id: str = Field(default_factory=lambda: str(uuid.uuid4()))
-    ontology_id: str
-    version_number: str
+    version_number: str  # 格式: 1.0.{timestamp}，全局唯一
     parent_version_id: Optional[str] = None
     status: VersionStatus = VersionStatus.DRAFT
     changes: List[VersionChange] = Field(default_factory=list)
@@ -212,6 +211,16 @@ class OntologyVersion(BaseModel):
     created_by: str = "system"
     is_current: bool = False
     is_stable: bool = False
+    ingest_id: Optional[str] = None  # 关联的数据摄入ID
+
+class ScenarioVersionBinding(BaseModel):
+    """场景与版本绑定关系（多对多）"""
+    id: str = Field(default_factory=lambda: str(uuid.uuid4()))
+    version_id: str
+    scenario_id: str
+    is_current: bool = True
+    bound_at: datetime = Field(default_factory=datetime.now)
+    bound_by: str = "system"
 
 class VersionComparison(BaseModel):
     """版本对比"""
@@ -375,7 +384,7 @@ class IOntologyBuilder(ABC):
 ```python
 # ontology_management_engine/interfaces/version.py
 from abc import ABC, abstractmethod
-from typing import Dict, Any, Optional
+from typing import Dict, Any, Optional, List
 
 class IVersionManager(ABC):
     """版本管理器接口"""
@@ -383,17 +392,19 @@ class IVersionManager(ABC):
     @abstractmethod
     async def create_version(
         self, 
-        ontology_id: str, 
-        changes: Dict[str, Any], 
-        created_by: str
-    ) -> str:
-        """创建版本"""
+        ontology_id: Optional[str], 
+        version_number: str,
+        parent_version_id: Optional[str] = None,
+        change_summary: str = "",
+        ingest_id: Optional[str] = None
+    ) -> Dict[str, Any]:
+        """创建版本（全局唯一）"""
         pass
     
     @abstractmethod
     async def rollback_version(
         self, 
-        version_id: str, 
+        ontology_id: str, 
         target_version_id: str
     ) -> bool:
         """回滚版本"""
@@ -422,6 +433,41 @@ class IVersionManager(ABC):
         version_id: str
     ) -> bool:
         """设置当前版本"""
+        pass
+    
+    @abstractmethod
+    async def bind_version_to_scenario(
+        self, 
+        version_id: str, 
+        scenario_id: str, 
+        is_current: bool = True
+    ) -> Dict[str, Any]:
+        """绑定版本到场景（多对多关系）"""
+        pass
+    
+    @abstractmethod
+    async def get_scenarios_for_version(
+        self, 
+        version_id: str
+    ) -> List[Dict[str, Any]]:
+        """获取版本绑定的所有场景"""
+        pass
+    
+    @abstractmethod
+    async def get_versions_for_scenario(
+        self, 
+        scenario_id: str
+    ) -> List[Dict[str, Any]]:
+        """获取场景绑定的所有版本"""
+        pass
+    
+    @abstractmethod
+    async def unbind_version_from_scenario(
+        self, 
+        version_id: str, 
+        scenario_id: str
+    ) -> Dict[str, Any]:
+        """解除版本与场景的绑定"""
         pass
 ```
 

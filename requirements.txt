@@ -24,6 +24,10 @@ numpy
 requests
 beautifulsoup4
 
+# 网页爬虫
+playwright>=1.40.0
+readability-lxml>=0.8.1
+
 # 时间处理
 python-dateutil
 

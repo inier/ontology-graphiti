@@ -104,8 +104,10 @@ function SemanticNetworkGraph({
 
       if (graphRef.current) {
         try {
-          graphRef.current.destroy();
-        } catch (e) { /* ignore */ }
+          if (graphRef.current.destroy) {
+            graphRef.current.destroy();
+          }
+        } catch (e) { console.warn('销毁旧图实例失败:', e); }
         graphRef.current = null;
       }
 
@@ -199,10 +201,11 @@ function SemanticNetworkGraph({
       graph.on('node:click', (evt: any) => {
         if (!mounted) return;
         try {
-          const nodeId = evt.item.get('id');
+          const nodeId = evt.item?.get?.('id');
+          if (nodeId === undefined || nodeId === null) return;
           const node = nodes.find((n) => n.id === nodeId);
           if (node) onNodeClick?.(node);
-        } catch (e) { /* ignore */ }
+        } catch (e) { console.warn('节点点击事件处理错误:', e); }
       });
 
       currentGraph = graph;
@@ -214,11 +217,19 @@ function SemanticNetworkGraph({
     return () => {
       mounted = false;
       if (currentGraph) {
-        try { currentGraph.destroy(); } catch (e) { /* ignore */ }
+        try {
+          if (currentGraph.destroy) {
+            currentGraph.destroy();
+          }
+        } catch (e) { console.warn('清理 currentGraph 失败:', e); }
         currentGraph = null;
       }
       if (graphRef.current) {
-        try { graphRef.current.destroy(); } catch (e) { /* ignore */ }
+        try {
+          if (graphRef.current.destroy) {
+            graphRef.current.destroy();
+          }
+        } catch (e) { console.warn('清理 graphRef 失败:', e); }
         graphRef.current = null;
       }
     };
@@ -340,7 +351,7 @@ function NodeDetailDrawer({
         </Space>
       }
       placement="right"
-      width={400}
+      size="large"
       open={open}
       onClose={onClose}
       extra={

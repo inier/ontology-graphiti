@@ -210,7 +210,7 @@ export function AuditLog() {
             <Statistic
               title="成功事件"
               value={stats?.by_status?.success ?? 0}
-              valueStyle={{ color: '#52c41a' }}
+              styles={{ content: { color: '#52c41a' } }}
             />
           </Card>
         </Col>
@@ -219,7 +219,7 @@ export function AuditLog() {
             <Statistic
               title="失败事件"
               value={stats?.by_status?.failure ?? 0}
-              valueStyle={{ color: '#ff4d4f' }}
+              styles={{ content: { color: '#ff4d4f' } }}
             />
           </Card>
         </Col>
@@ -228,7 +228,7 @@ export function AuditLog() {
             <Statistic
               title="警告事件"
               value={stats?.by_status?.warning ?? 0}
-              valueStyle={{ color: '#faad14' }}
+              styles={{ content: { color: '#faad14' } }}
             />
           </Card>
         </Col>
