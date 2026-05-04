@@ -1,6 +1,8 @@
-# Graphiti - 本体驱动分析决策平台
+# ODAP - 本体驱动分析决策平台
 
-**Graphiti** 是一个通用的本体驱动分析决策平台（Ontology-Driven Analysis & Decision Platform, ODAP），旨在通过工作空间机制实现多场景隔离，支持任意领域的本体建模和分析决策。
+**ODAP**（Ontology-Driven Analysis & Decision Platform）是一个通用的本体驱动分析决策平台，旨在通过工作空间机制实现多场景隔离，支持任意领域的本体建模和分析决策。
+
+> **⚠️ 注意**: Graphiti 是本平台使用的双时态知识图谱组件，而非项目名称。
 
 ## 核心功能
 
@@ -15,53 +17,79 @@
 
 ## 技术栈
 
-- **后端**：Python 3.11+, FastAPI, Neo4j/NetworkX, OpenAI API
-- **前端**：React, Ant Design, G6, Leaflet
-- **基础设施**：OpenHarness, Graphiti, OPA, MCP
+- **后端**: Python 3.11+, FastAPI, Neo4j (生产) / NetworkX (开发回退)
+- **前端**: React, TypeScript, Ant Design, G6, Leaflet
+- **Agent 基础设施**: OpenHarness (Agent Loop + Swarm + Tool 调度)
+- **知识图谱**: Graphiti (双时态知识图谱 + 时序推理)
+- **策略治理**: OPA (开放策略代理)
+- **LLM 支持**: OpenAI / Anthropic / DeepSeek (多模型)
+- **协议**: MCP (Model Context Protocol)
 
 ## 项目结构
 
 ```
 graphiti/
-├── app/                # 主应用入口
-├── assets/             # 静态资源
-├── docker/             # Docker配置
-├── docs/               # 文档
-├── frontend/           # 前端项目
-│   ├── src/            # 前端源码
-│   └── public/         # 前端静态资源
-├── odap/               # 核心业务逻辑
-│   ├── biz/            # 业务模块
-│   │   ├── agent/              # Agent 协同模块
-│   │   ├── audit_logging/      # 审计日志模块
-│   │   ├── event_simulator/    # 事件模拟模块
-│   │   ├── frontend_compat/    # 前端兼容层
-│   │   ├── hook_system/        # Hook 系统模块
-│   │   ├── mcp_adapter/        # MCP 适配器模块
-│   │   ├── ontology/           # 本体管理模块
-│   │   ├── skill_system/       # 技能系统模块
-│   │   └── workspace/          # 工作空间管理模块
-│   ├── infra/          # 基础设施
-│   │   ├── config/             # 配置管理
-│   │   ├── events/             # 事件系统
-│   │   ├── graph/              # 图谱服务
-│   │   ├── llm/                # LLM 服务
-│   │   ├── monitoring/         # 性能监控
-│   │   ├── opa/                # OPA 策略
-│   │   ├── resilience/         # 韧性系统
-│   │   └── security/           # 安全配置
-│   ├── storage/        # 存储目录
-│   ├── tools/          # 领域工具
-│   └── web/            # Web 服务
-├── src/                # 入口脚本
-├── tests/              # 测试目录
-├── .env                # 环境变量
-├── .env.example        # 环境变量模板
-├── .gitignore          # Git 忽略文件
-├── main.py             # 主入口
-├── requirements.txt    # 依赖管理
-└── start.sh            # 启动脚本
+├── app/                  # 主应用入口
+├── assets/               # 静态资源（HTML、PNG等）
+├── audit.db              # 审计日志数据库（SQLite）
+├── config/               # 配置文件
+├── docker/               # Docker 配置（docker-compose.yml等）
+├── docs/                 # 文档
+│   ├── architecture/     # 架构设计文档（6个子文档）
+│   ├── adr/             # 架构决策记录（48个ADR）
+│   └── ...
+├── frontend/             # 前端项目（React + TypeScript）
+│   ├── src/              # 前端源码
+│   └── public/          # 前端静态资源
+├── odap/                 # 核心业务逻辑
+│   ├── biz/              # 业务模块
+│   │   ├── agent/                # Agent 协同模块
+│   │   ├── cognition/            # 认知模块（OADA理解）
+│   │   ├── decision_recommendation/ # 决策推荐模块
+│   │   ├── event_simulator/      # 事件模拟模块
+│   │   ├── frontend_compat/      # 前端兼容层
+│   │   ├── hook_system/          # Hook 系统模块
+│   │   ├── mcp_adapter/          # MCP 适配器模块
+│   │   ├── ontology/             # 本体管理模块
+│   │   ├── openharness_agent/    # OpenHarness Agent 集成
+│   │   ├── qa/                   # 问答引擎模块
+│   │   ├── roles/                # 角色权限模块
+│   │   ├── skill_system/         # 技能系统模块
+│   │   ├── tool_registry/        # 工具注册表模块
+│   │   ├── visualization/        # 可视化模块
+│   │   └── workspace/            # 工作空间管理模块
+│   ├── infra/            # 基础设施
+│   │   ├── config/               # 配置管理
+│   │   ├── events/               # 事件系统
+│   │   ├── graph/                # 图谱服务（Graphiti）
+│   │   ├── llm/                  # LLM 服务
+│   │   ├── monitoring/            # 性能监控
+│   │   ├── opa/                  # OPA 策略
+│   │   ├── openharness/          # OpenHarness 集成
+│   │   ├── resilience/           # 韧性系统
+│   │   └── security/             # 安全配置
+│   ├── tools/            # 领域工具（Python Skills）
+│   │   ├── intelligence/        # 情报类工具
+│   │   ├── operations/           # 操作类工具
+│   │   ├── planning/             # 规划类工具
+│   │   ├── analysis/             # 分析类工具
+│   │   ├── visualization/        # 可视化工具
+│   │   └── ...
+│   ├── web/              # Web 服务
+│   ├── gateway/          # 网关模块
+│   ├── storage/          # 存储目录
+│   └── utils/           # 工具函数
+├── openharness/          # OpenHarness 子模块
+├── tests/                # 测试目录
+├── scripts/              # 脚本目录
+├── main.py               # 主入口
+├── requirements.txt      # Python 依赖管理
+├── pyproject.toml       # 项目配置
+├── start.sh              # 启动脚本
+└── stop.sh               # 停止脚本
 ```
+
+> **📋 架构文档**: 完整的架构设计请查阅 `docs/architecture/ARCHITECTURE.md`（按层级拆分为6个子文档）
 
 ## 快速开始
 
@@ -98,41 +126,69 @@ python main.py
 
 ### 访问 API
 
-- **API 文档**：http://localhost:8001/docs
-- **健康检查**：http://localhost:8001/health
-- **性能监控**：http://localhost:8001/api/v1/monitoring/performance
+- **API 文档**：http://localhost:8000/docs（FastAPI 自动生成）
+- **健康检查**：http://localhost:8000/health
+- **性能监控**：http://localhost:8000/api/v1/monitoring/performance
+
+> **⚠️ 注意**: 默认端口为 8000，可在 `.env` 中配置 `PORT` 环境变量。
 
 ## 核心模块
 
 ### 1. 本体管理（Ontology）
 
-- **功能**：领域本体设计、新增、更新维护
+- **功能**：领域本体设计、新增、更新维护、可视化配置
 - **API**：`/api/ontology-management`
 - **模块路径**：`odap/biz/ontology/`
+- **架构文档**：[ARCHITECTURE_BIZ.md](docs/architecture/ARCHITECTURE_BIZ.md) 第13章
 
 ### 2. 工作空间管理（Workspace）
 
-- **功能**：场景隔离、导入导出、切换
+- **功能**：场景隔离、导入导出、切换、资源分类管理
 - **API**：`/api/workspace`
 - **模块路径**：`odap/biz/workspace/`
+- **架构文档**：[ARCHITECTURE_BIZ.md](docs/architecture/ARCHITECTURE_BIZ.md) 第16章
 
-### 3. Agent 协同（Agent）
+### 3. Agent 协同（Swarm）
 
-- **功能**：意图识别、Agent 协同、OODA 闭环
+- **功能**：三Agent协同（Commander + Intelligence + Operations）、OADP闭环
 - **API**：`/api/agent`
-- **模块路径**：`odap/biz/agent/`
+- **模块路径**：`odap/biz/agent/`（协同编排）+ `odap/biz/openharness_agent/`（OpenHarness集成）
+- **架构文档**：[ARCHITECTURE_BIZ.md](docs/architecture/ARCHITECTURE_BIZ.md) 第7-9章
 
-### 4. 技能系统（Skill）
+### 4. 技能系统（Skill System）
 
-- **功能**：技能注册、配置、热插拔
+- **功能**：技能注册、配置、热插拔、工具注册表
 - **API**：`/api/skill`
-- **模块路径**：`odap/tools/`
+- **模块路径**：`odap/biz/skill_system/`（技能系统）+ `odap/biz/tool_registry/`（工具注册表）+ `odap/tools/`（领域工具）
+- **架构文档**：[ARCHITECTURE_BIZ.md](docs/architecture/ARCHITECTURE_BIZ.md) 第14章、[ARCHITECTURE_TOOLS.md](docs/architecture/ARCHITECTURE_TOOLS.md)
 
 ### 5. 审计日志（Audit）
 
-- **功能**：操作审计、日志记录
+- **功能**：操作审计、日志记录、SQLite存储+文件哈希链锚点
 - **API**：`/api/audit`
-- **模块路径**：`odap/biz/audit_logging/`
+- **模块路径**：`odap/infra/opa/`（策略校验）+ 审计日志模块
+- **架构文档**：[ARCHITECTURE_INFRA.md](docs/architecture/ARCHITECTURE_INFRA.md) 第6章
+
+### 6. 问答引擎（QA）
+
+- **功能**：自然语言问答、图表展示、过程解释
+- **API**：`/api/qa`
+- **模块路径**：`odap/biz/qa/`
+- **架构文档**：[ARCHITECTURE_WEB.md](docs/architecture/ARCHITECTURE_WEB.md) 第11章
+
+### 7. 角色权限（Roles）
+
+- **功能**：细粒度权限、OPA策略、角色绑定
+- **API**：`/api/roles`
+- **模块路径**：`odap/biz/roles/`
+- **架构文档**：[ARCHITECTURE_BIZ.md](docs/architecture/ARCHITECTURE_BIZ.md) 第20章
+
+### 8. 事件模拟（Event Simulator）
+
+- **功能**：随机事件、自动/手动输入、Web可视化
+- **API**：`/api/simulator`
+- **模块路径**：`odap/biz/event_simulator/`
+- **架构文档**：[ARCHITECTURE_BIZ.md](docs/architecture/ARCHITECTURE_BIZ.md) 第9章
 
 ## 安全配置
 
@@ -172,3 +228,4 @@ python -m pytest tests/ -v
 
 ## 许可证
 
+本项目许可证尚未确定。请根据实际需求选择合适的开源许可证（如 MIT、Apache 2.0 等）。
