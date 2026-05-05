@@ -8,14 +8,26 @@ from ..ingestion import OntologyDocument
 
 
 class SQLiteIngestStorage:
-    """数据摄入的SQLite存储实现"""
+    """数据摄入的SQLite存储实现 - 用于轻量级结构化数据
     
-    def __init__(self, db_path: str = "/tmp/ingest.db"):
+    存储内容:
+    - ingest_records: 数据摄入记录
+    - process_logs: 处理阶段日志
+    - build_history: 构建历史记录
+    - audit_logs: 审计日志
+    """
+    
+    def __init__(self, db_path: str = "/app/data/ingest.db"):
         self.db_path = db_path
         self._init_db()
     
     def _init_db(self):
         """初始化数据库"""
+        import os
+        db_dir = os.path.dirname(self.db_path)
+        if db_dir and not os.path.exists(db_dir):
+            os.makedirs(db_dir, exist_ok=True)
+        
         conn = sqlite3.connect(self.db_path)
         cursor = conn.cursor()
         
@@ -223,12 +235,11 @@ class SQLiteIngestStorage:
         cursor.execute('SELECT * FROM ingest_records WHERE id = ?', (ingest_id,))
         row = cursor.fetchone()
         
-        conn.close()
-        
         if not row:
+            conn.close()
             return None
         
-        return {
+        record = {
             'id': row[0],
             'source': row[1],
             'source_details': self._deserialize_json(row[2]),
@@ -246,6 +257,70 @@ class SQLiteIngestStorage:
             'original_content': row[14],
             'created_by': row[15]
         }
+        
+        # 获取关联的构建历史
+        builds = self._get_builds_for_ingest(cursor, ingest_id)
+        record['builds'] = builds
+        
+        # 计算构建状态
+        record['build_status'] = self._calculate_build_status(builds)
+        
+        conn.close()
+        return record
+    
+    def _get_builds_for_ingest(self, cursor, ingest_id: str) -> List[Dict[str, Any]]:
+        """获取某摄入记录的所有构建历史"""
+        cursor.execute('SELECT * FROM build_history WHERE ingest_id = ? ORDER BY start_time DESC', (ingest_id,))
+        rows = cursor.fetchall()
+        
+        builds = []
+        for row in rows:
+            builds.append({
+                'id': row[0],
+                'build_id': row[2],
+                'version_id': row[3],
+                'document_id': row[4],
+                'entity_count': row[5],
+                'relation_count': row[6],
+                'event_count': row[7],
+                'status': row[8],
+                'start_time': row[9],
+                'end_time': row[10],
+                'duration_seconds': row[11],
+                # 同时添加 version_info 供前端使用
+                'version_info': {'version_id': row[3]} if row[3] else None
+            })
+        return builds
+    
+    def _calculate_build_status(self, builds: List[Dict[str, Any]]) -> str:
+        """
+        计算构建状态
+        
+        Returns:
+            str: 'none' | 'pending' | 'completed' | 'failed' | 'partial'
+        """
+        if not builds:
+            return 'none'
+        
+        # 获取所有构建的状态
+        statuses = [b.get('status') for b in builds]
+        
+        # 如果所有构建都完成
+        if all(s == 'completed' for s in statuses):
+            return 'completed'
+        
+        # 如果有任何一个失败
+        if any(s == 'failed' for s in statuses):
+            # 如果部分成功部分失败
+            if any(s == 'completed' for s in statuses):
+                return 'partial'
+            return 'failed'
+        
+        # 如果有正在进行的
+        if any(s == 'pending' for s in statuses):
+            return 'pending'
+        
+        return 'none'
     
     def update_ingest_record(self, ingest_id: str, record: Dict[str, Any]) -> bool:
         """更新摄入记录"""
@@ -291,11 +366,9 @@ class SQLiteIngestStorage:
         cursor.execute('SELECT * FROM ingest_records ORDER BY start_time DESC LIMIT ?', (limit,))
         rows = cursor.fetchall()
         
-        conn.close()
-        
         records = []
         for row in rows:
-            records.append({
+            record = {
                 'id': row[0],
                 'source': row[1],
                 'source_details': self._deserialize_json(row[2]),
@@ -311,7 +384,15 @@ class SQLiteIngestStorage:
                 'extracted_data': self._deserialize_json(row[13]),
                 'original_content': row[14],
                 'created_by': row[15]
-            })
+            }
+            # 获取关联的构建历史
+            builds = self._get_builds_for_ingest(cursor, row[0])
+            record['builds'] = builds
+            # 计算构建状态
+            record['build_status'] = self._calculate_build_status(builds)
+            records.append(record)
+        
+        conn.close()
         return records
     
     # 审计日志相关

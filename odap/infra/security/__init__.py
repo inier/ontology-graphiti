@@ -4,20 +4,22 @@
 
 审计日志功能分层：
 - 核心模型：audit_models.py
-- 存储通道：audit_sqlite_channel.py (SQLite)、audit_graphiti_channel.py (Graphiti)
-- 审计日志器：audit_logger.py (统一入口)
-- 便捷接口：unified_audit.py (简化使用)
-- API接口：audit_api.py (REST API)
+- 存储通道：audit_graphiti_channel.py (Graphiti 主存储)
+- 统一接口：unified_audit.py (简化 API)
 
 使用方式：
-    from odap.infra.security import get_audit_logger, AuditEventType, ResourceInfo
+    from odap.infra.security import log_audit, get_audit_logs
 
-    audit_logger = get_audit_logger()
-    await audit_logger.log_success(
-        event_type=AuditEventType.USER_LOGIN,
+    # 记录审计日志
+    log_audit(
         action="user_login",
-        resource=ResourceInfo(resource_type="auth", resource_id="login", resource_name="Login")
+        resource="auth",
+        user=username,
+        details={"ip": client_ip, "user_agent": user_agent}
     )
+
+    # 查询审计日志
+    logs = get_audit_logs(user="admin", limit=50)
 """
 
 from .config import SecurityConfig, security_config
@@ -31,8 +33,25 @@ except ImportError:
     optional_current_user = None
     verify_admin = None
 
-# 审计日志核心功能
-from .audit_models import (
+# 导入 audit_logger 提供向后兼容性
+try:
+    from .audit_logger import get_audit_logger, reset_audit_logger
+except ImportError:
+    get_audit_logger = None
+    reset_audit_logger = None
+
+# 审计日志核心功能（从 unified_audit 统一导出）
+from .unified_audit import (
+    log_audit,
+    log_ingest,
+    log_query,
+    log_workspace,
+    log_error,
+    get_stats,
+    get_audit_logs,
+    audit_log,
+    GraphitiAuditChannel,
+    get_graphiti_channel,
     AuditSeverity,
     AuditEventType,
     ActorInfo,
@@ -40,48 +59,13 @@ from .audit_models import (
     ActionResult,
     AuditEvent,
     AuditFilter,
-    IntegrityReport
-)
-
-# 存储通道
-from .audit_sqlite_channel import (
-    AuditChannel,
-    SQLiteAuditChannel,
-    get_sqlite_audit_channel,
-    get_audit_channel
-)
-
-from .audit_graphiti_channel import (
-    GraphitiAuditChannel,
-    get_graphiti_audit_channel
-)
-
-# 审计日志器
-from .audit_span import AuditSpan
-
-from .audit_logger import (
-    AuditLogger,
-    get_audit_logger,
-    audit_info,
-    audit_warning,
-    audit_error,
-    audit_critical
-)
-
-# 统一审计接口
-from .unified_audit import (
-    audit_log,
-    log_ingest,
-    log_query,
-    log_workspace,
-    log_error,
-    get_stats,
-    log_audit,
-    get_audit_logs
 )
 
 # API接口
-from .audit_api import router as audit_router
+try:
+    from .audit_api import router as audit_router
+except ImportError:
+    audit_router = None
 
 __all__ = [
     # 安全配置和认证
@@ -92,7 +76,17 @@ __all__ = [
     'optional_current_user',
     'verify_admin',
 
-    # 审计日志核心模型
+    # 审计日志统一接口
+    'log_audit',
+    'log_ingest',
+    'log_query',
+    'log_workspace',
+    'log_error',
+    'get_stats',
+    'get_audit_logs',
+    'audit_log',
+
+    # 审计日志数据模型
     'AuditSeverity',
     'AuditEventType',
     'ActorInfo',
@@ -100,35 +94,15 @@ __all__ = [
     'ActionResult',
     'AuditEvent',
     'AuditFilter',
-    'IntegrityReport',
 
     # 存储通道
-    'AuditChannel',
-    'SQLiteAuditChannel',
-    'get_sqlite_audit_channel',
-    'get_audit_channel',
     'GraphitiAuditChannel',
-    'get_graphiti_audit_channel',
+    'get_graphiti_channel',
 
-    # 审计日志器和跨度
-    'AuditSpan',
-    'AuditLogger',
+    # 向后兼容
     'get_audit_logger',
-    'audit_info',
-    'audit_warning',
-    'audit_error',
-    'audit_critical',
+    'reset_audit_logger',
 
-    # 统一审计接口
-    'audit_log',
-    'log_ingest',
-    'log_query',
-    'log_workspace',
-    'log_error',
-    'get_stats',
-    'log_audit',
-    'get_audit_logs',
-    
     # API接口
     'audit_router'
 ]

@@ -1,24 +1,23 @@
 """本体模块 MongoDB 存储实现"""
 
-from typing import Dict, Any, List, Optional
+from typing import Dict, Any, List, Optional, Union
 from pymongo import MongoClient
 from pymongo.collection import Collection
 import os
+import uuid
+from datetime import datetime
+from ..models.version import OntologyVersion, VersionStatus, VersionChange
 
 
 class MongoDBStorage:
-    """本体模块 MongoDB 存储实现
+    """本体模块 MongoDB 存储实现 - 用于大型非结构化数据
     
     存储内容：
-    - 摄入记录
-    - 审计日志
-    - 构建结果
-    - 本体文档
-    - 版本信息
-    - 验证规则
-    - 验证结果
+    - ontology_documents: 完整本体文档（包含实体、关系、事件等）
+    - versions: 版本管理（完整版本历史数据）
+    - process_logs: 详细处理日志（可选备份）
     
-    当 MongoDB 不可用时，自动使用内存存储。
+    当 MongoDB 不可用时，自动使用内存存储（仅用于测试）。
     """
     
     def __init__(self, connection_string: str = None):
@@ -91,6 +90,68 @@ class MongoDBStorage:
         # 验证结果索引
         self.validation_results.create_index("result_id")
         self.validation_results.create_index("rule_id")
+    
+    def _version_to_dict(self, version: OntologyVersion) -> Dict[str, Any]:
+        """将 OntologyVersion 对象转换为字典"""
+        # 手动转换，确保所有值都是简单类型
+        data = {
+            "version_id": version.id,
+            "ontology_id": version.ontology_id,
+            "version_number": version.version_number,
+            "parent_version_id": version.parent_version_id,
+            "status": version.status.value if hasattr(version.status, "value") else str(version.status),
+            "change_summary": version.change_summary,
+            "created_at": version.created_at.isoformat() if hasattr(version.created_at, "isoformat") else str(version.created_at),
+            "created_by": version.created_by,
+            "is_current": version.is_current,
+            "is_stable": version.is_stable,
+            "ingest_id": version.ingest_id,
+            "entity_count": version.entity_count,
+            "relation_count": version.relation_count,
+            "changes": [],
+            "logs": []
+        }
+        return data
+    
+    def _dict_to_version(self, data: Dict[str, Any]) -> OntologyVersion:
+        """将字典转换为 OntologyVersion 对象"""
+        # 从 MongoDB 的 _id 字段提取 version_id（如果没有的话）
+        if not data.get("version_id"):
+            if data.get("_id"):
+                data["id"] = str(data["_id"])
+            elif not data.get("id"):
+                data["id"] = str(uuid.uuid4())
+        else:
+            data["id"] = data["version_id"]
+        
+        # 转换 status
+        if "status" in data and isinstance(data["status"], str):
+            try:
+                data["status"] = VersionStatus(data["status"])
+            except ValueError:
+                data["status"] = VersionStatus.DRAFT
+        
+        # 转换 created_at
+        if "created_at" in data and isinstance(data["created_at"], str):
+            try:
+                data["created_at"] = datetime.fromisoformat(data["created_at"])
+            except ValueError:
+                data["created_at"] = datetime.now()
+        
+        # 转换 changes
+        if "changes" in data and isinstance(data["changes"], list):
+            changes = []
+            for c in data["changes"]:
+                if isinstance(c, dict):
+                    if "timestamp" in c and isinstance(c["timestamp"], str):
+                        try:
+                            c["timestamp"] = datetime.fromisoformat(c["timestamp"])
+                        except ValueError:
+                            c["timestamp"] = datetime.now()
+                    changes.append(VersionChange(**c))
+            data["changes"] = changes
+        
+        return OntologyVersion(**data)
     
     # ==================== 摄入记录 ====================
     
@@ -369,41 +430,88 @@ class MongoDBStorage:
     
     # ==================== 版本 ====================
     
-    def save_version(self, version: Dict[str, Any]) -> str:
+    def save_version(self, version: Union[Dict[str, Any], OntologyVersion]) -> str:
         """保存版本信息
         
         Args:
-            version: 版本信息
+            version: 版本信息（Dict 或 OntologyVersion 对象）
         
         Returns:
             str: 版本 ID
         """
+        # 转换对象为字典
+        if isinstance(version, OntologyVersion):
+            version_dict = self._version_to_dict(version)
+            # 确保有 version_id 字段
+            version_dict["version_id"] = version_dict.get("id") or str(uuid.uuid4())
+        else:
+            version_dict = version
+            if not version_dict.get("version_id"):
+                version_dict["version_id"] = str(uuid.uuid4())
+        
         if self.use_memory:
-            version_id = f"mem_{len(self._memory_store['versions'])}"
-            version["_id"] = version_id
-            self._memory_store["versions"].append(version)
-            return version_id
-        result = self.versions.insert_one(version)
-        return str(result.inserted_id)
+            version_dict["_id"] = version_dict["version_id"]
+            self._memory_store["versions"].append(version_dict)
+            return version_dict["version_id"]
+        
+        # MongoDB 存储
+        result = self.versions.insert_one(version_dict)
+        return version_dict["version_id"]
     
-    def get_version(self, version_id: str) -> Optional[Dict[str, Any]]:
+    def get_version(self, version_id: str) -> Optional[OntologyVersion]:
         """获取版本信息
         
         Args:
             version_id: 版本 ID
         
         Returns:
-            Optional[Dict]: 版本信息
+            Optional[OntologyVersion]: 版本信息
         """
         if self.use_memory:
             for v in self._memory_store["versions"]:
                 if v.get("version_id") == version_id:
-                    return v
+                    return self._dict_to_version(v)
             return None
-        return self.versions.find_one({"version_id": version_id})
+        
+        data = self.versions.find_one({"version_id": version_id})
+        if data:
+            return self._dict_to_version(data)
+        return None
+    
+    def update_version(self, version: Union[Dict[str, Any], OntologyVersion]) -> bool:
+        """更新版本信息
+        
+        Args:
+            version: 版本信息（Dict 或 OntologyVersion 对象）
+        
+        Returns:
+            bool: 是否成功
+        """
+        if isinstance(version, OntologyVersion):
+            version_dict = self._version_to_dict(version)
+            version_id = version.id
+        else:
+            version_dict = version
+            version_id = version.get("version_id") or version.get("id")
+        
+        if not version_id:
+            return False
+        
+        if self.use_memory:
+            for i, v in enumerate(self._memory_store["versions"]):
+                if v.get("version_id") == version_id:
+                    self._memory_store["versions"][i] = version_dict
+                    return True
+            return False
+        
+        result = self.versions.update_one(
+            {"version_id": version_id},
+            {"$set": version_dict}
+        )
+        return result.modified_count > 0
     
     def list_versions(self, ontology_id: str, 
-                     page: int = 1, page_size: int = 10) -> List[Dict[str, Any]]:
+                     page: int = 1, page_size: int = 10) -> List[OntologyVersion]:
         """列出版本信息
 
         Args:
@@ -412,19 +520,20 @@ class MongoDBStorage:
             page_size: 每页大小
 
         Returns:
-            List[Dict]: 版本信息列表
+            List[OntologyVersion]: 版本信息列表
         """
         if self.use_memory:
             versions = [v for v in self._memory_store["versions"] if v.get("ontology_id") == ontology_id]
             start = (page - 1) * page_size
             end = start + page_size
-            return versions[start:end]
+            return [self._dict_to_version(v) for v in versions[start:end]]
+        
         query = {"ontology_id": ontology_id}
-        versions = self.versions.find(query).skip((page - 1) * page_size).limit(page_size)
-        return list(versions)
+        cursor = self.versions.find(query).skip((page - 1) * page_size).limit(page_size)
+        return [self._dict_to_version(data) for data in cursor]
     
     def get_versions(self, scenario_id: Optional[str] = None, 
-                     limit: int = 50) -> List[Dict[str, Any]]:
+                     limit: int = 50) -> List[OntologyVersion]:
         """获取版本列表（支持按场景过滤）
 
         Args:
@@ -432,16 +541,118 @@ class MongoDBStorage:
             limit: 限制数量
 
         Returns:
-            List[Dict]: 版本信息列表
+            List[OntologyVersion]: 版本信息列表
         """
         if self.use_memory:
             versions = self._memory_store["versions"]
             if scenario_id:
                 versions = [v for v in versions if v.get("scenario_id") == scenario_id]
-            return versions[:limit]
+            return [self._dict_to_version(v) for v in versions[:limit]]
+        
         query = {} if not scenario_id else {"scenario_id": scenario_id}
-        versions = self.versions.find(query).limit(limit)
-        return list(versions)
+        cursor = self.versions.find(query).limit(limit)
+        return [self._dict_to_version(data) for data in cursor]
+    
+    def unset_current_version(self, scenario_id: str) -> bool:
+        """取消场景当前版本的标记
+        
+        Args:
+            scenario_id: 场景 ID
+        
+        Returns:
+            bool: 是否成功
+        """
+        if self.use_memory:
+            for v in self._memory_store["versions"]:
+                if v.get("scenario_id") == scenario_id and v.get("is_current"):
+                    v["is_current"] = False
+            return True
+        
+        self.versions.update_many(
+            {"scenario_id": scenario_id},
+            {"$set": {"is_current": False}}
+        )
+        return True
+    
+    def bind_version(self, version_id: str, scenario_id: str, is_current: bool = True) -> bool:
+        """绑定版本到场景
+        
+        Args:
+            version_id: 版本 ID
+            scenario_id: 场景 ID
+            is_current: 是否设为当前版本
+        
+        Returns:
+            bool: 是否成功
+        """
+        if self.use_memory:
+            for v in self._memory_store["versions"]:
+                if v.get("version_id") == version_id:
+                    v["scenario_id"] = scenario_id
+                    v["is_current"] = is_current
+                    return True
+            return False
+        
+        result = self.versions.update_one(
+            {"version_id": version_id},
+            {"$set": {"scenario_id": scenario_id, "is_current": is_current}}
+        )
+        return result.modified_count > 0
+    
+    def get_scenarios_by_version(self, version_id: str) -> List[Dict[str, Any]]:
+        """获取版本绑定的场景
+        
+        Args:
+            version_id: 版本 ID
+        
+        Returns:
+            List[Dict]: 场景列表
+        """
+        if self.use_memory:
+            for v in self._memory_store["versions"]:
+                if v.get("version_id") == version_id and v.get("scenario_id"):
+                    return [{"scenario_id": v["scenario_id"], "is_current": v.get("is_current", False)}]
+            return []
+        
+        data = self.versions.find_one({"version_id": version_id})
+        if data and data.get("scenario_id"):
+            return [{"scenario_id": data["scenario_id"], "is_current": data.get("is_current", False)}]
+        return []
+    
+    def get_versions_by_scenario(self, scenario_id: str) -> List[OntologyVersion]:
+        """获取场景绑定的所有版本
+        
+        Args:
+            scenario_id: 场景 ID
+        
+        Returns:
+            List[OntologyVersion]: 版本列表
+        """
+        return self.get_versions(scenario_id=scenario_id)
+    
+    def unbind_version(self, version_id: str, scenario_id: str) -> bool:
+        """解绑版本和场景
+        
+        Args:
+            version_id: 版本 ID
+            scenario_id: 场景 ID
+        
+        Returns:
+            bool: 是否成功
+        """
+        if self.use_memory:
+            for v in self._memory_store["versions"]:
+                if v.get("version_id") == version_id and v.get("scenario_id") == scenario_id:
+                    v.pop("scenario_id", None)
+                    v["is_current"] = False
+                    return True
+            return False
+        
+        result = self.versions.update_one(
+            {"version_id": version_id, "scenario_id": scenario_id},
+            {"$unset": {"scenario_id": ""}, "$set": {"is_current": False}}
+        )
+        return result.modified_count > 0
     
     # ==================== 验证规则 ====================
     

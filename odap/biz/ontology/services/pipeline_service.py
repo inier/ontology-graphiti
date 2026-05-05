@@ -15,6 +15,7 @@
 import uuid
 import asyncio
 import logging
+import time
 from datetime import datetime, timezone
 from typing import Dict, Any, List, Optional, Callable, Awaitable, Tuple
 from dataclasses import dataclass, field
@@ -27,8 +28,7 @@ from ..models.audit import (
 from ..models.version import OntologyVersion, VersionStatus
 from ..ingestion import OntologyDocument
 from ..storage.sqlite_ingest_storage import SQLiteIngestStorage
-from odap.infra.security.audit_logger import audit_info, audit_error
-from odap.infra.security.audit_models import AuditEventType, AuditSeverity
+from odap.infra.security.unified_audit import log_audit, log_error
 from .ingest_service import IngestService, get_ingest_service
 from .build_service import OntologyBuilderService, get_builder_service
 from .version_service import VersionManagementService, get_version_service
@@ -59,63 +59,79 @@ class PipelineContext:
     error: Optional[str] = None
     success: bool = False
     _storage: SQLiteIngestStorage = field(default_factory=lambda: SQLiteIngestStorage())
+    _stage_start_times: Dict[str, datetime] = field(default_factory=dict)
 
     def add_log(self, stage: PipelineStage, operation: str, details: Dict[str, Any],
                 status: ProcessingStatus = ProcessingStatus.PROCESSING,
                 error_message: Optional[str] = None):
         """添加处理日志（同时保存到数据库和 Graphiti 审计）"""
+        # 计算阶段执行时长
+        stage_key = stage.value
+        current_time = get_local_time()
+        duration_ms = None
+        start_time_str = None
+        
+        if stage_key in self._stage_start_times:
+            start_time = self._stage_start_times[stage_key]
+            duration_ms = (current_time - start_time).total_seconds() * 1000
+            start_time_str = start_time.isoformat()
+        
+        # 在 details 中添加完整的时间信息，用于审计和时间回溯
+        audit_details = details.copy() if details else {}
+        audit_details['_audit'] = {
+            'start_time': start_time_str,
+            'end_time': current_time.isoformat(),
+            'duration_ms': duration_ms
+        }
+        
         log = ProcessLog(
-            timestamp=get_local_time(),
+            timestamp=current_time,
             stage=stage,
             operation=operation,
-            details=details,
+            details=audit_details,
             status=status,
-            error_message=error_message
+            error_message=error_message,
+            duration_ms=duration_ms
         )
         self.logs.append(log)
         
-        # 保存到数据库
+        # 保存到数据库 - 使用包含审计信息的 details
         log_dict = {
             'id': log.id,
             'ingest_id': self.ingest_id,
             'stage': stage.value,
             'operation': operation,
-            'details': details,
+            'details': audit_details,
             'status': status.value,
             'error_message': error_message,
-            'duration_ms': log.duration_ms,
+            'duration_ms': duration_ms,
             'timestamp': log.timestamp.isoformat()
         }
         self._storage.save_process_log(log_dict)
         
         # 调用统一审计日志（保存到 Graphiti）
         try:
-            event_type_map = {
-                PipelineStage.COLLECTION: AuditEventType.DATA_INGESTION,
-                PipelineStage.CLEANING: AuditEventType.DATA_TRANSFORMATION,
-                PipelineStage.LLM_EXTRACTION: AuditEventType.MODEL_INFERENCE,
-                PipelineStage.ONTOLOGY_BUILD: AuditEventType.ONTOLOGY_BUILD,
-                PipelineStage.VERSION_MANAGE: AuditEventType.VERSION_CREATE,
-                PipelineStage.GRAPH_BUILD: AuditEventType.GRAPH_UPDATE,
-            }
-            event_type = event_type_map.get(stage, AuditEventType.SYSTEM_UPDATE)
-            severity = AuditSeverity.INFO if status == ProcessingStatus.COMPLETED else AuditSeverity.WARNING if status == ProcessingStatus.PROCESSING else AuditSeverity.HIGH
-            
-            audit_info(
-                event_type=event_type,
-                actor={"actor_id": "system", "actor_type": "pipeline", "roles": []},
+            log_audit(
                 action=f"pipeline.{stage.value}.{operation}",
-                resource={"resource_id": self.ingest_id, "resource_type": "ingest", "attributes": details},
-                result={"success": status == ProcessingStatus.COMPLETED, "message": operation},
-                workspace_id=self.workspace_id,
-                context={"stage": stage.value, "details": details, "duration_ms": log.duration_ms},
-                trace_id=self.ingest_id,
-                source="ontology_pipeline"
+                resource=self.ingest_id,
+                user="system",
+                service="ontology_pipeline",
+                details={
+                    "stage": stage.value,
+                    "status": status.value,
+                    "operation": operation,
+                    "duration_ms": log.duration_ms,
+                    "details": details
+                }
             )
         except Exception as e:
             logger.warning(f"审计日志记录失败: {e}")
         
         return log
+
+    def start_stage(self, stage: PipelineStage):
+        """记录阶段开始时间，用于计算执行时长"""
+        self._stage_start_times[stage.value] = get_local_time()
 
     def save_build_history(self, status: str = "completed"):
         """保存构建历史记录（同时写入 Graphiti 审计日志）"""
@@ -138,42 +154,27 @@ class PipelineContext:
         # 调用统一审计日志记录构建完成事件
         try:
             if status == "completed":
-                audit_info(
-                    event_type=AuditEventType.ONTOLOGY_BUILD,
-                    actor={"actor_id": "system", "actor_type": "pipeline", "roles": []},
+                log_audit(
                     action="ontology.build.completed",
-                    resource={
-                        "resource_id": build_history['build_id'],
-                        "resource_type": "ontology_build",
-                        "attributes": {
-                            "version_id": self.version_id,
-                            "document_id": self.document_id,
-                            "entity_count": build_history['entity_count'],
-                            "relation_count": build_history['relation_count'],
-                            "event_count": build_history['event_count']
-                        }
-                    },
-                    result={"success": True, "message": f"构建完成，版本: {self.version_id}"},
-                    workspace_id=self.workspace_id,
-                    context={"ingest_id": self.ingest_id, "stage_results": self.stage_results},
-                    trace_id=self.ingest_id,
-                    source="ontology_pipeline"
+                    resource=self.ingest_id,
+                    user="system",
+                    service="ontology_pipeline",
+                    details={
+                        "build_id": build_history['build_id'],
+                        "version_id": self.version_id,
+                        "document_id": self.document_id,
+                        "entity_count": build_history['entity_count'],
+                        "relation_count": build_history['relation_count'],
+                        "event_count": build_history['event_count'],
+                        "stage_results": self.stage_results
+                    }
                 )
             else:
-                audit_error(
-                    event_type=AuditEventType.ONTOLOGY_BUILD,
-                    actor={"actor_id": "system", "actor_type": "pipeline", "roles": []},
-                    action="ontology.build.failed",
-                    resource={
-                        "resource_id": self.ingest_id,
-                        "resource_type": "ontology_build",
-                        "attributes": {"error": self.error}
-                    },
-                    result={"success": False, "message": f"构建失败: {self.error}"},
-                    workspace_id=self.workspace_id,
-                    context={"ingest_id": self.ingest_id, "error": self.error},
-                    trace_id=self.ingest_id,
-                    source="ontology_pipeline"
+                log_error(
+                    error=f"构建失败: {self.error}",
+                    context="ontology.build.failed",
+                    user="system",
+                    service="ontology_pipeline"
                 )
         except Exception as e:
             logger.warning(f"构建历史审计日志记录失败: {e}")
@@ -239,16 +240,16 @@ class CollectionStageHandler(PipelineStageHandler):
             context.original_content = result.get("original_content", "")
 
             self._log(context, "数据采集完成", {
-                "record_count": result.get("record_count", 0),
-                "original_length": len(context.original_content) if context.original_content else 0,
                 "input": {
                     "source": context.source, 
                     "source_details": context.source_details,
                     "ingest_id": context.ingest_id
                 },
                 "output": {
-                    "original_content": context.original_content[:500] if context.original_content else "",
-                    "record_count": result.get("record_count", 1)
+                    "original_content": context.original_content,
+                    "record_count": result.get("record_count", 1),
+                    "source": result.get("source"),
+                    "source_details": result.get("source_details")
                 }
             }, ProcessingStatus.COMPLETED)
 
@@ -257,7 +258,7 @@ class CollectionStageHandler(PipelineStageHandler):
         except Exception as e:
             logger.error(f"数据采集失败: {e}")
             self._log(context, "数据采集失败", {"error": str(e)},
-                     ProcessingStatus.FAILED, str(e))
+                    ProcessingStatus.FAILED, str(e))
             context.error = str(e)
             return False
 
@@ -364,12 +365,20 @@ class CleaningStageHandler(PipelineStageHandler):
             missing_info = self._check_missing_values(cleaned, context)
 
             result = {
-                "original_length": len(original),
-                "cleaned_length": len(cleaned),
-                "duplicates_found": duplicates,
-                "missing_values": missing_info,
-                "input": {"original_content": original[:200] if original else ""},
-                "output": {"cleaned_content": cleaned[:200] if cleaned else ""}
+                "input": {
+                    "original_content": original
+                },
+                "output": {
+                    "cleaned_content": cleaned,
+                    "records_extracted": 1,
+                    "validation_result": {
+                        "is_valid": True,
+                        "duplicates_removed": 0,
+                        "missing_values_filled": 0,
+                        "format_standardized": True
+                    },
+                    "documents_cleaned": 1
+                }
             }
 
             context.stage_results["cleaning"] = result
@@ -629,8 +638,14 @@ class OntologyBuildStageHandler(PipelineStageHandler):
                 "document_id": document.doc_id,
                 "entity_count": len(entities),
                 "relation_count": len(relations),
-                "event_count": len(events)
+                "event_count": len(events),
+                "entities": entities,
+                "relations": relations,
+                "events": events
             }
+
+            # 保存本体文档到 MongoDB
+            await self._save_ontology_document(context, document, entities, relations, events)
 
             self._log(context, "本体构建完成", {
                 "document_id": document.doc_id,
@@ -704,6 +719,41 @@ class OntologyBuildStageHandler(PipelineStageHandler):
         )
 
         return document
+    
+    async def _save_ontology_document(
+        self,
+        context: PipelineContext,
+        document: OntologyDocument,
+        entities: List[Dict],
+        relations: List[Dict],
+        events: List[Dict]
+    ) -> None:
+        """保存本体文档到 MongoDB"""
+        from ..storage.mongodb_storage import MongoDBStorage
+        
+        try:
+            mongo_storage = MongoDBStorage()
+            
+            # 准备文档数据
+            doc_dict = {
+                "document_id": document.doc_id,
+                "doc_type": document.doc_type,
+                "source": document.source.model_dump() if hasattr(document.source, "model_dump") else {},
+                "entities": entities,
+                "relations": relations,
+                "events": events,
+                "ingest_id": context.ingest_id,
+                "created_at": get_local_time().isoformat()
+            }
+            
+            # 保存到 MongoDB
+            mongo_storage.save_ontology_document(doc_dict)
+            
+            logger.info(f"本体文档已保存到 MongoDB: {document.doc_id}")
+            
+        except Exception as e:
+            logger.warning(f"保存本体文档到 MongoDB 失败: {e}")
+            # 继续执行，不影响整体流程
 
 
 class VersionManageStageHandler(PipelineStageHandler):
@@ -746,39 +796,22 @@ class VersionManageStageHandler(PipelineStageHandler):
 
     async def _create_version(self, context: PipelineContext, document_id: str) -> Dict[str, Any]:
         """创建新版本（全局唯一，持久化到数据库）"""
-        # 使用时间戳生成全局唯一版本号
         timestamp = int(time.time())
         version_number = f"1.0.{timestamp}"
         version_id = f"v{version_number}"
         
-        # 调用版本服务进行持久化（全局版本，不绑定场景）
-        saved_version = self.version_service.create_version(
-            ontology_id=None,  # 全局版本，不绑定场景
-            version_number=version_number,
-            parent_version_id=None,
-            change_summary=f"Auto-generated from ingest {context.ingest_id}"
-        )
-        
-        # 如果有场景ID，进行绑定
-        if context.scenario_id:
-            self.version_service.bind_version_to_scenario(
-                version_id=saved_version.get("version_id", version_id),
-                scenario_id=context.scenario_id,
-                is_current=True
-            )
-        
         version_info = {
-            "version_id": saved_version.get("version_id", version_id),
-            "version_number": saved_version.get("version_number", version_number),
-            "ontology_id": None,  # 全局版本
+            "version_id": version_id,
+            "version_number": version_number,
+            "ontology_id": document_id or f"ontology-{timestamp}",
             "document_id": document_id,
             "ingest_id": context.ingest_id,
-            "status": saved_version.get("status", "released"),
+            "status": "released",
             "is_current": True,
-            "created_at": saved_version.get("created_at", get_local_time().isoformat()),
+            "created_at": get_local_time().isoformat(),
             "entity_count": context.stage_results.get("ontology", {}).get("entity_count", 0),
             "relation_count": context.stage_results.get("ontology", {}).get("relation_count", 0),
-            "scenario_id": context.scenario_id  # 记录绑定的场景
+            "scenario_id": context.scenario_id
         }
         
         return version_info

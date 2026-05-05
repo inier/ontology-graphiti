@@ -4,10 +4,11 @@
 from fastapi import APIRouter, HTTPException, Query
 from typing import Dict, Any, List, Optional
 from datetime import datetime
-from . import (
-    get_audit_logger, AuditFilter, AuditEventType, AuditSeverity,
-    get_audit_logs as get_unified_audit_logs
-)
+
+# 直接从 audit_logger 导入，避免循环导入
+from .audit_logger import get_audit_logger
+from .audit_models import AuditFilter, AuditEventType, AuditSeverity
+from .unified_audit import get_audit_logs as get_unified_audit_logs
 
 router = APIRouter(prefix="/api/audit", tags=["audit"])
 
