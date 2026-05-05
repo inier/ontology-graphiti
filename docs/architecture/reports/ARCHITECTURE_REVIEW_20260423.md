@@ -1,8 +1,11 @@
 # ODAP 架构一致性审查报告
 
+> **版本**: 1.5.0 | **日期**: 2026-05-03 | **状态**: 📦 归档
+> **用途**: 架构一致性审查报告（历史参考）
+> **上游文档**: ARCHITECTURE.md, ARCHITECTURE_PLAN.md
+> **移动记录**: 2026-05-03 从 docs/ 移动到 docs/architecture/reports/
 > **审查日期**: 2026-04-23
 > **审查范围**: `/Users/caec/workspace/ontology/graphiti/odap` 及 `docs/` 目录
-> **审查目的**: 识别设计与实现不一致问题，为后续清理提供依据
 
 ---
 

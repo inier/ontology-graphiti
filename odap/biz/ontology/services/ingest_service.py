@@ -245,9 +245,36 @@ class IngestRecordManager:
 
         if extracted_data:
             record['extracted_data'] = extracted_data
+        
+        # 保存构建历史
         if builds:
-            record['builds'] = builds
-
+            import uuid
+            for build in builds:
+                # 从 extracted_data 中获取统计信息
+                entity_count = 0
+                relation_count = 0
+                event_count = 0
+                if extracted_data:
+                    entity_count = extracted_data.get('entities', 0)
+                    relation_count = extracted_data.get('relations', 0)
+                    event_count = extracted_data.get('events', 0)
+                
+                build_history = {
+                    'id': str(uuid.uuid4()),
+                    'ingest_id': record['id'],
+                    'build_id': build.get('build_id'),
+                    'version_id': build.get('version_info', {}).get('version_id') if build.get('version_info') else None,
+                    'document_id': build.get('document_id'),
+                    'entity_count': entity_count,
+                    'relation_count': relation_count,
+                    'event_count': event_count,
+                    'status': build.get('status', 'completed'),
+                    'start_time': record['start_time'],
+                    'end_time': record['end_time'],
+                    'duration_seconds': record['duration_seconds']
+                }
+                self.storage.save_build_history(build_history)
+        
         self.storage.update_ingest_record(record['id'], record)
 
     def fail(
@@ -270,6 +297,19 @@ class IngestRecordManager:
         ).total_seconds()
 
         self.storage.update_ingest_record(record['id'], record)
+
+    def update_original_content(self, record_id: str, content: str) -> None:
+        """
+        更新摄入记录的原始内容
+        
+        Args:
+            record_id: 记录ID
+            content: 新的原始内容
+        """
+        record = self.storage.get_ingest_record(record_id)
+        if record:
+            record['original_content'] = content
+            self.storage.update_ingest_record(record_id, record)
 
 
 class DocumentProcessor:
@@ -666,21 +706,35 @@ class IngestService:
         scenario_id: str = None,
         generator_type: str = "military"
     ) -> str:
-        """生成随机事件
-
-        Args:
-            parties: 参与方列表（如 ["红方", "蓝方"]）
-            scenario_context: 场景上下文
-            count: 生成事件数量
-            scenario_id: 场景ID
-            generator_type: 生成器类型（military/business/tech/healthcare）
-        """
+        """生成随机事件 - 简化版本，调用真实的 pipeline"""
         from ..ingestion import RandomEventGeneratorFactory
+        from .pipeline_service import get_pipeline_service
 
         # 使用工厂类创建对应类型的生成器
         generator = RandomEventGeneratorFactory.get_generator(generator_type, self.llm_client)
         generator_name = generator.get_generator_name()
 
+        # 先生成 documents，获取真实内容
+        documents = await generator.generate(
+            parties, scenario_context, count, scenario_id
+        )
+
+        # 构建丰富的事件描述
+        event_descriptions = []
+        for doc in documents:
+            if doc.events:
+                for event in doc.events:
+                    event_descriptions.append(event.description)
+            elif doc.entities:
+                entity_names = [e.name for e in doc.entities]
+                event_descriptions.append(f"实体: {', '.join(entity_names)}")
+
+        if event_descriptions:
+            detailed_text = " | ".join(event_descriptions)
+        else:
+            detailed_text = f"随机生成 {count} 个{generator_name}事件，参与方: {parties}"
+
+        # 创建摄入记录，保存真实的 original_content
         builder = IngestRecordBuilder(
             source='random',
             source_details={
@@ -689,26 +743,38 @@ class IngestService:
                 'generator_type': generator_type,
                 'generator_name': generator_name
             },
-            original_content=f"随机生成 {count} 个{generator_name}事件，参与方: {parties}",
+            original_content=detailed_text,
             record_count=count
         )
         record_id, ingest_record = self.record_manager.create(builder)
 
         try:
-            # 使用对应类型的生成器
-            documents = await generator.generate(
-                parties, scenario_context, count, scenario_id
+            # 调用真实的 pipeline 处理，这样会自动记录所有日志
+            pipeline_service = get_pipeline_service()
+            context = await pipeline_service.run(
+                ingest_id=record_id,
+                scenario_id=scenario_id or "default",
+                source="random",
+                source_details={
+                    "parties": parties,
+                    "count": count,
+                    "generator_type": generator_type,
+                    "generator_name": generator_name,
+                    "scenario_context": scenario_context,
+                    "content": detailed_text
+                }
             )
 
-            document_ids, stats, builds = await self.document_processor.process(
-                documents, ingest_record, scenario_id or "default"
-            )
+            # 完成摄入记录
+            document_ids = [context.document_id] if context.document_id else []
+            stats = context.stage_results.get("ontology", {})
+            builds = [{"version_id": context.version_id}] if context.version_id else []
 
             source_data = [{
                 'url': '',
                 'title': generator_name,
-                'text': f"随机生成 {count} 个{generator_name}事件，参与方: {parties}",
-                'description': f"生成了 {count} 个{generator_name}事件，包含 {stats['entities']} 个实体，{stats['relations']} 个关系，{stats['events']} 个事件",
+                'text': detailed_text,
+                'description': f"生成了 {count} 个{generator_name}事件，包含 {stats.get('entities', 0)} 个实体，{stats.get('relations', 0)} 个关系，{stats.get('events', 0)} 个事件。详细: {detailed_text[:200]}",
                 'publish_date': get_local_time().isoformat()
             }]
 
@@ -723,7 +789,8 @@ class IngestService:
 
             self.record_manager.complete(ingest_record, len(documents), extracted_data, builds)
         except Exception as e:
-            self.record_manager.fail(ingest_record, e)
+            self.record_manager.fail(ingest_record, str(e))
+            raise
 
         return record_id
 

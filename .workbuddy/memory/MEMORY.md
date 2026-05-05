@@ -42,7 +42,7 @@
 
 ### 关键设计决策
 
-ADR 文档已独立化，存放在 `docs/adr/` 目录（共 43 条有效，ADR-001~047，含 4 条空洞编号），详见 `docs/adr/README.md`。
+ADR 文档已独立化，存放在 `docs/adr/` 目录（共 48 个 ADR，ADR-001~047+1），详见 `docs/adr/README.md`。
 核心 ADR：ADR-001(OpenHarness), ADR-002(Graphiti), ADR-003(OPA), ADR-004(Skill), ADR-005(分层Agent), ADR-006(复用策略), ADR-045(G6+Leaflet), ADR-046(模块化单体), ADR-047(工具注册表P0分步)
 
 ### OpenHarness 复用矩阵（2026-04-11）
@@ -108,14 +108,20 @@ WR-01→WR-03→WR-04→WR-05→WR-17→WR-18，预估 11.5 周
 - Redis 和消息队列 Phase 4 不引入（YAGNI），Phase 5+ 再评估
 
 ## 重要文档
-- `docs/ARCHITECTURE.md`（v3.2，2026-04-15）
-- `docs/adr/README.md`（含优先级列，ADR-001~047，全部已创建）
-- `docs/TASK_BREAKDOWN.md`（v2.0，2026-04-19，Phase 4 工作项拆分）
+- `docs/architecture/ARCHITECTURE.md`（v4.1.0，2026-05-04，517行，入口索引）
+- `docs/architecture/ARCHITECTURE_INFRA.md`（L1 基础设施层，776行）
+- `docs/architecture/ARCHITECTURE_TOOLS.md`（L2 领域工具层，157行）
+- `docs/architecture/ARCHITECTURE_BIZ.md`（L3-L4 业务层，1522行）
+- `docs/architecture/ARCHITECTURE_WEB.md`（L5-L6 接口层，1048行）
+- `docs/architecture/ARCHITECTURE_EVOLVE.md`（演进与决策，768行）
+- `docs/architecture/ARCHITECTURE_VALIDATION_REPORT.md`（架构合理性验证报告，8.4/10）
+- `docs/adr/README.md`（含优先级列，ADR-001~048，全部已创建）
+- `docs/TASK_BREAKDOWN.md`（v3.0，Phase 4 工作项拆分）
 - `docs/CHECKLIST.md`（v1.0，213 条验收 Checklist）
 - `docs/COMPLETENESS_REPORT.md`（v1.0，范围完整性确认）
 - `docs/ANOMALY_REPORT.md`（v1.0，39 条不相关/待确认信息）
 - `docs/AUDIT_REPORT.md`（全量文档审计报告）
-- `docs/RESTRUCTURE_PLAN.md`（2026-04-15，项目目录重构方案）
+- `docs/RESTRUCTURE_PLAN.md`（项目目录重构方案）
 - **需求文档三件套**：
   - `docs/req-alpha.md` — v1.0 原始技术研究（归档）
   - `docs/req-beta.md` — v1.1.0 早期需求规格（归档）
@@ -126,3 +132,8 @@ WR-01→WR-03→WR-04→WR-05→WR-17→WR-18，预估 11.5 周
 - `odap/infra/opa/`: OPA 策略管理
 - `odap/biz/swarm/`: Swarm 编排器
 - `odap/biz/ontology/`: 本体管理引擎
+  - `schema/`: 本体 Schema 定义
+  - `services/`: 服务层（IngestService 等）
+  - `storage/`: 存储层
+  - `ingestion_split/`: ⭐ 数据采集子模块（2026-05-04 拆分）
+    - 包含 NewsIngester, ManualInputHandler, 各 Generator 等

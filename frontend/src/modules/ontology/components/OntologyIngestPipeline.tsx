@@ -431,11 +431,11 @@ export function OntologyIngestPipeline() {
           <Steps
             size="small"
             current={currentStep}
-            items={steps.map((step, index) => ({
+            items={steps.map((step) => ({
               title: step.title,
               description: step.description,
               icon: step.icon,
-              status: step.status
+              status: (step.status === 'completed' ? 'finish' : step.status === 'processing' ? 'process' : step.status) as 'wait' | 'process' | 'finish' | 'error'
             }))}
           />
         </Space>

@@ -1,8 +1,8 @@
 # ODAP 文档体系关系图
 
-> **版本**: 1.2.0 | **日期**: 2026-04-19
-> **状态**: 正式 | **优先级**: P0
+> **版本**: 1.5.0 | **日期**: 2026-05-03 | **状态**: 正式 | **优先级**: P0
 > **用途**: 作为项目文档体系的索引文档，提供快速导航
+> **上游文档**: [文档基线 v1.0.0](./DOCUMENT_BASELINE_v1.0.0.md), [文档管理规范](./DOCUMENT_MANAGEMENT.md)
 
 ---
 
@@ -10,11 +10,12 @@
 
 | 角色 | 推荐阅读路径 |
 |------|-------------|
-| 新成员 | docs/README.md → req-ok.md → ARCHITECTURE_PLAN_v4.md → ARCHITECTURE.md |
+| 新成员 | docs/README.md → **文档基线** → **文档管理规范** → requirements/req-ok.md → architecture/ARCHITECTURE.md |
 | 前端开发 | ADR-007 → ADR-037 → ADR-045 → UI设计 → 前端开发路径 |
 | 后端开发 | 架构规划 → 核心架构 → 模块设计 → ADR决策 → TASK_BREAKDOWN |
-| 架构师 | 需求定稿 → 架构规划 → 核心架构 → ADR决策 → CHECKLIST_v2.md |
+| 架构师 | **文档基线** → **文档管理规范** → 需求定稿 → **架构文档索引** → **核心架构** → ADR决策 → CHECKLIST_v2.md |
 | 产品经理 | 需求定稿 → 架构规划 → Checklist |
+| 文档维护者 | **文档基线** → **文档管理规范** → **文档健康检查清单** → 文档关系图 |
 
 ---
 
@@ -24,76 +25,51 @@
 docs/
 │
 ├── 根目录文档
-│   ├── README.md                # ⭐ 文档体系入口（新）
+│   ├── README.md                # ⭐ 文档体系入口
 │   ├── DOCUMENT_RELATIONSHIP.md  # 本文档
-│   ├── ARCHITECTURE.md          # ⭐ 核心架构文档（必读）
-│   ├── ARCHITECTURE_PLAN.md     # 架构规划
-│   ├── ARCHITECTURE_PLAN_v4.md  # ⭐ 架构规划 v4.0（新）
 │   ├── TASK_BREAKDOWN.md        # 任务拆分与开发计划
-│   ├── req-alpha.md             # 原始技术研究（归档）
-│   ├── req-beta.md              # 早期需求规格（归档）
-│   ├── req-ok.md                # ⭐ 需求定稿（唯一权威来源）
-│   ├── AUDIT_REPORT.md          # 审计报告
-│   ├── RESTRUCTURE_PLAN.md      # 重构计划
-│   ├── CHECKLIST.md             # 旧 Checklist
-│   ├── CHECKLIST_v1.md          # Checklist v1
-│   ├── CHECKLIST_v2.md          # ⭐ 完整 Checklist v2（新）
-│   ├── ANOMALY_REPORT.md        # 异常报告
-│   ├── COMPLETENESS_REPORT.md   # 完整性报告
+│   ├── CHECKLIST_v2.md          # ⭐ 完整 Checklist v2
 │   ├── DFX_DESIGN.md            # DFX设计
 │   ├── TEST_DESIGN.md           # 测试设计
-│   ├── TEST_REPORT.md           # 测试报告
-│   │
-│   ├── adr/                     # 架构决策记录 (47个)
-│   │   ├── README.md            # ADR 索引
-│   │   ├── ADR-001~ADR-037      # 现有ADR
-│   │   ├── ADR-038_本体管理引擎与用户认知引擎架构.md  # ⭐ 新增
-│   │   ├── ADR-039_qa_engine_architecture.md                 # ⭐ 新增
-│   │   ├── ADR-040_api_gateway_unified_entry.md              # ⭐ 新增
-│   │   ├── ADR-041_workspace_resource_isolation.md            # ⭐ 新增
-│   │   ├── ADR-042_audit_log_storage_query.md                 # ⭐ 新增
-│   │   ├── ADR-043_agent_router_semantic_routing.md           # ⭐ 新增
-│   │   ├── ADR-044_test_strategy_framework.md                 # ⭐ 新增
-│   │   ├── ADR-045_frontend_visualization_g6_leaflet.md       # ⭐ 新增
-│   │   ├── ADR-046_modular_monolith_deployment.md             # ⭐ 新增
-│   │   └── ADR-047_tool_registry_p0_phased_implementation.md  # ⭐ 新增
-│   │
-│   ├── modules/                 # 模块设计文档 (23个模块)
-│   │   ├── README.md            # 模块索引
-│   │   ├── agent/DESIGN.md
-│   │   ├── api_gateway/DESIGN.md                # ⭐ 新增
-│   │   ├── audit_log/DESIGN.md                  # ⭐ 新增
-│   │   ├── decision_recommendation/DESIGN.md
-│   │   ├── event_simulator/DESIGN.md            # ⭐ 新增
-│   │   ├── graphiti_client/DESIGN.md
-│   │   ├── hook_system/DESIGN.md
-│   │   ├── infra/DESIGN.md
-│   │   ├── mcp_protocol/DESIGN.md
-│   │   ├── mock_engine/DESIGN.md
-│   │   ├── ontology/DESIGN.md
-│   │   ├── opa_policy/DESIGN.md
-│   │   ├── openharness_bridge/DESIGN.md
-│   │   ├── permission_checker/DESIGN.md
-│   │   ├── qa_engine/DESIGN.md                 # ⭐ 新增
-│   │   ├── simulator/DESIGN.md
-│   │   ├── skills/DESIGN.md
-│   │   ├── swarm_orchestrator/DESIGN.md
-│   │   ├── tool_registry/DESIGN.md             # ⭐ 新增
-│   │   ├── user_cognition_engine/DESIGN.md     # ⭐ 新增
-│   │   ├── visualization/DESIGN.md
-│   │   ├── web/DESIGN.md
-│   │   ├── web_frontend/DESIGN.md             # ⭐ 新增
-│   │   ├── workspace/DESIGN.md                  # ⭐ 新增
-│   │   └── ontology_management_engine/DESIGN.md # ⭐ 新增
-│   │
-│   ├── security/
-│   │   └── SECURITY.md
-│   │
-│   └── ui/                     # UI 设计规范
-│       ├── UI_DESIGN.md               # UI 设计稿
-│       ├── MOBILE_FIRST_DESIGN.md    # ⭐ 移动优先设计规范
-│       └── COMPONENT_HIERARCHY.md    # ⭐ 组件分级管理
-```
+│   └── 待优化清单_2026-05-03.md # 存储架构优化清单
+│
+├── requirements/                # ⭐ 需求文档
+│   ├── README.md               # 需求文档索引
+│   ├── req-ok.md              # ⭐ 需求定稿（唯一权威来源）
+│   ├── archive/                # 历史需求归档
+│   │   ├── req-alpha.md       # v1.0 技术研究（归档）
+│   │   └── req-beta.md        # v1.1.0 早期需求（归档）
+│   └── backlog/                # 待办事项
+│
+├── architecture/               # ⭐ 架构文档
+│   ├── README.md             # 架构文档索引
+│   ├── ARCHITECTURE.md       # ⭐ 核心架构设计文档（v4.0，唯一权威）
+│   └── reports/              # 架构文档归档
+│       ├── AUDIT_REPORT.md
+│       ├── ARCHITECTURE_REVIEW_20260423.md
+│       ├── COMPLETENESS_REPORT.md
+│       ├── ANOMALY_REPORT.md
+│       └── TEST_REPORT.md
+│
+├── adr/                     # 架构决策记录 (51个)
+│   ├── README.md            # ADR 索引
+│   ├── ADR-001~ADR-051     # 所有ADR文档
+│   └── ...
+│
+├── modules/                 # 模块设计文档 (23个)
+│   ├── README.md            # 模块索引
+│   └── ...
+│
+├── ui/                     # UI 设计规范
+│   ├── README.md
+│   └── ...
+│
+├── api/                    # API 设计文档
+│   ├── API_SPEC.md
+│   └── INGEST_API_SPEC.md
+│
+└── security/               # 安全文档
+    └── SECURITY.md
 
 ---
 
@@ -107,8 +83,8 @@ docs/
 │  │ 技术研究    │  │ 需求草稿    │  │ 需求定稿    │  │ 任务拆分    │  │
 │  └─────────────┘  └─────────────┘  └─────────────┘  └─────────────┘  │
 │  ┌─────────────┐  ┌─────────────┐                                      │
-│  │ARCH_PLAN_v4│  │CHECKLIST_v2 │                                      │
-│  │架构规划v4.0│  │ 完整Checklist│                                      │
+│  │ CHECKLIST_v2 │  │ARCHITECTURE │                                      │
+│  │ 完整Checklist │  │  v4.0 ⭐    │                                      │
 │  └─────────────┘  └─────────────┘                                      │
 └─────────────────────────────────────────────────────────────────────┘
                                   │
@@ -347,6 +323,16 @@ docs/
 | UI 设计稿 | ui/UI_DESIGN.md | 完整的 UI 视觉和交互设计 |
 | 移动优先设计 | ui/MOBILE_FIRST_DESIGN.md | 响应式设计详细规范 |
 | 组件分级管理 | ui/COMPONENT_HIERARCHY.md | 组件 L1-L5 分级体系 |
+
+---
+
+## 7.5 文档管理体系文档
+
+| 文档 | 路径 | 说明 |
+|------|------|------|
+| **文档基线** | DOCUMENT_BASELINE_v1.0.0.md | ⭐ **新建** - 首个可信基线版本（133个文档） |
+| **文档管理规范** | DOCUMENT_MANAGEMENT.md | 文档生命周期、版本管理、依赖关系、归档机制 |
+| **文档健康检查清单** | DOCUMENT_HEALTH_CHECKLIST.md | 文档完整性、一致性、版本冲突检查 |
 | **文档关系图** | DOCUMENT_RELATIONSHIP.md | **本文档 - 项目索引** |
 
 ---
@@ -363,20 +349,29 @@ docs/
 | 组件重构 | COMPONENT_HIERARCHY.md → 前端代码 |
 | 模块设计变更 | 对应 modules/*/DESIGN.md → ARCHITECTURE.md |
 | 新增 ADR | ADR-xxx.md → adr/README.md → DOCUMENT_RELATIONSHIP.md |
+| **文档体系变更** | **DOCUMENT_MANAGEMENT.md** → **DOCUMENT_RELATIONSHIP.md** → **DOCUMENT_HEALTH_CHECKLIST.md** |
+| **新增特性规格** | .trae/specs/[feature]/spec.md → DOCUMENT_HEALTH_CHECKLIST.md |
+| **文档归档** | 归档文档状态 → DOCUMENT_HEALTH_CHECKLIST.md |
 
 ---
 
 ## 9. 相关文档链接
 
+### 文档管理文档（新建）
+- [文档基线 v1.0.0 ⭐](./DOCUMENT_BASELINE_v1.0.0.md) - **首个可信基线版本（133个文档）**
+- [文档管理规范 ⭐](./DOCUMENT_MANAGEMENT.md) - 文档生命周期、版本管理、依赖关系、归档机制
+- [文档健康检查清单 ⭐](./DOCUMENT_HEALTH_CHECKLIST.md) - 定期检查文档体系健康状态
+
 ### 需求文档
-- [需求定稿 ⭐](./req-ok.md)（唯一权威来源）
-- [原始技术研究](./req-alpha.md)（归档）
-- [早期需求规格](./req-beta.md)（归档）
-- [任务拆分与计划](./TASK_BREAKDOWN.md)
+- [需求定稿 ⭐](./requirements/req-ok.md)（唯一权威来源）
+- [需求文档索引](./requirements/README.md)
+- [早期技术研究](./requirements/archive/req-alpha.md)（归档）
+- [早期需求规格](./requirements/archive/req-beta.md)（归档）
 
 ### 架构文档
-- [架构规划 v4.0 ⭐](./ARCHITECTURE_PLAN_v4.md)
-- [核心架构文档](./ARCHITECTURE.md)
+- [架构文档索引 ⭐](./architecture/README.md)
+- [核心架构设计 ⭐](./architecture/ARCHITECTURE.md)（v4.0，唯一权威架构文档）
+- [架构审查报告](./architecture/reports/)
 - [ADR 索引](./adr/README.md)
 - [完整 Checklist v2 ⭐](./CHECKLIST_v2.md)
 

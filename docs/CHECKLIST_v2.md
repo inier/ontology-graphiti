@@ -1,6 +1,9 @@
 # ODAP 完整 Checklist v2.0
 
-> **版本**: 2.0 | **日期**: 2026-04-19 | **整合**: CHECKLIST_v1.md + CHECKLIST.md
+> **版本**: 2.0.0 | **日期**: 2026-05-03 | **状态**: 正式
+> **用途**: 项目完整性检查清单
+> **上游文档**: DOCUMENT_BASELINE_v1.0.0.md
+> **整合**: CHECKLIST_v1.md + CHECKLIST.md
 
 ---
 

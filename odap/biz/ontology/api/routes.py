@@ -67,6 +67,9 @@ class IngestStatusResponse(BaseModel):
     original_content: Optional[str] = None
     created_by: Optional[str] = None
     errors: Optional[List[Dict[str, Any]]] = None
+    extracted_data: Optional[Dict[str, Any]] = None
+    builds: Optional[List[Dict[str, Any]]] = None
+    build_status: Optional[str] = Field(default=None, description="构建状态: none/pending/completed/failed/partial")
 
 # API 路由
 @router.post("", response_model=IngestResponse)
@@ -473,7 +476,16 @@ async def run_build_pipeline(ingest_id: str, scenario_id: Optional[str] = None):
             
             # 构建完成后更新构建历史
             end_time = datetime.now()
-            start_time = datetime.fromisoformat(status.get('start_time', datetime.now().isoformat()))
+            # 修复日期时间不一致问题 - 使用相同的解析方式
+            start_time_str = status.get('start_time')
+            if start_time_str:
+                # 处理带时区和不带时区的时间
+                if start_time_str.endswith('Z'):
+                    start_time = datetime.fromisoformat(start_time_str.replace('Z', '+00:00'))
+                else:
+                    start_time = datetime.fromisoformat(start_time_str)
+            else:
+                start_time = datetime.now()
             duration_seconds = (end_time - start_time).total_seconds()
             
             build_record = {

@@ -1,12 +1,12 @@
-import React, { useState } from 'react';
-import { Layout, Typography, Button, Avatar, Empty, Tooltip, message, Divider, Modal } from 'antd';
-import { SendOutlined, UserOutlined, RobotOutlined, PlusOutlined, DeleteOutlined, SettingOutlined, LeftOutlined, RightOutlined, StarOutlined, HistoryOutlined } from '@ant-design/icons';
+import React, { useState, useEffect } from 'react';
+import { Layout, Typography, Button, Avatar, Empty, Tooltip, message, Divider, Modal, List, Tag } from 'antd';
+import { SendOutlined, UserOutlined, RobotOutlined, PlusOutlined, DeleteOutlined, SettingOutlined, LeftOutlined, RightOutlined, StarOutlined, HistoryOutlined, ThunderboltOutlined, ArrowRightOutlined } from '@ant-design/icons';
 import { useQAI } from '../hooks/useQAI';
 import type { QAMessage } from '../hooks/useQAI';
 import { useSession } from '../hooks/useSession';
 import type { Session } from '../hooks/useSession';
 import { colors } from '../../shared/styles/colors';
-import { useWorkspace, useScenario } from '../../shared';
+import { useWorkspace, useScenario, useRightPanel } from '../../shared';
 import { css } from '@emotion/css';
 
 const { Sider, Content } = Layout;
@@ -1117,9 +1117,11 @@ export function QAChatPage({ className, style }: { className?: string; style?: R
   const [input, setInput] = useState('');
   const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(false);
   const [selectedSessionTitle, setSelectedSessionTitle] = useState('');
+  const [, setSuggestions] = useState<Array<{ action: string; skill: string; confidence: number }>>([]);
   
   const { currentWorkspace } = useWorkspace();
   const { currentScenario } = useScenario();
+  const { setShowRightPanel, setRightPanelContent, setRightPanelTitle } = useRightPanel();
   
   const { sessions, fetchSessions, deleteSession } = useSession({
     workspaceId: currentWorkspace,
@@ -1133,6 +1135,78 @@ export function QAChatPage({ className, style }: { className?: string; style?: R
       fetchSessions(currentWorkspace, currentScenario);
     },
   });
+
+  // 当收到 AI 回复时，更新右栏内容
+  useEffect(() => {
+    if (messages.length > 0) {
+      const lastMessage = messages[messages.length - 1];
+      if (lastMessage.role === 'assistant' && lastMessage.content) {
+        // 生成示例建议（实际应该从 AI 回复中解析）
+        const mockSuggestions = generateSuggestions(lastMessage.content);
+        setSuggestions(mockSuggestions);
+        
+        // 更新右栏内容
+        if (mockSuggestions.length > 0) {
+          setRightPanelTitle('执行建议');
+          setRightPanelContent(
+            <SuggestionPanel 
+              suggestions={mockSuggestions} 
+              onExecute={(skill) => {
+                message.info(`执行 Skill: ${skill}`);
+              }}
+            />
+          );
+          setShowRightPanel(true);
+        }
+      }
+    }
+  }, [messages]);
+
+  // 生成建议的函数（应该根据 AI 回复内容智能生成）
+  const generateSuggestions = (content: string): Array<{ action: string; skill: string; confidence: number }> => {
+    const suggestions: Array<{ action: string; skill: string; confidence: number }> = [];
+    
+    // 简单的关键词匹配生成建议
+    if (content.includes('部队') || content.includes('单位')) {
+      suggestions.push({
+        action: '查询部队位置信息',
+        skill: 'location_query',
+        confidence: 0.9
+      });
+    }
+    if (content.includes('分析') || content.includes('评估')) {
+      suggestions.push({
+        action: '生成态势分析报告',
+        skill: 'analysis_report',
+        confidence: 0.85
+      });
+    }
+    if (content.includes('威胁') || content.includes('风险')) {
+      suggestions.push({
+        action: '威胁评估',
+        skill: 'threat_assessment',
+        confidence: 0.88
+      });
+    }
+    if (content.includes('推荐') || content.includes('建议')) {
+      suggestions.push({
+        action: '获取行动建议',
+        skill: 'action_recommendation',
+        confidence: 0.82
+      });
+    }
+    
+    // 始终添加一个通用查询建议
+    if (suggestions.length < 3) {
+      suggestions.push({
+        action: '查询本体图谱',
+        skill: 'ontology_search',
+        confidence: 0.75
+      });
+    }
+    
+    return suggestions.slice(0, 4); // 最多返回 4 条建议
+  };
 
   React.useEffect(() => {
     const handleAskQuestion = (e: Event) => {
@@ -1207,5 +1281,85 @@ export function QAChatPage({ className, style }: { className?: string; style?: R
         />
       </Content>
     </Layout>
+  );
+}
+
+// 建议面板组件
+interface SuggestionPanelProps {
+  suggestions: Array<{ action: string; skill: string; confidence: number }>;
+  onExecute: (skill: string) => void;
+}
+
+function SuggestionPanel({ suggestions, onExecute }: SuggestionPanelProps) {
+  const getConfidenceColor = (confidence: number) => {
+    if (confidence >= 0.9) return 'green';
+    if (confidence >= 0.8) return 'blue';
+    if (confidence >= 0.7) return 'orange';
+    return 'default';
+  };
+
+  return (
+    <div>
+      <div style={{ marginBottom: 16 }}>
+        <Typography.Text type="secondary" style={{ fontSize: 12 }}>
+          基于当前问答，推荐以下执行动作：
+        </Typography.Text>
+      </div>
+      <List
+        size="small"
+        dataSource={suggestions}
+        renderItem={(item, index) => (
+          <List.Item
+            key={index}
+            style={{ 
+              padding: '12px 8px', 
+              cursor: 'pointer',
+              borderRadius: 8,
+              marginBottom: 8,
+              border: '1px solid #f0f0f0',
+              transition: 'all 0.2s',
+            }}
+            onClick={() => onExecute(item.skill)}
+            onMouseEnter={(e) => {
+              e.currentTarget.style.backgroundColor = '#f5f5f5';
+              e.currentTarget.style.borderColor = '#1890ff';
+            }}
+            onMouseLeave={(e) => {
+              e.currentTarget.style.backgroundColor = 'transparent';
+              e.currentTarget.style.borderColor = '#f0f0f0';
+            }}
+          >
+            <div style={{ width: '100%' }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 4 }}>
+                <ThunderboltOutlined style={{ color: '#1890ff' }} />
+                <Typography.Text strong style={{ fontSize: 13 }}>{item.action}</Typography.Text>
+              </div>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginTop: 4 }}>
+                <Tag color="processing" style={{ fontSize: 11, marginRight: 0 }}>{item.skill}</Tag>
+                <Tag color={getConfidenceColor(item.confidence)} style={{ fontSize: 11, marginRight: 0 }}>
+                  {(item.confidence * 100).toFixed(0)}% 置信度
+                </Tag>
+              </div>
+              <div style={{ marginTop: 8 }}>
+                <Button 
+                  type="link" 
+                  size="small" 
+                  icon={<ArrowRightOutlined />}
+                  style={{ padding: 0, height: 'auto' }}
+                >
+                  执行
+                </Button>
+              </div>
+            </div>
+          </List.Item>
+        )}
+      />
+      <Divider style={{ margin: '16px 0' }} />
+      <div>
+        <Typography.Text type="secondary" style={{ fontSize: 11 }}>
+          点击建议可直接执行对应 Skill 操作
+        </Typography.Text>
+      </div>
+    </div>
   );
 }

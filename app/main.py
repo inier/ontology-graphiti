@@ -15,7 +15,7 @@ from odap.biz.frontend_compat.api.routes import router as frontend_router
 from odap.biz.openharness_agent.api.routes import router as agent_router
 from odap.infra.security import security_config
 from odap.infra.openharness import create_harness
-from odap.infra.openharness.v2_adapter import initialize_openharness
+from odap.infra.openharness.v2_adapter import initialize_openharness, get_openharness_integration
 import logging
 
 # 配置日志
@@ -133,9 +133,13 @@ async def root():
 @app.get("/health")
 async def health_check():
     """健康检查"""
+    integration = get_openharness_integration()
+    status_info = integration.get_status()
+    
     return {
         "status": "healthy",
         "openharness_v1": harness is not None,
+        "openharness_v2": status_info,
         "version": "2.0.0"
     }
 

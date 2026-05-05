@@ -1,7 +1,10 @@
 # ODAP 范围完整性确认报告
 
-> **版本**: 1.0 | **日期**: 2026-04-19 | **配套**: req-ok v2.0.0 + ARCHITECTURE_PLAN v1.0 + TASK_BREAKDOWN v2.0
-> **工作项**: WR-08（范围完整性保证）— 多专家协同审查
+> **版本**: 1.0.0 | **日期**: 2026-05-03 | **状态**: 📦 归档
+> **用途**: 范围完整性确认报告（历史参考）
+> **上游文档**: requirements/req-ok.md, ARCHITECTURE_PLAN.md, TASK_BREAKDOWN.md
+> **移动记录**: 2026-05-03 从 docs/ 移动到 docs/architecture/reports/
+> **工作项**: WR-08（范围完整性保证）
 
 ---
 

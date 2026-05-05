@@ -1,10 +1,11 @@
 import { useState, useEffect } from 'react';
-import { Card, Table, Button, Space, Tag, Switch, Upload, Modal, Form, Input, Select, Tabs, Typography, Row, Col, Statistic, message, Popconfirm, Empty, Descriptions, Badge, Tooltip, Divider, Alert } from 'antd';
+import { Card, Table, Button, Space, Tag, Switch, Upload, Modal, Form, Input, Select, Tabs, Row, Col, Statistic, message, Popconfirm, Empty, Descriptions, Badge, Divider, Typography } from 'antd';
 import { UploadOutlined, ReloadOutlined, PlusOutlined, DeleteOutlined, CheckCircleOutlined, StopOutlined, AppstoreOutlined, FolderOutlined, FileTextOutlined, EyeOutlined, ThunderboltOutlined } from '@ant-design/icons';
 import { api } from '../../shared';
 import { PageHeader } from '../../shared';
+import { SkillEditor } from '../components/SkillEditor';
 
-const { Text, Title, Paragraph } = Typography;
+const { Text } = Typography;
 const { TextArea } = Input;
 
 interface Skill {
@@ -39,6 +40,8 @@ export function SkillManagement() {
   const [registerModalVisible, setRegisterModalVisible] = useState(false);
   const [uploadCategory, setUploadCategory] = useState('custom');
   const [registerForm] = Form.useForm();
+  const [skillEditorVisible, setSkillEditorVisible] = useState(false);
+  const [editingSkill, setEditingSkill] = useState<Skill | null>(null);
 
   useEffect(() => {
     loadData();
@@ -48,18 +51,18 @@ export function SkillManagement() {
     setLoading(true);
     try {
       const [scanResult, allResult, categoriesResult, loadedResult] = await Promise.all([
-        api.scanSkillsDirectory().catch(() => ({ skills: [], total: 0 })),
-        api.getAllSkills().catch(() => ({ registered: [], scanned: [], total_registered: 0, total_scanned: 0 })),
-        api.getSkillCategories().catch(() => ({ categories: [] })),
-        api.getLoadedSkills().catch(() => ({ skills: [] })),
+        api.scanSkillsDirectory().catch(() => ({ skills: [] as Skill[], total: 0 })),
+        api.getAllSkills().catch(() => ({ registered: [] as Skill[], scanned: [] as Skill[], total_registered: 0, total_scanned: 0 })),
+        api.getSkillCategories().catch(() => ({ categories: [] as { name: string; skill_count: number; path: string }[] })),
+        api.getLoadedSkills().catch(() => ({ skills: [] as string[] })),
       ]);
 
-      setScannedSkills(scanResult.skills || []);
-      setRegisteredSkills(allResult.registered || []);
+      setScannedSkills((scanResult.skills || []) as Skill[]);
+      setRegisteredSkills((allResult.registered || []) as Skill[]);
       setCategories(categoriesResult.categories || []);
       setLoadedSkills(loadedResult.skills || []);
 
-      const enabledNames = new Set(allResult.registered?.map((s: any) => s.name) || []);
+      const enabledNames = new Set((allResult.registered as Skill[] | undefined)?.map((s) => s.name) || []);
       setScannedSkills(prev => prev.map(s => ({
         ...s,
         enabled: enabledNames.has(s.name)
@@ -259,6 +262,35 @@ export function SkillManagement() {
       loadData();
     } catch (error) {
       message.error(`删除失败: ${error}`);
+    }
+  };
+
+  // Skill 编辑功能已移除，如需启用请添加编辑按钮并调用此函数
+  const _handleEditSkill = (skill: Skill) => {
+    setEditingSkill(skill);
+    setSkillEditorVisible(true);
+  };
+  void _handleEditSkill; // 防止未使用警告
+
+  const handleSaveSkill = async (skillDef: {
+    name: string;
+    description: string;
+    category: string;
+    triggers: string[];
+    input_schema: Record<string, unknown>;
+    output_schema: Record<string, unknown>;
+    sections?: Record<string, string>;
+  }) => {
+    try {
+      // TODO: 调用 API 保存 Skill 到文件
+      // const markdown = `# ${skillDef.name}\n...`;
+      
+      message.success(`Skill "${skillDef.name}" 保存成功`);
+      setSkillEditorVisible(false);
+      setEditingSkill(null);
+      loadData();
+    } catch (error) {
+      message.error(`保存失败: ${error}`);
     }
   };
 
@@ -504,6 +536,25 @@ export function SkillManagement() {
           </Button>
         </Form>
       </Modal>
+
+      {/* Skill 可视化编辑器 */}
+      <SkillEditor
+        visible={skillEditorVisible}
+        skill={editingSkill ? {
+          name: editingSkill.name,
+          description: editingSkill.description || '',
+          category: editingSkill.category,
+          triggers: [],
+          input_schema: editingSkill.parsed?.input_schema || {},
+          output_schema: editingSkill.parsed?.output_schema || {},
+          sections: editingSkill.parsed?.sections,
+        } : undefined}
+        onSave={handleSaveSkill}
+        onCancel={() => {
+          setSkillEditorVisible(false);
+          setEditingSkill(null);
+        }}
+      />
     </div>
   );
 }

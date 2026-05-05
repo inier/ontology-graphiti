@@ -302,7 +302,7 @@ export function RoleManager() {
                   label: (
                     <div style={{ display: 'flex', justifyContent: 'space-between', width: '100%' }}>
                       <span>{permission.name}</span>
-                      <Tag size="small">{getPermissionScopeLabel(permission.scope)}</Tag>
+                      <Tag>{getPermissionScopeLabel(permission.scope)}</Tag>
                     </div>
                   ),
                   value: permission.id,

@@ -1,4 +1,4 @@
-export { AppLayout, useWorkspace, useScenario } from './components/AppLayout';
+export { AppLayout, useWorkspace, useScenario, useRightPanel } from './components/AppLayout';
 export { MapView } from './components/MapView';
 export { QAPanel } from './components/QAPanel';
 export { StatCard } from './components/StatCard';

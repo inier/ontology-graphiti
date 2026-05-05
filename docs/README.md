@@ -1,5 +1,10 @@
 # ODAP 文档中心
 
+> **版本**: 1.0.0 | **日期**: 2026-05-03 | **状态**: 正式
+> **用途**: 文档体系入口
+> **上游文档**: DOCUMENT_BASELINE_v1.0.0.md
+> **相关文档**: DOCUMENT_RELATIONSHIP.md, DOCUMENT_MANAGEMENT.md
+
 欢迎来到 ODAP（Ontology-Driven Analysis Platform）文档中心！
 
 > 基于 Graphiti + OPA + Skill 架构的智能决策系统，参考 Palantir AIP 架构设计

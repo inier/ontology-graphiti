@@ -1,6 +1,6 @@
 import { useState, useEffect, useRef } from 'react';
-import { Card, Input, Button, List, Avatar, Spin, Typography, Space, Tag, Empty, Row, Col, Statistic, Segmented, Select, DatePicker, Tabs, Progress, Tooltip, Badge, message, Steps, Modal, Alert } from 'antd';
-import { SendOutlined, UserOutlined, RobotOutlined, HistoryOutlined, BulbOutlined, BarChartOutlined, TeamOutlined, ClockCircleOutlined, RiseOutlined, FallOutlined, LinkOutlined, DatabaseOutlined, InfoCircleOutlined, ThunderboltOutlined, CloudUploadOutlined, CheckCircleOutlined } from '@ant-design/icons';
+import { Card, Input, Button, List, Avatar, Spin, Typography, Space, Tag, Empty, Row, Col, Statistic, Select, DatePicker, Tabs, Progress, Tooltip, Badge, message, Steps, Modal, Alert } from 'antd';
+import { SendOutlined, UserOutlined, RobotOutlined, HistoryOutlined, BulbOutlined, BarChartOutlined, TeamOutlined, ClockCircleOutlined, RiseOutlined, FallOutlined, CloudUploadOutlined, InfoCircleOutlined, ThunderboltOutlined } from '@ant-design/icons';
 import { api, useScenario } from '../../shared';
 import dayjs from 'dayjs';
 
@@ -386,7 +386,7 @@ export function QAChat() {
     } else {
       try {
         const result = await api.ingest({
-          type: 'qa_query',
+          type: 'natural_language',
           data: query,
           scenario_id: currentScenario,
         });
@@ -581,7 +581,7 @@ export function QAChat() {
                                 <div style={{ marginTop: 4 }}>
                                   <Text type="secondary" style={{ fontSize: 11 }}>提及实体: </Text>
                                   {msg.routing.entities_mentioned.map((ent, idx) => (
-                                    <Tag key={idx} size="small" style={{ fontSize: 10 }}>{ent}</Tag>
+                                    <Tag key={idx}>{ent}</Tag>
                                   ))}
                                 </div>
                               )}
@@ -628,26 +628,26 @@ export function QAChat() {
       </div>
 
       <div style={{ borderTop: '1px solid #f0f0f0', padding: '16px 24px' }}>
-        <Input.TextArea
-          value={input}
-          onChange={(e) => setInput(e.target.value)}
-          onKeyPress={handleKeyPress}
-          placeholder="输入您的问题，按 Enter 发送..."
-          autoSize={{ minRows: 1, maxRows: 4 }}
-          disabled={loading}
-          style={{ borderRadius: 8 }}
-          suffix={
-            <Button
-              type="primary"
-              icon={<SendOutlined />}
-              onClick={handleSend}
-              loading={loading}
-              disabled={!input.trim()}
-            >
-              发送
-            </Button>
-          }
-        />
+        <Space.Compact style={{ width: '100%' }}>
+          <Input.TextArea
+            value={input}
+            onChange={(e) => setInput(e.target.value)}
+            onKeyDown={handleKeyPress}
+            placeholder="输入您的问题，按 Enter 发送..."
+            autoSize={{ minRows: 1, maxRows: 4 }}
+            disabled={loading}
+            style={{ borderRadius: 8, flex: 1 }}
+          />
+          <Button
+            type="primary"
+            icon={<SendOutlined />}
+            onClick={handleSend}
+            loading={loading}
+            disabled={!input.trim()}
+          >
+            发送
+          </Button>
+        </Space.Compact>
         {loading && (
           <div style={{ marginTop: 8, textAlign: 'center' }}>
             <Spin size="small" /> <Text type="secondary">思考中...</Text>
@@ -764,7 +764,7 @@ export function QAChat() {
             <RangePicker
               style={{ width: 260 }}
               value={dateRange}
-              onChange={setDateRange}
+              onChange={(dates) => setDateRange(dates as [dayjs.Dayjs, dayjs.Dayjs] | null)}
               showTime
             />
             <Button

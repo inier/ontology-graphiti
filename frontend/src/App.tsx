@@ -16,7 +16,7 @@ export function App() {
         if (workspaces && workspaces.length > 0) {
           const savedId = localStorage.getItem('currentWorkspaceId');
           const validId = workspaces.find(w => w.workspace_id === savedId);
-          const targetId = validId ? savedId : workspaces[0].workspace_id;
+          const targetId: string = validId && savedId ? savedId : workspaces[0].workspace_id;
           setCurrentWorkspace(targetId);
           localStorage.setItem('currentWorkspaceId', targetId);
         }

@@ -13,7 +13,7 @@ from datetime import datetime
 sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 from odap.infra.graph import GraphManager
-from odap.biz.simulator.data_generator import generate_random_event
+from odap.biz.ontology.mock_data.data_generator import generate_random_event
 
 class IntelligenceCollector:
     """

@@ -70,8 +70,8 @@ const drawerStyles = css`
   }
 `;
 
-function formatTime(timestamp: number): string {
-  const date = new Date(timestamp * 1000);
+function formatTime(timestamp: string | number): string {
+  const date = typeof timestamp === 'string' ? new Date(timestamp) : new Date(timestamp * 1000);
   const now = new Date();
   const diff = now.getTime() - date.getTime();
   const days = Math.floor(diff / (1000 * 60 * 60 * 24));

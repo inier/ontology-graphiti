@@ -1,6 +1,6 @@
 import { useState, useEffect, useCallback } from 'react';
-import { Card, Tabs, Button, Space, Input, Upload, message, Table, Tag, Descriptions, Spin, Alert, Drawer, Empty, Divider, List, Typography, Row, Col, Badge, Steps, Timeline, Popconfirm, Statistic } from 'antd';
-import { UploadOutlined, SyncOutlined, CheckCircleOutlined, LoadingOutlined, DatabaseOutlined, ApiOutlined, RobotOutlined, CloudServerOutlined, GitlabOutlined, FolderOutlined, PlusOutlined, EyeOutlined, SwapOutlined, ClockCircleOutlined, CheckCircleFilled, CloseCircleFilled } from '@ant-design/icons';
+import { Card, Tabs, Button, Space, Input, Upload, message, Table, Tag, Descriptions, Spin, Drawer, Empty, Typography, Row, Col, Steps, Timeline, Select, Statistic } from 'antd';
+import { UploadOutlined, SyncOutlined, CheckCircleOutlined, LoadingOutlined, DatabaseOutlined, ApiOutlined, RobotOutlined, CloudServerOutlined, GitlabOutlined, FolderOutlined, PlusOutlined, EyeOutlined, SwapOutlined, CheckCircleFilled, CloseCircleFilled } from '@ant-design/icons';
 import { api } from '../../shared';
 import { useScenario } from '../../shared';
 const { Dragger } = Upload;
@@ -53,6 +53,7 @@ interface IngestRecord {
     event_count?: number;
     build_detail?: BuildDetail;
   }>;
+  build_status?: 'none' | 'pending' | 'completed' | 'failed' | 'partial';
 }
 
 interface BuildDetail {
@@ -92,7 +93,7 @@ const STAGE_COLORS: Record<string, string> = {
   graph: 'red',
 };
 
-const PIPELINE_DESCRIPTIONS: Record<string, string> = {
+const _PIPELINE_DESCRIPTIONS: Record<string, string> = {
   collection: '从多个数据源收集原始数据',
   cleaning: '清洗和标准化原始数据',
   llm: '使用大语言模型提取结构化信息',
@@ -125,11 +126,11 @@ export function IngestPanel() {
   const [loading, setLoading] = useState(false);
   const [ingestHistory, setIngestHistory] = useState<IngestRecord[]>([]);
   const [loadingHistory, setLoadingHistory] = useState(false);
-  const [uploadLoading, setUploadLoading] = useState(false);
 
   const [buildDetailVisible, setBuildDetailVisible] = useState(false);
   const [currentBuild, setCurrentBuild] = useState<BuildDetail | null>(null);
   const [buildingIngestId, setBuildingIngestId] = useState<string | null>(null);
+  const [uploadLoading, setUploadLoading] = useState(false);
 
   useEffect(() => {
     loadHistory();
@@ -141,34 +142,8 @@ export function IngestPanel() {
     try {
       const ingests = await api.getIngestHistory(50);
       
-      // 获取每个摄入记录的完整状态，包括构建历史
-      const ingestsWithBuilds = await Promise.all(
-        ingests.map(async (record) => {
-          try {
-            const fullRecord = await api.getFullIngestRecord(record.id);
-            return {
-              ...record,
-              builds: fullRecord.builds ? [{
-                build_id: fullRecord.builds.build_id,
-                status: fullRecord.builds.status,
-                document_id: fullRecord.builds.document_id,
-                version_info: fullRecord.builds.version_id ? {
-                  version_id: fullRecord.builds.version_id,
-                  commit_message: 'Auto build from pipeline'
-                } : undefined,
-                entity_count: fullRecord.builds.entity_count,
-                relation_count: fullRecord.builds.relation_count,
-                event_count: fullRecord.builds.event_count
-              }] : undefined,
-              version_id: fullRecord.builds?.version_id
-            };
-          } catch (e) {
-            return record;
-          }
-        })
-      );
-      
-      setIngestHistory(ingestsWithBuilds);
+      // API 已经返回了完整的构建信息，直接使用
+      setIngestHistory(ingests);
     } catch (error) {
       console.error('加载历史记录失败:', error);
     } finally {
@@ -282,15 +257,19 @@ export function IngestPanel() {
 
       // 构建完成后，获取最终结果
       const fullRecordFinal = await api.getFullIngestRecord(ingestId);
-      buildDetail.version_id = fullRecordFinal.builds?.version_id;
+      const latestBuild = fullRecordFinal.builds && fullRecordFinal.builds.length > 0 
+        ? fullRecordFinal.builds[0] 
+        : null;
+      
+      buildDetail.version_id = latestBuild?.version_info?.version_id;
       
       // 更新构建历史
       const newBuild = {
-        build_id: fullRecordFinal.builds?.build_id || `build-${Date.now()}`,
-        status: fullRecordFinal.builds?.status || 'completed',
-        document_id: fullRecordFinal.builds?.document_id,
-        version_info: {
-          version_id: fullRecordFinal.builds?.version_id,
+        build_id: latestBuild?.build_id || `build-${Date.now()}`,
+        status: latestBuild?.status || 'completed',
+        document_id: latestBuild?.document_id || '',
+        version_info: latestBuild?.version_info || {
+          version_id: `v${Date.now()}`,
           commit_message: 'Auto build from pipeline'
         },
         entity_count: buildDetail.entity_count,
@@ -384,10 +363,38 @@ export function IngestPanel() {
   const formatStepDetails = (details: Record<string, any>) => {
     if (!details) return null;
     
-    const { input, output } = details;
+    const { input, output, _audit } = details;
     
     return (
       <div style={{ fontSize: 11 }}>
+        {/* 审计信息 - 时间回溯 */}
+        {_audit && (
+          <div style={{ marginBottom: 6, paddingLeft: 8, borderLeft: '2px solid #d9d9d9' }}>
+            <Text strong style={{ color: '#722ed1' }}>审计信息:</Text>
+            <div style={{ marginTop: 2, fontSize: 10 }}>
+              {_audit.start_time && (
+                <div>
+                  <Text style={{ color: '#666' }}>开始时间: </Text>
+                  <Text>{new Date(_audit.start_time).toLocaleString()}</Text>
+                </div>
+              )}
+              {_audit.end_time && (
+                <div>
+                  <Text style={{ color: '#666' }}>结束时间: </Text>
+                  <Text>{new Date(_audit.end_time).toLocaleString()}</Text>
+                </div>
+              )}
+              {_audit.duration_ms != null && (
+                <div>
+                  <Text style={{ color: '#666' }}>执行时长: </Text>
+                  <Text>{_audit.duration_ms.toFixed(2)}ms</Text>
+                </div>
+              )}
+            </div>
+          </div>
+        )}
+        
+        {/* 输入输出信息 */}
         {input && (
           <div style={{ marginBottom: 4 }}>
             <Text strong style={{ color: '#1890ff' }}>输入:</Text>
@@ -559,7 +566,10 @@ export function IngestPanel() {
   };
 
   const handleViewBuild = async (record: IngestRecord) => {
-    const hasBuild = record.builds && record.builds.length > 0;
+    // 先清空之前的状态，防止显示旧数据
+    setCurrentBuild(null);
+    
+    const hasBuild = Boolean(record.builds && record.builds.length > 0);
     const build = hasBuild ? record.builds![0] : null;
 
     // 如果保存了完整构建过程，直接显示
@@ -574,15 +584,14 @@ export function IngestPanel() {
       const fullRecord = await api.getFullIngestRecord(record.id);
       if (fullRecord.logs && fullRecord.logs.length > 0) {
         // 找到最新一次构建的时间范围
-        // 先找到所有第一个日志（开始数据采集）的时间戳
-        const startLogs = fullRecord.logs.filter(log => log.operation.includes('开始'));
+        // 如果有builds信息，用build的时间
         let buildStartTime = '';
-        if (startLogs.length > 0) {
-          // 找到最新的开始时间
-          buildStartTime = startLogs.sort((a, b) => b.timestamp.localeCompare(a.timestamp))[0].timestamp;
+        if (record.builds && record.builds.length > 0) {
+          // 直接使用所有日志（因为我们的日志只有完成状态，没有开始）
+          buildStartTime = ''; 
         }
 
-        // 只获取这个时间点之后的日志（最新一次构建的日志）
+        // 使用所有日志（或者按时间筛选的）
         const recentLogs = buildStartTime
           ? fullRecord.logs.filter(log => log.timestamp >= buildStartTime)
           : fullRecord.logs;
@@ -691,6 +700,7 @@ export function IngestPanel() {
       dataIndex: 'start_time',
       key: 'start_time',
       width: 180,
+      resizable: true,
       render: (time: string) => new Date(time).toLocaleString('zh-CN'),
     },
     {
@@ -698,6 +708,7 @@ export function IngestPanel() {
       dataIndex: 'source',
       key: 'source',
       width: 100,
+      resizable: true,
       render: (source: string) => {
         const sourceMap: Record<string, string> = {
           news: '新闻',
@@ -713,6 +724,8 @@ export function IngestPanel() {
     {
       title: '原始信息',
       key: 'original_info',
+      width: 250,
+      resizable: true,
       render: (_: unknown, record: IngestRecord) => {
         const content = record.original_content || record.source_details?.url || record.source_details?.query || '-';
         const display = typeof content === 'string' && content.length > 50
@@ -726,12 +739,14 @@ export function IngestPanel() {
       dataIndex: 'status',
       key: 'status',
       width: 100,
+      resizable: true,
       render: (status: string) => getStatusTag(status),
     },
     {
       title: '版本',
       key: 'version',
-      width: 120,
+      width: 150,
+      resizable: true,
       render: (_: unknown, record: IngestRecord) => {
         if (record.builds && record.builds.length > 0) {
           const build = record.builds[0];
@@ -764,8 +779,12 @@ export function IngestPanel() {
       title: '操作',
       key: 'action',
       width: 180,
+      resizable: true,
       render: (_: unknown, record: IngestRecord) => {
         const hasBuild = record.builds && record.builds.length > 0;
+        // 使用根级的 build_status 字段更准确
+        const buildFailed = record.build_status === 'failed';
+        
         return (
           <Space>
             <Button
@@ -776,7 +795,7 @@ export function IngestPanel() {
             >
               {hasBuild ? '查看构建' : '详情'}
             </Button>
-            {!hasBuild && (
+            {record.build_status === 'none' && (
               <Button
                 type="primary"
                 size="small"
@@ -785,6 +804,18 @@ export function IngestPanel() {
                 onClick={() => handleBuild(record)}
               >
                 构建
+              </Button>
+            )}
+            {record.build_status === 'failed' && (
+              <Button
+                type="primary"
+                danger
+                size="small"
+                icon={<SyncOutlined />}
+                loading={buildingIngestId === record.id}
+                onClick={() => handleBuild(record)}
+              >
+                重新构建
               </Button>
             )}
           </Space>
@@ -1010,7 +1041,10 @@ export function IngestPanel() {
         placement="right"
         size="large"
         open={buildDetailVisible}
-        onClose={() => setBuildDetailVisible(false)}
+        onClose={() => {
+            setBuildDetailVisible(false);
+            setCurrentBuild(null);
+          }}
       >
         {currentBuild && (
           <Space orientation="vertical" size="large">

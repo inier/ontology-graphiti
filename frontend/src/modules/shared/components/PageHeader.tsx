@@ -6,7 +6,7 @@ const { Title } = Typography;
 
 interface PageHeaderProps {
   title: string;
-  titleLevel?: 1 | 2 | 3 | 4 | 5 | 6;
+  titleLevel?: 1 | 2 | 3 | 4;
   actions?: React.ReactNode;
   className?: string;
   style?: React.CSSProperties;
@@ -30,7 +30,7 @@ export function PageHeader({
     >
       <Col flex="1">
         <Title 
-          level={titleLevel} 
+          level={titleLevel as 1 | 2 | 3 | 4} 
           style={{ 
             margin: 0, 
             textAlign: 'left' 

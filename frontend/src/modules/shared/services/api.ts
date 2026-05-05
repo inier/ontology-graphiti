@@ -1141,7 +1141,6 @@ export const api = {
     message?: string;
     enabled?: boolean;
     skill_id?: string;
-    status?: string;
   }> {
     return fetchJson(`${API_BASE}/api/skill/toggle/${skillName}?enabled=${enabled}`, {
       method: 'POST',

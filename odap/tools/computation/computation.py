@@ -12,7 +12,7 @@ sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 from odap.tools import register_skill
 from odap.infra.graph import GraphManager
-from odap.biz.simulator.data_generator import load_simulation_data
+from odap.biz.ontology.mock_data.data_generator import load_simulation_data
 
 manager = GraphManager()
 

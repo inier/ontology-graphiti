@@ -1,7 +1,6 @@
 import { useState, useEffect, useRef } from 'react';
 import { Card, Row, Col, Drawer, Descriptions, Tag, Select, Space, Button, Table, Empty, Spin, message, Tooltip, Typography } from 'antd';
 import {
-  CheckCircleFilled,
   ReloadOutlined,
   ZoomInOutlined,
   ZoomOutOutlined,
@@ -135,44 +134,20 @@ function SemanticNetworkGraph({
         data: graphData,
         node: {
           type: 'circle',
-          style: (d: any) => {
-            const colors = NODE_COLORS[d.data?.nodeType as keyof typeof NODE_COLORS] || NODE_COLORS.concept;
-            const isSelected = d.id === selectedNodeId;
-            return {
-              size: 50,
-              fill: colors.fill,
-              stroke: isSelected ? '#1890ff' : colors.stroke,
-              lineWidth: isSelected ? 4 : 2,
-              cursor: 'pointer'
-            };
-          },
-          labelText: (d: any) => d.data?.label || '',
-          labelFill: '#fff',
-          labelFontSize: 12,
-          labelOffsetY: 4
+          style: {
+            size: 50,
+            fill: '#1890ff',
+            stroke: '#096dd9',
+            lineWidth: 2,
+            cursor: 'pointer'
+          }
         },
         edge: {
           type: 'line',
-          style: (d: any) => {
-            const color = EDGE_COLORS[d.data?.edgeType] || '#8c8c8c';
-            const dash = EDGE_LINE_STYLES[d.data?.edgeType] || [];
-            return {
-              stroke: color,
-              lineWidth: 2,
-              lineDash: dash,
-              endArrow: {
-                type: 'triangle',
-                size: 6,
-                fill: color
-              }
-            };
-          },
-          labelText: (d: any) => d.data?.edgeName || '',
-          labelFill: '#8c8c8c',
-          labelFontSize: 10,
-          labelBackground: true,
-          labelBackgroundFill: '#fff',
-          labelBackgroundPadding: [2, 4, 2, 4]
+          style: {
+            stroke: '#8c8c8c',
+            lineWidth: 2
+          }
         },
         layout: {
           type: 'force',
