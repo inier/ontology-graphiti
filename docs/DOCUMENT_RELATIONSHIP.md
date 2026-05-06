@@ -1,8 +1,8 @@
 # ODAP 文档体系关系图
 
-> **版本**: 1.5.0 | **日期**: 2026-05-03 | **状态**: 正式 | **优先级**: P0
-> **用途**: 作为项目文档体系的索引文档，提供快速导航
-> **上游文档**: [文档基线 v1.0.0](./DOCUMENT_BASELINE_v1.0.0.md), [文档管理规范](./DOCUMENT_MANAGEMENT.md)
+> **版本**: 2.0.0 | **日期**: 2026-05-07 | **状态**: 正式 | **优先级**: P0
+> **用途**: SDD 层次化文档体系的完整索引，提供快速导航
+> **上游**: [文档管理规范](./DOCUMENT_MANAGEMENT.md) | **下游**: 所有层级文档
 
 ---
 
@@ -10,206 +10,219 @@
 
 | 角色 | 推荐阅读路径 |
 |------|-------------|
-| 新成员 | docs/README.md → **文档基线** → **文档管理规范** → requirements/req-ok.md → architecture/ARCHITECTURE.md |
-| 前端开发 | ADR-007 → ADR-037 → ADR-045 → UI设计 → 前端开发路径 |
-| 后端开发 | 架构规划 → 核心架构 → 模块设计 → ADR决策 → TASK_BREAKDOWN |
-| 架构师 | **文档基线** → **文档管理规范** → 需求定稿 → **架构文档索引** → **核心架构** → ADR决策 → CHECKLIST_v2.md |
-| 产品经理 | 需求定稿 → 架构规划 → Checklist |
-| 文档维护者 | **文档基线** → **文档管理规范** → **文档健康检查清单** → 文档关系图 |
+| 新成员 | [README.md](./README.md) → [需求定稿](00-requirements/req-ok.md) → [核心架构](02-architecture/ARCHITECTURE.md) |
+| 前端开发 | [ADR-007](07-adr/ADR-007_前端采用_react_ant_design_技术栈.md) → [ADR-037](07-adr/ADR-037_frontend_mobile_first_i18n.md) → [ADR-045](07-adr/ADR-045_frontend_visualization_g6_leaflet.md) → [04-UI设计](04-ui/) → [web_frontend](03-modules/web_frontend/DESIGN.md) |
+| 后端开发 | [核心架构](02-architecture/ARCHITECTURE.md) → [03-模块设计](03-modules/) → [07-ADR](07-adr/) → [08-任务分解](08-tasks/TASK_BREAKDOWN.md) |
+| 架构师 | [需求定稿](00-requirements/req-ok.md) → [核心架构](02-architecture/ARCHITECTURE.md) → [07-ADR](07-adr/) → [09-检查清单](09-checklists/CHECKLIST_v2.md) |
+| 产品经理 | [需求定稿](00-requirements/req-ok.md) → [产品设计](01-product-design/ODAP综合优化设计文档.md) → [09-检查清单](09-checklists/CHECKLIST_v2.md) |
+| 文档维护者 | [文档管理规范](./DOCUMENT_MANAGEMENT.md) → 本文档 |
 
 ---
 
-## 1. 文档目录结构
+## 1. SDD 目录结构
 
 ```
 docs/
 │
-├── 根目录文档
-│   ├── README.md                # ⭐ 文档体系入口
-│   ├── DOCUMENT_RELATIONSHIP.md  # 本文档
-│   ├── TASK_BREAKDOWN.md        # 任务拆分与开发计划
-│   ├── CHECKLIST_v2.md          # ⭐ 完整 Checklist v2
-│   ├── DFX_DESIGN.md            # DFX设计
-│   ├── TEST_DESIGN.md           # 测试设计
-│   └── 待优化清单_2026-05-03.md # 存储架构优化清单
+├── README.md                             # ⭐ SDD 文档中心入口
+├── DOCUMENT_MANAGEMENT.md                # ⭐ 防腐文档体系维护指南
+├── DOCUMENT_BASELINE_v1.0.0.md           # 文档基线（首个可信版本）
+├── DOCUMENT_RELATIONSHIP.md              # 本文档 — 完整索引
 │
-├── requirements/                # ⭐ 需求文档
-│   ├── README.md               # 需求文档索引
-│   ├── req-ok.md              # ⭐ 需求定稿（唯一权威来源）
-│   ├── archive/                # 历史需求归档
-│   │   ├── req-alpha.md       # v1.0 技术研究（归档）
-│   │   └── req-beta.md        # v1.1.0 早期需求（归档）
-│   └── backlog/                # 待办事项
+├── 00-requirements/                      # ⭐ 原始需求 + 开发需求
+│   ├── req-ok.md                         # ⭐ 需求定稿（唯一权威来源）
+│   ├── archive/                          # 早期技术研究归档
+│   │   ├── req-alpha.md                  # v1.0 技术研究
+│   │   └── req-beta.md                   # v1.1.0 早期需求
+│   ├── backlog/                          # 待办事项
+│   │   └── 待优化清单_2026-05-03.md
+│   └── documents/                        # 补充前端文档
 │
-├── architecture/               # ⭐ 架构文档
-│   ├── README.md             # 架构文档索引
-│   ├── ARCHITECTURE.md       # ⭐ 核心架构设计文档（v4.0，唯一权威）
-│   └── reports/              # 架构文档归档
-│       ├── AUDIT_REPORT.md
-│       ├── ARCHITECTURE_REVIEW_20260423.md
-│       ├── COMPLETENESS_REPORT.md
-│       ├── ANOMALY_REPORT.md
-│       └── TEST_REPORT.md
+├── 01-product-design/                    # 产品设计
+│   ├── ODAP综合优化设计文档.md            # ⭐ 综合优化设计
+│   └── webui-enhancement-design.md       # WebUI增强设计
 │
-├── adr/                     # 架构决策记录 (51个)
-│   ├── README.md            # ADR 索引
-│   ├── ADR-001~ADR-051     # 所有ADR文档
-│   └── ...
+├── 02-architecture/                      # ⭐ 架构设计
+│   ├── ARCHITECTURE.md                   # ⭐ 核心架构（v4.0，唯一权威）
+│   ├── ARCHITECTURE_ANALYSIS_REPORT.md
+│   ├── ARCHITECTURE_BIZ.md               # 业务架构
+│   ├── ARCHITECTURE_EVOLVE.md            # 演进架构
+│   ├── ARCHITECTURE_FULL_CHAIN.md        # 全链路概要
+│   ├── ARCHITECTURE_FULL_CHAIN_DEEP.md   # ⭐ 全链路深入（v2.3）
+│   ├── ARCHITECTURE_INFRA.md             # 基础设施架构
+│   ├── ARCHITECTURE_OPS.md               # 运维架构
+│   ├── ARCHITECTURE_TOOLS.md             # 工具链架构
+│   ├── ARCHITECTURE_WEB.md               # Web架构
+│   ├── DEEP_REVIEW_REPORT_20260505.md
+│   ├── PHASE4_5_PLAN.md
+│   ├── REVIEW_REPORT_20260505.md
+│   └── reports/                          # 历史审查报告
 │
-├── modules/                 # 模块设计文档 (23个)
-│   ├── README.md            # 模块索引
-│   └── ...
+├── 03-modules/                           # ⭐ 模块设计（25个模块）
+│   ├── agent/DESIGN.md
+│   ├── api_gateway/DESIGN.md
+│   ├── audit_log/DESIGN.md
+│   ├── auth/DESIGN.md
+│   ├── decision_recommendation/DESIGN.md
+│   ├── event_simulator/DESIGN.md
+│   ├── graphiti_client/DESIGN.md
+│   ├── hook_system/DESIGN.md
+│   ├── infra/DESIGN.md
+│   ├── mcp_protocol/DESIGN.md
+│   ├── ontology/DESIGN.md
+│   ├── ontology_management_engine/DESIGN.md
+│   ├── opa_policy/DESIGN.md
+│   ├── openharness_bridge/DESIGN.md
+│   ├── qa_engine/DESIGN.md
+│   ├── session_memory/DESIGN.md
+│   ├── simulator/DESIGN.md
+│   ├── skills/DESIGN.md
+│   ├── swarm_orchestrator/DESIGN.md
+│   ├── test/DESIGN.md
+│   ├── tool_registry/DESIGN.md
+│   ├── user_cognition_engine/DESIGN.md
+│   ├── visualization/DESIGN.md
+│   ├── web_frontend/DESIGN.md
+│   ├── workspace/DESIGN.md
+│   └── README.md                         # 模块索引
 │
-├── ui/                     # UI 设计规范
-│   ├── README.md
-│   └── ...
+├── 04-ui/                                # UI设计
+│   ├── UI_DESIGN.md                      # 完整UI设计稿
+│   ├── COMPONENT_HIERARCHY.md            # 组件分级管理
+│   ├── COMPONENT_SPEC.md                 # 组件规格
+│   ├── MOBILE_FIRST_DESIGN.md            # 移动优先规范
+│   └── ONTOLOGY_BUILD_UI.md              # 本体构建界面
 │
-├── api/                    # API 设计文档
+├── 05-security/                          # 安全设计
+│   └── SECURITY.md                       # 安全架构设计
+│
+├── 06-dfx/                               # DFX设计
+│   ├── DFX_DESIGN.md                     # DFX综合设计
+│   └── TEST_DESIGN.md                    # 测试架构设计
+│
+├── 07-adr/                               # 架构决策记录（54个ADR）
+│   ├── ADR-001 ~ ADR-053                 # 所有ADR文档
+│   └── README.md                         # ADR索引
+│
+├── 08-tasks/                             # 任务分解
+│   └── TASK_BREAKDOWN.md                 # 任务拆分与Phase规划
+│
+├── 09-checklists/                        # 检查清单
+│   └── CHECKLIST_v2.md                   # ⭐ 完整验收清单
+│
+├── 10-api/                               # API规范（契约层）
 │   ├── API_SPEC.md
 │   └── INGEST_API_SPEC.md
 │
-└── security/               # 安全文档
-    └── SECURITY.md
+└── 11-archive/                           # 归档（历史依据）
+    ├── legacy_code/
+    └── specs/                            # 早期spec（8个特性规格）
+```
 
 ---
 
-## 2. 文档分层体系
+## 2. SDD 层次体系图
 
 ```
-┌─────────────────────────────────────────────────────────────────────┐
-│                         战略层 (Business)                             │
-│  ┌─────────────┐  ┌─────────────┐  ┌─────────────┐  ┌─────────────┐  │
-│  │ req-alpha   │  │  req-beta   │  │  req-ok ⭐  │  │TASK_BREAK↓  │  │
-│  │ 技术研究    │  │ 需求草稿    │  │ 需求定稿    │  │ 任务拆分    │  │
-│  └─────────────┘  └─────────────┘  └─────────────┘  └─────────────┘  │
-│  ┌─────────────┐  ┌─────────────┐                                      │
-│  │ CHECKLIST_v2 │  │ARCHITECTURE │                                      │
-│  │ 完整Checklist │  │  v4.0 ⭐    │                                      │
-│  └─────────────┘  └─────────────┘                                      │
-└─────────────────────────────────────────────────────────────────────┘
-                                  │
-                                  ▼
-┌─────────────────────────────────────────────────────────────────────┐
-│                         架构层 (Architecture)                         │
-│  ┌─────────────────────────────────────────────────────────────┐    │
-│  │                    ARCHITECTURE.md                           │    │
-│  │                    核心架构文档（238KB）                       │    │
-│  └─────────────────────────────────────────────────────────────┘    │
-└─────────────────────────────────────────────────────────────────────┘
-                                  │
-          ┌───────────────────────┼───────────────────────┐
-          ▼                       ▼                       ▼
-┌─────────────────┐   ┌─────────────────┐   ┌─────────────────┐
-│   决策层 (ADR)  │   │   模块层 (Design)│   │   设计层 (UI)   │
-│   47个ADR文档   │   │   23个模块设计   │   │   UI设计规范    │
-└─────────────────┘   └─────────────────┘   └─────────────────┘
-          │                       │                       │
-          └───────────────────────┼───────────────────────┘
-                                  ▼
-┌─────────────────────────────────────────────────────────────────────┐
-│                         实现层 (Implementation)                       │
-│  ┌─────────────────┐  ┌─────────────────┐  ┌─────────────────┐    │
-│  │    frontend/    │  │      odap/      │  │   skills/       │    │
-│  │    前端代码     │  │    后端代码     │  │   技能定义      │    │
-│  └─────────────────┘  └─────────────────┘  └─────────────────┘    │
-└─────────────────────────────────────────────────────────────────────┘
+┌───────────────────────────────────────────────────────────────────────┐
+│                 00-requirements/  原始需求 + 开发需求                    │
+│  ┌─────────────┐  ┌─────────────┐  ┌─────────────┐  ┌─────────────┐    │
+│  │  req-alpha  │  │  req-beta   │  │  req-ok ⭐  │  │   待优化     │    │
+│  │  技术研究   │  │  需求草稿   │  │  需求定稿   │  │   清单       │    │
+│  └─────────────┘  └─────────────┘  └─────────────┘  └─────────────┘    │
+└───────────────────────────────────────────────────────────────────────┘
+                                    │
+                    ┌───────────────┴───────────────┐
+                    ▼                               ▼
+┌──────────────────────────┐    ┌──────────────────────────┐
+│   01-product-design/     │    │   02-architecture/       │
+│   产品设计                │    │   架构设计 ⭐             │
+│   ODAP综合优化设计文档    │    │   ARCHITECTURE.md        │
+└──────────────────────────┘    └──────────────────────────┘
+                    │                               │
+        ┌───────────┼───────────┬───────────┬───────┤
+        ▼           ▼           ▼           ▼       ▼
+┌──────────┐ ┌──────────┐ ┌──────────┐ ┌──────────┐ ┌──────────┐
+│03-modules│ │  04-ui   │ │05-security│ │ 06-dfx   │ │  07-adr  │
+│ 模块设计 │ │  UI设计   │ │  安全设计  │ │ DFX设计  │ │ 决策记录  │
+│25个DESIGN│ │  5个文件  │ │ SECURITY  │ │DFX+TEST  │ │ 54个ADR  │
+└──────────┘ └──────────┘ └──────────┘ └──────────┘ └──────────┘
+        │                                               │
+        └───────────────┬───────────────────────────────┘
+                        ▼
+┌───────────────────────────────────────────────────────────────────────┐
+│                    08-tasks/  →  09-checklists/                        │
+│                    任务分解       检查清单验收                           │
+└───────────────────────────────────────────────────────────────────────┘
+                        │
+            ┌───────────┴───────────┐
+            ▼                       ▼
+┌──────────────────┐    ┌──────────────────┐
+│    10-api/       │    │   11-archive/    │
+│    API规范       │    │    归档历史       │
+└──────────────────┘    └──────────────────┘
 ```
 
 ---
 
 ## 3. 核心文档阅读路径
 
-### 3.1 新成员入门路径（推荐）
+### 3.1 新成员入门路径
 
 ```
-1. docs/README.md                        文档体系入口
-       ↓
-2. docs/req-ok.md                       需求定稿（唯一权威）
-       ↓
-3. docs/ARCHITECTURE_PLAN_v4.md         架构规划 v4.0
-       ↓
-4. docs/ARCHITECTURE.md                 核心架构文档
-       ↓
-5. docs/CHECKLIST_v2.md                 完整 Checklist
+1. README.md                                  文档体系入口
+2. 00-requirements/req-ok.md                  需求定稿
+3. 02-architecture/ARCHITECTURE.md            核心架构文档
+4. 09-checklists/CHECKLIST_v2.md              完整验收清单
 ```
 
 ### 3.2 前端开发路径
 
 ```
-1. docs/ARCHITECTURE_PLAN_v4.md         架构规划（了解整体）
-       ↓
-2. docs/ARCHITECTURE.md (第11章)        前端界面架构
-       ↓
-3. docs/adr/ADR-007_前端技术栈.md       技术选型
-       ↓
-4. docs/adr/ADR-037_frontend_mobile_first_i18n.md  移动优先+国际化
-       ↓
-5. docs/adr/ADR-045_frontend_visualization_g6_leaflet.md  可视化技术
-       ↓
-6. docs/ui/UI_DESIGN.md                 UI 设计稿
-       ↓
-7. docs/ui/MOBILE_FIRST_DESIGN.md      移动优先规范
-       ↓
-8. docs/ui/COMPONENT_HIERARCHY.md      组件分级管理
-       ↓
-9. docs/modules/web_frontend/DESIGN.md  前端模块设计
-       ↓
-10. frontend/src/                       前端代码实现
+1. 02-architecture/ARCHITECTURE.md §11         前端界面架构
+2. 07-adr/ADR-007_前端技术栈.md                  技术选型
+3. 07-adr/ADR-037_frontend_mobile_first_i18n.md  移动优先+国际化
+4. 07-adr/ADR-045_frontend_visualization_g6_leaflet.md  可视化选型
+5. 04-ui/UI_DESIGN.md                             UI设计稿
+6. 04-ui/MOBILE_FIRST_DESIGN.md                   移动优先规范
+7. 04-ui/COMPONENT_HIERARCHY.md                   组件分级管理
+8. 03-modules/web_frontend/DESIGN.md              前端模块设计
 ```
 
 ### 3.3 后端开发路径
 
 ```
-1. docs/ARCHITECTURE_PLAN_v4.md         架构规划 v4.0
-       ↓
-2. docs/ARCHITECTURE.md                 核心架构文档（全文）
-       ↓
-3. docs/TASK_BREAKDOWN.md               任务拆分与 Phase 规划
-       ↓
-4. docs/modules/*/DESIGN.md             相关模块设计
-       ↓
-5. docs/adr/ADR-038~ADR-047            新增架构决策
-       ↓
-6. odap/                                后端代码
+1. 02-architecture/ARCHITECTURE.md               核心架构文档
+2. 08-tasks/TASK_BREAKDOWN.md                    任务拆分
+3. 03-modules/*/DESIGN.md                        相关模块设计
+4. 07-adr/                                       新增架构决策
 ```
 
 ### 3.4 架构师路径
 
 ```
-1. docs/req-ok.md                       需求定稿
-       ↓
-2. docs/ARCHITECTURE_PLAN_v4.md         架构规划 v4.0
-       ↓
-3. docs/ARCHITECTURE.md                核心架构（全文精读）
-       ↓
-4. docs/adr/README.md                 ADR 索引
-       ↓
-5. docs/adr/ADR-038~ADR-047          新增架构决策
-       ↓
-6. docs/CHECKLIST_v2.md              完整 Checklist
+1. 00-requirements/req-ok.md                    需求定稿
+2. 02-architecture/ARCHITECTURE.md              核心架构（全文精读）
+3. 07-adr/README.md                              ADR索引
+4. 09-checklists/CHECKLIST_v2.md                 完整验收清单
 ```
 
 ---
 
 ## 4. 文档关系矩阵
 
-| 上游文档 | 下游文档 | 关系类型 |
-|----------|----------|----------|
-| req-ok.md | ARCHITECTURE_PLAN_v4.md | 需求→规划 |
-| req-ok.md | ARCHITECTURE.md | 需求→架构 |
-| ARCHITECTURE_PLAN_v4.md | ARCHITECTURE.md | 规划→架构 |
-| ARCHITECTURE.md | TASK_BREAKDOWN.md | 架构→任务 |
-| ARCHITECTURE.md | docs/modules/*/DESIGN.md | 架构→模块 |
-| ARCHITECTURE.md | docs/ui/UI_DESIGN.md | 架构→UI |
-| ARCHITECTURE.md | docs/adr/* | 架构→决策 |
-| ADR-007 | docs/ui/UI_DESIGN.md | 技术选型→UI |
-| ADR-037 | docs/ui/MOBILE_FIRST_DESIGN.md | 响应式→移动 |
-| ADR-045 | docs/modules/web_frontend/DESIGN.md | 可视化→前端 |
-| UI_DESIGN.md | MOBILE_FIRST_DESIGN.md | 设计→规范 |
-| UI_DESIGN.md | COMPONENT_HIERARCHY.md | 设计→组件 |
-| TASK_BREAKDOWN.md | frontend/src/ | 任务→代码 |
-| TASK_BREAKDOWN.md | odap/ | 任务→代码 |
-| CHECKLIST_v2.md | ARCHITECTURE_PLAN_v4.md | 检查→规划 |
+| 上游 | 下游 | 关系 |
+|------|------|:----:|
+| `00-requirements/req-ok.md` | `02-architecture/ARCHITECTURE.md` | 需求→架构 |
+| `02-architecture/ARCHITECTURE.md` | `08-tasks/TASK_BREAKDOWN.md` | 架构→任务 |
+| `02-architecture/ARCHITECTURE.md` | `03-modules/*/DESIGN.md` | 架构→模块 |
+| `02-architecture/ARCHITECTURE.md` | `04-ui/UI_DESIGN.md` | 架构→UI |
+| `02-architecture/ARCHITECTURE.md` | `07-adr/*` | 架构→决策 |
+| `07-adr/ADR-007` | `04-ui/UI_DESIGN.md` | 技术选型→UI |
+| `07-adr/ADR-037` | `04-ui/MOBILE_FIRST_DESIGN.md` | 响应式→移动 |
+| `07-adr/ADR-045` | `03-modules/web_frontend/DESIGN.md` | 可视化→前端 |
+| `01-product-design/ODAP综合优化设计文档.md` | `02-architecture/ARCHITECTURE.md` | 产品→架构 |
+| CHANGELOG | 最新变更跟踪 | — |
 
 ---
 
@@ -224,175 +237,113 @@ docs/
 | ADR-005 | 分层 Agent 架构 | 已接受 |
 | ADR-006 | OpenHarness 复用策略 | 已接受 |
 | ADR-030 | Phase1 推迟引入 OpenHarness | 已接受 |
-| **ADR-038** | **本体管理引擎与用户认知引擎架构** | **已接受** ⭐ |
-| **ADR-046** | **模块化单体部署** | **已接受** ⭐ |
+| ADR-038 | 本体管理引擎与用户认知引擎架构 | 已接受 |
+| ADR-046 | 模块化单体部署 | 已接受 |
 
 ### 5.2 前端与 UI
 
 | ADR | 标题 | 状态 |
 |-----|------|------|
-| ADR-007 | 前端采用 React + Ant Design 技术栈 | 已接受 |
+| ADR-007 | 前端采用 React + Ant Design | 已接受 |
 | ADR-015 | 可扩展图表系统 | 已接受 |
 | ADR-020 | 管理员控制台统一界面 | 已接受 |
 | ADR-031 | Simulator Web 可视化 | 已接受 |
-| **ADR-037** | **前端移动优先、响应式设计和国际化策略** | **已接受** ⭐ |
-| **ADR-045** | **前端可视化 G6+Leaflet** | **已接受** ⭐ |
+| ADR-037 | 前端移动优先、响应式+国际化 | 已接受 |
+| ADR-045 | 前端可视化 G6+Leaflet | 已接受 |
 
-### 5.3 本体与数据
-
-| ADR | 标题 | 状态 |
-|-----|------|------|
-| ADR-032 | 标准本体文档格式 | 已接受 |
-| ADR-036 | 领域实体标准本体库（Palantir） | 已接受 |
-| ADR-022 | 模拟数仓与统一查询服务 | 提议中 |
-
-### 5.4 安全与治理
+### 5.3 安全与治理
 
 | ADR | 标题 | 状态 |
 |-----|------|------|
 | ADR-003 | OPA 策略治理引擎 | 已接受 |
 | ADR-008 | 审计日志完整记录 | 已接受 |
 | ADR-009 | Markdown 编写 OPA 策略 | 已接受 |
-| ADR-028 | Permission Checker OPA 集成 | 已接受 |
-| **ADR-042** | **审计日志存储与查询** | **已接受** ⭐ |
+| ADR-028 | OPA 统一权限校验 | 已接受 |
+| ADR-042 | 审计日志存储查询 | 已接受 |
 
-### 5.5 技能与扩展
+### 5.4 技能与扩展
 
 | ADR | 标题 | 状态 |
 |-----|------|------|
 | ADR-004 | 统一 Skill 体系架构 | 已接受 |
-| ADR-011 | 角色配置热生效 | 已接受 |
-| ADR-012 | 配置组合引擎 | 已接受 |
 | ADR-014 | 技能热插拔架构 | 已接受 |
 | ADR-026 | MCP 协议集成 | 已接受 |
+| ADR-027 | Hook 系统架构 | 已接受 |
 | ADR-029 | 工具注册架构 | 已接受 |
-| **ADR-047** | **工具注册 P0 分阶段实现** | **已接受** ⭐ |
+| ADR-047 | 工具注册 P0 分阶段实现 | 已接受 |
 
-### 5.6 运行时引擎
+### 5.5 运行时引擎
 
 | ADR | 标题 | 状态 |
 |-----|------|------|
-| ADR-018 | Domain Simulator Engine | 已接受 |
-| ADR-019 | 多模态文档处理流水线 | 已接受 |
-| ADR-023 | 多工作空间隔离架构 | 已接受 |
+| ADR-023 | 多工作空间隔离 | 已接受 |
 | ADR-024 | 本体驱动分析核心架构 | 已接受 |
-| **ADR-039** | **QA 引擎架构** | **已接受** ⭐ |
-| **ADR-040** | **API 网关统一入口** | **已接受** ⭐ |
-| **ADR-041** | **工作空间资源隔离** | **已接受** ⭐ |
-| **ADR-043** | **Agent 路由器语义路由** | **已接受** ⭐ |
-| **ADR-044** | **测试策略与框架** | **已接受** ⭐ |
+| ADR-039 | QA 引擎架构 | 已接受 |
+| ADR-040 | API 网关统一入口 | 已接受 |
+| ADR-041 | 工作空间资源隔离 | 已接受 |
+| ADR-043 | Agent 路由器语义路由 | 已接受 |
+| ADR-044 | 测试策略与框架 | 已接受 |
+
+### 5.6 Phase 5 选型
+
+| ADR | 标题 | 状态 |
+|-----|------|------|
+| ADR-052 | 智能问答 WebUI 选型 | 提议 |
+| ADR-053 | Skill 可视化管理选型 | 提议 |
 
 ---
 
 ## 6. 模块设计索引
 
-| 模块 | 路径 | 说明 |
-|------|------|------|
-| Agent | modules/agent/DESIGN.md | Agent 核心架构 |
-| Web | modules/web/DESIGN.md | Web 前端模块 |
-| Web Frontend | modules/web_frontend/DESIGN.md | ⭐ 前端应用 |
-| Ontology | modules/ontology/DESIGN.md | 本体管理模块 |
-| Simulator | modules/simulator/DESIGN.md | 模拟器模块 |
-| Event Simulator | modules/event_simulator/DESIGN.md | ⭐ 事件模拟器 |
-| Skills | modules/skills/DESIGN.md | 技能系统模块 |
-| Tool Registry | modules/tool_registry/DESIGN.md | ⭐ 工具注册 |
-| OPA Policy | modules/opa_policy/DESIGN.md | OPA 策略模块 |
-| Permission Checker | modules/permission_checker/DESIGN.md | 权限检查 |
-| Visualization | modules/visualization/DESIGN.md | 可视化模块 |
-| Hook System | modules/hook_system/DESIGN.md | 钩子系统模块 |
-| Swarm Orchestrator | modules/swarm_orchestrator/DESIGN.md | 蜂群编排器 |
-| Decision Recommendation | modules/decision_recommendation/DESIGN.md | 决策推荐 |
-| Graphiti Client | modules/graphiti_client/DESIGN.md | Graphiti 客户端 |
-| Infra | modules/infra/DESIGN.md | 基础设施 |
-| MCP Protocol | modules/mcp_protocol/DESIGN.md | MCP 协议 |
-| Mock Engine | modules/mock_engine/DESIGN.md | Mock 引擎 |
-| OpenHarness Bridge | modules/openharness_bridge/DESIGN.md | OpenHarness 桥接 |
-| QA Engine | modules/qa_engine/DESIGN.md | ⭐ QA 引擎 |
-| API Gateway | modules/api_gateway/DESIGN.md | ⭐ API 网关 |
-| Audit Log | modules/audit_log/DESIGN.md | ⭐ 审计日志 |
-| Workspace | modules/workspace/DESIGN.md | ⭐ 工作空间 |
-| User Cognition Engine | modules/user_cognition_engine/DESIGN.md | ⭐ 用户认知引擎 |
-| Ontology Management Engine | modules/ontology_management_engine/DESIGN.md | ⭐ 本体管理引擎 |
+| 模块 | 路径 | 架构层 |
+|------|------|--------|
+| Agent | `03-modules/agent/DESIGN.md` | L3 |
+| API Gateway | `03-modules/api_gateway/DESIGN.md` | L5 |
+| Audit Log | `03-modules/audit_log/DESIGN.md` | L1 |
+| Auth | `03-modules/auth/DESIGN.md` | L1 |
+| Decision Recommendation | `03-modules/decision_recommendation/DESIGN.md` | L4 |
+| Event Simulator | `03-modules/event_simulator/DESIGN.md` | L2 |
+| Graphiti Client | `03-modules/graphiti_client/DESIGN.md` | L1 |
+| Hook System | `03-modules/hook_system/DESIGN.md` | L1 |
+| Infra | `03-modules/infra/DESIGN.md` | L1 |
+| MCP Protocol | `03-modules/mcp_protocol/DESIGN.md` | L1 |
+| Ontology | `03-modules/ontology/DESIGN.md` | L1 |
+| Ontology Mgmt Engine | `03-modules/ontology_management_engine/DESIGN.md` | L1 |
+| OPA Policy | `03-modules/opa_policy/DESIGN.md` | L1 |
+| QA Engine | `03-modules/qa_engine/DESIGN.md` | L4 |
+| Session Memory | `03-modules/session_memory/DESIGN.md` | L1 |
+| Simulator | `03-modules/simulator/DESIGN.md` | L4 |
+| Skills | `03-modules/skills/DESIGN.md` | L2 |
+| Swarm Orchestrator | `03-modules/swarm_orchestrator/DESIGN.md` | L3 |
+| Test | `03-modules/test/DESIGN.md` | — |
+| Tool Registry | `03-modules/tool_registry/DESIGN.md` | L2 |
+| Visualization | `03-modules/visualization/DESIGN.md` | L4 |
+| Web Frontend | `03-modules/web_frontend/DESIGN.md` | L6 |
+| Workspace | `03-modules/workspace/DESIGN.md` | L1 |
 
 ---
 
-## 7. UI 设计文档索引
+## 7. 文档更新规则
 
-| 文档 | 路径 | 说明 |
-|------|------|------|
-| UI 设计稿 | ui/UI_DESIGN.md | 完整的 UI 视觉和交互设计 |
-| 移动优先设计 | ui/MOBILE_FIRST_DESIGN.md | 响应式设计详细规范 |
-| 组件分级管理 | ui/COMPONENT_HIERARCHY.md | 组件 L1-L5 分级体系 |
-
----
-
-## 7.5 文档管理体系文档
-
-| 文档 | 路径 | 说明 |
-|------|------|------|
-| **文档基线** | DOCUMENT_BASELINE_v1.0.0.md | ⭐ **新建** - 首个可信基线版本（133个文档） |
-| **文档管理规范** | DOCUMENT_MANAGEMENT.md | 文档生命周期、版本管理、依赖关系、归档机制 |
-| **文档健康检查清单** | DOCUMENT_HEALTH_CHECKLIST.md | 文档完整性、一致性、版本冲突检查 |
-| **文档关系图** | DOCUMENT_RELATIONSHIP.md | **本文档 - 项目索引** |
+| 变更场景 | 必须同步更新 |
+|----------|:------------|
+| 需求变更 | `00-requirements/req-ok.md` → `02-architecture/ARCHITECTURE.md` → `08-tasks/TASK_BREAKDOWN.md` |
+| 架构调整 | `02-architecture/ARCHITECTURE.md` → `07-adr/*` → `03-modules/*/DESIGN.md` |
+| UI 变更 | `04-ui/UI_DESIGN.md` → `04-ui/MOBILE_FIRST_DESIGN.md` |
+| 新增 ADR | `ADR-xxx.md` → `07-adr/README.md` → 本文档 |
+| 模块设计变更 | `03-modules/*/DESIGN.md` → `02-architecture/ARCHITECTURE.md` |
+| 文档体系变更 | `DOCUMENT_MANAGEMENT.md` → 本文档 |
+| 文档归档 | 移至 `11-archive/` → 更新本文档 |
 
 ---
 
-## 8. 文档更新规则
+## 8. 相关文档链接
 
-| 变更场景 | 必须更新的文档 |
-|----------|---------------|
-| 新功能需求 | req-ok.md → ARCHITECTURE_PLAN_v4.md → TASK_BREAKDOWN.md → CHECKLIST_v2.md |
-| 架构调整 | ARCHITECTURE_PLAN_v4.md → ARCHITECTURE.md → ADR → 模块 DESIGN |
-| UI 变更 | UI_DESIGN.md → MOBILE_FIRST_DESIGN → 前端代码 |
-| 前端技术选型 | ADR-007/037/045 → ARCHITECTURE.md |
-| 响应式/国际化 | ADR-037 → MOBILE_FIRST_DESIGN → 前端代码 |
-| 组件重构 | COMPONENT_HIERARCHY.md → 前端代码 |
-| 模块设计变更 | 对应 modules/*/DESIGN.md → ARCHITECTURE.md |
-| 新增 ADR | ADR-xxx.md → adr/README.md → DOCUMENT_RELATIONSHIP.md |
-| **文档体系变更** | **DOCUMENT_MANAGEMENT.md** → **DOCUMENT_RELATIONSHIP.md** → **DOCUMENT_HEALTH_CHECKLIST.md** |
-| **新增特性规格** | .trae/specs/[feature]/spec.md → DOCUMENT_HEALTH_CHECKLIST.md |
-| **文档归档** | 归档文档状态 → DOCUMENT_HEALTH_CHECKLIST.md |
-
----
-
-## 9. 相关文档链接
-
-### 文档管理文档（新建）
-- [文档基线 v1.0.0 ⭐](./DOCUMENT_BASELINE_v1.0.0.md) - **首个可信基线版本（133个文档）**
-- [文档管理规范 ⭐](./DOCUMENT_MANAGEMENT.md) - 文档生命周期、版本管理、依赖关系、归档机制
-- [文档健康检查清单 ⭐](./DOCUMENT_HEALTH_CHECKLIST.md) - 定期检查文档体系健康状态
-
-### 需求文档
-- [需求定稿 ⭐](./requirements/req-ok.md)（唯一权威来源）
-- [需求文档索引](./requirements/README.md)
-- [早期技术研究](./requirements/archive/req-alpha.md)（归档）
-- [早期需求规格](./requirements/archive/req-beta.md)（归档）
-
-### 架构文档
-- [架构文档索引 ⭐](./architecture/README.md)
-- [核心架构设计 ⭐](./architecture/ARCHITECTURE.md)（v4.0，唯一权威架构文档）
-- [架构审查报告](./architecture/reports/)
-- [ADR 索引](./adr/README.md)
-- [完整 Checklist v2 ⭐](./CHECKLIST_v2.md)
-
-### UI 设计文档
-- [UI 设计稿](./ui/UI_DESIGN.md)
-- [移动优先设计](./ui/MOBILE_FIRST_DESIGN.md)
-- [组件分级管理](./ui/COMPONENT_HIERARCHY.md)
-- [文档关系图](./DOCUMENT_RELATIONSHIP.md) ← 你在这里
-
-### ADR 文档
-- [ADR-007: 前端技术栈](./adr/ADR-007_前端采用_react_ant_design_技术栈.md)
-- [ADR-037: 移动优先与国际化](./adr/ADR-037_frontend_mobile_first_i18n.md)
-- [ADR-036: 领域实体标准本体库](./adr/ADR-036_palantir_ontology_reference.md)
-- [ADR-038~047: 新增架构决策](./adr/)
-
-### 模块设计
-- [Web 模块设计](./modules/web/DESIGN.md)
-- [Web Frontend 模块设计](./modules/web_frontend/DESIGN.md)
-- [Ontology 模块设计](./modules/ontology/DESIGN.md)
-- [Simulator 模块设计](./modules/simulator/DESIGN.md)
-- [QA Engine 模块设计](./modules/qa_engine/DESIGN.md)
-- [API Gateway 模块设计](./modules/api_gateway/DESIGN.md)
-- [Workspace 模块设计](./modules/workspace/DESIGN.md)
-- [所有模块设计](./modules/README.md)
+- [SDD 总入口](./README.md)
+- [防腐维护指南](./DOCUMENT_MANAGEMENT.md)
+- [文档基线 v1.0.0](./DOCUMENT_BASELINE_v1.0.0.md)
+- [需求定稿](./00-requirements/req-ok.md)
+- [核心架构](./02-architecture/ARCHITECTURE.md)
+- [全链路深入](./02-architecture/ARCHITECTURE_FULL_CHAIN_DEEP.md)
+- [ADR 索引](./07-adr/README.md)
+- [验收清单](./09-checklists/CHECKLIST_v2.md)
