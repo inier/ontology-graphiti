@@ -68,6 +68,20 @@ class AuditEventType(str, Enum):
     SYSTEM_HEALTH = "system.health"
     SYSTEM_CONFIG = "system.config"
 
+    # 数据摄入
+    DATA_INGEST = "data.ingest"
+
+    # 查询
+    QUERY = "query.execute"
+
+    # 问答
+    QA_ASK = "qa.ask"
+    QA_FEEDBACK = "qa.feedback"
+
+    # 反馈
+    FEEDBACK_ACTION = "feedback.action"
+    FEEDBACK_DECISION = "feedback.decision"
+
 
 class ActorInfo(BaseModel):
     """操作者信息"""
@@ -110,6 +124,7 @@ class AuditEvent(BaseModel):
     parent_event_id: Optional[str] = Field(None, description="父事件 ID（因果链）")
     duration_ms: Optional[int] = Field(None, description="操作耗时")
     checksum: Optional[str] = Field(None, description="防篡改校验")
+    signature: Optional[str] = Field(None, description="数字签名")
 
 
 class AuditFilter(BaseModel):

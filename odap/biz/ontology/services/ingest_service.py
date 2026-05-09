@@ -250,25 +250,31 @@ class IngestRecordManager:
         if builds:
             import uuid
             for build in builds:
-                # 从 extracted_data 中获取统计信息
                 entity_count = 0
                 relation_count = 0
                 event_count = 0
                 if extracted_data:
-                    entity_count = extracted_data.get('entities', 0)
-                    relation_count = extracted_data.get('relations', 0)
-                    event_count = extracted_data.get('events', 0)
-                
+                    entities_val = extracted_data.get('entities', 0)
+                    relations_val = extracted_data.get('relations', 0)
+                    events_val = extracted_data.get('events', 0)
+                    entity_count = len(entities_val) if isinstance(entities_val, (list, tuple)) else (entities_val if isinstance(entities_val, (int, float)) else 0)
+                    relation_count = len(relations_val) if isinstance(relations_val, (list, tuple)) else (relations_val if isinstance(relations_val, (int, float)) else 0)
+                    event_count = len(events_val) if isinstance(events_val, (list, tuple)) else (events_val if isinstance(events_val, (int, float)) else 0)
+
+                version_info = build.get('version_info') or {}
+                status_val = build.get('status', 'completed')
+                status_str = status_val.value if hasattr(status_val, 'value') else str(status_val)
+
                 build_history = {
                     'id': str(uuid.uuid4()),
                     'ingest_id': record['id'],
                     'build_id': build.get('build_id'),
-                    'version_id': build.get('version_info', {}).get('version_id') if build.get('version_info') else None,
+                    'version_id': version_info.get('version_id') if isinstance(version_info, dict) else None,
                     'document_id': build.get('document_id'),
                     'entity_count': entity_count,
                     'relation_count': relation_count,
                     'event_count': event_count,
-                    'status': build.get('status', 'completed'),
+                    'status': status_str,
                     'start_time': record['start_time'],
                     'end_time': record['end_time'],
                     'duration_seconds': record['duration_seconds']
@@ -766,28 +772,40 @@ class IngestService:
             )
 
             # 完成摄入记录
-            document_ids = [context.document_id] if context.document_id else []
+            docs_count = len(documents)
             stats = context.stage_results.get("ontology", {})
-            builds = [{"version_id": context.version_id}] if context.version_id else []
+
+            entity_cnt = stats.get('entity_count', 0)
+            relation_cnt = stats.get('relation_count', 0)
+            event_cnt = stats.get('event_count', stats.get('events_count', 0))
+            if isinstance(entity_cnt, (list, tuple)):
+                entity_cnt = len(entity_cnt)
+            if isinstance(relation_cnt, (list, tuple)):
+                relation_cnt = len(relation_cnt)
+            if isinstance(event_cnt, (list, tuple)):
+                event_cnt = len(event_cnt)
 
             source_data = [{
                 'url': '',
                 'title': generator_name,
                 'text': detailed_text,
-                'description': f"生成了 {count} 个{generator_name}事件，包含 {stats.get('entities', 0)} 个实体，{stats.get('relations', 0)} 个关系，{stats.get('events', 0)} 个事件。详细: {detailed_text[:200]}",
+                'description': f"生成的{count}个{generator_name}获取: 实体{entity_cnt}个, 关系{relation_cnt}个, 事件{event_cnt}个. 详情: {detailed_text[:200]}",
                 'publish_date': get_local_time().isoformat()
             }]
 
             extracted_data = {
                 'source_data': source_data,
-                'document_ids': document_ids,
-                'document_count': len(documents),
+                'document_ids': [context.document_id] if context.document_id else [],
+                'document_count': docs_count,
                 'generator_type': generator_type,
                 'generator_name': generator_name,
-                **stats
+                'entities': entity_cnt,
+                'relations': relation_cnt,
+                'events': event_cnt,
             }
+            extracted_data['source_data'] = source_data
 
-            self.record_manager.complete(ingest_record, len(documents), extracted_data, builds)
+            self.record_manager.complete(ingest_record, docs_count, extracted_data, builds=None)
         except Exception as e:
             self.record_manager.fail(ingest_record, str(e))
             raise

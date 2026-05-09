@@ -8,11 +8,14 @@ Phase 2 扩展: 故障恢复与状态管理
 import json
 import pickle
 import os
+import tempfile
 import logging
 from typing import Dict, Any, Optional, List
 from datetime import datetime
 
 logger = logging.getLogger("state_persistence")
+
+DEFAULT_PERSISTENCE_DIR = os.path.join(tempfile.gettempdir(), "odap", "graphiti_swarm_state")
 
 
 class StatePersistenceManager:
@@ -20,12 +23,14 @@ class StatePersistenceManager:
 
     _instance: Optional['StatePersistenceManager'] = None
 
-    def __init__(self, persistence_path: str = "/tmp/graphiti_swarm_state"):
+    def __init__(self, persistence_path: str = None):
+        if persistence_path is None:
+            persistence_path = DEFAULT_PERSISTENCE_DIR
         self.persistence_path = persistence_path
         os.makedirs(persistence_path, exist_ok=True)
 
     @classmethod
-    def get_instance(cls, persistence_path: str = "/tmp/graphiti_swarm_state") -> 'StatePersistenceManager':
+    def get_instance(cls, persistence_path: str = None) -> 'StatePersistenceManager':
         if cls._instance is None:
             cls._instance = StatePersistenceManager(persistence_path)
         return cls._instance

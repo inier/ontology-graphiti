@@ -10,6 +10,7 @@ OntologyVersionManager — 本体版本管理器
 import os
 import json
 import logging
+import tempfile
 from dataclasses import dataclass, field, asdict
 from datetime import datetime
 from typing import Dict, List, Optional, Any
@@ -17,6 +18,8 @@ from typing import Dict, List, Optional, Any
 from odap.biz.ontology.schema.document import OntologyDocument
 
 logger = logging.getLogger("ontology_version_manager")
+
+DEFAULT_VERSION_DIR = os.path.join(tempfile.gettempdir(), "odap", "ontology_versions")
 
 
 @dataclass
@@ -76,7 +79,9 @@ class OntologyVersionManager:
 
     _instance: Optional['OntologyVersionManager'] = None
 
-    def __init__(self, storage_path: str = "/tmp/ontology_versions"):
+    def __init__(self, storage_path: str = None):
+        if storage_path is None:
+            storage_path = DEFAULT_VERSION_DIR
         self.storage_path = storage_path
         os.makedirs(storage_path, exist_ok=True)
         # 内存缓存: version_id -> OntologyVersion
@@ -89,7 +94,7 @@ class OntologyVersionManager:
         self._load_from_disk()
 
     @classmethod
-    def get_instance(cls, storage_path: str = "/tmp/ontology_versions") -> 'OntologyVersionManager':
+    def get_instance(cls, storage_path: str = None) -> 'OntologyVersionManager':
         if cls._instance is None:
             cls._instance = OntologyVersionManager(storage_path)
         return cls._instance

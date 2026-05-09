@@ -9,9 +9,12 @@ import os
 import sys
 import time
 import asyncio
+import logging
 from typing import Any, Dict, List, Optional, Callable
 from dataclasses import dataclass, field, asdict
 from datetime import datetime
+
+logger = logging.getLogger("openharness_v2")
 
 # 配置 OpenHarness 路径
 OPENHARNESS_SRC = os.environ.get(
@@ -28,9 +31,7 @@ try:
     from openharness.config.settings import Settings
     from openharness.api.client import AnthropicApiClient
     OPENHARNESS_V2_AVAILABLE = True
-    print("✓ OpenHarness v2 导入成功")
 except ImportError as e:
-    print(f"⚠ OpenHarness v2 导入失败: {e}")
     OPENHARNESS_V2_AVAILABLE = False
     BaseTool = object
     ToolRegistry = object
@@ -40,7 +41,7 @@ try:
     from .llm_client import get_llm_client, LLMClientFactory
     LLM_CLIENT_AVAILABLE = True
 except ImportError as e:
-    print(f"⚠ LLM 客户端导入失败: {e}")
+    logger.debug("LLM client import failed: %s", e)
     LLM_CLIENT_AVAILABLE = False
 
 # 导入决策引擎
@@ -48,7 +49,7 @@ try:
     from .decision_engine import DecisionEngine, create_decision_engine
     DECISION_ENGINE_AVAILABLE = True
 except ImportError as e:
-    print(f"⚠ 决策引擎导入失败: {e}")
+    logger.debug("Decision engine import failed: %s", e)
     DECISION_ENGINE_AVAILABLE = False
 
 
@@ -208,9 +209,9 @@ class GraphitiAgentLoop:
                     opa_manager=self.opa_manager,
                 )
                 self.tools[name] = tool
-            print(f"✓ Agent Loop 初始化完成: {len(self.tools)} 个工具")
+            logger.info("Agent Loop initialized: %d tools", len(self.tools))
         except Exception as e:
-            print(f"⚠ 构建工具列表失败: {e}")
+            logger.warning("Build tool list failed: %s", e)
 
     def _init_decision_engine(self):
         """初始化决策引擎"""
@@ -221,9 +222,9 @@ class GraphitiAgentLoop:
                     for name, tool in self.tools.items()
                 }
                 self._decision_engine = create_decision_engine(tools_catalog)
-                print("✓ 决策引擎初始化完成")
+                logger.info("Decision engine initialized")
             except Exception as e:
-                print(f"⚠ 决策引擎初始化失败: {e}")
+                logger.warning("Decision engine init failed: %s", e)
 
     async def run(self, user_input: str, context: Dict[str, Any] = None) -> Dict[str, Any]:
         """
@@ -291,7 +292,7 @@ class GraphitiAgentLoop:
                     thought=thought,
                 )
             except Exception as e:
-                print(f"决策引擎失败: {e}，回退到 LLM")
+                logger.debug("Decision engine failed: %s, fallback to LLM", e)
         
         # 使用 LLM
         if self.llm_client:
@@ -317,7 +318,7 @@ class GraphitiAgentLoop:
                 action_data = json.loads(response)
                 return AgentAction(**action_data)
             except Exception as e:
-                print(f"LLM 决策失败: {e}")
+                logger.debug("LLM decision failed: %s", e)
         
         # 最终 Fallback
         return self._fallback_decide(user_input)
@@ -438,7 +439,7 @@ class OpenHarnessIntegration:
                     self.llm_client = get_llm_client()
                 
                 if self.llm_client:
-                    print(f"✓ LLM 客户端初始化成功")
+                    logger.info("LLM client initialized")
             
             # 初始化 Agent Loop
             self.agent_loop = GraphitiAgentLoop(
@@ -446,11 +447,11 @@ class OpenHarnessIntegration:
                 llm_client=self.llm_client,
             )
             
-            print(f"✓ OpenHarness 集成初始化完成")
+            logger.info("OpenHarness integration initialized")
             return True
             
         except Exception as e:
-            print(f"⚠ OpenHarness 集成初始化失败: {e}")
+            logger.warning("OpenHarness integration init failed: %s", e)
             return False
 
     async def run_agent(self, user_input: str, context: Dict[str, Any] = None) -> Dict[str, Any]:

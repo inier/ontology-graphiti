@@ -1170,4 +1170,19 @@ export const api = {
   }> {
     return fetchJson(`${API_BASE}/api/skill/skills/loaded`);
   },
+
+  async saveSkillContent(skillName: string, category: string, content: string): Promise<{
+    status: string;
+    skill_id?: string;
+    path?: string;
+  }> {
+    return fetchJson(`${API_BASE}/api/skill/skills/save`, {
+      method: 'POST',
+      body: JSON.stringify({
+        name: skillName,
+        category: category,
+        content: content,
+      }),
+    });
+  },
 };

@@ -282,9 +282,8 @@ export function SkillManagement() {
     sections?: Record<string, string>;
   }) => {
     try {
-      // TODO: 调用 API 保存 Skill 到文件
-      // const markdown = `# ${skillDef.name}\n...`;
-      
+      const markdown = `# ${skillDef.name}\n\n## Description\n\n${skillDef.description}\n\n## Triggers\n\n${skillDef.triggers.map(t => `- ${t}`).join('\n')}\n\n## Input Schema\n\n\`\`\`json\n${JSON.stringify(skillDef.input_schema, null, 2)}\n\`\`\`\n\n## Output Schema\n\n\`\`\`json\n${JSON.stringify(skillDef.output_schema, null, 2)}\n\`\`\`\n`;
+      await api.saveSkillContent(skillDef.name, skillDef.category, markdown);
       message.success(`Skill "${skillDef.name}" 保存成功`);
       setSkillEditorVisible(false);
       setEditingSkill(null);

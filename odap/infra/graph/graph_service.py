@@ -918,10 +918,44 @@ class GraphManager:
         Returns:
             是否成功
         """
-        if self._use_fallback or not self._connected:
-            return self._add_relationship_fallback(source_id, target_id, relationship, properties)
+        if self._mode == "neo4j_driver" and self.neo4j_driver:
+            return self._add_relationship_neo4j(source_id, target_id, relationship, properties)
+        if self._mode == "graphiti" and self._connected:
+            return self._add_relationship_graphiti(source_id, target_id, relationship, properties)
+        return self._add_relationship_fallback(source_id, target_id, relationship, properties)
 
-        return self._add_relationship_graphiti(source_id, target_id, relationship, properties)
+    def _add_relationship_neo4j(self, source_id: str, target_id: str,
+                                relationship: str, properties: Dict = None) -> bool:
+        """Neo4j Driver 模式：添加关系（类型安全）"""
+        try:
+            rel_type = relationship.upper().replace(' ', '_')
+            sane_props = self._sanitize_neo4j_properties(properties or {})
+
+            set_clauses = []
+            params = {"sid": source_id, "tid": target_id}
+            for i, (k, v) in enumerate(sane_props.items()):
+                param_key = f"rp{i}"
+                set_clauses.append(f"r.{k} = ${param_key}")
+                params[param_key] = v
+
+            if set_clauses:
+                cypher = (
+                    f"MATCH (a:Entity {{id: $sid}}), (b:Entity {{id: $tid}}) "
+                    f"MERGE (a)-[r:{rel_type}]->(b) "
+                    f"SET {', '.join(set_clauses)}"
+                )
+            else:
+                cypher = (
+                    f"MATCH (a:Entity {{id: $sid}}), (b:Entity {{id: $tid}}) "
+                    f"MERGE (a)-[r:{rel_type}]->(b)"
+                )
+
+            with self.neo4j_driver.session() as session:
+                session.run(cypher, **params)
+            return True
+        except Exception as e:
+            print(f"Neo4j 添加关系失败: {e}")
+            return self._add_relationship_fallback(source_id, target_id, relationship, properties or {})
 
     def _add_relationship_fallback(self, source_id: str, target_id: str,
                                    relationship: str, properties: Dict = None):
@@ -1090,19 +1124,64 @@ class GraphManager:
 
     def _add_entity_neo4j(self, entity_id: str, entity_type: str,
                            properties: Dict[str, Any]) -> bool:
-        """Neo4j Driver 模式：添加实体"""
+        """Neo4j Driver 模式：添加实体（类型安全）"""
         try:
             label = f"Entity:{entity_type.replace(' ', '_')}"
-            props_str = ", ".join(f"{k}: ${k}" for k in properties.keys())
-            cypher = f"MERGE (n:{label} {{id: $eid}}) SET n += {{{props_str}}}"
+
+            sane_props = self._sanitize_neo4j_properties(properties)
+
+            prop_items = [(k, v) for k, v in sane_props.items()
+                          if k not in ("entity_id", "entity_type", "id", "eid")]
+
+            if not prop_items:
+                cypher = f"MERGE (n:{label} {{id: $eid}})"
+                params = {"eid": entity_id}
+                with self.neo4j_driver.session() as session:
+                    session.run(cypher, **params)
+                return True
+
+            set_clauses = []
             params = {"eid": entity_id}
-            params.update(properties)
+            for i, (k, v) in enumerate(prop_items):
+                param_key = f"p{i}"
+                set_clauses.append(f"n.{k} = ${param_key}")
+                params[param_key] = v
+
+            cypher = f"MERGE (n:{label} {{id: $eid}}) SET {', '.join(set_clauses)}"
             with self.neo4j_driver.session() as session:
                 session.run(cypher, **params)
             return True
         except Exception as e:
             print(f"Neo4j 添加实体失败: {e}")
             return False
+
+    @staticmethod
+    def _sanitize_neo4j_properties(properties: Dict[str, Any]) -> Dict[str, Any]:
+        """清洗属性值，确保仅包含 Neo4j 兼容类型 (str, int, float, bool, list of primitives)"""
+        result = {}
+        for key, value in properties.items():
+            if value is None:
+                continue
+            if isinstance(value, (str, int, float, bool)):
+                result[key] = value
+            elif isinstance(value, (list, tuple)):
+                sane_list = []
+                for item in value:
+                    if isinstance(item, (str, int, float, bool)):
+                        sane_list.append(item)
+                    else:
+                        sane_list.append(str(item))
+                if sane_list:
+                    result[key] = sane_list
+            elif isinstance(value, dict):
+                for sub_k, sub_v in value.items():
+                    if isinstance(sub_v, (str, int, float, bool)):
+                        result[f"{key}_{sub_k}"] = sub_v
+                    elif sub_v is not None:
+                        result[f"{key}_{sub_k}"] = str(sub_v)
+            else:
+                result[key] = str(value)
+        return result
 
     def _add_entity_fallback(self, entity_id: str, entity_type: str,
                               properties: Dict[str, Any]) -> bool:

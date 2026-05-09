@@ -2,16 +2,24 @@
 
 import sqlite3
 import json
+import os
+import tempfile
 from typing import Dict, Any, List, Optional
 from datetime import datetime
 from ..models.workspace import Workspace
 from ..models.import_export import ImportExportRecord
 
+DEFAULT_WORKSPACE_DB_DIR = os.path.join(tempfile.gettempdir(), "odap")
+DEFAULT_WORKSPACE_DB_PATH = os.path.join(DEFAULT_WORKSPACE_DB_DIR, "workspace.db")
+
 
 class SQLiteStorage:
     """SQLite存储实现"""
     
-    def __init__(self, db_path: str = "/tmp/workspace.db"):
+    def __init__(self, db_path: str = None):
+        if db_path is None:
+            os.makedirs(DEFAULT_WORKSPACE_DB_DIR, exist_ok=True)
+            db_path = DEFAULT_WORKSPACE_DB_PATH
         self.db_path = db_path
         self._init_db()
     

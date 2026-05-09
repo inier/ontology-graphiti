@@ -2,9 +2,15 @@
 
 import sqlite3
 import json
+import os
+import tempfile
 from typing import Dict, Any, List, Optional
 from datetime import datetime
 from ..ingestion import OntologyDocument
+
+
+DEFAULT_INGEST_DB_DIR = os.path.join(tempfile.gettempdir(), "odap")
+DEFAULT_INGEST_DB_PATH = os.path.join(DEFAULT_INGEST_DB_DIR, "ingest.db")
 
 
 class SQLiteIngestStorage:
@@ -17,9 +23,30 @@ class SQLiteIngestStorage:
     - audit_logs: 审计日志
     """
     
-    def __init__(self, db_path: str = "/app/data/ingest.db"):
+    SQLITE_TIMEOUT = 30
+
+    def __init__(self, db_path: str = None):
+        if db_path is None:
+            os.makedirs(DEFAULT_INGEST_DB_DIR, exist_ok=True)
+            db_path = DEFAULT_INGEST_DB_PATH
         self.db_path = db_path
         self._init_db()
+        self._enable_wal()
+    
+    def _get_conn(self):
+        conn = sqlite3.connect(self.db_path, timeout=self.SQLITE_TIMEOUT)
+        conn.execute("PRAGMA journal_mode=WAL")
+        conn.execute("PRAGMA busy_timeout=30000")
+        return conn
+
+    def _enable_wal(self):
+        try:
+            conn = sqlite3.connect(self.db_path, timeout=5)
+            conn.execute("PRAGMA journal_mode=WAL")
+            conn.execute("PRAGMA busy_timeout=30000")
+            conn.close()
+        except Exception:
+            pass
     
     def _init_db(self):
         """初始化数据库"""
@@ -28,7 +55,7 @@ class SQLiteIngestStorage:
         if db_dir and not os.path.exists(db_dir):
             os.makedirs(db_dir, exist_ok=True)
         
-        conn = sqlite3.connect(self.db_path)
+        conn = self._get_conn()
         cursor = conn.cursor()
         
         # 创建数据摄入记录表
@@ -195,7 +222,7 @@ class SQLiteIngestStorage:
     # 数据摄入记录相关
     def save_ingest_record(self, record: Dict[str, Any]) -> str:
         """保存摄入记录"""
-        conn = sqlite3.connect(self.db_path)
+        conn = self._get_conn()
         cursor = conn.cursor()
         
         cursor.execute('''
@@ -229,7 +256,7 @@ class SQLiteIngestStorage:
     
     def get_ingest_record(self, ingest_id: str) -> Optional[Dict[str, Any]]:
         """获取摄入记录"""
-        conn = sqlite3.connect(self.db_path)
+        conn = self._get_conn()
         cursor = conn.cursor()
         
         cursor.execute('SELECT * FROM ingest_records WHERE id = ?', (ingest_id,))
@@ -324,7 +351,7 @@ class SQLiteIngestStorage:
     
     def update_ingest_record(self, ingest_id: str, record: Dict[str, Any]) -> bool:
         """更新摄入记录"""
-        conn = sqlite3.connect(self.db_path)
+        conn = self._get_conn()
         cursor = conn.cursor()
         
         cursor.execute('''
@@ -360,7 +387,7 @@ class SQLiteIngestStorage:
     
     def get_ingest_records(self, limit: int = 100) -> List[Dict[str, Any]]:
         """获取摄入记录列表"""
-        conn = sqlite3.connect(self.db_path)
+        conn = self._get_conn()
         cursor = conn.cursor()
         
         cursor.execute('SELECT * FROM ingest_records ORDER BY start_time DESC LIMIT ?', (limit,))
@@ -398,7 +425,7 @@ class SQLiteIngestStorage:
     # 审计日志相关
     def save_audit_log(self, log: Dict[str, Any]) -> str:
         """保存审计日志"""
-        conn = sqlite3.connect(self.db_path)
+        conn = self._get_conn()
         cursor = conn.cursor()
         
         cursor.execute('''
@@ -421,7 +448,7 @@ class SQLiteIngestStorage:
     # 本体文档相关
     def save_ontology_document(self, doc: OntologyDocument) -> str:
         """保存本体文档"""
-        conn = sqlite3.connect(self.db_path)
+        conn = self._get_conn()
         cursor = conn.cursor()
         
         doc_data = doc.to_dict()
@@ -457,7 +484,7 @@ class SQLiteIngestStorage:
     
     def get_ontology_document(self, doc_id: str) -> Optional[OntologyDocument]:
         """获取本体文档"""
-        conn = sqlite3.connect(self.db_path)
+        conn = self._get_conn()
         cursor = conn.cursor()
         
         cursor.execute('SELECT * FROM ontology_documents WHERE doc_id = ?', (doc_id,))
@@ -488,7 +515,7 @@ class SQLiteIngestStorage:
     
     def list_ontology_documents(self, scenario_id: Optional[str] = None, limit: int = 100) -> List[OntologyDocument]:
         """列出本体文档"""
-        conn = sqlite3.connect(self.db_path)
+        conn = self._get_conn()
         cursor = conn.cursor()
         
         if scenario_id:
@@ -533,7 +560,7 @@ class SQLiteIngestStorage:
     # 构建结果相关
     def save_build_result(self, build_result: Dict[str, Any]) -> str:
         """保存构建结果"""
-        conn = sqlite3.connect(self.db_path)
+        conn = self._get_conn()
         cursor = conn.cursor()
         
         cursor.execute('''
@@ -563,7 +590,7 @@ class SQLiteIngestStorage:
     
     def get_build_result(self, build_id: str) -> Optional[Dict[str, Any]]:
         """获取构建结果"""
-        conn = sqlite3.connect(self.db_path)
+        conn = self._get_conn()
         cursor = conn.cursor()
         
         cursor.execute('SELECT * FROM build_results WHERE id = ?', (build_id,))
@@ -591,7 +618,7 @@ class SQLiteIngestStorage:
     
     def update_build_result(self, build_id: str, build_result: Dict[str, Any]) -> bool:
         """更新构建结果"""
-        conn = sqlite3.connect(self.db_path)
+        conn = self._get_conn()
         cursor = conn.cursor()
         
         cursor.execute('''
@@ -623,7 +650,7 @@ class SQLiteIngestStorage:
     # 版本管理相关
     def save_version(self, version: Dict[str, Any]) -> str:
         """保存版本"""
-        conn = sqlite3.connect(self.db_path)
+        conn = self._get_conn()
         cursor = conn.cursor()
         
         cursor.execute('''
@@ -651,7 +678,7 @@ class SQLiteIngestStorage:
     
     def get_version(self, version_id: str) -> Optional[Dict[str, Any]]:
         """获取版本"""
-        conn = sqlite3.connect(self.db_path)
+        conn = self._get_conn()
         cursor = conn.cursor()
         
         cursor.execute('SELECT * FROM ontology_versions WHERE id = ?', (version_id,))
@@ -678,7 +705,7 @@ class SQLiteIngestStorage:
     
     def get_current_version(self, ontology_id: str) -> Optional[Dict[str, Any]]:
         """获取当前版本"""
-        conn = sqlite3.connect(self.db_path)
+        conn = self._get_conn()
         cursor = conn.cursor()
         
         cursor.execute('''
@@ -709,7 +736,7 @@ class SQLiteIngestStorage:
     
     def get_versions(self, ontology_id: str) -> List[Dict[str, Any]]:
         """获取版本列表"""
-        conn = sqlite3.connect(self.db_path)
+        conn = self._get_conn()
         cursor = conn.cursor()
         
         cursor.execute('''
@@ -738,7 +765,7 @@ class SQLiteIngestStorage:
     
     def update_version(self, version_id: str, version_data: Dict[str, Any]) -> bool:
         """更新版本"""
-        conn = sqlite3.connect(self.db_path)
+        conn = self._get_conn()
         cursor = conn.cursor()
         
         cursor.execute('''
@@ -763,7 +790,7 @@ class SQLiteIngestStorage:
     # 验证结果相关
     def save_validation_result(self, validation_result: Dict[str, Any]) -> str:
         """保存验证结果"""
-        conn = sqlite3.connect(self.db_path)
+        conn = self._get_conn()
         cursor = conn.cursor()
         
         cursor.execute('''
@@ -794,7 +821,7 @@ class SQLiteIngestStorage:
     
     def get_validation_result(self, validation_id: str) -> Optional[Dict[str, Any]]:
         """获取验证结果"""
-        conn = sqlite3.connect(self.db_path)
+        conn = self._get_conn()
         cursor = conn.cursor()
         
         cursor.execute('SELECT * FROM validation_results WHERE id = ?', (validation_id,))
@@ -823,7 +850,7 @@ class SQLiteIngestStorage:
     
     def get_validation_results(self) -> List[Dict[str, Any]]:
         """获取验证结果列表"""
-        conn = sqlite3.connect(self.db_path)
+        conn = self._get_conn()
         cursor = conn.cursor()
         
         cursor.execute('SELECT * FROM validation_results ORDER BY validation_time DESC LIMIT 100')
@@ -859,7 +886,7 @@ class SQLiteIngestStorage:
     # 处理日志相关（管道每阶段的处理记录）
     def save_process_log(self, log: Dict[str, Any]) -> str:
         """保存处理日志（管道每阶段的处理记录）"""
-        conn = sqlite3.connect(self.db_path)
+        conn = self._get_conn()
         cursor = conn.cursor()
         
         cursor.execute('''
@@ -884,9 +911,7 @@ class SQLiteIngestStorage:
     
     def get_process_logs(self, ingest_id: str) -> List[Dict[str, Any]]:
         """获取某摄入记录的所有处理日志"""
-        conn = sqlite3.connect(self.db_path)
-        cursor = conn.cursor()
-        
+        conn = self._get_conn()
         cursor.execute('SELECT * FROM process_logs WHERE ingest_id = ? ORDER BY timestamp', (ingest_id,))
         rows = cursor.fetchall()
         
@@ -910,7 +935,7 @@ class SQLiteIngestStorage:
     # 构建历史相关（关联摄入记录和构建结果）
     def save_build_history(self, build_history: Dict[str, Any]) -> str:
         """保存构建历史记录"""
-        conn = sqlite3.connect(self.db_path)
+        conn = self._get_conn()
         cursor = conn.cursor()
         
         cursor.execute('''
@@ -939,7 +964,7 @@ class SQLiteIngestStorage:
     
     def get_build_history(self, ingest_id: str) -> Optional[Dict[str, Any]]:
         """获取某摄入记录的构建历史"""
-        conn = sqlite3.connect(self.db_path)
+        conn = self._get_conn()
         cursor = conn.cursor()
         
         cursor.execute('SELECT * FROM build_history WHERE ingest_id = ? ORDER BY start_time DESC LIMIT 1', (ingest_id,))
@@ -967,7 +992,7 @@ class SQLiteIngestStorage:
     
     def get_all_build_history(self, limit: int = 100) -> List[Dict[str, Any]]:
         """获取所有构建历史记录"""
-        conn = sqlite3.connect(self.db_path)
+        conn = self._get_conn()
         cursor = conn.cursor()
         
         cursor.execute('SELECT * FROM build_history ORDER BY start_time DESC LIMIT ?', (limit,))

@@ -2,15 +2,25 @@
 
 import sqlite3
 import json
+import os
+import uuid
+import tempfile
 from typing import Dict, Any, List, Optional
 from datetime import datetime
 from ..api.routes import Role, RoleType, Permission, PermissionScope
 
 
+DEFAULT_DB_DIR = os.path.join(tempfile.gettempdir(), "odap")
+DEFAULT_DB_PATH = os.path.join(DEFAULT_DB_DIR, "roles.db")
+
+
 class SQLiteRoleStorage:
     """角色管理的SQLite存储实现"""
     
-    def __init__(self, db_path: str = "/tmp/roles.db"):
+    def __init__(self, db_path: str = None):
+        if db_path is None:
+            os.makedirs(DEFAULT_DB_DIR, exist_ok=True)
+            db_path = DEFAULT_DB_PATH
         self.db_path = db_path
         self._init_db()
     
@@ -319,10 +329,8 @@ class SQLiteRoleStorage:
         conn = sqlite3.connect(self.db_path)
         cursor = conn.cursor()
         
-        # 生成角色ID
-        cursor.execute('SELECT MAX(id) FROM roles')
-        max_id = cursor.fetchone()[0]
-        new_id = str(int(max_id) + 1) if max_id else "1"
+        # 生成角色ID (使用UUID避免冲突)
+        new_id = f"r_{uuid.uuid4().hex[:12]}"
         
         # 插入角色
         now = datetime.now().isoformat()
