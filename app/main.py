@@ -64,12 +64,18 @@ async def startup_event():
     else:
         logger.warning("OpenHarness v1 不可用")
     
-    # 初始化 OpenHarness v2 Agent
-    try:
-        await initialize_openharness()
-        logger.info("OpenHarness v2 Agent 初始化成功")
-    except Exception as e:
-        logger.warning(f"OpenHarness v2 Agent 初始化失败: {e}")
+    # 初始化 OpenHarness v2 Agent（延迟到后台，避免阻塞启动）
+    import asyncio
+    async def _deferred_init():
+        try:
+            await asyncio.wait_for(initialize_openharness(), timeout=15.0)
+            logger.info("OpenHarness v2 Agent 初始化成功")
+        except asyncio.TimeoutError:
+            logger.warning("OpenHarness v2 Agent 初始化超时（15s），跳过")
+        except Exception as e:
+            logger.warning(f"OpenHarness v2 Agent 初始化失败: {e}")
+    
+    asyncio.create_task(_deferred_init())
     
     # 初始化默认工作空间和场景
     try:

@@ -36,3 +36,19 @@ tests/data/*.db-wal
 data/
 *.tmp
 *.temp
+
+# Frontend
+frontend/node_modules/
+frontend/dist/
+frontend/coverage/
+frontend/.env.local
+*.tsbuildinfo
+
+# Test coverage
+coverage/
+htmlcov/
+.coverage
+.pytest_cache/
+
+# Neo4j data
+neo4j_data/

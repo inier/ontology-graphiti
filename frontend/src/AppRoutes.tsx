@@ -2,7 +2,7 @@ import { Routes, Route } from 'react-router-dom';
 import { Dashboard, SituationMap } from './pages';
 import { WorkspaceManager } from './modules/workspace';
 import { AuditLog } from './modules/audit';
-import { ConfigCenter } from './modules/config';
+import { ConfigCenter, PolicyManagement } from './modules/config';
 import { OntologySemanticNetwork, Timeline, QueryView } from './modules/ontology';
 import { IngestPanel, Simulator } from './modules/ingest';
 import { VersionHistory } from './modules/version';
@@ -39,7 +39,7 @@ export function AppRoutes() {
       <Route path="/config" element={<ConfigCenter />} />
       <Route path="/roles" element={<RoleManager />} />
       <Route path="/qa" element={<QAChatPage />} />
-      <Route path="/policies" element={<Placeholder title="OPA 策略管理" />} />
+      <Route path="/policies" element={<PolicyManagement />} />
       <Route path="/skills" element={<SkillManagement />} />
     </Routes>
   );

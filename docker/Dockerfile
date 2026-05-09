@@ -1,20 +1,34 @@
-# Graphiti 项目 Dockerfile
-
-FROM python:3.10-slim
+FROM localhost/python:3.10-slim
 
 WORKDIR /app
 
-# 先复制项目所有文件（包括 openharness 子模块）
-COPY . .
-
-# 使用清华 PyPI 镜像加速
 RUN pip config set global.index-url https://pypi.tuna.tsinghua.edu.cn/simple
 
-# 直接使用 requirements.txt 安装所有依赖（包括本地的 openharness）
-RUN pip install --no-cache-dir -r requirements.txt
+RUN apt-get update && apt-get install -y --no-install-recommends gcc g++ && rm -rf /var/lib/apt/lists/*
 
-# 暴露端口
+COPY . .
+
+RUN pip install --no-cache-dir \
+    uvicorn[standard] \
+    fastapi \
+    pydantic \
+    pymongo \
+    networkx \
+    python-dateutil \
+    httpx \
+    starlette \
+    python-multipart \
+    neo4j \
+    redis \
+    python-jose[cryptography] \
+    jsonpickle \
+    opa-python \
+    celery || true
+
+RUN pip install --no-cache-dir -r requirements.txt || true
+
+RUN pip install --no-cache-dir -e ./openharness || true
+
 EXPOSE 8000
 
-# 运行应用
-CMD ["python", "-m", "uvicorn", "app.main:app", "--host", "0.0.0.0", "--port", "8000"]
+CMD ["python", "-m", "uvicorn", "app.main:app", "--host", "0.0.0.0", "--port", "8000", "--workers", "1"]

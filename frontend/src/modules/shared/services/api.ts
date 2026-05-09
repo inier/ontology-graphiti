@@ -1185,4 +1185,369 @@ export const api = {
       }),
     });
   },
+
+  // ==================== 事件模拟器 API ====================
+
+  async getEventTemplates(): Promise<{
+    templates: Array<{
+      template_id: string;
+      name: string;
+      description: string;
+      event_type: string;
+      parameters: Record<string, unknown>;
+    }>;
+    total: number;
+  }> {
+    return fetchJson(`${API_BASE}/api/event-simulator/templates`);
+  },
+
+  async createEventTemplate(data: {
+    name: string;
+    description: string;
+    event_type: string;
+    parameters: Record<string, unknown>;
+  }): Promise<{
+    template_id: string;
+    name: string;
+    event_type: string;
+    created_at: string;
+  }> {
+    return fetchJson(`${API_BASE}/api/event-simulator/templates`, {
+      method: 'POST',
+      body: JSON.stringify(data),
+    });
+  },
+
+  async generateEvents(data: {
+    template_id?: string;
+    count?: number;
+    region?: string;
+    event_types?: string[];
+    parameters?: Record<string, unknown>;
+    scenario_id?: string;
+  }): Promise<{
+    task_id: string;
+    events_generated: number;
+    events: Array<{
+      event_id: string;
+      type: string;
+      description: string;
+      timestamp: string;
+      status: string;
+    }>;
+  }> {
+    return fetchJson(`${API_BASE}/api/event-simulator/generate`, {
+      method: 'POST',
+      body: JSON.stringify(data),
+    });
+  },
+
+  async adoptEvent(eventId: string, scenarioId?: string): Promise<{
+    status: string;
+    event_id: string;
+    message: string;
+  }> {
+    const params = scenarioId ? `?scenario_id=${encodeURIComponent(scenarioId)}` : '';
+    return fetchJson(`${API_BASE}/api/event-simulator/events/${eventId}/adopt${params}`, {
+      method: 'POST',
+    });
+  },
+
+  async adoptEventsBulk(eventIds: string[], scenarioId?: string): Promise<{
+    status: string;
+    adopted_count: number;
+    failed_count: number;
+    results: Array<{ event_id: string; status: string }>;
+  }> {
+    const params = scenarioId ? `?scenario_id=${encodeURIComponent(scenarioId)}` : '';
+    return fetchJson(`${API_BASE}/api/event-simulator/events/adopt-bulk${params}`, {
+      method: 'POST',
+      body: JSON.stringify({ event_ids: eventIds }),
+    });
+  },
+
+  async listSimulationEvents(params?: {
+    status?: string;
+    event_type?: string;
+    limit?: number;
+    offset?: number;
+  }): Promise<{
+    events: Array<{
+      event_id: string;
+      type: string;
+      description: string;
+      timestamp: string;
+      status: string;
+      source: string;
+    }>;
+    total: number;
+    limit: number;
+    offset: number;
+  }> {
+    const searchParams = new URLSearchParams();
+    if (params?.status) searchParams.set('status', params.status);
+    if (params?.event_type) searchParams.set('event_type', params.event_type);
+    if (params?.limit) searchParams.set('limit', String(params.limit));
+    if (params?.offset) searchParams.set('offset', String(params.offset));
+    const queryString = searchParams.toString();
+    return fetchJson(`${API_BASE}/api/event-simulator/events${queryString ? `?${queryString}` : ''}`);
+  },
+
+  async controlSimulationTime(data: {
+    action: 'start' | 'pause' | 'resume' | 'stop' | 'set_speed';
+    speed?: number;
+    timestamp?: string;
+  }): Promise<{
+    status: string;
+    action: string;
+    current_time?: string;
+    speed?: number;
+  }> {
+    return fetchJson(`${API_BASE}/api/event-simulator/time-control`, {
+      method: 'POST',
+      body: JSON.stringify(data),
+    });
+  },
+
+  async getSimulationStatus(): Promise<{
+    status: string;
+    current_time: string;
+    speed: number;
+    events_generated: number;
+    events_adopted: number;
+    events_pending: number;
+  }> {
+    return fetchJson(`${API_BASE}/api/event-simulator/status`);
+  },
+
+  // ==================== OPA 策略管理 API ====================
+
+  async listPolicies(params?: {
+    status?: string;
+    category?: string;
+    limit?: number;
+  }): Promise<{
+    policies: Array<{
+      policy_id: string;
+      name: string;
+      description: string;
+      category: string;
+      status: string;
+      version: string;
+      updated_at: string;
+    }>;
+    total: number;
+  }> {
+    const searchParams = new URLSearchParams();
+    if (params?.status) searchParams.set('status', params.status);
+    if (params?.category) searchParams.set('category', params.category);
+    if (params?.limit) searchParams.set('limit', String(params.limit));
+    const queryString = searchParams.toString();
+    return fetchJson(`${API_BASE}/api/policies${queryString ? `?${queryString}` : ''}`);
+  },
+
+  async createPolicy(data: {
+    name: string;
+    description: string;
+    markdown_content: string;
+    category?: string;
+  }): Promise<{
+    policy_id: string;
+    name: string;
+    status: string;
+    rego_content: string;
+  }> {
+    return fetchJson(`${API_BASE}/api/policies`, {
+      method: 'POST',
+      body: JSON.stringify(data),
+    });
+  },
+
+  async getPolicy(policyId: string): Promise<{
+    policy_id: string;
+    name: string;
+    description: string;
+    markdown_content: string;
+    rego_content: string;
+    category: string;
+    status: string;
+    version: string;
+    created_at: string;
+    updated_at: string;
+  }> {
+    return fetchJson(`${API_BASE}/api/policies/${policyId}`);
+  },
+
+  async updatePolicy(policyId: string, data: {
+    name?: string;
+    description?: string;
+    markdown_content?: string;
+    status?: string;
+  }): Promise<{
+    policy_id: string;
+    name: string;
+    status: string;
+    version: string;
+  }> {
+    return fetchJson(`${API_BASE}/api/policies/${policyId}`, {
+      method: 'PUT',
+      body: JSON.stringify(data),
+    });
+  },
+
+  async togglePolicyStatus(policyId: string, enabled: boolean): Promise<{
+    policy_id: string;
+    status: string;
+  }> {
+    return fetchJson(`${API_BASE}/api/policies/${policyId}/toggle?enabled=${enabled}`, {
+      method: 'POST',
+    });
+  },
+
+  // ==================== 系统监控 API ====================
+
+  async getSystemMetrics(): Promise<{
+    cpu_percent: number;
+    memory_percent: number;
+    disk_percent: number;
+    uptime_seconds: number;
+    active_connections: number;
+    request_count: number;
+    error_count: number;
+  }> {
+    return fetchJson(`${API_BASE}/api/v1/monitoring/performance`);
+  },
+
+  async getSystemHealth(): Promise<{
+    status: string;
+    openharness_v1: boolean;
+    openharness_v2: Record<string, unknown>;
+    version: string;
+  }> {
+    return fetchJson(`${API_BASE}/health`);
+  },
+
+  // ==================== 角色管理 API ====================
+
+  async listRoles(params?: {
+    page?: number;
+    page_size?: number;
+  }): Promise<{
+    roles: Array<{
+      role_id: string;
+      name: string;
+      description: string;
+      permissions: string[];
+      created_at: string;
+    }>;
+    total: number;
+  }> {
+    const searchParams = new URLSearchParams();
+    if (params?.page) searchParams.set('page', String(params.page));
+    if (params?.page_size) searchParams.set('page_size', String(params.page_size));
+    const queryString = searchParams.toString();
+    return fetchJson(`${API_BASE}/api/roles${queryString ? `?${queryString}` : ''}`);
+  },
+
+  async createRole(data: {
+    name: string;
+    description: string;
+    permissions?: string[];
+  }): Promise<{
+    role_id: string;
+    name: string;
+    description: string;
+    permissions: string[];
+    created_at: string;
+  }> {
+    return fetchJson(`${API_BASE}/api/roles`, {
+      method: 'POST',
+      body: JSON.stringify(data),
+    });
+  },
+
+  async updateRole(roleId: string, data: {
+    name?: string;
+    description?: string;
+    permissions?: string[];
+  }): Promise<{
+    role_id: string;
+    name: string;
+    description: string;
+    permissions: string[];
+  }> {
+    return fetchJson(`${API_BASE}/api/roles/${roleId}`, {
+      method: 'PUT',
+      body: JSON.stringify(data),
+    });
+  },
+
+  async deleteRole(roleId: string): Promise<{ status: string; message: string }> {
+    return fetchJson(`${API_BASE}/api/roles/${roleId}`, {
+      method: 'DELETE',
+    });
+  },
+
+  // ==================== Agent API ====================
+
+  async initAgent(config?: Record<string, unknown>): Promise<{
+    status: string;
+    agent_id: string;
+    tools_available: number;
+  }> {
+    return fetchJson(`${API_BASE}/api/agent/init`, {
+      method: 'POST',
+      body: JSON.stringify(config || {}),
+    });
+  },
+
+  async runAgent(data: {
+    input: string;
+    agent_id?: string;
+    workspace_id?: string;
+  }): Promise<{
+    status: string;
+    result: string;
+    agent_id: string;
+    execution_time_ms: number;
+  }> {
+    return fetchJson(`${API_BASE}/api/agent/run`, {
+      method: 'POST',
+      body: JSON.stringify(data),
+    });
+  },
+
+  async getAgentStatus(): Promise<{
+    status: string;
+    agents: Array<{ agent_id: string; type: string; status: string }>;
+  }> {
+    return fetchJson(`${API_BASE}/api/agent/status`);
+  },
+
+  async listAgentTools(): Promise<{
+    tools: Array<{ name: string; description: string; category: string }>;
+    total: number;
+  }> {
+    return fetchJson(`${API_BASE}/api/agent/tools`);
+  },
+
+  // ==================== 对话 API (agent chat) ====================
+
+  async agentChat(data: {
+    message: string;
+    session_id?: string;
+    workspace_id?: string;
+    role?: string;
+  }): Promise<{
+    session_id: string;
+    response: string;
+    agent_type: string;
+    thinking_steps: Array<{ step: string; detail: string }>;
+    tools_used: string[];
+  }> {
+    return fetchJson(`${API_BASE}/api/agent/chat`, {
+      method: 'POST',
+      body: JSON.stringify(data),
+    });
+  },
 };

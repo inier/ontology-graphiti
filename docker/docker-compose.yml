@@ -6,6 +6,8 @@ services:
     container_name: graphiti-main-app
     ports:
       - "8000:8000"
+    env_file:
+      - ../.env.docker
     environment:
       - IN_DOCKER=true
       - NEO4J_URI=bolt://graphiti-neo4j:7687
@@ -14,26 +16,39 @@ services:
       - OPA_URL=http://graphiti-policy-service:8181
       - REDIS_URL=redis://graphiti-cache:6379
       - MONGODB_URI=mongodb://graphiti-mongodb:27017
-      - CORS_ORIGINS=http://localhost:5173,http://localhost:8000
-      - DDG_API_URL=http://graphiti-duckduckgo:8080
-      - TAVILY_API_KEY=${TAVILY_API_KEY}
+      - CORS_ORIGINS=http://localhost:5173,http://localhost:8000,http://localhost:80
     depends_on:
       - graphiti-neo4j
       - graphiti-policy-service
       - graphiti-cache
       - graphiti-mongodb
-      - graphiti-duckduckgo
     volumes:
-      - ..:/app
+      - app-data:/app/data
     networks:
       - graphiti-network
-    dns:
-      - 8.8.8.8
-      - 8.8.4.4
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:8000/health')"]
+      interval: 15s
+      timeout: 5s
+      retries: 5
+      start_period: 30s
+
+  frontend:
+    build:
+      context: ../frontend
+      dockerfile: Dockerfile
+    container_name: graphiti-frontend
+    ports:
+      - "80:80"
+    depends_on:
+      - app
+    networks:
+      - graphiti-network
     restart: unless-stopped
 
   graphiti-neo4j:
-    image: neo4j:latest
+    image: localhost/neo4j:latest
     container_name: graphiti-neo4j
     ports:
       - "7474:7474"
@@ -41,47 +56,27 @@ services:
     environment:
       - NEO4J_AUTH=neo4j/neo4j123456
       - NEO4J_dbms_memory_heap_max__size=2G
+      - NEO4J_dbms_security_procedures_unrestricted=apoc.*
     volumes:
       - neo4j-data:/data
     networks:
       - graphiti-network
-    dns:
-      - 8.8.8.8
-      - 8.8.4.4
     restart: unless-stopped
 
   graphiti-policy-service:
-    image: openpolicyagent/opa:0.58.0
+    image: localhost/openpolicyagent/opa:0.58.0
     container_name: graphiti-policy-service
     ports:
       - "8181:8181"
     volumes:
-      - ../odap/infra/opa/policies:/policies
-    command: run --server --log-level=info --set=decision_logs.console=true
+      - ../odap/infra/opa:/policies
+    command: run --server --log-level=info --set=decision_logs.console=true /policies
     networks:
       - graphiti-network
-    dns:
-      - 8.8.8.8
-      - 8.8.4.4
-    restart: unless-stopped
-
-  graphiti-duckduckgo:
-    image: hub.binjie.site:7777/binjie09/duckduckgo-api
-    container_name: graphiti-duckduckgo
-    ports:
-      - "8080:8000"
-    environment:
-      - http_proxy=http://192.168.1.14:7890
-      - https_proxy=http://192.168.1.14:7890
-    networks:
-      - graphiti-network
-    dns:
-      - 8.8.8.8
-      - 8.8.4.4
     restart: unless-stopped
 
   graphiti-cache:
-    image: redis:6
+    image: localhost/redis:6
     container_name: graphiti-cache
     ports:
       - "6379:6379"
@@ -89,13 +84,10 @@ services:
       - redis-data:/data
     networks:
       - graphiti-network
-    dns:
-      - 8.8.8.8
-      - 8.8.4.4
     restart: unless-stopped
 
   graphiti-mongodb:
-    image: mongo:latest
+    image: localhost/mongo:latest
     container_name: graphiti-mongodb
     ports:
       - "27017:27017"
@@ -103,15 +95,13 @@ services:
       - mongodb-data:/data/db
     networks:
       - graphiti-network
-    dns:
-      - 8.8.8.8
-      - 8.8.4.4
     restart: unless-stopped
 
 volumes:
   neo4j-data:
   redis-data:
   mongodb-data:
+  app-data:
 
 networks:
   graphiti-network:

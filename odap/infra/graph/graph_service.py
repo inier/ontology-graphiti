@@ -138,9 +138,11 @@ class GraphManager:
             try:
                 self.neo4j_driver = GraphDatabase.driver(
                     self.neo4j_uri,
-                    auth=(self.neo4j_user, self.neo4j_password)
+                    auth=(self.neo4j_user, self.neo4j_password),
+                    connection_timeout=5.0
                 )
-                # 验证连接
+                import socket
+                socket.setdefaulttimeout(10)
                 self.neo4j_driver.verify_connectivity()
                 self._connected = True
                 self._use_fallback = False

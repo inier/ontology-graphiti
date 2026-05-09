@@ -39,9 +39,15 @@ except Exception as e:
     print(f"Failed to initialize storage: {e}")
     storage = None
 
-# 初始化服务
-graph_manager = GraphManager()
-scenario_store = ScenarioStore(storage_dir=SCENARIOS_DIR, graph_manager=graph_manager, storage=storage)
+_graph_manager = None
+
+def _get_graph_manager():
+    global _graph_manager
+    if _graph_manager is None:
+        _graph_manager = GraphManager()
+    return _graph_manager
+
+scenario_store = ScenarioStore(storage_dir=SCENARIOS_DIR, graph_manager=None, storage=storage)
 workspace_service = WorkspaceService()
 
 # 初始化审计日志器
@@ -840,7 +846,7 @@ async def query_entities(request: Request, data: Dict[str, Any]):
         workspace_id = data.get("workspace_id")
         
         # 使用 GraphManager 进行查询
-        graph_manager = GraphManager()
+        graph_manager = _get_graph_manager()
         
         # 如果有查询条件，进行过滤搜索
         if query.get("keyword"):
@@ -897,8 +903,7 @@ async def complex_query(request: Request, data: Dict[str, Any]):
         workspace_id = data.get("workspace_id")
         
         # 使用 GraphManager 进行查询
-        graph_manager = GraphManager()
-        
+        graph_manager = _get_graph_manager()
         results = []
         for condition in conditions:
             if condition.get("type") == "entity":
@@ -1213,7 +1218,7 @@ def get_qa_engine(use_mock: bool = False) -> 'QAEngineV2':
         from odap.biz.qa.qa_engine_v2 import QAEngineV2
         from odap.infra.graph.graph_service import GraphManager
         
-        graphiti_client = GraphManager()
+        graphiti_client = _get_graph_manager()
         _qa_engine_instance = QAEngineV2(graphiti_client=graphiti_client, use_mock=use_mock)
     return _qa_engine_instance
 
