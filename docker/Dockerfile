@@ -6,8 +6,11 @@ RUN pip config set global.index-url https://pypi.tuna.tsinghua.edu.cn/simple
 
 RUN apt-get update && apt-get install -y --no-install-recommends gcc g++ && rm -rf /var/lib/apt/lists/*
 
-COPY . .
+# 先复制依赖文件，利用 Docker 缓存
+COPY requirements.txt ./
+COPY openharness/pyproject.toml ./openharness/pyproject.toml
 
+# 安装依赖（缓存友好）
 RUN pip install --no-cache-dir \
     uvicorn[standard] \
     fastapi \
@@ -28,6 +31,9 @@ RUN pip install --no-cache-dir \
 RUN pip install --no-cache-dir -r requirements.txt || true
 
 RUN pip install --no-cache-dir -e ./openharness || true
+
+# 最后复制代码（代码变化不影响依赖缓存）
+COPY . .
 
 EXPOSE 8000
 

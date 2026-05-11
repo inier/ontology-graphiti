@@ -1,0 +1,12 @@
+FROM localhost/node:20-alpine
+
+WORKDIR /app
+
+COPY package.json ./
+COPY package-lock.json ./
+
+RUN npm install --registry https://registry.npmmirror.com
+
+EXPOSE 5173
+
+CMD ["node", "./node_modules/vite/bin/vite.js", "--host", "0.0.0.0"]

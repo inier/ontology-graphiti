@@ -31,16 +31,22 @@
 graphiti/
 ├── app/                  # 主应用入口
 ├── assets/               # 静态资源（HTML、PNG等）
-├── audit.db              # 审计日志数据库（SQLite）
 ├── config/               # 配置文件
-├── docker/               # Docker 配置（docker-compose.yml等）
+├── docker/               # Docker 配置
+│   ├── Dockerfile                    # 后端镜像
+│   ├── docker-compose.yml           # 生产编排
+│   ├── docker-compose.override.yml  # 开发覆盖（热更新）
+│   ├── docker-compose.test.yml      # 集成测试环境
+│   └── podman-compose-win-fix.py    # Windows 路径兼容
 ├── docs/                 # 文档
 │   ├── architecture/     # 架构设计文档（6个子文档）
 │   ├── adr/             # 架构决策记录（48个ADR）
 │   └── ...
 ├── frontend/             # 前端项目（React + TypeScript）
 │   ├── src/              # 前端源码
-│   └── public/          # 前端静态资源
+│   ├── public/           # 前端静态资源
+│   ├── Dockerfile                # 生产构建（Nginx 静态服务）
+│   └── Dockerfile.dev            # 开发构建（Vite HMR 热更新）
 ├── odap/                 # 核心业务逻辑
 │   ├── biz/              # 业务模块
 │   │   ├── agent/                # Agent 协同模块
@@ -82,6 +88,7 @@ graphiti/
 ├── openharness/          # OpenHarness 子模块
 ├── tests/                # 测试目录
 ├── scripts/              # 脚本目录
+├── bootstep.py           # 一键管理脚本（生产/开发模式）
 ├── main.py               # 主入口
 ├── requirements.txt      # Python 依赖管理
 ├── pyproject.toml       # 项目配置
@@ -95,42 +102,85 @@ graphiti/
 
 ### 环境准备
 
-1. **Python 环境**：Python 3.11+  
-2. **Neo4j**：（可选）用于生产环境  
-3. **API 密钥**：OpenAI API 密钥（用于 LLM 功能）
-
-### 安装依赖
-
-```bash
-pip install -r requirements.txt
-```
+- **Podman** / Docker（容器运行时）
+- **Python 3.11+**（仅运行管理脚本时需要）
 
 ### 配置环境变量
 
-复制 `.env.example` 文件为 `.env`，并填写相关配置：
-
 ```bash
-cp .env.example .env
-# 编辑 .env 文件，填写 OPENAI_API_KEY 等配置
+cp .env.example .env.docker
+# 编辑 .env.docker，填写 OPENAI_API_KEY 等配置
 ```
 
-### 启动服务
+### Docker 部署（推荐）
+
+项目提供了 `bootstep.py` 一键管理脚本，支持**开发模式**和**生产模式**两种运行方式：
+
+| 模式 | 命令 | 前端 | 特点 |
+|------|------|------|------|
+| **开发** | `python bootstep.py dev` | Vite HMR `:5173` | 代码修改即时热更新，无需重新构建 |
+| **生产** | `python bootstep.py up` | Nginx `:80` | 静态文件服务，需要重新构建 |
 
 ```bash
-# 启动 Web 服务
+# 首次使用先拉取基础镜像
+python bootstep.py pull
+
+# 开发模式（推荐日常开发）
+python bootstep.py dev
+
+# 生产模式
+python bootstep.py up
+
+# 查看状态
+python bootstep.py status
+
+# 查看日志
+python bootstep.py logs          # 后端日志
+python bootstep.py logs fe       # 生产前端日志
+python bootstep.py logs fedev    # 开发前端日志
+
+# 停止所有服务
+python bootstep.py down
+
+# 重新构建（生产模式）
+python bootstep.py rebuild
+
+# 清理资源
+python bootstep.py clean
+```
+
+### 开发模式热更新原理
+
+开发模式下，前端使用 `Dockerfile.dev` + `docker-compose.override.yml`：
+
+- 源码通过 **Volume 挂载** 到容器内，修改即时生效
+- Vite Dev Server 监听文件变更，**HMR (Hot Module Replacement)** 自动刷新浏览器
+- `vite.config.ts` 已配置 `watch.usePolling: true` 确保跨平台兼容
+
+### 服务访问地址
+
+| 服务 | 地址 |
+|------|------|
+| 前端界面（开发） | http://localhost:5173 |
+| 前端界面（生产） | http://localhost:80 |
+| 后端 API | http://localhost:8000 |
+| API 文档 | http://localhost:8000/docs |
+| 健康检查 | http://localhost:8000/health |
+| Neo4j Browser | http://localhost:7474 |
+| OPA | http://localhost:8181 |
+
+### 本地开发（不依赖容器）
+
+```bash
+pip install -r requirements.txt
+cd frontend && npm install
+
+# 启动后端（终端 1）
 python main.py
 
-# 或使用启动脚本
-./start.sh
+# 启动前端开发服务器（终端 2）
+cd frontend && npm run dev
 ```
-
-### 访问 API
-
-- **API 文档**：http://localhost:8000/docs（FastAPI 自动生成）
-- **健康检查**：http://localhost:8000/health
-- **性能监控**：http://localhost:8000/api/v1/monitoring/performance
-
-> **⚠️ 注意**: 默认端口为 8000，可在 `.env` 中配置 `PORT` 环境变量。
 
 ## 核心模块
 

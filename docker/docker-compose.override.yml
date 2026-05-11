@@ -1,0 +1,23 @@
+services:
+  frontend:
+    image: localhost/docker_frontend:dev
+    build:
+      context: ../frontend
+      dockerfile: Dockerfile.dev
+    container_name: graphiti-frontend-dev
+    ports:
+      - "5173:5173"
+    volumes:
+      - ../frontend/src:/app/src
+      - ../frontend/public:/app/public
+      - ../frontend/index.html:/app/index.html
+      - ../frontend/package.json:/app/package.json
+      - ../frontend/vite.config.ts:/app/vite.config.ts
+      - ../frontend/tsconfig.json:/app/tsconfig.json
+      - ../frontend/tsconfig.app.json:/app/tsconfig.app.json
+      - ../frontend/tsconfig.node.json:/app/tsconfig.node.json
+      - /app/node_modules
+    command: ["node", "./node_modules/vite/bin/vite.js", "--host", "0.0.0.0"]
+    environment:
+      - NODE_ENV=development
+      - VITE_API_BASE=http://localhost:8000
