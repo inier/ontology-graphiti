@@ -399,7 +399,7 @@ export const api = {
     return fetchJson(`${API_BASE}/api/ontology/ingest/${ingestId}`);
   },
 
-  async getIngestHistory(limit: number = 100): Promise<Array<{
+  async getIngestHistory(limit: number = 100, scenarioId?: string): Promise<Array<{
     id: string;
     source: string;
     status: string;
@@ -410,7 +410,11 @@ export const api = {
     end_time?: string;
     duration_seconds?: number;
   }>> {
-    return fetchJson(`${API_BASE}/api/ontology/ingest?limit=${limit}`);
+    const params = new URLSearchParams({ limit: limit.toString() });
+    if (scenarioId) {
+      params.append('scenario_id', scenarioId);
+    }
+    return fetchJson(`${API_BASE}/api/ontology/ingest?${params.toString()}`);
   },
 
   // ==================== 本体构建 API ====================
@@ -1551,3 +1555,6 @@ export const api = {
     });
   },
 };
+
+export const apiService = api;
+export default api;

@@ -368,9 +368,9 @@ async def get_ontology_document(doc_id: str):
 
 # 先定义根路径，再定义带参数的路径
 @router.get("", response_model=List[IngestStatusResponse])
-async def get_ingest_history(limit: int = 100):
-    """获取摄入历史"""
-    return ingest_service.get_ingest_history(limit)
+async def get_ingest_history(limit: int = 100, scenario_id: str = None):
+    """获取摄入历史，可按场景ID过滤"""
+    return ingest_service.get_ingest_history(limit, scenario_id)
 
 
 @router.get("/{ingest_id}", response_model=IngestStatusResponse)

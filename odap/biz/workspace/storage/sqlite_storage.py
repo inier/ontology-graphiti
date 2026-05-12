@@ -3,13 +3,13 @@
 import sqlite3
 import json
 import os
-import tempfile
 from typing import Dict, Any, List, Optional
 from datetime import datetime
 from ..models.workspace import Workspace
 from ..models.import_export import ImportExportRecord
 
-DEFAULT_WORKSPACE_DB_DIR = os.path.join(tempfile.gettempdir(), "odap")
+# 优先使用 DATA_DIR 环境变量，如果没有则使用当前目录下的 data 文件夹
+DEFAULT_WORKSPACE_DB_DIR = os.environ.get("DATA_DIR", os.path.join(os.getcwd(), "data"))
 DEFAULT_WORKSPACE_DB_PATH = os.path.join(DEFAULT_WORKSPACE_DB_DIR, "workspace.db")
 
 

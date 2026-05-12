@@ -121,7 +121,7 @@ export function OntologySemanticNetwork() {
 
   return (
     <div style={{ padding: 24 }}>
-      <PageHeader title="本体语义网络" />
+      <PageHeader title="语义地图" />
 
       {/* 统计卡片 */}
       <Row gutter={16} style={{ marginBottom: 16 }}>
@@ -168,13 +168,13 @@ export function OntologySemanticNetwork() {
           {loading ? (
             <Card style={{ borderRadius: 8 }}>
               <div style={{ textAlign: 'center', padding: 100 }}>
-                <Spin description="加载语义网络数据..." />
+                <Spin description="加载语义地图数据..." />
               </div>
             </Card>
           ) : nodes.length === 0 ? (
             <Card style={{ borderRadius: 8 }}>
               <div style={{ textAlign: 'center', padding: 100, color: '#8c8c8c' }}>
-                暂无语义网络数据，请先通过数据摄入添加实体
+                暂无语义地图数据，请先通过数据摄入添加实体
               </div>
             </Card>
           ) : (

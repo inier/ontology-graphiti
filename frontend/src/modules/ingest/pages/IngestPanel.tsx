@@ -135,12 +135,12 @@ export function IngestPanel() {
   useEffect(() => {
     loadHistory();
     loadGeneratorTypes();
-  }, []);
+  }, [currentScenario]);
 
   const loadHistory = useCallback(async () => {
     setLoadingHistory(true);
     try {
-      const ingests = await api.getIngestHistory(50);
+      const ingests = await api.getIngestHistory(50, currentScenario || undefined);
       
       // API 已经返回了完整的构建信息，直接使用
       setIngestHistory(ingests);
@@ -149,7 +149,7 @@ export function IngestPanel() {
     } finally {
       setLoadingHistory(false);
     }
-  }, []);
+  }, [currentScenario]);
 
   const loadGeneratorTypes = async () => {
     try {
@@ -425,7 +425,7 @@ export function IngestPanel() {
       const result = await api.ingest({
         type: 'manual',
         data: text,
-        scenario_id: currentScenario,
+        scenario_id: currentScenario || undefined,
       });
       message.success(`文本摄入成功，摄入ID: ${result.ingest_id}`);
       setText('');
@@ -447,7 +447,7 @@ export function IngestPanel() {
       const result = await api.ingest({
         type: 'news',
         data: url,
-        scenario_id: currentScenario,
+        scenario_id: currentScenario || undefined,
       });
       message.success(`新闻摄入成功，摄入ID: ${result.ingest_id}`);
       setUrl('');
@@ -469,7 +469,7 @@ export function IngestPanel() {
       const result = await api.ingest({
         type: 'json',
         data: jsonData,
-        scenario_id: currentScenario,
+        scenario_id: currentScenario || undefined,
       });
       message.success(`JSON摄入成功，摄入ID: ${result.ingest_id}`);
       setJsonData('');
@@ -491,7 +491,7 @@ export function IngestPanel() {
       const result = await api.ingest({
         type: 'natural_language',
         data: nlDescription,
-        scenario_id: currentScenario,
+        scenario_id: currentScenario || undefined,
       });
       message.success(`自然语言摄入成功，摄入ID: ${result.ingest_id}`);
       setNlDescription('');
@@ -512,7 +512,7 @@ export function IngestPanel() {
           parties: ['蓝方', '红方'],
           generator_type: selectedGeneratorType
         },
-        scenario_id: currentScenario,
+        scenario_id: currentScenario || undefined,
       });
       message.success(`随机事件生成成功，摄入ID: ${result.ingest_id}`);
       await loadHistory();
@@ -533,7 +533,7 @@ export function IngestPanel() {
       const result = await api.ingest({
         type: 'manual',
         data: manualData,
-        scenario_id: currentScenario,
+        scenario_id: currentScenario || undefined,
       });
       message.success(`手动录入成功，摄入ID: ${result.ingest_id}`);
       setManualData({ title: '', description: '' });
@@ -552,7 +552,7 @@ export function IngestPanel() {
       const { file, onSuccess, onError } = options;
       try {
         setUploadLoading(true);
-        await api.ingestFile(file, currentScenario);
+        await api.ingestFile(file, currentScenario || undefined);
         onSuccess();
         message.success(`${file.name} 文件上传成功`);
         await loadHistory();

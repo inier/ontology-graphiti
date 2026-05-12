@@ -9,7 +9,7 @@ from datetime import datetime
 from ..ingestion import OntologyDocument
 
 
-DEFAULT_INGEST_DB_DIR = os.path.join(tempfile.gettempdir(), "odap")
+DEFAULT_INGEST_DB_DIR = os.path.join(os.getenv("DATA_DIR", os.path.join(os.getcwd(), "data")), "ingest")
 DEFAULT_INGEST_DB_PATH = os.path.join(DEFAULT_INGEST_DB_DIR, "ingest.db")
 
 
@@ -76,7 +76,8 @@ class SQLiteIngestStorage:
                 quality_metrics TEXT,
                 extracted_data TEXT,
                 original_content TEXT,
-                created_by TEXT DEFAULT 'system'
+                created_by TEXT DEFAULT 'system',
+                scenario_id TEXT
             )
         ''')
         
@@ -229,8 +230,8 @@ class SQLiteIngestStorage:
             INSERT OR REPLACE INTO ingest_records 
             (id, source, source_details, data_schema, record_count, processed_count, 
              failed_count, status, start_time, end_time, duration_seconds, 
-             errors, quality_metrics, extracted_data, original_content, created_by)
-            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+             errors, quality_metrics, extracted_data, original_content, created_by, scenario_id)
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
         ''', (
             record.get('id'),
             record.get('source'),
@@ -247,7 +248,8 @@ class SQLiteIngestStorage:
             self._serialize_json(record.get('quality_metrics')),
             self._serialize_json(record.get('extracted_data')),
             record.get('original_content'),
-            record.get('created_by', 'system')
+            record.get('created_by', 'system'),
+            record.get('scenario_id')
         ))
         
         conn.commit()
@@ -385,12 +387,15 @@ class SQLiteIngestStorage:
         conn.close()
         return affected > 0
     
-    def get_ingest_records(self, limit: int = 100) -> List[Dict[str, Any]]:
-        """获取摄入记录列表"""
+    def get_ingest_records(self, limit: int = 100, scenario_id: str = None) -> List[Dict[str, Any]]:
+        """获取摄入记录列表，可按场景ID过滤"""
         conn = self._get_conn()
         cursor = conn.cursor()
         
-        cursor.execute('SELECT * FROM ingest_records ORDER BY start_time DESC LIMIT ?', (limit,))
+        if scenario_id:
+            cursor.execute('SELECT * FROM ingest_records WHERE scenario_id = ? ORDER BY start_time DESC LIMIT ?', (scenario_id, limit))
+        else:
+            cursor.execute('SELECT * FROM ingest_records ORDER BY start_time DESC LIMIT ?', (limit,))
         rows = cursor.fetchall()
         
         records = []
@@ -410,7 +415,8 @@ class SQLiteIngestStorage:
                 'quality_metrics': self._deserialize_json(row[12]),
                 'extracted_data': self._deserialize_json(row[13]),
                 'original_content': row[14],
-                'created_by': row[15]
+                'created_by': row[15],
+                'scenario_id': row[16] if len(row) > 16 else None
             }
             # 获取关联的构建历史
             builds = self._get_builds_for_ingest(cursor, row[0])
@@ -912,6 +918,7 @@ class SQLiteIngestStorage:
     def get_process_logs(self, ingest_id: str) -> List[Dict[str, Any]]:
         """获取某摄入记录的所有处理日志"""
         conn = self._get_conn()
+        cursor = conn.cursor()
         cursor.execute('SELECT * FROM process_logs WHERE ingest_id = ? ORDER BY timestamp', (ingest_id,))
         rows = cursor.fetchall()
         

@@ -10,7 +10,7 @@ from datetime import datetime
 from ..api.routes import Role, RoleType, Permission, PermissionScope
 
 
-DEFAULT_DB_DIR = os.path.join(tempfile.gettempdir(), "odap")
+DEFAULT_DB_DIR = os.path.join(os.getenv("DATA_DIR", os.path.join(os.getcwd(), "data")))
 DEFAULT_DB_PATH = os.path.join(DEFAULT_DB_DIR, "roles.db")
 
 

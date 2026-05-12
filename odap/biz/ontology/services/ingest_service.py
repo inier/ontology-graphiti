@@ -52,6 +52,7 @@ class IngestRecordBuilder:
     original_content: str = ""
     record_count: int = 0
     created_by: str = "system"
+    scenario_id: str = None
 
     def build(self) -> Dict[str, Any]:
         """构建摄入记录基础结构"""
@@ -63,7 +64,8 @@ class IngestRecordBuilder:
             'record_count': self.record_count,
             'status': 'processing',
             'start_time': get_local_time().isoformat(),
-            'created_by': self.created_by
+            'created_by': self.created_by,
+            'scenario_id': self.scenario_id
         }
 
 
@@ -412,7 +414,8 @@ class IngestService:
         builder = IngestRecordBuilder(
             source='url',
             source_details={'url': url, 'context': event_context},
-            record_count=0
+            record_count=0,
+            scenario_id=scenario_id
         )
         record_id, ingest_record = self.record_manager.create(builder)
 
@@ -458,7 +461,8 @@ class IngestService:
             source='news',
             source_details={'query': query, 'max_sources': max_sources},
             original_content=query,
-            record_count=max_sources
+            record_count=max_sources,
+            scenario_id=scenario_id
         )
         record_id, ingest_record = self.record_manager.create(builder)
 
@@ -520,7 +524,8 @@ class IngestService:
                 'max_sources': max_sources
             },
             original_content=query,
-            record_count=max_sources
+            record_count=max_sources,
+            scenario_id=scenario_id
         )
         record_id, ingest_record = self.record_manager.create(builder)
 
@@ -573,7 +578,7 @@ class IngestService:
 
         if isinstance(form_data, dict):
             form_data_keys = list(form_data.keys())
-            original_content = str(form_data)
+            original_content = form_data.get('text', form_data.get('content', str(form_data)))
         elif isinstance(form_data, str):
             form_data = {"text": form_data}
             form_data_keys = ["text"]
@@ -588,7 +593,8 @@ class IngestService:
             source_details={'form_data_keys': form_data_keys},
             original_content=original_content,
             record_count=1,
-            created_by=form_data.get('author', 'system')
+            created_by=form_data.get('author', 'system'),
+            scenario_id=scenario_id
         )
         record_id, ingest_record = self.record_manager.create(builder)
 
@@ -630,7 +636,8 @@ class IngestService:
             source='json',
             source_details={'json_length': len(raw_json)},
             original_content=raw_json,
-            record_count=1
+            record_count=1,
+            scenario_id=scenario_id
         )
         record_id, ingest_record = self.record_manager.create(builder)
 
@@ -672,7 +679,8 @@ class IngestService:
             source='natural_language',
             source_details={'text_length': len(text)},
             original_content=text,
-            record_count=1
+            record_count=1,
+            scenario_id=scenario_id
         )
         record_id, ingest_record = self.record_manager.create(builder)
 
@@ -750,7 +758,8 @@ class IngestService:
                 'generator_name': generator_name
             },
             original_content=detailed_text,
-            record_count=count
+            record_count=count,
+            scenario_id=scenario_id
         )
         record_id, ingest_record = self.record_manager.create(builder)
 
@@ -903,9 +912,9 @@ class IngestService:
         """获取摄入状态"""
         return self.storage.get_ingest_record(ingest_id)
 
-    def get_ingest_history(self, limit: int = 100) -> List[Dict[str, Any]]:
-        """获取摄入历史"""
-        return self.storage.get_ingest_records(limit)
+    def get_ingest_history(self, limit: int = 100, scenario_id: Optional[str] = None) -> List[Dict[str, Any]]:
+        """获取摄入历史，可按场景ID过滤"""
+        return self.storage.get_ingest_records(limit, scenario_id)
 
     def get_ontology_documents(
         self,

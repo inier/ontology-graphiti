@@ -19,7 +19,7 @@ from odap.biz.ontology.schema.document import OntologyDocument
 
 logger = logging.getLogger("ontology_version_manager")
 
-DEFAULT_VERSION_DIR = os.path.join(tempfile.gettempdir(), "odap", "ontology_versions")
+DEFAULT_VERSION_DIR = os.path.join(os.getenv("DATA_DIR", os.path.join(os.getcwd(), "data")), "ontology_versions")
 
 
 @dataclass

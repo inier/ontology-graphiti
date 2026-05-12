@@ -1,3 +1,3 @@
 export { IngestPanel } from './pages/IngestPanel';
-export { Simulator } from './pages/Simulator';
+export { default as Simulator } from './pages/Simulator';
 export { SimulatorConsole } from './components/SimulatorConsole';

@@ -113,7 +113,7 @@ const menuItems = [
     icon: <BlockOutlined />,
     label: '本体管理区',
     children: [
-      { key: '/ontology', icon: <BlockOutlined />, label: '本体语义网络' },
+      { key: '/ontology', icon: <BlockOutlined />, label: '语义地图' },
       { key: '/ingest', icon: <UploadOutlined />, label: '数据摄入' },
       { key: '/versions', icon: <HistoryOutlined />, label: '版本管理' },
     ],
@@ -195,12 +195,23 @@ export function AppLayout({ children, currentWorkspace, onWorkspaceChange }: App
       setScenariosLoading(true);
       const data = await api.getScenariosInWorkspace(workspaceId);
       console.log('Scenarios data:', data);
-      setScenarios(data.scenarios || []);
+      const newScenarios = data.scenarios || [];
+      setScenarios(newScenarios);
 
       const savedScenarioId = localStorage.getItem('currentScenarioId');
-      if (data.scenarios && data.scenarios.length > 0) {
-        if (!savedScenarioId || !data.scenarios.find(s => s.scenario_id === savedScenarioId)) {
-          const defaultScenario = data.scenarios[0].scenario_id;
+      const currentId = currentScenarioState;
+      
+      if (newScenarios.length > 0) {
+        const existingScenario = newScenarios.find(s => s.scenario_id === currentId);
+        const savedScenario = newScenarios.find(s => s.scenario_id === savedScenarioId);
+        
+        if (existingScenario) {
+          setCurrentScenarioState(currentId);
+        } else if (savedScenario) {
+          setCurrentScenarioState(savedScenarioId!);
+          localStorage.setItem('currentScenarioId', savedScenarioId!);
+        } else {
+          const defaultScenario = newScenarios[0].scenario_id;
           setCurrentScenarioState(defaultScenario);
           localStorage.setItem('currentScenarioId', defaultScenario);
         }

@@ -15,7 +15,7 @@ from datetime import datetime
 
 logger = logging.getLogger("state_persistence")
 
-DEFAULT_PERSISTENCE_DIR = os.path.join(tempfile.gettempdir(), "odap", "graphiti_swarm_state")
+DEFAULT_PERSISTENCE_DIR = os.path.join(os.getenv("DATA_DIR", os.path.join(os.getcwd(), "data")), "graphiti_swarm_state")
 
 
 class StatePersistenceManager:

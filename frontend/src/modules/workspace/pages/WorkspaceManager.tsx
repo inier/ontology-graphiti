@@ -2,7 +2,7 @@ import { useState, useEffect } from 'react';
 import { Table, Card, Button, Modal, Form, Input, Space, Tag, Popconfirm, message, Row, Col, Statistic, Tabs, Spin } from 'antd';
 import { PlusOutlined, EditOutlined, DeleteOutlined, PlayCircleOutlined, StopOutlined, BuildOutlined } from '@ant-design/icons';
 import { api } from '../../shared/services/api';
-import { useWorkspace } from '../../shared/components/AppLayout';
+import { useWorkspace, useScenario } from '../../shared/components/AppLayout';
 import type { Workspace } from '../../shared/services/api';
 
 interface Scenario {
@@ -20,6 +20,7 @@ interface Scenario {
 
 export function WorkspaceManager() {
   const { reloadWorkspaces, currentWorkspace } = useWorkspace();
+  const { reloadScenarios } = useScenario();
   const [workspaces, setWorkspaces] = useState<Workspace[]>([]);
   const [scenarios, setScenarios] = useState<Record<string, Scenario[]>>({});
   const [loading, setLoading] = useState(true);
@@ -162,6 +163,7 @@ export function WorkspaceManager() {
       await api.deleteScenario(workspaceId, scenarioId);
       message.success('删除成功');
       loadScenarios(workspaceId);
+      reloadScenarios();
     } catch (error) {
       console.error('删除失败', error);
       message.error('删除失败');
@@ -207,6 +209,7 @@ export function WorkspaceManager() {
       }
       setScenarioModalVisible(false);
       loadScenarios(editingScenario.workspaceId);
+      reloadScenarios();
     } catch (error) {
       console.error('操作失败', error);
       message.error('操作失败');
@@ -267,11 +270,12 @@ export function WorkspaceManager() {
     {
       title: '操作',
       key: 'action',
-      width: 200,
+      width: 300,
       render: (_: unknown, record: Workspace) => (
-        <Space size="small">
+        <Space size="small" wrap>
           <Button
             type="link"
+            size="small"
             icon={<EditOutlined />}
             onClick={() => handleEdit(record)}
           >
@@ -280,6 +284,7 @@ export function WorkspaceManager() {
           {record.status === 'active' ? (
             <Button
               type="link"
+              size="small"
               danger
               icon={<StopOutlined />}
               onClick={() => handleDeactivate(record.workspace_id)}
@@ -289,6 +294,7 @@ export function WorkspaceManager() {
           ) : (
             <Button
               type="link"
+              size="small"
               icon={<PlayCircleOutlined />}
               onClick={() => handleActivate(record.workspace_id)}
             >
@@ -301,7 +307,7 @@ export function WorkspaceManager() {
             okText="确定"
             cancelText="取消"
           >
-            <Button type="link" danger icon={<DeleteOutlined />}>
+            <Button type="link" danger size="small" icon={<DeleteOutlined />}>
               删除
             </Button>
           </Popconfirm>
@@ -333,6 +339,14 @@ export function WorkspaceManager() {
       ellipsis: true,
     },
     {
+      title: '本体 ID',
+      dataIndex: 'ontology_id',
+      key: 'ontology_id',
+      render: (ontologyId: string) => (
+        <span>{ontologyId || <span style={{ color: '#999' }}>未绑定</span>}</span>
+      ),
+    },
+    {
       title: '文档数',
       dataIndex: 'doc_count',
       key: 'doc_count',
@@ -356,11 +370,12 @@ export function WorkspaceManager() {
     {
       title: '操作',
       key: 'action',
-      width: 250,
+      width: 320,
       render: (_: unknown, record: Scenario) => (
-        <Space size="small">
+        <Space size="small" wrap>
           <Button
             type="link"
+            size="small"
             icon={<EditOutlined />}
             onClick={() => handleEditScenario(record.workspace_id, record)}
           >
@@ -368,6 +383,7 @@ export function WorkspaceManager() {
           </Button>
           <Button
             type="link"
+            size="small"
             icon={<BuildOutlined />}
             onClick={() => handleBuildGraph(record.workspace_id, record.scenario_id)}
           >
@@ -379,7 +395,7 @@ export function WorkspaceManager() {
             okText="确定"
             cancelText="取消"
           >
-            <Button type="link" danger icon={<DeleteOutlined />}>
+            <Button type="link" danger size="small" icon={<DeleteOutlined />}>
               删除
             </Button>
           </Popconfirm>

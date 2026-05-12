@@ -45,7 +45,7 @@ class SQLiteAuditChannel(AuditChannel):
     - 防篡改哈希链
     """
     
-    def __init__(self, db_path: str = "./audit.db", batch_size: int = 100, flush_interval: int = 5):
+    def __init__(self, db_path: str = "./data/audit.db", batch_size: int = 100, flush_interval: int = 5):
         """
         初始化 SQLite 审计通道
         
@@ -393,7 +393,7 @@ class SQLiteAuditChannel(AuditChannel):
 _sqlite_channel_instance = None
 
 
-def get_sqlite_audit_channel(db_path: str = "./audit.db") -> SQLiteAuditChannel:
+def get_sqlite_audit_channel(db_path: str = "./data/audit.db") -> SQLiteAuditChannel:
     """获取 SQLite 审计通道实例
     
     Args:
