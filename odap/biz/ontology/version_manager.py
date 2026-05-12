@@ -26,6 +26,7 @@ DEFAULT_VERSION_DIR = os.path.join(os.getenv("DATA_DIR", os.path.join(os.getcwd(
 class OntologyVersion:
     """本体版本快照"""
     version_id: str
+    ontology_id: str
     doc_id: str
     doc_type: str
     parent_version: Optional[str]
@@ -141,6 +142,7 @@ class OntologyVersionManager:
 
     async def commit(
         self,
+        ontology_id: str,
         doc: OntologyDocument,
         parent_version: Optional[str] = None,
         message: str = "",
@@ -149,6 +151,7 @@ class OntologyVersionManager:
         提交版本快照
 
         Args:
+            ontology_id: 本体ID
             doc: 要版本化的 OntologyDocument
             parent_version: 父版本ID（可选，默认从 doc.ontology_version.parent_version 获取）
             message: 提交信息
@@ -165,6 +168,7 @@ class OntologyVersionManager:
 
         version = OntologyVersion(
             version_id=version_id,
+            ontology_id=ontology_id,
             doc_id=doc.doc_id,
             doc_type=doc.doc_type,
             parent_version=parent,
@@ -283,8 +287,24 @@ class OntologyVersionManager:
     def get_version_count(self) -> int:
         return len(self._versions)
 
+    async def list_by_ontology(self, ontology_id: str, limit: int = 50, offset: int = 0) -> List[OntologyVersion]:
+        """列出指定本体的所有版本（倒序）"""
+        versions = sorted(
+            [v for v in self._versions.values() if v.ontology_id == ontology_id],
+            key=lambda v: v.created_at,
+            reverse=True
+        )
+        return versions[offset:offset + limit]
+
     def get_latest_version_id(self) -> Optional[str]:
         """获取最新版本ID"""
         if not self._versions:
             return None
         return max(self._versions.values(), key=lambda v: v.created_at).version_id
+
+    def get_latest_version_id_by_ontology(self, ontology_id: str) -> Optional[str]:
+        """获取指定本体的最新版本ID"""
+        ontology_versions = [v for v in self._versions.values() if v.ontology_id == ontology_id]
+        if not ontology_versions:
+            return None
+        return max(ontology_versions, key=lambda v: v.created_at).version_id

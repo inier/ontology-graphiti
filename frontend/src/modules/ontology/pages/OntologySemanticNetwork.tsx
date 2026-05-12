@@ -1,9 +1,9 @@
 import { useState, useEffect } from 'react';
-import { Row, Col, Card, Drawer, Descriptions, Tag, Spin, Button, Space, message, Statistic } from 'antd';
-import { ReloadOutlined, InfoCircleOutlined } from '@ant-design/icons';
+import { Row, Col, Card, Drawer, Descriptions, Tag, Spin, Button, Space, message, Statistic, Select } from 'antd';
+import { ReloadOutlined, InfoCircleOutlined, HistoryOutlined } from '@ant-design/icons';
 import { GraphCanvas } from '../components/GraphCanvas';
 import { PageHeader } from '../../shared';
-import { useScenario } from '../../shared/components/AppLayout';
+import { useScenario, useWorkspace } from '../../shared/components/AppLayout';
 import { api } from '../../shared/services/api';
 
 interface GraphNode {
@@ -30,77 +30,150 @@ interface Entity {
   created_at?: string;
 }
 
+interface OntologyVersion {
+  version_id: string;
+  ontology_id: string;
+  doc_id: string;
+  doc_type: string;
+  parent_version?: string;
+  commit_message: string;
+  created_at: string;
+  entity_count: number;
+  relation_count: number;
+  event_count: number;
+}
+
 export function OntologySemanticNetwork() {
   const { currentScenario } = useScenario();
+  const { currentWorkspace } = useWorkspace();
   const [nodes, setNodes] = useState<GraphNode[]>([]);
   const [edges, setEdges] = useState<GraphEdge[]>([]);
   const [selectedNode, setSelectedNode] = useState<GraphNode | null>(null);
   const [loading, setLoading] = useState(true);
   const [stats, setStats] = useState({ entityCount: 0, relationCount: 0 });
+  const [versions, setVersions] = useState<OntologyVersion[]>([]);
+  const [currentVersion, setCurrentVersion] = useState<string>('latest');
+  const [versionsLoading, setVersionsLoading] = useState(false);
 
-  const loadGraph = async (scenarioId?: string) => {
-    if (!scenarioId) return;
+  const loadVersions = async (scenarioId?: string) => {
+    if (!scenarioId || !currentWorkspace) return;
+    try {
+      setVersionsLoading(true);
+      const versionList = await api.getScenarioOntologyVersions(currentWorkspace, scenarioId);
+      setVersions(versionList);
+      
+      // 默认选择最新版本
+      if (versionList.length > 0) {
+        const sorted = [...versionList].sort((a, b) => 
+          new Date(b.created_at).getTime() - new Date(a.created_at).getTime()
+        );
+        setCurrentVersion(sorted[0].version_id);
+      }
+    } catch (error) {
+      console.error('加载版本列表失败:', error);
+    } finally {
+      setVersionsLoading(false);
+    }
+  };
+
+  const loadGraph = async (scenarioId?: string, versionId?: string) => {
+    if (!scenarioId || !currentWorkspace) return;
     try {
       setLoading(true);
       
-      // 并行获取实体和关系数据
-      const [entitiesResult, relationsResult] = await Promise.all([
-        api.getEntities(scenarioId).catch(() => {
-          // 返回空数组作为降级
-          return { entities: [] };
-        }),
-        api.getRelations(scenarioId).catch(() => {
-          // 返回空数据作为降级
-          return { nodes: [], links: [] };
-        })
-      ]);
+      if (versionId && versionId !== 'latest') {
+        // 加载指定版本的数据
+        const versionData = await api.getVersionOntologyData(currentWorkspace, scenarioId, versionId);
+        const graphNodes: GraphNode[] = versionData.entities.map((e: any) => ({
+          id: e.entity_id,
+          name: e.name,
+          type: e.entity_type,
+          side: e.side,
+          properties: e.properties
+        }));
+        const graphEdges: GraphEdge[] = versionData.relations.map((l: any) => ({
+          id: l.id || `${l.source}-${l.target}`,
+          source: l.source,
+          target: l.target,
+          type: l.type || l.relation_type || 'related_to'
+        }));
+        setNodes(graphNodes);
+        setEdges(graphEdges);
+        setStats({
+          entityCount: graphNodes.length,
+          relationCount: graphEdges.length
+        });
+      } else {
+        // 加载最新数据
+        const [entitiesResult, relationsResult] = await Promise.all([
+          api.getEntities(scenarioId).catch(() => {
+            return { entities: [] };
+          }),
+          api.getRelations(scenarioId).catch(() => {
+            return { nodes: [], links: [] };
+          })
+        ]);
 
-      // 确保是数组格式
-      let entitiesList: Entity[] = [];
-      if (Array.isArray(entitiesResult)) {
-        entitiesList = entitiesResult as unknown as Entity[];
-      } else if (entitiesResult && typeof entitiesResult === 'object' && 'entities' in entitiesResult) {
-        entitiesList = (entitiesResult as unknown as { entities: Entity[] }).entities || [];
+        let entitiesList: Entity[] = [];
+        if (Array.isArray(entitiesResult)) {
+          entitiesList = entitiesResult as unknown as Entity[];
+        } else if (entitiesResult && typeof entitiesResult === 'object' && 'entities' in entitiesResult) {
+          entitiesList = (entitiesResult as unknown as { entities: Entity[] }).entities || [];
+        }
+        const relations = relationsResult as { nodes?: GraphNode[]; links?: GraphEdge[]; edges?: GraphEdge[] };
+        const relLinks = relations.links || relations.edges || [];
+
+        const graphNodes: GraphNode[] = entitiesList.map((e: Entity) => ({
+          id: e.entity_id,
+          name: e.name,
+          type: e.entity_type,
+          side: e.side,
+          properties: e.properties
+        }));
+
+        const graphEdges: GraphEdge[] = relLinks.map((l: { id?: string; source: string; target: string; type?: string; relation_type?: string }) => ({
+          id: l.id || `${l.source}-${l.target}`,
+          source: l.source,
+          target: l.target,
+          type: l.type || l.relation_type || 'related_to'
+        }));
+
+        setNodes(graphNodes);
+        setEdges(graphEdges);
+        setStats({
+          entityCount: graphNodes.length,
+          relationCount: graphEdges.length
+        });
       }
-      const relations = relationsResult as { nodes?: GraphNode[]; links?: GraphEdge[]; edges?: GraphEdge[] };
-      const relLinks = relations.links || relations.edges || [];
-
-      // 转换为 G6 格式的节点
-      const graphNodes: GraphNode[] = entitiesList.map((e: Entity) => ({
-        id: e.entity_id,
-        name: e.name,
-        type: e.entity_type,
-        side: e.side,
-        properties: e.properties
-      }));
-
-      // 转换为 G6 格式的边
-      const graphEdges: GraphEdge[] = relLinks.map((l: { id?: string; source: string; target: string; type?: string; relation_type?: string }) => ({
-        id: l.id || `${l.source}-${l.target}`,
-        source: l.source,
-        target: l.target,
-        type: l.type || l.relation_type || 'related_to'
-      }));
-
-      setNodes(graphNodes);
-      setEdges(graphEdges);
-      setStats({
-        entityCount: graphNodes.length,
-        relationCount: graphEdges.length
-      });
     } catch (error) {
-      console.error('加载语义网络失败', error);
+      console.error('加载语义网络失败:', error);
       message.error('加载语义网络失败');
     } finally {
       setLoading(false);
     }
   };
 
-  useEffect(() => {
-    if (currentScenario) {
-      loadGraph(currentScenario);
+  const handleVersionChange = async (versionId: string) => {
+    setCurrentVersion(versionId);
+    if (currentScenario && currentWorkspace) {
+      if (versionId !== 'latest') {
+        try {
+          await api.switchScenarioOntologyVersion(currentWorkspace, currentScenario, versionId);
+          message.success('已切换本体版本');
+        } catch (error) {
+          console.error('切换版本失败:', error);
+        }
+      }
+      await loadGraph(currentScenario, versionId);
     }
-  }, [currentScenario]);
+  };
+
+  useEffect(() => {
+    if (currentScenario && currentWorkspace) {
+      loadVersions(currentScenario);
+      loadGraph(currentScenario, 'latest');
+    }
+  }, [currentScenario, currentWorkspace]);
 
   const handleNodeClick = (node: GraphNode) => {
     setSelectedNode(node);
@@ -145,10 +218,28 @@ export function OntologySemanticNetwork() {
         </Col>
         <Col span={12}>
           <Card size="small">
-            <Space>
+            <Space wrap>
+              <Space>
+                <HistoryOutlined />
+                <span>本体版本:</span>
+                <Select
+                  value={currentVersion}
+                  onChange={handleVersionChange}
+                  options={[
+                    { value: 'latest', label: '最新版本' },
+                    ...versions.map(v => ({
+                      value: v.version_id,
+                      label: `${v.version_id} - ${new Date(v.created_at).toLocaleString('zh-CN')} (实体:${v.entity_count}, 关系:${v.relation_count})`
+                    }))
+                  ]}
+                  style={{ width: 320 }}
+                  loading={versionsLoading}
+                  placeholder="选择本体版本"
+                />
+              </Space>
               <Button
                 icon={<ReloadOutlined />}
-                onClick={() => currentScenario && loadGraph(currentScenario)}
+                onClick={() => currentScenario && loadGraph(currentScenario, currentVersion)}
                 loading={loading}
               >
                 刷新
@@ -182,7 +273,7 @@ export function OntologySemanticNetwork() {
               nodes={nodes}
               edges={edges}
               onNodeClick={handleNodeClick}
-              onRefresh={() => currentScenario && loadGraph(currentScenario)}
+              onRefresh={() => currentScenario && loadGraph(currentScenario, currentVersion)}
             />
           )}
         </Col>

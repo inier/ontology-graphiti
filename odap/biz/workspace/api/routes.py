@@ -12,7 +12,8 @@ from .schemas import (
     ExportWorkspaceRequest, ImportWorkspaceRequest, ImportExportResponse, ImportExportStatusResponse, ImportExportListResponse,
     SuccessResponse, ErrorResponse,
     WorkspaceType, WorkspaceStatus, IsolationLevel, ImportExportStatus,
-    CreateScenarioRequest, UpdateScenarioRequest, ScenarioResponse, ScenarioListResponse
+    CreateScenarioRequest, UpdateScenarioRequest, ScenarioResponse, ScenarioListResponse,
+    OntologyVersionResponse, SwitchVersionRequest
 )
 
 router = APIRouter(prefix="/api/workspaces", tags=["workspace"])
@@ -22,6 +23,8 @@ workspace_service = WorkspaceService()
 isolation_service = IsolationService()
 scenario_service = ScenarioService()
 import_export_manager = ImportExportManager()
+from odap.biz.ontology.version_manager import OntologyVersionManager
+version_manager = OntologyVersionManager()
 
 
 # 工作空间相关路由
@@ -434,6 +437,184 @@ async def build_graph_for_scenario(workspace_id: str, scenario_id: str):
         if result.get("status") == "error":
             raise HTTPException(status_code=400, detail=result.get("message"))
         return result
+    except HTTPException:
+        raise
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+# 本体版本相关路由
+@router.get("/{workspace_id}/scenarios/{scenario_id}/versions", response_model=List[OntologyVersionResponse])
+async def get_scenario_versions(workspace_id: str, scenario_id: str):
+    """获取场景绑定本体的版本列表"""
+    from odap.biz.ontology.storage.sqlite_ingest_storage import SQLiteIngestStorage
+    from datetime import datetime
+    
+    try:
+        # 检查场景是否存在且属于该工作空间
+        scenario = scenario_service.get_scenario(scenario_id)
+        if not scenario or scenario.get("workspace_id") != workspace_id:
+            raise HTTPException(status_code=404, detail="Scenario not found")
+        
+        ontology_id = scenario.get("ontology_id")
+        if not ontology_id:
+            return []
+        
+        versions = []
+        
+        # 1. 从 version_manager 读取版本
+        try:
+            all_versions = await version_manager.list_by_ontology(ontology_id)
+            versions = [OntologyVersionResponse(**v.to_dict()) for v in all_versions]
+        except Exception:
+            pass
+        
+        # 2. 从 SQLite ingest storage 读取版本（build_service._create_version 写入的数据）
+        try:
+            ingest_storage = SQLiteIngestStorage()
+            ingest_versions = ingest_storage.list_versions()
+            seen_ids = {v.version_id for v in versions}
+            for v in ingest_versions:
+                vid = v.get("version_id", "")
+                if vid and vid not in seen_ids:
+                    v_ontology = v.get("ontology_id", "")
+                    if v_ontology == ontology_id:
+                        versions.append(OntologyVersionResponse(
+                            version_id=vid,
+                            ontology_id=v_ontology,
+                            doc_id=v.get("doc_id", ""),
+                            doc_type=v.get("doc_type", ""),
+                            parent_version=v.get("parent_version"),
+                            commit_message=v.get("commit_message", ""),
+                            created_at=v.get("created_at", datetime.now().isoformat()),
+                            entity_count=v.get("entity_count", 0),
+                            relation_count=v.get("relation_count", 0),
+                            event_count=v.get("event_count", 0)
+                        ))
+        except Exception:
+            pass
+        
+        return versions
+    except HTTPException:
+        raise
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@router.post("/{workspace_id}/scenarios/{scenario_id}/switch-version", response_model=SuccessResponse)
+async def switch_scenario_version(workspace_id: str, scenario_id: str, request: SwitchVersionRequest):
+    """切换场景使用的本体版本"""
+    try:
+        # 检查场景是否存在且属于该工作空间
+        scenario = scenario_service.get_scenario(scenario_id)
+        if not scenario or scenario.get("workspace_id") != workspace_id:
+            raise HTTPException(status_code=404, detail="Scenario not found")
+        
+        ontology_id = scenario.get("ontology_id")
+        if not ontology_id:
+            raise HTTPException(status_code=400, detail="Scenario is not bound to an ontology")
+        
+        # 验证版本是否存在且属于该本体
+        if request.version_id == "latest":
+            new_version_id = None
+        else:
+            from odap.biz.ontology.storage.sqlite_ingest_storage import SQLiteIngestStorage
+            
+            version_found = False
+            try:
+                version = await version_manager.get(request.version_id)
+                if version and version.ontology_id == ontology_id:
+                    version_found = True
+            except Exception:
+                pass
+            
+            if not version_found:
+                try:
+                    ingest_storage = SQLiteIngestStorage()
+                    ingest_v = ingest_storage.get_version(request.version_id)
+                    if ingest_v and ingest_v.get("ontology_id") == ontology_id:
+                        version_found = True
+                except Exception:
+                    pass
+            
+            if not version_found:
+                raise HTTPException(status_code=404, detail="Version not found or does not belong to the bound ontology")
+            
+            new_version_id = request.version_id
+        
+        # 更新场景的当前版本
+        result = scenario_service.update_scenario(scenario_id, {"current_ontology_version": new_version_id})
+        if result.get("status") == "error":
+            raise HTTPException(status_code=400, detail=result.get("message"))
+        
+        return SuccessResponse(message=f"Switched to version {request.version_id}")
+    except HTTPException:
+        raise
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@router.get("/{workspace_id}/scenarios/{scenario_id}/versions/{version_id}/data")
+async def get_version_data(workspace_id: str, scenario_id: str, version_id: str):
+    """获取指定版本的本体数据"""
+    from odap.biz.ontology.storage.sqlite_ingest_storage import SQLiteIngestStorage
+    
+    try:
+        # 检查场景是否存在且属于该工作空间
+        scenario = scenario_service.get_scenario(scenario_id)
+        if not scenario or scenario.get("workspace_id") != workspace_id:
+            raise HTTPException(status_code=404, detail="Scenario not found")
+        
+        ontology_id = scenario.get("ontology_id")
+        if not ontology_id:
+            raise HTTPException(status_code=400, detail="Scenario is not bound to an ontology")
+        
+        if version_id == "latest":
+            raise HTTPException(status_code=400, detail="此端点仅支持指定版本ID，使用 entities/relations API 获取最新数据")
+        
+        # 验证版本并获取数据
+        entities_data = []
+        relations_data = []
+        events_data = []
+        version_found = False
+        
+        # 1. 尝试 version_manager
+        try:
+            version = await version_manager.get(version_id)
+            if version and version.ontology_id == ontology_id:
+                version_found = True
+                doc = await version_manager.get_doc(version_id)
+                if doc:
+                    entities_data = [e.to_dict() for e in doc.entities]
+                    relations_data = [r.to_dict() for r in doc.relations]
+                    events_data = [e.to_dict() for e in doc.events]
+        except Exception:
+            pass
+        
+        # 2. 尝试 SQLite ingest storage
+        if not version_found:
+            try:
+                ingest_storage = SQLiteIngestStorage()
+                ingest_v = ingest_storage.get_version(version_id)
+                if ingest_v and ingest_v.get("ontology_id") == ontology_id:
+                    version_found = True
+                    doc_snapshot = ingest_v.get("doc_snapshot", {})
+                    if isinstance(doc_snapshot, dict):
+                        entities_data = doc_snapshot.get("entities", doc_snapshot.get("nodes", []))
+                        relations_data = doc_snapshot.get("relations", doc_snapshot.get("edges", []))
+                        events_data = doc_snapshot.get("events", [])
+            except Exception:
+                pass
+        
+        if not version_found:
+            raise HTTPException(status_code=404, detail="Version not found or does not belong to the bound ontology")
+        
+        return {
+            "version_id": version_id,
+            "entities": entities_data,
+            "relations": relations_data,
+            "events": events_data
+        }
     except HTTPException:
         raise
     except Exception as e:

@@ -59,6 +59,7 @@ services:
       - NEO4J_dbms_security_procedures_unrestricted=apoc.*
     volumes:
       - neo4j-data:/data
+      - neo4j-logs:/logs
     networks:
       - graphiti-network
     restart: unless-stopped
@@ -93,14 +94,17 @@ services:
       - "27017:27017"
     volumes:
       - mongodb-data:/data/db
+      - mongodb-configdb:/data/configdb
     networks:
       - graphiti-network
     restart: unless-stopped
 
 volumes:
   neo4j-data:
+  neo4j-logs:
   redis-data:
   mongodb-data:
+  mongodb-configdb:
   app-data:
 
 networks:

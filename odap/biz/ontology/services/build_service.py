@@ -53,7 +53,8 @@ class OntologyBuilderService:
         document: 'OntologyDocument',
         scenario_id: str,
         workspace_id: str = "default",
-        create_new_version: bool = True
+        create_new_version: bool = True,
+        ontology_id: str = None
     ) -> Dict[str, Any]:
         """
         构建本体
@@ -63,6 +64,7 @@ class OntologyBuilderService:
             scenario_id: 场景 ID
             workspace_id: 工作空间 ID
             create_new_version: 是否创建新版本
+            ontology_id: 本体 ID
 
         Returns:
             Dict: 包含 build_id, status, stats 等
@@ -100,7 +102,7 @@ class OntologyBuilderService:
             version_info = None
             if create_new_version:
                 version_info = await self._create_version(
-                    document, scenario_id, workspace_id
+                    document, scenario_id, workspace_id, ontology_id=ontology_id
                 )
 
             progress.progress = 100.0
@@ -299,10 +301,12 @@ class OntologyBuilderService:
         self,
         document: 'OntologyDocument',
         scenario_id: str,
-        workspace_id: str
+        workspace_id: str,
+        ontology_id: str = None
     ) -> Dict[str, Any]:
         """创建本体版本"""
         version_id = f"v{datetime.now().strftime('%Y%m%d')}-{uuid.uuid4().hex[:4]}"
+        actual_ontology_id = ontology_id or scenario_id
         
         try:
             from odap.biz.ontology.version_manager import OntologyVersionManager
@@ -327,7 +331,7 @@ class OntologyBuilderService:
                 storage = SQLiteIngestStorage()
                 storage.save_version({
                     "id": version_id,
-                    "ontology_id": scenario_id,
+                    "ontology_id": actual_ontology_id,
                     "version_number": version_id,
                     "parent_version_id": None,
                     "status": "stable",

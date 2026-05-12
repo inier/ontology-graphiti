@@ -883,6 +883,39 @@ export const api = {
     });
   },
 
+  async getScenarioOntologyVersions(workspaceId: string, scenarioId: string): Promise<Array<{
+    version_id: string;
+    doc_id: string;
+    doc_type: string;
+    parent_version?: string;
+    commit_message: string;
+    created_at: string;
+    entity_count: number;
+    relation_count: number;
+    event_count: number;
+  }>> {
+    return fetchJson(`${API_BASE}/api/workspaces/${workspaceId}/scenarios/${scenarioId}/versions`);
+  },
+
+  async switchScenarioOntologyVersion(workspaceId: string, scenarioId: string, versionId: string): Promise<{
+    status: string;
+    message: string;
+  }> {
+    return fetchJson(`${API_BASE}/api/workspaces/${workspaceId}/scenarios/${scenarioId}/switch-version`, {
+      method: 'POST',
+      body: JSON.stringify({ version_id: versionId }),
+    });
+  },
+
+  async getVersionOntologyData(workspaceId: string, scenarioId: string, versionId: string): Promise<{
+    version_id: string;
+    entities: Array<Record<string, unknown>>;
+    relations: Array<Record<string, unknown>>;
+    events: Array<Record<string, unknown>>;
+  }> {
+    return fetchJson(`${API_BASE}/api/workspaces/${workspaceId}/scenarios/${scenarioId}/versions/${versionId}/data`);
+  },
+
   // ==================== 智能问答 API ====================
 
   async askQuestion(question: string, sessionId?: string, workspaceId?: string): Promise<{

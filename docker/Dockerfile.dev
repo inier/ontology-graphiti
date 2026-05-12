@@ -2,10 +2,10 @@ FROM localhost/python:3.10-slim
 
 WORKDIR /app
 
-# 设置 Python 生产环境变量
+# 设置 Python 环境变量
 ENV PYTHONDONTWRITEBYTECODE 1
 ENV PYTHONUNBUFFERED 1
-ENV ENVIRONMENT production
+ENV ENVIRONMENT development
 
 # 使用国内镜像源
 RUN pip config set global.index-url https://pypi.tuna.tsinghua.edu.cn/simple
@@ -37,18 +37,17 @@ RUN pip install --no-cache-dir \
     jsonpickle \
     opa-python \
     celery \
+    watchdog \
     || true
 
 RUN pip install --no-cache-dir -r requirements.txt || true
 RUN pip install --no-cache-dir -e ./openharness || true
 
-# 最后复制代码（代码变化不影响依赖缓存）
-COPY . .
-
-# 创建必要的目录
-RUN mkdir -p /app/data
+# 注意：开发环境不复制代码，通过卷挂载
+# 只需要创建空目录结构
+RUN mkdir -p /app/app /app/odap /app/data
 
 EXPOSE 8000
 
-# 生产环境使用多个 worker
-CMD ["python", "-m", "uvicorn", "app.main:app", "--host", "0.0.0.0", "--port", "8000", "--workers", "4"]
+# 开发模式使用 --reload
+CMD ["python", "-m", "uvicorn", "app.main:app", "--host", "0.0.0.0", "--port", "8000", "--reload"]

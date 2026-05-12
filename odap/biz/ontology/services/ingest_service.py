@@ -320,6 +320,21 @@ class IngestRecordManager:
             self.storage.update_ingest_record(record_id, record)
 
 
+def _lookup_ontology_id(scenario_id: str) -> Optional[str]:
+    """从场景ID查找绑定的本体ID"""
+    if not scenario_id or scenario_id == "default":
+        return None
+    try:
+        from odap.biz.workspace.impl.workspace import WorkspaceManager
+        ws_manager = WorkspaceManager()
+        scenario = ws_manager.get_scenario(scenario_id)
+        if scenario and hasattr(scenario, 'ontology_id'):
+            return scenario.ontology_id
+    except Exception:
+        pass
+    return None
+
+
 class DocumentProcessor:
     """
     文档处理器
@@ -335,7 +350,8 @@ class DocumentProcessor:
         self,
         documents: List[OntologyDocument],
         ingest_record: Dict[str, Any],
-        scenario_id: str
+        scenario_id: str,
+        ontology_id: str = None
     ) -> Tuple[List[str], Dict[str, int], List[Dict[str, Any]]]:
         """
         处理文档列表
@@ -344,6 +360,7 @@ class DocumentProcessor:
             documents: 文档列表
             ingest_record: 摄入记录
             scenario_id: 场景ID
+            ontology_id: 本体ID
 
         Returns:
             Tuple: (文档ID列表, 统计信息字典, 构建结果列表)
@@ -351,6 +368,10 @@ class DocumentProcessor:
         document_ids = []
         stats = {'entities': 0, 'relations': 0, 'events': 0}
         builds = []
+
+        # 如果未指定 ontology_id，自动从场景查找
+        if not ontology_id and scenario_id:
+            ontology_id = _lookup_ontology_id(scenario_id)
 
         for doc in documents:
             document_ids.append(doc.doc_id)
@@ -365,7 +386,8 @@ class DocumentProcessor:
                     document=doc,
                     scenario_id=scenario_id or "default",
                     workspace_id="default",
-                    create_new_version=True
+                    create_new_version=True,
+                    ontology_id=ontology_id
                 )
 
                 if 'build_id' in build_result:

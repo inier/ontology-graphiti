@@ -62,7 +62,7 @@ class OntologyHotWritePipeline:
         )
         return cls._instance
 
-    async def ingest(self, doc: OntologyDocument) -> OntologyVersion:
+    async def ingest(self, doc: OntologyDocument, ontology_id: Optional[str] = None) -> OntologyVersion:
         """
         完整写入流程:
         1. Schema 验证
@@ -79,8 +79,13 @@ class OntologyHotWritePipeline:
             for w in validation.warnings:
                 logger.warning(f"[Schema Warning] {w}")
 
+        # 确定 ontology_id
+        final_ontology_id = ontology_id or doc.ontology_id
+        if not final_ontology_id:
+            raise ValueError("需要提供 ontology_id，或者 doc.ontology_id 必须已设置")
+
         # ── 2. 版本化 ───────────────────────────────────
-        version = await self.versions.commit(doc)
+        version = await self.versions.commit(final_ontology_id, doc)
 
         # ── 3. 写入 Graphiti ────────────────────────────
         if self.graph is not None:
@@ -93,6 +98,7 @@ class OntologyHotWritePipeline:
         # ── 4. 触发 Hook（异步，不阻塞响应）─────────────
         event_payload = {
             "version_id": version.version_id,
+            "ontology_id": final_ontology_id,
             "doc_id": doc.doc_id,
             "doc_type": doc.doc_type,
             "entity_count": len(doc.entities),
@@ -106,7 +112,7 @@ class OntologyHotWritePipeline:
 
         self._ingest_count += 1
         logger.info(
-            f"热写入完成: {version.version_id} | "
+            f"热写入完成: {version.version_id} | 本体:{final_ontology_id} | "
             f"实体:{len(doc.entities)} 关系:{len(doc.relations)} 事件:{len(doc.events)}"
         )
         return version

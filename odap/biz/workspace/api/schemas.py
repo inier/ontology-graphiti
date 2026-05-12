@@ -224,6 +224,21 @@ class UpdateScenarioRequest(BaseModel):
     name: Optional[str] = None
     description: Optional[str] = None
     ontology_id: Optional[str] = None
+    current_ontology_version: Optional[str] = None
+
+
+class OntologyVersionResponse(BaseModel):
+    """本体版本响应"""
+    version_id: str
+    ontology_id: str
+    doc_id: str
+    doc_type: str
+    parent_version: Optional[str] = None
+    commit_message: str
+    created_at: str
+    entity_count: int = 0
+    relation_count: int = 0
+    event_count: int = 0
 
 
 class ScenarioResponse(BaseModel):
@@ -233,6 +248,7 @@ class ScenarioResponse(BaseModel):
     description: str
     workspace_id: str
     ontology_id: Optional[str] = None
+    current_ontology_version: Optional[str] = None
     doc_count: int = 0
     event_count: int = 0
     entity_count: int = 0
@@ -245,3 +261,8 @@ class ScenarioListResponse(BaseModel):
     scenarios: List[ScenarioResponse]
     workspace_id: str
     total: int
+
+
+class SwitchVersionRequest(BaseModel):
+    """切换本体版本请求"""
+    version_id: str

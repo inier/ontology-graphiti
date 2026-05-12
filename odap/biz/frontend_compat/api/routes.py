@@ -257,24 +257,65 @@ async def get_timeline(scenario_id: str):
 async def get_entities(scenario_id: str):
     """获取实体（兼容前端）"""
     try:
-        entities = scenario_store.get_entities(scenario_id)
-        return {"entities": entities}
+        gm = _get_graph_manager()
+        entities_raw = gm.get_all_entities()
+        entities_list = []
+        for e in entities_raw:
+            e_dict = e.to_dict() if hasattr(e, 'to_dict') else dict(e)
+            entities_list.append({
+                "entity_id": e_dict.get("entity_id", e_dict.get("name", "")),
+                "name": e_dict.get("name", ""),
+                "entity_type": e_dict.get("type", e_dict.get("entity_type", "Entity")),
+                "properties": e_dict.get("properties", {}),
+                "basic_properties": e_dict
+            })
+        return {"entities": entities_list}
     except Exception as e:
-        raise HTTPException(status_code=500, detail=str(e))
+        try:
+            entities = scenario_store.get_entities(scenario_id)
+            return {"entities": entities}
+        except Exception as e2:
+            raise HTTPException(status_code=500, detail=str(e2))
 
 
 @router.get("/scenarios/{scenario_id}/relations")
 async def get_relations(scenario_id: str):
     """获取关系（兼容前端）"""
     try:
-        result = scenario_store.get_relations(scenario_id)
-        return {
-            "scenario_id": scenario_id,
-            "nodes": result.get("nodes", []),
-            "links": result.get("links", [])
-        }
+        gm = _get_graph_manager()
+        nodes_raw = gm.get_all_entities()
+        rels_raw = gm.get_all_relations()
+        
+        nodes = []
+        node_ids = set()
+        for n in nodes_raw:
+            n_dict = n.to_dict() if hasattr(n, 'to_dict') else dict(n)
+            nid = n_dict.get("entity_id", n_dict.get("name", str(n)))
+            if nid not in node_ids:
+                nodes.append({
+                    "id": nid,
+                    "name": n_dict.get("name", nid),
+                    "type": n_dict.get("type", n_dict.get("entity_type", "Entity")),
+                })
+                node_ids.add(nid)
+        
+        links = []
+        for r in rels_raw:
+            r_dict = r.to_dict() if hasattr(r, 'to_dict') else dict(r)
+            links.append({
+                "id": r_dict.get("relation_id", r_dict.get("id", "")),
+                "source": r_dict.get("source", r_dict.get("source_entity", "")),
+                "target": r_dict.get("target", r_dict.get("target_entity", "")),
+                "type": r_dict.get("relation_type", r_dict.get("type", "")),
+            })
+        
+        return {"scenario_id": scenario_id, "nodes": nodes, "links": links}
     except Exception as e:
-        raise HTTPException(status_code=500, detail=str(e))
+        try:
+            result = scenario_store.get_relations(scenario_id)
+            return {"scenario_id": scenario_id, "nodes": result.get("nodes", []), "links": result.get("links", [])}
+        except Exception as e2:
+            raise HTTPException(status_code=500, detail=str(e2))
 
 
 # ==================== 数据摄入路由 ====================

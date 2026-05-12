@@ -13,6 +13,7 @@ class Scenario(BaseModel):
     description: str = ""
     workspace_id: str
     ontology_id: Optional[str] = None
+    current_ontology_version: Optional[str] = None
     doc_count: int = 0
     event_count: int = 0
     entity_count: int = 0

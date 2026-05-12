@@ -229,6 +229,7 @@ class OntologyDocument:
 
     # 内部：场景归属
     scenario_id: Optional[str] = None
+    ontology_id: Optional[str] = None
 
     def to_dict(self) -> Dict[str, Any]:
         """序列化为 dict，兼容 JSON"""
@@ -251,6 +252,7 @@ class OntologyDocument:
             "transformation_errors": self.transformation_errors,
             "build_history": self.build_history,
             "scenario_id": self.scenario_id,
+            "ontology_id": self.ontology_id,
         }
 
     def to_json(self, indent: int = 2) -> str:
@@ -328,6 +330,7 @@ class OntologyDocument:
             transformation_errors=data.get("transformation_errors", []),
             build_history=data.get("build_history", []),
             scenario_id=data.get("scenario_id"),
+            ontology_id=data.get("ontology_id"),
         )
 
         # 实体
