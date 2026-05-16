@@ -1,23 +1,31 @@
 import { useState, useEffect, createContext, useContext } from 'react';
-import { Layout, Menu, Select, Spin, message, Button, Empty } from 'antd';
+import { Layout, Menu, Select, Spin, message, Button, Empty, Tooltip } from 'antd';
 import { useNavigate, useLocation } from 'react-router-dom';
 import {
-  HomeOutlined,
   BlockOutlined,
-  ClockCircleOutlined,
-  EnvironmentOutlined,
   ThunderboltOutlined,
-  UploadOutlined,
   HistoryOutlined,
   SettingOutlined,
   TeamOutlined,
   FileTextOutlined,
   AuditOutlined,
   AppstoreOutlined,
-  SearchOutlined,
   LeftOutlined,
   RightOutlined,
   CloseOutlined,
+  QuestionCircleOutlined,
+  ApartmentOutlined,
+  BranchesOutlined,
+  NodeIndexOutlined,
+  FundOutlined,
+  DatabaseOutlined,
+  FileProtectOutlined,
+  UnorderedListOutlined,
+  ExperimentOutlined,
+  RobotOutlined,
+  SwitcherOutlined,
+  MenuFoldOutlined,
+  MenuUnfoldOutlined,
 } from '@ant-design/icons';
 import { api } from '../services/api';
 
@@ -73,7 +81,6 @@ interface AppLayoutProps {
   onWorkspaceChange?: (workspaceId: string) => void;
 }
 
-// 右栏展开状态 Context
 interface RightPanelContextType {
   showRightPanel: boolean;
   setShowRightPanel: (show: boolean) => void;
@@ -94,47 +101,90 @@ const RightPanelContext = createContext<RightPanelContextType>({
 
 export const useRightPanel = () => useContext(RightPanelContext);
 
-const menuItems = [
+interface PrimaryMenu {
+  key: string;
+  icon: React.ReactNode;
+  label: string;
+  children?: { key: string; icon?: React.ReactNode; label: string }[];
+}
+
+const primaryMenus: PrimaryMenu[] = [
   {
-    key: 'user-operations',
-    icon: <HomeOutlined />,
-    label: '用户操作区',
+    key: 'semantic-map',
+    icon: <BlockOutlined />,
+    label: '语义地图',
     children: [
-      { key: '/', icon: <HomeOutlined />, label: '首页仪表盘' },
-      { key: '/query', icon: <SearchOutlined />, label: '查询界面' },
-      { key: '/timeline', icon: <ClockCircleOutlined />, label: '时间线' },
-      { key: '/map', icon: <EnvironmentOutlined />, label: '态势地图' },
-      { key: '/simulator', icon: <ThunderboltOutlined />, label: '模拟推演' },
-      { key: '/qa', icon: <SearchOutlined />, label: '智能问答' },
+      { key: '/ontology', icon: <BlockOutlined />, label: '语义网络' },
+      { key: '/business/process', icon: <BranchesOutlined />, label: '业务过程' },
+      { key: '/business/rules', icon: <FileProtectOutlined />, label: '规则' },
+      { key: '/business/indicators', icon: <FundOutlined />, label: '指标' },
+      { key: '/business/logic', icon: <NodeIndexOutlined />, label: '逻辑' },
+      { key: '/business/entities', icon: <UnorderedListOutlined />, label: '对象管理' },
+      { key: '/business/extraction', icon: <ExperimentOutlined />, label: '数据摄入' },
     ],
   },
   {
-    key: 'ontology-management',
-    icon: <BlockOutlined />,
-    label: '本体管理区',
+    key: 'agent',
+    icon: <RobotOutlined />,
+    label: '智能体管理',
+  },
+  {
+    key: 'qa',
+    icon: <QuestionCircleOutlined />,
+    label: '智能问答',
+  },
+  {
+    key: 'skills',
+    icon: <AppstoreOutlined />,
+    label: 'Skill管理',
+  },
+  {
+    key: 'simulator',
+    icon: <ThunderboltOutlined />,
+    label: '模拟推演',
+  },
+  {
+    key: 'knowledge-management',
+    icon: <DatabaseOutlined />,
+    label: '知识管理',
     children: [
-      { key: '/ontology', icon: <BlockOutlined />, label: '语义地图' },
-      { key: '/ingest', icon: <UploadOutlined />, label: '数据摄入' },
-      { key: '/versions', icon: <HistoryOutlined />, label: '版本管理' },
+      { key: '/knowledge', icon: <DatabaseOutlined />, label: '知识库管理' },
     ],
   },
   {
     key: 'system-config',
     icon: <SettingOutlined />,
-    label: '系统配置区',
+    label: '系统配置',
     children: [
       { key: '/workspace', icon: <BlockOutlined />, label: '工作空间' },
-      { key: '/audit', icon: <AuditOutlined />, label: '审计日志' },
       { key: '/roles', icon: <TeamOutlined />, label: '角色管理' },
-      { key: '/policies', icon: <FileTextOutlined />, label: 'OPA 策略' },
-      { key: '/skills', icon: <AppstoreOutlined />, label: 'Skill 管理' },
-      { key: '/config', icon: <SettingOutlined />, label: '配置中心' },
+      { key: '/policies', icon: <FileTextOutlined />, label: 'OPA策略' },
+      { key: '/audit', icon: <AuditOutlined />, label: '审计日志' },
     ],
   },
 ];
 
+const routeToPrimaryMap: Record<string, string> = {};
+primaryMenus.forEach(m => {
+  if (m.children) {
+    m.children.forEach(c => {
+      routeToPrimaryMap[c.key] = m.key;
+    });
+  } else {
+    routeToPrimaryMap[m.key] = m.key;
+  }
+});
+
+const directRoutes: Record<string, string> = {
+  agent: '/admin/agents',
+  qa: '/qa',
+  skills: '/skills',
+  simulator: '/simulator',
+};
+
 export function AppLayout({ children, currentWorkspace, onWorkspaceChange }: AppLayoutProps) {
-  const [collapsed, setCollapsed] = useState(false);
+  const [leftCollapsed, setLeftCollapsed] = useState(false);
+  const [subCollapsed, setSubCollapsed] = useState(false);
   const [rightCollapsed, setRightCollapsed] = useState(true);
   const [workspaces, setWorkspaces] = useState<Workspace[]>([]);
   const [currentWorkspaceState, setCurrentWorkspaceState] = useState<string>(() => {
@@ -153,8 +203,14 @@ export function AppLayout({ children, currentWorkspace, onWorkspaceChange }: App
   const location = useLocation();
 
   const activeWorkspaceId = currentWorkspace || currentWorkspaceState;
-  const leftSiderWidth = collapsed ? 80 : 200;
+  const leftSiderWidth = leftCollapsed ? 64 : 160;
+  const activePrimary = routeToPrimaryMap[location.pathname] || '';
+  const activeMenu = primaryMenus.find(m => m.key === activePrimary);
+  const hasSubMenus = activeMenu && activeMenu.children && activeMenu.children.length > 0;
+  const subSiderWidth = subCollapsed ? 0 : (hasSubMenus ? 180 : 0);
   const rightSiderWidth = rightCollapsed ? 0 : 280;
+
+  const isAgentMode = location.pathname === '/my-agents' || location.pathname.startsWith('/agent-chat/');
 
   useEffect(() => {
     loadWorkspaces();
@@ -170,7 +226,6 @@ export function AppLayout({ children, currentWorkspace, onWorkspaceChange }: App
     try {
       setLoading(true);
       const data = await api.listWorkspaces();
-      console.log('Workspaces data:', data);
       setWorkspaces(data);
 
       const savedWorkspaceId = localStorage.getItem('currentWorkspaceId');
@@ -194,17 +249,16 @@ export function AppLayout({ children, currentWorkspace, onWorkspaceChange }: App
     try {
       setScenariosLoading(true);
       const data = await api.getScenariosInWorkspace(workspaceId);
-      console.log('Scenarios data:', data);
       const newScenarios = data.scenarios || [];
       setScenarios(newScenarios);
 
       const savedScenarioId = localStorage.getItem('currentScenarioId');
       const currentId = currentScenarioState;
-      
+
       if (newScenarios.length > 0) {
         const existingScenario = newScenarios.find(s => s.scenario_id === currentId);
         const savedScenario = newScenarios.find(s => s.scenario_id === savedScenarioId);
-        
+
         if (existingScenario) {
           setCurrentScenarioState(currentId);
         } else if (savedScenario) {
@@ -239,12 +293,42 @@ export function AppLayout({ children, currentWorkspace, onWorkspaceChange }: App
     message.success('已切换场景');
   };
 
-  const handleMenuClick = ({ key }: { key: string }) => {
+  const handlePrimaryMenuClick = ({ key }: { key: string }) => {
+    const menu = primaryMenus.find(m => m.key === key);
+    if (!menu) return;
+
+    if (menu.children && menu.children.length > 0) {
+      if (activePrimary === key) {
+        setSubCollapsed(!subCollapsed);
+      } else {
+        setSubCollapsed(false);
+        const firstChild = menu.children[0];
+        navigate(firstChild.key);
+      }
+    } else {
+      const route = directRoutes[key] || key;
+      navigate(route);
+    }
+  };
+
+  const handleSubMenuClick = ({ key }: { key: string }) => {
     navigate(key);
   };
 
   const handleLogoClick = () => {
-    navigate('/');
+    if (isAgentMode) {
+      navigate('/my-agents');
+    } else {
+      navigate('/ontology');
+    }
+  };
+
+  const handleSwitchMode = () => {
+    if (isAgentMode) {
+      navigate('/admin');
+    } else {
+      navigate('/my-agents');
+    }
   };
 
   const contextValue = {
@@ -270,56 +354,163 @@ export function AppLayout({ children, currentWorkspace, onWorkspaceChange }: App
     setRightPanelTitle,
   };
 
+  const totalLeftWidth = isAgentMode ? 0 : (leftSiderWidth + subSiderWidth);
+
   return (
     <WorkspaceContext.Provider value={contextValue}>
       <ScenarioContext.Provider value={scenarioContextValue}>
         <RightPanelContext.Provider value={rightPanelContextValue}>
-          <Layout style={{ minHeight: '100vh' }}>
-            {/* 左栏 - 导航菜单 */}
-            <Sider
-              collapsible
-              collapsed={collapsed}
-              onCollapse={setCollapsed}
-              style={{
-                overflow: 'auto',
-                height: '100vh',
-                position: 'fixed',
-                left: 0,
-                top: 0,
-                bottom: 0,
-                zIndex: 100,
-              }}
-            >
-              <div
-                style={{
-                  height: 64,
-                  display: 'flex',
-                  alignItems: 'center',
-                  justifyContent: 'center',
-                  color: '#ffffff',
-                  fontSize: collapsed ? 16 : 20,
-                  fontWeight: 600,
-                  borderBottom: '1px solid rgba(255,255,255,0.1)',
-                  cursor: 'pointer',
-                }}
-                onClick={handleLogoClick}
-              >
-                {collapsed ? 'ODAP' : 'ODAP 本体平台'}
-              </div>
-              <Menu
-                theme="dark"
-                mode="inline"
-                selectedKeys={[location.pathname]}
-                onClick={handleMenuClick}
-                items={menuItems}
-              />
-            </Sider>
-            
-            {/* 中间主内容区 + 右栏 */}
-            <Layout style={{ 
-              marginLeft: leftSiderWidth, 
+          <Layout style={{ minHeight: '100vh', minWidth: 1200 }}>
+            {!isAgentMode && (
+              <>
+                <Sider
+                  trigger={null}
+                  collapsed={leftCollapsed}
+                  collapsedWidth={64}
+                  style={{
+                    overflow: 'auto',
+                    height: '100vh',
+                    position: 'fixed',
+                    left: 0,
+                    top: 0,
+                    bottom: 0,
+                    zIndex: 100,
+                    borderRight: '1px solid rgba(255,255,255,0.1)',
+                  }}
+                  width={160}
+                >
+                  <div
+                    style={{
+                      height: 64,
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                      color: '#ffffff',
+                      fontSize: leftCollapsed ? 14 : 18,
+                      fontWeight: 600,
+                      borderBottom: '1px solid rgba(255,255,255,0.1)',
+                      cursor: 'pointer',
+                      whiteSpace: 'nowrap',
+                      overflow: 'hidden',
+                    }}
+                    onClick={handleLogoClick}
+                  >
+                    {leftCollapsed ? 'O' : 'ODAP'}
+                  </div>
+                  <Menu
+                    theme="dark"
+                    mode="inline"
+                    selectedKeys={[activePrimary]}
+                    onClick={handlePrimaryMenuClick}
+                    items={primaryMenus.map(m => ({
+                      key: m.key,
+                      icon: m.icon,
+                      label: leftCollapsed ? '' : m.label,
+                      title: m.label,
+                    }))}
+                  />
+                  <div
+                    style={{
+                      position: 'absolute',
+                      bottom: 0,
+                      width: '100%',
+                      borderTop: '1px solid rgba(255,255,255,0.1)',
+                    }}
+                  >
+                    <Button
+                      type="text"
+                      block
+                      icon={leftCollapsed ? <MenuUnfoldOutlined /> : <MenuFoldOutlined />}
+                      onClick={() => setLeftCollapsed(!leftCollapsed)}
+                      style={{ color: 'rgba(255,255,255,0.65)', height: 48, borderRadius: 0 }}
+                    />
+                  </div>
+                </Sider>
+
+                {hasSubMenus && !subCollapsed && (
+                  <div
+                    style={{
+                      position: 'fixed',
+                      left: leftSiderWidth,
+                      top: 0,
+                      bottom: 0,
+                      width: 180,
+                      zIndex: 99,
+                      background: '#fff',
+                      borderRight: '1px solid #f0f0f0',
+                      overflow: 'auto',
+                      display: 'flex',
+                      flexDirection: 'column',
+                    }}
+                  >
+                    <div
+                      style={{
+                        height: 64,
+                        display: 'flex',
+                        alignItems: 'center',
+                        justifyContent: 'space-between',
+                        padding: '0 16px',
+                        borderBottom: '1px solid #f0f0f0',
+                        flexShrink: 0,
+                      }}
+                    >
+                      <span style={{ fontSize: 14, fontWeight: 600, color: '#333' }}>
+                        {activeMenu!.label}
+                      </span>
+                      <Button
+                        type="text"
+                        size="small"
+                        icon={<LeftOutlined />}
+                        onClick={() => setSubCollapsed(true)}
+                      />
+                    </div>
+                    <Menu
+                      mode="inline"
+                      selectedKeys={[location.pathname]}
+                      onClick={handleSubMenuClick}
+                      style={{ borderRight: 0, flex: 1 }}
+                      items={activeMenu!.children!.map(c => ({
+                        key: c.key,
+                        icon: c.icon,
+                        label: c.label,
+                      }))}
+                    />
+                  </div>
+                )}
+
+                {hasSubMenus && subCollapsed && (
+                  <Tooltip title={`${activeMenu!.label} - 展开子菜单`} placement="right">
+                    <div
+                      style={{
+                        position: 'fixed',
+                        left: leftSiderWidth,
+                        top: '50%',
+                        transform: 'translateY(-50%)',
+                        zIndex: 99,
+                        background: '#fff',
+                        border: '1px solid #f0f0f0',
+                        borderLeft: 'none',
+                        borderRadius: '0 6px 6px 0',
+                        cursor: 'pointer',
+                        padding: '8px 4px',
+                        display: 'flex',
+                        alignItems: 'center',
+                        justifyContent: 'center',
+                        boxShadow: '2px 0 6px rgba(0,0,0,0.06)',
+                      }}
+                      onClick={() => setSubCollapsed(false)}
+                    >
+                      <RightOutlined style={{ fontSize: 10, color: '#999' }} />
+                    </div>
+                  </Tooltip>
+                )}
+              </>
+            )}
+
+            <Layout style={{
+              marginLeft: isAgentMode ? 0 : totalLeftWidth,
               marginRight: rightSiderWidth,
-              transition: 'margin-left 0.2s, margin-right 0.2s' 
+              transition: 'margin-left 0.2s, margin-right 0.2s'
             }}>
               <Header
                 style={{
@@ -335,46 +526,71 @@ export function AppLayout({ children, currentWorkspace, onWorkspaceChange }: App
                 }}
               >
                 <div style={{ display: 'flex', alignItems: 'center', gap: 24 }}>
-                  <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-                    <span style={{ fontSize: 14, fontWeight: 500, color: '#666' }}>工作空间:</span>
-                    {loading ? (
-                      <Spin size="small" />
-                    ) : workspaces.length > 0 ? (
-                      <Select
-                        value={activeWorkspaceId || undefined}
-                        onChange={handleWorkspaceChange}
-                        style={{ width: 180 }}
-                        options={workspaces.map(w => ({
-                          value: w.workspace_id,
-                          label: w.name,
-                        }))}
-                      />
-                    ) : (
-                      <span style={{ color: '#8c8c8c', fontSize: 14 }}>暂无工作空间</span>
-                    )}
-                  </div>
+                  {!isAgentMode && (
+                    <>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                        <span style={{ fontSize: 14, fontWeight: 500, color: '#666' }}>工作空间:</span>
+                        {loading ? (
+                          <Spin size="small" />
+                        ) : workspaces.length > 0 ? (
+                          <Select
+                            value={activeWorkspaceId || undefined}
+                            onChange={handleWorkspaceChange}
+                            style={{ width: 180 }}
+                            options={workspaces.map(w => ({
+                              value: w.workspace_id,
+                              label: w.name,
+                            }))}
+                          />
+                        ) : (
+                          <span style={{ color: '#8c8c8c', fontSize: 14 }}>暂无工作空间</span>
+                        )}
+                      </div>
 
-                  <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-                    <span style={{ fontSize: 14, fontWeight: 500, color: '#666' }}>场景:</span>
-                    {scenariosLoading ? (
-                      <Spin size="small" />
-                    ) : scenarios.length > 0 ? (
-                      <Select
-                        value={currentScenarioState || undefined}
-                        onChange={handleScenarioChange}
-                        style={{ width: 180 }}
-                        options={scenarios.map(s => ({
-                          value: s.scenario_id,
-                          label: s.name,
-                        }))}
-                      />
-                    ) : (
-                      <span style={{ color: '#8c8c8c', fontSize: 14 }}>暂无场景</span>
-                    )}
-                  </div>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                        <span style={{ fontSize: 14, fontWeight: 500, color: '#666' }}>场景:</span>
+                        {scenariosLoading ? (
+                          <Spin size="small" />
+                        ) : scenarios.length > 0 ? (
+                          <Select
+                            value={currentScenarioState || undefined}
+                            onChange={handleScenarioChange}
+                            style={{ width: 180 }}
+                            options={scenarios.map(s => ({
+                              value: s.scenario_id,
+                              label: s.name,
+                            }))}
+                          />
+                        ) : (
+                          <span style={{ color: '#8c8c8c', fontSize: 14 }}>暂无场景</span>
+                        )}
+                        <Tooltip title="版本管理">
+                          <Button
+                            type="text"
+                            icon={<HistoryOutlined />}
+                            onClick={() => navigate('/versions')}
+                            style={{ color: '#666' }}
+                          />
+                        </Tooltip>
+                      </div>
+                    </>
+                  )}
+                  {isAgentMode && (
+                    <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                      <RobotOutlined style={{ fontSize: 20, color: '#1890ff' }} />
+                      <span style={{ fontSize: 16, fontWeight: 600 }}>ODAP 智能体</span>
+                    </div>
+                  )}
                 </div>
                 <div style={{ display: 'flex', alignItems: 'center', gap: 16 }}>
-                  {/* 右栏切换按钮 */}
+                  <Button
+                    type="text"
+                    icon={<SwitcherOutlined />}
+                    onClick={handleSwitchMode}
+                    style={{ color: '#666' }}
+                  >
+                    {isAgentMode ? '管理后台' : '我的智能体'}
+                  </Button>
                   <Button
                     type="text"
                     icon={rightCollapsed ? <RightOutlined /> : <LeftOutlined />}
@@ -401,12 +617,11 @@ export function AppLayout({ children, currentWorkspace, onWorkspaceChange }: App
                   </div>
                 </div>
               </Header>
-              <Content style={{ padding: 16, minHeight: 'calc(100vh - 64px)' }}>
+              <Content style={{ padding: isAgentMode ? 0 : 16, height: 'calc(100vh - 64px)', overflow: "auto" }}>
                 {children}
               </Content>
             </Layout>
 
-            {/* 右栏 - 扩展面板 */}
             <Sider
               collapsible
               collapsed={rightCollapsed}

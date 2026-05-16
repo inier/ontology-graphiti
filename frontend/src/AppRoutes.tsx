@@ -1,46 +1,47 @@
 import { Routes, Route } from 'react-router-dom';
-import { Dashboard, SituationMap } from './pages';
 import { WorkspaceManager } from './modules/workspace';
 import { AuditLog } from './modules/audit';
-import { ConfigCenter, PolicyManagement } from './modules/config';
-import { OntologySemanticNetwork, Timeline, QueryView } from './modules/ontology';
+import { PolicyManagement } from './modules/config';
+import { OntologySemanticNetwork } from './modules/ontology';
 import { IngestPanel, Simulator } from './modules/ingest';
 import { VersionHistory } from './modules/version';
 import { RoleManager } from './modules/roles';
 import { QAChatPage } from './modules/qa/pages/QAChatPage';
 import { SkillManagement } from './modules/system';
-
-import { Alert } from 'antd';
-
-function Placeholder({ title, description }: { title: string; description?: string }) {
-  return (
-    <Alert
-      title={title}
-      description={description || `${title} 功能正在开发中`}
-      type="info"
-      showIcon
-    />
-  );
-}
+import { BusinessProcess, Rules, Indicators, Logic, ObjectManagement, SmartGeneration } from './modules/business';
+import { KnowledgeBase } from './modules/knowledge';
+import { MyAgents, AgentChat, AgentManagement } from './modules/agent';
 
 export function AppRoutes() {
   return (
     <Routes>
-      <Route path="/" element={<Dashboard />} />
+      {/* 我的智能体入口 */}
+      <Route path="/my-agents" element={<MyAgents />} />
+      <Route path="/agent-chat/:agentId" element={<AgentChat />} />
+
+      {/* 管理后台 */}
       <Route path="/ontology" element={<OntologySemanticNetwork />} />
-      <Route path="/timeline" element={<Timeline />} />
-      <Route path="/map" element={<SituationMap />} />
-      <Route path="/query" element={<QueryView />} />
+      <Route path="/versions" element={<VersionHistory />} />
+      <Route path="/business/process" element={<BusinessProcess />} />
+      <Route path="/business/rules" element={<Rules />} />
+      <Route path="/business/indicators" element={<Indicators />} />
+      <Route path="/business/logic" element={<Logic />} />
+      <Route path="/business/entities" element={<ObjectManagement />} />
+      <Route path="/business/extraction" element={<SmartGeneration />} />
+      <Route path="/qa" element={<QAChatPage />} />
+      <Route path="/skills" element={<SkillManagement />} />
       <Route path="/simulator" element={<Simulator />} />
       <Route path="/ingest" element={<IngestPanel />} />
-      <Route path="/versions" element={<VersionHistory />} />
+      <Route path="/knowledge" element={<KnowledgeBase />} />
       <Route path="/workspace" element={<WorkspaceManager />} />
-      <Route path="/audit" element={<AuditLog />} />
-      <Route path="/config" element={<ConfigCenter />} />
       <Route path="/roles" element={<RoleManager />} />
-      <Route path="/qa" element={<QAChatPage />} />
       <Route path="/policies" element={<PolicyManagement />} />
-      <Route path="/skills" element={<SkillManagement />} />
+      <Route path="/audit" element={<AuditLog />} />
+      <Route path="/admin/agents" element={<AgentManagement />} />
+
+      {/* 默认入口 */}
+      <Route path="/" element={<MyAgents />} />
+      <Route path="/admin" element={<OntologySemanticNetwork />} />
     </Routes>
   );
 }

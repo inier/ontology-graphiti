@@ -59,12 +59,15 @@ class GraphitiAuditChannel:
         audit_id = f"audit_{uuid.uuid4().hex[:12]}"
         
         # 构建实体属性
+        action = event_dict.get("action", "unknown")
+        timestamp = event_dict.get("timestamp", datetime.now().isoformat())
         properties = {
-            "timestamp": event_dict.get("timestamp", datetime.now().isoformat()),
+            "name": f"审计日志_{action}",
+            "timestamp": timestamp,
             "level": event_dict.get("severity", "INFO"),
             "type": event_dict.get("event_type", "AUDIT"),
             "service": event_dict.get("source", "system"),
-            "action": event_dict.get("action", "unknown"),
+            "action": action,
             "details": str(event_dict.get("context", {})),
             "user": event_dict.get("actor", {}).get("actor_id", "system"),
             "resource": event_dict.get("resource", {}).get("resource_id", "unknown"),

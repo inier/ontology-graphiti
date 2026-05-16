@@ -99,6 +99,7 @@ class ScenarioStore:
             "scenario_id": scenario_id,
             "name": name,
             "description": description,
+            "workspace_id": "default",
             "created_at": datetime.now(timezone.utc).isoformat(),
             "doc_count": 0,
             "event_count": 0,

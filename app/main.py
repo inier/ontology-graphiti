@@ -13,6 +13,7 @@ from odap.biz.mcp_adapter.api.routes import router as mcp_router
 from odap.biz.event_simulator.api.routes import router as event_router
 from odap.biz.frontend_compat.api.routes import router as frontend_router
 from odap.biz.openharness_agent.api.routes import router as agent_router
+from odap.biz.business.api.routes import router as business_router
 from odap.infra.security import security_config
 from odap.infra.openharness import create_harness
 from odap.infra.openharness.v2_adapter import initialize_openharness, get_openharness_integration
@@ -51,6 +52,7 @@ app.include_router(mcp_router)
 app.include_router(event_router)
 app.include_router(frontend_router)
 app.include_router(agent_router)
+app.include_router(business_router)
 
 @app.on_event("startup")
 async def startup_event():

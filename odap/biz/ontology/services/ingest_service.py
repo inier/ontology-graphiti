@@ -53,6 +53,7 @@ class IngestRecordBuilder:
     record_count: int = 0
     created_by: str = "system"
     scenario_id: str = None
+    workspace_id: str = "default"
 
     def build(self) -> Dict[str, Any]:
         """构建摄入记录基础结构"""
@@ -65,7 +66,8 @@ class IngestRecordBuilder:
             'status': 'processing',
             'start_time': get_local_time().isoformat(),
             'created_by': self.created_by,
-            'scenario_id': self.scenario_id
+            'scenario_id': self.scenario_id,
+            'workspace_id': self.workspace_id,
         }
 
 
@@ -740,7 +742,8 @@ class IngestService:
         scenario_context: dict = None,
         count: int = 1,
         scenario_id: str = None,
-        generator_type: str = "military"
+        generator_type: str = "military",
+        workspace_id: str = "default"
     ) -> str:
         """生成随机事件 - 简化版本，调用真实的 pipeline"""
         from ..ingestion import RandomEventGeneratorFactory
@@ -781,7 +784,8 @@ class IngestService:
             },
             original_content=detailed_text,
             record_count=count,
-            scenario_id=scenario_id
+            scenario_id=scenario_id,
+            workspace_id=workspace_id
         )
         record_id, ingest_record = self.record_manager.create(builder)
 
@@ -799,7 +803,8 @@ class IngestService:
                     "generator_name": generator_name,
                     "scenario_context": scenario_context,
                     "content": detailed_text
-                }
+                },
+                workspace_id=workspace_id
             )
 
             # 完成摄入记录

@@ -269,10 +269,13 @@ class OntologyBuilderService:
             # 写入节点
             for node in nodes:
                 try:
+                    props = node.get("properties", {})
+                    props["workspace_id"] = workspace_id
+                    props["scenario_id"] = scenario_id
                     graph_manager.add_entity(
                         entity_id=node["id"],
                         entity_type=node["type"],
-                        properties=node.get("properties", {})
+                        properties=props
                     )
                     logger.info(f"成功创建节点: {node['id']}")
                 except Exception as e:

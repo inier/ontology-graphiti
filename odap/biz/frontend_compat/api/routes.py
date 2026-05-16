@@ -30,6 +30,7 @@ _odap_root = os.path.dirname(os.path.dirname(_storage_base))
 SCENARIOS_DIR = os.path.join(_odap_root, "storage", "versions", "scenarios")
 from odap.infra.graph.graph_service import GraphManager
 from odap.biz.workspace.services.workspace_service import WorkspaceService
+from odap.biz.workspace.services.scenario_service import ScenarioService
 
 # 初始化存储
 try:
@@ -254,19 +255,41 @@ async def get_timeline(scenario_id: str):
 
 
 @router.get("/scenarios/{scenario_id}/entities")
-async def get_entities(scenario_id: str):
+async def get_entities(scenario_id: str, workspace_id: str = Query(None)):
     """获取实体（兼容前端）"""
     try:
         gm = _get_graph_manager()
-        entities_raw = gm.get_all_entities()
+        if not workspace_id:
+            scenario = scenario_store.get_scenario(scenario_id)
+            if not scenario:
+                try:
+                    scenario = ScenarioService().get_scenario(scenario_id)
+                except Exception:
+                    pass
+            if not scenario:
+                try:
+                    from odap.web.api.app import scenario_store as global_scenario_store
+                    scenario = global_scenario_store.get_scenario(scenario_id)
+                except Exception:
+                    pass
+            workspace_id = scenario.get("workspace_id") if scenario else None
+        entities_raw = gm.get_all_entities(workspace_id=workspace_id)
         entities_list = []
         for e in entities_raw:
             e_dict = e.to_dict() if hasattr(e, 'to_dict') else dict(e)
+            props = e_dict.get("properties", {})
+            eid = e_dict.get("id", "") or props.get("id", "")
+            ename = props.get("name", "") or e_dict.get("name", "")
+            etype = e_dict.get("type", e_dict.get("entity_type", "Entity"))
+            if not eid or not ename:
+                continue
+            if not props.get("source_type"):
+                props["source_type"] = "random"
             entities_list.append({
-                "entity_id": e_dict.get("entity_id", e_dict.get("name", "")),
-                "name": e_dict.get("name", ""),
-                "entity_type": e_dict.get("type", e_dict.get("entity_type", "Entity")),
-                "properties": e_dict.get("properties", {}),
+                "entity_id": eid,
+                "name": ename,
+                "entity_type": etype,
+                "properties": props,
                 "basic_properties": e_dict
             })
         return {"entities": entities_list}
@@ -279,23 +302,42 @@ async def get_entities(scenario_id: str):
 
 
 @router.get("/scenarios/{scenario_id}/relations")
-async def get_relations(scenario_id: str):
+async def get_relations(scenario_id: str, workspace_id: str = Query(None)):
     """获取关系（兼容前端）"""
     try:
         gm = _get_graph_manager()
-        nodes_raw = gm.get_all_entities()
-        rels_raw = gm.get_all_relations()
+        if not workspace_id:
+            scenario = scenario_store.get_scenario(scenario_id)
+            if not scenario:
+                try:
+                    scenario = ScenarioService().get_scenario(scenario_id)
+                except Exception:
+                    pass
+            if not scenario:
+                try:
+                    from odap.web.api.app import scenario_store as global_scenario_store
+                    scenario = global_scenario_store.get_scenario(scenario_id)
+                except Exception:
+                    pass
+            workspace_id = scenario.get("workspace_id") if scenario else None
+        nodes_raw = gm.get_all_entities(workspace_id=workspace_id)
+        rels_raw = gm.get_all_relations(workspace_id=workspace_id)
         
         nodes = []
         node_ids = set()
         for n in nodes_raw:
             n_dict = n.to_dict() if hasattr(n, 'to_dict') else dict(n)
-            nid = n_dict.get("entity_id", n_dict.get("name", str(n)))
+            n_props = n_dict.get("properties", {})
+            nid = n_dict.get("id", "") or n_props.get("id", "")
+            nname = n_props.get("name", "") or n_dict.get("name", "")
+            ntype = n_dict.get("type", n_dict.get("entity_type", "Entity"))
+            if not nid or not nname:
+                continue
             if nid not in node_ids:
                 nodes.append({
                     "id": nid,
-                    "name": n_dict.get("name", nid),
-                    "type": n_dict.get("type", n_dict.get("entity_type", "Entity")),
+                    "name": nname,
+                    "type": ntype,
                 })
                 node_ids.add(nid)
         
@@ -886,10 +928,8 @@ async def query_entities(request: Request, data: Dict[str, Any]):
         query = data.get("query", {})
         workspace_id = data.get("workspace_id")
         
-        # 使用 GraphManager 进行查询
         graph_manager = _get_graph_manager()
         
-        # 如果有查询条件，进行过滤搜索
         if query.get("keyword"):
             results = graph_manager.search(query.get("keyword"))
             entities = [
@@ -902,9 +942,25 @@ async def query_entities(request: Request, data: Dict[str, Any]):
                 for r in results
             ]
         else:
+            entities_raw = graph_manager.get_all_entities(workspace_id=workspace_id)
             entities = []
+            for e in entities_raw:
+                e_dict = e.to_dict() if hasattr(e, 'to_dict') else dict(e)
+                props = e_dict.get("properties", {})
+                eid = e_dict.get("id", "") or props.get("id", "")
+                ename = props.get("name", "") or e_dict.get("name", "")
+                etype = e_dict.get("type", e_dict.get("entity_type", "Entity"))
+                if not eid or not ename:
+                    continue
+                if not props.get("source_type"):
+                    props["source_type"] = "random"
+                entities.append({
+                    "entity_id": eid,
+                    "name": ename,
+                    "type": etype,
+                    "properties": props,
+                })
         
-        # 记录审计日志
         log_query(query.get("keyword", ""), len(entities), user="system")
         
         return {
@@ -1881,3 +1937,79 @@ async def get_openharness_schemas():
         }
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
+
+
+@router.get("/ontology/schema")
+async def get_ontology_schema():
+    """获取当前本体定义Schema"""
+    try:
+        from odap.biz.ontology.schema.domain import ENTITY_TYPES, ROLES, DOMAIN_CONFIG, ONTOLOGY_VERSION, ONTOLOGY_LAST_UPDATED
+        from odap.biz.ontology.schema.document import (
+            OntologyDocument, OntologyEntity, OntologyRelation, OntologyEvent,
+            OntologyAction, OntologyRule, OntologyConstraint, DataSource,
+            DocumentMeta, TemporalInfo, VersionRef, DocType, SourceType,
+            EntityType, ActionStatus
+        )
+        from odap.biz.business.storage.sqlite_storage import BusinessStorage
+        storage = BusinessStorage()
+
+        def dataclass_to_schema(cls, enum_classes=None):
+            import dataclasses
+            schema = {"fields": {}, "doc": (cls.__doc__ or "").strip()}
+            if dataclasses.is_dataclass(cls):
+                for f in dataclasses.fields(cls):
+                    type_name = getattr(f.type, '__name__', str(f.type))
+                    if hasattr(f.type, '__args__'):
+                        type_name = str(f.type)
+                    schema["fields"][f.name] = {
+                        "type": type_name,
+                        "default": repr(f.default) if f.default is not dataclasses.MISSING else None,
+                        "default_factory": f.default_factory.__name__ if f.default_factory is not dataclasses.MISSING and callable(f.default_factory) else None,
+                    }
+            if enum_classes:
+                for name, enum_cls in enum_classes.items():
+                    schema[name] = [e.value for e in enum_cls]
+            return schema
+
+        ontology_doc_schema = {
+            "OntologyDocument": dataclass_to_schema(OntologyDocument),
+            "OntologyEntity": dataclass_to_schema(OntologyEntity, {"EntityType": EntityType}),
+            "OntologyRelation": dataclass_to_schema(OntologyRelation),
+            "OntologyEvent": dataclass_to_schema(OntologyEvent),
+            "OntologyAction": dataclass_to_schema(OntologyAction, {"ActionStatus": ActionStatus}),
+            "OntologyRule": dataclass_to_schema(OntologyRule),
+            "OntologyConstraint": dataclass_to_schema(OntologyConstraint),
+            "DataSource": dataclass_to_schema(DataSource, {"SourceType": SourceType}),
+            "DocumentMeta": dataclass_to_schema(DocumentMeta),
+            "TemporalInfo": dataclass_to_schema(TemporalInfo),
+            "VersionRef": dataclass_to_schema(VersionRef),
+            "DocType": [e.value for e in DocType],
+        }
+
+        schema = {
+            "version": ONTOLOGY_VERSION,
+            "last_updated": ONTOLOGY_LAST_UPDATED,
+            "entity_types": ENTITY_TYPES,
+            "roles": ROLES,
+            "domain_config": DOMAIN_CONFIG,
+            "ontology_document_schema": ontology_doc_schema,
+            "business_processes": storage.list_processes(),
+            "business_rules": storage.list_rules(),
+            "business_logics": storage.list_logics(),
+            "business_indicators": storage.list_indicators(),
+        }
+        return schema
+    except Exception as e:
+        from odap.biz.ontology.schema.domain import ENTITY_TYPES, ROLES, DOMAIN_CONFIG, ONTOLOGY_VERSION, ONTOLOGY_LAST_UPDATED
+        return {
+            "version": ONTOLOGY_VERSION,
+            "last_updated": ONTOLOGY_LAST_UPDATED,
+            "entity_types": ENTITY_TYPES,
+            "roles": ROLES,
+            "domain_config": DOMAIN_CONFIG,
+            "ontology_document_schema": {},
+            "business_processes": [],
+            "business_rules": [],
+            "business_logics": [],
+            "business_indicators": [],
+        }

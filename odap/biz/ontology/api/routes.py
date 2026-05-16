@@ -224,12 +224,14 @@ async def generate_random_events(request: RandomEventsRequest):
     - healthcare: 医疗健康事件（新药研发、临床试验等）
     """
     generator_type = request.data.get("generator_type", "military")
+    workspace_id = request.data.get("workspace_id", "default")
     ingest_id = await ingest_service.generate_random_events(
         request.data.get("parties"),
         request.data.get("scenario_context"),
         request.data.get("count", 1),
         request.scenario_id,
-        generator_type
+        generator_type,
+        workspace_id
     )
     ingest_record = ingest_service.get_ingest_status(ingest_id)
     status = ingest_record.get("status")

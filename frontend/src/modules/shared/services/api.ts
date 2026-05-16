@@ -133,13 +133,15 @@ export const api = {
     return data.events;
   },
 
-  async getEntities(scenarioId: string): Promise<Entity[]> {
-    const data = await fetchJson<{ entities: Entity[] }>(`${API_BASE}/api/scenarios/${scenarioId}/entities`);
+  async getEntities(scenarioId: string, workspaceId?: string): Promise<Entity[]> {
+    const params = workspaceId ? `?workspace_id=${encodeURIComponent(workspaceId)}` : '';
+    const data = await fetchJson<{ entities: Entity[] }>(`${API_BASE}/api/scenarios/${scenarioId}/entities${params}`);
     return data.entities;
   },
 
-  async getRelations(scenarioId: string): Promise<{ nodes: GraphNode[]; edges: GraphEdge[] }> {
-    const data = await fetchJson<unknown>(`${API_BASE}/api/scenarios/${scenarioId}/relations`);
+  async getRelations(scenarioId: string, workspaceId?: string): Promise<{ nodes: GraphNode[]; edges: GraphEdge[] }> {
+    const params = workspaceId ? `?workspace_id=${encodeURIComponent(workspaceId)}` : '';
+    const data = await fetchJson<unknown>(`${API_BASE}/api/scenarios/${scenarioId}/relations${params}`);
     
     if (!isRelationsResponse(data)) {
       console.warn('Invalid relations response format:', data);
@@ -557,6 +559,10 @@ export const api = {
   },
 
   // ==================== 本体文档 API ====================
+
+  async getOntologySchema(): Promise<Record<string, unknown>> {
+    return fetchJson(`${API_BASE}/api/ontology/schema`);
+  },
 
   async getOntologyDocuments(scenarioId?: string, limit: number = 100): Promise<Array<Record<string, unknown>>> {
     const params = new URLSearchParams();

@@ -150,6 +150,8 @@ class GraphManager:
                 print(f"Neo4j Driver 直连成功: {self.neo4j_uri}")
                 # 尝试加载模拟数据到 Neo4j
                 self._load_data_to_neo4j()
+                # 补齐存量审计实体缺失的 name 属性
+                self._migrate_entities()
                 return
             except Exception as e:
                 print(f"Neo4j Driver 连接失败: {e}，尝试下一层")
@@ -216,7 +218,8 @@ class GraphManager:
                             "entities": [
                                 {
                                     "id": entity["id"],
-                                    "properties": entity.get("properties", {})
+                                    "properties": {**entity.get("properties", {}),
+                                                   "workspace_id": entity.get("properties", {}).get("workspace_id", "default")}
                                 }
                                 for entity in entities
                             ]
@@ -231,6 +234,8 @@ class GraphManager:
                             entity_id = entity["id"]
                             entity_type = entity.get("type", "Unknown")
                             props = entity.get("properties", {})
+                            if "workspace_id" not in props:
+                                props["workspace_id"] = "default"
                             labels = f"Entity:{entity_type.replace(' ', '_')}"
                             cypher = f"MERGE (n:{labels} {{id: $eid}}) SET n += $props"
                             session.run(cypher, eid=entity_id, props=props)
@@ -605,13 +610,14 @@ class GraphManager:
 
         print(f"实体添加完成: 成功 {success_count}, 失败 {error_count}")
 
-    def query_entities(self, entity_type=None, area=None):
+    def query_entities(self, entity_type=None, area=None, workspace_id=None):
         """
         查询实体
 
         Args:
             entity_type: 实体类型
             area: 区域
+            workspace_id: 工作空间ID（多租户过滤）
 
         Returns:
             实体列表
@@ -619,32 +625,37 @@ class GraphManager:
         start_time = time.time()
         try:
             if self._mode == "neo4j_driver" and self.neo4j_driver:
-                result = self._query_entities_neo4j(entity_type, area)
+                result = self._query_entities_neo4j(entity_type, area, workspace_id)
             elif self._mode == "graphiti" and self._connected:
                 result = self._query_entities_graphiti(entity_type, area)
             else:
-                result = self._query_entities_fallback(entity_type, area)
+                result = self._query_entities_fallback(entity_type, area, workspace_id)
             self._record_success()
             return result
         except Exception as e:
             self._record_failure()
             print(f"Query entities failed: {e}")
-            return self._query_entities_fallback(entity_type, area)
+            return self._query_entities_fallback(entity_type, area, workspace_id)
         finally:
             # 记录查询时间
             query_time = time.time() - start_time
             self.query_times.append(query_time)
             print(f"Query entities took {query_time:.4f} seconds")
 
-    def _query_entities_neo4j(self, entity_type=None, area=None):
+    def _query_entities_neo4j(self, entity_type=None, area=None, workspace_id=None):
         """Neo4j Driver 模式：查询实体"""
         label = entity_type.replace(" ", "_") if entity_type else "Entity"
+        conditions = []
+        params = {}
         if area:
-            cypher = f"MATCH (n:{label}) WHERE n.area = $area RETURN n.id AS id, labels(n) AS labels, properties(n) AS props"
-            params = {"area": area}
-        else:
-            cypher = f"MATCH (n:{label}) RETURN n.id AS id, labels(n) AS labels, properties(n) AS props"
-            params = {}
+            conditions.append("n.area = $area")
+            params["area"] = area
+        if workspace_id:
+            conditions.append("n.workspace_id = $workspace_id")
+            params["workspace_id"] = workspace_id
+        
+        where_clause = " WHERE " + " AND ".join(conditions) if conditions else ""
+        cypher = f"MATCH (n:{label}){where_clause} RETURN n.id AS id, labels(n) AS labels, properties(n) AS props"
 
         try:
             with self.neo4j_driver.session() as session:
@@ -661,7 +672,7 @@ class GraphManager:
             print(f"Neo4j 查询失败: {e}")
             return self._query_entities_fallback(entity_type, area)
 
-    def _query_entities_fallback(self, entity_type=None, area=None):
+    def _query_entities_fallback(self, entity_type=None, area=None, workspace_id=None):
         """
         回退模式：查询实体
         """
@@ -671,6 +682,8 @@ class GraphManager:
             if entity_type and node_data.get("entity_type") != entity_type:
                 continue
             if area and node_data.get("area") != area:
+                continue
+            if workspace_id and node_data.get("workspace_id") and node_data.get("workspace_id") != workspace_id:
                 continue
 
             result.append({
@@ -1156,6 +1169,64 @@ class GraphManager:
         except Exception as e:
             print(f"Neo4j 添加实体失败: {e}")
             return False
+
+    def _migrate_entities(self):
+        """补齐存量实体缺失的 workspace_id 和 name 属性"""
+        if not self.neo4j_driver:
+            return
+        try:
+            with self.neo4j_driver.session() as session:
+                result = session.run("""
+                    MATCH (n:AuditLog)
+                    WHERE n.name IS NULL OR n.name = ''
+                    SET n.name = coalesce('审计日志_' + n.action, '审计日志')
+                    RETURN count(n) AS updated
+                """)
+                record = result.single()
+                if record and record["updated"] > 0:
+                    print(f"审计实体迁移完成: {record['updated']} 个实体已补齐 name")
+
+                result = session.run("""
+                    MATCH (n:Entity)
+                    WHERE n.workspace_id IS NULL
+                    SET n.workspace_id = 'default'
+                    RETURN count(n) AS updated
+                """)
+                record = result.single()
+                if record and record["updated"] > 0:
+                    print(f"实体 workspace_id 迁移完成: {record['updated']} 个实体已补齐 workspace_id")
+
+                result = session.run("""
+                    MATCH (n:AuditUser)
+                    WHERE n.workspace_id IS NULL
+                    SET n.workspace_id = 'default'
+                    RETURN count(n) AS updated
+                """)
+                record = result.single()
+                if record and record["updated"] > 0:
+                    print(f"审计用户 workspace_id 迁移完成: {record['updated']} 个实体已补齐 workspace_id")
+
+                result = session.run("""
+                    MATCH (n:AuditResource)
+                    WHERE n.workspace_id IS NULL
+                    SET n.workspace_id = 'default'
+                    RETURN count(n) AS updated
+                """)
+                record = result.single()
+                if record and record["updated"] > 0:
+                    print(f"审计资源 workspace_id 迁移完成: {record['updated']} 个实体已补齐 workspace_id")
+
+                result = session.run("""
+                    MATCH (n:AuditService)
+                    WHERE n.workspace_id IS NULL
+                    SET n.workspace_id = 'default'
+                    RETURN count(n) AS updated
+                """)
+                record = result.single()
+                if record and record["updated"] > 0:
+                    print(f"审计服务 workspace_id 迁移完成: {record['updated']} 个实体已补齐 workspace_id")
+        except Exception as e:
+            print(f"实体迁移失败: {e}")
 
     @staticmethod
     def _sanitize_neo4j_properties(properties: Dict[str, Any]) -> Dict[str, Any]:
@@ -1677,36 +1748,49 @@ class GraphManager:
     # Agent 工具所需的方法
     # ============================================================
 
-    def get_all_entities(self) -> List[Dict]:
+    def get_all_entities(self, workspace_id=None) -> List[Dict]:
         """
         获取所有实体
+        
+        Args:
+            workspace_id: 工作空间ID（多租户过滤，None=全部）
         
         Returns:
             实体列表
         """
-        return self.query_entities()
+        return self.query_entities(workspace_id=workspace_id)
 
-    def get_all_relations(self) -> List[Dict]:
+    def get_all_relations(self, workspace_id=None) -> List[Dict]:
         """
         获取所有关系
+        
+        Args:
+            workspace_id: 工作空间ID（多租户过滤，None=全部）
         
         Returns:
             关系列表
         """
         if self._mode == "neo4j_driver" and self.neo4j_driver:
-            return self._get_all_relations_neo4j()
+            return self._get_all_relations_neo4j(workspace_id)
         if self._mode == "graphiti" and self._connected:
             return []
-        return self._get_all_relations_fallback()
+        return self._get_all_relations_fallback(workspace_id)
 
-    def _get_all_relations_neo4j(self) -> List[Dict]:
+    def _get_all_relations_neo4j(self, workspace_id=None) -> List[Dict]:
         """Neo4j Driver 模式：获取所有关系"""
         try:
             with self.neo4j_driver.session() as session:
-                result = session.run("""
-                    MATCH (a)-[r]->(b)
-                    RETURN a.id AS source, b.id AS target, type(r) AS type, properties(r) AS props
-                """)
+                if workspace_id:
+                    result = session.run("""
+                        MATCH (a)-[r]->(b)
+                        WHERE a.workspace_id = $workspace_id AND b.workspace_id = $workspace_id
+                        RETURN a.id AS source, b.id AS target, type(r) AS type, properties(r) AS props
+                    """, workspace_id=workspace_id)
+                else:
+                    result = session.run("""
+                        MATCH (a)-[r]->(b)
+                        RETURN a.id AS source, b.id AS target, type(r) AS type, properties(r) AS props
+                    """)
                 return [
                     {
                         "source": record["source"],
@@ -1720,10 +1804,15 @@ class GraphManager:
             print(f"Neo4j 获取关系失败: {e}")
             return []
 
-    def _get_all_relations_fallback(self) -> List[Dict]:
+    def _get_all_relations_fallback(self, workspace_id=None) -> List[Dict]:
         """回退模式：获取所有关系"""
         result = []
         for source, target, data in self.fallback_graph.edges(data=True):
+            if workspace_id:
+                src_ws = self.fallback_graph.nodes[source].get("workspace_id", "")
+                tgt_ws = self.fallback_graph.nodes[target].get("workspace_id", "")
+                if src_ws != workspace_id or tgt_ws != workspace_id:
+                    continue
             result.append({
                 "source": source,
                 "target": target,

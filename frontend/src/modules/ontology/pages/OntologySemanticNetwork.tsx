@@ -1,8 +1,8 @@
 import { useState, useEffect } from 'react';
-import { Row, Col, Card, Drawer, Descriptions, Tag, Spin, Button, Space, message, Statistic, Select } from 'antd';
-import { ReloadOutlined, InfoCircleOutlined, HistoryOutlined } from '@ant-design/icons';
+import { Row, Col, Card, Drawer, Descriptions, Tag, Spin, Button, Space, message, Statistic, Tabs } from 'antd';
+import { InfoCircleOutlined, ApartmentOutlined, DatabaseOutlined } from '@ant-design/icons';
 import { GraphCanvas } from '../components/GraphCanvas';
-import { PageHeader } from '../../shared';
+import { OntologySchemaViewer } from '../components/OntologySchemaViewer';
 import { useScenario, useWorkspace } from '../../shared/components/AppLayout';
 import { api } from '../../shared/services/api';
 
@@ -49,11 +49,13 @@ export function OntologySemanticNetwork() {
   const [nodes, setNodes] = useState<GraphNode[]>([]);
   const [edges, setEdges] = useState<GraphEdge[]>([]);
   const [selectedNode, setSelectedNode] = useState<GraphNode | null>(null);
+  const [selectedEdge, setSelectedEdge] = useState<GraphEdge | null>(null);
   const [loading, setLoading] = useState(true);
   const [stats, setStats] = useState({ entityCount: 0, relationCount: 0 });
   const [versions, setVersions] = useState<OntologyVersion[]>([]);
   const [currentVersion, setCurrentVersion] = useState<string>('latest');
   const [versionsLoading, setVersionsLoading] = useState(false);
+  const [activeTab, setActiveTab] = useState('graph');
 
   const loadVersions = async (scenarioId?: string) => {
     if (!scenarioId || !currentWorkspace) return;
@@ -61,10 +63,9 @@ export function OntologySemanticNetwork() {
       setVersionsLoading(true);
       const versionList = await api.getScenarioOntologyVersions(currentWorkspace, scenarioId);
       setVersions(versionList);
-      
-      // 默认选择最新版本
+
       if (versionList.length > 0) {
-        const sorted = [...versionList].sort((a, b) => 
+        const sorted = [...versionList].sort((a, b) =>
           new Date(b.created_at).getTime() - new Date(a.created_at).getTime()
         );
         setCurrentVersion(sorted[0].version_id);
@@ -80,9 +81,8 @@ export function OntologySemanticNetwork() {
     if (!scenarioId || !currentWorkspace) return;
     try {
       setLoading(true);
-      
+
       if (versionId && versionId !== 'latest') {
-        // 加载指定版本的数据
         const versionData = await api.getVersionOntologyData(currentWorkspace, scenarioId, versionId);
         const graphNodes: GraphNode[] = versionData.entities.map((e: any) => ({
           id: e.entity_id,
@@ -104,12 +104,11 @@ export function OntologySemanticNetwork() {
           relationCount: graphEdges.length
         });
       } else {
-        // 加载最新数据
         const [entitiesResult, relationsResult] = await Promise.all([
-          api.getEntities(scenarioId).catch(() => {
+          api.getEntities(scenarioId, currentWorkspace).catch(() => {
             return { entities: [] };
           }),
-          api.getRelations(scenarioId).catch(() => {
+          api.getRelations(scenarioId, currentWorkspace).catch(() => {
             return { nodes: [], links: [] };
           })
         ]);
@@ -176,7 +175,13 @@ export function OntologySemanticNetwork() {
   }, [currentScenario, currentWorkspace]);
 
   const handleNodeClick = (node: GraphNode) => {
+    setSelectedEdge(null);
     setSelectedNode(node);
+  };
+
+  const handleEdgeClick = (edge: GraphEdge) => {
+    setSelectedNode(null);
+    setSelectedEdge(edge);
   };
 
   const getEntityTypeColor = (type: string) => {
@@ -192,99 +197,112 @@ export function OntologySemanticNetwork() {
     return colors[type] || 'default';
   };
 
-  return (
-    <div style={{ padding: 24 }}>
-      <PageHeader title="语义地图" />
-
-      {/* 统计卡片 */}
-      <Row gutter={16} style={{ marginBottom: 16 }}>
-        <Col span={6}>
-          <Card size="small">
-            <Statistic 
-              title="实体总数" 
-              value={stats.entityCount} 
-              valueStyle={{ color: '#1890ff' }}
-            />
-          </Card>
-        </Col>
-        <Col span={6}>
-          <Card size="small">
-            <Statistic 
-              title="关系总数" 
-              value={stats.relationCount} 
-              valueStyle={{ color: '#52c41a' }}
-            />
-          </Card>
-        </Col>
-        <Col span={12}>
-          <Card size="small">
-            <Space wrap>
-              <Space>
-                <HistoryOutlined />
-                <span>本体版本:</span>
-                <Select
-                  value={currentVersion}
-                  onChange={handleVersionChange}
-                  options={[
-                    { value: 'latest', label: '最新版本' },
-                    ...versions.map(v => ({
-                      value: v.version_id,
-                      label: `${v.version_id} - ${new Date(v.created_at).toLocaleString('zh-CN')} (实体:${v.entity_count}, 关系:${v.relation_count})`
-                    }))
-                  ]}
-                  style={{ width: 320 }}
-                  loading={versionsLoading}
-                  placeholder="选择本体版本"
+  const tabItems = [
+    {
+      key: 'graph',
+      label: (
+        <span>
+          <ApartmentOutlined style={{ marginRight: 4 }} />
+          语义地图
+        </span>
+      ),
+      children: (
+        <>
+          <Row gutter={16} style={{ marginBottom: 16 }}>
+            <Col span={6}>
+              <Card size="small">
+                <Statistic
+                  title="实体总数"
+                  value={stats.entityCount}
+                  styles={{ content: { color: '#1890ff' } }}
                 />
-              </Space>
-              <Button
-                icon={<ReloadOutlined />}
-                onClick={() => currentScenario && loadGraph(currentScenario, currentVersion)}
-                loading={loading}
-              >
-                刷新
-              </Button>
-              {!currentScenario && (
-                <span style={{ color: '#ff4d4f' }}>
-                  <InfoCircleOutlined /> 请先选择场景
-                </span>
-              )}
-            </Space>
-          </Card>
-        </Col>
-      </Row>
+              </Card>
+            </Col>
+            <Col span={6}>
+              <Card size="small">
+                <Statistic
+                  title="关系总数"
+                  value={stats.relationCount}
+                  styles={{ content: { color: '#52c41a' } }}
+                />
+              </Card>
+            </Col>
+            <Col span={12}>
+              <Card size="small">
+                <Space wrap>
+                  {!currentScenario && (
+                    <span style={{ color: '#ff4d4f' }}>
+                      <InfoCircleOutlined /> 请先选择场景
+                    </span>
+                  )}
+                  {currentScenario && (
+                    <span style={{ color: '#666', fontSize: 13 }}>
+                      当前场景: {currentScenario}
+                    </span>
+                  )}
+                </Space>
+              </Card>
+            </Col>
+          </Row>
 
-      <Row gutter={[16, 16]}>
-        <Col span={24}>
-          {loading ? (
-            <Card style={{ borderRadius: 8 }}>
-              <div style={{ textAlign: 'center', padding: 100 }}>
-                <Spin description="加载语义地图数据..." />
-              </div>
-            </Card>
-          ) : nodes.length === 0 ? (
-            <Card style={{ borderRadius: 8 }}>
-              <div style={{ textAlign: 'center', padding: 100, color: '#8c8c8c' }}>
-                暂无语义地图数据，请先通过数据摄入添加实体
-              </div>
-            </Card>
-          ) : (
-            <GraphCanvas
-              nodes={nodes}
-              edges={edges}
-              onNodeClick={handleNodeClick}
-              onRefresh={() => currentScenario && loadGraph(currentScenario, currentVersion)}
-            />
-          )}
-        </Col>
-      </Row>
+          <Row gutter={[16, 16]}>
+            <Col span={24}>
+              {loading ? (
+                <Card style={{ borderRadius: 8 }}>
+                  <div style={{ textAlign: 'center', padding: 100 }}>
+                    <Spin description="加载语义地图数据..." />
+                  </div>
+                </Card>
+              ) : nodes.length === 0 ? (
+                <Card style={{ borderRadius: 8 }}>
+                  <div style={{ textAlign: 'center', padding: 100, color: '#8c8c8c' }}>
+                    暂无语义地图数据，请先通过数据摄入添加实体
+                  </div>
+                </Card>
+              ) : (
+                <GraphCanvas
+                  nodes={nodes}
+                  edges={edges}
+                  onNodeClick={handleNodeClick}
+                  onEdgeClick={handleEdgeClick}
+                  onRefresh={() => currentScenario && loadGraph(currentScenario, currentVersion)}
+                  versions={versions}
+                  currentVersion={currentVersion}
+                  onVersionChange={handleVersionChange}
+                  versionsLoading={versionsLoading}
+                />
+              )}
+            </Col>
+          </Row>
+        </>
+      ),
+    },
+    {
+      key: 'schema',
+      label: (
+        <span>
+          <DatabaseOutlined style={{ marginRight: 4 }} />
+          本体定义
+        </span>
+      ),
+      children: <OntologySchemaViewer />,
+    },
+  ];
+
+  return (
+    <>
+      <Tabs
+        activeKey={activeTab}
+        onChange={setActiveTab}
+        items={tabItems}
+      />
 
       <Drawer
-        title="节点详情"
+        title={selectedEdge ? '边详情' : '节点详情'}
         placement="right"
         size="large"
-        open={!!selectedNode}
-        onClose={() => setSelectedNode(null)}
+        open={!!selectedNode || !!selectedEdge}
+        onClose={() => { setSelectedNode(null); setSelectedEdge(null); }}
       >
         {selectedNode && (
           <Descriptions column={1} bordered>
@@ -337,7 +355,21 @@ export function OntologySemanticNetwork() {
             </Descriptions.Item>
           </Descriptions>
         )}
+        {selectedEdge && (
+          <Descriptions column={1} bordered>
+            <Descriptions.Item label="边ID">{selectedEdge.id}</Descriptions.Item>
+            <Descriptions.Item label="类型">
+              <Tag color="blue">{selectedEdge.type}</Tag>
+            </Descriptions.Item>
+            <Descriptions.Item label="源节点">
+              {nodes.find((n) => n.id === selectedEdge.source)?.name || selectedEdge.source}
+            </Descriptions.Item>
+            <Descriptions.Item label="目标节点">
+              {nodes.find((n) => n.id === selectedEdge.target)?.name || selectedEdge.target}
+            </Descriptions.Item>
+          </Descriptions>
+        )}
       </Drawer>
-    </div>
+    </>
   );
 }

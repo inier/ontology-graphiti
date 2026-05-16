@@ -874,11 +874,28 @@ class GraphBuildStageHandler(PipelineStageHandler):
             nodes_created = 0
             edges_created = 0
 
+            entity_id_map = {}
             for entity in entities:
                 try:
-                    node_id = entity.get("entity_id", f"entity-{uuid.uuid4().hex[:8]}")
+                    original_id = entity.get("entity_id", f"entity-{uuid.uuid4().hex[:8]}")
                     entity_type = entity.get("entity_type", "Unknown")
+                    node_id = f"{entity_type}-{context.ingest_id[:8]}-{original_id}"
+                    entity_id_map[original_id] = node_id
                     properties = entity.get("basic_properties", entity)
+                    if isinstance(properties, dict):
+                        properties["workspace_id"] = context.workspace_id
+                        properties["source_type"] = context.source
+                        properties["scenario_id"] = context.scenario_id
+                        properties["ingest_id"] = context.ingest_id
+                        properties["original_entity_id"] = original_id
+                    else:
+                        properties = {
+                            "workspace_id": context.workspace_id,
+                            "source_type": context.source,
+                            "scenario_id": context.scenario_id,
+                            "ingest_id": context.ingest_id,
+                            "original_entity_id": original_id,
+                        }
 
                     success = graph_manager.add_entity(
                         entity_id=node_id,
@@ -892,8 +909,10 @@ class GraphBuildStageHandler(PipelineStageHandler):
 
             for relation in relations:
                 try:
-                    source_id = relation.get("source_entity")
-                    target_id = relation.get("target_entity")
+                    original_source = relation.get("source_entity")
+                    original_target = relation.get("target_entity")
+                    source_id = entity_id_map.get(original_source, original_source)
+                    target_id = entity_id_map.get(original_target, original_target)
                     rel_type = relation.get("relation_type", "related_to")
                     properties = relation.get("properties", {})
 
