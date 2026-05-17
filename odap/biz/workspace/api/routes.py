@@ -501,14 +501,12 @@ async def get_scenario_versions(workspace_id: str, scenario_id: str):
         
         versions = []
         
-        # 1. 从 version_manager 读取版本
         try:
             all_versions = await version_manager.list_by_ontology(ontology_id)
             versions = [OntologyVersionResponse(**v.to_dict()) for v in all_versions]
         except Exception:
             pass
         
-        # 2. 从 SQLite ingest storage 读取版本（build_service._create_version 写入的数据）
         try:
             ingest_storage = SQLiteIngestStorage()
             ingest_versions = ingest_storage.list_all_versions()
@@ -532,6 +530,29 @@ async def get_scenario_versions(workspace_id: str, scenario_id: str):
                         ))
         except Exception:
             pass
+        
+        if not versions:
+            try:
+                from odap.biz.workspace.services.scenario_service import ScenarioService
+                svc = ScenarioService()
+                svc._ensure_initial_version(ontology_id, scenario.get("name", ""))
+                ingest_storage2 = SQLiteIngestStorage()
+                for v in ingest_storage2.list_all_versions():
+                    if v.get("ontology_id") == ontology_id:
+                        versions.append(OntologyVersionResponse(
+                            version_id=v.get("id", ""),
+                            ontology_id=v.get("ontology_id", ""),
+                            doc_id="",
+                            doc_type="",
+                            parent_version=v.get("parent_version_id"),
+                            commit_message=v.get("change_summary", v.get("version_number", "")),
+                            created_at=v.get("created_at", datetime.now().isoformat()),
+                            entity_count=0,
+                            relation_count=0,
+                            event_count=0
+                        ))
+            except Exception:
+                pass
         
         return versions
     except HTTPException:

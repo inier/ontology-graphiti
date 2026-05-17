@@ -850,11 +850,11 @@ export const api = {
     });
   },
 
-  async getScenariosInWorkspace(workspaceId: string): Promise<{ scenarios: Array<{ scenario_id: string; name: string; description: string; workspace_id: string; ontology_id?: string; doc_count: number; event_count: number; entity_count: number; created_at: string; updated_at: string }>; workspace_id: string; total: number }> {
+  async getScenariosInWorkspace(workspaceId: string): Promise<{ scenarios: Array<{ scenario_id: string; name: string; description: string; workspace_id: string; ontology_id?: string; current_ontology_version?: string; doc_count: number; event_count: number; entity_count: number; created_at: string; updated_at: string }>; workspace_id: string; total: number }> {
     return fetchJson(`${API_BASE}/api/workspaces/${workspaceId}/scenarios`);
   },
 
-  async getScenarioInWorkspace(workspaceId: string, scenarioId: string): Promise<{ scenario_id: string; name: string; description: string; workspace_id: string; ontology_id?: string; doc_count: number; event_count: number; entity_count: number; created_at: string; updated_at: string }> {
+  async getScenarioInWorkspace(workspaceId: string, scenarioId: string): Promise<{ scenario_id: string; name: string; description: string; workspace_id: string; ontology_id?: string; current_ontology_version?: string; doc_count: number; event_count: number; entity_count: number; created_at: string; updated_at: string }> {
     return fetchJson(`${API_BASE}/api/workspaces/${workspaceId}/scenarios/${scenarioId}`);
   },
 

@@ -95,29 +95,61 @@ class ScenarioStore:
     def create(self, name: str, description: str = "") -> str:
         """创建场景"""
         scenario_id = f"scenario-{datetime.now().strftime('%Y%m%d')}-{uuid.uuid4().hex[:6]}"
+        
+        from odap.biz.ontology.models.ontology import OntologyDocument
+        ontology_name = f"{name}_Ontology"
+        ontology_doc = OntologyDocument(name=ontology_name, description=f"自动创建的本体 for 场景: {name}")
+        ontology_id = ontology_doc.id
+        
         scenario = {
             "scenario_id": scenario_id,
             "name": name,
             "description": description,
             "workspace_id": "default",
+            "ontology_id": ontology_id,
             "created_at": datetime.now(timezone.utc).isoformat(),
             "doc_count": 0,
             "event_count": 0,
             "entity_count": 0,
         }
         
-        # 保存到 MongoDB
         if self._storage and hasattr(self._storage, 'save_scenario'):
             try:
                 self._storage.save_scenario(scenario)
             except Exception as e:
                 logger.warning(f"保存场景到 MongoDB 失败: {e}")
         
-        # 同时保存到内存和磁盘
         self._scenarios[scenario_id] = scenario
         self._documents[scenario_id] = []
         self._save()
+        
+        self._ensure_initial_version(ontology_id, name)
         return scenario_id
+
+    def _ensure_initial_version(self, ontology_id: str, scenario_name: str = "") -> None:
+        """确保本体有初始版本"""
+        try:
+            from odap.biz.ontology.storage.sqlite_ingest_storage import SQLiteIngestStorage
+            storage = SQLiteIngestStorage()
+            existing = storage.get_versions(ontology_id)
+            if existing:
+                return
+            version_id = f"v{datetime.now().strftime('%Y%m%d')}-001"
+            storage.save_version({
+                'id': version_id,
+                'ontology_id': ontology_id,
+                'version_number': '1.0.0',
+                'parent_version_id': None,
+                'status': 'released',
+                'changes': '',
+                'change_summary': f'初始版本 - {scenario_name}' if scenario_name else '初始版本',
+                'created_at': datetime.now().isoformat(),
+                'created_by': 'system',
+                'is_current': 1,
+                'is_stable': 1,
+            })
+        except Exception:
+            pass
 
     def add_document(self, scenario_id: str, doc: OntologyDocument):
         """添加文档到场景"""

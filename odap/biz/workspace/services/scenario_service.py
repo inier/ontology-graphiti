@@ -18,7 +18,6 @@ class ScenarioService:
         now = datetime.now().isoformat()
         scenario_id = f"scenario-{datetime.now().strftime('%Y%m%d')}-{datetime.now().strftime('%H%M%S')}"
         
-        # 如果没有提供本体ID，自动创建一个新本体
         if not ontology_id:
             ontology_name = f"{name}_Ontology"
             ontology_description = f"自动创建的本体 for 场景: {name}"
@@ -39,7 +38,33 @@ class ScenarioService:
         }
         
         self.storage.save_scenario(scenario)
+        self._ensure_initial_version(ontology_id, name)
         return scenario
+
+    def _ensure_initial_version(self, ontology_id: str, scenario_name: str = "") -> None:
+        """确保本体有初始版本"""
+        from odap.biz.ontology.storage.sqlite_ingest_storage import SQLiteIngestStorage
+        try:
+            storage = SQLiteIngestStorage()
+            existing = storage.get_versions(ontology_id)
+            if existing:
+                return
+            version_id = f"v{datetime.now().strftime('%Y%m%d')}-001"
+            storage.save_version({
+                'id': version_id,
+                'ontology_id': ontology_id,
+                'version_number': '1.0.0',
+                'parent_version_id': None,
+                'status': 'released',
+                'changes': '',
+                'change_summary': f'初始版本 - {scenario_name}' if scenario_name else '初始版本',
+                'created_at': datetime.now().isoformat(),
+                'created_by': 'system',
+                'is_current': 1,
+                'is_stable': 1,
+            })
+        except Exception:
+            pass
     
     def get_scenario(self, scenario_id: str) -> Optional[Dict[str, Any]]:
         """获取场景"""
