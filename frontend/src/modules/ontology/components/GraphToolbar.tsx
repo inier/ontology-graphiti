@@ -86,7 +86,7 @@ export function GraphToolbar({
               };
             }),
           ]}
-          style={{ width: 80 }}
+          style={{ width: 200 }}
           size="small"
           loading={versionsLoading}
           placeholder="本体版本"

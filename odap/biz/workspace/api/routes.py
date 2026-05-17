@@ -511,24 +511,24 @@ async def get_scenario_versions(workspace_id: str, scenario_id: str):
         # 2. 从 SQLite ingest storage 读取版本（build_service._create_version 写入的数据）
         try:
             ingest_storage = SQLiteIngestStorage()
-            ingest_versions = ingest_storage.list_versions()
+            ingest_versions = ingest_storage.list_all_versions()
             seen_ids = {v.version_id for v in versions}
             for v in ingest_versions:
-                vid = v.get("version_id", "")
+                vid = v.get("id", "")
                 if vid and vid not in seen_ids:
                     v_ontology = v.get("ontology_id", "")
                     if v_ontology == ontology_id:
                         versions.append(OntologyVersionResponse(
                             version_id=vid,
                             ontology_id=v_ontology,
-                            doc_id=v.get("doc_id", ""),
-                            doc_type=v.get("doc_type", ""),
-                            parent_version=v.get("parent_version"),
-                            commit_message=v.get("commit_message", ""),
+                            doc_id="",
+                            doc_type="",
+                            parent_version=v.get("parent_version_id"),
+                            commit_message=v.get("change_summary", v.get("version_number", "")),
                             created_at=v.get("created_at", datetime.now().isoformat()),
-                            entity_count=v.get("entity_count", 0),
-                            relation_count=v.get("relation_count", 0),
-                            event_count=v.get("event_count", 0)
+                            entity_count=0,
+                            relation_count=0,
+                            event_count=0
                         ))
         except Exception:
             pass

@@ -3,7 +3,7 @@ import { Row, Col, Card, Drawer, Descriptions, Tag, Spin, Button, Space, message
 import { InfoCircleOutlined, ApartmentOutlined, DatabaseOutlined } from '@ant-design/icons';
 import { GraphCanvas } from '../components/GraphCanvas';
 import { OntologySchemaViewer } from '../components/OntologySchemaViewer';
-import { useScenario, useWorkspace } from '../../shared/components/AppLayout';
+import { useScenario, useWorkspace, useOntologyVersion } from '../../shared/components/AppLayout';
 import { api } from '../../shared/services/api';
 
 interface GraphNode {
@@ -46,6 +46,7 @@ interface OntologyVersion {
 export function OntologySemanticNetwork() {
   const { currentScenario } = useScenario();
   const { currentWorkspace } = useWorkspace();
+  const { currentVersionId: scenarioVersionId } = useOntologyVersion();
   const [nodes, setNodes] = useState<GraphNode[]>([]);
   const [edges, setEdges] = useState<GraphEdge[]>([]);
   const [selectedNode, setSelectedNode] = useState<GraphNode | null>(null);
@@ -65,10 +66,16 @@ export function OntologySemanticNetwork() {
       setVersions(versionList);
 
       if (versionList.length > 0) {
-        const sorted = [...versionList].sort((a, b) =>
-          new Date(b.created_at).getTime() - new Date(a.created_at).getTime()
-        );
-        setCurrentVersion(sorted[0].version_id);
+        if (scenarioVersionId && versionList.some(v => v.version_id === scenarioVersionId)) {
+          setCurrentVersion(scenarioVersionId);
+        } else {
+          const sorted = [...versionList].sort((a, b) =>
+            new Date(b.created_at).getTime() - new Date(a.created_at).getTime()
+          );
+          setCurrentVersion(sorted[0].version_id);
+        }
+      } else {
+        setCurrentVersion('latest');
       }
     } catch (error) {
       console.error('加载版本列表失败:', error);
@@ -170,9 +177,9 @@ export function OntologySemanticNetwork() {
   useEffect(() => {
     if (currentScenario && currentWorkspace) {
       loadVersions(currentScenario);
-      loadGraph(currentScenario, 'latest');
+      loadGraph(currentScenario, scenarioVersionId || 'latest');
     }
-  }, [currentScenario, currentWorkspace]);
+  }, [currentScenario, currentWorkspace, scenarioVersionId]);
 
   const handleNodeClick = (node: GraphNode) => {
     setSelectedEdge(null);

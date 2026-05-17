@@ -432,15 +432,16 @@ class SQLiteStorage:
         
         cursor.execute('''
             INSERT OR REPLACE INTO scenarios 
-            (scenario_id, name, description, workspace_id, ontology_id, 
+            (scenario_id, name, description, workspace_id, ontology_id, current_ontology_version,
              doc_count, event_count, entity_count, created_at, updated_at)
-            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
         ''', (
             scenario['scenario_id'],
             scenario['name'],
             scenario.get('description', ''),
             scenario['workspace_id'],
             scenario.get('ontology_id'),
+            scenario.get('current_ontology_version', ''),
             scenario.get('doc_count', 0),
             scenario.get('event_count', 0),
             scenario.get('entity_count', 0),
@@ -454,6 +455,7 @@ class SQLiteStorage:
     def get_scenario(self, scenario_id: str) -> Optional[Dict[str, Any]]:
         """获取场景"""
         conn = sqlite3.connect(self.db_path)
+        conn.row_factory = sqlite3.Row
         cursor = conn.cursor()
         
         cursor.execute('SELECT * FROM scenarios WHERE scenario_id = ?', (scenario_id,))
@@ -464,22 +466,13 @@ class SQLiteStorage:
         if not row:
             return None
         
-        return {
-            'scenario_id': row[0],
-            'name': row[1],
-            'description': row[2],
-            'workspace_id': row[3],
-            'ontology_id': row[4],
-            'doc_count': row[5],
-            'event_count': row[6],
-            'entity_count': row[7],
-            'created_at': row[8],
-            'updated_at': row[9]
-        }
+        d = dict(row)
+        return d
     
     def get_scenarios_by_workspace(self, workspace_id: str) -> List[Dict[str, Any]]:
         """获取工作空间下的所有场景"""
         conn = sqlite3.connect(self.db_path)
+        conn.row_factory = sqlite3.Row
         cursor = conn.cursor()
         
         cursor.execute('SELECT * FROM scenarios WHERE workspace_id = ? ORDER BY created_at DESC', (workspace_id,))
@@ -487,22 +480,7 @@ class SQLiteStorage:
         
         conn.close()
         
-        scenarios = []
-        for row in rows:
-            scenarios.append({
-                'scenario_id': row[0],
-                'name': row[1],
-                'description': row[2],
-                'workspace_id': row[3],
-                'ontology_id': row[4],
-                'doc_count': row[5],
-                'event_count': row[6],
-                'entity_count': row[7],
-                'created_at': row[8],
-                'updated_at': row[9]
-            })
-        
-        return scenarios
+        return [dict(row) for row in rows]
     
     def update_scenario(self, scenario_id: str, updates: Dict[str, Any]) -> None:
         """更新场景"""

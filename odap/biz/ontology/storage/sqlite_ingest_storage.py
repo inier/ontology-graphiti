@@ -768,7 +768,28 @@ class SQLiteIngestStorage:
                 'is_stable': bool(row[10])
             })
         return versions
-    
+
+    def list_all_versions(self) -> List[Dict[str, Any]]:
+        conn = self._get_conn()
+        cursor = conn.cursor()
+        cursor.execute('SELECT * FROM ontology_versions ORDER BY created_at DESC')
+        rows = cursor.fetchall()
+        conn.close()
+        versions = []
+        for row in rows:
+            versions.append({
+                'id': row[0],
+                'ontology_id': row[1],
+                'version_number': row[2],
+                'parent_version_id': row[3],
+                'status': row[4],
+                'change_summary': row[6],
+                'created_at': row[7],
+                'is_current': bool(row[9]),
+                'is_stable': bool(row[10])
+            })
+        return versions
+
     def update_version(self, version_id: str, version_data: Dict[str, Any]) -> bool:
         """更新版本"""
         conn = self._get_conn()
