@@ -599,10 +599,26 @@ async def ingest_file(request: Request, file: UploadFile = File(...), scenario_i
 # ==================== 版本管理路由 ====================
 
 @router.get("/versions")
-async def list_versions():
+async def list_versions(scenario_id: Optional[str] = None):
     """列出版本（兼容前端）"""
     try:
-        return {"versions": []}
+        from odap.biz.ontology.storage.sqlite_ingest_storage import SQLiteIngestStorage
+        storage = SQLiteIngestStorage()
+        all_versions = storage.list_all_versions()
+        result = []
+        for v in all_versions:
+            if scenario_id and v.get("ontology_id") != scenario_id:
+                continue
+            result.append({
+                "version_id": v.get("id", ""),
+                "ontology_id": v.get("ontology_id", ""),
+                "parent_version": v.get("parent_version_id"),
+                "commit_message": v.get("change_summary", v.get("version_number", "")),
+                "created_at": v.get("created_at", ""),
+                "status": v.get("status", ""),
+                "is_current": v.get("is_current", False),
+            })
+        return {"versions": result}
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
 

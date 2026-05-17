@@ -2,22 +2,42 @@ import { useState, useEffect } from 'react';
 import { Table, Card, Button, Space, Tag, Popconfirm, message } from 'antd';
 import { RollbackOutlined, DeleteOutlined, ReloadOutlined, FileTextOutlined } from '@ant-design/icons';
 import { api } from '../../shared/services/api';
-import type { Version } from '../../shared/types';
+import { useScenario, useWorkspace } from '../../shared/components/AppLayout';
+
+interface VersionItem {
+  version_id: string;
+  ontology_id?: string;
+  parent_version?: string;
+  commit_message?: string;
+  created_at: string;
+  status?: string;
+  is_current?: boolean;
+  entity_count?: number;
+  relation_count?: number;
+  event_count?: number;
+}
 
 export function VersionHistory() {
-  const [versions, setVersions] = useState<Version[]>([]);
+  const [versions, setVersions] = useState<VersionItem[]>([]);
   const [loading, setLoading] = useState(true);
   const [selectedVersions, setSelectedVersions] = useState<string[]>([]);
+  const { currentScenario } = useScenario();
+  const { currentWorkspace } = useWorkspace();
 
   useEffect(() => {
     loadVersions();
-  }, []);
+  }, [currentScenario, currentWorkspace]);
 
   const loadVersions = async () => {
     try {
       setLoading(true);
-      const data = await api.listVersions();
-      setVersions(data);
+      if (currentWorkspace && currentScenario) {
+        const data = await api.getScenarioOntologyVersions(currentWorkspace, currentScenario);
+        setVersions(data);
+      } else {
+        const data = await api.listVersions();
+        setVersions(data);
+      }
     } catch (error) {
       console.error('加载版本历史失败', error);
       message.error('加载版本历史失败');
@@ -28,7 +48,11 @@ export function VersionHistory() {
 
   const handleRollback = async (versionId: string) => {
     try {
-      await api.rollback(versionId);
+      if (currentWorkspace && currentScenario) {
+        await api.switchScenarioOntologyVersion(currentWorkspace, currentScenario, versionId);
+      } else {
+        await api.rollback(versionId);
+      }
       message.success('回滚成功');
       loadVersions();
     } catch (error) {
@@ -45,7 +69,6 @@ export function VersionHistory() {
     try {
       const diff = await api.diffVersions(selectedVersions[0], selectedVersions[1]);
       console.log('版本对比结果:', diff);
-      // 显示对比结果
     } catch (error) {
       console.error('版本对比失败', error);
       message.error('版本对比失败');
@@ -66,44 +89,44 @@ export function VersionHistory() {
     },
     {
       title: '时间',
-      dataIndex: 'timestamp',
-      key: 'timestamp',
-      render: (timestamp: string) => new Date(timestamp).toLocaleString('zh-CN'),
+      dataIndex: 'created_at',
+      key: 'created_at',
+      render: (timestamp: string) => timestamp ? new Date(timestamp).toLocaleString('zh-CN') : '-',
     },
     {
-      title: '类型',
-      dataIndex: 'type',
-      key: 'type',
-      render: (type: string) => {
-        const typeMap: Record<string, { color: string; text: string }> = {
-          full: { color: 'blue', text: '全量' },
-          incremental: { color: 'green', text: '增量' },
+      title: '提交信息',
+      dataIndex: 'commit_message',
+      key: 'commit_message',
+      ellipsis: true,
+      render: (msg: string) => msg || '-',
+    },
+    {
+      title: '状态',
+      dataIndex: 'status',
+      key: 'status',
+      render: (status: string, record: VersionItem) => {
+        if (record.is_current) return <Tag color="blue">当前</Tag>;
+        const colorMap: Record<string, string> = {
+          draft: 'default', released: 'green', deprecated: 'red', archived: 'orange',
         };
-        const config = typeMap[type] || { color: 'default', text: type };
-        return <Tag color={config.color}>{config.text}</Tag>;
+        return <Tag color={colorMap[status] || 'default'}>{status || '未知'}</Tag>;
       },
     },
     {
-      title: '描述',
-      dataIndex: 'description',
-      key: 'description',
-      ellipsis: true,
-    },
-    {
-      title: '变化',
-      dataIndex: 'changes',
-      key: 'changes',
-      render: (changes: { entities: number; relations: number }) => (
+      title: '数据量',
+      key: 'counts',
+      render: (_: unknown, record: VersionItem) => (
         <Space>
-          <span>实体: {changes.entities}</span>
-          <span>关系: {changes.relations}</span>
+          <span>{record.entity_count ?? 0}E</span>
+          <span>{record.relation_count ?? 0}R</span>
+          <span>{record.event_count ?? 0}V</span>
         </Space>
       ),
     },
     {
       title: '操作',
       key: 'action',
-      render: (_: unknown, record: Version) => (
+      render: (_: unknown, record: VersionItem) => (
         <Space size="small">
           <Button
             type="link"
