@@ -83,6 +83,7 @@ class SQLiteStorage:
                 description TEXT,
                 workspace_id TEXT NOT NULL,
                 ontology_id TEXT,
+                current_ontology_version TEXT,
                 doc_count INTEGER DEFAULT 0,
                 event_count INTEGER DEFAULT 0,
                 entity_count INTEGER DEFAULT 0,
@@ -92,8 +93,14 @@ class SQLiteStorage:
             )
         ''')
         
+        self._migrate_scenarios(conn)
         conn.commit()
         conn.close()
+    
+    def _migrate_scenarios(self, conn):
+        cols = [r[1] for r in conn.execute("PRAGMA table_info(scenarios)").fetchall()]
+        if 'current_ontology_version' not in cols:
+            conn.execute("ALTER TABLE scenarios ADD COLUMN current_ontology_version TEXT DEFAULT ''")
     
     def _serialize_json(self, data: Any) -> str:
         """序列化JSON数据"""

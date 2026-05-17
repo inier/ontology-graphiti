@@ -41,6 +41,8 @@ interface Scenario {
   name: string;
   description?: string;
   workspace_id: string;
+  ontology_id?: string;
+  current_ontology_version?: string;
 }
 
 interface WorkspaceContextType {
@@ -74,6 +76,18 @@ const ScenarioContext = createContext<ScenarioContextType>({
 export const useScenario = () => useContext(ScenarioContext);
 
 export const useWorkspace = () => useContext(WorkspaceContext);
+
+interface OntologyVersionContextType {
+  currentOntologyId: string;
+  currentVersionId: string;
+}
+
+const OntologyVersionContext = createContext<OntologyVersionContextType>({
+  currentOntologyId: '',
+  currentVersionId: '',
+});
+
+export const useOntologyVersion = () => useContext(OntologyVersionContext);
 
 interface AppLayoutProps {
   children: React.ReactNode;
@@ -354,11 +368,18 @@ export function AppLayout({ children, currentWorkspace, onWorkspaceChange }: App
     setRightPanelTitle,
   };
 
+  const currentScenarioObj = scenarios.find(s => s.scenario_id === currentScenarioState);
+  const ontologyVersionContextValue = {
+    currentOntologyId: currentScenarioObj?.ontology_id || '',
+    currentVersionId: currentScenarioObj?.current_ontology_version || '',
+  };
+
   const totalLeftWidth = isAgentMode ? 0 : (leftSiderWidth + subSiderWidth);
 
   return (
     <WorkspaceContext.Provider value={contextValue}>
       <ScenarioContext.Provider value={scenarioContextValue}>
+        <OntologyVersionContext.Provider value={ontologyVersionContextValue}>
         <RightPanelContext.Provider value={rightPanelContextValue}>
           <Layout style={{ minHeight: '100vh', minWidth: 1200 }}>
             {!isAgentMode && (
@@ -669,6 +690,7 @@ export function AppLayout({ children, currentWorkspace, onWorkspaceChange }: App
             </Sider>
           </Layout>
         </RightPanelContext.Provider>
+        </OntologyVersionContext.Provider>
       </ScenarioContext.Provider>
     </WorkspaceContext.Provider>
   );

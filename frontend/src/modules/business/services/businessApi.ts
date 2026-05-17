@@ -14,15 +14,21 @@ async function fetchJson<T>(url: string, options?: RequestInit): Promise<T> {
   return res.json();
 }
 
-// 业务过程 API
+function buildVersionQuery(ontologyId?: string, versionId?: string): string {
+  const params: string[] = [];
+  if (ontologyId) params.push(`ontology_id=${encodeURIComponent(ontologyId)}`);
+  if (versionId) params.push(`version_id=${encodeURIComponent(versionId)}`);
+  return params.length > 0 ? `?${params.join('&')}` : '';
+}
+
 export const processApi = {
-  list: (): Promise<BusinessProcess[]> =>
-    fetchJson<BusinessProcess[]>(`${API_BASE}/api/business-processes`),
+  list: (ontologyId?: string, versionId?: string): Promise<BusinessProcess[]> =>
+    fetchJson<BusinessProcess[]>(`${API_BASE}/api/business-processes${buildVersionQuery(ontologyId, versionId)}`),
   get: (id: string): Promise<BusinessProcess> =>
     fetchJson<BusinessProcess>(`${API_BASE}/api/business-processes/${id}`),
-  create: (data: BusinessProcessFormData): Promise<BusinessProcess> =>
+  create: (data: BusinessProcessFormData & { ontology_id?: string; version_id?: string }): Promise<BusinessProcess> =>
     fetchJson<BusinessProcess>(`${API_BASE}/api/business-processes`, { method: 'POST', body: JSON.stringify(data) }),
-  update: (id: string, data: BusinessProcessFormData): Promise<BusinessProcess> =>
+  update: (id: string, data: BusinessProcessFormData & { ontology_id?: string; version_id?: string }): Promise<BusinessProcess> =>
     fetchJson<BusinessProcess>(`${API_BASE}/api/business-processes/${id}`, { method: 'PUT', body: JSON.stringify(data) }),
   delete: (id: string): Promise<void> =>
     fetch(`${API_BASE}/api/business-processes/${id}`, { method: 'DELETE' }).then(r => { if (!r.ok) throw new Error(); }),
@@ -30,15 +36,14 @@ export const processApi = {
     fetchJson<BusinessProcess[]>(`${API_BASE}/api/business-processes/import-yaml`, { method: 'POST', body: JSON.stringify({ yaml }) }),
 };
 
-// 业务规则 API
 export const ruleApi = {
-  list: (): Promise<BusinessRule[]> =>
-    fetchJson<BusinessRule[]>(`${API_BASE}/api/business-rules`),
+  list: (ontologyId?: string, versionId?: string): Promise<BusinessRule[]> =>
+    fetchJson<BusinessRule[]>(`${API_BASE}/api/business-rules${buildVersionQuery(ontologyId, versionId)}`),
   get: (id: string): Promise<BusinessRule> =>
     fetchJson<BusinessRule>(`${API_BASE}/api/business-rules/${id}`),
-  create: (data: BusinessRuleFormData): Promise<BusinessRule> =>
+  create: (data: BusinessRuleFormData & { ontology_id?: string; version_id?: string }): Promise<BusinessRule> =>
     fetchJson<BusinessRule>(`${API_BASE}/api/business-rules`, { method: 'POST', body: JSON.stringify(data) }),
-  update: (id: string, data: BusinessRuleFormData): Promise<BusinessRule> =>
+  update: (id: string, data: BusinessRuleFormData & { ontology_id?: string; version_id?: string }): Promise<BusinessRule> =>
     fetchJson<BusinessRule>(`${API_BASE}/api/business-rules/${id}`, { method: 'PUT', body: JSON.stringify(data) }),
   delete: (id: string): Promise<void> =>
     fetch(`${API_BASE}/api/business-rules/${id}`, { method: 'DELETE' }).then(r => { if (!r.ok) throw new Error(); }),
@@ -46,15 +51,14 @@ export const ruleApi = {
     fetchJson<BusinessRule[]>(`${API_BASE}/api/business-rules/import-yaml`, { method: 'POST', body: JSON.stringify({ yaml }) }),
 };
 
-// 业务逻辑 API
 export const logicApi = {
-  list: (): Promise<BusinessLogic[]> =>
-    fetchJson<BusinessLogic[]>(`${API_BASE}/api/business-logics`),
+  list: (ontologyId?: string, versionId?: string): Promise<BusinessLogic[]> =>
+    fetchJson<BusinessLogic[]>(`${API_BASE}/api/business-logics${buildVersionQuery(ontologyId, versionId)}`),
   get: (id: string): Promise<BusinessLogic> =>
     fetchJson<BusinessLogic>(`${API_BASE}/api/business-logics/${id}`),
-  create: (data: BusinessLogicFormData): Promise<BusinessLogic> =>
+  create: (data: BusinessLogicFormData & { ontology_id?: string; version_id?: string }): Promise<BusinessLogic> =>
     fetchJson<BusinessLogic>(`${API_BASE}/api/business-logics`, { method: 'POST', body: JSON.stringify(data) }),
-  update: (id: string, data: BusinessLogicFormData): Promise<BusinessLogic> =>
+  update: (id: string, data: BusinessLogicFormData & { ontology_id?: string; version_id?: string }): Promise<BusinessLogic> =>
     fetchJson<BusinessLogic>(`${API_BASE}/api/business-logics/${id}`, { method: 'PUT', body: JSON.stringify(data) }),
   delete: (id: string): Promise<void> =>
     fetch(`${API_BASE}/api/business-logics/${id}`, { method: 'DELETE' }).then(r => { if (!r.ok) throw new Error(); }),
@@ -62,15 +66,14 @@ export const logicApi = {
     fetchJson<BusinessLogic[]>(`${API_BASE}/api/business-logics/import-yaml`, { method: 'POST', body: JSON.stringify({ yaml }) }),
 };
 
-// 业务指标 API
 export const indicatorApi = {
-  list: (): Promise<BusinessIndicator[]> =>
-    fetchJson<BusinessIndicator[]>(`${API_BASE}/api/business-indicators`),
+  list: (ontologyId?: string, versionId?: string): Promise<BusinessIndicator[]> =>
+    fetchJson<BusinessIndicator[]>(`${API_BASE}/api/business-indicators${buildVersionQuery(ontologyId, versionId)}`),
   get: (id: string): Promise<BusinessIndicator> =>
     fetchJson<BusinessIndicator>(`${API_BASE}/api/business-indicators/${id}`),
-  create: (data: BusinessIndicatorFormData): Promise<BusinessIndicator> =>
+  create: (data: BusinessIndicatorFormData & { ontology_id?: string; version_id?: string }): Promise<BusinessIndicator> =>
     fetchJson<BusinessIndicator>(`${API_BASE}/api/business-indicators`, { method: 'POST', body: JSON.stringify(data) }),
-  update: (id: string, data: BusinessIndicatorFormData): Promise<BusinessIndicator> =>
+  update: (id: string, data: BusinessIndicatorFormData & { ontology_id?: string; version_id?: string }): Promise<BusinessIndicator> =>
     fetchJson<BusinessIndicator>(`${API_BASE}/api/business-indicators/${id}`, { method: 'PUT', body: JSON.stringify(data) }),
   delete: (id: string): Promise<void> =>
     fetch(`${API_BASE}/api/business-indicators/${id}`, { method: 'DELETE' }).then(r => { if (!r.ok) throw new Error(); }),
@@ -78,7 +81,6 @@ export const indicatorApi = {
     fetchJson<BusinessIndicator[]>(`${API_BASE}/api/business-indicators/import-yaml`, { method: 'POST', body: JSON.stringify({ yaml }) }),
 };
 
-// 通用实体 API（用于统一查询）
 export const entityApi = {
   listAll: (): Promise<BusinessEntity[]> =>
     fetchJson<BusinessEntity[]>(`${API_BASE}/api/business-entities`),

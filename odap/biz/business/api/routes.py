@@ -1,4 +1,4 @@
-from fastapi import APIRouter, HTTPException
+from fastapi import APIRouter, HTTPException, Query
 from pydantic import BaseModel, Field
 from typing import List, Optional
 from ..storage.sqlite_storage import BusinessStorage
@@ -30,6 +30,8 @@ class ProcessCreate(BaseModel):
     llm_description: str = ""
     flow_nodes: List[FlowNodeSchema] = []
     yaml_definition: str = ""
+    ontology_id: str = ""
+    version_id: str = ""
 
 
 class ProcessUpdate(BaseModel):
@@ -41,6 +43,8 @@ class ProcessUpdate(BaseModel):
     flow_nodes: Optional[List[FlowNodeSchema]] = None
     status: Optional[str] = None
     yaml_definition: Optional[str] = None
+    ontology_id: Optional[str] = None
+    version_id: Optional[str] = None
 
 
 class RuleCreate(BaseModel):
@@ -51,6 +55,8 @@ class RuleCreate(BaseModel):
     llm_description: str = ""
     rule_conditions: List[RuleConditionSchema] = []
     yaml_definition: str = ""
+    ontology_id: str = ""
+    version_id: str = ""
 
 
 class RuleUpdate(BaseModel):
@@ -62,6 +68,8 @@ class RuleUpdate(BaseModel):
     rule_conditions: Optional[List[RuleConditionSchema]] = None
     status: Optional[str] = None
     yaml_definition: Optional[str] = None
+    ontology_id: Optional[str] = None
+    version_id: Optional[str] = None
 
 
 class LogicCreate(BaseModel):
@@ -73,6 +81,8 @@ class LogicCreate(BaseModel):
     logic_type: str = "filter"
     logic_expression: str = ""
     yaml_definition: str = ""
+    ontology_id: str = ""
+    version_id: str = ""
 
 
 class LogicUpdate(BaseModel):
@@ -85,6 +95,8 @@ class LogicUpdate(BaseModel):
     logic_expression: Optional[str] = None
     status: Optional[str] = None
     yaml_definition: Optional[str] = None
+    ontology_id: Optional[str] = None
+    version_id: Optional[str] = None
 
 
 class IndicatorCreate(BaseModel):
@@ -97,6 +109,8 @@ class IndicatorCreate(BaseModel):
     calculation_formula: str = ""
     unit: str = ""
     yaml_definition: str = ""
+    ontology_id: str = ""
+    version_id: str = ""
 
 
 class IndicatorUpdate(BaseModel):
@@ -110,12 +124,17 @@ class IndicatorUpdate(BaseModel):
     unit: Optional[str] = None
     status: Optional[str] = None
     yaml_definition: Optional[str] = None
+    ontology_id: Optional[str] = None
+    version_id: Optional[str] = None
 
 
 # ===== Business Processes =====
 @router.get("/business-processes")
-async def list_processes():
-    return storage.list_processes()
+async def list_processes(
+    ontology_id: Optional[str] = Query(None),
+    version_id: Optional[str] = Query(None),
+):
+    return storage.list_processes(ontology_id=ontology_id, version_id=version_id)
 
 
 @router.get("/business-processes/{process_id}")
@@ -148,8 +167,11 @@ async def delete_process(process_id: str):
 
 # ===== Business Rules =====
 @router.get("/business-rules")
-async def list_rules():
-    return storage.list_rules()
+async def list_rules(
+    ontology_id: Optional[str] = Query(None),
+    version_id: Optional[str] = Query(None),
+):
+    return storage.list_rules(ontology_id=ontology_id, version_id=version_id)
 
 
 @router.get("/business-rules/{rule_id}")
@@ -182,8 +204,11 @@ async def delete_rule(rule_id: str):
 
 # ===== Business Logics =====
 @router.get("/business-logics")
-async def list_logics():
-    return storage.list_logics()
+async def list_logics(
+    ontology_id: Optional[str] = Query(None),
+    version_id: Optional[str] = Query(None),
+):
+    return storage.list_logics(ontology_id=ontology_id, version_id=version_id)
 
 
 @router.get("/business-logics/{logic_id}")
@@ -216,8 +241,11 @@ async def delete_logic(logic_id: str):
 
 # ===== Business Indicators =====
 @router.get("/business-indicators")
-async def list_indicators():
-    return storage.list_indicators()
+async def list_indicators(
+    ontology_id: Optional[str] = Query(None),
+    version_id: Optional[str] = Query(None),
+):
+    return storage.list_indicators(ontology_id=ontology_id, version_id=version_id)
 
 
 @router.get("/business-indicators/{indicator_id}")

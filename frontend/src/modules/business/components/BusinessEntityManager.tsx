@@ -9,6 +9,7 @@ import {
 } from '@ant-design/icons';
 import type { BusinessEntity, BusinessEntityType, BusinessEntityFormData, FlowNode, RuleCondition } from '../types';
 import { api as sharedApi } from '../../shared/services/api';
+import { useOntologyVersion } from '../../shared/components/AppLayout';
 import { processApi, ruleApi, logicApi, indicatorApi } from '../services/businessApi';
 
 const { TextArea } = Input;
@@ -114,7 +115,7 @@ interface BusinessEntityManagerProps {
   tagColor: string;
   tagText: string;
   api: {
-    list: () => Promise<any[]>;
+    list: (ontologyId?: string, versionId?: string) => Promise<any[]>;
     create: (data: any) => Promise<any>;
     update: (id: string, data: any) => Promise<any>;
     delete: (id: string) => Promise<void>;
@@ -139,6 +140,7 @@ export function BusinessEntityManager({
   showLogicExpression,
   showIndicatorConfig,
 }: BusinessEntityManagerProps) {
+  const { currentOntologyId, currentVersionId } = useOntologyVersion();
   const [entities, setEntities] = useState<BusinessEntity[]>([]);
   const [, setLoading] = useState(false);
   const [searchText, setSearchText] = useState('');
@@ -160,7 +162,7 @@ export function BusinessEntityManager({
   useEffect(() => {
     loadEntities();
     loadOptions();
-  }, []);
+  }, [currentOntologyId, currentVersionId]);
 
   const loadOptions = async () => {
     const opts = await ensureOptionsLoaded();
@@ -174,7 +176,7 @@ export function BusinessEntityManager({
   const loadEntities = async () => {
     setLoading(true);
     try {
-      const data = await api.list();
+      const data = await api.list(currentOntologyId || undefined, currentVersionId || undefined);
       setEntities(data.map(item => ({ ...item, entity_type: entityType, id: item[entityIdField] })));
     } catch (e) {
       message.error(`加载${title}列表失败`);
@@ -234,6 +236,8 @@ export function BusinessEntityManager({
     try {
       const payload = {
         ...values,
+        ontology_id: currentOntologyId,
+        version_id: currentVersionId,
         flow_nodes: showFlowNodes ? flowNodes : undefined,
         rule_conditions: showRuleConditions ? ruleConditions : undefined,
       };

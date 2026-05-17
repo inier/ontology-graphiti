@@ -12,7 +12,7 @@ import {
   ClusterOutlined, AimOutlined,
 } from '@ant-design/icons';
 import { api } from '../../shared/services/api';
-import { useScenario, useWorkspace } from '../../shared/components/AppLayout';
+import { useScenario, useWorkspace, useOntologyVersion } from '../../shared/components/AppLayout';
 
 const { Text, Paragraph } = Typography;
 const { Panel } = Collapse;
@@ -293,6 +293,7 @@ function parsePropertiesToAttributes(
 export function ObjectManagement() {
   const { currentScenario } = useScenario();
   const { currentWorkspace } = useWorkspace();
+  const { currentVersionId } = useOntologyVersion();
   const [entities, setEntities] = useState<ManagedEntity[]>([]);
   const [loading, setLoading] = useState(false);
   const [searchText, setSearchText] = useState('');
@@ -316,7 +317,7 @@ export function ObjectManagement() {
       loadEntities();
       loadExtractionSources();
     }
-  }, [currentScenario]);
+  }, [currentScenario, currentVersionId]);
 
   /** 加载实体列表 */
   const loadEntities = async () => {

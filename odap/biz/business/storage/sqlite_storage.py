@@ -41,7 +41,9 @@ class BusinessStorage:
             created_by TEXT DEFAULT 'system',
             created_at TEXT,
             updated_at TEXT,
-            yaml_definition TEXT
+            yaml_definition TEXT,
+            ontology_id TEXT,
+            version_id TEXT
         )''')
         c.execute('''CREATE TABLE IF NOT EXISTS business_rules (
             rule_id TEXT PRIMARY KEY,
@@ -59,7 +61,9 @@ class BusinessStorage:
             created_by TEXT DEFAULT 'system',
             created_at TEXT,
             updated_at TEXT,
-            yaml_definition TEXT
+            yaml_definition TEXT,
+            ontology_id TEXT,
+            version_id TEXT
         )''')
         c.execute('''CREATE TABLE IF NOT EXISTS business_logics (
             logic_id TEXT PRIMARY KEY,
@@ -78,7 +82,9 @@ class BusinessStorage:
             created_by TEXT DEFAULT 'system',
             created_at TEXT,
             updated_at TEXT,
-            yaml_definition TEXT
+            yaml_definition TEXT,
+            ontology_id TEXT,
+            version_id TEXT
         )''')
         c.execute('''CREATE TABLE IF NOT EXISTS business_indicators (
             indicator_id TEXT PRIMARY KEY,
@@ -98,7 +104,9 @@ class BusinessStorage:
             created_by TEXT DEFAULT 'system',
             created_at TEXT,
             updated_at TEXT,
-            yaml_definition TEXT
+            yaml_definition TEXT,
+            ontology_id TEXT,
+            version_id TEXT
         )''')
         self._migrate_add_columns(conn)
         conn.commit()
@@ -111,11 +119,12 @@ class BusinessStorage:
             'business_logics': [r[1] for r in conn.execute("PRAGMA table_info(business_logics)").fetchall()],
             'business_indicators': [r[1] for r in conn.execute("PRAGMA table_info(business_indicators)").fetchall()],
         }
-        new_cols = ['related_processes', 'related_rules', 'related_logics', 'related_indicators']
+        new_cols = ['related_processes', 'related_rules', 'related_logics', 'related_indicators', 'ontology_id', 'version_id']
         for table, cols in existing_tables.items():
             for col in new_cols:
                 if col not in cols:
-                    conn.execute(f"ALTER TABLE {table} ADD COLUMN {col} TEXT DEFAULT '[]'")
+                    default = "'[]'" if col.startswith('related_') else "''"
+                    conn.execute(f"ALTER TABLE {table} ADD COLUMN {col} TEXT DEFAULT {default}")
 
     def _now(self):
         return datetime.now(timezone.utc).isoformat()
@@ -132,10 +141,28 @@ class BusinessStorage:
                     d[key] = []
         return d
 
+    def _version_filter(self, ontology_id: str = None, version_id: str = None) -> str:
+        conditions = []
+        if ontology_id:
+            conditions.append("ontology_id = ?")
+        if version_id:
+            conditions.append("version_id = ?")
+        return " WHERE " + " AND ".join(conditions) if conditions else ""
+
+    def _version_params(self, ontology_id: str = None, version_id: str = None) -> list:
+        params = []
+        if ontology_id:
+            params.append(ontology_id)
+        if version_id:
+            params.append(version_id)
+        return params
+
     # ===== Business Processes =====
-    def list_processes(self) -> List[Dict]:
+    def list_processes(self, ontology_id: str = None, version_id: str = None) -> List[Dict]:
         conn = self._get_conn()
-        rows = conn.execute("SELECT * FROM business_processes ORDER BY created_at DESC").fetchall()
+        where = self._version_filter(ontology_id, version_id)
+        params = self._version_params(ontology_id, version_id)
+        rows = conn.execute(f"SELECT * FROM business_processes{where} ORDER BY created_at DESC", params).fetchall()
         conn.close()
         return [self._parse_row(r, 'process_id') for r in rows]
 
@@ -150,8 +177,8 @@ class BusinessStorage:
         now = self._now()
         conn = self._get_conn()
         conn.execute("""INSERT INTO business_processes
-            (process_id, name, display_name, description, related_objects, related_processes, related_rules, related_logics, related_indicators, llm_description, flow_nodes, status, created_by, created_at, updated_at, yaml_definition)
-            VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)""",
+            (process_id, name, display_name, description, related_objects, related_processes, related_rules, related_logics, related_indicators, llm_description, flow_nodes, status, created_by, created_at, updated_at, yaml_definition, ontology_id, version_id)
+            VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)""",
             (pid, data['name'], data.get('display_name',''), data.get('description',''),
              json.dumps(data.get('related_objects',[])),
              json.dumps(data.get('related_processes',[])),
@@ -160,7 +187,8 @@ class BusinessStorage:
              json.dumps(data.get('related_indicators',[])),
              data.get('llm_description',''),
              json.dumps(data.get('flow_nodes',[])), data.get('status','draft'),
-             data.get('created_by','system'), now, now, data.get('yaml_definition','')))
+             data.get('created_by','system'), now, now, data.get('yaml_definition',''),
+             data.get('ontology_id',''), data.get('version_id','')))
         conn.commit()
         conn.close()
         return self.get_process(pid)
@@ -173,7 +201,7 @@ class BusinessStorage:
         conn = self._get_conn()
         conn.execute("""UPDATE business_processes SET
             name=?, display_name=?, description=?, related_objects=?, related_processes=?, related_rules=?, related_logics=?, related_indicators=?, llm_description=?,
-            flow_nodes=?, status=?, updated_at=?, yaml_definition=?
+            flow_nodes=?, status=?, updated_at=?, yaml_definition=?, ontology_id=?, version_id=?
             WHERE process_id=?""",
             (data.get('name', existing['name']), data.get('display_name', existing.get('display_name','')),
              data.get('description', existing.get('description','')),
@@ -186,6 +214,8 @@ class BusinessStorage:
              json.dumps(data.get('flow_nodes', existing.get('flow_nodes',[]))),
              data.get('status', existing.get('status','draft')),
              now, data.get('yaml_definition', existing.get('yaml_definition','')),
+             data.get('ontology_id', existing.get('ontology_id','')),
+             data.get('version_id', existing.get('version_id','')),
              process_id))
         conn.commit()
         conn.close()
@@ -200,9 +230,11 @@ class BusinessStorage:
         return affected > 0
 
     # ===== Business Rules =====
-    def list_rules(self) -> List[Dict]:
+    def list_rules(self, ontology_id: str = None, version_id: str = None) -> List[Dict]:
         conn = self._get_conn()
-        rows = conn.execute("SELECT * FROM business_rules ORDER BY created_at DESC").fetchall()
+        where = self._version_filter(ontology_id, version_id)
+        params = self._version_params(ontology_id, version_id)
+        rows = conn.execute(f"SELECT * FROM business_rules{where} ORDER BY created_at DESC", params).fetchall()
         conn.close()
         return [self._parse_row(r, 'rule_id') for r in rows]
 
@@ -217,8 +249,8 @@ class BusinessStorage:
         now = self._now()
         conn = self._get_conn()
         conn.execute("""INSERT INTO business_rules
-            (rule_id, name, display_name, description, related_objects, related_processes, related_rules, related_logics, related_indicators, llm_description, rule_conditions, status, created_by, created_at, updated_at, yaml_definition)
-            VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)""",
+            (rule_id, name, display_name, description, related_objects, related_processes, related_rules, related_logics, related_indicators, llm_description, rule_conditions, status, created_by, created_at, updated_at, yaml_definition, ontology_id, version_id)
+            VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)""",
             (rid, data['name'], data.get('display_name',''), data.get('description',''),
              json.dumps(data.get('related_objects',[])),
              json.dumps(data.get('related_processes',[])),
@@ -227,7 +259,8 @@ class BusinessStorage:
              json.dumps(data.get('related_indicators',[])),
              data.get('llm_description',''),
              json.dumps(data.get('rule_conditions',[])), data.get('status','draft'),
-             data.get('created_by','system'), now, now, data.get('yaml_definition','')))
+             data.get('created_by','system'), now, now, data.get('yaml_definition',''),
+             data.get('ontology_id',''), data.get('version_id','')))
         conn.commit()
         conn.close()
         return self.get_rule(rid)
@@ -240,7 +273,7 @@ class BusinessStorage:
         conn = self._get_conn()
         conn.execute("""UPDATE business_rules SET
             name=?, display_name=?, description=?, related_objects=?, related_processes=?, related_rules=?, related_logics=?, related_indicators=?, llm_description=?,
-            rule_conditions=?, status=?, updated_at=?, yaml_definition=?
+            rule_conditions=?, status=?, updated_at=?, yaml_definition=?, ontology_id=?, version_id=?
             WHERE rule_id=?""",
             (data.get('name', existing['name']), data.get('display_name', existing.get('display_name','')),
              data.get('description', existing.get('description','')),
@@ -253,6 +286,8 @@ class BusinessStorage:
              json.dumps(data.get('rule_conditions', existing.get('rule_conditions',[]))),
              data.get('status', existing.get('status','draft')),
              now, data.get('yaml_definition', existing.get('yaml_definition','')),
+             data.get('ontology_id', existing.get('ontology_id','')),
+             data.get('version_id', existing.get('version_id','')),
              rule_id))
         conn.commit()
         conn.close()
@@ -267,9 +302,11 @@ class BusinessStorage:
         return affected > 0
 
     # ===== Business Logics =====
-    def list_logics(self) -> List[Dict]:
+    def list_logics(self, ontology_id: str = None, version_id: str = None) -> List[Dict]:
         conn = self._get_conn()
-        rows = conn.execute("SELECT * FROM business_logics ORDER BY created_at DESC").fetchall()
+        where = self._version_filter(ontology_id, version_id)
+        params = self._version_params(ontology_id, version_id)
+        rows = conn.execute(f"SELECT * FROM business_logics{where} ORDER BY created_at DESC", params).fetchall()
         conn.close()
         return [self._parse_row(r, 'logic_id') for r in rows]
 
@@ -284,8 +321,8 @@ class BusinessStorage:
         now = self._now()
         conn = self._get_conn()
         conn.execute("""INSERT INTO business_logics
-            (logic_id, name, display_name, description, related_objects, related_processes, related_rules, related_logics, related_indicators, llm_description, logic_type, logic_expression, status, created_by, created_at, updated_at, yaml_definition)
-            VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)""",
+            (logic_id, name, display_name, description, related_objects, related_processes, related_rules, related_logics, related_indicators, llm_description, logic_type, logic_expression, status, created_by, created_at, updated_at, yaml_definition, ontology_id, version_id)
+            VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)""",
             (lid, data['name'], data.get('display_name',''), data.get('description',''),
              json.dumps(data.get('related_objects',[])),
              json.dumps(data.get('related_processes',[])),
@@ -295,7 +332,8 @@ class BusinessStorage:
              data.get('llm_description',''),
              data.get('logic_type','filter'), data.get('logic_expression',''),
              data.get('status','draft'), data.get('created_by','system'), now, now,
-             data.get('yaml_definition','')))
+             data.get('yaml_definition',''),
+             data.get('ontology_id',''), data.get('version_id','')))
         conn.commit()
         conn.close()
         return self.get_logic(lid)
@@ -308,7 +346,7 @@ class BusinessStorage:
         conn = self._get_conn()
         conn.execute("""UPDATE business_logics SET
             name=?, display_name=?, description=?, related_objects=?, related_processes=?, related_rules=?, related_logics=?, related_indicators=?, llm_description=?,
-            logic_type=?, logic_expression=?, status=?, updated_at=?, yaml_definition=?
+            logic_type=?, logic_expression=?, status=?, updated_at=?, yaml_definition=?, ontology_id=?, version_id=?
             WHERE logic_id=?""",
             (data.get('name', existing['name']), data.get('display_name', existing.get('display_name','')),
              data.get('description', existing.get('description','')),
@@ -322,6 +360,8 @@ class BusinessStorage:
              data.get('logic_expression', existing.get('logic_expression','')),
              data.get('status', existing.get('status','draft')),
              now, data.get('yaml_definition', existing.get('yaml_definition','')),
+             data.get('ontology_id', existing.get('ontology_id','')),
+             data.get('version_id', existing.get('version_id','')),
              logic_id))
         conn.commit()
         conn.close()
@@ -336,9 +376,11 @@ class BusinessStorage:
         return affected > 0
 
     # ===== Business Indicators =====
-    def list_indicators(self) -> List[Dict]:
+    def list_indicators(self, ontology_id: str = None, version_id: str = None) -> List[Dict]:
         conn = self._get_conn()
-        rows = conn.execute("SELECT * FROM business_indicators ORDER BY created_at DESC").fetchall()
+        where = self._version_filter(ontology_id, version_id)
+        params = self._version_params(ontology_id, version_id)
+        rows = conn.execute(f"SELECT * FROM business_indicators{where} ORDER BY created_at DESC", params).fetchall()
         conn.close()
         return [self._parse_row(r, 'indicator_id') for r in rows]
 
@@ -353,8 +395,8 @@ class BusinessStorage:
         now = self._now()
         conn = self._get_conn()
         conn.execute("""INSERT INTO business_indicators
-            (indicator_id, name, display_name, description, related_objects, related_processes, related_rules, related_logics, related_indicators, llm_description, indicator_type, calculation_formula, unit, status, created_by, created_at, updated_at, yaml_definition)
-            VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)""",
+            (indicator_id, name, display_name, description, related_objects, related_processes, related_rules, related_logics, related_indicators, llm_description, indicator_type, calculation_formula, unit, status, created_by, created_at, updated_at, yaml_definition, ontology_id, version_id)
+            VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)""",
             (iid, data['name'], data.get('display_name',''), data.get('description',''),
              json.dumps(data.get('related_objects',[])),
              json.dumps(data.get('related_processes',[])),
@@ -364,7 +406,8 @@ class BusinessStorage:
              data.get('llm_description',''),
              data.get('indicator_type','metric'), data.get('calculation_formula',''),
              data.get('unit',''), data.get('status','draft'),
-             data.get('created_by','system'), now, now, data.get('yaml_definition','')))
+             data.get('created_by','system'), now, now, data.get('yaml_definition',''),
+             data.get('ontology_id',''), data.get('version_id','')))
         conn.commit()
         conn.close()
         return self.get_indicator(iid)
@@ -377,7 +420,7 @@ class BusinessStorage:
         conn = self._get_conn()
         conn.execute("""UPDATE business_indicators SET
             name=?, display_name=?, description=?, related_objects=?, related_processes=?, related_rules=?, related_logics=?, related_indicators=?, llm_description=?,
-            indicator_type=?, calculation_formula=?, unit=?, status=?, updated_at=?, yaml_definition=?
+            indicator_type=?, calculation_formula=?, unit=?, status=?, updated_at=?, yaml_definition=?, ontology_id=?, version_id=?
             WHERE indicator_id=?""",
             (data.get('name', existing['name']), data.get('display_name', existing.get('display_name','')),
              data.get('description', existing.get('description','')),
@@ -392,6 +435,8 @@ class BusinessStorage:
              data.get('unit', existing.get('unit','')),
              data.get('status', existing.get('status','draft')),
              now, data.get('yaml_definition', existing.get('yaml_definition','')),
+             data.get('ontology_id', existing.get('ontology_id','')),
+             data.get('version_id', existing.get('version_id','')),
              indicator_id))
         conn.commit()
         conn.close()
