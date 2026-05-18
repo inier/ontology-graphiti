@@ -223,9 +223,9 @@ class BusinessStorage:
 
     def delete_process(self, process_id: str) -> bool:
         conn = self._get_conn()
-        conn.execute("DELETE FROM business_processes WHERE process_id=?", (process_id,))
+        cursor = conn.execute("DELETE FROM business_processes WHERE process_id=?", (process_id,))
         conn.commit()
-        affected = conn.total_changes
+        affected = cursor.rowcount
         conn.close()
         return affected > 0
 
@@ -295,9 +295,9 @@ class BusinessStorage:
 
     def delete_rule(self, rule_id: str) -> bool:
         conn = self._get_conn()
-        conn.execute("DELETE FROM business_rules WHERE rule_id=?", (rule_id,))
+        cursor = conn.execute("DELETE FROM business_rules WHERE rule_id=?", (rule_id,))
         conn.commit()
-        affected = conn.total_changes
+        affected = cursor.rowcount
         conn.close()
         return affected > 0
 
@@ -369,9 +369,9 @@ class BusinessStorage:
 
     def delete_logic(self, logic_id: str) -> bool:
         conn = self._get_conn()
-        conn.execute("DELETE FROM business_logics WHERE logic_id=?", (logic_id,))
+        cursor = conn.execute("DELETE FROM business_logics WHERE logic_id=?", (logic_id,))
         conn.commit()
-        affected = conn.total_changes
+        affected = cursor.rowcount
         conn.close()
         return affected > 0
 
@@ -444,8 +444,8 @@ class BusinessStorage:
 
     def delete_indicator(self, indicator_id: str) -> bool:
         conn = self._get_conn()
-        conn.execute("DELETE FROM business_indicators WHERE indicator_id=?", (indicator_id,))
+        cursor = conn.execute("DELETE FROM business_indicators WHERE indicator_id=?", (indicator_id,))
         conn.commit()
-        affected = conn.total_changes
+        affected = cursor.rowcount
         conn.close()
         return affected > 0

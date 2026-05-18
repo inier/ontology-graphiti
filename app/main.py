@@ -1,5 +1,6 @@
 """Graphiti 主应用"""
 
+from contextlib import asynccontextmanager
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
@@ -19,19 +20,74 @@ from odap.infra.security import security_config
 from odap.infra.openharness import create_harness
 from odap.infra.openharness.v2_adapter import initialize_openharness, get_openharness_integration
 import logging
+import asyncio
 
-# 配置日志
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
+
+harness = None
+
+
+@asynccontextmanager
+async def lifespan(app: FastAPI):
+    global harness
+
+    harness = create_harness()
+    if harness:
+        logger.info(f"OpenHarness v1 初始化成功，可用工具: {len(harness.list_available_tools())}")
+    else:
+        logger.warning("OpenHarness v1 不可用")
+
+    async def _deferred_init():
+        try:
+            await asyncio.wait_for(initialize_openharness(), timeout=15.0)
+            logger.info("OpenHarness v2 Agent 初始化成功")
+        except asyncio.TimeoutError:
+            logger.warning("OpenHarness v2 Agent 初始化超时（15s），跳过")
+        except Exception as e:
+            logger.warning(f"OpenHarness v2 Agent 初始化失败: {e}")
+
+    asyncio.create_task(_deferred_init())
+
+    try:
+        from odap.biz.workspace.services.workspace_service import WorkspaceService
+        workspace_service = WorkspaceService()
+
+        existing = workspace_service.list_workspaces(filters={}, page=1, page_size=100)
+        if existing.get("workspaces") and len(existing.get("workspaces", [])) > 0:
+            logger.info(f"工作空间已存在，共 {len(existing['workspaces'])} 个")
+        else:
+            default_workspace = workspace_service.create_workspace(
+                name="测试工作空间",
+                description="系统默认工作空间，用于测试和演示"
+            )
+            logger.info(f"✓ 默认工作空间已创建: {default_workspace.get('workspace_id')}")
+
+            try:
+                from odap.biz.workspace.services.scenario_service import ScenarioService
+                scenario_service = ScenarioService()
+                default_scenario = scenario_service.create_scenario(
+                    workspace_id=default_workspace.get("workspace_id"),
+                    name="默认场景",
+                    description="与默认工作空间关联的场景"
+                )
+                logger.info(f"✓ 默认场景已创建: {default_scenario.get('scenario_id')}")
+            except Exception as scene_err:
+                logger.warning(f"创建默认场景失败: {scene_err}")
+    except Exception as e:
+        logger.error(f"初始化默认工作空间失败: {e}")
+
+    yield
+
+    logger.info("应用关闭中...")
+
 
 app = FastAPI(
     title="Graphiti API",
     description="Graphiti 知识图谱管理系统 - 集成 OpenHarness Agent",
-    version="2.0.0"
+    version="2.0.0",
+    lifespan=lifespan
 )
-
-# 全局变量
-harness = None
 
 # 配置 CORS
 app.add_middleware(
@@ -55,63 +111,6 @@ app.include_router(frontend_router)
 app.include_router(agent_router)
 app.include_router(business_router)
 app.include_router(policy_router)
-
-@app.on_event("startup")
-async def startup_event():
-    """应用启动事件"""
-    global harness
-    
-    # 初始化 OpenHarness v1（向后兼容）
-    harness = create_harness()
-    if harness:
-        logger.info(f"OpenHarness v1 初始化成功，可用工具: {len(harness.list_available_tools())}")
-    else:
-        logger.warning("OpenHarness v1 不可用")
-    
-    # 初始化 OpenHarness v2 Agent（延迟到后台，避免阻塞启动）
-    import asyncio
-    async def _deferred_init():
-        try:
-            await asyncio.wait_for(initialize_openharness(), timeout=15.0)
-            logger.info("OpenHarness v2 Agent 初始化成功")
-        except asyncio.TimeoutError:
-            logger.warning("OpenHarness v2 Agent 初始化超时（15s），跳过")
-        except Exception as e:
-            logger.warning(f"OpenHarness v2 Agent 初始化失败: {e}")
-    
-    asyncio.create_task(_deferred_init())
-    
-    # 初始化默认工作空间和场景
-    try:
-        from odap.biz.workspace.services.workspace_service import WorkspaceService
-        workspace_service = WorkspaceService()
-        
-        # 检查是否已有工作空间
-        existing = workspace_service.list_workspaces(filters={}, page=1, page_size=100)
-        if existing.get("workspaces") and len(existing.get("workspaces", [])) > 0:
-            logger.info(f"工作空间已存在，共 {len(existing['workspaces'])} 个")
-        else:
-            # 创建默认工作空间
-            default_workspace = workspace_service.create_workspace(
-                name="测试工作空间",
-                description="系统默认工作空间，用于测试和演示"
-            )
-            logger.info(f"✓ 默认工作空间已创建: {default_workspace.get('workspace_id')}")
-            
-            # 创建默认场景
-            try:
-                from odap.biz.workspace.services.scenario_service import ScenarioService
-                scenario_service = ScenarioService()
-                default_scenario = scenario_service.create_scenario(
-                    workspace_id=default_workspace.get("workspace_id"),
-                    name="默认场景",
-                    description="与默认工作空间关联的场景"
-                )
-                logger.info(f"✓ 默认场景已创建: {default_scenario.get('scenario_id')}")
-            except Exception as scene_err:
-                logger.warning(f"创建默认场景失败: {scene_err}")
-    except Exception as e:
-        logger.error(f"初始化默认工作空间失败: {e}")
 
 @app.get("/")
 async def root():

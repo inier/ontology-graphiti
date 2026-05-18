@@ -24,7 +24,6 @@ sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 class RateLimitType(Enum):
     TOKEN_BUCKET = "token_bucket"
-    SLIDING_WINDOW = "sliding_window"
 
 
 @dataclass
@@ -113,7 +112,11 @@ class AuthHandler:
     async def authenticate(self, request) -> UserInfo:
         auth_header = getattr(request, "headers", {}).get("Authorization", "")
         if auth_header.startswith("Bearer "):
-            return await self._verify_jwt(auth_header[7:])
+            token = auth_header[7:]
+            revoked = getattr(self, "_revoked_tokens", set())
+            if token in revoked:
+                raise AuthError("Token has been revoked")
+            return await self._verify_jwt(token)
         raise AuthError("Missing or invalid Authorization header")
 
     async def _verify_jwt(self, token: str) -> UserInfo:
@@ -170,7 +173,8 @@ class AuthHandler:
             raise AuthError(f"Refresh failed: {e}")
 
     async def logout(self, token: str):
-        pass
+        self._revoked_tokens = getattr(self, "_revoked_tokens", set())
+        self._revoked_tokens.add(token)
 
 
 class RateLimiter:
@@ -249,14 +253,38 @@ class PermissionBridge:
 class ServiceProxy:
     """服务代理 - 转发到上游服务"""
 
+    def __init__(self, http_client=None):
+        self._http_client = http_client
+
     async def forward(self, request, route: Route, trace_id: str) -> dict:
-        return {"status": "ok", "route": route.path}
+        if self._http_client is None:
+            return {"status": "ok", "route": route.path, "trace_id": trace_id}
+
+        upstream_path = route.upstream_path or route.path
+        url = f"{route.upstream}{upstream_path}"
+
+        try:
+            import httpx
+            async with httpx.AsyncClient(timeout=route.timeout_ms / 1000.0) as client:
+                method = getattr(request, "method", "GET")
+                headers = dict(getattr(request, "headers", {}))
+                body = getattr(request, "body", None)
+
+                resp = await client.request(
+                    method=method,
+                    url=url,
+                    headers=headers,
+                    json=body if isinstance(body, dict) else None,
+                )
+                return {"status": "ok", "route": route.path, "trace_id": trace_id, "status_code": resp.status_code, "body": resp.json() if resp.headers.get("content-type", "").startswith("application/json") else resp.text}
+        except Exception as e:
+            return {"status": "error", "route": route.path, "trace_id": trace_id, "error": str(e)}
 
     async def forward_ws(self, ws, route: Route, trace_id: str):
         pass
 
     async def forward_sse(self, request, route: Route, trace_id: str) -> AsyncIterator[str]:
-        yield "data: ok\\n\\n"
+        yield f"data: {{\"trace_id\": \"{trace_id}\"}}\\n\\n"
 
 
 class ConnectionManager:

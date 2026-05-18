@@ -368,6 +368,16 @@ class SQLiteIngestStorage:
         conn.close()
         return affected > 0
 
+    def delete_scenario(self, scenario_id: str) -> bool:
+        conn = self._get_conn()
+        cursor = conn.cursor()
+        cursor.execute('DELETE FROM scenario_documents WHERE scenario_id = ?', (scenario_id,))
+        cursor.execute('DELETE FROM scenarios WHERE scenario_id = ?', (scenario_id,))
+        affected = cursor.rowcount
+        conn.commit()
+        conn.close()
+        return affected > 0
+
     def add_scenario_document(self, scenario_id: str, doc: Dict[str, Any]) -> int:
         conn = self._get_conn()
         cursor = conn.cursor()

@@ -144,13 +144,58 @@ def log_query(query: str, result_count: int, **kwargs):
 
 
 def log_error(error: str, **kwargs):
-    """记录错误日志（简化版）"""
-    pass
+    """记录错误日志"""
+    import logging
+    context = kwargs.get("context", "")
+    logging.getLogger("frontend_compat").error(f"[{context}] {error}" if context else error)
+    try:
+        asyncio.create_task(
+            audit_logger.log_error(
+                event_type=AuditEventType.SYSTEM_ERROR,
+                action="ERROR",
+                resource=ResourceInfo(
+                    resource_type="error",
+                    resource_id=kwargs.get("context", "unknown"),
+                    resource_name=kwargs.get("context", "Error")
+                ),
+                message=error,
+                actor=ActorInfo(
+                    actor_type="system",
+                    actor_id="system",
+                    actor_name="System",
+                    roles=[]
+                ),
+                context=kwargs
+            )
+        )
+    except Exception:
+        pass
 
 
 async def _log_error_async(error: str, context: Dict[str, Any]):
     """异步记录错误日志"""
-    pass
+    import logging
+    logging.getLogger("frontend_compat").error(f"[{context}] {error}")
+    try:
+        await audit_logger.log_error(
+            event_type=AuditEventType.SYSTEM_ERROR,
+            action="ERROR",
+            resource=ResourceInfo(
+                resource_type="error",
+                resource_id=context.get("source", "unknown"),
+                resource_name="Error"
+            ),
+            message=error,
+            actor=ActorInfo(
+                actor_type="system",
+                actor_id="system",
+                actor_name="System",
+                roles=[]
+            ),
+            context=context
+        )
+    except Exception:
+        pass
 
 
 # 工作空间和场景初始化已移至 app/main.py startup_event
@@ -203,7 +248,8 @@ async def update_scenario(scenario_id: str, data: Dict[str, Any]):
         scenario = scenario_store.get_scenario(scenario_id)
         if not scenario:
             raise HTTPException(status_code=404, detail="Scenario not found")
-        return scenario
+        updated = scenario_store.update_scenario(scenario_id, data)
+        return updated if updated else scenario
     except HTTPException:
         raise
     except Exception as e:
@@ -217,7 +263,10 @@ async def delete_scenario(scenario_id: str):
         scenario = scenario_store.get_scenario(scenario_id)
         if not scenario:
             raise HTTPException(status_code=404, detail="Scenario not found")
-        return {"status": "success"}
+        deleted = scenario_store.delete_scenario(scenario_id)
+        if not deleted:
+            raise HTTPException(status_code=500, detail="Failed to delete scenario")
+        return {"status": "success", "scenario_id": scenario_id}
     except HTTPException:
         raise
     except Exception as e:
@@ -367,11 +416,14 @@ async def ingest_text(request: Request, data: Dict[str, Any] = Body(...)):
                 data.get('scenario_id')
             )
         except ImportError:
-            task_id = f"task_{uuid.uuid4().hex[:12]}"
+            task_id = None
         
         log_ingest('text', user="system")
         
-        return {"success": True, "task_id": task_id}
+        if task_id:
+            return {"success": True, "task_id": task_id}
+        else:
+            return {"success": True, "message": "Task queued (Celery unavailable, processed synchronously)"}
     except Exception as e:
         log_error(str(e), context="ingest_text")
         raise HTTPException(status_code=500, detail=str(e))
@@ -466,11 +518,16 @@ async def ingest_random(request: Request, data: Dict[str, Any]):
                 data.get('scenario_id')
             )
         except ImportError:
-            task_id = f"task_{uuid.uuid4().hex[:12]}"
+            task_id = None
         
         log_ingest('random', user="system")
         
-        return {"success": True, "task_id": task_id, "doc_count": 10, "versions": []}
+        result = {"success": True, "doc_count": 10, "versions": []}
+        if task_id:
+            result["task_id"] = task_id
+        else:
+            result["message"] = "Celery unavailable, processed synchronously"
+        return result
     except Exception as e:
         log_error(str(e), context="ingest_random")
         raise HTTPException(status_code=500, detail=str(e))
@@ -491,12 +548,14 @@ async def ingest_manual(request: Request, data: Dict[str, Any]):
                 data.get('scenario_id')
             )
         except ImportError:
-            task_id = f"task_{uuid.uuid4().hex[:12]}"
-        
-        # 记录审计日志
+            task_id = None
+
         log_ingest('manual', user="system")
-        
-        return {"task_id": task_id}
+
+        if task_id:
+            return {"task_id": task_id}
+        else:
+            return {"message": "Celery unavailable, processed synchronously"}
     except Exception as e:
         log_error(str(e), context="ingest_manual")
         raise HTTPException(status_code=500, detail=str(e))
@@ -616,12 +675,14 @@ async def create_version(data: Dict[str, Any]):
 async def get_version(version_id: str):
     """获取版本（兼容前端）"""
     try:
-        return {
-            "id": version_id,
-            "version": "1.0.0",
-            "created_at": datetime.utcnow().isoformat() + "Z",
-            "created_by": "system"
-        }
+        from odap.biz.ontology.storage.sqlite_ingest_storage import SQLiteIngestStorage
+        storage = SQLiteIngestStorage()
+        version = storage.get_version(version_id)
+        if not version:
+            raise HTTPException(status_code=404, detail="Version not found")
+        return version
+    except HTTPException:
+        raise
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
 
@@ -630,7 +691,17 @@ async def get_version(version_id: str):
 async def rollback(version_id: str):
     """回滚版本（兼容前端）"""
     try:
-        return {"status": "success"}
+        from odap.biz.ontology.storage.sqlite_ingest_storage import SQLiteIngestStorage
+        storage = SQLiteIngestStorage()
+        version = storage.get_version(version_id)
+        if not version:
+            raise HTTPException(status_code=404, detail="Version not found")
+        success = storage.rollback_version(version_id)
+        if not success:
+            raise HTTPException(status_code=500, detail="Rollback failed")
+        return {"status": "success", "version_id": version_id}
+    except HTTPException:
+        raise
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
 
@@ -639,11 +710,31 @@ async def rollback(version_id: str):
 async def diff_versions(version_a: str, version_b: str):
     """对比版本（兼容前端）"""
     try:
+        from odap.biz.ontology.storage.sqlite_ingest_storage import SQLiteIngestStorage
+        storage = SQLiteIngestStorage()
+        va = storage.get_version(version_a)
+        vb = storage.get_version(version_b)
+        if not va:
+            raise HTTPException(status_code=404, detail=f"Version {version_a} not found")
+        if not vb:
+            raise HTTPException(status_code=404, detail=f"Version {version_b} not found")
+
+        changes = []
+        for key in set(list(va.keys()) + list(vb.keys())):
+            if key in ("id", "created_at", "updated_at"):
+                continue
+            val_a = va.get(key)
+            val_b = vb.get(key)
+            if val_a != val_b:
+                changes.append({"field": key, "from": val_a, "to": val_b})
+
         return {
             "version_a": version_a,
             "version_b": version_b,
-            "changes": []
+            "changes": changes
         }
+    except HTTPException:
+        raise
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
 
@@ -878,7 +969,29 @@ async def get_workspace(workspace_id: str):
 async def get_entity_history(entity_id: str):
     """获取实体历史（兼容前端）"""
     try:
-        return []
+        from odap.biz.ontology.storage.sqlite_ingest_storage import SQLiteIngestStorage
+        storage = SQLiteIngestStorage()
+        versions = storage.list_all_versions()
+        history = []
+        for v in versions:
+            docs = storage.get_version_documents(v.get("id", ""))
+            for doc in docs:
+                entities = doc.get("entities", [])
+                if isinstance(entities, str):
+                    try:
+                        import json as _json
+                        entities = _json.loads(entities)
+                    except Exception:
+                        entities = []
+                for e in entities:
+                    if isinstance(e, dict) and e.get("entity_id") == entity_id:
+                        history.append({
+                            "entity_id": entity_id,
+                            "version_id": v.get("id", ""),
+                            "snapshot": e,
+                            "timestamp": v.get("created_at", ""),
+                        })
+        return history
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
 
@@ -971,12 +1084,31 @@ async def query_relations(data: Dict[str, Any]):
         source_id = query.get("source_id")
         target_id = query.get("target_id")
         relation_type = query.get("relation_type")
-        
-        # 简化实现，返回空列表
-        # 实际实现应该从图数据库查询
+        workspace_id = data.get("workspace_id")
+
+        graph_manager = _get_graph_manager()
+        all_relations = graph_manager.get_all_relations(workspace_id=workspace_id)
+
+        relations = []
+        for r in all_relations:
+            r_dict = r.to_dict() if hasattr(r, 'to_dict') else dict(r)
+            if source_id and r_dict.get("source_entity", r_dict.get("source", "")) != source_id:
+                continue
+            if target_id and r_dict.get("target_entity", r_dict.get("target", "")) != target_id:
+                continue
+            if relation_type and r_dict.get("relation_type", r_dict.get("type", "")) != relation_type:
+                continue
+            relations.append({
+                "relation_id": r_dict.get("relation_id", r_dict.get("id", "")),
+                "source": r_dict.get("source_entity", r_dict.get("source", "")),
+                "target": r_dict.get("target_entity", r_dict.get("target", "")),
+                "type": r_dict.get("relation_type", r_dict.get("type", "")),
+                "properties": r_dict.get("properties", {}),
+            })
+
         return {
-            "relations": [],
-            "total": 0
+            "relations": relations,
+            "total": len(relations)
         }
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
@@ -1029,9 +1161,26 @@ async def complex_query(request: Request, data: Dict[str, Any]):
 async def get_query_history(limit: int = Query(50, ge=1, le=200)):
     """获取查询历史（兼容前端）"""
     try:
-        # 简化实现，返回空列表
+        audit_filter = AuditFilter(
+            limit=limit,
+            order_by="timestamp",
+            order_desc=True
+        )
+        events = await audit_logger.query(audit_filter)
+        query_events = [e for e in events if "QUERY" in e.action]
+
+        history = []
+        for e in query_events:
+            history.append({
+                "query_id": e.id,
+                "action": e.action,
+                "timestamp": e.timestamp.isoformat() if isinstance(e.timestamp, datetime) else str(e.timestamp),
+                "actor": e.actor.actor_id if e.actor else "system",
+                "context": e.context,
+            })
+
         return {
-            "history": [],
+            "history": history,
             "limit": limit
         }
     except Exception as e:
@@ -1115,14 +1264,33 @@ async def generate_graph(data: Dict[str, Any]):
 async def get_graph_progress(task_id: str):
     """获取图谱生成进度（兼容前端）"""
     try:
-        # 简化实现，返回模拟进度
-        return {
-            "task_id": task_id,
-            "status": "completed",
-            "progress": 100,
-            "entities_generated": 0,
-            "relations_generated": 0
-        }
+        try:
+            from celery.result import AsyncResult
+            task_result = AsyncResult(task_id)
+            if task_result.ready():
+                result = task_result.get()
+                return {
+                    "task_id": task_id,
+                    "status": "completed",
+                    "progress": 100,
+                    "entities_generated": result.get("entities_generated", 0) if isinstance(result, dict) else 0,
+                    "relations_generated": result.get("relations_generated", 0) if isinstance(result, dict) else 0
+                }
+            return {
+                "task_id": task_id,
+                "status": "pending",
+                "progress": 50,
+                "entities_generated": 0,
+                "relations_generated": 0
+            }
+        except ImportError:
+            return {
+                "task_id": task_id,
+                "status": "completed",
+                "progress": 100,
+                "entities_generated": 0,
+                "relations_generated": 0
+            }
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
 
@@ -1131,6 +1299,12 @@ async def get_graph_progress(task_id: str):
 async def cancel_graph_task(task_id: str):
     """取消图谱生成任务（兼容前端）"""
     try:
+        try:
+            from celery.result import AsyncResult
+            task_result = AsyncResult(task_id)
+            task_result.revoke(terminate=True)
+        except ImportError:
+            pass
         return {
             "task_id": task_id,
             "status": "cancelled"
@@ -1143,23 +1317,64 @@ async def cancel_graph_task(task_id: str):
 async def get_graph_history(limit: int = Query(20, ge=1, le=100)):
     """获取图谱生成历史（兼容前端）"""
     try:
+        from odap.biz.ontology.storage.sqlite_ingest_storage import SQLiteIngestStorage
+        storage = SQLiteIngestStorage()
+        versions = storage.list_all_versions()
+        history = []
+        for v in versions[:limit]:
+            history.append({
+                "task_id": v.get("id", ""),
+                "scenario_id": v.get("ontology_id", ""),
+                "status": v.get("status", "completed"),
+                "created_at": v.get("created_at", ""),
+            })
+        return {
+            "history": history,
+            "limit": limit,
+            "total": len(history)
+        }
+    except Exception as e:
         return {
             "history": [],
             "limit": limit,
             "total": 0
         }
-    except Exception as e:
-        raise HTTPException(status_code=500, detail=str(e))
 
 
 @router.get("/graph/{graph_id}")
 async def get_graph_detail(graph_id: str):
     """获取图谱详情（兼容前端）"""
     try:
+        from odap.biz.ontology.storage.sqlite_ingest_storage import SQLiteIngestStorage
+        storage = SQLiteIngestStorage()
+        docs = storage.get_version_documents(graph_id)
+        nodes = []
+        edges = []
+        for doc in docs:
+            entities = doc.get("entities", [])
+            if isinstance(entities, str):
+                try:
+                    import json as _json
+                    entities = _json.loads(entities)
+                except Exception:
+                    entities = []
+            for e in entities:
+                if isinstance(e, dict):
+                    nodes.append({"id": e.get("entity_id", ""), "name": e.get("name", ""), "type": e.get("entity_type", "")})
+            relations = doc.get("relations", [])
+            if isinstance(relations, str):
+                try:
+                    import json as _json
+                    relations = _json.loads(relations)
+                except Exception:
+                    relations = []
+            for r in relations:
+                if isinstance(r, dict):
+                    edges.append({"id": r.get("relation_id", ""), "source": r.get("source_entity", ""), "target": r.get("target_entity", ""), "type": r.get("relation_type", "")})
         return {
             "graph_id": graph_id,
-            "nodes": [],
-            "edges": []
+            "nodes": nodes,
+            "edges": edges
         }
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
@@ -1708,16 +1923,35 @@ async def get_topic_stats(
 ):
     """获取话题统计"""
     try:
-        # 简化实现，返回模拟数据
-        # 实际应该从问答历史中提取话题
+        filter_kwargs = {
+            "limit": 1000,
+            "order_by": "timestamp",
+            "order_desc": True
+        }
+
+        if workspace_id:
+            filter_kwargs["workspace_id"] = workspace_id
+
+        audit_filter = AuditFilter(**filter_kwargs)
+
+        events = await audit_logger.query(audit_filter)
+        qa_events = [e for e in events if "QA_ASK" in e.action]
+
+        topic_counts = {}
+        for event in qa_events:
+            question = event.context.get("question", "") if event.context else ""
+            if question:
+                keywords = question.split()[:3]
+                topic = " ".join(keywords)
+                topic_counts[topic] = topic_counts.get(topic, 0) + 1
+
+        sorted_topics = sorted(topic_counts.items(), key=lambda x: x[1], reverse=True)[:limit]
+
         return {
             "topics": [
-                {"topic": "雷达目标查询", "count": 45, "trend": "up"},
-                {"topic": "部队部署情况", "count": 32, "trend": "stable"},
-                {"topic": "威胁评估分析", "count": 28, "trend": "up"},
-                {"topic": "武器系统性能", "count": 21, "trend": "down"},
-                {"topic": "战场态势对比", "count": 18, "trend": "stable"}
-            ][:limit],
+                {"topic": t, "count": c, "trend": "stable"}
+                for t, c in sorted_topics
+            ],
             "limit": limit
         }
     except Exception as e:

@@ -140,10 +140,14 @@ class AuditLogger:
         )
 
         try:
-            asyncio.run(self.channel.write(event))
+            loop = asyncio.get_running_loop()
+            loop.create_task(self.channel.write(event))
         except RuntimeError:
-            loop = asyncio.get_event_loop()
-            loop.run_until_complete(self.channel.write(event))
+            try:
+                asyncio.run(self.channel.write(event))
+            except RuntimeError:
+                import logging
+                logging.getLogger("audit_logger").warning(f"Cannot write audit event {event.id}: no event loop available")
 
         return event.id
 

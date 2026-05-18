@@ -129,8 +129,8 @@ class ScenarioStore:
             from odap.biz.ontology.version_manager import OntologyVersionManager
             vm = OntologyVersionManager.get_instance()
             vm.ensure_initial_version(ontology_id, scenario_name)
-        except Exception:
-            pass
+        except Exception as e:
+            logger.warning(f"Failed to ensure initial version for {ontology_id}: {e}")
 
     def add_document(self, scenario_id: str, doc: OntologyDocument):
         """添加文档到场景"""
@@ -163,6 +163,17 @@ class ScenarioStore:
     def get_scenario(self, scenario_id: str) -> Optional[Dict[str, Any]]:
         """获取场景"""
         return self._db.get_scenario(scenario_id)
+
+    def update_scenario(self, scenario_id: str, updates: Dict[str, Any]) -> Optional[Dict[str, Any]]:
+        """更新场景"""
+        success = self._db.update_scenario(scenario_id, updates)
+        if success:
+            return self._db.get_scenario(scenario_id)
+        return None
+
+    def delete_scenario(self, scenario_id: str) -> bool:
+        """删除场景"""
+        return self._db.delete_scenario(scenario_id)
 
     def get_documents(self, scenario_id: str) -> List[Dict[str, Any]]:
         """获取场景文档"""
