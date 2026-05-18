@@ -112,7 +112,7 @@ class SQLiteStorage:
             return None
         try:
             return json.loads(data)
-        except:
+        except (json.JSONDecodeError, TypeError, ValueError):
             return None
     
     # 工作空间相关
@@ -180,13 +180,19 @@ class SQLiteStorage:
         self.save_workspace(workspace)
     
     def delete_workspace(self, workspace_id: str) -> None:
-        """删除工作空间"""
+        """删除工作空间（含关联数据级联删除）"""
         conn = sqlite3.connect(self.db_path)
         cursor = conn.cursor()
-        
+
         cursor.execute('DELETE FROM workspaces WHERE id = ?', (workspace_id,))
         cursor.execute('DELETE FROM isolation_policies WHERE workspace_id = ?', (workspace_id,))
-        
+        cursor.execute('DELETE FROM import_export_records WHERE workspace_id = ?', (workspace_id,))
+
+        try:
+            cursor.execute('DELETE FROM scenarios WHERE workspace_id = ?', (workspace_id,))
+        except sqlite3.OperationalError:
+            pass
+
         conn.commit()
         conn.close()
     

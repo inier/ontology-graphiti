@@ -12,7 +12,7 @@ export function MyAgents() {
   const navigate = useNavigate();
 
   // 当前用户角色（从 localStorage 或 context 获取，这里模拟）
-  const currentRoleId = localStorage.getItem('currentRoleId') || 'admin';
+  const currentRoleId = localStorage.getItem('currentRoleId') || localStorage.getItem('role') || 'user';
 
   useEffect(() => {
     loadAgents();
@@ -113,20 +113,20 @@ export function MyAgents() {
             key={agent.agent_id}
             hoverable
             style={{ borderRadius: 12, overflow: 'hidden' }}
-            bodyStyle={{ padding: 20 }}
+            styles={{ body: { padding: 20 } }}
           >
             <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 12 }}>
               <Avatar src={agent.avatar} size={72} style={{ border: '2px solid #f0f0f0' }} />
               <div style={{ textAlign: 'center' }}>
                 <div style={{ fontSize: 16, fontWeight: 600 }}>{agent.display_name}</div>
-                <Tag color="blue" size="small" style={{ marginTop: 4 }}>主对象: {agent.main_object}</Tag>
+                <Tag color="blue" style={{ marginTop: 4, fontSize: 11 }}>主对象: {agent.main_object}</Tag>
               </div>
               <p style={{ fontSize: 13, color: '#8c8c8c', textAlign: 'center', margin: 0, lineHeight: 1.5, minHeight: 40 }}>
                 {agent.description || '暂无描述'}
               </p>
               <div style={{ display: 'flex', flexWrap: 'wrap', gap: 4, justifyContent: 'center' }}>
                 {agent.related_skills.slice(0, 3).map(sk => (
-                  <Tag key={sk} size="small" color="purple">{sk}</Tag>
+                  <Tag key={sk} color="purple" style={{ fontSize: 11 }}>{sk}</Tag>
                 ))}
               </div>
               <div style={{ display: 'flex', gap: 8, width: '100%', marginTop: 8 }}>

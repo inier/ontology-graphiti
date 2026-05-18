@@ -1,5 +1,7 @@
 import { create } from 'zustand';
 import { API_BASE } from '../../../config';
+import { api } from '../services/api';
+import type { Workspace as ApiWorkspace, AuditEvent as ApiAuditEvent } from '../services/api';
 
 export interface User {
   id: string;
@@ -8,17 +10,7 @@ export interface User {
   roles: string[];
 }
 
-export interface Workspace {
-  id: string;
-  name: string;
-  description: string;
-  domain: string;
-  status: 'active' | 'archived' | 'deleted';
-  owner: string;
-  created_at: string;
-  updated_at: string;
-  members?: string[];
-}
+export type Workspace = ApiWorkspace;
 
 export interface Notification {
   id: string;
@@ -28,24 +20,7 @@ export interface Notification {
   read?: boolean;
 }
 
-export interface AuditEvent {
-  id: string;
-  timestamp: string;
-  event_type: string;
-  severity: 'debug' | 'info' | 'warn' | 'error' | 'critical';
-  actor_type: string;
-  actor_id: string;
-  actor_name: string;
-  action: string;
-  resource_type: string;
-  resource_id: string;
-  result_status: 'success' | 'failure' | 'denied';
-  result_message: string;
-  workspace_id: string;
-  trace_id: string;
-  duration_ms?: number;
-  context?: Record<string, unknown>;
-}
+export type AuditEvent = ApiAuditEvent;
 
 interface AuditFilters {
   start_time?: string;
@@ -82,20 +57,31 @@ export const useAppStore = create<AppState>((set, get) => ({
   loading: false,
   error: null,
 
-  login: async (username: string, _password: string) => {
+  login: async (username: string, password: string) => {
     set({ loading: true, error: null });
     try {
-      const mockUser: User = {
-        id: 'user-1',
-        username,
-        name: username,
-        roles: ['admin'],
+      const response = await fetch(`${API_BASE}/api/auth/login`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ username, password }),
+      });
+
+      if (!response.ok) {
+        throw new Error(`Login failed: ${response.status}`);
+      }
+
+      const data = await response.json();
+      const user: User = {
+        id: data.user?.id || data.user_id || 'user-1',
+        username: data.user?.username || username,
+        name: data.user?.name || username,
+        roles: data.user?.roles || ['user'],
       };
-      const mockToken = 'mock-jwt-token-' + Date.now();
+      const token = data.token || data.access_token || '';
 
       set({
-        user: mockUser,
-        token: mockToken,
+        user,
+        token,
         loading: false,
       });
 
@@ -130,9 +116,7 @@ export const useAppStore = create<AppState>((set, get) => ({
   loadWorkspaces: async () => {
     set({ loading: true, error: null });
     try {
-      const response = await fetch(`${API_BASE}/api/workspaces`);
-      const data = await response.json();
-      const workspaces: Workspace[] = data.workspaces || [];
+      const workspaces = await api.listWorkspaces();
 
       set({
         workspaces,

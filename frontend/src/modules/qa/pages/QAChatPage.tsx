@@ -1117,7 +1117,6 @@ export function QAChatPage({ className, style }: { className?: string; style?: R
   const [input, setInput] = useState('');
   const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(false);
   const [selectedSessionTitle, setSelectedSessionTitle] = useState('');
-  const [, setSuggestions] = useState<Array<{ action: string; skill: string; confidence: number }>>([]);
   
   const { currentWorkspace } = useWorkspace();
   const { currentScenario } = useScenario();
@@ -1143,9 +1142,7 @@ export function QAChatPage({ className, style }: { className?: string; style?: R
       if (lastMessage.role === 'assistant' && lastMessage.content) {
         // 生成示例建议（实际应该从 AI 回复中解析）
         const mockSuggestions = generateSuggestions(lastMessage.content);
-        setSuggestions(mockSuggestions);
-        
-        // 更新右栏内容
+
         if (mockSuggestions.length > 0) {
           setRightPanelTitle('执行建议');
           setRightPanelContent(

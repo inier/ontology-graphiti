@@ -65,16 +65,27 @@ export function AgentChat() {
     setInputText('');
     setSending(true);
 
-    setTimeout(() => {
+    try {
+      const response = await agentApi.chatWithAgent(agentId!, userMsg.content);
       const agentMsg: ChatMessage = {
         id: (Date.now() + 1).toString(),
         role: 'agent',
-        content: `收到你的问题："${userMsg.content}"。我正在基于${agent?.main_object || ''}知识图谱进行分析...`,
+        content: response.reply || response.message || response.content || '暂无回复',
         timestamp: new Date().toISOString(),
       };
       setMessages(prev => [...prev, agentMsg]);
+    } catch (e) {
+      const errorMsg: ChatMessage = {
+        id: (Date.now() + 1).toString(),
+        role: 'agent',
+        content: '抱歉，请求处理失败，请稍后重试。',
+        timestamp: new Date().toISOString(),
+      };
+      setMessages(prev => [...prev, errorMsg]);
+      message.error('发送消息失败');
+    } finally {
       setSending(false);
-    }, 1500);
+    }
   };
 
   if (loading) {

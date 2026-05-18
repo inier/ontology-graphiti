@@ -5,4 +5,3 @@ export { useSession } from './hooks/useSession';
 export type { Session, UseSessionOptions, UseSessionReturn } from './hooks/useSession';
 export { SessionDrawer } from './components/SessionDrawer';
 export { QAChatPage } from './pages/QAChatPage';
-export { QAChat } from './pages/QAChat';

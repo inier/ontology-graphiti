@@ -7,7 +7,7 @@ import uuid
 import tempfile
 from typing import Dict, Any, List, Optional
 from datetime import datetime
-from ..api.routes import Role, RoleType, Permission, PermissionScope
+from ..api.schemas import Role, RoleType, Permission, PermissionScope
 
 
 DEFAULT_DB_DIR = os.path.join(os.getenv("DATA_DIR", os.path.join(os.getcwd(), "data")))

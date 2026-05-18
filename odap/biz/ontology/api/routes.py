@@ -431,8 +431,6 @@ async def run_build_pipeline(ingest_id: str, scenario_id: Optional[str] = None):
     
     build_id = f"build-{ingest_id}-{datetime.now().strftime('%Y%m%d%H%M%S')}"
     
-    # 保存构建历史（状态为 pending）
-    storage = SQLiteIngestStorage()
     import uuid
     storage.save_build_history({
         "id": str(uuid.uuid4()),

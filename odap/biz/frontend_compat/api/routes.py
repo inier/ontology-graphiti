@@ -38,7 +38,7 @@ def _get_graph_manager():
         _graph_manager = GraphManager()
     return _graph_manager
 
-scenario_store = ScenarioStore(storage_dir=SCENARIOS_DIR, graph_manager=None, storage=storage)
+scenario_store = ScenarioStore(storage_dir=SCENARIOS_DIR, graph_manager=None)
 workspace_service = WorkspaceService()
 
 # 初始化审计日志器
