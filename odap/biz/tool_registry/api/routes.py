@@ -79,7 +79,32 @@ async def register_tool(request: ToolRegisterRequest):
 
     success = False
     if request.tool_type == "skill":
-        success = False
+        try:
+            from odap.tools.base import BaseSkill, SkillInput, SkillOutput, SkillMetadata
+
+            class DynamicSkill(BaseSkill):
+                metadata = SkillMetadata(
+                    name=request.name,
+                    description=request.description,
+                    category=request.category,
+                    version=request.version,
+                    danger_level=request.danger_level,
+                    requires_opa_check=request.requires_opa_check,
+                    opa_action=request.opa_action,
+                )
+
+                def execute(self, input_data: SkillInput) -> SkillOutput:
+                    return SkillOutput(
+                        success=True,
+                        data={"message": f"Skill {self.metadata.name} executed"},
+                        execution_time_ms=0,
+                        skill_name=self.metadata.name,
+                        request_id=input_data.request_id,
+                    )
+
+            success = registry.register_skill(DynamicSkill(), version=request.version)
+        except Exception:
+            success = False
     elif request.tool_type == "rest":
         success = registry.register_rest_api(
             name=request.name,
@@ -89,7 +114,18 @@ async def register_tool(request: ToolRegisterRequest):
             category=request.category
         )
     elif request.tool_type == "function":
-        success = False
+        try:
+            def placeholder_func(**kwargs):
+                return {"message": f"Function {request.name} executed"}
+
+            success = registry.register_function(
+                name=request.name,
+                description=request.description,
+                func=placeholder_func,
+                category=request.category
+            )
+        except Exception:
+            success = False
 
     return {
         "success": success,

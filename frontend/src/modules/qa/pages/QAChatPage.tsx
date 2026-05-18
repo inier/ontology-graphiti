@@ -1245,9 +1245,9 @@ export function QAChatPage({ className, style }: { className?: string; style?: R
     setSelectedSessionTitle(session.summary || '智能问答');
   };
 
-  const handleDeleteSession = (sessionId: string) => {
-    deleteSession(sessionId);
-    if (sessionId === sessionId) {
+  const handleDeleteSession = (deletedSessionId: string) => {
+    deleteSession(deletedSessionId);
+    if (deletedSessionId === sessionId) {
       clearMessages();
       setSelectedSessionTitle('');
     }

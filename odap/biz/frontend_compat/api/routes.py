@@ -12,16 +12,6 @@ from odap.infra.security import get_audit_logger, AuditFilter, AuditEventType, A
 
 router = APIRouter(prefix="/api", tags=["frontend-compat"])
 
-# 导入原始的 ScenarioStore
-import sys
-
-# 修复路径问题
-base_path = os.path.dirname(os.path.abspath(__file__))
-parent_path = os.path.dirname(base_path)
-grandparent_path = os.path.dirname(parent_path)
-root_path = os.path.dirname(grandparent_path)
-sys.path.append(root_path)
-
 from odap.web.api.app import ScenarioStore
 
 # 定义新的场景存储目录
@@ -432,11 +422,6 @@ async def ingest_news(data: Dict[str, Any] = Body(...)):
         log_error(str(e), context="ingest_news")
         raise HTTPException(status_code=500, detail=str(e))
 
-@router.post("/ingest/news2")
-async def ingest_news2(data: Dict[str, Any] = Body(...)):
-    """新闻摄入测试（兼容前端）"""
-    return {"success": True, "task_id": "test-task-123"}
-
 
 @router.get("/ingest/news/progress/{task_id}")
 async def get_news_ingest_progress(task_id: str):
@@ -464,16 +449,6 @@ async def get_news_ingest_progress(task_id: str):
         raise
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
-
-@router.post("/test")
-async def test_route(data: Dict[str, Any] = Body(...)):
-    """测试路由"""
-    return {"message": "Test successful", "data": data}
-
-@router.post("/test2")
-async def test_route2():
-    """测试路由2"""
-    return {"message": "Test 2 successful"}
 
 
 @router.post("/ingest/random")
