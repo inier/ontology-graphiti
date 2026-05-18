@@ -19,19 +19,6 @@ export interface Entity {
   capabilities?: Record<string, unknown>;
 }
 
-export interface Relation {
-  relation_id: string;
-  relation_type: string;
-  source_entity: string;
-  target_entity: string;
-  properties?: Record<string, unknown>;
-  temporal?: {
-    start_time: string;
-    end_time?: string;
-    is_current: boolean;
-  };
-}
-
 export interface TimelineEvent {
   event_id: string;
   event_type: string;

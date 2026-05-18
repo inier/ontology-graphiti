@@ -127,22 +127,12 @@ async def list_agent_tools():
 @router.post("/chat")
 async def chat_with_agent(request: AgentRunRequest):
     """
-    与 Agent 对话（简化接口）
-    
-    Args:
-        request: 对话请求
-        
-    Returns:
-        对话结果
+    与 Agent 对话（简化接口，委托给 /run）
     """
     try:
-        result = await run_agent(
-            user_input=request.input,
-            context=request.context,
-        )
-        
-        # 简化输出格式
-        if result.get("success"):
+        result = await run_agent_endpoint(request)
+
+        if isinstance(result, dict) and result.get("success"):
             steps = result.get("steps", [])
             if steps:
                 last_step = steps[-1]
@@ -158,7 +148,7 @@ async def chat_with_agent(request: AgentRunRequest):
                         for step in steps
                     ],
                 }
-        
+
         return {
             "response": {"error": "执行失败"},
             "steps_count": 0,
