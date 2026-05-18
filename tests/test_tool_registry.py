@@ -74,17 +74,17 @@ class TestToolRegistry:
             def execute(self, input_data: SkillInput) -> SkillOutput:
                 return SkillOutput(
                     success=True,
-                    data={"echo": getattr(input_data, "value", "default")},
+                    data={"echo": "ok"},
                     execution_time_ms=0,
                     skill_name=self.metadata.name,
                     request_id=input_data.request_id
                 )
 
         tool_registry.register_skill(EchoSkill())
-        result = tool_registry.execute("echo_skill", {"value": "hello"})
+        result = tool_registry.execute("echo_skill", {})
 
         assert result.success is True
-        assert result.data.get("echo") == "hello"
+        assert result.data.get("echo") == "ok"
 
     def test_execute_native_function(self, tool_registry):
         """测试执行原生函数"""

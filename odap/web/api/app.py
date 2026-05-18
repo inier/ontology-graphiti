@@ -40,57 +40,63 @@ from odap.infra.graph.graph_service import GraphManager
 
 class ScenarioStore:
     """
-    场景持久化存储
+    场景持久化存储 — SQLite 单源
     管理场景元数据和关联的 OntologyDocument
-    数据保存在 ontology/versions/scenarios/ 目录
+    所有数据存储在 ingest.db 中
     """
 
     def __init__(self, storage_dir: str = SCENARIOS_DIR, graph_manager: GraphManager = None, storage=None):
         self.storage_dir = storage_dir
         os.makedirs(self.storage_dir, exist_ok=True)
-        self._scenarios_file = os.path.join(self.storage_dir, "scenarios.json")
-        self._scenarios: Dict[str, Dict[str, Any]] = {}
-        self._documents: Dict[str, List[Dict[str, Any]]] = {}
         self._graph_manager = graph_manager
-        self._storage = storage  # MongoDB storage
-        self._load()
+        from odap.biz.ontology.storage.sqlite_ingest_storage import SQLiteIngestStorage
+        self._db = SQLiteIngestStorage()
+        self._migrate_from_json()
 
-    def _load(self):
-        """从磁盘或 MongoDB 加载所有场景"""
-        if self._storage and hasattr(self._storage, 'list_scenarios'):
-            try:
-                scenarios = self._storage.list_scenarios()
-                for scenario in scenarios:
-                    scenario_id = scenario.get('scenario_id')
-                    if scenario_id:
-                        self._scenarios[scenario_id] = scenario
-                return
-            except Exception as e:
-                logger.warning(f"从 MongoDB 加载场景失败: {e}, 将从磁盘加载")
-        
-        # 回退到磁盘加载
-        if os.path.exists(self._scenarios_file):
-            try:
-                with open(self._scenarios_file, 'r', encoding='utf-8') as f:
-                    data = json.load(f)
-                    self._scenarios = data.get("scenarios", {})
-                    self._documents = data.get("documents", {})
-            except Exception as e:
-                logger.warning(f"加载场景失败: {e}, 将创建新存储")
-                self._scenarios = {}
-                self._documents = {}
+    def _migrate_from_json(self):
+        """一次性迁移: scenarios.json → SQLite（含实体消歧）"""
+        json_file = os.path.join(self.storage_dir, "scenarios.json")
+        if not os.path.exists(json_file):
+            return
 
-    def _save(self):
-        """保存所有场景到磁盘"""
+        existing = self._db.list_scenarios()
+        if existing:
+            return
+
         try:
-            with open(self._scenarios_file, 'w', encoding='utf-8') as f:
-                json.dump({
-                    "scenarios": self._scenarios,
-                    "documents": self._documents,
-                    "updated_at": datetime.now(timezone.utc).isoformat()
-                }, f, ensure_ascii=False, indent=2)
+            with open(json_file, 'r', encoding='utf-8') as f:
+                data = json.load(f)
+
+            from odap.biz.ontology.schema.document import deterministic_entity_id
+
+            for sid, scenario in data.get("scenarios", {}).items():
+                self._db.save_scenario(scenario)
+
+            for sid, docs in data.get("documents", {}).items():
+                for doc in docs:
+                    resolved_entities = []
+                    id_remap = {}
+                    for entity in doc.get("entities", []):
+                        old_id = entity.get("entity_id", "")
+                        name = entity.get("name", "")
+                        etype = entity.get("entity_type", "Unit")
+                        if name:
+                            new_id = deterministic_entity_id(etype, name)
+                            if old_id != new_id:
+                                id_remap[old_id] = new_id
+                            entity["entity_id"] = new_id
+                        resolved_entities.append(entity)
+                    doc["entities"] = resolved_entities
+
+                    for event in doc.get("events", []):
+                        participants = event.get("participants", [])
+                        event["participants"] = [id_remap.get(p, p) for p in participants]
+
+                    self._db.add_scenario_document(sid, doc)
+
+            logger.info(f"JSON → SQLite 迁移完成: {len(data.get('scenarios', {}))} 场景")
         except Exception as e:
-            logger.error(f"保存场景失败: {e}")
+            logger.warning(f"JSON 迁移失败: {e}")
 
     def create(self, name: str, description: str = "") -> str:
         """创建场景"""
@@ -113,49 +119,21 @@ class ScenarioStore:
             "entity_count": 0,
         }
         
-        if self._storage and hasattr(self._storage, 'save_scenario'):
-            try:
-                self._storage.save_scenario(scenario)
-            except Exception as e:
-                logger.warning(f"保存场景到 MongoDB 失败: {e}")
-        
-        self._scenarios[scenario_id] = scenario
-        self._documents[scenario_id] = []
-        self._save()
-        
+        self._db.save_scenario(scenario)
         self._ensure_initial_version(ontology_id, name)
         return scenario_id
 
     def _ensure_initial_version(self, ontology_id: str, scenario_name: str = "") -> None:
         """确保本体有初始版本"""
         try:
-            from odap.biz.ontology.storage.sqlite_ingest_storage import SQLiteIngestStorage
-            storage = SQLiteIngestStorage()
-            existing = storage.get_versions(ontology_id)
-            if existing:
-                return
-            version_id = f"v{datetime.now().strftime('%Y%m%d')}-001"
-            storage.save_version({
-                'id': version_id,
-                'ontology_id': ontology_id,
-                'version_number': '1.0.0',
-                'parent_version_id': None,
-                'status': 'released',
-                'changes': '',
-                'change_summary': f'初始版本 - {scenario_name}' if scenario_name else '初始版本',
-                'created_at': datetime.now().isoformat(),
-                'created_by': 'system',
-                'is_current': 1,
-                'is_stable': 1,
-            })
+            from odap.biz.ontology.version_manager import OntologyVersionManager
+            vm = OntologyVersionManager.get_instance()
+            vm.ensure_initial_version(ontology_id, scenario_name)
         except Exception:
             pass
 
     def add_document(self, scenario_id: str, doc: OntologyDocument):
         """添加文档到场景"""
-        if scenario_id not in self._documents:
-            self._documents[scenario_id] = []
-        
         doc_dict = {
             "doc_id": doc.doc_id,
             "meta": doc.meta.model_dump() if hasattr(doc.meta, 'model_dump') else vars(doc.meta),
@@ -164,161 +142,39 @@ class ScenarioStore:
             "ontology_version": doc.ontology_version.__dict__ if doc.ontology_version else None,
         }
         
-        # 保存到 MongoDB
-        if self._storage and hasattr(self._storage, 'add_scenario_document'):
-            try:
-                self._storage.add_scenario_document(scenario_id, doc_dict)
-            except Exception as e:
-                logger.warning(f"保存文档到 MongoDB 失败: {e}")
-        
-        # 同时保存到内存和磁盘
-        self._documents[scenario_id].append(doc_dict)
-        if scenario_id in self._scenarios:
-            self._scenarios[scenario_id]["doc_count"] = len(self._documents[scenario_id])
-            self._scenarios[scenario_id]["event_count"] = sum(len(d.get("events", [])) for d in self._documents[scenario_id])
-            self._scenarios[scenario_id]["entity_count"] = sum(len(d.get("entities", [])) for d in self._documents[scenario_id])
-        self._save()
+        self._db.add_scenario_document(scenario_id, doc_dict)
 
     def get_timeline(self, scenario_id: str) -> List[Dict[str, Any]]:
         """获取时间线（所有事件按时间戳排序）"""
-        # 从 MongoDB 获取
-        if self._storage and hasattr(self._storage, 'get_scenario_timeline'):
-            try:
-                return self._storage.get_scenario_timeline(scenario_id)
-            except Exception as e:
-                logger.warning(f"从 MongoDB 获取时间线失败: {e}")
-        
-        # 回退到内存数据
-        docs = self._documents.get(scenario_id, [])
-        events = []
-        for doc in docs:
-            if "events" in doc:
-                events.extend(doc["events"])
-        events.sort(key=lambda x: x.get("timestamp", ""))
-        return events
+        return self._db.get_scenario_timeline(scenario_id)
 
     def get_entities(self, scenario_id: str, snapshot_time: str = None) -> List[Dict[str, Any]]:
-        """获取实体快照（支持时间点查询）"""
-        # 从 MongoDB 获取
-        if self._storage and hasattr(self._storage, 'get_scenario_entities'):
-            try:
-                return self._storage.get_scenario_entities(scenario_id)
-            except Exception as e:
-                logger.warning(f"从 MongoDB 获取实体失败: {e}")
-        
-        # 回退到内存数据
-        docs = self._documents.get(scenario_id, [])
-        entity_map: Dict[str, Dict[str, Any]] = {}
-        for doc in docs:
-            if "entities" in doc:
-                for entity in doc["entities"]:
-                    entity_id = entity.get("entity_id")
-                    if entity_id:
-                        entity_map[entity_id] = entity
-        return list(entity_map.values())
+        """获取实体快照"""
+        return self._db.get_scenario_entities(scenario_id)
 
     def get_relations(self, scenario_id: str) -> Dict[str, Any]:
         """获取关系图谱"""
-        # 从 MongoDB 获取
-        if self._storage and hasattr(self._storage, 'get_scenario_relations'):
-            try:
-                return self._storage.get_scenario_relations(scenario_id)
-            except Exception as e:
-                logger.warning(f"从 MongoDB 获取关系失败: {e}")
-        
-        # 回退到内存数据
-        entities = self.get_entities(scenario_id)
-        docs = self._documents.get(scenario_id, [])
-        nodes = []
-        links = []
-        node_ids = set()
-
-        for entity in entities:
-            entity_id = entity.get("entity_id")
-            if entity_id and entity_id not in node_ids:
-                nodes.append({
-                    "id": entity_id,
-                    "name": entity.get("name", entity_id),
-                    "type": entity.get("entity_type", "Entity"),
-                    "side": entity.get("basic_properties", {}).get("side"),
-                })
-                node_ids.add(entity_id)
-
-        for doc in docs:
-            if "events" in doc:
-                for event in doc["events"]:
-                    participants = event.get("participants", [])
-                    if len(participants) >= 2:
-                        for i in range(len(participants) - 1):
-                            source = participants[i]
-                            target = participants[i + 1]
-                            if source in node_ids and target in node_ids:
-                                links.append({
-                                    "id": f"rel-{uuid.uuid4().hex[:8]}",
-                                    "source": source,
-                                    "target": target,
-                                    "type": event.get("event_type", "association"),
-                                    "event_id": event.get("event_id"),
-                                })
-
-        return {"nodes": nodes, "links": links}
+        return self._db.get_scenario_relations(scenario_id)
 
     def list_scenarios(self) -> List[Dict[str, Any]]:
         """列出所有场景"""
-        # 从 MongoDB 获取
-        if self._storage and hasattr(self._storage, 'list_scenarios'):
-            try:
-                scenarios = self._storage.list_scenarios()
-                # 同步到内存
-                for scenario in scenarios:
-                    scenario_id = scenario.get('scenario_id')
-                    if scenario_id:
-                        self._scenarios[scenario_id] = scenario
-                return scenarios
-            except Exception as e:
-                logger.warning(f"从 MongoDB 列出场景失败: {e}")
-        
-        # 回退到内存数据
-        return list(self._scenarios.values())
+        return self._db.list_scenarios()
 
     def get_scenario(self, scenario_id: str) -> Optional[Dict[str, Any]]:
         """获取场景"""
-        # 从 MongoDB 获取
-        if self._storage and hasattr(self._storage, 'get_scenario'):
-            try:
-                scenario = self._storage.get_scenario(scenario_id)
-                if scenario:
-                    # 同步到内存
-                    self._scenarios[scenario_id] = scenario
-                    return scenario
-            except Exception as e:
-                logger.warning(f"从 MongoDB 获取场景失败: {e}")
-        
-        # 回退到内存数据
-        return self._scenarios.get(scenario_id)
+        return self._db.get_scenario(scenario_id)
 
     def get_documents(self, scenario_id: str) -> List[Dict[str, Any]]:
         """获取场景文档"""
-        # 从 MongoDB 获取
-        if self._storage and hasattr(self._storage, 'get_scenario_documents'):
-            try:
-                documents = self._storage.get_scenario_documents(scenario_id)
-                # 同步到内存
-                if documents:
-                    self._documents[scenario_id] = documents
-                return documents
-            except Exception as e:
-                logger.warning(f"从 MongoDB 获取文档失败: {e}")
-        
-        # 回退到内存数据
-        return self._documents.get(scenario_id, [])
+        return self._db.get_scenario_documents(scenario_id)
 
     def sync_to_graphiti(self, scenario_id: str) -> Dict[str, Any]:
         """将场景同步到 Graphiti"""
-        if scenario_id not in self._scenarios:
+        scenario = self._db.get_scenario(scenario_id)
+        if not scenario:
             return {"status": "error", "error": f"Scenario {scenario_id} not found"}
         
-        documents = self._documents.get(scenario_id, [])
+        documents = self._db.get_scenario_documents(scenario_id)
         
         if not self._graph_manager:
             return {"status": "warning", "message": "GraphManager not initialized, using fallback", "synced_scenario": scenario_id}
@@ -328,7 +184,6 @@ class ScenarioStore:
             synced_events = 0
             
             for doc in documents:
-                # 同步实体
                 if "entities" in doc:
                     for entity_dict in doc["entities"]:
                         entity_id = entity_dict.get("entity_id", "")
@@ -336,7 +191,6 @@ class ScenarioStore:
                         properties = entity_dict.get("basic_properties", {})
                         
                         if entity_id:
-                            # 添加name属性到properties以便在Graphiti中显示
                             if "name" in entity_dict and "name" not in properties:
                                 properties["name"] = entity_dict["name"]
                             
@@ -347,13 +201,11 @@ class ScenarioStore:
                             )
                             synced_entities += 1
                 
-                # 同步事件和关系
                 if "events" in doc:
                     for event_dict in doc["events"]:
                         participants = event_dict.get("participants", [])
                         event_type = event_dict.get("event_type", "ASSOCIATION")
                         
-                        # 为事件参与者创建关系
                         if len(participants) >= 2:
                             for i in range(len(participants) - 1):
                                 source = participants[i]
@@ -375,12 +227,11 @@ class ScenarioStore:
                                 )
                                 synced_events += 1
             
-            # 更新场景统计
-            if scenario_id in self._scenarios:
-                self._scenarios[scenario_id]["last_synced"] = datetime.now(timezone.utc).isoformat()
-                self._scenarios[scenario_id]["synced_entities"] = synced_entities
-                self._scenarios[scenario_id]["synced_events"] = synced_events
-                self._save()
+            self._db.update_scenario(scenario_id, {
+                "last_synced": datetime.now(timezone.utc).isoformat(),
+                "synced_entities": synced_entities,
+                "synced_events": synced_events,
+            })
             
             return {
                 "status": "success",

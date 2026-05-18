@@ -146,8 +146,44 @@ class SQLiteIngestStorage:
                 created_at TEXT NOT NULL,
                 created_by TEXT DEFAULT 'system',
                 is_current INTEGER DEFAULT 0,
-                is_stable INTEGER DEFAULT 0
+                is_stable INTEGER DEFAULT 0,
+                doc_snapshot TEXT,
+                doc_id TEXT,
+                doc_type TEXT,
+                entity_count INTEGER DEFAULT 0,
+                relation_count INTEGER DEFAULT 0,
+                event_count INTEGER DEFAULT 0
             )
+        ''')
+
+        # 创建实体注册表（实体消歧核心）
+        cursor.execute('''
+            CREATE TABLE IF NOT EXISTS entity_registry (
+                canonical_id TEXT PRIMARY KEY,
+                entity_type TEXT NOT NULL,
+                name TEXT NOT NULL,
+                name_en TEXT DEFAULT '',
+                aliases TEXT DEFAULT '[]',
+                ontology_id TEXT,
+                basic_properties TEXT DEFAULT '{}',
+                statistical_properties TEXT DEFAULT '{}',
+                capabilities TEXT DEFAULT '{}',
+                source_doc_id TEXT,
+                mention_count INTEGER DEFAULT 1,
+                first_seen_at TEXT NOT NULL,
+                last_seen_at TEXT NOT NULL,
+                confidence REAL DEFAULT 1.0
+            )
+        ''')
+
+        # 创建名称查找索引
+        cursor.execute('''
+            CREATE INDEX IF NOT EXISTS idx_entity_registry_type_name
+            ON entity_registry(entity_type, name)
+        ''')
+        cursor.execute('''
+            CREATE INDEX IF NOT EXISTS idx_entity_registry_ontology
+            ON entity_registry(ontology_id)
         ''')
         
         # 创建验证结果表
@@ -204,9 +240,254 @@ class SQLiteIngestStorage:
             )
         ''')
         
+        self._migrate_ontology_versions(conn)
+        self._init_scenario_tables(conn)
+
         conn.commit()
         conn.close()
     
+    def _migrate_ontology_versions(self, conn):
+        cursor = conn.cursor()
+        existing = {row[1] for row in cursor.execute("PRAGMA table_info(ontology_versions)").fetchall()}
+        for col, col_type, default in [
+            ('doc_snapshot', 'TEXT', None),
+            ('doc_id', 'TEXT', None),
+            ('doc_type', 'TEXT', None),
+            ('entity_count', 'INTEGER', '0'),
+            ('relation_count', 'INTEGER', '0'),
+            ('event_count', 'INTEGER', '0'),
+        ]:
+            if col not in existing:
+                sql = f"ALTER TABLE ontology_versions ADD COLUMN {col} {col_type}"
+                if default is not None:
+                    sql += f" DEFAULT {default}"
+                cursor.execute(sql)
+
+    def _init_scenario_tables(self, conn):
+        cursor = conn.cursor()
+
+        cursor.execute('''
+            CREATE TABLE IF NOT EXISTS scenarios (
+                scenario_id TEXT PRIMARY KEY,
+                name TEXT NOT NULL,
+                description TEXT DEFAULT '',
+                workspace_id TEXT DEFAULT 'default',
+                ontology_id TEXT,
+                doc_count INTEGER DEFAULT 0,
+                event_count INTEGER DEFAULT 0,
+                entity_count INTEGER DEFAULT 0,
+                created_at TEXT NOT NULL,
+                last_synced TEXT,
+                synced_entities INTEGER DEFAULT 0,
+                synced_events INTEGER DEFAULT 0
+            )
+        ''')
+
+        cursor.execute('''
+            CREATE TABLE IF NOT EXISTS scenario_documents (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                scenario_id TEXT NOT NULL,
+                doc_id TEXT NOT NULL,
+                meta TEXT DEFAULT '{}',
+                entities TEXT DEFAULT '[]',
+                events TEXT DEFAULT '[]',
+                relations TEXT DEFAULT '[]',
+                ontology_version TEXT,
+                created_at TEXT,
+                FOREIGN KEY (scenario_id) REFERENCES scenarios(scenario_id)
+            )
+        ''')
+
+        cursor.execute('''
+            CREATE INDEX IF NOT EXISTS idx_scenario_documents_sid
+            ON scenario_documents(scenario_id)
+        ''')
+
+    # 场景相关
+    def save_scenario(self, scenario: Dict[str, Any]) -> str:
+        conn = self._get_conn()
+        cursor = conn.cursor()
+        cursor.execute('''
+            INSERT OR REPLACE INTO scenarios
+            (scenario_id, name, description, workspace_id, ontology_id,
+             doc_count, event_count, entity_count, created_at, last_synced,
+             synced_entities, synced_events)
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+        ''', (
+            scenario.get('scenario_id'),
+            scenario.get('name', ''),
+            scenario.get('description', ''),
+            scenario.get('workspace_id', 'default'),
+            scenario.get('ontology_id'),
+            scenario.get('doc_count', 0),
+            scenario.get('event_count', 0),
+            scenario.get('entity_count', 0),
+            scenario.get('created_at', datetime.now().isoformat()),
+            scenario.get('last_synced'),
+            scenario.get('synced_entities', 0),
+            scenario.get('synced_events', 0),
+        ))
+        conn.commit()
+        conn.close()
+        return scenario.get('scenario_id')
+
+    def list_scenarios(self) -> List[Dict[str, Any]]:
+        conn = self._get_conn()
+        cursor = conn.cursor()
+        cursor.execute('SELECT * FROM scenarios ORDER BY created_at DESC')
+        rows = cursor.fetchall()
+        conn.close()
+        return [self._row_to_scenario(row) for row in rows]
+
+    def get_scenario(self, scenario_id: str) -> Optional[Dict[str, Any]]:
+        conn = self._get_conn()
+        cursor = conn.cursor()
+        cursor.execute('SELECT * FROM scenarios WHERE scenario_id = ?', (scenario_id,))
+        row = cursor.fetchone()
+        conn.close()
+        if not row:
+            return None
+        return self._row_to_scenario(row)
+
+    def update_scenario(self, scenario_id: str, updates: Dict[str, Any]) -> bool:
+        conn = self._get_conn()
+        cursor = conn.cursor()
+        sets = []
+        vals = []
+        for k, v in updates.items():
+            if k != 'scenario_id':
+                sets.append(f"{k} = ?")
+                vals.append(v)
+        if not sets:
+            conn.close()
+            return False
+        vals.append(scenario_id)
+        cursor.execute(f'UPDATE scenarios SET {", ".join(sets)} WHERE scenario_id = ?', vals)
+        affected = cursor.rowcount
+        conn.commit()
+        conn.close()
+        return affected > 0
+
+    def add_scenario_document(self, scenario_id: str, doc: Dict[str, Any]) -> int:
+        conn = self._get_conn()
+        cursor = conn.cursor()
+        cursor.execute('''
+            INSERT INTO scenario_documents
+            (scenario_id, doc_id, meta, entities, events, relations, ontology_version, created_at)
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+        ''', (
+            scenario_id,
+            doc.get('doc_id', ''),
+            self._serialize_json(doc.get('meta', {})),
+            self._serialize_json(doc.get('entities', [])),
+            self._serialize_json(doc.get('events', [])),
+            self._serialize_json(doc.get('relations', [])),
+            self._serialize_json(doc.get('ontology_version')),
+            doc.get('created_at', datetime.now().isoformat()),
+        ))
+        doc_row_id = cursor.lastrowid
+
+        cursor.execute('''
+            UPDATE scenarios SET
+            doc_count = (SELECT COUNT(*) FROM scenario_documents WHERE scenario_id = ?),
+            event_count = (SELECT SUM(json_array_length(events)) FROM scenario_documents WHERE scenario_id = ?),
+            entity_count = (SELECT SUM(json_array_length(entities)) FROM scenario_documents WHERE scenario_id = ?)
+            WHERE scenario_id = ?
+        ''', (scenario_id, scenario_id, scenario_id, scenario_id))
+
+        conn.commit()
+        conn.close()
+        return doc_row_id
+
+    def get_scenario_documents(self, scenario_id: str) -> List[Dict[str, Any]]:
+        conn = self._get_conn()
+        cursor = conn.cursor()
+        cursor.execute('SELECT * FROM scenario_documents WHERE scenario_id = ? ORDER BY id', (scenario_id,))
+        rows = cursor.fetchall()
+        conn.close()
+        return [self._row_to_scenario_doc(row) for row in rows]
+
+    def get_scenario_timeline(self, scenario_id: str) -> List[Dict[str, Any]]:
+        docs = self.get_scenario_documents(scenario_id)
+        events = []
+        for doc in docs:
+            for evt in doc.get("events", []):
+                events.append(evt)
+        events.sort(key=lambda x: x.get("timestamp", ""))
+        return events
+
+    def get_scenario_entities(self, scenario_id: str) -> List[Dict[str, Any]]:
+        docs = self.get_scenario_documents(scenario_id)
+        entity_map: Dict[str, Dict] = {}
+        for doc in docs:
+            for entity in doc.get("entities", []):
+                eid = entity.get("entity_id")
+                if eid:
+                    entity_map[eid] = entity
+        return list(entity_map.values())
+
+    def get_scenario_relations(self, scenario_id: str) -> Dict[str, Any]:
+        entities = self.get_scenario_entities(scenario_id)
+        docs = self.get_scenario_documents(scenario_id)
+        nodes = []
+        links = []
+        node_ids = set()
+        for entity in entities:
+            eid = entity.get("entity_id")
+            if eid and eid not in node_ids:
+                nodes.append({
+                    "id": eid,
+                    "name": entity.get("name", eid),
+                    "type": entity.get("entity_type", "Entity"),
+                    "side": entity.get("basic_properties", {}).get("side"),
+                })
+                node_ids.add(eid)
+        for doc in docs:
+            for event in doc.get("events", []):
+                participants = event.get("participants", [])
+                if len(participants) >= 2:
+                    for i in range(len(participants) - 1):
+                        source = participants[i]
+                        target = participants[i + 1]
+                        if source in node_ids and target in node_ids:
+                            links.append({
+                                "id": f"rel-{source[:4]}{target[:4]}{i}",
+                                "source": source,
+                                "target": target,
+                                "type": event.get("event_type", "association"),
+                                "event_id": event.get("event_id"),
+                            })
+        return {"nodes": nodes, "links": links}
+
+    def _row_to_scenario(self, row) -> Dict[str, Any]:
+        return {
+            'scenario_id': row[0],
+            'name': row[1],
+            'description': row[2],
+            'workspace_id': row[3],
+            'ontology_id': row[4],
+            'doc_count': row[5],
+            'event_count': row[6],
+            'entity_count': row[7],
+            'created_at': row[8],
+            'last_synced': row[9],
+            'synced_entities': row[10],
+            'synced_events': row[11],
+        }
+
+    def _row_to_scenario_doc(self, row) -> Dict[str, Any]:
+        return {
+            'id': row[0],
+            'scenario_id': row[1],
+            'doc_id': row[2],
+            'meta': self._deserialize_json(row[3]) or {},
+            'entities': self._deserialize_json(row[4]) or [],
+            'events': self._deserialize_json(row[5]) or [],
+            'relations': self._deserialize_json(row[6]) or [],
+            'ontology_version': self._deserialize_json(row[7]),
+            'created_at': row[8],
+        }
+
     def _serialize_json(self, data: Any) -> str:
         """序列化JSON数据"""
         return json.dumps(data, ensure_ascii=False, default=str)
@@ -662,8 +943,9 @@ class SQLiteIngestStorage:
         cursor.execute('''
             INSERT OR REPLACE INTO ontology_versions 
             (id, ontology_id, version_number, parent_version_id, status, changes, 
-             change_summary, created_at, created_by, is_current, is_stable)
-            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+             change_summary, created_at, created_by, is_current, is_stable,
+             doc_snapshot, doc_id, doc_type, entity_count, relation_count, event_count)
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
         ''', (
             version.get('id'),
             version.get('ontology_id'),
@@ -675,13 +957,59 @@ class SQLiteIngestStorage:
             version.get('created_at'),
             version.get('created_by', 'system'),
             1 if version.get('is_current', False) else 0,
-            1 if version.get('is_stable', False) else 0
+            1 if version.get('is_stable', False) else 0,
+            version.get('doc_snapshot'),
+            version.get('doc_id'),
+            version.get('doc_type'),
+            version.get('entity_count', 0),
+            version.get('relation_count', 0),
+            version.get('event_count', 0)
         ))
         
         conn.commit()
         conn.close()
         return version.get('id')
     
+    def _row_to_version(self, row) -> Dict[str, Any]:
+        return {
+            'id': row[0],
+            'ontology_id': row[1],
+            'version_number': row[2],
+            'parent_version_id': row[3],
+            'status': row[4],
+            'changes': self._deserialize_json(row[5]),
+            'change_summary': row[6],
+            'created_at': row[7],
+            'created_by': row[8],
+            'is_current': bool(row[9]),
+            'is_stable': bool(row[10]),
+            'doc_snapshot': self._deserialize_json(row[11]) if row[11] else None,
+            'doc_id': row[12],
+            'doc_type': row[13],
+            'entity_count': row[14] or 0,
+            'relation_count': row[15] or 0,
+            'event_count': row[16] or 0,
+        }
+
+    def _row_to_version_summary(self, row) -> Dict[str, Any]:
+        return {
+            'id': row[0],
+            'ontology_id': row[1],
+            'version_number': row[2],
+            'parent_version_id': row[3],
+            'status': row[4],
+            'change_summary': row[6],
+            'created_at': row[7],
+            'created_by': row[8],
+            'is_current': bool(row[9]),
+            'is_stable': bool(row[10]),
+            'doc_id': row[12],
+            'doc_type': row[13],
+            'entity_count': row[14] or 0,
+            'relation_count': row[15] or 0,
+            'event_count': row[16] or 0,
+        }
+
     def get_version(self, version_id: str) -> Optional[Dict[str, Any]]:
         """获取版本"""
         conn = self._get_conn()
@@ -695,19 +1023,7 @@ class SQLiteIngestStorage:
         if not row:
             return None
         
-        return {
-            'id': row[0],
-            'ontology_id': row[1],
-            'version_number': row[2],
-            'parent_version_id': row[3],
-            'status': row[4],
-            'changes': self._deserialize_json(row[5]),
-            'change_summary': row[6],
-            'created_at': row[7],
-            'created_by': row[8],
-            'is_current': bool(row[9]),
-            'is_stable': bool(row[10])
-        }
+        return self._row_to_version(row)
     
     def get_current_version(self, ontology_id: str) -> Optional[Dict[str, Any]]:
         """获取当前版本"""
@@ -726,19 +1042,7 @@ class SQLiteIngestStorage:
         if not row:
             return None
         
-        return {
-            'id': row[0],
-            'ontology_id': row[1],
-            'version_number': row[2],
-            'parent_version_id': row[3],
-            'status': row[4],
-            'changes': self._deserialize_json(row[5]),
-            'change_summary': row[6],
-            'created_at': row[7],
-            'created_by': row[8],
-            'is_current': bool(row[9]),
-            'is_stable': bool(row[10])
-        }
+        return self._row_to_version(row)
     
     def get_versions(self, ontology_id: str) -> List[Dict[str, Any]]:
         """获取版本列表"""
@@ -754,20 +1058,7 @@ class SQLiteIngestStorage:
         
         conn.close()
         
-        versions = []
-        for row in rows:
-            versions.append({
-                'id': row[0],
-                'ontology_id': row[1],
-                'version_number': row[2],
-                'parent_version_id': row[3],
-                'status': row[4],
-                'change_summary': row[6],
-                'created_at': row[7],
-                'is_current': bool(row[9]),
-                'is_stable': bool(row[10])
-            })
-        return versions
+        return [self._row_to_version_summary(row) for row in rows]
 
     def list_all_versions(self) -> List[Dict[str, Any]]:
         conn = self._get_conn()
@@ -775,20 +1066,7 @@ class SQLiteIngestStorage:
         cursor.execute('SELECT * FROM ontology_versions ORDER BY created_at DESC')
         rows = cursor.fetchall()
         conn.close()
-        versions = []
-        for row in rows:
-            versions.append({
-                'id': row[0],
-                'ontology_id': row[1],
-                'version_number': row[2],
-                'parent_version_id': row[3],
-                'status': row[4],
-                'change_summary': row[6],
-                'created_at': row[7],
-                'is_current': bool(row[9]),
-                'is_stable': bool(row[10])
-            })
-        return versions
+        return [self._row_to_version_summary(row) for row in rows]
 
     def update_version(self, version_id: str, version_data: Dict[str, Any]) -> bool:
         """更新版本"""
@@ -798,7 +1076,8 @@ class SQLiteIngestStorage:
         cursor.execute('''
             UPDATE ontology_versions SET 
             status = ?, changes = ?, change_summary = ?, 
-            is_current = ?, is_stable = ?
+            is_current = ?, is_stable = ?,
+            doc_snapshot = ?, entity_count = ?, relation_count = ?, event_count = ?
             WHERE id = ?
         ''', (
             version_data.get('status'),
@@ -806,6 +1085,10 @@ class SQLiteIngestStorage:
             version_data.get('change_summary'),
             1 if version_data.get('is_current', False) else 0,
             1 if version_data.get('is_stable', False) else 0,
+            self._serialize_json(version_data.get('doc_snapshot')) if version_data.get('doc_snapshot') else None,
+            version_data.get('entity_count', 0),
+            version_data.get('relation_count', 0),
+            version_data.get('event_count', 0),
             version_id
         ))
         
@@ -813,7 +1096,220 @@ class SQLiteIngestStorage:
         conn.commit()
         conn.close()
         return affected > 0
-    
+
+    def set_current_version(self, ontology_id: str, version_id: str) -> bool:
+        """设置指定版本为当前版本（同时清除同本体其他版本的 is_current）"""
+        conn = self._get_conn()
+        cursor = conn.cursor()
+        
+        cursor.execute('UPDATE ontology_versions SET is_current = 0 WHERE ontology_id = ?', (ontology_id,))
+        cursor.execute('UPDATE ontology_versions SET is_current = 1 WHERE id = ? AND ontology_id = ?', (version_id, ontology_id))
+        
+        affected = cursor.rowcount
+        conn.commit()
+        conn.close()
+        return affected > 0
+
+    def append_version_snapshot(self, ontology_id: str, snapshot_data: Dict[str, Any]) -> bool:
+        """追加更新当前版本的快照数据（版本ID不变，内容更新）"""
+        conn = self._get_conn()
+        cursor = conn.cursor()
+
+        cursor.execute('''
+            UPDATE ontology_versions SET
+            doc_snapshot = ?, doc_id = ?, doc_type = ?,
+            entity_count = ?, relation_count = ?, event_count = ?,
+            change_summary = ?, status = ?
+            WHERE ontology_id = ? AND is_current = 1
+        ''', (
+            self._serialize_json(snapshot_data.get('doc_snapshot')) if snapshot_data.get('doc_snapshot') else None,
+            snapshot_data.get('doc_id'),
+            snapshot_data.get('doc_type'),
+            snapshot_data.get('entity_count', 0),
+            snapshot_data.get('relation_count', 0),
+            snapshot_data.get('event_count', 0),
+            snapshot_data.get('change_summary', ''),
+            snapshot_data.get('status', 'draft'),
+            ontology_id,
+        ))
+
+        affected = cursor.rowcount
+        conn.commit()
+        conn.close()
+        return affected > 0
+
+    def lock_version(self, version_id: str) -> bool:
+        """锁定版本（标记为 stable，不可再追加）"""
+        conn = self._get_conn()
+        cursor = conn.cursor()
+
+        cursor.execute('''
+            UPDATE ontology_versions SET is_stable = 1, status = 'released'
+            WHERE id = ?
+        ''', (version_id,))
+
+        affected = cursor.rowcount
+        conn.commit()
+        conn.close()
+        return affected > 0
+
+    # 实体注册表相关
+    def lookup_entity(self, entity_type: str, name: str, ontology_id: str = None) -> Optional[Dict[str, Any]]:
+        """按 type+name 查找已注册实体"""
+        conn = self._get_conn()
+        cursor = conn.cursor()
+        if ontology_id:
+            cursor.execute(
+                'SELECT * FROM entity_registry WHERE entity_type = ? AND name = ? AND ontology_id = ? LIMIT 1',
+                (entity_type, name, ontology_id)
+            )
+        else:
+            cursor.execute(
+                'SELECT * FROM entity_registry WHERE entity_type = ? AND name = ? LIMIT 1',
+                (entity_type, name)
+            )
+        row = cursor.fetchone()
+        conn.close()
+        if not row:
+            return None
+        return self._row_to_registry(row)
+
+    def lookup_entity_by_alias(self, entity_type: str, alias: str, ontology_id: str = None) -> Optional[Dict[str, Any]]:
+        """按别名查找已注册实体（JSON 数组包含查询）"""
+        conn = self._get_conn()
+        cursor = conn.cursor()
+        if ontology_id:
+            cursor.execute(
+                "SELECT * FROM entity_registry WHERE entity_type = ? AND ontology_id = ? AND aliases LIKE ? LIMIT 1",
+                (entity_type, ontology_id, f'%"{alias}"%')
+            )
+        else:
+            cursor.execute(
+                "SELECT * FROM entity_registry WHERE entity_type = ? AND aliases LIKE ? LIMIT 1",
+                (entity_type, f'%"{alias}"%')
+            )
+        row = cursor.fetchone()
+        conn.close()
+        if not row:
+            return None
+        return self._row_to_registry(row)
+
+    def register_entity(self, entity: Dict[str, Any]) -> str:
+        """注册新实体到注册表"""
+        conn = self._get_conn()
+        cursor = conn.cursor()
+        cursor.execute('''
+            INSERT OR REPLACE INTO entity_registry
+            (canonical_id, entity_type, name, name_en, aliases, ontology_id,
+             basic_properties, statistical_properties, capabilities,
+             source_doc_id, mention_count, first_seen_at, last_seen_at, confidence)
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+        ''', (
+            entity.get('canonical_id'),
+            entity.get('entity_type'),
+            entity.get('name'),
+            entity.get('name_en', ''),
+            self._serialize_json(entity.get('aliases', [])),
+            entity.get('ontology_id'),
+            self._serialize_json(entity.get('basic_properties', {})),
+            self._serialize_json(entity.get('statistical_properties', {})),
+            self._serialize_json(entity.get('capabilities', {})),
+            entity.get('source_doc_id'),
+            entity.get('mention_count', 1),
+            entity.get('first_seen_at'),
+            entity.get('last_seen_at'),
+            entity.get('confidence', 1.0),
+        ))
+        conn.commit()
+        conn.close()
+        return entity.get('canonical_id')
+
+    def update_entity_mentions(self, canonical_id: str, new_properties: Dict[str, Any] = None, new_aliases: List[str] = None) -> bool:
+        """更新实体提及次数和属性（合并模式）"""
+        conn = self._get_conn()
+        cursor = conn.cursor()
+
+        cursor.execute('SELECT * FROM entity_registry WHERE canonical_id = ?', (canonical_id,))
+        row = cursor.fetchone()
+        if not row:
+            conn.close()
+            return False
+
+        existing = self._row_to_registry(row)
+
+        if new_aliases:
+            merged_aliases = list(set(existing.get('aliases', []) + new_aliases))
+        else:
+            merged_aliases = existing.get('aliases', [])
+
+        if new_properties:
+            merged_basic = {**existing.get('basic_properties', {}), **new_properties.get('basic_properties', {})}
+            merged_stat = {**existing.get('statistical_properties', {}), **new_properties.get('statistical_properties', {})}
+            merged_cap = {**existing.get('capabilities', {}), **new_properties.get('capabilities', {})}
+        else:
+            merged_basic = existing.get('basic_properties', {})
+            merged_stat = existing.get('statistical_properties', {})
+            merged_cap = existing.get('capabilities', {})
+
+        now = datetime.now().isoformat()
+        cursor.execute('''
+            UPDATE entity_registry SET
+            aliases = ?, basic_properties = ?, statistical_properties = ?,
+            capabilities = ?, mention_count = mention_count + 1,
+            last_seen_at = ?
+            WHERE canonical_id = ?
+        ''', (
+            self._serialize_json(merged_aliases),
+            self._serialize_json(merged_basic),
+            self._serialize_json(merged_stat),
+            self._serialize_json(merged_cap),
+            now,
+            canonical_id,
+        ))
+
+        affected = cursor.rowcount
+        conn.commit()
+        conn.close()
+        return affected > 0
+
+    def get_registry_entities(self, ontology_id: str = None, entity_type: str = None) -> List[Dict[str, Any]]:
+        """获取注册表实体列表"""
+        conn = self._get_conn()
+        cursor = conn.cursor()
+        if ontology_id and entity_type:
+            cursor.execute(
+                'SELECT * FROM entity_registry WHERE ontology_id = ? AND entity_type = ? ORDER BY last_seen_at DESC',
+                (ontology_id, entity_type)
+            )
+        elif ontology_id:
+            cursor.execute(
+                'SELECT * FROM entity_registry WHERE ontology_id = ? ORDER BY last_seen_at DESC',
+                (ontology_id,)
+            )
+        else:
+            cursor.execute('SELECT * FROM entity_registry ORDER BY last_seen_at DESC LIMIT 200')
+        rows = cursor.fetchall()
+        conn.close()
+        return [self._row_to_registry(row) for row in rows]
+
+    def _row_to_registry(self, row) -> Dict[str, Any]:
+        return {
+            'canonical_id': row[0],
+            'entity_type': row[1],
+            'name': row[2],
+            'name_en': row[3],
+            'aliases': self._deserialize_json(row[4]) or [],
+            'ontology_id': row[5],
+            'basic_properties': self._deserialize_json(row[6]) or {},
+            'statistical_properties': self._deserialize_json(row[7]) or {},
+            'capabilities': self._deserialize_json(row[8]) or {},
+            'source_doc_id': row[9],
+            'mention_count': row[10],
+            'first_seen_at': row[11],
+            'last_seen_at': row[12],
+            'confidence': row[13],
+        }
+
     # 验证结果相关
     def save_validation_result(self, validation_result: Dict[str, Any]) -> str:
         """保存验证结果"""

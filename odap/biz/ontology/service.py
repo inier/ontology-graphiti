@@ -5,6 +5,8 @@
 2. 本体版本管理
 3. 策略执行模拟
 4. 策略版本回退
+
+存储: SQLite 单源（ingest.db）
 """
 
 import sys
@@ -13,24 +15,22 @@ import json
 import datetime
 import shutil
 
-# 确保当前目录在Python路径中
 sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 from odap.biz.ontology.schema.domain import ENTITY_TYPES, ROLES, DOMAIN_CONFIG
 
+
+def _get_db():
+    from odap.biz.ontology.storage.sqlite_ingest_storage import SQLiteIngestStorage
+    return SQLiteIngestStorage()
+
+
 class OntologyManager:
     """
-    本体管理器
+    本体管理器 — SQLite 单源
     """
     
     def __init__(self, ontology_dir="ontology/versions", policy_dir="core/policies"):
-        """
-        初始化本体管理器
-
-        Args:
-            ontology_dir: 本体版本存储目录
-            policy_dir: 策略版本存储目录
-        """
         self.ontology_dir = ontology_dir
         self.policy_dir = policy_dir
         self.current_ontology = {
@@ -38,21 +38,49 @@ class OntologyManager:
             "roles": ROLES,
             "domain_config": DOMAIN_CONFIG
         }
-        self.policy_history = []  # 策略执行历史
+        self.policy_history = []
         self._ensure_dir()
+        self._migrate_json_records()
         print("本体管理器初始化成功")
 
     def _ensure_dir(self):
-        """
-        确保本体版本目录和策略目录存在
-        """
         if not os.path.exists(self.ontology_dir):
             os.makedirs(self.ontology_dir)
-            print(f"创建本体版本目录: {self.ontology_dir}")
-
         if not os.path.exists(self.policy_dir):
             os.makedirs(self.policy_dir)
-            print(f"创建策略版本目录: {self.policy_dir}")
+
+    def _migrate_json_records(self):
+        """一次性迁移: version_record.json → SQLite"""
+        record_file = os.path.join(self.ontology_dir, "version_record.json")
+        if not os.path.exists(record_file):
+            return
+
+        db = _get_db()
+        conn = db._get_conn()
+        cursor = conn.cursor()
+        cursor.execute("SELECT COUNT(*) FROM ontology_versions")
+        if cursor.fetchone()[0] > 0:
+            conn.close()
+            return
+
+        try:
+            with open(record_file, 'r', encoding='utf-8') as f:
+                records = json.load(f)
+            for rec in records:
+                version = rec.get("version", "")
+                description = rec.get("description", "")
+                timestamp = rec.get("timestamp", "")
+                cursor.execute('''
+                    INSERT OR IGNORE INTO ontology_versions
+                    (id, ontology_id, version_number, status, change_summary, created_at, created_by)
+                    VALUES (?, ?, ?, ?, ?, ?, ?)
+                ''', (f"legacy-{version}", None, version, "stable", description, timestamp, "system"))
+            conn.commit()
+            conn.close()
+            print(f"迁移 {len(records)} 条版本记录到 SQLite")
+        except Exception as e:
+            conn.close()
+            print(f"迁移版本记录失败: {e}")
 
     def export_ontology(self, version=None, description=""):
         """
@@ -195,29 +223,17 @@ class OntologyManager:
         return success
 
     def _update_version_record(self, version, description):
-        """
-        更新版本记录
-
-        Args:
-            version: 版本号
-            description: 版本描述
-        """
-        record_file = os.path.join(self.ontology_dir, "version_record.json")
-
-        if os.path.exists(record_file):
-            with open(record_file, 'r', encoding='utf-8') as f:
-                records = json.load(f)
-        else:
-            records = []
-
-        records.append({
-            "version": version,
-            "description": description,
-            "timestamp": datetime.datetime.now().isoformat()
-        })
-
-        with open(record_file, 'w', encoding='utf-8') as f:
-            json.dump(records, f, ensure_ascii=False, indent=2)
+        """写入版本记录到 SQLite"""
+        db = _get_db()
+        conn = db._get_conn()
+        cursor = conn.cursor()
+        cursor.execute('''
+            INSERT OR IGNORE INTO ontology_versions
+            (id, ontology_id, version_number, status, change_summary, created_at, created_by)
+            VALUES (?, ?, ?, ?, ?, ?, ?)
+        ''', (f"legacy-{version}", None, version, "stable", description, datetime.datetime.now().isoformat(), "system"))
+        conn.commit()
+        conn.close()
 
     def get_current_ontology(self):
         """
@@ -393,31 +409,17 @@ class OntologyManager:
         return success
 
     def _update_policy_record(self, policy_name, version, description):
-        """
-        更新策略记录
-
-        Args:
-            policy_name: 策略名称
-            version: 版本号
-            description: 版本描述
-        """
-        record_file = os.path.join(self.policy_dir, "policy_record.json")
-
-        if os.path.exists(record_file):
-            with open(record_file, 'r', encoding='utf-8') as f:
-                records = json.load(f)
-        else:
-            records = []
-
-        records.append({
-            "policy_name": policy_name,
-            "version": version,
-            "description": description,
-            "timestamp": datetime.datetime.now().isoformat()
-        })
-
-        with open(record_file, 'w', encoding='utf-8') as f:
-            json.dump(records, f, ensure_ascii=False, indent=2)
+        """写入策略记录到 SQLite"""
+        db = _get_db()
+        conn = db._get_conn()
+        cursor = conn.cursor()
+        cursor.execute('''
+            INSERT OR IGNORE INTO ontology_versions
+            (id, ontology_id, version_number, status, change_summary, created_at, created_by)
+            VALUES (?, ?, ?, ?, ?, ?, ?)
+        ''', (f"policy-{policy_name}-{version}", None, version, "stable", f"[策略] {policy_name}: {description}", datetime.datetime.now().isoformat(), "system"))
+        conn.commit()
+        conn.close()
 
     def simulate_policy_execution(self, role, action, target_type=None):
         """

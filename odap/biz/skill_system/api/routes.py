@@ -33,20 +33,6 @@ async def register_skill(
         raise HTTPException(status_code=500, detail=str(e))
 
 
-@router.get("/skills/{skill_id}")
-async def get_skill(skill_id: str):
-    """获取Skill"""
-    try:
-        result = skill_service.get_skill(skill_id)
-        if result.get("status") == "error":
-            raise HTTPException(status_code=404, detail=result.get("message"))
-        return result
-    except HTTPException:
-        raise
-    except Exception as e:
-        raise HTTPException(status_code=500, detail=str(e))
-
-
 @router.get("/skills")
 async def list_skills(
     page: int = Query(1, ge=1),
@@ -66,6 +52,29 @@ async def list_skills(
             filters["category"] = category
         
         return skill_service.list_skills(filters, page, page_size)
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@router.get("/skills/loaded")
+async def get_loaded_skills():
+    """获取已加载的Skills"""
+    try:
+        return {"skills": hotplug_service.get_loaded_skills()}
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@router.get("/skills/{skill_id}")
+async def get_skill(skill_id: str):
+    """获取Skill"""
+    try:
+        result = skill_service.get_skill(skill_id)
+        if result.get("status") == "error":
+            raise HTTPException(status_code=404, detail=result.get("message"))
+        return result
+    except HTTPException:
+        raise
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
 
@@ -117,14 +126,5 @@ async def unload_skill(skill_id: str):
     """卸载Skill"""
     try:
         return hotplug_service.unload_skill(skill_id)
-    except Exception as e:
-        raise HTTPException(status_code=500, detail=str(e))
-
-
-@router.get("/skills/loaded")
-async def get_loaded_skills():
-    """获取已加载的Skills"""
-    try:
-        return {"skills": hotplug_service.get_loaded_skills()}
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))

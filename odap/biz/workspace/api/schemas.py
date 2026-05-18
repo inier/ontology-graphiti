@@ -231,11 +231,14 @@ class OntologyVersionResponse(BaseModel):
     """本体版本响应"""
     version_id: str
     ontology_id: str
-    doc_id: str
-    doc_type: str
+    version_number: str = "1.0.0"
+    doc_id: Optional[str] = None
+    doc_type: Optional[str] = None
     parent_version: Optional[str] = None
     commit_message: str
     created_at: str
+    is_current: bool = False
+    is_stable: bool = False
     entity_count: int = 0
     relation_count: int = 0
     event_count: int = 0

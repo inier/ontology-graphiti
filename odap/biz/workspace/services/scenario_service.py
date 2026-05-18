@@ -43,26 +43,10 @@ class ScenarioService:
 
     def _ensure_initial_version(self, ontology_id: str, scenario_name: str = "") -> None:
         """确保本体有初始版本"""
-        from odap.biz.ontology.storage.sqlite_ingest_storage import SQLiteIngestStorage
         try:
-            storage = SQLiteIngestStorage()
-            existing = storage.get_versions(ontology_id)
-            if existing:
-                return
-            version_id = f"v{datetime.now().strftime('%Y%m%d')}-001"
-            storage.save_version({
-                'id': version_id,
-                'ontology_id': ontology_id,
-                'version_number': '1.0.0',
-                'parent_version_id': None,
-                'status': 'released',
-                'changes': '',
-                'change_summary': f'初始版本 - {scenario_name}' if scenario_name else '初始版本',
-                'created_at': datetime.now().isoformat(),
-                'created_by': 'system',
-                'is_current': 1,
-                'is_stable': 1,
-            })
+            from odap.biz.ontology.version_manager import OntologyVersionManager
+            vm = OntologyVersionManager.get_instance()
+            vm.ensure_initial_version(ontology_id, scenario_name)
         except Exception:
             pass
     

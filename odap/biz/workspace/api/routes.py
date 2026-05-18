@@ -469,9 +469,6 @@ async def build_graph_for_scenario(workspace_id: str, scenario_id: str):
 @router.get("/{workspace_id}/scenarios/{scenario_id}/versions", response_model=List[OntologyVersionResponse])
 async def get_scenario_versions(workspace_id: str, scenario_id: str):
     """获取场景绑定本体的版本列表"""
-    from odap.biz.ontology.storage.sqlite_ingest_storage import SQLiteIngestStorage
-    from datetime import datetime
-    
     try:
         scenario = scenario_service.get_scenario(scenario_id)
         if not scenario:
@@ -499,64 +496,71 @@ async def get_scenario_versions(workspace_id: str, scenario_id: str):
         if not ontology_id:
             return []
         
-        versions = []
-        
-        try:
-            all_versions = await version_manager.list_by_ontology(ontology_id)
-            versions = [OntologyVersionResponse(**v.to_dict()) for v in all_versions]
-        except Exception:
-            pass
-        
-        try:
-            ingest_storage = SQLiteIngestStorage()
-            ingest_versions = ingest_storage.list_all_versions()
-            seen_ids = {v.version_id for v in versions}
-            for v in ingest_versions:
-                vid = v.get("id", "")
-                if vid and vid not in seen_ids:
-                    v_ontology = v.get("ontology_id", "")
-                    if v_ontology == ontology_id:
-                        versions.append(OntologyVersionResponse(
-                            version_id=vid,
-                            ontology_id=v_ontology,
-                            doc_id="",
-                            doc_type="",
-                            parent_version=v.get("parent_version_id"),
-                            commit_message=v.get("change_summary", v.get("version_number", "")),
-                            created_at=v.get("created_at", datetime.now().isoformat()),
-                            entity_count=0,
-                            relation_count=0,
-                            event_count=0
-                        ))
-        except Exception:
-            pass
-        
-        if not versions:
-            try:
-                from odap.biz.workspace.services.scenario_service import ScenarioService
-                svc = ScenarioService()
-                svc._ensure_initial_version(ontology_id, scenario.get("name", ""))
-                ingest_storage2 = SQLiteIngestStorage()
-                for v in ingest_storage2.list_all_versions():
-                    if v.get("ontology_id") == ontology_id:
-                        versions.append(OntologyVersionResponse(
-                            version_id=v.get("id", ""),
-                            ontology_id=v.get("ontology_id", ""),
-                            doc_id="",
-                            doc_type="",
-                            parent_version=v.get("parent_version_id"),
-                            commit_message=v.get("change_summary", v.get("version_number", "")),
-                            created_at=v.get("created_at", datetime.now().isoformat()),
-                            entity_count=0,
-                            relation_count=0,
-                            event_count=0
-                        ))
-            except Exception:
-                pass
-        
-        return versions
+        all_versions = await version_manager.list_by_ontology(ontology_id)
+        return [OntologyVersionResponse(**v.to_dict()) for v in all_versions]
     except HTTPException:
         raise
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@router.post("/{workspace_id}/scenarios/{scenario_id}/commit-version", response_model=OntologyVersionResponse)
+async def commit_scenario_version(workspace_id: str, scenario_id: str, message: str = ""):
+    """手动提交版本：锁定当前版本 + 创建新版本"""
+    try:
+        scenario = scenario_service.get_scenario(scenario_id)
+        if not scenario:
+            try:
+                from odap.biz.frontend_compat.api.routes import scenario_store as compat_store
+                scenario = compat_store.get_scenario(scenario_id)
+            except Exception:
+                pass
+        if not scenario:
+            try:
+                from odap.web.api.app import scenario_store as global_scenario_store
+                scenario = global_scenario_store.get_scenario(scenario_id)
+            except Exception:
+                pass
+        if not scenario:
+            raise HTTPException(status_code=404, detail="Scenario not found")
+        scenario_ws = scenario.get("workspace_id", "")
+        if scenario_ws and scenario_ws != workspace_id and scenario_ws != "default":
+            raise HTTPException(status_code=404, detail="Scenario not found")
+        if scenario_ws == "default":
+            scenario["workspace_id"] = workspace_id
+
+        ontology_id = scenario.get("ontology_id")
+        if not ontology_id:
+            raise HTTPException(status_code=400, detail="Scenario is not bound to an ontology")
+
+        new_version = await version_manager.commit(ontology_id, message=message or "")
+        return OntologyVersionResponse(**new_version.to_dict())
+    except HTTPException:
+        raise
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@router.get("/{workspace_id}/data-conflicts")
+async def scan_data_conflicts(workspace_id: str):
+    """扫描数据冲突（同名实体不同ID）"""
+    try:
+        from odap.biz.ontology.data_cleaner import DataCleaner
+        cleaner = DataCleaner()
+        result = cleaner.scan()
+        return result
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@router.post("/{workspace_id}/data-conflicts/repair")
+async def repair_data_conflicts(workspace_id: str, dry_run: bool = True):
+    """修复数据冲突（合并同名实体为确定性ID）"""
+    try:
+        from odap.biz.ontology.data_cleaner import DataCleaner
+        cleaner = DataCleaner()
+        result = cleaner.repair(dry_run=dry_run)
+        return result
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
 
@@ -590,35 +594,14 @@ async def switch_scenario_version(workspace_id: str, scenario_id: str, request: 
         if not ontology_id:
             raise HTTPException(status_code=400, detail="Scenario is not bound to an ontology")
         
-        # 验证版本是否存在且属于该本体
         if request.version_id == "latest":
             new_version_id = None
         else:
-            from odap.biz.ontology.storage.sqlite_ingest_storage import SQLiteIngestStorage
-            
-            version_found = False
-            try:
-                version = await version_manager.get(request.version_id)
-                if version and version.ontology_id == ontology_id:
-                    version_found = True
-            except Exception:
-                pass
-            
-            if not version_found:
-                try:
-                    ingest_storage = SQLiteIngestStorage()
-                    ingest_v = ingest_storage.get_version(request.version_id)
-                    if ingest_v and ingest_v.get("ontology_id") == ontology_id:
-                        version_found = True
-                except Exception:
-                    pass
-            
-            if not version_found:
+            version = await version_manager.get(request.version_id)
+            if not version or version.ontology_id != ontology_id:
                 raise HTTPException(status_code=404, detail="Version not found or does not belong to the bound ontology")
-            
             new_version_id = request.version_id
         
-        # 更新场景的当前版本
         result = scenario_service.update_scenario(scenario_id, {"current_ontology_version": new_version_id})
         if result.get("status") == "error":
             raise HTTPException(status_code=400, detail=result.get("message"))
@@ -633,8 +616,6 @@ async def switch_scenario_version(workspace_id: str, scenario_id: str, request: 
 @router.get("/{workspace_id}/scenarios/{scenario_id}/versions/{version_id}/data")
 async def get_version_data(workspace_id: str, scenario_id: str, version_id: str):
     """获取指定版本的本体数据"""
-    from odap.biz.ontology.storage.sqlite_ingest_storage import SQLiteIngestStorage
-    
     try:
         scenario = scenario_service.get_scenario(scenario_id)
         if not scenario:
@@ -664,48 +645,24 @@ async def get_version_data(workspace_id: str, scenario_id: str, version_id: str)
         if version_id == "latest":
             raise HTTPException(status_code=400, detail="此端点仅支持指定版本ID，使用 entities/relations API 获取最新数据")
         
-        # 验证版本并获取数据
-        entities_data = []
-        relations_data = []
-        events_data = []
-        version_found = False
-        
-        # 1. 尝试 version_manager
-        try:
-            version = await version_manager.get(version_id)
-            if version and version.ontology_id == ontology_id:
-                version_found = True
-                doc = await version_manager.get_doc(version_id)
-                if doc:
-                    entities_data = [e.to_dict() for e in doc.entities]
-                    relations_data = [r.to_dict() for r in doc.relations]
-                    events_data = [e.to_dict() for e in doc.events]
-        except Exception:
-            pass
-        
-        # 2. 尝试 SQLite ingest storage
-        if not version_found:
-            try:
-                ingest_storage = SQLiteIngestStorage()
-                ingest_v = ingest_storage.get_version(version_id)
-                if ingest_v and ingest_v.get("ontology_id") == ontology_id:
-                    version_found = True
-                    doc_snapshot = ingest_v.get("doc_snapshot", {})
-                    if isinstance(doc_snapshot, dict):
-                        entities_data = doc_snapshot.get("entities", doc_snapshot.get("nodes", []))
-                        relations_data = doc_snapshot.get("relations", doc_snapshot.get("edges", []))
-                        events_data = doc_snapshot.get("events", [])
-            except Exception:
-                pass
-        
-        if not version_found:
+        version = await version_manager.get(version_id)
+        if not version or version.ontology_id != ontology_id:
             raise HTTPException(status_code=404, detail="Version not found or does not belong to the bound ontology")
+        
+        doc = await version_manager.get_doc(version_id)
+        if doc:
+            return {
+                "version_id": version_id,
+                "entities": [e.to_dict() for e in doc.entities],
+                "relations": [r.to_dict() for r in doc.relations],
+                "events": [e.to_dict() for e in doc.events]
+            }
         
         return {
             "version_id": version_id,
-            "entities": entities_data,
-            "relations": relations_data,
-            "events": events_data
+            "entities": [],
+            "relations": [],
+            "events": []
         }
     except HTTPException:
         raise

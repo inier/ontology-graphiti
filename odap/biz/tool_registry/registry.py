@@ -222,9 +222,11 @@ class SemanticToolDiscovery:
         self._semantic_index: Dict[str, List[str]] = {}
         self._keyword_index: Dict[str, List[str]] = {}
         self._capability_index: Dict[str, List[str]] = {}
+        self._tool_metadata_store: Dict[str, ToolMetadata] = {}
 
     def index_tool(self, metadata: ToolMetadata):
         """索引工具元数据"""
+        self._tool_metadata_store[metadata.name] = metadata
         name_parts = re.split(r'[_\-]', metadata.name.lower())
         for part in name_parts:
             if part not in self._keyword_index:
@@ -293,8 +295,8 @@ class SemanticToolDiscovery:
     def _get_all_indexed_tools(self) -> List[tuple]:
         """获取所有已索引的工具"""
         tools = []
-        for name in self._semantic_index:
-            tools.append((name, self._semantic_index[name]))
+        for name, metadata in self._tool_metadata_store.items():
+            tools.append((name, metadata))
         return tools
 
     def _get_tool_metadata(self, name: str) -> Optional[ToolMetadata]:
@@ -572,7 +574,7 @@ class ToolRegistry:
             if capability and capability not in reg.metadata.capabilities:
                 continue
 
-            results.append(self._format_tool_info(reg))
+            tools.append(self._format_tool_info(reg))
 
         return tools
 

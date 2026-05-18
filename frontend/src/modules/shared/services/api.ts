@@ -1489,7 +1489,20 @@ export const api = {
     if (params?.page) searchParams.set('page', String(params.page));
     if (params?.page_size) searchParams.set('page_size', String(params.page_size));
     const queryString = searchParams.toString();
-    return fetchJson(`${API_BASE}/api/roles${queryString ? `?${queryString}` : ''}`);
+    const data = await fetchJson<unknown>(`${API_BASE}/api/roles${queryString ? `?${queryString}` : ''}`);
+    if (Array.isArray(data)) {
+      return {
+        roles: data.map((r: any) => ({
+          role_id: r.id,
+          name: r.name,
+          description: r.description || '',
+          permissions: (r.permissions || []).map((p: any) => typeof p === 'string' ? p : p.id || p.name),
+          created_at: r.created_at || '',
+        })),
+        total: data.length,
+      };
+    }
+    return data as any;
   },
 
   async createRole(data: {

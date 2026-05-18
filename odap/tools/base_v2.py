@@ -27,9 +27,10 @@ sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 from tools.base import BaseSkill, SkillInput, SkillOutput, SkillMetadata, SkillRegistry, get_registry
 
 try:
-    from opa_service_v2 import OPAManagerV2
+    from odap.infra.opa.opa_service_v2 import OPAManagerV2
     OPA_AVAILABLE = True
 except ImportError:
+    OPAManagerV2 = None
     OPA_AVAILABLE = False
 
 
@@ -66,14 +67,14 @@ class SkillHealthInfo:
     name: str
     status: str
     health: str
+    registered_at: str = ""
+    last_modified: str = ""
     total_calls: int = 0
     success_calls: int = 0
     failed_calls: int = 0
     avg_execution_time_ms: float = 0
     last_execution_time: Optional[str] = None
     last_error: Optional[str] = None
-    registered_at: str
-    last_modified: str
 
 
 @dataclass

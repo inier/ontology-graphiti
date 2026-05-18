@@ -88,12 +88,24 @@ class TemporalInfo:
     is_current: bool = True
 
 
+import hashlib
+
+
+def deterministic_entity_id(entity_type: str, name: str) -> str:
+    """基于 entity_type + name 生成确定性 entity_id，同名同类型总是同一 ID"""
+    raw = f"{entity_type}:{name}".encode("utf-8")
+    short = hashlib.sha256(raw).hexdigest()[:8]
+    type_prefix = entity_type.lower()[:3]
+    return f"entity-{type_prefix}-{short}"
+
+
 @dataclass
 class OntologyEntity:
     entity_id: str = field(default_factory=lambda: f"entity-{uuid.uuid4().hex[:8]}")
     entity_type: str = EntityType.UNIT.value
     name: str = ""
     name_en: str = ""
+    aliases: List[str] = field(default_factory=list)
     basic_properties: Dict[str, Any] = field(default_factory=dict)
     statistical_properties: Dict[str, Any] = field(default_factory=dict)
     capabilities: Dict[str, Any] = field(default_factory=dict)
@@ -101,6 +113,12 @@ class OntologyEntity:
 
     def to_dict(self) -> Dict[str, Any]:
         return asdict(self)
+
+    def resolve_id(self) -> str:
+        """基于 type+name 生成确定性 ID（如果 name 非空）"""
+        if self.name:
+            return deterministic_entity_id(self.entity_type, self.name)
+        return self.entity_id
 
 
 @dataclass

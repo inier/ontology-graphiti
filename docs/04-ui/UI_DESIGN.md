@@ -1,7 +1,7 @@
 # ODAP 前端 UI 设计稿
 
-> **版本**: 1.0.0 | **日期**: 2026-04-16
-> **状态**: 设计中 | **优先级**: P0
+> **版本**: 2.0.0 | **日期**: 2026-05-18
+> **状态**: 已更新 | **优先级**: P0
 
 ---
 
@@ -480,8 +480,63 @@
 
 ---
 
-## 12. 相关文档
+## 12. 实现状态追踪
+
+### 12.1 页面实现状态
+
+| 页面 | 路由 | 组件 | 状态 | 备注 |
+|------|------|------|------|------|
+| 我的智能体 | `/my-agents` | MyAgents | ✅ 已实现 | AgentChat 使用 setTimeout 模拟回复 |
+| 智能体对话 | `/agent-chat/:agentId` | AgentChat | ⚠️ 部分实现 | 需对接真实 API |
+| 智能体管理 | `/admin/agents` | AgentManagement | ✅ 已实现 | |
+| 本体语义网络 | `/admin` | OntologySemanticNetwork | ✅ 已实现 | AntV G6 图谱可视化 |
+| 数据摄入 | `/admin/ingest` | IngestPanel | ✅ 已实现 | 支持文本/新闻/随机/导入 |
+| 模拟推演 | `/admin/simulator` | Simulator | ✅ 已实现 | |
+| 角色管理 | `/admin/roles` | RoleManager | ✅ 已实现 | |
+| 策略管理 | `/admin/policies` | PolicyManagement | ✅ 已实现 | |
+| 技能管理 | `/admin/skills` | SkillManagement | ✅ 已实现 | |
+| 审计日志 | `/admin/audit` | AuditLog | ✅ 已实现 | |
+| 工作空间 | `/admin/workspace` | WorkspaceManager | ✅ 已实现 | |
+| 知识库 | `/admin/knowledge` | KnowledgeBase | ✅ 已实现 | |
+| 业务逻辑 | `/admin/business-logic` | Logic | ✅ 已实现 | |
+| 业务规则 | `/admin/business-rules` | Rules | ✅ 已实现 | |
+| 智能问答 | `/qa` | QAChatPage | ⚠️ 部分实现 | 组件过大(1365行)，存在逻辑 bug |
+| 首页仪表盘 | `/` | MyAgents (替代) | ❌ 未实现 | 设计中有仪表盘，实际用智能体列表替代 |
+| 时间线 | `/timeline` | - | ❌ 未实现 | |
+| 态势地图 | `/map` | - | ❌ 未实现 | |
+| 版本管理 | `/versions` | - | ❌ 未实现 | |
+
+### 12.2 设计与实现差异
+
+| 设计项 | 设计描述 | 实际实现 | 差异 |
+|--------|---------|---------|------|
+| 首页 | 仪表盘(统计卡片+图谱预览+事件列表+趋势图) | MyAgents 智能体列表 | 完全不同 |
+| 导航菜单 | 12项(含时间线/地图/推演/摄入/版本/配置/角色/策略/审计/Skill) | 17项路由(含业务逻辑/规则/知识库) | 部分不同 |
+| 图谱节点样式 | 5种形状(圆/方/菱/六边/星) | AntV G6 默认样式 | 未完全实现 |
+| 响应式 | 4断点(超大屏/桌面/平板/移动) | 仅桌面端 | 未实现响应式 |
+| 实时通信 | WebSocket + SSE | 未实现 | 完全缺失 |
+| 国际化 | zh-CN/en-US | 未实现 | 完全缺失 |
+
+### 12.3 废弃组件清单
+
+| 组件 | 模块 | 状态 | 建议 |
+|------|------|------|------|
+| QAChat | qa | 旧版，被 QAChatPage 替代 | 删除 |
+| AuditTimeline | audit | 导出但未使用 | 删除或移入内部 |
+| SimulatorConsole | ingest | 导出但未使用 | 删除或移入内部 |
+| GraphView | ontology | 导出但未使用 | 删除或移入内部 |
+| OntologyBuilder | ontology | 导出但未使用 | 删除或移入内部 |
+| GraphCanvas | ontology | 导出但未使用 | 删除或移入内部 |
+| OntologyIngestPipeline | ontology | 导出但未使用 | 删除或移入内部 |
+| WorkspaceSwitcher | workspace | 导出但未使用 | 保留（Header 中需要） |
+
+---
+
+## 13. 相关文档
 
 - [ADR-007: 前端采用 React + Ant Design 技术栈](../07-adr/ADR-007_前端采用_react_ant_design_技术栈.md)
 - [ADR-031: 模拟器 Web 可视化与实时本体热写入](../07-adr/ADR-031_simulator_web_visualization_realtime_ontology.md)
-- [Web 模块设计](../../03-modules/web/DESIGN.md)
+- [Web 模块设计](../03-modules/web_frontend/DESIGN.md)
+- [前端组件设计文档](./FRONTEND_COMPONENT_DESIGN.md)
+- [组件规范](./COMPONENT_SPEC.md)
+- [组件层级](./COMPONENT_HIERARCHY.md)

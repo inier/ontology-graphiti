@@ -1,0 +1,16 @@
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+asyncio_mode = "auto"
+markers = [
+    "unit: 单元测试",
+    "integration: 集成测试（需要外部服务）",
+    "slow: 慢速测试",
+    "e2e: 端到端测试",
+]
+addopts = "-v --tb=short"
+filterwarnings = [
+    "ignore::DeprecationWarning",
+]
+
+[tool.pytest-asyncio]
+asyncio_mode = "auto"

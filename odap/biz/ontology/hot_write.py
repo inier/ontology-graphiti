@@ -84,8 +84,8 @@ class OntologyHotWritePipeline:
         if not final_ontology_id:
             raise ValueError("需要提供 ontology_id，或者 doc.ontology_id 必须已设置")
 
-        # ── 2. 版本化 ───────────────────────────────────
-        version = await self.versions.commit(final_ontology_id, doc)
+        # ── 2. 版本化（追加到当前版本） ────────────────
+        version = await self.versions.append(final_ontology_id, doc)
 
         # ── 3. 写入 Graphiti ────────────────────────────
         if self.graph is not None:
