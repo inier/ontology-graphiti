@@ -19,6 +19,7 @@ export type UseQAIOptions = {
   sessionId?: string;
   workspaceId?: string;
   scenarioId?: string;
+  agentId?: string;
   onError?: (error: Error) => void;
   onSessionUpdate?: () => void;
 }
@@ -61,7 +62,7 @@ function createAssistantMessage(
   };
 }
 
-export function useQAI({ sessionId: initialSessionId, workspaceId, scenarioId, onError, onSessionUpdate }: UseQAIOptions = {}): UseQAIReturn {
+export function useQAI({ sessionId: initialSessionId, workspaceId, scenarioId, agentId, onError, onSessionUpdate }: UseQAIOptions = {}): UseQAIReturn {
   const [sessionId, setSessionIdState] = useState<string | null>(initialSessionId || null);
   const [messages, setMessages] = useState<QAMessage[]>([]);
   const [status, setStatus] = useState<'idle' | 'submitting' | 'streaming' | 'error' | 'waiting_for_input'>('idle');
@@ -163,6 +164,7 @@ export function useQAI({ sessionId: initialSessionId, workspaceId, scenarioId, o
           session_id: sessionId,
           workspace_id: workspaceId,
           scenario_id: scenarioId,
+          agent_id: agentId,
         }),
         signal: abortControllerRef.current.signal,
       });
@@ -286,7 +288,7 @@ export function useQAI({ sessionId: initialSessionId, workspaceId, scenarioId, o
         return prev;
       });
     }
-  }, [sessionId, status, onError, workspaceId, scenarioId]);
+  }, [sessionId, status, onError, workspaceId, scenarioId, agentId]);
 
   return {
     messages,

@@ -761,8 +761,35 @@ class GraphManager:
         return False
 
     def _update_entity_graphiti(self, entity_id, properties):
-        """Graphiti模式：更新实体"""
-        return False
+        """Graphiti模式：更新实体（通过 Episode 描述属性变更）"""
+        async def update():
+            try:
+                parts = [f"{entity_id} 的属性发生了更新"]
+                for key, value in properties.items():
+                    parts.append(f"它的 {key} 现在是 {value}")
+                episode_text = "。".join(parts)
+
+                await self.graph.add_episode(
+                    name=f"update_{entity_id}",
+                    content=episode_text,
+                    source_description=f"属性更新: {entity_id}",
+                    reference_time=datetime.now(timezone.utc),
+                    update_communities=False
+                )
+                return True
+            except Exception as e:
+                print(f"Graphiti 更新实体失败: {e}")
+                return self._update_entity_fallback(entity_id, properties)
+
+        try:
+            loop = asyncio.get_running_loop()
+            if loop.is_running():
+                import concurrent.futures
+                with concurrent.futures.ThreadPoolExecutor() as pool:
+                    return pool.submit(lambda: asyncio.run(update())).result(timeout=30)
+            return asyncio.run(update())
+        except RuntimeError:
+            return asyncio.run(update())
 
     def get_statistics(self) -> Dict[str, Any]:
         """
@@ -986,8 +1013,36 @@ class GraphManager:
 
     def _add_relationship_graphiti(self, source_id: str, target_id: str,
                                    relationship: str, properties: Dict = None):
-        """Graphiti模式：添加关系"""
-        return False
+        """Graphiti模式：添加关系（通过 Episode 描述关系变更）"""
+        async def add_rel():
+            try:
+                parts = [f"{source_id} 与 {target_id} 之间建立了 {relationship} 关系"]
+                if properties:
+                    for key, value in properties.items():
+                        parts.append(f"该关系的 {key} 是 {value}")
+                episode_text = "。".join(parts)
+
+                await self.graph.add_episode(
+                    name=f"rel_{source_id}_{target_id}",
+                    content=episode_text,
+                    source_description=f"关系建立: {relationship}",
+                    reference_time=datetime.now(timezone.utc),
+                    update_communities=False
+                )
+                return True
+            except Exception as e:
+                print(f"Graphiti 添加关系失败: {e}")
+                return self._add_relationship_fallback(source_id, target_id, relationship, properties or {})
+
+        try:
+            loop = asyncio.get_running_loop()
+            if loop.is_running():
+                import concurrent.futures
+                with concurrent.futures.ThreadPoolExecutor() as pool:
+                    return pool.submit(lambda: asyncio.run(add_rel())).result(timeout=30)
+            return asyncio.run(add_rel())
+        except RuntimeError:
+            return asyncio.run(add_rel())
 
     def search(self, query: str, limit: int = 10) -> List[Dict]:
         """

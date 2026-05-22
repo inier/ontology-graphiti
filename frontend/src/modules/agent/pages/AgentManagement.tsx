@@ -5,7 +5,7 @@ import { agentApi } from '../services/agentApi';
 import { api } from '../../shared/services/api';
 import { processApi, ruleApi, logicApi, indicatorApi } from '../../business/services/businessApi';
 import { knowledgeApi } from '../../knowledge/services/knowledgeApi';
-import { useScenario } from '../../shared/components/AppLayout';
+import { useScenario, useWorkspace } from '../../shared/components/AppLayout';
 import type { Agent, AgentFormData } from '../types';
 
 const AVATAR_OPTIONS = Array.from({ length: 10 }, (_, i) =>
@@ -19,6 +19,7 @@ interface RefOption {
 
 export function AgentManagement() {
   const { currentScenario } = useScenario();
+  const { currentWorkspace } = useWorkspace();
   const [agents, setAgents] = useState<Agent[]>([]);
   const [loading, setLoading] = useState(false);
   const [searchText, setSearchText] = useState('');
@@ -29,8 +30,9 @@ export function AgentManagement() {
   const [form] = Form.useForm<AgentFormData>();
   const [selectedAvatar, setSelectedAvatar] = useState(AVATAR_OPTIONS[0]);
 
-  // 关联选项 - 从本体版本配置获取
   const [entityOptions, setEntityOptions] = useState<RefOption[]>([]);
+  const [processOptions, setProcessOptions] = useState<RefOption[]>([]);
+  const [ruleOptions, setRuleOptions] = useState<RefOption[]>([]);
   const [businessLogicOptions, setBusinessLogicOptions] = useState<RefOption[]>([]);
   const [indicatorOptions, setIndicatorOptions] = useState<RefOption[]>([]);
   const [skillOptions, setSkillOptions] = useState<RefOption[]>([]);
@@ -42,7 +44,6 @@ export function AgentManagement() {
     loadRefOptions();
   }, []);
 
-  // 当场景变化时重新加载关联选项
   useEffect(() => {
     if (currentScenario) {
       loadEntityOptions();
@@ -61,87 +62,69 @@ export function AgentManagement() {
     }
   };
 
-  // 从当前本体版本获取实体类型
   const loadEntityOptions = async () => {
-    if (!currentScenario) return;
     try {
-      // 通过 buildGraph API 获取当前场景的实体类型
-      const result = await api.buildGraph('', currentScenario);
-      if (result.entities) {
-        const options = result.entities
-          .filter((e: any) => e.type === 'EntityType' || e.type === 'entity_type')
-          .map((e: any) => ({
-            id: e.id || e.name,
-            name: e.name || e.id,
-          }));
-        // 如果没有专门的实体类型，使用所有实体的类型去重
-        if (options.length === 0) {
-          const typeSet = new Set<string>();
-          result.entities.forEach((e: any) => {
-            if (e.type) typeSet.add(e.type);
-          });
-          typeSet.forEach(type => {
-            options.push({ id: type, name: type });
-          });
-        }
+      const schema = await api.getOntologySchema();
+      const entityTypes = schema?.entity_types || {};
+      const options = Object.keys(entityTypes).map(key => ({ id: key, name: key }));
+      if (options.length > 0) {
         setEntityOptions(options);
+        return;
       }
     } catch (e) {
-      console.warn('加载实体类型失败', e);
-      // 降级：尝试从 entities API 获取
-      try {
-        const entities = await api.getEntities(currentScenario);
-        const typeSet = new Map<string, string>();
-        entities.forEach((e: any) => {
-          if (e.type && !typeSet.has(e.type)) {
-            typeSet.set(e.type, e.type);
-          }
-        });
-        setEntityOptions(Array.from(typeSet.entries()).map(([id, name]) => ({ id, name })));
-      } catch (e2) {
-        console.warn('降级加载实体类型失败', e2);
+      console.warn('getOntologySchema 加载实体类型失败', e);
+    }
+    try {
+      const result = await api.queryEntities({}, currentWorkspace || undefined);
+      const typeSet = new Set<string>();
+      (result.entities || []).forEach((e: any) => {
+        const t = e.type || e.entity_type;
+        if (t) typeSet.add(t);
+      });
+      if (typeSet.size > 0) {
+        setEntityOptions(Array.from(typeSet).map(t => ({ id: t, name: t })));
       }
+    } catch (e) {
+      console.warn('queryEntities 加载实体类型失败', e);
     }
   };
 
   const loadRefOptions = async () => {
     try {
-      // 并行加载所有关联选项
       const [
+        processes,
+        rules,
         businessLogics,
         indicators,
         skills,
         knowledgeBases,
         roles,
       ] = await Promise.all([
-        // 业务逻辑：包含业务过程、规则、逻辑
-        Promise.all([
-          processApi.list().catch(() => []),
-          ruleApi.list().catch(() => []),
-          logicApi.list().catch(() => []),
-        ]).then(([ps, rs, ls]) => [
-          ...ps.map(p => ({ id: p.process_id, name: p.display_name || p.name })),
-          ...rs.map(r => ({ id: r.rule_id, name: r.display_name || r.name })),
-          ...ls.map(l => ({ id: l.logic_id, name: l.display_name || l.name })),
-        ]),
-        // 指标
-        indicatorApi.list().catch(() => []).then(items =>
-          items.map(i => ({ id: i.indicator_id, name: i.display_name || i.name }))
+        processApi.list().catch(() => []).then(items =>
+          items.map((p: any) => ({ id: p.process_id || p.name, name: p.display_name || p.name }))
         ),
-        // 技能
+        ruleApi.list().catch(() => []).then(items =>
+          items.map((r: any) => ({ id: r.rule_id || r.name, name: r.display_name || r.name }))
+        ),
+        logicApi.list().catch(() => []).then(items =>
+          items.map((l: any) => ({ id: l.logic_id || l.name, name: l.display_name || l.name }))
+        ),
+        indicatorApi.list().catch(() => []).then(items =>
+          items.map((i: any) => ({ id: i.indicator_id || i.name, name: i.display_name || i.name }))
+        ),
         api.listSkills().catch(() => ({ skills: [] })).then(r =>
           r.skills.map((s: any) => ({ id: s.skill_id || s.name, name: s.name }))
         ),
-        // 知识库
         knowledgeApi.listKnowledgeBases().catch(() => []).then(items =>
-          items.map(k => ({ id: k.kb_id, name: k.name }))
+          items.map((k: any) => ({ id: k.kb_id, name: k.name }))
         ),
-        // 角色
         api.listRoles().catch(() => ({ roles: [] })).then(r =>
-          r.roles.map((role: any) => ({ id: role.role_id, name: role.name }))
+          r.roles.map((role: any) => ({ id: role.role_id || role.id, name: role.name }))
         ),
       ]);
 
+      setProcessOptions(processes);
+      setRuleOptions(rules);
       setBusinessLogicOptions(businessLogics);
       setIndicatorOptions(indicators);
       setSkillOptions(skills);
@@ -168,6 +151,8 @@ export function AgentManagement() {
       description: agent.description,
       main_object: agent.main_object,
       related_objects: agent.related_objects,
+      related_processes: agent.related_processes,
+      related_rules: agent.related_rules,
       related_business_logic: agent.related_business_logic,
       related_indicators: agent.related_indicators,
       related_skills: agent.related_skills,
@@ -239,24 +224,35 @@ export function AgentManagement() {
       render: (v: string) => <Tag color="blue">{v}</Tag>,
     },
     {
-      title: '关联业务逻辑',
-      dataIndex: 'related_business_logic',
+      title: '业务过程',
+      dataIndex: 'related_processes',
       width: 120,
       render: (items: string[]) => (
         <Space size={4} wrap>
-          {items.slice(0, 2).map(o => <Tag key={o} color="cyan">{o}</Tag>)}
-          {items.length > 2 && <Tag>+{items.length - 2}</Tag>}
+          {(items || []).slice(0, 2).map(o => <Tag key={o} color="green">{o}</Tag>)}
+          {(items || []).length > 2 && <Tag>+{items.length - 2}</Tag>}
         </Space>
       ),
     },
     {
-      title: '关联指标',
-      dataIndex: 'related_indicators',
-      width: 100,
+      title: '业务规则',
+      dataIndex: 'related_rules',
+      width: 120,
       render: (items: string[]) => (
         <Space size={4} wrap>
-          {items.slice(0, 2).map(o => <Tag key={o} color="orange">{o}</Tag>)}
-          {items.length > 2 && <Tag>+{items.length - 2}</Tag>}
+          {(items || []).slice(0, 2).map(o => <Tag key={o} color="orange">{o}</Tag>)}
+          {(items || []).length > 2 && <Tag>+{items.length - 2}</Tag>}
+        </Space>
+      ),
+    },
+    {
+      title: '业务逻辑',
+      dataIndex: 'related_business_logic',
+      width: 120,
+      render: (items: string[]) => (
+        <Space size={4} wrap>
+          {(items || []).slice(0, 2).map(o => <Tag key={o} color="cyan">{o}</Tag>)}
+          {(items || []).length > 2 && <Tag>+{items.length - 2}</Tag>}
         </Space>
       ),
     },
@@ -266,8 +262,8 @@ export function AgentManagement() {
       width: 100,
       render: (items: string[]) => (
         <Space size={4} wrap>
-          {items.slice(0, 2).map(o => <Tag key={o} color="purple">{o}</Tag>)}
-          {items.length > 2 && <Tag>+{items.length - 2}</Tag>}
+          {(items || []).slice(0, 2).map(o => <Tag key={o} color="purple">{o}</Tag>)}
+          {(items || []).length > 2 && <Tag>+{items.length - 2}</Tag>}
         </Space>
       ),
     },
@@ -277,8 +273,8 @@ export function AgentManagement() {
       width: 100,
       render: (items: string[]) => (
         <Space size={4} wrap>
-          {items.slice(0, 2).map(o => <Tag key={o} color="green">{o}</Tag>)}
-          {items.length > 2 && <Tag>+{items.length - 2}</Tag>}
+          {(items || []).slice(0, 2).map(o => <Tag key={o} color="geekblue">{o}</Tag>)}
+          {(items || []).length > 2 && <Tag>+{items.length - 2}</Tag>}
         </Space>
       ),
     },
@@ -321,21 +317,29 @@ export function AgentManagement() {
         rowKey="agent_id"
         loading={loading}
         pagination={{ pageSize: 10 }}
-        scroll={{ x: 1000 }}
+        scroll={{ x: 1200 }}
       />
 
-      {/* 新建/编辑弹窗 */}
       <Modal
         title={editingAgent ? '编辑智能体' : '新建智能体'}
         open={modalOpen}
         onCancel={() => setModalOpen(false)}
         onOk={() => form.submit()}
         width={720}
-        destroyOnClose
+        destroyOnHidden
         okText="保存"
         cancelText="取消"
       >
-        <Form form={form} layout="vertical" onFinish={handleSave}>
+        <Form form={form} layout="vertical" onFinish={handleSave} initialValues={{
+          related_objects: [],
+          related_processes: [],
+          related_rules: [],
+          related_business_logic: [],
+          related_indicators: [],
+          related_skills: [],
+          related_knowledge_bases: [],
+          allowed_roles: [],
+        }}>
           <Form.Item
             name="name"
             label="智能体名称"
@@ -395,7 +399,7 @@ export function AgentManagement() {
               options={entityOptions.map(v => ({ value: v.id, label: v.name }))}
               showSearch
               optionFilterProp="label"
-              notFoundContent={currentScenario ? '暂无实体类型' : '请先选择场景'}
+              notFoundContent="暂无实体类型，请先构建本体图谱"
             />
           </Form.Item>
 
@@ -406,11 +410,31 @@ export function AgentManagement() {
               options={entityOptions.map(v => ({ value: v.id, label: v.name }))}
               showSearch
               optionFilterProp="label"
-              notFoundContent={currentScenario ? '暂无实体类型' : '请先选择场景'}
+              notFoundContent="暂无实体类型，请先构建本体图谱"
             />
           </Form.Item>
 
           <Divider>业务关联</Divider>
+
+          <Form.Item name="related_processes" label="关联业务过程">
+            <Select
+              mode="multiple"
+              placeholder="请选择关联的业务过程"
+              options={processOptions.map(o => ({ value: o.id, label: o.name }))}
+              showSearch
+              optionFilterProp="label"
+            />
+          </Form.Item>
+
+          <Form.Item name="related_rules" label="关联业务规则">
+            <Select
+              mode="multiple"
+              placeholder="请选择关联的业务规则"
+              options={ruleOptions.map(o => ({ value: o.id, label: o.name }))}
+              showSearch
+              optionFilterProp="label"
+            />
+          </Form.Item>
 
           <Form.Item name="related_business_logic" label="关联业务逻辑">
             <Select
@@ -422,7 +446,7 @@ export function AgentManagement() {
             />
           </Form.Item>
 
-          <Form.Item name="related_indicators" label="关联指标（分析视图）">
+          <Form.Item name="related_indicators" label="关联指标">
             <Select
               mode="multiple"
               placeholder="请选择关联的指标"
@@ -470,7 +494,6 @@ export function AgentManagement() {
         </Form>
       </Modal>
 
-      {/* 详情弹窗 */}
       <Modal
         title="智能体详情"
         open={detailOpen}
@@ -495,32 +518,42 @@ export function AgentManagement() {
               </Descriptions.Item>
               <Descriptions.Item label="关联对象">
                 <Space wrap>
-                  {viewingAgent.related_objects.map(o => <Tag key={o}>{o}</Tag>)}
+                  {(viewingAgent.related_objects || []).map(o => <Tag key={o}>{o}</Tag>)}
+                </Space>
+              </Descriptions.Item>
+              <Descriptions.Item label="关联业务过程">
+                <Space wrap>
+                  {(viewingAgent.related_processes || []).map(o => <Tag key={o} color="green">{o}</Tag>)}
+                </Space>
+              </Descriptions.Item>
+              <Descriptions.Item label="关联业务规则">
+                <Space wrap>
+                  {(viewingAgent.related_rules || []).map(o => <Tag key={o} color="orange">{o}</Tag>)}
                 </Space>
               </Descriptions.Item>
               <Descriptions.Item label="关联业务逻辑">
                 <Space wrap>
-                  {viewingAgent.related_business_logic.map(o => <Tag key={o} color="cyan">{o}</Tag>)}
+                  {(viewingAgent.related_business_logic || []).map(o => <Tag key={o} color="cyan">{o}</Tag>)}
                 </Space>
               </Descriptions.Item>
               <Descriptions.Item label="关联指标">
                 <Space wrap>
-                  {viewingAgent.related_indicators.map(o => <Tag key={o} color="orange">{o}</Tag>)}
+                  {(viewingAgent.related_indicators || []).map(o => <Tag key={o} color="volcano">{o}</Tag>)}
                 </Space>
               </Descriptions.Item>
               <Descriptions.Item label="可用技能">
                 <Space wrap>
-                  {viewingAgent.related_skills.map(o => <Tag key={o} color="purple">{o}</Tag>)}
+                  {(viewingAgent.related_skills || []).map(o => <Tag key={o} color="purple">{o}</Tag>)}
                 </Space>
               </Descriptions.Item>
               <Descriptions.Item label="关联知识库">
                 <Space wrap>
-                  {viewingAgent.related_knowledge_bases.map(o => <Tag key={o} color="geekblue">{o}</Tag>)}
+                  {(viewingAgent.related_knowledge_bases || []).map(o => <Tag key={o} color="geekblue">{o}</Tag>)}
                 </Space>
               </Descriptions.Item>
               <Descriptions.Item label="可见角色">
                 <Space wrap>
-                  {viewingAgent.allowed_roles.map(o => <Tag key={o} color="green">{o}</Tag>)}
+                  {(viewingAgent.allowed_roles || []).map(o => <Tag key={o} color="magenta">{o}</Tag>)}
                 </Space>
               </Descriptions.Item>
               <Descriptions.Item label="描述">{viewingAgent.description || '—'}</Descriptions.Item>

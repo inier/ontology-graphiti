@@ -346,7 +346,7 @@ export function BusinessEntityManager({
               key={entity.id}
               hoverable
               style={{ borderRadius: 8 }}
-              bodyStyle={{ padding: 16 }}
+              styles={{ body: { padding: 16 } }}
               onClick={() => handleView(entity)}
             >
               <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 8 }}>
@@ -434,7 +434,7 @@ export function BusinessEntityManager({
         onCancel={() => setModalOpen(false)}
         onOk={() => form.submit()}
         width={640}
-        destroyOnClose
+        destroyOnHidden
         okText="保存"
         cancelText="取消"
       >
@@ -622,7 +622,7 @@ export function BusinessEntityManager({
         title="详情"
         open={detailOpen}
         onClose={() => setDetailOpen(false)}
-        width={560}
+        size={560}
       >
         {viewingEntity && (
           <div>

@@ -1,0 +1,25 @@
+package policies.common
+
+import future.keywords.if
+
+default allow := false
+
+allow if {
+    input.user.role == "admin"
+}
+
+allow if {
+    input.action == "observe"
+}
+
+allow if {
+    input.action == "view"
+}
+
+escalation_risk := "high" if {
+    input.action == "attack"
+    input.target.category == "military"
+    input.target.threat_level == "critical"
+} else := "medium" if {
+    input.action == "attack"
+} else := "low"

@@ -280,7 +280,7 @@ class DataConverter:
             )
             nodes.append(node)
 
-        categories = [{"name": cat, "itemStyle": {"color": GraphData.__seed__}} for cat in category_set]
+        categories = [{"name": cat, "itemStyle": {"color": "#1890ff"}} for cat in category_set]
 
         edge_id_set = set()
         for rel in relationships:
@@ -350,8 +350,13 @@ class DataConverter:
             for layer_type, entities in layers.items()
         ]
 
-        center_lat = sum(e.latitude for e in layers.get(list(layers.keys())[0], [])) / max(len(layers.get(list(layers.keys())[0], [])), 1)
-        center_lon = sum(e.longitude for e in layers.get(list(layers.keys())[0], [])) / max(len(layers.get(list(layers.keys())[0], [])), 1)
+        if not layers:
+            return MapData(center_lat=39.9, center_lon=116.4, zoom=10, layers=map_layers)
+
+        first_key = list(layers.keys())[0]
+        first_entities = layers[first_key]
+        center_lat = sum(e.latitude for e in first_entities) / max(len(first_entities), 1)
+        center_lon = sum(e.longitude for e in first_entities) / max(len(first_entities), 1)
 
         return MapData(
             center_lat=center_lat or 39.9,

@@ -62,7 +62,7 @@ class TestWorkspaceAPI:
 
         update_payload = {"description": "已更新的工作空间描述"}
         update_resp = client.put(f"/api/workspaces/{workspace_id}", json=update_payload)
-        assert update_resp.status_code in [200, 404]
+        assert update_resp.status_code in [200, 201]
 
     def test_delete_workspace(self):
         """测试: 删除工作空间"""
@@ -85,7 +85,7 @@ class TestWorkspaceAPI:
         workspace_id = create_resp.json().get("workspace_id")
 
         add_resp = client.post(f"/api/workspaces/{workspace_id}/members/test-user-001", json={})
-        assert add_resp.status_code in [200, 201, 404]
+        assert add_resp.status_code in [200, 201]
 
     def test_workspace_import_export(self):
         """测试: 工作空间导入导出"""
@@ -96,7 +96,7 @@ class TestWorkspaceAPI:
 
         export_payload = {"workspace_id": workspace_id, "include_resources": True, "include_data": False}
         export_resp = client.post(f"/api/workspaces/import-export/export", json=export_payload)
-        assert export_resp.status_code in [200, 404, 500]
+        assert export_resp.status_code in [200, 201]
 
 
 class TestScenarioAPI:
@@ -110,10 +110,10 @@ class TestScenarioAPI:
             "workspace_id": "default"
         }
         response = client.post("/api/v1/admin/.scenarios", json=payload)
-        assert response.status_code in [200, 201, 404]
+        assert response.status_code in [200, 201]
         if response.status_code in [200, 201]:
             data = response.json()
-            assert data.get("status") in ["created", "ok", "success"]
+            assert data.get("status") == "created"
 
     def test_list_scenarios(self):
         """测试: 列出场景"""
@@ -121,12 +121,15 @@ class TestScenarioAPI:
         assert response.status_code in [200, 404]
         if response.status_code == 200:
             data = response.json()
-            assert "scenarios" in data or isinstance(data, list)
+            assert "scenarios" in data
 
     def test_get_scenario(self):
         """测试: 获取特定场景"""
         response = client.get("/api/v1/admin/.scenarios/default")
         assert response.status_code in [200, 404]
+        if response.status_code == 200:
+            data = response.json()
+            assert isinstance(data, dict)
 
     def test_delete_scenario(self):
         """测试: 删除场景"""
@@ -137,7 +140,7 @@ class TestScenarioAPI:
         """测试: 更新场景"""
         payload = {"name": "更新后的场景", "description": "更新测试"}
         response = client.patch("/api/v1/admin/.scenarios/test-update", json=payload)
-        assert response.status_code in [200, 404]
+        assert response.status_code in [200, 201]
 
 
 class TestOntologyIngestAPI:
@@ -151,7 +154,7 @@ class TestOntologyIngestAPI:
             "scenario_id": "default"
         }
         response = client.post("/api/v1/admin/ontology/ingest/text", json=payload)
-        assert response.status_code in [200, 201, 404, 500]
+        assert response.status_code in [200, 201]
 
     def test_ingest_json(self):
         """测试: JSON格式摄入"""
@@ -166,7 +169,7 @@ class TestOntologyIngestAPI:
             "scenario_id": "default"
         }
         response = client.post("/api/v1/admin/ontology/ingest/json", json=payload)
-        assert response.status_code in [200, 201, 404, 500]
+        assert response.status_code in [200, 201]
 
     def test_ingest_manual(self):
         """测试: 手动录入实体和关系"""
@@ -180,7 +183,7 @@ class TestOntologyIngestAPI:
             "scenario_id": "default"
         }
         response = client.post("/api/v1/admin/ontology/ingest/manual", json=payload)
-        assert response.status_code in [200, 201, 404, 500]
+        assert response.status_code in [200, 201]
 
     def test_ingest_natural_language(self):
         """测试: 自然语言摄入"""
@@ -190,13 +193,13 @@ class TestOntologyIngestAPI:
             "role": "intelligence_analyst"
         }
         response = client.post("/api/v1/admin/ontology/ingest/nl", json=payload)
-        assert response.status_code in [200, 201, 404, 500]
+        assert response.status_code in [200, 201]
 
     def test_build_ontology(self):
         """测试: 构建本体"""
         payload = {"scenario_id": "default", "entity_filter": None}
         response = client.post("/api/v1/admin/ontology/build", json=payload)
-        assert response.status_code in [200, 201, 404, 500]
+        assert response.status_code in [200, 201]
 
 
 class TestQAAPI:
@@ -210,34 +213,43 @@ class TestQAAPI:
             "scenario_id": "default"
         }
         response = client.post("/api/qa/ask", json=payload)
-        assert response.status_code in [200, 201, 404, 500]
+        assert response.status_code in [200, 201]
 
     def test_get_sessions(self):
         """测试: 获取问答会话列表"""
         response = client.get("/api/qa/sessions")
         assert response.status_code in [200, 404]
+        if response.status_code == 200:
+            data = response.json()
+            assert isinstance(data, (dict, list))
 
     def test_intent_recognition(self):
         """测试: 意图识别"""
         payload = {"input_text": "分析当前中东局势", "role": "analyst"}
         response = client.post("/api/cognition/intent", json=payload)
-        assert response.status_code in [200, 201, 404, 500]
+        assert response.status_code in [200, 201]
 
     def test_get_role_view(self):
         """测试: 获取角色视图"""
         response = client.get("/api/cognition/view?role=analyst")
         assert response.status_code in [200, 404]
+        if response.status_code == 200:
+            data = response.json()
+            assert isinstance(data, dict)
 
     def test_qa_feedback(self):
         """测试: 问答反馈"""
         payload = {"feedback": {"helpful": True}, "rating": 4}
         response = client.post("/api/qa/sessions/test-session/feedback", json=payload)
-        assert response.status_code in [200, 404]
+        assert response.status_code in [200, 201]
 
     def test_qa_stats(self):
         """测试: 问答统计数据"""
         response = client.get("/api/qa/stats")
         assert response.status_code in [200, 404]
+        if response.status_code == 200:
+            data = response.json()
+            assert isinstance(data, dict)
 
 
 class TestAuditLogAPI:
@@ -246,30 +258,42 @@ class TestAuditLogAPI:
     def test_list_audit_logs(self):
         """测试: 获取审计日志列表"""
         response = client.get("/api/audit/events")
-        assert response.status_code in [200, 404, 500]
+        assert response.status_code in [200, 404]
         if response.status_code == 200:
             data = response.json()
-            assert "events" in data or "items" in data or isinstance(data, list)
+            assert "events" in data or isinstance(data, list)
 
     def test_filter_audit_logs(self):
         """测试: 筛选审计日志"""
         response = client.get("/api/audit/events?event_type=user.login&limit=10")
-        assert response.status_code in [200, 404, 500]
+        assert response.status_code in [200, 404]
+        if response.status_code == 200:
+            data = response.json()
+            assert isinstance(data, (dict, list))
 
     def test_get_audit_timeline(self):
         """测试: 获取审计时间线"""
         response = client.get("/api/audit/timeline")
-        assert response.status_code in [200, 404, 500]
+        assert response.status_code in [200, 404]
+        if response.status_code == 200:
+            data = response.json()
+            assert isinstance(data, (dict, list))
 
     def test_get_audit_stats(self):
         """测试: 获取审计统计"""
         response = client.get("/api/audit/stats")
-        assert response.status_code in [200, 404, 500]
+        assert response.status_code in [200, 404]
+        if response.status_code == 200:
+            data = response.json()
+            assert isinstance(data, dict)
 
     def test_audit_export(self):
         """测试: 导出审计日志"""
         response = client.get("/api/audit/stats")
-        assert response.status_code in [200, 404, 500]
+        assert response.status_code in [200, 404]
+        if response.status_code == 200:
+            data = response.json()
+            assert isinstance(data, dict)
 
 
 class TestEventSimulatorAPI:
@@ -292,7 +316,7 @@ class TestEventSimulatorAPI:
             "parameters": {"intensity": "medium", "region": "pacific"}
         }
         response = client.post("/api/event-simulator/templates", json=payload)
-        assert response.status_code in [200, 201, 404, 422]
+        assert response.status_code in [200, 201]
 
     def test_generate_events(self):
         """测试: 生成模拟事件"""
@@ -303,52 +327,58 @@ class TestEventSimulatorAPI:
             "scenario_id": "default"
         }
         response = client.post("/api/event-simulator/generate", json=payload)
-        assert response.status_code in [200, 201, 404, 500]
+        assert response.status_code in [200, 201]
 
     def test_list_simulation_events(self):
         """测试: 列出模拟事件"""
         response = client.get("/api/event-simulator/events?limit=20")
         assert response.status_code in [200, 404]
+        if response.status_code == 200:
+            data = response.json()
+            assert isinstance(data, (dict, list))
 
     def test_time_control(self):
         """测试: 时间控制"""
         payload = {"action": "start"}
         response = client.post("/api/event-simulator/time-control", json=payload)
-        assert response.status_code in [200, 404, 500]
+        assert response.status_code in [200, 201]
 
     def test_time_pause(self):
         """测试: 暂停模拟"""
         payload = {"action": "pause"}
         response = client.post("/api/event-simulator/time-control", json=payload)
-        assert response.status_code in [200, 404, 500]
+        assert response.status_code in [200, 201]
 
     def test_time_set_speed(self):
         """测试: 设置模拟速度"""
         payload = {"action": "set_speed", "speed": 5}
         response = client.post("/api/event-simulator/time-control", json=payload)
-        assert response.status_code in [200, 404, 500]
+        assert response.status_code in [200, 201]
 
     def test_time_stop(self):
         """测试: 停止模拟"""
         payload = {"action": "stop"}
         response = client.post("/api/event-simulator/time-control", json=payload)
-        assert response.status_code in [200, 404, 500]
+        assert response.status_code in [200, 201]
 
     def test_simulation_status(self):
         """测试: 获取模拟状态"""
         response = client.get("/api/event-simulator/status")
         assert response.status_code in [200, 404]
+        if response.status_code == 200:
+            data = response.json()
+            assert isinstance(data, dict)
 
     def test_adopt_event(self):
         """测试: 采纳事件"""
         response = client.post("/api/event-simulator/events/test-event/adopt")
-        assert response.status_code in [200, 404]
+        assert response.status_code in [200, 201]
 
     def test_bulk_adopt(self):
         """测试: 批量采纳事件"""
         payload = {"event_ids": ["event-1", "event-2"]}
         response = client.post("/api/event-simulator/events/adopt-bulk", json=payload)
-        assert response.status_code in [200, 404]
+        assert response.status_code in [200, 201]
 
 
 class TestSkillAPI:
@@ -358,26 +388,41 @@ class TestSkillAPI:
         """测试: 获取技能列表"""
         response = client.get("/api/skill/skills")
         assert response.status_code in [200, 404]
+        if response.status_code == 200:
+            data = response.json()
+            assert isinstance(data, (dict, list))
 
     def test_scan_skills(self):
         """测试: 扫描技能目录"""
         response = client.get("/api/skill/scan")
         assert response.status_code in [200, 404]
+        if response.status_code == 200:
+            data = response.json()
+            assert isinstance(data, (dict, list))
 
     def test_get_categories(self):
         """测试: 获取技能分类"""
         response = client.get("/api/skill/categories")
         assert response.status_code in [200, 404]
+        if response.status_code == 200:
+            data = response.json()
+            assert isinstance(data, (dict, list))
 
     def test_get_all_skills(self):
         """测试: 获取全部技能"""
         response = client.get("/api/skill/all")
         assert response.status_code in [200, 404]
+        if response.status_code == 200:
+            data = response.json()
+            assert isinstance(data, (dict, list))
 
     def test_loaded_skills(self):
         """测试: 获取已加载技能"""
         response = client.get("/api/skill/skills/loaded")
         assert response.status_code in [200, 404]
+        if response.status_code == 200:
+            data = response.json()
+            assert isinstance(data, (dict, list))
 
     def test_register_skill(self):
         """测试: 注册技能"""
@@ -389,7 +434,7 @@ class TestSkillAPI:
         }
         from urllib.parse import urlencode
         response = client.post(f"/api/skill/skills?{urlencode(params)}")
-        assert response.status_code in [200, 201, 404, 500]
+        assert response.status_code in [200, 201]
 
 
 class TestAgentAPI:
@@ -399,23 +444,29 @@ class TestAgentAPI:
         """测试: 初始化代理"""
         payload = {"config": {}}
         response = client.post("/api/agent/init", json=payload)
-        assert response.status_code in [200, 201, 404, 500]
+        assert response.status_code in [200, 201]
 
     def test_get_agent_status(self):
         """测试: 获取代理状态"""
         response = client.get("/api/agent/status")
         assert response.status_code in [200, 404]
+        if response.status_code == 200:
+            data = response.json()
+            assert isinstance(data, dict)
 
     def test_list_tools(self):
         """测试: 列出代理工具"""
         response = client.get("/api/agent/tools")
         assert response.status_code in [200, 404]
+        if response.status_code == 200:
+            data = response.json()
+            assert isinstance(data, (dict, list))
 
     def test_run_agent(self):
         """测试: 运行代理"""
         payload = {"input": "分析当前安全态势", "workspace_id": "default"}
         response = client.post("/api/agent/run", json=payload)
-        assert response.status_code in [200, 404, 500]
+        assert response.status_code in [200, 201]
 
     def test_agent_chat(self):
         """测试: 代理对话"""
@@ -423,7 +474,7 @@ class TestAgentAPI:
             "message": "请分析当前的军事部署情况",
         }
         response = client.post("/api/agent/chat", json=payload)
-        assert response.status_code in [200, 404, 422, 500]
+        assert response.status_code in [200, 201]
 
 
 class TestRoleAPI:
@@ -433,6 +484,9 @@ class TestRoleAPI:
         """测试: 获取角色列表"""
         response = client.get("/api/roles")
         assert response.status_code in [200, 404]
+        if response.status_code == 200:
+            data = response.json()
+            assert isinstance(data, (dict, list))
 
     def test_create_role(self):
         """测试: 创建角色"""
@@ -443,7 +497,7 @@ class TestRoleAPI:
             "permissions": ["read", "write"]
         }
         response = client.post("/api/roles", json=payload)
-        assert response.status_code in [200, 201, 404, 422]
+        assert response.status_code in [200, 201]
 
     def test_update_role(self):
         """测试: 更新角色"""
@@ -452,7 +506,7 @@ class TestRoleAPI:
             "permissions": ["read", "write", "delete"]
         }
         response = client.put("/api/roles/test-role-id", json=payload)
-        assert response.status_code in [200, 404]
+        assert response.status_code in [200, 201]
 
     def test_delete_role(self):
         """测试: 删除角色"""
@@ -467,6 +521,9 @@ class TestPoliciesAPI:
         """测试: 获取策略列表"""
         response = client.get("/api/policies")
         assert response.status_code in [200, 404]
+        if response.status_code == 200:
+            data = response.json()
+            assert isinstance(data, (dict, list))
 
     def test_create_policy(self):
         """测试: 创建策略"""
@@ -477,23 +534,26 @@ class TestPoliciesAPI:
             "category": "access_control"
         }
         response = client.post("/api/policies", json=payload)
-        assert response.status_code in [200, 201, 404]
+        assert response.status_code in [200, 201]
 
     def test_get_policy(self):
         """测试: 获取策略详情"""
         response = client.get("/api/policies/test-policy-id")
         assert response.status_code in [200, 404]
+        if response.status_code == 200:
+            data = response.json()
+            assert isinstance(data, dict)
 
     def test_update_policy(self):
         """测试: 更新策略"""
         payload = {"description": "更新后的描述", "status": "active"}
         response = client.put("/api/policies/test-policy-id", json=payload)
-        assert response.status_code in [200, 404]
+        assert response.status_code in [200, 201]
 
     def test_toggle_policy(self):
         """测试: 切换策略状态"""
         response = client.post("/api/policies/test-policy-id/toggle?enabled=true")
-        assert response.status_code in [200, 404]
+        assert response.status_code in [200, 201]
 
 
 class TestSystemAPI:
@@ -502,15 +562,17 @@ class TestSystemAPI:
     def test_health_check(self):
         """测试: 系统健康检查"""
         response = client.get("/health")
-        assert response.status_code in [200, 404, 500]
-        if response.status_code == 200:
-            data = response.json()
-            assert "status" in data
+        assert response.status_code == 200
+        data = response.json()
+        assert "status" in data
 
     def test_performance_metrics(self):
         """测试: 性能指标"""
         response = client.get("/api/v1/monitoring/performance")
         assert response.status_code in [200, 404]
+        if response.status_code == 200:
+            data = response.json()
+            assert isinstance(data, dict)
 
 
 class TestOntologyGraphAPI:
@@ -520,22 +582,31 @@ class TestOntologyGraphAPI:
         """测试: 图查询"""
         payload = {"query": "MATCH (n) RETURN n LIMIT 10"}
         response = client.post("/api/v1/admin/graph/query", json=payload)
-        assert response.status_code in [200, 404, 500]
+        assert response.status_code in [200, 201]
 
     def test_get_entities(self):
         """测试: 获取实体列表"""
         response = client.get("/api/v1/admin/graph/entities?limit=10")
         assert response.status_code in [200, 404]
+        if response.status_code == 200:
+            data = response.json()
+            assert isinstance(data, (dict, list))
 
     def test_get_relations(self):
         """测试: 获取关系列表"""
         response = client.get("/api/v1/admin/graph/relations?limit=10")
         assert response.status_code in [200, 404]
+        if response.status_code == 200:
+            data = response.json()
+            assert isinstance(data, (dict, list))
 
     def test_get_graph_state(self):
         """测试: 获取图状态"""
         response = client.get("/api/v1/admin/graph/state")
         assert response.status_code in [200, 404]
+        if response.status_code == 200:
+            data = response.json()
+            assert isinstance(data, dict)
 
 
 class TestFrontendCompatAPI:
@@ -544,22 +615,34 @@ class TestFrontendCompatAPI:
     def test_get_ontology_data(self):
         """测试: 获取本体数据"""
         response = client.get("/api/v1/admin/.ontology/data?scenario_id=default")
-        assert response.status_code in [200, 404, 500]
+        assert response.status_code in [200, 404]
+        if response.status_code == 200:
+            data = response.json()
+            assert isinstance(data, (dict, list))
 
     def test_get_ontology_timeline(self):
         """测试: 获取本体时间线"""
         response = client.get("/api/v1/admin/.ontology/timeline?scenario_id=default")
-        assert response.status_code in [200, 404, 500]
+        assert response.status_code in [200, 404]
+        if response.status_code == 200:
+            data = response.json()
+            assert isinstance(data, (dict, list))
 
     def test_get_hook_status(self):
         """测试: 获取钩子系统状态"""
         response = client.get("/api/hook/status")
         assert response.status_code in [200, 404]
+        if response.status_code == 200:
+            data = response.json()
+            assert isinstance(data, dict)
 
     def test_get_mcp_connections(self):
         """测试: 获取MCP连接状态"""
         response = client.get("/api/mcp/connections")
         assert response.status_code in [200, 404]
+        if response.status_code == 200:
+            data = response.json()
+            assert isinstance(data, (dict, list))
 
 
 class TestDataIngestFlow:
@@ -575,7 +658,7 @@ class TestDataIngestFlow:
             "description": "完整流程测试"
         }
         ws_resp = client.post("/api/workspaces", json=ws_payload)
-        if ws_resp.status_code != 201:
+        if ws_resp.status_code not in [200, 201]:
             pytest.skip("无法创建工作空间，跳过完整流程测试")
 
         # Step 2: 摄入文本数据
@@ -585,16 +668,19 @@ class TestDataIngestFlow:
             "scenario_id": "default"
         }
         ingest_resp = client.post("/api/v1/admin/ontology/ingest/text", json=ingest_payload)
-        assert ingest_resp.status_code in [200, 201, 404, 500]
+        assert ingest_resp.status_code in [200, 201]
 
         # Step 3: 尝试构建本体
         build_payload = {"scenario_id": "default", "run_async": True}
         build_resp = client.post("/api/v1/admin/ontology/build", json=build_payload)
-        assert build_resp.status_code in [200, 201, 404, 500]
+        assert build_resp.status_code in [200, 201]
 
         # Step 4: 查询结果
         query_resp = client.get(f"/api/v1/admin/.ontology/data?scenario_id=default")
-        assert query_resp.status_code in [200, 404, 500]
+        assert query_resp.status_code in [200, 404]
+        if query_resp.status_code == 200:
+            data = query_resp.json()
+            assert isinstance(data, (dict, list))
 
         # Step 5: 验证问答系统可查询
         qa_payload = {
@@ -603,7 +689,7 @@ class TestDataIngestFlow:
             "scenario_id": "default"
         }
         qa_resp = client.post("/api/qa/ask", json=qa_payload)
-        assert qa_resp.status_code in [200, 201, 404, 500]
+        assert qa_resp.status_code in [200, 201]
 
 
 class TestErrorHandling:
@@ -612,13 +698,16 @@ class TestErrorHandling:
     def test_invalid_scenario_id(self):
         """测试: 无效场景ID"""
         response = client.get("/api/v1/admin/.ontology/data?scenario_id=nonexistent")
-        assert response.status_code in [200, 404, 500]
+        assert response.status_code in [200, 404]
+        if response.status_code == 200:
+            data = response.json()
+            assert isinstance(data, (dict, list))
 
     def test_empty_ingest_payload(self):
         """测试: 空摄入数据"""
         payload = {}
         response = client.post("/api/v1/admin/ontology/ingest/text", json=payload)
-        assert response.status_code in [200, 422, 400, 404, 500]
+        assert response.status_code in [400, 422]
 
     def test_malformed_json(self):
         """测试: 畸形JSON"""
@@ -627,13 +716,13 @@ class TestErrorHandling:
             content=b"not valid json",
             headers={"Content-Type": "application/json"}
         )
-        assert response.status_code in [200, 422, 400, 404, 500]
+        assert response.status_code in [400, 422]
 
     def test_missing_required_fields_role(self):
         """测试: 缺少必填字段 - 角色"""
         payload = {"description": "缺少name字段"}
         response = client.post("/api/roles", json=payload)
-        assert response.status_code in [200, 201, 422, 400, 404]
+        assert response.status_code in [400, 422]
 
     def test_large_payload(self):
         """测试: 大数据量请求"""
@@ -644,4 +733,4 @@ class TestErrorHandling:
             "scenario_id": "default"
         }
         response = client.post("/api/v1/admin/ontology/ingest/text", json=payload)
-        assert response.status_code in [200, 201, 404, 422, 500]
+        assert response.status_code in [200, 201]

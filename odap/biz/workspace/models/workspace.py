@@ -44,6 +44,7 @@ class Workspace(BaseModel):
     owner: str
     members: List[str] = Field(default_factory=list)
     resources: Dict[str, Any] = Field(default_factory=dict)
+    bound_ontology_ids: List[str] = Field(default_factory=list)
     created_at: datetime = Field(default_factory=datetime.now)
     updated_at: datetime = Field(default_factory=datetime.now)
     last_accessed_at: Optional[datetime] = None

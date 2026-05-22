@@ -626,7 +626,7 @@ const Simulator: React.FC = () => {
                 <span>模拟日志</span>
               </Space>
             }
-            bodyStyle={{ padding: '8px', maxHeight: 320, overflow: 'auto' }}
+            styles={{ body: { padding: '8px', maxHeight: 320, overflow: 'auto' } }}
           >
             {simulationLog.length === 0 ? (
               <div style={{ color: '#999', textAlign: 'center', padding: '24px 0' }}>

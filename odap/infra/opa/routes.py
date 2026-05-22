@@ -154,11 +154,182 @@ async def toggle_policy_status(policy_id: str, enabled: bool = Query(True)):
 
 
 def _markdown_to_rego(markdown: str) -> str:
-    lines = markdown.strip().split("\n")
-    package_name = "domain.custom"
-    for line in lines:
-        if line.startswith("# "):
-            pkg = line[2:].strip().lower().replace(" ", "_")
-            package_name = f"domain.{pkg}"
-            break
-    return f"package {package_name}\n\ndefault allow = false\n\nallow {{\n    # TODO: 从Markdown策略生成Rego规则\n    true\n}}"
+    converter = MarkdownPolicyConverter()
+    return converter.convert(markdown)
+
+
+class MarkdownPolicyConverter:
+    ROLE_MAP = {
+        "commander": "commander",
+        "intelligence_officer": "intelligence_officer",
+        "intelligence": "intelligence_officer",
+        "operator": "operator",
+        "admin": "admin",
+        "auditor": "auditor",
+        "guest": "guest",
+    }
+
+    ACTION_MAP = {
+        "查询": "view",
+        "攻击": "attack",
+        "防御": "defend",
+        "撤退": "retreat",
+        "增援": "reinforce",
+        "移动": "move",
+        "观察": "observe",
+        "通信": "communicate",
+        "分析": "analyze_data",
+        "报告": "generate_reports",
+        "查看情报": "view_intelligence",
+        "决策": "decide",
+        "执行": "perform",
+        "命令": "command_unit",
+    }
+
+    CONDITION_MAP = {
+        "需确认": "needs_confirmation",
+        "需审批": "needs_approval",
+        "高风险": "high_risk",
+        "仅管理员": "admin_only",
+        "需双人确认": "dual_confirmation",
+    }
+
+    def convert(self, markdown: str) -> str:
+        lines = markdown.strip().split("\n")
+        package_name = "domain.custom"
+        role = ""
+        allowed_actions = []
+        rules = []
+        current_section = ""
+
+        for line in lines:
+            stripped = line.strip()
+            if stripped.startswith("# "):
+                pkg = stripped[2:].strip().lower().replace(" ", "_")
+                package_name = f"policies.{pkg}"
+            elif stripped.startswith("## "):
+                current_section = stripped[3:].strip().lower()
+                if "角色" in current_section or "role" in current_section:
+                    role_match = current_section.replace("角色", "").replace("role", "").strip().replace(":", "").strip()
+                    if role_match:
+                        role = self.ROLE_MAP.get(role_match, role_match)
+            elif stripped.startswith("- "):
+                item = stripped[2:].strip()
+                if "允许" in current_section or "操作" in current_section or "allow" in current_section:
+                    action_info = self._parse_action(item)
+                    if action_info:
+                        allowed_actions.append(action_info)
+                elif "规则" in current_section or "rule" in current_section:
+                    rule = self._parse_rule(item)
+                    if rule:
+                        rules.append(rule)
+
+        return self._generate_rego(package_name, role, allowed_actions, rules)
+
+    def _parse_action(self, item: str) -> dict:
+        action = {"name": "", "conditions": []}
+        paren_match = ""
+        if "（" in item and "）" in item:
+            main_part = item[:item.index("（")].strip()
+            paren_match = item[item.index("（") + 1:item.index("）")].strip()
+        elif "(" in item and ")" in item:
+            main_part = item[:item.index("(")].strip()
+            paren_match = item[item.index("(") + 1:item.index(")")].strip()
+        else:
+            main_part = item.strip()
+
+        action["name"] = self.ACTION_MAP.get(main_part, main_part.lower().replace(" ", "_"))
+
+        if paren_match:
+            for cond_key, cond_val in self.CONDITION_MAP.items():
+                if cond_key in paren_match:
+                    action["conditions"].append(cond_val)
+
+        return action
+
+    def _parse_rule(self, item: str) -> dict:
+        rule = {"conditions": [], "result": "allow"}
+        if "如果" in item or "if" in item.lower():
+            cond_part = item.split("那么") if "那么" in item else [item, ""]
+            condition_text = cond_part[0].replace("如果", "").strip()
+            result_text = cond_part[1].strip() if len(cond_part) > 1 else "允许"
+
+            if "角色是" in condition_text:
+                role_val = condition_text.split("角色是")[1].split("且")[0].split("或")[0].strip()
+                rule["conditions"].append(f'input.user.role == "{self.ROLE_MAP.get(role_val, role_val)}"')
+            if "操作是" in condition_text:
+                action_val = condition_text.split("操作是")[1].split("且")[0].split("或")[0].strip()
+                rule["conditions"].append(f'input.action == "{self.ACTION_MAP.get(action_val, action_val)}"')
+
+            if "拒绝" in result_text or "禁止" in result_text:
+                rule["result"] = "deny"
+
+        return rule
+
+    def _generate_rego(self, package_name: str, role: str,
+                       allowed_actions: list, rules: list) -> str:
+        lines = [f"package {package_name}", ""]
+        lines.append("import future.keywords.if")
+        lines.append("import future.keywords.in")
+        lines.append("")
+        lines.append("default allow := false")
+        lines.append("")
+
+        if role:
+            lines.append(f'allow if {{')
+            lines.append(f'    input.user.role == "{role}"')
+            lines.append(f'    input.action in role_permissions["{role}"]')
+            lines.append(f'}}')
+            lines.append("")
+
+        if allowed_actions:
+            action_names = [a["name"] for a in allowed_actions]
+            lines.append(f'allow if {{')
+            lines.append(f'    input.action in allowed_actions')
+            lines.append(f'}}')
+            lines.append("")
+
+            for action in allowed_actions:
+                if action["conditions"]:
+                    cond_strs = []
+                    for c in action["conditions"]:
+                        if c == "needs_confirmation":
+                            cond_strs.append("input.confirmed == true")
+                        elif c == "needs_approval":
+                            cond_strs.append("input.approved == true")
+                        elif c == "high_risk":
+                            cond_strs.append('input.risk_level != "high"')
+                        elif c == "admin_only":
+                            cond_strs.append('input.user.role == "admin"')
+                        elif c == "dual_confirmation":
+                            cond_strs.append("input.confirmation_count >= 2")
+
+                    if cond_strs:
+                        lines.append(f'allow if {{')
+                        lines.append(f'    input.action == "{action["name"]}"')
+                        for cs in cond_strs:
+                            lines.append(f'    {cs}')
+                        lines.append(f'}}')
+                        lines.append("")
+
+        for rule in rules:
+            if rule["conditions"]:
+                lines.append(f'{rule["result"]} if {{')
+                for cond in rule["conditions"]:
+                    lines.append(f'    {cond}')
+                lines.append(f'}}')
+                lines.append("")
+
+        lines.append("allowed_actions := [")
+        for i, name in enumerate([a["name"] for a in allowed_actions]):
+            comma = "," if i < len(allowed_actions) - 1 else ""
+            lines.append(f'    "{name}"{comma}')
+        lines.append("]")
+        lines.append("")
+
+        if role:
+            lines.append(f'role_permissions := {{')
+            lines.append(f'    "{role}": allowed_actions,')
+            lines.append(f'}}')
+
+        return "\n".join(lines)

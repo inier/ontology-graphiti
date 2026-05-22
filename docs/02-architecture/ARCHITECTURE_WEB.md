@@ -1,6 +1,6 @@
 # 本体驱动分析决策平台 (ODAP) - L5-L6 接口层
 > **部分**: 前端界面 + 管理后台 + API端点
-> **版本**: 4.1.0 | **日期**: 2026-05-04
+> **版本**: 5.0.0 | **日期**: 2026-05-19
 > **上级文档**: [ARCHITECTURE.md](ARCHITECTURE.md)
 ---
 ## 11. 前端界面架构
@@ -381,7 +381,7 @@ class UserCognitionEngine {
 
 ```
 
-#### 11.7.4 图表渲染器
+#### 11.6.2 图表渲染器
 
 ```typescript
 // charts/chart-renderer.ts
@@ -1043,6 +1043,50 @@ is_protected_target(target) if {
 
 ---
 
-*文档版本: 4.0.2 | 最后更新: 2026-05-04 | 作者: 软件架构师*
-*附录E (Phase 4-5规划) 已于 2026-05-04 拆分至独立文档*
+## 附录 D.4: OMS / 对象服务 / 动作服务 API (v5.0.0 新增)
+
+### D.4.1 本体元数据服务 (OMS)
+
+| 端点 | 方法 | 说明 | 请求体 | 响应 |
+|------|------|------|--------|------|
+| `/api/ontology/oms/object-types` | GET | 列出所有对象类型 | `?active_only=true` | `ObjectTypeDefinition[]` |
+| `/api/ontology/oms/object-types` | POST | 创建对象类型 | `OntologySchemaCreate` | `ObjectTypeDefinition` |
+| `/api/ontology/oms/object-types/{id}` | GET | 获取对象类型 | - | `ObjectTypeDefinition` |
+| `/api/ontology/oms/object-types/{id}` | PUT | 更新对象类型 | `OntologySchemaUpdate` | `ObjectTypeDefinition` |
+| `/api/ontology/oms/object-types/{id}` | DELETE | 删除对象类型 | - | `{message}` |
+| `/api/ontology/oms/action-types` | GET | 列出所有动作类型 | `?target_type=Unit` | `ActionTypeDefinition[]` |
+| `/api/ontology/oms/action-types` | POST | 创建动作类型 | `ActionTypeCreate` | `ActionTypeDefinition` |
+| `/api/ontology/oms/action-types/{id}` | GET/PUT/DELETE | 动作类型 CRUD | - | `ActionTypeDefinition` |
+| `/api/ontology/oms/object-types/{id}/actions/{aid}` | POST | 绑定动作到对象类型 | - | `{message}` |
+| `/api/ontology/oms/object-types/{id}/actions/{aid}` | DELETE | 解绑动作 | - | `{message}` |
+
+### D.4.2 对象服务 (OSv2)
+
+| 端点 | 方法 | 说明 | 请求体 | 响应 |
+|------|------|------|--------|------|
+| `/api/objects/query` | POST | 结构化对象查询 | `ObjectQuery` | `ObjectQueryResponse` |
+| `/api/objects/semantic` | POST | 语义对象查询 | `SemanticQuery` | `SemanticQueryResponse` |
+| `/api/objects/{id}` | GET | 获取单个对象 | `?object_type=Unit` | `ObjectQueryResult` |
+
+### D.4.3 动作服务 (Action Service)
+
+| 端点 | 方法 | 说明 | 请求体 | 响应 |
+|------|------|------|--------|------|
+| `/api/actions/submit` | POST | 提交动作 | `ActionRequest` | `ActionRecord` |
+| `/api/actions/{id}/approve` | POST | 审批并执行 | `ActionApproval` | `ActionRecord` |
+| `/api/actions/records` | GET | 查询动作记录 | `?status=pending&limit=50` | `ActionRecord[]` |
+| `/api/actions/records/{id}` | GET | 获取动作详情 | - | `ActionRecord` |
+| `/api/actions/target/{id}` | GET | 按目标对象查询 | `?limit=20` | `ActionRecord[]` |
+
+### D.4.4 前端新增组件
+
+| 组件 | 文件 | 说明 |
+|------|------|------|
+| `ActionPanel` | `modules/ontology/components/ActionPanel.tsx` | 动作管理面板：记录列表、提交表单、审批/执行、详情抽屉 |
+| 前端 API 方法 | `modules/shared/services/api.ts` | 新增 20+ API 方法覆盖 OMS/OSv2/Action Service |
+
+---
+
+*文档版本: 5.0.0 | 最后更新: 2026-05-19 | 作者: 软件架构师*
+*附录D.4 (OMS/对象服务/动作服务 API) 于 2026-05-19 新增*
 

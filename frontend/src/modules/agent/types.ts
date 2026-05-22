@@ -6,6 +6,8 @@ export interface Agent {
   description: string;
   main_object: string;
   related_objects: string[];
+  related_processes: string[];
+  related_rules: string[];
   related_business_logic: string[];
   related_indicators: string[];
   related_skills: string[];
@@ -23,6 +25,8 @@ export interface AgentFormData {
   description: string;
   main_object: string;
   related_objects: string[];
+  related_processes: string[];
+  related_rules: string[];
   related_business_logic: string[];
   related_indicators: string[];
   related_skills: string[];
@@ -33,5 +37,5 @@ export interface AgentFormData {
 export interface AgentRefOption {
   id: string;
   name: string;
-  type: 'entity' | 'business_logic' | 'indicator' | 'skill' | 'knowledge_base' | 'role';
+  type: 'entity' | 'process' | 'rule' | 'business_logic' | 'indicator' | 'skill' | 'knowledge_base' | 'role';
 }

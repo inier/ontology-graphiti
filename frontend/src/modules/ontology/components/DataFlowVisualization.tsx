@@ -164,7 +164,7 @@ function SourceDataPanel({ question, documents, searchResults, onDocumentPreview
         </Button>
       }
       style={{ height: '100%', borderRadius: 8 }}
-      bodyStyle={{ padding: 0 }}
+      styles={{ body: { padding: 0 } }}
     >
       <div>
         <div style={{ marginBottom: 16 }}>
@@ -273,7 +273,7 @@ function TransformPanel({ currentStage, stageDetails }: TransformPanelProps) {
       title="转化过程"
       size="small"
       style={{ height: '100%', borderRadius: 8 }}
-      bodyStyle={{ padding: 16, overflow: 'auto', maxHeight: 'calc(100vh - 400px)', minHeight: 400 }}
+      styles={{ body: { padding: 16, overflow: 'auto', maxHeight: 'calc(100vh - 400px)', minHeight: 400 } }}
     >
       {stageDetails.map((detail, index) => (
         <div key={detail.stageId} style={{ marginBottom: index < stageDetails.length - 1 ? 24 : 0 }}>
@@ -388,7 +388,7 @@ function OntologyPanel({ ontology, onNodeClick, onNodeEdit, onRelationshipClick 
       title="本体定义"
       size="small"
       style={{ height: '100%', borderRadius: 8 }}
-      bodyStyle={{ padding: 0, overflow: 'auto', maxHeight: 'calc(100vh - 400px)', minHeight: 400 }}
+      styles={{ body: { padding: 0, overflow: 'auto', maxHeight: 'calc(100vh - 400px)', minHeight: 400 } }}
     >
       {ontology.nodes.length === 0 && ontology.relationships.length === 0 ? (
         <div style={{ padding: 40, textAlign: 'center' }}>

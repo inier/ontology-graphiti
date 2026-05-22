@@ -15,7 +15,7 @@
 
 | 类别 | 数量 | 严重程度 | 状态 |
 |------|------|----------|------|
-| 设计文档存在但无实现 | 4 | 🔴 高 | ✅ 已清理 3 个 |
+| 设计文档存在但无实现 | 4 | 🔴 高 | ✅ 已清理 3 个，已实现 2 个 |
 | 多版本并存未清理 | 8 | 🟡 中 | ✅ 已清理 7 个 |
 | ADR 与实现矛盾 | 3 | 🔴 高 | ✅ 已同步 |
 | 已清理 Dead Code 残留 | 4 | 🟢 低 | ✅ 已清理 |
@@ -34,10 +34,10 @@
 |------|------|
 | **文档位置** | `docs/modules/decision_recommendation/DESIGN.md` |
 | **模块 ID** | M-13（活跃模块） |
-| **状态** | ❌ 有文档无实现 |
-| **描述** | 设计文档定义了 `StrikePlan`、`RiskAssessment`、`DecisionRecommendationEngine` 接口，但 `odap/` 中无 `decision_recommendation` 目录 |
+| **状态** | ✅ 已实现 |
+| **描述** | 设计文档定义了 `StrikePlan`、`RiskAssessment`、`DecisionRecommendationEngine` 接口，已实现于 `odap/biz/decision_recommendation/` |
 
-**建议**: 删除 `docs/modules/decision_recommendation/DESIGN.md`，或在 `odap/biz/decision_recommendation/` 中实现基础框架（可先做 stub）
+**建议**: ~~删除 `docs/modules/decision_recommendation/DESIGN.md`，或在 `odap/biz/decision_recommendation/` 中实现基础框架（可先做 stub）~~ 已实现
 
 ### 2.2 user_cognition_engine（用户认知引擎）
 
@@ -45,10 +45,10 @@
 |------|------|
 | **文档位置** | `docs/modules/user_cognition_engine/DESIGN.md` |
 | **相关 ADR** | ADR-038, ADR-049 |
-| **状态** | ❌ 有文档无实现 |
-| **描述** | 设计文档定义了 `IntentRecognizer`、`KnowledgeNavigator`、`ExplanationEngine`、`RoleViewManager` 等组件，但代码库无对应实现 |
+| **状态** | ✅ 已实现 |
+| **描述** | 设计文档定义了 `IntentRecognizer`、`KnowledgeNavigator`、`ExplanationEngine`、`RoleViewManager` 等组件，已实现于 `odap/biz/cognition/` |
 
-**建议**: 删除设计文档（Phase 4 暂不考虑）
+**建议**: ~~删除设计文档（Phase 4 暂不考虑）~~ 已实现
 
 ### 2.3 mock_engine（模拟引擎）
 
@@ -302,8 +302,8 @@ docs/modules/
 ├── permission_checker/    # ⚠️ 已合并至 opa_policy
 ├── web/                   # ⚠️ 已拆分为 api_gateway + web_frontend
 ├── ontology_management_engine/  # ⚠️ 重构为 ontology/ 模块
-├── user_cognition_engine/  # ❌ 无实现，Phase 4 不考虑
-└── decision_recommendation/    # ❌ 无实现
+├── user_cognition_engine/  # ✅ 已实现 (odap/biz/cognition/)
+└── decision_recommendation/    # ✅ 已实现 (odap/biz/decision_recommendation/)
 ```
 
 ### 7.2 活跃模块设计文档（保留）
@@ -360,16 +360,19 @@ docs/modules/
 ### 🔴 高优先级（影响架构正确性）
 
 - [x] **删除** `docs/modules/decision_recommendation/DESIGN.md` ✅ 2026-04-23
-- [x] **删除** `docs/modules/user_cognition_engine/DESIGN.md` ✅ 2026-04-23（已恢复为待实现）
+- [x] **删除** `docs/modules/user_cognition_engine/DESIGN.md` ✅ 2026-04-23（已恢复为待实现 → ✅ 已实现于 `odap/biz/cognition/`）
 - [ ] **确认** ADR-022（模拟数仓）是否有部分实现
 
 ### 🟡 中优先级（OADP 架构缺口）
 
-- [x] **实现** Decision Recommendation 基础框架（M-13） ✅ 2026-04-23
+- [x] **实现** Decision Recommendation 完整实现（M-13） ✅ 2026-04-23
   - 核心引擎: `odap/biz/decision_recommendation/engine.py`
   - 数据模型: `odap/biz/decision_recommendation/models.py`
   - 测试用例: `odap/biz/decision_recommendation/tests/`
 - [x] **设计** ADR-051 Feedback Loop 机制（OADP 闭环反馈） ✅ 2026-04-23
+- [x] **实现** 闭环反馈模块（M-20） ✅ `odap/biz/action_service/feedback_loop.py`
+- [x] **实现** 用户认知引擎（M-19） ✅ `odap/biz/cognition/`
+- [x] **实现** 知识库 RAG/爬取（M-21） ✅ `odap/biz/knowledge_base/`
 - [ ] **设计** IObserver 感知层接口（OADP 感知层抽象）
 
 ### 🟢 低优先级（文档清理）
@@ -399,12 +402,15 @@ docs/modules/
 | M-10 | Agent 路由 | ✅ | ✅ 完整 | `biz/agent/` |
 | M-11 | 工具注册表 | ✅ | ✅ 部分 | `biz/tool_registry/` + `tools/registry.py` |
 | M-12 | 问答引擎 | ✅ | ✅ 部分 | `biz/qa/` |
-| M-13 | 决策推荐 | ✅ | ✅ 基础 | `biz/decision_recommendation/` |
+| M-13 | 决策推荐 | ✅ | ✅ 完整 | `biz/decision_recommendation/` |
 | M-14 | 模拟推演 | ✅ | ✅ 完整 | `biz/simulator/` |
 | M-15 | 事件模拟器 | ✅ | ✅ 完整 | `biz/event_simulator/` |
 | M-16 | API 网关 | ✅ | ✅ 部分 | `gateway/api_gateway_v2.py` |
 | M-17 | Web 前端 | ✅ | ❓ 独立仓库 | - |
 | M-18 | 可视化引擎 | ✅ | ✅ 部分 | `biz/visualization/` |
+| M-19 | 用户认知引擎 | ✅ | ✅ 已实现 | `biz/cognition/` |
+| M-20 | 闭环反馈模块 | ✅ | ✅ 已实现 | `biz/action_service/feedback_loop.py` |
+| M-21 | 知识库 RAG/爬取 | ✅ | ✅ 已实现 | `biz/knowledge_base/` |
 
 ---
 
@@ -426,8 +432,8 @@ docs/modules/
 | # | 问题 | 优先级 | 状态 |
 |---|------|--------|------|
 | 1 | OODA vs OADP 术语不一致 | 🟡 中 | ✅ 已统一为 OADP |
-| 2 | Decision Recommendation 无实现 | 🔴 高 | ✅ 已实现基础框架 |
-| 3 | 闭环反馈机制缺失 | 🟡 中 | ✅ 已设计 ADR-051 |
+| 2 | Decision Recommendation 无实现 | 🔴 高 | ✅ 已实现完整 |
+| 3 | 闭环反馈机制缺失 | 🟡 中 | ✅ 已实现 feedback_loop |
 | 4 | 感知层抽象不足 | 🟡 中 | ⏸️ 待设计 IObserver |
 
 ### 10.3 已完成的对齐更新
@@ -437,8 +443,11 @@ docs/modules/
 | ✅ ADR-050 | 新增 OADP 业务语义体系架构 ADR |
 | ✅ ARCHITECTURE.md | 更新 1.1.1 节为 OADP 闭环体系 |
 | ✅ req-ok.md | 更新核心技术路线为 OADP 闭环 |
-| ✅ M-13 实现 | 实现 Decision Recommendation 基础框架 |
+| ✅ M-13 实现 | 实现 Decision Recommendation 完整实现 |
 | ✅ ADR-051 | 新增闭环反馈机制设计 ADR |
+| ✅ M-19 实现 | 实现 User Cognition Engine（odap/biz/cognition/） |
+| ✅ M-20 实现 | 实现闭环反馈模块（odap/biz/action_service/feedback_loop.py） |
+| ✅ M-21 实现 | 实现知识库 RAG/爬取（odap/biz/knowledge_base/） |
 
 ---
 

@@ -14,6 +14,14 @@ from odap.biz.mcp_adapter.api.routes import router as mcp_router
 from odap.biz.event_simulator.api.routes import router as event_router
 from odap.biz.frontend_compat.api.routes import router as frontend_router
 from odap.biz.openharness_agent.api.routes import router as agent_router
+from odap.biz.agent_management.api.routes import router as agent_mgmt_router
+from odap.biz.knowledge_base.api.routes import router as kb_router
+from odap.biz.ontology.oms.routes import router as oms_router
+from odap.infra.object_service.routes import router as osv2_router
+from odap.biz.action_service.routes import router as action_router
+from odap.biz.perception.routes import router as perception_router
+from odap.biz.decision_pipeline.routes import router as decision_pipeline_router
+from odap.biz.simulation_sandbox.routes import router as sandbox_router
 from odap.biz.business.api.routes import router as business_router
 from odap.infra.opa.routes import router as policy_router
 from odap.infra.security import security_config
@@ -109,6 +117,14 @@ app.include_router(mcp_router)
 app.include_router(event_router)
 app.include_router(frontend_router)
 app.include_router(agent_router)
+app.include_router(agent_mgmt_router)
+app.include_router(kb_router)
+app.include_router(oms_router)
+app.include_router(osv2_router)
+app.include_router(action_router)
+app.include_router(perception_router)
+app.include_router(decision_pipeline_router)
+app.include_router(sandbox_router)
 app.include_router(business_router)
 app.include_router(policy_router)
 

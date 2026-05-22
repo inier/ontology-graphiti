@@ -1,7 +1,170 @@
 # 本体驱动分析决策平台 (ODAP) - L1 基础设施层
-> **部分**: OpenHarness + Graphiti + OPA + 审计日志
-> **版本**: 4.1.0 | **日期**: 2026-05-04
+> **部分**: OpenHarness + Graphiti + OPA + 审计日志 + 对象服务 + 本体元数据
+> **版本**: 5.0.0 | **日期**: 2026-05-19
 > **上级文档**: [ARCHITECTURE.md](ARCHITECTURE.md)
+---
+
+## 5. 对象服务层 (Object Service / OSv2)
+
+> **设计原则**: 逻辑统一、物理解耦 —— 上层只看到"业务对象"，无需关心底层存储引擎
+
+### 5.1 架构定位
+
+对象服务层是 Palantir AIP 中 OSv2 + OSS 的对标实现，在底层异构存储（Neo4j/SQLite/MongoDB）与上层业务应用之间构建统一的虚拟化封装层。
+
+```
+┌─────────────────────────────────────────────────────┐
+│              上层应用 (Agent / QA / 前端)              │
+├─────────────────────────────────────────────────────┤
+│          ObjectService (统一对象访问)                  │
+│  ┌──────────┬──────────┬──────────┬──────────┐      │
+│  │ Graph    │ Business │ Knowledge│ Agent    │      │
+│  │ Fetcher  │ Fetcher  │ Fetcher  │ Fetcher  │      │
+│  └────┬─────┴────┬─────┴────┬─────┴────┬─────┘      │
+├───────┼──────────┼──────────┼──────────┼────────────┤
+│ Neo4j │ SQLite×7 │ SQLite   │ SQLite   │ SQLite     │
+│ Graph │ Business │ KB       │ Agent    │ Workspace  │
+└───────┴──────────┴──────────┴──────────┴────────────┘
+```
+
+### 5.2 核心能力
+
+| 能力 | 说明 | API 端点 |
+|------|------|---------|
+| 结构化查询 | 按对象类型、属性过滤、排序、分页查询 | `POST /api/objects/query` |
+| 语义查询 | 文本→对象实例化，沿链接追溯关联对象 | `POST /api/objects/semantic` |
+| 单对象获取 | 获取完整对象档案（属性+链接+可用动作） | `GET /api/objects/{id}` |
+| 链接遍历 | 沿本体定义的 Link Types 追溯关联对象 | `link_depth` 参数 |
+| 动作发现 | 查询对象可执行的 ActionType | `include_actions` 参数 |
+
+### 5.3 ObjectQuery 数据模型
+
+```typescript
+interface ObjectQuery {
+  object_type?: string;          // 按类型过滤
+  filters?: ObjectQueryFilter[]; // 属性过滤
+  sorts?: ObjectQuerySort[];     // 排序
+  limit?: number;                // 分页大小
+  offset?: number;               // 偏移量
+  include_links?: boolean;       // 是否包含关联对象
+  include_actions?: boolean;     // 是否包含可用动作
+  link_depth?: number;           // 链接遍历深度 (0-3)
+}
+
+interface ObjectQueryResult {
+  object_id: string;
+  object_type: string;
+  properties: Record<string, any>;
+  links: Array<{ target_id: string; link_type: string; properties: any }>;
+  available_actions: Array<{ action_type_id: string; name: string; confirmation_required: boolean }>;
+  source: string;  // "graph" | "business_sqlite" | "kb_sqlite" | "agent_sqlite"
+}
+```
+
+### 5.4 多源联邦查询
+
+ObjectService 通过 Source Fetcher 模式联邦查询多个底层存储：
+
+| Fetcher | 数据源 | 返回对象类型 |
+|---------|--------|------------|
+| `_fetch_from_graph` | Neo4j/Graphiti | Unit, Location, Equipment, Event 等 |
+| `_fetch_from_business` | SQLite business.db | BusinessProcess, BusinessRule, BusinessLogic, Indicator |
+| `_fetch_from_knowledge_base` | SQLite knowledge_bases.db | KnowledgeBase |
+| `_fetch_from_agents` | SQLite agents.db | Agent |
+
+### 5.5 实现文件
+
+| 文件 | 说明 |
+|------|------|
+| `odap/infra/object_service/schemas.py` | ObjectQuery、SemanticQuery、ObjectQueryResult 等数据模型 |
+| `odap/infra/object_service/object_service.py` | 核心虚拟化层，多源联邦查询 + 链接遍历 + 动作发现 |
+| `odap/infra/object_service/routes.py` | FastAPI 路由 |
+
+---
+
+## 5.5 本体元数据服务 (Ontology Metadata Service / OMS)
+
+> **设计原则**: 本体的"本体"——定义"什么是飞机、什么是航线"的元数据层
+
+### 5.5.1 架构定位
+
+OMS 对标 Palantir AIP 的 Ontology Management Service，是本体的模式定义层。它管理对象类型（Object Types）、属性定义（Properties）、链接关系（Link Types）和动作类型（Action Types）的元数据，使本体 Schema 从静态 Python 字典升级为运行时可管理的服务。
+
+### 5.5.2 四类属性模型 (ADR-036)
+
+对齐 Palantir AIP 的四类属性体系：
+
+| 属性类别 | 说明 | 示例 |
+|---------|------|------|
+| `basic_properties` | 身份属性：名称、位置、状态、类型 | name, side, status, location |
+| `statistical_properties` | 统计属性：战斗力、士气、伤亡率 | combat_power, morale, casualty_rate |
+| `capabilities` | 能力维度：射程、穿甲、防空 | range, armor_penetration, air_defense |
+| `constraints` | 实体级约束：最大速度、最低补给 | max_speed, min_supply |
+
+### 5.5.3 核心数据模型
+
+```typescript
+interface ObjectTypeDefinition {
+  type_id: string;
+  name: string;
+  display_name: string;
+  description: string;
+  properties: PropertyDefinition[];  // 含 category 字段区分四类
+  links: LinkDefinition[];
+  actions: string[];  // 绑定的 ActionType ID 列表
+  is_active: boolean;
+}
+
+interface ActionTypeDefinition {
+  action_type_id: string;
+  name: string;
+  display_name: string;
+  target_object_type: string;
+  parameters: ActionParameter[];
+  opa_policy?: string;           // OPA 策略包路径
+  required_roles: string[];      // 允许执行的角色
+  writeback_config?: object;     // 写回配置 (webhook/graph)
+  confirmation_required: boolean; // 是否需要人工审批
+}
+```
+
+### 5.5.4 默认种子数据 (ADR-036)
+
+| 对象类型 | 属性数 | 链接数 | 绑定动作 |
+|---------|--------|--------|---------|
+| Unit | 15 (7 basic + 5 stat + 3 cap) | 3 (located_at, attached_to, engaged_with) | move, attack, defend, reinforce, retreat |
+| Location | 6 basic | 2 (adjacent_to, contains) | - |
+| Equipment | 4 basic + 2 cap | 1 (assigned_to) | - |
+| Event | 6 basic | 2 (participants, occurs_at) | observe, communicate |
+
+| 动作类型 | 目标类型 | 需审批 | OPA 策略 |
+|---------|---------|--------|---------|
+| move | Unit | 否 | - |
+| attack | Unit | **是** | policies/attack/authorize |
+| defend | Unit | 否 | - |
+| reinforce | Unit | **是** | - |
+| retreat | Unit | **是** | - |
+| observe | Event | 否 | - |
+| communicate | Event | 否 | - |
+
+### 5.5.5 API 端点
+
+| 端点 | 方法 | 说明 |
+|------|------|------|
+| `/api/ontology/oms/object-types` | GET | 列出所有对象类型 |
+| `/api/ontology/oms/object-types/{id}` | GET/PUT/DELETE | 对象类型 CRUD |
+| `/api/ontology/oms/action-types` | GET | 列出所有动作类型 |
+| `/api/ontology/oms/action-types/{id}` | GET/PUT/DELETE | 动作类型 CRUD |
+| `/api/ontology/oms/object-types/{id}/actions/{aid}` | POST/DELETE | 绑定/解绑动作 |
+
+### 5.5.6 实现文件
+
+| 文件 | 说明 |
+|------|------|
+| `odap/biz/ontology/oms/schemas.py` | Pydantic 模型定义 |
+| `odap/biz/ontology/oms/storage/sqlite_oms_storage.py` | SQLite 存储 + ADR-036 种子数据 |
+| `odap/biz/ontology/oms/routes.py` | FastAPI 路由 |
+
 ---
 ## 3. OpenHarness Agent 基础设施层
 

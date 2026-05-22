@@ -488,8 +488,18 @@ class OPAClientV2:
         except Exception as e:
             raise RuntimeError(f"策略上传失败: {e}")
 
+    def delete_policy(self, policy_path: str) -> bool:
+        try:
+            response = httpx.delete(
+                f"{self.opa_url}/v1/policies/{policy_path}",
+                timeout=self.timeout,
+            )
+            response.raise_for_status()
+            return True
+        except Exception as e:
+            raise RuntimeError(f"删除策略失败: {e}")
+
     def health_check(self) -> bool:
-        """健康检查"""
         try:
             response = httpx.get(f"{self.opa_url}/health", timeout=2.0)
             return response.status_code == 200
@@ -731,6 +741,26 @@ class OPAManagerV2:
         self.policy_cache.clear()
         self.cache_hits = 0
         self.cache_misses = 0
+
+    def load_policy(self, policy_id: str, rego_content: str) -> bool:
+        try:
+            if self.use_mock:
+                return True
+            result = self.opa_client.put_policy(policy_id, rego_content)
+            self.clear_cache()
+            return result
+        except Exception:
+            return False
+
+    def delete_policy(self, policy_id: str) -> bool:
+        try:
+            if self.use_mock:
+                return True
+            result = self.opa_client.delete_policy(policy_id)
+            self.clear_cache()
+            return result
+        except Exception:
+            return False
 
     def get_performance_metrics(self) -> Dict[str, Any]:
         """获取性能指标"""

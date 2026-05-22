@@ -341,7 +341,7 @@ export function OntologySchemaViewer() {
   return (
     <div style={{ padding: '0 4px' }}>
       <Card size="small" style={{ marginBottom: 12 }}>
-        <Space split={<Text type="secondary">|</Text>}>
+        <Space separator={<Text type="secondary">|</Text>}>
           <Text type="secondary">版本: <Text strong>{schema.version}</Text></Text>
           <Text type="secondary">更新: <Text strong>{schema.last_updated}</Text></Text>
           <Text type="secondary">实体类型: <Text strong>{Object.keys(entityTypes).length}</Text></Text>

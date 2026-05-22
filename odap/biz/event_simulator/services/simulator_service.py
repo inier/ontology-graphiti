@@ -13,6 +13,7 @@ class EventSimulatorService:
         self._templates: Dict[str, EventTemplate] = {}
         self._events: List[GeneratedEvent] = []
         self._time_control = TimeControl()
+        self._triggers: Dict[str, Dict[str, Any]] = {}
     
     def create_template(self, name: str, event_type: str, 
                       description: str = "", 
@@ -91,3 +92,42 @@ class EventSimulatorService:
             "current_time": self._time_control.current_time.isoformat(),
             "is_paused": self._time_control.is_paused
         }
+
+    def advance_clock(self, delta_seconds: float) -> Dict[str, Any]:
+        from datetime import timedelta
+        self._time_control.current_time += timedelta(seconds=delta_seconds * self._time_control.simulation_speed)
+        triggered = self._check_triggers()
+        return {
+            "current_time": self._time_control.current_time.isoformat(),
+            "advanced_by_seconds": delta_seconds,
+            "triggers_fired": triggered,
+        }
+
+    def register_trigger(self, trigger_id: str, condition: Dict[str, Any],
+                         action: Dict[str, Any]) -> Dict[str, Any]:
+        self._triggers[trigger_id] = {
+            "condition": condition,
+            "action": action,
+            "fired_count": 0,
+            "enabled": True,
+        }
+        return {"trigger_id": trigger_id, "status": "registered"}
+
+    def _check_triggers(self) -> List[str]:
+        fired = []
+        for tid, trigger in self._triggers.items():
+            if not trigger["enabled"]:
+                continue
+            cond = trigger["condition"]
+            cond_type = cond.get("type", "time")
+            if cond_type == "time":
+                target_time = cond.get("target_time")
+                if target_time and self._time_control.current_time.isoformat() >= target_time:
+                    trigger["fired_count"] += 1
+                    fired.append(tid)
+            elif cond_type == "event_count":
+                threshold = cond.get("threshold", 10)
+                if len(self._events) >= threshold:
+                    trigger["fired_count"] += 1
+                    fired.append(tid)
+        return fired

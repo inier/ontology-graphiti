@@ -1,6 +1,6 @@
 # 本体驱动分析决策平台 (ODAP) - L3-L4 业务层
-> **部分**: Agent协同 + OODA + 数据架构 + 本体管理 + 角色权限 + 配置
-> **版本**: 4.1.0 | **日期**: 2026-05-04
+> **部分**: Agent协同 + OADP + 数据架构 + 本体管理 + 角色权限 + 配置 + 动作服务 + 反馈闭环 + 语义检索
+> **版本**: 5.0.0 | **日期**: 2026-05-19
 > **上级文档**: [ARCHITECTURE.md](ARCHITECTURE.md)
 ---
 ## 7. 三 Agent 协同编排设计
@@ -187,8 +187,249 @@ class DomainSwarm:
 
 ---
 
+## 21. 动作服务层 (Action Service / Kinetic Layer)
 
-## 8. OODA 闭环实现
+> **设计原则**: 本体不仅是读数据的镜头，更是写操作的手——从"描述世界"到"改变世界"
+
+### 21.1 架构定位
+
+Action Service 对标 Palantir AIP 的动势层（Kinetic Layer），是 OADP 闭环中 **Perform** 阶段的核心实现。它将决策结果转化为可执行的业务动作，通过 OPA 策略校验、人工审批门控、执行引擎和写回机制，实现从"观察数据"到"驱动业务"的闭环。
+
+### 21.2 动作生命周期
+
+```
+Agent/用户 提交 ActionRequest
+    ↓
+① 创建 ActionRecord (status=pending)
+    ↓
+② 参数校验 (validating → approved/rejected)
+    ↓
+③ OPA 策略检查 (RBAC + ABAC)
+    ↓
+④ 人工审批 (如 confirmation_required=true)
+    ↓
+⑤ 执行动作 (executing → completed/failed)
+    ├─ update_status → GraphManager.update_entity()
+    ├─ create → GraphManager.add_entity()
+    ├─ link → GraphManager.add_relationship()
+    └─ generic → 可扩展的 handler
+    ↓
+⑥ 写回 (writeback_config: webhook/graph)
+    ↓
+⑦ 反馈回路 (FeedbackLoop.close_loop())
+    ↓
+⑧ 结果回流 → 驱动模型进化
+```
+
+### 21.3 ActionRecord 数据模型
+
+```typescript
+interface ActionRecord {
+  action_record_id: string;
+  action_type_id: string;         // 引用 OMS 中的 ActionTypeDefinition
+  target_object_id: string;
+  target_object_type: string;
+  parameters: Record<string, any>;
+  status: 'pending' | 'validating' | 'approved' | 'rejected' 
+        | 'executing' | 'completed' | 'failed' | 'rolled_back';
+  requested_by: string;
+  reason: string;
+  agent_id?: string;
+  opa_decision?: { allow: boolean; reason: string };
+  validation_result?: { valid: boolean; errors: string[] };
+  execution_result?: { success: boolean; message: string; data?: any };
+  writeback_result?: { status: string; url?: string };
+  created_at: string;
+  updated_at: string;
+}
+```
+
+### 21.4 OPA 集成
+
+动作执行前自动调用 OPA v2 进行 ABAC 策略检查：
+- `OPAManagerV2.check_permission_abac(user, action, resource, environment)`
+- 检查结果记录到 `opa_decision` 字段
+- 若 OPA 拒绝，动作状态直接变为 `rejected`
+
+### 21.5 写回机制 (Write-back)
+
+ActionTypeDefinition 中的 `writeback_config` 支持两种写回模式：
+
+| 模式 | 说明 | 适用场景 |
+|------|------|---------|
+| `webhook` | 向外部系统发送 HTTP POST | 写回 SAP/Salesforce/ERP |
+| `graph` | 更新本体图谱中的对象状态 | 内部状态同步 |
+
+### 21.6 API 端点
+
+| 端点 | 方法 | 说明 |
+|------|------|------|
+| `/api/actions/submit` | POST | 提交动作（自动走校验→OPA→执行流程） |
+| `/api/actions/{id}/approve` | POST | 审批并执行待审批动作 |
+| `/api/actions/records` | GET | 查询动作记录（支持状态筛选） |
+| `/api/actions/records/{id}` | GET | 获取动作详情 |
+| `/api/actions/target/{id}` | GET | 按目标对象查询动作历史 |
+
+### 21.7 实现文件
+
+| 文件 | 说明 |
+|------|------|
+| `odap/biz/action_service/schemas.py` | ActionRequest、ActionRecord、ActionExecutionResult |
+| `odap/biz/action_service/storage/sqlite_action_storage.py` | SQLite 持久化存储 |
+| `odap/biz/action_service/executor.py` | 核心执行引擎（校验→OPA→执行→写回→反馈） |
+| `odap/biz/action_service/feedback_loop.py` | 三层反馈回路（ADR-051） |
+| `odap/biz/action_service/routes.py` | FastAPI 路由 |
+
+---
+
+## 22. 闭环反馈机制 (Feedback Loop)
+
+> **设计原则**: 决策产生行动、行动更新指标、指标反馈驱动模型进化——自增强循环
+
+### 22.1 架构定位
+
+Feedback Loop 对标 ADR-051 三层反馈架构，是 OADP 闭环中"执行→感知"的桥梁。它将动作执行结果自动回流到本体图谱，为后续决策提供反馈数据。
+
+### 22.2 三层架构 (ADR-051)
+
+```
+ActionRecord (执行结果)
+    ↓
+┌─────────────────────────────────────────────────┐
+│  Layer 1: FeedbackCollector (收集)               │
+│  从 ActionRecord 中提取执行结果，生成 ActionFeedback │
+│  outcome: success/failure                        │
+│  result_data: 执行返回数据                        │
+│  error_message: 错误信息                          │
+├─────────────────────────────────────────────────┤
+│  Layer 2: FeedbackAnalyzer (分析)                │
+│  分析偏差，识别根因，生成经验教训                    │
+│  deviation_score: 0.0-1.0 偏差评分               │
+│  deviation_factors: 偏差因素列表                   │
+│  root_causes: 根因分析 (timeout/permission/...)   │
+│  lesson_learned: 经验教训文本                      │
+├─────────────────────────────────────────────────┤
+│  Layer 3: FeedbackAggregator (聚合)              │
+│  聚合分析结果，更新知识图谱，触发 Hook 事件          │
+│  ① 更新图谱对象状态 (GraphManager.update_entity)  │
+│  ② 创建反馈 Episode (OntologyDocument 格式)       │
+│  ③ 触发 Hook 事件 (action.feedback.success/failure)│
+└─────────────────────────────────────────────────┘
+```
+
+### 22.3 ActionFeedback 数据模型
+
+```typescript
+interface ActionFeedback {
+  action_id: string;
+  decision_id?: string;
+  outcome: 'success' | 'failure';
+  result_data?: Record<string, any>;
+  error_message?: string;
+  deviation_score?: number;      // 0.0=无偏差, 1.0=完全偏差
+  deviation_factors?: string[];
+  root_causes?: string[];
+  lesson_learned?: string;
+  timestamp: string;
+}
+```
+
+### 22.4 知识图谱更新策略
+
+| 反馈类型 | 图谱操作 | 关系类型 |
+|---------|---------|---------|
+| action_result (成功) | 创建 Event 节点 | `:CAUSED → Decision` |
+| outcome_deviation (偏差) | 更新 Decision 属性 | `:HAS_DEVIATION` |
+| lesson_learned (经验) | 创建 Fact 节点 | `:INFORMS → Decision` |
+
+### 22.5 与 Action Service 的集成
+
+Feedback Loop 在 ActionExecutor 执行成功后自动触发：
+
+```python
+# executor.py 中的集成
+if execution_result.success:
+    feedback_loop = get_feedback_loop()
+    await feedback_loop.close_loop(updated_record)
+```
+
+---
+
+## 23. 语义对象检索器 (Semantic Object Retriever)
+
+> **设计原则**: 从"找文本"到"找对象"——AI 理解业务对象而非识别字符串
+
+### 23.1 架构定位
+
+SemanticObjectRetriever 是 QA 引擎的检索升级，将传统 RAG 的"文本片段召回"升级为"对象实例化检索"。它通过 ObjectService 的语义查询能力，将用户问题映射到本体层的对象实例，沿链接追溯关联对象网络。
+
+### 23.2 检索流程对比
+
+| 维度 | 传统 RAG | 语义对象检索 |
+|------|---------|------------|
+| 检索目标 | 文本片段 | 业务对象实例 |
+| 返回内容 | 几段相似文本 | 对象属性 + 关联对象 + 可用动作 |
+| AI 理解 | "识别字符串" | "理解业务对象" |
+| 后续操作 | 无法触发业务操作 | 可直接提交 Action |
+| 上下文 | 孤立的文本片段 | 完整的对象网络 |
+
+### 23.3 检索流程
+
+```
+用户提问 "张三的异常交易"
+    ↓
+SemanticObjectRetriever.retrieve(query_text, top_k)
+    ↓
+ObjectService.semantic_query(query_text)
+    ↓  向量召回 → 对象实例化
+    ↓
+ObjectQueryResult[] (含 links + available_actions)
+    ↓
+_describe_object() → 生成结构化上下文
+    ↓
+SemanticRetrievalResult {
+  answer_context: "[1] <Person> 张三 (status=active)\n  → [参与交易] txn-001"
+  objects: [ObjectQueryResult, ...]
+  links_summary: "共 3 个对象, 5 条关联; 关联类型: 参与交易: 3, 归属公司: 2"
+  suggested_actions: [{action_type_id: "investigate", name: "调查", ...}]
+}
+```
+
+### 23.4 实现文件
+
+| 文件 | 说明 |
+|------|------|
+| `odap/biz/qa/semantic_retriever/retriever.py` | SemanticObjectRetriever + SemanticRetrievalResult |
+
+---
+
+## 24. Pipeline 增强：ActionType 感知抽取
+
+### 24.1 增强内容
+
+`LLMExtractionStageHandler._extract_with_llm()` 的 LLM 提示词已增强，新增第 4 类抽取目标"动作（actions）"：
+
+| 抽取目标 | 增强前 | 增强后 |
+|---------|--------|--------|
+| 实体 | entity_id, entity_type, name | + basic_properties, statistical_properties, capabilities, constraints (四类属性) |
+| 关系 | relation_type, source, target | + 关系类型参考列表 (located_at, engaged_with, ...) |
+| 事件 | event_type, location, description | + participants, outcome |
+| **动作** | ❌ 不抽取 | ✅ action_type (move/attack/defend/...), actor, target, parameters, opa_required |
+
+### 24.2 自动注册机制
+
+抽取到的新实体类型会自动注册到 OMS：
+
+```python
+def _register_entity_types_from_extraction(self, entities):
+    oms = SQLiteOMSStorage()
+    for entity in entities:
+        etype = entity.get('entity_type', '')
+        if etype and not oms.get_object_type(etype):
+            oms.create_object_type({...})  # 自动注册
+```
+
+---## 8. OODA 闭环实现
 
 ### 8.1 闭环流程图
 

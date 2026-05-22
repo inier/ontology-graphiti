@@ -486,7 +486,7 @@ class LLMExtractionStageHandler(PipelineStageHandler):
             return False
 
     async def _extract_with_llm(self, text: str, context: PipelineContext) -> Tuple[List, List, List]:
-        """使用LLM提取信息"""
+        """使用LLM提取信息（含动作抽取，对齐ADR-036/ADR-032）"""
         try:
             from odap.infra.llm.llm_service import ZhipuAIClient
             from graphiti_core.llm_client.config import LLMConfig
@@ -495,6 +495,7 @@ class LLMExtractionStageHandler(PipelineStageHandler):
             entities = []
             relations = []
             events = []
+            actions = []
 
             api_key = os.getenv('OPENAI_API_KEY', '')
             api_base = os.getenv('OPENAI_API_BASE', 'https://open.bigmodel.cn/api/paas/v4')
@@ -512,26 +513,51 @@ class LLMExtractionStageHandler(PipelineStageHandler):
             )
             llm_client = ZhipuAIClient(config=config)
 
-            prompt = f"""从以下文本中提取实体、关系和事件，并以JSON格式返回。
+            prompt = f"""从以下文本中提取实体、关系、事件和动作，并以JSON格式返回。
 
 文本内容：
 {text}
 
 请提取：
-1. 实体（entities）：包括军事单位、位置、装备等，每个实体包含 entity_id, entity_type, name
+1. 实体（entities）：包括单位(Unit)、位置(Location)、装备(Equipment)、事件(Event)等，每个实体包含：
+   - entity_id, entity_type, name
+   - basic_properties: 基本属性（如side, status, location, coordinates）
+   - statistical_properties: 统计属性（如combat_power, morale, supply_level, casualty_rate）
+   - capabilities: 能力属性（如range, armor_penetration, air_defense）
+   - constraints: 约束属性（如max_speed, min_supply）
+
 2. 关系（relations）：实体之间的关系，包含 relation_id, relation_type, source_entity, target_entity
-3. 事件（events）：发生的事情，包含 event_id, event_type, location, description
+   关系类型参考：located_at, attached_to, engaged_with, adjacent_to, contains, assigned_to, participants, occurs_at
+
+3. 事件（events）：发生的事情，包含 event_id, event_type, location, description, participants, outcome
+
+4. 动作（actions）：文本中描述的或可推断的业务动作，包含：
+   - action_id, action_type（move/attack/defend/reinforce/retreat/observe/communicate）
+   - actor: 执行者实体ID
+   - target: 目标实体ID
+   - parameters: 动作参数（如destination, target_id, defense_type等）
+   - opa_required: 是否需要策略审批（attack/reinforce/retreat为true）
 
 请以以下JSON格式返回（只需返回JSON，不要其他内容）：
 {{
     "entities": [
-        {{"entity_id": "实体ID", "entity_type": "类型", "name": "名称"}}
+        {{"entity_id": "实体ID", "entity_type": "Unit|Location|Equipment|Event", "name": "名称",
+          "basic_properties": {{"side": "red|blue|neutral", "status": "active|deployed|destroyed", "location": "位置"}},
+          "statistical_properties": {{"combat_power": 0.8, "morale": 0.7}},
+          "capabilities": {{"range": 100.0}},
+          "constraints": {{}}}}
     ],
     "relations": [
-        {{"relation_id": "关系ID", "relation_type": "关系类型", "source_entity": "源实体ID", "target_entity": "目标实体ID"}}
+        {{"relation_id": "关系ID", "relation_type": "located_at|engaged_with|...", "source_entity": "源实体ID", "target_entity": "目标实体ID"}}
     ],
     "events": [
-        {{"event_id": "事件ID", "event_type": "事件类型", "location": "地点", "description": "描述"}}
+        {{"event_id": "事件ID", "event_type": "contact|attack|movement|...", "location": "地点", "description": "描述", "participants": ["实体ID"], "outcome": {{}}}}
+    ],
+    "actions": [
+        {{"action_id": "动作ID", "action_type": "move|attack|defend|reinforce|retreat|observe|communicate",
+          "actor": "执行者实体ID", "target": "目标实体ID",
+          "parameters": {{"destination": "目标位置", "target_id": "攻击目标ID"}},
+          "opa_required": false}}
     ]
 }}
 """
@@ -551,13 +577,58 @@ class LLMExtractionStageHandler(PipelineStageHandler):
                 relations = result.get('relations', [])
             if result and 'events' in result:
                 events = result.get('events', [])
+            if result and 'actions' in result:
+                actions = result.get('actions', [])
 
-            logger.info(f"LLM提取完成: {len(entities)}个实体, {len(relations)}个关系, {len(events)}个事件")
+            self._register_entity_types_from_extraction(entities)
+
+            logger.info(f"LLM提取完成: {len(entities)}个实体, {len(relations)}个关系, {len(events)}个事件, {len(actions)}个动作")
             return entities, relations, events
 
         except Exception as e:
             logger.error(f"LLM提取失败: {e}，使用基于规则的提取")
             return self._extract_with_rule(text)
+
+    def _register_entity_types_from_extraction(self, entities: List):
+        try:
+            from odap.biz.ontology.oms.storage.sqlite_oms_storage import SQLiteOMSStorage
+            oms = SQLiteOMSStorage()
+            for entity in entities:
+                etype = entity.get('entity_type', '')
+                if etype and not oms.get_object_type(etype):
+                    props = []
+                    for prop_group in ('basic_properties', 'statistical_properties', 'capabilities', 'constraints'):
+                        group = entity.get(prop_group, {})
+                        if isinstance(group, dict):
+                            for pname, pval in group.items():
+                                props.append({
+                                    'name': pname,
+                                    'display_name': pname.replace('_', ' ').title(),
+                                    'property_type': self._infer_property_type(pval),
+                                    'category': prop_group,
+                                })
+                    oms.create_object_type({
+                        'type_id': etype,
+                        'name': etype,
+                        'display_name': etype,
+                        'description': f'Auto-registered from extraction',
+                        'properties': props,
+                    })
+                    logger.info(f"Auto-registered entity type: {etype}")
+        except Exception as e:
+            logger.debug(f"Entity type auto-registration skipped: {e}")
+
+    @staticmethod
+    def _infer_property_type(value) -> str:
+        if isinstance(value, bool):
+            return "boolean"
+        if isinstance(value, int):
+            return "integer"
+        if isinstance(value, float):
+            return "float"
+        if isinstance(value, (list, dict)):
+            return "json"
+        return "string"
 
     def _extract_with_rule(self, text: str) -> Tuple[List, List, List]:
         """使用基于规则的提取作为回退"""

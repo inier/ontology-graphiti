@@ -950,7 +950,7 @@ export function ObjectManagement() {
         }
         open={detailOpen}
         onClose={() => setDetailOpen(false)}
-        width={720}
+        size={720}
       >
         {viewingEntity && (
           <div>

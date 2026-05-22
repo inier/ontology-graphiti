@@ -295,7 +295,7 @@ class CodeSigner:
             hashlib.sha256
         ).hexdigest()
 
-        if not hmac.compare_digest(signature, expected_sig):
+        if not hmac.compare_digest(sig.signature, expected_sig):
             return CodeSignatureStatus.INVALID
 
         return CodeSignatureStatus.VALID

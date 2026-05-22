@@ -64,6 +64,27 @@ class SQLiteRoleStorage:
                 FOREIGN KEY (permission_id) REFERENCES permissions(id)
             )
         ''')
+
+        cursor.execute('''
+            CREATE TABLE IF NOT EXISTS role_skills (
+                role_id TEXT NOT NULL,
+                skill_id TEXT NOT NULL,
+                enabled INTEGER NOT NULL DEFAULT 1,
+                PRIMARY KEY (role_id, skill_id),
+                FOREIGN KEY (role_id) REFERENCES roles(id)
+            )
+        ''')
+
+        cursor.execute('''
+            CREATE TABLE IF NOT EXISTS role_policies (
+                role_id TEXT NOT NULL,
+                policy_id TEXT NOT NULL,
+                priority INTEGER NOT NULL DEFAULT 0,
+                enabled INTEGER NOT NULL DEFAULT 1,
+                PRIMARY KEY (role_id, policy_id),
+                FOREIGN KEY (role_id) REFERENCES roles(id)
+            )
+        ''')
         
         conn.commit()
         conn.close()
@@ -409,10 +430,9 @@ class SQLiteRoleStorage:
         conn = sqlite3.connect(self.db_path)
         cursor = conn.cursor()
         
-        # 删除角色权限关联
+        cursor.execute('DELETE FROM role_skills WHERE role_id = ?', (role_id,))
+        cursor.execute('DELETE FROM role_policies WHERE role_id = ?', (role_id,))
         cursor.execute('DELETE FROM role_permissions WHERE role_id = ?', (role_id,))
-        
-        # 删除角色
         cursor.execute('DELETE FROM roles WHERE id = ?', (role_id,))
         affected_rows = cursor.rowcount
         
@@ -420,3 +440,59 @@ class SQLiteRoleStorage:
         conn.close()
         
         return affected_rows > 0
+
+    def bind_skill(self, role_id: str, skill_id: str, enabled: bool = True) -> bool:
+        conn = sqlite3.connect(self.db_path)
+        cursor = conn.cursor()
+        cursor.execute('''
+            INSERT OR REPLACE INTO role_skills (role_id, skill_id, enabled)
+            VALUES (?, ?, ?)
+        ''', (role_id, skill_id, 1 if enabled else 0))
+        conn.commit()
+        conn.close()
+        return True
+
+    def unbind_skill(self, role_id: str, skill_id: str) -> bool:
+        conn = sqlite3.connect(self.db_path)
+        cursor = conn.cursor()
+        cursor.execute('DELETE FROM role_skills WHERE role_id = ? AND skill_id = ?', (role_id, skill_id))
+        affected = cursor.rowcount
+        conn.commit()
+        conn.close()
+        return affected > 0
+
+    def get_role_skills(self, role_id: str) -> List[Dict[str, Any]]:
+        conn = sqlite3.connect(self.db_path)
+        cursor = conn.cursor()
+        cursor.execute('SELECT skill_id, enabled FROM role_skills WHERE role_id = ?', (role_id,))
+        rows = cursor.fetchall()
+        conn.close()
+        return [{"skill_id": r[0], "enabled": bool(r[1])} for r in rows]
+
+    def bind_policy(self, role_id: str, policy_id: str, priority: int = 0, enabled: bool = True) -> bool:
+        conn = sqlite3.connect(self.db_path)
+        cursor = conn.cursor()
+        cursor.execute('''
+            INSERT OR REPLACE INTO role_policies (role_id, policy_id, priority, enabled)
+            VALUES (?, ?, ?, ?)
+        ''', (role_id, policy_id, priority, 1 if enabled else 0))
+        conn.commit()
+        conn.close()
+        return True
+
+    def unbind_policy(self, role_id: str, policy_id: str) -> bool:
+        conn = sqlite3.connect(self.db_path)
+        cursor = conn.cursor()
+        cursor.execute('DELETE FROM role_policies WHERE role_id = ? AND policy_id = ?', (role_id, policy_id))
+        affected = cursor.rowcount
+        conn.commit()
+        conn.close()
+        return affected > 0
+
+    def get_role_policies(self, role_id: str) -> List[Dict[str, Any]]:
+        conn = sqlite3.connect(self.db_path)
+        cursor = conn.cursor()
+        cursor.execute('SELECT policy_id, priority, enabled FROM role_policies WHERE role_id = ? ORDER BY priority DESC', (role_id,))
+        rows = cursor.fetchall()
+        conn.close()
+        return [{"policy_id": r[0], "priority": r[1], "enabled": bool(r[2])} for r in rows]

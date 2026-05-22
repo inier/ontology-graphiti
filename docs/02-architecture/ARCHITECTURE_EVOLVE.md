@@ -1,6 +1,6 @@
 # 本体驱动分析决策平台 (ODAP) - 演进与决策
 > **部分**: 技术选型 + ADR + 需求追溯 + 演进路线图 + 文件结构 + 环境变量
-> **版本**: 4.1.0 | **日期**: 2026-05-04
+> **版本**: 5.0.0 | **日期**: 2026-05-19
 > **上级文档**: [ARCHITECTURE.md](ARCHITECTURE.md)
 ---
 ## 10. 技术选型与权衡
@@ -236,7 +236,7 @@ jobs:
 
 ### 17.1 ADR 索引
 
-> **说明**: 以下为关键 ADR 索引，完整列表（48个）请参考 [adr/README.md](../07-adr/README.md)。
+> **说明**: 以下为关键 ADR 索引，完整列表（54个）请参考 [adr/README.md](../07-adr/README.md)。
 
 | ADR | 决策标题 | 状态 | 文件 |
 |-----|---------|------|------|
@@ -270,6 +270,9 @@ jobs:
 | ADR-027 | Hook 系统作为可扩展性核心架构 | 已接受 | [adr/ADR-027_hook_system_architecture.md](adr/ADR-027_hook_system_architecture.md) |
 | ADR-028 | OPA 作为统一权限校验引擎 | 已接受 | [adr/ADR-028_permission_checker_opa_integration.md](adr/ADR-028_permission_checker_opa_integration.md) |
 | ADR-029 | 统一工具注册表架构 | 已接受 | [adr/ADR-029_tool_registry_architecture.md](adr/ADR-029_tool_registry_architecture.md) |
+| ADR-050 | OADP 业务语义体系架构 | 已接受 | [adr/ADR-050_OADP业务语义体系架构.md](adr/ADR-050_OADP业务语义体系架构.md) |
+| ADR-051 | 闭环反馈机制设计 | 已接受 | [adr/ADR-051_闭环反馈机制设计.md](adr/ADR-051_闭环反馈机制设计.md) |
+| ADR-054 | 全链路深度实现设计 v2.3 | 已接受 | [adr/ADR-054_full_chain_deep_implementation_v2.3.md](adr/ADR-054_full_chain_deep_implementation_v2.3.md) |
 
 ### 17.2 ADR 分类
 
@@ -284,6 +287,8 @@ jobs:
 **平台架构**：ADR-010, ADR-011, ADR-016, ADR-017, ADR-019, ADR-023, ADR-024, ADR-025
 
 **扩展机制**：ADR-027, ADR-029
+
+**业务语义与闭环**：ADR-050, ADR-051, ADR-054
 
 ---
 
@@ -558,21 +563,28 @@ Week 21-24 性能优化 + 文档
 ### Phase 4: 高级特性（6-12 月）🔄 进行中
 
 ```
-目标: 地理空间层、多模态情报、领域数字孪生
+目标: 地理空间层、多模态情报、领域数字孪生 + Palantir 架构对齐
 ```
 
-| 功能 | 描述 | 时间 |
+| 功能 | 描述 | 状态 |
 |------|------|------|
-| 地理空间层 | 领域态势地图，实时位置追踪 | Month 6-8 |
-| 多模态情报 | 图像识别、语音指令 | Month 8-10 |
-| 领域数字孪生 | 3D 领域仿真 | Month 10-12 |
+| 地理空间层 | 领域态势地图，实时位置追踪 | ✅ 已实现 (Leaflet) |
+| 多模态情报 | 图像识别、语音指令 | ⬜ 待实现 |
+| 领域数字孪生 | 3D 领域仿真 | ⬜ 待实现 |
+| **OMS 本体元数据服务** | 对象类型/动作类型/链接关系运行时管理 (ADR-036) | ✅ 已实现 |
+| **OSv2 对象虚拟化层** | 逻辑统一、物理解耦的对象访问层 | ✅ 已实现 |
+| **Action Service 动势层** | OADP 闭环 Perform 阶段，动作生命周期管理 | ✅ 已实现 |
+| **Feedback Loop 反馈闭环** | 三层反馈架构 (ADR-051)，执行结果自动回流 | ✅ 已实现 |
+| **Semantic Retriever** | 从"找文本"到"找对象"的语义检索升级 | ✅ 已实现 |
+| **Pipeline 增强** | ActionType 感知抽取 + 实体类型自动注册 OMS | ✅ 已实现 |
+| **前端 Action 面板** | 动作管理 UI + OMS/Action API 集成 | ✅ 已实现 |
 
 ---
 
 
 ## A. 文件结构
 
-> **注意**: 本文档描述实际项目结构（2026-05-04更新）。
+> **注意**: 本文档描述实际项目结构（2026-05-19更新）。
 
 ```
 odap/                                  # Python 主包
@@ -584,8 +596,12 @@ odap/                                  # Python 主包
 ├── infra/                            # 【L1 基础设施层】— 无业务逻辑
 │   ├── graph/                        #   图谱服务（Neo4j + Graphiti）
 │   ├── llm/                          #   LLM 服务（ZhipuAI 等）
-│   ├── opa/                          #   OPA 策略引擎
+│   ├── opa/                          #   OPA 策略引擎 (v1 + v2 ABAC)
 │   ├── events/                       #   事件/Hook 系统
+│   ├── object_service/               #   【v5.0新增】对象虚拟化层 (OSv2)
+│   │   ├── schemas.py                #     ObjectQuery/SemanticQuery 数据模型
+│   │   ├── object_service.py         #     多源联邦查询 + 链接遍历
+│   │   └── routes.py                 #     FastAPI 路由
 │   ├── resilience/                   #   韧性（容错 + 健康监控）
 │   ├── config/                       #   全局配置
 │   ├── security/                     #   安全工具
@@ -607,6 +623,10 @@ odap/                                  # Python 主包
 ├── biz/                              # 【L3-L4 业务领域层】— 核心业务模块
 │   ├── ontology/                     #   本体管理（图谱 CRUD + 版本 + 热写入）
 │   │   ├── schema/                   #     OntologyDocument + 领域模型
+│   │   ├── oms/                      #     【v5.0新增】本体元数据服务 (OMS)
+│   │   │   ├── schemas.py            #       ObjectTypeDefinition/ActionTypeDefinition
+│   │   │   ├── storage/              #       SQLite OMS 存储 + ADR-036 种子数据
+│   │   │   └── routes.py             #       OMS API 路由
 │   │   ├── service.py                #     OntologyManager（对外 API）
 │   │   ├── hot_write.py              #     热写入管道
 │   │   ├── version_manager.py        #     版本管理
@@ -621,13 +641,20 @@ odap/                                  # Python 主包
 │   │   ├── services/                #     业务服务
 │   │   └── storage/                 #     存储层
 │   │
-│   ├── agent/                        #   Agent 协同（OODA 三角色）
+│   ├── agent/                        #   Agent 协同（OADP 三角色）
 │   │   ├── swarm_orchestrator.py     #     DomainSwarm 编排器
 │   │   ├── intelligence_agent.py     #     Intelligence Agent
 │   │   ├── commander.py              #     Commander Agent
 │   │   ├── operations_agent.py       #     Operations Agent
 │   │   ├── collector.py              #     情报采集器
 │   │   └── recommender.py            #     决策推荐器
+│   │
+│   ├── action_service/               #   【v5.0新增】动作服务层 (Kinetic Layer)
+│   │   ├── schemas.py                #     ActionRequest/ActionRecord/ActionExecutionResult
+│   │   ├── executor.py               #     核心执行引擎（校验→OPA→执行→写回→反馈）
+│   │   ├── feedback_loop.py          #     三层反馈回路 (ADR-051)
+│   │   ├── storage/                  #     SQLite 动作记录存储
+│   │   └── routes.py                 #     Action API 路由
 │   │
 │   ├── event_simulator/              #   事件模拟器（Phase 4新实现）
 │   │   ├── api/                     #     模拟器API

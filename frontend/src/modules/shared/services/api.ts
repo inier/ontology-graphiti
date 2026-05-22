@@ -1606,6 +1606,226 @@ export const api = {
       body: JSON.stringify(data),
     });
   },
+
+  // ==================== OMS 本体元数据服务 ====================
+
+  async listObjectTypes(activeOnly = true): Promise<any[]> {
+    return fetchJson(`${API_BASE}/api/ontology/oms/object-types?active_only=${activeOnly}`);
+  },
+
+  async getObjectType(typeId: string): Promise<any> {
+    return fetchJson(`${API_BASE}/api/ontology/oms/object-types/${typeId}`);
+  },
+
+  async createObjectType(data: any): Promise<any> {
+    return fetchJson(`${API_BASE}/api/ontology/oms/object-types`, {
+      method: 'POST',
+      body: JSON.stringify(data),
+    });
+  },
+
+  async updateObjectType(typeId: string, data: any): Promise<any> {
+    return fetchJson(`${API_BASE}/api/ontology/oms/object-types/${typeId}`, {
+      method: 'PUT',
+      body: JSON.stringify(data),
+    });
+  },
+
+  async deleteObjectType(typeId: string): Promise<void> {
+    return fetchJson(`${API_BASE}/api/ontology/oms/object-types/${typeId}`, { method: 'DELETE' });
+  },
+
+  async listActionTypes(targetType?: string): Promise<any[]> {
+    const params = targetType ? `?target_type=${targetType}` : '';
+    return fetchJson(`${API_BASE}/api/ontology/oms/action-types${params}`);
+  },
+
+  async getActionType(actionTypeId: string): Promise<any> {
+    return fetchJson(`${API_BASE}/api/ontology/oms/action-types/${actionTypeId}`);
+  },
+
+  async createActionType(data: any): Promise<any> {
+    return fetchJson(`${API_BASE}/api/ontology/oms/action-types`, {
+      method: 'POST',
+      body: JSON.stringify(data),
+    });
+  },
+
+  async updateActionType(actionTypeId: string, data: any): Promise<any> {
+    return fetchJson(`${API_BASE}/api/ontology/oms/action-types/${actionTypeId}`, {
+      method: 'PUT',
+      body: JSON.stringify(data),
+    });
+  },
+
+  async deleteActionType(actionTypeId: string): Promise<void> {
+    return fetchJson(`${API_BASE}/api/ontology/oms/action-types/${actionTypeId}`, { method: 'DELETE' });
+  },
+
+  async bindActionToObjectType(typeId: string, actionTypeId: string): Promise<void> {
+    return fetchJson(`${API_BASE}/api/ontology/oms/object-types/${typeId}/actions/${actionTypeId}`, { method: 'POST' });
+  },
+
+  async unbindActionFromObjectType(typeId: string, actionTypeId: string): Promise<void> {
+    return fetchJson(`${API_BASE}/api/ontology/oms/object-types/${typeId}/actions/${actionTypeId}`, { method: 'DELETE' });
+  },
+
+  // ==================== OSv2 对象服务 ====================
+
+  async queryObjects(query: {
+    object_type?: string;
+    filters?: any[];
+    limit?: number;
+    offset?: number;
+    include_links?: boolean;
+    include_actions?: boolean;
+  }): Promise<{ results: any[]; total: number; limit: number; offset: number }> {
+    return fetchJson(`${API_BASE}/api/objects/query`, {
+      method: 'POST',
+      body: JSON.stringify(query),
+    });
+  },
+
+  async semanticObjectSearch(query: {
+    query_text: string;
+    object_type?: string;
+    top_k?: number;
+    include_links?: boolean;
+  }): Promise<{ results: any[]; total: number }> {
+    return fetchJson(`${API_BASE}/api/objects/semantic`, {
+      method: 'POST',
+      body: JSON.stringify(query),
+    });
+  },
+
+  async getObject(objectId: string, objectType?: string): Promise<any> {
+    const params = objectType ? `?object_type=${objectType}` : '';
+    return fetchJson(`${API_BASE}/api/objects/${objectId}${params}`);
+  },
+
+  // ==================== Action Service 动作服务 ====================
+
+  async submitAction(request: {
+    action_type_id: string;
+    target_object_id: string;
+    target_object_type: string;
+    parameters?: Record<string, any>;
+    requested_by?: string;
+    reason?: string;
+    agent_id?: string;
+  }): Promise<any> {
+    return fetchJson(`${API_BASE}/api/actions/submit`, {
+      method: 'POST',
+      body: JSON.stringify(request),
+    });
+  },
+
+  async approveAction(recordId: string, approval: {
+    approved: boolean;
+    approver?: string;
+    comment?: string;
+  }): Promise<any> {
+    return fetchJson(`${API_BASE}/api/actions/${recordId}/approve`, {
+      method: 'POST',
+      body: JSON.stringify(approval),
+    });
+  },
+
+  async listActionRecords(status?: string, limit = 50, offset = 0): Promise<any[]> {
+    const params = new URLSearchParams({ limit: String(limit), offset: String(offset) });
+    if (status) params.set('status', status);
+    return fetchJson(`${API_BASE}/api/actions/records?${params}`);
+  },
+
+  async getActionRecord(recordId: string): Promise<any> {
+    return fetchJson(`${API_BASE}/api/actions/records/${recordId}`);
+  },
+
+  async listActionsByTarget(targetObjectId: string, limit = 20): Promise<any[]> {
+    return fetchJson(`${API_BASE}/api/actions/target/${targetObjectId}?limit=${limit}`);
+  },
+
+  // ==================== Perception Hub 感知服务 ====================
+
+  async ingestPerception(event: { source_type: string; raw_content: string; metadata?: any; workspace_id?: string }): Promise<any> {
+    return fetchJson(`${API_BASE}/api/perception/ingest`, {
+      method: 'POST',
+      body: JSON.stringify(event),
+    });
+  },
+
+  async ingestManual(content: string, sourceType = 'manual', metadata?: any): Promise<any> {
+    return fetchJson(`${API_BASE}/api/perception/ingest/manual`, {
+      method: 'POST',
+      body: JSON.stringify({ content, source_type: sourceType, metadata }),
+    });
+  },
+
+  async ingestWebhook(payload: any): Promise<any> {
+    return fetchJson(`${API_BASE}/api/perception/ingest/webhook`, {
+      method: 'POST',
+      body: JSON.stringify(payload),
+    });
+  },
+
+  async observeAndProcess(): Promise<any[]> {
+    return fetchJson(`${API_BASE}/api/perception/observe`, { method: 'POST' });
+  },
+
+  async getPerceptionStatus(): Promise<any> {
+    return fetchJson(`${API_BASE}/api/perception/status`);
+  },
+
+  async toggleObserver(name: string, enabled: boolean): Promise<any> {
+    return fetchJson(`${API_BASE}/api/perception/observers/${name}/toggle`, {
+      method: 'POST',
+      body: JSON.stringify({ enabled }),
+    });
+  },
+
+  // ==================== Decision Pipeline 决策管道 ====================
+
+  async executeDecisionPipeline(input: {
+    query: string;
+    context?: any;
+    workspace_id?: string;
+    scenario_id?: string;
+    agent_id?: string;
+  }): Promise<any> {
+    return fetchJson(`${API_BASE}/api/decision-pipeline/execute`, {
+      method: 'POST',
+      body: JSON.stringify(input),
+    });
+  },
+
+  async analyzeOnly(input: { query: string; context?: any }): Promise<any> {
+    return fetchJson(`${API_BASE}/api/decision-pipeline/analyze`, {
+      method: 'POST',
+      body: JSON.stringify(input),
+    });
+  },
+
+  // ==================== Simulation Sandbox 模拟沙盒 ====================
+
+  async simulateWhatIf(scenario: {
+    action_type_id: string;
+    target_object_id: string;
+    target_object_type: string;
+    parameters?: any;
+    variant_parameters?: any[];
+  }): Promise<any> {
+    return fetchJson(`${API_BASE}/api/simulation/whatif/simulate`, {
+      method: 'POST',
+      body: JSON.stringify(scenario),
+    });
+  },
+
+  async compareWhatIfScenarios(scenarios: any[]): Promise<any> {
+    return fetchJson(`${API_BASE}/api/simulation/whatif/compare`, {
+      method: 'POST',
+      body: JSON.stringify(scenarios),
+    });
+  },
 };
 
 export const apiService = api;

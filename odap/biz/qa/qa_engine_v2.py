@@ -366,16 +366,37 @@ class QAEngineV2:
     - 复杂问题升级
     """
 
-    def __init__(self, graphiti_client=None, use_mock: bool = True):
+    def __init__(self, graphiti_client=None, use_mock: bool = False):
         self.dialog_manager = DialogManager()
         self.rag_pipeline = RAGPipeline(graphiti_client)
         self.temporal_parser = TemporalQueryParser()
         self.source_tracer = SourceTracer(graphiti_client)
         self.graphiti = graphiti_client
         self.use_mock = use_mock
+        self._llm_client = None
 
         self._escalation_keywords = ["为什么", "原因", "解释", "详细"]
         self._complex_patterns = [r"如果.*?会.*?", r".*?和.*?对比", r".*?的最佳.*?"]
+
+    @property
+    def llm_client(self):
+        if self._llm_client is None:
+            try:
+                from odap.infra.llm.llm_service import ZhipuAIClient
+                from graphiti_core.llm_client.config import LLMConfig
+                import os
+                api_key = os.getenv('OPENAI_API_KEY', '')
+                api_base = os.getenv('OPENAI_API_BASE', 'https://open.bigmodel.cn/api/paas/v4')
+                model = os.getenv('OPENAI_MODEL', 'glm-4')
+                if api_key:
+                    config = LLMConfig(model=model, api_key=api_key, base_url=api_base, temperature=0.7)
+                    self._llm_client = ZhipuAIClient(config=config)
+                else:
+                    self._llm_client = None
+            except Exception as e:
+                logger.warning(f"QAEngine: LLM client init failed: {e}")
+                self._llm_client = None
+        return self._llm_client
 
     def ask(self, query: str, user_id: str = "user",
            session_id: str = None, context: Dict = None,
@@ -444,7 +465,9 @@ class QAEngineV2:
                 "session_id": session_id,
                 "answer": answer,
                 "sources": [{"source": t.source, "excerpt": t.excerpt, "confidence": t.confidence} for t in traces],
-                "dialog_state": session.state.value if session else "unknown"
+                "dialog_state": session.state.value if session else "unknown",
+                "suggested_actions": self._extract_suggested_actions(query, rag_results),
+                "decision_available": self._is_decision_intent(query),
             }
         except RuntimeError as e:
             error_msg = str(e)
@@ -465,10 +488,68 @@ class QAEngineV2:
         """带工具调用的问答"""
         return self.ask(query, user_id, session_id)
 
+    async def ask_with_oadp(self, query: str, user_id: str = "user",
+                      session_id: str = None, context: Dict = None,
+                      workspace_id: Optional[str] = None,
+                      scenario_id: Optional[str] = None,
+                      auto_decide: bool = False) -> Dict[str, Any]:
+        """OADP 闭环问答：QA→Decision→Action→Feedback"""
+        qa_result = self.ask(query, user_id, session_id, context, workspace_id, scenario_id)
+
+        if auto_decide and qa_result.get('decision_available'):
+            try:
+                from odap.biz.decision_pipeline.pipeline import get_decision_pipeline
+                from odap.biz.decision_pipeline.schemas import AnalysisInput
+                pipeline = get_decision_pipeline()
+                pipeline_input = AnalysisInput(
+                    query=query,
+                    context=context or {},
+                    workspace_id=workspace_id,
+                    scenario_id=scenario_id,
+                    agent_id=user_id,
+                )
+                pipeline_result = await pipeline.execute(pipeline_input)
+                qa_result['oadp_pipeline'] = {
+                    'pipeline_id': pipeline_result.pipeline_id,
+                    'stages': {k: v.value for k, v in pipeline_result.stages.items()},
+                    'decision': pipeline_result.decision.model_dump() if pipeline_result.decision else None,
+                    'action_record': pipeline_result.action_record,
+                    'feedback': pipeline_result.feedback,
+                }
+            except Exception as e:
+                qa_result['oadp_pipeline'] = {'error': str(e)}
+
+        return qa_result
+
+    def _is_decision_intent(self, query: str) -> bool:
+        decision_keywords = [
+            "应该", "建议", "如何处理", "怎么办", "决策", "行动",
+            "攻击", "防御", "撤退", "增援", "移动", "部署",
+            "推荐", "最优", "最佳方案", "执行",
+        ]
+        return any(kw in query for kw in decision_keywords)
+
+    def _extract_suggested_actions(self, query: str, rag_results: List) -> List[Dict[str, Any]]:
+        if not self._is_decision_intent(query):
+            return []
+        try:
+            from odap.biz.qa.semantic_retriever.retriever import get_semantic_retriever
+            retriever = get_semantic_retriever()
+            import asyncio
+            result = asyncio.get_event_loop().run_until_complete(
+                retriever.retrieve(query, top_k=5)
+            )
+            return result.suggested_actions[:5]
+        except Exception:
+            return []
+
     def _generate_answer(self, query: str, context: str, rag_results: List["RAGResult"]) -> str:
-        """生成回答"""
         if self.use_mock:
             return self._mock_generate(query, context, rag_results)
+
+        llm_answer = self._generate_with_llm(query, context, rag_results)
+        if llm_answer:
+            return llm_answer
 
         query_lower = query.lower()
         if "雷达" in query_lower:
@@ -480,25 +561,95 @@ class QAEngineV2:
         else:
             return self._answer_general(query, context, rag_results)
 
+    def _generate_with_llm(self, query: str, context: str, rag_results: List["RAGResult"]) -> Optional[str]:
+        if not self.llm_client:
+            return None
+        try:
+            import asyncio
+            from graphiti_core.prompts.models import Message
+
+            source_count = len(rag_results)
+            system_prompt = (
+                "你是一个专业的本体驱动分析决策平台(ODAP)的AI助手。"
+                "请基于以下检索到的上下文信息，准确、专业地回答用户的问题。"
+                "如果上下文信息不足以回答问题，请明确说明。"
+                "回答时引用具体的数据来源，不要编造信息。"
+            )
+            user_prompt = (
+                f"用户问题：{query}\n\n"
+                f"检索到的上下文信息（共{source_count}条）：\n{context}\n\n"
+                f"请基于以上信息回答用户的问题。"
+            )
+
+            messages = [
+                Message(role="system", content=system_prompt),
+                Message(role="user", content=user_prompt),
+            ]
+
+            loop = asyncio.get_event_loop()
+            if loop.is_running():
+                return None
+
+            result, _, _ = loop.run_until_complete(
+                self.llm_client._generate_response(messages, max_tokens=2048)
+            )
+
+            if isinstance(result, dict):
+                return result.get('response', str(result))
+            return str(result) if result else None
+
+        except Exception as e:
+            logger.warning(f"QAEngine LLM generation failed, falling back to template: {e}")
+            return None
+
     def _mock_generate(self, query: str, context: str, rag_results: List["RAGResult"]) -> str:
         """Mock 生成回答"""
         return f"根据您的问题 '{query}'，这是基于 {len(rag_results)} 条检索结果和上下文信息的回答。\n\n{context[:200]}..."
 
     def _answer_radar(self, query: str, context: str, rag_results: List["RAGResult"]) -> str:
-        """回答雷达相关问题"""
-        return f"找到 {len(rag_results)} 个相关目标:\n" + "\n".join([f"- {r.content}" for r in rag_results[:5]])
+        if not rag_results:
+            return f"针对 '{query}' 未找到相关目标信息。"
+        return f"找到 {len(rag_results)} 个相关目标:\n" + "\n".join([f"- {r.content}" for r in rag_results[:10]])
 
     def _answer_force_comparison(self, query: str, context: str, rag_results: List["RAGResult"]) -> str:
-        """回答力量对比问题"""
-        return "力量对比分析:\n红方: 部队A (100人), 坦克B (20辆)\n蓝方: 部队C (80人), 坦克D (15辆)\n结论: 红方在兵力上占优势。"
+        if not rag_results:
+            return f"针对 '{query}' 未找到力量对比数据，请确保图谱中包含相关实体。"
+        red_entities = []
+        blue_entities = []
+        for r in rag_results:
+            content = r.content.lower()
+            if '红方' in content or 'red' in content:
+                red_entities.append(r.content)
+            elif '蓝方' in content or 'blue' in content:
+                blue_entities.append(r.content)
+        parts = ["力量对比分析（基于图谱数据）:"]
+        if red_entities:
+            parts.append(f"红方: {len(red_entities)} 个实体\n" + "\n".join(f"  - {e[:100]}" for e in red_entities[:5]))
+        if blue_entities:
+            parts.append(f"蓝方: {len(blue_entities)} 个实体\n" + "\n".join(f"  - {e[:100]}" for e in blue_entities[:5]))
+        if not red_entities and not blue_entities:
+            parts.append(f"共检索到 {len(rag_results)} 条相关信息:\n" + "\n".join(f"  - {r.content[:100]}" for r in rag_results[:5]))
+        return "\n".join(parts)
 
     def _answer_situation(self, query: str, context: str, rag_results: List["RAGResult"]) -> str:
-        """回答态势问题"""
-        return f"当前态势概览:\n- 监控目标总数: {len(rag_results)}\n- A区: 5个目标\n- B区: 3个目标\n- C区: 7个目标"
+        if not rag_results:
+            return f"针对 '{query}' 未找到态势数据，请确保图谱中包含相关实体。"
+        parts = [f"当前态势概览（基于 {len(rag_results)} 条检索结果）:"]
+        type_counts: Dict[str, int] = {}
+        for r in rag_results:
+            for keyword in ('Unit', 'Location', 'Equipment', 'Event', '单位', '位置', '装备', '事件'):
+                if keyword.lower() in r.content.lower():
+                    type_counts[keyword] = type_counts.get(keyword, 0) + 1
+                    break
+        for t, c in sorted(type_counts.items(), key=lambda x: -x[1]):
+            parts.append(f"- {t}: {c} 个")
+        parts.append("\n详细信息:")
+        for r in rag_results[:8]:
+            parts.append(f"  - {r.content[:120]}")
+        return "\n".join(parts)
 
     def _answer_general(self, query: str, context: str, rag_results: List["RAGResult"]) -> str:
-        """回答一般问题"""
-        if "未找到相关信息" in context:
+        if "未找到相关信息" in context or not rag_results:
             return f"针对您的问题 '{query}'，未找到相关信息。"
         return f"针对您的问题 '{query}'，我找到了 {len(rag_results)} 条相关信息。\n\n{context}"
 

@@ -130,9 +130,8 @@ export function MyAgents() {
                 ))}
               </div>
               <div style={{ display: 'flex', gap: 8, width: '100%', marginTop: 8 }}>
-                <Button style={{ flex: 1 }} size="small">授权管理</Button>
                 <Button type="primary" style={{ flex: 1 }} size="small" icon={<MessageOutlined />} onClick={() => handleChat(agent)}>
-                  语义图谱
+                  智能问答
                 </Button>
               </div>
             </div>

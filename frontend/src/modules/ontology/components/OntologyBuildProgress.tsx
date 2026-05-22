@@ -133,7 +133,7 @@ export function OntologyBuildProgress({
   return (
     <Card
       style={{ borderRadius: 8, marginBottom: 16 }}
-      bodyStyle={{ padding: '16px 24px' }}
+      styles={{ body: { padding: '16px 24px' } }}
     >
       {taskDescription && (
         <div style={{ marginBottom: 16 }}>

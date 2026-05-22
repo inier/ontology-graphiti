@@ -52,3 +52,9 @@ htmlcov/
 
 # Neo4j data
 neo4j_data/
+
+.galaxycode-core/
+
+.galaxy/
+
+.crush/

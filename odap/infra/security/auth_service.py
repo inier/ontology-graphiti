@@ -5,7 +5,7 @@
 - 本地账号密码认证 (bcrypt)
 - JWT Token 签发/刷新/吊销
 - API Key 管理
-- OAuth2/OIDC 预留接口
+- OAuth2/OIDC Authorization Code Flow
 - 登录限流
 """
 
@@ -13,6 +13,7 @@ import os
 import uuid
 import hashlib
 import time
+import logging
 import threading
 from typing import Dict, Any, Optional
 from datetime import datetime, timezone
@@ -23,6 +24,9 @@ from .auth_models import (
     UserInfo, WorkspaceMembership, RefreshTokenRecord, APIKeyRecord,
 )
 from .jwt_service import JWTService
+from .oauth2_providers import OAuth2Service, OAuth2ProviderRegistry, OAuth2TokenResponse, OAuth2UserInfo
+
+logger = logging.getLogger(__name__)
 
 
 try:
@@ -78,9 +82,10 @@ class LoginRateLimiter:
 class AuthService:
     """认证服务 - 核心入口"""
 
-    def __init__(self, jwt_service: JWTService = None):
+    def __init__(self, jwt_service: JWTService = None, oauth2_registry: OAuth2ProviderRegistry = None):
         self.jwt = jwt_service or JWTService()
         self.rate_limiter = LoginRateLimiter()
+        self.oauth2 = OAuth2Service(registry=oauth2_registry or OAuth2ProviderRegistry())
         self._refresh_tokens: Dict[str, RefreshTokenRecord] = {}
         self._api_keys: Dict[str, APIKeyRecord] = {}
         self._lock = threading.RLock()
@@ -292,3 +297,97 @@ class AuthService:
                     record.is_active = False
                     return True
         return False
+
+    def get_oauth2_authorize_url(self, provider_id: str, redirect_uri: str = "") -> Dict[str, str]:
+        result = self.oauth2.get_authorize_url(provider_id, redirect_uri)
+        if "error" in result:
+            logger.warning(f"OAuth2 authorize URL error: {result['error']}")
+        return result
+
+    def list_oauth2_providers(self) -> list[Dict[str, str]]:
+        providers = self.oauth2.registry.list_providers()
+        return [
+            {"provider_id": p.provider_id, "display_name": p.display_name}
+            for p in providers
+        ]
+
+    async def authenticate_oauth2(
+        self,
+        provider_id: str,
+        code: str,
+        state: str,
+        redirect_uri: str = "",
+        workspace_id: str = "",
+    ) -> Optional[TokenPair]:
+        token_response = await self.oauth2.exchange_code(provider_id, code, state, redirect_uri)
+        if not token_response or not token_response.access_token:
+            logger.warning(f"OAuth2 token exchange failed for provider '{provider_id}'")
+            return None
+
+        oauth2_user = await self.oauth2.get_user_info(provider_id, token_response)
+        if not oauth2_user or not oauth2_user.provider_uid:
+            logger.warning(f"OAuth2 user info retrieval failed for provider '{provider_id}'")
+            return None
+
+        user = self._find_or_create_oauth2_user(oauth2_user)
+        if not user or not user.get("is_active"):
+            return None
+
+        access = self.jwt.issue_access_token(
+            user["id"], user["username"], user["global_role"],
+            workspace_id=workspace_id,
+        )
+        refresh = self.jwt.issue_refresh_token(user["id"], workspace_id)
+
+        token_hash = hashlib.sha256(refresh.encode()).hexdigest()
+        record = RefreshTokenRecord(
+            id=str(uuid.uuid4()),
+            user_id=user["id"],
+            token_hash=token_hash,
+            workspace_id=workspace_id,
+            expires_at=datetime.now(timezone.utc) + self.jwt.REFRESH_TTL,
+        )
+        with self._lock:
+            self._refresh_tokens[token_hash] = record
+
+        logger.info(f"OAuth2 login successful: provider={provider_id}, user={user['username']}")
+        return TokenPair(
+            access_token=access,
+            refresh_token=refresh,
+            token_type="Bearer",
+            expires_in=int(self.jwt.ACCESS_TTL.total_seconds()),
+        )
+
+    def _find_or_create_oauth2_user(self, oauth2_user: OAuth2UserInfo) -> Optional[Dict[str, Any]]:
+        with self._lock:
+            for user in self._users.values():
+                if (user.get("auth_provider") == AuthProvider.OIDC.value
+                        and user.get("provider_uid") == oauth2_user.provider_uid
+                        and user.get("provider_id") == oauth2_user.provider_id):
+                    if oauth2_user.name and oauth2_user.name != user.get("username"):
+                        pass
+                    if oauth2_user.email and oauth2_user.email != user.get("email"):
+                        user["email"] = oauth2_user.email
+                    return user
+
+            username = oauth2_user.name or f"{oauth2_user.provider_id}_{oauth2_user.provider_uid}"
+            base_username = username
+            counter = 1
+            while username in self._users:
+                username = f"{base_username}_{counter}"
+                counter += 1
+
+            uid = str(uuid.uuid4())
+            self._users[username] = {
+                "id": uid,
+                "username": username,
+                "password_hash": "",
+                "email": oauth2_user.email,
+                "global_role": GlobalRole.OBSERVER.value,
+                "auth_provider": AuthProvider.OIDC.value,
+                "provider_id": oauth2_user.provider_id,
+                "provider_uid": oauth2_user.provider_uid,
+                "is_active": True,
+            }
+            logger.info(f"Created new OAuth2 user: {username} from {oauth2_user.provider_id}")
+            return self._users[username]

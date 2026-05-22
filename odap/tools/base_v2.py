@@ -45,7 +45,7 @@ class SkillStatus(Enum):
     UNLOADED = "unloaded"
 
 
-class HealthStatus(Enum):
+class HealthStatus(str, Enum):
     """健康状态"""
     HEALTHY = "healthy"
     DEGRADED = "degraded"
@@ -237,6 +237,16 @@ class SkillExecutorV2:
                     skill_name=skill_name
                 )
 
+        danger_level = skill_reg.skill.metadata.danger_level
+        if danger_level in ("high", "critical") and not self._confirm_dangerous_action(skill_name, danger_level, user):
+            skill_reg.health_info.failed_calls += 1
+            return SkillOutput(
+                success=False,
+                error=f"Action requires confirmation: {skill_name} (danger_level={danger_level})",
+                execution_time_ms=0,
+                skill_name=skill_name
+            )
+
         start_time = time.perf_counter()
         attempt = 0
         last_error = None
@@ -301,6 +311,18 @@ class SkillExecutorV2:
             user_role, action, {"type": "skill", "id": skill_name}
         )
         return result
+
+    def _confirm_dangerous_action(self, skill_name: str, danger_level: str, user: Dict = None) -> bool:
+        """检查高危操作是否已确认"""
+        if user and user.get("role") == "admin":
+            return True
+        if user and user.get("confirmed_actions") and skill_name in user.get("confirmed_actions", []):
+            return True
+        if danger_level == "critical":
+            return False
+        if danger_level == "high":
+            return user is not None and user.get("role") in ("commander", "admin")
+        return True
 
 
 class SkillRegistryV2:

@@ -452,7 +452,7 @@ export function OntologySemanticNetwork({
     <div style={{ padding: 24 }}>
       <PageHeader title="本体语义网络" />
 
-      <Card style={{ borderRadius: 8, marginBottom: 16 }} bodyStyle={{ padding: 16 }}>
+      <Card style={{ borderRadius: 8, marginBottom: 16 }} styles={{ body: { padding: 16 } }}>
         <Row gutter={16} align="middle">
           <Col span={8}>
             <Space>

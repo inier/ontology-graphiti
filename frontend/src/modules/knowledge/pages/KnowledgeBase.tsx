@@ -421,7 +421,7 @@ export function KnowledgeBase() {
     return (
       <div style={{ display: 'flex', height: 'calc(100vh - 140px)', gap: 16 }}>
         {/* 左侧分类树 */}
-        <Card style={{ width: 260, flexShrink: 0 }} bodyStyle={{ padding: 12 }}>
+        <Card style={{ width: 260, flexShrink: 0 }} styles={{ body: { padding: 12 } }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 12 }}>
             <Button type="text" icon={<ArrowLeftOutlined />} onClick={() => setViewMode('list')} />
             <Text strong style={{ fontSize: 16 }}>{currentKb.name}</Text>
@@ -472,7 +472,7 @@ export function KnowledgeBase() {
           onCancel={() => setUploadModalOpen(false)}
           onOk={handleSaveUpload}
           width={600}
-          destroyOnClose
+          destroyOnHidden
         >
           <Form form={uploadForm} layout="vertical">
             <Form.Item name="title" label="标题" rules={[{ required: true }]}>
@@ -530,7 +530,7 @@ export function KnowledgeBase() {
           title="文档详情"
           open={docDrawerOpen}
           onClose={() => setDocDrawerOpen(false)}
-          width={600}
+          size={600}
         >
           {currentDoc && (
             <div>

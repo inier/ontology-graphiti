@@ -282,6 +282,10 @@ class MockDataWebService:
         # WebSocket 客户端集合
         self._ws_clients: Set[WebSocket] = set()
 
+        # 事件总线
+        from odap.web.ws import DomainEventBus
+        self._event_bus = DomainEventBus()
+
         # 异步任务追踪（联网检索）
         self._tasks: Dict[str, Dict[str, Any]] = {}
         
@@ -595,27 +599,34 @@ class MockDataWebService:
         # ── WebSocket 实时事件流 ───────────────────────────
 
         @app.websocket("/ws/events")
-        async def websocket_endpoint(websocket: WebSocket):
-            await websocket.accept()
-            self._ws_clients.add(websocket)
-            
+        async def websocket_endpoint(websocket: WebSocket, workspace_id: Optional[str] = None):
+            await self._event_bus.connect(websocket, workspace_id)
             try:
                 while True:
-                    await asyncio.sleep(1)
+                    try:
+                        raw = await asyncio.wait_for(websocket.receive_text(), timeout=30)
+                        msg = json.loads(raw) if raw else {}
+                        msg_type = msg.get("type", "")
+                        if msg_type == "ping":
+                            await websocket.send_text(json.dumps({"type": "pong"}))
+                        elif msg_type == "subscribe":
+                            pass
+                    except asyncio.TimeoutError:
+                        try:
+                            await websocket.send_text(json.dumps({"type": "heartbeat"}))
+                        except Exception:
+                            break
             except WebSocketDisconnect:
-                self._ws_clients.remove(websocket)
-                logger.info(f"WebSocket 客户端断开，当前连接数: {len(self._ws_clients)}")
+                pass
+            finally:
+                self._event_bus.disconnect(websocket, workspace_id)
 
         return app
 
     async def _on_ontology_updated(self, context, payload: dict):
         """Hook 回调：广播本体更新到所有 WebSocket 客户端"""
-        message = json.dumps({
-            "type": "ontology_update",
-            "data": payload,
-            "timestamp": datetime.now(timezone.utc).isoformat(),
-        }, default=str)
-        await self._broadcast(message)
+        workspace_id = payload.get("workspace_id") if isinstance(payload, dict) else None
+        await self._event_bus.emit("ontology_update", payload, workspace_id)
 
     async def _broadcast(self, message: str):
         """广播消息给所有 WebSocket 客户端"""
@@ -627,14 +638,9 @@ class MockDataWebService:
                 dead.add(ws)
         self._ws_clients -= dead
 
-    async def broadcast_event(self, event_type: str, data: dict):
+    async def broadcast_event(self, event_type: str, data: dict, workspace_id: Optional[str] = None):
         """主动广播自定义事件"""
-        message = json.dumps({
-            "type": event_type,
-            "data": data,
-            "timestamp": datetime.now(timezone.utc).isoformat(),
-        }, default=str)
-        await self._broadcast(message)
+        await self._event_bus.emit(event_type, data, workspace_id)
 
     def run(self, log_level: str = "info"):
         """启动 Web 服务"""
