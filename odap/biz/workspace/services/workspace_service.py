@@ -125,20 +125,26 @@ class WorkspaceService:
     
     def list_workspaces(self, filters: Dict[str, Any] = None, 
                        page: int = 1, page_size: int = 10) -> Dict[str, Any]:
-        """列出工作空间
+        """列出工作空间"""
+        all_workspaces = self.manager.list_workspaces(filters=None, page=1, page_size=9999)
+        total_count = len(all_workspaces)
         
-        Args:
-            filters: 过滤条件
-            page: 页码
-            page_size: 每页数量
-            
-        Returns:
-            工作空间列表和分页信息
-        """
-        workspaces = self.manager.list_workspaces(filters, page, page_size)
+        filtered = all_workspaces
+        if filters:
+            if 'status' in filters:
+                filtered = [w for w in filtered if w.status.value == filters['status']]
+            if 'type' in filters:
+                filtered = [w for w in filtered if w.type.value == filters['type']]
+            if 'owner' in filters:
+                filtered = [w for w in filtered if w.owner == filters['owner']]
+        
+        filtered_total = len(filtered)
+        start = (page - 1) * page_size
+        end = start + page_size
+        paged = filtered[start:end]
         
         workspace_list = []
-        for workspace in workspaces:
+        for workspace in paged:
             workspace_list.append({
                 "workspace_id": workspace.id,
                 "name": workspace.name,
@@ -154,7 +160,7 @@ class WorkspaceService:
             "workspaces": workspace_list,
             "page": page,
             "page_size": page_size,
-            "total": len(workspace_list)  # 实际项目中应该返回总记录数
+            "total": filtered_total
         }
     
     def activate_workspace(self, workspace_id: str) -> Dict[str, Any]:

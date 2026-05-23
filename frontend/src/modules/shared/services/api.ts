@@ -656,7 +656,7 @@ export const api = {
   },
 
   async listWorkspaces(): Promise<Workspace[]> {
-    const data = await fetchJson<{ workspaces: Workspace[] }>(`${API_BASE}/api/workspaces`);
+    const data = await fetchJson<{ workspaces: Workspace[]; total: number }>(`${API_BASE}/api/workspaces?page_size=100`);
     return data.workspaces || [];
   },
 

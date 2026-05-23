@@ -19,9 +19,9 @@ try:
         get_workspace_info,
         create_workspace_summary,
     )
-    print("✓ Agent 工具集加载成功")
+    print("[OK] Agent tools loaded")
 except Exception as e:
-    print(f"⚠ Agent 工具集加载失败: {e}")
+    print(f"[WARN] Agent tools load failed: {e}")
 
 __all__ = [
     'BaseSkill',
