@@ -178,35 +178,6 @@ class TestOntologyBuilderService:
         assert "entities" in changes
         assert "relations" in changes
 
-
-# 测试 MongoDBStorage Fallback
-class TestMongoDBStorage:
-    """测试 MongoDB 存储回退机制"""
-
-    def test_memory_fallback(self):
-        """测试内存存储回退"""
-        from odap.biz.ontology.storage.mongodb_storage import MongoDBStorage
-
-        # 模拟 MongoDB 不可用
-        storage = MongoDBStorage(connection_string="mongodb://invalid:27017")
-
-        assert storage.use_memory is True
-        assert "ingest_records" in storage._memory_store
-
-        # 测试保存记录
-        record_id = storage.save_ingest_record({
-            "ingest_id": "test-1",
-            "data": "test"
-        })
-
-        assert record_id is not None
-
-        # 测试获取记录
-        record = storage.get_ingest_record("test-1")
-        assert record is not None
-        assert record["ingest_id"] == "test-1"
-
-
 # 测试 API Version Controller
 class TestAPIVersionController:
     """测试 API 版本控制"""

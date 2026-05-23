@@ -406,8 +406,8 @@ class OntologyBuilderService:
         try:
             # 获取版本信息
             try:
-                from odap.biz.ontology.storage.mongodb_storage import MongoDBStorage
-                storage = MongoDBStorage()
+                from odap.biz.ontology.storage.sqlite_ingest_storage import SQLiteIngestStorage
+                storage = SQLiteIngestStorage()
                 version_info = storage.get_version(version_id)
             except Exception:
                 version_info = None

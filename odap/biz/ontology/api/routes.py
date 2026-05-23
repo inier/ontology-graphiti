@@ -344,9 +344,9 @@ async def rollback_version(version_id: str, scenario_id: str = "default"):
 async def get_versions(scenario_id: Optional[str] = None, limit: int = 50):
     """获取版本列表"""
     try:
-        from odap.biz.ontology.storage.mongodb_storage import MongoDBStorage
-        storage = MongoDBStorage()
-        versions = storage.get_versions(scenario_id, limit)
+        from odap.biz.ontology.storage.sqlite_ingest_storage import SQLiteIngestStorage
+        storage = SQLiteIngestStorage()
+        versions = storage.list_all_versions()
         return versions
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"获取版本列表失败: {str(e)}")

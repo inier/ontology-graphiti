@@ -3,14 +3,14 @@
 from typing import Dict, Any, List, Optional
 from ..interfaces.version import IVersionManager
 from ..models.version import OntologyVersion, VersionChange, VersionComparison
-from ..storage.mongodb_storage import MongoDBStorage
+from ..storage.sqlite_ingest_storage import SQLiteIngestStorage
 
 
 class VersionManager(IVersionManager):
     """版本管理实现"""
     
     def __init__(self):
-        self.storage = MongoDBStorage()
+        self.storage = SQLiteIngestStorage()
     
     def create_version(self, ontology_id: str, version_number: str, 
                       parent_version_id: Optional[str] = None, 

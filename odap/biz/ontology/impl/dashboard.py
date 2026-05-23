@@ -3,14 +3,14 @@
 from typing import Dict, Any, List, Optional
 from datetime import datetime
 from ..interfaces.dashboard import IAuditDashboard
-from ..storage.mongodb_storage import MongoDBStorage
+from ..storage.sqlite_ingest_storage import SQLiteIngestStorage
 
 
 class AuditDashboard(IAuditDashboard):
     """审计仪表盘实现"""
     
     def __init__(self):
-        self.storage = MongoDBStorage()
+        self.storage = SQLiteIngestStorage()
     
     def get_ingest_summary(self, start_time: Optional[datetime] = None, 
                           end_time: Optional[datetime] = None) -> Dict[str, Any]:

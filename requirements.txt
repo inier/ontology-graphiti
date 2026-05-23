@@ -41,7 +41,6 @@ httpx>=0.25.0
 redis>=5.0.0
 python-jose[cryptography]>=3.3.0
 python-multipart>=0.0.6
-pymongo>=4.0.0
 
 # 开发依赖
 pytest>=8.0.0

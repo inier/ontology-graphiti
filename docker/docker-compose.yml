@@ -15,13 +15,11 @@ services:
       - NEO4J_PASSWORD=neo4j123456
       - OPA_URL=http://graphiti-policy-service:8181
       - REDIS_URL=redis://graphiti-cache:6379
-      - MONGODB_URI=mongodb://graphiti-mongodb:27017
       - CORS_ORIGINS=http://localhost,http://localhost:80,http://localhost:5173,http://localhost:8000
     depends_on:
       - graphiti-neo4j
       - graphiti-policy-service
       - graphiti-cache
-      - graphiti-mongodb
     volumes:
       - app-data:/app/data
     networks:
@@ -87,24 +85,10 @@ services:
       - graphiti-network
     restart: unless-stopped
 
-  graphiti-mongodb:
-    image: localhost/mongo:latest
-    container_name: graphiti-mongodb
-    ports:
-      - "27017:27017"
-    volumes:
-      - mongodb-data:/data/db
-      - mongodb-configdb:/data/configdb
-    networks:
-      - graphiti-network
-    restart: unless-stopped
-
 volumes:
   neo4j-data:
   neo4j-logs:
   redis-data:
-  mongodb-data:
-  mongodb-configdb:
   app-data:
 
 networks:

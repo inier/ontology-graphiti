@@ -342,14 +342,5 @@ class MongoDBAuditChannel(AuditChannel):
 
 
 def get_audit_channel() -> AuditChannel:
-    """获取审计通道实例
-
-    Returns:
-        AuditChannel: 审计通道实例
-    """
-    try:
-        return MongoDBAuditChannel()
-    except Exception as e:
-        print(f"MongoDB 审计通道初始化失败，使用 SQLite 备选: {e}")
-        from .audit_sqlite_channel import SQLiteAuditChannel
-        return SQLiteAuditChannel()
+    from .audit_sqlite_channel import SQLiteAuditChannel
+    return SQLiteAuditChannel()

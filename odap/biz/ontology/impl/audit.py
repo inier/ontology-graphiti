@@ -4,14 +4,14 @@ from typing import Dict, Any, List, Optional
 from datetime import datetime
 from ..interfaces.audit import IDataIngestAudit
 from ..models.audit import DataIngestRecord, AuditLog, DataSource, ProcessingStatus
-from ..storage.mongodb_storage import MongoDBStorage
+from ..storage.sqlite_ingest_storage import SQLiteIngestStorage
 
 
 class DataIngestAudit(IDataIngestAudit):
     """数据摄入审计实现"""
     
     def __init__(self):
-        self.storage = MongoDBStorage()
+        self.storage = SQLiteIngestStorage()
     
     def start_ingest(self, source: DataSource, source_details: Dict[str, Any]) -> str:
         """开始数据摄入"""

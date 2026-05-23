@@ -5,14 +5,14 @@ from datetime import datetime
 from ..interfaces.builder import IOntologyBuilder
 from ..models.ontology import EntityExtractionResult, OntologyBuildResult, OntologyDocument
 from ..models.audit import ProcessingStatus
-from ..storage.mongodb_storage import MongoDBStorage
+from ..storage.sqlite_ingest_storage import SQLiteIngestStorage
 
 
 class OntologyBuilder(IOntologyBuilder):
     """本体构建实现"""
     
     def __init__(self):
-        self.storage = MongoDBStorage()
+        self.storage = SQLiteIngestStorage()
     
     def extract_entities(self, data: Dict[str, Any]) -> EntityExtractionResult:
         """提取实体"""

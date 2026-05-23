@@ -4,14 +4,14 @@ from typing import Dict, Any, List, Optional
 from datetime import datetime
 from ..interfaces.validation import IValidationEngine
 from ..models.validation import ValidationRule, ValidationResult, ValidationIssue, ValidationSeverity
-from ..storage.mongodb_storage import MongoDBStorage
+from ..storage.sqlite_ingest_storage import SQLiteIngestStorage
 
 
 class ValidationEngine(IValidationEngine):
     """验证引擎实现"""
     
     def __init__(self):
-        self.storage = MongoDBStorage()
+        self.storage = SQLiteIngestStorage()
     
     def add_validation_rule(self, rule: ValidationRule) -> ValidationRule:
         """添加验证规则"""

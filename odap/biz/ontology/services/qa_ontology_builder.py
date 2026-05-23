@@ -415,10 +415,10 @@ class QAOntologyBuilder:
 
             # 保存到存储（如果可用）
             try:
-                from odap.biz.ontology.storage.mongodb_storage import MongoDBStorage
-                storage = MongoDBStorage()
+                from odap.biz.ontology.storage.sqlite_ingest_storage import SQLiteIngestStorage
+                storage = SQLiteIngestStorage()
                 for doc in documents:
-                    storage.save_ontology_document(doc.to_dict())
+                    storage.save_ontology_document(doc)
             except Exception as e:
                 logger.warning(f"存储文档失败: {e}")
 

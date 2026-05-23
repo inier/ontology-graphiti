@@ -799,37 +799,28 @@ class OntologyBuildStageHandler(PipelineStageHandler):
         relations: List[Dict],
         events: List[Dict]
     ) -> None:
-        """保存本体文档到 MongoDB"""
-        from ..storage.mongodb_storage import MongoDBStorage
+        from ..storage.sqlite_ingest_storage import SQLiteIngestStorage
         
         try:
-            mongo_storage = MongoDBStorage()
+            storage = SQLiteIngestStorage()
             
-            # 准备文档数据
-            doc_dict = {
-                "document_id": document.doc_id,
-                "doc_type": document.doc_type,
-                "source": document.source.model_dump() if hasattr(document.source, "model_dump") else {},
-                "entities": entities,
-                "relations": relations,
-                "events": events,
-                "ingest_id": context.ingest_id,
-                "scenario_id": context.scenario_id,
-                "created_at": get_local_time().isoformat()
-            }
+            storage.save_ontology_document(document)
             
-            # 保存到本体文档集合
-            mongo_storage.save_ontology_document(doc_dict)
-            
-            # 同时保存到场景文档集合，确保场景能查询到实体
             if context.scenario_id:
-                mongo_storage.save_scenario_document(context.scenario_id, doc_dict)
+                doc_dict = {
+                    "doc_id": document.doc_id,
+                    "doc_type": document.doc_type,
+                    "entities": entities,
+                    "events": events,
+                    "relations": relations,
+                    "created_at": get_local_time().isoformat()
+                }
+                storage.add_scenario_document(context.scenario_id, doc_dict)
             
-            logger.info(f"本体文档已保存到 MongoDB: {document.doc_id}, scenario_id: {context.scenario_id}")
+            logger.info(f"本体文档已保存到 SQLite: {document.doc_id}, scenario_id: {context.scenario_id}")
             
         except Exception as e:
-            logger.warning(f"保存本体文档到 MongoDB 失败: {e}")
-            # 继续执行，不影响整体流程
+            logger.warning(f"保存本体文档到 SQLite 失败: {e}")
 
 
 class VersionManageStageHandler(PipelineStageHandler):
