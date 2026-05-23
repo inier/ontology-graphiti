@@ -4,6 +4,7 @@ import sqlite3
 import json
 import os
 import tempfile
+import uuid
 from typing import Dict, Any, List, Optional
 from datetime import datetime
 from ..ingestion import OntologyDocument
@@ -110,6 +111,7 @@ class SQLiteIngestStorage:
                 constraints TEXT,
                 ontology_version TEXT,
                 scenario_id TEXT,
+                extra_data TEXT,
                 created_at TEXT NOT NULL,
                 updated_at TEXT NOT NULL
             )
@@ -240,7 +242,23 @@ class SQLiteIngestStorage:
             )
         ''')
         
+        cursor.execute('''
+            CREATE TABLE IF NOT EXISTS validation_rules (
+                rule_id TEXT PRIMARY KEY,
+                name TEXT NOT NULL,
+                description TEXT,
+                rule_type TEXT NOT NULL,
+                severity TEXT DEFAULT 'warning',
+                condition TEXT NOT NULL,
+                is_active INTEGER DEFAULT 1,
+                created_at TEXT NOT NULL,
+                updated_at TEXT NOT NULL
+            )
+        ''')
+
         self._migrate_ontology_versions(conn)
+        self._migrate_ontology_documents(conn)
+        self._migrate_ingest_records(conn)
         self._init_scenario_tables(conn)
 
         conn.commit()
@@ -263,6 +281,18 @@ class SQLiteIngestStorage:
                     sql += f" DEFAULT {default}"
                 cursor.execute(sql)
 
+    def _migrate_ontology_documents(self, conn):
+        cursor = conn.cursor()
+        existing = {row[1] for row in cursor.execute("PRAGMA table_info(ontology_documents)").fetchall()}
+        if 'extra_data' not in existing:
+            cursor.execute("ALTER TABLE ontology_documents ADD COLUMN extra_data TEXT")
+
+    def _migrate_ingest_records(self, conn):
+        cursor = conn.cursor()
+        existing = {row[1] for row in cursor.execute("PRAGMA table_info(ingest_records)").fetchall()}
+        if 'scenario_id' not in existing:
+            cursor.execute("ALTER TABLE ingest_records ADD COLUMN scenario_id TEXT")
+
     def _init_scenario_tables(self, conn):
         cursor = conn.cursor()
 
@@ -273,10 +303,12 @@ class SQLiteIngestStorage:
                 description TEXT DEFAULT '',
                 workspace_id TEXT DEFAULT 'default',
                 ontology_id TEXT,
+                current_ontology_version TEXT DEFAULT '',
                 doc_count INTEGER DEFAULT 0,
                 event_count INTEGER DEFAULT 0,
                 entity_count INTEGER DEFAULT 0,
                 created_at TEXT NOT NULL,
+                updated_at TEXT,
                 last_synced TEXT,
                 synced_entities INTEGER DEFAULT 0,
                 synced_events INTEGER DEFAULT 0
@@ -303,6 +335,21 @@ class SQLiteIngestStorage:
             ON scenario_documents(scenario_id)
         ''')
 
+        self._migrate_scenarios(conn)
+
+    def _migrate_scenarios(self, conn):
+        cols = [r[1] for r in conn.execute("PRAGMA table_info(scenarios)").fetchall()]
+        if 'current_ontology_version' not in cols:
+            conn.execute("ALTER TABLE scenarios ADD COLUMN current_ontology_version TEXT DEFAULT ''")
+        if 'updated_at' not in cols:
+            conn.execute("ALTER TABLE scenarios ADD COLUMN updated_at TEXT")
+        if 'last_synced' not in cols:
+            conn.execute("ALTER TABLE scenarios ADD COLUMN last_synced TEXT")
+        if 'synced_entities' not in cols:
+            conn.execute("ALTER TABLE scenarios ADD COLUMN synced_entities INTEGER DEFAULT 0")
+        if 'synced_events' not in cols:
+            conn.execute("ALTER TABLE scenarios ADD COLUMN synced_events INTEGER DEFAULT 0")
+
     # 场景相关
     def save_scenario(self, scenario: Dict[str, Any]) -> str:
         conn = self._get_conn()
@@ -310,19 +357,21 @@ class SQLiteIngestStorage:
         cursor.execute('''
             INSERT OR REPLACE INTO scenarios
             (scenario_id, name, description, workspace_id, ontology_id,
-             doc_count, event_count, entity_count, created_at, last_synced,
-             synced_entities, synced_events)
-            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+             current_ontology_version, doc_count, event_count, entity_count,
+             created_at, updated_at, last_synced, synced_entities, synced_events)
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
         ''', (
             scenario.get('scenario_id'),
             scenario.get('name', ''),
             scenario.get('description', ''),
             scenario.get('workspace_id', 'default'),
             scenario.get('ontology_id'),
+            scenario.get('current_ontology_version', ''),
             scenario.get('doc_count', 0),
             scenario.get('event_count', 0),
             scenario.get('entity_count', 0),
             scenario.get('created_at', datetime.now().isoformat()),
+            scenario.get('updated_at', datetime.now().isoformat()),
             scenario.get('last_synced'),
             scenario.get('synced_entities', 0),
             scenario.get('synced_events', 0),
@@ -355,12 +404,14 @@ class SQLiteIngestStorage:
         sets = []
         vals = []
         for k, v in updates.items():
-            if k != 'scenario_id':
+            if k not in ('scenario_id', 'created_at'):
                 sets.append(f"{k} = ?")
                 vals.append(v)
         if not sets:
             conn.close()
             return False
+        sets.append("updated_at = ?")
+        vals.append(datetime.now().isoformat())
         vals.append(scenario_id)
         cursor.execute(f'UPDATE scenarios SET {", ".join(sets)} WHERE scenario_id = ?', vals)
         affected = cursor.rowcount
@@ -470,19 +521,22 @@ class SQLiteIngestStorage:
         return {"nodes": nodes, "links": links}
 
     def _row_to_scenario(self, row) -> Dict[str, Any]:
+        n = len(row)
         return {
             'scenario_id': row[0],
             'name': row[1],
-            'description': row[2],
-            'workspace_id': row[3],
-            'ontology_id': row[4],
-            'doc_count': row[5],
-            'event_count': row[6],
-            'entity_count': row[7],
-            'created_at': row[8],
-            'last_synced': row[9],
-            'synced_entities': row[10],
-            'synced_events': row[11],
+            'description': row[2] if n > 2 else '',
+            'workspace_id': row[3] if n > 3 else 'default',
+            'ontology_id': row[4] if n > 4 else None,
+            'current_ontology_version': row[5] if n > 5 else '',
+            'doc_count': row[6] if n > 6 else 0,
+            'event_count': row[7] if n > 7 else 0,
+            'entity_count': row[8] if n > 8 else 0,
+            'created_at': row[9] if n > 9 else '',
+            'updated_at': row[10] if n > 10 else '',
+            'last_synced': row[11] if n > 11 else None,
+            'synced_entities': row[12] if n > 12 else 0,
+            'synced_events': row[13] if n > 13 else 0,
         }
 
     def _row_to_scenario_doc(self, row) -> Dict[str, Any]:
@@ -744,19 +798,23 @@ class SQLiteIngestStorage:
     
     # 本体文档相关
     def save_ontology_document(self, doc: OntologyDocument) -> str:
-        """保存本体文档"""
         conn = self._get_conn()
         cursor = conn.cursor()
-        
+
         doc_data = doc.to_dict()
         now = datetime.now().isoformat()
-        
+
+        extra_fields = {}
+        for field_name in ['schema', 'version', 'transformation_status', 'transformation_steps', 'transformation_errors', 'build_history', 'ontology_id']:
+            if field_name in doc_data:
+                extra_fields[field_name] = doc_data[field_name]
+
         cursor.execute('''
             INSERT OR REPLACE INTO ontology_documents 
             (id, doc_id, doc_type, source, meta, entities, relations, events, 
-             actions, rules, constraints, ontology_version, scenario_id, 
+             actions, rules, constraints, ontology_version, scenario_id, extra_data,
              created_at, updated_at)
-            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
         ''', (
             doc_data.get('doc_id'),
             doc_data.get('doc_id'),
@@ -771,27 +829,27 @@ class SQLiteIngestStorage:
             self._serialize_json(doc_data.get('constraints')),
             self._serialize_json(doc_data.get('ontology_version')),
             doc_data.get('scenario_id'),
+            self._serialize_json(extra_fields) if extra_fields else None,
             now,
             now
         ))
-        
+
         conn.commit()
         conn.close()
         return doc.doc_id
     
     def get_ontology_document(self, doc_id: str) -> Optional[OntologyDocument]:
-        """获取本体文档"""
         conn = self._get_conn()
         cursor = conn.cursor()
-        
+
         cursor.execute('SELECT * FROM ontology_documents WHERE doc_id = ?', (doc_id,))
         row = cursor.fetchone()
-        
+
         conn.close()
-        
+
         if not row:
             return None
-        
+
         doc_data = {
             'doc_id': row[1],
             'doc_type': row[2],
@@ -806,7 +864,11 @@ class SQLiteIngestStorage:
             'ontology_version': self._deserialize_json(row[11]),
             'scenario_id': row[12]
         }
-        
+
+        extra_data = self._deserialize_json(row[13]) if len(row) > 13 else None
+        if extra_data:
+            doc_data.update(extra_data)
+
         from ..ingestion import OntologyDocument
         return OntologyDocument.from_dict(doc_data)
     
@@ -850,6 +912,11 @@ class SQLiteIngestStorage:
                 'ontology_version': self._deserialize_json(row[11]),
                 'scenario_id': row[12]
             }
+
+            extra_data = self._deserialize_json(row[13]) if len(row) > 13 else None
+            if extra_data:
+                doc_data.update(extra_data)
+
             documents.append(OntologyDocument.from_dict(doc_data))
         
         return documents
@@ -1407,14 +1474,38 @@ class SQLiteIngestStorage:
     
     # 验证规则相关
     def save_validation_rule(self, rule: Dict[str, Any]) -> str:
-        """保存验证规则"""
-        # 这里可以添加验证规则表的实现
-        pass
+        conn = self._get_conn()
+        cursor = conn.cursor()
+        cursor.execute('''
+            INSERT OR REPLACE INTO validation_rules
+            (rule_id, name, description, rule_type, severity, condition, is_active, created_at, updated_at)
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+        ''', (
+            rule.get('rule_id', str(uuid.uuid4())),
+            rule.get('name', ''),
+            rule.get('description', ''),
+            rule.get('rule_type', 'custom'),
+            rule.get('severity', 'warning'),
+            self._serialize_json(rule.get('condition', {})),
+            1 if rule.get('is_active', True) else 0,
+            rule.get('created_at', datetime.now().isoformat()),
+            rule.get('updated_at', datetime.now().isoformat()),
+        ))
+        conn.commit()
+        conn.close()
+        return rule.get('rule_id', '')
     
     def get_validation_rules(self, rule_type: Optional[str] = None) -> List[Dict[str, Any]]:
-        """获取验证规则"""
-        # 这里可以添加验证规则表的实现
-        return []
+        conn = self._get_conn()
+        conn.row_factory = sqlite3.Row
+        cursor = conn.cursor()
+        if rule_type:
+            cursor.execute('SELECT * FROM validation_rules WHERE rule_type = ? AND is_active = 1', (rule_type,))
+        else:
+            cursor.execute('SELECT * FROM validation_rules WHERE is_active = 1')
+        rows = cursor.fetchall()
+        conn.close()
+        return [dict(row) for row in rows]
     
     # 处理日志相关（管道每阶段的处理记录）
     def save_process_log(self, log: Dict[str, Any]) -> str:

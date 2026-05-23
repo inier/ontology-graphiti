@@ -2,57 +2,95 @@ from fastapi import APIRouter, HTTPException, Query
 from pydantic import BaseModel, Field
 from typing import List, Optional, Dict, Any
 from datetime import datetime
+import sqlite3
+import json
+import os
 import time
 import uuid
 
 router = APIRouter(prefix="/api/policies", tags=["policies"])
 
-_policies_store: Dict[str, Dict[str, Any]] = {}
+DEFAULT_DATA_DIR = os.environ.get("DATA_DIR", os.path.join(os.getcwd(), "data"))
+POLICY_DB_PATH = os.path.join(DEFAULT_DATA_DIR, "opa_policies.db")
 
 
-def _init_default_policies():
-    if _policies_store:
+def _get_policy_db():
+    os.makedirs(DEFAULT_DATA_DIR, exist_ok=True)
+    conn = sqlite3.connect(POLICY_DB_PATH)
+    conn.execute('''CREATE TABLE IF NOT EXISTS policies (
+        policy_id TEXT PRIMARY KEY,
+        name TEXT NOT NULL,
+        description TEXT,
+        category TEXT,
+        status TEXT DEFAULT 'enabled',
+        version TEXT DEFAULT '1.0.0',
+        markdown_content TEXT,
+        rego_content TEXT,
+        created_at TEXT,
+        updated_at TEXT
+    )''')
+    conn.commit()
+    return conn
+
+
+_initialized = False
+
+
+def _ensure_defaults():
+    global _initialized
+    if _initialized:
         return
-    defaults = [
-        {
-            "policy_id": "policy-access-control",
-            "name": "访问控制策略",
-            "description": "基于角色的访问控制策略，定义不同角色的权限范围",
-            "category": "access_control",
-            "status": "enabled",
-            "version": "1.0.0",
-            "markdown_content": "# 访问控制策略\n\n定义系统管理员、项目经理、团队成员和访客的权限。",
-            "rego_content": 'package domain\n\ndefault allow = false\n\nallow {\n    input.role == "system_admin"\n}',
-            "created_at": datetime.utcnow().isoformat(),
-            "updated_at": datetime.utcnow().isoformat(),
-        },
-        {
-            "policy_id": "policy-data-privacy",
-            "name": "数据隐私策略",
-            "description": "数据访问和隐私保护策略",
-            "category": "data_privacy",
-            "status": "enabled",
-            "version": "1.0.0",
-            "markdown_content": "# 数据隐私策略\n\n保护敏感数据，限制未授权访问。",
-            "rego_content": 'package domain.data_privacy\n\ndefault allow = false\n\nallow {\n    input.clearance_level >= input.resource.clearance_required\n}',
-            "created_at": datetime.utcnow().isoformat(),
-            "updated_at": datetime.utcnow().isoformat(),
-        },
-        {
-            "policy_id": "policy-compliance",
-            "name": "合规审计策略",
-            "description": "操作合规性和审计追踪策略",
-            "category": "compliance",
-            "status": "enabled",
-            "version": "1.0.0",
-            "markdown_content": "# 合规审计策略\n\n确保所有操作符合合规要求。",
-            "rego_content": 'package domain.compliance\n\ndefault allow = false\n\nallow {\n    input.action == "read"\n}',
-            "created_at": datetime.utcnow().isoformat(),
-            "updated_at": datetime.utcnow().isoformat(),
-        },
-    ]
-    for p in defaults:
-        _policies_store[p["policy_id"]] = p
+    _initialized = True
+    conn = _get_policy_db()
+    try:
+        cursor = conn.execute("SELECT COUNT(*) FROM policies")
+        if cursor.fetchone()[0] == 0:
+            defaults = [
+                {
+                    "policy_id": "policy-access-control",
+                    "name": "访问控制策略",
+                    "description": "基于角色的访问控制策略，定义不同角色的权限范围",
+                    "category": "access_control",
+                    "status": "enabled",
+                    "version": "1.0.0",
+                    "markdown_content": "# 访问控制策略\n\n定义系统管理员、项目经理、团队成员和访客的权限。",
+                    "rego_content": 'package domain\n\ndefault allow = false\n\nallow {\n    input.role == "system_admin"\n}',
+                    "created_at": datetime.utcnow().isoformat(),
+                    "updated_at": datetime.utcnow().isoformat(),
+                },
+                {
+                    "policy_id": "policy-data-privacy",
+                    "name": "数据隐私策略",
+                    "description": "数据访问和隐私保护策略",
+                    "category": "data_privacy",
+                    "status": "enabled",
+                    "version": "1.0.0",
+                    "markdown_content": "# 数据隐私策略\n\n保护敏感数据，限制未授权访问。",
+                    "rego_content": 'package domain.data_privacy\n\ndefault allow = false\n\nallow {\n    input.clearance_level >= input.resource.clearance_required\n}',
+                    "created_at": datetime.utcnow().isoformat(),
+                    "updated_at": datetime.utcnow().isoformat(),
+                },
+                {
+                    "policy_id": "policy-compliance",
+                    "name": "合规审计策略",
+                    "description": "操作合规性和审计追踪策略",
+                    "category": "compliance",
+                    "status": "enabled",
+                    "version": "1.0.0",
+                    "markdown_content": "# 合规审计策略\n\n确保所有操作符合合规要求。",
+                    "rego_content": 'package domain.compliance\n\ndefault allow = false\n\nallow {\n    input.action == "read"\n}',
+                    "created_at": datetime.utcnow().isoformat(),
+                    "updated_at": datetime.utcnow().isoformat(),
+                },
+            ]
+            for p in defaults:
+                conn.execute(
+                    "INSERT OR IGNORE INTO policies (policy_id, name, description, category, status, version, markdown_content, rego_content, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
+                    (p["policy_id"], p["name"], p["description"], p["category"], p["status"], p["version"], p["markdown_content"], p["rego_content"], p["created_at"], p["updated_at"])
+                )
+            conn.commit()
+    finally:
+        conn.close()
 
 
 class PolicyCreate(BaseModel):
@@ -75,82 +113,130 @@ async def list_policies(
     category: Optional[str] = Query(None),
     limit: int = Query(50, ge=1, le=200),
 ):
-    _init_default_policies()
-    policies = list(_policies_store.values())
-    if status:
-        policies = [p for p in policies if p["status"] == status]
-    if category:
-        policies = [p for p in policies if p["category"] == category]
-    policies = policies[:limit]
-    return {"policies": policies, "total": len(policies)}
+    _ensure_defaults()
+    conn = _get_policy_db()
+    try:
+        query = "SELECT policy_id, name, description, category, status, version, markdown_content, rego_content, created_at, updated_at FROM policies WHERE 1=1"
+        params = []
+        if status:
+            query += " AND status = ?"
+            params.append(status)
+        if category:
+            query += " AND category = ?"
+            params.append(category)
+        query += " LIMIT ?"
+        params.append(limit)
+        cursor = conn.execute(query, params)
+        columns = ["policy_id", "name", "description", "category", "status", "version", "markdown_content", "rego_content", "created_at", "updated_at"]
+        policies = [dict(zip(columns, row)) for row in cursor.fetchall()]
+        return {"policies": policies, "total": len(policies)}
+    finally:
+        conn.close()
 
 
 @router.post("")
 async def create_policy(data: PolicyCreate):
-    _init_default_policies()
+    _ensure_defaults()
     policy_id = f"policy-{uuid.uuid4().hex[:8]}"
     rego_content = _markdown_to_rego(data.markdown_content)
-    policy = {
-        "policy_id": policy_id,
-        "name": data.name,
-        "description": data.description,
-        "category": data.category,
-        "status": "enabled",
-        "version": "1.0.0",
-        "markdown_content": data.markdown_content,
-        "rego_content": rego_content,
-        "created_at": datetime.utcnow().isoformat(),
-        "updated_at": datetime.utcnow().isoformat(),
-    }
-    _policies_store[policy_id] = policy
-    return policy
+    now = datetime.utcnow().isoformat()
+    conn = _get_policy_db()
+    try:
+        conn.execute(
+            "INSERT INTO policies (policy_id, name, description, category, status, version, markdown_content, rego_content, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
+            (policy_id, data.name, data.description, data.category, "enabled", "1.0.0", data.markdown_content, rego_content, now, now)
+        )
+        conn.commit()
+        return {
+            "policy_id": policy_id,
+            "name": data.name,
+            "description": data.description,
+            "category": data.category,
+            "status": "enabled",
+            "version": "1.0.0",
+            "markdown_content": data.markdown_content,
+            "rego_content": rego_content,
+            "created_at": now,
+            "updated_at": now,
+        }
+    finally:
+        conn.close()
 
 
 @router.get("/{policy_id}")
 async def get_policy(policy_id: str):
-    _init_default_policies()
-    policy = _policies_store.get(policy_id)
-    if not policy:
-        raise HTTPException(status_code=404, detail="策略不存在")
-    return policy
+    _ensure_defaults()
+    conn = _get_policy_db()
+    try:
+        cursor = conn.execute(
+            "SELECT policy_id, name, description, category, status, version, markdown_content, rego_content, created_at, updated_at FROM policies WHERE policy_id = ?",
+            (policy_id,)
+        )
+        row = cursor.fetchone()
+        if not row:
+            raise HTTPException(status_code=404, detail="策略不存在")
+        columns = ["policy_id", "name", "description", "category", "status", "version", "markdown_content", "rego_content", "created_at", "updated_at"]
+        return dict(zip(columns, row))
+    finally:
+        conn.close()
 
 
 @router.put("/{policy_id}")
 async def update_policy(policy_id: str, data: PolicyUpdate):
-    _init_default_policies()
-    policy = _policies_store.get(policy_id)
-    if not policy:
-        raise HTTPException(status_code=404, detail="策略不存在")
-    if data.name is not None:
-        policy["name"] = data.name
-    if data.description is not None:
-        policy["description"] = data.description
-    if data.markdown_content is not None:
-        policy["markdown_content"] = data.markdown_content
-        policy["rego_content"] = _markdown_to_rego(data.markdown_content)
-    if data.status is not None:
-        policy["status"] = data.status
-    version_parts = policy["version"].split(".")
-    version_parts[-1] = str(int(version_parts[-1]) + 1)
-    policy["version"] = ".".join(version_parts)
-    policy["updated_at"] = datetime.utcnow().isoformat()
-    return {
-        "policy_id": policy_id,
-        "name": policy["name"],
-        "status": policy["status"],
-        "version": policy["version"],
-    }
+    _ensure_defaults()
+    conn = _get_policy_db()
+    try:
+        cursor = conn.execute(
+            "SELECT policy_id, name, description, category, status, version, markdown_content, rego_content, created_at, updated_at FROM policies WHERE policy_id = ?",
+            (policy_id,)
+        )
+        row = cursor.fetchone()
+        if not row:
+            raise HTTPException(status_code=404, detail="策略不存在")
+        columns = ["policy_id", "name", "description", "category", "status", "version", "markdown_content", "rego_content", "created_at", "updated_at"]
+        policy = dict(zip(columns, row))
+        new_name = data.name if data.name is not None else policy["name"]
+        new_description = data.description if data.description is not None else policy["description"]
+        new_status = data.status if data.status is not None else policy["status"]
+        new_markdown = data.markdown_content if data.markdown_content is not None else policy["markdown_content"]
+        new_rego = _markdown_to_rego(data.markdown_content) if data.markdown_content is not None else policy["rego_content"]
+        version_parts = policy["version"].split(".")
+        version_parts[-1] = str(int(version_parts[-1]) + 1)
+        new_version = ".".join(version_parts)
+        now = datetime.utcnow().isoformat()
+        conn.execute(
+            "UPDATE policies SET name=?, description=?, status=?, markdown_content=?, rego_content=?, version=?, updated_at=? WHERE policy_id=?",
+            (new_name, new_description, new_status, new_markdown, new_rego, new_version, now, policy_id)
+        )
+        conn.commit()
+        return {
+            "policy_id": policy_id,
+            "name": new_name,
+            "status": new_status,
+            "version": new_version,
+        }
+    finally:
+        conn.close()
 
 
 @router.post("/{policy_id}/toggle")
 async def toggle_policy_status(policy_id: str, enabled: bool = Query(True)):
-    _init_default_policies()
-    policy = _policies_store.get(policy_id)
-    if not policy:
-        raise HTTPException(status_code=404, detail="策略不存在")
-    policy["status"] = "enabled" if enabled else "disabled"
-    policy["updated_at"] = datetime.utcnow().isoformat()
-    return {"policy_id": policy_id, "status": policy["status"]}
+    _ensure_defaults()
+    conn = _get_policy_db()
+    try:
+        cursor = conn.execute("SELECT policy_id FROM policies WHERE policy_id = ?", (policy_id,))
+        if not cursor.fetchone():
+            raise HTTPException(status_code=404, detail="策略不存在")
+        new_status = "enabled" if enabled else "disabled"
+        now = datetime.utcnow().isoformat()
+        conn.execute(
+            "UPDATE policies SET status=?, updated_at=? WHERE policy_id=?",
+            (new_status, now, policy_id)
+        )
+        conn.commit()
+        return {"policy_id": policy_id, "status": new_status}
+    finally:
+        conn.close()
 
 
 def _markdown_to_rego(markdown: str) -> str:

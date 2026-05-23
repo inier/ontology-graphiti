@@ -7,7 +7,7 @@ from ..memory_compactor import MemoryCompactor
 from ..cot_builder import CoTBuilder
 from ..session_store import SessionStore, Session
 
-router = APIRouter(prefix="/session-memory", tags=["session-memory"])
+router = APIRouter(prefix="/api/session-memory", tags=["session-memory"])
 
 _store: Optional[SessionStore] = None
 _compactor: Optional[MemoryCompactor] = None

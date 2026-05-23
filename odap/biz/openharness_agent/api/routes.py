@@ -34,6 +34,39 @@ class AgentConfigRequest(BaseModel):
     provider_config: Optional[Dict[str, Any]] = None
 
 
+class AgentInitRequest(BaseModel):
+    config: Optional[Dict[str, Any]] = None
+    user_role: Optional[str] = "intelligence_analyst"
+    provider_config: Optional[Dict[str, Any]] = None
+
+
+class AgentChatRequest(BaseModel):
+    message: str
+    session_id: Optional[str] = None
+    workspace_id: Optional[str] = None
+    role: Optional[str] = None
+
+
+@router.post("/init")
+async def init_agent_compat(request: AgentInitRequest):
+    config = request.config or {}
+    user_role = config.get("user_role", request.user_role) if isinstance(config, dict) else request.user_role
+    provider_config = config.get("provider_config", request.provider_config) if isinstance(config, dict) else request.provider_config
+    try:
+        success = await initialize_openharness(
+            user_role=user_role,
+            provider_config=provider_config,
+        )
+        if success:
+            integration = get_openharness_integration()
+            status = integration.get_status()
+            return {"success": True, "message": "Agent 初始化成功", "status": status}
+        else:
+            return {"success": False, "message": "Agent 初始化失败"}
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+
 @router.post("/initialize")
 async def initialize_agent(config: AgentConfigRequest):
     """
@@ -125,12 +158,20 @@ async def list_agent_tools():
 
 
 @router.post("/chat")
-async def chat_with_agent(request: AgentRunRequest):
-    """
-    与 Agent 对话（简化接口，委托给 /run）
-    """
+async def chat_with_agent(request: AgentChatRequest):
     try:
-        result = await run_agent_endpoint(request)
+        context = {}
+        if request.session_id:
+            context["session_id"] = request.session_id
+        if request.workspace_id:
+            context["workspace_id"] = request.workspace_id
+        if request.role:
+            context["role"] = request.role
+
+        result = await run_agent(
+            user_input=request.message,
+            context=context if context else None,
+        )
 
         if isinstance(result, dict) and result.get("success"):
             steps = result.get("steps", [])

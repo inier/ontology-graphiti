@@ -40,6 +40,9 @@ class SQLiteStorage:
                 members TEXT,
                 config TEXT,
                 tags TEXT,
+                resources TEXT,
+                bound_ontology_ids TEXT,
+                last_accessed_at TEXT,
                 created_at TEXT NOT NULL,
                 updated_at TEXT NOT NULL
             )
@@ -94,6 +97,7 @@ class SQLiteStorage:
         ''')
         
         self._migrate_scenarios(conn)
+        self._migrate_workspaces(conn)
         conn.commit()
         conn.close()
     
@@ -101,7 +105,16 @@ class SQLiteStorage:
         cols = [r[1] for r in conn.execute("PRAGMA table_info(scenarios)").fetchall()]
         if 'current_ontology_version' not in cols:
             conn.execute("ALTER TABLE scenarios ADD COLUMN current_ontology_version TEXT DEFAULT ''")
-    
+
+    def _migrate_workspaces(self, conn):
+        cols = [r[1] for r in conn.execute("PRAGMA table_info(workspaces)").fetchall()]
+        if 'resources' not in cols:
+            conn.execute("ALTER TABLE workspaces ADD COLUMN resources TEXT")
+        if 'bound_ontology_ids' not in cols:
+            conn.execute("ALTER TABLE workspaces ADD COLUMN bound_ontology_ids TEXT")
+        if 'last_accessed_at' not in cols:
+            conn.execute("ALTER TABLE workspaces ADD COLUMN last_accessed_at TEXT")
+
     def _serialize_json(self, data: Any) -> str:
         """序列化JSON数据"""
         return json.dumps(data, ensure_ascii=False)
@@ -124,8 +137,9 @@ class SQLiteStorage:
         data = workspace.model_dump()
         cursor.execute('''
             INSERT OR REPLACE INTO workspaces 
-            (id, name, description, type, status, owner, members, config, tags, created_at, updated_at)
-            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+            (id, name, description, type, status, owner, members, config, tags,
+             resources, bound_ontology_ids, last_accessed_at, created_at, updated_at)
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
         ''', (
             data['id'],
             data['name'],
@@ -136,6 +150,9 @@ class SQLiteStorage:
             self._serialize_json(data.get('members', [])),
             self._serialize_json(data.get('config', {})),
             self._serialize_json(data.get('tags', [])),
+            self._serialize_json(data.get('resources', {})),
+            self._serialize_json(data.get('bound_ontology_ids', [])),
+            data['last_accessed_at'].isoformat() if data.get('last_accessed_at') else None,
             data['created_at'].isoformat(),
             data['updated_at'].isoformat()
         ))
@@ -146,6 +163,7 @@ class SQLiteStorage:
     def get_workspace(self, workspace_id: str) -> Optional[Workspace]:
         """获取工作空间"""
         conn = sqlite3.connect(self.db_path)
+        conn.row_factory = sqlite3.Row
         cursor = conn.cursor()
         
         cursor.execute('SELECT * FROM workspaces WHERE id = ?', (workspace_id,))
@@ -156,21 +174,23 @@ class SQLiteStorage:
         if not row:
             return None
         
-        # 构建工作空间对象
         from ..models.workspace import WorkspaceStatus, WorkspaceType, WorkspaceConfig
         
         workspace_data = {
-            'id': row[0],
-            'name': row[1],
-            'description': row[2],
-            'type': WorkspaceType(row[3]),
-            'status': WorkspaceStatus(row[4]),
-            'owner': row[5],
-            'members': self._deserialize_json(row[6]) or [],
-            'config': WorkspaceConfig(**(self._deserialize_json(row[7]) or {})),
-            'tags': self._deserialize_json(row[8]) or [],
-            'created_at': datetime.fromisoformat(row[9]),
-            'updated_at': datetime.fromisoformat(row[10])
+            'id': row['id'],
+            'name': row['name'],
+            'description': row['description'],
+            'type': WorkspaceType(row['type']),
+            'status': WorkspaceStatus(row['status']),
+            'owner': row['owner'],
+            'members': self._deserialize_json(row['members']) or [],
+            'config': WorkspaceConfig(**(self._deserialize_json(row['config']) or {})),
+            'tags': self._deserialize_json(row['tags']) or [],
+            'resources': self._deserialize_json(row['resources']) if row['resources'] else {},
+            'bound_ontology_ids': self._deserialize_json(row['bound_ontology_ids']) if row['bound_ontology_ids'] else [],
+            'last_accessed_at': datetime.fromisoformat(row['last_accessed_at']) if row['last_accessed_at'] else None,
+            'created_at': datetime.fromisoformat(row['created_at']),
+            'updated_at': datetime.fromisoformat(row['updated_at'])
         }
         
         return Workspace(**workspace_data)
@@ -200,9 +220,9 @@ class SQLiteStorage:
                       page: int = 1, page_size: int = 10) -> List[Workspace]:
         """列出工作空间"""
         conn = sqlite3.connect(self.db_path)
+        conn.row_factory = sqlite3.Row
         cursor = conn.cursor()
         
-        # 构建查询
         query = 'SELECT * FROM workspaces'
         params = []
         
@@ -219,7 +239,6 @@ class SQLiteStorage:
             if where_clauses:
                 query += ' WHERE ' + ' AND '.join(where_clauses)
         
-        # 添加排序和分页
         query += ' ORDER BY created_at DESC LIMIT ? OFFSET ?'
         params.extend([page_size, (page - 1) * page_size])
         
@@ -228,23 +247,25 @@ class SQLiteStorage:
         
         conn.close()
         
-        # 构建工作空间列表
         workspaces = []
         from ..models.workspace import WorkspaceStatus, WorkspaceType, WorkspaceConfig
         
         for row in rows:
             workspace_data = {
-                'id': row[0],
-                'name': row[1],
-                'description': row[2],
-                'type': WorkspaceType(row[3]),
-                'status': WorkspaceStatus(row[4]),
-                'owner': row[5],
-                'members': self._deserialize_json(row[6]) or [],
-                'config': WorkspaceConfig(**(self._deserialize_json(row[7]) or {})),
-                'tags': self._deserialize_json(row[8]) or [],
-                'created_at': datetime.fromisoformat(row[9]),
-                'updated_at': datetime.fromisoformat(row[10])
+                'id': row['id'],
+                'name': row['name'],
+                'description': row['description'],
+                'type': WorkspaceType(row['type']),
+                'status': WorkspaceStatus(row['status']),
+                'owner': row['owner'],
+                'members': self._deserialize_json(row['members']) or [],
+                'config': WorkspaceConfig(**(self._deserialize_json(row['config']) or {})),
+                'tags': self._deserialize_json(row['tags']) or [],
+                'resources': self._deserialize_json(row['resources']) if row['resources'] else {},
+                'bound_ontology_ids': self._deserialize_json(row['bound_ontology_ids']) if row['bound_ontology_ids'] else [],
+                'last_accessed_at': datetime.fromisoformat(row['last_accessed_at']) if row['last_accessed_at'] else None,
+                'created_at': datetime.fromisoformat(row['created_at']),
+                'updated_at': datetime.fromisoformat(row['updated_at'])
             }
             workspaces.append(Workspace(**workspace_data))
         

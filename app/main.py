@@ -24,6 +24,8 @@ from odap.biz.decision_pipeline.routes import router as decision_pipeline_router
 from odap.biz.simulation_sandbox.routes import router as sandbox_router
 from odap.biz.business.api.routes import router as business_router
 from odap.infra.opa.routes import router as policy_router
+from odap.biz.session_memory.api.routes import router as session_memory_router
+from odap.biz.data_warehouse.api.routes import router as data_warehouse_router
 from odap.infra.security import security_config
 from odap.infra.openharness import create_harness
 from odap.infra.openharness.v2_adapter import initialize_openharness, get_openharness_integration
@@ -127,6 +129,8 @@ app.include_router(decision_pipeline_router)
 app.include_router(sandbox_router)
 app.include_router(business_router)
 app.include_router(policy_router)
+app.include_router(session_memory_router)
+app.include_router(data_warehouse_router)
 
 @app.get("/")
 async def root():

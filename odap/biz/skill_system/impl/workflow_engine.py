@@ -1,19 +1,42 @@
 import asyncio
 import logging
-from typing import Dict, Any, List, Optional
+from typing import Any, Dict, List, Optional
 from enum import Enum
+
+from pydantic import BaseModel, Field
 
 logger = logging.getLogger(__name__)
 
 
 class StepType(str, Enum):
-    SEQUENTIAL = "sequential"
+    ACTION = "action"
+    CONDITION = "condition"
     PARALLEL = "parallel"
-    CONDITIONAL = "conditional"
+    LOOP = "loop"
 
 
-class WorkflowStep(BaseModel := type('BaseModel', (), {})):
-    pass
+class StepStatus(str, Enum):
+    PENDING = "pending"
+    RUNNING = "running"
+    COMPLETED = "completed"
+    FAILED = "failed"
+    SKIPPED = "skipped"
+
+
+class WorkflowStep(BaseModel):
+    step_id: str = Field(default_factory=lambda: str(__import__('uuid').uuid4()))
+    name: str = ""
+    step_type: StepType = StepType.ACTION
+    status: StepStatus = StepStatus.PENDING
+    skill_name: str = ""
+    parameters: Dict[str, Any] = Field(default_factory=dict)
+    next_step_id: Optional[str] = None
+    condition: Optional[str] = None
+    retry_count: int = 0
+    max_retries: int = 0
+    timeout_seconds: int = 300
+    result: Optional[Dict[str, Any]] = None
+    error: Optional[str] = None
 
 
 class WorkflowEngine:
@@ -125,7 +148,7 @@ class WorkflowEngine:
         if action_type == "skill" and self._skill_registry:
             try:
                 return await self._skill_registry.invoke(name, params)
-            except Exception:
-                pass
+            except Exception as e:
+                logger.warning(f"Skill execution failed: {e}")
 
         return {"action": name, "executed": True, "type": action_type}

@@ -4,7 +4,7 @@ from typing import Dict, Any, List, Optional
 from ..models import QueryRequest, QueryResult
 from ..query_service import QueryService
 
-router = APIRouter(prefix="/data-warehouse", tags=["data-warehouse"])
+router = APIRouter(prefix="/api/data-warehouse", tags=["data-warehouse"])
 
 _service: Optional[QueryService] = None
 
