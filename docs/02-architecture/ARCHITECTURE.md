@@ -1,7 +1,7 @@
 # 本体驱动分析决策平台 (ODAP) - 架构设计文档
 
-> **版本**: 4.1.0 | **日期**: 2026-05-04 | **状态**: 正式
-> **版本说明**: v4.1.0 = 文档分片版，按架构层级拆分为多个子文档
+> **版本**: 5.1.0 | **日期**: 2026-05-23 | **状态**: 正式
+> **版本说明**: v5.1.0 = 语义层架构版，新增统一查询服务 + Query First 原则
 >
 > **定位**: ⭐ **唯一权威架构文档入口** - 开发实现的权威参考
 >
@@ -20,7 +20,7 @@
 | **[ARCHITECTURE_BIZ.md](ARCHITECTURE_BIZ.md)** | L3-L4 业务层 | Agent协同 + OODA + 数据架构 + 本体管理 + 角色权限 + 配置 | 1524 |
 | **[ARCHITECTURE_WEB.md](ARCHITECTURE_WEB.md)** | L5-L6 接口层 | 前端界面 + 管理后台 + API端点 | 1048 |
 | **[ARCHITECTURE_EVOLVE.md](ARCHITECTURE_EVOLVE.md)** | 演进与决策 | 技术选型 + ADR + 需求追溯 + 演进路线图 | 772 |
-| **本文档** | 入口索引 | 愿景与目标 + 核心架构总览 | 517 |
+| **本文档** | 入口索引 | 愿景与目标 + 核心架构总览 | 约620 |
 
 **子文档链接**:
 
@@ -308,6 +308,7 @@
 | **技能可热插拔** | Skill 注册无需重启，配置变更热生效 | P1 |
 | **OpenHarness First** | 基于 OpenHarness 作为 Agent 基础设施 | P1 |
 | **Graphiti as Memory** | Graphiti 作为双时态记忆，支撑时序推理和历史回溯 | P1 |
+| **Query First** | 所有图谱读取必须通过统一 QueryService，禁止散落的域读取端点 | P0 |
 
 #### 1.3.1 可视化配置管理详解
 
@@ -453,7 +454,113 @@
 | **L3** | Python Skills | 领域特定工具（领域情报、决策），原生 Tool 接口 | 可插拔的领域能力 |
 | **L4** | OPA | 策略治理 + 权限校验 | fail-close 安全边界 |
 
-### 2.3 数据流总览
+### 2.3 语义层架构：统一查询服务
+
+> **设计原则**: 借鉴阿里巴巴 UModel 的 Query Surface 设计模式，在 ODAP 内部构建统一的语义查询层
+
+#### 2.3.1 设计动机
+
+当前 ODAP 存在 5 条独立的图谱查询路径（SelfCorrectingOrchestrator / DomainSwarm / IntelligenceAgent / UserCognitionEngine / frontend_compat API），缺乏统一抽象，导致：
+- 意图识别重复实现且质量参差不齐
+- KnowledgeNavigator 与 GraphManager 接口断裂
+- Agent 安全边界缺失（可直接写图谱）
+- 查询结果无结构化类型（全部返回 List[Dict]）
+
+#### 2.3.2 三源查询模型
+
+借鉴 UModel 的 `.umodel / .entity / .topo` 设计，结合 ODAP 的本体模型特征，定义四种查询源：
+
+| 查询源 | 读取对象 | 数据源 | 对标 UModel |
+|--------|---------|--------|-------------|
+| `.schema` | OMS 类型定义（ObjectTypeDefinition / LinkDefinition / ActionTypeDefinition） | OMS SQLite | `.umodel` |
+| `.entity` | 运行时实体（OntologyEntity + 四层属性） | GraphManager (Neo4j/Graphiti/NetworkX) | `.entity` |
+| `.topo` | 拓扑关系（OntologyRelation + 图遍历） | GraphManager | `.topo` |
+| `.temporal` | 双时态数据（valid_time + transaction_time） | Graphiti | 无（ODAP 独有） |
+
+#### 2.3.3 统一查询服务架构
+
+```
+┌─────────────────────────────────────────────────────────────────┐
+│                   Agent / 前端 / CLI / MCP Client                │
+└───────────────────────────┬─────────────────────────────────────┘
+                            │
+                            ▼
+┌─────────────────────────────────────────────────────────────────┐
+│                     QueryService (统一查询服务)                    │
+│                                                                  │
+│  ┌─────────────────────────────────────────────────────────┐    │
+│  │              Query Parser + Planner                      │    │
+│  │  .schema with(type='Unit')           → OMS 查询          │    │
+│  │  .entity with(type='MilitaryUnit')  → GraphManager 查询  │    │
+│  │  .topo neighbors(id, depth=2)       → 图遍历查询         │    │
+│  │  .temporal at('2025-01-01')         → 双时态查询         │    │
+│  └─────────────────────────────────────────────────────────┘    │
+│                                                                  │
+│  ┌──────────────┐  ┌──────────────┐  ┌──────────────┐          │
+│  │ SchemaSource │  │ EntitySource │  │  TopoSource   │          │
+│  │  (OMS)       │  │ (GraphMgr)   │  │ (GraphMgr)   │          │
+│  └──────┬───────┘  └──────┬───────┘  └──────┬───────┘          │
+└─────────┼─────────────────┼─────────────────┼──────────────────┘
+          ▼                 ▼                 ▼
+    ┌──────────┐    ┌──────────────────────────────────┐
+    │OMS SQLite│    │     GraphManager                  │
+    └──────────┘    │  Neo4j / Graphiti / NetworkX      │
+                    └──────────────────────────────────┘
+```
+
+#### 2.3.4 Agent 安全默认 (Agent Safe)
+
+借鉴 UModel 的 AgentGateway 设计，通过 OpenHarness 的 Hook 机制实现：
+- 查询工具默认只读，通过 QueryService 暴露
+- 写操作需显式启用，经过 OPA 策略校验
+- OpenHarness PreToolUse Hook 拦截写操作，调用 OPA 检查
+
+#### 2.3.5 与 OpenHarness 的集成
+
+QueryService 通过 OpenHarness 的 Tool 接口注册为 Agent 可用工具：
+
+```python
+# OpenHarness Tool 注册
+@tool(name="query_schema", safety="read")
+async def query_schema(query: str, workspace_id: str) -> QueryResult:
+    """查询本体类型定义"""
+    return await query_service.execute(workspace_id, f".schema {query}")
+
+@tool(name="query_entity", safety="read")
+async def query_entity(query: str, workspace_id: str, limit: int = 20) -> QueryResult:
+    """查询运行时实体"""
+    return await query_service.execute(workspace_id, f".entity {query}", limit)
+
+@tool(name="query_topo", safety="read")
+async def query_topo(entity_id: str, depth: int = 2, workspace_id: str = "") -> QueryResult:
+    """查询拓扑关系"""
+    return await query_service.execute(workspace_id, f".topo neighbors(id='{entity_id}', depth={depth})")
+
+@tool(name="query_temporal", safety="read")
+async def query_temporal(entity_id: str, valid_time: str, workspace_id: str = "") -> QueryResult:
+    """查询时态数据"""
+    return await query_service.execute(workspace_id, f".temporal at('{valid_time}') with(id='{entity_id}')")
+```
+
+写操作通过 OPA Hook 保护：
+
+```python
+@register_hook("pre_tool_use")
+class QueryServiceWriteGuard:
+    async def execute(self, tool_name: str, arguments: Dict, context: Dict) -> bool:
+        if tool_name in WRITE_TOOLS:
+            return await opa_backend.check(tool_name, arguments, context)
+        return True
+```
+
+#### 2.3.6 架构守卫 (Architecture Guard)
+
+借鉴 UModel 的 `make guard` 机制，通过 pytest 测试强制执行边界规则：
+- 禁止在 QueryService 之外暴露域读取 API
+- 禁止业务模块直接导入 GraphManager（应通过 QueryService）
+- 禁止 Agent 绕过 OPA 执行写操作
+
+### 2.4 数据流总览
 
 ```
 用户输入
@@ -498,6 +605,7 @@
 
 | 版本 | 日期 | 说明 |
 |------|------|------|
+| v5.1.0 | 2026-05-23 | 新增语义层架构（2.3节）：统一查询服务 + Query First 原则 + Agent Safe + 架构守卫 |
 | v4.1.0 | 2026-05-04 | 文档分片版，按架构层级拆分为6个子文档 |
 | v4.0.2 | 2026-05-04 | Phase 4-5规划拆分到独立文档 |
 | v4.0.1 | 2026-05-03 | 整合 ARCHITECTURE_PLAN + CHECKLIST |
@@ -509,7 +617,7 @@
 
 为提高可维护性，将原 5386 行文档按架构层级拆分为：
 
-1. **ARCHITECTURE.md** (入口索引，517行) - 本文档
+1. **ARCHITECTURE.md** (入口索引，约620行) - 本文档
 2. **ARCHITECTURE_INFRA.md** (778行) - L1 基础设施层
 3. **ARCHITECTURE_TOOLS.md** (159行) - L2 领域工具层
 4. **ARCHITECTURE_BIZ.md** (1524行) - L3-L4 业务层

@@ -1,3 +1,4 @@
+# DEPRECATED: Use audit_logger_v2 instead
 #!/usr/bin/env python3
 """
 统一审计日志系统
@@ -9,7 +10,7 @@ import asyncio
 import uuid
 from datetime import datetime
 from typing import List, Dict, Any, Optional, Union
-from .audit_mongodb_channel import get_audit_channel, AuditChannel
+from .audit_sqlite_channel import SQLiteAuditChannel, get_sqlite_audit_channel
 from .audit_models import AuditEvent, AuditFilter, AuditSeverity, AuditEventType
 
 _audit_logger_instance = None
@@ -27,14 +28,8 @@ class AuditLogger:
     - 支持多通道输出
     """
 
-    def __init__(self, channel: Optional[AuditChannel] = None):
-        """
-        初始化审计日志记录器
-
-        Args:
-            channel: 审计通道实例
-        """
-        self.channel = channel or get_audit_channel()
+    def __init__(self, channel: Optional[SQLiteAuditChannel] = None):
+        self.channel = channel or get_sqlite_audit_channel()
 
     async def log(self,
                  event_type: AuditEventType,
@@ -176,7 +171,7 @@ class AuditLogger:
 
         return await self.log(
             event_type=event_type,
-            severity=AuditSeverity.HIGH,
+            severity=AuditSeverity.ERROR,
             actor=actor.to_dict() if hasattr(actor, 'to_dict') else actor,
             action=action,
             resource=resource.to_dict() if hasattr(resource, 'to_dict') else resource,
@@ -266,20 +261,11 @@ class AuditLogger:
         self.channel.close_sync()
 
 
-def get_audit_logger(channel: Optional[AuditChannel] = None) -> AuditLogger:
-    """
-    获取审计日志记录器实例
-
-    Args:
-        channel: 审计通道实例
-
-    Returns:
-        AuditLogger: 审计日志记录器实例
-    """
+def get_audit_logger(channel: Optional[SQLiteAuditChannel] = None) -> AuditLogger:
     global _audit_logger_instance
     if _audit_logger_instance is None:
         if channel is None:
-            channel = get_audit_channel()
+            channel = get_sqlite_audit_channel()
         _audit_logger_instance = AuditLogger(channel)
     return _audit_logger_instance
 
@@ -332,7 +318,7 @@ def audit_warning(event_type: AuditEventType, actor: Dict[str, Any], action: str
         str: 事件 ID
     """
     logger = get_audit_logger()
-    return logger.log_sync(event_type, AuditSeverity.WARNING, actor, action,
+    return logger.log_sync(event_type, AuditSeverity.WARN, actor, action,
                          resource, result, workspace_id, **kwargs)
 
 

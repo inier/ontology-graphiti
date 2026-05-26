@@ -8,7 +8,7 @@ import os
 
 sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
-from odap.biz.agent.orchestrator import SelfCorrectingOrchestrator
+from odap.biz.core.agent.orchestrator import SelfCorrectingOrchestrator
 
 class DomainDialogInterface:
     """

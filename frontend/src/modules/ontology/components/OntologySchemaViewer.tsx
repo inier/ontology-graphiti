@@ -496,11 +496,11 @@ export function OntologySchemaViewer() {
       <Collapse
         defaultActiveKey={[]}
         items={[
-          renderBusinessSection('业务过程', <ApartmentOutlined />, schema.business_processes, '#1890ff'),
-          renderBusinessSection('业务规则', <SafetyOutlined />, schema.business_rules, '#fa8c16'),
-          renderBusinessSection('业务逻辑', <CodeOutlined />, schema.business_logics, '#722ed1'),
-          renderBusinessSection('业务指标', <DatabaseOutlined />, schema.business_indicators, '#52c41a'),
-        ].filter(Boolean)}
+          renderBusinessSection('业务过程', <ApartmentOutlined />, schema.business_processes || [], '#1890ff'),
+          renderBusinessSection('业务规则', <SafetyOutlined />, schema.business_rules || [], '#fa8c16'),
+          renderBusinessSection('业务逻辑', <CodeOutlined />, schema.business_logics || [], '#722ed1'),
+          renderBusinessSection('业务指标', <DatabaseOutlined />, schema.business_indicators || [], '#52c41a'),
+        ].filter(Boolean) as any}
       />
     </div>
   );

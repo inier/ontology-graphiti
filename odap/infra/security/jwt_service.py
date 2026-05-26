@@ -22,7 +22,8 @@ class JWTService:
     ALGORITHM = "HS256"
 
     def __init__(self, secret_key: str = None, algorithm: str = None):
-        self.secret_key = secret_key or os.getenv("JWT_SECRET", "odap-default-secret")
+        from .config import security_config
+        self.secret_key = secret_key or os.getenv("JWT_SECRET", security_config.JWT_SECRET)
         self.algorithm = algorithm or os.getenv("JWT_ALGORITHM", self.ALGORITHM)
 
     def issue_access_token(self, user_id: str, user_name: str, role: str,

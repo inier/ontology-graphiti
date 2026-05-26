@@ -4,34 +4,34 @@ from unittest.mock import Mock, patch, AsyncMock, MagicMock, PropertyMock
 
 class TestPipelineStageStatus:
     def test_pending(self):
-        from odap.biz.decision_pipeline.schemas import PipelineStageStatus
+        from odap.biz.decision.decision_pipeline.schemas import PipelineStageStatus
         assert PipelineStageStatus.PENDING == "pending"
 
     def test_running(self):
-        from odap.biz.decision_pipeline.schemas import PipelineStageStatus
+        from odap.biz.decision.decision_pipeline.schemas import PipelineStageStatus
         assert PipelineStageStatus.RUNNING == "running"
 
     def test_completed(self):
-        from odap.biz.decision_pipeline.schemas import PipelineStageStatus
+        from odap.biz.decision.decision_pipeline.schemas import PipelineStageStatus
         assert PipelineStageStatus.COMPLETED == "completed"
 
     def test_failed(self):
-        from odap.biz.decision_pipeline.schemas import PipelineStageStatus
+        from odap.biz.decision.decision_pipeline.schemas import PipelineStageStatus
         assert PipelineStageStatus.FAILED == "failed"
 
     def test_skipped(self):
-        from odap.biz.decision_pipeline.schemas import PipelineStageStatus
+        from odap.biz.decision.decision_pipeline.schemas import PipelineStageStatus
         assert PipelineStageStatus.SKIPPED == "skipped"
 
     def test_all_values(self):
-        from odap.biz.decision_pipeline.schemas import PipelineStageStatus
+        from odap.biz.decision.decision_pipeline.schemas import PipelineStageStatus
         values = {s.value for s in PipelineStageStatus}
         assert values == {"pending", "running", "completed", "failed", "skipped"}
 
 
 class TestAnalysisInput:
     def test_creation_with_defaults(self):
-        from odap.biz.decision_pipeline.schemas import AnalysisInput
+        from odap.biz.decision.decision_pipeline.schemas import AnalysisInput
         inp = AnalysisInput(query="test query")
         assert inp.query == "test query"
         assert inp.context == {}
@@ -40,7 +40,7 @@ class TestAnalysisInput:
         assert inp.agent_id is None
 
     def test_creation_with_all_fields(self):
-        from odap.biz.decision_pipeline.schemas import AnalysisInput
+        from odap.biz.decision.decision_pipeline.schemas import AnalysisInput
         inp = AnalysisInput(
             query="analyze threat",
             context={"region": "east"},
@@ -56,7 +56,7 @@ class TestAnalysisInput:
 
 class TestAnalysisResult:
     def test_defaults(self):
-        from odap.biz.decision_pipeline.schemas import AnalysisResult
+        from odap.biz.decision.decision_pipeline.schemas import AnalysisResult
         result = AnalysisResult()
         assert result.summary == ""
         assert result.entities == []
@@ -67,7 +67,7 @@ class TestAnalysisResult:
         assert result.raw_context == ""
 
     def test_with_data(self):
-        from odap.biz.decision_pipeline.schemas import AnalysisResult
+        from odap.biz.decision.decision_pipeline.schemas import AnalysisResult
         result = AnalysisResult(
             summary="Found 3 entities",
             entities=[{"id": "e1", "type": "Person"}],
@@ -80,7 +80,7 @@ class TestAnalysisResult:
 
 class TestDecisionOption:
     def test_defaults(self):
-        from odap.biz.decision_pipeline.schemas import DecisionOption
+        from odap.biz.decision.decision_pipeline.schemas import DecisionOption
         opt = DecisionOption()
         assert opt.option_id == ""
         assert opt.name == ""
@@ -89,7 +89,7 @@ class TestDecisionOption:
         assert opt.parameters == {}
 
     def test_with_data(self):
-        from odap.biz.decision_pipeline.schemas import DecisionOption
+        from odap.biz.decision.decision_pipeline.schemas import DecisionOption
         opt = DecisionOption(
             option_id="opt_1",
             name="Evacuate",
@@ -107,7 +107,7 @@ class TestDecisionOption:
 
 class TestDecisionResult:
     def test_defaults(self):
-        from odap.biz.decision_pipeline.schemas import DecisionResult
+        from odap.biz.decision.decision_pipeline.schemas import DecisionResult
         result = DecisionResult()
         assert result.decision_id == ""
         assert result.recommended_option is None
@@ -118,7 +118,7 @@ class TestDecisionResult:
         assert result.confidence == 0.0
 
     def test_with_opa_approved(self):
-        from odap.biz.decision_pipeline.schemas import DecisionResult, DecisionOption
+        from odap.biz.decision.decision_pipeline.schemas import DecisionResult, DecisionOption
         opt = DecisionOption(option_id="opt_1", name="Act")
         result = DecisionResult(
             decision_id="dec_123",
@@ -135,7 +135,7 @@ class TestDecisionResult:
 
 class TestPipelineResult:
     def test_defaults(self):
-        from odap.biz.decision_pipeline.schemas import PipelineResult
+        from odap.biz.decision.decision_pipeline.schemas import PipelineResult
         result = PipelineResult()
         assert result.pipeline_id == ""
         assert result.analysis is None
@@ -146,7 +146,7 @@ class TestPipelineResult:
         assert result.error is None
 
     def test_with_stages(self):
-        from odap.biz.decision_pipeline.schemas import PipelineResult, PipelineStageStatus
+        from odap.biz.decision.decision_pipeline.schemas import PipelineResult, PipelineStageStatus
         result = PipelineResult(
             pipeline_id="dp_abc123",
             stages={
@@ -164,7 +164,7 @@ class TestPipelineResult:
 
 class TestDecisionPipelineInit:
     def test_init(self):
-        from odap.biz.decision_pipeline.pipeline import DecisionPipeline
+        from odap.biz.decision.decision_pipeline.pipeline import DecisionPipeline
         pipeline = DecisionPipeline()
         assert pipeline._semantic_retriever is None
         assert pipeline._decision_engine is None
@@ -174,8 +174,8 @@ class TestDecisionPipelineInit:
 
 
 def _make_pipeline_with_mocks():
-    from odap.biz.decision_pipeline.pipeline import DecisionPipeline
-    from odap.biz.decision_pipeline.schemas import (
+    from odap.biz.decision.decision_pipeline.pipeline import DecisionPipeline
+    from odap.biz.decision.decision_pipeline.schemas import (
         AnalysisInput, AnalysisResult, DecisionResult, DecisionOption,
     )
 
@@ -236,7 +236,7 @@ class TestDecisionPipelineExecuteSuccess:
     @pytest.mark.asyncio
     async def test_full_success_path(self):
         pipeline = _make_pipeline_with_mocks()
-        from odap.biz.decision_pipeline.schemas import AnalysisInput, PipelineStageStatus
+        from odap.biz.decision.decision_pipeline.schemas import AnalysisInput, PipelineStageStatus
 
         inp = AnalysisInput(query="analyze threats", workspace_id="ws_1", agent_id="agent_1")
         result = await pipeline.execute(inp)
@@ -257,7 +257,7 @@ class TestDecisionPipelineExecuteSuccess:
     @pytest.mark.asyncio
     async def test_pipeline_id_generated(self):
         pipeline = _make_pipeline_with_mocks()
-        from odap.biz.decision_pipeline.schemas import AnalysisInput
+        from odap.biz.decision.decision_pipeline.schemas import AnalysisInput
 
         inp = AnalysisInput(query="test")
         result = await pipeline.execute(inp)
@@ -266,7 +266,7 @@ class TestDecisionPipelineExecuteSuccess:
     @pytest.mark.asyncio
     async def test_analysis_entities_populated(self):
         pipeline = _make_pipeline_with_mocks()
-        from odap.biz.decision_pipeline.schemas import AnalysisInput
+        from odap.biz.decision.decision_pipeline.schemas import AnalysisInput
 
         inp = AnalysisInput(query="analyze threats")
         result = await pipeline.execute(inp)
@@ -277,8 +277,8 @@ class TestDecisionPipelineExecuteSuccess:
 class TestDecisionPipelineAnalyzeFailure:
     @pytest.mark.asyncio
     async def test_analyze_failure(self):
-        from odap.biz.decision_pipeline.pipeline import DecisionPipeline
-        from odap.biz.decision_pipeline.schemas import AnalysisInput, PipelineStageStatus
+        from odap.biz.decision.decision_pipeline.pipeline import DecisionPipeline
+        from odap.biz.decision.decision_pipeline.schemas import AnalysisInput, PipelineStageStatus
 
         pipeline = DecisionPipeline()
         mock_retriever = AsyncMock()
@@ -297,8 +297,8 @@ class TestDecisionPipelineAnalyzeFailure:
 class TestDecisionPipelineDecideFailure:
     @pytest.mark.asyncio
     async def test_decide_failure(self):
-        from odap.biz.decision_pipeline.pipeline import DecisionPipeline
-        from odap.biz.decision_pipeline.schemas import AnalysisInput, PipelineStageStatus
+        from odap.biz.decision.decision_pipeline.pipeline import DecisionPipeline
+        from odap.biz.decision.decision_pipeline.schemas import AnalysisInput, PipelineStageStatus
 
         pipeline = DecisionPipeline()
         mock_retriever = AsyncMock()
@@ -311,7 +311,7 @@ class TestDecisionPipelineDecideFailure:
         pipeline._decision_engine = Mock()
         pipeline._decision_engine.recommend = Mock(side_effect=Exception("Engine error"))
 
-        with patch("odap.biz.decision_pipeline.pipeline.DecisionPipeline._fallback_decide",
+        with patch("odap.biz.decision.decision_pipeline.pipeline.DecisionPipeline._fallback_decide",
                     new_callable=AsyncMock, side_effect=Exception("Fallback also failed")):
             inp = AnalysisInput(query="test")
             result = await pipeline.execute(inp)
@@ -328,7 +328,7 @@ class TestDecisionPipelineOPARejection:
         pipeline = _make_pipeline_with_mocks()
         pipeline._opa_manager.check_permission_abac = Mock(return_value={"allow": False})
 
-        from odap.biz.decision_pipeline.schemas import AnalysisInput, PipelineStageStatus
+        from odap.biz.decision.decision_pipeline.schemas import AnalysisInput, PipelineStageStatus
 
         inp = AnalysisInput(query="test", agent_id="agent_1")
         result = await pipeline.execute(inp)
@@ -343,8 +343,8 @@ class TestDecisionPipelineOPARejection:
 class TestDecisionPipelineValidateFailClosed:
     @pytest.mark.asyncio
     async def test_fail_closed_no_opa(self):
-        from odap.biz.decision_pipeline.pipeline import DecisionPipeline
-        from odap.biz.decision_pipeline.schemas import (
+        from odap.biz.decision.decision_pipeline.pipeline import DecisionPipeline
+        from odap.biz.decision.decision_pipeline.schemas import (
             AnalysisInput, AnalysisResult, DecisionResult, DecisionOption,
             PipelineStageStatus,
         )
@@ -383,8 +383,8 @@ class TestDecisionPipelineValidateFailClosed:
 
     @pytest.mark.asyncio
     async def test_fail_closed_opa_exception(self):
-        from odap.biz.decision_pipeline.pipeline import DecisionPipeline
-        from odap.biz.decision_pipeline.schemas import AnalysisInput, PipelineStageStatus
+        from odap.biz.decision.decision_pipeline.pipeline import DecisionPipeline
+        from odap.biz.decision.decision_pipeline.schemas import AnalysisInput, PipelineStageStatus
 
         pipeline = _make_pipeline_with_mocks()
         pipeline._opa_manager.check_permission_abac = Mock(side_effect=Exception("OPA unreachable"))
@@ -401,8 +401,8 @@ class TestDecisionPipelineValidateFailClosed:
 class TestPipelineStagesTracking:
     @pytest.mark.asyncio
     async def test_all_stages_initialized_as_pending(self):
-        from odap.biz.decision_pipeline.pipeline import DecisionPipeline
-        from odap.biz.decision_pipeline.schemas import AnalysisInput, PipelineStageStatus
+        from odap.biz.decision.decision_pipeline.pipeline import DecisionPipeline
+        from odap.biz.decision.decision_pipeline.schemas import AnalysisInput, PipelineStageStatus
 
         pipeline = DecisionPipeline()
         mock_retriever = AsyncMock()
@@ -420,8 +420,8 @@ class TestPipelineStagesTracking:
 
     @pytest.mark.asyncio
     async def test_stages_progress_on_partial_failure(self):
-        from odap.biz.decision_pipeline.pipeline import DecisionPipeline
-        from odap.biz.decision_pipeline.schemas import AnalysisInput, PipelineStageStatus
+        from odap.biz.decision.decision_pipeline.pipeline import DecisionPipeline
+        from odap.biz.decision.decision_pipeline.schemas import AnalysisInput, PipelineStageStatus
 
         pipeline = DecisionPipeline()
         mock_retriever = AsyncMock()
@@ -431,7 +431,7 @@ class TestPipelineStagesTracking:
         pipeline._semantic_retriever = mock_retriever
 
         with patch.object(type(pipeline), 'decision_engine', new_callable=PropertyMock, return_value=None):
-            with patch("odap.biz.decision_pipeline.pipeline.DecisionPipeline._fallback_decide",
+            with patch("odap.biz.decision.decision_pipeline.pipeline.DecisionPipeline._fallback_decide",
                         new_callable=AsyncMock, side_effect=Exception("No fallback")):
                 inp = AnalysisInput(query="test")
                 result = await pipeline.execute(inp)
@@ -447,7 +447,7 @@ class TestPipelineStagesTracking:
         pipeline = _make_pipeline_with_mocks()
         pipeline._action_executor.submit_action = AsyncMock(side_effect=Exception("Executor down"))
 
-        from odap.biz.decision_pipeline.schemas import AnalysisInput, PipelineStageStatus
+        from odap.biz.decision.decision_pipeline.schemas import AnalysisInput, PipelineStageStatus
 
         inp = AnalysisInput(query="test", agent_id="agent_1")
         result = await pipeline.execute(inp)
@@ -464,7 +464,7 @@ class TestPipelineStagesTracking:
         pipeline = _make_pipeline_with_mocks()
         pipeline._feedback_loop.close_loop = AsyncMock(side_effect=Exception("Feedback error"))
 
-        from odap.biz.decision_pipeline.schemas import AnalysisInput, PipelineStageStatus
+        from odap.biz.decision.decision_pipeline.schemas import AnalysisInput, PipelineStageStatus
 
         inp = AnalysisInput(query="test", agent_id="agent_1")
         result = await pipeline.execute(inp)
@@ -475,8 +475,8 @@ class TestPipelineStagesTracking:
 
     @pytest.mark.asyncio
     async def test_no_recommended_option_skips_perform(self):
-        from odap.biz.decision_pipeline.pipeline import DecisionPipeline
-        from odap.biz.decision_pipeline.schemas import AnalysisInput, PipelineStageStatus
+        from odap.biz.decision.decision_pipeline.pipeline import DecisionPipeline
+        from odap.biz.decision.decision_pipeline.schemas import AnalysisInput, PipelineStageStatus
 
         pipeline = DecisionPipeline()
         mock_retriever = AsyncMock()

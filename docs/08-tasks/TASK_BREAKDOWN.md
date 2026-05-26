@@ -36,11 +36,11 @@
 |------|------|---------|-----------|
 | `odap/infra/graph/` | Graphiti 客户端 | ~400 | M-01 |
 | `odap/infra/opa/` | OPA 策略管理 | ~300 | M-02 |
-| `odap/biz/ontology/` | 本体管理 | ~450 | M-03 |
-| `odap/biz/workspace/` | 工作空间 | ~100 | M-04 |
+| `odap/biz/core/ontology/` | 本体管理 | ~450 | M-03 |
+| `odap/biz/platform/workspace/` | 工作空间 | ~100 | M-04 |
 | `odap/infra/events/` | Hook 事件系统 | ~200 | M-05 |
 | `odap/adapters/` | MCP 适配 | ~150 | M-06 |
-| `odap/biz/agent/` | Agent + Router | ~700 | M-09, M-10 |
+| `odap/biz/core/agent/` | Agent + Router | ~700 | M-09, M-10 |
 | `odap/tools/` | Skill 工具集 | ~800 | M-08, M-11 |
 | `odap/biz/simulator/` | 模拟推演 | ~300 | M-14 |
 | `odap/web/` | API + WebSocket | ~350 | M-16 |

@@ -13,7 +13,7 @@ class TestOntologyTransformService:
 
     @pytest.fixture
     def transform_service(self):
-        from odap.biz.ontology.services.transform_service import OntologyTransformService
+        from odap.biz.core.ontology.services.transform_service import OntologyTransformService
         return OntologyTransformService()
 
     @pytest.mark.asyncio
@@ -50,7 +50,7 @@ class TestOntologyTransformService:
     @pytest.mark.asyncio
     async def test_data_quality_validation(self, transform_service):
         """测试数据质量校验"""
-        from odap.biz.ontology.schema.document import OntologyDocument, DocumentMeta, DataSource
+        from odap.biz.core.ontology.schema.document import OntologyDocument, DocumentMeta, DataSource
 
         doc = OntologyDocument(
             doc_id="test-doc",
@@ -78,7 +78,7 @@ class TestQAOntologyBuilder:
 
     @pytest.fixture
     def qa_builder(self):
-        from odap.biz.ontology.services.qa_ontology_builder import QAOntologyBuilder
+        from odap.biz.core.ontology.services.qa_ontology_builder import QAOntologyBuilder
         return QAOntologyBuilder()
 
     @pytest.mark.asyncio
@@ -130,13 +130,13 @@ class TestOntologyBuilderService:
 
     @pytest.fixture
     def builder_service(self):
-        from odap.biz.ontology.services.build_service import OntologyBuilderService
+        from odap.biz.core.ontology.services.build_service import OntologyBuilderService
         return OntologyBuilderService()
 
     @pytest.mark.asyncio
     async def test_extract_entities_relations(self, builder_service):
         """测试实体和关系抽取"""
-        from odap.biz.ontology.schema.document import (
+        from odap.biz.core.ontology.schema.document import (
             OntologyDocument, OntologyEntity, OntologyRelation
         )
 
@@ -164,7 +164,7 @@ class TestOntologyBuilderService:
     @pytest.mark.asyncio
     async def test_detect_changes(self, builder_service):
         """测试变化检测"""
-        from odap.biz.ontology.schema.document import OntologyDocument
+        from odap.biz.core.ontology.schema.document import OntologyDocument
 
         doc = OntologyDocument(
             doc_id="test-doc",
@@ -184,12 +184,12 @@ class TestAPIVersionController:
 
     @pytest.fixture
     def version_controller(self):
-        from odap.biz.ontology.services.api_version import APIVersionController
+        from odap.biz.core.ontology.services.api_version import APIVersionController
         return APIVersionController()
 
     def test_get_version_info(self, version_controller):
         """测试获取版本信息"""
-        from odap.biz.ontology.services.api_version import APIVersion
+        from odap.biz.core.ontology.services.api_version import APIVersion
 
         info = version_controller.get_version_info(APIVersion.V2)
 
@@ -198,7 +198,7 @@ class TestAPIVersionController:
 
     def test_check_compatibility(self, version_controller):
         """测试版本兼容性检查"""
-        from odap.biz.ontology.services.api_version import APIVersion
+        from odap.biz.core.ontology.services.api_version import APIVersion
 
         result = version_controller.check_compatibility(
             APIVersion.V1,

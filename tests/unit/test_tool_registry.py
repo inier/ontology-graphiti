@@ -75,7 +75,7 @@ def mock_base_v2():
     fake_executor = FakeSkillExecutorV2()
     with patch.dict("sys.modules", {
         "tools": MagicMock(),
-        "tools.base_v2": MagicMock(
+        "tools.base": MagicMock(
             SkillRegistryV2=FakeSkillRegistryV2,
             SkillExecutorV2=FakeSkillExecutorV2,
             get_registry_v2=lambda: fake_registry,
@@ -93,13 +93,13 @@ def mock_base_v2():
 
 @pytest.fixture
 def registry(mock_base_v2):
-    from odap.biz.tool_registry.registry import ToolRegistry
+    from odap.biz.platform.tool_registry.registry import ToolRegistry
     return ToolRegistry()
 
 
 class TestToolType:
     def test_tool_type_values(self, mock_base_v2):
-        from odap.biz.tool_registry.registry import ToolType
+        from odap.biz.platform.tool_registry.registry import ToolType
         assert ToolType.SKILL.value == "skill"
         assert ToolType.MCP.value == "mcp"
         assert ToolType.REST.value == "rest"
@@ -108,7 +108,7 @@ class TestToolType:
 
 class TestToolMetadata:
     def test_tool_metadata_defaults(self, mock_base_v2):
-        from odap.biz.tool_registry.registry import ToolMetadata
+        from odap.biz.platform.tool_registry.registry import ToolMetadata
         meta = ToolMetadata(
             name="test_tool",
             description="A test tool",
@@ -127,7 +127,7 @@ class TestToolMetadata:
 
 class TestToolRegistration:
     def test_tool_registration_post_init(self, mock_base_v2):
-        from odap.biz.tool_registry.registry import ToolRegistration, ToolMetadata, ToolType
+        from odap.biz.platform.tool_registry.registry import ToolRegistration, ToolMetadata, ToolType
         meta = ToolMetadata(name="t", description="d", tool_type="function", category="c")
         reg = ToolRegistration(
             tool_id="func:t",
@@ -241,7 +241,7 @@ class TestDiscoverFilters:
         assert len(discovered) == 2
 
     def test_discover_by_capability(self, registry):
-        from odap.biz.tool_registry.registry import ToolMetadata, ToolRegistration, ToolType
+        from odap.biz.platform.tool_registry.registry import ToolMetadata, ToolRegistration, ToolType
         meta = ToolMetadata(
             name="cap_tool", description="Has capabilities",
             tool_type="function", category="test",
@@ -265,7 +265,7 @@ class TestDiscoverFilters:
 
 class TestMCPToolBridge:
     def test_register_mcp_tools(self, mock_base_v2):
-        from odap.biz.tool_registry.registry import MCPToolBridge
+        from odap.biz.platform.tool_registry.registry import MCPToolBridge
         bridge = MCPToolBridge()
         tools = [
             {"name": "search", "description": "Search tool", "capabilities": ["query"]},
@@ -275,7 +275,7 @@ class TestMCPToolBridge:
         assert count == 2
 
     def test_discover_mcp_tools(self, mock_base_v2):
-        from odap.biz.tool_registry.registry import MCPToolBridge
+        from odap.biz.platform.tool_registry.registry import MCPToolBridge
         bridge = MCPToolBridge()
         tools = [
             {"name": "search", "description": "Search tool"},
@@ -286,7 +286,7 @@ class TestMCPToolBridge:
         assert len(discovered) == 2
 
     def test_discover_mcp_tools_with_pattern(self, mock_base_v2):
-        from odap.biz.tool_registry.registry import MCPToolBridge
+        from odap.biz.platform.tool_registry.registry import MCPToolBridge
         bridge = MCPToolBridge()
         tools = [
             {"name": "search", "description": "Search documents"},
@@ -298,7 +298,7 @@ class TestMCPToolBridge:
         assert "search" in discovered[0].name
 
     def test_get_mcp_tool(self, mock_base_v2):
-        from odap.biz.tool_registry.registry import MCPToolBridge
+        from odap.biz.platform.tool_registry.registry import MCPToolBridge
         bridge = MCPToolBridge()
         tools = [{"name": "lookup", "description": "Lookup tool"}]
         bridge.register_mcp_tools("srv", tools)
@@ -307,14 +307,14 @@ class TestMCPToolBridge:
         assert tool.name == "srv:lookup"
 
     def test_get_mcp_tool_not_found(self, mock_base_v2):
-        from odap.biz.tool_registry.registry import MCPToolBridge
+        from odap.biz.platform.tool_registry.registry import MCPToolBridge
         bridge = MCPToolBridge()
         assert bridge.get_mcp_tool("nonexistent") is None
 
 
 class TestSemanticToolDiscovery:
     def test_index_tool(self, mock_base_v2):
-        from odap.biz.tool_registry.registry import SemanticToolDiscovery, ToolMetadata
+        from odap.biz.platform.tool_registry.registry import SemanticToolDiscovery, ToolMetadata
         sd = SemanticToolDiscovery()
         meta = ToolMetadata(
             name="data_analyzer", description="Analyzes data",
@@ -325,7 +325,7 @@ class TestSemanticToolDiscovery:
         assert "data_analyzer" in sd._tool_metadata_store
 
     def test_discover_by_semantics(self, mock_base_v2):
-        from odap.biz.tool_registry.registry import SemanticToolDiscovery, ToolMetadata
+        from odap.biz.platform.tool_registry.registry import SemanticToolDiscovery, ToolMetadata
         sd = SemanticToolDiscovery()
         meta1 = ToolMetadata(
             name="data_analyzer", description="Analyzes data patterns",
@@ -345,7 +345,7 @@ class TestSemanticToolDiscovery:
         assert results[0]["score"] > 0
 
     def test_discover_by_capability(self, mock_base_v2):
-        from odap.biz.tool_registry.registry import SemanticToolDiscovery, ToolMetadata
+        from odap.biz.platform.tool_registry.registry import SemanticToolDiscovery, ToolMetadata
         sd = SemanticToolDiscovery()
         meta = ToolMetadata(
             name="query_tool", description="Query tool",
@@ -357,7 +357,7 @@ class TestSemanticToolDiscovery:
         assert "query_tool" in results
 
     def test_discover_by_capability_empty(self, mock_base_v2):
-        from odap.biz.tool_registry.registry import SemanticToolDiscovery
+        from odap.biz.platform.tool_registry.registry import SemanticToolDiscovery
         sd = SemanticToolDiscovery()
         results = sd.discover_by_capability("nonexistent")
         assert results == []
@@ -365,7 +365,7 @@ class TestSemanticToolDiscovery:
 
 class TestToolHealthMonitor:
     def test_record_call_success(self, mock_base_v2):
-        from odap.biz.tool_registry.registry import ToolHealthMonitor
+        from odap.biz.platform.tool_registry.registry import ToolHealthMonitor
         monitor = ToolHealthMonitor()
         monitor.record_call("tool_a", True, 50.0)
         health = monitor.get_health("tool_a")
@@ -375,7 +375,7 @@ class TestToolHealthMonitor:
         assert health.failed_calls == 0
 
     def test_record_call_failure(self, mock_base_v2):
-        from odap.biz.tool_registry.registry import ToolHealthMonitor
+        from odap.biz.platform.tool_registry.registry import ToolHealthMonitor
         monitor = ToolHealthMonitor()
         monitor.record_call("tool_b", False, 100.0, error="timeout")
         health = monitor.get_health("tool_b")
@@ -384,7 +384,7 @@ class TestToolHealthMonitor:
         assert health.last_error == "timeout"
 
     def test_health_healthy(self, mock_base_v2):
-        from odap.biz.tool_registry.registry import ToolHealthMonitor
+        from odap.biz.platform.tool_registry.registry import ToolHealthMonitor
         monitor = ToolHealthMonitor()
         for _ in range(10):
             monitor.record_call("tool_c", True, 50.0)
@@ -392,7 +392,7 @@ class TestToolHealthMonitor:
         assert health.health == "healthy"
 
     def test_health_degraded_by_error_rate(self, mock_base_v2):
-        from odap.biz.tool_registry.registry import ToolHealthMonitor
+        from odap.biz.platform.tool_registry.registry import ToolHealthMonitor
         monitor = ToolHealthMonitor()
         for _ in range(8):
             monitor.record_call("tool_d", True, 50.0)
@@ -402,7 +402,7 @@ class TestToolHealthMonitor:
         assert health.health in ("degraded", "unhealthy")
 
     def test_health_unhealthy_by_error_rate(self, mock_base_v2):
-        from odap.biz.tool_registry.registry import ToolHealthMonitor
+        from odap.biz.platform.tool_registry.registry import ToolHealthMonitor
         monitor = ToolHealthMonitor()
         for _ in range(4):
             monitor.record_call("tool_e", False, 50.0)
@@ -412,7 +412,7 @@ class TestToolHealthMonitor:
         assert health.health == "unhealthy"
 
     def test_get_all_health(self, mock_base_v2):
-        from odap.biz.tool_registry.registry import ToolHealthMonitor
+        from odap.biz.platform.tool_registry.registry import ToolHealthMonitor
         monitor = ToolHealthMonitor()
         monitor.record_call("t1", True, 10.0)
         monitor.record_call("t2", True, 20.0)
@@ -420,14 +420,14 @@ class TestToolHealthMonitor:
         assert len(all_health) == 2
 
     def test_get_health_nonexistent(self, mock_base_v2):
-        from odap.biz.tool_registry.registry import ToolHealthMonitor
+        from odap.biz.platform.tool_registry.registry import ToolHealthMonitor
         monitor = ToolHealthMonitor()
         assert monitor.get_health("no_such_tool") is None
 
 
 class TestToolHealthMonitorAlerts:
     def test_alerts_on_degraded(self, mock_base_v2):
-        from odap.biz.tool_registry.registry import ToolHealthMonitor
+        from odap.biz.platform.tool_registry.registry import ToolHealthMonitor
         monitor = ToolHealthMonitor()
         for _ in range(9):
             monitor.record_call("tool_f", True, 50.0)
@@ -436,7 +436,7 @@ class TestToolHealthMonitorAlerts:
         assert len(alerts) >= 1
 
     def test_alerts_critical_on_unhealthy(self, mock_base_v2):
-        from odap.biz.tool_registry.registry import ToolHealthMonitor
+        from odap.biz.platform.tool_registry.registry import ToolHealthMonitor
         monitor = ToolHealthMonitor()
         for _ in range(5):
             monitor.record_call("tool_g", False, 50.0)
@@ -445,7 +445,7 @@ class TestToolHealthMonitorAlerts:
         assert critical_alerts[0]["level"] == "critical"
 
     def test_clear_alerts_all(self, mock_base_v2):
-        from odap.biz.tool_registry.registry import ToolHealthMonitor
+        from odap.biz.platform.tool_registry.registry import ToolHealthMonitor
         monitor = ToolHealthMonitor()
         for _ in range(5):
             monitor.record_call("tool_h", False, 50.0)
@@ -454,7 +454,7 @@ class TestToolHealthMonitorAlerts:
         assert len(monitor.get_alerts()) == 0
 
     def test_clear_alerts_by_tool(self, mock_base_v2):
-        from odap.biz.tool_registry.registry import ToolHealthMonitor
+        from odap.biz.platform.tool_registry.registry import ToolHealthMonitor
         monitor = ToolHealthMonitor()
         for _ in range(5):
             monitor.record_call("tool_i", False, 50.0)
@@ -468,7 +468,7 @@ class TestToolHealthMonitorAlerts:
 
 class TestSemanticDiscovery:
     def test_discover_with_tfidf_scoring(self):
-        from odap.biz.tool_registry.semantic_discovery import SemanticDiscovery
+        from odap.biz.platform.tool_registry.semantic_discovery import SemanticDiscovery
         sd = SemanticDiscovery()
         tools = [
             {"name": "data_analyzer", "description": "Analyzes data patterns and trends", "category": "analytics", "tags": ["data", "analysis"]},
@@ -481,13 +481,13 @@ class TestSemanticDiscovery:
         assert results[0]["relevance_score"] >= results[-1]["relevance_score"]
 
     def test_discover_empty_tools(self):
-        from odap.biz.tool_registry.semantic_discovery import SemanticDiscovery
+        from odap.biz.platform.tool_registry.semantic_discovery import SemanticDiscovery
         sd = SemanticDiscovery()
         results = sd.discover("query", [], top_k=5)
         assert results == []
 
     def test_discover_top_k(self):
-        from odap.biz.tool_registry.semantic_discovery import SemanticDiscovery
+        from odap.biz.platform.tool_registry.semantic_discovery import SemanticDiscovery
         sd = SemanticDiscovery()
         tools = [
             {"name": f"tool_{i}", "description": f"Tool number {i}", "category": "test"}
@@ -497,7 +497,7 @@ class TestSemanticDiscovery:
         assert len(results) <= 3
 
     def test_discover_name_boost(self):
-        from odap.biz.tool_registry.semantic_discovery import SemanticDiscovery
+        from odap.biz.platform.tool_registry.semantic_discovery import SemanticDiscovery
         sd = SemanticDiscovery()
         tools = [
             {"name": "search", "description": "A generic utility", "category": "util"},
@@ -511,7 +511,7 @@ class TestSemanticDiscovery:
 class TestCompositeExecutor:
     @pytest.mark.asyncio
     async def test_execute_chain_success(self):
-        from odap.biz.tool_registry.composite_executor import CompositeExecutor
+        from odap.biz.platform.tool_registry.composite_executor import CompositeExecutor
         executor = CompositeExecutor()
         tools = [
             {"name": "step1", "params": {"key1": "val1"}},
@@ -525,7 +525,7 @@ class TestCompositeExecutor:
 
     @pytest.mark.asyncio
     async def test_execute_chain_with_failure_and_rollback(self):
-        from odap.biz.tool_registry.composite_executor import CompositeExecutor
+        from odap.biz.platform.tool_registry.composite_executor import CompositeExecutor
         executor = CompositeExecutor(tool_registry=None)
         rollback_called = []
 
@@ -549,7 +549,7 @@ class TestCompositeExecutor:
 
     @pytest.mark.asyncio
     async def test_execute_chain_empty(self):
-        from odap.biz.tool_registry.composite_executor import CompositeExecutor
+        from odap.biz.platform.tool_registry.composite_executor import CompositeExecutor
         executor = CompositeExecutor()
         result = await executor.execute_chain([], {"input": "data"})
         assert result["status"] == "success"
@@ -557,7 +557,7 @@ class TestCompositeExecutor:
 
     @pytest.mark.asyncio
     async def test_execute_chain_async_rollback(self):
-        from odap.biz.tool_registry.composite_executor import CompositeExecutor
+        from odap.biz.platform.tool_registry.composite_executor import CompositeExecutor
         executor = CompositeExecutor()
         async_rollback_called = []
 
@@ -579,7 +579,7 @@ class TestCompositeExecutor:
 
 class TestToolChains:
     def test_register_and_get_tool_chain(self, registry):
-        from odap.biz.tool_registry.registry import ToolChain, ToolChainStep
+        from odap.biz.platform.tool_registry.registry import ToolChain, ToolChainStep
         chain = ToolChain(
             chain_id="chain_1",
             name="test_chain",
@@ -604,7 +604,7 @@ class TestToolChains:
             registry.execute_chain("missing_chain", {})
 
     def test_execute_chain_with_functions(self, registry):
-        from odap.biz.tool_registry.registry import ToolChain, ToolChainStep
+        from odap.biz.platform.tool_registry.registry import ToolChain, ToolChainStep
         registry.register_function("add", "Add", lambda a, b: a + b, category="math")
         chain = ToolChain(
             chain_id="math_chain",

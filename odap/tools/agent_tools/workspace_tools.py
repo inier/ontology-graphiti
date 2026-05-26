@@ -5,7 +5,7 @@
 """
 
 from typing import Dict, Any, List, Optional
-from odap.biz.workspace.services.workspace_service import WorkspaceService
+from odap.biz.platform.workspace.services.workspace_service import WorkspaceService
 from odap.tools import register_skill
 
 # 初始化工作空间服务

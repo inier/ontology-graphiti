@@ -210,7 +210,7 @@ export function BusinessEntityManager({
       indicator_type: entity.indicator_type,
       calculation_formula: entity.calculation_formula,
       unit: entity.unit,
-    });
+    } as any);
     setFlowNodes(entity.flow_nodes || []);
     setRuleConditions(entity.rule_conditions || []);
     setModalOpen(true);

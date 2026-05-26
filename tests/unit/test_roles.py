@@ -4,8 +4,9 @@ import os
 
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), '..', '..', '..'))
 
-from odap.biz.roles.storage.sqlite_role_storage import SQLiteRoleStorage
-from odap.biz.roles.api.schemas import Role, RoleType, Permission, PermissionScope
+from odap.biz.platform.roles.storage.sqlite_role_storage import SQLiteRoleStorage
+from odap.biz.platform.roles.api.schemas import Role, RoleType, Permission, PermissionScope, UserRoleBinding, UserRoleAssignRequest
+from odap.biz.platform.roles.services.role_service import RoleService
 
 
 @pytest.fixture
@@ -140,3 +141,183 @@ def test_get_role_policies(storage):
     assert policies[0]["priority"] >= policies[1]["priority"]
     policy_ids = {p["policy_id"] for p in policies}
     assert policy_ids == {"policy_x", "policy_y"}
+
+
+class TestUserRoleStorage:
+    def test_assign_role_to_user(self, storage):
+        result = storage.assign_role_to_user("1", "user_001")
+        assert result is True
+        roles = storage.get_user_roles("user_001")
+        assert len(roles) == 1
+        assert roles[0].id == "1"
+
+    def test_assign_role_duplicate_returns_false(self, storage):
+        storage.assign_role_to_user("1", "user_001")
+        result = storage.assign_role_to_user("1", "user_001")
+        assert result is False
+
+    def test_assign_role_with_workspace(self, storage):
+        result = storage.assign_role_to_user("1", "user_001", workspace_id="ws_1")
+        assert result is True
+        roles = storage.get_user_roles_in_workspace("user_001", "ws_1")
+        assert len(roles) == 1
+        assert roles[0].id == "1"
+
+    def test_assign_same_role_different_workspace(self, storage):
+        storage.assign_role_to_user("1", "user_001", workspace_id="ws_1")
+        result = storage.assign_role_to_user("1", "user_001", workspace_id="ws_2")
+        assert result is True
+
+    def test_revoke_role_from_user(self, storage):
+        storage.assign_role_to_user("1", "user_001")
+        result = storage.revoke_role_from_user("1", "user_001")
+        assert result is True
+        roles = storage.get_user_roles("user_001")
+        assert len(roles) == 0
+
+    def test_revoke_role_not_found(self, storage):
+        result = storage.revoke_role_from_user("1", "user_nonexist")
+        assert result is False
+
+    def test_revoke_role_with_workspace(self, storage):
+        storage.assign_role_to_user("1", "user_001", workspace_id="ws_1")
+        storage.assign_role_to_user("1", "user_001", workspace_id="ws_2")
+        result = storage.revoke_role_from_user("1", "user_001", workspace_id="ws_1")
+        assert result is True
+        roles_ws1 = storage.get_user_roles_in_workspace("user_001", "ws_1")
+        assert len(roles_ws1) == 0
+        roles_ws2 = storage.get_user_roles_in_workspace("user_001", "ws_2")
+        assert len(roles_ws2) == 1
+
+    def test_get_user_roles_empty(self, storage):
+        roles = storage.get_user_roles("user_nonexist")
+        assert roles == []
+
+    def test_get_user_roles_in_workspace_empty(self, storage):
+        roles = storage.get_user_roles_in_workspace("user_nonexist", "ws_1")
+        assert roles == []
+
+    def test_save_role(self, storage):
+        from datetime import datetime
+        perm = storage.get_permission("p1")
+        role = Role(
+            id="custom_1",
+            name="自定义角色",
+            description="测试save_role",
+            role_type=RoleType.MEMBER,
+            permissions=[perm],
+            created_at=datetime.now(),
+            updated_at=datetime.now(),
+        )
+        storage.save_role(role)
+        fetched = storage.get_role("custom_1")
+        assert fetched is not None
+        assert fetched.name == "自定义角色"
+
+    def test_delete_role_cleans_user_roles(self, storage):
+        storage.assign_role_to_user("1", "user_001")
+        storage.delete_role("1")
+        roles = storage.get_user_roles("user_001")
+        assert len(roles) == 0
+
+
+class TestUserRoleSchemas:
+    def test_role_type_str_enum(self):
+        assert isinstance(RoleType.SYSTEM_ADMIN, str)
+        assert RoleType.SYSTEM_ADMIN == "system_admin"
+
+    def test_permission_scope_str_enum(self):
+        assert isinstance(PermissionScope.SYSTEM, str)
+        assert PermissionScope.SYSTEM == "system"
+
+    def test_user_role_binding_defaults(self):
+        binding = UserRoleBinding(user_id="u1", role_id="r1")
+        assert binding.workspace_id is None
+        assert binding.bound_by == "system"
+
+    def test_user_role_assign_request(self):
+        req = UserRoleAssignRequest(user_id="u1", workspace_id="ws1")
+        assert req.user_id == "u1"
+        assert req.workspace_id == "ws1"
+
+    def test_user_role_assign_request_no_workspace(self):
+        req = UserRoleAssignRequest(user_id="u1")
+        assert req.workspace_id is None
+
+
+class TestRoleService:
+    @pytest.fixture
+    def service(self, tmp_path):
+        from unittest.mock import patch
+        db_path = str(tmp_path / "test_roles.db")
+        with patch.object(RoleService, '__init__', lambda self: None):
+            svc = RoleService()
+            svc.storage = SQLiteRoleStorage(db_path=db_path)
+        return svc
+
+    def test_assign_role_to_user(self, service):
+        result = service.assign_role_to_user("1", "user_001")
+        assert result["status"] == "success"
+
+    def test_assign_role_not_found(self, service):
+        result = service.assign_role_to_user("nonexist", "user_001")
+        assert result["status"] == "error"
+
+    def test_assign_role_with_workspace(self, service):
+        result = service.assign_role_to_user("1", "user_001", workspace_id="ws_1", bound_by="admin")
+        assert result["status"] == "success"
+
+    def test_revoke_role_from_user(self, service):
+        service.assign_role_to_user("1", "user_001")
+        result = service.revoke_role_from_user("1", "user_001")
+        assert result["status"] == "success"
+
+    def test_revoke_role_not_found(self, service):
+        result = service.revoke_role_from_user("1", "user_nonexist")
+        assert result["status"] == "error"
+
+    def test_revoke_role_with_workspace(self, service):
+        service.assign_role_to_user("1", "user_001", workspace_id="ws_1")
+        result = service.revoke_role_from_user("1", "user_001", workspace_id="ws_1")
+        assert result["status"] == "success"
+
+    def test_get_user_roles(self, service):
+        service.assign_role_to_user("1", "user_001")
+        roles = service.get_user_roles("user_001")
+        assert isinstance(roles, list)
+        assert len(roles) == 1
+        assert roles[0]["id"] == "1"
+        assert roles[0]["role_type"] == "system_admin"
+
+    def test_get_user_roles_in_workspace(self, service):
+        service.assign_role_to_user("1", "user_001", workspace_id="ws_1")
+        roles = service.get_user_roles_in_workspace("user_001", "ws_1")
+        assert len(roles) == 1
+
+    def test_role_to_dict_permissions_serialization(self, service):
+        result = service.get_role("1")
+        assert "id" in result
+        perms = result["permissions"]
+        assert isinstance(perms, list)
+        assert isinstance(perms[0], dict)
+        assert "id" in perms[0]
+        assert "scope" in perms[0]
+        assert isinstance(perms[0]["scope"], str)
+
+    def test_create_role(self, service):
+        result = service.create_role(
+            name="测试角色",
+            description="测试",
+            role_type=RoleType.MEMBER,
+            permissions=["p4"],
+        )
+        assert result["name"] == "测试角色"
+        assert result["role_type"] == "member"
+
+    def test_delete_role(self, service):
+        result = service.delete_role("1")
+        assert result["status"] == "success"
+
+    def test_delete_role_not_found(self, service):
+        result = service.delete_role("nonexist")
+        assert result["status"] == "error"

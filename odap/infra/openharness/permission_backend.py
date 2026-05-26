@@ -30,7 +30,7 @@ class OPAPermissionBackend:
     def opa(self):
         if self._opa_manager is None:
             try:
-                from odap.infra.opa.opa_service_v2 import OPAManagerV2
+                from odap.infra.opa.opa_service import OPAManagerV2
                 self._opa_manager = OPAManagerV2()
             except Exception as e:
                 logger.warning(f"OPAPermissionBackend: OPA manager init failed: {e}")

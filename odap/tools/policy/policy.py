@@ -11,7 +11,7 @@ sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 from odap.tools import register_skill
 from odap.infra.opa import OPAManager
-from odap.biz.ontology.service import OntologyManager
+from odap.biz.core.ontology.service import OntologyManager
 
 opa_manager = OPAManager()
 ontology_manager = OntologyManager()

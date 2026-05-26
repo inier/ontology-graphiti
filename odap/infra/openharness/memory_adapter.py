@@ -27,7 +27,7 @@ class GraphitiMemoryAdapter:
             from datetime import timezone
             self.graph.add_episode(
                 name=f"memory_{event_type}",
-                content=content,
+                episode_body=content,
                 source_description=f"OpenHarness Memory: {event_type}",
                 reference_time=datetime.now(timezone.utc),
             )

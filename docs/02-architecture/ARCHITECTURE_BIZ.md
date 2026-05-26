@@ -1,6 +1,6 @@
 # 本体驱动分析决策平台 (ODAP) - L3-L4 业务层
 > **部分**: Agent协同 + OADP + 数据架构 + 本体管理 + 角色权限 + 配置 + 动作服务 + 反馈闭环 + 语义检索
-> **版本**: 5.0.0 | **日期**: 2026-05-19
+> **版本**: 5.1.0 | **日期**: 2026-05-23
 > **上级文档**: [ARCHITECTURE.md](ARCHITECTURE.md)
 ---
 ## 7. 三 Agent 协同编排设计
@@ -78,7 +78,7 @@
 │  • 威胁模式识别                │    │  • 命令下发与执行               │
 │  • 置信度计算                  │    │  • 执行状态监控                │
 │  • 时序关联分析                │    │  • 失败回滚机制                 │
-│  • RAG 增强推理                │    │  • 结果回写 Graphiti           │
+│  • QueryService 语义检索                │    │  • 结果回写 Graphiti           │
 │                               │    │                               │
 │  工具:                        │    │  工具:                        │
 │  • radar_search               │    │  • attack_target (需OPA)      │
@@ -183,6 +183,126 @@ class DomainSwarm:
             await self.execute_mission_loop(mission)
 
         return act_result
+```
+
+---
+
+### 7.3 Agent 查询路径统一化
+
+> **设计原则**: Query First —— 所有 Agent 的图谱读取必须通过 QueryService，禁止直接调用 GraphManager
+> **参考**: ADR-055 统一查询服务
+
+#### 7.3.1 当前问题
+
+ODAP 存在 5 条独立的 Agent 查询路径，每条路径的意图识别、路由、图谱查询方式都不同：
+
+| Agent 编排器 | 意图识别 | 图谱查询 | 工具调用 |
+|-------------|---------|---------|---------|
+| SelfCorrectingOrchestrator (v1) | 正则硬编码 | 无 | SKILL_CATALOG 直接调用 |
+| DomainSwarmV2 | 正则硬编码 | 无 | SkillExecutorV2 |
+| DomainSwarm (OODA) | 无（固定 OODA） | retrieve_rag_context | SKILL_CATALOG |
+| IntelligenceAgent (ReAct) | LLM function calling | retrieve_rag_context | SKILL_CATALOG + OPA |
+| UserCognitionEngine | 正则 7 类意图 | graph_client（接口断裂！） | 无 |
+
+#### 7.3.2 统一化方案
+
+所有 Agent 统一通过 OpenHarness Tool 接口调用 QueryService：
+
+```
+┌─────────────────────────────────────────────────────────────────┐
+│                   Agent 编排层 (OpenHarness Swarm)                │
+│                                                                  │
+│  ┌─────────────┐  ┌─────────────┐  ┌─────────────┐             │
+│  │ Commander   │  │Intelligence │  │ Operations  │             │
+│  │ Agent       │  │ Agent       │  │ Agent       │             │
+│  └──────┬──────┘  └──────┬──────┘  └──────┬──────┘             │
+│         │                │                │                      │
+│         └────────────────┼────────────────┘                      │
+│                          ▼                                       │
+│              ┌───────────────────────┐                           │
+│              │  OpenHarness Tool     │                           │
+│              │  调度层               │                           │
+│              └───────────┬───────────┘                           │
+│                          │                                       │
+│         ┌────────────────┼────────────────┐                      │
+│         ▼                ▼                ▼                      │
+│  ┌─────────────┐ ┌─────────────┐ ┌─────────────┐               │
+│  │query_schema │ │query_entity │ │query_topo   │  ← 只读工具    │
+│  │  (read)     │ │  (read)     │ │  (read)     │               │
+│  └─────────────┘ └─────────────┘ └─────────────┘               │
+│  ┌─────────────┐ ┌─────────────┐                               │
+│  │write_entity │ │write_relation│  ← 写操作（需 OPA）           │
+│  │  (write)    │ │  (write)    │                               │
+│  └─────────────┘ └─────────────┘                               │
+│                          │                                       │
+└──────────────────────────┼───────────────────────────────────────┘
+                           ▼
+              ┌───────────────────────┐
+              │    QueryService       │
+              │  (统一查询服务)        │
+              └───────────┬───────────┘
+                          │
+         ┌────────────────┼────────────────┐
+         ▼                ▼                ▼
+  ┌─────────────┐ ┌─────────────┐ ┌─────────────┐
+  │SchemaSource │ │EntitySource │ │ TopoSource   │
+  │  (OMS)      │ │(GraphMgr)   │ │ (GraphMgr)   │
+  └─────────────┘ └─────────────┘ └─────────────┘
+```
+
+#### 7.3.3 迁移路径
+
+| 阶段 | 操作 | 影响范围 |
+|------|------|---------|
+| Phase 1 | IntelligenceAgent 的 `_retrieve_rag_context()` 改为调用 `query_entity` | 低 |
+| Phase 2 | DomainSwarm 的 `_orient()` 改为调用 `query_topo` | 低 |
+| Phase 3 | UserCognitionEngine.KnowledgeNavigator 适配 QueryService 接口 | 中 |
+| Phase 4 | 废弃 SelfCorrectingOrchestrator v1 / DomainSwarmV2 | 中 |
+| Phase 5 | frontend_compat API 统一走 QueryService | 中 |
+
+#### 7.3.4 OPA 安全边界
+
+通过 OpenHarness PreToolUse Hook 实现写操作的安全校验：
+
+```python
+@register_hook("pre_tool_use")
+class QueryServiceWriteGuard:
+    WRITE_TOOLS = {"write_entity", "write_relation", "write_episode"}
+    
+    async def execute(self, tool_name: str, arguments: Dict, context: Dict) -> bool:
+        if tool_name in self.WRITE_TOOLS:
+            opa_result = await opa_backend.check(
+                f"policies.{tool_name}.allow",
+                {
+                    "action": tool_name,
+                    "resource": arguments,
+                    "subject": context.get("user_role"),
+                    "workspace_id": context.get("workspace_id"),
+                }
+            )
+            if not opa_result:
+                logger.warning(f"OPA denied write: {tool_name} by {context.get('user_role')}")
+            return opa_result
+        return True
+```
+
+#### 7.3.5 架构守卫
+
+通过 pytest 测试确保 Agent 不绕过 QueryService：
+
+```python
+# tests/unit/test_query_guard.py
+
+def test_no_direct_graphmanager_import_in_agents():
+    """Agent 模块禁止直接导入 GraphManager"""
+    agent_files = glob.glob("odap/biz/core/agent/*.py")
+    for f in agent_files:
+        content = Path(f).read_text()
+        assert "from odap.infra.graph" not in content, f"{f} 直接导入了 GraphManager"
+
+def test_no_domain_read_api_outside_query_service():
+    """域读取 API 必须在 QueryService 路由下"""
+    # 检查所有路由定义...
 ```
 
 ---
@@ -463,7 +583,7 @@ def _register_entity_types_from_extraction(self, entities):
 │                                                                            │
 │  处理:                                                                      │
 │    1. threat_assessment → 计算综合威胁指数                                 │
-│    2. RAG查询Graphiti → 历史打击效果对比                                    │
+│    2. QueryService.query_topo → 历史打击效果对比                                    │
 │    3. anomaly_detection → 异常模式识别                                      │
 │  输出:                                                                      │
 │    • 威胁排序: [radar_A(critical), radar_B(high), depot_C(medium)]         │

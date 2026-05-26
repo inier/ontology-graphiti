@@ -1,10 +1,9 @@
 import { useState, useEffect, createContext, useContext } from 'react';
-import { Layout, Menu, Select, Spin, message, Button, Empty, Tooltip } from 'antd';
+import { Layout, Menu, Select, Spin, message, Button, Empty, Tooltip, Dropdown } from 'antd';
 import { useNavigate, useLocation } from 'react-router-dom';
 import {
   BlockOutlined,
   ThunderboltOutlined,
-  HistoryOutlined,
   SettingOutlined,
   TeamOutlined,
   FileTextOutlined,
@@ -13,7 +12,6 @@ import {
   LeftOutlined,
   RightOutlined,
   CloseOutlined,
-  QuestionCircleOutlined,
   ApartmentOutlined,
   BranchesOutlined,
   NodeIndexOutlined,
@@ -26,8 +24,12 @@ import {
   SwitcherOutlined,
   MenuFoldOutlined,
   MenuUnfoldOutlined,
+  SafetyOutlined,
+  LogoutOutlined,
+  UserOutlined,
 } from '@ant-design/icons';
 import { api } from '../services/api';
+import { useAuthStore } from '../stores/authStore';
 
 const { Header, Sider, Content } = Layout;
 
@@ -143,11 +145,6 @@ const primaryMenus: PrimaryMenu[] = [
     label: '智能体管理',
   },
   {
-    key: 'qa',
-    icon: <QuestionCircleOutlined />,
-    label: '智能问答',
-  },
-  {
     key: 'skills',
     icon: <AppstoreOutlined />,
     label: 'Skill管理',
@@ -156,6 +153,10 @@ const primaryMenus: PrimaryMenu[] = [
     key: 'simulator',
     icon: <ThunderboltOutlined />,
     label: '模拟推演',
+    children: [
+      { key: '/simulator', icon: <ThunderboltOutlined />, label: '事件模拟' },
+      { key: '/simulation/deduction', icon: <SafetyOutlined />, label: '策略推演' },
+    ],
   },
   {
     key: 'knowledge-management',
@@ -171,6 +172,7 @@ const primaryMenus: PrimaryMenu[] = [
     label: '系统配置',
     children: [
       { key: '/workspace', icon: <BlockOutlined />, label: '工作空间' },
+      { key: '/users', icon: <UserOutlined />, label: '用户管理' },
       { key: '/roles', icon: <TeamOutlined />, label: '角色管理' },
       { key: '/policies', icon: <FileTextOutlined />, label: 'OPA策略' },
       { key: '/audit', icon: <AuditOutlined />, label: '审计日志' },
@@ -191,9 +193,7 @@ primaryMenus.forEach(m => {
 
 const directRoutes: Record<string, string> = {
   agent: '/admin/agents',
-  qa: '/qa',
   skills: '/skills',
-  simulator: '/simulator',
 };
 
 export function AppLayout({ children, currentWorkspace, onWorkspaceChange }: AppLayoutProps) {
@@ -215,6 +215,7 @@ export function AppLayout({ children, currentWorkspace, onWorkspaceChange }: App
   const [rightPanelTitle, setRightPanelTitle] = useState('');
   const navigate = useNavigate();
   const location = useLocation();
+  const { user, logout } = useAuthStore();
 
   const activeWorkspaceId = currentWorkspace || currentWorkspaceState;
   const leftSiderWidth = leftCollapsed ? 64 : 160;
@@ -585,14 +586,6 @@ export function AppLayout({ children, currentWorkspace, onWorkspaceChange }: App
                         ) : (
                           <span style={{ color: '#8c8c8c', fontSize: 14 }}>暂无场景</span>
                         )}
-                        <Tooltip title="版本管理">
-                          <Button
-                            type="text"
-                            icon={<HistoryOutlined />}
-                            onClick={() => navigate('/versions')}
-                            style={{ color: '#666' }}
-                          />
-                        </Tooltip>
                       </div>
                     </>
                   )}
@@ -619,23 +612,42 @@ export function AppLayout({ children, currentWorkspace, onWorkspaceChange }: App
                     title={rightCollapsed ? '展开侧边栏' : '收起侧边栏'}
                     style={{ color: '#666' }}
                   />
-                  <span style={{ color: '#8c8c8c', fontSize: 14 }}>管理员</span>
-                  <div
-                    style={{
-                      width: 32,
-                      height: 32,
-                      borderRadius: '50%',
-                      background: '#1890ff',
-                      color: '#fff',
-                      display: 'flex',
-                      alignItems: 'center',
-                      justifyContent: 'center',
-                      fontSize: 14,
-                      fontWeight: 500,
+                  <Dropdown
+                    menu={{
+                      items: [
+                        {
+                          key: 'logout',
+                          icon: <LogoutOutlined />,
+                          label: '退出登录',
+                          onClick: () => {
+                            logout();
+                            navigate('/login');
+                          },
+                        },
+                      ],
                     }}
+                    placement="bottomRight"
                   >
-                    A
-                  </div>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: 8, cursor: 'pointer' }}>
+                      <span style={{ color: '#8c8c8c', fontSize: 14 }}>{user?.username || '未登录'}</span>
+                      <div
+                        style={{
+                          width: 32,
+                          height: 32,
+                          borderRadius: '50%',
+                          background: '#1890ff',
+                          color: '#fff',
+                          display: 'flex',
+                          alignItems: 'center',
+                          justifyContent: 'center',
+                          fontSize: 14,
+                          fontWeight: 500,
+                        }}
+                      >
+                        {user?.username?.[0]?.toUpperCase() || '?'}
+                      </div>
+                    </div>
+                  </Dropdown>
                 </div>
               </Header>
               <Content style={{ padding: isAgentMode ? 0 : 16, height: 'calc(100vh - 64px)', overflow: "auto" }}>

@@ -29,6 +29,10 @@ from odap.infra.security.audit_models import (
     ActionResult,
     IntegrityReport
 )
+from odap.infra.security.audit_sqlite_channel import (
+    SQLiteAuditChannel,
+    get_sqlite_audit_channel
+)
 from odap.infra.security.audit_graphiti_channel import (
     GraphitiAuditChannel,
     get_graphiti_audit_channel
@@ -48,6 +52,7 @@ logger = logging.getLogger("audit")
 
 # 全局 Graphiti 审计通道实例
 _graphiti_channel = None
+_sqlite_channel = None
 
 
 def get_graphiti_channel() -> GraphitiAuditChannel:
@@ -56,6 +61,14 @@ def get_graphiti_channel() -> GraphitiAuditChannel:
     if _graphiti_channel is None:
         _graphiti_channel = get_graphiti_audit_channel()
     return _graphiti_channel
+
+
+def get_channel() -> SQLiteAuditChannel:
+    """获取 SQLite 审计通道实例（主存储）"""
+    global _sqlite_channel
+    if _sqlite_channel is None:
+        _sqlite_channel = get_sqlite_audit_channel()
+    return _sqlite_channel
 
 
 def _run_sync(coro):
@@ -221,22 +234,71 @@ def log_error(error: str, context: str = None, user: str = None, service: str = 
 
 def get_stats():
     """获取审计统计信息"""
-    channel = get_graphiti_channel()
+    channel = get_channel()
     return channel.get_stats()
 
 
+def _infer_event_type(action: str, service: str) -> AuditEventType:
+    """根据 action 和 service 推断事件类型"""
+    action_lower = (action or "").lower()
+    service_lower = (service or "").lower()
+    is_delete = "delete" in action_lower
+    is_create = "post" in action_lower or "create" in action_lower
+    is_update = "put" in action_lower or "patch" in action_lower or "update" in action_lower
+
+    if "login" in action_lower:
+        return AuditEventType.USER_LOGIN
+    if "logout" in action_lower:
+        return AuditEventType.USER_LOGOUT
+    if "auth" in service_lower or "role" in service_lower or "user" in service_lower:
+        if is_delete:
+            return AuditEventType.USER_LOGOUT
+        return AuditEventType.USER_LOGIN
+    if "ingest" in action_lower or service_lower == "ingest":
+        return AuditEventType.DATA_INGEST
+    if "query" in action_lower or service_lower == "query":
+        return AuditEventType.QUERY
+    if "workspace" in action_lower or service_lower == "workspace":
+        if is_delete:
+            return AuditEventType.WORKSPACE_DELETE
+        if is_update or "switch" in action_lower:
+            return AuditEventType.WORKSPACE_SWITCH
+        return AuditEventType.WORKSPACE_CREATE
+    if "ontology" in action_lower or "build" in action_lower or "pipeline" in action_lower:
+        if "version" in action_lower or "pipeline" in action_lower:
+            return AuditEventType.ONTOLOGY_VERSION
+        if "rollback" in action_lower:
+            return AuditEventType.ONTOLOGY_ROLLBACK
+        return AuditEventType.ONTOLOGY_CREATE
+    if "error" in action_lower:
+        return AuditEventType.SYSTEM_ERROR
+    if "skill" in action_lower:
+        return AuditEventType.SKILL_EXECUTE
+    if "agent" in action_lower:
+        return AuditEventType.AGENT_EXECUTE
+    if "policy" in action_lower:
+        return AuditEventType.POLICY_UPDATE
+    if "hook" in action_lower:
+        return AuditEventType.SYSTEM_CONFIG
+    if is_delete:
+        return AuditEventType.SYSTEM_CONFIG
+    if is_create:
+        return AuditEventType.SYSTEM_CONFIG
+    if is_update:
+        return AuditEventType.SYSTEM_CONFIG
+    return AuditEventType.SYSTEM_HEALTH
+
+
 def log_audit(action: str, resource: str = None, user: str = None, service: str = "system", details: Dict[str, Any] = None):
-    """简化的审计日志记录 - 写入 Graphiti"""
+    """简化的审计日志记录 - 写入 SQLite 主存储 + Graphiti 辅助存储"""
     logger.info(
         f"AUDIT | ACTION: {action} | RESOURCE: {resource} | USER: {user} | SERVICE: {service}"
     )
 
-    channel = get_graphiti_channel()
-
     event = AuditEvent(
         id=str(uuid.uuid4()),
         timestamp=datetime.now(),
-        event_type=AuditEventType.SYSTEM_HEALTH,
+        event_type=_infer_event_type(action, service),
         severity=AuditSeverity.INFO,
         source=service,
         actor={
@@ -263,14 +325,24 @@ def log_audit(action: str, resource: str = None, user: str = None, service: str 
         duration_ms=None
     )
 
-    _run_sync(channel.write(event))
+    try:
+        sqlite_ch = get_channel()
+        sqlite_ch.write_sync(event)
+        sqlite_ch.flush_sync()
+    except Exception as e:
+        logger.warning(f"SQLite audit write failed: {e}")
+
+    try:
+        graphiti_ch = get_graphiti_channel()
+        _run_sync(graphiti_ch.write(event))
+    except Exception:
+        pass
 
 
 def get_audit_logs(user: str = None, service: str = None, action: str = None, limit: int = 100) -> List[Dict[str, Any]]:
     """简化的审计日志查询"""
-    channel = get_graphiti_channel()
+    channel = get_channel()
 
-    # 查询所有事件，然后内存中过滤
     filter_obj = AuditFilter(
         limit=limit,
         offset=0,
@@ -280,23 +352,22 @@ def get_audit_logs(user: str = None, service: str = None, action: str = None, li
 
     events = _run_sync(channel.query(filter_obj))
 
-    # 内存过滤
     result = []
     for event in events:
         event_dict = event.model_dump() if hasattr(event, 'model_dump') else event
 
-        # 按 user 过滤 (actor.actor_id)
+        if isinstance(event_dict.get('timestamp'), datetime):
+            event_dict['timestamp'] = event_dict['timestamp'].isoformat()
+
         if user:
             actor_id = event_dict.get('actor', {}).get('actor_id', '')
             if user not in actor_id:
                 continue
 
-        # 按 service 过滤 (source)
         if service:
             if event_dict.get('source') != service:
                 continue
 
-        # 按 action 过滤
         if action:
             if event_dict.get('action') != action:
                 continue

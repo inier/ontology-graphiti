@@ -1,6 +1,6 @@
 # 本体驱动分析决策平台 (ODAP) - L1 基础设施层
-> **部分**: OpenHarness + Graphiti + OPA + 审计日志 + 对象服务 + 本体元数据
-> **版本**: 5.0.0 | **日期**: 2026-05-19
+> **部分**: OpenHarness + Graphiti + OPA + 审计日志 + 对象服务 + 本体元数据 + 统一查询服务
+> **版本**: 5.1.0 | **日期**: 2026-05-23
 > **上级文档**: [ARCHITECTURE.md](ARCHITECTURE.md)
 ---
 
@@ -161,9 +161,9 @@ interface ActionTypeDefinition {
 
 | 文件 | 说明 |
 |------|------|
-| `odap/biz/ontology/oms/schemas.py` | Pydantic 模型定义 |
-| `odap/biz/ontology/oms/storage/sqlite_oms_storage.py` | SQLite 存储 + ADR-036 种子数据 |
-| `odap/biz/ontology/oms/routes.py` | FastAPI 路由 |
+| `odap/biz/core/ontology/oms/schemas.py` | Pydantic 模型定义 |
+| `odap/biz/core/ontology/oms/storage/sqlite_oms_storage.py` | SQLite 存储 + ADR-036 种子数据 |
+| `odap/biz/core/ontology/oms/routes.py` | FastAPI 路由 |
 
 ---
 ## 3. OpenHarness Agent 基础设施层
@@ -478,7 +478,6 @@ tools:
 ```
 
 ---
-
 
 ## 4. Graphiti 双时态知识图谱层
 
@@ -937,5 +936,115 @@ const AuditLogViewer: React.FC = () => {
 
 ---
 
+## 7. 统一查询服务层 (QueryService)
 
+> **设计原则**: Query First —— 所有图谱读取必须通过 QueryService，禁止散落的域读取端点
+> **参考**: 借鉴阿里巴巴 UModel 的 Query Surface 设计模式（ADR-055）
+
+### 7.1 架构定位
+
+QueryService 是 ODAP 语义层的"中枢神经"，统一所有图谱读取路径，为 Agent、前端、CLI、MCP Client 提供唯一的查询入口。它解决了当前 5 条独立查询路径导致的接口断裂、意图识别重复、安全边界缺失等问题。
+
+### 7.2 核心接口定义
+
+```python
+from enum import Enum
+from typing import Any, Dict, List, Optional, Protocol
+from pydantic import BaseModel
+
+
+class QuerySource(str, Enum):
+    SCHEMA = "schema"
+    ENTITY = "entity"
+    TOPO = "topo"
+    TEMPORAL = "temporal"
+
+
+class QueryResult(BaseModel):
+    source: QuerySource
+    rows: List[Dict[str, Any]]
+    total: int
+    explain: Optional[Dict[str, Any]] = None
+
+
+class QueryService(Protocol):
+    def execute(self, workspace_id: str, query: str, limit: int = 20) -> QueryResult: ...
+    def explain(self, workspace_id: str, query: str) -> Dict[str, Any]: ...
+
+
+class SchemaSource(Protocol):
+    def query_object_types(self, filters: Dict) -> List[Dict]: ...
+    def query_link_definitions(self, filters: Dict) -> List[Dict]: ...
+    def query_action_types(self, filters: Dict) -> List[Dict]: ...
+
+
+class EntitySource(Protocol):
+    def query_entities(self, filters: Dict, workspace_id: str) -> List[Dict]: ...
+    def get_entity(self, entity_id: str, workspace_id: str) -> Optional[Dict]: ...
+    def search_entities(self, query: str, top_k: int, workspace_id: str) -> List[Dict]: ...
+
+
+class TopoSource(Protocol):
+    def get_neighbors(self, entity_id: str, direction: str, depth: int, workspace_id: str) -> List[Dict]: ...
+    def get_relations(self, entity_id: str, relation_type: Optional[str], workspace_id: str) -> List[Dict]: ...
+    def traverse(self, start_id: str, max_depth: int, workspace_id: str) -> Dict: ...
+```
+
+### 7.3 四种查询源
+
+| 查询源 | 读取对象 | 底层数据源 | 查询语法示例 |
+|--------|---------|-----------|-------------|
+| `.schema` | OMS 类型定义 | OMS SQLite | `.schema with(type='Unit')` |
+| `.entity` | 运行时实体 | GraphManager | `.entity with(type='MilitaryUnit')` |
+| `.topo` | 拓扑关系 | GraphManager | `.topo neighbors(id='xxx', depth=2)` |
+| `.temporal` | 双时态数据 | Graphiti | `.temporal at('2025-01-01')` |
+
+### 7.4 与 OpenHarness 的集成
+
+QueryService 通过 OpenHarness Tool 接口注册为 Agent 可用工具，实现 Agent Safe 默认只读：
+
+| 工具名 | 安全级别 | 说明 |
+|--------|---------|------|
+| `query_schema` | read | 查询本体类型定义 |
+| `query_entity` | read | 查询运行时实体 |
+| `query_topo` | read | 查询拓扑关系 |
+| `query_temporal` | read | 查询时态数据 |
+| `write_entity` | write (需 OPA) | 写入/更新实体 |
+| `write_relation` | write (需 OPA) | 写入/更新关系 |
+
+写操作通过 OpenHarness PreToolUse Hook 拦截，调用 OPA 策略校验：
+
+```python
+@register_hook("pre_tool_use")
+class QueryServiceWriteGuard:
+    async def execute(self, tool_name: str, arguments: Dict, context: Dict) -> bool:
+        WRITE_TOOLS = {"write_entity", "write_relation", "write_episode"}
+        if tool_name in WRITE_TOOLS:
+            return await opa_backend.check(tool_name, arguments, context)
+        return True
+```
+
+### 7.5 架构守卫规则
+
+通过 pytest 测试强制执行以下边界规则：
+
+| 规则 | 检查方式 |
+|------|---------|
+| 禁止在 QueryService 之外暴露域读取 API | 检查 FastAPI 路由定义 |
+| 禁止业务模块直接导入 GraphManager | 检查 import 依赖图 |
+| 禁止 Agent 绕过 OPA 执行写操作 | 检查 Hook 注册 |
+| 所有查询结果必须返回 QueryResult 类型 | 类型检查 |
+
+### 7.6 实现文件
+
+| 文件 | 说明 |
+|------|------|
+| `odap/infra/query/service.py` | QueryService 核心实现 |
+| `odap/infra/query/parser.py` | 查询语法解析器 |
+| `odap/infra/query/sources/schema_source.py` | SchemaSource（适配 OMS） |
+| `odap/infra/query/sources/entity_source.py` | EntitySource（适配 GraphManager） |
+| `odap/infra/query/sources/topo_source.py` | TopoSource（适配 GraphManager） |
+| `odap/infra/query/protocols.py` | 接口定义（Protocol 类） |
+| `odap/infra/query/routes.py` | FastAPI 路由 |
+| `tests/unit/test_query_guard.py` | 架构守卫测试 |
 

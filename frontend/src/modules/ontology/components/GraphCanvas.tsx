@@ -1022,7 +1022,7 @@ export function GraphCanvas({ nodes, edges, onNodeClick, onEdgeClick, onRefresh,
             const src = typeof edge.source === 'object' ? (edge.source as any).id : edge.source;
             const tgt = typeof edge.target === 'object' ? (edge.target as any).id : edge.target;
             if (src === nodeId || tgt === nodeId) {
-              relatedEdgeIds.push(edge.id);
+              relatedEdgeIds.push(edge.id!);
               if (src !== nodeId) relatedNodeIds.add(src);
               if (tgt !== nodeId) relatedNodeIds.add(tgt);
             }
@@ -1033,19 +1033,19 @@ export function GraphCanvas({ nodes, edges, onNodeClick, onEdgeClick, onRefresh,
           const allNodeData = graph.getNodeData?.() || [];
           for (const nd of allNodeData) {
             if (nd.id === nodeId) {
-              stateMap[nd.id] = 'selected';
+              stateMap[nd.id!] = 'selected';
             } else if (relatedNodeIds.has(nd.id)) {
-              stateMap[nd.id] = 'highlight';
+              stateMap[nd.id!] = 'highlight';
             } else {
-              stateMap[nd.id] = 'dim';
+              stateMap[nd.id!] = 'dim';
             }
           }
 
           for (const edge of allEdges) {
-            if (relatedEdgeIds.includes(edge.id)) {
-              stateMap[edge.id] = 'highlight';
+            if (relatedEdgeIds.includes(edge.id!)) {
+              stateMap[edge.id!] = 'highlight';
             } else {
-              stateMap[edge.id] = 'dim';
+              stateMap[edge.id!] = 'dim';
             }
           }
 
@@ -1077,8 +1077,8 @@ export function GraphCanvas({ nodes, edges, onNodeClick, onEdgeClick, onRefresh,
           const stateMap: Record<string, string | string[]> = {};
           const allNodeData = graph.getNodeData?.() || [];
           const allEdgeData = graph.getEdgeData?.() || [];
-          for (const nd of allNodeData) stateMap[nd.id] = [];
-          for (const ed of allEdgeData) stateMap[ed.id] = [];
+          for (const nd of allNodeData) stateMap[nd.id!] = [];
+          for (const ed of allEdgeData) stateMap[ed.id!] = [];
           graph.setElementState(stateMap);
         } catch (_) {}
         selectedNodeIdRef.current = null;
@@ -1162,7 +1162,7 @@ export function GraphCanvas({ nodes, edges, onNodeClick, onEdgeClick, onRefresh,
                 const src = typeof edge.source === 'object' ? (edge.source as any).id : edge.source;
                 const tgt = typeof edge.target === 'object' ? (edge.target as any).id : edge.target;
                 if (src === nodeId || tgt === nodeId) {
-                  relatedEdgeIds.push(edge.id);
+                  relatedEdgeIds.push(edge.id!);
                   if (src !== nodeId) relatedNodeIds.add(src);
                   if (tgt !== nodeId) relatedNodeIds.add(tgt);
                 }
@@ -1171,23 +1171,23 @@ export function GraphCanvas({ nodes, edges, onNodeClick, onEdgeClick, onRefresh,
               const stateMap: Record<string, string | string[]> = {};
               for (const n of allNodeData as any[]) {
                 if (n.id === nodeId) {
-                  stateMap[n.id] = 'selected';
+                  stateMap[n.id!] = 'selected';
                 } else if (relatedNodeIds.has(n.id)) {
-                  stateMap[n.id] = 'highlight';
+                  stateMap[n.id!] = 'highlight';
                 } else {
-                  stateMap[n.id] = 'dim';
+                  stateMap[n.id!] = 'dim';
                 }
               }
               for (const edge of allEdges) {
-                if (relatedEdgeIds.includes(edge.id)) {
-                  stateMap[edge.id] = 'highlight';
+                if (relatedEdgeIds.includes(edge.id!)) {
+                  stateMap[edge.id!] = 'highlight';
                 } else {
-                  stateMap[edge.id] = 'dim';
+                  stateMap[edge.id!] = 'dim';
                 }
               }
 
               graph.setElementState(stateMap);
-              graph.focusElement?.(nd.id);
+              graph.focusElement?.(nd.id!);
               selectedNodeIdRef.current = nodeId;
               found = true;
               break;
@@ -1199,8 +1199,8 @@ export function GraphCanvas({ nodes, edges, onNodeClick, onEdgeClick, onRefresh,
             const stateMap: Record<string, string | string[]> = {};
             const allNodeData2 = graph.getNodeData?.() || [];
             const allEdgeData2 = graph.getEdgeData?.() || [];
-            for (const nd of allNodeData2) stateMap[nd.id] = [];
-            for (const ed of allEdgeData2) stateMap[ed.id] = [];
+            for (const nd of allNodeData2) stateMap[nd.id!] = [];
+            for (const ed of allEdgeData2) stateMap[ed.id!] = [];
             graph.setElementState(stateMap);
           } catch (_) {}
         }
@@ -1209,8 +1209,8 @@ export function GraphCanvas({ nodes, edges, onNodeClick, onEdgeClick, onRefresh,
           const stateMap: Record<string, string | string[]> = {};
           const allNodeData2 = graph.getNodeData?.() || [];
           const allEdgeData2 = graph.getEdgeData?.() || [];
-          for (const nd of allNodeData2) stateMap[nd.id] = [];
-          for (const ed of allEdgeData2) stateMap[ed.id] = [];
+          for (const nd of allNodeData2) stateMap[nd.id!] = [];
+          for (const ed of allEdgeData2) stateMap[ed.id!] = [];
           graph.setElementState(stateMap);
         } catch (_) {}
         selectedNodeIdRef.current = null;

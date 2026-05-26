@@ -2,9 +2,10 @@ import { useCallback, useState, useRef, useEffect } from 'react';
 import { message } from 'antd';
 import { useChatStorage } from './useChatStorage';
 
-const API_ENDPOINT = 'http://localhost:8000/api/qa/ask';
-const SESSIONS_ENDPOINT = 'http://localhost:8000/api/qa/sessions';
-const STREAM_API_ENDPOINT = 'http://localhost:8000/api/qa/ask/stream';
+const API_BASE = import.meta.env.VITE_API_BASE || '';
+const API_ENDPOINT = `${API_BASE}/api/qa/ask`;
+const SESSIONS_ENDPOINT = `${API_BASE}/api/qa/sessions`;
+const STREAM_API_ENDPOINT = `${API_BASE}/api/qa/ask/stream`;
 
 export type QAMessage = {
   id: string;

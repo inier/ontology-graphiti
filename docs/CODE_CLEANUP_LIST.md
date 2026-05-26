@@ -1,6 +1,6 @@
 # ODAP 无用代码清理清单
 
-> **版本**: 4.0.0 | **日期**: 2026-05-18
+> **版本**: 4.1.0 | **日期**: 2026-05-23
 > **状态**: 完成 | **优先级**: P1
 
 ---
@@ -37,8 +37,8 @@
 | BE-014 | odap/biz/frontend_compat/api/routes.py | get_graph_progress/cancel/history/detail | 均返回硬编码/空数据 | 实现或移除 | P1 | ✅ 已处理-对接Celery/SQLite存储 |
 | BE-015 | odap/biz/frontend_compat/api/routes.py | get_topic_stats | 返回硬编码模拟数据 | 对接真实统计 | P1 | ✅ 已处理-从审计日志提取话题统计 |
 | BE-016 | odap/biz/frontend_compat/api/routes.py | get_query_history | 永远返回空列表 | 实现查询历史 | P2 | ✅ 已处理-从审计日志提取查询历史 |
-| BE-017 | odap/biz/tool_registry/api/routes.py | register_tool | skill/function 类型永远注册失败 | 实现或移除 | P1 | ✅ 已处理-已实现注册逻辑 |
-| BE-018 | odap/biz/tool_registry/api/routes.py | 整个文件 | odap.biz.tool_registry 模块目录不存在，导入会失败 | 创建模块或移除路由 | P0 | ✅ 已处理-模块目录已创建 |
+| BE-017 | odap/biz/platform/tool_registry/api/routes.py | register_tool | skill/function 类型永远注册失败 | 实现或移除 | P1 | ✅ 已处理-已实现注册逻辑 |
+| BE-018 | odap/biz/platform/tool_registry/api/routes.py | 整个文件 | odap.biz.platform.tool_registry 模块目录不存在，导入会失败 | 创建模块或移除路由 | P0 | ✅ 已处理-模块目录已创建 |
 
 ### 1.2 重复代码
 
@@ -47,8 +47,8 @@
 | BE-019 | odap/web/api/app.py vs frontend_compat | 场景管理端点在两处重复定义 | 统一到 frontend_compat | P1 | 🔶 部分处理-需大规模路由重构，暂保留 |
 | BE-020 | odap/web/api/app.py vs ontology/routes.py | 摄入端点在两处重复定义 | 统一到 ontology/routes.py | P1 | 🔶 部分处理-需大规模路由重构，暂保留 |
 | BE-021 | odap/web/api/app.py vs frontend_compat | 版本管理端点在两处重复定义 | 统一到 frontend_compat | P1 | 🔶 部分处理-需大规模路由重构，暂保留 |
-| BE-022 | odap/biz/workspace/api/routes.py | 场景查询三层 fallback（scenario_service → compat_store → global_store） | 统一为单一数据源 | P1 | 🔶 部分处理-需重构场景服务，暂保留 |
-| BE-023 | odap/biz/ontology/api/routes.py | SQLiteIngestStorage 模块级实例与函数内局部实例不一致 | 统一实例管理 | P1 | ✅ 已处理-移除函数内局部实例，统一使用模块级实例 |
+| BE-022 | odap/biz/platform/workspace/api/routes.py | 场景查询三层 fallback（scenario_service → compat_store → global_store） | 统一为单一数据源 | P1 | 🔶 部分处理-需重构场景服务，暂保留 |
+| BE-023 | odap/biz/core/ontology/api/routes.py | SQLiteIngestStorage 模块级实例与函数内局部实例不一致 | 统一实例管理 | P1 | ✅ 已处理-移除函数内局部实例，统一使用模块级实例 |
 | BE-024 | odap/biz/openharness_agent/api/routes.py | run_agent_endpoint 和 chat_with_agent 功能冗余 | 合并为单一端点 | P2 | ✅ 已处理-chat_with_agent改为委托run_agent_endpoint |
 
 ### 1.3 代码质量问题
@@ -60,12 +60,25 @@
 | BE-027 | odap/web/api/app.py | 重复导入 | OntologyDocument 从两个不同模块导入 | 统一导入 | P2 | ✅ 已处理-使用OntologyModel别名区分 |
 | BE-028 | odap/biz/frontend_compat/api/routes.py | 17-23行 | sys.path.append 路径 hack | 移除，使用正确的包结构 | P1 | ✅ 已处理-已移除 |
 | BE-029 | odap/biz/business/storage/sqlite_storage.py | delete_* 方法 | 使用 conn.total_changes 判断删除成功 | 改用 cursor.rowcount | P1 | ✅ 已处理-改用cursor.rowcount |
-| BE-030 | odap/biz/roles/storage/sqlite_role_storage.py | 导入 | 从 api.routes 导入模型，循环依赖风险 | 将模型提取到独立模块 | P1 | ✅ 已处理-提取到api/schemas.py |
-| BE-031 | odap/biz/workspace/storage/sqlite_storage.py | _deserialize_json | 裸 except 吞掉所有异常 | 捕获具体异常 | P2 | ✅ 已处理-改为捕获(json.JSONDecodeError, TypeError, ValueError) |
-| BE-032 | odap/biz/workspace/storage/sqlite_storage.py | delete_workspace | 不删除关联的 scenarios 记录 | 添加级联删除 | P1 | ✅ 已处理-添加级联删除scenarios+import_export_records |
+| BE-030 | odap/biz/platform/roles/storage/sqlite_role_storage.py | 导入 | 从 api.routes 导入模型，循环依赖风险 | 将模型提取到独立模块 | P1 | ✅ 已处理-提取到api/schemas.py |
+| BE-031 | odap/biz/platform/workspace/storage/sqlite_storage.py | _deserialize_json | 裸 except 吞掉所有异常 | 捕获具体异常 | P2 | ✅ 已处理-改为捕获(json.JSONDecodeError, TypeError, ValueError) |
+| BE-032 | odap/biz/platform/workspace/storage/sqlite_storage.py | delete_workspace | 不删除关联的 scenarios 记录 | 添加级联删除 | P1 | ✅ 已处理-添加级联删除scenarios+import_export_records |
 | BE-033 | odap/infra/security/audit_logger.py | log_sync | asyncio.run() 在已有事件循环中会抛异常 | 使用 nest_asyncio 或检测事件循环 | P1 | ✅ 已处理-优先使用get_running_loop+create_task |
 | BE-034 | app/main.py | @app.on_event("startup") | FastAPI 已弃用此方式 | 改用 lifespan | P2 | ✅ 已处理-迁移到asynccontextmanager+lifespan |
 | BE-035 | odap/biz/frontend_compat/api/routes.py | ingest_* | Celery 不可用时仍返回 task_id | 检查可用性后再返回 | P1 | ✅ 已处理-Celery不可用时返回message而非假task_id |
+
+### 1.4 架构与接口问题
+
+| 编号 | 文件 | 问题描述 | 状态 | 清理建议 |
+|------|------|---------|------|---------|
+| BE-036 | Agent 查询路径分散 | 5条独立查询路径，意图识别重复实现4次 | 待处理 | 统一到 QueryService（ADR-055） |
+| BE-037 | KnowledgeNavigator 接口断裂 | 与 GraphManager 方法签名不匹配 | 待处理 | 适配 QueryService 接口 |
+| BE-038 | 两套 OntologyDocument 定义 | schema/document.py 与 models/ontology_engine.py 同名不同构 | 待处理 | 统一为 schema 版本（ADR-056） |
+| BE-039 | Domain 模型与 OMS 语义重叠 | ENTITY_TYPES 与 ObjectTypeDefinition 结构不同 | 待处理 | Domain 降级为种子数据源（ADR-056） |
+| BE-040 | GraphManager 缺少图遍历方法 | 无 get_neighbors() / traverse() | 待处理 | 新增方法，TopoSource 适配 |
+| BE-041 | OMS 类型校验未执行 | PropertyDefinition 约束声明但不执行 | 待处理 | QueryService 读时校验（ADR-056） |
+| BE-042 | Agent 安全边界缺失 | Agent 可直接调用 graph_manager.add_entity() | 待处理 | QueryService + OPA Hook（ADR-055） |
+| BE-043 | API 路由未完整注册 | tool_registry/skill_system/frontend_compat 路由未挂载 | 待处理 | 统一注册到主应用 |
 
 ---
 
@@ -196,10 +209,10 @@
 
 | 状态 | 数量 | 占比 |
 |------|------|------|
-| ✅ 已处理 | **37** | **92.5%** |
-| 🔶 部分处理 | **3** | **7.5%** |
-| ⬜ 待处理 | **0** | **0.0%** |
-| **合计** | **40** | **100%** |
+| ✅ 已处理 | **37** | **77.1%** |
+| 🔶 部分处理 | **3** | **6.2%** |
+| ⬜ 待处理 | **8** | **16.7%** |
+| **合计** | **48** | **100%** |
 
 ### 已处理事项明细
 
@@ -222,7 +235,7 @@
 | BE-015 | 对接 get_topic_stats 到审计日志提取话题统计 | 2026-05-18 |
 | BE-016 | 实现 get_query_history，从审计日志提取查询历史 | 2026-05-18 |
 | BE-017 | 实现 skill/function 类型的注册逻辑 | 2026-05-18 |
-| BE-018 | 创建 odap.biz.tool_registry 模块目录及 __init__.py | 2026-05-18 |
+| BE-018 | 创建 odap.biz.platform.tool_registry 模块目录及 __init__.py | 2026-05-18 |
 | BE-023 | 统一 SQLiteIngestStorage 实例，移除函数内局部实例 | 2026-05-18 |
 | BE-024 | chat_with_agent 改为委托 run_agent_endpoint，消除重复逻辑 | 2026-05-18 |
 | BE-025 | 移除 ScenarioStore.__init__ 未使用的 storage 参数 | 2026-05-18 |
@@ -275,3 +288,4 @@
 | 2.0.0 | 2026-05-18 | 处理24项(60%)、部分处理3项，后端1.1节全部清理完成 |
 | 3.0.0 | 2026-05-18 | 处理33项(82.5%)、部分处理5项 |
 | 4.0.0 | 2026-05-18 | 处理37项(92.5%)、部分处理3项、待处理0项，清理基本完成 |
+| 4.1.0 | 2026-05-23 | 新增BE-036~BE-043架构与接口问题8项（待处理），合计48项 |

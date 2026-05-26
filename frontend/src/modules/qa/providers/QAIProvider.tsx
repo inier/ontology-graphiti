@@ -1,6 +1,6 @@
 import { OpenHarnessProvider } from '@openharness/react';
 
-const API_ENDPOINT = 'http://localhost:8000/api/qa';
+const API_ENDPOINT = (import.meta.env.VITE_API_BASE || '') + '/api/qa';
 
 export interface QAIProviderProps {
   children: React.ReactNode;

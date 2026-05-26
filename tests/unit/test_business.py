@@ -4,7 +4,7 @@ import os
 
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), '..', '..', '..'))
 
-from odap.biz.business.storage.sqlite_storage import BusinessStorage
+from odap.biz.management.business.storage.sqlite_storage import BusinessStorage
 
 
 @pytest.fixture

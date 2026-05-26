@@ -133,7 +133,7 @@ export const useAppStore = create<AppState>((set, get) => ({
 
   switchWorkspace: async (workspaceId: string) => {
     const { workspaces } = get();
-    const workspace = workspaces.find((w) => w.id === workspaceId);
+    const workspace = workspaces.find((w) => w.workspace_id === workspaceId);
 
     if (workspace) {
       set({ currentWorkspace: workspace });

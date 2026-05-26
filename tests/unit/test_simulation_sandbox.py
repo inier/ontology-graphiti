@@ -6,8 +6,8 @@ from unittest.mock import MagicMock, patch, AsyncMock
 
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), '..', '..', '..'))
 
-from odap.biz.simulation_sandbox.sandbox import SimulationSandbox
-from odap.biz.simulation_sandbox.schemas import (
+from odap.biz.simulation.simulation_sandbox.sandbox import SimulationSandbox
+from odap.biz.simulation.simulation_sandbox.schemas import (
     WhatIfScenario,
     WhatIfResult,
     WhatIfComparison,

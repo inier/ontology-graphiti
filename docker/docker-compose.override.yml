@@ -19,13 +19,11 @@ services:
       - NEO4J_PASSWORD=neo4j123456
       - OPA_URL=http://graphiti-policy-service:8181
       - REDIS_URL=redis://graphiti-cache:6379
-      - MONGODB_URI=mongodb://graphiti-mongodb:27017
       - CORS_ORIGINS=http://localhost,http://localhost:80,http://localhost:5173,http://localhost:8000
     depends_on:
       - graphiti-neo4j
       - graphiti-policy-service
       - graphiti-cache
-      - graphiti-mongodb
     volumes:
       # 挂载源代码，支持热重载
       - ../app:/app/app

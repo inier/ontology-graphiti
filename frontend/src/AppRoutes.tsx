@@ -1,47 +1,58 @@
-import { Routes, Route } from 'react-router-dom';
+import { Routes, Route, Navigate } from 'react-router-dom';
+import type { ReactNode } from 'react';
 import { WorkspaceManager } from './modules/workspace';
 import { AuditLog } from './modules/audit';
 import { PolicyManagement } from './modules/config';
 import { OntologySemanticNetwork } from './modules/ontology';
 import { IngestPanel, Simulator } from './modules/ingest';
+import { StrategyDeduction } from './modules/simulation';
 import { VersionHistory } from './modules/version';
 import { RoleManager } from './modules/roles';
-import { QAChatPage } from './modules/qa/pages/QAChatPage';
+import { UserManagement } from './modules/roles/pages/UserManagement';
 import { SkillManagement } from './modules/system';
 import { BusinessProcess, Rules, Indicators, Logic, ObjectManagement, SmartGeneration } from './modules/business';
 import { KnowledgeBase } from './modules/knowledge';
 import { MyAgents, AgentChat, AgentManagement } from './modules/agent';
+import { LoginPage } from './modules/shared/pages/LoginPage';
+
+function ProtectedRoute({ children }: { children: ReactNode }) {
+  const token = localStorage.getItem('token');
+  if (!token) {
+    return <Navigate to="/login" replace />;
+  }
+  return <>{children}</>;
+}
 
 export function AppRoutes() {
   return (
     <Routes>
-      {/* 我的智能体入口 */}
-      <Route path="/my-agents" element={<MyAgents />} />
-      <Route path="/agent-chat/:agentId" element={<AgentChat />} />
+      <Route path="/login" element={<LoginPage />} />
 
-      {/* 管理后台 */}
-      <Route path="/ontology" element={<OntologySemanticNetwork />} />
-      <Route path="/versions" element={<VersionHistory />} />
-      <Route path="/business/process" element={<BusinessProcess />} />
-      <Route path="/business/rules" element={<Rules />} />
-      <Route path="/business/indicators" element={<Indicators />} />
-      <Route path="/business/logic" element={<Logic />} />
-      <Route path="/business/entities" element={<ObjectManagement />} />
-      <Route path="/business/extraction" element={<SmartGeneration />} />
-      <Route path="/qa" element={<QAChatPage />} />
-      <Route path="/skills" element={<SkillManagement />} />
-      <Route path="/simulator" element={<Simulator />} />
-      <Route path="/ingest" element={<IngestPanel />} />
-      <Route path="/knowledge" element={<KnowledgeBase />} />
-      <Route path="/workspace" element={<WorkspaceManager />} />
-      <Route path="/roles" element={<RoleManager />} />
-      <Route path="/policies" element={<PolicyManagement />} />
-      <Route path="/audit" element={<AuditLog />} />
-      <Route path="/admin/agents" element={<AgentManagement />} />
+      <Route path="/my-agents" element={<ProtectedRoute><MyAgents /></ProtectedRoute>} />
+      <Route path="/agent-chat/:agentId" element={<ProtectedRoute><AgentChat /></ProtectedRoute>} />
 
-      {/* 默认入口 */}
-      <Route path="/" element={<MyAgents />} />
-      <Route path="/admin" element={<OntologySemanticNetwork />} />
+      <Route path="/ontology" element={<ProtectedRoute><OntologySemanticNetwork /></ProtectedRoute>} />
+      <Route path="/versions" element={<ProtectedRoute><VersionHistory /></ProtectedRoute>} />
+      <Route path="/business/process" element={<ProtectedRoute><BusinessProcess /></ProtectedRoute>} />
+      <Route path="/business/rules" element={<ProtectedRoute><Rules /></ProtectedRoute>} />
+      <Route path="/business/indicators" element={<ProtectedRoute><Indicators /></ProtectedRoute>} />
+      <Route path="/business/logic" element={<ProtectedRoute><Logic /></ProtectedRoute>} />
+      <Route path="/business/entities" element={<ProtectedRoute><ObjectManagement /></ProtectedRoute>} />
+      <Route path="/business/extraction" element={<ProtectedRoute><SmartGeneration /></ProtectedRoute>} />
+      <Route path="/skills" element={<ProtectedRoute><SkillManagement /></ProtectedRoute>} />
+      <Route path="/simulator" element={<ProtectedRoute><Simulator /></ProtectedRoute>} />
+      <Route path="/simulation/deduction" element={<ProtectedRoute><StrategyDeduction /></ProtectedRoute>} />
+      <Route path="/ingest" element={<ProtectedRoute><IngestPanel /></ProtectedRoute>} />
+      <Route path="/knowledge" element={<ProtectedRoute><KnowledgeBase /></ProtectedRoute>} />
+      <Route path="/workspace" element={<ProtectedRoute><WorkspaceManager /></ProtectedRoute>} />
+      <Route path="/roles" element={<ProtectedRoute><RoleManager /></ProtectedRoute>} />
+      <Route path="/users" element={<ProtectedRoute><UserManagement /></ProtectedRoute>} />
+      <Route path="/policies" element={<ProtectedRoute><PolicyManagement /></ProtectedRoute>} />
+      <Route path="/audit" element={<ProtectedRoute><AuditLog /></ProtectedRoute>} />
+      <Route path="/admin/agents" element={<ProtectedRoute><AgentManagement /></ProtectedRoute>} />
+
+      <Route path="/" element={<ProtectedRoute><MyAgents /></ProtectedRoute>} />
+      <Route path="/admin" element={<ProtectedRoute><OntologySemanticNetwork /></ProtectedRoute>} />
     </Routes>
   );
 }

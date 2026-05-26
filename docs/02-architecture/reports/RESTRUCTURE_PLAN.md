@@ -57,7 +57,7 @@ graphiti/                      ← 52 个 .py 文件，架构层级混乱
 | P1 | `core/` 是个"大杂烩"，21 个文件横跨 5 个架构层次 | 任何修改都需要理解整个 core/ |
 | P2 | 基础设施和业务逻辑无分离 | 无法独立测试/替换基础设施 |
 | P3 | 本体相关分散在 `ontology/` + `core/ontology_*` 三个文件 | 本体管理模块不内聚 |
-| P4 | 模拟器模块分散在 `odap/biz/simulator/` + `odap/biz/ontology/mock_data/` + `odap/web/` | 模拟器模块职责划分不清晰 |
+| P4 | 模拟器模块分散在 `odap/biz/simulator/` + `odap/biz/core/ontology/mock_data/` + `odap/web/` | 模拟器模块职责划分不清晰 |
 | P5 | 前端资源分散（`visualization/web_interface.py` + `simulator_ui/` + 根目录 HTML） | 前端入口不统一 |
 | P6 | 不兼容 OpenHarness 的 `src/openharness/` 模块结构 | 后续 OpenHarness 集成困难 |
 | P7 | `visualization/` 与 `simulator_ui/` 职责重叠 | 维护两套可视化 |
@@ -412,23 +412,23 @@ odap/                                  # 项目根目录（建议从 graphiti �
 | `skills/computation.py` | `odap/tools/computation/computation.py` | 工具层 |
 | `skills/task_management.py` | `odap/tools/task_management/task_management.py` | 工具层 |
 | `skills/visualization_skill.py` | `odap/tools/visualization/visualization_skill.py` | 工具层 |
-| `skills/ontology_management.py` | `odap/biz/ontology/` (合并到 service.py) | 业务层 |
-| `ontology/domain_ontology.py` | `odap/biz/ontology/schema/domain.py` | 领域 Schema |
-| `ontology/ontology_manager.py` | `odap/biz/ontology/service.py` | 业务层 |
-| `core/ontology_document.py` | `odap/biz/ontology/schema/document.py` | 领域 Schema |
-| `core/ontology_hot_write_pipeline.py` | `odap/biz/ontology/hot_write.py` | 业务层 |
-| `core/ontology_version_manager.py` | `odap/biz/ontology/version_manager.py` | 业务层 |
-| `core/data_ingestion.py` | `odap/biz/ontology/ingestion.py` | 业务层（数据采集归本体管理） |
-| `ontology/versions/` | `odap/storage/versions/` | 数据存储 |
-| `ontology/versions/scenarios/` | `odap/storage/scenarios/` | 数据存储 |
-| `core/intelligence_agent.py` | `odap/biz/agent/intelligence_agent.py` | 业务层 |
-| `core/swarm_orchestrator.py` | `odap/biz/agent/swarm_orchestrator.py` | 业务层 |
-| `core/orchestrator.py` | `odap/biz/agent/orchestrator.py` | 业务层（旧版，标记 @deprecated） |
-| `core/decision_recommender.py` | `odap/biz/agent/recommender.py` | 业务层 |
-| `core/intelligence_collector.py` | `odap/biz/agent/collector.py` | 业务层 |
+| `skills/ontology_management.py` | `odap/biz/core/ontology/` (合并到 service.py) | 业务层 |
+| `ontology/domain_ontology.py` | `odap/biz/core/ontology/schema/domain.py` | 领域 Schema |
+| `ontology/ontology_manager.py` | `odap/biz/core/ontology/service.py` | 业务层 |
+| `core/ontology_document.py` | `odap/biz/core/ontology/schema/document.py` | 领域 Schema |
+| `core/ontology_hot_write_pipeline.py` | `odap/biz/core/ontology/hot_write.py` | 业务层 |
+| `core/ontology_version_manager.py` | `odap/biz/core/ontology/version_manager.py` | 业务层 |
+| `core/data_ingestion.py` | `odap/biz/core/ontology/ingestion.py` | 业务层（数据采集归本体管理） |
+| `ontology/versions/` | `odap/infra/storage/versions/` | 数据存储 |
+| `ontology/versions/scenarios/` | `odap/infra/storage/scenarios/` | 数据存储 |
+| `core/intelligence_agent.py` | `odap/biz/core/agent/intelligence_agent.py` | 业务层 |
+| `core/swarm_orchestrator.py` | `odap/biz/core/agent/swarm_orchestrator.py` | 业务层 |
+| `core/orchestrator.py` | `odap/biz/core/agent/orchestrator.py` | 业务层（旧版，标记 @deprecated） |
+| `core/decision_recommender.py` | `odap/biz/core/agent/recommender.py` | 业务层 |
+| `core/intelligence_collector.py` | `odap/biz/core/agent/collector.py` | 业务层 |
 | `core/permission_checker.py` | `odap/biz/permission/checker.py` | 业务层 |
 | `core/simulation_engine.py` | `odap/biz/simulator/engine.py` | 业务层（模拟推演） |
-| `data/simulation_data.py` | `odap/biz/ontology/mock_data/` | 业务层（Mock 数据） |
+| `data/simulation_data.py` | `odap/biz/core/ontology/mock_data/` | 业务层（Mock 数据） |
 | `core/simulator_web_service.py` | `odap/web/api/app.py` + `routers/` | Web 层（拆分） |
 | `simulator_ui/index.html` | `odap/web/static/index.html` | Web 前端 |
 | `visualization/dialog_interface.py` | `odap/web/legacy/dialog_interface.py` | 旧版保留 |
@@ -442,10 +442,10 @@ odap/                                  # 项目根目录（建议从 graphiti �
 
 ## 5. 各模块对外 API 设计
 
-### 5.1 本体管理模块 (`odap/biz/ontology/`)
+### 5.1 本体管理模块 (`odap/biz/core/ontology/`)
 
 ```python
-# odap/biz/ontology/__init__.py — 对外 API
+# odap/biz/core/ontology/__init__.py — 对外 API
 from .service import OntologyManager
 
 # OntologyManager 对外方法:
@@ -476,10 +476,10 @@ class OntologyManager:
     async def import_doc(data, format="odoc") -> ImportResult
 ```
 
-### 5.2 工作空间管理模块 (`odap/biz/workspace/`)
+### 5.2 工作空间管理模块 (`odap/biz/platform/workspace/`)
 
 ```python
-# odap/biz/workspace/__init__.py — 对外 API
+# odap/biz/platform/workspace/__init__.py — 对外 API
 from .manager import WorkspaceManager
 
 class WorkspaceManager:
@@ -491,10 +491,10 @@ class WorkspaceManager:
     async def update_config(workspace_id, config) -> Workspace
 ```
 
-### 5.3 Agent 协同模块 (`odap/biz/agent/`)
+### 5.3 Agent 协同模块 (`odap/biz/core/agent/`)
 
 ```python
-# odap/biz/agent/__init__.py — 对外 API
+# odap/biz/core/agent/__init__.py — 对外 API
 from .swarm_orchestrator import DomainSwarm
 from .intelligence_agent import IntelligenceAgent
 
@@ -634,11 +634,11 @@ from odap.tools.registry import SkillRegistry, register_skill, SKILL_CATALOG
 5. 运行测试验证
 
 ### Phase R-4: 业务领域层迁移（3-4 天）
-1. 本体模块: `ontology/` + `core/ontology_*` + `core/data_ingestion.py` → `odap/biz/ontology/`
-2. Agent 模块: `core/intelligence_agent.py` + `core/swarm_orchestrator.py` + ... → `odap/biz/agent/`
+1. 本体模块: `ontology/` + `core/ontology_*` + `core/data_ingestion.py` → `odap/biz/core/ontology/`
+2. Agent 模块: `core/intelligence_agent.py` + `core/swarm_orchestrator.py` + ... → `odap/biz/core/agent/`
 3. 模拟器模块: `core/simulation_engine.py` + `data/simulation_data.py` → `odap/biz/simulator/`
 4. 权限模块: `core/permission_checker.py` → `odap/biz/permission/`
-5. 创建 `odap/biz/workspace/manager.py`（新模块）
+5. 创建 `odap/biz/platform/workspace/manager.py`（新模块）
 6. 更新各模块 `__init__.py` 对外 API
 7. 运行测试验证
 
@@ -652,7 +652,7 @@ from odap.tools.registry import SkillRegistry, register_skill, SKILL_CATALOG
 ### Phase R-6: 适配层 + 清理（1-2 天）
 1. `core/openharness_integration.py` → `odap/adapters/openharness/`
 2. 根目录散落文件清理（HTML → `assets/templates/`，PNG → `assets/images/`）
-3. 数据文件迁移（`ontology/versions/` → `odap/storage/`）
+3. 数据文件迁移（`ontology/versions/` → `odap/infra/storage/`）
 4. 更新文档（ARCHITECTURE.md、ADR-033）
 5. 删除向后兼容 shim（v1.0 正式版）
 

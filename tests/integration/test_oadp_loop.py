@@ -7,17 +7,17 @@ from unittest.mock import MagicMock, patch, AsyncMock
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 from fastapi.testclient import TestClient
-from app.main import app
+from odap.web.app import app
 
 client = TestClient(app)
 
 
 class TestPerceptionToCognition:
-    @patch("odap.biz.perception.hub.PerceptionHub._extract", new_callable=AsyncMock)
-    @patch("odap.biz.perception.hub.PerceptionHub._store_to_graphiti", new_callable=AsyncMock)
-    @patch("odap.biz.perception.hub.PerceptionHub._map_to_oms")
+    @patch("odap.biz.data.perception.hub.PerceptionHub._extract", new_callable=AsyncMock)
+    @patch("odap.biz.data.perception.hub.PerceptionHub._store_to_graphiti", new_callable=AsyncMock)
+    @patch("odap.biz.data.perception.hub.PerceptionHub._map_to_oms")
     def test_perception_ingest(self, mock_map_oms, mock_store_graphiti, mock_extract):
-        from odap.biz.perception.schemas import ExtractionResult
+        from odap.biz.data.perception.schemas import ExtractionResult
 
         mock_extract.return_value = ExtractionResult(
             entities=[{"entity_type": "Person", "name": "Alice"}],
@@ -47,7 +47,7 @@ class TestPerceptionToCognition:
         assert len(data["extraction"]["entities"]) == 1
         assert data["extraction"]["entities"][0]["entity_type"] == "Person"
 
-    @patch("odap.biz.cognition.user_cognition_engine.get_cognition_engine")
+    @patch("odap.biz.core.cognition.user_cognition_engine.get_cognition_engine")
     def test_intent_recognition_after_perception(self, mock_get_engine):
         mock_engine = MagicMock()
         mock_engine.process_query.return_value = {
@@ -71,9 +71,9 @@ class TestPerceptionToCognition:
 
 
 class TestDecisionPipeline:
-    @patch("odap.biz.decision_pipeline.pipeline.DecisionPipeline._analyze", new_callable=AsyncMock)
+    @patch("odap.biz.decision.decision_pipeline.pipeline.DecisionPipeline._analyze", new_callable=AsyncMock)
     def test_analyze_input(self, mock_analyze):
-        from odap.biz.decision_pipeline.schemas import AnalysisResult
+        from odap.biz.decision.decision_pipeline.schemas import AnalysisResult
 
         mock_analyze.return_value = AnalysisResult(
             summary="Threat detected in sector 7",
@@ -98,10 +98,10 @@ class TestDecisionPipeline:
         assert data["confidence"] == 0.82
         assert len(data["risks"]) == 1
 
-    @patch("odap.biz.decision_pipeline.pipeline.DecisionPipeline._decide", new_callable=AsyncMock)
-    @patch("odap.biz.decision_pipeline.pipeline.DecisionPipeline._analyze", new_callable=AsyncMock)
+    @patch("odap.biz.decision.decision_pipeline.pipeline.DecisionPipeline._decide", new_callable=AsyncMock)
+    @patch("odap.biz.decision.decision_pipeline.pipeline.DecisionPipeline._analyze", new_callable=AsyncMock)
     def test_decision_from_analysis(self, mock_analyze, mock_decide):
-        from odap.biz.decision_pipeline.schemas import AnalysisResult, DecisionResult, DecisionOption
+        from odap.biz.decision.decision_pipeline.schemas import AnalysisResult, DecisionResult, DecisionOption
 
         mock_analyze.return_value = AnalysisResult(
             summary="Threat detected in sector 7",
@@ -148,7 +148,7 @@ class TestDecisionPipeline:
 
 
 class TestActionExecution:
-    @patch("odap.biz.action_service.executor.get_action_executor")
+    @patch("odap.biz.decision.action_service.executor.get_action_executor")
     def test_submit_action(self, mock_get_executor):
         mock_executor = MagicMock()
         record_id = f"ar_{uuid.uuid4().hex[:12]}"
@@ -188,7 +188,7 @@ class TestActionExecution:
         assert data["action_type_id"] == "deploy_unit"
         assert data["status"] == "completed"
 
-    @patch("odap.biz.action_service.executor.get_action_executor")
+    @patch("odap.biz.decision.action_service.executor.get_action_executor")
     def test_action_approval(self, mock_get_executor):
         mock_executor = MagicMock()
         record_id = f"ar_{uuid.uuid4().hex[:12]}"
@@ -227,12 +227,12 @@ class TestActionExecution:
 
 
 class TestFeedbackLoop:
-    @patch("odap.biz.action_service.feedback_loop.FeedbackCollector.collect")
-    @patch("odap.biz.action_service.feedback_loop.FeedbackAnalyzer.analyze_deviation")
-    @patch("odap.biz.action_service.feedback_loop.FeedbackAnalyzer.generate_lesson")
-    @patch("odap.biz.action_service.feedback_loop.FeedbackAggregator.aggregate_and_update")
+    @patch("odap.biz.decision.action_service.feedback_loop.FeedbackCollector.collect")
+    @patch("odap.biz.decision.action_service.feedback_loop.FeedbackAnalyzer.analyze_deviation")
+    @patch("odap.biz.decision.action_service.feedback_loop.FeedbackAnalyzer.generate_lesson")
+    @patch("odap.biz.decision.action_service.feedback_loop.FeedbackAggregator.aggregate_and_update")
     def test_feedback_after_action(self, mock_aggregate, mock_lesson, mock_deviation, mock_collect):
-        from odap.biz.action_service.feedback_loop import ActionFeedback
+        from odap.biz.decision.action_service.feedback_loop import ActionFeedback
 
         action_record = {
             "action_record_id": "ar_feedback_001",
@@ -274,7 +274,7 @@ class TestFeedbackLoop:
             "lesson_learned": "Action ar_feedback_001 completed successfully.",
         }
 
-        from odap.biz.action_service.feedback_loop import FeedbackLoop
+        from odap.biz.decision.action_service.feedback_loop import FeedbackLoop
 
         loop = FeedbackLoop()
         result = loop.collector.collect(action_record)
@@ -282,12 +282,12 @@ class TestFeedbackLoop:
         assert result.action_id == "ar_feedback_001"
         assert result.outcome == "success"
 
-    @patch("odap.biz.action_service.feedback_loop.FeedbackCollector.collect")
-    @patch("odap.biz.action_service.feedback_loop.FeedbackAnalyzer.analyze_deviation")
-    @patch("odap.biz.action_service.feedback_loop.FeedbackAnalyzer.generate_lesson")
-    @patch("odap.biz.action_service.feedback_loop.FeedbackAggregator.aggregate_and_update")
+    @patch("odap.biz.decision.action_service.feedback_loop.FeedbackCollector.collect")
+    @patch("odap.biz.decision.action_service.feedback_loop.FeedbackAnalyzer.analyze_deviation")
+    @patch("odap.biz.decision.action_service.feedback_loop.FeedbackAnalyzer.generate_lesson")
+    @patch("odap.biz.decision.action_service.feedback_loop.FeedbackAggregator.aggregate_and_update")
     def test_feedback_analysis(self, mock_aggregate, mock_lesson, mock_deviation, mock_collect):
-        from odap.biz.action_service.feedback_loop import ActionFeedback
+        from odap.biz.decision.action_service.feedback_loop import ActionFeedback
 
         action_record = {
             "action_record_id": "ar_fail_001",
@@ -333,7 +333,7 @@ class TestFeedbackLoop:
             "lesson_learned": "Action ar_fail_001 failed. Factors: resource_shortage, timing_mismatch. Root causes: insufficient_patrol_units",
         }
 
-        from odap.biz.action_service.feedback_loop import FeedbackLoop
+        from odap.biz.decision.action_service.feedback_loop import FeedbackLoop
 
         loop = FeedbackLoop()
         feedback = loop.collector.collect(action_record)

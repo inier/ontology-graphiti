@@ -9,21 +9,6 @@ if project_root not in sys.path:
 
 
 @pytest.fixture
-def mock_mongodb():
-    collection = MagicMock()
-    collection.find_one = MagicMock(return_value=None)
-    collection.find = MagicMock(return_value=[])
-    collection.insert_one = MagicMock(return_value=MagicMock(inserted_id="test-id"))
-    collection.update_one = MagicMock(return_value=MagicMock(modified_count=1))
-    collection.delete_one = MagicMock(return_value=MagicMock(deleted_count=1))
-    db = MagicMock()
-    db.__getitem__ = MagicMock(return_value=collection)
-    client = MagicMock()
-    client.__getitem__ = MagicMock(return_value=db)
-    return client
-
-
-@pytest.fixture
 def mock_sqlite():
     conn = MagicMock()
     cursor = MagicMock()
@@ -50,13 +35,13 @@ def temp_db(tmp_path):
 
 @pytest.fixture
 def tool_registry():
-    from odap.biz.tool_registry.registry import ToolRegistry
+    from odap.biz.platform.tool_registry.registry import ToolRegistry
     return ToolRegistry()
 
 
 @pytest.fixture
 def skill_registry():
-    from odap.tools.base_v2 import get_registry_v2
+    from odap.tools.base import get_registry_v2
     return get_registry_v2()
 
 

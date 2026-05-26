@@ -44,7 +44,6 @@ MIRROR = "docker.m.daocloud.io"
 
 IMAGES = [
     (f"{MIRROR}/library/redis:6",                     "localhost/redis:6"),
-    (f"{MIRROR}/library/mongo:latest",                "localhost/mongo:latest"),
     (f"{MIRROR}/library/neo4j:latest",                "localhost/neo4j:latest"),
     (f"{MIRROR}/openpolicyagent/opa:0.58.0",           "localhost/openpolicyagent/opa:0.58.0"),
     (f"{MIRROR}/library/python:3.10-slim",             "localhost/python:3.10-slim"),
@@ -59,7 +58,6 @@ CONTAINERS = [
     "graphiti-policy-service",
     "graphiti-neo4j",
     "graphiti-cache",
-    "graphiti-mongodb",
 ]
 
 
@@ -184,7 +182,6 @@ def show_urls():
   Neo4j:     http://localhost:7474
   OPA:       http://localhost:8181
   Redis:     localhost:6379
-  MongoDB:   localhost:27017
 """)
 
 
@@ -240,7 +237,6 @@ def cmd_dev():
   Neo4j:     http://localhost:7474
   OPA:       http://localhost:8181
   Redis:     localhost:6379
-  MongoDB:   localhost:27017
 
   开发模式特性:
   - 前端代码修改后自动刷新浏览器
@@ -285,8 +281,6 @@ def cmd_logs(service=""):
         target = "graphiti-frontend-dev"
     elif svc_lower in ("neo4j",):
         target = "graphiti-neo4j"
-    elif svc_lower in ("mongo", "mongodb"):
-        target = "graphiti-mongodb"
     elif svc_lower in ("redis", "cache"):
         target = "graphiti-cache"
     elif svc_lower in ("opa", "policy"):
@@ -358,7 +352,7 @@ Bootstep - Graphiti 一键启动/停止脚本
   restart   重启所有服务（生产模式）
   rebuild   重新构建并启动（生产模式）
   status    查看服务状态
-  logs      查看日志（可用: fe/fedev/neo4j/mongo/redis/opa/app）
+  logs      查看日志（可用: fe/fedev/neo4j/redis/opa/app）
   pull      拉取基础镜像
   clean     清理重复/dangling 镜像和未使用资源
 

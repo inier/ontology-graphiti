@@ -5,11 +5,15 @@ AIP Project Entry Point - 领域情报系统主入口
 import sys
 import os
 
+if sys.platform == "win32":
+    sys.stdout.reconfigure(encoding="utf-8", errors="replace")
+    sys.stderr.reconfigure(encoding="utf-8", errors="replace")
+
 sys.path.append(os.path.dirname(os.path.abspath(__file__)))
 
-from odap.biz.agent import DomainSwarm
-from odap.biz.agent.intelligence_agent import IntelligenceAgent
-from odap.biz.agent.orchestrator import SelfCorrectingOrchestrator
+from odap.biz.core.agent import DomainSwarm
+from odap.biz.core.agent.intelligence_agent import IntelligenceAgent
+from odap.biz.core.agent.orchestrator import SelfCorrectingOrchestrator
 from odap.infra.graph import GraphManager
 
 

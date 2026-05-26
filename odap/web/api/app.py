@@ -29,13 +29,13 @@ except ImportError:
     FASTAPI_AVAILABLE = False
     logger.warning("FastAPI 未安装，Web 服务不可用。请运行: pip install fastapi uvicorn python-multipart")
 
-from odap.biz.ontology.schema.document import (
+from odap.biz.core.ontology.schema.document import (
     OntologyDocument, OntologyDocumentSchema, OntologyValidationError,
     DocType, SourceType
 )
-from odap.biz.ontology.hot_write import OntologyHotWritePipeline
-from odap.biz.ontology.version_manager import OntologyVersionManager
-from odap.biz.ontology.ingestion import NewsIngester, FreeNewsIngester, ManualInputHandler, RandomEventGenerator, OntologyDocumentIO
+from odap.biz.core.ontology.hot_write import OntologyHotWritePipeline
+from odap.biz.core.ontology.version_manager import OntologyVersionManager
+from odap.biz.core.ontology.ingestion import NewsIngester, FreeNewsIngester, ManualInputHandler, RandomEventGenerator, OntologyDocumentIO
 from odap.infra.graph.graph_service import GraphManager
 
 class ScenarioStore:
@@ -49,7 +49,7 @@ class ScenarioStore:
         self.storage_dir = storage_dir
         os.makedirs(self.storage_dir, exist_ok=True)
         self._graph_manager = graph_manager
-        from odap.biz.ontology.storage.sqlite_ingest_storage import SQLiteIngestStorage
+        from odap.biz.core.ontology.storage.sqlite_ingest_storage import SQLiteIngestStorage
         self._db = SQLiteIngestStorage()
         self._migrate_from_json()
 
@@ -67,7 +67,7 @@ class ScenarioStore:
             with open(json_file, 'r', encoding='utf-8') as f:
                 data = json.load(f)
 
-            from odap.biz.ontology.schema.document import deterministic_entity_id
+            from odap.biz.core.ontology.schema.document import deterministic_entity_id
 
             for sid, scenario in data.get("scenarios", {}).items():
                 self._db.save_scenario(scenario)
@@ -102,7 +102,7 @@ class ScenarioStore:
         """创建场景"""
         scenario_id = f"scenario-{datetime.now().strftime('%Y%m%d')}-{uuid.uuid4().hex[:6]}"
         
-        from odap.biz.ontology.models.ontology import OntologyDocument as OntologyModel
+        from odap.biz.core.ontology.models.ontology import OntologyDocument as OntologyModel
         ontology_name = f"{name}_Ontology"
         ontology_doc = OntologyModel(name=ontology_name, description=f"自动创建的本体 for 场景: {name}")
         ontology_id = ontology_doc.id
@@ -126,7 +126,7 @@ class ScenarioStore:
     def _ensure_initial_version(self, ontology_id: str, scenario_name: str = "") -> None:
         """确保本体有初始版本"""
         try:
-            from odap.biz.ontology.version_manager import OntologyVersionManager
+            from odap.biz.core.ontology.version_manager import OntologyVersionManager
             vm = OntologyVersionManager.get_instance()
             vm.ensure_initial_version(ontology_id, scenario_name)
         except Exception as e:
@@ -307,8 +307,214 @@ class MockDataWebService:
         self.app = self._build_app()
         
         # 注册本体摄入和构建路由
-        from odap.biz.ontology.api.routes import router as ontology_ingest_router
+        from odap.biz.core.ontology.api.routes import router as ontology_ingest_router
         self.app.include_router(ontology_ingest_router)
+
+        # 注册统一查询服务路由 (ADR-055)
+        from odap.infra.query.routes import router as query_router
+        self.app.include_router(query_router)
+
+        # 注册 OMS 本体元数据路由
+        try:
+            from odap.biz.core.ontology.oms.routes import router as oms_router
+            self.app.include_router(oms_router)
+        except Exception as e:
+            logger.warning(f"OMS 路由注册失败: {e}")
+
+        # 注册工具注册表路由
+        try:
+            from odap.biz.platform.tool_registry.api.routes import router as tool_router
+            self.app.include_router(tool_router)
+        except Exception as e:
+            logger.warning(f"工具注册表路由注册失败: {e}")
+
+        # 注册技能系统路由
+        try:
+            from odap.biz.platform.skill_system.api.routes import router as skill_router
+            self.app.include_router(skill_router)
+        except Exception as e:
+            logger.warning(f"技能系统路由注册失败: {e}")
+
+        # 注册 Agent 路由
+        try:
+            from odap.biz.integration.openharness_agent import router as agent_router
+            self.app.include_router(agent_router)
+        except Exception as e:
+            logger.warning(f"Agent 路由注册失败: {e}")
+
+        # 注册认证路由
+        try:
+            from odap.infra.security.auth_routes import router as auth_router
+            self.app.include_router(auth_router)
+        except Exception as e:
+            logger.warning(f"认证路由注册失败: {e}")
+
+        # 注册角色管理路由
+        try:
+            from odap.biz.platform.roles.api.routes import router as roles_router
+            self.app.include_router(roles_router)
+        except Exception as e:
+            logger.warning(f"角色路由注册失败: {e}")
+
+        # 注册智能体管理路由
+        try:
+            from odap.biz.management.agent_management.api.routes import router as agent_mgmt_router
+            self.app.include_router(agent_mgmt_router)
+        except Exception as e:
+            logger.warning(f"智能体管理路由注册失败: {e}")
+
+        # 注册审计路由
+        try:
+            from odap.infra.security import audit_router
+            self.app.include_router(audit_router)
+        except Exception as e:
+            logger.warning(f"审计路由注册失败: {e}")
+
+        # 注册工作空间路由
+        try:
+            from odap.biz.platform.workspace.api.routes import router as workspace_router
+            self.app.include_router(workspace_router)
+        except Exception as e:
+            logger.warning(f"工作空间路由注册失败: {e}")
+
+        # 注册 OPA 策略路由
+        try:
+            from odap.infra.opa.routes import router as policy_router
+            self.app.include_router(policy_router)
+        except Exception as e:
+            logger.warning(f"OPA策略路由注册失败: {e}")
+
+        # 注册 QA 问答路由
+        try:
+            from odap.biz.data.qa.api.routes import router as qa_router
+            self.app.include_router(qa_router)
+        except Exception as e:
+            logger.warning(f"QA问答路由注册失败: {e}")
+
+        # 注册知识库路由
+        try:
+            from odap.biz.data.knowledge_base.api.routes import router as kb_router
+            self.app.include_router(kb_router)
+        except Exception as e:
+            logger.warning(f"知识库路由注册失败: {e}")
+
+        # 注册 Hook 系统路由
+        try:
+            from odap.biz.integration.hook_system.api.routes import router as hook_router
+            self.app.include_router(hook_router)
+        except Exception as e:
+            logger.warning(f"Hook系统路由注册失败: {e}")
+
+        # 注册 MCP 适配器路由
+        try:
+            from odap.biz.integration.mcp_adapter.api.routes import router as mcp_router
+            self.app.include_router(mcp_router)
+        except Exception as e:
+            logger.warning(f"MCP适配器路由注册失败: {e}")
+
+        # 注册前端兼容路由
+        try:
+            from odap.biz.integration.frontend_compat.api.routes import router as frontend_router
+            self.app.include_router(frontend_router)
+        except Exception as e:
+            logger.warning(f"前端兼容路由注册失败: {e}")
+
+        # 注册事件模拟器路由
+        try:
+            from odap.biz.simulation.event_simulator.api.routes import router as event_router
+            self.app.include_router(event_router)
+        except Exception as e:
+            logger.warning(f"事件模拟器路由注册失败: {e}")
+
+        # 注册决策路由
+        try:
+            from odap.biz.decision.action_service.routes import router as action_router
+            self.app.include_router(action_router)
+        except Exception as e:
+            logger.warning(f"决策路由注册失败: {e}")
+
+        try:
+            from odap.biz.decision.decision_pipeline.routes import router as decision_pipeline_router
+            self.app.include_router(decision_pipeline_router)
+        except Exception as e:
+            logger.warning(f"决策管线路由注册失败: {e}")
+
+        # 注册感知路由
+        try:
+            from odap.biz.data.perception.routes import router as perception_router
+            self.app.include_router(perception_router)
+        except Exception as e:
+            logger.warning(f"感知路由注册失败: {e}")
+
+        # 注册模拟沙箱路由
+        try:
+            from odap.biz.simulation.simulation_sandbox.routes import router as sandbox_router
+            self.app.include_router(sandbox_router)
+        except Exception as e:
+            logger.warning(f"模拟沙箱路由注册失败: {e}")
+
+        # 注册业务管理路由
+        try:
+            from odap.biz.management.business.api.routes import router as business_router
+            self.app.include_router(business_router)
+        except Exception as e:
+            logger.warning(f"业务管理路由注册失败: {e}")
+
+        # 注册会话记忆路由
+        try:
+            from odap.biz.platform.session_memory.api.routes import router as session_memory_router
+            self.app.include_router(session_memory_router)
+        except Exception as e:
+            logger.warning(f"会话记忆路由注册失败: {e}")
+
+        # 注册数据仓库路由
+        try:
+            from odap.biz.data.data_warehouse.api.routes import router as data_warehouse_router
+            self.app.include_router(data_warehouse_router)
+        except Exception as e:
+            logger.warning(f"数据仓库路由注册失败: {e}")
+
+        # 注册认知路由
+        try:
+            from odap.biz.core.cognition.api.routes import router as cognition_router
+            self.app.include_router(cognition_router)
+        except Exception as e:
+            logger.warning(f"认知路由注册失败: {e}")
+
+        # 注册反馈路由
+        try:
+            from odap.biz.simulation.feedback.api.routes import router as feedback_router
+            self.app.include_router(feedback_router)
+        except Exception as e:
+            logger.warning(f"反馈路由注册失败: {e}")
+
+        # 注册推演路由
+        try:
+            from odap.biz.simulation.simulation_deduction.api.routes import router as deduction_router
+            self.app.include_router(deduction_router)
+        except Exception as e:
+            logger.warning(f"推演路由注册失败: {e}")
+
+        # 注册语义地图路由
+        try:
+            from odap.biz.data.semantic_map.api.routes import router as semantic_map_router
+            self.app.include_router(semantic_map_router)
+        except Exception as e:
+            logger.warning(f"语义地图路由注册失败: {e}")
+
+        # 注册对象服务路由
+        try:
+            from odap.infra.object_service.routes import router as osv2_router
+            self.app.include_router(osv2_router)
+        except Exception as e:
+            logger.warning(f"对象服务路由注册失败: {e}")
+
+        # 注册技能扩展路由
+        try:
+            from odap.biz.platform.skill_system.api.routes_extended import router as skill_ext_router
+            self.app.include_router(skill_ext_router)
+        except Exception as e:
+            logger.warning(f"技能扩展路由注册失败: {e}")
 
     def _build_app(self, static_dir: str = None) -> 'FastAPI':
         app = FastAPI(
@@ -318,13 +524,18 @@ class MockDataWebService:
         )
 
         # CORS 配置
+        _cors_origins_str = os.getenv("CORS_ORIGINS", "http://localhost:5173,http://localhost:8000")
+        _cors_origins: List[str] = [origin.strip() for origin in _cors_origins_str.split(",") if origin.strip()]
         app.add_middleware(
             CORSMiddleware,
-            allow_origins=["*"],
+            allow_origins=_cors_origins,
             allow_credentials=True,
-            allow_methods=["*"],
-            allow_headers=["*"],
+            allow_methods=["GET", "POST", "PUT", "DELETE", "OPTIONS"],
+            allow_headers=["Content-Type", "Authorization", "X-Request-ID"],
         )
+
+        from odap.infra.middleware.audit_middleware import AuditMiddleware
+        app.add_middleware(AuditMiddleware)
 
         # 静态文件服务
         if static_dir:

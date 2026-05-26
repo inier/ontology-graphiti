@@ -43,7 +43,7 @@ import {
   DashboardOutlined,
   RocketOutlined,
 } from '@ant-design/icons';
-import { apiService } from '@/modules/shared/services/api';
+import { apiService } from '../../shared/services/api';
 import type { ColumnsType } from 'antd/es/table';
 
 const { Option } = Select;
@@ -198,7 +198,7 @@ const Simulator: React.FC = () => {
         name: values.name as string,
         description: values.description as string,
         event_type: values.event_type as string,
-        parameters: values.parameters || {},
+        parameters: (values.parameters || {}) as Record<string, unknown>,
       });
       addLog(`创建模板: ${values.name}`, 'success');
       message.success('模板创建成功');

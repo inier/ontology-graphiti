@@ -20,7 +20,7 @@ def app_client():
             mock_integration.return_value = mock_status
 
             with patch("odap.infra.openharness.create_harness", return_value=None):
-                from app.main import app
+                from odap.web.app import app
                 client = TestClient(app)
                 yield client
 
@@ -419,7 +419,7 @@ class TestMilitaryE2EFlow:
 
     def test_20_verify_validation_rules(self, app_client, test_ids):
         """步骤20: 验证验证规则存储功能"""
-        from odap.biz.ontology.storage.sqlite_ingest_storage import SQLiteIngestStorage
+        from odap.biz.core.ontology.storage.sqlite_ingest_storage import SQLiteIngestStorage
         storage = SQLiteIngestStorage()
 
         rule = {

@@ -5,7 +5,7 @@ from unittest.mock import MagicMock, patch
 
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), '..', '..', '..'))
 
-from odap.biz.visualization.visualization_engine_v2 import (
+from odap.biz.simulation.visualization.visualization_engine import (
     VisualizationEngineV2,
     GraphLayoutEngine,
     DataConverter,

@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
-import { Card, Button, Input, Modal, Form, message, Avatar, Tag, Space, Table, Popconfirm, Select, Divider, Descriptions } from 'antd';
-import { PlusOutlined, SearchOutlined, EditOutlined, DeleteOutlined, EyeOutlined } from '@ant-design/icons';
+import { Card, Button, Input, Modal, Form, message, Avatar, Tag, Space, Popconfirm, Select, Divider, Descriptions, Row, Col, Typography, Tooltip } from 'antd';
+import { PlusOutlined, SearchOutlined, EditOutlined, DeleteOutlined, EyeOutlined, RobotOutlined, MoreOutlined } from '@ant-design/icons';
 import { agentApi } from '../services/agentApi';
 import { api } from '../../shared/services/api';
 import { processApi, ruleApi, logicApi, indicatorApi } from '../../business/services/businessApi';
@@ -8,9 +8,25 @@ import { knowledgeApi } from '../../knowledge/services/knowledgeApi';
 import { useScenario, useWorkspace } from '../../shared/components/AppLayout';
 import type { Agent, AgentFormData } from '../types';
 
-const AVATAR_OPTIONS = Array.from({ length: 10 }, (_, i) =>
-  `https://api.dicebear.com/7.x/avataaars/svg?seed=${i + 1}`
-);
+const { Paragraph } = Typography;
+
+const AVATAR_OPTIONS = [
+  'https://api.dicebear.com/7.x/shapes/svg?seed=agent1&backgroundColor=c0aede',
+  'https://api.dicebear.com/7.x/shapes/svg?seed=agent2&backgroundColor=d1d4f9',
+  'https://api.dicebear.com/7.x/shapes/svg?seed=agent3&backgroundColor=b6e3f4',
+  'https://api.dicebear.com/7.x/shapes/svg?seed=agent4&backgroundColor=ffd5dc',
+  'https://api.dicebear.com/7.x/shapes/svg?seed=agent5&backgroundColor=ffdfbf',
+  'https://api.dicebear.com/7.x/identicon/svg?seed=analyst&backgroundColor=c0aede',
+  'https://api.dicebear.com/7.x/identicon/svg?seed=commander&backgroundColor=b6e3f4',
+  'https://api.dicebear.com/7.x/identicon/svg?seed=operator&backgroundColor=d1d4f9',
+  'https://api.dicebear.com/7.x/identicon/svg?seed=scout&backgroundColor=ffd5dc',
+  'https://api.dicebear.com/7.x/identicon/svg?seed=advisor&backgroundColor=ffdfbf',
+  'https://api.dicebear.com/7.x/initials/svg?seed=AI&backgroundColor=1890ff',
+  'https://api.dicebear.com/7.x/initials/svg?seed=QA&backgroundColor=722ed1',
+  'https://api.dicebear.com/7.x/initials/svg?seed=OP&backgroundColor=13c2c2',
+  'https://api.dicebear.com/7.x/initials/svg?seed=DT&backgroundColor=eb2f96',
+  'https://api.dicebear.com/7.x/initials/svg?seed=KV&backgroundColor=fa8c16',
+];
 
 interface RefOption {
   id: string;
@@ -38,6 +54,8 @@ export function AgentManagement() {
   const [skillOptions, setSkillOptions] = useState<RefOption[]>([]);
   const [knowledgeBaseOptions, setKnowledgeBaseOptions] = useState<RefOption[]>([]);
   const [roleOptions, setRoleOptions] = useState<RefOption[]>([]);
+  const [workspaceOptions, setWorkspaceOptions] = useState<RefOption[]>([]);
+  const [workspaceFilter, setWorkspaceFilter] = useState<string | undefined>(undefined);
 
   useEffect(() => {
     loadAgents();
@@ -99,6 +117,7 @@ export function AgentManagement() {
         skills,
         knowledgeBases,
         roles,
+        workspaces,
       ] = await Promise.all([
         processApi.list().catch(() => []).then(items =>
           items.map((p: any) => ({ id: p.process_id || p.name, name: p.display_name || p.name }))
@@ -118,8 +137,12 @@ export function AgentManagement() {
         knowledgeApi.listKnowledgeBases().catch(() => []).then(items =>
           items.map((k: any) => ({ id: k.kb_id, name: k.name }))
         ),
-        api.listRoles().catch(() => ({ roles: [] })).then(r =>
-          r.roles.map((role: any) => ({ id: role.role_id || role.id, name: role.name }))
+        api.listRoles().catch(() => []).then(r => {
+          const roles = Array.isArray(r) ? r : (r.roles || []);
+          return roles.map((role: any) => ({ id: role.role_id || role.id, name: role.name }));
+        }),
+        api.listWorkspaces().catch(() => []).then(items =>
+          items.map((w: any) => ({ id: w.workspace_id || w.id, name: w.name }))
         ),
       ]);
 
@@ -130,6 +153,7 @@ export function AgentManagement() {
       setSkillOptions(skills);
       setKnowledgeBaseOptions(knowledgeBases);
       setRoleOptions(roles);
+      setWorkspaceOptions(workspaces);
     } catch (e) {
       console.warn('加载关联选项失败', e);
     }
@@ -144,23 +168,32 @@ export function AgentManagement() {
 
   const handleEdit = (agent: Agent) => {
     setEditingAgent(agent);
-    form.setFieldsValue({
-      name: agent.name,
-      display_name: agent.display_name,
-      avatar: agent.avatar,
-      description: agent.description,
-      main_object: agent.main_object,
-      related_objects: agent.related_objects,
-      related_processes: agent.related_processes,
-      related_rules: agent.related_rules,
-      related_business_logic: agent.related_business_logic,
-      related_indicators: agent.related_indicators,
-      related_skills: agent.related_skills,
-      related_knowledge_bases: agent.related_knowledge_bases,
-      allowed_roles: agent.allowed_roles,
-    });
-    setSelectedAvatar(agent.avatar);
     setModalOpen(true);
+    if (agent.avatar && AVATAR_OPTIONS.includes(agent.avatar)) {
+      setSelectedAvatar(agent.avatar);
+    } else if (agent.avatar) {
+      setSelectedAvatar(agent.avatar);
+    } else {
+      setSelectedAvatar(AVATAR_OPTIONS[0]);
+    }
+    setTimeout(() => {
+      form.setFieldsValue({
+        name: agent.name,
+        display_name: agent.display_name,
+        avatar: agent.avatar,
+        description: agent.description,
+        main_object: agent.main_object,
+        related_objects: agent.related_objects,
+        related_processes: agent.related_processes,
+        related_rules: agent.related_rules,
+        related_business_logic: agent.related_business_logic,
+        related_indicators: agent.related_indicators,
+        related_skills: agent.related_skills,
+        related_knowledge_bases: agent.related_knowledge_bases,
+        allowed_roles: agent.allowed_roles,
+        workspace_id: agent.workspace_id || undefined,
+      });
+    }, 0);
   };
 
   const handleView = (agent: Agent) => {
@@ -180,7 +213,7 @@ export function AgentManagement() {
 
   const handleSave = async (values: AgentFormData) => {
     try {
-      const payload = { ...values, avatar: selectedAvatar };
+      const payload: AgentFormData = { ...values, avatar: selectedAvatar, workspace_id: values.workspace_id ?? '' };
       if (editingAgent) {
         await agentApi.updateAgent(editingAgent.agent_id, payload);
         message.success('更新成功');
@@ -190,135 +223,130 @@ export function AgentManagement() {
       }
       setModalOpen(false);
       loadAgents();
-    } catch (e) {
-      message.error('保存失败');
+    } catch (e: any) {
+      console.error('保存智能体失败:', e);
+      message.error(`保存失败: ${e?.message || '未知错误'}`);
     }
   };
 
-  const filteredAgents = agents.filter(a =>
-    a.name.toLowerCase().includes(searchText.toLowerCase()) ||
-    a.display_name.toLowerCase().includes(searchText.toLowerCase())
-  );
+  const filteredAgents = agents.filter(a => {
+    const matchSearch = a.name.toLowerCase().includes(searchText.toLowerCase()) ||
+      a.display_name.toLowerCase().includes(searchText.toLowerCase());
+    const matchWorkspace = !workspaceFilter ||
+      (workspaceFilter === '__all__' ? !a.workspace_id : a.workspace_id === workspaceFilter);
+    return matchSearch && matchWorkspace;
+  });
 
-  const columns = [
-    {
-      title: '头像',
-      dataIndex: 'avatar',
-      width: 70,
-      render: (url: string) => <Avatar src={url} size={40} />,
-    },
-    {
-      title: '名称',
-      dataIndex: 'display_name',
-      render: (_: string, record: Agent) => (
-        <div>
-          <div style={{ fontWeight: 600 }}>{record.display_name}</div>
-          <div style={{ fontSize: 12, color: '#8c8c8c' }}>{record.name}</div>
-        </div>
-      ),
-    },
-    {
-      title: '主对象',
-      dataIndex: 'main_object',
-      width: 100,
-      render: (v: string) => <Tag color="blue">{v}</Tag>,
-    },
-    {
-      title: '业务过程',
-      dataIndex: 'related_processes',
-      width: 120,
-      render: (items: string[]) => (
-        <Space size={4} wrap>
-          {(items || []).slice(0, 2).map(o => <Tag key={o} color="green">{o}</Tag>)}
-          {(items || []).length > 2 && <Tag>+{items.length - 2}</Tag>}
-        </Space>
-      ),
-    },
-    {
-      title: '业务规则',
-      dataIndex: 'related_rules',
-      width: 120,
-      render: (items: string[]) => (
-        <Space size={4} wrap>
-          {(items || []).slice(0, 2).map(o => <Tag key={o} color="orange">{o}</Tag>)}
-          {(items || []).length > 2 && <Tag>+{items.length - 2}</Tag>}
-        </Space>
-      ),
-    },
-    {
-      title: '业务逻辑',
-      dataIndex: 'related_business_logic',
-      width: 120,
-      render: (items: string[]) => (
-        <Space size={4} wrap>
-          {(items || []).slice(0, 2).map(o => <Tag key={o} color="cyan">{o}</Tag>)}
-          {(items || []).length > 2 && <Tag>+{items.length - 2}</Tag>}
-        </Space>
-      ),
-    },
-    {
-      title: '可用技能',
-      dataIndex: 'related_skills',
-      width: 100,
-      render: (items: string[]) => (
-        <Space size={4} wrap>
-          {(items || []).slice(0, 2).map(o => <Tag key={o} color="purple">{o}</Tag>)}
-          {(items || []).length > 2 && <Tag>+{items.length - 2}</Tag>}
-        </Space>
-      ),
-    },
-    {
-      title: '可见角色',
-      dataIndex: 'allowed_roles',
-      width: 100,
-      render: (items: string[]) => (
-        <Space size={4} wrap>
-          {(items || []).slice(0, 2).map(o => <Tag key={o} color="geekblue">{o}</Tag>)}
-          {(items || []).length > 2 && <Tag>+{items.length - 2}</Tag>}
-        </Space>
-      ),
-    },
-    {
-      title: '操作',
-      width: 140,
-      fixed: 'right' as const,
-      render: (_: unknown, record: Agent) => (
-        <Space>
-          <Button type="text" icon={<EyeOutlined />} onClick={() => handleView(record)} title="查看" />
-          <Button type="text" icon={<EditOutlined />} onClick={() => handleEdit(record)} title="编辑" />
-          <Popconfirm title="确认删除？" onConfirm={() => handleDelete(record.agent_id)}>
-            <Button type="text" danger icon={<DeleteOutlined />} title="删除" />
-          </Popconfirm>
-        </Space>
-      ),
-    },
-  ];
+  const getWorkspaceName = (id: string) => {
+    const ws = workspaceOptions.find(w => w.id === id);
+    return ws ? ws.name : id;
+  };
+
+  const getRoleName = (id: string) => {
+    const role = roleOptions.find(r => r.id === id);
+    return role ? role.name : id;
+  };
+
+  const resolveLabel = (id: string, agent: Agent) => {
+    return agent.ref_labels?.[id] || id;
+  };
 
   return (
-    <Card
-      title="智能体管理"
-      extra={
+    <div style={{ padding: 0 }}>
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 20 }}>
+        <Space>
+          <Input.Search
+            placeholder="搜索智能体"
+            value={searchText}
+            onChange={e => setSearchText(e.target.value)}
+            style={{ width: 260 }}
+            allowClear
+            prefix={<SearchOutlined />}
+          />
+          <Select
+            placeholder="按工作空间过滤"
+            value={workspaceFilter}
+            onChange={v => setWorkspaceFilter(v)}
+            style={{ width: 180 }}
+            allowClear
+            options={[
+              { value: '__all__', label: '全部空间（未绑定）' },
+              ...workspaceOptions.map(w => ({ value: w.id, label: w.name })),
+            ]}
+          />
+        </Space>
         <Button type="primary" icon={<PlusOutlined />} onClick={handleCreate}>
           新建智能体
         </Button>
-      }
-    >
-      <Input.Search
-        placeholder="搜索智能体名称或展示名"
-        value={searchText}
-        onChange={e => setSearchText(e.target.value)}
-        style={{ width: 320, marginBottom: 16 }}
-        allowClear
-        prefix={<SearchOutlined />}
-      />
-      <Table
-        dataSource={filteredAgents}
-        columns={columns}
-        rowKey="agent_id"
-        loading={loading}
-        pagination={{ pageSize: 10 }}
-        scroll={{ x: 1200 }}
-      />
+      </div>
+
+      {loading ? (
+        <div style={{ textAlign: 'center', padding: 60, color: '#8c8c8c' }}>加载中...</div>
+      ) : filteredAgents.length === 0 ? (
+        <div style={{ textAlign: 'center', padding: 60 }}>
+          <RobotOutlined style={{ fontSize: 48, color: '#d9d9d9', marginBottom: 16 }} />
+          <div style={{ color: '#8c8c8c' }}>暂无智能体</div>
+        </div>
+      ) : (
+        <Row gutter={[16, 16]}>
+          {filteredAgents.map(agent => (
+            <Col key={agent.agent_id} xs={24} sm={12} md={8} lg={6}>
+              <Card
+                hoverable
+                style={{ borderRadius: 12, height: '100%' }}
+                styles={{ body: { padding: 20 } }}
+                actions={[
+                  <Tooltip key="view" title="查看"><EyeOutlined onClick={() => handleView(agent)} /></Tooltip>,
+                  <Tooltip key="edit" title="编辑"><EditOutlined onClick={() => handleEdit(agent)} /></Tooltip>,
+                  <Popconfirm key="del" title="确认删除？" onConfirm={() => handleDelete(agent.agent_id)}>
+                    <DeleteOutlined style={{ color: '#ff4d4f' }} />
+                  </Popconfirm>,
+                ]}
+              >
+                <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 12 }}>
+                  <Avatar src={agent.avatar} size={72} style={{ border: '2px solid #f0f0f0', flexShrink: 0 }} />
+                  <div style={{ textAlign: 'center', width: '100%' }}>
+                    <div style={{ fontSize: 16, fontWeight: 600, marginBottom: 2 }}>{agent.display_name}</div>
+                    <div style={{ fontSize: 12, color: '#bfbfbf' }}>{agent.name}</div>
+                  </div>
+                  {agent.main_object && (
+                    <Tag color="blue" style={{ margin: 0 }}>主对象: {agent.main_object}</Tag>
+                  )}
+                  {agent.workspace_id ? (
+                    <Tag color="gold" style={{ margin: 0 }}>{getWorkspaceName(agent.workspace_id)}</Tag>
+                  ) : (
+                    <Tag style={{ margin: 0 }}>全部空间</Tag>
+                  )}
+                  <Paragraph
+                    style={{ fontSize: 13, color: '#8c8c8c', textAlign: 'center', margin: 0, lineHeight: 1.5, minHeight: 40 }}
+                    ellipsis={{ rows: 2 }}
+                  >
+                    {agent.description || '暂无描述'}
+                  </Paragraph>
+                  <div style={{ display: 'flex', flexWrap: 'wrap', gap: 4, justifyContent: 'center', width: '100%' }}>
+                    {(agent.related_skills || []).slice(0, 3).map(sk => (
+                      <Tag key={sk} color="purple" style={{ fontSize: 11 }}>{resolveLabel(sk, agent)}</Tag>
+                    ))}
+                    {(agent.related_skills || []).length > 3 && (
+                      <Tag style={{ fontSize: 11 }}>+{agent.related_skills.length - 3}</Tag>
+                    )}
+                  </div>
+                  {(agent.allowed_roles || []).length > 0 && (
+                    <div style={{ display: 'flex', flexWrap: 'wrap', gap: 4, justifyContent: 'center', width: '100%' }}>
+                      {agent.allowed_roles.slice(0, 3).map(r => (
+                        <Tag key={r} color="geekblue" style={{ fontSize: 11 }}>{getRoleName(r)}</Tag>
+                      ))}
+                      {agent.allowed_roles.length > 3 && (
+                        <Tag style={{ fontSize: 11 }}>+{agent.allowed_roles.length - 3}</Tag>
+                      )}
+                    </div>
+                  )}
+                </div>
+              </Card>
+            </Col>
+          ))}
+        </Row>
+      )}
 
       <Modal
         title={editingAgent ? '编辑智能体' : '新建智能体'}
@@ -491,6 +519,16 @@ export function AgentManagement() {
               optionFilterProp="label"
             />
           </Form.Item>
+
+          <Form.Item name="workspace_id" label="工作空间">
+            <Select
+              placeholder="不选则表示全部空间"
+              options={workspaceOptions.map(w => ({ value: w.id, label: w.name }))}
+              showSearch
+              optionFilterProp="label"
+              allowClear
+            />
+          </Form.Item>
         </Form>
       </Modal>
 
@@ -518,49 +556,61 @@ export function AgentManagement() {
               </Descriptions.Item>
               <Descriptions.Item label="关联对象">
                 <Space wrap>
-                  {(viewingAgent.related_objects || []).map(o => <Tag key={o}>{o}</Tag>)}
+                  {(viewingAgent.related_objects || []).map(o => <Tag key={o}>{resolveLabel(o, viewingAgent)}</Tag>)}
                 </Space>
               </Descriptions.Item>
               <Descriptions.Item label="关联业务过程">
                 <Space wrap>
-                  {(viewingAgent.related_processes || []).map(o => <Tag key={o} color="green">{o}</Tag>)}
+                  {(viewingAgent.related_processes || []).map(o => <Tag key={o} color="green">{resolveLabel(o, viewingAgent)}</Tag>)}
                 </Space>
               </Descriptions.Item>
               <Descriptions.Item label="关联业务规则">
                 <Space wrap>
-                  {(viewingAgent.related_rules || []).map(o => <Tag key={o} color="orange">{o}</Tag>)}
+                  {(viewingAgent.related_rules || []).map(o => <Tag key={o} color="orange">{resolveLabel(o, viewingAgent)}</Tag>)}
                 </Space>
               </Descriptions.Item>
               <Descriptions.Item label="关联业务逻辑">
                 <Space wrap>
-                  {(viewingAgent.related_business_logic || []).map(o => <Tag key={o} color="cyan">{o}</Tag>)}
+                  {(viewingAgent.related_business_logic || []).map(o => <Tag key={o} color="cyan">{resolveLabel(o, viewingAgent)}</Tag>)}
                 </Space>
               </Descriptions.Item>
               <Descriptions.Item label="关联指标">
                 <Space wrap>
-                  {(viewingAgent.related_indicators || []).map(o => <Tag key={o} color="volcano">{o}</Tag>)}
+                  {(viewingAgent.related_indicators || []).map(o => <Tag key={o} color="volcano">{resolveLabel(o, viewingAgent)}</Tag>)}
                 </Space>
               </Descriptions.Item>
               <Descriptions.Item label="可用技能">
                 <Space wrap>
-                  {(viewingAgent.related_skills || []).map(o => <Tag key={o} color="purple">{o}</Tag>)}
+                  {(viewingAgent.related_skills || []).map(o => <Tag key={o} color="purple">{resolveLabel(o, viewingAgent)}</Tag>)}
                 </Space>
               </Descriptions.Item>
               <Descriptions.Item label="关联知识库">
                 <Space wrap>
-                  {(viewingAgent.related_knowledge_bases || []).map(o => <Tag key={o} color="geekblue">{o}</Tag>)}
+                  {(viewingAgent.related_knowledge_bases || []).map(o => <Tag key={o} color="geekblue">{resolveLabel(o, viewingAgent)}</Tag>)}
                 </Space>
               </Descriptions.Item>
               <Descriptions.Item label="可见角色">
                 <Space wrap>
-                  {(viewingAgent.allowed_roles || []).map(o => <Tag key={o} color="magenta">{o}</Tag>)}
+                  {(viewingAgent.allowed_roles || []).map(o => {
+                    const role = roleOptions.find(r => r.id === o);
+                    return <Tag key={o} color="magenta">{role ? role.name : o}</Tag>;
+                  })}
                 </Space>
+              </Descriptions.Item>
+              <Descriptions.Item label="工作空间">
+                {viewingAgent.workspace_id
+                  ? (() => {
+                      const ws = workspaceOptions.find(w => w.id === viewingAgent.workspace_id);
+                      return <Tag color="gold">{ws ? ws.name : viewingAgent.workspace_id}</Tag>;
+                    })()
+                  : <Tag>全部空间</Tag>
+                }
               </Descriptions.Item>
               <Descriptions.Item label="描述">{viewingAgent.description || '—'}</Descriptions.Item>
             </Descriptions>
           </div>
         )}
       </Modal>
-    </Card>
+    </div>
   );
 }

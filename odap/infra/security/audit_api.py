@@ -1,18 +1,120 @@
 #!/usr/bin/env python3
-"""API路由 - 符合设计文档要求"""
+"""API路由 - 审计日志
+
+统一使用 SQLiteAuditChannel 单例，与 unified_audit.py 写入同一数据库。
+"""
 
 from fastapi import APIRouter, HTTPException, Query
 from typing import Dict, Any, List, Optional
 from datetime import datetime
+import sqlite3
 
-# 直接从 audit_logger 导入，避免循环导入
-from .audit_logger import get_audit_logger
+from .audit_sqlite_channel import get_sqlite_audit_channel
 from .audit_models import AuditFilter, AuditEventType, AuditSeverity
 from .unified_audit import get_audit_logs as get_unified_audit_logs
 
 router = APIRouter(prefix="/api/audit", tags=["audit"])
 
-audit_logger = get_audit_logger()
+_sqlite_channel = None
+
+_SEVERITY_ALIASES = {
+    "warning": "warn",
+    "warn": "warn",
+    "debug": "debug",
+    "info": "info",
+    "error": "error",
+    "critical": "critical",
+}
+
+_EVENT_TYPE_ALIASES = {
+    "system.startup": "system.health",
+    "system.shutdown": "system.health",
+    "system.action": "system.health",
+    "workspace.update": "workspace.create",
+    "user.create": "user.create",
+    "user.update": "user.update",
+    "user.delete": "user.delete",
+}
+
+
+def _get_channel():
+    global _sqlite_channel
+    if _sqlite_channel is None:
+        _sqlite_channel = get_sqlite_audit_channel()
+    return _sqlite_channel
+
+
+def _normalize_severity(raw: str) -> str:
+    return _SEVERITY_ALIASES.get(raw.lower(), raw.lower())
+
+
+def _normalize_event_type(raw: str) -> str:
+    return _EVENT_TYPE_ALIASES.get(raw.lower(), raw.lower())
+
+
+def _event_to_flat_dict(event) -> Dict[str, Any]:
+    event_dict = event.model_dump()
+    if isinstance(event_dict["timestamp"], datetime):
+        event_dict["timestamp"] = event_dict["timestamp"].isoformat()
+    actor = event_dict.pop("actor", {})
+    resource = event_dict.pop("resource", {})
+    res = event_dict.pop("result", {})
+    event_dict["actor_type"] = actor.get("actor_type", "")
+    event_dict["actor_id"] = actor.get("actor_id", "")
+    event_dict["actor_name"] = actor.get("actor_name", "")
+    event_dict["actor_roles"] = actor.get("roles", [])
+    event_dict["resource_type"] = resource.get("resource_type", "")
+    event_dict["resource_id"] = resource.get("resource_id", "")
+    event_dict["resource_name"] = resource.get("resource_name", "")
+    event_dict["result_status"] = res.get("status", "")
+    event_dict["result_message"] = res.get("message", "")
+    event_dict["result_error_code"] = res.get("error_code")
+    event_dict["result_changes"] = res.get("changes")
+    return event_dict
+
+
+def _get_total_count(channel, filter_kwargs: dict) -> int:
+    conn = sqlite3.connect(channel.db_path)
+    cursor = conn.cursor()
+    try:
+        where_clauses = []
+        params = []
+        if "start_time" in filter_kwargs and filter_kwargs["start_time"]:
+            where_clauses.append('timestamp >= ?')
+            params.append(filter_kwargs["start_time"].isoformat())
+        if "end_time" in filter_kwargs and filter_kwargs["end_time"]:
+            where_clauses.append('timestamp <= ?')
+            params.append(filter_kwargs["end_time"].isoformat())
+        if "event_types" in filter_kwargs and filter_kwargs["event_types"]:
+            placeholders = ','.join(['?'] * len(filter_kwargs["event_types"]))
+            where_clauses.append(f'event_type IN ({placeholders})')
+            params.extend([e.value for e in filter_kwargs["event_types"]])
+        if "severities" in filter_kwargs and filter_kwargs["severities"]:
+            placeholders = ','.join(['?'] * len(filter_kwargs["severities"]))
+            where_clauses.append(f'severity IN ({placeholders})')
+            params.extend([s.value for s in filter_kwargs["severities"]])
+        if "actor_ids" in filter_kwargs and filter_kwargs["actor_ids"]:
+            placeholders = ','.join(['?'] * len(filter_kwargs["actor_ids"]))
+            where_clauses.append(f'actor_id IN ({placeholders})')
+            params.extend(filter_kwargs["actor_ids"])
+        if "workspace_id" in filter_kwargs and filter_kwargs["workspace_id"]:
+            where_clauses.append('workspace_id = ?')
+            params.append(filter_kwargs["workspace_id"])
+        if "trace_id" in filter_kwargs and filter_kwargs["trace_id"]:
+            where_clauses.append('trace_id = ?')
+            params.append(filter_kwargs["trace_id"])
+        if "result_status" in filter_kwargs and filter_kwargs["result_status"]:
+            placeholders = ','.join(['?'] * len(filter_kwargs["result_status"]))
+            where_clauses.append(f'result_status IN ({placeholders})')
+            params.extend(filter_kwargs["result_status"])
+
+        where_part = ' WHERE ' + ' AND '.join(where_clauses) if where_clauses else ''
+        cursor.execute(f'SELECT COUNT(*) FROM audit_events{where_part}', params)
+        return cursor.fetchone()[0]
+    except Exception:
+        return 0
+    finally:
+        conn.close()
 
 
 @router.get("/events")
@@ -34,19 +136,33 @@ async def query_audit_events(
     order_by: str = Query("timestamp"),
     order_desc: bool = Query(True)
 ):
-    """查询审计事件 - 符合设计文档"""
     try:
-        # 构建过滤器
         filter_kwargs = {}
-        
+
         if start_time:
             filter_kwargs["start_time"] = datetime.fromisoformat(start_time)
         if end_time:
             filter_kwargs["end_time"] = datetime.fromisoformat(end_time)
         if event_types:
-            filter_kwargs["event_types"] = [AuditEventType(et) for et in event_types]
+            normalized = []
+            for et in event_types:
+                mapped = _normalize_event_type(et)
+                try:
+                    normalized.append(AuditEventType(mapped))
+                except ValueError:
+                    pass
+            if normalized:
+                filter_kwargs["event_types"] = normalized
         if severities:
-            filter_kwargs["severities"] = [AuditSeverity(s) for s in severities]
+            normalized = []
+            for s in severities:
+                mapped = _normalize_severity(s)
+                try:
+                    normalized.append(AuditSeverity(mapped))
+                except ValueError:
+                    pass
+            if normalized:
+                filter_kwargs["severities"] = normalized
         if actor_ids:
             filter_kwargs["actor_ids"] = actor_ids
         if actor_types:
@@ -63,60 +179,46 @@ async def query_audit_events(
             filter_kwargs["result_status"] = result_status
         if keyword:
             filter_kwargs["keyword"] = keyword
-        
+
         filter_kwargs.update({
             "limit": limit,
             "offset": offset,
             "order_by": order_by,
             "order_desc": order_desc
         })
-        
-        # 创建过滤器
+
         audit_filter = AuditFilter(**filter_kwargs)
-        
-        # 查询事件
-        events = await audit_logger.query(audit_filter)
-        
-        # 转换为前端友好的格式
-        result = []
-        for event in events:
-            event_dict = event.model_dump()
-            # 转换datetime为字符串
-            if isinstance(event_dict["timestamp"], datetime):
-                event_dict["timestamp"] = event_dict["timestamp"].isoformat()
-            result.append(event_dict)
-        
+
+        channel = _get_channel()
+        events = await channel.query(audit_filter)
+
+        total_count = _get_total_count(channel, filter_kwargs)
+
+        result = [_event_to_flat_dict(event) for event in events]
+
         return {
-            "total": len(result),
+            "total": total_count,
             "events": result,
             "limit": limit,
             "offset": offset
         }
+    except HTTPException:
+        raise
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
 
 
 @router.get("/events/{event_id}")
 async def get_audit_event(event_id: str):
-    """获取事件详情 - 符合设计文档"""
     try:
-        # 构建过滤器
-        audit_filter = AuditFilter(
-            limit=1,
-            offset=0
-        )
-        
-        # 查询事件
-        events = await audit_logger.query(audit_filter)
-        
-        # 查找指定ID的事件
+        channel = _get_channel()
+        audit_filter = AuditFilter(limit=10000, offset=0)
+        events = await channel.query(audit_filter)
+
         for event in events:
             if event.id == event_id:
-                event_dict = event.model_dump()
-                if isinstance(event_dict["timestamp"], datetime):
-                    event_dict["timestamp"] = event_dict["timestamp"].isoformat()
-                return event_dict
-        
+                return _event_to_flat_dict(event)
+
         raise HTTPException(status_code=404, detail="Event not found")
     except HTTPException:
         raise
@@ -131,77 +233,60 @@ async def get_audit_timeline(
     workspace_id: Optional[str] = None,
     limit: int = Query(100, ge=1, le=500)
 ):
-    """时间线视图 - 符合设计文档"""
     try:
-        # 构建过滤器
         filter_kwargs = {
             "limit": limit,
             "order_by": "timestamp",
             "order_desc": True
         }
-        
+
         if start_time:
             filter_kwargs["start_time"] = datetime.fromisoformat(start_time)
         if end_time:
             filter_kwargs["end_time"] = datetime.fromisoformat(end_time)
         if workspace_id:
             filter_kwargs["workspace_id"] = workspace_id
-        
+
         audit_filter = AuditFilter(**filter_kwargs)
-        
-        # 查询事件
-        events = await audit_logger.query(audit_filter)
-        
-        # 转换为时间线格式
-        timeline = []
-        for event in events:
-            timeline.append({
-                "id": event.id,
-                "timestamp": event.timestamp.isoformat(),
-                "event_type": event.event_type.value,
-                "action": event.action,
-                "actor": event.actor.actor_name,
-                "resource": event.resource.resource_name,
-                "result": event.result.status,
-                "duration_ms": event.duration_ms
-            })
-        
-        return {"timeline": timeline}
+
+        channel = _get_channel()
+        events = await channel.query(audit_filter)
+
+        result = [_event_to_flat_dict(event) for event in events]
+
+        total_count = _get_total_count(channel, filter_kwargs)
+
+        return {
+            "events": result,
+            "total": total_count
+        }
+    except HTTPException:
+        raise
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
 
 
 @router.get("/trace/{trace_id}")
 async def get_audit_trace(trace_id: str):
-    """追踪链查询 - 符合设计文档"""
     try:
-        # 构建过滤器
         audit_filter = AuditFilter(
             trace_id=trace_id,
             limit=100,
             order_by="timestamp",
             order_desc=False
         )
-        
-        # 查询事件
-        events = await audit_logger.query(audit_filter)
-        
-        # 构建追踪链
+
+        channel = _get_channel()
+        events = await channel.query(audit_filter)
+
         trace_chain = []
         for event in events:
-            trace_chain.append({
-                "id": event.id,
-                "timestamp": event.timestamp.isoformat(),
-                "event_type": event.event_type.value,
-                "action": event.action,
-                "actor": event.actor.actor_name,
-                "resource": event.resource.resource_name,
-                "result": event.result.status,
-                "parent_event_id": event.parent_event_id,
-                "duration_ms": event.duration_ms
-            })
-        
+            flat = _event_to_flat_dict(event)
+            trace_chain.append(flat)
+
         return {"trace_id": trace_id, "chain": trace_chain}
+    except HTTPException:
+        raise
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
 
@@ -211,21 +296,50 @@ async def get_audit_stats(
     start_time: Optional[str] = None,
     end_time: Optional[str] = None
 ):
-    """审计统计 - 符合设计文档"""
     try:
-        # 获取统计信息
-        stats = audit_logger.get_stats()
-        
-        # 转换为设计文档要求的格式
-        return {
-            "total": stats.get("total", 0),
-            "by_severity": stats.get("by_severity", {}),
-            "by_type": stats.get("by_type", {}),
-            "time_range": {
-                "start": start_time or "all",
-                "end": end_time or "all"
+        channel = _get_channel()
+
+        conn = sqlite3.connect(channel.db_path)
+        cursor = conn.cursor()
+
+        try:
+            where_clauses = []
+            params = []
+            if start_time:
+                where_clauses.append('timestamp >= ?')
+                params.append(datetime.fromisoformat(start_time).isoformat())
+            if end_time:
+                where_clauses.append('timestamp <= ?')
+                params.append(datetime.fromisoformat(end_time).isoformat())
+
+            where_part = ' WHERE ' + ' AND '.join(where_clauses) if where_clauses else ''
+
+            cursor.execute(f'SELECT COUNT(*) FROM audit_events{where_part}', params)
+            total = cursor.fetchone()[0]
+
+            cursor.execute(f'SELECT severity, COUNT(*) FROM audit_events{where_part} GROUP BY severity', params)
+            by_severity = dict(cursor.fetchall())
+
+            cursor.execute(f'SELECT event_type, COUNT(*) FROM audit_events{where_part} GROUP BY event_type', params)
+            by_type = dict(cursor.fetchall())
+
+            cursor.execute(f'SELECT result_status, COUNT(*) FROM audit_events{where_part} GROUP BY result_status', params)
+            by_status = dict(cursor.fetchall())
+
+            return {
+                "total": total,
+                "by_severity": by_severity,
+                "by_type": by_type,
+                "by_status": by_status,
+                "time_range": {
+                    "start": start_time or "all",
+                    "end": end_time or "all"
+                }
             }
-        }
+        finally:
+            conn.close()
+    except HTTPException:
+        raise
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
 
@@ -238,37 +352,45 @@ async def export_audit_logs(
     severities: Optional[List[str]] = None,
     format: str = "json"
 ):
-    """导出审计日志 - 符合设计文档"""
     try:
-        # 构建过滤器
         filter_kwargs = {
-            "limit": 1000,  # 限制导出数量
+            "limit": 1000,
             "order_by": "timestamp",
             "order_desc": True
         }
-        
+
         if start_time:
             filter_kwargs["start_time"] = datetime.fromisoformat(start_time)
         if end_time:
             filter_kwargs["end_time"] = datetime.fromisoformat(end_time)
         if event_types:
-            filter_kwargs["event_types"] = [AuditEventType(et) for et in event_types]
+            normalized = []
+            for et in event_types:
+                mapped = _normalize_event_type(et)
+                try:
+                    normalized.append(AuditEventType(mapped))
+                except ValueError:
+                    pass
+            if normalized:
+                filter_kwargs["event_types"] = normalized
         if severities:
-            filter_kwargs["severities"] = [AuditSeverity(s) for s in severities]
-        
+            normalized = []
+            for s in severities:
+                mapped = _normalize_severity(s)
+                try:
+                    normalized.append(AuditSeverity(mapped))
+                except ValueError:
+                    pass
+            if normalized:
+                filter_kwargs["severities"] = normalized
+
         audit_filter = AuditFilter(**filter_kwargs)
-        
-        # 查询事件
-        events = await audit_logger.query(audit_filter)
-        
-        # 转换为导出格式
-        export_data = []
-        for event in events:
-            event_dict = event.model_dump()
-            if isinstance(event_dict["timestamp"], datetime):
-                event_dict["timestamp"] = event_dict["timestamp"].isoformat()
-            export_data.append(event_dict)
-        
+
+        channel = _get_channel()
+        events = await channel.query(audit_filter)
+
+        export_data = [_event_to_flat_dict(event) for event in events]
+
         if format == "json":
             return {"format": "json", "data": export_data, "count": len(export_data)}
         else:
@@ -279,7 +401,6 @@ async def export_audit_logs(
         raise HTTPException(status_code=500, detail=str(e))
 
 
-# 兼容旧版本的路由（保持向后兼容）
 @router.post("/logs")
 async def create_log(
     level: str,
@@ -290,34 +411,18 @@ async def create_log(
     user: Optional[str] = None,
     resource: Optional[str] = None
 ):
-    """记录日志（兼容旧版本）"""
     try:
-        from . import ActorInfo, ResourceInfo, ActionResult
-        
-        # 转换为新的事件格式
-        await audit_logger.log(
-            event_type=AuditEventType.SYSTEM_HEALTH,
+        from .unified_audit import log_audit
+        log_audit(
             action=action,
-            resource=ResourceInfo(
-                resource_type="resource",
-                resource_id=resource or "unknown",
-                resource_name=resource or "Unknown"
-            ),
-            result=ActionResult(
-                status="success",
-                message="Log created"
-            ),
-            actor=ActorInfo(
-                actor_type="user",
-                actor_id=user or "anonymous",
-                actor_name=user or "Anonymous",
-                roles=[]
-            ),
-            context=details or {},
-            severity=AuditSeverity(level.lower())
+            resource=resource or "unknown",
+            user=user,
+            service=service,
+            details=details or {}
         )
-        
         return {"status": "success", "message": "Log created"}
+    except HTTPException:
+        raise
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
 
@@ -331,27 +436,28 @@ async def query_logs(
     service: Optional[str] = None,
     user: Optional[str] = None
 ):
-    """查询日志（兼容旧版本）"""
     try:
-        # 构建过滤器
         filter_kwargs = {
             "limit": page_size,
             "offset": (page - 1) * page_size,
             "order_by": "timestamp",
             "order_desc": True
         }
-        
+
         if level:
-            filter_kwargs["severities"] = [AuditSeverity(level.lower())]
+            mapped = _normalize_severity(level)
+            try:
+                filter_kwargs["severities"] = [AuditSeverity(mapped)]
+            except ValueError:
+                pass
         if user:
             filter_kwargs["actor_ids"] = [user]
-        
+
         audit_filter = AuditFilter(**filter_kwargs)
-        
-        # 查询事件
-        events = await audit_logger.query(audit_filter)
-        
-        # 转换为旧格式
+
+        channel = _get_channel()
+        events = await channel.query(audit_filter)
+
         logs = []
         for event in events:
             logs.append({
@@ -365,12 +471,16 @@ async def query_logs(
                 "user": event.actor.actor_id,
                 "resource": event.resource.resource_id
             })
-        
+
+        total_count = _get_total_count(channel, filter_kwargs)
+
         return {
-            "total": len(logs),
+            "total": total_count,
             "page": page,
             "page_size": page_size,
             "items": logs
         }
+    except HTTPException:
+        raise
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))

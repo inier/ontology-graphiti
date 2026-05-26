@@ -1,19 +1,38 @@
 import type { Agent, AgentFormData, AgentRefOption } from '../types';
 
-const API_BASE = import.meta.env.VITE_API_BASE || 'http://localhost:8000';
+const API_BASE = import.meta.env.VITE_API_BASE || '';
 
 async function fetchJson<T>(url: string, options?: RequestInit): Promise<T> {
-  const res = await fetch(url, { headers: { 'Content-Type': 'application/json' }, ...options });
+  const token = localStorage.getItem('token');
+  const authHeaders: Record<string, string> = { 'Content-Type': 'application/json' };
+  if (token) authHeaders['Authorization'] = `Bearer ${token}`;
+  const mergedOptions: RequestInit = { ...options, headers: { ...authHeaders, ...(options?.headers as Record<string, string>) } };
+  const res = await fetch(url, mergedOptions);
+  if (res.status === 401 || res.status === 403) {
+    localStorage.removeItem('token');
+    localStorage.removeItem('refresh_token');
+    localStorage.removeItem('user');
+    window.location.href = '/login';
+    throw new Error('登录已过期，请重新登录');
+  }
   if (!res.ok) throw new Error(`HTTP ${res.status}`);
   return res.json();
 }
 
 export const agentApi = {
-  listAgents: (): Promise<Agent[]> =>
-    fetchJson<Agent[]>(`${API_BASE}/api/agents`),
+  listAgents: (params?: { workspaceId?: string; roleId?: string }): Promise<Agent[]> => {
+    const qs = new URLSearchParams();
+    if (params?.roleId) qs.set('role_id', params.roleId);
+    if (params?.workspaceId) qs.set('workspace_id', params.workspaceId);
+    const query = qs.toString();
+    return fetchJson<Agent[]>(`${API_BASE}/api/agents${query ? `?${query}` : ''}`);
+  },
 
-  listAgentsByRole: (roleId: string): Promise<Agent[]> =>
-    fetchJson<Agent[]>(`${API_BASE}/api/agents?role_id=${roleId}`),
+  listAgentsByRole: (roleId: string, workspaceId?: string): Promise<Agent[]> => {
+    const qs = new URLSearchParams({ role_id: roleId });
+    if (workspaceId) qs.set('workspace_id', workspaceId);
+    return fetchJson<Agent[]>(`${API_BASE}/api/agents?${qs.toString()}`);
+  },
 
   getAgent: (id: string): Promise<Agent> =>
     fetchJson<Agent>(`${API_BASE}/api/agents/${id}`),
@@ -30,10 +49,14 @@ export const agentApi = {
       body: JSON.stringify(data),
     }),
 
-  deleteAgent: (id: string): Promise<void> =>
-    fetch(`${API_BASE}/api/agents/${id}`, { method: 'DELETE' }).then(r => {
+  deleteAgent: (id: string): Promise<void> => {
+    const token = localStorage.getItem('token');
+    const headers: Record<string, string> = {};
+    if (token) headers['Authorization'] = `Bearer ${token}`;
+    return fetch(`${API_BASE}/api/agents/${id}`, { method: 'DELETE', headers }).then(r => {
       if (!r.ok) throw new Error(`HTTP ${r.status}`);
-    }),
+    });
+  },
 
   // 关联选项查询
   getEntityOptions: (): Promise<AgentRefOption[]> =>

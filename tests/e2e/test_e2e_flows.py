@@ -7,16 +7,16 @@ from unittest.mock import MagicMock, patch, AsyncMock
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 from fastapi.testclient import TestClient
-from app.main import app
+from odap.web.app import app
 
 client = TestClient(app)
 
 
 @pytest.fixture(autouse=True)
 def _mock_external_services():
-    with patch("odap.biz.frontend_compat.api.routes.scenario_store", MagicMock()):
-        with patch("odap.biz.frontend_compat.api.routes.workspace_service", MagicMock()):
-            with patch("odap.biz.ontology.api.routes.ingest_service", MagicMock()) as mock_ingest:
+    with patch("odap.biz.integration.frontend_compat.api.routes.scenario_store", MagicMock()):
+        with patch("odap.biz.integration.frontend_compat.api.routes.workspace_service", MagicMock()):
+            with patch("odap.biz.core.ontology.api.routes.ingest_service", MagicMock()) as mock_ingest:
                 mock_ingest.ingest_from_natural_language = AsyncMock(
                     return_value="ingest-nl-001"
                 )
@@ -56,7 +56,7 @@ def _mock_external_services():
                 mock_ingest.get_ingest_history = MagicMock(return_value=[])
                 mock_ingest.get_ontology_documents = MagicMock(return_value=[])
                 with patch(
-                    "odap.biz.frontend_compat.api.routes.get_qa_engine"
+                    "odap.biz.integration.frontend_compat.api.routes.get_qa_engine"
                 ) as mock_qa_engine:
                     mock_engine = MagicMock()
                     mock_engine.ask = MagicMock(
@@ -87,7 +87,7 @@ def _mock_external_services():
                     mock_engine.dialog_manager._sessions = {}
                     mock_qa_engine.return_value = mock_engine
                     with patch(
-                        "odap.biz.workspace.api.routes.workspace_service"
+                        "odap.biz.platform.workspace.api.routes.workspace_service"
                     ) as mock_ws_svc:
                         mock_ws_svc.create_workspace = MagicMock(
                             side_effect=lambda **kw: {

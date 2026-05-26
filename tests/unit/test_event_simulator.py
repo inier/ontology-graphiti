@@ -6,8 +6,8 @@ from datetime import datetime, timedelta
 
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), '..', '..', '..'))
 
-from odap.biz.event_simulator.services.simulator_service import EventSimulatorService
-from odap.biz.event_simulator.models.event import EventTemplate, GeneratedEvent, TimeControl
+from odap.biz.simulation.event_simulator.services.simulator_service import EventSimulatorService
+from odap.biz.simulation.event_simulator.models.event import EventTemplate, GeneratedEvent, TimeControl
 
 
 class TestCreateTemplate:

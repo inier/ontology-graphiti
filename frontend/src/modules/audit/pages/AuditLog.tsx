@@ -97,6 +97,7 @@ export function AuditLog() {
   const getSeverityColor = (severity: string) => {
     const colorMap: Record<string, string> = {
       info: 'blue',
+      warn: 'orange',
       warning: 'orange',
       error: 'red',
       critical: 'purple',
@@ -118,21 +119,21 @@ export function AuditLog() {
       title: '时间',
       dataIndex: 'timestamp',
       key: 'timestamp',
-      width: 180,
+      width: 170,
       render: (timestamp: string) => dayjs(timestamp).format('YYYY-MM-DD HH:mm:ss'),
     },
     {
       title: '事件类型',
       dataIndex: 'event_type',
       key: 'event_type',
-      width: 150,
+      width: 130,
       render: (type: string) => <Tag color="blue">{type}</Tag>,
     },
     {
       title: '严重程度',
       dataIndex: 'severity',
       key: 'severity',
-      width: 100,
+      width: 90,
       render: (severity: string) => (
         <Tag color={getSeverityColor(severity)}>{severity.toUpperCase()}</Tag>
       ),
@@ -141,31 +142,28 @@ export function AuditLog() {
       title: '操作者',
       dataIndex: 'actor_name',
       key: 'actor_name',
-      width: 120,
+      width: 100,
+      ellipsis: true,
     },
     {
       title: '动作',
       dataIndex: 'action',
       key: 'action',
+      width: 140,
+      ellipsis: true,
     },
     {
-      title: '资源类型',
-      dataIndex: 'resource_type',
-      key: 'resource_type',
-      width: 100,
-    },
-    {
-      title: '资源ID',
+      title: '资源',
       dataIndex: 'resource_id',
       key: 'resource_id',
-      width: 120,
+      width: 200,
       ellipsis: true,
     },
     {
       title: '状态',
       dataIndex: 'result_status',
       key: 'result_status',
-      width: 100,
+      width: 80,
       render: (status: string) => (
         <Tag color={getStatusColor(status)}>{status}</Tag>
       ),
@@ -174,25 +172,29 @@ export function AuditLog() {
       title: '追踪ID',
       dataIndex: 'trace_id',
       key: 'trace_id',
-      width: 120,
+      width: 130,
       ellipsis: true,
     },
   ];
 
   const eventTypeOptions = [
-    { value: 'system.startup', label: '系统启动' },
-    { value: 'system.shutdown', label: '系统关闭' },
-    { value: 'system.action', label: '系统操作' },
     { value: 'user.login', label: '用户登录' },
     { value: 'user.logout', label: '用户登出' },
     { value: 'workspace.create', label: '创建工作空间' },
-    { value: 'workspace.update', label: '更新工作空间' },
+    { value: 'workspace.switch', label: '切换工作空间' },
     { value: 'workspace.delete', label: '删除工作空间' },
+    { value: 'ontology.create', label: '创建本体' },
+    { value: 'data.ingest', label: '数据摄入' },
+    { value: 'query.execute', label: '查询执行' },
+    { value: 'system.health', label: '系统健康' },
+    { value: 'system.error', label: '系统错误' },
+    { value: 'skill.execute', label: '技能执行' },
+    { value: 'agent.execute', label: 'Agent 执行' },
   ];
 
   const severityOptions = [
     { value: 'info', label: '信息' },
-    { value: 'warning', label: '警告' },
+    { value: 'warn', label: '警告' },
     { value: 'error', label: '错误' },
     { value: 'critical', label: '严重' },
   ];
@@ -267,6 +269,7 @@ export function AuditLog() {
           dataSource={events}
           rowKey="id"
           loading={loading}
+          scroll={{ x: 1040 }}
           pagination={{
             current: pagination.current,
             pageSize: pagination.pageSize,

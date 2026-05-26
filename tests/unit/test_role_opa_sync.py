@@ -5,7 +5,7 @@ from unittest.mock import MagicMock, patch
 
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), '..', '..', '..'))
 
-from odap.biz.roles.opa_sync import RoleOPASync
+from odap.biz.platform.roles.opa_sync import RoleOPASync
 
 
 @pytest.fixture

@@ -4,7 +4,7 @@ import os
 
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), '..', '..', '..'))
 
-from odap.biz.knowledge_base.storage.sqlite_kb_storage import SQLiteKnowledgeBaseStorage
+from odap.biz.data.knowledge_base.storage.sqlite_kb_storage import SQLiteKnowledgeBaseStorage
 
 
 @pytest.fixture

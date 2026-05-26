@@ -33,7 +33,7 @@ def process_ingest_task(task_id, ingest_type, data, scenario_id=None):
             result['url'] = data.get('url', '')
             
             if data.get('url') and scenario_id:
-                from odap.utils.web_scraper import WebScraper
+                from odap.infra.utils.web_scraper import WebScraper
                 scraper = WebScraper()
                 news_data = scraper.scrape_news(data.get('url'))
                 
@@ -50,7 +50,7 @@ def process_ingest_task(task_id, ingest_type, data, scenario_id=None):
             result['generated_count'] = data.get('count', 10)
             
             if scenario_id:
-                from odap.utils.data_generator import DataGenerator
+                from odap.infra.utils.data_generator import DataGenerator
                 gen = DataGenerator()
                 sample_data = gen.generate_sample_data(data.get('count', 10))
                 _save_to_scenario(scenario_id, 'random', sample_data)
@@ -82,7 +82,7 @@ def process_ingest_task(task_id, ingest_type, data, scenario_id=None):
 def _save_to_scenario(scenario_id: str, doc_type: str, data: Dict[str, Any]):
     """保存数据到场景"""
     try:
-        from odap.biz.workspace.storage import Storage
+        from odap.biz.platform.workspace.storage import Storage
         storage = Storage()
         
         doc = {

@@ -350,7 +350,7 @@ export function KnowledgeBase() {
               <div>{record.title}</div>
               {record.keywords?.length > 0 && (
                 <Space size={4} style={{ marginTop: 4 }}>
-                  {record.keywords.slice(0, 3).map(k => <Tag key={k} size="small">{k}</Tag>)}
+                  {record.keywords.slice(0, 3).map(k => <Tag key={k}>{k}</Tag>)}
                 </Space>
               )}
             </div>
@@ -484,7 +484,7 @@ export function KnowledgeBase() {
                 <Dragger
                   beforeUpload={(file) => { setUploadFile(file); return false; }}
                   maxCount={1}
-                  fileList={uploadFile ? [{ uid: '-1', name: uploadFile.name, status: 'done', originFileObj: uploadFile }] : []}
+                  fileList={uploadFile ? [{ uid: '-1', name: uploadFile.name, status: 'done', originFileObj: uploadFile as any }] : []}
                   onRemove={() => setUploadFile(null)}
                 >
                   <p className="ant-upload-drag-icon"><InboxOutlined /></p>

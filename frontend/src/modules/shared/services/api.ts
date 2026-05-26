@@ -50,6 +50,7 @@ export interface AuditEvent {
   result_message: string;
   workspace_id: string;
   trace_id: string;
+  duration_ms?: number | null;
   context?: Record<string, unknown>;
 }
 
@@ -71,13 +72,18 @@ function safeCastArray<T>(arr: unknown, validator: (item: unknown) => boolean): 
 }
 
 async function fetchJson<T>(url: string, options?: RequestInit): Promise<T> {
-  const response = await fetch(url, {
-    ...options,
-    headers: {
-      'Content-Type': 'application/json',
-      ...options?.headers,
-    },
-  });
+  const token = localStorage.getItem('token');
+  const authHeaders: Record<string, string> = { 'Content-Type': 'application/json' };
+  if (token) authHeaders['Authorization'] = `Bearer ${token}`;
+  const mergedOptions: RequestInit = { ...options, headers: { ...authHeaders, ...(options?.headers as Record<string, string>) } };
+  const response = await fetch(url, mergedOptions);
+  if (response.status === 401 || response.status === 403) {
+    localStorage.removeItem('token');
+    localStorage.removeItem('refresh_token');
+    localStorage.removeItem('user');
+    window.location.href = '/login';
+    throw new Error('登录已过期，请重新登录');
+  }
   if (!response.ok) {
     throw new Error(`HTTP ${response.status}: ${response.statusText}`);
   }
@@ -708,9 +714,12 @@ export const api = {
     const searchParams = new URLSearchParams();
     if (params?.start_time) searchParams.set('start_time', params.start_time);
     if (params?.end_time) searchParams.set('end_time', params.end_time);
-    if (params?.event_type) searchParams.set('event_type', params.event_type);
-    if (params?.severity) searchParams.set('severity', params.severity);
-    if (params?.actor_id) searchParams.set('actor_id', params.actor_id);
+    if (params?.event_type) searchParams.append('event_types', params.event_type);
+    if (params?.severity) {
+      const sev = params.severity === 'warning' ? 'warn' : params.severity;
+      searchParams.append('severities', sev);
+    }
+    if (params?.actor_id) searchParams.append('actor_ids', params.actor_id);
     if (params?.limit) searchParams.set('limit', String(params.limit));
     if (params?.offset) searchParams.set('offset', String(params.offset));
     
@@ -910,6 +919,22 @@ export const api = {
     return fetchJson(`${API_BASE}/api/workspaces/${workspaceId}/scenarios/${scenarioId}/switch-version`, {
       method: 'POST',
       body: JSON.stringify({ version_id: versionId }),
+    });
+  },
+
+  async commitScenarioOntologyVersion(workspaceId: string, scenarioId: string, commitMessage: string = ''): Promise<{
+    version_id: string;
+    ontology_id: string;
+    commit_message: string;
+    created_at: string;
+    entity_count: number;
+    relation_count: number;
+    event_count: number;
+  }> {
+    const params = new URLSearchParams();
+    if (commitMessage) params.set('message', commitMessage);
+    return fetchJson(`${API_BASE}/api/workspaces/${workspaceId}/scenarios/${scenarioId}/commit-version?${params.toString()}`, {
+      method: 'POST',
     });
   },
 
@@ -1670,6 +1695,195 @@ export const api = {
     return fetchJson(`${API_BASE}/api/ontology/oms/object-types/${typeId}/actions/${actionTypeId}`, { method: 'DELETE' });
   },
 
+  // ==================== 语义地图 API ====================
+
+  async createSemanticMap(data: {
+    name: string;
+    description?: string;
+    ontology_version_id: string;
+    ontology_id: string;
+    scenario_id?: string;
+    created_by?: string;
+    generation_config?: Record<string, unknown>;
+  }): Promise<{
+    id: string;
+    name: string;
+    status: string;
+    objects: Array<{
+      object_id: string;
+      entity_id: string;
+      object_type: string;
+      name: string;
+      name_en: string;
+      aliases: string[];
+      properties: Record<string, unknown>;
+      type_definition_id: string | null;
+      type_definition_name: string | null;
+      relation_ids: string[];
+      cluster: string | null;
+      confidence: number;
+    }>;
+    relations: Array<{
+      relation_id: string;
+      source_object_id: string;
+      target_object_id: string;
+      relation_type: string;
+      display_name: string;
+      properties: Record<string, unknown>;
+      is_bidirectional: boolean;
+    }>;
+    clusters: Array<{
+      cluster_id: string;
+      cluster_name: string;
+      cluster_type: string;
+      object_ids: string[];
+      properties: Record<string, unknown>;
+    }>;
+    statistics: {
+      total_objects: number;
+      total_relations: number;
+      total_clusters: number;
+      objects_by_type: Record<string, number>;
+      relations_by_type: Record<string, number>;
+      avg_relations_per_object: number;
+      coverage_score: number;
+    };
+    created_at: string;
+  }> {
+    return fetchJson(`${API_BASE}/api/semantic-map`, {
+      method: 'POST',
+      body: JSON.stringify(data),
+    });
+  },
+
+  async listSemanticMaps(params?: {
+    ontology_version_id?: string;
+    ontology_id?: string;
+    scenario_id?: string;
+    limit?: number;
+  }): Promise<{
+    semantic_maps: Array<{
+      id: string;
+      name: string;
+      description: string;
+      ontology_version_id: string;
+      ontology_id: string;
+      scenario_id: string | null;
+      status: string;
+      total_objects: number;
+      total_relations: number;
+      total_clusters: number;
+      created_at: string;
+      created_by: string;
+    }>;
+    total: number;
+  }> {
+    const searchParams = new URLSearchParams();
+    if (params?.ontology_version_id) searchParams.set('ontology_version_id', params.ontology_version_id);
+    if (params?.ontology_id) searchParams.set('ontology_id', params.ontology_id);
+    if (params?.scenario_id) searchParams.set('scenario_id', params.scenario_id);
+    if (params?.limit) searchParams.set('limit', String(params.limit));
+    const qs = searchParams.toString();
+    return fetchJson(`${API_BASE}/api/semantic-map${qs ? '?' + qs : ''}`);
+  },
+
+  async getSemanticMap(mapId: string): Promise<{
+    id: string;
+    name: string;
+    description: string;
+    ontology_version_id: string;
+    ontology_id: string;
+    scenario_id: string | null;
+    status: string;
+    objects: Array<{
+      object_id: string;
+      entity_id: string;
+      object_type: string;
+      name: string;
+      name_en: string;
+      aliases: string[];
+      properties: Record<string, unknown>;
+      type_definition_id: string | null;
+      type_definition_name: string | null;
+      relation_ids: string[];
+      cluster: string | null;
+      confidence: number;
+    }>;
+    relations: Array<{
+      relation_id: string;
+      source_object_id: string;
+      target_object_id: string;
+      relation_type: string;
+      display_name: string;
+      properties: Record<string, unknown>;
+      is_bidirectional: boolean;
+    }>;
+    clusters: Array<{
+      cluster_id: string;
+      cluster_name: string;
+      cluster_type: string;
+      object_ids: string[];
+      properties: Record<string, unknown>;
+    }>;
+    statistics: {
+      total_objects: number;
+      total_relations: number;
+      total_clusters: number;
+      objects_by_type: Record<string, number>;
+      relations_by_type: Record<string, number>;
+      avg_relations_per_object: number;
+      coverage_score: number;
+    };
+    error_message: string | null;
+    created_at: string;
+    created_by: string;
+  }> {
+    return fetchJson(`${API_BASE}/api/semantic-map/${mapId}`);
+  },
+
+  async getSemanticMapGraph(mapId: string): Promise<{
+    nodes: Array<{
+      id: string;
+      entity_id: string;
+      name: string;
+      type: string;
+      cluster: string | null;
+      properties: Record<string, unknown>;
+      type_definition_id: string | null;
+      type_definition_name: string | null;
+    }>;
+    edges: Array<{
+      id: string;
+      source: string;
+      target: string;
+      type: string;
+      display_name: string;
+      properties: Record<string, unknown>;
+    }>;
+    clusters: Array<{
+      cluster_id: string;
+      cluster_name: string;
+      cluster_type: string;
+      object_ids: string[];
+      properties: Record<string, unknown>;
+    }>;
+    statistics: Record<string, unknown>;
+  }> {
+    return fetchJson(`${API_BASE}/api/semantic-map/${mapId}/graph`);
+  },
+
+  async regenerateSemanticMap(mapId: string): Promise<any> {
+    return fetchJson(`${API_BASE}/api/semantic-map/${mapId}/regenerate`, {
+      method: 'POST',
+    });
+  },
+
+  async deleteSemanticMap(mapId: string): Promise<{ status: string; message: string }> {
+    return fetchJson(`${API_BASE}/api/semantic-map/${mapId}`, {
+      method: 'DELETE',
+    });
+  },
+
   // ==================== OSv2 对象服务 ====================
 
   async queryObjects(query: {
@@ -1754,7 +1968,7 @@ export const api = {
     });
   },
 
-  async ingestManual(content: string, sourceType = 'manual', metadata?: any): Promise<any> {
+  async ingestManualV2(content: string, sourceType = 'manual', metadata?: any): Promise<any> {
     return fetchJson(`${API_BASE}/api/perception/ingest/manual`, {
       method: 'POST',
       body: JSON.stringify({ content, source_type: sourceType, metadata }),
@@ -1824,6 +2038,74 @@ export const api = {
     return fetchJson(`${API_BASE}/api/simulation/whatif/compare`, {
       method: 'POST',
       body: JSON.stringify(scenarios),
+    });
+  },
+
+  async createDeductionScenario(data: {
+    name: string; description?: string; source_recommendation_id?: string;
+    source_analysis_id?: string; target_object_id?: string; target_object_type?: string;
+  }): Promise<any> {
+    return fetchJson(`${API_BASE}/api/simulation/deduction/scenarios`, {
+      method: 'POST', body: JSON.stringify(data),
+    });
+  },
+
+  async listDeductionScenarios(params?: { page?: number; page_size?: number; status?: string; name?: string; target_object_type?: string }): Promise<any> {
+    const query = new URLSearchParams();
+    if (params?.page) query.set('page', String(params.page));
+    if (params?.page_size) query.set('page_size', String(params.page_size));
+    if (params?.status) query.set('status', params.status);
+    if (params?.name) query.set('name', params.name);
+    if (params?.target_object_type) query.set('target_object_type', params.target_object_type);
+    const qs = query.toString();
+    return fetchJson(`${API_BASE}/api/simulation/deduction/scenarios${qs ? '?' + qs : ''}`);
+  },
+
+  async getDeductionScenario(scenarioId: string): Promise<any> {
+    return fetchJson(`${API_BASE}/api/simulation/deduction/scenarios/${scenarioId}`);
+  },
+
+  async deleteDeductionScenario(scenarioId: string): Promise<any> {
+    return fetchJson(`${API_BASE}/api/simulation/deduction/scenarios/${scenarioId}`, {
+      method: 'DELETE',
+    });
+  },
+
+  async loadDeductionConditions(scenarioId: string): Promise<any> {
+    return fetchJson(`${API_BASE}/api/simulation/deduction/scenarios/${scenarioId}/conditions`, {
+      method: 'POST',
+    });
+  },
+
+  async updateDeductionCondition(scenarioId: string, conditionId: string, value: any): Promise<any> {
+    return fetchJson(`${API_BASE}/api/simulation/deduction/scenarios/${scenarioId}/conditions/${conditionId}`, {
+      method: 'PUT', body: JSON.stringify({ value }),
+    });
+  },
+
+  async addDeductionChain(scenarioId: string, data: {
+    name: string; description?: string; steps: any[]; conditions?: any[];
+  }): Promise<any> {
+    return fetchJson(`${API_BASE}/api/simulation/deduction/scenarios/${scenarioId}/chains`, {
+      method: 'POST', body: JSON.stringify(data),
+    });
+  },
+
+  async simulateDeductionChain(scenarioId: string, chainId: string): Promise<any> {
+    return fetchJson(`${API_BASE}/api/simulation/deduction/scenarios/${scenarioId}/chains/${chainId}/simulate`, {
+      method: 'POST',
+    });
+  },
+
+  async simulateAllDeductionChains(scenarioId: string): Promise<any> {
+    return fetchJson(`${API_BASE}/api/simulation/deduction/scenarios/${scenarioId}/simulate-all`, {
+      method: 'POST',
+    });
+  },
+
+  async compareDeductionChains(scenarioId: string, chainIds: string[]): Promise<any> {
+    return fetchJson(`${API_BASE}/api/simulation/deduction/scenarios/${scenarioId}/compare`, {
+      method: 'POST', body: JSON.stringify({ chain_ids: chainIds }),
     });
   },
 };

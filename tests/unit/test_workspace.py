@@ -5,10 +5,10 @@ from unittest.mock import MagicMock, patch
 
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), '..', '..', '..'))
 
-from odap.biz.workspace.impl.workspace import WorkspaceManager
-from odap.biz.workspace.impl.isolation import IsolationManager
-from odap.biz.workspace.models.workspace import Workspace, WorkspaceStatus, WorkspaceType, WorkspaceConfig
-from odap.biz.workspace.models.isolation import IsolationLevel, ResourceQuota, NetworkPolicy
+from odap.biz.platform.workspace.impl.workspace import WorkspaceManager
+from odap.biz.platform.workspace.impl.isolation import IsolationManager
+from odap.biz.platform.workspace.models.workspace import Workspace, WorkspaceStatus, WorkspaceType, WorkspaceConfig
+from odap.biz.platform.workspace.models.isolation import IsolationLevel, ResourceQuota, NetworkPolicy
 
 
 @pytest.fixture
@@ -26,7 +26,7 @@ def mock_storage():
 
 @pytest.fixture
 def workspace_manager(mock_storage):
-    with patch('odap.biz.workspace.impl.workspace.Storage') as MockStorage:
+    with patch('odap.biz.platform.workspace.impl.workspace.Storage') as MockStorage:
         MockStorage.return_value = mock_storage
         manager = WorkspaceManager()
     return manager
@@ -34,7 +34,7 @@ def workspace_manager(mock_storage):
 
 @pytest.fixture
 def isolation_manager(mock_storage):
-    with patch('odap.biz.workspace.impl.isolation.Storage') as MockStorage:
+    with patch('odap.biz.platform.workspace.impl.isolation.Storage') as MockStorage:
         MockStorage.return_value = mock_storage
         manager = IsolationManager()
     return manager

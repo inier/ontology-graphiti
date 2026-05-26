@@ -4,10 +4,10 @@ import os
 
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), '..', '..', '..'))
 
-from odap.biz.data_warehouse.query_service import (
+from odap.biz.data.data_warehouse.query_service import (
     QueryService, SimulatedWarehouse, SQLParser, QueryPlanner, ResultAggregator,
 )
-from odap.biz.data_warehouse.models import QueryRequest, QueryPlan, SortOrder
+from odap.biz.data.data_warehouse.models import QueryRequest, QueryPlan, SortOrder
 
 
 @pytest.fixture

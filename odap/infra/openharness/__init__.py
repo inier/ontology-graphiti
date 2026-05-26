@@ -13,3 +13,5 @@ __all__ = [
     'create_harness',
     'export_tool_schemas'
 ]
+
+from .query_guard_hook import QueryServiceWriteGuard, QueryServiceToolRegistry

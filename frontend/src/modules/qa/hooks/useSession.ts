@@ -1,7 +1,8 @@
 import React, { useState, useCallback } from 'react';
 import { message } from 'antd';
 
-const API_BASE = 'http://localhost:8000/api/qa';
+const API_BASE_URL = import.meta.env.VITE_API_BASE || '';
+const API_BASE = `${API_BASE_URL}/api/qa`;
 
 export interface Session {
   session_id: string;

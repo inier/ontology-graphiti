@@ -1,13 +1,9 @@
 #!/usr/bin/env python3
 """调试科技事件生成器"""
 
-import sys
-import os
 import traceback
 
-sys.path.insert(0, os.path.join(os.path.dirname(__file__), 'odap'))
-
-from biz.ontology.ingestion import TechEventGenerator
+from odap.biz.core.ontology.ingestion import TechEventGenerator
 import asyncio
 
 

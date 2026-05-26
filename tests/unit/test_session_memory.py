@@ -5,10 +5,10 @@ import asyncio
 
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), '..', '..', '..'))
 
-from odap.biz.session_memory.context_window import ContextWindow, ChatMessage, MessageRole
-from odap.biz.session_memory.memory_compactor import MemoryCompactor
-from odap.biz.session_memory.cot_builder import CoTBuilder, CoTNodeType
-from odap.biz.session_memory.session_store import SessionStore, Session
+from odap.biz.platform.session_memory.context_window import ContextWindow, ChatMessage, MessageRole
+from odap.biz.platform.session_memory.memory_compactor import MemoryCompactor
+from odap.biz.platform.session_memory.cot_builder import CoTBuilder, CoTNodeType
+from odap.biz.platform.session_memory.session_store import SessionStore, Session
 
 
 class TestContextWindow:
@@ -87,7 +87,7 @@ class TestMemoryCompactor:
             cw.add_message(ChatMessage(role=MessageRole.USER, content=f"Message {i}", tokens=100))
 
         compactor = MemoryCompactor()
-        compacted = asyncio.get_event_loop().run_until_complete(compactor.compact(cw))
+        compacted = asyncio.run(compactor.compact(cw))
         assert len(compacted.messages) == 4
         assert compacted.summary != ""
 
@@ -95,7 +95,7 @@ class TestMemoryCompactor:
         cw = ContextWindow(max_tokens=10000)
         cw.add_message(ChatMessage(role=MessageRole.USER, content="Hello", tokens=50))
         compactor = MemoryCompactor()
-        compacted = asyncio.get_event_loop().run_until_complete(compactor.compact(cw))
+        compacted = asyncio.run(compactor.compact(cw))
         assert len(compacted.messages) == 1
 
 

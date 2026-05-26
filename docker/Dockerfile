@@ -2,53 +2,32 @@ FROM localhost/python:3.10-slim
 
 WORKDIR /app
 
-# 设置 Python 生产环境变量
 ENV PYTHONDONTWRITEBYTECODE 1
 ENV PYTHONUNBUFFERED 1
 ENV ENVIRONMENT production
 
-# 使用国内镜像源
 RUN pip config set global.index-url https://pypi.tuna.tsinghua.edu.cn/simple
 
-# 安装系统依赖
 RUN apt-get update && apt-get install -y --no-install-recommends \
     gcc \
     g++ \
     && rm -rf /var/lib/apt/lists/*
 
-# 先复制依赖文件，利用 Docker 缓存
 COPY requirements.txt ./
-COPY openharness/pyproject.toml ./openharness/pyproject.toml
 
-# 安装依赖（缓存友好）
-RUN pip install --no-cache-dir \
-    uvicorn[standard] \
-    fastapi \
-    pydantic \
-    pymongo \
-    networkx \
-    python-dateutil \
-    httpx \
-    starlette \
-    python-multipart \
-    neo4j \
-    redis \
-    python-jose[cryptography] \
-    jsonpickle \
-    opa-python \
-    celery \
-    || true
+RUN pip install --no-cache-dir fastapi pydantic uvicorn[standard] httpx starlette python-multipart || echo "WARNING: core web packages install had issues"
+RUN pip install --no-cache-dir neo4j networkx redis python-dateutil || echo "WARNING: data packages install had issues"
+RUN pip install --no-cache-dir python-jose[cryptography] jsonpickle opa-python celery || echo "WARNING: infra packages install had issues"
+RUN pip install --no-cache-dir openai pyyaml aiohttp || echo "WARNING: util packages install had issues"
 
-RUN pip install --no-cache-dir -r requirements.txt || true
-RUN pip install --no-cache-dir -e ./openharness || true
+RUN pip install --no-cache-dir graphiti-core || echo "WARNING: graphiti-core install failed, falling back to Neo4j Driver mode"
 
-# 最后复制代码（代码变化不影响依赖缓存）
 COPY . .
 
-# 创建必要的目录
+RUN pip install --no-cache-dir -e ./openharness || echo "WARNING: openharness install failed, using mock mode"
+
 RUN mkdir -p /app/data
 
 EXPOSE 8000
 
-# 生产环境使用多个 worker
-CMD ["python", "-m", "uvicorn", "app.main:app", "--host", "0.0.0.0", "--port", "8000", "--workers", "4"]
+CMD ["python", "-m", "uvicorn", "odap.web.app:app", "--host", "0.0.0.0", "--port", "8000", "--workers", "4"]

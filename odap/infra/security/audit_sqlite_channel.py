@@ -111,19 +111,19 @@ class SQLiteAuditChannel(AuditChannel):
         Args:
             event: 审计事件对象
         """
-        # 计算校验和
+        self.write_sync(event)
+    
+    def write_sync(self, event: AuditEvent) -> None:
+        """同步写入单个事件"""
         event_dict = event.model_dump()
         event_dict['checksum'] = self._compute_checksum(event)
-        
-        # 添加到缓冲区
         self.batch_buffer.append(event_dict)
         
-        # 检查是否需要刷新
         current_time = datetime.now()
         time_since_flush = (current_time - self.last_flush_time).total_seconds()
         
         if len(self.batch_buffer) >= self.batch_size or time_since_flush >= self.flush_interval:
-            await self.flush()
+            self.flush_sync()
     
     async def write_batch(self, events: List[AuditEvent]) -> None:
         """批量写入事件
@@ -137,6 +137,10 @@ class SQLiteAuditChannel(AuditChannel):
     
     async def flush(self):
         """刷新缓冲区到数据库"""
+        self.flush_sync()
+    
+    def flush_sync(self):
+        """同步刷新缓冲区到数据库"""
         if not self.batch_buffer:
             return
         
@@ -197,6 +201,8 @@ class SQLiteAuditChannel(AuditChannel):
         Returns:
             List[AuditEvent]: 查询结果
         """
+        await self.flush()
+
         conn = sqlite3.connect(self.db_path)
         conn.row_factory = sqlite3.Row
         cursor = conn.cursor()
@@ -350,6 +356,16 @@ class SQLiteAuditChannel(AuditChannel):
         Returns:
             Dict: 统计信息
         """
+        import asyncio
+        try:
+            loop = asyncio.get_running_loop()
+            loop.create_task(self.flush())
+        except RuntimeError:
+            try:
+                asyncio.run(self.flush())
+            except Exception:
+                pass
+
         conn = sqlite3.connect(self.db_path)
         cursor = conn.cursor()
         

@@ -94,7 +94,7 @@ class AuthService:
         self._init_default_users()
 
     def _init_default_users(self):
-        admin_hash = self._hash_password("admin123") if BCRYPT_AVAILABLE else "admin123"
+        admin_hash = self._hash_password("admin123")
         self._users["admin"] = {
             "id": str(uuid.uuid4()),
             "username": "admin",
@@ -256,6 +256,51 @@ class AuthService:
             "is_active": True,
         }
         return UserInfo(id=uid, username=username, email=email, global_role=role)
+
+    def list_users(self) -> list[dict]:
+        return [
+            {
+                "id": u["id"],
+                "username": u["username"],
+                "email": u.get("email", ""),
+                "global_role": u.get("global_role", "observer"),
+                "auth_provider": u.get("auth_provider", "local"),
+                "is_active": u.get("is_active", True),
+            }
+            for u in self._users.values()
+        ]
+
+    def update_user(self, user_id: str, **kwargs) -> Optional[dict]:
+        for u in self._users.values():
+            if u["id"] == user_id:
+                if "email" in kwargs and kwargs["email"] is not None:
+                    u["email"] = kwargs["email"]
+                if "global_role" in kwargs and kwargs["global_role"] is not None:
+                    u["global_role"] = kwargs["global_role"]
+                if "is_active" in kwargs and kwargs["is_active"] is not None:
+                    u["is_active"] = kwargs["is_active"]
+                if "password" in kwargs and kwargs["password"]:
+                    u["password_hash"] = self._hash_password(kwargs["password"])
+                return {
+                    "id": u["id"],
+                    "username": u["username"],
+                    "email": u.get("email", ""),
+                    "global_role": u.get("global_role", "observer"),
+                    "auth_provider": u.get("auth_provider", "local"),
+                    "is_active": u.get("is_active", True),
+                }
+        return None
+
+    def delete_user(self, user_id: str) -> bool:
+        to_delete = None
+        for username, u in self._users.items():
+            if u["id"] == user_id:
+                to_delete = username
+                break
+        if to_delete:
+            del self._users[to_delete]
+            return True
+        return False
 
     def create_api_key(self, user_id: str, name: str, scopes: list[str] = None) -> Optional[APIKeyRecord]:
         raw_key = f"odap_{uuid.uuid4().hex}"

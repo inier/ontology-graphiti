@@ -1,8 +1,8 @@
 import pytest
 from unittest.mock import AsyncMock, MagicMock, patch, PropertyMock
 
-from odap.biz.perception.hub import PerceptionHub
-from odap.biz.perception.schemas import (
+from odap.biz.data.perception.hub import PerceptionHub
+from odap.biz.data.perception.schemas import (
     PerceptionEvent,
     PerceptionOutput,
     ExtractionResult,
@@ -10,7 +10,7 @@ from odap.biz.perception.schemas import (
     PerceptionStatus,
     PerceptionPriority,
 )
-from odap.biz.perception.observers.base_observers import (
+from odap.biz.data.perception.observers.base_observers import (
     BaseObserver,
     MCPObserver,
     FileObserver,

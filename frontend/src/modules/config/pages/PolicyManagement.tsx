@@ -31,7 +31,7 @@ import {
   SafetyCertificateOutlined,
   CodeOutlined,
 } from '@ant-design/icons';
-import { apiService } from '@/modules/shared/services/api';
+import { apiService } from '../../shared/services/api';
 import type { ColumnsType } from 'antd/es/table';
 
 const { TextArea } = Input;
@@ -387,19 +387,19 @@ const PolicyManagement: React.FC = () => {
             <Descriptions.Item label="描述" span={2}>{detailData.description as string}</Descriptions.Item>
           </Descriptions>
         )}
-        {detailData?.markdown_content && (
+        {Boolean(detailData?.markdown_content) && (
           <>
-            <Divider orientation="left">Markdown 策略内容</Divider>
+            <Divider titlePlacement="left">Markdown 策略内容</Divider>
             <Card size="small" style={{ maxHeight: 300, overflow: 'auto' }}>
               <pre style={{ whiteSpace: 'pre-wrap', margin: 0, fontSize: 13 }}>
-                {detailData.markdown_content as string}
+                {String(detailData?.markdown_content)}
               </pre>
             </Card>
           </>
         )}
-        {detailData?.rego_content && (
+        {Boolean(detailData?.rego_content) && (
           <>
-            <Divider orientation="left">
+            <Divider titlePlacement="left">
               <Space>
                 <CodeOutlined />
                 <span>生成的 Rego 代码</span>
@@ -407,7 +407,7 @@ const PolicyManagement: React.FC = () => {
             </Divider>
             <Card size="small" style={{ maxHeight: 300, overflow: 'auto', background: '#f6f8fa' }}>
               <pre style={{ whiteSpace: 'pre-wrap', margin: 0, fontSize: 12 }}>
-                {detailData.rego_content as string}
+                {String(detailData?.rego_content)}
               </pre>
             </Card>
           </>

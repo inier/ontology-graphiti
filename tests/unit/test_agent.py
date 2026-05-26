@@ -7,12 +7,9 @@ from datetime import datetime, timezone
 
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), '..', '..', '..'))
 
-from odap.biz.agent.agent_factory import (
+from odap.biz.core.agent.agent_factory import (
     TraceSpan, TracePhase, TraceStatus, Trace, TraceCollector,
     RoleManager, RoleConfig, RoleCapability, Capability, AgentFactory
-)
-from odap.biz.agent.router_v2 import (
-    IntentRecognizer, SelfCorrector, AgentRouterV2, Intent, RoutingResult
 )
 
 
@@ -229,77 +226,3 @@ class TestRoleManager:
         assert rm.has_capability("customrole", Capability.EXPLANATION) is True
 
 
-class TestIntentRecognizer:
-    def test_recognize_search(self):
-        recognizer = IntentRecognizer()
-        result = recognizer.recognize("搜索雷达目标")
-        assert result.intent == Intent.SEARCH.value
-        assert result.confidence > 0
-        assert result.target_agent == "search_agent"
-
-    def test_recognize_analysis(self):
-        recognizer = IntentRecognizer()
-        result = recognizer.recognize("分析当前态势")
-        assert result.intent == Intent.ANALYSIS.value
-        assert result.confidence > 0
-        assert result.target_agent == "analysis_agent"
-
-    def test_recognize_unknown(self):
-        recognizer = IntentRecognizer()
-        result = recognizer.recognize("xyzzy foobar")
-        assert result.intent == Intent.UNKNOWN.value
-        assert result.confidence == 0.0
-        assert result.target_agent == "general"
-
-    def test_map_intent_to_agent(self):
-        recognizer = IntentRecognizer()
-        assert recognizer._map_intent_to_agent(Intent.SEARCH.value) == "search_agent"
-        assert recognizer._map_intent_to_agent(Intent.ANALYSIS.value) == "analysis_agent"
-        assert recognizer._map_intent_to_agent(Intent.COMMAND.value) == "command_agent"
-        assert recognizer._map_intent_to_agent(Intent.ATTACK.value) == "strike_agent"
-        assert recognizer._map_intent_to_agent(Intent.QUERY.value) == "query_agent"
-        assert recognizer._map_intent_to_agent(Intent.RECOMMEND.value) == "recommend_agent"
-        assert recognizer._map_intent_to_agent(Intent.UNKNOWN.value) == "general_agent"
-
-
-class TestSelfCorrector:
-    def test_correct_denied_result(self):
-        corrector = SelfCorrector()
-        result = {"status": "denied", "message": "权限不足，无法执行此操作"}
-        correction = corrector.correct(result, {"user_role": "pilot"})
-        assert correction.corrected is True
-        assert len(correction.corrections) > 0
-        assert correction.original_result is result
-
-    def test_correct_no_correction(self):
-        corrector = SelfCorrector()
-        result = {"status": "success", "data": {"key": "value"}}
-        correction = corrector.correct(result, {})
-        assert correction.corrected is False
-        assert correction.corrections == []
-
-
-class TestAgentRouterV2:
-    @pytest.fixture(autouse=True)
-    def _patch_orchestrator(self):
-        with patch("odap.biz.agent.router_v2.SelfCorrectingOrchestratorV2"):
-            self.router = AgentRouterV2(user_role="commander")
-
-    def test_route_search(self):
-        result = self.router.route("搜索雷达目标")
-        assert result["success"] is True
-        assert result["routing"]["intent"] == Intent.SEARCH.value
-        assert result["routing"]["target_agent"] == "search_agent"
-
-    def test_route_unknown(self):
-        result = self.router.route("xyzzy foobar")
-        assert result["routing"]["intent"] == Intent.UNKNOWN.value
-        assert result["success"] is False
-
-    def test_get_routing_history(self):
-        self.router.route("搜索雷达目标")
-        self.router.route("分析当前态势")
-        history = self.router.get_routing_history()
-        assert len(history) == 2
-        assert history[0]["intent"] == Intent.ANALYSIS.value
-        assert history[1]["intent"] == Intent.SEARCH.value

@@ -5,7 +5,7 @@ from unittest.mock import MagicMock, patch
 
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), '..', '..', '..'))
 
-from odap.biz.hook_system.hook_manager_v2 import (
+from odap.biz.integration.hook_system.hook_manager_enhanced import (
     EnhancedHookManager,
     SecuritySandbox,
     HookMonitor,
@@ -15,8 +15,8 @@ from odap.biz.hook_system.hook_manager_v2 import (
     HookAlert,
     HookMetrics,
 )
-from odap.biz.hook_system.models.hook import Hook, HookType, HookStatus, HookExecution
-from odap.biz.hook_system.models.sandbox import SandboxConfig, SandboxResult
+from odap.biz.integration.hook_system.models.hook import Hook, HookType, HookStatus, HookExecution
+from odap.biz.integration.hook_system.models.sandbox import SandboxConfig, SandboxResult
 
 
 class TestEnhancedHookManager:

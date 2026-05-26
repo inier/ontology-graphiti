@@ -89,7 +89,7 @@ class HealthMonitor:
 
     async def _check_swarm_components(self):
         """检查 Swarm 各组件健康状态"""
-        from odap.biz.agent.swarm_orchestrator import DomainSwarm
+        from odap.biz.core.agent.swarm_orchestrator import DomainSwarm
         from odap.infra.resilience.fault_tolerance import FaultRecoveryManager
 
         swarm = DomainSwarm()

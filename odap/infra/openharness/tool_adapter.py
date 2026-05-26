@@ -11,6 +11,7 @@ OpenHarness 集成适配模块
 我们通过 Tool 适配层将 51 个 Skill 暴露为 OpenHarness 可调用的工具。
 """
 
+import asyncio
 import json
 import os
 import sys
@@ -35,35 +36,41 @@ for possible_path in OPENHARNESS_POSSIBLE_PATHS:
 
 # OpenHarness（可选）
 try:
-    # 尝试导入 OpenHarness v2 版本
+    # 尝试导入 OpenHarness v2 版本 (engine + tools)
     try:
         from openharness.tools.base import BaseTool as Tool
-        from openharness.core.harness import Harness
-        from openharness.core.harness import Observation
-        print("✓ OpenHarness v2 导入成功")
+        from openharness.engine.query_engine import QueryEngine as Harness
+        from openharness.api.client import AnthropicApiClient
+        Observation = None
+        print("✓ OpenHarness v2 导入成功 (engine + tools)")
         OPENHARNESS_AVAILABLE = True
+        OPENHARNESS_VERSION = 2
     except ImportError:
-        # 尝试导入 OpenHarness v1 版本
+        # 尝试导入 OpenHarness v1 版本 (core.harness)
         try:
-            from openharness.tools.tool import Tool
+            from openharness.tools.base import BaseTool as Tool
             from openharness.core.harness import Harness, Observation
-            print("✓ OpenHarness v1 (openharness) 导入成功")
+            print("✓ OpenHarness v1 (core.harness) 导入成功")
             OPENHARNESS_AVAILABLE = True
+            OPENHARNESS_VERSION = 1
         except ImportError:
             try:
                 from openharness_ai.tools.tool import Tool
                 from openharness_ai.core.harness import Harness, Observation
                 print("✓ OpenHarness v1 (openharness_ai) 导入成功")
                 OPENHARNESS_AVAILABLE = True
+                OPENHARNESS_VERSION = 1
             except ImportError:
                 print("OpenHarness 未安装，使用模拟模式")
                 OPENHARNESS_AVAILABLE = False
+                OPENHARNESS_VERSION = 0
                 Tool = object  # type: ignore
                 Harness = object  # type: ignore
                 Observation = None  # type: ignore
 except Exception as e:
     print(f"⚠ OpenHarness 导入失败: {e}")
     OPENHARNESS_AVAILABLE = False
+    OPENHARNESS_VERSION = 0
     Tool = object  # type: ignore
     Harness = object  # type: ignore
     Observation = None  # type: ignore
@@ -77,54 +84,91 @@ class OpenHarnessToolAdapter(Tool):
     """
     将 BaseSkill / 裸函数 Skill 适配为 OpenHarness Tool
 
-    OpenHarness Tool 接口：
-    - __init__(name, ...) 
-    - run(action: Dict) -> str  (返回字符串结果)
-
-    我们的 Skill 接口：
-    - register_skill(name, description, handler)
-    - handler(**kwargs) -> dict/list
+    兼容 OpenHarness v2 BaseTool 接口：
+    - name: str
+    - description: str
+    - input_model: type[BaseModel]
+    - execute(arguments, context) -> ToolResult
     """
 
     def __init__(self, name: str, description: str, handler,
                  opa_manager=None, category: str = "general"):
-        super().__init__(name=name)
-        self.description = description
+        if OPENHARNESS_AVAILABLE and OPENHARNESS_VERSION == 2:
+            from pydantic import BaseModel, Field
+
+            class DynamicInput(BaseModel):
+                query: str = Field(default="", description="查询参数")
+                params: Dict[str, Any] = Field(default_factory=dict, description="额外参数")
+
+            super().__init__()
+            self.name = name
+            self.description = description
+            self.input_model = DynamicInput
+        else:
+            super().__init__(name=name)
+
         self.handler = handler
         self.opa_manager = opa_manager
         self.category = category
         self.call_count = 0
 
-    def run(self, action: Dict[str, Any]) -> str:
-        """
-        执行工具调用
+    async def execute(self, arguments, context) -> Any:
+        """执行工具调用（OpenHarness v2 接口）"""
+        from openharness.tools.base import ToolResult
 
-        Args:
-            action: 包含参数的字典
-
-        Returns:
-            str: JSON 格式的执行结果
-        """
         self.call_count += 1
         start = time.perf_counter()
 
         try:
-            # 提取参数（排除 OpenHarness 内部字段）
+            params = arguments.model_dump() if hasattr(arguments, 'model_dump') else dict(arguments)
+            query = params.pop("query", "")
+            extra = params.pop("params", {})
+
+            merged = {"query": query, **extra} if query else extra
+
+            if asyncio.iscoroutinefunction(self.handler):
+                result = await self.handler(**merged)
+            else:
+                result = self.handler(**merged)
+
+            elapsed_ms = (time.perf_counter() - start) * 1000
+
+            if isinstance(result, (dict, list)):
+                output = json.dumps(result, ensure_ascii=False, default=str)
+            else:
+                output = str(result)
+
+            return ToolResult(
+                output=output,
+                is_error=False,
+                metadata={"tool": self.name, "execution_time_ms": round(elapsed_ms, 2), "call_count": self.call_count},
+            )
+
+        except Exception as e:
+            return ToolResult(
+                output=str(e),
+                is_error=True,
+                metadata={"tool": self.name, "call_count": self.call_count},
+            )
+
+    def run(self, action: Dict[str, Any]) -> str:
+        """执行工具调用（兼容 v1 接口）"""
+        self.call_count += 1
+        start = time.perf_counter()
+
+        try:
             params = {k: v for k, v in action.items()
                       if k not in ("name", "type", "thought", "tool_name")}
 
-            # 调用底层 handler
             result = self.handler(**params)
 
             elapsed_ms = (time.perf_counter() - start) * 1000
 
-            # 标准化输出
             if isinstance(result, (dict, list)):
                 output = result
             else:
                 output = {"result": str(result)}
 
-            # 包装为标准响应
             return json.dumps({
                 "status": "success",
                 "data": output,
@@ -150,6 +194,8 @@ class OpenHarnessToolAdapter(Tool):
 
     def to_openai_tool_schema(self) -> Dict:
         """生成 OpenAI function calling 格式的 tool schema"""
+        if OPENHARNESS_AVAILABLE and OPENHARNESS_VERSION == 2:
+            return self.to_api_schema()
         return {
             "type": "function",
             "function": {
@@ -168,11 +214,11 @@ class OpenHarnessToolAdapter(Tool):
 # DomainHarness: 领域情报系统 Harness
 # ============================================================
 
-class DomainHarness(Harness if OPENHARNESS_AVAILABLE else object):
+class DomainHarness:
     """
     领域情报分析 Harness
 
-    继承 OpenHarness Harness，注入：
+    兼容 OpenHarness v1 (core.harness) 和 v2 (engine.query_engine)：
     1. 所有已注册的 Skill（通过 OpenHarnessToolAdapter）
     2. OPA 权限管理
     3. Graphiti 图谱管理
@@ -188,19 +234,60 @@ class DomainHarness(Harness if OPENHARNESS_AVAILABLE else object):
 
     def __init__(self, user_role: str = "intelligence_analyst",
                  opa_manager=None, graph_manager=None):
-        if OPENHARNESS_AVAILABLE:
-            # OpenHarness Harness 需要传入 tools 列表
-            tools = self._build_tools(opa_manager)
-            super().__init__(tools=tools)
-        else:
-            self.tools = self._build_tools(opa_manager) if opa_manager else []
-
         self.user_role = user_role
         self.opa_manager = opa_manager
         self.graph_manager = graph_manager
         self._episode_history: List[Dict] = []
         self._task_queue: List[Dict] = []
         self._done = False
+
+        self._tool_list = self._build_tools(opa_manager)
+        self._query_engine = None
+
+        if OPENHARNESS_AVAILABLE and OPENHARNESS_VERSION == 2:
+            self._init_v2_engine()
+
+    def _init_v2_engine(self):
+        """初始化 v2 QueryEngine"""
+        try:
+            from openharness.engine.query_engine import QueryEngine
+            from openharness.tools.base import ToolRegistry
+            from openharness.api.client import AnthropicApiClient
+            from openharness.permissions.checker import PermissionChecker
+            from openharness.config.settings import Settings, PermissionSettings
+
+            registry = ToolRegistry()
+            for tool in self._tool_list:
+                registry.register(tool)
+
+            settings = Settings()
+            perm_checker = PermissionChecker(PermissionSettings())
+
+            api_key = os.getenv("OPENAI_API_KEY", "")
+            base_url = os.getenv("OPENAI_API_BASE", "https://api.openai.com/v1")
+            model = os.getenv("OPENAI_MODEL", "gpt-4")
+
+            api_client = AnthropicApiClient(
+                api_key=api_key,
+                base_url=base_url,
+            )
+
+            self._query_engine = QueryEngine(
+                api_client=api_client,
+                tool_registry=registry,
+                permission_checker=perm_checker,
+                cwd=os.getcwd(),
+                model=model,
+                system_prompt=f"你是领域情报分析助手，当前角色: {self.user_role}",
+            )
+            print(f"✓ OpenHarness v2 QueryEngine 初始化成功, {len(self._tool_list)} 个工具")
+        except Exception as e:
+            print(f"⚠ OpenHarness v2 QueryEngine 初始化失败: {e}")
+            self._query_engine = None
+
+    @property
+    def tools(self):
+        return self._tool_list
 
     def _build_tools(self, opa_manager=None) -> List:
         """从 SKILL_CATALOG 构建工具列表"""
@@ -221,16 +308,13 @@ class DomainHarness(Harness if OPENHARNESS_AVAILABLE else object):
 
         return tools
 
-    def _get_observation(self) -> 'Observation':
+    def _get_observation(self) -> Dict:
         """构建当前 Observation"""
-        if not OPENHARNESS_AVAILABLE or Observation is None:
-            return {"state": "fallback", "tools": len(self.tools) if hasattr(self, 'tools') else 0}
-
-        return Observation(
-            state="active",
-            tools_available=[t.name for t in (self.tools if hasattr(self, 'tools') else [])],
-            user_role=self.user_role,
-        )
+        return {
+            "state": "active",
+            "tools_available": [t.name for t in self._tool_list],
+            "user_role": self.user_role,
+        }
 
     def reset(self):
         """重置 Harness，开始新 episode"""
@@ -251,9 +335,8 @@ class DomainHarness(Harness if OPENHARNESS_AVAILABLE else object):
         tool_name = action.get("tool_name", action.get("name", ""))
         params = action.get("action", action.get("params", {}))
 
-        # 查找工具
         tool = None
-        for t in (self.tools if hasattr(self, 'tools') else []):
+        for t in self._tool_list:
             if t.name == tool_name:
                 tool = t
                 break
@@ -262,10 +345,8 @@ class DomainHarness(Harness if OPENHARNESS_AVAILABLE else object):
             obs = self._get_observation()
             return obs, -1.0, False, {"error": f"工具不存在: {tool_name}"}
 
-        # 执行
         result_str = tool.run(params)
 
-        # 记录历史
         step_record = {
             "tool": tool_name,
             "params": params,
@@ -274,11 +355,16 @@ class DomainHarness(Harness if OPENHARNESS_AVAILABLE else object):
         }
         self._episode_history.append(step_record)
 
-        # 判断是否结束
         reward = 1.0 if '"status": "success"' in result_str else 0.0
         done = tool_name == "end_mission" if isinstance(tool_name, str) else False
 
         return self._get_observation(), reward, done, step_record
+
+    async def submit_message(self, message: str):
+        """向 v2 QueryEngine 提交消息（异步）"""
+        if self._query_engine:
+            return await self._query_engine.submit_message(message)
+        return {"error": "QueryEngine not initialized"}
 
     def run_episode(self, actions: List[Dict[str, Any]]) -> List[Dict]:
         """
@@ -309,7 +395,7 @@ class DomainHarness(Harness if OPENHARNESS_AVAILABLE else object):
     def list_available_tools(self) -> List[Dict[str, str]]:
         """列出所有可用工具"""
         tools = []
-        for t in (self.tools if hasattr(self, 'tools') else []):
+        for t in self._tool_list:
             if hasattr(t, 'name'):
                 tools.append({"name": t.name, "description": t.description, "category": t.category})
         return tools
@@ -344,6 +430,17 @@ def create_harness(user_role: str = "intelligence_analyst") -> Optional['DomainH
     except Exception as e:
         print(f"DomainHarness 初始化失败: {e}")
         return None
+
+
+_domain_harness_instance: Optional['DomainHarness'] = None
+
+
+def get_domain_harness(user_role: str = "intelligence_analyst") -> Optional['DomainHarness']:
+    """获取 DomainHarness 单例实例"""
+    global _domain_harness_instance
+    if _domain_harness_instance is None:
+        _domain_harness_instance = create_harness(user_role)
+    return _domain_harness_instance
 
 
 def export_tool_schemas() -> List[Dict]:

@@ -5,7 +5,7 @@ from unittest.mock import MagicMock, patch
 
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), '..', '..', '..'))
 
-from odap.biz.qa.qa_engine_v2 import DialogManager, DialogSession, DialogMessage, DialogState
+from odap.biz.data.qa.qa_engine import DialogManager, DialogSession, DialogMessage, DialogState
 
 
 class TestDialogManagerCreateSession:

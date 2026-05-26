@@ -5,9 +5,9 @@ from fastapi.testclient import TestClient
 
 @pytest.fixture
 def app_client():
-    with patch("odap.biz.frontend_compat.api.routes.scenario_store", MagicMock()):
-        with patch("odap.biz.frontend_compat.api.routes.workspace_service", MagicMock()):
-            from app.main import app
+    with patch("odap.biz.integration.frontend_compat.api.routes.scenario_store", MagicMock()):
+        with patch("odap.biz.integration.frontend_compat.api.routes.workspace_service", MagicMock()):
+            from odap.web.app import app
             client = TestClient(app, raise_server_exceptions=False)
             yield client
 

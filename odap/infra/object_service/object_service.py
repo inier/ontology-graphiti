@@ -7,7 +7,7 @@ from .schemas import (
     SemanticQuery, SemanticQueryResponse,
     ObjectQueryOperator,
 )
-from odap.biz.ontology.oms.storage.sqlite_oms_storage import SQLiteOMSStorage
+from odap.biz.core.ontology.oms.storage.sqlite_oms_storage import SQLiteOMSStorage
 
 logger = logging.getLogger(__name__)
 
@@ -23,7 +23,7 @@ class ObjectService:
     @property
     def oms(self):
         if self._oms is None:
-            from odap.biz.ontology.oms.storage.sqlite_oms_storage import SQLiteOMSStorage
+            from odap.biz.core.ontology.oms.storage.sqlite_oms_storage import SQLiteOMSStorage
             self._oms = SQLiteOMSStorage()
         return self._oms
 
@@ -37,14 +37,14 @@ class ObjectService:
     @property
     def business(self):
         if self._business_storage is None:
-            from odap.biz.business.storage.sqlite_storage import BusinessStorage
+            from odap.biz.management.business.storage.sqlite_storage import BusinessStorage
             self._business_storage = BusinessStorage()
         return self._business_storage
 
     @property
     def agents(self):
         if self._agent_storage is None:
-            from odap.biz.agent_management.storage.sqlite_agent_storage import SQLiteAgentStorage
+            from odap.biz.management.agent_management.storage.sqlite_agent_storage import SQLiteAgentStorage
             self._agent_storage = SQLiteAgentStorage()
         return self._agent_storage
 
@@ -297,7 +297,7 @@ class ObjectService:
     async def _fetch_from_knowledge_base(self, query: ObjectQuery) -> List[ObjectQueryResult]:
         results = []
         try:
-            from odap.biz.knowledge_base.storage.sqlite_kb_storage import SQLiteKnowledgeBaseStorage
+            from odap.biz.data.knowledge_base.storage.sqlite_kb_storage import SQLiteKnowledgeBaseStorage
             kb_store = SQLiteKnowledgeBaseStorage()
             kbs = kb_store.list_knowledge_bases()
             for kb in kbs:
@@ -321,7 +321,7 @@ class ObjectService:
     async def _fetch_from_agents(self, query: ObjectQuery) -> List[ObjectQueryResult]:
         results = []
         try:
-            from odap.biz.agent_management.storage.sqlite_agent_storage import SQLiteAgentStorage
+            from odap.biz.management.agent_management.storage.sqlite_agent_storage import SQLiteAgentStorage
             agent_store = SQLiteAgentStorage()
             agents = agent_store.list_agents()
             for a in agents:

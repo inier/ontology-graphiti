@@ -1,8 +1,8 @@
 import pytest
 from unittest.mock import AsyncMock, MagicMock, patch, PropertyMock
 
-from odap.biz.action_service.executor import ActionExecutor
-from odap.biz.action_service.schemas import (
+from odap.biz.decision.action_service.executor import ActionExecutor
+from odap.biz.decision.action_service.schemas import (
     ActionRequest,
     ActionExecutionResult,
     ActionRequestStatus,
@@ -445,7 +445,7 @@ class TestSubmitAction:
 
         with patch.object(type(executor), 'opa', new_callable=PropertyMock, return_value=None):
             with patch.object(executor, "_check_opa", new_callable=AsyncMock, return_value={"allow": True}):
-                with patch("odap.biz.action_service.feedback_loop.get_feedback_loop"):
+                with patch("odap.biz.decision.action_service.feedback_loop.get_feedback_loop"):
                     record = await executor.submit_action(request)
 
         assert record["status"] == "completed"

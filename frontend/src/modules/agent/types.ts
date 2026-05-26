@@ -13,9 +13,11 @@ export interface Agent {
   related_skills: string[];
   related_knowledge_bases: string[];
   allowed_roles: string[];
+  workspace_id?: string;
   created_by: string;
   created_at: string;
   updated_at: string;
+  ref_labels?: Record<string, string>;
 }
 
 export interface AgentFormData {
@@ -32,6 +34,7 @@ export interface AgentFormData {
   related_skills: string[];
   related_knowledge_bases: string[];
   allowed_roles: string[];
+  workspace_id?: string;
 }
 
 export interface AgentRefOption {

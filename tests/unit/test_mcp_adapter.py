@@ -5,7 +5,7 @@ from unittest.mock import MagicMock, patch, AsyncMock
 
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), '..', '..', '..'))
 
-from odap.biz.mcp_adapter.mcp_service_v2 import (
+from odap.biz.integration.mcp_adapter.mcp_server_manager import (
     MCPServerManagerV2,
     MCPServer,
     ServerStatus,

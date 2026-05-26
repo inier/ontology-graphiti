@@ -5,7 +5,7 @@ from unittest.mock import MagicMock
 
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), '..', '..', '..'))
 
-from odap.biz.cognition.user_cognition_engine import (
+from odap.biz.core.cognition.user_cognition_engine import (
     IntentType,
     RoleType,
     ConfidenceLevel,

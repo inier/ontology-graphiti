@@ -1,11 +1,11 @@
 import pytest
 from unittest.mock import MagicMock, patch
 
-from odap.biz.feedback.models import Feedback, FeedbackType, FeedbackSeverity, FeedbackQuery
-from odap.biz.feedback.collector import FeedbackCollector
-from odap.biz.feedback.analyzer import FeedbackAnalyzer
-from odap.biz.feedback.aggregator import FeedbackAggregator
-from odap.biz.feedback.loop import FeedbackLoop
+from odap.biz.simulation.feedback.models import Feedback, FeedbackType, FeedbackSeverity, FeedbackQuery
+from odap.biz.simulation.feedback.collector import FeedbackCollector
+from odap.biz.simulation.feedback.analyzer import FeedbackAnalyzer
+from odap.biz.simulation.feedback.aggregator import FeedbackAggregator
+from odap.biz.simulation.feedback.loop import FeedbackLoop
 
 
 class TestFeedbackModels:

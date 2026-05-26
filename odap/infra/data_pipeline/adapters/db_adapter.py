@@ -9,7 +9,7 @@ logger = logging.getLogger(__name__)
 
 
 class DBAdapter(DataSourceConnector):
-    SUPPORTED_DRIVERS = {"sqlite", "postgresql", "mysql", "mongodb"}
+    SUPPORTED_DRIVERS = {"sqlite", "postgresql", "mysql"}
 
     def __init__(self, connection_string: str, source_id: str = "database"):
         self.connection_string = connection_string
@@ -26,8 +26,6 @@ class DBAdapter(DataSourceConnector):
             return "postgresql"
         elif lower.startswith("mysql"):
             return "mysql"
-        elif lower.startswith("mongodb"):
-            return "mongodb"
         return "unknown"
 
     def connect(self) -> bool:
@@ -35,10 +33,6 @@ class DBAdapter(DataSourceConnector):
             return self._connect_sqlite()
         elif self._driver in ("postgresql", "mysql"):
             logger.info(f"DBAdapter: {self._driver} driver detected, using mock connection")
-            self._connected = True
-            return True
-        elif self._driver == "mongodb":
-            logger.info("DBAdapter: MongoDB driver detected, using mock connection")
             self._connected = True
             return True
         else:

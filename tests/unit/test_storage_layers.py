@@ -8,12 +8,12 @@ from unittest.mock import MagicMock, patch
 class TestWorkspaceSQLiteStorage:
     @pytest.fixture
     def storage(self, tmp_path):
-        from odap.biz.workspace.storage.sqlite_storage import SQLiteStorage
+        from odap.biz.platform.workspace.storage.sqlite_storage import SQLiteStorage
         db_path = str(tmp_path / "workspace.db")
         return SQLiteStorage(db_path)
 
     def test_save_and_get_workspace(self, storage):
-        from odap.biz.workspace.models.workspace import Workspace, WorkspaceStatus, WorkspaceType
+        from odap.biz.platform.workspace.models.workspace import Workspace, WorkspaceStatus, WorkspaceType
         ws = Workspace(
             id="ws-test-001",
             name="测试空间",
@@ -31,7 +31,7 @@ class TestWorkspaceSQLiteStorage:
         assert result.type == WorkspaceType.DEFAULT
 
     def test_list_workspaces(self, storage):
-        from odap.biz.workspace.models.workspace import Workspace, WorkspaceStatus, WorkspaceType
+        from odap.biz.platform.workspace.models.workspace import Workspace, WorkspaceStatus, WorkspaceType
         ws1 = Workspace(id="ws-1", name="空间1", type=WorkspaceType.DEFAULT, status=WorkspaceStatus.ACTIVE, owner="admin", created_at=datetime.utcnow().isoformat(), updated_at=datetime.utcnow().isoformat())
         ws2 = Workspace(id="ws-2", name="空间2", type=WorkspaceType.SHARED, status=WorkspaceStatus.ACTIVE, owner="admin", created_at=datetime.utcnow().isoformat(), updated_at=datetime.utcnow().isoformat())
         storage.save_workspace(ws1)
@@ -40,7 +40,7 @@ class TestWorkspaceSQLiteStorage:
         assert len(result) >= 2
 
     def test_update_workspace(self, storage):
-        from odap.biz.workspace.models.workspace import Workspace, WorkspaceStatus, WorkspaceType
+        from odap.biz.platform.workspace.models.workspace import Workspace, WorkspaceStatus, WorkspaceType
         ws = Workspace(id="ws-upd", name="更新前", type=WorkspaceType.DEFAULT, status=WorkspaceStatus.ACTIVE, owner="admin", created_at=datetime.utcnow().isoformat(), updated_at=datetime.utcnow().isoformat())
         storage.save_workspace(ws)
         ws.name = "更新后"
@@ -50,7 +50,7 @@ class TestWorkspaceSQLiteStorage:
         assert result.name == "更新后"
 
     def test_delete_workspace(self, storage):
-        from odap.biz.workspace.models.workspace import Workspace, WorkspaceStatus, WorkspaceType
+        from odap.biz.platform.workspace.models.workspace import Workspace, WorkspaceStatus, WorkspaceType
         ws = Workspace(id="ws-del", name="删除测试", type=WorkspaceType.DEFAULT, status=WorkspaceStatus.ACTIVE, owner="admin", created_at=datetime.utcnow().isoformat(), updated_at=datetime.utcnow().isoformat())
         storage.save_workspace(ws)
         storage.delete_workspace("ws-del")
@@ -62,7 +62,7 @@ class TestWorkspaceSQLiteStorage:
         assert result is None
 
     def test_isolation_policy(self, storage):
-        from odap.biz.workspace.models.workspace import Workspace, WorkspaceStatus, WorkspaceType
+        from odap.biz.platform.workspace.models.workspace import Workspace, WorkspaceStatus, WorkspaceType
         ws = Workspace(id="ws-iso", name="隔离空间", type=WorkspaceType.PRIVATE, status=WorkspaceStatus.ACTIVE, owner="admin", created_at=datetime.utcnow().isoformat(), updated_at=datetime.utcnow().isoformat())
         storage.save_workspace(ws)
         policy = {"workspace_id": "ws-iso", "isolation_level": "strict", "resource_quota": {}, "network_policy": {}}
@@ -75,7 +75,7 @@ class TestWorkspaceSQLiteStorage:
 class TestBusinessSQLiteStorage:
     @pytest.fixture
     def storage(self, tmp_path):
-        from odap.biz.business.storage.sqlite_storage import BusinessStorage
+        from odap.biz.management.business.storage.sqlite_storage import BusinessStorage
         db_path = str(tmp_path / "business.db")
         return BusinessStorage(db_path)
 
