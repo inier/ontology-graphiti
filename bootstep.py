@@ -200,7 +200,10 @@ def cmd_up():
     else:
         warn(f"返回码 {rc}，继续...")
 
-    step(3, "等待服务就绪 (15秒)")
+    step(3, "清理 dangling 镜像")
+    _prune_dangling_images()
+
+    step(4, "等待服务就绪 (15秒)")
     time.sleep(15)
 
     show_status()
@@ -222,7 +225,10 @@ def cmd_dev():
     else:
         warn(f"返回码 {rc}，继续...")
 
-    step(3, "等待服务就绪 (10秒)")
+    step(3, "清理 dangling 镜像")
+    _prune_dangling_images()
+
+    step(4, "等待服务就绪 (10秒)")
     time.sleep(10)
 
     show_status()
@@ -256,6 +262,20 @@ def cmd_restart():
     cmd_up()
 
 
+def _prune_dangling_images(silent=True):
+    """清理 dangling 镜像（<none>:<none>），防止构建时旧镜像失去 tag 后堆积"""
+    result = subprocess.run(
+        ["podman", "images", "--filter", "dangling=true", "--format", "{{.ID}}"],
+        capture_output=True, text=True
+    )
+    dangling_ids = result.stdout.strip().split("\n") if result.stdout.strip() else []
+    if dangling_ids:
+        for img_id in dangling_ids:
+            run(f"podman rmi -f {img_id}", silent=silent)
+        if not silent:
+            ok(f"已清理 {len(dangling_ids)} 个 dangling 镜像")
+
+
 def cmd_rebuild():
     title("重建 Graphiti 服务")
     cmd_down()
@@ -263,6 +283,7 @@ def cmd_rebuild():
     step(1, "清理旧镜像")
     run("podman rmi localhost/docker_app:latest", silent=True)
     run("podman rmi localhost/docker_frontend:latest", silent=True)
+    _prune_dangling_images(silent=True)
     ok("旧镜像已清理")
 
     cmd_up()

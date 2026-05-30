@@ -22,11 +22,7 @@ from collections import defaultdict
 logger = logging.getLogger("swarm_orchestrator")
 
 
-class AgentType(str, Enum):
-    """Agent 类型"""
-    COMMANDER = "commander"
-    INTELLIGENCE = "intelligence"
-    OPERATIONS = "operations"
+from odap.biz.core.agent.agent_factory import AgentType, AgentState
 
 
 class OODAPhase(str, Enum):
@@ -44,14 +40,6 @@ class OODAStatus(str, Enum):
     WAITING_CONFIRMATION = "waiting_confirmation"
     ERROR = "error"
 
-
-class AgentState(str, Enum):
-    """Agent 执行状态"""
-    IDLE = "idle"
-    RUNNING = "running"
-    FAILED = "failed"
-    DEGRADED = "degraded"
-    RECOVERING = "recovering"
 
 
 @dataclass

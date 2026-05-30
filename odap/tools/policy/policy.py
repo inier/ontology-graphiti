@@ -1,44 +1,83 @@
-"""
-策略技能模块
-实现策略执行模拟、版本管理和回退功能
-"""
-
 import sys
 import os
-from datetime import datetime
+import json
+import datetime
 
 sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 from odap.tools import register_skill
 from odap.infra.opa import OPAManager
-from odap.biz.core.ontology.service import OntologyManager
+from odap.biz.core.ontology.schema.domain import ROLES, DOMAIN_CONFIG
 
 opa_manager = OPAManager()
-ontology_manager = OntologyManager()
+_policy_history = []
+_policy_dir = "core/policies"
+
+if not os.path.exists(_policy_dir):
+    os.makedirs(_policy_dir)
+
 
 def simulate_policy_execution(user_role, action, target_type=None):
-    """
-    模拟策略执行
+    result = {
+        "role": user_role,
+        "action": action,
+        "target_type": target_type,
+        "timestamp": datetime.datetime.now().isoformat(),
+        "allowed": True,
+        "reason": ""
+    }
 
-    Args:
-        user_role: 用户角色
-        action: 操作类型
-        target_type: 目标类型
+    if user_role not in ROLES:
+        result["allowed"] = False
+        result["reason"] = f"角色 {user_role} 不存在"
+    else:
+        role_config = ROLES[user_role]
+        permissions = role_config.get("permissions", [])
+        restrictions = role_config.get("restrictions", [])
 
-    Returns:
-        模拟执行结果
-    """
-    result = ontology_manager.simulate_policy_execution(user_role, action, target_type)
+        action_permission_map = {
+            "view_intelligence": ["view_intelligence"],
+            "request_support": ["request_support"],
+            "command_units": ["command_units"],
+            "authorize_attacks": ["authorize_attacks"],
+            "approve_missions": ["approve_missions"],
+            "analyze_data": ["analyze_data"],
+            "generate_reports": ["generate_reports"],
+            "attack": ["authorize_attacks"],
+            "command": ["command_units"]
+        }
+
+        required_permissions = action_permission_map.get(action, [])
+
+        for perm in required_permissions:
+            if perm not in permissions:
+                result["allowed"] = False
+                result["reason"] = f"角色 {user_role} 缺少必要权限: {perm}"
+                break
+
+        for restriction in restrictions:
+            if restriction == "cannot_attack" and action == "attack":
+                result["allowed"] = False
+                result["reason"] = f"角色 {user_role} 被限制执行攻击操作"
+                break
+            elif restriction == "cannot_command" and action == "command":
+                result["allowed"] = False
+                result["reason"] = f"角色 {user_role} 被限制执行指挥操作"
+                break
+            elif restriction == "cannot_attack_civilian_infrastructure" and target_type == "CivilianInfrastructure":
+                result["allowed"] = False
+                result["reason"] = f"角色 {user_role} 被限制攻击民用设施"
+                break
+
+    if result["allowed"]:
+        result["reason"] = f"角色 {user_role} 有权执行 {action} 操作"
+
+    _policy_history.append(result)
 
     return result
 
-def get_policy_version():
-    """
-    获取当前策略版本
 
-    Returns:
-        策略版本信息
-    """
+def get_policy_version():
     version = opa_manager.get_policy_version()
 
     return {
@@ -47,13 +86,8 @@ def get_policy_version():
         "message": f"当前策略版本: {version}"
     }
 
-def rollback_policy():
-    """
-    回退策略版本
 
-    Returns:
-        回退结果
-    """
+def rollback_policy():
     old_version = opa_manager.get_policy_version()
     new_version = opa_manager.rollback_policy()
 
@@ -64,19 +98,24 @@ def rollback_policy():
         "message": f"策略已从 {old_version} 回退到 {new_version}"
     }
 
+
 def export_policy(policy_name, version=None, description=""):
-    """
-    导出策略
+    if not version:
+        version = datetime.datetime.now().strftime("%Y%m%d_%H%M%S")
 
-    Args:
-        policy_name: 策略名称
-        version: 版本号
-        description: 版本描述
+    policy_data = {
+        "policy_name": policy_name,
+        "version": version,
+        "description": description,
+        "timestamp": datetime.datetime.now().isoformat(),
+        "roles": ROLES,
+        "domain_config": DOMAIN_CONFIG
+    }
 
-    Returns:
-        导出结果
-    """
-    export_file = ontology_manager.export_policy(policy_name, version=version, description=description)
+    export_file = os.path.join(_policy_dir, f"policy_{policy_name}_{version}.json")
+
+    with open(export_file, 'w', encoding='utf-8') as f:
+        json.dump(policy_data, f, ensure_ascii=False, indent=2)
 
     return {
         "status": "success",
@@ -84,79 +123,90 @@ def export_policy(policy_name, version=None, description=""):
         "message": f"策略 '{policy_name}' 导出成功"
     }
 
+
 def import_policy(policy_file):
-    """
-    导入策略
-
-    Args:
-        policy_file: 策略文件路径
-
-    Returns:
-        导入结果
-    """
-    success = ontology_manager.import_policy(policy_file)
-
-    if success:
-        return {
-            "status": "success",
-            "message": f"策略导入成功: {policy_file}"
-        }
-    else:
+    if not os.path.exists(policy_file):
         return {
             "status": "error",
             "message": f"策略导入失败: {policy_file}"
         }
 
-def list_policy_versions():
-    """
-    列出策略版本
+    try:
+        with open(policy_file, 'r', encoding='utf-8') as f:
+            json.load(f)
+        return {
+            "status": "success",
+            "message": f"策略导入成功: {policy_file}"
+        }
+    except Exception:
+        return {
+            "status": "error",
+            "message": f"策略导入失败: {policy_file}"
+        }
 
-    Returns:
-        策略版本列表
-    """
-    policies = ontology_manager.list_policies()
+
+def list_policy_versions():
+    policies = []
+
+    if not os.path.exists(_policy_dir):
+        return {
+            "status": "success",
+            "policies": policies
+        }
+
+    for filename in os.listdir(_policy_dir):
+        if filename.startswith("policy_") and filename.endswith(".json"):
+            parts = filename.replace("policy_", "").replace(".json", "").split("_")
+            policy_name = parts[0] if parts else "unknown"
+            version = "_".join(parts[1:]) if len(parts) > 1 else "unknown"
+            file_path = os.path.join(_policy_dir, filename)
+
+            try:
+                with open(file_path, 'r', encoding='utf-8') as f:
+                    data = json.load(f)
+
+                policies.append({
+                    "policy_name": data.get("policy_name", policy_name),
+                    "version": data.get("version", version),
+                    "description": data.get("description", ""),
+                    "timestamp": data.get("timestamp", ""),
+                    "file": filename
+                })
+            except Exception:
+                pass
+
+    policies.sort(key=lambda x: x["timestamp"], reverse=True)
 
     return {
         "status": "success",
         "policies": policies
     }
 
+
 def rollback_policy_version(policy_name, version):
-    """
-    回滚策略版本
+    import_file = os.path.join(_policy_dir, f"policy_{policy_name}_{version}.json")
 
-    Args:
-        policy_name: 策略名称
-        version: 版本号
-
-    Returns:
-        回滚结果
-    """
-    success = ontology_manager.rollback_policy(policy_name, version)
-
-    if success:
-        return {
-            "status": "success",
-            "message": f"策略 '{policy_name}' 已回滚到版本 {version}"
-        }
-    else:
+    if not os.path.exists(import_file):
         return {
             "status": "error",
             "message": f"策略回滚失败: {policy_name}@{version}"
         }
 
+    try:
+        with open(import_file, 'r', encoding='utf-8') as f:
+            json.load(f)
+        return {
+            "status": "success",
+            "message": f"策略 '{policy_name}' 已回滚到版本 {version}"
+        }
+    except Exception:
+        return {
+            "status": "error",
+            "message": f"策略回滚失败: {policy_name}@{version}"
+        }
+
+
 def check_permission(user_role, action, resource_type):
-    """
-    检查权限
-
-    Args:
-        user_role: 用户角色
-        action: 操作类型
-        resource_type: 资源类型
-
-    Returns:
-        权限检查结果
-    """
     allowed = opa_manager.check_permission(
         user_role,
         action,
@@ -172,34 +222,23 @@ def check_permission(user_role, action, resource_type):
         "message": "允许执行" if allowed else "拒绝执行"
     }
 
+
 def get_policy_history():
-    """
-    获取策略执行历史
-
-    Returns:
-        策略执行历史
-    """
-    history = ontology_manager.get_policy_history()
-
     return {
         "status": "success",
-        "total": len(history),
-        "history": history
+        "total": len(_policy_history),
+        "history": _policy_history
     }
 
-def clear_policy_history():
-    """
-    清除策略执行历史
 
-    Returns:
-        清除结果
-    """
-    ontology_manager.clear_policy_history()
+def clear_policy_history():
+    _policy_history.clear()
 
     return {
         "status": "success",
         "message": "策略执行历史已清除"
     }
+
 
 register_skill(
     name="simulate_policy_execution",

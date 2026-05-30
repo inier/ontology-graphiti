@@ -2,7 +2,7 @@
 
 from .audit import DataSource, ProcessingStatus, DataIngestRecord, AuditLog
 from .ontology import OntologyStatus, EntityExtractionResult, OntologyBuildResult, OntologyDocument
-from .version import VersionOperation, VersionStatus, VersionChange, OntologyVersion, VersionComparison
+from .version import VersionOperation, VersionStatus, VersionChange
 from .validation import ValidationSeverity, ValidationRule, ValidationResult, ValidationIssue
 
 __all__ = [
@@ -17,10 +17,8 @@ __all__ = [
     "VersionOperation",
     "VersionStatus",
     "VersionChange",
-    "OntologyVersion",
-    "VersionComparison",
     "ValidationSeverity",
     "ValidationRule",
     "ValidationResult",
-    "ValidationIssue"
+    "ValidationIssue",
 ]

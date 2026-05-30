@@ -3,32 +3,9 @@
 from pydantic import BaseModel, Field
 from typing import Dict, Any, List, Optional
 from datetime import datetime
-from enum import Enum
 
-
-class DataSource(str, Enum):
-    """数据来源"""
-    API = "api"
-    FILE = "file"
-    DATABASE = "database"
-    STREAM = "stream"
-    MANUAL = "manual"
-
-
-class ProcessingStatus(str, Enum):
-    """处理状态"""
-    PENDING = "pending"
-    PROCESSING = "processing"
-    COMPLETED = "completed"
-    FAILED = "failed"
-
-
-class OntologyStatus(str, Enum):
-    """本体状态"""
-    DRAFT = "draft"
-    VALIDATED = "validated"
-    PUBLISHED = "published"
-    DEPRECATED = "deprecated"
+from odap.biz.core.ontology.models.ontology import OntologyStatus
+from odap.biz.core.ontology.models.audit import DataSource, ProcessingStatus
 
 
 class ValidationSeverity(str, Enum):

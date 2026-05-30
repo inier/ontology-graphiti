@@ -20,37 +20,28 @@ from dataclasses import dataclass, field
 from enum import Enum
 from datetime import datetime
 
+from odap.biz.platform.roles.api.schemas import PermissionScope
+
 import httpx
 
 sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 
-class AccessControlModel(Enum):
-    """访问控制模型"""
+class AccessControlModel(str, Enum):
     RBAC = "rbac"
     ABAC = "abac"
     PBAC = "pbac"
     CBAC = "cbac"
 
 
-class PermissionScope(Enum):
-    """权限作用域"""
-    SYSTEM = "system"
-    PROJECT = "project"
-    RESOURCE = "resource"
-    DATA = "data"
-
-
-class DecisionResult(Enum):
-    """决策结果"""
+class DecisionResult(str, Enum):
     ALLOW = "allow"
     DENY = "deny"
     CONDITIONAL = "conditional"
     NOT_APPLICABLE = "not_applicable"
 
 
-class DecisionReason(Enum):
-    """决策原因"""
+class DecisionReason(str, Enum):
     PERMISSION_GRANTED = "permission_granted"
     PERMISSION_DENIED = "permission_denied"
     INSUFFICIENT_ROLE = "insufficient_role"

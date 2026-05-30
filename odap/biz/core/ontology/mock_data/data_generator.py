@@ -10,7 +10,7 @@ from datetime import datetime, timedelta
 
 sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
-from odap.biz.core.ontology.schema.domain import DOMAIN_CONFIG
+from odap.biz.core.ontology.schema.domain import DOMAIN_CONFIG, ENTITY_TYPE_ALIASES
 
 def generate_coordinates():
     return (random.uniform(0, 100), random.uniform(0, 100))
@@ -82,7 +82,7 @@ def generate_simulation_data():
 
             unit = {
                 "id": f"UNIT_{faction['name'].replace(' ', '_')}_{i}",
-                "type": "MilitaryUnit",
+                "type": ENTITY_TYPE_ALIASES.get("MilitaryUnit", "MilitaryUnit"),
                 "properties": {
                     "name": f"{faction['name']} {unit_types[i-1]}",
                     "unit_type": unit_types[i-1],
@@ -119,7 +119,7 @@ def generate_simulation_data():
 
             weapon = {
                 "id": f"WEAPON_{faction['name'].replace(' ', '_')}_{i}",
-                "type": "WeaponSystem",
+                "type": ENTITY_TYPE_ALIASES.get("WeaponSystem", "WeaponSystem"),
                 "properties": {
                     "name": f"{faction['name']} {weapon_types[i-1]}",
                     "weapon_type": weapon_types[i-1],
@@ -167,7 +167,7 @@ def generate_simulation_data():
         involved_units = random.sample([u["id"] for u in data["military_units"]], min(2, len(data["military_units"])))
         event = {
             "id": f"EVENT_{i}",
-            "type": "BattleEvent",
+            "type": ENTITY_TYPE_ALIASES.get("BattleEvent", "BattleEvent"),
             "properties": {
                 "event_type": random.choice(event_type_map),
                 "timestamp": generate_timestamp().isoformat(),

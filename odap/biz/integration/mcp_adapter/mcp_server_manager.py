@@ -20,28 +20,13 @@ import hashlib
 from typing import Dict, Any, List, Optional, Callable
 from dataclasses import dataclass, field
 from datetime import datetime, timezone
-from enum import Enum
 import uuid
 import aiohttp
 
 sys.path.append(os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))))
 
 
-class ServerStatus(Enum):
-    """服务器状态"""
-    CONNECTED = "connected"
-    DISCONNECTED = "disconnected"
-    CONNECTING = "connecting"
-    ERROR = "error"
-    UNAVAILABLE = "unavailable"
-
-
-class ServerCapability(Enum):
-    """服务器能力"""
-    TOOLS = "tools"
-    RESOURCES = "resources"
-    PROMPTS = "prompts"
-    OBSERVATION = "observation"
+from .models.tool_server import ServerStatus, ServerCapability
 
 
 @dataclass

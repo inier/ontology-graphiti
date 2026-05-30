@@ -311,7 +311,7 @@ class OntologyBuilderService:
         actual_ontology_id = ontology_id or scenario_id
         
         try:
-            from odap.biz.core.ontology.version_manager import OntologyVersionManager
+            from odap.biz.core.ontology.services.version_service import OntologyVersionManager
 
             if self._version_manager is None:
                 self._version_manager = OntologyVersionManager()
@@ -343,14 +343,14 @@ class OntologyBuilderService:
 
         except Exception as e:
             logger.error(f"创建版本失败: {e}")
-            version_id = f"v{datetime.now().strftime('%Y%m%d')}-{uuid.uuid4().hex[:4]}"
             return {
-                "version_id": version_id,
+                "version_id": None,
+                "version_error": str(e),
                 "scenario_id": scenario_id,
                 "workspace_id": workspace_id,
                 "document_id": document.doc_id,
                 "created_at": datetime.now(timezone.utc).isoformat(),
-                "commit_message": f"本体构建: {document.meta.title or document.doc_id}"
+                "commit_message": f"本体构建(版本创建失败): {document.meta.title or document.doc_id}"
             }
 
     async def detect_changes(

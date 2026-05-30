@@ -30,16 +30,14 @@ from odap.biz.integration.hook_system.models.hook import Hook, HookType, HookSta
 from odap.biz.integration.hook_system.models.sandbox import SandboxConfig, SandboxResult
 
 
-class CodeSignatureStatus(Enum):
-    """代码签名状态"""
+class CodeSignatureStatus(str, Enum):
     VALID = "valid"
     INVALID = "invalid"
     EXPIRED = "expired"
     NOT_SIGNED = "not_signed"
 
 
-class AlertLevel(Enum):
-    """告警级别"""
+class AlertLevel(str, Enum):
     INFO = "info"
     WARNING = "warning"
     ERROR = "error"

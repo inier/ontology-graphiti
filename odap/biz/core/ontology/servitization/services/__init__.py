@@ -1,0 +1,3 @@
+from .servitization_service import KnowledgeServitizationService
+
+get_servitization_service = KnowledgeServitizationService.get_instance

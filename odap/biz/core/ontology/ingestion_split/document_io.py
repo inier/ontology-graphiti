@@ -11,7 +11,7 @@ from datetime import datetime, timezone
 from typing import List, Optional
 
 from odap.biz.core.ontology.schema.document import (
-    OntologyDocument, OntologyDocumentSchema, DataSource, SourceType,
+    OntologyDocument, OntologyDocumentSchema, SourceInfo, SourceType,
 )
 
 logger = logging.getLogger("data_ingestion")

@@ -173,7 +173,7 @@ export function OntologySemanticNetwork() {
       setNodes(graphNodes);
       setEdges(graphEdges);
       setClusters(result.clusters || []);
-      setStatistics(result.statistics as SemanticMapStatistics);
+      setStatistics(result.statistics as unknown as SemanticMapStatistics);
       setStats({
         entityCount: graphNodes.length,
         relationCount: graphEdges.length,

@@ -1,8 +1,6 @@
 import React, { useState, useCallback } from 'react';
 import { message } from 'antd';
-
-const API_BASE_URL = import.meta.env.VITE_API_BASE || '';
-const API_BASE = `${API_BASE_URL}/api/qa`;
+import { API_BASE } from '../../../config';
 
 export interface Session {
   session_id: string;
@@ -42,7 +40,7 @@ export function useSession({ onError, workspaceId, scenarioId }: UseSessionOptio
       if (wsId) params.append('workspace_id', wsId);
       if (scId) params.append('scenario_id', scId);
       
-      const url = params.toString() ? `${API_BASE}/sessions?${params.toString()}` : `${API_BASE}/sessions`;
+      const url = params.toString() ? `${API_BASE}/api/qa/sessions?${params.toString()}` : `${API_BASE}/api/qa/sessions`;
       const response = await fetch(url);
       if (!response.ok) {
         throw new Error(`获取会话列表失败: ${response.status}`);
@@ -65,7 +63,7 @@ export function useSession({ onError, workspaceId, scenarioId }: UseSessionOptio
 
   const loadSession = useCallback(async (sessionId: string): Promise<Session | null> => {
     try {
-      const response = await fetch(`${API_BASE}/sessions/${sessionId}`);
+      const response = await fetch(`${API_BASE}/api/qa/sessions/${sessionId}`);
       if (!response.ok) {
         throw new Error(`加载会话失败: ${response.status}`);
       }
@@ -81,7 +79,7 @@ export function useSession({ onError, workspaceId, scenarioId }: UseSessionOptio
 
   const deleteSession = useCallback(async (sessionId: string): Promise<boolean> => {
     try {
-      const response = await fetch(`${API_BASE}/sessions/${sessionId}`, {
+      const response = await fetch(`${API_BASE}/api/qa/sessions/${sessionId}`, {
         method: 'DELETE',
       });
       if (!response.ok) {

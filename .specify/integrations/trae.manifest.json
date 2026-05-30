@@ -1,0 +1,16 @@
+{
+  "integration": "trae",
+  "version": "0.8.18.dev0",
+  "installed_at": "2026-05-29T16:31:47.493528+00:00",
+  "files": {
+    ".trae/skills/speckit-analyze/SKILL.md": "2740b8aeab8d0104527384ca74106e252e0a20df89355c8f36be25a62130d6d6",
+    ".trae/skills/speckit-checklist/SKILL.md": "b19870b298e06c4423633b795988c3cd3d8661f1fc737f22909205861ce090d9",
+    ".trae/skills/speckit-clarify/SKILL.md": "b88f89ad9aced9851f26487009b3fab865b1a604f03511b09902922b1b00b1bd",
+    ".trae/skills/speckit-constitution/SKILL.md": "e2cbe859958c5a05be52a44d63821e6a84d39f3d37acc05b550cc7ad85da0dab",
+    ".trae/skills/speckit-implement/SKILL.md": "80db51bc215ce505ff38cc0fdf02ae37fe6edf19e4b82e0af142dc211c74a6a5",
+    ".trae/skills/speckit-plan/SKILL.md": "f387c4eda059a55d77993dab9df3045aa4ee34b2e3a8892857aa0f68179b4e05",
+    ".trae/skills/speckit-specify/SKILL.md": "b0c6ed74fb79db440ec002c271eee38b37ab1f2216ac13f8a77743a4bde98b59",
+    ".trae/skills/speckit-tasks/SKILL.md": "3ef3412f454aaee9ca8d1b10b534ab033479da0bc5460dae1223c649b0175755",
+    ".trae/skills/speckit-taskstoissues/SKILL.md": "550a58bb05a766c1115711ba50c68dbb2195af7e6c9df384a90b7143b36ffac1"
+  }
+}

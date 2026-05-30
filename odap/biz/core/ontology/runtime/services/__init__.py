@@ -1,0 +1,3 @@
+from .runtime_service import OntologyRuntimeService
+
+get_runtime_service = OntologyRuntimeService.get_instance

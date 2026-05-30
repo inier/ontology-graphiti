@@ -21,8 +21,7 @@ from enum import Enum
 logger = logging.getLogger("ontology_qa_builder")
 
 
-class ProcessingStatus(str, Enum):
-    """处理状态"""
+class QABuildStatus(str, Enum):
     PENDING = "pending"
     INTENT_ANALYZING = "intent_analyzing"
     SEARCHING = "searching"
@@ -33,19 +32,23 @@ class ProcessingStatus(str, Enum):
 
 
 class IntentType(str, Enum):
-    """意图类型"""
-    QUERY = "query"                    # 查询现有本体
-    UPDATE = "update"                  # 更新本体
-    CREATE = "create"                  # 创建新本体
-    ANALYZE = "analyze"               # 分析趋势
+    QUERY = "query"
+    UPDATE = "update"
+    CREATE = "create"
+    ANALYZE = "analyze"
     UNKNOWN = "unknown"
+    ACTION = "action"
+    EXPLAIN = "explain"
+    RECOMMEND = "recommend"
+    NAVIGATE = "navigate"
+    COMPARE = "compare"
 
 
 @dataclass
 class QABuildProgress:
     """QA构建进度"""
     task_id: str
-    status: ProcessingStatus = ProcessingStatus.PENDING
+    status: QABuildStatus = QABuildStatus.PENDING
     current_step: str = ""
     progress_percent: float = 0.0
     message: str = ""
@@ -114,14 +117,14 @@ class QAOntologyBuilder:
         # 创建进度跟踪
         progress = QABuildProgress(
             task_id=task_id,
-            status=ProcessingStatus.PENDING,
+            status=QABuildStatus.PENDING,
             current_step="创建任务"
         )
         self._progress_tasks[task_id] = progress
 
         try:
             # 步骤1: 意图分析
-            await self._update_progress(task_id, ProcessingStatus.INTENT_ANALYZING, "分析问题意图")
+            await self._update_progress(task_id, QABuildStatus.INTENT_ANALYZING, "分析问题意图")
             intent_result = await self._analyze_intent(question)
             progress.intent_result = {
                 "intent_type": intent_result.intent_type.value,
@@ -132,12 +135,12 @@ class QAOntologyBuilder:
 
             # 步骤2: 联网搜索（如果需要）
             if intent_result.requires_search:
-                await self._update_progress(task_id, ProcessingStatus.SEARCHING, "联网搜索最新信息")
+                await self._update_progress(task_id, QABuildStatus.SEARCHING, "联网搜索最新信息")
                 search_results = await self._search_online(question, intent_result)
                 progress.search_results = search_results
 
             # 步骤3: 数据摄入和本体构建
-            await self._update_progress(task_id, ProcessingStatus.INGESTING, "处理数据")
+            await self._update_progress(task_id, QABuildStatus.INGESTING, "处理数据")
             if progress.search_results:
                 ontology_doc = await self._ingest_and_build(
                     task_id,
@@ -147,14 +150,14 @@ class QAOntologyBuilder:
                 progress.ontology_document = ontology_doc
 
             # 步骤4: 生成回答
-            await self._update_progress(task_id, ProcessingStatus.BUILDING, "生成回答")
+            await self._update_progress(task_id, QABuildStatus.BUILDING, "生成回答")
             answer = await self._generate_answer(question, intent_result, progress)
             progress.answer = answer
 
             # 完成
             await self._update_progress(
                 task_id,
-                ProcessingStatus.COMPLETED,
+                QABuildStatus.COMPLETED,
                 "处理完成",
                 progress_percent=100.0
             )
@@ -171,7 +174,7 @@ class QAOntologyBuilder:
             logger.error(f"QA本体构建失败: {e}")
             await self._update_progress(
                 task_id,
-                ProcessingStatus.FAILED,
+                QABuildStatus.FAILED,
                 f"处理失败: {str(e)}",
                 error=str(e)
             )
@@ -213,7 +216,7 @@ class QAOntologyBuilder:
     async def _update_progress(
         self,
         task_id: str,
-        status: ProcessingStatus,
+        status: QABuildStatus,
         current_step: str,
         progress_percent: float = None,
         message: str = None,
@@ -242,16 +245,15 @@ class QAOntologyBuilder:
         # 通知订阅者
         await self._notify_callbacks(task_id, await self.get_progress(task_id))
 
-    def _calculate_progress(self, status: ProcessingStatus) -> float:
-        """根据状态计算进度"""
+    def _calculate_progress(self, status: QABuildStatus) -> float:
         progress_map = {
-            ProcessingStatus.PENDING: 0,
-            ProcessingStatus.INTENT_ANALYZING: 20,
-            ProcessingStatus.SEARCHING: 40,
-            ProcessingStatus.INGESTING: 60,
-            ProcessingStatus.BUILDING: 80,
-            ProcessingStatus.COMPLETED: 100,
-            ProcessingStatus.FAILED: 100
+            QABuildStatus.PENDING: 0,
+            QABuildStatus.INTENT_ANALYZING: 20,
+            QABuildStatus.SEARCHING: 40,
+            QABuildStatus.INGESTING: 60,
+            QABuildStatus.BUILDING: 80,
+            QABuildStatus.COMPLETED: 100,
+            QABuildStatus.FAILED: 100
         }
         return progress_map.get(status, 0)
 
@@ -320,7 +322,7 @@ class QAOntologyBuilder:
         """
         try:
             # 导入新闻摄入器
-            from odap.biz.core.ontology.ingestion import NewsIngester
+            from odap.biz.core.ontology.ingestion_split import NewsIngester
 
             if self._news_ingester is None:
                 self._news_ingester = NewsIngester()
@@ -395,13 +397,13 @@ class QAOntologyBuilder:
             # 如果转换失败，生成默认文档
             if not documents:
                 from odap.biz.core.ontology.schema.document import (
-                    OntologyDocument, DataSource, DocumentMeta
+                    OntologyDocument, SourceInfo, DocumentMeta
                 )
                 now = datetime.now(timezone.utc).isoformat()
                 doc = OntologyDocument(
                     doc_id=f"search-{task_id}-0",
                     doc_type="event",
-                    source=DataSource(
+                    source=SourceInfo(
                         type="news_ingest",
                         collected_at=now,
                         confidence=0.7

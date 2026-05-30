@@ -15,7 +15,7 @@ from pathlib import Path
 from ..services import get_skill_service, get_hotplug_service
 from ..models.skill import SkillType, SkillStatus
 
-router = APIRouter(prefix="/api/skill", tags=["skill"])
+router = APIRouter(prefix="/api/skill/extended", tags=["skill"])
 
 skill_service = get_skill_service()
 hotplug_service = get_hotplug_service()

@@ -7,7 +7,6 @@ from .schemas import (
     SemanticQuery, SemanticQueryResponse,
     ObjectQueryOperator,
 )
-from odap.biz.core.ontology.oms.storage.sqlite_oms_storage import SQLiteOMSStorage
 
 logger = logging.getLogger(__name__)
 
@@ -23,8 +22,8 @@ class ObjectService:
     @property
     def oms(self):
         if self._oms is None:
-            from odap.biz.core.ontology.oms.storage.sqlite_oms_storage import SQLiteOMSStorage
-            self._oms = SQLiteOMSStorage()
+            from odap.biz.core.ontology.oms.services import get_oms_service
+            self._oms = get_oms_service()
         return self._oms
 
     @property
@@ -37,15 +36,15 @@ class ObjectService:
     @property
     def business(self):
         if self._business_storage is None:
-            from odap.biz.management.business.storage.sqlite_storage import BusinessStorage
-            self._business_storage = BusinessStorage()
+            from odap.biz.management.business.services import get_business_service
+            self._business_storage = get_business_service()
         return self._business_storage
 
     @property
     def agents(self):
         if self._agent_storage is None:
-            from odap.biz.management.agent_management.storage.sqlite_agent_storage import SQLiteAgentStorage
-            self._agent_storage = SQLiteAgentStorage()
+            from odap.biz.management.agent_management.api.routes import agent_service
+            self._agent_storage = agent_service
         return self._agent_storage
 
     # ── Core Query: Unified Object Access ──
@@ -297,9 +296,9 @@ class ObjectService:
     async def _fetch_from_knowledge_base(self, query: ObjectQuery) -> List[ObjectQueryResult]:
         results = []
         try:
-            from odap.biz.data.knowledge_base.storage.sqlite_kb_storage import SQLiteKnowledgeBaseStorage
-            kb_store = SQLiteKnowledgeBaseStorage()
-            kbs = kb_store.list_knowledge_bases()
+            from odap.biz.data.knowledge_base.services import get_kb_service
+            kb_svc = get_kb_service()
+            kbs = kb_svc.list_knowledge_bases()
             for kb in kbs:
                 kid = kb.get('kb_id', '')
                 kname = kb.get('name', '')
@@ -321,9 +320,8 @@ class ObjectService:
     async def _fetch_from_agents(self, query: ObjectQuery) -> List[ObjectQueryResult]:
         results = []
         try:
-            from odap.biz.management.agent_management.storage.sqlite_agent_storage import SQLiteAgentStorage
-            agent_store = SQLiteAgentStorage()
-            agents = agent_store.list_agents()
+            from odap.biz.management.agent_management.api.routes import agent_service as _agent_svc
+            agents = _agent_svc.list_agents()
             for a in agents:
                 aid = a.get('agent_id', '')
                 aname = a.get('display_name', a.get('name', ''))

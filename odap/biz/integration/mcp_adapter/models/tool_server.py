@@ -8,17 +8,18 @@ from enum import Enum
 
 
 class ServerStatus(str, Enum):
-    """服务器状态"""
     CONNECTED = "connected"
     DISCONNECTED = "disconnected"
+    CONNECTING = "connecting"
     ERROR = "error"
+    UNAVAILABLE = "unavailable"
 
 
 class ServerCapability(str, Enum):
-    """服务器能力"""
     TOOLS = "tools"
     RESOURCES = "resources"
     PROMPTS = "prompts"
+    OBSERVATION = "observation"
 
 
 class ToolServer(BaseModel):

@@ -4,9 +4,9 @@ from typing import List, Optional, Dict, Any
 from .schemas import Agent, AgentCreate, AgentUpdate
 from ..storage.sqlite_agent_storage import SQLiteAgentStorage
 
-router = APIRouter(prefix="/api/agents", tags=["agents"])
+router = APIRouter(prefix="/api/agent-management", tags=["agent-management"])
 
-storage = SQLiteAgentStorage()
+_agent_storage = SQLiteAgentStorage()
 
 
 def _build_ref_labels(agent_data: Dict[str, Any]) -> Dict[str, str]:
@@ -25,8 +25,8 @@ def _build_ref_labels(agent_data: Dict[str, Any]) -> Dict[str, str]:
         return labels
 
     try:
-        from odap.biz.core.ontology.oms.storage.sqlite_oms_storage import SQLiteOMSStorage
-        oms = SQLiteOMSStorage()
+        from odap.biz.core.ontology.oms.services import get_oms_service
+        oms = get_oms_service()
         for obj in oms.list_object_types():
             tid = obj.get("type_id", "")
             tname = obj.get("name", "")
@@ -41,8 +41,8 @@ def _build_ref_labels(agent_data: Dict[str, Any]) -> Dict[str, str]:
         pass
 
     try:
-        from odap.biz.management.business.storage.sqlite_storage import SQLiteBusinessStorage
-        biz = SQLiteBusinessStorage()
+        from odap.biz.management.business.services import get_business_service
+        biz = get_business_service()
         for item in biz.list_processes():
             pid = item.get("process_id", "")
             pname = item.get("name", "")
@@ -79,11 +79,12 @@ def _build_ref_labels(agent_data: Dict[str, Any]) -> Dict[str, str]:
         pass
 
     try:
-        from odap.biz.platform.skill_system.impl.skill_manager import SkillManager
-        mgr = SkillManager()
-        for s in mgr.list_skills():
-            sid = s.id
-            sname = s.name
+        from odap.biz.platform.skill_system.services.skill_service import SkillService
+        svc = SkillService()
+        result = svc.list_skills()
+        for s in result.get("skills", []):
+            sid = s.get("skill_id", "")
+            sname = s.get("name", "")
             if sid in all_ids:
                 labels[sid] = sname
             if sname in all_ids and sname not in labels:
@@ -92,8 +93,8 @@ def _build_ref_labels(agent_data: Dict[str, Any]) -> Dict[str, str]:
         pass
 
     try:
-        from odap.biz.data.knowledge_base.storage.sqlite_kb_storage import SQLiteKBStorage
-        kb = SQLiteKBStorage()
+        from odap.biz.data.knowledge_base.services import get_kb_service
+        kb = get_kb_service()
         for item in kb.list_knowledge_bases():
             kid = item.get("kb_id", "")
             kname = item.get("name", "")
@@ -109,7 +110,7 @@ def _build_ref_labels(agent_data: Dict[str, Any]) -> Dict[str, str]:
 
 class AgentService:
     def __init__(self):
-        self.storage = storage
+        self.storage = _agent_storage
 
     def list_agents(self, role_id: Optional[str] = None, workspace_id: Optional[str] = None) -> List[Dict[str, Any]]:
         return self.storage.list_agents(role_id=role_id, workspace_id=workspace_id)
@@ -160,49 +161,51 @@ async def get_ref_options(type: str = Query(..., description="引用类型")):
     options = []
     if type == "entity":
         try:
-            from odap.biz.core.ontology.oms.storage.sqlite_oms_storage import SQLiteOMSStorage
-            oms = SQLiteOMSStorage()
+            from odap.biz.core.ontology.oms.services import get_oms_service
+            oms = get_oms_service()
             for obj in oms.list_object_types():
                 options.append({"value": obj.get("type_id", ""), "label": obj.get("display_name") or obj.get("name", "")})
         except Exception:
             pass
     elif type == "business_logic":
         try:
-            from odap.biz.management.business.storage.sqlite_storage import SQLiteBusinessStorage
-            biz = SQLiteBusinessStorage()
+            from odap.biz.management.business.services import get_business_service
+            biz = get_business_service()
             for item in biz.list_logics():
                 options.append({"value": item.get("logic_id", ""), "label": item.get("display_name") or item.get("name", "")})
         except Exception:
             pass
     elif type == "indicator":
         try:
-            from odap.biz.management.business.storage.sqlite_storage import SQLiteBusinessStorage
-            biz = SQLiteBusinessStorage()
+            from odap.biz.management.business.services import get_business_service
+            biz = get_business_service()
             for item in biz.list_indicators():
                 options.append({"value": item.get("indicator_id", ""), "label": item.get("display_name") or item.get("name", "")})
         except Exception:
             pass
     elif type == "skill":
         try:
-            from odap.biz.platform.skill_system.impl.skill_manager import SkillManager
-            mgr = SkillManager()
-            for s in mgr.list_skills():
-                options.append({"value": s.id, "label": s.name})
+            from odap.biz.platform.skill_system.services.skill_service import SkillService
+            svc = SkillService()
+            result = svc.list_skills()
+            for s in result.get("skills", []):
+                options.append({"value": s.get("skill_id", ""), "label": s.get("name", "")})
         except Exception:
             pass
     elif type == "knowledge_base":
         try:
-            from odap.biz.data.knowledge_base.storage.sqlite_kb_storage import SQLiteKBStorage
-            kb = SQLiteKBStorage()
+            from odap.biz.data.knowledge_base.services import get_kb_service
+            kb = get_kb_service()
             for item in kb.list_knowledge_bases():
                 options.append({"value": item.get("kb_id", ""), "label": item.get("name", "")})
         except Exception:
             pass
     elif type == "role":
         try:
-            from odap.biz.platform.roles.storage.sqlite_role_storage import SQLiteRoleStorage
-            role_store = SQLiteRoleStorage()
-            for r in role_store.list_roles():
+            from odap.biz.platform.roles.services import get_role_service
+            role_svc = get_role_service()
+            result = role_svc.list_roles()
+            for r in result.get("roles", []):
                 options.append({"value": r.get("id", ""), "label": r.get("name", "")})
         except Exception:
             pass

@@ -1,0 +1,3 @@
+from .sqlite_servitization_storage import SQLiteServitizationStorage
+
+Storage = SQLiteServitizationStorage

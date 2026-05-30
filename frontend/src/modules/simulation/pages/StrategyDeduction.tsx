@@ -11,27 +11,11 @@ import {
   ExperimentOutlined, SafetyOutlined,
 } from '@ant-design/icons';
 import type { ColumnsType } from 'antd/es/table';
+import { fetchJson } from '../../shared/services/apiClient';
+import { API_BASE } from '../../../config';
 
-const API_BASE = import.meta.env.VITE_API_BASE || '';
-
-async function fetchJson(url: string, options?: RequestInit): Promise<Record<string, unknown>> {
-  const token = localStorage.getItem('token');
-  const authHeaders: Record<string, string> = { 'Content-Type': 'application/json' };
-  if (token) authHeaders['Authorization'] = `Bearer ${token}`;
-  const mergedOptions: RequestInit = { ...options, headers: { ...authHeaders, ...(options?.headers as Record<string, string>) } };
-  const res = await fetch(url, mergedOptions);
-  if (res.status === 401 || res.status === 403) {
-    localStorage.removeItem('token');
-    localStorage.removeItem('refresh_token');
-    localStorage.removeItem('user');
-    window.location.href = '/login';
-    throw new Error('登录已过期，请重新登录');
-  }
-  if (!res.ok) {
-    const err = await res.json().catch(() => ({ detail: res.statusText }));
-    throw new Error(err.detail || res.statusText);
-  }
-  return res.json();
+interface ApiResponse {
+  [key: string]: unknown;
 }
 
 interface SimulationCondition {
@@ -195,7 +179,7 @@ const StrategyDeduction: React.FC = () => {
 
   const fetchScenarioList = useCallback(async (page = scenarioPage, pageSize = scenarioPageSize) => {
     try {
-      const data = await fetchJson(
+      const data = await fetchJson<ApiResponse>(
         `${API_BASE}/api/simulation/deduction/scenarios?page=${page}&page_size=${pageSize}`
       );
       setScenarioList((data.scenarios || []) as ScenarioListItem[]);
@@ -306,7 +290,7 @@ const StrategyDeduction: React.FC = () => {
     if (!selectedScenario) return;
     try {
       setLoading(true);
-      const data = await fetchJson(
+      const data = await fetchJson<ApiResponse>(
         `${API_BASE}/api/simulation/deduction/scenarios/${selectedScenario.scenario_id}/conditions`,
         { method: 'POST' }
       );
@@ -498,7 +482,7 @@ const StrategyDeduction: React.FC = () => {
     }
     try {
       setLoading(true);
-      const data = await fetchJson(
+      const data = await fetchJson<ApiResponse>(
         `${API_BASE}/api/simulation/deduction/scenarios/${selectedScenario.scenario_id}/compare`,
         {
           method: 'POST',

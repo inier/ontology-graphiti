@@ -157,7 +157,7 @@ class OntologyTransformService:
     ) -> 'OntologyDocument':
         """CSV 数据转换"""
         from odap.biz.core.ontology.schema.document import (
-            OntologyDocument, OntologyEntity, DataSource, DocumentMeta
+            OntologyDocument, OntologyEntity, SourceInfo, DocumentMeta
         )
 
         # 解析 CSV 数据
@@ -181,7 +181,7 @@ class OntologyTransformService:
         doc = OntologyDocument(
             doc_id=doc_id,
             doc_type="batch",
-            source=DataSource(
+            source=SourceInfo(
                 type="structured",
                 collected_at=now,
                 confidence=0.9
@@ -214,7 +214,7 @@ class OntologyTransformService:
     ) -> 'OntologyDocument':
         """半结构化数据转换 (XML, YAML)"""
         from odap.biz.core.ontology.schema.document import (
-            OntologyDocument, DataSource, DocumentMeta, OntologyEntity
+            OntologyDocument, SourceInfo, DocumentMeta, OntologyEntity
         )
 
         if source_type == "xml":
@@ -234,7 +234,7 @@ class OntologyTransformService:
         doc = OntologyDocument(
             doc_id=doc_id,
             doc_type="document",
-            source=DataSource(
+            source=SourceInfo(
                 type="semi_structured",
                 collected_at=now,
                 confidence=0.85
@@ -267,7 +267,7 @@ class OntologyTransformService:
     ) -> 'OntologyDocument':
         """非结构化数据转换 (文本, HTML)"""
         from odap.biz.core.ontology.schema.document import (
-            OntologyDocument, DataSource, DocumentMeta, OntologyEvent
+            OntologyDocument, SourceInfo, DocumentMeta, OntologyEvent
         )
 
         if source_type == "html":
@@ -281,7 +281,7 @@ class OntologyTransformService:
         doc = OntologyDocument(
             doc_id=doc_id,
             doc_type="event",
-            source=DataSource(
+            source=SourceInfo(
                 type="unstructured",
                 collected_at=now,
                 confidence=0.7
@@ -310,7 +310,7 @@ class OntologyTransformService:
         metadata: Dict
     ) -> 'OntologyDocument':
         """URL 数据转换 - 抓取网页内容"""
-        from odap.biz.core.ontology.ingestion import WebScraper, FreeNewsIngester
+        from odap.biz.core.ontology.ingestion_split import WebScraper, FreeNewsIngester
 
         scraper = WebScraper()
         result = scraper.scrape(url)
@@ -346,12 +346,12 @@ class OntologyTransformService:
 
         # 创建新文档
         now = datetime.now(timezone.utc).isoformat()
-        from odap.biz.core.ontology.schema.document import DataSource, DocumentMeta
+        from odap.biz.core.ontology.schema.document import SourceInfo, DocumentMeta
 
         doc = OntologyDocument(
             doc_id=doc_id,
             doc_type=doc_type,
-            source=DataSource(
+            source=SourceInfo(
                 type=metadata.get("source_type", "transformed"),
                 collected_at=now,
                 confidence=0.85

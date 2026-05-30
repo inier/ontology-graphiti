@@ -26,8 +26,7 @@ import random
 sys.path.append(os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))))
 
 
-class VisualizationType(Enum):
-    """可视化类型"""
+class VisualizationType(str, Enum):
     GRAPH = "graph"
     MAP = "map"
     CHART = "chart"
@@ -36,8 +35,7 @@ class VisualizationType(Enum):
     NETWORK = "network"
 
 
-class GraphLayout(Enum):
-    """图布局算法"""
+class GraphLayout(str, Enum):
     FORCE = "force"
     CIRCULAR = "circular"
     HIERARCHICAL = "hierarchical"
@@ -45,8 +43,7 @@ class GraphLayout(Enum):
     RADIAL = "radial"
 
 
-class ChartType(Enum):
-    """图表类型"""
+class ChartType(str, Enum):
     LINE = "line"
     BAR = "bar"
     PIE = "pie"

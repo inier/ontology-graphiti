@@ -38,7 +38,7 @@ describe('工作空间管理 API', () => {
     expect(Array.isArray(result)).toBe(true)
     expect(result.length).toBeGreaterThanOrEqual(1)
     expect(globalThis.fetch).toHaveBeenCalledWith(
-      `${API_BASE}/api/workspaces`,
+      `${API_BASE}/api/workspaces?page_size=100`,
       expect.anything()
     )
   })
@@ -299,9 +299,8 @@ describe('角色管理 API', () => {
     ])
 
     const result = await api.listRoles()
-    expect(result.roles).toHaveLength(1)
-    expect(result.roles[0].name).toBe('系统管理员')
-    expect(result.total).toBe(1)
+    expect(result).toHaveLength(1)
+    expect(result[0].name).toBe('系统管理员')
   })
 })
 

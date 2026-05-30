@@ -1,8 +1,7 @@
 import { useCallback, useState, useRef, useEffect } from 'react';
 import { message } from 'antd';
 import { useChatStorage } from './useChatStorage';
-
-const API_BASE = import.meta.env.VITE_API_BASE || '';
+import { API_BASE } from '../../../config';
 const API_ENDPOINT = `${API_BASE}/api/qa/ask`;
 const SESSIONS_ENDPOINT = `${API_BASE}/api/qa/sessions`;
 const STREAM_API_ENDPOINT = `${API_BASE}/api/qa/ask/stream`;

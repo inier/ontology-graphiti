@@ -16,12 +16,14 @@ from datetime import datetime, timezone
 from typing import Dict, Any, List, Optional, Tuple
 from dataclasses import dataclass, field
 
-from ..ingestion import (
+from ..ingestion_split import (
     NewsIngester, ManualInputHandler, RandomEventGenerator,
-    FreeNewsIngester, WebScraper, OntologyDocument
+    FreeNewsIngester, WebScraper
 )
+from ..schema.document import OntologyDocument
 from ..storage import SQLiteIngestStorage
 from .build_service import get_builder_service
+from odap.biz.core.ontology.services.search_service import SearchService
 
 
 logger = logging.getLogger("data_ingestion")
@@ -33,8 +35,7 @@ def get_local_time():
 
 
 @dataclass
-class SearchResult:
-    """搜索结果封装"""
+class WebSearchResult:
     results: List[Dict[str, Any]]
     engine: str
     query: str
@@ -72,24 +73,12 @@ class IngestRecordBuilder:
 
 
 class WebSearchService:
-    """
-    统一的联网检索服务
-
-    支持多种搜索引擎，按优先级尝试:
-    1. Tavily API (需要配置 TAVILY_API_KEY)
-    2. 本地 DuckDuckGo API (需要配置 DDG_API_URL)
-    3. SerpAPI (需要配置 SERPAPI_KEY)
-    4. DuckDuckGo HTML 解析 (免费，无需配置)
-    """
-
-    ENGINES = ['tavily', 'ddg_local', 'serpapi', 'ddg_html']
 
     def __init__(self, llm_client=None):
         self.llm = llm_client
-        self._tavily_api_key = os.getenv("TAVILY_API_KEY", "")
-        self._ddg_api_url = os.getenv("DDG_API_URL", "")
-        self._serpapi_key = os.getenv("SERPAPI_KEY", "")
+        self._search_service = SearchService()
         self._news_ingester = NewsIngester(llm_client=llm_client)
+        self._tavily_api_key = os.getenv("TAVILY_API_KEY", "")
 
     async def search(
         self,
@@ -97,93 +86,28 @@ class WebSearchService:
         max_results: int = 5,
         preferred_engine: Optional[str] = None,
         search_depth: str = "basic"
-    ) -> SearchResult:
-        """
-        执行联网检索
-
-        Args:
-            query: 搜索关键词
-            max_results: 最大结果数
-            preferred_engine: 优先使用的引擎 (tavily/ddg_local/serpapi/ddg_html)
-            search_depth: 搜索深度 (basic/advanced)
-
-        Returns:
-            SearchResult: 搜索结果封装
-        """
-        engines = [preferred_engine] if preferred_engine else self.ENGINES
-
-        for engine in engines:
-            if engine == 'tavily' and self._tavily_api_key:
-                try:
-                    results = await self._search_tavily(query, max_results, search_depth)
-                    if results:
-                        return SearchResult(results=results, engine='tavily', query=query)
-                except Exception as e:
-                    logger.warning(f"Tavily 搜索失败: {e}")
-
-            elif engine == 'ddg_local' and self._ddg_api_url:
-                try:
-                    results = await self._search_ddg_local(query, max_results)
-                    if results:
-                        return SearchResult(results=results, engine='ddg_local', query=query)
-                except Exception as e:
-                    logger.warning(f"本地 DuckDuckGo API 搜索失败: {e}")
-
-            elif engine == 'serpapi' and self._serpapi_key:
-                try:
-                    results = await self._search_serpapi(query, max_results)
-                    if results:
-                        return SearchResult(results=results, engine='serpapi', query=query)
-                except Exception as e:
-                    logger.warning(f"SerpAPI 搜索失败: {e}")
-
-            elif engine == 'ddg_html':
-                try:
-                    results = await self._news_ingester._search_duckduckgo(query, max_results)
-                    if results:
-                        return SearchResult(results=results, engine='ddg_html', query=query)
-                except Exception as e:
-                    logger.warning(f"DuckDuckGo HTML 搜索失败: {e}")
-
-        return SearchResult(results=[], engine='none', query=query)
+    ) -> WebSearchResult:
+        results = await self._search_service.search(query, max_results)
+        result_dicts = [r.to_dict() for r in results]
+        providers = self._search_service.get_available_providers()
+        engine_name = providers[0] if providers else 'none'
+        return WebSearchResult(results=result_dicts, engine=engine_name, query=query)
 
     async def tavily_search(
         self,
         query: str,
         max_results: int = 5,
         search_depth: str = "basic"
-    ) -> SearchResult:
-        """
-        专门使用 Tavily API 进行搜索
-
-        Args:
-            query: 搜索关键词
-            max_results: 最大结果数
-            search_depth: 搜索深度 (basic/advanced)
-
-        Returns:
-            SearchResult: 搜索结果封装
-        """
-        if not self._tavily_api_key:
+    ) -> WebSearchResult:
+        from odap.biz.core.ontology.services.search_service import TavilySearch
+        tavily = TavilySearch()
+        if not tavily.is_available():
             raise ValueError("Tavily API Key 未配置，请设置 TAVILY_API_KEY 环境变量")
-
-        results = await self._search_tavily(query, max_results, search_depth)
-        return SearchResult(results=results, engine='tavily', query=query)
-
-    async def _search_tavily(self, query: str, max_results: int, search_depth: str) -> List[Dict[str, Any]]:
-        """Tavily API 检索"""
-        return await self._news_ingester._search_tavily(query, max_results, search_depth)
-
-    async def _search_ddg_local(self, query: str, max_results: int) -> List[Dict[str, Any]]:
-        """本地 DuckDuckGo API 检索"""
-        return await self._news_ingester._search_ddg_local(query, max_results)
-
-    async def _search_serpapi(self, query: str, max_results: int) -> List[Dict[str, Any]]:
-        """SerpAPI 检索"""
-        return await self._news_ingester._search_serpapi(query, max_results)
+        results = await tavily.search(query, max_results)
+        result_dicts = [r.to_dict() for r in results]
+        return WebSearchResult(results=result_dicts, engine='tavily', query=query)
 
     def combine_sources(self, results: List[Dict[str, Any]]) -> str:
-        """汇总多源文本"""
         return self._news_ingester._combine_sources(results)
 
     async def extract_with_llm(
@@ -192,11 +116,9 @@ class WebSearchService:
         context: str,
         urls: List[str]
     ) -> List[Dict[str, Any]]:
-        """使用 LLM 抽取结构化信息"""
         return await self._news_ingester._extract_with_llm(text, context, urls)
 
     def has_tavily_key(self) -> bool:
-        """检查是否配置了 Tavily API Key"""
         return bool(self._tavily_api_key and self._tavily_api_key != "your_tavily_api_key_here")
 
 
@@ -768,7 +690,7 @@ class IngestService:
         workspace_id: str = "default"
     ) -> str:
         """生成随机事件 - 简化版本，调用真实的 pipeline"""
-        from ..ingestion import RandomEventGeneratorFactory
+        from ..ingestion_split import RandomEventGeneratorFactory
         from .pipeline_service import get_pipeline_service
 
         # 使用工厂类创建对应类型的生成器
@@ -872,7 +794,7 @@ class IngestService:
 
     def get_random_generator_types(self) -> List[Dict[str, str]]:
         """获取所有可用的随机事件生成器类型"""
-        from ..ingestion import RandomEventGeneratorFactory
+        from ..ingestion_split import RandomEventGeneratorFactory
         types = RandomEventGeneratorFactory.list_generator_types()
         return [
             {
@@ -992,6 +914,49 @@ class IngestService:
     def list_all_versions(self) -> List[Dict[str, Any]]:
         """获取所有版本列表"""
         return self.storage.list_all_versions()
+
+    def get_version(self, version_id: str) -> Optional[Dict[str, Any]]:
+        """获取版本详情"""
+        return self.storage.get_version(version_id)
+
+    def get_version_documents(self, version_id: str) -> List[Dict[str, Any]]:
+        version = self.storage.get_version(version_id)
+        if not version:
+            return []
+        docs = []
+        doc_snapshot = version.get("doc_snapshot")
+        if doc_snapshot:
+            if isinstance(doc_snapshot, str):
+                import json
+                try:
+                    doc_snapshot = json.loads(doc_snapshot)
+                except Exception:
+                    doc_snapshot = None
+            if isinstance(doc_snapshot, dict):
+                docs.append(doc_snapshot)
+            elif isinstance(doc_snapshot, list):
+                docs.extend(doc_snapshot)
+        doc_id = version.get("doc_id")
+        if doc_id and not docs:
+            doc = self.storage.get_ontology_document(doc_id)
+            if doc:
+                docs.append(doc.to_dict() if hasattr(doc, 'to_dict') else doc)
+        ontology_id = version.get("ontology_id")
+        if ontology_id and not docs:
+            ont_docs = self.storage.list_ontology_documents(ontology_id, limit=100)
+            for d in ont_docs:
+                docs.append(d.to_dict() if hasattr(d, 'to_dict') else d)
+        return docs
+
+    def scan_data_conflicts(self) -> Dict[str, Any]:
+        from ..impl.data_cleaner import DataCleaner
+        cleaner = DataCleaner(storage=self.storage)
+        return cleaner.scan()
+
+    def repair_data_conflicts(self, dry_run: bool = True) -> Dict[str, Any]:
+        from ..impl.data_cleaner import DataCleaner
+        cleaner = DataCleaner(storage=self.storage)
+        return cleaner.repair(dry_run=dry_run)
 
 
 from odap.biz.core.ontology.schema.document import OntologyDocumentSchema

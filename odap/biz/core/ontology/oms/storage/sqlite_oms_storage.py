@@ -9,7 +9,7 @@ from ..schemas import (
     ObjectTypeDefinition, ActionTypeDefinition, LinkDefinition,
     PropertyDefinition, ActionParameter,
 )
-from odap.biz.core.ontology.schema.domain import ENTITY_TYPES
+from odap.biz.core.ontology.schema.domain import generate_oms_seed_data
 
 DEFAULT_DB_DIR = os.environ.get("DATA_DIR", os.path.join(os.getcwd(), "data"))
 DEFAULT_DB_PATH = os.path.join(DEFAULT_DB_DIR, "ontology_schema.db")
@@ -73,112 +73,11 @@ class SQLiteOMSStorage:
                 return
             now = datetime.now(timezone.utc).isoformat()
 
-            ADR036_OBJECT_TYPES = {
-                "Unit": {
-                    "display_name": "单位",
-                    "description": "军事或组织单位",
-                    "basic_properties": [
-                        {"name": "unit_id", "display_name": "单位ID", "property_type": "string", "required": True},
-                        {"name": "name", "display_name": "名称", "property_type": "string", "required": True},
-                        {"name": "side", "display_name": "阵营", "property_type": "string", "required": True,
-                         "enum_values": ["red", "blue", "neutral"]},
-                        {"name": "unit_type", "display_name": "单位类型", "property_type": "string", "required": True,
-                         "enum_values": ["infantry", "armor", "artillery", "air", "naval", "special"]},
-                        {"name": "status", "display_name": "状态", "property_type": "string",
-                         "enum_values": ["active", "deployed", "resting", "destroyed", "unknown"]},
-                        {"name": "location", "display_name": "位置", "property_type": "string"},
-                        {"name": "coordinates", "display_name": "坐标", "property_type": "geopoint"},
-                    ],
-                    "statistical_properties": [
-                        {"name": "combat_power", "display_name": "战斗力", "property_type": "integer"},
-                        {"name": "morale", "display_name": "士气", "property_type": "float"},
-                        {"name": "supply_level", "display_name": "补给水平", "property_type": "float"},
-                        {"name": "casualty_rate", "display_name": "伤亡率", "property_type": "float"},
-                        {"name": "strength", "display_name": "兵力", "property_type": "integer"},
-                    ],
-                    "capabilities": [
-                        {"name": "range", "display_name": "射程", "property_type": "float"},
-                        {"name": "armor_penetration", "display_name": "穿甲能力", "property_type": "float"},
-                        {"name": "air_defense", "display_name": "防空能力", "property_type": "float"},
-                    ],
-                    "constraints": [
-                        {"name": "max_speed", "display_name": "最大速度", "property_type": "float"},
-                        {"name": "min_supply", "display_name": "最低补给", "property_type": "float"},
-                    ],
-                    "links": [
-                        {"name": "located_at", "display_name": "驻扎于", "target_type": "Location", "cardinality": "N:1"},
-                        {"name": "attached_to", "display_name": "隶属于", "target_type": "Unit", "cardinality": "N:1"},
-                        {"name": "engaged_with", "display_name": "交战中", "target_type": "Unit", "cardinality": "N:N"},
-                    ],
-                    "actions": ["move", "attack", "defend", "reinforce", "retreat"],
-                },
-                "Location": {
-                    "display_name": "位置",
-                    "description": "地理位置或区域",
-                    "basic_properties": [
-                        {"name": "location_id", "display_name": "位置ID", "property_type": "string", "required": True},
-                        {"name": "name", "display_name": "名称", "property_type": "string", "required": True},
-                        {"name": "location_type", "display_name": "位置类型", "property_type": "string",
-                         "enum_values": ["zone", "sector", "point", "area"]},
-                        {"name": "coordinates", "display_name": "坐标", "property_type": "geopoint"},
-                        {"name": "parent_location", "display_name": "上级位置", "property_type": "string"},
-                        {"name": "classification", "display_name": "分类", "property_type": "string"},
-                    ],
-                    "statistical_properties": [],
-                    "capabilities": [],
-                    "constraints": [],
-                    "links": [
-                        {"name": "adjacent_to", "display_name": "相邻", "target_type": "Location", "cardinality": "N:N"},
-                        {"name": "contains", "display_name": "包含", "target_type": "Unit", "cardinality": "1:N"},
-                    ],
-                    "actions": [],
-                },
-                "Equipment": {
-                    "display_name": "装备",
-                    "description": "武器系统或装备",
-                    "basic_properties": [
-                        {"name": "equipment_id", "display_name": "装备ID", "property_type": "string", "required": True},
-                        {"name": "name", "display_name": "名称", "property_type": "string", "required": True},
-                        {"name": "equipment_type", "display_name": "装备类型", "property_type": "string",
-                         "enum_values": ["vehicle", "weapon", "sensor", "communication", "protection"]},
-                        {"name": "operational_status", "display_name": "运行状态", "property_type": "string",
-                         "enum_values": ["operational", "degraded", "non_operational"]},
-                    ],
-                    "statistical_properties": [],
-                    "capabilities": [
-                        {"name": "range", "display_name": "射程", "property_type": "float"},
-                        {"name": "accuracy", "display_name": "精度", "property_type": "float"},
-                    ],
-                    "constraints": [],
-                    "links": [
-                        {"name": "assigned_to", "display_name": "分配给", "target_type": "Unit", "cardinality": "N:1"},
-                    ],
-                    "actions": [],
-                },
-                "Event": {
-                    "display_name": "事件",
-                    "description": "领域事件",
-                    "basic_properties": [
-                        {"name": "event_id", "display_name": "事件ID", "property_type": "string", "required": True},
-                        {"name": "event_type", "display_name": "事件类型", "property_type": "string",
-                         "enum_values": ["contact", "attack", "movement", "communication", "observation"]},
-                        {"name": "timestamp", "display_name": "时间戳", "property_type": "datetime", "required": True},
-                        {"name": "location", "display_name": "位置", "property_type": "string"},
-                        {"name": "description", "display_name": "描述", "property_type": "string"},
-                        {"name": "phase", "display_name": "阶段", "property_type": "string"},
-                    ],
-                    "statistical_properties": [],
-                    "capabilities": [],
-                    "constraints": [],
-                    "links": [
-                        {"name": "participants", "display_name": "参与方", "target_type": "Unit", "cardinality": "N:N"},
-                        {"name": "occurs_at", "display_name": "发生于", "target_type": "Location", "cardinality": "N:1"},
-                    ],
-                    "actions": ["observe", "communicate"],
-                },
-            }
+            seed_data = generate_oms_seed_data()
+            object_types = seed_data["object_types"]
+            action_types = seed_data["action_types"]
 
-            for type_name, type_def in ADR036_OBJECT_TYPES.items():
+            for type_name, type_def in object_types.items():
                 all_props = []
                 for category in ("basic_properties", "statistical_properties", "capabilities", "constraints"):
                     for p in type_def.get(category, []):
@@ -206,104 +105,7 @@ class SQLiteOMSStorage:
                      1, now, now)
                 )
 
-            ADR036_ACTION_TYPES = [
-                {
-                    "action_type_id": "move",
-                    "name": "move",
-                    "display_name": "移动",
-                    "description": "将单位移动到指定位置",
-                    "target_object_type": "Unit",
-                    "parameters": [
-                        {"name": "destination", "display_name": "目标位置", "param_type": "string", "required": True},
-                        {"name": "speed", "display_name": "速度", "param_type": "float", "required": False},
-                    ],
-                    "required_roles": ["commander", "operator"],
-                    "confirmation_required": False,
-                },
-                {
-                    "action_type_id": "attack",
-                    "name": "attack",
-                    "display_name": "攻击",
-                    "description": "对目标发起攻击",
-                    "target_object_type": "Unit",
-                    "parameters": [
-                        {"name": "target_id", "display_name": "目标ID", "param_type": "string", "required": True},
-                        {"name": "weapon_type", "display_name": "武器类型", "param_type": "string", "required": False},
-                    ],
-                    "opa_policy": "policies/attack/authorize",
-                    "required_roles": ["commander"],
-                    "confirmation_required": True,
-                },
-                {
-                    "action_type_id": "defend",
-                    "name": "defend",
-                    "display_name": "防御",
-                    "description": "在当前位置建立防御",
-                    "target_object_type": "Unit",
-                    "parameters": [
-                        {"name": "defense_type", "display_name": "防御类型", "param_type": "string", "required": False,
-                         "enum_values": ["perimeter", "point", "mobile"]},
-                    ],
-                    "required_roles": ["commander", "operator"],
-                    "confirmation_required": False,
-                },
-                {
-                    "action_type_id": "reinforce",
-                    "name": "reinforce",
-                    "display_name": "增援",
-                    "description": "向目标位置增派兵力",
-                    "target_object_type": "Unit",
-                    "parameters": [
-                        {"name": "reinforcement_type", "display_name": "增援类型", "param_type": "string", "required": False},
-                        {"name": "units", "display_name": "增援单位", "param_type": "json", "required": False},
-                    ],
-                    "required_roles": ["commander"],
-                    "confirmation_required": True,
-                },
-                {
-                    "action_type_id": "retreat",
-                    "name": "retreat",
-                    "display_name": "撤退",
-                    "description": "从当前位置撤退",
-                    "target_object_type": "Unit",
-                    "parameters": [
-                        {"name": "destination", "display_name": "撤退目标", "param_type": "string", "required": True},
-                        {"name": "orderly", "display_name": "有序撤退", "param_type": "boolean", "required": False},
-                    ],
-                    "required_roles": ["commander"],
-                    "confirmation_required": True,
-                },
-                {
-                    "action_type_id": "observe",
-                    "name": "observe",
-                    "display_name": "观察",
-                    "description": "对目标区域进行观察",
-                    "target_object_type": "Event",
-                    "parameters": [
-                        {"name": "area", "display_name": "观察区域", "param_type": "string", "required": True},
-                        {"name": "duration", "display_name": "持续时间", "param_type": "float", "required": False},
-                    ],
-                    "required_roles": ["intelligence_officer", "operator"],
-                    "confirmation_required": False,
-                },
-                {
-                    "action_type_id": "communicate",
-                    "name": "communicate",
-                    "display_name": "通信",
-                    "description": "发送或接收通信",
-                    "target_object_type": "Event",
-                    "parameters": [
-                        {"name": "recipient", "display_name": "接收方", "param_type": "string", "required": True},
-                        {"name": "message", "display_name": "消息内容", "param_type": "string", "required": True},
-                        {"name": "priority", "display_name": "优先级", "param_type": "string", "required": False,
-                         "enum_values": ["routine", "priority", "immediate", "flash"]},
-                    ],
-                    "required_roles": ["operator"],
-                    "confirmation_required": False,
-                },
-            ]
-
-            for act in ADR036_ACTION_TYPES:
+            for act in action_types:
                 conn.execute(
                     "INSERT OR IGNORE INTO action_types (action_type_id, name, display_name, description, target_object_type, parameters, opa_policy, required_roles, confirmation_required, is_active, created_at, updated_at) VALUES (?,?,?,?,?,?,?,?,?,?,?,?)",
                     (act["action_type_id"], act["name"], act.get("display_name", act["name"]),

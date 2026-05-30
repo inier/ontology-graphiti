@@ -1,23 +1,6 @@
 import type { Agent, AgentFormData, AgentRefOption } from '../types';
-
-const API_BASE = import.meta.env.VITE_API_BASE || '';
-
-async function fetchJson<T>(url: string, options?: RequestInit): Promise<T> {
-  const token = localStorage.getItem('token');
-  const authHeaders: Record<string, string> = { 'Content-Type': 'application/json' };
-  if (token) authHeaders['Authorization'] = `Bearer ${token}`;
-  const mergedOptions: RequestInit = { ...options, headers: { ...authHeaders, ...(options?.headers as Record<string, string>) } };
-  const res = await fetch(url, mergedOptions);
-  if (res.status === 401 || res.status === 403) {
-    localStorage.removeItem('token');
-    localStorage.removeItem('refresh_token');
-    localStorage.removeItem('user');
-    window.location.href = '/login';
-    throw new Error('登录已过期，请重新登录');
-  }
-  if (!res.ok) throw new Error(`HTTP ${res.status}`);
-  return res.json();
-}
+import { fetchJson } from '../../shared/services/apiClient';
+import { API_BASE } from '../../../config';
 
 export const agentApi = {
   listAgents: (params?: { workspaceId?: string; roleId?: string }): Promise<Agent[]> => {
@@ -25,26 +8,26 @@ export const agentApi = {
     if (params?.roleId) qs.set('role_id', params.roleId);
     if (params?.workspaceId) qs.set('workspace_id', params.workspaceId);
     const query = qs.toString();
-    return fetchJson<Agent[]>(`${API_BASE}/api/agents${query ? `?${query}` : ''}`);
+    return fetchJson<Agent[]>(`${API_BASE}/api/agent-management${query ? `?${query}` : ''}`);
   },
 
   listAgentsByRole: (roleId: string, workspaceId?: string): Promise<Agent[]> => {
     const qs = new URLSearchParams({ role_id: roleId });
     if (workspaceId) qs.set('workspace_id', workspaceId);
-    return fetchJson<Agent[]>(`${API_BASE}/api/agents?${qs.toString()}`);
+    return fetchJson<Agent[]>(`${API_BASE}/api/agent-management?${qs.toString()}`);
   },
 
   getAgent: (id: string): Promise<Agent> =>
-    fetchJson<Agent>(`${API_BASE}/api/agents/${id}`),
+    fetchJson<Agent>(`${API_BASE}/api/agent-management/${id}`),
 
   createAgent: (data: AgentFormData): Promise<Agent> =>
-    fetchJson<Agent>(`${API_BASE}/api/agents`, {
+    fetchJson<Agent>(`${API_BASE}/api/agent-management`, {
       method: 'POST',
       body: JSON.stringify(data),
     }),
 
   updateAgent: (id: string, data: AgentFormData): Promise<Agent> =>
-    fetchJson<Agent>(`${API_BASE}/api/agents/${id}`, {
+    fetchJson<Agent>(`${API_BASE}/api/agent-management/${id}`, {
       method: 'PUT',
       body: JSON.stringify(data),
     }),
@@ -53,27 +36,26 @@ export const agentApi = {
     const token = localStorage.getItem('token');
     const headers: Record<string, string> = {};
     if (token) headers['Authorization'] = `Bearer ${token}`;
-    return fetch(`${API_BASE}/api/agents/${id}`, { method: 'DELETE', headers }).then(r => {
+    return fetch(`${API_BASE}/api/agent-management/${id}`, { method: 'DELETE', headers }).then(r => {
       if (!r.ok) throw new Error(`HTTP ${r.status}`);
     });
   },
 
-  // 关联选项查询
   getEntityOptions: (): Promise<AgentRefOption[]> =>
-    fetchJson<AgentRefOption[]>(`${API_BASE}/api/agents/ref-options?type=entity`),
+    fetchJson<AgentRefOption[]>(`${API_BASE}/api/agent-management/ref-options?type=entity`),
 
   getBusinessLogicOptions: (): Promise<AgentRefOption[]> =>
-    fetchJson<AgentRefOption[]>(`${API_BASE}/api/agents/ref-options?type=business_logic`),
+    fetchJson<AgentRefOption[]>(`${API_BASE}/api/agent-management/ref-options?type=business_logic`),
 
   getIndicatorOptions: (): Promise<AgentRefOption[]> =>
-    fetchJson<AgentRefOption[]>(`${API_BASE}/api/agents/ref-options?type=indicator`),
+    fetchJson<AgentRefOption[]>(`${API_BASE}/api/agent-management/ref-options?type=indicator`),
 
   getSkillOptions: (): Promise<AgentRefOption[]> =>
-    fetchJson<AgentRefOption[]>(`${API_BASE}/api/agents/ref-options?type=skill`),
+    fetchJson<AgentRefOption[]>(`${API_BASE}/api/agent-management/ref-options?type=skill`),
 
   getKnowledgeBaseOptions: (): Promise<AgentRefOption[]> =>
-    fetchJson<AgentRefOption[]>(`${API_BASE}/api/agents/ref-options?type=knowledge_base`),
+    fetchJson<AgentRefOption[]>(`${API_BASE}/api/agent-management/ref-options?type=knowledge_base`),
 
   getRoleOptions: (): Promise<AgentRefOption[]> =>
-    fetchJson<AgentRefOption[]>(`${API_BASE}/api/agents/ref-options?type=role`),
+    fetchJson<AgentRefOption[]>(`${API_BASE}/api/agent-management/ref-options?type=role`),
 };

@@ -46,16 +46,14 @@ except ImportError:
     OPAManagerV2 = None
 
 
-class ToolType(Enum):
-    """工具类型"""
+class ToolType(str, Enum):
     SKILL = "skill"
     MCP = "mcp"
     REST = "rest"
     FUNCTION = "function"
 
 
-class ToolCapability(Enum):
-    """工具能力标记"""
+class ToolCapability(str, Enum):
     QUERY = "query"
     ACTION = "action"
     TRANSFORM = "transform"

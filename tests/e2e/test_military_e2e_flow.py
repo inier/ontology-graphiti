@@ -339,7 +339,7 @@ class TestMilitaryE2EFlow:
             "allowed_roles": ["commander", "intelligence_officer"],
         }
 
-        response = app_client.post("/api/agents", json=agent_data)
+        response = app_client.post("/api/agent-management", json=agent_data)
         assert response.status_code == 200, f"创建智能体失败: {response.text}"
         data = response.json()
         TestMilitaryE2EFlow.agent_id = data.get("agent_id") or data.get("id")
@@ -348,14 +348,14 @@ class TestMilitaryE2EFlow:
     def test_13_get_agent_ref_options(self, app_client, test_ids):
         """步骤13: 验证智能体引用选项端点"""
         for ref_type in ["entity", "business_logic", "indicator", "skill", "knowledge_base", "role"]:
-            response = app_client.get(f"/api/agents/ref-options?type={ref_type}")
+            response = app_client.get(f"/api/agent-management/ref-options?type={ref_type}")
             assert response.status_code == 200, f"获取 {ref_type} 引用选项失败: {response.text}"
             data = response.json()
             assert "options" in data
 
     def test_14_list_agents(self, app_client, test_ids):
         """步骤14: 验证智能体列表包含新创建的智能体"""
-        response = app_client.get("/api/agents")
+        response = app_client.get("/api/agent-management")
         assert response.status_code == 200
         data = response.json()
         agent_ids = [a.get("agent_id") or a.get("id") for a in data]

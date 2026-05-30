@@ -1,35 +1,19 @@
 import { useState, useEffect } from 'react';
 import { Card, Button, Input, Modal, Form, message, Tag, Space, Table, Popconfirm, Select, Switch, Descriptions, Avatar } from 'antd';
 import { PlusOutlined, SearchOutlined, EditOutlined, DeleteOutlined, UserOutlined, SafetyCertificateOutlined } from '@ant-design/icons';
-
-const API_BASE = import.meta.env.VITE_API_BASE || '';
-
-async function fetchJson<T>(url: string, options?: RequestInit): Promise<T> {
-  const token = localStorage.getItem('token');
-  const authHeaders: Record<string, string> = { 'Content-Type': 'application/json' };
-  if (token) authHeaders['Authorization'] = `Bearer ${token}`;
-  const mergedOptions: RequestInit = { ...options, headers: { ...authHeaders, ...(options?.headers as Record<string, string>) } };
-  const res = await fetch(url, mergedOptions);
-  if (res.status === 401 || res.status === 403) {
-    localStorage.removeItem('token');
-    localStorage.removeItem('refresh_token');
-    localStorage.removeItem('user');
-    window.location.href = '/login';
-    throw new Error('登录已过期，请重新登录');
-  }
-  if (!res.ok) {
-    const detail = await res.text().catch(() => '');
-    throw new Error(detail || `HTTP ${res.status}`);
-  }
-  return res.json();
-}
+import { fetchJson, API_BASE } from '../../shared';
 
 const ROLE_OPTIONS = [
-  { value: 'admin', label: '系统管理员', color: 'red' },
-  { value: 'commander', label: '指挥官', color: 'orange' },
-  { value: 'analyst', label: '分析师', color: 'blue' },
-  { value: 'operator', label: '操作员', color: 'green' },
-  { value: 'observer', label: '观察者', color: 'default' },
+  { value: 'system_admin', label: '系统管理员', color: 'red' },
+  { value: 'project_owner', label: '项目所有者', color: 'orange' },
+  { value: 'team_leader', label: '团队负责人', color: 'blue' },
+  { value: 'member', label: '成员', color: 'green' },
+  { value: 'guest', label: '访客', color: 'default' },
+  { value: 'admin', label: '管理员(旧)', color: 'red' },
+  { value: 'commander', label: '指挥官(旧)', color: 'orange' },
+  { value: 'analyst', label: '分析师(旧)', color: 'blue' },
+  { value: 'operator', label: '操作员(旧)', color: 'green' },
+  { value: 'observer', label: '观察者(旧)', color: 'default' },
 ];
 
 interface UserRecord {
@@ -264,7 +248,7 @@ export function UserManagement() {
           <Form.Item name="email" label="邮箱">
             <Input placeholder="请输入邮箱（可选）" />
           </Form.Item>
-          <Form.Item name="global_role" label="角色" rules={[{ required: true, message: '请选择角色' }]} initialValue="observer">
+          <Form.Item name="global_role" label="角色" rules={[{ required: true, message: '请选择角色' }]} initialValue="guest">
             <Select options={ROLE_OPTIONS.map(r => ({ value: r.value, label: r.label }))} />
           </Form.Item>
         </Form>

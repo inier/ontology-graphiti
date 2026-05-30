@@ -1,10 +1,10 @@
 """场景管理服务"""
 
+import uuid
 from typing import Dict, Any, List, Optional
 from datetime import datetime
 from ..models.scenario import Scenario
 from ..storage import Storage
-from odap.biz.core.ontology.models.ontology import OntologyDocument
 
 
 class ScenarioService:
@@ -19,10 +19,7 @@ class ScenarioService:
         scenario_id = f"scenario-{datetime.now().strftime('%Y%m%d')}-{datetime.now().strftime('%H%M%S')}"
         
         if not ontology_id:
-            ontology_name = f"{name}_Ontology"
-            ontology_description = f"自动创建的本体 for 场景: {name}"
-            ontology_doc = OntologyDocument(name=ontology_name, description=ontology_description)
-            ontology_id = ontology_doc.id
+            ontology_id = str(uuid.uuid4())
         
         scenario = {
             'scenario_id': scenario_id,
@@ -48,7 +45,7 @@ class ScenarioService:
     def _ensure_initial_version(self, ontology_id: str, scenario_name: str = "") -> None:
         """确保本体有初始版本"""
         try:
-            from odap.biz.core.ontology.version_manager import OntologyVersionManager
+            from odap.biz.core.ontology.services.version_service import OntologyVersionManager
             vm = OntologyVersionManager.get_instance()
             vm.ensure_initial_version(ontology_id, scenario_name)
         except Exception:
@@ -229,16 +226,6 @@ class ScenarioService:
             "updated_at": datetime.now().isoformat()
         }
         
-        # 简化处理：创建新的 OntologyDocument
-        ontology_doc = OntologyDocument(
-            id=ontology_id,
-            name=f"Ontology_{scenario_id}",
-            description=f"Ontology for scenario {scenario_id}",
-            entities=unique_entities,
-            relations=[]
-        )
-        
-        # 更新场景统计
         scenario["entity_count"] = len(unique_entities)
         scenario["event_count"] = len(all_events)
         scenario["updated_at"] = datetime.now().isoformat()

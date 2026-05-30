@@ -1,203 +1,492 @@
 # AGENTS.md — AI 代理工作规则
 
-ODAP — 本体驱动分析决策平台。Graphiti 为双时态知识图谱组件。
+> **ODAP**（本体驱动分析决策平台）—— 基于 Graphiti 双时态知识图谱，提供本体管理、智能体编排、决策推演与模拟仿真能力。后端 Python/FastAPI + 前端 React 19/TypeScript，7大业务领域、30+ 路由模块、Podman 容器化部署。
+> **技术栈**：Python 3.10+ · FastAPI · Pydantic v2 · Neo4j/SQLite/Redis · OPA · OpenHarness v1/v2 · React 19 · TypeScript · Ant Design 6 · Zustand 5 · Podman
 
 ---
 
-## 技术栈
+## 1. 项目概述
 
-Python 3.10+, FastAPI, Pydantic v2, SQLite/Neo4j/Redis, OPA, OpenHarness v1/v2 (子模块), React 19/TypeScript/Ant Design 6/Zustand 5, Podman (非 Docker)
+ODAP 是一个**本体驱动的分析决策平台**，核心能力围绕 Graphiti 双时态知识图谱构建。平台支持用户定义本体（Ontology）、管理多版本本体定义、通过智能体（Agent）进行问答与推演、基于场景进行模拟仿真，最终形成"摄入→构建→问答→执行→反馈"的完整闭环。
+
+```
+ontology-graphiti/           # 项目根目录
+├── odap/                   # 后端主包（7大业务领域）
+│   ├── biz/                #   业务模块：core / decision / integration / platform / data / simulation / management
+│   ├── infra/              #   基础设施：graph / query / opa / security / openharness / llm 等
+│   ├── tools/              #   领域 Skills（base.py + registry.py + 9个技能包）
+│   └── web/                #   Web 入口与网关
+├── frontend/               # 前端（React 19 + Vite + Ant Design 6）
+│   └── src/modules/        #   业务模块：agent / audit / business / config / ingest / knowledge / ontology / qa / roles / simulation / system / version / workspace
+├── openharness/            # Git Submodule（OpenHarness v1/v2 适配层）
+├── docker/                 # Dockerfile + Podman Compose 配置
+├── tests/                  # unit / integration / e2e
+├── docs/                   # 文档体系（需求→设计→架构→模块→UI→安全→DFX→ADR）
+├── bootstep.py             # 一键容器启动脚本（Podman）
+└── main.py                 # CLI 入口（本地开发用）
+```
 
 ---
 
-## 两个 Web 入口（极易混淆，务必区分）
+## 2. 快速命令
+
+### 2.1 环境准备
+
+```bash
+# 1. 克隆 + 初始化子模块
+git clone --recursive <repo-url>                # 含子模块
+git submodule update --init --recursive         # 已有仓库时初始化
+
+# 2. 安装依赖
+pip install -r requirements.txt                   # 后端（含 -e ./openharness）
+cd frontend && npm install                        # 前端
+
+# 3. 环境变量（复制并修改）
+cp .env.example .env.docker                       # 必填：OPENAI_API_KEY / NEO4J_* / JWT_SECRET
+```
+
+### 2.2 构建与启动
+
+| 命令 | 作用 | 说明 |
+|------|------|------|
+| `python bootstep.py dev` | 启动开发环境 | 容器化启动全部服务，前端热重载 |
+| `python bootstep.py up` | 启动生产环境 | Nginx 静态服务，端口 80 |
+| `python bootstep.py restart` | 重启服务 | 代码修改后执行 |
+| `python bootstep.py rebuild` | 重建镜像并启动 | 依赖变更后执行 |
+| `python bootstep.py down` | 停止所有服务 | — |
+| `python bootstep.py status` | 查看服务状态 | — |
+| `python bootstep.py logs` | 查看后端日志 | `logs fe` 查看前端日志 |
+| `python bootstep.py clean` | 清理 dangling 镜像 | — |
+
+### 2.3 本地开发（容器内）
+
+```bash
+# 启动开发环境（容器内运行全部服务）
+python bootstep.py dev
+```
+
+开发环境统一通过 **Podman 容器**运行：
+
+- **后端**：容器内通过 `python main.py --web` 启动本地开发入口（`odap/web/api/app.py`，端口 8765），代码通过 volume 映射实时同步
+- **前端**：容器内启动 Vite 开发服务器（端口 5173，`/api` 代理到后端）
+- **热重载**：前端代码修改自动刷新；后端代码修改需执行 `bootstep.py restart` 生效
+- **访问地址**：前端 `http://localhost:5173`，后端 `http://localhost:8000`
+
+> **关键约束**：**禁止在宿主机直接执行** `python main.py --web` 或 `npm run dev`。所有开发服务必须运行在 Podman 容器内。
+
+### 2.4 环境变量速查
+
+| 变量 | 必填 | 说明 |
+|------|:--:|------|
+| `OPENAI_API_KEY` | 是 | LLM API Key |
+| `OPENAI_API_BASE` | 是 | LLM API 基地址 |
+| `OPENAI_MODEL` | 是 | 模型名称 |
+| `NEO4J_URI` | 是 | 图数据库连接（容器内用 `graphiti-neo4j:7687`） |
+| `NEO4J_USER` / `NEO4J_PASSWORD` | 是 | Neo4j 认证 |
+| `JWT_SECRET` | 是 | JWT 签名密钥 |
+| `TAVILY_API_KEY` | 否 | 搜索增强 |
+| `OPA_URL` | 否 | OPA 策略引擎地址 |
+| `REDIS_URL` | 否 | 缓存服务 |
+| `CORS_ORIGINS` | 否 | 跨域白名单 |
+
+---
+
+## 3. 后端架构
+
+### 3.1 包结构树
+
+```
+odap/
+├── biz/                           # 业务模块（7 个领域，禁止跨层调用）
+│   ├── core/                      #   本体(Ontology) + 认知(Cognition) + Agent 编排
+│   │   └── {module}/
+│   │       ├── api/
+│   │       │   ├── routes.py      #       FastAPI 路由（唯一入口）
+│   │       │   └── schemas.py     #       Pydantic 请求/响应模型
+│   │       ├── models/            #       领域模型 (Pydantic BaseModel)
+│   │       ├── interfaces/          #       抽象基类 (ABC)
+│   │       ├── impl/               #       接口实现（核心逻辑）
+│   │       ├── services/          #       编排层（路由 ↔ 实现 桥梁）
+│   │       └── storage/            #       SQLite 持久化
+│   │           ├── __init__.py      #           Storage = SQLiteXxxStorage（别名导出）
+│   │           └── sqlite_xxx_storage.py
+│   ├── decision/                  #   action_service + decision_pipeline + decision_recommendation
+│   ├── integration/               #   openharness_agent + mcp_adapter + hook_system + frontend_compat
+│   ├── platform/                  #   workspace + roles + skill_system + tool_registry + session_memory + ontology_memory
+│   ├── data/                      #   data_warehouse + knowledge_base + perception + qa + semantic_map
+│   ├── simulation/                #   event_simulator + simulation_sandbox + feedback + simulation_deduction
+│   └── management/                #   agent_management + business
+├── infra/                         # 基础设施（可横向复用）
+│   ├── graph/                     #   GraphManager（Neo4j 生产 / NetworkX 回退）
+│   ├── query/                     #   统一查询服务 (ADR-055)
+│   ├── opa/                       #   OPA 策略引擎（Rego + bundles）
+│   ├── security/                  #   JWT + OAuth2 + 审计路由
+│   ├── openharness/               #   v1/v2 适配层
+│   └── llm/ monitoring/ resilience/ data_pipeline/ config/ object_service/ storage/ utils/
+├── tools/                         # 领域 Skills（base.py + registry.py + 9 个技能包）
+└── web/
+    ├── app.py                     #   ⭐ 生产入口（端口 8000）—— 新增路由必须在此注册
+    ├── api/app.py                 #   本地开发入口（端口 8765，MockDataWebService）
+    ├── gateway/                   #   API 网关
+    └── ws/                        #   WebSocket 事件总线
+```
+
+### 3.2 核心子系统
+
+| 子系统 | 职责 | 入口文件 | 详细文档 |
+|--------|------|----------|----------|
+| **本体管理** | 本体 CRUD、版本控制、场景绑定 | `odap/biz/core/ontology/api/routes.py` | [docs/03-modules/ontology/DESIGN.md](docs/03-modules/ontology/DESIGN.md) |
+| **Agent 编排** | 多 Agent 协同、Swarm 调度 | `odap/biz/core/agent/` | [docs/03-modules/swarm_orchestrator/DESIGN.md](docs/03-modules/swarm_orchestrator/DESIGN.md) |
+| **OPA 策略** | 权限决策、工作空间隔离 | `odap/infra/opa/` | [docs/03-modules/opa_policy/DESIGN.md](docs/03-modules/opa_policy/DESIGN.md) |
+| **Hook 系统** | 事件订阅/发布、异步广播 | `odap/biz/integration/hook_system/` | [docs/03-modules/hook_system/DESIGN.md](docs/03-modules/hook_system/DESIGN.md) |
+| **MCP 适配** | Model Context Protocol 集成 | `odap/biz/integration/mcp_adapter/` | [docs/03-modules/mcp_protocol/DESIGN.md](docs/03-modules/mcp_protocol/DESIGN.md) |
+| **问答引擎** | 基于本体的 RAG 问答 | `odap/biz/data/qa/` | [docs/03-modules/qa_engine/DESIGN.md](docs/03-modules/qa_engine/DESIGN.md) |
+| **模拟仿真** | 事件推演、沙盘推演 | `odap/biz/simulation/` | [docs/03-modules/event_simulator/DESIGN.md](docs/03-modules/event_simulator/DESIGN.md) |
+| **审计日志** | 全链路审计、统一写入/读取 | `odap/infra/security/unified_audit.py` | [docs/03-modules/audit_log/DESIGN.md](docs/03-modules/audit_log/DESIGN.md) |
+| **统一查询** | 多数据源查询抽象 | `odap/infra/query/` | ADR-055 |
+
+### 3.3 前后端术语映射
+
+| 后端术语 | 前端术语 | 说明 |
+|----------|----------|------|
+| Ontology | 本体 / 语义网络 | 知识图谱 schema 定义 |
+| OntologyVersion | 版本历史 | 本体的多版本管理 |
+| Scenario | 场景 | 工作空间下的业务场景 |
+| Workspace | 工作空间 | 顶级资源容器 |
+| Agent | 智能体 | AI 代理实例 |
+| Skill | 技能 | 可注册复用的能力单元 |
+| Ingest | 数据摄入 | 文档/数据导入流程 |
+| Simulation / Sandbox | 模拟器 / 推演 | 事件仿真与策略推演 |
+| SemanticMap | 语义地图 | 本体可视化呈现 |
+| BusinessRule | 业务规则 | 基于本体的规则引擎 |
+| Harness | 蓝图设计器 | 本体可视化编排工具 |
+
+---
+
+## 4. 前端架构
+
+### 4.1 技术栈
+
+- **框架**: React 19 + TypeScript
+- **构建**: Vite 8.x
+- **UI 库**: Ant Design 6.x + `@ant-design/icons`
+- **状态管理**: Zustand 5.x
+- **路由**: React Router DOM 7.x
+- **图表**: AntV G6 5.x + ECharts 6.x + `@xyflow/react`（React Flow）
+- **地图**: Leaflet + React-Leaflet
+- **测试**: Vitest + `@testing-library/react`
+- **代码检查**: ESLint + TypeScript-ESLint
+
+### 4.2 路由方案
+
+前端路由定义于 [`frontend/src/AppRoutes.tsx`](frontend/src/AppRoutes.tsx)，采用**声明式路由**，主要页面如下：
+
+| 路径 | 组件 | 模块 |
+|------|------|------|
+| `/login` | `LoginPage` | shared |
+| `/my-agents` | `MyAgents` | agent |
+| `/agent-chat/:agentId` | `AgentChat` | agent |
+| `/ontology` | `OntologySemanticNetwork` | ontology |
+| `/blueprint` | `BlueprintDesignerPage` | ontology |
+| `/versions` | `VersionHistory` | version |
+| `/business/process` | `BusinessProcess` | business |
+| `/business/rules` | `Rules` | business |
+| `/business/indicators` | `Indicators` | business |
+| `/business/logic` | `Logic` | business |
+| `/business/entities` | `ObjectManagement` | business |
+| `/business/extraction` | `SmartGeneration` | business |
+| `/skills` | `SkillManagement` | system |
+| `/simulator` | `Simulator` | ingest |
+| `/simulation/deduction` | `StrategyDeduction` | simulation |
+| `/ingest` | `IngestPanel` | ingest |
+| `/knowledge` | `KnowledgeBase` | knowledge |
+| `/workspace` | `WorkspaceManager` | workspace |
+| `/roles` | `RoleManager` / `UserManagement` | roles |
+
+### 4.3 API 层约定
+
+- **Base URL**: 通过 `VITE_API_BASE` 环境变量配置，默认空（同域）
+- **代理**: Vite dev server 将 `/api` 代理到后端（默认 `http://localhost:8765`）
+- **认证**: JWT Token 存储于 `localStorage`，请求头携带 `Authorization: Bearer <token>`
+- **模块组织**: 每个前端模块独立维护 API 调用逻辑，建议按模块划分 `api/` 目录
+
+### 4.4 组件库规范
+
+- **基础组件**: Ant Design 6 组件（Button、Table、Form、Modal 等）
+- **业务组件**: 各 `modules/{name}/components/` 下维护，禁止跨模块直接引用
+- **图表组件**: G6（图谱可视化）、ECharts（统计图表）、React Flow（流程/蓝图编排）
+- **共享组件**: `modules/shared/components/` 放置通用组件（如 LoginPage）
+
+### 4.5 详细文档
+
+- [docs/03-modules/web_frontend/DESIGN.md](docs/03-modules/web_frontend/DESIGN.md) — Web 前端模块设计
+- [docs/04-ui/COMPONENT_HIERARCHY.md](docs/04-ui/COMPONENT_HIERARCHY.md) — 组件层级
+- [docs/04-ui/COMPONENT_SPEC.md](docs/04-ui/COMPONENT_SPEC.md) — 组件规范
+- [docs/04-ui/ONTOLOGY_BUILD_UI.md](docs/04-ui/ONTOLOGY_BUILD_UI.md) — 本体构建 UI 设计
+
+---
+
+## 5. 关键约定（硬性规则）
+
+> 违反以下规则将直接导致功能异常或线上故障。
+
+### 规则 1：新增路由必须注册到生产入口
+
+新增路由必须在 `odap/web/app.py` 中通过 `include_router()` 注册。本地开发入口 `odap/web/api/app.py` 有独立路由逻辑，不自动同步。
+- 📎 [路由定义规则](#路由定义规则)
+
+### 规则 2：服务层不抛 HTTPException
+
+服务层（`services/`）必须返回 `Dict[str, Any]`，错误格式为 `{"status": "error", "message": "..."}`。路由层负责翻译为 `HTTPException`。禁止在服务层抛出 HTTPException。
+- 📎 [错误处理规则](#错误处理规则)
+
+### 规则 3：路由层必须透传 HTTPException
+
+路由层的 `except` 块必须包含 `except HTTPException: raise`，否则已构造的 HTTP 异常会被外层 `except Exception` 兜底吞为 500。
+- 📎 [路由定义规则](#路由定义规则)
+
+### 规则 4：Enum 必须 `(str, Enum)` 双继承
+
+所有枚举必须 `class XxxStatus(str, Enum)`，确保 JSON 序列化正常。禁止用纯 `Enum`。
+- 📎 [领域模型规则](#领域模型规则)
+
+### 规则 5：容器字段必须 `Field(default_factory=...)`
+
+List/Dict/Set 等可变容器字段必须用 `Field(default_factory=list)` 或 `Field(default_factory=dict)`，禁止 `= []` 或 `= {}`（会导致实例间共享引用）。
+- 📎 [领域模型规则](#领域模型规则)
+
+### 规则 6：调用链禁止跨层
+
+严格遵循 `routes.py → services/ → impl/ → storage/` 调用链，禁止跨层调用（如路由层直接访问 storage）。
+- 📎 [biz 模块内部结构](#biz-模块内部结构)
+
+### 规则 7：开发环境用 Podman 容器
+
+前后端服务统一通过 `python bootstep.py dev` 在 Podman 容器内运行。**禁止在宿主机直接 `uvicorn` 或 `npm run dev`**。代码修改后需执行 `bootstep.py restart` 或 `rebuild` 才能生效。
+- 📎 [开发环境部署规则](#开发环境部署规则)
+
+### 规则 8：SQLite 无连接池，每次 connect/close
+
+SQLite 存储层每次操作必须 `sqlite3.connect()` → 用完 `conn.close()`，禁止保持长连接。复杂字段（Dict/List）存 JSON TEXT，Enum 存 `.value` 字符串，datetime 存 ISO 字符串。
+- 📎 [SQLite 存储规则](#sqlite-存储规则)
+
+### 规则 9：新增模块必须同步新增测试文件
+
+每个新增模块必须在 `tests/unit/` 下创建对应 `test_{module}.py`，不允许零测试提交。SQLite 存储层测试用 `tmp_path` 真实 DB，禁止 MagicMock。
+- 📎 [测试规则](#测试规则)
+
+### 规则 10：Neo4j URI 必须使用容器服务名
+
+容器环境下 `NEO4J_URI` 必须使用 `bolt://graphiti-neo4j:7687`，禁止写 `localhost`。容器间通过 Podman 网络通信。
+- 📎 [环境变量速查](#环境变量速查)
+
+---
+
+## 6. 本地开发及验证流程
+
+### 6.1 「改 → 构建 → 启动 → 验证」闭环
+
+```
+┌─────────────────────────────────────────────────────────────────────┐
+│  Step 1: 修改代码                                                    │
+│  ─────────────────────────────────────────────────────────────────  │
+│  • 后端：odap/ 下的 .py 文件                                          │
+│  • 前端：frontend/src/ 下的 .ts/.tsx/.css 文件                         │
+├─────────────────────────────────────────────────────────────────────┤
+│  Step 2: 构建/重启                                                    │
+│  ─────────────────────────────────────────────────────────────────  │
+│  • 容器开发：python bootstep.py restart      (代码修改后必须执行)      │
+│  • 依赖变更：python bootstep.py rebuild      (requirements/package.json) │
+│  • 本地后端：python main.py --web             (仅快速调试)             │
+│  • 本地前端：cd frontend && npm run dev      (仅快速调试)             │
+├─────────────────────────────────────────────────────────────────────┤
+│  Step 3: 启动服务                                                     │
+│  ─────────────────────────────────────────────────────────────────  │
+│  • 容器模式：python bootstep.py dev                                  │
+│    - 前端 http://localhost:5173   (Vite 热重载)                      │
+│    - 后端 http://localhost:8000   (生产入口)                         │
+│  • 本地模式：                                                         │
+│    - 前端 http://localhost:5173   (Vite dev server)                  │
+│    - 后端 http://localhost:8765   (本地开发入口)                      │
+├─────────────────────────────────────────────────────────────────────┤
+│  Step 4: 验证                                                         │
+│  ─────────────────────────────────────────────────────────────────  │
+│  • 健康检查：curl http://localhost:8000/health                       │
+│  • 登录获取 Token → 携带 Token 访问业务接口                            │
+│  • 运行测试：pytest tests/unit/ -v                                   │
+│  • 前端检查：cd frontend && npm run lint && npm run typecheck        │
+└─────────────────────────────────────────────────────────────────────┘
+```
+
+### 6.2 Token 获取与使用
+
+```bash
+# 1. 登录获取 Token
+curl -X POST http://localhost:8000/api/auth/login \
+  -H "Content-Type: application/json" \
+  -d '{"username":"admin","password":"admin123"}'
+# 响应：{"access_token":"...","refresh_token":"..."}
+
+# 2. 携带 Token 访问受保护接口
+curl -H "Authorization: Bearer <access_token>" \
+  http://localhost:8000/api/workspaces
+
+# 3. 刷新 Token
+curl -X POST http://localhost:8000/api/auth/refresh \
+  -H "Content-Type: application/json" \
+  -d '{"refresh_token":"..."}'
+```
+
+### 6.3 常用验证请求
+
+```bash
+# 健康检查
+curl http://localhost:8000/health
+
+# 获取工作空间列表（需 Token）
+curl -H "Authorization: Bearer <token>" \
+  http://localhost:8000/api/workspaces
+
+# 创建本体（需 Token）
+curl -X POST http://localhost:8000/api/ontology \
+  -H "Authorization: Bearer <token>" \
+  -H "Content-Type: application/json" \
+  -d '{"name":"test-ontology","description":"Test"}'
+
+# 获取本体列表（需 Token）
+curl -H "Authorization: Bearer <token>" \
+  http://localhost:8000/api/ontology
+```
+
+### 6.4 日志路径
+
+| 日志类型 | 路径/命令 |
+|----------|----------|
+| 后端容器日志 | `python bootstep.py logs` |
+| 前端容器日志 | `python bootstep.py logs fe` |
+| 本地后端日志 | `app.log`（由 `LOG_FILE` 环境变量控制） |
+| 审计日志 | `odap/infra/security/unified_audit.py` 统一写入 SQLite |
+
+---
+
+## 7. 质量检查
+
+### 7.1 命令矩阵
+
+| 检查项 | 后端命令 | 前端命令 |
+|--------|--------|----------|
+| **Lint** | `ruff check .` / `flake8` | `cd frontend && npm run lint` |
+| **Format** | `ruff format .` / `black` | `cd frontend && npx prettier --write .` |
+| **Type Check** | Python 类型（运行时检查） | `cd frontend && npm run typecheck` |
+| **Test** | `pytest tests/unit/ -v` | `cd frontend && npm test` |
+| **Test (Integration)** | `pytest tests/integration/ -v` | — |
+| **Coverage** | `pytest --cov=odap tests/unit/` | `cd frontend && npm run test:coverage` |
+| **Build** | — | `cd frontend && npm run build` |
+
+### 7.2 pytest 标记
+
+```python
+# 单元测试（默认）
+pytest tests/unit/ -v
+
+# 集成测试（需要 Neo4j 运行，否则跳过）
+pytest tests/integration/ -v -m integration
+
+# 慢速测试
+pytest tests/ -v -m slow
+
+# 端到端测试
+pytest tests/e2e/ -v -m e2e
+```
+
+---
+
+## 8. 参考项目约定
+
+### 8.1 参考项目列表
+
+| 项目 | 用途 | 集成方式 |
+|------|------|----------|
+| **Graphiti** | 双时态知识图谱核心 | PyPI `graphiti-core>=0.28.0` |
+| **OpenHarness** | Agent 编排与执行框架 | Git Submodule (`-e ./openharness`) |
+| **Neo4j** | 图数据库存储 | 容器服务 / 本地安装 |
+| **OPA** | 策略权限引擎 | 容器服务 (`openpolicyagent/opa:0.58.0`) |
+| **Ant Design** | UI 组件库 | npm `antd` |
+| **Zustand** | 状态管理 | npm `zustand` |
+| **React Flow** | 流程/图谱编排 | npm `@xyflow/react` |
+| **AntV G6** | 图谱可视化 | npm `@antv/g6` |
+
+### 8.2 优先级规则
+
+- **P0（阻塞）**：Graphiti、Neo4j、OpenHarness、FastAPI、React —— 核心功能依赖，必须先于业务代码就绪
+- **P1（重要）**：OPA、Redis、Ant Design、Zustand —— 支撑功能，缺失会降级但可运行
+- **P2（增强）**：Tavily、ECharts、React Flow —— 体验优化，缺失不影响核心流程
+
+---
+
+## 9. 文档导航
+
+### 9.1 文档体系总览
+
+```
+docs/
+├── 00-requirements/           # 需求文档（原始需求、 backlog）
+├── 01-product-design/         # 产品设计（综合优化设计、WebUI 增强）
+├── 02-architecture/           # 架构设计（四层架构、全链路、运维）
+│   ├── ARCHITECTURE.md              # ⭐ 唯一权威架构
+│   ├── ARCHITECTURE_FULL_CHAIN.md   # 全链路数据流概述
+│   ├── ARCHITECTURE_FULL_CHAIN_DEEP.md  # 全链路深入实现
+│   └── ARCHITECTURE_OPS.md          # 运维架构
+├── 03-modules/               # 模块设计（17 个活跃模块）
+│   ├── ontology/DESIGN.md
+│   ├── swarm_orchestrator/DESIGN.md
+│   ├── opa_policy/DESIGN.md
+│   ├── hook_system/DESIGN.md
+│   ├── mcp_protocol/DESIGN.md
+│   ├── qa_engine/DESIGN.md
+│   ├── event_simulator/DESIGN.md
+│   ├── audit_log/DESIGN.md
+│   ├── workspace/DESIGN.md
+│   └── ...
+├── 04-ui/                    # UI 设计（组件层级、规范、本体构建 UI）
+├── 05-security/              # 安全设计
+├── 06-dfx/                   # DFX 设计（可测试性、可维护性）
+└── 07-adr/                   # 架构决策记录（ADR-001 ~ ADR-039）
+```
+
+### 9.2 详细文档索引表
+
+| 主题 | 文档路径 | 说明 |
+|------|----------|------|
+| **架构总览** | [docs/02-architecture/ARCHITECTURE.md](docs/02-architecture/ARCHITECTURE.md) | 四层架构定义、Phase 演进 |
+| **全链路实现** | [docs/02-architecture/ARCHITECTURE_FULL_CHAIN_DEEP.md](docs/02-architecture/ARCHITECTURE_FULL_CHAIN_DEEP.md) | 5-Phase 完整代码实现 |
+| **模块设计总览** | [docs/03-modules/README.md](docs/03-modules/README.md) | 17 个活跃模块索引 |
+| **本体管理** | [docs/03-modules/ontology/DESIGN.md](docs/03-modules/ontology/DESIGN.md) | 本体 CRUD、版本控制 |
+| **Agent 编排** | [docs/03-modules/swarm_orchestrator/DESIGN.md](docs/03-modules/swarm_orchestrator/DESIGN.md) | Swarm 调度与协同 |
+| **OPA 策略** | [docs/03-modules/opa_policy/DESIGN.md](docs/03-modules/opa_policy/DESIGN.md) | Rego 策略与权限 |
+| **Hook 系统** | [docs/03-modules/hook_system/DESIGN.md](docs/03-modules/hook_system/DESIGN.md) | 事件订阅发布 |
+| **MCP 协议** | [docs/03-modules/mcp_protocol/DESIGN.md](docs/03-modules/mcp_protocol/DESIGN.md) | Model Context Protocol |
+| **问答引擎** | [docs/03-modules/qa_engine/DESIGN.md](docs/03-modules/qa_engine/DESIGN.md) | RAG 问答实现 |
+| **审计日志** | [docs/03-modules/audit_log/DESIGN.md](docs/03-modules/audit_log/DESIGN.md) | 统一审计机制 |
+| **Web 前端** | [docs/03-modules/web_frontend/DESIGN.md](docs/03-modules/web_frontend/DESIGN.md) | 前端模块设计 |
+| **UI 组件规范** | [docs/04-ui/COMPONENT_SPEC.md](docs/04-ui/COMPONENT_SPEC.md) | 组件设计规范 |
+| **安全设计** | [docs/05-security/SECURITY.md](docs/05-security/SECURITY.md) | JWT、OAuth2、审计 |
+| **测试设计** | [docs/06-dfx/TEST_DESIGN.md](docs/06-dfx/TEST_DESIGN.md) | 测试策略与规范 |
+
+---
+
+## 附录
+
+### A. 两个 Web 入口（极易混淆）
 
 | 入口 | 文件 | 端口 | 何时使用 |
 |------|------|------|---------|
 | 生产 | `odap/web/app.py` | 8000 | Docker/Podman 部署，uvicorn 启动 |
 | 本地开发 | `odap/web/api/app.py` | 8765 | `python main.py --web` |
 
-**规则**: 新增路由必须注册到 `odap/web/app.py`（生产入口），本地开发入口 `odap/web/api/app.py` 有独立路由注册逻辑。
+### B. 核心编码规则速查
 
----
-
-## 命令速查
-
-```bash
-pip install -r requirements.txt          # 后端（含 -e ./openharness）
-cd frontend && npm install               # 前端
-python main.py --web                     # 本地后端 :8765
-cd frontend && npm run dev               # 前端 :5173（代理 /api → :8000）
-pytest tests/unit/ -v                    # 单元测试
-pytest tests/integration/ -v             # 集成测试（需 Neo4j）
-cd frontend && npm test                  # 前端 Vitest
-cd frontend && npm run typecheck         # TS 类型检查
-cd frontend && npm run lint              # ESLint
-cd frontend && npm run build             # 前端构建
-```
-
-容器: `python bootstep.py dev|up|down|restart|rebuild|status|logs|pull|clean`（基于 Podman）
-
-### 开发环境部署规则
-
-前后端服务统一通过 **Podman 容器**部署运行，**禁止在宿主机直接启动 uvicorn/npm dev**：
-
-```bash
-python bootstep.py dev          # 启动开发环境（后端 + 前端 + 依赖服务）
-python bootstep.py restart      # 重启所有服务（代码修改后必须执行）
-python bootstep.py rebuild      # 重新构建镜像（依赖变更后执行）
-python bootstep.py status       # 查看服务状态
-python bootstep.py logs         # 查看日志
-python bootstep.py down         # 停止所有服务
-```
-
-**关键约束**:
-- 后端服务运行在容器内，端口映射 `8000:8000`，**不要在宿主机 `python -m uvicorn`**
-- 前端服务运行在容器内，端口映射 `5173:5173`，**不要在宿主机 `npm run dev`**
-- 代码修改后需 `bootstep.py restart` 或 `rebuild` 才能生效
-- 容器间通过 Podman 网络通信，服务间引用使用容器名（如 `graphiti-neo4j:7687`，见 `.env.docker`）
-- `.env.docker` 为容器环境变量文件，`NEO4J_URI` 等必须使用容器服务名而非 `localhost`
-
-pytest 标记: `unit` / `integration` / `slow` / `e2e`
-
----
-
-## 项目结构
-
-```
-odap/
-├── biz/                        # 业务模块（7 个领域）
-│   ├── core/                   #   ontology + cognition + agent
-│   ├── decision/               #   action_service + decision_pipeline + decision_recommendation
-│   ├── integration/            #   openharness_agent + mcp_adapter + hook_system + frontend_compat
-│   ├── platform/               #   workspace + roles + skill_system + tool_registry + session_memory
-│   ├── data/                   #   data_warehouse + knowledge_base + perception + qa
-│   ├── simulation/             #   event_simulator + simulation_sandbox + feedback + visualization
-│   └── management/             #   agent_management + business
-├── infra/                      # 基础设施
-│   ├── graph/                  #   GraphManager (Neo4j 生产 / NetworkX 回退)
-│   ├── query/                  #   统一查询服务 (ADR-055)
-│   ├── opa/                    #   OPA 策略 (Rego + bundles)
-│   ├── security/               #   JWT + OAuth2 + 审计 (SQLite 通道)
-│   ├── openharness/            #   v1/v2 适配
-│   ├── llm/ monitoring/ resilience/ data_pipeline/ config/ object_service/ storage/ utils/
-├── tools/                      # 领域 Skills (base.py + registry.py + 9 个技能包)
-├── web/
-│   ├── app.py                  #   生产入口
-│   ├── api/app.py              #   本地开发入口 (MockDataWebService)
-│   ├── gateway/                #   API 网关
-│   └── ws/                     #   WebSocket 事件总线
-├── celery_app.py + tasks.py    # 异步任务
-frontend/src/modules/           # agent ontology workspace ingest qa knowledge roles audit business shared
-docker/                         # Dockerfile + compose + Windows 修复
-openharness/                    # Git Submodule
-tests/                          # unit/ integration/ e2e/
-```
-
----
-
-## 系统架构与数据关系约束规范
-
-### 核心实体关系图
-
-```
-User ─┬─ 1:N ─→ Role              (用户拥有多个角色)
-      └─ 1:N ─→ Workspace         (用户属于多个工作空间)
-                Workspace ─ 1:N ─→ Scenario       (工作空间包含多个场景)
-                              Scenario ─ N:M ─→ Ontology     (场景绑定多个本体)
-                                            Ontology ─ 1:N ─→ OntologyVersion (本体多版本)
-                                            Ontology ─ 1:1 ─→ OntologyDefinition (本体定义)
-                              OntologyVersion ─ 1:N ─→ SemanticMap   (语义地图)
-                              OntologyVersion ─ 1:N ─→ BusinessRule  (业务规则)
-                              OntologyVersion ─ 1:N ─→ LogicModel    (逻辑模型)
-                              OntologyVersion ─ 1:N ─→ MetricSystem  (指标体系)
-                              OntologyVersion ─ 1:N ─→ BusinessProcess(业务过程)
-      Agent ─┬─ N:1 ─→ Role       (智能体关联角色)
-             └─ N:1 ─→ Workspace  (智能体关联工作空间)
-      Skill ─ N:1 ─→ OntologyDefinition (Skill 关联本体定义)
-      Simulation ─ N:1 ─→ Ontology (模拟演练关联本体)
-```
-
-### 本体图谱与场景关联规则
-
-- 本体图谱与场景有关，也和本体有关：一个本体有多个对象（实体/关系/事件）
-- 图谱数据查询必须基于场景上下文：`场景 → 本体列表 → 图谱对象`
-- 智能体问答检索范围 = 当前绑定场景的所有本体图谱数据
-- 跨场景图谱数据隔离，禁止未授权跨场景查询
-
-### 1. 用户权限与资源管理
-
-- 每个用户账户可同时关联多个角色身份与工作空间
-- 角色与工作空间共同决定用户的系统访问权限与功能可见性
-- JWT Payload 必须包含 `role` + `ws_id` + `ws_role`，实现工作空间级隔离
-
-### 2. 工作空间与场景层级关系
-
-- 工作空间作为顶级资源容器，支持创建和管理多个独立场景
-- 场景继承工作空间的基础配置，但可拥有独立的场景特定设置
-- 工作空间隔离策略由 OPA 策略引擎统一管控
-
-### 3. 场景与本体关联规则
-
-- 单个场景支持绑定多个本体实例（N:M 关系）
-- 本体与场景的绑定关系需记录 `created_at`、`bound_by`（绑定人）及 `binding_status`（关联状态）
-- 解绑操作需检查是否存在依赖该本体的业务资产，存在则阻止或提示
-
-### 4. 本体版本管理机制
-
-- 每个本体必须支持多版本控制，版本记录需包含：`version_number`、`created_at`、`changelog`（更新内容）、`status`（draft/published/archived）
-- 版本变更需保留完整历史记录，支持版本回溯（`switch_version`）与对比（`diff_version`）功能
-- 版本提交与切换必须通过场景上下文操作：`/api/workspaces/{ws_id}/scenarios/{sc_id}/commit-version` 和 `switch-version`
-
-### 5. 本体版本数据交互规范
-
-- 本体版本需提供标准化接口接收各类数据输入（实体、关系、事件）
-- 数据输入必须包含 `timestamp`、`source_id`（来源标识）及 `checksum`（数据完整性校验）
-- 数据写入通过 `unified_audit.py` 记录审计日志，确保数据变更可追溯
-
-### 6. 业务资产与本体版本关联规则
-
-- 语义地图、业务规则、逻辑模型、指标体系及业务过程等业务资产**必须**明确关联特定本体版本（非本体定义）
-- 当关联的本体版本发生变更时，相关业务资产需提供更新提示或自动适配机制
-- 业务资产查询必须基于关联的本体版本上下文，禁止跨版本混查
-
-### 7. 本体定义与管理规范
-
-- 本体定义为跨版本共享资源，不同版本的同一本体必须使用相同的本体定义（`ontology_definition_id`）
-- 本体定义更新**必须**通过创建新本体实现，**禁止**直接修改现有本体定义（不可变原则）
-- 本体定义支持通过自然语言输入进行智能提炼与抽取，需提供人工审核确认机制
-- 本体状态管理：启用/禁用状态变更需记录操作日志，禁用状态下该本体所有相关数据查询功能应受限
-
-### 8. 智能体配置规则
-
-- 智能体实例**必须**同时关联特定角色与工作空间
-- 智能体的功能权限与数据访问范围由关联的角色和工作空间共同决定
-- 智能体配置变更需同步更新角色权限缓存
-
-### 9. Skill 管理与本体关联机制
-
-- Skill 的创建、更新与删除操作**必须**关联特定本体定义
-- Skill 的功能实现应基于关联本体定义的数据结构与业务规则
-- Skill 热更新需同步至 SKILL_CATALOG、SkillManager、DomainHarness 三处注册表
-
-### 10. 模拟演练与本体集成规范
-
-- 模拟演练功能**必须**关联特定本体作为数据基础
-- 演练场景的条件设置、流程定义及结果评估均需基于关联本体的结构与规则
-- 演练结果需记录关联的本体版本，确保结果可复现
-
-### 系统一致性维护要求
-
-- 建立完整的依赖关系图谱，确保所有实体间关联关系可追溯
-- 实现依赖变更自动传播机制：当某实体发生变更时，所有关联实体需同步更新或提供明确的更新提示
-- 所有关联变更**必须**记录完整的审计日志，包括 `before_state`（变更前状态）、`change_content`（变更内容）、`changed_at`（变更时间）及 `changed_by`（操作人）信息
-- 审计日志通过 `unified_audit.py` 统一写入，通过 `audit_api.py` 统一读取，确保读写链路一致
-
----
-
-## 核心编码规则
-
-### 1. biz 模块内部结构（必须遵循）
+#### biz 模块内部结构
 
 每个 biz 模块按以下分层组织:
 
@@ -205,19 +494,19 @@ User ─┬─ 1:N ─→ Role              (用户拥有多个角色)
 module_name/
 ├── api/
 │   ├── routes.py       # FastAPI 路由
-│   └── schemas.py      # 请求/响应 Pydantic 模型（可选，简单模块可省略）
+│   └── schemas.py      # 请求/响应 Pydantic 模型（可选）
 ├── models/             # 领域模型 (Pydantic BaseModel)
 ├── interfaces/         # 抽象基类 (ABC)
 ├── impl/               # 接口实现（核心逻辑）
 ├── services/           # 编排层（连接路由和实现）
-└── storage/            # SQLite 持久化（需要持久化的模块）
+└── storage/            # SQLite 持久化
     ├── __init__.py     #   Storage = SQLiteXxxStorage（别名导出）
     └── sqlite_xxx_storage.py
 ```
 
 **调用链**: `routes.py → services/ → impl/ → storage/`，禁止跨层调用。
 
-### 2. 路由定义规则
+#### 路由定义规则
 
 ```python
 router = APIRouter(prefix="/api/xxx", tags=["xxx"])
@@ -239,7 +528,7 @@ async def create_xxx(request: CreateXxxRequest):
 - `except HTTPException: raise` 透传，防止被 500 兜底吞掉
 - 新路由必须在 `odap/web/app.py` 中 `include_router()`
 
-### 3. 服务层返回值规则
+#### 服务层返回值规则
 
 **必须**返回 `Dict[str, Any]`，不直接返回 Pydantic 模型:
 
@@ -253,7 +542,7 @@ def get_xxx(self, xxx_id: str) -> Dict[str, Any]:
 
 **类型转换在服务层完成**: Enum→`.value`, datetime→`.isoformat()`, BaseModel→扁平 dict
 
-### 4. 错误处理规则
+#### 错误处理规则
 
 | 层 | 方式 | 示例 |
 |---|------|------|
@@ -264,7 +553,7 @@ def get_xxx(self, xxx_id: str) -> Dict[str, Any]:
 
 **禁止**: 在路由层直接写业务逻辑；在服务层抛 HTTPException。
 
-### 5. SQLite 存储规则
+#### SQLite 存储规则
 
 ```python
 class SQLiteXxxStorage:
@@ -288,7 +577,7 @@ class SQLiteXxxStorage:
 - datetime → ISO 字符串存储
 - `storage/__init__.py` 别名导出: `Storage = SQLiteXxxStorage`
 
-### 6. 领域模型规则
+#### 领域模型规则
 
 ```python
 class XxxStatus(str, Enum):       # 必须 (str, Enum) 双继承
@@ -303,7 +592,7 @@ class Xxx(BaseModel):
     created_at: datetime = Field(default_factory=datetime.now)   # 统一用 datetime.now
 ```
 
-### 7. 异步模式规则
+#### 异步模式规则
 
 - 关键路径: `await` 顺序执行
 - 非阻塞广播: `asyncio.create_task(...)` (fire-and-forget，如 Hook 广播)
@@ -311,7 +600,7 @@ class Xxx(BaseModel):
 - 异步 HTTP: `aiohttp.ClientSession` + `ClientTimeout`
 - 单例模式: `_instance` + `get_instance()` / `initialize()`
 
-### 8. 认证鉴权规则
+#### 认证鉴权规则
 
 JWT 双 Token: Access 15min / Refresh 7d, HS256, Token Rotation
 
@@ -322,18 +611,16 @@ FastAPI 鉴权依赖:
 
 JWT Payload 含 `role` + `ws_id` + `ws_role`（工作空间隔离）。
 
----
+### C. 测试规则
 
-## 测试规则
-
-### 必须遵守
+#### 必须遵守
 
 - **新增模块必须同步新增测试文件** — 在 `tests/unit/` 下创建对应 `test_{module}.py`，不允许零测试提交
 - **SQLite 存储层用真实临时 DB** — 使用 `tmp_path` fixture 创建 `.db` 文件，不用 MagicMock 模拟数据库
 - **修改代码后必须运行 `pytest tests/unit/ -v`** — 全部通过后才算完成
 - **测试文件命名** — `test_{模块名}.py`，与 `odap/biz/{领域}/{模块名}/` 对应
 
-### 测试编写模式
+#### 测试编写模式
 
 - **Fixture 级联**: `mock_storage → xxx_manager`，通过 `patch()` 替换 Storage 类
 - **工厂函数**: `_make_xxx(**overrides)` 构造测试数据，默认值 + 覆盖
@@ -343,7 +630,7 @@ JWT Payload 含 `role` + `ws_id` + `ws_role`（工作空间隔离）。
 - **延迟导入**: fixture 内部 `from odap.xxx import` 避免模块级导入失败
 - **外部依赖 skip**: 依赖 graphiti-core/openharness 等子模块的测试，模块级 `try/except` + `pytest.skip()`
 
-### 每个模块必须覆盖的测试点
+#### 每个模块必须覆盖的测试点
 
 | 层 | 必测场景 |
 |---|---------|
@@ -352,17 +639,49 @@ JWT Payload 含 `role` + `ws_id` + `ws_role`（工作空间隔离）。
 | services/ | 成功返回扁平 dict、错误返回 `{"status": "error"}`、类型转换 (Enum→.value, datetime→.isoformat) |
 | routes/ | HTTP 状态码映射、`except HTTPException: raise` 透传、404/400/500 场景 |
 
----
+### D. 系统架构与数据关系约束
 
-## 环境变量
+#### 核心实体关系图
 
-`.env.example` → `.env.docker`，必填: `OPENAI_API_KEY`, `OPENAI_API_BASE`, `OPENAI_MODEL`, `NEO4J_URI/USER/PASSWORD`, `JWT_SECRET`
+```
+User ─┬─ 1:N ─→ Role              (用户拥有多个角色)
+      └─ 1:N ─→ Workspace         (用户属于多个工作空间)
+                Workspace ─ 1:N ─→ Scenario       (工作空间包含多个场景)
+                              Scenario ─ N:M ─→ Ontology     (场景绑定多个本体)
+                                            Ontology ─ 1:N ─→ OntologyVersion (本体多版本)
+                                            Ontology ─ 1:1 ─→ OntologyDefinition (本体定义)
+                              OntologyVersion ─ 1:N ─→ SemanticMap   (语义地图)
+                              OntologyVersion ─ 1:N ─→ BusinessRule  (业务规则)
+                              OntologyVersion ─ 1:N ─→ LogicModel    (逻辑模型)
+                              OntologyVersion ─ 1:N ─→ MetricSystem  (指标体系)
+                              OntologyVersion ─ 1:N ─→ BusinessProcess(业务过程)
+      Agent ─┬─ N:1 ─→ Role       (智能体关联角色)
+             └─ N:1 ─→ Workspace  (智能体关联工作空间)
+      Skill ─ N:1 ─→ OntologyDefinition (Skill 关联本体定义)
+      Simulation ─ N:1 ─→ Ontology (模拟演练关联本体)
+```
 
-可选: `TAVILY_API_KEY`, `OPA_URL`, `REDIS_URL`, `CORS_ORIGINS`
+#### 本体图谱与场景关联规则
 
----
+- 本体图谱与场景有关，也和本体有关：一个本体有多个对象（实体/关系/事件）
+- 图谱数据查询必须基于场景上下文：`场景 → 本体列表 → 图谱对象`
+- 智能体问答检索范围 = 当前绑定场景的所有本体图谱数据
+- 跨场景图谱数据隔离，禁止未授权跨场景查询
 
-## 陷阱与禁忌
+#### 主要约束
+
+1. **用户权限与资源管理**：JWT Payload 必须包含 `role` + `ws_id` + `ws_role`
+2. **工作空间与场景层级**：工作空间作为顶级资源容器，场景继承基础配置
+3. **场景与本体关联**：单个场景支持绑定多个本体（N:M），解绑需检查依赖
+4. **本体版本管理**：版本记录含 `version_number`、`changelog`、`status`，支持回溯与对比
+5. **业务资产关联**：语义地图、业务规则、逻辑模型等必须关联特定本体版本（非本体定义）
+6. **本体定义不可变**：本体定义更新必须通过创建新本体实现，禁止直接修改
+7. **智能体配置**：必须同时关联特定角色与工作空间
+8. **Skill 管理**：创建/更新/删除必须关联特定本体定义
+9. **模拟演练**：必须关联特定本体作为数据基础
+10. **审计一致性**：所有变更通过 `unified_audit.py` 统一写入，`audit_api.py` 统一读取
+
+### E. 陷阱与禁忌
 
 1. **Podman 非 Docker** — bootstep.py 全部使用 podman 命令，不要用 docker 命令
 2. **两个 Web 入口** — 本地开发端口 8765，Docker 端口 8000，不要混淆

@@ -20,6 +20,7 @@
     "@antv/g6": "^5.1.0",
     "@emotion/css": "^11.13.5",
     "@openharness/react": "1.0.1",
+    "@xyflow/react": "^12.10.2",
     "ai": "^6.0.97",
     "antd": "^6.3.5",
     "echarts": "^6.0.0",

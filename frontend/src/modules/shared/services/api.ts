@@ -1,5 +1,6 @@
 import type { Scenario, Entity, TimelineEvent, Version, DiffResult, Stats } from '../types';
 import { API_BASE } from '../../../config';
+import { fetchJson, apiClient } from './apiClient';
 
 interface GraphNode {
   id: string;
@@ -71,24 +72,7 @@ function safeCastArray<T>(arr: unknown, validator: (item: unknown) => boolean): 
   return arr.filter(validator) as T[];
 }
 
-async function fetchJson<T>(url: string, options?: RequestInit): Promise<T> {
-  const token = localStorage.getItem('token');
-  const authHeaders: Record<string, string> = { 'Content-Type': 'application/json' };
-  if (token) authHeaders['Authorization'] = `Bearer ${token}`;
-  const mergedOptions: RequestInit = { ...options, headers: { ...authHeaders, ...(options?.headers as Record<string, string>) } };
-  const response = await fetch(url, mergedOptions);
-  if (response.status === 401 || response.status === 403) {
-    localStorage.removeItem('token');
-    localStorage.removeItem('refresh_token');
-    localStorage.removeItem('user');
-    window.location.href = '/login';
-    throw new Error('登录已过期，请重新登录');
-  }
-  if (!response.ok) {
-    throw new Error(`HTTP ${response.status}: ${response.statusText}`);
-  }
-  return response.json();
-}
+export { fetchJson };
 
 export const api = {
   async listScenarios(): Promise<Scenario[]> {
@@ -618,16 +602,7 @@ export const api = {
       formData.append('scenario_id', scenarioId);
     }
 
-    const response = await fetch(`${API_BASE}/api/ingest/file`, {
-      method: 'POST',
-      body: formData,
-    });
-    
-    if (!response.ok) {
-      throw new Error(`HTTP ${response.status}: ${response.statusText}`);
-    }
-    
-    return response.json();
+    return apiClient.upload(`${API_BASE}/api/ingest/file`, formData);
   },
 
   async listVersions(): Promise<Version[]> {
@@ -1192,16 +1167,7 @@ export const api = {
     formData.append('skill_file', file);
     formData.append('category', category);
 
-    const response = await fetch(`${API_BASE}/api/skill/upload`, {
-      method: 'POST',
-      body: formData,
-    });
-
-    if (!response.ok) {
-      throw new Error(`HTTP ${response.status}: ${response.statusText}`);
-    }
-
-    return response.json();
+    return apiClient.upload(`${API_BASE}/api/skill/upload`, formData);
   },
 
   async toggleSkill(skillName: string, enabled: boolean): Promise<{
@@ -1500,39 +1466,19 @@ export const api = {
   async listRoles(params?: {
     page?: number;
     page_size?: number;
-  }): Promise<{
-    roles: Array<{
-      role_id: string;
-      name: string;
-      description: string;
-      permissions: string[];
-      created_at: string;
-    }>;
-    total: number;
-  }> {
+  }): Promise<any[]> {
     const searchParams = new URLSearchParams();
     if (params?.page) searchParams.set('page', String(params.page));
     if (params?.page_size) searchParams.set('page_size', String(params.page_size));
     const queryString = searchParams.toString();
-    const data = await fetchJson<unknown>(`${API_BASE}/api/roles${queryString ? `?${queryString}` : ''}`);
-    if (Array.isArray(data)) {
-      return {
-        roles: data.map((r: any) => ({
-          role_id: r.id,
-          name: r.name,
-          description: r.description || '',
-          permissions: (r.permissions || []).map((p: any) => typeof p === 'string' ? p : p.id || p.name),
-          created_at: r.created_at || '',
-        })),
-        total: data.length,
-      };
-    }
-    return data as any;
+    const data = await fetchJson<any>(`${API_BASE}/api/roles${queryString ? `?${queryString}` : ''}`);
+    return Array.isArray(data) ? data : (data.roles || []);
   },
 
   async createRole(data: {
     name: string;
     description: string;
+    role_type: string;
     permissions?: string[];
   }): Promise<{
     role_id: string;
@@ -1550,6 +1496,7 @@ export const api = {
   async updateRole(roleId: string, data: {
     name?: string;
     description?: string;
+    role_type?: string;
     permissions?: string[];
   }): Promise<{
     role_id: string;

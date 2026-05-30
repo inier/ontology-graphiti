@@ -2,16 +2,17 @@
 
 from .services.ingest_service import IngestService
 from .services.build_service import OntologyBuilderService
-from .services.version_service import VersionManagementService
+from .services.version_service import OntologyVersionManager
 from .services.validation_service import ValidationService
 
-# 别名兼容
 OntologyBuildService = OntologyBuilderService
+VersionManagementService = OntologyVersionManager
 
 __all__ = [
     "IngestService",
     "OntologyBuildService",
     "OntologyBuilderService",
+    "OntologyVersionManager",
     "VersionManagementService",
     "ValidationService"
 ]

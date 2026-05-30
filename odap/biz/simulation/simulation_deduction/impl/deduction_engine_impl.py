@@ -36,8 +36,8 @@ class DeductionEngineImpl(IDeductionEngine):
     def oms(self):
         if self._oms is None:
             try:
-                from odap.biz.core.ontology.oms.storage.sqlite_oms_storage import SQLiteOMSStorage
-                self._oms = SQLiteOMSStorage()
+                from odap.biz.core.ontology.oms.services import OMSService
+                self._oms = OMSService.get_instance()
             except Exception as e:
                 logger.warning(f"OMS init failed: {e}")
                 self._oms = None
@@ -476,6 +476,37 @@ class DeductionEngineImpl(IDeductionEngine):
                 cond_impact = self._apply_condition_impact(cond, current_state)
                 impacts.extend(cond_impact)
 
+        propagation_impacts = self._compute_propagation_impacts(action_type_id, step, current_state)
+        impacts.extend(propagation_impacts)
+
+        return impacts
+
+    def _compute_propagation_impacts(self, action_type_id: str, step: Dict[str, Any], current_state: Dict[str, Any]) -> List[Dict[str, Any]]:
+        impacts = []
+        try:
+            from odap.biz.core.ontology.runtime.services.runtime_service import OntologyRuntimeService
+            service = OntologyRuntimeService.get_instance()
+            contract_result = service.get_contract_by_action(action_type_id)
+            if contract_result.get("status") == "error":
+                return impacts
+            side_effects = contract_result.get("side_effect_set", [])
+            for se in side_effects:
+                obj_type = se.get("object_type", "")
+                prop = se.get("property_name", "")
+                if obj_type and prop:
+                    current_val = current_state.get(prop)
+                    estimated_delta = -0.05
+                    impacts.append({
+                        "metric_name": f"{obj_type}.{prop}",
+                        "before": current_val,
+                        "after": None,
+                        "delta": round(estimated_delta, 3),
+                        "unit": "",
+                        "confidence": 0.3,
+                        "propagation_type": "side_effect",
+                    })
+        except Exception as e:
+            logger.debug(f"Propagation impact computation skipped: {e}")
         return impacts
 
     def _apply_condition_impact(self, condition: Dict[str, Any],

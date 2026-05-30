@@ -38,6 +38,21 @@ from odap.biz.core.cognition.api.routes import router as cognition_router
 from odap.biz.simulation.feedback.api.routes import router as feedback_router
 from odap.biz.simulation.simulation_deduction.api.routes import router as deduction_router
 from odap.biz.data.semantic_map.api.routes import router as semantic_map_router
+from odap.biz.core.ontology.runtime.api.routes import router as runtime_router
+from odap.biz.core.ontology.harness.api.routes import router as harness_router
+from odap.biz.platform.ontology_memory.api.routes import router as ontology_memory_router
+from odap.biz.platform.ontology_memory.graph_sync.routes import router as memory_sync_router
+from odap.biz.platform.ontology_memory.shared_workspace.routes import router as shared_memory_router
+from odap.biz.core.ontology.servitization.api.routes import router as servitization_router
+from odap.biz.core.ontology.servitization.api.deployment_routes import router as deployment_router
+from odap.biz.core.ontology.servitization.catalog.routes import router as catalog_router
+from odap.biz.core.ontology.harness.blueprint.routes import router as blueprint_designer_router
+from odap.biz.core.ontology.harness.blueprint.api.runtime_routes import router as blueprint_runtime_router
+from odap.biz.core.cognition.thought_graph.api.routes import router as thought_router
+from odap.biz.core.ontology.runtime.state_machine.api.routes import router as state_machine_router
+from odap.biz.core.ontology.abution_graph.api.routes import router as abution_graph_router
+from odap.biz.platform.ontology_memory.api.decay_routes import router as decay_router
+from odap.biz.platform.ontology_memory.shared_workspace.api.consensus_routes import router as consensus_router
 from odap.infra.security import security_config
 from odap.infra.openharness import create_harness
 from odap.infra.openharness.v2_adapter import initialize_openharness, get_openharness_integration
@@ -159,6 +174,21 @@ app.include_router(cognition_router)
 app.include_router(feedback_router)
 app.include_router(deduction_router)
 app.include_router(semantic_map_router)
+app.include_router(runtime_router)
+app.include_router(harness_router)
+app.include_router(ontology_memory_router)
+app.include_router(memory_sync_router)
+app.include_router(shared_memory_router)
+app.include_router(servitization_router)
+app.include_router(deployment_router)
+app.include_router(catalog_router)
+app.include_router(blueprint_designer_router)
+app.include_router(blueprint_runtime_router)
+app.include_router(thought_router)
+app.include_router(state_machine_router)
+app.include_router(abution_graph_router)
+app.include_router(decay_router)
+app.include_router(consensus_router)
 
 @app.get("/")
 async def root():
@@ -183,7 +213,8 @@ async def root():
             "/api/hook",
             "/api/mcp",
             "/api/event-simulator",
-            "/api/agent"
+            "/api/agent",
+            "/api/agent-management"
         ]
     }
 

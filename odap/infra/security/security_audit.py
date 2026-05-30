@@ -25,7 +25,7 @@ import uuid
 sys.path.append(os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))))
 
 
-class VulnerabilitySeverity(Enum):
+class VulnerabilitySeverity(str, Enum):
     """漏洞严重等级"""
     CRITICAL = "critical"
     HIGH = "high"
@@ -34,7 +34,7 @@ class VulnerabilitySeverity(Enum):
     INFO = "info"
 
 
-class VulnerabilityCategory(Enum):
+class VulnerabilityCategory(str, Enum):
     """漏洞类别 (OWASP Top 10)"""
     A01_BROKEN_ACCESS = "A01-Broken Access Control"
     A02_CRYPTO_FAILURES = "A02-Cryptographic Failures"

@@ -16,7 +16,7 @@ sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 from odap.biz.core.agent.orchestrator import SelfCorrectingOrchestrator
 from odap.infra.graph import GraphManager
-from odap.biz.core.ontology.service import OntologyManager
+from odap.biz.core.ontology.services.build_service import OntologyBuilderService as OntologyManager
 
 orchestrator = None
 ontology_manager = None

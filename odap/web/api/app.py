@@ -33,9 +33,9 @@ from odap.biz.core.ontology.schema.document import (
     OntologyDocument, OntologyDocumentSchema, OntologyValidationError,
     DocType, SourceType
 )
-from odap.biz.core.ontology.hot_write import OntologyHotWritePipeline
-from odap.biz.core.ontology.version_manager import OntologyVersionManager
-from odap.biz.core.ontology.ingestion import NewsIngester, FreeNewsIngester, ManualInputHandler, RandomEventGenerator, OntologyDocumentIO
+from odap.biz.core.ontology.services.pipeline_service import PipelineService as OntologyHotWritePipeline
+from odap.biz.core.ontology.services.version_service import OntologyVersionManager
+from odap.biz.core.ontology.ingestion_split import NewsIngester, FreeNewsIngester, ManualInputHandler, RandomEventGenerator, OntologyDocumentIO
 from odap.infra.graph.graph_service import GraphManager
 
 class ScenarioStore:
@@ -49,8 +49,8 @@ class ScenarioStore:
         self.storage_dir = storage_dir
         os.makedirs(self.storage_dir, exist_ok=True)
         self._graph_manager = graph_manager
-        from odap.biz.core.ontology.storage.sqlite_ingest_storage import SQLiteIngestStorage
-        self._db = SQLiteIngestStorage()
+        from odap.biz.core.ontology.services.ingest_service import IngestService
+        self._db = IngestService().storage
         self._migrate_from_json()
 
     def _migrate_from_json(self):
@@ -102,10 +102,7 @@ class ScenarioStore:
         """创建场景"""
         scenario_id = f"scenario-{datetime.now().strftime('%Y%m%d')}-{uuid.uuid4().hex[:6]}"
         
-        from odap.biz.core.ontology.models.ontology import OntologyDocument as OntologyModel
-        ontology_name = f"{name}_Ontology"
-        ontology_doc = OntologyModel(name=ontology_name, description=f"自动创建的本体 for 场景: {name}")
-        ontology_id = ontology_doc.id
+        ontology_id = str(uuid.uuid4())
         
         scenario = {
             "scenario_id": scenario_id,
@@ -126,7 +123,7 @@ class ScenarioStore:
     def _ensure_initial_version(self, ontology_id: str, scenario_name: str = "") -> None:
         """确保本体有初始版本"""
         try:
-            from odap.biz.core.ontology.version_manager import OntologyVersionManager
+            from odap.biz.core.ontology.services.version_service import OntologyVersionManager
             vm = OntologyVersionManager.get_instance()
             vm.ensure_initial_version(ontology_id, scenario_name)
         except Exception as e:

@@ -3,55 +3,11 @@
 所有模块共享的常量、枚举和状态码定义
 """
 
-from enum import Enum
-
-
-class ProcessingStatus(str, Enum):
-    """处理状态枚举"""
-    PENDING = "pending"
-    PROCESSING = "processing"
-    COMPLETED = "completed"
-    FAILED = "failed"
-    CANCELLED = "cancelled"
-
-
-class WorkspaceType(str, Enum):
-    """工作空间类型"""
-    DEFAULT = "default"
-    TEST = "test"
-    PRODUCTION = "production"
-    SANDBOX = "sandbox"
-
-
-class WorkspaceStatus(str, Enum):
-    """工作空间状态"""
-    ACTIVE = "active"
-    INACTIVE = "inactive"
-    ARCHIVED = "archived"
-
-
-class IsolationLevel(str, Enum):
-    """隔离级别"""
-    NONE = "none"
-    BASIC = "basic"
-    STRICT = "strict"
-    COMPLETE = "complete"
-
-
-class ImportExportStatus(str, Enum):
-    """导入导出状态"""
-    PENDING = "pending"
-    IN_PROGRESS = "in_progress"
-    COMPLETED = "completed"
-    FAILED = "failed"
-    CANCELLED = "cancelled"
-
-
-class ScenarioStatus(str, Enum):
-    """场景状态"""
-    DRAFT = "draft"
-    ACTIVE = "active"
-    ARCHIVED = "archived"
+from odap.biz.platform.workspace.models.workspace import WorkspaceType, WorkspaceStatus
+from odap.biz.platform.workspace.models.isolation import IsolationLevel
+from odap.biz.platform.workspace.models.import_export import ImportExportStatus
+from odap.biz.platform.workspace.models.scenario import ScenarioStatus
+from odap.biz.core.ontology.models.audit import ProcessingStatus
 
 
 # 状态码常量

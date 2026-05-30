@@ -1,13 +1,13 @@
 """
-数据采集层 - 数据摄取与归纳模块
+数据采集�?- 数据摄取与归纳模�?
 实现 ADR-031 L2: Data Ingestion & Normalization
 
 组件:
-- NewsIngester: 联网检索 → LLM 归纳 → OntologyDocument
-- ManualInputHandler: 表单/JSON/自然语言 → OntologyDocument
-- RandomEventGenerator: 涉事方行为模型 → OntologyDocument（参考 NetLogo）
+- NewsIngester: 联网检�?�?LLM 归纳 �?OntologyDocument
+- ManualInputHandler: 表单/JSON/自然语言 �?OntologyDocument
+- RandomEventGenerator: 涉事方行为模�?�?OntologyDocument（参�?NetLogo�?
 - OntologyDocumentIO: 导入/导出 .odoc.json
-- WebScraper: 网页内容抓取（免费方案，无需 API Key）
+- WebScraper: 网页内容抓取（免费方案，无需 API Key�?
 """
 
 import json
@@ -28,33 +28,34 @@ try:
     WEB_SCRAPE_AVAILABLE = True
 except ImportError:
     WEB_SCRAPE_AVAILABLE = False
-    logging.warning("网页抓取依赖未安装，将使用 Mock 数据")
+    logging.warning("网页抓取依赖未安装，将使�?Mock 数据")
 
 from odap.biz.core.ontology.schema.document import (
     OntologyDocument, OntologyEntity, OntologyRelation, OntologyEvent,
     OntologyAction, OntologyRule, OntologyConstraint, VersionRef,
-    DataSource, DocumentMeta, TemporalInfo, SourceType, DocType,
+    SourceInfo, DocumentMeta, TemporalInfo, SourceType, DocType,
     EntityType, ActionStatus, OntologyDocumentSchema, make_battle_event_document
 )
+from .document_io import OntologyDocumentIO
 
 logger = logging.getLogger("data_ingestion")
 
 
 # ─────────────────────────────────────────────────
-# 联网检索采集 - NewsIngester
+# 联网检索采�?- NewsIngester
 # ─────────────────────────────────────────────────
 
 ONTOLOGY_EXTRACT_PROMPT = """
-你是一位专业的情报分析师。请从以下新闻/报道文本中提取结构化信息，
-输出符合 OntologyDocument 格式的 JSON（仅输出 JSON，不要任何解释）。
+你是一位专业的情报分析师。请从以下新�?报道文本中提取结构化信息�?
+输出符合 OntologyDocument 格式�?JSON（仅输出 JSON，不要任何解释）�?
 
-【事件背景】
+【事件背景�?
 {context}
 
-【文本内容】
+【文本内容�?
 {text}
 
-【输出格式要求】
+【输出格式要求�?
 {{
   "doc_id": "evt-{date}-xxxxx",
   "doc_type": "event",
@@ -100,21 +101,21 @@ ONTOLOGY_EXTRACT_PROMPT = """
   "ontology_version": {{"version_id": "", "parent_version": null, "commit_message": "新闻采集归纳"}}
 }}
 
-注意: 如果文本信息不足，合理推断并标注 confidence 较低值。
+注意: 如果文本信息不足，合理推断并标注 confidence 较低值�?
 """
 
 
 class NewsIngester:
     """
-    联网检索并归纳为 OntologyDocument
+    联网检索并归纳�?OntologyDocument
 
-    检索链路:
-    本地 DuckDuckGo API (首选) → Tavily API → SerpAPI → DuckDuckGo HTML 解析 (降级) → Mock (无API时)
+    检索链�?
+    本地 DuckDuckGo API (首�? �?Tavily API �?SerpAPI �?DuckDuckGo HTML 解析 (降级) �?Mock (无API�?
     """
 
     def __init__(self, llm_client=None, search_api_key: str = None, tavily_api_key: str = None):
         self.llm = llm_client
-        # 优先使用传入的参数，其次从环境变量读取
+        # 优先使用传入的参数，其次从环境变量读�?
         self._search_api_key = search_api_key or os.getenv('SERPAPI_KEY', '')
         self._tavily_api_key = tavily_api_key or os.getenv('TAVILY_API_KEY', '')
         self._ddg_api_url = os.getenv('DDG_API_URL', '')
@@ -127,34 +128,34 @@ class NewsIngester:
         max_sources: int = 5,
     ) -> List[OntologyDocument]:
         """
-        联网检索 + LLM 归纳 → OntologyDocument 列表
+        联网检�?+ LLM 归纳 �?OntologyDocument 列表
 
         Args:
-            query: 检索关键词（如 "B区遭遇战 2026"）
-            event_context: 事件背景描述（辅助 LLM 理解）
+            query: 检索关键词（如 "B区遭遇战 2026"�?
+            event_context: 事件背景描述（辅�?LLM 理解�?
             max_sources: 最大检索来源数
 
         Returns:
-            List[OntologyDocument]: 验证通过的文档列表
+            List[OntologyDocument]: 验证通过的文档列�?
         """
-        logger.info(f"开始联网检索: {query}")
+        logger.info(f"开始联网检�? {query}")
 
         if self._use_mock:
-            logger.warning("未配置 LLM/Search API，使用 Mock 数据")
+            logger.warning("未配�?LLM/Search API，使�?Mock 数据")
             return self._generate_mock_news_docs(query, event_context)
 
         try:
-            # 步骤1: 联网检索
+            # 步骤1: 联网检�?
             search_results = await self._search(query, max_sources)
             if not search_results:
                 logger.warning("检索结果为空，使用 Mock")
                 return self._generate_mock_news_docs(query, event_context)
 
-            # 步骤2: 汇总文本
+            # 步骤2: 汇总文�?
             combined_text = self._combine_sources(search_results)
             urls = [r.get("url", "") for r in search_results[:3]]
 
-            # 步骤3: LLM 结构化抽取
+            # 步骤3: LLM 结构化抽�?
             raw_docs = await self._extract_with_llm(combined_text, event_context, urls)
 
             # 步骤4: 验证
@@ -166,35 +167,35 @@ class NewsIngester:
                 else:
                     logger.warning(f"文档验证失败: {result.errors}")
 
-            logger.info(f"成功归纳 {len(validated)} 个文档")
+            logger.info(f"成功归纳 {len(validated)} 个文�?)
             return validated
 
         except Exception as e:
-            logger.error(f"联网检索失败: {e}，使用 Mock")
+            logger.error(f"联网检索失�? {e}，使�?Mock")
             return self._generate_mock_news_docs(query, event_context)
 
     async def _search(self, query: str, max_results: int) -> List[Dict[str, Any]]:
-        """执行联网检索（本地 DuckDuckGo API → Tavily → SerpAPI → DuckDuckGo HTML → Mock）"""
+        """执行联网检索（本地 DuckDuckGo API �?Tavily �?SerpAPI �?DuckDuckGo HTML �?Mock�?""
         # 本地 DuckDuckGo API（首选）
         if self._ddg_api_url:
             try:
                 return await self._search_ddg_local(query, max_results)
             except Exception as e:
-                logger.warning(f"本地 DuckDuckGo API 检索失败: {e}")
+                logger.warning(f"本地 DuckDuckGo API 检索失�? {e}")
 
         # Tavily
         if self._tavily_api_key:
             try:
                 return await self._search_tavily(query, max_results)
             except Exception as e:
-                logger.warning(f"Tavily 检索失败: {e}")
+                logger.warning(f"Tavily 检索失�? {e}")
 
         # SerpAPI
         if self._search_api_key:
             try:
                 return await self._search_serpapi(query, max_results)
             except Exception as e:
-                logger.warning(f"SerpAPI 检索失败: {e}")
+                logger.warning(f"SerpAPI 检索失�? {e}")
 
         # DuckDuckGo HTML 解析（免费方案）
         try:
@@ -202,14 +203,14 @@ class NewsIngester:
             if ddg_results:
                 return ddg_results
         except Exception as e:
-            logger.warning(f"DuckDuckGo 检索失败: {e}")
+            logger.warning(f"DuckDuckGo 检索失�? {e}")
 
         # 降级 Mock
-        logger.info("使用 Mock 检索结果")
+        logger.info("使用 Mock 检索结�?)
         return []
 
     async def _search_ddg_local(self, query: str, max_results: int) -> List[Dict[str, Any]]:
-        """本地 DuckDuckGo API 检索"""
+        """本地 DuckDuckGo API 检�?""
         import aiohttp
         import urllib.parse
         
@@ -230,11 +231,11 @@ class NewsIngester:
                         "snippet": item.get("snippet", item.get("content", "")),
                         "date": item.get("date", ""),
                     })
-                logger.info(f"本地 DuckDuckGo API 返回 {len(results)} 条结果")
+                logger.info(f"本地 DuckDuckGo API 返回 {len(results)} 条结�?)
                 return results
 
     async def _search_tavily(self, query: str, max_results: int, search_depth: str = "basic") -> List[Dict[str, Any]]:
-        """Tavily API 检索"""
+        """Tavily API 检�?""
         import aiohttp
         url = "https://api.tavily.com/search"
         payload = {
@@ -249,12 +250,12 @@ class NewsIngester:
                 return data.get("results", [])
 
     async def _search_duckduckgo(self, query: str, max_results: int) -> List[Dict[str, Any]]:
-        """DuckDuckGo HTML 解析检索（免费方案，无需 API Key）
+        """DuckDuckGo HTML 解析检索（免费方案，无需 API Key�?
 
         通过抓取 DuckDuckGo HTML 搜索结果页面，解析出搜索结果
         """
         if not WEB_SCRAPE_AVAILABLE:
-            logger.warning("DuckDuckGo 搜索需要 requests 和 bs4 依赖")
+            logger.warning("DuckDuckGo 搜索需�?requests �?bs4 依赖")
             return []
 
         try:
@@ -287,7 +288,7 @@ class NewsIngester:
                     soup = BeautifulSoup(response.text, 'html.parser')
 
                     results = []
-                    # 尝试多个可能的结果选择器
+                    # 尝试多个可能的结果选择�?
                     selectors = [
                         '.result',
                         '.web-result',
@@ -299,12 +300,12 @@ class NewsIngester:
                     for selector in selectors:
                         found = soup.select(selector)
                         if found:
-                            logger.info(f"使用选择器 '{selector}' 找到 {len(found)} 个结果")
+                            logger.info(f"使用选择�?'{selector}' 找到 {len(found)} 个结�?)
                             elements = found
                             break
                     
                     for result in elements[:max_results]:
-                        # 获取标题和链接
+                        # 获取标题和链�?
                         title_elem = (result.select_one('.result__title a') or 
                                      result.select_one('a[href]') or 
                                      result.find('a', href=True))
@@ -316,7 +317,7 @@ class NewsIngester:
                             title = title_elem.get_text(strip=True)
                             link = title_elem.get('href', '')
 
-                            # 清理 DuckDuckGo 的跳转链接
+                            # 清理 DuckDuckGo 的跳转链�?
                             if link.startswith('/l/?uddg='):
                                 from urllib.parse import unquote
                                 parsed = urllib.parse.urlparse(link)
@@ -333,7 +334,7 @@ class NewsIngester:
                             })
 
                     if results:
-                        logger.info(f"DuckDuckGo 搜索返回 {len(results)} 条结果")
+                        logger.info(f"DuckDuckGo 搜索返回 {len(results)} 条结�?)
                         return results
 
                 except requests.exceptions.Timeout:
@@ -346,10 +347,10 @@ class NewsIngester:
                     logger.warning(f"DuckDuckGo 域名 {domain} 请求失败: {e}")
                     continue
                 
-                # 稍微延迟后尝试下一个域名
+                # 稍微延迟后尝试下一个域�?
                 time.sleep(1)
 
-            logger.warning("所有 DuckDuckGo 域名都无法访问")
+            logger.warning("所�?DuckDuckGo 域名都无法访�?)
             return []
 
         except Exception as e:
@@ -359,7 +360,7 @@ class NewsIngester:
             return []
 
     async def _search_serpapi(self, query: str, max_results: int) -> List[Dict[str, Any]]:
-        """SerpAPI 搜索（备选方案，需要 API Key）"""
+        """SerpAPI 搜索（备选方案，需�?API Key�?""
         import aiohttp
 
         url = "https://serpapi.com/search"
@@ -384,7 +385,7 @@ class NewsIngester:
                 return results
 
     def _combine_sources(self, results: List[Dict[str, Any]]) -> str:
-        """汇总多源文本"""
+        """汇总多源文�?""
         parts = []
         for i, r in enumerate(results[:5], 1):
             title = r.get("title", "")
@@ -424,7 +425,7 @@ class NewsIngester:
 
     def _parse_json_response(self, response: str) -> List[Dict[str, Any]]:
         """解析 LLM 响应中的 JSON"""
-        # 提取 JSON 块
+        # 提取 JSON �?
         text = response.strip()
         if "```json" in text:
             text = text.split("```json")[1].split("```")[0].strip()
@@ -442,7 +443,7 @@ class NewsIngester:
         return []
 
     def _generate_mock_news_docs(self, query: str, context: str) -> List[OntologyDocument]:
-        """生成 Mock 新闻文档（无 API 时的降级）"""
+        """生成 Mock 新闻文档（无 API 时的降级�?""
         doc = make_battle_event_document(
             title=f"新闻采集: {query}",
             red_unit="红方部队",
@@ -453,12 +454,12 @@ class NewsIngester:
         )
         doc.source.url = f"https://mock-news.local/search?q={query}"
         doc.source.confidence = 0.6
-        doc.meta.description = f"基于检索词 '{query}' 生成的 Mock 数据（{context or '无背景'}）"
+        doc.meta.description = f"基于检索词 '{query}' 生成�?Mock 数据（{context or '无背�?}�?
         logger.info(f"生成 Mock 新闻文档: {doc.doc_id}")
         return [doc]
 
     async def from_json(self, raw_json: str, scenario_id: str = None) -> OntologyDocument:
-        """验证并解析 JSON 字符串"""
+        """验证并解�?JSON 字符�?""
         try:
             data = json.loads(raw_json)
         except json.JSONDecodeError as e:
@@ -478,15 +479,15 @@ class NewsIngester:
 
     async def from_natural_language(self, text: str, scenario_id: str = None) -> OntologyDocument:
         """
-        自然语言 → OntologyDocument（使用 LLM 转换）
+        自然语言 �?OntologyDocument（使�?LLM 转换�?
         如果没有 LLM，生成基础文档
         """
         if self.llm is None:
-            # 无 LLM：生成最简 event 文档
+            # �?LLM：生成最简 event 文档
             now = datetime.now(timezone.utc).isoformat()
             doc = OntologyDocument(
                 doc_type=DocType.EVENT.value,
-                source=DataSource(type=SourceType.MANUAL.value, collected_at=now),
+                source=SourceInfo(type=SourceType.MANUAL.value, collected_at=now),
                 meta=DocumentMeta(title="自然语言输入", description=text[:500]),
                 scenario_id=scenario_id,
             )
@@ -499,11 +500,11 @@ class NewsIngester:
             return doc
 
         # 使用 LLM 转换
-        prompt = f"""将以下自然语言描述转换为 OntologyDocument JSON 格式（只输出 JSON）:
+        prompt = f"""将以下自然语言描述转换�?OntologyDocument JSON 格式（只输出 JSON�?
 
 {text}
 
-参考格式:
+参考格�?
 {{
   "doc_id": "manual-xxxxx",
   "doc_type": "event",
@@ -543,7 +544,7 @@ class NewsIngester:
             return await self.from_natural_language.__wrapped__(self, text, scenario_id) if hasattr(
                 self.from_natural_language, '__wrapped__') else OntologyDocument(
                 doc_type=DocType.EVENT.value,
-                source=DataSource(type=SourceType.MANUAL.value),
+                source=SourceInfo(type=SourceType.MANUAL.value),
                 meta=DocumentMeta(title="自然语言输入", description=text[:500]),
                 scenario_id=scenario_id,
             )
@@ -555,11 +556,11 @@ class NewsIngester:
 
 class ManualInputHandler:
     """
-    处理用户手动输入的动态信息
+    处理用户手动输入的动态信�?
 
     输入模式:
-    1. 结构化 dict（来自 Web 表单）
-    2. 自由 JSON 字符串（直接粘贴）
+    1. 结构�?dict（来�?Web 表单�?
+    2. 自由 JSON 字符串（直接粘贴�?
     3. 自然语言（LLM 转换，可选）
     """
 
@@ -567,13 +568,13 @@ class ManualInputHandler:
         self.llm = llm_client
 
     async def from_form(self, form_data: dict, scenario_id: str = None) -> OntologyDocument:
-        """从表单 dict 构建 OntologyDocument"""
+        """从表�?dict 构建 OntologyDocument"""
         now = datetime.now(timezone.utc).isoformat()
 
         doc = OntologyDocument(
             doc_id=form_data.get("doc_id") or f"manual-{datetime.now().strftime('%Y%m%d')}-{uuid.uuid4().hex[:6]}",
             doc_type=form_data.get("doc_type", DocType.EVENT.value),
-            source=DataSource(
+            source=SourceInfo(
                 type=SourceType.MANUAL.value,
                 collected_at=now,
                 confidence=1.0,
@@ -623,7 +624,7 @@ class ManualInputHandler:
         return doc
 
     async def from_json(self, raw_json: str, scenario_id: str = None) -> OntologyDocument:
-        """验证并解析 JSON 字符串"""
+        """验证并解�?JSON 字符�?""
         try:
             data = json.loads(raw_json)
         except json.JSONDecodeError as e:
@@ -643,15 +644,15 @@ class ManualInputHandler:
 
     async def from_natural_language(self, text: str, scenario_id: str = None) -> OntologyDocument:
         """
-        自然语言转 OntologyDocument（使用 LLM 转换）
+        自然语言�?OntologyDocument（使�?LLM 转换�?
         如果没有 LLM，生成基础文档
         """
         if self.llm is None:
-            # 无 LLM：生成最简 event 文档
+            # �?LLM：生成最简 event 文档
             now = datetime.now(timezone.utc).isoformat()
             doc = OntologyDocument(
                 doc_type=DocType.EVENT.value,
-                source=DataSource(type=SourceType.MANUAL.value, collected_at=now),
+                source=SourceInfo(type=SourceType.MANUAL.value, collected_at=now),
                 meta=DocumentMeta(title="自然语言输入", description=text[:500]),
                 scenario_id=scenario_id,
             )
@@ -664,11 +665,11 @@ class ManualInputHandler:
             return doc
 
         # 使用 LLM 转换
-        prompt = f"""将以下自然语言描述转换为 OntologyDocument JSON 格式（只输出 JSON）:
+        prompt = f"""将以下自然语言描述转换�?OntologyDocument JSON 格式（只输出 JSON�?
 
 {text}
 
-参考格式:
+参考格�?
 {{
   "doc_id": "manual-xxxxx",
   "doc_type": "event",
@@ -708,7 +709,7 @@ class ManualInputHandler:
             now = datetime.now(timezone.utc).isoformat()
             doc = OntologyDocument(
                 doc_type=DocType.EVENT.value,
-                source=DataSource(type=SourceType.MANUAL.value, collected_at=now),
+                source=SourceInfo(type=SourceType.MANUAL.value, collected_at=now),
                 meta=DocumentMeta(title="自然语言输入", description=text[:500]),
                 scenario_id=scenario_id,
             )
@@ -722,16 +723,16 @@ class ManualInputHandler:
 
 
 # ─────────────────────────────────────────────────
-# 随机事件生成器 - RandomEventGenerator
-# 参考 NetLogo 多智能体行为概率模型
+# 随机事件生成�?- RandomEventGenerator
+# 参�?NetLogo 多智能体行为概率模型
 # ─────────────────────────────────────────────────
 
 # ─────────────────────────────────────────────────
-# 随机事件生成器 - 抽象基类
+# 随机事件生成�?- 抽象基类
 # ─────────────────────────────────────────────────
 
 class BaseRandomGenerator(ABC):
-    """随机事件生成器抽象基类"""
+    """随机事件生成器抽象基�?""
 
     @abstractmethod
     async def generate(
@@ -746,49 +747,49 @@ class BaseRandomGenerator(ABC):
 
         Args:
             parties: 参与方列表（可选，军事类使用）
-            scenario_context: 场景上下文
+            scenario_context: 场景上下�?
             count: 生成数量
             scenario_id: 场景ID
 
         Returns:
-            List[OntologyDocument]: 生成的事件文档列表
+            List[OntologyDocument]: 生成的事件文档列�?
         """
         pass
 
     @abstractmethod
     def get_generator_name(self) -> str:
-        """获取生成器名称"""
+        """获取生成器名�?""
         pass
 
     @abstractmethod
     def get_generator_description(self) -> str:
-        """获取生成器描述"""
+        """获取生成器描�?""
         pass
 
 
 class RandomEventGenerator(BaseRandomGenerator):
     """
-    按涉事方和事件模板自动随机生成动态信息
-    参考 NetLogo 多智能体随机行为模型:
-    - 每个涉事方有行为概率表（patrol/attack/retreat/reinforce）
-    - 基于当前状态（morale/supply/combat_power）权重调整
+    按涉事方和事件模板自动随机生成动态信�?
+    参�?NetLogo 多智能体随机行为模型:
+    - 每个涉事方有行为概率表（patrol/attack/retreat/reinforce�?
+    - 基于当前状态（morale/supply/combat_power）权重调�?
     - 事件输出符合 OntologyDocument 格式
     """
 
-    # 生成器类型标识
+    # 生成器类型标�?
     GENERATOR_TYPE = "military"
-    GENERATOR_NAME = "军事战争事件生成器"
+    GENERATOR_NAME = "军事战争事件生成�?
     GENERATOR_DESCRIPTION = "生成军事战争场景下的各种事件，包括进攻、巡逻、增援、撤退、侦察等行动"
 
     def get_generator_name(self) -> str:
-        """获取生成器名称"""
+        """获取生成器名�?""
         return self.GENERATOR_NAME
 
     def get_generator_description(self) -> str:
-        """获取生成器描述"""
+        """获取生成器描�?""
         return self.GENERATOR_DESCRIPTION
 
-    # 涉事方行为概率表（参考 NetLogo）
+    # 涉事方行为概率表（参�?NetLogo�?
     PARTY_BEHAVIOR_PROFILES = {
         "red": {
             "attack": 0.40,
@@ -812,54 +813,54 @@ class RandomEventGenerator(BaseRandomGenerator):
         },
     }
 
-    # 单位名称库 - 扩展版本
+    # 单位名称�?- 扩展版本
     UNIT_NAMES = {
         "red": [
-            "红方装甲营", "红方机步旅", "红方炮兵团", "红方特战队", "红方工兵营", "红方防空营",
-            "红方摩步连", "红方陆航旅", "红方电子对抗营", "红方后勤保障团", "红方侦察营", "红方装甲团",
-            "红方空降营", "红方装甲旅88旅", "红方合成营", "红方信息化作战单元",
+            "红方装甲�?, "红方机步�?, "红方炮兵�?, "红方特战�?, "红方工兵�?, "红方防空�?,
+            "红方摩步�?, "红方陆航�?, "红方电子对抗�?, "红方后勤保障�?, "红方侦察�?, "红方装甲�?,
+            "红方空降�?, "红方装甲�?8�?, "红方合成�?, "红方信息化作战单�?,
         ],
         "blue": [
-            "蓝方机步营", "蓝方装甲旅", "蓝方炮兵团", "蓝方海军陆战队", "蓝方工兵连", "蓝方防空连",
-            "蓝方特种作战群", "蓝方空中突击营", "蓝方装甲骑兵团", "蓝方后勤支援旅", "蓝方电子战营", "蓝方炮兵旅",
-            "蓝方机械化步兵师", "蓝方快速反应部队", "蓝方两栖作战营", "蓝方空中支援联队",
+            "蓝方机步�?, "蓝方装甲�?, "蓝方炮兵�?, "蓝方海军陆战�?, "蓝方工兵�?, "蓝方防空�?,
+            "蓝方特种作战�?, "蓝方空中突击�?, "蓝方装甲骑兵�?, "蓝方后勤支援�?, "蓝方电子战营", "蓝方炮兵�?,
+            "蓝方机械化步兵师", "蓝方快速反应部�?, "蓝方两栖作战�?, "蓝方空中支援联队",
         ],
         "neutral": [
-            "第三方观察团", "中立方协调员", "平民撤离队", "联合国维和部队", "人道主义救援组织",
-            "国际红十字会代表", "当地平民志愿者", "记者团",
+            "第三方观察团", "中立方协调员", "平民撤离�?, "联合国维和部�?, "人道主义救援组织",
+            "国际红十字会代表", "当地平民志愿�?, "记者团",
         ],
     }
 
-    # 扩展的地点库 - 包含更多类型的地点
+    # 扩展的地点库 - 包含更多类型的地�?
     LOCATIONS = [
         # 战术地点
-        "A区北部高地", "B区遭遇地带", "C区渡口", "D区城镇",
-        "E区山地走廊", "F区海岸线", "G区平原", "H区丛林",
-        "K区桥梁枢纽", "L区铁路交叉点", "M区机场", "N区港口设施",
-        "O区山区要塞", "P区沙漠地带", "Q区沼泽地带", "R区城市郊区",
+        "A区北部高�?, "B区遭遇地�?, "C区渡�?, "D区城�?,
+        "E区山地走�?, "F区海岸线", "G区平�?, "H区丛�?,
+        "K区桥梁枢�?, "L区铁路交叉点", "M区机�?, "N区港口设�?,
+        "O区山区要�?, "P区沙漠地�?, "Q区沼泽地�?, "R区城市郊�?,
         # 特定地点
-        "108高地", "203号阵地", "莲花湖地区", "青河渡口", "龙山山口",
-        "虎头山阵地", "白云机场", "红星港", "友谊桥", "中央平原",
+        "108高地", "203号阵�?, "莲花湖地�?, "青河渡口", "龙山山口",
+        "虎头山阵�?, "白云机场", "红星�?, "友谊�?, "中央平原",
     ]
 
-    # 装备库 - 新增
+    # 装备�?- 新增
     EQUIPMENT_TYPES = [
-        "99A式主战坦克", "96A式主战坦克", "15式轻型坦克",
+        "99A式主战坦�?, "96A式主战坦�?, "15式轻型坦�?,
         "04A式步战车", "86A式步战车", "08式步战车",
-        "PLZ-05自行榴弹炮", "PLZ-07自行榴弹炮", "122毫米牵引炮",
-        "AH-64阿帕奇", "Mi-28浩劫", "直-10武装直升机",
+        "PLZ-05自行榴弹�?, "PLZ-07自行榴弹�?, "122毫米牵引�?,
+        "AH-64阿帕�?, "Mi-28浩劫", "�?10武装直升�?,
         "东风-11弹道导弹", "东风-15战术导弹", "红旗-9防空系统",
-        "翼龙无人机", "彩虹无人机", "侦察无人机",
-        "99式自行高炮", "04式弹炮合一系统", "09式轮式步战车",
+        "翼龙无人�?, "彩虹无人�?, "侦察无人�?,
+        "99式自行高�?, "04式弹炮合一系统", "09式轮式步战车",
     ]
 
     # 天气条件 - 新增
     WEATHER_CONDITIONS = [
         "晴朗", "多云", "阴天", "小雨", "中雨", "大雨",
-        "大雾", "小雪", "中雪", "大风", "沙尘暴", "夜间",
+        "大雾", "小雪", "中雪", "大风", "沙尘�?, "夜间",
     ]
 
-    # 时间段 - 新增
+    # 时间�?- 新增
     TIME_PERIODS = [
         "凌晨", "拂晓", "上午", "中午", "下午", "傍晚", "黄昏", "夜间", "深夜",
     ]
@@ -881,84 +882,84 @@ class RandomEventGenerator(BaseRandomGenerator):
         "cease_fire": "cease_fire",
     }
 
-    # 行动描述模板 - 新增，更丰富的描述
+    # 行动描述模板 - 新增，更丰富的描�?
     ACTION_DESCRIPTIONS = {
         "attack": [
-            "对{opponent}发起突然袭击，",
-            "在{location}地区与{eqp}协同进攻{opponent}，",
-            "使用无人机侦察后，对{opponent}发动精确打击，",
-            "在{terrain}地形对{opponent}实施包围进攻，",
+            "对{opponent}发起突然袭击�?,
+            "在{location}地区与{eqp}协同进攻{opponent}�?,
+            "使用无人机侦察后，对{opponent}发动精确打击�?,
+            "在{terrain}地形对{opponent}实施包围进攻�?,
         ],
         "patrol": [
             "在{location}附近进行例行巡逻，",
-            "对{terrain}地带进行搜索排查，",
+            "对{terrain}地带进行搜索排查�?,
             "在{eqp}掩护下对{location}实施巡逻，",
             "针对可疑目标进行定点巡逻，",
         ],
         "reinforce": [
-            "增派{eqp}前往{location}支援，",
-            "从后方调集预备队增援{location}，",
-            "空中投送{eqp}至{location}，",
+            "增派{eqp}前往{location}支援�?,
+            "从后方调集预备队增援{location}�?,
+            "空中投送{eqp}至{location}�?,
             "通过公路机动向{location}输送增援力量，",
         ],
         "retreat": [
-            "因战略调整主动撤离{location}，",
-            "在{eqp}掩护下有序撤退，",
-            "受恶劣天气{weather}影响暂时后撤，",
-            "完成阻击任务后主动撤出{location}，",
+            "因战略调整主动撤离{location}�?,
+            "在{eqp}掩护下有序撤退�?,
+            "受恶劣天气{weather}影响暂时后撤�?,
+            "完成阻击任务后主动撤出{location}�?,
         ],
         "recon": [
-            "派遣侦察分队前往{location}搜集情报，",
-            "使用无人机对{terrain}地带实施抵近侦察，",
-            "化装侦察员潜入{location}获取情报，",
-            "电子侦察{location}区域的敌方通讯，",
+            "派遣侦察分队前往{location}搜集情报�?,
+            "使用无人机对{terrain}地带实施抵近侦察�?,
+            "化装侦察员潜入{location}获取情报�?,
+            "电子侦察{location}区域的敌方通讯�?,
         ],
         "evacuate": [
-            "组织平民从{location}安全撤离，",
+            "组织平民从{location}安全撤离�?,
             "在{weather}条件下紧急疏散当地居民，",
             "开辟安全走廊协助民众撤离危险区域，",
-            "医疗队前往{location}执行撤离任务，",
+            "医疗队前往{location}执行撤离任务�?,
         ],
         "report": [
-            "向上级汇报{location}区域态势，",
+            "向上级汇报{location}区域态势�?,
             "观察员报告{terrain}地带的最新情况，",
-            "情报部门汇总并上报{location}侦察结果，",
-            "多方信息汇总后形成态势报告，",
+            "情报部门汇总并上报{location}侦察结果�?,
+            "多方信息汇总后形成态势报告�?,
         ],
         "cease_fire": [
-            "根据停火协议在{location}停止军事行动，",
-            "双方协商后在{terrain}地带实现停火，",
-            "联合国调停后在{location}实施停火，",
-            "暂时在{location}地区实行临时停火，",
+            "根据停火协议在{location}停止军事行动�?,
+            "双方协商后在{terrain}地带实现停火�?,
+            "联合国调停后在{location}实施停火�?,
+            "暂时在{location}地区实行临时停火�?,
         ],
     }
 
     # 结果描述 - 新增
     OUTCOME_DESCRIPTIONS = {
         "attack": [
-            "摧毁敌方{count}个目标",
+            "摧毁敌方{count}个目�?,
             "造成敌方重大伤亡",
             "成功突破敌方防线",
             "占领关键阵地",
             "击退敌方进攻",
         ],
         "patrol": [
-            "未发现异常情况",
-            "发现可疑目标并标记",
+            "未发现异常情�?,
+            "发现可疑目标并标�?,
             "确认区域安全",
-            "搜集到有价值情报",
-            "排除{count}处安全隐患",
+            "搜集到有价值情�?,
+            "排除{count}处安全隐�?,
         ],
         "reinforce": [
-            "有效增强了防御力量",
-            "及时补充了作战人员",
+            "有效增强了防御力�?,
+            "及时补充了作战人�?,
             "提升了整体战斗力",
-            "巩固了防线",
-            "扭转了不利局面",
+            "巩固了防�?,
+            "扭转了不利局�?,
         ],
         "retreat": [
-            "成功保存了有生力量",
-            "避免了更大损失",
+            "成功保存了有生力�?,
+            "避免了更大损�?,
             "撤至安全区域",
             "完成战略转移",
             "重新部署完毕",
@@ -980,11 +981,11 @@ class RandomEventGenerator(BaseRandomGenerator):
         按涉事方生成随机事件
 
         Args:
-            parties: 参与方列表（如 ["red", "blue"]）
-            scenario_context: 当前场景状态（影响行为概率权重）
+            parties: 参与方列表（�?["red", "blue"]�?
+            scenario_context: 当前场景状态（影响行为概率权重�?
             count: 生成事件数量
             scenario_id: 归属场景
-            use_llm_for_description: 是否用 LLM 生成丰富描述
+            use_llm_for_description: 是否�?LLM 生成丰富描述
 
         Returns:
             List[OntologyDocument]
@@ -992,22 +993,22 @@ class RandomEventGenerator(BaseRandomGenerator):
         context = scenario_context or {}
         docs = []
         
-        # 如果没有提供 parties，使用默认值
+        # 如果没有提供 parties，使用默认�?
         if not parties:
             parties = ["red", "blue"]
 
         for _ in range(count):
-            # 随机选择涉事方
+            # 随机选择涉事�?
             party = random.choice(parties)
             behavior_profile = self.PARTY_BEHAVIOR_PROFILES.get(party, self.PARTY_BEHAVIOR_PROFILES["red"])
 
-            # 根据场景状态调整权重
+            # 根据场景状态调整权�?
             adjusted_profile = self._adjust_weights(behavior_profile, context, party)
 
             # 随机选择行为
             action_type = self._weighted_choice(adjusted_profile)
 
-            # 生成对手（仅进攻/撤退时有对手）
+            # 生成对手（仅进攻/撤退时有对手�?
             opponent = None
             if action_type in ["attack", "retreat", "reinforce"]:
                 other_parties = [p for p in parties if p != party]
@@ -1024,27 +1025,27 @@ class RandomEventGenerator(BaseRandomGenerator):
             )
             docs.append(doc)
 
-        logger.info(f"随机生成 {len(docs)} 个事件（涉事方: {parties}）")
+        logger.info(f"随机生成 {len(docs)} 个事件（涉事�? {parties}�?)
         return docs
 
     def _adjust_weights(self, profile: dict, context: dict, party: str) -> dict:
-        """根据场景状态动态调整行为权重"""
+        """根据场景状态动态调整行为权�?""
         adjusted = dict(profile)
         morale = context.get(f"{party}_morale", 0.7)
         supply = context.get(f"{party}_supply", 0.7)
         combat_power = context.get(f"{party}_combat_power", 0.7)
 
-        # 士气低 → 增加撤退概率
+        # 士气�?�?增加撤退概率
         if morale < 0.4 and "retreat" in adjusted:
             adjusted["retreat"] = adjusted.get("retreat", 0) * 2
-        # 供给不足 → 减少攻击概率
+        # 供给不足 �?减少攻击概率
         if supply < 0.3 and "attack" in adjusted:
             adjusted["attack"] = adjusted.get("attack", 0) * 0.5
-        # 战力强 → 增加进攻概率
+        # 战力�?�?增加进攻概率
         if combat_power > 0.8 and "attack" in adjusted:
             adjusted["attack"] = adjusted.get("attack", 0) * 1.5
 
-        # 归一化
+        # 归一�?
         total = sum(adjusted.values())
         if total > 0:
             adjusted = {k: v / total for k, v in adjusted.items()}
@@ -1078,7 +1079,7 @@ class RandomEventGenerator(BaseRandomGenerator):
         actor_name = random.choice(actor_names)
         actor_id = f"unit-{actor_party}-{uuid.uuid4().hex[:6]}"
 
-        # 随机生成单位属性
+        # 随机生成单位属�?
         unit_types = ["armor", "infantry", "artillery", "recon", "mechanized", "airborne", "armored"]
         combat_power = round(random.uniform(0.4, 0.95), 2)
         morale = round(random.uniform(0.5, 0.95), 2)
@@ -1114,7 +1115,7 @@ class RandomEventGenerator(BaseRandomGenerator):
 
         event_type = self.ACTION_TO_EVENT.get(action_type, "generic")
 
-        # 生成丰富的描述
+        # 生成丰富的描�?
         description_template = random.choice(self.ACTION_DESCRIPTIONS.get(action_type, ["执行{action_type}任务"]))
         outcome_template = random.choice(self.OUTCOME_DESCRIPTIONS.get(action_type, ["任务完成"]))
         target_count = random.randint(1, 5)
@@ -1220,7 +1221,7 @@ class RandomEventGenerator(BaseRandomGenerator):
         doc = OntologyDocument(
             doc_id=f"rand-{date_str}-{uuid.uuid4().hex[:6]}",
             doc_type=DocType.EVENT.value,
-            source=DataSource(type=SourceType.RANDOM_GEN.value, collected_at=now, confidence=0.85),
+            source=SourceInfo(type=SourceType.RANDOM_GEN.value, collected_at=now, confidence=0.85),
             meta=DocumentMeta(
                 title=title,
                 description=description,
@@ -1238,7 +1239,7 @@ class RandomEventGenerator(BaseRandomGenerator):
     async def _enrich_description(self, basic_desc: str) -> str:
         """使用 LLM 丰富事件描述"""
         try:
-            prompt = f"请将以下军事事件描述扩展为1-2句更生动的叙述（保持事实）：{basic_desc}"
+            prompt = f"请将以下军事事件描述扩展�?-2句更生动的叙述（保持事实）：{basic_desc}"
             if hasattr(self.llm, 'complete'):
                 return await self.llm.complete(prompt)
         except Exception:
@@ -1247,14 +1248,14 @@ class RandomEventGenerator(BaseRandomGenerator):
 
 
 # ─────────────────────────────────────────────────
-# 商业事件生成器
+# 商业事件生成�?
 # ─────────────────────────────────────────────────
 
 class BusinessEventGenerator(BaseRandomGenerator):
-    """商业事件生成器 - 生成商业场景下的各种事件"""
+    """商业事件生成�?- 生成商业场景下的各种事件"""
 
     GENERATOR_TYPE = "business"
-    GENERATOR_NAME = "商业事件生成器"
+    GENERATOR_NAME = "商业事件生成�?
     GENERATOR_DESCRIPTION = "生成商业场景下的各种事件，包括投资、并购、产品发布、市场变化等"
 
     # 商业事件类型
@@ -1265,11 +1266,11 @@ class BusinessEventGenerator(BaseRandomGenerator):
         "market_entry", "market_exit"
     ]
 
-    # 公司库
+    # 公司�?
     COMPANIES = {
         "tech": [
             "科技创新集团", "数字先锋公司", "智能科技股份", "网络创新企业",
-            "数据智能公司", "云端科技集团", "人工智能实验室", "软件巨头科技",
+            "数据智能公司", "云端科技集团", "人工智能实验�?, "软件巨头科技",
         ],
         "finance": [
             "华夏银行", "全球投资集团", "财富管理公司", "证券金融公司",
@@ -1277,19 +1278,19 @@ class BusinessEventGenerator(BaseRandomGenerator):
         ],
         "retail": [
             "零售巨头集团", "连锁超市股份", "电商平台公司", "购物中心集团",
-            "品牌运营公司", "供应链管理企业", "物流配送公司", "跨境贸易集团",
+            "品牌运营公司", "供应链管理企�?, "物流配送公�?, "跨境贸易集团",
         ],
         "manufacturing": [
-            "重工业集团", "装备制造公司", "汽车制造企业", "电子产业集团",
-            "新能源公司", "新材料科技", "化工产业股份", "精密制造企业",
+            "重工业集�?, "装备制造公�?, "汽车制造企�?, "电子产业集团",
+            "新能源公�?, "新材料科技", "化工产业股份", "精密制造企�?,
         ],
     }
 
-    # 地点库
+    # 地点�?
     LOCATIONS = [
-        "北京CBD", "上海陆家嘴", "深圳南山", "杭州西湖",
-        "广州天河", "成都高新区", "武汉光谷", "西安高新区",
-        "南京河西", "苏州工业园", "天津滨海", "重庆两江",
+        "北京CBD", "上海陆家�?, "深圳南山", "杭州西湖",
+        "广州天河", "成都高新�?, "武汉光谷", "西安高新�?,
+        "南京河西", "苏州工业�?, "天津滨海", "重庆两江",
     ]
 
     # 事件描述模板
@@ -1315,13 +1316,13 @@ class BusinessEventGenerator(BaseRandomGenerator):
         ],
         "market_expansion": [
             "{company}宣布进入{region}市场",
-            "{company}在{region}开设首家门店",
+            "{company}在{region}开设首家门�?,
             "{company}完成{region}市场的战略布局",
         ],
         "restructuring": [
             "{company}宣布重大战略重组",
             "{company}进行业务调整，聚焦{focus}",
-            "{company}优化组织架构，提升效率",
+            "{company}优化组织架构，提升效�?,
         ],
         "ipo": [
             "{company}在{stock_market}上市，发行价{price}",
@@ -1336,7 +1337,7 @@ class BusinessEventGenerator(BaseRandomGenerator):
         "partnership_dissolution": [
             "{company}与{partner}终止合作",
             "{company}和{partner}宣布解除合作关系",
-            "{company}与{partner}的战略合作到期",
+            "{company}与{partner}的战略合作到�?,
         ],
         "market_entry": [
             "{company}正式进入{industry}行业",
@@ -1412,28 +1413,28 @@ class BusinessEventGenerator(BaseRandomGenerator):
         investor = random.choice(self.COMPANIES[random.choice(list(self.COMPANIES.keys()))])
 
         # 生成产品
-        products = ["智能平台", "解决方案", "创新产品", "生态系统", "服务平台"]
+        products = ["智能平台", "解决方案", "创新产品", "生态系�?, "服务平台"]
         product = random.choice(products)
 
-        purposes = ["技术研发", "市场拓展", "产品创新", "团队建设", "产业升级"]
+        purposes = ["技术研�?, "市场拓展", "产品创新", "团队建设", "产业升级"]
         purpose = random.choice(purposes)
 
         positions = ["高端市场", "中端市场", "大众市场", "细分市场"]
         position = random.choice(positions)
 
-        focuses = ["核心业务", "技术创新", "数字化转型", "绿色发展"]
+        focuses = ["核心业务", "技术创�?, "数字化转�?, "绿色发展"]
         focus = random.choice(focuses)
 
         regions = ["华东地区", "华南地区", "华北地区", "西部地区", "海外市场"]
         region = random.choice(regions)
 
-        industries = ["科技", "金融", "制造", "零售", "医疗"]
+        industries = ["科技", "金融", "制�?, "零售", "医疗"]
         industry = random.choice(industries)
 
         stock_markets = ["上交所", "深交所", "港交所", "纽交所", "纳斯达克"]
         stock_market = random.choice(stock_markets)
 
-        prices = ["10元", "20元", "50元", "100元", "200元"]
+        prices = ["10�?, "20�?, "50�?, "100�?, "200�?]
         price = random.choice(prices)
 
         changes = ["大幅上涨5%", "上涨3%", "小幅上涨1%", "下跌2%", "大幅下跌5%", "波动加剧"]
@@ -1468,7 +1469,7 @@ class BusinessEventGenerator(BaseRandomGenerator):
         doc = OntologyDocument(
             doc_id=f"biz-{date_str}-{uuid.uuid4().hex[:6]}",
             doc_type=DocType.EVENT.value,
-            source=DataSource(type=SourceType.RANDOM_GEN.value, collected_at=now, confidence=0.85),
+            source=SourceInfo(type=SourceType.RANDOM_GEN.value, collected_at=now, confidence=0.85),
             meta=DocumentMeta(
                 title=title,
                 description=description,
@@ -1502,14 +1503,14 @@ class BusinessEventGenerator(BaseRandomGenerator):
 
 
 # ─────────────────────────────────────────────────
-# 科技事件生成器
+# 科技事件生成�?
 # ─────────────────────────────────────────────────
 
 class TechEventGenerator(BaseRandomGenerator):
-    """科技事件生成器 - 生成科技领域的事件"""
+    """科技事件生成�?- 生成科技领域的事�?""
 
     GENERATOR_TYPE = "tech"
-    GENERATOR_NAME = "科技事件生成器"
+    GENERATOR_NAME = "科技事件生成�?
     GENERATOR_DESCRIPTION = "生成科技领域的事件，包括技术突破、产品发布、融资、学术成果等"
 
     TECH_ACTIONS = [
@@ -1519,27 +1520,27 @@ class TechEventGenerator(BaseRandomGenerator):
     ]
 
     TECH_COMPANIES = [
-        "未来科技", "智能创新", "量子实验室", "生物科技公司",
-        "新能源技术", "量子计算中心", "AI研究院", "机器人公司",
-        "元宇宙科技", "区块链实验室", "云计算中心", "大数据公司",
-        "5G创新中心", "芯片设计公司", "自动驾驶研究院", "无人机技术公司",
+        "未来科技", "智能创新", "量子实验�?, "生物科技公司",
+        "新能源技�?, "量子计算中心", "AI研究�?, "机器人公�?,
+        "元宇宙科技", "区块链实验室", "云计算中�?, "大数据公�?,
+        "5G创新中心", "芯片设计公司", "自动驾驶研究�?, "无人机技术公�?,
     ]
 
     RESEARCH_AREAS = [
-        "人工智能", "量子计算", "生物医药", "新能源", "材料科学",
-        "航空航天", "深海探测", "脑科学", "基因编辑", "机器人",
+        "人工智能", "量子计算", "生物医药", "新能�?, "材料科学",
+        "航空航天", "深海探测", "脑科�?, "基因编辑", "机器�?,
     ]
 
     LOCATIONS = [
-        "北京中关村", "上海张江", "深圳南山", "杭州云栖",
-        "武汉光谷", "成都天府", "西安高新", "苏州工业园",
+        "北京中关�?, "上海张江", "深圳南山", "杭州云栖",
+        "武汉光谷", "成都天府", "西安高新", "苏州工业�?,
     ]
 
     EVENT_TEMPLATES = {
         "breakthrough": [
             "{company}在{area}领域取得重大突破",
-            "{company}宣布{area}研究获得突破性进展",
-            "{area}领域传来好消息，{company}实现技术跨越",
+            "{company}宣布{area}研究获得突破性进�?,
+            "{area}领域传来好消息，{company}实现技术跨�?,
         ],
         "product_launch": [
             "{company}发布新一代{product}",
@@ -1552,9 +1553,9 @@ class TechEventGenerator(BaseRandomGenerator):
             "{company}在{area}领域发表重要论文",
         ],
         "patent": [
-            "{company}获得{area}技术专利",
+            "{company}获得{area}技术专�?,
             "{company}申请的新专利获批",
-            "{company}在{area}领域专利布局加速",
+            "{company}在{area}领域专利布局加�?,
         ],
         "award": [
             "{company}荣获{award}奖项",
@@ -1576,21 +1577,21 @@ class TechEventGenerator(BaseRandomGenerator):
             "{company}与{partner}联合开发{product}",
             "{company}与科研机构合作研究{area}",
         ],
-        # 补充缺失的模板
+        # 补充缺失的模�?
         "launch": [
             "{company}推出全新{product}",
             "{company}在{location}发布{product}",
             "{company}的新产品{product}正式上线",
         ],
         "collaboration": [
-            "{company}与{partner}开展深度合作",
+            "{company}与{partner}开展深度合�?,
             "{company}联合{partner}共同研发{product}",
             "{company}与{partner}在{area}领域达成合作",
         ],
         "launch_failure": [
             "{company}的{product}遭遇挫折",
-            "{company}发布的{product}面临技术挑战",
-            "{company}在{product}研发中遇到问题",
+            "{company}发布的{product}面临技术挑�?,
+            "{company}在{product}研发中遇到问�?,
         ],
         "data_breach": [
             "{company}发生数据安全事件",
@@ -1638,10 +1639,10 @@ class TechEventGenerator(BaseRandomGenerator):
         amounts = ["1000万元", "5000万元", "1亿元", "5亿元", "10亿元", "20亿元"]
         amount = random.choice(amounts)
 
-        partners = ["清华大学", "北京大学", "中科院", "华为", "阿里达摩院", "腾讯AI Lab"]
+        partners = ["清华大学", "北京大学", "中科�?, "华为", "阿里达摩�?, "腾讯AI Lab"]
         partner = random.choice(partners)
 
-        products = ["智能平台", "AI芯片", "量子计算机", "机器人", "无人机", "操作系统"]
+        products = ["智能平台", "AI芯片", "量子计算�?, "机器�?, "无人�?, "操作系统"]
         product = random.choice(products)
 
         awards = ["科技进步一等奖", "最佳创新奖", "国际设计大奖", "技术突破奖"]
@@ -1663,7 +1664,7 @@ class TechEventGenerator(BaseRandomGenerator):
         doc = OntologyDocument(
             doc_id=f"tech-{date_str}-{uuid.uuid4().hex[:6]}",
             doc_type=DocType.EVENT.value,
-            source=DataSource(type=SourceType.RANDOM_GEN.value, collected_at=now, confidence=0.85),
+            source=SourceInfo(type=SourceType.RANDOM_GEN.value, collected_at=now, confidence=0.85),
             meta=DocumentMeta(
                 title=title,
                 description=description,
@@ -1698,14 +1699,14 @@ class TechEventGenerator(BaseRandomGenerator):
 
 
 # ─────────────────────────────────────────────────
-# 医疗健康事件生成器
+# 医疗健康事件生成�?
 # ─────────────────────────────────────────────────
 
 class HealthEventGenerator(BaseRandomGenerator):
-    """医疗健康事件生成器 - 生成医疗健康领域的事件"""
+    """医疗健康事件生成�?- 生成医疗健康领域的事�?""
 
     GENERATOR_TYPE = "healthcare"
-    GENERATOR_NAME = "医疗健康事件生成器"
+    GENERATOR_NAME = "医疗健康事件生成�?
     GENERATOR_DESCRIPTION = "生成医疗健康领域的事件，包括新药研发、临床试验、医疗突破等"
 
     HEALTH_ACTIONS = [
@@ -1715,9 +1716,9 @@ class HealthEventGenerator(BaseRandomGenerator):
     ]
 
     MEDICAL_INSTITUTIONS = [
-        "仁和医院", "第一人民医院", "中心医院", "医药研究院",
+        "仁和医院", "第一人民医院", "中心医院", "医药研究�?,
         "生物制药公司", "医疗器械集团", "基因科技公司", "疫苗研发中心",
-        "中医研究院", "专科医院集团", "体检中心", "康复医院",
+        "中医研究�?, "专科医院集团", "体检中心", "康复医院",
     ]
 
     LOCATIONS = [
@@ -1726,12 +1727,12 @@ class HealthEventGenerator(BaseRandomGenerator):
     ]
 
     DISEASES = [
-        "癌症", "糖尿病", "心血管疾病", "阿尔茨海默症", "帕金森症",
-        "艾滋病", "流感", "新冠肺炎", "肝炎", "肺炎",
+        "癌症", "糖尿�?, "心血管疾�?, "阿尔茨海默症", "帕金森症",
+        "艾滋�?, "流感", "新冠肺炎", "肝炎", "肺炎",
     ]
 
     DRUGS = [
-        "创新靶向药", "新型疫苗", "生物制剂", "基因疗法",
+        "创新靶向�?, "新型疫苗", "生物制剂", "基因疗法",
         "免疫治疗药物", "中药新药", "医疗器械", "诊断试剂",
     ]
 
@@ -1743,8 +1744,8 @@ class HealthEventGenerator(BaseRandomGenerator):
         ],
         "clinical_trial": [
             "{institution}启动{drug}临床试验",
-            "{institution}开展{disease}新疗法临床试验",
-            "{drug}的III期临床试验取得积极结果",
+            "{institution}开展{disease}新疗法临床试�?,
+            "{drug}的III期临床试验取得积极结�?,
         ],
         "breakthrough": [
             "{institution}在{disease}治疗领域取得突破",
@@ -1757,7 +1758,7 @@ class HealthEventGenerator(BaseRandomGenerator):
             "{institution}在{research}领域取得进展",
         ],
         "device_approval": [
-            "{institution}的医疗器械获批",
+            "{institution}的医疗器械获�?,
             "{institution}研发的新设备上市",
             "新型{therapy}设备获得认证",
         ],
@@ -1768,13 +1769,13 @@ class HealthEventGenerator(BaseRandomGenerator):
         ],
         "vaccination": [
             "{institution}开展新疫苗接种工作",
-            "{location}启动大规模疫苗接种",
-            "{drug}疫苗接种率达标",
+            "{location}启动大规模疫苗接�?,
+            "{drug}疫苗接种率达�?,
         ],
         "treatment": [
             "{institution}采用新疗法治疗{disease}",
             "{institution}成功实施{technique}手术",
-            "新型{therapy}疗法在{disease}治疗中应用",
+            "新型{therapy}疗法在{disease}治疗中应�?,
         ],
         "partnership": [
             "{institution}与{partner}合作研发新药",
@@ -1838,10 +1839,10 @@ class HealthEventGenerator(BaseRandomGenerator):
         amounts = ["1000万元", "5000万元", "1亿元", "5亿元", "10亿元"]
         amount = random.choice(amounts)
 
-        partners = ["医学院", "研究所", "制药公司", "医疗器械厂", "疾控中心"]
+        partners = ["医学�?, "研究所", "制药公司", "医疗器械�?, "疾控中心"]
         partner = random.choice(partners)
 
-        techniques = ["机器人", "微创", "介入", "定向", "无创"]
+        techniques = ["机器�?, "微创", "介入", "定向", "无创"]
         technique = random.choice(techniques)
 
         therapies = ["免疫治疗", "基因治疗", "细胞治疗", "靶向治疗"]
@@ -1868,7 +1869,7 @@ class HealthEventGenerator(BaseRandomGenerator):
         doc = OntologyDocument(
             doc_id=f"health-{date_str}-{uuid.uuid4().hex[:6]}",
             doc_type=DocType.EVENT.value,
-            source=DataSource(type=SourceType.RANDOM_GEN.value, collected_at=now, confidence=0.85),
+            source=SourceInfo(type=SourceType.RANDOM_GEN.value, collected_at=now, confidence=0.85),
             meta=DocumentMeta(
                 title=title,
                 description=description,
@@ -1902,11 +1903,11 @@ class HealthEventGenerator(BaseRandomGenerator):
 
 
 # ─────────────────────────────────────────────────
-# 随机事件生成器工厂
+# 随机事件生成器工�?
 # ─────────────────────────────────────────────────
 
 class RandomEventGeneratorFactory:
-    """随机事件生成器工厂"""
+    """随机事件生成器工�?""
 
     _generators = {
         "military": RandomEventGenerator,
@@ -1916,10 +1917,10 @@ class RandomEventGeneratorFactory:
     }
 
     _descriptions = {
-        "military": "军事战争事件生成器 - 生成进攻、巡逻、增援、撤退等军事行动",
-        "business": "商业事件生成器 - 生成投资、并购、产品发布等商业事件",
-        "tech": "科技事件生成器 - 生成技术突破、产品发布等科技事件",
-        "healthcare": "医疗健康事件生成器 - 生成新药研发、临床试验等医疗事件",
+        "military": "军事战争事件生成�?- 生成进攻、巡逻、增援、撤退等军事行�?,
+        "business": "商业事件生成�?- 生成投资、并购、产品发布等商业事件",
+        "tech": "科技事件生成�?- 生成技术突破、产品发布等科技事件",
+        "healthcare": "医疗健康事件生成�?- 生成新药研发、临床试验等医疗事件",
     }
 
     @classmethod
@@ -1932,7 +1933,7 @@ class RandomEventGeneratorFactory:
 
     @classmethod
     def get_available_generators(cls) -> dict:
-        """获取所有可用的生成器及其描述"""
+        """获取所有可用的生成器及其描�?""
         return {
             gen_type: {
                 "class": gen_class,
@@ -1943,136 +1944,30 @@ class RandomEventGeneratorFactory:
 
     @classmethod
     def list_generator_types(cls) -> list:
-        """列出所有可用的生成器类型"""
+        """列出所有可用的生成器类�?""
         return list(cls._generators.keys())
 
 
-# ─────────────────────────────────────────────────
-# 导入/导出 - OntologyDocumentIO
-# ─────────────────────────────────────────────────
-
-class OntologyDocumentIO:
-    """
-    OntologyDocument 导入/导出管理
-
-    文件格式: .odoc.json
-    支持: 单文档、场景包（多文档）、全量本体快照
-    """
-
-    def __init__(self, version_manager=None):
-        self.versions = version_manager
-
-    async def export_document(self, doc: OntologyDocument) -> bytes:
-        """导出单个文档为 .odoc.json"""
-        return doc.to_json(indent=2).encode("utf-8")
-
-    async def export_scenario(
-        self,
-        scenario_id: str,
-        documents: List[OntologyDocument],
-    ) -> bytes:
-        """导出整个场景（含所有事件）"""
-        package = {
-            "export_type": "scenario",
-            "scenario_id": scenario_id,
-            "exported_at": datetime.now(timezone.utc).isoformat(),
-            "document_count": len(documents),
-            "documents": [doc.to_dict() for doc in documents],
-        }
-        return json.dumps(package, ensure_ascii=False, indent=2, default=str).encode("utf-8")
-
-    async def export_versions_snapshot(
-        self,
-        versions_summary: List[dict],
-    ) -> bytes:
-        """导出版本链快照"""
-        snapshot = {
-            "export_type": "versions_snapshot",
-            "exported_at": datetime.now(timezone.utc).isoformat(),
-            "version_count": len(versions_summary),
-            "versions": versions_summary,
-        }
-        return json.dumps(snapshot, ensure_ascii=False, indent=2, default=str).encode("utf-8")
-
-    async def import_file(
-        self,
-        content: bytes,
-        scenario_id: str = None,
-    ) -> List[OntologyDocument]:
-        """
-        导入 .odoc.json
-
-        步骤:
-        1. JSON Schema 验证
-        2. 冲突检测
-        3. 返回文档列表（由调用方决定是否触发热写入）
-        """
-        try:
-            raw = json.loads(content.decode("utf-8"))
-        except (json.JSONDecodeError, UnicodeDecodeError) as e:
-            raise ValueError(f"文件格式错误: {e}")
-
-        documents = []
-
-        # 场景包
-        if isinstance(raw, dict) and raw.get("export_type") == "scenario":
-            for doc_data in raw.get("documents", []):
-                result = OntologyDocumentSchema.validate(doc_data)
-                if result.is_valid:
-                    doc = OntologyDocument.from_dict(doc_data)
-                    if scenario_id:
-                        doc.scenario_id = scenario_id
-                    doc.source.type = SourceType.IMPORT.value
-                    documents.append(doc)
-                else:
-                    logger.warning(f"导入文档验证失败: {result.errors}")
-        # 单文档
-        elif isinstance(raw, dict):
-            result = OntologyDocumentSchema.validate(raw)
-            if result.is_valid:
-                doc = OntologyDocument.from_dict(raw)
-                if scenario_id:
-                    doc.scenario_id = scenario_id
-                doc.source.type = SourceType.IMPORT.value
-                documents.append(doc)
-            else:
-                raise ValueError(f"文档验证失败: {'; '.join(result.errors)}")
-        # 文档列表
-        elif isinstance(raw, list):
-            for doc_data in raw:
-                result = OntologyDocumentSchema.validate(doc_data)
-                if result.is_valid:
-                    doc = OntologyDocument.from_dict(doc_data)
-                    if scenario_id:
-                        doc.scenario_id = scenario_id
-                    doc.source.type = SourceType.IMPORT.value
-                    documents.append(doc)
-
-        logger.info(f"导入 {len(documents)} 个文档")
-        return documents
-
-
-# ─────────────────────────────────────────────────
-# 网页内容抓取 - WebScraper（免费方案，无需 API Key）
+# 网页内容抓取 - WebScraper（免费方案，无需 API Key�?
 # ─────────────────────────────────────────────────
 
 class WebScraper:
     """
-    免费网页内容抓取器
+    免费网页内容抓取�?
 
     功能:
-    - 直接抓取网页内容（HTML）
-    - 提取标题、文本内容、链接
+    - 直接抓取网页内容（HTML�?
+    - 提取标题、文本内容、链�?
     - 支持新闻网站、博客、文档等
 
     优点:
     - 完全免费，无需 API Key
-    - 轻量级实现，依赖少
+    - 轻量级实现，依赖�?
     - 支持任意网页
 
     限制:
-    - 无法获取 JavaScript 渲染的内容
-    - 部分网站有反爬措施
+    - 无法获取 JavaScript 渲染的内�?
+    - 部分网站有反爬措�?
     - 不支持需要登录的内容
     """
 
@@ -2103,7 +1998,7 @@ class WebScraper:
             logger.warning(f"网页抓取依赖未安装，使用 Mock 数据: {url}")
             return self._generate_mock_scrape(url)
 
-        logger.info(f"开始抓取网页: {url}")
+        logger.info(f"开始抓取网�? {url}")
 
         try:
             response = requests.get(url, headers=self.headers, timeout=self.TIMEOUT)
@@ -2112,7 +2007,7 @@ class WebScraper:
 
             soup = BeautifulSoup(response.text, 'html.parser')
 
-            # 移除脚本和样式元素
+            # 移除脚本和样式元�?
             for script in soup(["script", "style", "nav", "footer", "header", "aside"]):
                 script.decompose()
 
@@ -2159,8 +2054,8 @@ class WebScraper:
         return {
             "url": url,
             "title": f"Mock 网页标题 - {url.split('/')[-1]}",
-            "text": "这是一个 Mock 网页内容。在实际环境中，这里会显示从网页抓取的真实内容。由于网页抓取依赖未安装，系统使用了 Mock 数据。\n\n在实际应用中，我们会从网页中提取标题、正文、描述等信息，并将其转换为本体文档。",
-            "description": "这是一个 Mock 网页描述，模拟从网页抓取的内容。",
+            "text": "这是一�?Mock 网页内容。在实际环境中，这里会显示从网页抓取的真实内容。由于网页抓取依赖未安装，系统使用了 Mock 数据。\n\n在实际应用中，我们会从网页中提取标题、正文、描述等信息，并将其转换为本体文档�?,
+            "description": "这是一�?Mock 网页描述，模拟从网页抓取的内容�?,
             "links": [
                 {"url": url, "text": "原文链接"},
                 {"url": "https://example.com", "text": "相关链接"}
@@ -2172,12 +2067,12 @@ class WebScraper:
 
     def _extract_title(self, soup: Any) -> str:
         """提取网页标题"""
-        # 优先从 meta 标签获取
+        # 优先�?meta 标签获取
         og_title = soup.find("meta", property="og:title")
         if og_title:
             return og_title.get("content", "").strip()
 
-        # 次选 h1 标签
+        # 次�?h1 标签
         h1 = soup.find("h1")
         if h1:
             return h1.get_text().strip()
@@ -2187,11 +2082,11 @@ class WebScraper:
         if title_tag:
             return title_tag.get_text().strip()
 
-        return "无标题"
+        return "无标�?
 
     def _extract_text(self, soup: Any) -> str:
         """提取正文内容"""
-        # 尝试常见的内容容器
+        # 尝试常见的内容容�?
         contentSelectors = [
             "article",
             "[itemprop=articleBody]",
@@ -2210,7 +2105,7 @@ class WebScraper:
                 if len(text) > 100:
                     return text
 
-        # 如果没有找到，返回 body 的文本
+        # 如果没有找到，返�?body 的文�?
         body = soup.find("body")
         if body:
             return body.get_text(separator="\n", strip=True)
@@ -2219,7 +2114,7 @@ class WebScraper:
 
     def _extract_description(self, soup: Any) -> str:
         """提取网页描述"""
-        # 优先从 meta 标签获取
+        # 优先�?meta 标签获取
         og_desc = soup.find("meta", property="og:description")
         if og_desc:
             return og_desc.get("content", "").strip()
@@ -2267,7 +2162,7 @@ class WebScraper:
                 if date_str:
                     return date_str[:10] if len(date_str) >= 10 else date_str
 
-        # 尝试从时间标签获取
+        # 尝试从时间标签获�?
         time_tag = soup.find("time")
         if time_tag:
             return time_tag.get("datetime", "")[:10] if time_tag.get("datetime") else None
@@ -2276,12 +2171,12 @@ class WebScraper:
 
 
 # ─────────────────────────────────────────────────
-# 网页内容抓取集成到 NewsIngester
+# 网页内容抓取集成�?NewsIngester
 # ─────────────────────────────────────────────────
 
 class FreeNewsIngester:
     """
-    免费新闻摄入器（无需 API Key）
+    免费新闻摄入器（无需 API Key�?
 
     使用本地网页抓取 + 规则提取，而非 Tavily/SerpAPI
     """
@@ -2297,11 +2192,11 @@ class FreeNewsIngester:
         event_context: str = "",
     ) -> List[OntologyDocument]:
         """
-        从 URL 抓取新闻内容并转换为 OntologyDocument
+        �?URL 抓取新闻内容并转换为 OntologyDocument
 
         Args:
             url: 新闻页面 URL
-            title_hint: 标题提示（可选，用于增强提取）
+            title_hint: 标题提示（可选，用于增强提取�?
             event_context: 事件背景（可选）
 
         Returns:
@@ -2314,7 +2209,7 @@ class FreeNewsIngester:
             scrape_result = self.scraper.scrape(url)
 
             if scrape_result.get("status") != "success":
-                logger.warning(f"网页抓取失败，使用 Mock: {scrape_result.get('error')}")
+                logger.warning(f"网页抓取失败，使�?Mock: {scrape_result.get('error')}")
                 return self._generate_mock_from_url(url, title_hint, event_context)
 
             # 构建 OntologyDocument
@@ -2333,7 +2228,7 @@ class FreeNewsIngester:
             return self._generate_mock_from_url(url, title_hint, event_context)
 
     def _build_document(self, scrape_result: Dict[str, Any], context: str) -> OntologyDocument:
-        """从抓取结果构建 OntologyDocument"""
+        """从抓取结果构�?OntologyDocument"""
         now = datetime.now(timezone.utc).isoformat()
         date_str = datetime.now().strftime("%Y%m%d")
 
@@ -2343,13 +2238,13 @@ class FreeNewsIngester:
         url = scrape_result.get("url", "")
         publish_date = scrape_result.get("publish_date")
 
-        # 截取前 2000 字符作为描述
+        # 截取�?2000 字符作为描述
         desc = description or text[:500]
 
         doc = OntologyDocument(
             doc_id=f"web-{date_str}-{uuid.uuid4().hex[:6]}",
             doc_type=DocType.EVENT.value,
-            source=DataSource(
+            source=SourceInfo(
                 type=SourceType.NEWS_INGEST.value,
                 url=url,
                 collected_at=now,
@@ -2379,7 +2274,7 @@ class FreeNewsIngester:
         return doc
 
     def _generate_mock_from_url(self, url: str, title: str, context: str) -> List[OntologyDocument]:
-        """从 URL 生成 Mock 文档"""
+        """�?URL 生成 Mock 文档"""
         doc = make_battle_event_document(
             title=title or f"网页内容: {url}",
             red_unit="红方部队",
@@ -2390,6 +2285,6 @@ class FreeNewsIngester:
         )
         doc.source.url = url
         doc.source.confidence = 0.5
-        doc.meta.description = f"基于 URL '{url}' 生成的 Mock 数据（{context or '无背景'}）"
+        doc.meta.description = f"基于 URL '{url}' 生成�?Mock 数据（{context or '无背�?}�?
         logger.info(f"生成 Mock 网页文档: {doc.doc_id}")
         return [doc]

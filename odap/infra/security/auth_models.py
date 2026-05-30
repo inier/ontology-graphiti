@@ -19,6 +19,9 @@ import uuid
 class AuthProvider(str, Enum):
     LOCAL = "local"
     OIDC = "oidc"
+    JWT = "jwt"
+    OAUTH2 = "oauth2"
+    API_KEY = "api_key"
 
     @classmethod
     def _missing_(cls, value):
@@ -29,6 +32,11 @@ class AuthProvider(str, Enum):
 
 
 class GlobalRole(str, Enum):
+    SYSTEM_ADMIN = "system_admin"
+    PROJECT_OWNER = "project_owner"
+    TEAM_LEADER = "team_leader"
+    MEMBER = "member"
+    GUEST = "guest"
     ADMIN = "admin"
     COMMANDER = "commander"
     ANALYST = "analyst"

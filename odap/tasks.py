@@ -82,8 +82,11 @@ def process_ingest_task(task_id, ingest_type, data, scenario_id=None):
 def _save_to_scenario(scenario_id: str, doc_type: str, data: Dict[str, Any]):
     """保存数据到场景"""
     try:
-        from odap.biz.platform.workspace.storage import Storage
-        storage = Storage()
+        from odap.biz.platform.workspace.services.workspace_service import WorkspaceService
+        ws_svc = WorkspaceService()
+        storage = ws_svc.storage if hasattr(ws_svc, 'storage') else None
+        if storage is None:
+            return
         
         doc = {
             'doc_type': doc_type,

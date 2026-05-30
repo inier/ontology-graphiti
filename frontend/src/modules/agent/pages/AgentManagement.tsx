@@ -137,7 +137,7 @@ export function AgentManagement() {
         knowledgeApi.listKnowledgeBases().catch(() => []).then(items =>
           items.map((k: any) => ({ id: k.kb_id, name: k.name }))
         ),
-        api.listRoles().catch(() => []).then(r => {
+        api.listRoles().catch(() => []).then((r: any) => {
           const roles = Array.isArray(r) ? r : (r.roles || []);
           return roles.map((role: any) => ({ id: role.role_id || role.id, name: role.name }));
         }),

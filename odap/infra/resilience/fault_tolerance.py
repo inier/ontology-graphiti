@@ -12,17 +12,9 @@ from dataclasses import dataclass, field
 from enum import Enum
 from typing import Dict, Any, List, Optional
 
+from odap.biz.core.agent.swarm_orchestrator import AgentState
+
 logger = logging.getLogger("fault_tolerance")
-
-
-class AgentState(str, Enum):
-    """Agent 执行状态"""
-    IDLE = "idle"
-    RUNNING = "running"
-    FAILED = "failed"
-    DEGRADED = "degraded"
-    RECOVERING = "recovering"
-    SUSPENDED = "suspended"
 
 
 class FailureType(str, Enum):

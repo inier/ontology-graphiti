@@ -25,16 +25,21 @@ from ..models.audit import (
     PipelineStage, ProcessLog, ProcessingStatus,
     DataIngestRecord, DataSource
 )
-from ..models.version import OntologyVersion, VersionStatus
-from ..ingestion import OntologyDocument
-from ..storage.sqlite_ingest_storage import SQLiteIngestStorage
+from ..schema.document import OntologyDocument
+from ..schema.document import OntologyDocumentSchema, OntologyValidationError
+from .version_service import OntologyVersionManager, OntologyVersion
+from odap.infra.events import HookRegistry, HookPhase, HookContext
 from odap.infra.security.unified_audit import log_audit, log_error
 from .ingest_service import IngestService, get_ingest_service
 from .build_service import OntologyBuilderService, get_builder_service
-from .version_service import VersionManagementService, get_version_service
 from .transform_service import OntologyTransformService as TransformService
 
 logger = logging.getLogger("ontology_pipeline")
+
+
+def _make_ingest_storage():
+    from ..storage.sqlite_ingest_storage import SQLiteIngestStorage
+    return SQLiteIngestStorage()
 
 
 def get_local_time():
@@ -58,7 +63,7 @@ class PipelineContext:
     document_id: Optional[str] = None
     error: Optional[str] = None
     success: bool = False
-    _storage: SQLiteIngestStorage = field(default_factory=lambda: SQLiteIngestStorage())
+    _storage = field(default_factory=_make_ingest_storage)
     _stage_start_times: Dict[str, datetime] = field(default_factory=dict)
 
     def add_log(self, stage: PipelineStage, operation: str, details: Dict[str, Any],
@@ -742,7 +747,7 @@ class OntologyBuildStageHandler(PipelineStageHandler):
         events: List[Dict]
     ) -> OntologyDocument:
         """构建OntologyDocument"""
-        from ..schema.document import OntologyEntity, OntologyRelation, OntologyEvent, DataSource
+        from ..schema.document import OntologyEntity, OntologyRelation, OntologyEvent, SourceInfo
 
         doc_entities = [
             OntologyEntity(
@@ -780,7 +785,7 @@ class OntologyBuildStageHandler(PipelineStageHandler):
 
         document = OntologyDocument(
             doc_type="event",
-            source=DataSource(
+            source=SourceInfo(
                 type=context.source
             ),
             entities=doc_entities,
@@ -827,7 +832,7 @@ class VersionManageStageHandler(PipelineStageHandler):
 
     def __init__(self):
         super().__init__(PipelineStage.VERSION_MANAGE)
-        self.version_service = get_version_service()
+        self.version_manager = OntologyVersionManager.get_instance()
 
     async def execute(self, context: PipelineContext) -> bool:
         """执行版本管理"""
@@ -1014,13 +1019,15 @@ class GraphBuildStageHandler(PipelineStageHandler):
 
 
 class OntologyPipeline:
-    """
-    本体构建管道
 
-    协调6个阶段的执行，记录完整处理日志
-    """
+    _instance: Optional['OntologyPipeline'] = None
 
-    def __init__(self):
+    def __init__(self, graph_manager=None, version_manager=None, hook_registry=None):
+        self.graph = graph_manager
+        self.versions = version_manager or OntologyVersionManager.get_instance()
+        self.hooks = hook_registry or HookRegistry.get_instance()
+        self._ingest_count = 0
+        self._error_count = 0
         self.handlers: Dict[PipelineStage, PipelineStageHandler] = {
             PipelineStage.COLLECTION: CollectionStageHandler(),
             PipelineStage.CLEANING: CleaningStageHandler(),
@@ -1037,6 +1044,118 @@ class OntologyPipeline:
             PipelineStage.VERSION_MANAGE,
             PipelineStage.GRAPH_BUILD,
         ]
+
+    @classmethod
+    def get_instance(cls) -> 'OntologyPipeline':
+        if cls._instance is None:
+            cls._instance = OntologyPipeline()
+        return cls._instance
+
+    @classmethod
+    def initialize(cls, graph_manager=None, version_manager=None, hook_registry=None) -> 'OntologyPipeline':
+        cls._instance = OntologyPipeline(
+            graph_manager=graph_manager,
+            version_manager=version_manager,
+            hook_registry=hook_registry,
+        )
+        return cls._instance
+
+    async def ingest(self, doc: OntologyDocument, ontology_id: Optional[str] = None) -> OntologyVersion:
+        validation = OntologyDocumentSchema.validate(doc)
+        if not validation.is_valid:
+            self._error_count += 1
+            raise OntologyValidationError(validation.errors)
+        if validation.warnings:
+            for w in validation.warnings:
+                logger.warning(f"[Schema Warning] {w}")
+
+        final_ontology_id = ontology_id or doc.ontology_id
+        if not final_ontology_id:
+            raise ValueError("需要提供 ontology_id，或者 doc.ontology_id 必须已设置")
+
+        version = await self.versions.append(final_ontology_id, doc)
+
+        if self.graph is not None:
+            try:
+                await self._write_to_graphiti(doc, version)
+            except Exception as e:
+                logger.error(f"Graphiti 写入失败（版本 {version.version_id} 已保存）: {e}")
+
+        event_payload = {
+            "version_id": version.version_id,
+            "ontology_id": final_ontology_id,
+            "doc_id": doc.doc_id,
+            "doc_type": doc.doc_type,
+            "entity_count": len(doc.entities),
+            "relation_count": len(doc.relations),
+            "event_count": len(doc.events),
+            "action_count": len(doc.actions),
+            "title": doc.meta.title,
+            "scenario_id": doc.scenario_id,
+        }
+        asyncio.create_task(self._emit_hook(event_payload))
+
+        self._ingest_count += 1
+        logger.info(
+            f"热写入完成: {version.version_id} | 本体:{final_ontology_id} | "
+            f"实体:{len(doc.entities)} 关系:{len(doc.relations)} 事件:{len(doc.events)}"
+        )
+        return version
+
+    async def _write_to_graphiti(self, doc: OntologyDocument, version: OntologyVersion):
+        episode_text = doc.to_episode_text()
+        if hasattr(self.graph, 'add_episode'):
+            await self.graph.add_episode(
+                name=f"ontology_{doc.doc_id}",
+                episode_body=episode_text,
+                source_description=f"ontology_document:{doc.doc_type}",
+                reference_time=datetime.now(timezone.utc),
+            )
+        logger.debug(f"Graphiti Episode 写入: {doc.doc_id}")
+
+    async def _emit_hook(self, payload: dict):
+        try:
+            context = HookContext(event_name="ontology.updated")
+            context.set_data("payload", payload)
+
+            hooks = self.hooks.get_hooks("ontology.updated", HookPhase.POST)
+            for hook in hooks:
+                try:
+                    result = hook.handler(context, payload)
+                    if asyncio.iscoroutine(result):
+                        await result
+                except Exception as e:
+                    logger.error(f"Hook {hook.name} 执行失败: {e}")
+        except Exception as e:
+            logger.error(f"Hook 广播失败: {e}")
+
+    async def rollback(self, version_id: str) -> OntologyVersion:
+        doc = await self.versions.get_doc(version_id)
+        if doc is None:
+            raise ValueError(f"版本 {version_id} 不存在或快照已丢失")
+
+        doc.ontology_version.parent_version = version_id
+        doc.ontology_version.commit_message = f"回退到版本 {version_id}"
+
+        logger.info(f"回退到版本: {version_id}")
+        return await self.ingest(doc)
+
+    def register_ontology_hook(self, handler):
+        self.hooks.register(
+            event="ontology.updated",
+            name=getattr(handler, "__name__", str(id(handler))),
+            handler=handler,
+            phase=HookPhase.POST,
+            description="本体更新订阅",
+        )
+
+    def get_stats(self) -> dict:
+        return {
+            "ingest_count": self._ingest_count,
+            "error_count": self._error_count,
+            "version_count": self.versions.get_version_count(),
+            "latest_version": self.versions.get_latest_version_id(),
+        }
 
     async def run(
         self,
@@ -1122,11 +1241,13 @@ _pipeline_instance: Optional[OntologyPipeline] = None
 
 
 def get_pipeline_service() -> OntologyPipeline:
-    """获取管道服务单例"""
     global _pipeline_instance
     if _pipeline_instance is None:
         _pipeline_instance = OntologyPipeline()
     return _pipeline_instance
+
+
+PipelineService = OntologyPipeline
 
 
 async def run_ontology_pipeline(

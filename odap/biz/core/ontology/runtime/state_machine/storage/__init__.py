@@ -1,0 +1,3 @@
+from .sqlite_state_machine_storage import SQLiteStateMachineStorage
+
+Storage = SQLiteStateMachineStorage

@@ -2,7 +2,7 @@ import { useState, useEffect } from 'react';
 import {
   Card, Button, Input, Table, Tag, Space, Drawer, Descriptions,
   Empty, message, Tabs, Statistic, Row, Col, Tooltip, Badge,
-  Collapse, Typography, List,
+  Collapse, Typography, List, Modal, Form, Switch, Popconfirm,
 } from 'antd';
 import {
   SearchOutlined, EyeOutlined, DatabaseOutlined,
@@ -10,6 +10,7 @@ import {
   TagOutlined, BranchesOutlined, FileTextOutlined,
   BuildOutlined, InfoCircleOutlined,
   ClusterOutlined, AimOutlined,
+  PlusOutlined, EditOutlined, DeleteOutlined,
 } from '@ant-design/icons';
 import { api } from '../../shared/services/api';
 import { useScenario, useWorkspace, useOntologyVersion } from '../../shared/components/AppLayout';
@@ -17,19 +18,13 @@ import { useScenario, useWorkspace, useOntologyVersion } from '../../shared/comp
 const { Text, Paragraph } = Typography;
 const { Panel } = Collapse;
 
-// ───────────────────────────────────────────────
-// 属性语义定义 - 基于 OntologyEntity 四层属性结构
-// ───────────────────────────────────────────────
-
 interface AttributeSemantic {
   description: string;
   category: 'basic' | 'statistical' | 'capability' | 'constraint' | 'meta' | 'vector';
   dataOrigin: 'structured' | 'unstructured' | 'computed' | 'inferred';
 }
 
-/** 属性语义映射表 - 根据后端 OntologyEntity 结构定义 */
 const ATTRIBUTE_SEMANTICS: Record<string, AttributeSemantic> = {
-  // 基础属性 (basic_properties)
   side: { description: '所属阵营/方', category: 'basic', dataOrigin: 'structured' },
   location: { description: '当前位置', category: 'basic', dataOrigin: 'structured' },
   status: { description: '当前状态', category: 'basic', dataOrigin: 'structured' },
@@ -39,25 +34,17 @@ const ATTRIBUTE_SEMANTICS: Record<string, AttributeSemantic> = {
   weather: { description: '天气条件', category: 'basic', dataOrigin: 'structured' },
   terrain: { description: '地形类型', category: 'basic', dataOrigin: 'structured' },
   name_en: { description: '英文名称', category: 'basic', dataOrigin: 'structured' },
-
-  // 统计属性 (statistical_properties)
   combat_power: { description: '战斗力指数 (0-1)', category: 'statistical', dataOrigin: 'computed' },
   morale: { description: '士气指数 (0-1)', category: 'statistical', dataOrigin: 'computed' },
   supply_level: { description: '补给水平 (0-1)', category: 'statistical', dataOrigin: 'computed' },
   casualty_rate: { description: '伤亡率', category: 'statistical', dataOrigin: 'computed' },
-
-  // 能力属性 (capabilities)
   fire_range_km: { description: '火力射程(公里)', category: 'capability', dataOrigin: 'structured' },
   armor_penetration: { description: '穿甲能力', category: 'capability', dataOrigin: 'structured' },
   air_defense: { description: '防空能力', category: 'capability', dataOrigin: 'structured' },
-
-  // 向量/非结构化属性
   embedding: { description: '文本向量嵌入', category: 'vector', dataOrigin: 'unstructured' },
   vector_id: { description: '向量存储标识', category: 'vector', dataOrigin: 'unstructured' },
   content_vector: { description: '内容向量表示', category: 'vector', dataOrigin: 'unstructured' },
   text_embedding: { description: '文本语义向量', category: 'vector', dataOrigin: 'unstructured' },
-
-  // 元信息
   source_doc_id: { description: '来源文档ID', category: 'meta', dataOrigin: 'structured' },
   created_at: { description: '创建时间', category: 'meta', dataOrigin: 'structured' },
   updated_at: { description: '更新时间', category: 'meta', dataOrigin: 'structured' },
@@ -66,19 +53,15 @@ const ATTRIBUTE_SEMANTICS: Record<string, AttributeSemantic> = {
   confidence: { description: '抽取置信度', category: 'meta', dataOrigin: 'inferred' },
 };
 
-/** 获取属性语义 */
 function getAttributeSemantic(name: string): AttributeSemantic {
-  // 精确匹配
   if (ATTRIBUTE_SEMANTICS[name]) {
     return ATTRIBUTE_SEMANTICS[name];
   }
-  // 模糊匹配
   for (const [key, semantic] of Object.entries(ATTRIBUTE_SEMANTICS)) {
     if (name.toLowerCase().includes(key.toLowerCase()) || key.toLowerCase().includes(name.toLowerCase())) {
       return semantic;
     }
   }
-  // 默认语义推断
   let category: AttributeSemantic['category'] = 'basic';
   let dataOrigin: AttributeSemantic['dataOrigin'] = 'structured';
 
@@ -100,10 +83,6 @@ function getAttributeSemantic(name: string): AttributeSemantic {
     dataOrigin,
   };
 }
-
-// ───────────────────────────────────────────────
-// 类型定义
-// ───────────────────────────────────────────────
 
 interface EntityAttribute {
   name: string;
@@ -128,7 +107,6 @@ interface ManagedEntity {
   source_doc?: string;
   source_type?: string;
   confidence?: number;
-  // 四层属性结构（来自 OntologyEntity）
   basic_properties?: Record<string, any>;
   statistical_properties?: Record<string, any>;
   capabilities?: Record<string, any>;
@@ -146,9 +124,18 @@ interface ExtractionSource {
   url?: string;
 }
 
-// ───────────────────────────────────────────────
-// 常量
-// ───────────────────────────────────────────────
+interface ObjectType {
+  type_id: string;
+  name: string;
+  display_name: string;
+  description: string;
+  properties: Array<{ name: string; property_type: string; required: boolean }>;
+  links: Array<{ name: string; source_type: string; target_type: string }>;
+  actions: string[];
+  is_active: boolean;
+  icon: string;
+  color: string;
+}
 
 const TYPE_COLORS: Record<string, string> = {
   Unit: 'red',
@@ -219,10 +206,6 @@ const ATTR_ICONS: Record<string, React.ReactNode> = {
   array: <ClusterOutlined />,
 };
 
-// ───────────────────────────────────────────────
-// 属性解析工具函数
-// ───────────────────────────────────────────────
-
 function detectValueType(value: any): EntityAttribute['type'] {
   if (value === null || value === undefined) return 'string';
   if (typeof value === 'number') return 'number';
@@ -251,7 +234,6 @@ function parsePropertiesToAttributes(
     const semantic = getAttributeSemantic(key);
     const attrType = detectValueType(val);
 
-    // 检测向量存储
     let source: EntityAttribute['source'] = semantic.dataOrigin;
     let vectorId: string | undefined;
 
@@ -261,7 +243,6 @@ function parsePropertiesToAttributes(
     }
 
     if (attrType === 'json' && val !== null && typeof val === 'object' && !Array.isArray(val)) {
-      // 嵌套对象 - 创建父属性 + 子属性
       attrs.push({
         name: fullName,
         type: 'json',
@@ -286,14 +267,16 @@ function parsePropertiesToAttributes(
   return attrs;
 }
 
-// ───────────────────────────────────────────────
-// 主组件
-// ───────────────────────────────────────────────
-
 export function ObjectManagement() {
   const { currentScenario } = useScenario();
   const { currentWorkspace } = useWorkspace();
   const { currentVersionId } = useOntologyVersion();
+  const [activeTab, setActiveTab] = useState('types');
+  const [objectTypes, setObjectTypes] = useState<ObjectType[]>([]);
+  const [typesLoading, setTypesLoading] = useState(false);
+  const [typeModalVisible, setTypeModalVisible] = useState(false);
+  const [editingType, setEditingType] = useState<ObjectType | null>(null);
+  const [typeForm] = Form.useForm();
   const [entities, setEntities] = useState<ManagedEntity[]>([]);
   const [loading, setLoading] = useState(false);
   const [searchText, setSearchText] = useState('');
@@ -312,6 +295,72 @@ export function ObjectManagement() {
     byCategory: {} as Record<string, number>,
   });
 
+  const loadObjectTypes = async () => {
+    setTypesLoading(true);
+    try {
+      const data = await api.listObjectTypes(false);
+      setObjectTypes(Array.isArray(data) ? data : []);
+    } catch (e) {
+      message.error('加载对象类型失败');
+    } finally {
+      setTypesLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    if (activeTab === 'types') {
+      loadObjectTypes();
+    }
+  }, [activeTab]);
+
+  const handleCreateType = () => {
+    setEditingType(null);
+    typeForm.resetFields();
+    typeForm.setFieldsValue({ is_active: true });
+    setTypeModalVisible(true);
+  };
+
+  const handleEditType = (record: ObjectType) => {
+    setEditingType(record);
+    typeForm.setFieldsValue({
+      type_id: record.type_id,
+      name: record.name,
+      display_name: record.display_name,
+      description: record.description,
+      is_active: record.is_active,
+      icon: record.icon,
+      color: record.color,
+    });
+    setTypeModalVisible(true);
+  };
+
+  const handleDeleteType = async (typeId: string) => {
+    try {
+      await api.deleteObjectType(typeId);
+      message.success('删除成功');
+      loadObjectTypes();
+    } catch {
+      message.error('删除失败');
+    }
+  };
+
+  const handleSubmitType = async () => {
+    try {
+      const values = await typeForm.validateFields();
+      if (editingType) {
+        await api.updateObjectType(editingType.type_id, values);
+        message.success('更新成功');
+      } else {
+        await api.createObjectType(values);
+        message.success('创建成功');
+      }
+      setTypeModalVisible(false);
+      loadObjectTypes();
+    } catch {
+      message.error('操作失败');
+    }
+  };
+
   useEffect(() => {
     if (currentScenario) {
       loadEntities();
@@ -319,12 +368,10 @@ export function ObjectManagement() {
     }
   }, [currentScenario, currentVersionId]);
 
-  /** 加载实体列表 */
   const loadEntities = async () => {
     if (!currentScenario) return;
     setLoading(true);
     try {
-      // 优先使用新版 queryEntities API（需要 workspace_id）
       let result: { entities: Array<{ entity_id: string; name: string; type: string; properties: Record<string, unknown> }>; total: number } | null = null;
       try {
         result = await api.queryEntities({}, currentWorkspace || undefined);
@@ -332,7 +379,6 @@ export function ObjectManagement() {
         console.warn('queryEntities 失败，尝试 getEntities', e);
       }
 
-      // 如果新版 API 失败或无数据，回退到旧版 getEntities
       let rawEntities: Array<{ entity_id: string; name: string; type: string; properties: Record<string, unknown> }> = [];
       if (result && result.entities && result.entities.length > 0) {
         rawEntities = result.entities;
@@ -354,7 +400,6 @@ export function ObjectManagement() {
         }
       }
 
-      // 2. 获取本体文档以补充详细信息
       let ontologyDocs: Record<string, any>[] = [];
       try {
         ontologyDocs = await api.getOntologyDocuments(currentScenario, 50);
@@ -362,7 +407,6 @@ export function ObjectManagement() {
         console.warn('获取本体文档失败', e);
       }
 
-      // 构建文档查找表
       const docMap = new Map<string, any>();
       ontologyDocs.forEach((doc: any) => {
         if (doc.doc_id) docMap.set(doc.doc_id, doc);
@@ -375,11 +419,10 @@ export function ObjectManagement() {
 
       const mapped: ManagedEntity[] = rawEntities
         .filter((e: any) => {
-          // 对象管理页面完全隐藏所有审计相关实体，只保留业务实体
           const entityType = e.type || e.entity_type;
           const entityId = e.entity_id || e.id;
-          const isAuditEntity = 
-            entityType?.startsWith('Audit') || 
+          const isAuditEntity =
+            entityType?.startsWith('Audit') ||
             entityId?.startsWith('audit_') ||
             entityId?.startsWith('user_') ||
             entityId?.startsWith('resource_') ||
@@ -447,7 +490,6 @@ export function ObjectManagement() {
 
       setEntities(mapped);
 
-      // 统计
       const typeSet = new Set(mapped.map(e => e.type));
       const categoryCount: Record<string, number> = {};
       let structuredCount = 0;
@@ -482,7 +524,6 @@ export function ObjectManagement() {
     }
   };
 
-  /** 加载抽取来源信息 */
   const loadExtractionSources = async () => {
     if (!currentScenario) return;
     try {
@@ -521,7 +562,51 @@ export function ObjectManagement() {
     return matchSearch && matchType && matchSource;
   });
 
-  // ─── 表格列定义 ───
+  const typeColumns = [
+    { title: '类型ID', dataIndex: 'type_id', key: 'type_id', width: 120 },
+    { title: '名称', dataIndex: 'name', key: 'name', width: 120 },
+    { title: '显示名', dataIndex: 'display_name', key: 'display_name', width: 120 },
+    { title: '描述', dataIndex: 'description', key: 'description', ellipsis: true },
+    {
+      title: '属性',
+      key: 'properties',
+      width: 80,
+      render: (_: unknown, record: ObjectType) => <Tag>{record.properties?.length || 0}</Tag>,
+    },
+    {
+      title: '链接',
+      key: 'links',
+      width: 80,
+      render: (_: unknown, record: ObjectType) => <Tag>{record.links?.length || 0}</Tag>,
+    },
+    {
+      title: '动作',
+      key: 'actions',
+      width: 80,
+      render: (_: unknown, record: ObjectType) => <Tag>{record.actions?.length || 0}</Tag>,
+    },
+    {
+      title: '状态',
+      dataIndex: 'is_active',
+      key: 'is_active',
+      width: 80,
+      render: (v: boolean) => <Tag color={v ? 'green' : 'red'}>{v ? '启用' : '禁用'}</Tag>,
+    },
+    {
+      title: '操作',
+      key: 'action',
+      width: 120,
+      render: (_: unknown, record: ObjectType) => (
+        <Space>
+          <Button size="small" icon={<EditOutlined />} onClick={() => handleEditType(record)} />
+          <Popconfirm title="确认删除？" onConfirm={() => handleDeleteType(record.type_id)}>
+            <Button size="small" danger icon={<DeleteOutlined />} />
+          </Popconfirm>
+        </Space>
+      ),
+    },
+  ];
+
   const columns = [
     {
       title: '实体ID',
@@ -617,7 +702,6 @@ export function ObjectManagement() {
     },
   ];
 
-  // ─── 渲染属性卡片 ───
   const renderAttributeCard = (attr: EntityAttribute) => {
     const isVector = attr.type === 'vector' || attr.semantic.category === 'vector';
     const isNested = attr.isNested && attr.children && attr.children.length > 0;
@@ -644,7 +728,6 @@ export function ObjectManagement() {
         }
       >
         <div style={{ fontFamily: 'monospace', fontSize: 13, wordBreak: 'break-all' }}>
-          {/* 属性语义说明 */}
           <div style={{ marginBottom: 8, padding: '4px 8px', background: '#f6ffed', borderRadius: 4 }}>
             <Text type="secondary" style={{ fontSize: 12 }}>
               <InfoCircleOutlined style={{ marginRight: 4 }} />
@@ -698,7 +781,6 @@ export function ObjectManagement() {
     );
   };
 
-  // ─── 按类别分组的属性视图 ───
   const renderAttributesByCategory = (entity: ManagedEntity) => {
     const grouped: Record<string, EntityAttribute[]> = {};
     entity.attributes.forEach(attr => {
@@ -728,9 +810,8 @@ export function ObjectManagement() {
     );
   };
 
-  return (
+  const renderInstancesTab = () => (
     <div>
-      {/* ─── 统计卡片 ─── */}
       <Row gutter={16} style={{ marginBottom: 16 }}>
         <Col span={4}>
           <Card>
@@ -780,7 +861,6 @@ export function ObjectManagement() {
         </Col>
       </Row>
 
-      {/* ─── 对象类型分布 ─── */}
       {entityTypes.length > 0 && (
         <Card
           title={
@@ -813,7 +893,6 @@ export function ObjectManagement() {
         </Card>
       )}
 
-      {/* ─── 抽取来源概览 ─── */}
       {extractionSources.length > 0 && (
         <Card
           title={
@@ -849,7 +928,6 @@ export function ObjectManagement() {
         </Card>
       )}
 
-      {/* ─── 实体列表 ─── */}
       <Card
         title={
           <Space>
@@ -881,7 +959,6 @@ export function ObjectManagement() {
           </Space>
         }
       >
-        {/* 类型过滤 */}
         <div style={{ marginBottom: 12 }}>
           <Text type="secondary" style={{ marginRight: 8 }}>类型过滤:</Text>
           <Space size={8} wrap>
@@ -905,7 +982,6 @@ export function ObjectManagement() {
           </Space>
         </div>
 
-        {/* 数据来源过滤 */}
         <div style={{ marginBottom: 16 }}>
           <Text type="secondary" style={{ marginRight: 8 }}>来源过滤:</Text>
           <Space size={8} wrap>
@@ -939,8 +1015,65 @@ export function ObjectManagement() {
           />
         )}
       </Card>
+    </div>
+  );
 
-      {/* ─── 详情抽屉 ─── */}
+  return (
+    <div>
+      <Tabs activeKey={activeTab} onChange={setActiveTab} items={[
+        {
+          key: 'types',
+          label: '对象类型定义',
+          children: (
+            <div>
+              <div style={{ marginBottom: 16, display: 'flex', justifyContent: 'space-between' }}>
+                <span style={{ fontSize: 16, fontWeight: 600 }}>对象类型定义</span>
+                <Button type="primary" icon={<PlusOutlined />} onClick={handleCreateType}>新建类型</Button>
+              </div>
+              <Table
+                dataSource={objectTypes}
+                columns={typeColumns}
+                rowKey="type_id"
+                loading={typesLoading}
+                size="small"
+                pagination={{ pageSize: 10 }}
+              />
+            </div>
+          ),
+        },
+        {
+          key: 'instances',
+          label: '实体实例',
+          children: renderInstancesTab(),
+        },
+      ]} />
+
+      <Modal
+        title={editingType ? '编辑对象类型' : '新建对象类型'}
+        open={typeModalVisible}
+        onOk={handleSubmitType}
+        onCancel={() => setTypeModalVisible(false)}
+        width={600}
+      >
+        <Form form={typeForm} layout="vertical">
+          <Form.Item name="name" label="名称" rules={[{ required: true, message: '请输入名称' }]}>
+            <Input />
+          </Form.Item>
+          <Form.Item name="display_name" label="显示名">
+            <Input />
+          </Form.Item>
+          <Form.Item name="description" label="描述">
+            <Input.TextArea rows={3} />
+          </Form.Item>
+          <Form.Item name="type_id" label="类型ID" rules={editingType ? [] : [{ required: true, message: '请输入类型ID' }]}>
+            <Input disabled={!!editingType} />
+          </Form.Item>
+          <Form.Item name="is_active" label="启用" valuePropName="checked" initialValue={true}>
+            <Switch />
+          </Form.Item>
+        </Form>
+      </Modal>
+
       <Drawer
         title={
           <Space>
@@ -954,7 +1087,6 @@ export function ObjectManagement() {
       >
         {viewingEntity && (
           <div>
-            {/* 基本信息 */}
             <Card size="small" style={{ marginBottom: 16 }} title="基本信息">
               <Descriptions column={1} bordered size="small">
                 <Descriptions.Item label="实体ID">
@@ -1002,7 +1134,6 @@ export function ObjectManagement() {
               </Descriptions>
             </Card>
 
-            {/* 属性详情 - 按类别分组 */}
             <Tabs
               items={[
                 {
@@ -1104,7 +1235,6 @@ export function ObjectManagement() {
               ]}
             />
 
-            {/* 抽取语义说明 */}
             <Card
               size="small"
               style={{ marginTop: 16 }}

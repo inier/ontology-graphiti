@@ -10,6 +10,10 @@ class RoleType(str, Enum):
     TEAM_LEADER = "team_leader"
     MEMBER = "member"
     GUEST = "guest"
+    COMMANDER = "commander"
+    INTELLIGENCE = "intelligence"
+    OPERATOR = "operator"
+    ANALYST = "analyst"
 
 
 class PermissionScope(str, Enum):

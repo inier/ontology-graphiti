@@ -7,8 +7,8 @@ class SchemaSourceImpl:
 
     def _get_oms(self):
         if self._oms is None:
-            from odap.biz.core.ontology.oms.storage.sqlite_oms_storage import SQLiteOMSStorage
-            self._oms = SQLiteOMSStorage()
+            from odap.biz.core.ontology.oms.services import get_oms_service
+            self._oms = get_oms_service()
         return self._oms
 
     def query_object_types(self, filters: Dict[str, Any]) -> List[Dict[str, Any]]:

@@ -1,0 +1,3 @@
+from .blueprint_runtime import BlueprintRuntimeEngine
+
+get_blueprint_runtime = BlueprintRuntimeEngine.get_instance

@@ -26,7 +26,7 @@ from concurrent.futures import ThreadPoolExecutor
 sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 
-class AuditSeverityV2(Enum):
+class AuditSeverityV2(str, Enum):
     """审计级别"""
     DEBUG = "debug"
     INFO = "info"
@@ -35,7 +35,7 @@ class AuditSeverityV2(Enum):
     CRITICAL = "critical"
 
 
-class AuditEventTypeV2(Enum):
+class AuditEventTypeV2(str, Enum):
     """审计事件类型"""
     USER_LOGIN = "user_login"
     USER_LOGOUT = "user_logout"

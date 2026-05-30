@@ -4,6 +4,7 @@ import { WorkspaceManager } from './modules/workspace';
 import { AuditLog } from './modules/audit';
 import { PolicyManagement } from './modules/config';
 import { OntologySemanticNetwork } from './modules/ontology';
+import { BlueprintDesignerPage } from './modules/ontology/pages/BlueprintDesignerPage';
 import { IngestPanel, Simulator } from './modules/ingest';
 import { StrategyDeduction } from './modules/simulation';
 import { VersionHistory } from './modules/version';
@@ -32,6 +33,7 @@ export function AppRoutes() {
       <Route path="/agent-chat/:agentId" element={<ProtectedRoute><AgentChat /></ProtectedRoute>} />
 
       <Route path="/ontology" element={<ProtectedRoute><OntologySemanticNetwork /></ProtectedRoute>} />
+      <Route path="/blueprint" element={<ProtectedRoute><BlueprintDesignerPage /></ProtectedRoute>} />
       <Route path="/versions" element={<ProtectedRoute><VersionHistory /></ProtectedRoute>} />
       <Route path="/business/process" element={<ProtectedRoute><BusinessProcess /></ProtectedRoute>} />
       <Route path="/business/rules" element={<ProtectedRoute><Rules /></ProtectedRoute>} />

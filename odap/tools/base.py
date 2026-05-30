@@ -308,8 +308,7 @@ def get_registry() -> SkillRegistry:
 # v2 增强功能：状态枚举、版本管理、健康监控、热插拔、执行器
 # ============================================================
 
-class SkillStatus(Enum):
-    """Skill 状态"""
+class SkillStatus(str, Enum):
     REGISTERED = "registered"
     LOADING = "loading"
     READY = "ready"
@@ -319,11 +318,9 @@ class SkillStatus(Enum):
     UNLOADED = "unloaded"
 
 
-class HealthStatus(str, Enum):
-    """健康状态"""
-    HEALTHY = "healthy"
-    DEGRADED = "degraded"
-    UNHEALTHY = "unhealthy"
+from odap.biz.core.ontology.servitization.services.deployment_executor import HealthStatus as _HealthStatus
+
+HealthStatus = _HealthStatus
 
 
 @dataclass

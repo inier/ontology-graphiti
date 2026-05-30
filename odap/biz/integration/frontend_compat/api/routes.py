@@ -1,16 +1,5 @@
 """前端API兼容层 - 使用统一的工作空间管理和场景存储"""
 
-# 路由重复说明 (BE-019~022):
-# 本文件中 /api/scenarios/*, /api/ingest/*, /api/versions/*, /api/entities/*/history, /api/stats
-# 路由与 odap/web/api/app.py 中的 MockDataWebService._build_app() 重复。
-# app.py 中的路由是当前活跃版本（已注册到主应用）。
-# 本文件中以下路由为废弃路由，仅保留作为参考：
-#   - 场景管理: GET/POST /api/scenarios, GET /api/scenarios/{id}, POST sync, GET timeline/entities/relations
-#   - 数据摄入: POST /api/ingest/manual, /text, /news, /random
-#   - 版本管理: GET /api/versions, GET /api/versions/{id}, POST rollback, GET diff
-#   - 实体历史: GET /api/entities/{id}/history
-#   - 统计信息: GET /api/stats
-# 本文件中独有的路由（审计/查询/QA/认知/反馈/图谱生成/OpenHarness/本体Schema）仍然有效。
 
 from fastapi import APIRouter, HTTPException, Query, UploadFile, File, Form, Request, Body
 from fastapi.responses import StreamingResponse
@@ -22,7 +11,7 @@ import asyncio
 from datetime import datetime
 from odap.infra.security import get_audit_logger, AuditFilter, AuditEventType, AuditSeverity, ActorInfo, ResourceInfo, ActionResult, audit_log
 
-router = APIRouter(prefix="/api", tags=["frontend-compat"])
+router = APIRouter(prefix="/api/compat", tags=["frontend-compat"])
 
 from odap.web.api.app import ScenarioStore
 
@@ -36,8 +25,8 @@ from odap.biz.platform.workspace.services.scenario_service import ScenarioServic
 
 # 初始化存储
 try:
-    from odap.biz.platform.workspace.storage import Storage
-    storage = Storage()
+    from odap.biz.platform.workspace.services.workspace_service import WorkspaceService as _WS
+    storage = _WS().storage if hasattr(_WS(), 'storage') else None
 except Exception as e:
     print(f"Failed to initialize storage: {e}")
     storage = None
@@ -213,104 +202,7 @@ async def _log_error_async(error: str, context: Dict[str, Any]):
 # 工作空间和场景初始化已移至 app/main.py startup_event
 
 
-# ==================== 场景管理路由 ====================
-
-# DEPRECATED: 与 app.py MockDataWebService 重复，仅保留作为参考
-@router.get("/scenarios")
-async def list_scenarios():
-    """列出场景（兼容前端）"""
-    try:
-        scenarios = scenario_store.list_scenarios()
-        return {"scenarios": scenarios}
-    except Exception as e:
-        raise HTTPException(status_code=500, detail=str(e))
-
-
-# DEPRECATED: 与 app.py MockDataWebService 重复，仅保留作为参考
-@router.get("/scenarios/{scenario_id}")
-async def get_scenario(scenario_id: str):
-    """获取场景（兼容前端）"""
-    try:
-        scenario = scenario_store.get_scenario(scenario_id)
-        if not scenario:
-            raise HTTPException(status_code=404, detail="Scenario not found")
-        return scenario
-    except HTTPException:
-        raise
-    except Exception as e:
-        raise HTTPException(status_code=500, detail=str(e))
-
-
-# DEPRECATED: 与 app.py MockDataWebService 重复，仅保留作为参考
-@router.post("/scenarios")
-async def create_scenario(data: Dict[str, Any]):
-    """创建场景（兼容前端）"""
-    try:
-        scenario_id = scenario_store.create(
-            name=data.get("name", "新场景"),
-            description=data.get("description", "")
-        )
-        scenario = scenario_store.get_scenario(scenario_id)
-        return scenario
-    except Exception as e:
-        raise HTTPException(status_code=500, detail=str(e))
-
-
-# DEPRECATED: 与 app.py MockDataWebService 重复，仅保留作为参考
-@router.put("/scenarios/{scenario_id}")
-async def update_scenario(scenario_id: str, data: Dict[str, Any]):
-    """更新场景（兼容前端）"""
-    try:
-        scenario = scenario_store.get_scenario(scenario_id)
-        if not scenario:
-            raise HTTPException(status_code=404, detail="Scenario not found")
-        updated = scenario_store.update_scenario(scenario_id, data)
-        return updated if updated else scenario
-    except HTTPException:
-        raise
-    except Exception as e:
-        raise HTTPException(status_code=500, detail=str(e))
-
-
-# DEPRECATED: 与 app.py MockDataWebService 重复，仅保留作为参考
-@router.delete("/scenarios/{scenario_id}")
-async def delete_scenario(scenario_id: str):
-    """删除场景（兼容前端）"""
-    try:
-        scenario = scenario_store.get_scenario(scenario_id)
-        if not scenario:
-            raise HTTPException(status_code=404, detail="Scenario not found")
-        deleted = scenario_store.delete_scenario(scenario_id)
-        if not deleted:
-            raise HTTPException(status_code=500, detail="Failed to delete scenario")
-        return {"status": "success", "scenario_id": scenario_id}
-    except HTTPException:
-        raise
-    except Exception as e:
-        raise HTTPException(status_code=500, detail=str(e))
-
-
-# DEPRECATED: 与 app.py MockDataWebService 重复，仅保留作为参考
-@router.post("/scenarios/{scenario_id}/sync")
-async def sync_scenario(scenario_id: str):
-    """同步场景（兼容前端）"""
-    try:
-        result = scenario_store.sync_to_graphiti(scenario_id)
-        return result
-    except Exception as e:
-        raise HTTPException(status_code=500, detail=str(e))
-
-
-# DEPRECATED: 与 app.py MockDataWebService 重复，仅保留作为参考
-@router.get("/scenarios/{scenario_id}/timeline")
-async def get_timeline(scenario_id: str):
-    """获取时间线（兼容前端）"""
-    try:
-        events = scenario_store.get_timeline(scenario_id)
-        return {"events": events}
-    except Exception as e:
-        raise HTTPException(status_code=500, detail=str(e))
-
+# ==================== 场景查询路由 ====================
 
 @router.get("/scenarios/{scenario_id}/entities")
 async def get_entities(scenario_id: str, workspace_id: str = None):
@@ -335,81 +227,6 @@ async def get_relations(scenario_id: str, workspace_id: str = None):
 
 
 # ==================== 数据摄入路由 ====================
-
-# DEPRECATED: 与 app.py MockDataWebService 重复，仅保留作为参考
-@router.post("/ingest/text")
-@local_audit_log(action="INGEST_TEXT", resource="text")
-async def ingest_text(request: Request, data: Dict[str, Any] = Body(...)):
-    """文本摄入（兼容前端）"""
-    try:
-        try:
-            from odap.tasks import process_ingest_task
-            task_id = f"task_{uuid.uuid4().hex[:12]}"
-            task = process_ingest_task.delay(
-                task_id,
-                'text',
-                {'text': data.get('text', '')},
-                data.get('scenario_id')
-            )
-        except ImportError:
-            task_id = None
-        
-        log_ingest('text', user="system")
-        
-        if task_id:
-            return {"success": True, "task_id": task_id}
-        else:
-            return {"success": True, "message": "Task queued (Celery unavailable, processed synchronously)"}
-    except Exception as e:
-        log_error(str(e), context="ingest_text")
-        raise HTTPException(status_code=500, detail=str(e))
-
-
-# DEPRECATED: 与 app.py MockDataWebService 重复，仅保留作为参考
-@router.post("/ingest/news")
-async def ingest_news(data: Dict[str, Any] = Body(...)):
-    """
-    新闻摄入API - 支持通过URL或关键词摄入新闻
-    
-    请求体:
-    {
-        "query": "搜索关键词（可选）",
-        "url": "新闻URL（可选，与query二选一）",
-        "scenario_id": "场景ID（可选）",
-        "workspace_id": "工作空间ID（可选）"
-    }
-    """
-    try:
-        from odap.biz.core.ontology.services.qa_ontology_builder import get_qa_builder
-        
-        query = data.get("query", "")
-        url = data.get("url", "")
-        
-        if not query and not url:
-            raise HTTPException(status_code=400, detail="query 或 url 必须提供至少一个")
-        
-        builder = get_qa_builder()
-        
-        # 使用 QA 构建器处理
-        question = query or f"请分析这个新闻: {url}"
-        result = await builder.process_question(
-            question=question,
-            scenario_id=data.get("scenario_id"),
-            workspace_id=data.get("workspace_id")
-        )
-        
-        return {
-            "success": True,
-            "task_id": result.get("task_id"),
-            "status": result.get("status"),
-            "answer": result.get("answer"),
-            "sources_count": len(result.get("sources", []))
-        }
-    except HTTPException:
-        raise
-    except Exception as e:
-        log_error(str(e), context="ingest_news")
-        raise HTTPException(status_code=500, detail=str(e))
 
 
 @router.get("/ingest/news/progress/{task_id}")
@@ -437,66 +254,6 @@ async def get_news_ingest_progress(task_id: str):
     except HTTPException:
         raise
     except Exception as e:
-        raise HTTPException(status_code=500, detail=str(e))
-
-
-# DEPRECATED: 与 app.py MockDataWebService 重复，仅保留作为参考
-@router.post("/ingest/random")
-@audit_log(action="INGEST_RANDOM", resource="random")
-async def ingest_random(request: Request, data: Dict[str, Any]):
-    """随机数据摄入（兼容前端）"""
-    try:
-        try:
-            from odap.tasks import process_ingest_task
-            task_id = f"task_{uuid.uuid4().hex[:12]}"
-            task = process_ingest_task.delay(
-                task_id,
-                'random',
-                {'count': data.get('count', 10)},
-                data.get('scenario_id')
-            )
-        except ImportError:
-            task_id = None
-        
-        log_ingest('random', user="system")
-        
-        result = {"success": True, "doc_count": 10, "versions": []}
-        if task_id:
-            result["task_id"] = task_id
-        else:
-            result["message"] = "Celery unavailable, processed synchronously"
-        return result
-    except Exception as e:
-        log_error(str(e), context="ingest_random")
-        raise HTTPException(status_code=500, detail=str(e))
-
-
-# DEPRECATED: 与 app.py MockDataWebService 重复，仅保留作为参考
-@router.post("/ingest/manual")
-@audit_log(action="INGEST_MANUAL", resource="manual")
-async def ingest_manual(request: Request, data: Dict[str, Any]):
-    """手动数据摄入（兼容前端）"""
-    try:
-        try:
-            from odap.tasks import process_ingest_task
-            task_id = f"task_{uuid.uuid4().hex[:12]}"
-            task = process_ingest_task.delay(
-                task_id,
-                'manual',
-                data.get('data', {}),
-                data.get('scenario_id')
-            )
-        except ImportError:
-            task_id = None
-
-        log_ingest('manual', user="system")
-
-        if task_id:
-            return {"task_id": task_id}
-        else:
-            return {"message": "Celery unavailable, processed synchronously"}
-    except Exception as e:
-        log_error(str(e), context="ingest_manual")
         raise HTTPException(status_code=500, detail=str(e))
 
 
@@ -569,120 +326,7 @@ async def ingest_file(request: Request, file: UploadFile = File(...), scenario_i
         raise HTTPException(status_code=500, detail=str(e))
 
 
-# ==================== 版本管理路由 ====================
-
-# DEPRECATED: 与 app.py MockDataWebService 重复，仅保留作为参考
-@router.get("/versions")
-async def list_versions(scenario_id: Optional[str] = None):
-    """列出版本（兼容前端）"""
-    try:
-        from odap.biz.core.ontology.storage.sqlite_ingest_storage import SQLiteIngestStorage
-        storage = SQLiteIngestStorage()
-        all_versions = storage.list_all_versions()
-        result = []
-        for v in all_versions:
-            if scenario_id and v.get("ontology_id") != scenario_id:
-                continue
-            result.append({
-                "version_id": v.get("id", ""),
-                "ontology_id": v.get("ontology_id", ""),
-                "parent_version": v.get("parent_version_id"),
-                "commit_message": v.get("change_summary", v.get("version_number", "")),
-                "created_at": v.get("created_at", ""),
-                "status": v.get("status", ""),
-                "is_current": v.get("is_current", False),
-            })
-        return {"versions": result}
-    except Exception as e:
-        raise HTTPException(status_code=500, detail=str(e))
-
-
-@router.post("/versions")
-async def create_version(data: Dict[str, Any]):
-    """创建版本（兼容前端）"""
-    try:
-        return {
-            "id": f"version-{str(uuid.uuid4())[:8]}",
-            "version": data.get("version", "1.0.0"),
-            "created_at": datetime.utcnow().isoformat() + "Z",
-            "created_by": "system"
-        }
-    except Exception as e:
-        raise HTTPException(status_code=500, detail=str(e))
-
-
-# DEPRECATED: 与 app.py MockDataWebService 重复，仅保留作为参考
-@router.get("/versions/{version_id}")
-async def get_version(version_id: str):
-    """获取版本（兼容前端）"""
-    try:
-        from odap.biz.core.ontology.storage.sqlite_ingest_storage import SQLiteIngestStorage
-        storage = SQLiteIngestStorage()
-        version = storage.get_version(version_id)
-        if not version:
-            raise HTTPException(status_code=404, detail="Version not found")
-        return version
-    except HTTPException:
-        raise
-    except Exception as e:
-        raise HTTPException(status_code=500, detail=str(e))
-
-
-# DEPRECATED: 与 app.py MockDataWebService 重复，仅保留作为参考
-@router.post("/versions/{version_id}/rollback")
-async def rollback(version_id: str):
-    """回滚版本（兼容前端）"""
-    try:
-        from odap.biz.core.ontology.storage.sqlite_ingest_storage import SQLiteIngestStorage
-        storage = SQLiteIngestStorage()
-        version = storage.get_version(version_id)
-        if not version:
-            raise HTTPException(status_code=404, detail="Version not found")
-        success = storage.rollback_version(version_id)
-        if not success:
-            raise HTTPException(status_code=500, detail="Rollback failed")
-        return {"status": "success", "version_id": version_id}
-    except HTTPException:
-        raise
-    except Exception as e:
-        raise HTTPException(status_code=500, detail=str(e))
-
-
-# DEPRECATED: 与 app.py MockDataWebService 重复，仅保留作为参考
-@router.get("/versions/diff")
-async def diff_versions(version_a: str, version_b: str):
-    """对比版本（兼容前端）"""
-    try:
-        from odap.biz.core.ontology.storage.sqlite_ingest_storage import SQLiteIngestStorage
-        storage = SQLiteIngestStorage()
-        va = storage.get_version(version_a)
-        vb = storage.get_version(version_b)
-        if not va:
-            raise HTTPException(status_code=404, detail=f"Version {version_a} not found")
-        if not vb:
-            raise HTTPException(status_code=404, detail=f"Version {version_b} not found")
-
-        changes = []
-        for key in set(list(va.keys()) + list(vb.keys())):
-            if key in ("id", "created_at", "updated_at"):
-                continue
-            val_a = va.get(key)
-            val_b = vb.get(key)
-            if val_a != val_b:
-                changes.append({"field": key, "from": val_a, "to": val_b})
-
-        return {
-            "version_a": version_a,
-            "version_b": version_b,
-            "changes": changes
-        }
-    except HTTPException:
-        raise
-    except Exception as e:
-        raise HTTPException(status_code=500, detail=str(e))
-
-
-# ==================== 审计日志路由 ====================
+# ==================== 审计日志路由 ====================# ==================== 审计日志路由 ====================
 
 @router.get("/audit/events")
 async def list_audit_events(
@@ -903,68 +547,6 @@ async def get_workspace(workspace_id: str):
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
 
-
-
-
-# ==================== 实体路由 ====================
-
-# DEPRECATED: 与 app.py MockDataWebService 重复，仅保留作为参考
-@router.get("/entities/{entity_id}/history")
-async def get_entity_history(entity_id: str):
-    """获取实体历史（兼容前端）"""
-    try:
-        from odap.biz.core.ontology.storage.sqlite_ingest_storage import SQLiteIngestStorage
-        storage = SQLiteIngestStorage()
-        versions = storage.list_all_versions()
-        history = []
-        for v in versions:
-            docs = storage.get_version_documents(v.get("id", ""))
-            for doc in docs:
-                entities = doc.get("entities", [])
-                if isinstance(entities, str):
-                    try:
-                        import json as _json
-                        entities = _json.loads(entities)
-                    except Exception:
-                        entities = []
-                for e in entities:
-                    if isinstance(e, dict) and e.get("entity_id") == entity_id:
-                        history.append({
-                            "entity_id": entity_id,
-                            "version_id": v.get("id", ""),
-                            "snapshot": e,
-                            "timestamp": v.get("created_at", ""),
-                        })
-        return history
-    except Exception as e:
-        raise HTTPException(status_code=500, detail=str(e))
-
-
-# ==================== 统计信息路由 ====================
-
-# DEPRECATED: 与 app.py MockDataWebService 重复，仅保留作为参考
-@router.get("/stats")
-async def get_stats():
-    """获取统计信息（兼容前端）"""
-    try:
-        scenarios = scenario_store.list_scenarios()
-        workspace_result = workspace_service.list_workspaces(filters={}, page=1, page_size=100)
-        workspaces = workspace_result.get("workspaces", [])
-        
-        # 使用统一的审计统计
-        audit_stats = audit_logger.get_stats()
-
-        return {
-            "entity_count": 0,
-            "relation_count": 0,
-            "version_count": 0,
-            "ingest_count": 0,
-            "scenario_count": len(scenarios),
-            "workspace_count": len(workspaces),
-            "audit_total": audit_stats.get("total", 0)
-        }
-    except Exception as e:
-        raise HTTPException(status_code=500, detail=str(e))
 
 
 # ==================== 图谱查询路由 ====================
@@ -1262,9 +844,9 @@ async def cancel_graph_task(task_id: str):
 async def get_graph_history(limit: int = Query(20, ge=1, le=100)):
     """获取图谱生成历史（兼容前端）"""
     try:
-        from odap.biz.core.ontology.storage.sqlite_ingest_storage import SQLiteIngestStorage
-        storage = SQLiteIngestStorage()
-        versions = storage.list_all_versions()
+        from odap.biz.core.ontology.services.ingest_service import get_ingest_service
+        ingest_service = get_ingest_service()
+        versions = ingest_service.list_all_versions()
         history = []
         for v in versions[:limit]:
             history.append({
@@ -1290,9 +872,9 @@ async def get_graph_history(limit: int = Query(20, ge=1, le=100)):
 async def get_graph_detail(graph_id: str):
     """获取图谱详情（兼容前端）"""
     try:
-        from odap.biz.core.ontology.storage.sqlite_ingest_storage import SQLiteIngestStorage
-        storage = SQLiteIngestStorage()
-        docs = storage.get_version_documents(graph_id)
+        from odap.biz.core.ontology.services.ingest_service import get_ingest_service
+        ingest_service = get_ingest_service()
+        docs = ingest_service.get_version_documents(graph_id)
         nodes = []
         edges = []
         for doc in docs:
@@ -1361,9 +943,9 @@ async def ask_question(request: Request, data: Dict[str, Any]):
         agent_context = {}
         if agent_id:
             try:
-                from odap.biz.management.agent_management.storage.sqlite_agent_storage import SQLiteAgentStorage
-                agent_storage = SQLiteAgentStorage()
-                agent = agent_storage.get_agent(agent_id)
+                from odap.biz.management.agent_management.services.agent_service import AgentService
+                agent_service = AgentService()
+                agent = agent_service.get_agent(agent_id)
                 if agent:
                     agent_context = {
                         "agent_name": agent.get("display_name") or agent.get("name", ""),
@@ -1383,14 +965,18 @@ async def ask_question(request: Request, data: Dict[str, Any]):
 
         qa_engine = get_qa_engine(use_mock=False)
 
-        result = qa_engine.ask(
-            query=question,
-            user_id=user_id,
-            session_id=session_id,
-            workspace_id=workspace_id,
-            scenario_id=data.get("scenario_id"),
-            agent_id=agent_id,
-            context=agent_context if agent_context else None,
+        loop = asyncio.get_event_loop()
+        result = await loop.run_in_executor(
+            None,
+            lambda: qa_engine.ask(
+                query=question,
+                user_id=user_id,
+                session_id=session_id,
+                workspace_id=workspace_id,
+                scenario_id=data.get("scenario_id"),
+                agent_id=agent_id,
+                context=agent_context if agent_context else None,
+            )
         )
 
         return {
@@ -1439,9 +1025,8 @@ async def ask_question_stream(request: Request, data: Dict[str, Any]):
         agent_context = {}
         if agent_id:
             try:
-                from odap.biz.management.agent_management.storage.sqlite_agent_storage import SQLiteAgentStorage
-                agent_storage = SQLiteAgentStorage()
-                agent = agent_storage.get_agent(agent_id)
+                from odap.biz.management.agent_management.api.routes import agent_service as _agent_svc
+                agent = _agent_svc.get_agent(agent_id)
                 if agent:
                     agent_context = {
                         "agent_name": agent.get("display_name") or agent.get("name", ""),
@@ -1514,10 +1099,29 @@ def get_qa_engine(use_mock: bool = False) -> 'QAEngineV2':
     global _qa_engine_instance
     if _qa_engine_instance is None:
         from odap.biz.data.qa.qa_engine import QAEngineV2
-        from odap.infra.graph.graph_service import GraphManager
         
         graphiti_client = _get_graph_manager()
-        _qa_engine_instance = QAEngineV2(graphiti_client=graphiti_client, use_mock=use_mock)
+
+        ingest_storage = None
+        try:
+            from odap.biz.core.ontology.services.ingest_service import IngestService
+            ingest_storage = IngestService().storage
+        except Exception:
+            pass
+
+        semantic_map_storage = None
+        try:
+            from odap.biz.data.semantic_map.services.semantic_map_service import SemanticMapService
+            semantic_map_storage = SemanticMapService().storage
+        except Exception:
+            pass
+
+        _qa_engine_instance = QAEngineV2(
+            graphiti_client=graphiti_client,
+            use_mock=use_mock,
+            ingest_storage=ingest_storage,
+            semantic_map_storage=semantic_map_storage,
+        )
     return _qa_engine_instance
 
 
@@ -2168,12 +1772,12 @@ async def get_ontology_schema():
         from odap.biz.core.ontology.schema.domain import ENTITY_TYPES, ROLES, DOMAIN_CONFIG, ONTOLOGY_VERSION, ONTOLOGY_LAST_UPDATED
         from odap.biz.core.ontology.schema.document import (
             OntologyDocument, OntologyEntity, OntologyRelation, OntologyEvent,
-            OntologyAction, OntologyRule, OntologyConstraint, DataSource,
+            OntologyAction, OntologyRule, OntologyConstraint, SourceInfo,
             DocumentMeta, TemporalInfo, VersionRef, DocType, SourceType,
             EntityType, ActionStatus
         )
-        from odap.biz.management.business.storage.sqlite_storage import BusinessStorage
-        storage = BusinessStorage()
+        from odap.biz.management.business.services import get_business_service
+        biz_svc = get_business_service()
 
         def dataclass_to_schema(cls, enum_classes=None):
             import dataclasses
@@ -2201,7 +1805,7 @@ async def get_ontology_schema():
             "OntologyAction": dataclass_to_schema(OntologyAction, {"ActionStatus": ActionStatus}),
             "OntologyRule": dataclass_to_schema(OntologyRule),
             "OntologyConstraint": dataclass_to_schema(OntologyConstraint),
-            "DataSource": dataclass_to_schema(DataSource, {"SourceType": SourceType}),
+            "DataSource": dataclass_to_schema(SourceInfo, {"SourceType": SourceType}),
             "DocumentMeta": dataclass_to_schema(DocumentMeta),
             "TemporalInfo": dataclass_to_schema(TemporalInfo),
             "VersionRef": dataclass_to_schema(VersionRef),
@@ -2215,10 +1819,10 @@ async def get_ontology_schema():
             "roles": ROLES,
             "domain_config": DOMAIN_CONFIG,
             "ontology_document_schema": ontology_doc_schema,
-            "business_processes": storage.list_processes(),
-            "business_rules": storage.list_rules(),
-            "business_logics": storage.list_logics(),
-            "business_indicators": storage.list_indicators(),
+            "business_processes": biz_svc.list_processes(),
+            "business_rules": biz_svc.list_rules(),
+            "business_logics": biz_svc.list_logics(),
+            "business_indicators": biz_svc.list_indicators(),
         }
         return schema
     except Exception as e:

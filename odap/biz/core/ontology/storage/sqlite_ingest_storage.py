@@ -7,11 +7,11 @@ import tempfile
 import uuid
 from typing import Dict, Any, List, Optional
 from datetime import datetime
-from ..ingestion import OntologyDocument
+from ..schema.document import OntologyDocument
 
 
-DEFAULT_INGEST_DB_DIR = os.path.join(os.getenv("DATA_DIR", os.path.join(os.getcwd(), "data")), "ingest")
-DEFAULT_INGEST_DB_PATH = os.path.join(DEFAULT_INGEST_DB_DIR, "ingest.db")
+DEFAULT_INGEST_DB_DIR = os.path.join(os.getenv("DATA_DIR", os.path.join(os.getcwd(), "data")))
+DEFAULT_INGEST_DB_PATH = os.path.join(DEFAULT_INGEST_DB_DIR, "ontology_core.db")
 
 
 class SQLiteIngestStorage:
@@ -898,7 +898,7 @@ class SQLiteIngestStorage:
         if extra_data:
             doc_data.update(extra_data)
 
-        from ..ingestion import OntologyDocument
+        from ..schema.document import OntologyDocument
         return OntologyDocument.from_dict(doc_data)
     
     def list_ontology_documents(self, scenario_id: Optional[str] = None, limit: int = 100) -> List[OntologyDocument]:
@@ -924,7 +924,7 @@ class SQLiteIngestStorage:
         conn.close()
         
         documents = []
-        from ..ingestion import OntologyDocument
+        from ..schema.document import OntologyDocument
         
         for row in rows:
             doc_data = {
@@ -1064,7 +1064,7 @@ class SQLiteIngestStorage:
             version.get('created_by', 'system'),
             1 if version.get('is_current', False) else 0,
             1 if version.get('is_stable', False) else 0,
-            version.get('doc_snapshot'),
+            version.get('doc_snapshot') if isinstance(version.get('doc_snapshot'), str) else self._serialize_json(version.get('doc_snapshot')),
             version.get('doc_id'),
             version.get('doc_type'),
             version.get('entity_count', 0),

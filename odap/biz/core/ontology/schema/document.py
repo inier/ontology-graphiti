@@ -64,12 +64,13 @@ class ActionStatus(str, Enum):
 # ─────────────────────────────────────────────────
 
 @dataclass
-class DataSource:
+class SourceInfo:
     type: str = SourceType.MANUAL.value
     url: Optional[str] = None
     collected_at: str = field(default_factory=lambda: datetime.now(timezone.utc).isoformat())
     confidence: float = 1.0
     author: Optional[str] = None
+
 
 
 @dataclass
@@ -223,7 +224,7 @@ class OntologyDocument:
     doc_type: str = DocType.EVENT.value
 
     # 元数据
-    source: DataSource = field(default_factory=DataSource)
+    source: SourceInfo = field(default_factory=SourceInfo)
     meta: DocumentMeta = field(default_factory=DocumentMeta)
 
     # 内容体
@@ -341,7 +342,7 @@ class OntologyDocument:
             version=data.get("$version", SCHEMA_VERSION),
             doc_id=data.get("doc_id", f"doc-{uuid.uuid4().hex[:8]}"),
             doc_type=data.get("doc_type", DocType.EVENT.value),
-            source=DataSource(**{k: v for k, v in source_data.items() if k in DataSource.__dataclass_fields__}),
+            source=SourceInfo(**{k: v for k, v in source_data.items() if k in SourceInfo.__dataclass_fields__}),
             meta=DocumentMeta(**{k: v for k, v in meta_data.items() if k in DocumentMeta.__dataclass_fields__}),
             transformation_status=data.get("transformation_status", "pending"),
             transformation_steps=data.get("transformation_steps", []),
@@ -408,7 +409,7 @@ class OntologyDocument:
 # ─────────────────────────────────────────────────
 
 @dataclass
-class ValidationResult:
+class SchemaValidationResult:
     is_valid: bool
     errors: List[str] = field(default_factory=list)
     warnings: List[str] = field(default_factory=list)
@@ -423,7 +424,7 @@ class OntologyDocumentSchema:
     VALID_ENTITY_TYPES = [t.value for t in EntityType]
 
     @classmethod
-    def validate(cls, doc) -> ValidationResult:
+    def validate(cls, doc) -> SchemaValidationResult:
         """验证 OntologyDocument（接受 OntologyDocument 实例或 dict）"""
         errors = []
         warnings = []
@@ -465,10 +466,10 @@ class OntologyDocumentSchema:
             if not event.timestamp:
                 warnings.append(f"events[{i}] 缺少 timestamp")
 
-        return ValidationResult(is_valid=len(errors) == 0, errors=errors, warnings=warnings)
+        return SchemaValidationResult(is_valid=len(errors) == 0, errors=errors, warnings=warnings)
 
     @classmethod
-    def _validate_dict(cls, data: dict) -> ValidationResult:
+    def _validate_dict(cls, data: dict) -> SchemaValidationResult:
         """验证 dict 格式"""
         errors = []
         warnings = []
@@ -481,7 +482,7 @@ class OntologyDocumentSchema:
         if "doc_type" in data and data["doc_type"] not in cls.VALID_DOC_TYPES:
             errors.append(f"无效的 doc_type: {data['doc_type']}")
 
-        return ValidationResult(is_valid=len(errors) == 0, errors=errors, warnings=warnings)
+        return SchemaValidationResult(is_valid=len(errors) == 0, errors=errors, warnings=warnings)
 
 
 class OntologyValidationError(Exception):
@@ -518,7 +519,7 @@ def make_battle_event_document(
     doc = OntologyDocument(
         doc_id=doc_id,
         doc_type=DocType.EVENT.value,
-        source=DataSource(type=source_type, collected_at=now, confidence=0.9),
+        source=SourceInfo(type=source_type, collected_at=now, confidence=0.9),
         meta=DocumentMeta(
             title=title,
             description=f"{red_unit} 与 {blue_unit} 在 {location} 发生 {event_type}",

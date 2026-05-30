@@ -579,7 +579,7 @@ def generate_ontology_integration_script(result: ScrapResult, output_dir: str = 
     # 将此内容保存为 import_to_ontology.py 并运行
     # 会使用 advanced_scraper 的输出作为输入源
 
-    from odap.biz.core.ontology.ingestion import ManualInputHandler
+    from odap.biz.core.ontology.ingestion_split import ManualInputHandler
     from odap.biz.core.ontology.services import ingest_service
     import json
     from pathlib import Path

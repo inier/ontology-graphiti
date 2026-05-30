@@ -3,7 +3,7 @@ from pydantic import BaseModel, Field
 from typing import List, Optional
 from ..storage.sqlite_storage import BusinessStorage
 
-router = APIRouter(prefix="/api")
+router = APIRouter(prefix="/api/business", tags=["business"])
 storage = BusinessStorage()
 
 

@@ -3,40 +3,10 @@
 from pydantic import BaseModel, Field
 from typing import Dict, Any, List, Optional, Union
 from datetime import datetime
-from enum import Enum
 
-
-class WorkspaceStatus(str, Enum):
-    """工作空间状态"""
-    CREATING = "creating"
-    ACTIVE = "active"
-    INACTIVE = "inactive"
-    DELETING = "deleting"
-    ERROR = "error"
-
-
-class WorkspaceType(str, Enum):
-    """工作空间类型"""
-    DEFAULT = "default"
-    SHARED = "shared"
-    PRIVATE = "private"
-    TEMPORARY = "temporary"
-
-
-class IsolationLevel(str, Enum):
-    """隔离级别"""
-    LOW = "low"
-    STANDARD = "standard"
-    HIGH = "high"
-    STRICT = "strict"
-
-
-class ImportExportStatus(str, Enum):
-    """导入导出状态"""
-    PENDING = "pending"
-    PROCESSING = "processing"
-    COMPLETED = "completed"
-    FAILED = "failed"
+from odap.biz.platform.workspace.models.workspace import WorkspaceStatus, WorkspaceType
+from odap.biz.platform.workspace.models.isolation import IsolationLevel
+from odap.biz.platform.workspace.models.import_export import ImportExportStatus
 
 
 # 工作空间相关

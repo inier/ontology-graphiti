@@ -148,7 +148,7 @@ class WorkspaceManager(IWorkspaceManager):
         for ontology_id in workspace.bound_ontology_ids:
             ontology_info = {"ontology_id": ontology_id, "source": "private"}
             try:
-                from odap.biz.core.ontology.version_manager import OntologyVersionManager
+                from odap.biz.core.ontology.services.version_service import OntologyVersionManager
                 vm = OntologyVersionManager.get_instance()
                 versions = vm.list_versions(ontology_id)
                 if versions:

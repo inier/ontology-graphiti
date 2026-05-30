@@ -218,13 +218,13 @@ class FeedbackAggregator:
 
         try:
             from odap.biz.core.ontology.schema.document import (
-                OntologyDocument, OntologyAction, DataSource, DocumentMeta,
+                OntologyDocument, OntologyAction, SourceInfo, DocumentMeta,
                 VersionRef, ActionStatus,
             )
             now = datetime.now(timezone.utc).isoformat()
             doc = OntologyDocument(
                 doc_type="event",
-                source=DataSource(source_type="action_feedback"),
+                source=SourceInfo(type="action_feedback"),
                 meta=DocumentMeta(title=f"Action Feedback: {action_type}"),
                 entities=[],
                 relations=[],

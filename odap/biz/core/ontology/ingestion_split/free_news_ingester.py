@@ -15,7 +15,7 @@ from typing import Any, Dict, List, Optional
 from odap.biz.core.ontology.ingestion_split.web_scraper import WebScraper
 from odap.biz.core.ontology.schema.document import (
     OntologyDocument, OntologyEvent, VersionRef,
-    DataSource, DocumentMeta, SourceType, DocType, make_battle_event_document,
+    SourceInfo, DocumentMeta, SourceType, DocType, make_battle_event_document,
 )
 
 logger = logging.getLogger("data_ingestion")
@@ -92,7 +92,7 @@ class FreeNewsIngester:
         doc = OntologyDocument(
             doc_id=f"web-{date_str}-{uuid.uuid4().hex[:6]}",
             doc_type=DocType.EVENT.value,
-            source=DataSource(
+            source=SourceInfo(
                 type=SourceType.NEWS_INGEST.value,
                 url=url,
                 collected_at=now,

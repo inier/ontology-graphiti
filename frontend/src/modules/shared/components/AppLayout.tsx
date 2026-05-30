@@ -27,6 +27,7 @@ import {
   SafetyOutlined,
   LogoutOutlined,
   UserOutlined,
+  PartitionOutlined,
 } from '@ant-design/icons';
 import { api } from '../services/api';
 import { useAuthStore } from '../stores/authStore';
@@ -137,6 +138,7 @@ const primaryMenus: PrimaryMenu[] = [
       { key: '/business/logic', icon: <NodeIndexOutlined />, label: '逻辑' },
       { key: '/business/entities', icon: <UnorderedListOutlined />, label: '对象管理' },
       { key: '/business/extraction', icon: <ExperimentOutlined />, label: '数据摄入' },
+      { key: '/blueprint', icon: <PartitionOutlined />, label: '蓝图设计' },
     ],
   },
   {

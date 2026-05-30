@@ -14,7 +14,7 @@ from typing import Any, Dict, List, Optional
 from odap.biz.core.ontology.ingestion_split.base_generator import BaseRandomGenerator
 from odap.biz.core.ontology.schema.document import (
     OntologyDocument, OntologyEntity, OntologyEvent,
-    VersionRef, DataSource, DocumentMeta, SourceType, DocType,
+    VersionRef, SourceInfo, DocumentMeta, SourceType, DocType,
 )
 
 logger = logging.getLogger("data_ingestion")
@@ -176,7 +176,7 @@ class TechEventGenerator(BaseRandomGenerator):
         doc = OntologyDocument(
             doc_id=f"tech-{date_str}-{uuid.uuid4().hex[:6]}",
             doc_type=DocType.EVENT.value,
-            source=DataSource(type=SourceType.RANDOM_GEN.value, collected_at=now, confidence=0.85),
+            source=SourceInfo(type=SourceType.RANDOM_GEN.value, collected_at=now, confidence=0.85),
             meta=DocumentMeta(
                 title=title,
                 description=description,

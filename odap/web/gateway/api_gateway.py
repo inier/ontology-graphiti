@@ -19,10 +19,12 @@ from enum import Enum
 from collections import defaultdict, deque
 from functools import wraps
 
+from odap.infra.security.auth_models import AuthProvider
+
 sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 
-class RateLimitType(Enum):
+class RateLimitType(str, Enum):
     TOKEN_BUCKET = "token_bucket"
 
 
@@ -51,13 +53,6 @@ class Route:
     cache_ttl_ms: Optional[int] = None
     deprecated: bool = False
     description: str = ""
-
-
-class AuthProvider(str, Enum):
-    LOCAL = "local"
-    JWT = "jwt"
-    OAUTH2 = "oauth2"
-    API_KEY = "api_key"
 
 
 @dataclass

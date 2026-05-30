@@ -50,12 +50,12 @@ class TestOntologyTransformService:
     @pytest.mark.asyncio
     async def test_data_quality_validation(self, transform_service):
         """测试数据质量校验"""
-        from odap.biz.core.ontology.schema.document import OntologyDocument, DocumentMeta, DataSource
+        from odap.biz.core.ontology.schema.document import OntologyDocument, DocumentMeta, SourceInfo
 
         doc = OntologyDocument(
             doc_id="test-doc",
             doc_type="event",
-            source=DataSource(type="test", collected_at="2026-04-26T00:00:00Z", confidence=0.9),
+            source=SourceInfo(type="test", collected_at="2026-04-26T00:00:00Z", confidence=0.9),
             meta=DocumentMeta(title="测试文档")
         )
 

@@ -5,25 +5,8 @@ import type {
   BusinessIndicator, BusinessIndicatorFormData,
   BusinessEntity,
 } from '../types';
-
-const API_BASE = import.meta.env.VITE_API_BASE || '';
-
-async function fetchJson<T>(url: string, options?: RequestInit): Promise<T> {
-  const token = localStorage.getItem('token');
-  const authHeaders: Record<string, string> = { 'Content-Type': 'application/json' };
-  if (token) authHeaders['Authorization'] = `Bearer ${token}`;
-  const mergedOptions: RequestInit = { ...options, headers: { ...authHeaders, ...(options?.headers as Record<string, string>) } };
-  const res = await fetch(url, mergedOptions);
-  if (res.status === 401 || res.status === 403) {
-    localStorage.removeItem('token');
-    localStorage.removeItem('refresh_token');
-    localStorage.removeItem('user');
-    window.location.href = '/login';
-    throw new Error('登录已过期，请重新登录');
-  }
-  if (!res.ok) throw new Error(`HTTP ${res.status}`);
-  return res.json();
-}
+import { fetchJson } from '../../shared/services/apiClient';
+import { API_BASE } from '../../../config';
 
 function buildVersionQuery(ontologyId?: string, versionId?: string): string {
   const params: string[] = [];

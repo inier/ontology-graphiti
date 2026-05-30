@@ -33,31 +33,13 @@ from datetime import datetime, timezone
 from enum import Enum
 import uuid
 
+from odap.biz.core.ontology.services.qa_ontology_builder import IntentType
+from odap.biz.platform.roles.api.schemas import RoleType
+
 sys.path.append(os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))))
 
 
-class IntentType(Enum):
-    """意图类型"""
-    QUERY = "query"
-    ACTION = "action"
-    EXPLAIN = "explain"
-    RECOMMEND = "recommend"
-    NAVIGATE = "navigate"
-    COMPARE = "compare"
-    ANALYZE = "analyze"
-
-
-class RoleType(Enum):
-    """角色类型"""
-    COMMANDER = "commander"
-    INTELLIGENCE = "intelligence"
-    OPERATOR = "operator"
-    ANALYST = "analyst"
-    GUEST = "guest"
-
-
-class ConfidenceLevel(Enum):
-    """置信度等级"""
+class ConfidenceLevel(str, Enum):
     HIGH = "high"
     MEDIUM = "medium"
     LOW = "low"

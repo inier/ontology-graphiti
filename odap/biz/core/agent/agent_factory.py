@@ -21,19 +21,24 @@ from collections import defaultdict, deque
 
 sys.path.append(os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))))
 
+class AgentType(str, Enum):
+    COMMANDER = "commander"
+    INTELLIGENCE = "intelligence"
+    OPERATIONS = "operations"
+
+
+class AgentState(str, Enum):
+    IDLE = "idle"
+    RUNNING = "running"
+    FAILED = "failed"
+    DEGRADED = "degraded"
+    RECOVERING = "recovering"
+    SUSPENDED = "suspended"
+
+
 try:
-    from odap.biz.core.agent.swarm_orchestrator import AgentType, AgentState, AgentConfig
+    from odap.biz.core.agent.swarm_orchestrator import AgentConfig
 except ImportError:
-    class AgentType(str, Enum):
-        COMMANDER = "commander"
-        INTELLIGENCE = "intelligence"
-        OPERATIONS = "operations"
-
-    class AgentState(str, Enum):
-        IDLE = "idle"
-        RUNNING = "running"
-        FAILED = "failed"
-
     @dataclass
     class AgentConfig:
         name: str

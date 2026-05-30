@@ -3,7 +3,7 @@
 
 import traceback
 
-from odap.biz.core.ontology.ingestion import TechEventGenerator
+from odap.biz.core.ontology.ingestion_split import TechEventGenerator
 import asyncio
 
 

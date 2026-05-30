@@ -1,8 +1,11 @@
 """版本管理接口"""
+from __future__ import annotations
 
 from abc import ABC, abstractmethod
-from typing import Dict, Any, List, Optional
-from ..models.version import OntologyVersion, VersionChange, VersionComparison, VersionOperation
+from typing import Dict, Any, List, Optional, TYPE_CHECKING
+
+if TYPE_CHECKING:
+    from ..models.version import OntologyVersion, VersionChange, OntologyDiff, VersionOperation
 
 
 class IVersionManager(ABC):
@@ -68,7 +71,7 @@ class IVersionManager(ABC):
         pass
     
     @abstractmethod
-    def compare_versions(self, source_version_id: str, target_version_id: str) -> VersionComparison:
+    def compare_versions(self, source_version_id: str, target_version_id: str) -> OntologyDiff:
         """对比版本
         
         Args:

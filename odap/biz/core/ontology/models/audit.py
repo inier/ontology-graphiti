@@ -26,6 +26,7 @@ class ProcessingStatus(str, Enum):
     PROCESSING = "processing"
     COMPLETED = "completed"
     FAILED = "failed"
+    CANCELLED = "cancelled"
 
 
 class PipelineStage(str, Enum):

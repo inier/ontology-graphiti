@@ -1,15 +1,20 @@
-"""本体构建模型"""
-
+import warnings
+warnings.warn(
+    "odap.biz.core.ontology.models.ontology.OntologyDocument is deprecated. "
+    "Use odap.biz.core.ontology.schema.document.OntologyDocument instead.",
+    DeprecationWarning,
+    stacklevel=2,
+)
+from odap.biz.core.ontology.schema.document import OntologyDocument
+from odap.biz.core.ontology.models.audit import ProcessingStatus
 from pydantic import BaseModel, Field
 from typing import List, Dict, Any, Optional
 from datetime import datetime
 import uuid
 from enum import Enum
-from .audit import ProcessingStatus
 
 
 class OntologyStatus(str, Enum):
-    """本体状态"""
     DRAFT = "draft"
     VALIDATED = "validated"
     PUBLISHED = "published"
@@ -17,7 +22,6 @@ class OntologyStatus(str, Enum):
 
 
 class EntityExtractionResult(BaseModel):
-    """实体提取结果"""
     entities: List[Dict[str, Any]] = Field(default_factory=list)
     relations: List[Dict[str, Any]] = Field(default_factory=list)
     confidence_scores: Dict[str, float] = Field(default_factory=dict)
@@ -25,7 +29,6 @@ class EntityExtractionResult(BaseModel):
 
 
 class OntologyBuildResult(BaseModel):
-    """本体构建结果"""
     build_id: str = Field(default_factory=lambda: str(uuid.uuid4()))
     source_ingest_id: str
     entity_count: int = 0
@@ -38,20 +41,3 @@ class OntologyBuildResult(BaseModel):
     errors: List[Dict[str, Any]] = Field(default_factory=list)
     warnings: List[Dict[str, Any]] = Field(default_factory=list)
     ontology_version: str = "1.0.0"
-
-
-class OntologyDocument(BaseModel):
-    """本体文档"""
-    id: str = Field(default_factory=lambda: str(uuid.uuid4()))
-    name: str
-    description: str = ""
-    status: OntologyStatus = OntologyStatus.DRAFT
-    version: str = "1.0.0"
-    entities: List[Dict[str, Any]] = Field(default_factory=list)
-    relations: List[Dict[str, Any]] = Field(default_factory=list)
-    properties: List[Dict[str, Any]] = Field(default_factory=list)
-    validation_rules: List[Dict[str, Any]] = Field(default_factory=list)
-    created_at: datetime = Field(default_factory=datetime.now)
-    updated_at: datetime = Field(default_factory=datetime.now)
-    created_by: str = "system"
-    updated_by: str = "system"
