@@ -285,6 +285,116 @@ class IntelligenceAgentSwarm:
         }
 
 
+class IntentRouter:
+    _RULES: List[Dict[str, Any]] = [
+        {"keywords": ["分析", "态势", "威胁", "情报", "侦察"], "agent": "intelligence", "confidence": 0.95},
+        {"keywords": ["决策", "方案", "指挥", "选择", "判断"], "agent": "commander", "confidence": 0.95},
+        {"keywords": ["执行", "行动", "打击", "部署", "调度"], "agent": "operations", "confidence": 0.95},
+        {"keywords": ["搜索", "查询", "查找", "检索", "雷达"], "agent": "intelligence", "confidence": 0.90},
+        {"keywords": ["攻击", "目标", "摧毁", "火力"], "agent": "operations", "confidence": 0.90},
+        {"keywords": ["推荐", "建议", "评估", "对比"], "agent": "commander", "confidence": 0.85},
+    ]
+
+    def __init__(self):
+        self._llm_available = False
+        try:
+            from odap.infra.security import security_config
+            if security_config.OPENAI_API_KEY:
+                self._llm_available = True
+        except Exception:
+            pass
+
+    def route(self, intent: str, context: Optional[Dict[str, Any]] = None) -> Dict[str, Any]:
+        rule_result = self._rule_route(intent)
+        if rule_result and rule_result["confidence"] >= 0.9:
+            return rule_result
+
+        if self._llm_available:
+            llm_result = self._llm_route(intent, context)
+            if llm_result:
+                return llm_result
+
+        if rule_result:
+            return rule_result
+
+        return {"agent": "intelligence", "confidence": 0.5, "source": "default"}
+
+    def _rule_route(self, intent: str) -> Optional[Dict[str, Any]]:
+        best_match = None
+        best_score = 0.0
+        intent_lower = intent.lower()
+        for rule in self._RULES:
+            score = sum(1 for kw in rule["keywords"] if kw in intent_lower)
+            if score > best_score:
+                best_score = score
+                best_match = rule
+        if best_match and best_score > 0:
+            return {
+                "agent": best_match["agent"],
+                "confidence": min(best_match["confidence"], best_match["confidence"] * (best_score / len(best_match["keywords"]) + 0.5)),
+                "source": "rule",
+                "matched_keywords": [kw for kw in best_match["keywords"] if kw in intent_lower],
+            }
+        return None
+
+    def _llm_route(self, intent: str, context: Optional[Dict[str, Any]] = None) -> Optional[Dict[str, Any]]:
+        try:
+            import httpx
+            from odap.infra.security import security_config
+            base = security_config.OPENAI_API_BASE.rstrip("/")
+            if base.endswith("/chat/completions"):
+                base = base[: -len("/chat/completions")]
+            if not base.startswith("http://") and not base.startswith("https://"):
+                base = "https://" + base
+            resp = httpx.post(
+                f"{base}/chat/completions",
+                headers={
+                    "Authorization": f"Bearer {security_config.OPENAI_API_KEY}",
+                    "Content-Type": "application/json",
+                },
+                json={
+                    "model": security_config.OPENAI_MODEL,
+                    "messages": [
+                        {"role": "system", "content": "你是意图路由器。根据用户意图判断应分配给哪个Agent。只返回JSON: {\"agent\": \"intelligence\"|\"commander\"|\"operations\", \"confidence\": 0.0-1.0}"},
+                        {"role": "user", "content": intent},
+                    ],
+                    "temperature": 0.1,
+                    "max_tokens": 100,
+                },
+                timeout=10.0,
+            )
+            if resp.status_code == 200:
+                import json as _json
+                content = resp.json()["choices"][0]["message"]["content"]
+                data = _json.loads(content)
+                if data.get("agent") in ("intelligence", "commander", "operations"):
+                    return {"agent": data["agent"], "confidence": float(data.get("confidence", 0.7)), "source": "llm"}
+        except Exception as e:
+            logger.warning(f"LLM routing fallback: {e}")
+        return None
+
+
+class SubAgentPlanner:
+
+    def plan(self, intent: str, agent: str, context: Optional[Dict[str, Any]] = None) -> List[Dict[str, Any]]:
+        tasks = []
+        ctx = context or {}
+
+        if agent == "intelligence":
+            tasks.append({"sub_agent": "intelligence", "action": "gather_intelligence", "params": {"mission": intent, "context": ctx}})
+            tasks.append({"sub_agent": "intelligence", "action": "analyze_patterns", "params": {"mission": intent, "context": ctx}})
+        elif agent == "commander":
+            tasks.append({"sub_agent": "intelligence", "action": "gather_intelligence", "params": {"mission": intent, "context": ctx}})
+            tasks.append({"sub_agent": "commander", "action": "analyze_situation", "params": {"context": ctx}})
+            tasks.append({"sub_agent": "commander", "action": "make_decision", "params": {"context": ctx}})
+        elif agent == "operations":
+            tasks.append({"sub_agent": "intelligence", "action": "gather_intelligence", "params": {"mission": intent, "context": ctx}})
+            tasks.append({"sub_agent": "commander", "action": "analyze_situation", "params": {"context": ctx}})
+            tasks.append({"sub_agent": "operations", "action": "execute_order", "params": {"context": ctx}})
+
+        return tasks
+
+
 class DomainSwarm:
     """领域多 Agent Swarm 编排器"""
 
@@ -308,6 +418,10 @@ class DomainSwarm:
         self.agents = self._initialize_agents()
         self.active_missions: Dict[str, Dict[str, Any]] = {}
         self.mission_history: List[MissionResult] = []
+
+        self.intent_router = IntentRouter()
+        self.sub_agent_planner = SubAgentPlanner()
+        self._swarm_adapter = None
 
     def _default_config(self) -> Dict[str, Any]:
         return {
@@ -628,6 +742,110 @@ class DomainSwarm:
                 mission_ctx["graphiti_episodes"].append("ooda_mission_episode")
         except Exception as e:
             logger.warning(f"Graphiti 写入失败: {e}")
+
+    def _get_swarm_adapter(self):
+        if self._swarm_adapter is not None:
+            return self._swarm_adapter
+        try:
+            from odap.biz.integration.openharness_agent.adapter.swarm_adapter import SwarmAdapter
+            self._swarm_adapter = SwarmAdapter()
+        except Exception as e:
+            logger.warning(f"SwarmAdapter not available: {e}")
+            self._swarm_adapter = None
+        return self._swarm_adapter
+
+    async def dispatch_intent(self, intent: str, context: Optional[Dict[str, Any]] = None, workspace_id: Optional[str] = None) -> Dict[str, Any]:
+        task_id = str(uuid.uuid4())[:16]
+        routing = self.intent_router.route(intent, context)
+        assigned_agent = routing["agent"]
+        confidence = routing["confidence"]
+
+        plan = self.sub_agent_planner.plan(intent, assigned_agent, context)
+
+        adapter = self._get_swarm_adapter()
+        if adapter:
+            try:
+                swarm_result = adapter.dispatch_intent("default", intent, context)
+                if swarm_result.get("status") == "success":
+                    return {
+                        "task_id": task_id,
+                        "assigned_agent": assigned_agent,
+                        "confidence": confidence,
+                        "routing_source": routing.get("source", "unknown"),
+                        "plan": plan,
+                        "swarm_observation": swarm_result.get("observation"),
+                        "status": "dispatched",
+                    }
+            except Exception as e:
+                logger.warning(f"SwarmAdapter dispatch failed, using fallback: {e}")
+
+        return {
+            "task_id": task_id,
+            "assigned_agent": assigned_agent,
+            "confidence": confidence,
+            "routing_source": routing.get("source", "unknown"),
+            "plan": plan,
+            "status": "dispatched",
+        }
+
+    async def get_task_status(self, task_id: str) -> Dict[str, Any]:
+        mission = self.active_missions.get(task_id)
+        if mission:
+            return {
+                "task_id": task_id,
+                "status": "running",
+                "phases_completed": [p.value if hasattr(p, 'value') else p for p in mission.get("phases_completed", [])],
+                "mission": mission.get("mission", ""),
+            }
+        for result in self.mission_history:
+            if result.mission_id == task_id:
+                return {
+                    "task_id": task_id,
+                    "status": "completed" if result.success else "failed",
+                    "phases_completed": [p.value for p in result.phases_completed],
+                    "final_decision": result.final_decision,
+                    "execution_time_ms": result.execution_time_ms,
+                    "error_message": result.error_message,
+                }
+        return {"status": "error", "message": f"Task {task_id} not found"}
+
+    async def get_decision_chain(self, task_id: str) -> Dict[str, Any]:
+        for result in self.mission_history:
+            if result.mission_id == task_id:
+                chain = []
+                for phase in result.phases_completed:
+                    chain.append({
+                        "phase": phase.value,
+                        "description": f"OODA {phase.value} phase completed",
+                        "timestamp": datetime.now(timezone.utc).isoformat(),
+                    })
+                return {
+                    "task_id": task_id,
+                    "chain": chain,
+                    "final_decision": result.final_decision,
+                }
+        return {"status": "error", "message": f"Task {task_id} not found"}
+
+    async def configure_swarm(self, agent_roles: Optional[Dict[str, Any]] = None, routing_rules: Optional[List[Dict[str, Any]]] = None) -> Dict[str, Any]:
+        if agent_roles:
+            for role_name, role_config in agent_roles.items():
+                agent_type = AgentType(role_name) if role_name in [t.value for t in AgentType] else None
+                if agent_type and agent_type in self.agents:
+                    agent = self.agents[agent_type]
+                    if hasattr(agent, 'config'):
+                        for key, value in role_config.items():
+                            if hasattr(agent.config, key):
+                                setattr(agent.config, key, value)
+
+        if routing_rules:
+            for rule in routing_rules:
+                self.intent_router._RULES.append(rule)
+
+        return {
+            "status": "success",
+            "agent_roles": list(self.agents.keys()),
+            "routing_rules_count": len(self.intent_router._RULES),
+        }
 
     async def shutdown(self) -> None:
         """关闭 Swarm"""

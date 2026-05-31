@@ -1,0 +1,33 @@
+{
+  "agent": {
+    "title": "Agent Dispatch Center",
+    "dispatch": "Intent Dispatch",
+    "decisions": "Decision Records",
+    "chain": "Decision Chain",
+    "intentPlaceholder": "Enter intent, e.g. Analyze B-area threats",
+    "dispatchButton": "Dispatch",
+    "taskId": "Task ID",
+    "assignedAgent": "Assigned Agent",
+    "confidence": "Confidence",
+    "source": "Source",
+    "status": "Status",
+    "planSteps": "Plan Steps",
+    "viewChain": "View Chain",
+    "reasoning": "Reasoning",
+    "refresh": "Refresh",
+    "selectDecision": "Select a decision to view its chain"
+  },
+  "skill": {
+    "title": "Skill Manager",
+    "register": "Register",
+    "unregister": "Unregister",
+    "discover": "Discover",
+    "lifecycle": "Lifecycle",
+    "archive": "Archive",
+    "name": "Name",
+    "type": "Type",
+    "category": "Category",
+    "version": "Version",
+    "searchPlaceholder": "Search skills..."
+  }
+}

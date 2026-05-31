@@ -1,4 +1,4 @@
-from fastapi import APIRouter, HTTPException
+from fastapi import APIRouter, HTTPException, Query
 from typing import Dict, Any, List, Optional
 from pydantic import BaseModel, Field
 
@@ -6,6 +6,7 @@ from ..context_window import ContextWindow, ChatMessage, MessageRole
 from ..memory_compactor import MemoryCompactor
 from ..cot_builder import CoTBuilder
 from ..session_store import SessionStore, Session
+from ..memory_tiers import get_session_memory_manager
 
 router = APIRouter(prefix="/api/session-memory", tags=["session-memory"])
 
@@ -42,6 +43,17 @@ class AddMessageRequest(BaseModel):
 
 class QueryRequest(BaseModel):
     query: str
+
+
+class StoreMemoryRequest(BaseModel):
+    key: str
+    value: Any
+    tier: str = "short_term"
+
+
+class StoreLongTermRequest(BaseModel):
+    key: str
+    value: Any
 
 
 @router.post("/sessions")
@@ -139,22 +151,22 @@ async def build_cot(session_id: str, request: QueryRequest):
     builder = CoTBuilder()
     root = builder.start(request.query)
 
-    intent_node = builder.add_child(root, CoTNodeType.INTENT, "意图识别", "分析用户查询意图")
+    intent_node = builder.add_child(root, CoTNodeType.INTENT, "Intent Recognition", "Analyze user query intent")
     builder.start_timing(intent_node.id)
-    builder.update_status(intent_node.id, "done", detail="态势查询")
+    builder.update_status(intent_node.id, "done", detail="Situation query")
     builder.finish_timing(intent_node.id)
 
-    entity_node = builder.add_child(intent_node, CoTNodeType.ENTITY_LINK, "实体链接", "匹配相关实体")
-    builder.update_status(entity_node.id, "done", detail="匹配到3个实体")
+    entity_node = builder.add_child(intent_node, CoTNodeType.ENTITY_LINK, "Entity Linking", "Match related entities")
+    builder.update_status(entity_node.id, "done", detail="3 entities matched")
 
-    context_node = builder.add_child(intent_node, CoTNodeType.CONTEXT_FETCH, "上下文检索", "获取子图")
-    builder.update_status(context_node.id, "done", detail="获取到相关上下文")
+    context_node = builder.add_child(intent_node, CoTNodeType.CONTEXT_FETCH, "Context Retrieval", "Fetch subgraph")
+    builder.update_status(context_node.id, "done", detail="Context retrieved")
 
-    rag_node = builder.add_child(intent_node, CoTNodeType.RAG_AUGMENT, "RAG增强", "注入Prompt")
-    builder.update_status(rag_node.id, "done", detail="已注入检索结果")
+    rag_node = builder.add_child(intent_node, CoTNodeType.RAG_AUGMENT, "RAG Augmentation", "Inject prompt")
+    builder.update_status(rag_node.id, "done", detail="Results injected")
 
-    llm_node = builder.add_child(intent_node, CoTNodeType.LLM_INFER, "LLM推理", "生成回答")
-    builder.update_status(llm_node.id, "done", detail="推理完成")
+    llm_node = builder.add_child(intent_node, CoTNodeType.LLM_INFER, "LLM Inference", "Generate answer")
+    builder.update_status(llm_node.id, "done", detail="Inference complete")
 
     session.cot_tree_data = builder.to_serializable()
     store.save_session(session)
@@ -169,3 +181,38 @@ async def delete_session(session_id: str):
     if not success:
         raise HTTPException(status_code=404, detail="Session not found")
     return {"message": "Session deleted"}
+
+
+@router.get("/memory/session/{session_id}")
+async def get_session_memory(session_id: str):
+    manager = get_session_memory_manager()
+    return manager.get_session_memory(session_id)
+
+
+@router.post("/memory/session/{session_id}/store")
+async def store_session_memory(session_id: str, request: StoreMemoryRequest):
+    manager = get_session_memory_manager()
+    if request.tier == "short_term":
+        return manager.store_short_term(session_id, request.key, request.value)
+    elif request.tier == "working":
+        return manager.store_working(session_id, request.key, request.value)
+    else:
+        return manager.store_short_term(session_id, request.key, request.value)
+
+
+@router.post("/memory/session/{session_id}/clear")
+async def clear_short_term_memory(session_id: str):
+    manager = get_session_memory_manager()
+    return manager.clear_short_term(session_id)
+
+
+@router.get("/memory/long-term")
+async def retrieve_long_term_memory(query: str = Query(...), limit: int = Query(10, ge=1, le=100)):
+    manager = get_session_memory_manager()
+    return manager.retrieve_long_term(query, limit)
+
+
+@router.post("/memory/long-term")
+async def store_long_term_memory(request: StoreLongTermRequest):
+    manager = get_session_memory_manager()
+    return manager.store_long_term(request.key, request.value)

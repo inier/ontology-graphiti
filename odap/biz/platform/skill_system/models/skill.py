@@ -8,11 +8,11 @@ from enum import Enum
 
 
 class SkillStatus(str, Enum):
-    """Skill状态"""
     DRAFT = "draft"
     ACTIVE = "active"
     INACTIVE = "inactive"
     DEPRECATED = "deprecated"
+    ARCHIVED = "archived"
 
 
 class SkillType(str, Enum):

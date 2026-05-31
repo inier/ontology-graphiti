@@ -49,6 +49,7 @@ from .unified_audit import (
     log_error,
     get_stats,
     get_audit_logs,
+    audit_opa_decision,
     audit_log,
     GraphitiAuditChannel,
     get_graphiti_channel,
@@ -84,6 +85,7 @@ __all__ = [
     'log_error',
     'get_stats',
     'get_audit_logs',
+    'audit_opa_decision',
     'audit_log',
 
     # 审计日志数据模型

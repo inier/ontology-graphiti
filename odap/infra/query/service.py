@@ -30,10 +30,30 @@ class QueryService:
         self._entity_source = entity_source or EntitySourceImpl()
         self._topo_source = topo_source or TopoSourceImpl()
         self._temporal_source = temporal_source or TemporalSource()
+        self._agent_safe_mode = False
+        self._registered_tool_sources: Dict[str, Any] = {}
         self._initialized = True
 
-    def execute(self, workspace_id: str, query: str, limit: int = 20) -> QueryResult:
+    def enable_agent_safe_mode(self, enabled: bool = True):
+        self._agent_safe_mode = enabled
+
+    def register_tool_source(self, source_name: str, source_handler: Any):
+        self._registered_tool_sources[source_name] = source_handler
+
+    def execute(self, workspace_id: str, query: str, limit: int = 20, agent_safe: bool = False) -> QueryResult:
         parsed = self._parser.parse(query, limit)
+        if agent_safe or self._agent_safe_mode:
+            if parsed.source == QuerySource.SCHEMA:
+                pass
+            elif parsed.source == QuerySource.ENTITY:
+                pass
+            else:
+                return QueryResult(
+                    source=parsed.source,
+                    rows=[],
+                    total=0,
+                    explain={"source": parsed.source.value, "agent_safe": True, "message": "Write operations blocked in agent safe mode"},
+                )
         try:
             if parsed.source == QuerySource.SCHEMA:
                 rows = self._execute_schema(parsed.filters)
@@ -70,6 +90,39 @@ class QueryService:
             "limit": parsed.limit,
             "workspace_id": workspace_id,
         }
+
+    def validate(self, query: str) -> Dict[str, Any]:
+        try:
+            parsed = self._parser.parse(query)
+            errors = []
+            if not parsed.source:
+                errors.append("Unknown query source")
+            return {
+                "valid": len(errors) == 0,
+                "source": parsed.source.value if parsed.source else None,
+                "filters": parsed.filters,
+                "action": parsed.action,
+                "errors": errors,
+            }
+        except Exception as e:
+            return {
+                "valid": False,
+                "source": None,
+                "filters": {},
+                "action": None,
+                "errors": [str(e)],
+            }
+
+    def list_sources(self) -> List[Dict[str, Any]]:
+        sources = [
+            {"name": "schema", "prefix": ".schema", "description": "Query ontology type definitions", "read_only": True},
+            {"name": "entity", "prefix": ".entity", "description": "Query runtime entities", "read_only": True},
+            {"name": "topo", "prefix": ".topo", "description": "Query topology relations and graph traversal", "read_only": False},
+            {"name": "temporal", "prefix": ".temporal", "description": "Query temporal data (bitemporal)", "read_only": True},
+        ]
+        for name in self._registered_tool_sources:
+            sources.append({"name": name, "prefix": f".{name}", "description": f"Tool source: {name}", "read_only": True})
+        return sources
 
     def _execute_schema(self, filters: Dict[str, Any]) -> List[Dict[str, Any]]:
         kind = filters.pop("kind", "object_types")

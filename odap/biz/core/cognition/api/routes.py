@@ -3,41 +3,33 @@ from typing import Dict, Any, List, Optional
 from fastapi import APIRouter, HTTPException, Query
 from pydantic import BaseModel, Field
 
-from odap.biz.core.cognition.user_cognition_engine import (
-    UserCognitionEngine,
-    get_cognition_engine,
-    RoleType,
-)
+from odap.biz.core.cognition.services.cognition_service import get_cognition_service
 
 
-class IntentRequest(BaseModel):
+class RecognizeIntentRequest(BaseModel):
     input_text: str
     role: str = "guest"
+    ontology_facts: List[str] = Field(default_factory=list)
 
 
-class IntentResponse(BaseModel):
-    intent: Dict[str, Any] = Field(default_factory=dict)
-    knowledge_results: List[Dict[str, Any]] = Field(default_factory=list)
-    session_id: Optional[str] = None
-
-
-class ViewResponse(BaseModel):
-    view_id: Optional[str] = None
-    role: Optional[str] = None
-    name: Optional[str] = None
-    description: Optional[str] = None
-    capabilities: List[str] = Field(default_factory=list)
-    layout_config: Dict[str, Any] = Field(default_factory=dict)
-    filters: Dict[str, Any] = Field(default_factory=dict)
+class RecognizeIntentResponse(BaseModel):
+    intent_id: Optional[str] = None
+    primary_intent: Optional[str] = None
+    confidence: float = 0.0
+    entities: List[str] = Field(default_factory=list)
+    attributes: Dict[str, Any] = Field(default_factory=dict)
+    alternative_intents: List[str] = Field(default_factory=list)
 
 
 class NavigateRequest(BaseModel):
     entity_id: str
     direction: str = "outbound"
+    depth: int = 1
 
 
 class NavigateResponse(BaseModel):
-    entity_id: str
+    navigation_id: Optional[str] = None
+    entity_id: str = ""
     navigation_path: List[str] = Field(default_factory=list)
     related_entities: List[Dict[str, Any]] = Field(default_factory=list)
     entity_context: Dict[str, Any] = Field(default_factory=dict)
@@ -49,54 +41,148 @@ class ExplainRequest(BaseModel):
 
 
 class ExplainResponse(BaseModel):
-    explanation_id: str
-    query: str
-    answer: str
-    confidence: float
+    explanation_id: Optional[str] = None
+    decision_id: str = ""
+    query: str = ""
+    answer: str = ""
+    confidence: float = 0.0
     reasoning_chain: List[Dict[str, Any]] = Field(default_factory=list)
     sources: List[str] = Field(default_factory=list)
+
+
+class RoleViewResponse(BaseModel):
+    view_id: Optional[str] = None
+    role: Optional[str] = None
+    name: Optional[str] = None
+    description: Optional[str] = None
+    capabilities: List[str] = Field(default_factory=list)
+    layout_config: Dict[str, Any] = Field(default_factory=dict)
+    filters: Dict[str, Any] = Field(default_factory=dict)
+
+
+class UpdateRoleViewRequest(BaseModel):
+    role: str
+    capabilities: List[str] = Field(default_factory=list)
+    layout_config: Dict[str, Any] = Field(default_factory=dict)
+    filters: Dict[str, Any] = Field(default_factory=dict)
+    name: Optional[str] = None
+    description: Optional[str] = None
 
 
 router = APIRouter(prefix="/api/cognition", tags=["cognition"])
 
 
-@router.post("/intent", response_model=IntentResponse)
-async def recognize_intent(request: IntentRequest):
+@router.post("/recognize-intent", response_model=RecognizeIntentResponse)
+async def recognize_intent(request: RecognizeIntentRequest):
     if not request.input_text:
-        raise HTTPException(status_code=400, detail="input_text 不能为空")
+        raise HTTPException(status_code=400, detail="input_text cannot be empty")
     try:
-        try:
-            role = RoleType(request.role)
-        except ValueError:
-            role = RoleType.GUEST
-
-        cognition_engine = get_cognition_engine()
-        result = cognition_engine.process_query(request.input_text, "anonymous", role)
-
-        return IntentResponse(
-            intent=result.get("intent", {}),
-            knowledge_results=result.get("knowledge_results", []),
-            session_id=result.get("session_id"),
+        service = get_cognition_service()
+        result = service.recognize_intent(
+            request.input_text, request.role, request.ontology_facts or None
         )
+        if result.get("status") == "error":
+            raise HTTPException(status_code=500, detail=result.get("message", "Intent recognition failed"))
+        return RecognizeIntentResponse(
+            intent_id=result.get("intent_id"),
+            primary_intent=result.get("primary_intent"),
+            confidence=result.get("confidence", 0.0),
+            entities=result.get("entities", []),
+            attributes=result.get("attributes", {}),
+            alternative_intents=result.get("alternative_intents", []),
+        )
+    except HTTPException:
+        raise
     except Exception as e:
-        raise HTTPException(status_code=503, detail=f"认知引擎不可用: {str(e)}")
+        raise HTTPException(status_code=503, detail=f"Cognition engine unavailable: {str(e)}")
 
 
-@router.get("/view", response_model=ViewResponse)
+@router.post("/navigate", response_model=NavigateResponse)
+async def navigate_knowledge(request: NavigateRequest):
+    if not request.entity_id:
+        raise HTTPException(status_code=400, detail="entity_id cannot be empty")
+    try:
+        service = get_cognition_service()
+        result = service.navigate(request.entity_id, request.direction, request.depth)
+        if result.get("status") == "error":
+            raise HTTPException(status_code=500, detail=result.get("message", "Navigation failed"))
+        return NavigateResponse(
+            navigation_id=result.get("navigation_id"),
+            entity_id=result.get("entity_id", request.entity_id),
+            navigation_path=result.get("navigation_path", []),
+            related_entities=result.get("related_entities", []),
+            entity_context=result.get("entity_context", {}),
+        )
+    except HTTPException:
+        raise
+    except Exception as e:
+        raise HTTPException(status_code=503, detail=f"Cognition engine unavailable: {str(e)}")
+
+
+@router.post("/explain", response_model=ExplainResponse)
+async def explain_decision(request: ExplainRequest):
+    if not request.decision_id:
+        raise HTTPException(status_code=400, detail="decision_id cannot be empty")
+    try:
+        service = get_cognition_service()
+        result = service.explain(request.decision_id, request.context)
+        if result.get("status") == "error":
+            raise HTTPException(status_code=500, detail=result.get("message", "Explanation failed"))
+        return ExplainResponse(
+            explanation_id=result.get("explanation_id"),
+            decision_id=result.get("decision_id", request.decision_id),
+            query=result.get("query", ""),
+            answer=result.get("answer", ""),
+            confidence=result.get("confidence", 0.0),
+            reasoning_chain=result.get("reasoning_chain", []),
+            sources=result.get("sources", []),
+        )
+    except HTTPException:
+        raise
+    except Exception as e:
+        raise HTTPException(status_code=503, detail=f"Cognition engine unavailable: {str(e)}")
+
+
+@router.get("/role-view", response_model=RoleViewResponse)
 async def get_role_view(role: str = Query(...)):
     try:
-        try:
-            role_type = RoleType(role)
-        except ValueError:
-            role_type = RoleType.GUEST
+        service = get_cognition_service()
+        result = service.get_role_view(role)
+        if result.get("status") == "error":
+            return RoleViewResponse()
+        return RoleViewResponse(
+            view_id=result.get("view_id"),
+            role=result.get("role"),
+            name=result.get("name"),
+            description=result.get("description"),
+            capabilities=result.get("capabilities", []),
+            layout_config=result.get("layout_config", {}),
+            filters=result.get("filters", {}),
+        )
+    except HTTPException:
+        raise
+    except Exception as e:
+        raise HTTPException(status_code=503, detail=f"Cognition engine unavailable: {str(e)}")
 
-        cognition_engine = get_cognition_engine()
-        view = cognition_engine.get_role_view(role_type)
 
-        if not view:
-            return ViewResponse()
-
-        return ViewResponse(
+@router.put("/role-view", response_model=RoleViewResponse)
+async def update_role_view(request: UpdateRoleViewRequest):
+    try:
+        service = get_cognition_service()
+        config = {
+            "capabilities": request.capabilities,
+            "layout_config": request.layout_config,
+            "filters": request.filters,
+        }
+        if request.name:
+            config["name"] = request.name
+        if request.description:
+            config["description"] = request.description
+        result = service.update_role_view(request.role, config)
+        if result.get("status") == "error":
+            raise HTTPException(status_code=404, detail=result.get("message", "View not found"))
+        view = result.get("view", result)
+        return RoleViewResponse(
             view_id=view.get("view_id"),
             role=view.get("role"),
             name=view.get("name"),
@@ -105,54 +191,7 @@ async def get_role_view(role: str = Query(...)):
             layout_config=view.get("layout_config", {}),
             filters=view.get("filters", {}),
         )
+    except HTTPException:
+        raise
     except Exception as e:
-        raise HTTPException(status_code=503, detail=f"认知引擎不可用: {str(e)}")
-
-
-@router.post("/navigate", response_model=NavigateResponse)
-async def navigate_knowledge(request: NavigateRequest):
-    if not request.entity_id:
-        raise HTTPException(status_code=400, detail="entity_id 不能为空")
-    try:
-        cognition_engine = get_cognition_engine()
-        result = cognition_engine.navigate_knowledge_graph(request.entity_id, request.direction)
-
-        return NavigateResponse(
-            entity_id=result.get("entity_id", request.entity_id),
-            navigation_path=result.get("navigation_path", []),
-            related_entities=result.get("related_entities", []),
-            entity_context=result.get("entity_context", {}),
-        )
-    except Exception as e:
-        raise HTTPException(status_code=503, detail=f"认知引擎不可用: {str(e)}")
-
-
-@router.post("/explain", response_model=ExplainResponse)
-async def explain_decision(request: ExplainRequest):
-    if not request.decision_id:
-        raise HTTPException(status_code=400, detail="decision_id 不能为空")
-    try:
-        cognition_engine = get_cognition_engine()
-        explanation = cognition_engine.explain_decision(request.decision_id, request.context)
-
-        reasoning_chain = []
-        if explanation.reasoning_chain:
-            reasoning_chain = [
-                {
-                    "step_id": s.step_id,
-                    "step_type": s.step_type,
-                    "description": s.description,
-                }
-                for s in explanation.reasoning_chain.steps
-            ]
-
-        return ExplainResponse(
-            explanation_id=explanation.explanation_id,
-            query=explanation.query,
-            answer=explanation.answer,
-            confidence=explanation.confidence,
-            reasoning_chain=reasoning_chain,
-            sources=explanation.sources,
-        )
-    except Exception as e:
-        raise HTTPException(status_code=503, detail=f"认知引擎不可用: {str(e)}")
+        raise HTTPException(status_code=503, detail=f"Cognition engine unavailable: {str(e)}")

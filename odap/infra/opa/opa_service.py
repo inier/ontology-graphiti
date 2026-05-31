@@ -717,6 +717,222 @@ class OPAManager:
 OPAManagerV2 = OPAManager
 
 
+class MarkdownPolicyService:
+
+    def __init__(self, opa_manager: OPAManager = None):
+        self.opa_manager = opa_manager or OPAManager()
+        self._compiler = None
+        self._version_storage = None
+
+    @property
+    def compiler(self):
+        if self._compiler is None:
+            from odap.infra.opa.markdown_compiler import MarkdownCompiler
+            self._compiler = MarkdownCompiler()
+        return self._compiler
+
+    @property
+    def version_storage(self):
+        if self._version_storage is None:
+            from odap.infra.opa.policy_version_storage import SQLitePolicyVersionStorage
+            self._version_storage = SQLitePolicyVersionStorage()
+        return self._version_storage
+
+    def compile_markdown_policy(self, markdown_text: str) -> Dict[str, Any]:
+        result = self.compiler.compile(markdown_text)
+        if not result.success:
+            return {
+                "status": "error",
+                "message": "编译失败",
+                "errors": result.errors,
+            }
+        return {
+            "status": "success",
+            "rego_text": result.rego_text,
+            "rules": result.rules,
+        }
+
+    def hot_update_markdown_policy(self, policy_id: str, markdown_text: str) -> Dict[str, Any]:
+        compile_result = self.compiler.compile(markdown_text)
+        if not compile_result.success:
+            return {
+                "status": "error",
+                "message": "编译失败，旧策略保持运行",
+                "errors": compile_result.errors,
+            }
+
+        current_version = self.version_storage.get_latest_version(policy_id)
+        current_version_num = 0
+        if current_version:
+            current_version_num = current_version.get("version", 0)
+
+        new_version = current_version_num + 1
+
+        self.version_storage.save_version(
+            policy_id=policy_id,
+            rego_text=compile_result.rego_text,
+            markdown_text=markdown_text,
+            version=new_version,
+        )
+
+        load_result = self.opa_manager.load_policy(
+            policy_id=policy_id,
+            rego_content=compile_result.rego_text,
+        )
+
+        if not load_result:
+            return {
+                "status": "error",
+                "message": "策略加载到OPA失败，旧策略保持运行",
+            }
+
+        self.opa_manager.clear_cache()
+
+        return {
+            "status": "success",
+            "policy_id": policy_id,
+            "version": new_version,
+            "rego_text": compile_result.rego_text,
+        }
+
+
+class ABACService:
+
+    CLEARANCE_ORDER = {
+        "public": 1,
+        "confidential": 2,
+        "secret": 3,
+        "top_secret": 4,
+    }
+
+    def __init__(self, opa_manager: OPAManager = None):
+        self.opa_manager = opa_manager or OPAManager()
+
+    def check_permission_abac(
+        self,
+        subject: Dict[str, Any],
+        action: Dict[str, Any],
+        resource: Dict[str, Any],
+        env: Dict[str, Any] = None,
+    ) -> Dict[str, Any]:
+        user_id = subject.get("user_id", "")
+        roles = subject.get("roles", [])
+        clearance_level = subject.get("clearance_level", "public")
+
+        action_type = action.get("type", "")
+        action_category = action.get("category", "general")
+
+        resource_type = resource.get("type", "")
+        classification = resource.get("classification", "public")
+        workspace_id = resource.get("workspace_id", "")
+
+        environment = env or {}
+        time_info = environment.get("time", "")
+        ip = environment.get("ip", "")
+        isolation_level = environment.get("isolation_level", "standard")
+
+        if "system_admin" in roles:
+            return {
+                "allow": True,
+                "reason": "System admin has all permissions",
+                "policy_version": self.opa_manager.get_bundle_version(),
+            }
+
+        clearance_sufficient = self._check_clearance(clearance_level, classification)
+        if not clearance_sufficient:
+            return {
+                "allow": False,
+                "reason": "Insufficient clearance level",
+                "policy_version": self.opa_manager.get_bundle_version(),
+            }
+
+        workspace_ok = self._check_workspace(subject, workspace_id, isolation_level)
+        if not workspace_ok:
+            return {
+                "allow": False,
+                "reason": "Workspace isolation violation",
+                "policy_version": self.opa_manager.get_bundle_version(),
+            }
+
+        action_ok = self._check_action_permission(roles, action_type, action_category)
+        if not action_ok:
+            return {
+                "allow": False,
+                "reason": "Action not permitted for assigned roles",
+                "policy_version": self.opa_manager.get_bundle_version(),
+            }
+
+        if environment:
+            env_ok = self._check_environment(environment, subject)
+            if not env_ok["allowed"]:
+                return {
+                    "allow": False,
+                    "reason": env_ok["reason"],
+                    "policy_version": self.opa_manager.get_bundle_version(),
+                }
+
+        return {
+            "allow": True,
+            "reason": "Permission granted",
+            "policy_version": self.opa_manager.get_bundle_version(),
+        }
+
+    def _check_clearance(self, user_level: str, required_level: str) -> bool:
+        user_order = self.CLEARANCE_ORDER.get(user_level, 0)
+        required_order = self.CLEARANCE_ORDER.get(required_level, 0)
+        return user_order >= required_order
+
+    def _check_workspace(self, subject: Dict, resource_workspace: str, isolation_level: str) -> bool:
+        if isolation_level == "strict":
+            subject_ws = subject.get("workspace_id", "")
+            if subject_ws and resource_workspace and subject_ws != resource_workspace:
+                return False
+        return True
+
+    def _check_action_permission(self, roles: List[str], action_type: str, action_category: str) -> bool:
+        role_permissions = {
+            "commander": ["view", "create", "update", "delete", "approve", "command_units", "authorize_attacks"],
+            "analyst": ["view", "analyze_data", "generate_reports", "view_intelligence"],
+            "operator": ["view", "perform", "observe"],
+            "observer": ["view"],
+            "auditor": ["view", "export"],
+            "admin": ["*"],
+            "team_leader": ["view", "create", "update", "approve"],
+            "member": ["view", "create", "update"],
+            "project_owner": ["view", "create", "update", "delete", "approve"],
+            "guest": ["view"],
+        }
+
+        for role in roles:
+            perms = role_permissions.get(role, [])
+            if "*" in perms or action_type in perms:
+                return True
+
+        return False
+
+    def _check_environment(self, env: Dict, subject: Dict) -> Dict[str, Any]:
+        time_of_day = env.get("time_of_day")
+        if time_of_day:
+            restricted_hours = subject.get("restricted_hours")
+            if restricted_hours:
+                start = restricted_hours.get("start")
+                end = restricted_hours.get("end")
+                if start and end:
+                    if time_of_day < start or time_of_day > end:
+                        return {"allowed": False, "reason": "Outside allowed working hours"}
+
+        ip_restriction = env.get("ip_restriction")
+        if ip_restriction:
+            allowed_ips = subject.get("allowed_ips", [])
+            if allowed_ips and ip_restriction not in allowed_ips:
+                return {"allowed": False, "reason": "IP address not allowed"}
+
+        return {"allowed": True, "reason": "Environment constraints satisfied"}
+
+
+OPAManagerV2 = OPAManager
+
+
 if __name__ == "__main__":
     manager = OPAManager()
 

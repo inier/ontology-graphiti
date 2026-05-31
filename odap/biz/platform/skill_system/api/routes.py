@@ -182,3 +182,79 @@ async def sync_from_catalog():
         raise
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
+
+
+@router.post("/register")
+async def register_skill_hotplug(
+    name: str,
+    skill_type: str,
+    description: str = "",
+    category: str = "general",
+    tags: Optional[List[str]] = None
+):
+    try:
+        return skill_service.register_skill_hotplug(
+            name=name,
+            skill_type=SkillType(skill_type),
+            description=description,
+            category=category,
+            tags=tags,
+        )
+    except HTTPException:
+        raise
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@router.delete("/{skill_id}")
+async def unregister_skill(skill_id: str):
+    try:
+        result = skill_service.unregister_skill(skill_id)
+        if result.get("status") == "error":
+            raise HTTPException(status_code=404, detail=result.get("message"))
+        return result
+    except HTTPException:
+        raise
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@router.get("/discover")
+async def discover_skills(q: Optional[str] = None):
+    try:
+        return skill_service.discover_skills(query=q)
+    except HTTPException:
+        raise
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@router.get("/{skill_id}/status")
+async def get_skill_lifecycle_status(skill_id: str):
+    try:
+        result = skill_service.get_skill(skill_id)
+        if result.get("status") == "error":
+            raise HTTPException(status_code=404, detail=result.get("message"))
+        return {
+            "skill_id": result.get("skill_id"),
+            "name": result.get("name"),
+            "status": result.get("status"),
+            "type": result.get("type"),
+        }
+    except HTTPException:
+        raise
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@router.put("/{skill_id}/lifecycle")
+async def transition_lifecycle(skill_id: str, target_status: str):
+    try:
+        result = skill_service.transition_lifecycle(skill_id, target_status)
+        if result.get("status") == "error":
+            raise HTTPException(status_code=400, detail=result.get("message"))
+        return result
+    except HTTPException:
+        raise
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))

@@ -1,0 +1,33 @@
+{
+  "agent": {
+    "title": "Agent调度中心",
+    "dispatch": "意图分发",
+    "decisions": "决策记录",
+    "chain": "决策链路",
+    "intentPlaceholder": "输入意图，例如：分析B区威胁",
+    "dispatchButton": "分发",
+    "taskId": "任务ID",
+    "assignedAgent": "分配Agent",
+    "confidence": "置信度",
+    "source": "来源",
+    "status": "状态",
+    "planSteps": "计划步骤",
+    "viewChain": "查看链路",
+    "reasoning": "推理过程",
+    "refresh": "刷新",
+    "selectDecision": "选择一个决策查看链路"
+  },
+  "skill": {
+    "title": "Skill管理",
+    "register": "注册",
+    "unregister": "注销",
+    "discover": "发现",
+    "lifecycle": "生命周期",
+    "archive": "归档",
+    "name": "名称",
+    "type": "类型",
+    "category": "分类",
+    "version": "版本",
+    "searchPlaceholder": "搜索Skill..."
+  }
+}

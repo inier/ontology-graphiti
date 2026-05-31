@@ -1,13 +1,55 @@
-import { useState } from 'react';
-import { useNavigate } from 'react-router-dom';
-import { Form, Input, Button, message } from 'antd';
-import { UserOutlined, LockOutlined, SafetyCertificateOutlined, ApartmentOutlined, TeamOutlined, ThunderboltOutlined } from '@ant-design/icons';
+import { useState, useEffect } from 'react';
+import { useNavigate, useSearchParams } from 'react-router-dom';
+import { Form, Input, Button, message, Divider } from 'antd';
+import { UserOutlined, LockOutlined, SafetyCertificateOutlined, ApartmentOutlined, TeamOutlined, ThunderboltOutlined, GithubOutlined, GoogleOutlined } from '@ant-design/icons';
 import { useAuthStore } from '../stores/authStore';
+import { API_BASE } from '../../../config';
 
 export function LoginPage() {
   const navigate = useNavigate();
+  const [searchParams] = useSearchParams();
   const login = useAuthStore((s) => s.login);
+  const loginSSO = useAuthStore((s) => s.loginSSO);
   const [loading, setLoading] = useState(false);
+  const [ssoProviders, setSsoProviders] = useState<{ provider_id: string; display_name: string }[]>([]);
+
+  useEffect(() => {
+    const code = searchParams.get('code');
+    const state = searchParams.get('state');
+    const provider = searchParams.get('provider');
+    if (code && state && provider) {
+      handleSSOCallback(provider, code, state);
+    }
+  }, [searchParams]);
+
+  useEffect(() => {
+    fetchSSOProviders();
+  }, []);
+
+  const fetchSSOProviders = async () => {
+    try {
+      const response = await fetch(`${API_BASE}/api/auth/sso/providers`);
+      if (response.ok) {
+        const data = await response.json();
+        setSsoProviders(data.providers || []);
+      }
+    } catch {
+      // SSO providers not available
+    }
+  };
+
+  const handleSSOCallback = async (provider: string, code: string, state: string) => {
+    setLoading(true);
+    try {
+      await loginSSO(provider, code, state);
+      message.success('SSO登录成功');
+      navigate('/');
+    } catch {
+      message.error('SSO登录失败');
+    } finally {
+      setLoading(false);
+    }
+  };
 
   const onFinish = async (values: { username: string; password: string }) => {
     setLoading(true);
@@ -20,6 +62,28 @@ export function LoginPage() {
     } finally {
       setLoading(false);
     }
+  };
+
+  const handleSSOLogin = async (providerId: string) => {
+    try {
+      const response = await fetch(`${API_BASE}/api/auth/sso/${providerId}`);
+      if (response.ok) {
+        const data = await response.json();
+        if (data.authorize_url) {
+          window.location.href = data.authorize_url;
+        }
+      } else {
+        message.error('获取SSO登录地址失败');
+      }
+    } catch {
+      message.error('SSO登录失败');
+    }
+  };
+
+  const getProviderIcon = (providerId: string) => {
+    if (providerId === 'github') return <GithubOutlined />;
+    if (providerId === 'google') return <GoogleOutlined />;
+    return <ApartmentOutlined />;
   };
 
   const features = [
@@ -178,6 +242,27 @@ export function LoginPage() {
             </Button>
           </Form.Item>
         </Form>
+
+        {ssoProviders.length > 0 && (
+          <>
+            <Divider style={{ margin: '24px 0', color: '#8c8c8c', fontSize: 13 }}>或使用 SSO 登录</Divider>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
+              {ssoProviders.map((provider) => (
+                <Button
+                  key={provider.provider_id}
+                  icon={getProviderIcon(provider.provider_id)}
+                  onClick={() => handleSSOLogin(provider.provider_id)}
+                  size="large"
+                  style={{ height: 44, borderRadius: 10 }}
+                  block
+                >
+                  {provider.display_name} 登录
+                </Button>
+              ))}
+            </div>
+          </>
+        )}
+
         <div style={{ marginTop: 32, padding: '16px 20px', background: '#f6f8fa', borderRadius: 10 }}>
           <div style={{ fontSize: 12, color: '#8c8c8c', marginBottom: 6 }}>演示账号</div>
           <div style={{ fontSize: 13, color: '#595959' }}>

@@ -1,0 +1,32 @@
+{
+  "policy": {
+    "title": "策略管理",
+    "create": "创建策略",
+    "edit": "编辑策略",
+    "compile": "编译",
+    "hotUpdate": "热更新",
+    "versionHistory": "版本历史",
+    "compileStatus": "编译状态",
+    "compileSuccess": "编译成功",
+    "compileFailed": "编译失败",
+    "name": "策略名称",
+    "category": "策略分类",
+    "description": "策略描述",
+    "content": "策略内容",
+    "status": "状态",
+    "version": "版本",
+    "enabled": "启用",
+    "disabled": "禁用"
+  },
+  "audit": {
+    "title": "审计日志",
+    "timeline": "审计时间线",
+    "actor": "操作者",
+    "action": "操作",
+    "resource": "资源",
+    "result": "结果",
+    "timestamp": "时间",
+    "filter": "过滤",
+    "export": "导出"
+  }
+}

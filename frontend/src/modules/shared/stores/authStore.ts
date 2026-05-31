@@ -16,6 +16,9 @@ interface AuthState {
   error: string | null;
 
   login: (username: string, password: string) => Promise<void>;
+  loginSSO: (provider: string, code: string, state: string) => Promise<void>;
+  refreshTokenAction: () => Promise<void>;
+  logoutAction: () => Promise<void>;
   logout: () => void;
   loadUser: () => Promise<void>;
   setCurrentRole: (roleId: string) => void;
@@ -69,6 +72,81 @@ export const useAuthStore = create<AuthState>((set, get) => ({
         loading: false,
       });
     }
+  },
+
+  loginSSO: async (provider: string, code: string, state: string) => {
+    set({ loading: true, error: null });
+    try {
+      const response = await fetch(`${API_BASE}/api/auth/sso/${provider}`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ provider, code, state }),
+      });
+
+      if (!response.ok) {
+        throw new Error(`SSO login failed: ${response.status}`);
+      }
+
+      const data = await response.json();
+      const token = data.access_token || '';
+      const refreshToken = data.refresh_token || '';
+
+      localStorage.setItem('token', token);
+      localStorage.setItem('refresh_token', refreshToken);
+
+      set({ token, refreshToken, loading: false });
+      await get().loadUser();
+    } catch (error) {
+      set({
+        error: error instanceof Error ? error.message : 'SSO login failed',
+        loading: false,
+      });
+    }
+  },
+
+  refreshTokenAction: async () => {
+    const currentRefreshToken = get().refreshToken || localStorage.getItem('refresh_token');
+    if (!currentRefreshToken) return;
+
+    try {
+      const response = await fetch(`${API_BASE}/api/auth/refresh`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ refresh_token: currentRefreshToken }),
+      });
+
+      if (!response.ok) {
+        get().logout();
+        return;
+      }
+
+      const data = await response.json();
+      const token = data.access_token || '';
+      const refreshToken = data.refresh_token || '';
+
+      localStorage.setItem('token', token);
+      localStorage.setItem('refresh_token', refreshToken);
+
+      set({ token, refreshToken });
+    } catch {
+      get().logout();
+    }
+  },
+
+  logoutAction: async () => {
+    const currentRefreshToken = get().refreshToken || localStorage.getItem('refresh_token');
+    if (currentRefreshToken) {
+      try {
+        await fetch(`${API_BASE}/api/auth/logout`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ refresh_token: currentRefreshToken }),
+        });
+      } catch {
+        // Ignore logout API errors
+      }
+    }
+    get().logout();
   },
 
   logout: () => {

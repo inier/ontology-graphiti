@@ -339,6 +339,70 @@ def log_audit(action: str, resource: str = None, user: str = None, service: str 
         pass
 
 
+def audit_opa_decision(
+    subject: str,
+    action: str,
+    resource: str,
+    result: str,
+    reason: str = "",
+    policy_version: str = "",
+    service: str = "opa",
+) -> None:
+    event = AuditEvent(
+        id=str(uuid.uuid4()),
+        timestamp=datetime.now(),
+        event_type=AuditEventType.POLICY_EVALUATE,
+        severity=AuditSeverity.INFO if result == "allow" else AuditSeverity.WARN,
+        source=service,
+        actor={
+            "actor_type": "user",
+            "actor_id": subject,
+            "actor_name": subject,
+            "roles": [],
+        },
+        action=action,
+        resource={
+            "resource_type": "policy_decision",
+            "resource_id": resource,
+            "resource_name": resource,
+            "attributes": {
+                "decision_result": result,
+                "decision_reason": reason,
+                "policy_version": policy_version,
+            },
+        },
+        result={
+            "status": result,
+            "message": reason,
+        },
+        context={
+            "subject": subject,
+            "action": action,
+            "resource": resource,
+            "result": result,
+            "reason": reason,
+            "policy_version": policy_version,
+        },
+        workspace_id="default",
+        trace_id=str(uuid.uuid4()),
+        parent_event_id=None,
+        duration_ms=None,
+    )
+
+    try:
+        sqlite_ch = get_channel()
+        sqlite_ch.write_sync(event)
+        sqlite_ch.flush_sync()
+    except Exception as e:
+        logger.warning(f"OPA audit write failed: {e}")
+
+    try:
+        graphiti_ch = get_graphiti_channel()
+        _run_sync(graphiti_ch.write(event))
+    except Exception:
+        pass
+
+
 def get_audit_logs(user: str = None, service: str = None, action: str = None, limit: int = 100) -> List[Dict[str, Any]]:
     """简化的审计日志查询"""
     channel = get_channel()
@@ -387,6 +451,7 @@ __all__ = [
     'get_stats',
     'log_audit',
     'get_audit_logs',
+    'audit_opa_decision',
 
     # 数据模型
     'AuditSeverity',

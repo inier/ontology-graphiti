@@ -23,6 +23,17 @@ class RefreshRequest(BaseModel):
     refresh_token: str
 
 
+class SSOCallbackRequest(BaseModel):
+    provider: str
+    code: str
+    state: str
+    redirect_uri: Optional[str] = ""
+
+
+class LogoutRequest(BaseModel):
+    refresh_token: str
+
+
 class CreateUserRequest(BaseModel):
     username: str
     password: str
@@ -59,6 +70,54 @@ async def login(request: LoginRequest, req: Request):
     }
 
 
+@router.get("/sso/{provider}")
+async def sso_authorize(provider: str, redirect_uri: str = ""):
+    result = auth_service.get_oauth2_authorize_url(provider, redirect_uri)
+    if "error" in result:
+        raise HTTPException(status_code=400, detail=result["error"])
+    return result
+
+
+@router.post("/sso/{provider}")
+async def sso_callback(provider: str, data: SSOCallbackRequest):
+    try:
+        result = await auth_service.authenticate_oauth2(
+            provider_id=provider,
+            code=data.code,
+            state=data.state,
+            redirect_uri=data.redirect_uri,
+        )
+        if not result:
+            raise HTTPException(status_code=401, detail="SSO认证失败")
+        return result.model_dump()
+    except HTTPException:
+        raise
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@router.get("/sso/providers")
+async def list_sso_providers():
+    providers = auth_service.list_oauth2_providers()
+    return {"providers": providers}
+
+
+@router.post("/refresh")
+async def refresh(request: RefreshRequest):
+    result = auth_service.refresh(request.refresh_token)
+    if not result:
+        raise HTTPException(status_code=401, detail="Invalid refresh token")
+    return result.model_dump()
+
+
+@router.post("/logout")
+async def logout(request: LogoutRequest):
+    success = auth_service.logout(request.refresh_token)
+    if not success:
+        raise HTTPException(status_code=400, detail="Logout failed")
+    return {"status": "ok", "message": "Logged out"}
+
+
 @router.get("/me")
 async def me(user: dict = Depends(get_current_user)):
     global_role = user.get("role", "")
@@ -70,14 +129,6 @@ async def me(user: dict = Depends(get_current_user)):
         "ws_id": user.get("ws_id", ""),
         "ws_role": user.get("ws_role", ""),
     }
-
-
-@router.post("/refresh")
-async def refresh(request: RefreshRequest):
-    result = auth_service.refresh(request.refresh_token)
-    if not result:
-        raise HTTPException(status_code=401, detail="Invalid refresh token")
-    return result.model_dump()
 
 
 @router.get("/users")

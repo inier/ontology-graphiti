@@ -1,0 +1,32 @@
+{
+  "policy": {
+    "title": "Policy Management",
+    "create": "Create Policy",
+    "edit": "Edit Policy",
+    "compile": "Compile",
+    "hotUpdate": "Hot Update",
+    "versionHistory": "Version History",
+    "compileStatus": "Compile Status",
+    "compileSuccess": "Compile Success",
+    "compileFailed": "Compile Failed",
+    "name": "Policy Name",
+    "category": "Category",
+    "description": "Description",
+    "content": "Content",
+    "status": "Status",
+    "version": "Version",
+    "enabled": "Enabled",
+    "disabled": "Disabled"
+  },
+  "audit": {
+    "title": "Audit Logs",
+    "timeline": "Audit Timeline",
+    "actor": "Actor",
+    "action": "Action",
+    "resource": "Resource",
+    "result": "Result",
+    "timestamp": "Timestamp",
+    "filter": "Filter",
+    "export": "Export"
+  }
+}

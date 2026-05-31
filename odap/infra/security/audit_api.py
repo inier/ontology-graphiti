@@ -434,7 +434,10 @@ async def query_logs(
     level: Optional[str] = None,
     log_type: Optional[str] = None,
     service: Optional[str] = None,
-    user: Optional[str] = None
+    user: Optional[str] = None,
+    actor: Optional[str] = None,
+    action: Optional[str] = None,
+    result: Optional[str] = None,
 ):
     try:
         filter_kwargs = {
@@ -452,6 +455,14 @@ async def query_logs(
                 pass
         if user:
             filter_kwargs["actor_ids"] = [user]
+        if actor:
+            existing = filter_kwargs.get("actor_ids", [])
+            existing.append(actor)
+            filter_kwargs["actor_ids"] = existing
+        if action:
+            filter_kwargs["keyword"] = action
+        if result:
+            filter_kwargs["result_status"] = [result]
 
         audit_filter = AuditFilter(**filter_kwargs)
 
@@ -469,7 +480,8 @@ async def query_logs(
                 "action": event.action,
                 "details": event.context,
                 "user": event.actor.actor_id,
-                "resource": event.resource.resource_id
+                "resource": event.resource.resource_id,
+                "result_status": event.result.status,
             })
 
         total_count = _get_total_count(channel, filter_kwargs)
@@ -479,6 +491,39 @@ async def query_logs(
             "page": page,
             "page_size": page_size,
             "items": logs
+        }
+    except HTTPException:
+        raise
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@router.get("/timeline/resource/{resource_id}")
+async def get_resource_timeline(
+    resource_id: str,
+    limit: int = Query(100, ge=1, le=500)
+):
+    try:
+        filter_kwargs = {
+            "limit": limit,
+            "order_by": "timestamp",
+            "order_desc": True,
+            "resource_ids": [resource_id],
+        }
+
+        audit_filter = AuditFilter(**filter_kwargs)
+
+        channel = _get_channel()
+        events = await channel.query(audit_filter)
+
+        result = [_event_to_flat_dict(event) for event in events]
+
+        total_count = _get_total_count(channel, filter_kwargs)
+
+        return {
+            "resource_id": resource_id,
+            "events": result,
+            "total": total_count,
         }
     except HTTPException:
         raise

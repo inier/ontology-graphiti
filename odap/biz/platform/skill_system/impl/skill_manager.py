@@ -33,10 +33,19 @@ def _infer_skill_type(category: str) -> SkillType:
 class SkillManager(ISkillManager):
     """Skill管理器实现"""
 
+    LIFECYCLE_TRANSITIONS = {
+        SkillStatus.DRAFT: [SkillStatus.ACTIVE, SkillStatus.ARCHIVED],
+        SkillStatus.ACTIVE: [SkillStatus.INACTIVE, SkillStatus.DEPRECATED],
+        SkillStatus.INACTIVE: [SkillStatus.ACTIVE, SkillStatus.DEPRECATED, SkillStatus.ARCHIVED],
+        SkillStatus.DEPRECATED: [SkillStatus.ARCHIVED],
+        SkillStatus.ARCHIVED: [],
+    }
+
     def __init__(self):
         self._skills: Dict[str, Skill] = {}
         self._name_index: Dict[str, str] = {}
         self._synced = False
+        self._skill_adapter = None
 
     def sync_from_catalog(self) -> int:
         """从 SKILL_CATALOG 同步技能到管理器
@@ -241,3 +250,82 @@ class SkillManager(ISkillManager):
             }
         except Exception as e:
             return {"error": str(e), "synced": False}
+
+    def transition_lifecycle(self, skill_id: str, target_status: SkillStatus) -> Skill:
+        skill = self._skills.get(skill_id)
+        if not skill:
+            raise ValueError("Skill not found")
+
+        allowed = self.LIFECYCLE_TRANSITIONS.get(skill.status, [])
+        if target_status not in allowed:
+            raise ValueError(f"Cannot transition from {skill.status.value} to {target_status.value}")
+
+        skill.status = target_status
+        skill.updated_at = datetime.now()
+
+        if target_status == SkillStatus.ACTIVE:
+            self._sync_status_to_harness(skill.name, True)
+            self._register_to_adapter(skill)
+        elif target_status in (SkillStatus.INACTIVE, SkillStatus.DEPRECATED, SkillStatus.ARCHIVED):
+            self._sync_status_to_harness(skill.name, False)
+            if target_status == SkillStatus.ARCHIVED:
+                self._unregister_from_adapter(skill_id)
+
+        return skill
+
+    def _get_skill_adapter(self):
+        if self._skill_adapter is not None:
+            return self._skill_adapter
+        try:
+            from odap.biz.integration.openharness_agent.adapter.skill_adapter import SkillAdapter
+            self._skill_adapter = SkillAdapter()
+        except Exception as e:
+            logger.warning(f"SkillAdapter not available: {e}")
+            self._skill_adapter = None
+        return self._skill_adapter
+
+    def _register_to_adapter(self, skill: Skill) -> None:
+        adapter = self._get_skill_adapter()
+        if not adapter:
+            return
+        try:
+            adapter.register_skill({
+                "skill_id": skill.id,
+                "name": skill.name,
+                "description": skill.description,
+                "category": skill.category,
+            })
+        except Exception as e:
+            logger.warning(f"Failed to register skill to adapter: {e}")
+
+    def _unregister_from_adapter(self, skill_id: str) -> None:
+        adapter = self._get_skill_adapter()
+        if not adapter:
+            return
+        try:
+            adapter.unregister_skill(skill_id)
+        except Exception as e:
+            logger.warning(f"Failed to unregister skill from adapter: {e}")
+
+    def discover_skills(self, query: Optional[str] = None) -> List[Dict[str, Any]]:
+        self._ensure_synced()
+        results = []
+        for skill in self._skills.values():
+            if query:
+                if query.lower() in skill.name.lower() or query.lower() in skill.description.lower() or query.lower() in skill.category.lower():
+                    results.append({
+                        "skill_id": skill.id,
+                        "name": skill.name,
+                        "description": skill.description,
+                        "category": skill.category,
+                        "status": skill.status.value,
+                    })
+            else:
+                results.append({
+                    "skill_id": skill.id,
+                    "name": skill.name,
+                    "description": skill.description,
+                    "category": skill.category,
+                    "status": skill.status.value,
+                })
+        return results

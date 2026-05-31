@@ -111,6 +111,23 @@ class DomainEventBus:
             "result": result,
         }, workspace_id)
 
+    async def emit_decision_step(self, decision_id: str, phase: str, description: str,
+                                  evidence: Optional[list] = None, workspace_id: Optional[str] = None):
+        await self.emit("decision:step", {
+            "decision_id": decision_id,
+            "phase": phase,
+            "description": description,
+            "evidence": evidence or [],
+        }, workspace_id)
+
+    async def emit_decision_completed(self, decision_id: str, reasoning: str,
+                                       evidence: Optional[list] = None, workspace_id: Optional[str] = None):
+        await self.emit("decision:completed", {
+            "decision_id": decision_id,
+            "reasoning": reasoning,
+            "evidence": evidence or [],
+        }, workspace_id)
+
     async def _broadcast(self, message: str, workspace_id: Optional[str] = None):
         dead: Set[WebSocket] = set()
         targets = self._workspace_clients.get(workspace_id, set()) if workspace_id else self._ws_clients

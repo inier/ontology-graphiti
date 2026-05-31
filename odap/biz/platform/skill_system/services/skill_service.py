@@ -181,3 +181,43 @@ class SkillService:
             "synced_count": count,
             "total_skills": len(self.manager._skills)
         }
+
+    def transition_lifecycle(self, skill_id: str, target_status: str) -> Dict[str, Any]:
+        try:
+            skill = self.manager.transition_lifecycle(skill_id, SkillStatus(target_status))
+            return {
+                "skill_id": skill.id,
+                "name": skill.name,
+                "status": skill.status.value,
+                "updated_at": skill.updated_at.isoformat(),
+            }
+        except ValueError as e:
+            return {"status": "error", "message": str(e)}
+
+    def discover_skills(self, query: Optional[str] = None) -> Dict[str, Any]:
+        results = self.manager.discover_skills(query)
+        return {
+            "status": "success",
+            "skills": results,
+            "count": len(results),
+        }
+
+    def register_skill_hotplug(self, name: str, skill_type: SkillType,
+                                description: str = "", category: str = "general",
+                                tags: Optional[List[str]] = None) -> Dict[str, Any]:
+        skill = self.manager.register_skill(name, skill_type, description, category, tags)
+        self.manager.transition_lifecycle(skill.id, SkillStatus.ACTIVE)
+        return {
+            "skill_id": skill.id,
+            "name": skill.name,
+            "type": skill.type.value,
+            "status": skill.status.value,
+            "created_at": skill.created_at.isoformat(),
+        }
+
+    def unregister_skill(self, skill_id: str) -> Dict[str, Any]:
+        try:
+            self.manager.transition_lifecycle(skill_id, SkillStatus.ARCHIVED)
+            return {"status": "success", "skill_id": skill_id, "lifecycle": "archived"}
+        except ValueError as e:
+            return {"status": "error", "message": str(e)}
