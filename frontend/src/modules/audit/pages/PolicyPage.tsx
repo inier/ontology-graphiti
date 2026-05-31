@@ -74,7 +74,6 @@ const getCategoryLabel = (cat: string) => {
 const PolicyPage: React.FC = () => {
   const {
     policies,
-    auditLogs,
     policyVersions,
     compileStatus,
     loading,
@@ -83,7 +82,6 @@ const PolicyPage: React.FC = () => {
     savePolicy,
     compilePolicy,
     hotUpdate,
-    loadAuditLogs,
     getCompileStatus,
   } = useAuditStore();
 
@@ -91,7 +89,6 @@ const PolicyPage: React.FC = () => {
   const [editModalOpen, setEditModalOpen] = useState(false);
   const [versionModalOpen, setVersionModalOpen] = useState(false);
   const [selectedPolicy, setSelectedPolicy] = useState<Policy | null>(null);
-  const [activeTab, setActiveTab] = useState('policies');
 
   const [createForm] = Form.useForm();
   const [editForm] = Form.useForm();
@@ -99,12 +96,6 @@ const PolicyPage: React.FC = () => {
   useEffect(() => {
     loadPolicies();
   }, [loadPolicies]);
-
-  useEffect(() => {
-    if (activeTab === 'audit') {
-      loadAuditLogs({ page: 1, page_size: 50 });
-    }
-  }, [activeTab, loadAuditLogs]);
 
   const handleCreate = async (values: Record<string, unknown>) => {
     const result = await savePolicy({
@@ -228,34 +219,18 @@ const PolicyPage: React.FC = () => {
     },
   ];
 
-  const auditColumns = [
-    { title: '时间', dataIndex: 'timestamp', key: 'timestamp', width: 170 },
-    { title: '操作', dataIndex: 'action', key: 'action', width: 150 },
-    { title: '用户', dataIndex: 'user', key: 'user', width: 120 },
-    { title: '资源', dataIndex: 'resource', key: 'resource', width: 150 },
-    {
-      title: '结果',
-      dataIndex: 'result_status',
-      key: 'result_status',
-      width: 100,
-      render: (status: string) => (
-        <Tag color={status === 'success' || status === 'allow' ? 'green' : 'red'}>{status}</Tag>
-      ),
-    },
-  ];
-
   return (
     <div style={{ padding: '0 0 24px 0' }}>
       <Card
         title={
           <Space>
             <SafetyCertificateOutlined />
-            <span>策略与审计管理</span>
+            <span>策略管理</span>
           </Space>
         }
         extra={
           <Space>
-            <Button icon={<ReloadOutlined />} onClick={() => { loadPolicies(); loadAuditLogs({ page: 1, page_size: 50 }); }}>
+            <Button icon={<ReloadOutlined />} onClick={() => { loadPolicies(); }}>
               刷新
             </Button>
             <Button type="primary" icon={<PlusOutlined />} onClick={() => setCreateModalOpen(true)}>
@@ -264,7 +239,7 @@ const PolicyPage: React.FC = () => {
           </Space>
         }
       >
-        <Tabs activeKey={activeTab} onChange={setActiveTab} items={[
+        <Tabs items={[
           {
             key: 'policies',
             label: (
@@ -282,25 +257,6 @@ const PolicyPage: React.FC = () => {
                 loading={loading}
                 pagination={{ pageSize: 10, showTotal: (total) => `共 ${total} 条策略` }}
                 locale={{ emptyText: <Empty description="暂无策略" /> }}
-              />
-            ),
-          },
-          {
-            key: 'audit',
-            label: (
-              <Space>
-                <EyeOutlined />
-                <span>审计日志</span>
-              </Space>
-            ),
-            children: (
-              <Table
-                columns={auditColumns}
-                dataSource={auditLogs}
-                rowKey="id"
-                loading={loading}
-                pagination={{ pageSize: 10 }}
-                locale={{ emptyText: <Empty description="暂无审计日志" /> }}
               />
             ),
           },

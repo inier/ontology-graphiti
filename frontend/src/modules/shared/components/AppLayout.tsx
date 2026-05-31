@@ -138,6 +138,10 @@ const primaryMenus: PrimaryMenu[] = [
     children: [
       { key: '/ontology/designer', icon: <BlockOutlined />, label: '本体设计器' },
       { key: '/business/entities', icon: <UnorderedListOutlined />, label: '对象管理' },
+      { key: '/business/process', icon: <BranchesOutlined />, label: '业务过程' },
+      { key: '/business/rules', icon: <FileProtectOutlined />, label: '规则' },
+      { key: '/business/indicators', icon: <FundOutlined />, label: '指标' },
+      { key: '/business/logic', icon: <NodeIndexOutlined />, label: '逻辑' },
       { key: '/ingest', icon: <ExperimentOutlined />, label: '数据摄入' },
       { key: '/blueprint', icon: <PartitionOutlined />, label: '蓝图设计' },
       { key: '/versions', icon: <HistoryOutlined />, label: '版本历史' },
@@ -172,17 +176,6 @@ const primaryMenus: PrimaryMenu[] = [
       { key: '/knowledge', icon: <DatabaseOutlined />, label: '知识库' },
       { key: '/knowledge/navigation', icon: <CompassOutlined />, label: '知识导航' },
       { key: '/qa', icon: <QuestionCircleOutlined />, label: '智能问答' },
-    ],
-  },
-  {
-    key: 'business-rules',
-    icon: <FileProtectOutlined />,
-    label: '业务规则',
-    children: [
-      { key: '/business/process', icon: <BranchesOutlined />, label: '业务过程' },
-      { key: '/business/rules', icon: <FileProtectOutlined />, label: '规则' },
-      { key: '/business/indicators', icon: <FundOutlined />, label: '指标' },
-      { key: '/business/logic', icon: <NodeIndexOutlined />, label: '逻辑' },
     ],
   },
   {
