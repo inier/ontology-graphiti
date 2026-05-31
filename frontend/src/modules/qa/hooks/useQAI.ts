@@ -6,6 +6,27 @@ const API_ENDPOINT = `${API_BASE}/api/qa/ask`;
 const SESSIONS_ENDPOINT = `${API_BASE}/api/qa/sessions`;
 const STREAM_API_ENDPOINT = `${API_BASE}/api/qa/ask/stream`;
 
+export type ChartSpec = {
+  chart_type: 'line' | 'bar' | 'pie' | 'scatter' | 'heatmap' | 'radar' | 'map' | 'network';
+  title?: string;
+  data: Record<string, unknown>;
+  render_mode?: string;
+};
+
+export type TemporalCard = {
+  time_type: string;
+  valid_time: string;
+  answer: string;
+  entity_count?: number;
+};
+
+export type ReportLink = {
+  report_id: string;
+  title: string;
+  summary?: string;
+  created_at?: string;
+};
+
 export type QAMessage = {
   id: string;
   role: 'user' | 'assistant';
@@ -13,6 +34,9 @@ export type QAMessage = {
   timestamp: string;
   sources?: Array<{ source: string; excerpt: string; confidence: number }>;
   intent?: { type: string; confidence: number };
+  charts?: ChartSpec[];
+  temporal?: TemporalCard[];
+  reports?: ReportLink[];
 }
 
 export type UseQAIOptions = {
@@ -114,6 +138,9 @@ export function useQAI({ sessionId: initialSessionId, workspaceId, scenarioId, a
           timestamp: msg.timestamp || new Date().toISOString(),
           sources: msg.sources,
           intent: msg.intent,
+          charts: msg.charts,
+          temporal: msg.temporal,
+          reports: msg.reports,
         })));
       } else {
         setMessages([]);
@@ -235,6 +262,51 @@ export function useQAI({ sessionId: initialSessionId, workspaceId, scenarioId, a
                     {
                       ...prev[lastIndex],
                       sources: data.value,
+                    },
+                  ];
+                }
+                return prev;
+              });
+            } else if (data.type === 'chart') {
+              setMessages(prev => {
+                const lastIndex = prev.length - 1;
+                if (lastIndex >= 0 && prev[lastIndex].role === 'assistant') {
+                  const existing = prev[lastIndex].charts || [];
+                  return [
+                    ...prev.slice(0, lastIndex),
+                    {
+                      ...prev[lastIndex],
+                      charts: [...existing, data.value],
+                    },
+                  ];
+                }
+                return prev;
+              });
+            } else if (data.type === 'temporal') {
+              setMessages(prev => {
+                const lastIndex = prev.length - 1;
+                if (lastIndex >= 0 && prev[lastIndex].role === 'assistant') {
+                  const existing = prev[lastIndex].temporal || [];
+                  return [
+                    ...prev.slice(0, lastIndex),
+                    {
+                      ...prev[lastIndex],
+                      temporal: [...existing, data.value],
+                    },
+                  ];
+                }
+                return prev;
+              });
+            } else if (data.type === 'report') {
+              setMessages(prev => {
+                const lastIndex = prev.length - 1;
+                if (lastIndex >= 0 && prev[lastIndex].role === 'assistant') {
+                  const existing = prev[lastIndex].reports || [];
+                  return [
+                    ...prev.slice(0, lastIndex),
+                    {
+                      ...prev[lastIndex],
+                      reports: [...existing, data.value],
                     },
                   ];
                 }

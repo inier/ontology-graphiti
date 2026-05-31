@@ -7,6 +7,9 @@ import { useSession } from '../hooks/useSession';
 import type { Session } from '../hooks/useSession';
 import { colors } from '../../shared/styles/colors';
 import { useWorkspace, useScenario, useRightPanel } from '../../shared';
+import { InlineChart } from '../components/InlineChart';
+import { TemporalCardView } from '../components/TemporalCardView';
+import { ReportLinkView } from '../components/ReportLinkView';
 import { css } from '@emotion/css';
 
 const { Sider, Content } = Layout;
@@ -698,6 +701,27 @@ function MessageList({ messages, isLoading }: { messages: QAMessage[]; isLoading
             <div className="message-content">
               <div className={`message-bubble ${msg.role}`}>
                 <div className="message-text">{msg.content}</div>
+                {msg.charts && msg.charts.length > 0 && (
+                  <div style={{ marginTop: 8 }}>
+                    {msg.charts.map((chart, idx) => (
+                      <InlineChart key={idx} spec={chart} />
+                    ))}
+                  </div>
+                )}
+                {msg.temporal && msg.temporal.length > 0 && (
+                  <div style={{ marginTop: 8 }}>
+                    {msg.temporal.map((t, idx) => (
+                      <TemporalCardView key={idx} card={t} />
+                    ))}
+                  </div>
+                )}
+                {msg.reports && msg.reports.length > 0 && (
+                  <div style={{ marginTop: 8 }}>
+                    {msg.reports.map((r, idx) => (
+                      <ReportLinkView key={idx} report={r} />
+                    ))}
+                  </div>
+                )}
                 {msg.sources && msg.sources.length > 0 && (
                   <div className="message-sources">
                     <div className="sources-title">参考来源</div>
