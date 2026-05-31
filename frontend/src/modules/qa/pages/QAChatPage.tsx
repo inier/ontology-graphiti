@@ -1113,7 +1113,7 @@ const pageStyles = css`
   padding: 0;
 `;
 
-export function QAChatPage({ className, style }: { className?: string; style?: React.CSSProperties }) {
+export function QAChatPage({ className, style, agentId }: { className?: string; style?: React.CSSProperties; agentId?: string }) {
   const [input, setInput] = useState('');
   const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(false);
   const [selectedSessionTitle, setSelectedSessionTitle] = useState('');
@@ -1130,6 +1130,7 @@ export function QAChatPage({ className, style }: { className?: string; style?: R
   const { messages, sendMessage, isLoading, sessionId, setSessionId, clearMessages, stop } = useQAI({
     workspaceId: currentWorkspace,
     scenarioId: currentScenario,
+    agentId: agentId,
     onSessionUpdate: () => {
       fetchSessions(currentWorkspace, currentScenario);
     },

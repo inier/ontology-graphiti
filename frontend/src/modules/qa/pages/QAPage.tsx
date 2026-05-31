@@ -182,12 +182,12 @@ function ChartPanel() {
   );
 }
 
-export function QAPage() {
+export function QAPage({ agentId }: { agentId?: string }) {
   const items = [
     {
       key: 'chat',
       label: '智能问答',
-      children: <QAChatPage />,
+      children: <QAChatPage agentId={agentId} />,
     },
     {
       key: 'temporal',
