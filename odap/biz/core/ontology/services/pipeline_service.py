@@ -63,7 +63,7 @@ class PipelineContext:
     document_id: Optional[str] = None
     error: Optional[str] = None
     success: bool = False
-    _storage = field(default_factory=_make_ingest_storage)
+    _storage: Any = field(default_factory=_make_ingest_storage)
     _stage_start_times: Dict[str, datetime] = field(default_factory=dict)
 
     def add_log(self, stage: PipelineStage, operation: str, details: Dict[str, Any],

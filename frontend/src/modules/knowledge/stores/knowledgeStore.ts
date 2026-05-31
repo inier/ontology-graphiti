@@ -1,5 +1,5 @@
 import { create } from 'zustand';
-import { knowledgePageApi } from '../services/knowledgeApi';
+import { knowledgePageApi } from '../services/knowledgePageApi';
 
 interface NavigationResult {
   navigation_id: string;
