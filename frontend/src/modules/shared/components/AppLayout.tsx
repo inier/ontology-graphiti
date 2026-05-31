@@ -156,6 +156,7 @@ const primaryMenus: PrimaryMenu[] = [
       { key: '/agent', icon: <ApiOutlined />, label: 'Agent调度' },
       { key: '/admin/agents', icon: <TeamOutlined />, label: '智能体管理' },
       { key: '/skills', icon: <AppstoreOutlined />, label: 'Skill管理' },
+      { key: '/qa', icon: <QuestionCircleOutlined />, label: '智能问答' },
     ],
   },
   {
@@ -175,7 +176,6 @@ const primaryMenus: PrimaryMenu[] = [
     children: [
       { key: '/knowledge', icon: <DatabaseOutlined />, label: '知识库' },
       { key: '/knowledge/navigation', icon: <CompassOutlined />, label: '知识导航' },
-      { key: '/qa', icon: <QuestionCircleOutlined />, label: '智能问答' },
     ],
   },
   {
@@ -203,6 +203,7 @@ primaryMenus.forEach(m => {
     routeToPrimaryMap[m.key] = m.key;
   }
 });
+routeToPrimaryMap['/agent-chat'] = 'agent';
 
 const directRoutes: Record<string, string> = {};
 
@@ -229,13 +230,13 @@ export function AppLayout({ children, currentWorkspace, onWorkspaceChange }: App
 
   const activeWorkspaceId = currentWorkspace || currentWorkspaceState;
   const leftSiderWidth = leftCollapsed ? 64 : 160;
-  const activePrimary = routeToPrimaryMap[location.pathname] || '';
+  const activePrimary = routeToPrimaryMap[location.pathname] || routeToPrimaryMap['/' + location.pathname.split('/')[1]] || '';
   const activeMenu = primaryMenus.find(m => m.key === activePrimary);
   const hasSubMenus = activeMenu && activeMenu.children && activeMenu.children.length > 0;
   const subSiderWidth = subCollapsed ? 0 : (hasSubMenus ? 180 : 0);
   const rightSiderWidth = rightCollapsed ? 0 : 280;
 
-  const isAgentMode = location.pathname === '/my-agents' || location.pathname.startsWith('/agent-chat/');
+  const isAgentMode = location.pathname.startsWith('/agent-chat/');
 
   useEffect(() => {
     loadWorkspaces();
@@ -341,16 +342,12 @@ export function AppLayout({ children, currentWorkspace, onWorkspaceChange }: App
   };
 
   const handleLogoClick = () => {
-    if (isAgentMode) {
-      navigate('/my-agents');
-    } else {
-      navigate('/ontology');
-    }
+    navigate('/ontology/designer');
   };
 
   const handleSwitchMode = () => {
     if (isAgentMode) {
-      navigate('/admin');
+      navigate('/ontology/designer');
     } else {
       navigate('/my-agents');
     }
