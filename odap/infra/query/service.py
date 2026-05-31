@@ -2,8 +2,8 @@ import logging
 from typing import Any, Dict, List, Optional
 
 from .parser import QueryParser
-from .protocols import QueryResult, QuerySource, SchemaSource, EntitySource, TopoSource
-from .sources import SchemaSourceImpl, EntitySourceImpl, TopoSourceImpl
+from .protocols import QueryResult, QuerySource, SchemaSource, EntitySource, TopoSource, TemporalSource as TemporalSourceProtocol
+from .sources import SchemaSourceImpl, EntitySourceImpl, TopoSourceImpl, TemporalSource
 
 logger = logging.getLogger(__name__)
 
@@ -21,6 +21,7 @@ class QueryService:
         schema_source: Optional[SchemaSource] = None,
         entity_source: Optional[EntitySource] = None,
         topo_source: Optional[TopoSource] = None,
+        temporal_source: Optional[TemporalSource] = None,
     ):
         if hasattr(self, "_initialized") and self._initialized:
             return
@@ -28,6 +29,7 @@ class QueryService:
         self._schema_source = schema_source or SchemaSourceImpl()
         self._entity_source = entity_source or EntitySourceImpl()
         self._topo_source = topo_source or TopoSourceImpl()
+        self._temporal_source = temporal_source or TemporalSource()
         self._initialized = True
 
     def execute(self, workspace_id: str, query: str, limit: int = 20) -> QueryResult:
@@ -113,13 +115,15 @@ class QueryService:
         return []
 
     def _execute_temporal(self, action: Optional[str], params: Dict[str, Any], workspace_id: str) -> List[Dict[str, Any]]:
-        from odap.infra.graph import GraphManager
-        gm = GraphManager()
         if action == "history":
             entity_id = params.get("id", "")
-            return gm.get_entity_history(entity_id)
+            return self._temporal_source.query_history(entity_id)
         elif action == "at":
             valid_time = params.get("valid_time", "")
+            return self._temporal_source.query_at_time(valid_time)
+        elif action == "range":
+            start_time = params.get("start_time", "")
+            end_time = params.get("end_time", "")
             entity_type = params.get("type")
-            return gm.query_temporal(valid_time=valid_time, entity_type=entity_type)
-        return []
+            return self._temporal_source.query_range(start_time, end_time, entity_type=entity_type)
+        return self._temporal_source.query(params)

@@ -1403,50 +1403,44 @@ class GraphManager:
         return _run_async(get_history())
 
     def query_temporal(self, valid_time=None, transaction_time=None, entity_type=None) -> List[Dict]:
-        """
-        双时态查询 API
-
-        Args:
-            valid_time: 有效时间，实体状态有效的时间点或范围
-            transaction_time: 事务时间，数据被记录到系统的时间点或范围
-            entity_type: 实体类型（可选）
-
-        Returns:
-            符合时态条件的实体列表
-        """
         if self._use_fallback or not self._connected:
-            # 回退模式不支持时态查询，返回所有实体
             print("警告: 回退模式不支持时态查询，返回所有实体")
             return self.query_entities(entity_type)
 
-        # Graphiti模式：使用时态参数查询
         async def temporal_query():
             try:
-                # 构建查询参数
-                query_params = {}
+                reference_time = None
                 if valid_time:
-                    query_params['valid_time'] = valid_time
-                if transaction_time:
-                    query_params['transaction_time'] = transaction_time
+                    if isinstance(valid_time, str):
+                        reference_time = datetime.fromisoformat(valid_time.replace('Z', '+00:00'))
+                    else:
+                        reference_time = valid_time
+                else:
+                    reference_time = datetime.now(timezone.utc)
 
-                # 调用Graphiti的时态查询
                 episodes = await self.graph.retrieve_episodes(
-                    reference_time=datetime.now(),
-                    **query_params
+                    reference_time=reference_time,
                 )
 
-                # 过滤实体类型
                 result = []
                 for episode in episodes:
                     if entity_type and episode.name and entity_type.lower() not in episode.name.lower():
                         continue
 
+                    ep_valid_time = str(episode.reference_time) if hasattr(episode, 'reference_time') and episode.reference_time else str(episode.created_at)
+                    ep_transaction_time = str(episode.created_at)
+
+                    if transaction_time:
+                        if isinstance(transaction_time, str):
+                            if ep_transaction_time > transaction_time:
+                                continue
+
                     result.append({
                         "id": episode.name or str(episode.uuid),
                         "type": "Entity",
                         "properties": {"body": episode.content},
-                        "valid_time": str(episode.created_at),
-                        "transaction_time": str(episode.created_at)
+                        "valid_time": ep_valid_time,
+                        "transaction_time": ep_transaction_time,
                     })
 
                 return result
@@ -1455,6 +1449,12 @@ class GraphManager:
                 return self.query_entities(entity_type)
 
         return _run_async(temporal_query())
+
+    def query_at_valid_time(self, entity_type=None, valid_time=None) -> List[Dict]:
+        return self.query_temporal(valid_time=valid_time, entity_type=entity_type)
+
+    def query_at_transaction_time(self, entity_type=None, transaction_time=None) -> List[Dict]:
+        return self.query_temporal(transaction_time=transaction_time, entity_type=entity_type)
 
     def search_hybrid(self, query_text: str, top_k: int = 5, vector_weight: float = 0.7, keyword_weight: float = 0.3) -> List[Dict]:
         """

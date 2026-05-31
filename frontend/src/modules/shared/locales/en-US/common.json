@@ -1,0 +1,61 @@
+{
+  "button": {
+    "save": "Save",
+    "cancel": "Cancel",
+    "delete": "Delete",
+    "edit": "Edit",
+    "add": "Add",
+    "search": "Search",
+    "refresh": "Refresh",
+    "confirm": "Confirm",
+    "submit": "Submit",
+    "reset": "Reset",
+    "export": "Export",
+    "import": "Import",
+    "download": "Download",
+    "upload": "Upload",
+    "close": "Close",
+    "back": "Back",
+    "next": "Next",
+    "prev": "Previous",
+    "ok": "OK"
+  },
+  "label": {
+    "name": "Name",
+    "description": "Description",
+    "status": "Status",
+    "type": "Type",
+    "createdAt": "Created At",
+    "updatedAt": "Updated At",
+    "actions": "Actions",
+    "id": "ID",
+    "version": "Version",
+    "category": "Category",
+    "tags": "Tags",
+    "enabled": "Enabled",
+    "disabled": "Disabled"
+  },
+  "message": {
+    "loading": "Loading...",
+    "noData": "No Data",
+    "success": "Operation successful",
+    "error": "Operation failed",
+    "confirmDelete": "Are you sure to delete?",
+    "required": "This field is required",
+    "saveSuccess": "Saved successfully",
+    "deleteSuccess": "Deleted successfully",
+    "updateSuccess": "Updated successfully",
+    "createSuccess": "Created successfully"
+  },
+  "pagination": {
+    "total": "Total {{count}} items",
+    "perPage": "{{size}} per page"
+  },
+  "validation": {
+    "required": "This field is required",
+    "minLength": "Minimum {{min}} characters",
+    "maxLength": "Maximum {{max}} characters",
+    "email": "Please enter a valid email address",
+    "url": "Please enter a valid URL"
+  }
+}

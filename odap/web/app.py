@@ -53,6 +53,10 @@ from odap.biz.core.ontology.runtime.state_machine.api.routes import router as st
 from odap.biz.core.ontology.abution_graph.api.routes import router as abution_graph_router
 from odap.biz.platform.ontology_memory.api.decay_routes import router as decay_router
 from odap.biz.platform.ontology_memory.shared_workspace.api.consensus_routes import router as consensus_router
+from odap.biz.platform.i18n.api.routes import router as i18n_router
+from odap.biz.core.ontology.model.api.routes import router as ontology_model_router
+from odap.biz.core.ontology.engine.api.routes import router as ontology_engine_router
+from odap.infra.security.data_classification_routes import router as data_classification_router
 from odap.infra.security import security_config
 from odap.infra.openharness import create_harness
 from odap.infra.openharness.v2_adapter import initialize_openharness, get_openharness_integration
@@ -189,6 +193,10 @@ app.include_router(state_machine_router)
 app.include_router(abution_graph_router)
 app.include_router(decay_router)
 app.include_router(consensus_router)
+app.include_router(i18n_router)
+app.include_router(ontology_model_router)
+app.include_router(ontology_engine_router)
+app.include_router(data_classification_router)
 
 @app.get("/")
 async def root():
