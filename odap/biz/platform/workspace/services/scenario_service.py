@@ -1,10 +1,14 @@
 """场景管理服务"""
 
+import asyncio
+import logging
 import uuid
 from typing import Dict, Any, List, Optional
 from datetime import datetime
 from ..models.scenario import Scenario
 from ..storage import Storage
+
+logger = logging.getLogger(__name__)
 
 
 class ScenarioService:
@@ -238,5 +242,90 @@ class ScenarioService:
             "ontology_id": ontology_id,
             "entity_count": len(unique_entities),
             "event_count": len(all_events),
-            "entities": unique_entities[:10]  # 返回前10个实体作为预览
+            "entities": unique_entities[:10]
         }
+
+    def activate_scenario(self, workspace_id: str, scenario_id: str) -> Dict[str, Any]:
+        scenario = self.storage.get_scenario(scenario_id)
+        if not scenario:
+            return {"status": "error", "message": f"Scenario {scenario_id} not found"}
+
+        if scenario.get("workspace_id") != workspace_id and scenario.get("workspace_id") != "default":
+            return {"status": "error", "message": f"Scenario {scenario_id} does not belong to workspace {workspace_id}"}
+
+        all_scenarios = self.storage.get_scenarios_by_workspace(workspace_id, page=1, page_size=9999)
+        for s in all_scenarios:
+            if s.get("scenario_id") != scenario_id and s.get("status") == "active":
+                self.storage.update_scenario(s["scenario_id"], {"status": "draft"})
+
+        self.storage.update_scenario(scenario_id, {"status": "active"})
+
+        ontology_ids = scenario.get("ontology_ids", [])
+        loaded_resources = {
+            "ontologies": ontology_ids,
+            "skills": [],
+            "policies": [],
+        }
+
+        try:
+            for oid in ontology_ids:
+                try:
+                    from odap.biz.platform.skill_system.services.skill_service import SkillService
+                    skill_svc = SkillService()
+                    skills = skill_svc.list_skills(ontology_id=oid)
+                    if skills:
+                        loaded_resources["skills"].extend([s.get("skill_id", s.get("id")) for s in skills])
+                except Exception:
+                    pass
+        except Exception:
+            pass
+
+        self._broadcast_scenario_activated(workspace_id, scenario_id, scenario, loaded_resources)
+
+        return {
+            "status": "success",
+            "scenario_id": scenario_id,
+            "workspace_id": workspace_id,
+            "activated_at": datetime.now().isoformat(),
+            "loaded_resources": loaded_resources,
+        }
+
+    def _broadcast_scenario_activated(self, workspace_id: str, scenario_id: str, scenario: Dict[str, Any], loaded_resources: Dict[str, Any]) -> None:
+        try:
+            from odap.biz.integration.hook_system.services.hook_service import HookService
+            hook_svc = HookService()
+            hook_svc.emit_event(
+                event_type="scenario.activated",
+                payload={
+                    "workspace_id": workspace_id,
+                    "scenario_id": scenario_id,
+                    "scenario_name": scenario.get("name", ""),
+                    "ontology_ids": scenario.get("ontology_ids", []),
+                    "loaded_resources": loaded_resources,
+                    "activated_at": datetime.now().isoformat(),
+                },
+            )
+        except Exception as e:
+            logger.warning("Hook broadcast failed for scenario activation: %s", e)
+
+        try:
+            asyncio.get_event_loop().create_task(self._async_broadcast(workspace_id, scenario_id, scenario, loaded_resources))
+        except RuntimeError:
+            pass
+
+    async def _async_broadcast(self, workspace_id: str, scenario_id: str, scenario: Dict[str, Any], loaded_resources: Dict[str, Any]) -> None:
+        try:
+            from odap.biz.integration.hook_system.services.hook_service import HookService
+            hook_svc = HookService()
+            await hook_svc.emit_event_async(
+                event_type="scenario.activated",
+                payload={
+                    "workspace_id": workspace_id,
+                    "scenario_id": scenario_id,
+                    "scenario_name": scenario.get("name", ""),
+                    "ontology_ids": scenario.get("ontology_ids", []),
+                    "loaded_resources": loaded_resources,
+                },
+            )
+        except Exception as e:
+            logger.warning("Async hook broadcast failed: %s", e)

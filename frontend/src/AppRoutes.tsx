@@ -1,9 +1,10 @@
 import { Routes, Route, Navigate } from 'react-router-dom';
 import type { ReactNode } from 'react';
 import { WorkspaceManager } from './modules/workspace';
+import { WorkspacePage } from './modules/workspace/pages/WorkspacePage';
 import { AuditLog } from './modules/audit';
 import { PolicyManagement } from './modules/config';
-import { OntologySemanticNetwork } from './modules/ontology';
+import { OntologySemanticNetwork, OntologyDesignerPage } from './modules/ontology';
 import { BlueprintDesignerPage } from './modules/ontology/pages/BlueprintDesignerPage';
 import { IngestPanel, Simulator } from './modules/ingest';
 import { StrategyDeduction } from './modules/simulation';
@@ -15,6 +16,7 @@ import { BusinessProcess, Rules, Indicators, Logic, ObjectManagement, SmartGener
 import { KnowledgeBase } from './modules/knowledge';
 import { MyAgents, AgentChat, AgentManagement } from './modules/agent';
 import { LoginPage } from './modules/shared/pages/LoginPage';
+import { I18nAdminPage } from './modules/i18n-admin';
 
 function ProtectedRoute({ children }: { children: ReactNode }) {
   const token = localStorage.getItem('token');
@@ -33,6 +35,7 @@ export function AppRoutes() {
       <Route path="/agent-chat/:agentId" element={<ProtectedRoute><AgentChat /></ProtectedRoute>} />
 
       <Route path="/ontology" element={<ProtectedRoute><OntologySemanticNetwork /></ProtectedRoute>} />
+      <Route path="/ontology/designer" element={<ProtectedRoute><OntologyDesignerPage /></ProtectedRoute>} />
       <Route path="/blueprint" element={<ProtectedRoute><BlueprintDesignerPage /></ProtectedRoute>} />
       <Route path="/versions" element={<ProtectedRoute><VersionHistory /></ProtectedRoute>} />
       <Route path="/business/process" element={<ProtectedRoute><BusinessProcess /></ProtectedRoute>} />
@@ -47,6 +50,8 @@ export function AppRoutes() {
       <Route path="/ingest" element={<ProtectedRoute><IngestPanel /></ProtectedRoute>} />
       <Route path="/knowledge" element={<ProtectedRoute><KnowledgeBase /></ProtectedRoute>} />
       <Route path="/workspace" element={<ProtectedRoute><WorkspaceManager /></ProtectedRoute>} />
+      <Route path="/workspace/manage" element={<ProtectedRoute><WorkspacePage /></ProtectedRoute>} />
+      <Route path="/i18n-admin" element={<ProtectedRoute><I18nAdminPage /></ProtectedRoute>} />
       <Route path="/roles" element={<ProtectedRoute><RoleManager /></ProtectedRoute>} />
       <Route path="/users" element={<ProtectedRoute><UserManagement /></ProtectedRoute>} />
       <Route path="/policies" element={<ProtectedRoute><PolicyManagement /></ProtectedRoute>} />

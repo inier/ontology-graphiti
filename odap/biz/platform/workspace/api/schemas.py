@@ -267,3 +267,8 @@ class OntologyBindingListResponse(BaseModel):
     scenario_id: str
     bindings: List[Dict[str, Any]]
     total: int
+
+
+class UpdateIsolationLevelRequest(BaseModel):
+    """更新隔离级别请求"""
+    isolation_level: IsolationLevel

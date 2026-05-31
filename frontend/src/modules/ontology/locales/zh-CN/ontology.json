@@ -1,0 +1,82 @@
+{
+  "designer": {
+    "title": "本体设计器",
+    "entityTypes": "实体类型",
+    "addEntityType": "新增实体类型",
+    "editEntityType": "编辑实体类型",
+    "deleteEntityType": "删除实体类型",
+    "searchPlaceholder": "搜索实体类型...",
+    "properties": "属性",
+    "relations": "关系",
+    "addProperty": "新增属性",
+    "addRelation": "新增关系",
+    "preview": "关系图预览",
+    "noSelection": "请选择一个实体类型",
+    "confirmDelete": "确认删除此实体类型？",
+    "primaryKey": "主键"
+  },
+  "entityType": {
+    "name": "名称",
+    "displayName": "显示名称",
+    "description": "描述",
+    "classificationLevel": "密级",
+    "properties": "属性列表",
+    "relations": "关系列表",
+    "constraints": "约束"
+  },
+  "property": {
+    "name": "属性名",
+    "dataType": "数据类型",
+    "required": "必填",
+    "defaultValue": "默认值",
+    "classificationLevel": "密级",
+    "types": {
+      "string": "字符串",
+      "integer": "整数",
+      "float": "浮点数",
+      "boolean": "布尔值",
+      "date": "日期",
+      "datetime": "日期时间",
+      "json": "JSON",
+      "array": "数组"
+    }
+  },
+  "relation": {
+    "name": "关系名",
+    "targetType": "目标类型",
+    "cardinality": "基数",
+    "linkType": "关联类型",
+    "cardinalities": {
+      "1:1": "一对一",
+      "1:N": "一对多",
+      "N:1": "多对一",
+      "N:N": "多对多"
+    },
+    "linkTypes": {
+      "association": "关联",
+      "composition": "组合",
+      "dependency": "依赖",
+      "inheritance": "继承"
+    }
+  },
+  "version": {
+    "title": "版本管理",
+    "timeline": "版本时间线",
+    "createVersion": "创建版本",
+    "rollback": "回滚",
+    "compare": "对比",
+    "temporalQuery": "时序查询",
+    "changelog": "变更说明",
+    "versionNumber": "版本号",
+    "status": "状态",
+    "createdAt": "创建时间",
+    "selectTwoVersions": "请选择两个版本进行对比",
+    "confirmRollback": "确认回滚到此版本？"
+  },
+  "classification": {
+    "TS": "绝密",
+    "S": "机密",
+    "C": "秘密",
+    "U": "公开"
+  }
+}

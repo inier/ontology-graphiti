@@ -64,6 +64,9 @@ class EngineService:
     def record_audit(self, entity_type_id: str, source: str, process_steps: list, transform_rules: list, result: str) -> Dict[str, Any]:
         return self._audit_recorder.record_ingest(entity_type_id, source, process_steps, transform_rules, result)
 
+    def record_ingest_audit(self, entity_type_id: str, source: str, process_steps: list, transform_rules: list, result: str, source_type: str = "", process_details: list = None, transform_details: list = None) -> Dict[str, Any]:
+        return self._audit_recorder.record_ingest_audit(entity_type_id, source, process_steps, transform_rules, result, source_type, process_details, transform_details)
+
     def get_audit(self, audit_id: str) -> Dict[str, Any]:
         result = self._audit_recorder.get_audit(audit_id)
         if not result:
@@ -72,4 +75,8 @@ class EngineService:
 
     def list_audits(self, entity_type_id: str = None, page: int = 1, page_size: int = 20) -> Dict[str, Any]:
         results = self._audit_recorder.list_audits(entity_type_id, page, page_size)
+        return {"audits": results, "page": page, "page_size": page_size}
+
+    def list_audits_filtered(self, entity_type_id: str = None, source: str = None, source_type: str = None, page: int = 1, page_size: int = 20) -> Dict[str, Any]:
+        results = self._audit_recorder.list_audits_filtered(entity_type_id, source, source_type, page, page_size)
         return {"audits": results, "page": page, "page_size": page_size}

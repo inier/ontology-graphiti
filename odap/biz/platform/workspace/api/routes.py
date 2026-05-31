@@ -14,7 +14,8 @@ from .schemas import (
     WorkspaceType, WorkspaceStatus, IsolationLevel, ImportExportStatus,
     CreateScenarioRequest, UpdateScenarioRequest, ScenarioResponse, ScenarioListResponse,
     OntologyVersionResponse, SwitchVersionRequest,
-    BindOntologyRequest, OntologyBindingResponse, OntologyBindingListResponse
+    BindOntologyRequest, OntologyBindingResponse, OntologyBindingListResponse,
+    UpdateIsolationLevelRequest,
 )
 
 router = APIRouter(prefix="/api/workspaces", tags=["workspace"])
@@ -41,6 +42,71 @@ async def create_workspace(request: CreateWorkspaceRequest):
             owner=request.owner
         )
         return WorkspaceResponse(**result)
+    except HTTPException:
+        raise
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@router.put("/{workspace_id}/isolation")
+async def update_isolation_level(workspace_id: str, request: UpdateIsolationLevelRequest):
+    try:
+        result = workspace_service.update_isolation_level(workspace_id, request.isolation_level.value)
+        if result.get("status") == "error":
+            raise HTTPException(status_code=400, detail=result.get("message"))
+        return result
+    except HTTPException:
+        raise
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@router.post("/{workspace_id}/export")
+async def export_workspace_v2(workspace_id: str, request: ExportWorkspaceRequest = None):
+    try:
+        if request is None:
+            request = ExportWorkspaceRequest(workspace_id=workspace_id)
+        result = workspace_service.export_workspace(
+            workspace_id=workspace_id,
+            export_path=request.export_path if request else None,
+            include_resources=request.include_resources if request else True,
+            include_data=request.include_data if request else False,
+            created_by=request.created_by if request else "system",
+        )
+        if result.get("status") == "error":
+            raise HTTPException(status_code=400, detail=result.get("message"))
+        return result
+    except HTTPException:
+        raise
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@router.post("/{workspace_id}/import")
+async def import_workspace_v2(workspace_id: str, request: ImportWorkspaceRequest):
+    try:
+        result = workspace_service.import_workspace(
+            import_path=request.import_path,
+            workspace_name=request.workspace_name,
+            overwrite=request.overwrite,
+            created_by=request.created_by,
+        )
+        if result.get("status") == "error":
+            raise HTTPException(status_code=400, detail=result.get("message"))
+        return result
+    except HTTPException:
+        raise
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@router.post("/{workspace_id}/scenarios/{scenario_id}/activate")
+async def activate_scenario(workspace_id: str, scenario_id: str):
+    try:
+        result = scenario_service.activate_scenario(workspace_id, scenario_id)
+        if result.get("status") == "error":
+            raise HTTPException(status_code=400, detail=result.get("message"))
+        return result
     except HTTPException:
         raise
     except Exception as e:

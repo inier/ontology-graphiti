@@ -1,7 +1,7 @@
 from fastapi import APIRouter, HTTPException
 
 from ..services.engine_service import EngineService
-from .schemas import CreateVersionRequest, RollbackRequest, ValidateRequest, RecordAuditRequest
+from .schemas import CreateVersionRequest, RollbackRequest, ValidateRequest, RecordAuditRequest, RecordIngestAuditRequest
 
 router = APIRouter(prefix="/api/ontology/engine", tags=["ontology-engine"])
 
@@ -91,8 +91,10 @@ async def validate(request: ValidateRequest):
 
 
 @router.get("/audit")
-async def list_audits(entity_type_id: str = None, page: int = 1, page_size: int = 20):
+async def list_audits(entity_type_id: str = None, source: str = None, source_type: str = None, page: int = 1, page_size: int = 20):
     try:
+        if source or source_type:
+            return engine_service.list_audits_filtered(entity_type_id, source, source_type, page, page_size)
         return engine_service.list_audits(entity_type_id, page, page_size)
     except HTTPException:
         raise
@@ -119,6 +121,20 @@ async def record_audit(request: RecordAuditRequest):
         return engine_service.record_audit(
             request.entity_type_id, request.source,
             request.process_steps, request.transform_rules, request.result
+        )
+    except HTTPException:
+        raise
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@router.post("/audit/ingest")
+async def record_ingest_audit(request: RecordIngestAuditRequest):
+    try:
+        return engine_service.record_ingest_audit(
+            request.entity_type_id, request.source,
+            request.process_steps, request.transform_rules, request.result,
+            request.source_type, request.process_details, request.transform_details
         )
     except HTTPException:
         raise

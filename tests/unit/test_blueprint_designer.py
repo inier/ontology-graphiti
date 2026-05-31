@@ -11,12 +11,12 @@ def _make_storage(tmp_path, storage_cls):
 
 class TestBlueprintStorage:
     def test_init_db(self, tmp_path):
-        from odap.biz.core.ontology.harness.blueprint.blueprint_service import BlueprintStorage
+        from odap.biz.core.ontology.harness.blueprint.storage import BlueprintStorage
         storage = _make_storage(tmp_path, BlueprintStorage)
         assert os.path.exists(storage.db_path)
 
     def test_save_and_get(self, tmp_path):
-        from odap.biz.core.ontology.harness.blueprint.blueprint_service import BlueprintStorage
+        from odap.biz.core.ontology.harness.blueprint.storage import BlueprintStorage
         storage = _make_storage(tmp_path, BlueprintStorage)
         now = datetime.now().isoformat()
         bp = {
@@ -39,7 +39,7 @@ class TestBlueprintStorage:
         assert fetched["is_published"] is False
 
     def test_list_blueprints(self, tmp_path):
-        from odap.biz.core.ontology.harness.blueprint.blueprint_service import BlueprintStorage
+        from odap.biz.core.ontology.harness.blueprint.storage import BlueprintStorage
         storage = _make_storage(tmp_path, BlueprintStorage)
         now = datetime.now().isoformat()
         storage.save({"blueprint_id": "bp-1", "name": "BP1", "description": "",
@@ -59,7 +59,7 @@ class TestBlueprintStorage:
         assert published[0]["name"] == "BP2"
 
     def test_delete(self, tmp_path):
-        from odap.biz.core.ontology.harness.blueprint.blueprint_service import BlueprintStorage
+        from odap.biz.core.ontology.harness.blueprint.storage import BlueprintStorage
         storage = _make_storage(tmp_path, BlueprintStorage)
         now = datetime.now().isoformat()
         storage.save({"blueprint_id": "bp-del", "name": "Del", "description": "",
@@ -71,12 +71,12 @@ class TestBlueprintStorage:
         assert storage.delete("bp-del") is False
 
     def test_get_nonexistent(self, tmp_path):
-        from odap.biz.core.ontology.harness.blueprint.blueprint_service import BlueprintStorage
+        from odap.biz.core.ontology.harness.blueprint.storage import BlueprintStorage
         storage = _make_storage(tmp_path, BlueprintStorage)
         assert storage.get("nonexistent") is None
 
     def test_json_fields_serialization(self, tmp_path):
-        from odap.biz.core.ontology.harness.blueprint.blueprint_service import BlueprintStorage
+        from odap.biz.core.ontology.harness.blueprint.storage import BlueprintStorage
         storage = _make_storage(tmp_path, BlueprintStorage)
         now = datetime.now().isoformat()
         bp = {
@@ -99,7 +99,8 @@ class TestBlueprintStorage:
 
 class TestBlueprintDesignerService:
     def test_create_blueprint(self, tmp_path):
-        from odap.biz.core.ontology.harness.blueprint.blueprint_service import BlueprintDesignerService, BlueprintStorage
+        from odap.biz.core.ontology.harness.blueprint.blueprint_service import BlueprintDesignerService
+        from odap.biz.core.ontology.harness.blueprint.storage import BlueprintStorage
         storage = _make_storage(tmp_path, BlueprintStorage)
         service = BlueprintDesignerService(storage=storage)
         result = service.create_blueprint(name="MyBP", description="Test")
@@ -108,7 +109,8 @@ class TestBlueprintDesignerService:
         assert result["version"] == 1
 
     def test_get_blueprint(self, tmp_path):
-        from odap.biz.core.ontology.harness.blueprint.blueprint_service import BlueprintDesignerService, BlueprintStorage
+        from odap.biz.core.ontology.harness.blueprint.blueprint_service import BlueprintDesignerService
+        from odap.biz.core.ontology.harness.blueprint.storage import BlueprintStorage
         storage = _make_storage(tmp_path, BlueprintStorage)
         service = BlueprintDesignerService(storage=storage)
         created = service.create_blueprint(name="GetBP")
@@ -117,14 +119,16 @@ class TestBlueprintDesignerService:
         assert result["name"] == "GetBP"
 
     def test_get_blueprint_not_found(self, tmp_path):
-        from odap.biz.core.ontology.harness.blueprint.blueprint_service import BlueprintDesignerService, BlueprintStorage
+        from odap.biz.core.ontology.harness.blueprint.blueprint_service import BlueprintDesignerService
+        from odap.biz.core.ontology.harness.blueprint.storage import BlueprintStorage
         storage = _make_storage(tmp_path, BlueprintStorage)
         service = BlueprintDesignerService(storage=storage)
         result = service.get_blueprint("nonexistent")
         assert result["status"] == "error"
 
     def test_list_blueprints(self, tmp_path):
-        from odap.biz.core.ontology.harness.blueprint.blueprint_service import BlueprintDesignerService, BlueprintStorage
+        from odap.biz.core.ontology.harness.blueprint.blueprint_service import BlueprintDesignerService
+        from odap.biz.core.ontology.harness.blueprint.storage import BlueprintStorage
         storage = _make_storage(tmp_path, BlueprintStorage)
         service = BlueprintDesignerService(storage=storage)
         service.create_blueprint(name="BP1")
@@ -133,7 +137,8 @@ class TestBlueprintDesignerService:
         assert result["count"] == 2
 
     def test_update_blueprint(self, tmp_path):
-        from odap.biz.core.ontology.harness.blueprint.blueprint_service import BlueprintDesignerService, BlueprintStorage
+        from odap.biz.core.ontology.harness.blueprint.blueprint_service import BlueprintDesignerService
+        from odap.biz.core.ontology.harness.blueprint.storage import BlueprintStorage
         storage = _make_storage(tmp_path, BlueprintStorage)
         service = BlueprintDesignerService(storage=storage)
         created = service.create_blueprint(name="UpdateBP")
@@ -143,14 +148,16 @@ class TestBlueprintDesignerService:
         assert fetched["name"] == "UpdatedBP"
 
     def test_update_blueprint_not_found(self, tmp_path):
-        from odap.biz.core.ontology.harness.blueprint.blueprint_service import BlueprintDesignerService, BlueprintStorage
+        from odap.biz.core.ontology.harness.blueprint.blueprint_service import BlueprintDesignerService
+        from odap.biz.core.ontology.harness.blueprint.storage import BlueprintStorage
         storage = _make_storage(tmp_path, BlueprintStorage)
         service = BlueprintDesignerService(storage=storage)
         result = service.update_blueprint("nonexistent", name="X")
         assert result["status"] == "error"
 
     def test_delete_blueprint(self, tmp_path):
-        from odap.biz.core.ontology.harness.blueprint.blueprint_service import BlueprintDesignerService, BlueprintStorage
+        from odap.biz.core.ontology.harness.blueprint.blueprint_service import BlueprintDesignerService
+        from odap.biz.core.ontology.harness.blueprint.storage import BlueprintStorage
         storage = _make_storage(tmp_path, BlueprintStorage)
         service = BlueprintDesignerService(storage=storage)
         created = service.create_blueprint(name="DelBP")
@@ -160,7 +167,8 @@ class TestBlueprintDesignerService:
         assert result["status"] == "error"
 
     def test_add_node(self, tmp_path):
-        from odap.biz.core.ontology.harness.blueprint.blueprint_service import BlueprintDesignerService, BlueprintStorage
+        from odap.biz.core.ontology.harness.blueprint.blueprint_service import BlueprintDesignerService
+        from odap.biz.core.ontology.harness.blueprint.storage import BlueprintStorage
         storage = _make_storage(tmp_path, BlueprintStorage)
         service = BlueprintDesignerService(storage=storage)
         created = service.create_blueprint(name="NodeBP")
@@ -173,14 +181,16 @@ class TestBlueprintDesignerService:
         assert fetched["nodes"][0]["name"] == "Source"
 
     def test_add_node_blueprint_not_found(self, tmp_path):
-        from odap.biz.core.ontology.harness.blueprint.blueprint_service import BlueprintDesignerService, BlueprintStorage
+        from odap.biz.core.ontology.harness.blueprint.blueprint_service import BlueprintDesignerService
+        from odap.biz.core.ontology.harness.blueprint.storage import BlueprintStorage
         storage = _make_storage(tmp_path, BlueprintStorage)
         service = BlueprintDesignerService(storage=storage)
         result = service.add_node("nonexistent", "data_source", "Source")
         assert result["status"] == "error"
 
     def test_update_node(self, tmp_path):
-        from odap.biz.core.ontology.harness.blueprint.blueprint_service import BlueprintDesignerService, BlueprintStorage
+        from odap.biz.core.ontology.harness.blueprint.blueprint_service import BlueprintDesignerService
+        from odap.biz.core.ontology.harness.blueprint.storage import BlueprintStorage
         storage = _make_storage(tmp_path, BlueprintStorage)
         service = BlueprintDesignerService(storage=storage)
         created = service.create_blueprint(name="UpdNodeBP")
@@ -191,7 +201,8 @@ class TestBlueprintDesignerService:
         assert fetched["nodes"][0]["name"] == "UpdatedSource"
 
     def test_update_node_not_found(self, tmp_path):
-        from odap.biz.core.ontology.harness.blueprint.blueprint_service import BlueprintDesignerService, BlueprintStorage
+        from odap.biz.core.ontology.harness.blueprint.blueprint_service import BlueprintDesignerService
+        from odap.biz.core.ontology.harness.blueprint.storage import BlueprintStorage
         storage = _make_storage(tmp_path, BlueprintStorage)
         service = BlueprintDesignerService(storage=storage)
         created = service.create_blueprint(name="UpdNodeNF")
@@ -199,7 +210,8 @@ class TestBlueprintDesignerService:
         assert result["status"] == "error"
 
     def test_remove_node(self, tmp_path):
-        from odap.biz.core.ontology.harness.blueprint.blueprint_service import BlueprintDesignerService, BlueprintStorage
+        from odap.biz.core.ontology.harness.blueprint.blueprint_service import BlueprintDesignerService
+        from odap.biz.core.ontology.harness.blueprint.storage import BlueprintStorage
         storage = _make_storage(tmp_path, BlueprintStorage)
         service = BlueprintDesignerService(storage=storage)
         created = service.create_blueprint(name="RemNodeBP")
@@ -213,7 +225,8 @@ class TestBlueprintDesignerService:
         assert len(fetched["edges"]) == 0
 
     def test_add_edge(self, tmp_path):
-        from odap.biz.core.ontology.harness.blueprint.blueprint_service import BlueprintDesignerService, BlueprintStorage
+        from odap.biz.core.ontology.harness.blueprint.blueprint_service import BlueprintDesignerService
+        from odap.biz.core.ontology.harness.blueprint.storage import BlueprintStorage
         storage = _make_storage(tmp_path, BlueprintStorage)
         service = BlueprintDesignerService(storage=storage)
         created = service.create_blueprint(name="EdgeBP")
@@ -227,7 +240,8 @@ class TestBlueprintDesignerService:
         assert len(fetched["edges"]) == 1
 
     def test_add_edge_invalid_nodes(self, tmp_path):
-        from odap.biz.core.ontology.harness.blueprint.blueprint_service import BlueprintDesignerService, BlueprintStorage
+        from odap.biz.core.ontology.harness.blueprint.blueprint_service import BlueprintDesignerService
+        from odap.biz.core.ontology.harness.blueprint.storage import BlueprintStorage
         storage = _make_storage(tmp_path, BlueprintStorage)
         service = BlueprintDesignerService(storage=storage)
         created = service.create_blueprint(name="EdgeInvBP")
@@ -235,7 +249,8 @@ class TestBlueprintDesignerService:
         assert result["status"] == "error"
 
     def test_remove_edge(self, tmp_path):
-        from odap.biz.core.ontology.harness.blueprint.blueprint_service import BlueprintDesignerService, BlueprintStorage
+        from odap.biz.core.ontology.harness.blueprint.blueprint_service import BlueprintDesignerService
+        from odap.biz.core.ontology.harness.blueprint.storage import BlueprintStorage
         storage = _make_storage(tmp_path, BlueprintStorage)
         service = BlueprintDesignerService(storage=storage)
         created = service.create_blueprint(name="RemEdgeBP")
@@ -248,7 +263,8 @@ class TestBlueprintDesignerService:
         assert len(fetched["edges"]) == 0
 
     def test_validate_blueprint_valid(self, tmp_path):
-        from odap.biz.core.ontology.harness.blueprint.blueprint_service import BlueprintDesignerService, BlueprintStorage
+        from odap.biz.core.ontology.harness.blueprint.blueprint_service import BlueprintDesignerService
+        from odap.biz.core.ontology.harness.blueprint.storage import BlueprintStorage
         storage = _make_storage(tmp_path, BlueprintStorage)
         service = BlueprintDesignerService(storage=storage)
         created = service.create_blueprint(name="ValidBP")
@@ -260,7 +276,8 @@ class TestBlueprintDesignerService:
         assert len(result["errors"]) == 0
 
     def test_validate_blueprint_empty(self, tmp_path):
-        from odap.biz.core.ontology.harness.blueprint.blueprint_service import BlueprintDesignerService, BlueprintStorage
+        from odap.biz.core.ontology.harness.blueprint.blueprint_service import BlueprintDesignerService
+        from odap.biz.core.ontology.harness.blueprint.storage import BlueprintStorage
         storage = _make_storage(tmp_path, BlueprintStorage)
         service = BlueprintDesignerService(storage=storage)
         created = service.create_blueprint(name="EmptyBP")
@@ -269,7 +286,8 @@ class TestBlueprintDesignerService:
         assert "no nodes" in result["errors"][0]
 
     def test_validate_blueprint_disconnected(self, tmp_path):
-        from odap.biz.core.ontology.harness.blueprint.blueprint_service import BlueprintDesignerService, BlueprintStorage
+        from odap.biz.core.ontology.harness.blueprint.blueprint_service import BlueprintDesignerService
+        from odap.biz.core.ontology.harness.blueprint.storage import BlueprintStorage
         storage = _make_storage(tmp_path, BlueprintStorage)
         service = BlueprintDesignerService(storage=storage)
         created = service.create_blueprint(name="DiscBP")
@@ -279,7 +297,8 @@ class TestBlueprintDesignerService:
         assert len(result["warnings"]) > 0
 
     def test_publish_blueprint(self, tmp_path):
-        from odap.biz.core.ontology.harness.blueprint.blueprint_service import BlueprintDesignerService, BlueprintStorage
+        from odap.biz.core.ontology.harness.blueprint.blueprint_service import BlueprintDesignerService
+        from odap.biz.core.ontology.harness.blueprint.storage import BlueprintStorage
         storage = _make_storage(tmp_path, BlueprintStorage)
         service = BlueprintDesignerService(storage=storage)
         created = service.create_blueprint(name="PubBP")
@@ -290,7 +309,8 @@ class TestBlueprintDesignerService:
         assert result["is_published"] is True
 
     def test_publish_invalid_blueprint(self, tmp_path):
-        from odap.biz.core.ontology.harness.blueprint.blueprint_service import BlueprintDesignerService, BlueprintStorage
+        from odap.biz.core.ontology.harness.blueprint.blueprint_service import BlueprintDesignerService
+        from odap.biz.core.ontology.harness.blueprint.storage import BlueprintStorage
         storage = _make_storage(tmp_path, BlueprintStorage)
         service = BlueprintDesignerService(storage=storage)
         created = service.create_blueprint(name="PubInvBP")
@@ -298,7 +318,8 @@ class TestBlueprintDesignerService:
         assert result["status"] == "error"
 
     def test_fork_blueprint(self, tmp_path):
-        from odap.biz.core.ontology.harness.blueprint.blueprint_service import BlueprintDesignerService, BlueprintStorage
+        from odap.biz.core.ontology.harness.blueprint.blueprint_service import BlueprintDesignerService
+        from odap.biz.core.ontology.harness.blueprint.storage import BlueprintStorage
         storage = _make_storage(tmp_path, BlueprintStorage)
         service = BlueprintDesignerService(storage=storage)
         created = service.create_blueprint(name="ForkBP", scenario_id="sc-1")
@@ -311,14 +332,16 @@ class TestBlueprintDesignerService:
         assert len(forked["nodes"]) == 1
 
     def test_fork_blueprint_not_found(self, tmp_path):
-        from odap.biz.core.ontology.harness.blueprint.blueprint_service import BlueprintDesignerService, BlueprintStorage
+        from odap.biz.core.ontology.harness.blueprint.blueprint_service import BlueprintDesignerService
+        from odap.biz.core.ontology.harness.blueprint.storage import BlueprintStorage
         storage = _make_storage(tmp_path, BlueprintStorage)
         service = BlueprintDesignerService(storage=storage)
         result = service.fork_blueprint("nonexistent")
         assert result["status"] == "error"
 
     def test_export_json(self, tmp_path):
-        from odap.biz.core.ontology.harness.blueprint.blueprint_service import BlueprintDesignerService, BlueprintStorage
+        from odap.biz.core.ontology.harness.blueprint.blueprint_service import BlueprintDesignerService
+        from odap.biz.core.ontology.harness.blueprint.storage import BlueprintStorage
         storage = _make_storage(tmp_path, BlueprintStorage)
         service = BlueprintDesignerService(storage=storage)
         created = service.create_blueprint(name="ExportBP")
@@ -329,7 +352,8 @@ class TestBlueprintDesignerService:
         assert len(result["blueprint"]["nodes"]) == 1
 
     def test_export_code(self, tmp_path):
-        from odap.biz.core.ontology.harness.blueprint.blueprint_service import BlueprintDesignerService, BlueprintStorage
+        from odap.biz.core.ontology.harness.blueprint.blueprint_service import BlueprintDesignerService
+        from odap.biz.core.ontology.harness.blueprint.storage import BlueprintStorage
         storage = _make_storage(tmp_path, BlueprintStorage)
         service = BlueprintDesignerService(storage=storage)
         created = service.create_blueprint(name="CodeBP")
@@ -340,7 +364,8 @@ class TestBlueprintDesignerService:
         assert "MySource" in result["code"]
 
     def test_export_unsupported_format(self, tmp_path):
-        from odap.biz.core.ontology.harness.blueprint.blueprint_service import BlueprintDesignerService, BlueprintStorage
+        from odap.biz.core.ontology.harness.blueprint.blueprint_service import BlueprintDesignerService
+        from odap.biz.core.ontology.harness.blueprint.storage import BlueprintStorage
         storage = _make_storage(tmp_path, BlueprintStorage)
         service = BlueprintDesignerService(storage=storage)
         created = service.create_blueprint(name="FmtBP")
@@ -348,7 +373,8 @@ class TestBlueprintDesignerService:
         assert result["status"] == "error"
 
     def test_export_not_found(self, tmp_path):
-        from odap.biz.core.ontology.harness.blueprint.blueprint_service import BlueprintDesignerService, BlueprintStorage
+        from odap.biz.core.ontology.harness.blueprint.blueprint_service import BlueprintDesignerService
+        from odap.biz.core.ontology.harness.blueprint.storage import BlueprintStorage
         storage = _make_storage(tmp_path, BlueprintStorage)
         service = BlueprintDesignerService(storage=storage)
         result = service.export_blueprint("nonexistent")
@@ -366,7 +392,7 @@ class TestBlueprintDesignerService:
 
 class TestBlueprintEnums:
     def test_node_type_enum(self):
-        from odap.biz.core.ontology.harness.blueprint.blueprint_service import BlueprintNodeType
+        from odap.biz.core.ontology.harness.blueprint.api.schemas import BlueprintNodeType
         assert BlueprintNodeType.DATA_SOURCE.value == "data_source"
         assert BlueprintNodeType.TRANSFORM.value == "transform"
         assert BlueprintNodeType.ONTOLOGY.value == "ontology"
@@ -377,12 +403,12 @@ class TestBlueprintEnums:
         assert BlueprintNodeType.DECISION.value == "decision"
 
     def test_edge_type_enum(self):
-        from odap.biz.core.ontology.harness.blueprint.blueprint_service import BlueprintEdgeType
+        from odap.biz.core.ontology.harness.blueprint.api.schemas import BlueprintEdgeType
         assert BlueprintEdgeType.DATA_FLOW.value == "data_flow"
         assert BlueprintEdgeType.CONTROL_FLOW.value == "control_flow"
         assert BlueprintEdgeType.DEPENDENCY.value == "dependency"
 
     def test_enum_str_inheritance(self):
-        from odap.biz.core.ontology.harness.blueprint.blueprint_service import BlueprintNodeType, BlueprintEdgeType
+        from odap.biz.core.ontology.harness.blueprint.api.schemas import BlueprintNodeType, BlueprintEdgeType
         assert isinstance(BlueprintNodeType.DATA_SOURCE, str)
         assert isinstance(BlueprintEdgeType.DATA_FLOW, str)

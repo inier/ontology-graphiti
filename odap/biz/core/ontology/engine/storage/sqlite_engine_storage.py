@@ -42,6 +42,27 @@ class SQLiteEngineStorage:
                     timestamp TEXT DEFAULT ''
                 )
             """)
+            conn.execute("""
+                CREATE TABLE IF NOT EXISTS ingest_audit_records (
+                    audit_id TEXT PRIMARY KEY,
+                    entity_type_id TEXT DEFAULT '',
+                    source TEXT DEFAULT '',
+                    source_type TEXT DEFAULT '',
+                    process_steps TEXT DEFAULT '[]',
+                    transform_rules TEXT DEFAULT '[]',
+                    result TEXT DEFAULT '',
+                    timestamp TEXT DEFAULT ''
+                )
+            """)
+            conn.execute("""
+                CREATE INDEX IF NOT EXISTS idx_ingest_audit_source_type ON ingest_audit_records(source_type)
+            """)
+            conn.execute("""
+                CREATE INDEX IF NOT EXISTS idx_ingest_audit_source ON ingest_audit_records(source)
+            """)
+            conn.execute("""
+                CREATE INDEX IF NOT EXISTS idx_ingest_audit_entity_type ON ingest_audit_records(entity_type_id)
+            """)
             conn.commit()
         finally:
             conn.close()
@@ -180,4 +201,78 @@ class SQLiteEngineStorage:
             "transform_rules": json.loads(row[4]) if row[4] else [],
             "result": row[5],
             "timestamp": row[6],
+        }
+
+    def save_ingest_audit(self, audit: Dict[str, Any]) -> Dict[str, Any]:
+        conn = sqlite3.connect(self.db_path)
+        try:
+            conn.execute(
+                """INSERT OR REPLACE INTO ingest_audit_records
+                   (audit_id, entity_type_id, source, source_type, process_steps, transform_rules, result, timestamp)
+                   VALUES (?, ?, ?, ?, ?, ?, ?, ?)""",
+                (
+                    audit.get("audit_id", ""),
+                    audit.get("entity_type_id", ""),
+                    audit.get("source", ""),
+                    audit.get("source_type", ""),
+                    json.dumps(audit.get("process_steps", []), ensure_ascii=False),
+                    json.dumps(audit.get("transform_rules", []), ensure_ascii=False),
+                    audit.get("result", ""),
+                    audit.get("timestamp", ""),
+                ),
+            )
+            conn.commit()
+            return audit
+        finally:
+            conn.close()
+
+    def get_ingest_audit(self, audit_id: str) -> Optional[Dict[str, Any]]:
+        conn = sqlite3.connect(self.db_path)
+        try:
+            cursor = conn.execute(
+                "SELECT * FROM ingest_audit_records WHERE audit_id = ?", (audit_id,)
+            )
+            row = cursor.fetchone()
+            if not row:
+                return None
+            return self._row_to_ingest_audit(row)
+        finally:
+            conn.close()
+
+    def list_ingest_audits(self, entity_type_id: str = None, source: str = None, source_type: str = None, page: int = 1, page_size: int = 20) -> List[Dict[str, Any]]:
+        conn = sqlite3.connect(self.db_path)
+        try:
+            conditions = []
+            params = []
+            if entity_type_id:
+                conditions.append("entity_type_id = ?")
+                params.append(entity_type_id)
+            if source:
+                conditions.append("source = ?")
+                params.append(source)
+            if source_type:
+                conditions.append("source_type = ?")
+                params.append(source_type)
+
+            where_clause = ""
+            if conditions:
+                where_clause = " WHERE " + " AND ".join(conditions)
+
+            query = f"SELECT * FROM ingest_audit_records{where_clause} ORDER BY timestamp DESC LIMIT ? OFFSET ?"
+            params.extend([page_size, (page - 1) * page_size])
+            cursor = conn.execute(query, params)
+            return [self._row_to_ingest_audit(row) for row in cursor.fetchall()]
+        finally:
+            conn.close()
+
+    def _row_to_ingest_audit(self, row) -> Dict[str, Any]:
+        return {
+            "audit_id": row[0],
+            "entity_type_id": row[1],
+            "source": row[2],
+            "source_type": row[3] if len(row) > 3 else "",
+            "process_steps": json.loads(row[4]) if len(row) > 4 and row[4] else [],
+            "transform_rules": json.loads(row[5]) if len(row) > 5 and row[5] else [],
+            "result": row[6] if len(row) > 6 else "",
+            "timestamp": row[7] if len(row) > 7 else "",
         }

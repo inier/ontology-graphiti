@@ -24,3 +24,14 @@ class RecordAuditRequest(BaseModel):
     process_steps: List[Dict[str, Any]] = Field(default_factory=list)
     transform_rules: List[Dict[str, Any]] = Field(default_factory=list)
     result: str = ""
+
+
+class RecordIngestAuditRequest(BaseModel):
+    entity_type_id: str
+    source: str = ""
+    source_type: str = ""
+    process_steps: List[Dict[str, Any]] = Field(default_factory=list)
+    transform_rules: List[Dict[str, Any]] = Field(default_factory=list)
+    result: str = ""
+    process_details: List[Dict[str, Any]] = Field(default_factory=list)
+    transform_details: List[Dict[str, Any]] = Field(default_factory=list)

@@ -1,10 +1,14 @@
 """工作空间服务"""
 
+import logging
 from typing import Dict, Any, List, Optional
 from ..impl.workspace import WorkspaceManager
 from ..impl.import_export import ImportExportManager
 from ..models.workspace import Workspace, WorkspaceStatus, WorkspaceType, WorkspaceConfig
 from ..models.import_export import ImportExportRecord, ImportExportStatus
+from ..models.isolation import IsolationLevel
+
+logger = logging.getLogger(__name__)
 
 
 class WorkspaceService:
@@ -270,6 +274,66 @@ class WorkspaceService:
             "progress": record.progress,
             "start_time": record.start_time.isoformat()
         }
+
+    def update_isolation_level(self, workspace_id: str, isolation_level: str) -> Dict[str, Any]:
+        try:
+            level = IsolationLevel(isolation_level)
+        except ValueError:
+            return {"status": "error", "message": f"Invalid isolation level: {isolation_level}. Must be one of: low, standard, high, strict"}
+
+        workspace = self.manager.get_workspace(workspace_id)
+        if not workspace:
+            return {"status": "error", "message": "Workspace not found"}
+
+        if level == IsolationLevel.STRICT:
+            validation = self._validate_strict_isolation(workspace)
+            if not validation.get("valid"):
+                return {"status": "error", "message": f"Cannot set STRICT isolation: {validation.get('reason')}"}
+
+        from ..storage import Storage
+        storage = Storage()
+        policy = storage.get_isolation_policy(workspace_id)
+        if policy:
+            storage.update_isolation_policy(workspace_id, {"isolation_level": level.value})
+        else:
+            storage.save_isolation_policy({
+                "workspace_id": workspace_id,
+                "isolation_level": level.value,
+                "resource_quota": {},
+                "network_policy": {},
+            })
+
+        workspace.config.isolation_level = level.value
+        workspace.updated_at = __import__("datetime").datetime.now()
+        storage.update_workspace(workspace)
+
+        return {
+            "workspace_id": workspace_id,
+            "isolation_level": level.value,
+            "status": "success",
+        }
+
+    def _validate_strict_isolation(self, workspace: Workspace) -> Dict[str, Any]:
+        if workspace.type == WorkspaceType.SHARED:
+            return {"valid": False, "reason": "Shared workspaces cannot use STRICT isolation"}
+        if len(workspace.members) > 1:
+            return {"valid": False, "reason": "STRICT isolation requires single-member workspace"}
+        return {"valid": True}
+
+    def validate_resource_ownership(self, workspace_id: str, resource_id: str) -> Dict[str, Any]:
+        workspace = self.manager.get_workspace(workspace_id)
+        if not workspace:
+            return {"status": "error", "message": "Workspace not found"}
+
+        policy = self.manager.storage.get_isolation_policy(workspace_id)
+        isolation_level = policy.get("isolation_level", "standard") if policy else "standard"
+
+        if isolation_level == IsolationLevel.STRICT.value:
+            bound = resource_id in workspace.bound_ontology_ids
+            if not bound:
+                return {"status": "error", "message": f"Resource {resource_id} does not belong to workspace {workspace_id} (STRICT isolation)"}
+
+        return {"status": "success", "workspace_id": workspace_id, "resource_id": resource_id, "isolation_level": isolation_level}
     
     def import_workspace(self, import_path: str, 
                         workspace_name: str = None, 

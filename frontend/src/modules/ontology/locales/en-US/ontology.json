@@ -1,0 +1,82 @@
+{
+  "designer": {
+    "title": "Ontology Designer",
+    "entityTypes": "Entity Types",
+    "addEntityType": "Add Entity Type",
+    "editEntityType": "Edit Entity Type",
+    "deleteEntityType": "Delete Entity Type",
+    "searchPlaceholder": "Search entity types...",
+    "properties": "Properties",
+    "relations": "Relations",
+    "addProperty": "Add Property",
+    "addRelation": "Add Relation",
+    "preview": "Relation Preview",
+    "noSelection": "Select an entity type",
+    "confirmDelete": "Are you sure to delete this entity type?",
+    "primaryKey": "Primary Key"
+  },
+  "entityType": {
+    "name": "Name",
+    "displayName": "Display Name",
+    "description": "Description",
+    "classificationLevel": "Classification Level",
+    "properties": "Properties",
+    "relations": "Relations",
+    "constraints": "Constraints"
+  },
+  "property": {
+    "name": "Property Name",
+    "dataType": "Data Type",
+    "required": "Required",
+    "defaultValue": "Default Value",
+    "classificationLevel": "Classification Level",
+    "types": {
+      "string": "String",
+      "integer": "Integer",
+      "float": "Float",
+      "boolean": "Boolean",
+      "date": "Date",
+      "datetime": "DateTime",
+      "json": "JSON",
+      "array": "Array"
+    }
+  },
+  "relation": {
+    "name": "Relation Name",
+    "targetType": "Target Type",
+    "cardinality": "Cardinality",
+    "linkType": "Link Type",
+    "cardinalities": {
+      "1:1": "One to One",
+      "1:N": "One to Many",
+      "N:1": "Many to One",
+      "N:N": "Many to Many"
+    },
+    "linkTypes": {
+      "association": "Association",
+      "composition": "Composition",
+      "dependency": "Dependency",
+      "inheritance": "Inheritance"
+    }
+  },
+  "version": {
+    "title": "Version Management",
+    "timeline": "Version Timeline",
+    "createVersion": "Create Version",
+    "rollback": "Rollback",
+    "compare": "Compare",
+    "temporalQuery": "Temporal Query",
+    "changelog": "Changelog",
+    "versionNumber": "Version Number",
+    "status": "Status",
+    "createdAt": "Created At",
+    "selectTwoVersions": "Select two versions to compare",
+    "confirmRollback": "Are you sure to rollback to this version?"
+  },
+  "classification": {
+    "TS": "Top Secret",
+    "S": "Secret",
+    "C": "Confidential",
+    "U": "Unclassified"
+  }
+}
