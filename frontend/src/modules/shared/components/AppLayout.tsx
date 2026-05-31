@@ -152,11 +152,9 @@ const primaryMenus: PrimaryMenu[] = [
     icon: <RobotOutlined />,
     label: '智能体',
     children: [
-      { key: '/my-agents', icon: <RobotOutlined />, label: '我的智能体' },
       { key: '/agent', icon: <ApiOutlined />, label: 'Agent调度' },
       { key: '/admin/agents', icon: <TeamOutlined />, label: '智能体管理' },
       { key: '/skills', icon: <AppstoreOutlined />, label: 'Skill管理' },
-      { key: '/qa', icon: <QuestionCircleOutlined />, label: '智能问答' },
     ],
   },
   {
