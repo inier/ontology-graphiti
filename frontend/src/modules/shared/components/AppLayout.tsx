@@ -28,6 +28,11 @@ import {
   LogoutOutlined,
   UserOutlined,
   PartitionOutlined,
+  HistoryOutlined,
+  ApiOutlined,
+  CompassOutlined,
+  QuestionCircleOutlined,
+  GlobalOutlined,
 } from '@ant-design/icons';
 import { api } from '../services/api';
 import { useAuthStore } from '../stores/authStore';
@@ -127,57 +132,70 @@ interface PrimaryMenu {
 
 const primaryMenus: PrimaryMenu[] = [
   {
-    key: 'semantic-map',
+    key: 'ontology-map',
     icon: <BlockOutlined />,
     label: '语义地图',
     children: [
-      { key: '/ontology', icon: <BlockOutlined />, label: '语义网络' },
-      { key: '/business/process', icon: <BranchesOutlined />, label: '业务过程' },
-      { key: '/business/rules', icon: <FileProtectOutlined />, label: '规则' },
-      { key: '/business/indicators', icon: <FundOutlined />, label: '指标' },
-      { key: '/business/logic', icon: <NodeIndexOutlined />, label: '逻辑' },
+      { key: '/ontology/designer', icon: <BlockOutlined />, label: '本体设计器' },
       { key: '/business/entities', icon: <UnorderedListOutlined />, label: '对象管理' },
-      { key: '/business/extraction', icon: <ExperimentOutlined />, label: '数据摄入' },
+      { key: '/ingest', icon: <ExperimentOutlined />, label: '数据摄入' },
       { key: '/blueprint', icon: <PartitionOutlined />, label: '蓝图设计' },
+      { key: '/versions', icon: <HistoryOutlined />, label: '版本历史' },
     ],
   },
   {
     key: 'agent',
     icon: <RobotOutlined />,
-    label: '智能体管理',
-  },
-  {
-    key: 'skills',
-    icon: <AppstoreOutlined />,
-    label: 'Skill管理',
-  },
-  {
-    key: 'simulator',
-    icon: <ThunderboltOutlined />,
-    label: '模拟推演',
+    label: '智能体',
     children: [
-      { key: '/simulator', icon: <ThunderboltOutlined />, label: '事件模拟' },
+      { key: '/my-agents', icon: <RobotOutlined />, label: '我的智能体' },
+      { key: '/agent', icon: <ApiOutlined />, label: 'Agent调度' },
+      { key: '/admin/agents', icon: <TeamOutlined />, label: '智能体管理' },
+      { key: '/skills', icon: <AppstoreOutlined />, label: 'Skill管理' },
+    ],
+  },
+  {
+    key: 'simulation',
+    icon: <ThunderboltOutlined />,
+    label: '推演仿真',
+    children: [
+      { key: '/simulation', icon: <ThunderboltOutlined />, label: '沙箱推演' },
+      { key: '/simulator', icon: <ExperimentOutlined />, label: '事件模拟' },
       { key: '/simulation/deduction', icon: <SafetyOutlined />, label: '策略推演' },
     ],
   },
   {
-    key: 'knowledge-management',
+    key: 'knowledge',
     icon: <DatabaseOutlined />,
-    label: '知识管理',
+    label: '知识检索',
     children: [
-      { key: '/knowledge', icon: <DatabaseOutlined />, label: '知识库管理' },
+      { key: '/knowledge', icon: <DatabaseOutlined />, label: '知识库' },
+      { key: '/knowledge/navigation', icon: <CompassOutlined />, label: '知识导航' },
+      { key: '/qa', icon: <QuestionCircleOutlined />, label: '智能问答' },
     ],
   },
   {
-    key: 'system-config',
-    icon: <SettingOutlined />,
-    label: '系统配置',
+    key: 'business-rules',
+    icon: <FileProtectOutlined />,
+    label: '业务规则',
     children: [
-      { key: '/workspace', icon: <BlockOutlined />, label: '工作空间' },
+      { key: '/business/process', icon: <BranchesOutlined />, label: '业务过程' },
+      { key: '/business/rules', icon: <FileProtectOutlined />, label: '规则' },
+      { key: '/business/indicators', icon: <FundOutlined />, label: '指标' },
+      { key: '/business/logic', icon: <NodeIndexOutlined />, label: '逻辑' },
+    ],
+  },
+  {
+    key: 'system',
+    icon: <SettingOutlined />,
+    label: '系统管理',
+    children: [
+      { key: '/workspace/manage', icon: <BlockOutlined />, label: '工作空间' },
+      { key: '/policy-editor', icon: <FileTextOutlined />, label: '策略编辑器' },
       { key: '/users', icon: <UserOutlined />, label: '用户管理' },
       { key: '/roles', icon: <TeamOutlined />, label: '角色管理' },
-      { key: '/policies', icon: <FileTextOutlined />, label: 'OPA策略' },
       { key: '/audit', icon: <AuditOutlined />, label: '审计日志' },
+      { key: '/i18n-admin', icon: <GlobalOutlined />, label: '国际化' },
     ],
   },
 ];
@@ -193,10 +211,7 @@ primaryMenus.forEach(m => {
   }
 });
 
-const directRoutes: Record<string, string> = {
-  agent: '/admin/agents',
-  skills: '/skills',
-};
+const directRoutes: Record<string, string> = {};
 
 export function AppLayout({ children, currentWorkspace, onWorkspaceChange }: AppLayoutProps) {
   const [leftCollapsed, setLeftCollapsed] = useState(false);
