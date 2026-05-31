@@ -119,3 +119,9 @@ oh --version  # 期望输出版本号
 ---
 
 *本 ADR 在 TASK_BREAKDOWN.md § 7 D1 决策点基础上细化记录。*
+
+## Status Update (2026-05-31)
+
+**Status: Superseded**
+
+Per spec clarification, OpenHarness integration is required for the current phase. ADR-030's decision to defer is overridden. OpenHarness is now integrated as an in-process dependency with adapter layer isolation.

@@ -320,3 +320,7 @@ class OntologyValidator:
 - [ADR-032: 标准化本体文档格式](ADR-032_standard_ontology_document_format.md)
 - [ADR-036: Palantir AIP Ontology 参考架构](ADR-036_palantir_ontology_reference.md)
 - [Ontology 模块](../03-modules/ontology/DESIGN.md)
+
+## Amendment (2026-05-31)
+
+**Strict alignment with Palantir AIP ontology model is required.** The ontology model layer must implement ObjectType→Property→Link→Action four-layer structure with primary_key, constraints, and classification_level support. OntologyDocument JSON serves as the unified atomic format.

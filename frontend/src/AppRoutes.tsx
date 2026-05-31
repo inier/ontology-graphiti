@@ -8,7 +8,7 @@ import { PolicyManagement } from './modules/config';
 import { OntologySemanticNetwork, OntologyDesignerPage } from './modules/ontology';
 import { BlueprintDesignerPage } from './modules/ontology/pages/BlueprintDesignerPage';
 import { IngestPanel, Simulator } from './modules/ingest';
-import { StrategyDeduction } from './modules/simulation';
+import { StrategyDeduction, SimulationPage } from './modules/simulation';
 import { VersionHistory } from './modules/version';
 import { RoleManager } from './modules/roles';
 import { UserManagement } from './modules/roles/pages/UserManagement';
@@ -18,6 +18,7 @@ import { KnowledgeBase, KnowledgePage } from './modules/knowledge';
 import { MyAgents, AgentChat, AgentManagement, AgentPage } from './modules/agent';
 import { LoginPage } from './modules/shared/pages/LoginPage';
 import { I18nAdminPage } from './modules/i18n-admin';
+import { QAPage } from './modules/qa';
 
 function ProtectedRoute({ children }: { children: ReactNode }) {
   const token = localStorage.getItem('token');
@@ -49,9 +50,11 @@ export function AppRoutes() {
       <Route path="/skills" element={<ProtectedRoute><SkillManagement /></ProtectedRoute>} />
       <Route path="/simulator" element={<ProtectedRoute><Simulator /></ProtectedRoute>} />
       <Route path="/simulation/deduction" element={<ProtectedRoute><StrategyDeduction /></ProtectedRoute>} />
+      <Route path="/simulation" element={<ProtectedRoute><SimulationPage /></ProtectedRoute>} />
       <Route path="/ingest" element={<ProtectedRoute><IngestPanel /></ProtectedRoute>} />
       <Route path="/knowledge" element={<ProtectedRoute><KnowledgeBase /></ProtectedRoute>} />
       <Route path="/knowledge/navigation" element={<ProtectedRoute><KnowledgePage /></ProtectedRoute>} />
+      <Route path="/qa" element={<ProtectedRoute><QAPage /></ProtectedRoute>} />
       <Route path="/workspace" element={<ProtectedRoute><WorkspaceManager /></ProtectedRoute>} />
       <Route path="/workspace/manage" element={<ProtectedRoute><WorkspacePage /></ProtectedRoute>} />
       <Route path="/i18n-admin" element={<ProtectedRoute><I18nAdminPage /></ProtectedRoute>} />

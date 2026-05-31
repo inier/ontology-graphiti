@@ -128,6 +128,45 @@ class DomainEventBus:
             "evidence": evidence or [],
         }, workspace_id)
 
+    async def emit_simulation_progress(
+        self,
+        simulation_id: str,
+        phase: str,
+        progress: float,
+        status: str,
+        data: Optional[dict] = None,
+        workspace_id: Optional[str] = None,
+    ):
+        await self.emit("simulation:progress", {
+            "simulation_id": simulation_id,
+            "phase": phase,
+            "progress": progress,
+            "status": status,
+            "data": data or {},
+        }, workspace_id)
+
+    async def emit_simulation_completed(
+        self,
+        simulation_id: str,
+        results: dict,
+        workspace_id: Optional[str] = None,
+    ):
+        await self.emit("simulation:completed", {
+            "simulation_id": simulation_id,
+            "results": results,
+        }, workspace_id)
+
+    async def emit_simulation_failed(
+        self,
+        simulation_id: str,
+        error: str,
+        workspace_id: Optional[str] = None,
+    ):
+        await self.emit("simulation:failed", {
+            "simulation_id": simulation_id,
+            "error": error,
+        }, workspace_id)
+
     async def _broadcast(self, message: str, workspace_id: Optional[str] = None):
         dead: Set[WebSocket] = set()
         targets = self._workspace_clients.get(workspace_id, set()) if workspace_id else self._ws_clients

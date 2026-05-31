@@ -30,6 +30,8 @@ from odap.biz.decision.action_service.routes import router as action_router
 from odap.biz.data.perception.routes import router as perception_router
 from odap.biz.decision.decision_pipeline.routes import router as decision_pipeline_router
 from odap.biz.simulation.simulation_sandbox.routes import router as sandbox_router
+from odap.biz.simulation.simulation_sandbox.api.routes import router as sandbox_api_router
+from odap.biz.simulation.simulation_sandbox.api.parallel_routes import router as parallel_router
 from odap.biz.management.business.api.routes import router as business_router
 from odap.infra.opa.routes import router as policy_router
 from odap.infra.opa.markdown_routes import router as markdown_policy_router
@@ -62,6 +64,7 @@ from odap.biz.core.ontology.engine.api.routes import router as ontology_engine_r
 from odap.biz.core.ontology.ingestion.api.routes import router as ingestion_router
 from odap.biz.core.ontology.schema.semantic_layer.api.routes import router as semantic_layer_router
 from odap.biz.platform.tool_registry.api.routes import router as tool_registry_router
+from odap.biz.decision.decision_recommendation.api.routes import router as decision_recommendation_router
 from odap.infra.security.data_classification_routes import router as data_classification_router
 from odap.infra.security import security_config
 from odap.infra.openharness import create_harness
@@ -176,6 +179,8 @@ app.include_router(action_router)
 app.include_router(perception_router)
 app.include_router(decision_pipeline_router)
 app.include_router(sandbox_router)
+app.include_router(sandbox_api_router)
+app.include_router(parallel_router)
 app.include_router(business_router)
 app.include_router(policy_router)
 app.include_router(markdown_policy_router)
@@ -209,6 +214,7 @@ app.include_router(ingestion_router)
 app.include_router(data_classification_router)
 app.include_router(semantic_layer_router)
 app.include_router(tool_registry_router)
+app.include_router(decision_recommendation_router)
 
 @app.get("/")
 async def root():
@@ -285,6 +291,33 @@ from fastapi import WebSocket, WebSocketDisconnect
 
 @app.websocket("/ws/agent/decisions")
 async def agent_decisions_ws(websocket: WebSocket, workspace_id: Optional[str] = None):
+    from odap.web.ws.event_bus import get_event_bus
+    bus = get_event_bus()
+    await bus.connect(websocket, workspace_id)
+    try:
+        while True:
+            try:
+                raw = await asyncio.wait_for(websocket.receive_text(), timeout=30)
+                import json as _json
+                msg = _json.loads(raw) if raw else {}
+                msg_type = msg.get("type", "")
+                if msg_type == "ping":
+                    await websocket.send_text(_json.dumps({"type": "pong"}))
+                elif msg_type == "subscribe":
+                    pass
+            except asyncio.TimeoutError:
+                try:
+                    await websocket.send_text('{"type":"heartbeat"}')
+                except Exception:
+                    break
+    except WebSocketDisconnect:
+        pass
+    finally:
+        bus.disconnect(websocket, workspace_id)
+
+
+@app.websocket("/ws/simulation/progress")
+async def simulation_progress_ws(websocket: WebSocket, workspace_id: Optional[str] = None):
     from odap.web.ws.event_bus import get_event_bus
     bus = get_event_bus()
     await bus.connect(websocket, workspace_id)

@@ -376,3 +376,7 @@ print(f"平均执行时间: {stats.avg_execution_time_ms}ms")
 本决策将作为Graphiti系统工具管理的标准架构，所有新的工具都应遵循工具注册表规范。现有工具将按优先级迁移到新架构。
 
 **风险提示**: 工具注册表架构的复杂性可能导致初期开发效率降低，需要配套完善的开发工具和文档支持。性能需要持续监控和优化。
+
+## Amendment (2026-05-31)
+
+**Unified tool registry now based on OpenHarness Tool interface.** Tool registration, invocation, and semantic discovery are implemented through OpenHarness BaseTool with adapter layer isolation.

@@ -204,3 +204,7 @@ Graphiti系统需要与多种外部领域仿真系统集成，包括：
 本决策将作为Graphiti系统外部集成的基础标准，所有新的外部系统集成都必须遵循MCP协议标准。现有系统的迁移将按优先级分阶段进行。
 
 **免责声明**: MCP协议仍在快速发展中，本决策基于MCP v1.0规范。如果协议有重大变更，将重新评估本决策。
+
+## Amendment (2026-05-31)
+
+**MCP protocol integration now depends on OpenHarness.** MCP client is implemented through OpenHarness mcp/client.py with adapter layer isolation.

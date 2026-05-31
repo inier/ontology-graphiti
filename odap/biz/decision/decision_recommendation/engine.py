@@ -6,11 +6,13 @@ OADP 决策阶段核心引擎：
 - 生成决策建议方案
 - 与 OPA 策略校验集成
 - 支持 RAG 增强推理
+- 历史推荐经验沉淀到知识图谱
 """
 
-from typing import Dict, Any, List, Optional, TYPE_CHECKING
+import json
 import logging
-from datetime import datetime
+from typing import Dict, Any, List, Optional, TYPE_CHECKING
+from datetime import datetime, timezone
 
 from .models import (
     RecommendationRequest,
@@ -32,76 +34,230 @@ logger = logging.getLogger(__name__)
 
 
 class DecisionRecommendationEngine:
-    """
-    决策推荐引擎
-
-    核心职责：
-    1. 接收并验证分析结果
-    2. 生成候选方案
-    3. 评估方案优先级和风险
-    4. 策略校验
-    5. 输出推荐结论
-    """
-
     def __init__(
         self,
         graphiti_client: Optional["GraphitiClient"] = None,
         opa_manager: Optional["OPAManager"] = None,
     ):
-        """
-        初始化决策推荐引擎
-
-        Args:
-            graphiti_client: Graphiti 客户端（用于 RAG 增强）
-            opa_manager: OPA 管理器（用于策略校验）
-        """
         self.graphiti = graphiti_client
         self.opa = opa_manager
         self._initialized = True
+        self._history: List[Dict[str, Any]] = []
         logger.info("DecisionRecommendationEngine 初始化完成")
+
+    async def generate_recommendations(
+        self,
+        simulation_results: Dict[str, Any],
+    ) -> Dict[str, Any]:
+        analysis_result = simulation_results.get("analysis_result", simulation_results)
+        available_options = simulation_results.get("available_options", [])
+        constraints = simulation_results.get("constraints", {})
+
+        request = RecommendationRequest(
+            analysis_result=analysis_result,
+            available_options=available_options,
+            constraints=constraints,
+            context=simulation_results.get("context", {}),
+        )
+
+        recommendation = await self.generate_recommendation(request)
+
+        self._history.append({
+            "recommendation_id": recommendation.recommendation_id,
+            "type": recommendation.type.value,
+            "summary": recommendation.decision_summary,
+            "confidence": recommendation.confidence,
+            "option_count": len(recommendation.options),
+            "created_at": recommendation.created_at.isoformat(),
+        })
+
+        if self.graphiti:
+            try:
+                await self.graphiti.add_episode(
+                    name=f"recommendation_{recommendation.recommendation_id}",
+                    episode_body=json.dumps({
+                        "type": "decision_recommendation",
+                        "recommendation_id": recommendation.recommendation_id,
+                        "summary": recommendation.decision_summary,
+                        "confidence": recommendation.confidence,
+                        "recommended_option": recommendation.recommended_option.option_id if recommendation.recommended_option else None,
+                    }, ensure_ascii=False),
+                    source_description="DecisionRecommendationEngine: recommendation",
+                    reference_time=datetime.now(timezone.utc),
+                )
+            except Exception as e:
+                logger.warning(f"Failed to persist recommendation to graph: {e}")
+
+        return {
+            "recommendation_id": recommendation.recommendation_id,
+            "type": recommendation.type.value,
+            "options": [
+                {
+                    "option_id": o.option_id,
+                    "name": o.name,
+                    "description": o.description,
+                    "priority_score": o.priority_score,
+                    "expected_benefit": o.expected_benefit,
+                    "expected_cost": o.expected_cost,
+                    "estimated_success_rate": o.estimated_success_rate,
+                    "status": o.status.value,
+                    "rationale": o.rationale,
+                }
+                for o in recommendation.options
+            ],
+            "recommended_option_id": recommendation.recommended_option.option_id if recommendation.recommended_option else None,
+            "decision_summary": recommendation.decision_summary,
+            "confidence": recommendation.confidence,
+        }
+
+    async def assess_risks(self, recommendation: Dict[str, Any]) -> Dict[str, Any]:
+        options = recommendation.get("options", [])
+        risk_results = []
+
+        for option in options:
+            factors = []
+
+            success_rate = option.get("estimated_success_rate", 0.5)
+            factors.append(RiskFactor(
+                factor_name="execution_risk",
+                score=50 * (1 - success_rate),
+                weight=0.3,
+                level=RiskLevel.MEDIUM,
+                description="执行失败的可能性",
+                mitigation="增加备选方案和回滚机制",
+            ))
+
+            cost = option.get("expected_cost", 50)
+            factors.append(RiskFactor(
+                factor_name="resource_risk",
+                score=cost / 2,
+                weight=0.25,
+                level=RiskLevel.MEDIUM,
+                description="资源消耗超预期风险",
+                mitigation="预留资源缓冲",
+            ))
+
+            factors.append(RiskFactor(
+                factor_name="time_risk",
+                score=recommendation.get("constraints", {}).get("time_pressure", 50),
+                weight=0.2,
+                level=RiskLevel.MEDIUM,
+                description="时间紧迫导致的决策风险",
+                mitigation="制定时间缓冲计划",
+            ))
+
+            factors.append(RiskFactor(
+                factor_name="external_risk",
+                score=30,
+                weight=0.25,
+                level=RiskLevel.LOW,
+                description="外部环境变化风险",
+                mitigation="持续监控和快速响应",
+            ))
+
+            overall_score = sum(f.score * f.weight for f in factors)
+            overall_level = self._score_to_level(overall_score)
+
+            risk_results.append({
+                "option_id": option.get("option_id", ""),
+                "option_name": option.get("name", ""),
+                "overall_score": round(overall_score, 2),
+                "overall_level": overall_level.value,
+                "factors": [
+                    {
+                        "name": f.factor_name,
+                        "score": f.score,
+                        "weight": f.weight,
+                        "level": f.level.value,
+                        "description": f.description,
+                        "mitigation": f.mitigation,
+                    }
+                    for f in factors
+                ],
+                "mitigation_suggestions": [f.mitigation for f in factors if f.mitigation],
+            })
+
+        return {
+            "recommendation_id": recommendation.get("recommendation_id", ""),
+            "risk_assessments": risk_results,
+            "highest_risk_option": max(risk_results, key=lambda r: r["overall_score"]) if risk_results else None,
+            "lowest_risk_option": min(risk_results, key=lambda r: r["overall_score"]) if risk_results else None,
+        }
+
+    def rank_recommendations(self, recommendations: List[Dict[str, Any]]) -> List[Dict[str, Any]]:
+        for rec in recommendations:
+            options = rec.get("options", [])
+            for opt in options:
+                priority = opt.get("priority_score", 0)
+                success = opt.get("estimated_success_rate", 0)
+                cost = opt.get("expected_cost", 50)
+                opt["_ranking_score"] = priority * 0.5 + success * 100 * 0.3 + (100 - cost) * 0.2
+
+            sorted_options = sorted(options, key=lambda o: o.get("_ranking_score", 0), reverse=True)
+            for i, opt in enumerate(sorted_options):
+                opt.pop("_ranking_score", None)
+                if i == 0:
+                    opt["status"] = OptionStatus.RECOMMENDED.value
+                else:
+                    opt["status"] = OptionStatus.ALTERNATIVE.value
+
+            rec["options"] = sorted_options
+            if sorted_options:
+                rec["recommended_option_id"] = sorted_options[0].get("option_id")
+
+        return sorted(recommendations, key=lambda r: r.get("confidence", 0), reverse=True)
+
+    def explain_recommendation(self, recommendation_id: str) -> Dict[str, Any]:
+        for rec in self._history:
+            if rec.get("recommendation_id") == recommendation_id:
+                return {
+                    "recommendation_id": recommendation_id,
+                    "found": True,
+                    "type": rec.get("type", ""),
+                    "summary": rec.get("summary", ""),
+                    "confidence": rec.get("confidence", 0),
+                    "option_count": rec.get("option_count", 0),
+                    "created_at": rec.get("created_at", ""),
+                    "explanation": (
+                        f"该推荐方案类型为{rec.get('type', '行动方案')}，"
+                        f"置信度为{rec.get('confidence', 0):.0%}，"
+                        f"共评估了{rec.get('option_count', 0)}个候选方案。"
+                        f"决策摘要：{rec.get('summary', '无')}"
+                    ),
+                }
+
+        return {
+            "recommendation_id": recommendation_id,
+            "explanation": "未找到该推荐记录",
+            "found": False,
+        }
+
+    def get_history(self, ontology_id: Optional[str] = None, limit: int = 20) -> List[Dict[str, Any]]:
+        history = self._history
+        if ontology_id:
+            history = [h for h in history if h.get("ontology_id") == ontology_id]
+        return history[-limit:]
 
     async def generate_recommendation(
         self,
         request: RecommendationRequest,
     ) -> DecisionRecommendation:
-        """
-        生成决策推荐
-
-        主要流程：
-        1. 验证分析结果
-        2. 生成或扩展候选方案
-        3. 评估每个方案
-        4. 策略校验
-        5. 排序并输出推荐
-
-        Args:
-            request: 决策请求
-
-        Returns:
-            DecisionRecommendation: 决策推荐结果
-        """
         logger.info(f"生成决策推荐: {request.request_id}")
 
-        # 1. 生成或获取候选方案
         options = await self._generate_options(request)
 
-        # 2. 评估每个方案
         evaluated_options = []
         for option in options:
             evaluated = await self._evaluate_option(option, request)
             evaluated_options.append(evaluated)
 
-        # 3. 策略校验
         validated_options = await self._validate_with_policy(evaluated_options, request)
 
-        # 4. 排序
         ranked_options = self._rank_options(validated_options)
 
-        # 5. 生成推荐
         recommended = ranked_options[0] if ranked_options else None
         alternatives = ranked_options[1:]
 
-        # 构建决策摘要
         summary = self._generate_summary(ranked_options, recommended, request)
 
         recommendation = DecisionRecommendation(
@@ -126,11 +282,6 @@ class DecisionRecommendationEngine:
         self,
         request: RecommendationRequest,
     ) -> List[DecisionOption]:
-        """
-        生成候选方案
-
-        如果请求中已有方案，直接使用；否则基于分析结果生成
-        """
         if request.available_options:
             return [
                 DecisionOption(
@@ -144,7 +295,6 @@ class DecisionRecommendationEngine:
                 for i, opt in enumerate(request.available_options)
             ]
 
-        # 基于分析结果生成默认方案
         analysis = request.analysis_result
         return [
             DecisionOption(
@@ -162,33 +312,15 @@ class DecisionRecommendationEngine:
         option: DecisionOption,
         request: RecommendationRequest,
     ) -> DecisionOption:
-        """
-        评估单个方案
-
-        计算优先级评分、预期收益/成本、成功率
-        """
-        # 计算优先级评分（简单加权模型）
         priority_score = await self._calculate_priority(option, request)
         option.priority_score = priority_score
 
-        # 计算预期收益
         option.expected_benefit = await self._estimate_benefit(option, request)
-
-        # 计算预期成本
         option.expected_cost = await self._estimate_cost(option, request)
-
-        # 评估成功率
-        option.estimated_success_rate = await self._estimate_success_rate(
-            option, request
-        )
-
-        # 风险评估
+        option.estimated_success_rate = await self._estimate_success_rate(option, request)
         option.risk_assessment = await self._assess_risk(option, request)
-
-        # 生成理由
         option.rationale = await self._generate_rationale(option, request)
 
-        # RAG 增强：查找支撑证据
         if self.graphiti:
             option.supporting_evidence = await self._find_evidence(option, request)
 
@@ -199,17 +331,12 @@ class DecisionRecommendationEngine:
         option: DecisionOption,
         request: RecommendationRequest,
     ) -> float:
-        """
-        计算优先级评分
-
-        基于收益、成本、成功率加权计算
-        """
         benefit_weight = 0.5
         cost_weight = 0.2
         success_weight = 0.3
 
         benefit_score = option.expected_benefit
-        cost_score = 100 - option.expected_cost  # 成本越低越好
+        cost_score = 100 - option.expected_cost
         success_score = option.estimated_success_rate * 100
 
         priority = (
@@ -225,12 +352,9 @@ class DecisionRecommendationEngine:
         option: DecisionOption,
         request: RecommendationRequest,
     ) -> float:
-        """估算预期收益"""
-        # 基于分析结果中的价值评估
         analysis = request.analysis_result
         base_benefit = analysis.get("value_score", 50)
 
-        # 考虑方案特定因素
         benefit_modifier = 1.0
         if "high_impact" in option.description.lower():
             benefit_modifier = 1.2
@@ -242,26 +366,21 @@ class DecisionRecommendationEngine:
         option: DecisionOption,
         request: RecommendationRequest,
     ) -> float:
-        """估算预期成本"""
-        # 基于约束条件
         constraints = request.constraints
 
         if "max_cost" in constraints:
             return min(100, (option.expected_cost or 50) / constraints["max_cost"] * 100)
 
-        return 50.0  # 默认中等成本
+        return 50.0
 
     async def _estimate_success_rate(
         self,
         option: DecisionOption,
         request: RecommendationRequest,
     ) -> float:
-        """估算成功率"""
-        # 基于历史数据或默认值
         analysis = request.analysis_result
         base_rate = analysis.get("success_rate", 0.7)
 
-        # 考虑约束条件
         if request.constraints.get("strict_mode"):
             base_rate *= 0.8
 
@@ -272,14 +391,8 @@ class DecisionRecommendationEngine:
         option: DecisionOption,
         request: RecommendationRequest,
     ) -> RiskAssessment:
-        """
-        评估方案风险
-
-        多维度风险分析
-        """
         factors = []
 
-        # 1. 执行风险
         execution_risk = RiskFactor(
             factor_name="execution_risk",
             score=50 * (1 - option.estimated_success_rate),
@@ -290,7 +403,6 @@ class DecisionRecommendationEngine:
         )
         factors.append(execution_risk)
 
-        # 2. 资源风险
         resource_risk = RiskFactor(
             factor_name="resource_risk",
             score=option.expected_cost / 2,
@@ -301,7 +413,6 @@ class DecisionRecommendationEngine:
         )
         factors.append(resource_risk)
 
-        # 3. 时间风险
         time_risk = RiskFactor(
             factor_name="time_risk",
             score=request.constraints.get("time_pressure", 50),
@@ -312,10 +423,9 @@ class DecisionRecommendationEngine:
         )
         factors.append(time_risk)
 
-        # 4. 外部风险
         external_risk = RiskFactor(
             factor_name="external_risk",
-            score=30,  # 简化处理
+            score=30,
             weight=0.25,
             level=RiskLevel.LOW,
             description="外部环境变化风险",
@@ -323,11 +433,9 @@ class DecisionRecommendationEngine:
         )
         factors.append(external_risk)
 
-        # 计算综合风险评分
         overall_score = sum(f.score * f.weight for f in factors)
         overall_level = self._score_to_level(overall_score)
 
-        # 生成缓解建议
         mitigations = [f.mitigation for f in factors if f.mitigation]
 
         return RiskAssessment(
@@ -338,7 +446,6 @@ class DecisionRecommendationEngine:
         )
 
     def _score_to_level(self, score: float) -> RiskLevel:
-        """将评分转换为风险等级"""
         if score < 30:
             return RiskLevel.LOW
         elif score < 60:
@@ -353,18 +460,12 @@ class DecisionRecommendationEngine:
         options: List[DecisionOption],
         request: RecommendationRequest,
     ) -> List[DecisionOption]:
-        """
-        OPA 策略校验
-
-        检查方案是否符合组织策略
-        """
         if not self.opa:
             logger.warning("OPA 管理器未配置，跳过策略校验")
             return options
 
         validated = []
         for option in options:
-            # 构造 OPA 请求
             opa_input = {
                 "action": option.action,
                 "parameters": option.parameters,
@@ -373,7 +474,6 @@ class DecisionRecommendationEngine:
             }
 
             try:
-                # 调用 OPA 校验
                 result = await self.opa.validate(opa_input)
 
                 if result.allowed:
@@ -387,7 +487,6 @@ class DecisionRecommendationEngine:
 
             except Exception as e:
                 logger.error(f"OPA 校验失败: {e}")
-                # 校验失败时保留方案但标记
                 option.status = OptionStatus.PENDING
 
             validated.append(option)
@@ -398,15 +497,8 @@ class DecisionRecommendationEngine:
         self,
         options: List[DecisionOption],
     ) -> List[DecisionOption]:
-        """
-        方案排序
-
-        按优先级评分降序排列
-        """
-        # 过滤已拒绝的方案
         valid = [o for o in options if o.status != OptionStatus.REJECTED]
 
-        # 按优先级排序
         ranked = sorted(
             valid,
             key=lambda o: (
@@ -416,7 +508,6 @@ class DecisionRecommendationEngine:
             reverse=True,
         )
 
-        # 更新状态
         for i, option in enumerate(ranked):
             if i == 0:
                 option.status = OptionStatus.RECOMMENDED
@@ -430,19 +521,15 @@ class DecisionRecommendationEngine:
         option: DecisionOption,
         request: RecommendationRequest,
     ) -> str:
-        """生成决策理由"""
         analysis = request.analysis_result
         reasons = []
 
-        # 基于分析结果
         if "summary" in analysis:
             reasons.append(f"基于分析: {analysis['summary'][:50]}...")
 
-        # 基于评估指标
         reasons.append(f"预期收益: {option.expected_benefit:.0f}/100")
         reasons.append(f"预估成功率: {option.estimated_success_rate:.0%}")
 
-        # 基于风险评估
         if option.risk_assessment:
             reasons.append(
                 f"综合风险等级: {option.risk_assessment.overall_level.value}"
@@ -455,9 +542,7 @@ class DecisionRecommendationEngine:
         option: DecisionOption,
         request: RecommendationRequest,
     ) -> List[str]:
-        """RAG 增强：查找支撑证据"""
         try:
-            # 使用 Graphiti 进行相似性搜索
             query = f"{option.name} {option.description}"
             results = await self.graphiti.search_episodes(
                 query=query,
@@ -472,7 +557,6 @@ class DecisionRecommendationEngine:
         self,
         request: RecommendationRequest,
     ) -> RecommendationType:
-        """推断推荐类型"""
         context = request.context
 
         if "action_plan" in context:
@@ -492,7 +576,6 @@ class DecisionRecommendationEngine:
         recommended: Optional[DecisionOption],
         request: RecommendationRequest,
     ) -> str:
-        """生成决策摘要"""
         if not options:
             return "无可用方案，请提供更多上下文信息。"
 
@@ -511,11 +594,9 @@ class DecisionRecommendationEngine:
         options: List[DecisionOption],
         request: RecommendationRequest,
     ) -> float:
-        """计算决策置信度"""
         if not options:
             return 0.0
 
-        # 基于方案数量、推荐方案评分、证据充分度
         option_count_factor = min(1.0, len(options) / 3) * 0.2
         score_factor = (
             options[0].priority_score / 100 * 0.5 if options else 0
@@ -533,26 +614,13 @@ class DecisionRecommendationEngine:
         self,
         feedback: DecisionFeedback,
     ) -> bool:
-        """
-        记录决策反馈
-
-        用于 OADP 闭环反馈机制
-
-        Args:
-            feedback: 决策反馈
-
-        Returns:
-            bool: 是否记录成功
-        """
         logger.info(
             f"记录决策反馈: {feedback.recommendation_id} -> "
             f"{feedback.executed_option_id} ({feedback.actual_outcome})"
         )
 
-        # 如果有 Graphiti，可以将反馈写入知识图谱
         if self.graphiti:
             try:
-                # 创建反馈事件
                 await self.graphiti.add_episode(
                     name=f"decision_feedback_{feedback.recommendation_id}",
                     episode_body=json.dumps({
@@ -575,23 +643,11 @@ class DecisionRecommendationEngine:
         return True
 
 
-# 便捷函数
 async def create_recommendation(
     analysis_result: Dict[str, Any],
     graphiti_client: Optional["GraphitiClient"] = None,
     opa_manager: Optional["OPAManager"] = None,
 ) -> DecisionRecommendation:
-    """
-    创建决策推荐的便捷函数
-
-    Args:
-        analysis_result: 理解阶段的分析结果
-        graphiti_client: Graphiti 客户端
-        opa_manager: OPA 管理器
-
-    Returns:
-        DecisionRecommendation: 决策推荐结果
-    """
     engine = DecisionRecommendationEngine(
         graphiti_client=graphiti_client,
         opa_manager=opa_manager,

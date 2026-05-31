@@ -8,6 +8,9 @@
 - [MyAgents.tsx](file://frontend/src/modules/agent/pages/MyAgents.tsx)
 - [AgentChat.tsx](file://frontend/src/modules/agent/pages/AgentChat.tsx)
 - [AgentManagement.tsx](file://frontend/src/modules/agent/pages/AgentManagement.tsx)
+- [AgentPage.tsx](file://frontend/src/modules/agent/pages/AgentPage.tsx)
+- [SkillManager.tsx](file://frontend/src/modules/agent/components/SkillManager.tsx)
+- [agentStore.ts](file://frontend/src/modules/agent/stores/agentStore.ts)
 - [FRONTEND_COMPONENT_DESIGN.md](file://docs/04-ui/FRONTEND_COMPONENT_DESIGN.md)
 </cite>
 
@@ -25,7 +28,7 @@
 
 ## 简介
 本文件面向前端开发者与产品人员，系统性梳理 Agent 模块在前端的实现，覆盖以下方面：
-- Agent 聊天界面、Agent 管理页面、我的 Agent 页面的实现与交互
+- Agent 聊天界面、Agent 管理页面、我的 Agent 页面、Agent调度中心页面的实现与交互
 - Agent 通信机制、消息处理与状态管理思路
 - Agent API 服务的设计与实现要点（RESTful 接口调用与 WebSocket 连接建议）
 - Agent 类型定义与数据模型
@@ -33,7 +36,7 @@
 - 实际聊天界面实现示例与 API 调用示例（以路径标注形式呈现）
 
 ## 项目结构
-Agent 模块位于前端工程的模块化目录中，采用“按页面组织”的结构，配合统一的路由注册与类型导出。
+Agent 模块位于前端工程的模块化目录中，采用"按页面组织"的结构，配合统一的路由注册与类型导出。
 
 ```mermaid
 graph TB
@@ -45,28 +48,38 @@ TYP["types.ts<br/>Agent/表单/引用选项类型"]
 MA["MyAgents.tsx<br/>我的Agent列表"]
 AC["AgentChat.tsx<br/>Agent聊天界面"]
 AM["AgentManagement.tsx<br/>Agent管理页面"]
+AP["AgentPage.tsx<br/>Agent调度中心"]
+SK["SkillManager.tsx<br/>技能管理组件"]
+ST["agentStore.ts<br/>Agent状态管理"]
 end
 end
 AR --> IDX
 IDX --> MA
 IDX --> AC
 IDX --> AM
+IDX --> AP
+AP --> ST
+AM --> SK
 AC --> TYP
 MA --> TYP
 AM --> TYP
+AP --> TYP
 ```
 
 **图表来源**
 - [AppRoutes.tsx:1-61](file://frontend/src/AppRoutes.tsx#L1-L61)
-- [index.ts:1-5](file://frontend/src/modules/agent/index.ts#L1-L5)
+- [index.ts:1-6](file://frontend/src/modules/agent/index.ts#L1-L6)
 - [types.ts:1-45](file://frontend/src/modules/agent/types.ts#L1-L45)
 - [MyAgents.tsx:1-117](file://frontend/src/modules/agent/pages/MyAgents.tsx#L1-L117)
 - [AgentChat.tsx:1-1216](file://frontend/src/modules/agent/pages/AgentChat.tsx#L1-L1216)
 - [AgentManagement.tsx:1-617](file://frontend/src/modules/agent/pages/AgentManagement.tsx#L1-L617)
+- [AgentPage.tsx:1-152](file://frontend/src/modules/agent/pages/AgentPage.tsx#L1-L152)
+- [SkillManager.tsx:1-216](file://frontend/src/modules/agent/components/SkillManager.tsx#L1-L216)
+- [agentStore.ts:1-72](file://frontend/src/modules/agent/stores/agentStore.ts#L1-L72)
 
 **章节来源**
 - [AppRoutes.tsx:1-61](file://frontend/src/AppRoutes.tsx#L1-L61)
-- [index.ts:1-5](file://frontend/src/modules/agent/index.ts#L1-L5)
+- [index.ts:1-6](file://frontend/src/modules/agent/index.ts#L1-L6)
 - [types.ts:1-45](file://frontend/src/modules/agent/types.ts#L1-L45)
 
 ## 核心组件
@@ -74,15 +87,21 @@ AM --> TYP
 - 我的 Agent 页面：按当前角色与工作空间过滤，展示可用 Agent 列表，并跳转到聊天页。
 - Agent 聊天页面：提供侧边会话列表、消息展示区、输入与发送、会话清理等能力。
 - Agent 管理页面：提供 Agent 的增删改查、关联业务对象与权限配置、工作空间绑定等。
+- Agent 调度中心页面：提供意图分发、决策记录、决策链路查看等功能。
+- 技能管理组件：提供技能注册、发现、生命周期管理等能力。
+- Agent 状态管理：使用 Zustand 管理 Agent 调度状态、决策链路等。
 
 **章节来源**
 - [types.ts:1-45](file://frontend/src/modules/agent/types.ts#L1-L45)
 - [MyAgents.tsx:12-117](file://frontend/src/modules/agent/pages/MyAgents.tsx#L12-L117)
 - [AgentChat.tsx:1049-1216](file://frontend/src/modules/agent/pages/AgentChat.tsx#L1049-L1216)
 - [AgentManagement.tsx:36-617](file://frontend/src/modules/agent/pages/AgentManagement.tsx#L36-L617)
+- [AgentPage.tsx:16-152](file://frontend/src/modules/agent/pages/AgentPage.tsx#L16-L152)
+- [SkillManager.tsx:35-216](file://frontend/src/modules/agent/components/SkillManager.tsx#L35-L216)
+- [agentStore.ts:19-72](file://frontend/src/modules/agent/stores/agentStore.ts#L19-L72)
 
 ## 架构总览
-Agent 模块的前端架构遵循“页面组件 + 类型定义 + 统一路由”的组织方式。页面组件通过统一的 API 服务访问后端 Agent 能力；聊天页面复用 QA 模块的会话与消息钩子，形成统一的消息处理与渲染。
+Agent 模块的前端架构遵循"页面组件 + 类型定义 + 统一路由"的组织方式。页面组件通过统一的 API 服务访问后端 Agent 能力；聊天页面复用 QA 模块的会话与消息钩子，形成统一的消息处理与渲染。
 
 ```mermaid
 graph TB
@@ -93,20 +112,28 @@ subgraph "Agent 模块"
 M["MyAgents.tsx"]
 C["AgentChat.tsx"]
 A["AgentManagement.tsx"]
+P["AgentPage.tsx"]
+S["SkillManager.tsx"]
 T["types.ts"]
+Z["agentStore.ts"]
 end
 subgraph "API 层"
-S["agentApi.ts<br/>RESTful 接口封装"]
+SVC["agentApi.ts<br/>RESTful 接口封装"]
 end
 R --> M
 R --> C
 R --> A
-M --> S
-C --> S
+R --> P
+M --> SVC
+C --> SVC
+A --> SVC
+P --> Z
+P --> SVC
 A --> S
 M --> T
 C --> T
 A --> T
+P --> T
 ```
 
 **图表来源**
@@ -114,13 +141,16 @@ A --> T
 - [MyAgents.tsx:5](file://frontend/src/modules/agent/pages/MyAgents.tsx#L5)
 - [AgentChat.tsx:5](file://frontend/src/modules/agent/pages/AgentChat.tsx#L5)
 - [AgentManagement.tsx:4](file://frontend/src/modules/agent/pages/AgentManagement.tsx#L4)
+- [AgentPage.tsx:4](file://frontend/src/modules/agent/pages/AgentPage.tsx#L4)
+- [SkillManager.tsx:4](file://frontend/src/modules/agent/components/SkillManager.tsx#L4)
 - [types.ts:1-45](file://frontend/src/modules/agent/types.ts#L1-L45)
+- [agentStore.ts:1](file://frontend/src/modules/agent/stores/agentStore.ts#L1)
 
 ## 详细组件分析
 
 ### 我的 Agent 页面（MyAgents）
 - 功能：根据当前用户角色与工作空间获取可用 Agent 列表，支持降级加载（无角色时回退到全量列表）。
-- 交互：点击卡片或“查看”按钮跳转至聊天页。
+- 交互：点击卡片或"查看"按钮跳转至聊天页。
 - 状态管理：本地 useState 管理 agents、loading、搜索词等。
 - API 调用：通过 agentApi.listAgentsByRole 或 agentApi.listAgents。
 
@@ -130,7 +160,7 @@ participant U as "用户"
 participant MA as "MyAgents 页面"
 participant API as "agentApi"
 participant NAV as "导航"
-U->>MA : 打开“我的Agent”
+U->>MA : 打开"我的Agent"
 MA->>MA : 读取用户角色与工作空间
 MA->>API : listAgentsByRole(roleId, workspace)
 API-->>MA : Agent[] 或异常
@@ -141,7 +171,7 @@ MA->>API : listAgents({roleId, workspaceId})
 API-->>MA : Agent[]
 MA-->>U : 渲染 Agent 卡片
 end
-U->>NAV : 点击“查看”
+U->>NAV : 点击"查看"
 NAV-->>C : 跳转到 /agent-chat/ : agentId
 ```
 
@@ -215,10 +245,69 @@ Search --> Render
 **章节来源**
 - [AgentManagement.tsx:1-617](file://frontend/src/modules/agent/pages/AgentManagement.tsx#L1-L617)
 
+### Agent 调度中心页面（AgentPage）
+- 功能：提供意图分发、决策记录查看、决策链路追踪等功能。
+- 状态管理：使用 Zustand 管理任务、决策、当前链路等状态。
+- API 调用：通过 agentApi.dispatch、agentApi.listDecisions、agentApi.getDecisionChainDetail 等接口。
+
+```mermaid
+sequenceDiagram
+participant U as "用户"
+participant AP as "AgentPage 页面"
+participant STORE as "agentStore"
+participant API as "agentApi"
+U->>AP : 输入意图并点击分发
+AP->>STORE : dispatch(intent)
+STORE->>API : dispatch(intent)
+API-->>STORE : DispatchResult
+STORE-->>AP : 更新 lastDispatch
+U->>AP : 点击查看决策链路
+AP->>STORE : getDecisionChain(decisionId)
+STORE->>API : getDecisionChainDetail(decisionId)
+API-->>STORE : DecisionChainDetail
+STORE-->>AP : 更新 currentChain
+```
+
+**图表来源**
+- [AgentPage.tsx:21-35](file://frontend/src/modules/agent/pages/AgentPage.tsx#L21-L35)
+- [agentStore.ts:27-58](file://frontend/src/modules/agent/stores/agentStore.ts#L27-L58)
+
+**章节来源**
+- [AgentPage.tsx:16-152](file://frontend/src/modules/agent/pages/AgentPage.tsx#L16-L152)
+- [agentStore.ts:19-72](file://frontend/src/modules/agent/stores/agentStore.ts#L19-L72)
+
+### 技能管理组件（SkillManager）
+- 功能：技能注册、发现、生命周期管理、版本控制等。
+- 交互：搜索技能、注册新技能、修改技能状态、归档技能。
+- 状态管理：本地 useState 管理技能列表、搜索条件、表单状态等。
+- API 调用：通过 fetchJson 调用技能管理 API。
+
+```mermaid
+flowchart TD
+Start(["打开技能管理"]) --> Load["加载技能列表"]
+Load --> Render["渲染技能表格"]
+Render --> Search["搜索技能"]
+Render --> Register["注册新技能"]
+Render --> Lifecycle["修改生命周期"]
+Render --> Archive["归档技能"]
+Search --> Load
+Register --> Load
+Lifecycle --> Load
+Archive --> Load
+```
+
+**图表来源**
+- [SkillManager.tsx:42-56](file://frontend/src/modules/agent/components/SkillManager.tsx#L42-L56)
+- [SkillManager.tsx:117-153](file://frontend/src/modules/agent/components/SkillManager.tsx#L117-L153)
+
+**章节来源**
+- [SkillManager.tsx:35-216](file://frontend/src/modules/agent/components/SkillManager.tsx#L35-L216)
+
 ### 类型定义与数据模型
 - Agent：包含标识、名称、展示名、头像、描述、主对象、关联对象、关联业务、关联技能、关联知识库、允许角色、工作空间、创建者与时间戳、引用标签映射等。
 - AgentFormData：用于表单提交的 Agent 字段集合。
 - AgentRefOption：引用选项的通用结构，支持多种类型。
+- 决策相关类型：包含决策列表、决策链路详情、任务状态等。
 
 ```mermaid
 erDiagram
@@ -264,6 +353,17 @@ string id
 string name
 string type
 }
+DECISION_RESULT {
+string decision_id
+string task_id
+number steps_count
+string created_at
+}
+DECISION_CHAIN {
+string decision_id
+string reasoning
+array steps
+}
 ```
 
 **图表来源**
@@ -273,8 +373,9 @@ string type
 - [types.ts:1-45](file://frontend/src/modules/agent/types.ts#L1-L45)
 
 ## 依赖关系分析
-- 路由依赖：AppRoutes 将 agent 模块的三个页面注册到统一路由树，支持默认页与受保护路由。
+- 路由依赖：AppRoutes 将 agent 模块的四个页面注册到统一路由树，支持默认页与受保护路由。
 - 组件依赖：页面组件依赖 agentApi 与共享 API，聊天页额外依赖 QA 钩子与会话管理。
+- 状态管理依赖：AgentPage 依赖 agentStore 进行状态管理。
 - 类型依赖：页面组件与类型文件强耦合，确保数据结构一致。
 
 ```mermaid
@@ -282,13 +383,18 @@ graph LR
 AR["AppRoutes.tsx"] --> MA["MyAgents.tsx"]
 AR --> AC["AgentChat.tsx"]
 AR --> AM["AgentManagement.tsx"]
+AR --> AP["AgentPage.tsx"]
 MA --> T["types.ts"]
 AC --> T
 AM --> T
+AP --> T
+AP --> ST["agentStore.ts"]
 MA --> API["agentApi"]
 AC --> API
 AM --> API
 AM --> BAPI["businessApi/knowledgeApi/sharedApi"]
+AP --> API
+AP --> ST
 ```
 
 **图表来源**
@@ -296,6 +402,8 @@ AM --> BAPI["businessApi/knowledgeApi/sharedApi"]
 - [MyAgents.tsx:5](file://frontend/src/modules/agent/pages/MyAgents.tsx#L5)
 - [AgentChat.tsx:5](file://frontend/src/modules/agent/pages/AgentChat.tsx#L5)
 - [AgentManagement.tsx:4-8](file://frontend/src/modules/agent/pages/AgentManagement.tsx#L4-L8)
+- [AgentPage.tsx:4](file://frontend/src/modules/agent/pages/AgentPage.tsx#L4)
+- [agentStore.ts:1](file://frontend/src/modules/agent/stores/agentStore.ts#L1)
 - [types.ts:1-45](file://frontend/src/modules/agent/types.ts#L1-L45)
 
 **章节来源**
@@ -308,6 +416,7 @@ AM --> BAPI["businessApi/knowledgeApi/sharedApi"]
 - 请求合并：管理页加载引用选项时使用并发 Promise，降低等待时间。
 - 缓存策略：聊天输入历史本地持久化，提升交互体验。
 - 渲染优化：消息列表自动滚动至底部，避免重复计算高度。
+- 状态管理：使用 Zustand 进行局部状态管理，避免全局状态污染。
 
 [本节为通用指导，无需特定文件引用]
 
@@ -316,15 +425,18 @@ AM --> BAPI["businessApi/knowledgeApi/sharedApi"]
 - 无 Agent 数据：确认 MyAgents 是否正确传入角色与工作空间参数；若无角色，检查降级逻辑。
 - 表单保存失败：查看 AgentManagement 的错误提示与控制台输出，确认字段校验与 API 返回。
 - 聊天发送无响应：当前示例使用延时模拟，需对接真实 API 或 WebSocket。
+- 调度中心无数据：检查 agentStore 的状态更新和 API 调用是否正常。
+- 技能管理异常：确认技能 API 可用性和网络请求状态。
 
 **章节来源**
 - [AppRoutes.tsx:19-25](file://frontend/src/AppRoutes.tsx#L19-L25)
 - [MyAgents.tsx:23-40](file://frontend/src/modules/agent/pages/MyAgents.tsx#L23-L40)
 - [AgentManagement.tsx:214-230](file://frontend/src/modules/agent/pages/AgentManagement.tsx#L214-L230)
 - [AgentChat.tsx:1200-1216](file://frontend/src/modules/agent/pages/AgentChat.tsx#L1200-L1216)
+- [AgentPage.tsx:21-35](file://frontend/src/modules/agent/pages/AgentPage.tsx#L21-L35)
 
 ## 结论
-Agent 模块前端实现采用清晰的页面分层与类型约束，结合统一路由与 API 服务，实现了从“我的 Agent”到“Agent 聊天”再到“Agent 管理”的完整闭环。聊天页面具备良好的扩展性，建议后续接入 WebSocket 以实现真正的实时消息流；管理页面提供了完善的配置能力，便于与业务图谱与权限体系对齐。
+Agent 模块前端实现采用清晰的页面分层与类型约束，结合统一路由与 API 服务，实现了从"My Agents"到"Agent Chat"再到"Agent Management"和"Agent Page"的完整闭环。新增的 AgentPage 和 SkillManager 组件进一步完善了 Agent 的管理能力，建议后续接入 WebSocket 以实现真正的实时消息流；管理页面提供了完善的配置能力，便于与业务图谱与权限体系对齐。
 
 [本节为总结性内容，无需特定文件引用]
 
@@ -334,6 +446,7 @@ Agent 模块前端实现采用清晰的页面分层与类型约束，结合统�
 - 默认页与我的 Agent：/ 与 /my-agents
 - Agent 聊天：/agent-chat/:agentId
 - Agent 管理（后台）：/admin/agents
+- Agent 调度中心：/agent-page
 
 **章节来源**
 - [AppRoutes.tsx:31-54](file://frontend/src/AppRoutes.tsx#L31-L54)
@@ -343,7 +456,7 @@ Agent 模块前端实现采用清晰的页面分层与类型约束，结合统�
 - agent 模块通过 index.ts 导出页面与类型，供路由与业务模块使用。
 
 **章节来源**
-- [index.ts:1-5](file://frontend/src/modules/agent/index.ts#L1-L5)
+- [index.ts:1-6](file://frontend/src/modules/agent/index.ts#L1-L6)
 
 ### 实际实现示例与 API 调用示例（路径标注）
 - 我的 Agent 列表加载与跳转
@@ -357,3 +470,9 @@ Agent 模块前端实现采用清晰的页面分层与类型约束，结合统�
   - [AgentManagement.tsx:71-81](file://frontend/src/modules/agent/pages/AgentManagement.tsx#L71-L81)
   - [AgentManagement.tsx:214-230](file://frontend/src/modules/agent/pages/AgentManagement.tsx#L214-L230)
   - [AgentManagement.tsx:351-533](file://frontend/src/modules/agent/pages/AgentManagement.tsx#L351-L533)
+- Agent 调度中心（意图分发与决策查看）
+  - [AgentPage.tsx:21-35](file://frontend/src/modules/agent/pages/AgentPage.tsx#L21-L35)
+  - [AgentPage.tsx:103-116](file://frontend/src/modules/agent/pages/AgentPage.tsx#L103-L116)
+- 技能管理组件（技能注册与生命周期管理）
+  - [SkillManager.tsx:46-56](file://frontend/src/modules/agent/components/SkillManager.tsx#L46-L56)
+  - [SkillManager.tsx:105-115](file://frontend/src/modules/agent/components/SkillManager.tsx#L105-L115)

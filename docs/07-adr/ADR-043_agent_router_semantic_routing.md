@@ -131,3 +131,7 @@ class AgentRouter:
 - 关联 ADR-003/028（OPA 权限校验）
 - 关联 M-10 DESIGN.md（Agent 模块）
 - 影响 WR-12（Agent Router）
+
+## Amendment (2026-05-31)
+
+**Hybrid routing strategy added.** IntentRouter implements three-level routing: rule-based (ontology facts) → LLM fallback → default to Intelligence Agent. Routing rules and confidence must be based on ontology facts.

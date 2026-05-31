@@ -1,0 +1,19 @@
+{
+  "qa": {
+    "title": "Intelligent Q&A",
+    "temporal": {
+      "title": "Temporal Q&A",
+      "placeholder": "Enter temporal question",
+      "timePlaceholder": "Specify time (optional)",
+      "query": "Temporal Query",
+      "clear": "Clear"
+    },
+    "chart": {
+      "title": "Chart Rendering",
+      "typePlaceholder": "Select chart type",
+      "dataPlaceholder": "Chart data (JSON format)",
+      "render": "Render Chart",
+      "clear": "Clear"
+    }
+  }
+}

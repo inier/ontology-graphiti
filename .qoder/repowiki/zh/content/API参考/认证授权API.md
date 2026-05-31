@@ -15,6 +15,14 @@
 - [test_oauth2.py](file://tests/unit/test_oauth2.py)
 </cite>
 
+## 更新摘要
+**变更内容**
+- 新增OAuth2/OIDC SSO实现和PKCE授权码流程
+- 增强JWT令牌管理，支持bcrypt密码哈希
+- 完善登录限流和令牌撤销机制
+- 扩展用户管理功能，支持管理员操作
+- 增强安全中间件和审计日志功能
+
 ## 目录
 1. [简介](#简介)
 2. [项目结构](#项目结构)
@@ -64,7 +72,7 @@ EXC --> AR
 ```
 
 **图示来源**
-- [auth_routes.py:1-143](file://odap/infra/security/auth_routes.py#L1-L143)
+- [auth_routes.py:1-194](file://odap/infra/security/auth_routes.py#L1-L194)
 - [auth_service.py:1-439](file://odap/infra/security/auth_service.py#L1-L439)
 - [jwt_auth.py:1-63](file://odap/infra/security/jwt_auth.py#L1-L63)
 - [jwt_service.py:1-72](file://odap/infra/security/jwt_service.py#L1-L72)
@@ -75,7 +83,7 @@ EXC --> AR
 - [exception_handler.py:1-137](file://odap/infra/middleware/exception_handler.py#L1-L137)
 
 **章节来源**
-- [auth_routes.py:1-143](file://odap/infra/security/auth_routes.py#L1-L143)
+- [auth_routes.py:1-194](file://odap/infra/security/auth_routes.py#L1-L194)
 - [auth_service.py:1-439](file://odap/infra/security/auth_service.py#L1-L439)
 - [jwt_auth.py:1-63](file://odap/infra/security/jwt_auth.py#L1-L63)
 - [oauth2_providers.py:1-264](file://odap/infra/security/oauth2_providers.py#L1-L264)
@@ -94,7 +102,7 @@ EXC --> AR
 - 配置层：JWT 密钥、算法、CORS 等安全配置。
 
 **章节来源**
-- [auth_routes.py:1-143](file://odap/infra/security/auth_routes.py#L1-L143)
+- [auth_routes.py:1-194](file://odap/infra/security/auth_routes.py#L1-L194)
 - [auth_service.py:1-439](file://odap/infra/security/auth_service.py#L1-L439)
 - [jwt_service.py:1-72](file://odap/infra/security/jwt_service.py#L1-L72)
 - [oauth2_providers.py:1-264](file://odap/infra/security/oauth2_providers.py#L1-L264)
@@ -133,14 +141,14 @@ R-->>C : {access_token, refresh_token}
 end
 rect rgb(255,255,255)
 Note over C,R : OAuth2 授权码登录
-C->>R : GET /api/auth/providers
+C->>R : GET /api/auth/sso/providers
 R-->>C : {providers}
-C->>R : GET /api/auth/oidc/authorize?provider=google
+C->>R : GET /api/auth/sso/google
 R->>S : get_oauth2_authorize_url(...)
 S->>O : get_authorize_url(...)
 O-->>R : {authorize_url,state}
 R-->>C : 302 Redirect to IdP
-C->>R : /api/auth/oidc/callback?code,state
+C->>R : /api/auth/sso/google?code,state
 R->>S : authenticate_oauth2(code,state)
 S->>O : exchange_code(...) + get_user_info(...)
 S->>J : issue_access_token(...)
@@ -151,13 +159,13 @@ end
 ```
 
 **图示来源**
-- [auth_routes.py:40-143](file://odap/infra/security/auth_routes.py#L40-L143)
+- [auth_routes.py:51-118](file://odap/infra/security/auth_routes.py#L51-L118)
 - [auth_service.py:118-404](file://odap/infra/security/auth_service.py#L118-L404)
 - [oauth2_providers.py:138-257](file://odap/infra/security/oauth2_providers.py#L138-L257)
 - [jwt_service.py:29-54](file://odap/infra/security/jwt_service.py#L29-L54)
 
 **章节来源**
-- [auth_routes.py:1-143](file://odap/infra/security/auth_routes.py#L1-L143)
+- [auth_routes.py:1-194](file://odap/infra/security/auth_routes.py#L1-L194)
 - [auth_service.py:1-439](file://odap/infra/security/auth_service.py#L1-L439)
 - [oauth2_providers.py:1-264](file://odap/infra/security/oauth2_providers.py#L1-L264)
 - [jwt_service.py:1-72](file://odap/infra/security/jwt_service.py#L1-L72)
@@ -174,6 +182,10 @@ end
   - POST /users：管理员创建用户（需管理员权限）
   - PUT /users/{user_id}：管理员更新用户（需管理员权限）
   - DELETE /users/{user_id}：管理员删除用户（需管理员权限）
+  - GET /sso/providers：列出可用的 OAuth2 Provider
+  - GET /sso/{provider}：发起 OAuth2 登录重定向
+  - POST /sso/{provider}：处理 OAuth2 回调
+  - POST /logout：登出并撤销 refresh_token
 - 关键数据模型：
   - LoginRequest：username, password
   - TokenPair：access_token, refresh_token, token_type, expires_in
@@ -182,7 +194,7 @@ end
   - RefreshTokenRecord：用于内存中维护 refresh_token 的哈希、过期时间、撤销状态等
 
 **章节来源**
-- [auth_routes.py:22-143](file://odap/infra/security/auth_routes.py#L22-L143)
+- [auth_routes.py:22-194](file://odap/infra/security/auth_routes.py#L22-L194)
 - [auth_models.py:54-128](file://odap/infra/security/auth_models.py#L54-L128)
 
 ### JWT 令牌设计与流程
@@ -226,7 +238,7 @@ Inject --> Next
   - 可通过环境变量扩展自定义 Provider
 - 授权流程（PKCE/S256）：
   - 获取授权 URL（带 state/code_verifier）
-  - 用户在 IdP 登录后回调 /api/auth/oidc/callback
+  - 用户在 IdP 登录后回调 /api/auth/sso/{provider}
   - 交换 access_token/id_token，获取用户信息
   - 若用户首次登录，自动创建本地用户；否则更新邮箱等信息
 - Provider 注册与配置：
@@ -240,14 +252,14 @@ participant R as "路由(auth_routes.py)"
 participant S as "服务(auth_service.py)"
 participant O as "OAuth2(oauth2_providers.py)"
 participant IdP as "第三方IdP(Google/GitHub)"
-U->>R : GET /api/auth/oidc/authorize?provider=google
+U->>R : GET /api/auth/sso/google
 R->>S : get_oauth2_authorize_url("google")
 S->>O : get_authorize_url(...)
 O-->>S : {authorize_url,state}
 S-->>R : {authorize_url,state}
 R-->>U : 302 Redirect to IdP
 U->>IdP : 登录并授权
-IdP-->>R : /api/auth/oidc/callback?code&state
+IdP-->>R : /api/auth/sso/google?code&state
 R->>S : authenticate_oauth2(code,state)
 S->>O : exchange_code(...)
 O-->>S : OAuth2TokenResponse
@@ -259,13 +271,13 @@ R-->>U : 返回令牌
 ```
 
 **图示来源**
-- [auth_routes.py:1-143](file://odap/infra/security/auth_routes.py#L1-L143)
-- [auth_service.py:346-404](file://odap/infra/security/auth_service.py#L346-L404)
+- [auth_routes.py:73-118](file://odap/infra/security/auth_routes.py#L73-L118)
+- [auth_service.py:359-404](file://odap/infra/security/auth_service.py#L359-L404)
 - [oauth2_providers.py:138-257](file://odap/infra/security/oauth2_providers.py#L138-L257)
 
 **章节来源**
 - [oauth2_providers.py:1-264](file://odap/infra/security/oauth2_providers.py#L1-L264)
-- [auth_service.py:346-439](file://odap/infra/security/auth_service.py#L346-L439)
+- [auth_service.py:359-439](file://odap/infra/security/auth_service.py#L359-L439)
 - [test_oauth2.py:32-283](file://tests/unit/test_oauth2.py#L32-L283)
 
 ### 用户管理与权限控制
@@ -283,10 +295,29 @@ R-->>U : 返回令牌
   - 全局异常处理器统一返回标准化错误格式
 
 **章节来源**
-- [auth_routes.py:83-143](file://odap/infra/security/auth_routes.py#L83-L143)
+- [auth_routes.py:134-194](file://odap/infra/security/auth_routes.py#L134-L194)
 - [jwt_auth.py:37-63](file://odap/infra/security/jwt_auth.py#L37-L63)
 - [audit_middleware.py:51-112](file://odap/infra/middleware/audit_middleware.py#L51-L112)
 - [exception_handler.py:14-137](file://odap/infra/middleware/exception_handler.py#L14-L137)
+
+### 安全增强功能
+- bcrypt 密码哈希：
+  - 自动检测 bcrypt 库可用性
+  - 使用 bcrypt.gensalt(rounds=12) 进行密码哈希
+  - 支持降级到 SHA-256 哈希
+- 登录限流：
+  - 15 分钟内最多 5 次失败尝试
+  - 超过限制时锁定 30 分钟
+  - 支持按 IP 地址进行限流
+- 令牌撤销：
+  - refresh_token 存储在内存中
+  - 支持立即撤销和批量撤销
+  - 旧令牌在刷新时自动失效
+
+**章节来源**
+- [auth_service.py:32-80](file://odap/infra/security/auth_service.py#L32-L80)
+- [auth_service.py:108-156](file://odap/infra/security/auth_service.py#L108-L156)
+- [auth_service.py:211-225](file://odap/infra/security/auth_service.py#L211-L225)
 
 ## 依赖分析
 - 组件耦合与职责：
@@ -311,7 +342,7 @@ EXC["exception_handler.py"] --> AR
 ```
 
 **图示来源**
-- [auth_routes.py:1-143](file://odap/infra/security/auth_routes.py#L1-L143)
+- [auth_routes.py:1-194](file://odap/infra/security/auth_routes.py#L1-L194)
 - [auth_service.py:1-439](file://odap/infra/security/auth_service.py#L1-L439)
 - [jwt_service.py:1-72](file://odap/infra/security/jwt_service.py#L1-L72)
 - [oauth2_providers.py:1-264](file://odap/infra/security/oauth2_providers.py#L1-L264)
@@ -322,7 +353,7 @@ EXC["exception_handler.py"] --> AR
 - [exception_handler.py:1-137](file://odap/infra/middleware/exception_handler.py#L1-L137)
 
 **章节来源**
-- [auth_routes.py:1-143](file://odap/infra/security/auth_routes.py#L1-L143)
+- [auth_routes.py:1-194](file://odap/infra/security/auth_routes.py#L1-L194)
 - [auth_service.py:1-439](file://odap/infra/security/auth_service.py#L1-L439)
 - [oauth2_providers.py:1-264](file://odap/infra/security/oauth2_providers.py#L1-L264)
 - [jwt_service.py:1-72](file://odap/infra/security/jwt_service.py#L1-L72)
@@ -336,6 +367,7 @@ EXC["exception_handler.py"] --> AR
 - 登录限流（15 分钟最多 5 次失败），防止暴力破解
 - OAuth2 交换与用户信息获取使用异步 httpx，减少阻塞
 - 审计中间件仅记录写操作，避免读放大带来的日志压力
+- bcrypt 哈希使用 12 轮，平衡安全性与性能
 
 [本节为通用指导，无需特定文件引用]
 
@@ -346,6 +378,7 @@ EXC["exception_handler.py"] --> AR
   - 409 用户名冲突：注册时用户名已存在
   - 404 用户不存在：更新/删除用户时目标用户不存在
   - 400 参数错误：角色枚举非法、缺少必填字段
+  - 429 登录过于频繁：触发登录限流
 - 审计与日志：
   - 审计中间件会记录写操作的请求路径、状态码、耗时、客户端 IP、追踪 ID
   - 全局异常处理器统一捕获未处理异常，输出标准化错误响应
@@ -355,7 +388,7 @@ EXC["exception_handler.py"] --> AR
   - state 未过期且匹配；code_verifier 正确
 
 **章节来源**
-- [auth_routes.py:40-143](file://odap/infra/security/auth_routes.py#L40-L143)
+- [auth_routes.py:51-194](file://odap/infra/security/auth_routes.py#L51-L194)
 - [exception_handler.py:29-67](file://odap/infra/middleware/exception_handler.py#L29-L67)
 - [audit_middleware.py:51-112](file://odap/infra/middleware/audit_middleware.py#L51-L112)
 - [test_oauth2.py:135-283](file://tests/unit/test_oauth2.py#L135-L283)
@@ -427,14 +460,20 @@ EXC["exception_handler.py"] --> AR
     - curl -X DELETE "$BASE_URL/api/auth/users/$USER_ID" -H "Authorization: Bearer $ADMIN_ACCESS"
 
 - OAuth2 授权与回调
-  - 列出 Provider：GET /api/auth/providers
-  - 获取授权 URL：GET /api/auth/oidc/authorize?provider=google
-  - 回调处理：/api/auth/oidc/callback?code&state
+  - 列出 Provider：GET /api/auth/sso/providers
+  - 获取授权 URL：GET /api/auth/sso/{provider}
+  - 回调处理：POST /api/auth/sso/{provider}
   - 成功后返回 TokenPair
 
+- 登出
+  - 方法与路径：POST /api/auth/logout
+  - 请求体：LogoutRequest(refresh_token)
+  - 成功响应：{"status":"ok","message":"Logged out"}
+  - 错误码：400 登出失败
+
 **章节来源**
-- [auth_routes.py:40-143](file://odap/infra/security/auth_routes.py#L40-L143)
-- [auth_service.py:346-404](file://odap/infra/security/auth_service.py#L346-L404)
+- [auth_routes.py:51-194](file://odap/infra/security/auth_routes.py#L51-L194)
+- [auth_service.py:359-404](file://odap/infra/security/auth_service.py#L359-L404)
 - [oauth2_providers.py:138-257](file://odap/infra/security/oauth2_providers.py#L138-L257)
 
 ### 安全最佳实践
@@ -443,9 +482,24 @@ EXC["exception_handler.py"] --> AR
 - 密码加密存储：bcrypt（若可用）或 SHA-256（降级）
 - 登录限流：15 分钟最多 5 次失败，超过锁定 30 分钟
 - 审计与日志：仅记录写操作，统一异常处理，保留追踪 ID
+- OAuth2 安全：使用 PKCE S256，验证 state 参数，检查 redirect_uri
 
 **章节来源**
 - [DESIGN.md:412-422](file://docs/03-modules/auth/DESIGN.md#L412-L422)
 - [auth_service.py:39-80](file://odap/infra/security/auth_service.py#L39-L80)
 - [audit_middleware.py:51-112](file://odap/infra/middleware/audit_middleware.py#L51-L112)
 - [exception_handler.py:14-137](file://odap/infra/middleware/exception_handler.py#L14-L137)
+
+### 配置与环境变量
+- JWT 配置：
+  - JWT_SECRET：JWT 密钥，默认值为 'your_jwt_secret_here'
+  - JWT_ALGORITHM：JWT 算法，默认值为 'HS256'
+  - JWT_EXPIRATION：JWT 过期时间（秒），默认值为 3600
+- OAuth2 Provider 配置：
+  - OAUTH2_GOOGLE_CLIENT_ID/SECRET：Google OAuth2 客户端配置
+  - OAUTH2_GITHUB_CLIENT_ID/SECRET：GitHub OAuth2 客户端配置
+  - OAUTH2_CUSTOM_PROVIDERS：自定义 Provider 配置字符串
+
+**章节来源**
+- [config.py:42-79](file://odap/infra/security/config.py#L42-L79)
+- [oauth2_providers.py:79-116](file://odap/infra/security/oauth2_providers.py#L79-L116)

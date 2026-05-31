@@ -79,3 +79,7 @@ WR-08 (Skill v2, P0) → WR-09 (工具注册表, P1)
 - 取代：ANOMALY_REPORT I-36 的 P1 标注
 - 关联 ADR：ADR-029（统一工具注册表架构）、ADR-043（Agent Router 语义路由）
 - 关联工作项：WR-09（工具注册表）、WR-08（Skill 基础设施 v2）、WR-12（Agent Router）
+
+## Amendment (2026-05-31)
+
+**Tool registry now based on OpenHarness Tool interface.** Implementation uses ToolAdapterV2 with BaseTool registration, semantic discovery, and lifecycle management.

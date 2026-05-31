@@ -320,3 +320,7 @@ class AuditHook(BaseHook):
 本决策将作为Graphiti系统可扩展性架构的基础，所有新的横切关注点都应通过Hook系统实现。现有代码将逐步迁移到Hook架构。
 
 **风险提示**: Hook系统的复杂性可能导致调试困难，需要配套完善的监控和调试工具。
+
+## Amendment (2026-05-31)
+
+**Hook system now based on OpenHarness lifecycle hooks.** Pre-Hook and Post-Hook are implemented through OpenHarness HookExecutor with adapter layer isolation.

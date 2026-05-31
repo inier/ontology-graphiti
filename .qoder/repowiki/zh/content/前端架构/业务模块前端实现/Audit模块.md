@@ -1,10 +1,13 @@
-# Audit模块
+# 审计模块
 
 <cite>
 **本文档引用的文件**
 - [frontend/src/modules/audit/pages/AuditLog.tsx](file://frontend/src/modules/audit/pages/AuditLog.tsx)
 - [frontend/src/modules/audit/pages/AuditTimeline.tsx](file://frontend/src/modules/audit/pages/AuditTimeline.tsx)
 - [frontend/src/modules/audit/components/AuditTimeline.tsx](file://frontend/src/modules/audit/components/AuditTimeline.tsx)
+- [frontend/src/modules/audit/pages/PolicyPage.tsx](file://frontend/src/modules/audit/pages/PolicyPage.tsx)
+- [frontend/src/modules/config/pages/PolicyManagement.tsx](file://frontend/src/modules/config/pages/PolicyManagement.tsx)
+- [frontend/src/modules/audit/stores/auditStore.ts](file://frontend/src/modules/audit/stores/auditStore.ts)
 - [frontend/src/modules/audit/index.ts](file://frontend/src/modules/audit/index.ts)
 - [frontend/src/AppRoutes.tsx](file://frontend/src/AppRoutes.tsx)
 - [odap/biz/integration/frontend_compat/api/routes.py](file://odap/biz/integration/frontend_compat/api/routes.py)
@@ -14,21 +17,32 @@
 - [tests/integration/test_api_integration.py](file://tests/integration/test_api_integration.py)
 </cite>
 
+## 更新摘要
+**所做更改**
+- 新增PolicyPage页面的详细文档说明
+- 新增Config模块中的PolicyManagement页面文档
+- 更新策略管理功能的架构说明
+- 增加策略编译、热更新和版本管理功能说明
+- 更新路由集成和模块结构
+
 ## 目录
 1. [简介](#简介)
 2. [项目结构](#项目结构)
 3. [核心组件](#核心组件)
 4. [架构概览](#架构概览)
 5. [详细组件分析](#详细组件分析)
-6. [依赖关系分析](#依赖关系分析)
-7. [性能考虑](#性能考虑)
-8. [故障排除指南](#故障排除指南)
-9. [结论](#结论)
-10. [附录](#附录)
+6. [策略管理功能](#策略管理功能)
+7. [依赖关系分析](#依赖关系分析)
+8. [性能考虑](#性能考虑)
+9. [故障排除指南](#故障排除指南)
+10. [结论](#结论)
+11. [附录](#附录)
 
 ## 简介
 
 Audit模块是Ontology Graphiti平台中的审计管理系统，负责记录、展示和分析系统中的所有关键操作事件。该模块提供了两种主要的审计视图：详细的审计日志页面和时间线视图，支持多种过滤条件和统计分析功能。
+
+**更新** 新增了策略管理功能，包括PolicyPage和PolicyManagement两个页面，支持策略的创建、编译、热更新和版本管理。
 
 该模块的设计遵循了现代化的前端架构原则，采用了React Hooks模式、Ant Design组件库和TypeScript类型安全，确保了代码的可维护性和用户体验的友好性。
 
@@ -41,32 +55,44 @@ graph TB
 subgraph "Audit模块结构"
 A[index.ts] --> B[pages/]
 A --> C[components/]
-B --> D[AuditLog.tsx]
-B --> E[AuditTimeline.tsx]
-C --> F[AuditTimeline.tsx]
-G[shared/services/api.ts] --> H[Audit API调用]
+A --> D[stores/]
+B --> E[AuditLog.tsx]
+B --> F[AuditTimeline.tsx]
+B --> G[PolicyPage.tsx]
+C --> H[AuditTimeline.tsx]
+D --> I[auditStore.ts]
+J[shared/services/api.ts] --> K[Audit API调用]
+end
+subgraph "Config模块结构"
+L[config/pages/] --> M[PolicyManagement.tsx]
 end
 subgraph "路由集成"
-I[AppRoutes.tsx] --> J[导入AuditLog]
-J --> K[路由配置]
+N[AppRoutes.tsx] --> O[导入AuditLog]
+O --> P[路由配置]
+Q[导入PolicyPage] --> R[策略管理路由]
 end
-H --> L[后端API接口]
-L --> M[审计事件存储]
+K --> S[后端API接口]
+S --> T[审计事件存储]
+U[策略管理API] --> V[OPA策略存储]
 ```
 
 **图表来源**
 - [frontend/src/modules/audit/index.ts:1-2](file://frontend/src/modules/audit/index.ts#L1-L2)
 - [frontend/src/modules/audit/pages/AuditLog.tsx:1-325](file://frontend/src/modules/audit/pages/AuditLog.tsx#L1-L325)
 - [frontend/src/modules/audit/pages/AuditTimeline.tsx:1-313](file://frontend/src/modules/audit/pages/AuditTimeline.tsx#L1-L313)
+- [frontend/src/modules/audit/pages/PolicyPage.tsx:1-407](file://frontend/src/modules/audit/pages/PolicyPage.tsx#L1-L407)
+- [frontend/src/modules/config/pages/PolicyManagement.tsx:1-471](file://frontend/src/modules/config/pages/PolicyManagement.tsx#L1-L471)
 
 **章节来源**
 - [frontend/src/modules/audit/index.ts:1-2](file://frontend/src/modules/audit/index.ts#L1-L2)
 - [frontend/src/modules/audit/pages/AuditLog.tsx:1-325](file://frontend/src/modules/audit/pages/AuditLog.tsx#L1-L325)
 - [frontend/src/modules/audit/pages/AuditTimeline.tsx:1-313](file://frontend/src/modules/audit/pages/AuditTimeline.tsx#L1-L313)
+- [frontend/src/modules/audit/pages/PolicyPage.tsx:1-407](file://frontend/src/modules/audit/pages/PolicyPage.tsx#L1-L407)
+- [frontend/src/modules/config/pages/PolicyManagement.tsx:1-471](file://frontend/src/modules/config/pages/PolicyManagement.tsx#L1-L471)
 
 ## 核心组件
 
-Audit模块包含三个核心组件，每个组件都有特定的功能和用途：
+Audit模块包含四个核心组件，每个组件都有特定的功能和用途：
 
 ### 1. 审计日志页面 (AuditLog)
 - **功能**: 提供完整的审计事件列表，支持复杂的过滤和分页
@@ -83,10 +109,22 @@ Audit模块包含三个核心组件，每个组件都有特定的功能和用途
 - **特性**: 简化的事件展示、基本过滤功能、响应式设计
 - **数据展示**: 使用Timeline.Item组件逐条展示审计事件
 
+### 4. 策略管理页面 (PolicyPage)
+- **功能**: 集成的策略管理和审计日志查看页面
+- **特性**: 策略创建、编译、热更新、版本历史、审计日志查看
+- **数据展示**: 使用Ant Design Tabs组件切换不同功能区域
+
+### 5. 独立策略管理页面 (PolicyManagement)
+- **功能**: 专门的OPA策略管理页面
+- **特性**: 策略列表管理、详情查看、编辑更新、状态切换
+- **数据展示**: 使用Ant Design Table和Modal组件进行策略管理
+
 **章节来源**
 - [frontend/src/modules/audit/pages/AuditLog.tsx:11-325](file://frontend/src/modules/audit/pages/AuditLog.tsx#L11-L325)
 - [frontend/src/modules/audit/pages/AuditTimeline.tsx:7-313](file://frontend/src/modules/audit/pages/AuditTimeline.tsx#L7-L313)
 - [frontend/src/modules/audit/components/AuditTimeline.tsx:7-138](file://frontend/src/modules/audit/components/AuditTimeline.tsx#L7-L138)
+- [frontend/src/modules/audit/pages/PolicyPage.tsx:74-407](file://frontend/src/modules/audit/pages/PolicyPage.tsx#L74-L407)
+- [frontend/src/modules/config/pages/PolicyManagement.tsx:71-471](file://frontend/src/modules/config/pages/PolicyManagement.tsx#L71-L471)
 
 ## 架构概览
 
@@ -101,18 +139,20 @@ participant B as 后端服务
 participant D as 数据存储
 U->>C : 用户交互
 C->>S : 发起API请求
-S->>B : 调用审计API
-B->>D : 查询审计事件
-D-->>B : 返回事件数据
-B-->>S : 审计数据
+S->>B : 调用审计/策略API
+B->>D : 查询审计事件/策略数据
+D-->>B : 返回事件/策略数据
+B-->>S : 审计/策略数据
 S-->>C : 处理后的数据
 C-->>U : 更新UI状态
 Note over U,D : 审计事件存储在SQLite数据库中
+Note over U,D : 策略数据存储在OPA策略存储中
 ```
 
 **图表来源**
 - [frontend/src/modules/audit/pages/AuditLog.tsx:52-68](file://frontend/src/modules/audit/pages/AuditLog.tsx#L52-L68)
 - [frontend/src/modules/audit/pages/AuditTimeline.tsx:28-45](file://frontend/src/modules/audit/pages/AuditTimeline.tsx#L28-L45)
+- [frontend/src/modules/audit/stores/auditStore.ts:65-164](file://frontend/src/modules/audit/stores/auditStore.ts#L65-L164)
 
 **章节来源**
 - [odap/biz/integration/frontend_compat/api/routes.py:428-450](file://odap/biz/integration/frontend_compat/api/routes.py#L428-L450)
@@ -279,6 +319,173 @@ AuditTimelineComponent --> TimelineItem : renders
 - [frontend/src/modules/audit/components/AuditTimeline.tsx:7-30](file://frontend/src/modules/audit/components/AuditTimeline.tsx#L7-L30)
 - [frontend/src/modules/audit/components/AuditTimeline.tsx:51-69](file://frontend/src/modules/audit/components/AuditTimeline.tsx#L51-L69)
 
+## 策略管理功能
+
+### PolicyPage页面功能分析
+
+PolicyPage是集成的策略管理和审计日志查看页面，提供了完整的策略生命周期管理：
+
+#### 主要功能模块
+
+1. **策略管理区域**
+   - 策略列表展示和操作
+   - 策略创建和编辑
+   - 策略编译和热更新
+   - 版本历史查看
+
+2. **审计日志区域**
+   - 实时审计日志查看
+   - 审计事件过滤和搜索
+   - 详细事件信息展示
+
+#### 策略管理流程
+
+```mermaid
+flowchart TD
+A[用户操作] --> B{选择功能}
+B --> |创建策略| C[打开创建模态框]
+B --> |编辑策略| D[打开编辑模态框]
+B --> |编译策略| E[调用编译API]
+B --> |热更新| F[调用热更新API]
+B --> |查看版本| G[加载版本历史]
+C --> H[提交表单数据]
+D --> I[提交更新数据]
+E --> J[显示编译状态]
+F --> K[更新策略状态]
+G --> L[显示版本时间线]
+```
+
+**图表来源**
+- [frontend/src/modules/audit/pages/PolicyPage.tsx:109-136](file://frontend/src/modules/audit/pages/PolicyPage.tsx#L109-L136)
+- [frontend/src/modules/audit/pages/PolicyPage.tsx:138-142](file://frontend/src/modules/audit/pages/PolicyPage.tsx#L138-L142)
+
+#### 策略状态管理
+
+使用Zustand状态管理库实现全局状态：
+
+```mermaid
+classDiagram
+class AuditState {
++Policy[] policies
++AuditLog[] auditLogs
++PolicyVersion[] policyVersions
++Record~string, CompileStatus~ compileStatus
++boolean loading
++string error
++loadPolicies()
++loadPolicyVersions()
++savePolicy()
++compilePolicy()
++hotUpdate()
++loadAuditLogs()
++getCompileStatus()
+}
+class Policy {
++string policy_id
++string name
++string description
++string category
++string compile_status
++number version
++string markdown_content
++string rego_text
++string created_at
++string updated_at
++string[] compile_errors
+}
+class PolicyVersion {
++string id
++string policy_id
++number version
++string status
++string created_at
++string compiled_at
+}
+class AuditLog {
++string id
++string timestamp
++string level
++string type
++string action
++string user
++string resource
++string result_status
++Record~string, unknown~ details
+}
+AuditState --> Policy : manages
+AuditState --> PolicyVersion : manages
+AuditState --> AuditLog : manages
+```
+
+**图表来源**
+- [frontend/src/modules/audit/stores/auditStore.ts:40-55](file://frontend/src/modules/audit/stores/auditStore.ts#L40-L55)
+- [frontend/src/modules/audit/stores/auditStore.ts:5-26](file://frontend/src/modules/audit/stores/auditStore.ts#L5-L26)
+
+#### 策略分类和状态
+
+| 分类类型 | 中文名称 | 用途描述 |
+|---------|---------|----------|
+| access_control | 访问控制 | 用户权限和资源访问控制 |
+| data_privacy | 数据隐私 | 数据保护和隐私合规 |
+| compliance | 合规审计 | 法律法规和内部政策遵循 |
+| security | 安全策略 | 系统安全和威胁防护 |
+| workflow | 工作流控制 | 业务流程和审批控制 |
+| custom | 自定义 | 用户自定义策略规则 |
+
+**章节来源**
+- [frontend/src/modules/audit/pages/PolicyPage.tsx:53-72](file://frontend/src/modules/audit/pages/PolicyPage.tsx#L53-L72)
+- [frontend/src/modules/audit/pages/PolicyPage.tsx:161-229](file://frontend/src/modules/audit/pages/PolicyPage.tsx#L161-L229)
+- [frontend/src/modules/audit/stores/auditStore.ts:40-55](file://frontend/src/modules/audit/stores/auditStore.ts#L40-L55)
+
+### 独立策略管理页面分析
+
+PolicyManagement页面提供了专门的OPA策略管理功能：
+
+#### 功能特性
+
+1. **策略列表管理**
+   - 策略状态切换（启用/禁用）
+   - 策略详情查看
+   - 策略编辑更新
+
+2. **策略创建流程**
+   - 表单验证和数据校验
+   - Markdown策略内容输入
+   - 自动转换为Rego代码
+
+3. **策略详情展示**
+   - Markdown策略内容展示
+   - 生成的Rego代码查看
+   - 策略元数据信息
+
+#### 交互流程
+
+```mermaid
+sequenceDiagram
+participant U as 用户
+participant PM as 策略管理页面
+participant API as API服务
+participant MOD as 模态框组件
+U->>PM : 点击创建策略
+PM->>MOD : 打开创建模态框
+MOD->>U : 显示创建表单
+U->>MOD : 填写策略信息
+MOD->>PM : 提交创建请求
+PM->>API : 调用创建API
+API-->>PM : 返回创建结果
+PM-->>U : 显示成功消息
+U->>PM : 点击查看详情
+PM->>MOD : 打开详情模态框
+MOD-->>U : 显示策略详情
+```
+
+**图表来源**
+- [frontend/src/modules/config/pages/PolicyManagement.tsx:100-115](file://frontend/src/modules/config/pages/PolicyManagement.tsx#L100-L115)
+- [frontend/src/modules/config/pages/PolicyManagement.tsx:145-157](file://frontend/src/modules/config/pages/PolicyManagement.tsx#L145-L157)
+
+**章节来源**
+- [frontend/src/modules/config/pages/PolicyManagement.tsx:71-471](file://frontend/src/modules/config/pages/PolicyManagement.tsx#L71-L471)
+
 ## 依赖关系分析
 
 Audit模块的依赖关系相对简单，主要依赖于共享的服务层和Ant Design组件库：
@@ -289,32 +496,46 @@ subgraph "Audit模块"
 A[AuditLog.tsx]
 B[AuditTimeline.tsx]
 C[AuditTimeline.tsx]
+D[PolicyPage.tsx]
+E[auditStore.ts]
+end
+subgraph "Config模块"
+F[PolicyManagement.tsx]
 end
 subgraph "共享服务"
-D[api.ts]
-E[types.ts]
+G[api.ts]
+H[types.ts]
 end
 subgraph "UI库"
-F[Ant Design]
-G[React]
+I[Ant Design]
+J[React]
+K[Zustand]
 end
 subgraph "路由系统"
-H[AppRoutes.tsx]
+L[AppRoutes.tsx]
 end
-A --> D
-B --> D
-C --> D
-D --> F
 A --> G
 B --> G
 C --> G
-H --> A
+D --> E
+F --> G
+E --> K
+G --> I
+A --> J
+B --> J
+C --> J
+D --> J
+F --> J
+L --> A
+L --> D
 ```
 
 **图表来源**
 - [frontend/src/modules/audit/pages/AuditLog.tsx:4](file://frontend/src/modules/audit/pages/AuditLog.tsx#L4)
 - [frontend/src/modules/audit/pages/AuditTimeline.tsx:4](file://frontend/src/modules/audit/pages/AuditTimeline.tsx#L4)
 - [frontend/src/modules/audit/components/AuditTimeline.tsx:4](file://frontend/src/modules/audit/components/AuditTimeline.tsx#L4)
+- [frontend/src/modules/audit/pages/PolicyPage.tsx:36](file://frontend/src/modules/audit/pages/PolicyPage.tsx#L36)
+- [frontend/src/modules/audit/stores/auditStore.ts:1](file://frontend/src/modules/audit/stores/auditStore.ts#L1)
 
 **章节来源**
 - [frontend/src/AppRoutes.tsx:3](file://frontend/src/AppRoutes.tsx#L3)
@@ -327,12 +548,14 @@ H --> A
 1. **分页加载**: 审计日志页面使用分页机制，避免一次性加载大量数据
 2. **缓存策略**: 统计数据和事件列表具有适当的缓存机制
 3. **防抖处理**: 时间范围选择器具有防抖功能，减少不必要的API调用
+4. **状态管理优化**: 使用Zustand实现高效的状态管理，避免不必要的组件重渲染
 
 ### 渲染性能
 
 1. **虚拟滚动**: 大数据集使用虚拟滚动技术提升渲染性能
 2. **条件渲染**: 仅在需要时渲染复杂的展开行内容
 3. **状态最小化**: 使用精确的状态更新，避免不必要的重新渲染
+4. **组件复用**: 可复用组件减少重复渲染开销
 
 ### API调用优化
 
@@ -350,6 +573,7 @@ G --> H[停止加载状态]
 **图表来源**
 - [frontend/src/modules/audit/pages/AuditLog.tsx:92-95](file://frontend/src/modules/audit/pages/AuditLog.tsx#L92-L95)
 - [frontend/src/modules/audit/pages/AuditTimeline.tsx:61-67](file://frontend/src/modules/audit/pages/AuditTimeline.tsx#L61-L67)
+- [frontend/src/modules/audit/stores/auditStore.ts:65-164](file://frontend/src/modules/audit/stores/auditStore.ts#L65-L164)
 
 ## 故障排除指南
 
@@ -357,18 +581,20 @@ G --> H[停止加载状态]
 
 #### API调用失败
 
-**症状**: 审计数据无法加载，控制台出现错误信息
+**症状**: 审计数据或策略数据无法加载，控制台出现错误信息
 
 **可能原因**:
 1. 后端服务不可用
 2. 网络连接问题
 3. 认证令牌过期
+4. API接口路径错误
 
 **解决步骤**:
 1. 检查后端服务状态
 2. 验证网络连接
 3. 重新登录系统获取新令牌
 4. 查看浏览器开发者工具的Network标签
+5. 检查API接口URL和参数
 
 #### 数据格式错误
 
@@ -378,11 +604,13 @@ G --> H[停止加载状态]
 1. API响应格式不符合预期
 2. 缺少必要的字段
 3. 时间戳格式不正确
+4. 策略内容格式错误
 
 **解决步骤**:
 1. 检查API响应结构
 2. 验证数据类型转换
 3. 添加适当的错误边界处理
+4. 验证策略Markdown格式
 
 #### 性能问题
 
@@ -392,30 +620,59 @@ G --> H[停止加载状态]
 1. 数据量过大
 2. 组件渲染复杂度过高
 3. 重复的API调用
+4. 状态更新过于频繁
 
 **解决步骤**:
 1. 实施分页加载
 2. 优化组件渲染逻辑
 3. 添加请求去重机制
+4. 使用Zustand优化状态管理
+
+#### 策略编译失败
+
+**症状**: 策略编译报错或热更新失败
+
+**可能原因**:
+1. Markdown策略语法错误
+2. 编译器服务异常
+3. 策略内容格式不正确
+4. 权限不足
+
+**解决步骤**:
+1. 检查策略Markdown语法
+2. 查看编译错误详情
+3. 验证策略内容格式
+4. 确认用户权限
 
 **章节来源**
 - [frontend/src/modules/audit/pages/AuditLog.tsx:47-67](file://frontend/src/modules/audit/pages/AuditLog.tsx#L47-L67)
 - [frontend/src/modules/audit/pages/AuditTimeline.tsx:39-44](file://frontend/src/modules/audit/pages/AuditTimeline.tsx#L39-L44)
+- [frontend/src/modules/audit/pages/PolicyPage.tsx:123-131](file://frontend/src/modules/audit/pages/PolicyPage.tsx#L123-L131)
 
 ## 结论
 
-Audit模块成功实现了企业级审计系统的前端需求，提供了灵活的审计事件展示和分析功能。模块设计具有以下优势：
+Audit模块成功实现了企业级审计系统的前端需求，提供了灵活的审计事件展示和分析功能。**更新** 新增的策略管理功能进一步增强了系统的安全管控能力。
+
+模块设计具有以下优势：
 
 1. **模块化架构**: 清晰的组件分离和职责划分
 2. **用户体验**: 直观的界面设计和流畅的交互体验
 3. **可扩展性**: 支持多种过滤条件和自定义配置
 4. **性能优化**: 有效的数据加载和渲染优化策略
+5. **策略管理**: 完整的策略生命周期管理功能
+
+**更新** 新增的PolicyPage和PolicyManagement页面提供了：
+- 集成的策略管理和审计查看功能
+- 完整的策略编译、热更新和版本管理
+- 用户友好的策略编辑和部署界面
+- 实时的策略状态监控和审计追踪
 
 未来可以考虑的改进方向包括：
 - 添加更多高级过滤选项
 - 实现审计事件的导出功能
 - 增强实时审计监控能力
 - 优化移动端用户体验
+- 扩展策略管理的自动化功能
 
 ## 附录
 
@@ -426,6 +683,12 @@ Audit模块成功实现了企业级审计系统的前端需求，提供了灵活
 | 获取审计统计 | GET | /api/audit/stats | 获取审计事件统计信息 |
 | 获取审计时间线 | GET | /api/audit/timeline | 获取审计事件时间线数据 |
 | 列出审计事件 | GET | /api/audit/events | 获取审计事件列表 |
+| 获取策略列表 | GET | /api/policies | 获取策略列表 |
+| 创建策略 | POST | /api/policy/markdown | 创建新的策略 |
+| 编译策略 | POST | /api/policy/markdown/{id}/compile | 编译策略为Rego代码 |
+| 热更新策略 | PUT | /api/policy/markdown/{id} | 热更新策略内容 |
+| 获取策略状态 | GET | /api/policy/markdown/{id}/status | 获取策略编译状态 |
+| 获取版本历史 | GET | /api/policy/markdown/{id}/versions | 获取策略版本历史 |
 
 ### 审计事件类型
 
@@ -440,12 +703,28 @@ Audit模块成功实现了企业级审计系统的前端需求，提供了灵活
 | system.error | 系统错误 | error |
 | skill.execute | 技能执行 | info |
 | agent.execute | Agent执行 | info |
+| policy.create | 策略创建 | info |
+| policy.update | 策略更新 | info |
+| policy.compile | 策略编译 | info |
+| policy.hot_update | 策略热更新 | info |
 
-### 配置选项参考
+### 策略管理配置
 
-| 选项名称 | 类型 | 默认值 | 描述 |
-|---------|------|--------|------|
-| pageSize | number | 20 | 每页显示的事件数量 |
-| severityFilter | string | undefined | 严重程度过滤器 |
-| eventTypeFilter | string | undefined | 事件类型过滤器 |
-| timeRange | object | undefined | 时间范围过滤器 |
+| 配置项 | 类型 | 默认值 | 描述 |
+|--------|------|--------|------|
+| pageSize | number | 10 | 每页显示的策略数量 |
+| policyCategories | string[] | 6种分类 | 策略分类选项 |
+| maxContentLength | number | 10000 | 策略内容最大长度 |
+| compileTimeout | number | 30000 | 编译超时时间(ms) |
+| refreshInterval | number | 30000 | 自动刷新间隔(ms) |
+
+### 状态管理配置
+
+| 状态属性 | 类型 | 描述 | 默认值 |
+|----------|------|------|--------|
+| policies | Policy[] | 策略列表 | [] |
+| auditLogs | AuditLog[] | 审计日志 | [] |
+| policyVersions | PolicyVersion[] | 策略版本 | [] |
+| compileStatus | Record | 编译状态映射 | {} |
+| loading | boolean | 加载状态 | false |
+| error | string | 错误信息 | null |

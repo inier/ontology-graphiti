@@ -1,0 +1,19 @@
+{
+  "qa": {
+    "title": "智能问答",
+    "temporal": {
+      "title": "时序问答",
+      "placeholder": "输入时序问题",
+      "timePlaceholder": "指定时间（可选）",
+      "query": "时序查询",
+      "clear": "清除"
+    },
+    "chart": {
+      "title": "图表渲染",
+      "typePlaceholder": "选择图表类型",
+      "dataPlaceholder": "图表数据（JSON格式）",
+      "render": "渲染图表",
+      "clear": "清除"
+    }
+  }
+}
