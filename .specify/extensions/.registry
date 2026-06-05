@@ -18,6 +18,184 @@
       },
       "registered_skills": [],
       "installed_at": "2026-05-29T16:31:48.571824+00:00"
+    },
+    "aide": {
+      "version": "1.0.0",
+      "source": "local",
+      "manifest_hash": "sha256:13ce845240ea2bdd47c60ad819dd65df8c8987541fc4c0a7a7aebfc66102c184",
+      "enabled": true,
+      "priority": 10,
+      "registered_commands": {
+        "trae": [
+          "speckit.aide.create-vision",
+          "speckit.aide.create-roadmap",
+          "speckit.aide.create-progress",
+          "speckit.aide.create-queue",
+          "speckit.aide.create-item",
+          "speckit.aide.execute-item",
+          "speckit.aide.feedback-loop"
+        ]
+      },
+      "registered_skills": [],
+      "installed_at": "2026-06-02T02:49:21.247106+00:00"
+    },
+    "superspec": {
+      "version": "1.0.1",
+      "source": "local",
+      "manifest_hash": "sha256:0e3844199af0e568a187cb3be201d6149e3c851b1f7985f742cebeb1d87030b7",
+      "enabled": true,
+      "priority": 10,
+      "registered_commands": {
+        "trae": [
+          "speckit.superspec.status",
+          "speckit.superspec.brainstorm",
+          "speckit.superspec.tasks",
+          "speckit.superspec.execute",
+          "speckit.superspec.review"
+        ]
+      },
+      "registered_skills": [],
+      "installed_at": "2026-06-02T06:40:08.232346+00:00"
+    },
+    "architecture-guard": {
+      "version": "1.8.9",
+      "source": "local",
+      "manifest_hash": "sha256:architecture-guard-v1.8.9",
+      "enabled": true,
+      "priority": 5,
+      "registered_commands": {
+        "trae": [
+          "speckit.architecture-guard.governed-plan",
+          "speckit.architecture-guard.governed-tasks",
+          "speckit.architecture-guard.governed-implement",
+          "speckit.architecture-guard.architecture-workflow",
+          "speckit.architecture-guard.architecture-review",
+          "speckit.architecture-guard.violation-detection",
+          "speckit.architecture-guard.refactor-generator",
+          "speckit.architecture-guard.architecture-apply",
+          "speckit.architecture-guard.init",
+          "speckit.architecture-guard.architecture-verify"
+        ]
+      },
+      "registered_skills": [],
+      "installed_at": "2026-06-03T13:32:00.000000+00:00"
+    },
+    "refine": {
+      "version": "1.0.0",
+      "source": "local",
+      "manifest_hash": "sha256:7383fe76b9b86f71981dd9512230c2ab4206f98fc940e2ccf13f72c9c1914480",
+      "enabled": true,
+      "priority": 10,
+      "registered_commands": {
+        "trae": [
+          "speckit.refine.update",
+          "speckit.refine.propagate",
+          "speckit.refine.diff",
+          "speckit.refine.status"
+        ]
+      },
+      "registered_skills": [],
+      "installed_at": "2026-06-03T12:23:25.973757+00:00"
+    },
+    "doctor": {
+      "version": "1.0.0",
+      "source": "local",
+      "manifest_hash": "sha256:da78ed471f9b1fe6286b3c68018d1c7d72045baab6501609db5df68847b6abaa",
+      "enabled": true,
+      "priority": 10,
+      "registered_commands": {
+        "trae": [
+          "speckit.doctor.check",
+          "speckit.doctor"
+        ]
+      },
+      "registered_skills": [],
+      "installed_at": "2026-06-03T12:23:32.907734+00:00"
+    },
+    "diagram": {
+      "version": "1.0.0",
+      "source": "local",
+      "manifest_hash": "sha256:857e172b19185394e38edbf00b149c5a23a4470cfa67d182b888f7b1ddc24250",
+      "enabled": true,
+      "priority": 10,
+      "registered_commands": {
+        "trae": [
+          "speckit.diagram.workflow",
+          "speckit.diagram.status",
+          "speckit.diagram.dependencies"
+        ]
+      },
+      "registered_skills": [],
+      "installed_at": "2026-06-03T12:23:38.717657+00:00"
+    },
+    "cost": {
+      "version": "1.0.0",
+      "source": "local",
+      "manifest_hash": "sha256:d9968200376297e16280faf561be9868e04e9684ce7ddfb944f49d005aa4a2ac",
+      "enabled": true,
+      "priority": 10,
+      "registered_commands": {
+        "trae": [
+          "speckit.cost.track",
+          "speckit.cost.report",
+          "speckit.cost.budget",
+          "speckit.cost.compare",
+          "speckit.cost.export"
+        ]
+      },
+      "registered_skills": [],
+      "installed_at": "2026-06-03T12:24:01.796388+00:00"
+    },
+    "bugfix": {
+      "version": "1.1.0",
+      "source": "local",
+      "manifest_hash": "sha256:0006fe5164e04b7c9a72eedbba696ed0c14b3998c522444db7e137aa8791e4fa",
+      "enabled": true,
+      "priority": 10,
+      "registered_commands": {
+        "trae": [
+          "speckit.bugfix.report",
+          "speckit.bugfix.patch",
+          "speckit.bugfix.switch",
+          "speckit.bugfix.verify"
+        ]
+      },
+      "registered_skills": [],
+      "installed_at": "2026-06-03T12:24:09.473155+00:00"
+    },
+    "reqnroll-bdd": {
+      "version": "1.1.0",
+      "source": "local",
+      "manifest_hash": "sha256:cb356750a5846f5a4ef55fcef4d84102c962c68b969808970dbba3aa68cfb16f",
+      "enabled": true,
+      "priority": 10,
+      "registered_commands": {
+        "trae": [
+          "speckit.reqnroll-bdd.plan",
+          "speckit.reqnroll-bdd.generate",
+          "speckit.reqnroll-bdd.inject-tasks",
+          "speckit.reqnroll-bdd.verify"
+        ]
+      },
+      "registered_skills": [],
+      "installed_at": "2026-06-03T12:24:16.020967+00:00"
+    },
+    "spectest": {
+      "version": "1.0.0",
+      "source": "local",
+      "manifest_hash": "sha256:df34b1d0cc9ad8101cdf82078d24ecf19db40095df39b32cb6712cb11f81fe9d",
+      "enabled": true,
+      "priority": 10,
+      "registered_commands": {
+        "trae": [
+          "speckit.spectest.generate",
+          "speckit.spectest.coverage",
+          "speckit.spectest.gaps",
+          "speckit.spectest.plan"
+        ]
+      },
+      "registered_skills": [],
+      "installed_at": "2026-06-03T12:24:59.991788+00:00"
     }
   }
 }

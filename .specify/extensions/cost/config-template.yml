@@ -1,0 +1,47 @@
+# Cost Tracker configuration
+#
+# Pricing rates are denominated per 1,000,000 tokens (per_mtok). Update the
+# `last_updated` field whenever you refresh rates from the provider's pricing
+# page so reviewers know when the numbers were last reconciled.
+
+pricing:
+  currency: "USD"
+  last_updated: "2026-05-01"
+  rates:
+    claude-sonnet-4-6:
+      input_per_mtok: 3.00
+      output_per_mtok: 15.00
+    claude-opus-4-7:
+      input_per_mtok: 15.00
+      output_per_mtok: 75.00
+    claude-haiku-4-5:
+      input_per_mtok: 1.00
+      output_per_mtok: 5.00
+    gpt-4o:
+      input_per_mtok: 2.50
+      output_per_mtok: 10.00
+    gemini-2-5-pro:
+      input_per_mtok: 1.25
+      output_per_mtok: 5.00
+
+budgets:
+  # Cap (in pricing.currency) for the entire feature lifecycle. null = no cap.
+  per_feature: null
+
+  # Per-phase caps. null = no cap for that phase.
+  per_phase:
+    specify: null
+    plan: null
+    tasks: null
+    implement: null
+
+  # When a cap is exceeded:
+  #   warn  - print a warning, allow the workflow to continue
+  #   block - exit non-zero from /speckit.cost.track and refuse to record
+  on_exceed: "warn"
+
+storage:
+  # Append-only ledger of every recorded run. One JSON object per line.
+  ledger_path: ".specify/cost/ledger.jsonl"
+  # Rolled-up totals by feature, phase, and integration.
+  aggregate_path: ".specify/cost/summary.json"

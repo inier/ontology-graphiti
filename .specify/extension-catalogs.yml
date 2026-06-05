@@ -1,0 +1,9 @@
+# Spec Kit 扩展目录配置
+# 正确的格式：catalogs 是列表
+# architecture-guard 已通过本地源码方式安装（见 .specify/extensions/architecture-guard/），
+# 不需要从远程目录拉取，故此处移除其目录条目。
+catalogs:
+  - name: community
+    url: "https://raw.githubusercontent.com/github/spec-kit/main/extensions/catalog.community.json"
+    install_allowed: true
+    allowlist: []

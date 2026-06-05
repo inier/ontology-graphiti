@@ -1,0 +1,77 @@
+schema_version: "1.0"
+
+extension:
+  id: "cost"
+  name: "Cost Tracker"
+  version: "1.0.0"
+  description: "Track real LLM dollar cost across SDD workflows — per-feature budgets, per-integration comparison, and ROI metrics."
+  author: "Quratulain Bilal"
+  repository: "https://github.com/Quratulain-bilal/spec-kit-cost"
+  homepage: "https://github.com/Quratulain-bilal/spec-kit-cost"
+  license: "MIT"
+
+requires:
+  speckit_version: ">=0.8.0"
+
+provides:
+  commands:
+    - name: "speckit.cost.track"
+      file: "commands/track.md"
+      description: "Record token usage and dollar cost for the current SDD phase."
+    - name: "speckit.cost.report"
+      file: "commands/report.md"
+      description: "Show a cost breakdown for the current feature or the whole project."
+    - name: "speckit.cost.budget"
+      file: "commands/budget.md"
+      description: "Set, view, and check per-phase or per-feature budget caps."
+    - name: "speckit.cost.compare"
+      file: "commands/compare.md"
+      description: "Compare cost-per-feature across integrations (claude, copilot, gemini, opencode)."
+    - name: "speckit.cost.export"
+      file: "commands/export.md"
+      description: "Export cost data as CSV or JSON for finance, dashboards, or RFP responses."
+
+  config:
+    - name: "cost-config.yml"
+      template: "config-template.yml"
+      description: "Pricing tables and budget defaults"
+      required: false
+
+tags:
+  - "cost"
+  - "budget"
+  - "tokens"
+  - "analytics"
+  - "finance"
+
+defaults:
+  pricing:
+    currency: "USD"
+    last_updated: "2026-05-01"
+    rates:
+      claude-sonnet-4-6:
+        input_per_mtok: 3.00
+        output_per_mtok: 15.00
+      claude-opus-4-7:
+        input_per_mtok: 15.00
+        output_per_mtok: 75.00
+      claude-haiku-4-5:
+        input_per_mtok: 1.00
+        output_per_mtok: 5.00
+      gpt-4o:
+        input_per_mtok: 2.50
+        output_per_mtok: 10.00
+      gemini-2-5-pro:
+        input_per_mtok: 1.25
+        output_per_mtok: 5.00
+  budgets:
+    per_feature: null
+    per_phase:
+      specify: null
+      plan: null
+      tasks: null
+      implement: null
+    on_exceed: "warn"
+  storage:
+    ledger_path: ".specify/cost/ledger.jsonl"
+    aggregate_path: ".specify/cost/summary.json"

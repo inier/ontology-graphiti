@@ -1,0 +1,52 @@
+# Reqnroll BDD Extension Configuration
+#
+# This file is optional. If omitted, the extension uses the manifest defaults.
+
+reqnroll_bdd:
+  # Target acceptance test project name.
+  # Leave empty to let the generate command infer it.
+  # If inference fails, the command uses tests/AcceptanceTests/Features/.
+  target_test_project: ""
+
+  # Default output path for generated .feature files when a project-specific path
+  # cannot be inferred.
+  default_feature_output_path: "tests/AcceptanceTests/Features"
+
+  # Recommended binding boundary for generated implementation handoff guidance.
+  # Keep this at "Application" for DDD / Clean Architecture projects.
+  test_boundary: "Application"
+
+  # dotnet_test_execution:
+  # - auto: run dotnet test only when a .NET test project with Reqnroll appears configured
+  # - skip: never run dotnet test from verify
+  dotnet_test_execution: "auto"
+
+  # Gherkin style controls.
+  allow_rule_keyword: true
+  require_ac_tags: true
+
+  # Terms that should normally be blocked from generated .feature files unless
+  # they are explicit product vocabulary in the feature spec.
+  forbidden_feature_terms:
+    - "Aggregate"
+    - "Repository"
+    - "DTO"
+    - "Handler"
+    - "Controller"
+    - "ViewModel"
+    - "Presenter"
+    - "method"
+    - "class"
+    - "service method"
+    - "database table"
+
+  task_injection:
+    enabled: true
+    mode: "update_tasks"
+    hook_event: "before_implement"
+    fallback_to_handoff: true
+    marker_start: "<!-- reqnroll-bdd:tasks:start -->"
+    marker_end: "<!-- reqnroll-bdd:tasks:end -->"
+    insertion_strategy: "append"
+    replace_existing_block: true
+    fail_on_malformed_marker: true

@@ -1,5 +1,14 @@
 installed:
+- aide
+- bugfix
+- cost
+- diagram
+- doctor
 - git
+- refine
+- reqnroll-bdd
+- spectest
+- superspec
 settings:
   auto_execute_hooks: true
 hooks:
@@ -51,6 +60,21 @@ hooks:
     prompt: Commit outstanding changes before implementation?
     description: Auto-commit before implementation
     condition: null
+  - extension: superspec
+    command: speckit.superspec.execute
+    enabled: true
+    optional: true
+    prompt: Run Superpowers-guided implementation with TDD and checkpoints?
+    description: Enforce TDD discipline and Superpowers execution guidance before
+      core implementation
+    condition: null
+  - extension: reqnroll-bdd
+    command: speckit.reqnroll-bdd.inject-tasks
+    enabled: true
+    optional: true
+    prompt: Inject Reqnroll BDD implementation tasks before implementation?
+    description: Inject BDD acceptance test tasks into tasks.md before implementation
+    condition: null
   before_checklist:
   - extension: git
     command: speckit.git.commit
@@ -91,6 +115,13 @@ hooks:
     prompt: Commit specification changes?
     description: Auto-commit after specification
     condition: null
+  - extension: refine
+    command: speckit.refine.status
+    enabled: true
+    optional: true
+    prompt: Check artifact sync status after specification?
+    description: Show sync status after spec generation
+    condition: null
   after_clarify:
   - extension: git
     command: speckit.git.commit
@@ -107,6 +138,13 @@ hooks:
     prompt: Commit plan changes?
     description: Auto-commit after implementation planning
     condition: null
+  - extension: refine
+    command: speckit.refine.status
+    enabled: true
+    optional: true
+    prompt: Check artifact sync status after planning?
+    description: Show sync status after plan generation
+    condition: null
   after_tasks:
   - extension: git
     command: speckit.git.commit
@@ -115,6 +153,21 @@ hooks:
     prompt: Commit task changes?
     description: Auto-commit after task generation
     condition: null
+  - extension: superspec
+    command: speckit.superspec.tasks
+    enabled: true
+    optional: true
+    prompt: Run enhanced Superpowers task decomposition and validation?
+    description: Verify task coverage and add Superpowers execution markers after
+      core task generation
+    condition: null
+  - extension: diagram
+    command: speckit.diagram.dependencies
+    enabled: true
+    optional: true
+    prompt: Generate task dependency diagram after task breakdown?
+    description: Auto-generate dependency DAG after tasks are created
+    condition: null
   after_implement:
   - extension: git
     command: speckit.git.commit
@@ -122,6 +175,27 @@ hooks:
     optional: true
     prompt: Commit implementation changes?
     description: Auto-commit after implementation
+    condition: null
+  - extension: superspec
+    command: speckit.superspec.review
+    enabled: true
+    optional: true
+    prompt: Run Superpowers review against the specification and implementation?
+    description: Review implementation against the spec, plan, tasks, and constitution
+    condition: null
+  - extension: bugfix
+    command: speckit.bugfix.verify
+    enabled: true
+    optional: true
+    prompt: Run bugfix consistency check after implementation?
+    description: Verify spec artifact consistency after implementation completes
+    condition: null
+  - extension: spectest
+    command: speckit.spectest.gaps
+    enabled: true
+    optional: true
+    prompt: Check for untested spec requirements?
+    description: Scan for spec requirements with no matching tests after implementation
     condition: null
   after_checklist:
   - extension: git

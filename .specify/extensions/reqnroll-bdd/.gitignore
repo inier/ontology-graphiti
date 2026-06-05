@@ -1,0 +1,31 @@
+# Local configuration overrides
+*-config.local.yml
+
+# OS/editor
+.DS_Store
+Thumbs.db
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# Python/tool cache
+__pycache__/
+*.py[cod]
+.pytest_cache/
+.coverage
+htmlcov/
+
+# Logs
+*.log
+
+# Build artifacts
+dist/
+build/
+*.egg-info/
+
+# Drafts and temporary files
+*.draft.md
+*.tmp
+.cache/
