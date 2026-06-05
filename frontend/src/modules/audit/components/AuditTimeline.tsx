@@ -9,6 +9,7 @@ export function AuditTimeline() {
   const [filters, setFilters] = useState({
     eventType: 'all',
     severity: 'all',
+    keyword: '',
   });
 
   useEffect(() => {
@@ -87,11 +88,13 @@ export function AuditTimeline() {
           placeholder="搜索事件"
           style={{ width: 200 }}
           prefix={<SearchOutlined />}
-          onSearch={(value) => console.log('搜索', value)}
+          onSearch={(value) => {
+            setFilters({ ...filters, keyword: value });
+          }}
         />
         <Button
           icon={<FilterOutlined />}
-          onClick={() => console.log('高级筛选')}
+          onClick={loadEvents}
         >
           筛选
         </Button>

@@ -1,8 +1,8 @@
 import { useState, useEffect } from 'react';
 import { Card, Table, Button, Modal, Form, Input, Select, Tag, Space, message, Popconfirm } from 'antd';
 import { PlusOutlined, SearchOutlined, DeleteOutlined, SwapOutlined } from '@ant-design/icons';
-import { fetchJson } from '../../../shared/services/apiClient';
-import { API_BASE } from '../../../../config';
+import { fetchJson } from '../../shared/services/apiClient';
+import { API_BASE } from '../../../config';
 
 const BASE = `${API_BASE}/api/skill`;
 

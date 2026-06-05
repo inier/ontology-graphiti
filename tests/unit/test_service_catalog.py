@@ -34,12 +34,12 @@ def _make_catalog_entry(**overrides):
 
 class TestServiceCatalogStorage:
     def test_init_db(self, tmp_path):
-        from odap.biz.core.ontology.servitization.catalog.service_catalog import ServiceCatalogStorage
+        from odap.biz.core.ontology.application.servitization.catalog.service_catalog import ServiceCatalogStorage
         storage = _make_storage(tmp_path, ServiceCatalogStorage)
         assert os.path.exists(storage.db_path)
 
     def test_register_and_get(self, tmp_path):
-        from odap.biz.core.ontology.servitization.catalog.service_catalog import ServiceCatalogStorage
+        from odap.biz.core.ontology.application.servitization.catalog.service_catalog import ServiceCatalogStorage
         storage = _make_storage(tmp_path, ServiceCatalogStorage)
         entry = _make_catalog_entry()
         storage.register(entry)
@@ -51,7 +51,7 @@ class TestServiceCatalogStorage:
         assert fetched["metadata"] == {"env": "test"}
 
     def test_get_by_service_id(self, tmp_path):
-        from odap.biz.core.ontology.servitization.catalog.service_catalog import ServiceCatalogStorage
+        from odap.biz.core.ontology.application.servitization.catalog.service_catalog import ServiceCatalogStorage
         storage = _make_storage(tmp_path, ServiceCatalogStorage)
         entry = _make_catalog_entry()
         storage.register(entry)
@@ -60,7 +60,7 @@ class TestServiceCatalogStorage:
         assert fetched["catalog_id"] == "cat-test001"
 
     def test_list_entries(self, tmp_path):
-        from odap.biz.core.ontology.servitization.catalog.service_catalog import ServiceCatalogStorage
+        from odap.biz.core.ontology.application.servitization.catalog.service_catalog import ServiceCatalogStorage
         storage = _make_storage(tmp_path, ServiceCatalogStorage)
         storage.register(_make_catalog_entry(catalog_id="cat-1", service_id="svc-1", service_name="S1"))
         storage.register(_make_catalog_entry(catalog_id="cat-2", service_id="svc-2", service_name="S2", service_type="mcp_tool"))
@@ -73,7 +73,7 @@ class TestServiceCatalogStorage:
         assert len(ont_entries) == 2
 
     def test_update_status(self, tmp_path):
-        from odap.biz.core.ontology.servitization.catalog.service_catalog import ServiceCatalogStorage
+        from odap.biz.core.ontology.application.servitization.catalog.service_catalog import ServiceCatalogStorage
         storage = _make_storage(tmp_path, ServiceCatalogStorage)
         storage.register(_make_catalog_entry())
         assert storage.update_status("cat-test001", "deprecated") is True
@@ -82,7 +82,7 @@ class TestServiceCatalogStorage:
         assert storage.update_status("nonexistent", "active") is False
 
     def test_delete(self, tmp_path):
-        from odap.biz.core.ontology.servitization.catalog.service_catalog import ServiceCatalogStorage
+        from odap.biz.core.ontology.application.servitization.catalog.service_catalog import ServiceCatalogStorage
         storage = _make_storage(tmp_path, ServiceCatalogStorage)
         storage.register(_make_catalog_entry())
         assert storage.delete("cat-test001") is True
@@ -90,7 +90,7 @@ class TestServiceCatalogStorage:
         assert storage.delete("cat-test001") is False
 
     def test_version_links(self, tmp_path):
-        from odap.biz.core.ontology.servitization.catalog.service_catalog import ServiceCatalogStorage
+        from odap.biz.core.ontology.application.servitization.catalog.service_catalog import ServiceCatalogStorage
         storage = _make_storage(tmp_path, ServiceCatalogStorage)
         storage.register(_make_catalog_entry())
         link_data = {
@@ -109,7 +109,7 @@ class TestServiceCatalogStorage:
         assert links[0]["is_compatible"] is False
 
     def test_get_services_by_ontology_version(self, tmp_path):
-        from odap.biz.core.ontology.servitization.catalog.service_catalog import ServiceCatalogStorage
+        from odap.biz.core.ontology.application.servitization.catalog.service_catalog import ServiceCatalogStorage
         storage = _make_storage(tmp_path, ServiceCatalogStorage)
         storage.register(_make_catalog_entry())
         storage.add_version_link({
@@ -122,13 +122,13 @@ class TestServiceCatalogStorage:
         assert services[0]["catalog_id"] == "cat-test001"
 
     def test_get_nonexistent(self, tmp_path):
-        from odap.biz.core.ontology.servitization.catalog.service_catalog import ServiceCatalogStorage
+        from odap.biz.core.ontology.application.servitization.catalog.service_catalog import ServiceCatalogStorage
         storage = _make_storage(tmp_path, ServiceCatalogStorage)
         assert storage.get("nonexistent") is None
         assert storage.get_by_service_id("nonexistent") is None
 
     def test_json_fields_serialization(self, tmp_path):
-        from odap.biz.core.ontology.servitization.catalog.service_catalog import ServiceCatalogStorage
+        from odap.biz.core.ontology.application.servitization.catalog.service_catalog import ServiceCatalogStorage
         storage = _make_storage(tmp_path, ServiceCatalogStorage)
         entry = _make_catalog_entry(
             catalog_id="cat-json",
@@ -143,7 +143,7 @@ class TestServiceCatalogStorage:
 
 class TestServiceCatalogService:
     def test_register_service(self, tmp_path):
-        from odap.biz.core.ontology.servitization.catalog.service_catalog import ServiceCatalogService, ServiceCatalogStorage
+        from odap.biz.core.ontology.application.servitization.catalog.service_catalog import ServiceCatalogService, ServiceCatalogStorage
         storage = _make_storage(tmp_path, ServiceCatalogStorage)
         service = ServiceCatalogService(storage=storage)
         result = service.register_service(
@@ -155,7 +155,7 @@ class TestServiceCatalogService:
         assert result["catalog_id"].startswith("cat-")
 
     def test_register_duplicate(self, tmp_path):
-        from odap.biz.core.ontology.servitization.catalog.service_catalog import ServiceCatalogService, ServiceCatalogStorage
+        from odap.biz.core.ontology.application.servitization.catalog.service_catalog import ServiceCatalogService, ServiceCatalogStorage
         storage = _make_storage(tmp_path, ServiceCatalogStorage)
         service = ServiceCatalogService(storage=storage)
         service.register_service(service_id="svc-dup", service_name="Dup", service_type="skill")
@@ -164,7 +164,7 @@ class TestServiceCatalogService:
         assert "already registered" in result["message"]
 
     def test_get_entry(self, tmp_path):
-        from odap.biz.core.ontology.servitization.catalog.service_catalog import ServiceCatalogService, ServiceCatalogStorage
+        from odap.biz.core.ontology.application.servitization.catalog.service_catalog import ServiceCatalogService, ServiceCatalogStorage
         storage = _make_storage(tmp_path, ServiceCatalogStorage)
         service = ServiceCatalogService(storage=storage)
         reg = service.register_service(service_id="svc-get", service_name="GetSvc", service_type="skill")
@@ -174,14 +174,14 @@ class TestServiceCatalogService:
         assert result["entry_status"] == "active"
 
     def test_get_entry_not_found(self, tmp_path):
-        from odap.biz.core.ontology.servitization.catalog.service_catalog import ServiceCatalogService, ServiceCatalogStorage
+        from odap.biz.core.ontology.application.servitization.catalog.service_catalog import ServiceCatalogService, ServiceCatalogStorage
         storage = _make_storage(tmp_path, ServiceCatalogStorage)
         service = ServiceCatalogService(storage=storage)
         result = service.get_entry("nonexistent")
         assert result["status"] == "error"
 
     def test_list_services(self, tmp_path):
-        from odap.biz.core.ontology.servitization.catalog.service_catalog import ServiceCatalogService, ServiceCatalogStorage
+        from odap.biz.core.ontology.application.servitization.catalog.service_catalog import ServiceCatalogService, ServiceCatalogStorage
         storage = _make_storage(tmp_path, ServiceCatalogStorage)
         service = ServiceCatalogService(storage=storage)
         service.register_service(service_id="svc-l1", service_name="L1", service_type="skill")
@@ -192,7 +192,7 @@ class TestServiceCatalogService:
         assert result_filtered["count"] == 1
 
     def test_discover_services(self, tmp_path):
-        from odap.biz.core.ontology.servitization.catalog.service_catalog import ServiceCatalogService, ServiceCatalogStorage
+        from odap.biz.core.ontology.application.servitization.catalog.service_catalog import ServiceCatalogService, ServiceCatalogStorage
         storage = _make_storage(tmp_path, ServiceCatalogStorage)
         service = ServiceCatalogService(storage=storage)
         service.register_service(
@@ -207,7 +207,7 @@ class TestServiceCatalogService:
         assert result_none["count"] == 0
 
     def test_deprecate_and_retire(self, tmp_path):
-        from odap.biz.core.ontology.servitization.catalog.service_catalog import ServiceCatalogService, ServiceCatalogStorage
+        from odap.biz.core.ontology.application.servitization.catalog.service_catalog import ServiceCatalogService, ServiceCatalogStorage
         storage = _make_storage(tmp_path, ServiceCatalogStorage)
         service = ServiceCatalogService(storage=storage)
         reg = service.register_service(service_id="svc-dep", service_name="DepSvc", service_type="skill")
@@ -217,14 +217,14 @@ class TestServiceCatalogService:
         assert result["new_status"] == "retired"
 
     def test_deprecate_not_found(self, tmp_path):
-        from odap.biz.core.ontology.servitization.catalog.service_catalog import ServiceCatalogService, ServiceCatalogStorage
+        from odap.biz.core.ontology.application.servitization.catalog.service_catalog import ServiceCatalogService, ServiceCatalogStorage
         storage = _make_storage(tmp_path, ServiceCatalogStorage)
         service = ServiceCatalogService(storage=storage)
         result = service.deprecate_service("nonexistent")
         assert result["status"] == "error"
 
     def test_delete_entry(self, tmp_path):
-        from odap.biz.core.ontology.servitization.catalog.service_catalog import ServiceCatalogService, ServiceCatalogStorage
+        from odap.biz.core.ontology.application.servitization.catalog.service_catalog import ServiceCatalogService, ServiceCatalogStorage
         storage = _make_storage(tmp_path, ServiceCatalogStorage)
         service = ServiceCatalogService(storage=storage)
         reg = service.register_service(service_id="svc-del", service_name="DelSvc", service_type="skill")
@@ -234,7 +234,7 @@ class TestServiceCatalogService:
         assert result["status"] == "error"
 
     def test_on_ontology_version_changed(self, tmp_path):
-        from odap.biz.core.ontology.servitization.catalog.service_catalog import ServiceCatalogService, ServiceCatalogStorage
+        from odap.biz.core.ontology.application.servitization.catalog.service_catalog import ServiceCatalogService, ServiceCatalogStorage
         storage = _make_storage(tmp_path, ServiceCatalogStorage)
         service = ServiceCatalogService(storage=storage)
         service.register_service(
@@ -252,7 +252,7 @@ class TestServiceCatalogService:
         assert entry1["entry_status"] == "needs_update"
 
     def test_get_version_links(self, tmp_path):
-        from odap.biz.core.ontology.servitization.catalog.service_catalog import ServiceCatalogService, ServiceCatalogStorage
+        from odap.biz.core.ontology.application.servitization.catalog.service_catalog import ServiceCatalogService, ServiceCatalogStorage
         storage = _make_storage(tmp_path, ServiceCatalogStorage)
         service = ServiceCatalogService(storage=storage)
         reg = service.register_service(
@@ -265,7 +265,7 @@ class TestServiceCatalogService:
         assert result["links"][0]["is_compatible"] is True
 
     def test_health_check(self, tmp_path):
-        from odap.biz.core.ontology.servitization.catalog.service_catalog import ServiceCatalogService, ServiceCatalogStorage
+        from odap.biz.core.ontology.application.servitization.catalog.service_catalog import ServiceCatalogService, ServiceCatalogStorage
         storage = _make_storage(tmp_path, ServiceCatalogStorage)
         service = ServiceCatalogService(storage=storage)
         reg = service.register_service(service_id="svc-hc", service_name="HCSvc", service_type="skill")
@@ -275,7 +275,7 @@ class TestServiceCatalogService:
         assert result["status"] == "error"
 
     def test_auto_link_version(self, tmp_path):
-        from odap.biz.core.ontology.servitization.catalog.service_catalog import ServiceCatalogService, ServiceCatalogStorage
+        from odap.biz.core.ontology.application.servitization.catalog.service_catalog import ServiceCatalogService, ServiceCatalogStorage
         storage = _make_storage(tmp_path, ServiceCatalogStorage)
         service = ServiceCatalogService(storage=storage)
         reg = service.register_service(
@@ -287,7 +287,7 @@ class TestServiceCatalogService:
         assert links["links"][0]["notes"] == "Auto-linked on registration"
 
     def test_auto_link_version_skipped(self, tmp_path):
-        from odap.biz.core.ontology.servitization.catalog.service_catalog import ServiceCatalogService, ServiceCatalogStorage
+        from odap.biz.core.ontology.application.servitization.catalog.service_catalog import ServiceCatalogService, ServiceCatalogStorage
         storage = _make_storage(tmp_path, ServiceCatalogStorage)
         service = ServiceCatalogService(storage=storage)
         reg = service.register_service(
@@ -298,9 +298,9 @@ class TestServiceCatalogService:
         assert len(links["links"]) == 0
 
     def test_singleton(self, tmp_path):
-        from odap.biz.core.ontology.servitization.catalog.service_catalog import ServiceCatalogService
+        from odap.biz.core.ontology.application.servitization.catalog.service_catalog import ServiceCatalogService
         ServiceCatalogService._instance = None
-        from odap.biz.core.ontology.servitization.catalog import get_service_catalog
+        from odap.biz.core.ontology.application.servitization.catalog import get_service_catalog
         s1 = get_service_catalog()
         s2 = get_service_catalog()
         assert s1 is s2
@@ -309,12 +309,12 @@ class TestServiceCatalogService:
 
 class TestCatalogEntryStatus:
     def test_enum_values(self):
-        from odap.biz.core.ontology.servitization.catalog.service_catalog import CatalogEntryStatus
+        from odap.biz.core.ontology.application.servitization.catalog.service_catalog import CatalogEntryStatus
         assert CatalogEntryStatus.ACTIVE.value == "active"
         assert CatalogEntryStatus.DEPRECATED.value == "deprecated"
         assert CatalogEntryStatus.NEEDS_UPDATE.value == "needs_update"
         assert CatalogEntryStatus.RETIRED.value == "retired"
 
     def test_enum_str_inheritance(self):
-        from odap.biz.core.ontology.servitization.catalog.service_catalog import CatalogEntryStatus
+        from odap.biz.core.ontology.application.servitization.catalog.service_catalog import CatalogEntryStatus
         assert isinstance(CatalogEntryStatus.ACTIVE, str)

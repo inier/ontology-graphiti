@@ -145,6 +145,7 @@ class BaseSkill(ABC):
             input_data = self.validate_input(raw_input)
             result = self.execute(input_data)
         except Exception as e:
+            logger.warning("silent except caught in {exc} (line 147)", exc_info=True)
             elapsed = (time.perf_counter() - start) * 1000
             return SkillOutput(
                 success=False,
@@ -219,6 +220,7 @@ class LegacySkillAdapter(BaseSkill):
                 request_id=input_data.request_id,
             )
         except Exception as e:
+            logger.warning("silent except caught in {exc} (line 221)", exc_info=True)
             elapsed = (time.perf_counter() - start) * 1000
             return SkillOutput(
                 success=False,
@@ -318,8 +320,12 @@ class SkillStatus(str, Enum):
     UNLOADED = "unloaded"
 
 
-from odap.biz.core.ontology.servitization.services.deployment_executor import HealthStatus as _HealthStatus
+from odap.biz.core.ontology.application.servitization.services.deployment_executor import HealthStatus as _HealthStatus
 
+
+import logging
+
+logger = logging.getLogger(__name__)
 HealthStatus = _HealthStatus
 
 
@@ -547,6 +553,7 @@ class SkillExecutorV2:
                 return result
 
             except Exception as e:
+                logger.warning("silent except caught in {exc} (line 553)", exc_info=True)
                 last_error = str(e)
                 attempt += 1
                 if attempt < self._retry_attempts:
@@ -634,12 +641,12 @@ class SkillRegistryV2:
                         self.register(skill_instance)
                         loaded += 1
                     except Exception as e:
-                        print(f"Failed to instantiate Skill {name}: {e}")
+                        logger.info(f'Failed to instantiate Skill {name}: {e}')
 
             self._skill_modules[module_path] = module
             return loaded
         except Exception as e:
-            print(f"Failed to load module {module_path}: {e}")
+            logger.info(f'Failed to load module {module_path}: {e}')
             return 0
 
     def unregister(self, name: str, force: bool = False) -> bool:

@@ -49,7 +49,7 @@ skip_if_no_neo4j = pytest.mark.skipif(
 class TestOntologyCreateAndStore:
     @pytest.fixture(autouse=True)
     def _setup(self):
-        from odap.biz.core.ontology.impl.builder import OntologyBuilder
+        from odap.biz.core.ontology.design.impl.builder import OntologyBuilder
         self.builder = OntologyBuilder()
 
     def test_create_ontology_document(self):
@@ -125,7 +125,7 @@ class TestGraphitiTemporalQuery:
 class TestOntologyGraphitiFullChain:
     @pytest.fixture(autouse=True)
     def _setup(self):
-        from odap.biz.core.ontology.impl.builder import OntologyBuilder
+        from odap.biz.core.ontology.design.impl.builder import OntologyBuilder
         from odap.infra.graph.graph_service import GraphManager
         self.builder = OntologyBuilder()
         self.graph_manager = GraphManager()

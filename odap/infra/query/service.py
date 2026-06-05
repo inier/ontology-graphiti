@@ -180,3 +180,13 @@ class QueryService:
             entity_type = params.get("type")
             return self._temporal_source.query_range(start_time, end_time, entity_type=entity_type)
         return self._temporal_source.query(params)
+
+
+_query_service_instance = None
+
+def get_query_service():
+    global _query_service_instance
+    if _query_service_instance is None:
+        _query_service_instance = QueryService()
+    return _query_service_instance
+

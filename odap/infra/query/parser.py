@@ -31,9 +31,13 @@ class QueryParser:
     def parse(self, query: str, limit: int = 20) -> ParsedQuery:
         query = query.strip()
         source = QuerySource.ENTITY
-        filters: Dict[str, Any] = {}
+        filters: Optional[Dict[str, Any]] = None
+        if filters is None:
+            filters = {}
         action = None
-        action_params: Dict[str, Any] = {}
+        action_params: Optional[Dict[str, Any]] = None
+        if action_params is None:
+            action_params = {}
 
         for prefix, src in self.SOURCE_MAP.items():
             if query.startswith(prefix):
@@ -81,7 +85,9 @@ class QueryParser:
         )
 
     def _parse_filters(self, filter_str: str) -> Dict[str, Any]:
-        filters: Dict[str, Any] = {}
+        filters: Optional[Dict[str, Any]] = None
+        if filters is None:
+            filters = {}
         for pair in filter_str.split(","):
             pair = pair.strip()
             if "=" in pair:
@@ -92,7 +98,9 @@ class QueryParser:
         return filters
 
     def _parse_neighbors_params(self, params_str: str) -> Dict[str, Any]:
-        params: Dict[str, Any] = {}
+        params: Optional[Dict[str, Any]] = None
+        if params is None:
+            params = {}
         for pair in params_str.split(","):
             pair = pair.strip()
             if "=" in pair:

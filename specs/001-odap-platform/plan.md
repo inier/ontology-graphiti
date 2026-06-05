@@ -6,11 +6,11 @@
 
 ## Summary
 
-ODAP（本体驱动分析决策平台）基于 OntoFlow 六层架构，以 Graphiti 双时态知识图谱为核心，提供本体管理、智能体编排、决策推演与模拟仿真能力。平台采用模块化单体架构（FastAPI + React 19），3 阶段交付：P1 基础层（本体+工作空间+数据摄入）→ P2 核心层（Agent+策略+认知+查询）→ P3 增强层（推演+问答+反馈+MCP）。OpenHarness 以进程内集成方式作为 Agent 编排核心，本体拆分为模型层（参考 Palantir 结构）和管理引擎，存储采用 SQLite+Neo4j+Redis+MinIO 四引擎组合，前端完整重构为 5 级组件体系+移动优先响应式+中英双语 i18n。
+ODAP（本体驱动分析决策平台）基于 OntoFlow 六层架构，以 Graphiti 双时态知识图谱为核心，提供本体管理、智能体编排、决策推演与模拟仿真能力。平台采用模块化单体架构（FastAPI + React 19），3 阶段交付：P1 基础层（本体+工作空间+数据摄入）→ P2 核心层（Agent+策略+认知+查询）→ P3 增强层（推演+问答+反馈+MCP）。OpenHarness 以进程内集成方式作为 Agent 编排核心，本体拆分为模型层（借鉴 Palantir AIP 核心概念）和管理引擎，存储采用 SQLite+Neo4j+Redis+MinIO 四引擎组合，前端完整重构为 5 级组件体系+移动优先响应式+中英双语 i18n。
 
 ## Technical Context
 
-**Language/Version**: Python 3.11, TypeScript 5.x
+**Language/Version**: Python 3.10+（容器基准 3.10，本地开发兼容 3.10-3.13）, TypeScript 5.x
 
 **Primary Dependencies**: FastAPI, Pydantic v2, React 19, Ant Design 6, OpenHarness (in-process), Graphiti, Neo4j, OPA, Zustand 5, AntV G6 5, @xyflow/react, ECharts 6
 
@@ -22,11 +22,11 @@ ODAP（本体驱动分析决策平台）基于 OntoFlow 六层架构，以 Graph
 
 **Project Type**: Web application（模块化单体）
 
-**Performance Goals**: API P95 < 500ms, QA P95 < 3s, 推演 < 30s, Agent 意图识别 > 90%, OPA 策略热更新 < 30s
+**Performance Goals**: API P95 < 500ms, QA P95 < 3s, 推演 < 30s, Agent 意图识别 > 90%, OPA 策略热更新 < 30s, Data Health 增量扫描 < 60s/100K 实例
 
-**Constraints**: 移动优先响应式（6 断点）, OpenHarness 独立性（不 fork 核心代码）, 不重复引入存储引擎, 5 级组件体系+组件库可替代性设计
+**Constraints**: 移动优先响应式（6 断点）, OpenHarness 独立性（不 fork 核心代码）, 不重复引入存储引擎, 5 级组件体系+组件库可替代性设计, 本体设计采用 Palantir 范式 (Branch&Merge + Action Type + Object View), 本体演化采用 OntoFlow 范式 (goal-driven)
 
-**Scale/Scope**: 30 个 FR, 43+ API 路由, 13+ 前端页面模块, 7 大业务领域
+**Scale/Scope**: 37 个 FR (30 原版 + 7 brainstorm 增量), 50+ API 路由 (含新增 35+ 端点), 13+ 前端页面模块, 7 大业务领域
 
 ## Constitution Check
 
@@ -34,18 +34,19 @@ ODAP（本体驱动分析决策平台）基于 OntoFlow 六层架构，以 Graph
 
 | 原则 | 状态 | 说明 |
 |------|------|------|
-| I. 简单 | ✅ 通过 | 每个 FR 有明确边界，不预先设计未需求的功能；函数体 > 40 行拆分；命名语义明确 |
-| II. 可维护 | ✅ 通过 | 模块化单体架构，领域模块独立 routes/services/impl/storage；前端统一 apiClient；配置集中管理 |
-| III. 测试优先 | ✅ 通过 | 测试金字塔 80/15/5，质量门禁（覆盖率 > 80%，Lint 0 error，类型检查 0 error）；Bug 修复先写复现测试 |
-| IV. 避免过度设计 | ⚠️ 需注意 | Palantir 严格对齐可能引入过度抽象，需在实施时平衡——仅实现当前 FR 需要的 Palantir 结构子集，不预先构建完整 Palantir 等价体系 |
+| I. 简单 | ✅ 通过 | 每个 FR 有明确边界，不预先设计未需求的功能；函数体 > 40 行拆分（CI 守卫 R-P3-001 生效）；命名语义明确 |
+| II. 可维护 | ⚠️ 需注意 | 模块化单体架构，领域模块独立 routes/services/impl/storage；配置集中管理；前端统一 apiClient **尚未完全落地**（SkillManager.tsx、knowledgeStore.ts 存在绕过 apiClient 的调用，需在 Phase 3 前修复） |
+| III. 测试优先 | ✅ 通过 | 测试金字塔 80/15/5，质量门禁（覆盖率 > 80%，Lint 0 error，类型检查 0 error）；Bug 修复先写复现测试；新增模块必须同步新增测试（AGENTS.md 规则 9） |
+| IV. 避免过度设计 | ✅ 通过 | 借鉴 Palantir AIP 核心概念（Object Type/Property/Action/Rule），不严格对齐完整体系；仅实现当前 FR 需要的子集；Phase 4 仅引入 Branch&Merge/Action Type/Object View 等高价值子集，不引入 Palantir 完整功能集 |
+| **V. SDD 质量门 (v2.1.0, BMAD 2026-06-05)** | ✅ 通过 | G-1..G-12 已纳入 constitution v2.1.0 并由 [test_constitution_compliance.py](file:///e:/DEMO/AI/ontology-graphiti/tests/unit/test_constitution_compliance.py) 验证 |
 
 **复杂度跟踪**:
 
 | 违规项 | 为何需要 | 被拒绝的更简方案及原因 |
 |--------|----------|----------------------|
-| Palantir 本体模型层对齐 | FR-001 明确要求"设计参考 Palantir 结构" | 扁平本体模型无法支撑实体类型/属性/关系/约束的形式化定义和 OntologyDocument JSON 统一格式 |
-| 5 级组件体系 | spec 明确要求全项目统一组件库+可替代性设计 | 3 级组件体系无法满足可替代性隔离层要求，L4 模板层和 L5 页面层是可替代性设计的关键 |
+| 5 级组件体系 | spec 明确要求全项目统一组件库+可替代性设计 | 3 级组件体系无法满足可替代性隔离层要求，L4 模板层和 L5 页面层是可替代性设计的关键；**但当前仅有一个 AntDesignAdapter 实现，隔离层在出现第二个适配器前保持轻量** |
 | MinIO 对象存储 | FR-004 多模态数据接入需要非结构化存储 | SQLite BLOB 存储大文件性能差且不符合"不重复引入"原则（需独立存储引擎） |
+| 前端统一 apiClient | 宪法 II 要求前端 API 调用 MUST 通过统一 API 客户端 | 当前部分组件绕过 apiClient 直接 fetch，需逐步迁移 |
 
 ## Project Structure
 
@@ -53,10 +54,15 @@ ODAP（本体驱动分析决策平台）基于 OntoFlow 六层架构，以 Graph
 
 ```text
 specs/001-odap-platform/
-├── plan.md
-├── spec.md
-└── checklists/
-    └── requirements.md
+├── plan.md              # This file (/speckit-plan command output)
+├── research.md          # Phase 0 output (/speckit-plan command)
+├── data-model.md        # Phase 1 output (/speckit-plan command)
+├── quickstart.md        # Phase 1 output (/speckit-plan command)
+├── contracts/           # Phase 1 output (/speckit-plan command)
+│   └── README.md        #   API 契约索引（21 个模块，320+ 端点）
+├── checklists/
+│   └── requirements.md  #   需求检查清单
+└── tasks.md             # Phase 2 output (/speckit-tasks command - NOT created by /speckit-plan)
 ```
 
 ### Source Code (repository root)
@@ -170,12 +176,6 @@ ontology-graphiti/
 │   │   ├── integration/
 │   │   │   ├── openharness_agent/
 │   │   │   │   ├── api/
-│   │   │   │   ├── adapter/
-│   │   │   │   │   ├── swarm_adapter.py
-│   │   │   │   │   ├── skill_adapter.py
-│   │   │   │   │   ├── memory_adapter.py
-│   │   │   │   │   ├── hook_adapter.py
-│   │   │   │   │   └── tool_adapter.py
 │   │   │   │   └── __init__.py
 │   │   │   ├── hook_system/
 │   │   │   │   ├── api/
@@ -325,6 +325,9 @@ ontology-graphiti/
 │   │   │   └── __init__.py
 │   │   ├── openharness/
 │   │   │   ├── v2_adapter.py
+│   │   │   ├── swarm_adapter.py
+│   │   │   ├── skill_adapter.py
+│   │   │   ├── hook_adapter.py
 │   │   │   ├── decision_engine.py
 │   │   │   ├── llm_client.py
 │   │   │   ├── memory_adapter.py
@@ -542,15 +545,15 @@ ontology-graphiti/
 | 11 | 会话记忆管理 | 基于 OpenHarness Memory Plugin（FR-024） | 现有 session_memory 独立实现 | 以 spec 为准，迁移到 OpenHarness Memory Plugin |
 | 12 | 工具注册表 | 基于 OpenHarness Tool 接口（FR-025） | ADR-029/047 独立设计 | 以 spec 为准，基于 OpenHarness Tool 接口；ADR-047 补充 |
 | 13 | 结构化语义层 | 纳入当前阶段（FR-026），含前端扩展 | ADR-056 已设计 | 一致，ADR-056 保持 Accepted |
-| 14 | 数据分类与加密 | 4 级分类+传输加密+存储加密+KMS（FR-027） | SECURITY.md 未细化分类 | 以 spec 为准，4 级分类；存储加密+KMS 推迟 |
+| 14 | 数据分类与加密 | 4 级分类+传输加密+存储加密（FR-027） | SECURITY.md 未细化分类 | 以 spec 为准，4 级分类+AES-256-GCM+TLS 1.3 当前交付；KMS 推迟到下一阶段（spec 已授权） |
 | 15 | 测试策略 | 测试金字塔+质量门禁（FR-028） | ADR-044 已设计 | 一致，ADR-044 保持 Accepted |
-| 16 | OntologyDocument JSON | 统一原子格式，对齐 Palantir AIP（FR-029） | ADR-032 已设计 | 一致，ADR-032 保持 Accepted |
+| 16 | OntologyDocument JSON | 统一原子格式，参考 Palantir AIP 核心概念（FR-029） | ADR-032 已设计 | 一致，ADR-032 保持 Accepted |
 | 17 | 国际化 | 中英双语+后台管理+LLM 翻译（FR-030） | ADR-037 部分覆盖 | 以 spec 为准，完整实现 FR-030；ADR-037 补充 |
 | 18 | 决策推荐引擎 | 基于 Graphiti RAG 增强推理（FR-019） | decision_recommendation 现有基础 | 增强现有实现，增加 Graphiti RAG 集成 |
 | 19 | 事件模拟器 | 基于本体定义生成事件（FR-020） | event_simulator 现有基础 | 增强现有实现，增加本体关联约束 |
 | 20 | Agent 编排架构 | DomainSwarm OODA 循环+混合路由 | ADR-005/043 已设计 | 以 spec 为准，DomainSwarm OODA；ADR-043 补充混合路由 |
 | 21 | 认证方式 | OAuth2/OIDC+本地账号（FR-021） | auth_service 现有 JWT | 增加 OAuth2/OIDC 支持 |
-| 22 | Palantir 本体参考 | 严格对齐 Palantir AIP 本体模型 | ADR-036 已参考 | 以 spec 为准，严格对齐；ADR-036 补充严格对齐说明 |
+| 22 | Palantir 本体参考 | 借鉴 Palantir AIP 核心概念 | ADR-036 已参考 | 以 spec 为准，借鉴核心概念；ADR-036 补充借鉴说明 |
 | 23 | Graphiti 双时态 | 全面利用（版本/问答/推演） | ADR-002 已决策 | 一致，ADR-002 保持 Accepted |
 | 24 | 前端组件体系 | 5 级组件+统一组件库+可替代性设计 | COMPONENT_SPEC.md 3 级体系 | 以 spec 为准，升级为 5 级+隔离层 |
 
@@ -567,12 +570,12 @@ ontology-graphiti/
 将现有 `odap/biz/core/ontology/` 拆分为两个子系统：
 
 **本体模型层** (`ontology/model/`):
-- 参考 Palantir AIP 结构：ObjectType → Property → Action → Rule
+- 参考 Palantir AIP 核心概念：ObjectType → Property → Action → Rule
 - `models/entity_type.py`: EntityType(BaseModel)，包含 name、properties、primary_key、constraints
 - `models/property.py`: Property(BaseModel)，包含 name、data_type、required、default_value、classification_level
 - `models/relation.py`: Relation(BaseModel)，包含 source_type、target_type、relation_type、cardinality
 - `models/constraint.py`: Constraint(BaseModel)，包含 constraint_type、expression、error_message
-- `models/ontology_document.py`: OntologyDocument(BaseModel)，统一原子格式，与 Palantir AIP/OWL/RDF 对齐
+- `models/ontology_document.py`: OntologyDocument(BaseModel)，统一原子格式，参考 Palantir AIP 核心概念设计
 - 负责实例 CRUD（FR-003 的 CRUD 部分）
 - 实例唯一性基于主键属性组合判定
 - API: `POST /api/ontology/model/entity-types`, `GET /api/ontology/model/entity-types/{id}`, `PUT /api/ontology/model/entity-types/{id}`, `DELETE /api/ontology/model/entity-types/{id}`
@@ -676,13 +679,13 @@ ontology-graphiti/
 - 工作空间导入导出：支持 JSON 格式的完整工作空间导出和导入
 
 **API**:
-- `POST /api/workspace` — 创建工作空间
-- `GET /api/workspace` — 工作空间列表
-- `GET /api/workspace/{id}` — 工作空间详情
-- `PUT /api/workspace/{id}` — 更新工作空间
-- `DELETE /api/workspace/{id}` — 删除工作空间（需 OPA 策略校验）
-- `POST /api/workspace/{id}/export` — 导出
-- `POST /api/workspace/{id}/import` — 导入
+- `POST /api/workspaces` — 创建工作空间
+- `GET /api/workspaces` — 工作空间列表
+- `GET /api/workspaces/{id}` — 工作空间详情
+- `PUT /api/workspaces/{id}` — 更新工作空间
+- `DELETE /api/workspaces/{id}` — 删除工作空间（需 OPA 策略校验）
+- `POST /api/workspaces/{id}/export` — 导出
+- `POST /api/workspaces/{id}/import` — 导入
 
 ### FR-013: 场景切换
 
@@ -695,11 +698,11 @@ ontology-graphiti/
 - 前端：场景切换器组件（WorkspaceSwitcher 增强），切换后全局状态更新
 
 **API**:
-- `POST /api/workspace/{ws_id}/scenarios` — 创建场景
-- `GET /api/workspace/{ws_id}/scenarios` — 场景列表
-- `PUT /api/workspace/{ws_id}/scenarios/{id}` — 更新场景
-- `POST /api/workspace/{ws_id}/scenarios/{id}/activate` — 激活场景
-- `POST /api/workspace/{ws_id}/scenarios/{id}/ontologies` — 绑定本体
+- `POST /api/workspaces/{ws_id}/scenarios` — 创建场景
+- `GET /api/workspaces/{ws_id}/scenarios` — 场景列表
+- `PUT /api/workspaces/{ws_id}/scenarios/{id}` — 更新场景
+- `POST /api/workspaces/{ws_id}/scenarios/{id}/activate` — 激活场景
+- `POST /api/workspaces/{ws_id}/scenarios/{id}/ontologies` — 绑定本体
 
 ### FR-015: 数据摄入审计
 
@@ -720,7 +723,7 @@ ontology-graphiti/
 
 **技术方案**:
 
-- 定义 `OntologyDocument` JSON Schema，对齐 Palantir AIP 本体结构：
+- 定义 `OntologyDocument` JSON Schema，参考 Palantir AIP 核心概念设计：
   ```json
   {
     "id": "uuid",
@@ -743,13 +746,13 @@ ontology-graphiti/
 - 所有数据摄入、导入导出、模块间数据交换必须使用此格式
 - `odap/biz/core/ontology/model/models/ontology_document.py`: Pydantic 模型定义
 - `odap/biz/core/ontology/schema/document.py`: 现有 schema 迁移到 OntologyDocument 格式
-- 提供 `from_palantir()` / `to_palantir()` / `from_owl()` / `to_owl()` 转换方法
+- 提供 `to_owl()` / `to_rdf()` 导出方法；`from_palantir()` 仅在需要导入 Palantir 数据时实现
 
 **API**:
 - `GET /api/ontology/model/documents/{ontology_id}` — 获取 OntologyDocument
 - `POST /api/ontology/model/documents` — 创建/导入 OntologyDocument
 - `PUT /api/ontology/model/documents/{ontology_id}` — 更新 OntologyDocument
-- `POST /api/ontology/model/documents/{ontology_id}/export?format=palantir|owl|rdf` — 格式导出
+- `POST /api/ontology/model/documents/{ontology_id}/export?format=owl|rdf` — 格式导出
 
 ### FR-027: 数据分类标记+传输加密（部分）
 
@@ -765,7 +768,7 @@ ontology-graphiti/
   - C 级数据仅传输加密
   - U 级数据标准安全措施
 - OPA 策略：基于数据分类级别的访问控制规则
-- 存储加密+KMS 推迟到 Phase 2 后期
+- 存储加密在 Phase 1 实现（AES-256-GCM + 配置文件密钥）；KMS 集成推迟到下一阶段（当前 feature 不实现）
 
 **API**:
 - 数据分类标记嵌入在实体类型/属性的 CRUD 操作中
@@ -790,7 +793,7 @@ ontology-graphiti/
   - 翻译条目列表（按模块/语言筛选）
   - 在线编辑翻译
   - LLM 自动翻译按钮+人工审核
-- 使用 react-intl 或 i18next 作为 i18n 框架
+- 使用 react-i18next 作为 i18n 框架（research.md 课题3 决策）
 - 每个模块独立维护翻译文件：`modules/{name}/locales/{locale}/{name}.json`
 - 共享翻译：`modules/shared/locales/{locale}/common.json`
 
@@ -1276,6 +1279,243 @@ ontology-graphiti/
 
 ---
 
+## Phase 4: Palantir/OntoFlow 增强层（P4 优先级，2026-06-05 brainstorm 增量）
+
+**目标**: 借鉴 Palantir Foundry 与 OntoFlow 的核心范式，把 ODAP 的「本体设计」与「本体应用」推到企业级。包含 7 个新 FR（FR-031..FR-037），重点解决：本体多团队并行开发、数据质量闭环、Agent 强类型护栏、跨角色视图隔离。
+
+**预计工期**: 12-15 周（按 4 个里程碑分批交付）
+
+**设计原则**:
+- **零结构破坏**：不替换现有 FR-001 本体模型层，而是在其上叠加 Palantir 范式
+- **职责分离**：Data Health 与 OPA 严格分工（OPA 写时，Data Health 写后）
+- **分层架构**：Action Type（业务接口，本体层）→ Skill（工程实现，能力层）
+- **演化为先**：每个 FR 都支持 OntoFlow goal-driven 演化模式
+
+### FR-031: Data Health 数据健康引擎
+
+**技术方案**:
+
+- 新增 `odap/biz/core/ontology/health/`:
+  - `models/rule.py`: HealthRule(BaseModel) — 包含 `target_type`、`check_expression`（声明式 JSON/YAML）、`severity`、`notification_channel`、`schedule`
+  - `models/report.py`: HealthReport(BaseModel) — 包含 `instance_id`、`rule_id`、`status` (pass/warn/fail)、`details`
+  - `interfaces/scanner.py`: HealthScanner(ABC) — `scan(rule) -> Iterator[HealthReport]`
+  - `impl/scanner.py`: DeclarativeHealthScanner — 解析 JSON/YAML 规则并执行
+  - `impl/notification.py`: NotificationDispatcher — 支持 Email/Webhook/IM
+  - `services/health_service.py`: HealthService — CRUD 规则、触发扫描、查询报告
+  - `storage/sqlite_health_storage.py`: HealthRule + HealthReport 持久化
+- 调度：基于 `apscheduler` 或 `celery beat`，支持 cron 表达式
+- 增量扫描：基于 `last_scan_at` 时间戳，扫描新增/变更数据
+- 全量扫描：异步执行，不阻塞主流程（通过 BackgroundTasks）
+- 大数据规模：> 100K 实例时使用分批扫描 + 进度上报
+
+**API**:
+- `POST /api/ontology/health/rules` — 创建健康规则
+- `GET /api/ontology/health/rules?target_type={type}` — 规则列表
+- `PUT /api/ontology/health/rules/{id}` — 更新规则
+- `DELETE /api/ontology/health/rules/{id}` — 删除规则
+- `POST /api/ontology/health/scan` — 触发扫描（同步/异步）
+- `GET /api/ontology/health/scan/{scan_id}/status` — 扫描状态
+- `GET /api/ontology/health/reports?rule_id={id}&page={n}` — 报告列表
+- `GET /api/ontology/health/summary` — 总体健康摘要
+
+**与 OPA 分工**:
+| 场景 | 用 OPA | 用 Data Health |
+|------|--------|----------------|
+| 写入时权限校验 | ✅ | ❌ |
+| 防止脏数据写入 | ✅ | ⚠️ (事后检测) |
+| 发现历史数据漂移 | ❌ | ✅ |
+| 合规审计 (Sox/HIPAA) | ❌ | ✅ |
+| 实时告警 | ❌ | ✅ |
+
+### FR-032: 本体分支与合并（Branch & Merge, Palantir 范式）
+
+**技术方案**:
+
+- 升级现有 `odap/biz/core/ontology/engine/`:
+  - `models/branch.py`: OntologyBranch(BaseModel) — 包含 `id`、`name` (e.g., `main`, `feature/team-x`)、`base_version_id`、`head_version_id`、`protected`、`merge_strategy` (auto/manual/3-way)
+  - `models/merge_request.py`: MergeRequest(BaseModel) — 包含 `source_branch_id`、`target_branch_id`、`diff`、`conflicts[]`、`status` (open/merged/conflicted)、`reviewers[]`、`approvals[]`
+  - `models/conflict.py`: Conflict(BaseModel) — 包含 `object_type_id`、`field_path`、`base_value`、`ours_value`、`theirs_value`、`resolution` (ours/theirs/manual)
+  - `impl/branch_manager.py`: BranchManager — `create_branch`、`list_branches`、`protect_branch`、`delete_branch`
+  - `impl/merge_engine.py`: MergeEngine — 3-way merge 算法（基于 ontology_document.json 的 JSON Patch）
+  - `impl/diff_engine.py`: DiffEngine — 计算版本差异，输出 JSON Patch
+  - `services/branch_service.py`: 编排 + 通知评审人
+- 冲突解决 UI：可视化 diff + 三方对比 + 选择保留版本
+- 主分支保护：main 分支必须经过 PR/MR 评审，禁止直接 push
+- Git-like 语义：HEAD/main/commit，但底层是 SQLite + Neo4j
+
+**API**:
+- `POST /api/ontology/branches` — 创建分支
+- `GET /api/ontology/branches?ontology_id={id}` — 分支列表
+- `GET /api/ontology/branches/{id}` — 分支详情
+- `PUT /api/ontology/branches/{id}/protect` — 保护分支
+- `POST /api/ontology/branches/{id}/merge` — 合并分支
+- `POST /api/ontology/merge-requests` — 创建 MR
+- `GET /api/ontology/merge-requests?status={status}` — MR 列表
+- `POST /api/ontology/merge-requests/{id}/approve` — 批准 MR
+- `POST /api/ontology/merge-requests/{id}/resolve-conflict` — 解决冲突
+
+### FR-033: Object Type 继承 + 组合 (inherits + mixins)
+
+**技术方案**:
+
+- 升级 `odap/biz/core/ontology/model/models/entity_type.py`:
+  - `EntityType(BaseModel)` 扩展字段：
+    - `inherits: List[str] = Field(default_factory=list)` — 父类引用（支持多继承，但深度 ≤ 5）
+    - `mixins: List[str] = Field(default_factory=list)` — Mixin 引用列表
+  - 验证规则：
+    - 继承链深度 ≤ 5（避免"继承地狱"）
+    - Mixin 冲突检测：重名字段 MUST 显式 override，不允许 silent shadow
+    - 循环继承检测（DAG 验证）
+  - 解析流程：扁平化继承链 → 应用 mixin → 字段去重 → 冲突解决
+  - 解析后的 `EntityType` 暴露 `effective_properties` (含继承+组合)
+- 新增 `odap/biz/core/ontology/model/models/mixin.py`: Mixin(BaseModel)
+  - `name`、`properties[]`、`actions[]`
+  - 不支持嵌套继承（避免循环）
+
+**API**:
+- 现有 CRUD 端点扩展 `inherits` / `mixins` 字段
+- `GET /api/ontology/model/entity-types/{id}/effective-properties` — 解析后的完整属性
+- `GET /api/ontology/model/entity-types/{id}/inheritance-graph` — 继承关系图
+- `POST /api/ontology/model/validate-inheritance` — 验证继承链
+
+### FR-034: Action Type 一等公民 + Skill 分层
+
+**技术方案**:
+
+- 新增 `odap/biz/core/ontology/action_type/`:
+  - `models/action_type.py`: ActionType(BaseModel)
+    - `id`, `name`, `description`, `parameters: List[ActionParam]`
+    - `return_type: ActionReturn` (可引用 ObjectType 实例)
+    - `implementation: List[str]` — Skill 引用列表 (1:N)
+    - `preconditions: List[str]` — 引用 OPA 策略
+    - `postconditions: List[str]`
+  - `models/skill_binding.py`: SkillBinding — 映射 Action 步骤到 Skill
+  - `impl/action_executor.py`: ActionExecutor
+    - 接收 Agent 调用 → 参数 OPA 校验 → 按 Skill 顺序执行 → 错误回滚
+  - `services/action_service.py`: ActionService
+- 升级 `odap/biz/platform/tool_registry/`:
+  - 现有 ToolRegistry 扩展为 `SkillRegistry`
+  - 每个 Skill 必须通过 OPA 授权 + Action Type 引用才能被 Agent 调用
+- Agent 调用流程：
+  1. Agent 决定调用 Action Type
+  2. 平台校验 Action 是否存在
+  3. 参数按 ObjectType 强类型校验
+  4. OPA 二次校验权限
+  5. 按 Skill 列表顺序执行
+  6. 任一失败 → 全部回滚（事务语义）
+
+**API**:
+- `POST /api/ontology/action-types` — 创建 Action Type
+- `GET /api/ontology/action-types?entity_type_id={id}` — 列表
+- `GET /api/ontology/action-types/{id}` — 详情
+- `PUT /api/ontology/action-types/{id}` — 更新
+- `POST /api/ontology/action-types/{id}/execute` — Agent 调用
+- `GET /api/ontology/action-types/{id}/executions` — 执行历史
+- `POST /api/skill/bind-action` — 绑定 Skill 到 Action
+
+### FR-035: 计算属性 (Computed Properties)
+
+**技术方案**:
+
+- 升级 `odap/biz/core/ontology/model/models/property.py`:
+  - `Property(BaseModel)` 扩展：
+    - `is_computed: bool = False`
+    - `depends_on: List[str] = Field(default_factory=list)` — 依赖其他属性
+    - `cache_strategy: Literal["none", "lazy", "eager", "hybrid"]`
+    - `materialize_view: Optional[str]` — 物化视图名称
+- 新增 `odap/biz/core/ontology/materialization/`:
+  - `models/view.py`: MaterializedView(BaseModel)
+  - `impl/view_manager.py`: ViewManager — 增量重算、定时全量、查询路由
+  - `services/compute_service.py`: ComputeService
+- 重算触发：
+  - 实体变更时：基于 `depends_on` 反向索引找到下游视图，增量重算
+  - 定时全量：cron 表达式，默认每天一次
+  - 手动触发：API 端点
+- 查询路由：QueryService 优先查物化视图，未命中时实时计算
+- Stale 警告：返回查询结果时附带 `is_stale: bool` 字段
+
+**API**:
+- 现有 Property CRUD 扩展计算相关字段
+- `POST /api/ontology/materialization/views` — 创建物化视图
+- `POST /api/ontology/materialization/views/{id}/recompute` — 触发重算
+- `GET /api/ontology/materialization/views/{id}/status` — 视图状态
+- `GET /api/ontology/computed/resolve?entity_id={id}&property={name}` — 查询计算属性
+
+### FR-036: OntoFlow 目标导向演化 (Goal-driven Evolution)
+
+**技术方案**:
+
+- 升级 `odap/biz/core/ontology/engine/`:
+  - `models/goal.py`: Goal(BaseModel)
+    - `id`, `name`, `description`, `rationale`
+    - `priority: Literal["low", "medium", "high", "critical"]`
+    - `linked_requirements: List[str]` — 外部需求 ID
+  - `models/change.py`: OntologyChange(BaseModel) 扩展：
+    - `goal_id: str` — 关联目标
+    - `rationale: str` — 变更理由
+  - `services/change_service.py`: 强制要求 goal + rationale
+- 前端：本体验证器 MUST 拒绝没有 `goal_id` 的变更
+- 审计追踪：所有版本变更 MUST 可追溯到 `goal_id` → `linked_requirements`
+- Goal 形式类似 ADR (Architecture Decision Record)
+
+**API**:
+- `POST /api/ontology/goals` — 创建 Goal
+- `GET /api/ontology/goals?status={status}` — Goal 列表
+- `PUT /api/ontology/goals/{id}` — 更新 Goal
+- `GET /api/ontology/changes?goal_id={id}` — 按 Goal 查变更
+- `GET /api/ontology/goals/{id}/impact` — 评估 Goal 影响的实例/规则
+
+### FR-037: 对象视图 (Object View, Palantir 范式)
+
+**技术方案**:
+
+- 新增 `odap/biz/core/ontology/view/`:
+  - `models/view.py`: ObjectView(BaseModel)
+    - `id`, `name` (e.g., `commander-view`, `operator-view`)
+    - `target_type_id: str` — 适用 Object Type
+    - `included_properties: List[str]` — 暴露的属性白名单
+    - `included_actions: List[str]` — 暴露的动作
+    - `role_binding: List[str]` — 绑定角色
+    - `redaction_rules: List[RedactionRule]` — 脱敏规则
+  - `models/redaction.py`: RedactionRule(BaseModel) — 字段 + 脱敏方式 (mask/hash/partial/remove)
+  - `impl/view_resolver.py`: ViewResolver — 给定 user + entity 返回可见属性
+  - `services/view_service.py`: ViewService
+- 前端：Object Type 设计器增加 View 编辑标签页
+- View 与 OPA 关系：View 决定"展示什么"，OPA 决定"能否访问"，职责分离
+
+**API**:
+- `POST /api/ontology/views` — 创建 View
+- `GET /api/ontology/views?target_type_id={id}` — View 列表
+- `PUT /api/ontology/views/{id}` — 更新 View
+- `DELETE /api/ontology/views/{id}` — 删除 View
+- `GET /api/ontology/views/{id}/resolve?entity_id={id}&user_id={id}` — 解析用户可见属性
+- `POST /api/ontology/views/{id}/bind-role` — 绑定角色
+
+### Phase 4 交付物
+
+- [ ] Data Health 引擎（完整性+一致性+漂移检测）
+- [ ] 本体 Branch & Merge (git-like 语义 + PR/MR 评审 + 冲突解决)
+- [ ] Object Type inherits + mixins (继承深度 ≤ 5)
+- [ ] Action Type 一等公民 + Skill 分层 (1:N 绑定)
+- [ ] 计算属性 (depends_on 声明 + 物化视图)
+- [ ] OntoFlow goal-driven 演化 (强制 goal_id + rationale)
+- [ ] Object View (跨角色属性隔离 + 脱敏)
+- [ ] Phase 4 全部单元测试 (覆盖率 > 80%)
+- [ ] 新 FR 的 API 契约文档 (contracts/core-ontology-p4.md)
+- [ ] 宪法合规 (G-1..G-12) 全过
+
+### Phase 4 风险与缓解
+
+| 风险 | 影响 | 概率 | 缓解措施 |
+|------|------|------|----------|
+| Branch & Merge 冲突解决 UI 复杂 | 实施工作量大 | 高 | MVP 阶段只支持 JSON Patch 文本 diff；3-way 可视化推后 |
+| 计算属性依赖图过大 | 增量重算性能差 | 中 | 维护依赖图 + 物化视图 + 限制 depends_on 链深度 ≤ 10 |
+| Action Type 与现有 ToolRegistry 冲突 | 数据不一致 | 中 | 实施时先把现有 Tool 标记为 legacy，逐步迁移 |
+| OntoFlow Goal 强制导致用户抵触 | 本体变更流程变重 | 中 | 提供 Goal 模板 + 快捷创建（默认 Goal "功能改进"） |
+| Object View 性能开销 | 每次查询都需 resolve | 中 | 缓存 (Redis) + OPA 批量校验 |
+
+---
+
 ## 前端重构计划
 
 ### 5 级组件体系实施
@@ -1330,7 +1570,7 @@ ontology-graphiti/
 
 ### i18n 基础设施
 
-- 框架：react-intl 或 i18next
+- 框架：react-i18next（research.md 课题3 决策）
 - 文件组织：`modules/{name}/locales/{locale}/{name}.json`
 - 共享翻译：`modules/shared/locales/{locale}/common.json`
 - 运行时切换：Zustand store 管理当前语言
@@ -1366,7 +1606,7 @@ ontology-graphiti/
 
 1. **不 fork 核心代码**: OpenHarness 作为 Git Submodule 独立维护
 2. **适配层隔离**: 所有 OpenHarness 调用通过 `odap/infra/openharness/` 适配层，业务代码不直接引用 OpenHarness
-3. **接口抽象**: 适配层定义抽象接口，OpenHarness 是默认实现，可替换
+3. **封装隔离**: 适配层提供具体封装类，业务代码通过适配器调用 OpenHarness，不直接引用；适配器公共 API 保持稳定，OpenHarness API 变更时仅需更新适配器
 4. **版本锁定**: requirements.txt 中锁定 OpenHarness 版本
 5. **升级路径**: OpenHarness 官方升级时，仅需更新适配层，业务代码无感知
 
@@ -1463,7 +1703,7 @@ minio:
 | ADR | 当前状态 | 修正后状态 | 修正原因 |
 |-----|----------|-----------|----------|
 | ADR-030 | Accepted | Superseded | Spec 要求立即集成 OpenHarness，覆盖推迟决策 |
-| ADR-036 | Accepted | Amended | 补充"严格对齐 Palantir AIP 本体模型"说明 |
+| ADR-036 | Accepted | Amended | 补充"借鉴 Palantir AIP 核心概念"说明 |
 | ADR-037 | Accepted | Amended | 补充完整 i18n 实现（后台管理+LLM 翻译） |
 | ADR-038 | Accepted | Amended | 补充本体模型层+本体管理引擎拆分说明 |
 | ADR-043 | Accepted | Amended | 补充混合路由策略（规则优先+LLM 兜底） |
@@ -1481,8 +1721,8 @@ minio:
 
 | 风险 | 影响 | 概率 | 缓解措施 |
 |------|------|------|----------|
-| OpenHarness API 不稳定或缺失功能 | Agent/MCP/Hook/Skill 集成受阻 | 中 | 适配层抽象接口，缺失功能自行补充并贡献上游 |
-| Palantir 对齐过度抽象 | 实施复杂度增加，违反宪法 IV | 中 | 仅实现 FR 需要的子集，不预先构建完整体系 |
+| OpenHarness API 不稳定或缺失功能 | Agent/MCP/Hook/Skill 集成受阻 | 中 | 适配层封装隔离，缺失功能自行补充并贡献上游 |
+| Palantir 借鉴范围控制 | 借鉴范围可能扩大 | 低 | 严格限制在 Object Type/Property/Action/Rule 四层结构，不引入 Palantir 特有概念 |
 | Graphiti 双时态查询性能 | 时序查询和版本对比慢 | 低 | 建立时间索引，缓存常用查询结果 |
 | 前端重构范围大 | Phase 1 工期延长 | 中 | 优先完成基础设施（5 级体系+隔离层），页面逐步迁移 |
 | MinIO 运维复杂度 | 部署和备份增加工作量 | 低 | Docker Compose 统一管理，复用现有备份策略 |
@@ -1492,7 +1732,7 @@ minio:
 
 | 违规项 | 为何需要 | 被拒绝的更简方案及原因 |
 |--------|----------|----------------------|
-| Palantir 本体模型层对齐 | FR-001 明确要求"设计参考 Palantir 结构" | 扁平本体模型无法支撑实体类型/属性/关系/约束的形式化定义和 OntologyDocument JSON 统一格式 |
+| 借鉴 Palantir AIP 核心概念 | FR-001 要求借鉴 Palantir AIP 核心概念（Object Type/Property/Action/Rule） | 扁平本体模型无法支撑实体类型/属性/关系/约束的形式化定义和 OntologyDocument JSON 统一格式；但不严格对齐完整体系，仅借鉴四层结构 |
 | 5 级组件体系 | spec 明确要求全项目统一组件库+可替代性设计 | 3 级组件体系无法满足可替代性隔离层要求，L4 模板层和 L5 页面层是可替代性设计的关键 |
 | MinIO 对象存储 | FR-004 多模态数据接入需要非结构化存储 | SQLite BLOB 存储大文件性能差且不符合"不重复引入"原则（需独立存储引擎） |
 | OpenHarness 适配层 | FR-005/014/016/017/018/022/024/025 均要求基于 OpenHarness | 直接调用 OpenHarness API 会导致业务代码与 OpenHarness 强耦合，违反独立性保证 |

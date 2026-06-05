@@ -1,4 +1,5 @@
-from fastapi import APIRouter, HTTPException
+from fastapi import APIRouter, HTTPException, Depends
+from odap.infra.security.jwt_auth import get_current_user
 from typing import Dict, Any
 
 from .schemas import DispatchRequest, SwarmConfigRequest
@@ -12,7 +13,8 @@ def _get_swarm():
 
 
 @router.post("/dispatch")
-async def dispatch_intent(request: DispatchRequest) -> Dict[str, Any]:
+async def dispatch_intent(request: DispatchRequest,
+    user=Depends(get_current_user)) -> Dict[str, Any]:
     try:
         swarm = _get_swarm()
         result = await swarm.dispatch_intent(
@@ -28,7 +30,8 @@ async def dispatch_intent(request: DispatchRequest) -> Dict[str, Any]:
 
 
 @router.get("/tasks/{task_id}")
-async def get_task_status(task_id: str) -> Dict[str, Any]:
+async def get_task_status(task_id: str,
+    user=Depends(get_current_user)) -> Dict[str, Any]:
     try:
         swarm = _get_swarm()
         result = await swarm.get_task_status(task_id)
@@ -42,7 +45,8 @@ async def get_task_status(task_id: str) -> Dict[str, Any]:
 
 
 @router.get("/tasks/{task_id}/chain")
-async def get_decision_chain(task_id: str) -> Dict[str, Any]:
+async def get_decision_chain(task_id: str,
+    user=Depends(get_current_user)) -> Dict[str, Any]:
     try:
         swarm = _get_swarm()
         result = await swarm.get_decision_chain(task_id)
@@ -56,7 +60,8 @@ async def get_decision_chain(task_id: str) -> Dict[str, Any]:
 
 
 @router.post("/swarm/configure")
-async def configure_swarm(request: SwarmConfigRequest) -> Dict[str, Any]:
+async def configure_swarm(request: SwarmConfigRequest,
+    user=Depends(get_current_user)) -> Dict[str, Any]:
     try:
         swarm = _get_swarm()
         result = await swarm.configure_swarm(

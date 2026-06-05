@@ -4,7 +4,8 @@
 统一使用 SQLiteAuditChannel 单例，与 unified_audit.py 写入同一数据库。
 """
 
-from fastapi import APIRouter, HTTPException, Query
+from fastapi import APIRouter, HTTPException, Query, Depends
+from odap.infra.security.jwt_auth import get_current_user
 from typing import Dict, Any, List, Optional
 from datetime import datetime
 import sqlite3
@@ -134,8 +135,8 @@ async def query_audit_events(
     limit: int = Query(50, ge=1, le=100),
     offset: int = Query(0, ge=0),
     order_by: str = Query("timestamp"),
-    order_desc: bool = Query(True)
-):
+    order_desc: bool = Query(True),
+    user=Depends(get_current_user)):
     try:
         filter_kwargs = {}
 
@@ -209,7 +210,8 @@ async def query_audit_events(
 
 
 @router.get("/events/{event_id}")
-async def get_audit_event(event_id: str):
+async def get_audit_event(event_id: str,
+    user=Depends(get_current_user)):
     try:
         channel = _get_channel()
         audit_filter = AuditFilter(limit=10000, offset=0)
@@ -231,8 +233,8 @@ async def get_audit_timeline(
     start_time: Optional[str] = None,
     end_time: Optional[str] = None,
     workspace_id: Optional[str] = None,
-    limit: int = Query(100, ge=1, le=500)
-):
+    limit: int = Query(100, ge=1, le=500),
+    user=Depends(get_current_user)):
     try:
         filter_kwargs = {
             "limit": limit,
@@ -267,7 +269,8 @@ async def get_audit_timeline(
 
 
 @router.get("/trace/{trace_id}")
-async def get_audit_trace(trace_id: str):
+async def get_audit_trace(trace_id: str,
+    user=Depends(get_current_user)):
     try:
         audit_filter = AuditFilter(
             trace_id=trace_id,
@@ -294,8 +297,8 @@ async def get_audit_trace(trace_id: str):
 @router.get("/stats")
 async def get_audit_stats(
     start_time: Optional[str] = None,
-    end_time: Optional[str] = None
-):
+    end_time: Optional[str] = None,
+    user=Depends(get_current_user)):
     try:
         channel = _get_channel()
 
@@ -350,8 +353,8 @@ async def export_audit_logs(
     end_time: Optional[str] = None,
     event_types: Optional[List[str]] = None,
     severities: Optional[List[str]] = None,
-    format: str = "json"
-):
+    format: str = "json",
+    user=Depends(get_current_user)):
     try:
         filter_kwargs = {
             "limit": 1000,
@@ -408,9 +411,8 @@ async def create_log(
     service: str,
     action: str,
     details: Optional[Dict[str, Any]] = None,
-    user: Optional[str] = None,
-    resource: Optional[str] = None
-):
+    resource: Optional[str] = None,
+    user=Depends(get_current_user)):
     try:
         from .unified_audit import log_audit
         log_audit(
@@ -434,11 +436,10 @@ async def query_logs(
     level: Optional[str] = None,
     log_type: Optional[str] = None,
     service: Optional[str] = None,
-    user: Optional[str] = None,
     actor: Optional[str] = None,
     action: Optional[str] = None,
     result: Optional[str] = None,
-):
+    user=Depends(get_current_user)):
     try:
         filter_kwargs = {
             "limit": page_size,
@@ -501,8 +502,8 @@ async def query_logs(
 @router.get("/timeline/resource/{resource_id}")
 async def get_resource_timeline(
     resource_id: str,
-    limit: int = Query(100, ge=1, le=500)
-):
+    limit: int = Query(100, ge=1, le=500),
+    user=Depends(get_current_user)):
     try:
         filter_kwargs = {
             "limit": limit,

@@ -203,6 +203,7 @@ class MCPToolBridge:
                 execution_time_ms=(time.perf_counter() - start_time) * 1000
             )
         except Exception as e:
+            logger.warning("silent except caught in {exc} (line 205)", exc_info=True)
             return ToolExecutionResult(
                 tool_id=tool_name,
                 tool_name=tool_name,
@@ -647,6 +648,7 @@ class ToolRegistry:
             return result
 
         except Exception as e:
+            logger.warning("silent except caught in {exc} (line 650)", exc_info=True)
             execution_time_ms = (time.perf_counter() - start_time) * 1000
             self._update_execution_stats(reg, False)
             self._health_monitor.record_call(tool_name, False, execution_time_ms, str(e))
@@ -794,6 +796,7 @@ class ToolRegistry:
                 data=result
             )
         except Exception as e:
+            logger.warning("silent except caught in {exc} (line 798)", exc_info=True)
             return ToolExecutionResult(
                 tool_id=reg.tool_id,
                 tool_name=reg.metadata.name,
@@ -919,10 +922,13 @@ class ToolRegistry:
         return result
 
     def _evaluate_condition(self, condition: str, context: Dict) -> bool:
-        """评估条件表达式"""
+        """评估条件表达式（使用 AST 安全求值器替代 eval）"""
         try:
-            return bool(eval(condition, {"context": context}))
-        except:
+            from odap.biz.core.ontology.application.runtime.state_machine.impl.expression_evaluator import safe_eval
+
+            return safe_eval(condition, {"context": context})
+        except Exception:
+            logger.warning("silent except caught in {exc} (line 930)", exc_info=True)
             return False
 
 
@@ -940,9 +946,9 @@ def get_tool_registry(opa_manager: OPAManagerV2 = None) -> ToolRegistry:
 if __name__ == "__main__":
     registry = get_tool_registry()
 
-    print("=" * 60)
-    print("工具注册表初始化测试")
-    print("=" * 60)
+    logger.info('=' * 60)
+    logger.info('工具注册表初始化测试')
+    logger.info('=' * 60)
 
     class TestSkillInput(SkillInput):
         value: int = 0
@@ -964,37 +970,37 @@ if __name__ == "__main__":
                 request_id=input_data.request_id
             )
 
-    print("\n1. 注册 Skill 工具:")
+    logger.info('\n1. 注册 Skill 工具:')
     registry.register_skill(TestSkill(), version="1.0.0", changelog="初始版本")
-    print("   ✓ Skill 注册成功")
+    logger.info('   ✓ Skill 注册成功')
 
-    print("\n2. 注册原生函数:")
+    logger.info('\n2. 注册原生函数:')
     def calculate(x: int, y: int) -> int:
         return x + y
 
     registry.register_function("add", "加法运算", calculate, category="computation")
-    print("   ✓ 函数注册成功")
+    logger.info('   ✓ 函数注册成功')
 
-    print("\n3. 工具发现:")
+    logger.info('\n3. 工具发现:')
     tools = registry.discover()
-    print(f"   发现 {len(tools)} 个工具")
+    logger.info(f'   发现 {len(tools)} 个工具')
 
-    print("\n4. 执行 Skill:")
+    logger.info('\n4. 执行 Skill:')
     result = registry.execute("test_skill", {"value": 21})
-    print(f"   执行结果: {result.success}")
-    print(f"   输出数据: {result.data}")
+    logger.info(f'   执行结果: {result.success}')
+    logger.info(f'   输出数据: {result.data}')
 
-    print("\n5. 执行原生函数:")
+    logger.info('\n5. 执行原生函数:')
     result = registry.execute("add", {"x": 10, "y": 20})
-    print(f"   执行结果: {result.success}")
-    print(f"   输出数据: {result.data}")
+    logger.info(f'   执行结果: {result.success}')
+    logger.info(f'   输出数据: {result.data}')
 
-    print("\n6. 健康报告:")
+    logger.info('\n6. 健康报告:')
     report = registry.get_health_report()
-    print(f"   总工具数: {report['total_tools']}")
-    print(f"   健康数: {report['healthy_count']}")
-    print(f"   总调用数: {report['total_calls']}")
+    logger.info(f"   总工具数: {report['total_tools']}")
+    logger.info(f"   健康数: {report['healthy_count']}")
+    logger.info(f"   总调用数: {report['total_calls']}")
 
-    print("\n" + "=" * 60)
-    print("工具注册表测试完成")
-    print("=" * 60)
+    logger.info('\n' + '=' * 60)
+    logger.info('工具注册表测试完成')
+    logger.info('=' * 60)

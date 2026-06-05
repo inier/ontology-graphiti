@@ -2,7 +2,7 @@
 
 **Branch**: `001-odap-platform` | **Date**: 2026-05-31 | **Spec**: [spec.md](./spec.md) | **Plan**: [plan.md](./plan.md)
 
-**Total Tasks**: 252 | **Phases**: 9 | **User Stories**: 6
+**Total Tasks**: 434 | **Phases**: 11 | **User Stories**: 6 + 7 增强 FR (FR-031..FR-037)
 
 ---
 
@@ -470,6 +470,192 @@
 
 ---
 
+## Phase 10: Brainstorm 边缘场景补全（2026-05-31 brainstorm 增量）
+
+> 预计工期: 4-5 周 | 依赖 Phase 9 | 聚焦 6 个 brainstorm 边缘场景 | 任务编号 T313-T330
+
+### SC-01: 多源冲突解决（OntoFlow 范式强化）
+
+- [ ] T313 [P] 冲突解决策略领域模型 — `odap/biz/core/ontology/conflict/models/conflict_resolution.py` `ConflictResolution(str, Enum)` 含 FIRST_WINS / LAST_WINS / LLM_JUDGE / MANUAL 四种策略 + `ConflictRecord(BaseModel)` 含 entity_id / conflict_type / candidates / chosen
+- [ ] T314 [P] 冲突解决器抽象接口 — `odap/biz/core/ontology/conflict/interfaces/conflict_resolver.py` `ConflictResolver(ABC)` 定义 resolve(conflict) / detect_conflicts(sources)
+- [ ] T315 ConflictResolverImpl 实现 — `odap/biz/core/ontology/conflict/impl/conflict_resolver_impl.py` 实现 4 种策略：FIRST_WINS（取最早源）、LAST_WINS（取最新源）、LLM_JUDGE（调用 LLM 判断）、MANUAL（标记待人工处理）
+- [ ] T316 ConflictService 编排层 — `odap/biz/core/ontology/conflict/services/conflict_service.py` 返回 Dict[str, Any]，集成到数据摄入流程
+- [ ] T317 冲突解决 API 路由 — `odap/biz/core/ontology/conflict/api/routes.py` `APIRouter(prefix="/api/ontology/conflict")` POST `/detect` + POST `/resolve/{conflict_id}` + GET `/conflicts?status=pending`
+- [ ] T318 冲突解决路由注册 — `odap/web/app.py` `include_router(conflict_router)`
+- [ ] T319 冲突解决单元测试 — `tests/unit/test_conflict_resolver.py` 覆盖 4 种策略、检测逻辑、人工处理流程
+- [ ] T320 前端冲突解决组件 — `frontend/src/modules/ontology/components/ConflictResolver.tsx` L3 组织组件，候选值对比 + 策略选择 + LLM 判断按钮
+
+### SC-02: 冷启动数据稀疏
+
+- [ ] T321 冷启动引导服务 — `odap/biz/core/ontology/cold_start/impl/bootstrap.py` 当新工作空间无数据时，从模板库加载示例本体（金融/医疗/制造三个行业模板）
+- [ ] T322 冷启动单元测试 — `tests/unit/test_cold_start.py` 覆盖模板加载、数据稀疏检测、引导流程
+- [ ] T323 行业模板库 — `odap/biz/core/ontology/cold_start/templates/` 三个 YAML 模板（finance.yaml / healthcare.yaml / manufacturing.yaml）
+
+### SC-03: 大规模本体分片
+
+- [ ] T324 本体分片器 — `odap/biz/core/ontology/sharding/impl/sharder.py` 当 ObjectType > 10000 实例时按主键 hash 自动分片，查询时并行扫描并合并
+- [ ] T325 分片单元测试 — `tests/unit/test_sharding.py` 覆盖分片策略、并行查询、结果合并
+
+### SC-04: 多租户隔离强化
+
+- [ ] T326 租户隔离中间件 — `odap/infra/security/tenant_isolation.py` 所有 API 自动注入 ws_id 过滤条件，越权访问返回 403（不泄漏存在性）
+- [ ] T327 租户隔离单元测试 — `tests/unit/test_tenant_isolation.py` 覆盖跨租户访问拦截、403 响应、审计日志
+
+### SC-05: 审计日志保留策略
+
+- [ ] T328 审计保留策略 — `odap/infra/security/audit_retention.py` 默认 90 天保留，支持按 workspace / classification 自定义保留期，过期自动归档到 MinIO
+- [ ] T329 审计保留单元测试 — `tests/unit/test_audit_retention.py` 覆盖保留期计算、过期归档、查询历史归档
+
+### SC-06: 错误降级与熔断
+
+- [ ] T330 熔断器中间件 — `odap/infra/resilience/circuit_breaker.py` 对外部服务（LLM/Neo4j/OPA）实现熔断（错误率 > 50% 持续 30s 触发），半开探测恢复
+
+---
+
+## Phase 11: Palantir/OntoFlow 增强层（2026-06-05 brainstorm 增量）
+
+> 预计工期: 12-15 周（4 个里程碑 M1-M4）| 依赖 Phase 3（FR-001/002/029）| 部分可并行
+> 设计原则：零结构破坏（叠加于 FR-001）、职责分离（OPA vs Data Health）、Action-Skill 分层、Goal-driven 演化
+> **本阶段为规划占位任务，实施前需根据业务反馈细化验收标准**
+
+### M1 里程碑：Data Health + Branch & Merge（FR-031, FR-032）
+
+#### FR-031: Data Health 数据健康引擎
+
+- [ ] T331 [P] Health 模块目录结构创建 — `odap/biz/core/ontology/health/` 创建 `api/` `models/` `interfaces/` `impl/` `services/` `storage/` 子目录 + `__init__.py`
+- [ ] T332 [P] HealthRule 领域模型定义 — `odap/biz/core/ontology/health/models/rule.py` `HealthRule(BaseModel)` 含 `target_type_id`、`check_expression` (JSON/YAML)、`severity` (info/warning/error/critical)、`schedule` (cron)、`notification_channel` (JSON)
+- [ ] T333 [P] HealthReport 领域模型定义 — `odap/biz/core/ontology/health/models/report.py` `HealthReport(BaseModel)` 含 `instance_id`、`rule_id`、`status` (pass/warn/fail)、`details`、`scanned_at`
+- [ ] T334 [P] HealthRuleRepository 抽象接口 — `odap/biz/core/ontology/health/interfaces/health_rule_repository.py` ABC 定义 CRUD + `list_by_target_type` + `list_by_severity`
+- [ ] T335 [P] HealthScanner 抽象接口 — `odap/biz/core/ontology/health/interfaces/health_scanner.py` ABC 定义 `scan(rule_id: Optional[str]) -> List[HealthReport]`
+- [ ] T336 SQLite Health Storage — `odap/biz/core/ontology/health/storage/sqlite_health_storage.py` 实现 `health_rules` / `health_reports` 表 CRUD + `__init__.py` 别名导出
+- [ ] T337 HealthRuleRepositoryImpl — `odap/biz/core/ontology/health/impl/health_rule_repository_impl.py` 实现接口
+- [ ] T338 HealthScannerImpl — `odap/biz/core/ontology/health/impl/health_scanner_impl.py` 支持 5 种规则：not_null / unique / regex / range / referential_integrity，使用 JSONLogic 引擎求值
+- [ ] T339 NotificationDispatcher — `odap/biz/core/ontology/health/impl/notification_dispatcher.py` 支持 email / webhook / im 三种通道，异步发送（asyncio.create_task）
+- [ ] T340 Health Service 编排层 — `odap/biz/core/ontology/health/services/health_service.py` 返回 Dict[str, Any]
+- [ ] T341 Health API 路由 — `odap/biz/core/ontology/health/api/routes.py` `APIRouter(prefix="/api/ontology/health")` 35+ 端点（rules CRUD + scan + reports 查询）
+- [ ] T342 Health schemas 定义 — `odap/biz/core/ontology/health/api/schemas.py` CreateHealthRuleRequest / HealthRuleResponse / ScanRequest / HealthReportResponse
+- [ ] T343 Health 路由注册 — `odap/web/app.py` `include_router(health_router)`
+- [ ] T344 Health 单元测试 — `tests/unit/test_health.py` 覆盖 5 种规则、CRUD、扫描调度、通知发送
+- [ ] T345 前端 Health 规则编辑器 — `frontend/src/modules/ontology/components/HealthRuleEditor.tsx` L3 组件，YAML 编辑 + 表达式实时校验 + 严重程度选择
+- [ ] T346 前端 Health 报告页面 — `frontend/src/modules/ontology/pages/HealthDashboard.tsx` L5 页面，规则列表 + 扫描触发 + 报告可视化（饼图+表格）
+
+#### FR-032: 本体 Branch & Merge
+
+- [ ] T347 [P] Branch 模块目录结构创建 — `odap/biz/core/ontology/branch/` 创建 `api/` `models/` `interfaces/` `impl/` `services/` `storage/` 子目录
+- [ ] T348 [P] Branch 领域模型定义 — `odap/biz/core/ontology/branch/models/branch.py` `Branch(BaseModel)` 含 `id` / `name` / `ontology_id` / `base_version_id` / `head_version_id` / `status` (active/merged/abandoned)
+- [ ] T349 [P] MergeRequest 领域模型 — `odap/biz/core/ontology/branch/models/merge_request.py` `MergeRequest(BaseModel)` 含 `source_branch_id` / `target_branch_id` / `conflicts` (JSON) / `status` (open/approved/merged/conflict)
+- [ ] T350 [P] Conflict 领域模型 — `odap/biz/core/ontology/branch/models/conflict.py` `Conflict(BaseModel)` 含 `path` (JSON Pointer) / `base_value` / `ours_value` / `theirs_value` / `resolution`
+- [ ] T351 BranchRepository 抽象接口 — `odap/biz/core/ontology/branch/interfaces/branch_repository.py` ABC 定义 CRUD + `list_by_ontology` + `get_active`
+- [ ] T352 MergeEngine 抽象接口 — `odap/biz/core/ontology/branch/interfaces/merge_engine.py` ABC 定义 `merge(source, target) -> MergeResult` / `detect_conflicts(base, ours, theirs) -> List[Conflict]`
+- [ ] T353 SQLite Branch Storage — `odap/biz/core/ontology/branch/storage/sqlite_branch_storage.py` 实现 `branches` / `merge_requests` / `conflicts` 表 CRUD
+- [ ] T354 BranchRepositoryImpl — `odap/biz/core/ontology/branch/impl/branch_repository_impl.py`
+- [ ] T355 ThreeWayMergeEngine — `odap/biz/core/ontology/branch/impl/merge_engine.py` 基于 RFC 6902 JSON Patch 实现 3-way merge，自动合并无冲突字段，冲突字段返回由用户解决
+- [ ] T356 Branch Service 编排层 — `odap/biz/core/ontology/branch/services/branch_service.py` 集成 OntologyVersion 与 MergeEngine
+- [ ] T357 Branch API 路由 — `odap/biz/core/ontology/branch/api/routes.py` 端点：POST `/api/ontology/branches` + GET `/api/ontology/branches` + POST `/api/ontology/branches/{id}/merge` + GET `/api/ontology/branches/{id}/conflicts`
+- [ ] T358 Branch schemas 定义 — `odap/biz/core/ontology/branch/api/schemas.py` CreateBranchRequest / MergeRequestResponse / ConflictResolutionRequest
+- [ ] T359 Branch 路由注册 — `odap/web/app.py` `include_router(branch_router)`
+- [ ] T360 Branch 单元测试 — `tests/unit/test_branch.py` 覆盖 3-way merge、无冲突自动合并、冲突检测与解决、合并后版本生成
+- [ ] T361 前端 Branch 可视化 — `frontend/src/modules/ontology/components/BranchGraph.tsx` L3 组件，G6 渲染分支树 + 合并箭头
+- [ ] T362 前端 Merge 冲突解决器 — `frontend/src/modules/ontology/components/MergeConflictResolver.tsx` L3 组件，3 栏对比（base/ours/theirs）+ 选择按钮
+- [ ] T363 前端 Branch 管理页面 — `frontend/src/modules/ontology/pages/BranchManager.tsx` L5 页面，分支列表 + 创建分支 + 发起合并
+
+### M2 里程碑：Inheritance + Action Type（FR-033, FR-034）
+
+#### FR-033: Object Type 继承 + Mixin
+
+- [ ] T364 [P] Inheritance 模块目录创建 — `odap/biz/core/ontology/inheritance/` 标准分层
+- [ ] T365 [P] InheritanceEdge 领域模型 — `odap/biz/core/ontology/inheritance/models/inheritance.py` `InheritanceEdge(BaseModel)` 含 `child_type_id` / `parent_type_id` / `depth` / `discriminator` (JSON)
+- [ ] T366 [P] Mixin 领域模型 — `odap/biz/core/ontology/inheritance/models/mixin.py` `Mixin(BaseModel)` 含 `id` / `name` / `properties` (List[str]) / `target_type_ids` (List[str])
+- [ ] T367 [P] InheritanceValidator — `odap/biz/core/ontology/inheritance/impl/validator.py` 检测循环继承（DFS）、最大深度限制（5 层）、Mixin 冲突
+- [ ] T368 InheritanceResolver — `odap/biz/core/ontology/inheritance/impl/resolver.py` 给定 ObjectType + Property，解析完整属性链（parent → ... → root + mixins）
+- [ ] T369 SQLite Inheritance Storage — `odap/biz/core/ontology/inheritance/storage/sqlite_inheritance_storage.py` 实现 `inheritance_edges` / `mixins` 表
+- [ ] T370 InheritanceService 编排层 — `odap/biz/core/ontology/inheritance/services/inheritance_service.py`
+- [ ] T371 Inheritance API 路由 — `odap/biz/core/ontology/inheritance/api/routes.py` POST `/api/ontology/inheritance/edges` + GET `/api/ontology/inheritance/resolve/{type_id}` + POST `/api/ontology/mixins`
+- [ ] T372 Inheritance 单元测试 — `tests/unit/test_inheritance.py` 覆盖循环检测、深度限制、Mixin 解析、属性合并
+- [ ] T373 前端继承关系可视化 — `frontend/src/modules/ontology/components/InheritanceGraph.tsx` L3 组件，G6 渲染继承树
+- [ ] T374 前端 Mixin 管理组件 — `frontend/src/modules/ontology/components/MixinManager.tsx` L3 组件
+
+#### FR-034: Action Type 一等公民
+
+- [ ] T375 [P] Action Type 模块目录创建 — `odap/biz/core/ontology/action/` 标准分层
+- [ ] T376 [P] ActionType 领域模型 — `odap/biz/core/ontology/action/models/action_type.py` `ActionType(BaseModel)` 含 `id` / `name` / `object_types` (List[str]) / `parameters` (JSON Schema) / `return_type` / `side_effects` / `linked_skill_id` / `opa_policy_ref`
+- [ ] T377 [P] ActionExecution 领域模型 — `odap/biz/core/ontology/action/models/execution.py` `ActionExecution(BaseModel)` 含 `id` / `action_type_id` / `parameters` / `result` / `status` / `audit_record_id`
+- [ ] T378 ActionTypeRepository 抽象接口 — `odap/biz/core/ontology/action/interfaces/action_type_repository.py`
+- [ ] T379 ActionExecutor 抽象接口 — `odap/biz/core/ontology/action/interfaces/action_executor.py` 定义 `execute(action_type, params, user_context) -> ActionExecution`
+- [ ] T380 SQLite Action Storage — `odap/biz/core/ontology/action/storage/sqlite_action_storage.py` 实现 `action_types` / `action_executions` 表
+- [ ] T381 ActionTypeRepositoryImpl — `odap/biz/core/ontology/action/impl/action_type_repository_impl.py`
+- [ ] T382 SkillBackedExecutor — `odap/biz/core/ontology/action/impl/skill_executor.py` Action Type 通过 linked_skill_id 委托给 Skill 系统执行（**Action Type = 业务接口，Skill = 工程实现**）
+- [ ] T383 ActionService 编排层 — `odap/biz/core/ontology/action/services/action_service.py` 调用前 OPA 权限校验（OPA write-time check），调用后审计日志
+- [ ] T384 Action API 路由 — `odap/biz/core/ontology/action/api/routes.py` POST `/api/ontology/actions` + POST `/api/ontology/actions/{id}/execute` + GET `/api/ontology/actions/{id}/executions`
+- [ ] T385 Action schemas 定义 — `odap/biz/core/ontology/action/api/schemas.py`
+- [ ] T386 Action 路由注册 — `odap/web/app.py` `include_router(action_router)`
+- [ ] T387 Action 单元测试 — `tests/unit/test_action.py` 覆盖 Action Type CRUD、Skill 委托执行、OPA 权限校验、审计记录
+- [ ] T388 前端 Action 列表页面 — `frontend/src/modules/ontology/pages/ActionLibrary.tsx` L5 页面，Action Type 库 + 参数编辑器 + 执行历史
+- [ ] T389 前端 Action 执行组件 — `frontend/src/modules/ontology/components/ActionExecutor.tsx` L3 组件，表单生成（基于 JSON Schema）+ 执行结果展示
+
+### M3 里程碑：Computed Property + Object View（FR-035, FR-036）
+
+#### FR-035: 计算属性 + 物化视图
+
+- [ ] T390 [P] ComputedProperty 模块目录创建 — `odap/biz/core/ontology/computed/` 标准分层
+- [ ] T391 [P] ComputedProperty 领域模型 — `odap/biz/core/ontology/computed/models/property.py` `ComputedProperty(BaseModel)` 含 `id` / `name` / `target_type_id` / `expression` (DSL) / `dependencies` (List[str]) / `materialization` (none/full/incremental)
+- [ ] T392 [P] MaterializationJob 领域模型 — `odap/biz/core/ontology/computed/models/job.py` `MaterializationJob(BaseModel)` 含 `id` / `property_id` / `status` (pending/running/done/failed) / `started_at` / `finished_at`
+- [ ] T393 DependencyTracker — `odap/biz/core/ontology/computed/impl/dependency_tracker.py` 解析表达式依赖（基于 AST 遍历），构建 DAG
+- [ ] T394 ExpressionEvaluator — `odap/biz/core/ontology/computed/impl/evaluator.py` 安全沙箱执行（RestrictedPython），支持数学/字符串/日期/聚合函数
+- [ ] T395 IncrementalComputer — `odap/biz/core/ontology/computed/impl/incremental.py` 当依赖属性变化时，仅重算受影响对象（DAG 反向传播）
+- [ ] T396 SQLite Computed Storage — `odap/biz/core/ontology/computed/storage/sqlite_computed_storage.py` 实现 `computed_properties` / `materialization_jobs` / `materialized_values` 表
+- [ ] T397 ComputedService 编排层 — `odap/biz/core/ontology/computed/services/computed_service.py`
+- [ ] T398 Computed API 路由 — `odap/biz/core/ontology/computed/api/routes.py` 端点：CRUD + POST `/recompute/{property_id}` + GET `/jobs/{id}/status`
+- [ ] T399 Computed 单元测试 — `tests/unit/test_computed.py` 覆盖表达式求值、依赖追踪、增量重算、沙箱安全
+- [ ] T400 前端计算属性编辑器 — `frontend/src/modules/ontology/components/ComputedPropertyEditor.tsx` L3 组件，DSL 编辑 + 依赖图可视化 + 表达式测试运行
+- [ ] T401 前端物化任务监控 — `frontend/src/modules/ontology/components/MaterializationMonitor.tsx` L3 组件，任务列表 + 进度条 + 失败重试
+
+#### FR-036: Object View 角色视图
+
+- [ ] T402 [P] ObjectView 模块目录创建 — `odap/biz/core/ontology/view/` 标准分层
+- [ ] T403 [P] ObjectView 领域模型 — `odap/biz/core/ontology/view/models/view.py` `ObjectView(BaseModel)` 含 `id` / `name` / `base_type_id` / `role` / `projected_properties` (List[str]) / `filters` (JSON) / `row_limit` / `sort_order`
+- [ ] T404 [P] ViewPermission 领域模型 — `odap/biz/core/ontology/view/models/permission.py` `ViewPermission(BaseModel)` 含 `view_id` / `role` / `can_export` / `can_share` / `redaction_rules` (JSON)
+- [ ] T405 ViewRepository 抽象接口 — `odap/biz/core/ontology/view/interfaces/view_repository.py`
+- [ ] T406 ViewQueryEngine 抽象接口 — `odap/biz/core/ontology/view/interfaces/view_query_engine.py` 定义 `query(view_id, user_context) -> List[Dict]`
+- [ ] T407 SQLite View Storage — `odap/biz/core/ontology/view/storage/sqlite_view_storage.py` 实现 `object_views` / `view_permissions` 表
+- [ ] T408 ViewRepositoryImpl — `odap/biz/core/ontology/view/impl/view_repository_impl.py`
+- [ ] T409 ViewQueryEngineImpl — `odap/biz/core/ontology/view/impl/view_query_engine_impl.py` 集成 OPA（读取时权限校验）+ 字段脱敏（redaction_rules）
+- [ ] T410 ViewService 编排层 — `odap/biz/core/ontology/view/services/view_service.py`
+- [ ] T411 View API 路由 — `odap/biz/core/ontology/view/api/routes.py` CRUD + POST `/api/ontology/views/{id}/query`
+- [ ] T412 View 单元测试 — `tests/unit/test_view.py` 覆盖视图 CRUD、字段投影、过滤、权限校验、脱敏规则
+- [ ] T413 前端视图设计器 — `frontend/src/modules/ontology/components/ViewDesigner.tsx` L3 组件，可视化属性选择 + 过滤条件构建 + 角色绑定
+- [ ] T414 前端视图查询页面 — `frontend/src/modules/ontology/pages/ObjectViewPage.tsx` L5 页面，视图查询 + 导出（带权限控制）
+
+### M4 里程碑：OntoFlow Goal-driven 演化（FR-037）
+
+#### FR-037: OntoFlow Goal 驱动演化
+
+- [ ] T415 [P] Goal 模块目录创建 — `odap/biz/core/ontology/goal/` 标准分层
+- [ ] T416 [P] Goal 领域模型 — `odap/biz/core/ontology/goal/models/goal.py` `Goal(BaseModel)` 含 `id` / `title` / `description` / `business_objective` / `rationale` (LLM 生成) / `status` (proposed/approved/rejected/in-progress/achieved/abandoned) / `parent_goal_id`
+- [ ] T417 [P] ChangeProposal 领域模型 — `odap/biz/core/ontology/goal/models/proposal.py` `ChangeProposal(BaseModel)` 含 `id` / `goal_id` / `changes` (JSON Patch) / `impact_analysis` / `estimated_benefit` / `status`
+- [ ] T418 [P] ImpactAnalysis 领域模型 — `odap/biz/core/ontology/goal/models/impact.py` `ImpactAnalysis(BaseModel)` 含 `affected_types` / `affected_instances_count` / `breaking_changes` (List[str]) / `estimated_migration_cost`
+- [ ] T419 GoalRepository 抽象接口 — `odap/biz/core/ontology/goal/interfaces/goal_repository.py`
+- [ ] T420 ImpactAnalyzer 抽象接口 — `odap/biz/core/ontology/goal/interfaces/impact_analyzer.py` 定义 `analyze(changes: JSONPatch) -> ImpactAnalysis`
+- [ ] T421 SQLite Goal Storage — `odap/biz/core/ontology/goal/storage/sqlite_goal_storage.py` 实现 `goals` / `change_proposals` / `impact_analyses` 表
+- [ ] T422 GoalRepositoryImpl — `odap/biz/core/ontology/goal/impl/goal_repository_impl.py`
+- [ ] T423 LLM Rationale Generator — `odap/biz/core/ontology/goal/impl/rationale_generator.py` 调用 LLM 为 Goal 生成 business_rationale（多轮追问澄清）
+- [ ] T424 ImpactAnalyzerImpl — `odap/biz/core/ontology/goal/impl/impact_analyzer_impl.py` 静态分析：受影响 ObjectType / Action Type / 估算迁移成本
+- [ ] T425 GoalService 编排层 — `odap/biz/core/ontology/goal/services/goal_service.py`
+- [ ] T426 Goal API 路由 — `odap/biz/core/ontology/goal/api/routes.py` CRUD + POST `/api/ontology/goals/{id}/propose-change` + GET `/api/ontology/goals/{id}/lineage`
+- [ ] T427 Goal 单元测试 — `tests/unit/test_goal.py` 覆盖 Goal CRUD、LLM rationale 生成、Impact 分析、Goal lineage
+- [ ] T428 前端 Goal 看板 — `frontend/src/modules/ontology/pages/GoalKanban.tsx` L5 页面，Goal 状态看板（拖拽切换状态）+ 时间线
+- [ ] T429 前端 Change Proposal 组件 — `frontend/src/modules/ontology/components/ChangeProposalCard.tsx` L3 组件，提案详情 + 影响分析可视化 + 审批按钮
+- [ ] T430 前端 Goal Lineage 视图 — `frontend/src/modules/ontology/components/GoalLineage.tsx` L3 组件，父子 Goal + 关联变更 + G6 图谱渲染
+
+### Phase 11 集成与文档
+
+- [ ] T431 ADR-055 状态修正 — `docs/07-adr/ADR-055.md` 补充"Action Type = 业务接口，Skill = 工程实现"分层原则
+- [ ] T432 FR-031..FR-037 用户文档 — `docs/03-modules/ontology/DESIGN.md` 补充 Data Health / Branch / Inheritance / Action / Computed / View / Goal 章节
+- [ ] T433 API 契约文档 — `specs/001-odap-platform/contracts/core-ontology-p4.md` 已创建，补充 curl 示例和错误码表
+- [ ] T434 Phase 11 集成测试 — `tests/integration/test_p4_features.py` 端到端测试 Branch 创建→Health 扫描→Action 执行→Goal 关联
+
+---
+
 ## Dependencies & Execution Order
 
 ### Phase 依赖关系
@@ -490,12 +676,20 @@ Phase 7 (US4) ──┐
 Phase 8 (US5) ──┤←── 可并行
     ↓           ↓
 Phase 9 (Polish)
+    ↓
+Phase 10 (Brainstorm Edge Cases) ←── 6 个边缘场景补全
+    ↓
+Phase 11 (Palantir/OntoFlow P4) ←── 7 个新 FR，4 个里程碑
+    ├── M1: Data Health (FR-031) + Branch & Merge (FR-032)
+    ├── M2: Inheritance (FR-033) + Action Type (FR-034)
+    ├── M3: Computed Property (FR-035) + Object View (FR-036)
+    └── M4: OntoFlow Goal-driven (FR-037)
 ```
 
 ### 关键路径
 
 ```
-T001-T025 → T026-T053 → T054-T133 → T134-T162 → T184-T239 → T240-T264 → T292-T312
+T001-T025 → T026-T053 → T054-T133 → T134-T162 → T184-T239 → T240-T264 → T292-T312 → T313-T330 → T331-T434
 ```
 
 ### FR 间依赖
@@ -526,6 +720,13 @@ T001-T025 → T026-T053 → T054-T133 → T134-T162 → T184-T239 → T240-T264 
 | FR-011 | FR-023, FR-024 | 问答依赖统一查询和会话记忆 |
 | FR-017 | FR-025, OpenHarness | MCP 依赖工具注册表和 OpenHarness |
 | FR-019 | FR-009, Graphiti | 决策推荐依赖推演结果和 Graphiti RAG |
+| **FR-031** | **FR-001** | **Data Health 规则依赖 ObjectType 定义** |
+| **FR-032** | **FR-001, FR-002** | **Branch & Merge 依赖 OntologyDocument 与版本管理** |
+| **FR-033** | **FR-001** | **ObjectType 继承依赖实体类型模型** |
+| **FR-034** | **FR-001, FR-005, FR-014** | **Action Type 依赖 ObjectType、Agent 与 Skill 委托** |
+| **FR-035** | **FR-001, Graphiti** | **Computed Property 依赖实体类型 + Graphiti 物化存储** |
+| **FR-036** | **FR-001, FR-007, FR-008** | **Object View 依赖实体类型 + OPA 读权限 + 字段脱敏** |
+| **FR-037** | **FR-001, FR-002, FR-032** | **OntoFlow Goal 依赖 OntologyDocument + 版本 + Branch（变更提案）** |
 
 ---
 
@@ -568,6 +769,34 @@ Phase 7 (US4 推演):  T240-T264
 Phase 8 (US5 问答):  T265-T291
 ```
 
+### Phase 10 内部并行（Brainstorm 边缘场景，6 组独立任务）
+
+```
+Group A (SC-01 冲突解决):     T313 → T314 → T315 → T316 → T317 → T318 → T319 → T320 (8 任务)
+Group B (SC-02 冷启动):       T321 → T322 → T323 (3 任务)
+Group C (SC-03 分片):         T324 → T325 (2 任务)
+Group D (SC-04 多租户):       T326 → T327 (2 任务)
+Group E (SC-05 审计保留):     T328 → T329 (2 任务)
+Group F (SC-06 熔断):         T330 (1 任务)
+```
+
+### Phase 11 内部并行（Palantir/OntoFlow，4 个里程碑按序交付但组内可并行）
+
+```
+M1 (FR-031 Data Health):   T331-T346 (16 任务，可与 M1-M2 内任务并行)
+M1 (FR-032 Branch):        T347-T363 (17 任务，依赖 T068 FR-002 版本管理)
+
+M2 (FR-033 Inheritance):   T364-T374 (11 任务)
+M2 (FR-034 Action Type):   T375-T389 (15 任务，依赖 T212 FR-025 Skill 注册表)
+
+M3 (FR-035 Computed):      T390-T401 (12 任务)
+M3 (FR-036 Object View):   T402-T414 (13 任务，依赖 T171 FR-008 ABAC)
+
+M4 (FR-037 OntoFlow Goal): T415-T430 (16 任务，依赖 T331-T363 M1 全部完成)
+
+Phase 11 集成:              T431-T434 (4 任务，文档+集成测试)
+```
+
 ---
 
 ## Implementation Strategy
@@ -593,14 +822,47 @@ Phase 7 和 Phase 8 可并行开发：
 
 所有功能开发完成后，统一进行测试补全、ADR 修正、性能优化和组件迁移。
 
-### 5. 测试策略
+### 5. Brainstorm 边缘场景补全（Phase 10）
+
+Phase 9 之后补充 6 个 brainstorm 边缘场景（SC-01..SC-06）：冲突解决、冷启动、分片、多租户、审计保留、熔断。共 18 任务（T313-T330），6 组可全部并行，约 4-5 周完成。
+
+### 6. Palantir/OntoFlow 增强（Phase 11）
+
+Phase 10 之后叠加 Palantir/OntoFlow 范式（FR-031..FR-037），分 4 个里程碑交付：
+
+- **M1: Data Health + Branch & Merge**（FR-031, FR-032）
+  - Data Health 引擎实现 5 种规则 + 调度扫描 + 通知
+  - Branch & Merge 基于 RFC 6902 JSON Patch 实现 3-way merge
+  - 33 任务（T331-T363）
+
+- **M2: Inheritance + Action Type**（FR-033, FR-034）
+  - Object Type 继承（最大深度 5）+ Mixin
+  - Action Type 作为业务接口，通过 linked_skill_id 委托给 Skill 执行
+  - 26 任务（T364-T389）
+
+- **M3: Computed Property + Object View**（FR-035, FR-036）
+  - 计算属性 + 物化视图 + 增量重算（基于 DAG）
+  - Object View 角色视图 + OPA 读权限 + 字段脱敏
+  - 25 任务（T390-T414）
+
+- **M4: OntoFlow Goal-driven**（FR-037）
+  - Goal + Change Proposal + Impact Analysis
+  - LLM 生成 business_rationale
+  - 16 任务（T415-T430）
+
+- **集成与文档**：4 任务（T431-T434），含 ADR-055 修正、模块设计文档、API 契约补充、集成测试
+
+总 122 任务，预计 12-15 周（每个里程碑 3-4 周）。
+
+### 7. 测试策略
 
 - **每个任务完成后立即编写单元测试**（不延迟到 Phase 9）
 - **集成测试在对应 Phase 完成后编写**
 - **E2E 测试在 Phase 9 统一补全**
 - **质量门禁从 Phase 1 开始执行**：每个 PR 必须通过 lint + typecheck + unit test
+- **Phase 10/11 单元测试覆盖**：冲突解决 4 策略、冷启动 3 模板、分片、租户隔离、审计归档、熔断；Data Health 5 规则、3-way merge、Action Skill 委托、计算属性沙箱、视图脱敏、Goal LLM rationale
 
-### 6. 风险缓解
+### 8. 风险缓解
 
 | 风险 | 缓解措施 | 对应任务 |
 |------|----------|----------|
@@ -610,3 +872,9 @@ Phase 7 和 Phase 8 可并行开发：
 | 前端重构范围大 | 优先完成基础设施，页面逐步迁移 | T006-T012, T308 |
 | MinIO 运维复杂度 | Docker Compose 统一管理 | T001, T312 |
 | 多方案并行推演资源消耗 | 限制并行度（最多 10），超限自动终止 | T247, T241 |
+| 3-way merge 误合并导致数据损坏 | 合并前必须 dry-run，预览变更；冲突字段禁止自动选择 | T355, T360 |
+| Action Type 与 Skill 重复定义 | 单一事实来源：ActionType.linked_skill_id 强制非空，UI 上禁止绕过 Skill 直接实现 | T376, T382 |
+| Data Health 与 OPA 职责重叠 | 严格分工：OPA 管"是否允许写入"（write-time），Data Health 管"写入后是否健康"（post-write），文档明确边界 | T341, T338 |
+| OntoFlow Goal 演化为空中楼阁 | 每个 Goal 必须关联至少一个 Change Proposal 才能进入 in-progress 状态 | T416, T425 |
+| 物化视图增量重算雪崩 | DAG 反向传播 + 批量提交（每 1000 条一批），单次任务超时自动降级为全量 | T395, T399 |
+| Phase 10/11 工期失控 | 严格按里程碑交付；M1 完成后 Gate Review，再启动 M2 | T363 标记 M1 完成 |

@@ -831,8 +831,176 @@ workspace (MongoDB)
 
 ---
 
+## 8. 实际存储清单（v2.1.0 - 2026-05-29 端到端验证更新）
+
+> **重要更新**: 通过与代码 `find /app/data -name "*.db"` 全面对比，补充以下实际存在的数据库文件和表结构。
+
+### 8.1 ontology_core.db — 本体核心存储
+
+**文件路径**: `./data/ontology_core.db`
+
+**实际表清单**（基于 `sqlite_master` 验证）:
+
+| 表名 | 模块 | 用途 | 关键字段 |
+|------|------|------|----------|
+| `ontology_documents` | `biz/core/ontology/impl/ontology.py` | 本体定义存储 | `id, ontology_id, definition, type` |
+| `ontology_versions` | `biz/core/ontology/impl/version.py` | 本体版本快照 | `version_id, ontology_id, snapshot, created_at, status` |
+| `ontology_definitions` | `biz/core/ontology/impl/definition.py` | 本体类型定义 | `definition_id, json_schema, properties` |
+| `scenario_documents` | `biz/core/ontology/ingestion_split/` | 摄入数据（文档/实体/关系） | `scenario_id, doc_id, title, content, entities, relations, created_at` |
+| `document_chunks` | `biz/core/ontology/ingestion_split/` | 文档分块 | `chunk_id, doc_id, content, position` |
+| `ingest_jobs` | `biz/core/ontology/ingestion_split/` | 摄入任务 | `job_id, scenario_id, status, source, config` |
+| `extract_runs` | `biz/core/ontology/ingestion_split/` | 实体抽取运行 | `run_id, scenario_id, doc_id, result` |
+| `relations` | `biz/core/ontology/ingestion_split/` | 关系存储 | `relation_id, source_id, target_id, type, weight` |
+| `semantic_maps` | `biz/data/semantic_map/` | 语义地图存储 | `map_id, version_id, content, type` |
+
+**核心字段示例** (`scenario_documents`):
+
+```sql
+CREATE TABLE scenario_documents (
+  scenario_id TEXT NOT NULL,
+  doc_id TEXT NOT NULL,
+  title TEXT,
+  content TEXT,
+  entities TEXT,           -- JSON 数组
+  relations TEXT,          -- JSON 数组
+  metadata TEXT,           -- JSON
+  created_at TEXT,
+  PRIMARY KEY (scenario_id, doc_id)
+);
+```
+
+**`get_scenario_entities` API**: 从 `scenario_documents.entities` 字段读取 JSON 数组，作为 QA 引擎 RAG 检索的主要数据源。
+
+---
+
+### 8.2 session_memory.db — 会话记忆存储（M-21）
+
+**文件路径**: `./data/session_memory.db`
+
+**实际表清单**:
+
+| 表名 | 模块 | 用途 |
+|------|------|------|
+| `sessions` | `biz/platform/session_memory/` | 会话主表 |
+| `messages` | `biz/platform/session_memory/` | 会话消息记录 |
+| `short_term_memory` | `biz/platform/session_memory/` | 短期记忆（滑动窗口） |
+| `long_term_memory` | `biz/platform/session_memory/` | 长期记忆（持久化到 Graphiti） |
+
+**核心字段示例**:
+
+```sql
+CREATE TABLE sessions (
+  session_id TEXT PRIMARY KEY,
+  user_id TEXT NOT NULL,
+  workspace_id TEXT NOT NULL,
+  scenario_id TEXT,
+  created_at TEXT NOT NULL,
+  updated_at TEXT NOT NULL,
+  metadata TEXT  -- JSON
+);
+
+CREATE TABLE messages (
+  message_id TEXT PRIMARY KEY,
+  session_id TEXT NOT NULL,
+  role TEXT NOT NULL,         -- user|assistant|system
+  content TEXT NOT NULL,
+  sources TEXT,               -- JSON
+  timestamp TEXT,
+  FOREIGN KEY (session_id) REFERENCES sessions(session_id)
+);
+```
+
+---
+
+### 8.3 audit_messages.db — 审计与消息总线
+
+**文件路径**: `./data/audit_messages.db`
+
+**实际表清单**:
+
+| 表名 | 模块 | 用途 |
+|------|------|------|
+| `agent_messages` | `biz/integration/openharness_agent/` | Agent 协同消息 |
+| `hook_events` | `biz/integration/hook_system/` | Hook 事件流 |
+| `tool_invocations` | `biz/integration/tool_registry/` | 工具调用审计 |
+
+**核心字段示例** (`agent_messages`):
+
+```sql
+CREATE TABLE agent_messages (
+  message_id TEXT PRIMARY KEY,
+  sender_id TEXT NOT NULL,        -- agent_id 或 user_id
+  receiver_id TEXT,               -- agent_id（为空则广播）
+  message_type TEXT NOT NULL,     -- task|result|query|control
+  payload TEXT,                   -- JSON
+  correlation_id TEXT,            -- 关联多轮消息
+  timestamp TEXT NOT NULL,
+  workspace_id TEXT NOT NULL
+);
+```
+
+---
+
+### 8.4 其他业务数据库（24 个 .db 文件总览）
+
+> 通过 `podman exec graphiti-main-app find /app/data -name "*.db"` 验证，共计 24 个 db 文件
+
+| db 文件 | 实际表 | 模块归属 |
+|---------|--------|----------|
+| `ontology_core.db` | ontology_documents, ontology_versions, ontology_definitions, scenario_documents, document_chunks, ingest_jobs, extract_runs, relations, semantic_maps | `biz/core/ontology/`, `biz/data/semantic_map/` |
+| `workspace.db` | workspaces, scenarios, ontology_mappings, audit_log | `biz/platform/workspace/` |
+| `business.db` | business_processes, business_rules, business_logics, business_indicators | `biz/management/business/` |
+| `roles.db` | roles, permissions, role_permissions | `biz/platform/roles/` |
+| `audit.db` | audit_events, audit_trail | `infra/security/audit/` |
+| `audit_messages.db` | agent_messages, hook_events, tool_invocations | `biz/integration/openharness_agent/`, `biz/integration/hook_system/` |
+| `session_memory.db` | sessions, messages, short_term_memory, long_term_memory | `biz/platform/session_memory/` |
+| `agent.db` | agent_definitions, agent_contexts, agent_sessions | `biz/core/agent/` |
+| `agent_instances.db` | agent_runs, agent_states | `biz/core/agent/impl/` |
+| `skill.db` | skill_definitions, skill_executions, skill_categories | `biz/platform/skill_system/` |
+| `hook.db` | hook_configs, hook_executions | `biz/integration/hook_system/` |
+| `mcp.db` | mcp_servers, mcp_resources, mcp_logs | `biz/integration/mcp_adapter/` |
+| `simulation.db` | simulation_runs, simulation_events, simulation_results | `biz/simulation/` |
+| `sandbox.db` | sandbox_sessions, sandbox_configs | `biz/simulation/impl/sandbox/` |
+| `feedback.db` | feedback_items, feedback_actions | `biz/simulation/feedback/` |
+| `frontend_compat.db` | frontend_compat_data | `biz/integration/frontend_compat/` |
+| `celery.db` | celery_taskmeta, celery_tasksetmeta | Celery 异步任务 |
+| `ingest.db` | ingest_history, ingest_state | `biz/core/ontology/ingestion_split/` |
+| `auth.db` | users, sessions, refresh_tokens | `infra/security/auth/` |
+| `oauth.db` | oauth_clients, oauth_tokens | `infra/security/oauth/` |
+| `policy.db` | policy_cache, policy_versions | `infra/opa/` |
+| `monitoring.db` | health_checks, metrics, alerts | `infra/monitoring/` |
+| `config.db` | config_items, config_versions | `infra/config/` |
+| `tool_registry.db` | tool_definitions, tool_states | `biz/platform/tool_registry/` |
+
+---
+
+### 8.5 数据访问规范
+
+#### 8.5.1 SQLite 访问规则（来自 `AGENTS.md` 编码规则）
+
+- **每次操作** `sqlite3.connect()` → 用完 `conn.close()`（无连接池）
+- **复杂字段** (Dict/List) → JSON TEXT 列
+- **Enum** → `.value` 字符串存储
+- **datetime** → ISO 字符串存储
+- **storage/__init__.py** 别名导出: `Storage = SQLiteXxxStorage`
+
+#### 8.5.2 数据隔离强制（来自 `AGENTS.md` 系统一致性规范）
+
+- 所有 `workspace_id` 相关表查询 MUST 添加 `workspace_id` 过滤
+- 跨工作空间访问 MUST 通过 OPA 策略校验
+- 审计日志 MUST 记录 `workspace_id` 字段
+
+#### 8.5.3 已知问题
+
+- **DB-009**: 容器内存在多个重复数据库（如 `ingest/ingest.db` 和 `ingest.db`），实际使用 `ontology_core.db`，应清理孤立 db 文件
+- **DB-010**: 部分 db 文件路径硬编码（如 `audit.db`），应统一使用 `DATA_DIR` 环境变量
+
+---
+
 **文档版本历史**:
 
 | 版本 | 日期 | 变更说明 |
 |------|------|----------|
+| 2.1.0 | 2026-05-29 | **第 8 章实际存储清单**: 与代码全量对比，补全 24 个 db 文件及其表结构，补充 session_memory/agent_messages/ontology_versions 等缺失表 |
+| 2.0.0 | 2026-05-19 | 补充 ingestion 相关表 |
 | 1.0.0 | 2026-05-18 | 初始版本，基于代码分析梳理 |

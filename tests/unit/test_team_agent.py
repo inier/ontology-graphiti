@@ -6,7 +6,7 @@ from unittest.mock import patch
 
 
 def _make_storage(tmp_path):
-    from odap.biz.core.ontology.harness.storage.sqlite_harness_storage import SQLiteHarnessStorage
+    from odap.biz.core.ontology.application.harness.storage.sqlite_harness_storage import SQLiteHarnessStorage
     db_path = str(tmp_path / "test_harness.db")
     return SQLiteHarnessStorage(db_path=db_path)
 
@@ -108,14 +108,14 @@ class TestSQLiteHarnessStorage:
 
 class TestHarnessModels:
     def test_agent_role_enum(self):
-        from odap.biz.core.ontology.harness.models import AgentRole
+        from odap.biz.core.ontology.application.harness.models import AgentRole
         assert AgentRole.PLANNING.value == "planning"
         assert AgentRole.ONTOLOGY.value == "ontology"
         assert AgentRole.EXECUTOR.value == "executor"
         assert AgentRole.VALIDATOR.value == "validator"
 
     def test_stage_status_enum(self):
-        from odap.biz.core.ontology.harness.models import StageStatus
+        from odap.biz.core.ontology.application.harness.models import StageStatus
         assert StageStatus.PENDING.value == "pending"
         assert StageStatus.RUNNING.value == "running"
         assert StageStatus.COMPLETED.value == "completed"
@@ -123,14 +123,14 @@ class TestHarnessModels:
         assert StageStatus.HITL_PENDING.value == "hitl_pending"
 
     def test_agent_message_defaults(self):
-        from odap.biz.core.ontology.harness.models import AgentMessage
+        from odap.biz.core.ontology.application.harness.models import AgentMessage
         msg = AgentMessage(from_agent="planning", to_agent="ontology", message_type="result")
         assert msg.message_id.startswith("msg-")
         assert msg.content == {}
         assert msg.timestamp != ""
 
     def test_sub_task_defaults(self):
-        from odap.biz.core.ontology.harness.models import SubTask, AgentRole, StageStatus
+        from odap.biz.core.ontology.application.harness.models import SubTask, AgentRole, StageStatus
         task = SubTask(agent_role=AgentRole.PLANNING, description="test")
         assert task.task_id.startswith("task-")
         assert task.status == StageStatus.PENDING
@@ -141,7 +141,7 @@ class TestHarnessModels:
         assert task.completed_at is None
 
     def test_harness_session_defaults(self):
-        from odap.biz.core.ontology.harness.models import HarnessSession, StageStatus
+        from odap.biz.core.ontology.application.harness.models import HarnessSession, StageStatus
         session = HarnessSession(name="test", requirement="req")
         assert session.session_id.startswith("harness-")
         assert session.status == StageStatus.PENDING
@@ -151,14 +151,14 @@ class TestHarnessModels:
         assert session.context_memory == {}
 
     def test_requirement_analysis_defaults(self):
-        from odap.biz.core.ontology.harness.models import RequirementAnalysis
+        from odap.biz.core.ontology.application.harness.models import RequirementAnalysis
         ra = RequirementAnalysis()
         assert ra.business_objects == []
         assert ra.relationships == []
         assert ra.missing_info == []
 
     def test_ontology_suggestion_defaults(self):
-        from odap.biz.core.ontology.harness.models import OntologySuggestion
+        from odap.biz.core.ontology.application.harness.models import OntologySuggestion
         os_ = OntologySuggestion()
         assert os_.object_types == []
         assert os_.link_types == []
@@ -167,15 +167,15 @@ class TestHarnessModels:
         assert os_.constraints == []
 
     def test_enum_str_inheritance(self):
-        from odap.biz.core.ontology.harness.models import AgentRole, StageStatus
+        from odap.biz.core.ontology.application.harness.models import AgentRole, StageStatus
         assert isinstance(AgentRole.PLANNING, str)
         assert isinstance(StageStatus.PENDING, str)
 
 
 class TestHarnessServicePipeline:
     def _make_service(self, tmp_path):
-        from odap.biz.core.ontology.harness.services.harness_service import HarnessService
-        from odap.biz.core.ontology.harness.storage.sqlite_harness_storage import SQLiteHarnessStorage
+        from odap.biz.core.ontology.application.harness.services.harness_service import HarnessService
+        from odap.biz.core.ontology.application.harness.storage.sqlite_harness_storage import SQLiteHarnessStorage
         storage = SQLiteHarnessStorage(db_path=str(tmp_path / "test.db"))
         return HarnessService(storage=storage)
 
@@ -287,8 +287,8 @@ class TestHarnessServicePipeline:
 
 class TestHarnessService:
     def test_singleton(self, tmp_path):
-        from odap.biz.core.ontology.harness.services.harness_service import HarnessService
-        from odap.biz.core.ontology.harness.storage.sqlite_harness_storage import SQLiteHarnessStorage
+        from odap.biz.core.ontology.application.harness.services.harness_service import HarnessService
+        from odap.biz.core.ontology.application.harness.storage.sqlite_harness_storage import SQLiteHarnessStorage
         storage = SQLiteHarnessStorage(db_path=str(tmp_path / "test.db"))
         HarnessService._instance = None
         svc1 = HarnessService(storage=storage)
@@ -298,16 +298,16 @@ class TestHarnessService:
         HarnessService._instance = None
 
     def test_service_create_session(self, tmp_path):
-        from odap.biz.core.ontology.harness.services.harness_service import HarnessService
-        from odap.biz.core.ontology.harness.storage.sqlite_harness_storage import SQLiteHarnessStorage
+        from odap.biz.core.ontology.application.harness.services.harness_service import HarnessService
+        from odap.biz.core.ontology.application.harness.storage.sqlite_harness_storage import SQLiteHarnessStorage
         storage = SQLiteHarnessStorage(db_path=str(tmp_path / "test.db"))
         svc = HarnessService(storage=storage)
         result = svc.create_session(name="测试", requirement="管理用户")
         assert "session_id" in result
 
     def test_service_returns_dict(self, tmp_path):
-        from odap.biz.core.ontology.harness.services.harness_service import HarnessService
-        from odap.biz.core.ontology.harness.storage.sqlite_harness_storage import SQLiteHarnessStorage
+        from odap.biz.core.ontology.application.harness.services.harness_service import HarnessService
+        from odap.biz.core.ontology.application.harness.storage.sqlite_harness_storage import SQLiteHarnessStorage
         storage = SQLiteHarnessStorage(db_path=str(tmp_path / "test.db"))
         svc = HarnessService(storage=storage)
         result = svc.get_session("nonexistent")
@@ -317,24 +317,24 @@ class TestHarnessService:
 
 class TestHarnessSchemas:
     def test_create_session_request_validation(self):
-        from odap.biz.core.ontology.harness.api.schemas import CreateSessionRequest
+        from odap.biz.core.ontology.application.harness.api.schemas import CreateSessionRequest
         req = CreateSessionRequest(name="test", requirement="req")
         assert req.name == "test"
         assert req.description == ""
 
     def test_create_session_request_min_length(self):
-        from odap.biz.core.ontology.harness.api.schemas import CreateSessionRequest
+        from odap.biz.core.ontology.application.harness.api.schemas import CreateSessionRequest
         with pytest.raises(Exception):
             CreateSessionRequest(name="", requirement="req")
 
     def test_approve_step_request(self):
-        from odap.biz.core.ontology.harness.api.schemas import ApproveStepRequest
+        from odap.biz.core.ontology.application.harness.api.schemas import ApproveStepRequest
         req = ApproveStepRequest(stage="execution", approved_by="admin")
         assert req.stage == "execution"
         assert req.approved_by == "admin"
 
     def test_reject_step_request(self):
-        from odap.biz.core.ontology.harness.api.schemas import RejectStepRequest
+        from odap.biz.core.ontology.application.harness.api.schemas import RejectStepRequest
         req = RejectStepRequest(stage="execution", reason="bad")
         assert req.stage == "execution"
         assert req.reason == "bad"
@@ -342,30 +342,30 @@ class TestHarnessSchemas:
 
 class TestTeamAgentBackwardCompat:
     def test_team_agent_models_deprecated(self):
-        from odap.biz.core.ontology.team_agent.models import AgentRole, TaskStatus, TeamSession
+        from odap.biz.core.ontology.application.team_agent.models import AgentRole, TaskStatus, TeamSession
         assert AgentRole.PLANNING.value == "planning"
         assert TaskStatus.HITL_PENDING.value == "hitl_pending"
         session = TeamSession(name="test", requirement="req")
         assert session.session_id.startswith("harness-")
 
     def test_team_agent_engine_deprecated(self, tmp_path):
-        from odap.biz.core.ontology.team_agent.impl.team_agent_engine import TeamAgentEngine
-        from odap.biz.core.ontology.harness.storage.sqlite_harness_storage import SQLiteHarnessStorage
+        from odap.biz.core.ontology.application.team_agent.impl.team_agent_engine import TeamAgentEngine
+        from odap.biz.core.ontology.application.harness.storage.sqlite_harness_storage import SQLiteHarnessStorage
         storage = SQLiteHarnessStorage(db_path=str(tmp_path / "test.db"))
         engine = TeamAgentEngine(storage=storage)
         result = engine.create_session(name="测试", requirement="管理用户和订单")
         assert "session_id" in result
 
     def test_team_agent_service_deprecated(self, tmp_path):
-        from odap.biz.core.ontology.team_agent.services.team_agent_service import TeamAgentService
-        from odap.biz.core.ontology.harness.storage.sqlite_harness_storage import SQLiteHarnessStorage
+        from odap.biz.core.ontology.application.team_agent.services.team_agent_service import TeamAgentService
+        from odap.biz.core.ontology.application.harness.storage.sqlite_harness_storage import SQLiteHarnessStorage
         storage = SQLiteHarnessStorage(db_path=str(tmp_path / "test.db"))
         svc = TeamAgentService(storage=storage)
         result = svc.create_session(name="测试", requirement="管理用户")
         assert "session_id" in result
 
     def test_team_agent_storage_deprecated(self, tmp_path):
-        from odap.biz.core.ontology.team_agent.storage.sqlite_team_agent_storage import SQLiteTeamAgentStorage
+        from odap.biz.core.ontology.application.team_agent.storage.sqlite_team_agent_storage import SQLiteTeamAgentStorage
         storage = SQLiteTeamAgentStorage(db_path=str(tmp_path / "test.db"))
         assert hasattr(storage, "save_session")
         assert hasattr(storage, "get_session")

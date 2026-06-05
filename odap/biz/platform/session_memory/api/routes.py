@@ -1,4 +1,5 @@
-from fastapi import APIRouter, HTTPException, Query
+from fastapi import APIRouter, HTTPException, Query, Depends
+from odap.infra.security.jwt_auth import get_current_user
 from typing import Dict, Any, List, Optional
 from pydantic import BaseModel, Field
 
@@ -57,7 +58,8 @@ class StoreLongTermRequest(BaseModel):
 
 
 @router.post("/sessions")
-async def create_session(request: CreateSessionRequest):
+async def create_session(request: CreateSessionRequest,
+    user=Depends(get_current_user)):
     store = _get_store()
     session = Session(
         workspace_id=request.workspace_id,
@@ -69,14 +71,16 @@ async def create_session(request: CreateSessionRequest):
 
 
 @router.get("/sessions")
-async def list_sessions(workspace_id: str = "default", limit: int = 20):
+async def list_sessions(workspace_id: str = "default", limit: int = 20,
+    user=Depends(get_current_user)):
     store = _get_store()
     summaries = store.list_sessions(workspace_id, limit)
     return {"sessions": [s.model_dump() for s in summaries]}
 
 
 @router.get("/sessions/{session_id}")
-async def get_session(session_id: str):
+async def get_session(session_id: str,
+    user=Depends(get_current_user)):
     store = _get_store()
     session = store.load_session(session_id)
     if not session:
@@ -92,7 +96,8 @@ async def get_session(session_id: str):
 
 
 @router.post("/sessions/{session_id}/messages")
-async def add_message(session_id: str, request: AddMessageRequest):
+async def add_message(session_id: str, request: AddMessageRequest,
+    user=Depends(get_current_user)):
     store = _get_store()
     session = store.load_session(session_id)
     if not session:
@@ -116,7 +121,8 @@ async def add_message(session_id: str, request: AddMessageRequest):
 
 
 @router.get("/sessions/{session_id}/context")
-async def get_context(session_id: str):
+async def get_context(session_id: str,
+    user=Depends(get_current_user)):
     store = _get_store()
     session = store.load_session(session_id)
     if not session:
@@ -129,7 +135,8 @@ async def get_context(session_id: str):
 
 
 @router.post("/sessions/{session_id}/compact")
-async def compact_session(session_id: str):
+async def compact_session(session_id: str,
+    user=Depends(get_current_user)):
     store = _get_store()
     session = store.load_session(session_id)
     if not session:
@@ -142,7 +149,8 @@ async def compact_session(session_id: str):
 
 
 @router.post("/sessions/{session_id}/cot")
-async def build_cot(session_id: str, request: QueryRequest):
+async def build_cot(session_id: str, request: QueryRequest,
+    user=Depends(get_current_user)):
     store = _get_store()
     session = store.load_session(session_id)
     if not session:
@@ -175,7 +183,8 @@ async def build_cot(session_id: str, request: QueryRequest):
 
 
 @router.delete("/sessions/{session_id}")
-async def delete_session(session_id: str):
+async def delete_session(session_id: str,
+    user=Depends(get_current_user)):
     store = _get_store()
     success = store.delete_session(session_id)
     if not success:
@@ -184,13 +193,15 @@ async def delete_session(session_id: str):
 
 
 @router.get("/memory/session/{session_id}")
-async def get_session_memory(session_id: str):
+async def get_session_memory(session_id: str,
+    user=Depends(get_current_user)):
     manager = get_session_memory_manager()
     return manager.get_session_memory(session_id)
 
 
 @router.post("/memory/session/{session_id}/store")
-async def store_session_memory(session_id: str, request: StoreMemoryRequest):
+async def store_session_memory(session_id: str, request: StoreMemoryRequest,
+    user=Depends(get_current_user)):
     manager = get_session_memory_manager()
     if request.tier == "short_term":
         return manager.store_short_term(session_id, request.key, request.value)
@@ -201,18 +212,21 @@ async def store_session_memory(session_id: str, request: StoreMemoryRequest):
 
 
 @router.post("/memory/session/{session_id}/clear")
-async def clear_short_term_memory(session_id: str):
+async def clear_short_term_memory(session_id: str,
+    user=Depends(get_current_user)):
     manager = get_session_memory_manager()
     return manager.clear_short_term(session_id)
 
 
 @router.get("/memory/long-term")
-async def retrieve_long_term_memory(query: str = Query(...), limit: int = Query(10, ge=1, le=100)):
+async def retrieve_long_term_memory(query: str = Query(...), limit: int = Query(10, ge=1, le=100),
+    user=Depends(get_current_user)):
     manager = get_session_memory_manager()
     return manager.retrieve_long_term(query, limit)
 
 
 @router.post("/memory/long-term")
-async def store_long_term_memory(request: StoreLongTermRequest):
+async def store_long_term_memory(request: StoreLongTermRequest,
+    user=Depends(get_current_user)):
     manager = get_session_memory_manager()
     return manager.store_long_term(request.key, request.value)

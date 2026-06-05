@@ -1,5 +1,5 @@
 import pytest
-from odap.biz.core.ontology.runtime.state_machine.impl.expression_evaluator import safe_eval, SafeExpressionEvaluator
+from odap.biz.core.ontology.application.runtime.state_machine.impl.expression_evaluator import safe_eval, SafeExpressionEvaluator
 
 
 class TestSafeExpressionEvaluator:

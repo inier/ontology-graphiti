@@ -147,6 +147,8 @@ export function BusinessEntityManager({
   const [modalOpen, setModalOpen] = useState(false);
   const [detailOpen, setDetailOpen] = useState(false);
   const [yamlModalOpen, setYamlModalOpen] = useState(false);
+  const [yamlViewOpen, setYamlViewOpen] = useState(false);
+  const [yamlViewContent, setYamlViewContent] = useState('');
   const [editingEntity, setEditingEntity] = useState<BusinessEntity | null>(null);
   const [viewingEntity, setViewingEntity] = useState<BusinessEntity | null>(null);
   const [form] = Form.useForm<BusinessEntityFormData>();
@@ -736,7 +738,7 @@ export function BusinessEntityManager({
 
             <Divider />
             <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 8 }}>
-              <Button icon={<CodeOutlined />}>查看 YAML 代码</Button>
+              <Button icon={<CodeOutlined />} onClick={() => { setYamlViewContent(viewingEntity.yaml_definition || ''); setYamlViewOpen(true); }}>查看 YAML 代码</Button>
               <Popconfirm title="确认删除？" onConfirm={() => handleDelete(viewingEntity.id)}>
                 <Button danger icon={<DeleteOutlined />}>删除</Button>
               </Popconfirm>
@@ -747,6 +749,22 @@ export function BusinessEntityManager({
           </div>
         )}
       </Drawer>
+
+      <Modal
+        title="YAML 定义"
+        open={yamlViewOpen}
+        onCancel={() => setYamlViewOpen(false)}
+        footer={<Button onClick={() => setYamlViewOpen(false)}>关闭</Button>}
+        width={640}
+      >
+        {yamlViewContent ? (
+          <pre style={{ background: '#f5f5f5', padding: 16, borderRadius: 8, fontSize: 13, fontFamily: 'monospace', whiteSpace: 'pre-wrap', maxHeight: 480, overflow: 'auto' }}>
+            {yamlViewContent}
+          </pre>
+        ) : (
+          <div style={{ textAlign: 'center', color: '#8c8c8c', padding: 40 }}>暂无 YAML 定义</div>
+        )}
+      </Modal>
     </div>
   );
 }

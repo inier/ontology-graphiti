@@ -155,3 +155,136 @@ def test_delete_document(storage):
     result = storage.delete_document(kb['kb_id'], doc['doc_id'])
     assert result is True
     assert storage.get_document(kb['kb_id'], doc['doc_id']) is None
+
+
+class TestUpdateDocumentGraphStatus:
+    def test_update_graph_status_success(self, storage):
+        kb = storage.create_knowledge_base({'name': 'Test KB'})
+        doc = storage.create_document(kb['kb_id'], {'title': 'Doc', 'content': 'text'})
+        result = storage.update_document_graph_status(doc['doc_id'], True, 5)
+        assert result is True
+        updated = storage.find_document_by_id(doc['doc_id'])
+        assert updated['graph_built'] is True
+
+    def test_update_graph_status_not_found(self, storage):
+        result = storage.update_document_graph_status('doc_nonexistent', True, 0)
+        assert result is False
+
+    def test_update_graph_status_set_false(self, storage):
+        kb = storage.create_knowledge_base({'name': 'Test KB'})
+        doc = storage.create_document(kb['kb_id'], {'title': 'Doc', 'content': 'text'})
+        storage.update_document_graph_status(doc['doc_id'], True, 3)
+        storage.update_document_graph_status(doc['doc_id'], False, 0)
+        updated = storage.find_document_by_id(doc['doc_id'])
+        assert updated['graph_built'] is False
+
+
+class TestFindDocumentById:
+    def test_find_existing(self, storage):
+        kb = storage.create_knowledge_base({'name': 'Test KB'})
+        doc = storage.create_document(kb['kb_id'], {'title': 'FindMe', 'content': 'hello'})
+        found = storage.find_document_by_id(doc['doc_id'])
+        assert found is not None
+        assert found['title'] == 'FindMe'
+
+    def test_find_not_existing(self, storage):
+        found = storage.find_document_by_id('doc_nonexistent')
+        assert found is None
+
+
+class TestKnowledgeBaseService:
+    @pytest.fixture
+    def service(self, tmp_path):
+        from odap.biz.data.knowledge_base.services.knowledge_base_service import KnowledgeBaseService
+        db_path = str(tmp_path / "test_kb_svc.db")
+        storage = SQLiteKnowledgeBaseStorage(db_path=db_path)
+        return KnowledgeBaseService(storage=storage)
+
+    def test_get_knowledge_base_error(self, service):
+        result = service.get_knowledge_base('kb_nonexistent')
+        assert result['status'] == 'error'
+
+    def test_update_knowledge_base_error(self, service):
+        result = service.update_knowledge_base('kb_nonexistent', {'name': 'X'})
+        assert result['status'] == 'error'
+
+    def test_delete_knowledge_base_error(self, service):
+        result = service.delete_knowledge_base('kb_nonexistent')
+        assert result['status'] == 'error'
+
+    def test_delete_category_error(self, service):
+        result = service.delete_category('kb_nonexistent', 'cat_nonexistent')
+        assert result['status'] == 'error'
+
+    def test_get_document_error(self, service):
+        result = service.get_document('kb_nonexistent', 'doc_nonexistent')
+        assert result['status'] == 'error'
+
+    def test_delete_document_error(self, service):
+        result = service.delete_document('kb_nonexistent', 'doc_nonexistent')
+        assert result['status'] == 'error'
+
+    def test_get_graph_build_status_not_found(self, service):
+        result = service.get_graph_build_status('task_nonexistent')
+        assert result['status'] == 'error'
+
+    @pytest.mark.asyncio
+    async def test_build_graph_doc_not_found(self, service):
+        result = await service.build_graph('doc_nonexistent')
+        assert result['status'] == 'error'
+
+    @pytest.mark.asyncio
+    async def test_build_graph_empty_content(self, service):
+        kb = service.create_knowledge_base({'name': 'KB'})
+        doc = service.create_document(kb['kb_id'], {'title': 'Empty', 'content': ''})
+        result = await service.build_graph(doc['doc_id'], extraction_method='regex')
+        assert result['status'] == 'error'
+
+    @pytest.mark.asyncio
+    async def test_build_graph_regex(self, service):
+        kb = service.create_knowledge_base({'name': 'KB'})
+        doc = service.create_document(kb['kb_id'], {
+            'title': 'Military Doc',
+            'content': '东部舰队在南海执行任务，红旗导弹部队已部署完毕',
+        })
+        result = await service.build_graph(doc['doc_id'], extraction_method='regex')
+        assert result['status'] == 'completed'
+        assert result['method'] == 'regex'
+        assert result['entities_extracted'] > 0
+        task_id = result['task_id']
+        status = service.get_graph_build_status(task_id)
+        assert status['status'] == 'completed'
+
+    @pytest.mark.asyncio
+    async def test_rag_query_kb_not_found(self, service):
+        result = await service.rag_query('kb_nonexistent', 'test')
+        assert result['status'] == 'error'
+
+    @pytest.mark.asyncio
+    async def test_rag_query_no_results(self, service):
+        kb = service.create_knowledge_base({'name': 'KB'})
+        result = await service.rag_query(kb['kb_id'], 'nonexistent query xyz')
+        assert result['answer'] == '未找到与查询相关的文档'
+
+    @pytest.mark.asyncio
+    async def test_rag_query_with_results(self, service):
+        kb = service.create_knowledge_base({'name': 'KB'})
+        service.create_document(kb['kb_id'], {'title': 'Python Guide', 'content': 'Python is a programming language'})
+        result = await service.rag_query(kb['kb_id'], 'python')
+        assert len(result['sources']) > 0
+
+    @pytest.mark.asyncio
+    async def test_crawl_web_kb_not_found(self, service):
+        result = await service.crawl_web('kb_nonexistent', ['http://example.com'])
+        assert result['status'] == 'error'
+
+    def test_extract_with_regex(self, service):
+        content = '东部舰队在南海执行任务，红旗导弹部队已部署完毕'
+        result = service._extract_with_regex(content)
+        assert 'entities' in result
+        assert len(result['entities']) > 0
+
+    def test_extract_with_regex_custom_types(self, service):
+        content = '第一装甲师在北方演习'
+        result = service._extract_with_regex(content, entity_types=['师'])
+        assert len(result['entities']) > 0

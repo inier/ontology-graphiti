@@ -30,6 +30,10 @@ from odap.biz.integration.hook_system.models.hook import Hook, HookType, HookSta
 from odap.biz.integration.hook_system.models.sandbox import SandboxConfig, SandboxResult
 
 
+
+import logging
+
+logger = logging.getLogger(__name__)
 class CodeSignatureStatus(str, Enum):
     VALID = "valid"
     INVALID = "invalid"
@@ -221,9 +225,44 @@ class CodeSigner:
     """
 
     def __init__(self, secret_key: str = None):
-        self._secret_key = secret_key or os.getenv("HOOK_SIGNING_KEY", "default-secret-key")
+        # P0-8 fix: NEVER use "default-secret-key". Resolve via env var.
+        # In production, refuse to start without explicit secret.
+        self._secret_key = self._resolve_signing_key(secret_key)
         self._signatures: Dict[str, CodeSignature] = {}
         self._public_keys: Dict[str, str] = {}
+
+    @staticmethod
+    def _resolve_signing_key(explicit_value) -> str:
+        """Resolve the hook signing key. NEVER default to "default-secret-key".
+
+        Priority:
+          1. Explicit constructor argument
+          2. HOOK_SIGNING_KEY env var (must be >= 16 chars)
+          3. In production: refuse to start
+          4. In dev: use a deterministic dev key (logged as warning)
+        """
+        if explicit_value and len(explicit_value) >= 16:
+            return explicit_value
+        value = os.getenv("HOOK_SIGNING_KEY", "").strip()
+        # Treat the well-known default as a placeholder
+        if value.lower() in ("default-secret-key", "default", "secret", "change-me"):
+            value = ""
+        if value and len(value) >= 16:
+            return value
+        env_name = os.getenv("ENV", "").lower()
+        if env_name in ("production", "prod", "live"):
+            raise RuntimeError(
+                "SECURITY: HOOK_SIGNING_KEY must be set to a non-default value "
+                "of at least 16 characters in production."
+            )
+        import secrets
+        dev_key = secrets.token_urlsafe(32)
+        import logging
+        logging.getLogger(__name__).warning(
+            "HOOK_SIGNING_KEY is not set or is too short. "
+            "Generated random dev key. Set HOOK_SIGNING_KEY in production."
+        )
+        return dev_key
 
     def generate_signature(self, hook_id: str, script: str,
                           expires_at: Optional[str] = None) -> CodeSignature:
@@ -504,6 +543,8 @@ class EnhancedHookManager:
         """记录到审计日志"""
         try:
             from odap.infra.security.audit_logger_v2 import get_audit_logger
+
+
             audit = get_audit_logger()
             if audit:
                 audit.log(
@@ -746,11 +787,11 @@ def get_hook_manager(signing_key: str = None) -> EnhancedHookManager:
 if __name__ == "__main__":
     manager = get_hook_manager()
 
-    print("=" * 60)
-    print("Hook 系统增强测试")
-    print("=" * 60)
+    logger.info('=' * 60)
+    logger.info('Hook 系统增强测试')
+    logger.info('=' * 60)
 
-    print("\n1. 创建沙箱:")
+    logger.info('\n1. 创建沙箱:')
     sandbox_config = SandboxConfig(
         id="test-sandbox",
         name="Test Sandbox",
@@ -760,9 +801,9 @@ if __name__ == "__main__":
         allowed_modules=["math", "random", "json"]
     )
     manager.create_sandbox(sandbox_config)
-    print(f"   沙箱已创建: {sandbox_config.id}")
+    logger.info(f'   沙箱已创建: {sandbox_config.id}')
 
-    print("\n2. 注册 Hook:")
+    logger.info('\n2. 注册 Hook:')
     hook = manager.register_hook(
         name="test_hook",
         hook_type=HookType.PRE_EXECUTE,
@@ -770,30 +811,30 @@ if __name__ == "__main__":
         description="测试 Hook",
         require_signature=True
     )
-    print(f"   Hook 已注册: {hook.name} (ID: {hook.id})")
+    logger.info(f'   Hook 已注册: {hook.name} (ID: {hook.id})')
 
-    print("\n3. 签名验证:")
+    logger.info('\n3. 签名验证:')
     status = manager.verify_hook_signature(hook.id)
-    print(f"   签名状态: {status.value}")
+    logger.info(f'   签名状态: {status.value}')
 
-    print("\n4. 执行 Hook:")
+    logger.info('\n4. 执行 Hook:')
     execution = manager.execute_hook(hook.id, {"x": 16})
-    print(f"   执行状态: {execution.status}")
-    print(f"   执行时间: {execution.duration_ms}ms")
+    logger.info(f'   执行状态: {execution.status}')
+    logger.info(f'   执行时间: {execution.duration_ms}ms')
 
-    print("\n5. Hook 指标:")
+    logger.info('\n5. Hook 指标:')
     metrics = manager.get_hook_metrics(hook.id)
     if metrics:
-        print(f"   总执行数: {metrics.total_executions}")
-        print(f"   成功数: {metrics.successful_executions}")
-        print(f"   平均延迟: {metrics.avg_execution_time_ms:.2f}ms")
+        logger.info(f'   总执行数: {metrics.total_executions}')
+        logger.info(f'   成功数: {metrics.successful_executions}')
+        logger.info(f'   平均延迟: {metrics.avg_execution_time_ms:.2f}ms')
 
-    print("\n6. 健康报告:")
+    logger.info('\n6. 健康报告:')
     report = manager.get_health_report()
-    print(f"   总 Hook 数: {report['total_hooks']}")
-    print(f"   活跃 Hook 数: {report['active_hooks']}")
-    print(f"   总执行数: {report['total_executions']}")
+    logger.info(f"   总 Hook 数: {report['total_hooks']}")
+    logger.info(f"   活跃 Hook 数: {report['active_hooks']}")
+    logger.info(f"   总执行数: {report['total_executions']}")
 
-    print("\n" + "=" * 60)
-    print("Hook 系统增强测试完成")
-    print("=" * 60)
+    logger.info('\n' + '=' * 60)
+    logger.info('Hook 系统增强测试完成')
+    logger.info('=' * 60)

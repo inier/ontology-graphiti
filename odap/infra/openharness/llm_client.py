@@ -15,6 +15,10 @@ import yaml
 from typing import Dict, Any, Optional
 from abc import ABC, abstractmethod
 
+
+import logging
+
+logger = logging.getLogger(__name__)
 # 尝试导入各 Provider 的 SDK
 try:
     import anthropic
@@ -30,6 +34,8 @@ except ImportError:
 
 try:
     import httpx
+
+
     HTTPX_AVAILABLE = True
 except ImportError:
     HTTPX_AVAILABLE = False
@@ -81,6 +87,7 @@ class AnthropicClient(BaseLLMClient):
             )
             return response.content[0].text
         except Exception as e:
+            logger.warning("silent except caught in {exc} (line 89)", exc_info=True)
             return f"Error: {str(e)}"
 
     async def chat(self, messages: list, **kwargs) -> str:
@@ -95,6 +102,7 @@ class AnthropicClient(BaseLLMClient):
             )
             return response.content[0].text
         except Exception as e:
+            logger.warning("silent except caught in {exc} (line 103)", exc_info=True)
             return f"Error: {str(e)}"
 
 
@@ -127,6 +135,7 @@ class OpenAIClient(BaseLLMClient):
             )
             return response.choices[0].message.content
         except Exception as e:
+            logger.warning("silent except caught in {exc} (line 135)", exc_info=True)
             return f"Error: {str(e)}"
 
     async def chat(self, messages: list, **kwargs) -> str:
@@ -141,6 +150,7 @@ class OpenAIClient(BaseLLMClient):
             )
             return response.choices[0].message.content
         except Exception as e:
+            logger.warning("silent except caught in {exc} (line 149)", exc_info=True)
             return f"Error: {str(e)}"
 
 
@@ -183,6 +193,7 @@ class HTTPClient(BaseLLMClient):
             result = response.json()
             return result["choices"][0]["message"]["content"]
         except Exception as e:
+            logger.warning("silent except caught in {exc} (line 191)", exc_info=True)
             return f"Error: {str(e)}"
 
     async def chat(self, messages: list, **kwargs) -> str:
@@ -212,6 +223,7 @@ class HTTPClient(BaseLLMClient):
             result = response.json()
             return result["choices"][0]["message"]["content"]
         except Exception as e:
+            logger.warning("silent except caught in {exc} (line 220)", exc_info=True)
             return f"Error: {str(e)}"
 
 
@@ -251,7 +263,7 @@ def load_agent_config(config_path: str = "config/agent_config.yaml") -> Dict[str
             config = yaml.safe_load(f)
         return config
     except Exception as e:
-        print(f"加载配置失败: {e}")
+        logger.info(f'加载配置失败: {e}')
         return {}
 
 
@@ -272,7 +284,7 @@ def get_llm_client(config_path: str = "config/agent_config.yaml") -> Optional[Ba
             try:
                 return LLMClientFactory.create_client(provider_name, provider_config)
             except Exception as e:
-                print(f"创建 {provider_name} 客户端失败: {e}")
+                logger.info(f'创建 {provider_name} 客户端失败: {e}')
                 continue
     
     # 如果没有启用的 Provider，尝试默认 Provider
@@ -282,7 +294,7 @@ def get_llm_client(config_path: str = "config/agent_config.yaml") -> Optional[Ba
             # 尝试使用环境变量
             return LLMClientFactory.create_client(default_provider, default_config)
         except Exception as e:
-            print(f"创建默认 Provider 失败: {e}")
+            logger.info(f'创建默认 Provider 失败: {e}')
     
     return None
 

@@ -1,78 +1,98 @@
-import { create } from 'zustand';
-import type { BreakpointKey } from '../styles/breakpoints.ts';
+import i18n from 'i18next';
+import { initReactI18next } from 'react-i18next';
+import LanguageDetector from 'i18next-browser-languagedetector';
 
-type Locale = 'zh-CN' | 'en-US';
+// Shared
+import commonZh from '../locales/zh-CN/common.json';
+import commonEn from '../locales/en-US/common.json';
+import messagesZh from '../locales/zh-CN/messages.json';
+import messagesEn from '../locales/en-US/messages.json';
 
-interface TranslationEntry {
-  [key: string]: string | TranslationEntry;
-}
+// Agent
+import agentZh from '../../agent/locales/zh-CN/agent.json';
+import agentEn from '../../agent/locales/en-US/agent.json';
 
-interface I18nState {
-  locale: Locale;
-  translations: Record<Locale, TranslationEntry>;
-  setLocale: (locale: Locale) => void;
-  t: (key: string, params?: Record<string, string>) => string;
-  loadTranslations: (locale: Locale, namespace: string, data: TranslationEntry) => void;
-}
+// Audit
+import auditZh from '../../audit/locales/zh-CN/audit.json';
+import auditEn from '../../audit/locales/en-US/audit.json';
+
+// Ontology
+import ontologyZh from '../../ontology/locales/zh-CN/ontology.json';
+import ontologyEn from '../../ontology/locales/en-US/ontology.json';
+
+// Simulation
+import simulationZh from '../../simulation/locales/zh-CN/simulation.json';
+import simulationEn from '../../simulation/locales/en-US/simulation.json';
+
+// Workspace
+import workspaceZh from '../../workspace/locales/zh-CN/workspace.json';
+import workspaceEn from '../../workspace/locales/en-US/workspace.json';
+
+// QA
+import qaZh from '../../qa/locales/zh-CN/qa.json';
+import qaEn from '../../qa/locales/en-US/qa.json';
+
+// Knowledge
+import knowledgeZh from '../../knowledge/locales/zh-CN/knowledge.json';
+import knowledgeEn from '../../knowledge/locales/en-US/knowledge.json';
+
+// System
+import systemZh from '../../system/locales/zh-CN/system.json';
+import systemEn from '../../system/locales/en-US/system.json';
 
 const STORAGE_KEY = 'odap-locale';
 
-function getStoredLocale(): Locale {
-  const stored = localStorage.getItem(STORAGE_KEY);
-  if (stored === 'zh-CN' || stored === 'en-US') {
-    return stored;
-  }
-  return 'zh-CN';
-}
-
-function resolveNestedKey(obj: TranslationEntry, key: string): string {
-  const parts = key.split('.');
-  let current: any = obj;
-  for (const part of parts) {
-    if (current && typeof current === 'object' && part in current) {
-      current = current[part];
-    } else {
-      return key;
-    }
-  }
-  return typeof current === 'string' ? current : key;
-}
-
-export const useI18nStore = create<I18nState>((set, get) => ({
-  locale: getStoredLocale(),
-  translations: {
-    'zh-CN': {},
-    'en-US': {},
-  },
-
-  setLocale: (locale: Locale) => {
-    localStorage.setItem(STORAGE_KEY, locale);
-    set({ locale });
-  },
-
-  t: (key: string, params?: Record<string, string>) => {
-    const state = get();
-    const translations = state.translations[state.locale];
-    let value = resolveNestedKey(translations, key);
-
-    if (params) {
-      for (const [paramKey, paramValue] of Object.entries(params)) {
-        value = value.replace(`{{${paramKey}}}`, paramValue);
-      }
-    }
-
-    return value;
-  },
-
-  loadTranslations: (locale: Locale, namespace: string, data: TranslationEntry) => {
-    set((state) => ({
-      translations: {
-        ...state.translations,
-        [locale]: {
-          ...state.translations[locale],
-          [namespace]: data,
-        },
+i18n
+  .use(LanguageDetector)
+  .use(initReactI18next)
+  .init({
+    resources: {
+      'zh-CN': {
+        common: commonZh,
+        messages: messagesZh,
+        agent: agentZh,
+        audit: auditZh,
+        ontology: ontologyZh,
+        simulation: simulationZh,
+        workspace: workspaceZh,
+        qa: qaZh,
+        knowledge: knowledgeZh,
+        system: systemZh,
       },
-    }));
-  },
-}));
+      'en-US': {
+        common: commonEn,
+        messages: messagesEn,
+        agent: agentEn,
+        audit: auditEn,
+        ontology: ontologyEn,
+        simulation: simulationEn,
+        workspace: workspaceEn,
+        qa: qaEn,
+        knowledge: knowledgeEn,
+        system: systemEn,
+      },
+    },
+    fallbackLng: 'zh-CN',
+    ns: ['common', 'messages', 'agent', 'audit', 'ontology', 'simulation', 'workspace', 'qa', 'knowledge', 'system'],
+    defaultNS: 'common',
+    interpolation: {
+      escapeValue: false,
+    },
+    detection: {
+      order: ['localStorage', 'navigator'],
+      lookupLocalStorage: STORAGE_KEY,
+      caches: ['localStorage'],
+    },
+  });
+
+export default i18n;
+
+export type Locale = 'zh-CN' | 'en-US';
+
+export function setLocale(locale: Locale): void {
+  i18n.changeLanguage(locale);
+}
+
+export function getCurrentLocale(): Locale {
+  return (i18n.language as Locale) || 'zh-CN';
+}

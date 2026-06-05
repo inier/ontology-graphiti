@@ -1,4 +1,5 @@
-from fastapi import APIRouter, HTTPException, Query
+from fastapi import APIRouter, HTTPException, Query, Depends
+from odap.infra.security.jwt_auth import get_current_user
 from typing import List, Optional, Dict, Any
 
 from .schemas import Agent, AgentCreate, AgentUpdate
@@ -10,7 +11,9 @@ _agent_storage = SQLiteAgentStorage()
 
 
 def _build_ref_labels(agent_data: Dict[str, Any]) -> Dict[str, str]:
-    labels: Dict[str, str] = {}
+    labels: Optional[Dict[str, str]] = None
+    if labels is None:
+        labels = {}
     if not agent_data:
         return labels
 
@@ -25,7 +28,7 @@ def _build_ref_labels(agent_data: Dict[str, Any]) -> Dict[str, str]:
         return labels
 
     try:
-        from odap.biz.core.ontology.oms.services import get_oms_service
+        from odap.biz.core.ontology.application.oms.services import get_oms_service
         oms = get_oms_service()
         for obj in oms.list_object_types():
             tid = obj.get("type_id", "")
@@ -37,6 +40,8 @@ def _build_ref_labels(agent_data: Dict[str, Any]) -> Dict[str, str]:
                 labels[tname] = tdisplay
             if tdisplay in all_ids and tdisplay not in labels:
                 labels[tdisplay] = tdisplay
+    except HTTPException:
+        raise
     except Exception:
         pass
 
@@ -75,6 +80,8 @@ def _build_ref_labels(agent_data: Dict[str, Any]) -> Dict[str, str]:
                 labels[iid] = idisplay
             if iname in all_ids and iname not in labels:
                 labels[iname] = idisplay
+    except HTTPException:
+        raise
     except Exception:
         pass
 
@@ -89,6 +96,8 @@ def _build_ref_labels(agent_data: Dict[str, Any]) -> Dict[str, str]:
                 labels[sid] = sname
             if sname in all_ids and sname not in labels:
                 labels[sname] = sname
+    except HTTPException:
+        raise
     except Exception:
         pass
 
@@ -102,6 +111,8 @@ def _build_ref_labels(agent_data: Dict[str, Any]) -> Dict[str, str]:
                 labels[kid] = kname
             if kname in all_ids and kname not in labels:
                 labels[kname] = kname
+    except HTTPException:
+        raise
     except Exception:
         pass
 
@@ -144,6 +155,7 @@ agent_service = AgentService()
 async def list_agents(
     role_id: Optional[str] = Query(None, description="按角色ID过滤"),
     workspace_id: Optional[str] = Query(None, description="按工作空间ID过滤"),
+    user=Depends(get_current_user),
 ):
     try:
         agents = agent_service.list_agents(role_id=role_id, workspace_id=workspace_id)
@@ -157,14 +169,17 @@ async def list_agents(
 
 
 @router.get("/ref-options")
-async def get_ref_options(type: str = Query(..., description="引用类型")):
+async def get_ref_options(type: str = Query(..., description="引用类型"),
+    user=Depends(get_current_user)):
     options = []
     if type == "entity":
         try:
-            from odap.biz.core.ontology.oms.services import get_oms_service
+            from odap.biz.core.ontology.application.oms.services import get_oms_service
             oms = get_oms_service()
             for obj in oms.list_object_types():
                 options.append({"value": obj.get("type_id", ""), "label": obj.get("display_name") or obj.get("name", "")})
+        except HTTPException:
+            raise
         except Exception:
             pass
     elif type == "business_logic":
@@ -173,6 +188,8 @@ async def get_ref_options(type: str = Query(..., description="引用类型")):
             biz = get_business_service()
             for item in biz.list_logics():
                 options.append({"value": item.get("logic_id", ""), "label": item.get("display_name") or item.get("name", "")})
+        except HTTPException:
+            raise
         except Exception:
             pass
     elif type == "indicator":
@@ -181,6 +198,8 @@ async def get_ref_options(type: str = Query(..., description="引用类型")):
             biz = get_business_service()
             for item in biz.list_indicators():
                 options.append({"value": item.get("indicator_id", ""), "label": item.get("display_name") or item.get("name", "")})
+        except HTTPException:
+            raise
         except Exception:
             pass
     elif type == "skill":
@@ -190,6 +209,8 @@ async def get_ref_options(type: str = Query(..., description="引用类型")):
             result = svc.list_skills()
             for s in result.get("skills", []):
                 options.append({"value": s.get("skill_id", ""), "label": s.get("name", "")})
+        except HTTPException:
+            raise
         except Exception:
             pass
     elif type == "knowledge_base":
@@ -198,6 +219,8 @@ async def get_ref_options(type: str = Query(..., description="引用类型")):
             kb = get_kb_service()
             for item in kb.list_knowledge_bases():
                 options.append({"value": item.get("kb_id", ""), "label": item.get("name", "")})
+        except HTTPException:
+            raise
         except Exception:
             pass
     elif type == "role":
@@ -207,13 +230,16 @@ async def get_ref_options(type: str = Query(..., description="引用类型")):
             result = role_svc.list_roles()
             for r in result.get("roles", []):
                 options.append({"value": r.get("id", ""), "label": r.get("name", "")})
+        except HTTPException:
+            raise
         except Exception:
             pass
     return {"options": options}
 
 
 @router.get("/{agent_id}", response_model=Agent)
-async def get_agent(agent_id: str):
+async def get_agent(agent_id: str,
+    user=Depends(get_current_user)):
     try:
         result = agent_service.get_agent(agent_id)
         if result.get("status") == "error":
@@ -227,7 +253,8 @@ async def get_agent(agent_id: str):
 
 
 @router.post("", response_model=Agent)
-async def create_agent(agent: AgentCreate):
+async def create_agent(agent: AgentCreate,
+    user=Depends(get_current_user)):
     try:
         data = agent.model_dump()
         result = agent_service.create_agent(data)
@@ -240,7 +267,8 @@ async def create_agent(agent: AgentCreate):
 
 
 @router.put("/{agent_id}", response_model=Agent)
-async def update_agent(agent_id: str, agent: AgentUpdate):
+async def update_agent(agent_id: str, agent: AgentUpdate,
+    user=Depends(get_current_user)):
     try:
         data = agent.model_dump(exclude_none=True)
         if not data:
@@ -257,7 +285,8 @@ async def update_agent(agent_id: str, agent: AgentUpdate):
 
 
 @router.delete("/{agent_id}")
-async def delete_agent(agent_id: str):
+async def delete_agent(agent_id: str,
+    user=Depends(get_current_user)):
     try:
         result = agent_service.delete_agent(agent_id)
         if result.get("status") == "error":

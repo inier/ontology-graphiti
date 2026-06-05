@@ -12,6 +12,8 @@ __pycache__/
 *.egg-info/
 dist/
 build/
+.venv/
+venv/
 
 # IDE
 .idea/
@@ -54,6 +56,9 @@ htmlcov/
 
 # Neo4j data
 neo4j_data/
+
+# MinIO data
+minio_data/
 
 .galaxycode-core/
 

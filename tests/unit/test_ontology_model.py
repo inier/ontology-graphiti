@@ -6,7 +6,7 @@ from unittest.mock import patch, MagicMock
 class TestSQLiteModelStorage:
     @pytest.fixture
     def storage(self, tmp_path):
-        from odap.biz.core.ontology.model.storage.sqlite_model_storage import SQLiteModelStorage
+        from odap.biz.core.ontology.design.model.storage.sqlite_model_storage import SQLiteModelStorage
         return SQLiteModelStorage(db_path=str(tmp_path / "model_test.db"))
 
     def test_save_and_get_entity_type(self, storage):
@@ -140,9 +140,9 @@ class TestSQLiteModelStorage:
 class TestModelService:
     @pytest.fixture
     def service(self, tmp_path):
-        from odap.biz.core.ontology.model.storage.sqlite_model_storage import SQLiteModelStorage
-        from odap.biz.core.ontology.model.impl.model_repository_impl import ModelRepositoryImpl
-        from odap.biz.core.ontology.model.services.model_service import ModelService
+        from odap.biz.core.ontology.design.model.storage.sqlite_model_storage import SQLiteModelStorage
+        from odap.biz.core.ontology.design.model.impl.model_repository_impl import ModelRepositoryImpl
+        from odap.biz.core.ontology.design.model.services.model_service import ModelService
         ModelService._instance = None
         storage = SQLiteModelStorage(db_path=str(tmp_path / "model_svc_test.db"))
         repo = ModelRepositoryImpl(storage=storage)
@@ -216,7 +216,7 @@ class TestModelService:
         assert len(result.get("errors", [])) > 0
 
     def test_validate_instance_constraint_pattern(self, service):
-        from odap.biz.core.ontology.engine.impl.validation_engine_impl import ValidationEngineImpl
+        from odap.biz.core.ontology.design.engine.impl.validation_engine_impl import ValidationEngineImpl
         engine = ValidationEngineImpl()
         type_def = {
             "name": "Unit",
@@ -258,7 +258,7 @@ class TestModelService:
 
 class TestOntologyDocumentModel:
     def test_to_palantir(self):
-        from odap.biz.core.ontology.model.models.ontology_document import OntologyDocument, ActionTypeDefinition
+        from odap.biz.core.ontology.design.model.models.ontology_document import OntologyDocument, ActionTypeDefinition
         doc = OntologyDocument(
             id="doc-1",
             name="Test",
@@ -271,7 +271,7 @@ class TestOntologyDocumentModel:
         assert len(result["ontology"]["actionTypes"]) == 1
 
     def test_from_palantir(self):
-        from odap.biz.core.ontology.model.models.ontology_document import OntologyDocument
+        from odap.biz.core.ontology.design.model.models.ontology_document import OntologyDocument
         data = {
             "name": "Test",
             "ontology": {
@@ -287,7 +287,7 @@ class TestOntologyDocumentModel:
         assert doc.metadata["key"] == "val"
 
     def test_from_palantir_empty(self):
-        from odap.biz.core.ontology.model.models.ontology_document import OntologyDocument
+        from odap.biz.core.ontology.design.model.models.ontology_document import OntologyDocument
         doc = OntologyDocument.from_palantir({})
         assert doc.name == ""
         assert doc.object_types == []
@@ -296,7 +296,7 @@ class TestOntologyDocumentModel:
 
 class TestEntityTypeDefinition:
     def test_create_entity_type_definition(self):
-        from odap.biz.core.ontology.model.models.entity_type import EntityTypeDefinition, PropertyDefinition
+        from odap.biz.core.ontology.design.model.models.entity_type import EntityTypeDefinition, PropertyDefinition
         et = EntityTypeDefinition(
             name="Unit",
             properties=[PropertyDefinition(name="unit_id", data_type="string", required=True)],
@@ -307,7 +307,7 @@ class TestEntityTypeDefinition:
         assert et.primary_key == ["unit_id"]
 
     def test_default_values(self):
-        from odap.biz.core.ontology.model.models.entity_type import EntityTypeDefinition
+        from odap.biz.core.ontology.design.model.models.entity_type import EntityTypeDefinition
         et = EntityTypeDefinition(name="Unit")
         assert et.properties == []
         assert et.primary_key == []

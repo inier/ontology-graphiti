@@ -2,13 +2,13 @@
 
 import os
 from contextlib import asynccontextmanager
-from typing import List, Optional
+from typing import List
 
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
 from odap.infra.middleware.exception_handler import register_exception_handler
-from odap.biz.core.ontology.api.routes import router as ingest_router
+from odap.biz.core.ontology.application.api.routes import router as ingest_router
 from odap.biz.platform.workspace.api.routes import router as workspace_router
 from odap.biz.platform.roles.api.routes import router as roles_router
 from odap.infra.security import audit_router
@@ -24,7 +24,7 @@ from odap.biz.core.agent.api.routes import router as agent_dispatch_router
 from odap.biz.core.agent.api.decision_routes import router as agent_decision_router
 from odap.biz.management.agent_management.api.routes import router as agent_mgmt_router
 from odap.biz.data.knowledge_base.api.routes import router as kb_router
-from odap.biz.core.ontology.oms.routes import router as oms_router
+from odap.biz.core.ontology.application.oms.routes import router as oms_router
 from odap.infra.object_service.routes import router as osv2_router
 from odap.biz.decision.action_service.routes import router as action_router
 from odap.biz.data.perception.routes import router as perception_router
@@ -43,29 +43,33 @@ from odap.biz.core.cognition.api.routes import router as cognition_router
 from odap.biz.simulation.feedback.api.routes import router as feedback_router
 from odap.biz.simulation.simulation_deduction.api.routes import router as deduction_router
 from odap.biz.data.semantic_map.api.routes import router as semantic_map_router
-from odap.biz.core.ontology.runtime.api.routes import router as runtime_router
-from odap.biz.core.ontology.harness.api.routes import router as harness_router
+from odap.biz.core.ontology.application.runtime.api.routes import router as runtime_router
+from odap.biz.core.ontology.application.harness.api.routes import router as harness_router
 from odap.biz.platform.ontology_memory.api.routes import router as ontology_memory_router
 from odap.biz.platform.ontology_memory.graph_sync.routes import router as memory_sync_router
 from odap.biz.platform.ontology_memory.shared_workspace.routes import router as shared_memory_router
-from odap.biz.core.ontology.servitization.api.routes import router as servitization_router
-from odap.biz.core.ontology.servitization.api.deployment_routes import router as deployment_router
-from odap.biz.core.ontology.servitization.catalog.routes import router as catalog_router
-from odap.biz.core.ontology.harness.blueprint.routes import router as blueprint_designer_router
-from odap.biz.core.ontology.harness.blueprint.api.runtime_routes import router as blueprint_runtime_router
+from odap.biz.core.ontology.application.servitization.api.routes import router as servitization_router
+from odap.biz.core.ontology.application.servitization.api.deployment_routes import router as deployment_router
+from odap.biz.core.ontology.application.servitization.catalog.routes import router as catalog_router
+from odap.biz.core.ontology.application.harness.blueprint.routes import router as blueprint_designer_router
+from odap.biz.core.ontology.application.harness.blueprint.api.runtime_routes import router as blueprint_runtime_router
 from odap.biz.core.cognition.thought_graph.api.routes import router as thought_router
-from odap.biz.core.ontology.runtime.state_machine.api.routes import router as state_machine_router
-from odap.biz.core.ontology.abution_graph.api.routes import router as abution_graph_router
+from odap.biz.core.ontology.application.runtime.state_machine.api.routes import router as state_machine_router
+from odap.biz.core.ontology.application.abution_graph.api.routes import router as abution_graph_router
 from odap.biz.platform.ontology_memory.api.decay_routes import router as decay_router
 from odap.biz.platform.ontology_memory.shared_workspace.api.consensus_routes import router as consensus_router
 from odap.biz.platform.i18n.api.routes import router as i18n_router
-from odap.biz.core.ontology.model.api.routes import router as ontology_model_router
-from odap.biz.core.ontology.engine.api.routes import router as ontology_engine_router
-from odap.biz.core.ontology.ingestion.api.routes import router as ingestion_router
-from odap.biz.core.ontology.schema.semantic_layer.api.routes import router as semantic_layer_router
+from odap.biz.core.ontology.design.model.api.routes import router as ontology_model_router
+from odap.biz.core.ontology.design.engine.api.routes import router as ontology_engine_router
+from odap.biz.core.ontology.design.ingestion.api.routes import router as ingestion_router
+from odap.biz.core.ontology.design.version.api.routes import router as ontology_version_router
+from odap.biz.core.ontology.design.schema.semantic_layer.api.routes import router as semantic_layer_router
 from odap.biz.platform.tool_registry.api.routes import router as tool_registry_router
 from odap.biz.decision.decision_recommendation.api.routes import router as decision_recommendation_router
+from odap.biz.platform.undo.api.routes import router as undo_router
 from odap.infra.security.data_classification_routes import router as data_classification_router
+from odap.web.ws.routes import ws_router
+from odap.web.api.monitoring_routes import monitoring_router
 from odap.infra.security import security_config
 from odap.infra.openharness import create_harness
 from odap.infra.openharness.v2_adapter import initialize_openharness, get_openharness_integration
@@ -129,6 +133,8 @@ async def lifespan(app: FastAPI):
 
     yield
 
+    integration = get_openharness_integration()
+    await integration.shutdown()
     logger.info("应用关闭中...")
 
 
@@ -154,6 +160,9 @@ app.add_middleware(
 register_exception_handler(app)
 
 from odap.infra.middleware.audit_middleware import AuditMiddleware
+from odap.infra.middleware.performance_middleware import PerformanceMiddleware, GzipMiddleware
+app.add_middleware(GzipMiddleware)
+app.add_middleware(PerformanceMiddleware)
 app.add_middleware(AuditMiddleware)
 
 # 注册路由
@@ -211,10 +220,14 @@ app.include_router(i18n_router)
 app.include_router(ontology_model_router)
 app.include_router(ontology_engine_router)
 app.include_router(ingestion_router)
+app.include_router(ontology_version_router)
 app.include_router(data_classification_router)
 app.include_router(semantic_layer_router)
 app.include_router(tool_registry_router)
 app.include_router(decision_recommendation_router)
+app.include_router(undo_router)
+app.include_router(ws_router)
+app.include_router(monitoring_router)
 
 @app.get("/")
 async def root():
@@ -267,77 +280,4 @@ async def health_check():
         "version": "2.0.0"
     }
 
-# 添加性能监控端点
-from fastapi import APIRouter
-from odap.infra.monitoring import performance_monitor
 
-monitoring_router = APIRouter(prefix="/api/v1/monitoring", tags=["monitoring"])
-
-@monitoring_router.get("/performance")
-async def get_performance_metrics():
-    """获取性能监控指标"""
-    return performance_monitor.get_all_stats()
-
-@monitoring_router.post("/performance/reset")
-async def reset_performance_metrics():
-    """重置性能监控指标"""
-    performance_monitor.reset()
-    return {"message": "Performance metrics reset successfully"}
-
-app.include_router(monitoring_router)
-
-import asyncio
-from fastapi import WebSocket, WebSocketDisconnect
-
-@app.websocket("/ws/agent/decisions")
-async def agent_decisions_ws(websocket: WebSocket, workspace_id: Optional[str] = None):
-    from odap.web.ws.event_bus import get_event_bus
-    bus = get_event_bus()
-    await bus.connect(websocket, workspace_id)
-    try:
-        while True:
-            try:
-                raw = await asyncio.wait_for(websocket.receive_text(), timeout=30)
-                import json as _json
-                msg = _json.loads(raw) if raw else {}
-                msg_type = msg.get("type", "")
-                if msg_type == "ping":
-                    await websocket.send_text(_json.dumps({"type": "pong"}))
-                elif msg_type == "subscribe":
-                    pass
-            except asyncio.TimeoutError:
-                try:
-                    await websocket.send_text('{"type":"heartbeat"}')
-                except Exception:
-                    break
-    except WebSocketDisconnect:
-        pass
-    finally:
-        bus.disconnect(websocket, workspace_id)
-
-
-@app.websocket("/ws/simulation/progress")
-async def simulation_progress_ws(websocket: WebSocket, workspace_id: Optional[str] = None):
-    from odap.web.ws.event_bus import get_event_bus
-    bus = get_event_bus()
-    await bus.connect(websocket, workspace_id)
-    try:
-        while True:
-            try:
-                raw = await asyncio.wait_for(websocket.receive_text(), timeout=30)
-                import json as _json
-                msg = _json.loads(raw) if raw else {}
-                msg_type = msg.get("type", "")
-                if msg_type == "ping":
-                    await websocket.send_text(_json.dumps({"type": "pong"}))
-                elif msg_type == "subscribe":
-                    pass
-            except asyncio.TimeoutError:
-                try:
-                    await websocket.send_text('{"type":"heartbeat"}')
-                except Exception:
-                    break
-    except WebSocketDisconnect:
-        pass
-    finally:
-        bus.disconnect(websocket, workspace_id)

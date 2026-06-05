@@ -7,6 +7,7 @@
 - 新模式：SkillRegistry — 用于 BaseSkill 子类注册
 两个注册表保持同步。
 """
+import logging
 
 # 先定义全局技能目录（旧模式，保持向后兼容）
 SKILL_CATALOG = {}
@@ -22,6 +23,8 @@ from odap.tools.base import (
     get_registry,
 )
 
+logger = logging.getLogger(__name__)
+
 
 def register_skill(name, description, handler, category="legacy"):
     """
@@ -35,7 +38,7 @@ def register_skill(name, description, handler, category="legacy"):
         "category": category,
     }
     get_registry().register_legacy(name, description, handler, category=category)
-    print(f"技能注册成功: {name} - {description}")
+    logger.info(f'技能注册成功: {name} - {description}')
 
 
 # 暴露新 API

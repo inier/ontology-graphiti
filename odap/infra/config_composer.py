@@ -91,7 +91,13 @@ class ConfigurationComposer:
             "llm.temperature": ConfigSchema("llm.temperature", float, 0.7, min_val=0.0, max_val=2.0),
             "graphiti.url": ConfigSchema("graphiti.url", str, "http://localhost:8008", description="Graphiti 服务地址"),
             "opa.url": ConfigSchema("opa.url", str, "http://localhost:8181", description="OPA 服务地址"),
-            "jwt.secret": ConfigSchema("jwt.secret", str, "change-me", sensitive=True),
+            # P0-8 fix: jwt.secret MUST be required. No "change-me" default.
+            # Resolution: env var JWT_SECRET, then fail-closed.
+            "jwt.secret": ConfigSchema(
+                "jwt.secret", str, None,  # No default
+                required=True, sensitive=True,
+                description="JWT signing secret. MUST be set via JWT_SECRET env var.",
+            ),
             "jwt.algorithm": ConfigSchema("jwt.algorithm", str, "HS256", choices=["HS256", "RS256"]),
             "jwt.access_ttl": ConfigSchema("jwt.access_ttl", int, 900, description="Access Token TTL (秒)"),
             "jwt.refresh_ttl": ConfigSchema("jwt.refresh_ttl", int, 604800, description="Refresh Token TTL (秒)"),

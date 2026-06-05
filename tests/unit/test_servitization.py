@@ -46,12 +46,12 @@ def _make_service(**overrides):
 
 class TestSQLiteServitizationStorage:
     def test_init_db(self, tmp_path):
-        from odap.biz.core.ontology.servitization.storage.sqlite_servitization_storage import SQLiteServitizationStorage
+        from odap.biz.core.ontology.application.servitization.storage.sqlite_servitization_storage import SQLiteServitizationStorage
         storage = _make_storage(tmp_path, SQLiteServitizationStorage)
         assert os.path.exists(storage.db_path)
 
     def test_template_crud(self, tmp_path):
-        from odap.biz.core.ontology.servitization.storage.sqlite_servitization_storage import SQLiteServitizationStorage
+        from odap.biz.core.ontology.application.servitization.storage.sqlite_servitization_storage import SQLiteServitizationStorage
         storage = _make_storage(tmp_path, SQLiteServitizationStorage)
         template = _make_template(template_id="tpl-test-001")
         saved = storage.save_template(template)
@@ -74,7 +74,7 @@ class TestSQLiteServitizationStorage:
         assert storage.get_template("tpl-test-001") is None
 
     def test_service_crud(self, tmp_path):
-        from odap.biz.core.ontology.servitization.storage.sqlite_servitization_storage import SQLiteServitizationStorage
+        from odap.biz.core.ontology.application.servitization.storage.sqlite_servitization_storage import SQLiteServitizationStorage
         storage = _make_storage(tmp_path, SQLiteServitizationStorage)
         service = _make_service(service_id="svc-test-001")
         saved = storage.save_service(service)
@@ -100,7 +100,7 @@ class TestSQLiteServitizationStorage:
         assert storage.get_service("svc-test-001") is None
 
     def test_deployment_crud(self, tmp_path):
-        from odap.biz.core.ontology.servitization.storage.sqlite_servitization_storage import SQLiteServitizationStorage
+        from odap.biz.core.ontology.application.servitization.storage.sqlite_servitization_storage import SQLiteServitizationStorage
         storage = _make_storage(tmp_path, SQLiteServitizationStorage)
         deployment = {
             "deployment_id": "dpl-test-001",
@@ -133,7 +133,7 @@ class TestSQLiteServitizationStorage:
         assert storage.delete_deployment("dpl-test-001") is False
 
     def test_json_fields_serialization(self, tmp_path):
-        from odap.biz.core.ontology.servitization.storage.sqlite_servitization_storage import SQLiteServitizationStorage
+        from odap.biz.core.ontology.application.servitization.storage.sqlite_servitization_storage import SQLiteServitizationStorage
         storage = _make_storage(tmp_path, SQLiteServitizationStorage)
         template = _make_template(
             template_id="tpl-json-001",
@@ -148,7 +148,7 @@ class TestSQLiteServitizationStorage:
         assert fetched["output_schema"]["type"] == "array"
 
     def test_get_nonexistent(self, tmp_path):
-        from odap.biz.core.ontology.servitization.storage.sqlite_servitization_storage import SQLiteServitizationStorage
+        from odap.biz.core.ontology.application.servitization.storage.sqlite_servitization_storage import SQLiteServitizationStorage
         storage = _make_storage(tmp_path, SQLiteServitizationStorage)
         assert storage.get_template("nonexistent") is None
         assert storage.get_service("nonexistent") is None
@@ -157,14 +157,14 @@ class TestSQLiteServitizationStorage:
 
 class TestServitizationModels:
     def test_service_type_enum(self):
-        from odap.biz.core.ontology.servitization.models import ServiceType
+        from odap.biz.core.ontology.application.servitization.models import ServiceType
         assert ServiceType.SKILL.value == "skill"
         assert ServiceType.MCP_TOOL.value == "mcp_tool"
         assert ServiceType.REST_API.value == "rest_api"
         assert ServiceType.GRAPHQL.value == "graphql"
 
     def test_generation_status_enum(self):
-        from odap.biz.core.ontology.servitization.models import GenerationStatus
+        from odap.biz.core.ontology.application.servitization.models import GenerationStatus
         assert GenerationStatus.PENDING.value == "pending"
         assert GenerationStatus.GENERATING.value == "generating"
         assert GenerationStatus.COMPLETED.value == "completed"
@@ -172,7 +172,7 @@ class TestServitizationModels:
         assert GenerationStatus.DEPLOYED.value == "deployed"
 
     def test_skill_template_defaults(self):
-        from odap.biz.core.ontology.servitization.models import SkillTemplate, ServiceType
+        from odap.biz.core.ontology.application.servitization.models import SkillTemplate, ServiceType
         tpl = SkillTemplate(name="test")
         assert tpl.name == "test"
         assert tpl.service_type == ServiceType.SKILL
@@ -182,7 +182,7 @@ class TestServitizationModels:
         assert tpl.template_id.startswith("tpl-")
 
     def test_generated_service_defaults(self):
-        from odap.biz.core.ontology.servitization.models import GeneratedService, GenerationStatus
+        from odap.biz.core.ontology.application.servitization.models import GeneratedService, GenerationStatus
         svc = GeneratedService(name="test")
         assert svc.name == "test"
         assert svc.status == GenerationStatus.PENDING
@@ -191,7 +191,7 @@ class TestServitizationModels:
         assert svc.service_id.startswith("svc-")
 
     def test_service_deployment_defaults(self):
-        from odap.biz.core.ontology.servitization.models import ServiceDeployment
+        from odap.biz.core.ontology.application.servitization.models import ServiceDeployment
         dpl = ServiceDeployment(service_id="svc-001", endpoint_url="http://test")
         assert dpl.is_active is True
         assert dpl.health_status == "unknown"
@@ -199,15 +199,15 @@ class TestServitizationModels:
         assert dpl.deployment_id.startswith("dpl-")
 
     def test_enum_str_inheritance(self):
-        from odap.biz.core.ontology.servitization.models import ServiceType, GenerationStatus
+        from odap.biz.core.ontology.application.servitization.models import ServiceType, GenerationStatus
         assert isinstance(ServiceType.SKILL, str)
         assert isinstance(GenerationStatus.PENDING, str)
 
 
 class TestKnowledgeServitizationEngine:
     def test_create_template(self, tmp_path):
-        from odap.biz.core.ontology.servitization.impl.servitization_engine import KnowledgeServitizationEngine
-        from odap.biz.core.ontology.servitization.storage.sqlite_servitization_storage import SQLiteServitizationStorage
+        from odap.biz.core.ontology.application.servitization.impl.servitization_engine import KnowledgeServitizationEngine
+        from odap.biz.core.ontology.application.servitization.storage.sqlite_servitization_storage import SQLiteServitizationStorage
         storage = _make_storage(tmp_path, SQLiteServitizationStorage)
         engine = KnowledgeServitizationEngine(storage)
 
@@ -216,8 +216,8 @@ class TestKnowledgeServitizationEngine:
         assert result["service_type"] == "skill"
 
     def test_list_templates(self, tmp_path):
-        from odap.biz.core.ontology.servitization.impl.servitization_engine import KnowledgeServitizationEngine
-        from odap.biz.core.ontology.servitization.storage.sqlite_servitization_storage import SQLiteServitizationStorage
+        from odap.biz.core.ontology.application.servitization.impl.servitization_engine import KnowledgeServitizationEngine
+        from odap.biz.core.ontology.application.servitization.storage.sqlite_servitization_storage import SQLiteServitizationStorage
         storage = _make_storage(tmp_path, SQLiteServitizationStorage)
         engine = KnowledgeServitizationEngine(storage)
 
@@ -231,8 +231,8 @@ class TestKnowledgeServitizationEngine:
         assert len(skill_templates) == 1
 
     def test_generate_service(self, tmp_path):
-        from odap.biz.core.ontology.servitization.impl.servitization_engine import KnowledgeServitizationEngine
-        from odap.biz.core.ontology.servitization.storage.sqlite_servitization_storage import SQLiteServitizationStorage
+        from odap.biz.core.ontology.application.servitization.impl.servitization_engine import KnowledgeServitizationEngine
+        from odap.biz.core.ontology.application.servitization.storage.sqlite_servitization_storage import SQLiteServitizationStorage
         storage = _make_storage(tmp_path, SQLiteServitizationStorage)
         engine = KnowledgeServitizationEngine(storage)
 
@@ -244,8 +244,8 @@ class TestKnowledgeServitizationEngine:
         assert "MyService" in result["code"]
 
     def test_generate_service_template_not_found(self, tmp_path):
-        from odap.biz.core.ontology.servitization.impl.servitization_engine import KnowledgeServitizationEngine
-        from odap.biz.core.ontology.servitization.storage.sqlite_servitization_storage import SQLiteServitizationStorage
+        from odap.biz.core.ontology.application.servitization.impl.servitization_engine import KnowledgeServitizationEngine
+        from odap.biz.core.ontology.application.servitization.storage.sqlite_servitization_storage import SQLiteServitizationStorage
         storage = _make_storage(tmp_path, SQLiteServitizationStorage)
         engine = KnowledgeServitizationEngine(storage)
 
@@ -253,8 +253,8 @@ class TestKnowledgeServitizationEngine:
             engine.generate_service("nonexistent", {})
 
     def test_deploy_and_undeploy(self, tmp_path):
-        from odap.biz.core.ontology.servitization.impl.servitization_engine import KnowledgeServitizationEngine
-        from odap.biz.core.ontology.servitization.storage.sqlite_servitization_storage import SQLiteServitizationStorage
+        from odap.biz.core.ontology.application.servitization.impl.servitization_engine import KnowledgeServitizationEngine
+        from odap.biz.core.ontology.application.servitization.storage.sqlite_servitization_storage import SQLiteServitizationStorage
         storage = _make_storage(tmp_path, SQLiteServitizationStorage)
         engine = KnowledgeServitizationEngine(storage)
 
@@ -272,8 +272,8 @@ class TestKnowledgeServitizationEngine:
         assert undeploy_result["status"] == "undeployed"
 
     def test_deploy_already_deployed(self, tmp_path):
-        from odap.biz.core.ontology.servitization.impl.servitization_engine import KnowledgeServitizationEngine
-        from odap.biz.core.ontology.servitization.storage.sqlite_servitization_storage import SQLiteServitizationStorage
+        from odap.biz.core.ontology.application.servitization.impl.servitization_engine import KnowledgeServitizationEngine
+        from odap.biz.core.ontology.application.servitization.storage.sqlite_servitization_storage import SQLiteServitizationStorage
         storage = _make_storage(tmp_path, SQLiteServitizationStorage)
         engine = KnowledgeServitizationEngine(storage)
 
@@ -285,8 +285,8 @@ class TestKnowledgeServitizationEngine:
         assert result["status"] == "error"
 
     def test_deploy_nonexistent(self, tmp_path):
-        from odap.biz.core.ontology.servitization.impl.servitization_engine import KnowledgeServitizationEngine
-        from odap.biz.core.ontology.servitization.storage.sqlite_servitization_storage import SQLiteServitizationStorage
+        from odap.biz.core.ontology.application.servitization.impl.servitization_engine import KnowledgeServitizationEngine
+        from odap.biz.core.ontology.application.servitization.storage.sqlite_servitization_storage import SQLiteServitizationStorage
         storage = _make_storage(tmp_path, SQLiteServitizationStorage)
         engine = KnowledgeServitizationEngine(storage)
 
@@ -294,8 +294,8 @@ class TestKnowledgeServitizationEngine:
             engine.deploy_service("nonexistent")
 
     def test_undeploy_no_deployment(self, tmp_path):
-        from odap.biz.core.ontology.servitization.impl.servitization_engine import KnowledgeServitizationEngine
-        from odap.biz.core.ontology.servitization.storage.sqlite_servitization_storage import SQLiteServitizationStorage
+        from odap.biz.core.ontology.application.servitization.impl.servitization_engine import KnowledgeServitizationEngine
+        from odap.biz.core.ontology.application.servitization.storage.sqlite_servitization_storage import SQLiteServitizationStorage
         storage = _make_storage(tmp_path, SQLiteServitizationStorage)
         engine = KnowledgeServitizationEngine(storage)
 
@@ -303,8 +303,8 @@ class TestKnowledgeServitizationEngine:
             engine.undeploy_service("nonexistent")
 
     def test_get_and_list_services(self, tmp_path):
-        from odap.biz.core.ontology.servitization.impl.servitization_engine import KnowledgeServitizationEngine
-        from odap.biz.core.ontology.servitization.storage.sqlite_servitization_storage import SQLiteServitizationStorage
+        from odap.biz.core.ontology.application.servitization.impl.servitization_engine import KnowledgeServitizationEngine
+        from odap.biz.core.ontology.application.servitization.storage.sqlite_servitization_storage import SQLiteServitizationStorage
         storage = _make_storage(tmp_path, SQLiteServitizationStorage)
         engine = KnowledgeServitizationEngine(storage)
 
@@ -323,8 +323,8 @@ class TestKnowledgeServitizationEngine:
 
 class TestKnowledgeServitizationService:
     def test_create_template(self, tmp_path):
-        from odap.biz.core.ontology.servitization.services.servitization_service import KnowledgeServitizationService
-        from odap.biz.core.ontology.servitization.storage.sqlite_servitization_storage import SQLiteServitizationStorage
+        from odap.biz.core.ontology.application.servitization.services.servitization_service import KnowledgeServitizationService
+        from odap.biz.core.ontology.application.servitization.storage.sqlite_servitization_storage import SQLiteServitizationStorage
         storage = _make_storage(tmp_path, SQLiteServitizationStorage)
         service = KnowledgeServitizationService(storage=storage)
 
@@ -332,8 +332,8 @@ class TestKnowledgeServitizationService:
         assert "template_id" in result
 
     def test_list_templates(self, tmp_path):
-        from odap.biz.core.ontology.servitization.services.servitization_service import KnowledgeServitizationService
-        from odap.biz.core.ontology.servitization.storage.sqlite_servitization_storage import SQLiteServitizationStorage
+        from odap.biz.core.ontology.application.servitization.services.servitization_service import KnowledgeServitizationService
+        from odap.biz.core.ontology.application.servitization.storage.sqlite_servitization_storage import SQLiteServitizationStorage
         storage = _make_storage(tmp_path, SQLiteServitizationStorage)
         service = KnowledgeServitizationService(storage=storage)
 
@@ -343,8 +343,8 @@ class TestKnowledgeServitizationService:
         assert "templates" in result
 
     def test_generate_service_error(self, tmp_path):
-        from odap.biz.core.ontology.servitization.services.servitization_service import KnowledgeServitizationService
-        from odap.biz.core.ontology.servitization.storage.sqlite_servitization_storage import SQLiteServitizationStorage
+        from odap.biz.core.ontology.application.servitization.services.servitization_service import KnowledgeServitizationService
+        from odap.biz.core.ontology.application.servitization.storage.sqlite_servitization_storage import SQLiteServitizationStorage
         storage = _make_storage(tmp_path, SQLiteServitizationStorage)
         service = KnowledgeServitizationService(storage=storage)
 
@@ -352,8 +352,8 @@ class TestKnowledgeServitizationService:
         assert result["status"] == "error"
 
     def test_get_service_not_found(self, tmp_path):
-        from odap.biz.core.ontology.servitization.services.servitization_service import KnowledgeServitizationService
-        from odap.biz.core.ontology.servitization.storage.sqlite_servitization_storage import SQLiteServitizationStorage
+        from odap.biz.core.ontology.application.servitization.services.servitization_service import KnowledgeServitizationService
+        from odap.biz.core.ontology.application.servitization.storage.sqlite_servitization_storage import SQLiteServitizationStorage
         storage = _make_storage(tmp_path, SQLiteServitizationStorage)
         service = KnowledgeServitizationService(storage=storage)
 
@@ -361,8 +361,8 @@ class TestKnowledgeServitizationService:
         assert result["status"] == "error"
 
     def test_list_services(self, tmp_path):
-        from odap.biz.core.ontology.servitization.services.servitization_service import KnowledgeServitizationService
-        from odap.biz.core.ontology.servitization.storage.sqlite_servitization_storage import SQLiteServitizationStorage
+        from odap.biz.core.ontology.application.servitization.services.servitization_service import KnowledgeServitizationService
+        from odap.biz.core.ontology.application.servitization.storage.sqlite_servitization_storage import SQLiteServitizationStorage
         storage = _make_storage(tmp_path, SQLiteServitizationStorage)
         service = KnowledgeServitizationService(storage=storage)
 
@@ -371,8 +371,8 @@ class TestKnowledgeServitizationService:
         assert "count" in result
 
     def test_deploy_service_error(self, tmp_path):
-        from odap.biz.core.ontology.servitization.services.servitization_service import KnowledgeServitizationService
-        from odap.biz.core.ontology.servitization.storage.sqlite_servitization_storage import SQLiteServitizationStorage
+        from odap.biz.core.ontology.application.servitization.services.servitization_service import KnowledgeServitizationService
+        from odap.biz.core.ontology.application.servitization.storage.sqlite_servitization_storage import SQLiteServitizationStorage
         storage = _make_storage(tmp_path, SQLiteServitizationStorage)
         service = KnowledgeServitizationService(storage=storage)
 
@@ -380,8 +380,8 @@ class TestKnowledgeServitizationService:
         assert result["status"] == "error"
 
     def test_undeploy_service_error(self, tmp_path):
-        from odap.biz.core.ontology.servitization.services.servitization_service import KnowledgeServitizationService
-        from odap.biz.core.ontology.servitization.storage.sqlite_servitization_storage import SQLiteServitizationStorage
+        from odap.biz.core.ontology.application.servitization.services.servitization_service import KnowledgeServitizationService
+        from odap.biz.core.ontology.application.servitization.storage.sqlite_servitization_storage import SQLiteServitizationStorage
         storage = _make_storage(tmp_path, SQLiteServitizationStorage)
         service = KnowledgeServitizationService(storage=storage)
 
@@ -389,8 +389,8 @@ class TestKnowledgeServitizationService:
         assert result["status"] == "error"
 
     def test_full_workflow(self, tmp_path):
-        from odap.biz.core.ontology.servitization.services.servitization_service import KnowledgeServitizationService
-        from odap.biz.core.ontology.servitization.storage.sqlite_servitization_storage import SQLiteServitizationStorage
+        from odap.biz.core.ontology.application.servitization.services.servitization_service import KnowledgeServitizationService
+        from odap.biz.core.ontology.application.servitization.storage.sqlite_servitization_storage import SQLiteServitizationStorage
         storage = _make_storage(tmp_path, SQLiteServitizationStorage)
         service = KnowledgeServitizationService(storage=storage)
 
@@ -413,9 +413,9 @@ class TestKnowledgeServitizationService:
         assert undeploy_result["status"] == "undeployed"
 
     def test_singleton(self, tmp_path):
-        from odap.biz.core.ontology.servitization.services.servitization_service import KnowledgeServitizationService
+        from odap.biz.core.ontology.application.servitization.services.servitization_service import KnowledgeServitizationService
         KnowledgeServitizationService._instance = None
-        from odap.biz.core.ontology.servitization.services import get_servitization_service
+        from odap.biz.core.ontology.application.servitization.services import get_servitization_service
         s1 = get_servitization_service()
         s2 = get_servitization_service()
         assert s1 is s2
@@ -424,24 +424,24 @@ class TestKnowledgeServitizationService:
 
 class TestServitizationSchemas:
     def test_create_template_request(self):
-        from odap.biz.core.ontology.servitization.api.schemas import CreateTemplateRequest
+        from odap.biz.core.ontology.application.servitization.api.schemas import CreateTemplateRequest
         req = CreateTemplateRequest(name="Test")
         assert req.name == "Test"
         assert req.service_type.value == "skill"
 
     def test_generate_service_request(self):
-        from odap.biz.core.ontology.servitization.api.schemas import GenerateServiceRequest
+        from odap.biz.core.ontology.application.servitization.api.schemas import GenerateServiceRequest
         req = GenerateServiceRequest(template_id="tpl-001")
         assert req.template_id == "tpl-001"
         assert req.source_ontology_id == ""
 
     def test_deploy_service_request(self):
-        from odap.biz.core.ontology.servitization.api.schemas import DeployServiceRequest
+        from odap.biz.core.ontology.application.servitization.api.schemas import DeployServiceRequest
         req = DeployServiceRequest(service_id="svc-001")
         assert req.service_id == "svc-001"
 
     def test_generate_from_ontology_request(self):
-        from odap.biz.core.ontology.servitization.api.schemas import GenerateFromOntologyRequest
+        from odap.biz.core.ontology.application.servitization.api.schemas import GenerateFromOntologyRequest
         req = GenerateFromOntologyRequest(ontology_id="ont-001")
         assert req.ontology_id == "ont-001"
         assert req.service_type.value == "skill"

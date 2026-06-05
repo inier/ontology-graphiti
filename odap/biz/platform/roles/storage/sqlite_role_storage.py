@@ -116,7 +116,7 @@ class SQLiteRoleStorage:
             return None
         try:
             return json.loads(data)
-        except:
+        except (json.JSONDecodeError, ValueError):
             return None
     
     def _init_default_permissions(self):

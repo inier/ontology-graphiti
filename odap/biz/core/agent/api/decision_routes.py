@@ -1,4 +1,5 @@
-from fastapi import APIRouter, HTTPException, Query
+from fastapi import APIRouter, HTTPException, Query, Depends
+from odap.infra.security.jwt_auth import get_current_user
 from typing import Dict, Any, Optional
 
 from odap.biz.core.agent.services.decision_service import DecisionService
@@ -10,7 +11,7 @@ decision_service = DecisionService()
 
 
 @router.get("/{decision_id}")
-async def get_decision(decision_id: str) -> Dict[str, Any]:
+async def get_decision(decision_id: str, user=Depends(get_current_user)) -> Dict[str, Any]:
     try:
         result = decision_service.get_decision(decision_id)
         if result.get("status") == "error":
@@ -23,7 +24,7 @@ async def get_decision(decision_id: str) -> Dict[str, Any]:
 
 
 @router.get("/{decision_id}/chain")
-async def get_decision_chain(decision_id: str) -> Dict[str, Any]:
+async def get_decision_chain(decision_id: str, user=Depends(get_current_user)) -> Dict[str, Any]:
     try:
         result = decision_service.get_decision_chain(decision_id)
         if result.get("status") == "error":
@@ -40,6 +41,7 @@ async def list_decisions(
     workspace_id: Optional[str] = None,
     page: int = Query(1, ge=1),
     page_size: int = Query(10, ge=1, le=100),
+    user=Depends(get_current_user),
 ) -> Dict[str, Any]:
     try:
         return decision_service.list_decisions(workspace_id=workspace_id, page=page, page_size=page_size)
@@ -54,6 +56,7 @@ async def create_decision(
     task_id: str = "",
     workspace_id: Optional[str] = None,
     reasoning: str = "",
+    user=Depends(get_current_user),
 ) -> Dict[str, Any]:
     try:
         return decision_service.create_decision(
@@ -72,6 +75,7 @@ async def record_decision_step(
     decision_id: str,
     phase: str,
     description: str = "",
+    user=Depends(get_current_user),
 ) -> Dict[str, Any]:
     try:
         result = decision_service.record_step(

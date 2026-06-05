@@ -1,79 +1,27 @@
 from typing import Dict, Any, List, Optional
 
-from fastapi import APIRouter, HTTPException, Query
-from pydantic import BaseModel, Field
+from fastapi import APIRouter, HTTPException, Query, Depends
+from odap.infra.security.jwt_auth import get_current_user
 
+from odap.biz.core.cognition.api.schemas import (
+    RecognizeIntentRequest,
+    RecognizeIntentResponse,
+    NavigateRequest,
+    NavigateResponse,
+    ExplainRequest,
+    ExplainResponse,
+    RoleViewResponse,
+    UpdateRoleViewRequest,
+)
 from odap.biz.core.cognition.services.cognition_service import get_cognition_service
-
-
-class RecognizeIntentRequest(BaseModel):
-    input_text: str
-    role: str = "guest"
-    ontology_facts: List[str] = Field(default_factory=list)
-
-
-class RecognizeIntentResponse(BaseModel):
-    intent_id: Optional[str] = None
-    primary_intent: Optional[str] = None
-    confidence: float = 0.0
-    entities: List[str] = Field(default_factory=list)
-    attributes: Dict[str, Any] = Field(default_factory=dict)
-    alternative_intents: List[str] = Field(default_factory=list)
-
-
-class NavigateRequest(BaseModel):
-    entity_id: str
-    direction: str = "outbound"
-    depth: int = 1
-
-
-class NavigateResponse(BaseModel):
-    navigation_id: Optional[str] = None
-    entity_id: str = ""
-    navigation_path: List[str] = Field(default_factory=list)
-    related_entities: List[Dict[str, Any]] = Field(default_factory=list)
-    entity_context: Dict[str, Any] = Field(default_factory=dict)
-
-
-class ExplainRequest(BaseModel):
-    decision_id: str
-    context: Dict[str, Any] = Field(default_factory=dict)
-
-
-class ExplainResponse(BaseModel):
-    explanation_id: Optional[str] = None
-    decision_id: str = ""
-    query: str = ""
-    answer: str = ""
-    confidence: float = 0.0
-    reasoning_chain: List[Dict[str, Any]] = Field(default_factory=list)
-    sources: List[str] = Field(default_factory=list)
-
-
-class RoleViewResponse(BaseModel):
-    view_id: Optional[str] = None
-    role: Optional[str] = None
-    name: Optional[str] = None
-    description: Optional[str] = None
-    capabilities: List[str] = Field(default_factory=list)
-    layout_config: Dict[str, Any] = Field(default_factory=dict)
-    filters: Dict[str, Any] = Field(default_factory=dict)
-
-
-class UpdateRoleViewRequest(BaseModel):
-    role: str
-    capabilities: List[str] = Field(default_factory=list)
-    layout_config: Dict[str, Any] = Field(default_factory=dict)
-    filters: Dict[str, Any] = Field(default_factory=dict)
-    name: Optional[str] = None
-    description: Optional[str] = None
 
 
 router = APIRouter(prefix="/api/cognition", tags=["cognition"])
 
 
 @router.post("/recognize-intent", response_model=RecognizeIntentResponse)
-async def recognize_intent(request: RecognizeIntentRequest):
+async def recognize_intent(request: RecognizeIntentRequest,
+    user=Depends(get_current_user)):
     if not request.input_text:
         raise HTTPException(status_code=400, detail="input_text cannot be empty")
     try:
@@ -98,7 +46,8 @@ async def recognize_intent(request: RecognizeIntentRequest):
 
 
 @router.post("/navigate", response_model=NavigateResponse)
-async def navigate_knowledge(request: NavigateRequest):
+async def navigate_knowledge(request: NavigateRequest,
+    user=Depends(get_current_user)):
     if not request.entity_id:
         raise HTTPException(status_code=400, detail="entity_id cannot be empty")
     try:
@@ -120,7 +69,8 @@ async def navigate_knowledge(request: NavigateRequest):
 
 
 @router.post("/explain", response_model=ExplainResponse)
-async def explain_decision(request: ExplainRequest):
+async def explain_decision(request: ExplainRequest,
+    user=Depends(get_current_user)):
     if not request.decision_id:
         raise HTTPException(status_code=400, detail="decision_id cannot be empty")
     try:
@@ -144,7 +94,8 @@ async def explain_decision(request: ExplainRequest):
 
 
 @router.get("/role-view", response_model=RoleViewResponse)
-async def get_role_view(role: str = Query(...)):
+async def get_role_view(role: str = Query(...),
+    user=Depends(get_current_user)):
     try:
         service = get_cognition_service()
         result = service.get_role_view(role)
@@ -166,7 +117,8 @@ async def get_role_view(role: str = Query(...)):
 
 
 @router.put("/role-view", response_model=RoleViewResponse)
-async def update_role_view(request: UpdateRoleViewRequest):
+async def update_role_view(request: UpdateRoleViewRequest,
+    user=Depends(get_current_user)):
     try:
         service = get_cognition_service()
         config = {

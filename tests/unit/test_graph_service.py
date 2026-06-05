@@ -10,9 +10,11 @@ from odap.infra.graph.graph_service import GraphManager
 
 @pytest.fixture(autouse=True)
 def reset_graph_manager_singleton():
+    GraphManager._test_mode = True
     yield
     GraphManager._instance = None
     GraphManager._initialized = False
+    GraphManager._test_mode = False
 
 
 @pytest.fixture
@@ -42,6 +44,12 @@ def graph_manager():
         gm.query_times = []
         gm.cache_hits = 0
         gm.cache_misses = 0
+        gm._query_cache = {}
+        gm._query_cache_timestamps = {}
+        gm._cache_max_size = 256
+        gm._cache_ttl = 300
+        gm._temporal_index = {}
+        gm._temporal_index_built = False
         import networkx as nx
         gm.fallback_graph = nx.DiGraph()
         GraphManager._instance = gm

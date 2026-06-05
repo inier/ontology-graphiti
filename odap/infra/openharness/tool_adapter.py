@@ -18,6 +18,10 @@ import sys
 import time
 from typing import Any, Dict, List, Optional
 
+
+import logging
+
+logger = logging.getLogger(__name__)
 # 首先处理项目根目录
 ODAP_INFRA_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 sys.path.append(ODAP_INFRA_DIR)
@@ -32,7 +36,7 @@ OPENHARNESS_POSSIBLE_PATHS = [
 for possible_path in OPENHARNESS_POSSIBLE_PATHS:
     if os.path.exists(possible_path) and possible_path not in sys.path:
         sys.path.insert(0, possible_path)
-        print(f"Added openharness source path: {possible_path}")
+        logger.info(f'Added openharness source path: {possible_path}')
 
 # OpenHarness（可选）
 try:
@@ -42,7 +46,7 @@ try:
         from openharness.engine.query_engine import QueryEngine as Harness
         from openharness.api.client import AnthropicApiClient
         Observation = None
-        print("✓ OpenHarness v2 导入成功 (engine + tools)")
+        logger.info('✓ OpenHarness v2 导入成功 (engine + tools)')
         OPENHARNESS_AVAILABLE = True
         OPENHARNESS_VERSION = 2
     except ImportError:
@@ -50,25 +54,25 @@ try:
         try:
             from openharness.tools.base import BaseTool as Tool
             from openharness.core.harness import Harness, Observation
-            print("✓ OpenHarness v1 (core.harness) 导入成功")
+            logger.info('✓ OpenHarness v1 (core.harness) 导入成功')
             OPENHARNESS_AVAILABLE = True
             OPENHARNESS_VERSION = 1
         except ImportError:
             try:
                 from openharness_ai.tools.tool import Tool
                 from openharness_ai.core.harness import Harness, Observation
-                print("✓ OpenHarness v1 (openharness_ai) 导入成功")
+                logger.info('✓ OpenHarness v1 (openharness_ai) 导入成功')
                 OPENHARNESS_AVAILABLE = True
                 OPENHARNESS_VERSION = 1
             except ImportError:
-                print("OpenHarness 未安装，使用模拟模式")
+                logger.info('OpenHarness 未安装，使用模拟模式')
                 OPENHARNESS_AVAILABLE = False
                 OPENHARNESS_VERSION = 0
                 Tool = object  # type: ignore
                 Harness = object  # type: ignore
                 Observation = None  # type: ignore
 except Exception as e:
-    print(f"⚠ OpenHarness 导入失败: {e}")
+    logger.info(f'⚠ OpenHarness 导入失败: {e}')
     OPENHARNESS_AVAILABLE = False
     OPENHARNESS_VERSION = 0
     Tool = object  # type: ignore
@@ -280,9 +284,9 @@ class DomainHarness:
                 model=model,
                 system_prompt=f"你是领域情报分析助手，当前角色: {self.user_role}",
             )
-            print(f"✓ OpenHarness v2 QueryEngine 初始化成功, {len(self._tool_list)} 个工具")
+            logger.info(f'✓ OpenHarness v2 QueryEngine 初始化成功, {len(self._tool_list)} 个工具')
         except Exception as e:
-            print(f"⚠ OpenHarness v2 QueryEngine 初始化失败: {e}")
+            logger.info(f'⚠ OpenHarness v2 QueryEngine 初始化失败: {e}')
             self._query_engine = None
 
     @property
@@ -304,7 +308,7 @@ class DomainHarness:
                 )
                 tools.append(adapter)
         except Exception as e:
-            print(f"构建 OpenHarness 工具列表失败: {e}")
+            logger.info(f'构建 OpenHarness 工具列表失败: {e}')
 
         return tools
 
@@ -420,15 +424,15 @@ def create_harness(user_role: str = "intelligence_analyst") -> Optional['DomainH
         DomainHarness 或 None（OpenHarness 不可用时）
     """
     if not OPENHARNESS_AVAILABLE:
-        print("OpenHarness 未安装，使用模拟模式")
+        logger.info('OpenHarness 未安装，使用模拟模式')
         return None
 
     try:
         harness = DomainHarness(user_role=user_role)
-        print(f"DomainHarness 初始化成功: {len(harness.tools)} 个工具")
+        logger.info(f'DomainHarness 初始化成功: {len(harness.tools)} 个工具')
         return harness
     except Exception as e:
-        print(f"DomainHarness 初始化失败: {e}")
+        logger.info(f'DomainHarness 初始化失败: {e}')
         return None
 
 
@@ -460,28 +464,30 @@ def export_tool_schemas() -> List[Dict]:
             for name, entry in SKILL_CATALOG.items()
         ]
     except Exception as e:
-        print(f"导出工具 schema 失败: {e}")
+        logger.info(f'导出工具 schema 失败: {e}')
         return []
 
 
 if __name__ == "__main__":
-    print(f"OpenHarness 可用: {OPENHARNESS_AVAILABLE}")
+    logger.info(f'OpenHarness 可用: {OPENHARNESS_AVAILABLE}')
 
     # 创建 Harness
     harness = create_harness(user_role="commander")
     if harness:
-        print(f"\n可用工具 ({len(harness.list_available_tools())}):")
+        logger.info(f'\n可用工具 ({len(harness.list_available_tools())}):')
         for t in harness.list_available_tools()[:5]:
-            print(f"  - [{t['category']}] {t['name']}: {t['description']}")
-        print(f"  ... 共 {len(harness.list_available_tools())} 个")
+            logger.info(f"  - [{t['category']}] {t['name']}: {t['description']}")
+        logger.info(f'  ... 共 {len(harness.list_available_tools())} 个')
 
         # 导出 OpenAI schemas
         schemas = export_tool_schemas()
-        print(f"\n导出 {len(schemas)} 个 OpenAI function schemas")
+        logger.info(f'\n导出 {len(schemas)} 个 OpenAI function schemas')
     else:
-        print("使用 fallback 模式，尝试直接列出 skills:")
+        logger.info('使用 fallback 模式，尝试直接列出 skills:')
         try:
             from odap.tools import SKILL_CATALOG
-            print(f"共 {len(SKILL_CATALOG)} 个 skill 注册")
+
+
+            logger.info(f'共 {len(SKILL_CATALOG)} 个 skill 注册')
         except Exception as e:
-            print(f"Skill 加载失败: {e}")
+            logger.info(f'Skill 加载失败: {e}')

@@ -1,4 +1,5 @@
-from fastapi import APIRouter, HTTPException
+from fastapi import APIRouter, HTTPException, Depends
+from odap.infra.security.jwt_auth import get_current_user
 
 from .schemas import (
     AutoTranslateRequest,
@@ -22,8 +23,8 @@ async def get_translations(
     module: str = None,
     locale: str = None,
     page: int = 1,
-    page_size: int = 50,
-):
+    page_size: int = 50,,
+    user=Depends(get_current_user)):
     try:
         result = i18n_service.get_translations(module=module, locale=locale)
         return TranslationListResponse(
@@ -39,7 +40,8 @@ async def get_translations(
 
 
 @router.post("/translations", response_model=TranslationResponse)
-async def save_translation(request: TranslationRequest):
+async def save_translation(request: TranslationRequest,
+    user=Depends(get_current_user)):
     try:
         result = i18n_service.save_translation(
             key=request.key,
@@ -55,7 +57,8 @@ async def save_translation(request: TranslationRequest):
 
 
 @router.post("/translations/auto-translate", response_model=AutoTranslateResponse)
-async def auto_translate(request: AutoTranslateRequest):
+async def auto_translate(request: AutoTranslateRequest,
+    user=Depends(get_current_user)):
     try:
         result = i18n_service.auto_translate(
             module=request.module,
@@ -77,7 +80,7 @@ async def auto_translate(request: AutoTranslateRequest):
 
 
 @router.get("/modules", response_model=ModuleListResponse)
-async def list_modules():
+async def list_modules(user=Depends(get_current_user)):
     try:
         result = i18n_service.list_modules()
         return ModuleListResponse(
@@ -91,7 +94,7 @@ async def list_modules():
 
 
 @router.get("/locales", response_model=LocaleListResponse)
-async def list_locales():
+async def list_locales(user=Depends(get_current_user)):
     try:
         result = i18n_service.list_locales()
         return LocaleListResponse(

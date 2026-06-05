@@ -499,3 +499,108 @@ class TestPipelineStagesTracking:
 
         assert result.decision.recommended_option is None
         assert result.stages["perform"] == PipelineStageStatus.SKIPPED
+
+
+class TestDecisionPipelineSingleton:
+    def test_get_decision_pipeline_returns_instance(self):
+        """get_decision_pipeline 返回单例实例"""
+        from odap.biz.decision.decision_pipeline.pipeline import get_decision_pipeline, DecisionPipeline
+        # Reset singleton for test
+        import odap.biz.decision.decision_pipeline.pipeline as mod
+        mod._pipeline_instance = None
+        pipeline = get_decision_pipeline()
+        assert isinstance(pipeline, DecisionPipeline)
+
+    def test_get_decision_pipeline_returns_same_instance(self):
+        """多次调用返回同一实例"""
+        from odap.biz.decision.decision_pipeline.pipeline import get_decision_pipeline
+        import odap.biz.decision.decision_pipeline.pipeline as mod
+        mod._pipeline_instance = None
+        p1 = get_decision_pipeline()
+        p2 = get_decision_pipeline()
+        assert p1 is p2
+
+
+class TestDecisionPipelineAnalyze:
+    @pytest.mark.asyncio
+    async def test_analyze_extracts_entity_links(self):
+        """分析阶段提取实体关联链接"""
+        from odap.biz.decision.decision_pipeline.pipeline import DecisionPipeline
+        from odap.biz.decision.decision_pipeline.schemas import AnalysisInput
+
+        pipeline = DecisionPipeline()
+        mock_retriever = AsyncMock()
+        mock_retriever.retrieve = AsyncMock(return_value=Mock(
+            answer_context="Context with links",
+            objects=[
+                Mock(
+                    object_id="obj_1",
+                    object_type="Person",
+                    properties={"name": "Alice"},
+                    links=[{"target_id": "obj_2", "link_type": "knows"}],
+                )
+            ],
+        ))
+        pipeline._semantic_retriever = mock_retriever
+
+        inp = AnalysisInput(query="find connections")
+        analysis = await pipeline._analyze(inp)
+
+        assert len(analysis.entities) == 1
+        assert analysis.entities[0]["object_id"] == "obj_1"
+        assert len(analysis.entities[0]["links"]) == 1
+        assert analysis.entities[0]["links"][0]["target_id"] == "obj_2"
+
+    @pytest.mark.asyncio
+    async def test_analyze_truncates_long_context(self):
+        """分析阶段截断超长上下文"""
+        from odap.biz.decision.decision_pipeline.pipeline import DecisionPipeline
+        from odap.biz.decision.decision_pipeline.schemas import AnalysisInput
+
+        pipeline = DecisionPipeline()
+        long_context = "x" * 1000
+        mock_retriever = AsyncMock()
+        mock_retriever.retrieve = AsyncMock(return_value=Mock(
+            answer_context=long_context,
+            objects=[],
+        ))
+        pipeline._semantic_retriever = mock_retriever
+
+        inp = AnalysisInput(query="test")
+        analysis = await pipeline._analyze(inp)
+
+        assert len(analysis.summary) <= 500
+
+
+class TestDecisionPipelineValidate:
+    @pytest.mark.asyncio
+    async def test_validate_no_recommended_option_sets_not_approved(self):
+        """无推荐选项时 OPA 不批准"""
+        from odap.biz.decision.decision_pipeline.pipeline import DecisionPipeline
+        from odap.biz.decision.decision_pipeline.schemas import AnalysisInput, DecisionResult
+
+        pipeline = DecisionPipeline()
+        decision = DecisionResult(recommended_option=None)
+        inp = AnalysisInput(query="test")
+
+        result = await pipeline._validate(decision, inp)
+        assert result.opa_approved is False
+
+    @pytest.mark.asyncio
+    async def test_validate_with_opa_allow(self):
+        """OPA 允许时设置 opa_approved"""
+        from odap.biz.decision.decision_pipeline.pipeline import DecisionPipeline
+        from odap.biz.decision.decision_pipeline.schemas import AnalysisInput, DecisionResult, DecisionOption
+
+        pipeline = DecisionPipeline()
+        mock_opa = Mock()
+        mock_opa.check_permission_abac = Mock(return_value={"allow": True})
+        pipeline._opa_manager = mock_opa
+
+        option = DecisionOption(option_id="opt_1", action_type_id="act_1", target_object_id="obj_1")
+        decision = DecisionResult(recommended_option=option)
+        inp = AnalysisInput(query="test", agent_id="agent_1")
+
+        result = await pipeline._validate(decision, inp)
+        assert result.opa_approved is True
+        assert result.opa_decision["allow"] is True

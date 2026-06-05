@@ -1,6 +1,9 @@
 from fastapi import APIRouter, HTTPException
 from pydantic import BaseModel, Field
 from typing import Optional
+
+from odap.web.api.response_models import DictResponse
+
 from ..services.decay_scheduler import MemoryDecayScheduler, DecayConfig
 
 router = APIRouter(prefix="/api/ontology-memory/decay", tags=["ontology-memory-decay"])
@@ -14,7 +17,7 @@ class DecayConfigRequest(BaseModel):
     batch_size: Optional[int] = None
 
 
-@router.post("/trigger", response_model=dict)
+@router.post("/trigger", response_model=DictResponse)
 async def trigger_decay():
     try:
         scheduler = MemoryDecayScheduler.get_instance()
@@ -28,36 +31,42 @@ async def trigger_decay():
         raise HTTPException(status_code=500, detail=str(e))
 
 
-@router.get("/stats", response_model=dict)
+@router.get("/stats", response_model=DictResponse)
 async def get_decay_stats():
     try:
         scheduler = MemoryDecayScheduler.get_instance()
         return scheduler.get_stats()
+    except HTTPException:
+        raise
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
 
 
-@router.post("/start", response_model=dict)
+@router.post("/start", response_model=DictResponse)
 async def start_scheduler():
     try:
         scheduler = MemoryDecayScheduler.get_instance()
         scheduler.start()
         return {"status": "success", "message": "Decay scheduler started"}
+    except HTTPException:
+        raise
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
 
 
-@router.post("/stop", response_model=dict)
+@router.post("/stop", response_model=DictResponse)
 async def stop_scheduler():
     try:
         scheduler = MemoryDecayScheduler.get_instance()
         scheduler.stop()
         return {"status": "success", "message": "Decay scheduler stopped"}
+    except HTTPException:
+        raise
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
 
 
-@router.put("/config", response_model=dict)
+@router.put("/config", response_model=DictResponse)
 async def update_config(request: DecayConfigRequest):
     try:
         scheduler = MemoryDecayScheduler.get_instance()

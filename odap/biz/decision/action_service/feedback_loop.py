@@ -217,7 +217,7 @@ class FeedbackAggregator:
         requested_by = action_record.get('requested_by', 'system')
 
         try:
-            from odap.biz.core.ontology.schema.document import (
+            from odap.biz.core.ontology.design.schema.document import (
                 OntologyDocument, OntologyAction, SourceInfo, DocumentMeta,
                 VersionRef, ActionStatus,
             )

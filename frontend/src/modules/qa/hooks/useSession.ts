@@ -1,6 +1,6 @@
 import React, { useState, useCallback } from 'react';
 import { message } from 'antd';
-import { API_BASE } from '../../../config';
+import { apiClient } from '../../shared/services/apiClient';
 
 export interface Session {
   session_id: string;
@@ -40,12 +40,8 @@ export function useSession({ onError, workspaceId, scenarioId }: UseSessionOptio
       if (wsId) params.append('workspace_id', wsId);
       if (scId) params.append('scenario_id', scId);
       
-      const url = params.toString() ? `${API_BASE}/api/qa/sessions?${params.toString()}` : `${API_BASE}/api/qa/sessions`;
-      const response = await fetch(url);
-      if (!response.ok) {
-        throw new Error(`获取会话列表失败: ${response.status}`);
-      }
-      const data = await response.json();
+      const queryString = params.toString();
+      const data = await apiClient.get(queryString ? `/api/qa/sessions?${queryString}` : '/api/qa/sessions');
       setSessions(data.sessions || []);
     } catch (err) {
       const error = err instanceof Error ? err : new Error('获取会话列表失败');
@@ -63,11 +59,7 @@ export function useSession({ onError, workspaceId, scenarioId }: UseSessionOptio
 
   const loadSession = useCallback(async (sessionId: string): Promise<Session | null> => {
     try {
-      const response = await fetch(`${API_BASE}/api/qa/sessions/${sessionId}`);
-      if (!response.ok) {
-        throw new Error(`加载会话失败: ${response.status}`);
-      }
-      const data = await response.json();
+      const data = await apiClient.get(`/api/qa/sessions/${sessionId}`);
       return data;
     } catch (err) {
       const error = err instanceof Error ? err : new Error('加载会话失败');
@@ -79,12 +71,7 @@ export function useSession({ onError, workspaceId, scenarioId }: UseSessionOptio
 
   const deleteSession = useCallback(async (sessionId: string): Promise<boolean> => {
     try {
-      const response = await fetch(`${API_BASE}/api/qa/sessions/${sessionId}`, {
-        method: 'DELETE',
-      });
-      if (!response.ok) {
-        throw new Error(`删除会话失败: ${response.status}`);
-      }
+      await apiClient.delete(`/api/qa/sessions/${sessionId}`);
       setSessions(prev => prev.filter(s => s.session_id !== sessionId));
       message.success('会话已删除');
       return true;

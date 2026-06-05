@@ -23,6 +23,10 @@ from collections import deque
 from enum import Enum
 from concurrent.futures import ThreadPoolExecutor
 
+
+import logging
+
+logger = logging.getLogger(__name__)
 sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 
@@ -214,7 +218,7 @@ class AsyncAuditChannelV2:
                 ))
             conn.commit()
         except Exception as e:
-            print(f"审计日志写入失败: {e}")
+            logger.info(f'审计日志写入失败: {e}')
         finally:
             conn.close()
 
@@ -445,6 +449,8 @@ class AuditLoggerV2:
            metadata: Optional[Dict] = None) -> AuditEventV2:
         """记录审计事件"""
         import uuid
+
+
         now = datetime.now(timezone.utc).isoformat()
         event_id = f"audit-{datetime.now().strftime('%Y%m%d')}-{uuid.uuid4().hex[:8]}"
 
@@ -528,9 +534,9 @@ def get_audit_logger_v2(db_path: str = None) -> AuditLoggerV2:
 if __name__ == "__main__":
     logger = get_audit_logger_v2()
 
-    print("审计日志系统 v2 初始化完成")
+    logger.info('审计日志系统 v2 初始化完成')
 
-    print("\n测试记录事件:")
+    logger.info('\n测试记录事件:')
     event1 = logger.log(
         event_type="user_login",
         action="login",
@@ -542,8 +548,8 @@ if __name__ == "__main__":
         workspace_id="ws001",
         severity="info"
     )
-    print(f"  记录事件: {event1.event_id}")
-    print(f"  哈希: {event1.current_hash[:16]}...")
+    logger.info(f'  记录事件: {event1.event_id}')
+    logger.info(f'  哈希: {event1.current_hash[:16]}...')
 
     event2 = logger.log(
         event_type="data_modify",
@@ -568,18 +574,18 @@ if __name__ == "__main__":
         workspace_id="ws001"
     )
 
-    print("\n测试时间线:")
+    logger.info('\n测试时间线:')
     timeline = logger.get_timeline(workspace_id="ws001", limit=10)
-    print(f"  时间线事件数: {len(timeline)}")
+    logger.info(f'  时间线事件数: {len(timeline)}')
 
-    print("\n测试完整性验证:")
+    logger.info('\n测试完整性验证:')
     integrity = logger.verify_integrity()
-    print(f"  完整链: {integrity['valid']}")
-    print(f"  总事件数: {integrity['total_events']}")
+    logger.info(f"  完整链: {integrity['valid']}")
+    logger.info(f"  总事件数: {integrity['total_events']}")
 
-    print("\n测试统计:")
+    logger.info('\n测试统计:')
     stats = logger.get_stats()
-    print(f"  总事件数: {stats['total_events']}")
-    print(f"  严重级别分布: {stats['severity_counts']}")
+    logger.info(f"  总事件数: {stats['total_events']}")
+    logger.info(f"  严重级别分布: {stats['severity_counts']}")
 
     logger.close()

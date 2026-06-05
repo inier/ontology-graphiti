@@ -8,6 +8,10 @@ from typing import Dict, Any, List, Optional
 from odap.infra.graph import GraphManager
 from odap.tools import register_skill
 
+
+import logging
+
+logger = logging.getLogger(__name__)
 # 初始化图谱管理器
 graph_manager = GraphManager()
 
@@ -33,6 +37,7 @@ def query_entities(entity_type: str = None, area: str = None, limit: int = 100) 
         
         return entities[:limit] if limit else entities
     except Exception as e:
+        logger.warning("silent except caught in {exc} (line 35)", exc_info=True)
         return [{"error": str(e)}]
 
 
@@ -64,6 +69,7 @@ def query_relations(source_id: str = None, relation_type: str = None,
             
         return relations[:limit] if limit else relations
     except Exception as e:
+        logger.warning("silent except caught in {exc} (line 66)", exc_info=True)
         return [{"error": str(e)}]
 
 
@@ -100,6 +106,7 @@ def analyze_graph() -> Dict[str, Any]:
             "statistics": stats,
         }
     except Exception as e:
+        logger.warning("silent except caught in {exc} (line 102)", exc_info=True)
         return {"error": str(e)}
 
 
@@ -127,6 +134,7 @@ def search_graph(keyword: str, search_type: str = "all") -> List[Dict]:
         
         return results
     except Exception as e:
+        logger.warning("silent except caught in {exc} (line 129)", exc_info=True)
         return [{"error": str(e)}]
 
 
@@ -154,6 +162,7 @@ def get_entity_details(entity_id: str) -> Dict[str, Any]:
             "relation_count": len(relations),
         }
     except Exception as e:
+        logger.warning("silent except caught in {exc} (line 156)", exc_info=True)
         return {"error": str(e)}
 
 

@@ -36,7 +36,7 @@ class DeductionEngineImpl(IDeductionEngine):
     def oms(self):
         if self._oms is None:
             try:
-                from odap.biz.core.ontology.oms.services import OMSService
+                from odap.biz.core.ontology.application.oms.services import OMSService
                 self._oms = OMSService.get_instance()
             except Exception as e:
                 logger.warning(f"OMS init failed: {e}")
@@ -239,6 +239,7 @@ class DeductionEngineImpl(IDeductionEngine):
             risk_score = self._calculate_risk_score(all_impacts, all_violations)
             risk_level = "low" if risk_score < 30 else "medium" if risk_score < 60 else "high" if risk_score < 80 else "critical"
             recommendation = self._generate_chain_recommendation(all_impacts, all_violations, risk_level)
+            confidence = self._compute_chain_confidence(baseline, chain_data, all_violations)
 
             result = ChainResult(
                 chain_id=chain_id,
@@ -248,7 +249,7 @@ class DeductionEngineImpl(IDeductionEngine):
                 risk_score=risk_score,
                 rule_violations=[RuleViolation(**v) for v in all_violations],
                 recommendation=recommendation,
-                confidence=0.6,
+                confidence=confidence,
                 projected_state=projected,
             )
 
@@ -484,18 +485,41 @@ class DeductionEngineImpl(IDeductionEngine):
     def _compute_propagation_impacts(self, action_type_id: str, step: Dict[str, Any], current_state: Dict[str, Any]) -> List[Dict[str, Any]]:
         impacts = []
         try:
-            from odap.biz.core.ontology.runtime.services.runtime_service import OntologyRuntimeService
+            from odap.biz.core.ontology.application.runtime.services.runtime_service import OntologyRuntimeService
             service = OntologyRuntimeService.get_instance()
             contract_result = service.get_contract_by_action(action_type_id)
             if contract_result.get("status") == "error":
                 return impacts
             side_effects = contract_result.get("side_effect_set", [])
+            overall_magnitude = 0.05
+            try:
+                if self.oms:
+                    action_def = self.oms.get_action_type(action_type_id)
+                    if action_def and action_def.get('parameters'):
+                        for p in action_def.get('parameters', []):
+                            default_val = p.get('default')
+                            if default_val is not None:
+                                try:
+                                    overall_magnitude = max(overall_magnitude, abs(float(default_val)) / (abs(float(default_val)) + 1) * 0.1)
+                                except (ValueError, TypeError):
+                                    pass
+            except Exception:
+                pass
             for se in side_effects:
                 obj_type = se.get("object_type", "")
                 prop = se.get("property_name", "")
                 if obj_type and prop:
                     current_val = current_state.get(prop)
-                    estimated_delta = -0.05
+                    magnitude = se.get("magnitude")
+                    direction = se.get("direction", "negative")
+                    if magnitude is not None:
+                        try:
+                            mag_val = float(magnitude)
+                            estimated_delta = mag_val if direction == "positive" else -abs(mag_val)
+                        except (ValueError, TypeError):
+                            estimated_delta = -overall_magnitude
+                    else:
+                        estimated_delta = -overall_magnitude if direction != "positive" else overall_magnitude
                     impacts.append({
                         "metric_name": f"{obj_type}.{prop}",
                         "before": current_val,
@@ -592,6 +616,31 @@ class DeductionEngineImpl(IDeductionEngine):
             else:
                 score += 5
         return min(score, 100.0)
+
+    def _compute_chain_confidence(self, baseline: Dict[str, Any], chain_data: Dict[str, Any], violations: List[Dict[str, Any]]) -> float:
+        confidence = 0.5
+        real_data_keys = [k for k in ('combat_power', 'morale', 'supply_level', 'strength', 'status') if k in baseline and baseline[k] is not None and baseline[k] != 0]
+        if real_data_keys:
+            confidence += 0.1
+        try:
+            if self.oms:
+                for step in chain_data.get("steps", []):
+                    action_type_id = step.get("action_type_id", "")
+                    action_def = self.oms.get_action_type(action_type_id)
+                    if action_def and action_def.get('parameters'):
+                        confidence += 0.05
+                        break
+        except Exception:
+            pass
+        if not violations:
+            confidence += 0.1
+        steps_with_data = 0
+        for step in chain_data.get("steps", []):
+            step_params = step.get("parameters", {})
+            if step_params:
+                steps_with_data += 1
+        confidence += min(0.1, steps_with_data * 0.05)
+        return min(0.95, confidence)
 
     def _generate_chain_recommendation(self, impacts: List[Dict[str, Any]],
                                         violations: List[Dict[str, Any]],

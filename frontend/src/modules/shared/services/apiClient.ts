@@ -1,5 +1,7 @@
+/* eslint-disable @typescript-eslint/no-explicit-any */
 interface RequestConfig extends RequestInit {
   skipAuth?: boolean;
+  skipAuthError?: boolean;
 }
 
 function getAuthHeaders(): Record<string, string> {
@@ -28,8 +30,8 @@ class ApiClient {
     this.baseURL = baseURL || import.meta.env.VITE_API_BASE || '';
   }
 
-  async request<T>(url: string, options: RequestConfig = {}): Promise<T> {
-    const { skipAuth = false, headers = {}, ...restConfig } = options;
+  async request<T = any>(url: string, options: RequestConfig = {}): Promise<T> {
+    const { skipAuth = false, skipAuthError = false, headers = {}, ...restConfig } = options;
 
     const fullUrl = url.startsWith('http') ? url : `${this.baseURL}${url}`;
     const authHeaders = skipAuth ? {} : getAuthHeaders();
@@ -42,7 +44,7 @@ class ApiClient {
 
     const response = await fetch(fullUrl, mergedOptions);
 
-    if (response.status === 401 || response.status === 403) {
+    if (!skipAuthError && (response.status === 401 || response.status === 403)) {
       handleAuthError();
     }
 
@@ -53,11 +55,11 @@ class ApiClient {
     return response.json();
   }
 
-  async get<T>(url: string, options?: RequestConfig): Promise<T> {
+  async get<T = any>(url: string, options?: RequestConfig): Promise<T> {
     return this.request<T>(url, { ...options, method: 'GET' });
   }
 
-  async post<T>(url: string, data?: unknown, options?: RequestConfig): Promise<T> {
+  async post<T = any>(url: string, data?: unknown, options?: RequestConfig): Promise<T> {
     return this.request<T>(url, {
       ...options,
       method: 'POST',
@@ -65,7 +67,7 @@ class ApiClient {
     });
   }
 
-  async put<T>(url: string, data?: unknown, options?: RequestConfig): Promise<T> {
+  async put<T = any>(url: string, data?: unknown, options?: RequestConfig): Promise<T> {
     return this.request<T>(url, {
       ...options,
       method: 'PUT',
@@ -73,11 +75,11 @@ class ApiClient {
     });
   }
 
-  async delete<T>(url: string, options?: RequestConfig): Promise<T> {
+  async delete<T = any>(url: string, options?: RequestConfig): Promise<T> {
     return this.request<T>(url, { ...options, method: 'DELETE' });
   }
 
-  async upload<T>(url: string, formData: FormData, options?: RequestConfig): Promise<T> {
+  async upload<T = any>(url: string, formData: FormData, options?: RequestConfig): Promise<T> {
     const token = localStorage.getItem('token');
     const headers: Record<string, string> = {};
     if (token) {
@@ -103,10 +105,41 @@ class ApiClient {
 
     return response.json();
   }
+
+  /**
+   * Send a POST request and return the raw Response for streaming (SSE, NDJSON, etc.).
+   * Auth headers are applied automatically. The caller is responsible for reading the stream.
+   */
+  async stream(url: string, data?: unknown, options?: RequestConfig): Promise<Response> {
+    const { skipAuth = false, skipAuthError = false, headers = {}, ...restConfig } = options || {};
+
+    const fullUrl = url.startsWith('http') ? url : `${this.baseURL}${url}`;
+    const authHeaders = skipAuth ? {} : getAuthHeaders();
+    const mergedHeaders = { ...authHeaders, ...(headers as Record<string, string>) };
+
+    const mergedOptions: RequestInit = {
+      ...restConfig,
+      method: 'POST',
+      headers: mergedHeaders,
+      body: JSON.stringify(data),
+    };
+
+    const response = await fetch(fullUrl, mergedOptions);
+
+    if (!skipAuthError && (response.status === 401 || response.status === 403)) {
+      handleAuthError();
+    }
+
+    if (!response.ok) {
+      throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+    }
+
+    return response;
+  }
 }
 
 export const apiClient = new ApiClient();
 
-export async function fetchJson<T>(url: string, options?: RequestInit): Promise<T> {
+export async function fetchJson<T = any>(url: string, options?: RequestInit): Promise<T> {
   return apiClient.request<T>(url, options);
 }

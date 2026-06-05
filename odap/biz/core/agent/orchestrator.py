@@ -13,6 +13,10 @@ sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 from odap.tools import SKILL_CATALOG
 from odap.infra.opa import OPAManager
 
+
+import logging
+
+logger = logging.getLogger(__name__)
 class SelfCorrectingOrchestrator:
     """
     自校正编排器
@@ -28,7 +32,7 @@ class SelfCorrectingOrchestrator:
         """
         self.user_role = user_role
         self.opa_manager = OPAManager()
-        print(f"编排器初始化成功，用户角色: {user_role}")
+        logger.info(f'编排器初始化成功，用户角色: {user_role}')
     
     def run(self, query):
         """
@@ -40,7 +44,7 @@ class SelfCorrectingOrchestrator:
         Returns:
             执行结果
         """
-        print(f"收到查询: {query}")
+        logger.info(f'收到查询: {query}')
         
         # 解析查询，确定需要的技能
         skill_name, args = self._parse_query(query)
@@ -55,10 +59,10 @@ class SelfCorrectingOrchestrator:
         # 执行技能
         try:
             result = SKILL_CATALOG[skill_name]["handler"](**args)
-            print(f"技能执行结果: {result}")
+            logger.info(f'技能执行结果: {result}')
             return result
         except Exception as e:
-            print(f"技能执行失败: {e}")
+            logger.info(f'技能执行失败: {e}')
             return {"status": "error", "message": f"技能执行失败: {str(e)}"}
     
     def _parse_query(self, query):
@@ -115,37 +119,37 @@ class SelfCorrectingOrchestrator:
 
 if __name__ == "__main__":
     # 测试编排器
-    print("测试智能体编排器")
+    logger.info('测试智能体编排器')
     
     # 测试飞行员角色
-    print("\n=== 测试飞行员角色 ===")
+    logger.info('\n=== 测试飞行员角色 ===')
     pilot = SelfCorrectingOrchestrator(user_role="pilot")
     
     # 测试搜索雷达
-    print("\n1. 测试搜索雷达:")
+    logger.info('\n1. 测试搜索雷达:')
     result = pilot.run("帮我看看 B 区有没有雷达")
-    print(f"结果: {result}")
+    logger.info(f'结果: {result}')
     
     # 测试攻击目标（应该被拦截）
-    print("\n2. 测试飞行员攻击目标:")
+    logger.info('\n2. 测试飞行员攻击目标:')
     result = pilot.run("攻击 WEAPON_Bl_1")
-    print(f"结果: {result}")
+    logger.info(f'结果: {result}')
     
     # 测试指挥官角色
-    print("\n=== 测试指挥官角色 ===")
+    logger.info('\n=== 测试指挥官角色 ===')
     commander = SelfCorrectingOrchestrator(user_role="commander")
     
     # 测试指挥官攻击雷达
-    print("\n1. 测试指挥官攻击雷达:")
+    logger.info('\n1. 测试指挥官攻击雷达:')
     result = commander.run("我是指挥官，攻击 WEAPON_Bl_1")
-    print(f"结果: {result}")
+    logger.info(f'结果: {result}')
     
     # 测试指挥官攻击医院（应该被拦截）
-    print("\n2. 测试指挥官攻击医院:")
+    logger.info('\n2. 测试指挥官攻击医院:')
     result = commander.run("攻击 CIV_A_1")
-    print(f"结果: {result}")
+    logger.info(f'结果: {result}')
     
     # 测试分析领域态势
-    print("\n3. 测试分析领域态势:")
+    logger.info('\n3. 测试分析领域态势:')
     result = commander.run("分析当前领域态势")
-    print(f"结果: {result}")
+    logger.info(f'结果: {result}')

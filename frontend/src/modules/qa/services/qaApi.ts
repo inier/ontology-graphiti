@@ -1,6 +1,4 @@
-import { API_BASE } from '../../../config';
-
-const QA_BASE = `${API_BASE}/api/qa`;
+import { apiClient } from '../../shared/services/apiClient';
 
 export interface TemporalAskRequest {
   question: string;
@@ -35,25 +33,9 @@ export interface ChartResponse {
 }
 
 export async function askTemporalQuestion(request: TemporalAskRequest): Promise<TemporalAskResponse> {
-  const response = await fetch(`${QA_BASE}/ask/temporal`, {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify(request),
-  });
-  if (!response.ok) {
-    throw new Error(`时序问答请求失败: ${response.status}`);
-  }
-  return response.json();
+  return apiClient.post('/api/qa/ask/temporal', request);
 }
 
 export async function renderChart(request: ChartRequest): Promise<ChartResponse> {
-  const response = await fetch(`${QA_BASE}/chart`, {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify(request),
-  });
-  if (!response.ok) {
-    throw new Error(`图表渲染请求失败: ${response.status}`);
-  }
-  return response.json();
+  return apiClient.post('/api/qa/chart', request);
 }

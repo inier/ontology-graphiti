@@ -1,6 +1,7 @@
 import { useState, useRef, useEffect } from 'react';
 import { Card, Input, Button, Space, Typography, List, Avatar } from 'antd';
 import { SendOutlined, RobotOutlined, UserOutlined } from '@ant-design/icons';
+import { apiClient } from '../services/apiClient';
 
 const { Text } = Typography;
 const { TextArea } = Input;
@@ -51,16 +52,10 @@ export const QAPanel: React.FC<QAPanelProps> = ({ workspaceId, style }) => {
     setLoading(true);
 
     try {
-      const response = await fetch(`${import.meta.env.VITE_API_BASE || ''}/api/qa/ask`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          question: input,
-          workspace_id: workspaceId,
-        }),
+      const data = await apiClient.post<{ answer?: string; sources?: any[] }>('/api/qa/ask', {
+        question: input,
+        workspace_id: workspaceId,
       });
-
-      const data = await response.json();
 
       const assistantMessage: Message = {
         id: `msg-${Date.now()}-assistant`,

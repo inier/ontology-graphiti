@@ -18,7 +18,7 @@ class ActionRequest(BaseModel):
     action_type_id: str
     target_object_id: str
     target_object_type: str
-    parameters: Dict[str, Any] = {}
+    parameters: Dict[str, Any] = Field(default_factory=dict)
     requested_by: str = "system"
     reason: str = ""
     agent_id: Optional[str] = None
@@ -29,7 +29,7 @@ class ActionRecord(BaseModel):
     action_type_id: str
     target_object_id: str
     target_object_type: str
-    parameters: Dict[str, Any] = {}
+    parameters: Dict[str, Any] = Field(default_factory=dict)
     status: ActionRequestStatus = ActionRequestStatus.PENDING
     requested_by: str = "system"
     reason: str = ""

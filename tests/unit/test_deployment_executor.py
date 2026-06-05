@@ -4,14 +4,14 @@ from unittest.mock import MagicMock
 
 @pytest.fixture(autouse=True)
 def _reset_singleton():
-    from odap.biz.core.ontology.servitization.services.deployment_executor import DeploymentExecutor
+    from odap.biz.core.ontology.application.servitization.services.deployment_executor import DeploymentExecutor
     DeploymentExecutor._instance = None
     yield
     DeploymentExecutor._instance = None
 
 
 def _make_executor():
-    from odap.biz.core.ontology.servitization.services.deployment_executor import DeploymentExecutor
+    from odap.biz.core.ontology.application.servitization.services.deployment_executor import DeploymentExecutor
     return DeploymentExecutor()
 
 
@@ -83,7 +83,7 @@ class TestDeploymentExecutorStop:
 
     def test_stop_pending_deployment_fails(self):
         executor = _make_executor()
-        from odap.biz.core.ontology.servitization.services.deployment_executor import (
+        from odap.biz.core.ontology.application.servitization.services.deployment_executor import (
             DeploymentRecord, DeploymentStatus
         )
         record = DeploymentRecord(
@@ -194,13 +194,13 @@ class TestDeploymentExecutorListAndGet:
         executor.deploy("dep-070", "svc-070", "Running", "1.0.0")
         executor.deploy("dep-071", "svc-071", "AlsoRunning", "1.0.0")
         executor.stop("dep-071")
-        from odap.biz.core.ontology.servitization.services.deployment_executor import DeploymentStatus
+        from odap.biz.core.ontology.application.servitization.services.deployment_executor import DeploymentStatus
         result = executor.list_deployments(status=DeploymentStatus.RUNNING)
         assert result["count"] == 1
         assert result["deployments"][0]["deployment_id"] == "dep-070"
 
     def test_singleton_pattern(self):
-        from odap.biz.core.ontology.servitization.services.deployment_executor import DeploymentExecutor
+        from odap.biz.core.ontology.application.servitization.services.deployment_executor import DeploymentExecutor
         a = DeploymentExecutor.get_instance()
         b = DeploymentExecutor.get_instance()
         assert a is b

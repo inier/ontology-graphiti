@@ -1,8 +1,9 @@
 import { useState, useEffect } from 'react';
-import { Table, Card, Button, Space, Tag, Popconfirm, message } from 'antd';
+import { Table, Card, Button, Space, Tag, Popconfirm, message, Modal } from 'antd';
 import { RollbackOutlined, DeleteOutlined, ReloadOutlined, FileTextOutlined } from '@ant-design/icons';
 import { api } from '../../shared/services/api';
 import { useScenario, useWorkspace } from '../../shared/components/AppLayout';
+import type { DiffResult } from '../../shared/types';
 
 interface VersionItem {
   version_id: string;
@@ -21,6 +22,8 @@ export function VersionHistory() {
   const [versions, setVersions] = useState<VersionItem[]>([]);
   const [loading, setLoading] = useState(true);
   const [selectedVersions, setSelectedVersions] = useState<string[]>([]);
+  const [comparisonResult, setComparisonResult] = useState<DiffResult | null>(null);
+  const [comparisonModalOpen, setComparisonModalOpen] = useState(false);
   const { currentScenario } = useScenario();
   const { currentWorkspace } = useWorkspace();
 
@@ -68,10 +71,22 @@ export function VersionHistory() {
     }
     try {
       const diff = await api.diffVersions(selectedVersions[0], selectedVersions[1]);
-      console.log('版本对比结果:', diff);
+      setComparisonResult(diff);
+      setComparisonModalOpen(true);
     } catch (error) {
       console.error('版本对比失败', error);
       message.error('版本对比失败');
+    }
+  };
+
+  const handleDeleteVersion = async (versionId: string) => {
+    try {
+      await api.deleteVersion(versionId);
+      message.success('删除成功');
+      loadVersions();
+    } catch (error) {
+      console.error('删除版本失败', error);
+      message.error('删除版本失败');
     }
   };
 
@@ -137,7 +152,7 @@ export function VersionHistory() {
           </Button>
           <Popconfirm
             title="确定删除此版本？"
-            onConfirm={() => console.log('删除版本', record.version_id)}
+            onConfirm={() => handleDeleteVersion(record.version_id)}
             okText="确定"
             cancelText="取消"
           >
@@ -188,6 +203,53 @@ export function VersionHistory() {
           }}
         />
       </Card>
+
+      <Modal
+        title="版本对比结果"
+        open={comparisonModalOpen}
+        onCancel={() => setComparisonModalOpen(false)}
+        footer={<Button onClick={() => setComparisonModalOpen(false)}>关闭</Button>}
+        width={640}
+      >
+        {comparisonResult && (
+          <div>
+            {comparisonResult.added.length > 0 && (
+              <div style={{ marginBottom: 16 }}>
+                <div style={{ fontWeight: 600, color: '#52c41a', marginBottom: 8 }}>新增 ({comparisonResult.added.length})</div>
+                {comparisonResult.added.map((item, i) => (
+                  <div key={i} style={{ padding: '4px 8px', background: '#f6ffed', borderRadius: 4, marginBottom: 4 }}>
+                    <Tag color="green">{item.type}</Tag> {item.name}
+                  </div>
+                ))}
+              </div>
+            )}
+            {comparisonResult.removed.length > 0 && (
+              <div style={{ marginBottom: 16 }}>
+                <div style={{ fontWeight: 600, color: '#ff4d4f', marginBottom: 8 }}>删除 ({comparisonResult.removed.length})</div>
+                {comparisonResult.removed.map((item, i) => (
+                  <div key={i} style={{ padding: '4px 8px', background: '#fff2f0', borderRadius: 4, marginBottom: 4 }}>
+                    <Tag color="red">{item.type}</Tag> {item.name}
+                  </div>
+                ))}
+              </div>
+            )}
+            {comparisonResult.modified.length > 0 && (
+              <div>
+                <div style={{ fontWeight: 600, color: '#fa8c16', marginBottom: 8 }}>修改 ({comparisonResult.modified.length})</div>
+                {comparisonResult.modified.map((item, i) => (
+                  <div key={i} style={{ padding: '4px 8px', background: '#fff7e6', borderRadius: 4, marginBottom: 4 }}>
+                    <Tag color="orange">{item.type}</Tag> {item.name}
+                    <pre style={{ margin: '4px 0 0', fontSize: 11 }}>{JSON.stringify(item.changes, null, 2)}</pre>
+                  </div>
+                ))}
+              </div>
+            )}
+            {comparisonResult.added.length === 0 && comparisonResult.removed.length === 0 && comparisonResult.modified.length === 0 && (
+              <div style={{ textAlign: 'center', color: '#8c8c8c', padding: 24 }}>两个版本无差异</div>
+            )}
+          </div>
+        )}
+      </Modal>
     </div>
   );
 }

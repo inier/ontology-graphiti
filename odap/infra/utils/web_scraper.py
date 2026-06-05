@@ -7,6 +7,10 @@ from datetime import datetime
 import re
 
 
+
+import logging
+
+logger = logging.getLogger(__name__)
 class WebScraper:
     """网页数据抓取器"""
 
@@ -23,7 +27,7 @@ class WebScraper:
             response.encoding = 'utf-8'
             return BeautifulSoup(response.text, 'html.parser')
         except Exception as e:
-            print(f"Error fetching URL {url}: {e}")
+            logger.info(f'Error fetching URL {url}: {e}')
             return None
 
     def extract_text(self, soup: BeautifulSoup) -> str:

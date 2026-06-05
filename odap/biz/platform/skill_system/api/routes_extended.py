@@ -15,7 +15,11 @@ from pathlib import Path
 from ..services import get_skill_service, get_hotplug_service
 from ..models.skill import SkillType, SkillStatus
 
-router = APIRouter(prefix="/api/skill/extended", tags=["skill"])
+
+import logging
+
+logger = logging.getLogger(__name__)
+router = APIRouter(prefix="/api/skill", tags=["skill-extended"])
 
 skill_service = get_skill_service()
 hotplug_service = get_hotplug_service()
@@ -40,6 +44,7 @@ def _get_catalog_skills() -> List[Dict[str, Any]]:
             })
         return skills
     except Exception:
+        logger.warning("silent except caught in {exc} (line 42)", exc_info=True)
         return []
 
 
@@ -53,6 +58,7 @@ def _get_harness_tools() -> List[str]:
             return [t.name for t in harness._tool_list if hasattr(t, 'name')]
         return []
     except Exception:
+        logger.warning("silent except caught in {exc} (line 55)", exc_info=True)
         return []
 
 
@@ -85,6 +91,7 @@ def _scan_filesystem_skills() -> List[Dict[str, Any]]:
                             skill_info["description"] = parsed.get("description", "")
                             skill_info["files"].append("SKILL.md")
                         except Exception:
+                            logger.warning("silent except caught in {exc} (line 87)", exc_info=True)
                             pass
 
                     for ref_dir in ["references", "tests"]:
@@ -109,6 +116,7 @@ def _get_catalog_categories() -> List[Dict[str, Any]]:
 
         return [{"name": cat, "skill_count": count, "source": "catalog"} for cat, count in cat_map.items()]
     except Exception:
+        logger.warning("silent except caught in {exc} (line 111)", exc_info=True)
         return []
 
 
@@ -164,6 +172,7 @@ async def upload_skill_file(
                 parsed = parse_skill_markdown(skill_md)
                 skill_info["parsed"] = parsed
             except Exception:
+                logger.warning("silent except caught in {exc} (line 166)", exc_info=True)
                 pass
 
         return {"status": "success", "data": skill_info}
@@ -227,6 +236,9 @@ async def scan_skills_directory() -> Dict[str, Any]:
                 merged.append(fs_skill)
 
         return {"skills": merged, "total": len(merged)}
+    except HTTPException:
+        # P1-001 fix: re-raise HTTPException so 4xx/5xx are preserved
+        raise
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
 
@@ -262,6 +274,8 @@ async def get_skill_categories() -> Dict[str, Any]:
                 }
 
         return {"categories": list(merged.values())}
+    except HTTPException:
+        raise
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
 
@@ -285,6 +299,8 @@ async def get_all_skills() -> Dict[str, Any]:
             "total_catalog": catalog_info.get("catalog_count", 0),
             "total_harness": len(harness_tools),
         }
+    except HTTPException:
+        raise
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
 
@@ -324,6 +340,8 @@ async def get_loaded_skills():
         loaded_set = set(hotplug_loaded) | set(harness_tools)
 
         return {"skills": sorted(loaded_set), "hotplug_count": len(hotplug_loaded), "harness_count": len(harness_tools)}
+    except HTTPException:
+        raise
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
 
@@ -357,6 +375,8 @@ async def save_skill_content(
         skill_md_path.write_text(content, encoding='utf-8')
 
         return {"status": "success", "message": f"Skill '{name}' saved to {skill_dir}"}
+    except HTTPException:
+        raise
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
 
@@ -411,6 +431,7 @@ def parse_skill_markdown(content: str) -> Dict[str, Any]:
 
                 result[key] = yaml.safe_load(yaml_content) or {}
             except Exception:
+                logger.warning("silent except caught in {exc} (line 424)", exc_info=True)
                 pass
 
     return result

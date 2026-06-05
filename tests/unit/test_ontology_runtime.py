@@ -11,12 +11,12 @@ def _make_storage(tmp_path, storage_cls):
 
 class TestSQLiteRuntimeStorage:
     def test_init_db(self, tmp_path):
-        from odap.biz.core.ontology.runtime.storage.sqlite_runtime_storage import SQLiteRuntimeStorage
+        from odap.biz.core.ontology.application.runtime.storage.sqlite_runtime_storage import SQLiteRuntimeStorage
         storage = _make_storage(tmp_path, SQLiteRuntimeStorage)
         assert os.path.exists(storage.db_path)
 
     def test_function_crud(self, tmp_path):
-        from odap.biz.core.ontology.runtime.storage.sqlite_runtime_storage import SQLiteRuntimeStorage
+        from odap.biz.core.ontology.application.runtime.storage.sqlite_runtime_storage import SQLiteRuntimeStorage
         storage = _make_storage(tmp_path, SQLiteRuntimeStorage)
         func = {
             "function_id": "func-test-001",
@@ -58,7 +58,7 @@ class TestSQLiteRuntimeStorage:
         assert storage.get_function("func-test-001") is None
 
     def test_contract_crud(self, tmp_path):
-        from odap.biz.core.ontology.runtime.storage.sqlite_runtime_storage import SQLiteRuntimeStorage
+        from odap.biz.core.ontology.application.runtime.storage.sqlite_runtime_storage import SQLiteRuntimeStorage
         storage = _make_storage(tmp_path, SQLiteRuntimeStorage)
         contract = {
             "contract_id": "contract-test-001",
@@ -95,7 +95,7 @@ class TestSQLiteRuntimeStorage:
         assert storage.delete_contract("contract-test-001") is False
 
     def test_mutation_crud(self, tmp_path):
-        from odap.biz.core.ontology.runtime.storage.sqlite_runtime_storage import SQLiteRuntimeStorage
+        from odap.biz.core.ontology.application.runtime.storage.sqlite_runtime_storage import SQLiteRuntimeStorage
         storage = _make_storage(tmp_path, SQLiteRuntimeStorage)
         mutation = {
             "mutation_id": "mut-test-001",
@@ -125,7 +125,7 @@ class TestSQLiteRuntimeStorage:
         assert len(empty) == 0
 
     def test_snapshot_crud(self, tmp_path):
-        from odap.biz.core.ontology.runtime.storage.sqlite_runtime_storage import SQLiteRuntimeStorage
+        from odap.biz.core.ontology.application.runtime.storage.sqlite_runtime_storage import SQLiteRuntimeStorage
         storage = _make_storage(tmp_path, SQLiteRuntimeStorage)
         snapshot = {
             "snapshot_id": "snap-test-001",
@@ -151,7 +151,7 @@ class TestSQLiteRuntimeStorage:
         assert storage.get_snapshot("snap-test-001") is None
 
     def test_aggregate_crud(self, tmp_path):
-        from odap.biz.core.ontology.runtime.storage.sqlite_runtime_storage import SQLiteRuntimeStorage
+        from odap.biz.core.ontology.application.runtime.storage.sqlite_runtime_storage import SQLiteRuntimeStorage
         storage = _make_storage(tmp_path, SQLiteRuntimeStorage)
         agg = {
             "agg_id": "agg-test-001",
@@ -178,7 +178,7 @@ class TestSQLiteRuntimeStorage:
         assert storage.get_aggregate("agg-test-001") is None
 
     def test_propagation_graph_crud(self, tmp_path):
-        from odap.biz.core.ontology.runtime.storage.sqlite_runtime_storage import SQLiteRuntimeStorage
+        from odap.biz.core.ontology.application.runtime.storage.sqlite_runtime_storage import SQLiteRuntimeStorage
         storage = _make_storage(tmp_path, SQLiteRuntimeStorage)
         graph = {
             "graph_id": "spg-test-001",
@@ -203,8 +203,8 @@ class TestSQLiteRuntimeStorage:
 
 class TestFunctionEngine:
     def test_register_and_execute(self, tmp_path):
-        from odap.biz.core.ontology.runtime.impl.function_engine import FunctionEngine
-        from odap.biz.core.ontology.runtime.storage.sqlite_runtime_storage import SQLiteRuntimeStorage
+        from odap.biz.core.ontology.application.runtime.impl.function_engine import FunctionEngine
+        from odap.biz.core.ontology.application.runtime.storage.sqlite_runtime_storage import SQLiteRuntimeStorage
         storage = _make_storage(tmp_path, SQLiteRuntimeStorage)
         engine = FunctionEngine(storage)
 
@@ -221,8 +221,8 @@ class TestFunctionEngine:
         assert result["result"] == 10
 
     def test_register_missing_name(self, tmp_path):
-        from odap.biz.core.ontology.runtime.impl.function_engine import FunctionEngine
-        from odap.biz.core.ontology.runtime.storage.sqlite_runtime_storage import SQLiteRuntimeStorage
+        from odap.biz.core.ontology.application.runtime.impl.function_engine import FunctionEngine
+        from odap.biz.core.ontology.application.runtime.storage.sqlite_runtime_storage import SQLiteRuntimeStorage
         storage = _make_storage(tmp_path, SQLiteRuntimeStorage)
         engine = FunctionEngine(storage)
 
@@ -230,8 +230,8 @@ class TestFunctionEngine:
             engine.register_function({"target_object_type": "Unit"})
 
     def test_execute_nonexistent(self, tmp_path):
-        from odap.biz.core.ontology.runtime.impl.function_engine import FunctionEngine
-        from odap.biz.core.ontology.runtime.storage.sqlite_runtime_storage import SQLiteRuntimeStorage
+        from odap.biz.core.ontology.application.runtime.impl.function_engine import FunctionEngine
+        from odap.biz.core.ontology.application.runtime.storage.sqlite_runtime_storage import SQLiteRuntimeStorage
         storage = _make_storage(tmp_path, SQLiteRuntimeStorage)
         engine = FunctionEngine(storage)
 
@@ -241,8 +241,8 @@ class TestFunctionEngine:
 
 class TestActionContractEngine:
     def test_create_and_verify(self, tmp_path):
-        from odap.biz.core.ontology.runtime.impl.action_contract_engine import ActionContractEngine
-        from odap.biz.core.ontology.runtime.storage.sqlite_runtime_storage import SQLiteRuntimeStorage
+        from odap.biz.core.ontology.application.runtime.impl.action_contract_engine import ActionContractEngine
+        from odap.biz.core.ontology.application.runtime.storage.sqlite_runtime_storage import SQLiteRuntimeStorage
         storage = _make_storage(tmp_path, SQLiteRuntimeStorage)
         engine = ActionContractEngine(storage)
 
@@ -262,8 +262,8 @@ class TestActionContractEngine:
         assert result["is_verified"] is True
 
     def test_verify_with_violation(self, tmp_path):
-        from odap.biz.core.ontology.runtime.impl.action_contract_engine import ActionContractEngine
-        from odap.biz.core.ontology.runtime.storage.sqlite_runtime_storage import SQLiteRuntimeStorage
+        from odap.biz.core.ontology.application.runtime.impl.action_contract_engine import ActionContractEngine
+        from odap.biz.core.ontology.application.runtime.storage.sqlite_runtime_storage import SQLiteRuntimeStorage
         storage = _make_storage(tmp_path, SQLiteRuntimeStorage)
         engine = ActionContractEngine(storage)
 
@@ -282,8 +282,8 @@ class TestActionContractEngine:
         assert len(result["violations"]) == 1
 
     def test_duplicate_contract(self, tmp_path):
-        from odap.biz.core.ontology.runtime.impl.action_contract_engine import ActionContractEngine
-        from odap.biz.core.ontology.runtime.storage.sqlite_runtime_storage import SQLiteRuntimeStorage
+        from odap.biz.core.ontology.application.runtime.impl.action_contract_engine import ActionContractEngine
+        from odap.biz.core.ontology.application.runtime.storage.sqlite_runtime_storage import SQLiteRuntimeStorage
         storage = _make_storage(tmp_path, SQLiteRuntimeStorage)
         engine = ActionContractEngine(storage)
 
@@ -294,8 +294,8 @@ class TestActionContractEngine:
 
 class TestAggregateEngine:
     def test_compute_sum(self, tmp_path):
-        from odap.biz.core.ontology.runtime.impl.aggregate_engine import AggregateEngine
-        from odap.biz.core.ontology.runtime.storage.sqlite_runtime_storage import SQLiteRuntimeStorage
+        from odap.biz.core.ontology.application.runtime.impl.aggregate_engine import AggregateEngine
+        from odap.biz.core.ontology.application.runtime.storage.sqlite_runtime_storage import SQLiteRuntimeStorage
         storage = _make_storage(tmp_path, SQLiteRuntimeStorage)
         engine = AggregateEngine(storage)
 
@@ -312,8 +312,8 @@ class TestAggregateEngine:
         assert abs(result["result"] - 2.3) < 0.01
 
     def test_compute_avg(self, tmp_path):
-        from odap.biz.core.ontology.runtime.impl.aggregate_engine import AggregateEngine
-        from odap.biz.core.ontology.runtime.storage.sqlite_runtime_storage import SQLiteRuntimeStorage
+        from odap.biz.core.ontology.application.runtime.impl.aggregate_engine import AggregateEngine
+        from odap.biz.core.ontology.application.runtime.storage.sqlite_runtime_storage import SQLiteRuntimeStorage
         storage = _make_storage(tmp_path, SQLiteRuntimeStorage)
         engine = AggregateEngine(storage)
 
@@ -332,8 +332,8 @@ class TestAggregateEngine:
 
 class TestOntologyRuntimeService:
     def test_full_workflow(self, tmp_path):
-        from odap.biz.core.ontology.runtime.services.runtime_service import OntologyRuntimeService
-        from odap.biz.core.ontology.runtime.storage.sqlite_runtime_storage import SQLiteRuntimeStorage
+        from odap.biz.core.ontology.application.runtime.services.runtime_service import OntologyRuntimeService
+        from odap.biz.core.ontology.application.runtime.storage.sqlite_runtime_storage import SQLiteRuntimeStorage
         storage = _make_storage(tmp_path, SQLiteRuntimeStorage)
         service = OntologyRuntimeService(storage=storage)
 
@@ -392,8 +392,8 @@ class TestOntologyRuntimeService:
 
 class TestHarnessService:
     def test_session_lifecycle(self, tmp_path):
-        from odap.biz.core.ontology.harness.services.harness_service import HarnessService
-        from odap.biz.core.ontology.harness.storage.sqlite_harness_storage import SQLiteHarnessStorage
+        from odap.biz.core.ontology.application.harness.services.harness_service import HarnessService
+        from odap.biz.core.ontology.application.harness.storage.sqlite_harness_storage import SQLiteHarnessStorage
         storage = _make_storage(tmp_path, SQLiteHarnessStorage)
         service = HarnessService(storage=storage)
 
@@ -429,8 +429,8 @@ class TestHarnessService:
         assert updated["status"] == "success"
 
     def test_blueprint(self, tmp_path):
-        from odap.biz.core.ontology.harness.services.harness_service import HarnessService
-        from odap.biz.core.ontology.harness.storage.sqlite_harness_storage import SQLiteHarnessStorage
+        from odap.biz.core.ontology.application.harness.services.harness_service import HarnessService
+        from odap.biz.core.ontology.application.harness.storage.sqlite_harness_storage import SQLiteHarnessStorage
         storage = _make_storage(tmp_path, SQLiteHarnessStorage)
         service = HarnessService(storage=storage)
 
@@ -446,8 +446,8 @@ class TestHarnessService:
         assert updated["version"] == 2
 
     def test_hitl_check(self, tmp_path):
-        from odap.biz.core.ontology.harness.services.harness_service import HarnessService
-        from odap.biz.core.ontology.harness.storage.sqlite_harness_storage import SQLiteHarnessStorage
+        from odap.biz.core.ontology.application.harness.services.harness_service import HarnessService
+        from odap.biz.core.ontology.application.harness.storage.sqlite_harness_storage import SQLiteHarnessStorage
         storage = _make_storage(tmp_path, SQLiteHarnessStorage)
         service = HarnessService(storage=storage)
 
@@ -461,7 +461,7 @@ class TestHarnessService:
 
 class TestSQLiteRuntimeStorageTrigger:
     def test_trigger_crud(self, tmp_path):
-        from odap.biz.core.ontology.runtime.storage.sqlite_runtime_storage import SQLiteRuntimeStorage
+        from odap.biz.core.ontology.application.runtime.storage.sqlite_runtime_storage import SQLiteRuntimeStorage
         storage = _make_storage(tmp_path, SQLiteRuntimeStorage)
         trigger = {
             "trigger_id": "trig-test-001",
@@ -512,7 +512,7 @@ class TestSQLiteRuntimeStorageTrigger:
         assert storage.get_trigger("trig-test-001") is None
 
     def test_execution_crud(self, tmp_path):
-        from odap.biz.core.ontology.runtime.storage.sqlite_runtime_storage import SQLiteRuntimeStorage
+        from odap.biz.core.ontology.application.runtime.storage.sqlite_runtime_storage import SQLiteRuntimeStorage
         storage = _make_storage(tmp_path, SQLiteRuntimeStorage)
         execution = {
             "execution_id": "exec-test-001",
@@ -541,15 +541,15 @@ class TestSQLiteRuntimeStorageTrigger:
         assert len(all_executions) >= 1
 
     def test_trigger_get_nonexistent(self, tmp_path):
-        from odap.biz.core.ontology.runtime.storage.sqlite_runtime_storage import SQLiteRuntimeStorage
+        from odap.biz.core.ontology.application.runtime.storage.sqlite_runtime_storage import SQLiteRuntimeStorage
         storage = _make_storage(tmp_path, SQLiteRuntimeStorage)
         assert storage.get_trigger("nonexistent") is None
 
 
 class TestActionTriggerEngine:
     def test_register_and_get(self, tmp_path):
-        from odap.biz.core.ontology.runtime.impl.action_trigger_engine import ActionTriggerEngine
-        from odap.biz.core.ontology.runtime.storage.sqlite_runtime_storage import SQLiteRuntimeStorage
+        from odap.biz.core.ontology.application.runtime.impl.action_trigger_engine import ActionTriggerEngine
+        from odap.biz.core.ontology.application.runtime.storage.sqlite_runtime_storage import SQLiteRuntimeStorage
         storage = _make_storage(tmp_path, SQLiteRuntimeStorage)
         engine = ActionTriggerEngine(storage)
 
@@ -570,8 +570,8 @@ class TestActionTriggerEngine:
         assert fetched["action_type_id"] == "alert"
 
     def test_register_missing_name(self, tmp_path):
-        from odap.biz.core.ontology.runtime.impl.action_trigger_engine import ActionTriggerEngine
-        from odap.biz.core.ontology.runtime.storage.sqlite_runtime_storage import SQLiteRuntimeStorage
+        from odap.biz.core.ontology.application.runtime.impl.action_trigger_engine import ActionTriggerEngine
+        from odap.biz.core.ontology.application.runtime.storage.sqlite_runtime_storage import SQLiteRuntimeStorage
         storage = _make_storage(tmp_path, SQLiteRuntimeStorage)
         engine = ActionTriggerEngine(storage)
 
@@ -582,8 +582,8 @@ class TestActionTriggerEngine:
             })
 
     def test_register_missing_action(self, tmp_path):
-        from odap.biz.core.ontology.runtime.impl.action_trigger_engine import ActionTriggerEngine
-        from odap.biz.core.ontology.runtime.storage.sqlite_runtime_storage import SQLiteRuntimeStorage
+        from odap.biz.core.ontology.application.runtime.impl.action_trigger_engine import ActionTriggerEngine
+        from odap.biz.core.ontology.application.runtime.storage.sqlite_runtime_storage import SQLiteRuntimeStorage
         storage = _make_storage(tmp_path, SQLiteRuntimeStorage)
         engine = ActionTriggerEngine(storage)
 
@@ -594,8 +594,8 @@ class TestActionTriggerEngine:
             })
 
     def test_list_and_delete(self, tmp_path):
-        from odap.biz.core.ontology.runtime.impl.action_trigger_engine import ActionTriggerEngine
-        from odap.biz.core.ontology.runtime.storage.sqlite_runtime_storage import SQLiteRuntimeStorage
+        from odap.biz.core.ontology.application.runtime.impl.action_trigger_engine import ActionTriggerEngine
+        from odap.biz.core.ontology.application.runtime.storage.sqlite_runtime_storage import SQLiteRuntimeStorage
         storage = _make_storage(tmp_path, SQLiteRuntimeStorage)
         engine = ActionTriggerEngine(storage)
 
@@ -621,8 +621,8 @@ class TestActionTriggerEngine:
         assert engine.delete_trigger("nonexistent") is False
 
     def test_evaluate_triggers_state_driven(self, tmp_path):
-        from odap.biz.core.ontology.runtime.impl.action_trigger_engine import ActionTriggerEngine
-        from odap.biz.core.ontology.runtime.storage.sqlite_runtime_storage import SQLiteRuntimeStorage
+        from odap.biz.core.ontology.application.runtime.impl.action_trigger_engine import ActionTriggerEngine
+        from odap.biz.core.ontology.application.runtime.storage.sqlite_runtime_storage import SQLiteRuntimeStorage
         storage = _make_storage(tmp_path, SQLiteRuntimeStorage)
         engine = ActionTriggerEngine(storage)
 
@@ -645,8 +645,8 @@ class TestActionTriggerEngine:
         assert len(not_matched) == 0
 
     def test_evaluate_triggers_multiple_operators(self, tmp_path):
-        from odap.biz.core.ontology.runtime.impl.action_trigger_engine import ActionTriggerEngine
-        from odap.biz.core.ontology.runtime.storage.sqlite_runtime_storage import SQLiteRuntimeStorage
+        from odap.biz.core.ontology.application.runtime.impl.action_trigger_engine import ActionTriggerEngine
+        from odap.biz.core.ontology.application.runtime.storage.sqlite_runtime_storage import SQLiteRuntimeStorage
         storage = _make_storage(tmp_path, SQLiteRuntimeStorage)
         engine = ActionTriggerEngine(storage)
 
@@ -694,8 +694,8 @@ class TestActionTriggerEngine:
         assert contains_matched[0]["name"] == "contains触发器"
 
     def test_execute_trigger(self, tmp_path):
-        from odap.biz.core.ontology.runtime.impl.action_trigger_engine import ActionTriggerEngine
-        from odap.biz.core.ontology.runtime.storage.sqlite_runtime_storage import SQLiteRuntimeStorage
+        from odap.biz.core.ontology.application.runtime.impl.action_trigger_engine import ActionTriggerEngine
+        from odap.biz.core.ontology.application.runtime.storage.sqlite_runtime_storage import SQLiteRuntimeStorage
         storage = _make_storage(tmp_path, SQLiteRuntimeStorage)
         engine = ActionTriggerEngine(storage)
 
@@ -718,8 +718,8 @@ class TestActionTriggerEngine:
         assert fetched["last_fired_at"] is not None
 
     def test_execute_nonexistent_trigger(self, tmp_path):
-        from odap.biz.core.ontology.runtime.impl.action_trigger_engine import ActionTriggerEngine
-        from odap.biz.core.ontology.runtime.storage.sqlite_runtime_storage import SQLiteRuntimeStorage
+        from odap.biz.core.ontology.application.runtime.impl.action_trigger_engine import ActionTriggerEngine
+        from odap.biz.core.ontology.application.runtime.storage.sqlite_runtime_storage import SQLiteRuntimeStorage
         storage = _make_storage(tmp_path, SQLiteRuntimeStorage)
         engine = ActionTriggerEngine(storage)
 
@@ -727,8 +727,8 @@ class TestActionTriggerEngine:
         assert result["status"] == "error"
 
     def test_get_execution_history(self, tmp_path):
-        from odap.biz.core.ontology.runtime.impl.action_trigger_engine import ActionTriggerEngine
-        from odap.biz.core.ontology.runtime.storage.sqlite_runtime_storage import SQLiteRuntimeStorage
+        from odap.biz.core.ontology.application.runtime.impl.action_trigger_engine import ActionTriggerEngine
+        from odap.biz.core.ontology.application.runtime.storage.sqlite_runtime_storage import SQLiteRuntimeStorage
         storage = _make_storage(tmp_path, SQLiteRuntimeStorage)
         engine = ActionTriggerEngine(storage)
 
@@ -749,8 +749,8 @@ class TestActionTriggerEngine:
         assert len(all_history) >= 2
 
     def test_cooldown_prevents_firing(self, tmp_path):
-        from odap.biz.core.ontology.runtime.impl.action_trigger_engine import ActionTriggerEngine
-        from odap.biz.core.ontology.runtime.storage.sqlite_runtime_storage import SQLiteRuntimeStorage
+        from odap.biz.core.ontology.application.runtime.impl.action_trigger_engine import ActionTriggerEngine
+        from odap.biz.core.ontology.application.runtime.storage.sqlite_runtime_storage import SQLiteRuntimeStorage
         storage = _make_storage(tmp_path, SQLiteRuntimeStorage)
         engine = ActionTriggerEngine(storage)
 
@@ -773,8 +773,8 @@ class TestActionTriggerEngine:
 
 class TestOntologyRuntimeServiceTrigger:
     def test_trigger_workflow(self, tmp_path):
-        from odap.biz.core.ontology.runtime.services.runtime_service import OntologyRuntimeService
-        from odap.biz.core.ontology.runtime.storage.sqlite_runtime_storage import SQLiteRuntimeStorage
+        from odap.biz.core.ontology.application.runtime.services.runtime_service import OntologyRuntimeService
+        from odap.biz.core.ontology.application.runtime.storage.sqlite_runtime_storage import SQLiteRuntimeStorage
         storage = _make_storage(tmp_path, SQLiteRuntimeStorage)
         service = OntologyRuntimeService(storage=storage)
 
@@ -811,8 +811,8 @@ class TestOntologyRuntimeServiceTrigger:
         assert not_found["status"] == "error"
 
     def test_trigger_not_found(self, tmp_path):
-        from odap.biz.core.ontology.runtime.services.runtime_service import OntologyRuntimeService
-        from odap.biz.core.ontology.runtime.storage.sqlite_runtime_storage import SQLiteRuntimeStorage
+        from odap.biz.core.ontology.application.runtime.services.runtime_service import OntologyRuntimeService
+        from odap.biz.core.ontology.application.runtime.storage.sqlite_runtime_storage import SQLiteRuntimeStorage
         storage = _make_storage(tmp_path, SQLiteRuntimeStorage)
         service = OntologyRuntimeService(storage=storage)
 

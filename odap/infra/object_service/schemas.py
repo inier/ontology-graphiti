@@ -31,8 +31,8 @@ class ObjectQuerySort(BaseModel):
 
 class ObjectQuery(BaseModel):
     object_type: Optional[str] = None
-    filters: List[ObjectQueryFilter] = []
-    sorts: List[ObjectQuerySort] = []
+    filters: List[ObjectQueryFilter] = Field(default_factory=list)
+    sorts: List[ObjectQuerySort] = Field(default_factory=list)
     limit: int = Field(50, ge=1, le=1000)
     offset: int = Field(0, ge=0)
     include_links: bool = False
@@ -50,9 +50,9 @@ class LinkTraversal(BaseModel):
 class ObjectQueryResult(BaseModel):
     object_id: str
     object_type: str
-    properties: Dict[str, Any] = {}
-    links: List[Dict[str, Any]] = []
-    available_actions: List[Dict[str, Any]] = []
+    properties: Dict[str, Any] = Field(default_factory=dict)
+    links: List[Dict[str, Any]] = Field(default_factory=list)
+    available_actions: List[Dict[str, Any]] = Field(default_factory=list)
     source: str = ""
     score: Optional[float] = None
 

@@ -38,8 +38,9 @@ def _extract_user_from_request(request: Request) -> str:
             token = auth_header[7:]
             payload = pyjwt.decode(
                 token,
-                security_config.JWT_SECRET,
-                algorithms=[security_config.JWT_ALGORITHM],
+                # P0-8 fix: use lazy-validated method
+                security_config.get_jwt_secret(),
+                algorithms=[security_config.get_jwt_algorithm()],
                 options={"verify_exp": False},
             )
             return payload.get("name") or payload.get("sub") or "authenticated"

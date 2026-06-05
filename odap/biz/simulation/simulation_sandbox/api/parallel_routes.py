@@ -1,4 +1,5 @@
-from fastapi import APIRouter, HTTPException
+from fastapi import APIRouter, HTTPException, Depends
+from odap.infra.security.jwt_auth import get_current_user
 from typing import Dict, Any, List
 
 from ..impl.parallel_runner import get_parallel_runner
@@ -9,7 +10,7 @@ parallel_runner = get_parallel_runner()
 
 
 @router.post("/parallel")
-async def run_parallel(body: Dict[str, Any] = None):
+async def run_parallel(body: Dict[str, Any] = None, user=Depends(get_current_user)):
     try:
         scenarios = (body or {}).get("scenarios", [])
         result = await parallel_runner.run_parallel(scenarios)
@@ -23,7 +24,7 @@ async def run_parallel(body: Dict[str, Any] = None):
 
 
 @router.post("/what-if")
-async def run_what_if(body: Dict[str, Any] = None):
+async def run_what_if(body: Dict[str, Any] = None, user=Depends(get_current_user)):
     try:
         data = body or {}
         base_scenario = data.get("base_scenario", {})
@@ -39,7 +40,7 @@ async def run_what_if(body: Dict[str, Any] = None):
 
 
 @router.get("/comparison")
-async def get_comparison(ids: str = ""):
+async def get_comparison(ids: str = "", user=Depends(get_current_user)):
     try:
         run_ids = [i.strip() for i in ids.split(",") if i.strip()]
         if not run_ids:

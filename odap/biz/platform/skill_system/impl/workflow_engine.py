@@ -135,7 +135,8 @@ class WorkflowEngine:
             condition = condition.replace(f"{{{key}}}", str(value))
 
         try:
-            return bool(eval(condition))
+            from odap.biz.core.ontology.application.runtime.state_machine.impl.expression_evaluator import safe_eval
+            return safe_eval(condition, {})
         except Exception:
             return "true" in condition.lower()
 

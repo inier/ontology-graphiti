@@ -3,7 +3,8 @@ import uuid
 from typing import Dict, Any, List, Optional
 from pydantic import BaseModel, Field
 
-from fastapi import APIRouter, HTTPException, Query
+from fastapi import APIRouter, HTTPException, Query, Depends
+from odap.infra.security.jwt_auth import get_current_user
 
 logger = logging.getLogger(__name__)
 
@@ -39,6 +40,8 @@ def _get_tool_adapter():
     try:
         from odap.biz.integration.openharness_agent.adapter.tool_adapter_v2 import ToolAdapterV2
         return ToolAdapterV2()
+    except HTTPException:
+        raise
     except Exception:
         return None
 
@@ -47,12 +50,15 @@ def _get_tool_registry():
     try:
         from odap.biz.platform.tool_registry import get_tool_registry
         return get_tool_registry()
+    except HTTPException:
+        raise
     except Exception:
         return None
 
 
 @router.post("/register")
-async def register_tool(request: ToolRegisterRequest):
+async def register_tool(request: ToolRegisterRequest,
+    user=Depends(get_current_user)):
     adapter = _get_tool_adapter()
     if adapter:
         tool_def = {
@@ -78,6 +84,8 @@ async def register_tool(request: ToolRegisterRequest):
                 category=request.category,
             )
             return {"status": "success" if success else "error", "name": request.name}
+        except HTTPException:
+            raise
         except Exception as e:
             raise HTTPException(status_code=500, detail=str(e))
 
@@ -85,7 +93,8 @@ async def register_tool(request: ToolRegisterRequest):
 
 
 @router.delete("/{tool_id}")
-async def unregister_tool(tool_id: str):
+async def unregister_tool(tool_id: str,
+    user=Depends(get_current_user)):
     adapter = _get_tool_adapter()
     if adapter:
         result = adapter.unregister_tool(tool_id)
@@ -97,7 +106,8 @@ async def unregister_tool(tool_id: str):
 
 
 @router.post("/{tool_id}/invoke")
-async def invoke_tool(tool_id: str, request: ToolInvokeRequest):
+async def invoke_tool(tool_id: str, request: ToolInvokeRequest,
+    user=Depends(get_current_user)):
     adapter = _get_tool_adapter()
     if adapter:
         result = adapter.invoke_tool(tool_id, request.params)
@@ -115,6 +125,8 @@ async def invoke_tool(tool_id: str, request: ToolInvokeRequest):
                 "result": exec_result.data,
                 "error": exec_result.error,
             }
+        except HTTPException:
+            raise
         except Exception as e:
             raise HTTPException(status_code=500, detail=str(e))
 
@@ -137,12 +149,15 @@ async def list_tools(category: Optional[str] = Query(None)):
 
 
 @router.post("/discover")
-async def discover_tools(request: ToolDiscoverRequest):
+async def discover_tools(request: ToolDiscoverRequest,
+    user=Depends(get_current_user)):
     registry = _get_tool_registry()
     if registry:
         try:
             tools = registry.discover(semantic_query=request.query)
             return {"status": "success", "tools": tools[:request.top_k], "count": len(tools)}
+        except HTTPException:
+            raise
         except Exception as e:
             raise HTTPException(status_code=500, detail=str(e))
 

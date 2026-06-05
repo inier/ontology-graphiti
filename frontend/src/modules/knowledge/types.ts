@@ -55,6 +55,8 @@ export interface DocumentUploadData {
 
 export interface GraphBuildRequest {
   doc_id: string;
+  extraction_method?: 'regex' | 'llm' | 'auto';
+  entity_types?: string[];
   extraction_config: {
     extract_entities: boolean;
     extract_relations: boolean;

@@ -238,6 +238,13 @@ export function SkillManagement() {
                     >
                       详情
                     </Button>
+                    <Button
+                      type="link"
+                      size="small"
+                      onClick={() => handleEditSkill(record)}
+                    >
+                      编辑
+                    </Button>
                     <Popconfirm
                       title="确认删除此Skill?"
                       onConfirm={() => handleDeleteSkill(record)}
@@ -258,19 +265,18 @@ export function SkillManagement() {
 
   const handleDeleteSkill = async (skill: Skill) => {
     try {
-      message.success(`Skill "${skill.name}" 删除成功（仅从注册列表移除）`);
+      await api.toggleSkill(skill.name, false);
+      message.success(`Skill "${skill.name}" 已禁用并从注册列表移除`);
       loadData();
     } catch (error) {
       message.error(`删除失败: ${error}`);
     }
   };
 
-  // Skill 编辑功能已移除，如需启用请添加编辑按钮并调用此函数
-  const _handleEditSkill = (skill: Skill) => {
+  const handleEditSkill = (skill: Skill) => {
     setEditingSkill(skill);
     setSkillEditorVisible(true);
   };
-  void _handleEditSkill; // 防止未使用警告
 
   const handleSaveSkill = async (skillDef: {
     name: string;

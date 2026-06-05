@@ -16,7 +16,6 @@ class WorkspaceConfig(BaseModel):
     resource_quota: Dict[str, Any] = Field(default_factory=dict)
     network_policy: Dict[str, Any] = Field(default_factory=dict)
     environment_vars: Dict[str, str] = Field(default_factory=dict)
-    feature_flags: Dict[str, bool] = Field(default_factory=dict)
 
 
 class CreateWorkspaceRequest(BaseModel):

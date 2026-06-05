@@ -198,7 +198,7 @@ class DecisionPipeline:
         return await self._fallback_decide(analysis, input_data)
 
     async def _fallback_decide(self, analysis: AnalysisResult, input_data: AnalysisInput) -> DecisionResult:
-        from odap.biz.core.ontology.oms.services import get_oms_service
+        from odap.biz.core.ontology.application.oms.services import get_oms_service
         oms = get_oms_service()
 
         options = []

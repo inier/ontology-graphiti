@@ -4,14 +4,14 @@ from unittest.mock import MagicMock
 
 @pytest.fixture(autouse=True)
 def _reset_singleton():
-    from odap.biz.core.ontology.harness.blueprint.services.blueprint_runtime import BlueprintRuntimeEngine
+    from odap.biz.core.ontology.application.harness.blueprint.services.blueprint_runtime import BlueprintRuntimeEngine
     BlueprintRuntimeEngine._instance = None
     yield
     BlueprintRuntimeEngine._instance = None
 
 
 def _make_engine(blueprint_service=None):
-    from odap.biz.core.ontology.harness.blueprint.services.blueprint_runtime import BlueprintRuntimeEngine
+    from odap.biz.core.ontology.application.harness.blueprint.services.blueprint_runtime import BlueprintRuntimeEngine
     return BlueprintRuntimeEngine(blueprint_service=blueprint_service)
 
 
@@ -83,7 +83,7 @@ class TestBlueprintRuntimeStart:
 
 class TestBlueprintRuntimePauseResume:
     def test_pause_running_execution(self):
-        from odap.biz.core.ontology.harness.blueprint.services.blueprint_runtime import (
+        from odap.biz.core.ontology.application.harness.blueprint.services.blueprint_runtime import (
             BlueprintExecution, NodeExecution, ExecutionStatus, NodeExecutionState
         )
         engine = _make_engine()
@@ -104,7 +104,7 @@ class TestBlueprintRuntimePauseResume:
         assert result["status"] == "error"
 
     def test_resume_paused_execution(self):
-        from odap.biz.core.ontology.harness.blueprint.services.blueprint_runtime import (
+        from odap.biz.core.ontology.application.harness.blueprint.services.blueprint_runtime import (
             BlueprintExecution, NodeExecution, ExecutionStatus, NodeExecutionState
         )
         engine = _make_engine()
@@ -178,7 +178,7 @@ class TestBlueprintRuntimeGetAndList:
         assert result["executions"][0]["blueprint_id"] == "bp-a"
 
     def test_list_executions_filter_by_status(self):
-        from odap.biz.core.ontology.harness.blueprint.services.blueprint_runtime import ExecutionStatus
+        from odap.biz.core.ontology.application.harness.blueprint.services.blueprint_runtime import ExecutionStatus
         svc = _make_blueprint_service()
         engine = _make_engine(svc)
         engine.start_execution("exec-060", "bp-001")
@@ -261,7 +261,7 @@ class TestBlueprintRuntimeExecutionOrder:
 
 class TestBlueprintRuntimeSingleton:
     def test_singleton_pattern(self):
-        from odap.biz.core.ontology.harness.blueprint.services.blueprint_runtime import BlueprintRuntimeEngine
+        from odap.biz.core.ontology.application.harness.blueprint.services.blueprint_runtime import BlueprintRuntimeEngine
         a = BlueprintRuntimeEngine.get_instance()
         b = BlueprintRuntimeEngine.get_instance()
         assert a is b

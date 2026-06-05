@@ -37,7 +37,7 @@ def create_router_registry() -> List[tuple]:
     Returns:
         路由元组列表
     """
-    from odap.biz.core.ontology.api.routes import router as ingest_router
+    from odap.biz.core.ontology.application.api.routes import router as ingest_router
     from odap.biz.platform.workspace.api.routes import router as workspace_router
     from odap.biz.platform.roles.api.routes import router as roles_router
     from odap.infra.security import audit_router
@@ -49,7 +49,7 @@ def create_router_registry() -> List[tuple]:
     from odap.biz.integration.openharness_agent.api.routes import router as agent_router
     from odap.biz.management.agent_management.api.routes import router as agent_mgmt_router
     from odap.biz.data.knowledge_base.api.routes import router as kb_router
-    from odap.biz.core.ontology.oms.routes import router as oms_router
+    from odap.biz.core.ontology.application.oms.routes import router as oms_router
     from odap.infra.object_service.routes import router as osv2_router
     from odap.biz.decision.action_service.routes import router as action_router
     from odap.biz.data.perception.routes import router as perception_router

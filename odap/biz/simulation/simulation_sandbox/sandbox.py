@@ -29,7 +29,7 @@ class SimulationSandbox:
     @property
     def oms(self):
         if self._oms is None:
-            from odap.biz.core.ontology.oms.services import get_oms_service
+            from odap.biz.core.ontology.application.oms.services import get_oms_service
             self._oms = get_oms_service()
         return self._oms
 
@@ -58,12 +58,13 @@ class SimulationSandbox:
 
         baseline = await self._capture_baseline(scenario.target_object_id, scenario.target_object_type)
 
-        projected = await self._project_impact(
+        primary_result = await self._project_impact(
             scenario.target_object_id,
             scenario.target_object_type,
             scenario.action_type_id,
             scenario.parameters,
         )
+        projected = [primary_result]
 
         if scenario.variant_parameters:
             for i, variant in enumerate(scenario.variant_parameters):
@@ -85,6 +86,8 @@ class SimulationSandbox:
 
         recommendation = self._generate_recommendation(changes, risk)
 
+        confidence = self._compute_confidence(baseline, projected[0] if projected else {}, scenario.action_type_id)
+
         return WhatIfResult(
             scenario_id=scenario_id,
             status=SimulationStatus.COMPLETED,
@@ -93,7 +96,7 @@ class SimulationSandbox:
             metric_changes=changes,
             risk_assessment=risk,
             recommendation=recommendation,
-            confidence=0.6,
+            confidence=confidence,
         )
 
     async def compare(self, scenarios: List[WhatIfScenario]) -> WhatIfComparison:
@@ -301,10 +304,20 @@ class SimulationSandbox:
                 rules = {}
                 for param in action_def.get('parameters', []):
                     pname = param.get('name', '')
+                    ptype = param.get('param_type', 'string')
+                    default_val = param.get('default')
                     if 'supply' in pname.lower() or 'cost' in pname.lower():
                         rules['supply_level'] = -0.1
                     elif 'speed' in pname.lower():
                         rules['morale'] = -0.05
+                    elif ptype in ('float', 'integer') and default_val is not None:
+                        try:
+                            num_val = float(default_val)
+                            if num_val != 0:
+                                metric = pname.lower().replace('_value', '').replace('_rate', '')
+                                rules[metric] = -abs(num_val) / (abs(num_val) + 1) * 0.3
+                        except (ValueError, TypeError):
+                            pass
                 if rules:
                     return rules
         except Exception:
@@ -320,6 +333,21 @@ class SimulationSandbox:
             'communicate': {},
         }
         return DEFAULT_IMPACT_RULES.get(action_type_id, {})
+
+    def _compute_confidence(self, baseline: Dict[str, Any], projected: Dict[str, Any], action_type_id: str) -> float:
+        confidence = 0.4
+        real_data_keys = [k for k in ('combat_power', 'morale', 'supply_level', 'strength', 'status') if k in baseline and baseline[k] is not None and baseline[k] != 0]
+        if real_data_keys:
+            confidence += 0.2
+        try:
+            action_def = self.oms.get_action_type(action_type_id)
+            if action_def and action_def.get('parameters'):
+                confidence += 0.15
+        except Exception:
+            pass
+        if projected.get('llm_impact'):
+            confidence += 0.1
+        return min(0.95, confidence)
 
     def _compute_metric_changes(self, baseline: Dict[str, Any], projected: Dict[str, Any]) -> List[MetricChange]:
         changes = []

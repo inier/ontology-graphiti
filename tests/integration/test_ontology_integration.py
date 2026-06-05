@@ -22,7 +22,7 @@ class TestOntologyIngestionPipeline:
     @pytest.mark.asyncio
     async def test_news_ingest_to_ontology_flow(self):
         """测试从新闻摄入到本体构建的完整流程"""
-        from odap.biz.core.ontology.ingestion_split import NewsIngester
+        from odap.biz.core.ontology.design.ingestion_split import NewsIngester
 
         ingester = NewsIngester()
         news_results = await ingester.ingest(
@@ -48,7 +48,7 @@ class TestQABuildIntegration:
     @pytest.mark.asyncio
     async def test_qa_to_ontology_flow(self, event_loop):
         """测试从问答到本体构建的流程"""
-        from odap.biz.core.ontology.services.qa_ontology_builder import get_qa_builder
+        from odap.biz.core.ontology.design.services.qa_ontology_builder import get_qa_builder
 
         builder = get_qa_builder()
 

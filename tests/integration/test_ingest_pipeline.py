@@ -14,8 +14,8 @@ client = TestClient(app)
 
 class TestTextIngestPipeline:
 
-    @patch("odap.biz.core.ontology.services.ingest_service.IngestService.ingest_from_natural_language", new_callable=AsyncMock)
-    @patch("odap.biz.core.ontology.services.ingest_service.IngestService.get_ingest_status")
+    @patch("odap.biz.core.ontology.design.services.ingest_service.IngestService.ingest_from_natural_language", new_callable=AsyncMock)
+    @patch("odap.biz.core.ontology.design.services.ingest_service.IngestService.get_ingest_status")
     def test_ingest_text_creates_entities(self, mock_get_status, mock_ingest_nl):
         mock_ingest_nl.return_value = "ingest-abc-123"
         mock_get_status.return_value = {
@@ -53,8 +53,8 @@ class TestTextIngestPipeline:
         assert "entities" in data["extracted_data"]
         assert len(data["extracted_data"]["entities"]) > 0
 
-    @patch("odap.biz.core.ontology.services.ingest_service.IngestService.ingest_from_natural_language", new_callable=AsyncMock)
-    @patch("odap.biz.core.ontology.services.ingest_service.IngestService.get_ingest_status")
+    @patch("odap.biz.core.ontology.design.services.ingest_service.IngestService.ingest_from_natural_language", new_callable=AsyncMock)
+    @patch("odap.biz.core.ontology.design.services.ingest_service.IngestService.get_ingest_status")
     def test_ingest_text_with_scenario(self, mock_get_status, mock_ingest_nl):
         scenario_id = str(uuid.uuid4())
         mock_ingest_nl.return_value = "ingest-scenario-456"
@@ -103,8 +103,8 @@ class TestTextIngestPipeline:
 
 class TestNewsIngestPipeline:
 
-    @patch("odap.biz.core.ontology.services.ingest_service.IngestService.ingest_from_news", new_callable=AsyncMock)
-    @patch("odap.biz.core.ontology.services.ingest_service.IngestService.get_ingest_status")
+    @patch("odap.biz.core.ontology.design.services.ingest_service.IngestService.ingest_from_news", new_callable=AsyncMock)
+    @patch("odap.biz.core.ontology.design.services.ingest_service.IngestService.get_ingest_status")
     def test_ingest_news(self, mock_get_status, mock_ingest_news):
         mock_ingest_news.return_value = "ingest-news-789"
         mock_get_status.return_value = {
@@ -133,8 +133,8 @@ class TestNewsIngestPipeline:
         assert "ingest_id" in data
         assert data["status"] == "completed"
 
-    @patch("odap.biz.core.ontology.services.ingest_service.IngestService.ingest_from_news", new_callable=AsyncMock)
-    @patch("odap.biz.core.ontology.services.ingest_service.IngestService.get_ingest_status")
+    @patch("odap.biz.core.ontology.design.services.ingest_service.IngestService.ingest_from_news", new_callable=AsyncMock)
+    @patch("odap.biz.core.ontology.design.services.ingest_service.IngestService.get_ingest_status")
     def test_ingest_news_extracts_entities(self, mock_get_status, mock_ingest_news):
         mock_ingest_news.return_value = "ingest-news-entity-001"
         mock_get_status.return_value = {
@@ -176,9 +176,9 @@ class TestNewsIngestPipeline:
 
 class TestOntologyBuildPipeline:
 
-    @patch("odap.biz.core.ontology.services.ingest_service.IngestService.ingest_from_natural_language", new_callable=AsyncMock)
-    @patch("odap.biz.core.ontology.services.ingest_service.IngestService.get_ingest_status")
-    @patch("odap.biz.core.ontology.api.routes.SQLiteIngestStorage.save_build_history")
+    @patch("odap.biz.core.ontology.design.services.ingest_service.IngestService.ingest_from_natural_language", new_callable=AsyncMock)
+    @patch("odap.biz.core.ontology.design.services.ingest_service.IngestService.get_ingest_status")
+    @patch("odap.biz.core.ontology.application.api.routes.SQLiteIngestStorage.save_build_history")
     def test_build_after_ingest(self, mock_save_build, mock_get_status, mock_ingest_nl):
         mock_ingest_nl.return_value = "ingest-build-test-001"
         mock_get_status.return_value = {
@@ -206,7 +206,7 @@ class TestOntologyBuildPipeline:
         assert ingest_response.status_code == 200
         ingest_id = ingest_response.json()["ingest_id"]
 
-        with patch("odap.biz.core.ontology.api.routes.get_pipeline_service") as mock_pipeline_svc:
+        with patch("odap.biz.core.ontology.application.api.routes.get_pipeline_service") as mock_pipeline_svc:
             mock_context = MagicMock()
             mock_context.success = True
             mock_context.version_id = "ver-001"
@@ -226,9 +226,9 @@ class TestOntologyBuildPipeline:
             assert "build_id" in build_data
             assert build_data["status"] == "pending"
 
-    @patch("odap.biz.core.ontology.services.ingest_service.IngestService.ingest_from_natural_language", new_callable=AsyncMock)
-    @patch("odap.biz.core.ontology.services.ingest_service.IngestService.get_ingest_status")
-    @patch("odap.biz.core.ontology.api.routes.SQLiteIngestStorage.save_build_history")
+    @patch("odap.biz.core.ontology.design.services.ingest_service.IngestService.ingest_from_natural_language", new_callable=AsyncMock)
+    @patch("odap.biz.core.ontology.design.services.ingest_service.IngestService.get_ingest_status")
+    @patch("odap.biz.core.ontology.application.api.routes.SQLiteIngestStorage.save_build_history")
     def test_version_snapshot(self, mock_save_build, mock_get_status, mock_ingest_nl):
         mock_ingest_nl.return_value = "ingest-version-001"
         mock_get_status.return_value = {
@@ -256,7 +256,7 @@ class TestOntologyBuildPipeline:
         assert ingest_response.status_code == 200
         ingest_id = ingest_response.json()["ingest_id"]
 
-        with patch("odap.biz.core.ontology.api.routes.get_pipeline_service") as mock_pipeline_svc:
+        with patch("odap.biz.core.ontology.application.api.routes.get_pipeline_service") as mock_pipeline_svc:
             mock_context = MagicMock()
             mock_context.success = True
             mock_context.version_id = "ver-snapshot-001"
@@ -273,7 +273,7 @@ class TestOntologyBuildPipeline:
             )
             assert build_response.status_code == 200
 
-        with patch("odap.biz.core.ontology.api.routes.ingest_service") as mock_svc:
+        with patch("odap.biz.core.ontology.application.api.routes.ingest_service") as mock_svc:
             mock_svc.get_ingest_status.return_value = {
                 "id": ingest_id,
                 "status": "completed",

@@ -1,4 +1,6 @@
 """ODAP Tools Package - Domain Tools Layer"""
+import logging
+
 from .base import BaseSkill, SkillInput, SkillOutput
 from .registry import (
     SKILL_CATALOG,
@@ -6,6 +8,8 @@ from .registry import (
     SkillRegistry,
     get_registry
 )
+
+logger = logging.getLogger(__name__)
 
 # 导入 Agent 工具集（自动注册到 SKILL_CATALOG）
 try:
@@ -19,9 +23,9 @@ try:
         get_workspace_info,
         create_workspace_summary,
     )
-    print("[OK] Agent tools loaded")
+    logger.info('[OK] Agent tools loaded')
 except Exception as e:
-    print(f"[WARN] Agent tools load failed: {e}")
+    logger.info(f'[WARN] Agent tools load failed: {e}')
 
 __all__ = [
     'BaseSkill',

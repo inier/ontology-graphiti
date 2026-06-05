@@ -59,7 +59,7 @@
 
 ### 1.3 独立性保证
 
-**Decision**: 适配层隔离 + 接口抽象 + 版本锁定 + 不 fork 核心代码
+**Decision**: 适配层隔离 + 封装隔离 + 版本锁定 + 不 fork 核心代码
 
 **Rationale**:
 - 现有 `odap/infra/openharness/` 已实现适配层模式：`tool_adapter.py` 和 `v2_adapter.py` 封装了所有 OpenHarness 调用
@@ -73,7 +73,7 @@
 3. **Fork OpenHarness** — 完全控制但失去上游更新能力，被否决
 
 **Implementation Notes**:
-- 适配层需定义抽象接口（Protocol/ABC），OpenHarness 是默认实现
+- 适配层提供具体封装类，业务代码通过适配器调用 OpenHarness，不直接引用；适配器公共 API 保持稳定，OpenHarness API 变更时仅需更新适配器
 - 新增适配器文件：`swarm_adapter.py`, `skill_adapter.py`, `memory_adapter.py`, `hook_adapter.py`
 - 每个适配器文件对应 plan.md 中 `odap/infra/openharness/` 下的一个模块
 - 当 OpenHarness API 变更时，仅需更新适配层，业务代码无感知
@@ -93,7 +93,7 @@
 | **Link** | 链接/关系 | Relation/LinkDefinition | 对象类型之间的关联，含基数约束 |
 | **Action** | 动作 | ActionType | 对对象可执行的操作，含参数、权限、回写配置 |
 
-Palantir AIP 额外概念（ODAP 需对齐但可简化）：
+Palantir AIP 额外概念（ODAP 可借鉴但可简化）：
 - **Rule**: 业务规则，约束对象行为（对应 ODAP Constraint）
 - **Function**: 计算函数，派生属性（对应 ODAP servitization 中的 FunctionType）
 - **Constraint**: 数据约束，属性级验证规则
@@ -102,7 +102,7 @@ Palantir AIP 额外概念（ODAP 需对齐但可简化）：
 
 **现有 OMS 实现**（`odap/biz/core/ontology/oms/`）：
 
-| 维度 | 现有 OMS | Palantir AIP 对齐目标 | 差距 |
+| 维度 | 现有 OMS | Palantir AIP 参考目标 | 差距 |
 |------|----------|----------------------|------|
 | **ObjectType** | `ObjectTypeDefinition` 含 type_id, name, properties[], links[], actions[] | 需增加 primary_key, constraints[], classification_level | 缺少主键定义和约束 |
 | **Property** | `PropertyDefinition` 含 name, property_type, required, category | 需增加 classification_level, default_value, validation_rule | 缺少分类级别和验证规则 |
@@ -198,7 +198,7 @@ Palantir AIP 额外概念（ODAP 需对齐但可简化）：
 - SQLite 表结构扩展：`object_types` 增加 `primary_key TEXT`、`constraints TEXT` 列
 - Neo4j 节点增加 `classification_level` 属性，支持数据分类查询
 - `OMSService` 增加 `validate_instance(type_id, properties)` 方法，基于 Constraint 校验
-- `from_palantir()` / `to_palantir()` 转换方法实现 Palantir JSON ↔ OntologyDocument 互转
+- `to_owl()` / `to_rdf()` 导出方法实现 OntologyDocument → OWL/RDF 转换；`from_palantir()` 仅在需要导入 Palantir 数据时实现
 
 ---
 
@@ -416,7 +416,7 @@ MINIO_SECURE=false
 **Rationale**:
 - 现有前端代码直接引用 `antd` 组件（如 `import { Button } from 'antd'`），与 Ant Design 强耦合
 - Adapter 隔离层使得替换组件库时只需实现新 Adapter，无需修改 L2+ 组件代码
-- 这不是当前立即需要的，但架构上必须预留
+- 隔离层保持轻量，当前仅实现 AntDesignAdapter；不预先添加其他适配器实现
 
 **Adapter 接口设计**:
 ```typescript
@@ -785,3 +785,112 @@ class FeedbackLoop:
 | 查询 | `odap/infra/openharness/query_guard_hook.py` | 查询守卫+工具注册 |
 | OODA/OADP | `odap/biz/core/agent/swarm_orchestrator.py` | DomainSwarm OODA 循环 |
 | OODA/OADP | `odap/biz/decision/decision_recommendation/engine.py` | 决策推荐引擎 |
+
+---
+
+## Phase 4 增量研究 (2026-06-05 Brainstorm)
+
+> 以下课题对应 plan.md "Phase 4: Palantir/OntoFlow 增强层"，源自 2026-06-05 deep-dive brainstorm。
+
+### 课题9: 本体 Branch & Merge 的存储与冲突解决算法
+
+**Decision**: 3-way JSON Merge (基于 RFC 6902 JSON Patch) + 用户手动解决冲突
+
+**Rationale**:
+- Palantir Foundry 的 Branch & Merge 基于 git-like 语义，但底层是图数据库
+- ODAP 的 OntologyDocument 是 JSON (FR-029)，天然适合 JSON Patch
+- 3-way merge: base + ours + theirs → 自动合并无冲突字段 → 冲突字段由用户选择
+
+**Alternatives Considered**:
+- ❌ 文本 diff (line-based)：JSON 重排时产生大量误冲突
+- ❌ Operational Transform (OT)：复杂度高，主流编辑器协议但不适合数据模型
+- ✅ JSON Patch (RFC 6902)：标准协议、库成熟、社区广泛
+
+**实施细节**:
+- 存储：分支作为 `OntologyBranch` 实体，包含 `head_version_id`
+- 合并：创建临时 3-way 快照，生成 JSON Patch diff
+- 冲突检测：同一 `field_path` 在 base/ours/theirs 三方值不同
+- 主分支保护：`is_protected=True` 时禁止 direct push
+
+### 课题10: 计算属性依赖图与重算策略
+
+**Decision**: 物化视图 + 反向依赖索引 + 增量重算 + 定时全量校验
+
+**Rationale**:
+- 维护 `Property.depends_on` 字段，构建反向索引 `EntityPropertyDependents`
+- 实体变更时：触发下游 view 增量重算
+- 大数据规模：> 100K 实例时支持分批重算
+- Stale 警告：返回查询结果时附 `is_stale` 标志
+
+**Alternatives Considered**:
+- ❌ 实时计算（无缓存）：性能差，特别是复杂计算属性
+- ❌ 触发器模式：与 OpenHarness Hook 系统重叠
+- ✅ 物化视图：经典 OLAP 模式，成熟可靠
+
+**实施细节**:
+- 增量重算：基于 event sourcing，Post-Hook 监听 entity change
+- 定时全量：apscheduler cron 表达式
+- 失败重试：3 次指数退避，超过则标记 view 为 `degraded`
+
+### 课题11: Action Type 与现有 ToolRegistry 集成方案
+
+**Decision**: Action Type 作为 Skill 的"类型化包装"，现有 ToolRegistry 保留并标记 legacy
+
+**Rationale**:
+- Action Type 在本体层 (业务接口)，Skill 在能力层 (工程实现)
+- 现有 ToolRegistry 已实现 Skill 管理 (FR-025)
+- 增量方式：先支持 Action Type → Skill 映射，不破坏现有调用
+- 长期：现有 Tool 逐步迁移为 Skill，再绑定到 Action Type
+
+**Alternatives Considered**:
+- ❌ 完全替换 ToolRegistry：破坏现有业务，回归测试工作量大
+- ❌ Action Type 作为独立子系统：与 Skill 数据双轨制
+- ✅ Action Type 作为 Skill 的 Facade：单一数据源，Action 提供业务语义
+
+**实施细节**:
+- `ActionType.implementation: List[str]` 引用 Skill IDs
+- ActionExecutor 解析 Action → 加载 Skill 列表 → 按序执行
+- 失败回滚：所有 Skill 视为同一事务，任一失败回滚
+
+### 课题12: OntoFlow Goal-driven 演化的强制机制
+
+**Decision**: 本体验证器 + UI 强制要求 goal + rationale，缺一拒绝提交
+
+**Rationale**:
+- OntoFlow 的核心：本体演化必须有业务目标驱动
+- 强制方式：API 层 `ChangeRequest` schema 必填 `goal_id` + `rationale`
+- 降低阻力：提供 Goal 模板 + 快捷创建（"功能改进"、"Bug 修复"、"性能优化"）
+
+**Alternatives Considered**:
+- ❌ 仅记录但不强制：沦为可选字段，无实际效果
+- ❌ 完全自由化：不记录业务目标
+- ✅ 强制 + 模板：保证质量的同时降低使用门槛
+
+**实施细节**:
+- `OntologyChange` model 加 `goal_id: str` (required) + `rationale: str` (required, min 20 chars)
+- Goal CRUD 独立 API (`/api/ontology/goals`)
+- 审计：`GET /api/ontology/changes?goal_id={id}` 反查
+- 报表：每季度生成 Goal → Change → Impact 报表
+
+### 课题13: Object View 与 OPA 的职责分离
+
+**Decision**: View 决定"展示什么"（业务语义），OPA 决定"能否访问"（安全策略），互不重叠
+
+**Rationale**:
+- View 是业务概念：同一 Object Type 在不同场景展示不同属性（commander-view / operator-view）
+- OPA 是安全概念：基于 subject + action + resource 决策
+- 两者职责正交：View 提供候选，OPA 二次拦截
+- 类比：View 是 RDBMS 的 VIEW，OPA 是 GRANT
+
+**Alternatives Considered**:
+- ❌ View 包含权限逻辑：业务与安全耦合
+- ❌ OPA 包含 View 逻辑：策略文件爆炸
+- ✅ 职责分离：View → OPA → 实际数据
+
+**实施细节**:
+- `ObjectView.included_properties` 白名单
+- `RedactionRule`：mask/hash/partial/remove 四种脱敏
+- ViewResolver：view → properties → OPA check → final visible props
+- 缓存：Redis 缓存 view resolution (TTL 5min)
+
+

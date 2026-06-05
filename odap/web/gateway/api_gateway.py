@@ -21,6 +21,10 @@ from functools import wraps
 
 from odap.infra.security.auth_models import AuthProvider
 
+
+import logging
+
+logger = logging.getLogger(__name__)
 sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 
@@ -273,6 +277,7 @@ class ServiceProxy:
                 )
                 return {"status": "ok", "route": route.path, "trace_id": trace_id, "status_code": resp.status_code, "body": resp.json() if resp.headers.get("content-type", "").startswith("application/json") else resp.text}
         except Exception as e:
+            logger.warning("silent except caught in {exc} (line 275)", exc_info=True)
             return {"status": "error", "route": route.path, "trace_id": trace_id, "error": str(e)}
 
     async def forward_ws(self, ws, route: Route, trace_id: str):
@@ -309,6 +314,7 @@ class ConnectionManager:
                             conn["ws"].send(json.dumps(message))
                             count += 1
                     except Exception:
+                        logger.warning("silent except caught in {exc} (line 311)", exc_info=True)
                         pass
         return count
 
@@ -472,6 +478,7 @@ class APIGatewayV2:
             return response
 
         except Exception as e:
+            logger.warning("silent except caught in {exc} (line 474)", exc_info=True)
             self._metrics.record(trace_id, start_time, success=False, error=str(e))
             return {"error": f"Gateway error: {e}", "status_code": 500}
 

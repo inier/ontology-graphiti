@@ -30,7 +30,7 @@ class TestOntologyDesignerWorkflow:
     def _setup(self):
         with patch("odap.biz.integration.frontend_compat.api.routes.scenario_store", MagicMock()), \
              patch("odap.biz.integration.frontend_compat.api.routes.workspace_service", MagicMock()), \
-             patch("odap.biz.core.ontology.api.routes.ingest_service") as mock_ingest, \
+             patch("odap.biz.core.ontology.application.api.routes.ingest_service") as mock_ingest, \
              patch("odap.biz.platform.workspace.api.routes.workspace_service") as mock_ws:
             mock_ingest.ingest_from_natural_language = AsyncMock(return_value="ingest-nl-001")
             mock_ingest.ingest_from_manual = AsyncMock(return_value="ingest-manual-001")
@@ -73,7 +73,7 @@ class TestOntologyDesignerWorkflow:
             yield
 
     def test_create_entity_type_and_add_properties(self):
-        from odap.biz.core.ontology.impl.builder import OntologyBuilder
+        from odap.biz.core.ontology.design.impl.builder import OntologyBuilder
         builder = OntologyBuilder()
 
         doc = builder.create_ontology_document(
@@ -104,8 +104,8 @@ class TestOntologyDesignerWorkflow:
         assert extracted.entities[0]["properties"]["side"] == "blue"
 
     def test_create_instance_and_version_management(self):
-        from odap.biz.core.ontology.impl.builder import OntologyBuilder
-        from odap.biz.core.ontology.impl.version import VersionManager
+        from odap.biz.core.ontology.design.impl.builder import OntologyBuilder
+        from odap.biz.core.ontology.design.impl.version import VersionManager
         builder = OntologyBuilder()
         version_mgr = VersionManager()
 
@@ -136,8 +136,8 @@ class TestOntologyDesignerWorkflow:
         assert len(versions) >= 2
 
     def test_version_rollback(self):
-        from odap.biz.core.ontology.impl.builder import OntologyBuilder
-        from odap.biz.core.ontology.impl.version import VersionManager
+        from odap.biz.core.ontology.design.impl.builder import OntologyBuilder
+        from odap.biz.core.ontology.design.impl.version import VersionManager
         builder = OntologyBuilder()
         version_mgr = VersionManager()
 

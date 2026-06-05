@@ -25,23 +25,23 @@ class WhatIfScenario(BaseModel):
     action_type_id: str
     target_object_id: str
     target_object_type: str
-    parameters: Dict[str, Any] = {}
-    variant_parameters: List[Dict[str, Any]] = []
+    parameters: Dict[str, Any] = Field(default_factory=dict)
+    variant_parameters: List[Dict[str, Any]] = Field(default_factory=list)
 
 
 class WhatIfResult(BaseModel):
     scenario_id: str
     status: SimulationStatus
-    baseline_metrics: Dict[str, Any] = {}
-    projected_metrics: List[Dict[str, Any]] = []
-    metric_changes: List[MetricChange] = []
-    risk_assessment: Dict[str, Any] = {}
+    baseline_metrics: Dict[str, Any] = Field(default_factory=dict)
+    projected_metrics: List[Dict[str, Any]] = Field(default_factory=list)
+    metric_changes: List[MetricChange] = Field(default_factory=list)
+    risk_assessment: Dict[str, Any] = Field(default_factory=dict)
     recommendation: str = ""
     confidence: float = 0.0
     error: Optional[str] = None
 
 
 class WhatIfComparison(BaseModel):
-    scenarios: List[WhatIfResult] = []
+    scenarios: List[WhatIfResult] = Field(default_factory=list)
     best_scenario_id: Optional[str] = None
     summary: str = ""

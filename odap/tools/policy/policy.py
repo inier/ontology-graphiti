@@ -7,7 +7,7 @@ sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 from odap.tools import register_skill
 from odap.infra.opa import OPAManager
-from odap.biz.core.ontology.schema.domain import ROLES, DOMAIN_CONFIG
+from odap.biz.core.ontology.design.schema.domain import ROLES, DOMAIN_CONFIG
 
 opa_manager = OPAManager()
 _policy_history = []

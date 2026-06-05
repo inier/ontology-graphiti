@@ -7,7 +7,7 @@ class SchemaSourceImpl:
 
     def _get_oms(self):
         if self._oms is None:
-            from odap.biz.core.ontology.oms.services import get_oms_service
+            from odap.biz.core.ontology.application.oms.services import get_oms_service
             self._oms = get_oms_service()
         return self._oms
 

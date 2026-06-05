@@ -1,4 +1,5 @@
-from fastapi import APIRouter, HTTPException
+from fastapi import APIRouter, HTTPException, Depends
+from odap.infra.security.jwt_auth import get_current_user
 from typing import Dict, Any, Optional
 
 from ..services.sandbox_service import SandboxService
@@ -9,7 +10,8 @@ sandbox_service = SandboxService()
 
 
 @router.post("")
-async def create_sandbox(config: Dict[str, Any] = None):
+async def create_sandbox(config: Dict[str, Any] = None,
+    user=Depends(get_current_user)):
     try:
         result = sandbox_service.create_sandbox(config or {})
         if result.get("status") == "error":
@@ -22,7 +24,8 @@ async def create_sandbox(config: Dict[str, Any] = None):
 
 
 @router.post("/{sandbox_id}/run")
-async def run_simulation(sandbox_id: str, params: Dict[str, Any] = None):
+async def run_simulation(sandbox_id: str, params: Dict[str, Any] = None,
+    user=Depends(get_current_user)):
     try:
         result = await sandbox_service.run_simulation(sandbox_id, params or {})
         if result.get("status") == "error":
@@ -37,7 +40,8 @@ async def run_simulation(sandbox_id: str, params: Dict[str, Any] = None):
 
 
 @router.get("/{sandbox_id}/status")
-async def get_sandbox_status(sandbox_id: str):
+async def get_sandbox_status(sandbox_id: str,
+    user=Depends(get_current_user)):
     try:
         result = sandbox_service.get_sandbox_status(sandbox_id)
         if result.get("status") == "error":
@@ -50,7 +54,8 @@ async def get_sandbox_status(sandbox_id: str):
 
 
 @router.get("/{sandbox_id}/results")
-async def get_sandbox_results(sandbox_id: str):
+async def get_sandbox_results(sandbox_id: str,
+    user=Depends(get_current_user)):
     try:
         result = sandbox_service.get_sandbox_results(sandbox_id)
         if result.get("status") == "error":
@@ -63,7 +68,8 @@ async def get_sandbox_results(sandbox_id: str):
 
 
 @router.delete("/{sandbox_id}")
-async def destroy_sandbox(sandbox_id: str):
+async def destroy_sandbox(sandbox_id: str,
+    user=Depends(get_current_user)):
     try:
         result = sandbox_service.destroy_sandbox(sandbox_id)
         if result.get("status") == "error":
@@ -76,7 +82,8 @@ async def destroy_sandbox(sandbox_id: str):
 
 
 @router.post("/{sandbox_id}/export")
-async def export_results(sandbox_id: str, body: Optional[Dict[str, Any]] = None):
+async def export_results(sandbox_id: str, body: Optional[Dict[str, Any]] = None,
+    user=Depends(get_current_user)):
     try:
         approved_by = (body or {}).get("approved_by", "")
         result = sandbox_service.export_results(sandbox_id, approved_by)
@@ -90,7 +97,8 @@ async def export_results(sandbox_id: str, body: Optional[Dict[str, Any]] = None)
 
 
 @router.get("")
-async def list_sandboxes(workspace_id: str = None):
+async def list_sandboxes(workspace_id: str = None,
+    user=Depends(get_current_user)):
     try:
         return {"sandboxes": sandbox_service.list_sandboxes(workspace_id)}
     except HTTPException:

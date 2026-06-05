@@ -1,4 +1,5 @@
-from fastapi import APIRouter, HTTPException
+from fastapi import APIRouter, HTTPException, Depends
+from odap.infra.security.jwt_auth import get_current_user
 from pydantic import BaseModel, Field
 from typing import Dict, Any, List, Optional
 
@@ -34,7 +35,8 @@ class HistoryResponse(BaseModel):
 
 
 @router.post("/recommend")
-async def generate_recommendation(request: RecommendRequest):
+async def generate_recommendation(request: RecommendRequest,
+    user=Depends(get_current_user)):
     try:
         engine = _get_engine()
         sim_results = request.simulation_results
@@ -55,7 +57,8 @@ async def generate_recommendation(request: RecommendRequest):
 
 
 @router.post("/risk-assessment")
-async def risk_assessment(request: RiskAssessmentRequest):
+async def risk_assessment(request: RiskAssessmentRequest,
+    user=Depends(get_current_user)):
     try:
         engine = _get_engine()
         result = await engine.assess_risks(request.recommendation)
@@ -67,7 +70,8 @@ async def risk_assessment(request: RiskAssessmentRequest):
 
 
 @router.get("/recommendations/{recommendation_id}/explain")
-async def explain_recommendation(recommendation_id: str):
+async def explain_recommendation(recommendation_id: str,
+    user=Depends(get_current_user)):
     try:
         engine = _get_engine()
         result = engine.explain_recommendation(recommendation_id)
@@ -83,8 +87,8 @@ async def explain_recommendation(recommendation_id: str):
 @router.get("/history", response_model=HistoryResponse)
 async def get_history(
     ontology_id: Optional[str] = None,
-    limit: int = 20,
-):
+    limit: int = 20,,
+    user=Depends(get_current_user)):
     try:
         engine = _get_engine()
         history = engine.get_history(ontology_id=ontology_id, limit=limit)

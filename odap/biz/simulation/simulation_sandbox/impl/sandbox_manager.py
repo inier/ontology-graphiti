@@ -30,7 +30,30 @@ class SandboxManager:
             return
         self._sandboxes: Dict[str, Dict[str, Any]] = {}
         self._results: Dict[str, Dict[str, Any]] = {}
+        self._storage = None
+        try:
+            from ..storage import SQLiteSandboxStorage
+            self._storage = SQLiteSandboxStorage()
+        except Exception as e:
+            logger.warning(f"SQLiteSandboxStorage initialization failed: {e}")
         self._initialized = True
+
+    def _persist_sandbox(self, sandbox: Dict[str, Any]):
+        if self._storage is None:
+            return
+        try:
+            persist_data = {k: v for k, v in sandbox.items() if k != "process_handle"}
+            self._storage.save_sandbox(persist_data)
+        except Exception as e:
+            logger.warning(f"Failed to persist sandbox: {e}")
+
+    def _persist_result(self, sandbox_id: str, result: Dict[str, Any]):
+        if self._storage is None:
+            return
+        try:
+            self._storage.save_result(sandbox_id, result)
+        except Exception as e:
+            logger.warning(f"Failed to persist result: {e}")
 
     def create_sandbox(self, config: Dict[str, Any]) -> Dict[str, Any]:
         sandbox_id = f"sandbox_{uuid.uuid4().hex[:12]}"
@@ -62,6 +85,7 @@ class SandboxManager:
             sandbox["isolation_level"] = "in_process"
 
         self._sandboxes[sandbox_id] = sandbox
+        self._persist_sandbox(sandbox)
         logger.info(f"Created sandbox {sandbox_id} with isolation level {sandbox['isolation_level']}")
         return {
             "sandbox_id": sandbox_id,
@@ -87,6 +111,12 @@ class SandboxManager:
     async def run_simulation(self, sandbox_id: str, params: Dict[str, Any]) -> Dict[str, Any]:
         sandbox = self._sandboxes.get(sandbox_id)
         if not sandbox:
+            if self._storage:
+                stored = self._storage.get_sandbox(sandbox_id)
+                if stored:
+                    self._sandboxes[sandbox_id] = stored
+                    sandbox = stored
+        if not sandbox:
             return {"status": "error", "message": f"Sandbox {sandbox_id} not found"}
         if sandbox["status"] not in (SandboxStatus.CREATED, SandboxStatus.COMPLETED, SandboxStatus.FAILED, SandboxStatus.TIMEOUT):
             return {"status": "error", "message": f"Sandbox {sandbox_id} is in {sandbox['status']} state, cannot run"}
@@ -104,6 +134,8 @@ class SandboxManager:
             sandbox["status"] = SandboxStatus.COMPLETED
             sandbox["completed_at"] = datetime.now(timezone.utc).isoformat()
             self._results[sandbox_id] = result
+            self._persist_sandbox(sandbox)
+            self._persist_result(sandbox_id, result)
             return result
         except asyncio.TimeoutError:
             elapsed = time.time() - start_time
@@ -117,6 +149,8 @@ class SandboxManager:
                 "partial_results": self._results.get(sandbox_id, {}),
             }
             self._results[sandbox_id] = partial_result
+            self._persist_sandbox(sandbox)
+            self._persist_result(sandbox_id, partial_result)
             return partial_result
         except Exception as e:
             sandbox["status"] = SandboxStatus.FAILED
@@ -127,10 +161,12 @@ class SandboxManager:
                 "message": str(e),
             }
             self._results[sandbox_id] = error_result
+            self._persist_sandbox(sandbox)
+            self._persist_result(sandbox_id, error_result)
             return error_result
 
     async def _execute_simulation(self, sandbox_id: str, params: Dict[str, Any]) -> Dict[str, Any]:
-        from .sandbox import get_simulation_sandbox
+        from ..sandbox import get_simulation_sandbox
 
         action_type_id = params.get("action_type_id", "")
         target_object_id = params.get("target_object_id", "")
@@ -138,7 +174,7 @@ class SandboxManager:
         parameters = params.get("parameters", {})
         variant_parameters = params.get("variant_parameters", [])
 
-        from .schemas import WhatIfScenario
+        from ..schemas import WhatIfScenario
         scenario = WhatIfScenario(
             scenario_id=f"sim_{sandbox_id}",
             action_type_id=action_type_id,
@@ -167,6 +203,11 @@ class SandboxManager:
 
     def get_sandbox_status(self, sandbox_id: str) -> Dict[str, Any]:
         sandbox = self._sandboxes.get(sandbox_id)
+        if not sandbox and self._storage:
+            stored = self._storage.get_sandbox(sandbox_id)
+            if stored:
+                self._sandboxes[sandbox_id] = stored
+                sandbox = stored
         if not sandbox:
             return {"status": "error", "message": f"Sandbox {sandbox_id} not found"}
         return {
@@ -181,8 +222,20 @@ class SandboxManager:
 
     def get_sandbox_results(self, sandbox_id: str) -> Dict[str, Any]:
         if sandbox_id not in self._sandboxes:
-            return {"status": "error", "message": f"Sandbox {sandbox_id} not found"}
+            if self._storage:
+                stored = self._storage.get_sandbox(sandbox_id)
+                if stored:
+                    self._sandboxes[sandbox_id] = stored
+                else:
+                    return {"status": "error", "message": f"Sandbox {sandbox_id} not found"}
+            else:
+                return {"status": "error", "message": f"Sandbox {sandbox_id} not found"}
         results = self._results.get(sandbox_id)
+        if not results and self._storage:
+            stored_result = self._storage.get_result(sandbox_id)
+            if stored_result:
+                self._results[sandbox_id] = stored_result
+                results = stored_result
         if not results:
             return {"status": "pending", "message": "No results yet"}
         return results
@@ -190,11 +243,17 @@ class SandboxManager:
     def destroy_sandbox(self, sandbox_id: str) -> Dict[str, Any]:
         sandbox = self._sandboxes.get(sandbox_id)
         if not sandbox:
-            return {"status": "error", "message": f"Sandbox {sandbox_id} not found"}
+            if self._storage:
+                stored = self._storage.get_sandbox(sandbox_id)
+                if stored:
+                    sandbox = stored
+                    self._sandboxes[sandbox_id] = stored
+            if not sandbox:
+                return {"status": "error", "message": f"Sandbox {sandbox_id} not found"}
         if sandbox["status"] == SandboxStatus.RUNNING:
             return {"status": "error", "message": f"Sandbox {sandbox_id} is running, cannot destroy"}
 
-        if sandbox["process_handle"] and sandbox["isolation_level"] == "process":
+        if sandbox.get("process_handle") and sandbox.get("isolation_level") == "process":
             try:
                 sandbox["process_handle"].close()
             except Exception:
@@ -203,17 +262,35 @@ class SandboxManager:
         sandbox["status"] = SandboxStatus.DESTROYED
         self._sandboxes.pop(sandbox_id, None)
         self._results.pop(sandbox_id, None)
+        if self._storage:
+            try:
+                self._storage.delete_sandbox(sandbox_id)
+            except Exception as e:
+                logger.warning(f"Failed to delete sandbox from storage: {e}")
         logger.info(f"Destroyed sandbox {sandbox_id}")
         return {"status": "ok", "sandbox_id": sandbox_id}
 
     def export_results(self, sandbox_id: str, approved_by: str = "") -> Dict[str, Any]:
         sandbox = self._sandboxes.get(sandbox_id)
+        if not sandbox and self._storage:
+            stored = self._storage.get_sandbox(sandbox_id)
+            if stored:
+                self._sandboxes[sandbox_id] = stored
+                sandbox = stored
         if not sandbox:
             return {"status": "error", "message": f"Sandbox {sandbox_id} not found"}
         if sandbox["status"] != SandboxStatus.COMPLETED:
             return {"status": "error", "message": "Only completed sandbox results can be exported"}
 
-        results = self._results.get(sandbox_id, {})
+        results = self._results.get(sandbox_id)
+        if not results and self._storage:
+            stored_result = self._storage.get_result(sandbox_id)
+            if stored_result:
+                self._results[sandbox_id] = stored_result
+                results = stored_result
+        if not results:
+            results = {}
+
         export_data = {
             "sandbox_id": sandbox_id,
             "workspace_id": sandbox["config"].get("workspace_id", "default"),
@@ -243,15 +320,27 @@ class SandboxManager:
         return export_data
 
     def list_sandboxes(self, workspace_id: str = None) -> List[Dict[str, Any]]:
+        memory_ids = set(self._sandboxes.keys())
+        if self._storage:
+            try:
+                stored_list = self._storage.list_sandboxes()
+                for s in stored_list:
+                    sid = s.get("sandbox_id")
+                    if sid and sid not in memory_ids:
+                        self._sandboxes[sid] = s
+                        memory_ids.add(sid)
+            except Exception as e:
+                logger.warning(f"Failed to load sandboxes from storage: {e}")
+
         results = []
         for sid, sandbox in self._sandboxes.items():
-            if workspace_id and sandbox["config"].get("workspace_id") != workspace_id:
+            if workspace_id and sandbox.get("config", {}).get("workspace_id") != workspace_id:
                 continue
             results.append({
                 "sandbox_id": sid,
                 "status": sandbox["status"],
                 "created_at": sandbox["created_at"],
-                "workspace_id": sandbox["config"].get("workspace_id", ""),
+                "workspace_id": sandbox.get("config", {}).get("workspace_id", ""),
             })
         return results
 

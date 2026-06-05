@@ -29,11 +29,40 @@ from .oauth2_providers import OAuth2Service, OAuth2ProviderRegistry, OAuth2Token
 logger = logging.getLogger(__name__)
 
 
+def _is_production_env() -> bool:
+    """Check whether the current process is running in production."""
+    env = os.environ.get("ENV", os.environ.get("ENVIRONMENT", "")).lower()
+    return env in ("production", "prod", "live")
+
+
+def _generate_random_password(length: int = 16) -> str:
+    """Generate a cryptographically-random password for first-startup use."""
+    import secrets
+    import string
+    alphabet = string.ascii_letters + string.digits
+    return "".join(secrets.choice(alphabet) for _ in range(length))
+
+
 try:
     import bcrypt
     BCRYPT_AVAILABLE = True
 except ImportError:
     BCRYPT_AVAILABLE = False
+
+
+def assert_bcrypt_available() -> None:
+    """Fail-closed assertion that ``bcrypt`` is installed.
+
+    R-P1-005: P0-7 (cryptographic downgrade) requires that the application
+    refuses to start (or to hash/verify passwords) when bcrypt is missing,
+    instead of silently falling back to plain SHA-256. The fallback path is
+    insecure because SHA-256 is fast and unsalted.
+    """
+    if not BCRYPT_AVAILABLE:
+        raise RuntimeError(
+            "SECURITY: bcrypt is not installed. ODAP requires bcrypt for password "
+            "hashing. Install it with `pip install bcrypt` and restart."
+        )
 
 
 class LoginRateLimiter:
@@ -94,7 +123,13 @@ class AuthService:
         self._init_default_users()
 
     def _init_default_users(self):
-        admin_hash = self._hash_password("admin123")
+        # P0-8 fix: NEVER seed a default admin with a hardcoded password.
+        # Two strategies depending on environment:
+        #   1. Production: refuse to create admin without explicit password
+        #   2. Dev/test: read from env var (e.g. ODAP_ADMIN_PASSWORD)
+        #   3. First-time setup: generate a random password and log it
+        admin_password = self._resolve_admin_password()
+        admin_hash = self._hash_password(admin_password)
         self._users["admin"] = {
             "id": str(uuid.uuid4()),
             "username": "admin",
@@ -105,15 +140,43 @@ class AuthService:
             "is_active": True,
         }
 
+    def _resolve_admin_password(self) -> str:
+        """Resolve the admin password. NEVER use a hardcoded default.
+
+        Priority:
+          1. ODAP_ADMIN_PASSWORD env var (test/dev)
+          2. Generated random password (logged once at startup)
+          3. In production, refuse to start without env var
+        """
+        env_password = os.environ.get("ODAP_ADMIN_PASSWORD", "").strip()
+        if env_password and len(env_password) >= 8:
+            return env_password
+
+        if _is_production_env():
+            raise RuntimeError(
+                "SECURITY: ODAP_ADMIN_PASSWORD must be set in production. "
+                "Refusing to start with a default admin password."
+            )
+        random_pw = _generate_random_password()
+        logger.warning(
+            "ODAP_ADMIN_PASSWORD is not set. Generated random admin password: %s. "
+            "Set ODAP_ADMIN_PASSWORD env var to fix this.",
+            random_pw,
+        )
+        return random_pw
+
     def _hash_password(self, password: str) -> str:
-        if BCRYPT_AVAILABLE:
-            return bcrypt.hashpw(password.encode(), bcrypt.gensalt(rounds=12)).decode()
-        return hashlib.sha256(password.encode()).hexdigest()
+        # R-P1-005: fail-closed if bcrypt is missing rather than silently
+        # downgrading to unsalted SHA-256 (insecure for password storage).
+        assert_bcrypt_available()
+        return bcrypt.hashpw(password.encode(), bcrypt.gensalt(rounds=12)).decode()
 
     def _verify_password(self, password: str, password_hash: str) -> bool:
-        if BCRYPT_AVAILABLE and password_hash.startswith("$2"):
-            return bcrypt.checkpw(password.encode(), password_hash.encode())
-        return hashlib.sha256(password.encode()).hexdigest() == password_hash
+        # R-P1-005: fail-closed if bcrypt is missing. We deliberately do NOT
+        # support verifying legacy SHA-256 hashes — operators must reset
+        # passwords (or the upgrade tooling must re-hash) on first deploy.
+        assert_bcrypt_available()
+        return bcrypt.checkpw(password.encode(), password_hash.encode())
 
     def login(self, username: str, password: str, ip_address: str = "",
               workspace_id: str = "") -> Optional[TokenPair]:

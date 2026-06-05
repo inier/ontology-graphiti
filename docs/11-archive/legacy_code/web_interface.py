@@ -16,7 +16,7 @@ sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 from odap.biz.core.agent.orchestrator import SelfCorrectingOrchestrator
 from odap.infra.graph import GraphManager
-from odap.biz.core.ontology.services.build_service import OntologyBuilderService as OntologyManager
+from odap.biz.core.ontology.design.services.build_service import OntologyBuilderService as OntologyManager
 
 orchestrator = None
 ontology_manager = None
@@ -24,7 +24,7 @@ ontology_manager = None
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     global orchestrator, ontology_manager
-    from odap.biz.core.ontology.schema.domain import DOMAIN_CONFIG
+    from odap.biz.core.ontology.design.schema.domain import DOMAIN_CONFIG
     orchestrator = SelfCorrectingOrchestrator(user_role="pilot")
     ontology_manager = OntologyManager()
     ontology_manager.export_ontology(description=f"2026美伊战争场景 - {len(DOMAIN_CONFIG['factions'])}个参战方")
@@ -340,7 +340,7 @@ async def reload_graph():
 @app.post("/api/export")
 async def export_ontology():
     manager = OntologyManager()
-    from odap.biz.core.ontology.schema.domain import DOMAIN_CONFIG
+    from odap.biz.core.ontology.design.schema.domain import DOMAIN_CONFIG
     version = datetime.now().strftime("%Y%m%d_%H%M%S")
     description = f"2026美伊战争场景 - {len(DOMAIN_CONFIG['factions'])}个参战方"
     export_file = manager.export_ontology(version=version, description=description)

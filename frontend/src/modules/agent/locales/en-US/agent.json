@@ -15,7 +15,17 @@
     "viewChain": "View Chain",
     "reasoning": "Reasoning",
     "refresh": "Refresh",
-    "selectDecision": "Select a decision to view its chain"
+    "selectDecision": "Select a decision to view its chain",
+    "decisionTimeline": "Decision Timeline",
+    "observe": "Observe",
+    "orient": "Orient",
+    "decide": "Decide",
+    "act": "Act",
+    "phase": "Phase",
+    "evidence": "Evidence",
+    "reasoningChain": "Reasoning Chain",
+    "step": "Step",
+    "noData": "No data available"
   },
   "skill": {
     "title": "Skill Manager",

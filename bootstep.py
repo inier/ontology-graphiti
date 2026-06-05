@@ -49,6 +49,7 @@ IMAGES = [
     (f"{MIRROR}/library/python:3.10-slim",             "localhost/python:3.10-slim"),
     (f"{MIRROR}/library/node:20-alpine",               "localhost/node:20-alpine"),
     (f"{MIRROR}/library/nginx:alpine",                 "localhost/nginx:alpine"),
+    (f"{MIRROR}/minio/minio:latest",                   "localhost/minio:latest"),
 ]
 
 CONTAINERS = [
@@ -58,6 +59,7 @@ CONTAINERS = [
     "graphiti-policy-service",
     "graphiti-neo4j",
     "graphiti-cache",
+    "graphiti-minio",
 ]
 
 
@@ -182,6 +184,8 @@ def show_urls():
   Neo4j:     http://localhost:7474
   OPA:       http://localhost:8181
   Redis:     localhost:6379
+  MinIO 控制台: http://localhost:9001
+  MinIO API:    http://localhost:9000
 """)
 
 
@@ -308,6 +312,8 @@ def cmd_logs(service=""):
         target = "graphiti-policy-service"
     elif svc_lower in ("app", "backend"):
         target = "graphiti-main-app"
+    elif svc_lower in ("minio", "storage"):
+        target = "graphiti-minio"
     else:
         target = "graphiti-main-app"
 

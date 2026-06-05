@@ -108,3 +108,14 @@ class SQLitePolicyVersionStorage:
             return conn.total_changes > 0
         finally:
             conn.close()
+
+    def list_all_policies(self) -> List[Dict[str, Any]]:
+        conn = sqlite3.connect(self.db_path)
+        try:
+            cursor = conn.execute(
+                "SELECT policy_id, MAX(version) as version, status, created_at, compiled_at FROM policy_versions WHERE status = 'active' GROUP BY policy_id ORDER BY compiled_at DESC"
+            )
+            columns = ["policy_id", "version", "status", "created_at", "compiled_at"]
+            return [dict(zip(columns, row)) for row in cursor.fetchall()]
+        finally:
+            conn.close()

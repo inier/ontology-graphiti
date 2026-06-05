@@ -1,4 +1,5 @@
 import logging
+import re
 import uuid
 from typing import Dict, Any, List, Optional
 
@@ -24,9 +25,16 @@ class ExplanationEngine:
         facts = context.get("facts", [])
         query = context.get("query", f"解释决策 {decision_id}")
 
-        reasoning_chain = self._build_reasoning_chain(query, facts)
-        answer = self._generate_answer(query, reasoning_chain)
-        confidence = self._calculate_confidence(reasoning_chain)
+        llm_result = self._explain_with_llm(query, facts)
+        if llm_result:
+            reasoning_chain = llm_result.get("reasoning_chain", self._build_reasoning_chain(query, facts))
+            answer = llm_result.get("answer", self._generate_answer(query, reasoning_chain))
+            confidence = llm_result.get("confidence", self._calculate_confidence(reasoning_chain))
+        else:
+            reasoning_chain = self._build_reasoning_chain(query, facts)
+            answer = self._generate_answer(query, reasoning_chain)
+            confidence = self._calculate_confidence(reasoning_chain)
+
         sources = self._identify_sources(facts)
 
         explanation = {
@@ -41,6 +49,52 @@ class ExplanationEngine:
         }
         self._explanations[explanation["explanation_id"]] = explanation
         return explanation
+
+    def _explain_with_llm(self, query, facts):
+        try:
+            import os
+            import requests
+            import json
+            api_key = os.getenv("OPENAI_API_KEY", "")
+            base_url = os.getenv("OPENAI_API_BASE", "https://api.openai.com/v1")
+            model = os.getenv("OPENAI_MODEL", "deepseek-ai/deepseek-v4-pro")
+            if not api_key:
+                return None
+            facts_text = "\n".join(f"- {f}" for f in facts) if facts else "无已知事实"
+            prompt = f"""基于以下事实，对用户问题进行推理分析，返回JSON格式：
+{{"answer": "推理结论", "confidence": 0.0-1.0, "reasoning_chain": [{{"step_type": "premise|inference", "description": "步骤描述", "confidence": 0.0-1.0}}]}}
+
+用户问题：{query}
+已知事实：
+{facts_text}
+
+仅返回JSON，不要其他内容。"""
+            resp = requests.post(
+                f"{base_url}/chat/completions",
+                headers={"Authorization": f"Bearer {api_key}", "Content-Type": "application/json"},
+                json={"model": model, "messages": [{"role": "user", "content": prompt}], "max_tokens": 512},
+                timeout=10,
+            )
+            resp.raise_for_status()
+            content = resp.json()["choices"][0]["message"]["content"]
+            json_match = re.search(r'\{[\s\S]*\}', content)
+            if json_match:
+                parsed = json.loads(json_match.group())
+                chain = []
+                for step in parsed.get("reasoning_chain", []):
+                    chain.append({
+                        "step_id": str(uuid.uuid4()),
+                        "step_type": step.get("step_type", "inference"),
+                        "description": step.get("description", ""),
+                        "confidence": step.get("confidence", 0.7),
+                    })
+                return {
+                    "answer": parsed.get("answer", ""),
+                    "confidence": min(1.0, parsed.get("confidence", 0.5)),
+                    "reasoning_chain": chain,
+                }
+        except Exception:
+            return None
 
     def _build_reasoning_chain(self, query: str, facts: List[str]) -> List[Dict[str, Any]]:
         chain = []

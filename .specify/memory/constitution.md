@@ -95,6 +95,34 @@ MUST NOT 为假设的未来需求预先编码。当前不需要的抽象层、�
 - 授权层：OPA fail-close 模式，策略加载失败时拒绝所有请求
 - 审计层：所有写操作 MUST 记录审计日志
 
+## SDD Quality Gates (继承自 BMAD 方法论)
+
+> 本章节定义 Spec-Driven Development 流程中产物的强制质量门。继承自 BMAD 的纪律，融合进现有 spec-kit 工作流。
+
+### 需求层 (Spec Layer)
+
+- **G-1**: 任何 `spec.md` 的 Acceptance Criteria MUST 使用 Given/When/Then 或等价形式（断言式、可观测）。模糊表述如 "优化 / 改进 / 性能更好" MUST 在 `speckit.clarify` 中消除。
+- **G-2**: 任何影响架构的 spec MUST 含 "业务价值" 一节（1 段话：解决谁的什么问题、带来什么收益）。
+- **G-3**: 任何 spec MUST 可在 [speckit.analyze](file:///e:/DEMO/AI/ontology-graphiti/.trae/skills/speckit-analyze) 中通过一致性分析（spec / plan / tasks 互相一致）。
+
+### 任务层 (Task Layer)
+
+- **G-4**: 任何 task MUST 在 1 个工作日内可由单人完成；超过则 MUST 拆分。
+- **G-5**: 任何 task MUST 可独立验证（`pytest -k <name>` 或 `pytest tests/unit/test_<module>.py` 能筛出对应测试）。
+- **G-6**: 任何 task MUST 包含验收标准（任务列表中的 Verification 一栏或对应测试引用）。
+
+### 验收层 (Verification Layer)
+
+- **G-7**: 任何涉及路由的 spec 实施完成 MUST 跑 `tests/unit/test_route_exception_handling.py`（路由异常处理）。
+- **G-8**: 任何涉及数据库/图查询的 spec 实施完成 MUST 跑 SQL/Cypher 注入回归测试（`test_sql_injection.py` / `test_audit_cypher_injection.py`）。
+- **G-9**: 任何架构相关变更（路由、新模块、跨层调用）MUST 通过 `/speckit.architecture-guard.architecture-verify` gate。
+- **G-10**: 任何 spec 实施完成 MUST 运行 `pytest tests/unit/ -q`，零失败。
+
+### BMAD 价值对齐 (Value Alignment)
+
+- **G-11**: 任何新建 `specs/NNN-*` 目录 SHOULD 在 `prd.md` 中回答 "为什么做"（仅在有外部业务方时强制）。
+- **G-12**: Story ↔ Task 粒度 1:N 关系（SHOULD）：1 个 Story 拆 2-5 个 Task；超出此范围 MUST 重新拆解。
+
 ## Quality Gates
 
 - **提交前**：lint 零警告 + 类型检查零错误 + 相关测试全绿
@@ -110,4 +138,10 @@ MUST NOT 为假设的未来需求预先编码。当前不需要的抽象层、�
 - 代码审查 MUST 验证宪法合规性，违规代码 MUST 在合并前修正
 - 运行时开发指导参见 `.specify/memory/` 目录下的相关文档
 
-**Version**: 2.0.0 | **Ratified**: 2025-06-13 | **Last Amended**: 2025-06-13
+**Version**: 2.1.0 | **Ratified**: 2025-06-13 | **Last Amended**: 2026-06-05
+
+### Amendment 2026-06-05 (v2.0.0 → v2.1.0)
+- **Added**: Section "SDD Quality Gates (继承自 BMAD 方法论)" with 12 quality gates (G-1..G-12)
+- **MINOR bump**: New section, no principle removed/redefined
+- **Rationale**: 整合 BMAD 纪律（Story 粒度、Given/When/Then、价值对齐）进 spec-kit 工作流，零结构破坏
+- **Template impact**: None (quality gates are process-level, not template-level)

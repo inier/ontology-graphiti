@@ -107,12 +107,15 @@ class CommanderAgent:
         self.opa_manager = opa_manager
         self.graph_manager = graph_manager
         self.state = AgentState.IDLE
+        self._pending_intel_data: Optional[Dict[str, Any]] = None
 
     async def analyze_situation(self, context: Dict[str, Any]) -> Dict[str, Any]:
         """分析当前态势，制定决策方案"""
         self.state = AgentState.RUNNING
         try:
-            intel_data = context.get("intel_data", {})
+            # 优先使用从 Intelligence Agent 自动传递的情报数据
+            intel_data = self._pending_intel_data or context.get("intel_data", {})
+            self._pending_intel_data = None  # 消费后清空
             threat_level = intel_data.get("threat_level", "unknown")
 
             options = self._generate_options(intel_data)
@@ -436,6 +439,31 @@ class DomainSwarm:
             },
         }
 
+    def _subscribe_agent_events(self):
+        """订阅 agent:task_completed 事件，将 Intelligence Agent 结果自动路由到 Commander Agent"""
+        try:
+            from odap.web.ws.event_bus import get_event_bus
+            bus = get_event_bus()
+            bus.subscribe("agent:task_completed", self._on_agent_task_completed)
+            logger.info("已订阅 agent:task_completed 事件")
+        except Exception as e:
+            logger.warning(f"订阅 agent:task_completed 事件失败: {e}")
+
+    def _on_agent_task_completed(self, event_type: str, data: dict, workspace_id: str = None):
+        """处理 agent:task_completed 事件，将结果路由到目标 Agent"""
+        try:
+            target_agents = data.get("target_agents", [])
+            agent_type = data.get("agent_type", "")
+            result = data.get("result", {})
+
+            if "commander" in target_agents and agent_type == "intelligence":
+                commander = self.agents.get(AgentType.COMMANDER)
+                if commander:
+                    commander._pending_intel_data = result
+                logger.info(f"Intelligence Agent result routed to Commander Agent, threat_level={result.get('threat_level', 'unknown')}")
+        except Exception as e:
+            logger.warning(f"处理 agent:task_completed 事件失败: {e}")
+
     def _initialize_agents(self) -> Dict[AgentType, Any]:
         """初始化三个 Agent"""
         intel_config = AgentConfig(
@@ -485,6 +513,9 @@ class DomainSwarm:
 
         await self.health_monitor.start_monitoring()
         logger.info("健康监控已启动")
+
+        # 订阅 agent:task_completed 事件，将 Intelligence Agent 结果路由到 Commander
+        self._subscribe_agent_events()
 
         logger.info(f"已初始化 {len(self.agents)} 个 Agent")
         for agent_type, agent in self.agents.items():
@@ -887,18 +918,18 @@ if __name__ == "__main__":
         swarm = DomainSwarm()
         await swarm.initialize()
 
-        print("\n" + "=" * 60)
-        print("DomainSwarm OODA 循环测试")
-        print("=" * 60)
+        logger.info('\n' + '=' * 60)
+        logger.info('DomainSwarm OODA 循环测试')
+        logger.info('=' * 60)
 
         result = await swarm.execute_mission("分析B区威胁并采取行动")
 
-        print("\n任务结果:")
-        print(json.dumps(result.to_dict(), indent=2, ensure_ascii=False))
+        logger.info('\n任务结果:')
+        logger.info(json.dumps(result.to_dict(), indent=2, ensure_ascii=False))
 
-        print("\n历史记录:")
+        logger.info('\n历史记录:')
         for r in swarm.get_mission_history():
-            print(f"  - {r['mission_id']}: {'✅' if r['success'] else '❌'} {r['execution_time_ms']:.2f}ms")
+            logger.info(f"  - {r['mission_id']}: {('✅' if r['success'] else '❌')} {r['execution_time_ms']:.2f}ms")
 
         await swarm.shutdown()
 

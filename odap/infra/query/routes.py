@@ -1,7 +1,8 @@
 import logging
 from typing import Any, Dict, Optional
 
-from fastapi import APIRouter, HTTPException, Query
+from fastapi import APIRouter, HTTPException, Query, Depends
+from odap.infra.security.jwt_auth import get_current_user
 from pydantic import BaseModel, Field
 
 from .protocols import QueryResult
@@ -37,6 +38,8 @@ def unified_query(request: UnifiedQueryRequest) -> QueryResult:
             limit=request.limit,
             agent_safe=request.agent_safe,
         )
+    except HTTPException:
+        raise
     except Exception as e:
         logger.error(f"Query execution error: {e}")
         raise HTTPException(status_code=500, detail=str(e))
@@ -51,6 +54,8 @@ def execute_query(
     service = _get_query_service()
     try:
         return service.execute(workspace_id=workspace_id, query=query, limit=limit)
+    except HTTPException:
+        raise
     except Exception as e:
         logger.error(f"Query execution error: {e}")
         raise HTTPException(status_code=500, detail=str(e))

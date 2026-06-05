@@ -1,8 +1,9 @@
 import { useState, useEffect } from 'react';
-import { Select, Space, Tag, Button } from 'antd';
+import { Select, Space, Tag, Button, Modal, Form, Input, message } from 'antd';
 import { PlusOutlined, SettingOutlined } from '@ant-design/icons';
 import { api } from '../../shared/services/api';
 import type { Workspace } from '../../shared/services/api';
+import { useNavigate } from 'react-router-dom';
 
 export function WorkspaceSwitcher({ currentWorkspace, onWorkspaceChange }: {
   currentWorkspace: string;
@@ -10,6 +11,9 @@ export function WorkspaceSwitcher({ currentWorkspace, onWorkspaceChange }: {
 }) {
   const [workspaces, setWorkspaces] = useState<Workspace[]>([]);
   const [loading, setLoading] = useState(true);
+  const [createModalVisible, setCreateModalVisible] = useState(false);
+  const [createForm] = Form.useForm();
+  const navigate = useNavigate();
 
   useEffect(() => {
     loadWorkspaces();
@@ -32,11 +36,24 @@ export function WorkspaceSwitcher({ currentWorkspace, onWorkspaceChange }: {
   };
 
   const handleCreateWorkspace = () => {
-    console.log('创建工作空间');
+    setCreateModalVisible(true);
+  };
+
+  const handleCreateSubmit = async () => {
+    try {
+      const values = await createForm.validateFields();
+      await api.createWorkspace(values);
+      message.success('工作空间创建成功');
+      setCreateModalVisible(false);
+      createForm.resetFields();
+      loadWorkspaces();
+    } catch (error) {
+      message.error(`创建失败: ${error}`);
+    }
   };
 
   const handleWorkspaceSettings = () => {
-    console.log('工作空间设置');
+    navigate('/workspace/manage');
   };
 
   return (
@@ -74,6 +91,23 @@ export function WorkspaceSwitcher({ currentWorkspace, onWorkspaceChange }: {
       >
         设置
       </Button>
+      <Modal
+        title="新建工作空间"
+        open={createModalVisible}
+        onOk={handleCreateSubmit}
+        onCancel={() => { setCreateModalVisible(false); createForm.resetFields(); }}
+        okText="创建"
+        cancelText="取消"
+      >
+        <Form form={createForm} layout="vertical">
+          <Form.Item name="name" label="名称" rules={[{ required: true, message: '请输入工作空间名称' }]}>
+            <Input placeholder="输入工作空间名称" />
+          </Form.Item>
+          <Form.Item name="description" label="描述">
+            <Input.TextArea rows={3} placeholder="输入描述" />
+          </Form.Item>
+        </Form>
+      </Modal>
     </Space>
   );
 }

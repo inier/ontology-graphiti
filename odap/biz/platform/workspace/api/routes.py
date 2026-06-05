@@ -1,10 +1,12 @@
 """API路由"""
 
-from fastapi import APIRouter, HTTPException, Query
-from typing import Dict, Any, List, Optional
+from fastapi import APIRouter, HTTPException, Query, Depends
+from odap.infra.security.jwt_auth import get_current_user
+from typing import Any, List, Optional
 from ..services.workspace_service import WorkspaceService
 from ..services.isolation_service import IsolationService
 from ..services.scenario_service import ScenarioService
+from ..services.sample_data_service import SampleDataService
 from ..impl.import_export import ImportExportManager
 from .schemas import (
     CreateWorkspaceRequest, UpdateWorkspaceRequest, WorkspaceResponse, WorkspaceDetailResponse, WorkspaceListResponse,
@@ -24,14 +26,16 @@ router = APIRouter(prefix="/api/workspaces", tags=["workspace"])
 workspace_service = WorkspaceService()
 isolation_service = IsolationService()
 scenario_service = ScenarioService()
+sample_data_service = SampleDataService()
 import_export_manager = ImportExportManager()
-from odap.biz.core.ontology.services.version_service import OntologyVersionManager
+from odap.biz.core.ontology.design.services.version_service import OntologyVersionManager
 version_manager = OntologyVersionManager()
 
 
 # 工作空间相关路由
 @router.post("", response_model=WorkspaceResponse)
-async def create_workspace(request: CreateWorkspaceRequest):
+async def create_workspace(request: CreateWorkspaceRequest,
+    user=Depends(get_current_user)):
     """创建工作空间"""
     try:
         result = workspace_service.create_workspace(
@@ -49,7 +53,8 @@ async def create_workspace(request: CreateWorkspaceRequest):
 
 
 @router.put("/{workspace_id}/isolation")
-async def update_isolation_level(workspace_id: str, request: UpdateIsolationLevelRequest):
+async def update_isolation_level(workspace_id: str, request: UpdateIsolationLevelRequest,
+    user=Depends(get_current_user)):
     try:
         result = workspace_service.update_isolation_level(workspace_id, request.isolation_level.value)
         if result.get("status") == "error":
@@ -62,7 +67,8 @@ async def update_isolation_level(workspace_id: str, request: UpdateIsolationLeve
 
 
 @router.post("/{workspace_id}/export")
-async def export_workspace_v2(workspace_id: str, request: ExportWorkspaceRequest = None):
+async def export_workspace_v2(workspace_id: str, request: ExportWorkspaceRequest = None,
+    user=Depends(get_current_user)):
     try:
         if request is None:
             request = ExportWorkspaceRequest(workspace_id=workspace_id)
@@ -83,7 +89,8 @@ async def export_workspace_v2(workspace_id: str, request: ExportWorkspaceRequest
 
 
 @router.post("/{workspace_id}/import")
-async def import_workspace_v2(workspace_id: str, request: ImportWorkspaceRequest):
+async def import_workspace_v2(workspace_id: str, request: ImportWorkspaceRequest,
+    user=Depends(get_current_user)):
     try:
         result = workspace_service.import_workspace(
             import_path=request.import_path,
@@ -101,7 +108,8 @@ async def import_workspace_v2(workspace_id: str, request: ImportWorkspaceRequest
 
 
 @router.post("/{workspace_id}/scenarios/{scenario_id}/activate")
-async def activate_scenario(workspace_id: str, scenario_id: str):
+async def activate_scenario(workspace_id: str, scenario_id: str,
+    user=Depends(get_current_user)):
     try:
         result = scenario_service.activate_scenario(workspace_id, scenario_id)
         if result.get("status") == "error":
@@ -114,7 +122,8 @@ async def activate_scenario(workspace_id: str, scenario_id: str):
 
 
 @router.get("/{workspace_id}", response_model=WorkspaceDetailResponse)
-async def get_workspace(workspace_id: str):
+async def get_workspace(workspace_id: str,
+    user=Depends(get_current_user)):
     """获取工作空间详情"""
     try:
         result = workspace_service.get_workspace(workspace_id)
@@ -128,7 +137,8 @@ async def get_workspace(workspace_id: str):
 
 
 @router.put("/{workspace_id}", response_model=WorkspaceResponse)
-async def update_workspace(workspace_id: str, request: UpdateWorkspaceRequest):
+async def update_workspace(workspace_id: str, request: UpdateWorkspaceRequest,
+    user=Depends(get_current_user)):
     """更新工作空间"""
     try:
         updates = {}
@@ -154,13 +164,45 @@ async def update_workspace(workspace_id: str, request: UpdateWorkspaceRequest):
 
 
 @router.delete("/{workspace_id}", response_model=SuccessResponse)
-async def delete_workspace(workspace_id: str):
+async def delete_workspace(workspace_id: str,
+    user=Depends(get_current_user)):
     """删除工作空间"""
     try:
         result = workspace_service.delete_workspace(workspace_id)
         if result.get("status") == "error":
             raise HTTPException(status_code=404, detail=result.get("message"))
         return SuccessResponse(message=result.get("message"))
+    except HTTPException:
+        raise
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@router.get("/{workspace_id}/deletion-preview")
+async def get_workspace_deletion_preview(workspace_id: str,
+    user=Depends(get_current_user)):
+    """获取工作空间删除预览（将级联删除的资源类型及数量）"""
+    try:
+        result = workspace_service.get_workspace_deletion_preview(workspace_id)
+        if result.get("status") == "error":
+            raise HTTPException(status_code=404, detail=result.get("message"))
+        return result
+    except HTTPException:
+        raise
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@router.post("/{workspace_id}/sample-data")
+async def generate_sample_data(workspace_id: str,
+    user=Depends(get_current_user)):
+    """为工作空间生成示例数据"""
+    try:
+        workspace = workspace_service.get_workspace(workspace_id)
+        if workspace.get("status") == "error":
+            raise HTTPException(status_code=404, detail="Workspace not found")
+        result = sample_data_service.generate_sample_data(workspace_id)
+        return result
     except HTTPException:
         raise
     except Exception as e:
@@ -190,7 +232,8 @@ async def list_workspaces(
 
 
 @router.post("/{workspace_id}/activate", response_model=SuccessResponse)
-async def activate_workspace(workspace_id: str):
+async def activate_workspace(workspace_id: str,
+    user=Depends(get_current_user)):
     """激活工作空间"""
     try:
         result = workspace_service.activate_workspace(workspace_id)
@@ -204,7 +247,8 @@ async def activate_workspace(workspace_id: str):
 
 
 @router.post("/{workspace_id}/deactivate", response_model=SuccessResponse)
-async def deactivate_workspace(workspace_id: str):
+async def deactivate_workspace(workspace_id: str,
+    user=Depends(get_current_user)):
     """停用工作空间"""
     try:
         result = workspace_service.deactivate_workspace(workspace_id)
@@ -218,7 +262,8 @@ async def deactivate_workspace(workspace_id: str):
 
 
 @router.post("/{workspace_id}/members/{user_id}", response_model=SuccessResponse)
-async def add_member(workspace_id: str, user_id: str):
+async def add_member(workspace_id: str, user_id: str,
+    user=Depends(get_current_user)):
     """添加成员"""
     try:
         result = workspace_service.add_member(workspace_id, user_id)
@@ -232,7 +277,8 @@ async def add_member(workspace_id: str, user_id: str):
 
 
 @router.delete("/{workspace_id}/members/{user_id}", response_model=SuccessResponse)
-async def remove_member(workspace_id: str, user_id: str):
+async def remove_member(workspace_id: str, user_id: str,
+    user=Depends(get_current_user)):
     """移除成员"""
     try:
         result = workspace_service.remove_member(workspace_id, user_id)
@@ -247,7 +293,8 @@ async def remove_member(workspace_id: str, user_id: str):
 
 # 隔离相关路由
 @router.post("/isolation/policies", response_model=IsolationPolicyResponse)
-async def create_isolation_policy(request: CreateIsolationPolicyRequest):
+async def create_isolation_policy(request: CreateIsolationPolicyRequest,
+    user=Depends(get_current_user)):
     """创建隔离策略"""
     try:
         result = isolation_service.create_isolation_policy(
@@ -257,12 +304,15 @@ async def create_isolation_policy(request: CreateIsolationPolicyRequest):
             network_policy=request.network_policy
         )
         return IsolationPolicyResponse(**result)
+    except HTTPException:
+        raise
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
 
 
 @router.get("/isolation/policies/{workspace_id}", response_model=IsolationPolicyResponse)
-async def get_isolation_policy(workspace_id: str):
+async def get_isolation_policy(workspace_id: str,
+    user=Depends(get_current_user)):
     """获取隔离策略"""
     try:
         result = isolation_service.get_isolation_policy(workspace_id)
@@ -276,7 +326,8 @@ async def get_isolation_policy(workspace_id: str):
 
 
 @router.get("/isolation/resource-usage/{workspace_id}", response_model=ResourceUsageResponse)
-async def get_resource_usage(workspace_id: str):
+async def get_resource_usage(workspace_id: str,
+    user=Depends(get_current_user)):
     """获取资源使用情况"""
     try:
         result = isolation_service.get_resource_usage(workspace_id)
@@ -288,7 +339,8 @@ async def get_resource_usage(workspace_id: str):
 
 
 @router.post("/isolation/enforce/{workspace_id}", response_model=SuccessResponse)
-async def enforce_isolation(workspace_id: str):
+async def enforce_isolation(workspace_id: str,
+    user=Depends(get_current_user)):
     """执行隔离"""
     try:
         result = isolation_service.enforce_isolation(workspace_id)
@@ -303,7 +355,8 @@ async def enforce_isolation(workspace_id: str):
 
 # 导入导出相关路由
 @router.post("/import-export/export", response_model=ImportExportResponse)
-async def export_workspace(request: ExportWorkspaceRequest):
+async def export_workspace(request: ExportWorkspaceRequest,
+    user=Depends(get_current_user)):
     """导出工作空间"""
     try:
         result = workspace_service.export_workspace(
@@ -321,7 +374,8 @@ async def export_workspace(request: ExportWorkspaceRequest):
 
 
 @router.post("/import-export/import", response_model=ImportExportResponse)
-async def import_workspace(request: ImportWorkspaceRequest):
+async def import_workspace(request: ImportWorkspaceRequest,
+    user=Depends(get_current_user)):
     """导入工作空间"""
     try:
         result = workspace_service.import_workspace(
@@ -338,7 +392,8 @@ async def import_workspace(request: ImportWorkspaceRequest):
 
 
 @router.get("/import-export/records/{record_id}", response_model=ImportExportStatusResponse)
-async def get_import_export_record(record_id: str):
+async def get_import_export_record(record_id: str,
+    user=Depends(get_current_user)):
     """获取导入导出记录"""
     try:
         record = import_export_manager.get_import_export_record(record_id)
@@ -365,8 +420,8 @@ async def list_import_export_records(
     page_size: int = Query(10, ge=1, le=100),
     workspace_id: Optional[str] = None,
     operation: Optional[str] = None,
-    status: Optional[ImportExportStatus] = None
-):
+    status: Optional[ImportExportStatus] = None,
+    user=Depends(get_current_user)):
     """列出导入导出记录"""
     try:
         records = import_export_manager.list_import_export_records(
@@ -402,7 +457,8 @@ async def list_import_export_records(
 
 
 @router.post("/import-export/records/{record_id}/cancel", response_model=SuccessResponse)
-async def cancel_import_export(record_id: str):
+async def cancel_import_export(record_id: str,
+    user=Depends(get_current_user)):
     """取消导入导出"""
     try:
         success = import_export_manager.cancel_import_export(record_id)
@@ -417,7 +473,8 @@ async def cancel_import_export(record_id: str):
 
 # 场景相关路由
 @router.post("/{workspace_id}/scenarios", response_model=ScenarioResponse)
-async def create_scenario(workspace_id: str, request: CreateScenarioRequest):
+async def create_scenario(workspace_id: str, request: CreateScenarioRequest,
+    user=Depends(get_current_user)):
     """创建场景"""
     try:
         result = scenario_service.create_scenario(
@@ -439,8 +496,8 @@ async def create_scenario(workspace_id: str, request: CreateScenarioRequest):
 async def get_scenarios(
     workspace_id: str,
     page: int = Query(1, ge=1),
-    page_size: int = Query(10, ge=1, le=100)
-):
+    page_size: int = Query(10, ge=1, le=100),
+    user=Depends(get_current_user)):
     """获取工作空间下的所有场景"""
     try:
         scenarios = scenario_service.get_scenarios_by_workspace(workspace_id, page, page_size)
@@ -456,12 +513,13 @@ async def get_scenarios(
 
 
 @router.get("/{workspace_id}/scenarios/{scenario_id}", response_model=ScenarioResponse)
-async def get_scenario(workspace_id: str, scenario_id: str):
+async def get_scenario(workspace_id: str, scenario_id: str,
+    user=Depends(get_current_user)):
     """获取场景详情"""
     try:
         scenario = scenario_service.get_scenario(scenario_id)
         if not scenario:
-            from odap.web.api.app import scenario_store
+            from odap.biz.shared.stores import scenario_store
             scenario = scenario_store.get_scenario(scenario_id)
         if not scenario:
             raise HTTPException(status_code=404, detail="Scenario not found")
@@ -476,13 +534,14 @@ async def get_scenario(workspace_id: str, scenario_id: str):
 
 
 @router.put("/{workspace_id}/scenarios/{scenario_id}", response_model=ScenarioResponse)
-async def update_scenario(workspace_id: str, scenario_id: str, request: UpdateScenarioRequest):
+async def update_scenario(workspace_id: str, scenario_id: str, request: UpdateScenarioRequest,
+    user=Depends(get_current_user)):
     """更新场景"""
     try:
         # 检查场景是否存在且属于该工作空间
         scenario = scenario_service.get_scenario(scenario_id)
         if not scenario:
-            from odap.web.api.app import scenario_store
+            from odap.biz.shared.stores import scenario_store
             scenario = scenario_store.get_scenario(scenario_id)
         if not scenario:
             raise HTTPException(status_code=404, detail="Scenario not found")
@@ -509,13 +568,14 @@ async def update_scenario(workspace_id: str, scenario_id: str, request: UpdateSc
 
 
 @router.delete("/{workspace_id}/scenarios/{scenario_id}", response_model=SuccessResponse)
-async def delete_scenario(workspace_id: str, scenario_id: str):
+async def delete_scenario(workspace_id: str, scenario_id: str,
+    user=Depends(get_current_user)):
     """删除场景"""
     try:
         # 检查场景是否存在且属于该工作空间
         scenario = scenario_service.get_scenario(scenario_id)
         if not scenario:
-            from odap.web.api.app import scenario_store
+            from odap.biz.shared.stores import scenario_store
             scenario = scenario_store.get_scenario(scenario_id)
         if not scenario:
             raise HTTPException(status_code=404, detail="Scenario not found")
@@ -536,7 +596,8 @@ async def delete_scenario(workspace_id: str, scenario_id: str):
 
 
 @router.post("/{workspace_id}/scenarios/{scenario_id}/build-graph")
-async def build_graph_for_scenario(workspace_id: str, scenario_id: str):
+async def build_graph_for_scenario(workspace_id: str, scenario_id: str,
+    user=Depends(get_current_user)):
     """从场景数据构建图谱"""
     try:
         scenario = scenario_service.get_scenario(scenario_id)
@@ -554,7 +615,8 @@ async def build_graph_for_scenario(workspace_id: str, scenario_id: str):
 
 
 @router.post("/{workspace_id}/scenarios/{scenario_id}/ontologies/{ontology_id}", response_model=OntologyBindingResponse)
-async def bind_ontology_to_scenario(workspace_id: str, scenario_id: str, ontology_id: str, request: BindOntologyRequest = None):
+async def bind_ontology_to_scenario(workspace_id: str, scenario_id: str, ontology_id: str, request: BindOntologyRequest = None,
+    user=Depends(get_current_user)):
     """绑定本体到场景"""
     try:
         scenario = scenario_service.get_scenario(scenario_id)
@@ -575,7 +637,8 @@ async def bind_ontology_to_scenario(workspace_id: str, scenario_id: str, ontolog
 
 
 @router.delete("/{workspace_id}/scenarios/{scenario_id}/ontologies/{ontology_id}", response_model=SuccessResponse)
-async def unbind_ontology_from_scenario(workspace_id: str, scenario_id: str, ontology_id: str):
+async def unbind_ontology_from_scenario(workspace_id: str, scenario_id: str, ontology_id: str,
+    user=Depends(get_current_user)):
     """解绑本体"""
     try:
         scenario = scenario_service.get_scenario(scenario_id)
@@ -595,7 +658,8 @@ async def unbind_ontology_from_scenario(workspace_id: str, scenario_id: str, ont
 
 
 @router.get("/{workspace_id}/scenarios/{scenario_id}/ontologies", response_model=OntologyBindingListResponse)
-async def get_scenario_ontologies(workspace_id: str, scenario_id: str):
+async def get_scenario_ontologies(workspace_id: str, scenario_id: str,
+    user=Depends(get_current_user)):
     """获取场景绑定的所有本体"""
     try:
         scenario = scenario_service.get_scenario(scenario_id)
@@ -616,7 +680,8 @@ async def get_scenario_ontologies(workspace_id: str, scenario_id: str):
 
 # 本体版本相关路由
 @router.get("/{workspace_id}/scenarios/{scenario_id}/versions", response_model=List[OntologyVersionResponse])
-async def get_scenario_versions(workspace_id: str, scenario_id: str):
+async def get_scenario_versions(workspace_id: str, scenario_id: str,
+    user=Depends(get_current_user)):
     """获取场景绑定本体的版本列表"""
     try:
         scenario = scenario_service.get_scenario(scenario_id)
@@ -624,12 +689,16 @@ async def get_scenario_versions(workspace_id: str, scenario_id: str):
             try:
                 from odap.biz.integration.frontend_compat.api.routes import scenario_store as compat_store
                 scenario = compat_store.get_scenario(scenario_id)
+            except HTTPException:
+                raise
             except Exception:
                 pass
         if not scenario:
             try:
-                from odap.web.api.app import scenario_store as global_scenario_store
+                from odap.biz.shared.stores import scenario_store as global_scenario_store
                 scenario = global_scenario_store.get_scenario(scenario_id)
+            except HTTPException:
+                raise
             except Exception:
                 pass
         if not scenario:
@@ -654,7 +723,8 @@ async def get_scenario_versions(workspace_id: str, scenario_id: str):
 
 
 @router.post("/{workspace_id}/scenarios/{scenario_id}/commit-version", response_model=OntologyVersionResponse)
-async def commit_scenario_version(workspace_id: str, scenario_id: str, message: str = ""):
+async def commit_scenario_version(workspace_id: str, scenario_id: str, message: str = "",
+    user=Depends(get_current_user)):
     """手动提交版本：锁定当前版本 + 创建新版本"""
     try:
         scenario = scenario_service.get_scenario(scenario_id)
@@ -662,12 +732,16 @@ async def commit_scenario_version(workspace_id: str, scenario_id: str, message: 
             try:
                 from odap.biz.integration.frontend_compat.api.routes import scenario_store as compat_store
                 scenario = compat_store.get_scenario(scenario_id)
+            except HTTPException:
+                raise
             except Exception:
                 pass
         if not scenario:
             try:
-                from odap.web.api.app import scenario_store as global_scenario_store
+                from odap.biz.shared.stores import scenario_store as global_scenario_store
                 scenario = global_scenario_store.get_scenario(scenario_id)
+            except HTTPException:
+                raise
             except Exception:
                 pass
         if not scenario:
@@ -691,10 +765,11 @@ async def commit_scenario_version(workspace_id: str, scenario_id: str, message: 
 
 
 @router.get("/{workspace_id}/data-conflicts")
-async def scan_data_conflicts(workspace_id: str):
+async def scan_data_conflicts(workspace_id: str,
+    user=Depends(get_current_user)):
     """扫描数据冲突（同名实体不同ID）"""
     try:
-        from odap.biz.core.ontology.services.ingest_service import IngestService
+        from odap.biz.core.ontology.design.services.ingest_service import IngestService
         svc = IngestService()
         result = svc.scan_data_conflicts()
         return result
@@ -705,10 +780,11 @@ async def scan_data_conflicts(workspace_id: str):
 
 
 @router.post("/{workspace_id}/data-conflicts/repair")
-async def repair_data_conflicts(workspace_id: str, dry_run: bool = True):
+async def repair_data_conflicts(workspace_id: str, dry_run: bool = True,
+    user=Depends(get_current_user)):
     """修复数据冲突（合并同名实体为确定性ID）"""
     try:
-        from odap.biz.core.ontology.services.ingest_service import IngestService
+        from odap.biz.core.ontology.design.services.ingest_service import IngestService
         svc = IngestService()
         result = svc.repair_data_conflicts(dry_run=dry_run)
         return result
@@ -719,7 +795,8 @@ async def repair_data_conflicts(workspace_id: str, dry_run: bool = True):
 
 
 @router.post("/{workspace_id}/scenarios/{scenario_id}/switch-version", response_model=SuccessResponse)
-async def switch_scenario_version(workspace_id: str, scenario_id: str, request: SwitchVersionRequest):
+async def switch_scenario_version(workspace_id: str, scenario_id: str, request: SwitchVersionRequest,
+    user=Depends(get_current_user)):
     """切换场景使用的本体版本"""
     try:
         scenario = scenario_service.get_scenario(scenario_id)
@@ -727,12 +804,16 @@ async def switch_scenario_version(workspace_id: str, scenario_id: str, request: 
             try:
                 from odap.biz.integration.frontend_compat.api.routes import scenario_store as compat_store
                 scenario = compat_store.get_scenario(scenario_id)
+            except HTTPException:
+                raise
             except Exception:
                 pass
         if not scenario:
             try:
-                from odap.web.api.app import scenario_store as global_scenario_store
+                from odap.biz.shared.stores import scenario_store as global_scenario_store
                 scenario = global_scenario_store.get_scenario(scenario_id)
+            except HTTPException:
+                raise
             except Exception:
                 pass
         if not scenario:
@@ -767,7 +848,8 @@ async def switch_scenario_version(workspace_id: str, scenario_id: str, request: 
 
 
 @router.get("/{workspace_id}/scenarios/{scenario_id}/versions/{version_id}/data")
-async def get_version_data(workspace_id: str, scenario_id: str, version_id: str):
+async def get_version_data(workspace_id: str, scenario_id: str, version_id: str,
+    user=Depends(get_current_user)):
     """获取指定版本的本体数据"""
     try:
         scenario = scenario_service.get_scenario(scenario_id)
@@ -775,12 +857,16 @@ async def get_version_data(workspace_id: str, scenario_id: str, version_id: str)
             try:
                 from odap.biz.integration.frontend_compat.api.routes import scenario_store as compat_store
                 scenario = compat_store.get_scenario(scenario_id)
+            except HTTPException:
+                raise
             except Exception:
                 pass
         if not scenario:
             try:
-                from odap.web.api.app import scenario_store as global_scenario_store
+                from odap.biz.shared.stores import scenario_store as global_scenario_store
                 scenario = global_scenario_store.get_scenario(scenario_id)
+            except HTTPException:
+                raise
             except Exception:
                 pass
         if not scenario:

@@ -33,6 +33,7 @@ import {
   CompassOutlined,
   QuestionCircleOutlined,
   GlobalOutlined,
+  BookOutlined,
 } from '@ant-design/icons';
 import { api } from '../services/api';
 import { useAuthStore } from '../stores/authStore';
@@ -131,6 +132,14 @@ interface PrimaryMenu {
 }
 
 const primaryMenus: PrimaryMenu[] = [
+  {
+    key: 'guide',
+    icon: <BookOutlined />,
+    label: '快速指南',
+    children: [
+      { key: '/guide', icon: <BookOutlined />, label: '系统指南' },
+    ],
+  },
   {
     key: 'ontology-map',
     icon: <BlockOutlined />,
@@ -340,7 +349,7 @@ export function AppLayout({ children, currentWorkspace, onWorkspaceChange }: App
   };
 
   const handleLogoClick = () => {
-    navigate('/ontology/designer');
+    navigate('/guide');
   };
 
   const handleSwitchMode = () => {

@@ -1,0 +1,1 @@
+../../../.specify/extensions/superspec/.specify-dev/agent-commands/trae/speckit-superspec-execute/SKILL.md

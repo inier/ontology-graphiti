@@ -46,6 +46,59 @@ class SkillManager(ISkillManager):
         self._name_index: Dict[str, str] = {}
         self._synced = False
         self._skill_adapter = None
+        self._storage = None
+        try:
+            from ..storage import SQLiteSkillStorage
+            self._storage = SQLiteSkillStorage()
+            self._load_from_storage()
+        except Exception as e:
+            logger.warning(f"SQLite存储初始化失败，使用内存存储: {e}")
+
+    def _load_from_storage(self) -> int:
+        if not self._storage:
+            return 0
+        try:
+            rows = self._storage.list_skills()
+            count = 0
+            for row in rows:
+                name = row.get("name", "")
+                if name in self._name_index:
+                    continue
+                skill = Skill(
+                    name=name,
+                    type=_infer_skill_type(row.get("category", "general")),
+                    description=row.get("description", ""),
+                    category=row.get("category", "general"),
+                    status=SkillStatus(row.get("status", "active")),
+                    current_version=str(row.get("version", 1)),
+                    config={"source": "storage", "skill_id": row.get("skill_id", "")},
+                )
+                self._skills[skill.id] = skill
+                self._name_index[name] = skill.id
+                count += 1
+            if count > 0:
+                logger.info(f"Loaded {count} skills from SQLite storage")
+            return count
+        except Exception as e:
+            logger.warning(f"从SQLite加载技能失败: {e}")
+            return 0
+
+    def _persist_skill(self, skill: Skill) -> None:
+        if not self._storage:
+            return
+        try:
+            self._storage.save_skill({
+                "skill_id": skill.id,
+                "name": skill.name,
+                "category": skill.category,
+                "skill_type": skill.type.value,
+                "status": skill.status.value,
+                "description": skill.description,
+                "enabled": skill.status == SkillStatus.ACTIVE,
+                "created_at": skill.created_at.isoformat() if hasattr(skill.created_at, 'isoformat') else str(skill.created_at),
+            })
+        except Exception as e:
+            logger.warning(f"持久化技能失败: {e}")
 
     def sync_from_catalog(self) -> int:
         """从 SKILL_CATALOG 同步技能到管理器
@@ -112,6 +165,7 @@ class SkillManager(ISkillManager):
         self._name_index[name] = skill.id
 
         self._sync_to_catalog(name, description, category)
+        self._persist_skill(skill)
 
         return skill
 
@@ -152,6 +206,7 @@ class SkillManager(ISkillManager):
                 setattr(skill, key, value)
 
         skill.updated_at = datetime.now()
+        self._persist_skill(skill)
         return skill
 
     def delete_skill(self, skill_id: str) -> bool:
@@ -160,6 +215,11 @@ class SkillManager(ISkillManager):
             skill = self._skills[skill_id]
             self._name_index.pop(skill.name, None)
             del self._skills[skill_id]
+            if self._storage:
+                try:
+                    self._storage.delete_skill(skill.name)
+                except Exception as e:
+                    logger.warning(f"从存储删除技能失败: {e}")
             return True
         return False
 

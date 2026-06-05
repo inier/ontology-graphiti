@@ -49,7 +49,7 @@ class ScenarioService:
     def _ensure_initial_version(self, ontology_id: str, scenario_name: str = "") -> None:
         """确保本体有初始版本"""
         try:
-            from odap.biz.core.ontology.services.version_service import OntologyVersionManager
+            from odap.biz.core.ontology.design.services.version_service import OntologyVersionManager
             vm = OntologyVersionManager.get_instance()
             vm.ensure_initial_version(ontology_id, scenario_name)
         except Exception:

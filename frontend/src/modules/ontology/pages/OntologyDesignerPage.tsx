@@ -102,10 +102,12 @@ export function OntologyDesignerPage() {
     if (result) {
       const blob = new Blob([JSON.stringify(result.data, null, 2)], { type: 'application/json' });
       const url = URL.createObjectURL(blob);
-      const a = document.createElement('a');
-      a.href = url;
-      a.download = `ontology-${documentId}.json`;
-      a.click();
+      const a = globalThis.document?.createElement('a');
+      if (a) {
+        a.href = url;
+        a.download = `ontology-${documentId}.json`;
+        a.click();
+      }
       URL.revokeObjectURL(url);
       adapter.getMessage().success('导出成功');
     }
@@ -205,7 +207,7 @@ export function OntologyDesignerPage() {
                           danger
                           size="small"
                           icon={<DeleteOutlined />}
-                          onClick={(e) => e.stopPropagation()}
+                          onClick={(e) => e?.stopPropagation()}
                         />
                       </Popconfirm>,
                     ]}

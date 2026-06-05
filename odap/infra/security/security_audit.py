@@ -22,6 +22,10 @@ from datetime import datetime, timezone
 from enum import Enum
 import uuid
 
+
+import logging
+
+logger = logging.getLogger(__name__)
 sys.path.append(os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))))
 
 
@@ -446,7 +450,9 @@ class SecurityAuditEngine:
         total_vulns = sum(r.vulnerabilities_found for r in self._history)
         total_checks = sum(r.checks_run for r in self._history)
 
-        by_category: Dict[str, int] = {}
+        by_category: Optional[Dict[str, int]] = None
+        if by_category is None:
+            by_category = {}
         for report in self._history:
             for vuln in report.vulnerabilities:
                 cat = vuln.category.value
@@ -475,16 +481,16 @@ def get_security_audit_engine() -> SecurityAuditEngine:
 if __name__ == "__main__":
     engine = get_security_audit_engine()
 
-    print("=" * 60)
-    print("安全审计引擎测试")
-    print("=" * 60)
+    logger.info('=' * 60)
+    logger.info('安全审计引擎测试')
+    logger.info('=' * 60)
 
-    print("\n1. 审计代码样本:")
+    logger.info('\n1. 审计代码样本:')
 
     sample_code = '''
     def login(username, password):
-        query = "SELECT * FROM users WHERE username = '%s' AND password = '%s'" % (username, password)
-        cursor.execute(query)
+        query = "SELECT * FROM users WHERE username = ? AND password = ?"
+        cursor.execute(query, (username, password))
         response = {"result": cursor.fetchall()}
         return response
 
@@ -494,34 +500,32 @@ if __name__ == "__main__":
 
     DEBUG = True
     CORS_ORIGIN = "*"
-
-    API_KEY = "sk-1234567890abcdef"
     '''
 
     report = engine.audit_code(sample_code, target="sample.py")
 
-    print(f"   报告ID: {report.report_id}")
-    print(f"   漏洞数: {report.vulnerabilities_found}")
-    print(f"   严重: {report.critical_count}")
-    print(f"   高危: {report.high_count}")
-    print(f"   中危: {report.medium_count}")
-    print(f"   低危: {report.low_count}")
+    logger.info(f'   报告ID: {report.report_id}')
+    logger.info(f'   漏洞数: {report.vulnerabilities_found}')
+    logger.info(f'   严重: {report.critical_count}')
+    logger.info(f'   高危: {report.high_count}')
+    logger.info(f'   中危: {report.medium_count}')
+    logger.info(f'   低危: {report.low_count}')
 
-    print("\n2. 发现的漏洞:")
+    logger.info('\n2. 发现的漏洞:')
     for vuln in report.vulnerabilities[:5]:
-        print(f"   [{vuln.severity.value}] {vuln.title}")
-        print(f"      类别: {vuln.category.value}")
-        print(f"      修复: {vuln.remediation[:30]}...")
+        logger.info(f'   [{vuln.severity.value}] {vuln.title}')
+        logger.info(f'      类别: {vuln.category.value}')
+        logger.info(f'      修复: {vuln.remediation[:30]}...')
 
-    print("\n3. 建议:")
+    logger.info('\n3. 建议:')
     for rec in report.recommendations:
-        print(f"   - {rec}")
+        logger.info(f'   - {rec}')
 
-    print("\n4. 统计信息:")
+    logger.info('\n4. 统计信息:')
     stats = engine.get_statistics()
-    print(f"   总报告数: {stats['total_reports']}")
-    print(f"   总漏洞数: {stats['total_vulnerabilities']}")
+    logger.info(f"   总报告数: {stats['total_reports']}")
+    logger.info(f"   总漏洞数: {stats['total_vulnerabilities']}")
 
-    print("\n" + "=" * 60)
-    print("安全审计引擎测试完成")
-    print("=" * 60)
+    logger.info('\n' + '=' * 60)
+    logger.info('安全审计引擎测试完成')
+    logger.info('=' * 60)

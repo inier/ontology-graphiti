@@ -2,7 +2,7 @@ import { useState, useEffect, useCallback } from 'react';
 import { Card, Tabs, Button, Space, Input, Upload, message, Table, Tag, Descriptions, Spin, Drawer, Empty, Typography, Row, Col, Steps, Timeline, Select, Statistic } from 'antd';
 import { UploadOutlined, SyncOutlined, CheckCircleOutlined, LoadingOutlined, DatabaseOutlined, ApiOutlined, RobotOutlined, CloudServerOutlined, GitlabOutlined, FolderOutlined, PlusOutlined, EyeOutlined, SwapOutlined, CheckCircleFilled, CloseCircleFilled } from '@ant-design/icons';
 import { api } from '../../shared';
-import { useScenario } from '../../shared';
+import { useScenario, useWorkspace } from '../../shared';
 const { Dragger } = Upload;
 const { TextArea } = Input;
 const { Text, Paragraph } = Typography;
@@ -104,6 +104,7 @@ const _PIPELINE_DESCRIPTIONS: Record<string, string> = {
 
 export function IngestPanel() {
   const { currentScenario } = useScenario();
+  const { currentWorkspace } = useWorkspace();
   const [activeTab, setActiveTab] = useState('text');
 
   const [text, setText] = useState('');
@@ -679,8 +680,17 @@ export function IngestPanel() {
     runBuildPipeline(record.id, record.source);
   };
 
-  const handleSwitchVersion = (versionId: string) => {
-    message.success(`已切换到版本 ${versionId}`);
+  const handleSwitchVersion = async (versionId: string) => {
+    try {
+      if (currentWorkspace && currentScenario) {
+        await api.switchScenarioOntologyVersion(currentWorkspace, currentScenario, versionId);
+      }
+      message.success(`已切换到版本 ${versionId}`);
+      loadHistory();
+    } catch (error) {
+      console.error('切换版本失败:', error);
+      message.error('切换版本失败');
+    }
   };
 
   const getStatusTag = (status: string) => {

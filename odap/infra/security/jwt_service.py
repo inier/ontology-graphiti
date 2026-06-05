@@ -23,7 +23,10 @@ class JWTService:
 
     def __init__(self, secret_key: str = None, algorithm: str = None):
         from .config import security_config
-        self.secret_key = secret_key or os.getenv("JWT_SECRET", security_config.JWT_SECRET)
+        # P0-8 fix: use lazy-validated method that raises on placeholder in prod
+        if secret_key is None:
+            secret_key = os.getenv("JWT_SECRET") or security_config.get_jwt_secret()
+        self.secret_key = secret_key
         self.algorithm = algorithm or os.getenv("JWT_ALGORITHM", self.ALGORITHM)
 
     def issue_access_token(self, user_id: str, user_name: str, role: str,

@@ -417,17 +417,8 @@ class OpenHarnessIntegration:
     async def initialize(self, 
                         user_role: str = "intelligence_analyst",
                         provider_config: Dict[str, Any] = None):
-        """
-        初始化 OpenHarness 集成
-        
-        Args:
-            user_role: 用户角色
-            provider_config: LLM Provider 配置
-        """
         try:
-            # 初始化 LLM Client
             if LLM_CLIENT_AVAILABLE:
-                # 使用新的 LLM 客户端系统
                 if provider_config:
                     provider_name = provider_config.get("provider", "anthropic")
                     self.llm_client = LLMClientFactory.create_client(
@@ -435,13 +426,11 @@ class OpenHarnessIntegration:
                         provider_config
                     )
                 else:
-                    # 自动从配置文件加载
                     self.llm_client = get_llm_client()
                 
                 if self.llm_client:
                     logger.info("LLM client initialized")
             
-            # 初始化 Agent Loop
             self.agent_loop = GraphitiAgentLoop(
                 user_role=user_role,
                 llm_client=self.llm_client,
@@ -452,6 +441,16 @@ class OpenHarnessIntegration:
             
         except Exception as e:
             logger.warning("OpenHarness integration init failed: %s", e)
+            return False
+
+    async def shutdown(self):
+        try:
+            self.agent_loop = None
+            self.llm_client = None
+            logger.info("OpenHarness integration shut down")
+            return True
+        except Exception as e:
+            logger.warning("OpenHarness integration shutdown failed: %s", e)
             return False
 
     async def run_agent(self, user_input: str, context: Dict[str, Any] = None) -> Dict[str, Any]:

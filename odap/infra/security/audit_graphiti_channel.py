@@ -12,6 +12,10 @@ from typing import List, Dict, Any, Optional
 from .audit_models import AuditEvent, AuditFilter, AuditEventType, AuditSeverity
 
 
+
+import logging
+
+logger = logging.getLogger(__name__)
 class GraphitiAuditChannel:
     """
     Graphiti 审计通道实现
@@ -39,7 +43,7 @@ class GraphitiAuditChannel:
                 from odap.infra.graph.graph_service import GraphManager
                 self._graph_manager = GraphManager()
             except Exception as e:
-                print(f"GraphManager初始化失败: {e}")
+                logger.info(f'GraphManager初始化失败: {e}')
                 self._graph_manager = None
     
     async def write(self, event: AuditEvent) -> None:
@@ -49,7 +53,7 @@ class GraphitiAuditChannel:
             event: 审计事件对象
         """
         if self._graph_manager is None:
-            print("GraphManager 未初始化，跳过写入")
+            logger.info('GraphManager 未初始化，跳过写入')
             return
         
         # 转换为字典格式
@@ -186,39 +190,51 @@ class GraphitiAuditChannel:
             try:
                 return await self._query_with_neo4j(filter)
             except Exception as e:
-                print(f"Neo4j查询失败: {e}")
+                logger.info(f'Neo4j查询失败: {e}')
         
         # 回退到 GraphManager 搜索
         return self._query_with_search(filter)
     
     async def _query_with_neo4j(self, filter: AuditFilter) -> List[AuditEvent]:
-        """使用 Neo4j 查询"""
+        """使用 Neo4j 查询
+
+        R-P0-007: uses parameterized Cypher ($param) instead of f-string
+        interpolation to prevent Cypher injection. All user-controlled
+        filter fields (workspace_id, trace_id, actor_ids, limit) are
+        passed as Neo4j query parameters, NEVER inlined into the
+        Cypher string. The limit is bounded to [1, MAX_LIMIT] to
+        prevent DoS via unbounded result sets.
+        """
         from neo4j import AsyncSession
-        
+
+        # Defense-in-depth: bound limit to [1, 1000] before it reaches the DB
+        MAX_LIMIT = 1000
+        bounded_limit = max(1, min(int(filter.limit or 1), MAX_LIMIT))
+
         with self._graph_manager.neo4j_driver.session() as session:
-            where_clauses = []
-            params = {}
-            
-            if filter.actor_ids:
-                placeholders = ','.join([f'"{uid}"' for uid in filter.actor_ids])
-                where_clauses.append(f"n.user IN [{placeholders}]")
-            if filter.workspace_id:
-                where_clauses.append(f'n.workspace_id = "{filter.workspace_id}"')
-            if filter.trace_id:
-                where_clauses.append(f'n.trace_id = "{filter.trace_id}"')
-            
-            where_part = " WHERE " + " AND ".join(where_clauses) if where_clauses else ""
-            cypher = f"""MATCH (n:AuditLog) {where_part} 
-                         RETURN n ORDER BY n.timestamp DESC LIMIT {filter.limit}"""
-            
-            result = session.run(cypher, **params)
-            
+            cypher = """
+                MATCH (n:AuditLog)
+                WHERE ($ws IS NULL OR n.workspace_id = $ws)
+                  AND ($trace IS NULL OR n.trace_id = $trace)
+                  AND ($uids IS NULL OR n.user IN $uids)
+                RETURN n
+                ORDER BY n.timestamp DESC
+                LIMIT $limit
+            """
+            result = session.run(
+                cypher,
+                ws=filter.workspace_id or None,
+                trace=filter.trace_id or None,
+                uids=list(filter.actor_ids) if filter.actor_ids else None,
+                limit=bounded_limit,
+            )
+
             events = []
             for record in result:
                 node = record["n"]
                 properties = dict(node)
                 events.append(self._convert_to_audit_event(properties))
-            
+
             return events
     
     def _query_with_search(self, filter: AuditFilter) -> List[AuditEvent]:
@@ -245,6 +261,8 @@ class GraphitiAuditChannel:
         """将属性字典转换为 AuditEvent"""
         from .audit_models import ActorInfo, ResourceInfo, ActionResult
         
+
+
         return AuditEvent(
             id=properties.get("id", str(uuid.uuid4())),
             timestamp=datetime.fromisoformat(properties.get("timestamp", datetime.now().isoformat())),

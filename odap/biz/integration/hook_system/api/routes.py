@@ -2,7 +2,8 @@ import logging
 import uuid
 from typing import Dict, Any, List, Optional
 
-from fastapi import APIRouter, HTTPException
+from fastapi import APIRouter, HTTPException, Depends
+from odap.infra.security.jwt_auth import get_current_user
 from pydantic import BaseModel, Field
 
 from odap.biz.integration.hook_system.services.hook_service import HookService
@@ -28,7 +29,8 @@ class EnableHookRequest(BaseModel):
 
 
 @router.post("/register")
-async def register_hook(request: RegisterHookRequest):
+async def register_hook(request: RegisterHookRequest,
+    user=Depends(get_current_user)):
     try:
         try:
             hook_type = HookType(request.hook_type)
@@ -58,6 +60,8 @@ async def register_hook(request: RegisterHookRequest):
                     handler=lambda ctx: ctx,
                     priority=request.priority,
                 )
+        except HTTPException:
+            raise
         except Exception as e:
             logging.getLogger(__name__).debug("Hook adapter registration fallback: %s", e)
 
@@ -69,12 +73,15 @@ async def register_hook(request: RegisterHookRequest):
 
 
 @router.delete("/{hook_id}")
-async def unregister_hook(hook_id: str):
+async def unregister_hook(hook_id: str,
+    user=Depends(get_current_user)):
     try:
         try:
             from odap.biz.integration.openharness_agent.adapter.hook_adapter import HookAdapter
             adapter = HookAdapter()
             adapter.unregister_hook(hook_id)
+        except HTTPException:
+            raise
         except Exception:
             pass
 
@@ -93,6 +100,7 @@ async def list_hooks(
     page: int = 1,
     page_size: int = 10,
     hook_type: Optional[str] = None,
+    user=Depends(get_current_user),
 ):
     try:
         filters = {}
@@ -106,7 +114,8 @@ async def list_hooks(
 
 
 @router.post("/{hook_id}/enable")
-async def enable_hook(hook_id: str):
+async def enable_hook(hook_id: str,
+    user=Depends(get_current_user)):
     try:
         hook = hook_service.get_hook(hook_id)
         if hook.get("status") == "error":
@@ -119,7 +128,8 @@ async def enable_hook(hook_id: str):
 
 
 @router.post("/{hook_id}/disable")
-async def disable_hook(hook_id: str):
+async def disable_hook(hook_id: str,
+    user=Depends(get_current_user)):
     try:
         hook = hook_service.get_hook(hook_id)
         if hook.get("status") == "error":

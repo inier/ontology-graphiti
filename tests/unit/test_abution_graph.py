@@ -2,12 +2,12 @@ import pytest
 import os
 from datetime import datetime
 
-from odap.biz.core.ontology.abution_graph.models.types import (
+from odap.biz.core.ontology.application.abution_graph.models.types import (
     TemporalDimension, PatternType, ForceType, ActionDimension,
     TemporalNode, PatternNode, ForceNode, ActionNode, AbutionGraphSnapshot,
 )
-from odap.biz.core.ontology.abution_graph.storage.sqlite_abution_storage import SQLiteAbutionStorage
-from odap.biz.core.ontology.abution_graph.services.abution_graph_service import AbutionGraphService
+from odap.biz.core.ontology.application.abution_graph.storage.sqlite_abution_storage import SQLiteAbutionStorage
+from odap.biz.core.ontology.application.abution_graph.services.abution_graph_service import AbutionGraphService
 
 
 def _make_temporal_node(**overrides):

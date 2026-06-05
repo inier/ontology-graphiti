@@ -8,7 +8,8 @@ OpenHarness Agent API 路由
 - /agent/history - 获取历史
 """
 
-from fastapi import APIRouter, HTTPException
+from fastapi import APIRouter, HTTPException, Depends
+from odap.infra.security.jwt_auth import get_current_user
 from typing import Dict, Any, List, Optional
 from pydantic import BaseModel
 import logging
@@ -51,7 +52,8 @@ class AgentChatRequest(BaseModel):
 
 
 @router.post("/init")
-async def init_agent_compat(request: AgentInitRequest):
+async def init_agent_compat(request: AgentInitRequest,
+    user=Depends(get_current_user)):
     config = request.config or {}
     user_role = config.get("user_role", request.user_role) if isinstance(config, dict) else request.user_role
     provider_config = config.get("provider_config", request.provider_config) if isinstance(config, dict) else request.provider_config
@@ -66,12 +68,15 @@ async def init_agent_compat(request: AgentInitRequest):
             return {"success": True, "message": "Agent 初始化成功", "status": status}
         else:
             return {"success": False, "message": "Agent 初始化失败"}
+    except HTTPException:
+        raise
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
 
 
 @router.post("/initialize")
-async def initialize_agent(config: AgentConfigRequest):
+async def initialize_agent(config: AgentConfigRequest,
+    user=Depends(get_current_user)):
     """
     初始化 Agent
     
@@ -100,12 +105,15 @@ async def initialize_agent(config: AgentConfigRequest):
                 "success": False,
                 "message": "Agent 初始化失败",
             }
+    except HTTPException:
+        raise
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
 
 
 @router.post("/run")
-async def run_agent_endpoint(request: AgentRunRequest):
+async def run_agent_endpoint(request: AgentRunRequest,
+    user=Depends(get_current_user)):
     """
     运行 Agent
     
@@ -122,12 +130,14 @@ async def run_agent_endpoint(request: AgentRunRequest):
         )
         
         return result
+    except HTTPException:
+        raise
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
 
 
 @router.get("/status")
-async def get_agent_status():
+async def get_agent_status(user=Depends(get_current_user)):
     """
     获取 Agent 状态
     
@@ -137,12 +147,14 @@ async def get_agent_status():
     try:
         integration = get_openharness_integration()
         return integration.get_status()
+    except HTTPException:
+        raise
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
 
 
 @router.get("/tools")
-async def list_agent_tools():
+async def list_agent_tools(user=Depends(get_current_user)):
     """
     列出所有可用工具
     
@@ -156,12 +168,15 @@ async def list_agent_tools():
             "tools": status.get("tools", []),
             "count": status.get("tools_count", 0),
         }
+    except HTTPException:
+        raise
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
 
 
 @router.post("/chat")
-async def chat_with_agent(request: AgentChatRequest):
+async def chat_with_agent(request: AgentChatRequest,
+    user=Depends(get_current_user)):
     try:
         from odap.biz.platform.session_memory.session_store import SessionStore, Session
         from odap.biz.platform.session_memory.context_window import ChatMessage, MessageRole
@@ -189,6 +204,8 @@ async def chat_with_agent(request: AgentChatRequest):
                     ]
                     if history:
                         context["chat_history"] = history
+            except HTTPException:
+                raise
             except Exception as e:
                 logger.warning(f"Failed to load session {request.session_id}: {e}")
 
@@ -239,6 +256,8 @@ async def chat_with_agent(request: AgentChatRequest):
             )
             store.save_session(session)
             response_data["session_id"] = session.id
+        except HTTPException:
+            raise
         except Exception as e:
             logger.warning(f"Failed to save session: {e}")
 
@@ -250,7 +269,8 @@ async def chat_with_agent(request: AgentChatRequest):
 
 
 @router.get("/sessions")
-async def list_agent_sessions(workspace_id: str = "default", limit: int = 20):
+async def list_agent_sessions(workspace_id: str = "default", limit: int = 20,
+    user=Depends(get_current_user)):
     try:
         from odap.biz.platform.session_memory.session_store import SessionStore
         store = SessionStore()
@@ -263,7 +283,8 @@ async def list_agent_sessions(workspace_id: str = "default", limit: int = 20):
 
 
 @router.delete("/sessions/{session_id}")
-async def delete_agent_session(session_id: str):
+async def delete_agent_session(session_id: str,
+    user=Depends(get_current_user)):
     try:
         from odap.biz.platform.session_memory.session_store import SessionStore
         store = SessionStore()

@@ -1,12 +1,12 @@
 import type { ReactElement } from 'react';
-import { Button, Input, Table, Modal, Form, Select, message, notification } from 'antd';
-import type { UIAdapter, ButtonProps, InputProps, TableProps, ModalProps, FormProps, SelectProps, MessageInstance, NotificationInstance } from './UIAdapter.ts';
+import { Button, Input, Table, Modal, Form, Select, Tag, Tooltip, message, notification } from 'antd';
+import type { UIAdapter, ButtonProps, InputProps, TableProps, ModalProps, FormProps, SelectProps, TagProps, TooltipProps, MessageInstance, NotificationInstance } from './UIAdapter.ts';
 
 function AntButton(props: ButtonProps) {
-  const { children, onClick, type, disabled, loading, icon, size, danger, className } = props;
+  const { children, onClick, type, disabled, loading, icon, size, danger, className, style } = props;
   return (
     <Button
-      onClick={onClick}
+      onClick={onClick as React.MouseEventHandler}
       type={type}
       disabled={disabled}
       loading={loading}
@@ -14,6 +14,7 @@ function AntButton(props: ButtonProps) {
       size={size}
       danger={danger}
       className={className}
+      style={style}
     >
       {children}
     </Button>
@@ -91,6 +92,24 @@ function AntSelect(props: SelectProps) {
   );
 }
 
+function AntTag(props: TagProps) {
+  const { color, children, className } = props;
+  return (
+    <Tag color={color} className={className}>
+      {children}
+    </Tag>
+  );
+}
+
+function AntTooltip(props: TooltipProps) {
+  const { title, children, placement } = props;
+  return (
+    <Tooltip title={title} placement={placement}>
+      {children}
+    </Tooltip>
+  );
+}
+
 const antMessage: MessageInstance = {
   success: (content: string) => message.success(content),
   error: (content: string) => message.error(content),
@@ -114,8 +133,8 @@ export class AntDesignAdapter implements UIAdapter {
     return AntInput;
   }
 
-  getTable<T = any>() {
-    return (props: TableProps<T>) => AntTable<T>(props);
+  getTable(): <T = any>(props: TableProps<T>) => ReactElement {
+    return <T = any>(props: TableProps<T>) => AntTable<T>(props);
   }
 
   getModal() {
@@ -128,6 +147,14 @@ export class AntDesignAdapter implements UIAdapter {
 
   getSelect() {
     return AntSelect;
+  }
+
+  getTag() {
+    return AntTag;
+  }
+
+  getTooltip() {
+    return AntTooltip;
   }
 
   getMessage(): MessageInstance {

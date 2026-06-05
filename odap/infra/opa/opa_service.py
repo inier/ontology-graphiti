@@ -15,16 +15,69 @@ import json
 import time
 import hashlib
 import threading
+import logging
 from typing import Optional, Dict, Any, List, Set, Callable
 from dataclasses import dataclass, field
 from enum import Enum
 from datetime import datetime
+
+logger = logging.getLogger(__name__)
 
 from odap.biz.platform.roles.api.schemas import PermissionScope
 
 import httpx
 
 sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+
+
+# ============ SECURITY: OPA fail-close policy ============
+# When OPA is unavailable, the default behavior is to DENY all permission
+# requests (fail-close). This is required by:
+#   - Architecture Constitution: P0-7 (OPA unavailable MUST fail-close)
+#   - Security: fail-open is a P0 vulnerability (compromised OPA = full access)
+#
+# The `mock` mode is ONLY allowed when:
+#   - ENV is non-production (dev/test/staging)
+#   - OPA_MOCK_MODE=true is explicitly set
+#
+# Production deployments must reject mock mode at startup.
+
+class OPAUnavailableError(RuntimeError):
+    """Raised when the OPA server is unreachable or unhealthy.
+
+    The default behavior is fail-close (deny). Callers should NOT catch this
+    unless they have a deliberate fail-open reason (e.g., dev environment).
+    """
+    pass
+
+
+def _is_production_env() -> bool:
+    """Check whether the current process is running in production."""
+    env = os.environ.get("ENV", os.environ.get("ENVIRONMENT", "")).lower()
+    return env in ("production", "prod", "live")
+
+
+def _resolve_opa_fail_mode() -> str:
+    """
+    Resolve the OPA fail mode at startup.
+
+    Returns one of: "deny" (fail-close, default), "mock" (dev only).
+
+    Rules:
+      1. If OPA_FAIL_MODE is set explicitly, use it (and validate).
+      2. In production, force "deny" — never allow "mock".
+      3. In non-production, default to "deny" (secure-by-default).
+    """
+    explicit = os.environ.get("OPA_FAIL_MODE", "").lower()
+    if explicit in ("deny", "mock"):
+        if explicit == "mock" and _is_production_env():
+            raise RuntimeError(
+                "SECURITY: OPA_FAIL_MODE=mock is FORBIDDEN in production. "
+                "Production must use fail-close (deny). Set ENV != production "
+                "or remove OPA_FAIL_MODE."
+            )
+        return explicit
+    return "deny"  # secure default
 
 
 class AccessControlModel(str, Enum):
@@ -244,7 +297,7 @@ class PolicyBundleManager:
                     data = json.load(f)
                     self.current_bundle = PolicyBundle(**data)
             except Exception as e:
-                print(f"加载 Bundle 失败: {e}")
+                logger.info(f'加载 Bundle 失败: {e}')
 
     def _save_bundle(self, bundle: PolicyBundle):
         bundle_path = os.path.join(self.bundle_dir, f"bundle_{bundle.version}.json")
@@ -336,6 +389,7 @@ class PolicySandbox:
                 execution_time_ms=execution_time
             )
         except Exception as e:
+            logger.warning("silent except caught in {exc} (line 391)", exc_info=True)
             execution_time = (time.time() - start_time) * 1000
             errors.append(str(e))
             return PolicySandboxResult(
@@ -446,6 +500,7 @@ class OPAClient:
             response = httpx.get(f"{self.opa_url}/health", timeout=2.0)
             return response.status_code == 200
         except Exception:
+            logger.warning("silent except caught in {exc} (line 501)", exc_info=True)
             return False
 
 
@@ -479,13 +534,56 @@ class OPAManager:
         self.policy_history: List[Dict] = []
         self.policy_versions = {"current": "1.0.0", "previous": "0.9.0", "history": []}
 
-        self.use_mock = True
-        if use_mock is not None:
-            self.use_mock = use_mock
-        elif self.opa_client.health_check():
-            self.use_mock = False
-            print(f"OPA Server 已连接: {self.opa_client.opa_url}")
-            self._auto_load_policy()
+        # SECURITY: Resolve the fail mode at startup. Default is "deny" (fail-close).
+        # P0-7: OPA unavailable MUST fail-close.
+        self._fail_mode = _resolve_opa_fail_mode()
+
+        # Legacy OPA_MOCK_MODE env var still respected (transitional).
+        # In production, OPA_FAIL_MODE=mock is rejected at startup by
+        # _resolve_opa_fail_mode(), so this is safe.
+        env_mock = os.environ.get("OPA_MOCK_MODE", "").lower()
+        legacy_use_mock = False
+        if env_mock in ("true", "1", "yes"):
+            if self._fail_mode == "deny" and _is_production_env():
+                # Defense-in-depth: even if OPA_FAIL_MODE is unset, the legacy
+                # var cannot enable mock in production.
+                raise RuntimeError(
+                    "SECURITY: OPA_MOCK_MODE=true is FORBIDDEN in production. "
+                    "Unset OPA_MOCK_MODE or set ENV != production."
+                )
+            legacy_use_mock = True
+
+        # When use_mock is explicitly passed (e.g. in tests), honor it; but if
+        # the fail mode is "deny", require explicit opt-in to mock.
+        self.use_mock = False
+        if use_mock is True:
+            self.use_mock = True
+            if self._fail_mode == "deny" and not legacy_use_mock:
+                logger.warning(
+                    "OPA Mock mode enabled at construction. "
+                    "This is INTENDED for tests/dev only."
+                )
+        elif use_mock is None and legacy_use_mock:
+            self.use_mock = True
+
+        if self.use_mock:
+            logger.warning("OPA Mock mode enabled - permission checks use static rules")
+        else:
+            # P0-7 fix: do NOT silently fall back to mock on health-check failure.
+            # Instead, mark the manager as OPA-unavailable. Permission checks
+            # will then fail-close (return deny) based on _fail_mode.
+            if not self.opa_client.health_check():
+                self._opa_unavailable = True
+                logger.error(
+                    "OPA server unavailable at startup. "
+                    "All permission checks will fail-close (deny) "
+                    "until OPA is reachable again. "
+                    "Set OPA_FAIL_MODE=mock only in non-production if needed."
+                )
+            else:
+                self._opa_unavailable = False
+                logger.info(f"OPA Server connected: {self.opa_client.opa_url}")
+                self._auto_load_policy()
 
     def _auto_load_policy(self):
         rego_path = os.path.join(os.path.dirname(os.path.abspath(__file__)), "opa_policy.rego")
@@ -494,9 +592,9 @@ class OPAManager:
                 with open(rego_path, "r") as f:
                     rego_content = f.read()
                 self.opa_client.put_policy("domain", rego_content)
-                print("OPA 策略已加载: domain")
+                logger.info('OPA 策略已加载: domain')
             except Exception as e:
-                print(f"OPA 策略加载失败: {e}")
+                logger.info(f'OPA 策略加载失败: {e}')
 
     def _generate_cache_key(self, request: Dict) -> str:
         key_data = {
@@ -544,13 +642,25 @@ class OPAManager:
             return cached.get("allow", False)
 
         if self.use_mock:
+            logger.debug("Using mock OPA for permission check")
             result = self._mock_check_permission(user_role, action, resource)
         else:
             try:
                 result = self.opa_client.check_permission(user_role, action, resource)
             except Exception as e:
-                print(f"OPA 异常: {e}，fallback 到 Mock")
-                result = self._mock_check_permission(user_role, action, resource)
+                # P0-7 fix: FAIL-CLOSE on OPA errors. Default is deny.
+                # Only fall back to mock if the operator explicitly opted in
+                # via OPA_FAIL_MODE=mock in a non-production environment.
+                if self._fail_mode == "mock":
+                    logger.warning(
+                        f"OPA 异常: {e}，fallback 到 Mock (fail_mode=mock, dev/test only)"
+                    )
+                    result = self._mock_check_permission(user_role, action, resource)
+                else:
+                    logger.error(
+                        f"OPA 不可用: {e}. 拒绝 {user_role} 对 {resource} 的 {action} 权限 (fail-close)."
+                    )
+                    result = False  # FAIL-CLOSE
 
         self._add_to_cache(cache_key, {"allow": result})
         self._record_history(user_role, action, resource, result)
@@ -575,8 +685,21 @@ class OPAManager:
             try:
                 result = self.opa_client.check_permission_abac(user, action, resource, environment)
             except Exception as e:
-                print(f"OPA ABAC 异常: {e}，fallback 到本地评估")
-                result = self.abac_evaluator.evaluate(user, action, resource, environment)
+                # P0-7 fix: FAIL-CLOSE on OPA errors.
+                if self._fail_mode == "mock":
+                    logger.warning(
+                        f"OPA ABAC 异常: {e}，fallback 到本地评估 (fail_mode=mock, dev/test only)"
+                    )
+                    result = self.abac_evaluator.evaluate(user, action, resource, environment)
+                else:
+                    logger.error(
+                        f"OPA ABAC 不可用: {e}. 拒绝用户 {user.get('id')} 对 {resource} 的 {action} 权限 (fail-close)."
+                    )
+                    result = {
+                        "allow": False,
+                        "reason": "OPA unavailable, fail-close",
+                        "error": str(e),
+                    }
 
         self._add_to_cache(cache_key, result)
         self._record_history(user.get("id", "unknown"), action, resource, result.get("allow"))
@@ -598,6 +721,7 @@ class OPAManager:
         return results
 
     def _mock_check_permission(self, user_role: str, action: str, resource: Dict) -> bool:
+        logger.warning(f"OPA mock mode: checking permission for role={user_role}, action={action}, resource={resource}")
         roles = {
             "pilot": {"permissions": ["view_intelligence", "request_support"], "restrictions": ["cannot_attack", "cannot_command"]},
             "commander": {"permissions": ["view_intelligence", "command_units", "authorize_attacks"], "restrictions": ["cannot_attack_civilian_infrastructure"]},
@@ -692,6 +816,7 @@ class OPAManager:
             self._auto_load_policy()
             return True
         except Exception:
+            logger.warning("silent except caught in {exc} (line 816)", exc_info=True)
             return False
 
     def delete_policy(self, policy_id: str) -> bool:
@@ -702,6 +827,7 @@ class OPAManager:
             self.clear_cache()
             return result
         except Exception:
+            logger.warning("silent except caught in {exc} (line 826)", exc_info=True)
             return False
 
     def get_performance_metrics(self) -> Dict[str, Any]:
@@ -752,13 +878,80 @@ class MarkdownPolicyService:
             "rules": result.rules,
         }
 
-    def hot_update_markdown_policy(self, policy_id: str, markdown_text: str) -> Dict[str, Any]:
+    def _notify_policy_load_failed(self, policy_id: str, errors: list):
+        """策略编译/加载失败时通知管理员：发布 hook 事件 + 写入审计日志"""
+        error_detail = "; ".join(str(e) for e in errors) if errors else "Unknown compilation error"
+
+        # 1. 通过 Hook 系统发布 policy.load_failed 事件
+        try:
+            from odap.infra.events import HookRegistry, HookPhase, HookContext
+            hook_registry = HookRegistry.get_instance()
+            context = HookContext(event_name="policy.load_failed")
+            payload = {
+                "policy_id": policy_id,
+                "errors": errors,
+                "error_detail": error_detail,
+                "timestamp": datetime.now().isoformat(),
+            }
+            context.set_data("payload", payload)
+            hooks = hook_registry.get_hooks("policy.load_failed", HookPhase.POST)
+            for hook in hooks:
+                try:
+                    hook.handler(context, payload)
+                except Exception as e:
+                    logger.warning(f"Policy load failed hook {hook.name} 执行失败: {e}")
+        except Exception as e:
+            logger.warning(f"发布 policy.load_failed hook 事件失败: {e}")
+
+        # 2. 通过 WebSocket event bus 推送给连接的管理员客户端
+        try:
+            import asyncio
+            from odap.web.ws.event_bus import get_event_bus
+            bus = get_event_bus()
+            event_data = {
+                "policy_id": policy_id,
+                "errors": errors,
+                "error_detail": error_detail,
+                "timestamp": datetime.now().isoformat(),
+            }
+            try:
+                loop = asyncio.get_event_loop()
+                if loop.is_running():
+                    asyncio.ensure_future(bus.emit("policy:load_failed", event_data))
+                else:
+                    loop.run_until_complete(bus.emit("policy:load_failed", event_data))
+            except RuntimeError:
+                asyncio.run(bus.emit("policy:load_failed", event_data))
+        except Exception as e:
+            logger.warning(f"WebSocket 通知策略加载失败事件失败: {e}")
+
+        # 3. 写入审计日志（WARNING 级别）
+        try:
+            from odap.infra.security.unified_audit import log_audit
+            log_audit(
+                action="policy.load_failed",
+                resource=policy_id,
+                user="system",
+                service="opa",
+                details={"errors": errors, "error_detail": error_detail},
+            )
+        except Exception as e:
+            logger.warning(f"审计日志记录策略加载失败事件失败: {e}")
+
+        logger.warning(f"策略加载失败通知已发送: policy_id={policy_id}, errors={error_detail}")
+
+    def hot_update_markdown_policy(self, policy_id: str, markdown_text: str, user_role: str = "") -> Dict[str, Any]:
         compile_result = self.compiler.compile(markdown_text)
         if not compile_result.success:
+            # 策略编译失败：发布 hook 事件 + 审计日志通知管理员
+            self._notify_policy_load_failed(policy_id, compile_result.errors)
+            errors = compile_result.errors
+            if user_role != "admin":
+                errors = ["编译失败，请联系管理员查看详情"]
             return {
                 "status": "error",
                 "message": "编译失败，旧策略保持运行",
-                "errors": compile_result.errors,
+                "errors": errors,
             }
 
         current_version = self.version_storage.get_latest_version(policy_id)
@@ -936,10 +1129,10 @@ OPAManagerV2 = OPAManager
 if __name__ == "__main__":
     manager = OPAManager()
 
-    print(f"OPA 模式: {'Mock' if manager.use_mock else 'Real OPA Server'}")
-    print(f"Bundle 版本: {manager.get_bundle_version()}")
+    logger.info(f"OPA 模式: {('Mock' if manager.use_mock else 'Real OPA Server')}")
+    logger.info(f'Bundle 版本: {manager.get_bundle_version()}')
 
-    print("\n测试 ABAC 权限检查:")
+    logger.info('\n测试 ABAC 权限检查:')
     tests = [
         ({"id": "user1", "roles": ["commander"], "attributes": {"clearance_level": "secret"}},
          "attack", {"id": "RADAR_01", "type": "WeaponSystem"}, True),
@@ -952,14 +1145,14 @@ if __name__ == "__main__":
     for user, action, resource, expected in tests:
         result = manager.check_permission_abac(user, action, resource)
         status = "PASS" if result.get("allow") == expected else "FAIL"
-        print(f"  {status}: {user['id']}.{action} -> {result.get('allow')} (expected {expected})")
+        logger.info(f"  {status}: {user['id']}.{action} -> {result.get('allow')} (expected {expected})")
 
-    print("\nWhat-If 分析:")
+    logger.info('\nWhat-If 分析:')
     what_if = manager.what_if_analysis(
         {"id": "commander1", "roles": ["commander"], "attributes": {"clearance_level": "secret"}},
         ["attack", "view_intelligence"],
         [{"id": "RADAR_01", "type": "WeaponSystem"}, {"id": "HOSPITAL_01", "type": "CivilianInfrastructure"}]
     )
-    print(f"  测试了 {what_if['total_actions_tested']} 个操作组合")
+    logger.info(f"  测试了 {what_if['total_actions_tested']} 个操作组合")
 
-    print("\n缓存统计:", manager.get_cache_stats())
+    logger.info('\n缓存统计:', manager.get_cache_stats())

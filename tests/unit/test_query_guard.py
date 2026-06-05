@@ -32,6 +32,8 @@ class TestQueryFirstGuard:
         "odap/biz/core/ontology/hot_write.py",
         "odap/biz/core/ontology/management_engine.py",
         "odap/biz/integration/frontend_compat/api/routes.py",
+        "odap/biz/integration/frontend_compat/api/_deps.py",
+        "odap/biz/integration/frontend_compat/api/ontology_routes.py",
         "odap/web/api/app.py",
         "odap/biz/core/agent/intelligence_agent.py",
         "odap/biz/core/agent/swarm_orchestrator.py",
@@ -86,10 +88,11 @@ class TestQueryFirstGuard:
 
     def test_graph_manager_has_traversal_methods(self):
         """GraphManager 必须提供图遍历方法"""
-        graph_service = PROJECT_ROOT / "odap" / "infra" / "graph" / "graph_service.py"
-        content = graph_service.read_text(encoding="utf-8")
-        assert "def get_neighbors(" in content, "GraphManager.get_neighbors() not found"
-        assert "def traverse(" in content, "GraphManager.traverse() not found"
+        graph_dir = PROJECT_ROOT / "odap" / "infra" / "graph"
+        # Check mixin files for traversal methods (GraphManager inherits from mixins)
+        search_ops = (graph_dir / "search_ops.py").read_text(encoding="utf-8")
+        assert "def get_neighbors(" in search_ops, "GraphManager.get_neighbors() not found in SearchOpsMixin"
+        assert "def traverse(" in search_ops, "GraphManager.traverse() not found in SearchOpsMixin"
 
     def test_knowledge_navigator_supports_query_service(self):
         """KnowledgeNavigator 必须支持 QueryService"""

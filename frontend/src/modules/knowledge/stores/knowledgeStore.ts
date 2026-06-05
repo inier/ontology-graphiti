@@ -50,7 +50,7 @@ export const useKnowledgeStore = create<KnowledgeState>((set, get) => ({
   navigate: async (entityId, direction = 'outbound', depth = 1) => {
     set({ loading: true, error: null });
     try {
-      const results = await knowledgePageApi.navigate(entityId, direction, depth);
+      const results = await knowledgePageApi.navigate(entityId, direction, depth) as NavigationResult;
       set({ navigationResults: results, loading: false });
     } catch (e: unknown) {
       set({ error: (e as Error).message, loading: false });
@@ -59,7 +59,7 @@ export const useKnowledgeStore = create<KnowledgeState>((set, get) => ({
 
   loadSynonyms: async () => {
     try {
-      const data = await knowledgePageApi.getSynonyms();
+      const data = await knowledgePageApi.getSynonyms() as { synonyms: SynonymMap };
       set({ synonyms: data.synonyms || {} });
     } catch (e: unknown) {
       set({ error: (e as Error).message });
@@ -69,7 +69,7 @@ export const useKnowledgeStore = create<KnowledgeState>((set, get) => ({
   addSynonym: async (canonical, synonym) => {
     try {
       await knowledgePageApi.addSynonym(canonical, synonym);
-      const data = await knowledgePageApi.getSynonyms();
+      const data = await knowledgePageApi.getSynonyms() as { synonyms: SynonymMap };
       set({ synonyms: data.synonyms || {} });
     } catch (e: unknown) {
       set({ error: (e as Error).message });
@@ -78,7 +78,7 @@ export const useKnowledgeStore = create<KnowledgeState>((set, get) => ({
 
   loadExpansionRules: async () => {
     try {
-      const data = await knowledgePageApi.getExpansionRules();
+      const data = await knowledgePageApi.getExpansionRules() as { rules: ExpansionRule[] };
       set({ expansionRules: data.rules || [] });
     } catch (e: unknown) {
       set({ error: (e as Error).message });
@@ -88,7 +88,7 @@ export const useKnowledgeStore = create<KnowledgeState>((set, get) => ({
   addExpansionRule: async (pattern, expansion) => {
     try {
       await knowledgePageApi.addExpansionRule(pattern, expansion);
-      const data = await knowledgePageApi.getExpansionRules();
+      const data = await knowledgePageApi.getExpansionRules() as { rules: ExpansionRule[] };
       set({ expansionRules: data.rules || [] });
     } catch (e: unknown) {
       set({ error: (e as Error).message });
@@ -98,7 +98,7 @@ export const useKnowledgeStore = create<KnowledgeState>((set, get) => ({
   parseIntent: async (text) => {
     set({ loading: true, error: null });
     try {
-      const result = await knowledgePageApi.parseIntent(text);
+      const result = await knowledgePageApi.parseIntent(text) as Record<string, unknown>;
       set({ loading: false });
       return result;
     } catch (e: unknown) {
@@ -110,7 +110,7 @@ export const useKnowledgeStore = create<KnowledgeState>((set, get) => ({
   planTasks: async (intent, entities = [], filters = {}) => {
     set({ loading: true, error: null });
     try {
-      const result = await knowledgePageApi.planTasks(intent, entities, filters);
+      const result = await knowledgePageApi.planTasks(intent, entities, filters) as Record<string, unknown>;
       set({ loading: false });
       return result;
     } catch (e: unknown) {

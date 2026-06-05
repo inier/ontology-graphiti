@@ -31,9 +31,7 @@ export const knowledgeApi = {
     }),
 
   deleteKnowledgeBase: (id: string): Promise<void> =>
-    fetch(`${API_BASE}/api/knowledge-bases/${id}`, { method: 'DELETE' }).then(r => {
-      if (!r.ok) throw new Error(`HTTP ${r.status}`);
-    }),
+    apiClient.delete(`${API_BASE}/api/knowledge-bases/${id}`),
 
   listCategories: (kbId: string): Promise<KnowledgeCategory[]> =>
     fetchJson<KnowledgeCategory[]>(`${API_BASE}/api/knowledge-bases/${kbId}/categories`),
@@ -45,9 +43,7 @@ export const knowledgeApi = {
     }),
 
   deleteCategory: (kbId: string, categoryId: string): Promise<void> =>
-    fetch(`${API_BASE}/api/knowledge-bases/${kbId}/categories/${categoryId}`, { method: 'DELETE' }).then(r => {
-      if (!r.ok) throw new Error(`HTTP ${r.status}`);
-    }),
+    apiClient.delete(`${API_BASE}/api/knowledge-bases/${kbId}/categories/${categoryId}`),
 
   listDocuments: (kbId: string, categoryId?: string): Promise<KnowledgeDocument[]> =>
     fetchJson<KnowledgeDocument[]>(
@@ -68,17 +64,18 @@ export const knowledgeApi = {
   },
 
   deleteDocument: (kbId: string, docId: string): Promise<void> =>
-    fetch(`${API_BASE}/api/knowledge-bases/${kbId}/documents/${docId}`, { method: 'DELETE' }).then(r => {
-      if (!r.ok) throw new Error(`HTTP ${r.status}`);
-    }),
+    apiClient.delete(`${API_BASE}/api/knowledge-bases/${kbId}/documents/${docId}`),
 
   getDocument: (kbId: string, docId: string): Promise<KnowledgeDocument> =>
     fetchJson<KnowledgeDocument>(`${API_BASE}/api/knowledge-bases/${kbId}/documents/${docId}`),
 
-  buildGraph: (data: GraphBuildRequest): Promise<{ task_id: string; status: string }> =>
-    fetchJson<{ task_id: string; status: string }>(`${API_BASE}/api/knowledge-bases/documents/${data.doc_id}/build-graph`, {
+  buildGraph: (data: GraphBuildRequest): Promise<{ task_id: string; status: string; method?: string }> =>
+    fetchJson<{ task_id: string; status: string; method?: string }>(`${API_BASE}/api/knowledge-bases/documents/${data.doc_id}/build-graph`, {
       method: 'POST',
-      body: JSON.stringify(data.extraction_config),
+      body: JSON.stringify({
+        extraction_method: data.extraction_method ?? 'auto',
+        entity_types: data.entity_types ?? data.extraction_config?.entity_types ?? [],
+      }),
     }),
 
   getGraphBuildStatus: (taskId: string): Promise<{ status: string; progress: number; result?: any }> =>

@@ -17,6 +17,7 @@ import { MyAgents, AgentChat, AgentManagement, AgentPage } from './modules/agent
 import { LoginPage } from './modules/shared/pages/LoginPage';
 import { I18nAdminPage } from './modules/i18n-admin';
 import { QAPage } from './modules/qa';
+import { GuidePage } from './modules/guide';
 
 function ProtectedRoute({ children }: { children: ReactNode }) {
   const token = localStorage.getItem('token');
@@ -63,7 +64,8 @@ export function AppRoutes() {
       <Route path="/audit" element={<ProtectedRoute><AuditLog /></ProtectedRoute>} />
       <Route path="/admin/agents" element={<ProtectedRoute><AgentManagement /></ProtectedRoute>} />
 
-      <Route path="/" element={<ProtectedRoute><MyAgents /></ProtectedRoute>} />
+      <Route path="/guide" element={<ProtectedRoute><GuidePage /></ProtectedRoute>} />
+      <Route path="/" element={<ProtectedRoute><GuidePage /></ProtectedRoute>} />
       <Route path="/admin" element={<Navigate to="/ontology/designer" replace />} />
     </Routes>
   );

@@ -18,6 +18,8 @@ import type {
   KnowledgeBase as KB, KnowledgeCategory, KnowledgeDocument,
   KnowledgeBaseFormData, DocumentUploadData,
 } from '../types';
+import { EmptyState } from '../../shared/components/organisms';
+import { useWorkspace } from '../../shared/components/AppLayout';
 
 const { Dragger } = Upload;
 const { TextArea } = Input;
@@ -29,6 +31,7 @@ export function KnowledgeBase() {
   const [viewMode, setViewMode] = useState<ViewMode>('list');
   const [knowledgeBases, setKnowledgeBases] = useState<KB[]>([]);
   const [loading, setLoading] = useState(false);
+  const { currentWorkspace } = useWorkspace();
   const [searchText, setSearchText] = useState('');
   const [kbModalOpen, setKbModalOpen] = useState(false);
   const [uploadModalOpen, setUploadModalOpen] = useState(false);
@@ -44,6 +47,8 @@ export function KnowledgeBase() {
   const [uploadTab, setUploadTab] = useState<'file' | 'online_doc' | 'text' | 'web'>('file');
   const [uploadFile, setUploadFile] = useState<File | null>(null);
   const [buildProgress, setBuildProgress] = useState<Record<string, number>>({});
+  const [categoryModalOpen, setCategoryModalOpen] = useState(false);
+  const [categoryForm] = Form.useForm();
 
   useEffect(() => {
     loadKnowledgeBases();
@@ -129,6 +134,21 @@ export function KnowledgeBase() {
     setUploadFile(null);
     setUploadTab('file');
     setUploadModalOpen(true);
+  };
+
+  const handleCreateCategory = async () => {
+    if (!currentKb) return;
+    try {
+      const values = await categoryForm.validateFields();
+      await knowledgeApi.createCategory(currentKb.kb_id, values);
+      message.success('分类创建成功');
+      setCategoryModalOpen(false);
+      categoryForm.resetFields();
+      const cats = await knowledgeApi.listCategories(currentKb.kb_id);
+      setCategories(cats);
+    } catch (error) {
+      message.error(`创建分类失败: ${error}`);
+    }
   };
 
   const handleSaveUpload = async () => {
@@ -296,13 +316,33 @@ export function KnowledgeBase() {
           allowClear
           prefix={<SearchOutlined />}
         />
-        <Table
-          dataSource={filteredKbs}
-          columns={columns}
-          rowKey="kb_id"
-          loading={loading}
-          pagination={{ pageSize: 10 }}
-        />
+        {!loading && filteredKbs.length === 0 ? (
+          <EmptyState
+            icon={<DatabaseOutlined />}
+            title="暂无知识库"
+            description="创建知识库来管理文档和构建知识图谱，或加载示例数据快速体验"
+            actionLabel="新建知识库"
+            onAction={handleCreateKb}
+            showSampleData
+            onLoadSampleData={async () => {
+              if (!currentWorkspace) { message.warning('请先选择工作空间'); return; }
+              try {
+                const { api } = await import('../../shared/services/api');
+                await api.generateSampleData(currentWorkspace);
+                message.success('示例数据已加载');
+                loadKnowledgeBases();
+              } catch (e) { message.error('加载示例数据失败'); }
+            }}
+          />
+        ) : (
+          <Table
+            dataSource={filteredKbs}
+            columns={columns}
+            rowKey="kb_id"
+            loading={loading}
+            pagination={{ pageSize: 10 }}
+          />
+        )}
 
         <Modal
           title={editingKb ? '编辑知识库' : '新建知识库'}
@@ -429,7 +469,7 @@ export function KnowledgeBase() {
           <Divider style={{ margin: '8px 0' }} />
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 8 }}>
             <Text type="secondary">分类</Text>
-            <Button type="text" size="small" icon={<PlusOutlined />}>新建</Button>
+            <Button type="text" size="small" icon={<PlusOutlined />} onClick={() => { categoryForm.resetFields(); setCategoryModalOpen(true); }}>新建</Button>
           </div>
           <Tree
             treeData={treeData}
@@ -519,6 +559,29 @@ export function KnowledgeBase() {
               <Select placeholder="请选择分类（可选）" allowClear>
                 {categories.map(cat => (
                   <Select.Option key={cat.category_id} value={cat.category_id}>{cat.name}</Select.Option>
+                ))}
+              </Select>
+            </Form.Item>
+          </Form>
+        </Modal>
+
+        {/* 新建分类 */}
+        <Modal
+          title="新建分类"
+          open={categoryModalOpen}
+          onOk={handleCreateCategory}
+          onCancel={() => { setCategoryModalOpen(false); categoryForm.resetFields(); }}
+          okText="创建"
+          cancelText="取消"
+        >
+          <Form form={categoryForm} layout="vertical">
+            <Form.Item name="name" label="分类名称" rules={[{ required: true, message: '请输入分类名称' }]}>
+              <Input placeholder="输入分类名称" />
+            </Form.Item>
+            <Form.Item name="parent_id" label="父级分类">
+              <Select placeholder="无（顶级分类）" allowClear>
+                {categories.map(c => (
+                  <Select.Option key={c.category_id} value={c.category_id}>{c.name}</Select.Option>
                 ))}
               </Select>
             </Form.Item>

@@ -1,11 +1,12 @@
 import { useState, useEffect } from 'react';
-import { Card, Empty, Avatar, Tag, Spin, Row, Col, Typography, Button } from 'antd';
+import { Card, Avatar, Tag, Spin, Row, Col, Typography, Button, message } from 'antd';
 import { RobotOutlined, EyeOutlined } from '@ant-design/icons';
 import { useNavigate } from 'react-router-dom';
 import { agentApi } from '../services/agentApi';
 import type { Agent } from '../types';
 import { useAuthStore } from '../../shared/stores/authStore';
 import { useWorkspace } from '../../shared/components/AppLayout';
+import { EmptyState } from '../../shared/components/organisms';
 
 const { Paragraph } = Typography;
 
@@ -53,10 +54,23 @@ export function MyAgents() {
 
   if (agents.length === 0) {
     return (
-      <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', height: '80vh', gap: 24 }}>
-        <RobotOutlined style={{ fontSize: 64, color: '#1890ff', opacity: 0.6 }} />
-        <h1 style={{ fontSize: 28, fontWeight: 700, margin: 0 }}>暂无可用智能体</h1>
-      </div>
+      <EmptyState
+        icon={<RobotOutlined />}
+        title="暂无可用智能体"
+        description="当前角色下没有可用的数字员工，您可以创建新的智能体或加载示例数据"
+        actionLabel="创建智能体"
+        onAction={() => navigate('/agent-management')}
+        showSampleData
+        onLoadSampleData={async () => {
+          if (!currentWorkspace) { message.warning('请先选择工作空间'); return; }
+          try {
+            const { api } = await import('../../shared/services/api');
+            await api.generateSampleData(currentWorkspace);
+            message.success('示例数据已加载');
+            loadAgents();
+          } catch (e) { message.error('加载示例数据失败'); }
+        }}
+      />
     );
   }
 

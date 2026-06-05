@@ -1,6 +1,7 @@
 from typing import Dict, Any, List, Optional
 
-from fastapi import APIRouter, HTTPException, Query
+from fastapi import APIRouter, HTTPException, Query, Depends
+from odap.infra.security.jwt_auth import get_current_user
 from pydantic import BaseModel, Field
 
 from odap.biz.simulation.feedback.loop import FeedbackLoop, get_feedback_loop
@@ -50,7 +51,8 @@ router = APIRouter(prefix="/api/feedback", tags=["feedback"])
 
 
 @router.post("/collect")
-async def collect_feedback(request: CollectFeedbackRequest):
+async def collect_feedback(request: CollectFeedbackRequest,
+    user=Depends(get_current_user)):
     if not request.source_id:
         raise HTTPException(status_code=400, detail="source_id cannot be empty")
     try:
@@ -75,7 +77,8 @@ async def collect_feedback(request: CollectFeedbackRequest):
 
 
 @router.get("/analysis/{task_id}")
-async def analyze_feedback(task_id: str):
+async def analyze_feedback(task_id: str,
+    user=Depends(get_current_user)):
     try:
         feedback_loop = get_feedback_loop()
         result = feedback_loop.analyze_feedback(task_id)
@@ -89,7 +92,8 @@ async def analyze_feedback(task_id: str):
 
 
 @router.get("/aggregate")
-async def aggregate_feedback(ontology_id: str = Query(...)):
+async def aggregate_feedback(ontology_id: str = Query(...),
+    user=Depends(get_current_user)):
     try:
         feedback_loop = get_feedback_loop()
         return feedback_loop.aggregate_feedback(ontology_id)
@@ -100,7 +104,8 @@ async def aggregate_feedback(ontology_id: str = Query(...)):
 
 
 @router.post("/close-loop")
-async def close_loop(request: CloseLoopRequest):
+async def close_loop(request: CloseLoopRequest,
+    user=Depends(get_current_user)):
     if not request.source_id:
         raise HTTPException(status_code=400, detail="source_id cannot be empty")
     try:
@@ -129,7 +134,8 @@ async def close_loop(request: CloseLoopRequest):
 
 
 @router.post("/action", response_model=ActionFeedbackResponse)
-async def submit_action_feedback(request: ActionFeedbackRequest):
+async def submit_action_feedback(request: ActionFeedbackRequest,
+    user=Depends(get_current_user)):
     if not request.action_id:
         raise HTTPException(status_code=400, detail="action_id cannot be empty")
     try:
@@ -158,7 +164,8 @@ async def submit_action_feedback(request: ActionFeedbackRequest):
 
 
 @router.get("/decision/{decision_id}", response_model=DecisionFeedbackResponse)
-async def get_decision_feedback(decision_id: str):
+async def get_decision_feedback(decision_id: str,
+    user=Depends(get_current_user)):
     try:
         feedback_loop = get_feedback_loop()
         feedbacks = feedback_loop.get_feedback_history(decision_id)

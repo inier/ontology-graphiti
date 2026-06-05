@@ -16,7 +16,7 @@ client = TestClient(app)
 def _mock_external_services():
     with patch("odap.biz.integration.frontend_compat.api.routes.scenario_store", MagicMock()):
         with patch("odap.biz.integration.frontend_compat.api.routes.workspace_service", MagicMock()):
-            with patch("odap.biz.core.ontology.api.routes.ingest_service", MagicMock()) as mock_ingest:
+            with patch("odap.biz.core.ontology.application.api.routes.ingest_service", MagicMock()) as mock_ingest:
                 mock_ingest.ingest_from_natural_language = AsyncMock(
                     return_value="ingest-nl-001"
                 )

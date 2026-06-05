@@ -624,6 +624,12 @@ export const api = {
     return fetchJson(`${API_BASE}/api/versions/diff?version_a=${versionA}&version_b=${versionB}`);
   },
 
+  async deleteVersion(versionId: string): Promise<{ status: string; message: string }> {
+    return fetchJson(`${API_BASE}/api/ontology/versions/${versionId}`, {
+      method: 'DELETE',
+    });
+  },
+
   async getEntityHistory(entityId: string): Promise<TimelineEvent[]> {
     return fetchJson(`${API_BASE}/api/entities/${entityId}/history`);
   },
@@ -662,6 +668,25 @@ export const api = {
   async deleteWorkspace(workspaceId: string): Promise<{ status: string; message: string }> {
     return fetchJson(`${API_BASE}/api/workspaces/${workspaceId}`, {
       method: 'DELETE',
+    });
+  },
+
+  async getWorkspaceDeletionPreview(workspaceId: string): Promise<{
+    workspace_id: string;
+    workspace_name: string;
+    resources: Array<{ type: string; label: string; count: number }>;
+    total_count: number;
+  }> {
+    return fetchJson(`${API_BASE}/api/workspaces/${workspaceId}/deletion-preview`);
+  },
+
+  async generateSampleData(workspaceId: string): Promise<{
+    workspace_id: string;
+    status: string;
+    created_resources: Record<string, unknown>;
+  }> {
+    return fetchJson(`${API_BASE}/api/workspaces/${workspaceId}/sample-data`, {
+      method: 'POST',
     });
   },
 

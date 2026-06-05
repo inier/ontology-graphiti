@@ -5,7 +5,7 @@ from datetime import datetime
 class TestSQLiteEngineStorage:
     @pytest.fixture
     def storage(self, tmp_path):
-        from odap.biz.core.ontology.engine.storage.sqlite_engine_storage import SQLiteEngineStorage
+        from odap.biz.core.ontology.design.engine.storage.sqlite_engine_storage import SQLiteEngineStorage
         return SQLiteEngineStorage(db_path=str(tmp_path / "engine_test.db"))
 
     def test_save_and_get_version(self, storage):
@@ -127,8 +127,8 @@ class TestSQLiteEngineStorage:
 class TestVersionManagerImpl:
     @pytest.fixture
     def version_manager(self, tmp_path):
-        from odap.biz.core.ontology.engine.storage.sqlite_engine_storage import SQLiteEngineStorage
-        from odap.biz.core.ontology.engine.impl.version_manager_impl import VersionManagerImpl
+        from odap.biz.core.ontology.design.engine.storage.sqlite_engine_storage import SQLiteEngineStorage
+        from odap.biz.core.ontology.design.engine.impl.version_manager_impl import VersionManagerImpl
         storage = SQLiteEngineStorage(db_path=str(tmp_path / "vm_test.db"))
         return VersionManagerImpl(storage=storage)
 
@@ -195,7 +195,7 @@ class TestVersionManagerImpl:
 class TestValidationEngineImpl:
     @pytest.fixture
     def validation_engine(self):
-        from odap.biz.core.ontology.engine.impl.validation_engine_impl import ValidationEngineImpl
+        from odap.biz.core.ontology.design.engine.impl.validation_engine_impl import ValidationEngineImpl
         return ValidationEngineImpl()
 
     def test_validate_entity_type_valid(self, validation_engine):
@@ -250,8 +250,8 @@ class TestValidationEngineImpl:
 class TestAuditRecorderImpl:
     @pytest.fixture
     def audit_recorder(self, tmp_path):
-        from odap.biz.core.ontology.engine.storage.sqlite_engine_storage import SQLiteEngineStorage
-        from odap.biz.core.ontology.engine.impl.audit_recorder_impl import AuditRecorderImpl
+        from odap.biz.core.ontology.design.engine.storage.sqlite_engine_storage import SQLiteEngineStorage
+        from odap.biz.core.ontology.design.engine.impl.audit_recorder_impl import AuditRecorderImpl
         storage = SQLiteEngineStorage(db_path=str(tmp_path / "audit_test.db"))
         return AuditRecorderImpl(storage=storage)
 
@@ -293,11 +293,11 @@ class TestAuditRecorderImpl:
 class TestEngineService:
     @pytest.fixture
     def engine_service(self, tmp_path):
-        from odap.biz.core.ontology.engine.storage.sqlite_engine_storage import SQLiteEngineStorage
-        from odap.biz.core.ontology.engine.impl.version_manager_impl import VersionManagerImpl
-        from odap.biz.core.ontology.engine.impl.audit_recorder_impl import AuditRecorderImpl
-        from odap.biz.core.ontology.engine.impl.validation_engine_impl import ValidationEngineImpl
-        from odap.biz.core.ontology.engine.services.engine_service import EngineService
+        from odap.biz.core.ontology.design.engine.storage.sqlite_engine_storage import SQLiteEngineStorage
+        from odap.biz.core.ontology.design.engine.impl.version_manager_impl import VersionManagerImpl
+        from odap.biz.core.ontology.design.engine.impl.audit_recorder_impl import AuditRecorderImpl
+        from odap.biz.core.ontology.design.engine.impl.validation_engine_impl import ValidationEngineImpl
+        from odap.biz.core.ontology.design.engine.services.engine_service import EngineService
         EngineService._instance = None
         storage = SQLiteEngineStorage(db_path=str(tmp_path / "engine_svc_test.db"))
         svc = EngineService.__new__(EngineService)

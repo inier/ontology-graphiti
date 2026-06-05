@@ -1,6 +1,8 @@
 from fastapi import APIRouter, HTTPException
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, ConfigDict, Field
 from typing import Any, List, Optional
+
+from odap.web.api.response_models import DictResponse
 
 from ..services.consensus_engine import ConsensusEngine, ConsensusStrategy, ConflictResolutionStrategy
 
@@ -33,7 +35,7 @@ class ResolveConflictRequest(BaseModel):
     strategy: ConflictStrategyEnum = ConflictStrategyEnum.LAST_WRITE_WINS
 
 
-@router.post("/proposals", response_model=dict)
+@router.post("/proposals", response_model=DictResponse)
 async def create_proposal(request: CreateProposalRequest):
     try:
         engine = ConsensusEngine.get_instance()
@@ -55,7 +57,7 @@ async def create_proposal(request: CreateProposalRequest):
         raise HTTPException(status_code=500, detail=str(e))
 
 
-@router.post("/proposals/{proposal_id}/vote", response_model=dict)
+@router.post("/proposals/{proposal_id}/vote", response_model=DictResponse)
 async def cast_vote(proposal_id: str, request: CastVoteRequest):
     try:
         engine = ConsensusEngine.get_instance()
@@ -75,7 +77,7 @@ async def cast_vote(proposal_id: str, request: CastVoteRequest):
         raise HTTPException(status_code=500, detail=str(e))
 
 
-@router.post("/proposals/{proposal_id}/resolve", response_model=dict)
+@router.post("/proposals/{proposal_id}/resolve", response_model=DictResponse)
 async def resolve_proposal(proposal_id: str):
     try:
         engine = ConsensusEngine.get_instance()
@@ -89,7 +91,7 @@ async def resolve_proposal(proposal_id: str):
         raise HTTPException(status_code=500, detail=str(e))
 
 
-@router.get("/proposals/{proposal_id}", response_model=dict)
+@router.get("/proposals/{proposal_id}", response_model=DictResponse)
 async def get_proposal(proposal_id: str):
     try:
         engine = ConsensusEngine.get_instance()
@@ -103,16 +105,18 @@ async def get_proposal(proposal_id: str):
         raise HTTPException(status_code=500, detail=str(e))
 
 
-@router.get("/proposals", response_model=dict)
+@router.get("/proposals", response_model=DictResponse)
 async def list_proposals(status: Optional[str] = None):
     try:
         engine = ConsensusEngine.get_instance()
         return engine.list_proposals(status=status)
+    except HTTPException:
+        raise
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
 
 
-@router.post("/conflicts/resolve", response_model=dict)
+@router.post("/conflicts/resolve", response_model=DictResponse)
 async def resolve_conflict(request: ResolveConflictRequest):
     try:
         engine = ConsensusEngine.get_instance()

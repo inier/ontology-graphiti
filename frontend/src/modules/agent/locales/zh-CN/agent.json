@@ -15,7 +15,17 @@
     "viewChain": "查看链路",
     "reasoning": "推理过程",
     "refresh": "刷新",
-    "selectDecision": "选择一个决策查看链路"
+    "selectDecision": "选择一个决策查看链路",
+    "decisionTimeline": "决策时间线",
+    "observe": "观察",
+    "orient": "判断",
+    "decide": "决策",
+    "act": "行动",
+    "phase": "阶段",
+    "evidence": "证据",
+    "reasoningChain": "推理链",
+    "step": "步骤",
+    "noData": "暂无数据"
   },
   "skill": {
     "title": "Skill管理",

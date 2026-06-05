@@ -11,7 +11,11 @@ import {
   ForwardOutlined,
 } from '@ant-design/icons';
 import type { ColumnsType } from 'antd/es/table';
+import type { SandboxInfo, TimelineInfo, TemplateInfo } from '../services/simulationApi';
 import { useSimulationStore } from '../stores/simulationStore';
+import { EmptyState } from '../../shared/components/organisms';
+import { useWorkspace } from '../../shared/components/AppLayout';
+import { message } from 'antd';
 
 const SANDBOX_STATUS_COLORS: Record<string, string> = {
   created: 'default',
@@ -30,6 +34,7 @@ const CLOCK_STATE_COLORS: Record<string, string> = {
 
 const SimulationPage: React.FC = () => {
   const store = useSimulationStore();
+  const { currentWorkspace } = useWorkspace();
   const [sandboxModalOpen, setSandboxModalOpen] = useState(false);
   const [runModalOpen, setRunModalOpen] = useState(false);
   const [parallelModalOpen, setParallelModalOpen] = useState(false);
@@ -70,13 +75,21 @@ const SimulationPage: React.FC = () => {
   };
 
   const handleDestroySandbox = async (sandboxId: string) => {
-    await store.destroySandbox(sandboxId);
-    message.success('沙箱已销毁');
+    try {
+      await store.destroySandbox(sandboxId);
+      message.success('沙箱已销毁');
+    } catch (error) {
+      message.error(`销毁失败: ${error}`);
+    }
   };
 
   const handleExport = async (sandboxId: string) => {
-    await store.exportResults(sandboxId, 'admin');
-    message.success('结果已导出');
+    try {
+      await store.exportResults(sandboxId, 'admin');
+      message.success('结果已导出');
+    } catch (error) {
+      message.error(`导出失败: ${error}`);
+    }
   };
 
   const handleRunParallel = async (values: Record<string, unknown>) => {
@@ -121,17 +134,25 @@ const SimulationPage: React.FC = () => {
   };
 
   const handleClockControl = async (timelineId: string, action: string, speed?: number) => {
-    const params: Record<string, unknown> = { timeline_id: timelineId, action };
-    if (speed !== undefined) params.speed = speed;
-    await store.controlClock(params);
-    message.success(`时钟${action === 'start' ? '启动' : action === 'pause' ? '暂停' : action === 'resume' ? '恢复' : '调整'}成功`);
+    try {
+      const params: Record<string, unknown> = { timeline_id: timelineId, action };
+      if (speed !== undefined) params.speed = speed;
+      await store.controlClock(params);
+      message.success(`时钟${action === 'start' ? '启动' : action === 'pause' ? '暂停' : action === 'resume' ? '恢复' : '调整'}成功`);
+    } catch (error) {
+      message.error(`时钟控制失败: ${error}`);
+    }
   };
 
   const handleCreateTemplate = async (values: Record<string, unknown>) => {
-    await store.createTemplate(values);
-    message.success('模板创建成功');
-    setTemplateModalOpen(false);
-    templateForm.resetFields();
+    try {
+      await store.createTemplate(values);
+      message.success('模板创建成功');
+      setTemplateModalOpen(false);
+      templateForm.resetFields();
+    } catch (error) {
+      message.error(`创建模板失败: ${error}`);
+    }
   };
 
   const handleGenerateEvents = async (templateId: string) => {
@@ -142,21 +163,25 @@ const SimulationPage: React.FC = () => {
   };
 
   const handleInjectEvent = async (values: Record<string, unknown>) => {
-    await store.injectEvent(values);
-    message.success('事件已注入');
-    setInjectModalOpen(false);
-    injectForm.resetFields();
+    try {
+      await store.injectEvent(values);
+      message.success('事件已注入');
+      setInjectModalOpen(false);
+      injectForm.resetFields();
+    } catch (error) {
+      message.error(`注入事件失败: ${error}`);
+    }
   };
 
-  const sandboxColumns: ColumnsType<Record<string, unknown>> = [
+  const sandboxColumns: ColumnsType<SandboxInfo> = [
     {
       title: '沙箱 ID',
       dataIndex: 'sandbox_id',
       key: 'sandbox_id',
       ellipsis: true,
-      render: (id: string) => (
-        <Button type="link" size="small" onClick={() => store.selectSandbox(id)}>
-          {id}
+      render: (id) => (
+        <Button type="link" size="small" onClick={() => store.selectSandbox(id as string)}>
+          {id as string}
         </Button>
       ),
     },
@@ -165,8 +190,8 @@ const SimulationPage: React.FC = () => {
       dataIndex: 'status',
       key: 'status',
       width: 90,
-      render: (status: string) => (
-        <Tag color={SANDBOX_STATUS_COLORS[status] || 'default'}>{status}</Tag>
+      render: (status) => (
+        <Tag color={SANDBOX_STATUS_COLORS[status as string] || 'default'}>{status as string}</Tag>
       ),
     },
     {
@@ -180,7 +205,7 @@ const SimulationPage: React.FC = () => {
       title: '操作',
       key: 'action',
       width: 180,
-      render: (_: unknown, record: Record<string, unknown>) => (
+      render: (_, record) => (
         <Space size="small">
           <Tooltip title="运行推演">
             <Button
@@ -188,7 +213,7 @@ const SimulationPage: React.FC = () => {
               size="small"
               icon={<PlayCircleOutlined />}
               onClick={() => {
-                store.selectSandbox(record.sandbox_id as string);
+                store.selectSandbox(record.sandbox_id);
                 setRunModalOpen(true);
               }}
               disabled={record.status === 'running' || record.status === 'destroyed'}
@@ -198,13 +223,13 @@ const SimulationPage: React.FC = () => {
             <Button
               size="small"
               icon={<ExportOutlined />}
-              onClick={() => handleExport(record.sandbox_id as string)}
+              onClick={() => handleExport(record.sandbox_id)}
               disabled={record.status !== 'completed'}
             />
           </Tooltip>
           <Popconfirm
             title="确认销毁此沙箱？"
-            onConfirm={() => handleDestroySandbox(record.sandbox_id as string)}
+            onConfirm={() => handleDestroySandbox(record.sandbox_id)}
           >
             <Button type="text" danger size="small" icon={<DeleteOutlined />} />
           </Popconfirm>
@@ -213,7 +238,7 @@ const SimulationPage: React.FC = () => {
     },
   ];
 
-  const timelineColumns: ColumnsType<Record<string, unknown>> = [
+  const timelineColumns: ColumnsType<TimelineInfo> = [
     {
       title: '时间线 ID',
       dataIndex: 'timeline_id',
@@ -225,8 +250,8 @@ const SimulationPage: React.FC = () => {
       dataIndex: 'clock_state',
       key: 'clock_state',
       width: 90,
-      render: (state: string) => (
-        <Tag color={CLOCK_STATE_COLORS[state] || 'default'}>{state}</Tag>
+      render: (state) => (
+        <Tag color={CLOCK_STATE_COLORS[state as string] || 'default'}>{state as string}</Tag>
       ),
     },
     {
@@ -234,7 +259,7 @@ const SimulationPage: React.FC = () => {
       dataIndex: 'simulation_speed',
       key: 'simulation_speed',
       width: 70,
-      render: (speed: number) => `${speed}x`,
+      render: (speed) => `${speed}x`,
     },
     {
       title: '当前时间',
@@ -247,36 +272,36 @@ const SimulationPage: React.FC = () => {
       title: '操作',
       key: 'action',
       width: 200,
-      render: (_: unknown, record: Record<string, unknown>) => (
+      render: (_, record) => (
         <Space size="small">
           <Button
             size="small"
             icon={<PlayCircleOutlined />}
-            onClick={() => handleClockControl(record.timeline_id as string, 'start', 1.0)}
+            onClick={() => handleClockControl(record.timeline_id, 'start', 1.0)}
             disabled={record.clock_state === 'running'}
           />
           <Button
             size="small"
             icon={<PauseCircleOutlined />}
-            onClick={() => handleClockControl(record.timeline_id as string, 'pause')}
+            onClick={() => handleClockControl(record.timeline_id, 'pause')}
             disabled={record.clock_state !== 'running'}
           />
           <Button
             size="small"
             icon={<ForwardOutlined />}
-            onClick={() => handleClockControl(record.timeline_id as string, 'advance')}
+            onClick={() => handleClockControl(record.timeline_id, 'advance')}
           />
           <Button
             size="small"
             icon={<ReloadOutlined />}
-            onClick={() => handleClockControl(record.timeline_id as string, 'set_speed', 2.0)}
+            onClick={() => handleClockControl(record.timeline_id, 'set_speed', 2.0)}
           />
         </Space>
       ),
     },
   ];
 
-  const templateColumns: ColumnsType<Record<string, unknown>> = [
+  const templateColumns: ColumnsType<TemplateInfo> = [
     {
       title: '模板名称',
       dataIndex: 'name',
@@ -288,17 +313,17 @@ const SimulationPage: React.FC = () => {
       dataIndex: 'category',
       key: 'category',
       width: 100,
-      render: (cat: string) => <Tag>{cat}</Tag>,
+      render: (cat) => <Tag>{cat as string}</Tag>,
     },
     {
       title: '事件类型',
       dataIndex: 'event_types',
       key: 'event_types',
       width: 200,
-      render: (types: string[]) => (
+      render: (types) => (
         <Space size={2} wrap>
-          {types.slice(0, 3).map(t => <Tag key={t} size="small">{t}</Tag>)}
-          {types.length > 3 && <Tag>+{types.length - 3}</Tag>}
+          {(types as string[]).slice(0, 3).map(t => <Tag key={t}>{t}</Tag>)}
+          {(types as string[]).length > 3 && <Tag>+{(types as string[]).length - 3}</Tag>}
         </Space>
       ),
     },
@@ -306,19 +331,19 @@ const SimulationPage: React.FC = () => {
       title: '操作',
       key: 'action',
       width: 120,
-      render: (_: unknown, record: Record<string, unknown>) => (
+      render: (_, record) => (
         <Space size="small">
           <Button
             type="primary"
             size="small"
             icon={<ThunderboltOutlined />}
-            onClick={() => handleGenerateEvents(record.template_id as string)}
+            onClick={() => handleGenerateEvents(record.template_id)}
           >
             生成
           </Button>
           <Popconfirm
             title="确认删除此模板？"
-            onConfirm={() => store.deleteTemplate(record.template_id as string)}
+            onConfirm={() => store.deleteTemplate(record.template_id)}
           >
             <Button type="text" danger size="small" icon={<DeleteOutlined />} />
           </Popconfirm>
@@ -349,7 +374,25 @@ const SimulationPage: React.FC = () => {
           rowKey="sandbox_id"
           size="small"
           pagination={false}
-          locale={{ emptyText: <Empty description="暂无沙箱" image={Empty.PRESENTED_IMAGE_SIMPLE} /> }}
+          locale={{ emptyText: (
+            <EmptyState
+              icon={<ExperimentOutlined />}
+              title="暂无沙箱"
+              description="创建沙箱以进行推演仿真，或加载示例数据快速体验"
+              actionLabel="创建沙箱"
+              onAction={() => setSandboxModalOpen(true)}
+              showSampleData
+              onLoadSampleData={async () => {
+                if (!currentWorkspace) { message.warning('请先选择工作空间'); return; }
+                try {
+                  const { api } = await import('../../shared/services/api');
+                  await api.generateSampleData(currentWorkspace);
+                  message.success('示例数据已加载');
+                  store.fetchSandboxes();
+                } catch (e) { message.error('加载示例数据失败'); }
+              }}
+            />
+          ) }}
         />
       </Card>
 
@@ -405,9 +448,9 @@ const SimulationPage: React.FC = () => {
                       title: '变化量',
                       dataIndex: 'delta',
                       key: 'delta',
-                      render: (v: number | null) => v != null ? (
-                        <span style={{ color: v >= 0 ? '#52c41a' : '#ff4d4f' }}>
-                          {v >= 0 ? '+' : ''}{v.toFixed(3)}
+                      render: (v) => v != null ? (
+                        <span style={{ color: (v as number) >= 0 ? '#52c41a' : '#ff4d4f' }}>
+                          {(v as number) >= 0 ? '+' : ''}{(v as number).toFixed(3)}
                         </span>
                       ) : '-',
                     },
@@ -446,23 +489,23 @@ const SimulationPage: React.FC = () => {
       {store.parallelResult && (
         <Card title="并行推演结果" size="small">
           <Descriptions size="small" column={2} bordered>
-            <Descriptions.Item label="运行 ID">{(store.parallelResult as Record<string, unknown>).run_id as string}</Descriptions.Item>
-            <Descriptions.Item label="方案数量">{(store.parallelResult as Record<string, unknown>).total_scenarios as number}</Descriptions.Item>
+            <Descriptions.Item label="运行 ID">{store.parallelResult.run_id}</Descriptions.Item>
+            <Descriptions.Item label="方案数量">{store.parallelResult.total_scenarios}</Descriptions.Item>
             <Descriptions.Item label="最优方案">
-              <Tag color="gold">{(store.parallelResult as Record<string, unknown>).best_scenario_id as string || '无'}</Tag>
+              <Tag color="gold">{store.parallelResult.best_scenario_id || '无'}</Tag>
             </Descriptions.Item>
           </Descriptions>
-          {((store.parallelResult as Record<string, unknown>).results as Array<Record<string, unknown>>)?.map((r, idx) => (
+          {store.parallelResult.results?.map((r, idx) => (
             <Card key={idx} size="small" type="inner" title={`方案 ${idx + 1}: ${(r as Record<string, unknown>).scenario_id as string || ''}`} style={{ marginTop: 8 }}>
               <Space>
                 <Tag color={((r as Record<string, unknown>).status as string) === 'completed' ? 'green' : 'red'}>
                   {(r as Record<string, unknown>).status as string}
                 </Tag>
-                {(r as Record<string, unknown>).risk_assessment && (
+                {(r as Record<string, unknown>).risk_assessment ? (
                   <Tag color={((r as Record<string, unknown>).risk_assessment as Record<string, unknown>).overall_risk === 'high' ? 'red' : 'green'}>
-                    风险: {((r as Record<string, unknown>).risk_assessment as Record<string, unknown>).overall_risk as string}
+                    {`风险: ${((r as Record<string, unknown>).risk_assessment as Record<string, unknown>).overall_risk as string}`}
                   </Tag>
-                )}
+                ) : null}
               </Space>
             </Card>
           ))}
@@ -472,23 +515,23 @@ const SimulationPage: React.FC = () => {
       {store.whatIfResult && (
         <Card title="What-if 分析结果" size="small">
           <Descriptions size="small" column={2} bordered>
-            <Descriptions.Item label="运行 ID">{(store.whatIfResult as Record<string, unknown>).run_id as string}</Descriptions.Item>
-            <Descriptions.Item label="变异数量">{(store.whatIfResult as Record<string, unknown>).total_variations as number}</Descriptions.Item>
+            <Descriptions.Item label="运行 ID">{store.whatIfResult.run_id}</Descriptions.Item>
+            <Descriptions.Item label="变异数量">{store.whatIfResult.total_variations}</Descriptions.Item>
           </Descriptions>
-          {((store.whatIfResult as Record<string, unknown>).sensitivity_analysis as Record<string, unknown>) && (
+          {store.whatIfResult.sensitivity_analysis ? (
             <Card size="small" type="inner" title="敏感性分析" style={{ marginTop: 8 }}>
-              {Object.entries((store.whatIfResult as Record<string, unknown>).sensitivity_analysis as Record<string, unknown>).map(([metric, values]) => (
+              {Object.entries(store.whatIfResult.sensitivity_analysis).map(([metric, values]) => (
                 <div key={metric} style={{ marginBottom: 4 }}>
                   <strong>{metric}:</strong>{' '}
                   {(values as Array<Record<string, unknown>>).map((v, i) => (
                     <Tag key={i}>
-                      Δ={(v.delta as number)?.toFixed(3) ?? 'N/A'}
+                      {`Δ=${(v.delta as number)?.toFixed(3) ?? 'N/A'}`}
                     </Tag>
                   ))}
                 </div>
               ))}
             </Card>
-          )}
+          ) : null}
         </Card>
       )}
     </Space>
@@ -519,16 +562,16 @@ const SimulationPage: React.FC = () => {
               dataSource={store.eventSequence.events}
               columns={[
                 { title: '事件 ID', dataIndex: 'event_id', key: 'event_id', ellipsis: true },
-                { title: '类型', dataIndex: 'event_type', key: 'event_type', render: (t: string) => <Tag>{t}</Tag> },
-                { title: '目标类型', dataIndex: 'target_entity_type', key: 'target_entity_type', render: (t: string) => <Tag color="blue">{t}</Tag> },
+                { title: '类型', dataIndex: 'event_type', key: 'event_type', render: (t) => <Tag>{t as string}</Tag> },
+                { title: '目标类型', dataIndex: 'target_entity_type', key: 'target_entity_type', render: (t) => <Tag color="blue">{t as string}</Tag> },
                 { title: '时间', dataIndex: 'timestamp', key: 'timestamp', ellipsis: true, width: 160 },
                 {
                   title: '相关性',
                   dataIndex: 'ontology_relevance',
                   key: 'ontology_relevance',
                   width: 100,
-                  render: (v: number) => (
-                    <Progress percent={Math.round(v * 100)} size="small" strokeColor={v > 0.7 ? '#52c41a' : v > 0.4 ? '#faad14' : '#ff4d4f'} />
+                  render: (v) => (
+                    <Progress percent={Math.round((v as number) * 100)} size="small" strokeColor={(v as number) > 0.7 ? '#52c41a' : (v as number) > 0.4 ? '#faad14' : '#ff4d4f'} />
                   ),
                 },
               ]}

@@ -6,8 +6,8 @@ from pydantic import ValidationError
 
 
 def _make_service(tmp_path):
-    from odap.biz.core.ontology.harness.blueprint.blueprint_service import BlueprintDesignerService
-    from odap.biz.core.ontology.harness.blueprint.storage import BlueprintStorage
+    from odap.biz.core.ontology.application.harness.blueprint.blueprint_service import BlueprintDesignerService
+    from odap.biz.core.ontology.application.harness.blueprint.storage import BlueprintStorage
     db_path = str(tmp_path / "test_blueprint_enhanced.db")
     storage = BlueprintStorage(db_path=db_path)
     return BlueprintDesignerService(storage=storage)
@@ -15,7 +15,7 @@ def _make_service(tmp_path):
 
 class TestBlueprintSchemas:
     def test_create_blueprint_request_validates_required_fields(self):
-        from odap.biz.core.ontology.harness.blueprint.api.schemas import CreateBlueprintRequest
+        from odap.biz.core.ontology.application.harness.blueprint.api.schemas import CreateBlueprintRequest
         req = CreateBlueprintRequest(name="TestBP")
         assert req.name == "TestBP"
         assert req.description == ""
@@ -27,7 +27,7 @@ class TestBlueprintSchemas:
             CreateBlueprintRequest()
 
     def test_add_node_request_validates_required_fields(self):
-        from odap.biz.core.ontology.harness.blueprint.api.schemas import AddNodeRequest
+        from odap.biz.core.ontology.application.harness.blueprint.api.schemas import AddNodeRequest
         req = AddNodeRequest(node_type="data_source", name="Source")
         assert req.node_type == "data_source"
         assert req.name == "Source"
@@ -39,7 +39,7 @@ class TestBlueprintSchemas:
             AddNodeRequest(name="Source")
 
     def test_add_edge_request_validates_required_fields(self):
-        from odap.biz.core.ontology.harness.blueprint.api.schemas import AddEdgeRequest
+        from odap.biz.core.ontology.application.harness.blueprint.api.schemas import AddEdgeRequest
         req = AddEdgeRequest(source="n1", target="n2")
         assert req.source == "n1"
         assert req.target == "n2"
@@ -51,7 +51,7 @@ class TestBlueprintSchemas:
             AddEdgeRequest()
 
     def test_update_blueprint_request_optional_fields(self):
-        from odap.biz.core.ontology.harness.blueprint.api.schemas import UpdateBlueprintRequest
+        from odap.biz.core.ontology.application.harness.blueprint.api.schemas import UpdateBlueprintRequest
         req = UpdateBlueprintRequest()
         assert req.name is None
         assert req.description is None
@@ -64,7 +64,7 @@ class TestBlueprintSchemas:
         assert req2.description == "NewDesc"
 
     def test_transition_request_validates_required_fields(self):
-        from odap.biz.core.ontology.harness.blueprint.api.schemas import BatchAddNodesRequest, BatchAddEdgesRequest, BatchUpdatePositionsRequest
+        from odap.biz.core.ontology.application.harness.blueprint.api.schemas import BatchAddNodesRequest, BatchAddEdgesRequest, BatchUpdatePositionsRequest
         with pytest.raises(ValidationError):
             BatchAddNodesRequest()
         with pytest.raises(ValidationError):

@@ -1,8 +1,8 @@
 import type { ComponentType, ReactElement, ReactNode } from 'react';
 
 export interface ButtonProps {
-  children: ReactNode;
-  onClick?: () => void;
+  children?: ReactNode;
+  onClick?: (e?: React.MouseEvent) => void;
   type?: 'primary' | 'default' | 'dashed' | 'text' | 'link';
   disabled?: boolean;
   loading?: boolean;
@@ -10,6 +10,7 @@ export interface ButtonProps {
   size?: 'small' | 'middle' | 'large';
   danger?: boolean;
   className?: string;
+  style?: React.CSSProperties;
 }
 
 export interface InputProps {
@@ -60,6 +61,18 @@ export interface SelectProps {
   className?: string;
 }
 
+export interface TagProps {
+  color?: string;
+  children?: ReactNode;
+  className?: string;
+}
+
+export interface TooltipProps {
+  title: ReactNode;
+  children: ReactElement;
+  placement?: 'top' | 'bottom' | 'left' | 'right';
+}
+
 export interface MessageInstance {
   success: (content: string) => void;
   error: (content: string) => void;
@@ -81,6 +94,8 @@ export interface UIAdapter {
   getModal(): ComponentType<ModalProps>;
   getForm(): ComponentType<FormProps>;
   getSelect(): ComponentType<SelectProps>;
+  getTag(): ComponentType<TagProps>;
+  getTooltip(): ComponentType<TooltipProps>;
   getMessage(): MessageInstance;
   getNotification(): NotificationInstance;
 }

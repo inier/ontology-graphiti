@@ -29,6 +29,10 @@ sys.path.append(os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(
 from .models.tool_server import ServerStatus, ServerCapability
 
 
+
+import logging
+
+logger = logging.getLogger(__name__)
 @dataclass
 class ToolDefinition:
     """工具定义"""
@@ -624,39 +628,41 @@ def get_mcp_manager() -> MCPServerManagerV2:
 if __name__ == "__main__":
     import asyncio
 
+
+
     async def test():
         manager = get_mcp_manager()
 
-        print("=" * 60)
-        print("MCP 协议适配器测试")
-        print("=" * 60)
+        logger.info('=' * 60)
+        logger.info('MCP 协议适配器测试')
+        logger.info('=' * 60)
 
-        print("\n1. 注册服务器:")
+        logger.info('\n1. 注册服务器:')
         server = await manager.register_server(
             name="test_server",
             url="http://localhost:8080",
             description="测试 MCP 服务器",
             capabilities=["tools", "resources"]
         )
-        print(f"   服务器已注册: {server.name} (ID: {server.server_id})")
+        logger.info(f'   服务器已注册: {server.name} (ID: {server.server_id})')
 
-        print("\n2. 服务器列表:")
+        logger.info('\n2. 服务器列表:')
         servers = manager.list_servers()
-        print(f"   共 {len(servers)} 个服务器")
+        logger.info(f'   共 {len(servers)} 个服务器')
 
-        print("\n3. 连接池状态:")
+        logger.info('\n3. 连接池状态:')
         pool_status = manager.get_pool_status(server.server_id)
-        print(f"   可用连接: {pool_status['available']}")
-        print(f"   使用中: {pool_status['in_use']}")
+        logger.info(f"   可用连接: {pool_status['available']}")
+        logger.info(f"   使用中: {pool_status['in_use']}")
 
-        print("\n4. 健康报告:")
+        logger.info('\n4. 健康报告:')
         report = manager.get_health_report()
-        print(f"   总服务器数: {report['total_servers']}")
-        print(f"   已连接: {report['connected_servers']}")
-        print(f"   工具总数: {report['total_tools']}")
+        logger.info(f"   总服务器数: {report['total_servers']}")
+        logger.info(f"   已连接: {report['connected_servers']}")
+        logger.info(f"   工具总数: {report['total_tools']}")
 
-        print("\n" + "=" * 60)
-        print("MCP 协议适配器测试完成")
-        print("=" * 60)
+        logger.info('\n' + '=' * 60)
+        logger.info('MCP 协议适配器测试完成')
+        logger.info('=' * 60)
 
     asyncio.run(test())

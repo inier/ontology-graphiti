@@ -127,6 +127,23 @@ class WorkspaceService:
             "message": "Workspace deleted" if success else "Workspace not found"
         }
     
+    def get_workspace_deletion_preview(self, workspace_id: str) -> Dict[str, Any]:
+        """获取工作空间删除预览
+        
+        Args:
+            workspace_id: 工作空间ID
+            
+        Returns:
+            删除预览信息
+        """
+        workspace = self.manager.get_workspace(workspace_id)
+        if not workspace:
+            return {"status": "error", "message": "Workspace not found"}
+        
+        preview = self.manager.storage.get_workspace_deletion_preview(workspace_id)
+        preview["workspace_name"] = workspace.name
+        return preview
+    
     def list_workspaces(self, filters: Dict[str, Any] = None, 
                        page: int = 1, page_size: int = 10) -> Dict[str, Any]:
         """列出工作空间"""

@@ -1,2 +1,9 @@
 export { default as StrategyDeduction } from './pages/StrategyDeduction';
 export { default as SimulationPage } from './pages/SimulationPage';
+export { default as SandboxManager } from './pages/SandboxManager';
+export { default as ParallelComparison } from './components/ParallelComparison';
+export { default as WhatIfPanel } from './components/WhatIfPanel';
+export { default as SimulationProgress } from './components/SimulationProgress';
+export { default as TimelineView } from './components/TimelineView';
+export { default as RecommendationPanel } from './components/RecommendationPanel';
+export { default as FeedbackPanel } from './components/FeedbackPanel';

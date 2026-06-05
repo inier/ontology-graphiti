@@ -5,7 +5,7 @@ from datetime import datetime
 
 
 def _make_sm_storage(tmp_path):
-    from odap.biz.core.ontology.runtime.state_machine.storage.sqlite_state_machine_storage import SQLiteStateMachineStorage
+    from odap.biz.core.ontology.application.runtime.state_machine.storage.sqlite_state_machine_storage import SQLiteStateMachineStorage
     db_path = str(tmp_path / "test_sm.db")
     return SQLiteStateMachineStorage(db_path=db_path)
 
@@ -107,8 +107,8 @@ class TestSQLiteStateMachineStorage:
 
 class TestStateMachineEngine:
     def _make_engine(self, tmp_path):
-        from odap.biz.core.ontology.runtime.state_machine.impl.state_machine_engine import StateMachineEngine
-        from odap.biz.core.ontology.runtime.state_machine.storage.sqlite_state_machine_storage import SQLiteStateMachineStorage
+        from odap.biz.core.ontology.application.runtime.state_machine.impl.state_machine_engine import StateMachineEngine
+        from odap.biz.core.ontology.application.runtime.state_machine.storage.sqlite_state_machine_storage import SQLiteStateMachineStorage
         storage = SQLiteStateMachineStorage(db_path=str(tmp_path / "test_engine.db"))
         return StateMachineEngine(storage=storage)
 
@@ -380,31 +380,31 @@ class TestStateMachineEngine:
 
 class TestStateMachineModels:
     def test_state_type_enum(self):
-        from odap.biz.core.ontology.runtime.state_machine.models import StateType
+        from odap.biz.core.ontology.application.runtime.state_machine.models import StateType
         assert StateType.INITIAL.value == "initial"
         assert StateType("normal") == StateType.NORMAL
 
     def test_transition_guard_enum(self):
-        from odap.biz.core.ontology.runtime.state_machine.models import TransitionGuard
+        from odap.biz.core.ontology.application.runtime.state_machine.models import TransitionGuard
         assert TransitionGuard.ALWAYS.value == "always"
         assert TransitionGuard("role_based") == TransitionGuard.ROLE_BASED
 
     def test_state_definition_defaults(self):
-        from odap.biz.core.ontology.runtime.state_machine.models import StateDefinition
+        from odap.biz.core.ontology.application.runtime.state_machine.models import StateDefinition
         sd = StateDefinition()
         assert sd.state_id.startswith("state-")
         assert sd.on_enter_actions == []
         assert sd.on_exit_actions == []
 
     def test_state_transition_defaults(self):
-        from odap.biz.core.ontology.runtime.state_machine.models import StateTransition
+        from odap.biz.core.ontology.application.runtime.state_machine.models import StateTransition
         st = StateTransition()
         assert st.transition_id.startswith("trans-")
         assert st.required_roles == []
         assert st.side_effects == []
 
     def test_ontology_state_machine_defaults(self):
-        from odap.biz.core.ontology.runtime.state_machine.models import OntologyStateMachine
+        from odap.biz.core.ontology.application.runtime.state_machine.models import OntologyStateMachine
         sm = OntologyStateMachine()
         assert sm.sm_id.startswith("sm-")
         assert sm.states == []
@@ -413,8 +413,8 @@ class TestStateMachineModels:
 
 class TestStateMachineService:
     def _make_service(self, tmp_path):
-        from odap.biz.core.ontology.runtime.state_machine.services import StateMachineService
-        from odap.biz.core.ontology.runtime.state_machine.storage.sqlite_state_machine_storage import SQLiteStateMachineStorage
+        from odap.biz.core.ontology.application.runtime.state_machine.services import StateMachineService
+        from odap.biz.core.ontology.application.runtime.state_machine.storage.sqlite_state_machine_storage import SQLiteStateMachineStorage
         StateMachineService._instance = None
         storage = SQLiteStateMachineStorage(db_path=str(tmp_path / "test_svc.db"))
         return StateMachineService(storage=storage)

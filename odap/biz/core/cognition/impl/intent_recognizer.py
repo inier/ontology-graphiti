@@ -3,7 +3,7 @@ import re
 import uuid
 from typing import Dict, Any, List, Optional
 
-from odap.biz.core.ontology.services.qa_ontology_builder import IntentType
+from odap.biz.core.ontology.design.services.qa_ontology_builder import IntentType
 from odap.biz.platform.roles.api.schemas import RoleType
 
 logger = logging.getLogger(__name__)
@@ -85,6 +85,19 @@ class IntentRecognizer:
         attributes = self._extract_attributes(query)
         alternative_intents = [i[0] for i in sorted_intents[1:3] if i[1] > 0]
 
+        if primary_confidence < 0.4:
+            llm_result = self._recognize_with_llm(query, role, ontology_facts)
+            if llm_result and llm_result.get("confidence", 0) > primary_confidence:
+                return {
+                    "intent_id": str(uuid.uuid4()),
+                    "primary_intent": llm_result["primary_intent"],
+                    "confidence": llm_result["confidence"],
+                    "entities": llm_result.get("entities", entities),
+                    "attributes": llm_result.get("attributes", attributes),
+                    "alternative_intents": llm_result.get("alternative_intents", [i.value for i in alternative_intents]),
+                    "role": role.value,
+                }
+
         return {
             "intent_id": str(uuid.uuid4()),
             "primary_intent": primary_intent.value,
@@ -94,6 +107,55 @@ class IntentRecognizer:
             "alternative_intents": [i.value for i in alternative_intents],
             "role": role.value,
         }
+
+    def _recognize_with_llm(self, query, role, ontology_facts):
+        try:
+            import os
+            import requests
+            import json
+            api_key = os.getenv("OPENAI_API_KEY", "")
+            base_url = os.getenv("OPENAI_API_BASE", "https://api.openai.com/v1")
+            model = os.getenv("OPENAI_MODEL", "deepseek-ai/deepseek-v4-pro")
+            if not api_key:
+                return None
+            prompt = f"""分析以下用户查询的意图，返回JSON格式：
+{{"intent": "query|action|explain|recommend|navigate|compare|analyze", "confidence": 0.0-1.0, "entities": [], "attributes": {{}}}}
+
+用户查询：{query}
+用户角色：{role.value}
+已知本体事实：{ontology_facts or []}
+
+仅返回JSON，不要其他内容。"""
+            resp = requests.post(
+                f"{base_url}/chat/completions",
+                headers={"Authorization": f"Bearer {api_key}", "Content-Type": "application/json"},
+                json={"model": model, "messages": [{"role": "user", "content": prompt}], "max_tokens": 256},
+                timeout=8,
+            )
+            resp.raise_for_status()
+            content = resp.json()["choices"][0]["message"]["content"]
+            json_match = re.search(r'\{[^}]+\}', content)
+            if json_match:
+                parsed = json.loads(json_match.group())
+                intent_str = parsed.get("intent", "query")
+                intent_map = {
+                    "query": IntentType.QUERY,
+                    "action": IntentType.ACTION,
+                    "explain": IntentType.EXPLAIN,
+                    "recommend": IntentType.RECOMMEND,
+                    "navigate": IntentType.NAVIGATE,
+                    "compare": IntentType.COMPARE,
+                    "analyze": IntentType.ANALYZE,
+                }
+                return {
+                    "primary_intent": intent_map.get(intent_str, IntentType.QUERY).value,
+                    "confidence": min(1.0, parsed.get("confidence", 0.5)),
+                    "entities": parsed.get("entities", []),
+                    "attributes": parsed.get("attributes", {}),
+                    "alternative_intents": [],
+                }
+        except Exception:
+            return None
 
     def _extract_entities(self, query: str) -> List[str]:
         entities = []

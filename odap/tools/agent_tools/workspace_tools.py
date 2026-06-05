@@ -8,6 +8,10 @@ from typing import Dict, Any, List, Optional
 from odap.biz.platform.workspace.services.workspace_service import WorkspaceService
 from odap.tools import register_skill
 
+
+import logging
+
+logger = logging.getLogger(__name__)
 # 初始化工作空间服务
 workspace_service = WorkspaceService()
 
@@ -31,6 +35,7 @@ def list_workspaces(page: int = 1, page_size: int = 100) -> List[Dict]:
         )
         return result.get("workspaces", [])
     except Exception as e:
+        logger.warning("silent except caught in {exc} (line 33)", exc_info=True)
         return [{"error": str(e)}]
 
 
@@ -53,6 +58,7 @@ def get_workspace_info(workspace_id: str) -> Dict[str, Any]:
             "workspace": workspace,
         }
     except Exception as e:
+        logger.warning("silent except caught in {exc} (line 55)", exc_info=True)
         return {"error": str(e)}
 
 
@@ -105,6 +111,7 @@ def create_workspace_summary(workspace_id: str = None) -> Dict[str, Any]:
                 "summary": f"共有 {len(workspaces)} 个工作空间。",
             }
     except Exception as e:
+        logger.warning("silent except caught in {exc} (line 107)", exc_info=True)
         return {"error": str(e)}
 
 

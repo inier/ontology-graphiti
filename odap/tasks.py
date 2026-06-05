@@ -5,7 +5,10 @@ import time
 import json
 import pandas as pd
 import io
+import logging
 from typing import Dict, Any
+
+logger = logging.getLogger(__name__)
 
 
 @celery_app.task
@@ -70,6 +73,7 @@ def process_ingest_task(task_id, ingest_type, data, scenario_id=None):
         
         return result
     except Exception as e:
+        logger.warning("silent except caught in {exc} (line 75)", exc_info=True)
         import traceback
         return {
             'task_id': task_id,
@@ -83,6 +87,7 @@ def _save_to_scenario(scenario_id: str, doc_type: str, data: Dict[str, Any]):
     """保存数据到场景"""
     try:
         from odap.biz.platform.workspace.services.workspace_service import WorkspaceService
+
         ws_svc = WorkspaceService()
         storage = ws_svc.storage if hasattr(ws_svc, 'storage') else None
         if storage is None:
@@ -96,7 +101,7 @@ def _save_to_scenario(scenario_id: str, doc_type: str, data: Dict[str, Any]):
         
         storage.add_scenario_document(scenario_id, doc)
     except Exception as e:
-        print(f"Error saving to scenario: {e}")
+        logger.info(f'Error saving to scenario: {e}')
 
 
 @celery_app.task
@@ -118,6 +123,7 @@ def generate_graph_task(task_id, scenario_id, config=None):
         
         return result
     except Exception as e:
+        logger.warning("silent except caught in {exc} (line 124)", exc_info=True)
         return {
             'task_id': task_id,
             'status': 'failed',
@@ -159,6 +165,7 @@ def process_file_upload_task(task_id, filename, file_content, file_extension, sc
         
         return result
     except Exception as e:
+        logger.warning("silent except caught in {exc} (line 165)", exc_info=True)
         return {
             'task_id': task_id,
             'status': 'failed',

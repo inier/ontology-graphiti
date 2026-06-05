@@ -1,5 +1,5 @@
 import { create } from 'zustand';
-import { API_BASE } from '../../../config';
+import { apiClient } from '../services/apiClient';
 import { api } from '../services/api';
 import type { Workspace as ApiWorkspace, AuditEvent as ApiAuditEvent } from '../services/api';
 
@@ -60,17 +60,7 @@ export const useAppStore = create<AppState>((set, get) => ({
   login: async (username: string, password: string) => {
     set({ loading: true, error: null });
     try {
-      const response = await fetch(`${API_BASE}/api/auth/login`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ username, password }),
-      });
-
-      if (!response.ok) {
-        throw new Error(`Login failed: ${response.status}`);
-      }
-
-      const data = await response.json();
+      const data = await apiClient.post('/api/auth/login', { username, password }, { skipAuth: true });
       const user: User = {
         id: data.user?.id || data.user_id || 'user-1',
         username: data.user?.username || username,
@@ -193,8 +183,8 @@ export const useAuditStore = create<AuditState>((set, get) => ({
         if (value) params.append(key, value);
       });
 
-      const response = await fetch(`${API_BASE}/api/audit/events?${params}`);
-      const data = await response.json();
+      const queryString = params.toString();
+      const data = await apiClient.get(queryString ? `/api/audit/events?${queryString}` : '/api/audit/events');
 
       set({
         events: data.events || [],

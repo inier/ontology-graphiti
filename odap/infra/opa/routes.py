@@ -1,4 +1,5 @@
-from fastapi import APIRouter, HTTPException, Query
+from fastapi import APIRouter, HTTPException, Query, Depends
+from odap.infra.security.jwt_auth import get_current_user
 from pydantic import BaseModel, Field
 from typing import List, Optional, Dict, Any
 from datetime import datetime
@@ -112,6 +113,7 @@ async def list_policies(
     status: Optional[str] = Query(None),
     category: Optional[str] = Query(None),
     limit: int = Query(50, ge=1, le=200),
+    user=Depends(get_current_user),
 ):
     _ensure_defaults()
     conn = _get_policy_db()
@@ -135,7 +137,8 @@ async def list_policies(
 
 
 @router.post("")
-async def create_policy(data: PolicyCreate):
+async def create_policy(data: PolicyCreate,
+    user=Depends(get_current_user)):
     _ensure_defaults()
     policy_id = f"policy-{uuid.uuid4().hex[:8]}"
     rego_content = _markdown_to_rego(data.markdown_content)
@@ -164,7 +167,8 @@ async def create_policy(data: PolicyCreate):
 
 
 @router.get("/{policy_id}")
-async def get_policy(policy_id: str):
+async def get_policy(policy_id: str,
+    user=Depends(get_current_user)):
     _ensure_defaults()
     conn = _get_policy_db()
     try:
@@ -182,7 +186,8 @@ async def get_policy(policy_id: str):
 
 
 @router.put("/{policy_id}")
-async def update_policy(policy_id: str, data: PolicyUpdate):
+async def update_policy(policy_id: str, data: PolicyUpdate,
+    user=Depends(get_current_user)):
     _ensure_defaults()
     conn = _get_policy_db()
     try:
@@ -220,7 +225,8 @@ async def update_policy(policy_id: str, data: PolicyUpdate):
 
 
 @router.post("/{policy_id}/toggle")
-async def toggle_policy_status(policy_id: str, enabled: bool = Query(True)):
+async def toggle_policy_status(policy_id: str, enabled: bool = Query(True),
+    user=Depends(get_current_user)):
     _ensure_defaults()
     conn = _get_policy_db()
     try:

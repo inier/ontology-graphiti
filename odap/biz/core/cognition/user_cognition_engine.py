@@ -32,9 +32,12 @@ from dataclasses import dataclass, field
 from datetime import datetime, timezone
 from enum import Enum
 import uuid
+import logging
 
-from odap.biz.core.ontology.services.qa_ontology_builder import IntentType
+from odap.biz.core.ontology.design.services.qa_ontology_builder import IntentType
 from odap.biz.platform.roles.api.schemas import RoleType
+
+logger = logging.getLogger(__name__)
 
 sys.path.append(os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))))
 
@@ -327,6 +330,7 @@ class KnowledgeNavigator:
         if self._query_service:
             try:
                 from odap.infra.query.protocols import QuerySource
+
                 qr = self._query_service.execute(
                     workspace_id=filters.get("workspace_id", "default") if filters else "default",
                     query=f".entity with(search='{query}')" if query else ".entity",
@@ -966,11 +970,11 @@ def get_cognition_engine(graph_client=None, query_service=None) -> UserCognition
 if __name__ == "__main__":
     engine = get_cognition_engine()
 
-    print("=" * 60)
-    print("用户认知引擎 v2 测试")
-    print("=" * 60)
+    logger.info('=' * 60)
+    logger.info('用户认知引擎 v2 测试')
+    logger.info('=' * 60)
 
-    print("\n1. 意图识别:")
+    logger.info('\n1. 意图识别:')
     test_queries = [
         "查询雷达站A的状态",
         "为什么这个目标被标记为威胁?",
@@ -979,18 +983,18 @@ if __name__ == "__main__":
 
     for query in test_queries:
         result = engine.process_query(query, "test-user", RoleType.COMMANDER)
-        print(f"\n   查询: {query}")
-        print(f"   识别意图: {result['intent']['type']}")
-        print(f"   置信度: {result['intent']['confidence']:.2f}")
+        logger.info(f'\n   查询: {query}')
+        logger.info(f"   识别意图: {result['intent']['type']}")
+        logger.info(f"   置信度: {result['intent']['confidence']:.2f}")
 
-    print("\n2. 角色视图:")
+    logger.info('\n2. 角色视图:')
     for role in [RoleType.COMMANDER, RoleType.INTELLIGENCE, RoleType.OPERATOR]:
         view = engine.get_role_view(role)
-        print(f"\n   角色: {role.value}")
-        print(f"   视图名: {view.get('name', 'N/A')}")
-        print(f"   能力: {', '.join(view.get('capabilities', [])[:3])}")
+        logger.info(f'\n   角色: {role.value}')
+        logger.info(f"   视图名: {view.get('name', 'N/A')}")
+        logger.info(f"   能力: {', '.join(view.get('capabilities', [])[:3])}")
 
-    print("\n3. 决策解释:")
+    logger.info('\n3. 决策解释:')
     explanation = engine.explain_decision(
         "decision-001",
         {
@@ -1003,10 +1007,10 @@ if __name__ == "__main__":
             "conclusion": "选择快速突击方案"
         }
     )
-    print(f"\n   问题: {explanation.query}")
-    print(f"   答案: {explanation.answer}")
-    print(f"   置信度: {explanation.confidence:.2f}")
+    logger.info(f'\n   问题: {explanation.query}')
+    logger.info(f'   答案: {explanation.answer}')
+    logger.info(f'   置信度: {explanation.confidence:.2f}')
 
-    print("\n" + "=" * 60)
-    print("用户认知引擎 v2 测试完成")
-    print("=" * 60)
+    logger.info('\n' + '=' * 60)
+    logger.info('用户认知引擎 v2 测试完成')
+    logger.info('=' * 60)

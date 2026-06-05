@@ -13,7 +13,7 @@ class TestOntologyTransformService:
 
     @pytest.fixture
     def transform_service(self):
-        from odap.biz.core.ontology.services.transform_service import OntologyTransformService
+        from odap.biz.core.ontology.design.services.transform_service import OntologyTransformService
         return OntologyTransformService()
 
     @pytest.mark.asyncio
@@ -50,7 +50,7 @@ class TestOntologyTransformService:
     @pytest.mark.asyncio
     async def test_data_quality_validation(self, transform_service):
         """测试数据质量校验"""
-        from odap.biz.core.ontology.schema.document import OntologyDocument, DocumentMeta, SourceInfo
+        from odap.biz.core.ontology.design.schema.document import OntologyDocument, DocumentMeta, SourceInfo
 
         doc = OntologyDocument(
             doc_id="test-doc",
@@ -78,7 +78,7 @@ class TestQAOntologyBuilder:
 
     @pytest.fixture
     def qa_builder(self):
-        from odap.biz.core.ontology.services.qa_ontology_builder import QAOntologyBuilder
+        from odap.biz.core.ontology.design.services.qa_ontology_builder import QAOntologyBuilder
         return QAOntologyBuilder()
 
     @pytest.mark.asyncio
@@ -130,13 +130,13 @@ class TestOntologyBuilderService:
 
     @pytest.fixture
     def builder_service(self):
-        from odap.biz.core.ontology.services.build_service import OntologyBuilderService
+        from odap.biz.core.ontology.design.services.build_service import OntologyBuilderService
         return OntologyBuilderService()
 
     @pytest.mark.asyncio
     async def test_extract_entities_relations(self, builder_service):
         """测试实体和关系抽取"""
-        from odap.biz.core.ontology.schema.document import (
+        from odap.biz.core.ontology.design.schema.document import (
             OntologyDocument, OntologyEntity, OntologyRelation
         )
 
@@ -164,7 +164,7 @@ class TestOntologyBuilderService:
     @pytest.mark.asyncio
     async def test_detect_changes(self, builder_service):
         """测试变化检测"""
-        from odap.biz.core.ontology.schema.document import OntologyDocument
+        from odap.biz.core.ontology.design.schema.document import OntologyDocument
 
         doc = OntologyDocument(
             doc_id="test-doc",
@@ -184,12 +184,12 @@ class TestAPIVersionController:
 
     @pytest.fixture
     def version_controller(self):
-        from odap.biz.core.ontology.services.api_version import APIVersionController
+        from odap.biz.core.ontology.design.services.api_version import APIVersionController
         return APIVersionController()
 
     def test_get_version_info(self, version_controller):
         """测试获取版本信息"""
-        from odap.biz.core.ontology.services.api_version import APIVersion
+        from odap.biz.core.ontology.design.services.api_version import APIVersion
 
         info = version_controller.get_version_info(APIVersion.V2)
 
@@ -198,7 +198,7 @@ class TestAPIVersionController:
 
     def test_check_compatibility(self, version_controller):
         """测试版本兼容性检查"""
-        from odap.biz.core.ontology.services.api_version import APIVersion
+        from odap.biz.core.ontology.design.services.api_version import APIVersion
 
         result = version_controller.check_compatibility(
             APIVersion.V1,
@@ -213,6 +213,110 @@ class TestAPIVersionController:
         logs = version_controller.get_change_log()
 
         assert isinstance(logs, list)
+
+
+class TestVersionRecord:
+    def test_version_record_creation(self):
+        from odap.biz.core.ontology.design.engine.models.version import VersionRecord, VersionStatus
+        record = VersionRecord(
+            ontology_id="ont-1",
+            version_number="1.0.0",
+            changelog="Initial version",
+            status=VersionStatus.DRAFT,
+        )
+        assert record.version_number == "1.0.0"
+        assert record.status == VersionStatus.DRAFT
+
+    def test_version_status_is_str_enum(self):
+        from odap.biz.core.ontology.design.engine.models.version import VersionStatus
+        assert isinstance(VersionStatus.DRAFT, str)
+        assert VersionStatus.DRAFT.value == "draft"
+
+class TestAuditRecord:
+    def test_audit_record_creation(self):
+        from odap.biz.core.ontology.design.engine.models.audit import AuditRecord
+        record = AuditRecord(
+            source="upload",
+            process_steps=[{"step": "validate"}, {"step": "store"}],
+        )
+        assert record.source == "upload"
+        assert len(record.process_steps) == 2
+
+    def test_audit_record_default_factory(self):
+        from odap.biz.core.ontology.design.engine.models.audit import AuditRecord
+        r1 = AuditRecord(source="test")
+        r2 = AuditRecord(source="test")
+        assert r1.process_steps is not r2.process_steps
+
+
+class TestValidationResult:
+    def test_validation_result_valid(self):
+        from odap.biz.core.ontology.design.engine.models.validation import ValidationResult
+        result = ValidationResult(is_valid=True)
+        assert result.is_valid is True
+        assert result.errors == []
+        assert result.warnings == []
+
+    def test_validation_result_invalid(self):
+        from odap.biz.core.ontology.design.engine.models.validation import ValidationResult
+        result = ValidationResult(is_valid=False, errors=["Missing required field"])
+        assert result.is_valid is False
+        assert len(result.errors) == 1
+
+
+class TestSQLiteEngineStorage:
+    def test_save_and_get_version(self, tmp_path):
+        from odap.biz.core.ontology.design.engine.storage.sqlite_engine_storage import SQLiteEngineStorage
+        storage = SQLiteEngineStorage(str(tmp_path / "engine.db"))
+        from odap.biz.core.ontology.design.engine.models.version import VersionRecord, VersionStatus
+        version = VersionRecord(
+            ontology_id="ont-1",
+            version_number="1.0.0",
+            changelog="Initial",
+            status=VersionStatus.DRAFT,
+        )
+        data = version.model_dump()
+        data["version_id"] = "v-1"
+        storage.save_version(data)
+        result = storage.get_version("v-1")
+        assert result is not None
+        assert result["version_number"] == "1.0.0"
+
+    def test_get_version_not_found(self, tmp_path):
+        from odap.biz.core.ontology.design.engine.storage.sqlite_engine_storage import SQLiteEngineStorage
+        storage = SQLiteEngineStorage(str(tmp_path / "engine.db"))
+        result = storage.get_version("nonexistent-id")
+        assert result is None
+
+    def test_list_versions(self, tmp_path):
+        from odap.biz.core.ontology.design.engine.storage.sqlite_engine_storage import SQLiteEngineStorage
+        storage = SQLiteEngineStorage(str(tmp_path / "engine.db"))
+        from odap.biz.core.ontology.design.engine.models.version import VersionRecord, VersionStatus
+        for i in range(3):
+            v = VersionRecord(ontology_id="ont-1", version_number=f"{i+1}.0.0", changelog=f"v{i+1}", status=VersionStatus.DRAFT)
+            data = v.model_dump()
+            data["version_id"] = f"v-{i+1}"
+            storage.save_version(data)
+        versions = storage.list_versions("ont-1")
+        assert len(versions) == 3
+
+    def test_save_and_get_audit(self, tmp_path):
+        from odap.biz.core.ontology.design.engine.storage.sqlite_engine_storage import SQLiteEngineStorage
+        storage = SQLiteEngineStorage(str(tmp_path / "engine.db"))
+        from odap.biz.core.ontology.design.engine.models.audit import AuditRecord
+        audit = AuditRecord(source="upload", process_steps=[{"step": "validate"}])
+        data = audit.model_dump()
+        data["audit_id"] = "a-1"
+        storage.save_audit(data)
+        result = storage.get_audit("a-1")
+        assert result is not None
+        assert result["source"] == "upload"
+
+    def test_get_audit_not_found(self, tmp_path):
+        from odap.biz.core.ontology.design.engine.storage.sqlite_engine_storage import SQLiteEngineStorage
+        storage = SQLiteEngineStorage(str(tmp_path / "engine.db"))
+        result = storage.get_audit("nonexistent")
+        assert result is None
 
 
 if __name__ == "__main__":

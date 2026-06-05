@@ -8,10 +8,56 @@ SQLite 审计通道实现
 import sqlite3
 import json
 import hashlib
+import logging
 from datetime import datetime
 from typing import List, Dict, Any, Optional, Union
 from abc import ABC, abstractmethod
 from .audit_models import AuditEvent, AuditFilter, AuditSeverity, AuditEventType
+
+logger = logging.getLogger(__name__)
+
+
+# SECURITY: Whitelist of allowed ORDER BY column names for audit queries.
+# This prevents SQL injection via user-controlled `order_by` field.
+ALLOWED_ORDER_BY_COLUMNS = frozenset({
+    "timestamp",
+    "severity",
+    "actor_id",
+    "actor_type",
+    "action",
+    "resource_type",
+    "resource_id",
+    "event_type",
+    "result_status",
+    "trace_id",
+})
+
+# Map friendly names from AuditFilter to actual column names.
+ORDER_BY_COLUMN_ALIASES = {
+    "time": "timestamp",
+    "actor": "actor_id",
+    "resource": "resource_id",
+    "event": "event_type",
+}
+
+
+def _resolve_order_by_column(order_by: str) -> str:
+    """
+    Resolve a user-supplied order_by field to a safe SQL column name.
+
+    Raises ValueError if the column is not in the whitelist.
+    Prevents SQL injection by ensuring only known-safe column names reach SQL.
+    """
+    if not order_by:
+        return "timestamp"  # default
+    # Allow friendly aliases
+    resolved = ORDER_BY_COLUMN_ALIASES.get(order_by.lower(), order_by.lower())
+    if resolved not in ALLOWED_ORDER_BY_COLUMNS:
+        raise ValueError(
+            f"Invalid order_by column: {order_by!r}. "
+            f"Allowed: {sorted(ALLOWED_ORDER_BY_COLUMNS)}"
+        )
+    return resolved
 
 
 class AuditChannel(ABC):
@@ -187,7 +233,7 @@ class SQLiteAuditChannel(AuditChannel):
             self.batch_buffer.clear()
             self.last_flush_time = datetime.now()
         except Exception as e:
-            print(f"SQLite write error: {e}")
+            logger.info(f'SQLite write error: {e}')
             conn.rollback()
         finally:
             conn.close()
@@ -258,9 +304,16 @@ class SQLiteAuditChannel(AuditChannel):
             
             # 构建 SQL 语句
             where_part = ' WHERE ' + ' AND '.join(where_clauses) if where_clauses else ''
-            order_dir = 'DESC' if filter.order_desc else 'ASC'
-            sql = f'''SELECT * FROM audit_events {where_part} 
-                     ORDER BY {filter.order_by} {order_dir} LIMIT ? OFFSET ?'''
+            # SECURITY: Whitelist-resolve order_by column to prevent SQL injection
+            safe_order_by = _resolve_order_by_column(filter.order_by)
+            safe_order_dir = 'DESC' if filter.order_desc else 'ASC'
+            # safe_order_by is whitelisted, safe_order_dir is a literal bool
+            # The query is parameterized with ? for all user values
+            sql = (
+                f'SELECT * FROM audit_events {where_part} '
+                f'ORDER BY {safe_order_by} {safe_order_dir} '
+                f'LIMIT ? OFFSET ?'
+            )
             params.extend([filter.limit, filter.offset])
             
             # 执行查询
@@ -314,7 +367,7 @@ class SQLiteAuditChannel(AuditChannel):
             
             return results
         except Exception as e:
-            print(f"SQLite query error: {e}")
+            logger.info(f'SQLite query error: {e}')
             return []
         finally:
             conn.close()
@@ -389,7 +442,7 @@ class SQLiteAuditChannel(AuditChannel):
                 'buffer_size': len(self.batch_buffer)
             }
         except Exception as e:
-            print(f"SQLite stats error: {e}")
+            logger.info(f'SQLite stats error: {e}')
             return {}
         finally:
             conn.close()

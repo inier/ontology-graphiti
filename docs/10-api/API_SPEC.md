@@ -545,10 +545,318 @@ curl -X POST http://localhost:8000/api/ontology/ingest/versions/rollback \
 
 ---
 
+## 9. 问答引擎 API
+
+> **设计原则**: 问答引擎融合本体知识与图谱检索（FR-011），通过 RAG Pipeline 整合 SQLite 摄入数据 + Graphiti 双时态知识 + 语义地图，支持多轮对话和时序推理。
+
+### 9.1 问答请求
+
+**端点**: `POST /api/qa/ask`
+
+**描述**: 提交自然语言问题，返回基于本体知识和图谱检索的回答。
+
+**请求体**:
+
+```json
+{
+  "question": "string",         // 自然语言问题（必填）
+  "user_id": "string",         // 用户 ID（必填）
+  "session_id": "string",      // 会话 ID（可选，多轮对话时必填）
+  "workspace_id": "string",    // 工作空间 ID（必填）
+  "scenario_id": "string",     // 场景 ID（可选，用于场景级数据隔离）
+  "agent_id": "string",        // Agent ID（可选）
+  "context": {}                // 额外上下文（可选）
+}
+```
+
+**响应体**:
+
+```json
+{
+  "answer": "string",           // 自然语言回答
+  "sources": [                  // 引用来源
+    {
+      "type": "entity|relation|document|episode",
+      "id": "string",
+      "name": "string",
+      "score": 0.95,
+      "content": "string",
+      "metadata": {}
+    }
+  ],
+  "session_id": "string",      // 会话 ID（多轮对话时返回）
+  "confidence": 0.85,           // 置信度（0-1）
+  "query_type": "factual|temporal|relational|hybrid",
+  "temporal_context": {},       // 时序上下文（双时态查询时返回）
+  "graph_path": []              // 推理路径（涉及图遍历时返回）
+}
+```
+
+**错误码**:
+
+| 错误码 | HTTP 状态码 | 描述 |
+|--------|-------------|------|
+| `LLM_UNAVAILABLE` | 503 | LLM 服务不可用（超时/限流/宕机） |
+| `GRAPH_UNAVAILABLE` | 503 | Graphiti 不可用 |
+| `EMPTY_QUESTION` | 400 | 问题为空 |
+| `WORKSPACE_ACCESS_DENIED` | 403 | 跨工作空间访问被拒绝 |
+| `SESSION_NOT_FOUND` | 404 | 会话 ID 不存在 |
+| `QA_FAILED` | 500 | 问答处理失败 |
+
+**降级行为**:
+- LLM 不可用时：返回基于 RAG 检索的模板回答（不静默失败）
+- Graphiti 不可用时：仅返回 SQLite 摄入数据 + 语义地图检索结果
+- 摄入数据为空时：返回友好提示而非错误
+
+### 9.2 会话管理
+
+**端点**: `GET /api/qa/sessions/{session_id}`
+
+**描述**: 获取会话状态和历史记录。
+
+**响应体**:
+
+```json
+{
+  "session_id": "string",
+  "user_id": "string",
+  "workspace_id": "string",
+  "scenario_id": "string",
+  "created_at": "2026-05-29T10:00:00Z",
+  "updated_at": "2026-05-29T10:30:00Z",
+  "turn_count": 5,
+  "messages": [
+    {
+      "role": "user|assistant",
+      "content": "string",
+      "timestamp": "2026-05-29T10:00:00Z",
+      "sources": []
+    }
+  ],
+  "memory_state": {
+    "short_term": "active",     // active | archived
+    "working_memory": "active",
+    "long_term": "active"
+  }
+}
+```
+
+### 9.3 端到端验证示例
+
+```bash
+# 1. 首次问答（无 session_id）
+curl -X POST http://localhost:8000/api/qa/ask \
+  -H "Authorization: Bearer $TOKEN" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "question": "贾宝玉和林黛玉是什么关系？",
+    "user_id": "admin",
+    "workspace_id": "ws-001",
+    "scenario_id": "scenario-hongloumeng"
+  }'
+# 响应: {"answer": "...", "sources": [...], "session_id": "session-xxx", ...}
+
+# 2. 多轮对话（引用 session_id）
+curl -X POST http://localhost:8000/api/qa/ask \
+  -H "Authorization: Bearer $TOKEN" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "question": "他们之间有什么矛盾？",
+    "user_id": "admin",
+    "session_id": "session-xxx",
+    "workspace_id": "ws-001"
+  }'
+# 响应: 系统从 SessionMemory 恢复前文实体和意图
+
+# 3. 时序问答（双时态）
+curl -X POST http://localhost:8000/api/qa/ask \
+  -H "Authorization: Bearer $TOKEN" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "question": "2025 年 1 月 1 日时，A 装备的状态是什么？",
+    "user_id": "admin",
+    "workspace_id": "ws-001"
+  }'
+# 响应: {"answer": "...", "query_type": "temporal", "temporal_context": {"valid_time": "2025-01-01"}, ...}
+```
+
+---
+
+## 10. 会话记忆 API
+
+> **设计原则**: 基于 OpenHarness Memory Plugin 实现会话记忆管理（FR-024），支持短期/工作/长期三级记忆。详见 [session_memory/DESIGN.md](../03-modules/session_memory/DESIGN.md)。
+
+### 10.1 创建会话
+
+**端点**: `POST /api/session/create`
+
+**请求体**:
+
+```json
+{
+  "user_id": "string",
+  "workspace_id": "string",
+  "scenario_id": "string",
+  "metadata": {}
+}
+```
+
+**响应体**:
+
+```json
+{
+  "session_id": "string",
+  "created_at": "2026-05-29T10:00:00Z",
+  "ttl_seconds": 1800,
+  "memory_state": {
+    "short_term": "active",
+    "working_memory": "empty",
+    "long_term": "empty"
+  }
+}
+```
+
+### 10.2 获取会话记忆
+
+**端点**: `GET /api/session/{session_id}/memory`
+
+**响应体**:
+
+```json
+{
+  "session_id": "string",
+  "short_term": {
+    "messages": [],          // 滑动窗口内的最近 N 轮对话
+    "entities": [],          // 短期记忆中的实体
+    "intents": []            // 短期记忆中的意图
+  },
+  "working_memory": {
+    "current_task": "string",
+    "task_state": {},
+    "context_entities": []
+  },
+  "long_term": {
+    "key_facts": [],         // 持久化到 Graphiti 的关键事实
+    "user_preferences": {},
+    "historical_sessions": []
+  }
+}
+```
+
+### 10.3 归档短期记忆到长期记忆
+
+**端点**: `POST /api/session/{session_id}/archive`
+
+**描述**: 当短期记忆滑动窗口溢出时，自动归档关键事实到长期记忆（Graphiti）。
+
+**响应体**:
+
+```json
+{
+  "archived_count": 3,
+  "long_term_facts": [
+    {"fact_id": "string", "content": "string", "graphiti_episode_id": "string"}
+  ]
+}
+```
+
+### 10.4 清理过期会话
+
+**端点**: `DELETE /api/session/{session_id}`
+
+**描述**: 删除会话及其记忆（保留长期记忆中的关键事实）。
+
+---
+
+## 11. 监控 API
+
+> **设计原则**: 平台运行状态和性能指标的可观测性接口（不属于 Prometheus/Grafana 范畴，是业务级监控）。
+
+### 11.1 服务健康检查
+
+**端点**: `GET /api/v1/monitoring/health`
+
+**响应体**:
+
+```json
+{
+  "status": "healthy|degraded|unhealthy",
+  "components": {
+    "neo4j": "healthy",
+    "graphiti": "healthy",
+    "opa": "healthy",
+    "llm": "healthy",
+    "session_memory": "healthy"
+  },
+  "timestamp": "2026-05-29T10:00:00Z",
+  "uptime_seconds": 86400
+}
+```
+
+### 11.2 平台统计
+
+**端点**: `GET /api/v1/monitoring/stats`
+
+**响应体**:
+
+```json
+{
+  "workspaces": {"total": 5, "active": 3},
+  "scenarios": {"total": 12, "active": 8},
+  "users": {"total": 20, "active_24h": 5},
+  "ontologies": {"total": 8, "versions": 24},
+  "qa_queries_24h": 145,
+  "ingest_count_24h": 23,
+  "simulation_count_24h": 4
+}
+```
+
+### 11.3 审计日志查询
+
+**端点**: `GET /api/v1/monitoring/audit`
+
+**查询参数**:
+
+| 参数 | 类型 | 必填 | 描述 |
+|------|------|------|------|
+| actor | string | 否 | 操作者（user/agent/system） |
+| action | string | 否 | 操作类型 |
+| workspace_id | string | 否 | 工作空间过滤 |
+| start_time | string | 否 | 起始时间（ISO 格式） |
+| end_time | string | 否 | 结束时间（ISO 格式） |
+| page | int | 否 | 页码（默认 1） |
+| page_size | int | 否 | 每页数量（默认 20） |
+
+**响应体**:
+
+```json
+{
+  "data": [
+    {
+      "audit_id": "string",
+      "actor": "admin",
+      "action": "workspace.delete",
+      "resource": "ws-001",
+      "result": "denied",
+      "reason": "permission denied",
+      "workspace_id": "ws-002",
+      "timestamp": "2026-05-29T10:00:00Z"
+    }
+  ],
+  "page": 1,
+  "page_size": 20,
+  "total": 145,
+  "has_more": true
+}
+```
+
+---
+
 **文档版本历史**:
 
 | 版本 | 日期 | 变更说明 |
 |------|------|----------|
+| **v3.1.0** | **2026-05-29** | **新增第 9-11 章: 问答引擎 API、会话记忆 API、监控 API；端到端验证示例** |
 | v3.0.0 | 2026-04-26 | 添加统一摄入 API 规范引用，更新响应结构说明 |
 | v2.0.0 | 2026-04-26 | 整合数据摄入与本体构建流程，添加构建状态和版本管理接口 |
 | v1.0.0 | 2026-04-26 | 初始版本 |

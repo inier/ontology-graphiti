@@ -15,20 +15,22 @@ import os
 import json
 import asyncio
 import time
-import concurrent.futures
+import re
 from datetime import datetime, timezone
 from typing import Optional, List, Dict, Any
 from collections import deque
 
+from ._utils import _run_async
+from .cache_mixin import CacheMixin
+from .entity_ops import EntityOpsMixin
+from .relationship_ops import RelationshipOpsMixin
+from .temporal_ops import TemporalOpsMixin
+from .search_ops import SearchOpsMixin
 
-def _run_async(coro):
-    try:
-        asyncio.get_running_loop()
-        with concurrent.futures.ThreadPoolExecutor(max_workers=1) as pool:
-            return pool.submit(lambda: asyncio.run(coro)).result(timeout=60)
-    except RuntimeError:
-        return asyncio.run(coro)
 
+import logging
+
+logger = logging.getLogger(__name__)
 # 尝试加载 .env 文件
 try:
     from dotenv import load_dotenv
@@ -46,7 +48,35 @@ OPENAI_MODEL = os.getenv('OPENAI_MODEL', 'gpt-4')
 # 然后再添加项目路径并导入其他模块
 sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
-from odap.biz.core.ontology.mock_data.data_generator import load_simulation_data
+# P0-3 fix (R-P0-006): do NOT import from `odap.biz.core.ontology.design.*`
+# (the design subsystem is upper-layer). `load_simulation_data` is a simple
+# file reader for a local test fixture; inline the implementation here.
+def _load_simulation_data_local():
+    """Local copy of the simulation data loader. Reads a JSON fixture from
+    the infra/graph directory (originally bundled in design/mock_data/).
+
+    This is a pure file read with no dependencies on the ontology design
+    subsystem, so it can live here safely.
+    """
+    try:
+        fixture_path = os.path.join(
+            os.path.dirname(os.path.abspath(__file__)),
+            "simulation_data.json",
+        )
+        with open(fixture_path, "r", encoding="utf-8") as f:
+            return json.load(f)
+    except FileNotFoundError:
+        # Fixture not present: return an empty dict so callers can degrade gracefully
+        logger.warning(
+            "simulation_data.json not found at %s — returning empty dict. "
+            "Graph service will operate on an empty graph.",
+            fixture_path,
+        )
+        return {}
+
+
+# Public alias used throughout this module (replaces the design import)
+load_simulation_data = _load_simulation_data_local
 
 # 尝试导入 graphiti-core（可选）
 try:
@@ -57,7 +87,7 @@ try:
     GRAPHITI_AVAILABLE = True
 except ImportError as e:
     GRAPHITI_AVAILABLE = False
-    print(f"提示: graphiti-core 未安装 ({e})，Graphiti 模式不可用")
+    logger.info(f'提示: graphiti-core 未安装 ({e})，Graphiti 模式不可用')
 
 # 尝试导入 neo4j driver（可选）
 try:
@@ -65,18 +95,26 @@ try:
     NEO4J_DRIVER_AVAILABLE = True
 except ImportError as e:
     NEO4J_DRIVER_AVAILABLE = False
-    print(f"提示: neo4j driver 未安装 ({e})，Neo4j 直连模式不可用")
+    logger.info(f'提示: neo4j driver 未安装 ({e})，Neo4j 直连模式不可用')
 
 
-class GraphManager:
+class GraphManager(CacheMixin, EntityOpsMixin, RelationshipOpsMixin, TemporalOpsMixin, SearchOpsMixin):
     """
     图谱管理器
     基于graphiti的时序知识图谱，支持动态更新和混合检索
     使用单例模式确保所有实例共享同一个图谱
+
+    操作方法通过 Mixin 类提供：
+    - CacheMixin: 缓存管理 (_cache_get, _cache_set, invalidate_cache 等)
+    - EntityOpsMixin: 实体 CRUD (add_entity, query_entities, update_entity 等)
+    - RelationshipOpsMixin: 关系操作 (add_relationship, get_all_relations 等)
+    - TemporalOpsMixin: 时态查询 (query_temporal 等)
+    - SearchOpsMixin: 搜索与遍历 (search, traverse, get_neighbors 等)
     """
 
     _instance = None
     _initialized = False
+    _test_mode = False  # 仅在单元测试中允许 NetworkX fallback
 
     def __new__(cls, *args, **kwargs):
         if cls._instance is None:
@@ -89,15 +127,12 @@ class GraphManager:
         """
         初始化图谱管理器
 
-        三层降级策略：
-        1. Neo4j Driver 直连 — 无需 graphiti-core，Cypher 直接操作
-        2. Graphiti — 双时态知识图谱，需要 graphiti-core + Neo4j
-        3. NetworkX fallback — 纯内存，零外部依赖
+        两层连接策略：
+        1. Graphiti — 双时态知识图谱，需要 graphiti-core + Neo4j
+        2. Neo4j Driver 直连 — 无需 graphiti-core，Cypher 直接操作
 
-        Args:
-            neo4j_uri: Neo4j连接URI (默认从环境变量读取)
-            neo4j_user: Neo4j用户名 (默认从环境变量读取)
-            neo4j_password: Neo4j密码 (默认从环境变量读取)
+        当 Neo4j 不可用时，不再自动降级到 NetworkX，
+        而是返回明确的错误信息。仅在 _test_mode=True 时允许 NetworkX fallback。
         """
         if GraphManager._initialized:
             return
@@ -107,7 +142,8 @@ class GraphManager:
         from odap.infra.security import security_config
         self.neo4j_uri = neo4j_uri or security_config.NEO4J_URI
         self.neo4j_user = neo4j_user or security_config.NEO4J_USER
-        self.neo4j_password = neo4j_password or security_config.NEO4J_PASSWORD
+        # P0-8 fix: use lazy-validated method that raises on placeholder in prod
+        self.neo4j_password = neo4j_password or security_config.get_neo4j_password()
         self.neo4j_driver = None
         self.fallback_graph = None
         self.reserved_tasks = []
@@ -117,25 +153,35 @@ class GraphManager:
         self._reconnect_attempts = 0
         self._max_reconnect_attempts = 3
         self._reconnect_interval = 10
-        
+
         # 连接池配置
         self.max_pool_size = 20
         self.pool_timeout = 30  # 秒
         self.idle_timeout = 300  # 秒
         self.pool = []
         self.pool_creation_times = []
-        
+
         # 断路器配置
         self.failure_threshold = 5
         self.recovery_timeout = 60  # 秒
         self.failure_count = 0
         self.circuit_open = False
         self.last_failure_time = 0
-        
+
         # 性能监控
         self.query_times = deque(maxlen=100)
         self.cache_hits = 0
         self.cache_misses = 0
+
+        # LRU 查询缓存
+        self._query_cache: Dict[str, Any] = {}
+        self._query_cache_timestamps: Dict[str, float] = {}
+        self._cache_max_size = 256
+        self._cache_ttl = 300  # 秒
+
+        # 时间索引（用于加速双时态查询）
+        self._temporal_index: Dict[str, List[Dict]] = {}
+        self._temporal_index_built = False
 
         # 尝试三层降级
         self._connect()
@@ -144,17 +190,18 @@ class GraphManager:
 
     def _connect(self):
         """
-        三层降级连接：Graphiti → Neo4j Driver → NetworkX fallback
-        
+        两层连接策略：Graphiti → Neo4j Driver
+
         Graphiti 是核心功能（双时态知识图谱），必须优先尝试。
-        仅当 graphiti-core 未安装或 Neo4j 不可用时才降级。
+        仅当 graphiti-core 未安装或 Neo4j 不可用时尝试 Neo4j Driver。
+        当两者都不可用时，不再自动降级到 NetworkX（除非 _test_mode=True）。
         """
         # 第一层：Graphiti（双时态知识图谱，核心功能）
         if GRAPHITI_AVAILABLE:
             if self._init_graphiti_sync():
                 self._mode = "graphiti"
                 return
-            print("Graphiti 初始化失败，尝试下一层降级")
+            logger.info('Graphiti 初始化失败，尝试下一层')
 
         # 第二层：Neo4j Driver 直连（无 graphiti-core，Cypher 直接操作）
         if NEO4J_DRIVER_AVAILABLE:
@@ -170,18 +217,24 @@ class GraphManager:
                 self._connected = True
                 self._use_fallback = False
                 self._mode = "neo4j_driver"
-                print(f"Neo4j Driver 直连成功: {self.neo4j_uri}")
+                logger.info(f'Neo4j Driver 直连成功: {self.neo4j_uri}')
                 self._load_data_to_neo4j()
                 self._migrate_entities()
                 return
             except Exception as e:
-                print(f"Neo4j Driver 连接失败: {e}，尝试下一层")
+                logger.info(f'Neo4j Driver 连接失败: {e}')
                 if self.neo4j_driver:
                     self.neo4j_driver.close()
                     self.neo4j_driver = None
 
-        # 第三层：NetworkX fallback
-        self._use_fallback_mode()
+        # Neo4j 不可用：仅在测试模式下使用 NetworkX fallback
+        if self._test_mode:
+            self._use_fallback_mode()
+        else:
+            logger.info('图数据库服务不可用，所有查询操作将返回错误')
+            self._connected = False
+            self._use_fallback = False
+            self._mode = "unavailable"
 
     def _try_reconnect(self):
         if self._mode != "fallback":
@@ -192,7 +245,7 @@ class GraphManager:
             return False
         self._reconnect_attempts = getattr(self, '_reconnect_attempts', 0) + 1
         max_attempts = getattr(self, '_max_reconnect_attempts', 3)
-        print(f"尝试重连 Neo4j ({self._reconnect_attempts}/{max_attempts})...")
+        logger.info(f'尝试重连 Neo4j ({self._reconnect_attempts}/{max_attempts})...')
         try:
             driver = GraphDatabase.driver(
                 self.neo4j_uri,
@@ -205,10 +258,10 @@ class GraphManager:
             self._use_fallback = False
             self._mode = "neo4j_driver"
             self.fallback_graph = None
-            print(f"Neo4j 重连成功，模式: neo4j_driver")
+            logger.info(f'Neo4j 重连成功，模式: neo4j_driver')
             return True
         except Exception as e:
-            print(f"Neo4j 重连失败: {e}")
+            logger.info(f'Neo4j 重连失败: {e}')
             return False
 
     from odap.infra.monitoring import monitor_performance
@@ -248,10 +301,12 @@ class GraphManager:
                         if entity_type not in entities_by_type:
                             entities_by_type[entity_type] = []
                         entities_by_type[entity_type].append(entity)
-                    
+
                     # 对每种类型执行批量操作
                     for entity_type, entities in entities_by_type.items():
-                        labels = f"Entity:{entity_type}"
+                        safe_type = entity_type.replace(' ', '_')
+                        self._validate_label(safe_type)
+                        labels = f"Entity:{safe_type}"
                         cypher = f"""
                         UNWIND $entities AS entity
                         MERGE (n:{labels} {{id: entity.id}})
@@ -270,7 +325,7 @@ class GraphManager:
                         result = session.run(cypher, **params)
                         count += len(entities)
                 except Exception as e:
-                    print(f"  Neo4j 批量加载失败: {e}")
+                    logger.info(f'  Neo4j 批量加载失败: {e}')
                     # 批量失败后尝试单个加载
                     for entity in batch:
                         try:
@@ -279,14 +334,16 @@ class GraphManager:
                             props = entity.get("properties", {})
                             if "workspace_id" not in props:
                                 props["workspace_id"] = "default"
-                            labels = f"Entity:{entity_type.replace(' ', '_')}"
+                            safe_type = entity_type.replace(' ', '_')
+                            self._validate_label(safe_type)
+                            labels = f"Entity:{safe_type}"
                             cypher = f"MERGE (n:{labels} {{id: $eid}}) SET n += $props"
                             session.run(cypher, eid=entity_id, props=props)
                             count += 1
                         except Exception as e2:
-                            print(f"  Neo4j 加载实体失败 {entity_id}: {e2}")
+                            logger.info(f'  Neo4j 加载实体失败 {entity_id}: {e2}')
 
-            print(f"Neo4j 数据加载完成: {count} 个实体")
+            logger.info(f'Neo4j 数据加载完成: {count} 个实体')
 
     def _close_neo4j(self):
         """关闭 Neo4j Driver"""
@@ -304,16 +361,16 @@ class GraphManager:
         # 检查断路器状态
         if self._check_circuit():
             raise Exception("Circuit is open, please try again later")
-        
+
         # 清理过期连接
         self._cleanup_pool()
-        
+
         # 从池获取连接
         if self.pool:
             conn = self.pool.pop(0)
             self.pool_creation_times.pop(0)
             return conn
-        
+
         # 池为空且未达到最大连接数，创建新连接
         if len(self.pool) < self.max_pool_size:
             try:
@@ -326,7 +383,7 @@ class GraphManager:
             except Exception as e:
                 self._record_failure()
                 raise e
-        
+
         # 池已满，等待
         start_time = time.time()
         while time.time() - start_time < self.pool_timeout:
@@ -336,7 +393,7 @@ class GraphManager:
                 self.pool_creation_times.pop(0)
                 return conn
             time.sleep(0.1)
-        
+
         raise Exception(f"Connection pool timeout after {self.pool_timeout} seconds")
 
     def _return_connection(self, conn):
@@ -362,7 +419,7 @@ class GraphManager:
                     self.pool[i].close()
                 except Exception:
                     pass
-        
+
         # 保留有效的连接
         self.pool = [self.pool[i] for i in valid_indices]
         self.pool_creation_times = [self.pool_creation_times[i] for i in valid_indices]
@@ -373,13 +430,13 @@ class GraphManager:
         """
         if not self.circuit_open:
             return False
-        
+
         # 检查是否可以恢复
         if time.time() - self.last_failure_time > self.recovery_timeout:
             self.circuit_open = False
             self.failure_count = 0
             return False
-        
+
         return True
 
     def _record_failure(self):
@@ -390,7 +447,7 @@ class GraphManager:
         self.last_failure_time = time.time()
         if self.failure_count >= self.failure_threshold:
             self.circuit_open = True
-            print(f"Circuit opened after {self.failure_count} failures")
+            logger.info(f'Circuit opened after {self.failure_count} failures')
 
     def _record_success(self):
         """
@@ -401,7 +458,7 @@ class GraphManager:
         if self.circuit_open:
             # 尝试半开状态
             self.circuit_open = False
-            print("Circuit closed, trying to recover")
+            logger.info('Circuit closed, trying to recover')
 
     def get_performance_metrics(self):
         """
@@ -415,10 +472,10 @@ class GraphManager:
             avg_query_time = 0
             max_query_time = 0
             min_query_time = 0
-        
+
         total_cache = self.cache_hits + self.cache_misses
         cache_hit_rate = self.cache_hits / total_cache if total_cache > 0 else 0
-        
+
         return {
             "query_times": {
                 "average": avg_query_time,
@@ -471,19 +528,34 @@ class GraphManager:
             )
             return OpenAIEmbedder(config=config)
         except Exception as e:
-            print(f"创建 Embedder 失败: {e}")
+            logger.info(f'创建 Embedder 失败: {e}')
             return None
 
     def _use_fallback_mode(self):
         """
-        使用回退模式（当Neo4j不可用时）
+        使用回退模式（仅测试模式下允许）
+
+        生产环境下，当 Neo4j 不可用时不再静默降级到 NetworkX，
+        而是返回明确的错误信息。
         """
+        if not self._test_mode:
+            logger.info('图数据库服务不可用，拒绝降级到 NetworkX 回退模式')
+            self._connected = False
+            self._use_fallback = False
+            self._mode = "unavailable"
+            return
+
         self._connected = False
         self._use_fallback = True
-        print("切换到回退模式（基于内存图谱）")
+        logger.info('测试模式：切换到回退模式（基于内存图谱）')
         import networkx as nx
         self.fallback_graph = nx.DiGraph()
         self._load_data_to_fallback()
+
+    @staticmethod
+    def _unavailable_error() -> Dict[str, Any]:
+        """返回图数据库不可用的标准错误"""
+        return {"status": "error", "message": "图数据库服务不可用，请稍后重试"}
 
     def _load_data_to_fallback(self):
         """
@@ -524,9 +596,9 @@ class GraphManager:
         def run_init():
             success = self._init_graphiti_sync()
             if success:
-                print("Graphiti + Neo4j 初始化成功！")
+                logger.info('Graphiti + Neo4j 初始化成功！')
             else:
-                print("Graphiti + Neo4j 初始化失败，使用回退模式")
+                logger.info('Graphiti + Neo4j 初始化失败，使用回退模式')
 
         thread = threading.Thread(target=run_init, daemon=True)
         thread.start()
@@ -543,14 +615,14 @@ class GraphManager:
         """
         async def init_core():
             try:
-                print("创建LLM客户端...")
+                logger.info('创建LLM客户端...')
                 llm_client = self._create_llm_client()
                 embedder = self._create_embedder()
                 if not embedder:
-                    print("Embedder 创建失败，Graphiti 模式不可用")
+                    logger.info('Embedder 创建失败，Graphiti 模式不可用')
                     return False
 
-                print(f"创建Graphiti实例连接到 {self.neo4j_uri}...")
+                logger.info(f'创建Graphiti实例连接到 {self.neo4j_uri}...')
                 self.graph = Graphiti(
                     uri=self.neo4j_uri,
                     user=self.neo4j_user,
@@ -559,17 +631,17 @@ class GraphManager:
                     embedder=embedder,
                 )
 
-                print("验证 Neo4j 连接...")
+                logger.info('验证 Neo4j 连接...')
                 try:
                     await asyncio.wait_for(
                         self.graph.build_indices_and_constraints(delete_existing=False),
                         timeout=15.0
                     )
                 except asyncio.TimeoutError:
-                    print("Neo4j 连接超时（15s），Graphiti 模式不可用")
+                    logger.info('Neo4j 连接超时（15s），Graphiti 模式不可用')
                     return False
 
-                print("索引和约束构建完成")
+                logger.info('索引和约束构建完成')
 
                 if NEO4J_DRIVER_AVAILABLE:
                     try:
@@ -579,9 +651,9 @@ class GraphManager:
                             connection_timeout=5.0
                         )
                         self.neo4j_driver.verify_connectivity()
-                        print("Graphiti 模式: Neo4j Driver 辅助连接已建立")
+                        logger.info('Graphiti 模式: Neo4j Driver 辅助连接已建立')
                     except Exception as e:
-                        print(f"Graphiti 模式: Neo4j Driver 辅助连接失败: {e}")
+                        logger.info(f'Graphiti 模式: Neo4j Driver 辅助连接失败: {e}')
 
                 self._load_data_to_neo4j()
                 self._migrate_entities()
@@ -592,13 +664,13 @@ class GraphManager:
                 return True
 
             except Exception as e:
-                print(f"Graphiti初始化失败: {e}")
+                logger.info(f'Graphiti初始化失败: {e}')
                 return False
 
         try:
             return _run_async(init_core())
         except Exception as e:
-            print(f"初始化失败: {e}")
+            logger.info(f'初始化失败: {e}')
             return False
 
     def _create_episode_text(self, entity_data: Dict) -> str:
@@ -638,186 +710,13 @@ class GraphManager:
                     reference_time=reference_time,
                     update_communities=False
                 )
-                print(f"  添加实体: {entity.get('id')}")
+                logger.info(f"  添加实体: {entity.get('id')}")
                 success_count += 1
             except Exception as e:
-                print(f"  添加实体失败 {entity.get('id')}: {e}")
+                logger.info(f"  添加实体失败 {entity.get('id')}: {e}")
                 error_count += 1
 
-        print(f"实体添加完成: 成功 {success_count}, 失败 {error_count}")
-
-    def query_entities(self, entity_type=None, area=None, workspace_id=None):
-        """
-        查询实体
-
-        Args:
-            entity_type: 实体类型
-            area: 区域
-            workspace_id: 工作空间ID（多租户过滤）
-
-        Returns:
-            实体列表
-        """
-        start_time = time.time()
-        self._try_reconnect()
-        try:
-            if self._mode in ("neo4j_driver", "graphiti") and self.neo4j_driver:
-                result = self._query_entities_neo4j(entity_type, area, workspace_id)
-            else:
-                result = self._query_entities_fallback(entity_type, area, workspace_id)
-            self._record_success()
-            return result
-        except Exception as e:
-            self._record_failure()
-            print(f"Query entities failed: {e}")
-            return self._query_entities_fallback(entity_type, area, workspace_id)
-        finally:
-            # 记录查询时间
-            query_time = time.time() - start_time
-            self.query_times.append(query_time)
-            print(f"Query entities took {query_time:.4f} seconds")
-
-    def _query_entities_neo4j(self, entity_type=None, area=None, workspace_id=None):
-        """Neo4j Driver 模式：查询实体"""
-        label = entity_type.replace(" ", "_") if entity_type else "Entity"
-        conditions = []
-        params = {}
-        if area:
-            conditions.append("n.area = $area")
-            params["area"] = area
-        if workspace_id:
-            conditions.append("n.workspace_id = $workspace_id")
-            params["workspace_id"] = workspace_id
-        
-        where_clause = " WHERE " + " AND ".join(conditions) if conditions else ""
-        cypher = f"MATCH (n:{label}){where_clause} RETURN n.id AS id, labels(n) AS labels, properties(n) AS props"
-
-        try:
-            with self.neo4j_driver.session() as session:
-                result = session.run(cypher, **params)
-                return [
-                    {
-                        "id": record["id"],
-                        "type": [l for l in record["labels"] if l != "Entity"][0] if len(record["labels"]) > 1 else "Entity",
-                        "properties": record["props"]
-                    }
-                    for record in result
-                ]
-        except Exception as e:
-            print(f"Neo4j 查询失败: {e}")
-            return self._query_entities_fallback(entity_type, area)
-
-    def _query_entities_fallback(self, entity_type=None, area=None, workspace_id=None):
-        """
-        回退模式：查询实体
-        """
-        result = []
-
-        for node_id, node_data in self.fallback_graph.nodes(data=True):
-            if entity_type and node_data.get("entity_type") != entity_type:
-                continue
-            if area and node_data.get("area") != area:
-                continue
-            if workspace_id and node_data.get("workspace_id") and node_data.get("workspace_id") != workspace_id:
-                continue
-
-            result.append({
-                "id": node_id,
-                "type": node_data.get("entity_type"),
-                "properties": {k: v for k, v in node_data.items() if k != "entity_type"}
-            })
-
-        return result
-
-    def _query_entities_graphiti(self, entity_type=None, area=None):
-        """
-        Graphiti模式：查询实体
-        """
-        async def query():
-            try:
-                episodes = await self.graph.retrieve_episodes(
-                    reference_time=datetime.now()
-                )
-                result = []
-                for episode in episodes:
-                    if entity_type and episode.name and entity_type.lower() not in episode.name.lower():
-                        continue
-
-                    result.append({
-                        "id": episode.name or str(episode.uuid),
-                        "type": "Entity",
-                        "properties": {"body": episode.content}
-                    })
-                return result
-            except Exception as e:
-                print(f"Graphiti查询失败，降级到 fallback: {e}")
-                return self._query_entities_fallback(entity_type, area)
-
-        return _run_async(query())
-
-    def update_entity(self, entity_id, properties):
-        """
-        更新实体属性
-
-        Args:
-            entity_id: 实体ID
-            properties: 新属性
-
-        Returns:
-            是否成功
-        """
-        if self._mode in ("neo4j_driver", "graphiti") and self.neo4j_driver:
-            return self._update_entity_neo4j(entity_id, properties)
-        return self._update_entity_fallback(entity_id, properties)
-
-    def _update_entity_neo4j(self, entity_id: str, properties: Dict) -> bool:
-        """Neo4j Driver 模式：更新实体"""
-        try:
-            props_str = ", ".join(f"n.{k} = ${k}" for k in properties.keys())
-            cypher = f"MATCH (n:Entity {{id: $eid}}) SET {props_str}"
-            params = {"eid": entity_id}
-            params.update(properties)
-            with self.neo4j_driver.session() as session:
-                result = session.run(cypher, **params)
-                summary = result.consume()
-                return summary.counters.properties_set > 0
-        except Exception as e:
-            print(f"Neo4j 更新实体失败: {e}")
-            return False
-
-    def _update_entity_fallback(self, entity_id, properties):
-        """回退模式：更新实体"""
-        if entity_id in self.fallback_graph:
-            for key, value in properties.items():
-                self.fallback_graph.nodes[entity_id][key] = value
-            return True
-        return False
-
-    def _update_entity_graphiti(self, entity_id, properties):
-        """Graphiti模式：更新实体（通过 Episode 描述属性变更）"""
-        async def update():
-            try:
-                parts = [f"{entity_id} 的属性发生了更新"]
-                for key, value in properties.items():
-                    parts.append(f"它的 {key} 现在是 {value}")
-                episode_text = "。".join(parts)
-
-                await self.graph.add_episode(
-                    name=f"update_{entity_id}",
-                    episode_body=episode_text,
-                    source_description=f"属性更新: {entity_id}",
-                    reference_time=datetime.now(timezone.utc),
-                    update_communities=False
-                )
-                return True
-            except Exception as e:
-                print(f"Graphiti 更新实体失败: {e}")
-                return self._update_entity_fallback(entity_id, properties)
-
-        try:
-            return _run_async(update())
-        except RuntimeError:
-            return _run_async(update())
+        logger.info(f'实体添加完成: 成功 {success_count}, 失败 {error_count}')
 
     def get_statistics(self) -> Dict[str, Any]:
         """
@@ -828,7 +727,9 @@ class GraphManager:
         """
         if self._mode in ("neo4j_driver", "graphiti") and self.neo4j_driver:
             return self._get_statistics_neo4j()
-        return self._get_statistics_fallback()
+        if self._test_mode and self._use_fallback:
+            return self._get_statistics_fallback()
+        return self._unavailable_error()
 
     def get_graph_statistics(self) -> Dict[str, Any]:
         """别名，保持向后兼容"""
@@ -863,87 +764,10 @@ class GraphManager:
                     "mode": self._mode,
                 }
         except Exception as e:
-            print(f"Neo4j 统计失败: {e}")
-            return self._get_statistics_fallback()
-
-    def cleanup_self_loops(self) -> Dict[str, int]:
-        """
-        清理自环关系（source_node_uuid = target_node_uuid）
-
-        Returns:
-            清理结果统计
-        """
-        if not self.neo4j_driver:
-            return {"status": "no_neo4j", "cleaned": 0}
-
-        try:
-            with self.neo4j_driver.session() as session:
-                before = session.run(
-                    "MATCH (a)-[r:RELATES_TO]->(b) "
-                    "WHERE r.source_node_uuid = r.target_node_uuid "
-                    "RETURN count(r) as cnt"
-                ).single()["cnt"]
-
-                session.run(
-                    "MATCH (a)-[r:RELATES_TO]->(b) "
-                    "WHERE r.source_node_uuid = r.target_node_uuid "
-                    "DELETE r"
-                )
-
-                after = session.run(
-                    "MATCH (a)-[r:RELATES_TO]->(b) "
-                    "WHERE r.source_node_uuid = r.target_node_uuid "
-                    "RETURN count(r) as cnt"
-                ).single()["cnt"]
-
-                cleaned = before - after
-                print(f"自环关系清理完成: 清理了 {cleaned} 条自环关系")
-
-                return {"status": "success", "cleaned": cleaned, "remaining": after}
-
-        except Exception as e:
-            print(f"自环关系清理失败: {e}")
-            return {"status": "error", "error": str(e), "cleaned": 0}
-
-    def get_relationship_stats(self) -> Dict[str, Any]:
-        """获取关系统计信息"""
-        if not self.neo4j_driver:
-            return {"status": "no_neo4j"}
-
-        try:
-            with self.neo4j_driver.session() as session:
-                result = session.run("""
-                    MATCH (a)-[r]->(b)
-                    WITH type(r) as rel_type,
-                         r.source_node_uuid IS NOT NULL as has_src,
-                         r.target_node_uuid IS NOT NULL as has_tgt,
-                         count(r) as cnt
-                    RETURN rel_type, has_src, has_tgt, sum(cnt) as total
-                    ORDER BY rel_type
-                """)
-
-                stats = {}
-                for record in result:
-                    rel_type = record["rel_type"]
-                    if rel_type not in stats:
-                        stats[rel_type] = {"total": 0, "with_uuid": 0, "without_uuid": 0}
-                    stats[rel_type]["total"] += record["total"]
-                    if record["has_src"] and record["has_tgt"]:
-                        stats[rel_type]["with_uuid"] += record["total"]
-                    else:
-                        stats[rel_type]["without_uuid"] += record["total"]
-
-                self_loops = session.run("""
-                    MATCH (a)-[r:RELATES_TO]->(b)
-                    WHERE r.source_node_uuid = r.target_node_uuid
-                    RETURN count(r) as cnt
-                """).single()["cnt"]
-
-                return {"status": "success", "relationships": stats, "self_loops": self_loops}
-
-        except Exception as e:
-            print(f"关系统计获取失败: {e}")
-            return {"status": "error", "error": str(e)}
+            logger.info(f'Neo4j 统计失败: {e}')
+            if self._test_mode and self._use_fallback:
+                return self._get_statistics_fallback()
+            return self._unavailable_error()
 
     def _get_statistics_graphiti(self) -> Dict[str, Any]:
         """Graphiti模式：获取统计信息"""
@@ -959,8 +783,10 @@ class GraphManager:
                     "mode": "graphiti"
                 }
             except Exception as e:
-                print(f"获取统计信息失败，降级到 fallback: {e}")
-                return self._get_statistics_fallback()
+                logger.info(f'获取统计信息失败: {e}')
+                if self._test_mode and self._use_fallback:
+                    return self._get_statistics_fallback()
+                return self._unavailable_error()
 
         return _run_async(get_stats())
 
@@ -971,274 +797,6 @@ class GraphManager:
             entity_type = data.get("entity_type", "Unknown")
             counts[entity_type] = counts.get(entity_type, 0) + 1
         return counts
-
-    def add_relationship(self, source_id: str, target_id: str,
-                         relationship: str, properties: Dict = None):
-        """
-        添加关系
-
-        Args:
-            source_id: 源实体ID
-            target_id: 目标实体ID
-            relationship: 关系类型
-            properties: 关系属性
-
-        Returns:
-            是否成功
-        """
-        if self._mode in ("neo4j_driver", "graphiti") and self.neo4j_driver:
-            return self._add_relationship_neo4j(source_id, target_id, relationship, properties)
-        return self._add_relationship_fallback(source_id, target_id, relationship, properties)
-
-    def _add_relationship_neo4j(self, source_id: str, target_id: str,
-                                relationship: str, properties: Dict = None) -> bool:
-        """Neo4j Driver 模式：添加关系（类型安全）"""
-        try:
-            rel_type = relationship.upper().replace(' ', '_')
-            sane_props = self._sanitize_neo4j_properties(properties or {})
-
-            set_clauses = []
-            params = {"sid": source_id, "tid": target_id}
-            for i, (k, v) in enumerate(sane_props.items()):
-                param_key = f"rp{i}"
-                set_clauses.append(f"r.{k} = ${param_key}")
-                params[param_key] = v
-
-            if set_clauses:
-                cypher = (
-                    f"MATCH (a:Entity {{id: $sid}}), (b:Entity {{id: $tid}}) "
-                    f"MERGE (a)-[r:{rel_type}]->(b) "
-                    f"SET {', '.join(set_clauses)}"
-                )
-            else:
-                cypher = (
-                    f"MATCH (a:Entity {{id: $sid}}), (b:Entity {{id: $tid}}) "
-                    f"MERGE (a)-[r:{rel_type}]->(b)"
-                )
-
-            with self.neo4j_driver.session() as session:
-                session.run(cypher, **params)
-            return True
-        except Exception as e:
-            print(f"Neo4j 添加关系失败: {e}")
-            return self._add_relationship_fallback(source_id, target_id, relationship, properties or {})
-
-    def _add_relationship_fallback(self, source_id: str, target_id: str,
-                                   relationship: str, properties: Dict = None):
-        """回退模式：添加关系"""
-        if source_id in self.fallback_graph and target_id in self.fallback_graph:
-            self.fallback_graph.add_edge(
-                source_id, target_id,
-                relationship=relationship,
-                **(properties or {})
-            )
-            return True
-        return False
-
-    def _add_relationship_graphiti(self, source_id: str, target_id: str,
-                                   relationship: str, properties: Dict = None):
-        """Graphiti模式：添加关系（通过 Episode 描述关系变更）"""
-        async def add_rel():
-            try:
-                parts = [f"{source_id} 与 {target_id} 之间建立了 {relationship} 关系"]
-                if properties:
-                    for key, value in properties.items():
-                        parts.append(f"该关系的 {key} 是 {value}")
-                episode_text = "。".join(parts)
-
-                await self.graph.add_episode(
-                    name=f"rel_{source_id}_{target_id}",
-                    episode_body=episode_text,
-                    source_description=f"关系建立: {relationship}",
-                    reference_time=datetime.now(timezone.utc),
-                    update_communities=False
-                )
-                return True
-            except Exception as e:
-                print(f"Graphiti 添加关系失败: {e}")
-                return self._add_relationship_fallback(source_id, target_id, relationship, properties or {})
-
-        try:
-            return _run_async(add_rel())
-        except RuntimeError:
-            return _run_async(add_rel())
-
-    def search(self, query: str, limit: int = 10) -> List[Dict]:
-        """
-        搜索实体
-
-        Args:
-            query: 搜索查询
-            limit: 返回结果数量限制
-
-        Returns:
-            匹配的实体列表
-        """
-        if self._mode in ("neo4j_driver", "graphiti") and self.neo4j_driver:
-            return self._search_neo4j(query, limit)
-        return self._search_fallback(query, limit)
-
-    def _search_neo4j(self, query: str, limit: int = 10) -> List[Dict]:
-        """Neo4j Driver 模式：全文搜索"""
-        try:
-            with self.neo4j_driver.session() as session:
-                cypher = (
-                    "MATCH (n) WHERE n.id CONTAINS $q OR n.name CONTAINS $q "
-                    "RETURN n.id AS id, labels(n) AS labels, properties(n) AS props LIMIT $lmt"
-                )
-                result = session.run(cypher, q=query, lmt=limit)
-                return [
-                    {
-                        "id": record["id"],
-                        "type": [l for l in record["labels"] if l != "Entity"][0] if len(record["labels"]) > 1 else "Entity",
-                        "properties": record["props"],
-                    }
-                    for record in result
-                ]
-        except Exception as e:
-            print(f"Neo4j 搜索失败: {e}")
-            return self._search_fallback(query, limit)
-
-    def _search_fallback(self, query: str, limit: int = 10) -> List[Dict]:
-        """回退模式：搜索"""
-        if self.fallback_graph is None:
-            return []
-        results = []
-        query_lower = query.lower()
-
-        for node_id, data in self.fallback_graph.nodes(data=True):
-            text = f"{node_id} {data.get('name', '')} {data.get('entity_type', '')}".lower()
-            if query_lower in text:
-                results.append({
-                    "id": node_id,
-                    "type": data.get("entity_type"),
-                    "properties": {k: v for k, v in data.items() if k != "entity_type"}
-                })
-                if len(results) >= limit:
-                    break
-
-        return results
-
-    def _search_neo4j_keyword(self, query_text: str, limit: int = 5) -> List[Dict]:
-        """Neo4j 关键词检索模式"""
-        # 清理查询词：提取 user:/用户: 后面的内容
-        import re
-        
-        # 提取 user: 或 用户: 后面的内容
-        matches = re.findall(r'(?i)(?:user:|用户:)\s*([^\n]+)', query_text)
-        if matches:
-            # 去重并合并
-            unique_matches = list(dict.fromkeys(matches))  # 保持顺序的去重
-            clean_query = " ".join(unique_matches)
-        else:
-            clean_query = query_text
-        
-        # 清理换行和多余空格
-        clean_query = clean_query.replace("\n", " ").replace("\r", " ")
-        clean_query = " ".join(clean_query.split())  # 合并多余空格
-
-        print(f"[DEBUG] _search_neo4j_keyword: original='{query_text}', cleaned='{clean_query}'")
-        
-        # 如果查询词为空，返回空结果
-        if not clean_query:
-            print("[DEBUG] 查询词为空，返回空结果")
-            return []
-            
-        try:
-            with self.neo4j_driver.session() as session:
-                cypher = (
-                    "MATCH (n) "
-                    "WHERE n.id CONTAINS $q OR n.name CONTAINS $q "
-                    "RETURN n.id AS id, labels(n) AS labels, properties(n) AS props "
-                    "LIMIT $lmt"
-                )
-                result = session.run(cypher, q=clean_query, lmt=limit)
-                keyword_results = [
-                    {
-                        "id": record["id"],
-                        "type": [l for l in record["labels"] if l != "Entity"][0] if len(record["labels"]) > 1 else "Entity",
-                        "properties": record["props"],
-                        "score": 0.8
-                    }
-                    for record in result
-                ]
-                print(f"[DEBUG] Neo4j 检索返回 {len(keyword_results)} 条结果")
-                return keyword_results
-        except Exception as e:
-            print(f"Neo4j 关键词检索失败: {e}")
-            return self._search_fallback(query_text, limit=limit)
-
-    def _search_graphiti(self, query: str, limit: int = 10) -> List[Dict]:
-        """Graphiti模式：搜索（返回 EntityEdge 列表）"""
-        async def search():
-            try:
-                results = await self.graph.search(query=query, num_results=limit)
-                return [
-                    {
-                        "id": r.name or str(r.uuid),
-                        "type": "EntityEdge",
-                        "properties": {
-                            "fact": r.fact,
-                            "source_node": r.source_node_uuid,
-                            "target_node": r.target_node_uuid,
-                        }
-                    }
-                    for r in results
-                ]
-            except Exception as e:
-                print(f"Graphiti搜索失败，降级到 fallback: {e}")
-                return self._search_fallback(query, limit)
-
-        return _run_async(search())
-
-    def add_entity(self, entity_id: str, entity_type: str, properties: Dict[str, Any]) -> bool:
-        """
-        添加实体到图谱
-
-        Args:
-            entity_id: 实体ID
-            entity_type: 实体类型
-            properties: 实体属性
-
-        Returns:
-            是否添加成功
-        """
-        if self._mode in ("neo4j_driver", "graphiti") and self.neo4j_driver:
-            return self._add_entity_neo4j(entity_id, entity_type, properties)
-        return self._add_entity_fallback(entity_id, entity_type, properties)
-
-    def _add_entity_neo4j(self, entity_id: str, entity_type: str,
-                           properties: Dict[str, Any]) -> bool:
-        """Neo4j Driver 模式：添加实体（类型安全）"""
-        try:
-            label = f"Entity:{entity_type.replace(' ', '_')}"
-
-            sane_props = self._sanitize_neo4j_properties(properties)
-
-            prop_items = [(k, v) for k, v in sane_props.items()
-                          if k not in ("entity_id", "entity_type", "id", "eid")]
-
-            if not prop_items:
-                cypher = f"MERGE (n:{label} {{id: $eid}})"
-                params = {"eid": entity_id}
-                with self.neo4j_driver.session() as session:
-                    session.run(cypher, **params)
-                return True
-
-            set_clauses = []
-            params = {"eid": entity_id}
-            for i, (k, v) in enumerate(prop_items):
-                param_key = f"p{i}"
-                set_clauses.append(f"n.{k} = ${param_key}")
-                params[param_key] = v
-
-            cypher = f"MERGE (n:{label} {{id: $eid}}) SET {', '.join(set_clauses)}"
-            with self.neo4j_driver.session() as session:
-                session.run(cypher, **params)
-            return True
-        except Exception as e:
-            print(f"Neo4j 添加实体失败: {e}")
-            return False
 
     def _migrate_entities(self):
         """补齐存量实体缺失的 workspace_id 和 name 属性"""
@@ -1254,7 +812,7 @@ class GraphManager:
                 """)
                 record = result.single()
                 if record and record["updated"] > 0:
-                    print(f"审计实体迁移完成: {record['updated']} 个实体已补齐 name")
+                    logger.info(f"审计实体迁移完成: {record['updated']} 个实体已补齐 name")
 
                 result = session.run("""
                     MATCH (n:Entity)
@@ -1264,7 +822,7 @@ class GraphManager:
                 """)
                 record = result.single()
                 if record and record["updated"] > 0:
-                    print(f"实体 workspace_id 迁移完成: {record['updated']} 个实体已补齐 workspace_id")
+                    logger.info(f"实体 workspace_id 迁移完成: {record['updated']} 个实体已补齐 workspace_id")
 
                 result = session.run("""
                     MATCH (n:AuditUser)
@@ -1274,7 +832,7 @@ class GraphManager:
                 """)
                 record = result.single()
                 if record and record["updated"] > 0:
-                    print(f"审计用户 workspace_id 迁移完成: {record['updated']} 个实体已补齐 workspace_id")
+                    logger.info(f"审计用户 workspace_id 迁移完成: {record['updated']} 个实体已补齐 workspace_id")
 
                 result = session.run("""
                     MATCH (n:AuditResource)
@@ -1284,7 +842,7 @@ class GraphManager:
                 """)
                 record = result.single()
                 if record and record["updated"] > 0:
-                    print(f"审计资源 workspace_id 迁移完成: {record['updated']} 个实体已补齐 workspace_id")
+                    logger.info(f"审计资源 workspace_id 迁移完成: {record['updated']} 个实体已补齐 workspace_id")
 
                 result = session.run("""
                     MATCH (n:AuditService)
@@ -1294,9 +852,23 @@ class GraphManager:
                 """)
                 record = result.single()
                 if record and record["updated"] > 0:
-                    print(f"审计服务 workspace_id 迁移完成: {record['updated']} 个实体已补齐 workspace_id")
+                    logger.info(f"审计服务 workspace_id 迁移完成: {record['updated']} 个实体已补齐 workspace_id")
         except Exception as e:
-            print(f"实体迁移失败: {e}")
+            logger.info(f'实体迁移失败: {e}')
+
+    @staticmethod
+    def _validate_label(label: str) -> str:
+        """Validate Neo4j label against injection. Only allow alphanumeric + underscore."""
+        if not re.match(r'^[a-zA-Z_][a-zA-Z0-9_]*$', label):
+            raise ValueError(f"Invalid Neo4j label: {label}")
+        return label
+
+    @staticmethod
+    def _validate_property_key(key: str) -> str:
+        """Validate Neo4j property key against injection. Only allow alphanumeric + underscore."""
+        if not re.match(r'^[a-zA-Z_][a-zA-Z0-9_]*$', key):
+            raise ValueError(f"Invalid Neo4j property key: {key}")
+        return key
 
     @staticmethod
     def _sanitize_neo4j_properties(properties: Dict[str, Any]) -> Dict[str, Any]:
@@ -1326,222 +898,6 @@ class GraphManager:
                 result[key] = str(value)
         return result
 
-    def _add_entity_fallback(self, entity_id: str, entity_type: str,
-                              properties: Dict[str, Any]) -> bool:
-        """回退模式：添加实体"""
-        if entity_id in self.fallback_graph:
-            # 实体已存在，更新属性
-            self.fallback_graph.nodes[entity_id]["entity_type"] = entity_type
-            for k, v in properties.items():
-                self.fallback_graph.nodes[entity_id][k] = v
-        else:
-            self.fallback_graph.add_node(
-                entity_id,
-                entity_type=entity_type,
-                **properties
-            )
-        return True
-
-    def _add_entity_graphiti(self, entity_id: str, entity_type: str,
-                              properties: Dict[str, Any]) -> bool:
-        """Graphiti模式：添加实体（通过 Episode）"""
-        async def add():
-            try:
-                parts = [f"{entity_id} 是一个 {entity_type}"]
-                for key, value in properties.items():
-                    parts.append(f"它的 {key} 是 {value}")
-                episode_text = "。".join(parts)
-
-                await self.graph.add_episode(
-                    name=entity_id,
-                    episode_body=episode_text,
-                    source_description=f"数据: {entity_type}",
-                    reference_time=datetime.now(timezone.utc),
-                    update_communities=False
-                )
-                return True
-            except Exception as e:
-                print(f"Graphiti添加实体失败: {e}")
-                return self._add_entity_fallback(entity_id, entity_type, properties)
-
-        return _run_async(add())
-
-    def get_entity_history(self, entity_id: str) -> List[Dict]:
-        """
-        获取实体的历史变更记录
-
-        Args:
-            entity_id: 实体ID
-
-        Returns:
-            历史记录列表（回退模式返回空列表）
-        """
-        if self._use_fallback or not self._connected:
-            # 回退模式不支持时态查询，返回空列表
-            print(f"警告: 回退模式不支持时态查询 (entity_id={entity_id})")
-            return []
-
-        # Graphiti模式：查询 episode 历史
-        async def get_history():
-            try:
-                episodes = await self.graph.retrieve_episodes(
-                    reference_time=datetime.now()
-                )
-                return [
-                    {
-                        "entity_id": e.name or str(e.uuid),
-                        "timestamp": str(e.created_at),
-                        "body": e.content
-                    }
-                    for e in episodes
-                    if e.name == entity_id or str(e.uuid) == entity_id
-                ]
-            except Exception as e:
-                print(f"Graphiti查询实体历史失败，降级到 fallback: {e}")
-                return []
-
-        return _run_async(get_history())
-
-    def query_temporal(self, valid_time=None, transaction_time=None, entity_type=None) -> List[Dict]:
-        if self._use_fallback or not self._connected:
-            print("警告: 回退模式不支持时态查询，返回所有实体")
-            return self.query_entities(entity_type)
-
-        async def temporal_query():
-            try:
-                reference_time = None
-                if valid_time:
-                    if isinstance(valid_time, str):
-                        reference_time = datetime.fromisoformat(valid_time.replace('Z', '+00:00'))
-                    else:
-                        reference_time = valid_time
-                else:
-                    reference_time = datetime.now(timezone.utc)
-
-                episodes = await self.graph.retrieve_episodes(
-                    reference_time=reference_time,
-                )
-
-                result = []
-                for episode in episodes:
-                    if entity_type and episode.name and entity_type.lower() not in episode.name.lower():
-                        continue
-
-                    ep_valid_time = str(episode.reference_time) if hasattr(episode, 'reference_time') and episode.reference_time else str(episode.created_at)
-                    ep_transaction_time = str(episode.created_at)
-
-                    if transaction_time:
-                        if isinstance(transaction_time, str):
-                            if ep_transaction_time > transaction_time:
-                                continue
-
-                    result.append({
-                        "id": episode.name or str(episode.uuid),
-                        "type": "Entity",
-                        "properties": {"body": episode.content},
-                        "valid_time": ep_valid_time,
-                        "transaction_time": ep_transaction_time,
-                    })
-
-                return result
-            except Exception as e:
-                print(f"Graphiti时态查询失败，降级到普通查询: {e}")
-                return self.query_entities(entity_type)
-
-        return _run_async(temporal_query())
-
-    def query_at_valid_time(self, entity_type=None, valid_time=None) -> List[Dict]:
-        return self.query_temporal(valid_time=valid_time, entity_type=entity_type)
-
-    def query_at_transaction_time(self, entity_type=None, transaction_time=None) -> List[Dict]:
-        return self.query_temporal(transaction_time=transaction_time, entity_type=entity_type)
-
-    def search_hybrid(self, query_text: str, top_k: int = 5, vector_weight: float = 0.7, keyword_weight: float = 0.3) -> List[Dict]:
-        """
-        混合检索（向量 + 关键词）
-
-        Args:
-            query_text: 查询文本
-            top_k: 返回前k个结果
-            vector_weight: 向量检索权重
-            keyword_weight: 关键词检索权重
-
-        Returns:
-            检索结果列表
-        """
-        # 回退模式：使用内存图搜索
-        if self._use_fallback or not self._connected:
-            print(f"[DEBUG] 使用回退模式搜索: '{query_text}'")
-            return self._search_fallback(query_text, limit=top_k)
-        
-        # Graphiti模式：优先使用 graphiti 的混合检索
-        if self.graph and self._connected:
-            async def hybrid_search():
-                try:
-                    # 1. 向量检索（Graphiti search）
-                    vector_results = await self.graph.search(query=query_text, num_results=top_k)
-
-                    # 2. 关键词检索（Neo4j CONTAINS）
-                    keyword_results = []
-                    if self.neo4j_driver:
-                        try:
-                            with self.neo4j_driver.session() as session:
-                                cypher = (
-                                    "MATCH (n) WHERE n.id CONTAINS $q OR n.name CONTAINS $q "
-                                    "RETURN n.id AS id, labels(n) AS labels, properties(n) AS props LIMIT $lmt"
-                                )
-                                result = session.run(cypher, q=query_text, lmt=top_k)
-                                keyword_results = [
-                                    {
-                                        "id": record["id"],
-                                        "type": [l for l in record["labels"] if l != "Entity"][0] if len(record["labels"]) > 1 else "Entity",
-                                        "properties": record["props"],
-                                        "score": 0.5  # 默认关键词得分
-                                    }
-                                    for record in result
-                                ]
-                        except Exception as e:
-                            print(f"Neo4j关键词检索失败: {e}")
-
-                    # 3. 合并结果（去重）
-                    combined = {}
-                    for r in vector_results:
-                        entity_id = r.name or str(r.uuid)
-                        combined[entity_id] = {
-                            "id": entity_id,
-                            "type": "EntityEdge",
-                            "properties": {
-                                "fact": r.fact,
-                                "source_node": r.source_node_uuid,
-                                "target_node": r.target_node_uuid,
-                            },
-                            "score": r.score if hasattr(r, 'score') else 0.7
-                        }
-
-                    for r in keyword_results:
-                        if r["id"] not in combined:
-                            combined[r["id"]] = r
-
-                    # 按得分排序
-                    final_results = sorted(combined.values(), key=lambda x: x.get("score", 0), reverse=True)[:top_k]
-                    return final_results
-
-                except Exception as e:
-                    print(f"Graphiti混合检索失败: {e}")
-                    # 降级到 Neo4j 关键词检索
-                    if self.neo4j_driver:
-                        return self._search_neo4j_keyword(query_text, limit=top_k)
-                    raise RuntimeError("Graphiti检索失败，且没有可用的降级方案")
-
-            return _run_async(hybrid_search())
-
-        # Neo4j driver 模式
-        if self.neo4j_driver:
-            return self._search_neo4j_keyword(query_text, limit=top_k)
-
-        # 没有可用的检索方式
-        raise RuntimeError("Neo4j 连接不可用，无法执行查询")
-
     def reserve_task(self, task_data: Dict) -> str:
         """
         预留任务，分配唯一任务ID
@@ -1553,12 +909,14 @@ class GraphManager:
             任务ID
         """
         import uuid
+
+
         task_id = f"TASK-{uuid.uuid4().hex[:8].upper()}"
         task_data["id"] = task_id
         task_data["status"] = "reserved"
         task_data["created_at"] = datetime.now().isoformat()
         self.reserved_tasks.append(task_data)
-        print(f"任务已预留: {task_id}")
+        logger.info(f'任务已预留: {task_id}')
         return task_id
 
     def get_reserved_tasks(self) -> List[Dict]:
@@ -1575,7 +933,7 @@ class GraphManager:
         清空所有预留任务
         """
         self.reserved_tasks.clear()
-        print("所有预留任务已清空")
+        logger.info('所有预留任务已清空')
 
     def clear_graph(self) -> Dict[str, Any]:
         """
@@ -1600,7 +958,7 @@ class GraphManager:
                 cleared_nodes = before_nodes - after_nodes
                 cleared_rels = before_rels - after_rels
 
-                print(f"图谱清空完成: 删除了 {cleared_nodes} 个节点和 {cleared_rels} 条关系")
+                logger.info(f'图谱清空完成: 删除了 {cleared_nodes} 个节点和 {cleared_rels} 条关系')
 
                 return {
                     "status": "success",
@@ -1611,109 +969,8 @@ class GraphManager:
                 }
 
         except Exception as e:
-            print(f"图谱清空失败: {e}")
+            logger.info(f'图谱清空失败: {e}')
             return {"status": "error", "error": str(e), "cleared": 0}
-
-    def retrieve_rag_context(self, query: str, top_k: int = 5) -> str:
-        """
-        RAG 上下文检索：基于 Graphiti 的向量搜索 + Episode 回忆，
-        返回自然语言上下文段落供 LLM 参考。
-
-        三层降级：
-        1. Graphiti: search() 向量检索 + retrieve_episodes() 全量回忆
-        2. Neo4j Driver: CONTAINS 关键词匹配
-        3. Fallback: 内存关键词匹配
-
-        Args:
-            query: 查询文本
-            top_k: 返回前 k 条相关结果
-
-        Returns:
-            自然语言上下文段落（多条拼接）
-        """
-        if self._mode in ("neo4j_driver", "graphiti") and self.neo4j_driver:
-            return self._retrieve_rag_neo4j(query, top_k)
-        return self._retrieve_rag_fallback(query, top_k)
-
-    def _retrieve_rag_graphiti(self, query: str, top_k: int) -> str:
-        """Graphiti 模式：向量搜索 + Episode 检索"""
-        async def retrieve():
-            try:
-                # 1. 向量语义搜索（返回 EntityEdge）
-                edges = await self.graph.search(query=query, num_results=top_k)
-                # 2. 全量 Episode 回忆
-                episodes = await self.graph.retrieve_episodes(
-                    reference_time=datetime.now()
-                )
-
-                context_parts = []
-
-                # 从语义搜索结果中提取事实
-                for edge in edges:
-                    if edge.fact:
-                        context_parts.append(f"- {edge.fact}")
-
-                # 从 Episode 中提取与 query 相关的记忆
-                query_lower = query.lower()
-                for ep in episodes[:20]:
-                    if ep.content and query_lower in ep.content.lower():
-                        context_parts.append(f"- [{ep.name}] {ep.content[:200]}")
-                    elif context_parts and len(context_parts) < top_k:
-                        # 补充一些最近的记忆（即使不完全匹配）
-                        if len(context_parts) < 3:
-                            context_parts.append(f"- [{ep.name}] {ep.content[:150]}")
-
-                if not context_parts:
-                    return ""
-
-                return "历史情报记忆：\n" + "\n".join(context_parts[:top_k])
-
-            except Exception as e:
-                print(f"Graphiti RAG 检索失败: {e}")
-                return ""
-
-        return _run_async(retrieve())
-
-    def _retrieve_rag_neo4j(self, query: str, top_k: int) -> str:
-        """Neo4j Driver 模式：Cypher 全文匹配"""
-        try:
-            with self.neo4j_driver.session() as session:
-                cypher = (
-                    "MATCH (n) "
-                    "WHERE n.id CONTAINS $q OR n.name CONTAINS $q OR n.properties.name CONTAINS $q "
-                    "RETURN n.id AS id, labels(n) AS labels, properties(n) AS props "
-                    "LIMIT $lmt"
-                )
-                results = session.run(cypher, q=query, lmt=top_k)
-                parts = []
-                for r in results:
-                    name = r["props"].get("name", r["id"])
-                    entity_type = [l for l in r["labels"] if l != "Entity"]
-                    type_str = entity_type[0] if entity_type else "Entity"
-                    parts.append(f"- {name} ({type_str}): {json.dumps(r['props'], ensure_ascii=False, default=str)[:150]}")
-
-                if not parts:
-                    return ""
-                return "相关实体数据：\n" + "\n".join(parts)
-        except Exception as e:
-            print(f"Neo4j RAG 检索失败: {e}")
-            return self._retrieve_rag_fallback(query, top_k)
-
-    def _retrieve_rag_fallback(self, query: str, top_k: int) -> str:
-        """Fallback 模式：内存关键词匹配"""
-        if self.fallback_graph is None:
-            return ""
-        results = self._search_fallback(query, limit=top_k)
-        if not results:
-            return ""
-
-        parts = []
-        for r in results:
-            name = r["properties"].get("name", r["id"])
-            entity_type = r.get("type", "Unknown")
-            parts.append(f"- {name} ({entity_type}): {json.dumps(r['properties'], ensure_ascii=False, default=str)[:150]}")
-
-        return "相关实体数据：\n" + "\n".join(parts)
 
     async def add_episode(self, name: str, content: str,
                     source_description: str = "",
@@ -1726,9 +983,9 @@ class GraphManager:
 
         try:
             if self.graph is None:
-                print("Graphiti 未初始化，无法添加 Episode")
+                logger.info('Graphiti 未初始化，无法添加 Episode')
                 return False
-            
+
             await self.graph.add_episode(
                 name=name,
                 episode_body=content,
@@ -1738,7 +995,7 @@ class GraphManager:
             )
             return True
         except Exception as e:
-            print(f"Graphiti 添加 Episode 失败: {e}")
+            logger.info(f'Graphiti 添加 Episode 失败: {e}')
             return False
 
     def add_episodes_batch(self, episodes: List[Dict], batch_size: int = 10) -> Dict[str, Any]:
@@ -1788,7 +1045,7 @@ class GraphManager:
                         )
                         success_count += 1
                     except Exception as e:
-                        print(f"Graphiti 添加 Episode 失败 {episode.get('name')}: {e}")
+                        logger.info(f"Graphiti 添加 Episode 失败 {episode.get('name')}: {e}")
                         failed_count += 1
                         failed_episodes.append({"episode": episode, "error": str(e)})
 
@@ -1799,457 +1056,3 @@ class GraphManager:
             }
 
         return _run_async(add_batch())
-
-    # ============================================================
-    # Agent 工具所需的方法
-    # ============================================================
-
-    def get_all_entities(self, workspace_id=None) -> List[Dict]:
-        """
-        获取所有实体
-        
-        Args:
-            workspace_id: 工作空间ID（多租户过滤，None=全部）
-        
-        Returns:
-            实体列表
-        """
-        return self.query_entities(workspace_id=workspace_id)
-
-    def get_all_relations(self, workspace_id=None) -> List[Dict]:
-        """
-        获取所有关系
-        
-        Args:
-            workspace_id: 工作空间ID（多租户过滤，None=全部）
-        
-        Returns:
-            关系列表
-        """
-        if self._mode in ("neo4j_driver", "graphiti") and self.neo4j_driver:
-            return self._get_all_relations_neo4j(workspace_id)
-        return self._get_all_relations_fallback(workspace_id)
-
-    def _get_all_relations_neo4j(self, workspace_id=None) -> List[Dict]:
-        """Neo4j Driver 模式：获取所有关系"""
-        try:
-            with self.neo4j_driver.session() as session:
-                if workspace_id:
-                    result = session.run("""
-                        MATCH (a)-[r]->(b)
-                        WHERE a.workspace_id = $workspace_id AND b.workspace_id = $workspace_id
-                        RETURN a.id AS source, b.id AS target, type(r) AS type, properties(r) AS props
-                    """, workspace_id=workspace_id)
-                else:
-                    result = session.run("""
-                        MATCH (a)-[r]->(b)
-                        RETURN a.id AS source, b.id AS target, type(r) AS type, properties(r) AS props
-                    """)
-                return [
-                    {
-                        "source": record["source"],
-                        "target": record["target"],
-                        "type": record["type"],
-                        "properties": record["props"]
-                    }
-                    for record in result
-                ]
-        except Exception as e:
-            print(f"Neo4j 获取关系失败: {e}")
-            return []
-
-    def _get_all_relations_fallback(self, workspace_id=None) -> List[Dict]:
-        """回退模式：获取所有关系"""
-        result = []
-        for source, target, data in self.fallback_graph.edges(data=True):
-            if workspace_id:
-                src_ws = self.fallback_graph.nodes[source].get("workspace_id", "")
-                tgt_ws = self.fallback_graph.nodes[target].get("workspace_id", "")
-                if src_ws != workspace_id or tgt_ws != workspace_id:
-                    continue
-            result.append({
-                "source": source,
-                "target": target,
-                "type": data.get("relationship", "RELATES_TO"),
-                "properties": {k: v for k, v in data.items() if k != "relationship"}
-            })
-        return result
-
-    def get_entity(self, entity_id: str) -> Optional[Dict]:
-        """
-        获取单个实体
-        
-        Args:
-            entity_id: 实体ID
-            
-        Returns:
-            实体信息
-        """
-        if self._mode in ("neo4j_driver", "graphiti") and self.neo4j_driver:
-            return self._get_entity_neo4j(entity_id)
-        return self._get_entity_fallback(entity_id)
-
-    def _get_entity_neo4j(self, entity_id: str) -> Optional[Dict]:
-        """Neo4j Driver 模式：获取单个实体"""
-        try:
-            with self.neo4j_driver.session() as session:
-                result = session.run(
-                    "MATCH (n:Entity {id: $eid}) RETURN n.id AS id, labels(n) AS labels, properties(n) AS props",
-                    eid=entity_id
-                )
-                record = result.single()
-                if record:
-                    return {
-                        "id": record["id"],
-                        "type": [l for l in record["labels"] if l != "Entity"][0] if len(record["labels"]) > 1 else "Entity",
-                        "properties": record["props"]
-                    }
-                return None
-        except Exception as e:
-            print(f"Neo4j 获取实体失败: {e}")
-            return None
-
-    def _get_entity_fallback(self, entity_id: str) -> Optional[Dict]:
-        """回退模式：获取单个实体"""
-        if entity_id in self.fallback_graph:
-            data = self.fallback_graph.nodes[entity_id]
-            return {
-                "id": entity_id,
-                "type": data.get("entity_type"),
-                "properties": {k: v for k, v in data.items() if k != "entity_type"}
-            }
-        return None
-
-    def get_entity_relations(self, entity_id: str) -> List[Dict]:
-        """
-        获取实体的关系
-        
-        Args:
-            entity_id: 实体ID
-            
-        Returns:
-            关系列表
-        """
-        if self._mode in ("neo4j_driver", "graphiti") and self.neo4j_driver:
-            return self._get_entity_relations_neo4j(entity_id)
-        return self._get_entity_relations_fallback(entity_id)
-
-    def _get_entity_relations_neo4j(self, entity_id: str) -> List[Dict]:
-        """Neo4j Driver 模式：获取实体关系"""
-        try:
-            with self.neo4j_driver.session() as session:
-                result = session.run("""
-                    MATCH (a:Entity {id: $eid})-[r]->(b)
-                    RETURN b.id AS target, type(r) AS type, properties(r) AS props
-                    UNION
-                    MATCH (a)-[r]->(b:Entity {id: $eid})
-                    RETURN a.id AS target, type(r) AS type, properties(r) AS props
-                """, eid=entity_id)
-                return [
-                    {
-                        "target": record["target"],
-                        "type": record["type"],
-                        "properties": record["props"]
-                    }
-                    for record in result
-                ]
-        except Exception as e:
-            print(f"Neo4j 获取实体关系失败: {e}")
-            return []
-
-    def _get_entity_relations_fallback(self, entity_id: str) -> List[Dict]:
-        """回退模式：获取实体关系"""
-        result = []
-        # 出边
-        for target in self.fallback_graph.successors(entity_id):
-            data = self.fallback_graph.edges[entity_id, target]
-            result.append({
-                "target": target,
-                "type": data.get("relationship", "RELATES_TO"),
-                "direction": "out"
-            })
-        # 入边
-        for source in self.fallback_graph.predecessors(entity_id):
-            data = self.fallback_graph.edges[source, entity_id]
-            result.append({
-                "target": source,
-                "type": data.get("relationship", "RELATES_TO"),
-                "direction": "in"
-            })
-        return result
-
-    def search_entities(self, keyword: str) -> List[Dict]:
-        """
-        搜索实体
-        
-        Args:
-            keyword: 搜索关键词
-            
-        Returns:
-            匹配的实体列表
-        """
-        return self.search(keyword)
-
-    def search_relations(self, keyword: str) -> List[Dict]:
-        """
-        搜索关系
-        
-        Args:
-            keyword: 搜索关键词
-            
-        Returns:
-            匹配的关系列表
-        """
-        # 关系搜索：查找包含关键词的关系
-        all_relations = self.get_all_relations()
-        keyword_lower = keyword.lower()
-        result = []
-        for relation in all_relations:
-            if (keyword_lower in relation.get("source", "").lower() or
-                keyword_lower in relation.get("target", "").lower() or
-                keyword_lower in relation.get("type", "").lower()):
-                result.append(relation)
-        return result
-
-    def analyze_graph(self) -> Dict[str, Any]:
-        """
-        分析图谱
-        
-        Returns:
-            分析结果
-        """
-        stats = self.get_statistics()
-        entities = self.get_all_entities()
-        relations = self.get_all_relations()
-        
-        # 实体类型分布
-        entity_types = {}
-        for entity in entities:
-            etype = entity.get("type", "Unknown")
-            entity_types[etype] = entity_types.get(etype, 0) + 1
-        
-        # 关系类型分布
-        relation_types = {}
-        for relation in relations:
-            rtype = relation.get("type", "Unknown")
-            relation_types[rtype] = relation_types.get(rtype, 0) + 1
-        
-        return {
-            "total_entities": len(entities),
-            "total_relations": len(relations),
-            "entity_types": entity_types,
-            "relation_types": relation_types,
-            "density": len(relations) / max(len(entities), 1),
-            "statistics": stats,
-        }
-
-    def get_neighbors(self, entity_id: str, direction: str = "both", depth: int = 1, workspace_id: str = None) -> List[Dict]:
-        """
-        获取实体的邻居节点
-
-        Args:
-            entity_id: 起始实体ID
-            direction: 遍历方向 ("out"/"in"/"both")
-            depth: 遍历深度 (1-3)
-            workspace_id: 工作空间ID
-
-        Returns:
-            邻居节点列表，每个元素含 id, type, properties, distance, direction
-        """
-        depth = max(1, min(depth, 3))
-        if self._mode in ("neo4j_driver", "graphiti") and self.neo4j_driver:
-            return self._get_neighbors_neo4j(entity_id, direction, depth, workspace_id)
-        return self._get_neighbors_fallback(entity_id, direction, depth)
-
-    def _get_neighbors_neo4j(self, entity_id: str, direction: str, depth: int, workspace_id: str = None) -> List[Dict]:
-        """Neo4j Driver 模式：获取邻居节点"""
-        try:
-            ws_filter = f" AND b.workspace_id = '{workspace_id}'" if workspace_id else ""
-            if direction == "out":
-                pattern = "(a:Entity {id: $eid})-[r*1..{d}]->(b)"
-            elif direction == "in":
-                pattern = "(a:Entity {id: $eid})<-[r*1..{d}]-(b)"
-            else:
-                pattern = "(a:Entity {id: $eid})-[r*1..{d}]-(b)"
-            query = f"""
-                MATCH {pattern}
-                WHERE NOT b:Episode{ws_filter}
-                RETURN DISTINCT b.id AS id, b.entity_type AS type,
-                       b.name AS name, length(r) AS distance
-                ORDER BY distance
-                LIMIT 100
-            """
-            query = query.replace("{d}", str(depth))
-            with self.neo4j_driver.session() as session:
-                result = session.run(query, eid=entity_id)
-                neighbors = []
-                for record in result:
-                    node_id = record["id"]
-                    if node_id == entity_id:
-                        continue
-                    neighbors.append({
-                        "id": node_id,
-                        "type": record["type"],
-                        "name": record.get("name", ""),
-                        "distance": record["distance"],
-                    })
-                return neighbors
-        except Exception as e:
-            print(f"Neo4j 获取邻居失败: {e}")
-            return []
-
-    def _get_neighbors_fallback(self, entity_id: str, direction: str, depth: int) -> List[Dict]:
-        """回退模式：获取邻居节点"""
-        visited = {entity_id}
-        current_level = {entity_id}
-        neighbors = []
-        for d in range(1, depth + 1):
-            next_level = set()
-            for nid in current_level:
-                if direction in ("out", "both"):
-                    for succ in self.fallback_graph.successors(nid):
-                        if succ not in visited:
-                            visited.add(succ)
-                            next_level.add(succ)
-                            data = self.fallback_graph.nodes.get(succ, {})
-                            neighbors.append({
-                                "id": succ,
-                                "type": data.get("entity_type", "Unknown"),
-                                "name": data.get("name", succ),
-                                "distance": d,
-                            })
-                if direction in ("in", "both"):
-                    for pred in self.fallback_graph.predecessors(nid):
-                        if pred not in visited:
-                            visited.add(pred)
-                            next_level.add(pred)
-                            data = self.fallback_graph.nodes.get(pred, {})
-                            neighbors.append({
-                                "id": pred,
-                                "type": data.get("entity_type", "Unknown"),
-                                "name": data.get("name", pred),
-                                "distance": d,
-                            })
-            current_level = next_level
-        return neighbors
-
-    def traverse(self, start_id: str, max_depth: int = 3, workspace_id: str = None) -> Dict[str, Any]:
-        """
-        从起始实体遍历图，返回子图
-
-        Args:
-            start_id: 起始实体ID
-            max_depth: 最大遍历深度 (1-5)
-            workspace_id: 工作空间ID
-
-        Returns:
-            子图数据，含 nodes 和 edges
-        """
-        max_depth = max(1, min(max_depth, 5))
-        if self._mode in ("neo4j_driver", "graphiti") and self.neo4j_driver:
-            return self._traverse_neo4j(start_id, max_depth, workspace_id)
-        return self._traverse_fallback(start_id, max_depth)
-
-    def _traverse_neo4j(self, start_id: str, max_depth: int, workspace_id: str = None) -> Dict[str, Any]:
-        """Neo4j Driver 模式：图遍历"""
-        try:
-            ws_filter = f" AND b.workspace_id = '{workspace_id}'" if workspace_id else ""
-            node_query = f"""
-                MATCH (a:Entity {{id: $eid}})-[r*1..{max_depth}]-(b:Entity)
-                WHERE NOT b:Episode{ws_filter}
-                RETURN DISTINCT b.id AS id, b.entity_type AS type, b.name AS name,
-                       properties(b) AS props
-            """
-            edge_query = f"""
-                MATCH (a:Entity {{id: $eid}})-[r*1..{max_depth}]-(b:Entity)
-                WHERE NOT b:Episode
-                WITH DISTINCT a, b
-                MATCH (a)-[e]->(b)
-                RETURN a.id AS source, type(e) AS type, b.id AS target, properties(e) AS props
-            """
-            nodes = []
-            with self.neo4j_driver.session() as session:
-                result = session.run(node_query, eid=start_id)
-                seen = set()
-                for record in result:
-                    nid = record["id"]
-                    if nid in seen:
-                        continue
-                    seen.add(nid)
-                    props = dict(record.get("props", {}))
-                    props.pop("entity_type", None)
-                    props.pop("id", None)
-                    nodes.append({
-                        "id": nid,
-                        "type": record["type"],
-                        "name": record.get("name", ""),
-                        "properties": props,
-                    })
-                edges = []
-                result = session.run(edge_query, eid=start_id)
-                seen_edges = set()
-                for record in result:
-                    edge_key = (record["source"], record["target"], record["type"])
-                    if edge_key in seen_edges:
-                        continue
-                    seen_edges.add(edge_key)
-                    edges.append({
-                        "source": record["source"],
-                        "target": record["target"],
-                        "type": record["type"],
-                        "properties": record.get("props", {}),
-                    })
-            start_data = self.get_entity(start_id) or {"id": start_id, "type": "Unknown", "name": ""}
-            if not any(n["id"] == start_id for n in nodes):
-                nodes.insert(0, start_data)
-            return {"nodes": nodes, "edges": edges, "start_id": start_id, "max_depth": max_depth}
-        except Exception as e:
-            print(f"Neo4j 图遍历失败: {e}")
-            return {"nodes": [], "edges": [], "start_id": start_id, "max_depth": max_depth}
-
-    def _traverse_fallback(self, start_id: str, max_depth: int) -> Dict[str, Any]:
-        """回退模式：图遍历"""
-        visited_nodes = {}
-        visited_edges = []
-        queue = [(start_id, 0)]
-        seen = {start_id}
-        while queue:
-            nid, dist = queue.pop(0)
-            data = self.fallback_graph.nodes.get(nid, {})
-            if nid not in visited_nodes:
-                visited_nodes[nid] = {
-                    "id": nid,
-                    "type": data.get("entity_type", "Unknown"),
-                    "name": data.get("name", nid),
-                    "properties": {k: v for k, v in data.items() if k not in ("entity_type", "name")},
-                }
-            if dist >= max_depth:
-                continue
-            for succ in self.fallback_graph.successors(nid):
-                edge_data = self.fallback_graph.edges[nid, succ]
-                visited_edges.append({
-                    "source": nid,
-                    "target": succ,
-                    "type": edge_data.get("relationship", "RELATES_TO"),
-                    "properties": {k: v for k, v in edge_data.items() if k != "relationship"},
-                })
-                if succ not in seen:
-                    seen.add(succ)
-                    queue.append((succ, dist + 1))
-            for pred in self.fallback_graph.predecessors(nid):
-                edge_data = self.fallback_graph.edges[pred, nid]
-                visited_edges.append({
-                    "source": pred,
-                    "target": nid,
-                    "type": edge_data.get("relationship", "RELATES_TO"),
-                    "properties": {k: v for k, v in edge_data.items() if k != "relationship"},
-                })
-                if pred not in seen:
-                    seen.add(pred)
-                    queue.append((pred, dist + 1))
-        return {
-            "nodes": list(visited_nodes.values()),
-            "edges": visited_edges,
-            "start_id": start_id,
-            "max_depth": max_depth,
-        }

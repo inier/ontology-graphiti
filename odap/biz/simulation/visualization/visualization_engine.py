@@ -23,6 +23,10 @@ import uuid
 import math
 import random
 
+
+import logging
+
+logger = logging.getLogger(__name__)
 sys.path.append(os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))))
 
 
@@ -188,7 +192,9 @@ class GraphLayoutEngine:
         return graph
 
     def _hierarchical_layout(self, graph: GraphData, width: float, height: float) -> GraphData:
-        levels: Dict[int, List[GraphNode]] = {}
+        levels: Optional[Dict[int, List[GraphNode]]] = None
+        if levels is None:
+            levels = {}
         for node in graph.nodes:
             level = node.properties.get("level", 0)
             if level not in levels:
@@ -591,11 +597,11 @@ def get_visualization_engine() -> VisualizationEngineV2:
 if __name__ == "__main__":
     engine = get_visualization_engine()
 
-    print("=" * 60)
-    print("可视化引擎测试")
-    print("=" * 60)
+    logger.info('=' * 60)
+    logger.info('可视化引擎测试')
+    logger.info('=' * 60)
 
-    print("\n1. 创建图可视化:")
+    logger.info('\n1. 创建图可视化:')
     entities = [
         {"id": "n1", "name": "雷达站A", "type": "radar", "properties": {}},
         {"id": "n2", "name": "指挥中心", "type": "command", "properties": {}},
@@ -609,43 +615,43 @@ if __name__ == "__main__":
     ]
 
     graph = engine.create_graph("test-graph", entities, relationships, GraphLayout.FORCE)
-    print(f"   节点数: {len(graph.nodes)}")
-    print(f"   边数: {len(graph.edges)}")
+    logger.info(f'   节点数: {len(graph.nodes)}')
+    logger.info(f'   边数: {len(graph.edges)}')
 
-    print("\n2. 创建地图可视化:")
+    logger.info('\n2. 创建地图可视化:')
     map_entities = [
         {"id": "m1", "name": "目标A", "type": "target", "latitude": 39.9, "longitude": 116.4},
         {"id": "m2", "name": "友军B", "type": "friendly", "latitude": 39.95, "longitude": 116.45},
         {"id": "m3", "name": "敌军C", "type": "enemy", "latitude": 39.85, "longitude": 116.35},
     ]
     map_data = engine.create_map("test-map", map_entities)
-    print(f"   图层数: {len(map_data.layers)}")
-    print(f"   中心: ({map_data.center_lat:.2f}, {map_data.center_lon:.2f})")
+    logger.info(f'   图层数: {len(map_data.layers)}')
+    logger.info(f'   中心: ({map_data.center_lat:.2f}, {map_data.center_lon:.2f})')
 
-    print("\n3. 创建图表:")
+    logger.info('\n3. 创建图表:')
     stats = {
         "radar_count": 5,
         "command_count": 2,
         "threat_level": {"low": 10, "medium": 5, "high": 2}
     }
     chart = engine.create_chart("test-chart", stats, ChartType.BAR)
-    print(f"   图表ID: {chart.chart_id}")
-    print(f"   系列数: {len(chart.series)}")
+    logger.info(f'   图表ID: {chart.chart_id}')
+    logger.info(f'   系列数: {len(chart.series)}')
 
-    print("\n4. 转换为 ECharts 配置:")
+    logger.info('\n4. 转换为 ECharts 配置:')
     echarts_option = engine.to_echarts_option(chart)
-    print(f"   标题: {echarts_option.get('title', {}).get('text')}")
+    logger.info(f"   标题: {echarts_option.get('title', {}).get('text')}")
 
-    print("\n5. 转换为 GeoJSON:")
+    logger.info('\n5. 转换为 GeoJSON:')
     geojson = engine.to_geojson(map_data)
-    print(f"   Feature 数: {len(geojson.get('features', []))}")
+    logger.info(f"   Feature 数: {len(geojson.get('features', []))}")
 
-    print("\n6. 缓存统计:")
+    logger.info('\n6. 缓存统计:')
     stats = engine.get_cache_statistics()
-    print(f"   图数量: {stats['graph_count']}")
-    print(f"   地图数量: {stats['map_count']}")
-    print(f"   图表数量: {stats['chart_count']}")
+    logger.info(f"   图数量: {stats['graph_count']}")
+    logger.info(f"   地图数量: {stats['map_count']}")
+    logger.info(f"   图表数量: {stats['chart_count']}")
 
-    print("\n" + "=" * 60)
-    print("可视化引擎测试完成")
-    print("=" * 60)
+    logger.info('\n' + '=' * 60)
+    logger.info('可视化引擎测试完成')
+    logger.info('=' * 60)

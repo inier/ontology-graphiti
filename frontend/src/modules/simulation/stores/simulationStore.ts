@@ -7,6 +7,8 @@ import type {
   TimelineInfo,
   TemplateInfo,
   EventSequence,
+  ParallelResult,
+  WhatIfResult,
 } from '../services/simulationApi';
 
 interface SimulationState {
@@ -15,8 +17,8 @@ interface SimulationState {
   selectedSandboxId: string | null;
   sandboxStatus: SandboxStatus | null;
   simulationResult: SimulationResult | null;
-  parallelResult: Record<string, unknown> | null;
-  whatIfResult: Record<string, unknown> | null;
+  parallelResult: ParallelResult | null;
+  whatIfResult: WhatIfResult | null;
   timelines: TimelineInfo[];
   selectedTimelineId: string | null;
   templates: TemplateInfo[];

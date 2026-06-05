@@ -3,7 +3,7 @@ import { useNavigate, useSearchParams } from 'react-router-dom';
 import { Form, Input, Button, message, Divider } from 'antd';
 import { UserOutlined, LockOutlined, SafetyCertificateOutlined, ApartmentOutlined, TeamOutlined, ThunderboltOutlined, GithubOutlined, GoogleOutlined } from '@ant-design/icons';
 import { useAuthStore } from '../stores/authStore';
-import { API_BASE } from '../../../config';
+import { apiClient } from '../services/apiClient';
 
 export function LoginPage() {
   const navigate = useNavigate();
@@ -28,11 +28,8 @@ export function LoginPage() {
 
   const fetchSSOProviders = async () => {
     try {
-      const response = await fetch(`${API_BASE}/api/auth/sso/providers`);
-      if (response.ok) {
-        const data = await response.json();
-        setSsoProviders(data.providers || []);
-      }
+      const data = await apiClient.get('/api/auth/sso/providers', { skipAuth: true });
+      setSsoProviders(data.providers || []);
     } catch {
       // SSO providers not available
     }
@@ -66,17 +63,12 @@ export function LoginPage() {
 
   const handleSSOLogin = async (providerId: string) => {
     try {
-      const response = await fetch(`${API_BASE}/api/auth/sso/${providerId}`);
-      if (response.ok) {
-        const data = await response.json();
-        if (data.authorize_url) {
-          window.location.href = data.authorize_url;
-        }
-      } else {
-        message.error('获取SSO登录地址失败');
+      const data = await apiClient.get(`/api/auth/sso/${providerId}`, { skipAuth: true });
+      if (data.authorize_url) {
+        window.location.href = data.authorize_url;
       }
     } catch {
-      message.error('SSO登录失败');
+      message.error('获取SSO登录地址失败');
     }
   };
 

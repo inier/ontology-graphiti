@@ -1,4 +1,5 @@
-from fastapi import APIRouter, HTTPException
+from fastapi import APIRouter, HTTPException, Depends
+from odap.infra.security.jwt_auth import get_current_user
 from typing import List
 
 from .schemas import (
@@ -12,7 +13,8 @@ service = DeductionService()
 
 
 @router.post("/scenarios")
-async def create_scenario(request: CreateScenarioRequest):
+async def create_scenario(request: CreateScenarioRequest,
+    user=Depends(get_current_user)):
     try:
         result = service.create_scenario(
             name=request.name,
@@ -34,7 +36,8 @@ async def create_scenario(request: CreateScenarioRequest):
 @router.get("/scenarios")
 async def list_scenarios(page: int = 1, page_size: int = 20,
                           status: str = None, name: str = None,
-                          target_object_type: str = None):
+                          target_object_type: str = None,
+    user=Depends(get_current_user)):
     try:
         filters = {}
         if status:
@@ -52,7 +55,8 @@ async def list_scenarios(page: int = 1, page_size: int = 20,
 
 
 @router.get("/scenarios/{scenario_id}")
-async def get_scenario(scenario_id: str):
+async def get_scenario(scenario_id: str,
+    user=Depends(get_current_user)):
     try:
         result = service.get_scenario(scenario_id)
         if result.get("status") == "error":
@@ -65,7 +69,8 @@ async def get_scenario(scenario_id: str):
 
 
 @router.delete("/scenarios/{scenario_id}")
-async def delete_scenario(scenario_id: str):
+async def delete_scenario(scenario_id: str,
+    user=Depends(get_current_user)):
     try:
         result = service.delete_scenario(scenario_id)
         if result.get("status") == "error":
@@ -78,7 +83,8 @@ async def delete_scenario(scenario_id: str):
 
 
 @router.post("/scenarios/{scenario_id}/conditions")
-async def load_ontology_conditions(scenario_id: str):
+async def load_ontology_conditions(scenario_id: str,
+    user=Depends(get_current_user)):
     try:
         result = service.load_ontology_conditions(scenario_id)
         if result.get("status") == "error":
@@ -92,7 +98,8 @@ async def load_ontology_conditions(scenario_id: str):
 
 @router.put("/scenarios/{scenario_id}/conditions/{condition_id}")
 async def update_condition(scenario_id: str, condition_id: str,
-                            request: UpdateConditionRequest):
+                            request: UpdateConditionRequest,
+    user=Depends(get_current_user)):
     try:
         result = service.update_condition(scenario_id, condition_id, request.value)
         if result.get("status") == "error":
@@ -105,7 +112,8 @@ async def update_condition(scenario_id: str, condition_id: str,
 
 
 @router.post("/scenarios/{scenario_id}/chains")
-async def add_execution_chain(scenario_id: str, request: AddChainRequest):
+async def add_execution_chain(scenario_id: str, request: AddChainRequest,
+    user=Depends(get_current_user)):
     try:
         result = service.add_execution_chain(
             scenario_id=scenario_id,
@@ -124,7 +132,8 @@ async def add_execution_chain(scenario_id: str, request: AddChainRequest):
 
 
 @router.delete("/scenarios/{scenario_id}/chains/{chain_id}")
-async def delete_chain(scenario_id: str, chain_id: str):
+async def delete_chain(scenario_id: str, chain_id: str,
+    user=Depends(get_current_user)):
     try:
         result = service.delete_chain(scenario_id, chain_id)
         if result.get("status") == "error":
@@ -137,7 +146,8 @@ async def delete_chain(scenario_id: str, chain_id: str):
 
 
 @router.put("/scenarios/{scenario_id}/chains/{chain_id}")
-async def update_chain(scenario_id: str, chain_id: str, request: AddChainRequest):
+async def update_chain(scenario_id: str, chain_id: str, request: AddChainRequest,
+    user=Depends(get_current_user)):
     try:
         result = service.update_chain(
             scenario_id=scenario_id,
@@ -157,7 +167,8 @@ async def update_chain(scenario_id: str, chain_id: str, request: AddChainRequest
 
 
 @router.post("/scenarios/{scenario_id}/chains/{chain_id}/simulate")
-async def simulate_chain(scenario_id: str, chain_id: str):
+async def simulate_chain(scenario_id: str, chain_id: str,
+    user=Depends(get_current_user)):
     try:
         result = service.simulate_chain(scenario_id, chain_id)
         if result.get("status") == "error":
@@ -170,7 +181,8 @@ async def simulate_chain(scenario_id: str, chain_id: str):
 
 
 @router.post("/scenarios/{scenario_id}/simulate-all")
-async def simulate_all_chains(scenario_id: str):
+async def simulate_all_chains(scenario_id: str,
+    user=Depends(get_current_user)):
     try:
         result = service.simulate_all_chains(scenario_id)
         if result.get("status") == "error":
@@ -183,7 +195,8 @@ async def simulate_all_chains(scenario_id: str):
 
 
 @router.post("/scenarios/{scenario_id}/compare")
-async def compare_chains(scenario_id: str, request: CompareChainsRequest):
+async def compare_chains(scenario_id: str, request: CompareChainsRequest,
+    user=Depends(get_current_user)):
     try:
         result = service.compare_chains(scenario_id, request.chain_ids)
         if result.get("status") == "error":

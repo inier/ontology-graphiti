@@ -3,10 +3,14 @@
 JWT认证中间件
 """
 
+import logging
+
 import jwt
 from fastapi import Depends, HTTPException, status
 from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
 from odap.infra.security.config import security_config
+
+logger = logging.getLogger(__name__)
 
 security = HTTPBearer()
 
@@ -16,8 +20,9 @@ def decode_token(token: str) -> dict:
     try:
         payload = jwt.decode(
             token,
-            security_config.JWT_SECRET,
-            algorithms=[security_config.JWT_ALGORITHM]
+            # P0-8 fix: use lazy-validated method that raises on placeholder in prod
+            security_config.get_jwt_secret(),
+            algorithms=[security_config.get_jwt_algorithm()]
         )
         return payload
     except jwt.ExpiredSignatureError:
@@ -47,7 +52,8 @@ async def optional_current_user(credentials: HTTPAuthorizationCredentials = Depe
         token = credentials.credentials
         payload = decode_token(token)
         return payload
-    except:
+    except Exception as e:
+        logger.debug(f"Auth optional check failed: {e}")
         return None
 
 

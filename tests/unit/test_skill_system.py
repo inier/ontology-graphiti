@@ -129,7 +129,10 @@ class TestSkillServiceExtended:
 
     @pytest.fixture
     def service(self):
-        return SkillService()
+        with patch.object(SkillManager, '_load_from_storage', return_value=0):
+            svc = SkillService()
+        svc.manager._storage = None
+        return svc
 
     def test_get_skill_by_name(self, service):
         skill = service.manager.register_skill("svc_skill", SkillType.ACTION, "desc")
@@ -366,7 +369,10 @@ class TestSkillManagerBasic:
 
     @pytest.fixture
     def manager(self):
-        return SkillManager()
+        with patch.object(SkillManager, '_load_from_storage', return_value=0):
+            mgr = SkillManager()
+        mgr._storage = None
+        return mgr
 
     def test_register_skill(self, manager):
         skill = manager.register_skill("test_skill", SkillType.ACTION, "A test skill", "testing", ["test"])

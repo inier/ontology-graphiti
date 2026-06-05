@@ -13,7 +13,7 @@ def tmp_data_dir(tmp_path):
 
 @pytest.fixture
 def oms_storage(tmp_data_dir):
-    from odap.biz.core.ontology.oms.storage.sqlite_oms_storage import SQLiteOMSStorage
+    from odap.biz.core.ontology.application.oms.storage.sqlite_oms_storage import SQLiteOMSStorage
     db_path = os.path.join(tmp_data_dir, "oms.db")
     storage = SQLiteOMSStorage(db_path=db_path)
     return storage
@@ -21,7 +21,7 @@ def oms_storage(tmp_data_dir):
 
 @pytest.fixture
 def runtime_storage(tmp_data_dir):
-    from odap.biz.core.ontology.runtime.storage.sqlite_runtime_storage import SQLiteRuntimeStorage
+    from odap.biz.core.ontology.application.runtime.storage.sqlite_runtime_storage import SQLiteRuntimeStorage
     db_path = os.path.join(tmp_data_dir, "ontology_runtime.db")
     storage = SQLiteRuntimeStorage(db_path=db_path)
     return storage
@@ -37,7 +37,7 @@ def memory_storage(tmp_data_dir):
 
 @pytest.fixture
 def team_agent_storage(tmp_data_dir):
-    from odap.biz.core.ontology.team_agent.storage.sqlite_team_agent_storage import SQLiteTeamAgentStorage
+    from odap.biz.core.ontology.application.team_agent.storage.sqlite_team_agent_storage import SQLiteTeamAgentStorage
     db_path = os.path.join(tmp_data_dir, "team_agent.db")
     storage = SQLiteTeamAgentStorage(db_path=db_path)
     return storage
@@ -45,7 +45,7 @@ def team_agent_storage(tmp_data_dir):
 
 @pytest.fixture
 def servitization_storage(tmp_data_dir):
-    from odap.biz.core.ontology.servitization.storage.sqlite_servitization_storage import SQLiteServitizationStorage
+    from odap.biz.core.ontology.application.servitization.storage.sqlite_servitization_storage import SQLiteServitizationStorage
     db_path = os.path.join(tmp_data_dir, "servitization.db")
     storage = SQLiteServitizationStorage(db_path=db_path)
     return storage
@@ -131,7 +131,7 @@ class TestSimulationDataIntegrity:
 
 class TestActionTriggerWithRealOMSData:
     def test_register_trigger_for_unit_attack(self, runtime_storage, oms_storage):
-        from odap.biz.core.ontology.runtime.impl.action_trigger_engine import ActionTriggerEngine
+        from odap.biz.core.ontology.application.runtime.impl.action_trigger_engine import ActionTriggerEngine
         engine = ActionTriggerEngine(storage=runtime_storage)
 
         unit_type = oms_storage.get_object_type("Unit")
@@ -157,7 +157,7 @@ class TestActionTriggerWithRealOMSData:
         assert result.get("name") == "低士气触发撤退"
 
     def test_evaluate_trigger_with_real_unit_state(self, runtime_storage, oms_storage):
-        from odap.biz.core.ontology.runtime.impl.action_trigger_engine import ActionTriggerEngine
+        from odap.biz.core.ontology.application.runtime.impl.action_trigger_engine import ActionTriggerEngine
         engine = ActionTriggerEngine(storage=runtime_storage)
 
         engine.register_trigger({
@@ -179,7 +179,7 @@ class TestActionTriggerWithRealOMSData:
         assert matched[0]["action_type_id"] == "reinforce"
 
     def test_evaluate_trigger_no_match_high_combat_power(self, runtime_storage):
-        from odap.biz.core.ontology.runtime.impl.action_trigger_engine import ActionTriggerEngine
+        from odap.biz.core.ontology.application.runtime.impl.action_trigger_engine import ActionTriggerEngine
         engine = ActionTriggerEngine(storage=runtime_storage)
 
         engine.register_trigger({
@@ -200,8 +200,8 @@ class TestActionTriggerWithRealOMSData:
         assert len(matched) == 0, "战损90不应触发增援"
 
     def test_execute_trigger_records_mutation(self, runtime_storage, oms_storage):
-        from odap.biz.core.ontology.runtime.impl.action_trigger_engine import ActionTriggerEngine
-        from odap.biz.core.ontology.runtime.impl.state_propagation_engine import StatePropagationEngine
+        from odap.biz.core.ontology.application.runtime.impl.action_trigger_engine import ActionTriggerEngine
+        from odap.biz.core.ontology.application.runtime.impl.state_propagation_engine import StatePropagationEngine
         propagation_engine = StatePropagationEngine(runtime_storage)
         engine = ActionTriggerEngine(storage=runtime_storage, propagation_engine=propagation_engine)
 
@@ -231,7 +231,7 @@ class TestActionTriggerWithRealOMSData:
         assert len(history) > 0
 
     def test_multiple_triggers_with_real_oms_actions(self, runtime_storage, oms_storage):
-        from odap.biz.core.ontology.runtime.impl.action_trigger_engine import ActionTriggerEngine
+        from odap.biz.core.ontology.application.runtime.impl.action_trigger_engine import ActionTriggerEngine
         engine = ActionTriggerEngine(storage=runtime_storage)
 
         engine.register_trigger({
@@ -368,7 +368,7 @@ class TestOntologyMemoryWithRealData:
 
 class TestTeamAgentWithRealOMSData:
     def test_planning_with_military_requirement(self, team_agent_storage, oms_storage):
-        from odap.biz.core.ontology.team_agent.impl.team_agent_engine import TeamAgentEngine
+        from odap.biz.core.ontology.application.team_agent.impl.team_agent_engine import TeamAgentEngine
         engine = TeamAgentEngine(storage=team_agent_storage)
 
         session = engine.create_session(
@@ -384,7 +384,7 @@ class TestTeamAgentWithRealOMSData:
         assert len(business_objects) > 0, f"规划应识别出业务对象, 实际: {result}"
 
     def test_ontology_modeling_with_real_types(self, team_agent_storage, oms_storage):
-        from odap.biz.core.ontology.team_agent.impl.team_agent_engine import TeamAgentEngine
+        from odap.biz.core.ontology.application.team_agent.impl.team_agent_engine import TeamAgentEngine
         engine = TeamAgentEngine(storage=team_agent_storage)
 
         session = engine.create_session(
@@ -397,8 +397,8 @@ class TestTeamAgentWithRealOMSData:
         assert ontology_output.get("object_types") is not None or result.get("session_id") is not None
 
     def test_full_pipeline_produces_workflow(self, team_agent_storage):
-        from odap.biz.core.ontology.team_agent.impl.team_agent_engine import TeamAgentEngine
-        from odap.biz.core.ontology.team_agent.models import TaskStatus
+        from odap.biz.core.ontology.application.team_agent.impl.team_agent_engine import TeamAgentEngine
+        from odap.biz.core.ontology.application.team_agent.models import TaskStatus
         engine = TeamAgentEngine(storage=team_agent_storage)
 
         session = engine.create_session(
@@ -412,7 +412,7 @@ class TestTeamAgentWithRealOMSData:
 
 class TestServitizationWithRealOMSData:
     def test_generate_query_skill_from_unit_type(self, servitization_storage, oms_storage):
-        from odap.biz.core.ontology.servitization.impl.servitization_engine import KnowledgeServitizationEngine
+        from odap.biz.core.ontology.application.servitization.impl.servitization_engine import KnowledgeServitizationEngine
         engine = KnowledgeServitizationEngine(storage=servitization_storage)
 
         template = engine.create_template({
@@ -435,7 +435,7 @@ class TestServitizationWithRealOMSData:
         assert result.get("status") == "completed"
 
     def test_generate_action_skill_from_attack_type(self, servitization_storage, oms_storage):
-        from odap.biz.core.ontology.servitization.impl.servitization_engine import KnowledgeServitizationEngine
+        from odap.biz.core.ontology.application.servitization.impl.servitization_engine import KnowledgeServitizationEngine
         engine = KnowledgeServitizationEngine(storage=servitization_storage)
 
         attack_type = oms_storage.get_action_type("attack")
@@ -460,7 +460,7 @@ class TestServitizationWithRealOMSData:
         assert result.get("service_id") is not None
 
     def test_generate_from_ontology_creates_multiple_services(self, servitization_storage, oms_storage):
-        from odap.biz.core.ontology.servitization.impl.servitization_engine import KnowledgeServitizationEngine
+        from odap.biz.core.ontology.application.servitization.impl.servitization_engine import KnowledgeServitizationEngine
         engine = KnowledgeServitizationEngine(storage=servitization_storage)
 
         result = engine.generate_from_ontology(ontology_id="military", service_type="skill")
@@ -471,7 +471,7 @@ class TestServitizationWithRealOMSData:
 
 class TestCrossModuleIntegration:
     def test_trigger_to_memory_flow(self, runtime_storage, memory_storage):
-        from odap.biz.core.ontology.runtime.impl.action_trigger_engine import ActionTriggerEngine
+        from odap.biz.core.ontology.application.runtime.impl.action_trigger_engine import ActionTriggerEngine
         from odap.biz.platform.ontology_memory.impl.memory_engine import OntologyMemoryEngine
         from odap.biz.platform.ontology_memory.models import MemoryEntry, MemoryType
 
@@ -512,8 +512,8 @@ class TestCrossModuleIntegration:
         assert len(results) > 0
 
     def test_team_agent_to_servitization_flow(self, team_agent_storage, servitization_storage, oms_storage):
-        from odap.biz.core.ontology.team_agent.impl.team_agent_engine import TeamAgentEngine
-        from odap.biz.core.ontology.servitization.impl.servitization_engine import KnowledgeServitizationEngine
+        from odap.biz.core.ontology.application.team_agent.impl.team_agent_engine import TeamAgentEngine
+        from odap.biz.core.ontology.application.servitization.impl.servitization_engine import KnowledgeServitizationEngine
 
         team_engine = TeamAgentEngine(storage=team_agent_storage)
         serv_engine = KnowledgeServitizationEngine(storage=servitization_storage)
@@ -529,8 +529,8 @@ class TestCrossModuleIntegration:
         assert svc_result.get("generated_count", 0) > 0
 
     def test_runtime_contract_to_trigger_flow(self, runtime_storage, oms_storage):
-        from odap.biz.core.ontology.runtime.impl.action_contract_engine import ActionContractEngine
-        from odap.biz.core.ontology.runtime.impl.action_trigger_engine import ActionTriggerEngine
+        from odap.biz.core.ontology.application.runtime.impl.action_contract_engine import ActionContractEngine
+        from odap.biz.core.ontology.application.runtime.impl.action_trigger_engine import ActionTriggerEngine
 
         contract_engine = ActionContractEngine(runtime_storage)
         trigger_engine = ActionTriggerEngine(storage=runtime_storage)

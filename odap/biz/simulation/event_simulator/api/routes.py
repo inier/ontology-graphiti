@@ -1,4 +1,5 @@
-from fastapi import APIRouter, HTTPException
+from fastapi import APIRouter, HTTPException, Depends
+from odap.infra.security.jwt_auth import get_current_user
 from typing import Dict, Any, Optional, List
 
 from ..impl.event_generator import get_event_generator
@@ -15,7 +16,8 @@ simulator_service = EventSimulatorService()
 
 
 @router.post("/generate")
-async def generate_event_sequence(body: Dict[str, Any] = None):
+async def generate_event_sequence(body: Dict[str, Any] = None,
+    user=Depends(get_current_user)):
     try:
         data = body or {}
         result = event_generator.generate_event_sequence(
@@ -33,7 +35,8 @@ async def generate_event_sequence(body: Dict[str, Any] = None):
 
 
 @router.post("/inject")
-async def inject_event(body: Dict[str, Any] = None):
+async def inject_event(body: Dict[str, Any] = None,
+    user=Depends(get_current_user)):
     try:
         data = body or {}
         result = event_generator.inject_event(
@@ -51,7 +54,8 @@ async def inject_event(body: Dict[str, Any] = None):
 
 
 @router.get("/timeline/{timeline_id}")
-async def get_timeline(timeline_id: str):
+async def get_timeline(timeline_id: str,
+    user=Depends(get_current_user)):
     try:
         result = timeline_engine.get_timeline(timeline_id)
         if result.get("status") == "error":
@@ -64,7 +68,8 @@ async def get_timeline(timeline_id: str):
 
 
 @router.post("/timeline")
-async def create_timeline(body: Dict[str, Any] = None):
+async def create_timeline(body: Dict[str, Any] = None,
+    user=Depends(get_current_user)):
     try:
         data = body or {}
         result = timeline_engine.create_timeline(
@@ -80,7 +85,8 @@ async def create_timeline(body: Dict[str, Any] = None):
 
 
 @router.post("/clock/control")
-async def control_clock(body: Dict[str, Any] = None):
+async def control_clock(body: Dict[str, Any] = None,
+    user=Depends(get_current_user)):
     try:
         data = body or {}
         action = data.get("action", "")
@@ -111,7 +117,8 @@ async def control_clock(body: Dict[str, Any] = None):
 
 
 @router.get("/templates")
-async def list_templates(category: str = None):
+async def list_templates(category: str = None,
+    user=Depends(get_current_user)):
     try:
         return {"templates": template_manager.list_templates(category)}
     except HTTPException:
@@ -121,7 +128,8 @@ async def list_templates(category: str = None):
 
 
 @router.get("/templates/{template_id}")
-async def get_template(template_id: str):
+async def get_template(template_id: str,
+    user=Depends(get_current_user)):
     try:
         result = template_manager.get_template(template_id)
         if result.get("status") == "error":
@@ -134,7 +142,8 @@ async def get_template(template_id: str):
 
 
 @router.post("/templates")
-async def create_template(body: Dict[str, Any] = None):
+async def create_template(body: Dict[str, Any] = None,
+    user=Depends(get_current_user)):
     try:
         data = body or {}
         result = template_manager.create_template(data)
@@ -148,7 +157,8 @@ async def create_template(body: Dict[str, Any] = None):
 
 
 @router.delete("/templates/{template_id}")
-async def delete_template(template_id: str):
+async def delete_template(template_id: str,
+    user=Depends(get_current_user)):
     try:
         result = template_manager.delete_template(template_id)
         if result.get("status") == "error":
@@ -161,7 +171,7 @@ async def delete_template(template_id: str):
 
 
 @router.get("/timelines")
-async def list_timelines():
+async def list_timelines(user=Depends(get_current_user)):
     try:
         return {"timelines": timeline_engine.list_timelines()}
     except HTTPException:
@@ -171,7 +181,8 @@ async def list_timelines():
 
 
 @router.post("/timeline/{timeline_id}/events")
-async def inject_timeline_event(timeline_id: str, body: Dict[str, Any] = None):
+async def inject_timeline_event(timeline_id: str, body: Dict[str, Any] = None,
+    user=Depends(get_current_user)):
     try:
         data = body or {}
         result = timeline_engine.inject_event_at_time(

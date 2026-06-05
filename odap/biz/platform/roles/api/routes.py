@@ -1,4 +1,5 @@
-from fastapi import APIRouter, HTTPException
+from fastapi import APIRouter, HTTPException, Depends
+from odap.infra.security.jwt_auth import get_current_user
 from pydantic import BaseModel
 from typing import List, Optional
 
@@ -24,7 +25,8 @@ class PolicyBinding(BaseModel):
 
 
 @router.get("")
-async def list_roles(page: int = 1, page_size: int = 50):
+async def list_roles(page: int = 1, page_size: int = 50,
+    user=Depends(get_current_user)):
     try:
         return role_service.list_roles(page=page, page_size=page_size)
     except HTTPException:
@@ -34,7 +36,8 @@ async def list_roles(page: int = 1, page_size: int = 50):
 
 
 @router.get("/{role_id}")
-async def get_role(role_id: str):
+async def get_role(role_id: str,
+    user=Depends(get_current_user)):
     try:
         result = role_service.get_role(role_id)
         if result.get("status") == "error":
@@ -47,7 +50,8 @@ async def get_role(role_id: str):
 
 
 @router.post("")
-async def create_role(role: RoleCreate):
+async def create_role(role: RoleCreate,
+    user=Depends(get_current_user)):
     try:
         result = role_service.create_role(
             name=role.name,
@@ -64,7 +68,8 @@ async def create_role(role: RoleCreate):
 
 
 @router.put("/{role_id}")
-async def update_role(role_id: str, role: RoleUpdate):
+async def update_role(role_id: str, role: RoleUpdate,
+    user=Depends(get_current_user)):
     try:
         updates = {}
         if role.name is not None:
@@ -88,7 +93,8 @@ async def update_role(role_id: str, role: RoleUpdate):
 
 
 @router.delete("/{role_id}")
-async def delete_role(role_id: str):
+async def delete_role(role_id: str,
+    user=Depends(get_current_user)):
     try:
         result = role_service.delete_role(role_id)
         if result.get("status") == "error":
@@ -102,7 +108,7 @@ async def delete_role(role_id: str):
 
 
 @router.get("/permissions/all")
-async def list_permissions():
+async def list_permissions(user=Depends(get_current_user)):
     try:
         from ..storage import SQLiteRoleStorage
         storage = SQLiteRoleStorage()
@@ -124,7 +130,8 @@ async def list_permissions():
 
 
 @router.post("/{role_id}/users")
-async def assign_role_to_user(role_id: str, request: UserRoleAssignRequest):
+async def assign_role_to_user(role_id: str, request: UserRoleAssignRequest,
+    user=Depends(get_current_user)):
     try:
         result = role_service.assign_role_to_user(
             role_id=role_id,
@@ -141,7 +148,8 @@ async def assign_role_to_user(role_id: str, request: UserRoleAssignRequest):
 
 
 @router.delete("/{role_id}/users/{user_id}")
-async def revoke_role_from_user(role_id: str, user_id: str, workspace_id: Optional[str] = None):
+async def revoke_role_from_user(role_id: str, user_id: str, workspace_id: Optional[str] = None,
+    user=Depends(get_current_user)):
     try:
         result = role_service.revoke_role_from_user(
             role_id=role_id,
@@ -158,7 +166,8 @@ async def revoke_role_from_user(role_id: str, user_id: str, workspace_id: Option
 
 
 @router.get("/users/{user_id}/roles")
-async def get_user_roles(user_id: str):
+async def get_user_roles(user_id: str,
+    user=Depends(get_current_user)):
     try:
         return role_service.get_user_roles(user_id)
     except HTTPException:
@@ -168,7 +177,8 @@ async def get_user_roles(user_id: str):
 
 
 @router.get("/users/{user_id}/workspaces/{workspace_id}/roles")
-async def get_user_roles_in_workspace(user_id: str, workspace_id: str):
+async def get_user_roles_in_workspace(user_id: str, workspace_id: str,
+    user=Depends(get_current_user)):
     try:
         return role_service.get_user_roles_in_workspace(user_id, workspace_id)
     except HTTPException:
@@ -178,7 +188,8 @@ async def get_user_roles_in_workspace(user_id: str, workspace_id: str):
 
 
 @router.post("/{role_id}/skills")
-async def bind_skill(role_id: str, binding: SkillBinding):
+async def bind_skill(role_id: str, binding: SkillBinding,
+    user=Depends(get_current_user)):
     try:
         from ..storage import SQLiteRoleStorage
         storage = SQLiteRoleStorage()
@@ -191,7 +202,8 @@ async def bind_skill(role_id: str, binding: SkillBinding):
 
 
 @router.delete("/{role_id}/skills/{skill_id}")
-async def unbind_skill(role_id: str, skill_id: str):
+async def unbind_skill(role_id: str, skill_id: str,
+    user=Depends(get_current_user)):
     try:
         from ..storage import SQLiteRoleStorage
         storage = SQLiteRoleStorage()
@@ -206,7 +218,8 @@ async def unbind_skill(role_id: str, skill_id: str):
 
 
 @router.get("/{role_id}/skills")
-async def get_role_skills(role_id: str):
+async def get_role_skills(role_id: str,
+    user=Depends(get_current_user)):
     try:
         from ..storage import SQLiteRoleStorage
         storage = SQLiteRoleStorage()
@@ -218,7 +231,8 @@ async def get_role_skills(role_id: str):
 
 
 @router.post("/{role_id}/policies")
-async def bind_policy(role_id: str, binding: PolicyBinding):
+async def bind_policy(role_id: str, binding: PolicyBinding,
+    user=Depends(get_current_user)):
     try:
         from ..storage import SQLiteRoleStorage
         storage = SQLiteRoleStorage()
@@ -231,7 +245,8 @@ async def bind_policy(role_id: str, binding: PolicyBinding):
 
 
 @router.delete("/{role_id}/policies/{policy_id}")
-async def unbind_policy(role_id: str, policy_id: str):
+async def unbind_policy(role_id: str, policy_id: str,
+    user=Depends(get_current_user)):
     try:
         from ..storage import SQLiteRoleStorage
         storage = SQLiteRoleStorage()
@@ -246,7 +261,8 @@ async def unbind_policy(role_id: str, policy_id: str):
 
 
 @router.get("/{role_id}/policies")
-async def get_role_policies(role_id: str):
+async def get_role_policies(role_id: str,
+    user=Depends(get_current_user)):
     try:
         from ..storage import SQLiteRoleStorage
         storage = SQLiteRoleStorage()

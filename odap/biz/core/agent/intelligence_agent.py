@@ -86,6 +86,25 @@ class IntelligenceAgent:
 
     MAX_ITERATIONS = 5  # 最多工具调用轮次
 
+    # 类级别知识缓存：ontology_id -> cached data
+    _knowledge_cache: Dict[str, Any] = {}
+
+    @classmethod
+    def invalidate_cache(cls, ontology_id: str = None):
+        """清除知识缓存
+
+        当本体版本回滚时调用，清除指定本体或全部缓存。
+
+        Args:
+            ontology_id: 指定要清除的本体ID，None 则清除全部
+        """
+        if ontology_id is not None:
+            cls._knowledge_cache.pop(ontology_id, None)
+            logger.info(f"IntelligenceAgent 知识缓存已清除: ontology_id={ontology_id}")
+        else:
+            cls._knowledge_cache.clear()
+            logger.info("IntelligenceAgent 知识缓存已全部清除")
+
     def __init__(self, user_role: str = "intelligence_analyst"):
         self.user_role = user_role
         self.opa_manager = OPAManager()
@@ -197,7 +216,7 @@ class IntelligenceAgent:
             except (httpx.TimeoutException, httpx.ConnectError) as e:
                 last_error = e
                 wait = 2 ** attempt  # 2s, 4s, 8s
-                print(f"  ⚠️ LLM 请求超时 ({attempt}/{max_retries})，{wait}s 后重试...")
+                logger.info(f'  ⚠️ LLM 请求超时 ({attempt}/{max_retries})，{wait}s 后重试...')
                 import asyncio
                 await asyncio.sleep(wait)
             except httpx.HTTPStatusError as e:
@@ -206,7 +225,7 @@ class IntelligenceAgent:
                 if 400 <= e.response.status_code < 500 and e.response.status_code != 429:
                     raise
                 wait = 2 ** attempt
-                print(f"  ⚠️ LLM HTTP {e.response.status_code} ({attempt}/{max_retries})，{wait}s 后重试...")
+                logger.info(f'  ⚠️ LLM HTTP {e.response.status_code} ({attempt}/{max_retries})，{wait}s 后重试...')
                 import asyncio
                 await asyncio.sleep(wait)
 
@@ -268,11 +287,11 @@ class IntelligenceAgent:
             )
 
             if success:
-                print("  [记忆] 分析结果已写入 Graphiti")
+                logger.info('  [记忆] 分析结果已写入 Graphiti')
             else:
-                print("  [记忆] Graphiti 不可用，跳过记忆写入")
+                logger.info('  [记忆] Graphiti 不可用，跳过记忆写入')
         except Exception as e:
-            print(f"  [记忆] Graphiti 写入失败: {e}")
+            logger.info(f'  [记忆] Graphiti 写入失败: {e}')
 
     def _retrieve_rag_context(self, query: str) -> str:
         """
@@ -296,7 +315,7 @@ class IntelligenceAgent:
 
         if context:
             span.add_event("rag_hits", {"context_length": len(context)})
-            print(f"  [RAG] 检索到历史上下文 ({len(context)} 字符)")
+            logger.info(f'  [RAG] 检索到历史上下文 ({len(context)} 字符)')
         else:
             span.add_event("rag_miss", {"reason": "no_results"})
 
@@ -323,11 +342,11 @@ class IntelligenceAgent:
         })
         self._spans = []
 
-        print(f"\n{'='*60}")
-        print(f"🔍 Intelligence Agent: {query}")
-        print(f"👤 角色: {self.user_role}")
-        print(f"🔗 Trace ID: {trace_id}")
-        print(f"{'='*60}")
+        logger.info(f"\n{'=' * 60}")
+        logger.info(f'🔍 Intelligence Agent: {query}')
+        logger.info(f'👤 角色: {self.user_role}')
+        logger.info(f'🔗 Trace ID: {trace_id}')
+        logger.info(f"{'=' * 60}")
 
         start_time = time.perf_counter()
 
@@ -392,7 +411,7 @@ class IntelligenceAgent:
             # 创建轮次 Span
             iter_span = TraceSpan(trace_id, f"iteration_{iteration + 1}", self._trace_root.span_id)
 
-            print(f"\n--- 轮次 {iteration + 1}/{self.MAX_ITERATIONS} ---")
+            logger.info(f'\n--- 轮次 {iteration + 1}/{self.MAX_ITERATIONS} ---')
 
             try:
                 response = await self._call_llm(messages, tools=self.tools)
@@ -403,7 +422,7 @@ class IntelligenceAgent:
             except Exception as e:
                 iter_span.add_event("llm_error", {"error": str(e)})
                 self._spans.append(iter_span.finish())
-                print(f"❌ LLM 调用失败: {e}")
+                logger.info(f'❌ LLM 调用失败: {e}')
                 break
 
             choice = response["choices"][0]
@@ -419,11 +438,11 @@ class IntelligenceAgent:
                     fn_args = json.loads(tool_call["function"]["arguments"])
                     tool_call_id = tool_call["id"]
 
-                    print(f"  🔧 调用工具: {fn_name}({json.dumps(fn_args, ensure_ascii=False)})")
+                    logger.info(f'  🔧 调用工具: {fn_name}({json.dumps(fn_args, ensure_ascii=False)})')
 
                     # 执行工具
                     tool_result = self._execute_tool(fn_name, fn_args)
-                    print(f"  📋 结果: {tool_result[:200]}{'...' if len(tool_result) > 200 else ''}")
+                    logger.info(f"  📋 结果: {tool_result[:200]}{('...' if len(tool_result) > 200 else '')}")
 
                     iter_span.add_event("tool_execution", {
                         "tool": fn_name,
@@ -446,7 +465,7 @@ class IntelligenceAgent:
             else:
                 # 没有工具调用，提取最终回答
                 final_content = message.get("content", "")
-                print(f"\n📝 最终回答:\n{final_content}")
+                logger.info(f'\n📝 最终回答:\n{final_content}')
 
                 iter_span.add_event("final_answer", {
                     "content_length": len(final_content),
@@ -496,6 +515,9 @@ class IntelligenceAgent:
                     "trace_id": trace_id,
                     "spans": self._spans,
                 }
+
+                # 广播分析完成事件，通知 Commander Agent 等下游 Agent
+                self._emit_task_completed(report)
 
                 return report
 
@@ -566,6 +588,35 @@ class IntelligenceAgent:
             "parsing": "failed"
         }
 
+    def _emit_task_completed(self, report: Dict[str, Any]):
+        """分析完成后通过 event bus 广播事件，通知 Commander Agent 等下游 Agent"""
+        try:
+            import asyncio
+            from odap.web.ws.event_bus import get_event_bus
+            bus = get_event_bus()
+            metadata = report.get("_metadata", {})
+            event_data = {
+                "agent_id": "intelligence_agent",
+                "agent_type": "intelligence",
+                "result": {k: v for k, v in report.items() if not k.startswith("_")},
+                "target_agents": ["commander"],
+                "query": metadata.get("query", ""),
+                "threat_level": report.get("threat_level", "unknown"),
+                "timestamp": datetime.now(timezone.utc).isoformat(),
+            }
+            # 尝试在已有事件循环中调度，否则创建新任务
+            try:
+                loop = asyncio.get_event_loop()
+                if loop.is_running():
+                    asyncio.ensure_future(bus.emit("agent:task_completed", event_data))
+                else:
+                    loop.run_until_complete(bus.emit("agent:task_completed", event_data))
+            except RuntimeError:
+                asyncio.run(bus.emit("agent:task_completed", event_data))
+            logger.info(f"已广播 agent:task_completed 事件, threat_level={report.get('threat_level', 'unknown')}")
+        except Exception as e:
+            logger.warning(f"广播 agent:task_completed 事件失败: {e}")
+
     async def shutdown(self):
         """关闭资源"""
         if hasattr(self, 'http_client'):
@@ -591,8 +642,8 @@ if __name__ == "__main__":
 
     for query in queries:
         report = agent.analyze(query)
-        print(f"\n📊 报告摘要: {report.get('summary', 'N/A')}")
-        print(f"⏱️ 耗时: {report.get('_metadata', {}).get('execution_time_ms', 'N/A')}ms")
-        print(f"🔗 Trace: {report.get('_trace', {}).get('trace_id', 'N/A')}")
-        print(f"🧠 RAG: {'已启用' if report.get('_metadata', {}).get('rag_context_provided') else '未启用'}")
-        print()
+        logger.info(f"\n📊 报告摘要: {report.get('summary', 'N/A')}")
+        logger.info(f"⏱️ 耗时: {report.get('_metadata', {}).get('execution_time_ms', 'N/A')}ms")
+        logger.info(f"🔗 Trace: {report.get('_trace', {}).get('trace_id', 'N/A')}")
+        logger.info(f"🧠 RAG: {('已启用' if report.get('_metadata', {}).get('rag_context_provided') else '未启用')}")
+        logger.info()

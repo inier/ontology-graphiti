@@ -1,5 +1,5 @@
 import type { Agent, AgentFormData, AgentRefOption } from '../types';
-import { fetchJson } from '../../shared/services/apiClient';
+import { fetchJson, apiClient } from '../../shared/services/apiClient';
 import { API_BASE } from '../../../config';
 
 export const agentApi = {
@@ -32,14 +32,8 @@ export const agentApi = {
       body: JSON.stringify(data),
     }),
 
-  deleteAgent: (id: string): Promise<void> => {
-    const token = localStorage.getItem('token');
-    const headers: Record<string, string> = {};
-    if (token) headers['Authorization'] = `Bearer ${token}`;
-    return fetch(`${API_BASE}/api/agent-management/${id}`, { method: 'DELETE', headers }).then(r => {
-      if (!r.ok) throw new Error(`HTTP ${r.status}`);
-    });
-  },
+  deleteAgent: (id: string): Promise<void> =>
+    apiClient.delete(`${API_BASE}/api/agent-management/${id}`),
 
   getEntityOptions: (): Promise<AgentRefOption[]> =>
     fetchJson<AgentRefOption[]>(`${API_BASE}/api/agent-management/ref-options?type=entity`),

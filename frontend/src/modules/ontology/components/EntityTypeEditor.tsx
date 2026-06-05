@@ -185,7 +185,7 @@ export function EntityTypeEditor({ entityType, allEntityTypes, onSave }: EntityT
           </Form.Item>
         </Form>
 
-        <Divider orientation="left">属性列表</Divider>
+        <Divider orientation={"left" as React.ComponentProps<typeof Divider>['orientation']}>属性列表</Divider>
         {formData.properties.map((prop, idx) => (
           <PropertyEditor
             key={idx}
@@ -204,7 +204,7 @@ export function EntityTypeEditor({ entityType, allEntityTypes, onSave }: EntityT
           新增属性
         </Button>
 
-        <Divider orientation="left">关系列表</Divider>
+        <Divider orientation={"left" as React.ComponentProps<typeof Divider>['orientation']}>关系列表</Divider>
         {formData.relations.map((rel, idx) => (
           <RelationEditor
             key={idx}

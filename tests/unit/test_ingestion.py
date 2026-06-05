@@ -6,7 +6,7 @@ from unittest.mock import patch, MagicMock
 class TestPDFProcessor:
     @pytest.fixture
     def processor(self):
-        from odap.biz.core.ontology.ingestion.impl.pdf_processor import PDFProcessor
+        from odap.biz.core.ontology.design.ingestion.impl.pdf_processor import PDFProcessor
         return PDFProcessor()
 
     def test_pdf_processor_extract_text_fallback(self, processor):
@@ -42,7 +42,7 @@ class TestPDFProcessor:
 class TestWordProcessor:
     @pytest.fixture
     def processor(self):
-        from odap.biz.core.ontology.ingestion.impl.word_processor import WordProcessor
+        from odap.biz.core.ontology.design.ingestion.impl.word_processor import WordProcessor
         return WordProcessor()
 
     def test_word_processor_extract_text_fallback(self, processor):
@@ -73,7 +73,7 @@ class TestWordProcessor:
 class TestOCRProcessor:
     @pytest.fixture
     def processor(self):
-        from odap.biz.core.ontology.ingestion.impl.ocr_processor import OCRProcessor
+        from odap.biz.core.ontology.design.ingestion.impl.ocr_processor import OCRProcessor
         return OCRProcessor()
 
     def test_ocr_processor_extract_text(self, processor):
@@ -92,7 +92,7 @@ class TestOCRProcessor:
 class TestBatchImporter:
     @pytest.fixture
     def importer(self):
-        from odap.biz.core.ontology.ingestion.impl.batch_importer import BatchImporter
+        from odap.biz.core.ontology.design.ingestion.impl.batch_importer import BatchImporter
         return BatchImporter()
 
     def test_batch_import_csv(self, importer):
@@ -148,16 +148,16 @@ class TestBatchImporter:
 class TestIngestService:
     @pytest.fixture
     def service(self, tmp_path):
-        from odap.biz.core.ontology.ingestion.storage.sqlite_ingest_storage import SQLiteIngestTaskStorage
-        from odap.biz.core.ontology.ingestion.services.ingest_service import IngestService
+        from odap.biz.core.ontology.design.ingestion.storage.sqlite_ingest_storage import SQLiteIngestTaskStorage
+        from odap.biz.core.ontology.design.ingestion.services.ingest_service import IngestService
         IngestService._instance = None
         storage = SQLiteIngestTaskStorage(db_path=str(tmp_path / "ingest_test.db"))
         svc = IngestService.__new__(IngestService)
         svc.storage = storage
-        from odap.biz.core.ontology.ingestion.impl.pdf_processor import PDFProcessor
-        from odap.biz.core.ontology.ingestion.impl.word_processor import WordProcessor
-        from odap.biz.core.ontology.ingestion.impl.ocr_processor import OCRProcessor
-        from odap.biz.core.ontology.ingestion.impl.batch_importer import BatchImporter
+        from odap.biz.core.ontology.design.ingestion.impl.pdf_processor import PDFProcessor
+        from odap.biz.core.ontology.design.ingestion.impl.word_processor import WordProcessor
+        from odap.biz.core.ontology.design.ingestion.impl.ocr_processor import OCRProcessor
+        from odap.biz.core.ontology.design.ingestion.impl.batch_importer import BatchImporter
         svc.pdf_processor = PDFProcessor()
         svc.word_processor = WordProcessor()
         svc.ocr_processor = OCRProcessor()
@@ -222,7 +222,7 @@ class TestIngestService:
 class TestSQLiteIngestTaskStorage:
     @pytest.fixture
     def storage(self, tmp_path):
-        from odap.biz.core.ontology.ingestion.storage.sqlite_ingest_storage import SQLiteIngestTaskStorage
+        from odap.biz.core.ontology.design.ingestion.storage.sqlite_ingest_storage import SQLiteIngestTaskStorage
         return SQLiteIngestTaskStorage(db_path=str(tmp_path / "ingest_storage_test.db"))
 
     def test_save_and_get_task(self, storage):

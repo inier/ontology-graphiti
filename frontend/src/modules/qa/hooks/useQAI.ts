@@ -1,10 +1,7 @@
 import { useCallback, useState, useRef, useEffect } from 'react';
 import { message } from 'antd';
 import { useChatStorage } from './useChatStorage';
-import { API_BASE } from '../../../config';
-const API_ENDPOINT = `${API_BASE}/api/qa/ask`;
-const SESSIONS_ENDPOINT = `${API_BASE}/api/qa/sessions`;
-const STREAM_API_ENDPOINT = `${API_BASE}/api/qa/ask/stream`;
+import { apiClient } from '../../shared/services/apiClient';
 
 export type ChartSpec = {
   chart_type: 'line' | 'bar' | 'pie' | 'scatter' | 'heatmap' | 'radar' | 'map' | 'network';
@@ -124,11 +121,7 @@ export function useQAI({ sessionId: initialSessionId, workspaceId, scenarioId, a
 
     setStatus('submitting');
     try {
-      const response = await fetch(`${SESSIONS_ENDPOINT}/${id}`);
-      if (!response.ok) {
-        throw new Error(`加载会话失败: ${response.status}`);
-      }
-      const data = await response.json();
+      const data = await apiClient.get(`/api/qa/sessions/${id}`);
       
       if (data.messages && Array.isArray(data.messages)) {
         setMessages(data.messages.map((msg: any) => ({
@@ -181,24 +174,13 @@ export function useQAI({ sessionId: initialSessionId, workspaceId, scenarioId, a
     abortControllerRef.current = new AbortController();
 
     try {
-      const response = await fetch(STREAM_API_ENDPOINT, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-          question: content,
-          session_id: sessionId,
-          workspace_id: workspaceId,
-          scenario_id: scenarioId,
-          agent_id: agentId,
-        }),
-        signal: abortControllerRef.current.signal,
-      });
-
-      if (!response.ok) {
-        throw new Error(`请求失败: ${response.status}`);
-      }
+      const response = await apiClient.stream('/api/qa/ask/stream', {
+        question: content,
+        session_id: sessionId,
+        workspace_id: workspaceId,
+        scenario_id: scenarioId,
+        agent_id: agentId,
+      }, { signal: abortControllerRef.current.signal });
 
       const reader = response.body?.getReader();
       if (!reader) {
@@ -312,7 +294,7 @@ export function useQAI({ sessionId: initialSessionId, workspaceId, scenarioId, a
                 }
                 return prev;
               });
-            } else if (data.type === 'end') {
+            } else if (data.type === 'end' || data.type === 'done') {
               break;
             }
           } catch (e) {

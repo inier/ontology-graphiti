@@ -5,6 +5,7 @@ import { GraphCanvas } from '../components/GraphCanvas';
 import { OntologySchemaViewer } from '../components/OntologySchemaViewer';
 import { useScenario, useWorkspace, useOntologyVersion } from '../../shared/components/AppLayout';
 import { api } from '../../shared/services/api';
+import { EmptyState } from '../../shared/components/organisms';
 
 interface GraphNode {
   id: string;
@@ -552,24 +553,28 @@ export function OntologySemanticNetwork() {
                 </Card>
               ) : nodes.length === 0 ? (
                 <Card style={{ borderRadius: 8 }}>
-                  <Empty
+                  <EmptyState
+                    icon={<ApartmentOutlined />}
+                    title="暂无语义地图数据"
                     description={
                       currentSemanticMapId
                         ? '语义地图为空，请尝试重新生成'
-                        : '暂无语义地图数据，请点击"生成语义地图"按钮，或通过数据摄入添加实体'
+                        : '请点击"生成语义地图"按钮，或通过数据摄入添加实体'
                     }
-                  >
-                    {!currentSemanticMapId && currentScenario && (
-                      <Button
-                        type="primary"
-                        icon={<PlusOutlined />}
-                        onClick={handleGenerateSemanticMap}
-                        loading={generating}
-                      >
-                        生成语义地图
-                      </Button>
-                    )}
-                  </Empty>
+                    actionLabel={currentSemanticMapId ? '重新生成' : '生成语义地图'}
+                    onAction={currentSemanticMapId ? handleRegenerateSemanticMap : handleGenerateSemanticMap}
+                    showSampleData={!currentSemanticMapId && !!currentScenario}
+                    onLoadSampleData={async () => {
+                      if (!currentWorkspace) { message.warning('请先选择工作空间'); return; }
+                      try {
+                        await api.generateSampleData(currentWorkspace);
+                        message.success('示例数据已加载');
+                        if (currentScenario) {
+                          loadGraph(currentScenario, currentVersion);
+                        }
+                      } catch (e) { message.error('加载示例数据失败'); }
+                    }}
+                  />
                 </Card>
               ) : (
                 <GraphCanvas

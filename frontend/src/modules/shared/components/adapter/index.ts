@@ -1,4 +1,4 @@
-export type { UIAdapter, ButtonProps, InputProps, TableProps, ModalProps, FormProps, SelectProps, MessageInstance, NotificationInstance } from './UIAdapter.ts';
+export type { UIAdapter, ButtonProps, InputProps, TableProps, ModalProps, FormProps, SelectProps, TagProps, TooltipProps, MessageInstance, NotificationInstance } from './UIAdapter.ts';
 export { AntDesignAdapter } from './AntDesignAdapter.tsx';
 
 import { AntDesignAdapter } from './AntDesignAdapter.tsx';

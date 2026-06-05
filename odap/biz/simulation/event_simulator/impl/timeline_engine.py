@@ -28,6 +28,12 @@ class TimelineEngine:
         self._timelines: Dict[str, Dict[str, Any]] = {}
         self._event_queue: Dict[str, List[Dict[str, Any]]] = {}
         self._callbacks: Dict[str, List[Callable]] = {}
+        self._storage = None
+        try:
+            from ..storage import SQLiteEventStorage
+            self._storage = SQLiteEventStorage()
+        except Exception:
+            logger.warning("SQLiteEventStorage not available, using in-memory only")
         self._initialized = True
 
     def create_timeline(
@@ -50,6 +56,20 @@ class TimelineEngine:
         self._timelines[tid] = timeline
         self._event_queue[tid] = []
         self._callbacks[tid] = []
+
+        if self._storage:
+            try:
+                self._storage.save_timeline({
+                    "timeline_id": tid,
+                    "clock_state": timeline["clock_state"],
+                    "start_time": timeline["start_time"],
+                    "current_time": timeline["current_time"],
+                    "speed": timeline["simulation_speed"],
+                    "events": [],
+                })
+            except Exception:
+                logger.warning("Failed to persist timeline to storage")
+
         return {
             "timeline_id": tid,
             "clock_state": timeline["clock_state"],
@@ -63,6 +83,7 @@ class TimelineEngine:
             return {"status": "error", "message": f"Timeline {timeline_id} not found"}
         timeline["clock_state"] = ClockState.RUNNING.value
         timeline["simulation_speed"] = speed
+        self._persist_timeline(timeline_id)
         return {
             "timeline_id": timeline_id,
             "clock_state": timeline["clock_state"],
@@ -75,6 +96,7 @@ class TimelineEngine:
         if not timeline:
             return {"status": "error", "message": f"Timeline {timeline_id} not found"}
         timeline["clock_state"] = ClockState.PAUSED.value
+        self._persist_timeline(timeline_id)
         return {
             "timeline_id": timeline_id,
             "clock_state": timeline["clock_state"],
@@ -86,6 +108,7 @@ class TimelineEngine:
         if not timeline:
             return {"status": "error", "message": f"Timeline {timeline_id} not found"}
         timeline["clock_state"] = ClockState.RUNNING.value
+        self._persist_timeline(timeline_id)
         return {
             "timeline_id": timeline_id,
             "clock_state": timeline["clock_state"],
@@ -100,6 +123,7 @@ class TimelineEngine:
         if speed <= 0:
             return {"status": "error", "message": "Speed must be positive"}
         timeline["simulation_speed"] = speed
+        self._persist_timeline(timeline_id)
         return {
             "timeline_id": timeline_id,
             "simulation_speed": speed,
@@ -119,6 +143,7 @@ class TimelineEngine:
         timeline["current_time"] = advanced.isoformat()
 
         triggered = self._process_events(timeline_id)
+        self._persist_timeline(timeline_id)
 
         return {
             "timeline_id": timeline_id,
@@ -175,6 +200,24 @@ class TimelineEngine:
             }
             for t in self._timelines.values()
         ]
+
+    def _persist_timeline(self, timeline_id: str):
+        if not self._storage:
+            return
+        timeline = self._timelines.get(timeline_id)
+        if not timeline:
+            return
+        try:
+            self._storage.save_timeline({
+                "timeline_id": timeline_id,
+                "clock_state": timeline["clock_state"],
+                "start_time": timeline["start_time"],
+                "current_time": timeline["current_time"],
+                "speed": timeline["simulation_speed"],
+                "events": self._event_queue.get(timeline_id, []),
+            })
+        except Exception:
+            logger.warning("Failed to persist timeline to storage")
 
     def _process_events(self, timeline_id: str) -> List[str]:
         timeline = self._timelines.get(timeline_id)

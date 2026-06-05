@@ -1,4 +1,5 @@
-from fastapi import APIRouter, HTTPException, Query
+from fastapi import APIRouter, HTTPException, Query, Depends
+from odap.infra.security.jwt_auth import get_current_user
 from pydantic import BaseModel, Field
 from typing import Optional, List, Dict, Any
 from datetime import datetime
@@ -34,7 +35,8 @@ class ABACCheckRequest(BaseModel):
 
 
 @router.post("")
-async def create_markdown_policy(data: MarkdownPolicyCreate):
+async def create_markdown_policy(data: MarkdownPolicyCreate,
+    user=Depends(get_current_user)):
     try:
         compile_result = markdown_service.compile_markdown_policy(data.markdown_content)
         if compile_result.get("status") == "error":
@@ -74,8 +76,35 @@ async def create_markdown_policy(data: MarkdownPolicyCreate):
         raise HTTPException(status_code=500, detail=str(e))
 
 
+@router.get("")
+async def list_markdown_policies(
+    category: Optional[str] = Query(None, description="按分类筛选"),
+    page: int = Query(1, ge=1, description="页码"),
+    page_size: int = Query(20, ge=1, le=100, description="每页数量"),
+    user=Depends(get_current_user),
+):
+    try:
+        all_policies = markdown_service.version_storage.list_all_policies()
+        if category:
+            all_policies = [p for p in all_policies if p.get("category") == category]
+        start = (page - 1) * page_size
+        end = start + page_size
+        paged = all_policies[start:end]
+        return {
+            "policies": paged,
+            "total": len(all_policies),
+            "page": page,
+            "page_size": page_size,
+        }
+    except HTTPException:
+        raise
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+
 @router.get("/{policy_id}")
-async def get_markdown_policy(policy_id: str):
+async def get_markdown_policy(policy_id: str,
+    user=Depends(get_current_user)):
     try:
         latest = markdown_service.version_storage.get_latest_version(policy_id)
         if not latest:
@@ -88,14 +117,16 @@ async def get_markdown_policy(policy_id: str):
 
 
 @router.put("/{policy_id}")
-async def update_markdown_policy(policy_id: str, data: MarkdownPolicyUpdate):
+async def update_markdown_policy(policy_id: str, data: MarkdownPolicyUpdate,
+    user=Depends(get_current_user)):
     try:
         latest = markdown_service.version_storage.get_latest_version(policy_id)
         if not latest:
             raise HTTPException(status_code=404, detail="策略不存在")
 
         new_markdown = data.markdown_content if data.markdown_content is not None else latest["markdown_text"]
-        result = markdown_service.hot_update_markdown_policy(policy_id, new_markdown)
+        user_role = user.get("role", "") if isinstance(user, dict) else getattr(user, "role", "")
+        result = markdown_service.hot_update_markdown_policy(policy_id, new_markdown, user_role=user_role)
 
         if result.get("status") == "error":
             return {
@@ -119,7 +150,8 @@ async def update_markdown_policy(policy_id: str, data: MarkdownPolicyUpdate):
 
 
 @router.post("/{policy_id}/compile")
-async def compile_markdown_policy(policy_id: str):
+async def compile_markdown_policy(policy_id: str,
+    user=Depends(get_current_user)):
     try:
         latest = markdown_service.version_storage.get_latest_version(policy_id)
         if not latest:
@@ -140,7 +172,8 @@ async def compile_markdown_policy(policy_id: str):
 
 
 @router.get("/{policy_id}/status")
-async def get_policy_compile_status(policy_id: str):
+async def get_policy_compile_status(policy_id: str,
+    user=Depends(get_current_user)):
     try:
         latest = markdown_service.version_storage.get_latest_version(policy_id)
         if not latest:
@@ -163,7 +196,8 @@ async def get_policy_compile_status(policy_id: str):
 
 
 @router.get("/{policy_id}/versions")
-async def get_policy_versions(policy_id: str):
+async def get_policy_versions(policy_id: str,
+    user=Depends(get_current_user)):
     try:
         versions = markdown_service.version_storage.list_versions(policy_id)
         return {
@@ -178,7 +212,8 @@ async def get_policy_versions(policy_id: str):
 
 
 @router.post("/abac/check")
-async def check_abac_permission(data: ABACCheckRequest):
+async def check_abac_permission(data: ABACCheckRequest,
+    user=Depends(get_current_user)):
     try:
         result = abac_service.check_permission_abac(
             subject=data.subject,

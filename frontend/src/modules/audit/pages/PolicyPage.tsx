@@ -43,11 +43,13 @@ interface Policy {
   name: string;
   description: string;
   category: string;
-  status: string;
-  version: string;
+  compile_status: string;
+  version: number;
   markdown_content?: string;
-  rego_content?: string;
-  updated_at: string;
+  rego_text?: string;
+  created_at?: string;
+  updated_at?: string;
+  compile_errors?: string[];
 }
 
 const POLICY_CATEGORIES = [
@@ -122,8 +124,12 @@ const PolicyPage: React.FC = () => {
   };
 
   const handleHotUpdate = async (policyId: string, markdownContent: string) => {
-    await hotUpdate(policyId, markdownContent);
-    message.success('热更新完成');
+    try {
+      await hotUpdate(policyId, markdownContent);
+      message.success('热更新完成');
+    } catch (error) {
+      message.error(`热更新失败: ${error}`);
+    }
   };
 
   const handleViewVersions = async (policy: Policy) => {
@@ -154,10 +160,10 @@ const PolicyPage: React.FC = () => {
       title: '策略名称',
       dataIndex: 'name',
       key: 'name',
-      render: (name: string, record: Policy) => (
+      render: (name, record) => (
         <Space>
           <SafetyCertificateOutlined style={{ color: '#1890ff' }} />
-          <span>{name}</span>
+          <span>{name as string}</span>
         </Space>
       ),
     },
@@ -166,17 +172,17 @@ const PolicyPage: React.FC = () => {
       dataIndex: 'category',
       key: 'category',
       width: 120,
-      render: (cat: string) => <Tag color="blue">{getCategoryLabel(cat)}</Tag>,
+      render: (cat) => <Tag color="blue">{getCategoryLabel(cat as string)}</Tag>,
     },
     {
       title: '状态',
-      dataIndex: 'status',
-      key: 'status',
+      dataIndex: 'compile_status',
+      key: 'compile_status',
       width: 90,
-      render: (status: string) => (
+      render: (status) => (
         <Badge
-          status={status === 'active' || status === 'enabled' ? 'success' : 'default'}
-          text={status === 'active' || status === 'enabled' ? '启用' : '禁用'}
+          status={(status as string) === 'active' || (status as string) === 'enabled' ? 'success' : 'default'}
+          text={(status as string) === 'active' || (status as string) === 'enabled' ? '启用' : '禁用'}
         />
       ),
     },
@@ -196,7 +202,7 @@ const PolicyPage: React.FC = () => {
       title: '操作',
       key: 'actions',
       width: 220,
-      render: (_, record: Policy) => (
+      render: (_, record) => (
         <Space>
           <Tooltip title="编辑">
             <Button type="link" size="small" icon={<EditOutlined />} onClick={() => handleEditOpen(record)} />

@@ -36,8 +36,16 @@ class MinIOClient:
             return
 
         self._endpoint = endpoint or os.environ.get("MINIO_ENDPOINT", "minio:9000")
-        self._access_key = access_key or os.environ.get("MINIO_ACCESS_KEY", "minioadmin")
-        self._secret_key = secret_key or os.environ.get("MINIO_SECRET_KEY", "minioadmin")
+        # P0-8 fix: NEVER use hardcoded "minioadmin" defaults. Resolve via
+        # env vars and fail-closed if not set in production.
+        self._access_key = self._resolve_minio_credential(
+            "MINIO_ACCESS_KEY", access_key,
+            min_length=8,
+        )
+        self._secret_key = self._resolve_minio_credential(
+            "MINIO_SECRET_KEY", secret_key,
+            min_length=8,
+        )
         self._secure = secure if secure is not None else os.environ.get("MINIO_SECURE", "false").lower() == "true"
 
         self._client: Optional[Any] = None
@@ -57,6 +65,37 @@ class MinIOClient:
             logger.warning("MinIO SDK not available, using fallback mode")
 
         self._initialized = True
+
+    @staticmethod
+    def _resolve_minio_credential(env_var: str, explicit_value, min_length: int = 8) -> str:
+        """Resolve a MinIO credential. NEVER default to "minioadmin".
+
+        Priority:
+          1. Explicit constructor argument
+          2. Environment variable (treated as placeholder if value is "minioadmin")
+          3. In dev/test: use a placeholder
+          4. In production: refuse to start without explicit value
+        """
+        if explicit_value:
+            return explicit_value
+        value = os.environ.get(env_var, "").strip()
+        # Treat "minioadmin" as a placeholder even if it comes from env
+        if value.lower() in ("minioadmin", "minio", "admin", "admin123", "password"):
+            value = ""
+        if not value or len(value) < min_length:
+            env_name = os.environ.get("ENV", "").lower()
+            if env_name in ("production", "prod", "live"):
+                raise RuntimeError(
+                    f"SECURITY: {env_var} must be set to a non-default value "
+                    f"of at least {min_length} characters in production. "
+                    f"Set {env_var} in your secrets manager."
+                )
+            logger.warning(
+                f"{env_var} is not set or is the default 'minioadmin'. "
+                f"Using placeholder for dev. Set {env_var} in production."
+            )
+            return value or "dev-placeholder"  # dev only
+        return value
 
     @property
     def available(self) -> bool:
@@ -93,6 +132,7 @@ class MinIOClient:
         except S3Error as e:
             return {"status": "error", "message": f"S3 error: {e}"}
         except Exception as e:
+            logger.warning("silent except caught in {exc} (line 134)", exc_info=True)
             return {"status": "error", "message": str(e)}
 
     def download_object(self, bucket: str, key: str) -> Dict[str, Any]:
@@ -114,6 +154,7 @@ class MinIOClient:
         except S3Error as e:
             return {"status": "error", "message": f"S3 error: {e}"}
         except Exception as e:
+            logger.warning("silent except caught in {exc} (line 155)", exc_info=True)
             return {"status": "error", "message": str(e)}
 
     def get_presigned_url(
@@ -134,6 +175,7 @@ class MinIOClient:
         except S3Error as e:
             return {"status": "error", "message": f"S3 error: {e}"}
         except Exception as e:
+            logger.warning("silent except caught in {exc} (line 175)", exc_info=True)
             return {"status": "error", "message": str(e)}
 
     def delete_object(self, bucket: str, key: str) -> Dict[str, Any]:
@@ -146,6 +188,7 @@ class MinIOClient:
         except S3Error as e:
             return {"status": "error", "message": f"S3 error: {e}"}
         except Exception as e:
+            logger.warning("silent except caught in {exc} (line 187)", exc_info=True)
             return {"status": "error", "message": str(e)}
 
     def ensure_bucket(self, bucket: str) -> Dict[str, Any]:
@@ -160,6 +203,7 @@ class MinIOClient:
         except S3Error as e:
             return {"status": "error", "message": f"S3 error: {e}"}
         except Exception as e:
+            logger.warning("silent except caught in {exc} (line 201)", exc_info=True)
             return {"status": "error", "message": str(e)}
 
     def list_objects(self, bucket: str, prefix: Optional[str] = None) -> Dict[str, Any]:
@@ -183,6 +227,7 @@ class MinIOClient:
         except S3Error as e:
             return {"status": "error", "message": f"S3 error: {e}"}
         except Exception as e:
+            logger.warning("silent except caught in {exc} (line 224)", exc_info=True)
             return {"status": "error", "message": str(e)}
 
 

@@ -20,6 +20,10 @@ sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 from odap.infra.graph import GraphManager
 
+
+import logging
+
+logger = logging.getLogger(__name__)
 class DomainVisualization:
     """
     领域态势可视化
@@ -32,7 +36,7 @@ class DomainVisualization:
         """
         self.graph_manager = GraphManager()
         self.action_history = []
-        print("领域态势可视化模块初始化成功")
+        logger.info('领域态势可视化模块初始化成功')
 
     def _get_fallback_graph(self):
         """
@@ -51,7 +55,7 @@ class DomainVisualization:
         """
         graph = self._get_fallback_graph()
         if not graph:
-            print("无法获取图谱数据")
+            logger.info('无法获取图谱数据')
             return
         
         color_map = {
@@ -105,7 +109,7 @@ class DomainVisualization:
         
         if output_file:
             plt.savefig(output_file, dpi=300, bbox_inches="tight")
-            print(f"Graph saved to: {output_file}")
+            logger.info(f'Graph saved to: {output_file}')
         else:
             plt.show()
     
@@ -115,7 +119,7 @@ class DomainVisualization:
         """
         graph = self._get_fallback_graph()
         if not graph:
-            print("无法获取图谱数据")
+            logger.info('无法获取图谱数据')
             return
         
         color_map = {
@@ -207,7 +211,7 @@ class DomainVisualization:
                         yaxis=dict(showgrid=False, zeroline=False, showticklabels=False)))
         
         pio.write_html(fig, file=output_file, auto_open=False)
-        print(f"Interactive visualization saved to: {output_file}")
+        logger.info(f'Interactive visualization saved to: {output_file}')
     
     def visualize_domain_status(self, output_file=None):
         """
@@ -227,7 +231,7 @@ class DomainVisualization:
         
         if output_file:
             plt.savefig(output_file, dpi=300, bbox_inches="tight")
-            print(f"Domain status saved to: {output_file}")
+            logger.info(f'Domain status saved to: {output_file}')
         else:
             plt.show()
 
@@ -238,7 +242,7 @@ class DomainVisualization:
         """
         graph = self._get_fallback_graph()
         if not graph:
-            print("无法获取图谱数据")
+            logger.info('无法获取图谱数据')
             return
 
         actions = []
@@ -290,7 +294,7 @@ class DomainVisualization:
         )
         
         pio.write_html(fig, file=output_file, auto_open=False)
-        print(f"Action dynamics saved to: {output_file}")
+        logger.info(f'Action dynamics saved to: {output_file}')
         
         return actions
 
@@ -301,7 +305,7 @@ class DomainVisualization:
         """
         graph = self._get_fallback_graph()
         if not graph:
-            print("无法获取图谱数据")
+            logger.info('无法获取图谱数据')
             return
 
         query_results = []
@@ -350,7 +354,7 @@ class DomainVisualization:
         )
         
         pio.write_html(fig, file=output_file, auto_open=False)
-        print(f"Ontology query interface saved to: {output_file}")
+        logger.info(f'Ontology query interface saved to: {output_file}')
         
         return query_results
 
@@ -361,7 +365,7 @@ class DomainVisualization:
         """
         graph = self._get_fallback_graph()
         if not graph:
-            print("无法获取图谱数据")
+            logger.info('无法获取图谱数据')
             return
 
         type_properties = defaultdict(lambda: defaultdict(list))
@@ -412,7 +416,7 @@ class DomainVisualization:
         )
         
         pio.write_html(fig, file=output_file, auto_open=False)
-        print(f"Ontology aggregation saved to: {output_file}")
+        logger.info(f'Ontology aggregation saved to: {output_file}')
         
         detail_file = output_file.replace(".html", "_details.html")
         
@@ -437,7 +441,7 @@ class DomainVisualization:
         with open(detail_file, 'w', encoding='utf-8') as f:
             f.write(details_html)
         
-        print(f"Ontology aggregation details saved to: {detail_file}")
+        logger.info(f'Ontology aggregation details saved to: {detail_file}')
         
         return aggregation_data
 
@@ -488,4 +492,4 @@ if __name__ == "__main__":
     viz.visualize_ontology_query("ontology_query.html")
     viz.visualize_ontology_aggregation("ontology_aggregation.html")
     
-    print("\nAll visualizations generated successfully!")
+    logger.info('\nAll visualizations generated successfully!')

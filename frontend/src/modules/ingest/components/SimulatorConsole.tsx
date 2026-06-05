@@ -7,6 +7,16 @@ interface SimulatorConsoleProps {
   onStart?: (params: SimulationParams) => void;
   onPause?: () => void;
   onStop?: () => void;
+  onReset?: () => void;
+  initialRedPower?: number;
+  initialBluePower?: number;
+  initialRedCasualties?: number;
+  initialBlueCasualties?: number;
+  chartData?: {
+    categories: string[];
+    redSeries: number[];
+    blueSeries: number[];
+  };
 }
 
 interface SimulationParams {
@@ -27,14 +37,14 @@ interface SimState {
   elapsedTime: string;
 }
 
-export function SimulatorConsole({ onStart, onPause, onStop }: SimulatorConsoleProps) {
+export function SimulatorConsole({ onStart, onPause, onStop, onReset, initialRedPower = 78, initialBluePower = 65, initialRedCasualties = 0, initialBlueCasualties = 0, chartData }: SimulatorConsoleProps) {
   const [status, setStatus] = useState<SimState['status']>('idle');
   const [simState, setSimState] = useState<SimState>({
     status: 'idle',
-    redPower: 78,
-    bluePower: 65,
-    redCasualties: 15,
-    blueCasualties: 22,
+    redPower: initialRedPower,
+    bluePower: initialBluePower,
+    redCasualties: initialRedCasualties,
+    blueCasualties: initialBlueCasualties,
     elapsedTime: '00:00:00',
   });
   const chartRef = useRef<HTMLDivElement>(null);
@@ -43,6 +53,9 @@ export function SimulatorConsole({ onStart, onPause, onStop }: SimulatorConsoleP
     if (!chartRef.current || status === 'idle') return;
 
     const chart = echarts.init(chartRef.current);
+    const categories = chartData?.categories || ['00:00', '00:05', '00:10', '00:15', '00:20', '00:25', '00:30'];
+    const redData = chartData?.redSeries || [simState.redPower];
+    const blueData = chartData?.blueSeries || [simState.bluePower];
     const option = {
       tooltip: { trigger: 'axis' },
       legend: {
@@ -51,7 +64,7 @@ export function SimulatorConsole({ onStart, onPause, onStop }: SimulatorConsoleP
       },
       xAxis: {
         type: 'category',
-        data: ['00:00', '00:05', '00:10', '00:15', '00:20', '00:25', '00:30'],
+        data: categories,
         axisLine: { lineStyle: { color: '#d9d9d9' } },
       },
       yAxis: {
@@ -64,7 +77,7 @@ export function SimulatorConsole({ onStart, onPause, onStop }: SimulatorConsoleP
         {
           name: '红方战力',
           type: 'line',
-          data: [78, 76, 74, 72, 70, 68, 65],
+          data: redData,
           smooth: true,
           lineStyle: { color: '#ff4d4f', width: 2 },
           itemStyle: { color: '#ff4d4f' },
@@ -72,7 +85,7 @@ export function SimulatorConsole({ onStart, onPause, onStop }: SimulatorConsoleP
         {
           name: '蓝方战力',
           type: 'line',
-          data: [65, 63, 61, 59, 57, 55, 52],
+          data: blueData,
           smooth: true,
           lineStyle: { color: '#1890ff', width: 2 },
           itemStyle: { color: '#1890ff' },
@@ -84,7 +97,7 @@ export function SimulatorConsole({ onStart, onPause, onStop }: SimulatorConsoleP
     return () => {
       chart.dispose();
     };
-  }, [status]);
+  }, [status, chartData, simState.redPower, simState.bluePower]);
 
   const handleStart = () => {
     setStatus('running');
@@ -109,6 +122,19 @@ export function SimulatorConsole({ onStart, onPause, onStop }: SimulatorConsoleP
     setStatus('stopped');
     setSimState((prev) => ({ ...prev, status: 'stopped' }));
     onStop?.();
+  };
+
+  const handleReset = () => {
+    setStatus('idle');
+    setSimState({
+      status: 'idle',
+      redPower: initialRedPower,
+      bluePower: initialBluePower,
+      redCasualties: initialRedCasualties,
+      blueCasualties: initialBlueCasualties,
+      elapsedTime: '00:00:00',
+    });
+    onReset?.();
   };
 
   return (
@@ -165,7 +191,7 @@ export function SimulatorConsole({ onStart, onPause, onStop }: SimulatorConsoleP
                 <Button danger icon={<StopOutlined />} onClick={handleStop}>
                   停止
                 </Button>
-                <Button icon={<ReloadOutlined />}>重置</Button>
+                <Button icon={<ReloadOutlined />} onClick={handleReset}>重置</Button>
               </Space>
             </Form.Item>
           </Form>

@@ -23,7 +23,7 @@ class ActionExecutor:
     @property
     def oms(self):
         if self._oms is None:
-            from odap.biz.core.ontology.oms.services import OMSService
+            from odap.biz.core.ontology.application.oms.services import OMSService
             self._oms = OMSService.get_instance()
         return self._oms
 

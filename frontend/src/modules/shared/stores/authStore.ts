@@ -1,5 +1,5 @@
 import { create } from 'zustand';
-import { API_BASE } from '../../../config';
+import { apiClient } from '../services/apiClient';
 
 interface AuthState {
   token: string | null;
@@ -35,17 +35,7 @@ export const useAuthStore = create<AuthState>((set, get) => ({
   login: async (username: string, password: string) => {
     set({ loading: true, error: null });
     try {
-      const response = await fetch(`${API_BASE}/api/auth/login`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ username, password }),
-      });
-
-      if (!response.ok) {
-        throw new Error(`Login failed: ${response.status}`);
-      }
-
-      const data = await response.json();
+      const data = await apiClient.post('/api/auth/login', { username, password }, { skipAuth: true });
       const token = data.access_token || data.token || '';
       const refreshToken = data.refresh_token || '';
       const userData = data.user || {};
@@ -77,17 +67,7 @@ export const useAuthStore = create<AuthState>((set, get) => ({
   loginSSO: async (provider: string, code: string, state: string) => {
     set({ loading: true, error: null });
     try {
-      const response = await fetch(`${API_BASE}/api/auth/sso/${provider}`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ provider, code, state }),
-      });
-
-      if (!response.ok) {
-        throw new Error(`SSO login failed: ${response.status}`);
-      }
-
-      const data = await response.json();
+      const data = await apiClient.post(`/api/auth/sso/${provider}`, { provider, code, state }, { skipAuth: true });
       const token = data.access_token || '';
       const refreshToken = data.refresh_token || '';
 
@@ -109,18 +89,7 @@ export const useAuthStore = create<AuthState>((set, get) => ({
     if (!currentRefreshToken) return;
 
     try {
-      const response = await fetch(`${API_BASE}/api/auth/refresh`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ refresh_token: currentRefreshToken }),
-      });
-
-      if (!response.ok) {
-        get().logout();
-        return;
-      }
-
-      const data = await response.json();
+      const data = await apiClient.post('/api/auth/refresh', { refresh_token: currentRefreshToken }, { skipAuth: true, skipAuthError: true });
       const token = data.access_token || '';
       const refreshToken = data.refresh_token || '';
 
@@ -137,11 +106,7 @@ export const useAuthStore = create<AuthState>((set, get) => ({
     const currentRefreshToken = get().refreshToken || localStorage.getItem('refresh_token');
     if (currentRefreshToken) {
       try {
-        await fetch(`${API_BASE}/api/auth/logout`, {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ refresh_token: currentRefreshToken }),
-        });
+        await apiClient.post('/api/auth/logout', { refresh_token: currentRefreshToken });
       } catch {
         // Ignore logout API errors
       }
@@ -168,15 +133,7 @@ export const useAuthStore = create<AuthState>((set, get) => ({
 
     set({ loading: true, error: null });
     try {
-      const response = await fetch(`${API_BASE}/api/auth/me`, {
-        headers: { Authorization: `Bearer ${token}` },
-      });
-
-      if (!response.ok) {
-        throw new Error(`Failed to load user: ${response.status}`);
-      }
-
-      const data = await response.json();
+      const data = await apiClient.get('/api/auth/me');
       const globalRole = data.global_role || data.role || 'observer';
       const ROLE_TO_ID: Record<string, string> = {
         admin: '1', commander: '2', analyst: '3', operator: '4', observer: '5',

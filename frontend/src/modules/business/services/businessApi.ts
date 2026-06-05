@@ -5,7 +5,7 @@ import type {
   BusinessIndicator, BusinessIndicatorFormData,
   BusinessEntity,
 } from '../types';
-import { fetchJson } from '../../shared/services/apiClient';
+import { fetchJson, apiClient } from '../../shared/services/apiClient';
 import { API_BASE } from '../../../config';
 
 function buildVersionQuery(ontologyId?: string, versionId?: string): string {
@@ -25,7 +25,7 @@ export const processApi = {
   update: (id: string, data: BusinessProcessFormData & { ontology_id?: string; version_id?: string }): Promise<BusinessProcess> =>
     fetchJson<BusinessProcess>(`${API_BASE}/api/business-processes/${id}`, { method: 'PUT', body: JSON.stringify(data) }),
   delete: (id: string): Promise<void> =>
-    fetch(`${API_BASE}/api/business-processes/${id}`, { method: 'DELETE' }).then(r => { if (!r.ok) throw new Error(); }),
+    apiClient.delete(`${API_BASE}/api/business-processes/${id}`),
   importYaml: (yaml: string): Promise<BusinessProcess[]> =>
     fetchJson<BusinessProcess[]>(`${API_BASE}/api/business-processes/import-yaml`, { method: 'POST', body: JSON.stringify({ yaml }) }),
 };
@@ -40,7 +40,7 @@ export const ruleApi = {
   update: (id: string, data: BusinessRuleFormData & { ontology_id?: string; version_id?: string }): Promise<BusinessRule> =>
     fetchJson<BusinessRule>(`${API_BASE}/api/business-rules/${id}`, { method: 'PUT', body: JSON.stringify(data) }),
   delete: (id: string): Promise<void> =>
-    fetch(`${API_BASE}/api/business-rules/${id}`, { method: 'DELETE' }).then(r => { if (!r.ok) throw new Error(); }),
+    apiClient.delete(`${API_BASE}/api/business-rules/${id}`),
   importYaml: (yaml: string): Promise<BusinessRule[]> =>
     fetchJson<BusinessRule[]>(`${API_BASE}/api/business-rules/import-yaml`, { method: 'POST', body: JSON.stringify({ yaml }) }),
 };
@@ -55,7 +55,7 @@ export const logicApi = {
   update: (id: string, data: BusinessLogicFormData & { ontology_id?: string; version_id?: string }): Promise<BusinessLogic> =>
     fetchJson<BusinessLogic>(`${API_BASE}/api/business-logics/${id}`, { method: 'PUT', body: JSON.stringify(data) }),
   delete: (id: string): Promise<void> =>
-    fetch(`${API_BASE}/api/business-logics/${id}`, { method: 'DELETE' }).then(r => { if (!r.ok) throw new Error(); }),
+    apiClient.delete(`${API_BASE}/api/business-logics/${id}`),
   importYaml: (yaml: string): Promise<BusinessLogic[]> =>
     fetchJson<BusinessLogic[]>(`${API_BASE}/api/business-logics/import-yaml`, { method: 'POST', body: JSON.stringify({ yaml }) }),
 };
@@ -70,7 +70,7 @@ export const indicatorApi = {
   update: (id: string, data: BusinessIndicatorFormData & { ontology_id?: string; version_id?: string }): Promise<BusinessIndicator> =>
     fetchJson<BusinessIndicator>(`${API_BASE}/api/business-indicators/${id}`, { method: 'PUT', body: JSON.stringify(data) }),
   delete: (id: string): Promise<void> =>
-    fetch(`${API_BASE}/api/business-indicators/${id}`, { method: 'DELETE' }).then(r => { if (!r.ok) throw new Error(); }),
+    apiClient.delete(`${API_BASE}/api/business-indicators/${id}`),
   importYaml: (yaml: string): Promise<BusinessIndicator[]> =>
     fetchJson<BusinessIndicator[]>(`${API_BASE}/api/business-indicators/import-yaml`, { method: 'POST', body: JSON.stringify({ yaml }) }),
 };

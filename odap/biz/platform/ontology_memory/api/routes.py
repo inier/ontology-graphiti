@@ -1,4 +1,5 @@
-from fastapi import APIRouter, HTTPException, Query
+from fastapi import APIRouter, HTTPException, Query, Depends
+from odap.infra.security.jwt_auth import get_current_user
 from typing import Optional
 from ..services.memory_service import OntologyMemoryService
 from .schemas import (
@@ -12,7 +13,8 @@ memory_service = OntologyMemoryService()
 
 
 @router.post("/memories")
-async def store_memory(request: StoreMemoryRequest):
+async def store_memory(request: StoreMemoryRequest,
+    user=Depends(get_current_user)):
     try:
         result = memory_service.store_memory(
             memory_type=request.memory_type.value,
@@ -40,8 +42,8 @@ async def list_memories(
     page_size: int = Query(10, ge=1, le=100),
     memory_type: Optional[str] = None,
     status: Optional[str] = None,
-    source_scenario_id: Optional[str] = None
-):
+    source_scenario_id: Optional[str] = None,
+    user=Depends(get_current_user)):
     try:
         result = memory_service.list_memories(
             memory_type=memory_type,
@@ -58,7 +60,8 @@ async def list_memories(
 
 
 @router.get("/memories/{memory_id}")
-async def get_memory(memory_id: str):
+async def get_memory(memory_id: str,
+    user=Depends(get_current_user)):
     try:
         result = memory_service.get_memory(memory_id)
         if result.get("status") == "error":
@@ -71,7 +74,8 @@ async def get_memory(memory_id: str):
 
 
 @router.delete("/memories/{memory_id}")
-async def delete_memory(memory_id: str):
+async def delete_memory(memory_id: str,
+    user=Depends(get_current_user)):
     try:
         result = memory_service.delete_memory(memory_id)
         if result.get("status") == "error":
@@ -84,7 +88,8 @@ async def delete_memory(memory_id: str):
 
 
 @router.post("/memories/retrieve")
-async def retrieve_memories(request: RetrieveMemoryRequest):
+async def retrieve_memories(request: RetrieveMemoryRequest,
+    user=Depends(get_current_user)):
     try:
         result = memory_service.retrieve_memories(
             query=request.query,
@@ -101,7 +106,8 @@ async def retrieve_memories(request: RetrieveMemoryRequest):
 
 
 @router.post("/memories/consolidate")
-async def consolidate_memories(request: ConsolidateMemoriesRequest):
+async def consolidate_memories(request: ConsolidateMemoriesRequest,
+    user=Depends(get_current_user)):
     try:
         result = memory_service.consolidate_memories(
             memory_ids=request.memory_ids,
@@ -117,7 +123,8 @@ async def consolidate_memories(request: ConsolidateMemoriesRequest):
 
 
 @router.post("/memories/decay")
-async def decay_update(request: DecayUpdateRequest):
+async def decay_update(request: DecayUpdateRequest,
+    user=Depends(get_current_user)):
     try:
         config = {}
         if request.half_life_days is not None:
@@ -141,7 +148,8 @@ async def decay_update(request: DecayUpdateRequest):
 
 
 @router.post("/memories/forget")
-async def forget_memories(request: ForgetRequest):
+async def forget_memories(request: ForgetRequest,
+    user=Depends(get_current_user)):
     try:
         result = memory_service.forget_memories(
             threshold=request.threshold,
@@ -155,7 +163,8 @@ async def forget_memories(request: ForgetRequest):
 
 
 @router.get("/statistics")
-async def get_statistics(scenario_id: Optional[str] = None):
+async def get_statistics(scenario_id: Optional[str] = None,
+    user=Depends(get_current_user)):
     try:
         result = memory_service.get_statistics(scenario_id=scenario_id)
         return result
