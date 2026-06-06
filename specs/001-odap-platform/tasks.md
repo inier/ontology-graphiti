@@ -476,13 +476,13 @@
 
 ### SC-01: 多源冲突解决（OntoFlow 范式强化）
 
-- [ ] T313 [P] 冲突解决策略领域模型 — `odap/biz/core/ontology/conflict/models/conflict_resolution.py` `ConflictResolution(str, Enum)` 含 FIRST_WINS / LAST_WINS / LLM_JUDGE / MANUAL 四种策略 + `ConflictRecord(BaseModel)` 含 entity_id / conflict_type / candidates / chosen
-- [ ] T314 [P] [REVIEW] 冲突解决器抽象接口 — `odap/biz/core/ontology/conflict/interfaces/conflict_resolver.py` `ConflictResolver(ABC)` 定义 resolve(conflict) / detect_conflicts(sources)
-- [ ] T315 ConflictResolverImpl 实现 — `odap/biz/core/ontology/conflict/impl/conflict_resolver_impl.py` 实现 4 种策略：FIRST_WINS（取最早源）、LAST_WINS（取最新源）、LLM_JUDGE（调用 LLM 判断）、MANUAL（标记待人工处理）
-- [ ] T316 ConflictService 编排层 — `odap/biz/core/ontology/conflict/services/conflict_service.py` 返回 Dict[str, Any]，集成到数据摄入流程
-- [ ] T317 冲突解决 API 路由 — `odap/biz/core/ontology/conflict/api/routes.py` `APIRouter(prefix="/api/ontology/conflict")` POST `/detect` + POST `/resolve/{conflict_id}` + GET `/conflicts?status=pending`
-- [ ] T318 [REVIEW] 冲突解决路由注册 — `odap/web/app.py` `include_router(conflict_router)`
-- [ ] T319 [TDD] 冲突解决单元测试 — `tests/unit/test_conflict_resolver.py` 覆盖 4 种策略、检测逻辑、人工处理流程
+- [x] T313 [P] 冲突解决策略领域模型 — `odap/biz/core/ontology/conflict/models/conflict_resolution.py` `ConflictResolution(str, Enum)` 含 FIRST_WINS / LAST_WINS / LLM_JUDGE / MANUAL 四种策略 + `ConflictRecord(BaseModel)` 含 entity_id / conflict_type / candidates / chosen ✅ 2026-06-05
+- [x] T314 [P] [REVIEW] 冲突解决器抽象接口 — `odap/biz/core/ontology/conflict/interfaces/conflict_resolver.py` `ConflictResolver(ABC)` 定义 resolve(conflict) / detect_conflicts(sources) ✅ 2026-06-05
+- [x] T315 ConflictResolverImpl 实现 — `odap/biz/core/ontology/conflict/impl/conflict_resolver_impl.py` 实现 4 种策略：FIRST_WINS（取最早源）、LAST_WINS（取最新源）、LLM_JUDGE（调用 LLM 判断）、MANUAL（标记待人工处理）✅ 2026-06-05
+- [x] T316 ConflictService 编排层 — `odap/biz/core/ontology/conflict/services/conflict_service.py` 返回 Dict[str, Any]，集成到数据摄入流程 ✅ 2026-06-05
+- [x] T317 冲突解决 API 路由 — `odap/biz/core/ontology/conflict/api/routes.py` `APIRouter(prefix="/api/ontology/conflict")` POST `/detect` + POST `/resolve/{conflict_id}` + GET `/conflicts?status=pending` ✅ 2026-06-05
+- [x] T318 [REVIEW] 冲突解决路由注册 — `odap/web/app.py` `include_router(conflict_router)` ✅ 2026-06-05
+- [x] T319 [TDD] 冲突解决单元测试 — `tests/unit/test_conflict_resolver.py` 覆盖 4 种策略、检测逻辑、人工处理流程（21 用例全部通过）✅ 2026-06-05
 - [ ] T320 [SUBAGENT] 前端冲突解决组件 — `frontend/src/modules/ontology/components/ConflictResolver.tsx` L3 组织组件，候选值对比 + 策略选择 + LLM 判断按钮
 
 ### SC-02: 冷启动数据稀疏
