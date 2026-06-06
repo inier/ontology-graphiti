@@ -630,19 +630,19 @@
 
 #### FR-037: OntoFlow Goal 驱动演化
 
-- [ ] T415 [P] [SUBAGENT] Goal 模块目录创建 — `odap/biz/core/ontology/goal/` 标准分层
-- [ ] T416 [P] Goal 领域模型 — `odap/biz/core/ontology/goal/models/goal.py` `Goal(BaseModel)` 含 `id` / `title` / `description` / `business_objective` / `rationale` (LLM 生成) / `status` (proposed/approved/rejected/in-progress/achieved/abandoned) / `parent_goal_id`
-- [ ] T417 [P] ChangeProposal 领域模型 — `odap/biz/core/ontology/goal/models/proposal.py` `ChangeProposal(BaseModel)` 含 `id` / `goal_id` / `changes` (JSON Patch) / `impact_analysis` / `estimated_benefit` / `status`
-- [ ] T418 [P] ImpactAnalysis 领域模型 — `odap/biz/core/ontology/goal/models/impact.py` `ImpactAnalysis(BaseModel)` 含 `affected_types` / `affected_instances_count` / `breaking_changes` (List[str]) / `estimated_migration_cost`
-- [ ] T419 [REVIEW] GoalRepository 抽象接口 — `odap/biz/core/ontology/goal/interfaces/goal_repository.py`
-- [ ] T420 [REVIEW] ImpactAnalyzer 抽象接口 — `odap/biz/core/ontology/goal/interfaces/impact_analyzer.py` 定义 `analyze(changes: JSONPatch) -> ImpactAnalysis`
-- [ ] T421 SQLite Goal Storage — `odap/biz/core/ontology/goal/storage/sqlite_goal_storage.py` 实现 `goals` / `change_proposals` / `impact_analyses` 表
-- [ ] T422 [REVIEW] GoalRepositoryImpl — `odap/biz/core/ontology/goal/impl/goal_repository_impl.py`
-- [ ] T423 LLM Rationale Generator — `odap/biz/core/ontology/goal/impl/rationale_generator.py` 调用 LLM 为 Goal 生成 business_rationale（多轮追问澄清）
-- [ ] T424 ImpactAnalyzerImpl — `odap/biz/core/ontology/goal/impl/impact_analyzer_impl.py` 静态分析：受影响 ObjectType / Action Type / 估算迁移成本
-- [ ] T425 GoalService 编排层 — `odap/biz/core/ontology/goal/services/goal_service.py`
-- [ ] T426 Goal API 路由 — `odap/biz/core/ontology/goal/api/routes.py` CRUD + POST `/api/ontology/goals/{id}/propose-change` + GET `/api/ontology/goals/{id}/lineage`
-- [ ] T427 [TDD] Goal 单元测试 — `tests/unit/test_goal.py` 覆盖 Goal CRUD、LLM rationale 生成、Impact 分析、Goal lineage
+- [x] T415 [P] [SUBAGENT] Goal 模块目录创建 — `odap/biz/core/ontology/goal/` 标准分层 [completed: 2026-06-06]
+- [x] T416 [P] Goal 领域模型 — `odap/biz/core/ontology/goal/models/goal.py` `Goal(BaseModel)` 含 `id` / `title` / `description` / `business_objective` / `rationale` (LLM 生成) / `status` (proposed/approved/rejected/in-progress/achieved/abandoned) / `parent_goal_id` [completed: 2026-06-06]
+- [x] T417 [P] ChangeProposal 领域模型 — `odap/biz/core/ontology/goal/models/proposal.py` `ChangeProposal(BaseModel)` 含 `id` / `goal_id` / `changes` (JSON Patch) / `impact_analysis` / `estimated_benefit` / `status` [completed: 2026-06-06]
+- [x] T418 [P] ImpactAnalysis 领域模型 — `odap/biz/core/ontology/goal/models/impact.py` `ImpactAnalysis(BaseModel)` 含 `affected_types` / `affected_instances_count` / `breaking_changes` (List[str]) / `estimated_migration_cost` [completed: 2026-06-06]
+- [x] T419 [REVIEW] GoalRepository 抽象接口 — `odap/biz/core/ontology/goal/interfaces/goal_repository.py` [completed: 2026-06-06]
+- [x] T420 [REVIEW] ImpactAnalyzer 抽象接口 — `odap/biz/core/ontology/goal/interfaces/impact_analyzer.py` 定义 `analyze(changes: JSONPatch) -> ImpactAnalysis` [completed: 2026-06-06]
+- [x] T421 SQLite Goal Storage — `odap/biz/core/ontology/goal/storage/sqlite_goal_storage.py` 实现 `goals` / `change_proposals` / `impact_analyses` 表 [completed: 2026-06-06]
+- [x] T422 [REVIEW] GoalRepositoryImpl — `odap/biz/core/ontology/goal/impl/goal_repository_impl.py` [completed: 2026-06-06]
+- [x] T423 LLM Rationale Generator — `odap/biz/core/ontology/goal/impl/rationale_generator.py` 调用 LLM 为 Goal 生成 business_rationale（多轮追问澄清） [completed: 2026-06-06]
+- [x] T424 ImpactAnalyzerImpl — `odap/biz/core/ontology/goal/impl/impact_analyzer_impl.py` 静态分析：受影响 ObjectType / Action Type / 估算迁移成本 [completed: 2026-06-06]
+- [x] T425 GoalService 编排层 — `odap/biz/core/ontology/goal/services/goal_service.py` [completed: 2026-06-06]
+- [x] T426 Goal API 路由 — `odap/biz/core/ontology/goal/api/routes.py` CRUD + POST `/api/ontology/goals/{id}/propose-change` + GET `/api/ontology/goals/{id}/lineage` [completed: 2026-06-06]
+- [x] T427 [TDD] Goal 单元测试 — `tests/unit/test_goal.py` 覆盖 Goal CRUD、LLM rationale 生成、Impact 分析、Goal lineage [completed: 2026-06-06]
 - [ ] T428 [SUBAGENT] 前端 Goal 看板 — `frontend/src/modules/ontology/pages/GoalKanban.tsx` L5 页面，Goal 状态看板（拖拽切换状态）+ 时间线
 - [ ] T429 [SUBAGENT] 前端 Change Proposal 组件 — `frontend/src/modules/ontology/components/ChangeProposalCard.tsx` L3 组件，提案详情 + 影响分析可视化 + 审批按钮
 - [ ] T430 [SUBAGENT] 前端 Goal Lineage 视图 — `frontend/src/modules/ontology/components/GoalLineage.tsx` L3 组件，父子 Goal + 关联变更 + G6 图谱渲染
