@@ -18,6 +18,15 @@ from unittest.mock import patch, MagicMock
 
 
 # ---------------------------------------------------------------------------
+# Constants
+# ---------------------------------------------------------------------------
+
+# Test-only JWT secret. MUST be ≥ 32 bytes per RFC 7518 §3.2
+# (HMAC-SHA256 key length recommendation).
+TEST_JWT_SECRET = "test_secret_key_for_unit_tests_padded_to_32bytes"  # 43 bytes
+
+
+# ---------------------------------------------------------------------------
 # Fixtures
 # ---------------------------------------------------------------------------
 
@@ -25,7 +34,7 @@ from unittest.mock import patch, MagicMock
 def jwt_service():
     """创建使用固定密钥的 JWTService 实例"""
     from odap.infra.security.jwt_service import JWTService
-    return JWTService(secret_key="test_secret_key_for_unit_tests", algorithm="HS256")
+    return JWTService(secret_key=TEST_JWT_SECRET, algorithm="HS256")
 
 
 @pytest.fixture
@@ -73,7 +82,7 @@ class TestJWTServiceTokenGeneration:
             workspace_id="ws-001",
             workspace_role="commander",
         )
-        decoded = pyjwt.decode(token, "test_secret_key_for_unit_tests", algorithms=["HS256"])
+        decoded = pyjwt.decode(token, TEST_JWT_SECRET, algorithms=["HS256"])
         assert decoded["iss"] == "odap"
         assert decoded["sub"] == "user-001"
         assert decoded["name"] == "testuser"
@@ -88,7 +97,7 @@ class TestJWTServiceTokenGeneration:
         token = jwt_service.issue_access_token(
             user_id="user-002", user_name="guest", role="observer"
         )
-        decoded = pyjwt.decode(token, "test_secret_key_for_unit_tests", algorithms=["HS256"])
+        decoded = pyjwt.decode(token, TEST_JWT_SECRET, algorithms=["HS256"])
         assert decoded["ws_id"] == ""
         assert decoded["ws_role"] == "observer"
 
@@ -103,7 +112,7 @@ class TestJWTServiceTokenGeneration:
         token = jwt_service.issue_refresh_token(
             user_id="user-001", workspace_id="ws-001"
         )
-        decoded = pyjwt.decode(token, "test_secret_key_for_unit_tests", algorithms=["HS256"])
+        decoded = pyjwt.decode(token, TEST_JWT_SECRET, algorithms=["HS256"])
         assert decoded["iss"] == "odap"
         assert decoded["sub"] == "user-001"
         assert decoded["type"] == "refresh"
@@ -143,7 +152,7 @@ class TestJWTServiceTokenValidation:
             "iat": int((now - timedelta(hours=2)).timestamp()),
             "role": "admin",
         }
-        expired_token = pyjwt.encode(expired_payload, "test_secret_key_for_unit_tests", algorithm="HS256")
+        expired_token = pyjwt.encode(expired_payload, TEST_JWT_SECRET, algorithm="HS256")
 
         with pytest.raises(pyjwt.ExpiredSignatureError):
             jwt_service.verify_token(expired_token)
@@ -155,10 +164,10 @@ class TestJWTServiceTokenValidation:
 
     def test_verify_token_with_wrong_secret_raises_error(self, jwt_service):
         """使用错误密钥签名的 token 应验证失败"""
-        # 用另一个密钥签名
+        # 用另一个 ≥32 字节的密钥签名（避免 PyJWT InsecureKeyLengthWarning）
         wrong_token = pyjwt.encode(
             {"iss": "odap", "sub": "user-001", "exp": int((datetime.now(timezone.utc) + timedelta(hours=1)).timestamp()), "iat": int(datetime.now(timezone.utc).timestamp())},
-            "wrong_secret",
+            "wrong_secret_but_long_enough_to_be_secure_2026",
             algorithm="HS256",
         )
         with pytest.raises(pyjwt.InvalidSignatureError):
@@ -219,7 +228,7 @@ class TestJWTRoleExtraction:
             "exp": int((now + timedelta(hours=1)).timestamp()),
             "iat": int(now.timestamp()),
         }
-        token = pyjwt.encode(payload_dict, "test_secret_key_for_unit_tests", algorithm="HS256")
+        token = pyjwt.encode(payload_dict, TEST_JWT_SECRET, algorithm="HS256")
         payload = jwt_service.verify_token(token)
         assert payload.role == "observer"
 
@@ -276,7 +285,7 @@ class TestJWTAuthMiddleware:
         from odap.infra.security.jwt_auth import decode_token
 
         # P0-8: JWT_SECRET is no longer a class attribute. Use env var.
-        monkeypatch.setenv("JWT_SECRET", "test_secret_key_for_unit_tests")
+        monkeypatch.setenv("JWT_SECRET", TEST_JWT_SECRET)
         monkeypatch.setenv("JWT_ALGORITHM", "HS256")
 
         token = jwt_service.issue_access_token("user-001", "test", "admin")
@@ -289,7 +298,7 @@ class TestJWTAuthMiddleware:
         from odap.infra.security.jwt_auth import decode_token
         from fastapi import HTTPException
 
-        monkeypatch.setenv("JWT_SECRET", "test_secret_key_for_unit_tests")
+        monkeypatch.setenv("JWT_SECRET", TEST_JWT_SECRET)
         monkeypatch.setenv("JWT_ALGORITHM", "HS256")
 
         now = datetime.now(timezone.utc)
@@ -299,7 +308,7 @@ class TestJWTAuthMiddleware:
             "exp": int((now - timedelta(hours=1)).timestamp()),
             "iat": int((now - timedelta(hours=2)).timestamp()),
         }
-        expired_token = pyjwt.encode(expired_payload, "test_secret_key_for_unit_tests", algorithm="HS256")
+        expired_token = pyjwt.encode(expired_payload, TEST_JWT_SECRET, algorithm="HS256")
 
         with pytest.raises(HTTPException) as exc_info:
             decode_token(expired_token)

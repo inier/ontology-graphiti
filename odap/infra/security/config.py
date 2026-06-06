@@ -71,7 +71,9 @@ class SecurityConfig:
         to start (and test fixtures to import) without the secret being set.
         Production code paths MUST call this method.
         """
-        return get_required_secret("JWT_SECRET", min_length=16)
+        # RFC 7518 §3.2: HMAC-SHA256 keys MUST be at least 32 bytes (256 bits).
+        # Enforce minimum 32 to prevent InsecureKeyLengthWarning from PyJWT.
+        return get_required_secret("JWT_SECRET", min_length=32)
 
     @classmethod
     def get_jwt_algorithm(cls) -> str:
