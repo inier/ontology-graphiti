@@ -121,9 +121,9 @@ phases:
 totals:
   total_phases: 11
   total_tasks: 434
-  completed_tasks: 383
-  pending_tasks: 51
-  completion_rate: 0.883
+  completed_tasks: 357
+  pending_tasks: 77
+  completion_rate: 0.823
 
 # 质量门禁状态
 quality_gates:
@@ -142,16 +142,16 @@ quality_gates:
 
 # 测试状态
 test_status:
-  total: 3028
-  passed: 3028
+  total: 3173
+  passed: 3173
   failed: 0
   warnings: 0
   last_run: "2026-06-06"
   notes: |
-    2026-06-06 Phase 11 M1 后端完成（FR-031 Data Health + FR-032 Branch）：
-    1. odap/biz/core/ontology/health/: 6 层完整结构 (api/models/interfaces/impl/services/storage) + 5 种规则扫描 + 3 通道通知
-    2. odap/biz/core/ontology/branch/: 6 层完整结构 + 3-way merge (自实现 dict diff, RFC 6901 JSON Pointer)
-    3. odap/web/app.py: 注册 health_router + branch_router
-    4. tests/unit/test_health.py: 97 用例 (Rule/Report/Storage/Repo/5 Scanner/Notification/Service/Routes)
-    5. tests/unit/test_branch.py: 105 用例 (Models/Storage/Repository/MergeEngine/Service/Routes)
-    结果：3028/3028 通过, 0 failed, 0 warnings
+    2026-06-06 Phase 11 M2 后端完成（FR-033 Inheritance + FR-034 Action）：
+    1. odap/biz/core/ontology/inheritance/: 6 层结构 + 迭代 DFS 循环检测 + 深度 5 + Mixin 冲突
+    2. odap/biz/core/ontology/action/: 6 层结构 + SkillBackedExecutor (Action→Skill 委托) + OPA write-time check
+    3. odap/web/app.py: 注册 inheritance_router + action_router
+    4. tests/unit/test_inheritance.py: 64 用例 (Models/Storage/Repo/Validator/Resolver/Service/Routes)
+    5. tests/unit/test_action.py: 81 用例 (Models/Storage/Repo/SkillExecutor/Service/Routes)
+    结果：3173/3173 通过, 0 failed, 0 warnings
