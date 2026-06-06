@@ -493,13 +493,13 @@
 
 ### SC-03: 大规模本体分片
 
-- [ ] T324 本体分片器 — `odap/biz/core/ontology/sharding/impl/sharder.py` 当 ObjectType > 10000 实例时按主键 hash 自动分片，查询时并行扫描并合并
-- [ ] T325 [TDD] 分片单元测试 — `tests/unit/test_sharding.py` 覆盖分片策略、并行查询、结果合并
+- [x] T324 本体分片器 — `odap/biz/core/ontology/sharding/impl/sharder.py` 当 ObjectType > 10000 实例时按主键 hash 自动分片，查询时并行扫描并合并 ✅ 2026-06-06
+- [x] T325 [TDD] 分片单元测试 — `tests/unit/test_sharding.py` 覆盖分片策略、并行查询、结果合并（23 用例全部通过）✅ 2026-06-06
 
 ### SC-04: 多租户隔离强化
 
-- [ ] T326 [REVIEW] 租户隔离中间件 — `odap/infra/security/tenant_isolation.py` 所有 API 自动注入 ws_id 过滤条件，越权访问返回 403（不泄漏存在性）
-- [ ] T327 [TDD] 租户隔离单元测试 — `tests/unit/test_tenant_isolation.py` 覆盖跨租户访问拦截、403 响应、审计日志
+- [x] T326 [REVIEW] 租户隔离中间件 — `odap/infra/security/tenant_isolation.py` 所有 API 自动注入 ws_id 过滤条件，越权访问返回 403（不泄漏存在性）✅ 2026-06-06
+- [x] T327 [TDD] 租户隔离单元测试 — `tests/unit/test_tenant_isolation.py` 覆盖跨租户访问拦截、403 响应、审计日志（18 用例全部通过）✅ 2026-06-06
 
 ### SC-05: 审计日志保留策略
 
