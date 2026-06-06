@@ -150,7 +150,7 @@ odap/biz/simulation/simulation_sandbox/sandbox.py:233 54L _project_impact_with_l
 odap/biz/platform/skill_system/api/routes_extended.py:384 54L parse_skill_markdown
 odap/biz/core/ontology/design/services/api_version.py:69 54L _init_default_versions
 odap/biz/core/ontology/design/engine/storage/sqlite_engine_storage.py:15 54L _init_db
-odap/web/app.py:88 53L lifespan
+odap/web/app.py:89 53L lifespan
 odap/infra/graph/graph_service.py:616 53L init_core
 odap/biz/simulation/visualization/visualization_engine.py:300 53L entities_to_map
 odap/biz/platform/workspace/services/scenario_service.py:129 53L _extract_entities_from_text

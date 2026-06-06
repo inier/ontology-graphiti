@@ -65,6 +65,7 @@ from odap.biz.core.ontology.design.ingestion.api.routes import router as ingesti
 from odap.biz.core.ontology.design.version.api.routes import router as ontology_version_router
 from odap.biz.core.ontology.design.schema.semantic_layer.api.routes import router as semantic_layer_router
 from odap.biz.core.ontology.conflict.api.routes import router as conflict_router
+from odap.biz.core.ontology.branch.api.routes import router as branch_router
 from odap.biz.core.ontology.cold_start.api.routes import router as cold_start_router
 from odap.biz.platform.tool_registry.api.routes import router as tool_registry_router
 from odap.biz.decision.decision_recommendation.api.routes import router as decision_recommendation_router
@@ -226,6 +227,7 @@ app.include_router(ontology_version_router)
 app.include_router(data_classification_router)
 app.include_router(semantic_layer_router)
 app.include_router(conflict_router)
+app.include_router(branch_router)
 app.include_router(cold_start_router)
 app.include_router(tool_registry_router)
 app.include_router(decision_recommendation_router)

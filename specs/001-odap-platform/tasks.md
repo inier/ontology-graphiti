@@ -522,39 +522,39 @@
 
 #### FR-031: Data Health 数据健康引擎
 
-- [ ] T331 [P] [SUBAGENT] Health 模块目录结构创建 — `odap/biz/core/ontology/health/` 创建 `api/` `models/` `interfaces/` `impl/` `services/` `storage/` 子目录 + `__init__.py`
-- [ ] T332 [P] HealthRule 领域模型定义 — `odap/biz/core/ontology/health/models/rule.py` `HealthRule(BaseModel)` 含 `target_type_id`、`check_expression` (JSON/YAML)、`severity` (info/warning/error/critical)、`schedule` (cron)、`notification_channel` (JSON)
-- [ ] T333 [P] HealthReport 领域模型定义 — `odap/biz/core/ontology/health/models/report.py` `HealthReport(BaseModel)` 含 `instance_id`、`rule_id`、`status` (pass/warn/fail)、`details`、`scanned_at`
-- [ ] T334 [P] [REVIEW] HealthRuleRepository 抽象接口 — `odap/biz/core/ontology/health/interfaces/health_rule_repository.py` ABC 定义 CRUD + `list_by_target_type` + `list_by_severity`
-- [ ] T335 [P] [REVIEW] HealthScanner 抽象接口 — `odap/biz/core/ontology/health/interfaces/health_scanner.py` ABC 定义 `scan(rule_id: Optional[str]) -> List[HealthReport]`
-- [ ] T336 SQLite Health Storage — `odap/biz/core/ontology/health/storage/sqlite_health_storage.py` 实现 `health_rules` / `health_reports` 表 CRUD + `__init__.py` 别名导出
-- [ ] T337 [REVIEW] HealthRuleRepositoryImpl — `odap/biz/core/ontology/health/impl/health_rule_repository_impl.py` 实现接口
-- [ ] T338 HealthScannerImpl — `odap/biz/core/ontology/health/impl/health_scanner_impl.py` 支持 5 种规则：not_null / unique / regex / range / referential_integrity，使用 JSONLogic 引擎求值
-- [ ] T339 NotificationDispatcher — `odap/biz/core/ontology/health/impl/notification_dispatcher.py` 支持 email / webhook / im 三种通道，异步发送（asyncio.create_task）
-- [ ] T340 Health Service 编排层 — `odap/biz/core/ontology/health/services/health_service.py` 返回 Dict[str, Any]
-- [ ] T341 Health API 路由 — `odap/biz/core/ontology/health/api/routes.py` `APIRouter(prefix="/api/ontology/health")` 35+ 端点（rules CRUD + scan + reports 查询）
-- [ ] T342 Health schemas 定义 — `odap/biz/core/ontology/health/api/schemas.py` CreateHealthRuleRequest / HealthRuleResponse / ScanRequest / HealthReportResponse
-- [ ] T343 [REVIEW] Health 路由注册 — `odap/web/app.py` `include_router(health_router)`
-- [ ] T344 [TDD] Health 单元测试 — `tests/unit/test_health.py` 覆盖 5 种规则、CRUD、扫描调度、通知发送
+- [x] T331 [P] [SUBAGENT] Health 模块目录结构创建 — `odap/biz/core/ontology/health/` 创建 `api/` `models/` `interfaces/` `impl/` `services/` `storage/` 子目录 + `__init__.py` ✅ 2026-06-06
+- [x] T332 [P] HealthRule 领域模型定义 — `odap/biz/core/ontology/health/models/rule.py` `HealthRule(BaseModel)` 含 `target_type_id`、`check_expression` (JSON/YAML)、`severity` (info/warning/error/critical)、`schedule` (cron)、`notification_channel` (JSON) ✅ 2026-06-06
+- [x] T333 [P] HealthReport 领域模型定义 — `odap/biz/core/ontology/health/models/report.py` `HealthReport(BaseModel)` 含 `instance_id`、`rule_id`、`status` (pass/warn/fail)、`details`、`scanned_at` ✅ 2026-06-06
+- [x] T334 [P] [REVIEW] HealthRuleRepository 抽象接口 — `odap/biz/core/ontology/health/interfaces/health_rule_repository.py` ABC 定义 CRUD + `list_by_target_type` + `list_by_severity` ✅ 2026-06-06
+- [x] T335 [P] [REVIEW] HealthScanner 抽象接口 — `odap/biz/core/ontology/health/interfaces/health_scanner.py` ABC 定义 `scan(rule_id: Optional[str]) -> List[HealthReport]` ✅ 2026-06-06
+- [x] T336 SQLite Health Storage — `odap/biz/core/ontology/health/storage/sqlite_health_storage.py` 实现 `health_rules` / `health_reports` 表 CRUD + `__init__.py` 别名导出 ✅ 2026-06-06
+- [x] T337 [REVIEW] HealthRuleRepositoryImpl — `odap/biz/core/ontology/health/impl/health_rule_repository_impl.py` 实现接口 ✅ 2026-06-06
+- [x] T338 HealthScannerImpl — `odap/biz/core/ontology/health/impl/health_scanner_impl.py` 支持 5 种规则：not_null / unique / regex / range / referential_integrity，使用 JSONLogic 引擎求值 ✅ 2026-06-06
+- [x] T339 NotificationDispatcher — `odap/biz/core/ontology/health/impl/notification_dispatcher.py` 支持 email / webhook / im 三种通道，异步发送（asyncio.create_task）✅ 2026-06-06
+- [x] T340 Health Service 编排层 — `odap/biz/core/ontology/health/services/health_service.py` 返回 Dict[str, Any] ✅ 2026-06-06
+- [x] T341 Health API 路由 — `odap/biz/core/ontology/health/api/routes.py` `APIRouter(prefix="/api/ontology/health")` 35+ 端点（rules CRUD + scan + reports 查询）✅ 2026-06-06
+- [x] T342 Health schemas 定义 — `odap/biz/core/ontology/health/api/schemas.py` CreateHealthRuleRequest / HealthRuleResponse / ScanRequest / HealthReportResponse ✅ 2026-06-06
+- [x] T343 [REVIEW] Health 路由注册 — `odap/web/app.py` `include_router(health_router)` ✅ 2026-06-06
+- [x] T344 [TDD] Health 单元测试 — `tests/unit/test_health.py` 覆盖 5 种规则、CRUD、扫描调度、通知发送（97 用例全部通过）✅ 2026-06-06
 - [ ] T345 [SUBAGENT] 前端 Health 规则编辑器 — `frontend/src/modules/ontology/components/HealthRuleEditor.tsx` L3 组件，YAML 编辑 + 表达式实时校验 + 严重程度选择
 - [ ] T346 [SUBAGENT] 前端 Health 报告页面 — `frontend/src/modules/ontology/pages/HealthDashboard.tsx` L5 页面，规则列表 + 扫描触发 + 报告可视化（饼图+表格）
 
 #### FR-032: 本体 Branch & Merge
 
-- [ ] T347 [P] [SUBAGENT] Branch 模块目录结构创建 — `odap/biz/core/ontology/branch/` 创建 `api/` `models/` `interfaces/` `impl/` `services/` `storage/` 子目录
-- [ ] T348 [P] Branch 领域模型定义 — `odap/biz/core/ontology/branch/models/branch.py` `Branch(BaseModel)` 含 `id` / `name` / `ontology_id` / `base_version_id` / `head_version_id` / `status` (active/merged/abandoned)
-- [ ] T349 [P] MergeRequest 领域模型 — `odap/biz/core/ontology/branch/models/merge_request.py` `MergeRequest(BaseModel)` 含 `source_branch_id` / `target_branch_id` / `conflicts` (JSON) / `status` (open/approved/merged/conflict)
-- [ ] T350 [P] Conflict 领域模型 — `odap/biz/core/ontology/branch/models/conflict.py` `Conflict(BaseModel)` 含 `path` (JSON Pointer) / `base_value` / `ours_value` / `theirs_value` / `resolution`
-- [ ] T351 [REVIEW] BranchRepository 抽象接口 — `odap/biz/core/ontology/branch/interfaces/branch_repository.py` ABC 定义 CRUD + `list_by_ontology` + `get_active`
-- [ ] T352 [REVIEW] MergeEngine 抽象接口 — `odap/biz/core/ontology/branch/interfaces/merge_engine.py` ABC 定义 `merge(source, target) -> MergeResult` / `detect_conflicts(base, ours, theirs) -> List[Conflict]`
-- [ ] T353 SQLite Branch Storage — `odap/biz/core/ontology/branch/storage/sqlite_branch_storage.py` 实现 `branches` / `merge_requests` / `conflicts` 表 CRUD
-- [ ] T354 [REVIEW] BranchRepositoryImpl — `odap/biz/core/ontology/branch/impl/branch_repository_impl.py`
-- [ ] T355 ThreeWayMergeEngine — `odap/biz/core/ontology/branch/impl/merge_engine.py` 基于 RFC 6902 JSON Patch 实现 3-way merge，自动合并无冲突字段，冲突字段返回由用户解决
-- [ ] T356 Branch Service 编排层 — `odap/biz/core/ontology/branch/services/branch_service.py` 集成 OntologyVersion 与 MergeEngine
-- [ ] T357 Branch API 路由 — `odap/biz/core/ontology/branch/api/routes.py` 端点：POST `/api/ontology/branches` + GET `/api/ontology/branches` + POST `/api/ontology/branches/{id}/merge` + GET `/api/ontology/branches/{id}/conflicts`
-- [ ] T358 Branch schemas 定义 — `odap/biz/core/ontology/branch/api/schemas.py` CreateBranchRequest / MergeRequestResponse / ConflictResolutionRequest
-- [ ] T359 [REVIEW] Branch 路由注册 — `odap/web/app.py` `include_router(branch_router)`
-- [ ] T360 [TDD] Branch 单元测试 — `tests/unit/test_branch.py` 覆盖 3-way merge、无冲突自动合并、冲突检测与解决、合并后版本生成
+- [x] T347 [P] [SUBAGENT] Branch 模块目录结构创建 — `odap/biz/core/ontology/branch/` 创建 `api/` `models/` `interfaces/` `impl/` `services/` `storage/` 子目录 ✅ 2026-06-06
+- [x] T348 [P] Branch 领域模型定义 — `odap/biz/core/ontology/branch/models/branch.py` `Branch(BaseModel)` 含 `id` / `name` / `ontology_id` / `base_version_id` / `head_version_id` / `status` (active/merged/abandoned) ✅ 2026-06-06
+- [x] T349 [P] MergeRequest 领域模型 — `odap/biz/core/ontology/branch/models/merge_request.py` `MergeRequest(BaseModel)` 含 `source_branch_id` / `target_branch_id` / `conflicts` (JSON) / `status` (open/approved/merged/conflict) ✅ 2026-06-06
+- [x] T350 [P] Conflict 领域模型 — `odap/biz/core/ontology/branch/models/conflict.py` `Conflict(BaseModel)` 含 `path` (JSON Pointer) / `base_value` / `ours_value` / `theirs_value` / `resolution` ✅ 2026-06-06
+- [x] T351 [REVIEW] BranchRepository 抽象接口 — `odap/biz/core/ontology/branch/interfaces/branch_repository.py` ABC 定义 CRUD + `list_by_ontology` + `get_active` ✅ 2026-06-06
+- [x] T352 [REVIEW] MergeEngine 抽象接口 — `odap/biz/core/ontology/branch/interfaces/merge_engine.py` ABC 定义 `merge(source, target) -> MergeResult` / `detect_conflicts(base, ours, theirs) -> List[Conflict]` ✅ 2026-06-06
+- [x] T353 SQLite Branch Storage — `odap/biz/core/ontology/branch/storage/sqlite_branch_storage.py` 实现 `branches` / `merge_requests` / `conflicts` 表 CRUD ✅ 2026-06-06
+- [x] T354 [REVIEW] BranchRepositoryImpl — `odap/biz/core/ontology/branch/impl/branch_repository_impl.py` ✅ 2026-06-06
+- [x] T355 ThreeWayMergeEngine — `odap/biz/core/ontology/branch/impl/merge_engine.py` 基于 RFC 6902 JSON Patch 实现 3-way merge，自动合并无冲突字段，冲突字段返回由用户解决 ✅ 2026-06-06
+- [x] T356 Branch Service 编排层 — `odap/biz/core/ontology/branch/services/branch_service.py` 集成 OntologyVersion 与 MergeEngine ✅ 2026-06-06
+- [x] T357 Branch API 路由 — `odap/biz/core/ontology/branch/api/routes.py` 端点：POST `/api/ontology/branches` + GET `/api/ontology/branches` + POST `/api/ontology/branches/{id}/merge` + GET `/api/ontology/branches/{id}/conflicts` ✅ 2026-06-06
+- [x] T358 Branch schemas 定义 — `odap/biz/core/ontology/branch/api/schemas.py` CreateBranchRequest / MergeRequestResponse / ConflictResolutionRequest ✅ 2026-06-06
+- [x] T359 [REVIEW] Branch 路由注册 — `odap/web/app.py` `include_router(branch_router)` ✅ 2026-06-06
+- [x] T360 [TDD] Branch 单元测试 — `tests/unit/test_branch.py` 覆盖 3-way merge、无冲突自动合并、冲突检测与解决、合并后版本生成（105 用例全部通过）✅ 2026-06-06
 - [ ] T361 [SUBAGENT] 前端 Branch 可视化 — `frontend/src/modules/ontology/components/BranchGraph.tsx` L3 组件，G6 渲染分支树 + 合并箭头
 - [ ] T362 [SUBAGENT] 前端 Merge 冲突解决器 — `frontend/src/modules/ontology/components/MergeConflictResolver.tsx` L3 组件，3 栏对比（base/ours/theirs）+ 选择按钮
 - [ ] T363 [SUBAGENT] 前端 Branch 管理页面 — `frontend/src/modules/ontology/pages/BranchManager.tsx` L5 页面，分支列表 + 创建分支 + 发起合并
