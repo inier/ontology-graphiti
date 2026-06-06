@@ -14,14 +14,14 @@
 - [ ] T002 [P] MinIO 环境变量配置 — `.env.example` 新增 MINIO_ENDPOINT / MINIO_ACCESS_KEY / MINIO_SECRET_KEY / MINIO_SECURE
 - [ ] T003 [P] MinIO Python SDK 安装 — `requirements.txt` 新增 `minio` 依赖
 - [ ] T004 MinIO 客户端封装 — `odap/infra/storage/minio_client.py` 实现 MinIOClient 单例（upload_object / download_object / get_presigned_url / delete_object / ensure_bucket）
-- [ ] T005 MinIO 客户端单元测试 — `tests/unit/test_minio_client.py` 覆盖上传/下载/预签名URL/桶管理
-- [ ] T006 [P] 前端 UIAdapter 抽象接口定义 — `frontend/src/modules/shared/components/adapter/UIAdapter.ts` 定义 getButton / getInput / getTable / getModal / getForm / getSelect / getTag / getTooltip / getMessage / getNotification 接口
-- [ ] T007 [P] 前端 AntDesignAdapter 实现 — `frontend/src/modules/shared/components/adapter/AntDesignAdapter.ts` 基于 Ant Design 6 实现 UIAdapter 接口
-- [ ] T008 [P] 前端 adapter 导出 — `frontend/src/modules/shared/components/adapter/index.ts` 导出当前 Adapter 实例
-- [ ] T009 [P] 前端 L1 Atoms 原子组件创建 — `frontend/src/modules/shared/components/atoms/` 创建 Button / Input / Badge / Tooltip / Icon 组件 + `index.ts` 统一导出
-- [ ] T010 [P] 前端 L2 Molecules 分子组件创建 — `frontend/src/modules/shared/components/molecules/` 创建 FormField / SearchBar / Card / Modal 组件 + `index.ts` 统一导出
-- [ ] T011 [P] 前端 L3 Organisms 组织组件创建 — `frontend/src/modules/shared/components/organisms/` 创建 DataTable / FormPanel / GraphView / ChatPanel 组件 + `index.ts` 统一导出
-- [ ] T012 [P] 前端 L4 Templates 模板组件创建 — `frontend/src/modules/shared/components/templates/` 创建 MasterDetail / SplitView / FullScreen 组件 + `index.ts` 统一导出
+- [ ] T005 [TDD] [REVIEW] MinIO 客户端单元测试 — `tests/unit/test_minio_client.py` 覆盖上传/下载/预签名URL/桶管理
+- [ ] T006 [P] [REVIEW] [SUBAGENT] 前端 UIAdapter 抽象接口定义 — `frontend/src/modules/shared/components/adapter/UIAdapter.ts` 定义 getButton / getInput / getTable / getModal / getForm / getSelect / getTag / getTooltip / getMessage / getNotification 接口
+- [ ] T007 [P] [SUBAGENT] 前端 AntDesignAdapter 实现 — `frontend/src/modules/shared/components/adapter/AntDesignAdapter.ts` 基于 Ant Design 6 实现 UIAdapter 接口
+- [ ] T008 [P] [SUBAGENT] 前端 adapter 导出 — `frontend/src/modules/shared/components/adapter/index.ts` 导出当前 Adapter 实例
+- [ ] T009 [P] [SUBAGENT] 前端 L1 Atoms 原子组件创建 — `frontend/src/modules/shared/components/atoms/` 创建 Button / Input / Badge / Tooltip / Icon 组件 + `index.ts` 统一导出
+- [ ] T010 [P] [SUBAGENT] 前端 L2 Molecules 分子组件创建 — `frontend/src/modules/shared/components/molecules/` 创建 FormField / SearchBar / Card / Modal 组件 + `index.ts` 统一导出
+- [ ] T011 [P] [SUBAGENT] 前端 L3 Organisms 组织组件创建 — `frontend/src/modules/shared/components/organisms/` 创建 DataTable / FormPanel / GraphView / ChatPanel 组件 + `index.ts` 统一导出
+- [ ] T012 [P] [SUBAGENT] 前端 L4 Templates 模板组件创建 — `frontend/src/modules/shared/components/templates/` 创建 MasterDetail / SplitView / FullScreen 组件 + `index.ts` 统一导出
 - [ ] T013 [P] 前端响应式断点常量 — `frontend/src/modules/shared/styles/breakpoints.ts` 定义 6 断点常量（xs/sm/md/lg/xl/xxl）+ CSS 媒体查询 mixin
 - [ ] T014 [P] 前端 useResponsive Hook — `frontend/src/modules/shared/hooks/useResponsive.ts` 返回当前断点信息 + 设备类型判断
 - [ ] T015 [P] 前端 i18n 基础设施 — `frontend/src/modules/shared/stores/i18nStore.ts` 配置 i18next 实例 + react-i18next 集成 + 按模块命名空间加载
@@ -33,8 +33,8 @@
 - [ ] T021 [P] OpenHarness Memory 适配器 — `odap/infra/openharness/memory_adapter.py` 封装 OpenHarness Memory Plugin
 - [ ] T022 [P] OpenHarness Hook 适配器 — `odap/infra/openharness/hook_adapter.py` 封装 OpenHarness 生命周期钩子
 - [ ] T023 [P] OpenHarness Tool 适配器增强 — `odap/infra/openharness/tool_adapter.py` 增强 GraphitiToolAdapter，支持统一工具注册
-- [ ] T024 OpenHarness 适配层单元测试 — `tests/unit/test_openharness_adapters.py` 覆盖各适配器初始化和接口调用
-- [ ] T025 FastAPI lifespan 集成 OpenHarness — `odap/web/app.py` 在 lifespan 中初始化 OpenHarness（v1 + v2）
+- [ ] T024 [TDD] OpenHarness 适配层单元测试 — `tests/unit/test_openharness_adapters.py` 覆盖各适配器初始化和接口调用
+- [ ] T025 [REVIEW] FastAPI lifespan 集成 OpenHarness — `odap/web/app.py` 在 lifespan 中初始化 OpenHarness（v1 + v2）
 
 ---
 
@@ -51,25 +51,25 @@
 - [ ] T032 Constraint 领域模型定义 — `odap/biz/core/ontology/model/models/constraint.py` Constraint(BaseModel) 含 constraint_type / expression / error_message
 - [ ] T033 OntologyDocument 领域模型定义 — `odap/biz/core/ontology/model/models/ontology_document.py` OntologyDocument(BaseModel) 含 id / name / version / object_types / action_types / relations / metadata，对齐 Palantir AIP
 - [ ] T034 本体模型层模型导出 — `odap/biz/core/ontology/model/models/__init__.py` 统一导出所有模型类
-- [ ] T035 本体模型层模型单元测试 — `tests/unit/test_ontology_model.py` 覆盖 EntityType / Property / Relation / Constraint / OntologyDocument 必填字段验证、默认值、容器字段 default_factory、Enum 值
+- [ ] T035 [TDD] 本体模型层模型单元测试 — `tests/unit/test_ontology_model.py` 覆盖 EntityType / Property / Relation / Constraint / OntologyDocument 必填字段验证、默认值、容器字段 default_factory、Enum 值
 - [ ] T036 Version 领域模型定义 — `odap/biz/core/ontology/engine/models/version.py` OntologyVersion(BaseModel) 含 version_number / changelog / status / valid_time / transaction_time
 - [ ] T037 Audit 领域模型定义 — `odap/biz/core/ontology/engine/models/audit.py` AuditRecord(BaseModel) 含 source / process_steps / transform_rules / timestamp
 - [ ] T038 Validation 领域模型定义 — `odap/biz/core/ontology/engine/models/validation.py` ValidationResult(BaseModel) 含 is_valid / errors / warnings
 - [ ] T039 本体管理引擎模型导出 — `odap/biz/core/ontology/engine/models/__init__.py` 统一导出
-- [ ] T040 本体管理引擎模型单元测试 — `tests/unit/test_ontology_engine.py` 覆盖 Version / Audit / Validation 模型验证
-- [ ] T041 ModelRepository 抽象接口定义 — `odap/biz/core/ontology/model/interfaces/model_repository.py` ABC 定义 save_entity_type / get_entity_type / list_entity_types / delete_entity_type / save_instance / get_instance / list_instances / delete_instance
-- [ ] T042 VersionManager 抽象接口定义 — `odap/biz/core/ontology/engine/interfaces/version_manager.py` ABC 定义 create_version / get_version / rollback_version / compare_versions / query_at_time
-- [ ] T043 AuditRecorder 抽象接口定义 — `odap/biz/core/ontology/engine/interfaces/audit_recorder.py` ABC 定义 record_audit / get_audit / list_audits
-- [ ] T044 ValidationEngine 抽象接口定义 — `odap/biz/core/ontology/engine/interfaces/validation_engine.py` ABC 定义 validate_properties / validate_consistency / validate_constraints
+- [ ] T040 [TDD] 本体管理引擎模型单元测试 — `tests/unit/test_ontology_engine.py` 覆盖 Version / Audit / Validation 模型验证
+- [ ] T041 [REVIEW] ModelRepository 抽象接口定义 — `odap/biz/core/ontology/model/interfaces/model_repository.py` ABC 定义 save_entity_type / get_entity_type / list_entity_types / delete_entity_type / save_instance / get_instance / list_instances / delete_instance
+- [ ] T042 [REVIEW] VersionManager 抽象接口定义 — `odap/biz/core/ontology/engine/interfaces/version_manager.py` ABC 定义 create_version / get_version / rollback_version / compare_versions / query_at_time
+- [ ] T043 [REVIEW] AuditRecorder 抽象接口定义 — `odap/biz/core/ontology/engine/interfaces/audit_recorder.py` ABC 定义 record_audit / get_audit / list_audits
+- [ ] T044 [REVIEW] ValidationEngine 抽象接口定义 — `odap/biz/core/ontology/engine/interfaces/validation_engine.py` ABC 定义 validate_properties / validate_consistency / validate_constraints
 - [ ] T045 SQLite Model Storage 实现 — `odap/biz/core/ontology/model/storage/sqlite_model_storage.py` SQLiteModelStorage 实现 entity_types / properties / relations / constraints / instances 表 CRUD + `__init__.py` 别名导出
-- [ ] T046 SQLite Model Storage 单元测试 — `tests/unit/test_ontology_model.py` 新增 TestSQLiteModelStorage 类覆盖 CRUD 全流程、get 不存在返回 None、JSON 字段序列化/反序列化
+- [ ] T046 [TDD] SQLite Model Storage 单元测试 — `tests/unit/test_ontology_model.py` 新增 TestSQLiteModelStorage 类覆盖 CRUD 全流程、get 不存在返回 None、JSON 字段序列化/反序列化
 - [ ] T047 SQLite Engine Storage 实现 — `odap/biz/core/ontology/engine/storage/sqlite_engine_storage.py` SQLiteEngineStorage 实现 versions / audit_records 表 CRUD + `__init__.py` 别名导出
-- [ ] T048 SQLite Engine Storage 单元测试 — `tests/unit/test_ontology_engine.py` 新增 TestSQLiteEngineStorage 类覆盖版本 CRUD、审计记录 CRUD
+- [ ] T048 [TDD] SQLite Engine Storage 单元测试 — `tests/unit/test_ontology_engine.py` 新增 TestSQLiteEngineStorage 类覆盖版本 CRUD、审计记录 CRUD
 - [ ] T049 Graphiti 双时态基础设施增强 — `odap/infra/graph/graph_service.py` 增强 query_temporal() 方法，正确区分 valid_time 和 transaction_time（reference_time 对应 valid_time，created_at 对应 transaction_time）
-- [ ] T050 Graphiti 双时态单元测试 — `tests/unit/test_graph_service_temporal.py` 覆盖双时态查询、历史查询、时间点快照
+- [ ] T050 [TDD] Graphiti 双时态单元测试 — `tests/unit/test_graph_service_temporal.py` 覆盖双时态查询、历史查询、时间点快照
 - [ ] T051 DataClassification 枚举定义 — `odap/infra/security/data_classification.py` DataClassification(str, Enum) 四级分类 TS/S/C/U + 数据写入时自动标记分类级别逻辑
 - [ ] T052 Encryption 模块实现 — `odap/infra/security/encryption.py` 实现 TLS 1.3 强制配置 + AES-256-GCM 加密/解密函数（TS/S 级数据加密存储）
-- [ ] T053 数据分类与加密单元测试 — `tests/unit/test_data_classification.py` 覆盖分类枚举值、加密/解密流程、分类级别判定
+- [ ] T053 [TDD] 数据分类与加密单元测试 — `tests/unit/test_data_classification.py` 覆盖分类枚举值、加密/解密流程、分类级别判定
 
 ---
 
@@ -79,16 +79,16 @@
 
 ### FR-001: 本体设计器
 
-- [ ] T054 ModelRepositoryImpl 实现 — `odap/biz/core/ontology/model/impl/model_repository_impl.py` 实现 save_entity_type / get_entity_type / list_entity_types / delete_entity_type / save_instance / get_instance / list_instances / delete_instance，实例唯一性基于主键属性组合判定
+- [ ] T054 [REVIEW] ModelRepositoryImpl 实现 — `odap/biz/core/ontology/model/impl/model_repository_impl.py` 实现 save_entity_type / get_entity_type / list_entity_types / delete_entity_type / save_instance / get_instance / list_instances / delete_instance，实例唯一性基于主键属性组合判定
 - [ ] T055 ModelService 实现 — `odap/biz/core/ontology/model/services/model_service.py` 编排层，返回 Dict[str, Any]，Enum→.value / datetime→.isoformat 类型转换
 - [ ] T056 本体模型层 schemas 定义 — `odap/biz/core/ontology/model/api/schemas.py` CreateEntityTypeRequest / UpdateEntityTypeRequest / EntityTypeResponse / CreateInstanceRequest / InstanceResponse 等 Pydantic 模型
-- [ ] T057 本体模型层路由实现 — `odap/biz/core/ontology/model/api/routes.py` APIRouter(prefix="/api/ontology/model") 实体类型 CRUD + 实例 CRUD 路由，except HTTPException: raise
-- [ ] T058 本体模型层路由注册 — `odap/web/app.py` include_router(ontology_model_router)
-- [ ] T059 本体模型层服务单元测试 — `tests/unit/test_ontology_model.py` 新增 TestModelService 类覆盖成功返回扁平 dict、错误返回 {"status": "error"}、类型转换
-- [ ] T060 本体模型层路由单元测试 — `tests/unit/test_ontology_model.py` 新增 TestModelRoutes 类覆盖 HTTP 状态码映射、404/400/500 场景
-- [ ] T061 前端本体模型设计器页面 — `frontend/src/modules/ontology/pages/OntologyModelDesigner.tsx` L5 页面组件，左侧实体类型列表 + 中间属性编辑面板 + 右侧关系图预览
-- [ ] T062 前端实体类型编辑组件 — `frontend/src/modules/ontology/components/EntityTypeEditor.tsx` L3 组织组件，属性列表编辑 + 主键选择 + 约束配置
-- [ ] T063 前端实例管理组件 — `frontend/src/modules/ontology/components/InstanceManager.tsx` L3 组织组件，实例 CRUD + 分页列表 + 属性编辑
+- [ ] T057 [REVIEW] 本体模型层路由实现 — `odap/biz/core/ontology/model/api/routes.py` APIRouter(prefix="/api/ontology/model") 实体类型 CRUD + 实例 CRUD 路由，except HTTPException: raise
+- [ ] T058 [REVIEW] 本体模型层路由注册 — `odap/web/app.py` include_router(ontology_model_router)
+- [ ] T059 [TDD] 本体模型层服务单元测试 — `tests/unit/test_ontology_model.py` 新增 TestModelService 类覆盖成功返回扁平 dict、错误返回 {"status": "error"}、类型转换
+- [ ] T060 [TDD] 本体模型层路由单元测试 — `tests/unit/test_ontology_model.py` 新增 TestModelRoutes 类覆盖 HTTP 状态码映射、404/400/500 场景
+- [ ] T061 [SUBAGENT] 前端本体模型设计器页面 — `frontend/src/modules/ontology/pages/OntologyModelDesigner.tsx` L5 页面组件，左侧实体类型列表 + 中间属性编辑面板 + 右侧关系图预览
+- [ ] T062 [SUBAGENT] 前端实体类型编辑组件 — `frontend/src/modules/ontology/components/EntityTypeEditor.tsx` L3 组织组件，属性列表编辑 + 主键选择 + 约束配置
+- [ ] T063 [SUBAGENT] 前端实例管理组件 — `frontend/src/modules/ontology/components/InstanceManager.tsx` L3 组织组件，实例 CRUD + 分页列表 + 属性编辑
 - [ ] T064 前端本体模块 API 服务 — `frontend/src/modules/ontology/services/ontologyApi.ts` 封装 /api/ontology/model/* 接口调用
 - [ ] T065 前端本体模块 Store — `frontend/src/modules/ontology/stores/ontologyStore.ts` Zustand store 管理实体类型/实例状态
 - [ ] T066 前端本体模块翻译文件 — `frontend/src/modules/ontology/locales/zh-CN/ontology.json` + `frontend/src/modules/ontology/locales/en-US/ontology.json`
@@ -96,17 +96,17 @@
 
 ### FR-002: 本体版本管理
 
-- [ ] T068 VersionManagerImpl 实现 — `odap/biz/core/ontology/engine/impl/version_manager_impl.py` 实现 create_version / get_version / rollback_version / compare_versions / query_at_time，基于 Graphiti 双时态
+- [ ] T068 [REVIEW] VersionManagerImpl 实现 — `odap/biz/core/ontology/engine/impl/version_manager_impl.py` 实现 create_version / get_version / rollback_version / compare_versions / query_at_time，基于 Graphiti 双时态
 - [ ] T069 AuditRecorderImpl 实现 — `odap/biz/core/ontology/engine/impl/audit_recorder_impl.py` 实现数据摄入审计记录
-- [ ] T070 ValidationEngineImpl 实现 — `odap/biz/core/ontology/engine/impl/validation_engine_impl.py` 实现属性完整性检查 / 一致性验证 / 约束校验
+- [ ] T070 [REVIEW] ValidationEngineImpl 实现 — `odap/biz/core/ontology/engine/impl/validation_engine_impl.py` 实现属性完整性检查 / 一致性验证 / 约束校验
 - [ ] T071 EngineService 实现 — `odap/biz/core/ontology/engine/services/engine_service.py` 编排层，协调版本管理/审计/验证
 - [ ] T072 本体管理引擎 schemas 定义 — `odap/biz/core/ontology/engine/api/schemas.py` CreateVersionRequest / VersionResponse / RollbackRequest / CompareResponse / ValidateRequest / AuditResponse 等
-- [ ] T073 本体管理引擎路由实现 — `odap/biz/core/ontology/engine/api/routes.py` APIRouter(prefix="/api/ontology/engine") 版本管理 + 验证 + 审计路由
-- [ ] T074 本体管理引擎路由注册 — `odap/web/app.py` include_router(ontology_engine_router)
-- [ ] T075 版本管理服务单元测试 — `tests/unit/test_ontology_engine.py` 新增 TestVersionManager 类覆盖版本创建/查询/回滚/对比/时序查询
-- [ ] T076 验证引擎单元测试 — `tests/unit/test_ontology_engine.py` 新增 TestValidationEngine 类覆盖属性完整性/一致性/约束校验
-- [ ] T077 前端版本管理面板 — `frontend/src/modules/ontology/components/VersionPanel.tsx` L3 组织组件，版本时间线 + 变更对比 + 一键回滚
-- [ ] T078 前端版本对比组件 — `frontend/src/modules/ontology/components/VersionCompare.tsx` L3 组织组件，双版本差异高亮展示
+- [ ] T073 [REVIEW] 本体管理引擎路由实现 — `odap/biz/core/ontology/engine/api/routes.py` APIRouter(prefix="/api/ontology/engine") 版本管理 + 验证 + 审计路由
+- [ ] T074 [REVIEW] 本体管理引擎路由注册 — `odap/web/app.py` include_router(ontology_engine_router)
+- [ ] T075 [TDD] 版本管理服务单元测试 — `tests/unit/test_ontology_engine.py` 新增 TestVersionManager 类覆盖版本创建/查询/回滚/对比/时序查询
+- [ ] T076 [TDD] 验证引擎单元测试 — `tests/unit/test_ontology_engine.py` 新增 TestValidationEngine 类覆盖属性完整性/一致性/约束校验
+- [ ] T077 [SUBAGENT] 前端版本管理面板 — `frontend/src/modules/ontology/components/VersionPanel.tsx` L3 组织组件，版本时间线 + 变更对比 + 一键回滚
+- [ ] T078 [SUBAGENT] 前端版本对比组件 — `frontend/src/modules/ontology/components/VersionCompare.tsx` L3 组织组件，双版本差异高亮展示
 - [ ] T079 前端版本模块 Store — `frontend/src/modules/version/stores/versionStore.ts` Zustand store 管理版本状态
 
 ### FR-003: 本体实例 CRUD + 批量导入
@@ -114,10 +114,10 @@
 - [ ] T080 批量导入处理器实现 — `odap/biz/core/ontology/ingestion/impl/batch_importer.py` BatchImporter 支持 CSV/JSON 批量导入，自动验证属性完整性，无效数据标记跳过，返回导入结果摘要
 - [ ] T081 IngestService 实现 — `odap/biz/core/ontology/ingestion/services/ingest_service.py` 编排层，协调批量导入和验证
 - [ ] T082 数据摄入 schemas 定义 — `odap/biz/core/ontology/ingestion/api/schemas.py` BatchImportRequest / BatchImportResponse 等
-- [ ] T083 数据摄入路由实现 — `odap/biz/core/ontology/ingestion/api/routes.py` APIRouter(prefix="/api/ontology/ingestion") 批量导入路由
-- [ ] T084 数据摄入路由注册 — `odap/web/app.py` include_router(ontology_ingestion_router)
-- [ ] T085 批量导入单元测试 — `tests/unit/test_ontology_model.py` 新增 TestBatchImporter 类覆盖 CSV/JSON 导入、无效数据处理、结果摘要
-- [ ] T086 前端批量导入组件 — `frontend/src/modules/ingest/components/BatchImporter.tsx` L3 组织组件，文件上传 + 格式选择 + 导入进度 + 结果摘要展示
+- [ ] T083 [REVIEW] 数据摄入路由实现 — `odap/biz/core/ontology/ingestion/api/routes.py` APIRouter(prefix="/api/ontology/ingestion") 批量导入路由
+- [ ] T084 [REVIEW] 数据摄入路由注册 — `odap/web/app.py` include_router(ontology_ingestion_router)
+- [ ] T085 [TDD] 批量导入单元测试 — `tests/unit/test_ontology_model.py` 新增 TestBatchImporter 类覆盖 CSV/JSON 导入、无效数据处理、结果摘要
+- [ ] T086 [SUBAGENT] 前端批量导入组件 — `frontend/src/modules/ingest/components/BatchImporter.tsx` L3 组织组件，文件上传 + 格式选择 + 导入进度 + 结果摘要展示
 - [ ] T087 前端摄入模块 Store — `frontend/src/modules/ingest/stores/ingestStore.ts` Zustand store 管理导入状态
 
 ### FR-004: 多模态数据接入
@@ -125,11 +125,11 @@
 - [ ] T088 PDF 处理器实现 — `odap/biz/core/ontology/ingestion/impl/pdf_processor.py` PDF 文本提取（PyPDF2/pdfplumber）
 - [ ] T089 Word 处理器实现 — `odap/biz/core/ontology/ingestion/impl/word_processor.py` Word 文档解析（python-docx）
 - [ ] T090 OCR 处理器实现 — `odap/biz/core/ontology/ingestion/impl/ocr_processor.py` 图片 OCR（Tesseract/PaddleOCR）
-- [ ] T091 文件上传路由实现 — `odap/biz/core/ontology/ingestion/api/routes.py` 新增 POST /api/ontology/ingestion/upload（multipart/form-data）+ GET /api/ontology/ingestion/tasks/{task_id} + POST /api/ontology/ingestion/extract
+- [ ] T091 [REVIEW] 文件上传路由实现 — `odap/biz/core/ontology/ingestion/api/routes.py` 新增 POST /api/ontology/ingestion/upload（multipart/form-data）+ GET /api/ontology/ingestion/tasks/{task_id} + POST /api/ontology/ingestion/extract
 - [ ] T092 多模态处理器集成 — `odap/infra/data_pipeline/multimodal_processor.py` 整合 PDF/Word/OCR 处理器，统一文件上传→MinIO 存储→文本/OCR 提取→LLM 实体抽取→本体实例更新流程
-- [ ] T093 多模态处理单元测试 — `tests/unit/test_ontology_model.py` 新增 TestMultimodalProcessor 类覆盖 PDF/Word/OCR 提取、MinIO 集成
-- [ ] T094 前端文件上传组件 — `frontend/src/modules/ingest/components/FileUploader.tsx` L3 组织组件，拖拽上传 + 格式识别 + 进度条
-- [ ] T095 前端导入任务状态组件 — `frontend/src/modules/ingest/components/ImportTaskStatus.tsx` L2 分子组件，任务状态展示 + 实体抽取触发
+- [ ] T093 [TDD] 多模态处理单元测试 — `tests/unit/test_ontology_model.py` 新增 TestMultimodalProcessor 类覆盖 PDF/Word/OCR 提取、MinIO 集成
+- [ ] T094 [SUBAGENT] 前端文件上传组件 — `frontend/src/modules/ingest/components/FileUploader.tsx` L3 组织组件，拖拽上传 + 格式识别 + 进度条
+- [ ] T095 [SUBAGENT] 前端导入任务状态组件 — `frontend/src/modules/ingest/components/ImportTaskStatus.tsx` L2 分子组件，任务状态展示 + 实体抽取触发
 
 ### FR-012: 工作空间管理
 
@@ -137,17 +137,17 @@
 - [ ] T097 Workspace 4 级隔离实现 — `odap/biz/platform/workspace/impl/` SQLite workspace_id 过滤 + Neo4j workspace_id 标签隔离 + Redis workspace_id 前缀隔离 + MinIO 按工作空间分桶
 - [ ] T098 Workspace 导入导出 — `odap/biz/platform/workspace/impl/` 实现 JSON 格式完整工作空间导出和导入
 - [ ] T099 Workspace API 增强 — `odap/biz/platform/workspace/api/routes.py` 新增 POST /api/workspace/{id}/export + POST /api/workspace/{id}/import
-- [ ] T100 Workspace 单元测试 — `tests/unit/test_workspace.py` 新增 TestWorkspaceIsolation 类覆盖 4 级隔离、导入导出
-- [ ] T101 前端工作空间管理器增强 — `frontend/src/modules/workspace/pages/WorkspaceManager.tsx` L5 页面，隔离级别选择 + 导入导出操作
+- [ ] T100 [TDD] Workspace 单元测试 — `tests/unit/test_workspace.py` 新增 TestWorkspaceIsolation 类覆盖 4 级隔离、导入导出
+- [ ] T101 [SUBAGENT] 前端工作空间管理器增强 — `frontend/src/modules/workspace/pages/WorkspaceManager.tsx` L5 页面，隔离级别选择 + 导入导出操作
 - [ ] T102 前端工作空间 Store — `frontend/src/modules/workspace/stores/workspaceStore.ts` Zustand store 增强隔离级别管理
 
 ### FR-013: 场景切换
 
-- [ ] T103 场景切换服务增强 — `odap/biz/platform/workspace/services/scenario_service.py` 场景切换时自动加载关联本体列表/技能配置/OPA 策略/Agent 配置，切换事件通过 Hook 系统广播
+- [ ] T103 [REVIEW] 场景切换服务增强 — `odap/biz/platform/workspace/services/scenario_service.py` 场景切换时自动加载关联本体列表/技能配置/OPA 策略/Agent 配置，切换事件通过 Hook 系统广播
 - [ ] T104 场景本体 N:M 关联 — `odap/biz/platform/workspace/impl/` 场景与本体 N:M 关联，解绑需检查依赖
 - [ ] T105 场景 API 路由 — `odap/biz/platform/workspace/api/routes.py` 新增 POST /api/workspace/{ws_id}/scenarios + POST /api/workspace/{ws_id}/scenarios/{id}/activate + POST /api/workspace/{ws_id}/scenarios/{id}/ontologies
-- [ ] T106 场景切换单元测试 — `tests/unit/test_workspace.py` 新增 TestScenarioSwitch 类覆盖场景创建/激活/本体绑定/解绑依赖检查
-- [ ] T107 前端场景切换器增强 — `frontend/src/modules/workspace/components/WorkspaceSwitcher.tsx` L3 组织组件，场景切换 + 全局状态更新 + 本体/技能/策略自动切换
+- [ ] T106 [TDD] 场景切换单元测试 — `tests/unit/test_workspace.py` 新增 TestScenarioSwitch 类覆盖场景创建/激活/本体绑定/解绑依赖检查
+- [ ] T107 [SUBAGENT] 前端场景切换器增强 — `frontend/src/modules/workspace/components/WorkspaceSwitcher.tsx` L3 组织组件，场景切换 + 全局状态更新 + 本体/技能/策略自动切换
 - [ ] T108 前端场景 Store — `frontend/src/modules/workspace/stores/scenarioStore.ts` Zustand store 管理场景状态
 
 ### FR-015: 数据摄入审计
@@ -155,24 +155,24 @@
 - [ ] T109 数据摄入审计记录增强 — `odap/biz/core/ontology/engine/impl/audit_recorder_impl.py` 增强记录数据来源（上传文件/批量导入/API 调用/Agent 操作）、处理过程、转换规则
 - [ ] T110 审计统一通道集成 — `odap/infra/security/unified_audit.py` 集成本体管理引擎审计记录，写入 SQLite + Graphiti 审计通道
 - [ ] T111 审计 API 路由 — `odap/biz/core/ontology/engine/api/routes.py` 新增 GET /api/ontology/engine/audit + GET /api/ontology/engine/audit/{audit_id}
-- [ ] T112 审计记录单元测试 — `tests/unit/test_ontology_engine.py` 新增 TestAuditRecorder 类覆盖数据来源/处理过程/转换规则记录
-- [ ] T113 前端审计时间线组件 — `frontend/src/modules/audit/components/AuditTimeline.tsx` L3 组织组件，审计记录时间线展示 + 详情查看
+- [ ] T112 [TDD] 审计记录单元测试 — `tests/unit/test_ontology_engine.py` 新增 TestAuditRecorder 类覆盖数据来源/处理过程/转换规则记录
+- [ ] T113 [SUBAGENT] 前端审计时间线组件 — `frontend/src/modules/audit/components/AuditTimeline.tsx` L3 组织组件，审计记录时间线展示 + 详情查看
 
 ### FR-029: OntologyDocument JSON 统一格式
 
 - [ ] T114 OntologyDocument 格式转换方法 — `odap/biz/core/ontology/model/models/ontology_document.py` 实现 from_palantir() / to_palantir() / from_owl() / to_owl() 转换方法
 - [ ] T115 现有 schema 迁移到 OntologyDocument 格式 — `odap/biz/core/ontology/schema/document.py` 迁移现有 OntologyDocument 格式对齐 Palantir AIP
 - [ ] T116 OntologyDocument API 路由 — `odap/biz/core/ontology/model/api/routes.py` 新增 GET /api/ontology/model/documents/{ontology_id} + POST /api/ontology/model/documents + PUT /api/ontology/model/documents/{ontology_id} + POST /api/ontology/model/documents/{ontology_id}/export
-- [ ] T117 OntologyDocument 单元测试 — `tests/unit/test_ontology_model.py` 新增 TestOntologyDocument 类覆盖格式转换、导入导出、Palantir/OWL 对齐
-- [ ] T118 前端 OntologyDocument 导入导出组件 — `frontend/src/modules/ontology/components/DocumentImporter.tsx` L3 组织组件，OntologyDocument JSON 导入 + 多格式导出
+- [ ] T117 [TDD] OntologyDocument 单元测试 — `tests/unit/test_ontology_model.py` 新增 TestOntologyDocument 类覆盖格式转换、导入导出、Palantir/OWL 对齐
+- [ ] T118 [SUBAGENT] 前端 OntologyDocument 导入导出组件 — `frontend/src/modules/ontology/components/DocumentImporter.tsx` L3 组织组件，OntologyDocument JSON 导入 + 多格式导出
 
 ### FR-027: 数据分类标记 + 传输加密
 
 - [ ] T119 Property 模型增加 classification_level — `odap/biz/core/ontology/model/models/property.py` 增加 classification_level 字段，默认 U
 - [ ] T120 数据写入时自动标记分类级别 — `odap/biz/core/ontology/model/impl/model_repository_impl.py` 数据写入时根据 Property.classification_level 自动标记
-- [ ] T121 传输加密 FastAPI HTTPS 配置 — `odap/web/app.py` 强制 TLS 1.3 配置
+- [ ] T121 [REVIEW] 传输加密 FastAPI HTTPS 配置 — `odap/web/app.py` 强制 TLS 1.3 配置
 - [ ] T122 数据分类 API — `odap/infra/security/` 新增 GET /api/security/classification-levels 路由
-- [ ] T123 数据分类单元测试 — `tests/unit/test_data_classification.py` 新增 TestClassificationMarking 类覆盖自动标记、分类级别查询
+- [ ] T123 [TDD] 数据分类单元测试 — `tests/unit/test_data_classification.py` 新增 TestClassificationMarking 类覆盖自动标记、分类级别查询
 
 ### FR-030: 国际化
 
@@ -181,10 +181,10 @@
 - [ ] T126 SQLite i18n Storage 实现 — `odap/biz/platform/i18n/storage/sqlite_i18n_storage.py` SQLiteI18nStorage 翻译条目 CRUD + `__init__.py` 别名导出
 - [ ] T127 I18nService 实现 — `odap/biz/platform/i18n/services/i18n_service.py` 翻译管理 + LLM 翻译调用（调用 OpenAI API 批量翻译未翻译条目）
 - [ ] T128 i18n schemas 定义 — `odap/biz/platform/i18n/api/schemas.py` TranslationRequest / TranslationResponse / AutoTranslateRequest 等
-- [ ] T129 i18n 路由实现 — `odap/biz/platform/i18n/api/routes.py` APIRouter(prefix="/api/i18n") 翻译 CRUD + LLM 自动翻译 + 模块/语言列表
-- [ ] T130 i18n 路由注册 — `odap/web/app.py` include_router(i18n_router)
-- [ ] T131 i18n 单元测试 — `tests/unit/test_i18n.py` 覆盖翻译 CRUD、LLM 翻译调用、模块/语言列表
-- [ ] T132 前端 i18n 管理页面 — `frontend/src/modules/i18n-admin/pages/I18nAdminPage.tsx` L5 页面，翻译条目列表 + 在线编辑 + LLM 自动翻译按钮 + 人工审核
+- [ ] T129 [REVIEW] i18n 路由实现 — `odap/biz/platform/i18n/api/routes.py` APIRouter(prefix="/api/i18n") 翻译 CRUD + LLM 自动翻译 + 模块/语言列表
+- [ ] T130 [REVIEW] i18n 路由注册 — `odap/web/app.py` include_router(i18n_router)
+- [ ] T131 [TDD] i18n 单元测试 — `tests/unit/test_i18n.py` 覆盖翻译 CRUD、LLM 翻译调用、模块/语言列表
+- [ ] T132 [SUBAGENT] 前端 i18n 管理页面 — `frontend/src/modules/i18n-admin/pages/I18nAdminPage.tsx` L5 页面，翻译条目列表 + 在线编辑 + LLM 自动翻译按钮 + 人工审核
 - [ ] T133 前端 i18n API 服务 — `frontend/src/modules/i18n-admin/services/i18nApi.ts` 封装 /api/i18n/* 接口调用
 
 ---
@@ -196,16 +196,16 @@
 ### FR-005: 多 Agent 协同调度
 
 - [ ] T134 DomainSwarm OODA 循环实现 — `odap/biz/core/agent/impl/swarm_orchestrator.py` DomainSwarm 继承/封装 OpenHarness Swarm，实现 OODA 循环（Observe→Orient→Decide→Act）
-- [ ] T135 IntentRouter 混合路由实现 — `odap/biz/core/agent/impl/intent_router.py` 规则路由（基于本体事实的意图-角色映射表）+ LLM 路由（不确定时调用 LLM 分类意图）+ 默认路由（不确定时路由到 Intelligence Agent）
+- [ ] T135 [REVIEW] IntentRouter 混合路由实现 — `odap/biz/core/agent/impl/intent_router.py` 规则路由（基于本体事实的意图-角色映射表）+ LLM 路由（不确定时调用 LLM 分类意图）+ 默认路由（不确定时路由到 Intelligence Agent）
 - [ ] T136 SubAgentPlanner 任务分解实现 — `odap/biz/core/agent/impl/swarm_orchestrator.py` 按意图自动规划 subAgent 任务分解
 - [ ] T137 OODA Loop 实现增强 — `odap/biz/core/agent/impl/ooda_loop.py` OODA 各阶段与 OpenHarness 对齐：Observe→Tool 调用、Orient→Hook 后处理、Decide→QueryEngine、Act→Tool 执行
 - [ ] T138 Agent 角色模型定义 — `odap/biz/core/agent/models/` AgentRole(str, Enum) — Commander/Intelligence/Operations（可扩展）+ AgentConfig(BaseModel)
 - [ ] T139 Agent schemas 定义 — `odap/biz/core/agent/api/schemas.py` DispatchRequest / DispatchResponse / TaskStatusResponse / SwarmConfigRequest 等
-- [ ] T140 Agent 路由实现 — `odap/biz/core/agent/api/routes.py` APIRouter(prefix="/api/agent") 意图分发 + 任务状态 + 决策链路 + Swarm 配置
-- [ ] T141 Agent 路由注册 — `odap/web/app.py` include_router(agent_router)
-- [ ] T142 Agent 服务单元测试 — `tests/unit/test_agent.py` 覆盖 DomainSwarm OODA 循环、IntentRouter 混合路由、SubAgentPlanner 任务分解
-- [ ] T143 前端 Agent 聊天页面增强 — `frontend/src/modules/agent/pages/AgentChat.tsx` L5 页面，自然语言输入 + 意图识别展示 + Agent 响应
-- [ ] T144 前端 Agent 列表页面 — `frontend/src/modules/agent/pages/MyAgents.tsx` L5 页面，Agent 角色配置 + Swarm 配置
+- [ ] T140 [REVIEW] Agent 路由实现 — `odap/biz/core/agent/api/routes.py` APIRouter(prefix="/api/agent") 意图分发 + 任务状态 + 决策链路 + Swarm 配置
+- [ ] T141 [REVIEW] Agent 路由注册 — `odap/web/app.py` include_router(agent_router)
+- [ ] T142 [TDD] Agent 服务单元测试 — `tests/unit/test_agent.py` 覆盖 DomainSwarm OODA 循环、IntentRouter 混合路由、SubAgentPlanner 任务分解
+- [ ] T143 [SUBAGENT] 前端 Agent 聊天页面增强 — `frontend/src/modules/agent/pages/AgentChat.tsx` L5 页面，自然语言输入 + 意图识别展示 + Agent 响应
+- [ ] T144 [SUBAGENT] 前端 Agent 列表页面 — `frontend/src/modules/agent/pages/MyAgents.tsx` L5 页面，Agent 角色配置 + Swarm 配置
 - [ ] T145 前端 Agent Store — `frontend/src/modules/agent/stores/agentStore.ts` Zustand store 管理 Agent 状态
 - [ ] T146 前端 Agent API 服务 — `frontend/src/modules/agent/services/agentApi.ts` 封装 /api/agent/* 接口调用
 - [ ] T147 前端 Agent 翻译文件 — `frontend/src/modules/agent/locales/zh-CN/agent.json` + `frontend/src/modules/agent/locales/en-US/agent.json`
@@ -216,9 +216,9 @@
 - [ ] T149 决策过程 Hook 记录 — `odap/biz/core/agent/impl/swarm_orchestrator.py` Agent 执行时通过 Hook 系统记录每个 OODA 步骤
 - [ ] T150 决策过程 API 路由 — `odap/biz/core/agent/api/routes.py` 新增 GET /api/agent/decisions/{decision_id} + GET /api/agent/decisions/{decision_id}/chain
 - [ ] T151 决策过程 WebSocket 推送 — `odap/web/ws/event_bus.py` 新增 WS /ws/agent/decisions 实时推送决策过程
-- [ ] T152 决策过程单元测试 — `tests/unit/test_agent.py` 新增 TestDecisionChain 类覆盖决策链路记录和查询
-- [ ] T153 前端决策链路时间线组件 — `frontend/src/modules/agent/components/DecisionTimeline.tsx` L3 组织组件，按时间顺序展示决策步骤
-- [ ] T154 前端思维链视图组件 — `frontend/src/modules/agent/components/ReasoningChain.tsx` L3 组织组件，展示推理过程和依据，点击步骤查看详情
+- [ ] T152 [TDD] 决策过程单元测试 — `tests/unit/test_agent.py` 新增 TestDecisionChain 类覆盖决策链路记录和查询
+- [ ] T153 [SUBAGENT] 前端决策链路时间线组件 — `frontend/src/modules/agent/components/DecisionTimeline.tsx` L3 组织组件，按时间顺序展示决策步骤
+- [ ] T154 [SUBAGENT] 前端思维链视图组件 — `frontend/src/modules/agent/components/ReasoningChain.tsx` L3 组织组件，展示推理过程和依据，点击步骤查看详情
 
 ### FR-014: Skill 热插拔
 
@@ -226,9 +226,9 @@
 - [ ] T156 Skill 生命周期管理 — `odap/biz/platform/skill_system/models/` SkillStatus(str, Enum) — draft/active/deprecated/archived + SkillDefinition(BaseModel)
 - [ ] T157 现有技能包迁移 — `odap/tools/` 下 9 个技能包迁移为 OpenHarness Skill 格式
 - [ ] T158 Skill API 路由 — `odap/biz/platform/skill_system/api/routes.py` 新增 POST /api/skill/register + DELETE /api/skill/{id} + GET /api/skill/discover + GET /api/skill/{id}/status
-- [ ] T159 Skill 路由注册 — `odap/web/app.py` include_router(skill_router)
-- [ ] T160 Skill 热插拔单元测试 — `tests/unit/test_skill_system.py` 覆盖注册/注销/发现/生命周期状态转换
-- [ ] T161 前端技能管理页面增强 — `frontend/src/modules/system/pages/SkillManagement.tsx` L5 页面，Skill 注册/注销/发现/状态管理
+- [ ] T159 [REVIEW] Skill 路由注册 — `odap/web/app.py` include_router(skill_router)
+- [ ] T160 [TDD] Skill 热插拔单元测试 — `tests/unit/test_skill_system.py` 覆盖注册/注销/发现/生命周期状态转换
+- [ ] T161 [SUBAGENT] 前端技能管理页面增强 — `frontend/src/modules/system/pages/SkillManagement.tsx` L5 页面，Skill 注册/注销/发现/状态管理
 - [ ] T162 前端技能 Store — `frontend/src/modules/system/stores/skillStore.ts` Zustand store 管理 Skill 状态
 
 ---
@@ -239,33 +239,33 @@
 
 ### FR-007: OPA 策略 Markdown 编写 + 热更新
 
-- [ ] T163 Markdown→Rego 编译器实现 — `odap/infra/opa/markdown_compiler.py` 解析 Markdown DSL 标题→Rego 规则名、当/且→条件组合、时允许/拒绝→规则体、编译验证、fail-close 机制
-- [ ] T164 OPA 策略版本管理 — `odap/infra/opa/opa_service.py` 增加 SQLite 策略版本历史存储，支持回滚
-- [ ] T165 OPA 策略热更新增强 — `odap/infra/opa/opa_service.py` 增强 hot_update_bundle()，编译后通过 OPA API 加载策略，30 秒内生效，编译失败保持旧策略
-- [ ] T166 OPA 策略 schemas 定义 — `odap/infra/opa/routes.py` 新增 MarkdownPolicyRequest / MarkdownPolicyResponse / CompileStatusResponse 等
-- [ ] T167 OPA 策略 API 路由 — `odap/infra/opa/routes.py` 新增 POST /api/policy/markdown + GET /api/policy/markdown/{id} + PUT /api/policy/markdown/{id} + POST /api/policy/markdown/{id}/compile + GET /api/policy/markdown/{id}/status
-- [ ] T168 OPA 策略单元测试 — `tests/unit/test_opa.py` 覆盖 Markdown→Rego 编译、编译失败 fail-close、热更新、版本回滚
-- [ ] T169 前端策略编辑器 — `frontend/src/modules/config/components/PolicyEditor.tsx` L3 组织组件，Markdown 编辑 + 预览 + 编译状态展示
-- [ ] T170 前端策略管理页面 — `frontend/src/modules/config/pages/PolicyManager.tsx` L5 页面，策略列表 + 编辑 + 编译 + 热更新
+- [ ] T163 [REVIEW] Markdown→Rego 编译器实现 — `odap/infra/opa/markdown_compiler.py` 解析 Markdown DSL 标题→Rego 规则名、当/且→条件组合、时允许/拒绝→规则体、编译验证、fail-close 机制
+- [ ] T164 [REVIEW] OPA 策略版本管理 — `odap/infra/opa/opa_service.py` 增加 SQLite 策略版本历史存储，支持回滚
+- [ ] T165 [REVIEW] OPA 策略热更新增强 — `odap/infra/opa/opa_service.py` 增强 hot_update_bundle()，编译后通过 OPA API 加载策略，30 秒内生效，编译失败保持旧策略
+- [ ] T166 [REVIEW] OPA 策略 schemas 定义 — `odap/infra/opa/routes.py` 新增 MarkdownPolicyRequest / MarkdownPolicyResponse / CompileStatusResponse 等
+- [ ] T167 [REVIEW] OPA 策略 API 路由 — `odap/infra/opa/routes.py` 新增 POST /api/policy/markdown + GET /api/policy/markdown/{id} + PUT /api/policy/markdown/{id} + POST /api/policy/markdown/{id}/compile + GET /api/policy/markdown/{id}/status
+- [ ] T168 [TDD] [REVIEW] OPA 策略单元测试 — `tests/unit/test_opa.py` 覆盖 Markdown→Rego 编译、编译失败 fail-close、热更新、版本回滚
+- [ ] T169 [SUBAGENT] 前端策略编辑器 — `frontend/src/modules/config/components/PolicyEditor.tsx` L3 组织组件，Markdown 编辑 + 预览 + 编译状态展示
+- [ ] T170 [SUBAGENT] 前端策略管理页面 — `frontend/src/modules/config/pages/PolicyManager.tsx` L5 页面，策略列表 + 编辑 + 编译 + 热更新
 
 ### FR-008: ABAC 权限校验 + 审计日志
 
-- [ ] T171 ABAC 四维模型实现 — `odap/infra/opa/opa_service.py` 增强 check_permission(subject, action, resource, env)，OPA 策略校验返回 allow/deny + 原因
-- [ ] T172 ABAC Rego 策略扩展 — `odap/infra/opa/policies/abac.rego` 扩展 Rego 策略支持 Subject/Action/Resource/Environment 四维属性 + 数据分类级别访问控制
+- [ ] T171 [REVIEW] ABAC 四维模型实现 — `odap/infra/opa/opa_service.py` 增强 check_permission(subject, action, resource, env)，OPA 策略校验返回 allow/deny + 原因
+- [ ] T172 [REVIEW] ABAC Rego 策略扩展 — `odap/infra/opa/policies/abac.rego` 扩展 Rego 策略支持 Subject/Action/Resource/Environment 四维属性 + 数据分类级别访问控制
 - [ ] T173 审计日志增强 — `odap/infra/security/unified_audit.py` 增加写操作审计记录 actor/action/resource/result/timestamp，写入 SQLite + Graphiti 审计通道
 - [ ] T174 审计 API 增强 — `odap/infra/security/audit_api.py` 新增 GET /api/audit/logs（分页+过滤）+ GET /api/audit/timeline（资源审计时间线）
-- [ ] T175 ABAC + 审计单元测试 — `tests/unit/test_opa.py` 新增 TestABAC 类覆盖四维权限校验、数据分类级别控制、审计日志记录
-- [ ] T176 前端审计日志页面 — `frontend/src/modules/audit/pages/AuditLogPage.tsx` L5 页面，审计日志列表 + 时间线展示 + 过滤查询
+- [ ] T175 [TDD] [REVIEW] ABAC + 审计单元测试 — `tests/unit/test_opa.py` 新增 TestABAC 类覆盖四维权限校验、数据分类级别控制、审计日志记录
+- [ ] T176 [SUBAGENT] 前端审计日志页面 — `frontend/src/modules/audit/pages/AuditLogPage.tsx` L5 页面，审计日志列表 + 时间线展示 + 过滤查询
 - [ ] T177 前端审计 Store — `frontend/src/modules/audit/stores/auditStore.ts` Zustand store 管理审计日志状态
 
 ### FR-021: OAuth2/OIDC + 本地账号认证
 
-- [ ] T178 OAuth2/OIDC Provider 集成 — `odap/infra/security/oauth2_providers.py` 支持企业 SSO（Keycloak/Auth0/Okta），Authorization Code Flow + PKCE，Token 交换 OAuth2→JWT
-- [ ] T179 本地账号密码认证增强 — `odap/infra/security/auth_service.py` 增加 bcrypt 密码哈希 + JWT 双 Token（Access 15min / Refresh 7d）
-- [ ] T180 认证 API 路由增强 — `odap/infra/security/auth_routes.py` 新增 POST /api/auth/login + POST /api/auth/sso/{provider} + POST /api/auth/refresh + POST /api/auth/logout
-- [ ] T181 认证单元测试 — `tests/unit/test_auth.py` 覆盖本地账号登录、SSO 登录、Token 刷新、登出
-- [ ] T182 前端登录页增强 — `frontend/src/modules/shared/pages/LoginPage.tsx` 增加 SSO 登录按钮 + 本地账号密码表单
-- [ ] T183 前端 authStore 增强 — `frontend/src/modules/shared/stores/authStore.ts` 增加 SSO 登录流程 + Token 刷新逻辑
+- [ ] T178 [REVIEW] OAuth2/OIDC Provider 集成 — `odap/infra/security/oauth2_providers.py` 支持企业 SSO（Keycloak/Auth0/Okta），Authorization Code Flow + PKCE，Token 交换 OAuth2→JWT
+- [x] T179 [REVIEW] 本地账号密码认证增强 — `odap/infra/security/auth_service.py` 增加 bcrypt 密码哈希 + JWT 双 Token（Access 15min / Refresh 7d）✅ 2026-06-05 已实现 + 修复 key 长度 ≥32 bytes
+- [ ] T180 [REVIEW] 认证 API 路由增强 — `odap/infra/security/auth_routes.py` 新增 POST /api/auth/login + POST /api/auth/sso/{provider} + POST /api/auth/refresh + POST /api/auth/logout
+- [ ] T181 [TDD] [REVIEW] 认证单元测试 — `tests/unit/test_auth.py` 覆盖本地账号登录、SSO 登录、Token 刷新、登出
+- [ ] T182 [SUBAGENT] 前端登录页增强 — `frontend/src/modules/shared/pages/LoginPage.tsx` 增加 SSO 登录按钮 + 本地账号密码表单
+- [ ] T183 [REVIEW] 前端 authStore 增强 — `frontend/src/modules/shared/stores/authStore.ts` 增加 SSO 登录流程 + Token 刷新逻辑
 
 ---
 
@@ -282,11 +282,11 @@
 - [ ] T188 认知引擎领域模型定义 — `odap/biz/core/cognition/models/` IntentResult / NavigationPath / Explanation / RoleViewConfig 等 BaseModel
 - [ ] T189 CognitionService 实现 — `odap/biz/core/cognition/services/cognition_service.py` 编排层，协调意图识别/知识导航/解释引擎/角色视图
 - [ ] T190 认知引擎 schemas 定义 — `odap/biz/core/cognition/api/schemas.py` RecognizeIntentRequest / NavigateRequest / ExplainRequest / RoleViewResponse 等
-- [ ] T191 认知引擎路由实现 — `odap/biz/core/cognition/api/routes.py` APIRouter(prefix="/api/cognition") 意图识别 + 知识导航 + 解释 + 角色视图
-- [ ] T192 认知引擎路由注册 — `odap/web/app.py` include_router(cognition_router)
-- [ ] T193 认知引擎单元测试 — `tests/unit/test_cognition.py` 覆盖意图识别、知识导航、解释引擎、角色视图管理
-- [ ] T194 前端认知引擎集成 — `frontend/src/modules/agent/components/CognitionPanel.tsx` L3 组织组件，意图识别结果展示 + 推理链路可视化 + 角色视图切换
-- [ ] T195 前端推理路径可视化组件 — `frontend/src/modules/agent/components/ReasoningPath.tsx` L3 组织组件，基于 G6 的推理路径高亮 + 逐步回溯
+- [ ] T191 [REVIEW] 认知引擎路由实现 — `odap/biz/core/cognition/api/routes.py` APIRouter(prefix="/api/cognition") 意图识别 + 知识导航 + 解释 + 角色视图
+- [ ] T192 [REVIEW] 认知引擎路由注册 — `odap/web/app.py` include_router(cognition_router)
+- [ ] T193 [TDD] 认知引擎单元测试 — `tests/unit/test_cognition.py` 覆盖意图识别、知识导航、解释引擎、角色视图管理
+- [ ] T194 [SUBAGENT] 前端认知引擎集成 — `frontend/src/modules/agent/components/CognitionPanel.tsx` L3 组织组件，意图识别结果展示 + 推理链路可视化 + 角色视图切换
+- [ ] T195 [SUBAGENT] 前端推理路径可视化组件 — `frontend/src/modules/agent/components/ReasoningPath.tsx` L3 组织组件，基于 G6 的推理路径高亮 + 逐步回溯
 - [ ] T196 前端认知 Store — `frontend/src/modules/agent/stores/cognitionStore.ts` Zustand store 管理认知引擎状态
 
 ### FR-023: 统一查询服务
@@ -297,8 +297,8 @@
 - [ ] T200 Agent Safe 只读模式增强 — `odap/infra/openharness/query_guard_hook.py` 增强 QueryServiceWriteGuard，Agent 默认只暴露 READ_TOOLS，WRITE_TOOLS 需 OPA 审批
 - [ ] T201 查询源 Tool 注册 — `odap/infra/query/` 将 4 种查询源注册为 OpenHarness BaseTool（query_schema / query_entity / query_topo / query_temporal）
 - [ ] T202 统一查询 API 路由 — `odap/infra/query/routes.py` 新增 POST /api/query + GET /api/query/sources + POST /api/query/validate
-- [ ] T203 统一查询单元测试 — `tests/unit/test_query.py` 覆盖 4 种查询源、Agent Safe 只读模式、架构守卫（验证 Agent 代码无直接 graph_manager 写调用）
-- [ ] T204 前端查询服务组件 — `frontend/src/modules/knowledge/components/QueryPanel.tsx` L3 组织组件，统一查询界面 + 查询源选择 + 结果展示
+- [ ] T203 [TDD] 统一查询单元测试 — `tests/unit/test_query.py` 覆盖 4 种查询源、Agent Safe 只读模式、架构守卫（验证 Agent 代码无直接 graph_manager 写调用）
+- [ ] T204 [SUBAGENT] 前端查询服务组件 — `frontend/src/modules/knowledge/components/QueryPanel.tsx` L3 组织组件，统一查询界面 + 查询源选择 + 结果展示
 
 ### FR-024: 会话记忆管理
 
@@ -306,9 +306,9 @@
 - [ ] T206 工作记忆实现 — `odap/biz/platform/session_memory/impl/working_memory.py` 当前任务状态，Redis 存储，TTL 2h，基于 OpenHarness Memory Plugin
 - [ ] T207 长期记忆实现 — `odap/biz/platform/session_memory/impl/long_term_memory.py` 持久化到 Graphiti，无 TTL，基于语义相似度 + 时间衰减检索
 - [ ] T208 会话记忆 API 路由 — `odap/biz/platform/session_memory/api/routes.py` GET /api/memory/session/{session_id} + POST /api/memory/session/{session_id}/clear + GET /api/memory/long-term
-- [ ] T209 会话记忆路由注册 — `odap/web/app.py` include_router(memory_router)
-- [ ] T210 会话记忆单元测试 — `tests/unit/test_session_memory.py` 覆盖短期/工作/长期记忆 CRUD、TTL 过期、语义检索
-- [ ] T211 前端会话记忆组件 — `frontend/src/modules/agent/components/SessionMemory.tsx` L3 组织组件，会话上下文展示 + 记忆管理
+- [ ] T209 [REVIEW] 会话记忆路由注册 — `odap/web/app.py` include_router(memory_router)
+- [ ] T210 [TDD] 会话记忆单元测试 — `tests/unit/test_session_memory.py` 覆盖短期/工作/长期记忆 CRUD、TTL 过期、语义检索
+- [ ] T211 [SUBAGENT] 前端会话记忆组件 — `frontend/src/modules/agent/components/SessionMemory.tsx` L3 组织组件，会话上下文展示 + 记忆管理
 
 ### FR-025: 统一工具注册表
 
@@ -316,9 +316,9 @@
 - [ ] T213 语义发现实现 — `odap/biz/platform/tool_registry/impl/semantic_discovery.py` 基于自然语言描述匹配工具
 - [ ] T214 工具注册表领域模型 — `odap/biz/platform/tool_registry/models/` ToolDefinition(BaseModel) 含 id / name / category / description / input_schema / permissions
 - [ ] T215 工具注册表 API 路由 — `odap/biz/platform/tool_registry/api/routes.py` POST /api/tools/register + DELETE /api/tools/{id} + POST /api/tools/{id}/invoke + GET /api/tools + POST /api/tools/discover
-- [ ] T216 工具注册表路由注册 — `odap/web/app.py` include_router(tool_registry_router)
-- [ ] T217 工具注册表单元测试 — `tests/unit/test_tool_registry.py` 覆盖注册/注销/调用/列表/语义发现
-- [ ] T218 前端工具管理组件 — `frontend/src/modules/system/components/ToolRegistry.tsx` L3 组织组件，工具列表 + 注册/注销 + 语义发现
+- [ ] T216 [REVIEW] 工具注册表路由注册 — `odap/web/app.py` include_router(tool_registry_router)
+- [ ] T217 [TDD] 工具注册表单元测试 — `tests/unit/test_tool_registry.py` 覆盖注册/注销/调用/列表/语义发现
+- [ ] T218 [SUBAGENT] 前端工具管理组件 — `frontend/src/modules/system/components/ToolRegistry.tsx` L3 组织组件，工具列表 + 注册/注销 + 语义发现
 
 ### FR-026: 结构化语义层
 
@@ -326,18 +326,18 @@
 - [ ] T220 查询规划器实现 — `odap/biz/core/ontology/semantic_layer/query_planner.py` StructuredQuery 规划为 Agent Task 序列
 - [ ] T221 歧义消除器实现 — `odap/biz/core/ontology/semantic_layer/disambiguator.py` 同义词/近似词映射 + 扩写规则（用户可配置）
 - [ ] T222 语义层 API 路由 — `odap/biz/core/ontology/semantic_layer/api/routes.py` POST /api/semantic/parse-intent + POST /api/semantic/plan-tasks + GET /api/semantic/synonyms + POST /api/semantic/synonyms + GET /api/semantic/expansion-rules + POST /api/semantic/expansion-rules
-- [ ] T223 语义层路由注册 — `odap/web/app.py` include_router(semantic_router)
-- [ ] T224 语义层单元测试 — `tests/unit/test_semantic_layer.py` 覆盖意图解析、任务规划、同义词映射、扩写规则
-- [ ] T225 前端语义层配置组件 — `frontend/src/modules/ontology/components/SemanticConfig.tsx` L3 组织组件，同义词/近似词映射配置 + 扩写规则配置
+- [ ] T223 [REVIEW] 语义层路由注册 — `odap/web/app.py` include_router(semantic_router)
+- [ ] T224 [TDD] 语义层单元测试 — `tests/unit/test_semantic_layer.py` 覆盖意图解析、任务规划、同义词映射、扩写规则
+- [ ] T225 [SUBAGENT] 前端语义层配置组件 — `frontend/src/modules/ontology/components/SemanticConfig.tsx` L3 组织组件，同义词/近似词映射配置 + 扩写规则配置
 
 ### FR-018: Hook 系统
 
-- [ ] T226 HookManager 实现 — `odap/biz/integration/hook_system/impl/hook_manager.py` Pre-Hook（OPA 策略注入、参数校验）+ Post-Hook（审计日志、性能监控）+ Hook 注册表（管理优先级和依赖），基于 OpenHarness 生命周期钩子
+- [ ] T226 [REVIEW] HookManager 实现 — `odap/biz/integration/hook_system/impl/hook_manager.py` Pre-Hook（OPA 策略注入、参数校验）+ Post-Hook（审计日志、性能监控）+ Hook 注册表（管理优先级和依赖），基于 OpenHarness 生命周期钩子
 - [ ] T227 Hook 领域模型定义 — `odap/biz/integration/hook_system/models/` HookDefinition(BaseModel) 含 id / type(pre/post) / priority / handler / enabled
 - [ ] T228 Hook API 路由 — `odap/biz/integration/hook_system/api/routes.py` POST /api/hooks/register + DELETE /api/hooks/{id} + GET /api/hooks + POST /api/hooks/{id}/enable + POST /api/hooks/{id}/disable
-- [ ] T229 Hook 路由注册 — `odap/web/app.py` include_router(hook_router)
-- [ ] T230 Hook 系统单元测试 — `tests/unit/test_hook_system.py` 覆盖 Pre/Post Hook 注册/执行、优先级排序、OPA 策略注入、审计日志记录
-- [ ] T231 前端 Hook 管理组件 — `frontend/src/modules/system/components/HookManager.tsx` L3 组织组件，Hook 列表 + 注册/注销 + 启用/禁用
+- [ ] T229 [REVIEW] Hook 路由注册 — `odap/web/app.py` include_router(hook_router)
+- [ ] T230 [TDD] [REVIEW] Hook 系统单元测试 — `tests/unit/test_hook_system.py` 覆盖 Pre/Post Hook 注册/执行、优先级排序、OPA 策略注入、审计日志记录
+- [ ] T231 [SUBAGENT] 前端 Hook 管理组件 — `frontend/src/modules/system/components/HookManager.tsx` L3 组织组件，Hook 列表 + 注册/注销 + 启用/禁用
 
 ### FR-022: 闭环反馈机制
 
@@ -346,9 +346,9 @@
 - [ ] T234 Feedback Aggregator 实现 — `odap/biz/simulation/feedback/impl/aggregator.py` 历史经验聚合（沉淀到知识图谱），写入 Graphiti
 - [ ] T235 FeedbackLoop 实现 — `odap/biz/simulation/feedback/impl/feedback_loop.py` 包装 DomainSwarm，增加 Propagate 阶段，完成 OODA→OADP 闭环
 - [ ] T236 反馈 API 路由 — `odap/biz/simulation/feedback/api/routes.py` POST /api/feedback/collect + GET /api/feedback/analysis/{task_id} + GET /api/feedback/aggregate + POST /api/feedback/close-loop
-- [ ] T237 反馈路由注册 — `odap/web/app.py` include_router(feedback_router)
-- [ ] T238 反馈机制单元测试 — `tests/unit/test_feedback.py` 覆盖收集/分析/聚合/闭环触发/Graphiti 写入
-- [ ] T239 前端反馈展示组件 — `frontend/src/modules/simulation/components/FeedbackPanel.tsx` L3 组织组件，反馈分析展示 + 经验聚合可视化
+- [ ] T237 [REVIEW] 反馈路由注册 — `odap/web/app.py` include_router(feedback_router)
+- [ ] T238 [TDD] 反馈机制单元测试 — `tests/unit/test_feedback.py` 覆盖收集/分析/聚合/闭环触发/Graphiti 写入
+- [ ] T239 [SUBAGENT] 前端反馈展示组件 — `frontend/src/modules/simulation/components/FeedbackPanel.tsx` L3 组织组件，反馈分析展示 + 经验聚合可视化
 
 ---
 
@@ -362,9 +362,9 @@
 - [ ] T241 沙箱资源限制 — `odap/biz/simulation/simulation_sandbox/impl/sandbox_manager.py` 内存/时间超限自动终止，返回部分结果和超时提示
 - [ ] T242 沙箱结果导出 — `odap/biz/simulation/simulation_sandbox/impl/sandbox_manager.py` 推演结果可导出到生产环境（需审批）
 - [ ] T243 沙箱 API 路由 — `odap/biz/simulation/simulation_sandbox/api/routes.py` POST /api/simulation/sandbox + POST /api/simulation/sandbox/{id}/run + GET /api/simulation/sandbox/{id}/status + GET /api/simulation/sandbox/{id}/results + DELETE /api/simulation/sandbox/{id}
-- [ ] T244 沙箱路由注册 — `odap/web/app.py` include_router(sandbox_router)
-- [ ] T245 沙箱单元测试 — `tests/unit/test_simulation.py` 覆盖沙箱创建/运行/销毁、资源超限终止、结果导出
-- [ ] T246 前端沙箱管理页面 — `frontend/src/modules/simulation/pages/SandboxManager.tsx` L5 页面，沙箱创建/运行/监控/销毁
+- [ ] T244 [REVIEW] 沙箱路由注册 — `odap/web/app.py` include_router(sandbox_router)
+- [ ] T245 [TDD] 沙箱单元测试 — `tests/unit/test_simulation.py` 覆盖沙箱创建/运行/销毁、资源超限终止、结果导出
+- [ ] T246 [SUBAGENT] 前端沙箱管理页面 — `frontend/src/modules/simulation/pages/SandboxManager.tsx` L5 页面，沙箱创建/运行/监控/销毁
 
 ### FR-010: 多方案并行推演 + What-if
 
@@ -373,10 +373,10 @@
 - [ ] T249 推演进度 WebSocket 推送 — `odap/web/ws/event_bus.py` 新增 WS /ws/simulation/progress 实时推送推演进度
 - [ ] T250 推演历史双时态存储 — `odap/biz/simulation/simulation_sandbox/impl/parallel_runner.py` 推演结果附带 valid_time + transaction_time，基于 Graphiti 双时态
 - [ ] T251 并行推演 API 路由 — `odap/biz/simulation/simulation_sandbox/api/routes.py` 新增 POST /api/simulation/parallel + POST /api/simulation/what-if + GET /api/simulation/comparison
-- [ ] T252 并行推演单元测试 — `tests/unit/test_simulation.py` 新增 TestParallelRunner 类覆盖并行推演、What-if 分析、结果对比
-- [ ] T253 前端并行推演组件 — `frontend/src/modules/simulation/components/ParallelComparison.tsx` L3 组织组件，多方案并排对比 + 关键指标差异高亮
-- [ ] T254 前端 What-if 参数面板 — `frontend/src/modules/simulation/components/WhatIfPanel.tsx` L3 组织组件，参数敏感性分析配置 + 结果展示
-- [ ] T255 前端推演进度组件 — `frontend/src/modules/simulation/components/SimulationProgress.tsx` L2 分子组件，WebSocket 实时推演进度展示
+- [ ] T252 [TDD] 并行推演单元测试 — `tests/unit/test_simulation.py` 新增 TestParallelRunner 类覆盖并行推演、What-if 分析、结果对比
+- [ ] T253 [SUBAGENT] 前端并行推演组件 — `frontend/src/modules/simulation/components/ParallelComparison.tsx` L3 组织组件，多方案并排对比 + 关键指标差异高亮
+- [ ] T254 [SUBAGENT] 前端 What-if 参数面板 — `frontend/src/modules/simulation/components/WhatIfPanel.tsx` L3 组织组件，参数敏感性分析配置 + 结果展示
+- [ ] T255 [SUBAGENT] 前端推演进度组件 — `frontend/src/modules/simulation/components/SimulationProgress.tsx` L2 分子组件，WebSocket 实时推演进度展示
 
 ### FR-020: 事件模拟器
 
@@ -385,10 +385,10 @@
 - [ ] T258 ScenarioTemplate 实现 — `odap/biz/simulation/event_simulator/impl/scenario_template.py` 预定义事件模板库 + 支持自定义模板
 - [ ] T259 事件手动注入 — `odap/biz/simulation/event_simulator/impl/event_generator.py` 手动注入关键事件，事件注入驱动本体状态演化
 - [ ] T260 事件模拟器 API 路由 — `odap/biz/simulation/event_simulator/api/routes.py` POST /api/event-simulator/generate + POST /api/event-simulator/inject + GET /api/event-simulator/timeline/{id} + POST /api/event-simulator/clock/control + GET /api/event-simulator/templates
-- [ ] T261 事件模拟器路由注册 — `odap/web/app.py` include_router(event_simulator_router)
-- [ ] T262 事件模拟器单元测试 — `tests/unit/test_event_simulator.py` 覆盖事件生成/注入/时间线/时钟控制/模板管理
-- [ ] T263 前端事件模拟器页面 — `frontend/src/modules/simulation/pages/EventSimulator.tsx` L5 页面，事件生成 + 时间线展示 + 时钟控制 + 模板管理
-- [ ] T264 前端时间线组件 — `frontend/src/modules/simulation/components/TimelineView.tsx` L3 组织组件，事件时间线可视化 + 时钟控制面板
+- [ ] T261 [REVIEW] 事件模拟器路由注册 — `odap/web/app.py` include_router(event_simulator_router)
+- [ ] T262 [TDD] 事件模拟器单元测试 — `tests/unit/test_event_simulator.py` 覆盖事件生成/注入/时间线/时钟控制/模板管理
+- [ ] T263 [SUBAGENT] 前端事件模拟器页面 — `frontend/src/modules/simulation/pages/EventSimulator.tsx` L5 页面，事件生成 + 时间线展示 + 时钟控制 + 模板管理
+- [ ] T264 [SUBAGENT] 前端时间线组件 — `frontend/src/modules/simulation/components/TimelineView.tsx` L3 组织组件，事件时间线可视化 + 时钟控制面板
 
 ---
 
@@ -404,10 +404,10 @@
 - [ ] T268 一键添加视图到问答上下文 — `odap/biz/data/qa/impl/qa_engine.py` 用户可一键将当前视图信息添加到问答上下文
 - [ ] T269 QA schemas 定义 — `odap/biz/data/qa/api/schemas.py` AskRequest / AskResponse / TemporalAskRequest / ChartRequest / SessionResponse 等
 - [ ] T270 QA API 路由 — `odap/biz/data/qa/api/routes.py` POST /api/qa/ask + POST /api/qa/ask/temporal + GET /api/qa/sessions/{id} + POST /api/qa/chart
-- [ ] T271 QA 路由注册 — `odap/web/app.py` include_router(qa_router)
-- [ ] T272 QA 单元测试 — `tests/unit/test_qa.py` 覆盖问答引擎、时序推理、图表渲染、多轮对话
-- [ ] T273 前端问答页面增强 — `frontend/src/modules/qa/pages/QAPage.tsx` L5 页面，自然语言输入 + 多轮对话 + 图表展示 + 一键添加视图上下文
-- [ ] T274 前端图表渲染组件 — `frontend/src/modules/qa/components/ChartRenderer.tsx` L3 组织组件，8 种以上图表类型渲染（ECharts + G6 + Leaflet）
+- [ ] T271 [REVIEW] QA 路由注册 — `odap/web/app.py` include_router(qa_router)
+- [ ] T272 [TDD] QA 单元测试 — `tests/unit/test_qa.py` 覆盖问答引擎、时序推理、图表渲染、多轮对话
+- [ ] T273 [SUBAGENT] 前端问答页面增强 — `frontend/src/modules/qa/pages/QAPage.tsx` L5 页面，自然语言输入 + 多轮对话 + 图表展示 + 一键添加视图上下文
+- [ ] T274 [SUBAGENT] 前端图表渲染组件 — `frontend/src/modules/qa/components/ChartRenderer.tsx` L3 组织组件，8 种以上图表类型渲染（ECharts + G6 + Leaflet）
 - [ ] T275 前端 QA Store — `frontend/src/modules/qa/stores/qaStore.ts` Zustand store 管理问答会话状态
 
 ### FR-017: MCP 协议集成
@@ -417,9 +417,9 @@
 - [ ] T278 MCP Tool 注册 — `odap/biz/integration/mcp_adapter/impl/server_manager.py` MCP Server 通过统一工具注册表注册为 Tool
 - [ ] T279 MCP 领域模型定义 — `odap/biz/integration/mcp_adapter/models/` MCPServerConfig(BaseModel) 含 id / name / endpoint / tools / status
 - [ ] T280 MCP API 路由 — `odap/biz/integration/mcp_adapter/api/routes.py` POST /api/mcp/servers + DELETE /api/mcp/servers/{id} + GET /api/mcp/servers + POST /api/mcp/servers/{id}/tools/{tool_name} + GET /api/mcp/servers/{id}/status
-- [ ] T281 MCP 路由注册 — `odap/web/app.py` include_router(mcp_router)
-- [ ] T282 MCP 单元测试 — `tests/unit/test_mcp_adapter.py` 覆盖 Server 注册/注销/工具调用/连接池/沙箱隔离
-- [ ] T283 前端 MCP 管理组件 — `frontend/src/modules/system/components/MCPManager.tsx` L3 组织组件，MCP Server 列表 + 注册/注销 + 状态监控 + 工具调用
+- [ ] T281 [REVIEW] MCP 路由注册 — `odap/web/app.py` include_router(mcp_router)
+- [ ] T282 [TDD] MCP 单元测试 — `tests/unit/test_mcp_adapter.py` 覆盖 Server 注册/注销/工具调用/连接池/沙箱隔离
+- [ ] T283 [SUBAGENT] 前端 MCP 管理组件 — `frontend/src/modules/system/components/MCPManager.tsx` L3 组织组件，MCP Server 列表 + 注册/注销 + 状态监控 + 工具调用
 
 ### FR-019: 决策推荐引擎
 
@@ -428,9 +428,9 @@
 - [ ] T286 历史推荐经验沉淀 — `odap/biz/decision/decision_recommendation/impl/recommendation_engine.py` 历史推荐经验沉淀到知识图谱（Graphiti）
 - [ ] T287 决策推荐 schemas 定义 — `odap/biz/decision/decision_recommendation/api/schemas.py` RecommendRequest / RecommendationResponse / RiskAssessmentResponse / ExplainResponse 等
 - [ ] T288 决策推荐 API 路由 — `odap/biz/decision/decision_recommendation/api/routes.py` POST /api/decision/recommend + POST /api/decision/risk-assessment + GET /api/decision/recommendations/{id}/explain + GET /api/decision/history
-- [ ] T289 决策推荐路由注册 — `odap/web/app.py` include_router(decision_router)
-- [ ] T290 决策推荐单元测试 — `tests/unit/test_decision_recommendation.py` 覆盖方案推荐/风险评估/排序/可解释性/RAG 增强
-- [ ] T291 前端决策推荐组件 — `frontend/src/modules/simulation/components/RecommendationPanel.tsx` L3 组织组件，方案推荐展示 + 风险评估 + 决策理由解释
+- [ ] T289 [REVIEW] 决策推荐路由注册 — `odap/web/app.py` include_router(decision_router)
+- [ ] T290 [TDD] 决策推荐单元测试 — `tests/unit/test_decision_recommendation.py` 覆盖方案推荐/风险评估/排序/可解释性/RAG 增强
+- [ ] T291 [SUBAGENT] 前端决策推荐组件 — `frontend/src/modules/simulation/components/RecommendationPanel.tsx` L3 组织组件，方案推荐展示 + 风险评估 + 决策理由解释
 
 ---
 
@@ -447,18 +447,18 @@
 
 ### ADR 状态修正
 
-- [ ] T296 ADR-030 状态修正 — `docs/07-adr/ADR-030.md` 状态从 Accepted 修正为 Superseded（OpenHarness 立即集成覆盖推迟决策）
-- [ ] T297 ADR-036 补充严格对齐说明 — `docs/07-adr/ADR-036.md` 补充"严格对齐 Palantir AIP 本体模型"说明
-- [ ] T298 ADR-037 补充完整 i18n 实现 — `docs/07-adr/ADR-037.md` 补充完整 i18n 实现（后台管理+LLM 翻译）
-- [ ] T299 ADR-038 补充本体拆分说明 — `docs/07-adr/ADR-038.md` 补充本体模型层+本体管理引擎拆分说明
-- [ ] T300 ADR-043 补充混合路由策略 — `docs/07-adr/ADR-043.md` 补充混合路由策略（规则优先+LLM 兜底）
-- [ ] T301 ADR-047 补充 OpenHarness Tool 接口 — `docs/07-adr/ADR-047.md` 补充基于 OpenHarness Tool 接口实现
-- [ ] T302 ADR-048 补充本体拆分和 Palantir 参考 — `docs/07-adr/ADR-048.md` 补充本体模型层拆分和 Palantir 参考
-- [ ] T303 ADR-049 补充 OpenHarness 依赖 — `docs/07-adr/ADR-049.md` 补充基于 OpenHarness 设计的依赖说明
-- [ ] T304 ADR-026 补充 OpenHarness MCP 依赖 — `docs/07-adr/ADR-026.md` 补充基于 OpenHarness 实现 MCP 的依赖说明
-- [ ] T305 ADR-027 补充 OpenHarness 钩子依赖 — `docs/07-adr/ADR-027.md` 补充基于 OpenHarness 生命周期钩子的依赖说明
-- [ ] T306 ADR-051 补充 OpenHarness 外层封装 — `docs/07-adr/ADR-051.md` 补充基于 OpenHarness 外层封装的依赖说明
-- [ ] T307 ADR-029 补充统一工具注册表 — `docs/07-adr/ADR-029.md` 补充统一工具注册表基于 OpenHarness Tool 接口
+- [ ] T296 [REVIEW] ADR-030 状态修正 — `docs/07-adr/ADR-030.md` 状态从 Accepted 修正为 Superseded（OpenHarness 立即集成覆盖推迟决策）
+- [ ] T297 [REVIEW] ADR-036 补充严格对齐说明 — `docs/07-adr/ADR-036.md` 补充"严格对齐 Palantir AIP 本体模型"说明
+- [ ] T298 [REVIEW] ADR-037 补充完整 i18n 实现 — `docs/07-adr/ADR-037.md` 补充完整 i18n 实现（后台管理+LLM 翻译）
+- [ ] T299 [REVIEW] ADR-038 补充本体拆分说明 — `docs/07-adr/ADR-038.md` 补充本体模型层+本体管理引擎拆分说明
+- [ ] T300 [REVIEW] ADR-043 补充混合路由策略 — `docs/07-adr/ADR-043.md` 补充混合路由策略（规则优先+LLM 兜底）
+- [ ] T301 [REVIEW] ADR-047 补充 OpenHarness Tool 接口 — `docs/07-adr/ADR-047.md` 补充基于 OpenHarness Tool 接口实现
+- [ ] T302 [REVIEW] ADR-048 补充本体拆分和 Palantir 参考 — `docs/07-adr/ADR-048.md` 补充本体模型层拆分和 Palantir 参考
+- [ ] T303 [REVIEW] ADR-049 补充 OpenHarness 依赖 — `docs/07-adr/ADR-049.md` 补充基于 OpenHarness 设计的依赖说明
+- [ ] T304 [REVIEW] ADR-026 补充 OpenHarness MCP 依赖 — `docs/07-adr/ADR-026.md` 补充基于 OpenHarness 实现 MCP 的依赖说明
+- [ ] T305 [REVIEW] ADR-027 补充 OpenHarness 钩子依赖 — `docs/07-adr/ADR-027.md` 补充基于 OpenHarness 生命周期钩子的依赖说明
+- [ ] T306 [REVIEW] ADR-051 补充 OpenHarness 外层封装 — `docs/07-adr/ADR-051.md` 补充基于 OpenHarness 外层封装的依赖说明
+- [ ] T307 [REVIEW] ADR-029 补充统一工具注册表 — `docs/07-adr/ADR-029.md` 补充统一工具注册表基于 OpenHarness Tool 接口
 
 ### 前端组件迁移 + 性能优化
 
@@ -477,38 +477,38 @@
 ### SC-01: 多源冲突解决（OntoFlow 范式强化）
 
 - [ ] T313 [P] 冲突解决策略领域模型 — `odap/biz/core/ontology/conflict/models/conflict_resolution.py` `ConflictResolution(str, Enum)` 含 FIRST_WINS / LAST_WINS / LLM_JUDGE / MANUAL 四种策略 + `ConflictRecord(BaseModel)` 含 entity_id / conflict_type / candidates / chosen
-- [ ] T314 [P] 冲突解决器抽象接口 — `odap/biz/core/ontology/conflict/interfaces/conflict_resolver.py` `ConflictResolver(ABC)` 定义 resolve(conflict) / detect_conflicts(sources)
+- [ ] T314 [P] [REVIEW] 冲突解决器抽象接口 — `odap/biz/core/ontology/conflict/interfaces/conflict_resolver.py` `ConflictResolver(ABC)` 定义 resolve(conflict) / detect_conflicts(sources)
 - [ ] T315 ConflictResolverImpl 实现 — `odap/biz/core/ontology/conflict/impl/conflict_resolver_impl.py` 实现 4 种策略：FIRST_WINS（取最早源）、LAST_WINS（取最新源）、LLM_JUDGE（调用 LLM 判断）、MANUAL（标记待人工处理）
 - [ ] T316 ConflictService 编排层 — `odap/biz/core/ontology/conflict/services/conflict_service.py` 返回 Dict[str, Any]，集成到数据摄入流程
 - [ ] T317 冲突解决 API 路由 — `odap/biz/core/ontology/conflict/api/routes.py` `APIRouter(prefix="/api/ontology/conflict")` POST `/detect` + POST `/resolve/{conflict_id}` + GET `/conflicts?status=pending`
-- [ ] T318 冲突解决路由注册 — `odap/web/app.py` `include_router(conflict_router)`
-- [ ] T319 冲突解决单元测试 — `tests/unit/test_conflict_resolver.py` 覆盖 4 种策略、检测逻辑、人工处理流程
-- [ ] T320 前端冲突解决组件 — `frontend/src/modules/ontology/components/ConflictResolver.tsx` L3 组织组件，候选值对比 + 策略选择 + LLM 判断按钮
+- [ ] T318 [REVIEW] 冲突解决路由注册 — `odap/web/app.py` `include_router(conflict_router)`
+- [ ] T319 [TDD] 冲突解决单元测试 — `tests/unit/test_conflict_resolver.py` 覆盖 4 种策略、检测逻辑、人工处理流程
+- [ ] T320 [SUBAGENT] 前端冲突解决组件 — `frontend/src/modules/ontology/components/ConflictResolver.tsx` L3 组织组件，候选值对比 + 策略选择 + LLM 判断按钮
 
 ### SC-02: 冷启动数据稀疏
 
 - [ ] T321 冷启动引导服务 — `odap/biz/core/ontology/cold_start/impl/bootstrap.py` 当新工作空间无数据时，从模板库加载示例本体（金融/医疗/制造三个行业模板）
-- [ ] T322 冷启动单元测试 — `tests/unit/test_cold_start.py` 覆盖模板加载、数据稀疏检测、引导流程
+- [ ] T322 [TDD] 冷启动单元测试 — `tests/unit/test_cold_start.py` 覆盖模板加载、数据稀疏检测、引导流程
 - [ ] T323 行业模板库 — `odap/biz/core/ontology/cold_start/templates/` 三个 YAML 模板（finance.yaml / healthcare.yaml / manufacturing.yaml）
 
 ### SC-03: 大规模本体分片
 
 - [ ] T324 本体分片器 — `odap/biz/core/ontology/sharding/impl/sharder.py` 当 ObjectType > 10000 实例时按主键 hash 自动分片，查询时并行扫描并合并
-- [ ] T325 分片单元测试 — `tests/unit/test_sharding.py` 覆盖分片策略、并行查询、结果合并
+- [ ] T325 [TDD] 分片单元测试 — `tests/unit/test_sharding.py` 覆盖分片策略、并行查询、结果合并
 
 ### SC-04: 多租户隔离强化
 
-- [ ] T326 租户隔离中间件 — `odap/infra/security/tenant_isolation.py` 所有 API 自动注入 ws_id 过滤条件，越权访问返回 403（不泄漏存在性）
-- [ ] T327 租户隔离单元测试 — `tests/unit/test_tenant_isolation.py` 覆盖跨租户访问拦截、403 响应、审计日志
+- [ ] T326 [REVIEW] 租户隔离中间件 — `odap/infra/security/tenant_isolation.py` 所有 API 自动注入 ws_id 过滤条件，越权访问返回 403（不泄漏存在性）
+- [ ] T327 [TDD] 租户隔离单元测试 — `tests/unit/test_tenant_isolation.py` 覆盖跨租户访问拦截、403 响应、审计日志
 
 ### SC-05: 审计日志保留策略
 
 - [ ] T328 审计保留策略 — `odap/infra/security/audit_retention.py` 默认 90 天保留，支持按 workspace / classification 自定义保留期，过期自动归档到 MinIO
-- [ ] T329 审计保留单元测试 — `tests/unit/test_audit_retention.py` 覆盖保留期计算、过期归档、查询历史归档
+- [ ] T329 [TDD] 审计保留单元测试 — `tests/unit/test_audit_retention.py` 覆盖保留期计算、过期归档、查询历史归档
 
 ### SC-06: 错误降级与熔断
 
-- [ ] T330 熔断器中间件 — `odap/infra/resilience/circuit_breaker.py` 对外部服务（LLM/Neo4j/OPA）实现熔断（错误率 > 50% 持续 30s 触发），半开探测恢复
+- [ ] T330 [REVIEW] 熔断器中间件 — `odap/infra/resilience/circuit_breaker.py` 对外部服务（LLM/Neo4j/OPA）实现熔断（错误率 > 50% 持续 30s 触发），半开探测恢复
 
 ---
 
@@ -522,48 +522,48 @@
 
 #### FR-031: Data Health 数据健康引擎
 
-- [ ] T331 [P] Health 模块目录结构创建 — `odap/biz/core/ontology/health/` 创建 `api/` `models/` `interfaces/` `impl/` `services/` `storage/` 子目录 + `__init__.py`
+- [ ] T331 [P] [SUBAGENT] Health 模块目录结构创建 — `odap/biz/core/ontology/health/` 创建 `api/` `models/` `interfaces/` `impl/` `services/` `storage/` 子目录 + `__init__.py`
 - [ ] T332 [P] HealthRule 领域模型定义 — `odap/biz/core/ontology/health/models/rule.py` `HealthRule(BaseModel)` 含 `target_type_id`、`check_expression` (JSON/YAML)、`severity` (info/warning/error/critical)、`schedule` (cron)、`notification_channel` (JSON)
 - [ ] T333 [P] HealthReport 领域模型定义 — `odap/biz/core/ontology/health/models/report.py` `HealthReport(BaseModel)` 含 `instance_id`、`rule_id`、`status` (pass/warn/fail)、`details`、`scanned_at`
-- [ ] T334 [P] HealthRuleRepository 抽象接口 — `odap/biz/core/ontology/health/interfaces/health_rule_repository.py` ABC 定义 CRUD + `list_by_target_type` + `list_by_severity`
-- [ ] T335 [P] HealthScanner 抽象接口 — `odap/biz/core/ontology/health/interfaces/health_scanner.py` ABC 定义 `scan(rule_id: Optional[str]) -> List[HealthReport]`
+- [ ] T334 [P] [REVIEW] HealthRuleRepository 抽象接口 — `odap/biz/core/ontology/health/interfaces/health_rule_repository.py` ABC 定义 CRUD + `list_by_target_type` + `list_by_severity`
+- [ ] T335 [P] [REVIEW] HealthScanner 抽象接口 — `odap/biz/core/ontology/health/interfaces/health_scanner.py` ABC 定义 `scan(rule_id: Optional[str]) -> List[HealthReport]`
 - [ ] T336 SQLite Health Storage — `odap/biz/core/ontology/health/storage/sqlite_health_storage.py` 实现 `health_rules` / `health_reports` 表 CRUD + `__init__.py` 别名导出
-- [ ] T337 HealthRuleRepositoryImpl — `odap/biz/core/ontology/health/impl/health_rule_repository_impl.py` 实现接口
+- [ ] T337 [REVIEW] HealthRuleRepositoryImpl — `odap/biz/core/ontology/health/impl/health_rule_repository_impl.py` 实现接口
 - [ ] T338 HealthScannerImpl — `odap/biz/core/ontology/health/impl/health_scanner_impl.py` 支持 5 种规则：not_null / unique / regex / range / referential_integrity，使用 JSONLogic 引擎求值
 - [ ] T339 NotificationDispatcher — `odap/biz/core/ontology/health/impl/notification_dispatcher.py` 支持 email / webhook / im 三种通道，异步发送（asyncio.create_task）
 - [ ] T340 Health Service 编排层 — `odap/biz/core/ontology/health/services/health_service.py` 返回 Dict[str, Any]
 - [ ] T341 Health API 路由 — `odap/biz/core/ontology/health/api/routes.py` `APIRouter(prefix="/api/ontology/health")` 35+ 端点（rules CRUD + scan + reports 查询）
 - [ ] T342 Health schemas 定义 — `odap/biz/core/ontology/health/api/schemas.py` CreateHealthRuleRequest / HealthRuleResponse / ScanRequest / HealthReportResponse
-- [ ] T343 Health 路由注册 — `odap/web/app.py` `include_router(health_router)`
-- [ ] T344 Health 单元测试 — `tests/unit/test_health.py` 覆盖 5 种规则、CRUD、扫描调度、通知发送
-- [ ] T345 前端 Health 规则编辑器 — `frontend/src/modules/ontology/components/HealthRuleEditor.tsx` L3 组件，YAML 编辑 + 表达式实时校验 + 严重程度选择
-- [ ] T346 前端 Health 报告页面 — `frontend/src/modules/ontology/pages/HealthDashboard.tsx` L5 页面，规则列表 + 扫描触发 + 报告可视化（饼图+表格）
+- [ ] T343 [REVIEW] Health 路由注册 — `odap/web/app.py` `include_router(health_router)`
+- [ ] T344 [TDD] Health 单元测试 — `tests/unit/test_health.py` 覆盖 5 种规则、CRUD、扫描调度、通知发送
+- [ ] T345 [SUBAGENT] 前端 Health 规则编辑器 — `frontend/src/modules/ontology/components/HealthRuleEditor.tsx` L3 组件，YAML 编辑 + 表达式实时校验 + 严重程度选择
+- [ ] T346 [SUBAGENT] 前端 Health 报告页面 — `frontend/src/modules/ontology/pages/HealthDashboard.tsx` L5 页面，规则列表 + 扫描触发 + 报告可视化（饼图+表格）
 
 #### FR-032: 本体 Branch & Merge
 
-- [ ] T347 [P] Branch 模块目录结构创建 — `odap/biz/core/ontology/branch/` 创建 `api/` `models/` `interfaces/` `impl/` `services/` `storage/` 子目录
+- [ ] T347 [P] [SUBAGENT] Branch 模块目录结构创建 — `odap/biz/core/ontology/branch/` 创建 `api/` `models/` `interfaces/` `impl/` `services/` `storage/` 子目录
 - [ ] T348 [P] Branch 领域模型定义 — `odap/biz/core/ontology/branch/models/branch.py` `Branch(BaseModel)` 含 `id` / `name` / `ontology_id` / `base_version_id` / `head_version_id` / `status` (active/merged/abandoned)
 - [ ] T349 [P] MergeRequest 领域模型 — `odap/biz/core/ontology/branch/models/merge_request.py` `MergeRequest(BaseModel)` 含 `source_branch_id` / `target_branch_id` / `conflicts` (JSON) / `status` (open/approved/merged/conflict)
 - [ ] T350 [P] Conflict 领域模型 — `odap/biz/core/ontology/branch/models/conflict.py` `Conflict(BaseModel)` 含 `path` (JSON Pointer) / `base_value` / `ours_value` / `theirs_value` / `resolution`
-- [ ] T351 BranchRepository 抽象接口 — `odap/biz/core/ontology/branch/interfaces/branch_repository.py` ABC 定义 CRUD + `list_by_ontology` + `get_active`
-- [ ] T352 MergeEngine 抽象接口 — `odap/biz/core/ontology/branch/interfaces/merge_engine.py` ABC 定义 `merge(source, target) -> MergeResult` / `detect_conflicts(base, ours, theirs) -> List[Conflict]`
+- [ ] T351 [REVIEW] BranchRepository 抽象接口 — `odap/biz/core/ontology/branch/interfaces/branch_repository.py` ABC 定义 CRUD + `list_by_ontology` + `get_active`
+- [ ] T352 [REVIEW] MergeEngine 抽象接口 — `odap/biz/core/ontology/branch/interfaces/merge_engine.py` ABC 定义 `merge(source, target) -> MergeResult` / `detect_conflicts(base, ours, theirs) -> List[Conflict]`
 - [ ] T353 SQLite Branch Storage — `odap/biz/core/ontology/branch/storage/sqlite_branch_storage.py` 实现 `branches` / `merge_requests` / `conflicts` 表 CRUD
-- [ ] T354 BranchRepositoryImpl — `odap/biz/core/ontology/branch/impl/branch_repository_impl.py`
+- [ ] T354 [REVIEW] BranchRepositoryImpl — `odap/biz/core/ontology/branch/impl/branch_repository_impl.py`
 - [ ] T355 ThreeWayMergeEngine — `odap/biz/core/ontology/branch/impl/merge_engine.py` 基于 RFC 6902 JSON Patch 实现 3-way merge，自动合并无冲突字段，冲突字段返回由用户解决
 - [ ] T356 Branch Service 编排层 — `odap/biz/core/ontology/branch/services/branch_service.py` 集成 OntologyVersion 与 MergeEngine
 - [ ] T357 Branch API 路由 — `odap/biz/core/ontology/branch/api/routes.py` 端点：POST `/api/ontology/branches` + GET `/api/ontology/branches` + POST `/api/ontology/branches/{id}/merge` + GET `/api/ontology/branches/{id}/conflicts`
 - [ ] T358 Branch schemas 定义 — `odap/biz/core/ontology/branch/api/schemas.py` CreateBranchRequest / MergeRequestResponse / ConflictResolutionRequest
-- [ ] T359 Branch 路由注册 — `odap/web/app.py` `include_router(branch_router)`
-- [ ] T360 Branch 单元测试 — `tests/unit/test_branch.py` 覆盖 3-way merge、无冲突自动合并、冲突检测与解决、合并后版本生成
-- [ ] T361 前端 Branch 可视化 — `frontend/src/modules/ontology/components/BranchGraph.tsx` L3 组件，G6 渲染分支树 + 合并箭头
-- [ ] T362 前端 Merge 冲突解决器 — `frontend/src/modules/ontology/components/MergeConflictResolver.tsx` L3 组件，3 栏对比（base/ours/theirs）+ 选择按钮
-- [ ] T363 前端 Branch 管理页面 — `frontend/src/modules/ontology/pages/BranchManager.tsx` L5 页面，分支列表 + 创建分支 + 发起合并
+- [ ] T359 [REVIEW] Branch 路由注册 — `odap/web/app.py` `include_router(branch_router)`
+- [ ] T360 [TDD] Branch 单元测试 — `tests/unit/test_branch.py` 覆盖 3-way merge、无冲突自动合并、冲突检测与解决、合并后版本生成
+- [ ] T361 [SUBAGENT] 前端 Branch 可视化 — `frontend/src/modules/ontology/components/BranchGraph.tsx` L3 组件，G6 渲染分支树 + 合并箭头
+- [ ] T362 [SUBAGENT] 前端 Merge 冲突解决器 — `frontend/src/modules/ontology/components/MergeConflictResolver.tsx` L3 组件，3 栏对比（base/ours/theirs）+ 选择按钮
+- [ ] T363 [SUBAGENT] 前端 Branch 管理页面 — `frontend/src/modules/ontology/pages/BranchManager.tsx` L5 页面，分支列表 + 创建分支 + 发起合并
 
 ### M2 里程碑：Inheritance + Action Type（FR-033, FR-034）
 
 #### FR-033: Object Type 继承 + Mixin
 
-- [ ] T364 [P] Inheritance 模块目录创建 — `odap/biz/core/ontology/inheritance/` 标准分层
+- [ ] T364 [P] [SUBAGENT] Inheritance 模块目录创建 — `odap/biz/core/ontology/inheritance/` 标准分层
 - [ ] T365 [P] InheritanceEdge 领域模型 — `odap/biz/core/ontology/inheritance/models/inheritance.py` `InheritanceEdge(BaseModel)` 含 `child_type_id` / `parent_type_id` / `depth` / `discriminator` (JSON)
 - [ ] T366 [P] Mixin 领域模型 — `odap/biz/core/ontology/inheritance/models/mixin.py` `Mixin(BaseModel)` 含 `id` / `name` / `properties` (List[str]) / `target_type_ids` (List[str])
 - [ ] T367 [P] InheritanceValidator — `odap/biz/core/ontology/inheritance/impl/validator.py` 检测循环继承（DFS）、最大深度限制（5 层）、Mixin 冲突
@@ -571,88 +571,88 @@
 - [ ] T369 SQLite Inheritance Storage — `odap/biz/core/ontology/inheritance/storage/sqlite_inheritance_storage.py` 实现 `inheritance_edges` / `mixins` 表
 - [ ] T370 InheritanceService 编排层 — `odap/biz/core/ontology/inheritance/services/inheritance_service.py`
 - [ ] T371 Inheritance API 路由 — `odap/biz/core/ontology/inheritance/api/routes.py` POST `/api/ontology/inheritance/edges` + GET `/api/ontology/inheritance/resolve/{type_id}` + POST `/api/ontology/mixins`
-- [ ] T372 Inheritance 单元测试 — `tests/unit/test_inheritance.py` 覆盖循环检测、深度限制、Mixin 解析、属性合并
-- [ ] T373 前端继承关系可视化 — `frontend/src/modules/ontology/components/InheritanceGraph.tsx` L3 组件，G6 渲染继承树
-- [ ] T374 前端 Mixin 管理组件 — `frontend/src/modules/ontology/components/MixinManager.tsx` L3 组件
+- [ ] T372 [TDD] Inheritance 单元测试 — `tests/unit/test_inheritance.py` 覆盖循环检测、深度限制、Mixin 解析、属性合并
+- [ ] T373 [SUBAGENT] 前端继承关系可视化 — `frontend/src/modules/ontology/components/InheritanceGraph.tsx` L3 组件，G6 渲染继承树
+- [ ] T374 [SUBAGENT] 前端 Mixin 管理组件 — `frontend/src/modules/ontology/components/MixinManager.tsx` L3 组件
 
 #### FR-034: Action Type 一等公民
 
-- [ ] T375 [P] Action Type 模块目录创建 — `odap/biz/core/ontology/action/` 标准分层
+- [ ] T375 [P] [SUBAGENT] Action Type 模块目录创建 — `odap/biz/core/ontology/action/` 标准分层
 - [ ] T376 [P] ActionType 领域模型 — `odap/biz/core/ontology/action/models/action_type.py` `ActionType(BaseModel)` 含 `id` / `name` / `object_types` (List[str]) / `parameters` (JSON Schema) / `return_type` / `side_effects` / `linked_skill_id` / `opa_policy_ref`
 - [ ] T377 [P] ActionExecution 领域模型 — `odap/biz/core/ontology/action/models/execution.py` `ActionExecution(BaseModel)` 含 `id` / `action_type_id` / `parameters` / `result` / `status` / `audit_record_id`
-- [ ] T378 ActionTypeRepository 抽象接口 — `odap/biz/core/ontology/action/interfaces/action_type_repository.py`
-- [ ] T379 ActionExecutor 抽象接口 — `odap/biz/core/ontology/action/interfaces/action_executor.py` 定义 `execute(action_type, params, user_context) -> ActionExecution`
+- [ ] T378 [REVIEW] ActionTypeRepository 抽象接口 — `odap/biz/core/ontology/action/interfaces/action_type_repository.py`
+- [ ] T379 [REVIEW] ActionExecutor 抽象接口 — `odap/biz/core/ontology/action/interfaces/action_executor.py` 定义 `execute(action_type, params, user_context) -> ActionExecution`
 - [ ] T380 SQLite Action Storage — `odap/biz/core/ontology/action/storage/sqlite_action_storage.py` 实现 `action_types` / `action_executions` 表
-- [ ] T381 ActionTypeRepositoryImpl — `odap/biz/core/ontology/action/impl/action_type_repository_impl.py`
+- [ ] T381 [REVIEW] ActionTypeRepositoryImpl — `odap/biz/core/ontology/action/impl/action_type_repository_impl.py`
 - [ ] T382 SkillBackedExecutor — `odap/biz/core/ontology/action/impl/skill_executor.py` Action Type 通过 linked_skill_id 委托给 Skill 系统执行（**Action Type = 业务接口，Skill = 工程实现**）
-- [ ] T383 ActionService 编排层 — `odap/biz/core/ontology/action/services/action_service.py` 调用前 OPA 权限校验（OPA write-time check），调用后审计日志
+- [ ] T383 [REVIEW] ActionService 编排层 — `odap/biz/core/ontology/action/services/action_service.py` 调用前 OPA 权限校验（OPA write-time check），调用后审计日志
 - [ ] T384 Action API 路由 — `odap/biz/core/ontology/action/api/routes.py` POST `/api/ontology/actions` + POST `/api/ontology/actions/{id}/execute` + GET `/api/ontology/actions/{id}/executions`
 - [ ] T385 Action schemas 定义 — `odap/biz/core/ontology/action/api/schemas.py`
-- [ ] T386 Action 路由注册 — `odap/web/app.py` `include_router(action_router)`
-- [ ] T387 Action 单元测试 — `tests/unit/test_action.py` 覆盖 Action Type CRUD、Skill 委托执行、OPA 权限校验、审计记录
-- [ ] T388 前端 Action 列表页面 — `frontend/src/modules/ontology/pages/ActionLibrary.tsx` L5 页面，Action Type 库 + 参数编辑器 + 执行历史
-- [ ] T389 前端 Action 执行组件 — `frontend/src/modules/ontology/components/ActionExecutor.tsx` L3 组件，表单生成（基于 JSON Schema）+ 执行结果展示
+- [ ] T386 [REVIEW] Action 路由注册 — `odap/web/app.py` `include_router(action_router)`
+- [ ] T387 [TDD] [REVIEW] Action 单元测试 — `tests/unit/test_action.py` 覆盖 Action Type CRUD、Skill 委托执行、OPA 权限校验、审计记录
+- [ ] T388 [SUBAGENT] 前端 Action 列表页面 — `frontend/src/modules/ontology/pages/ActionLibrary.tsx` L5 页面，Action Type 库 + 参数编辑器 + 执行历史
+- [ ] T389 [SUBAGENT] 前端 Action 执行组件 — `frontend/src/modules/ontology/components/ActionExecutor.tsx` L3 组件，表单生成（基于 JSON Schema）+ 执行结果展示
 
 ### M3 里程碑：Computed Property + Object View（FR-035, FR-036）
 
 #### FR-035: 计算属性 + 物化视图
 
-- [ ] T390 [P] ComputedProperty 模块目录创建 — `odap/biz/core/ontology/computed/` 标准分层
+- [ ] T390 [P] [SUBAGENT] ComputedProperty 模块目录创建 — `odap/biz/core/ontology/computed/` 标准分层
 - [ ] T391 [P] ComputedProperty 领域模型 — `odap/biz/core/ontology/computed/models/property.py` `ComputedProperty(BaseModel)` 含 `id` / `name` / `target_type_id` / `expression` (DSL) / `dependencies` (List[str]) / `materialization` (none/full/incremental)
 - [ ] T392 [P] MaterializationJob 领域模型 — `odap/biz/core/ontology/computed/models/job.py` `MaterializationJob(BaseModel)` 含 `id` / `property_id` / `status` (pending/running/done/failed) / `started_at` / `finished_at`
 - [ ] T393 DependencyTracker — `odap/biz/core/ontology/computed/impl/dependency_tracker.py` 解析表达式依赖（基于 AST 遍历），构建 DAG
-- [ ] T394 ExpressionEvaluator — `odap/biz/core/ontology/computed/impl/evaluator.py` 安全沙箱执行（RestrictedPython），支持数学/字符串/日期/聚合函数
+- [ ] T394 [REVIEW] ExpressionEvaluator — `odap/biz/core/ontology/computed/impl/evaluator.py` 安全沙箱执行（RestrictedPython），支持数学/字符串/日期/聚合函数
 - [ ] T395 IncrementalComputer — `odap/biz/core/ontology/computed/impl/incremental.py` 当依赖属性变化时，仅重算受影响对象（DAG 反向传播）
 - [ ] T396 SQLite Computed Storage — `odap/biz/core/ontology/computed/storage/sqlite_computed_storage.py` 实现 `computed_properties` / `materialization_jobs` / `materialized_values` 表
 - [ ] T397 ComputedService 编排层 — `odap/biz/core/ontology/computed/services/computed_service.py`
 - [ ] T398 Computed API 路由 — `odap/biz/core/ontology/computed/api/routes.py` 端点：CRUD + POST `/recompute/{property_id}` + GET `/jobs/{id}/status`
-- [ ] T399 Computed 单元测试 — `tests/unit/test_computed.py` 覆盖表达式求值、依赖追踪、增量重算、沙箱安全
-- [ ] T400 前端计算属性编辑器 — `frontend/src/modules/ontology/components/ComputedPropertyEditor.tsx` L3 组件，DSL 编辑 + 依赖图可视化 + 表达式测试运行
-- [ ] T401 前端物化任务监控 — `frontend/src/modules/ontology/components/MaterializationMonitor.tsx` L3 组件，任务列表 + 进度条 + 失败重试
+- [ ] T399 [TDD] [REVIEW] Computed 单元测试 — `tests/unit/test_computed.py` 覆盖表达式求值、依赖追踪、增量重算、沙箱安全
+- [ ] T400 [SUBAGENT] 前端计算属性编辑器 — `frontend/src/modules/ontology/components/ComputedPropertyEditor.tsx` L3 组件，DSL 编辑 + 依赖图可视化 + 表达式测试运行
+- [ ] T401 [SUBAGENT] 前端物化任务监控 — `frontend/src/modules/ontology/components/MaterializationMonitor.tsx` L3 组件，任务列表 + 进度条 + 失败重试
 
 #### FR-036: Object View 角色视图
 
-- [ ] T402 [P] ObjectView 模块目录创建 — `odap/biz/core/ontology/view/` 标准分层
+- [ ] T402 [P] [SUBAGENT] ObjectView 模块目录创建 — `odap/biz/core/ontology/view/` 标准分层
 - [ ] T403 [P] ObjectView 领域模型 — `odap/biz/core/ontology/view/models/view.py` `ObjectView(BaseModel)` 含 `id` / `name` / `base_type_id` / `role` / `projected_properties` (List[str]) / `filters` (JSON) / `row_limit` / `sort_order`
 - [ ] T404 [P] ViewPermission 领域模型 — `odap/biz/core/ontology/view/models/permission.py` `ViewPermission(BaseModel)` 含 `view_id` / `role` / `can_export` / `can_share` / `redaction_rules` (JSON)
-- [ ] T405 ViewRepository 抽象接口 — `odap/biz/core/ontology/view/interfaces/view_repository.py`
-- [ ] T406 ViewQueryEngine 抽象接口 — `odap/biz/core/ontology/view/interfaces/view_query_engine.py` 定义 `query(view_id, user_context) -> List[Dict]`
+- [ ] T405 [REVIEW] ViewRepository 抽象接口 — `odap/biz/core/ontology/view/interfaces/view_repository.py`
+- [ ] T406 [REVIEW] ViewQueryEngine 抽象接口 — `odap/biz/core/ontology/view/interfaces/view_query_engine.py` 定义 `query(view_id, user_context) -> List[Dict]`
 - [ ] T407 SQLite View Storage — `odap/biz/core/ontology/view/storage/sqlite_view_storage.py` 实现 `object_views` / `view_permissions` 表
-- [ ] T408 ViewRepositoryImpl — `odap/biz/core/ontology/view/impl/view_repository_impl.py`
-- [ ] T409 ViewQueryEngineImpl — `odap/biz/core/ontology/view/impl/view_query_engine_impl.py` 集成 OPA（读取时权限校验）+ 字段脱敏（redaction_rules）
+- [ ] T408 [REVIEW] ViewRepositoryImpl — `odap/biz/core/ontology/view/impl/view_repository_impl.py`
+- [ ] T409 [REVIEW] ViewQueryEngineImpl — `odap/biz/core/ontology/view/impl/view_query_engine_impl.py` 集成 OPA（读取时权限校验）+ 字段脱敏（redaction_rules）
 - [ ] T410 ViewService 编排层 — `odap/biz/core/ontology/view/services/view_service.py`
 - [ ] T411 View API 路由 — `odap/biz/core/ontology/view/api/routes.py` CRUD + POST `/api/ontology/views/{id}/query`
-- [ ] T412 View 单元测试 — `tests/unit/test_view.py` 覆盖视图 CRUD、字段投影、过滤、权限校验、脱敏规则
-- [ ] T413 前端视图设计器 — `frontend/src/modules/ontology/components/ViewDesigner.tsx` L3 组件，可视化属性选择 + 过滤条件构建 + 角色绑定
-- [ ] T414 前端视图查询页面 — `frontend/src/modules/ontology/pages/ObjectViewPage.tsx` L5 页面，视图查询 + 导出（带权限控制）
+- [ ] T412 [TDD] [REVIEW] View 单元测试 — `tests/unit/test_view.py` 覆盖视图 CRUD、字段投影、过滤、权限校验、脱敏规则
+- [ ] T413 [SUBAGENT] 前端视图设计器 — `frontend/src/modules/ontology/components/ViewDesigner.tsx` L3 组件，可视化属性选择 + 过滤条件构建 + 角色绑定
+- [ ] T414 [REVIEW] [SUBAGENT] 前端视图查询页面 — `frontend/src/modules/ontology/pages/ObjectViewPage.tsx` L5 页面，视图查询 + 导出（带权限控制）
 
 ### M4 里程碑：OntoFlow Goal-driven 演化（FR-037）
 
 #### FR-037: OntoFlow Goal 驱动演化
 
-- [ ] T415 [P] Goal 模块目录创建 — `odap/biz/core/ontology/goal/` 标准分层
+- [ ] T415 [P] [SUBAGENT] Goal 模块目录创建 — `odap/biz/core/ontology/goal/` 标准分层
 - [ ] T416 [P] Goal 领域模型 — `odap/biz/core/ontology/goal/models/goal.py` `Goal(BaseModel)` 含 `id` / `title` / `description` / `business_objective` / `rationale` (LLM 生成) / `status` (proposed/approved/rejected/in-progress/achieved/abandoned) / `parent_goal_id`
 - [ ] T417 [P] ChangeProposal 领域模型 — `odap/biz/core/ontology/goal/models/proposal.py` `ChangeProposal(BaseModel)` 含 `id` / `goal_id` / `changes` (JSON Patch) / `impact_analysis` / `estimated_benefit` / `status`
 - [ ] T418 [P] ImpactAnalysis 领域模型 — `odap/biz/core/ontology/goal/models/impact.py` `ImpactAnalysis(BaseModel)` 含 `affected_types` / `affected_instances_count` / `breaking_changes` (List[str]) / `estimated_migration_cost`
-- [ ] T419 GoalRepository 抽象接口 — `odap/biz/core/ontology/goal/interfaces/goal_repository.py`
-- [ ] T420 ImpactAnalyzer 抽象接口 — `odap/biz/core/ontology/goal/interfaces/impact_analyzer.py` 定义 `analyze(changes: JSONPatch) -> ImpactAnalysis`
+- [ ] T419 [REVIEW] GoalRepository 抽象接口 — `odap/biz/core/ontology/goal/interfaces/goal_repository.py`
+- [ ] T420 [REVIEW] ImpactAnalyzer 抽象接口 — `odap/biz/core/ontology/goal/interfaces/impact_analyzer.py` 定义 `analyze(changes: JSONPatch) -> ImpactAnalysis`
 - [ ] T421 SQLite Goal Storage — `odap/biz/core/ontology/goal/storage/sqlite_goal_storage.py` 实现 `goals` / `change_proposals` / `impact_analyses` 表
-- [ ] T422 GoalRepositoryImpl — `odap/biz/core/ontology/goal/impl/goal_repository_impl.py`
+- [ ] T422 [REVIEW] GoalRepositoryImpl — `odap/biz/core/ontology/goal/impl/goal_repository_impl.py`
 - [ ] T423 LLM Rationale Generator — `odap/biz/core/ontology/goal/impl/rationale_generator.py` 调用 LLM 为 Goal 生成 business_rationale（多轮追问澄清）
 - [ ] T424 ImpactAnalyzerImpl — `odap/biz/core/ontology/goal/impl/impact_analyzer_impl.py` 静态分析：受影响 ObjectType / Action Type / 估算迁移成本
 - [ ] T425 GoalService 编排层 — `odap/biz/core/ontology/goal/services/goal_service.py`
 - [ ] T426 Goal API 路由 — `odap/biz/core/ontology/goal/api/routes.py` CRUD + POST `/api/ontology/goals/{id}/propose-change` + GET `/api/ontology/goals/{id}/lineage`
-- [ ] T427 Goal 单元测试 — `tests/unit/test_goal.py` 覆盖 Goal CRUD、LLM rationale 生成、Impact 分析、Goal lineage
-- [ ] T428 前端 Goal 看板 — `frontend/src/modules/ontology/pages/GoalKanban.tsx` L5 页面，Goal 状态看板（拖拽切换状态）+ 时间线
-- [ ] T429 前端 Change Proposal 组件 — `frontend/src/modules/ontology/components/ChangeProposalCard.tsx` L3 组件，提案详情 + 影响分析可视化 + 审批按钮
-- [ ] T430 前端 Goal Lineage 视图 — `frontend/src/modules/ontology/components/GoalLineage.tsx` L3 组件，父子 Goal + 关联变更 + G6 图谱渲染
+- [ ] T427 [TDD] Goal 单元测试 — `tests/unit/test_goal.py` 覆盖 Goal CRUD、LLM rationale 生成、Impact 分析、Goal lineage
+- [ ] T428 [SUBAGENT] 前端 Goal 看板 — `frontend/src/modules/ontology/pages/GoalKanban.tsx` L5 页面，Goal 状态看板（拖拽切换状态）+ 时间线
+- [ ] T429 [SUBAGENT] 前端 Change Proposal 组件 — `frontend/src/modules/ontology/components/ChangeProposalCard.tsx` L3 组件，提案详情 + 影响分析可视化 + 审批按钮
+- [ ] T430 [SUBAGENT] 前端 Goal Lineage 视图 — `frontend/src/modules/ontology/components/GoalLineage.tsx` L3 组件，父子 Goal + 关联变更 + G6 图谱渲染
 
 ### Phase 11 集成与文档
 
-- [ ] T431 ADR-055 状态修正 — `docs/07-adr/ADR-055.md` 补充"Action Type = 业务接口，Skill = 工程实现"分层原则
+- [ ] T431 [REVIEW] ADR-055 状态修正 — `docs/07-adr/ADR-055.md` 补充"Action Type = 业务接口，Skill = 工程实现"分层原则
 - [ ] T432 FR-031..FR-037 用户文档 — `docs/03-modules/ontology/DESIGN.md` 补充 Data Health / Branch / Inheritance / Action / Computed / View / Goal 章节
 - [ ] T433 API 契约文档 — `specs/001-odap-platform/contracts/core-ontology-p4.md` 已创建，补充 curl 示例和错误码表
-- [ ] T434 Phase 11 集成测试 — `tests/integration/test_p4_features.py` 端到端测试 Branch 创建→Health 扫描→Action 执行→Goal 关联
+- [ ] T434 [TDD] Phase 11 集成测试 — `tests/integration/test_p4_features.py` 端到端测试 Branch 创建→Health 扫描→Action 执行→Goal 关联
 
 ---
 
@@ -796,6 +796,55 @@ M4 (FR-037 OntoFlow Goal): T415-T430 (16 任务，依赖 T331-T363 M1 全部完�
 
 Phase 11 集成:              T431-T434 (4 任务，文档+集成测试)
 ```
+
+
+## Superpowers Execution Notes
+
+> 本节说明如何在实施阶段应用 Superpowers 执行标记。
+> 详细标记规则见 [tasks-template.md](.specify/extensions/superspec/templates/tasks-template.md) 与 [superpowers-bridge.md](.specify/extensions/superspec/references/superpowers-bridge.md)。
+
+### Marker 分布概览
+
+| Marker | 含义 | 适用任务 | 行为 |
+|--------|------|---------|------|
+| `[P]` | 并行 | 不同文件、无依赖 | 使用 Task tool 并行 |
+| `[TDD]` | 测试驱动 | 新增模块、测试、验证逻辑 | RED→GREEN→REFACTOR |
+| `[REVIEW]` | 评审门 | ADR 变更、路由注册、接口定义、安全 | 暂停等待人工 review |
+| `[SUBAGENT]` | 子代理 | 前端组件、模块目录结构、i18n 翻译 | 派发到子代理并行 |
+
+### 按 Phase 的检查点协议
+
+每个 Phase 结束时的强制检查：
+
+1. **Phase 1 (Setup)**: 项目可启动 — 验证 `python bootstep.py status` 全绿
+2. **Phase 2 (Foundational)**: 基础就绪 — 验证 `pytest tests/unit/ -v` 通过
+3. **Phase 3 (US1 MVP)**: ⭐ MVP 完成 — 演示本体设计 + 版本回滚 + 数据摄入
+4. **Phase 4-6 (US2/3/6)**: 核心能力 — 验证 OPA 拒绝 + Agent 意图识别
+5. **Phase 7-8 (US4/5)**: 推演+问答 — 验证沙箱隔离 + 图表渲染
+6. **Phase 9 (Polish)**: 质量门禁 — 覆盖率 ≥ 80% + Lint 0 error
+7. **Phase 10 (Brainstorm)**: 边缘场景 — 验证冲突解决 + 冷启动 + 多租户隔离
+8. **Phase 11 (Palantir/OntoFlow)**: 4 个里程碑 Gate Review
+   - **M1 Gate**: Data Health 5 规则 + Branch 3-way merge 通过集成测试
+   - **M2 Gate**: Inheritance 深度 ≤ 5 + Action Type Skill 委托通过审计
+   - **M3 Gate**: Computed 增量重算 + View 字段脱敏通过权限测试
+   - **M4 Gate**: Goal + Change Proposal + LLM rationale 通过业务评审
+
+### 失败处理
+
+- **TDD 任务失败**: 立即停止，禁止跳过 RED 阶段
+- **REVIEW 任务失败**: 阻塞后续所有 [SUBAGENT] 派发
+- **SUBAGENT 任务失败**: 重新派发同一子代理，超过 3 次降级为串行实现
+- **关键路径阻塞**: 触发 `/speckit-superspec-status` 检查进度
+
+### 与 Constitution 的对应
+
+| Constitution 原则 | 对应 Marker | 验证手段 |
+|-------------------|-------------|----------|
+| I. 简单 | `[TDD]` | 函数体 < 40 行（CI 守卫 R-P3-001） |
+| II. 可维护 | `[REVIEW]` | apiClient 统一、ADR 一致性 |
+| III. 测试优先 | `[TDD]` | 覆盖率 ≥ 80% |
+| IV. 避免过度设计 | `[REVIEW]` | 借鉴而非全盘对齐 |
+| V. SDD 质量门 | `[REVIEW]` | G-1..G-12 测试通过 |
 
 ---
 
