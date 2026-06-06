@@ -17,7 +17,7 @@ undo_service = UndoService(history_service=history_service)
 async def get_operation_history(
     workspace_id: str = Query(..., description="工作空间ID"),
     page: int = Query(1, ge=1),
-    page_size: int = Query(20, ge=1, le=100),,
+    page_size: int = Query(20, ge=1, le=100),
     user=Depends(get_current_user)):
     """获取操作历史"""
     try:
@@ -61,7 +61,7 @@ async def redo_operation(operation_id: str,
 
 @router.get("/undoable")
 async def get_undoable_operations(
-    workspace_id: str = Query(..., description="工作空间ID"),,
+    workspace_id: str = Query(..., description="工作空间ID"),
     user=Depends(get_current_user)):
     """获取可撤销的操作列表"""
     try:
@@ -75,7 +75,7 @@ async def get_undoable_operations(
 
 @router.get("/redoable")
 async def get_redoable_operations(
-    workspace_id: str = Query(..., description="工作空间ID"),,
+    workspace_id: str = Query(..., description="工作空间ID"),
     user=Depends(get_current_user)):
     """获取可重做的操作列表"""
     try:
@@ -89,7 +89,7 @@ async def get_redoable_operations(
 
 @router.post("/cleanup")
 async def cleanup_old_records(
-    days: int = Query(30, ge=1, description="保留天数"),,
+    days: int = Query(30, ge=1, description="保留天数"),
     user=Depends(get_current_user)):
     """清理过期操作历史"""
     try:

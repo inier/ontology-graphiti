@@ -12,8 +12,8 @@ ingest_service = IngestService()
 
 @router.post("/upload")
 async def upload_file(
-    file: UploadFile = File(..),
-    workspace_id: str = Form("default"),,
+    file: UploadFile = File(...),
+    workspace_id: str = Form("default"),
     user=Depends(get_current_user)):
     try:
         file_data = await file.read()

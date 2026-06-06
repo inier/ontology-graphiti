@@ -649,10 +649,10 @@
 
 ### Phase 11 集成与文档
 
-- [ ] T431 [REVIEW] ADR-055 状态修正 — `docs/07-adr/ADR-055.md` 补充"Action Type = 业务接口，Skill = 工程实现"分层原则
-- [ ] T432 FR-031..FR-037 用户文档 — `docs/03-modules/ontology/DESIGN.md` 补充 Data Health / Branch / Inheritance / Action / Computed / View / Goal 章节
-- [ ] T433 API 契约文档 — `specs/001-odap-platform/contracts/core-ontology-p4.md` 已创建，补充 curl 示例和错误码表
-- [ ] T434 [TDD] Phase 11 集成测试 — `tests/integration/test_p4_features.py` 端到端测试 Branch 创建→Health 扫描→Action 执行→Goal 关联
+- [x] T431 [REVIEW] ADR-055 状态修正 [completed: 2026-06-06] — `docs/07-adr/ADR-055.md` 补充"Action Type = 业务接口，Skill = 工程实现"分层原则
+- [x] T432 FR-031..FR-037 用户文档 [completed: 2026-06-06] — `docs/03-modules/ontology/DESIGN.md` 补充 Data Health / Branch / Inheritance / Action / Computed / View / Goal 章节
+- [x] T433 API 契约文档 [completed: 2026-06-06] — `specs/001-odap-platform/contracts/core-ontology-p4.md` 已创建，补充 curl 示例和错误码表（新增 §8 OntoFlow Goal 详细规范 + §9 错误码表扩展 + §10 完整 curl 示例）
+- [x] T434 [TDD] Phase 11 集成测试 [completed: 2026-06-06] — `tests/integration/test_p4_features.py` 端到端测试 Branch 创建→Health 扫描→Action 执行→Goal 关联（25 个 Service 层用例 + 10 个 HTTP 集成用例）
 
 ---
 

@@ -1233,13 +1233,437 @@ const OntologyDesigner: React.FC = () => {
 
 ---
 
-## 9. 版本历史
+---
+
+## 9. Data Health 数据健康（FR-031）
+
+Data Health 模块是 Palantir/OntoFlow 范式下"写入后验证"的执行者，与 OPA 的"写入前权限"形成严格分工。Data Health 关注的是**数据本身是否符合业务规则**，例如"装备必须有 currentLocation"、"邮箱必须符合正则"等可量化的数据质量标准。
+
+### 9.1 5 类核心规则
+
+| 规则 | 表达式示例 | 检查目标 |
+|------|-----------|----------|
+| `not_null` | `{"properties": ["name", "currentLocation"]}` | 必填字段不能为空 |
+| `unique` | `{"properties": ["serialNumber"]}` | 字段值在目标类型所有实例中唯一 |
+| `regex` | `{"properties": ["email"], "pattern": "^[^@]+@[^@]+$"}` | 字段值匹配正则表达式 |
+| `range` | `{"properties": ["score"], "min": 0, "max": 100}` | 数值字段在指定闭区间内 |
+| `referential_integrity` | `{"property": "unitId", "ref_type": "Unit"}` | 外键引用指向已存在的实例 |
+
+### 9.2 定时扫描调度（cron）
+
+每个 `HealthRule` 携带一个 `schedule` 字段（标准 5 段 cron 表达式，例如 `0 */6 * * *` 表示每 6 小时一次）。后台调度器基于 `croniter` 库计算下次执行时间，扫描完成后通过 `NotificationDispatcher` 推送失败告警。
+
+### 9.3 多通道通知
+
+支持三种通知通道，按规则配置可多选：
+- **webhook**：HTTP POST 推送 JSON 报告
+- **email**：SMTP 发送 HTML 邮件（含失败详情 + 链接）
+- **im**：企业 IM（飞书/钉钉/Slack）卡片消息
+
+通知发送使用 `asyncio.create_task` 异步执行，避免阻塞主扫描流程；失败时降级为日志告警，不影响扫描结果。
+
+### 9.4 模型与存储
+
+```
+odap/biz/core/ontology/health/
+├── api/                  # FastAPI 路由（35+ 端点）
+├── models/
+│   ├── rule.py           # HealthRule（target_type_id, rule_type, severity, schedule）
+│   └── report.py         # HealthReport（instance_id, status: pass/warn/fail）
+├── interfaces/           # ABC: HealthRuleRepository, HealthScanner
+├── impl/
+│   ├── health_rule_repository_impl.py
+│   ├── health_scanner_impl.py        # 5 种规则实现
+│   └── notification_dispatcher.py    # 3 通道分发
+├── services/             # HealthService 编排层（返回 Dict[str, Any]）
+└── storage/
+    └── sqlite_health_storage.py      # health_rules / health_reports 表
+```
+
+### 9.5 与 OPA 的职责边界
+
+| 维度 | OPA | Data Health |
+|------|-----|-------------|
+| 执行时机 | 写入**前**（preconditions） | 写入**后**（post-write scan） |
+| 关注点 | "用户 X 能否写入数据" | "数据本身是否符合业务规则" |
+| 失败处理 | 拒绝写入，返回 403 | 写入成功，扫描产出 fail 报告 + 通知 |
+| 责任主体 | 权限/安全 | 数据质量/业务正确性 |
+
+---
+
+## 10. Branch & Merge 本体分支（FR-032）
+
+本体分支借鉴 Git 的分支与合并思想，支持多人/多团队并行修改同一本体，通过 3-way merge 自动合并不冲突字段，冲突字段则交给人工解决。
+
+### 10.1 3-way merge 基于 RFC 6902
+
+每个分支保存 `base_snapshot`（fork 时的版本）+ `ours_snapshot`（源分支当前 head）+ `theirs_snapshot`（目标分支当前 head）三份 JSON。合并引擎使用 RFC 6902 JSON Patch 计算差异，对每个 JSON Pointer 路径独立判断：
+
+- 仅 base/theirs 变化 → 取 theirs
+- 仅 base/ours 变化 → 取 ours
+- ours 和 theirs 都未变 → 保持 base
+- ours 和 theirs **冲突**（同一路径不同值） → 标记为 Conflict，阻塞合并
+
+### 10.2 Conflict 检测 / 解决流程
+
+```
+1. POST /api/ontology/merge-requests/{mr_id}/detect-conflicts
+   → 返回 conflicts 列表 [{path, base_value, ours_value, theirs_value}]
+
+2. 用户逐条解决：
+   POST /api/ontology/merge-requests/{mr_id}/resolve
+   body: { conflict_id, resolution: "theirs|ours|manual", resolved_value, resolved_by }
+
+3. 全部解决后执行合并：
+   POST /api/ontology/merge-requests/{mr_id}/execute
+   → 自动生成新版本号（基于目标分支 head），写入版本管理
+```
+
+### 10.3 分支保护机制
+
+`Branch.protected: bool` 字段控制分支是否可被直接 push 或 force-merge。受保护的分支（如 `main`）必须通过 PR/MR 流程才能修改，且至少 1 名 reviewer 批准。
+
+### 10.4 模型与存储
+
+```
+odap/biz/core/ontology/branch/
+├── api/                       # FastAPI 路由
+├── models/
+│   ├── branch.py              # Branch（name, ontology_id, base_version_id, head_version_id）
+│   ├── merge_request.py       # MergeRequest（source/target, status: open/approved/merged/conflict）
+│   └── conflict.py            # Conflict（path, base/ours/theirs value, resolution）
+├── interfaces/                # ABC: BranchRepository, MergeEngine
+├── impl/
+│   ├── branch_repository_impl.py
+│   └── merge_engine.py        # ThreeWayMergeEngine (RFC 6902)
+├── services/                  # BranchService 编排
+└── storage/
+    └── sqlite_branch_storage.py   # branches / merge_requests / conflicts 三表
+```
+
+### 10.5 与 OntoFlow Goal 的联动
+
+每个 MergeRequest 可关联一个 `goal_id`（来自 FR-037），将"本体变更"与"业务目标"绑定。当 ChangeProposal 审批通过后，自动化引擎会创建对应的分支并发起 MR，业务目标与本体演化形成闭环。
+
+---
+
+## 11. Object Type Inheritance 继承 + Mixin（FR-033）
+
+Object Type 继承模拟 OOP 中"类继承 + 多接口实现"的能力，允许定义一个 ObjectType 继承父类属性，并可叠加多个 Mixin（横切关注点）。继承解析是 OntoFlow 的核心能力之一，关系到 Health 规则、Computed Property、View 脱敏等下游能力是否能在继承层级上正确工作。
+
+### 11.1 DFS 循环检测，深度上限 5
+
+InheritanceValidator 使用**迭代 DFS**（避免栈溢出）检测循环继承（如 A→B→A），同时计算每个 ObjectType 的继承深度，超过 5 层则拒绝添加。深度上限的选择基于"业务可读性"权衡：太深会破坏人类对类型层次的可理解性。
+
+### 11.2 父类与 Mixin 共同参与属性解析
+
+InheritanceResolver 给定 ObjectType ID，返回完整属性链：
+1. 沿继承链向上收集父类属性（去重 + 后定义优先）
+2. 应用所有 Mixin 提供的属性（同名时 Mixin 属性覆盖父类）
+3. 子类自身属性优先级最高
+
+```
+[Vehicle] (parent)        [AuditableMixin]
+  | props: speed           | props: created_at, updated_at
+  ↓                         ↓
+[Truck] (child)            ↓
+  | inherits: [Vehicle]    ↓
+  | mixins: [Auditable] ←──┘
+  | props: payload_kg
+  
+→ Effective properties: payload_kg, speed, created_at, updated_at
+```
+
+### 11.3 解决链示例
+
+对于多继承（A→B、A→C、B→D、C→D）这种"菱形继承"，Resolver 使用 **C3 线性化**算法确定属性解析顺序，避免同一属性被多个祖先声明时的歧义。
+
+### 11.4 模型与存储
+
+```
+odap/biz/core/ontology/inheritance/
+├── api/                   # FastAPI 路由（12 端点）
+├── models/
+│   ├── inheritance.py     # InheritanceEdge（child_type_id, parent_type_id, depth）
+│   └── mixin.py           # Mixin（name, properties, target_type_ids）
+├── interfaces/            # ABC: InheritanceRepository
+├── impl/
+│   ├── inheritance_repository_impl.py
+│   ├── validator.py       # InheritanceValidator (DFS + 深度 5)
+│   └── resolver.py        # InheritanceResolver (C3 线性化)
+├── services/              # InheritanceService
+└── storage/
+    └── sqlite_inheritance_storage.py   # inheritance_edges / mixins 表
+```
+
+### 11.5 与下游模块的集成
+
+- **Health 规则**：在子类实例上跑 not_null 规则时，自动检查从父类继承的必填字段
+- **Computed Property**：基于继承属性做计算，无需为每个子类重复定义表达式
+- **View 脱敏**：父类上的脱敏规则自动应用到所有子类实例
+
+---
+
+## 12. Action Type 动作类型（FR-034）
+
+Action Type 是本体的"一等公民"，将"可执行动作"提升为本体层级的概念。详见 [ADR-055 2026-06-06 状态修正](../07-adr/ADR-055-统一查询服务.md#2026-06-06-状态修正action-type-与-skill-分层原则) 中 ActionType（业务接口）↔ Skill（工程实现）的分层原则。
+
+### 12.1 业务接口（Action Type）与工程实现（Skill）分离
+
+- **ActionType** 面向业务用户/Agent，定义参数 schema、返回类型、副作用
+- **Skill** 是 ActionType 的实现细节（位于 `odap/tools/` 现有技能包），可被多个 ActionType 绑定复用
+- `ActionType.linked_skill_id` 字段强制非空，强制"业务逻辑只能通过 ActionType 暴露"
+
+### 12.2 OPA 写入权限校验
+
+`execute_action()` 流程：
+```
+1. 加载 ActionType
+2. OPA check_permission(action_type, user_context) → bool
+3. DENY → 写"denied"执行记录 + 审计 + 返回
+4. ALLOW → 调用 SkillBackedExecutor → 落库 execution
+```
+
+OPA 拒绝时**仍**创建一条 DENIED 状态的执行记录，便于审计追溯"哪些用户被拒绝了什么操作"。
+
+### 12.3 执行历史 + 审计
+
+- 执行历史：`action_executions` 表记录 `action_type_id / parameters / result / status / audit_record_id`
+- 审计日志：通过 `unified_audit.py` 写入 `event_type=action_execution`，含 `actor / action_type / result / duration_ms`
+
+### 12.4 模型与存储
+
+```
+odap/biz/core/ontology/action/
+├── api/                # FastAPI 路由（7 端点）
+├── models/
+│   ├── action_type.py  # ActionType（name, parameters, linked_skill_id, opa_policy_ref）
+│   └── execution.py    # ActionExecution（status: success/failed/denied）
+├── interfaces/         # ABC: ActionTypeRepository, ActionExecutor
+├── impl/
+│   ├── action_type_repository_impl.py
+│   └── skill_executor.py    # SkillBackedExecutor (ActionType → Skill 委托)
+├── services/           # ActionService（OPA write-time check + audit）
+└── storage/
+    └── sqlite_action_storage.py   # action_types / action_executions 表
+```
+
+### 12.5 ODAP 实际例子
+
+- `assign-mission` ActionType 绑定到 `validate-mission` + `persist-mission-log` 两个 Skill
+- `decommission-equipment` ActionType 绑定到 `validate-state` + `update-status` 两个 Skill
+
+具体 schema 与执行流程参考 ADR-055 状态修正章节。
+
+---
+
+## 13. Computed Property + Materialized View（FR-035）
+
+Computed Property 让本体具备"派生属性"能力，例如根据 `birthdate` 自动计算 `age`、根据 `price * quantity` 计算 `totalAmount`。物化视图则将计算结果持久化，避免每次查询时重复计算。
+
+### 13.1 安全表达式求值（AST 白名单 + 受限 builtins）
+
+`SafeExpressionEvaluator` 不直接 `eval()` 用户表达式，而是先解析为 AST，仅允许以下节点类型：
+- 字面量（数字、字符串、布尔、null）
+- 二元/一元算术运算（`+ - * / %`）
+- 比较运算（`== != < > <= >=`）
+- 三元表达式（`a if cond else b`）
+- 受限的内置函数（`abs / min / max / round / len / str / int / float / bool / ifnull`）
+
+任何 `import`、属性访问（`obj.attr`）或下标访问（`arr[0]`）都被拒绝，确保表达式无法逃逸沙箱。
+
+### 13.2 依赖追踪 + 增量重算（DAG 传播）
+
+`DependencyTracker` 在创建 ComputedProperty 时通过 AST 遍历提取所有引用的"源属性名"，构建全局依赖图（DAG）。当某个源属性值变化时：
+1. 反向查找所有"依赖此属性"的 ComputedProperty
+2. 重新评估这些 Property
+3. 若 ComputedProperty 也是其他 Property 的依赖，递归传播
+4. 物化视图根据 `materialization` 字段（none/full/incremental）选择更新策略
+
+### 13.3 物化视图 vs 实时计算的权衡
+
+| 策略 | 适用场景 | 优缺点 |
+|------|----------|--------|
+| **实时计算** | 低频访问、表达式简单、源数据频繁变化 | 始终最新；查询慢；占用 CPU |
+| **物化（full）** | 高频访问、源数据稳定 | 查询快；占用存储；需定时刷新 |
+| **物化（incremental）** | 高频访问、源数据增量变化 | 查询快 + 存储省；DAG 传播复杂度高 |
+
+`ComputedProperty.materialization` 字段显式选择策略。增量重算时采用批量提交（每 1000 条一批），单次任务超时自动降级为全量重算（避免"雪崩"）。
+
+### 13.4 模型与存储
+
+```
+odap/biz/core/ontology/computed/
+├── api/                  # FastAPI 路由
+├── models/
+│   ├── property.py       # ComputedProperty（name, expression, dependencies, materialization）
+│   └── job.py            # MaterializationJob（status: pending/running/done/failed）
+├── interfaces/           # ABC: ComputedRepository, ExpressionEvaluator
+├── impl/
+│   ├── computed_repository_impl.py
+│   ├── evaluator.py      # SafeExpressionEvaluator (AST 白名单)
+│   ├── dependency_tracker.py   # DAG 构建 + 反向传播
+│   └── incremental.py    # IncrementalComputer
+├── services/             # ComputedService
+└── storage/
+    └── sqlite_computed_storage.py  # computed_properties / materialization_jobs / materialized_values
+```
+
+### 13.5 与 View 的集成
+
+Materialized View 的本质是一种特殊的 ComputedProperty：`materialization=full` + 持久化到 `materialized_values` 表。View 解析时直接查询物化值，避免运行时计算。详见 §14。
+
+---
+
+## 14. Object View 对象视图（FR-036）
+
+Object View 为不同角色（Commander/Intelligence/Operations）提供"看到的就是该看的"的数据视图，集成 OPA 读权限校验 + 字段脱敏 + 过滤 + 排序 + 行数限制。
+
+### 14.1 基于角色的字段投影
+
+每个 `ObjectView` 绑定一个 `role`，定义该角色可见的字段白名单（`projected_properties`）。查询时仅返回白名单内的字段，其他字段从结果中剔除。这与"列级权限"等价。
+
+### 14.2 脱敏规则（REMOVE / 邮箱掩码 / 身份证掩码 / 自定义模式）
+
+`redaction_rules` 是字段→脱敏策略的映射，支持 4 种内置策略：
+
+| 策略 | 示例 | 适用 |
+|------|------|------|
+| `REMOVE` | 字段从结果中删除 | 高度敏感（薪资、医疗记录） |
+| `EMAIL_MASK` | `alice@example.com` → `a***@example.com` | 邮箱 |
+| `ID_CARD_MASK` | `110101199003078888` → `1101********8888` | 身份证 |
+| `CUSTOM_REGEX` | `{"pattern": "\\d{4}$", "replace": "****"}` | 任意自定义模式 |
+
+### 14.3 过滤 + 排序 + 行数限制
+
+- `filters`：JSON 表达式树（`{property, op, value}` 三元组）
+- `sort_order`：字段名 + 方向（asc/desc）
+- `row_limit`：硬性行数限制（防止单次查询返回过多数据）
+
+### 14.4 View 解析流程
+
+```
+GET /api/ontology/views/{view_id}/resolve?instance_id=X&user_id=Y
+→ ViewResolver:
+  1. 加载 View (含 projected_properties / redaction_rules / filters)
+  2. OPA 二次校验 (用户 Y 是否有权读取此 View)
+  3. 从数据源加载实例
+  4. 应用 filters → sort_order → row_limit
+  5. 应用 redaction_rules
+  6. 投影 projected_properties
+  7. 写 view_resolution_cache (Redis TTL 5min)
+  8. 返回最终可见属性
+```
+
+### 14.5 模型与存储
+
+```
+odap/biz/core/ontology/view/
+├── api/                  # FastAPI 路由
+├── models/
+│   ├── view.py           # ObjectView（base_type_id, role, projected_properties, filters, row_limit）
+│   └── permission.py     # ViewPermission（view_id, role, can_export, can_share, redaction_rules）
+├── interfaces/           # ABC: ViewRepository, ViewQueryEngine
+├── impl/
+│   ├── view_repository_impl.py
+│   └── view_query_engine_impl.py   # OPA 集成 + 脱敏 + 投影
+├── services/             # ViewService
+└── storage/
+    └── sqlite_view_storage.py  # object_views / view_permissions 表
+```
+
+### 14.6 与其他模块的集成
+
+- **Inheritance**：父类上的 View 脱敏规则自动应用到所有子类实例
+- **Computed Property**：View 解析时直接读取 materialized_values，不重新计算
+- **OPA**：View 是"读时权限"的最后一道闸门（FR-007 + FR-008 写时权限的补充）
+
+---
+
+## 15. OntoFlow Goal 目标驱动（FR-037）
+
+OntoFlow 范式的核心是"业务目标驱动本体演化"。Goal 不仅是"待办事项"，而是连接"业务意图"与"本体变更"的第一类实体。详见 [spec §FR-037](../../specs/001-odap-platform/spec.md#fr-037-ontoflow-goal-目标驱动演化)。
+
+### 15.1 Goal 状态机
+
+```
+proposed ──→ approved ──→ in-progress ──→ achieved
+   │            │              │
+   ↓            ↓              ↓
+rejected    (rejected)     abandoned
+```
+
+- `proposed → approved | rejected`：评审阶段
+- `approved → in-progress`：进入实施阶段（需至少 1 个 ChangeProposal）
+- `in-progress → achieved | abandoned`：终态
+
+非法转换（如 `proposed → achieved`）被 `is_valid_goal_transition()` 拒绝，API 返回 400。
+
+### 15.2 ChangeProposal + ImpactAnalysis 联动
+
+每个 Goal 可关联多个 `ChangeProposal`，每个 Proposal 携带 RFC 6902 JSON Patch 描述的具体变更。创建 Proposal 时自动运行 `ImpactAnalyzer`：
+
+- 静态分析 JSON Patch 的 path 字段，识别受影响的 ObjectType / ActionType
+- 估算 `affected_instances_count`（基于 type_id 扫描）
+- 计算 `breaking_changes`（如删除属性、修改必填约束）
+- 输出 `estimated_migration_cost`（low/medium/high）与 `risk_level`（low/medium/high/critical）
+
+Proposal 状态机：`draft → submitted → under-review → approved/rejected → implemented`。
+
+### 15.3 多轮 LLM Rationale 生成
+
+`RationaleGenerator` 调用 LLM 为 Goal 生成 `business_rationale`：
+1. 第一轮：基于 `title + business_objective` 生成初版 rationale
+2. 第二轮：LLM 提出澄清问题（"目标受众是谁？"、"时间窗口？"、"成功度量？"）
+3. 第三轮：用户提供补充信息后，LLM 生成完整 rationale
+4. 失败降级：LLM 不可用时，rationale 留空，Goal 仍可创建（仅警告）
+
+### 15.4 父子 Goal lineage
+
+`Goal.parent_goal_id` 字段支持父子嵌套，构成 Goal Lineage 树：
+- 父 Goal 可拆解为多个子 Goal（"提升装备完好率" 拆解为 "3 个月内完成 X 装备大修" + "采购 Y 备件"）
+- 子 Goal 全部 `achieved` 时，父 Goal 可标记 `achieved`
+- `get_goal_lineage(goal_id)` 返回完整 lineage（祖先链 + 子 + 关联 Proposal）
+
+### 15.5 模型与存储
+
+```
+odap/biz/core/ontology/goal/
+├── api/                  # FastAPI 路由（11 端点）
+├── models/
+│   ├── goal.py           # Goal（title, business_objective, status, parent_goal_id, rationale）
+│   ├── proposal.py       # ChangeProposal（goal_id, changes, impact_analysis_id, status）
+│   └── impact.py         # ImpactAnalysis（affected_types, breaking_changes, risk_level）
+├── interfaces/           # ABC: GoalRepository, ImpactAnalyzer
+├── impl/
+│   ├── goal_repository_impl.py
+│   ├── impact_analyzer_impl.py    # 静态分析 JSON Patch path
+│   └── rationale_generator.py     # LLM 多轮追问
+├── services/             # GoalService
+└── storage/
+    └── sqlite_goal_storage.py   # goals / change_proposals / impact_analyses 三表
+```
+
+### 15.6 与 Branch & Merge 的闭环
+
+Goal → ChangeProposal 审批通过后，自动化引擎（未来实现）会：
+1. 创建一个新 Branch（`feature/goal-{goal_id}`）
+2. 应用 ChangeProposal 的 JSON Patch 到分支
+3. 发起 MergeRequest 回到主分支
+4. 合并后 Goal 状态自动推进为 `achieved`
+
+此闭环在 Phase 11 M4 中实现，Phase 12 持续完善自动化部分。
+
+---
+
+## 16. 版本历史
 
 | 版本 | 日期 | 变更说明 |
 |------|------|---------|
 | 1.0.0 | 2026-04-11 | 初始版本 |
 | 1.1.0 | 2026-04-12 | 新增模拟推演本体支持，包括场景、版本、执行、结果等实体定义，以及与决策推荐的深度集成 |
 | 1.2.0 | 2026-05-07 | 新增 §8 Markdown 本体双向同步（解析器+导出器+前端双向编辑器），交叉引用全链路文档 |
+| 2.0.0 | 2026-06-06 | Phase 11 Palantir/OntoFlow 增强：新增 §9 Data Health（FR-031）、§10 Branch & Merge（FR-032）、§11 Inheritance + Mixin（FR-033）、§12 Action Type（FR-034）、§13 Computed Property（FR-035）、§14 Object View（FR-036）、§15 OntoFlow Goal（FR-037）；交叉引用 ADR-055 状态修正章节 |
 
 ---
 

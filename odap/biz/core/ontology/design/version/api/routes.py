@@ -3,7 +3,7 @@ from odap.infra.security.jwt_auth import get_current_user
 from pydantic import BaseModel
 from typing import Any, Dict
 
-from ..engine.impl.version_manager_impl import VersionManagerImpl
+from odap.biz.core.ontology.design.engine.impl.version_manager_impl import VersionManagerImpl
 
 
 import logging

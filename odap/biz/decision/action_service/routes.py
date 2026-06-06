@@ -39,7 +39,7 @@ async def approve_action(record_id: str, approval: ActionApproval,
 async def list_action_records(
     status: Optional[str] = Query(None),
     limit: int = Query(50, ge=1, le=200),
-    offset: int = Query(0, ge=0),,
+    offset: int = Query(0, ge=0),
     user=Depends(get_current_user)):
     return storage.list_records(status=status, limit=limit, offset=offset)
 

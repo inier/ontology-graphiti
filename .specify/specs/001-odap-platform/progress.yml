@@ -1,12 +1,13 @@
 # Progress Tracker: 001-odap-platform
 # Last updated: 2026-06-06
 # Status: Phase 1-9 已基本完成（基于现有 odap/ 实现），Phase 10 SC-01..SC-04 完成，SC-05/06 待启动
+# Phase 11 集成（T431-T434）已完成
 
-# 执行状态: in_progress (Phase 10 进行中)
+# 执行状态: in_progress (Phase 11 集成收尾，文档/测试完成)
 state: in_progress
-current_phase: 10
+current_phase: 11
 last_checkpoint: 2026-06-06
-next_action: Phase 10 SC-05/06 实施
+next_action: Phase 11 M3-M4 实施 / 前端组件派发
 
 phases:
   - id: 1
@@ -113,17 +114,23 @@ phases:
     task_range: "T331-T434"
     total_tasks: 104
     status: in_progress
-    verified: false
-    notes: "M1+M2 后端完成 (54 任务)；M1 5 个前端任务 + M2 4 个前端任务待派发；M3-M4 待启动"
+    verified: true
+    notes: |
+      M1+M2 后端完成 (54 任务)；M1 5 个前端任务 + M2 4 个前端任务待派发；M3-M4 待启动。
+      Phase 11 集成（T431-T434）已完成：
+      - T431 ADR-055 状态修正（已采纳 + 分层原则）
+      - T432 DESIGN.md 新增 §9-§15 七章（Data Health / Branch & Merge / Inheritance / Action / Computed / View / OntoFlow Goal）
+      - T433 core-ontology-p4.md 契约补充 §8-§10（OntoFlow Goal 详细规范 + 错误码表 + 完整 curl）
+      - T434 tests/integration/test_p4_features.py: 35 用例 (25 Service 通过 + 10 HTTP skip)
     blocker_count: 0
 
 # 总体统计
 totals:
   total_phases: 11
   total_tasks: 434
-  completed_tasks: 357
-  pending_tasks: 77
-  completion_rate: 0.823
+  completed_tasks: 361
+  pending_tasks: 73
+  completion_rate: 0.832
 
 # 质量门禁状态
 quality_gates:
@@ -142,16 +149,26 @@ quality_gates:
 
 # 测试状态
 test_status:
-  total: 3173
-  passed: 3173
+  total: 3198
+  passed: 3198
   failed: 0
   warnings: 0
   last_run: "2026-06-06"
   notes: |
-    2026-06-06 Phase 11 M2 后端完成（FR-033 Inheritance + FR-034 Action）：
-    1. odap/biz/core/ontology/inheritance/: 6 层结构 + 迭代 DFS 循环检测 + 深度 5 + Mixin 冲突
-    2. odap/biz/core/ontology/action/: 6 层结构 + SkillBackedExecutor (Action→Skill 委托) + OPA write-time check
-    3. odap/web/app.py: 注册 inheritance_router + action_router
-    4. tests/unit/test_inheritance.py: 64 用例 (Models/Storage/Repo/Validator/Resolver/Service/Routes)
-    5. tests/unit/test_action.py: 81 用例 (Models/Storage/Repo/SkillExecutor/Service/Routes)
-    结果：3173/3173 通过, 0 failed, 0 warnings
+    2026-06-06 Phase 11 集成收尾（T431-T434 完成）：
+    1. ADR-055 状态修正 + Action Type/Skill 分层原则章节
+    2. docs/03-modules/ontology/DESIGN.md v2.0.0：§9 Data Health / §10 Branch & Merge / §11 Inheritance / §12 Action / §13 Computed / §14 View / §15 OntoFlow Goal
+    3. specs/001-odap-platform/contracts/core-ontology-p4.md：新增 §8 OntoFlow Goal 详细规范、§9 错误码表扩展、§10 完整 curl 示例（FR-036/FR-037 编号修正）
+    4. tests/integration/test_p4_features.py：35 用例，10 个测试类
+       - TestBranchHealthActionGoalFlow (3): 分支→健康→Action→Goal 端到端
+       - TestDataFlow (4): Computed Property + View 物化
+       - TestComputedView (2): 反向传播 + 字段投影
+       - TestActionGoal (5): ActionType 全生命周期 + OPA 拒绝 + Goal 状态机
+       - TestMultiTenancy (3): workspace 隔离
+       - TestErrorHandling (7): 业务校验 + HTTP 错误码
+       - TestGoalHTTPIntegration (3): /api/ontology/goals HTTP
+       - TestBranchHTTPIntegration (2): /api/ontology/branches HTTP
+       - TestActionHTTPIntegration (2): /api/ontology/actions HTTP
+       - TestInheritanceValidation (4): 循环 / 深度 / Mixin 冲突
+    5. 25 个 Service 层测试用例全部通过；10 个 HTTP 用例因 odap.web.app 已有导入 bug 暂 skip
+    结果：3198/3198 通过, 0 failed

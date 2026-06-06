@@ -8,7 +8,6 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
 from odap.infra.middleware.exception_handler import register_exception_handler
-from odap.biz.core.ontology.application.api.routes import router as ingest_router
 from odap.biz.platform.workspace.api.routes import router as workspace_router
 from odap.biz.platform.roles.api.routes import router as roles_router
 from odap.infra.security import audit_router
@@ -71,6 +70,7 @@ from odap.biz.core.ontology.branch.api.routes import router as branch_router
 from odap.biz.core.ontology.cold_start.api.routes import router as cold_start_router
 from odap.biz.core.ontology.inheritance.api.routes import router as inheritance_router
 from odap.biz.core.ontology.computed.api.routes import router as computed_router
+from odap.biz.core.ontology.goal.api.routes import router as goal_router
 from odap.biz.platform.tool_registry.api.routes import router as tool_registry_router
 from odap.biz.decision.decision_recommendation.api.routes import router as decision_recommendation_router
 from odap.biz.platform.undo.api.routes import router as undo_router
@@ -184,7 +184,6 @@ app.add_middleware(PerformanceMiddleware)
 app.add_middleware(AuditMiddleware)
 
 # 注册路由
-app.include_router(ingest_router)
 app.include_router(workspace_router)
 app.include_router(roles_router)
 app.include_router(audit_router)

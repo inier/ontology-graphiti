@@ -133,7 +133,7 @@ class IndicatorUpdate(BaseModel):
 @router.get("/business-processes")
 async def list_processes(
     ontology_id: Optional[str] = Query(None),
-    version_id: Optional[str] = Query(None),,
+    version_id: Optional[str] = Query(None),
     user=Depends(get_current_user)):
     try:
         return service.list_processes(ontology_id=ontology_id, version_id=version_id)
@@ -200,7 +200,7 @@ async def delete_process(process_id: str,
 @router.get("/business-rules")
 async def list_rules(
     ontology_id: Optional[str] = Query(None),
-    version_id: Optional[str] = Query(None),,
+    version_id: Optional[str] = Query(None),
     user=Depends(get_current_user)):
     try:
         return service.list_rules(ontology_id=ontology_id, version_id=version_id)
@@ -267,7 +267,7 @@ async def delete_rule(rule_id: str,
 @router.get("/business-logics")
 async def list_logics(
     ontology_id: Optional[str] = Query(None),
-    version_id: Optional[str] = Query(None),,
+    version_id: Optional[str] = Query(None),
     user=Depends(get_current_user)):
     try:
         return service.list_logics(ontology_id=ontology_id, version_id=version_id)
@@ -334,7 +334,7 @@ async def delete_logic(logic_id: str,
 @router.get("/business-indicators")
 async def list_indicators(
     ontology_id: Optional[str] = Query(None),
-    version_id: Optional[str] = Query(None),,
+    version_id: Optional[str] = Query(None),
     user=Depends(get_current_user)):
     try:
         return service.list_indicators(ontology_id=ontology_id, version_id=version_id)

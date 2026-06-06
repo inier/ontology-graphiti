@@ -28,7 +28,7 @@ try:
     WEB_SCRAPE_AVAILABLE = True
 except ImportError:
     WEB_SCRAPE_AVAILABLE = False
-    logging.warning("网页抓取依赖未安装，将使�?Mock 数据")
+    logging.warning("网页抓取依赖未安装，将使用 Mock 数据")
 
 from ..schema.document import (
     OntologyDocument, OntologyEntity, OntologyRelation, OntologyEvent,
@@ -141,7 +141,7 @@ class NewsIngester:
         logger.info(f"开始联网检�? {query}")
 
         if self._use_mock:
-            logger.warning("未配�?LLM/Search API，使�?Mock 数据")
+            logger.warning("未配�?LLM/Search API，使用 Mock 数据")
             return self._generate_mock_news_docs(query, event_context)
 
         try:
@@ -167,35 +167,35 @@ class NewsIngester:
                 else:
                     logger.warning(f"文档验证失败: {result.errors}")
 
-            logger.info(f"成功归纳 {len(validated)} 个文�?)
+            logger.info(f"成功归纳 {len(validated)} 个文档")
             return validated
 
         except Exception as e:
-            logger.error(f"联网检索失�? {e}，使�?Mock")
+            logger.error(f"联网检索失败: {e}，使用 Mock")
             return self._generate_mock_news_docs(query, event_context)
 
     async def _search(self, query: str, max_results: int) -> List[Dict[str, Any]]:
-        """执行联网检索（本地 DuckDuckGo API �?Tavily �?SerpAPI �?DuckDuckGo HTML �?Mock�?""
+        """执行联网检索（本地 DuckDuckGo API / Tavily / SerpAPI / DuckDuckGo HTML / Mock）""
         # 本地 DuckDuckGo API（首选）
         if self._ddg_api_url:
             try:
                 return await self._search_ddg_local(query, max_results)
             except Exception as e:
-                logger.warning(f"本地 DuckDuckGo API 检索失�? {e}")
+                logger.warning(f"本地 DuckDuckGo API 检索失败: {e}")
 
         # Tavily
         if self._tavily_api_key:
             try:
                 return await self._search_tavily(query, max_results)
             except Exception as e:
-                logger.warning(f"Tavily 检索失�? {e}")
+                logger.warning(f"Tavily 检索失败: {e}")
 
         # SerpAPI
         if self._search_api_key:
             try:
                 return await self._search_serpapi(query, max_results)
             except Exception as e:
-                logger.warning(f"SerpAPI 检索失�? {e}")
+                logger.warning(f"SerpAPI 检索失败: {e}")
 
         # DuckDuckGo HTML 解析（免费方案）
         try:
@@ -203,7 +203,7 @@ class NewsIngester:
             if ddg_results:
                 return ddg_results
         except Exception as e:
-            logger.warning(f"DuckDuckGo 检索失�? {e}")
+            logger.warning(f"DuckDuckGo 检索失败: {e}")
 
         # 降级 Mock
         logger.info("使用 Mock 检索结�?)
@@ -2209,7 +2209,7 @@ class FreeNewsIngester:
             scrape_result = self.scraper.scrape(url)
 
             if scrape_result.get("status") != "success":
-                logger.warning(f"网页抓取失败，使�?Mock: {scrape_result.get('error')}")
+                logger.warning(f"网页抓取失败，使用 Mock: {scrape_result.get('error')}")
                 return self._generate_mock_from_url(url, title_hint, event_context)
 
             # 构建 OntologyDocument

@@ -87,7 +87,7 @@ async def explain_recommendation(recommendation_id: str,
 @router.get("/history", response_model=HistoryResponse)
 async def get_history(
     ontology_id: Optional[str] = None,
-    limit: int = 20,,
+    limit: int = 20,
     user=Depends(get_current_user)):
     try:
         engine = _get_engine()

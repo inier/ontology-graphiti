@@ -23,7 +23,7 @@ async def get_translations(
     module: str = None,
     locale: str = None,
     page: int = 1,
-    page_size: int = 50,,
+    page_size: int = 50,
     user=Depends(get_current_user)):
     try:
         result = i18n_service.get_translations(module=module, locale=locale)

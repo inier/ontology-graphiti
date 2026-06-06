@@ -10,7 +10,7 @@ from .schemas import (
     UpdateEntityTypeRequest,
     UpdateInstanceRequest,
 )
-from ..services.edit_lock_service import get_edit_lock_service
+from odap.biz.core.ontology.design.services.edit_lock_service import get_edit_lock_service
 
 router = APIRouter(prefix="/api/ontology/model", tags=["ontology-model"])
 

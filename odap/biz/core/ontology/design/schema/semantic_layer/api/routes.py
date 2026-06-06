@@ -4,9 +4,9 @@ from fastapi import APIRouter, HTTPException, Depends
 from odap.infra.security.jwt_auth import get_current_user
 from pydantic import BaseModel, Field
 
-from .intent_parser import IntentParser
-from .query_planner import QueryPlanner
-from .disambiguator import Disambiguator
+from ..intent_parser import IntentParser
+from ..query_planner import QueryPlanner
+from ..disambiguator import Disambiguator
 
 router = APIRouter(prefix="/api/semantic", tags=["semantic_layer"])
 
