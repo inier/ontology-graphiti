@@ -5,6 +5,7 @@ import { AuditLog } from './modules/audit';
 import PolicyPage from './modules/audit/pages/PolicyPage';
 import { OntologyDesignerPage } from './modules/ontology';
 import { BlueprintDesignerPage } from './modules/ontology/pages/BlueprintDesignerPage';
+import { GoalKanban } from './modules/ontology/pages/GoalKanban';
 import { IngestPanel, Simulator } from './modules/ingest';
 import { StrategyDeduction, SimulationPage } from './modules/simulation';
 import { VersionHistory } from './modules/version';
@@ -38,6 +39,7 @@ export function AppRoutes() {
 
       <Route path="/ontology/designer" element={<ProtectedRoute><OntologyDesignerPage /></ProtectedRoute>} />
       <Route path="/ontology" element={<Navigate to="/ontology/designer" replace />} />
+      <Route path="/ontology/goals" element={<ProtectedRoute><GoalKanban /></ProtectedRoute>} />
       <Route path="/blueprint" element={<ProtectedRoute><BlueprintDesignerPage /></ProtectedRoute>} />
       <Route path="/versions" element={<ProtectedRoute><VersionHistory /></ProtectedRoute>} />
       <Route path="/business/process" element={<ProtectedRoute><BusinessProcess /></ProtectedRoute>} />

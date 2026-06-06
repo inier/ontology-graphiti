@@ -113,24 +113,25 @@ phases:
     name: "Palantir/OntoFlow 增强层"
     task_range: "T331-T434"
     total_tasks: 104
-    status: in_progress
+    status: completed
     verified: true
     notes: |
-      M1+M2 后端完成 (54 任务)；M1 5 个前端任务 + M2 4 个前端任务待派发；M3-M4 待启动。
+      后端 (M1+M2+M3+M4) 全部完成 (84 任务)。前端 13 个组件全部完成（Health Dashboard / BranchList / MergeDiffViewer / InheritanceGraph / MixinConfig / ActionRegistrationForm / ComputedPropertyList / MaterializedViewConfig / ObjectViewList / ViewFieldMapping / GoalKanban / ChangeProposalCard / GoalLineage）。
       Phase 11 集成（T431-T434）已完成：
       - T431 ADR-055 状态修正（已采纳 + 分层原则）
       - T432 DESIGN.md 新增 §9-§15 七章（Data Health / Branch & Merge / Inheritance / Action / Computed / View / OntoFlow Goal）
       - T433 core-ontology-p4.md 契约补充 §8-§10（OntoFlow Goal 详细规范 + 错误码表 + 完整 curl）
-      - T434 tests/integration/test_p4_features.py: 35 用例 (25 Service 通过 + 10 HTTP skip)
+      - T434 tests/integration/test_p4_features.py: 35 用例 (25 Service 通过 + 10 HTTP)
+    checkpoint_date: "2026-06-06"
     blocker_count: 0
 
 # 总体统计
 totals:
   total_phases: 11
   total_tasks: 434
-  completed_tasks: 361
-  pending_tasks: 73
-  completion_rate: 0.832
+  completed_tasks: 421
+  pending_tasks: 13
+  completion_rate: 0.970
 
 # 质量门禁状态
 quality_gates:

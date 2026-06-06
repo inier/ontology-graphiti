@@ -643,9 +643,9 @@
 - [x] T425 GoalService 编排层 — `odap/biz/core/ontology/goal/services/goal_service.py` [completed: 2026-06-06]
 - [x] T426 Goal API 路由 — `odap/biz/core/ontology/goal/api/routes.py` CRUD + POST `/api/ontology/goals/{id}/propose-change` + GET `/api/ontology/goals/{id}/lineage` [completed: 2026-06-06]
 - [x] T427 [TDD] Goal 单元测试 — `tests/unit/test_goal.py` 覆盖 Goal CRUD、LLM rationale 生成、Impact 分析、Goal lineage [completed: 2026-06-06]
-- [ ] T428 [SUBAGENT] 前端 Goal 看板 — `frontend/src/modules/ontology/pages/GoalKanban.tsx` L5 页面，Goal 状态看板（拖拽切换状态）+ 时间线
-- [ ] T429 [SUBAGENT] 前端 Change Proposal 组件 — `frontend/src/modules/ontology/components/ChangeProposalCard.tsx` L3 组件，提案详情 + 影响分析可视化 + 审批按钮
-- [ ] T430 [SUBAGENT] 前端 Goal Lineage 视图 — `frontend/src/modules/ontology/components/GoalLineage.tsx` L3 组件，父子 Goal + 关联变更 + G6 图谱渲染
+- [x] T428 [SUBAGENT] 前端 Goal 看板 — `frontend/src/modules/ontology/pages/GoalKanban.tsx` L5 页面，Goal 状态看板（拖拽切换状态）+ 时间线 [completed: 2026-06-06]
+- [x] T429 [SUBAGENT] 前端 Change Proposal 组件 — `frontend/src/modules/ontology/components/ChangeProposalCard.tsx` L3 组件，提案详情 + 影响分析可视化 + 审批按钮 [completed: 2026-06-06]
+- [x] T430 [SUBAGENT] 前端 Goal Lineage 视图 — `frontend/src/modules/ontology/components/GoalLineage.tsx` L3 组件，父子 Goal + 关联变更 + G6 图谱渲染 [completed: 2026-06-06]
 
 ### Phase 11 集成与文档
 

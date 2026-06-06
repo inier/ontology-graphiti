@@ -78,5 +78,136 @@
     "S": "Secret",
     "C": "Confidential",
     "U": "Unclassified"
+  },
+  "health": {
+    "title": "Data Health Dashboard",
+    "totalRules": "Total Rules",
+    "passRate": "Pass Rate",
+    "failingRules": "Failing Rules",
+    "lastScan": "Last Scan",
+    "runScan": "Run Scan Now",
+    "tabRule": "By Rule",
+    "tabType": "By Object Type",
+    "tabTimeline": "Timeline"
+  },
+  "branch": {
+    "title": "Ontology Branches",
+    "newBranch": "New Branch",
+    "active": "active",
+    "merged": "merged",
+    "archived": "archived",
+    "abandoned": "abandoned"
+  },
+  "merge": {
+    "title": "Merge Diff",
+    "base": "Base",
+    "ours": "Ours",
+    "theirs": "Theirs",
+    "conflictCount": "{count} conflicts",
+    "useOurs": "Use Ours",
+    "useTheirs": "Use Theirs",
+    "manual": "Manual Edit",
+    "confirm": "Confirm Merge"
+  },
+  "inheritance": {
+    "title": "Inheritance Graph",
+    "addEdge": "Add Edge",
+    "depth": "Max Depth",
+    "onlyWithChildren": "Only with children",
+    "propertyChain": "Property Resolution Chain"
+  },
+  "mixin": {
+    "title": "Mixin Configuration",
+    "library": "Mixin Library",
+    "bindings": "Mixin Bindings",
+    "createMixin": "Create Mixin",
+    "saveBindings": "Save Bindings"
+  },
+  "action": {
+    "title": "Action Registration",
+    "create": "Register New Action",
+    "edit": "Edit Action",
+    "save": "Save",
+    "saveAndTest": "Save & Test",
+    "preview": "JSON Preview"
+  },
+  "computed": {
+    "title": "Computed Properties",
+    "newComputed": "New Computed Property",
+    "objectType": "Object Type",
+    "expression": "Expression",
+    "dependencies": "Dependencies",
+    "materialized": "Materialized"
+  },
+  "materialized": {
+    "title": "Materialized View Config",
+    "triggerNow": "Trigger Now",
+    "saveConfig": "Save Config",
+    "storage": "Storage Target",
+    "scheduleCron": "Cron Expression",
+    "schedulePreset": "Schedule Preset",
+    "lastRun": "Last Materialized At",
+    "durationMs": "Duration (ms)",
+    "errorCount": "Error Count"
+  },
+  "view": {
+    "title": "Object View",
+    "new": "New View",
+    "list": "View List",
+    "name": "Name",
+    "objectType": "ObjectType",
+    "role": "Role",
+    "description": "Description",
+    "enabled": "Enabled",
+    "fields": "Field Mapping",
+    "filters": "Filters",
+    "sort": "Sort",
+    "limit": "Row Limit",
+    "permissions": "Permissions",
+    "testQuery": "Test Query",
+    "redaction": "Redaction Rule",
+    "fieldMapping": "Field Mapping"
+  },
+  "goal": {
+    "title": "Goal",
+    "kanban": "Goal Kanban",
+    "new": "New Goal",
+    "lineage": "Goal Lineage",
+    "status": "Status",
+    "title_label": "Title",
+    "businessObjective": "Business Objective",
+    "parent": "Parent Goal",
+    "tags": "Tags",
+    "transition": "Status Transition",
+    "proposal": "Change Proposal",
+    "proposals": "Change Proposals",
+    "tabs": {
+      "details": "Details",
+      "changes": "Changes",
+      "impact": "Impact Analysis"
+    }
+  },
+  "proposal": {
+    "title": "Change Proposal",
+    "approve": "Approve",
+    "reject": "Reject",
+    "reviewerNotes": "Reviewer Notes",
+    "viewSource": "View Source JSON",
+    "status": {
+      "draft": "Draft",
+      "submitted": "Submitted",
+      "under-review": "Under Review",
+      "approved": "Approved",
+      "rejected": "Rejected",
+      "implemented": "Implemented"
+    },
+    "impact": {
+      "affectedObjectTypes": "Affected ObjectTypes",
+      "affectedActionTypes": "Affected ActionTypes",
+      "affectedInstances": "Affected Instances",
+      "migrationCost": "Migration Cost",
+      "riskLevel": "Risk Level",
+      "breakingChanges": "Breaking Changes"
+    }
   }
 }
