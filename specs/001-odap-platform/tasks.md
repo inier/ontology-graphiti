@@ -563,33 +563,33 @@
 
 #### FR-033: Object Type 继承 + Mixin
 
-- [ ] T364 [P] [SUBAGENT] Inheritance 模块目录创建 — `odap/biz/core/ontology/inheritance/` 标准分层
-- [ ] T365 [P] InheritanceEdge 领域模型 — `odap/biz/core/ontology/inheritance/models/inheritance.py` `InheritanceEdge(BaseModel)` 含 `child_type_id` / `parent_type_id` / `depth` / `discriminator` (JSON)
-- [ ] T366 [P] Mixin 领域模型 — `odap/biz/core/ontology/inheritance/models/mixin.py` `Mixin(BaseModel)` 含 `id` / `name` / `properties` (List[str]) / `target_type_ids` (List[str])
-- [ ] T367 [P] InheritanceValidator — `odap/biz/core/ontology/inheritance/impl/validator.py` 检测循环继承（DFS）、最大深度限制（5 层）、Mixin 冲突
-- [ ] T368 InheritanceResolver — `odap/biz/core/ontology/inheritance/impl/resolver.py` 给定 ObjectType + Property，解析完整属性链（parent → ... → root + mixins）
-- [ ] T369 SQLite Inheritance Storage — `odap/biz/core/ontology/inheritance/storage/sqlite_inheritance_storage.py` 实现 `inheritance_edges` / `mixins` 表
-- [ ] T370 InheritanceService 编排层 — `odap/biz/core/ontology/inheritance/services/inheritance_service.py`
-- [ ] T371 Inheritance API 路由 — `odap/biz/core/ontology/inheritance/api/routes.py` POST `/api/ontology/inheritance/edges` + GET `/api/ontology/inheritance/resolve/{type_id}` + POST `/api/ontology/mixins`
-- [ ] T372 [TDD] Inheritance 单元测试 — `tests/unit/test_inheritance.py` 覆盖循环检测、深度限制、Mixin 解析、属性合并
+- [x] T364 [P] [SUBAGENT] Inheritance 模块目录创建 — `odap/biz/core/ontology/inheritance/` 标准分层 ✅ 2026-06-06
+- [x] T365 [P] InheritanceEdge 领域模型 — `odap/biz/core/ontology/inheritance/models/inheritance.py` `InheritanceEdge(BaseModel)` 含 `child_type_id` / `parent_type_id` / `depth` / `discriminator` (JSON) ✅ 2026-06-06
+- [x] T366 [P] Mixin 领域模型 — `odap/biz/core/ontology/inheritance/models/mixin.py` `Mixin(BaseModel)` 含 `id` / `name` / `properties` (List[str]) / `target_type_ids` (List[str]) ✅ 2026-06-06
+- [x] T367 [P] InheritanceValidator — `odap/biz/core/ontology/inheritance/impl/validator.py` 检测循环继承（DFS）、最大深度限制（5 层）、Mixin 冲突 ✅ 2026-06-06
+- [x] T368 InheritanceResolver — `odap/biz/core/ontology/inheritance/impl/resolver.py` 给定 ObjectType + Property，解析完整属性链（parent → ... → root + mixins）✅ 2026-06-06
+- [x] T369 SQLite Inheritance Storage — `odap/biz/core/ontology/inheritance/storage/sqlite_inheritance_storage.py` 实现 `inheritance_edges` / `mixins` 表 ✅ 2026-06-06
+- [x] T370 InheritanceService 编排层 — `odap/biz/core/ontology/inheritance/services/inheritance_service.py` ✅ 2026-06-06
+- [x] T371 Inheritance API 路由 — `odap/biz/core/ontology/inheritance/api/routes.py` POST `/api/ontology/inheritance/edges` + GET `/api/ontology/inheritance/resolve/{type_id}` + POST `/api/ontology/mixins`（12 端点）✅ 2026-06-06
+- [x] T372 [TDD] Inheritance 单元测试 — `tests/unit/test_inheritance.py` 覆盖循环检测、深度限制、Mixin 解析、属性合并（64 用例全部通过）✅ 2026-06-06
 - [ ] T373 [SUBAGENT] 前端继承关系可视化 — `frontend/src/modules/ontology/components/InheritanceGraph.tsx` L3 组件，G6 渲染继承树
 - [ ] T374 [SUBAGENT] 前端 Mixin 管理组件 — `frontend/src/modules/ontology/components/MixinManager.tsx` L3 组件
 
 #### FR-034: Action Type 一等公民
 
-- [ ] T375 [P] [SUBAGENT] Action Type 模块目录创建 — `odap/biz/core/ontology/action/` 标准分层
-- [ ] T376 [P] ActionType 领域模型 — `odap/biz/core/ontology/action/models/action_type.py` `ActionType(BaseModel)` 含 `id` / `name` / `object_types` (List[str]) / `parameters` (JSON Schema) / `return_type` / `side_effects` / `linked_skill_id` / `opa_policy_ref`
-- [ ] T377 [P] ActionExecution 领域模型 — `odap/biz/core/ontology/action/models/execution.py` `ActionExecution(BaseModel)` 含 `id` / `action_type_id` / `parameters` / `result` / `status` / `audit_record_id`
-- [ ] T378 [REVIEW] ActionTypeRepository 抽象接口 — `odap/biz/core/ontology/action/interfaces/action_type_repository.py`
-- [ ] T379 [REVIEW] ActionExecutor 抽象接口 — `odap/biz/core/ontology/action/interfaces/action_executor.py` 定义 `execute(action_type, params, user_context) -> ActionExecution`
-- [ ] T380 SQLite Action Storage — `odap/biz/core/ontology/action/storage/sqlite_action_storage.py` 实现 `action_types` / `action_executions` 表
-- [ ] T381 [REVIEW] ActionTypeRepositoryImpl — `odap/biz/core/ontology/action/impl/action_type_repository_impl.py`
-- [ ] T382 SkillBackedExecutor — `odap/biz/core/ontology/action/impl/skill_executor.py` Action Type 通过 linked_skill_id 委托给 Skill 系统执行（**Action Type = 业务接口，Skill = 工程实现**）
-- [ ] T383 [REVIEW] ActionService 编排层 — `odap/biz/core/ontology/action/services/action_service.py` 调用前 OPA 权限校验（OPA write-time check），调用后审计日志
-- [ ] T384 Action API 路由 — `odap/biz/core/ontology/action/api/routes.py` POST `/api/ontology/actions` + POST `/api/ontology/actions/{id}/execute` + GET `/api/ontology/actions/{id}/executions`
-- [ ] T385 Action schemas 定义 — `odap/biz/core/ontology/action/api/schemas.py`
-- [ ] T386 [REVIEW] Action 路由注册 — `odap/web/app.py` `include_router(action_router)`
-- [ ] T387 [TDD] [REVIEW] Action 单元测试 — `tests/unit/test_action.py` 覆盖 Action Type CRUD、Skill 委托执行、OPA 权限校验、审计记录
+- [x] T375 [P] [SUBAGENT] Action Type 模块目录创建 — `odap/biz/core/ontology/action/` 标准分层 ✅ 2026-06-06
+- [x] T376 [P] ActionType 领域模型 — `odap/biz/core/ontology/action/models/action_type.py` `ActionType(BaseModel)` 含 `id` / `name` / `object_types` (List[str]) / `parameters` (JSON Schema) / `return_type` / `side_effects` / `linked_skill_id` / `opa_policy_ref` ✅ 2026-06-06
+- [x] T377 [P] ActionExecution 领域模型 — `odap/biz/core/ontology/action/models/execution.py` `ActionExecution(BaseModel)` 含 `id` / `action_type_id` / `parameters` / `result` / `status` / `audit_record_id` ✅ 2026-06-06
+- [x] T378 [REVIEW] ActionTypeRepository 抽象接口 — `odap/biz/core/ontology/action/interfaces/action_type_repository.py` ✅ 2026-06-06
+- [x] T379 [REVIEW] ActionExecutor 抽象接口 — `odap/biz/core/ontology/action/interfaces/action_executor.py` 定义 `execute(action_type, params, user_context) -> ActionExecution` ✅ 2026-06-06
+- [x] T380 SQLite Action Storage — `odap/biz/core/ontology/action/storage/sqlite_action_storage.py` 实现 `action_types` / `action_executions` 表 ✅ 2026-06-06
+- [x] T381 [REVIEW] ActionTypeRepositoryImpl — `odap/biz/core/ontology/action/impl/action_type_repository_impl.py` ✅ 2026-06-06
+- [x] T382 SkillBackedExecutor — `odap/biz/core/ontology/action/impl/skill_executor.py` Action Type 通过 linked_skill_id 委托给 Skill 系统执行（**Action Type = 业务接口，Skill = 工程实现**）✅ 2026-06-06
+- [x] T383 [REVIEW] ActionService 编排层 — `odap/biz/core/ontology/action/services/action_service.py` 调用前 OPA 权限校验（OPA write-time check），调用后审计日志 ✅ 2026-06-06
+- [x] T384 Action API 路由 — `odap/biz/core/ontology/action/api/routes.py` POST `/api/ontology/actions` + POST `/api/ontology/actions/{id}/execute` + GET `/api/ontology/actions/{id}/executions`（7 端点）✅ 2026-06-06
+- [x] T385 Action schemas 定义 — `odap/biz/core/ontology/action/api/schemas.py` ✅ 2026-06-06
+- [x] T386 [REVIEW] Action 路由注册 — `odap/web/app.py` `include_router(action_router)` ✅ 2026-06-06
+- [x] T387 [TDD] [REVIEW] Action 单元测试 — `tests/unit/test_action.py` 覆盖 Action Type CRUD、Skill 委托执行、OPA 权限校验、审计记录（81 用例全部通过）✅ 2026-06-06
 - [ ] T388 [SUBAGENT] 前端 Action 列表页面 — `frontend/src/modules/ontology/pages/ActionLibrary.tsx` L5 页面，Action Type 库 + 参数编辑器 + 执行历史
 - [ ] T389 [SUBAGENT] 前端 Action 执行组件 — `frontend/src/modules/ontology/components/ActionExecutor.tsx` L3 组件，表单生成（基于 JSON Schema）+ 执行结果展示
 

@@ -114,16 +114,16 @@ phases:
     total_tasks: 104
     status: in_progress
     verified: false
-    notes: "M1 (FR-031 Data Health + FR-032 Branch) 后端 28 任务完成；前端 5 任务待派发；M2-M4 待启动"
+    notes: "M1+M2 后端完成 (54 任务)；M1 5 个前端任务 + M2 4 个前端任务待派发；M3-M4 待启动"
     blocker_count: 0
 
 # 总体统计
 totals:
   total_phases: 11
   total_tasks: 434
-  completed_tasks: 357
-  pending_tasks: 77
-  completion_rate: 0.823
+  completed_tasks: 383
+  pending_tasks: 51
+  completion_rate: 0.883
 
 # 质量门禁状态
 quality_gates:
