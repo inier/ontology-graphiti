@@ -503,12 +503,12 @@
 
 ### SC-05: 审计日志保留策略
 
-- [ ] T328 审计保留策略 — `odap/infra/security/audit_retention.py` 默认 90 天保留，支持按 workspace / classification 自定义保留期，过期自动归档到 MinIO
-- [ ] T329 [TDD] 审计保留单元测试 — `tests/unit/test_audit_retention.py` 覆盖保留期计算、过期归档、查询历史归档
+- [x] T328 审计保留策略 — `odap/infra/security/audit_retention.py` 默认 90 天保留，支持按 workspace / classification 自定义保留期，过期自动归档到 MinIO ✅ 2026-06-06
+- [x] T329 [TDD] 审计保留单元测试 — `tests/unit/test_audit_retention.py` 覆盖保留期计算、过期归档、查询历史归档（41 用例全部通过）✅ 2026-06-06
 
 ### SC-06: 错误降级与熔断
 
-- [ ] T330 [REVIEW] 熔断器中间件 — `odap/infra/resilience/circuit_breaker.py` 对外部服务（LLM/Neo4j/OPA）实现熔断（错误率 > 50% 持续 30s 触发），半开探测恢复
+- [x] T330 [REVIEW] 熔断器中间件 — `odap/infra/resilience/circuit_breaker.py` 对外部服务（LLM/Neo4j/OPA）实现熔断（错误率 > 50% 持续 30s 触发），半开探测恢复（46 用例全部通过）✅ 2026-06-06
 
 ---
 

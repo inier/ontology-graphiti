@@ -103,9 +103,9 @@ phases:
     name: "Brainstorm 边缘场景补全"
     task_range: "T313-T330"
     total_tasks: 18
-    status: in_progress
+    status: completed
     verified: false
-    notes: "SC-01 (冲突解决)、SC-02 (冷启动)、SC-03 (分片)、SC-04 (多租户) 已完成（14 任务），SC-05 (审计保留) / SC-06 (熔断) 待实施"
+    notes: "SC-01 (冲突解决) / SC-02 (冷启动) / SC-03 (分片) / SC-04 (多租户) / SC-05 (审计保留) / SC-06 (熔断) 全部完成（T320 前端组件除外）"
     blocker_count: 0
 
   - id: 11
@@ -142,15 +142,16 @@ quality_gates:
 
 # 测试状态
 test_status:
-  total: 2656
-  passed: 2656
+  total: 2826
+  passed: 2826
   failed: 0
   warnings: 0
-  last_run: "2026-06-05"
+  last_run: "2026-06-06"
   notes: |
-    2026-06-05 修复 JWT key 长度警告（RFC 7518 §3.2）：
-    1. odap/infra/security/config.py: min_length 16 → 32
-    2. .env: JWT_SECRET 28 bytes → 52 bytes
-    3. tests/unit/test_jwt_service.py: 测试密钥 30 bytes → 43 bytes 常量 TEST_JWT_SECRET
-    4. .env.example: 文档说明 32 字节要求
-    结果：0 warnings（原 69），0 failed（原 1）
+    2026-06-06 Phase 10 SC-05/06 完成：
+    1. odap/infra/security/audit_retention.py: 90 天默认保留 + ws/classification 自定义 + MinIO 归档 (gzip+JSON, archives/{ws}/{YYYY}/{MM}/{ts}.json.gz)
+    2. odap/infra/resilience/circuit_breaker.py: 三态熔断 (CLOSED/OPEN/HALF_OPEN) + 滚动窗口 + 装饰器 + 异步支持
+    3. odap/infra/resilience/__init__.py: 导出新类
+    4. tests/unit/test_audit_retention.py: 41 用例全过
+    5. tests/unit/test_circuit_breaker.py: 46 用例全过
+    结果：2826/2826 通过, 0 failed, 0 warnings（SC-03/04 共 41 用例也全过）
