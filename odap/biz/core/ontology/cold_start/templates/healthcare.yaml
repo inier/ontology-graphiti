@@ -1,0 +1,76 @@
+# 医疗行业示例本体 - 用于冷启动引导
+# 来源：ODAP Cold-Start Templates / 医疗
+industry: healthcare
+name: healthcare_template
+description: 医疗行业基础本体（患者-医生-诊断-处方）
+version: "1.0.0"
+entity_types:
+  - name: Patient
+    description: 患者
+    properties:
+      - name: patient_id
+        type: string
+        required: true
+      - name: name
+        type: string
+        required: true
+      - name: birth_date
+        type: date
+      - name: gender
+        type: enum
+        values: [male, female, other]
+  - name: Doctor
+    description: 医生
+    properties:
+      - name: doctor_id
+        type: string
+        required: true
+      - name: name
+        type: string
+        required: true
+      - name: specialty
+        type: string
+  - name: Diagnosis
+    description: 诊断记录
+    properties:
+      - name: diagnosis_id
+        type: string
+        required: true
+      - name: icd_code
+        type: string
+      - name: diagnosis_date
+        type: date
+      - name: severity
+        type: enum
+        values: [mild, moderate, severe, critical]
+  - name: Prescription
+    description: 处方
+    properties:
+      - name: prescription_id
+        type: string
+        required: true
+      - name: medication
+        type: string
+        required: true
+      - name: dosage
+        type: string
+relationships:
+  - name: TREATED_BY
+    from: Patient
+    to: Doctor
+  - name: HAS_DIAGNOSIS
+    from: Patient
+    to: Diagnosis
+  - name: PRESCRIBED
+    from: Doctor
+    to: Prescription
+  - name: FOR_DIAGNOSIS
+    from: Prescription
+    to: Diagnosis
+sample_data:
+  - type: Patient
+    fields: {patient_id: "P001", name: "Bob", birth_date: "1980-01-15", gender: "male"}
+  - type: Doctor
+    fields: {doctor_id: "D001", name: "Dr. Smith", specialty: "Cardiology"}
+  - type: Diagnosis
+    fields: {diagnosis_id: "DG001", icd_code: "I10", diagnosis_date: "2026-05-01", severity: "moderate"}

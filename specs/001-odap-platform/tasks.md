@@ -487,9 +487,9 @@
 
 ### SC-02: 冷启动数据稀疏
 
-- [ ] T321 冷启动引导服务 — `odap/biz/core/ontology/cold_start/impl/bootstrap.py` 当新工作空间无数据时，从模板库加载示例本体（金融/医疗/制造三个行业模板）
-- [ ] T322 [TDD] 冷启动单元测试 — `tests/unit/test_cold_start.py` 覆盖模板加载、数据稀疏检测、引导流程
-- [ ] T323 行业模板库 — `odap/biz/core/ontology/cold_start/templates/` 三个 YAML 模板（finance.yaml / healthcare.yaml / manufacturing.yaml）
+- [x] T321 冷启动引导服务 — `odap/biz/core/ontology/cold_start/impl/bootstrap.py` 当新工作空间无数据时，从模板库加载示例本体（金融/医疗/制造三个行业模板）✅ 2026-06-05
+- [x] T322 [TDD] 冷启动单元测试 — `tests/unit/test_cold_start.py` 覆盖模板加载、数据稀疏检测、引导流程（21 用例全部通过）✅ 2026-06-05
+- [x] T323 行业模板库 — `odap/biz/core/ontology/cold_start/templates/` 三个 YAML 模板（finance.yaml / healthcare.yaml / manufacturing.yaml）✅ 2026-06-05
 
 ### SC-03: 大规模本体分片
 

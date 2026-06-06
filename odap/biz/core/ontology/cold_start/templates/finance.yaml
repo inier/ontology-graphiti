@@ -1,0 +1,75 @@
+# 金融行业示例本体 - 用于冷启动引导
+# 来源：ODAP Cold-Start Templates / 金融
+industry: finance
+name: finance_template
+description: 金融行业基础本体（客户-账户-交易-产品）
+version: "1.0.0"
+entity_types:
+  - name: Customer
+    description: 金融客户
+    properties:
+      - name: customer_id
+        type: string
+        required: true
+      - name: name
+        type: string
+        required: true
+      - name: risk_level
+        type: enum
+        values: [low, medium, high]
+      - name: kyc_status
+        type: enum
+        values: [pending, verified, rejected]
+  - name: Account
+    description: 银行账户
+    properties:
+      - name: account_id
+        type: string
+        required: true
+      - name: balance
+        type: number
+      - name: currency
+        type: string
+  - name: Transaction
+    description: 交易记录
+    properties:
+      - name: txn_id
+        type: string
+        required: true
+      - name: amount
+        type: number
+        required: true
+      - name: txn_type
+        type: enum
+        values: [deposit, withdrawal, transfer, payment]
+      - name: status
+        type: enum
+        values: [pending, completed, failed]
+  - name: Product
+    description: 金融产品
+    properties:
+      - name: product_id
+        type: string
+        required: true
+      - name: product_type
+        type: enum
+        values: [loan, savings, investment, insurance]
+      - name: interest_rate
+        type: number
+relationships:
+  - name: HOLDS_ACCOUNT
+    from: Customer
+    to: Account
+  - name: MAKES_TRANSACTION
+    from: Account
+    to: Transaction
+  - name: OFFERS_PRODUCT
+    from: Product
+    to: Customer
+sample_data:
+  - type: Customer
+    fields: {customer_id: "C001", name: "Alice", risk_level: "low", kyc_status: "verified"}
+  - type: Account
+    fields: {account_id: "A001", balance: 100000, currency: "CNY"}
+  - type: Transaction
+    fields: {txn_id: "T001", amount: 5000, txn_type: "deposit", status: "completed"}

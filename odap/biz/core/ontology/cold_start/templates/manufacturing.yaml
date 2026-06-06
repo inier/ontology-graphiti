@@ -1,0 +1,72 @@
+# 制造行业示例本体 - 用于冷启动引导
+# 来源：ODAP Cold-Start Templates / 制造
+industry: manufacturing
+name: manufacturing_template
+description: 制造行业基础本体（设备-工单-物料-产线）
+version: "1.0.0"
+entity_types:
+  - name: Equipment
+    description: 生产设备
+    properties:
+      - name: equipment_id
+        type: string
+        required: true
+      - name: equipment_type
+        type: string
+        required: true
+      - name: status
+        type: enum
+        values: [idle, running, maintenance, broken]
+  - name: WorkOrder
+    description: 工单
+    properties:
+      - name: work_order_id
+        type: string
+        required: true
+      - name: priority
+        type: enum
+        values: [low, medium, high, urgent]
+      - name: status
+        type: enum
+        values: [planned, in_progress, completed, cancelled]
+  - name: Material
+    description: 物料
+    properties:
+      - name: material_id
+        type: string
+        required: true
+      - name: material_name
+        type: string
+        required: true
+      - name: quantity
+        type: number
+  - name: ProductionLine
+    description: 产线
+    properties:
+      - name: line_id
+        type: string
+        required: true
+      - name: line_name
+        type: string
+        required: true
+      - name: capacity
+        type: number
+relationships:
+  - name: PRODUCES
+    from: ProductionLine
+    to: WorkOrder
+  - name: CONSUMES
+    from: WorkOrder
+    to: Material
+  - name: USES_EQUIPMENT
+    from: WorkOrder
+    to: Equipment
+sample_data:
+  - type: Equipment
+    fields: {equipment_id: "EQ001", equipment_type: "CNC", status: "running"}
+  - type: WorkOrder
+    fields: {work_order_id: "WO001", priority: "high", status: "in_progress"}
+  - type: Material
+    fields: {material_id: "M001", material_name: "Steel Plate", quantity: 100}
+  - type: ProductionLine
+    fields: {line_id: "L001", line_name: "Line A", capacity: 1000}

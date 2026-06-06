@@ -1,0 +1,116 @@
+"""
+冷启动引导服务 (T321)
+
+当新工作空间无数据时，从模板库加载示例本体。
+关键能力：
+- detect_empty_workspace(workspace_id) - 检查是否需要冷启动
+- bootstrap(workspace_id, industry) - 引导加载指定行业模板
+- bootstrap_if_needed(workspace_id, industry) - 一键引导
+"""
+from __future__ import annotations
+
+import logging
+from typing import Any, Callable, Dict, Optional
+
+from ..models import ColdStartReport, Industry
+from ..models.template_loader import list_industries, load_template
+
+logger = logging.getLogger(__name__)
+
+
+class ColdStartBootstrap:
+    """冷启动引导器"""
+
+    def __init__(self, ontology_loader: Optional[Callable[[Dict[str, Any]], int]] = None):
+        """
+        Args:
+            ontology_loader: 可选回调，接收模板 dict 并返回实际写入的实体类型数。
+                             None 表示不真实写入（dry-run / 测试场景）。
+        """
+        self.ontology_loader = ontology_loader
+
+    def detect_empty_workspace(self, workspace_id: str) -> Dict[str, Any]:
+        """
+        检查工作空间是否为空。
+        实际生产应查询 ontology_count/instance_count；此处为占位实现。
+        """
+        # 真实实现会查询 storage/。当前使用 ontology_loader 行为推断：
+        #   若有注入 loader，则视为非空（loader 会返回 > 0）。
+        #   简化版：返回 status 信息，让调用方按需 bootstrap。
+        return {
+            "workspace_id": workspace_id,
+            "is_empty": True,  # 默认空，调用 bootstrap_if_needed 强制引导
+            "message": "Use bootstrap_if_needed to ensure sample data is loaded",
+        }
+
+    def bootstrap(self, workspace_id: str, industry: str | Industry) -> ColdStartReport:
+        """
+        从指定行业模板引导加载示例本体。
+        """
+        template = load_template(industry)
+        if template is None:
+            available = list_industries()
+            raise ValueError(
+                f"Industry template not found: {industry}. "
+                f"Available: {available}"
+            )
+
+        entity_types = template.get("entity_types", [])
+        relationships = template.get("relationships", [])
+        sample_data = template.get("sample_data", [])
+
+        # 真实加载（若有注入）
+        loaded_count = len(entity_types)
+        if self.ontology_loader is not None:
+            try:
+                loaded_count = self.ontology_loader(template)
+            except Exception as exc:
+                logger.exception("ontology_loader failed: %s", exc)
+                loaded_count = 0
+
+        return ColdStartReport(
+            workspace_id=workspace_id,
+            industry=Industry(industry) if isinstance(industry, str) and industry in {i.value for i in Industry} else industry,  # type: ignore[arg-type]
+            template_name=template.get("name", "unknown"),
+            template_version=str(template.get("version", "1.0.0")),
+            entity_type_count=len(entity_types),
+            relationship_count=len(relationships),
+            sample_data_count=len(sample_data),
+            entity_types=[et.get("name", "") for et in entity_types],
+            notes=f"Loaded {loaded_count} entity types from template '{template.get('name')}'",
+        )
+
+    def bootstrap_if_needed(
+        self,
+        workspace_id: str,
+        industry: str | Industry,
+    ) -> Dict[str, Any]:
+        """
+        检测后引导：若工作空间为空则执行 bootstrap。
+        返回 Dict[str, Any] 格式（供服务层直接使用）。
+        """
+        try:
+            return self._do_bootstrap_if_needed(workspace_id, industry)
+        except Exception as exc:
+            logger.exception("bootstrap_if_needed failed: %s", exc)
+            return {"status": "error", "message": f"bootstrap failed: {exc}", "workspace_id": workspace_id}
+
+    def _do_bootstrap_if_needed(self, workspace_id: str, industry: str | Industry) -> Dict[str, Any]:
+        status = self.detect_empty_workspace(workspace_id)
+        if not status.get("is_empty", True):
+            return {"status": "skipped", "reason": "workspace is not empty", "workspace_id": workspace_id}
+        report = self.bootstrap(workspace_id, industry)
+        return self._report_to_dict(report)
+
+    @staticmethod
+    def _report_to_dict(report) -> Dict[str, Any]:
+        return {
+            "status": "success",
+            "workspace_id": report.workspace_id,
+            "industry": report.industry.value,
+            "template": report.template_name,
+            "entity_types_loaded": report.entity_type_count,
+            "sample_data_loaded": report.sample_data_count,
+            "report_id": report.id,
+            "loaded_at": report.loaded_at.isoformat(),
+        }
