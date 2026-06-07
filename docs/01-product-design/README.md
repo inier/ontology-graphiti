@@ -11,6 +11,7 @@
 |------|------|
 | [ODAP综合优化设计文档.md](ODAP综合优化设计文档.md) | ⭐ 综合优化顶层设计：6大目标+Phase1-5实施路线+技术选型总结 |
 | [webui-enhancement-design.md](webui-enhancement-design.md) | WebUI增强设计方案 |
+| [OPERATION_GUIDE.md](OPERATION_GUIDE.md) | ODAP 本体设计系统完整操作指南（5步：工作空间→本体设计→蓝图→对象管理→数据应用） |
 
 ## 设计目标
 
