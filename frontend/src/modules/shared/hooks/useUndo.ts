@@ -1,6 +1,6 @@
 import { useState, useEffect, useCallback } from 'react';
-import { API_BASE } from '../../config';
-import { fetchJson } from '../../shared/services/apiClient';
+import { API_BASE } from '../../../config';
+import { fetchJson } from '../services/apiClient';
 
 interface UndoOperation {
   operation_id: string;

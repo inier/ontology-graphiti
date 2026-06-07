@@ -87,6 +87,30 @@ export interface QueryViewResult {
   truncated: boolean;
 }
 
+export interface ObjectViewField {
+  field: string;
+  label?: string;
+  visible: boolean;
+}
+
+export interface FilterRule { field: string; op: '=' | '!=' | '>' | '<' | 'contains'; value: string; }
+export interface SortRule { field: string; direction: 'asc' | 'desc'; }
+
+export interface ExtendedObjectView extends ObjectView {
+  fields: ObjectViewField[];
+  object_type_name?: string;
+  filters: FilterRule[];
+  sorts: SortRule[];
+  limit: number;
+  permissions: ViewPermission[];
+}
+
+export interface ObjectTypeSummary {
+  object_type_id: string;
+  name: string;
+  properties: Array<{ name: string; data_type: string }>;
+}
+
 export const viewApi = {
   list: (params?: { base_type?: string; role?: string }) => {
     const qs = new URLSearchParams();
@@ -96,8 +120,52 @@ export const viewApi = {
     return fetchJson<{ views: ObjectView[]; count: number }>(`${BASE}${suffix}`);
   },
 
+  listViews: async (params?: { workspace_id?: string }) => {
+    const qs = new URLSearchParams();
+    if (params?.workspace_id) qs.set('workspace_id', params.workspace_id);
+    const suffix = qs.toString() ? `?${qs.toString()}` : '';
+    const data = await fetchJson<{ views: ObjectView[]; count: number }>(`${BASE}${suffix}`);
+    return (data.views || []).map((v) => ({
+      ...v,
+      fields: (v.projected_properties || []).map((p) => ({ field: p, label: p, visible: true })),
+      object_type_name: v.base_type_id,
+      filters: [],
+      sorts: [],
+      limit: v.row_limit,
+      permissions: [],
+    })) as ExtendedObjectView[];
+  },
+
   get: (viewId: string) =>
     fetchJson<ObjectView>(`${BASE}/${encodeURIComponent(viewId)}`),
+
+  getView: async (viewId: string) => {
+    const v = await fetchJson<ObjectView>(`${BASE}/${encodeURIComponent(viewId)}`);
+    return {
+      ...v,
+      fields: (v.projected_properties || []).map((p) => ({ field: p, label: p, visible: true })),
+      object_type_name: v.base_type_id,
+      filters: [],
+      sorts: [],
+      limit: v.row_limit,
+      permissions: [],
+    } as ExtendedObjectView;
+  },
+
+  listObjectTypes: () =>
+    fetchJson<{ object_types: ObjectTypeSummary[] }>(`${API_BASE}/api/ontology/object-types`)
+      .then((d) => d.object_types || []),
+
+  getMyPermission: async (viewId: string) => {
+    try {
+      const data = await fetchJson<{ permissions: ViewPermission[]; count: number }>(
+        `${BASE}/${encodeURIComponent(viewId)}/permissions`,
+      );
+      return (data.permissions || [])[0] || null;
+    } catch {
+      return null;
+    }
+  },
 
   create: (payload: CreateViewPayload) =>
     fetchJson<ObjectView>(BASE, {
@@ -122,6 +190,31 @@ export const viewApi = {
       method: 'POST',
       body: JSON.stringify(context),
     }),
+
+  queryView: async (viewId: string, _context: Record<string, unknown>) => {
+    return fetchJson<QueryViewResult>(`${BASE}/${encodeURIComponent(viewId)}/query`, {
+      method: 'POST',
+      body: JSON.stringify({ user_id: 'anonymous', ws_id: 'default', role: 'viewer' }),
+    });
+  },
+
+  updateView: (viewId: string, payload: Partial<UpdateViewPayload> & Record<string, unknown>) =>
+    fetchJson<ObjectView>(`${BASE}/${encodeURIComponent(viewId)}`, {
+      method: 'PUT',
+      body: JSON.stringify({
+        projected_properties: (payload as { fields?: Array<{ field: string }> }).fields?.map((f) => f.field),
+        filters: (payload as { filters?: unknown }).filters,
+        row_limit: (payload as { limit?: number }).limit,
+      }),
+    }),
+
+  exportView: async (viewId: string, format: 'csv' | 'json' = 'csv'): Promise<Blob> => {
+    const url = `${BASE}/${encodeURIComponent(viewId)}/export?format=${format}`;
+    const token = localStorage.getItem('access_token') || '';
+    const res = await fetch(url, { headers: { Authorization: `Bearer ${token}` } });
+    if (!res.ok) throw new Error(`Export failed: ${res.status}`);
+    return res.blob();
+  },
 
   listPermissions: (viewId: string) =>
     fetchJson<{ permissions: ViewPermission[]; count: number }>(

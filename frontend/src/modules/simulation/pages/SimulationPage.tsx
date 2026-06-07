@@ -15,7 +15,6 @@ import type { SandboxInfo, TimelineInfo, TemplateInfo } from '../services/simula
 import { useSimulationStore } from '../stores/simulationStore';
 import { EmptyState } from '../../shared/components/organisms';
 import { useWorkspace } from '../../shared/components/AppLayout';
-import { message } from 'antd';
 
 const SANDBOX_STATUS_COLORS: Record<string, string> = {
   created: 'default',
