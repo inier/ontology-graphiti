@@ -42,6 +42,11 @@ data/
 *.temp
 .specify/_installers
 
+# OPA policy bundles (auto-generated at runtime by PolicyBundleManager)
+# Each hot-update creates a timestamped bundle + rewrites current_bundle.json.
+# These are build artifacts, not source — safe to regenerate on first run.
+odap/infra/opa/bundles/
+
 # Frontend
 frontend/node_modules/
 frontend/dist/
