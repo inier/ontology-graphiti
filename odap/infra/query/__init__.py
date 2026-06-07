@@ -26,6 +26,7 @@ from .sources import (
     EntitySourceImpl,
     TopoSourceImpl,
     TemporalSource as TemporalSourceImpl,
+    UnstructuredSourceImpl,
 )
 from .ontology_source import OntologyDesignSource, get_ontology_design_source
 
@@ -38,10 +39,12 @@ __all__ = [
     "EntitySource",
     "TopoSource",
     "TemporalSource",
+    "UnstructuredSource",
     "SchemaSourceImpl",
     "EntitySourceImpl",
     "TopoSourceImpl",
     "TemporalSourceImpl",
+    "UnstructuredSourceImpl",
     "OntologyDesignSource",
     "get_ontology_design_source",
 ]

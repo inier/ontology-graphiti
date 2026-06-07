@@ -9,6 +9,7 @@ class QuerySource(str, Enum):
     ENTITY = "entity"
     TOPO = "topo"
     TEMPORAL = "temporal"
+    UNSTRUCTURED = "unstructured"
 
 
 class QueryResult(BaseModel):
@@ -45,3 +46,16 @@ class TemporalSource(Protocol):
     def query_at_time(self, timestamp: str) -> List[Dict[str, Any]]: ...
     def query_history(self, entity_id: str) -> List[Dict[str, Any]]: ...
     def query_range(self, start_time: str, end_time: str, entity_type: str = None) -> List[Dict[str, Any]]: ...
+
+
+@runtime_checkable
+class UnstructuredSource(Protocol):
+    """非结构化数据源（文档/向量）协议。"""
+
+    def search(
+        self,
+        query: str,
+        workspace_id: Optional[str] = None,
+        ontology_id: Optional[str] = None,
+        limit: int = 10,
+    ) -> List[Dict[str, Any]]: ...

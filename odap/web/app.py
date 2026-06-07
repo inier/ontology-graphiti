@@ -24,6 +24,7 @@ from odap.biz.core.agent.api.decision_routes import router as agent_decision_rou
 from odap.biz.management.agent_management.api.routes import router as agent_mgmt_router
 from odap.biz.data.knowledge_base.api.routes import router as kb_router
 from odap.biz.core.ontology.application.oms.routes import router as oms_router
+from odap.biz.core.ontology.application.query_api.nl_routes import router as ontology_nl_router
 from odap.infra.object_service.routes import router as osv2_router
 from odap.biz.decision.action_service.routes import router as action_router
 from odap.biz.data.perception.routes import router as perception_router
@@ -200,6 +201,7 @@ app.include_router(agent_decision_router)
 app.include_router(agent_mgmt_router)
 app.include_router(kb_router)
 app.include_router(oms_router)
+app.include_router(ontology_nl_router)
 app.include_router(osv2_router)
 app.include_router(action_router)
 app.include_router(perception_router)

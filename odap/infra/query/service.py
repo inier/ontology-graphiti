@@ -2,8 +2,16 @@ import logging
 from typing import Any, Dict, List, Optional
 
 from .parser import QueryParser
-from .protocols import QueryResult, QuerySource, SchemaSource, EntitySource, TopoSource, TemporalSource as TemporalSourceProtocol
-from .sources import SchemaSourceImpl, EntitySourceImpl, TopoSourceImpl, TemporalSource
+from .protocols import (
+    QueryResult, QuerySource,
+    SchemaSource, EntitySource, TopoSource,
+    TemporalSource as TemporalSourceProtocol,
+    UnstructuredSource as UnstructuredSourceProtocol,
+)
+from .sources import (
+    SchemaSourceImpl, EntitySourceImpl, TopoSourceImpl,
+    TemporalSource, UnstructuredSourceImpl,
+)
 
 logger = logging.getLogger(__name__)
 
@@ -43,42 +51,52 @@ class QueryService:
     def execute(self, workspace_id: str, query: str, limit: int = 20, agent_safe: bool = False) -> QueryResult:
         parsed = self._parser.parse(query, limit)
         if agent_safe or self._agent_safe_mode:
-            if parsed.source == QuerySource.SCHEMA:
-                pass
-            elif parsed.source == QuerySource.ENTITY:
-                pass
-            else:
-                return QueryResult(
-                    source=parsed.source,
-                    rows=[],
-                    total=0,
-                    explain={"source": parsed.source.value, "agent_safe": True, "message": "Write operations blocked in agent safe mode"},
-                )
+            blocked = self._check_agent_safe_block(parsed)
+            if blocked:
+                return blocked
         try:
-            if parsed.source == QuerySource.SCHEMA:
-                rows = self._execute_schema(parsed.filters)
-            elif parsed.source == QuerySource.ENTITY:
-                rows = self._execute_entity(parsed.filters, parsed.limit, workspace_id)
-            elif parsed.source == QuerySource.TOPO:
-                rows = self._execute_topo(parsed.action, parsed.action_params, workspace_id)
-            elif parsed.source == QuerySource.TEMPORAL:
-                rows = self._execute_temporal(parsed.action, parsed.action_params, workspace_id)
-            else:
-                rows = []
-            return QueryResult(
-                source=parsed.source,
-                rows=rows[:parsed.limit],
-                total=len(rows),
-                explain={"source": parsed.source.value, "filters": parsed.filters, "action": parsed.action},
-            )
+            rows = self._dispatch_source(parsed, workspace_id)
+            return self._build_result(parsed, rows)
         except Exception as e:
             logger.error(f"QueryService execute error: {e}")
-            return QueryResult(
-                source=parsed.source,
-                rows=[],
-                total=0,
-                explain={"error": str(e), "source": parsed.source.value},
-            )
+            return self._build_error_result(parsed, str(e))
+
+    def _check_agent_safe_block(self, parsed) -> Optional[QueryResult]:
+        if parsed.source in (QuerySource.SCHEMA, QuerySource.ENTITY):
+            return None
+        return QueryResult(
+            source=parsed.source,
+            rows=[],
+            total=0,
+            explain={"source": parsed.source.value, "agent_safe": True, "message": "Write operations blocked in agent safe mode"},
+        )
+
+    def _dispatch_source(self, parsed, workspace_id: str) -> List[Dict[str, Any]]:
+        dispatch_map = {
+            QuerySource.SCHEMA: lambda: self._execute_schema(parsed.filters),
+            QuerySource.ENTITY: lambda: self._execute_entity(parsed.filters, parsed.limit, workspace_id),
+            QuerySource.TOPO: lambda: self._execute_topo(parsed.action, parsed.action_params, workspace_id),
+            QuerySource.TEMPORAL: lambda: self._execute_temporal(parsed.action, parsed.action_params, workspace_id),
+            QuerySource.UNSTRUCTURED: lambda: self._execute_unstructured(parsed.filters, parsed.limit, workspace_id),
+        }
+        handler = dispatch_map.get(parsed.source)
+        return handler() if handler else []
+
+    def _build_result(self, parsed, rows: List[Dict[str, Any]]) -> QueryResult:
+        return QueryResult(
+            source=parsed.source,
+            rows=rows[:parsed.limit],
+            total=len(rows),
+            explain={"source": parsed.source.value, "filters": parsed.filters, "action": parsed.action},
+        )
+
+    def _build_error_result(self, parsed, err: str) -> QueryResult:
+        return QueryResult(
+            source=parsed.source,
+            rows=[],
+            total=0,
+            explain={"error": err, "source": parsed.source.value},
+        )
 
     def explain(self, workspace_id: str, query: str) -> Dict[str, Any]:
         parsed = self._parser.parse(query)
@@ -119,6 +137,7 @@ class QueryService:
             {"name": "entity", "prefix": ".entity", "description": "Query runtime entities", "read_only": True},
             {"name": "topo", "prefix": ".topo", "description": "Query topology relations and graph traversal", "read_only": False},
             {"name": "temporal", "prefix": ".temporal", "description": "Query temporal data (bitemporal)", "read_only": True},
+            {"name": "unstructured", "prefix": ".unstructured", "description": "Query unstructured data (documents/vectors via semantic retriever)", "read_only": True},
         ]
         for name in self._registered_tool_sources:
             sources.append({"name": name, "prefix": f".{name}", "description": f"Tool source: {name}", "read_only": True})
