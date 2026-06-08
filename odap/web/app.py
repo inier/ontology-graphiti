@@ -81,6 +81,7 @@ from odap.web.api.monitoring_routes import monitoring_router
 from odap.infra.security import security_config
 from odap.infra.openharness import create_harness
 from odap.infra.openharness.v2_adapter import initialize_openharness, get_openharness_integration
+from odap.infra.openharness.agui.agui_handler import router as agui_router
 import logging
 import asyncio
 
@@ -186,6 +187,7 @@ app.add_middleware(AuditMiddleware)
 
 # 注册路由
 app.include_router(workspace_router)
+app.include_router(agui_router)  # AG-UI 协议入口（v2.0 扩展）
 app.include_router(roles_router)
 app.include_router(audit_router)
 app.include_router(auth_router)

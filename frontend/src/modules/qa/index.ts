@@ -6,3 +6,50 @@ export { QAChatPage } from './pages/QAChatPage';
 export { QAPage } from './pages/QAPage';
 export { default as ChartRenderer } from './components/ChartRenderer';
 export { useQAStore } from './stores/qaStore';
+
+// AG-UI 协议集成（v2.0 扩展，与 useQAI 共存）
+export {
+  useAGUI,
+  AGUIProvider,
+  useAGUIContext,
+  CardRenderer,
+  HITLPanel,
+  StatePanel,
+  QACopilotDemoPage,
+  getRegisteredCardTypes,
+} from './agui';
+export type {
+  UseAGUIOptions,
+  UseAGUIReturn,
+  AGUIProviderProps,
+  AGUIProviderConfig,
+  AGUIContextValue,
+  AGUIEvent,
+  AGUIEventType,
+  RunAgentInput,
+  RunStartedEvent,
+  RunFinishedEvent,
+  RunErrorEvent,
+  RunOutcome,
+  StepStartedEvent,
+  StepFinishedEvent,
+  TextMessageStartEvent,
+  TextMessageContentEvent,
+  TextMessageEndEvent,
+  ToolCallStartEvent,
+  ToolCallArgsEvent,
+  ToolCallEndEvent,
+  ToolCallResultEvent,
+  ToolCallChunkEvent,
+  StateSnapshotEvent,
+  StateDeltaEvent,
+  StateDeltaOp,
+  MessagesSnapshotEvent,
+  Message,
+  Interrupt,
+  InterruptReason,
+  InterruptStatus,
+  ResumeEntry,
+  CardType,
+  CardMetadata,
+} from './agui';
