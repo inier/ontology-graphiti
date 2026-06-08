@@ -222,8 +222,10 @@ def cmd_dev():
     if not any(c not in get_local_images() for _, c in IMAGES):
         ok("所有基础镜像已就绪")
 
-    step(2, "构建并启动服务 (开发模式 - override + --build)")
-    rc = run_stream(get_compose_cmd("up", "-d", "--build", dev=True))
+    step(2, "启动服务 (开发模式 - override + 跳过 build 复用本地镜像)")
+    # 跳过 --build: 复用本地 docker_app:latest + docker_frontend:dev 镜像
+    # 通过 bind mount 源代码实现热重载，启动速度 < 30s
+    rc = run_stream(get_compose_cmd("up", "-d", dev=True))
     if rc == 0:
         ok("启动成功")
     else:
@@ -250,8 +252,13 @@ def cmd_dev():
 
   开发模式特性:
   - 前端代码修改后自动刷新浏览器
+  - 后端代码修改后 uvicorn --reload 自动重载
   - 无需重新构建镜像
   - 适合日常开发调试
+
+  代码修改后:
+  - 前端: 无需操作，Vite 自动 HMR
+  - 后端: uvicorn --reload 检测文件变化自动重启
 """)
 
 

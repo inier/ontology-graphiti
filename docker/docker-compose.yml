@@ -72,7 +72,7 @@ services:
     ports:
       - "8181:8181"
     volumes:
-      - ../odap/infra/opa:/policies
+      - ../odap/infra/opa/policies:/policies
     command: run --server --log-level=info --set=decision_logs.console=true /policies
     networks:
       - graphiti-network

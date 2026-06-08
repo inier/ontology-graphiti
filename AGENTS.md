@@ -45,36 +45,151 @@ cd frontend && npm install                        # 前端
 cp .env.example .env.docker                       # 必填：OPENAI_API_KEY / NEO4J_* / JWT_SECRET
 ```
 
-### 2.2 构建与启动
+### 2.2 启动命令（dev vs prod 严格区分）
 
-| 命令 | 作用 | 说明 |
-|------|------|------|
-| `python bootstep.py dev` | 启动开发环境 | 容器化启动全部服务，前端热重载 |
-| `python bootstep.py up` | 启动生产环境 | Nginx 静态服务，端口 80 |
-| `python bootstep.py restart` | 重启服务 | 代码修改后执行 |
-| `python bootstep.py rebuild` | 重建镜像并启动 | 依赖变更后执行 |
-| `python bootstep.py down` | 停止所有服务 | — |
-| `python bootstep.py status` | 查看服务状态 | — |
-| `python bootstep.py logs` | 查看后端日志 | `logs fe` 查看前端日志 |
-| `python bootstep.py clean` | 清理 dangling 镜像 | — |
+> **核心原则**：开发与生产使用**不同命令、不同镜像、不同挂载策略**。禁止混用。
 
-### 2.3 本地开发（容器内）
+#### 2.2.1 一键启动对照表
 
-```bash
-# 启动开发环境（容器内运行全部服务）
-python bootstep.py dev
+| 场景 | 命令 | 镜像 | 挂载策略 | 启动耗时 | 热重载 |
+|------|------|------|----------|----------|--------|
+| **日常开发** ⭐ | `python bootstep.py dev` | `docker_app:latest` + `docker_frontend:dev` | bind mount 源码 | **< 30s** | ✅ 前端 HMR + 后端 uvicorn --reload |
+| **生产部署** | `python bootstep.py up` | `docker_app:latest` + `docker_frontend:latest` | 命名卷（app-data） | < 60s | ❌ |
+| **重建后端镜像** | `python bootstep.py rebuild main` | 重建后启动 | 同 prod | 3-5 min | ❌ |
+| **重建前端镜像** | `python bootstep.py rebuild frontend` | 重建后启动 | bind mount | 3-5 min | ✅ |
+| **仅查看状态** | `python bootstep.py status` | — | — | < 5s | — |
+| **停止所有** | `python bootstep.py down` | — | — | < 10s | — |
+| **重启服务** | `python bootstep.py restart` | 复用已有 | 复用 | < 30s | ✅（dev）/ ❌（prod） |
+| **清理镜像** | `python bootstep.py clean` | 删除 dangling | — | < 30s | — |
+
+#### 2.2.2 开发模式 (`bootstep.py dev`) — 唯一推荐
+
+**使用场景**：日常开发、改后端/前端代码、调 bug、写新功能。
+
+**工作机制**：
+```
+┌─────────────────────────────────────────────────────────────┐
+│  1. 复用本地镜像（不重建）                                     │
+│     - docker_app:latest   (后端 + 全部 pip 依赖)              │
+│     - docker_frontend:dev (前端 + node_modules)              │
+│  2. 启动容器 (compose override + 不带 --build)                │
+│  3. bind mount 源码到容器内：                                  │
+│     - ../odap → /app/odap    (后端代码)                       │
+│     - ../frontend/src → /app/src (前端代码)                   │
+│  4. 启动命令改为：                                             │
+│     - 后端: uvicorn --reload (检测 .py 变化自动重启)          │
+│     - 前端: vite dev (HMR 热模块替换)                         │
+└─────────────────────────────────────────────────────────────┘
 ```
 
-开发环境统一通过 **Podman 容器**运行：
+**典型启动耗时**：
+- 首次启动（Neo4j 初始化）：60-90s
+- 二次启动（数据已持久化）：< 30s
 
-- **后端**：容器内通过 `python main.py --web` 启动本地开发入口（`odap/web/api/app.py`，端口 8765），代码通过 volume 映射实时同步
-- **前端**：容器内启动 Vite 开发服务器（端口 5173，`/api` 代理到后端）
-- **热重载**：前端代码修改自动刷新；后端代码修改需执行 `bootstep.py restart` 生效
-- **访问地址**：前端 `http://localhost:5173`，后端 `http://localhost:8000`
+**代码修改后**：
+| 改了什么 | 需要做什么 | 等待 |
+|---------|-----------|------|
+| `odap/**/*.py` | 无（uvicorn --reload） | 2-3s |
+| `frontend/src/**/*` | 无（Vite HMR） | < 1s |
+| `requirements.txt` | `python bootstep.py rebuild main` 后 `dev` | 3-5 min |
+| `frontend/package.json` | `podman exec graphiti-frontend-dev npm i <pkg>` | 30s |
+| `docker/Dockerfile` | `python bootstep.py rebuild all` | 5-10 min |
+| `.env.docker` | `python bootstep.py restart` | < 30s |
+
+#### 2.2.3 生产模式 (`bootstep.py up`)
+
+**使用场景**：部署、冒烟测试、CI/CD 流水线验证。
+
+**工作机制**：
+```
+┌─────────────────────────────────────────────────────────────┐
+│  1. 强制重建镜像（无 build cache 复用）                       │
+│  2. 启动容器 (compose 主文件 + --build)                      │
+│  3. 数据卷挂载（无源码 bind mount）                            │
+│     - app-data → /app/data (SQLite/缓存)                    │
+│  4. 启动命令：                                                │
+│     - 后端: uvicorn --workers 4 (4 进程)                     │
+│     - 前端: nginx (静态文件)                                  │
+└─────────────────────────────────────────────────────────────┘
+```
+
+**典型启动耗时**：
+- 首次部署：5-10 min（拉镜像 + 构建 + Neo4j 初始化）
+- 后续部署：2-3 min（构建命中缓存）
+
+#### 2.2.4 常见启动问题速查
+
+| 症状 | 原因 | 解决 |
+|------|------|------|
+| `ModuleNotFoundError: No module named 'jwt'` | 镜像缺少 pyjwt | 已修复：`requirements.txt` + `Dockerfile` 已加 `pyjwt>=2.8.0`，重建镜像 |
+| `RuntimeError: bcrypt is not installed` | 镜像缺少 bcrypt | 已修复：`requirements.txt` + `Dockerfile` 已加 `bcrypt>=4.1.0`，重建镜像 |
+| `JWT_SECRET has a placeholder value` | 默认 `.env.docker` 密钥太短 | 已修复：`.env.docker` 默认值改为 64 字符 |
+| OPA 启动报 `merge error` | `/policies` 目录含 bundles JSON | 已修复：`docker-compose.yml` 改为挂载 `../odap/infra/opa/policies:/policies` |
+| `Module not found: 'react-i18next'` | 旧前端镜像未含此包 | 已修复：在容器内 `npm i react-i18next i18next`；下次 `rebuild frontend` 时会基于最新 `package.json` |
+| `apt-get` 拉 gcc/g++ 失败 | dev 构建时容器无外网 | 已修复：`docker-compose.override.yml` 改用 `docker_app:latest` 而非重新构建 |
+| 容器启动后立即退出 | bind mount 路径不存在 | 已修复：根目录创建 `app/` 空目录 |
+| 端口 8000 占用 | 旧容器未清理 | `podman rm -f --depend graphiti-main-app graphiti-frontend-dev` |
+
+#### 2.2.5 标准启动流程（推荐）
+
+```powershell
+# 1. 首次启动 - 仅做一次
+python bootstep.py dev
+# 等待 30-90s, 看到所有容器 Up
+
+# 2. 验证健康
+podman ps --format "table {{.Names}} {{.Status}} {{.Ports}}"
+# 期望: graphiti-main-app Up X minutes (healthy)
+
+# 3. 浏览器访问
+# 前端: http://localhost:5173
+# 后端 API 文档: http://localhost:8000/docs
+# 健康检查: http://localhost:8000/health
+
+# 4. 日常开发 - 仅在以下情况重启
+#    - 改了 .env.docker / Dockerfile / 依赖
+python bootstep.py restart
+
+# 5. 查看日志（开发时常用）
+podman logs -f graphiti-main-app
+podman logs -f graphiti-frontend-dev
+
+# 6. 收工
+python bootstep.py down
+```
+
+**服务访问地址**：
+| 服务 | 端口 | URL |
+|------|------|-----|
+| 前端（dev） | 5173 | http://localhost:5173 |
+| 后端 API | 8000 | http://localhost:8000 |
+| API 文档 | 8000 | http://localhost:8000/docs |
+| 健康检查 | 8000 | http://localhost:8000/health |
+| Neo4j 浏览器 | 7474 | http://localhost:7474 |
+| Neo4j Bolt | 7687 | bolt://localhost:7687 |
+| OPA | 8181 | http://localhost:8181 |
+| Redis | 6379 | localhost:6379 |
+| MinIO | 9000-9001 | http://localhost:9000 |
+
+#### 2.2.6 关键文件速查
+
+| 文件 | 作用 | 修改时机 |
+|------|------|----------|
+| `bootstep.py` | 一键启动脚本 | 添加新容器/调整流程 |
+| `docker/docker-compose.yml` | 生产 compose | 添加/修改服务 |
+| `docker/docker-compose.override.yml` | 开发 compose 覆盖 | 调整 bind mount 或 dev 镜像 |
+| `docker/Dockerfile` | 生产后端镜像 | 添加系统依赖 |
+| `docker/Dockerfile.dev` | 开发后端镜像（备用） | 一般用最新镜像 |
+| `frontend/Dockerfile` | 生产前端镜像 | 添加 nginx 配置 |
+| `frontend/Dockerfile.dev` | 开发前端镜像 | 基础 Node 镜像 |
+| `.env.docker` | 环境变量 | API Key / 密码 / 端口 |
+| `requirements.txt` | 后端依赖 | 添加新 pip 包 |
+| `frontend/package.json` | 前端依赖 | 添加新 npm 包 |
+| `.dockerignore` | 构建上下文排除 | 排除新的大目录 |
 
 > **关键约束**：**禁止在宿主机直接执行** `python main.py --web` 或 `npm run dev`。所有开发服务必须运行在 Podman 容器内。
 
-### 2.4 环境变量速查
+### 2.3 环境变量速查
 
 | 变量 | 必填 | 说明 |
 |------|:--:|------|
@@ -83,7 +198,7 @@ python bootstep.py dev
 | `OPENAI_MODEL` | 是 | 模型名称 |
 | `NEO4J_URI` | 是 | 图数据库连接（容器内用 `graphiti-neo4j:7687`） |
 | `NEO4J_USER` / `NEO4J_PASSWORD` | 是 | Neo4j 认证 |
-| `JWT_SECRET` | 是 | JWT 签名密钥 |
+| `JWT_SECRET` | 是 | JWT 签名密钥（≥ 32 字符） |
 | `TAVILY_API_KEY` | 否 | 搜索增强 |
 | `OPA_URL` | 否 | OPA 策略引擎地址 |
 | `REDIS_URL` | 否 | 缓存服务 |
@@ -401,9 +516,53 @@ pytest tests/e2e/ -v -m e2e
 
 ---
 
-## 8. 参考项目约定
+## 8. 系统架构与数据关系约束
 
-### 8.1 参考项目列表
+### 8.1 核心实体关系图
+
+```
+User ─┬─ 1:N ─→ Role              (用户拥有多个角色)
+      └─ 1:N ─→ Workspace         (用户属于多个工作空间)
+                Workspace ─ 1:N ─→ Scenario       (工作空间包含多个场景)
+                              Scenario ─ N:M ─→ Ontology     (场景绑定多个本体)
+                                            Ontology ─ 1:N ─→ OntologyVersion (本体多版本)
+                                            Ontology ─ 1:1 ─→ OntologyDefinition (本体定义)
+                              OntologyVersion ─ 1:N ─→ SemanticMap   (语义地图)
+                              OntologyVersion ─ 1:N ─→ BusinessRule  (业务规则)
+                              OntologyVersion ─ 1:N ─→ LogicModel    (逻辑模型)
+                              OntologyVersion ─ 1:N ─→ MetricSystem  (指标体系)
+                              OntologyVersion ─ 1:N ─→ BusinessProcess(业务过程)
+      Agent ─┬─ N:1 ─→ Role       (智能体关联角色)
+             └─ N:1 ─→ Workspace  (智能体关联工作空间)
+      Skill ─ N:1 ─→ OntologyDefinition (Skill 关联本体定义)
+      Simulation ─ N:1 ─→ Ontology (模拟演练关联本体)
+```
+
+### 8.2 本体图谱与场景关联规则
+
+- 本体图谱与场景有关，也和本体有关：一个本体有多个对象（实体/关系/事件）
+- 图谱数据查询必须基于场景上下文：`场景 → 本体列表 → 图谱对象`
+- 智能体问答检索范围 = 当前绑定场景的所有本体图谱数据
+- 跨场景图谱数据隔离，禁止未授权跨场景查询
+
+### 8.3 主要约束
+
+1. **用户权限与资源管理**：JWT Payload 必须包含 `role` + `ws_id` + `ws_role`
+2. **工作空间与场景层级**：工作空间作为顶级资源容器，场景继承基础配置
+3. **场景与本体关联**：单个场景支持绑定多个本体（N:M），解绑需检查依赖
+4. **本体版本管理**：版本记录含 `version_number`、`changelog`、`status`，支持回溯与对比
+5. **业务资产关联**：语义地图、业务规则、逻辑模型等必须关联特定本体版本（非本体定义）
+6. **本体定义不可变**：本体定义更新必须通过创建新本体实现，禁止直接修改
+7. **智能体配置**：必须同时关联特定角色与工作空间
+8. **Skill 管理**：创建/更新/删除必须关联特定本体定义
+9. **模拟演练**：必须关联特定本体作为数据基础
+10. **审计一致性**：所有变更通过 `unified_audit.py` 统一写入，`audit_api.py` 统一读取
+
+---
+
+## 9. 参考项目约定
+
+### 9.1 参考项目列表
 
 | 项目 | 用途 | 集成方式 |
 |------|------|----------|
@@ -416,7 +575,7 @@ pytest tests/e2e/ -v -m e2e
 | **React Flow** | 流程/图谱编排 | npm `@xyflow/react` |
 | **AntV G6** | 图谱可视化 | npm `@antv/g6` |
 
-### 8.2 优先级规则
+### 9.2 优先级规则
 
 - **P0（阻塞）**：Graphiti、Neo4j、OpenHarness、FastAPI、React —— 核心功能依赖，必须先于业务代码就绪
 - **P1（重要）**：OPA、Redis、Ant Design、Zustand —— 支撑功能，缺失会降级但可运行
@@ -424,9 +583,9 @@ pytest tests/e2e/ -v -m e2e
 
 ---
 
-## 9. 文档导航
+## 10. 文档导航
 
-### 9.1 文档体系总览
+### 10.1 文档体系总览
 
 ```
 docs/
@@ -454,7 +613,7 @@ docs/
 └── 07-adr/                   # 架构决策记录（ADR-001 ~ ADR-039）
 ```
 
-### 9.2 详细文档索引表
+### 10.2 详细文档索引表
 
 | 主题 | 文档路径 | 说明 |
 |------|----------|------|
@@ -639,49 +798,7 @@ JWT Payload 含 `role` + `ws_id` + `ws_role`（工作空间隔离）。
 | services/ | 成功返回扁平 dict、错误返回 `{"status": "error"}`、类型转换 (Enum→.value, datetime→.isoformat) |
 | routes/ | HTTP 状态码映射、`except HTTPException: raise` 透传、404/400/500 场景 |
 
-### D. 系统架构与数据关系约束
-
-#### 核心实体关系图
-
-```
-User ─┬─ 1:N ─→ Role              (用户拥有多个角色)
-      └─ 1:N ─→ Workspace         (用户属于多个工作空间)
-                Workspace ─ 1:N ─→ Scenario       (工作空间包含多个场景)
-                              Scenario ─ N:M ─→ Ontology     (场景绑定多个本体)
-                                            Ontology ─ 1:N ─→ OntologyVersion (本体多版本)
-                                            Ontology ─ 1:1 ─→ OntologyDefinition (本体定义)
-                              OntologyVersion ─ 1:N ─→ SemanticMap   (语义地图)
-                              OntologyVersion ─ 1:N ─→ BusinessRule  (业务规则)
-                              OntologyVersion ─ 1:N ─→ LogicModel    (逻辑模型)
-                              OntologyVersion ─ 1:N ─→ MetricSystem  (指标体系)
-                              OntologyVersion ─ 1:N ─→ BusinessProcess(业务过程)
-      Agent ─┬─ N:1 ─→ Role       (智能体关联角色)
-             └─ N:1 ─→ Workspace  (智能体关联工作空间)
-      Skill ─ N:1 ─→ OntologyDefinition (Skill 关联本体定义)
-      Simulation ─ N:1 ─→ Ontology (模拟演练关联本体)
-```
-
-#### 本体图谱与场景关联规则
-
-- 本体图谱与场景有关，也和本体有关：一个本体有多个对象（实体/关系/事件）
-- 图谱数据查询必须基于场景上下文：`场景 → 本体列表 → 图谱对象`
-- 智能体问答检索范围 = 当前绑定场景的所有本体图谱数据
-- 跨场景图谱数据隔离，禁止未授权跨场景查询
-
-#### 主要约束
-
-1. **用户权限与资源管理**：JWT Payload 必须包含 `role` + `ws_id` + `ws_role`
-2. **工作空间与场景层级**：工作空间作为顶级资源容器，场景继承基础配置
-3. **场景与本体关联**：单个场景支持绑定多个本体（N:M），解绑需检查依赖
-4. **本体版本管理**：版本记录含 `version_number`、`changelog`、`status`，支持回溯与对比
-5. **业务资产关联**：语义地图、业务规则、逻辑模型等必须关联特定本体版本（非本体定义）
-6. **本体定义不可变**：本体定义更新必须通过创建新本体实现，禁止直接修改
-7. **智能体配置**：必须同时关联特定角色与工作空间
-8. **Skill 管理**：创建/更新/删除必须关联特定本体定义
-9. **模拟演练**：必须关联特定本体作为数据基础
-10. **审计一致性**：所有变更通过 `unified_audit.py` 统一写入，`audit_api.py` 统一读取
-
-### E. 陷阱与禁忌
+### D. 陷阱与禁忌
 
 1. **Podman 非 Docker** — bootstep.py 全部使用 podman 命令，不要用 docker 命令
 2. **两个 Web 入口** — 本地开发端口 8765，Docker 端口 8000，不要混淆

@@ -17,7 +17,7 @@ COPY requirements.txt ./
 
 RUN pip install --no-cache-dir fastapi pydantic uvicorn[standard] httpx starlette python-multipart || echo "WARNING: core web packages install had issues"
 RUN pip install --no-cache-dir neo4j networkx redis python-dateutil || echo "WARNING: data packages install had issues"
-RUN pip install --no-cache-dir python-jose[cryptography] jsonpickle opa-python celery || echo "WARNING: infra packages install had issues"
+RUN pip install --no-cache-dir python-jose[cryptography] pyjwt bcrypt jsonpickle opa-python celery || echo "WARNING: infra packages install had issues"
 RUN pip install --no-cache-dir openai pyyaml aiohttp || echo "WARNING: util packages install had issues"
 
 RUN pip install --no-cache-dir graphiti-core || echo "WARNING: graphiti-core install failed, falling back to Neo4j Driver mode"

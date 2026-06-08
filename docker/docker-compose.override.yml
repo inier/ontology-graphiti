@@ -2,10 +2,9 @@
 # 使用此配置可以启用热重载功能
 services:
   app:
-    image: localhost/docker_app:dev
-    build:
-      context: ..
-      dockerfile: docker/Dockerfile.dev
+    # 使用生产镜像 (已包含 pyjwt/openai/graphiti-core 等所有依赖) + 源代码热挂载
+    # 避免每次启动都重新 apt-get 拉 gcc/g++ (网络依赖)
+    image: localhost/docker_app:latest
     container_name: graphiti-main-app
     ports:
       - "8000:8000"
@@ -40,12 +39,11 @@ services:
       timeout: 5s
       retries: 5
       start_period: 30s
+    # 开发模式启用 uvicorn --reload
+    command: ["python", "-m", "uvicorn", "odap.web.app:app", "--host", "0.0.0.0", "--port", "8000", "--reload"]
 
   frontend:
     image: localhost/docker_frontend:dev
-    build:
-      context: ../frontend
-      dockerfile: Dockerfile.dev
     container_name: graphiti-frontend-dev
     ports:
       - "5173:5173"
