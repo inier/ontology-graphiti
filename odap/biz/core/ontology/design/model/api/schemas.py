@@ -30,6 +30,8 @@ class UpdateEntityTypeRequest(BaseModel):
 
 class CreateInstanceRequest(BaseModel):
     type_id: str
+    name: Optional[str] = None
+    description: Optional[str] = None
     properties: Dict[str, Any] = Field(default_factory=dict)
     workspace_id: str = "default"
 

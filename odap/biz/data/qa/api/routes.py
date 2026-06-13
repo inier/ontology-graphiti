@@ -55,6 +55,8 @@ class SessionResponse(BaseModel):
     created_at: str
     updated_at: str
     message_count: int = 0
+    # T053-fix: 暴露 title 字段——前端会话列表直接显示 title（首条用户消息前 60 字符）
+    title: str = ""
 
 
 class SessionDetailResponse(BaseModel):
@@ -133,6 +135,20 @@ logger = logging.getLogger(__name__)
 _qa_engine_instance: Optional[QAEngineV2] = None
 
 
+def _first_user_message_title(session, max_len: int = 60) -> str:
+    """T053-fix: 从 DialogSession 第一条 user 消息提取标题。
+    失败/无消息时返回空字符串（前端 fallback 为会话 id 截断）。"""
+    try:
+        for msg in (session.messages or []):
+            if getattr(msg, "role", None) == "user":
+                content = (getattr(msg, "content", "") or "").strip().replace("\n", " ")
+                if content:
+                    return content[:max_len] + ("..." if len(content) > max_len else "")
+    except Exception:
+        pass
+    return ""
+
+
 def _get_qa_engine() -> QAEngineV2:
     global _qa_engine_instance
     if _qa_engine_instance is None:
@@ -145,7 +161,7 @@ def _get_qa_engine() -> QAEngineV2:
 
         ingest_storage = None
         try:
-            from odap.biz.core.ontology.storage.sqlite_ingest_storage import SQLiteIngestStorage
+            from odap.biz.core.ontology.design.storage.sqlite_ingest_storage import SQLiteIngestStorage
             ingest_storage = SQLiteIngestStorage()
         except Exception as e:
             logger.warning(f"SQLiteIngestStorage creation failed: {e}")
@@ -157,6 +173,13 @@ def _get_qa_engine() -> QAEngineV2:
         except Exception as e:
             logger.warning(f"SemanticMapStorage creation failed: {e}")
 
+        model_storage = None
+        try:
+            from odap.biz.core.ontology.design.model.storage.sqlite_model_storage import SQLiteModelStorage
+            model_storage = SQLiteModelStorage()
+        except Exception as e:
+            logger.warning(f"SQLiteModelStorage creation failed: {e}")
+
         use_mock = (graph_manager is None and ingest_storage is None and semantic_map_storage is None)
 
         _qa_engine_instance = QAEngineV2(
@@ -164,6 +187,7 @@ def _get_qa_engine() -> QAEngineV2:
             use_mock=use_mock,
             ingest_storage=ingest_storage,
             semantic_map_storage=semantic_map_storage,
+            model_storage=model_storage,
         )
     return _qa_engine_instance
 
@@ -205,17 +229,31 @@ async def ask_question(request: AskRequest,
         qa_engine = _get_qa_engine()
         agent_context = _load_agent_context(request.agent_id)
         loop = asyncio.get_event_loop()
-        result = await loop.run_in_executor(
-            None,
-            lambda: qa_engine.ask(
-                query=request.question,
-                user_id=request.user_id,
-                session_id=request.session_id,
-                workspace_id=request.workspace_id,
-                scenario_id=request.scenario_id,
-                context=agent_context if agent_context else None,
+        # P1-fix: 45s 超时保护，防止 LLM 调用无限阻塞
+        try:
+            result = await asyncio.wait_for(
+                loop.run_in_executor(
+                    None,
+                    lambda: qa_engine.ask(
+                        query=request.question,
+                        user_id=request.user_id,
+                        session_id=request.session_id,
+                        workspace_id=request.workspace_id,
+                        scenario_id=request.scenario_id,
+                        context=agent_context if agent_context else None,
+                    )
+                ),
+                timeout=45.0,
             )
-        )
+        except asyncio.TimeoutError:
+            # LLM 超时，降级为模板回答
+            logger.warning(f"QA ask timed out for: {request.question[:50]}")
+            result = {
+                "session_id": "",
+                "answer": f"抱歉，回答生成超时。请稍后重试或简化问题。",
+                "sources": [],
+                "dialog_state": "timeout",
+            }
         return AskResponse(
             session_id=result.get("session_id", ""),
             answer=result.get("answer", ""),
@@ -241,43 +279,16 @@ async def ask_question_stream(request: AskStreamRequest,
 
         async def streaming_response():
             import json
-            loop = asyncio.get_event_loop()
-            result = await loop.run_in_executor(
-                None,
-                lambda: qa_engine.ask(
-                    query=request.question,
-                    user_id=request.user_id,
-                    session_id=request.session_id,
-                    workspace_id=request.workspace_id,
-                    scenario_id=request.scenario_id,
-                    context=agent_context if agent_context else None,
-                )
-            )
-            response_session_id = result.get("session_id", "")
-            answer = result.get("answer", "")
-            sources = result.get("sources", [])
-
-            yield f'{{"type": "session_id", "value": "{response_session_id}"}}\n'
-
-            for i in range(0, len(answer), 10):
-                chunk = answer[i:i + 10]
-                yield f'{{"type": "content", "value": {json.dumps(chunk)}}}\n'
-
-            yield f'{{"type": "sources", "value": {json.dumps(sources)}}}\n'
-
-            charts = result.get("charts", [])
-            for chart in charts:
-                yield f'{{"type": "chart", "value": {json.dumps(chart)}}}\n'
-
-            temporal_data = result.get("temporal", [])
-            for t in temporal_data:
-                yield f'{{"type": "temporal", "value": {json.dumps(t)}}}\n'
-
-            reports = result.get("reports", [])
-            for r in reports:
-                yield f'{{"type": "report", "value": {json.dumps(r)}}}\n'
-
-            yield f'{{"type": "done"}}\n'
+            async for event in qa_engine.ask_stream(
+                query=request.question,
+                user_id=request.user_id,
+                session_id=request.session_id,
+                workspace_id=request.workspace_id,
+                scenario_id=request.scenario_id,
+                agent_id=request.agent_id,
+                context=agent_context if agent_context else None,
+            ):
+                yield f"data: {json.dumps(event, ensure_ascii=False)}\n\n"
 
         return StreamingResponse(
             streaming_response(),
@@ -318,6 +329,9 @@ async def list_sessions(
                 created_at=session.created_at,
                 updated_at=session.updated_at,
                 message_count=len(session.messages),
+                # T053-fix: title 直接从首条 user 消息提取（前端展示用），
+                # 不在 add_message 写入 DialogSession.summary（避免与原有 summary 语义冲突）
+                title=_first_user_message_title(session),
             ))
 
         session_list.sort(key=lambda s: s.updated_at, reverse=True)

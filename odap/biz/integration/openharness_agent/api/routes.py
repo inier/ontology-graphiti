@@ -219,18 +219,67 @@ async def chat_with_agent(request: AgentChatRequest,
             steps = result.get("steps", [])
             if steps:
                 last_step = steps[-1]
-                response_data = {
-                    "response": last_step.get("result", {}),
-                    "steps_count": len(steps),
-                    "thought_process": [
-                        {
-                            "step": step.get("step"),
-                            "action": step.get("action", {}).get("tool_name"),
-                            "thought": step.get("action", {}).get("thought"),
-                        }
-                        for step in steps
-                    ],
-                }
+                raw_result = last_step.get("result", {})
+                # 将工具原始结果转为可读文本
+                if isinstance(raw_result, dict):
+                    # 如果有 output/message 字段，直接使用
+                    readable = raw_result.get("output") or raw_result.get("message")
+                    if not readable:
+                        # 尝试从 data 列表中提取摘要
+                        data = raw_result.get("data", [])
+                        if isinstance(data, list) and data:
+                            parts = []
+                            for item in data[:10]:
+                                if isinstance(item, dict):
+                                    props = item.get("properties", {})
+                                    name = props.get("name") or props.get("title") or item.get("id", "")
+                                    desc = props.get("description") or props.get("body") or ""
+                                    if name:
+                                        parts.append(f"- {name}" + (f": {desc[:100]}" if desc else ""))
+                                elif isinstance(item, str):
+                                    parts.append(f"- {item}")
+                            tool_name = raw_result.get("tool", "unknown")
+                            readable = f"[{tool_name}] Found {len(data)} results:\n" + "\n".join(parts)
+                        else:
+                            readable = str(raw_result)
+                    response_data = {
+                        "response": readable,
+                        "steps_count": len(steps),
+                        "thought_process": [
+                            {
+                                "step": step.get("step"),
+                                "action": step.get("action", {}).get("tool_name"),
+                                "thought": step.get("action", {}).get("thought"),
+                            }
+                            for step in steps
+                        ],
+                    }
+                elif isinstance(raw_result, str):
+                    response_data = {
+                        "response": raw_result,
+                        "steps_count": len(steps),
+                        "thought_process": [
+                            {
+                                "step": step.get("step"),
+                                "action": step.get("action", {}).get("tool_name"),
+                                "thought": step.get("action", {}).get("thought"),
+                            }
+                            for step in steps
+                        ],
+                    }
+                else:
+                    response_data = {
+                        "response": str(raw_result),
+                        "steps_count": len(steps),
+                        "thought_process": [
+                            {
+                                "step": step.get("step"),
+                                "action": step.get("action", {}).get("tool_name"),
+                                "thought": step.get("action", {}).get("thought"),
+                            }
+                            for step in steps
+                        ],
+                    }
 
         try:
             if store is None:

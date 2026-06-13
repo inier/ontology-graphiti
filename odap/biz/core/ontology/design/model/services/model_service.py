@@ -58,14 +58,17 @@ class ModelService:
     def create_instance(self, data: Dict[str, Any]) -> Dict[str, Any]:
         if not data.get("type_id"):
             return {"status": "error", "message": "type_id is required"}
-        instance_id = data.get("instance_id") or str(uuid.uuid4())
-        data["instance_id"] = instance_id
-        now = datetime.now().isoformat()
-        data.setdefault("created_at", now)
-        data.setdefault("updated_at", now)
-        data.setdefault("workspace_id", "default")
-        self._repo.save_instance(data)
-        return {"instance_id": instance_id, "type_id": data["type_id"]}
+        try:
+            instance_id = data.get("instance_id") or str(uuid.uuid4())
+            data["instance_id"] = instance_id
+            now = datetime.now().isoformat()
+            data.setdefault("created_at", now)
+            data.setdefault("updated_at", now)
+            data.setdefault("workspace_id", "default")
+            self._repo.save_instance(data)
+            return {"instance_id": instance_id, "type_id": data["type_id"]}
+        except ValueError as e:
+            return {"status": "error", "message": str(e)}
 
     def get_instance(self, instance_id: str) -> Dict[str, Any]:
         result = self._repo.get_instance(instance_id)

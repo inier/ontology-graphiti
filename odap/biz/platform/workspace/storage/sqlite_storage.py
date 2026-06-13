@@ -908,7 +908,25 @@ class SQLiteStorage:
         finally:
             conn.close()
         return [dict(row) for row in rows]
-    
+
+    def get_scenario_documents(self, scenario_id: str) -> List[Dict[str, Any]]:
+        """获取场景关联的摄入文档"""
+        conn = sqlite3.connect(self.db_path)
+        try:
+            conn.row_factory = sqlite3.Row
+            cursor = conn.cursor()
+            # 从 ingest_records 表查询该场景的文档
+            cursor.execute('''
+                SELECT * FROM ingest_records WHERE scenario_id = ? ORDER BY created_at DESC
+            ''', (scenario_id,))
+            rows = cursor.fetchall()
+        except Exception:
+            # 表可能不存在
+            return []
+        finally:
+            conn.close()
+        return [dict(row) for row in rows]
+
     def get_ontology_scenarios(self, ontology_id: str) -> List[Dict[str, Any]]:
         """获取使用该本体的所有场景绑定"""
         conn = sqlite3.connect(self.db_path)

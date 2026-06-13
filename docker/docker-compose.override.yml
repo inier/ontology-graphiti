@@ -47,23 +47,26 @@ services:
     container_name: graphiti-frontend-dev
     ports:
       - "5173:5173"
+    # 覆盖 base compose 的 80:80（rootless Podman 无法绑定特权端口）
+    # 显式声明 ports 会替换而非合并 base 的端口映射
     volumes:
       # 挂载源代码，支持热重载
+      # 注意：不挂载 package.json，避免覆盖镜像内已安装的 node_modules
       - ../frontend/src:/app/src
       - ../frontend/public:/app/public
       - ../frontend/index.html:/app/index.html
-      - ../frontend/package.json:/app/package.json
       - ../frontend/vite.config.ts:/app/vite.config.ts
       - ../frontend/tsconfig.json:/app/tsconfig.json
       - ../frontend/tsconfig.app.json:/app/tsconfig.app.json
       - ../frontend/tsconfig.node.json:/app/tsconfig.node.json
       - ../frontend/.env.development:/app/.env.development
       - ../frontend/.env.production:/app/.env.production
-      # 使用匿名卷保护 node_modules
-      - /app/node_modules
     environment:
       - NODE_ENV=development
-      - VITE_API_BASE=http://localhost:8000
+      # T049-fix: VITE_API_BASE 留空，让 apiClient 用相对路径 /api/* → vite proxy 转发
+      # 之前设为 http://localhost:8000 让 fetch 跨域，依赖后端 CORS 配置；
+      # 改为相对路径后浏览器走同源 vite proxy，**根除跨域问题**
+      - VITE_API_BASE=
       - PROXY_TARGET=http://app:8000
     networks:
       - graphiti-network

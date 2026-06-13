@@ -5,6 +5,29 @@
 
 ---
 
+## 目录
+
+- [§ 1. 项目概述](#1-项目概述)
+- [§ 2. 快速命令](#2-快速命令)
+  - [§ 2.1 环境准备](#21-环境准备)
+  - [§ 2.2 启动命令（dev vs prod 严格区分）](#22-启动命令dev-vs-prod-严格区分)
+  - [§ 2.3 环境变量速查](#23-环境变量速查)
+- [§ 3. 后端架构](#3-后端架构)
+- [§ 4. 前端架构](#4-前端架构)
+- [§ 5. 关键约定（硬性规则）](#5-关键约定硬性规则)
+- [§ 6. 本地开发及验证流程](#6-本地开发及验证流程)
+- [§ 7. 质量检查](#7-质量检查)
+- [§ 8. 系统架构与数据关系约束](#8-系统架构与数据关系约束)
+- [§ 9. 参考项目约定](#9-参考项目约定)
+- [§ 10. 文档导航](#10-文档导航)
+- [附录](#附录)
+  - [A. 两个 Web 入口（极易混淆）](#a-两个-web-入口极易混淆)
+  - [B. 核心编码规则速查](#b-核心编码规则速查)
+  - [C. 测试规则](#c-测试规则)
+  - [D. 陷阱与禁忌](#d-陷阱与禁忌)
+
+---
+
 ## 1. 项目概述
 
 ODAP 是一个**本体驱动的分析决策平台**，核心能力围绕 Graphiti 双时态知识图谱构建。平台支持用户定义本体（Ontology）、管理多版本本体定义、通过智能体（Agent）进行问答与推演、基于场景进行模拟仿真，最终形成"摄入→构建→问答→执行→反馈"的完整闭环。
@@ -811,3 +834,69 @@ JWT Payload 含 `role` + `ws_id` + `ws_role`（工作空间隔离）。
 9. **SQLite 无连接池** — 每次 connect/close，不要保持长连接
 10. **新增路由必须注册** — 在 `odap/web/app.py` 中 `include_router()`，否则不生效
 11. **开发环境用 Podman 容器** — 不要在宿主机直接 `uvicorn` 或 `npm run dev`，用 `bootstep.py dev/restart`
+
+### E. 端到端操作流程：创建领域智能体（以西游记为例）
+
+以下流程演示如何利用平台现有能力，从零创建一个领域智能体：
+
+```
+Step 1: 登录获取 Token
+  POST /api/auth/login  {"username":"admin","password":"admin123"}
+
+Step 2: 创建工作空间
+  POST /api/workspaces  {"name":"X","description":"西游记测试工作空间"}
+
+Step 3: 创建场景
+  POST /api/workspaces/{ws_id}/scenarios  {"name":"X-2","description":"Journey to the West scenario"}
+
+Step 4: 创建本体
+  POST /api/ontologies  {"name":"XiYouJi","workspace_id":"{ws_id}","scenario_id":"{scenario_id}"}
+
+Step 5: 绑定本体到场景
+  POST /api/workspaces/{ws_id}/scenarios/{scenario_id}/ontologies/{ontology_id}
+
+Step 6: 构建本体类型定义
+  - 对象类型: POST /api/ontologies/{oid}/object-types
+  - 关系类型: POST /api/ontologies/{oid}/link-types
+  - 动作类型: POST /api/ontologies/{oid}/action-types
+  - 过程类型: POST /api/ontologies/{oid}/process-types
+  - 规则类型: POST /api/ontologies/{oid}/rule-types
+  - 逻辑函数: POST /api/ontologies/{oid}/function-types
+  - 指标类型: POST /api/ontologies/{oid}/indicator-types
+
+Step 7: 提交本体版本
+  POST /api/ontologies/{oid}/commit  {"message":"Initial ontology"}
+
+Step 8: 摄入知识数据
+  POST /api/ingest/unified  {"source_type":"natural_language","text":"...","scenario_id":"...","workspace_id":"..."}
+
+Step 9: 创建智能体
+  POST /api/agent-management  {"name":"xiyouji-agent","display_name":"XiYouJi Agent","workspace_id":"{ws_id}",...}
+
+Step 10: 智能问答
+  - Agent Chat: POST /api/agent/chat  {"message":"...","workspace_id":"{ws_id}"}
+  - QA 引擎:   POST /api/qa/ask  {"question":"...","workspace_id":"{ws_id}","scenario_id":"{scenario_id}"}
+  - Agent 编排: POST /api/agent/orchestrate  {"query":"...","workspace_id":"{ws_id}","mode":"auto"}
+```
+
+**关键 API 路径速查**：
+
+| 功能 | 路径 |
+|------|------|
+| 工作空间 CRUD | `/api/workspaces` |
+| 场景 CRUD | `/api/workspaces/{ws_id}/scenarios` |
+| 本体 CRUD | `/api/ontologies` |
+| 对象类型 | `/api/ontologies/{oid}/object-types` |
+| 关系类型 | `/api/ontologies/{oid}/link-types` |
+| 动作类型 | `/api/ontologies/{oid}/action-types` |
+| 过程类型 | `/api/ontologies/{oid}/process-types` |
+| 规则类型 | `/api/ontologies/{oid}/rule-types` |
+| 逻辑函数 | `/api/ontologies/{oid}/function-types` |
+| 指标类型 | `/api/ontologies/{oid}/indicator-types` |
+| 本体图谱 | `/api/ontologies/{oid}/graph` |
+| 版本提交 | `/api/ontologies/{oid}/commit` |
+| 统一摄入 | `/api/ingest/unified` |
+| Agent 管理 | `/api/agent-management` |
+| Agent 对话 | `/api/agent/chat` |
+| Agent 编排 | `/api/agent/orchestrate` |
+| QA 问答 | `/api/qa/ask` |
