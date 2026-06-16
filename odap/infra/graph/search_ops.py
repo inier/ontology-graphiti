@@ -155,7 +155,8 @@ class SearchOpsMixin:
     # ------------------------------------------------------------------
     # search_hybrid
     # ------------------------------------------------------------------
-    def search_hybrid(self, query_text: str, top_k: int = 5, vector_weight: float = 0.7, keyword_weight: float = 0.3) -> List[Dict]:
+    def search_hybrid(self, query_text: str, top_k: int = 5, vector_weight: float = 0.7, keyword_weight: float = 0.3,
+                      ontology_ids: List[str] = None, entity_types: List[str] = None) -> List[Dict]:
         """
         混合检索（向量 + 关键词）
 
@@ -164,6 +165,8 @@ class SearchOpsMixin:
             top_k: 返回前k个结果
             vector_weight: 向量检索权重
             keyword_weight: 关键词检索权重
+            ontology_ids: 本体 ID 约束列表（可选，用于过滤结果）
+            entity_types: 实体类型约束列表（可选，用于过滤结果）
 
         Returns:
             检索结果列表
@@ -183,11 +186,24 @@ class SearchOpsMixin:
                     if self.neo4j_driver:
                         try:
                             with self.neo4j_driver.session() as session:
-                                cypher = (
-                                    "MATCH (n) WHERE n.id CONTAINS $q OR n.name CONTAINS $q "
-                                    "RETURN n.id AS id, labels(n) AS labels, properties(n) AS props LIMIT $lmt"
-                                )
-                                result = session.run(cypher, q=query_text, lmt=top_k)
+                                # 根据是否有本体约束选择不同的 Cypher 查询
+                                if ontology_ids or entity_types:
+                                    # 有本体约束时：添加 ontology_id / entity_type 过滤
+                                    cypher = (
+                                        "MATCH (n) "
+                                        "WHERE (n.id CONTAINS $q OR n.name CONTAINS $q) "
+                                        "AND (n.ontology_id IN $ontology_ids OR n.entity_type IN $entity_types) "
+                                        "RETURN n.id AS id, labels(n) AS labels, properties(n) AS props LIMIT $lmt"
+                                    )
+                                    result = session.run(cypher, q=query_text, lmt=top_k,
+                                                         ontology_ids=ontology_ids or [],
+                                                         entity_types=entity_types or [])
+                                else:
+                                    cypher = (
+                                        "MATCH (n) WHERE n.id CONTAINS $q OR n.name CONTAINS $q "
+                                        "RETURN n.id AS id, labels(n) AS labels, properties(n) AS props LIMIT $lmt"
+                                    )
+                                    result = session.run(cypher, q=query_text, lmt=top_k)
                                 keyword_results = [
                                     {
                                         "id": record["id"],
