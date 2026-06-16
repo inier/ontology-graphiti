@@ -5,7 +5,7 @@
 Category: intelligence
 
 迁移状态：
-- RadarSearchSkill: 已迁移到 BaseSkill（新方式）
+- SensorSearchSkill: 已迁移到 BaseSkill（新方式）
 - AnalyzeDomainSkill: 已迁移到 BaseSkill（新方式）
 - register_skill() 保留向后兼容
 """
@@ -34,42 +34,42 @@ manager = GraphManager()
 
 
 # ============================================================
-# RadarSearchSkill（新方式：BaseSkill）
+# SensorSearchSkill（新方式：BaseSkill）
 # ============================================================
 
-class RadarSearchInput(SkillInput):
-    """雷达搜索输入"""
+class SensorSearchInput(SkillInput):
+    """传感器搜索输入"""
     area: Optional[str] = Field(default=None, description="搜索区域（如 'B'、'A'）")
 
 
-class RadarSearchSkill(BaseSkill):
+class SensorSearchSkill(BaseSkill):
     """
-    搜索指定区域的雷达系统
+    搜索指定区域的传感器系统
 
-    使用图谱管理器查询 WeaponSystem 实体，过滤出类型为「雷达」的装备。
+    使用图谱管理器查询 ToolSystem 实体，过滤出类型为「传感器」的装备。
     """
 
     metadata = SkillMetadata(
-        name="search_radar",
-        description="搜索指定区域的雷达",
+        name="search_sensor",
+        description="搜索指定区域的传感器",
         category="intelligence",
         danger_level="low",
         requires_opa_check=False,
-        input_schema=RadarSearchInput,
+        input_schema=SensorSearchInput,
         version="2.0.0",
     )
-    input_schema = RadarSearchInput
+    input_schema = SensorSearchInput
 
-    def execute(self, input_data: RadarSearchInput) -> SkillOutput:
+    def execute(self, input_data: SensorSearchInput) -> SkillOutput:
         area = input_data.area
-        weapons = manager.query_entities(entity_type="WeaponSystem", area=area)
-        radars = [w for w in weapons if w["properties"].get("type") == "雷达"]
+        weapons = manager.query_entities(entity_type="ToolSystem", area=area)
+        sensors = [w for w in weapons if w["properties"].get("type") == "传感器"]
 
         return SkillOutput(
             success=True,
             data={
-                "radars": radars,
-                "count": len(radars),
+                "sensors": sensors,
+                "count": len(sensors),
                 "area": area or "全局",
             },
             execution_time_ms=0,
@@ -101,15 +101,44 @@ class AnalyzeDomainSkill(BaseSkill):
     def execute(self, input_data: SkillInput) -> SkillOutput:
         stats = manager.get_graph_statistics()
 
+        # 尝试从图谱统计数据中生成动态推荐
+        recommendations = []
+        recommendations_source = "dynamic"
+
+        try:
+            entity_types = stats.get("entity_types", {})
+            total_entities = stats.get("total_entities", 0)
+
+            if total_entities == 0:
+                recommendations.append("当前图谱无数据，建议先摄入数据构建知识图谱")
+            else:
+                # 基于实体类型分布生成推荐
+                for entity_type, count in entity_types.items():
+                    if entity_type == "ToolSystem" and count > 0:
+                        recommendations.append(f"检测到 {count} 个工具系统实体，建议关注其部署态势")
+                    elif entity_type == "Sensor" and count > 0:
+                        recommendations.append(f"检测到 {count} 个传感器实体，建议加强传感器活动监控")
+                    elif entity_type == "Threat" and count > 0:
+                        recommendations.append(f"检测到 {count} 个威胁实体，建议立即评估威胁等级")
+
+                if not recommendations:
+                    recommendations.append("图谱数据正常，暂无特别建议")
+
+        except Exception:
+            # 降级：使用默认推荐
+            recommendations_source = "default"
+            recommendations = [
+                "加强对B区的侦察",
+                "注意对手传感器活动",
+                "准备应对可能的交锋",
+            ]
+
         analysis = {
             "total_entities": stats.get("total_entities", 0),
             "entity_types": stats.get("entity_types", {}),
             "domain_status": "活跃",
-            "recommendations": [
-                "加强对B区的侦察",
-                "注意敌方雷达活动",
-                "准备应对可能的攻击",
-            ],
+            "recommendations": recommendations,
+            "recommendations_source": recommendations_source,
         }
 
         return SkillOutput(
@@ -125,7 +154,7 @@ class AnalyzeDomainSkill(BaseSkill):
 # 创建 BaseSkill 实例
 # ============================================================
 
-_radar_skill = RadarSearchSkill()
+_sensor_skill = SensorSearchSkill()
 _domain_skill = AnalyzeDomainSkill()
 
 
@@ -133,19 +162,19 @@ _domain_skill = AnalyzeDomainSkill()
 # 旧式裸函数（向后兼容，委托给 BaseSkill 实现）
 # ============================================================
 
-def search_radar(area=None):
+def search_sensor(area=None):
     """
-    搜索指定区域的雷达（旧式接口）
+    搜索指定区域的传感器（旧式接口）
 
     Args:
         area: 区域名称
 
     Returns:
-        雷达列表
+        传感器列表
     """
-    result = _radar_skill.run({"area": area})
+    result = _sensor_skill.run({"area": area})
     if result.success:
-        return result.data.get("radars", [])
+        return result.data.get("sensors", [])
     return []
 
 
@@ -168,9 +197,9 @@ def analyze_domain():
 # ============================================================
 
 register_skill(
-    name="search_radar",
-    description="搜索指定区域的雷达",
-    handler=search_radar,
+    name="search_sensor",
+    description="搜索指定区域的传感器",
+    handler=search_sensor,
     category="intelligence",
 )
 
@@ -182,5 +211,5 @@ register_skill(
 )
 
 # 用真正的 BaseSkill 实例覆盖 LegacySkillAdapter
-get_registry().register(_radar_skill)
+get_registry().register(_sensor_skill)
 get_registry().register(_domain_skill)

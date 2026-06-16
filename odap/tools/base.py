@@ -70,23 +70,23 @@ class BaseSkill(ABC):
 
     使用示例::
 
-        class RadarSearchInput(SkillInput):
+        class SensorSearchInput(SkillInput):
             region: str = Field(description="搜索区域")
             scan_depth: str = Field(default="normal")
 
-        class RadarSearchSkill(BaseSkill):
+        class SensorSearchSkill(BaseSkill):
             metadata = SkillMetadata(
-                name="search_radar",
-                description="搜索指定区域的雷达",
+                name="search_sensor",
+                description="搜索指定区域的传感器",
                 category="intelligence",
             )
-            input_schema = RadarSearchInput
+            input_schema = SensorSearchInput
 
             def execute(self, input_data: SkillInput) -> SkillOutput:
                 results = self._do_search(input_data.region)
                 return SkillOutput(
                     success=True,
-                    data={"radars": results},
+                    data={"sensors": results},
                     execution_time_ms=0,
                     skill_name=self.metadata.name,
                     request_id=input_data.request_id,
@@ -505,7 +505,7 @@ class SkillExecutorV2:
             )
 
         if skill_reg.skill.metadata.requires_opa_check and self.opa_manager and user:
-            if not self._check_opa_permission(skill_name, user):
+            if not self._check_opa_permission(skill_name, user, input_data):
                 skill_reg.health_info.failed_calls += 1
                 return SkillOutput(
                     success=False,
@@ -550,6 +550,7 @@ class SkillExecutorV2:
                 )
 
                 skill_reg.status = SkillStatus.READY
+                self._update_health_status(skill_reg)
                 return result
 
             except Exception as e:
@@ -563,6 +564,7 @@ class SkillExecutorV2:
         skill_reg.health_info.failed_calls += 1
         skill_reg.health_info.last_error = last_error
         skill_reg.status = SkillStatus.READY
+        self._update_health_status(skill_reg)
 
         return SkillOutput(
             success=False,
@@ -571,8 +573,46 @@ class SkillExecutorV2:
             skill_name=skill_name
         )
 
-    def _check_opa_permission(self, skill_name: str, user: Dict) -> bool:
-        """检查 OPA 权限"""
+    def _update_health_status(self, skill_reg: SkillRegistration):
+        """根据调用统计自动更新 Skill 健康状态
+
+        规则：
+        - healthy: 成功率 >= 80% 或调用次数 < 5（样本不足）
+        - degraded: 成功率 50%-80% 或连续失败 >= 3 次
+        - unhealthy: 成功率 < 50% 或连续失败 >= 5 次
+        """
+        info = skill_reg.health_info
+        if info.total_calls < 5:
+            # 样本不足，仅根据最近结果判断
+            if info.failed_calls >= 3:
+                info.health = HealthStatus.DEGRADED.value
+            else:
+                info.health = HealthStatus.HEALTHY.value
+            return
+
+        success_rate = info.success_calls / info.total_calls
+
+        if success_rate < 0.5:
+            new_health = HealthStatus.UNHEALTHY.value
+        elif success_rate < 0.8:
+            new_health = HealthStatus.DEGRADED.value
+        else:
+            new_health = HealthStatus.HEALTHY.value
+
+        old_health = info.health
+        if new_health != old_health:
+            logger.info(f"Skill {info.name} health changed: {old_health} → {new_health} "
+                        f"(success_rate={success_rate:.1%}, total={info.total_calls})")
+            info.health = new_health
+
+    def _check_opa_permission(self, skill_name: str, user: Dict,
+                              input_data: Dict = None) -> bool:
+        """检查 OPA 权限
+
+        支持 opa_action 格式 "package:action"（如 "data_collection:search"），
+        自动路由到对应 OPA 包的权限端点。对于爬取操作，从 input_data 提取
+        target_domain 传递给 OPA 策略。
+        """
         if not self.opa_manager:
             return True
 
@@ -585,10 +625,32 @@ class SkillExecutorV2:
             return True
 
         user_role = user.get("role", "guest")
-        result = self.opa_manager.check_permission(
-            user_role, action, {"type": "skill", "id": skill_name}
-        )
-        return result
+
+        # 解析 opa_action 格式 "package:action"
+        if ":" in action:
+            package, action_name = action.split(":", 1)
+            # 构建包级 OPA 输入
+            opa_input = {
+                "role": user_role,
+                "action": action_name,
+            }
+            # 对爬取操作，从 input_data 提取目标域名
+            if action_name == "crawl" and input_data:
+                target_url = input_data.get("url", "")
+                if target_url:
+                    try:
+                        from urllib.parse import urlparse
+                        parsed = urlparse(target_url)
+                        domain = parsed.netloc.replace("www.", "")
+                        opa_input["target_domain"] = domain
+                    except Exception:
+                        pass
+            return self.opa_manager.check_package_permission(package, opa_input)
+        else:
+            # 旧格式：直接使用 domain 包
+            return self.opa_manager.check_permission(
+                user_role, action, {"type": "skill", "id": skill_name}
+            )
 
     def _confirm_dangerous_action(self, skill_name: str, danger_level: str, user: Dict = None) -> bool:
         """检查高危操作是否已确认"""
@@ -599,7 +661,7 @@ class SkillExecutorV2:
         if danger_level == "critical":
             return False
         if danger_level == "high":
-            return user is not None and user.get("role") in ("commander", "admin")
+            return user is not None and user.get("role") in ("director", "admin")
         return True
 
 

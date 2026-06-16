@@ -39,11 +39,11 @@ def simulate_policy_execution(user_role, action, target_type=None):
             "view_intelligence": ["view_intelligence"],
             "request_support": ["request_support"],
             "command_units": ["command_units"],
-            "authorize_attacks": ["authorize_attacks"],
+            "authorize_engagements": ["authorize_engagements"],
             "approve_missions": ["approve_missions"],
             "analyze_data": ["analyze_data"],
             "generate_reports": ["generate_reports"],
-            "attack": ["authorize_attacks"],
+            "engage": ["authorize_engagements"],
             "command": ["command_units"]
         }
 
@@ -56,17 +56,17 @@ def simulate_policy_execution(user_role, action, target_type=None):
                 break
 
         for restriction in restrictions:
-            if restriction == "cannot_attack" and action == "attack":
+            if restriction == "cannot_engage" and action == "engage":
                 result["allowed"] = False
-                result["reason"] = f"角色 {user_role} 被限制执行攻击操作"
+                result["reason"] = f"角色 {user_role} 被限制执行交锋操作"
                 break
             elif restriction == "cannot_command" and action == "command":
                 result["allowed"] = False
                 result["reason"] = f"角色 {user_role} 被限制执行指挥操作"
                 break
-            elif restriction == "cannot_attack_civilian_infrastructure" and target_type == "CivilianInfrastructure":
+            elif restriction == "cannot_engage_public_asset" and target_type == "PublicAsset":
                 result["allowed"] = False
-                result["reason"] = f"角色 {user_role} 被限制攻击民用设施"
+                result["reason"] = f"角色 {user_role} 被限制交锋公共资产"
                 break
 
     if result["allowed"]:

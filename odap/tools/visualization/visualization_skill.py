@@ -28,8 +28,8 @@ def generate_map_overlay(area=None, output_file="map_overlay.json"):
     """
     data = load_simulation_data()
     locations = data.get("locations", [])
-    units = data.get("military_units", [])
-    weapons = data.get("weapon_systems", [])
+    units = data.get("units", [])
+    weapons = data.get("equipment", [])
 
     overlay_features = []
 
@@ -58,7 +58,7 @@ def generate_map_overlay(area=None, output_file="map_overlay.json"):
             continue
 
         affiliation = unit["properties"].get("affiliation", "")
-        color = "#ff7f0e" if affiliation == "Blue Force" else "#d62728"
+        color = "#ff7f0e" if affiliation == "Party B" else "#d62728"
 
         overlay_features.append({
             "type": "Feature",
@@ -69,7 +69,7 @@ def generate_map_overlay(area=None, output_file="map_overlay.json"):
             "properties": {
                 "id": unit["id"],
                 "name": unit["properties"].get("name", ""),
-                "category": "military_unit",
+                "category": "organizational_unit",
                 "color": color,
                 "status": unit["properties"].get("status", "")
             }
@@ -136,13 +136,13 @@ def generate_domain_report():
     stats = manager.get_graph_statistics()
     data = load_simulation_data()
 
-    blue_units = len([u for u in data.get("military_units", []) if u.get("properties", {}).get("affiliation") == "Blue Force"])
-    red_units = len([u for u in data.get("military_units", []) if u.get("properties", {}).get("affiliation") in ["Red Force", "Green Insurgents"]])
+    party_b_units = len([u for u in data.get("units", []) if u.get("properties", {}).get("affiliation") == "Party B"])
+    party_a_units = len([u for u in data.get("units", []) if u.get("properties", {}).get("affiliation") in ["Party A", "Party C"]])
 
-    blue_weapons = len([w for w in data.get("weapon_systems", []) if w.get("properties", {}).get("affiliation") == "Blue Force"])
-    red_weapons = len([w for w in data.get("weapon_systems", []) if w.get("properties", {}).get("affiliation") in ["Red Force", "Green Insurgents"]])
+    party_b_equipment = len([w for w in data.get("equipment", []) if w.get("properties", {}).get("affiliation") == "Party B"])
+    party_a_equipment = len([w for w in data.get("equipment", []) if w.get("properties", {}).get("affiliation") in ["Party A", "Party C"]])
 
-    active_radars = len([w for w in data.get("weapon_systems", []) if w.get("properties", {}).get("type") == "雷达" and w.get("properties", {}).get("status") == "正常"])
+    active_radars = len([w for w in data.get("equipment", []) if w.get("properties", {}).get("type") == "传感器" and w.get("properties", {}).get("status") == "正常"])
 
     report = {
         "status": "success",
@@ -151,16 +151,16 @@ def generate_domain_report():
         "summary": {
             "total_entities": stats.get("total_entities", 0),
             "force_comparison": {
-                "blue_force": {"units": blue_units, "weapons": blue_weapons},
-                "red_force": {"units": red_units, "weapons": red_weapons}
+                "party_b": {"units": party_b_units, "equipment": party_b_equipment},
+                "party_a": {"units": party_a_units, "equipment": party_a_equipment}
             },
-            "active_radars": active_radars,
+            "active_sensors": active_radars,
             "graph_mode": stats.get("mode", "unknown")
         },
         "recommendations": [
-            "持续监控敌方雷达活动",
-            "加强对民用设施的保护",
-            "优化兵力部署"
+            "持续监控对手传感器活动",
+            "加强对公共资产的保护",
+            "优化资源部署"
         ]
     }
 
@@ -186,42 +186,42 @@ def generate_situation_awareness(area=None):
 
         if loc_area not in areas:
             areas[loc_area] = {
-                "blue_units": 0,
-                "red_units": 0,
-                "blue_weapons": 0,
-                "red_weapons": 0,
-                "civilian_facilities": 0,
+                "party_b_units": 0,
+                "party_a_units": 0,
+                "party_b_equipment": 0,
+                "party_a_equipment": 0,
+                "public_assets": 0,
                 "control_level": "unknown"
             }
 
-        for unit in data.get("military_units", []):
+        for unit in data.get("units", []):
             if unit["properties"].get("area") == loc_area:
                 affiliation = unit["properties"].get("affiliation", "")
-                if affiliation == "Blue Force":
-                    areas[loc_area]["blue_units"] += 1
-                elif affiliation in ["Red Force", "Green Insurgents"]:
-                    areas[loc_area]["red_units"] += 1
+                if affiliation == "Party B":
+                    areas[loc_area]["party_b_units"] += 1
+                elif affiliation in ["Party A", "Party C"]:
+                    areas[loc_area]["party_a_units"] += 1
 
-        for weapon in data.get("weapon_systems", []):
+        for weapon in data.get("equipment", []):
             if weapon["properties"].get("area") == loc_area:
                 affiliation = weapon["properties"].get("affiliation", "")
-                if affiliation == "Blue Force":
-                    areas[loc_area]["blue_weapons"] += 1
-                elif affiliation in ["Red Force", "Green Insurgents"]:
-                    areas[loc_area]["red_weapons"] += 1
+                if affiliation == "Party B":
+                    areas[loc_area]["party_b_equipment"] += 1
+                elif affiliation in ["Party A", "Party C"]:
+                    areas[loc_area]["party_a_equipment"] += 1
 
-        for civ in data.get("civilian_infrastructures", []):
+        for civ in data.get("public_assets", []):
             if civ["properties"].get("area") == loc_area:
-                areas[loc_area]["civilian_facilities"] += 1
+                areas[loc_area]["public_assets"] += 1
 
     for loc_area, stats in areas.items():
-        blue_total = stats["blue_units"] + stats["blue_weapons"]
-        red_total = stats["red_units"] + stats["red_weapons"]
+        party_b_total = stats["party_b_units"] + stats["party_b_equipment"]
+        party_a_total = stats["party_a_units"] + stats["party_a_equipment"]
 
-        if blue_total > red_total * 1.5:
-            stats["control_level"] = "blue_dominant"
-        elif red_total > blue_total * 1.5:
-            stats["control_level"] = "red_dominant"
+        if party_b_total > party_a_total * 1.5:
+            stats["control_level"] = "party_b_dominant"
+        elif party_a_total > party_b_total * 1.5:
+            stats["control_level"] = "party_a_dominant"
         else:
             stats["control_level"] = "contested"
 

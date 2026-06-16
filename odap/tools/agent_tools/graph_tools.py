@@ -21,7 +21,7 @@ def query_entities(entity_type: str = None, area: str = None, limit: int = 100) 
     查询图谱中的实体
     
     Args:
-        entity_type: 实体类型（如 WeaponSystem, Entity, Organization 等）
+        entity_type: 实体类型（如 ToolSystem, Entity, Organization 等）
         area: 区域过滤
         limit: 返回数量限制
         

@@ -60,19 +60,19 @@ class DomainVisualization:
         
         color_map = {
             "Location": "#1f77b4",
-            "MilitaryUnit": "#ff7f0e",
-            "WeaponSystem": "#2ca02c",
-            "CivilianInfrastructure": "#d62728",
-            "BattleEvent": "#9467bd",
+            "OrganizationUnit": "#ff7f0e",
+            "ToolSystem": "#2ca02c",
+            "PublicAsset": "#d62728",
+            "IncidentEvent": "#9467bd",
             "Mission": "#8c564b"
         }
-        
+
         size_map = {
             "Location": 300,
-            "MilitaryUnit": 200,
-            "WeaponSystem": 250,
-            "CivilianInfrastructure": 150,
-            "BattleEvent": 100,
+            "OrganizationUnit": 200,
+            "ToolSystem": 250,
+            "PublicAsset": 150,
+            "IncidentEvent": 100,
             "Mission": 180
         }
         
@@ -124,10 +124,10 @@ class DomainVisualization:
         
         color_map = {
             "Location": "#1f77b4",
-            "MilitaryUnit": "#ff7f0e",
-            "WeaponSystem": "#2ca02c",
-            "CivilianInfrastructure": "#d62728",
-            "BattleEvent": "#9467bd",
+            "OrganizationUnit": "#ff7f0e",
+            "ToolSystem": "#2ca02c",
+            "PublicAsset": "#d62728",
+            "IncidentEvent": "#9467bd",
             "Mission": "#8c564b"
         }
         
@@ -156,9 +156,9 @@ class DomainVisualization:
             size = 20
             if node_type == "Location":
                 size = 30
-            elif node_type == "MilitaryUnit":
+            elif node_type == "OrganizationUnit":
                 size = 25
-            elif node_type == "WeaponSystem":
+            elif node_type == "ToolSystem":
                 size = 28
             node_sizes.append(size)
         
@@ -257,7 +257,7 @@ class DomainVisualization:
                 })
 
         for node_id, node_data in graph.nodes(data=True):
-            if node_data.get("entity_type") == "BattleEvent":
+            if node_data.get("entity_type") == "IncidentEvent":
                 actions.append({
                     "id": node_id,
                     "name": node_data.get("description", node_id)[:50],
