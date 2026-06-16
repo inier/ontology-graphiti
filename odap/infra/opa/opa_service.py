@@ -20,6 +20,7 @@ from typing import Optional, Dict, Any, List, Set, Callable
 from dataclasses import dataclass, field
 from enum import Enum
 from datetime import datetime
+from odap.infra.config_composer import get_config
 
 logger = logging.getLogger(__name__)
 
@@ -177,32 +178,32 @@ class ABACPolicyEvaluator:
                 "permissions": ["*"],
                 "restrictions": []
             },
-            "commander": {
-                "permissions": ["view_intelligence", "command_units", "authorize_attacks", "approve_missions"],
-                "restrictions": ["cannot_attack_civilian_infrastructure"],
+            "director": {
+                "permissions": ["view_information", "coordinate_units", "authorize_engagements", "approve_missions"],
+                "restrictions": ["cannot_engage_public_asset"],
                 "attributes": {
                     "clearance_level": "secret",
-                    "max_attack_authority": "strategic"
+                    "max_engage_authority": "strategic"
                 }
             },
             "pilot": {
-                "permissions": ["view_intelligence", "request_support", "operate_weapons"],
-                "restrictions": ["cannot_attack_civilian_infrastructure", "cannot_command"],
+                "permissions": ["view_information", "request_support", "operate_equipment"],
+                "restrictions": ["cannot_engage_public_asset", "cannot_command"],
                 "attributes": {
                     "clearance_level": "confidential",
-                    "max_attack_authority": "tactical"
+                    "max_engage_authority": "tactical"
                 }
             },
             "intelligence_analyst": {
-                "permissions": ["view_intelligence", "analyze_data", "generate_reports"],
-                "restrictions": ["cannot_command", "cannot_attack", "cannot_approve_missions"],
+                "permissions": ["view_information", "analyze_data", "generate_reports"],
+                "restrictions": ["cannot_command", "cannot_engage", "cannot_approve_missions"],
                 "attributes": {
                     "clearance_level": "secret"
                 }
             },
             "operator": {
                 "permissions": ["view_situational_awareness", "operate_systems"],
-                "restrictions": ["cannot_attack", "cannot_command", "cannot_approve_missions"],
+                "restrictions": ["cannot_engage", "cannot_command", "cannot_approve_missions"],
                 "attributes": {
                     "clearance_level": "confidential"
                 }
@@ -232,8 +233,8 @@ class ABACPolicyEvaluator:
 
             if "*" in policy["permissions"] or action in policy["permissions"]:
                 for restriction in policy.get("restrictions", []):
-                    if restriction == "cannot_attack_civilian_infrastructure":
-                        if resource_type == "CivilianInfrastructure" and action == "attack":
+                    if restriction == "cannot_engage_public_asset":
+                        if resource_type == "PublicAsset" and action == "engage":
                             return {"allow": False, "reason": f"Restriction: {restriction}", "evaluated_policies": evaluated}
                     elif restriction == f"cannot_{action}":
                         return {"allow": False, "reason": f"Restriction: {restriction}", "evaluated_policies": evaluated}
@@ -430,7 +431,7 @@ class OPAClient:
     """
 
     def __init__(self, opa_url: str = None, timeout: float = 5.0):
-        self.opa_url = (opa_url or os.getenv("OPA_URL", "http://localhost:8181")).rstrip("/")
+        self.opa_url = (opa_url or get_config("opa.url", "http://localhost:8181")).rstrip("/")
         self.timeout = timeout
 
     def check_permission(self, user_role: str, action: str, resource: Dict) -> bool:
@@ -444,6 +445,24 @@ class OPAClient:
             return response.json().get("result", False)
         except Exception as e:
             raise RuntimeError(f"OPA 调用失败: {e}")
+
+    def check_package_permission(self, package: str, opa_input: Dict) -> bool:
+        """检查指定 OPA 包的权限策略
+
+        Args:
+            package: OPA 包路径，如 "data_collection" → /v1/data/data_collection/allow
+            opa_input: 完整的 OPA 输入数据
+        """
+        try:
+            response = httpx.post(
+                f"{self.opa_url}/v1/data/{package}/allow",
+                json={"input": opa_input},
+                timeout=self.timeout,
+            )
+            response.raise_for_status()
+            return response.json().get("result", False)
+        except Exception as e:
+            raise RuntimeError(f"OPA 包级权限检查失败 ({package}): {e}")
 
     def check_permission_abac(self, user: Dict, action: str,
                              resource: Dict, environment: Dict = None) -> Dict[str, Any]:
@@ -666,6 +685,43 @@ class OPAManager:
         self._record_history(user_role, action, resource, result)
         return result
 
+    def check_package_permission(self, package: str, opa_input: Dict) -> bool:
+        """检查指定 OPA 包的权限策略
+
+        支持 opa_action 格式 "package:action"（如 "data_collection:search"），
+        自动路由到对应 OPA 包的 /v1/data/{package}/allow 端点。
+
+        Args:
+            package: OPA 包路径，如 "data_collection"
+            opa_input: 完整的 OPA 输入数据（含 role, action, target_domain 等）
+        """
+        cache_key = self._generate_cache_key({"package": package, **opa_input})
+
+        cached = self._get_from_cache(cache_key)
+        if cached is not None:
+            return cached.get("allow", False)
+
+        if self.use_mock:
+            logger.debug(f"Using mock OPA for package permission check: {package}")
+            role = opa_input.get("role", "guest")
+            action = opa_input.get("action", "")
+            result = self._mock_check_permission(role, action, {})
+        else:
+            try:
+                result = self.opa_client.check_package_permission(package, opa_input)
+            except Exception as e:
+                if self._fail_mode == "mock":
+                    logger.warning(f"OPA 包级检查异常: {e}, fallback 到 Mock (fail_mode=mock, dev/test only)")
+                    role = opa_input.get("role", "guest")
+                    action = opa_input.get("action", "")
+                    result = self._mock_check_permission(role, action, {})
+                else:
+                    logger.error(f"OPA 包级检查不可用: {e}. 拒绝 {package} 权限 (fail-close).")
+                    result = False  # FAIL-CLOSE
+
+        self._add_to_cache(cache_key, {"allow": result})
+        return result
+
     def check_permission_abac(self, user: Dict, action: str, resource: Dict,
                              environment: Dict = None) -> Dict[str, Any]:
         request = {"user": user, "action": action, "resource": resource}
@@ -723,9 +779,9 @@ class OPAManager:
     def _mock_check_permission(self, user_role: str, action: str, resource: Dict) -> bool:
         logger.warning(f"OPA mock mode: checking permission for role={user_role}, action={action}, resource={resource}")
         roles = {
-            "pilot": {"permissions": ["view_intelligence", "request_support"], "restrictions": ["cannot_attack", "cannot_command"]},
-            "commander": {"permissions": ["view_intelligence", "command_units", "authorize_attacks"], "restrictions": ["cannot_attack_civilian_infrastructure"]},
-            "intelligence_analyst": {"permissions": ["view_intelligence", "analyze_data", "generate_reports"], "restrictions": ["cannot_command", "cannot_attack"]},
+            "pilot": {"permissions": ["view_information", "request_support"], "restrictions": ["cannot_engage", "cannot_command"]},
+            "director": {"permissions": ["view_information", "coordinate_units", "authorize_engagements"], "restrictions": ["cannot_engage_public_asset"]},
+            "intelligence_analyst": {"permissions": ["view_information", "analyze_data", "generate_reports"], "restrictions": ["cannot_command", "cannot_engage"]},
         }
 
         if user_role not in roles:
@@ -736,9 +792,9 @@ class OPAManager:
             return False
 
         for restriction in policy.get("restrictions", []):
-            if restriction == "cannot_attack" and action == "attack":
+            if restriction == "cannot_engage" and action == "engage":
                 return False
-            if restriction == "cannot_attack_civilian_infrastructure" and action == "attack" and resource.get("type") == "CivilianInfrastructure":
+            if restriction == "cannot_engage_public_asset" and action == "engage" and resource.get("type") == "PublicAsset":
                 return False
 
         return True
@@ -1084,8 +1140,8 @@ class ABACService:
 
     def _check_action_permission(self, roles: List[str], action_type: str, action_category: str) -> bool:
         role_permissions = {
-            "commander": ["view", "create", "update", "delete", "approve", "command_units", "authorize_attacks"],
-            "analyst": ["view", "analyze_data", "generate_reports", "view_intelligence"],
+            "director": ["view", "create", "update", "delete", "approve", "coordinate_units", "authorize_engagements"],
+            "analyst": ["view", "analyze_data", "generate_reports", "view_information"],
             "operator": ["view", "perform", "observe"],
             "observer": ["view"],
             "auditor": ["view", "export"],
@@ -1134,12 +1190,12 @@ if __name__ == "__main__":
 
     logger.info('\n测试 ABAC 权限检查:')
     tests = [
-        ({"id": "user1", "roles": ["commander"], "attributes": {"clearance_level": "secret"}},
-         "attack", {"id": "RADAR_01", "type": "WeaponSystem"}, True),
+        ({"id": "user1", "roles": ["director"], "attributes": {"clearance_level": "secret"}},
+         "engage", {"id": "SENSOR_01", "type": "ToolSystem"}, True),
         ({"id": "user2", "roles": ["pilot"], "attributes": {"clearance_level": "confidential"}},
-         "view_intelligence", {"id": "RADAR_01", "type": "WeaponSystem"}, True),
-        ({"id": "user3", "roles": ["commander"], "attributes": {"clearance_level": "secret"}},
-         "attack", {"id": "HOSPITAL_01", "type": "CivilianInfrastructure"}, False),
+         "view_information", {"id": "SENSOR_01", "type": "ToolSystem"}, True),
+        ({"id": "user3", "roles": ["director"], "attributes": {"clearance_level": "secret"}},
+         "engage", {"id": "HOSPITAL_01", "type": "PublicAsset"}, False),
     ]
 
     for user, action, resource, expected in tests:
@@ -1149,9 +1205,9 @@ if __name__ == "__main__":
 
     logger.info('\nWhat-If 分析:')
     what_if = manager.what_if_analysis(
-        {"id": "commander1", "roles": ["commander"], "attributes": {"clearance_level": "secret"}},
-        ["attack", "view_intelligence"],
-        [{"id": "RADAR_01", "type": "WeaponSystem"}, {"id": "HOSPITAL_01", "type": "CivilianInfrastructure"}]
+        {"id": "director1", "roles": ["director"], "attributes": {"clearance_level": "secret"}},
+        ["engage", "view_information"],
+        [{"id": "SENSOR_01", "type": "ToolSystem"}, {"id": "HOSPITAL_01", "type": "PublicAsset"}]
     )
     logger.info(f"  测试了 {what_if['total_actions_tested']} 个操作组合")
 

@@ -143,10 +143,14 @@ class ThoughtGraphService:
         if not thought:
             return {"status": "error", "message": "Thought not found"}
         if graph_manager is None:
-            from odap.infra.graph import GraphManager
-            graph_manager = GraphManager.get_instance()
+            from odap.infra.query import get_graph_write_proxy
+            write_proxy = get_graph_write_proxy()
+        else:
+            # Legacy: if caller passes a graph_manager, wrap it
+            from odap.infra.query import get_graph_write_proxy
+            write_proxy = get_graph_write_proxy()
         try:
-            graph_manager.add_entity(
+            write_proxy.add_entity(
                 entity_id=thought.thought_id,
                 entity_type="Thought",
                 properties={

@@ -36,6 +36,19 @@ class AgentUpdate(BaseModel):
     workspace_id: Optional[str] = None
 
 
+class ResolvedNames(BaseModel):
+    """ID→名称的解析映射，写入时同步生成，查询时直接返回"""
+    workspace_name: str = ""
+    role_names: Dict[str, str] = Field(default_factory=dict)
+    object_names: Dict[str, str] = Field(default_factory=dict)
+    process_names: Dict[str, str] = Field(default_factory=dict)
+    rule_names: Dict[str, str] = Field(default_factory=dict)
+    logic_names: Dict[str, str] = Field(default_factory=dict)
+    indicator_names: Dict[str, str] = Field(default_factory=dict)
+    skill_names: Dict[str, str] = Field(default_factory=dict)
+    knowledge_base_names: Dict[str, str] = Field(default_factory=dict)
+
+
 class Agent(BaseModel):
     agent_id: str
     name: str
@@ -55,4 +68,4 @@ class Agent(BaseModel):
     created_by: str
     created_at: str
     updated_at: str
-    ref_labels: Dict[str, str] = Field(default_factory=dict)
+    resolved_names: ResolvedNames = Field(default_factory=ResolvedNames)

@@ -25,7 +25,7 @@ import {
   ScanOutlined, ThunderboltOutlined, CheckCircleOutlined,
   ClockCircleOutlined, RobotOutlined, ReloadOutlined,
 } from '@ant-design/icons';
-import { apiClient } from '../../shared/services/apiClient';
+import { apiClient } from '@/modules/shared/services/apiClient';
 import {
   STRATEGY_OPTIONS,
   type ConflictStrategy,
@@ -331,7 +331,7 @@ export default function ConflictResolver() {
             key: 'detect',
             label: '检测冲突',
             children: (
-              <Space direction="vertical" size="middle" style={{ width: '100%' }}>
+              <Space orientation="vertical" size="middle" style={{ width: '100%' }}>
                 <Card
                   title="多源数据（演示用 mock）"
                   size="small"
@@ -399,7 +399,7 @@ export default function ConflictResolver() {
             key: 'resolve',
             label: '解决冲突',
             children: selected ? (
-              <Space direction="vertical" size="middle" style={{ width: '100%' }}>
+              <Space orientation="vertical" size="middle" style={{ width: '100%' }}>
                 <Card
                   title={
                     <Space>
@@ -437,7 +437,7 @@ export default function ConflictResolver() {
                     onChange={(e) => setStrategy(e.target.value as ConflictStrategy)}
                     disabled={selected.status !== 'pending'}
                   >
-                    <Space direction="vertical">
+                    <Space orientation="vertical">
                       {STRATEGY_OPTIONS.map((opt) => (
                         <Radio key={opt.value} value={opt.value}>
                           <Space>
@@ -489,7 +489,7 @@ export default function ConflictResolver() {
                       </Space>
                     }
                     description={
-                      <Space direction="vertical" size={4} style={{ width: '100%' }}>
+                      <Space orientation="vertical" size={4} style={{ width: '100%' }}>
                         {lastResult.chosen ? (
                           <Space>
                             <Text>chosen：</Text>

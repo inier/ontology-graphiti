@@ -94,15 +94,15 @@ class SampleDataService:
 
         # 创建10个示例实例（通过对象服务）
         instances = [
-            {"name": "坦克-001", "entity_type": "Equipment"},
-            {"name": "雷达站-001", "entity_type": "Equipment"},
+            {"name": "载具-001", "entity_type": "Equipment"},
+            {"name": "监测站-001", "entity_type": "Equipment"},
             {"name": "通信车-001", "entity_type": "Equipment"},
             {"name": "张指挥", "entity_type": "Personnel"},
             {"name": "李参谋", "entity_type": "Personnel"},
             {"name": "王技师", "entity_type": "Personnel"},
             {"name": "赵班长", "entity_type": "Personnel"},
             {"name": "指挥所", "entity_type": "Facility"},
-            {"name": "弹药库", "entity_type": "Facility"},
+            {"name": "物资库", "entity_type": "Facility"},
             {"name": "训练场", "entity_type": "Facility"},
         ]
 
@@ -128,15 +128,15 @@ class SampleDataService:
         ontology_id = str(uuid.uuid4())
 
         instances = [
-            {"name": "坦克-001", "entity_type": "Equipment"},
-            {"name": "雷达站-001", "entity_type": "Equipment"},
+            {"name": "载具-001", "entity_type": "Equipment"},
+            {"name": "监测站-001", "entity_type": "Equipment"},
             {"name": "通信车-001", "entity_type": "Equipment"},
             {"name": "张指挥", "entity_type": "Personnel"},
             {"name": "李参谋", "entity_type": "Personnel"},
             {"name": "王技师", "entity_type": "Personnel"},
             {"name": "赵班长", "entity_type": "Personnel"},
             {"name": "指挥所", "entity_type": "Facility"},
-            {"name": "弹药库", "entity_type": "Facility"},
+            {"name": "物资库", "entity_type": "Facility"},
             {"name": "训练场", "entity_type": "Facility"},
         ]
 

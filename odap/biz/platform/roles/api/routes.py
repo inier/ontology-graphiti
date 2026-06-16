@@ -110,19 +110,7 @@ async def delete_role(role_id: str,
 @router.get("/permissions/all")
 async def list_permissions(user=Depends(get_current_user)):
     try:
-        from ..storage import SQLiteRoleStorage
-        storage = SQLiteRoleStorage()
-        perms = storage.list_permissions()
-        return [
-            {
-                "id": p.id,
-                "name": p.name,
-                "description": p.description,
-                "scope": p.scope.value if hasattr(p.scope, "value") else p.scope,
-                "actions": p.actions,
-            }
-            for p in perms
-        ]
+        return role_service.list_permissions()
     except HTTPException:
         raise
     except Exception as e:
@@ -191,9 +179,9 @@ async def get_user_roles_in_workspace(user_id: str, workspace_id: str,
 async def bind_skill(role_id: str, binding: SkillBinding,
     user=Depends(get_current_user)):
     try:
-        from ..storage import SQLiteRoleStorage
-        storage = SQLiteRoleStorage()
-        storage.bind_skill(role_id, binding.skill_id, binding.enabled)
+        result = role_service.bind_skill(role_id, binding.skill_id, binding.enabled)
+        if result.get("status") == "error":
+            raise HTTPException(status_code=404, detail=result["message"])
         return {"message": "Skill 绑定成功", "skill_id": binding.skill_id}
     except HTTPException:
         raise
@@ -205,11 +193,9 @@ async def bind_skill(role_id: str, binding: SkillBinding,
 async def unbind_skill(role_id: str, skill_id: str,
     user=Depends(get_current_user)):
     try:
-        from ..storage import SQLiteRoleStorage
-        storage = SQLiteRoleStorage()
-        success = storage.unbind_skill(role_id, skill_id)
-        if not success:
-            raise HTTPException(status_code=404, detail="Skill 绑定不存在")
+        result = role_service.unbind_skill(role_id, skill_id)
+        if result.get("status") == "error":
+            raise HTTPException(status_code=404, detail=result["message"])
         return {"message": "Skill 解绑成功"}
     except HTTPException:
         raise
@@ -221,9 +207,7 @@ async def unbind_skill(role_id: str, skill_id: str,
 async def get_role_skills(role_id: str,
     user=Depends(get_current_user)):
     try:
-        from ..storage import SQLiteRoleStorage
-        storage = SQLiteRoleStorage()
-        return storage.get_role_skills(role_id)
+        return role_service.get_role_skills(role_id)
     except HTTPException:
         raise
     except Exception as e:
@@ -234,9 +218,9 @@ async def get_role_skills(role_id: str,
 async def bind_policy(role_id: str, binding: PolicyBinding,
     user=Depends(get_current_user)):
     try:
-        from ..storage import SQLiteRoleStorage
-        storage = SQLiteRoleStorage()
-        storage.bind_policy(role_id, binding.policy_id, binding.priority, binding.enabled)
+        result = role_service.bind_policy(role_id, binding.policy_id, binding.priority, binding.enabled)
+        if result.get("status") == "error":
+            raise HTTPException(status_code=404, detail=result["message"])
         return {"message": "Policy 绑定成功", "policy_id": binding.policy_id}
     except HTTPException:
         raise
@@ -248,11 +232,9 @@ async def bind_policy(role_id: str, binding: PolicyBinding,
 async def unbind_policy(role_id: str, policy_id: str,
     user=Depends(get_current_user)):
     try:
-        from ..storage import SQLiteRoleStorage
-        storage = SQLiteRoleStorage()
-        success = storage.unbind_policy(role_id, policy_id)
-        if not success:
-            raise HTTPException(status_code=404, detail="Policy 绑定不存在")
+        result = role_service.unbind_policy(role_id, policy_id)
+        if result.get("status") == "error":
+            raise HTTPException(status_code=404, detail=result["message"])
         return {"message": "Policy 解绑成功"}
     except HTTPException:
         raise
@@ -264,9 +246,7 @@ async def unbind_policy(role_id: str, policy_id: str,
 async def get_role_policies(role_id: str,
     user=Depends(get_current_user)):
     try:
-        from ..storage import SQLiteRoleStorage
-        storage = SQLiteRoleStorage()
-        return storage.get_role_policies(role_id)
+        return role_service.get_role_policies(role_id)
     except HTTPException:
         raise
     except Exception as e:

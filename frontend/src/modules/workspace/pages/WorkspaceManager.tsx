@@ -1,10 +1,10 @@
 import { useState, useEffect } from 'react';
 import { Table, Card, Button, Modal, Form, Input, Space, Tag, message, Row, Col, Statistic, Tabs, Popconfirm } from 'antd';
 import { PlusOutlined, EditOutlined, DeleteOutlined, PlayCircleOutlined, StopOutlined, BuildOutlined } from '@ant-design/icons';
-import { api } from '../../shared/services/api';
-import { useWorkspace, useScenario } from '../../shared/components/AppLayout';
+import { api } from '@/modules/shared/services/api';
+import { useWorkspace, useScenario } from '@/modules/shared/components/AppLayout';
 import { DeleteConfirmModal } from '../components/DeleteConfirmModal';
-import type { Workspace } from '../../shared/services/api';
+import type { Workspace } from '@/modules/shared/services/api';
 
 interface Scenario {
   scenario_id: string;
@@ -23,9 +23,7 @@ export function WorkspaceManager() {
   const { reloadWorkspaces, currentWorkspace } = useWorkspace();
   const { reloadScenarios } = useScenario();
   const [workspaces, setWorkspaces] = useState<Workspace[]>([]);
-  const [scenarios, setScenarios] = useState<Record<string, Scenario[]>>({});
   const [loading, setLoading] = useState(true);
-  const [scenarioLoading, setScenarioLoading] = useState<Record<string, boolean>>({});
   const [modalVisible, setModalVisible] = useState(false);
   const [scenarioModalVisible, setScenarioModalVisible] = useState(false);
   const [editingWorkspace, setEditingWorkspace] = useState<Workspace | null>(null);
@@ -41,22 +39,44 @@ export function WorkspaceManager() {
     loadWorkspaces();
   }, []);
 
+  // 场景列表：当工作空间切换时清空旧数据并重新加载
+  const [currentScenarios, setCurrentScenarios] = useState<Scenario[]>([]);
+  const [currentScenarioLoading, setCurrentScenarioLoading] = useState(false);
+
   useEffect(() => {
     if (activeTab === 'scenarios' && currentWorkspace) {
-      // 当切换到场景管理 tab 时，加载当前工作空间的场景
-      // 每次 currentWorkspace 变化时都重新加载
-      loadScenarios(currentWorkspace);
+      loadScenariosForTab(currentWorkspace);
+    } else {
+      setCurrentScenarios([]);
     }
   }, [activeTab, currentWorkspace]);
+
+  const loadScenariosForTab = async (workspaceId: string) => {
+    try {
+      setCurrentScenarioLoading(true);
+      const data = await api.getScenariosInWorkspace(workspaceId);
+      setCurrentScenarios(data.scenarios || []);
+    } catch (error) {
+      console.error('加载场景失败', error);
+      message.error('加载场景失败');
+    } finally {
+      setCurrentScenarioLoading(false);
+    }
+  };
 
   const loadWorkspaces = async () => {
     try {
       setLoading(true);
       const data = await api.listWorkspaces();
       setWorkspaces(data);
-    } catch (error) {
+    } catch (error: any) {
+      // T049-style: 透传真实错误，便于诊断 HTTP 401/403/500/CORS/超时
+      const detail =
+        error?.message ||
+        (typeof error === 'string' ? error : JSON.stringify(error)) ||
+        '未知错误';
       console.error('加载工作空间失败', error);
-      message.error('加载工作空间失败');
+      message.error(`加载工作空间失败: ${detail}`);
     } finally {
       setLoading(false);
     }
@@ -143,20 +163,6 @@ export function WorkspaceManager() {
     }
   };
 
-  // 场景相关函数
-  const loadScenarios = async (workspaceId: string) => {
-    try {
-      setScenarioLoading(prev => ({ ...prev, [workspaceId]: true }));
-      const data = await api.getScenariosInWorkspace(workspaceId);
-      setScenarios(prev => ({ ...prev, [workspaceId]: data.scenarios }));
-    } catch (error) {
-      console.error('加载场景失败', error);
-      message.error('加载场景失败');
-    } finally {
-      setScenarioLoading(prev => ({ ...prev, [workspaceId]: false }));
-    }
-  };
-
   const handleCreateScenario = (workspaceId: string) => {
     setEditingScenario({ workspaceId, scenario: null });
     scenarioForm.resetFields();
@@ -177,7 +183,7 @@ export function WorkspaceManager() {
     try {
       await api.deleteScenario(workspaceId, scenarioId);
       message.success('删除成功');
-      loadScenarios(workspaceId);
+      loadScenariosForTab(workspaceId);
       reloadScenarios();
     } catch (error) {
       console.error('删除失败', error);
@@ -191,7 +197,7 @@ export function WorkspaceManager() {
       const result = await api.buildGraph(workspaceId, scenarioId);
       hide();
       message.success(`构建成功！抽取了 ${result.entity_count} 个实体，${result.event_count} 个事件`);
-      loadScenarios(workspaceId);
+      loadScenariosForTab(workspaceId);
     } catch (error) {
       hide();
       console.error('构建图谱失败', error);
@@ -223,7 +229,7 @@ export function WorkspaceManager() {
         message.success('创建成功');
       }
       setScenarioModalVisible(false);
-      loadScenarios(editingScenario.workspaceId);
+      loadScenariosForTab(editingScenario.workspaceId);
       reloadScenarios();
     } catch (error) {
       console.error('操作失败', error);
@@ -332,7 +338,7 @@ export function WorkspaceManager() {
 
   const activeCount = workspaces.filter(w => w.status === 'active').length;
   const inactiveCount = workspaces.filter(w => w.status !== 'active').length;
-  const totalScenarioCount = Object.values(scenarios).reduce((sum, s) => sum + s.length, 0);
+  const totalScenarioCount = currentScenarios.length;
 
   const scenarioColumns = [
     {
@@ -475,9 +481,9 @@ export function WorkspaceManager() {
                   >
                     <Table
                       columns={scenarioColumns}
-                      dataSource={scenarios[currentWorkspace] || []}
+                      dataSource={currentScenarios}
                       rowKey="scenario_id"
-                      loading={scenarioLoading[currentWorkspace]}
+                      loading={currentScenarioLoading}
                       pagination={{ pageSize: 10 }}
                     />
                   </Card>

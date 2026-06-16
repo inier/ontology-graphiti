@@ -16,19 +16,35 @@ class Disambiguator:
         if hasattr(self, "_initialized"):
             return
         self._synonyms: Dict[str, List[str]] = {
-            "雷达": ["radar", "雷达站", "探测设备"],
+            "传感器": ["sensor", "探测设备", "监测站"],
             "目标": ["target", "对象", "标的"],
-            "威胁": ["threat", "危险", "风险"],
-            "单位": ["unit", "部队", "编队"],
-            "指挥官": ["commander", "指挥员", "指挥"],
-            "情报": ["intelligence", "信息", "intel"],
+            "风险": ["risk", "危险", "威胁"],
+            "单位": ["unit", "组织", "编队"],
+            "负责人": ["principal", "主管", "负责人"],
+            "信息": ["information", "情报", "info"],
         }
         self._expansion_rules: List[Dict[str, Any]] = [
             {"pattern": "状态", "expansion": ["当前状态", "运行状态", "系统状态"]},
             {"pattern": "位置", "expansion": ["坐标位置", "地理位置", "部署位置"]},
-            {"pattern": "能力", "expansion": ["作战能力", "侦察能力", "防护能力"]},
+            {"pattern": "能力", "expansion": ["作业能力", "监测能力", "防护能力"]},
         ]
         self._initialized = True
+
+    def reset(self):
+        """重置为默认状态（用于测试，避免单例污染）"""
+        self._synonyms = {
+            "传感器": ["sensor", "探测设备", "监测站"],
+            "目标": ["target", "对象", "标的"],
+            "风险": ["risk", "危险", "威胁"],
+            "单位": ["unit", "组织", "编队"],
+            "负责人": ["principal", "主管", "负责人"],
+            "信息": ["information", "情报", "info"],
+        }
+        self._expansion_rules = [
+            {"pattern": "状态", "expansion": ["当前状态", "运行状态", "系统状态"]},
+            {"pattern": "位置", "expansion": ["坐标位置", "地理位置", "部署位置"]},
+            {"pattern": "能力", "expansion": ["作业能力", "监测能力", "防护能力"]},
+        ]
 
     def disambiguate(self, term: str) -> Dict[str, Any]:
         canonical = self._find_canonical(term)
@@ -79,3 +95,47 @@ class Disambiguator:
 
     def get_expansion_rules(self) -> List[Dict[str, Any]]:
         return list(self._expansion_rules)
+
+    def load_domain(self, domain_name: str, semantic_config: Dict[str, Any]) -> Dict[str, Any]:
+        """从语义配置加载一个领域的术语到 Disambiguator
+
+        Args:
+            domain_name: 领域名（sanguo/xiyou）
+            semantic_config: 语义配置字典，含 canonical_terms 和 expansion_rules
+
+        Returns:
+            加载统计: {"synonyms_added": int, "rules_added": int}
+        """
+        synonyms_added = 0
+        rules_added = 0
+
+        # 加载规范术语及其同义词
+        canonical_terms = semantic_config.get("canonical_terms", {})
+        for canonical, term_info in canonical_terms.items():
+            for synonym in term_info.get("synonyms", []):
+                result = self.add_synonym(canonical, synonym)
+                if result.get("status") == "success":
+                    synonyms_added += 1
+            for synonym in term_info.get("near_synonyms", []):
+                result = self.add_synonym(canonical, synonym)
+                if result.get("status") == "success":
+                    synonyms_added += 1
+            for alias in term_info.get("aliases", []):
+                result = self.add_synonym(canonical, alias)
+                if result.get("status") == "success":
+                    synonyms_added += 1
+
+        # 加载扩展规则
+        expansion_rules = semantic_config.get("expansion_rules", [])
+        for rule in expansion_rules:
+            pattern = rule.get("pattern", "")
+            for exp in rule.get("expansion", []):
+                result = self.add_expansion_rule(pattern, exp)
+                if result.get("status") == "success":
+                    rules_added += 1
+
+        logger.info(
+            "Loaded domain '%s': %d synonyms, %d expansion rules",
+            domain_name, synonyms_added, rules_added
+        )
+        return {"synonyms_added": synonyms_added, "rules_added": rules_added}

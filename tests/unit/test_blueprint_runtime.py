@@ -213,14 +213,15 @@ class TestBlueprintRuntimeNodeHandlers:
         node_states = detail["node_states"]
         assert node_states["n2"]["state"] == "failed"
 
-    def test_no_handler_simulates_node(self):
+    def test_no_handler_skips_node(self):
         svc = _make_blueprint_service()
         engine = _make_engine(svc)
         engine.start_execution("exec-072", "bp-001")
         detail = engine.get_execution("exec-072")
         assert detail["execution_status"] == "completed"
         for nid, ns in detail["node_states"].items():
-            assert ns["output"] == {"simulated": True}
+            assert ns["state"] == "skipped"
+            assert ns["output"] == {"skipped_reason": "no_handler_registered"}
 
 
 class TestBlueprintRuntimeExecutionOrder:

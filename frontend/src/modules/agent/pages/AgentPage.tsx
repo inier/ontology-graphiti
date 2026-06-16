@@ -1,10 +1,24 @@
 import { useState } from 'react';
-import { Card, Input, Button, Timeline, Table, Tag, Space, Spin, Typography, Tabs, Descriptions } from 'antd';
+import { Card, Input, Button, Timeline, Table, Tag, Space, Spin, Typography, Tabs, Descriptions, Tooltip } from 'antd';
 import { SendOutlined, ThunderboltOutlined, BranchesOutlined } from '@ant-design/icons';
 import { useAgentStore } from '../stores/agentStore';
 import type { DecisionStep } from '../services/agentApi';
 
 const { Title, Text } = Typography;
+
+/** 截断 UUID 显示，保留前 8 位 */
+const shortId = (id: string) => id.length > 12 ? id.slice(0, 8) : id;
+
+/** 格式化 ISO 时间戳为可读格式 */
+const formatTime = (ts: string) => {
+  if (!ts) return '—';
+  try {
+    const d = new Date(ts);
+    return d.toLocaleString('zh-CN', { month: '2-digit', day: '2-digit', hour: '2-digit', minute: '2-digit', second: '2-digit' });
+  } catch {
+    return ts;
+  }
+};
 
 const PHASE_COLORS: Record<string, string> = {
   observe: 'blue',
@@ -34,10 +48,27 @@ export function AgentPage() {
   };
 
   const decisionColumns = [
-    { title: 'ID', dataIndex: 'decision_id', key: 'id', ellipsis: true },
-    { title: 'Task', dataIndex: 'task_id', key: 'task', ellipsis: true },
+    {
+      title: 'ID',
+      dataIndex: 'decision_id',
+      key: 'id',
+      width: 100,
+      render: (id: string) => <Tooltip title={id}>{shortId(id)}</Tooltip>,
+    },
+    {
+      title: 'Task',
+      dataIndex: 'task_id',
+      key: 'task',
+      width: 100,
+      render: (id: string) => <Tooltip title={id}>{shortId(id)}</Tooltip>,
+    },
     { title: 'Steps', dataIndex: 'steps_count', key: 'steps' },
-    { title: 'Created', dataIndex: 'created_at', key: 'created', ellipsis: true },
+    {
+      title: 'Created',
+      dataIndex: 'created_at',
+      key: 'created',
+      render: (ts: string) => formatTime(ts),
+    },
     {
       title: 'Action',
       key: 'action',
@@ -60,7 +91,7 @@ export function AgentPage() {
             label: 'Dispatch',
             icon: <ThunderboltOutlined />,
             children: (
-              <Space direction="vertical" style={{ width: '100%' }} size="large">
+              <Space orientation="vertical" style={{ width: '100%' }} size="large">
                 <Card title="Intent Dispatch">
                   <Space.Compact style={{ width: '100%' }}>
                     <Input
@@ -78,8 +109,8 @@ export function AgentPage() {
                   {error && <Text type="danger">{error}</Text>}
 
                   {lastDispatch && (
-                    <Descriptions bordered size="small" style={{ marginTop: 16 }} column={2}>
-                      <Descriptions.Item label="Task ID">{lastDispatch.task_id}</Descriptions.Item>
+                    <Descriptions variant="bordered" size="small" style={{ marginTop: 16 }} column={2}>
+                      <Descriptions.Item label="Task ID"><Tooltip title={lastDispatch.task_id}>{shortId(lastDispatch.task_id)}</Tooltip></Descriptions.Item>
                       <Descriptions.Item label="Assigned Agent">
                         <Tag color="blue">{lastDispatch.assigned_agent}</Tag>
                       </Descriptions.Item>
@@ -118,7 +149,7 @@ export function AgentPage() {
             key: 'chain',
             label: 'Decision Chain',
             children: currentChain ? (
-              <Card title={`Decision Chain: ${currentChain.decision_id}`}>
+              <Card title={<span>Decision Chain: <Tooltip title={currentChain.decision_id}>{shortId(currentChain.decision_id)}</Tooltip></span>}>
                 <Timeline
                   items={currentChain.steps.map((step: DecisionStep) => ({
                     color: PHASE_COLORS[step.phase] || 'gray',

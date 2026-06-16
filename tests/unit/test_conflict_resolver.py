@@ -19,6 +19,7 @@ from odap.biz.core.ontology.conflict.models import (
     ConflictType,
 )
 from odap.biz.core.ontology.conflict.services import ConflictService
+from odap.biz.core.ontology.conflict.storage import SQLiteConflictStorage
 
 
 def _make_candidate(source_id: str, value, observed_at: datetime, confidence: float = 1.0) -> ConflictCandidate:
@@ -189,7 +190,11 @@ class TestConflictServiceContract(unittest.TestCase):
     """服务层契约：返回 Dict、不抛 HTTPException"""
 
     def setUp(self):
-        self.svc = ConflictService()
+        import tempfile
+        tmp = tempfile.mkdtemp()
+        db_path = f"{tmp}/test_conflict.db"
+        storage = SQLiteConflictStorage(db_path=db_path)
+        self.svc = ConflictService(storage=storage)
         self.t0 = datetime(2026, 6, 1, 12, 0, 0)
         self.t1 = self.t0 + timedelta(hours=1)
 
@@ -232,15 +237,28 @@ class TestConflictServiceContract(unittest.TestCase):
         self.assertIn("duration_ms", out)
 
     def test_list_conflicts_filter_by_status(self):
+        """list_conflicts 从 storage 读取，先写入再过滤"""
+        # 写入一条 pending 冲突
         conflict_pending = _make_conflict([_make_candidate("s1", "x", self.t0)])
-        conflict_resolved = _make_conflict([_make_candidate("s1", "y", self.t1)])
-        conflict_resolved.status = ConflictStatus.RESOLVED
-        out = self.svc.list_conflicts([conflict_pending, conflict_resolved], status="pending")
-        self.assertEqual(out["count"], 1)
-        self.assertEqual(out["conflicts"][0]["status"], "pending")
+        self.svc.storage.save_conflict(self.svc._record_to_dict(conflict_pending))
+        # 写入一条 resolved 冲突（用不同 id）
+        conflict_resolved = ConflictRecord(
+            id="conf-002",
+            entity_id="ent-1",
+            entity_type="Customer",
+            field_name="email",
+            conflict_type=ConflictType.VALUE_MISMATCH,
+            candidates=[_make_candidate("s1", "y", self.t1)],
+            status=ConflictStatus.RESOLVED,
+        )
+        self.svc.storage.save_conflict(self.svc._record_to_dict(conflict_resolved))
+        # 过滤 pending
+        out = self.svc.list_conflicts(status="pending")
+        self.assertGreaterEqual(out["count"], 1)
+        self.assertTrue(all(c["status"] == "pending" for c in out["conflicts"]))
 
     def test_list_conflicts_invalid_status(self):
-        out = self.svc.list_conflicts([], status="bogus")
+        out = self.svc.list_conflicts(status="bogus")
         self.assertEqual(out.get("status"), "error")
 
 

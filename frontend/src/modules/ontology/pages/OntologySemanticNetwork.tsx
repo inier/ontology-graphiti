@@ -1,29 +1,21 @@
 import { useState, useEffect, useCallback } from 'react';
 import { Row, Col, Card, Drawer, Descriptions, Tag, Spin, Button, Space, message, Statistic, Tabs, Select, Input, Modal, Empty, Tooltip } from 'antd';
 import { InfoCircleOutlined, ApartmentOutlined, DatabaseOutlined, SaveOutlined, ReloadOutlined, PlusOutlined } from '@ant-design/icons';
-import { GraphCanvas } from '../components/GraphCanvas';
+import { GraphCanvas } from '@/modules/shared/modules/graph';
 import { OntologySchemaViewer } from '../components/OntologySchemaViewer';
-import { useScenario, useWorkspace, useOntologyVersion } from '../../shared/components/AppLayout';
-import { api } from '../../shared/services/api';
-import { EmptyState } from '../../shared/components/organisms';
+import { useScenario, useWorkspace, useOntologyVersion } from '@/modules/shared/components/AppLayout';
+import { api } from '@/modules/shared/services/api';
+import { EmptyState } from '@/modules/shared/components/organisms';
+import { useGlobalLoading } from '@/modules/shared/stores/globalLoadingStore';
+import type { GraphNode as SharedGraphNode, GraphEdge as SharedGraphEdge } from '@/modules/shared/modules/graph';
 
-interface GraphNode {
-  id: string;
-  name: string;
-  type: string;
-  side?: string;
-  properties?: Record<string, unknown>;
+interface GraphNode extends SharedGraphNode {
   cluster?: string | null;
   type_definition_id?: string | null;
   type_definition_name?: string | null;
 }
 
-interface GraphEdge {
-  id: string;
-  source: string;
-  target: string;
-  type: string;
-}
+interface GraphEdge extends SharedGraphEdge {}
 
 interface SemanticMapCluster {
   cluster_id: string;
@@ -84,6 +76,7 @@ export function OntologySemanticNetwork() {
   const { currentScenario, scenarios } = useScenario();
   const { currentWorkspace } = useWorkspace();
   const { currentVersionId: scenarioVersionId } = useOntologyVersion();
+  const { show: showGlobalLoading, hide: hideGlobalLoading } = useGlobalLoading();
   const [nodes, setNodes] = useState<GraphNode[]>([]);
   const [edges, setEdges] = useState<GraphEdge[]>([]);
   const [clusters, setClusters] = useState<SemanticMapCluster[]>([]);
@@ -155,10 +148,11 @@ export function OntologySemanticNetwork() {
   const loadSemanticMapGraph = useCallback(async (mapId: string) => {
     try {
       setLoading(true);
+      showGlobalLoading('加载语义地图数据...');
       const result = await api.getSemanticMapGraph(mapId);
       const graphNodes: GraphNode[] = result.nodes.map(n => ({
         id: n.id,
-        name: n.name,
+        label: n.name,
         type: n.type,
         properties: n.properties,
         cluster: n.cluster,
@@ -184,6 +178,7 @@ export function OntologySemanticNetwork() {
       message.error('加载语义地图图谱失败');
     } finally {
       setLoading(false);
+      hideGlobalLoading();
     }
   }, []);
 
@@ -191,12 +186,13 @@ export function OntologySemanticNetwork() {
     if (!currentWorkspace) return;
     try {
       setLoading(true);
+      showGlobalLoading('加载语义地图数据...');
 
       if (versionId && versionId !== 'latest') {
         const versionData = await api.getVersionOntologyData(currentWorkspace, scenarioId, versionId);
         const graphNodes: GraphNode[] = versionData.entities.map((e: any) => ({
           id: e.entity_id,
-          name: e.name,
+          label: e.name,
           type: e.entity_type,
           side: e.side,
           properties: e.properties
@@ -232,7 +228,7 @@ export function OntologySemanticNetwork() {
 
         const graphNodes: GraphNode[] = entitiesList.map((e: Entity) => ({
           id: e.entity_id,
-          name: e.name,
+          label: e.name,
           type: e.entity_type,
           side: e.side,
           properties: e.properties
@@ -259,6 +255,7 @@ export function OntologySemanticNetwork() {
       message.error('加载语义网络失败');
     } finally {
       setLoading(false);
+      hideGlobalLoading();
     }
   }, [currentWorkspace]);
 
@@ -397,7 +394,7 @@ export function OntologySemanticNetwork() {
       Event: 'red',
       Organization: 'purple',
       Person: 'cyan',
-      Weapon: 'magenta'
+      Tool: 'magenta'
     };
     return colors[type] || 'default';
   };
@@ -547,9 +544,7 @@ export function OntologySemanticNetwork() {
             <Col span={24}>
               {loading ? (
                 <Card style={{ borderRadius: 8 }}>
-                  <div style={{ textAlign: 'center', padding: 100 }}>
-                    <Spin description="加载语义地图数据..." />
-                  </div>
+                  <div style={{ minHeight: 200 }} />
                 </Card>
               ) : nodes.length === 0 ? (
                 <Card style={{ borderRadius: 8 }}>
@@ -628,9 +623,9 @@ export function OntologySemanticNetwork() {
         onClose={() => { setSelectedNode(null); setSelectedEdge(null); }}
       >
         {selectedNode && (
-          <Descriptions column={1} bordered>
+          <Descriptions column={1} variant="bordered">
             <Descriptions.Item label="节点ID">{selectedNode.id}</Descriptions.Item>
-            <Descriptions.Item label="名称">{selectedNode.name}</Descriptions.Item>
+            <Descriptions.Item label="名称">{selectedNode.label}</Descriptions.Item>
             <Descriptions.Item label="类型">
               <Tag color={getEntityTypeColor(selectedNode.type)}>{selectedNode.type}</Tag>
             </Descriptions.Item>
@@ -646,8 +641,8 @@ export function OntologySemanticNetwork() {
             )}
             <Descriptions.Item label="方位">
               {selectedNode.side ? (
-                <Tag color={selectedNode.side === 'red' ? 'red' : 'blue'}>
-                  {selectedNode.side === 'red' ? '红方' : '蓝方'}
+                <Tag color={selectedNode.side === 'party_a' ? 'red' : 'blue'}>
+                  {selectedNode.side === 'party_a' ? '甲方' : '乙方'}
                 </Tag>
               ) : (
                 '-'
@@ -668,7 +663,7 @@ export function OntologySemanticNetwork() {
             </Descriptions.Item>
             <Descriptions.Item label="关联关系">
               {edges.filter(e => e.source === selectedNode.id || e.target === selectedNode.id).length > 0 ? (
-                <Space direction="vertical">
+                <Space orientation="vertical">
                   {edges
                     .filter(e => e.source === selectedNode.id || e.target === selectedNode.id)
                     .slice(0, 10)
@@ -677,7 +672,7 @@ export function OntologySemanticNetwork() {
                       const relatedNode = nodes.find(n => n.id === relatedNodeId);
                       return (
                         <Tag key={idx}>
-                          {edge.type}: {relatedNode?.name || relatedNodeId}
+                          {edge.type}: {relatedNode?.label || relatedNodeId}
                         </Tag>
                       );
                     })}
@@ -689,16 +684,16 @@ export function OntologySemanticNetwork() {
           </Descriptions>
         )}
         {selectedEdge && (
-          <Descriptions column={1} bordered>
+          <Descriptions column={1} variant="bordered">
             <Descriptions.Item label="边ID">{selectedEdge.id}</Descriptions.Item>
             <Descriptions.Item label="类型">
               <Tag color="blue">{selectedEdge.type}</Tag>
             </Descriptions.Item>
             <Descriptions.Item label="源节点">
-              {nodes.find((n) => n.id === selectedEdge.source)?.name || selectedEdge.source}
+              {nodes.find((n) => n.id === selectedEdge.source)?.label || selectedEdge.source}
             </Descriptions.Item>
             <Descriptions.Item label="目标节点">
-              {nodes.find((n) => n.id === selectedEdge.target)?.name || selectedEdge.target}
+              {nodes.find((n) => n.id === selectedEdge.target)?.label || selectedEdge.target}
             </Descriptions.Item>
           </Descriptions>
         )}

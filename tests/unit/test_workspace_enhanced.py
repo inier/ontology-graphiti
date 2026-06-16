@@ -94,11 +94,11 @@ class TestScenarioService:
 
         result = scenario_service.create_scenario(
             workspace_id=ws.id,
-            name="Battle Scenario",
+            name="Conflict Scenario",
             description="test scenario",
         )
         assert "scenario_id" in result
-        assert result["name"] == "Battle Scenario"
+        assert result["name"] == "Conflict Scenario"
         assert result["workspace_id"] == ws.id
 
     def test_list_scenarios(self, scenario_service):

@@ -437,6 +437,70 @@ interface NodeDetailPanelProps {
 
 ### 9.1 加载状态
 
+#### 9.1.1 全局 Loading（GlobalLoading）
+
+全局 Loading 必须在 Layout 层级复用，浮于页面内容之上，不占用文档流空间。
+
+**规则：**
+- 全局 Loading 必须使用 `GlobalLoading` 组件（`shared/components/GlobalLoading.tsx`），由 `useGlobalLoading` store 控制
+- 禁止在页面/组件中自行创建 `position: fixed` 的全屏 loading 遮罩
+- `GlobalLoading` 挂载在 `AppLayout` 的 Content 区域内，通过 `position: absolute` + `inset: 0` 覆盖内容
+- 任何需要页面级 loading 的场景，统一调用 `useGlobalLoading().show(tip, delay)` / `hide()`
+
+**适用场景：**
+- 页面首次加载（如工作空间初始化、本体列表加载）
+- 全局性操作（如工作空间切换后的数据刷新）
+
+**不适用场景（使用局部 Spin）：**
+- 组件内局部操作（搜索、查询、表单提交）→ 用 `<Spin spinning={...}>`
+- Table 翻页 → 用 Table `loading` prop
+- Drawer/Modal 内操作 → 用局部 `<OverlaySpin>`
+
+**组件接口：**
+
+```typescript
+// Store: useGlobalLoading
+interface GlobalLoadingState {
+  visible: boolean;       // 是否显示
+  tip: string;            // 提示文字，默认 "加载中..."
+  delay: number;          // 延迟显示(ms)，避免闪烁，默认 200ms
+  show: (tip?: string, delay?: number) => void;
+  hide: () => void;
+}
+
+// 使用示例
+const { show, hide } = useGlobalLoading();
+show('正在加载数据...', 0);  // delay=0 立即显示
+// ...异步操作
+hide();
+```
+
+**视觉规格：**
+
+| 属性 | 值 |
+|------|-----|
+| 定位 | `position: absolute; inset: 0`（相对于 Layout Content） |
+| 层级 | `z-index: 1000` |
+| 遮罩 | `background: rgba(255, 255, 255, 0.6)` |
+| 模糊 | `backdrop-filter: blur(2px)` |
+| 交互 | `pointer-events: auto`（阻止底层操作） |
+| 旋转器 | Ant Design `<Spin size="large" tip={tip} delay={delay}>` |
+
+#### 9.1.2 局部 OverlaySpin
+
+组件内浮层 loading，不占布局空间：
+
+```typescript
+interface OverlaySpinProps {
+  spinning: boolean;
+  tip?: string;
+  children?: React.ReactNode;
+  minHeight?: number;  // 无 children 时容器最小高度，默认 120px
+}
+```
+
+#### 9.1.3 骨架屏
+
 ```css
 .skeleton {
   background: linear-gradient(90deg, #f0f0f0 25%, #e8e8e8 50%, #f0f0f0 75%);

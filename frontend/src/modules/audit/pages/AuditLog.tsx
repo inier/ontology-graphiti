@@ -1,10 +1,11 @@
 import { useState, useEffect } from 'react';
-import { Table, Card, Select, DatePicker, Row, Col, Tag, Statistic, Button, Space, message } from 'antd';
+import { Table, Card, Select, DatePicker, Row, Col, Tag, Statistic, Button, Space, message, Tabs } from 'antd';
 import { ReloadOutlined } from '@ant-design/icons';
-import { api } from '../../shared/services/api';
-import type { AuditEvent } from '../../shared/services/api';
+import { api } from '@/modules/shared/services/api';
+import type { AuditEvent } from '@/modules/shared/services/api';
 import type { Dayjs } from 'dayjs';
 import dayjs from 'dayjs';
+import { NLQueryAuditPanel } from '@/modules/qa/components/NLQueryAuditPanel';
 
 const { RangePicker } = DatePicker;
 
@@ -201,125 +202,143 @@ export function AuditLog() {
 
   return (
     <div style={{ padding: 24 }}>
-      <Row gutter={[16, 16]}>
-        <Col span={6}>
-          <Card>
-            <Statistic title="总事件数" value={stats?.total ?? 0} loading={loading} />
-          </Card>
-        </Col>
-        <Col span={6}>
-          <Card>
-            <Statistic
-              title="成功事件"
-              value={stats?.by_status?.success ?? 0}
-              styles={{ content: { color: '#52c41a' } }}
-            />
-          </Card>
-        </Col>
-        <Col span={6}>
-          <Card>
-            <Statistic
-              title="失败事件"
-              value={stats?.by_status?.failure ?? 0}
-              styles={{ content: { color: '#ff4d4f' } }}
-            />
-          </Card>
-        </Col>
-        <Col span={6}>
-          <Card>
-            <Statistic
-              title="警告事件"
-              value={stats?.by_status?.warning ?? 0}
-              styles={{ content: { color: '#faad14' } }}
-            />
-          </Card>
-        </Col>
-      </Row>
+      <Tabs
+        defaultActiveKey="system"
+        items={[
+          {
+            key: 'system',
+            label: '系统审计',
+            children: (
+              <>
+                <Row gutter={[16, 16]}>
+                  <Col span={6}>
+                    <Card>
+                      <Statistic title="总事件数" value={stats?.total ?? 0} loading={loading} />
+                    </Card>
+                  </Col>
+                  <Col span={6}>
+                    <Card>
+                      <Statistic
+                        title="成功事件"
+                        value={stats?.by_status?.success ?? 0}
+                        styles={{ content: { color: '#52c41a' } }}
+                      />
+                    </Card>
+                  </Col>
+                  <Col span={6}>
+                    <Card>
+                      <Statistic
+                        title="失败事件"
+                        value={stats?.by_status?.failure ?? 0}
+                        styles={{ content: { color: '#ff4d4f' } }}
+                      />
+                    </Card>
+                  </Col>
+                  <Col span={6}>
+                    <Card>
+                      <Statistic
+                        title="警告事件"
+                        value={stats?.by_status?.warning ?? 0}
+                        styles={{ content: { color: '#faad14' } }}
+                      />
+                    </Card>
+                  </Col>
+                </Row>
 
-      <Card title="审计日志" style={{ marginTop: 16 }}>
-        <Space wrap style={{ marginBottom: 16 }}>
-          <Select
-            placeholder="事件类型"
-            allowClear
-            style={{ width: 150 }}
-            value={filters.event_type}
-            onChange={(value) => handleFilterChange('event_type', value)}
-            options={eventTypeOptions}
-          />
-          <Select
-            placeholder="严重程度"
-            allowClear
-            style={{ width: 120 }}
-            value={filters.severity}
-            onChange={(value) => handleFilterChange('severity', value)}
-            options={severityOptions}
-          />
-          <RangePicker
-            showTime
-            onChange={handleTimeRangeChange}
-            placeholder={['开始时间', '结束时间'] as [string, string]}
-          />
-          <Button icon={<ReloadOutlined />} onClick={handleRefresh}>
-            刷新
-          </Button>
-        </Space>
+                <Card title="审计日志" style={{ marginTop: 16 }}>
+                  <Space wrap style={{ marginBottom: 16 }}>
+                    <Select
+                      placeholder="事件类型"
+                      allowClear
+                      style={{ width: 150 }}
+                      value={filters.event_type}
+                      onChange={(value) => handleFilterChange('event_type', value)}
+                      options={eventTypeOptions}
+                    />
+                    <Select
+                      placeholder="严重程度"
+                      allowClear
+                      style={{ width: 120 }}
+                      value={filters.severity}
+                      onChange={(value) => handleFilterChange('severity', value)}
+                      options={severityOptions}
+                    />
+                    <RangePicker
+                      showTime
+                      onChange={handleTimeRangeChange}
+                      placeholder={['开始时间', '结束时间'] as [string, string]}
+                    />
+                    <Button icon={<ReloadOutlined />} onClick={handleRefresh}>
+                      刷新
+                    </Button>
+                  </Space>
 
-        <Table
-          columns={columns}
-          dataSource={events}
-          rowKey="id"
-          loading={loading}
-          scroll={{ x: 1040 }}
-          pagination={{
-            current: pagination.current,
-            pageSize: pagination.pageSize,
-            total: total,
-            showSizeChanger: true,
-            showQuickJumper: true,
-            showTotal: (tot) => `共 ${tot} 条记录`,
-            onChange: (page, pageSize) => {
-              setPagination({ current: page, pageSize });
-            },
-          }}
-        />
-      </Card>
+                  <Table
+                    columns={columns}
+                    dataSource={events}
+                    rowKey="id"
+                    loading={loading}
+                    scroll={{ x: 1040 }}
+                    pagination={{
+                      current: pagination.current,
+                      pageSize: pagination.pageSize,
+                      total: total,
+                      showSizeChanger: true,
+                      showQuickJumper: true,
+                      showTotal: (tot) => `共 ${tot} 条记录`,
+                      onChange: (page, pageSize) => {
+                        setPagination({ current: page, pageSize });
+                      },
+                    }}
+                  />
+                </Card>
 
-      <Card title="事件统计" style={{ marginTop: 16 }}>
-        <Row gutter={[16, 16]}>
-          <Col span={12}>
-            <Card title="按事件类型" size="small">
-              {stats?.by_type && Object.entries(stats.by_type).length > 0 ? (
-                <Space direction="vertical" style={{ width: '100%' }}>
-                  {Object.entries(stats.by_type).map(([type, count]) => (
-                    <div key={type} style={{ display: 'flex', justifyContent: 'space-between' }}>
-                      <Tag>{type}</Tag>
-                      <span>{count}</span>
-                    </div>
-                  ))}
-                </Space>
-              ) : (
-                <div style={{ textAlign: 'center', color: '#999' }}>暂无数据</div>
-              )}
-            </Card>
-          </Col>
-          <Col span={12}>
-            <Card title="按严重程度" size="small">
-              {stats?.by_severity && Object.entries(stats.by_severity).length > 0 ? (
-                <Space direction="vertical" style={{ width: '100%' }}>
-                  {Object.entries(stats.by_severity).map(([severity, count]) => (
-                    <div key={severity} style={{ display: 'flex', justifyContent: 'space-between' }}>
-                      <Tag color={getSeverityColor(severity)}>{severity.toUpperCase()}</Tag>
-                      <span>{count}</span>
-                    </div>
-                  ))}
-                </Space>
-              ) : (
-                <div style={{ textAlign: 'center', color: '#999' }}>暂无数据</div>
-              )}
-            </Card>
-          </Col>
-        </Row>
-      </Card>
+                <Card title="事件统计" style={{ marginTop: 16 }}>
+                  <Row gutter={[16, 16]}>
+                    <Col span={12}>
+                      <Card title="按事件类型" size="small">
+                        {stats?.by_type && Object.entries(stats.by_type).length > 0 ? (
+                          <Space orientation="vertical" style={{ width: '100%' }}>
+                            {Object.entries(stats.by_type).map(([type, count]) => (
+                              <div key={type} style={{ display: 'flex', justifyContent: 'space-between' }}>
+                                <Tag>{type}</Tag>
+                                <span>{count}</span>
+                              </div>
+                            ))}
+                          </Space>
+                        ) : (
+                          <div style={{ textAlign: 'center', color: '#999' }}>暂无数据</div>
+                        )}
+                      </Card>
+                    </Col>
+                    <Col span={12}>
+                      <Card title="按严重程度" size="small">
+                        {stats?.by_severity && Object.entries(stats.by_severity).length > 0 ? (
+                          <Space orientation="vertical" style={{ width: '100%' }}>
+                            {Object.entries(stats.by_severity).map(([severity, count]) => (
+                              <div key={severity} style={{ display: 'flex', justifyContent: 'space-between' }}>
+                                <Tag color={getSeverityColor(severity)}>{severity.toUpperCase()}</Tag>
+                                <span>{count}</span>
+                              </div>
+                            ))}
+                          </Space>
+                        ) : (
+                          <div style={{ textAlign: 'center', color: '#999' }}>暂无数据</div>
+                        )}
+                      </Card>
+                    </Col>
+                  </Row>
+                </Card>
+              </>
+            ),
+          },
+          {
+            key: 'query',
+            label: '查询审计',
+            children: <NLQueryAuditPanel />,
+          },
+        ]}
+      />
     </div>
   );
 }

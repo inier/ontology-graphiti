@@ -50,7 +50,7 @@ export function BlueprintToolbar({
           </Button>
         </Tooltip>
         <Tooltip title="发布">
-          <Button icon={<RocketOutlined />} onClick={onPublish} disabled={!hasBlueprint}>
+          <Button icon={<RocketOutlined />} onClick={onPublish} disabled={!hasBlueprint} data-tour="blueprint-run-btn">
             发布
           </Button>
         </Tooltip>

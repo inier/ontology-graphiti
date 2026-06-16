@@ -64,6 +64,12 @@ class ApiClient {
       ...options,
       method: 'POST',
       body: JSON.stringify(data),
+      // T049-fix: 显式声明 Content-Type，避免 skipAuth=true 时 Content-Type 丢失
+      // 导致 fetch 用 text/plain charset=UTF-8 发送，FastAPI 报 422 json_invalid
+      headers: {
+        'Content-Type': 'application/json',
+        ...((options?.headers as Record<string, string>) || {}),
+      },
     });
   }
 
@@ -72,6 +78,10 @@ class ApiClient {
       ...options,
       method: 'PUT',
       body: JSON.stringify(data),
+      headers: {
+        'Content-Type': 'application/json',
+        ...((options?.headers as Record<string, string>) || {}),
+      },
     });
   }
 

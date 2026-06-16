@@ -29,9 +29,11 @@ from odap.infra.openharness.agui.agui_handler import (
 # === _PendingInterrupts 状态机测试 ===
 
 class TestPendingInterrupts:
-    def test_add_and_resolve(self):
+    @pytest.mark.asyncio
+    async def test_add_and_resolve(self):
         pending = _PendingInterrupts()
-        fut: asyncio.Future = asyncio.Future()
+        loop = asyncio.get_running_loop()
+        fut = loop.create_future()
         pending.add("t1", "int-1", fut)
         assert pending.resolve("t1", "int-1", {"approved": True}) is True
         assert fut.result() == {"approved": True}
@@ -40,18 +42,22 @@ class TestPendingInterrupts:
         pending = _PendingInterrupts()
         assert pending.resolve("t1", "nonexistent", {}) is False
 
-    def test_resolve_already_done(self):
+    @pytest.mark.asyncio
+    async def test_resolve_already_done(self):
         pending = _PendingInterrupts()
-        fut: asyncio.Future = asyncio.Future()
+        loop = asyncio.get_running_loop()
+        fut = loop.create_future()
         fut.set_result({"old": True})
         pending.add("t1", "int-1", fut)
         # Already done, should return False
         assert pending.resolve("t1", "int-1", {"new": True}) is False
 
-    def test_multiple_interrupts_per_thread(self):
+    @pytest.mark.asyncio
+    async def test_multiple_interrupts_per_thread(self):
         pending = _PendingInterrupts()
-        f1: asyncio.Future = asyncio.Future()
-        f2: asyncio.Future = asyncio.Future()
+        loop = asyncio.get_running_loop()
+        f1 = loop.create_future()
+        f2 = loop.create_future()
         pending.add("t1", "int-1", f1)
         pending.add("t1", "int-2", f2)
         pending.resolve("t1", "int-1", {"x": 1})
@@ -60,29 +66,36 @@ class TestPendingInterrupts:
         pending.resolve("t1", "int-2", {"x": 2})
         assert f2.result() == {"x": 2}
 
-    def test_isolation_between_threads(self):
+    @pytest.mark.asyncio
+    async def test_isolation_between_threads(self):
         pending = _PendingInterrupts()
-        f1: asyncio.Future = asyncio.Future()
+        loop = asyncio.get_running_loop()
+        f1 = loop.create_future()
         pending.add("t1", "int-1", f1)
         # 同一 interruptId 跨 thread 独立
-        pending.add("t2", "int-1", asyncio.Future())
+        f2 = loop.create_future()
+        pending.add("t2", "int-1", f2)
         pending.resolve("t1", "int-1", {"v": 1})
         assert f1.result() == {"v": 1}
 
-    def test_cancel_all(self):
+    @pytest.mark.asyncio
+    async def test_cancel_all(self):
         pending = _PendingInterrupts()
-        f1: asyncio.Future = asyncio.Future()
-        f2: asyncio.Future = asyncio.Future()
+        loop = asyncio.get_running_loop()
+        f1 = loop.create_future()
+        f2 = loop.create_future()
         pending.add("t1", "int-1", f1)
         pending.add("t1", "int-2", f2)
         pending.cancel_all("t1")
         assert f1.cancelled()
         assert f2.cancelled()
 
-    def test_thread_bucket_cleanup(self):
+    @pytest.mark.asyncio
+    async def test_thread_bucket_cleanup(self):
         """当 thread 下所有 interrupt 都 resolve 后，bucket 应被删除。"""
         pending = _PendingInterrupts()
-        f: asyncio.Future = asyncio.Future()
+        loop = asyncio.get_running_loop()
+        f = loop.create_future()
         pending.add("t1", "int-1", f)
         pending.resolve("t1", "int-1", {})
         # 再次 resolve 应返回 False
@@ -92,13 +105,15 @@ class TestPendingInterrupts:
 # === _handle_resume 集成测试 ===
 
 class TestHandleResume:
-    def test_resolve_single_resume(self):
+    @pytest.mark.asyncio
+    async def test_resolve_single_resume(self):
         """resume[] 含一个 entry → resolve 对应 future。"""
         # 重置模块级 _pending
         from odap.infra.openharness.agui import agui_handler
         agui_handler._pending = _PendingInterrupts()
 
-        f: asyncio.Future = asyncio.Future()
+        loop = asyncio.get_running_loop()
+        f = loop.create_future()
         agui_handler._pending.add("t1", "int-1", f)
 
         from odap.infra.openharness.agui.agui_models import (
@@ -112,12 +127,14 @@ class TestHandleResume:
         _handle_resume("t1", resume)
         assert f.result() == {"approved": True}
 
-    def test_resolve_multiple_resume(self):
+    @pytest.mark.asyncio
+    async def test_resolve_multiple_resume(self):
         from odap.infra.openharness.agui import agui_handler
         agui_handler._pending = _PendingInterrupts()
 
-        f1: asyncio.Future = asyncio.Future()
-        f2: asyncio.Future = asyncio.Future()
+        loop = asyncio.get_running_loop()
+        f1 = loop.create_future()
+        f2 = loop.create_future()
         agui_handler._pending.add("t1", "int-1", f1)
         agui_handler._pending.add("t1", "int-2", f2)
 
@@ -132,12 +149,14 @@ class TestHandleResume:
         assert f1.result() == {"a": 1}
         assert f2.result() == {"b": 2}
 
-    def test_cancel_status_cancels_all(self):
+    @pytest.mark.asyncio
+    async def test_cancel_status_cancels_all(self):
         from odap.infra.openharness.agui import agui_handler
         agui_handler._pending = _PendingInterrupts()
 
-        f1: asyncio.Future = asyncio.Future()
-        f2: asyncio.Future = asyncio.Future()
+        loop = asyncio.get_running_loop()
+        f1 = loop.create_future()
+        f2 = loop.create_future()
         agui_handler._pending.add("t1", "int-1", f1)
         agui_handler._pending.add("t1", "int-2", f2)
 

@@ -25,10 +25,10 @@ export function EntityDetailDrawer({ open, entity, onClose }: EntityDetailDrawer
       }
       open={open}
       onClose={onClose}
-      size={720}
+      width={720}
     >
       <Card size="small" style={{ marginBottom: 16 }} title="基本信息">
-        <Descriptions column={1} bordered size="small">
+        <Descriptions column={1} variant="bordered" size="small">
           <Descriptions.Item label="实体ID">
             <Text code copyable style={{ fontSize: 12 }}>{entity.entity_id}</Text>
           </Descriptions.Item>
@@ -97,12 +97,12 @@ export function EntityDetailDrawer({ open, entity, onClose }: EntityDetailDrawer
 
       <Card size="small" style={{ marginTop: 16 }} title={<Space><InfoCircleOutlined /><span>对象与实体关系说明</span></Space>}>
         <Paragraph type="secondary" style={{ fontSize: 12 }}>
-          <Text strong>对象（Object Type）</Text>是本体中定义的类型，如 MilitaryUnit、Location 等。
+          <Text strong>对象（Object Type）</Text>是本体中定义的类型，如 OrganizationUnit、Location 等。
           <Text strong>实体（Entity）</Text>是对象类型的实例，通过 <Text strong>LLM 结构化抽取</Text> 从原始数据中提取。
         </Paragraph>
         <List size="small">
           <List.Item><Tag color="blue">基础属性</Tag><Text type="secondary">实体的基本描述信息，如名称、位置、状态等</Text></List.Item>
-          <List.Item><Tag color="cyan">统计属性</Tag><Text type="secondary">通过计算或评估得出的量化指标，如战斗力、士气等</Text></List.Item>
+          <List.Item><Tag color="cyan">统计属性</Tag><Text type="secondary">通过计算或评估得出的量化指标，如能力指数、士气等</Text></List.Item>
           <List.Item><Tag color="purple">能力属性</Tag><Text type="secondary">实体具备的能力特征，如射程、穿甲能力等</Text></List.Item>
           <List.Item><Tag color="orange">向量存储</Tag><Text type="secondary">非结构化文本的向量表示，用于语义检索和RAG</Text></List.Item>
         </List>

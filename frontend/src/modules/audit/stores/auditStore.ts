@@ -1,6 +1,6 @@
 import { create } from 'zustand';
-import { apiClient } from '../../shared/services/apiClient';
-import { API_BASE } from '../../../config';
+import { apiClient } from '@/modules/shared/services/apiClient';
+import { API_BASE } from '@/config';
 
 interface Policy {
   policy_id: string;

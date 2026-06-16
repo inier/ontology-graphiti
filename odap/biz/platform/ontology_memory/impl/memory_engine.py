@@ -1,7 +1,11 @@
 import math
+import os
 import re
+import logging
 from typing import Dict, Any, List, Optional
 from datetime import datetime, timedelta
+from collections import OrderedDict
+from odap.infra.config_composer import get_config
 from ..interfaces import IOntologyMemoryEngine
 from ..models import (
     MemoryEntry, MemoryType, MemoryStatus, MemoryConsolidation,
@@ -9,10 +13,17 @@ from ..models import (
 )
 from ..storage import Storage
 
+logger = logging.getLogger(__name__)
+
 
 class OntologyMemoryEngine(IOntologyMemoryEngine):
+    # LRU embedding cache (max 1000 entries)
+    _EMBEDDING_CACHE_MAX = 1000
+
     def __init__(self, storage: Storage = None):
         self.storage = storage or Storage()
+        self._embedding_cache: OrderedDict = OrderedDict()
+        self._embedding_client = None  # lazily initialized
 
     def store(self, entry: MemoryEntry) -> MemoryEntry:
         if not entry.keywords:
@@ -85,7 +96,7 @@ class OntologyMemoryEngine(IOntologyMemoryEngine):
     def _vector_search(self, query: str, entry: MemoryEntry) -> float:
         if entry.embedding is None:
             return self._simple_text_similarity(query, entry.content)
-        query_vec = self._simple_embed(query)
+        query_vec = self._embed(query)
         return self._cosine_similarity(query_vec, entry.embedding)
 
     def _keyword_search(self, query_keywords: List[str], entry: MemoryEntry) -> float:
@@ -262,7 +273,96 @@ class OntologyMemoryEngine(IOntologyMemoryEngine):
         union = words1 | words2
         return len(intersection) / len(union)
 
-    def _simple_embed(self, text: str) -> List[float]:
+    def _embed(self, text: str) -> List[float]:
+        """获取文本的嵌入向量，优先使用 API，失败则降级到本地哈希。
+
+        使用 LRU 缓存避免重复计算。
+        """
+        cache_key = text[:512]  # 截断避免超长文本作为 key
+        if cache_key in self._embedding_cache:
+            self._embedding_cache.move_to_end(cache_key)
+            return self._embedding_cache[cache_key]
+
+        result = self._embed_with_api(text)
+        if result is not None:
+            self._cache_embedding(cache_key, result)
+            return result
+
+        legacy = self._legacy_embed(text)
+        self._cache_embedding(cache_key, legacy)
+        return legacy
+
+    def _cache_embedding(self, key: str, vec: List[float]) -> None:
+        """将嵌入向量加入 LRU 缓存。"""
+        self._embedding_cache[key] = vec
+        self._embedding_cache.move_to_end(key)
+        while len(self._embedding_cache) > self._EMBEDDING_CACHE_MAX:
+            self._embedding_cache.popitem(last=False)
+
+    def _get_embedding_client(self):
+        """惰性初始化嵌入客户端。
+
+        优先使用 OPENAI_API_KEY + OPENAI_API_BASE 调用 OpenAI 兼容的 embedding API。
+        如果没有配置 API Key 则返回 None，调用方应降级到 _legacy_embed。
+        """
+        if self._embedding_client is not None:
+            return self._embedding_client
+
+        api_key = get_config("llm.api_key", "")
+        api_base = get_config("llm.api_base", "")
+        if not api_key:
+            return None
+
+        try:
+            import httpx
+            self._embedding_client = {
+                "api_key": api_key,
+                "api_base": api_base.rstrip("/") if api_base else "https://api.openai.com/v1",
+                "model": os.environ.get("EMBEDDING_MODEL", "text-embedding-3-small"),
+                "httpx_client": httpx.Client(timeout=5.0),
+            }
+            return self._embedding_client
+        except ImportError:
+            logger.debug("httpx not available for embedding API, using legacy embed")
+            return None
+        except Exception as e:
+            logger.warning(f"Failed to initialize embedding client: {e}")
+            return None
+
+    def _embed_with_api(self, text: str) -> Optional[List[float]]:
+        """调用 OpenAI 兼容的 embedding API 获取嵌入向量。
+
+        超时 5 秒，任何错误返回 None（调用方降级到 _legacy_embed）。
+        """
+        client_config = self._get_embedding_client()
+        if client_config is None:
+            return None
+
+        try:
+            response = client_config["httpx_client"].post(
+                f"{client_config['api_base']}/embeddings",
+                headers={
+                    "Authorization": f"Bearer {client_config['api_key']}",
+                    "Content-Type": "application/json",
+                },
+                json={
+                    "model": client_config["model"],
+                    "input": text[:8192],  # 截断避免超出 token 限制
+                },
+            )
+            response.raise_for_status()
+            data = response.json()
+            embedding = data["data"][0]["embedding"]
+            return embedding
+        except Exception as e:
+            logger.debug(f"Embedding API call failed, falling back to legacy: {e}")
+            return None
+
+    def _legacy_embed(self, text: str) -> List[float]:
+        """本地字符哈希嵌入（降级方案，8 维向量）。
+
+        仅在 embedding API 不可用时使用。
+        """
         words = re.findall(r'[\u4e00-\u9fff]+|[a-zA-Z]{2,}', text.lower())
         if not words:
             return [0.0] * 8

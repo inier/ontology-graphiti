@@ -24,8 +24,8 @@ import {
 import {
   SaveOutlined, ReloadOutlined, CheckCircleOutlined, CloseCircleOutlined, ThunderboltOutlined,
 } from '@ant-design/icons';
-import { apiClient } from '../../shared/services/apiClient';
-import { useI18n } from '../../shared/hooks/useI18n';
+import { apiClient } from '@/modules/shared/services/apiClient';
+import { useI18n } from '@/modules/shared/hooks/useI18n';
 
 const { Text, Title } = Typography;
 const { TextArea } = Input;

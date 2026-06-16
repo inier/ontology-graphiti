@@ -18,8 +18,8 @@ import {
 import type { ColumnsType } from 'antd/es/table';
 import type { TransferProps } from 'antd';
 import { PlusOutlined, ReloadOutlined, EditOutlined, DeleteOutlined, AppstoreOutlined, LinkOutlined } from '@ant-design/icons';
-import { apiClient } from '../../shared/services/apiClient';
-import { useI18n } from '../../shared/hooks/useI18n';
+import { apiClient } from '@/modules/shared/services/apiClient';
+import { useI18n } from '@/modules/shared/hooks/useI18n';
 import type { PropertyDefinition } from '../services/ontologyApi';
 
 const { Text, Title } = Typography;
@@ -418,7 +418,7 @@ export function MixinConfig({ workspaceId }: MixinConfigProps) {
         okText="保存"
         cancelText="取消"
         width={720}
-        destroyOnClose
+        destroyOnHidden
       >
         <Form form={form} layout="vertical" preserve={false}>
           <Form.Item name="name" label="Mixin 名称" rules={[{ required: true, message: '请输入名称' }]}>

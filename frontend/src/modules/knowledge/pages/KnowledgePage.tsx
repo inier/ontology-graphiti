@@ -4,7 +4,6 @@ import { SearchOutlined, CompassOutlined, BulbOutlined, ToolOutlined, Thunderbol
 import { useKnowledgeStore } from '../stores/knowledgeStore';
 import { knowledgePageApi } from '../services/knowledgePageApi';
 
-const { TabPane } = Tabs;
 const { TextArea } = Input;
 
 export function KnowledgePage() {
@@ -105,112 +104,122 @@ export function KnowledgePage() {
   return (
     <div style={{ padding: 24 }}>
       <Card title="知识导航与语义层配置">
-        <Tabs activeKey={activeTab} onChange={setActiveTab}>
-          <TabPane tab={<span><CompassOutlined /> 知识导航</span>} key="navigation">
-            <Space direction="vertical" style={{ width: '100%' }} size="middle">
-              <Space>
-                <Input
-                  placeholder="输入实体ID"
-                  value={navEntityId}
-                  onChange={(e) => setNavEntityId(e.target.value)}
-                  style={{ width: 300 }}
-                />
-                <select
-                  value={navDirection}
-                  onChange={(e) => setNavDirection(e.target.value)}
-                  style={{ padding: '4px 8px', borderRadius: 4 }}
-                >
-                  <option value="outbound">出向</option>
-                  <option value="inbound">入向</option>
-                  <option value="both">双向</option>
-                </select>
-                <Button type="primary" icon={<SearchOutlined />} loading={loading} onClick={handleNavigate}>
-                  导航
-                </Button>
-              </Space>
-              {navigationResults && (
-                <Descriptions title="导航结果" bordered size="small" column={1}>
-                  <Descriptions.Item label="实体ID">{navigationResults.entity_id}</Descriptions.Item>
-                  <Descriptions.Item label="导航路径">
-                    {navigationResults.navigation_path?.map((p: string, i: number) => (
-                      <Tag key={i}>{p}</Tag>
-                    ))}
-                  </Descriptions.Item>
-                  <Descriptions.Item label="相关实体数">{navigationResults.related_entities?.length || 0}</Descriptions.Item>
-                </Descriptions>
-              )}
-            </Space>
-          </TabPane>
-
-          <TabPane tab={<span><BulbOutlined /> 意图解析</span>} key="intent">
-            <Space direction="vertical" style={{ width: '100%' }} size="middle">
-              <TextArea
-                placeholder="输入自然语言查询..."
-                value={intentInput}
-                onChange={(e) => setIntentInput(e.target.value)}
-                rows={3}
-                style={{ width: '100%' }}
-              />
-              <Space>
-                <Button type="primary" icon={<SearchOutlined />} onClick={handleParseIntent}>
-                  解析意图
-                </Button>
-                <Button icon={<ThunderboltOutlined />} onClick={handlePlanTasks} disabled={!intentResult}>
-                  规划任务
-                </Button>
-              </Space>
-              {intentResult && (
-                <Descriptions title="解析结果" bordered size="small" column={2}>
-                  <Descriptions.Item label="意图">{String(intentResult.intent || '')}</Descriptions.Item>
-                  <Descriptions.Item label="置信度">{String(intentResult.confidence || '')}</Descriptions.Item>
-                  <Descriptions.Item label="实体" span={2}>
-                    {(intentResult.entities as string[])?.map((e: string, i: number) => <Tag key={i}>{e}</Tag>)}
-                  </Descriptions.Item>
-                </Descriptions>
-              )}
-              {taskPlan && (
-                <Card title="任务规划" size="small">
-                  <List
-                    size="small"
-                    dataSource={(taskPlan.tasks as Record<string, unknown>[]) || []}
-                    renderItem={(task: Record<string, unknown>) => (
-                      <List.Item>
-                        <Space>
-                          <Tag>步骤 {String(task.step)}</Tag>
-                          <span>{String(task.description)}</span>
-                          <Tag color="blue">{String(task.task_type)}</Tag>
-                        </Space>
-                      </List.Item>
-                    )}
+        <Tabs activeKey={activeTab} onChange={setActiveTab} items={[
+          {
+            key: 'navigation',
+            label: <span><CompassOutlined /> 知识导航</span>,
+            children: (
+              <Space orientation="vertical" style={{ width: '100%' }} size="middle">
+                <Space>
+                  <Input
+                    placeholder="输入实体ID"
+                    value={navEntityId}
+                    onChange={(e) => setNavEntityId(e.target.value)}
+                    style={{ width: 300 }}
                   />
+                  <select
+                    value={navDirection}
+                    onChange={(e) => setNavDirection(e.target.value)}
+                    style={{ padding: '4px 8px', borderRadius: 4 }}
+                  >
+                    <option value="outbound">出向</option>
+                    <option value="inbound">入向</option>
+                    <option value="both">双向</option>
+                  </select>
+                  <Button type="primary" icon={<SearchOutlined />} loading={loading} onClick={handleNavigate}>
+                    导航
+                  </Button>
+                </Space>
+                {navigationResults && (
+                  <Descriptions title="导航结果" variant="bordered" size="small" column={1}>
+                    <Descriptions.Item label="实体ID">{navigationResults.entity_id}</Descriptions.Item>
+                    <Descriptions.Item label="导航路径">
+                      {navigationResults.navigation_path?.map((p: string, i: number) => (
+                        <Tag key={i}>{p}</Tag>
+                      ))}
+                    </Descriptions.Item>
+                    <Descriptions.Item label="相关实体数">{navigationResults.related_entities?.length || 0}</Descriptions.Item>
+                  </Descriptions>
+                )}
+              </Space>
+            ),
+          },
+          {
+            key: 'intent',
+            label: <span><BulbOutlined /> 意图解析</span>,
+            children: (
+              <Space orientation="vertical" style={{ width: '100%' }} size="middle">
+                <TextArea
+                  placeholder="输入自然语言查询..."
+                  value={intentInput}
+                  onChange={(e) => setIntentInput(e.target.value)}
+                  rows={3}
+                  style={{ width: '100%' }}
+                />
+                <Space>
+                  <Button type="primary" icon={<SearchOutlined />} onClick={handleParseIntent}>
+                    解析意图
+                  </Button>
+                  <Button icon={<ThunderboltOutlined />} onClick={handlePlanTasks} disabled={!intentResult}>
+                    规划任务
+                  </Button>
+                </Space>
+                {intentResult && (
+                  <Descriptions title="解析结果" variant="bordered" size="small" column={2}>
+                    <Descriptions.Item label="意图">{String(intentResult.intent || '')}</Descriptions.Item>
+                    <Descriptions.Item label="置信度">{String(intentResult.confidence || '')}</Descriptions.Item>
+                    <Descriptions.Item label="实体" span={2}>
+                      {(intentResult.entities as string[])?.map((e: string, i: number) => <Tag key={i}>{e}</Tag>)}
+                    </Descriptions.Item>
+                  </Descriptions>
+                )}
+                {taskPlan && (
+                  <Card title="任务规划" size="small">
+                    <List
+                      size="small"
+                      dataSource={(taskPlan.tasks as Record<string, unknown>[]) || []}
+                      renderItem={(task: Record<string, unknown>) => (
+                        <List.Item>
+                          <Space>
+                            <Tag>步骤 {String(task.step)}</Tag>
+                            <span>{String(task.description)}</span>
+                            <Tag color="blue">{String(task.task_type)}</Tag>
+                          </Space>
+                        </List.Item>
+                      )}
+                    />
+                  </Card>
+                )}
+              </Space>
+            ),
+          },
+          {
+            key: 'semantic',
+            label: <span><ToolOutlined /> 语义配置</span>,
+            children: (
+              <Space orientation="vertical" style={{ width: '100%' }} size="middle">
+                <Card title="同义词映射" size="small">
+                  <Space style={{ marginBottom: 16 }}>
+                    <Input placeholder="规范词" value={synonymCanonical} onChange={(e) => setSynonymCanonical(e.target.value)} style={{ width: 150 }} />
+                    <Input placeholder="同义词" value={synonymValue} onChange={(e) => setSynonymValue(e.target.value)} style={{ width: 150 }} />
+                    <Button type="primary" onClick={handleAddSynonym}>添加</Button>
+                    <Button onClick={() => loadSynonyms()}>刷新</Button>
+                  </Space>
+                  <Table columns={synonymColumns} dataSource={synonymData} size="small" pagination={false} />
                 </Card>
-              )}
-            </Space>
-          </TabPane>
-
-          <TabPane tab={<span><ToolOutlined /> 语义配置</span>} key="semantic">
-            <Space direction="vertical" style={{ width: '100%' }} size="middle">
-              <Card title="同义词映射" size="small">
-                <Space style={{ marginBottom: 16 }}>
-                  <Input placeholder="规范词" value={synonymCanonical} onChange={(e) => setSynonymCanonical(e.target.value)} style={{ width: 150 }} />
-                  <Input placeholder="同义词" value={synonymValue} onChange={(e) => setSynonymValue(e.target.value)} style={{ width: 150 }} />
-                  <Button type="primary" onClick={handleAddSynonym}>添加</Button>
-                  <Button onClick={() => loadSynonyms()}>刷新</Button>
-                </Space>
-                <Table columns={synonymColumns} dataSource={synonymData} size="small" pagination={false} />
-              </Card>
-              <Card title="扩写规则" size="small">
-                <Space style={{ marginBottom: 16 }}>
-                  <Input placeholder="模式" value={rulePattern} onChange={(e) => setRulePattern(e.target.value)} style={{ width: 150 }} />
-                  <Input placeholder="扩写" value={ruleExpansion} onChange={(e) => setRuleExpansion(e.target.value)} style={{ width: 150 }} />
-                  <Button type="primary" onClick={handleAddExpansionRule}>添加</Button>
-                  <Button onClick={() => loadExpansionRules()}>刷新</Button>
-                </Space>
-                <Table columns={expansionColumns} dataSource={expansionRules.map((r, i) => ({ key: i, ...r }))} size="small" pagination={false} />
-              </Card>
-            </Space>
-          </TabPane>
-        </Tabs>
+                <Card title="扩写规则" size="small">
+                  <Space style={{ marginBottom: 16 }}>
+                    <Input placeholder="模式" value={rulePattern} onChange={(e) => setRulePattern(e.target.value)} style={{ width: 150 }} />
+                    <Input placeholder="扩写" value={ruleExpansion} onChange={(e) => setRuleExpansion(e.target.value)} style={{ width: 150 }} />
+                    <Button type="primary" onClick={handleAddExpansionRule}>添加</Button>
+                    <Button onClick={() => loadExpansionRules()}>刷新</Button>
+                  </Space>
+                  <Table columns={expansionColumns} dataSource={expansionRules.map((r, i) => ({ key: i, ...r }))} size="small" pagination={false} />
+                </Card>
+              </Space>
+            ),
+          },
+        ]} />
         {error && <div style={{ color: 'red', marginTop: 8 }}>{error}</div>}
       </Card>
     </div>

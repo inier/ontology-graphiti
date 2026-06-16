@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback } from 'react';
-import { API_BASE } from '../../../config';
+import { API_BASE } from '@/config';
 import { fetchJson } from '../services/apiClient';
 
 interface UndoOperation {

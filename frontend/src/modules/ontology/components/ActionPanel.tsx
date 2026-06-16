@@ -7,7 +7,7 @@ import {
   ThunderboltOutlined, CheckCircleOutlined, CloseCircleOutlined,
   ClockCircleOutlined, ExclamationCircleOutlined, SyncOutlined,
 } from '@ant-design/icons';
-import { api } from '../../shared/services/api';
+import { api } from '@/modules/shared/services/api';
 
 const STATUS_CONFIG: Record<string, { color: string; icon: React.ReactNode; label: string }> = {
   pending: { color: 'default', icon: <ClockCircleOutlined />, label: '待处理' },
@@ -251,7 +251,7 @@ const ActionPanel: React.FC = () => {
         width={520}
       >
         {currentRecord && (
-          <Descriptions column={1} bordered size="small">
+          <Descriptions column={1} variant="bordered" size="small">
             <Descriptions.Item label="记录ID">{currentRecord.action_record_id}</Descriptions.Item>
             <Descriptions.Item label="动作类型">
               <Tag color="blue">{currentRecord.action_type_id}</Tag>

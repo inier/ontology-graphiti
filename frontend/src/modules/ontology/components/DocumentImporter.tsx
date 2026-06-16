@@ -1,8 +1,8 @@
 import { useState } from 'react';
 import { Upload, Button, Card, Select, Space, Typography, Descriptions, Tag, Alert, message } from 'antd';
 import { UploadOutlined, DownloadOutlined, InboxOutlined } from '@ant-design/icons';
-import { apiClient } from '../../shared/services/apiClient';
-import { useI18n } from '../../shared/hooks/useI18n';
+import { apiClient } from '@/modules/shared/services/apiClient';
+import { useI18n } from '@/modules/shared/hooks/useI18n';
 
 const { Dragger } = Upload;
 const { Text } = Typography;
@@ -100,7 +100,7 @@ export default function DocumentImporter() {
 
   return (
     <Card title={t('ontology.documentImport') || '本体文档导入/导出'} style={{ borderRadius: 8 }}>
-      <Space direction="vertical" style={{ width: '100%' }} size="middle">
+      <Space orientation="vertical" style={{ width: '100%' }} size="middle">
         <Dragger
           accept=".json"
           maxCount={1}
@@ -127,7 +127,7 @@ export default function DocumentImporter() {
 
         {preview && (
           <Card size="small" title={t('ontology.preview') || '文档预览'} style={{ borderRadius: 6 }}>
-            <Descriptions bordered column={2} size="small">
+            <Descriptions variant="bordered" column={2} size="small">
               <Descriptions.Item label="ID">{preview.id || '-'}</Descriptions.Item>
               <Descriptions.Item label={t('ontology.name') || '名称'}>{preview.name}</Descriptions.Item>
               <Descriptions.Item label={t('ontology.version') || '版本'}>{preview.version}</Descriptions.Item>

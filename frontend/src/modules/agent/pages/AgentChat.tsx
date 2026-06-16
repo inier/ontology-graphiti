@@ -1,7 +1,7 @@
 import React from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { Button, Empty, Typography } from 'antd';
-import { QAPage } from '../../qa/pages/QAPage';
+import { QAPage } from '@/modules/qa/pages/QAPage';
 
 const { Text } = Typography;
 

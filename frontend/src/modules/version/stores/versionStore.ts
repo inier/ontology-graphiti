@@ -1,5 +1,5 @@
 import { create } from 'zustand';
-import { apiClient } from '../../shared/services/apiClient';
+import { apiClient } from '@/modules/shared/services/apiClient';
 
 const BASE = '/api/ontology/versions';
 

@@ -37,8 +37,8 @@ class SkillAdapter:
         }
         if self._available and self._tool_registry:
             try:
-                from .tool_adapter import OpenHarnessToolAdapter
-                tool = OpenHarnessToolAdapter(
+                from .engine_adapter import GraphitiToolAdapter
+                tool = GraphitiToolAdapter(
                     name=name, description=description, handler=handler, category=category
                 )
                 self._tool_registry.register(tool)

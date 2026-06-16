@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { Steps, Card, Collapse, Tag, Typography } from 'antd';
-import { useI18n } from '../../shared/hooks/useI18n';
+import { useI18n } from '@/modules/shared/hooks/useI18n';
 
 const { Text } = Typography;
 
@@ -73,7 +73,7 @@ export default function ReasoningPath({ path, onNodeClick }: ReasoningPathProps)
   return (
     <Card title={t('reasoningChain')} size="small">
       <Steps
-        direction="vertical"
+        orientation="vertical"
         size="small"
         current={activeStep}
         items={path.map((node) => ({

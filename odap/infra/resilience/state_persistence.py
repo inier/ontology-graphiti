@@ -3,13 +3,16 @@
 实现 Agent 状态和任务检查点的持久化与恢复
 
 Phase 2 扩展: 故障恢复与状态管理
+
+安全改进：移除 pickle 反序列化（防止任意代码执行），仅使用 JSON。
+性能改进：async 方法使用 run_in_executor 避免阻塞事件循环。
 """
 
+import asyncio
 import json
-import pickle
 import os
-import tempfile
 import logging
+import functools
 from typing import Dict, Any, Optional, List
 from datetime import datetime
 
@@ -35,8 +38,22 @@ class StatePersistenceManager:
             cls._instance = StatePersistenceManager(persistence_path)
         return cls._instance
 
+    @staticmethod
+    def _json_dump(data: Any, filepath: str) -> None:
+        """同步 JSON 写入（供 run_in_executor 调用）"""
+        with open(filepath, 'w', encoding='utf-8') as f:
+            json.dump(data, f, indent=2, default=str, ensure_ascii=False)
+
+    @staticmethod
+    def _json_load(filepath: str) -> Optional[Dict[str, Any]]:
+        """同步 JSON 读取（供 run_in_executor 调用）"""
+        if not os.path.exists(filepath):
+            return None
+        with open(filepath, 'r', encoding='utf-8') as f:
+            return json.load(f)
+
     async def save_state(self, agent_id: str, state: Dict[str, Any]) -> bool:
-        """保存 Agent 状态"""
+        """保存 Agent 状态（仅 JSON，无 pickle）"""
         try:
             state_file = os.path.join(self.persistence_path, f"{agent_id}_state.json")
 
@@ -46,12 +63,8 @@ class StatePersistenceManager:
                 "data": state
             }
 
-            with open(state_file, 'w') as f:
-                json.dump(state_with_meta, f, indent=2, default=str)
-
-            backup_file = os.path.join(self.persistence_path, f"{agent_id}_state_backup.pkl")
-            with open(backup_file, 'wb') as f:
-                pickle.dump(state_with_meta, f)
+            loop = asyncio.get_event_loop()
+            await loop.run_in_executor(None, functools.partial(self._json_dump, state_with_meta, state_file))
 
             logger.info(f"Agent {agent_id} 状态已保存")
             return True
@@ -60,21 +73,16 @@ class StatePersistenceManager:
             return False
 
     async def load_state(self, agent_id: str) -> Optional[Dict[str, Any]]:
-        """加载 Agent 状态"""
+        """加载 Agent 状态（仅 JSON，无 pickle 回退）"""
         try:
             state_file = os.path.join(self.persistence_path, f"{agent_id}_state.json")
-            if os.path.exists(state_file):
-                with open(state_file, 'r') as f:
-                    state_data = json.load(f)
-                    logger.info(f"Agent {agent_id} 状态已加载")
-                    return state_data.get("data")
 
-            backup_file = os.path.join(self.persistence_path, f"{agent_id}_state_backup.pkl")
-            if os.path.exists(backup_file):
-                with open(backup_file, 'rb') as f:
-                    state_data = pickle.load(f)
-                    logger.info(f"Agent {agent_id} 状态已从备份加载")
-                    return state_data.get("data")
+            loop = asyncio.get_event_loop()
+            state_data = await loop.run_in_executor(None, functools.partial(self._json_load, state_file))
+
+            if state_data:
+                logger.info(f"Agent {agent_id} 状态已加载")
+                return state_data.get("data")
 
             return None
         except Exception as e:
@@ -93,8 +101,8 @@ class StatePersistenceManager:
                 "version": "1.0"
             }
 
-            with open(checkpoint_file, 'w') as f:
-                json.dump(checkpoint, f, indent=2, default=str)
+            loop = asyncio.get_event_loop()
+            await loop.run_in_executor(None, functools.partial(self._json_dump, checkpoint, checkpoint_file))
 
             logger.info(f"Mission {mission_id} 检查点已保存")
             return True
@@ -107,11 +115,12 @@ class StatePersistenceManager:
         try:
             checkpoint_file = os.path.join(self.persistence_path, f"checkpoint_{mission_id}.json")
 
-            if os.path.exists(checkpoint_file):
-                with open(checkpoint_file, 'r') as f:
-                    checkpoint = json.load(f)
-                    logger.info(f"Mission {mission_id} 检查点已加载")
-                    return checkpoint.get("data")
+            loop = asyncio.get_event_loop()
+            checkpoint = await loop.run_in_executor(None, functools.partial(self._json_load, checkpoint_file))
+
+            if checkpoint:
+                logger.info(f"Mission {mission_id} 检查点已加载")
+                return checkpoint.get("data")
 
             return None
         except Exception as e:

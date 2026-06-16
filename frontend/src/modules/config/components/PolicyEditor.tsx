@@ -6,7 +6,7 @@ import {
   CheckCircleOutlined,
   CloseCircleOutlined,
 } from '@ant-design/icons';
-import { useI18n } from '../../shared/hooks/useI18n';
+import { useI18n } from '@/modules/shared/hooks/useI18n';
 
 interface PolicyEditorProps {
   value?: string;

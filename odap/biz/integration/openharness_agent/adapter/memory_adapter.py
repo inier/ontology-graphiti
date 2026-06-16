@@ -1,11 +1,14 @@
+"""DEPRECATED: This adapter delegates to odap.infra.openharness.*.
+Use infra-layer imports directly in new code."""
+
 import logging
 from typing import Any, Dict, List, Optional
 
 logger = logging.getLogger("memory_adapter")
 
 try:
-    from odap.infra.openharness.v2_adapter import OPENHARNESS_V2_AVAILABLE
-    _V2_AVAILABLE = OPENHARNESS_V2_AVAILABLE
+    from odap.infra.openharness.engine_adapter import OPENHARNESS_AVAILABLE
+    _V2_AVAILABLE = OPENHARNESS_AVAILABLE
 except ImportError:
     _V2_AVAILABLE = False
 
@@ -55,10 +58,9 @@ class MemoryAdapter:
 
         if _V2_AVAILABLE:
             try:
-                from odap.infra.graph.graph_service import GraphManager
-
-                gm = GraphManager()
-                if gm._connected and not gm._use_fallback:
+                from odap.infra.query import get_graph_write_proxy
+                write_proxy = get_graph_write_proxy()
+                if write_proxy.is_connected():
                     logger.debug("Long-term memory stored in Graphiti: %s", key)
             except Exception as e:
                 logger.debug("Graphiti long-term store fallback: %s", e)

@@ -67,10 +67,10 @@ export const ATTRIBUTE_SEMANTICS: Record<string, AttributeSemantic> = {
   weather: { description: '天气条件', category: 'basic', dataOrigin: 'structured' },
   terrain: { description: '地形类型', category: 'basic', dataOrigin: 'structured' },
   name_en: { description: '英文名称', category: 'basic', dataOrigin: 'structured' },
-  combat_power: { description: '战斗力指数 (0-1)', category: 'statistical', dataOrigin: 'computed' },
+  combat_power: { description: '能力指数 (0-1)', category: 'statistical', dataOrigin: 'computed' },
   morale: { description: '士气指数 (0-1)', category: 'statistical', dataOrigin: 'computed' },
   supply_level: { description: '补给水平 (0-1)', category: 'statistical', dataOrigin: 'computed' },
-  casualty_rate: { description: '伤亡率', category: 'statistical', dataOrigin: 'computed' },
+  casualty_rate: { description: '损耗率', category: 'statistical', dataOrigin: 'computed' },
   fire_range_km: { description: '火力射程(公里)', category: 'capability', dataOrigin: 'structured' },
   armor_penetration: { description: '穿甲能力', category: 'capability', dataOrigin: 'structured' },
   air_defense: { description: '防空能力', category: 'capability', dataOrigin: 'structured' },
@@ -101,7 +101,7 @@ export const TYPE_COLORS: Record<string, string> = {
 };
 
 export const TYPE_LABELS: Record<string, string> = {
-  Unit: '作战单元',
+  Unit: '组织单元',
   Equipment: '装备',
   Location: '地点',
   Person: '人员',

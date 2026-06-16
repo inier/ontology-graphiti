@@ -177,8 +177,9 @@ class SkillManager(ISkillManager):
             if name not in SKILL_CATALOG:
                 SKILL_CATALOG[name] = {
                     "description": description,
-                    "handler": lambda **kwargs: {"status": "success", "message": f"Skill {name} placeholder"},
+                    "handler": lambda **kwargs: {"status": "placeholder", "message": f"Skill {name} has no implementation yet"},
                     "category": category,
+                    "placeholder": True,
                 }
                 logger.info(f"Synced skill '{name}' to SKILL_CATALOG")
         except Exception as e:
@@ -366,6 +367,41 @@ class SkillManager(ISkillManager):
             adapter.unregister_skill(skill_id)
         except Exception as e:
             logger.warning(f"Failed to unregister skill from adapter: {e}")
+
+    def call_skill(self, skill_name: str, parameters: Dict[str, Any] = None) -> Dict[str, Any]:
+        """调用技能，检查 placeholder 并记录警告
+
+        Args:
+            skill_name: 技能名称
+            parameters: 调用参数
+
+        Returns:
+            技能执行结果
+        """
+        try:
+            from odap.tools import SKILL_CATALOG
+        except Exception as e:
+            return {"status": "error", "message": f"SKILL_CATALOG not available: {e}"}
+
+        entry = SKILL_CATALOG.get(skill_name)
+        if not entry:
+            return {"status": "error", "message": f"Skill '{skill_name}' not found in catalog"}
+
+        if entry.get("placeholder"):
+            logger.warning(f"Calling placeholder skill '{skill_name}' — no real implementation available")
+
+        handler = entry.get("handler")
+        if not handler or not callable(handler):
+            return {"status": "error", "message": f"Skill '{skill_name}' has no callable handler"}
+
+        try:
+            result = handler(**(parameters or {}))
+            if isinstance(result, dict) and entry.get("placeholder"):
+                result["implementation_status"] = "placeholder"
+            return result if isinstance(result, dict) else {"status": "success", "data": result}
+        except Exception as e:
+            logger.error(f"Skill '{skill_name}' execution failed: {e}")
+            return {"status": "error", "message": str(e)}
 
     def discover_skills(self, query: Optional[str] = None) -> List[Dict[str, Any]]:
         self._ensure_synced()

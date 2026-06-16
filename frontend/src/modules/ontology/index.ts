@@ -1,5 +1,6 @@
 export { OntologySemanticNetwork } from './pages/OntologySemanticNetwork';
 export { OntologyDesignerPage } from './pages/OntologyDesignerPage';
+export { OntologyGraphPage } from './pages/OntologyGraphPage';
 export { GoalKanban } from './pages/GoalKanban';
 export { useOntologyStore } from './stores/ontologyStore';
 export { useVersionStore } from './stores/versionStore';
@@ -21,3 +22,16 @@ export { ChangeProposalCard } from './components/ChangeProposalCard';
 export { GoalLineage } from './components/GoalLineage';
 
 export type { BranchInfo, BranchStatus } from './components/BranchList';
+
+// Ontology redesign types
+export type {
+  Ontology,
+  ObjectTypeDefinition,
+  LinkTypeDefinition,
+  ActionTypeDefinition,
+  ProcessTypeDefinition,
+  RuleTypeDefinition,
+  FunctionTypeDefinition,
+  IndicatorTypeDefinition,
+  SchemaVersion,
+} from './stores/ontologyStore';

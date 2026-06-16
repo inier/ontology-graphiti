@@ -16,8 +16,8 @@ import {
   PlusOutlined, ReloadOutlined, BranchesOutlined, SearchOutlined,
   CheckOutlined, MergeCellsOutlined, DiffOutlined, InboxOutlined, DeleteOutlined,
 } from '@ant-design/icons';
-import { apiClient } from '../../shared/services/apiClient';
-import { useI18n } from '../../shared/hooks/useI18n';
+import { apiClient } from '@/modules/shared/services/apiClient';
+import { useI18n } from '@/modules/shared/hooks/useI18n';
 
 const { Text, Title } = Typography;
 const { TextArea } = Input;
@@ -173,7 +173,7 @@ export function BranchList({ workspaceId, onViewDiff, onSelectBranch }: BranchLi
       dataIndex: 'name',
       key: 'name',
       render: (v: string, r) => (
-        <Space size={4} direction="vertical" style={{ lineHeight: 1.2 }}>
+        <Space size={4} orientation="vertical" style={{ lineHeight: 1.2 }}>
           <Space size={4}>
             <BranchesOutlined />
             <Text strong>{v}</Text>
@@ -312,7 +312,7 @@ export function BranchList({ workspaceId, onViewDiff, onSelectBranch }: BranchLi
         confirmLoading={creating}
         okText="创建"
         cancelText="取消"
-        destroyOnClose
+        destroyOnHidden
       >
         <Form form={form} layout="vertical" preserve={false}>
           <Form.Item

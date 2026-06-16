@@ -23,11 +23,11 @@ class RoleViewManager:
         self._initialized = True
 
     def _setup_default_views(self):
-        self._views["commander-default"] = {
-            "view_id": "commander-default",
+        self._views["director-default"] = {
+            "view_id": "director-default",
             "role": RoleType.COMMANDER.value,
-            "name": "指挥官视图",
-            "description": "面向指挥官的全局态势视图",
+            "name": "负责人视图",
+            "description": "面向负责人的全局态势视图",
             "capabilities": ["situation_awareness", "decision_support", "resource_allocation", "threat_assessment"],
             "layout_config": {"primary": "situation_map", "secondary": ["timeline", "statistics"], "show_risk": True},
             "filters": {"threat_level": ["high", "critical"], "show_friendly": True, "show_enemy": True},
@@ -39,7 +39,7 @@ class RoleViewManager:
             "description": "面向情报分析员的信息视图",
             "capabilities": ["data_analysis", "pattern_recognition", "intel_gathering", "report_generation"],
             "layout_config": {"primary": "analysis_dashboard", "secondary": ["graph_view", "timeline"]},
-            "filters": {"data_type": ["radar", "signal", "human"], "time_range": "24h"},
+            "filters": {"data_type": ["sensor", "signal", "human"], "time_range": "24h"},
         }
         self._views["operator-default"] = {
             "view_id": "operator-default",

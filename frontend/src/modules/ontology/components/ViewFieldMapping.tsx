@@ -30,7 +30,7 @@ import {
   ReloadOutlined, PlayCircleOutlined, PlusOutlined, DeleteOutlined, ArrowUpOutlined, ArrowDownOutlined, SaveOutlined,
 } from '@ant-design/icons';
 import { viewApi, type ObjectView, type ViewPermission } from '../services/viewApi';
-import { useI18n } from '../../shared/hooks/useI18n';
+import { useI18n } from '@/modules/shared/hooks/useI18n';
 
 const { Text, Title } = Typography;
 const { Search } = Input;
@@ -182,7 +182,7 @@ export function ViewFieldMapping({ viewId, onClose }: ViewFieldMappingProps) {
     try {
       // 视图 API 不直接返回 ObjectType schema；这里通过额外端点获取
       // 若没有端点则用空 schema 兜底
-      const { apiClient } = await import('../../shared/services/apiClient');
+      const { apiClient } = await import('@/modules/shared/services/apiClient');
       try {
         const ot = await apiClient.get<{ object_type: ObjectTypeInfo }>(
           `/api/ontology/object-types/${encodeURIComponent(typeId)}`,
@@ -558,7 +558,7 @@ export function ViewFieldMapping({ viewId, onClose }: ViewFieldMappingProps) {
             {!activeField ? (
               <Empty description="请选择字段" image={Empty.PRESENTED_IMAGE_SIMPLE} />
             ) : (
-              <Space direction="vertical" style={{ width: '100%' }} size="middle">
+              <Space orientation="vertical" style={{ width: '100%' }} size="middle">
                 <div>
                   <Text type="secondary">字段名</Text>
                   <Input value={activeField.name} disabled />
@@ -613,7 +613,7 @@ export function ViewFieldMapping({ viewId, onClose }: ViewFieldMappingProps) {
               key: 'filters',
               label: 'Filters',
               children: (
-                <Space direction="vertical" style={{ width: '100%' }} size="middle">
+                <Space orientation="vertical" style={{ width: '100%' }} size="middle">
                   <Form form={filterForm} layout="inline" initialValues={{ operator: 'eq' }}>
                     <Form.Item name="field" rules={[{ required: true, message: '字段' }]}>
                       <Select placeholder="字段" style={{ width: 180 }} options={fieldOptions} allowClear showSearch />
@@ -642,7 +642,7 @@ export function ViewFieldMapping({ viewId, onClose }: ViewFieldMappingProps) {
               key: 'sort',
               label: 'Sort',
               children: (
-                <Space direction="vertical" style={{ width: '100%' }} size="middle">
+                <Space orientation="vertical" style={{ width: '100%' }} size="middle">
                   <Form form={sortForm} layout="inline" initialValues={{ direction: 'asc' }}>
                     <Form.Item name="field" rules={[{ required: true, message: '字段' }]}>
                       <Select placeholder="字段" style={{ width: 220 }} options={fieldOptions} allowClear showSearch />
@@ -674,7 +674,7 @@ export function ViewFieldMapping({ viewId, onClose }: ViewFieldMappingProps) {
               key: 'limit',
               label: 'Limit',
               children: (
-                <Space direction="vertical">
+                <Space orientation="vertical">
                   <Text>查询返回行数限制</Text>
                   <InputNumber min={0} max={10000} value={rowLimit} onChange={(v) => setRowLimit(Number(v) || 0)} />
                 </Space>
@@ -684,7 +684,7 @@ export function ViewFieldMapping({ viewId, onClose }: ViewFieldMappingProps) {
               key: 'permissions',
               label: 'Permissions',
               children: (
-                <Space direction="vertical" style={{ width: '100%' }} size="middle">
+                <Space orientation="vertical" style={{ width: '100%' }} size="middle">
                   <Form form={permForm} layout="inline" initialValues={{ can_export: false, can_share: false }}>
                     <Form.Item name="role" rules={[{ required: true, message: '角色' }]}>
                       <Input placeholder="角色名" style={{ width: 160 }} />
@@ -720,7 +720,7 @@ export function ViewFieldMapping({ viewId, onClose }: ViewFieldMappingProps) {
                             </Popconfirm>,
                           ]}
                         >
-                          <Space direction="vertical" style={{ width: '100%' }}>
+                          <Space orientation="vertical" style={{ width: '100%' }}>
                             <Space>
                               <Tag color="purple">{p.role}</Tag>
                               {p.can_export && <Tag color="green">export</Tag>}
@@ -781,7 +781,7 @@ export function ViewFieldMapping({ viewId, onClose }: ViewFieldMappingProps) {
           {!testResult ? (
             <Empty description="无结果" />
           ) : (
-            <Space direction="vertical" style={{ width: '100%' }}>
+            <Space orientation="vertical" style={{ width: '100%' }}>
               <Space>
                 <Tag color="blue">Total: {testResult.total_count}</Tag>
                 {testResult.truncated && <Tag color="orange">truncated</Tag>}

@@ -13,8 +13,8 @@
  *   GET    /{goal_id}/lineage             获取 Goal 血缘
  *   POST   /proposals/{proposal_id}/review  审批 Proposal
  */
-import { fetchJson } from '../../shared/services/apiClient';
-import { API_BASE } from '../../../config';
+import { fetchJson } from '@/modules/shared/services/apiClient';
+import { API_BASE } from '@/config';
 
 const BASE = `${API_BASE}/api/ontology/goals`;
 

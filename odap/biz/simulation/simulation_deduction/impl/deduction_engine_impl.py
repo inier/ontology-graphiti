@@ -25,10 +25,10 @@ class DeductionEngineImpl(IDeductionEngine):
     def graph(self):
         if self._graph_manager is None:
             try:
-                from odap.infra.graph.graph_service import GraphManager
-                self._graph_manager = GraphManager()
+                from odap.infra.query import get_graph_write_proxy
+                self._graph_manager = get_graph_write_proxy()
             except Exception as e:
-                logger.warning(f"GraphManager init failed: {e}")
+                logger.warning(f"GraphWriteProxy init failed: {e}")
                 self._graph_manager = None
         return self._graph_manager
 
@@ -374,16 +374,21 @@ class DeductionEngineImpl(IDeductionEngine):
     async def _capture_baseline(self, target_id: str, target_type: str) -> Dict[str, Any]:
         baseline = {"target_id": target_id, "target_type": target_type}
         try:
-            if self.graph:
-                entities = self.graph.query_entities(entity_type=target_type)
-                for entity in entities[:20]:
-                    e_dict = entity.to_dict() if hasattr(entity, 'to_dict') else dict(entity)
-                    if e_dict.get('id', '') == target_id:
-                        props = e_dict.get('properties', {})
-                        for key in ('combat_power', 'morale', 'supply_level', 'strength', 'status'):
-                            if key in props:
-                                baseline[key] = props[key]
-                        break
+            from odap.infra.query import get_query_service
+            query_service = get_query_service()
+            result = query_service.execute(
+                workspace_id="default",
+                query=f".entity with(type='{target_type}') list()",
+                limit=20,
+            )
+            for entity in result.rows[:20]:
+                eid = entity.get('id', '')
+                if eid == target_id:
+                    props = entity.get('properties', {})
+                    for key in ('capability_index', 'readiness', 'resource_level', 'personnel', 'status'):
+                        if key in props:
+                            baseline[key] = props[key]
+                    break
         except Exception as e:
             logger.warning(f"Capture baseline from graph failed: {e}")
 
@@ -503,8 +508,8 @@ class DeductionEngineImpl(IDeductionEngine):
                                     overall_magnitude = max(overall_magnitude, abs(float(default_val)) / (abs(float(default_val)) + 1) * 0.1)
                                 except (ValueError, TypeError):
                                     pass
-            except Exception:
-                pass
+            except Exception as e:
+                logger.debug("OMS fallback: %s", e)
             for se in side_effects:
                 obj_type = se.get("object_type", "")
                 prop = se.get("property_name", "")
@@ -619,7 +624,7 @@ class DeductionEngineImpl(IDeductionEngine):
 
     def _compute_chain_confidence(self, baseline: Dict[str, Any], chain_data: Dict[str, Any], violations: List[Dict[str, Any]]) -> float:
         confidence = 0.5
-        real_data_keys = [k for k in ('combat_power', 'morale', 'supply_level', 'strength', 'status') if k in baseline and baseline[k] is not None and baseline[k] != 0]
+        real_data_keys = [k for k in ('capability_index', 'readiness', 'resource_level', 'personnel', 'status') if k in baseline and baseline[k] is not None and baseline[k] != 0]
         if real_data_keys:
             confidence += 0.1
         try:
@@ -630,8 +635,8 @@ class DeductionEngineImpl(IDeductionEngine):
                     if action_def and action_def.get('parameters'):
                         confidence += 0.05
                         break
-        except Exception:
-            pass
+        except Exception as e:
+            logger.debug("OMS fallback: %s", e)
         if not violations:
             confidence += 0.1
         steps_with_data = 0

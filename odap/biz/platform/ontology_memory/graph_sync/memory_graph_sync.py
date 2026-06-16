@@ -29,11 +29,11 @@ class MemoryGraphSyncService:
         if memory_type == "working":
             return {"status": "skipped", "message": "Working memory is not synced to graph"}
         try:
-            from odap.infra.graph import GraphManager
-            graph_manager = GraphManager.get_instance()
+            from odap.infra.query import get_graph_write_proxy
+            write_proxy = get_graph_write_proxy()
         except Exception:
-            graph_manager = None
-        if graph_manager is None:
+            write_proxy = None
+        if write_proxy is None:
             sync_id = self.storage.save_sync(memory_id, "", "", "memory_to_graph",
                                              {"status": "pending", "reason": "GraphManager unavailable"})
             return {"status": "pending", "sync_id": sync_id, "message": "Queued for sync when GraphManager available"}
@@ -47,7 +47,7 @@ class MemoryGraphSyncService:
             "keywords": memory_data.get("keywords", []),
         }
         try:
-            graph_manager.add_entity(entity_id=entity_id, entity_type=entity_type, properties=properties)
+            write_proxy.add_entity(entity_id=entity_id, entity_type=entity_type, properties=properties)
             episode_name = f"Memory:{memory_id}"
             sync_id = self.storage.save_sync(memory_id, entity_id, episode_name, "memory_to_graph")
             return {"status": "success", "sync_id": sync_id, "entity_id": entity_id}
@@ -57,12 +57,15 @@ class MemoryGraphSyncService:
             return {"status": "error", "message": str(e), "sync_id": sync_id}
 
     def sync_graph_to_memory(self, scenario_id=None, limit=50):
-        try:
-            from odap.infra.graph import GraphManager
-            graph_manager = GraphManager.get_instance()
-        except Exception:
-            return {"status": "error", "message": "GraphManager unavailable"}
-        entities = graph_manager.query_entities(entity_type="MemoryEpisode", workspace_id=scenario_id)
+        # Use QueryService for read operations instead of direct GraphManager
+        from odap.infra.query import get_query_service
+        query_service = get_query_service()
+        result = query_service.execute(
+            workspace_id=scenario_id or "default",
+            query=f".entity with(type='MemoryEpisode') list()",
+            limit=limit,
+        )
+        entities = result.rows
         synced = 0
         for entity in entities[:limit]:
             entity_id = entity.get("entity_id", "")
@@ -107,10 +110,10 @@ class MemoryGraphSyncService:
                 self.storage.update_sync_status(memory_id, "archived")
             else:
                 try:
-                    from odap.infra.graph import GraphManager
-                    graph_manager = GraphManager.get_instance()
-                    if entity_id and graph_manager:
-                        graph_manager.update_entity(entity_id, {"status": "forgotten"})
+                    from odap.infra.query import get_graph_write_proxy
+                    write_proxy = get_graph_write_proxy()
+                    if entity_id and write_proxy:
+                        write_proxy.update_entity(entity_id, {"status": "forgotten"})
                 except Exception:
                     pass
                 self.storage.update_sync_status(memory_id, "forgotten")

@@ -20,11 +20,20 @@ class WorldStateManager(IWorldStateManager):
             is_baseline=is_baseline,
         )
         try:
-            from odap.infra.graph.graph_service import GraphManager
-            gm = GraphManager.get_instance()
-            if gm:
-                stats = gm.get_statistics()
-                snapshot.object_states = stats if isinstance(stats, dict) else {"statistics": stats}
+            # Use QueryService for read operations instead of direct GraphManager
+            from odap.infra.query import get_query_service
+            qs = get_query_service()
+            entity_result = qs.execute(
+                workspace_id=scenario_id or "default",
+                query=".entity list()",
+                limit=1,
+            )
+            # Build stats from QueryService result
+            stats = {
+                "total_entities": entity_result.total,
+                "source": "query_service",
+            }
+            snapshot.object_states = stats
         except Exception as e:
             logger.warning(f"Failed to capture graph state: {e}")
             snapshot.object_states = {}

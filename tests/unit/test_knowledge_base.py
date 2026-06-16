@@ -244,8 +244,8 @@ class TestKnowledgeBaseService:
     async def test_build_graph_regex(self, service):
         kb = service.create_knowledge_base({'name': 'KB'})
         doc = service.create_document(kb['kb_id'], {
-            'title': 'Military Doc',
-            'content': '东部舰队在南海执行任务，红旗导弹部队已部署完毕',
+            'title': 'Domain Doc',
+            'content': '东部编队在南海执行任务，监测系统已部署完毕',
         })
         result = await service.build_graph(doc['doc_id'], extraction_method='regex')
         assert result['status'] == 'completed'
@@ -279,7 +279,7 @@ class TestKnowledgeBaseService:
         assert result['status'] == 'error'
 
     def test_extract_with_regex(self, service):
-        content = '东部舰队在南海执行任务，红旗导弹部队已部署完毕'
+        content = '东部编队在南海执行任务，监测系统已部署完毕'
         result = service._extract_with_regex(content)
         assert 'entities' in result
         assert len(result['entities']) > 0

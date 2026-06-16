@@ -1,12 +1,13 @@
 import { useState, useEffect } from 'react';
-import { Card, Avatar, Tag, Spin, Row, Col, Typography, Button, message } from 'antd';
+import { Card, Avatar, Tag, Row, Col, Typography, Button, message } from 'antd';
 import { RobotOutlined, EyeOutlined } from '@ant-design/icons';
 import { useNavigate } from 'react-router-dom';
+import { useGlobalLoading } from '@/modules/shared/stores/globalLoadingStore';
 import { agentApi } from '../services/agentApi';
 import type { Agent } from '../types';
-import { useAuthStore } from '../../shared/stores/authStore';
-import { useWorkspace } from '../../shared/components/AppLayout';
-import { EmptyState } from '../../shared/components/organisms';
+import { useAuthStore } from '@/modules/shared/stores/authStore';
+import { useWorkspace } from '@/modules/shared/components/AppLayout';
+import { EmptyState } from '@/modules/shared/components/organisms';
 
 const { Paragraph } = Typography;
 
@@ -16,6 +17,7 @@ export function MyAgents() {
   const { user } = useAuthStore();
   const { currentWorkspace } = useWorkspace();
   const navigate = useNavigate();
+  const { show: showGlobalLoading, hide: hideGlobalLoading } = useGlobalLoading();
 
   useEffect(() => {
     loadAgents();
@@ -25,6 +27,7 @@ export function MyAgents() {
     const roleId = user?.role_id;
     if (!roleId) return;
     setLoading(true);
+    showGlobalLoading('加载智能体列表...');
     try {
       const data = await agentApi.listAgentsByRole(roleId, currentWorkspace);
       setAgents(data);
@@ -37,6 +40,7 @@ export function MyAgents() {
       }
     } finally {
       setLoading(false);
+      hideGlobalLoading();
     }
   };
 
@@ -45,11 +49,7 @@ export function MyAgents() {
   };
 
   if (loading) {
-    return (
-      <div style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', height: '60vh' }}>
-        <Spin size="large" />
-      </div>
-    );
+    return <div style={{ minHeight: 300 }} />;
   }
 
   if (agents.length === 0) {
@@ -64,7 +64,7 @@ export function MyAgents() {
         onLoadSampleData={async () => {
           if (!currentWorkspace) { message.warning('请先选择工作空间'); return; }
           try {
-            const { api } = await import('../../shared/services/api');
+            const { api } = await import('@/modules/shared/services/api');
             await api.generateSampleData(currentWorkspace);
             message.success('示例数据已加载');
             loadAgents();
@@ -105,7 +105,7 @@ export function MyAgents() {
                 </Paragraph>
                 <div style={{ display: 'flex', flexWrap: 'wrap', gap: 4, justifyContent: 'center' }}>
                   {agent.related_skills.slice(0, 3).map(sk => (
-                    <Tag key={sk} color="purple" style={{ fontSize: 11 }}>{agent.ref_labels?.[sk] || sk}</Tag>
+                    <Tag key={sk} color="purple" style={{ fontSize: 11 }}>{agent.resolved_names?.skill_names?.[sk] || sk.slice(0, 8)}</Tag>
                   ))}
                   {agent.related_skills.length > 3 && (
                     <Tag style={{ fontSize: 11 }}>+{agent.related_skills.length - 3}</Tag>

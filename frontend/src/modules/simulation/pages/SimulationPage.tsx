@@ -13,8 +13,8 @@ import {
 import type { ColumnsType } from 'antd/es/table';
 import type { SandboxInfo, TimelineInfo, TemplateInfo } from '../services/simulationApi';
 import { useSimulationStore } from '../stores/simulationStore';
-import { EmptyState } from '../../shared/components/organisms';
-import { useWorkspace } from '../../shared/components/AppLayout';
+import { EmptyState } from '@/modules/shared/components/organisms';
+import { useWorkspace } from '@/modules/shared/components/AppLayout';
 
 const SANDBOX_STATUS_COLORS: Record<string, string> = {
   created: 'default',
@@ -352,7 +352,7 @@ const SimulationPage: React.FC = () => {
   ];
 
   const renderSandboxPanel = () => (
-    <Space direction="vertical" size="middle" style={{ width: '100%' }}>
+    <Space orientation="vertical" size="middle" style={{ width: '100%' }}>
       <Card
         title="沙箱管理"
         size="small"
@@ -384,7 +384,7 @@ const SimulationPage: React.FC = () => {
               onLoadSampleData={async () => {
                 if (!currentWorkspace) { message.warning('请先选择工作空间'); return; }
                 try {
-                  const { api } = await import('../../shared/services/api');
+                  const { api } = await import('@/modules/shared/services/api');
                   await api.generateSampleData(currentWorkspace);
                   message.success('示例数据已加载');
                   store.fetchSandboxes();
@@ -397,7 +397,7 @@ const SimulationPage: React.FC = () => {
 
       {store.sandboxStatus && (
         <Card title="沙箱状态" size="small">
-          <Descriptions size="small" column={2} bordered>
+          <Descriptions size="small" column={2} variant="bordered">
             <Descriptions.Item label="沙箱 ID">{store.sandboxStatus.sandbox_id}</Descriptions.Item>
             <Descriptions.Item label="状态">
               <Tag color={SANDBOX_STATUS_COLORS[store.sandboxStatus.status] || 'default'}>
@@ -415,16 +415,18 @@ const SimulationPage: React.FC = () => {
           {store.simulationResult.status === 'timeout' ? (
             <Alert type="warning" showIcon message="推演超时" description={store.simulationResult.message} />
           ) : (
-            <Space direction="vertical" style={{ width: '100%' }}>
+            <Space orientation="vertical" style={{ width: '100%' }}>
               {store.simulationResult.risk_assessment && (
                 <Row gutter={16}>
                   <Col span={8}>
                     <Statistic
                       title="风险等级"
                       value={(store.simulationResult.risk_assessment as Record<string, unknown>).overall_risk as string || 'unknown'}
-                      valueStyle={{
-                        color: (store.simulationResult.risk_assessment as Record<string, unknown>).overall_risk === 'high' ? '#ff4d4f'
-                          : (store.simulationResult.risk_assessment as Record<string, unknown>).overall_risk === 'medium' ? '#faad14' : '#52c41a',
+                      styles={{
+                        content: {
+                          color: (store.simulationResult.risk_assessment as Record<string, unknown>).overall_risk === 'high' ? '#ff4d4f'
+                            : (store.simulationResult.risk_assessment as Record<string, unknown>).overall_risk === 'medium' ? '#faad14' : '#52c41a',
+                        },
                       }}
                     />
                   </Col>
@@ -467,7 +469,7 @@ const SimulationPage: React.FC = () => {
   );
 
   const renderParallelPanel = () => (
-    <Space direction="vertical" size="middle" style={{ width: '100%' }}>
+    <Space orientation="vertical" size="middle" style={{ width: '100%' }}>
       <Card
         title="并行推演 & What-if 分析"
         size="small"
@@ -487,7 +489,7 @@ const SimulationPage: React.FC = () => {
 
       {store.parallelResult && (
         <Card title="并行推演结果" size="small">
-          <Descriptions size="small" column={2} bordered>
+          <Descriptions size="small" column={2} variant="bordered">
             <Descriptions.Item label="运行 ID">{store.parallelResult.run_id}</Descriptions.Item>
             <Descriptions.Item label="方案数量">{store.parallelResult.total_scenarios}</Descriptions.Item>
             <Descriptions.Item label="最优方案">
@@ -513,7 +515,7 @@ const SimulationPage: React.FC = () => {
 
       {store.whatIfResult && (
         <Card title="What-if 分析结果" size="small">
-          <Descriptions size="small" column={2} bordered>
+          <Descriptions size="small" column={2} variant="bordered">
             <Descriptions.Item label="运行 ID">{store.whatIfResult.run_id}</Descriptions.Item>
             <Descriptions.Item label="变异数量">{store.whatIfResult.total_variations}</Descriptions.Item>
           </Descriptions>
@@ -537,7 +539,7 @@ const SimulationPage: React.FC = () => {
   );
 
   const renderEventSimulatorPanel = () => (
-    <Space direction="vertical" size="middle" style={{ width: '100%' }}>
+    <Space orientation="vertical" size="middle" style={{ width: '100%' }}>
       <Card
         title="事件模拟器"
         size="small"
@@ -550,8 +552,8 @@ const SimulationPage: React.FC = () => {
         }
       >
         {store.eventSequence ? (
-          <Space direction="vertical" style={{ width: '100%' }}>
-            <Descriptions size="small" column={2} bordered>
+          <Space orientation="vertical" style={{ width: '100%' }}>
+            <Descriptions size="small" column={2} variant="bordered">
               <Descriptions.Item label="序列 ID">{store.eventSequence.sequence_id}</Descriptions.Item>
               <Descriptions.Item label="事件数量">
                 <Badge count={store.eventSequence.total_events} showZero color="blue" />
@@ -625,7 +627,7 @@ const SimulationPage: React.FC = () => {
   );
 
   return (
-    <Spin spinning={store.loading} tip="推演进行中...">
+    <Spin spinning={store.loading} description="推演进行中...">
       <Tabs
         activeKey={store.activeTab}
         onChange={store.setActiveTab}
@@ -695,10 +697,10 @@ const SimulationPage: React.FC = () => {
             <Select
               options={[
                 { value: 'move', label: '移动' },
-                { value: 'attack', label: '攻击' },
-                { value: 'defend', label: '防御' },
-                { value: 'reinforce', label: '增援' },
-                { value: 'retreat', label: '撤退' },
+                { value: 'engage', label: '交锋' },
+                { value: 'hold', label: '坚守' },
+                { value: 'support', label: '支援' },
+                { value: 'withdraw', label: '撤离' },
                 { value: 'observe', label: '观察' },
               ]}
             />
@@ -727,7 +729,7 @@ const SimulationPage: React.FC = () => {
           <Form.Item name="scenarios" label="方案列表 (JSON)" rules={[{ required: true }]}>
             <Input.TextArea
               rows={8}
-              placeholder='[{"action_type_id":"attack","target_object_id":"unit_1","target_object_type":"entity","parameters":{}}]'
+              placeholder='[{"action_type_id":"engage","target_object_id":"unit_1","target_object_type":"entity","parameters":{}}]'
             />
           </Form.Item>
         </Form>
@@ -786,8 +788,8 @@ const SimulationPage: React.FC = () => {
             <Select
               options={[
                 { value: 'conflict', label: '冲突' },
-                { value: 'logistics', label: '后勤' },
-                { value: 'reconnaissance', label: '侦察' },
+                { value: 'logistics', label: '物流' },
+                { value: 'survey', label: '监测' },
                 { value: 'communication', label: '通信' },
                 { value: 'management', label: '管理' },
                 { value: 'custom', label: '自定义' },
@@ -795,7 +797,7 @@ const SimulationPage: React.FC = () => {
             />
           </Form.Item>
           <Form.Item name="event_types" label="事件类型 (逗号分隔)">
-            <Input placeholder="attack,defend,retreat" />
+            <Input placeholder="engage,hold,withdraw" />
           </Form.Item>
         </Form>
       </Modal>

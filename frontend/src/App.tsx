@@ -1,19 +1,22 @@
 import { useState, useEffect } from 'react';
 import { BrowserRouter as Router, useLocation } from 'react-router-dom';
-import { AppLayout } from './modules/shared';
+import { AppLayout } from '@/modules/shared';
 import { AppRoutes } from './AppRoutes';
-import { api } from './modules/shared/services/api';
+import { api } from '@/modules/shared/services/api';
+import { useGlobalLoading } from '@/modules/shared/stores/globalLoadingStore';
 import './App.css';
 
 function AppContent() {
   const location = useLocation();
   const isLoginPage = location.pathname === '/login';
   const [currentWorkspace, setCurrentWorkspace] = useState<string>('');
-  const [isLoading, setIsLoading] = useState(!isLoginPage);
+  const [ready, setReady] = useState(isLoginPage);
+  const { show, hide } = useGlobalLoading();
 
   useEffect(() => {
     if (isLoginPage) return;
     const loadInitialWorkspace = async () => {
+      show('加载中...', 0);
       try {
         const workspaces = await api.listWorkspaces();
         if (workspaces && workspaces.length > 0) {
@@ -26,12 +29,13 @@ function AppContent() {
       } catch (error) {
         console.error('加载工作空间失败:', error);
       } finally {
-        setIsLoading(false);
+        hide();
+        setReady(true);
       }
     };
 
     loadInitialWorkspace();
-  }, [isLoginPage]);
+  }, [isLoginPage, show, hide]);
 
   const handleWorkspaceChange = (workspaceId: string) => {
     setCurrentWorkspace(workspaceId);
@@ -42,8 +46,12 @@ function AppContent() {
     return <AppRoutes />;
   }
 
-  if (isLoading) {
-    return <div style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', height: '100vh' }}>加载中...</div>;
+  if (!ready) {
+    return (
+      <AppLayout currentWorkspace={currentWorkspace} onWorkspaceChange={handleWorkspaceChange}>
+        <div />
+      </AppLayout>
+    );
   }
 
   return (

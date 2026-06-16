@@ -8,10 +8,14 @@ InheritanceResolver 实现 (T368)
 """
 from __future__ import annotations
 
+import logging
+from abc import ABC, abstractmethod
 from typing import Any, Dict, List, Optional
 
 from ..interfaces.inheritance_repository import InheritanceRepository
 from ..models.resolved_property import ResolvedProperty
+
+logger = logging.getLogger(__name__)
 
 
 SOURCE_SELF = "self"
@@ -19,17 +23,19 @@ SOURCE_PARENT = "parent"
 SOURCE_MIXIN = "mixin"
 
 
-class TypePropertyProvider:
+class TypePropertyProvider(ABC):
     """
     抽象：提供 ObjectType 的属性定义与存在性检查。
     Service 层负责实现此接口（从 entity_types 存储查）。
     """
 
+    @abstractmethod
     def get_property_names(self, type_id: str) -> List[str]:
-        raise NotImplementedError
+        ...
 
+    @abstractmethod
     def get_property_value(self, type_id: str, property_name: str) -> Any:
-        raise NotImplementedError
+        ...
 
 
 class DictTypePropertyProvider(TypePropertyProvider):

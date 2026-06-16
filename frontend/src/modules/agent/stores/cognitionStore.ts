@@ -1,5 +1,5 @@
 import { create } from 'zustand';
-import { apiClient } from '../../shared/services/apiClient';
+import { apiClient } from '@/modules/shared/services/apiClient';
 
 interface IntentResult {
   intent_id?: string;
@@ -28,7 +28,7 @@ interface ExplanationResult {
   sources: string[];
 }
 
-type RoleView = 'commander' | 'intelligence' | 'operations';
+type RoleView = 'director' | 'intelligence' | 'operations';
 
 interface CognitionState {
   intentResult: IntentResult | null;
@@ -49,7 +49,7 @@ export const useCognitionStore = create<CognitionState>((set) => ({
   intentResult: null,
   navigationPath: null,
   explanation: null,
-  roleView: 'commander',
+  roleView: 'director',
   loading: false,
   error: null,
 

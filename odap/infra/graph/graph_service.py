@@ -20,6 +20,7 @@ from datetime import datetime, timezone
 from typing import Optional, List, Dict, Any
 from collections import deque
 
+from odap.infra.config_composer import get_config
 from ._utils import _run_async
 from .cache_mixin import CacheMixin
 from .entity_ops import EntityOpsMixin
@@ -41,9 +42,9 @@ except ImportError:
     pass
 
 # 获取配置
-OPENAI_API_KEY = os.getenv('OPENAI_API_KEY', '')
-OPENAI_API_BASE = os.getenv('OPENAI_API_BASE', 'https://api.openai.com/v1')
-OPENAI_MODEL = os.getenv('OPENAI_MODEL', 'gpt-4')
+OPENAI_API_KEY = get_config("llm.api_key", "")
+OPENAI_API_BASE = get_config("llm.api_base", "https://api.openai.com/v1")
+OPENAI_MODEL = get_config("llm.model", "gpt-4")
 
 # 然后再添加项目路径并导入其他模块
 sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
@@ -282,8 +283,8 @@ class GraphManager(CacheMixin, EntityOpsMixin, RelationshipOpsMixin, TemporalOps
 
             all_entities = []
             all_entities.extend(data.get("locations", []))
-            all_entities.extend(data.get("military_units", []))
-            all_entities.extend(data.get("weapon_systems", []))
+            all_entities.extend(data.get("units", []))
+            all_entities.extend(data.get("equipment", []))
             all_entities.extend(data.get("civilian_infrastructure", []))
 
             # 批量加载数据，提高性能
@@ -568,13 +569,13 @@ class GraphManager(CacheMixin, EntityOpsMixin, RelationshipOpsMixin, TemporalOps
                 entity_type=location["type"],
                 **location["properties"]
             )
-        for unit in data.get("military_units", []):
+        for unit in data.get("units", []):
             self.fallback_graph.add_node(
                 unit["id"],
                 entity_type=unit["type"],
                 **unit["properties"]
             )
-        for weapon in data.get("weapon_systems", []):
+        for weapon in data.get("equipment", []):
             self.fallback_graph.add_node(
                 weapon["id"],
                 entity_type=weapon["type"],
@@ -693,8 +694,8 @@ class GraphManager(CacheMixin, EntityOpsMixin, RelationshipOpsMixin, TemporalOps
 
         all_entities = []
         all_entities.extend(data.get("locations", []))
-        all_entities.extend(data.get("military_units", []))
-        all_entities.extend(data.get("weapon_systems", []))
+        all_entities.extend(data.get("units", []))
+        all_entities.extend(data.get("equipment", []))
         all_entities.extend(data.get("civilian_infrastructure", []))
 
         success_count = 0

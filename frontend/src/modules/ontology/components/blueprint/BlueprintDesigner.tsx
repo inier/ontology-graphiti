@@ -15,8 +15,8 @@ import {
 } from '@xyflow/react';
 import '@xyflow/react/dist/style.css';
 import { Layout, message } from 'antd';
-import { useBlueprintStore } from '../../stores/blueprintStore';
-import { blueprintApi } from '../../services/blueprintApi';
+import { useBlueprintStore } from '@/modules/ontology/stores/blueprintStore';
+import { blueprintApi } from '@/modules/ontology/services/blueprintApi';
 import { BlueprintNode as BPNode } from './BlueprintNode';
 import { BlueprintEdge as BPEdge } from './BlueprintEdge';
 import { NodePanel } from './NodePanel';
@@ -197,6 +197,7 @@ function BlueprintDesignerInner() {
       <Layout.Sider
         width={260}
         style={{ background: '#fafafa', borderRight: '1px solid #f0f0f0', overflow: 'auto' }}
+        data-tour="blueprint-node-panel"
       >
         <div style={{ padding: 12 }}>
           <BlueprintList />
@@ -215,7 +216,7 @@ function BlueprintDesignerInner() {
           onExport={handleExport}
           hasBlueprint={!!currentBlueprint}
         />
-        <div ref={reactFlowWrapper} style={{ height: 'calc(100vh - 160px)' }}>
+        <div ref={reactFlowWrapper} style={{ height: 'calc(100vh - 160px)' }} data-tour="blueprint-canvas">
           <ReactFlow
             nodes={nodes}
             edges={edges}

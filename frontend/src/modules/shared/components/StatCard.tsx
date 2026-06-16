@@ -9,38 +9,33 @@ interface StatCardProps {
 }
 
 export function StatCard({ title, value, trend, suffix, loading }: StatCardProps) {
-  const trendColor = trend && trend > 0 ? '#52c41a' : trend && trend < 0 ? '#ff4d4f' : '#8c8c8c';
+  const trendColor = trend && trend > 0
+    ? 'var(--odap-color-success)'
+    : trend && trend < 0
+      ? 'var(--odap-color-error)'
+      : 'var(--odap-color-text-tertiary)';
   const TrendIcon = trend && trend > 0 ? ArrowUpOutlined : ArrowDownOutlined;
 
   return (
-    <div
-      style={{
-        background: '#ffffff',
-        borderRadius: 8,
-        padding: 20,
-        boxShadow: '0 2px 8px rgba(0, 0, 0, 0.08)',
-        transition: 'box-shadow 0.3s',
-      }}
-    >
-      <div style={{ fontSize: 14, color: '#8c8c8c', marginBottom: 8 }}>{title}</div>
+    <div className="stat-card">
+      <div className="stat-label">{title}</div>
       <div style={{ display: 'flex', alignItems: 'baseline', gap: 4 }}>
-        <span
-          style={{
-            fontSize: 32,
-            fontWeight: 600,
-            color: '#262626',
-            fontFamily: "'SF Mono', 'Menlo', monospace",
-          }}
-        >
+        <span className="stat-value">
           {loading ? '-' : value}
         </span>
-        {suffix && <span style={{ fontSize: 14, color: '#8c8c8c' }}>{suffix}</span>}
+        {suffix && (
+          <span style={{ fontSize: 14, color: 'var(--odap-color-text-secondary)' }}>
+            {suffix}
+          </span>
+        )}
       </div>
       {trend !== undefined && !loading && (
-        <div style={{ marginTop: 8, fontSize: 12, color: trendColor, display: 'flex', alignItems: 'center', gap: 4 }}>
+        <div className={`stat-trend ${trend > 0 ? 'up' : 'down'}`}>
           <TrendIcon />
           <span>{Math.abs(trend).toFixed(1)}%</span>
-          <span style={{ color: '#8c8c8c', marginLeft: 4 }}>较上周</span>
+          <span style={{ color: 'var(--odap-color-text-tertiary)', marginLeft: 4, fontWeight: 400 }}>
+            较上周
+          </span>
         </div>
       )}
     </div>

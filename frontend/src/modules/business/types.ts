@@ -11,6 +11,9 @@ export interface BusinessProcess {
   created_at: string;
   updated_at: string;
   yaml_definition?: string;
+  ontology_id?: string;
+  version_id?: string;
+  schema_type_id?: string;
 }
 
 export interface FlowNode {
@@ -45,6 +48,7 @@ export interface BusinessRule {
   created_at: string;
   updated_at: string;
   yaml_definition?: string;
+  schema_type_id?: string;
 }
 
 export interface RuleCondition {
@@ -79,6 +83,7 @@ export interface BusinessLogic {
   created_at: string;
   updated_at: string;
   yaml_definition?: string;
+  schema_type_id?: string;
 }
 
 export interface BusinessLogicFormData {
@@ -108,6 +113,7 @@ export interface BusinessIndicator {
   created_at: string;
   updated_at: string;
   yaml_definition?: string;
+  schema_type_id?: string;
 }
 
 export interface BusinessIndicatorFormData {
@@ -138,6 +144,7 @@ export interface BusinessEntity {
   created_at: string;
   updated_at: string;
   yaml_definition?: string;
+  schema_type_id?: string;
   // 扩展字段
   flow_nodes?: FlowNode[];
   rule_conditions?: RuleCondition[];
@@ -155,6 +162,7 @@ export interface BusinessEntityFormData {
   related_objects: string[];
   llm_description: string;
   yaml_definition?: string;
+  schema_type_id?: string;
   // 扩展字段
   flow_nodes?: FlowNode[];
   rule_conditions?: RuleCondition[];

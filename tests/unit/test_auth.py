@@ -863,10 +863,13 @@ class TestAuthRoutes:
         assert response.status_code == 400
 
     def test_sso_providers_list(self, test_client):
-        """注意: /sso/providers 被 /sso/{provider} 路由先匹配，
-        provider="providers" 不存在时返回 400。
-        这是路由定义顺序问题，此处验证实际行为。
+        """验证 /sso/providers 路由正确返回 provider 列表。
+
+        之前 /sso/{provider} 会先匹配 "providers" 导致 400，
+        现已修复路由定义顺序（/sso/providers 在 /sso/{provider} 之前），
+        因此返回 200 和空 provider 列表。
         """
         response = test_client.get("/api/auth/sso/providers")
-        # /sso/{provider} 先匹配，"providers" 不是有效 provider
-        assert response.status_code == 400
+        # /sso/providers 已在 /sso/{provider} 之前定义，正确匹配
+        assert response.status_code == 200
+        assert "providers" in response.json()

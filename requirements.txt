@@ -6,6 +6,7 @@
 graphiti-core>=0.28.0
 neo4j>=5.0.0
 networkx>=2.8.0
+rank_bm25>=0.2.2
 
 # 权限控制
 opa-python
@@ -44,9 +45,17 @@ aiohttp>=3.9.0
 
 minio>=7.0.0
 
+# 数据库 Schema 抽取
+sqlalchemy>=2.0.0
+psycopg2-binary>=2.9.0
+pymysql>=1.1.0
+
 # 开发依赖
 pytest>=8.0.0
 pytest-asyncio>=0.23.0
 pytest-mock>=3.12.0
 black>=23.0.0
 flake8>=6.1.0
+
+# 数据采集（可选 - JS 渲染爬取，需独立容器部署）
+# crawl4ai>=0.6.0

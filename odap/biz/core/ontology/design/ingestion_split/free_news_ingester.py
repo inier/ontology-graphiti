@@ -15,7 +15,7 @@ from typing import Any, Dict, List, Optional
 from .web_scraper import WebScraper
 from ..schema.document import (
     OntologyDocument, OntologyEvent, VersionRef,
-    SourceInfo, DocumentMeta, SourceType, DocType, make_battle_event_document,
+    SourceInfo, DocumentMeta, SourceType, DocType, make_conflict_event_document,
 )
 
 logger = logging.getLogger("data_ingestion")
@@ -123,16 +123,16 @@ class FreeNewsIngester:
 
     def _generate_mock_from_url(self, url: str, title: str, context: str) -> List[OntologyDocument]:
         """从 URL 生成 Mock 文档"""
-        doc = make_battle_event_document(
+        doc = make_conflict_event_document(
             title=title or f"网页内容: {url}",
-            red_unit="红方部队",
-            blue_unit="蓝方部队",
+            party_a_unit="甲方单位",
+            party_b_unit="乙方单位",
             location="未知区域",
             event_type="contact",
             source_type=SourceType.NEWS_INGEST.value,
         )
         doc.source.url = url
-        doc.source.confidence = 0.5
-        doc.meta.description = f"基于 URL '{url}' 生成的 Mock 数据（{context or '无背景'}）"
+        doc.source.confidence = 0.2
+        doc.meta.description = f"[MOCK-DATA: 抓取失败] 基于 URL '{url}' 生成的 Mock 数据（{context or '无背景'}）"
         logger.info(f"生成 Mock 网页文档: {doc.doc_id}")
         return [doc]

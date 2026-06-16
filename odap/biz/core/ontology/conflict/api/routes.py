@@ -88,12 +88,15 @@ def _to_record(d: Dict[str, Any]) -> ConflictRecord:
 @router.post("/detect")
 async def detect_conflicts(request: DetectRequest):
     """
-    检测多源数据中的字段冲突。
+    检测多源数据中的字段冲突，并自动持久化到 storage。
     返回: {"conflicts": [...], "count": int}
     """
     try:
         sources = [s.model_dump() for s in request.sources]
-        return conflict_service.detect_conflicts(sources)
+        result = conflict_service.detect_conflicts(sources)
+        if result.get("status") == "error":
+            raise HTTPException(status_code=500, detail=result.get("message", "detect failed"))
+        return result
     except HTTPException:
         raise
     except Exception as e:
@@ -103,13 +106,16 @@ async def detect_conflicts(request: DetectRequest):
 @router.post("/resolve")
 async def resolve_conflict(request: ResolveRequest):
     """
-    解决单条冲突。
+    解决单条冲突，并自动更新 storage 中的记录状态。
     request.conflict 必须包含 entity_id/field_name/candidates[]
     request.strategy 必填（first_wins/last_wins/llm_judge/manual）
     """
     try:
         record = _to_record(request.conflict)
-        return conflict_service.resolve_conflict(record, request.strategy, request.context)
+        result = conflict_service.resolve_conflict(record, request.strategy, request.context)
+        if result.get("status") == "error":
+            raise HTTPException(status_code=400, detail=result.get("message", "resolve failed"))
+        return result
     except HTTPException:
         raise
     except Exception as e:
@@ -119,13 +125,13 @@ async def resolve_conflict(request: ResolveRequest):
 @router.get("/conflicts")
 async def list_conflicts(status: Optional[str] = None):
     """
-    列出冲突（占位：暂存于内存；生产环境应由 storage/ 持久化）。
-    当前仅返回空列表 + 状态校验，避免误导。
+    从 storage 列出冲突记录（可选按 status 过滤）。
     """
     try:
-        if status is not None and status not in {"pending", "resolved", "abandoned", "awaiting_human"}:
-            raise HTTPException(status_code=400, detail=f"unknown status: {status}")
-        return {"conflicts": [], "count": 0, "status": status}
+        result = conflict_service.list_conflicts(status=status)
+        if result.get("status") == "error":
+            raise HTTPException(status_code=400, detail=result.get("message", "invalid status"))
+        return result
     except HTTPException:
         raise
     except Exception as e:

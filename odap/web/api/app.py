@@ -7,6 +7,7 @@ import uuid
 import time
 from datetime import datetime, timezone
 from typing import Any, Dict, List, Optional, Set
+from odap.infra.config_composer import get_config
 
 logger = logging.getLogger("simulator_web")
 
@@ -43,7 +44,7 @@ from odap.biz.core.ontology.design.schema.document import (
 )
 from odap.biz.core.ontology.design.services.pipeline_service import PipelineService as OntologyHotWritePipeline
 from odap.biz.core.ontology.design.services.version_service import OntologyVersionManager
-from odap.biz.core.ontology.design.ingestion_split import NewsIngester, FreeNewsIngester, ManualInputHandler, RandomEventGenerator, OntologyDocumentIO
+from odap.biz.core.ontology.design.ingestion_split import NewsIngester, FreeNewsIngester, ManualInputHandler, ConflictEventGenerator, OntologyDocumentIO
 from odap.infra.graph.graph_service import GraphManager
 
 from odap.biz.shared.stores import ScenarioStore, scenario_store as _shared_scenario_store
@@ -89,7 +90,7 @@ class MockDataWebService:
         self.news_ingester = NewsIngester(llm_client=llm_client, tavily_api_key=tavily_api_key)
         self.free_news_ingester = FreeNewsIngester(llm_client=llm_client)
         self.manual_handler = ManualInputHandler(llm_client=llm_client)
-        self.random_gen = RandomEventGenerator(llm_client=llm_client)
+        self.random_gen = ConflictEventGenerator(llm_client=llm_client)
         self.doc_io = OntologyDocumentIO(version_manager=self.versions)
 
         # 订阅本体更新 Hook
@@ -99,12 +100,18 @@ class MockDataWebService:
         self.app = self._build_app()
         
         # 注册本体摄入和构建路由
-        from odap.biz.core.ontology.application.api.routes import router as ontology_ingest_router
-        self.app.include_router(ontology_ingest_router)
+        try:
+            from odap.biz.core.ontology.application.api.routes import router as ontology_ingest_router
+            self.app.include_router(ontology_ingest_router)
+        except Exception as e:
+            logger.warning(f"本体摄入路由注册失败: {e}")
 
         # 注册统一查询服务路由 (ADR-055)
-        from odap.infra.query.routes import router as query_router
-        self.app.include_router(query_router)
+        try:
+            from odap.infra.query.routes import router as query_router
+            self.app.include_router(query_router)
+        except Exception as e:
+            logger.warning(f"统一查询路由注册失败: {e}")
 
         # 注册 OMS 本体元数据路由
         try:
@@ -112,6 +119,20 @@ class MockDataWebService:
             self.app.include_router(oms_router)
         except Exception as e:
             logger.warning(f"OMS 路由注册失败: {e}")
+
+        # 注册本体 API 路由 (003-ontology-redesign)
+        try:
+            from odap.biz.core.ontology.ontology_api.api import router as ontology_api_router
+            self.app.include_router(ontology_api_router)
+        except Exception as e:
+            logger.warning(f"本体API路由注册失败: {e}")
+
+        # 注册抽取路由 (003-ontology-redesign)
+        try:
+            from odap.biz.core.ontology.extraction.api import router as extraction_router
+            self.app.include_router(extraction_router)
+        except Exception as e:
+            logger.warning(f"抽取路由注册失败: {e}")
 
         # 注册工具注册表路由
         try:
@@ -378,7 +399,7 @@ class MockDataWebService:
         )
 
         # CORS 配置
-        _cors_origins_str = os.getenv("CORS_ORIGINS", "http://localhost:5173,http://localhost:8000")
+        _cors_origins_str = get_config("general.cors_origins", "http://localhost:5173,http://localhost:8000")
         _cors_origins: List[str] = [origin.strip() for origin in _cors_origins_str.split(",") if origin.strip()]
         app.add_middleware(
             CORSMiddleware,

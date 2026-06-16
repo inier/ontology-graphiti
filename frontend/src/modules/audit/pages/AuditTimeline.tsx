@@ -1,8 +1,8 @@
 import { useState, useEffect } from 'react';
 import { Card, Table, Tag, Space, Input, Select, Button, Row, Col, Statistic, Drawer, Descriptions, Typography } from 'antd';
 import { SearchOutlined, SafetyCertificateOutlined, CheckCircleOutlined, CloseCircleOutlined, WarningOutlined, InfoCircleOutlined } from '@ant-design/icons';
-import { api } from '../../shared/services/api';
-import type { AuditEvent } from '../../shared/services/api';
+import { api } from '@/modules/shared/services/api';
+import type { AuditEvent } from '@/modules/shared/services/api';
 
 export function AuditTimeline() {
   const [events, setEvents] = useState<AuditEvent[]>([]);
@@ -282,7 +282,7 @@ export function AuditTimeline() {
         open={drawerVisible}
       >
         {selectedEvent && (
-          <Descriptions column={1} bordered>
+          <Descriptions column={1} variant="bordered">
             <Descriptions.Item label="事件ID">{selectedEvent.id}</Descriptions.Item>
             <Descriptions.Item label="时间">{selectedEvent.timestamp ? new Date(selectedEvent.timestamp).toLocaleString('zh-CN') : '-'}</Descriptions.Item>
             <Descriptions.Item label="严重级别">

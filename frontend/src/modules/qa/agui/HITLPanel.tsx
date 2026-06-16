@@ -36,7 +36,7 @@ export function HITLPanel({ onConfirm }: HITLPanelProps) {
         boxShadow: '0 4px 12px rgba(0,0,0,0.15)',
       }}
     >
-      <Space direction="vertical" style={{ width: '100%' }}>
+      <Space orientation="vertical" style={{ width: '100%' }}>
         {pendingInterrupts.map((interrupt) => (
           <Card key={interrupt.id} size="small" type="inner">
             <Text strong>{interrupt.message}</Text>

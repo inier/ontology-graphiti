@@ -43,8 +43,8 @@ action_permitted if {
 
 role_permissions := {
     "admin": ["*"],
-    "commander": ["view", "create", "update", "delete", "approve", "command_units", "authorize_attacks"],
-    "analyst": ["view", "analyze_data", "generate_reports", "view_intelligence"],
+    "director": ["view", "create", "update", "delete", "approve", "coordinate_units", "authorize_engagements"],
+    "analyst": ["view", "analyze_data", "generate_reports", "view_information"],
     "operator": ["view", "perform", "observe"],
     "observer": ["view"],
     "auditor": ["view", "export"],

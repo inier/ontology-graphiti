@@ -36,3 +36,31 @@ class DecisionChainResponse(BaseModel):
 class SwarmConfigRequest(BaseModel):
     agent_roles: Optional[Dict[str, Any]] = None
     routing_rules: Optional[List[Dict[str, Any]]] = None
+
+
+class OrchestrateRequest(BaseModel):
+    """统一编排请求"""
+    query: str
+    user_id: str = "anonymous"
+    workspace_id: str = "default"
+    scenario_id: Optional[str] = None
+    agent_id: Optional[str] = None
+    mode: str = "auto"  # "auto" | "swarm" | "react" | "harness"
+    session_id: Optional[str] = None  # 会话 ID，用于持久化聊天历史
+
+
+class OrchestrateResponse(BaseModel):
+    """统一编排响应"""
+    result_id: str = ""
+    mode: str = ""
+    answer: str = ""
+    reasoning_chain: List[Dict[str, Any]] = Field(default_factory=list)
+    sources: List[Dict[str, Any]] = Field(default_factory=list)
+    metadata: Dict[str, Any] = Field(default_factory=dict)
+    error: Optional[str] = None
+
+
+class CreateSessionRequest(BaseModel):
+    """创建 Agent 会话请求"""
+    workspace_id: str = "default"
+    title: str = ""

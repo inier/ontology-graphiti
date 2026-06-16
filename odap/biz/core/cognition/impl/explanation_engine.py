@@ -3,6 +3,8 @@ import re
 import uuid
 from typing import Dict, Any, List, Optional
 
+from odap.infra.config_composer import get_config
+
 logger = logging.getLogger(__name__)
 
 
@@ -52,12 +54,11 @@ class ExplanationEngine:
 
     def _explain_with_llm(self, query, facts):
         try:
-            import os
             import requests
             import json
-            api_key = os.getenv("OPENAI_API_KEY", "")
-            base_url = os.getenv("OPENAI_API_BASE", "https://api.openai.com/v1")
-            model = os.getenv("OPENAI_MODEL", "deepseek-ai/deepseek-v4-pro")
+            api_key = get_config("llm.api_key", "")
+            base_url = get_config("llm.api_base", "https://api.openai.com/v1")
+            model = get_config("llm.model", "deepseek-ai/deepseek-v4-pro")
             if not api_key:
                 return None
             facts_text = "\n".join(f"- {f}" for f in facts) if facts else "无已知事实"
@@ -132,8 +133,8 @@ class ExplanationEngine:
     def _identify_sources(self, facts: List[str]) -> List[str]:
         sources = []
         for fact in facts:
-            if "雷达" in fact:
-                sources.append("radar_system")
+            if "传感器" in fact:
+                sources.append("sensor_system")
             elif "目标" in fact:
                 sources.append("target_tracking")
             elif "威胁" in fact:

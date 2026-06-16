@@ -39,20 +39,20 @@ except Exception as _e:
     _zhipu_skip = str(_e)
 
 try:
-    from odap.infra.openharness.v2_adapter import (
+    from odap.infra.openharness.engine_adapter import (
         AgentAction,
         AgentObservation,
         OpenHarnessIntegration,
         get_openharness_integration,
     )
 except Exception as _e:
-    _v2_skip = str(_e)
+    _engine_skip = str(_e)
 
 if _zhipu_skip:
     pytest.skip(f"ZhipuAIClient import failed: {_zhipu_skip}", allow_module_level=True)
 
-if _v2_skip:
-    pytest.skip(f"v2_adapter import failed: {_v2_skip}", allow_module_level=True)
+if _engine_skip:
+    pytest.skip(f"engine_adapter import failed: {_engine_skip}", allow_module_level=True)
 
 
 @pytest.fixture
@@ -257,14 +257,14 @@ class TestOpenHarnessIntegration:
 
     def test_get_openharness_integration_returns_instance(self):
         OpenHarnessIntegration._instance = None
-        from odap.infra.openharness import v2_adapter
-        v2_adapter._integration_instance = None
+        from odap.infra.openharness import engine_adapter
+        engine_adapter._integration_instance = None
         inst = get_openharness_integration()
         assert isinstance(inst, OpenHarnessIntegration)
         inst2 = get_openharness_integration()
         assert inst is inst2
         OpenHarnessIntegration._instance = None
-        v2_adapter._integration_instance = None
+        engine_adapter._integration_instance = None
 
     def test_get_status_without_init(self):
         OpenHarnessIntegration._instance = None

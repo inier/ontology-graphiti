@@ -18,8 +18,8 @@ import {
 } from '@ant-design/icons';
 import * as echarts from 'echarts';
 import { goalApi, type Goal, type GoalStatus, type ChangeProposal, type GoalLineage } from '../services/goalApi';
-import { useI18n } from '../../shared/hooks/useI18n';
-import { useWorkspaceStore } from '../../workspace/stores/workspaceStore';
+import { useI18n } from '@/modules/shared/hooks/useI18n';
+import { useWorkspaceStore } from '@/modules/workspace/stores/workspaceStore';
 
 const { Text, Title } = Typography;
 const { Search } = Input;
@@ -382,7 +382,7 @@ export function GoalKanban() {
                       {list.length === 0 ? (
                         <Empty description="拖动卡片到此处" image={Empty.PRESENTED_IMAGE_SIMPLE} />
                       ) : (
-                        <Space direction="vertical" style={{ width: '100%' }} size={6}>
+                        <Space orientation="vertical" style={{ width: '100%' }} size={6}>
                           {list.map((g) => (
                             <Card
                               key={g.id}
@@ -396,9 +396,9 @@ export function GoalKanban() {
                                 background: '#fff',
                                 opacity: draggingGoalId === g.id ? 0.5 : 1,
                               }}
-                              bodyStyle={{ padding: 8 }}
+                              styles={{ body: { padding: 8 } }}
                             >
-                              <Space direction="vertical" size={2} style={{ width: '100%' }}>
+                              <Space orientation="vertical" size={2} style={{ width: '100%' }}>
                                 <Space style={{ width: '100%', justifyContent: 'space-between' }} wrap>
                                   <Text strong style={{ fontSize: 13 }}>{g.title}</Text>
                                   <DragOutlined style={{ color: '#999' }} />
@@ -434,7 +434,7 @@ export function GoalKanban() {
       >
         {selectedGoal && (
           <Spin spinning={lineageLoading || proposalsLoading}>
-            <Space direction="vertical" size="middle" style={{ width: '100%' }}>
+            <Space orientation="vertical" size="middle" style={{ width: '100%' }}>
               <Card size="small">
                 <Descriptions column={1} size="small">
                   <Descriptions.Item label="标题">{selectedGoal.title}</Descriptions.Item>
@@ -471,7 +471,7 @@ export function GoalKanban() {
                     dataSource={goalProposals}
                     renderItem={(p) => (
                       <List.Item>
-                        <Space direction="vertical" size={2} style={{ width: '100%' }}>
+                        <Space orientation="vertical" size={2} style={{ width: '100%' }}>
                           <Space>
                             <FileTextOutlined />
                             <Text strong>{p.title}</Text>
@@ -493,7 +493,7 @@ export function GoalKanban() {
                 </Space>
               }>
                 {lineage ? (
-                  <Space direction="vertical" size="small" style={{ width: '100%' }}>
+                  <Space orientation="vertical" size="small" style={{ width: '100%' }}>
                     {lineage.ancestors.length > 0 && (
                       <div>
                         <Text type="secondary">祖先：</Text>

@@ -14,8 +14,8 @@ import {
 import {
   PlayCircleOutlined, SaveOutlined, ReloadOutlined, CheckCircleOutlined, CloseCircleOutlined,
 } from '@ant-design/icons';
-import { apiClient } from '../../shared/services/apiClient';
-import { useI18n } from '../../shared/hooks/useI18n';
+import { apiClient } from '@/modules/shared/services/apiClient';
+import { useI18n } from '@/modules/shared/hooks/useI18n';
 
 const { Text, Title } = Typography;
 const { TextArea } = Input;
@@ -247,7 +247,7 @@ export function ComputedPropertyEditor({ workspaceId, propertyId, onSaved }: Com
           {error ? (
             <Alert type="error" showIcon message="求值失败" description={error} />
           ) : testResult ? (
-            <Space direction="vertical" style={{ width: '100%' }}>
+            <Space orientation="vertical" style={{ width: '100%' }}>
               <Text>结果: <Text code>{JSON.stringify(testResult.value)}</Text></Text>
               <Text type="secondary">耗时: {testResult.duration_ms} ms</Text>
             </Space>

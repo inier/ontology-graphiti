@@ -12,8 +12,8 @@
  *   GET    /{view_id}/permissions       列出权限
  *   DELETE /permissions/{perm_id}       删除权限
  */
-import { fetchJson } from '../../shared/services/apiClient';
-import { API_BASE } from '../../../config';
+import { fetchJson } from '@/modules/shared/services/apiClient';
+import { API_BASE } from '@/config';
 
 const BASE = `${API_BASE}/api/ontology/views`;
 
@@ -210,7 +210,7 @@ export const viewApi = {
 
   exportView: async (viewId: string, format: 'csv' | 'json' = 'csv'): Promise<Blob> => {
     const url = `${BASE}/${encodeURIComponent(viewId)}/export?format=${format}`;
-    const token = localStorage.getItem('access_token') || '';
+    const token = localStorage.getItem('token') || '';
     const res = await fetch(url, { headers: { Authorization: `Bearer ${token}` } });
     if (!res.ok) throw new Error(`Export failed: ${res.status}`);
     return res.blob();

@@ -7,48 +7,48 @@ from datetime import datetime, timezone
 logger = logging.getLogger(__name__)
 
 EVENT_DATA_TEMPLATES = {
-    "attack": {
+    "engage": {
         "intensity": (0.6, 1.0),
-        "combat_power_delta": (-0.3, -0.1),
-        "morale_delta": (-0.2, -0.05),
+        "capability_index_delta": (-0.3, -0.1),
+        "readiness_delta": (-0.2, -0.05),
     },
-    "defend": {
+    "hold": {
         "intensity": (0.4, 0.8),
-        "combat_power_delta": (-0.1, 0.0),
-        "morale_delta": (0.05, 0.15),
+        "capability_index_delta": (-0.1, 0.0),
+        "readiness_delta": (0.05, 0.15),
     },
-    "retreat": {
+    "withdraw": {
         "intensity": (0.3, 0.6),
-        "combat_power_delta": (-0.15, -0.05),
-        "morale_delta": (-0.25, -0.1),
+        "capability_index_delta": (-0.15, -0.05),
+        "readiness_delta": (-0.25, -0.1),
     },
-    "reinforce": {
+    "support": {
         "intensity": (0.5, 0.9),
-        "morale_delta": (0.1, 0.2),
+        "readiness_delta": (0.1, 0.2),
     },
     "supply": {
         "intensity": (0.2, 0.5),
-        "supply_level_delta": (0.1, 0.3),
+        "resource_level_delta": (0.1, 0.3),
     },
     "transport": {
         "intensity": (0.2, 0.4),
-        "supply_level_delta": (-0.05, 0.05),
+        "resource_level_delta": (-0.05, 0.05),
     },
     "deploy": {
         "intensity": (0.5, 0.8),
-        "supply_level_delta": (-0.15, -0.05),
+        "resource_level_delta": (-0.15, -0.05),
     },
     "observe": {
         "intensity": (0.1, 0.3),
-        "intelligence_gain": (0.3, 0.8),
+        "information_gain": (0.3, 0.8),
     },
     "patrol": {
         "intensity": (0.2, 0.4),
-        "intelligence_gain": (0.2, 0.5),
+        "information_gain": (0.2, 0.5),
     },
     "scan": {
         "intensity": (0.3, 0.6),
-        "intelligence_gain": (0.5, 1.0),
+        "information_gain": (0.5, 1.0),
     },
     "communicate": {
         "intensity": (0.1, 0.3),
@@ -61,15 +61,15 @@ EVENT_DATA_TEMPLATES = {
 }
 
 EVENT_TYPE_CATEGORY = {
-    "attack": "combat", "defend": "combat", "retreat": "combat", "reinforce": "combat",
-    "supply": "logistics", "transport": "logistics", "deploy": "logistics", "withdraw": "logistics",
+    "engage": "conflict", "hold": "conflict", "withdraw": "conflict", "support": "conflict",
+    "supply": "logistics", "transport": "logistics", "deploy": "logistics",
     "observe": "recon", "patrol": "recon", "scan": "recon", "report": "recon",
     "communicate": "comm", "broadcast": "comm", "relay": "comm", "interrupt": "comm",
     "create": "crud", "update": "crud", "delete": "crud", "move": "crud", "interact": "crud",
 }
 
 CATEGORY_BASE_RELEVANCE = {
-    "combat": 0.7,
+    "conflict": 0.7,
     "logistics": 0.5,
     "recon": 0.55,
     "comm": 0.45,
@@ -196,7 +196,7 @@ class EventGenerator:
 
     def _pick_event_type(self, template_id: str, entity_types: List[str]) -> str:
         template_event_map = {
-            "conflict": ["attack", "defend", "retreat", "reinforce"],
+            "conflict": ["engage", "hold", "withdraw", "support"],
             "logistics": ["supply", "transport", "deploy", "withdraw"],
             "reconnaissance": ["observe", "patrol", "scan", "report"],
             "communication": ["communicate", "broadcast", "relay", "interrupt"],
@@ -217,13 +217,13 @@ class EventGenerator:
                 data[field] = round(random.uniform(low, high), 3)
         else:
             data["intensity"] = round(random.uniform(0.1, 1.0), 2)
-            if event_type in ("attack", "defend", "retreat", "reinforce"):
-                data["combat_power_delta"] = round(random.uniform(-0.3, 0.3), 3)
-                data["morale_delta"] = round(random.uniform(-0.2, 0.2), 3)
+            if event_type in ("engage", "hold", "withdraw", "support"):
+                data["capability_index_delta"] = round(random.uniform(-0.3, 0.3), 3)
+                data["readiness_delta"] = round(random.uniform(-0.2, 0.2), 3)
             elif event_type in ("supply", "transport", "deploy", "withdraw"):
-                data["supply_level_delta"] = round(random.uniform(-0.2, 0.2), 3)
+                data["resource_level_delta"] = round(random.uniform(-0.2, 0.2), 3)
             elif event_type in ("observe", "patrol", "scan", "report"):
-                data["intelligence_gain"] = round(random.uniform(0.0, 1.0), 3)
+                data["information_gain"] = round(random.uniform(0.0, 1.0), 3)
             elif event_type in ("communicate", "broadcast", "relay", "interrupt"):
                 data["communication_quality"] = round(random.uniform(0.5, 1.0), 3)
 
@@ -231,8 +231,8 @@ class EventGenerator:
 
     def _compute_ontology_relevance(self, event_type: str, target_type: str) -> float:
         relevance_map = {
-            ("attack", "entity"): 0.9, ("attack", "relation"): 0.7,
-            ("defend", "entity"): 0.85, ("defend", "relation"): 0.6,
+            ("engage", "entity"): 0.9, ("engage", "relation"): 0.7,
+            ("hold", "entity"): 0.85, ("hold", "relation"): 0.6,
             ("move", "entity"): 0.7, ("move", "event"): 0.5,
             ("create", "entity"): 0.8, ("create", "attribute"): 0.5,
             ("update", "attribute"): 0.6, ("update", "entity"): 0.5,
@@ -241,8 +241,8 @@ class EventGenerator:
             ("supply", "entity"): 0.7, ("supply", "attribute"): 0.5,
             ("observe", "entity"): 0.6, ("observe", "event"): 0.7,
             ("communicate", "relation"): 0.7, ("communicate", "entity"): 0.4,
-            ("reinforce", "entity"): 0.85, ("reinforce", "relation"): 0.6,
-            ("retreat", "entity"): 0.8, ("retreat", "event"): 0.6,
+            ("support", "entity"): 0.85, ("support", "relation"): 0.6,
+            ("withdraw", "entity"): 0.8, ("withdraw", "event"): 0.6,
             ("patrol", "entity"): 0.5, ("patrol", "event"): 0.6,
             ("scan", "entity"): 0.6, ("scan", "attribute"): 0.7,
         }

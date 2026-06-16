@@ -8,97 +8,15 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
 from odap.infra.middleware.exception_handler import register_exception_handler
-from odap.biz.platform.workspace.api.routes import router as workspace_router
-from odap.biz.platform.roles.api.routes import router as roles_router
-from odap.infra.security import audit_router
-from odap.infra.security.auth_routes import router as auth_router
-from odap.biz.platform.skill_system.api.routes import router as skill_router
-from odap.biz.platform.skill_system.api.routes_extended import router as skill_ext_router
-from odap.biz.integration.hook_system.api.routes import router as hook_router
-from odap.biz.integration.mcp_adapter.api.routes import router as mcp_router
-from odap.biz.simulation.event_simulator.api.routes import router as event_router
-from odap.biz.integration.frontend_compat.api.routes import router as frontend_router
-from odap.biz.integration.openharness_agent.api.routes import router as agent_router
-from odap.biz.core.agent.api.routes import router as agent_dispatch_router
-from odap.biz.core.agent.api.decision_routes import router as agent_decision_router
-from odap.biz.management.agent_management.api.routes import router as agent_mgmt_router
-from odap.biz.data.knowledge_base.api.routes import router as kb_router
-from odap.biz.core.ontology.application.oms.routes import router as oms_router
-from odap.biz.core.ontology.application.query_api.nl_routes import router as ontology_nl_router
-from odap.infra.object_service.routes import router as osv2_router
-from odap.biz.decision.action_service.routes import router as action_router
-from odap.biz.data.perception.routes import router as perception_router
-from odap.biz.decision.decision_pipeline.routes import router as decision_pipeline_router
-from odap.biz.simulation.simulation_sandbox.routes import router as sandbox_router
-from odap.biz.simulation.simulation_sandbox.api.routes import router as sandbox_api_router
-from odap.biz.simulation.simulation_sandbox.api.parallel_routes import router as parallel_router
-from odap.biz.management.business.api.routes import router as business_router
-from odap.infra.opa.routes import router as policy_router
-from odap.infra.opa.markdown_routes import router as markdown_policy_router
-from odap.biz.platform.session_memory.api.routes import router as session_memory_router
-from odap.biz.data.data_warehouse.api.routes import router as data_warehouse_router
-from odap.infra.query.routes import router as query_router
-from odap.biz.data.qa.api.routes import router as qa_router
-from odap.biz.core.cognition.api.routes import router as cognition_router
-from odap.biz.simulation.feedback.api.routes import router as feedback_router
-from odap.biz.simulation.simulation_deduction.api.routes import router as deduction_router
-from odap.biz.data.semantic_map.api.routes import router as semantic_map_router
-from odap.biz.core.ontology.application.runtime.api.routes import router as runtime_router
-from odap.biz.core.ontology.view.api.routes import router as object_view_router
-from odap.biz.core.ontology.application.harness.api.routes import router as harness_router
-from odap.biz.platform.ontology_memory.api.routes import router as ontology_memory_router
-from odap.biz.platform.ontology_memory.graph_sync.routes import router as memory_sync_router
-from odap.biz.platform.ontology_memory.shared_workspace.routes import router as shared_memory_router
-from odap.biz.core.ontology.application.servitization.api.routes import router as servitization_router
-from odap.biz.core.ontology.application.servitization.api.deployment_routes import router as deployment_router
-from odap.biz.core.ontology.application.servitization.catalog.routes import router as catalog_router
-from odap.biz.core.ontology.application.harness.blueprint.routes import router as blueprint_designer_router
-from odap.biz.core.ontology.action.api.routes import router as action_type_router
-from odap.biz.core.ontology.application.harness.blueprint.api.runtime_routes import router as blueprint_runtime_router
-from odap.biz.core.cognition.thought_graph.api.routes import router as thought_router
-from odap.biz.core.ontology.application.runtime.state_machine.api.routes import router as state_machine_router
-from odap.biz.core.ontology.application.abution_graph.api.routes import router as abution_graph_router
-from odap.biz.platform.ontology_memory.api.decay_routes import router as decay_router
-from odap.biz.platform.ontology_memory.shared_workspace.api.consensus_routes import router as consensus_router
-from odap.biz.platform.i18n.api.routes import router as i18n_router
-from odap.biz.core.ontology.design.model.api.routes import router as ontology_model_router
-from odap.biz.core.ontology.design.engine.api.routes import router as ontology_engine_router
-from odap.biz.core.ontology.design.ingestion.api.routes import router as ingestion_router
-from odap.biz.core.ontology.design.version.api.routes import router as ontology_version_router
-from odap.biz.core.ontology.design.schema.semantic_layer.api.routes import router as semantic_layer_router
-from odap.biz.core.ontology.conflict.api.routes import router as conflict_router
-from odap.biz.core.ontology.branch.api.routes import router as branch_router
-from odap.biz.core.ontology.cold_start.api.routes import router as cold_start_router
-from odap.biz.core.ontology.inheritance.api.routes import router as inheritance_router
-from odap.biz.core.ontology.computed.api.routes import router as computed_router
-from odap.biz.core.ontology.goal.api.routes import router as goal_router
-from odap.biz.platform.tool_registry.api.routes import router as tool_registry_router
-from odap.biz.decision.decision_recommendation.api.routes import router as decision_recommendation_router
-from odap.biz.platform.undo.api.routes import router as undo_router
-from odap.infra.security.data_classification_routes import router as data_classification_router
-from odap.web.ws.routes import ws_router
-from odap.web.api.monitoring_routes import monitoring_router
+from odap.web.router_registry import register_routers, DEFAULT_ROUTER_REGISTRY
 from odap.infra.security import security_config
-from odap.infra.openharness import create_harness
-from odap.infra.openharness.v2_adapter import initialize_openharness, get_openharness_integration
-from odap.infra.openharness.agui.agui_handler import router as agui_router
+from odap.infra.openharness.engine_adapter import initialize_openharness, get_openharness_integration
+from odap.infra.config_composer import get_config
 import logging
 import asyncio
 
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
-
-harness = None
-
-
-def _init_harness() -> None:
-    """初始化 OpenHarness v1 同步加载"""
-    global harness
-    harness = create_harness()
-    if harness:
-        logger.info(f"OpenHarness v1 初始化成功，可用工具: {len(harness.list_available_tools())}")
-    else:
-        logger.warning("OpenHarness v1 不可用")
 
 
 def _schedule_deferred_openharness_init() -> None:
@@ -148,7 +66,6 @@ def _ensure_default_workspace_and_scenario() -> None:
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
-    _init_harness()
     _schedule_deferred_openharness_init()
     _ensure_default_workspace_and_scenario()
     yield
@@ -166,7 +83,7 @@ app = FastAPI(
 )
 
 # 配置 CORS
-_cors_origins_str = os.getenv("CORS_ORIGINS", "http://localhost:3000,http://localhost:8000")
+_cors_origins_str = get_config("general.cors_origins", "http://localhost:3000,http://localhost:8000")
 _cors_origins: List[str] = [origin.strip() for origin in _cors_origins_str.split(",") if origin.strip()]
 
 app.add_middleware(
@@ -185,77 +102,8 @@ app.add_middleware(GzipMiddleware)
 app.add_middleware(PerformanceMiddleware)
 app.add_middleware(AuditMiddleware)
 
-# 注册路由
-app.include_router(workspace_router)
-app.include_router(agui_router)  # AG-UI 协议入口（v2.0 扩展）
-app.include_router(roles_router)
-app.include_router(audit_router)
-app.include_router(auth_router)
-app.include_router(skill_router)
-app.include_router(skill_ext_router)
-app.include_router(hook_router)
-app.include_router(mcp_router)
-app.include_router(event_router)
-app.include_router(frontend_router)
-app.include_router(agent_router)
-app.include_router(agent_dispatch_router)
-app.include_router(agent_decision_router)
-app.include_router(agent_mgmt_router)
-app.include_router(kb_router)
-app.include_router(oms_router)
-app.include_router(ontology_nl_router)
-app.include_router(osv2_router)
-app.include_router(action_router)
-app.include_router(perception_router)
-app.include_router(decision_pipeline_router)
-app.include_router(sandbox_router)
-app.include_router(sandbox_api_router)
-app.include_router(parallel_router)
-app.include_router(business_router)
-app.include_router(policy_router)
-app.include_router(markdown_policy_router)
-app.include_router(session_memory_router)
-app.include_router(data_warehouse_router)
-app.include_router(query_router)
-app.include_router(qa_router)
-app.include_router(cognition_router)
-app.include_router(feedback_router)
-app.include_router(deduction_router)
-app.include_router(semantic_map_router)
-app.include_router(runtime_router)
-app.include_router(harness_router)
-app.include_router(ontology_memory_router)
-app.include_router(memory_sync_router)
-app.include_router(shared_memory_router)
-app.include_router(servitization_router)
-app.include_router(deployment_router)
-app.include_router(catalog_router)
-app.include_router(blueprint_designer_router)
-app.include_router(action_type_router)
-app.include_router(blueprint_runtime_router)
-app.include_router(thought_router)
-app.include_router(state_machine_router)
-app.include_router(abution_graph_router)
-app.include_router(decay_router)
-app.include_router(consensus_router)
-app.include_router(i18n_router)
-app.include_router(ontology_model_router)
-app.include_router(ontology_engine_router)
-app.include_router(ingestion_router)
-app.include_router(ontology_version_router)
-app.include_router(data_classification_router)
-app.include_router(semantic_layer_router)
-app.include_router(conflict_router)
-app.include_router(branch_router)
-app.include_router(cold_start_router)
-app.include_router(inheritance_router)
-app.include_router(computed_router)
-app.include_router(goal_router)
-app.include_router(tool_registry_router)
-app.include_router(decision_recommendation_router)
-app.include_router(undo_router)
-app.include_router(ws_router)
-app.include_router(monitoring_router)
+# 统一注册所有路由（路由配置集中在 router_registry.py 管理）
+register_routers(app, DEFAULT_ROUTER_REGISTRY)
 
 @app.get("/")
 async def root():
@@ -302,10 +150,13 @@ async def health_check():
 
     return {
         "status": "healthy",
-        "openharness_v1": harness is not None,
-        "openharness_v2": status_info,
+        "openharness": {
+            "available": status_info.get("openharness_available", False),
+            "engine_type": status_info.get("engine_type", "unknown"),
+            "agent_loop_initialized": status_info.get("agent_loop_initialized", False),
+            "tools_count": status_info.get("tools_count", 0),
+            "tools": status_info.get("tools", []),
+        },
         "graphiti": graphiti_status,
         "version": "2.0.0"
     }
-
-

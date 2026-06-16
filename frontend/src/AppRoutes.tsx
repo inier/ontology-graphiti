@@ -1,24 +1,26 @@
 import { Routes, Route, Navigate } from 'react-router-dom';
 import type { ReactNode } from 'react';
-import { WorkspacePage } from './modules/workspace/pages/WorkspacePage';
-import { AuditLog } from './modules/audit';
-import PolicyPage from './modules/audit/pages/PolicyPage';
-import { OntologyDesignerPage } from './modules/ontology';
-import { BlueprintDesignerPage } from './modules/ontology/pages/BlueprintDesignerPage';
-import { GoalKanban } from './modules/ontology/pages/GoalKanban';
-import { IngestPanel, Simulator } from './modules/ingest';
-import { StrategyDeduction, SimulationPage } from './modules/simulation';
-import { VersionHistory } from './modules/version';
-import { RoleManager } from './modules/roles';
-import { UserManagement } from './modules/roles/pages/UserManagement';
-import { SkillManagement } from './modules/system';
-import { BusinessProcess, Rules, Indicators, Logic, ObjectManagement } from './modules/business';
-import { KnowledgeBase, KnowledgePage } from './modules/knowledge';
-import { MyAgents, AgentChat, AgentManagement, AgentPage } from './modules/agent';
-import { LoginPage } from './modules/shared/pages/LoginPage';
-import { I18nAdminPage } from './modules/i18n-admin';
-import { QAPage } from './modules/qa';
-import { GuidePage } from './modules/guide';
+import { WorkspacePage } from '@/modules/workspace/pages/WorkspacePage';
+import { AuditLog } from '@/modules/audit';
+import PolicyPage from '@/modules/audit/pages/PolicyPage';
+import { OntologyDesignerPage } from '@/modules/ontology';
+import { OntologyGraphPage } from '@/modules/ontology';
+import { BlueprintDesignerPage } from '@/modules/ontology/pages/BlueprintDesignerPage';
+import { GoalKanban } from '@/modules/ontology/pages/GoalKanban';
+import { IngestPanel, Simulator } from '@/modules/ingest';
+import { StrategyDeduction, SimulationPage } from '@/modules/simulation';
+import { VersionHistory } from '@/modules/version';
+import { RoleManager } from '@/modules/roles';
+import { UserManagement } from '@/modules/roles/pages/UserManagement';
+import { SkillManagement } from '@/modules/system';
+import { BusinessProcess, Rules, Indicators, Logic, ObjectManagement } from '@/modules/business';
+import { KnowledgeBase, KnowledgePage } from '@/modules/knowledge';
+import { MyAgents, AgentChat, AgentManagement, AgentPage } from '@/modules/agent';
+import { LoginPage } from '@/modules/shared/pages/LoginPage';
+import { I18nAdminPage } from '@/modules/i18n-admin';
+import { QAPage, QueryPage, EvaluationPage } from '@/modules/qa';
+import { GuidePage } from '@/modules/guide';
+import { SettingsPage } from '@/modules/settings';
 
 function ProtectedRoute({ children }: { children: ReactNode }) {
   const token = localStorage.getItem('token');
@@ -38,6 +40,7 @@ export function AppRoutes() {
       <Route path="/agent" element={<ProtectedRoute><AgentPage /></ProtectedRoute>} />
 
       <Route path="/ontology/designer" element={<ProtectedRoute><OntologyDesignerPage /></ProtectedRoute>} />
+      <Route path="/ontology/graph" element={<ProtectedRoute><OntologyGraphPage /></ProtectedRoute>} />
       <Route path="/ontology" element={<Navigate to="/ontology/designer" replace />} />
       <Route path="/ontology/goals" element={<ProtectedRoute><GoalKanban /></ProtectedRoute>} />
       <Route path="/blueprint" element={<ProtectedRoute><BlueprintDesignerPage /></ProtectedRoute>} />
@@ -56,6 +59,8 @@ export function AppRoutes() {
       <Route path="/knowledge" element={<ProtectedRoute><KnowledgeBase /></ProtectedRoute>} />
       <Route path="/knowledge/navigation" element={<ProtectedRoute><KnowledgePage /></ProtectedRoute>} />
       <Route path="/qa" element={<ProtectedRoute><QAPage /></ProtectedRoute>} />
+      <Route path="/qa/query" element={<ProtectedRoute><QueryPage /></ProtectedRoute>} />
+      <Route path="/qa/evaluation" element={<ProtectedRoute><EvaluationPage /></ProtectedRoute>} />
       <Route path="/workspace/manage" element={<ProtectedRoute><WorkspacePage /></ProtectedRoute>} />
       <Route path="/workspace" element={<Navigate to="/workspace/manage" replace />} />
       <Route path="/i18n-admin" element={<ProtectedRoute><I18nAdminPage /></ProtectedRoute>} />
@@ -63,6 +68,7 @@ export function AppRoutes() {
       <Route path="/users" element={<ProtectedRoute><UserManagement /></ProtectedRoute>} />
       <Route path="/policy-editor" element={<ProtectedRoute><PolicyPage /></ProtectedRoute>} />
       <Route path="/policies" element={<Navigate to="/policy-editor" replace />} />
+      <Route path="/settings" element={<ProtectedRoute><SettingsPage /></ProtectedRoute>} />
       <Route path="/audit" element={<ProtectedRoute><AuditLog /></ProtectedRoute>} />
       <Route path="/admin/agents" element={<ProtectedRoute><AgentManagement /></ProtectedRoute>} />
 

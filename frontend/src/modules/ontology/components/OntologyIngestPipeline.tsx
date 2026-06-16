@@ -126,28 +126,28 @@ const PIPELINE_STEPS: PipelineStep[] = [
 const MOCK_ENTITIES: EntityDefinition[] = [
   {
     id: 'unit-red-001',
-    name: '红方第1装甲旅',
+    name: '甲方第1机动组',
     type: 'Unit',
-    side: 'red',
+    side: 'party_a',
     confidence: 0.95,
     properties: {
       规模: '3000人',
-      装备: 'M1A2坦克',
+      装备: '重型载具',
       位置: 'B区高地',
       状态: '待命'
     }
   },
   {
     id: 'unit-blue-002',
-    name: '蓝方第2步兵营',
+    name: '乙方第2行动组',
     type: 'Unit',
-    side: 'blue',
+    side: 'party_b',
     confidence: 0.92,
     properties: {
       规模: '1500人',
       装备: '突击步枪',
       位置: 'C区城镇',
-      状态: '巡逻'
+      状态: '巡查'
     }
   },
   {
@@ -164,7 +164,7 @@ const MOCK_ENTITIES: EntityDefinition[] = [
   },
   {
     id: 'event-contact-001',
-    name: '交火事件',
+    name: '交锋事件',
     type: 'Event',
     side: 'neutral',
     confidence: 0.88,
@@ -182,28 +182,28 @@ const MOCK_RELATIONS: RelationDefinition[] = [
     source: 'unit-red-001',
     target: 'unit-blue-002',
     type: 'engaged_with',
-    description: '红方第1装甲旅与蓝方第2步兵营交火'
+    description: '甲方第1机动组与乙方第2行动组交锋'
   },
   {
     id: 'rel-002',
     source: 'unit-red-001',
     target: 'location-b-zone',
     type: 'deployed_at',
-    description: '红方第1装甲旅部署在B区高地'
+    description: '甲方第1机动组部署在B区高地'
   },
   {
     id: 'rel-003',
     source: 'event-contact-001',
     target: 'location-b-zone',
     type: 'occurred_at',
-    description: '交火事件发生在B区高地'
+    description: '交锋事件发生在B区高地'
   },
   {
     id: 'rel-004',
     source: 'event-contact-001',
     target: 'unit-red-001',
     type: 'participated_in',
-    description: '红方第1装甲旅参与交火事件'
+    description: '甲方第1机动组参与交锋事件'
   }
 ];
 
@@ -214,7 +214,7 @@ const MOCK_EVENTS: EventDefinition[] = [
     location: 'B区高地',
     timestamp: '2026-04-30T15:00:00Z',
     participants: ['unit-red-001', 'unit-blue-002'],
-    description: '红方第1装甲旅与蓝方第2步兵营发生交火'
+    description: '甲方第1机动组与乙方第2行动组发生交锋'
   }
 ];
 
@@ -241,8 +241,8 @@ export function OntologyIngestPipeline() {
       width: 100,
       render: (side: string) => {
         const colors: Record<string, string> = {
-          red: 'red',
-          blue: 'blue',
+          party_a: 'red',
+          party_b: 'blue',
           neutral: 'default'
         };
         return <Tag color={colors[side] || 'default'}>{side}</Tag>;
@@ -390,11 +390,11 @@ export function OntologyIngestPipeline() {
         </Space>
       ),
       children: (
-        <Descriptions bordered column={1} size="small">
+        <Descriptions variant="bordered" column={1} size="small">
           <Descriptions.Item label="文档格式">OntologyDocument (JSON)</Descriptions.Item>
           <Descriptions.Item label="实体类型">Unit, Equipment, Location, Person, Organization, EventNode</Descriptions.Item>
-          <Descriptions.Item label="关系类型">engaged_with, commands, supported_by, deployed_at, reinforces</Descriptions.Item>
-          <Descriptions.Item label="事件类型">contact, attack, retreat, reinforce, patrol, cease_fire</Descriptions.Item>
+          <Descriptions.Item label="关系类型">engaged_with, commands, supported_by, deployed_at, supports</Descriptions.Item>
+          <Descriptions.Item label="事件类型">contact, engage, withdraw, support, patrol, cease_operation</Descriptions.Item>
           <Descriptions.Item label="四层属性">basic_properties, statistical_properties, capabilities, constraints</Descriptions.Item>
           <Descriptions.Item label="版本控制">语义化版本 + 父版本指针</Descriptions.Item>
         </Descriptions>
@@ -405,7 +405,7 @@ export function OntologyIngestPipeline() {
   return (
     <div>
       <Card style={{ marginBottom: 12, borderRadius: 8 }}>
-        <Space direction="vertical" style={{ width: '100%' }} size="small">
+        <Space orientation="vertical" style={{ width: '100%' }} size="small">
           <Row align="middle" justify="end">
             <Space size="small">
               {!isRunning && currentStep === -1 && (
@@ -449,7 +449,7 @@ export function OntologyIngestPipeline() {
               size="small"
             >
               {currentStep < steps.length && steps[currentStep] && (
-                <Descriptions bordered column={1} size="small">
+                <Descriptions variant="bordered" column={1} size="small">
                   <Descriptions.Item label="步骤">
                     {steps[currentStep].title}
                   </Descriptions.Item>

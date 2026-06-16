@@ -8,9 +8,9 @@ import {
   EyeOutlined, CodeOutlined, FundOutlined,
 } from '@ant-design/icons';
 import type { BusinessEntity, BusinessEntityType, BusinessEntityFormData, FlowNode, RuleCondition } from '../types';
-import { api as sharedApi } from '../../shared/services/api';
-import { useOntologyVersion } from '../../shared/components/AppLayout';
-import { processApi, ruleApi, logicApi, indicatorApi } from '../services/businessApi';
+import { api as sharedApi } from '@/modules/shared/services/api';
+import { useOntologyVersion } from '@/modules/shared/components/AppLayout';
+import { processApi, ruleApi, logicApi, indicatorApi, processTypeDefinitions, ruleTypeDefinitions, functionTypeDefinitions, indicatorTypeDefinitions } from '../services/businessApi';
 
 const { TextArea } = Input;
 const { Title, Text } = Typography;
@@ -70,7 +70,7 @@ async function ensureOptionsLoaded(): Promise<{
         if (t) typeSet.add(t);
       });
       const TYPE_LABELS: Record<string, string> = {
-        Unit: '作战单元', Equipment: '装备', Location: '地点',
+        Unit: '组织单元', Equipment: '装备', Location: '地点',
         Person: '人员', Organization: '组织', EventNode: '事件节点',
         Event: '事件', Document: '文档',
       };
@@ -160,11 +160,48 @@ export function BusinessEntityManager({
   const [ruleOptions, setRuleOptions] = useState<{label: string; value: string}[]>([]);
   const [logicOptions, setLogicOptions] = useState<{label: string; value: string}[]>([]);
   const [indicatorOptions, setIndicatorOptions] = useState<{label: string; value: string}[]>([]);
+  const [typeDefinitions, setTypeDefinitions] = useState<any[]>([]);
+  const [typeDefinitionOptions, setTypeDefinitionOptions] = useState<{label: string; value: string}[]>([]);
 
   useEffect(() => {
     loadEntities();
     loadOptions();
+    loadTypeDefinitions();
   }, [currentOntologyId, currentVersionId]);
+
+  const loadTypeDefinitions = async () => {
+    if (!currentOntologyId) {
+      setTypeDefinitions([]);
+      setTypeDefinitionOptions([]);
+      return;
+    }
+    try {
+      let result: any;
+      switch (entityType) {
+        case 'process':
+          result = await processTypeDefinitions.list(currentOntologyId);
+          break;
+        case 'rule':
+          result = await ruleTypeDefinitions.list(currentOntologyId);
+          break;
+        case 'logic':
+          result = await functionTypeDefinitions.list(currentOntologyId);
+          break;
+        case 'indicator':
+          result = await indicatorTypeDefinitions.list(currentOntologyId);
+          break;
+      }
+      const items = Array.isArray(result) ? result : [];
+      setTypeDefinitions(items);
+      setTypeDefinitionOptions(items.map((td: any) => ({
+        label: td.display_name || td.name || td.type_id,
+        value: td.type_id,
+      })));
+    } catch {
+      setTypeDefinitions([]);
+      setTypeDefinitionOptions([]);
+    }
+  };
 
   const loadOptions = async () => {
     const opts = await ensureOptionsLoaded();
@@ -212,6 +249,7 @@ export function BusinessEntityManager({
       indicator_type: entity.indicator_type,
       calculation_formula: entity.calculation_formula,
       unit: entity.unit,
+      schema_type_id: entity.schema_type_id,
     } as any);
     setFlowNodes(entity.flow_nodes || []);
     setRuleConditions(entity.rule_conditions || []);
@@ -356,7 +394,13 @@ export function BusinessEntityManager({
                   <div style={{ fontSize: 16, fontWeight: 600, marginBottom: 4 }}>{entity.display_name}</div>
                   <Text type="secondary" style={{ fontSize: 12, fontFamily: 'monospace' }}>{entity.name}</Text>
                 </div>
-                <Tag color={tagColor}>{tagText}</Tag>
+                <Space size={4}>
+                  {entity.schema_type_id && (() => {
+                    const matched = typeDefinitions.find((td: any) => td.type_id === entity.schema_type_id);
+                    return matched ? <Tag color="geekblue">{matched.display_name || matched.name}</Tag> : <Tag>{entity.schema_type_id}</Tag>;
+                  })()}
+                  <Tag color={tagColor}>{tagText}</Tag>
+                </Space>
               </div>
 
               <Text type="secondary" style={{ fontSize: 13, display: 'block', marginBottom: 12, minHeight: 40 }}>
@@ -368,7 +412,7 @@ export function BusinessEntityManager({
                 <div style={{ marginBottom: 12 }}>
                   <Steps
                     size="small"
-                    direction="horizontal"
+                    orientation="horizontal"
                     current={-1}
                     items={[
                       ...entity.flow_nodes.slice(0, 4).map(node => ({ title: node.name })),
@@ -419,7 +463,7 @@ export function BusinessEntityManager({
                 <Space>
                   <Button type="text" size="small" icon={<EyeOutlined />} onClick={(e) => { e.stopPropagation(); handleView(entity); }}>查看</Button>
                   <Button type="text" size="small" icon={<EditOutlined />} onClick={(e) => { e.stopPropagation(); handleEdit(entity); }}>编辑</Button>
-                  <Popconfirm title="确认删除？" onConfirm={(e) => { e?.stopPropagation(); handleDelete(entity.id); }}>
+                  <Popconfirm description="确认删除？" onConfirm={(e) => { e?.stopPropagation(); handleDelete(entity.id); }}>
                     <Button type="text" size="small" danger icon={<DeleteOutlined />} onClick={(e) => e.stopPropagation()}>删除</Button>
                   </Popconfirm>
                 </Space>
@@ -446,6 +490,9 @@ export function BusinessEntityManager({
           </Form.Item>
           <Form.Item name="display_name" label="展示名称" rules={[{ required: true, message: '请输入展示名称' }]}>
             <Input placeholder="请输入展示名称" />
+          </Form.Item>
+          <Form.Item name="schema_type_id" label="类型定义">
+            <Select placeholder="选择类型定义（可选）" allowClear options={typeDefinitionOptions} showSearch filterOption={(input, option) => (option?.label as string)?.toLowerCase().includes(input.toLowerCase())} />
           </Form.Item>
           <Form.Item name="related_objects" label="关联对象">
             <Select
@@ -624,7 +671,7 @@ export function BusinessEntityManager({
         title="详情"
         open={detailOpen}
         onClose={() => setDetailOpen(false)}
-        size={560}
+        width={560}
       >
         {viewingEntity && (
           <div>
@@ -635,6 +682,14 @@ export function BusinessEntityManager({
             <Divider />
 
             <Descriptions column={1} size="small">
+              {viewingEntity.schema_type_id && (
+                <Descriptions.Item label="类型定义">
+                  {(() => {
+                    const matched = typeDefinitions.find((td: any) => td.type_id === viewingEntity.schema_type_id);
+                    return matched ? <Tag color="geekblue">{matched.display_name || matched.name}</Tag> : <Tag>{viewingEntity.schema_type_id}</Tag>;
+                  })()}
+                </Descriptions.Item>
+              )}
               <Descriptions.Item label="关联对象">
                 <Space wrap>
                   {viewingEntity.related_objects?.map(obj => <Tag key={obj} color="blue">{obj}</Tag>)}
@@ -739,7 +794,7 @@ export function BusinessEntityManager({
             <Divider />
             <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 8 }}>
               <Button icon={<CodeOutlined />} onClick={() => { setYamlViewContent(viewingEntity.yaml_definition || ''); setYamlViewOpen(true); }}>查看 YAML 代码</Button>
-              <Popconfirm title="确认删除？" onConfirm={() => handleDelete(viewingEntity.id)}>
+              <Popconfirm description="确认删除？" onConfirm={() => handleDelete(viewingEntity.id)}>
                 <Button danger icon={<DeleteOutlined />}>删除</Button>
               </Popconfirm>
               <Button type="primary" icon={<EditOutlined />} onClick={() => { setDetailOpen(false); handleEdit(viewingEntity); }}>

@@ -14,7 +14,7 @@ from typing import Dict, Any, List, Optional
 from pydantic import BaseModel
 import logging
 
-from odap.infra.openharness.v2_adapter import (
+from odap.infra.openharness.engine_adapter import (
     get_openharness_integration,
     initialize_openharness,
     run_agent,

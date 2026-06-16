@@ -1,8 +1,8 @@
 import { useState, useEffect } from 'react';
 import { Tabs, Card, Descriptions, Tag, Progress, Space, Typography, Spin, Empty, Input, Button } from 'antd';
 import { BulbOutlined, CompassOutlined, AimOutlined, SearchOutlined } from '@ant-design/icons';
-import { apiClient } from '../../shared/services/apiClient';
-import { useI18n } from '../../shared/hooks/useI18n';
+import { apiClient } from '@/modules/shared/services/apiClient';
+import { useI18n } from '@/modules/shared/hooks/useI18n';
 import ReasoningPath from './ReasoningPath';
 
 const { Text } = Typography;
@@ -42,7 +42,7 @@ interface CognitionPanelProps {
 }
 
 const ROLE_TABS = [
-  { key: 'commander', label: 'Commander', icon: <AimOutlined /> },
+  { key: 'director', label: 'Director', icon: <AimOutlined /> },
   { key: 'intelligence', label: 'Intelligence', icon: <CompassOutlined /> },
   { key: 'operations', label: 'Operations', icon: <BulbOutlined /> },
 ];
@@ -52,7 +52,7 @@ const CONFIDENCE_COLOR = (v: number) =>
 
 export default function CognitionPanel({ workspaceId, scenarioId }: CognitionPanelProps) {
   const { t } = useI18n('agent');
-  const [activeRole, setActiveRole] = useState('commander');
+  const [activeRole, setActiveRole] = useState('director');
   const [intentResult, setIntentResult] = useState<IntentResult | null>(null);
   const [explanation, setExplanation] = useState<ExplanationResult | null>(null);
   const [roleView, setRoleView] = useState<RoleViewResult | null>(null);
@@ -109,7 +109,7 @@ export default function CognitionPanel({ workspaceId, scenarioId }: CognitionPan
   };
 
   const renderIntentSection = () => (
-    <Space direction="vertical" style={{ width: '100%' }} size="middle">
+    <Space orientation="vertical" style={{ width: '100%' }} size="middle">
       <Space>
         <Input
           placeholder="Enter text for intent recognition..."
@@ -125,8 +125,8 @@ export default function CognitionPanel({ workspaceId, scenarioId }: CognitionPan
       {!intentResult ? (
         <Empty description={t('noData')} image={Empty.PRESENTED_IMAGE_SIMPLE} />
       ) : (
-        <Space direction="vertical" style={{ width: '100%' }} size="middle">
-          <Descriptions bordered size="small" column={2}>
+        <Space orientation="vertical" style={{ width: '100%' }} size="middle">
+          <Descriptions variant="bordered" size="small" column={2}>
             <Descriptions.Item label="Intent Type">
               <Tag color="blue">{intentResult.primary_intent || 'unknown'}</Tag>
             </Descriptions.Item>
@@ -163,7 +163,7 @@ export default function CognitionPanel({ workspaceId, scenarioId }: CognitionPan
   );
 
   const renderReasoningSection = () => (
-    <Space direction="vertical" style={{ width: '100%' }} size="middle">
+    <Space orientation="vertical" style={{ width: '100%' }} size="middle">
       <Space>
         <Input
           placeholder="Enter decision ID for explanation..."
@@ -179,8 +179,8 @@ export default function CognitionPanel({ workspaceId, scenarioId }: CognitionPan
       {!explanation ? (
         <Empty description={t('noData')} image={Empty.PRESENTED_IMAGE_SIMPLE} />
       ) : (
-        <Space direction="vertical" style={{ width: '100%' }} size="middle">
-          <Descriptions bordered size="small" column={2}>
+        <Space orientation="vertical" style={{ width: '100%' }} size="middle">
+          <Descriptions variant="bordered" size="small" column={2}>
             <Descriptions.Item label="Query">{explanation.query}</Descriptions.Item>
             <Descriptions.Item label="Confidence">
               <Progress
@@ -219,7 +219,7 @@ export default function CognitionPanel({ workspaceId, scenarioId }: CognitionPan
       return <Empty description={t('noData')} image={Empty.PRESENTED_IMAGE_SIMPLE} />;
     }
     return (
-      <Descriptions bordered size="small" column={1}>
+      <Descriptions variant="bordered" size="small" column={1}>
         <Descriptions.Item label="Role">
           <Tag color="purple">{roleView.role}</Tag>
         </Descriptions.Item>
@@ -279,10 +279,10 @@ export default function CognitionPanel({ workspaceId, scenarioId }: CognitionPan
         }
       >
         <Tabs
-          activeKey={activeRole === 'commander' ? 'intent' : activeRole === 'intelligence' ? 'reasoning' : 'role-view'}
+          activeKey={activeRole === 'director' ? 'intent' : activeRole === 'intelligence' ? 'reasoning' : 'role-view'}
           items={tabItems}
           onChange={(key) => {
-            if (key === 'intent') setActiveRole('commander');
+            if (key === 'intent') setActiveRole('director');
             else if (key === 'reasoning') setActiveRole('intelligence');
             else setActiveRole('operations');
           }}

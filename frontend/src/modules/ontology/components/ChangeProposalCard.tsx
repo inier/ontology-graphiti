@@ -21,7 +21,7 @@ import {
   CheckOutlined, CloseOutlined, FileTextOutlined, AlertOutlined, RiseOutlined,
 } from '@ant-design/icons';
 import { goalApi, type ChangeProposal, type ImpactAnalysis, type ProposalStatus } from '../services/goalApi';
-import { useI18n } from '../../shared/hooks/useI18n';
+import { useI18n } from '@/modules/shared/hooks/useI18n';
 
 const { Text } = Typography;
 
@@ -180,7 +180,7 @@ export function ChangeProposalCard({ proposalId, onReview }: ChangeProposalCardP
               key: 'details',
               label: 'Details',
               children: (
-                <Space direction="vertical" size="middle" style={{ width: '100%' }}>
+                <Space orientation="vertical" size="middle" style={{ width: '100%' }}>
                   <div>
                     <Text type="secondary">Description</Text>
                     <div style={{ marginTop: 4 }}>
@@ -216,7 +216,7 @@ export function ChangeProposalCard({ proposalId, onReview }: ChangeProposalCardP
               children: changes.length === 0 ? (
                 <Empty description="无变更" image={Empty.PRESENTED_IMAGE_SIMPLE} />
               ) : (
-                <Space direction="vertical" style={{ width: '100%' }} size={4}>
+                <Space orientation="vertical" style={{ width: '100%' }} size={4}>
                   {changes.map((c, i) => {
                     const meta = OP_META[c.op] || { color: 'default', label: c.op };
                     return (
@@ -245,7 +245,7 @@ export function ChangeProposalCard({ proposalId, onReview }: ChangeProposalCardP
               children: !impact ? (
                 <Empty description="无影响分析数据" image={Empty.PRESENTED_IMAGE_SIMPLE} />
               ) : (
-                <Space direction="vertical" size="middle" style={{ width: '100%' }}>
+                <Space orientation="vertical" size="middle" style={{ width: '100%' }}>
                   <Row gutter={12}>
                     <Col xs={24} sm={8}>
                       <Card size="small">
@@ -313,7 +313,7 @@ export function ChangeProposalCard({ proposalId, onReview }: ChangeProposalCardP
 
                   {impact.breaking_changes.length > 0 && (
                     <Card size="small" title={`Breaking Changes (${impact.breaking_changes.length})`}>
-                      <Space direction="vertical" size={4} style={{ width: '100%' }}>
+                      <Space orientation="vertical" size={4} style={{ width: '100%' }}>
                         {impact.breaking_changes.map((bc, i) => (
                           <Alert key={i} type="error" message={bc} showIcon />
                         ))}

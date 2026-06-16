@@ -1,4 +1,4 @@
-import { apiClient } from '../../shared/services/apiClient';
+import { apiClient } from '@/modules/shared/services/apiClient';
 
 export const knowledgePageApi = {
   navigate: (entityId: string, direction: string = 'outbound', depth: number = 1) =>

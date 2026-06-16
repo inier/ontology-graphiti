@@ -5,7 +5,7 @@ export { ToolHealthIndicator } from './components/ToolHealthIndicator';
 export { PageHeader, ActionButton } from './components/PageHeader';
 export { api, fetchJson } from './services/api';
 export { apiClient } from './services/apiClient';
-export { API_BASE } from '../../config';
+export { API_BASE } from '@/config';
 export * from './types';
 export * from './stores';
 export * from './styles';

@@ -209,18 +209,17 @@ class TestMemoryAdapter:
 class TestV2AdapterShutdown:
     @pytest.mark.asyncio
     async def test_shutdown(self):
-        from odap.infra.openharness.v2_adapter import OpenHarnessIntegration
+        from odap.infra.openharness.engine_adapter import OpenHarnessIntegration
         OpenHarnessIntegration._instance = None
         integration = OpenHarnessIntegration()
         result = await integration.shutdown()
         assert result is True
         assert integration.agent_loop is None
-        assert integration.llm_client is None
         OpenHarnessIntegration._instance = None
 
     @pytest.mark.asyncio
     async def test_initialize_and_shutdown(self):
-        from odap.infra.openharness.v2_adapter import OpenHarnessIntegration
+        from odap.infra.openharness.engine_adapter import OpenHarnessIntegration
         OpenHarnessIntegration._instance = None
         integration = OpenHarnessIntegration()
         init_result = await integration.initialize()

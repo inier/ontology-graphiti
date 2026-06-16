@@ -13,8 +13,8 @@ import {
 import type { ColumnsType } from 'antd/es/table';
 import { ReloadOutlined, ThunderboltOutlined, CheckCircleTwoTone, CloseCircleTwoTone, WarningTwoTone, MinusCircleTwoTone } from '@ant-design/icons';
 import * as echarts from 'echarts';
-import { apiClient } from '../../shared/services/apiClient';
-import { useI18n } from '../../shared/hooks/useI18n';
+import { apiClient } from '@/modules/shared/services/apiClient';
+import { useI18n } from '@/modules/shared/hooks/useI18n';
 
 const { Text, Title } = Typography;
 
@@ -220,7 +220,7 @@ export function HealthDashboard({ workspaceId }: HealthDashboardProps) {
       dataIndex: 'name',
       key: 'name',
       render: (_: string, r) => (
-        <Space size={4} direction="vertical" style={{ lineHeight: 1.2 }}>
+        <Space size={4} orientation="vertical" style={{ lineHeight: 1.2 }}>
           <Text strong>{r.name}</Text>
           {r.description && <Text type="secondary" style={{ fontSize: 12 }}>{r.description}</Text>}
         </Space>
@@ -283,19 +283,19 @@ export function HealthDashboard({ workspaceId }: HealthDashboardProps) {
               title={t('ontology.health.passRate') || 'Pass Rate'}
               value={stats.passRate}
               suffix="%"
-              valueStyle={{ color: stats.passRate >= 90 ? '#52c41a' : stats.passRate >= 60 ? '#faad14' : '#ff4d4f' }}
+              styles={{ content: stats.passRate >= 90 ? { color: '#52c41a' } : stats.passRate >= 60 ? { color: '#faad14' } : { color: '#ff4d4f' } }}
             />
           </Card>
         </Col>
         <Col xs={24} sm={12} md={6}>
-          <Card><Statistic title={t('ontology.health.failingRules') || 'Failing Rules'} value={stats.failing} valueStyle={{ color: '#ff4d4f' }} /></Card>
+          <Card><Statistic title={t('ontology.health.failingRules') || 'Failing Rules'} value={stats.failing} styles={{ content: { color: '#ff4d4f' } }} /></Card>
         </Col>
         <Col xs={24} sm={12} md={6}>
           <Card>
             <Statistic
               title={t('ontology.health.lastScan') || 'Last Scan'}
               value={lastScan ? new Date(lastScan).toLocaleString() : '-'}
-              valueStyle={{ fontSize: 14 }}
+              styles={{ content: { fontSize: 14 } }}
             />
           </Card>
         </Col>
@@ -362,7 +362,7 @@ export function HealthDashboard({ workspaceId }: HealthDashboardProps) {
         width={640}
       >
         {selectedRule && (
-          <Space direction="vertical" size="middle" style={{ width: '100%' }}>
+          <Space orientation="vertical" size="middle" style={{ width: '100%' }}>
             <Card size="small">
               <Space wrap>
                 <Text>状态：</Text>

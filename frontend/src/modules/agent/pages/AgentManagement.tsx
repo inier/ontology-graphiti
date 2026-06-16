@@ -1,11 +1,11 @@
 import { useState, useEffect } from 'react';
-import { Card, Button, Input, Modal, Form, message, Avatar, Tag, Space, Popconfirm, Select, Divider, Descriptions, Row, Col, Typography, Tooltip } from 'antd';
+import { Card, Button, Input, Modal, Form, message, Avatar, Tag, Space, Popconfirm, Select, Divider, Descriptions, Row, Col, Typography, Tooltip, Spin } from 'antd';
 import { PlusOutlined, SearchOutlined, EditOutlined, DeleteOutlined, EyeOutlined, RobotOutlined, MoreOutlined } from '@ant-design/icons';
 import { agentApi } from '../services/agentApi';
-import { api } from '../../shared/services/api';
-import { processApi, ruleApi, logicApi, indicatorApi } from '../../business/services/businessApi';
-import { knowledgeApi } from '../../knowledge/services/knowledgeApi';
-import { useScenario, useWorkspace } from '../../shared/components/AppLayout';
+import { api } from '@/modules/shared/services/api';
+import { processApi, ruleApi, logicApi, indicatorApi } from '@/modules/business/services/businessApi';
+import { knowledgeApi } from '@/modules/knowledge/services/knowledgeApi';
+import { useScenario, useWorkspace } from '@/modules/shared/components/AppLayout';
 import type { Agent, AgentFormData } from '../types';
 
 const { Paragraph } = Typography;
@@ -17,7 +17,7 @@ const AVATAR_OPTIONS = [
   'https://api.dicebear.com/7.x/shapes/svg?seed=agent4&backgroundColor=ffd5dc',
   'https://api.dicebear.com/7.x/shapes/svg?seed=agent5&backgroundColor=ffdfbf',
   'https://api.dicebear.com/7.x/identicon/svg?seed=analyst&backgroundColor=c0aede',
-  'https://api.dicebear.com/7.x/identicon/svg?seed=commander&backgroundColor=b6e3f4',
+  'https://api.dicebear.com/7.x/identicon/svg?seed=director&backgroundColor=b6e3f4',
   'https://api.dicebear.com/7.x/identicon/svg?seed=operator&backgroundColor=d1d4f9',
   'https://api.dicebear.com/7.x/identicon/svg?seed=scout&backgroundColor=ffd5dc',
   'https://api.dicebear.com/7.x/identicon/svg?seed=advisor&backgroundColor=ffdfbf',
@@ -237,18 +237,22 @@ export function AgentManagement() {
     return matchSearch && matchWorkspace;
   });
 
-  const getWorkspaceName = (id: string) => {
+  const getWorkspaceName = (id: string, agent: Agent) => {
     const ws = workspaceOptions.find(w => w.id === id);
-    return ws ? ws.name : id;
+    return ws ? ws.name : (agent.resolved_names?.workspace_name || id.slice(0, 8));
   };
 
-  const getRoleName = (id: string) => {
+  const getRoleName = (id: string, agent: Agent) => {
     const role = roleOptions.find(r => r.id === id);
-    return role ? role.name : id;
+    return role ? role.name : (agent.resolved_names?.role_names?.[id] || id.slice(0, 8));
   };
 
-  const resolveLabel = (id: string, agent: Agent) => {
-    return agent.ref_labels?.[id] || id;
+  const resolveName = (id: string, agent: Agent, category: keyof import('../types').ResolvedNames) => {
+    const rn = agent.resolved_names;
+    if (!rn) return id.slice(0, 8);
+    const map = rn[category];
+    if (map && typeof map === 'object' && id in map) return (map as Record<string, string>)[id];
+    return id.slice(0, 8);
   };
 
   return (
@@ -281,7 +285,7 @@ export function AgentManagement() {
       </div>
 
       {loading ? (
-        <div style={{ textAlign: 'center', padding: 60, color: '#8c8c8c' }}>加载中...</div>
+        <div style={{ textAlign: 'center', padding: 60 }}><Spin /></div>
       ) : filteredAgents.length === 0 ? (
         <div style={{ textAlign: 'center', padding: 60 }}>
           <RobotOutlined style={{ fontSize: 48, color: '#d9d9d9', marginBottom: 16 }} />
@@ -298,7 +302,7 @@ export function AgentManagement() {
                 actions={[
                   <Tooltip key="view" title="查看"><EyeOutlined onClick={() => handleView(agent)} /></Tooltip>,
                   <Tooltip key="edit" title="编辑"><EditOutlined onClick={() => handleEdit(agent)} /></Tooltip>,
-                  <Popconfirm key="del" title="确认删除？" onConfirm={() => handleDelete(agent.agent_id)}>
+                  <Popconfirm key="del" description="确认删除？" onConfirm={() => handleDelete(agent.agent_id)}>
                     <DeleteOutlined style={{ color: '#ff4d4f' }} />
                   </Popconfirm>,
                 ]}
@@ -313,7 +317,7 @@ export function AgentManagement() {
                     <Tag color="blue" style={{ margin: 0 }}>主对象: {agent.main_object}</Tag>
                   )}
                   {agent.workspace_id ? (
-                    <Tag color="gold" style={{ margin: 0 }}>{getWorkspaceName(agent.workspace_id)}</Tag>
+                    <Tag color="gold" style={{ margin: 0 }}>{getWorkspaceName(agent.workspace_id, agent)}</Tag>
                   ) : (
                     <Tag style={{ margin: 0 }}>全部空间</Tag>
                   )}
@@ -325,7 +329,7 @@ export function AgentManagement() {
                   </Paragraph>
                   <div style={{ display: 'flex', flexWrap: 'wrap', gap: 4, justifyContent: 'center', width: '100%' }}>
                     {(agent.related_skills || []).slice(0, 3).map(sk => (
-                      <Tag key={sk} color="purple" style={{ fontSize: 11 }}>{resolveLabel(sk, agent)}</Tag>
+                      <Tag key={sk} color="purple" style={{ fontSize: 11 }}>{resolveName(sk, agent, 'skill_names')}</Tag>
                     ))}
                     {(agent.related_skills || []).length > 3 && (
                       <Tag style={{ fontSize: 11 }}>+{agent.related_skills.length - 3}</Tag>
@@ -334,7 +338,7 @@ export function AgentManagement() {
                   {(agent.allowed_roles || []).length > 0 && (
                     <div style={{ display: 'flex', flexWrap: 'wrap', gap: 4, justifyContent: 'center', width: '100%' }}>
                       {agent.allowed_roles.slice(0, 3).map(r => (
-                        <Tag key={r} color="geekblue" style={{ fontSize: 11 }}>{getRoleName(r)}</Tag>
+                        <Tag key={r} color="geekblue" style={{ fontSize: 11 }}>{getRoleName(r, agent)}</Tag>
                       ))}
                       {agent.allowed_roles.length > 3 && (
                         <Tag style={{ fontSize: 11 }}>+{agent.allowed_roles.length - 3}</Tag>
@@ -550,50 +554,50 @@ export function AgentManagement() {
                 <div style={{ color: '#8c8c8c' }}>{viewingAgent.name}</div>
               </div>
             </div>
-            <Descriptions column={1} bordered size="small">
+            <Descriptions column={1} variant="bordered" size="small">
               <Descriptions.Item label="主对象">
                 <Tag color="blue">{viewingAgent.main_object}</Tag>
               </Descriptions.Item>
               <Descriptions.Item label="关联对象">
                 <Space wrap>
-                  {(viewingAgent.related_objects || []).map(o => <Tag key={o}>{resolveLabel(o, viewingAgent)}</Tag>)}
+                  {(viewingAgent.related_objects || []).map(o => <Tag key={o}>{resolveName(o, viewingAgent, 'object_names')}</Tag>)}
                 </Space>
               </Descriptions.Item>
               <Descriptions.Item label="关联业务过程">
                 <Space wrap>
-                  {(viewingAgent.related_processes || []).map(o => <Tag key={o} color="green">{resolveLabel(o, viewingAgent)}</Tag>)}
+                  {(viewingAgent.related_processes || []).map(o => <Tag key={o} color="green">{resolveName(o, viewingAgent, 'process_names')}</Tag>)}
                 </Space>
               </Descriptions.Item>
               <Descriptions.Item label="关联业务规则">
                 <Space wrap>
-                  {(viewingAgent.related_rules || []).map(o => <Tag key={o} color="orange">{resolveLabel(o, viewingAgent)}</Tag>)}
+                  {(viewingAgent.related_rules || []).map(o => <Tag key={o} color="orange">{resolveName(o, viewingAgent, 'rule_names')}</Tag>)}
                 </Space>
               </Descriptions.Item>
               <Descriptions.Item label="关联业务逻辑">
                 <Space wrap>
-                  {(viewingAgent.related_business_logic || []).map(o => <Tag key={o} color="cyan">{resolveLabel(o, viewingAgent)}</Tag>)}
+                  {(viewingAgent.related_business_logic || []).map(o => <Tag key={o} color="cyan">{resolveName(o, viewingAgent, 'logic_names')}</Tag>)}
                 </Space>
               </Descriptions.Item>
               <Descriptions.Item label="关联指标">
                 <Space wrap>
-                  {(viewingAgent.related_indicators || []).map(o => <Tag key={o} color="volcano">{resolveLabel(o, viewingAgent)}</Tag>)}
+                  {(viewingAgent.related_indicators || []).map(o => <Tag key={o} color="volcano">{resolveName(o, viewingAgent, 'indicator_names')}</Tag>)}
                 </Space>
               </Descriptions.Item>
               <Descriptions.Item label="可用技能">
                 <Space wrap>
-                  {(viewingAgent.related_skills || []).map(o => <Tag key={o} color="purple">{resolveLabel(o, viewingAgent)}</Tag>)}
+                  {(viewingAgent.related_skills || []).map(o => <Tag key={o} color="purple">{resolveName(o, viewingAgent, 'skill_names')}</Tag>)}
                 </Space>
               </Descriptions.Item>
               <Descriptions.Item label="关联知识库">
                 <Space wrap>
-                  {(viewingAgent.related_knowledge_bases || []).map(o => <Tag key={o} color="geekblue">{resolveLabel(o, viewingAgent)}</Tag>)}
+                  {(viewingAgent.related_knowledge_bases || []).map(o => <Tag key={o} color="geekblue">{resolveName(o, viewingAgent, 'knowledge_base_names')}</Tag>)}
                 </Space>
               </Descriptions.Item>
               <Descriptions.Item label="可见角色">
                 <Space wrap>
                   {(viewingAgent.allowed_roles || []).map(o => {
                     const role = roleOptions.find(r => r.id === o);
-                    return <Tag key={o} color="magenta">{role ? role.name : o}</Tag>;
+                    return <Tag key={o} color="magenta">{role ? role.name : (viewingAgent.resolved_names?.role_names?.[o] || o.slice(0, 8))}</Tag>;
                   })}
                 </Space>
               </Descriptions.Item>
@@ -601,7 +605,7 @@ export function AgentManagement() {
                 {viewingAgent.workspace_id
                   ? (() => {
                       const ws = workspaceOptions.find(w => w.id === viewingAgent.workspace_id);
-                      return <Tag color="gold">{ws ? ws.name : viewingAgent.workspace_id}</Tag>;
+                      return <Tag color="gold">{ws ? ws.name : (viewingAgent.resolved_names?.workspace_name || viewingAgent.workspace_id.slice(0, 8))}</Tag>;
                     })()
                   : <Tag>全部空间</Tag>
                 }

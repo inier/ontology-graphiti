@@ -1,5 +1,5 @@
-import { fetchJson } from '../../shared/services/apiClient';
-import { API_BASE } from '../../../config';
+import { fetchJson } from '@/modules/shared/services/apiClient';
+import { API_BASE } from '@/config';
 
 export interface SandboxInfo {
   sandbox_id: string;

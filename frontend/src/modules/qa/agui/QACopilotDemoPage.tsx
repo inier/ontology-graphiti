@@ -67,7 +67,7 @@ function CopilotInner() {
         </Sider>
 
         <Content style={{ padding: 16, overflow: 'auto' }}>
-          <Space direction="vertical" style={{ width: '100%' }}>
+          <Space orientation="vertical" style={{ width: '100%' }}>
             {flatMessages.map((msg) => (
               <Card
                 key={msg.id}

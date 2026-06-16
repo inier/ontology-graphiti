@@ -31,7 +31,7 @@ import {
   SafetyCertificateOutlined,
   CodeOutlined,
 } from '@ant-design/icons';
-import { apiService } from '../../shared/services/api';
+import { apiService } from '@/modules/shared/services/api';
 import type { ColumnsType } from 'antd/es/table';
 
 const { TextArea } = Input;
@@ -369,7 +369,7 @@ const PolicyManagement: React.FC = () => {
         loading={detailLoading}
       >
         {detailData && (
-          <Descriptions bordered column={2} size="small">
+          <Descriptions variant="bordered" column={2} size="small">
             <Descriptions.Item label="策略ID">{detailData.policy_id as string}</Descriptions.Item>
             <Descriptions.Item label="策略名称">{detailData.name as string}</Descriptions.Item>
             <Descriptions.Item label="分类">

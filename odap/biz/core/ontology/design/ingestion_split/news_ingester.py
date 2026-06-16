@@ -12,10 +12,11 @@ import asyncio
 import os
 from datetime import datetime, timezone
 from typing import Any, Dict, List, Optional
+from odap.infra.config_composer import get_config
 
 from ..schema.document import (
     OntologyDocument, OntologyDocumentSchema, SourceType, DocType,
-    make_battle_event_document,
+    make_conflict_event_document,
 )
 
 logger = logging.getLogger("data_ingestion")
@@ -43,8 +44,8 @@ ONTOLOGY_EXTRACT_PROMPT = """
       "entity_type": "Unit|Equipment|Location|Person|Organization",
       "name": "..",
       "name_en": "..",
-      "basic_properties": {{"side": "red|blue|neutral", "location": "..", "status": ".."}},
-      "statistical_properties": {{"combat_power": 0.0-1.0, "morale": 0.0-1.0}},
+      "basic_properties": {{"side": "party_a|party_b|neutral", "location": "..", "status": ".."}},
+      "statistical_properties": {{"capability_index": 0.0-1.0, "readiness": 0.0-1.0}},
       "capabilities": {{}},
       "constraints": []
     }}
@@ -52,7 +53,7 @@ ONTOLOGY_EXTRACT_PROMPT = """
   "relations": [
     {{
       "relation_id": "rel-xxx",
-      "relation_type": "engaged_with|commands|supported_by|deployed_at|reinforces",
+      "relation_type": "engaged_with|commands|supported_by|deployed_at|supports",
       "source_entity": "entity_id",
       "target_entity": "entity_id",
       "properties": {{}},
@@ -62,7 +63,7 @@ ONTOLOGY_EXTRACT_PROMPT = """
   "events": [
     {{
       "event_id": "evt-xxx",
-      "event_type": "contact|attack|retreat|reinforce|patrol|cease_fire",
+      "event_type": "contact|engage|withdraw|support|patrol|cease_operation",
       "timestamp": "{timestamp}",
       "location": "..",
       "participants": ["entity_id_1", "entity_id_2"],
@@ -91,9 +92,9 @@ class NewsIngester:
 
     def __init__(self, llm_client=None, search_api_key: str = None, tavily_api_key: str = None):
         self.llm = llm_client
-        self._search_api_key = search_api_key or os.getenv('SERPAPI_KEY', '')
-        self._tavily_api_key = tavily_api_key or os.getenv('TAVILY_API_KEY', '')
-        self._ddg_api_url = os.getenv('DDG_API_URL', '')
+        self._search_api_key = search_api_key or get_config("search.serpapi_key", "")
+        self._tavily_api_key = tavily_api_key or get_config("search.tavily_api_key", "")
+        self._ddg_api_url = get_config("search.ddg_api_url", "")
         self._use_mock = (llm_client is None)
 
     async def ingest(
@@ -394,22 +395,22 @@ class NewsIngester:
                 return parsed
             elif isinstance(parsed, dict):
                 return [parsed]
-        except Exception:
-            pass
+        except Exception as e:
+            logger.debug("JSON parse fallback: %s", e)
         return []
 
     def _generate_mock_news_docs(self, query: str, context: str) -> List[OntologyDocument]:
         """生成 Mock 新闻文档（无 API 时的降级）"""
-        doc = make_battle_event_document(
+        doc = make_conflict_event_document(
             title=f"新闻采集: {query}",
-            red_unit="红方部队",
-            blue_unit="蓝方部队",
-            location="交战区域",
+            party_a_unit="甲方单位",
+            party_b_unit="乙方单位",
+            location="交汇区域",
             event_type="contact",
             source_type=SourceType.NEWS_INGEST.value,
         )
         doc.source.url = f"https://mock-news.local/search?q={query}"
-        doc.source.confidence = 0.6
-        doc.meta.description = f"基于检索词 '{query}' 生成的 Mock 数据（{context or '无背景'}）"
+        doc.source.confidence = 0.3
+        doc.meta.description = f"[MOCK-DATA] 基于检索词 '{query}' 生成的 Mock 数据（{context or '无背景'}）"
         logger.info(f"生成 Mock 新闻文档: {doc.doc_id}")
         return [doc]

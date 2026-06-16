@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react';
 import { Card, Button, Input, Modal, Form, message, Tag, Space, Table, Popconfirm, Select, Switch, Descriptions, Avatar } from 'antd';
 import { PlusOutlined, SearchOutlined, EditOutlined, DeleteOutlined, UserOutlined, SafetyCertificateOutlined } from '@ant-design/icons';
-import { fetchJson, API_BASE } from '../../shared';
+import { fetchJson, API_BASE } from '@/modules/shared';
 
 const ROLE_OPTIONS = [
   { value: 'system_admin', label: '系统管理员', color: 'red' },
@@ -10,7 +10,7 @@ const ROLE_OPTIONS = [
   { value: 'member', label: '成员', color: 'green' },
   { value: 'guest', label: '访客', color: 'default' },
   { value: 'admin', label: '管理员(旧)', color: 'red' },
-  { value: 'commander', label: '指挥官(旧)', color: 'orange' },
+  { value: 'commander', label: '负责人(旧)', color: 'orange' },
   { value: 'analyst', label: '分析师(旧)', color: 'blue' },
   { value: 'operator', label: '操作员(旧)', color: 'green' },
   { value: 'observer', label: '观察者(旧)', color: 'default' },
@@ -287,7 +287,7 @@ export function UserManagement() {
         width={520}
       >
         {viewingUser && (
-          <Descriptions column={1} bordered size="small" style={{ marginTop: 16 }}>
+          <Descriptions column={1} variant="bordered" size="small" style={{ marginTop: 16 }}>
             <Descriptions.Item label="用户名">{viewingUser.username}</Descriptions.Item>
             <Descriptions.Item label="邮箱">{viewingUser.email || '-'}</Descriptions.Item>
             <Descriptions.Item label="角色">

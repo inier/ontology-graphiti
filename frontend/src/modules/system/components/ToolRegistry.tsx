@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react';
 import { Table, Button, Modal, Input, Select, Card, Tag, Space, Typography, message, Popconfirm, Form } from 'antd';
 import { PlusOutlined, DeleteOutlined, SearchOutlined, ThunderboltOutlined } from '@ant-design/icons';
-import { apiClient } from '../../shared/services/apiClient';
+import { apiClient } from '@/modules/shared/services/apiClient';
 
 const { Text } = Typography;
 
@@ -188,7 +188,7 @@ export default function ToolRegistry() {
           >
             Invoke
           </Button>
-          <Popconfirm title="Unregister this tool?" onConfirm={() => handleUnregister(record.tool_id || record.name)}>
+          <Popconfirm description="Unregister this tool?" onConfirm={() => handleUnregister(record.tool_id || record.name)}>
             <Button size="small" danger icon={<DeleteOutlined />}>
               Remove
             </Button>
@@ -275,7 +275,7 @@ export default function ToolRegistry() {
         onCancel={() => { setInvokeOpen(false); setInvokeParams(''); setInvokeTool(null); }}
         onOk={handleInvoke}
       >
-        <Space direction="vertical" style={{ width: '100%' }} size="middle">
+        <Space orientation="vertical" style={{ width: '100%' }} size="middle">
           {invokeTool?.description && <Text type="secondary">{invokeTool.description}</Text>}
           <Input.TextArea
             placeholder='{"key": "value"}'

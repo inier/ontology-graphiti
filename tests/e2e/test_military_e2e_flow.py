@@ -13,8 +13,8 @@ from fastapi.testclient import TestClient
 def app_client():
     from unittest.mock import patch, AsyncMock, MagicMock
 
-    with patch("odap.infra.openharness.v2_adapter.initialize_openharness", new_callable=AsyncMock, return_value=True):
-        with patch("odap.infra.openharness.v2_adapter.get_openharness_integration") as mock_integration:
+    with patch("odap.infra.openharness.engine_adapter.initialize_openharness", new_callable=AsyncMock, return_value=True):
+        with patch("odap.infra.openharness.engine_adapter.get_openharness_integration") as mock_integration:
             mock_status = MagicMock()
             mock_status.get_status.return_value = {"initialized": True, "tools": [], "tools_count": 0}
             mock_integration.return_value = mock_status

@@ -1,12 +1,13 @@
 import { useState, useEffect } from 'react';
 import { Tabs, message } from 'antd';
-import { api } from '../../shared/services/api';
-import { useScenario, useWorkspace, useOntologyVersion } from '../../shared/components/AppLayout';
+import { api } from '@/modules/shared/services/api';
+import { useScenario, useWorkspace, useOntologyVersion } from '@/modules/shared/components/AppLayout';
 import { TypeManagementTab } from '../components/ObjectManagement/TypeManagementTab';
 import { InstancesTab } from '../components/ObjectManagement/InstancesTab';
 import { EntityDetailDrawer } from '../components/ObjectManagement/EntityDetailDrawer';
 import type { ObjectType, ManagedEntity, ExtractionSource } from '../components/ObjectManagement/types';
 import { parsePropertiesToAttributes, getAttributeSemantic, detectValueType } from '../components/ObjectManagement/types';
+import { PageTourWrapper, objectManagementTourSteps, PAGE_IDS } from '@/modules/guide';
 
 export function ObjectManagement() {
   const { currentScenario } = useScenario();
@@ -163,11 +164,12 @@ export function ObjectManagement() {
   };
 
   return (
+    <PageTourWrapper pageId={PAGE_IDS.OBJECT_MANAGEMENT} steps={objectManagementTourSteps}>
     <div>
       <Tabs activeKey={activeTab} onChange={setActiveTab} items={[
         {
           key: 'types',
-          label: '对象类型定义',
+          label: <span data-tour="obj-mgmt-type-tab">对象类型定义</span>,
           children: (
             <TypeManagementTab
               objectTypes={objectTypes}
@@ -181,7 +183,7 @@ export function ObjectManagement() {
         },
         {
           key: 'instances',
-          label: '实体实例',
+          label: <span data-tour="obj-mgmt-instances-tab">实体实例</span>,
           children: (
             <InstancesTab
               entities={entities}
@@ -207,5 +209,6 @@ export function ObjectManagement() {
         onClose={() => setDetailOpen(false)}
       />
     </div>
+    </PageTourWrapper>
   );
 }

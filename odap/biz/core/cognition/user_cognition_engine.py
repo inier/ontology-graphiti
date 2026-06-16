@@ -182,7 +182,7 @@ class IntentRecognizer:
             ]
         }
         self._entity_extractors = {
-            "radar": self._extract_radar,
+            "sensor": self._extract_sensor,
             "target": self._extract_target,
             "unit": self._extract_unit,
             "location": self._extract_location
@@ -238,12 +238,12 @@ class IntentRecognizer:
 
         return list(set(entities))
 
-    def _extract_radar(self, query: str) -> List[str]:
-        """提取雷达实体"""
+    def _extract_sensor(self, query: str) -> List[str]:
+        """提取传感器实体"""
         patterns = [
-            r"雷达站?[A-Z]?",
-            r"雷达\d+",
-            r"[A-Z]+-?\d+雷达"
+            r"监测站?[A-Z]?",
+            r"传感器\d+",
+            r"[A-Z]+-?\d+传感器"
         ]
         return self._generic_extract(query, patterns)
 
@@ -652,8 +652,8 @@ class ExplanationEngine:
 
     def _identify_source(self, fact: str) -> Optional[str]:
         """识别来源"""
-        if "雷达" in fact:
-            return "radar_system"
+        if "传感器" in fact:
+            return "sensor_system"
         elif "目标" in fact:
             return "target_tracking"
         elif "威胁" in fact:
@@ -693,10 +693,10 @@ class RoleViewManager:
     def _setup_default_views(self):
         """设置默认视图"""
         commander_view = RoleView(
-            view_id="commander-default",
+            view_id="director-default",
             role_type=RoleType.COMMANDER,
-            name="指挥官视图",
-            description="面向指挥官的全局态势视图",
+            name="负责人视图",
+            description="面向负责人的全局态势视图",
             capabilities=[
                 "situation_awareness",
                 "decision_support",
@@ -734,7 +734,7 @@ class RoleViewManager:
                 "secondary": ["graph_view", "timeline"]
             },
             filters={
-                "data_type": ["radar", "signal", "human"],
+                "data_type": ["sensor", "signal", "human"],
                 "time_range": "24h"
             }
         )
@@ -976,7 +976,7 @@ if __name__ == "__main__":
 
     logger.info('\n1. 意图识别:')
     test_queries = [
-        "查询雷达站A的状态",
+        "查询监测站A的状态",
         "为什么这个目标被标记为威胁?",
         "推荐最佳应对方案"
     ]

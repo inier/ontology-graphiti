@@ -183,9 +183,9 @@ class TestOODALoopExecution:
 
 @skip_if_no_openharness
 class TestOpenHarnessAdapterIntegration:
-    def test_v2_adapter_import(self):
-        from odap.infra.openharness.v2_adapter import OPENHARNESS_V2_AVAILABLE
-        assert OPENHARNESS_V2_AVAILABLE is True
+    def test_engine_adapter_import(self):
+        from odap.infra.openharness.engine_adapter import OPENHARNESS_AVAILABLE
+        assert OPENHARNESS_AVAILABLE is True
 
     def test_tool_adapter_import(self):
         from odap.infra.openharness.tool_adapter import ToolAdapterV2

@@ -70,6 +70,14 @@ async def login(request: LoginRequest, req: Request):
     }
 
 
+# 注意：/sso/providers 必须在 /sso/{provider} 之前定义，否则 FastAPI
+# 会按声明顺序匹配，把 "providers" 解析为 provider_id（line 73 之前的 bug 已修）
+@router.get("/sso/providers")
+async def list_sso_providers():
+    providers = auth_service.list_oauth2_providers()
+    return {"providers": providers}
+
+
 @router.get("/sso/{provider}")
 async def sso_authorize(provider: str, redirect_uri: str = ""):
     result = auth_service.get_oauth2_authorize_url(provider, redirect_uri)
@@ -94,12 +102,6 @@ async def sso_callback(provider: str, data: SSOCallbackRequest):
         raise
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
-
-
-@router.get("/sso/providers")
-async def list_sso_providers():
-    providers = auth_service.list_oauth2_providers()
-    return {"providers": providers}
 
 
 @router.post("/refresh")

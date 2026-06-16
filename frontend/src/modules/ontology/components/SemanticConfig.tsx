@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react';
 import { Table, Input, Button, Card, Space, Typography, Popconfirm, message } from 'antd';
 import { PlusOutlined, DeleteOutlined, ReloadOutlined } from '@ant-design/icons';
-import { apiClient } from '../../shared/services/apiClient';
+import { apiClient } from '@/modules/shared/services/apiClient';
 
 const { Text } = Typography;
 
@@ -140,7 +140,7 @@ export default function SemanticConfig() {
           {syns.map((s) => (
             <span key={s} style={{ display: 'inline-flex', alignItems: 'center', gap: 4 }}>
               <Text style={{ background: '#f0f0f0', padding: '2px 8px', borderRadius: 4, fontSize: 12 }}>{s}</Text>
-              <Popconfirm title={`Remove "${s}" from "${record.canonical}"?`} onConfirm={() => handleRemoveSynonym(record.canonical, s)}>
+              <Popconfirm description={`Remove "${s}" from "${record.canonical}"?`} onConfirm={() => handleRemoveSynonym(record.canonical, s)}>
                 <DeleteOutlined style={{ color: '#ff4d4f', cursor: 'pointer', fontSize: 11 }} />
               </Popconfirm>
             </span>
@@ -166,7 +166,7 @@ export default function SemanticConfig() {
           {exp.map((e) => (
             <Text key={e} style={{ background: '#e6f7ff', padding: '2px 8px', borderRadius: 4, fontSize: 12 }}>{e}</Text>
           ))}
-          <Popconfirm title={`Remove rule "${record.pattern}"?`} onConfirm={() => handleRemoveExpansionRule(record.pattern)}>
+          <Popconfirm description={`Remove rule "${record.pattern}"?`} onConfirm={() => handleRemoveExpansionRule(record.pattern)}>
             <DeleteOutlined style={{ color: '#ff4d4f', cursor: 'pointer', fontSize: 11 }} />
           </Popconfirm>
         </Space>
@@ -175,7 +175,7 @@ export default function SemanticConfig() {
   ];
 
   return (
-    <Space direction="vertical" style={{ width: '100%' }} size="middle">
+    <Space orientation="vertical" style={{ width: '100%' }} size="middle">
       <Card
         title="Synonym / Near-synonym Mapping"
         size="small"

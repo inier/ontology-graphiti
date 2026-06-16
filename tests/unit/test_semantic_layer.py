@@ -154,14 +154,14 @@ class TestDisambiguator:
         return Disambiguator()
 
     def test_disambiguate_known_term(self, disambiguator):
-        result = disambiguator.disambiguate("雷达")
-        assert result["original"] == "雷达"
-        assert result["canonical"] == "雷达"
+        result = disambiguator.disambiguate("传感器")
+        assert result["original"] == "传感器"
+        assert result["canonical"] == "传感器"
         assert len(result["synonyms"]) > 0
 
     def test_disambiguate_synonym(self, disambiguator):
-        result = disambiguator.disambiguate("radar")
-        assert result["canonical"] == "雷达"
+        result = disambiguator.disambiguate("sensor")
+        assert result["canonical"] == "传感器"
 
     def test_disambiguate_unknown_term(self, disambiguator):
         result = disambiguator.disambiguate("未知术语")
@@ -197,7 +197,7 @@ class TestDisambiguator:
     def test_get_synonyms(self, disambiguator):
         synonyms = disambiguator.get_synonyms()
         assert isinstance(synonyms, dict)
-        assert "雷达" in synonyms
+        assert "传感器" in synonyms
 
     def test_get_expansion_rules(self, disambiguator):
         rules = disambiguator.get_expansion_rules()
@@ -209,5 +209,5 @@ class TestDisambiguator:
         assert result["canonical"] == "目标"
 
     def test_disambiguate_threat_synonym(self, disambiguator):
-        result = disambiguator.disambiguate("threat")
-        assert result["canonical"] == "威胁"
+        result = disambiguator.disambiguate("risk")
+        assert result["canonical"] == "风险"

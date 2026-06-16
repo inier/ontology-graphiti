@@ -101,11 +101,13 @@ async def ask_question(request: Request, data: Dict[str, Any],
             "answer": result.get("answer", ""),
             "sources": result.get("sources", []),
             "dialog_state": result.get("dialog_state", "completed"),
-            "intent": {
+            "intent": result.get("intent", {
                 "type": "query",
-                "confidence": 0.85,
-            },
-            "sources_used": ["graphiti", "rag"],
+                "confidence": max((s.get("confidence", 0.0) for s in result.get("sources", [])), default=0.0),
+            }),
+            "sources_used": list(set(
+                s.get("source", "unknown") for s in result.get("sources", []) if s.get("source")
+            )) if result.get("sources") else [],
         }
     except HTTPException:
         raise
@@ -119,7 +121,7 @@ async def ask_question(request: Request, data: Dict[str, Any],
 async def ask_question_stream(request: Request, data: Dict[str, Any],
     user=Depends(get_current_user)):
     """
-    智能问答流式接口 - 支持实时流式输出
+    智能问答流式接口 - 真正的逐token流式输出
 
     请求体:
     {
@@ -128,7 +130,7 @@ async def ask_question_stream(request: Request, data: Dict[str, Any],
         "workspace_id": "可选的工作空间ID"
     }
 
-    返回: 流式 JSON 数据
+    返回: SSE 流式事件
     """
     try:
         question = data.get("question", "")
@@ -140,7 +142,7 @@ async def ask_question_stream(request: Request, data: Dict[str, Any],
         if not question:
             raise HTTPException(status_code=400, detail="问题不能为空")
 
-        agent_context = {}
+        agent_context = None
         if agent_id:
             try:
                 from odap.biz.management.agent_management.api.routes import agent_service as _agent_svc
@@ -167,52 +169,24 @@ async def ask_question_stream(request: Request, data: Dict[str, Any],
         qa_engine = get_qa_engine(use_mock=False)
 
         async def streaming_response():
-            nonlocal session_id
-
-            result = qa_engine.ask(
+            async for event in qa_engine.ask_stream(
                 query=question,
                 user_id=user_id,
                 session_id=session_id,
                 workspace_id=workspace_id,
                 scenario_id=data.get("scenario_id"),
                 agent_id=agent_id,
-                context=agent_context if agent_context else None,
-            )
-
-            response_session_id = result.get("session_id")
-            answer = result.get("answer", "")
-            sources = result.get("sources", [])
-
-            yield f'{{"type": "session_id", "value": "{response_session_id}"}}\n'
-
-            for i in range(0, len(answer), 10):
-                chunk = answer[i:i+10]
-                yield f'{{"type": "content", "value": {json.dumps(chunk)}}}\n'
-                await asyncio.sleep(0.02)
-
-            if sources:
-                yield f'{{"type": "sources", "value": {json.dumps(sources)}}}\n'
-
-            charts = result.get("charts", [])
-            for chart in charts:
-                yield f'{{"type": "chart", "value": {json.dumps(chart)}}}\n'
-
-            temporal_data = result.get("temporal", [])
-            for t in temporal_data:
-                yield f'{{"type": "temporal", "value": {json.dumps(t)}}}\n'
-
-            reports = result.get("reports", [])
-            for r in reports:
-                yield f'{{"type": "report", "value": {json.dumps(r)}}}\n'
-
-            yield '{"type": "end"}\n'
+                context=agent_context,
+            ):
+                yield f"data: {json.dumps(event, ensure_ascii=False)}\n\n"
 
         return StreamingResponse(
             streaming_response(),
-            media_type="text/plain",
+            media_type="text/event-stream",
             headers={
-                "Transfer-Encoding": "chunked",
+                "Cache-Control": "no-cache",
                 "Connection": "keep-alive",
+                "X-Accel-Buffering": "no",
             },
         )
     except HTTPException:
@@ -318,9 +292,7 @@ async def get_qa_history(
     user=Depends(get_current_user)):
     """获取问答历史"""
     try:
-        from odap.biz.data.qa.qa_engine import QAEngineV2
-
-        qa_engine = QAEngineV2(use_mock=True)
+        qa_engine = get_qa_engine(use_mock=False)
         history = qa_engine.get_dialog_history(session_id)
 
         return {
@@ -387,7 +359,7 @@ async def recognize_intent(request: Request, data: Dict[str, Any],
     请求体:
     {
         "input_text": "用户输入",
-        "role": "commander|intelligence|operator|analyst|guest"
+        "role": "director|intelligence|operator|analyst|guest"
     }
     """
     try:

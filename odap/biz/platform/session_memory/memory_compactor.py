@@ -1,6 +1,8 @@
 import logging
 from typing import List, Optional
 
+from odap.infra.config_composer import get_config
+
 from .context_window import ContextWindow, ChatMessage
 
 logger = logging.getLogger(__name__)
@@ -50,8 +52,7 @@ class MemoryCompactor:
 
         try:
             from odap.infra.llm.llm_service import ZhipuAIClient
-            import os
-            api_key = os.getenv('OPENAI_API_KEY', '')
+            api_key = get_config('llm.api_key', '')
             if api_key and self._llm_client:
                 result = await self._llm_client.complete(prompt, max_tokens=200)
                 return result

@@ -1,5 +1,5 @@
 import { useState, useRef, useEffect } from 'react';
-import type { MapUnit } from '../../shared/types';
+import type { MapUnit } from '@/modules/shared/types';
 
 interface MapViewProps {
   units: MapUnit[];

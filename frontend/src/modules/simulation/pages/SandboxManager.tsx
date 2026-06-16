@@ -8,8 +8,8 @@ import {
   ReloadOutlined, EyeOutlined,
 } from '@ant-design/icons';
 import type { ColumnsType } from 'antd/es/table';
-import { apiClient } from '../../shared/services/apiClient';
-import { useI18n } from '../../shared/hooks/useI18n';
+import { apiClient } from '@/modules/shared/services/apiClient';
+import { useI18n } from '@/modules/shared/hooks/useI18n';
 
 const { Text } = Typography;
 
@@ -267,8 +267,8 @@ const SandboxManager: React.FC = () => {
         width={720}
       >
         {currentResult ? (
-          <Space direction="vertical" style={{ width: '100%' }} size="middle">
-            <Descriptions bordered size="small" column={2}>
+          <Space orientation="vertical" style={{ width: '100%' }} size="middle">
+            <Descriptions variant="bordered" size="small" column={2}>
               <Descriptions.Item label="Sandbox ID">{currentResult.sandbox_id}</Descriptions.Item>
               <Descriptions.Item label="Status">
                 <Tag color={currentResult.status === 'completed' ? 'green' : 'red'}>{currentResult.status}</Tag>

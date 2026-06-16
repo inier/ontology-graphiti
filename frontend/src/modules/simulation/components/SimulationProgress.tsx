@@ -24,7 +24,7 @@ function SimulationProgress({ progress, status }: SimulationProgressProps) {
   else if (clampedProgress > 80) strokeColor = '#52c41a';
 
   return (
-    <Space direction="vertical" style={{ width: '100%' }} size="small">
+    <Space orientation="vertical" style={{ width: '100%' }} size="small">
       <Progress
         percent={clampedProgress}
         status={status === 'failed' ? 'exception' : status === 'completed' ? 'success' : status === 'paused' ? 'normal' : 'active'}

@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react';
 import { Table, Switch, Button, Modal, Select, Card, Tag, Space, message, Popconfirm, Form, Input } from 'antd';
 import { PlusOutlined, DeleteOutlined, ReloadOutlined } from '@ant-design/icons';
-import { apiClient } from '../../shared/services/apiClient';
+import { apiClient } from '@/modules/shared/services/apiClient';
 
 interface HookRecord {
   hook_id: string;
@@ -158,7 +158,7 @@ export default function HookManager() {
       key: 'actions',
       width: 100,
       render: (_: unknown, record: HookRecord) => (
-        <Popconfirm title="Unregister this hook?" onConfirm={() => handleUnregister(record.hook_id)}>
+        <Popconfirm description="Unregister this hook?" onConfirm={() => handleUnregister(record.hook_id)}>
           <Button size="small" danger icon={<DeleteOutlined />}>
             Remove
           </Button>

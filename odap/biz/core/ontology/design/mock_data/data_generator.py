@@ -29,10 +29,10 @@ def generate_timestamp():
 def generate_simulation_data():
     data = {
         "locations": [],
-        "military_units": [],
-        "weapon_systems": [],
-        "civilian_infrastructures": [],
-        "battle_events": [],
+        "units": [],
+        "equipment": [],
+        "public_assets": [],
+        "events": [],
         "missions": []
     }
 
@@ -58,26 +58,26 @@ def generate_simulation_data():
             data["locations"].append(location)
 
     unit_type_map = {
-        "US-led Coalition": ["步兵师", "装甲旅", "航空团", "海军陆战队"],
-        "Israel": ["步兵旅", "装甲师", "空军中队", "特种部队"],
-        "Iran": ["革命卫队步兵", "装甲师", "导弹旅", "无人机中队"],
-        "Hezbollah": ["火箭弹部队", "隧道武装", "特种突击队", "防空小组"],
-        "IRGC-Iraq": ["什叶派民兵", "装甲部队", "炮兵", "情报小组"],
-        "Houthis": ["步兵", "导弹部队", "无人机小组", "海岸巡逻队"]
+        "US-led Coalition": ["第1分队", "第2支队", "第3编队", "综合支援队"],
+        "Israel": ["第1旅", "第2师", "第3中队", "特别行动组"],
+        "Iran": ["第1支队", "第2师", "远程支队", "无人编队"],
+        "Hezbollah": ["第1投射组", "第2潜行组", "第3突击组", "防护小组"],
+        "IRGC-Iraq": ["第1地方队", "第2装甲组", "第3火力组", "情报小组"],
+        "Houthis": ["第1步队", "第2投射组", "无人小组", "海岸巡查队"]
     }
 
     equipment_map = {
-        "US-led Coalition": ["M1艾布拉姆斯坦克", "F-35战机", "阿帕奇直升机", "标枪导弹"],
-        "Israel": ["梅卡瓦坦克", "F-16战机", "铁穹系统", "大卫投石索"],
-        "Iran": ["苏式坦克", "Shahed-136无人机", "弹道导弹", "海豚潜艇"],
-        "Hezbollah": ["反坦克导弹", "火箭弹", "AK-47", "RPG"],
-        "IRGC-Iraq": ["摩托车突击队", "简易爆炸装置", "迫击炮", "轻武器"],
-        "Houthis": ["巡航导弹", "无人机", "水雷", "反舰导弹"]
+        "US-led Coalition": ["重型载具A", "空中平台A", "旋翼平台A", "精确投射系统A"],
+        "Israel": ["重型载具B", "空中平台B", "防护系统A", "中程投射系统B"],
+        "Iran": ["重型载具C", "无人载具A", "远程投射系统", "水下平台A"],
+        "Hezbollah": ["反载具投射器", "短程投射器", "轻型装备A", "便携投射器"],
+        "IRGC-Iraq": ["机动载具A", "简易装置A", "迫击投射器", "轻型装备B"],
+        "Houthis": ["巡航投射系统", "无人载具B", "水域装置A", "反平台投射器"]
     }
 
     for faction in factions:
-        unit_types = unit_type_map.get(faction['name'], ["步兵", "装甲", "航空", "特种部队"])
-        equipment = equipment_map.get(faction['name'], ["步枪", "坦克", "火炮", "导弹"])
+        unit_types = unit_type_map.get(faction['name'], ["第1分队", "第2支队", "第3编队", "综合支援队"])
+        equipment = equipment_map.get(faction['name'], ["传感器", "投射器", "设备", "无人载具"])
 
         for i in range(1, 3):
             location = random.choice(data["locations"]) if data["locations"] else None
@@ -86,7 +86,7 @@ def generate_simulation_data():
 
             unit = {
                 "id": f"UNIT_{faction['name'].replace(' ', '_')}_{i}",
-                "type": ENTITY_TYPE_ALIASES.get("MilitaryUnit", "MilitaryUnit"),
+                "type": ENTITY_TYPE_ALIASES.get("OrganizationUnit", "OrganizationUnit"),
                 "properties": {
                     "name": f"{faction['name']} {unit_types[i-1]}",
                     "unit_type": unit_types[i-1],
@@ -102,19 +102,19 @@ def generate_simulation_data():
                     "engaged_with": []
                 }
             }
-            data["military_units"].append(unit)
+            data["units"].append(unit)
 
-    weapon_type_map = {
-        "US-led Coalition": ["宙斯盾雷达", "战斧巡航导弹", "萨德系统", "MQ-9死神无人机"],
-        "Israel": ["铁穹拦截弹", "杰里科导弹", "翠鸟雷达", "Heron无人机"],
-        "Iran": ["Shahed-136无人机", "弹道导弹", "S-300防空导弹", "海耳无人机"],
-        "Hezbollah": ["短程火箭弹", "反坦克导弹", "简易迫击炮", "肩扛式防空导弹"],
-        "IRGC-Iraq": ["火箭弹", "简易爆炸装置", "迫击炮", "摩托车运载火箭"],
-        "Houthis": ["巡航导弹", "弹道导弹", "武装渔船", "水雷"]
+    equipment_type_map = {
+        "US-led Coalition": ["综合监测系统", "精确投射系统", "区域防护系统", "无人载具A"],
+        "Israel": ["拦截投射器", "中程投射系统", "监测系统A", "无人载具B"],
+        "Iran": ["无人载具A", "远程投射系统", "防护投射系统", "无人载具C"],
+        "Hezbollah": ["短程投射器", "反载具投射器", "简易迫击投射器", "便携防护投射器"],
+        "IRGC-Iraq": ["投射器A", "简易装置A", "迫击投射器", "机动投射系统"],
+        "Houthis": ["巡航投射系统", "远程投射系统", "水面载具A", "水域装置A"]
     }
 
     for faction in factions:
-        weapon_types = weapon_type_map.get(faction['name'], ["雷达", "导弹", "火炮", "无人机"])
+        equipment_types = equipment_type_map.get(faction['name'], ["传感器", "投射器", "设备", "无人载具"])
 
         for i in range(1, 3):
             location = random.choice(data["locations"]) if data["locations"] else None
@@ -122,11 +122,11 @@ def generate_simulation_data():
             area = location_id.split("_")[1] if location_id and len(location_id.split("_")) > 1 else None
 
             weapon = {
-                "id": f"WEAPON_{faction['name'].replace(' ', '_')}_{i}",
-                "type": ENTITY_TYPE_ALIASES.get("WeaponSystem", "WeaponSystem"),
+                "id": f"EQUIP_{faction['name'].replace(' ', '_')}_{i}",
+                "type": ENTITY_TYPE_ALIASES.get("ToolSystem", "ToolSystem"),
                 "properties": {
-                    "name": f"{faction['name']} {weapon_types[i-1]}",
-                    "weapon_type": weapon_types[i-1],
+                    "name": f"{faction['name']} {equipment_types[i-1]}",
+                    "equipment_type": equipment_types[i-1],
                     "range": random.uniform(10, 500),
                     "status": random.choice(["正常", "待发", "受损", "维修中"]),
                     "affiliation": faction['name'],
@@ -134,17 +134,17 @@ def generate_simulation_data():
                 },
                 "relationships": {
                     "located_at": location_id,
-                    "operated_by": random.choice(data["military_units"])["id"] if data["military_units"] else None
+                    "operated_by": random.choice(data["units"])["id"] if data["units"] else None
                 }
             }
-            data["weapon_systems"].append(weapon)
+            data["equipment"].append(weapon)
 
     civ_types = ["医院", "学校", "油罐区", "发电厂", "难民营"]
     for area in areas:
         for i in range(1, 3):
             civ = {
                 "id": f"CIV_{area['id']}_{i}",
-                "type": "CivilianInfrastructure",
+                "type": "PublicAsset",
                 "properties": {
                     "name": f"{area['name']}{civ_types[i-1]}",
                     "facility_type": civ_types[i-1],
@@ -154,24 +154,24 @@ def generate_simulation_data():
                     "located_at": random.choice(data["locations"])["id"] if data["locations"] else None
                 }
             }
-            data["civilian_infrastructures"].append(civ)
+            data["public_assets"].append(civ)
 
     event_type_map = [
-        "iranian_missile_launch",
-        "uav_swarm_attack",
-        "iron_dome_interception",
-        "electronic_warfare",
-        "air_strike",
+        "long_range_launch",
+        "uav_swarm_operation",
+        "defense_interception",
+        "electronic_operation",
+        "air_operation",
         "ground_engagement",
         "intelligence_update",
-        "civilian_evacuation"
+        "public_evacuation"
     ]
 
     for i in range(1, 11):
-        involved_units = random.sample([u["id"] for u in data["military_units"]], min(2, len(data["military_units"])))
+        involved_units = random.sample([u["id"] for u in data["units"]], min(2, len(data["units"])))
         event = {
             "id": f"EVENT_{i}",
-            "type": ENTITY_TYPE_ALIASES.get("BattleEvent", "BattleEvent"),
+            "type": ENTITY_TYPE_ALIASES.get("IncidentEvent", "IncidentEvent"),
             "properties": {
                 "event_type": random.choice(event_type_map),
                 "timestamp": generate_timestamp().isoformat(),
@@ -183,11 +183,11 @@ def generate_simulation_data():
                 "occurs_at": random.choice(data["locations"])["id"] if data["locations"] else None
             }
         }
-        data["battle_events"].append(event)
+        data["events"].append(event)
 
-    mission_types = ["精确打击", "防空任务", "侦察监视", "后勤补给", "电子干扰", "人道救援"]
+    mission_types = ["精确行动", "守卫任务", "监测巡查", "后勤补给", "电子操作", "人道救援"]
     for i in range(1, 6):
-        target_unit = random.choice(data["military_units"])["id"] if data["military_units"] else None
+        target_unit = random.choice(data["units"])["id"] if data["units"] else None
         mission = {
             "id": f"MISSION_{i}",
             "type": "Mission",
@@ -198,7 +198,7 @@ def generate_simulation_data():
                 "deadline": (datetime.now() + timedelta(days=random.randint(1, 7))).isoformat()
             },
             "relationships": {
-                "assigned_to": random.choice(data["military_units"])["id"] if data["military_units"] else None,
+                "assigned_to": random.choice(data["units"])["id"] if data["units"] else None,
                 "targets": [target_unit] if target_unit else [],
                 "located_at": random.choice(data["locations"])["id"] if data["locations"] else None
             }
@@ -212,16 +212,16 @@ def generate_random_event():
     event_type = random.choice(event_types)
 
     descriptions = {
-        "iranian_missile_launch": "伊朗发射弹道导弹",
-        "uav_swarm_attack": "无人机群袭击",
-        "iron_dome_interception": "铁穹系统成功拦截",
-        "electronic_warfare": "电子战干扰",
-        "cyber_attack": "网络攻击行动",
+        "long_range_launch": "远程投射系统发射",
+        "uav_swarm_operation": "无人载具群行动",
+        "defense_interception": "防护系统成功拦截",
+        "electronic_operation": "电子操作干扰",
+        "cyber_attack": "网络行动",
         "intelligence_update": "情报更新",
-        "civilian_casualties": "平民伤亡报告",
+        "public_casualties": "公共损失报告",
         "humanitarian_crisis": "人道主义危机",
-        "prisoner_exchange": "战俘交换",
-        "ceasefire_proposal": "停火提议"
+        "prisoner_exchange": "人员交换",
+        "ceasefire_proposal": "停止行动提议"
     }
 
     event = {
@@ -252,15 +252,15 @@ def load_simulation_data():
 if __name__ == "__main__":
     data = save_simulation_data()
     logger.info('=' * 50)
-    logger.info('2026 美伊战争模拟数据生成完成')
+    logger.info('场景模拟数据生成完成')
     logger.info('=' * 50)
     logger.info(f"参战方: {len(DOMAIN_CONFIG['factions'])}")
     logger.info(f"地理区域: {len(DOMAIN_CONFIG['areas'])}")
     logger.info(f"- 地理位置: {len(data['locations'])}")
-    logger.info(f"- 军事单位: {len(data['military_units'])}")
-    logger.info(f"- 武器系统: {len(data['weapon_systems'])}")
-    logger.info(f"- 民用设施: {len(data['civilian_infrastructures'])}")
-    logger.info(f"- 领域事件: {len(data['battle_events'])}")
+    logger.info(f"- 组织单位: {len(data['units'])}")
+    logger.info(f"- 工具系统: {len(data['equipment'])}")
+    logger.info(f"- 公共资产: {len(data['public_assets'])}")
+    logger.info(f"- 领域事件: {len(data['events'])}")
     logger.info(f"- 任务: {len(data['missions'])}")
 
     logger.info('\n参战方详情:')

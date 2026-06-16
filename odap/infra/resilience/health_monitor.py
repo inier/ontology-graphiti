@@ -89,19 +89,25 @@ class HealthMonitor:
 
     async def _check_swarm_components(self):
         """检查 Swarm 各组件健康状态"""
-        from odap.biz.core.agent.swarm_orchestrator import DomainSwarm
         from odap.infra.resilience.fault_tolerance import FaultRecoveryManager
 
-        swarm = DomainSwarm()
         fault_manager = FaultRecoveryManager.get_instance()
 
-        for agent_type, agent in swarm.agents.items():
-            agent_id = agent_type.value
+        # 遍历已注册的 agent 状态，避免每次创建新的 DomainSwarm
+        for agent_id, state in fault_manager.agent_states.items():
+            # 状态评分：idle=1.0, running=0.7, recovering=0.3, degraded=0.2, failed=0.0
+            state_scores = {
+                "idle": 1.0,
+                "running": 0.7,
+                "recovering": 0.3,
+                "degraded": 0.2,
+                "failed": 0.0,
+            }
+            score = state_scores.get(state.value, 0.5)
 
-            state = fault_manager.get_agent_state(agent_id)
             metric = HealthMetric(
                 name=f"agent_{agent_id}_state",
-                value=1.0 if state.value == "idle" else 0.5 if state.value == "running" else 0.0,
+                value=score,
                 unit="score",
                 threshold_warning=0.3,
                 threshold_critical=0.1,
@@ -112,20 +118,8 @@ class HealthMonitor:
                 await self._generate_alert(
                     level="warning" if state.value == "degraded" else "critical",
                     component=agent_id,
-                    metric="agent_state",
-                    value=state.value,
                     message=f"Agent {agent_id} 状态异常: {state.value}"
                 )
-
-        mission_count = len(swarm.active_missions)
-        metric = HealthMetric(
-            name="swarm_active_missions",
-            value=float(mission_count),
-            unit="count",
-            threshold_warning=10,
-            threshold_critical=20,
-        )
-        await self._record_metric(metric)
 
     async def _record_metric(self, metric: HealthMetric):
         """记录指标"""
@@ -162,14 +156,24 @@ class HealthMonitor:
             **kwargs
         }
 
+        # 告警去重：同一 level+component 在 5 分钟内不重复
+        dedup_key = f"{level}:{kwargs.get('component', '')}:{kwargs.get('metric_name', '')}"
+        recent_cutoff = datetime.now().timestamp() - 300  # 5 分钟
+        for existing in self.alerts:
+            existing_key = f"{existing.get('level', '')}:{existing.get('component', '')}:{existing.get('metric_name', '')}"
+            existing_ts = datetime.fromisoformat(existing.get("timestamp", "2000-01-01")).timestamp()
+            if existing_key == dedup_key and existing_ts > recent_cutoff:
+                return  # 跳过重复告警
+
         self.alerts.append(alert)
 
         if len(self.alerts) > 100:
             self.alerts = self.alerts[-100:]
 
+        alert_msg = alert.get('message', f"Alert: {level} - {kwargs}")
         logger.log(
             logging.WARNING if level == "warning" else logging.ERROR,
-            f"告警: {alert['message']}"
+            f"告警: {alert_msg}"
         )
 
     async def get_health_report(self) -> Dict[str, Any]:

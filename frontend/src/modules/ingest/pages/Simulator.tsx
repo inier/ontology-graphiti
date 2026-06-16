@@ -43,7 +43,7 @@ import {
   DashboardOutlined,
   RocketOutlined,
 } from '@ant-design/icons';
-import { apiService } from '../../shared/services/api';
+import { apiService } from '@/modules/shared/services/api';
 import type { ColumnsType } from 'antd/es/table';
 
 const { Option } = Select;
@@ -75,10 +75,10 @@ interface SimulationStatus {
 }
 
 const EVENT_TYPES = [
-  'military_movement',
+  'operational_movement',
   'diplomatic_signal',
   'economic_sanction',
-  'cyber_attack',
+  'cyber_operation',
   'intelligence_report',
   'supply_chain_disruption',
   'political_statement',
@@ -261,10 +261,10 @@ const Simulator: React.FC = () => {
 
   const getEventTypeColor = (type: string) => {
     const colors: Record<string, string> = {
-      military_movement: 'red',
+      operational_movement: 'red',
       diplomatic_signal: 'blue',
       economic_sanction: 'orange',
-      cyber_attack: 'volcano',
+      cyber_operation: 'volcano',
       intelligence_report: 'purple',
       supply_chain_disruption: 'gold',
       political_statement: 'cyan',
@@ -275,10 +275,10 @@ const Simulator: React.FC = () => {
 
   const getEventTypeLabel = (type: string) => {
     const labels: Record<string, string> = {
-      military_movement: '军事调动',
+      operational_movement: '业务调动',
       diplomatic_signal: '外交信号',
       economic_sanction: '经济制裁',
-      cyber_attack: '网络攻击',
+      cyber_operation: '网络行动',
       intelligence_report: '情报报告',
       supply_chain_disruption: '供应链中断',
       political_statement: '政治声明',
@@ -408,8 +408,10 @@ const Simulator: React.FC = () => {
               <Statistic
                 title="模拟状态"
                 value={simStatus?.status || 'unknown'}
-                valueStyle={{
-                  color: simStatus?.status === 'running' ? '#52c41a' : '#faad14',
+                styles={{
+                  content: {
+                    color: simStatus?.status === 'running' ? '#52c41a' : '#faad14',
+                  },
                 }}
                 prefix={
                   simStatus?.status === 'running'
@@ -444,7 +446,7 @@ const Simulator: React.FC = () => {
                 title="待采纳"
                 value={simStatus?.events_pending || pendingCount}
                 prefix={<ClockCircleOutlined />}
-                valueStyle={{ color: pendingCount > 0 ? '#faad14' : undefined }}
+                styles={{ content: { color: pendingCount > 0 ? '#faad14' : undefined } }}
               />
             </Card>
           </Col>
@@ -726,7 +728,7 @@ const Simulator: React.FC = () => {
             label="模板名称"
             rules={[{ required: true, message: '请输入模板名称' }]}
           >
-            <Input placeholder="例如: 标准军事冲突模板" />
+            <Input placeholder="例如: 标准业务冲突模板" />
           </Form.Item>
           <Form.Item
             name="event_type"

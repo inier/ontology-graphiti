@@ -52,7 +52,7 @@ async def nl_query(request: NLQueryRequest, user=Depends(get_current_user)) -> N
     """统一 NL 查询入口（结构化 + 非结构化 + Hybrid + Action）。"""
     _validate_query(request)
     dispatcher = _get_dispatcher()
-    result = _do_dispatch(dispatcher, request)
+    result = await _do_dispatch(dispatcher, request)
     return _build_response(result, request)
 
 
@@ -69,12 +69,12 @@ def _get_dispatcher() -> NLDispatcher:
         raise HTTPException(status_code=503, detail=f"dispatcher unavailable: {e}")
 
 
-def _do_dispatch(dispatcher: NLDispatcher, request: NLQueryRequest) -> Dict[str, Any]:
+async def _do_dispatch(dispatcher: NLDispatcher, request: NLQueryRequest) -> Dict[str, Any]:
     hints: Dict[str, Any] = {}
     if request.force_intent:
         hints["force_intent"] = request.force_intent
     try:
-        return dispatcher.dispatch(
+        return await dispatcher.dispatch(
             query=request.query,
             workspace_id=request.workspace_id,
             ontology_id=request.ontology_id,

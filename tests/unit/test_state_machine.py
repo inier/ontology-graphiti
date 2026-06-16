@@ -164,11 +164,11 @@ class TestStateMachineEngine:
         engine = self._make_engine(tmp_path)
         engine.create_state_machine(
             name="TypeSM",
-            target_object_type="Weapon",
+            target_object_type="Equipment",
             states=[{"name": "idle", "state_type": "initial"}],
             transitions=[]
         )
-        result = engine.get_state_machine_by_object_type("Weapon")
+        result = engine.get_state_machine_by_object_type("Equipment")
         assert result["status"] == "success"
 
         result = engine.get_state_machine_by_object_type("NonExistent")

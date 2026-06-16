@@ -22,7 +22,7 @@ from collections import defaultdict, deque
 sys.path.append(os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))))
 
 class AgentType(str, Enum):
-    COMMANDER = "commander"
+    DIRECTOR = "director"
     INTELLIGENCE = "intelligence"
     OPERATIONS = "operations"
 
@@ -74,6 +74,7 @@ class Capability(str, Enum):
     SITUATION_AWARENESS = "situation_awareness"
     TARGET_DETECTION = "target_detection"
     THREAT_ANALYSIS = "threat_analysis"
+    RISK_ANALYSIS = "risk_analysis"
     GRAPH_SEARCH = "graph_search"
     DECISION_MAKING = "decision_making"
     MISSION_PLANNING = "mission_planning"
@@ -272,9 +273,9 @@ class RoleManager:
         self._init_default_roles()
 
     def _init_default_roles(self):
-        commander = RoleConfig(
-            role_name="Commander",
-            agent_type=AgentType.COMMANDER.value,
+        director = RoleConfig(
+            role_name="Director",
+            agent_type=AgentType.DIRECTOR.value,
             description="全局决策中枢，负责态势理解与决策制定",
             default_model="gpt-4",
             capabilities=[
@@ -285,7 +286,7 @@ class RoleManager:
             ],
             priority=10,
         )
-        self._roles["commander"] = commander
+        self._roles["director"] = director
 
         intelligence = RoleConfig(
             role_name="Intelligence",
@@ -295,6 +296,7 @@ class RoleManager:
             capabilities=[
                 RoleCapability(Capability.TARGET_DETECTION, max_depth=5),
                 RoleCapability(Capability.THREAT_ANALYSIS, max_depth=5),
+                RoleCapability(Capability.RISK_ANALYSIS, max_depth=5),
                 RoleCapability(Capability.GRAPH_SEARCH, max_depth=3),
                 RoleCapability(Capability.REPORT_GENERATION),
             ],
@@ -432,10 +434,10 @@ def get_agent_factory() -> AgentFactory:
     if _global_agent_factory is None:
         _global_agent_factory = AgentFactory()
         try:
-            from odap.biz.core.agent.swarm_orchestrator import CommanderAgent, IntelligenceAgent, OperationsAgent
-            _global_agent_factory.register_agent_class("commander", CommanderAgent)
-            _global_agent_factory.register_agent_class("intelligence", IntelligenceAgent)
-            _global_agent_factory.register_agent_class("operations", OperationsAgent)
+            from odap.biz.core.agent.swarm_orchestrator import OHSwarmAgent
+            _global_agent_factory.register_agent_class("director", OHSwarmAgent)
+            _global_agent_factory.register_agent_class("intelligence", OHSwarmAgent)
+            _global_agent_factory.register_agent_class("operations", OHSwarmAgent)
         except ImportError:
             pass
     return _global_agent_factory

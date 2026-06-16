@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import { Select, Input, Button, Table, Card, Space, Typography, Tabs, Tag, Empty, Spin, message } from 'antd';
 import { SearchOutlined } from '@ant-design/icons';
-import { apiClient } from '../../shared/services/apiClient';
+import { apiClient } from '@/modules/shared/services/apiClient';
 
 const { Text } = Typography;
 const { TextArea } = Input;
@@ -138,7 +138,7 @@ export default function QueryPanel({ workspaceId }: QueryPanelProps) {
 
   return (
     <Card title="Unified Query" size="small">
-      <Space direction="vertical" style={{ width: '100%' }} size="middle">
+      <Space orientation="vertical" style={{ width: '100%' }} size="middle">
         <Space wrap>
           <Select
             value={source}

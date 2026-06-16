@@ -10,7 +10,7 @@ import {
 
 const { Text } = Typography;
 const { TextArea } = Input;
-const { Panel } = Collapse;
+
 
 interface SkillDefinition {
   name: string;
@@ -49,6 +49,8 @@ export function SkillEditor({ skill, visible, onSave, onCancel }: SkillEditorPro
   const [inputSchemaText, setInputSchemaText] = useState('');
   const [outputSchemaText, setOutputSchemaText] = useState('');
 
+  const formValues = Form.useWatch([], form) ?? {};
+
   useEffect(() => {
     if (skill) {
       form.setFieldsValue({
@@ -65,7 +67,7 @@ export function SkillEditor({ skill, visible, onSave, onCancel }: SkillEditorPro
       setInputSchemaText('{\n  \n}');
       setOutputSchemaText('{\n  \n}');
     }
-  }, [skill, visible, form]);
+  }, [skill, open, form]);
 
   const handleSave = () => {
     const values = form.getFieldsValue();
@@ -91,7 +93,7 @@ export function SkillEditor({ skill, visible, onSave, onCancel }: SkillEditorPro
   };
 
   const generateMarkdown = () => {
-    const values = form.getFieldsValue();
+    const values = formValues;
     const triggers = values.triggers?.split(',').map((t: string) => t.trim()).filter(Boolean) || [];
     
     return `# ${values.name}
@@ -133,7 +135,7 @@ ${values.sections.notes}` : ''}
   return (
     <Modal
       title={skill ? '编辑 Skill' : '创建新 Skill'}
-      open={visible}
+      open={open}
       onCancel={onCancel}
       width={900}
       footer={
@@ -247,24 +249,10 @@ ${values.sections.notes}` : ''}
 
                 <div>
                   <Text strong>高级设置:</Text>
-                  <Collapse style={{ marginTop: 8 }}>
-                    <Panel header="示例 (Examples)" key="examples">
-                      <Form.Item name={['sections', 'examples']}>
-                        <TextArea 
-                          rows={4} 
-                          placeholder="添加使用示例..." 
-                        />
-                      </Form.Item>
-                    </Panel>
-                    <Panel header="注意事项 (Notes)" key="notes">
-                      <Form.Item name={['sections', 'notes']}>
-                        <TextArea 
-                          rows={3} 
-                          placeholder="添加注意事项..." 
-                        />
-                      </Form.Item>
-                    </Panel>
-                  </Collapse>
+                  <Collapse style={{ marginTop: 8 }} items={[
+                    { key: 'examples', label: '示例 (Examples)', children: <Form.Item name={['sections', 'examples']}><TextArea rows={4} placeholder="添加使用示例..." /></Form.Item> },
+                    { key: 'notes', label: '注意事项 (Notes)', children: <Form.Item name={['sections', 'notes']}><TextArea rows={3} placeholder="添加注意事项..." /></Form.Item> },
+                  ]} />
                 </div>
               </div>
             ),
@@ -326,7 +314,7 @@ export function QuickSkillEditor({ initialData, onSave }: QuickSkillEditorProps)
 
   return (
     <Card size="small">
-      <Space direction="vertical" style={{ width: '100%' }}>
+      <Space orientation="vertical" style={{ width: '100%' }}>
         <Input
           placeholder="Skill 名称"
           value={name}

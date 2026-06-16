@@ -17,8 +17,8 @@ import type { DataNode } from 'antd/es/tree';
 import {
   ReloadOutlined, PlayCircleOutlined, SaveOutlined, CheckOutlined, CloseOutlined, ClockCircleOutlined,
 } from '@ant-design/icons';
-import { apiClient } from '../../shared/services/apiClient';
-import { useI18n } from '../../shared/hooks/useI18n';
+import { apiClient } from '@/modules/shared/services/apiClient';
+import { useI18n } from '@/modules/shared/hooks/useI18n';
 
 const { Text, Title } = Typography;
 
@@ -263,7 +263,7 @@ export function MaterializedViewConfig({ workspaceId }: MaterializedViewConfigPr
                         background: selectedView?.id === v.id ? '#e6f4ff' : undefined,
                       }}
                     >
-                      <Space direction="vertical" size={2} style={{ width: '100%' }}>
+                      <Space orientation="vertical" size={2} style={{ width: '100%' }}>
                         <Space>
                           <Text strong>{v.object_type_name}</Text>
                           {v.enabled
@@ -287,28 +287,28 @@ export function MaterializedViewConfig({ workspaceId }: MaterializedViewConfigPr
                 <Empty description="请从左侧选择一个 ObjectType 或已配置视图" />
               </Card>
             ) : (
-              <Space direction="vertical" size="middle" style={{ width: '100%' }}>
+              <Space orientation="vertical" size="middle" style={{ width: '100%' }}>
                 <Card size="small" title={`视图: ${selectedOTName}`}>
                   <Row gutter={12}>
                     <Col span={8}>
                       <Statistic
                         title="最近物化时间"
                         value={selectedView.last_run_at ? new Date(selectedView.last_run_at).toLocaleString() : '从未运行'}
-                        valueStyle={{ fontSize: 14 }}
+                        styles={{ content: { fontSize: 14 } }}
                       />
                     </Col>
                     <Col span={8}>
                       <Statistic
                         title="耗时 (ms)"
                         value={selectedView.last_run_duration_ms ?? 0}
-                        valueStyle={{ fontSize: 14 }}
+                        styles={{ content: { fontSize: 14 } }}
                       />
                     </Col>
                     <Col span={8}>
                       <Statistic
                         title="错误数"
                         value={selectedView.error_count}
-                        valueStyle={{ fontSize: 14, color: selectedView.error_count > 0 ? '#ff4d4f' : undefined }}
+                        styles={{ content: { fontSize: 14, color: selectedView.error_count > 0 ? '#ff4d4f' : undefined } }}
                       />
                     </Col>
                   </Row>

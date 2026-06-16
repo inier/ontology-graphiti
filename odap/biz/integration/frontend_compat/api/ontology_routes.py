@@ -1,5 +1,7 @@
 """前端API兼容层 - 本体/图谱/查询/场景路由"""
 
+import logging
+
 from fastapi import APIRouter, HTTPException, Query, Request, Depends
 from odap.infra.security.jwt_auth import get_current_user
 from typing import Dict, Any, List, Optional
@@ -7,9 +9,12 @@ import json
 import uuid
 from datetime import datetime
 
+logger = logging.getLogger(__name__)
+
 from odap.biz.integration.frontend_compat.api._deps import (
     scenario_store,
-    _get_graph_manager,
+    _get_graph_write_proxy,
+    _get_query_service,
     audit_logger,
     AuditFilter,
     AuditEventType,
@@ -56,30 +61,39 @@ async def query_entities(request: Request, data: Dict[str, Any],
     """查询实体（兼容前端）"""
     try:
         query = data.get("query", {})
-        workspace_id = data.get("workspace_id")
+        workspace_id = data.get("workspace_id", "default")
 
-        graph_manager = _get_graph_manager()
+        query_service = _get_query_service()
 
         if query.get("keyword"):
-            results = graph_manager.search(query.get("keyword"))
+            # 使用 QueryService 的 entity 源进行关键词搜索
+            result = query_service.execute(
+                workspace_id=workspace_id,
+                query=f".entity with(search='{query.get('keyword')}')",
+                limit=100,
+            )
             entities = [
                 {
                     "entity_id": r.get("id", r.get("name", "")),
                     "name": r.get("name", ""),
-                    "type": r.get("type", ""),
+                    "type": r.get("type", r.get("entity_type", "")),
                     "properties": r,
                 }
-                for r in results
+                for r in result.rows
             ]
         else:
-            entities_raw = graph_manager.get_all_entities(workspace_id=workspace_id)
+            # 使用 QueryService 的 entity 源列出所有实体
+            result = query_service.execute(
+                workspace_id=workspace_id,
+                query=".entity",
+                limit=500,
+            )
             entities = []
-            for e in entities_raw:
-                e_dict = e.to_dict() if hasattr(e, 'to_dict') else dict(e)
-                props = e_dict.get("properties", {})
-                eid = e_dict.get("id", "") or props.get("id", "")
-                ename = props.get("name", "") or e_dict.get("name", "")
-                etype = e_dict.get("type", e_dict.get("entity_type", "Entity"))
+            for e in result.rows:
+                props = e.get("properties", {})
+                eid = e.get("id", "") or props.get("id", "")
+                ename = props.get("name", "") or e.get("name", "")
+                etype = e.get("type", e.get("entity_type", "Entity"))
                 if not eid or not ename:
                     continue
                 if not props.get("source_type"):
@@ -113,26 +127,30 @@ async def query_relations(data: Dict[str, Any],
         source_id = query.get("source_id")
         target_id = query.get("target_id")
         relation_type = query.get("relation_type")
-        workspace_id = data.get("workspace_id")
+        workspace_id = data.get("workspace_id", "default")
 
-        graph_manager = _get_graph_manager()
-        all_relations = graph_manager.get_all_relations(workspace_id=workspace_id)
+        # 使用 QueryService 的 topo 源查询关系
+        query_service = _get_query_service()
+        result = query_service.execute(
+            workspace_id=workspace_id,
+            query=".topo",
+            limit=500,
+        )
 
         relations = []
-        for r in all_relations:
-            r_dict = r.to_dict() if hasattr(r, 'to_dict') else dict(r)
-            if source_id and r_dict.get("source_entity", r_dict.get("source", "")) != source_id:
+        for r in result.rows:
+            if source_id and r.get("source_entity", r.get("source", "")) != source_id:
                 continue
-            if target_id and r_dict.get("target_entity", r_dict.get("target", "")) != target_id:
+            if target_id and r.get("target_entity", r.get("target", "")) != target_id:
                 continue
-            if relation_type and r_dict.get("relation_type", r_dict.get("type", "")) != relation_type:
+            if relation_type and r.get("relation_type", r.get("type", "")) != relation_type:
                 continue
             relations.append({
-                "relation_id": r_dict.get("relation_id", r_dict.get("id", "")),
-                "source": r_dict.get("source_entity", r_dict.get("source", "")),
-                "target": r_dict.get("target_entity", r_dict.get("target", "")),
-                "type": r_dict.get("relation_type", r_dict.get("type", "")),
-                "properties": r_dict.get("properties", {}),
+                "relation_id": r.get("relation_id", r.get("id", "")),
+                "source": r.get("source_entity", r.get("source", "")),
+                "target": r.get("target_entity", r.get("target", "")),
+                "type": r.get("relation_type", r.get("type", "")),
+                "properties": r.get("properties", {}),
             })
 
         return {
@@ -152,16 +170,20 @@ async def complex_query(request: Request, data: Dict[str, Any],
     """复合查询（兼容前端）"""
     try:
         conditions = data.get("conditions", [])
-        workspace_id = data.get("workspace_id")
+        workspace_id = data.get("workspace_id", "default")
 
-        graph_manager = _get_graph_manager()
+        query_service = _get_query_service()
         results = []
         for condition in conditions:
             if condition.get("type") == "entity":
                 keyword = condition.get("value", "")
                 if keyword:
-                    search_results = graph_manager.search(keyword)
-                    for r in search_results:
+                    result = query_service.execute(
+                        workspace_id=workspace_id,
+                        query=f".entity with(search='{keyword}')",
+                        limit=100,
+                    )
+                    for r in result.rows:
                         if r not in results:
                             results.append(r)
 
@@ -402,7 +424,8 @@ async def get_graph_detail(graph_id: str,
                     entities = _json.loads(entities)
                 except HTTPException:
                     raise
-                except Exception:
+                except Exception as e:
+                    logger.debug("Query fallback: %s", e)
                     entities = []
             for e in entities:
                 if isinstance(e, dict):
@@ -414,7 +437,8 @@ async def get_graph_detail(graph_id: str,
                     relations = _json.loads(relations)
                 except HTTPException:
                     raise
-                except Exception:
+                except Exception as e:
+                    logger.debug("Query fallback: %s", e)
                     relations = []
             for r in relations:
                 if isinstance(r, dict):

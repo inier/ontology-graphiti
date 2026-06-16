@@ -18,8 +18,8 @@ import type {
   KnowledgeBase as KB, KnowledgeCategory, KnowledgeDocument,
   KnowledgeBaseFormData, DocumentUploadData,
 } from '../types';
-import { EmptyState } from '../../shared/components/organisms';
-import { useWorkspace } from '../../shared/components/AppLayout';
+import { EmptyState } from '@/modules/shared/components/organisms';
+import { useWorkspace } from '@/modules/shared/components/AppLayout';
 
 const { Dragger } = Upload;
 const { TextArea } = Input;
@@ -291,7 +291,7 @@ export function KnowledgeBase() {
           <Space>
             <Button type="text" icon={<EyeOutlined />} onClick={() => handleEnterKb(record)}>查看</Button>
             <Button type="text" icon={<EditOutlined />} onClick={() => handleEditKb(record)}>编辑</Button>
-            <Popconfirm title="确认删除？" onConfirm={() => handleDeleteKb(record.kb_id)}>
+            <Popconfirm description="确认删除？" onConfirm={() => handleDeleteKb(record.kb_id)}>
               <Button type="text" danger icon={<DeleteOutlined />}>删除</Button>
             </Popconfirm>
           </Space>
@@ -327,7 +327,7 @@ export function KnowledgeBase() {
             onLoadSampleData={async () => {
               if (!currentWorkspace) { message.warning('请先选择工作空间'); return; }
               try {
-                const { api } = await import('../../shared/services/api');
+                const { api } = await import('@/modules/shared/services/api');
                 await api.generateSampleData(currentWorkspace);
                 message.success('示例数据已加载');
                 loadKnowledgeBases();
@@ -450,7 +450,7 @@ export function KnowledgeBase() {
         render: (_: unknown, record: KnowledgeDocument) => (
           <Space>
             <Button type="text" icon={<EyeOutlined />} onClick={() => handleViewDoc(record)} />
-            <Popconfirm title="确认删除？" onConfirm={() => handleDeleteDoc(record.doc_id)}>
+            <Popconfirm description="确认删除？" onConfirm={() => handleDeleteDoc(record.doc_id)}>
               <Button type="text" danger icon={<DeleteOutlined />} />
             </Popconfirm>
           </Space>
@@ -519,41 +519,59 @@ export function KnowledgeBase() {
               <Input placeholder="请输入文档标题" />
             </Form.Item>
 
-            <Tabs activeKey={uploadTab} onChange={k => setUploadTab(k as any)}>
-              <Tabs.TabPane tab="文件" key="file">
-                <Dragger
-                  beforeUpload={(file) => { setUploadFile(file); return false; }}
-                  maxCount={1}
-                  fileList={uploadFile ? [{ uid: '-1', name: uploadFile.name, status: 'done', originFileObj: uploadFile as any }] : []}
-                  onRemove={() => setUploadFile(null)}
-                >
-                  <p className="ant-upload-drag-icon"><InboxOutlined /></p>
-                  <p className="ant-upload-text">点击或拖拽文件到此区域</p>
-                  <p className="ant-upload-hint">支持 PDF、Word、PPT、TXT 等格式</p>
-                </Dragger>
-              </Tabs.TabPane>
-              <Tabs.TabPane tab="在线文档" key="online_doc">
-                <Form.Item name="web_url" label="文档链接">
-                  <Input placeholder="请输入在线文档链接" prefix={<LinkOutlined />} />
-                </Form.Item>
-              </Tabs.TabPane>
-              <Tabs.TabPane tab="纯文本" key="text">
-                <Form.Item name="content" label="内容">
-                  <TextArea placeholder="请输入文本内容" rows={6} />
-                </Form.Item>
-              </Tabs.TabPane>
-              <Tabs.TabPane tab="网页抓取" key="web">
-                <Form.Item name="web_url" label="网页URL">
-                  <Input placeholder="请输入要抓取的网页URL" prefix={<GlobalOutlined />} />
-                </Form.Item>
-                <Alert
-                  type="info"
-                  showIcon
-                  message="系统将自动抓取网页内容并提取结构化知识"
-                  style={{ marginTop: 8 }}
-                />
-              </Tabs.TabPane>
-            </Tabs>
+            <Tabs activeKey={uploadTab} onChange={k => setUploadTab(k as any)} items={[
+              {
+                key: 'file',
+                label: '文件',
+                children: (
+                  <Dragger
+                    beforeUpload={(file) => { setUploadFile(file); return false; }}
+                    maxCount={1}
+                    fileList={uploadFile ? [{ uid: '-1', name: uploadFile.name, status: 'done', originFileObj: uploadFile as any }] : []}
+                    onRemove={() => setUploadFile(null)}
+                  >
+                    <p className="ant-upload-drag-icon"><InboxOutlined /></p>
+                    <p className="ant-upload-text">点击或拖拽文件到此区域</p>
+                    <p className="ant-upload-hint">支持 PDF、Word、PPT、TXT 等格式</p>
+                  </Dragger>
+                ),
+              },
+              {
+                key: 'online_doc',
+                label: '在线文档',
+                children: (
+                  <Form.Item name="web_url" label="文档链接">
+                    <Input placeholder="请输入在线文档链接" prefix={<LinkOutlined />} />
+                  </Form.Item>
+                ),
+              },
+              {
+                key: 'text',
+                label: '纯文本',
+                children: (
+                  <Form.Item name="content" label="内容">
+                    <TextArea placeholder="请输入文本内容" rows={6} />
+                  </Form.Item>
+                ),
+              },
+              {
+                key: 'web',
+                label: '网页抓取',
+                children: (
+                  <>
+                    <Form.Item name="web_url" label="网页URL">
+                      <Input placeholder="请输入要抓取的网页URL" prefix={<GlobalOutlined />} />
+                    </Form.Item>
+                    <Alert
+                      type="info"
+                      showIcon
+                      message="系统将自动抓取网页内容并提取结构化知识"
+                      style={{ marginTop: 8 }}
+                    />
+                  </>
+                ),
+              },
+            ]} />
 
             <Form.Item name="category_id" label="分类">
               <Select placeholder="请选择分类（可选）" allowClear>
@@ -593,11 +611,11 @@ export function KnowledgeBase() {
           title="文档详情"
           open={docDrawerOpen}
           onClose={() => setDocDrawerOpen(false)}
-          size={600}
+          width={600}
         >
           {currentDoc && (
             <div>
-              <Descriptions column={1} bordered size="small">
+              <Descriptions column={1} variant="bordered" size="small">
                 <Descriptions.Item label="标题">{currentDoc.title}</Descriptions.Item>
                 <Descriptions.Item label="类型">
                   <Tag>{currentDoc.content_type}</Tag>

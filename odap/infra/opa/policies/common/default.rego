@@ -17,9 +17,9 @@ allow if {
 }
 
 escalation_risk := "high" if {
-    input.action == "attack"
-    input.target.category == "military"
+    input.action == "engage"
+    input.target.category == "operational"
     input.target.threat_level == "critical"
 } else := "medium" if {
-    input.action == "attack"
+    input.action == "engage"
 } else := "low"

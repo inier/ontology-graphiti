@@ -28,7 +28,7 @@ class TestSQLiteRuntimeStorage:
             "target_object_type": "Unit",
             "input_schema": {"entity_id": "str"},
             "output_schema": {"risk_score": "float"},
-            "implementation": "result = context.get('combat_power', 0) * 0.5",
+            "implementation": "result = context.get('capability_index', 0) * 0.5",
             "implementation_type": "python",
             "dependencies": [],
             "bound_action_contract": None,
@@ -65,11 +65,11 @@ class TestSQLiteRuntimeStorage:
             "action_type_id": "attack",
             "action_name": "攻击",
             "description": "攻击行动契约",
-            "read_set": [{"object_type": "Unit", "property_name": "combat_power"}],
-            "write_set": [{"object_type": "Unit", "property_name": "combat_power"}],
-            "side_effect_set": [{"object_type": "Unit", "property_name": "morale"}],
-            "preconditions": ["combat_power > 0"],
-            "postconditions": ["target.combat_power < before"],
+            "read_set": [{"object_type": "Unit", "property_name": "capability_index"}],
+            "write_set": [{"object_type": "Unit", "property_name": "capability_index"}],
+            "side_effect_set": [{"object_type": "Unit", "property_name": "readiness"}],
+            "preconditions": ["capability_index > 0"],
+            "postconditions": ["target.capability_index < before"],
             "is_verified": False,
             "verified_at": None,
             "created_at": datetime.now().isoformat(),
@@ -103,7 +103,7 @@ class TestSQLiteRuntimeStorage:
             "action_name": "攻击",
             "target_object_id": "unit-001",
             "target_object_type": "Unit",
-            "property_name": "combat_power",
+            "property_name": "capability_index",
             "old_value": 0.8,
             "new_value": 0.5,
             "mutation_type": "update",
@@ -116,7 +116,7 @@ class TestSQLiteRuntimeStorage:
 
         mutations = storage.query_mutations(target_object_id="unit-001")
         assert len(mutations) >= 1
-        assert mutations[0]["property_name"] == "combat_power"
+        assert mutations[0]["property_name"] == "capability_index"
 
         mutations_by_action = storage.query_mutations(action_type_id="attack")
         assert len(mutations_by_action) >= 1
@@ -157,11 +157,11 @@ class TestSQLiteRuntimeStorage:
             "agg_id": "agg-test-001",
             "name": "战斗力求和",
             "target_object_type": "Unit",
-            "target_property": "combat_power",
+            "target_property": "capability_index",
             "method": "sum",
             "window": "raw",
             "group_by": [],
-            "output_property": "total_combat_power",
+            "output_property": "total_capability_index",
             "is_active": True,
         }
         saved = storage.save_aggregate(agg)
@@ -270,11 +270,11 @@ class TestActionContractEngine:
         contract = engine.create_contract({
             "action_type_id": "attack",
             "action_name": "攻击",
-            "write_set": [{"object_type": "Unit", "property_name": "combat_power"}],
+            "write_set": [{"object_type": "Unit", "property_name": "capability_index"}],
         })
 
         mutation_log = [
-            {"mutation_id": "m1", "target_object_type": "Unit", "property_name": "combat_power"},
+            {"mutation_id": "m1", "target_object_type": "Unit", "property_name": "capability_index"},
             {"mutation_id": "m2", "target_object_type": "Equipment", "property_name": "status"},
         ]
         result = engine.verify_contract(contract["contract_id"], mutation_log)
@@ -300,13 +300,13 @@ class TestAggregateEngine:
         engine = AggregateEngine(storage)
 
         agg = engine.register_aggregate({
-            "name": "总兵力",
+            "name": "总人员",
             "target_object_type": "Unit",
-            "target_property": "combat_power",
+            "target_property": "capability_index",
             "method": "sum",
         })
         result = engine.compute_aggregate(agg["agg_id"], [
-            {"combat_power": 0.8}, {"combat_power": 0.6}, {"combat_power": 0.9},
+            {"capability_index": 0.8}, {"capability_index": 0.6}, {"capability_index": 0.9},
         ])
         assert result["status"] == "success"
         assert abs(result["result"] - 2.3) < 0.01
@@ -320,11 +320,11 @@ class TestAggregateEngine:
         agg = engine.register_aggregate({
             "name": "平均士气",
             "target_object_type": "Unit",
-            "target_property": "morale",
+            "target_property": "readiness",
             "method": "avg",
         })
         result = engine.compute_aggregate(agg["agg_id"], [
-            {"morale": 0.8}, {"morale": 0.6},
+            {"readiness": 0.8}, {"readiness": 0.6},
         ])
         assert result["status"] == "success"
         assert abs(result["result"] - 0.7) < 0.01
@@ -348,8 +348,8 @@ class TestOntologyRuntimeService:
         contract_result = service.create_contract({
             "action_type_id": "attack",
             "action_name": "攻击",
-            "write_set": [{"object_type": "Unit", "property_name": "combat_power"}],
-            "side_effect_set": [{"object_type": "Unit", "property_name": "morale"}],
+            "write_set": [{"object_type": "Unit", "property_name": "capability_index"}],
+            "side_effect_set": [{"object_type": "Unit", "property_name": "readiness"}],
         })
         assert "contract_id" in contract_result
 
@@ -366,7 +366,7 @@ class TestOntologyRuntimeService:
             "action_name": "攻击",
             "target_object_id": "unit-001",
             "target_object_type": "Unit",
-            "property_name": "combat_power",
+            "property_name": "capability_index",
             "old_value": 0.8,
             "new_value": 0.5,
         })
@@ -378,13 +378,13 @@ class TestOntologyRuntimeService:
         agg_result = service.register_aggregate({
             "name": "总战力",
             "target_object_type": "Unit",
-            "target_property": "combat_power",
+            "target_property": "capability_index",
             "method": "sum",
         })
         assert "agg_id" in agg_result
 
         compute_result = service.compute_aggregate(agg_result["agg_id"], [
-            {"combat_power": 0.5}, {"combat_power": 0.8},
+            {"capability_index": 0.5}, {"capability_index": 0.8},
         ])
         assert compute_result["status"] == "success"
         assert abs(compute_result["result"] - 1.3) < 0.01
@@ -472,7 +472,7 @@ class TestSQLiteRuntimeStorageTrigger:
                     "condition_id": "cond-001",
                     "trigger_type": "state_driven",
                     "object_type": "Unit",
-                    "property_name": "combat_power",
+                    "property_name": "capability_index",
                     "operator": "lt",
                     "threshold_value": 0.3,
                     "threshold_max": None,
@@ -519,7 +519,7 @@ class TestSQLiteRuntimeStorageTrigger:
             "trigger_id": "trig-test-001",
             "action_type_id": "alert",
             "action_name": "预警通知",
-            "triggered_by": {"object_id": "unit-001", "property": "combat_power", "value": 0.2},
+            "triggered_by": {"object_id": "unit-001", "property": "capability_index", "value": 0.2},
             "target_object_id": "unit-001",
             "target_object_type": "Unit",
             "parameters": {"level": "high"},
@@ -556,7 +556,7 @@ class TestActionTriggerEngine:
         trigger = engine.register_trigger({
             "name": "低士气预警",
             "conditions": [
-                {"trigger_type": "state_driven", "object_type": "Unit", "property_name": "morale", "operator": "lt", "threshold_value": 0.3}
+                {"trigger_type": "state_driven", "object_type": "Unit", "property_name": "readiness", "operator": "lt", "threshold_value": 0.3}
             ],
             "action_type_id": "alert",
             "action_name": "士气预警",
@@ -629,7 +629,7 @@ class TestActionTriggerEngine:
         engine.register_trigger({
             "name": "低战斗力预警",
             "conditions": [
-                {"trigger_type": "state_driven", "object_type": "Unit", "property_name": "combat_power", "operator": "lt", "threshold_value": 0.3}
+                {"trigger_type": "state_driven", "object_type": "Unit", "property_name": "capability_index", "operator": "lt", "threshold_value": 0.3}
             ],
             "action_type_id": "alert",
             "action_name": "战斗力预警",
@@ -637,11 +637,11 @@ class TestActionTriggerEngine:
             "priority": 5,
         })
 
-        matched = engine.evaluate_triggers("Unit", "unit-001", {"combat_power": 0.2})
+        matched = engine.evaluate_triggers("Unit", "unit-001", {"capability_index": 0.2})
         assert len(matched) == 1
         assert matched[0]["name"] == "低战斗力预警"
 
-        not_matched = engine.evaluate_triggers("Unit", "unit-002", {"combat_power": 0.8})
+        not_matched = engine.evaluate_triggers("Unit", "unit-002", {"capability_index": 0.8})
         assert len(not_matched) == 0
 
     def test_evaluate_triggers_multiple_operators(self, tmp_path):
@@ -662,7 +662,7 @@ class TestActionTriggerEngine:
         engine.register_trigger({
             "name": "between触发器",
             "conditions": [
-                {"trigger_type": "state_driven", "object_type": "Unit", "property_name": "combat_power", "operator": "between", "threshold_value": 0.3, "threshold_max": 0.7}
+                {"trigger_type": "state_driven", "object_type": "Unit", "property_name": "capability_index", "operator": "between", "threshold_value": 0.3, "threshold_max": 0.7}
             ],
             "action_type_id": "monitor",
             "action_name": "监控",
@@ -682,11 +682,11 @@ class TestActionTriggerEngine:
         assert len(eq_matched) == 1
         assert eq_matched[0]["name"] == "eq触发器"
 
-        between_matched = engine.evaluate_triggers("Unit", "unit-002", {"combat_power": 0.5})
+        between_matched = engine.evaluate_triggers("Unit", "unit-002", {"capability_index": 0.5})
         assert len(between_matched) == 1
         assert between_matched[0]["name"] == "between触发器"
 
-        between_out = engine.evaluate_triggers("Unit", "unit-003", {"combat_power": 0.9})
+        between_out = engine.evaluate_triggers("Unit", "unit-003", {"capability_index": 0.9})
         assert len(between_out) == 0
 
         contains_matched = engine.evaluate_triggers("Unit", "unit-004", {"tags": ["critical", "frontline"]})
@@ -781,7 +781,7 @@ class TestOntologyRuntimeServiceTrigger:
         trigger = service.register_trigger({
             "name": "服务层触发器",
             "conditions": [
-                {"trigger_type": "state_driven", "object_type": "Unit", "property_name": "combat_power", "operator": "lt", "threshold_value": 0.5}
+                {"trigger_type": "state_driven", "object_type": "Unit", "property_name": "capability_index", "operator": "lt", "threshold_value": 0.5}
             ],
             "action_type_id": "reinforce",
             "action_name": "增援",
@@ -795,7 +795,7 @@ class TestOntologyRuntimeServiceTrigger:
         listed = service.list_triggers()
         assert listed["count"] >= 1
 
-        eval_result = service.evaluate_triggers("Unit", "unit-001", {"combat_power": 0.3})
+        eval_result = service.evaluate_triggers("Unit", "unit-001", {"capability_index": 0.3})
         assert eval_result["count"] == 1
 
         exec_result = service.execute_trigger(trigger["trigger_id"], {"object_id": "unit-001"})

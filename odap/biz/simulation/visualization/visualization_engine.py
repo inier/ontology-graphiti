@@ -603,9 +603,9 @@ if __name__ == "__main__":
 
     logger.info('\n1. 创建图可视化:')
     entities = [
-        {"id": "n1", "name": "雷达站A", "type": "radar", "properties": {}},
+        {"id": "n1", "name": "监测站A", "type": "sensor", "properties": {}},
         {"id": "n2", "name": "指挥中心", "type": "command", "properties": {}},
-        {"id": "n3", "name": "雷达站B", "type": "radar", "properties": {}},
+        {"id": "n3", "name": "监测站B", "type": "sensor", "properties": {}},
         {"id": "n4", "name": "补给站", "type": "logistics", "properties": {}},
     ]
     relationships = [
@@ -622,7 +622,7 @@ if __name__ == "__main__":
     map_entities = [
         {"id": "m1", "name": "目标A", "type": "target", "latitude": 39.9, "longitude": 116.4},
         {"id": "m2", "name": "友军B", "type": "friendly", "latitude": 39.95, "longitude": 116.45},
-        {"id": "m3", "name": "敌军C", "type": "enemy", "latitude": 39.85, "longitude": 116.35},
+        {"id": "m3", "name": "对手C", "type": "opponent", "latitude": 39.85, "longitude": 116.35},
     ]
     map_data = engine.create_map("test-map", map_entities)
     logger.info(f'   图层数: {len(map_data.layers)}')
@@ -630,7 +630,7 @@ if __name__ == "__main__":
 
     logger.info('\n3. 创建图表:')
     stats = {
-        "radar_count": 5,
+        "sensor_count": 5,
         "command_count": 2,
         "threat_level": {"low": 10, "medium": 5, "high": 2}
     }

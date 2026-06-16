@@ -20,7 +20,7 @@ SCENARIOS_DIR = os.path.join(_odap_root, "storage", "versions", "scenarios")
 
 # ── 外部服务实例 ──
 from odap.biz.shared.stores import ScenarioStore
-from odap.infra.graph.graph_service import GraphManager
+from odap.infra.query import get_graph_write_proxy, get_query_service
 from odap.biz.platform.workspace.services.workspace_service import WorkspaceService
 from odap.biz.platform.workspace.services.scenario_service import ScenarioService
 
@@ -38,14 +38,20 @@ except Exception as e:
     logger.info(f'Failed to initialize storage: {e}')
     storage = None
 
-_graph_manager = None
+def _get_graph_write_proxy():
+    """Get GraphWriteProxy for write operations.
+
+    Use this for all graph write operations (add_entity, add_relationship, add_episode, etc.).
+    """
+    return get_graph_write_proxy()
 
 
-def _get_graph_manager():
-    global _graph_manager
-    if _graph_manager is None:
-        _graph_manager = GraphManager()
-    return _graph_manager
+def _get_query_service():
+    """Get QueryService for read operations.
+
+    Use this for all graph read operations (search, query entities, query relations, etc.).
+    """
+    return get_query_service()
 
 
 scenario_store = ScenarioStore(storage_dir=SCENARIOS_DIR, graph_manager=None)
@@ -182,8 +188,8 @@ def log_error(error: str, **kwargs):
         )
     except HTTPException:
         raise
-    except Exception:
-        pass
+    except Exception as exc:
+        logger.debug("Non-critical error in audit access log: %s", exc)
 
 
 async def _log_error_async(error: str, context: Dict[str, Any]):
@@ -210,8 +216,8 @@ async def _log_error_async(error: str, context: Dict[str, Any]):
         )
     except HTTPException:
         raise
-    except Exception:
-        pass
+    except Exception as exc:
+        logger.debug("Non-critical error in audit error log: %s", exc)
 
 
 # ── QA Engine 全局实例 ──
@@ -225,7 +231,8 @@ def get_qa_engine(use_mock: bool = False) -> "QAEngineV2":
     if _qa_engine_instance is None:
         from odap.biz.data.qa.qa_engine import QAEngineV2
 
-        graphiti_client = _get_graph_manager()
+        # 使用 QueryService 进行读操作，不再通过 get_raw_graph_manager() 获取 GraphManager
+        query_service = _get_query_service()
 
         ingest_storage = None
         try:
@@ -233,8 +240,8 @@ def get_qa_engine(use_mock: bool = False) -> "QAEngineV2":
             ingest_storage = IngestService().storage
         except HTTPException:
             raise
-        except Exception:
-            pass
+        except Exception as exc:
+            logger.debug("Non-critical error in init ingest_storage: %s", exc)
 
         semantic_map_storage = None
         try:
@@ -244,13 +251,23 @@ def get_qa_engine(use_mock: bool = False) -> "QAEngineV2":
             semantic_map_storage = SemanticMapService().storage
         except HTTPException:
             raise
-        except Exception:
-            pass
+        except Exception as exc:
+            logger.debug("Non-critical error in init semantic_map_storage: %s", exc)
+
+        model_storage = None
+        try:
+            from odap.biz.core.ontology.design.model.storage.sqlite_model_storage import SQLiteModelStorage
+            model_storage = SQLiteModelStorage()
+        except HTTPException:
+            raise
+        except Exception as exc:
+            logger.debug("Non-critical error in init model_storage: %s", exc)
 
         _qa_engine_instance = QAEngineV2(
-            graphiti_client=graphiti_client,
+            query_service=query_service,
             use_mock=use_mock,
             ingest_storage=ingest_storage,
             semantic_map_storage=semantic_map_storage,
+            model_storage=model_storage,
         )
     return _qa_engine_instance

@@ -252,7 +252,7 @@ def _markdown_to_rego(markdown: str) -> str:
 
 class MarkdownPolicyConverter:
     ROLE_MAP = {
-        "commander": "commander",
+        "director": "director",
         "intelligence_officer": "intelligence_officer",
         "intelligence": "intelligence_officer",
         "operator": "operator",
@@ -263,19 +263,19 @@ class MarkdownPolicyConverter:
 
     ACTION_MAP = {
         "查询": "view",
-        "攻击": "attack",
-        "防御": "defend",
-        "撤退": "retreat",
-        "增援": "reinforce",
+        "交锋": "engage",
+        "守卫": "hold",
+        "撤出": "withdraw",
+        "支援": "support",
         "移动": "move",
         "观察": "observe",
         "通信": "communicate",
         "分析": "analyze_data",
         "报告": "generate_reports",
-        "查看情报": "view_intelligence",
+        "查看信息": "view_information",
         "决策": "decide",
         "执行": "perform",
-        "命令": "command_unit",
+        "协调": "coordinate_unit",
     }
 
     CONDITION_MAP = {

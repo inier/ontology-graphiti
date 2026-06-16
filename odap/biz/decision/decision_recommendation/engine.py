@@ -27,7 +27,7 @@ from .models import (
 )
 
 if TYPE_CHECKING:
-    from odap.infra.graph import GraphitiClient
+    from odap.infra.query.graph_write_proxy import GraphWriteProxy as GraphitiClient
     from odap.infra.opa import OPAManager
 
 logger = logging.getLogger(__name__)

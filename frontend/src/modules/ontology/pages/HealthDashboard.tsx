@@ -13,8 +13,8 @@ import {
 } from '@ant-design/icons';
 import { HealthDashboard } from '../components/HealthDashboard';
 import { HealthRuleEditor } from '../components/HealthRuleEditor';
-import { apiClient } from '../../shared/services/apiClient';
-import { useI18n } from '../../shared/hooks/useI18n';
+import { apiClient } from '@/modules/shared/services/apiClient';
+import { useI18n } from '@/modules/shared/hooks/useI18n';
 import type { ReactNode } from 'react';
 
 const { Title, Text } = Typography;
@@ -108,9 +108,9 @@ export function HealthDashboardPage({ workspaceId }: HealthDashboardPageProps) {
       >
         <Row gutter={16} style={{ marginBottom: 16 }}>
           <Col span={6}><Card><Statistic title="总规则数" value={totals.total} prefix={<ThunderboltOutlined />} /></Card></Col>
-          <Col span={6}><Card><Statistic title="通过率" value={totals.rate} suffix="%" valueStyle={{ color: '#3f8600' }} /></Card></Col>
-          <Col span={6}><Card><Statistic title="失败规则" value={totals.fail} valueStyle={{ color: '#cf1322' }} prefix={<CloseCircleTwoTone twoToneColor="#cf1322" />} /></Card></Col>
-          <Col span={6}><Card><Statistic title="最后扫描" value={lastScanAt} valueStyle={{ fontSize: 14 }} /></Card></Col>
+          <Col span={6}><Card><Statistic title="通过率" value={totals.rate} suffix="%" styles={{ content: { color: '#3f8600' } }} /></Card></Col>
+          <Col span={6}><Card><Statistic title="失败规则" value={totals.fail} styles={{ content: { color: '#cf1322' } }} prefix={<CloseCircleTwoTone twoToneColor="#cf1322" />} /></Card></Col>
+          <Col span={6}><Card><Statistic title="最后扫描" value={lastScanAt} styles={{ content: { fontSize: 14 } }} /></Card></Col>
         </Row>
         <Tabs
           defaultActiveKey="rules"

@@ -72,11 +72,15 @@ class NotificationDispatcher:
     ) -> None:
         """异步派发入口"""
         channels: List[str] = channel_config.get("channels", []) or []
+        failed_channels: List[str] = []
         for ch in channels:
             try:
                 await self._send_one(ch, channel_config, subject, body, reports)
             except Exception as exc:  # 失败降级，记录 warning
                 logger.warning("notification %s failed: %s", ch, exc)
+                failed_channels.append(ch)
+        if channels and len(failed_channels) == len(channels):
+            logger.error("所有通知通道均发送失败: channels=%s, subject=%s", channels, subject)
 
     def _dispatch_sync(
         self,
@@ -148,7 +152,7 @@ class NotificationDispatcher:
                 client.sendmail(sender, recipients, message)
             return True
         except Exception as exc:
-            logger.debug("smtp send failed (stub): %s", exc)
+            logger.warning("smtp send failed (stub): %s", exc)
             return False
 
     async def _send_webhook(

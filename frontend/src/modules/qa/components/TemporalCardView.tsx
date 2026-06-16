@@ -8,7 +8,7 @@ const { Text, Paragraph } = Typography;
 export function TemporalCardView({ card }: { card: TemporalCard }) {
   return (
     <div style={{ margin: '8px 0', padding: 12, borderRadius: 8, border: '1px solid #d9d9d9', background: '#fafafa' }}>
-      <Space direction="vertical" style={{ width: '100%' }} size={4}>
+      <Space orientation="vertical" style={{ width: '100%' }} size={4}>
         <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
           <ClockCircleOutlined style={{ color: '#1890ff' }} />
           <Tag color="blue">{card.time_type}</Tag>

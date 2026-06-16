@@ -1,5 +1,5 @@
 import { Card, Row, Col, Descriptions, Tag, Typography, Space } from 'antd';
-import { useI18n } from '../../shared/hooks/useI18n';
+import { useI18n } from '@/modules/shared/hooks/useI18n';
 
 const { Text } = Typography;
 
@@ -44,7 +44,7 @@ function ParallelComparison({ scenarios, results }: ParallelComparisonProps) {
   );
 
   return (
-    <Space direction="vertical" style={{ width: '100%' }} size="middle">
+    <Space orientation="vertical" style={{ width: '100%' }} size="middle">
       <Row gutter={[16, 16]}>
         {scenarios.map((scenario) => (
           <Col span={colSpan} key={scenario.scenario_id}>
@@ -53,7 +53,7 @@ function ParallelComparison({ scenarios, results }: ParallelComparisonProps) {
               size="small"
               extra={<Tag color={RISK_COLORS[scenario.risk_level] || 'default'}>{scenario.risk_level}</Tag>}
             >
-              <Descriptions size="small" column={1} bordered>
+              <Descriptions size="small" column={1} variant="bordered">
                 <Descriptions.Item label={t('comparison.status', 'Status')}>
                   <Tag color={scenario.status === 'completed' ? 'green' : 'processing'}>{scenario.status}</Tag>
                 </Descriptions.Item>

@@ -3,6 +3,8 @@
 基于本体论方法定义领域实体的类型和关系
 """
 
+from typing import Any, Dict
+
 # Domain 模型定位说明 (ADR-056):
 # 本模块的 ENTITY_TYPES / DOMAIN_CONFIG 等定义已降级为 OMS 的种子数据源。
 # 运行时类型查询应统一走 OMS (odap.biz.core.ontology.oms)，
@@ -13,30 +15,30 @@
 ENTITY_TYPES = {
     "Unit": {
         "display_name": "单位",
-        "description": "军事或组织单位",
+        "description": "组织单位或行动实体",
         "basic_properties": [
             {"name": "unit_id", "display_name": "单位ID", "property_type": "string", "required": True},
             {"name": "name", "display_name": "名称", "property_type": "string", "required": True},
             {"name": "side", "display_name": "阵营", "property_type": "string", "required": True,
-             "enum_values": ["red", "blue", "neutral"]},
+             "enum_values": ["party_a", "party_b", "neutral"]},
             {"name": "unit_type", "display_name": "单位类型", "property_type": "string", "required": True,
-             "enum_values": ["infantry", "armor", "artillery", "air", "naval", "special"]},
+             "enum_values": ["team", "department", "brigade", "battalion", "division", "special"]},
             {"name": "status", "display_name": "状态", "property_type": "string",
              "enum_values": ["active", "deployed", "resting", "destroyed", "unknown"]},
             {"name": "location", "display_name": "位置", "property_type": "string"},
             {"name": "coordinates", "display_name": "坐标", "property_type": "geopoint"},
         ],
         "statistical_properties": [
-            {"name": "combat_power", "display_name": "战斗力", "property_type": "integer"},
-            {"name": "morale", "display_name": "士气", "property_type": "float"},
-            {"name": "supply_level", "display_name": "补给水平", "property_type": "float"},
-            {"name": "casualty_rate", "display_name": "伤亡率", "property_type": "float"},
-            {"name": "strength", "display_name": "兵力", "property_type": "integer"},
+            {"name": "capability_index", "display_name": "能力指数", "property_type": "integer"},
+            {"name": "readiness", "display_name": "就绪度", "property_type": "float"},
+            {"name": "resource_level", "display_name": "资源水平", "property_type": "float"},
+            {"name": "attrition_rate", "display_name": "损耗率", "property_type": "float"},
+            {"name": "personnel", "display_name": "人员", "property_type": "integer"},
         ],
         "capabilities": [
-            {"name": "range", "display_name": "射程", "property_type": "float"},
-            {"name": "armor_penetration", "display_name": "穿甲能力", "property_type": "float"},
-            {"name": "air_defense", "display_name": "防空能力", "property_type": "float"},
+            {"name": "operational_range", "display_name": "作业范围", "property_type": "float"},
+            {"name": "penetration_capacity", "display_name": "穿透能力", "property_type": "float"},
+            {"name": "defense_capability", "display_name": "防御能力", "property_type": "float"},
         ],
         "constraints": [
             {"name": "max_speed", "display_name": "最大速度", "property_type": "float"},
@@ -45,9 +47,9 @@ ENTITY_TYPES = {
         "links": [
             {"name": "located_at", "display_name": "驻扎于", "target_type": "Location", "cardinality": "N:1"},
             {"name": "attached_to", "display_name": "隶属于", "target_type": "Unit", "cardinality": "N:1"},
-            {"name": "engaged_with", "display_name": "交战中", "target_type": "Unit", "cardinality": "N:N"},
+            {"name": "interacting_with", "display_name": "交互中", "target_type": "Unit", "cardinality": "N:N"},
         ],
-        "actions": ["move", "attack", "defend", "reinforce", "retreat"],
+        "actions": ["move", "engage", "hold", "support", "withdraw"],
     },
     "Location": {
         "display_name": "位置",
@@ -72,18 +74,18 @@ ENTITY_TYPES = {
     },
     "Equipment": {
         "display_name": "装备",
-        "description": "武器系统或装备",
+        "description": "设备或装备",
         "basic_properties": [
             {"name": "equipment_id", "display_name": "装备ID", "property_type": "string", "required": True},
             {"name": "name", "display_name": "名称", "property_type": "string", "required": True},
             {"name": "equipment_type", "display_name": "装备类型", "property_type": "string",
-             "enum_values": ["vehicle", "weapon", "sensor", "communication", "protection"]},
+             "enum_values": ["vehicle", "tool", "sensor", "communication", "protection"]},
             {"name": "operational_status", "display_name": "运行状态", "property_type": "string",
              "enum_values": ["operational", "degraded", "non_operational"]},
         ],
         "statistical_properties": [],
         "capabilities": [
-            {"name": "range", "display_name": "射程", "property_type": "float"},
+            {"name": "operational_range", "display_name": "作业范围", "property_type": "float"},
             {"name": "accuracy", "display_name": "精度", "property_type": "float"},
         ],
         "constraints": [],
@@ -98,7 +100,7 @@ ENTITY_TYPES = {
         "basic_properties": [
             {"name": "event_id", "display_name": "事件ID", "property_type": "string", "required": True},
             {"name": "event_type", "display_name": "事件类型", "property_type": "string",
-             "enum_values": ["contact", "attack", "movement", "communication", "observation"]},
+             "enum_values": ["interaction", "confrontation", "movement", "communication", "observation"]},
             {"name": "timestamp", "display_name": "时间戳", "property_type": "datetime", "required": True},
             {"name": "location", "display_name": "位置", "property_type": "string"},
             {"name": "description", "display_name": "描述", "property_type": "string"},
@@ -113,9 +115,9 @@ ENTITY_TYPES = {
         ],
         "actions": ["observe", "communicate"],
     },
-    "CivilianInfrastructure": {
-        "display_name": "民用设施",
-        "description": "民用基础设施",
+    "PublicAsset": {
+        "display_name": "公共资产",
+        "description": "公共基础设施",
         "basic_properties": [
             {"name": "facility_id", "display_name": "设施ID", "property_type": "string", "required": True},
             {"name": "name", "display_name": "名称", "property_type": "string", "required": True},
@@ -134,11 +136,11 @@ ENTITY_TYPES = {
     },
     "Mission": {
         "display_name": "任务",
-        "description": "军事或行动任务",
+        "description": "行动任务",
         "basic_properties": [
             {"name": "mission_id", "display_name": "任务ID", "property_type": "string", "required": True},
             {"name": "mission_type", "display_name": "任务类型", "property_type": "string",
-             "enum_values": ["attack", "reconnaissance", "defense", "logistics", "electronic_warfare", "humanitarian"]},
+             "enum_values": ["offensive", "survey", "hold", "logistics", "electronic_operation", "humanitarian"]},
             {"name": "status", "display_name": "状态", "property_type": "string",
              "enum_values": ["planned", "in_progress", "completed", "failed", "aborted"]},
             {"name": "priority", "display_name": "优先级", "property_type": "string",
@@ -156,16 +158,16 @@ ENTITY_TYPES = {
         "actions": [],
     },
     "Faction": {
-        "display_name": "交战方",
-        "description": "参战阵营或组织",
+        "display_name": "参与方",
+        "description": "参与阵营或组织",
         "basic_properties": [
             {"name": "faction_id", "display_name": "阵营ID", "property_type": "string", "required": True},
             {"name": "name", "display_name": "名称", "property_type": "string", "required": True},
             {"name": "faction_type", "display_name": "阵营类型", "property_type": "string",
-             "enum_values": ["nation", "coalition", "proxy_force", "terrorist_organization"]},
+             "enum_values": ["nation", "coalition", "affiliate", "non_state_actor"]},
         ],
         "statistical_properties": [
-            {"name": "strength", "display_name": "兵力", "property_type": "integer"},
+            {"name": "personnel", "display_name": "人员", "property_type": "integer"},
         ],
         "capabilities": [],
         "constraints": [],
@@ -179,9 +181,10 @@ ENTITY_TYPES = {
 }
 
 ENTITY_TYPE_ALIASES = {
-    "MilitaryUnit": "Unit",
-    "WeaponSystem": "Equipment",
-    "BattleEvent": "Event",
+    "OrganizationUnit": "Unit",
+    "ToolSystem": "Equipment",
+    "IncidentEvent": "Event",
+    "CivilianInfrastructure": "PublicAsset",
 }
 
 ACTION_TYPES = [
@@ -195,60 +198,60 @@ ACTION_TYPES = [
             {"name": "destination", "display_name": "目标位置", "param_type": "string", "required": True},
             {"name": "speed", "display_name": "速度", "param_type": "float", "required": False},
         ],
-        "required_roles": ["commander", "operator"],
+        "required_roles": ["director", "operator"],
         "confirmation_required": False,
     },
     {
-        "action_type_id": "attack",
-        "name": "attack",
-        "display_name": "攻击",
-        "description": "对目标发起攻击",
+        "action_type_id": "engage",
+        "name": "engage",
+        "display_name": "交战",
+        "description": "对目标发起交战",
         "target_object_type": "Unit",
         "parameters": [
             {"name": "target_id", "display_name": "目标ID", "param_type": "string", "required": True},
-            {"name": "weapon_type", "display_name": "武器类型", "param_type": "string", "required": False},
+            {"name": "tool_type", "display_name": "工具类型", "param_type": "string", "required": False},
         ],
-        "opa_policy": "policies/attack/authorize",
-        "required_roles": ["commander"],
+        "opa_policy": "policies/engage/authorize",
+        "required_roles": ["director"],
         "confirmation_required": True,
     },
     {
-        "action_type_id": "defend",
-        "name": "defend",
-        "display_name": "防御",
-        "description": "在当前位置建立防御",
+        "action_type_id": "hold",
+        "name": "hold",
+        "display_name": "坚守",
+        "description": "在当前位置建立坚守",
         "target_object_type": "Unit",
         "parameters": [
-            {"name": "defense_type", "display_name": "防御类型", "param_type": "string", "required": False,
+            {"name": "hold_type", "display_name": "坚守类型", "param_type": "string", "required": False,
              "enum_values": ["perimeter", "point", "mobile"]},
         ],
-        "required_roles": ["commander", "operator"],
+        "required_roles": ["director", "operator"],
         "confirmation_required": False,
     },
     {
-        "action_type_id": "reinforce",
-        "name": "reinforce",
-        "display_name": "增援",
-        "description": "向目标位置增派兵力",
+        "action_type_id": "support",
+        "name": "support",
+        "display_name": "支援",
+        "description": "向目标位置提供支援",
         "target_object_type": "Unit",
         "parameters": [
-            {"name": "reinforcement_type", "display_name": "增援类型", "param_type": "string", "required": False},
-            {"name": "units", "display_name": "增援单位", "param_type": "json", "required": False},
+            {"name": "support_type", "display_name": "支援类型", "param_type": "string", "required": False},
+            {"name": "units", "display_name": "支援单位", "param_type": "json", "required": False},
         ],
-        "required_roles": ["commander"],
+        "required_roles": ["director"],
         "confirmation_required": True,
     },
     {
-        "action_type_id": "retreat",
-        "name": "retreat",
-        "display_name": "撤退",
-        "description": "从当前位置撤退",
+        "action_type_id": "withdraw",
+        "name": "withdraw",
+        "display_name": "撤出",
+        "description": "从当前位置撤出",
         "target_object_type": "Unit",
         "parameters": [
-            {"name": "destination", "display_name": "撤退目标", "param_type": "string", "required": True},
-            {"name": "orderly", "display_name": "有序撤退", "param_type": "boolean", "required": False},
+            {"name": "destination", "display_name": "撤出目标", "param_type": "string", "required": True},
+            {"name": "orderly", "display_name": "有序撤出", "param_type": "boolean", "required": False},
         ],
-        "required_roles": ["commander"],
+        "required_roles": ["director"],
         "confirmation_required": True,
     },
     {
@@ -261,7 +264,7 @@ ACTION_TYPES = [
             {"name": "area", "display_name": "观察区域", "param_type": "string", "required": True},
             {"name": "duration", "display_name": "持续时间", "param_type": "float", "required": False},
         ],
-        "required_roles": ["intelligence_officer", "operator"],
+        "required_roles": ["analyst", "operator"],
         "confirmation_required": False,
     },
     {
@@ -283,91 +286,26 @@ ACTION_TYPES = [
 
 # 角色定义
 ROLES = {
-    "pilot": {
-        "permissions": ["view_intelligence", "request_support"],
-        "restrictions": ["cannot_attack", "cannot_command"]
+    "field_operator": {
+        "permissions": ["view_information", "request_support"],
+        "restrictions": ["cannot_engage", "cannot_direct"]
     },
-    "commander": {
-        "permissions": ["view_intelligence", "command_units", "authorize_attacks", "approve_missions"],
-        "restrictions": ["cannot_attack_civilian_infrastructure"]
+    "director": {
+        "permissions": ["view_information", "coordinate_units", "authorize_operation", "approve_missions"],
+        "restrictions": ["cannot_target_civilian"]
     },
-    "intelligence_analyst": {
-        "permissions": ["view_intelligence", "analyze_data", "generate_reports"],
-        "restrictions": ["cannot_command", "cannot_attack"]
+    "analyst": {
+        "permissions": ["view_information", "analyze_data", "generate_reports"],
+        "restrictions": ["cannot_direct", "cannot_engage"]
     }
 }
 
-# 领域环境配置 - 2026 美伊战争场景
-DOMAIN_CONFIG = {
-    "factions": [
-        {
-            "name": "US-led Coalition",
-            "type": "coalition",
-            "description": "美国主导的联军，包括美国和以色列",
-            "strength": 150000,
-            "allies": ["Israel"],
-            "enemies": ["Iran", "Hezbollah", "IRGC-Iraq", "Houthis"]
-        },
-        {
-            "name": "Israel",
-            "type": "nation",
-            "description": "以色列国防军，地面行动主力",
-            "strength": 170000,
-            "allies": ["US-led Coalition"],
-            "enemies": ["Iran", "Hezbollah", "IRGC-Iraq", "Houthis"]
-        },
-        {
-            "name": "Iran",
-            "type": "nation",
-            "description": "伊朗伊斯兰革命卫队，主要对手",
-            "strength": 200000,
-            "allies": ["Hezbollah", "IRGC-Iraq", "Houthis"],
-            "enemies": ["US-led Coalition", "Israel"]
-        },
-        {
-            "name": "Hezbollah",
-            "type": "proxy_force",
-            "description": "黎巴嫩真主党，伊朗代理人",
-            "strength": 45000,
-            "allies": ["Iran", "IRGC-Iraq"],
-            "enemies": ["US-led Coalition", "Israel"]
-        },
-        {
-            "name": "IRGC-Iraq",
-            "type": "proxy_force",
-            "description": "伊朗革命卫队伊拉克分支",
-            "strength": 20000,
-            "allies": ["Iran", "Hezbollah"],
-            "enemies": ["US-led Coalition", "Israel"]
-        },
-        {
-            "name": "Houthis",
-            "type": "proxy_force",
-            "description": "也门胡塞武装，伊朗代理人",
-            "strength": 80000,
-            "allies": ["Iran"],
-            "enemies": ["US-led Coalition", "Israel"]
-        }
-    ],
-    "areas": [
-        {"id": "A", "name": "波斯湾", "description": "美军海军部署区，伊朗海军活动区"},
-        {"id": "B", "name": "伊朗西部", "description": "以色列空袭目标区，伊朗核设施集中区"},
-        {"id": "C", "name": "伊拉克", "description": "美伊边境，IRGC活动区"},
-        {"id": "D", "name": "黎巴嫩/以色列北部", "description": "真主党火箭弹发射区"},
-        {"id": "E", "name": "红海/也门", "description": "胡塞武装袭击区"}
-    ],
-    "random_events": [
-        "iranian_missile_launch",
-        "uav_swarm_attack",
-        "iron_dome_interception",
-        "electronic_warfare",
-        "cyber_attack",
-        "intelligence_update",
-        "civilian_casualties",
-        "humanitarian_crisis",
-        "prisoner_exchange",
-        "ceasefire_proposal"
-    ]
+# 领域环境配置 - 通用场景模板
+DOMAIN_CONFIG: Dict[str, Any] = {
+    "description": "场景配置模板 - 由用户通过界面或配置文件定义",
+    "factions": [],
+    "regions": [],
+    "random_events": [],
 }
 
 # 本体模型版本信息

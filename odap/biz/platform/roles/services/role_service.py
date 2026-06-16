@@ -139,6 +139,52 @@ class RoleService:
         roles = self.storage.get_user_roles_in_workspace(user_id, workspace_id)
         return [self._role_to_dict(r) for r in roles]
 
+    def list_permissions(self) -> List[Dict[str, Any]]:
+        """列出所有权限"""
+        perms = self.storage.list_permissions()
+        return [
+            {
+                "id": p.id,
+                "name": p.name,
+                "description": p.description,
+                "scope": p.scope.value if hasattr(p.scope, "value") else p.scope,
+                "actions": p.actions,
+            }
+            for p in perms
+        ]
+
+    def bind_skill(self, role_id: str, skill_id: str, enabled: bool = True) -> Dict[str, Any]:
+        """绑定 Skill 到角色"""
+        self.storage.bind_skill(role_id, skill_id, enabled)
+        return {"status": "success", "message": "Skill 绑定成功", "skill_id": skill_id}
+
+    def unbind_skill(self, role_id: str, skill_id: str) -> Dict[str, Any]:
+        """解绑 Skill"""
+        success = self.storage.unbind_skill(role_id, skill_id)
+        if not success:
+            return {"status": "error", "message": "Skill 绑定不存在"}
+        return {"status": "success", "message": "Skill 解绑成功"}
+
+    def get_role_skills(self, role_id: str) -> List[Dict[str, Any]]:
+        """获取角色的 Skill 列表"""
+        return self.storage.get_role_skills(role_id)
+
+    def bind_policy(self, role_id: str, policy_id: str, priority: int = 0, enabled: bool = True) -> Dict[str, Any]:
+        """绑定 Policy 到角色"""
+        self.storage.bind_policy(role_id, policy_id, priority, enabled)
+        return {"status": "success", "message": "Policy 绑定成功", "policy_id": policy_id}
+
+    def unbind_policy(self, role_id: str, policy_id: str) -> Dict[str, Any]:
+        """解绑 Policy"""
+        success = self.storage.unbind_policy(role_id, policy_id)
+        if not success:
+            return {"status": "error", "message": "Policy 绑定不存在"}
+        return {"status": "success", "message": "Policy 解绑成功"}
+
+    def get_role_policies(self, role_id: str) -> List[Dict[str, Any]]:
+        """获取角色的 Policy 列表"""
+        return self.storage.get_role_policies(role_id)
+
     def _role_to_dict(self, role: Role) -> Dict[str, Any]:
         return {
             "id": role.id,

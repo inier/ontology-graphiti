@@ -1,8 +1,8 @@
 import { useState, useEffect, useCallback } from 'react';
 import { Card, List, Collapse, Tag, Rate, Progress, Space, Typography } from 'antd';
 import { SafetyOutlined, CheckCircleOutlined, WarningOutlined } from '@ant-design/icons';
-import { apiClient } from '../../shared/services/apiClient';
-import { useI18n } from '../../shared/hooks/useI18n';
+import { apiClient } from '@/modules/shared/services/apiClient';
+import { useI18n } from '@/modules/shared/hooks/useI18n';
 
 const { Text, Paragraph } = Typography;
 
@@ -92,7 +92,7 @@ function RecommendationPanel({ scenarioId, sandboxId }: RecommendationPanelProps
                   </Space>
                 }
               >
-                <Space direction="vertical" style={{ width: '100%' }} size="small">
+                <Space orientation="vertical" style={{ width: '100%' }} size="small">
                   <Paragraph style={{ marginBottom: 4 }}>{item.description}</Paragraph>
 
                   <div style={{ display: 'flex', gap: 16, alignItems: 'center' }}>
@@ -120,7 +120,7 @@ function RecommendationPanel({ scenarioId, sandboxId }: RecommendationPanelProps
                       key: item.recommendation_id,
                       label: t('recommendation.explanation', 'Explanation'),
                       children: (
-                        <Space direction="vertical" style={{ width: '100%' }}>
+                        <Space orientation="vertical" style={{ width: '100%' }}>
                           <Paragraph style={{ fontSize: 13 }}>{item.explanation}</Paragraph>
                           {item.actions && item.actions.length > 0 && (
                             <div>

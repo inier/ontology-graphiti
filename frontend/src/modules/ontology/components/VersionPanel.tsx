@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react';
 import { Card, Timeline, Tag, Button as AntButton, Space, Input, Modal, Form, Select as AntSelect, Row, Col, Empty, Spin, Popconfirm, message } from 'antd';
 import { RollbackOutlined, SwapOutlined, ClockCircleOutlined } from '@ant-design/icons';
-import adapter from '../../shared/components/adapter';
+import adapter from '@/modules/shared/components/adapter';
 import { useVersionStore } from '../stores/versionStore';
 import type { VersionInfo } from '../stores/versionStore';
 

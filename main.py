@@ -245,10 +245,87 @@ def run_web_simulator():
         print("请安装: pip install fastapi uvicorn python-multipart")
 
 
+def _run_query_cli(argv):
+    """NL 本体查询 CLI"""
+    import argparse
+    import asyncio
+
+    parser = argparse.ArgumentParser(description="NL 本体查询服务 CLI")
+    parser.add_argument("query", nargs="?", help="自然语言查询")
+    parser.add_argument("--mode", default="auto", choices=["auto", "keyword", "semantic", "graph"],
+                        help="检索模式")
+    parser.add_argument("--top-k", type=int, default=10, help="返回结果数")
+    parser.add_argument("--workspace", default="", help="工作空间 ID")
+    parser.add_argument("--scenario", default="", help="场景 ID")
+    parser.add_argument("--explain", action="store_true", help="显示查询解释")
+    parser.add_argument("--eval", action="store_true", help="运行评估基准测试")
+
+    # 跳过 argv[0] 和 "query"
+    args = parser.parse_args(argv[2:])
+
+    if args.eval:
+        from odap.biz.data.qa.evaluation.benchmark import BenchmarkRunner, get_default_benchmark
+        print("运行评估基准测试...")
+        runner = BenchmarkRunner()
+        dataset = get_default_benchmark()
+        report = asyncio.run(runner.run(dataset))
+        print(f"\n{'='*60}")
+        print(f"评估报告: {report.dataset_name}")
+        print(f"{'='*60}")
+        print(f"总用例数: {report.total_cases}")
+        print(f"检索 MRR: {report.retrieval_metrics.mrr:.4f}")
+        print(f"检索 NDCG@K: {report.retrieval_metrics.ndcg_at_k:.4f}")
+        print(f"检索 Recall@K: {report.retrieval_metrics.recall_at_k:.4f}")
+        print(f"QA EM: {report.qa_metrics.exact_match:.4f}")
+        print(f"QA F1: {report.qa_metrics.f1:.4f}")
+        print(f"延迟 P50: {report.latency_p50_ms:.1f}ms")
+        print(f"延迟 P95: {report.latency_p95_ms:.1f}ms")
+        return
+
+    if not args.query:
+        print("请提供查询内容: python main.py query \"你的查询\"")
+        return
+
+    from odap.biz.data.qa.models import QueryRequest
+    from odap.biz.data.qa.pipeline.query_pipeline import QueryPipeline
+
+    pipeline = QueryPipeline()
+    request = QueryRequest(
+        query=args.query,
+        mode=args.mode,
+        top_k=args.top_k,
+        workspace_id=args.workspace or None,
+        scenario_id=args.scenario or None,
+    )
+
+    if args.explain:
+        explanation = pipeline.explain(request)
+        print(f"\n{'='*60}")
+        print(f"查询解释")
+        print(f"{'='*60}")
+        print(explanation.get("explanation", ""))
+        return
+
+    response = asyncio.run(pipeline.query(request))
+    print(f"\n{'='*60}")
+    print(f"查询: {args.query}")
+    print(f"{'='*60}")
+    print(f"回答: {response.answer}")
+    if response.sources:
+        print(f"\n来源 ({len(response.sources)} 条):")
+        for i, s in enumerate(response.sources[:5], 1):
+            print(f"  {i}. [{s.pillar}:{s.source}] {s.content[:80]}...")
+    print(f"\n意图: {response.understanding.intent.value if response.understanding else 'N/A'}")
+    print(f"支柱: {response.pillar_contributions}")
+    print(f"耗时: {response.total_time_ms:.1f}ms")
+
+
 if __name__ == "__main__":
     import sys
 
     if "--web" in sys.argv:
         run_web_simulator()
+    elif "query" in sys.argv:
+        _run_query_cli(sys.argv)
     else:
         main()

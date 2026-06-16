@@ -2,6 +2,9 @@ from typing import Dict, Any, List, Optional
 from dataclasses import dataclass, field
 from datetime import datetime
 from enum import Enum
+import logging
+
+logger = logging.getLogger(__name__)
 
 
 class ExecutionStatus(str, Enum):
@@ -167,8 +170,8 @@ class BlueprintRuntimeEngine:
             result = self._blueprint_service.get_blueprint(blueprint_id)
             if result.get("status") == "success":
                 return result
-        except Exception:
-            pass
+        except Exception as e:
+            logger.warning("Blueprint load failed for id=%s: %s", blueprint_id, e)
         return None
 
     def _compute_execution_order(self, nodes: List[Dict], edges: List[Dict]) -> List[str]:
@@ -226,8 +229,12 @@ class BlueprintRuntimeEngine:
                     execution.completed_at = datetime.now().isoformat()
                     return
             else:
-                node_exec.output = {"simulated": True}
-                node_exec.state = NodeExecutionState.COMPLETED
+                logger.warning(
+                    "BlueprintRuntime: no handler registered for node_type='%s' (node_id='%s'), skipping",
+                    node_exec.node_type, node_id,
+                )
+                node_exec.output = {"skipped_reason": "no_handler_registered"}
+                node_exec.state = NodeExecutionState.SKIPPED
                 node_exec.completed_at = datetime.now().isoformat()
             execution.current_step += 1
         execution.status = ExecutionStatus.COMPLETED

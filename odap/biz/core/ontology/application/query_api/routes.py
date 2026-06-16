@@ -4,17 +4,18 @@ from fastapi import APIRouter, HTTPException, Depends
 from odap.infra.security.jwt_auth import get_current_user
 from pydantic import BaseModel, Field
 from typing import List, Dict, Any, Optional, Union
-from ..services.ingest_service import IngestService
+from odap.biz.core.ontology.design.contract import (
+    get_ingest_service,
+    get_builder_service,
+    get_pipeline_service,
+)
 
 logger = logging.getLogger("ontology_routes")
 
-from ..services.build_service import get_builder_service
-from ..services.pipeline_service import get_pipeline_service
-
 router = APIRouter(prefix="/api/ontology/ingest", tags=["ingest"])
 
-# 创建全局摄入服务实例
-ingest_service = IngestService()
+# 创建全局摄入服务实例（通过 contract 桥接获取）
+ingest_service = get_ingest_service()
 
 # 数据模型
 class NewsIngestRequest(BaseModel):
@@ -224,12 +225,12 @@ async def generate_random_events(request: RandomEventsRequest,
     """生成随机事件
 
     支持多种类型的随机事件生成：
-    - military: 军事战争事件（进攻、巡逻、增援、撤退等）
+    - conflict: 冲突事件（交锋、巡查、支援、撤出等）
     - business: 商业事件（投资、并购、产品发布等）
     - tech: 科技事件（技术突破、研发成果等）
     - healthcare: 医疗健康事件（新药研发、临床试验等）
     """
-    generator_type = request.data.get("generator_type", "military")
+    generator_type = request.data.get("generator_type", "conflict")
     workspace_id = request.data.get("workspace_id", "default")
     ingest_id = await ingest_service.generate_random_events(
         request.data.get("parties"),
@@ -274,8 +275,8 @@ async def ingest_from_tavily(request: TavilyIngestRequest,
         raise HTTPException(status_code=400, detail="search_depth 必须是 'basic' 或 'advanced'")
     
     # 检查 Tavily API Key 是否配置
-    import os
-    tavily_key = os.getenv("TAVILY_API_KEY")
+    from odap.infra.config_composer import get_config
+    tavily_key = get_config("search.tavily_api_key")
     if not tavily_key or tavily_key == "your_tavily_api_key_here":
         raise HTTPException(
             status_code=400, 

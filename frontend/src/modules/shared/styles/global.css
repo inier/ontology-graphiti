@@ -1,122 +1,199 @@
+/* ============================================================
+   ODAP v2 Design Token System — single source of truth
+   Tech-Modern: Indigo-Violet gradient · Glass morphism
+   ============================================================ */
+
+/* ── Google Fonts import ── */
+@import url('https://fonts.googleapis.com/css2?family=DM+Sans:opsz,wght@9..40,400;9..40,500;9..40,600;9..40,700&family=JetBrains+Mono:wght@400;500&display=swap');
+
+/* ============================================================
+   1. Design Tokens (light theme)
+   ============================================================ */
 :root {
-  --odap-color-primary: #1677ff;
-  --odap-color-success: #52c41a;
-  --odap-color-warning: #faad14;
-  --odap-color-error: #ff4d4f;
-  --odap-color-info: #1677ff;
+  /* ── Primary: Indigo ── */
+  --odap-color-primary-50:  #EEF2FF;
+  --odap-color-primary-100: #E0E7FF;
+  --odap-color-primary-200: #C7D2FE;
+  --odap-color-primary-300: #A5B4FC;
+  --odap-color-primary-400: #818CF8;
+  --odap-color-primary-500: #6366F1;
+  --odap-color-primary-600: #4F46E5;
+  --odap-color-primary-700: #4338CA;
+  --odap-color-primary-800: #3730A3;
+  --odap-color-primary-900: #312E81;
 
-  --odap-color-text-primary: #262626;
-  --odap-color-text-secondary: #8c8c8c;
-  --odap-color-text-disabled: #bfbfbf;
+  /* ── Accent: Violet ── */
+  --odap-color-accent-50:  #F5F3FF;
+  --odap-color-accent-100: #EDE9FE;
+  --odap-color-accent-200: #DDD6FE;
+  --odap-color-accent-300: #C4B5FD;
+  --odap-color-accent-400: #A78BFA;
+  --odap-color-accent-500: #8B5CF6;
+  --odap-color-accent-600: #7C3AED;
 
-  --odap-color-bg-primary: #ffffff;
-  --odap-color-bg-secondary: #f0f2f5;
-  --odap-color-bg-tertiary: #fafafa;
+  /* ── Legacy aliases for Ant Design / existing code ── */
+  --odap-color-primary:     var(--odap-color-primary-600);
+  --odap-color-success:     #10B981;
+  --odap-color-warning:     #F59E0B;
+  --odap-color-error:       #EF4444;
+  --odap-color-info:        #06B6D4;
 
-  --odap-color-border: #d9d9d9;
-  --odap-color-border-light: #f0f0f0;
+  /* ── Neutral grays (cool tinted) ── */
+  --odap-color-gray-50:  #F9FAFB;
+  --odap-color-gray-100: #F3F4F6;
+  --odap-color-gray-200: #E5E7EB;
+  --odap-color-gray-300: #D1D5DB;
+  --odap-color-gray-400: #9CA3AF;
+  --odap-color-gray-500: #6B7280;
+  --odap-color-gray-600: #4B5563;
+  --odap-color-gray-700: #374151;
+  --odap-color-gray-800: #1F2937;
+  --odap-color-gray-900: #111827;
 
-  --odap-color-highlight: #e6f4ff;
-  --odap-color-tag-blue: #1890ff;
-  --odap-color-tag-green: #52c41a;
-  --odap-color-tag-orange: #fa8c16;
-  --odap-color-tag-purple: #722ed1;
-  --odap-color-tag-red: #f5222d;
-  --odap-color-tag-cyan: #13c2c2;
+  /* ── Text ── */
+  --odap-color-text-primary:    var(--odap-color-gray-800);
+  --odap-color-text-secondary:  var(--odap-color-gray-500);
+  --odap-color-text-tertiary:   var(--odap-color-gray-400);
+  --odap-color-text-disabled:   var(--odap-color-gray-300);
 
-  --odap-font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
-  --odap-font-family-mono: 'SF Mono', 'Menlo', 'Consolas', monospace;
-  --odap-font-size-xs: 11px;
-  --odap-font-size-sm: 12px;
+  /* ── Backgrounds ── */
+  --odap-color-bg-primary:    #FFFFFF;
+  --odap-color-bg-secondary:  #F8F9FC;
+  --odap-color-bg-tertiary:   #F1F3F9;
+  --odap-color-bg-glass:      rgba(255, 255, 255, 0.75);
+
+  /* ── Borders ── */
+  --odap-color-border:        var(--odap-color-gray-200);
+  --odap-color-border-light:  var(--odap-color-gray-100);
+
+  /* ── Tags / Badges ── */
+  --odap-color-highlight:    var(--odap-color-primary-50);
+  --odap-color-tag-blue:     var(--odap-color-primary-500);
+  --odap-color-tag-green:    var(--odap-color-success);
+  --odap-color-tag-orange:   var(--odap-color-warning);
+  --odap-color-tag-purple:   var(--odap-color-accent-500);
+  --odap-color-tag-red:      var(--odap-color-error);
+  --odap-color-tag-cyan:     var(--odap-color-info);
+
+  /* ── Gradients ── */
+  --odap-gradient-brand:       linear-gradient(135deg, #4F46E5 0%, #8B5CF6 100%);
+  --odap-gradient-brand-hover: linear-gradient(135deg, #4338CA 0%, #7C3AED 100%);
+  --odap-gradient-sidebar:     linear-gradient(180deg, #1E1B4B 0%, #0F0F1A 100%);
+
+  /* ── Typography ── */
+  --odap-font-family:       'DM Sans', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+  --odap-font-family-mono:  'JetBrains Mono', 'Fira Code', 'Consolas', monospace;
+  --odap-font-size-xs:   11px;
+  --odap-font-size-sm:   12px;
   --odap-font-size-base: 14px;
-  --odap-font-size-lg: 16px;
-  --odap-font-size-xl: 20px;
-  --odap-font-size-2xl: 24px;
-  --odap-font-size-3xl: 32px;
+  --odap-font-size-lg:   16px;
+  --odap-font-size-xl:   20px;
+  --odap-font-size-2xl:  24px;
+  --odap-font-size-3xl:  32px;
 
+  /* ── Spacing (4px base) ── */
   --odap-spacing-xs: 4px;
   --odap-spacing-sm: 8px;
   --odap-spacing-md: 16px;
   --odap-spacing-lg: 24px;
   --odap-spacing-xl: 32px;
 
-  --odap-radius-sm: 4px;
-  --odap-radius-md: 8px;
-  --odap-radius-lg: 12px;
-  --odap-radius-round: 50%;
+  /* ── Radii ── */
+  --odap-radius-sm:    6px;
+  --odap-radius-md:    8px;
+  --odap-radius-lg:    12px;
+  --odap-radius-round: 9999px;
 
-  --odap-shadow-sm: 0 1px 4px rgba(0, 0, 0, 0.08);
-  --odap-shadow-md: 0 2px 8px rgba(0, 0, 0, 0.08);
-  --odap-shadow-lg: 0 4px 16px rgba(0, 0, 0, 0.12);
-  --odap-shadow-xl: 0 8px 24px rgba(0, 0, 0, 0.16);
+  /* ── Shadows ── */
+  --odap-shadow-xs:  0 1px 2px rgba(0,0,0,0.03);
+  --odap-shadow-sm:  0 1px 3px rgba(0,0,0,0.04), 0 1px 2px rgba(0,0,0,0.03);
+  --odap-shadow-md:  0 4px 6px -1px rgba(0,0,0,0.05), 0 2px 4px rgba(0,0,0,0.03);
+  --odap-shadow-lg:  0 10px 15px -3px rgba(0,0,0,0.06), 0 4px 6px rgba(0,0,0,0.03);
+  --odap-shadow-xl:  0 20px 25px -5px rgba(0,0,0,0.08), 0 8px 10px rgba(0,0,0,0.03);
+  --odap-shadow-glow: 0 0 0 3px rgba(99,102,241,0.12);
 
-  --odap-sidebar-width: 200px;
-  --odap-header-height: 48px;
-  --odap-page-padding: 16px 20px;
+  /* ── Sidebar ── */
+  --odap-sidebar-width:     200px;
+  --odap-sidebar-collapsed: 64px;
+  --odap-subsidebar-width:  180px;
+  --odap-header-height:     56px;
+  --odap-page-padding:      16px 24px;
 
-  --odap-transition-fast: 0.15s ease;
-  --odap-transition-normal: 0.3s ease;
+  /* ── Easing ── */
+  --odap-ease-out:    cubic-bezier(0.16,1,0.3,1);
+  --odap-ease-in-out: cubic-bezier(0.65,0,0.35,1);
+  --odap-ease-spring: cubic-bezier(0.34,1.56,0.64,1);
+  --odap-transition-fast:   150ms var(--odap-ease-out);
+  --odap-transition-normal: 300ms var(--odap-ease-out);
+  --odap-transition-slow:   400ms var(--odap-ease-out);
 
+  /* ── Z-index ── */
   --odap-z-dropdown: 1050;
-  --odap-z-modal: 1000;
-  --odap-z-drawer: 1000;
-  --odap-z-tooltip: 1070;
+  --odap-z-modal:    1000;
+  --odap-z-drawer:   1000;
+  --odap-z-tooltip:  1070;
 
-  --odap-breakpoint-xs: 480px;
-  --odap-breakpoint-sm: 576px;
-  --odap-breakpoint-md: 768px;
-  --odap-breakpoint-lg: 992px;
-  --odap-breakpoint-xl: 1200px;
+  /* ── Breakpoints ── */
+  --odap-breakpoint-xs:  480px;
+  --odap-breakpoint-sm:  576px;
+  --odap-breakpoint-md:  768px;
+  --odap-breakpoint-lg:  992px;
+  --odap-breakpoint-xl:  1200px;
   --odap-breakpoint-2xl: 1600px;
 }
 
-@media (prefers-color-scheme: dark) {
-  :root {
-    --odap-color-text-primary: #f0f0f0;
-    --odap-color-text-secondary: #a0a0a0;
-    --odap-color-text-disabled: #595959;
-    --odap-color-bg-primary: #141414;
-    --odap-color-bg-secondary: #1f1f1f;
-    --odap-color-bg-tertiary: #2a2a2a;
-    --odap-color-border: #434343;
-    --odap-color-border-light: #303030;
-    --odap-color-highlight: #111d2c;
-  }
+/* ============================================================
+   2. Dark Theme (data-theme attribute)
+   ============================================================ */
+[data-theme="dark"] {
+  --odap-color-bg-primary:    #0F0F1A;
+  --odap-color-bg-secondary:  #1A1A2E;
+  --odap-color-bg-tertiary:   #252540;
+  --odap-color-bg-glass:      rgba(26, 26, 46, 0.85);
+
+  --odap-color-text-primary:   #F3F4F6;
+  --odap-color-text-secondary: #9CA3AF;
+  --odap-color-text-tertiary:  #6B7280;
+  --odap-color-text-disabled:  #4B5563;
+
+  --odap-color-border:       #2D2D4A;
+  --odap-color-border-light: #1F1F38;
+
+  --odap-color-highlight:    rgba(99,102,241,0.15);
+
+  --odap-shadow-xs:  0 1px 2px rgba(0,0,0,0.2);
+  --odap-shadow-sm:  0 1px 3px rgba(0,0,0,0.25);
+  --odap-shadow-md:  0 4px 6px rgba(0,0,0,0.3);
+  --odap-shadow-lg:  0 10px 15px rgba(0,0,0,0.35);
+  --odap-shadow-xl:  0 20px 25px rgba(0,0,0,0.4);
+  --odap-shadow-glow: 0 0 0 3px rgba(129,140,248,0.2);
+
+  /* Slightly brighter primaries for dark contrast */
+  --odap-color-primary-500: #818CF8;
+  --odap-color-primary-600: #6366F1;
+  --odap-color-primary:     var(--odap-color-primary-500);
 }
 
+/* ============================================================
+   3. Global Reset & Base
+   ============================================================ */
 * {
   margin: 0;
   padding: 0;
   box-sizing: border-box;
 }
 
-::-webkit-scrollbar {
-  width: 6px;
-  height: 6px;
-}
-
-::-webkit-scrollbar-track {
-  background: transparent;
-  border-radius: 3px;
-}
-
+::-webkit-scrollbar { width: 6px; height: 6px; }
+::-webkit-scrollbar-track { background: transparent; }
 ::-webkit-scrollbar-thumb {
-  background: rgba(0, 0, 0, 0.15);
+  background: var(--odap-color-gray-300);
   border-radius: 3px;
-  transition: background var(--odap-transition-fast);
 }
-
-::-webkit-scrollbar-thumb:hover {
-  background: rgba(0, 0, 0, 0.25);
-}
-
-::-webkit-scrollbar-corner {
-  background: transparent;
-}
-
+::-webkit-scrollbar-thumb:hover { background: var(--odap-color-gray-400); }
+::-webkit-scrollbar-corner { background: transparent; }
 * {
   scrollbar-width: thin;
-  scrollbar-color: rgba(0, 0, 0, 0.15) transparent;
+  scrollbar-color: var(--odap-color-gray-300) transparent;
 }
 
 html, body, #root {
@@ -134,9 +211,24 @@ body {
   -moz-osx-font-smoothing: grayscale;
 }
 
-.app-layout {
-  min-height: 100vh;
+/* ============================================================
+   4. Glass Morphism Utilities
+   ============================================================ */
+.glass-surface {
+  background: var(--odap-color-bg-glass);
+  backdrop-filter: blur(20px);
+  -webkit-backdrop-filter: blur(20px);
+  border: 1px solid rgba(255,255,255,0.15);
 }
+
+[data-theme="dark"] .glass-surface {
+  border-color: rgba(255,255,255,0.05);
+}
+
+/* ============================================================
+   5. Layout Classes
+   ============================================================ */
+.app-layout { min-height: 100vh; }
 
 .main-content {
   margin-left: var(--odap-sidebar-width);
@@ -144,15 +236,17 @@ body {
   overflow: hidden;
 }
 
-.page-header {
-  margin-bottom: var(--odap-spacing-lg);
-}
+/* ============================================================
+   6. Page Header
+   ============================================================ */
+.page-header { margin-bottom: var(--odap-spacing-lg); }
 
 .page-title {
   font-size: var(--odap-font-size-2xl);
-  font-weight: 600;
+  font-weight: 700;
   color: var(--odap-color-text-primary);
   margin-bottom: var(--odap-spacing-sm);
+  letter-spacing: -0.02em;
 }
 
 .page-subtitle {
@@ -160,89 +254,106 @@ body {
   color: var(--odap-color-text-secondary);
 }
 
+/* ============================================================
+   7. Cards (v2: elevated + glass variant)
+   ============================================================ */
 .card {
   border-radius: var(--odap-radius-md);
   box-shadow: var(--odap-shadow-md);
 }
 
 .stat-card {
-  border-radius: var(--odap-radius-md);
+  border-radius: var(--odap-radius-lg);
   padding: var(--odap-spacing-lg);
   background: var(--odap-color-bg-primary);
-  box-shadow: var(--odap-shadow-md);
-  transition: box-shadow var(--odap-transition-normal);
+  border: 1px solid var(--odap-color-border-light);
+  box-shadow: var(--odap-shadow-sm);
+  transition: all var(--odap-transition-normal);
 }
-
 .stat-card:hover {
-  box-shadow: var(--odap-shadow-lg);
+  box-shadow: var(--odap-shadow-md);
+  border-color: rgba(99,102,241,0.1);
+  transform: translateY(-1px);
 }
 
 .stat-value {
   font-size: var(--odap-font-size-3xl);
-  font-weight: 600;
+  font-weight: 700;
   color: var(--odap-color-text-primary);
   font-family: var(--odap-font-family-mono);
+  line-height: 1.1;
 }
 
 .stat-label {
-  font-size: var(--odap-font-size-base);
-  color: var(--odap-color-text-secondary);
+  font-size: var(--odap-font-size-xs);
+  color: var(--odap-color-text-tertiary);
+  font-weight: 500;
   margin-top: var(--odap-spacing-xs);
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
 }
 
 .stat-trend {
   font-size: var(--odap-font-size-sm);
+  font-weight: 600;
   margin-top: var(--odap-spacing-sm);
 }
+.stat-trend.up   { color: var(--odap-color-success); }
+.stat-trend.down { color: var(--odap-color-error); }
 
-.stat-trend.up {
-  color: var(--odap-color-success);
+/* ============================================================
+   8. Panels & Containers
+   ============================================================ */
+.panel {
+  background: var(--odap-color-bg-primary);
+  border-radius: var(--odap-radius-lg);
+  padding: var(--odap-spacing-lg);
+  border: 1px solid var(--odap-color-border-light);
+  box-shadow: var(--odap-shadow-sm);
 }
 
-.stat-trend.down {
-  color: var(--odap-color-error);
+.panel-title {
+  font-size: var(--odap-font-size-lg);
+  font-weight: 600;
+  color: var(--odap-color-text-primary);
+  margin-bottom: var(--odap-spacing-md);
+  padding-bottom: 12px;
+  border-bottom: 1px solid var(--odap-color-border-light);
 }
 
+/* ============================================================
+   9. Graph & Canvas Containers
+   ============================================================ */
 .graph-container {
   width: 100%;
   height: 600px;
   background: var(--odap-color-bg-primary);
-  border-radius: var(--odap-radius-md);
-  box-shadow: var(--odap-shadow-md);
+  border-radius: var(--odap-radius-lg);
+  border: 1px solid var(--odap-color-border-light);
+  box-shadow: var(--odap-shadow-sm);
 }
 
 .timeline-container {
   width: 100%;
   background: var(--odap-color-bg-primary);
-  border-radius: var(--odap-radius-md);
+  border-radius: var(--odap-radius-lg);
   padding: var(--odap-spacing-lg);
-  box-shadow: var(--odap-shadow-md);
+  border: 1px solid var(--odap-color-border-light);
+  box-shadow: var(--odap-shadow-sm);
 }
 
 .map-container {
   width: 100%;
   height: 600px;
-  border-radius: var(--odap-radius-md);
+  border-radius: var(--odap-radius-lg);
   overflow: hidden;
-  box-shadow: var(--odap-shadow-md);
+  border: 1px solid var(--odap-color-border-light);
+  box-shadow: var(--odap-shadow-sm);
 }
 
-.panel {
-  background: var(--odap-color-bg-primary);
-  border-radius: var(--odap-radius-md);
-  padding: var(--odap-spacing-lg);
-  box-shadow: var(--odap-shadow-md);
-}
-
-.panel-title {
-  font-size: var(--odap-font-size-lg);
-  font-weight: 500;
-  color: var(--odap-color-text-primary);
-  margin-bottom: var(--odap-spacing-md);
-  padding-bottom: 12px;
-  border-bottom: 1px solid var(--odap-color-border);
-}
-
+/* ============================================================
+   10. Entity Node (Knowledge Graph)
+   ============================================================ */
 .entity-node {
   padding: var(--odap-spacing-sm) var(--odap-spacing-md);
   border-radius: var(--odap-radius-sm);
@@ -251,12 +362,14 @@ body {
   cursor: pointer;
   transition: all var(--odap-transition-normal);
 }
-
 .entity-node:hover {
   transform: scale(1.05);
   box-shadow: var(--odap-shadow-lg);
 }
 
+/* ============================================================
+   11. Event Card
+   ============================================================ */
 .event-card {
   background: var(--odap-color-bg-primary);
   border-left: 4px solid var(--odap-color-error);
@@ -266,6 +379,9 @@ body {
   box-shadow: var(--odap-shadow-sm);
 }
 
+/* ============================================================
+   12. Control Bar
+   ============================================================ */
 .control-bar {
   display: flex;
   align-items: center;
@@ -273,8 +389,9 @@ body {
   padding: 12px var(--odap-spacing-md);
   background: var(--odap-color-bg-primary);
   border-radius: var(--odap-radius-md);
+  border: 1px solid var(--odap-color-border-light);
   margin-bottom: var(--odap-spacing-md);
-  box-shadow: var(--odap-shadow-sm);
+  box-shadow: var(--odap-shadow-xs);
 }
 
 .control-btn {
@@ -287,38 +404,401 @@ body {
   font-size: 18px;
 }
 
-.flex-row {
-  display: flex;
-  flex-direction: row;
-}
-
-.flex-col {
-  display: flex;
-  flex-direction: column;
-}
-
-.gap-8 { gap: var(--odap-spacing-sm); }
+/* ============================================================
+   13. Flex Utilities
+   ============================================================ */
+.flex-row { display: flex; flex-direction: row; }
+.flex-col { display: flex; flex-direction: column; }
+.gap-8  { gap: var(--odap-spacing-sm); }
 .gap-16 { gap: var(--odap-spacing-md); }
 .gap-24 { gap: var(--odap-spacing-lg); }
-
-.mt-8 { margin-top: var(--odap-spacing-sm); }
+.mt-8  { margin-top: var(--odap-spacing-sm); }
 .mt-16 { margin-top: var(--odap-spacing-md); }
 .mt-24 { margin-top: var(--odap-spacing-lg); }
-.mb-8 { margin-bottom: var(--odap-spacing-sm); }
+.mb-8  { margin-bottom: var(--odap-spacing-sm); }
 .mb-16 { margin-bottom: var(--odap-spacing-md); }
 .mb-24 { margin-bottom: var(--odap-spacing-lg); }
 
+/* ============================================================
+   14. Ant Design 6 Global Overrides (Phases 2-4)
+   Covers: Table · Modal · Tooltip · Tabs · Pagination · Select
+           Dropdown · Menu · Button · Tag · Skeleton · Drawer
+   ============================================================ */
+
+/* ── 14a. CSS Variables for Ant Design ── */
+:root {
+  --ant-primary-color: var(--odap-color-primary);
+  --ant-primary-color-hover: var(--odap-color-primary-500);
+  --ant-primary-color-active: var(--odap-color-primary-700);
+  --ant-primary-1: var(--odap-color-primary-50);
+  --ant-primary-2: var(--odap-color-primary-100);
+  --ant-primary-5: var(--odap-color-primary-500);
+  --ant-primary-7: var(--odap-color-primary-700);
+}
+
+/* ── 14b. Button (Phase 1 extended) ── */
+.ant-btn-primary {
+  background: linear-gradient(135deg, var(--odap-color-primary-600), var(--odap-color-accent-500));
+  border: none;
+  box-shadow: var(--odap-shadow-sm);
+  transition: all var(--odap-transition-fast);
+}
+.ant-btn-primary:hover {
+  background: linear-gradient(135deg, var(--odap-color-primary-700), var(--odap-color-accent-600)) !important;
+  box-shadow: var(--odap-shadow-md), var(--odap-shadow-glow);
+  transform: translateY(-1px);
+}
+.ant-btn-primary:active { transform: translateY(0); }
+.ant-btn-default { border-color: var(--odap-color-border); }
+.ant-btn-default:hover { border-color: var(--odap-color-primary-300); color: var(--odap-color-primary-600); }
+.ant-btn-text:hover { background: var(--odap-color-primary-50); color: var(--odap-color-primary-600); }
+.ant-btn-link { color: var(--odap-color-primary); }
+.ant-btn-dangerous { color: var(--odap-color-error); }
+
+/* ── 14c. Input ── */
+.ant-input,
+.ant-input-affix-wrapper {
+  border-color: var(--odap-color-border);
+  border-radius: var(--odap-radius-sm);
+  font-family: var(--odap-font-family);
+  transition: all var(--odap-transition-fast);
+}
+.ant-input:hover,
+.ant-input-affix-wrapper:hover { border-color: var(--odap-color-primary-300); }
+.ant-input:focus,
+.ant-input-affix-wrapper-focused,
+.ant-input-affix-wrapper:focus-within {
+  border-color: var(--odap-color-primary-500);
+  box-shadow: var(--odap-shadow-glow);
+}
+.ant-input::placeholder { color: var(--odap-color-text-tertiary); }
+
+/* ── 14d. Select ── */
+.ant-select-selector {
+  border-color: var(--odap-color-border) !important;
+  border-radius: var(--odap-radius-sm) !important;
+  transition: all var(--odap-transition-fast) !important;
+}
+.ant-select:hover .ant-select-selector { border-color: var(--odap-color-primary-300) !important; }
+.ant-select-focused .ant-select-selector {
+  border-color: var(--odap-color-primary-500) !important;
+  box-shadow: var(--odap-shadow-glow) !important;
+}
+.ant-select-dropdown { border-radius: var(--odap-radius-md); box-shadow: var(--odap-shadow-lg); }
+.ant-select-item-option-selected { background: var(--odap-color-primary-50) !important; color: var(--odap-color-primary-700) !important; }
+
+/* ── 14e. Table ── */
+.ant-table-wrapper { border-radius: var(--odap-radius-lg); overflow: hidden; }
+.ant-table {
+  font-family: var(--odap-font-family);
+  font-size: var(--odap-font-size-sm);
+  border-radius: var(--odap-radius-lg);
+}
+.ant-table-thead > tr > th {
+  background: var(--odap-color-bg-tertiary) !important;
+  color: var(--odap-color-text-tertiary) !important;
+  font-size: var(--odap-font-size-xs);
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  border-bottom: 1px solid var(--odap-color-border) !important;
+  padding: 12px 16px !important;
+}
+.ant-table-tbody > tr > td {
+  border-bottom: 1px solid var(--odap-color-border-light) !important;
+  padding: 12px 16px !important;
+  color: var(--odap-color-text-primary);
+}
+.ant-table-tbody > tr:hover > td { background: var(--odap-color-primary-50) !important; }
+.ant-table-tbody > tr.ant-table-row-selected > td { background: var(--odap-color-highlight) !important; }
+
+/* ── 14f. Pagination ── */
+.ant-pagination-item {
+  border-color: var(--odap-color-border);
+  border-radius: var(--odap-radius-sm);
+  transition: all var(--odap-transition-fast);
+}
+.ant-pagination-item:hover { border-color: var(--odap-color-primary-400); color: var(--odap-color-primary-600); }
+.ant-pagination-item-active {
+  border-color: var(--odap-color-primary);
+  background: var(--odap-color-primary);
+}
+.ant-pagination-item-active a { color: #fff; }
+.ant-pagination-prev .ant-pagination-item-link,
+.ant-pagination-next .ant-pagination-item-link { border-color: var(--odap-color-border); border-radius: var(--odap-radius-sm); }
+
+/* ── 14g. Tabs ── */
+.ant-tabs-nav { margin-bottom: var(--odap-spacing-md) !important; }
+.ant-tabs-tab {
+  font-family: var(--odap-font-family);
+  font-size: var(--odap-font-size-sm);
+  color: var(--odap-color-text-secondary);
+  padding: var(--odap-spacing-sm) 0 !important;
+  transition: color var(--odap-transition-fast);
+}
+.ant-tabs-tab:hover { color: var(--odap-color-primary-500); }
+.ant-tabs-tab-active .ant-tabs-tab-btn { color: var(--odap-color-primary-600) !important; font-weight: 600; }
+.ant-tabs-ink-bar { background: linear-gradient(90deg, var(--odap-color-primary-500), var(--odap-color-accent-500)) !important; height: 2px !important; }
+.ant-tabs-card > .ant-tabs-nav .ant-tabs-tab { border-radius: var(--odap-radius-sm) var(--odap-radius-sm) 0 0; }
+
+/* ── 14h. Breadcrumb ── */
+.ant-breadcrumb { font-size: var(--odap-font-size-xs); color: var(--odap-color-text-tertiary); }
+.ant-breadcrumb a {
+  color: var(--odap-color-text-tertiary);
+  transition: color var(--odap-transition-fast);
+}
+.ant-breadcrumb a:hover { color: var(--odap-color-primary-500); }
+.ant-breadcrumb-separator { color: var(--odap-color-border); }
+.ant-breadcrumb li:last-child { color: var(--odap-color-text-secondary); }
+
+/* ── 14i. Modal ── */
+.ant-modal-content {
+  border-radius: var(--odap-radius-lg) !important;
+  box-shadow: var(--odap-shadow-xl) !important;
+  border: 1px solid var(--odap-color-border-light);
+}
+.ant-modal-header {
+  border-bottom: 1px solid var(--odap-color-border-light) !important;
+  border-radius: var(--odap-radius-lg) var(--odap-radius-lg) 0 0 !important;
+  padding: var(--odap-spacing-lg) var(--odap-spacing-lg) var(--odap-spacing-md) !important;
+}
+.ant-modal-title { font-weight: 600; font-size: var(--odap-font-size-lg); }
+.ant-modal-body { padding: var(--odap-spacing-lg) !important; }
+.ant-modal-footer { border-top: 1px solid var(--odap-color-border-light) !important; padding: var(--odap-spacing-md) var(--odap-spacing-lg) !important; }
+.ant-modal-close { color: var(--odap-color-text-tertiary); }
+.ant-modal-close:hover { color: var(--odap-color-text-primary); }
+
+/* ── 14j. Drawer ── */
+.ant-drawer-content { border-radius: var(--odap-radius-lg) 0 0 var(--odap-radius-lg); }
+.ant-drawer-header { border-bottom: 1px solid var(--odap-color-border-light) !important; }
+.ant-drawer-title { font-weight: 600; }
+.ant-drawer-body { padding: var(--odap-spacing-lg) !important; }
+
+/* ── 14k. Tooltip ── */
+.ant-tooltip-inner {
+  border-radius: var(--odap-radius-sm);
+  background: var(--odap-color-gray-800);
+  font-size: var(--odap-font-size-xs);
+  padding: 6px 12px;
+  min-height: auto;
+}
+
+/* ── 14l. Tag / Badge ── */
+.ant-tag {
+  border-radius: var(--odap-radius-full);
+  font-size: var(--odap-font-size-xs);
+  font-weight: 500;
+  border: 1px solid;
+  padding: 1px 10px;
+  line-height: 20px;
+}
+
+/* ── 14m. Dropdown / Menu ── */
+.ant-dropdown-menu {
+  border-radius: var(--odap-radius-md);
+  box-shadow: var(--odap-shadow-lg);
+  padding: var(--odap-spacing-xs);
+}
+.ant-dropdown-menu-item {
+  border-radius: var(--odap-radius-sm);
+  font-size: var(--odap-font-size-sm);
+  transition: all var(--odap-transition-fast);
+}
+.ant-dropdown-menu-item:hover { background: var(--odap-color-primary-50); color: var(--odap-color-primary-700); }
+.ant-dropdown-menu-item-danger:hover { background: #FEF2F2; color: var(--odap-color-error); }
+
+/* ── 14n. Menu (sidebar sub-menus, light theme) ── */
+.ant-menu-light {
+  border-right: none !important;
+  font-family: var(--odap-font-family);
+}
+.ant-menu-light .ant-menu-item {
+  margin: 2px 8px !important;
+  border-radius: var(--odap-radius-sm) !important;
+  width: auto !important;
+}
+.ant-menu-light .ant-menu-item-selected {
+  background: var(--odap-color-primary-50) !important;
+  color: var(--odap-color-primary-700) !important;
+  font-weight: 500;
+}
+.ant-menu-light .ant-menu-item:hover { color: var(--odap-color-primary-600) !important; }
+.ant-menu-light .ant-menu-item::after { display: none !important; }
+
+/* ── 14o. Menu (dark theme - primary sidebar) ── */
+.ant-menu-dark {
+  background: transparent !important;
+  font-family: var(--odap-font-family);
+}
+.ant-menu-dark .ant-menu-item {
+  margin: 2px 8px !important;
+  border-radius: var(--odap-radius-sm) !important;
+  width: auto !important;
+  height: 44px !important;
+  line-height: 44px !important;
+  color: rgba(255,255,255,0.55) !important;
+  transition: all var(--odap-transition-fast);
+}
+.ant-menu-dark .ant-menu-item:hover {
+  color: rgba(255,255,255,0.85) !important;
+  background: rgba(255,255,255,0.04) !important;
+}
+.ant-menu-dark .ant-menu-item-selected {
+  background: rgba(99,102,241,0.2) !important;
+  color: rgba(255,255,255,0.95) !important;
+  border-left: 3px solid var(--odap-color-primary-400) !important;
+}
+.ant-menu-dark .ant-menu-item::after { display: none !important; }
+
+/* ── 14p. Skeleton ── */
+.ant-skeleton-element .ant-skeleton-button {
+  border-radius: var(--odap-radius-sm);
+}
+.ant-skeleton.ant-skeleton-active .ant-skeleton-content .ant-skeleton-title,
+.ant-skeleton.ant-skeleton-active .ant-skeleton-content .ant-skeleton-paragraph > li {
+  background: linear-gradient(90deg,
+    var(--odap-color-bg-tertiary) 25%,
+    var(--odap-color-bg-secondary) 37%,
+    var(--odap-color-bg-tertiary) 63%
+  );
+  background-size: 400% 100%;
+  animation: odap-skeleton-loading 1.4s ease infinite;
+}
+@keyframes odap-skeleton-loading {
+  0% { background-position: 100% 50%; }
+  100% { background-position: 0 50%; }
+}
+[data-theme="dark"] .ant-skeleton.ant-skeleton-active .ant-skeleton-content .ant-skeleton-title,
+[data-theme="dark"] .ant-skeleton.ant-skeleton-active .ant-skeleton-content .ant-skeleton-paragraph > li {
+  background: linear-gradient(90deg,
+    var(--odap-color-bg-tertiary) 25%,
+    rgba(255,255,255,0.04) 37%,
+    var(--odap-color-bg-tertiary) 63%
+  );
+  background-size: 400% 100%;
+}
+
+/* ── 14q. Spin ── */
+.ant-spin-dot-item { background: var(--odap-color-primary); }
+
+/* ── 14r. Notification / Message ── */
+.ant-message-notice-content,
+.ant-notification-notice {
+  border-radius: var(--odap-radius-md);
+  box-shadow: var(--odap-shadow-lg);
+}
+.ant-notification-notice-success { border-left: 3px solid var(--odap-color-success); }
+.ant-notification-notice-error { border-left: 3px solid var(--odap-color-error); }
+.ant-notification-notice-warning { border-left: 3px solid var(--odap-color-warning); }
+.ant-notification-notice-info { border-left: 3px solid var(--odap-color-info); }
+
+/* ── 14s. Checkbox / Radio ── */
+.ant-checkbox-checked .ant-checkbox-inner {
+  background: var(--odap-color-primary-600);
+  border-color: var(--odap-color-primary-600);
+}
+.ant-checkbox-wrapper:hover .ant-checkbox-inner,
+.ant-checkbox:hover .ant-checkbox-inner { border-color: var(--odap-color-primary-400); }
+.ant-radio-checked .ant-radio-inner { border-color: var(--odap-color-primary-600); }
+.ant-radio-inner::after { background: var(--odap-color-primary-600); }
+
+/* ── 14t. Switch ── */
+.ant-switch-checked { background: var(--odap-color-primary-500); }
+
+/* ── 14u. Slider ── */
+.ant-slider-track { background: var(--odap-color-primary-400); }
+.ant-slider-handle { border-color: var(--odap-color-primary-500); }
+
+/* ── 14v. Card ── */
+.ant-card {
+  border-radius: var(--odap-radius-lg);
+  border: 1px solid var(--odap-color-border-light);
+  box-shadow: var(--odap-shadow-sm);
+  transition: all var(--odap-transition-normal);
+}
+.ant-card:hover {
+  box-shadow: var(--odap-shadow-md);
+  border-color: rgba(99,102,241,0.08);
+}
+.ant-card-head { border-bottom: 1px solid var(--odap-color-border-light); }
+.ant-card-head-title { font-weight: 600; }
+
+/* ── 14w. Steps ── */
+.ant-steps-item-finish .ant-steps-item-icon {
+  background: var(--odap-color-primary-50);
+  border-color: var(--odap-color-primary-500);
+}
+.ant-steps-item-finish .ant-steps-item-icon > .ant-steps-icon { color: var(--odap-color-primary-500); }
+.ant-steps-item-finish > .ant-steps-item-container > .ant-steps-item-content > .ant-steps-item-title::after {
+  background: var(--odap-color-primary-300);
+}
+.ant-steps-item-process .ant-steps-item-icon {
+  background: var(--odap-color-primary-600);
+  border-color: var(--odap-color-primary-600);
+}
+
+/* ============================================================
+   15. Micro-interactions & Animations (Phase 5)
+   ============================================================ */
+
+/* ── 15a. Page transition ── */
+.odap-page-enter {
+  opacity: 0;
+  transform: translateY(8px);
+}
+.odap-page-enter-active {
+  opacity: 1;
+  transform: translateY(0);
+  transition: opacity 250ms var(--odap-ease-out), transform 250ms var(--odap-ease-out);
+}
+
+/* ── 15b. Hover lift utility ── */
+.hover-lift {
+  transition: all var(--odap-transition-normal);
+}
+.hover-lift:hover {
+  transform: translateY(-2px);
+  box-shadow: var(--odap-shadow-md);
+}
+
+/* ── 15c. Shimmer skeleton utility ── */
+@keyframes shimmer {
+  0% { background-position: -200% 0; }
+  100% { background-position: 200% 0; }
+}
+.shimmer {
+  background: linear-gradient(90deg,
+    var(--odap-color-bg-tertiary) 0%,
+    var(--odap-color-bg-secondary) 40%,
+    var(--odap-color-bg-tertiary) 80%
+  );
+  background-size: 200% 100%;
+  animation: shimmer 1.8s ease-in-out infinite;
+}
+
+/* ── 15d. Reduced motion ── */
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+  }
+  .hover-lift:hover { transform: none; }
+  .stat-card:hover { transform: none; }
+  .ant-btn-primary:hover { transform: none; }
+}
+
+/* ============================================================
+   16. Responsive
+   ============================================================ */
 @media (max-width: 768px) {
   .main-content {
     margin-left: 0;
     padding: var(--odap-spacing-sm);
   }
-
-  .graph-container,
-  .map-container {
+  .graph-container, .map-container {
     height: 400px;
   }
-
   .stat-value {
     font-size: var(--odap-font-size-2xl);
   }

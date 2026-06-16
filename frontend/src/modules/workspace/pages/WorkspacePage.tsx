@@ -1,10 +1,12 @@
 import { useState, useEffect } from 'react';
 import { Row, Col, Card, Table, Tag, Modal, Form, Input, Select as AntSelect, Space, Popconfirm, Statistic, Tabs, message, Empty, Spin } from 'antd';
 import { PlusOutlined, EditOutlined, DeleteOutlined, ExportOutlined, ImportOutlined, PlayCircleOutlined, StopOutlined } from '@ant-design/icons';
-import adapter from '../../shared/components/adapter';
-import { PageHeader } from '../../shared/components/PageHeader';
+import adapter from '@/modules/shared/components/adapter';
+import { PageHeader } from '@/modules/shared/components/PageHeader';
+import { useWorkspace, useScenario } from '@/modules/shared/components/AppLayout';
 import { useWorkspaceStore } from '../stores/workspaceStore';
 import type { WorkspaceDetail, ScenarioDetail } from '../stores/workspaceStore';
+import { PageTourWrapper, workspaceTourSteps, PAGE_IDS } from '@/modules/guide';
 
 const Button = adapter.getButton();
 
@@ -23,16 +25,15 @@ const ISOLATION_LABELS: Record<string, string> = {
 };
 
 export function WorkspacePage() {
+  const { currentWorkspace: activeWorkspaceId, reloadWorkspaces } = useWorkspace();
+  const { scenarios: contextScenarios, reloadScenarios } = useScenario();
   const {
     workspaces,
-    currentWorkspace,
-    scenarios,
     loading,
     loadWorkspaces,
     createWorkspace,
     updateWorkspace,
     deleteWorkspace,
-    setCurrentWorkspace,
     exportWorkspace,
     loadScenarios,
     createScenario,
@@ -53,10 +54,10 @@ export function WorkspacePage() {
   }, []);
 
   useEffect(() => {
-    if (currentWorkspace) {
-      loadScenarios(currentWorkspace.workspace_id);
+    if (activeWorkspaceId) {
+      loadScenarios(activeWorkspaceId);
     }
-  }, [currentWorkspace]);
+  }, [activeWorkspaceId]);
 
   const handleCreate = async () => {
     try {
@@ -97,6 +98,7 @@ export function WorkspacePage() {
   const handleDelete = async (workspaceId: string) => {
     await deleteWorkspace(workspaceId);
     adapter.getMessage().success('删除成功');
+    reloadWorkspaces();
   };
 
   const handleExport = async (workspaceId: string) => {
@@ -114,22 +116,24 @@ export function WorkspacePage() {
   };
 
   const handleCreateScenario = async () => {
-    if (!currentWorkspace) return;
+    if (!activeWorkspaceId) return;
     try {
       const values = await scenarioForm.validateFields();
-      await createScenario(currentWorkspace.workspace_id, values);
+      await createScenario(activeWorkspaceId, values);
       setScenarioModalVisible(false);
       scenarioForm.resetFields();
       adapter.getMessage().success('场景创建成功');
+      reloadScenarios();
     } catch {
       // validation error
     }
   };
 
   const handleActivateScenario = async (scenarioId: string) => {
-    if (!currentWorkspace) return;
-    await activateScenario(currentWorkspace.workspace_id, scenarioId);
+    if (!activeWorkspaceId) return;
+    await activateScenario(activeWorkspaceId, scenarioId);
     adapter.getMessage().success('场景已激活');
+    reloadScenarios();
   };
 
   const workspaceColumns = [
@@ -259,11 +263,12 @@ export function WorkspacePage() {
   const inactiveCount = workspaces.filter((w) => w.status !== 'active').length;
 
   return (
+    <PageTourWrapper pageId={PAGE_IDS.WORKSPACE} steps={workspaceTourSteps}>
     <div style={{ padding: 24 }}>
       <PageHeader
         title="工作空间管理"
         actions={
-          <Button type="primary" icon={<PlusOutlined />} onClick={() => setCreateModalVisible(true)}>
+          <Button type="primary" icon={<PlusOutlined />} onClick={() => setCreateModalVisible(true)} data-tour="workspace-create-btn">
             创建工作空间
           </Button>
         }
@@ -308,26 +313,27 @@ export function WorkspacePage() {
           },
           {
             key: 'scenarios',
-            label: '场景管理',
+            label: <span data-tour="workspace-scenario-tab">场景管理</span>,
             children: (
               <Card
-                title={currentWorkspace ? `场景 - ${currentWorkspace.name}` : '请选择工作空间'}
+                title={activeWorkspaceId ? `场景 - ${workspaces.find(w => w.workspace_id === activeWorkspaceId)?.name || ''}` : '请选择工作空间'}
                 extra={
-                  currentWorkspace ? (
+                  activeWorkspaceId ? (
                     <Button
                       type="primary"
                       icon={<PlusOutlined />}
                       onClick={() => setScenarioModalVisible(true)}
+                      data-tour="workspace-scenario-create-btn"
                     >
                       创建场景
                     </Button>
                   ) : null
                 }
               >
-                {currentWorkspace ? (
+                {activeWorkspaceId ? (
                   <Table
                     columns={scenarioColumns}
-                    dataSource={scenarios}
+                    dataSource={contextScenarios}
                     rowKey="scenario_id"
                     loading={loading}
                     pagination={{ pageSize: 10 }}
@@ -443,5 +449,6 @@ export function WorkspacePage() {
         </Form>
       </Modal>
     </div>
+    </PageTourWrapper>
   );
 }

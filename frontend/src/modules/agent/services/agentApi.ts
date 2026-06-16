@@ -1,6 +1,6 @@
 import type { Agent, AgentFormData, AgentRefOption } from '../types';
-import { fetchJson, apiClient } from '../../shared/services/apiClient';
-import { API_BASE } from '../../../config';
+import { fetchJson, apiClient } from '@/modules/shared/services/apiClient';
+import { API_BASE } from '@/config';
 
 export const agentApi = {
   listAgents: (params?: { workspaceId?: string; roleId?: string }): Promise<Agent[]> => {

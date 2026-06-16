@@ -3,6 +3,7 @@ import uuid
 import copy
 from typing import List, Optional, Dict, Any
 
+from odap.infra.config_composer import get_config
 from .schemas import (
     WhatIfScenario, WhatIfResult, WhatIfComparison,
     MetricChange, SimulationStatus,
@@ -14,6 +15,7 @@ logger = logging.getLogger(__name__)
 class SimulationSandbox:
     def __init__(self):
         self._graph_manager = None
+        self._query_service = None
         self._oms = None
         self._llm_client = None
         self._plan_versions: Dict[str, List[Dict[str, Any]]] = {}
@@ -22,9 +24,16 @@ class SimulationSandbox:
     @property
     def graph(self):
         if self._graph_manager is None:
-            from odap.infra.graph.graph_service import GraphManager
-            self._graph_manager = GraphManager()
+            from odap.infra.query import get_graph_write_proxy
+            self._graph_manager = get_graph_write_proxy()
         return self._graph_manager
+
+    @property
+    def query_service(self):
+        if self._query_service is None:
+            from odap.infra.query import get_query_service
+            self._query_service = get_query_service()
+        return self._query_service
 
     @property
     def oms(self):
@@ -39,10 +48,9 @@ class SimulationSandbox:
             try:
                 from odap.infra.llm.llm_service import ZhipuAIClient
                 from graphiti_core.llm_client.config import LLMConfig
-                import os
-                api_key = os.getenv('OPENAI_API_KEY', '')
-                api_base = os.getenv('OPENAI_API_BASE', 'https://open.bigmodel.cn/api/paas/v4')
-                model = os.getenv('OPENAI_MODEL', 'glm-4')
+                api_key = get_config("llm.api_key", "")
+                api_base = get_config("llm.api_base", "https://open.bigmodel.cn/api/paas/v4")
+                model = get_config("llm.model", "glm-4")
                 if api_key:
                     config = LLMConfig(model=model, api_key=api_key, base_url=api_base, temperature=0.3)
                     self._llm_client = ZhipuAIClient(config=config)
@@ -124,13 +132,17 @@ class SimulationSandbox:
     async def _capture_baseline(self, target_id: str, target_type: str) -> Dict[str, Any]:
         baseline = {'target_id': target_id, 'target_type': target_type}
         try:
-            entities = self.graph.query_entities(entity_type=target_type)
-            for entity in entities[:20]:
-                e_dict = entity.to_dict() if hasattr(entity, 'to_dict') else dict(entity)
-                eid = e_dict.get('id', '')
+            # Use QueryService for read operations instead of direct GraphManager
+            result = self.query_service.execute(
+                workspace_id="default",
+                query=f".entity with(type='{target_type}') list()",
+                limit=20,
+            )
+            for entity in result.rows[:20]:
+                eid = entity.get('id', '')
                 if eid == target_id:
-                    props = e_dict.get('properties', {})
-                    for key in ('combat_power', 'morale', 'supply_level', 'strength', 'status'):
+                    props = entity.get('properties', {})
+                    for key in ('capability_index', 'readiness', 'resource_level', 'personnel', 'status'):
                         if key in props:
                             baseline[key] = props[key]
                     break
@@ -235,7 +247,7 @@ class SimulationSandbox:
         import json
 
         prompt = (
-            f"你是一个军事行动效果推演专家。请根据以下信息，推演该行动对各指标的影响。\n\n"
+            f"你是一个业务行动效果推演专家。请根据以下信息，推演该行动对各指标的影响。\n\n"
             f"目标对象: {target_id} (类型: {target_type})\n"
             f"行动类型: {action_type_id}\n"
             f"行动参数: {json.dumps(parameters, ensure_ascii=False)}\n"
@@ -250,7 +262,7 @@ class SimulationSandbox:
             from graphiti_core.prompts.models import Message
 
             messages = [
-                Message(role="system", content="你是一个军事推演分析专家，擅长评估行动的间接影响和连锁反应。只返回JSON。"),
+                Message(role="system", content="你是一个业务推演分析专家，擅长评估行动的间接影响和连锁反应。只返回JSON。"),
                 Message(role="user", content=prompt),
             ]
 
@@ -306,10 +318,10 @@ class SimulationSandbox:
                     pname = param.get('name', '')
                     ptype = param.get('param_type', 'string')
                     default_val = param.get('default')
-                    if 'supply' in pname.lower() or 'cost' in pname.lower():
-                        rules['supply_level'] = -0.1
+                    if 'resource' in pname.lower() or 'cost' in pname.lower():
+                        rules['resource_level'] = -0.1
                     elif 'speed' in pname.lower():
-                        rules['morale'] = -0.05
+                        rules['readiness'] = -0.05
                     elif ptype in ('float', 'integer') and default_val is not None:
                         try:
                             num_val = float(default_val)
@@ -320,31 +332,31 @@ class SimulationSandbox:
                             pass
                 if rules:
                     return rules
-        except Exception:
-            pass
+        except Exception as e:
+            logger.debug("OMS fallback: %s", e)
 
         DEFAULT_IMPACT_RULES = {
-            'move': {'supply_level': -0.1, 'morale': -0.05},
-            'attack': {'combat_power': -0.2, 'morale': -0.15, 'supply_level': -0.3, 'casualty_rate': 0.15},
-            'defend': {'combat_power': -0.05, 'morale': 0.1, 'supply_level': -0.1},
-            'reinforce': {'strength': 0.3, 'morale': 0.15, 'supply_level': -0.15},
-            'retreat': {'morale': -0.25, 'combat_power': -0.1},
-            'observe': {'supply_level': -0.02},
+            'move': {'resource_level': -0.1, 'readiness': -0.05},
+            'engage': {'capability_index': -0.2, 'readiness': -0.15, 'resource_level': -0.3, 'attrition_rate': 0.15},
+            'hold': {'capability_index': -0.05, 'readiness': 0.1, 'resource_level': -0.1},
+            'support': {'personnel': 0.3, 'readiness': 0.15, 'resource_level': -0.15},
+            'withdraw': {'readiness': -0.25, 'capability_index': -0.1},
+            'observe': {'resource_level': -0.02},
             'communicate': {},
         }
         return DEFAULT_IMPACT_RULES.get(action_type_id, {})
 
     def _compute_confidence(self, baseline: Dict[str, Any], projected: Dict[str, Any], action_type_id: str) -> float:
         confidence = 0.4
-        real_data_keys = [k for k in ('combat_power', 'morale', 'supply_level', 'strength', 'status') if k in baseline and baseline[k] is not None and baseline[k] != 0]
+        real_data_keys = [k for k in ('capability_index', 'readiness', 'resource_level', 'personnel', 'status') if k in baseline and baseline[k] is not None and baseline[k] != 0]
         if real_data_keys:
             confidence += 0.2
         try:
             action_def = self.oms.get_action_type(action_type_id)
             if action_def and action_def.get('parameters'):
                 confidence += 0.15
-        except Exception:
-            pass
+        except Exception as e:
+            logger.debug("OMS fallback: %s", e)
         if projected.get('llm_impact'):
             confidence += 0.1
         return min(0.95, confidence)
@@ -423,15 +435,17 @@ class SimulationSandbox:
             for at in action_types:
                 at_id = at.get('action_type_id', '')
                 params = at.get('parameters', [])
-                has_combat_param = any(
-                    'combat' in p.get('name', '').lower() or 'weapon' in p.get('name', '').lower()
+                has_operational_param = any(
+                    p.get('risk_category') == 'conflict'
+                    if 'risk_category' in p
+                    else 'conflict' in p.get('name', '').lower() or 'hazard' in p.get('name', '').lower()
                     for p in params
                 )
                 has_movement_param = any(
                     'speed' in p.get('name', '').lower() or 'route' in p.get('name', '').lower()
                     for p in params
                 )
-                if has_combat_param:
+                if has_operational_param:
                     risk_config[at_id] = 'high'
                 elif has_movement_param:
                     risk_config[at_id] = 'medium'
@@ -439,15 +453,15 @@ class SimulationSandbox:
                     risk_config[at_id] = 'low'
             if risk_config:
                 return risk_config
-        except Exception:
-            pass
+        except Exception as e:
+            logger.debug("OMS fallback: %s", e)
 
         DEFAULT_RISK_CONFIG = {
-            'attack': 'high',
-            'retreat': 'high',
-            'reinforce': 'medium',
+            'engage': 'high',
+            'withdraw': 'high',
+            'support': 'medium',
             'move': 'medium',
-            'defend': 'medium',
+            'hold': 'medium',
             'observe': 'low',
             'communicate': 'low',
         }
@@ -457,7 +471,7 @@ class SimulationSandbox:
         overall = risk.get('overall_risk', 'unknown')
         rule_rec = ""
         if overall == 'high':
-            rule_rec = "高风险操作，建议谨慎执行。需要指挥官审批。"
+            rule_rec = "高风险操作，建议谨慎执行。需要决策者审批。"
         elif overall == 'medium':
             rule_rec = "中等风险操作，建议评估后执行。"
         else:
@@ -487,7 +501,7 @@ class SimulationSandbox:
                 risk_desc.append(f"- {f['metric']}: 严重度={f['severity']}, 变化={f['delta']}")
 
             prompt = (
-                f"你是军事行动决策顾问。请根据以下推演结果，给出详细的行动建议。\n\n"
+                f"你是业务行动决策顾问。请根据以下推演结果，给出详细的行动建议。\n\n"
                 f"指标变化:\n{chr(10).join(change_desc) if change_desc else '无显著变化'}\n\n"
                 f"风险因素:\n{chr(10).join(risk_desc) if risk_desc else '无显著风险'}\n"
                 f"总体风险等级: {risk.get('overall_risk', 'unknown')}\n"
@@ -499,7 +513,7 @@ class SimulationSandbox:
             from graphiti_core.prompts.models import Message
 
             messages = [
-                Message(role="system", content="你是军事决策顾问，给出简洁专业的行动建议。"),
+                Message(role="system", content="你是业务决策顾问，给出简洁专业的行动建议。"),
                 Message(role="user", content=prompt),
             ]
 

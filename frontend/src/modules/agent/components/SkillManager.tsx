@@ -1,8 +1,8 @@
 import { useState, useEffect } from 'react';
 import { Card, Table, Button, Modal, Form, Input, Select, Tag, Space, message, Popconfirm } from 'antd';
 import { PlusOutlined, SearchOutlined, DeleteOutlined, SwapOutlined } from '@ant-design/icons';
-import { fetchJson } from '../../shared/services/apiClient';
-import { API_BASE } from '../../../config';
+import { fetchJson } from '@/modules/shared/services/apiClient';
+import { API_BASE } from '@/config';
 
 const BASE = `${API_BASE}/api/skill`;
 
@@ -141,7 +141,7 @@ export function SkillManager() {
             </Button>
           ))}
           {record.status !== 'archived' && (
-            <Popconfirm title="Archive this skill?" onConfirm={() => handleUnregister(record.skill_id)}>
+            <Popconfirm description="Archive this skill?" onConfirm={() => handleUnregister(record.skill_id)}>
               <Button size="small" danger icon={<DeleteOutlined />}>
                 Archive
               </Button>

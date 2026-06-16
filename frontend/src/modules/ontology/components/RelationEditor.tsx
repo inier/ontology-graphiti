@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import { Card, Form, Row, Col } from 'antd';
 import { DeleteOutlined } from '@ant-design/icons';
-import adapter from '../../shared/components/adapter';
+import adapter from '@/modules/shared/components/adapter';
 import type { RelationDefinition } from '../services/ontologyApi';
 
 interface RelationEditorProps {
@@ -21,6 +21,7 @@ const CARDINALITY_OPTIONS = [
   { label: '1:N', value: '1:N' },
   { label: 'N:1', value: 'N:1' },
   { label: 'N:N', value: 'N:N' },
+  { label: 'N:M', value: 'N:M' },
 ];
 
 const LINK_TYPE_OPTIONS = [

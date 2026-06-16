@@ -49,7 +49,8 @@ class TestPerceptionHubInit:
 
     def test_lazy_properties_none_on_init(self):
         hub = PerceptionHub()
-        assert hub._graph_manager is None
+        assert hub._write_proxy is None
+        assert hub._query_service is None
         assert hub._oms is None
         assert hub._pipeline is None
 
@@ -264,8 +265,8 @@ class TestProcessEvent:
     @pytest.mark.asyncio
     async def test_successful_processing_pipeline(self):
         hub = PerceptionHub()
-        hub._graph_manager = MagicMock()
-        hub._graph_manager.add_episode = MagicMock()
+        hub._write_proxy = MagicMock()
+        hub._write_proxy.add_episode = AsyncMock(return_value={"status": "success", "name": "test"})
         hub._oms = MagicMock()
         hub._oms.get_object_type = MagicMock(return_value=None)
         hub._oms.create_object_type = MagicMock()
@@ -315,8 +316,8 @@ class TestProcessEvent:
     @pytest.mark.asyncio
     async def test_status_transitions_on_success(self):
         hub = PerceptionHub()
-        hub._graph_manager = MagicMock()
-        hub._graph_manager.add_episode = MagicMock()
+        hub._write_proxy = MagicMock()
+        hub._write_proxy.add_episode = AsyncMock(return_value={"status": "success", "name": "test"})
         hub._oms = MagicMock()
         hub._oms.get_object_type = MagicMock(return_value=None)
 
@@ -338,8 +339,8 @@ class TestProcessBatch:
     @pytest.mark.asyncio
     async def test_processes_multiple_events(self):
         hub = PerceptionHub()
-        hub._graph_manager = MagicMock()
-        hub._graph_manager.add_episode = MagicMock()
+        hub._write_proxy = MagicMock()
+        hub._write_proxy.add_episode = AsyncMock(return_value={"status": "success", "name": "test"})
         hub._oms = MagicMock()
         hub._oms.get_object_type = MagicMock(return_value=None)
 
@@ -371,8 +372,8 @@ class TestObserveAndProcess:
     @pytest.mark.asyncio
     async def test_observes_then_processes(self):
         hub = PerceptionHub()
-        hub._graph_manager = MagicMock()
-        hub._graph_manager.add_episode = MagicMock()
+        hub._write_proxy = MagicMock()
+        hub._write_proxy.add_episode = AsyncMock(return_value={"status": "success", "name": "test"})
         hub._oms = MagicMock()
         hub._oms.get_object_type = MagicMock(return_value=None)
 

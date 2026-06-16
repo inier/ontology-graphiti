@@ -1,8 +1,10 @@
 """
 故障恢复管理器模块
-实现 Agent 故障检测、分类、恢复策略和断路器模式
+实现 Agent 故障检测、分类、恢复策略
 
 Phase 2 扩展: 故障恢复与状态管理
+
+集成 CircuitBreaker（circuit_breaker.py），不再重复实现断路器逻辑。
 """
 
 import asyncio
@@ -10,9 +12,10 @@ import logging
 from datetime import datetime, timedelta
 from dataclasses import dataclass, field
 from enum import Enum
-from typing import Dict, Any, List, Optional
+from typing import Dict, Any, List, Optional, Callable
 
 from odap.biz.core.agent.swarm_orchestrator import AgentState
+from odap.infra.resilience.circuit_breaker import CircuitBreaker, get_circuit_breaker, CircuitOpenError
 
 logger = logging.getLogger("fault_tolerance")
 
@@ -39,7 +42,10 @@ class FailureRecord:
 
 
 class FaultRecoveryManager:
-    """故障恢复管理器"""
+    """故障恢复管理器
+
+    集成 CircuitBreaker（来自 circuit_breaker.py），不再自行实现断路器逻辑。
+    """
 
     _instance: Optional['FaultRecoveryManager'] = None
 
@@ -47,6 +53,7 @@ class FaultRecoveryManager:
         self.agent_states: Dict[str, AgentState] = {}
         self.failure_history: List[FailureRecord] = []
         self.failure_count: Dict[str, int] = {}
+        self._cache: Dict[str, Any] = {}
         self.recovery_strategies: Dict[FailureType, str] = {
             FailureType.AGENT_TIMEOUT: "retry_with_backoff",
             FailureType.OPA_DENIAL: "escalate_to_commander",
@@ -56,9 +63,17 @@ class FaultRecoveryManager:
             FailureType.UNEXPECTED_EXCEPTION: "restart_agent"
         }
         self.max_retries = 3
-        self.circuit_breaker_threshold = 5
-        self.circuit_breaker_reset_time = 300
-        self.circuit_breaker_state: Dict[str, Dict[str, Any]] = {}
+        # 使用 CircuitBreaker 替代自实现的断路器
+        self._circuit_breakers: Dict[str, CircuitBreaker] = {}
+
+    def _get_circuit_breaker(self, agent_id: str) -> CircuitBreaker:
+        """获取或创建指定 agent 的 CircuitBreaker"""
+        if agent_id not in self._circuit_breakers:
+            self._circuit_breakers[agent_id] = get_circuit_breaker(
+                f"fault_recovery_{agent_id}",
+                failure_threshold_pct=0.5,
+            )
+        return self._circuit_breakers[agent_id]
 
     @classmethod
     def get_instance(cls) -> 'FaultRecoveryManager':
@@ -81,7 +96,11 @@ class FaultRecoveryManager:
         self.failure_history.append(record)
         self.failure_count[agent_id] = self.failure_count.get(agent_id, 0) + 1
 
-        if self._is_circuit_breaker_open(agent_id):
+        # 使用 CircuitBreaker 检查熔断状态
+        cb = self._get_circuit_breaker(agent_id)
+        try:
+            cb._pre_call_check()
+        except CircuitOpenError:
             return await self._handle_circuit_breaker_open(agent_id)
 
         recovery_action = self.recovery_strategies.get(failure_type, "retry_with_backoff")
@@ -117,12 +136,19 @@ class FaultRecoveryManager:
             return FailureType.UNEXPECTED_EXCEPTION
 
     async def _retry_with_backoff(self, agent_id: str, error: Exception,
-                                record: FailureRecord) -> Dict[str, Any]:
-        """指数退避重试"""
+                                record: FailureRecord,
+                                func: Optional[Callable] = None) -> Dict[str, Any]:
+        """指数退避重试
+
+        如果提供了 func，则真正重试原始函数；
+        否则返回重试指示，由调用方决定是否重试。
+        """
         attempt = record.recovery_attempts + 1
 
         if attempt > self.max_retries:
-            self._trip_circuit_breaker(agent_id)
+            # 超过重试上限，触发熔断并降级
+            cb = self._get_circuit_breaker(agent_id)
+            cb._finish_call(record.timestamp.timestamp(), False, str(error))
             return await self._activate_degraded_mode(agent_id, error, record)
 
         delay = 2 ** (attempt - 1)
@@ -130,6 +156,20 @@ class FaultRecoveryManager:
 
         await asyncio.sleep(delay)
         record.recovery_attempts = attempt
+
+        # 如果提供了原始函数，真正执行重试
+        if func is not None:
+            try:
+                result = await func() if asyncio.iscoroutinefunction(func) else func()
+                # 重试成功，记录成功并返回
+                cb = self._get_circuit_breaker(agent_id)
+                cb._finish_call(record.timestamp.timestamp(), True, None)
+                record.resolved = True
+                return {"action": "retry_succeeded", "attempt": attempt, "result": result}
+            except Exception as retry_error:
+                # 重试失败，递归重试
+                record.error_message = str(retry_error)
+                return await self._retry_with_backoff(agent_id, retry_error, record, func)
 
         return {
             "action": "retry",
@@ -156,10 +196,19 @@ class FaultRecoveryManager:
         logger.warning(f"Agent {agent_id} Graphiti 不可用，使用缓存回退")
         self.agent_states[agent_id] = AgentState.DEGRADED
 
+        cached_data = self._cache.get(agent_id)
+        cached_available = cached_data is not None
+
+        if cached_available:
+            logger.info(f"Agent {agent_id} 缓存命中，使用缓存数据回退")
+        else:
+            logger.warning(f"Agent {agent_id} 无可用缓存数据")
+
         return {
             "action": "fallback",
             "fallback_type": "cache",
-            "cached_data_available": True,
+            "cached_data_available": cached_available,
+            "cached_data": cached_data if cached_available else None,
             "agent_state": "degraded",
             "circuit_breaker_state": "half_open"
         }
@@ -171,14 +220,70 @@ class FaultRecoveryManager:
         error_tool = self._extract_tool_name(error)
 
         if error_tool:
-            return {
-                "action": "alternative_tool",
-                "failed_tool": error_tool,
-                "alternative_tools": [],
-                "recommended_tool": None,
-                "circuit_breaker_state": "closed"
-            }
+            alternative_tools = self._find_alternative_tools(error_tool)
+
+            if alternative_tools:
+                recommended = alternative_tools[0]
+                logger.info(f"Agent {agent_id} 找到替代工具: {recommended['name']}")
+                return {
+                    "action": "alternative_tool",
+                    "status": "alternative_found",
+                    "failed_tool": error_tool,
+                    "alternative_tools": alternative_tools,
+                    "recommended_tool": recommended,
+                    "circuit_breaker_state": "closed"
+                }
+            else:
+                logger.warning(f"Agent {agent_id} 未找到工具 '{error_tool}' 的替代工具")
+                return {
+                    "action": "alternative_tool",
+                    "status": "no_alternative",
+                    "failed_tool": error_tool,
+                    "alternative_tools": [],
+                    "recommended_tool": None,
+                    "circuit_breaker_state": "half_open"
+                }
         return await self._activate_degraded_mode(agent_id, error, record)
+
+    def _find_alternative_tools(self, failed_tool: str) -> List[Dict[str, Any]]:
+        """从 SkillRegistry 中搜索具有相同或相似功能的替代技能"""
+        alternatives = []
+        try:
+            from odap.tools import get_registry
+            registry = get_registry()
+            all_skills = registry.list_skills()
+
+            # 按类别匹配：查找与失败工具同类别的其他工具
+            failed_skill = registry.get(failed_tool)
+            if failed_skill is not None:
+                failed_category = failed_skill.metadata.category
+                for skill_info in all_skills:
+                    if skill_info["name"] != failed_tool and skill_info.get("category") == failed_category:
+                        alternatives.append({
+                            "name": skill_info["name"],
+                            "description": skill_info.get("description", ""),
+                            "category": skill_info.get("category", ""),
+                            "match_reason": "same_category"
+                        })
+
+            # 按名称关键词匹配：查找名称中包含相似关键词的工具
+            failed_keywords = set(failed_tool.lower().replace("_", " ").split())
+            for skill_info in all_skills:
+                name = skill_info["name"]
+                if name == failed_tool or any(alt["name"] == name for alt in alternatives):
+                    continue
+                skill_keywords = set(name.lower().replace("_", " ").split())
+                if failed_keywords & skill_keywords:
+                    alternatives.append({
+                        "name": name,
+                        "description": skill_info.get("description", ""),
+                        "category": skill_info.get("category", ""),
+                        "match_reason": "keyword_overlap"
+                    })
+        except Exception as e:
+            logger.debug(f"搜索替代工具时出错: {e}")
+
+        return alternatives
 
     async def _restart_agent(self, agent_id: str, error: Exception,
                            record: FailureRecord) -> Dict[str, Any]:
@@ -186,15 +291,45 @@ class FaultRecoveryManager:
         logger.warning(f"Agent {agent_id} 发生意外异常，尝试重启")
         self.agent_states[agent_id] = AgentState.RECOVERING
 
-        await asyncio.sleep(2)
-        self.agent_states[agent_id] = AgentState.IDLE
-        record.resolved = True
+        restart_successful = False
+        restart_method = None
+
+        # 尝试从 DomainSwarm 获取 Agent 实例并调用其重置方法
+        try:
+            from odap.biz.core.agent.swarm_orchestrator import DomainSwarm
+            swarm = DomainSwarm()
+            agent = swarm.agents.get(agent_id)
+            if agent is not None:
+                if hasattr(agent, 'reset') and callable(getattr(agent, 'reset')):
+                    await agent.reset() if asyncio.iscoroutinefunction(agent.reset) else agent.reset()
+                    restart_successful = True
+                    restart_method = "reset"
+                    logger.info(f"Agent {agent_id} 通过 reset() 重启成功")
+                elif hasattr(agent, 'initialize') and callable(getattr(agent, 'initialize')):
+                    await agent.initialize() if asyncio.iscoroutinefunction(agent.initialize) else agent.initialize()
+                    restart_successful = True
+                    restart_method = "initialize"
+                    logger.info(f"Agent {agent_id} 通过 initialize() 重启成功")
+                else:
+                    logger.warning(f"Agent {agent_id} 没有 reset() 或 initialize() 方法，无法真正重启")
+            else:
+                logger.warning(f"Agent {agent_id} 未在 DomainSwarm 中找到，无法真正重启")
+        except Exception as e:
+            logger.warning(f"Agent {agent_id} 重启过程中发生异常: {e}")
+
+        if restart_successful:
+            self.agent_states[agent_id] = AgentState.IDLE
+            record.resolved = True
+        else:
+            self.agent_states[agent_id] = AgentState.DEGRADED
+            record.resolved = False
 
         return {
             "action": "restart",
-            "restart_successful": True,
-            "agent_state": "idle",
-            "circuit_breaker_state": "closed"
+            "restart_successful": restart_successful,
+            "restart_method": restart_method,
+            "agent_state": self.agent_states[agent_id].value,
+            "circuit_breaker_state": "closed" if restart_successful else "half_open"
         }
 
     async def _activate_degraded_mode(self, agent_id: str, error: Exception,
@@ -233,45 +368,15 @@ class FaultRecoveryManager:
             "circuit_breaker_state": "open"
         }
 
-    def _is_circuit_breaker_open(self, agent_id: str) -> bool:
-        """检查断路器是否打开"""
-        if agent_id not in self.circuit_breaker_state:
-            return False
-
-        state = self.circuit_breaker_state[agent_id]
-
-        if state["state"] == "open":
-            opened_at = state["opened_at"]
-            reset_time = timedelta(seconds=self.circuit_breaker_reset_time)
-
-            if datetime.now() - opened_at > reset_time:
-                state["state"] = "half_open"
-                state["test_request_sent"] = False
-                return False
-            return True
-
-        return False
-
-    def _trip_circuit_breaker(self, agent_id: str):
-        """触发断路器"""
-        self.circuit_breaker_state[agent_id] = {
-            "state": "open",
-            "opened_at": datetime.now(),
-            "failure_count": self.failure_count.get(agent_id, 0),
-            "last_error": self.failure_history[-1].error_message if self.failure_history else ""
-        }
-        logger.warning(f"断路器已触发: {agent_id}，状态: open")
-
     async def _handle_circuit_breaker_open(self, agent_id: str) -> Dict[str, Any]:
-        """处理断路器打开状态"""
-        state = self.circuit_breaker_state[agent_id]
-        time_remaining = self.circuit_breaker_reset_time - (datetime.now() - state["opened_at"]).total_seconds()
+        """处理 CircuitBreaker 打开状态（熔断）"""
+        cb = self._get_circuit_breaker(agent_id)
+        state = cb.get_state()
 
         return {
             "action": "circuit_breaker_open",
-            "state": "open",
-            "time_remaining_seconds": max(0, time_remaining),
-            "failure_count": state["failure_count"],
+            "state": state.value if hasattr(state, 'value') else str(state),
+            "failure_count": self.failure_count.get(agent_id, 0),
             "recommendation": "等待断路器重置或切换到降级模式"
         }
 
@@ -296,14 +401,52 @@ class FaultRecoveryManager:
         """获取 Agent 当前状态"""
         return self.agent_states.get(agent_id, AgentState.IDLE)
 
+    def cache_result(self, agent_id: str, result: Any):
+        """缓存 Agent 执行结果，供故障时回退使用"""
+        self._cache[agent_id] = result
+        logger.debug(f"Agent {agent_id} 结果已缓存")
+
+    async def execute_with_tolerance(self, agent_id: str, func, *args, **kwargs) -> Dict[str, Any]:
+        """带容错执行的包装方法：成功时缓存结果，失败时触发故障处理并自动重试"""
+        try:
+            result = await func(*args, **kwargs) if asyncio.iscoroutinefunction(func) else func(*args, **kwargs)
+            self.cache_result(agent_id, result)
+            return {"status": "success", "result": result}
+        except Exception as e:
+            failure_type = self._classify_failure(e)
+            recovery_action = self.recovery_strategies.get(failure_type, "retry_with_backoff")
+
+            # 对于重试策略，传入原始函数以实现真正重试
+            if recovery_action == "retry_with_backoff":
+                record = FailureRecord(
+                    timestamp=datetime.now(),
+                    agent_id=agent_id,
+                    failure_type=failure_type,
+                    error_message=str(e),
+                )
+                self.failure_history.append(record)
+                self.failure_count[agent_id] = self.failure_count.get(agent_id, 0) + 1
+
+                retry_fn = lambda: func(*args, **kwargs)
+                retry_result = await self._retry_with_backoff(agent_id, e, record, func=retry_fn)
+                if retry_result.get("action") == "retry_succeeded":
+                    return {"status": "success", "result": retry_result["result"]}
+                return retry_result
+
+            return await self.handle_failure(agent_id, e, failure_type)
+
     def get_failure_summary(self) -> Dict[str, Any]:
         """获取故障汇总"""
+        open_cbs = []
+        for aid, cb in self._circuit_breakers.items():
+            state = cb.get_state()
+            state_value = state.get("state", "closed") if isinstance(state, dict) else getattr(state, "value", str(state))
+            if state_value == "open":
+                open_cbs.append(aid)
+
         return {
             "total_failures": len(self.failure_history),
-            "agent_states": {k: v.value for k, v in self.agent_states.items()},
+            "agent_states": {k: v.value if hasattr(v, 'value') else str(v) for k, v in self.agent_states.items()},
             "failure_count": self.failure_count,
-            "open_circuit_breakers": [
-                aid for aid, state in self.circuit_breaker_state.items()
-                if state.get("state") == "open"
-            ]
+            "open_circuit_breakers": open_cbs
         }

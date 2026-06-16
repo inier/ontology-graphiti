@@ -3,9 +3,8 @@ FROM localhost/node:20-alpine
 WORKDIR /app
 
 COPY package.json ./
-COPY package-lock.json ./
 
-RUN npm install --registry https://registry.npmmirror.com
+RUN npm install --registry https://registry.npmmirror.com || npm install
 
 EXPOSE 5173
 

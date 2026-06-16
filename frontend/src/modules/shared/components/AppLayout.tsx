@@ -37,6 +37,8 @@ import {
 } from '@ant-design/icons';
 import { api } from '../services/api';
 import { useAuthStore } from '../stores/authStore';
+import { GlobalLoading } from './GlobalLoading';
+import { useTourStore } from '@/modules/guide';
 
 const { Header, Sider, Content } = Layout;
 
@@ -146,6 +148,7 @@ const primaryMenus: PrimaryMenu[] = [
     label: '语义地图',
     children: [
       { key: '/ontology/designer', icon: <BlockOutlined />, label: '本体设计器' },
+      { key: '/ontology/graph', icon: <ApartmentOutlined />, label: '语义图谱' },
       { key: '/business/entities', icon: <UnorderedListOutlined />, label: '对象管理' },
       { key: '/business/process', icon: <BranchesOutlined />, label: '业务过程' },
       { key: '/business/rules', icon: <FileProtectOutlined />, label: '规则' },
@@ -234,6 +237,17 @@ export function AppLayout({ children, currentWorkspace, onWorkspaceChange }: App
   const navigate = useNavigate();
   const location = useLocation();
   const { user, logout } = useAuthStore();
+  const { resetGuideTour, resetAllTours } = useTourStore();
+
+  /* Theme state */
+  const [theme, setTheme] = useState<'light' | 'dark'>(() =>
+    (localStorage.getItem('odap-theme') as 'light' | 'dark') || 'light'
+  );
+  useEffect(() => {
+    document.documentElement.setAttribute('data-theme', theme);
+    localStorage.setItem('odap-theme', theme);
+  }, [theme]);
+  const toggleTheme = () => setTheme(t => t === 'light' ? 'dark' : 'light');
 
   const activeWorkspaceId = currentWorkspace || currentWorkspaceState;
   const leftSiderWidth = leftCollapsed ? 64 : 160;
@@ -411,7 +425,9 @@ export function AppLayout({ children, currentWorkspace, onWorkspaceChange }: App
                     top: 0,
                     bottom: 0,
                     zIndex: 100,
-                    borderRight: '1px solid rgba(255,255,255,0.1)',
+                    background: 'linear-gradient(180deg, #1E1B4B 0%, #0F0F1A 100%)',
+                    borderRight: '1px solid rgba(255,255,255,0.06)',
+                    transition: 'width 250ms cubic-bezier(0.16,1,0.3,1)',
                   }}
                   width={160}
                 >
@@ -422,16 +438,25 @@ export function AppLayout({ children, currentWorkspace, onWorkspaceChange }: App
                       alignItems: 'center',
                       justifyContent: 'center',
                       color: '#ffffff',
-                      fontSize: leftCollapsed ? 14 : 18,
-                      fontWeight: 600,
-                      borderBottom: '1px solid rgba(255,255,255,0.1)',
+                      fontSize: leftCollapsed ? 16 : 20,
+                      fontWeight: 700,
+                      letterSpacing: '0.05em',
+                      borderBottom: '1px solid rgba(255,255,255,0.08)',
                       cursor: 'pointer',
                       whiteSpace: 'nowrap',
                       overflow: 'hidden',
+                      background: leftCollapsed ? 'transparent' : 'linear-gradient(135deg, rgba(129,140,248,0.2), rgba(167,139,250,0.1))',
                     }}
                     onClick={handleLogoClick}
                   >
-                    {leftCollapsed ? 'O' : 'ODAP'}
+                    <span style={{
+                      background: leftCollapsed ? 'none' : 'linear-gradient(135deg, #818CF8, #A78BFA)',
+                      WebkitBackgroundClip: leftCollapsed ? 'none' : 'text',
+                      WebkitTextFillColor: leftCollapsed ? '#818CF8' : 'transparent',
+                      backgroundClip: leftCollapsed ? 'none' : 'text',
+                    }}>
+                      {leftCollapsed ? 'O' : 'ODAP'}
+                    </span>
                   </div>
                   <Menu
                     theme="dark"
@@ -458,7 +483,14 @@ export function AppLayout({ children, currentWorkspace, onWorkspaceChange }: App
                       block
                       icon={leftCollapsed ? <MenuUnfoldOutlined /> : <MenuFoldOutlined />}
                       onClick={() => setLeftCollapsed(!leftCollapsed)}
-                      style={{ color: 'rgba(255,255,255,0.65)', height: 48, borderRadius: 0 }}
+                      style={{
+                        color: 'rgba(255,255,255,0.4)',
+                        height: 48,
+                        borderRadius: 0,
+                        transition: 'color 150ms',
+                      }}
+                      onMouseEnter={e => (e.currentTarget.style.color = 'rgba(255,255,255,0.75)')}
+                      onMouseLeave={e => (e.currentTarget.style.color = 'rgba(255,255,255,0.4)')}
                     />
                   </div>
                 </Sider>
@@ -472,11 +504,12 @@ export function AppLayout({ children, currentWorkspace, onWorkspaceChange }: App
                       bottom: 0,
                       width: 180,
                       zIndex: 99,
-                      background: '#fff',
-                      borderRight: '1px solid #f0f0f0',
+                      background: 'var(--odap-color-bg-primary)',
+                      borderRight: '1px solid var(--odap-color-border-light)',
                       overflow: 'auto',
                       display: 'flex',
                       flexDirection: 'column',
+                      transition: 'left 250ms cubic-bezier(0.16,1,0.3,1)',
                     }}
                   >
                     <div
@@ -486,11 +519,12 @@ export function AppLayout({ children, currentWorkspace, onWorkspaceChange }: App
                         alignItems: 'center',
                         justifyContent: 'space-between',
                         padding: '0 16px',
-                        borderBottom: '1px solid #f0f0f0',
+                        borderBottom: '1px solid var(--odap-color-border-light)',
                         flexShrink: 0,
+                        background: 'var(--odap-color-bg-secondary)',
                       }}
                     >
-                      <span style={{ fontSize: 14, fontWeight: 600, color: '#333' }}>
+                      <span style={{ fontSize: 14, fontWeight: 600, color: 'var(--odap-color-text-primary)' }}>
                         {activeMenu!.label}
                       </span>
                       <Button
@@ -498,6 +532,7 @@ export function AppLayout({ children, currentWorkspace, onWorkspaceChange }: App
                         size="small"
                         icon={<LeftOutlined />}
                         onClick={() => setSubCollapsed(true)}
+                        style={{ color: 'var(--odap-color-text-tertiary)' }}
                       />
                     </div>
                     <Menu
@@ -523,8 +558,8 @@ export function AppLayout({ children, currentWorkspace, onWorkspaceChange }: App
                         top: '50%',
                         transform: 'translateY(-50%)',
                         zIndex: 99,
-                        background: '#fff',
-                        border: '1px solid #f0f0f0',
+                        background: 'var(--odap-color-bg-primary)',
+                        border: '1px solid var(--odap-color-border)',
                         borderLeft: 'none',
                         borderRadius: '0 6px 6px 0',
                         cursor: 'pointer',
@@ -532,11 +567,12 @@ export function AppLayout({ children, currentWorkspace, onWorkspaceChange }: App
                         display: 'flex',
                         alignItems: 'center',
                         justifyContent: 'center',
-                        boxShadow: '2px 0 6px rgba(0,0,0,0.06)',
+                        boxShadow: 'var(--odap-shadow-sm)',
+                        transition: 'left 250ms cubic-bezier(0.16,1,0.3,1)',
                       }}
                       onClick={() => setSubCollapsed(false)}
                     >
-                      <RightOutlined style={{ fontSize: 10, color: '#999' }} />
+                      <RightOutlined style={{ fontSize: 10, color: 'var(--odap-color-text-tertiary)' }} />
                     </div>
                   </Tooltip>
                 )}
@@ -546,28 +582,31 @@ export function AppLayout({ children, currentWorkspace, onWorkspaceChange }: App
             <Layout style={{
               marginLeft: isAgentMode ? 0 : totalLeftWidth,
               marginRight: rightSiderWidth,
-              transition: 'margin-left 0.2s, margin-right 0.2s'
+              transition: 'margin-left 250ms cubic-bezier(0.16,1,0.3,1), margin-right 250ms cubic-bezier(0.16,1,0.3,1)'
             }}>
               <Header
                 style={{
                   padding: '0 24px',
-                  background: '#ffffff',
+                  background: 'var(--odap-color-bg-primary)',
                   display: 'flex',
                   alignItems: 'center',
                   justifyContent: 'space-between',
-                  boxShadow: '0 1px 4px rgba(0,0,0,0.1)',
+                  borderBottom: '1px solid var(--odap-color-border-light)',
+                  boxShadow: 'var(--odap-shadow-xs)',
                   position: 'sticky',
                   top: 0,
                   zIndex: 99,
+                  height: 56,
+                  lineHeight: '56px',
                 }}
               >
                 <div style={{ display: 'flex', alignItems: 'center', gap: 24 }}>
                   {!isAgentMode && (
                     <>
                       <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-                        <span style={{ fontSize: 14, fontWeight: 500, color: '#666' }}>工作空间:</span>
+                        <span style={{ fontSize: 12, fontWeight: 500, color: 'var(--odap-color-text-tertiary)', textTransform: 'uppercase', letterSpacing: '0.04em' }}>工作空间</span>
                         {loading ? (
-                          <Spin size="small" />
+                          <Spin size="small" spinning />
                         ) : workspaces.length > 0 ? (
                           <Select
                             value={activeWorkspaceId || undefined}
@@ -579,12 +618,12 @@ export function AppLayout({ children, currentWorkspace, onWorkspaceChange }: App
                             }))}
                           />
                         ) : (
-                          <span style={{ color: '#8c8c8c', fontSize: 14 }}>暂无工作空间</span>
+                          <span style={{ color: 'var(--odap-color-text-tertiary)', fontSize: 14 }}>暂无工作空间</span>
                         )}
                       </div>
 
                       <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-                        <span style={{ fontSize: 14, fontWeight: 500, color: '#666' }}>场景:</span>
+                        <span style={{ fontSize: 12, fontWeight: 500, color: 'var(--odap-color-text-tertiary)', textTransform: 'uppercase', letterSpacing: '0.04em' }}>场景</span>
                         {scenariosLoading ? (
                           <Spin size="small" />
                         ) : scenarios.length > 0 ? (
@@ -598,24 +637,47 @@ export function AppLayout({ children, currentWorkspace, onWorkspaceChange }: App
                             }))}
                           />
                         ) : (
-                          <span style={{ color: '#8c8c8c', fontSize: 14 }}>暂无场景</span>
+                          <span style={{ color: 'var(--odap-color-text-tertiary)', fontSize: 14 }}>暂无场景</span>
                         )}
                       </div>
                     </>
                   )}
                   {isAgentMode && (
                     <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-                      <RobotOutlined style={{ fontSize: 20, color: '#1890ff' }} />
-                      <span style={{ fontSize: 16, fontWeight: 600 }}>ODAP 智能体</span>
+                      <RobotOutlined style={{ fontSize: 20, color: 'var(--odap-color-primary)' }} />
+                      <span style={{ fontSize: 16, fontWeight: 600, color: 'var(--odap-color-text-primary)' }}>ODAP 智能体</span>
                     </div>
                   )}
                 </div>
                 <div style={{ display: 'flex', alignItems: 'center', gap: 16 }}>
+                  <Tooltip title="帮助与引导">
+                    <Button
+                      type="text"
+                      icon={<QuestionCircleOutlined />}
+                      onClick={() => {
+                        resetGuideTour();
+                        navigate('/guide');
+                      }}
+                      style={{ color: 'var(--odap-color-text-secondary)' }}
+                    />
+                  </Tooltip>
+                  <Tooltip title={theme === 'light' ? '切换暗色模式' : '切换亮色模式'}>
+                    <Button
+                      type="text"
+                      icon={theme === 'light' ? <span style={{fontSize:16}}>🌙</span> : <span style={{fontSize:16}}>☀️</span>}
+                      onClick={toggleTheme}
+                      style={{
+                        color: 'var(--odap-color-text-secondary)',
+                        fontSize: 16,
+                        transition: 'transform 300ms cubic-bezier(0.34,1.56,0.64,1)',
+                      }}
+                    />
+                  </Tooltip>
                   <Button
                     type="text"
                     icon={<SwitcherOutlined />}
                     onClick={handleSwitchMode}
-                    style={{ color: '#666' }}
+                    style={{ color: 'var(--odap-color-text-secondary)' }}
                   >
                     {isAgentMode ? '管理后台' : '我的智能体'}
                   </Button>
@@ -624,7 +686,7 @@ export function AppLayout({ children, currentWorkspace, onWorkspaceChange }: App
                     icon={rightCollapsed ? <RightOutlined /> : <LeftOutlined />}
                     onClick={() => setRightCollapsed(!rightCollapsed)}
                     title={rightCollapsed ? '展开侧边栏' : '收起侧边栏'}
-                    style={{ color: '#666' }}
+                    style={{ color: 'var(--odap-color-text-secondary)' }}
                   />
                   <Dropdown
                     menu={{
@@ -643,19 +705,19 @@ export function AppLayout({ children, currentWorkspace, onWorkspaceChange }: App
                     placement="bottomRight"
                   >
                     <div style={{ display: 'flex', alignItems: 'center', gap: 8, cursor: 'pointer' }}>
-                      <span style={{ color: '#8c8c8c', fontSize: 14 }}>{user?.username || '未登录'}</span>
+                      <span style={{ color: 'var(--odap-color-text-secondary)', fontSize: 14 }}>{user?.username || '未登录'}</span>
                       <div
                         style={{
                           width: 32,
                           height: 32,
                           borderRadius: '50%',
-                          background: '#1890ff',
+                          background: 'linear-gradient(135deg, var(--odap-color-primary-600), var(--odap-color-accent-500))',
                           color: '#fff',
                           display: 'flex',
                           alignItems: 'center',
                           justifyContent: 'center',
                           fontSize: 14,
-                          fontWeight: 500,
+                          fontWeight: 600,
                         }}
                       >
                         {user?.username?.[0]?.toUpperCase() || '?'}
@@ -664,7 +726,8 @@ export function AppLayout({ children, currentWorkspace, onWorkspaceChange }: App
                   </Dropdown>
                 </div>
               </Header>
-              <Content style={{ padding: isAgentMode ? 0 : 16, height: 'calc(100vh - 64px)', overflow: "auto" }}>
+              <Content style={{ padding: isAgentMode ? 0 : 24, height: 'calc(100vh - 56px)', overflow: "auto", background: 'var(--odap-color-bg-secondary)', position: 'relative' }}>
+                <GlobalLoading />
                 {children}
               </Content>
             </Layout>
@@ -683,8 +746,9 @@ export function AppLayout({ children, currentWorkspace, onWorkspaceChange }: App
                 top: 0,
                 bottom: 0,
                 zIndex: 100,
-                background: '#ffffff',
-                borderLeft: '1px solid #f0f0f0',
+                background: 'var(--odap-color-bg-primary)',
+                borderLeft: '1px solid var(--odap-color-border-light)',
+                boxShadow: 'var(--odap-shadow-sm)',
               }}
               width={280}
             >
@@ -695,10 +759,11 @@ export function AppLayout({ children, currentWorkspace, onWorkspaceChange }: App
                   alignItems: 'center',
                   justifyContent: 'space-between',
                   padding: '0 16px',
-                  borderBottom: '1px solid #f0f0f0',
+                  borderBottom: '1px solid var(--odap-color-border-light)',
+                  background: 'var(--odap-color-bg-secondary)',
                 }}
               >
-                <span style={{ fontSize: 16, fontWeight: 600, color: '#333' }}>
+                <span style={{ fontSize: 14, fontWeight: 600, color: 'var(--odap-color-text-primary)' }}>
                   {rightPanelTitle || '扩展面板'}
                 </span>
                 <Button

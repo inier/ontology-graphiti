@@ -11,6 +11,7 @@ class Cardinality(str, Enum):
     ONE_TO_MANY = "1:N"
     MANY_TO_ONE = "N:1"
     MANY_TO_MANY = "N:N"
+    MANY_TO_MANY_ALT = "N:M"
 
 
 class LinkType(str, Enum):

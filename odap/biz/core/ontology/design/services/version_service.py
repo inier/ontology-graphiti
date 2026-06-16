@@ -99,10 +99,16 @@ class OntologyVersionManager:
 
     def __init__(self, storage=None):
         from ..storage.sqlite_ingest_storage import SQLiteIngestStorage
-        if storage is None:
+        from .version_storage_adapter import VersionStorageAdapter
+        if isinstance(storage, VersionStorageAdapter):
+            # 支持 VersionStorageAdapter 作为统一存储后端
+            self._storage = storage
+        elif storage is None:
             storage = SQLiteIngestStorage()
-        self._storage = storage
-        self._resolver: EntityResolver = EntityResolver(storage)
+            self._storage = storage
+        else:
+            self._storage = storage
+        self._resolver: EntityResolver = EntityResolver(self._storage if not isinstance(self._storage, VersionStorageAdapter) else self._storage._primary)
         self._entity_history: Dict[str, List[EntitySnapshot]] = {}
 
     @classmethod

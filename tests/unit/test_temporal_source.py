@@ -94,9 +94,9 @@ class TestTemporalSource:
         gm = MagicMock()
         gm.query_temporal.return_value = []
         source = self._make_source(gm)
-        source.query({"type": "MilitaryUnit", "valid_time": "2025-01-01"})
+        source.query({"type": "OrganizationUnit", "valid_time": "2025-01-01"})
         gm.query_temporal.assert_called_once_with(
-            valid_time="2025-01-01", transaction_time=None, entity_type="MilitaryUnit"
+            valid_time="2025-01-01", transaction_time=None, entity_type="OrganizationUnit"
         )
 
 

@@ -1,8 +1,8 @@
 import { useState, useEffect, useCallback } from 'react';
 import { Tabs, Spin, Empty, Tag } from 'antd';
 import { ExperimentOutlined, DatabaseOutlined } from '@ant-design/icons';
-import { IngestPanel } from '../../ingest';
-import { api } from '../../shared';
+import { IngestPanel } from '@/modules/ingest';
+import { api } from '@/modules/shared';
 
 interface ExtractionStep {
   title: string;

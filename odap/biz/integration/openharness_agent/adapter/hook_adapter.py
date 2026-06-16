@@ -1,3 +1,6 @@
+"""DEPRECATED: This adapter delegates to odap.infra.openharness.*.
+Use infra-layer imports directly in new code."""
+
 import logging
 import uuid
 from typing import Any, Callable, Dict, List, Optional

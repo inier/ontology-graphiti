@@ -171,9 +171,19 @@ class DomainEventBus:
         }, workspace_id)
 
     async def _broadcast(self, message: str, workspace_id: Optional[str] = None):
+        """广播消息到 WebSocket 客户端
+
+        修复：当 workspace_id 有值但无对应客户端时，同时广播给全局客户端，
+        避免消息静默丢失。
+        """
         dead: Set = set()
-        targets = self._workspace_clients.get(workspace_id, set()) if workspace_id else self._ws_clients
-        if not workspace_id:
+
+        if workspace_id:
+            # workspace_id 有值时：广播给该 workspace 的客户端 + 全局客户端
+            ws_clients = self._workspace_clients.get(workspace_id, set())
+            targets = ws_clients | self._ws_clients
+        else:
+            # 无 workspace_id 时：仅广播给全局客户端
             targets = self._ws_clients
 
         for ws in list(targets):

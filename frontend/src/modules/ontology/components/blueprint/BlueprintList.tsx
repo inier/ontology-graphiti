@@ -1,8 +1,8 @@
 import { useState } from 'react';
 import { List, Card, Button, Tag, Modal, Input, Space, message } from 'antd';
 import { PlusOutlined, DeleteOutlined, ForkOutlined } from '@ant-design/icons';
-import { useBlueprintStore } from '../../stores/blueprintStore';
-import { blueprintApi } from '../../services/blueprintApi';
+import { useBlueprintStore } from '@/modules/ontology/stores/blueprintStore';
+import { blueprintApi } from '@/modules/ontology/services/blueprintApi';
 
 export function BlueprintList() {
   const { blueprints, currentBlueprint, loadBlueprint, createBlueprint, deleteBlueprint } = useBlueprintStore();

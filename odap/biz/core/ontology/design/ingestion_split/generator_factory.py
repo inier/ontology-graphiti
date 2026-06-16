@@ -6,7 +6,7 @@ RandomEventGeneratorFactory: 随机事件生成器工厂
 """
 
 from .base_generator import BaseRandomGenerator
-from .military_generator import RandomEventGenerator
+from .conflict_generator import ConflictEventGenerator
 from .business_generator import BusinessEventGenerator
 from .tech_generator import TechEventGenerator
 from .health_generator import HealthEventGenerator
@@ -16,14 +16,14 @@ class RandomEventGeneratorFactory:
     """随机事件生成器工厂"""
 
     _generators = {
-        "military": RandomEventGenerator,
+        "conflict": ConflictEventGenerator,
         "business": BusinessEventGenerator,
         "tech": TechEventGenerator,
         "healthcare": HealthEventGenerator,
     }
 
     _descriptions = {
-        "military": "军事战争事件生成器 - 生成进攻、巡逻、增援、撤退等军事行动",
+        "conflict": "冲突事件生成器 - 生成交锋、巡查、支援、撤出等冲突行动",
         "business": "商业事件生成器 - 生成投资、并购、产品发布等商业事件",
         "tech": "科技事件生成器 - 生成技术突破、产品发布等科技事件",
         "healthcare": "医疗健康事件生成器 - 生成新药研发、临床试验等医疗事件",

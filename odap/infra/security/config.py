@@ -10,6 +10,7 @@
 
 import os
 import logging
+from odap.infra.config_composer import get_config
 from .secret_helpers import (
     get_required_secret,
     get_optional_secret,
@@ -48,19 +49,19 @@ class SecurityConfig:
     """
 
     # LLM 配置（API key 不视为敏感默认值——它本身是用户输入）
-    OPENAI_API_KEY = os.getenv('OPENAI_API_KEY', '')
-    OPENAI_API_BASE = os.getenv('OPENAI_API_BASE', 'https://api.siliconflow.cn/v1/chat/completions')
-    OPENAI_MODEL = os.getenv('OPENAI_MODEL', 'Pro/MiniMaxAI/MiniMax-M2.5')
+    OPENAI_API_KEY = get_config("llm.api_key", "")
+    OPENAI_API_BASE = get_config("llm.api_base", "https://api.siliconflow.cn/v1/chat/completions")
+    OPENAI_MODEL = get_config("llm.model", "Pro/MiniMaxAI/MiniMax-M2.5")
 
     # Neo4j 配置
-    NEO4J_URI = os.getenv('NEO4J_URI', 'bolt://localhost:7687')
-    NEO4J_USER = os.getenv('NEO4J_USER', 'neo4j')
+    NEO4J_URI = get_config("graph_db.uri", 'bolt://localhost:7687')
+    NEO4J_USER = get_config("graph_db.user", 'neo4j')
 
     # CORS 配置
-    CORS_ORIGINS = [origin.strip() for origin in os.getenv('CORS_ORIGINS', 'http://localhost,http://localhost:80,http://localhost:3000,http://localhost:8000,http://localhost:5173').split(',')]
+    CORS_ORIGINS = [origin.strip() for origin in get_config("general.cors_origins", 'http://localhost,http://localhost:80,http://localhost:3000,http://localhost:8000,http://localhost:5173').split(',')]
 
     # 日志配置
-    LOG_LEVEL = os.getenv('LOG_LEVEL', 'INFO')
+    LOG_LEVEL = get_config("logging.level", 'INFO')
     LOG_FILE = os.getenv('LOG_FILE', 'app.log')
 
     @classmethod

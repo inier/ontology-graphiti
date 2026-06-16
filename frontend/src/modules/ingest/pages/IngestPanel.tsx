@@ -1,8 +1,12 @@
 import { useState, useEffect, useCallback } from 'react';
-import { Card, Tabs, Button, Space, Input, Upload, message, Table, Tag, Descriptions, Spin, Drawer, Empty, Typography, Row, Col, Steps, Timeline, Select, Statistic } from 'antd';
-import { UploadOutlined, SyncOutlined, CheckCircleOutlined, LoadingOutlined, DatabaseOutlined, ApiOutlined, RobotOutlined, CloudServerOutlined, GitlabOutlined, FolderOutlined, PlusOutlined, EyeOutlined, SwapOutlined, CheckCircleFilled, CloseCircleFilled } from '@ant-design/icons';
-import { api } from '../../shared';
-import { useScenario, useWorkspace } from '../../shared';
+import { Card, Tabs, Button, Space, Input, Upload, message, Table, Tag, Descriptions, Spin, Drawer, Empty, Typography, Row, Col, Steps, Timeline, Select, Statistic, Progress } from 'antd';
+import { UploadOutlined, SyncOutlined, CheckCircleOutlined, LoadingOutlined, DatabaseOutlined, ApiOutlined, RobotOutlined, CloudServerOutlined, GitlabOutlined, FolderOutlined, PlusOutlined, EyeOutlined, SwapOutlined, CheckCircleFilled, CloseCircleFilled, SearchOutlined, GlobalOutlined } from '@ant-design/icons';
+import { api } from '@/modules/shared';
+import { useScenario, useWorkspace } from '@/modules/shared';
+import { useBuildProgress } from '../hooks';
+import WebSearchPanel from '../components/WebSearchPanel';
+import WebCrawlPanel from '../components/WebCrawlPanel';
+import { PageTourWrapper, ingestTourSteps, PAGE_IDS } from '@/modules/guide';
 const { Dragger } = Upload;
 const { TextArea } = Input;
 const { Text, Paragraph } = Typography;
@@ -105,6 +109,7 @@ const _PIPELINE_DESCRIPTIONS: Record<string, string> = {
 export function IngestPanel() {
   const { currentScenario } = useScenario();
   const { currentWorkspace } = useWorkspace();
+  const buildProgress = useBuildProgress(currentScenario || undefined);
   const [activeTab, setActiveTab] = useState('text');
 
   const [text, setText] = useState('');
@@ -122,7 +127,7 @@ export function IngestPanel() {
     name: string;
     description: string;
   }>>([]);
-  const [selectedGeneratorType, setSelectedGeneratorType] = useState('military');
+  const [selectedGeneratorType, setSelectedGeneratorType] = useState('conflict');
 
   const [loading, setLoading] = useState(false);
   const [ingestHistory, setIngestHistory] = useState<IngestRecord[]>([]);
@@ -299,15 +304,15 @@ export function IngestPanel() {
     const mockTexts: Record<string, { input: string; output: string }> = {
       collection: {
         input: '{"source": "manual", "format": "text/plain"}',
-        output: '{"record_count": 1, "original_content": "5月1日，蓝军向红军阵地发起进攻..."}'
+        output: '{"record_count": 1, "original_content": "5月1日，乙方向甲方阵地发起交锋..."}'
       },
       cleaning: {
-        input: '{"original_content": "5月1日，蓝军向红军阵地发起进攻..."}',
-        output: '{"cleaned_content": "5月1日蓝军向红军阵地发起进攻", "duplicates_removed": 0}'
+        input: '{"original_content": "5月1日，乙方向甲方阵地发起交锋..."}',
+        output: '{"cleaned_content": "5月1日乙方向甲方阵地发起交锋", "duplicates_removed": 0}'
       },
       llm: {
-        input: '{"cleaned_content": "5月1日蓝军向红军阵地发起进攻", "prompt": "ontology_extraction"}',
-        output: '{"entities": [{"id": "e1", "name": "蓝军"}, {"id": "e2", "name": "红军"}], "relations": [{"id": "r1", "type": "攻击", "source": "蓝军", "target": "红军"}]}'
+        input: '{"cleaned_content": "5月1日乙方向甲方阵地发起交锋", "prompt": "ontology_extraction"}',
+        output: '{"entities": [{"id": "e1", "name": "乙方"}, {"id": "e2", "name": "甲方"}], "relations": [{"id": "r1", "type": "交锋", "source": "乙方", "target": "甲方"}]}'
       },
       ontology: {
         input: '{"entities": 2, "relations": 1, "events": 1}',
@@ -510,7 +515,7 @@ export function IngestPanel() {
       const result = await api.ingest({
         type: 'random',
         data: { 
-          parties: ['蓝方', '红方'],
+          parties: ['乙方', '甲方'],
           generator_type: selectedGeneratorType
         },
         scenario_id: currentScenario || undefined,
@@ -847,7 +852,7 @@ export function IngestPanel() {
             onChange={(e) => setText(e.target.value)}
           />
           <Space style={{ marginTop: 16 }}>
-            <Button type="primary" onClick={handleIngestText} loading={loading}>
+            <Button type="primary" onClick={handleIngestText} loading={loading} data-tour="ingest-start-btn">
               开始摄入
             </Button>
             <Button onClick={() => setText('')}>
@@ -904,7 +909,7 @@ export function IngestPanel() {
         <Card style={{ marginBottom: 16 }}>
           <TextArea
             rows={4}
-            placeholder="用自然语言描述一个事件或情况，例如：红方第1装甲旅在B区高地与蓝方第2步兵营发生交火"
+            placeholder="用自然语言描述一个事件或情况，例如：甲方第1机动组在B区高地与乙方第2行动组发生交锋"
             value={nlDescription}
             onChange={(e) => setNlDescription(e.target.value)}
           />
@@ -925,7 +930,7 @@ export function IngestPanel() {
       children: (
         <Card style={{ marginBottom: 16 }}>
           <Paragraph>生成随机的事件数据，用于测试和演示</Paragraph>
-          <Space direction="vertical" style={{ width: '100%' }}>
+          <Space orientation="vertical" style={{ width: '100%' }}>
             <div>
               <Text strong>事件类型：</Text>
               <Select
@@ -994,10 +999,38 @@ export function IngestPanel() {
         </Card>
       ),
     },
+    {
+      key: 'web_search',
+      label: '联网搜索',
+      children: <Card style={{ marginBottom: 16 }}><WebSearchPanel /></Card>,
+    },
+    {
+      key: 'web_crawl',
+      label: '智能爬取',
+      children: <Card style={{ marginBottom: 16 }}><WebCrawlPanel /></Card>,
+    },
   ];
 
   return (
+    <PageTourWrapper pageId={PAGE_IDS.INGEST} steps={ingestTourSteps}>
     <div>
+      {buildProgress.progress > 0 && buildProgress.progress < 100 && (
+        <Card style={{ marginBottom: 12, borderRadius: 8 }} size="small">
+          <Space orientation="vertical" style={{ width: '100%' }} size={4}>
+            <Space>
+              <LoadingOutlined spin />
+              <Text strong>构建进度: {buildProgress.stage}</Text>
+              <Tag color="blue">{buildProgress.message}</Tag>
+            </Space>
+            <Progress
+              percent={Math.round(buildProgress.progress)}
+              size="small"
+              status="active"
+              strokeColor={{ from: '#1890ff', to: '#52c41a' }}
+            />
+          </Space>
+        </Card>
+      )}
       <Row gutter={16}>
         <Col span={24}>
           <Card style={{ marginBottom: 12, borderRadius: 8 }} size="small">
@@ -1007,12 +1040,14 @@ export function IngestPanel() {
               items={tabItems}
               tabPlacement="top"
               size="small"
+              data-tour="ingest-source-tabs"
             />
           </Card>
 
           <Card
             style={{ borderRadius: 8 }}
             size="small"
+            data-tour="ingest-history-table"
             extra={
               <Button size="small" icon={<SyncOutlined />} onClick={loadHistory} loading={loadingHistory}>
                 刷新
@@ -1020,9 +1055,9 @@ export function IngestPanel() {
             }
           >
             {loadingHistory ? (
-              <div style={{ textAlign: 'center', padding: 40 }}>
-                <Spin />
-              </div>
+              <Spin spinning style={{ width: '100%' }}>
+                <div style={{ minHeight: 100 }} />
+              </Spin>
             ) : ingestHistory.length === 0 ? (
               <Empty description="暂无摄入记录，请通过上方方式摄入数据" />
             ) : (
@@ -1058,7 +1093,7 @@ export function IngestPanel() {
       >
         {currentBuild && (
           <Space orientation="vertical" size="large">
-            <Descriptions bordered column={2} size="small">
+            <Descriptions variant="bordered" column={2} size="small">
               <Descriptions.Item label="摄入ID">{currentBuild.ingest_id}</Descriptions.Item>
               <Descriptions.Item label="来源">
                 <Tag color="blue">{currentBuild.source}</Tag>
@@ -1152,7 +1187,7 @@ export function IngestPanel() {
               </Card>
 
               <Card title="本体架构说明" size="small">
-                <Descriptions bordered column={1} size="small">
+                <Descriptions variant="bordered" column={1} size="small">
                   <Descriptions.Item label="文档格式">OntologyDocument</Descriptions.Item>
                   <Descriptions.Item label="实体类型">
                     <Space wrap>
@@ -1173,8 +1208,8 @@ export function IngestPanel() {
                   <Descriptions.Item label="事件类型">
                     <Space wrap size={[4, 4]}>
                       <Tag color="orange">contact</Tag>
-                      <Tag color="red">attack</Tag>
-                      <Tag color="blue">retreat</Tag>
+                      <Tag color="red">engage</Tag>
+                      <Tag color="blue">withdraw</Tag>
                     </Space>
                   </Descriptions.Item>
                 </Descriptions>
@@ -1185,6 +1220,7 @@ export function IngestPanel() {
         )}
       </Drawer>
     </div>
+    </PageTourWrapper>
   );
 }
 

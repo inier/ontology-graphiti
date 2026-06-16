@@ -32,6 +32,7 @@ class LinkCardinality(str, Enum):
     ONE_TO_MANY = "1:N"
     MANY_TO_ONE = "N:1"
     MANY_TO_MANY = "N:N"
+    MANY_TO_MANY_ALT = "N:M"
 
 
 class LinkDefinition(BaseModel):
@@ -133,3 +134,61 @@ class ActionTypeUpdate(BaseModel):
     writeback_config: Optional[Dict[str, Any]] = None
     confirmation_required: Optional[bool] = None
     is_active: Optional[bool] = None
+
+
+class ProcessTypeDefinition(BaseModel):
+    """业务过程类型定义"""
+    type_id: str = Field(default_factory=lambda: __import__('uuid').uuid4().hex[:12])
+    ontology_id: str = ""
+    version_id: Optional[str] = None
+    name: str
+    display_name: str = ""
+    description: str = ""
+    flow_node_schema: List[Dict[str, Any]] = Field(default_factory=list)
+    related_object_types: List[str] = Field(default_factory=list)
+    created_at: str = ""
+    updated_at: str = ""
+
+
+class RuleTypeDefinition(BaseModel):
+    """规则类型定义"""
+    type_id: str = Field(default_factory=lambda: __import__('uuid').uuid4().hex[:12])
+    ontology_id: str = ""
+    version_id: Optional[str] = None
+    name: str
+    display_name: str = ""
+    description: str = ""
+    condition_schema: Dict[str, Any] = Field(default_factory=dict)
+    consequence_schema: Dict[str, Any] = Field(default_factory=dict)
+    priority_levels: List[str] = Field(default_factory=lambda: ["low", "medium", "high"])
+    related_object_types: List[str] = Field(default_factory=list)
+    created_at: str = ""
+
+
+class FunctionTypeDefinition(BaseModel):
+    """逻辑函数类型定义"""
+    type_id: str = Field(default_factory=lambda: __import__('uuid').uuid4().hex[:12])
+    ontology_id: str = ""
+    version_id: Optional[str] = None
+    name: str
+    display_name: str = ""
+    description: str = ""
+    logic_types: List[str] = Field(default_factory=lambda: ["filter", "transform", "validate", "compute"])
+    expression_schema: Dict[str, Any] = Field(default_factory=dict)
+    related_object_types: List[str] = Field(default_factory=list)
+    created_at: str = ""
+
+
+class IndicatorTypeDefinition(BaseModel):
+    """指标类型定义"""
+    type_id: str = Field(default_factory=lambda: __import__('uuid').uuid4().hex[:12])
+    ontology_id: str = ""
+    version_id: Optional[str] = None
+    name: str
+    display_name: str = ""
+    description: str = ""
+    indicator_types: List[str] = Field(default_factory=lambda: ["kpi", "metric", "dimension"])
+    formula_schema: Dict[str, Any] = Field(default_factory=dict)
+    allowed_units: List[str] = Field(default_factory=list)
+    related_object_types: List[str] = Field(default_factory=list)
+    created_at: str = ""

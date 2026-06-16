@@ -3,8 +3,9 @@ Agent 编排单元测试 - 对齐 odap/biz/core/agent/
 
 覆盖:
 - swarm_orchestrator: IntentRouter 路由、SubAgentPlanner 规划、OODAProgress/MissionResult 数据模型
-- orchestrator: SelfCorrectingOrchestrator 查询解析与路由
 - decision_service: DecisionService 创建决策、记录步骤、获取决策链
+
+注：SelfCorrectingOrchestrator 已删除（冗余组件），相关测试已移除。
 """
 
 import pytest
@@ -39,27 +40,15 @@ def decision_service():
     return svc
 
 
-@pytest.fixture
-def orchestrator():
-    """创建 SelfCorrectingOrchestrator 实例"""
-    from odap.biz.core.agent.orchestrator import SelfCorrectingOrchestrator
-    with patch("odap.biz.core.agent.orchestrator.OPAManager"):
-        orch = SelfCorrectingOrchestrator(user_role="commander")
-    # 确保 SKILL_CATALOG 为空，使技能查找返回不存在
-    patcher = patch("odap.biz.core.agent.orchestrator.SKILL_CATALOG", {})
-    patcher.start()
-    return orch
-
-
 # ===========================================================================
-# TestIntentRouter - 意图路由
+# TestDecisionService - 决策服务
 # ===========================================================================
 
 class TestIntentRouter:
     """IntentRouter 意图路由测试"""
 
     def test_route_intelligence_keyword(self, intent_router):
-        """包含情报关键词应路由到 intelligence agent"""
+        """包含信息关键词应路由到 information_agent"""
         result = intent_router.route("分析当前态势威胁")
         assert result["agent"] == "intelligence"
         assert result["confidence"] > 0
@@ -98,7 +87,7 @@ class TestSubAgentPlanner:
     """SubAgentPlanner 子 Agent 规划测试"""
 
     def test_plan_for_intelligence_agent(self, sub_agent_planner):
-        """intelligence agent 应规划情报收集和分析任务"""
+        """information_agent 应规划情报收集和分析任务"""
         tasks = sub_agent_planner.plan("分析态势", "intelligence")
         assert len(tasks) >= 1
         task_actions = [t["action"] for t in tasks]
@@ -168,49 +157,6 @@ class TestOODADataModels:
 
 
 # ===========================================================================
-# TestSelfCorrectingOrchestrator - 自校正编排器
-# ===========================================================================
-
-class TestSelfCorrectingOrchestrator:
-    """SelfCorrectingOrchestrator 编排器测试"""
-
-    def test_parse_radar_query(self, orchestrator):
-        """解析雷达查询应返回 search_radar 技能"""
-        skill_name, args = orchestrator._parse_query("帮我看看 B 区有没有雷达")
-        assert skill_name == "search_radar"
-        assert args["area"] == "B"
-
-    def test_parse_domain_analysis_query(self, orchestrator):
-        """解析领域分析查询应返回 analyze_domain 技能"""
-        skill_name, args = orchestrator._parse_query("分析领域态势")
-        assert skill_name == "analyze_domain"
-
-    def test_parse_strike_recommendation_query(self, orchestrator):
-        """解析打击推荐查询应返回 recommend_strike_targets 技能"""
-        skill_name, args = orchestrator._parse_query("推荐 A 区打击目标")
-        assert skill_name == "recommend_strike_targets"
-        assert args["area"] == "A"
-
-    def test_parse_force_comparison_query(self, orchestrator):
-        """解析力量对比查询应返回 analyze_force_comparison 技能"""
-        skill_name, args = orchestrator._parse_query("对比 C 区力量")
-        assert skill_name == "analyze_force_comparison"
-        assert args["area"] == "C"
-
-    def test_parse_attack_query(self, orchestrator):
-        """解析攻击查询应返回 attack_target 技能"""
-        skill_name, args = orchestrator._parse_query("攻击 TARGET_001")
-        assert skill_name == "attack_target"
-        assert args["target_id"] is not None
-
-    def test_run_with_nonexistent_skill_returns_error(self, orchestrator):
-        """执行不存在的技能应返回错误"""
-        result = orchestrator.run("帮我看看 B 区有没有雷达")
-        assert result["status"] == "error"
-        assert "技能不存在" in result["message"]
-
-
-# ===========================================================================
 # TestDecisionService - 决策服务
 # ===========================================================================
 
@@ -238,7 +184,7 @@ class TestDecisionService:
             decision_id=decision_id,
             phase=DecisionPhase.OBSERVE,
             description="感知阶段完成",
-            evidence=[{"source": "radar", "data": "敌情信息"}],
+            evidence=[{"source": "sensor", "data": "态势信息"}],
         )
         assert step_result["decision_id"] == decision_id
         assert step_result["phase"] == "observe"

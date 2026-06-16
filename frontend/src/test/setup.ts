@@ -26,6 +26,23 @@ global.ResizeObserver = vi.fn().mockImplementation(() => ({
 
 Element.prototype.scrollIntoView = vi.fn()
 
+// ─── Sigma.js WebGL stub ───
+// sigma.js references WebGL2RenderingContext and WebGLRenderingContext at module level,
+// which do not exist in jsdom. Provide minimal stubs.
+if (typeof (globalThis as Record<string, unknown>).WebGL2RenderingContext === 'undefined') {
+  (globalThis as Record<string, unknown>).WebGL2RenderingContext = class WebGL2RenderingContext {};
+}
+if (typeof (globalThis as Record<string, unknown>).WebGLRenderingContext === 'undefined') {
+  (globalThis as Record<string, unknown>).WebGLRenderingContext = class WebGLRenderingContext {};
+}
+
+// ─── @react-sigma/minimap stub ───
+// MiniMap creates a second Sigma instance (WebGL) which won't work in jsdom.
+// Mock the entire module so tests can import MinimapPanel without WebGL errors.
+vi.mock('@react-sigma/minimap', () => ({
+  MiniMap: () => null,
+}))
+
 vi.mock('@/config', () => ({
   API_BASE: 'http://localhost:8000',
 }))

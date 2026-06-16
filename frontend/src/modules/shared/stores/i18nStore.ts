@@ -9,36 +9,36 @@ import messagesZh from '../locales/zh-CN/messages.json';
 import messagesEn from '../locales/en-US/messages.json';
 
 // Agent
-import agentZh from '../../agent/locales/zh-CN/agent.json';
-import agentEn from '../../agent/locales/en-US/agent.json';
+import agentZh from '@/modules/agent/locales/zh-CN/agent.json';
+import agentEn from '@/modules/agent/locales/en-US/agent.json';
 
 // Audit
-import auditZh from '../../audit/locales/zh-CN/audit.json';
-import auditEn from '../../audit/locales/en-US/audit.json';
+import auditZh from '@/modules/audit/locales/zh-CN/audit.json';
+import auditEn from '@/modules/audit/locales/en-US/audit.json';
 
 // Ontology
-import ontologyZh from '../../ontology/locales/zh-CN/ontology.json';
-import ontologyEn from '../../ontology/locales/en-US/ontology.json';
+import ontologyZh from '@/modules/ontology/locales/zh-CN/ontology.json';
+import ontologyEn from '@/modules/ontology/locales/en-US/ontology.json';
 
 // Simulation
-import simulationZh from '../../simulation/locales/zh-CN/simulation.json';
-import simulationEn from '../../simulation/locales/en-US/simulation.json';
+import simulationZh from '@/modules/simulation/locales/zh-CN/simulation.json';
+import simulationEn from '@/modules/simulation/locales/en-US/simulation.json';
 
 // Workspace
-import workspaceZh from '../../workspace/locales/zh-CN/workspace.json';
-import workspaceEn from '../../workspace/locales/en-US/workspace.json';
+import workspaceZh from '@/modules/workspace/locales/zh-CN/workspace.json';
+import workspaceEn from '@/modules/workspace/locales/en-US/workspace.json';
 
 // QA
-import qaZh from '../../qa/locales/zh-CN/qa.json';
-import qaEn from '../../qa/locales/en-US/qa.json';
+import qaZh from '@/modules/qa/locales/zh-CN/qa.json';
+import qaEn from '@/modules/qa/locales/en-US/qa.json';
 
 // Knowledge
-import knowledgeZh from '../../knowledge/locales/zh-CN/knowledge.json';
-import knowledgeEn from '../../knowledge/locales/en-US/knowledge.json';
+import knowledgeZh from '@/modules/knowledge/locales/zh-CN/knowledge.json';
+import knowledgeEn from '@/modules/knowledge/locales/en-US/knowledge.json';
 
 // System
-import systemZh from '../../system/locales/zh-CN/system.json';
-import systemEn from '../../system/locales/en-US/system.json';
+import systemZh from '@/modules/system/locales/zh-CN/system.json';
+import systemEn from '@/modules/system/locales/en-US/system.json';
 
 const STORAGE_KEY = 'odap-locale';
 

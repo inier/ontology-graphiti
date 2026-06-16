@@ -18,7 +18,7 @@ import {
   PlusOutlined, DeleteOutlined, SaveOutlined, ReloadOutlined, PlayCircleOutlined, ArrowUpOutlined, ArrowDownOutlined,
 } from '@ant-design/icons';
 import { viewApi, type ObjectView, type ViewPermission } from '../services/viewApi';
-import { useI18n } from '../../shared/hooks/useI18n';
+import { useI18n } from '@/modules/shared/hooks/useI18n';
 
 const { Text, Title } = Typography;
 
@@ -234,7 +234,7 @@ export function ViewDesigner({ viewId, onSaved, onClose }: ViewDesignerProps) {
                 {
                   key: 'filters', label: `过滤 (${filters.length})`,
                   children: (
-                    <Space direction="vertical" style={{ width: '100%' }}>
+                    <Space orientation="vertical" style={{ width: '100%' }}>
                       {filters.map((f, i) => (
                         <Space key={i}>
                           <Select size="small" style={{ width: 140 }} value={f.field} options={candidates.map((c) => ({ value: c, label: c }))} onChange={(v) => setFilters((p) => p.map((x, j) => j === i ? { ...x, field: v } : x))} />
@@ -250,7 +250,7 @@ export function ViewDesigner({ viewId, onSaved, onClose }: ViewDesignerProps) {
                 {
                   key: 'sorts', label: `排序 (${sorts.length})`,
                   children: (
-                    <Space direction="vertical" style={{ width: '100%' }}>
+                    <Space orientation="vertical" style={{ width: '100%' }}>
                       {sorts.map((s, i) => (
                         <Space key={i}>
                           <Select size="small" style={{ width: 160 }} value={s.field} options={candidates.map((c) => ({ value: c, label: c }))} onChange={(v) => setSorts((p) => p.map((x, j) => j === i ? { ...x, field: v } : x))} />

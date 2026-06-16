@@ -3,6 +3,7 @@ import io
 import logging
 from datetime import timedelta
 from typing import Any, Dict, List, Optional
+from odap.infra.config_composer import get_config
 
 logger = logging.getLogger("minio_client")
 
@@ -35,7 +36,7 @@ class MinIOClient:
         if hasattr(self, "_initialized"):
             return
 
-        self._endpoint = endpoint or os.environ.get("MINIO_ENDPOINT", "minio:9000")
+        self._endpoint = endpoint or get_config("object_storage.endpoint", "minio:9000")
         # P0-8 fix: NEVER use hardcoded "minioadmin" defaults. Resolve via
         # env vars and fail-closed if not set in production.
         self._access_key = self._resolve_minio_credential(
@@ -46,7 +47,7 @@ class MinIOClient:
             "MINIO_SECRET_KEY", secret_key,
             min_length=8,
         )
-        self._secure = secure if secure is not None else os.environ.get("MINIO_SECURE", "false").lower() == "true"
+        self._secure = secure if secure is not None else get_config("object_storage.secure", False)
 
         self._client: Optional[Any] = None
         if MINIO_SDK_AVAILABLE:
@@ -72,13 +73,19 @@ class MinIOClient:
 
         Priority:
           1. Explicit constructor argument
-          2. Environment variable (treated as placeholder if value is "minioadmin")
+          2. Configuration Composer (env var mapped via get_config)
           3. In dev/test: use a placeholder
           4. In production: refuse to start without explicit value
         """
         if explicit_value:
             return explicit_value
-        value = os.environ.get(env_var, "").strip()
+        # Map env var names to config composer keys
+        _env_to_config_key = {
+            "MINIO_ACCESS_KEY": "object_storage.access_key",
+            "MINIO_SECRET_KEY": "object_storage.secret_key",
+        }
+        config_key = _env_to_config_key.get(env_var)
+        value = (get_config(config_key, "") if config_key else os.environ.get(env_var, "")).strip()
         # Treat "minioadmin" as a placeholder even if it comes from env
         if value.lower() in ("minioadmin", "minio", "admin", "admin123", "password"):
             value = ""

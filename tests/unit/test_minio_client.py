@@ -359,17 +359,22 @@ class TestErrorHandling:
 
     def test_env_var_configuration(self):
         from odap.infra.storage.minio_client import MinIOClient
+        import odap.infra.config_composer as cc_mod
         with patch.dict("os.environ", {
             "MINIO_ENDPOINT": "custom-minio:9000",
             "MINIO_ACCESS_KEY": "custom_key",
             "MINIO_SECRET_KEY": "custom_secret",
             "MINIO_SECURE": "true",
         }):
+            # 重置 ConfigurationComposer 单例，使 get_config() 读取新环境变量
+            cc_mod._global_composer = None
             client = MinIOClient()
             assert client._endpoint == "custom-minio:9000"
             assert client._access_key == "custom_key"
             assert client._secret_key == "custom_secret"
             assert client._secure is True
+            # 清理：重置单例和 MinIOClient 以免影响其他测试
+            cc_mod._global_composer = None
 
     def test_available_property_no_client(self):
         from odap.infra.storage.minio_client import MinIOClient

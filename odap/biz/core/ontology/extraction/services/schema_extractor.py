@@ -89,12 +89,17 @@ class SchemaLevelExtractor:
                     "OPENAI_API_KEY not configured; cannot call LLM for NL extraction"
                 )
 
-            config = LLMConfig(
-                model=model,
-                api_key=api_key,
-                base_url=api_base,
-                temperature=0.7,
-            )
+            try:
+                config = LLMConfig(
+                    model=model,
+                    api_key=api_key,
+                    base_url=api_base,
+                    temperature=0.7,
+                )
+            except TypeError as e:
+                raise RuntimeError(
+                    f"OPENAI_API_KEY configuration error: LLMConfig incompatible: {e}"
+                )
             self._llm_client = ZhipuAIClient(config=config)
         return self._llm_client
 

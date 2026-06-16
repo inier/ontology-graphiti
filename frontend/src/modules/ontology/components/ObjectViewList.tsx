@@ -23,7 +23,7 @@ import {
   PlusOutlined, ReloadOutlined, EyeOutlined, EditOutlined, CopyOutlined, DeleteOutlined, CheckOutlined, StopOutlined,
 } from '@ant-design/icons';
 import { viewApi, type ObjectView } from '../services/viewApi';
-import { useI18n } from '../../shared/hooks/useI18n';
+import { useI18n } from '@/modules/shared/hooks/useI18n';
 
 const { Search } = Input;
 
@@ -210,7 +210,7 @@ export function ObjectViewList({ workspaceId, onEdit, onPreview }: ObjectViewLis
       dataIndex: 'name',
       key: 'name',
       render: (v: string, r) => (
-        <Space size={4} direction="vertical" style={{ lineHeight: 1.2 }}>
+        <Space size={4} orientation="vertical" style={{ lineHeight: 1.2 }}>
           <Space>
             <strong>{v}</strong>
             <Tag color={STATUS_META[deriveStatus(r)].color}>{STATUS_META[deriveStatus(r)].label}</Tag>

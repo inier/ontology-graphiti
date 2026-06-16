@@ -3,6 +3,7 @@ import re
 import uuid
 from typing import Dict, Any, List, Optional
 
+from odap.infra.config_composer import get_config
 from odap.biz.core.ontology.design.services.qa_ontology_builder import IntentType
 from odap.biz.platform.roles.api.schemas import RoleType
 
@@ -110,12 +111,11 @@ class IntentRecognizer:
 
     def _recognize_with_llm(self, query, role, ontology_facts):
         try:
-            import os
             import requests
             import json
-            api_key = os.getenv("OPENAI_API_KEY", "")
-            base_url = os.getenv("OPENAI_API_BASE", "https://api.openai.com/v1")
-            model = os.getenv("OPENAI_MODEL", "deepseek-ai/deepseek-v4-pro")
+            api_key = get_config("llm.api_key", "")
+            base_url = get_config("llm.api_base", "https://api.openai.com/v1")
+            model = get_config("llm.model", "deepseek-ai/deepseek-v4-pro")
             if not api_key:
                 return None
             prompt = f"""分析以下用户查询的意图，返回JSON格式：
@@ -160,7 +160,7 @@ class IntentRecognizer:
     def _extract_entities(self, query: str) -> List[str]:
         entities = []
         patterns = [
-            r"雷达站?[A-Z]?", r"雷达\d+", r"[A-Z]+-?\d+雷达",
+            r"监测站?[A-Z]?", r"传感器\d+", r"[A-Z]+-?\d+传感器",
             r"目标[一二三四五六七八九十\d]+", r"目标[A-Z]?", r"target\d*",
             r"单位\d+", r"[A-Z]+连", r"[A-Z]+营",
             r"[A-Z]区", r"[A-Z]地带", r"坐标[\d,\.]+",

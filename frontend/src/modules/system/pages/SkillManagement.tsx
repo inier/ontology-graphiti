@@ -1,8 +1,8 @@
 import { useState, useEffect } from 'react';
 import { Card, Table, Button, Space, Tag, Switch, Upload, Modal, Form, Input, Select, Tabs, Row, Col, Statistic, message, Popconfirm, Empty, Descriptions, Badge, Divider, Typography } from 'antd';
 import { UploadOutlined, ReloadOutlined, PlusOutlined, DeleteOutlined, CheckCircleOutlined, StopOutlined, AppstoreOutlined, FolderOutlined, FileTextOutlined, EyeOutlined, ThunderboltOutlined } from '@ant-design/icons';
-import { api } from '../../shared';
-import { PageHeader } from '../../shared';
+import { api } from '@/modules/shared';
+import { PageHeader } from '@/modules/shared';
 import { SkillEditor } from '../components/SkillEditor';
 
 const { Text } = Typography;
@@ -375,7 +375,7 @@ export function SkillManagement() {
           {categories.map((cat) => (
             <Col span={8} key={cat.name}>
               <Card size="small">
-                <Space direction="vertical">
+                <Space orientation="vertical">
                   <Text strong>{cat.name}</Text>
                   <Tag color="blue">{cat.skill_count} Skills</Tag>
                   <Text type="secondary" style={{ fontSize: 11 }}>{cat.path}</Text>
@@ -414,8 +414,8 @@ export function SkillManagement() {
         width={700}
       >
         {selectedSkill && (
-          <Space direction="vertical" style={{ width: '100%' }}>
-            <Descriptions bordered column={1} size="small">
+          <Space orientation="vertical" style={{ width: '100%' }}>
+            <Descriptions variant="bordered" column={1} size="small">
               <Descriptions.Item label="名称">
                 <Text strong>{selectedSkill.name}</Text>
               </Descriptions.Item>
@@ -472,7 +472,7 @@ export function SkillManagement() {
         onCancel={() => setUploadModalVisible(false)}
         footer={null}
       >
-        <Space direction="vertical" style={{ width: '100%' }}>
+        <Space orientation="vertical" style={{ width: '100%' }}>
           <Select
             value={uploadCategory}
             onChange={setUploadCategory}
@@ -544,7 +544,7 @@ export function SkillManagement() {
 
       {/* Skill 可视化编辑器 */}
       <SkillEditor
-        visible={skillEditorVisible}
+        open={skillEditorVisible}
         skill={editingSkill ? {
           name: editingSkill.name,
           description: editingSkill.description || '',

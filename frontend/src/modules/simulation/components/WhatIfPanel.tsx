@@ -1,8 +1,8 @@
 import { useState } from 'react';
 import { Form, InputNumber, Button, Card, Table, Tag, Space, Typography, message } from 'antd';
 import { ExperimentOutlined } from '@ant-design/icons';
-import { apiClient } from '../../shared/services/apiClient';
-import { useI18n } from '../../shared/hooks/useI18n';
+import { apiClient } from '@/modules/shared/services/apiClient';
+import { useI18n } from '@/modules/shared/hooks/useI18n';
 
 const { Text } = Typography;
 
@@ -134,7 +134,7 @@ function WhatIfPanel({ sandboxId, scenarioId }: WhatIfPanelProps) {
         </Button>
       }
     >
-      <Space direction="vertical" style={{ width: '100%' }} size="middle">
+      <Space orientation="vertical" style={{ width: '100%' }} size="middle">
         <Card type="inner" title={t('whatif.parameters', 'Parameter Variations')} size="small">
           {params.map((param, idx) => (
             <Space key={idx} style={{ marginBottom: 8 }} align="baseline">

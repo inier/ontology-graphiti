@@ -102,8 +102,8 @@ class GraphWritebackConnector(WritebackConnector):
             return WritebackResult(False, "No target_object_id provided")
 
         try:
-            from odap.infra.graph.graph_service import GraphManager
-            graph = GraphManager()
+            from odap.infra.query import get_graph_write_proxy
+            write_proxy = get_graph_write_proxy()
 
             properties_to_update = {}
             if isinstance(data, dict):
@@ -112,12 +112,15 @@ class GraphWritebackConnector(WritebackConnector):
                         properties_to_update[key] = data[key]
 
             if properties_to_update:
-                graph.update_entity(target_id, properties_to_update)
-                return WritebackResult(
-                    True,
-                    f"Graph updated: {target_id} with {list(properties_to_update.keys())}",
-                    {'updated_properties': list(properties_to_update.keys())},
-                )
+                result = write_proxy.update_entity(target_id, properties_to_update)
+                if result.get("status") == "success":
+                    return WritebackResult(
+                        True,
+                        f"Graph updated: {target_id} with {list(properties_to_update.keys())}",
+                        {'updated_properties': list(properties_to_update.keys())},
+                    )
+                else:
+                    return WritebackResult(False, f"Graph update failed: {result.get('message', 'unknown')}")
             else:
                 return WritebackResult(True, "No properties to update in graph")
 

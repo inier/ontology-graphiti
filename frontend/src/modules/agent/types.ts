@@ -1,3 +1,15 @@
+export interface ResolvedNames {
+  workspace_name: string;
+  role_names: Record<string, string>;
+  object_names: Record<string, string>;
+  process_names: Record<string, string>;
+  rule_names: Record<string, string>;
+  logic_names: Record<string, string>;
+  indicator_names: Record<string, string>;
+  skill_names: Record<string, string>;
+  knowledge_base_names: Record<string, string>;
+}
+
 export interface Agent {
   agent_id: string;
   name: string;
@@ -17,6 +29,8 @@ export interface Agent {
   created_by: string;
   created_at: string;
   updated_at: string;
+  resolved_names?: ResolvedNames;
+  /** @deprecated 使用 resolved_names 替代 */
   ref_labels?: Record<string, string>;
 }
 

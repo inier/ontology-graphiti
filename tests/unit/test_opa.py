@@ -760,12 +760,12 @@ class TestABACPolicyEvaluator:
         result = evaluator.evaluate(
             user={"roles": ["commander"], "attributes": {"clearance_level": "secret"}},
             action="command_units",
-            resource={"type": "WeaponSystem", "attributes": {"required_clearance": "secret"}},
+            resource={"type": "ToolSystem", "attributes": {"required_clearance": "secret"}},
         )
         assert result["allow"] is True
 
-    def test_cannot_attack_civilian_infrastructure(self, evaluator):
-        """Commander has 'cannot_attack_civilian_infrastructure' restriction,
+    def test_cannot_engage_civilian_infrastructure(self, evaluator):
+        """Commander has 'cannot_engage_civilian_infrastructure' restriction,
         but 'attack' is not in commander's permissions list. The evaluator
         only checks restrictions for actions that are in the permissions,
         so this action is not explicitly denied by restriction logic.
@@ -779,26 +779,26 @@ class TestABACPolicyEvaluator:
         # "attack" is not in commander's permissions, so restriction is bypassed
         assert result["allow"] is True
 
-    def test_pilot_cannot_attack_restriction(self, evaluator):
-        """Pilot has 'cannot_attack' restriction and 'attack' is not in
+    def test_pilot_cannot_engage_restriction(self, evaluator):
+        """Pilot has 'cannot_engage' restriction and 'attack' is not in
         permissions, so the action is not in the permission list and
         the restriction check is skipped. Clearance passes → allowed."""
         result = evaluator.evaluate(
             user={"roles": ["pilot"], "attributes": {"clearance_level": "confidential"}},
             action="attack",
-            resource={"type": "WeaponSystem", "attributes": {"required_clearance": "confidential"}},
+            resource={"type": "ToolSystem", "attributes": {"required_clearance": "confidential"}},
         )
         assert result["allow"] is True
 
-    def test_operator_cannot_operate_weapons(self, evaluator):
-        """Operator has 'cannot_attack' restriction. 'operate_weapons' is
+    def test_operator_cannot_operate_tools(self, evaluator):
+        """Operator has 'cannot_engage' restriction. 'operate_tools' is
         not in operator's permissions, so restriction is not checked."""
         result = evaluator.evaluate(
             user={"roles": ["operator"], "attributes": {"clearance_level": "confidential"}},
-            action="operate_weapons",
-            resource={"type": "WeaponSystem", "attributes": {"required_clearance": "confidential"}},
+            action="operate_tools",
+            resource={"type": "ToolSystem", "attributes": {"required_clearance": "confidential"}},
         )
-        # "operate_weapons" not in operator permissions, not restricted either
+        # "operate_tools" not in operator permissions, not restricted either
         assert result["allow"] is True
 
     def test_insufficient_clearance(self, evaluator):

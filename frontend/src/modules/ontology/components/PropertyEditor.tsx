@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import { Card, Form, Switch, Row, Col } from 'antd';
 import { DeleteOutlined } from '@ant-design/icons';
-import adapter from '../../shared/components/adapter';
+import adapter from '@/modules/shared/components/adapter';
 import type { PropertyDefinition } from '../services/ontologyApi';
 
 interface PropertyEditorProps {

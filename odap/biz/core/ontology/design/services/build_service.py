@@ -262,9 +262,9 @@ class OntologyBuilderService:
     ):
         """写入 Graphiti 图谱"""
         try:
-            from odap.infra.graph.graph_service import GraphManager
+            from odap.infra.query import get_graph_write_proxy
 
-            graph_manager = GraphManager()
+            write_proxy = get_graph_write_proxy()
 
             # 写入节点
             for node in nodes:
@@ -272,10 +272,11 @@ class OntologyBuilderService:
                     props = node.get("properties", {})
                     props["workspace_id"] = workspace_id
                     props["scenario_id"] = scenario_id
-                    graph_manager.add_entity(
+                    write_proxy.add_entity(
                         entity_id=node["id"],
                         entity_type=node["type"],
-                        properties=props
+                        properties=props,
+                        workspace_id=workspace_id,
                     )
                     logger.info(f"成功创建节点: {node['id']}")
                 except Exception as e:
@@ -284,11 +285,12 @@ class OntologyBuilderService:
             # 写入边
             for edge in edges:
                 try:
-                    graph_manager.add_relationship(
+                    write_proxy.add_relationship(
                         source_id=edge["source"],
                         target_id=edge["target"],
                         relationship=edge["type"],
-                        properties=edge.get("properties", {})
+                        properties=edge.get("properties", {}),
+                        workspace_id=workspace_id,
                     )
                     logger.info(f"成功创建边: {edge['id']}")
                 except Exception as e:

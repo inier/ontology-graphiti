@@ -1,5 +1,7 @@
 """API路由"""
 
+import logging
+
 from fastapi import APIRouter, HTTPException, Query, Depends
 from odap.infra.security.jwt_auth import get_current_user
 from typing import Any, List, Optional
@@ -21,6 +23,8 @@ from .schemas import (
 )
 
 router = APIRouter(prefix="/api/workspaces", tags=["workspace"])
+
+logger = logging.getLogger(__name__)
 
 # 服务实例
 workspace_service = WorkspaceService()
@@ -691,16 +695,16 @@ async def get_scenario_versions(workspace_id: str, scenario_id: str,
                 scenario = compat_store.get_scenario(scenario_id)
             except HTTPException:
                 raise
-            except Exception:
-                pass
+            except Exception as e:
+                logger.debug("Fallback source failed: %s", e)
         if not scenario:
             try:
                 from odap.biz.shared.stores import scenario_store as global_scenario_store
                 scenario = global_scenario_store.get_scenario(scenario_id)
             except HTTPException:
                 raise
-            except Exception:
-                pass
+            except Exception as e:
+                logger.debug("Fallback source failed: %s", e)
         if not scenario:
             return []
         
@@ -734,16 +738,16 @@ async def commit_scenario_version(workspace_id: str, scenario_id: str, message: 
                 scenario = compat_store.get_scenario(scenario_id)
             except HTTPException:
                 raise
-            except Exception:
-                pass
+            except Exception as e:
+                logger.debug("Fallback source failed: %s", e)
         if not scenario:
             try:
                 from odap.biz.shared.stores import scenario_store as global_scenario_store
                 scenario = global_scenario_store.get_scenario(scenario_id)
             except HTTPException:
                 raise
-            except Exception:
-                pass
+            except Exception as e:
+                logger.debug("Fallback source failed: %s", e)
         if not scenario:
             raise HTTPException(status_code=404, detail="Scenario not found")
         scenario_ws = scenario.get("workspace_id", "")
@@ -806,16 +810,16 @@ async def switch_scenario_version(workspace_id: str, scenario_id: str, request: 
                 scenario = compat_store.get_scenario(scenario_id)
             except HTTPException:
                 raise
-            except Exception:
-                pass
+            except Exception as e:
+                logger.debug("Fallback source failed: %s", e)
         if not scenario:
             try:
                 from odap.biz.shared.stores import scenario_store as global_scenario_store
                 scenario = global_scenario_store.get_scenario(scenario_id)
             except HTTPException:
                 raise
-            except Exception:
-                pass
+            except Exception as e:
+                logger.debug("Fallback source failed: %s", e)
         if not scenario:
             raise HTTPException(status_code=404, detail="Scenario not found")
         scenario_ws = scenario.get("workspace_id", "")
@@ -859,16 +863,16 @@ async def get_version_data(workspace_id: str, scenario_id: str, version_id: str,
                 scenario = compat_store.get_scenario(scenario_id)
             except HTTPException:
                 raise
-            except Exception:
-                pass
+            except Exception as e:
+                logger.debug("Fallback source failed: %s", e)
         if not scenario:
             try:
                 from odap.biz.shared.stores import scenario_store as global_scenario_store
                 scenario = global_scenario_store.get_scenario(scenario_id)
             except HTTPException:
                 raise
-            except Exception:
-                pass
+            except Exception as e:
+                logger.debug("Fallback source failed: %s", e)
         if not scenario:
             raise HTTPException(status_code=404, detail="Scenario not found")
         scenario_ws = scenario.get("workspace_id", "")
@@ -903,6 +907,197 @@ async def get_version_data(workspace_id: str, scenario_id: str, version_id: str,
             "relations": [],
             "events": []
         }
+    except HTTPException:
+        raise
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+# ==================== 场景兼容路由（前端 /api/scenarios/{id}/... 调用） ====================
+
+# 独立的场景路由器，兼容前端 /api/scenarios/{scenario_id}/entities 等路径
+scenario_compat_router = APIRouter(prefix="/api/scenarios", tags=["scenario-compat"])
+
+
+@scenario_compat_router.get("/{scenario_id}/entities")
+async def get_scenario_entities_compat(scenario_id: str, workspace_id: str = None,
+    user=Depends(get_current_user)):
+    """获取场景下的实体列表（兼容前端 /api/scenarios/{id}/entities）"""
+    try:
+        entities = []
+
+        # 1. 从本体模型服务获取
+        try:
+            from odap.biz.core.ontology.design.model.services.model_service import ModelService
+            ms = ModelService()
+            entity_types_result = ms.list_entity_types(page_size=200)
+            for et in entity_types_result.get("entity_types", []):
+                instances_result = ms.list_instances(
+                    type_id=et["type_id"],
+                    workspace_id=workspace_id or "default",
+                    page_size=100,
+                )
+                instances = instances_result.get("instances", [])
+                # 同时查 default workspace
+                if not instances:
+                    instances_result = ms.list_instances(
+                        type_id=et["type_id"],
+                        workspace_id="default",
+                        page_size=100,
+                    )
+                    instances = instances_result.get("instances", [])
+                for inst in instances:
+                    props = inst.get("properties") or {}
+                    if isinstance(props, str):
+                        try:
+                            import json
+                            props = json.loads(props)
+                        except Exception as e:
+                            logger.debug("Fallback source failed: %s", e)
+                            props = {}
+                    entities.append({
+                        "entity_id": inst.get("instance_id", ""),
+                        "name": props.get("name", ""),
+                        "type": et.get("name", ""),
+                        "type_display": et.get("display_name", ""),
+                        "properties": props,
+                    })
+        except Exception as e:
+            import logging
+            logging.getLogger(__name__).warning(f"Model storage query failed: {e}")
+
+        # 2. 从 QueryService 获取（替代直接 GraphManager 导入）
+        try:
+            from odap.infra.query import get_query_service
+            qs = get_query_service()
+            qs_result = qs.execute(
+                workspace_id=workspace_id or "default",
+                query=".entity list()",
+                limit=500,
+            )
+            for e in qs_result.rows:
+                if isinstance(e, dict):
+                    entities.append({
+                        "entity_id": e.get("entity_id") or e.get("id") or e.get("uuid", ""),
+                        "name": e.get("name", ""),
+                        "type": e.get("type") or e.get("entity_type", ""),
+                        "type_display": e.get("type", ""),
+                        "properties": e.get("properties") or e,
+                    })
+        except Exception as e:
+            logger.debug("Fallback source failed: %s", e)
+
+        return {"entities": entities, "total": len(entities)}
+    except HTTPException:
+        raise
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@scenario_compat_router.get("/{scenario_id}/relations")
+async def get_scenario_relations_compat(scenario_id: str, workspace_id: str = None,
+    user=Depends(get_current_user)):
+    """获取场景下的关系列表（兼容前端 /api/scenarios/{id}/relations）"""
+    try:
+        nodes = []
+        edges = []
+
+        # 从 QueryService 获取（替代直接 GraphManager 导入）
+        try:
+            from odap.infra.query import get_query_service
+            qs = get_query_service()
+
+            entity_result = qs.execute(
+                workspace_id=workspace_id or "default",
+                query=".entity list()",
+                limit=500,
+            )
+            all_entities = entity_result.rows
+
+            topo_result = qs.execute(
+                workspace_id=workspace_id or "default",
+                query=".topo relations()",
+                limit=500,
+            )
+            all_relations = topo_result.rows
+
+            for e in all_entities:
+                if isinstance(e, dict):
+                    nodes.append({
+                        "id": e.get("entity_id") or e.get("id") or e.get("uuid", ""),
+                        "label": e.get("name", ""),
+                        "type": e.get("type") or e.get("entity_type", ""),
+                        "properties": e.get("properties") or {},
+                    })
+
+            for r in all_relations:
+                if isinstance(r, dict):
+                    edges.append({
+                        "id": r.get("relation_id") or r.get("id", ""),
+                        "source": r.get("source_id") or r.get("from", ""),
+                        "target": r.get("target_id") or r.get("to", ""),
+                        "label": r.get("relation_type") or r.get("type", ""),
+                        "properties": r.get("properties") or {},
+                    })
+        except Exception as e:
+            logger.debug("Fallback source failed: %s", e)
+
+        return {"nodes": nodes, "edges": edges}
+    except HTTPException:
+        raise
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@scenario_compat_router.get("/{scenario_id}/timeline")
+async def get_scenario_timeline_compat(scenario_id: str, workspace_id: str = None,
+    user=Depends(get_current_user)):
+    """获取场景时间线（兼容前端 /api/scenarios/{id}/timeline）"""
+    try:
+        events = []
+        # 从本体模型服务获取事件
+        try:
+            from odap.biz.core.ontology.design.model.services.model_service import ModelService
+            ms = ModelService()
+            entity_types_result = ms.list_entity_types(page_size=200)
+            entity_types = entity_types_result.get("entity_types", [])
+            event_type = next((t for t in entity_types if "event" in t.get("name", "").lower()
+                              or "事件" in t.get("display_name", "")), None)
+            if event_type:
+                instances_result = ms.list_instances(
+                    type_id=event_type["type_id"],
+                    workspace_id=workspace_id or "default",
+                    page_size=100,
+                )
+                instances = instances_result.get("instances", [])
+                if not instances:
+                    instances_result = ms.list_instances(
+                        type_id=event_type["type_id"],
+                        workspace_id="default",
+                        page_size=100,
+                    )
+                    instances = instances_result.get("instances", [])
+                for inst in instances:
+                    props = inst.get("properties") or {}
+                    if isinstance(props, str):
+                        try:
+                            import json
+                            props = json.loads(props)
+                        except Exception as e:
+                            logger.debug("Fallback source failed: %s", e)
+                            props = {}
+                    events.append({
+                        "event_id": inst.get("instance_id", ""),
+                        "name": props.get("name", ""),
+                        "year": props.get("year"),
+                        "category": props.get("category", ""),
+                        "description": props.get("description", ""),
+                    })
+                events.sort(key=lambda e: e.get("year") or 0)
+        except Exception as e:
+            logger.debug("Fallback source failed: %s", e)
+
+        return {"events": events}
     except HTTPException:
         raise
     except Exception as e:

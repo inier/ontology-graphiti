@@ -1,3 +1,12 @@
+"""DEPRECATED: This adapter delegates to odap.infra.openharness.*.
+Use infra-layer imports directly in new code.
+
+Biz 层 SwarmAdapter — 委托给 infra 层 DomainHarness
+
+提供 RL 风格的 step 接口（reset/step/run_episode），
+底层委托给 infra.openharness.tool_adapter.DomainHarness。
+"""
+
 import logging
 import uuid
 from typing import Any, Dict, List, Optional
@@ -11,12 +20,12 @@ except ImportError:
     _SWARM_AVAILABLE = False
 
 try:
-    from odap.infra.openharness.v2_adapter import (
+    from odap.infra.openharness.engine_adapter import (
         OpenHarnessIntegration,
         get_openharness_integration,
-        OPENHARNESS_V2_AVAILABLE,
+        OPENHARNESS_AVAILABLE,
     )
-    _V2_AVAILABLE = OPENHARNESS_V2_AVAILABLE
+    _V2_AVAILABLE = OPENHARNESS_AVAILABLE
 except ImportError:
     _V2_AVAILABLE = False
 

@@ -1,8 +1,8 @@
 import { useState } from 'react';
 import { Upload, Table, Progress, Alert, Button, Card, Select, Space, Typography, message } from 'antd';
 import { UploadOutlined, InboxOutlined, DeleteOutlined } from '@ant-design/icons';
-import { apiClient } from '../../shared/services/apiClient';
-import { useI18n } from '../../shared/hooks/useI18n';
+import { apiClient } from '@/modules/shared/services/apiClient';
+import { useI18n } from '@/modules/shared/hooks/useI18n';
 
 const { Dragger } = Upload;
 const { Text } = Typography;
@@ -100,7 +100,7 @@ export default function BatchImporter({ workspaceId, scenarioId }: BatchImporter
 
   return (
     <Card title={t('ingest.batchImport') || '批量导入'} style={{ borderRadius: 8 }}>
-      <Space direction="vertical" style={{ width: '100%' }} size="middle">
+      <Space orientation="vertical" style={{ width: '100%' }} size="middle">
         <Space>
           <Text>{t('ingest.format') || '格式'}:</Text>
           <Select

@@ -496,21 +496,21 @@ class OntologyValidationError(Exception):
 # 工厂函数 — 快速创建示例文档
 # ─────────────────────────────────────────────────
 
-def make_battle_event_document(
+def make_conflict_event_document(
     title: str,
-    red_unit: str,
-    blue_unit: str,
+    party_a_unit: str,
+    party_b_unit: str,
     location: str,
     event_type: str = "contact",
     source_type: str = SourceType.RANDOM_GEN.value,
     scenario_id: Optional[str] = None,
 ) -> OntologyDocument:
-    """快速创建一个战斗事件 OntologyDocument"""
+    """快速创建一个冲突事件 OntologyDocument"""
     now = datetime.now(timezone.utc).isoformat()
     date_str = datetime.now().strftime("%Y%m%d")
 
-    red_id = f"unit-red-{uuid.uuid4().hex[:6]}"
-    blue_id = f"unit-blue-{uuid.uuid4().hex[:6]}"
+    red_id = f"unit-party-a-{uuid.uuid4().hex[:6]}"
+    blue_id = f"unit-party-b-{uuid.uuid4().hex[:6]}"
     rel_id = f"rel-{uuid.uuid4().hex[:6]}"
     evt_id = f"evt-{uuid.uuid4().hex[:6]}"
     doc_id = f"evt-{date_str}-{uuid.uuid4().hex[:6]}"
@@ -522,27 +522,27 @@ def make_battle_event_document(
         source=SourceInfo(type=source_type, collected_at=now, confidence=0.9),
         meta=DocumentMeta(
             title=title,
-            description=f"{red_unit} 与 {blue_unit} 在 {location} 发生 {event_type}",
-            tags=["战斗", event_type, location],
+            description=f"{party_a_unit} 与 {party_b_unit} 在 {location} 发生 {event_type}",
+            tags=["冲突", event_type, location],
         ),
         entities=[
             OntologyEntity(
                 entity_id=red_id,
                 entity_type=EntityType.UNIT.value,
-                name=red_unit,
-                name_en=red_unit,
-                basic_properties={"side": "red", "location": location, "status": "engaged"},
-                statistical_properties={"combat_power": 0.75, "morale": 0.80, "supply_level": 0.65},
-                capabilities={"fire_range_km": 8, "armor_penetration": "high", "air_defense": False},
+                name=party_a_unit,
+                name_en=party_a_unit,
+                basic_properties={"side": "party_a", "location": location, "status": "engaged"},
+                statistical_properties={"capability_index": 0.75, "readiness": 0.80, "resource_level": 0.65},
+                capabilities={"operational_range_km": 8, "penetration_capacity": "high", "defense_capacity": False},
             ),
             OntologyEntity(
                 entity_id=blue_id,
                 entity_type=EntityType.UNIT.value,
-                name=blue_unit,
-                name_en=blue_unit,
-                basic_properties={"side": "blue", "location": location, "status": "engaged"},
-                statistical_properties={"combat_power": 0.65, "morale": 0.72, "supply_level": 0.80},
-                capabilities={"fire_range_km": 3, "armor_penetration": "medium", "air_defense": True},
+                name=party_b_unit,
+                name_en=party_b_unit,
+                basic_properties={"side": "party_b", "location": location, "status": "engaged"},
+                statistical_properties={"capability_index": 0.65, "readiness": 0.72, "resource_level": 0.80},
+                capabilities={"operational_range_km": 3, "penetration_capacity": "medium", "defense_capacity": True},
             ),
         ],
         relations=[
@@ -551,7 +551,7 @@ def make_battle_event_document(
                 relation_type="engaged_with",
                 source_entity=red_id,
                 target_entity=blue_id,
-                properties={"engagement_type": "direct_fire", "initiated_by": "red"},
+                properties={"interaction_type": "direct", "initiated_by": "party_a"},
                 temporal=TemporalInfo(start_time=now, is_current=True),
             )
         ],
@@ -562,7 +562,7 @@ def make_battle_event_document(
                 timestamp=now,
                 location=location,
                 participants=[red_id, blue_id],
-                description=f"{red_unit} 与 {blue_unit} 在 {location} 发生 {event_type}",
+                description=f"{party_a_unit} 与 {party_b_unit} 在 {location} 发生 {event_type}",
             )
         ],
         ontology_version=VersionRef(

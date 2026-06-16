@@ -105,15 +105,93 @@ class OntologyDesignSource:
 
     def query_action_types(self, filters: Dict[str, Any]) -> List[Dict[str, Any]]:
         """
-        Query action types.
+        Query action types by filters.
 
-        NOTE: Action types are defined in the OMS module (application/),
-        not in the design subsystem. This method is kept as a protocol
-        placeholder — actual action types should be queried via OMS service
-        or via a future `application/oms/contract` interface.
+        Attempts, in order:
+        1. design contract (if it exposes list_action_types)
+        2. SQLiteActionStorage (action module's dedicated storage)
+        3. SQLiteOntologyStorage (ontology_api's action_type_definitions table)
+
+        Returns empty list when no data source is available — this is a
+        graceful degradation, not a placeholder.
         """
-        # Actions live in the application/oms/ — not in design.
-        # We return an empty list to satisfy the protocol.
+        workspace_id = filters.get("workspace_id")
+        if not workspace_id:
+            return []
+
+        # 1. 尝试通过 design contract 查询
+        try:
+            if hasattr(self._contract, "list_action_types"):
+                actions = self._contract.list_action_types(
+                    workspace_id=workspace_id,
+                    ontology_id=filters.get("ontology_id"),
+                    version_id=filters.get("version_id"),
+                    limit=filters.get("limit", 100),
+                    offset=filters.get("offset", 0),
+                )
+                return [
+                    {
+                        "action_type_id": a.action_type_id if hasattr(a, "action_type_id") else a.get("action_type_id", ""),
+                        "name": a.name if hasattr(a, "name") else a.get("name", ""),
+                        "description": a.description if hasattr(a, "description") else a.get("description", ""),
+                        "workspace_id": workspace_id,
+                        "ontology_id": filters.get("ontology_id"),
+                        "version_id": filters.get("version_id"),
+                    }
+                    for a in actions
+                ]
+        except AttributeError:
+            pass
+        except Exception as exc:
+            logger.warning("query_action_types via contract failed: %s", exc)
+
+        # 2. 降级：从 action 模块的 SQLiteActionStorage 查询
+        try:
+            from odap.biz.core.ontology.action.storage.sqlite_action_storage import SQLiteActionStorage
+
+            storage = SQLiteActionStorage()
+            actions = storage.list_action_types()
+            return [
+                {
+                    "action_type_id": a.get("id", ""),
+                    "name": a.get("name", ""),
+                    "description": a.get("description", ""),
+                    "workspace_id": workspace_id,
+                    "ontology_id": filters.get("ontology_id"),
+                    "version_id": filters.get("version_id"),
+                }
+                for a in actions
+            ]
+        except Exception as exc:
+            logger.debug("query_action_types fallback to action storage failed: %s", exc)
+
+        # 3. 降级：从 ontology_api 的 SQLiteOntologyStorage 查询
+        try:
+            from odap.biz.core.ontology.ontology_api.storage.sqlite_ontology_storage import SQLiteOntologyStorage
+
+            storage = SQLiteOntologyStorage()
+            ontology_id = filters.get("ontology_id")
+            version_id = filters.get("version_id")
+            if version_id:
+                actions = storage.list_action_types_by_version(version_id)
+            elif ontology_id:
+                actions = storage.list_action_types(ontology_id)
+            else:
+                actions = []
+            return [
+                {
+                    "action_type_id": a.get("action_type_id", a.get("id", "")),
+                    "name": a.get("name", ""),
+                    "description": a.get("description", ""),
+                    "workspace_id": workspace_id,
+                    "ontology_id": filters.get("ontology_id"),
+                    "version_id": filters.get("version_id"),
+                }
+                for a in actions
+            ]
+        except Exception as exc:
+            logger.debug("query_action_types fallback to ontology_api storage failed: %s", exc)
+
         return []
 
     # ============ Additional helpers (not part of protocol) ============

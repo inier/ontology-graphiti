@@ -1,4 +1,4 @@
-import { fetchJson, API_BASE } from '../../shared';
+import { fetchJson, API_BASE } from '@/modules/shared';
 import type { Role, RoleCreate, RoleUpdate, Permission } from '../types';
 
 export async function listRoles(): Promise<Role[]> {

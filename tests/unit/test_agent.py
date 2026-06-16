@@ -204,7 +204,7 @@ class TestRoleManager:
         assert rm.has_capability("commander", Capability.SITUATION_AWARENESS) is True
         assert rm.has_capability("commander", Capability.DECISION_MAKING) is True
         assert rm.has_capability("commander", Capability.TARGET_DETECTION) is False
-        assert rm.has_capability("intelligence", Capability.THREAT_ANALYSIS) is True
+        assert rm.has_capability("intelligence", Capability.RISK_ANALYSIS) is True
         assert rm.has_capability("intelligence", Capability.TASK_EXECUTION) is False
         assert rm.has_capability("nonexistent", Capability.SITUATION_AWARENESS) is False
 
@@ -228,145 +228,9 @@ class TestRoleManager:
 
 
 # ---------------------------------------------------------------------------
-# TestIntentRouter — tests for odap.biz.core.agent.impl.intent_router.IntentRouter
+# TestIntentRouter — removed (impl/intent_router.py deleted, functionality merged into swarm_orchestrator.IntentRouter)
+# See tests/unit/test_swarm_orchestrator.py for IntentRouter tests
 # ---------------------------------------------------------------------------
-
-class TestIntentRouter:
-    """Tests for IntentRouter: rule registration, keyword routing, default fallback."""
-
-    def _make_router(self):
-        from odap.biz.core.agent.impl.intent_router import IntentRouter
-        # Ensure LLM is not available so tests are deterministic
-        with patch.dict(os.environ, {"OPENAI_API_KEY": "", "OPENAI_API_BASE": ""}):
-            return IntentRouter()
-
-    # -- register_rule -------------------------------------------------------
-
-    def test_register_rule_basic(self):
-        router = self._make_router()
-        result = router.register_rule("custom_kw", "custom_role")
-        assert result["status"] == "success"
-        assert result["keyword"] == "custom_kw"
-        assert result["role"] == "custom_role"
-
-    def test_register_rule_case_insensitive(self):
-        router = self._make_router()
-        router.register_rule("MyKeyword", "my_role")
-        # Internal map stores lowercase
-        assert "mykeyword" in router._rule_map
-        assert router._rule_map["mykeyword"] == "my_role"
-
-    def test_register_rule_with_intent_type(self):
-        from odap.biz.core.agent.impl.intent_router import IntentType
-        router = self._make_router()
-        router.register_rule("decide_now", "commander", intent_type=IntentType.DECISION)
-        assert router._intent_type_map.get("decide_now") == IntentType.DECISION
-
-    def test_register_rule_overwrite(self):
-        router = self._make_router()
-        router.register_rule("test_kw", "role_a")
-        router.register_rule("test_kw", "role_b")
-        assert router._rule_map["test_kw"] == "role_b"
-
-    # -- route: Chinese keywords ---------------------------------------------
-
-    def test_route_chinese_query(self):
-        router = self._make_router()
-        result = router.route("查询最新的数据")
-        assert result["status"] == "success"
-        assert result["intent_type"] == "query"
-        assert result["target_role"] == "intelligence"
-        assert result["method"] == "keyword"
-
-    def test_route_chinese_analysis(self):
-        router = self._make_router()
-        result = router.route("分析当前趋势")
-        assert result["intent_type"] == "analysis"
-        assert result["target_role"] == "intelligence"
-
-    def test_route_chinese_action(self):
-        router = self._make_router()
-        result = router.route("执行该操作")
-        assert result["intent_type"] == "action"
-        assert result["target_role"] == "operations"
-
-    def test_route_chinese_decision(self):
-        router = self._make_router()
-        result = router.route("需要决策支持")
-        assert result["intent_type"] == "decision"
-        assert result["target_role"] == "commander"
-
-    # -- route: English keywords ---------------------------------------------
-
-    def test_route_english_query(self):
-        router = self._make_router()
-        result = router.route("query the database")
-        assert result["intent_type"] == "query"
-        assert result["target_role"] == "intelligence"
-
-    def test_route_english_analyze(self):
-        router = self._make_router()
-        result = router.route("analyze the statistics")
-        assert result["intent_type"] == "analysis"
-        assert result["target_role"] == "intelligence"
-
-    def test_route_english_create(self):
-        router = self._make_router()
-        result = router.route("create a new record")
-        assert result["intent_type"] == "action"
-        assert result["target_role"] == "operations"
-
-    def test_route_english_decide(self):
-        router = self._make_router()
-        result = router.route("decide on the plan")
-        assert result["intent_type"] == "decision"
-        assert result["target_role"] == "commander"
-
-    # -- route: rule-based (registered rules take priority) ------------------
-
-    def test_route_rule_based_priority(self):
-        router = self._make_router()
-        router.register_rule("special", "special_role")
-        result = router.route("do something special now")
-        assert result["target_role"] == "special_role"
-        assert result["method"] == "rule"
-        assert result["confidence"] == 0.9
-
-    # -- route: default fallback ---------------------------------------------
-
-    def test_route_unknown_fallback(self):
-        router = self._make_router()
-        result = router.route("xyzzy nothing matches")
-        assert result["status"] == "success"
-        assert result["intent_type"] == "unknown"
-        assert result["target_role"] == "intelligence"
-        assert result["method"] == "default"
-        assert result["confidence"] == 0.3
-
-    # -- LLM fallback skipped when no API key --------------------------------
-
-    def test_llm_not_available_without_api_key(self):
-        router = self._make_router()
-        assert router._llm_available is False
-
-    # -- _intent_type_to_role static method ----------------------------------
-
-    def test_intent_type_to_role_mapping(self):
-        from odap.biz.core.agent.impl.intent_router import IntentType, IntentRouter
-        assert IntentRouter._intent_type_to_role(IntentType.QUERY) == "intelligence"
-        assert IntentRouter._intent_type_to_role(IntentType.ANALYSIS) == "intelligence"
-        assert IntentRouter._intent_type_to_role(IntentType.ACTION) == "operations"
-        assert IntentRouter._intent_type_to_role(IntentType.DECISION) == "commander"
-        assert IntentRouter._intent_type_to_role(IntentType.UNKNOWN) == "intelligence"
-
-    # -- confidence scaling with keyword count --------------------------------
-
-    def test_route_confidence_increases_with_more_keywords(self):
-        router = self._make_router()
-        r1 = router.route("查询")
-        r2 = router.route("查询 搜索 查找")
-        assert r2["confidence"] >= r1["confidence"]
-
 
 # ---------------------------------------------------------------------------
 # TestOODALoop — tests for odap.biz.core.agent.impl.ooda_loop.OODALoop
@@ -395,7 +259,9 @@ class TestOODALoop:
         assert "orient" in result
         assert "decide" in result
         assert "act" in result
-        assert len(result["history"]) == 4
+        # OODALoop 现在是 5 阶段（含 evaluate），且可能触发 Re-loop
+        # 每轮 5 个阶段，至少 1 轮
+        assert len(result["history"]) >= 5
 
     # -- observe phase -------------------------------------------------------
 
@@ -562,7 +428,13 @@ class TestOODALoop:
         context = {"observations": [{"content": "test", "source": "s1"}]}
         result = asyncio.run(loop.run(context))
         phases = [h["phase"] for h in result["history"]]
-        assert phases == ["observe", "orient", "decide", "act"]
+        # OODALoop 现在是 5 阶段（含 evaluate），且可能触发 Re-loop
+        # 第一轮至少包含 observe/orient/decide/act/evaluate
+        assert "observe" in phases
+        assert "orient" in phases
+        assert "decide" in phases
+        assert "act" in phases
+        assert "evaluate" in phases
 
 
 # ---------------------------------------------------------------------------

@@ -25,8 +25,8 @@ import {
   CheckCircleOutlined,
   CloseCircleOutlined,
 } from '@ant-design/icons';
-import { apiClient } from '../../shared/services/apiClient';
-import { useI18n } from '../../shared/hooks/useI18n';
+import { apiClient } from '@/modules/shared/services/apiClient';
+import { useI18n } from '@/modules/shared/hooks/useI18n';
 import { PolicyEditor } from '../components/PolicyEditor';
 
 interface Policy {
@@ -361,7 +361,7 @@ export function PolicyManager() {
       >
         {selectedPolicy && (
           <>
-            <Descriptions bordered column={2} size="small" style={{ marginBottom: 16 }}>
+            <Descriptions variant="bordered" column={2} size="small" style={{ marginBottom: 16 }}>
               <Descriptions.Item label={t('policy.name')}>
                 {selectedPolicy.name}
               </Descriptions.Item>

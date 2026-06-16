@@ -21,6 +21,8 @@ from typing import Dict, Any, List, Optional, Callable, Awaitable, Tuple
 from dataclasses import dataclass, field
 from enum import Enum
 
+from odap.infra.config_composer import get_config
+
 from ..models.audit import (
     PipelineStage, ProcessLog, ProcessingStatus,
     DataIngestRecord, DataSource
@@ -310,7 +312,7 @@ class CollectionStageHandler(PipelineStageHandler):
 
     async def _ingest_random(self, context: PipelineContext) -> Dict[str, Any]:
         """随机事件摄入"""
-        parties = context.source_details.get("parties", ["红方", "蓝方"])
+        parties = context.source_details.get("parties", ["甲方", "乙方"])
         result = await self.ingest_service.ingest_random(
             parties=parties,
             scenario_id=context.scenario_id
@@ -437,7 +439,7 @@ class CleaningStageHandler(PipelineStageHandler):
             missing.append("内容过短")
 
         # 检查是否包含关键信息
-        required_patterns = ["红方", "蓝方", "位置", "时间"]
+        required_patterns = ["甲方", "乙方", "位置", "时间"]
         for pattern in required_patterns:
             if pattern not in text:
                 missing.append(f"缺少关键信息: {pattern}")
@@ -498,16 +500,15 @@ class LLMExtractionStageHandler(PipelineStageHandler):
             from odap.infra.llm.llm_service import ZhipuAIClient
             from odap.infra.llm.llm_fallback import LLMFallback
             from graphiti_core.llm_client.config import LLMConfig
-            import os
 
             entities = []
             relations = []
             events = []
             actions = []
 
-            api_key = os.getenv('OPENAI_API_KEY', '')
-            api_base = os.getenv('OPENAI_API_BASE', 'https://open.bigmodel.cn/api/paas/v4')
-            model = os.getenv('OPENAI_MODEL', 'glm-4')
+            api_key = get_config("llm.api_key", "")
+            api_base = get_config("llm.api_base", "https://open.bigmodel.cn/api/paas/v4")
+            model = get_config("llm.model", "glm-4")
 
             if not api_key:
                 raise ValueError(LLMFallback.handle_unavailable("LLM", RuntimeError("未配置 OPENAI_API_KEY"))["message"])
@@ -529,8 +530,8 @@ class LLMExtractionStageHandler(PipelineStageHandler):
 1. 实体（entities）：包括单位(Unit)、位置(Location)、装备(Equipment)、事件(Event)等，每个实体包含：
    - entity_id, entity_type, name
    - basic_properties: 基本属性（如side, status, location, coordinates）
-   - statistical_properties: 统计属性（如combat_power, morale, supply_level, casualty_rate）
-   - capabilities: 能力属性（如range, armor_penetration, air_defense）
+   - statistical_properties: 统计属性（如capability_index, morale, supply_level, attrition_rate）
+   - capabilities: 能力属性（如range, penetration_capacity, defense_capability）
    - constraints: 约束属性（如max_speed, min_supply）
 
 2. 关系（relations）：实体之间的关系，包含 relation_id, relation_type, source_entity, target_entity
@@ -539,18 +540,18 @@ class LLMExtractionStageHandler(PipelineStageHandler):
 3. 事件（events）：发生的事情，包含 event_id, event_type, location, description, participants, outcome
 
 4. 动作（actions）：文本中描述的或可推断的业务动作，包含：
-   - action_id, action_type（move/attack/defend/reinforce/retreat/observe/communicate）
+   - action_id, action_type（move/engage/hold/support/withdraw/observe/communicate）
    - actor: 执行者实体ID
    - target: 目标实体ID
-   - parameters: 动作参数（如destination, target_id, defense_type等）
-   - opa_required: 是否需要策略审批（attack/reinforce/retreat为true）
+   - parameters: 动作参数（如destination, target_id, hold_type等）
+   - opa_required: 是否需要策略审批（engage/support/withdraw为true）
 
 请以以下JSON格式返回（只需返回JSON，不要其他内容）：
 {{
     "entities": [
         {{"entity_id": "实体ID", "entity_type": "Unit|Location|Equipment|Event", "name": "名称",
-          "basic_properties": {{"side": "red|blue|neutral", "status": "active|deployed|destroyed", "location": "位置"}},
-          "statistical_properties": {{"combat_power": 0.8, "morale": 0.7}},
+          "basic_properties": {{"side": "party_a|party_b|neutral", "status": "active|deployed|destroyed", "location": "位置"}},
+          "statistical_properties": {{"capability_index": 0.8, "morale": 0.7}},
           "capabilities": {{"range": 100.0}},
           "constraints": {{}}}}
     ],
@@ -558,12 +559,12 @@ class LLMExtractionStageHandler(PipelineStageHandler):
         {{"relation_id": "关系ID", "relation_type": "located_at|engaged_with|..", "source_entity": "源实体ID", "target_entity": "目标实体ID"}}
     ],
     "events": [
-        {{"event_id": "事件ID", "event_type": "contact|attack|movement|..", "location": "地点", "description": "描述", "participants": ["实体ID"], "outcome": {{}}}}
+        {{"event_id": "事件ID", "event_type": "contact|engage|movement|..", "location": "地点", "description": "描述", "participants": ["实体ID"], "outcome": {{}}}}
     ],
     "actions": [
-        {{"action_id": "动作ID", "action_type": "move|attack|defend|reinforce|retreat|observe|communicate",
+        {{"action_id": "动作ID", "action_type": "move|engage|hold|support|withdraw|observe|communicate",
           "actor": "执行者实体ID", "target": "目标实体ID",
-          "parameters": {{"destination": "目标位置", "target_id": "攻击目标ID"}},
+          "parameters": {{"destination": "目标位置", "target_id": "交锋目标ID"}},
           "opa_required": false}}
     ]
 }}
@@ -642,14 +643,14 @@ class LLMExtractionStageHandler(PipelineStageHandler):
 
         import re
 
-        unit_pattern = r'(红方|蓝方)[^，。,\s]+'
+        unit_pattern = r'(甲方|乙方)[^，。,\s]+'
         units = re.findall(unit_pattern, text)
         for i, unit in enumerate(set(units)):
             entities.append({
                 "entity_id": f"unit-{i}",
                 "entity_type": "Unit",
                 "name": unit,
-                "side": "red" if "红方" in unit else "blue"
+                "side": "party_a" if "甲方" in unit else "party_b"
             })
 
         location_pattern = r'([A-Z]区[^，。,\s]+|B区高地|C区城镇)'
@@ -661,7 +662,7 @@ class LLMExtractionStageHandler(PipelineStageHandler):
                 "name": loc
             })
 
-        event_keywords = ["交火", "攻击", "撤退", "增援", "巡逻"]
+        event_keywords = ["交锋", "执行", "撤出", "支援", "巡查"]
         for keyword in event_keywords:
             if keyword in text:
                 events.append({
@@ -827,11 +828,17 @@ class OntologyBuildStageHandler(PipelineStageHandler):
 
 
 class VersionManageStageHandler(PipelineStageHandler):
-    """版本管理阶段处理器"""
+    """版本管理阶段处理器
 
-    def __init__(self):
+    当 sync_schema_version=True 时，除了创建数据版本记录外，
+    还会调用 OntologyService.commit_schema_version() 同步 Schema 版本，
+    确保管道创建的新版本在 Schema 层面也有对应记录。
+    """
+
+    def __init__(self, sync_schema_version: bool = True):
         super().__init__(PipelineStage.VERSION_MANAGE)
         self.version_manager = OntologyVersionManager.get_instance()
+        self.sync_schema_version = sync_schema_version
 
     async def execute(self, context: PipelineContext) -> bool:
         """执行版本管理"""
@@ -865,25 +872,77 @@ class VersionManageStageHandler(PipelineStageHandler):
             return False
 
     async def _create_version(self, context: PipelineContext, document_id: str) -> Dict[str, Any]:
-        """创建新版本（全局唯一，持久化到数据库）"""
-        timestamp = int(time.time())
-        version_number = f"1.0.{timestamp}"
-        version_id = f"v{version_number}"
-        
-        version_info = {
-            "version_id": version_id,
-            "version_number": version_number,
-            "ontology_id": document_id or f"ontology-{timestamp}",
-            "document_id": document_id,
-            "ingest_id": context.ingest_id,
-            "status": "released",
-            "is_current": True,
-            "created_at": get_local_time().isoformat(),
-            "entity_count": context.stage_results.get("ontology", {}).get("entity_count", 0),
-            "relation_count": context.stage_results.get("ontology", {}).get("relation_count", 0),
-            "scenario_id": context.scenario_id
-        }
-        
+        """创建新版本（全局唯一，持久化到数据库）
+
+        流程:
+        1. 调用 OntologyVersionManager.commit() 创建数据版本
+        2. 若 sync_schema_version=True，调用 OntologyService.commit_schema_version() 同步 Schema 版本
+        """
+        ontology_id = document_id or f"ontology-{int(time.time())}"
+        changelog = f"Pipeline auto-commit: scenario={context.scenario_id}, ingest={context.ingest_id}"
+
+        # 1. 创建数据版本
+        try:
+            version_obj = await self.version_manager.commit(
+                ontology_id=ontology_id,
+                message=changelog,
+            )
+            version_info = version_obj.to_dict() if hasattr(version_obj, "to_dict") else {
+                "version_id": version_obj.version_id if hasattr(version_obj, "version_id") else f"v{int(time.time())}",
+                "version_number": version_obj.version_number if hasattr(version_obj, "version_number") else "1.0.0",
+                "ontology_id": ontology_id,
+                "document_id": document_id,
+                "ingest_id": context.ingest_id,
+                "status": "released",
+                "is_current": True,
+                "created_at": get_local_time().isoformat(),
+                "entity_count": context.stage_results.get("ontology", {}).get("entity_count", 0),
+                "relation_count": context.stage_results.get("ontology", {}).get("relation_count", 0),
+                "scenario_id": context.scenario_id,
+            }
+        except Exception as e:
+            logger.warning(f"OntologyVersionManager.commit() failed, falling back to manual version: {e}")
+            timestamp = int(time.time())
+            version_number = f"1.0.{timestamp}"
+            version_info = {
+                "version_id": f"v{version_number}",
+                "version_number": version_number,
+                "ontology_id": ontology_id,
+                "document_id": document_id,
+                "ingest_id": context.ingest_id,
+                "status": "released",
+                "is_current": True,
+                "created_at": get_local_time().isoformat(),
+                "entity_count": context.stage_results.get("ontology", {}).get("entity_count", 0),
+                "relation_count": context.stage_results.get("ontology", {}).get("relation_count", 0),
+                "scenario_id": context.scenario_id,
+            }
+
+        # 2. 同步 Schema 版本（桥接到 OntologyService）
+        if self.sync_schema_version:
+            try:
+                from odap.biz.core.ontology.ontology_api.services.ontology_service import OntologyService
+                schema_result = OntologyService().commit_schema_version(
+                    ontology_id=ontology_id,
+                    changelog=changelog,
+                )
+                if schema_result.get("status") == "error":
+                    logger.warning(
+                        f"Schema version sync returned error for ontology {ontology_id}: "
+                        f"{schema_result.get('message', 'unknown')}"
+                    )
+                else:
+                    logger.info(
+                        f"Schema version synced for ontology {ontology_id}: "
+                        f"version={schema_result.get('version_number', 'unknown')}"
+                    )
+            except Exception as e:
+                # Schema 版本同步失败不影响管道主流程
+                logger.warning(
+                    f"Schema version sync failed for ontology {ontology_id}: {e}. "
+                    f"Pipeline continues with data version only."
+                )
+
         return version_info
 
 
@@ -927,14 +986,15 @@ class GraphBuildStageHandler(PipelineStageHandler):
     async def _build_graph(self, context: PipelineContext, document_id: str) -> Dict[str, Any]:
         """构建图谱"""
         try:
-            from odap.infra.graph.graph_service import GraphManager
+            # Write operations routed through GraphWriteProxy
+            from odap.infra.query import get_graph_write_proxy
             from datetime import datetime, timezone
 
             llm_result = context.stage_results.get("llm", {})
             entities = llm_result.get("entities", [])
             relations = llm_result.get("relations", [])
 
-            graph_manager = GraphManager()
+            write_proxy = get_graph_write_proxy()
 
             nodes_created = 0
             edges_created = 0
@@ -962,12 +1022,13 @@ class GraphBuildStageHandler(PipelineStageHandler):
                             "original_entity_id": original_id,
                         }
 
-                    success = graph_manager.add_entity(
+                    success = write_proxy.add_entity(
                         entity_id=node_id,
                         entity_type=entity_type,
-                        properties=properties
+                        properties=properties,
+                        workspace_id=context.workspace_id,
                     )
-                    if success:
+                    if success.get("status") == "success":
                         nodes_created += 1
                 except Exception as e:
                     logger.warning(f"创建节点失败 {entity.get('entity_id')}: {e}")
@@ -982,13 +1043,14 @@ class GraphBuildStageHandler(PipelineStageHandler):
                     properties = relation.get("properties", {})
 
                     if source_id and target_id:
-                        success = graph_manager.add_relationship(
+                        success = write_proxy.add_relationship(
                             source_id=source_id,
                             target_id=target_id,
                             relationship=rel_type,
-                            properties=properties
+                            properties=properties,
+                            workspace_id=context.workspace_id,
                         )
-                        if success:
+                        if success.get("status") == "success":
                             edges_created += 1
                 except Exception as e:
                     logger.warning(f"创建边失败 {relation.get('relation_id')}: {e}")
@@ -1000,7 +1062,7 @@ class GraphBuildStageHandler(PipelineStageHandler):
                 "edges_created": edges_created,
                 "graph_id": graph_id,
                 "status": "completed",
-                "mode": graph_manager._mode,
+                "mode": write_proxy.mode,
                 "document_id": document_id,
                 "version_id": context.version_id,
                 "created_at": datetime.now(timezone.utc).isoformat()
@@ -1282,15 +1344,257 @@ class OntologyPipeline:
 
         return context
 
+    async def run_async(
+        self,
+        ingest_id: str,
+        scenario_id: str,
+        source: str = "manual",
+        source_details: Dict[str, Any] = None,
+        workspace_id: str = "default",
+        progress_callback: Optional[Callable[[PipelineStage, float, str], Awaitable]] = None
+    ) -> PipelineContext:
+        """
+        异步管道执行 — 使用 asyncio.Queue 实现阶段间事件驱动通信。
+
+        与 run() 的区别:
+        - COLLECTION 仍顺序执行（必须先有数据）
+        - CLEANING 和 LLM_EXTRACTION 并行执行：
+          CLEANING 将清洗结果写入 Queue，LLM_EXTRACTION 从 Queue 消费
+        - 后续阶段（ONTOLOGY_BUILD / VERSION_MANAGE / GRAPH_BUILD）仍顺序执行
+
+        Args:
+            ingest_id: 摄入记录ID
+            scenario_id: 场景ID
+            source: 数据来源
+            source_details: 数据详情
+            workspace_id: 工作空间ID
+            progress_callback: 进度回调函数
+
+        Returns:
+            PipelineContext: 管道执行上下文
+        """
+        context = PipelineContext(
+            ingest_id=ingest_id,
+            scenario_id=scenario_id,
+            workspace_id=workspace_id,
+            source=source,
+            source_details=source_details or {},
+            original_content=source_details.get("content", "") if source_details else ""
+        )
+
+        logger.info(f"开始执行异步本体构建管道: ingest_id={ingest_id}, source={source}")
+
+        total_stages = len(self._execution_order)
+
+        # ── Stage 1: COLLECTION (必须顺序) ──
+        stage = PipelineStage.COLLECTION
+        context.current_stage = stage
+        if progress_callback:
+            await progress_callback(stage, 0.0, f"执行中: {stage.value}")
+
+        handler = self.handlers[stage]
+        success = await handler.execute(context)
+        if not success:
+            logger.error(f"异步管道执行失败 at stage: {stage.value}")
+            context.success = False
+            context.save_build_history("failed")
+            return context
+
+        if progress_callback:
+            await progress_callback(stage, (1 / total_stages) * 100, f"完成: {stage.value}")
+
+        # ── Stage 2 & 3: CLEANING + LLM_EXTRACTION 并行 ──
+        # CLEANING 将清洗后的内容写入 Queue，LLM_EXTRACTION 消费
+        cleaning_queue: asyncio.Queue = asyncio.Queue(maxsize=10)
+        cleaning_error = None
+        llm_error = None
+
+        async def _run_cleaning():
+            nonlocal cleaning_error
+            try:
+                cleaning_handler = self.handlers[PipelineStage.CLEANING]
+                context.current_stage = PipelineStage.CLEANING
+                if progress_callback:
+                    await progress_callback(
+                        PipelineStage.CLEANING,
+                        (2 / total_stages) * 100,
+                        "执行中: cleaning",
+                    )
+                ok = await cleaning_handler.execute(context)
+                if ok:
+                    # 将清洗结果放入队列供 LLM_EXTRACTION 消费
+                    await cleaning_queue.put(context.original_content)
+                else:
+                    cleaning_error = context.error
+                    await cleaning_queue.put(None)  # sentinel
+            except Exception as e:
+                cleaning_error = str(e)
+                await cleaning_queue.put(None)
+
+        async def _run_llm_extraction():
+            nonlocal llm_error
+            try:
+                # 等待清洗结果
+                cleaned_content = await cleaning_queue.get()
+                if cleaned_content is None:
+                    # 清洗失败，LLM 使用原始内容
+                    cleaned_content = context.original_content or ""
+
+                # P0-2 fix: 将队列中的清洗结果赋值到 context，
+                # 确保 LLMExtractionStageHandler.execute() 读取到清洗后的内容
+                # 而非依赖共享状态的隐式传递
+                context.original_content = cleaned_content
+                logger.info(
+                    "异步管道: LLM_EXTRACTION 从队列获取清洗内容, 长度=%d",
+                    len(cleaned_content) if cleaned_content else 0,
+                )
+
+                llm_handler = self.handlers[PipelineStage.LLM_EXTRACTION]
+                context.current_stage = PipelineStage.LLM_EXTRACTION
+                if progress_callback:
+                    await progress_callback(
+                        PipelineStage.LLM_EXTRACTION,
+                        (3 / total_stages) * 100,
+                        "执行中: llm_extraction",
+                    )
+                ok = await llm_handler.execute(context)
+                if not ok:
+                    llm_error = context.error
+            except Exception as e:
+                llm_error = str(e)
+
+        await asyncio.gather(_run_cleaning(), _run_llm_extraction())
+
+        # 检查并行阶段是否出错
+        if cleaning_error or llm_error:
+            context.error = cleaning_error or llm_error
+            context.success = False
+            context.save_build_history("failed")
+            return context
+
+        if progress_callback:
+            await progress_callback(
+                PipelineStage.LLM_EXTRACTION,
+                (3 / total_stages) * 100,
+                "完成: cleaning + llm_extraction",
+            )
+
+        # ── Stage 4-6: 顺序执行 ──
+        sequential_stages = [
+            PipelineStage.ONTOLOGY_BUILD,
+            PipelineStage.VERSION_MANAGE,
+            PipelineStage.GRAPH_BUILD,
+        ]
+
+        for i, stage in enumerate(sequential_stages):
+            context.current_stage = stage
+            stage_index = 4 + i  # 对应 _execution_order 中的位置
+
+            if progress_callback:
+                progress = (stage_index / total_stages) * 100
+                await progress_callback(stage, progress, f"执行中: {stage.value}")
+
+            handler = self.handlers[stage]
+            success = await handler.execute(context)
+
+            if not success:
+                logger.error(f"异步管道执行失败 at stage: {stage.value}")
+                break
+
+        # 最终进度回调
+        if progress_callback:
+            await progress_callback(context.current_stage, 100.0, "完成")
+
+        # 检查是否所有阶段都成功完成
+        all_stages_completed = context.error is None and context.current_stage == self._execution_order[-1]
+        context.success = all_stages_completed
+
+        # 保存构建历史
+        status = "completed" if context.success else "failed"
+        context.save_build_history(status)
+
+        logger.info(f"异步管道执行完成: ingest_id={ingest_id}, version_id={context.version_id}")
+
+        return context
+
     def get_context(self, ingest_id: str) -> Optional[PipelineContext]:
-        """获取管道上下文（从存储中）"""
-        # TODO: 从存储中恢复上下文
-        pass
+        """获取管道上下文（从存储中恢复）"""
+        record = self._storage.get_ingest_record(ingest_id)
+        if not record:
+            return None
+
+        # 从存储获取处理日志并重建 ProcessLog 列表
+        log_dicts = self._storage.get_process_logs(ingest_id)
+        logs = []
+        for ld in log_dicts:
+            try:
+                logs.append(ProcessLog(
+                    id=ld.get('id', str(uuid.uuid4())),
+                    timestamp=datetime.fromisoformat(ld['timestamp']) if isinstance(ld.get('timestamp'), str) else ld.get('timestamp', get_local_time()),
+                    stage=PipelineStage(ld.get('stage', 'collection')),
+                    operation=ld.get('operation', ''),
+                    details=ld.get('details') or {},
+                    status=ProcessingStatus(ld.get('status', 'pending')),
+                    error_message=ld.get('error_message'),
+                    duration_ms=ld.get('duration_ms'),
+                ))
+            except (ValueError, KeyError):
+                continue
+
+        # 从构建历史获取 version_id 和 document_id
+        build_history = self._storage.get_build_history(ingest_id)
+        version_id = build_history.get('version_id') if build_history else None
+        document_id = build_history.get('document_id') if build_history else None
+
+        # 推断当前阶段：取最后一条日志的阶段，若无日志则默认 collection
+        current_stage = logs[-1].stage if logs else PipelineStage.COLLECTION
+
+        # 推断错误和成功状态
+        error = None
+        success = False
+        if record.get('status') == 'failed':
+            failed_logs = [l for l in logs if l.status == ProcessingStatus.FAILED]
+            error = failed_logs[-1].error_message if failed_logs else record.get('status')
+        elif record.get('status') == 'completed':
+            success = True
+
+        context = PipelineContext(
+            ingest_id=ingest_id,
+            scenario_id=record.get('scenario_id', ''),
+            workspace_id=record.get('source_details', {}).get('workspace_id', 'default') if isinstance(record.get('source_details'), dict) else 'default',
+            source=record.get('source', 'manual'),
+            source_details=record.get('source_details') or {},
+            original_content=record.get('original_content'),
+            current_stage=current_stage,
+            logs=logs,
+            stage_results={},
+            version_id=version_id,
+            document_id=document_id,
+            error=error,
+            success=success,
+            _storage=self._storage,
+        )
+        return context
 
     def get_stage_logs(self, ingest_id: str) -> List[ProcessLog]:
         """获取某次执行的阶段日志"""
-        # TODO: 从存储中获取日志
-        return []
+        log_dicts = self._storage.get_process_logs(ingest_id)
+        logs = []
+        for ld in log_dicts:
+            try:
+                logs.append(ProcessLog(
+                    id=ld.get('id', str(uuid.uuid4())),
+                    timestamp=datetime.fromisoformat(ld['timestamp']) if isinstance(ld.get('timestamp'), str) else ld.get('timestamp', get_local_time()),
+                    stage=PipelineStage(ld.get('stage', 'collection')),
+                    operation=ld.get('operation', ''),
+                    details=ld.get('details') or {},
+                    status=ProcessingStatus(ld.get('status', 'pending')),
+                    error_message=ld.get('error_message'),
+                    duration_ms=ld.get('duration_ms'),
+                ))
+            except (ValueError, KeyError):
+                continue
+        return logs
 
 
 # 全局管道实例

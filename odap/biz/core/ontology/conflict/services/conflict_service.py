@@ -9,6 +9,8 @@ ConflictService - 编排层 (T316)
 """
 from __future__ import annotations
 
+import logging
+from datetime import datetime
 from typing import Any, Dict, List
 
 from ..impl import ConflictResolverImpl
@@ -18,25 +20,39 @@ from ..models import (
     ConflictStatus,
     ResolutionResult,
 )
+from ..storage import SQLiteConflictStorage
+
+logger = logging.getLogger(__name__)
 
 
 class ConflictService:
     """冲突解决编排服务"""
 
-    def __init__(self, resolver: ConflictResolverImpl | None = None):
+    def __init__(
+        self,
+        resolver: ConflictResolverImpl | None = None,
+        storage: SQLiteConflictStorage | None = None,
+    ):
         self.resolver = resolver or ConflictResolverImpl()
+        self.storage = storage or SQLiteConflictStorage()
 
     # ---------- 业务流程 ----------
 
     def detect_conflicts(self, sources: List[Dict[str, Any]]) -> Dict[str, Any]:
         """
-        检测多源数据冲突。
-        返回: {"conflicts": [ConflictRecord dict...]}
+        检测多源数据冲突，并自动持久化到 storage。
+        返回: {"conflicts": [ConflictRecord dict...], "count": int}
         """
         try:
             if not isinstance(sources, list):
                 return {"status": "error", "message": "sources must be a list"}
             records = self.resolver.detect_conflicts(sources)
+            # 持久化每条检测到的冲突
+            for r in records:
+                try:
+                    self.storage.save_conflict(self._record_to_dict(r))
+                except Exception as exc:
+                    logger.warning("Failed to persist conflict %s: %s", r.id, exc)
             return {
                 "conflicts": [self._record_to_dict(r) for r in records],
                 "count": len(records),
@@ -50,7 +66,7 @@ class ConflictService:
         strategy: str,
         context: Dict[str, Any] | None = None,
     ) -> Dict[str, Any]:
-        """按 strategy 解决单条冲突。strategy: str 形式如 'first_wins'"""
+        """按 strategy 解决单条冲突，并更新 storage 中的记录状态。"""
         try:
             strategy_enum = ConflictResolution(strategy)
         except ValueError:
@@ -61,23 +77,44 @@ class ConflictService:
         except Exception as exc:
             return {"status": "error", "message": f"resolve failed: {exc}"}
 
+        # 更新 storage 中的冲突记录
+        try:
+            updates: Dict[str, Any] = {
+                "status": result.status.value,
+                "strategy": result.strategy_used.value,
+                "resolved_at": datetime.now().isoformat(),
+            }
+            if result.chosen:
+                updates["chosen"] = {
+                    "source_id": result.chosen.source_id,
+                    "value": result.chosen.value,
+                    "confidence": result.chosen.confidence,
+                }
+            self.storage.update_conflict(conflict.id, updates)
+        except Exception as exc:
+            logger.warning("Failed to update conflict %s in storage: %s", conflict.id, exc)
+
         return self._result_to_dict(result)
 
-    def list_conflicts(self, conflicts: List[ConflictRecord], status: str | None = None) -> Dict[str, Any]:
-        """列出冲突（可选按 status 过滤）"""
-        # 先校验 status 枚举值（即使 conflicts 为空也要拒绝非法 status）
+    def list_conflicts(self, status: str | None = None) -> Dict[str, Any]:
+        """从 storage 列出冲突（可选按 status 过滤）"""
+        # 校验 status 枚举值
         if status is not None:
             try:
-                status_enum = ConflictStatus(status)
+                ConflictStatus(status)
             except ValueError:
                 return {"status": "error", "message": f"unknown status: {status}"}
-            filtered = [c for c in conflicts if c.status == status_enum]
-        else:
-            filtered = list(conflicts)
-        return {
-            "conflicts": [self._record_to_dict(c) for c in filtered],
-            "count": len(filtered),
-        }
+
+        try:
+            conflicts = self.storage.list_conflicts(status=status)
+            total = self.storage.count_conflicts(status=status)
+            return {
+                "conflicts": conflicts,
+                "count": len(conflicts),
+                "total": total,
+            }
+        except Exception as exc:
+            return {"status": "error", "message": f"list_conflicts failed: {exc}"}
 
     # ---------- 类型转换 ----------
 
@@ -111,6 +148,7 @@ class ConflictService:
             ),
             "detected_at": record.detected_at.isoformat(),
             "resolved_at": record.resolved_at.isoformat() if record.resolved_at else None,
+            "resolver_id": record.resolver_id,
             "notes": record.notes,
         }
 

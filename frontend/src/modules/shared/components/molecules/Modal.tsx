@@ -6,7 +6,7 @@ interface MoleculeModalProps extends Omit<ModalProps, 'className'> {
   okText?: string;
   cancelText?: string;
   footer?: ReactNode;
-  destroyOnClose?: boolean;
+  destroyOnHidden?: boolean;
   className?: string;
   style?: CSSProperties;
 }
@@ -17,7 +17,7 @@ const Modal: FC<MoleculeModalProps> = ({
   okText,
   cancelText,
   footer,
-  destroyOnClose,
+  destroyOnHidden,
   className,
   style,
   ...rest
@@ -25,7 +25,7 @@ const Modal: FC<MoleculeModalProps> = ({
   void okText;
   void cancelText;
   void footer;
-  void destroyOnClose;
+  void destroyOnHidden;
   void style;
   return <AdapterModal {...rest} className={className} />;
 };

@@ -41,7 +41,7 @@ export const ToolHealthIndicator: React.FC<ToolHealthIndicatorProps> = ({
 
   return (
     <Card size="small" style={style}>
-      <Space direction="vertical" style={{ width: '100%' }} size="small">
+      <Space orientation="vertical" style={{ width: '100%' }} size="small">
         <Space style={{ justifyContent: 'space-between', width: '100%' }}>
           <Text strong>{toolName}</Text>
           <Tag color={statusColors[health.status]}>{statusText[health.status]}</Tag>

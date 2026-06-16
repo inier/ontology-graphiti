@@ -15,7 +15,7 @@ import {
   ReloadOutlined, SearchOutlined, DownloadOutlined, EyeOutlined, LockOutlined, UnlockOutlined, PlusOutlined,
 } from '@ant-design/icons';
 import { viewApi, type ObjectView, type ViewPermission } from '../services/viewApi';
-import { useI18n } from '../../shared/hooks/useI18n';
+import { useI18n } from '@/modules/shared/hooks/useI18n';
 
 const { Title, Text } = Typography;
 
@@ -198,7 +198,7 @@ export function ObjectViewPage({ workspaceId, onCreateView }: ObjectViewPageProp
               }
             >
               {currentView ? (
-                <Space direction="vertical" style={{ width: '100%' }}>
+                <Space orientation="vertical" style={{ width: '100%' }}>
                   <Row gutter={16}>
                     <Col span={8}><Statistic title="总行数" value={rows.length} /></Col>
                     <Col span={8}><Statistic title="可见字段" value={currentView.fields.filter((f) => f.visible).length} /></Col>

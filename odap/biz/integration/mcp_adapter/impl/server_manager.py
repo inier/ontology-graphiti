@@ -1,9 +1,12 @@
 """Tool Server管理器实现"""
 
+import logging
 from typing import Dict, Any, List, Optional
 from datetime import datetime
 from ..interfaces.server_manager import IToolServerManager
 from ..models.tool_server import ToolServer, ServerStatus, ServerCapability
+
+logger = logging.getLogger(__name__)
 
 
 class ToolServerManager(IToolServerManager):
@@ -64,17 +67,41 @@ class ToolServerManager(IToolServerManager):
         return servers
     
     def discover_tools(self, server_id: str) -> List[Dict[str, Any]]:
-        """发现工具"""
+        """发现工具 - 通过 MCP 协议从服务器获取工具列表"""
         server = self._servers.get(server_id)
         if not server:
             return []
-        
-        # 模拟工具发现
-        return [
-            {
-                "name": f"tool_{i}",
-                "description": f"Tool {i}",
-                "parameters": {}
-            }
-            for i in range(3)
-        ]
+
+        if server.status != ServerStatus.CONNECTED:
+            logger.warning("ToolServerManager: server %s is not connected, cannot discover tools", server_id)
+            return []
+
+        # 尝试通过 MCP 协议发现工具
+        try:
+            import httpx
+            tools_url = f"{server.url.rstrip('/')}/tools"
+            response = httpx.get(tools_url, timeout=10)
+            if response.status_code == 200:
+                data = response.json()
+                if isinstance(data, list):
+                    return data
+                if isinstance(data, dict) and "tools" in data:
+                    return data["tools"]
+        except ImportError:
+            logger.warning("ToolServerManager: httpx not installed, trying requests for tool discovery")
+            try:
+                import requests
+                tools_url = f"{server.url.rstrip('/')}/tools"
+                response = requests.get(tools_url, timeout=10)
+                if response.status_code == 200:
+                    data = response.json()
+                    if isinstance(data, list):
+                        return data
+                    if isinstance(data, dict) and "tools" in data:
+                        return data["tools"]
+            except Exception as e:
+                logger.error("ToolServerManager: failed to discover tools from server %s: %s", server_id, e)
+        except Exception as e:
+            logger.error("ToolServerManager: failed to discover tools from server %s: %s", server_id, e)
+
+        return []

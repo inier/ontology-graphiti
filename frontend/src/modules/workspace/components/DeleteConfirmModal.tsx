@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react';
 import { Modal, Table, Typography, Space, Alert, Spin } from 'antd';
 import { ExclamationCircleOutlined, DeleteOutlined } from '@ant-design/icons';
-import { api } from '../../shared/services/api';
+import { api } from '@/modules/shared/services/api';
 
 const { Text } = Typography;
 
@@ -115,10 +115,10 @@ export function DeleteConfirmModal({
     >
       {previewLoading ? (
         <div style={{ textAlign: 'center', padding: '40px 0' }}>
-          <Spin tip="加载删除预览..." />
+          <Spin description="加载删除预览..." />
         </div>
       ) : (
-        <Space direction="vertical" style={{ width: '100%' }} size="middle">
+        <Space orientation="vertical" style={{ width: '100%' }} size="middle">
           <Alert
             type="warning"
             showIcon

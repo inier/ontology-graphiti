@@ -4,8 +4,8 @@ import {
   PlusOutlined, DeleteOutlined,
   ThunderboltOutlined, ReloadOutlined,
 } from '@ant-design/icons';
-import { apiClient } from '../../shared/services/apiClient';
-import { useI18n } from '../../shared/hooks/useI18n';
+import { apiClient } from '@/modules/shared/services/apiClient';
+import { useI18n } from '@/modules/shared/hooks/useI18n';
 
 const { Text } = Typography;
 
@@ -285,7 +285,7 @@ function MCPManager() {
         onCancel={() => { setInvokeOpen(false); setInvokeParams(''); setInvokeTool(null); }}
         onOk={handleInvokeTool}
       >
-        <Space direction="vertical" style={{ width: '100%' }} size="middle">
+        <Space orientation="vertical" style={{ width: '100%' }} size="middle">
           {invokeTool?.description && <Text type="secondary">{invokeTool.description}</Text>}
           <Input.TextArea
             placeholder='{"key": "value"}'

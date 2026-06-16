@@ -1,12 +1,12 @@
 """Celery配置和任务定义"""
 
 from celery import Celery
-import os
+from odap.infra.config_composer import get_config
 
 # Redis URL配置
 # 在Docker环境中使用 docker-compose.yml 中定义的 graphiti-cache 服务
 # 在本地开发时可以使用 localhost:6379
-REDIS_URL = os.getenv('REDIS_URL', 'redis://localhost:6379/0')
+REDIS_URL = get_config("cache.redis_url", 'redis://localhost:6379/0')
 
 # 创建Celery应用
 celery_app = Celery(

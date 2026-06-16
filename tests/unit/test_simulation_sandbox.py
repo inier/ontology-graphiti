@@ -49,7 +49,7 @@ def _make_scenario(**overrides):
         'description': 'A test what-if scenario',
         'action_type_id': 'attack',
         'target_object_id': 'unit_alpha',
-        'target_object_type': 'military_unit',
+        'target_object_type': 'organization_unit',
         'parameters': {},
         'variant_parameters': [],
     }
@@ -59,10 +59,10 @@ def _make_scenario(**overrides):
 
 def _mock_projected(action_type_id='attack'):
     impact = {
-        'attack': {'combat_power': -0.2, 'morale': -0.15, 'supply_level': -0.3, 'casualty_rate': 0.15},
-        'defend': {'combat_power': -0.05, 'morale': 0.1, 'supply_level': -0.1},
-        'move': {'supply_level': -0.1, 'morale': -0.05},
-        'reinforce': {'strength': 0.3, 'morale': 0.15, 'supply_level': -0.15},
+        'engage': {'capability_index': -0.2, 'readiness': -0.15, 'supply_level': -0.3, 'casualty_rate': 0.15},
+        'defend': {'capability_index': -0.05, 'readiness': 0.1, 'supply_level': -0.1},
+        'move': {'supply_level': -0.1, 'readiness': -0.05},
+        'reinforce': {'strength': 0.3, 'readiness': 0.15, 'supply_level': -0.15},
         'observe': {'supply_level': -0.02},
     }.get(action_type_id, {})
 
@@ -77,9 +77,9 @@ def _mock_projected(action_type_id='attack'):
 def _mock_baseline():
     return {
         'target_id': 'unit_alpha',
-        'target_type': 'military_unit',
-        'combat_power': 80,
-        'morale': 70,
+        'target_type': 'organization_unit',
+        'capability_index': 80,
+        'readiness': 70,
         'supply_level': 90,
     }
 
@@ -102,9 +102,9 @@ def test_create_scenario(sandbox, mock_graph, mock_oms):
 def test_run_simulation(sandbox, mock_graph, mock_oms):
     baseline = {
         'target_id': 'unit_alpha',
-        'target_type': 'military_unit',
-        'combat_power': 80,
-        'morale': 70,
+        'target_type': 'organization_unit',
+        'capability_index': 80,
+        'readiness': 70,
         'supply_level': 90,
         'strength': 100,
     }
@@ -115,8 +115,8 @@ def test_run_simulation(sandbox, mock_graph, mock_oms):
     result = asyncio.run(sandbox.simulate(scenario))
 
     assert result.status == SimulationStatus.COMPLETED
-    assert 'combat_power' in result.baseline_metrics
-    assert 'morale' in result.baseline_metrics
+    assert 'capability_index' in result.baseline_metrics
+    assert 'readiness' in result.baseline_metrics
     assert len(result.projected_metrics) > 0
     assert result.projected_metrics[0]['action'] == 'attack'
     assert 'estimated_impact' in result.projected_metrics[0]
@@ -208,7 +208,7 @@ def test_simulation_with_parameters(sandbox, mock_graph, mock_oms):
         'target_id': 'unit_alpha',
         'action': 'move',
         'parameters': {'speed': 50, 'route': 'northern_pass'},
-        'estimated_impact': {'supply_level': -0.1, 'morale': -0.05},
+        'estimated_impact': {'supply_level': -0.1, 'readiness': -0.05},
     }
     sandbox._project_impact = AsyncMock(return_value=projected)
 
@@ -237,7 +237,7 @@ def test_risk_assessment(sandbox, mock_graph, mock_oms):
     assert 'negative_impact_count' in risk
     assert risk['overall_risk'] in ('low', 'medium', 'high')
 
-    attack_risk = sandbox._assess_risk('attack', result.metric_changes)
+    attack_risk = sandbox._assess_risk('engage', result.metric_changes)
     assert attack_risk['overall_risk'] == 'high'
 
     observe_risk = sandbox._assess_risk('observe', result.metric_changes)

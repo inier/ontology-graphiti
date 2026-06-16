@@ -1,154 +1,16 @@
+import logging
 from fastapi import APIRouter, HTTPException, Query, Depends
 from odap.infra.security.jwt_auth import get_current_user
 from typing import List, Optional, Dict, Any
 
 from .schemas import Agent, AgentCreate, AgentUpdate
-from ..storage.sqlite_agent_storage import SQLiteAgentStorage
+from ..services.agent_service import get_agent_service
+
+logger = logging.getLogger(__name__)
 
 router = APIRouter(prefix="/api/agent-management", tags=["agent-management"])
 
-_agent_storage = SQLiteAgentStorage()
-
-
-def _build_ref_labels(agent_data: Dict[str, Any]) -> Dict[str, str]:
-    labels: Optional[Dict[str, str]] = None
-    if labels is None:
-        labels = {}
-    if not agent_data:
-        return labels
-
-    all_ids = set()
-    for field in ("related_objects", "related_processes", "related_rules",
-                  "related_business_logic", "related_indicators",
-                  "related_skills", "related_knowledge_bases"):
-        for v in agent_data.get(field, []):
-            all_ids.add(v)
-
-    if not all_ids:
-        return labels
-
-    try:
-        from odap.biz.core.ontology.application.oms.services import get_oms_service
-        oms = get_oms_service()
-        for obj in oms.list_object_types():
-            tid = obj.get("type_id", "")
-            tname = obj.get("name", "")
-            tdisplay = obj.get("display_name") or tname
-            if tid in all_ids:
-                labels[tid] = tdisplay
-            if tname in all_ids and tname not in labels:
-                labels[tname] = tdisplay
-            if tdisplay in all_ids and tdisplay not in labels:
-                labels[tdisplay] = tdisplay
-    except HTTPException:
-        raise
-    except Exception:
-        pass
-
-    try:
-        from odap.biz.management.business.services import get_business_service
-        biz = get_business_service()
-        for item in biz.list_processes():
-            pid = item.get("process_id", "")
-            pname = item.get("name", "")
-            pdisplay = item.get("display_name") or pname
-            if pid in all_ids:
-                labels[pid] = pdisplay
-            if pname in all_ids and pname not in labels:
-                labels[pname] = pdisplay
-        for item in biz.list_rules():
-            rid = item.get("rule_id", "")
-            rname = item.get("name", "")
-            rdisplay = item.get("display_name") or rname
-            if rid in all_ids:
-                labels[rid] = rdisplay
-            if rname in all_ids and rname not in labels:
-                labels[rname] = rdisplay
-        for item in biz.list_logics():
-            lid = item.get("logic_id", "")
-            lname = item.get("name", "")
-            ldisplay = item.get("display_name") or lname
-            if lid in all_ids:
-                labels[lid] = ldisplay
-            if lname in all_ids and lname not in labels:
-                labels[lname] = ldisplay
-        for item in biz.list_indicators():
-            iid = item.get("indicator_id", "")
-            iname = item.get("name", "")
-            idisplay = item.get("display_name") or iname
-            if iid in all_ids:
-                labels[iid] = idisplay
-            if iname in all_ids and iname not in labels:
-                labels[iname] = idisplay
-    except HTTPException:
-        raise
-    except Exception:
-        pass
-
-    try:
-        from odap.biz.platform.skill_system.services.skill_service import SkillService
-        svc = SkillService()
-        result = svc.list_skills()
-        for s in result.get("skills", []):
-            sid = s.get("skill_id", "")
-            sname = s.get("name", "")
-            if sid in all_ids:
-                labels[sid] = sname
-            if sname in all_ids and sname not in labels:
-                labels[sname] = sname
-    except HTTPException:
-        raise
-    except Exception:
-        pass
-
-    try:
-        from odap.biz.data.knowledge_base.services import get_kb_service
-        kb = get_kb_service()
-        for item in kb.list_knowledge_bases():
-            kid = item.get("kb_id", "")
-            kname = item.get("name", "")
-            if kid in all_ids:
-                labels[kid] = kname
-            if kname in all_ids and kname not in labels:
-                labels[kname] = kname
-    except HTTPException:
-        raise
-    except Exception:
-        pass
-
-    return labels
-
-
-class AgentService:
-    def __init__(self):
-        self.storage = _agent_storage
-
-    def list_agents(self, role_id: Optional[str] = None, workspace_id: Optional[str] = None) -> List[Dict[str, Any]]:
-        return self.storage.list_agents(role_id=role_id, workspace_id=workspace_id)
-
-    def get_agent(self, agent_id: str) -> Dict[str, Any]:
-        agent = self.storage.get_agent(agent_id)
-        if not agent:
-            return {"status": "error", "message": "智能体不存在"}
-        return agent
-
-    def create_agent(self, data: Dict[str, Any]) -> Dict[str, Any]:
-        return self.storage.create_agent(data)
-
-    def update_agent(self, agent_id: str, data: Dict[str, Any]) -> Dict[str, Any]:
-        updated = self.storage.update_agent(agent_id, data)
-        if not updated:
-            return {"status": "error", "message": "智能体不存在"}
-        return updated
-
-    def delete_agent(self, agent_id: str) -> Dict[str, Any]:
-        success = self.storage.delete_agent(agent_id)
-        if not success:
-            return {"status": "error", "message": "智能体不存在"}
-        return {"status": "success", "message": "智能体删除成功"}
-
-
-agent_service = AgentService()
+agent_service = get_agent_service()
 
 
 @router.get("", response_model=List[Agent])
@@ -158,10 +20,7 @@ async def list_agents(
     user=Depends(get_current_user),
 ):
     try:
-        agents = agent_service.list_agents(role_id=role_id, workspace_id=workspace_id)
-        for a in agents:
-            a["ref_labels"] = _build_ref_labels(a)
-        return agents
+        return agent_service.list_agents(role_id=role_id, workspace_id=workspace_id)
     except HTTPException:
         raise
     except Exception as e:
@@ -244,7 +103,6 @@ async def get_agent(agent_id: str,
         result = agent_service.get_agent(agent_id)
         if result.get("status") == "error":
             raise HTTPException(status_code=404, detail=result["message"])
-        result["ref_labels"] = _build_ref_labels(result)
         return result
     except HTTPException:
         raise
@@ -258,7 +116,6 @@ async def create_agent(agent: AgentCreate,
     try:
         data = agent.model_dump()
         result = agent_service.create_agent(data)
-        result["ref_labels"] = _build_ref_labels(result)
         return result
     except HTTPException:
         raise
@@ -276,7 +133,6 @@ async def update_agent(agent_id: str, agent: AgentUpdate,
         result = agent_service.update_agent(agent_id, data)
         if result.get("status") == "error":
             raise HTTPException(status_code=404, detail=result["message"])
-        result["ref_labels"] = _build_ref_labels(result)
         return result
     except HTTPException:
         raise

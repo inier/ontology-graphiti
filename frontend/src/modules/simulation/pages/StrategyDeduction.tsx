@@ -11,8 +11,8 @@ import {
   ExperimentOutlined, SafetyOutlined,
 } from '@ant-design/icons';
 import type { ColumnsType } from 'antd/es/table';
-import { fetchJson } from '../../shared/services/apiClient';
-import { API_BASE } from '../../../config';
+import { fetchJson } from '@/modules/shared/services/apiClient';
+import { API_BASE } from '@/config';
 
 interface ApiResponse {
   [key: string]: unknown;
@@ -768,7 +768,7 @@ const StrategyDeduction: React.FC = () => {
           value={confidence * 100}
           precision={1}
           suffix="%"
-          valueStyle={{ fontSize: 14 }}
+          styles={{ content: { fontSize: 14 } }}
         />
       ),
     },
@@ -788,7 +788,7 @@ const StrategyDeduction: React.FC = () => {
       title: '指标变化',
       key: 'metrics',
       render: (_: unknown, record: ChainResult) => (
-        <Space direction="vertical" size={2}>
+        <Space orientation="vertical" size={2}>
           {record.metric_impacts.slice(0, 3).map((m, idx) => (
             <span key={idx} style={{ fontSize: 12 }}>
               {m.metric_name}:{' '}
@@ -863,9 +863,9 @@ const StrategyDeduction: React.FC = () => {
     const allConditions = selectedScenario.available_conditions;
 
     return (
-      <Space direction="vertical" size="middle" style={{ width: '100%' }}>
+      <Space orientation="vertical" size="middle" style={{ width: '100%' }}>
         <Card title="场景信息" size="small">
-          <Descriptions size="small" column={2} bordered>
+          <Descriptions size="small" column={2} variant="bordered">
             <Descriptions.Item label="场景名称">{selectedScenario.name}</Descriptions.Item>
             <Descriptions.Item label="状态">
               <Tag color={SCENARIO_STATUS_COLORS[selectedScenario.status] || 'default'}>
@@ -891,7 +891,7 @@ const StrategyDeduction: React.FC = () => {
                   .filter(([k]) => k !== 'target_id' && k !== 'target_type')
                   .map(([key, val]) => (
                     <Col span={6} key={key}>
-                      <Statistic title={key} value={val as number} valueStyle={{ fontSize: 14 }} />
+                      <Statistic title={key} value={val as number} styles={{ content: { fontSize: 14 } }} />
                     </Col>
                   ))}
               </Row>
@@ -989,7 +989,7 @@ const StrategyDeduction: React.FC = () => {
         );
 
     return (
-      <Space direction="vertical" size="middle" style={{ width: '100%' }}>
+      <Space orientation="vertical" size="middle" style={{ width: '100%' }}>
         <Card title="最优链路推荐" size="small">
           {optimalResult && (
             <>
@@ -998,7 +998,7 @@ const StrategyDeduction: React.FC = () => {
                   <Statistic
                     title="推荐链路"
                     value={getChainName(optimalResult.chain_id)}
-                    valueStyle={{ fontSize: 16 }}
+                    styles={{ content: { fontSize: 16 } }}
                     prefix={<CheckCircleOutlined style={{ color: '#52c41a' }} />}
                   />
                 </Col>
@@ -1008,7 +1008,7 @@ const StrategyDeduction: React.FC = () => {
                     value={optimalResult.risk_score}
                     precision={1}
                     suffix="/ 100"
-                    valueStyle={{ color: getRiskColor(optimalResult.risk_level) }}
+                    styles={{ content: { color: getRiskColor(optimalResult.risk_level) } }}
                   />
                 </Col>
                 <Col span={8}>
@@ -1092,7 +1092,7 @@ const StrategyDeduction: React.FC = () => {
             {results.map(result => (
               <Col span={Math.max(6, 24 / results.length)} key={result.chain_id}>
                 <Card size="small" type="inner" title={getChainName(result.chain_id)}>
-                  <Space direction="vertical" style={{ width: '100%' }}>
+                  <Space orientation="vertical" style={{ width: '100%' }}>
                     <Progress
                       percent={Math.round(result.risk_score)}
                       strokeColor={getRiskColor(result.risk_level)}
@@ -1104,12 +1104,12 @@ const StrategyDeduction: React.FC = () => {
                         value={result.confidence * 100}
                         precision={1}
                         suffix="%"
-                        valueStyle={{ fontSize: 14 }}
+                        styles={{ content: { fontSize: 14 } }}
                       />
                       <Statistic
                         title="违反"
                         value={result.rule_violations.length}
-                        valueStyle={{ fontSize: 14, color: result.rule_violations.length > 0 ? '#ff4d4f' : '#52c41a' }}
+                        styles={{ content: { fontSize: 14, color: result.rule_violations.length > 0 ? '#ff4d4f' : '#52c41a' } }}
                         prefix={result.rule_violations.length > 0 ? <WarningOutlined /> : <SafetyOutlined />}
                       />
                     </div>
@@ -1203,7 +1203,7 @@ const StrategyDeduction: React.FC = () => {
                       {r.risk_level.toUpperCase()}
                     </Tag>
                   }
-                  valueStyle={{ color: getRiskColor(r.risk_level) }}
+                  styles={{ content: { color: getRiskColor(r.risk_level) } }}
                 />
                 {bestChainId === r.chain_id && (
                   <Tag color="gold" style={{ marginTop: 4 }}>最优</Tag>
@@ -1286,7 +1286,7 @@ const StrategyDeduction: React.FC = () => {
 
       <Divider titlePlacement="left" style={{ fontSize: 14 }}>执行步骤</Divider>
 
-      <Space direction="vertical" style={{ width: '100%' }}>
+      <Space orientation="vertical" style={{ width: '100%' }}>
         {chainSteps.map((step, idx) => (
           <Card key={step.step_id} size="small" type="inner" title={`步骤 ${idx + 1}`}>
             <Row gutter={8}>
@@ -1364,7 +1364,7 @@ const StrategyDeduction: React.FC = () => {
   );
 
   return (
-    <Spin spinning={loading} tip="推演进行中...">
+    <Spin spinning={loading} description="推演进行中...">
       <Row gutter={16}>
         <Col span={6}>
           {renderScenarioList()}

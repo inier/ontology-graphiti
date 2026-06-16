@@ -1,5 +1,5 @@
-import { fetchJson } from '../../shared';
-import { API_BASE } from '../../../config';
+import { fetchJson } from '@/modules/shared';
+import { API_BASE } from '@/config';
 
 const BASE = `${API_BASE}/api/ontology/blueprints`;
 

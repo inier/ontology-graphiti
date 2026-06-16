@@ -98,7 +98,7 @@ export const QAPanel: React.FC<QAPanelProps> = ({ workspaceId, style }) => {
                 border: 'none',
               }}
             >
-              <Space direction={message.role === 'user' ? 'horizontal' : 'horizontal'} align="start">
+              <Space orientation={message.role === 'user' ? 'horizontal' : 'horizontal'} align="start">
                 {message.role !== 'user' && (
                   <Avatar icon={<RobotOutlined />} style={{ backgroundColor: '#1677ff' }} />
                 )}

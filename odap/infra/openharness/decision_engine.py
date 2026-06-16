@@ -1,6 +1,13 @@
 """
 Agent 决策引擎
 
+.. deprecated::
+    本模块已弃用。决策功能已统一到 OpenHarness v2 的 QueryEngine
+    （LLM function calling 自动选择工具）和 GraphitiAgentLoop._fallback_decide()
+    （关键词匹配降级）。请勿在新代码中使用 DecisionEngine。
+
+    预计移除版本: v2.0
+
 提供智能的决策逻辑：
 1. 意图识别
 2. 工具推荐
@@ -9,6 +16,7 @@ Agent 决策引擎
 """
 
 import re
+import warnings
 from typing import Dict, Any, List, Optional, Tuple
 from dataclasses import dataclass
 
@@ -94,6 +102,13 @@ class DecisionEngine:
     ]
 
     def __init__(self, tools_catalog: Dict[str, Any]):
+        warnings.warn(
+            "DecisionEngine 已弃用，决策功能已统一到 OpenHarness v2 QueryEngine "
+            "和 GraphitiAgentLoop._fallback_decide()。请勿在新代码中使用。"
+            "预计移除版本: v2.0",
+            DeprecationWarning,
+            stacklevel=2,
+        )
         self.tools_catalog = tools_catalog
 
     def recognize_intent(self, user_input: str) -> Intent:
@@ -325,5 +340,15 @@ class DecisionEngine:
 
 # 便捷函数
 def create_decision_engine(tools_catalog: Dict[str, Any]) -> DecisionEngine:
-    """创建决策引擎"""
+    """创建决策引擎
+
+    .. deprecated::
+        DecisionEngine 已弃用。请使用 GraphitiAgentLoop 代替。
+    """
+    warnings.warn(
+        "create_decision_engine() 已弃用，请使用 GraphitiAgentLoop 代替。"
+        "预计移除版本: v2.0",
+        DeprecationWarning,
+        stacklevel=2,
+    )
     return DecisionEngine(tools_catalog)

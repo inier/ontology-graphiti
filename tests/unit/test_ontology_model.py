@@ -23,13 +23,13 @@ class TestSQLiteModelStorage:
 
     def test_list_entity_types(self, storage):
         storage.save_entity_type({"type_id": "et-1", "name": "Unit"})
-        storage.save_entity_type({"type_id": "et-2", "name": "Weapon"})
+        storage.save_entity_type({"type_id": "et-2", "name": "Equipment"})
         results = storage.list_entity_types()
         assert len(results) == 2
 
     def test_list_entity_types_with_filter(self, storage):
         storage.save_entity_type({"type_id": "et-1", "name": "Unit", "classification_level": "S"})
-        storage.save_entity_type({"type_id": "et-2", "name": "Weapon", "classification_level": "U"})
+        storage.save_entity_type({"type_id": "et-2", "name": "Equipment", "classification_level": "U"})
         results = storage.list_entity_types(filters={"classification_level": "S"})
         assert len(results) == 1
         assert results[0]["classification_level"] == "S"
@@ -169,7 +169,7 @@ class TestModelService:
 
     def test_list_entity_types(self, service):
         service.create_entity_type({"name": "Unit"})
-        service.create_entity_type({"name": "Weapon"})
+        service.create_entity_type({"name": "Equipment"})
         result = service.list_entity_types()
         assert len(result["entity_types"]) == 2
 

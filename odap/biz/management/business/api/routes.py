@@ -33,6 +33,7 @@ class ProcessCreate(BaseModel):
     yaml_definition: str = ""
     ontology_id: str = ""
     version_id: str = ""
+    schema_type_id: Optional[str] = None
 
 
 class ProcessUpdate(BaseModel):
@@ -46,6 +47,7 @@ class ProcessUpdate(BaseModel):
     yaml_definition: Optional[str] = None
     ontology_id: Optional[str] = None
     version_id: Optional[str] = None
+    schema_type_id: Optional[str] = None
 
 
 class RuleCreate(BaseModel):
@@ -58,6 +60,7 @@ class RuleCreate(BaseModel):
     yaml_definition: str = ""
     ontology_id: str = ""
     version_id: str = ""
+    schema_type_id: Optional[str] = None
 
 
 class RuleUpdate(BaseModel):
@@ -71,6 +74,7 @@ class RuleUpdate(BaseModel):
     yaml_definition: Optional[str] = None
     ontology_id: Optional[str] = None
     version_id: Optional[str] = None
+    schema_type_id: Optional[str] = None
 
 
 class LogicCreate(BaseModel):
@@ -84,6 +88,7 @@ class LogicCreate(BaseModel):
     yaml_definition: str = ""
     ontology_id: str = ""
     version_id: str = ""
+    schema_type_id: Optional[str] = None
 
 
 class LogicUpdate(BaseModel):
@@ -98,6 +103,7 @@ class LogicUpdate(BaseModel):
     yaml_definition: Optional[str] = None
     ontology_id: Optional[str] = None
     version_id: Optional[str] = None
+    schema_type_id: Optional[str] = None
 
 
 class IndicatorCreate(BaseModel):
@@ -112,6 +118,7 @@ class IndicatorCreate(BaseModel):
     yaml_definition: str = ""
     ontology_id: str = ""
     version_id: str = ""
+    schema_type_id: Optional[str] = None
 
 
 class IndicatorUpdate(BaseModel):
@@ -127,6 +134,7 @@ class IndicatorUpdate(BaseModel):
     yaml_definition: Optional[str] = None
     ontology_id: Optional[str] = None
     version_id: Optional[str] = None
+    schema_type_id: Optional[str] = None
 
 
 # ===== Business Processes =====
@@ -391,6 +399,83 @@ async def delete_indicator(indicator_id: str,
         if result.get("status") == "error":
             raise HTTPException(status_code=404, detail=result.get("message", "Indicator not found"))
         return {"status": "deleted"}
+    except HTTPException:
+        raise
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+# ===== Type Definition Query Endpoints =====
+@router.get("/process-type-definitions")
+async def list_process_type_definitions(
+    ontology_id: str = Query(..., description="本体 ID"),
+    user=Depends(get_current_user),
+):
+    """列出业务过程类型定义（供下拉选择）"""
+    try:
+        from odap.biz.core.ontology.ontology_api.services import OntologyService
+        ontology_service = OntologyService()
+        result = ontology_service.list_process_types(ontology_id)
+        if result.get("status") == "error":
+            raise HTTPException(status_code=400, detail=result.get("message"))
+        return result
+    except HTTPException:
+        raise
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@router.get("/rule-type-definitions")
+async def list_rule_type_definitions(
+    ontology_id: str = Query(..., description="本体 ID"),
+    user=Depends(get_current_user),
+):
+    """列出规则类型定义（供下拉选择）"""
+    try:
+        from odap.biz.core.ontology.ontology_api.services import OntologyService
+        ontology_service = OntologyService()
+        result = ontology_service.list_rule_types(ontology_id)
+        if result.get("status") == "error":
+            raise HTTPException(status_code=400, detail=result.get("message"))
+        return result
+    except HTTPException:
+        raise
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@router.get("/function-type-definitions")
+async def list_function_type_definitions(
+    ontology_id: str = Query(..., description="本体 ID"),
+    user=Depends(get_current_user),
+):
+    """列出逻辑函数类型定义（供下拉选择）"""
+    try:
+        from odap.biz.core.ontology.ontology_api.services import OntologyService
+        ontology_service = OntologyService()
+        result = ontology_service.list_function_types(ontology_id)
+        if result.get("status") == "error":
+            raise HTTPException(status_code=400, detail=result.get("message"))
+        return result
+    except HTTPException:
+        raise
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@router.get("/indicator-type-definitions")
+async def list_indicator_type_definitions(
+    ontology_id: str = Query(..., description="本体 ID"),
+    user=Depends(get_current_user),
+):
+    """列出指标类型定义（供下拉选择）"""
+    try:
+        from odap.biz.core.ontology.ontology_api.services import OntologyService
+        ontology_service = OntologyService()
+        result = ontology_service.list_indicator_types(ontology_id)
+        if result.get("status") == "error":
+            raise HTTPException(status_code=400, detail=result.get("message"))
+        return result
     except HTTPException:
         raise
     except Exception as e:

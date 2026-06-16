@@ -1,8 +1,8 @@
 import { useState, useEffect } from 'react';
 import { Timeline, Tag, Card, Space, Select, Button, Input, message } from 'antd';
 import { ReloadOutlined, FilterOutlined, SearchOutlined } from '@ant-design/icons';
-import { api } from '../../shared/services/api';
-import type { AuditEvent } from '../../shared/services/api';
+import { api } from '@/modules/shared/services/api';
+import type { AuditEvent } from '@/modules/shared/services/api';
 
 export function AuditTimeline() {
   const [events, setEvents] = useState<AuditEvent[]>([]);
@@ -113,7 +113,7 @@ export function AuditTimeline() {
             color={getStatusColor(event.result_status)}
             dot={<Tag color={getSeverityColor(event.severity)}>{event.severity}</Tag>}
           >
-            <Space direction="vertical">
+            <Space orientation="vertical">
               <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
                 <Tag color="blue">{event.event_type}</Tag>
                 <Tag color={getStatusColor(event.result_status)}>{event.result_status}</Tag>

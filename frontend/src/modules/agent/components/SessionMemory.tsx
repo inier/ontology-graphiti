@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react';
 import { Tabs, List, Input, Button, Card, Tag, Space, Typography, Empty, Spin, message, Popconfirm } from 'antd';
 import { SearchOutlined, ClearOutlined } from '@ant-design/icons';
-import { apiClient } from '../../shared/services/apiClient';
+import { apiClient } from '@/modules/shared/services/apiClient';
 
 const { Text } = Typography;
 
@@ -108,7 +108,7 @@ export default function SessionMemory({ sessionId }: SessionMemoryProps) {
       return <Empty description="No conversation context" image={Empty.PRESENTED_IMAGE_SIMPLE} />;
     }
     return (
-      <Space direction="vertical" style={{ width: '100%' }} size="small">
+      <Space orientation="vertical" style={{ width: '100%' }} size="small">
         {context.summary && (
           <Card size="small" style={{ background: '#f6f8fa' }}>
             <Text type="secondary">Summary: </Text>
@@ -125,7 +125,7 @@ export default function SessionMemory({ sessionId }: SessionMemoryProps) {
           dataSource={context.messages}
           renderItem={(msg: ChatMessage) => (
             <List.Item>
-              <Space direction="vertical" style={{ width: '100%' }} size={2}>
+              <Space orientation="vertical" style={{ width: '100%' }} size={2}>
                 <Space>
                   <Tag color={msg.role === 'user' ? 'blue' : msg.role === 'assistant' ? 'green' : 'default'}>
                     {msg.role}
@@ -167,7 +167,7 @@ export default function SessionMemory({ sessionId }: SessionMemoryProps) {
   };
 
   const renderLongTermMemory = () => (
-    <Space direction="vertical" style={{ width: '100%' }} size="middle">
+    <Space orientation="vertical" style={{ width: '100%' }} size="middle">
       <Space>
         <Input
           placeholder="Search long-term memory..."
@@ -186,7 +186,7 @@ export default function SessionMemory({ sessionId }: SessionMemoryProps) {
           dataSource={longTermResults}
           renderItem={(item) => (
             <List.Item>
-              <Space direction="vertical" style={{ width: '100%' }} size={2}>
+              <Space orientation="vertical" style={{ width: '100%' }} size={2}>
                 <Space>
                   <Tag color="purple">{item.key}</Tag>
                   {item.score !== undefined && <Text type="secondary">score: {item.score.toFixed(3)}</Text>}
@@ -226,7 +226,7 @@ export default function SessionMemory({ sessionId }: SessionMemoryProps) {
         title="Session Memory"
         size="small"
         extra={
-          <Popconfirm title="Clear all session memory?" onConfirm={handleClearSession}>
+          <Popconfirm description="Clear all session memory?" onConfirm={handleClearSession}>
             <Button size="small" danger icon={<ClearOutlined />}>
               Clear
             </Button>

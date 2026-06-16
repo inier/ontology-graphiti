@@ -15,6 +15,8 @@ import yaml
 from typing import Dict, Any, Optional
 from abc import ABC, abstractmethod
 
+from odap.infra.config_composer import get_config
+
 
 import logging
 
@@ -114,7 +116,7 @@ class OpenAIClient(BaseLLMClient):
         if not OPENAI_AVAILABLE:
             raise ImportError("openai package not installed")
         
-        api_key = config.get("api_key") or os.getenv("OPENAI_API_KEY")
+        api_key = config.get("api_key") or get_config("llm.api_key")
         if not api_key:
             raise ValueError("OpenAI API key not configured")
         

@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react';
 import { Card, Descriptions, Button, Tag, Space, Typography, List, Progress, Spin, Empty, message } from 'antd';
 import { CheckCircleOutlined, SyncOutlined } from '@ant-design/icons';
-import { apiClient } from '../../shared/services/apiClient';
+import { apiClient } from '@/modules/shared/services/apiClient';
 
 const { Text } = Typography;
 
@@ -104,8 +104,8 @@ export default function FeedbackPanel({ taskId, ontologyId }: FeedbackPanelProps
       return <Empty description="No feedback analysis available" image={Empty.PRESENTED_IMAGE_SIMPLE} />;
     }
     return (
-      <Space direction="vertical" style={{ width: '100%' }} size="middle">
-        <Descriptions bordered size="small" column={2}>
+      <Space orientation="vertical" style={{ width: '100%' }} size="middle">
+        <Descriptions variant="bordered" size="small" column={2}>
           <Descriptions.Item label="Task ID">{analysis.task_id}</Descriptions.Item>
           <Descriptions.Item label="Total Feedbacks">{analysis.total_feedbacks}</Descriptions.Item>
           <Descriptions.Item label="Avg Deviation" span={2}>
@@ -171,8 +171,8 @@ export default function FeedbackPanel({ taskId, ontologyId }: FeedbackPanelProps
       return <Empty description="No experience aggregation available" image={Empty.PRESENTED_IMAGE_SIMPLE} />;
     }
     return (
-      <Space direction="vertical" style={{ width: '100%' }} size="middle">
-        <Descriptions bordered size="small" column={2}>
+      <Space orientation="vertical" style={{ width: '100%' }} size="middle">
+        <Descriptions variant="bordered" size="small" column={2}>
           <Descriptions.Item label="Ontology ID">{aggregation.ontology_id}</Descriptions.Item>
           <Descriptions.Item label="Total Feedbacks">{aggregation.total_feedbacks}</Descriptions.Item>
         </Descriptions>
@@ -231,7 +231,7 @@ export default function FeedbackPanel({ taskId, ontologyId }: FeedbackPanelProps
           </Button>
         }
       >
-        <Space direction="vertical" style={{ width: '100%' }} size="middle">
+        <Space orientation="vertical" style={{ width: '100%' }} size="middle">
           {renderAnalysis()}
           {renderAggregation()}
         </Space>

@@ -7,8 +7,9 @@
 - L2: 配置文件 (YAML/JSON)
 - L3: 工作空间级配置
 - L4: 用户级配置
+- L5: 数据库配置 (管理员通过界面保存，最高优先级)
 
-优先级: L4 > L3 > L2 > L1 > L0
+优先级: L5 > L4 > L3 > L2 > L1 > L0
 """
 
 import os
@@ -26,6 +27,7 @@ class ConfigLayer(int, Enum):
     FILE = 2
     WORKSPACE = 3
     USER = 4
+    DB = 5
 
 
 @dataclass
@@ -76,7 +78,7 @@ class ConfigurationComposer:
 
     def __init__(self):
         self._schema: Dict[str, ConfigSchema] = {}
-        self._layers: Dict[int, Dict[str, Dict]] = {i: {} for i in range(5)}
+        self._layers: Dict[int, Dict[str, Dict]] = {i: {} for i in range(6)}
         self._lock = threading.RLock()
         self._init_system_defaults()
         self._load_env_layer()
@@ -86,22 +88,43 @@ class ConfigurationComposer:
             "server.host": ConfigSchema("server.host", str, "0.0.0.0", description="服务监听地址"),
             "server.port": ConfigSchema("server.port", int, 8000, description="服务端口", min_val=1, max_val=65535),
             "server.debug": ConfigSchema("server.debug", bool, False, description="调试模式"),
+            # LLM 服务
             "llm.provider": ConfigSchema("llm.provider", str, "openai", choices=["openai", "azure", "local"]),
+            "llm.api_key": ConfigSchema("llm.api_key", str, None, required=True, sensitive=True, description="LLM API Key"),
+            "llm.api_base": ConfigSchema("llm.api_base", str, "https://api.openai.com/v1", required=True, description="LLM API 基地址"),
             "llm.model": ConfigSchema("llm.model", str, "gpt-4", description="LLM 模型名称"),
             "llm.temperature": ConfigSchema("llm.temperature", float, 0.7, min_val=0.0, max_val=2.0),
+            # 图数据库
+            "graph_db.uri": ConfigSchema("graph_db.uri", str, "bolt://localhost:7687", required=True, description="Neo4j URI"),
+            "graph_db.user": ConfigSchema("graph_db.user", str, "neo4j", required=True, description="Neo4j 用户名"),
+            "graph_db.password": ConfigSchema("graph_db.password", str, None, required=True, sensitive=True, description="Neo4j 密码"),
+            # 对象存储
+            "object_storage.endpoint": ConfigSchema("object_storage.endpoint", str, "minio:9000", description="MinIO 端点"),
+            "object_storage.access_key": ConfigSchema("object_storage.access_key", str, None, sensitive=True, description="MinIO 访问密钥"),
+            "object_storage.secret_key": ConfigSchema("object_storage.secret_key", str, None, sensitive=True, description="MinIO 密钥"),
+            "object_storage.secure": ConfigSchema("object_storage.secure", bool, False, description="MinIO HTTPS"),
+            # 搜索服务
+            "search.tavily_api_key": ConfigSchema("search.tavily_api_key", str, None, sensitive=True, description="Tavily API Key"),
+            "search.ddg_api_url": ConfigSchema("search.ddg_api_url", str, None, description="DuckDuckGo URL"),
+            "search.serpapi_key": ConfigSchema("search.serpapi_key", str, None, sensitive=True, description="SerpAPI Key"),
+            # Graphiti
             "graphiti.url": ConfigSchema("graphiti.url", str, "http://localhost:8008", description="Graphiti 服务地址"),
+            # OPA
             "opa.url": ConfigSchema("opa.url", str, "http://localhost:8181", description="OPA 服务地址"),
-            # P0-8 fix: jwt.secret MUST be required. No "change-me" default.
-            # Resolution: env var JWT_SECRET, then fail-closed.
+            # Redis
+            "cache.redis_url": ConfigSchema("cache.redis_url", str, "redis://localhost:6379/0", description="Redis URL"),
+            # JWT
             "jwt.secret": ConfigSchema(
-                "jwt.secret", str, None,  # No default
+                "jwt.secret", str, None,
                 required=True, sensitive=True,
                 description="JWT signing secret. MUST be set via JWT_SECRET env var.",
             ),
             "jwt.algorithm": ConfigSchema("jwt.algorithm", str, "HS256", choices=["HS256", "RS256"]),
             "jwt.access_ttl": ConfigSchema("jwt.access_ttl", int, 900, description="Access Token TTL (秒)"),
             "jwt.refresh_ttl": ConfigSchema("jwt.refresh_ttl", int, 604800, description="Refresh Token TTL (秒)"),
+            # 通用
             "logging.level": ConfigSchema("logging.level", str, "info", choices=["debug", "info", "warning", "error"]),
+            "general.cors_origins": ConfigSchema("general.cors_origins", str, "http://localhost:5173,http://localhost:8000", description="CORS 白名单"),
             "rate_limit.enabled": ConfigSchema("rate_limit.enabled", bool, True),
             "rate_limit.requests_per_second": ConfigSchema("rate_limit.requests_per_second", float, 100.0, min_val=1.0),
             "workspace.max_count": ConfigSchema("workspace.max_count", int, 100, min_val=1),
@@ -118,15 +141,29 @@ class ConfigurationComposer:
             "SERVER_PORT": "server.port",
             "SERVER_DEBUG": "server.debug",
             "LLM_PROVIDER": "llm.provider",
-            "LLM_MODEL": "llm.model",
+            "OPENAI_API_KEY": "llm.api_key",
+            "OPENAI_API_BASE": "llm.api_base",
+            "OPENAI_MODEL": "llm.model",
             "LLM_TEMPERATURE": "llm.temperature",
+            "NEO4J_URI": "graph_db.uri",
+            "NEO4J_USER": "graph_db.user",
+            "NEO4J_PASSWORD": "graph_db.password",
+            "MINIO_ENDPOINT": "object_storage.endpoint",
+            "MINIO_ACCESS_KEY": "object_storage.access_key",
+            "MINIO_SECRET_KEY": "object_storage.secret_key",
+            "MINIO_SECURE": "object_storage.secure",
+            "TAVILY_API_KEY": "search.tavily_api_key",
+            "DDG_API_URL": "search.ddg_api_url",
+            "SERPAPI_KEY": "search.serpapi_key",
             "GRAPHITI_URL": "graphiti.url",
             "OPA_URL": "opa.url",
+            "REDIS_URL": "cache.redis_url",
             "JWT_SECRET": "jwt.secret",
             "JWT_ALGORITHM": "jwt.algorithm",
             "JWT_ACCESS_TTL": "jwt.access_ttl",
             "JWT_REFRESH_TTL": "jwt.refresh_ttl",
             "LOG_LEVEL": "logging.level",
+            "CORS_ORIGINS": "general.cors_origins",
             "RATE_LIMIT_ENABLED": "rate_limit.enabled",
             "RATE_LIMIT_RPS": "rate_limit.requests_per_second",
         }
@@ -174,8 +211,18 @@ class ConfigurationComposer:
         with self._lock:
             self._layers[ConfigLayer.USER] = deepcopy(configs)
 
+    def set_db_config(self, configs: Dict[str, Any]):
+        """设置数据库层配置（管理员通过界面保存，最高优先级）"""
+        with self._lock:
+            self._layers[ConfigLayer.DB] = deepcopy(configs)
+
+    def update_db_config(self, key: str, value: Any):
+        """更新数据库层单个配置项"""
+        with self._lock:
+            self._layers[ConfigLayer.DB][key] = value
+
     def get(self, key: str) -> Any:
-        for layer in [ConfigLayer.USER, ConfigLayer.WORKSPACE, ConfigLayer.FILE, ConfigLayer.ENV, ConfigLayer.SYSTEM]:
+        for layer in [ConfigLayer.DB, ConfigLayer.USER, ConfigLayer.WORKSPACE, ConfigLayer.FILE, ConfigLayer.ENV, ConfigLayer.SYSTEM]:
             value = self._layers[layer].get(key)
             if value is not None:
                 return value
@@ -226,7 +273,7 @@ class ConfigurationComposer:
             keys = [key] if key else list(self._schema.keys())
             for k in keys:
                 layer_values = {}
-                for layer_name in ["SYSTEM", "ENV", "FILE", "WORKSPACE", "USER"]:
+                for layer_name in ["DB", "USER", "WORKSPACE", "FILE", "ENV", "SYSTEM"]:
                     layer = getattr(ConfigLayer, layer_name)
                     layer_values[layer_name] = self._layers[layer].get(k)
                 result[k] = layer_values
@@ -263,3 +310,16 @@ def get_config_composer() -> ConfigurationComposer:
     if _global_composer is None:
         _global_composer = ConfigurationComposer()
     return _global_composer
+
+
+def get_config(key: str, default: Any = None) -> Any:
+    """全局便捷函数：从 ConfigurationComposer 读取配置值
+
+    优先级: DB(管理员界面) > USER > WORKSPACE > FILE > ENV(环境变量) > SYSTEM(默认)
+
+    用法:
+        api_key = get_config("llm.api_key")
+        model = get_config("llm.model", default="gpt-4")
+    """
+    value = get_config_composer().get(key)
+    return value if value is not None else default

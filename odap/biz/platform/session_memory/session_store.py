@@ -23,6 +23,7 @@ class Session(BaseModel):
     created_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
     updated_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
     is_active: bool = True
+    needs_compaction: bool = False
 
 
 class SessionSummary(BaseModel):
@@ -53,21 +54,30 @@ class SessionStore:
                 cot_tree_data TEXT NOT NULL DEFAULT '{}',
                 created_at TEXT NOT NULL,
                 updated_at TEXT NOT NULL,
-                is_active INTEGER NOT NULL DEFAULT 1
+                is_active INTEGER NOT NULL DEFAULT 1,
+                needs_compaction INTEGER NOT NULL DEFAULT 0
             )
         ''')
         cursor.execute('CREATE INDEX IF NOT EXISTS idx_sessions_workspace ON sessions(workspace_id)')
         cursor.execute('CREATE INDEX IF NOT EXISTS idx_sessions_active ON sessions(is_active)')
+        self._migrate_add_needs_compaction(cursor)
         conn.commit()
         conn.close()
+
+    def _migrate_add_needs_compaction(self, cursor):
+        """为旧表添加 needs_compaction 列"""
+        try:
+            cursor.execute("SELECT needs_compaction FROM sessions LIMIT 1")
+        except sqlite3.OperationalError:
+            cursor.execute("ALTER TABLE sessions ADD COLUMN needs_compaction INTEGER NOT NULL DEFAULT 0")
 
     def save_session(self, session: Session) -> str:
         conn = sqlite3.connect(self.db_path)
         cursor = conn.cursor()
         cursor.execute('''
             INSERT OR REPLACE INTO sessions
-            (id, workspace_id, title, messages, context_window, cot_tree_data, created_at, updated_at, is_active)
-            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+            (id, workspace_id, title, messages, context_window, cot_tree_data, created_at, updated_at, is_active, needs_compaction)
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
         ''', (
             session.id,
             session.workspace_id,
@@ -78,6 +88,7 @@ class SessionStore:
             session.created_at.isoformat(),
             datetime.now(timezone.utc).isoformat(),
             1 if session.is_active else 0,
+            1 if session.needs_compaction else 0,
         ))
         conn.commit()
         conn.close()
@@ -137,6 +148,8 @@ class SessionStore:
         context_window = ContextWindow(**cw_data)
         cot_data = json.loads(row[5]) if row[5] else {}
 
+        needs_compaction = bool(row[9]) if len(row) > 9 else False
+
         return Session(
             id=row[0],
             workspace_id=row[1],
@@ -147,4 +160,5 @@ class SessionStore:
             created_at=datetime.fromisoformat(row[6]),
             updated_at=datetime.fromisoformat(row[7]),
             is_active=bool(row[8]),
+            needs_compaction=needs_compaction,
         )

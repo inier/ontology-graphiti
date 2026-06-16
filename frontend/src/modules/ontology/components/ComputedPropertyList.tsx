@@ -15,8 +15,8 @@ import type { ColumnsType } from 'antd/es/table';
 import {
   PlusOutlined, ReloadOutlined, EditOutlined, DeleteOutlined, PlayCircleOutlined, CheckOutlined, CloseOutlined,
 } from '@ant-design/icons';
-import { apiClient } from '../../shared/services/apiClient';
-import { useI18n } from '../../shared/hooks/useI18n';
+import { apiClient } from '@/modules/shared/services/apiClient';
+import { useI18n } from '@/modules/shared/hooks/useI18n';
 
 const { Text, Title } = Typography;
 const { TextArea } = AntInput;
@@ -305,7 +305,7 @@ export function ComputedPropertyList({ objectTypeId, onEdit }: ComputedPropertyL
         okText="保存"
         cancelText="取消"
         width={680}
-        destroyOnClose
+        destroyOnHidden
       >
         <Form form={form} layout="vertical" preserve={false}>
           <Form.Item

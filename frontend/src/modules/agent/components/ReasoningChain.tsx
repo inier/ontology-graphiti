@@ -3,7 +3,7 @@ import {
   BulbOutlined,
   FileSearchOutlined,
 } from '@ant-design/icons';
-import { useI18n } from '../../shared/hooks/useI18n';
+import { useI18n } from '@/modules/shared/hooks/useI18n';
 
 interface ReasoningStep {
   title?: string;
@@ -69,7 +69,7 @@ export function ReasoningChain({ reasoning, evidence, steps }: ReasoningChainPro
     <Card title={t('reasoningChain')} size="small">
       {steps && steps.length > 0 && (
         <Steps
-          direction="vertical"
+          orientation="vertical"
           size="small"
           current={steps.findIndex((s) => s.status === 'process') !== -1 ? steps.findIndex((s) => s.status === 'process') : steps.length - 1}
           items={steps.map((step, index) => ({

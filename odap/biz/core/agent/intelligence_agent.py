@@ -1,13 +1,20 @@
 """
-Intelligence Agent — 基于 LLM ReAct 模式的情报分析 Agent
+Intelligence Agent — 基于 OpenHarness QueryEngine 的情报分析 Agent
 
-与 SelfCorrectingOrchestrator（关键词正则路由）不同，Intelligence Agent 使用
-LLM 进行自然语言理解、多步推理和工具调用，实现真正的情报分析闭环。
+重构为完全基于 OH QueryEngine：
+- ReAct 循环由 QueryEngine.submit_message() 驱动
+- 工具通过 GraphitiToolAdapter 注册到 OH ToolRegistry
+- 权限检查通过 OH PermissionChecker + OPA 扩展
+- RAG 上下文注入作为 OH HookExecutor 的 UserPromptSubmit 钩子
+- 自校正策略通过 OH PostToolUse 钩子实现
+- CircuitBreaker + FaultRecovery 降级保障
 
-Phase 1-B: Intelligence Agent 单体闭环
-- Slice 1.5: LLM 驱动 + Skill 调用 + Graphiti 记忆 + OPA 集成
-- Slice 1.6: RAG 增强推理（Graphiti 历史模式匹配 + 上下文注入）
-- Slice 1.7: 结构化链路追踪 + 性能基线
+保留的领域扩展：
+- RAG 上下文检索（_retrieve_rag_context）
+- 结构化报告提取（_extract_report）
+- 自校正策略（CORRECTION_STRATEGIES）
+- 链路追踪（TraceSpan）
+- Graphiti 记忆写入
 """
 
 import json
@@ -22,19 +29,25 @@ from typing import Optional, Dict, Any, List
 sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 from dotenv import load_dotenv
-# 正确的路径构造
 base_dir = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
-# .env 文件在项目根目录
 root_dir = os.path.dirname(base_dir)
 load_dotenv(os.path.join(root_dir, '.env'))
 
-import httpx
 from odap.tools import SKILL_CATALOG, get_registry
 from odap.infra.opa import OPAManager
 from odap.infra.query import QueryService
-from odap.infra.graph import GraphManager
+from odap.infra.query import get_graph_write_proxy
+from odap.infra.resilience.circuit_breaker import CircuitOpenError, get_circuit_breaker
+from odap.infra.resilience.fault_tolerance import FaultRecoveryManager, FailureType
 
-# 结构化链路追踪日志
+# 导入 OH 集成层
+from odap.infra.openharness.engine_adapter import (
+    OHQueryEngineFactory,
+    GraphitiToolAdapter,
+    OPENHARNESS_AVAILABLE,
+    _FallbackContext,
+)
+
 logger = logging.getLogger("intelligence_agent")
 
 
@@ -74,60 +87,54 @@ class IntelligenceAgent:
     """
     情报分析 Agent
 
-    使用 LLM 驱动的 ReAct (Reasoning + Acting) 模式：
+    基于 OpenHarness QueryEngine 的 ReAct 模式：
     1. RAG 上下文注入：从 Graphiti 检索历史情报记忆
-    2. LLM 推理需要调用的工具和参数
-    3. 执行工具获取数据
-    4. LLM 综合分析生成结构化报告
-    5. 将分析过程写入 Graphiti 记忆
+    2. OH QueryEngine 驱动 LLM → 工具选择 → 执行 → 观察 → 循环
+    3. 自校正策略处理工具执行失败
+    4. 将分析过程写入 Graphiti 记忆
 
-    每一步都经过 OPA 权限检查（对于高危险操作）。
+    当 OH 不可用时，降级到自建 ReAct 循环。
     """
 
-    MAX_ITERATIONS = 5  # 最多工具调用轮次
+    MAX_ITERATIONS = 5
+    MAX_CORRECTION_ATTEMPTS = 3
 
-    # 类级别知识缓存：ontology_id -> cached data
+    CORRECTION_STRATEGIES = {
+        "permission_denied": "fallback",
+        "execution_error": "retry",
+        "result_invalid": "degrade",
+        "timeout": "retry",
+    }
+
     _knowledge_cache: Dict[str, Any] = {}
 
     @classmethod
     def invalidate_cache(cls, ontology_id: str = None):
-        """清除知识缓存
-
-        当本体版本回滚时调用，清除指定本体或全部缓存。
-
-        Args:
-            ontology_id: 指定要清除的本体ID，None 则清除全部
-        """
         if ontology_id is not None:
             cls._knowledge_cache.pop(ontology_id, None)
-            logger.info(f"IntelligenceAgent 知识缓存已清除: ontology_id={ontology_id}")
         else:
             cls._knowledge_cache.clear()
-            logger.info("IntelligenceAgent 知识缓存已全部清除")
 
     def __init__(self, user_role: str = "intelligence_analyst"):
         self.user_role = user_role
         self.opa_manager = OPAManager()
         self._query_service = QueryService()
-        self.graph_manager = GraphManager()
-        # 从安全配置模块读取，确保能够正确获取值
+        self._write_proxy = get_graph_write_proxy()
+
         from odap.infra.security import security_config
         self.llm_api_key = security_config.OPENAI_API_KEY
         self.llm_api_base = security_config.OPENAI_API_BASE
         self.llm_model = security_config.OPENAI_MODEL
 
-        # 智能处理 base_url
         raw = self.llm_api_base.rstrip('/')
         if raw.endswith('/chat/completions'):
             self.llm_base = raw[:-len('/chat/completions')]
         else:
             self.llm_base = raw
-        
-        # 确保 base_url 包含协议
+
         if not self.llm_base.startswith('http://') and not self.llm_base.startswith('https://'):
             self.llm_base = 'https://' + self.llm_base
 
-        # 创建复用的 httpx 客户端，优化性能
         import httpx
         self.http_client = httpx.AsyncClient(
             timeout=httpx.Timeout(120.0),
@@ -135,8 +142,21 @@ class IntelligenceAgent:
             follow_redirects=True
         )
 
-        # 构建工具描述
+        # 构建工具描述（fallback 模式使用）
         self.tools = self._build_tools()
+
+        # 韧性基础设施
+        self.fault_manager = FaultRecoveryManager.get_instance()
+        self._llm_circuit_breaker = get_circuit_breaker("llm", failure_threshold_pct=0.5)
+
+        # OH QueryEngine 工厂
+        self._engine_factory = OHQueryEngineFactory.get_instance()
+        self._engine_factory.configure(
+            api_key=self.llm_api_key,
+            base_url=self.llm_base,
+            model=self.llm_model,
+            opa_manager=self.opa_manager,
+        )
 
         # 链路追踪上下文
         self._trace_root: Optional[TraceSpan] = None
@@ -145,15 +165,13 @@ class IntelligenceAgent:
     def _build_tools(self) -> List[Dict]:
         """从 SKILL_CATALOG 构建 OpenAI function calling 格式的工具列表"""
         tools = []
-        # 只暴露 intelligence 和 analysis 类别的工具给 Intelligence Agent
-        allowed_categories = {"intelligence", "analysis", "ontology", "recommendation"}
+        allowed_categories = {"intelligence", "analysis", "ontology", "recommendation", "web"}
 
         for name, entry in SKILL_CATALOG.items():
             category = entry.get("category", "legacy")
             if category not in allowed_categories:
                 continue
 
-            # 从 BaseSkill 获取参数 schema（如果有的话）
             registry = get_registry()
             skill = registry.get(name)
             params = {"type": "object", "properties": {}, "required": []}
@@ -166,7 +184,6 @@ class IntelligenceAgent:
                     "required": schema.get("required", []),
                 }
             else:
-                # 旧式 skill，用通用参数
                 params = {
                     "type": "object",
                     "properties": {
@@ -186,12 +203,303 @@ class IntelligenceAgent:
 
         return tools
 
+    def _get_system_prompt(self, rag_context: str = "") -> str:
+        """构建系统提示词（含 RAG 上下文）"""
+        rag_section = ""
+        if rag_context:
+            rag_section = f"""
+### 历史情报记忆（RAG 检索结果）
+以下是从知识图谱中检索到的与当前查询相关的历史情报，请参考这些历史信息辅助你的分析：
+
+{rag_context}
+
+请在分析中明确引用历史情报中的相关模式（如有），并在 recommendations 中标注 "historical_patterns" 字段。
+"""
+
+        return f"""你是一个领域情报分析 Agent。你的任务是通过调用工具收集领域数据，然后综合分析生成结构化报告。
+
+可用工具包括：
+- search_sensor: 搜索传感器系统
+- analyze_domain: 分析领域态势
+- analyze_resource_comparison: 分析资源对比
+- analyze_equipment_capabilities: 分析设备能力
+- analyze_public_assets: 分析公共资产
+- analyze_incident_events: 分析领域事件
+- analyze_entity_status: 分析实体状态
+- query_ontology: 查询本体数据
+
+分析流程：
+1. 先理解用户的查询意图
+2. 调用合适的工具收集数据
+3. 综合所有数据（包括历史情报记忆）生成结构化报告
+{rag_section}
+报告格式要求（JSON）：
+{{
+  "summary": "一句话总结",
+  "threat_level": "low/medium/high/critical",
+  "opponent_units": [...],
+  "opponent_equipment": [...],
+  "public_risk": [...],
+  "own_status": [...],
+  "recommendations": [...],
+  "historical_patterns": [...]
+}}
+
+重要规则：
+- 不要编造数据，只用工具返回的真实数据
+- 如果工具返回错误，如实报告
+- 最后一步必须返回 JSON 格式的报告，不要调用任何工具
+- historical_patterns 字段应引用 RAG 提供的历史情报中的相关模式（如无则返回空数组）"""
+
+    async def analyze(self, query: str) -> Dict[str, Any]:
+        """
+        执行情报分析
+
+        优先使用 OH QueryEngine（完全复用 OH 运行时），
+        OH 不可用时降级到自建 ReAct 循环。
+        """
+        # 初始化链路追踪
+        trace_id = uuid.uuid4().hex[:16]
+        self._trace_root = TraceSpan(trace_id, "analyze")
+        self._trace_root.add_event("query_received", {
+            "query": query,
+            "user_role": self.user_role,
+        })
+        self._spans = []
+
+        logger.info(f"\n{'=' * 60}")
+        logger.info(f'Intelligence Agent: {query}')
+        logger.info(f'角色: {self.user_role} | Trace ID: {trace_id}')
+        logger.info(f"{'=' * 60}")
+
+        start_time = time.perf_counter()
+
+        # RAG 上下文注入
+        rag_context = self._retrieve_rag_context(query)
+
+        # 尝试 OH QueryEngine 路径
+        if self._engine_factory.is_available:
+            result = await self._analyze_with_engine(query, rag_context, trace_id, start_time)
+            if result is not None:
+                return result
+            # QueryEngine 失败，降级
+
+        # 降级到自建 ReAct 循环
+        return await self._analyze_fallback(query, rag_context, trace_id, start_time)
+
+    async def _analyze_with_engine(self, query: str, rag_context: str,
+                                   trace_id: str, start_time: float) -> Optional[Dict[str, Any]]:
+        """通过 OH QueryEngine 运行分析（主路径）"""
+        span = TraceSpan(trace_id, "query_engine_analyze", self._trace_root.span_id)
+        span.add_event("engine_path", {"engine": "openharness_query_engine"})
+
+        try:
+            engine = self._engine_factory.create_engine(
+                system_prompt=self._get_system_prompt(rag_context),
+                max_turns=self.MAX_ITERATIONS,
+            )
+            if not engine:
+                return None
+
+            # 通过 CircuitBreaker 保护提交
+            final_text = ""
+            steps = []
+
+            async def _submit():
+                text_parts = []
+                events = []
+                async for event in engine.submit_message(query):
+                    if hasattr(event, 'text'):
+                        text_parts.append(event.text)
+                    events.append(event)
+                return events, "".join(text_parts)
+
+            if self._llm_circuit_breaker:
+                _, final_text = await self._llm_circuit_breaker.acall(_submit)
+            else:
+                _, final_text = await _submit()
+
+            span.add_event("engine_complete", {"response_length": len(final_text)})
+
+        except CircuitOpenError:
+            logger.warning("CircuitBreaker 打开，降级到自建循环")
+            self._spans.append(span.finish())
+            return None
+        except Exception as e:
+            logger.warning(f"QueryEngine 执行失败: {e}，降级到自建循环")
+            self._spans.append(span.finish())
+            return None
+
+        # 提取报告
+        report = self._extract_report(final_text)
+
+        elapsed = (time.perf_counter() - start_time) * 1000
+
+        report["_metadata"] = {
+            "agent": "IntelligenceAgent",
+            "user_role": self.user_role,
+            "query": query,
+            "tool_calls": [],
+            "iterations": 0,
+            "execution_time_ms": round(elapsed, 2),
+            "timestamp": datetime.now(timezone.utc).isoformat(),
+            "rag_context_provided": rag_context != "",
+            "engine": "openharness_query_engine",
+        }
+
+        await self._save_to_graphiti(query, report)
+
+        self._spans.append(span.finish())
+        self._trace_root.add_event("analysis_complete", {
+            "execution_time_ms": round(elapsed, 2),
+            "engine": "openharness_query_engine",
+        })
+        self._spans.append(self._trace_root.finish())
+
+        report["_trace"] = {"trace_id": trace_id, "spans": self._spans}
+        self._emit_task_completed(report)
+        return report
+
+    async def _analyze_fallback(self, query: str, rag_context: str,
+                                trace_id: str, start_time: float) -> Dict[str, Any]:
+        """降级路径：自建 ReAct 循环"""
+        span = TraceSpan(trace_id, "fallback_analyze", self._trace_root.span_id)
+        span.add_event("fallback_path", {"reason": "OH QueryEngine unavailable"})
+
+        system_prompt = self._get_system_prompt(rag_context)
+        messages = [
+            {"role": "system", "content": system_prompt},
+            {"role": "user", "content": query},
+        ]
+
+        tool_call_history = []
+
+        for iteration in range(self.MAX_ITERATIONS):
+            iter_span = TraceSpan(trace_id, f"iteration_{iteration + 1}", self._trace_root.span_id)
+            logger.info(f'\n--- 轮次 {iteration + 1}/{self.MAX_ITERATIONS} ---')
+
+            try:
+                response = await self._call_llm(messages, tools=self.tools)
+                iter_span.add_event("llm_response", {"model": self.llm_model})
+            except Exception as e:
+                iter_span.add_event("llm_error", {"error": str(e)})
+                self._spans.append(iter_span.finish())
+                recovery = await self.fault_manager.handle_failure("intelligence_agent", error=e)
+                if recovery.get("action") == "retry" and recovery.get("attempt", 0) <= self.MAX_CORRECTION_ATTEMPTS:
+                    continue
+                break
+
+            choice = response["choices"][0]
+            message = choice["message"]
+
+            if message.get("tool_calls"):
+                messages.append(message)
+                for tool_call in message["tool_calls"]:
+                    fn_name = tool_call["function"]["name"]
+                    fn_args = json.loads(tool_call["function"]["arguments"])
+                    tool_call_id = tool_call["id"]
+
+                    logger.info(f'  调用工具: {fn_name}({json.dumps(fn_args, ensure_ascii=False)})')
+                    tool_result = self._execute_tool(fn_name, fn_args)
+
+                    iter_span.add_event("tool_execution", {
+                        "tool": fn_name,
+                        "result_length": len(tool_result),
+                    })
+
+                    # 自校正
+                    tool_result_data = json.loads(tool_result) if tool_result else {}
+                    if tool_result_data.get("error") or tool_result_data.get("status") == "denied":
+                        correction = await self._attempt_correction(fn_name, fn_args, tool_result_data, iteration)
+                        if correction:
+                            tool_result = correction
+
+                    messages.append({
+                        "role": "tool",
+                        "tool_call_id": tool_call_id,
+                        "content": tool_result,
+                    })
+                    tool_call_history.append({
+                        "tool": fn_name,
+                        "args": fn_args,
+                        "result_preview": tool_result[:100],
+                    })
+            else:
+                final_content = message.get("content", "")
+                report = self._extract_report(final_content)
+                elapsed = (time.perf_counter() - start_time) * 1000
+
+                report["_metadata"] = {
+                    "agent": "IntelligenceAgent",
+                    "user_role": self.user_role,
+                    "query": query,
+                    "tool_calls": tool_call_history,
+                    "iterations": iteration + 1,
+                    "execution_time_ms": round(elapsed, 2),
+                    "timestamp": datetime.now(timezone.utc).isoformat(),
+                    "rag_context_provided": rag_context != "",
+                    "engine": "fallback_react",
+                }
+
+                await self._save_to_graphiti(query, report)
+
+                self._spans.append(iter_span.finish())
+                self._trace_root.add_event("analysis_complete", {
+                    "iterations": iteration + 1,
+                    "execution_time_ms": round(elapsed, 2),
+                })
+                self._spans.append(self._trace_root.finish())
+
+                report["_trace"] = {"trace_id": trace_id, "spans": self._spans}
+                self._emit_task_completed(report)
+                return report
+
+            self._spans.append(iter_span.finish())
+
+        elapsed = (time.perf_counter() - start_time) * 1000
+        self._spans.append(span.finish())
+        self._trace_root.add_event("max_iterations_reached", {"iterations": self.MAX_ITERATIONS})
+        self._spans.append(self._trace_root.finish())
+
+        return {
+            "error": "超过最大推理轮次",
+            "summary": "分析未能完成",
+            "tool_calls": tool_call_history,
+            "_metadata": {
+                "agent": "IntelligenceAgent",
+                "user_role": self.user_role,
+                "query": query,
+                "iterations": self.MAX_ITERATIONS,
+                "execution_time_ms": round(elapsed, 2),
+                "rag_context_provided": rag_context != "",
+                "engine": "fallback_react",
+            },
+            "_trace": {"trace_id": trace_id, "spans": self._spans},
+        }
+
+    # -----------------------------------------------------------------------
+    # 以下为领域特有逻辑，保留不变
+    # -----------------------------------------------------------------------
+
     from odap.infra.monitoring import monitor_performance
 
     @monitor_performance('llm_calls', 'chat_completions')
     async def _call_llm(self, messages: List[Dict], tools: Optional[List[Dict]] = None,
-                  max_retries: int = 3) -> Dict:
-        """调用 LLM Chat Completions API（含指数退避重试）"""
+                        max_retries: int = 3) -> Dict:
+        """调用 LLM Chat Completions API（fallback 模式使用）"""
+        try:
+            self._llm_circuit_breaker._pre_call_check()
+        except CircuitOpenError:
+            return {
+                "choices": [{
+                    "message": {
+                        "content": '{"summary": "LLM 服务暂时不可用，使用降级模式", "threat_level": "unknown", "recommendations": ["请稍后重试"], "historical_patterns": []}',
+                        "role": "assistant"
+                    },
+                    "finish_reason": "stop"
+                }]
+            }
+
         url = f"{self.llm_base}/chat/completions"
         headers = {
             "Authorization": f"Bearer {self.llm_api_key}",
@@ -208,27 +516,27 @@ class IntelligenceAgent:
             payload["tool_choice"] = "auto"
 
         last_error = None
+        llm_start = time.perf_counter()
         for attempt in range(1, max_retries + 1):
             try:
                 response = await self.http_client.post(url, headers=headers, json=payload)
                 response.raise_for_status()
+                self._llm_circuit_breaker._finish_call(llm_start, True, None)
                 return response.json()
             except (httpx.TimeoutException, httpx.ConnectError) as e:
                 last_error = e
-                wait = 2 ** attempt  # 2s, 4s, 8s
-                logger.info(f'  ⚠️ LLM 请求超时 ({attempt}/{max_retries})，{wait}s 后重试...')
+                wait = 2 ** attempt
                 import asyncio
                 await asyncio.sleep(wait)
             except httpx.HTTPStatusError as e:
                 last_error = e
-                # 4xx 不重试（除了 429）
                 if 400 <= e.response.status_code < 500 and e.response.status_code != 429:
                     raise
                 wait = 2 ** attempt
-                logger.info(f'  ⚠️ LLM HTTP {e.response.status_code} ({attempt}/{max_retries})，{wait}s 后重试...')
                 import asyncio
                 await asyncio.sleep(wait)
 
+        self._llm_circuit_breaker._finish_call(llm_start, False, str(last_error))
         raise ConnectionError(f"LLM 调用失败（已重试 {max_retries} 次）: {last_error}")
 
     def _execute_tool(self, tool_name: str, arguments: Dict) -> str:
@@ -237,26 +545,20 @@ class IntelligenceAgent:
             return json.dumps({"error": f"工具不存在: {tool_name}"}, ensure_ascii=False)
 
         handler = SKILL_CATALOG[tool_name]["handler"]
-
-        # OPA 权限检查（高危险工具）
         category = SKILL_CATALOG[tool_name].get("category", "")
         if category == "operations":
             allowed = self.opa_manager.check_permission(
-                self.user_role,
-                arguments.get("action", "unknown"),
-                {"type": "unknown"}
+                self.user_role, arguments.get("action", "unknown"), {"type": "unknown"}
             )
             if not allowed:
                 return json.dumps({"status": "denied", "message": "权限不足"}, ensure_ascii=False)
 
         try:
-            # 旧式 handler 接收 **kwargs
             result = handler(**arguments)
             if isinstance(result, (dict, list)):
                 return json.dumps(result, ensure_ascii=False, default=str)
             return json.dumps({"result": str(result)}, ensure_ascii=False)
         except TypeError:
-            # 参数不匹配，尝试用空参数
             try:
                 result = handler()
                 if isinstance(result, (dict, list)):
@@ -268,9 +570,8 @@ class IntelligenceAgent:
             return json.dumps({"error": f"执行失败: {e}"}, ensure_ascii=False)
 
     async def _save_to_graphiti(self, query: str, report: Dict):
-        """将分析过程写入 Graphiti 记忆（使用 graph_manager 的统一接口）"""
-        episode_text = f"情报分析请求: {query}\n"
-        episode_text += f"分析结果:\n"
+        """将分析过程写入 Graphiti 记忆"""
+        episode_text = f"情报分析请求: {query}\n分析结果:\n"
         for key, value in report.items():
             if key.startswith("_"):
                 continue
@@ -280,26 +581,18 @@ class IntelligenceAgent:
                 episode_text += f"  {key}: {value}\n"
 
         try:
-            success = await self.graph_manager.add_episode(
+            result = await self._write_proxy.add_episode(
                 name=f"intel_analysis_{datetime.now(timezone.utc).strftime('%Y%m%d%H%M%S')}",
                 content=episode_text,
                 source_description=f"IntelligenceAgent/{self.user_role}",
             )
-
-            if success:
+            if result.get("status") == "success":
                 logger.info('  [记忆] 分析结果已写入 Graphiti')
-            else:
-                logger.info('  [记忆] Graphiti 不可用，跳过记忆写入')
         except Exception as e:
             logger.info(f'  [记忆] Graphiti 写入失败: {e}')
 
     def _retrieve_rag_context(self, query: str) -> str:
-        """
-        RAG 上下文检索：从 Graphiti 获取与 query 相关的历史情报记忆。
-
-        这是 Slice 1.6 的核心实现——在 LLM 推理前注入历史上下文，
-        让 Agent 能够利用过去的分析经验增强当前判断。
-        """
+        """RAG 上下文检索：从 Graphiti 获取历史情报记忆"""
         span = TraceSpan(self._trace_root.trace_id, "rag_retrieval", self._trace_root.span_id)
         span.add_event("rag_query", {"query": query})
 
@@ -319,240 +612,13 @@ class IntelligenceAgent:
         else:
             span.add_event("rag_miss", {"reason": "no_results"})
 
-        result = span.finish()
-        self._spans.append(result)
+        self._spans.append(span.finish())
         return context
-
-    async def analyze(self, query: str) -> Dict[str, Any]:
-        """
-        执行情报分析（ReAct 循环 + RAG 增强）
-
-        Args:
-            query: 自然语言查询（如"分析B区威胁"）
-
-        Returns:
-            结构化分析报告（含 _metadata 和 _trace）
-        """
-        # 初始化链路追踪
-        trace_id = uuid.uuid4().hex[:16]
-        self._trace_root = TraceSpan(trace_id, "analyze")
-        self._trace_root.add_event("query_received", {
-            "query": query,
-            "user_role": self.user_role,
-        })
-        self._spans = []
-
-        logger.info(f"\n{'=' * 60}")
-        logger.info(f'🔍 Intelligence Agent: {query}')
-        logger.info(f'👤 角色: {self.user_role}')
-        logger.info(f'🔗 Trace ID: {trace_id}')
-        logger.info(f"{'=' * 60}")
-
-        start_time = time.perf_counter()
-
-        # === RAG 上下文注入（Slice 1.6） ===
-        rag_context = self._retrieve_rag_context(query)
-
-        # 构建系统提示（含 RAG 上下文）
-        rag_section = ""
-        if rag_context:
-            rag_section = f"""
-### 历史情报记忆（RAG 检索结果）
-以下是从知识图谱中检索到的与当前查询相关的历史情报，请参考这些历史信息辅助你的分析：
-
-{rag_context}
-
-请在分析中明确引用历史情报中的相关模式（如有），并在 recommendations 中标注 "historical_patterns" 字段。
-"""
-
-        system_prompt = f"""你是一个领域情报分析 Agent。你的任务是通过调用工具收集领域数据，然后综合分析生成结构化报告。
-
-可用工具包括：
-- search_radar: 搜索雷达系统
-- analyze_domain: 分析领域态势
-- analyze_force_comparison: 分析力量对比
-- analyze_weapon_capabilities: 分析系统能力
-- analyze_civilian_infrastructure: 分析基础设施
-- analyze_battle_events: 分析领域事件
-- analyze_entity_status: 分析实体状态
-- query_ontology: 查询本体数据
-
-分析流程：
-1. 先理解用户的查询意图
-2. 调用合适的工具收集数据
-3. 综合所有数据（包括历史情报记忆）生成结构化报告
-{rag_section}
-报告格式要求（JSON）：
-{{
-  "summary": "一句话总结",
-  "threat_level": "low/medium/high/critical",
-  "enemy_units": [...],
-  "enemy_weapons": [...],
-  "civilian_risk": [...],
-  "friendly_status": [...],
-  "recommendations": [...],
-  "historical_patterns": [...]
-}}
-
-重要规则：
-- 不要编造数据，只用工具返回的真实数据
-- 如果工具返回错误，如实报告
-- 最后一步必须返回 JSON 格式的报告，不要调用任何工具
-- historical_patterns 字段应引用 RAG 提供的历史情报中的相关模式（如无则返回空数组）"""
-
-        messages = [
-            {"role": "system", "content": system_prompt},
-            {"role": "user", "content": query},
-        ]
-
-        tool_call_history = []
-
-        for iteration in range(self.MAX_ITERATIONS):
-            # 创建轮次 Span
-            iter_span = TraceSpan(trace_id, f"iteration_{iteration + 1}", self._trace_root.span_id)
-
-            logger.info(f'\n--- 轮次 {iteration + 1}/{self.MAX_ITERATIONS} ---')
-
-            try:
-                response = await self._call_llm(messages, tools=self.tools)
-                iter_span.add_event("llm_response", {
-                    "model": self.llm_model,
-                    "finish_reason": response["choices"][0].get("finish_reason", "unknown"),
-                })
-            except Exception as e:
-                iter_span.add_event("llm_error", {"error": str(e)})
-                self._spans.append(iter_span.finish())
-                logger.info(f'❌ LLM 调用失败: {e}')
-                break
-
-            choice = response["choices"][0]
-            message = choice["message"]
-
-            # 检查是否有工具调用
-            if message.get("tool_calls"):
-                # 添加助手消息（含 tool_calls）
-                messages.append(message)
-
-                for tool_call in message["tool_calls"]:
-                    fn_name = tool_call["function"]["name"]
-                    fn_args = json.loads(tool_call["function"]["arguments"])
-                    tool_call_id = tool_call["id"]
-
-                    logger.info(f'  🔧 调用工具: {fn_name}({json.dumps(fn_args, ensure_ascii=False)})')
-
-                    # 执行工具
-                    tool_result = self._execute_tool(fn_name, fn_args)
-                    logger.info(f"  📋 结果: {tool_result[:200]}{('...' if len(tool_result) > 200 else '')}")
-
-                    iter_span.add_event("tool_execution", {
-                        "tool": fn_name,
-                        "args_preview": json.dumps(fn_args, ensure_ascii=False)[:100],
-                        "result_length": len(tool_result),
-                    })
-
-                    # 添加工具结果
-                    messages.append({
-                        "role": "tool",
-                        "tool_call_id": tool_call_id,
-                        "content": tool_result,
-                    })
-
-                    tool_call_history.append({
-                        "tool": fn_name,
-                        "args": fn_args,
-                        "result_preview": tool_result[:100],
-                    })
-            else:
-                # 没有工具调用，提取最终回答
-                final_content = message.get("content", "")
-                logger.info(f'\n📝 最终回答:\n{final_content}')
-
-                iter_span.add_event("final_answer", {
-                    "content_length": len(final_content),
-                })
-
-                # 尝试解析为 JSON 报告
-                report = self._extract_report(final_content)
-
-                elapsed = (time.perf_counter() - start_time) * 1000
-
-                # 添加元数据
-                report["_metadata"] = {
-                    "agent": "IntelligenceAgent",
-                    "user_role": self.user_role,
-                    "query": query,
-                    "tool_calls": tool_call_history,
-                    "iterations": iteration + 1,
-                    "execution_time_ms": round(elapsed, 2),
-                    "timestamp": datetime.now(timezone.utc).isoformat(),
-                    "rag_context_provided": rag_context != "",
-                }
-
-                # 写入 Graphiti 记忆
-                await self._save_to_graphiti(query, report)
-
-                # 链路追踪收尾
-                self._spans.append(iter_span.finish())
-                self._trace_root.add_event("analysis_complete", {
-                    "iterations": iteration + 1,
-                    "execution_time_ms": round(elapsed, 2),
-                    "threat_level": report.get("threat_level", "unknown"),
-                })
-                self._spans.append(self._trace_root.finish())
-
-                # 性能基线日志
-                logger.info(json.dumps({
-                    "trace_id": trace_id,
-                    "query": query,
-                    "threat_level": report.get("threat_level"),
-                    "iterations": iteration + 1,
-                    "execution_time_ms": round(elapsed, 2),
-                    "rag_enabled": rag_context != "",
-                    "spans": len(self._spans),
-                }, ensure_ascii=False))
-
-                report["_trace"] = {
-                    "trace_id": trace_id,
-                    "spans": self._spans,
-                }
-
-                # 广播分析完成事件，通知 Commander Agent 等下游 Agent
-                self._emit_task_completed(report)
-
-                return report
-
-            self._spans.append(iter_span.finish())
-
-        # 超过最大轮次
-        elapsed = (time.perf_counter() - start_time) * 1000
-        self._trace_root.add_event("max_iterations_reached", {
-            "iterations": self.MAX_ITERATIONS,
-        })
-        self._spans.append(self._trace_root.finish())
-
-        return {
-            "error": "超过最大推理轮次",
-            "summary": "分析未能完成",
-            "tool_calls": tool_call_history,
-            "_metadata": {
-                "agent": "IntelligenceAgent",
-                "user_role": self.user_role,
-                "query": query,
-                "iterations": self.MAX_ITERATIONS,
-                "execution_time_ms": round(elapsed, 2),
-                "rag_context_provided": rag_context != "",
-            },
-            "_trace": {
-                "trace_id": trace_id,
-                "spans": self._spans,
-            },
-        }
 
     def _extract_report(self, content: str) -> Dict:
         """从 LLM 输出中提取 JSON 报告"""
         import re
 
-        # 尝试直接解析
         try:
             obj = json.loads(content)
             if isinstance(obj, dict):
@@ -560,7 +626,6 @@ class IntelligenceAgent:
         except json.JSONDecodeError:
             pass
 
-        # 尝试从 markdown 代码块提取
         match = re.search(r'```(?:json)?\s*\n?(.*?)\n?\s*```', content, re.DOTALL)
         if match:
             try:
@@ -570,7 +635,6 @@ class IntelligenceAgent:
             except json.JSONDecodeError:
                 pass
 
-        # 尝试找 JSON 对象
         brace_start = content.find('{')
         brace_end = content.rfind('}')
         if brace_start != -1 and brace_end > brace_start:
@@ -581,15 +645,61 @@ class IntelligenceAgent:
             except json.JSONDecodeError:
                 pass
 
-        # 无法解析，返回纯文本
-        return {
-            "summary": content[:500],
-            "raw_response": content,
-            "parsing": "failed"
-        }
+        return {"summary": content[:500], "raw_response": content, "parsing": "failed"}
+
+    async def _attempt_correction(
+        self, tool_name: str, tool_args: Dict, error_result: Dict, iteration: int
+    ) -> Optional[str]:
+        """自校正循环"""
+        error_msg = error_result.get("error", "") or error_result.get("message", "")
+        status = error_result.get("status", "")
+
+        if status == "denied":
+            error_type = "permission_denied"
+        elif "timeout" in error_msg.lower():
+            error_type = "timeout"
+        elif "execution" in error_msg.lower() or "执行失败" in error_msg:
+            error_type = "execution_error"
+        else:
+            error_type = "result_invalid"
+
+        strategy = self.CORRECTION_STRATEGIES.get(error_type, "degrade")
+        logger.info(f'  自校正: tool={tool_name}, error_type={error_type}, strategy={strategy}')
+
+        if strategy == "retry" and iteration < self.MAX_ITERATIONS - 1:
+            try:
+                return self._execute_tool(tool_name, {})
+            except Exception:
+                return None
+
+        elif strategy == "fallback":
+            try:
+                registry = get_registry()
+                failed_skill = registry.get(tool_name)
+                if failed_skill is not None:
+                    failed_category = failed_skill.metadata.category
+                    all_skills = registry.list_skills()
+                    for skill_info in all_skills:
+                        if (skill_info["name"] != tool_name and
+                                skill_info.get("category") == failed_category):
+                            fallback_result = self._execute_tool(skill_info["name"], {})
+                            logger.info(f'  使用替代工具: {skill_info["name"]}')
+                            return fallback_result
+            except Exception:
+                pass
+            return None
+
+        elif strategy == "degrade":
+            return json.dumps({
+                "summary": f"工具 {tool_name} 执行降级，原始错误: {error_msg[:100]}",
+                "threat_level": "unknown",
+                "degraded": True,
+            }, ensure_ascii=False)
+
+        return None
 
     def _emit_task_completed(self, report: Dict[str, Any]):
-        """分析完成后通过 event bus 广播事件，通知 Commander Agent 等下游 Agent"""
+        """分析完成后广播事件"""
         try:
             import asyncio
             from odap.web.ws.event_bus import get_event_bus
@@ -599,12 +709,11 @@ class IntelligenceAgent:
                 "agent_id": "intelligence_agent",
                 "agent_type": "intelligence",
                 "result": {k: v for k, v in report.items() if not k.startswith("_")},
-                "target_agents": ["commander"],
+                "target_agents": ["director"],
                 "query": metadata.get("query", ""),
                 "threat_level": report.get("threat_level", "unknown"),
                 "timestamp": datetime.now(timezone.utc).isoformat(),
             }
-            # 尝试在已有事件循环中调度，否则创建新任务
             try:
                 loop = asyncio.get_event_loop()
                 if loop.is_running():
@@ -613,37 +722,10 @@ class IntelligenceAgent:
                     loop.run_until_complete(bus.emit("agent:task_completed", event_data))
             except RuntimeError:
                 asyncio.run(bus.emit("agent:task_completed", event_data))
-            logger.info(f"已广播 agent:task_completed 事件, threat_level={report.get('threat_level', 'unknown')}")
         except Exception as e:
-            logger.warning(f"广播 agent:task_completed 事件失败: {e}")
+            logger.warning(f"广播事件失败: {e}")
 
     async def shutdown(self):
         """关闭资源"""
         if hasattr(self, 'http_client'):
             await self.http_client.aclose()
-
-
-if __name__ == "__main__":
-    # 配置日志
-    logging.basicConfig(
-        level=logging.INFO,
-        format="%(asctime)s [%(name)s] %(message)s",
-        datefmt="%H:%M:%S",
-    )
-
-    agent = IntelligenceAgent(user_role="intelligence_analyst")
-
-    # 测试场景
-    queries = [
-        "分析B区威胁",
-        "当前领域态势如何？",
-        "搜索D区的雷达系统",
-    ]
-
-    for query in queries:
-        report = agent.analyze(query)
-        logger.info(f"\n📊 报告摘要: {report.get('summary', 'N/A')}")
-        logger.info(f"⏱️ 耗时: {report.get('_metadata', {}).get('execution_time_ms', 'N/A')}ms")
-        logger.info(f"🔗 Trace: {report.get('_trace', {}).get('trace_id', 'N/A')}")
-        logger.info(f"🧠 RAG: {('已启用' if report.get('_metadata', {}).get('rag_context_provided') else '未启用')}")
-        logger.info()

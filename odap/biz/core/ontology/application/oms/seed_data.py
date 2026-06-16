@@ -96,7 +96,7 @@ _OMS_ACTION_TYPES = [
             {"name": "task_id", "data_type": "string", "is_required": True},
             {"name": "priority", "data_type": "string", "is_required": False},
         ],
-        "required_roles": ["commander", "operator"],
+        "required_roles": ["director", "operator"],
         "confirmation_required": False,
     },
     {
@@ -133,7 +133,7 @@ _OMS_ACTION_TYPES = [
         "parameters": [
             {"name": "name", "data_type": "string", "is_required": True},
         ],
-        "required_roles": ["admin", "commander"],
+        "required_roles": ["admin", "director"],
         "confirmation_required": False,
     },
     {
@@ -145,7 +145,7 @@ _OMS_ACTION_TYPES = [
         "parameters": [
             {"name": "config", "data_type": "dict", "is_required": False},
         ],
-        "required_roles": ["operator", "commander"],
+        "required_roles": ["operator", "director"],
         "confirmation_required": False,
     },
 ]

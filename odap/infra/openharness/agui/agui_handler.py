@@ -18,6 +18,7 @@ import logging
 import os
 import sys
 from dataclasses import dataclass
+from odap.infra.config_composer import get_config
 from typing import Any, AsyncIterator
 
 # 确保 OpenHarness 子模块可被导入
@@ -220,7 +221,7 @@ async def run_agent(
     """AG-UI 协议入口：客户端发 RunAgentInput，服务端流式返回 AG-UI Event SSE 流。"""
     user_id = user.get("sub") or user.get("user_id", "anonymous")
     ws_id = request.workspaceId or user.get("ws_id", "default")
-    model = request.model or os.environ.get("OPENAI_MODEL", "gpt-4o")
+    model = request.model or get_config("llm.model", "gpt-4o")
 
     # OPA 鉴权：JWT 携带的 ws_role + workspaceId 必须匹配 ag_ui.rego 规则
     # 规则 1: admin 可访问；规则 2: owner/admin/editor/viewer 可访问自己 ws；
@@ -254,7 +255,7 @@ def _opa_authorize(*, user: dict, action: str, workspace_id: str) -> None:
     优先调远程 OPA（OPA_URL 环境变量），未配置时降级为本地逻辑判定（与 ag_ui.rego 规则等价）。
     拒绝时抛 HTTPException(403)。
     """
-    opa_url = os.environ.get("OPA_URL")
+    opa_url = get_config("opa.url")
     input_payload = {
         "action": action,
         "workspace_id": workspace_id,
@@ -337,7 +338,7 @@ async def _stream_agui_events(
 
     流程：
     1. emit RUN_STARTED
-    2. 尝试从 OpenHarness v2_adapter 拉取 QueryEngine
+    2. 尝试从 OpenHarness engine_adapter 拉取 QueryEngine
     3. 消费 QueryEngine 事件 → transport 翻译 → SSE
     4. emit RUN_FINISHED (success)
 
@@ -449,7 +450,7 @@ async def _produce_query_engine_events(
     关键：这里只是 emit 真实流，**不重写** OpenHarness 任何循环逻辑。
     """
     try:
-        from odap.infra.openharness.v2_adapter import (
+        from odap.infra.openharness.engine_adapter import (
             get_openharness_integration,
         )
         from odap.infra.openharness.agui.agui_extensions import (

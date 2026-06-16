@@ -36,16 +36,6 @@ class ToolDiscoverRequest(BaseModel):
     top_k: int = 5
 
 
-def _get_tool_adapter():
-    try:
-        from odap.biz.integration.openharness_agent.adapter.tool_adapter_v2 import ToolAdapterV2
-        return ToolAdapterV2()
-    except HTTPException:
-        raise
-    except Exception:
-        return None
-
-
 def _get_tool_registry():
     try:
         from odap.biz.platform.tool_registry import get_tool_registry
@@ -59,18 +49,6 @@ def _get_tool_registry():
 @router.post("/register")
 async def register_tool(request: ToolRegisterRequest,
     user=Depends(get_current_user)):
-    adapter = _get_tool_adapter()
-    if adapter:
-        tool_def = {
-            "name": request.name,
-            "description": request.description,
-            "category": request.category,
-            "permissions": [request.opa_action] if request.opa_action else [],
-        }
-        result = adapter.register_tool(tool_def)
-        if result.get("status") == "success":
-            return {"status": "success", "tool_id": result.get("tool_id"), "name": request.name, "registered_in_openharness": result.get("registered_in_openharness", False)}
-
     registry = _get_tool_registry()
     if registry:
         try:
@@ -95,26 +73,19 @@ async def register_tool(request: ToolRegisterRequest,
 @router.delete("/{tool_id}")
 async def unregister_tool(tool_id: str,
     user=Depends(get_current_user)):
-    adapter = _get_tool_adapter()
-    if adapter:
-        result = adapter.unregister_tool(tool_id)
-        if result.get("status") == "success":
+    registry = _get_tool_registry()
+    if registry:
+        success = registry.unregister(tool_id)
+        if success:
             return {"status": "success", "tool_id": tool_id}
-        return {"status": "error", "message": result.get("message", "Tool not found")}
+        return {"status": "error", "message": f"Tool {tool_id} not found"}
 
-    return {"status": "error", "message": "No tool adapter available"}
+    return {"status": "error", "message": "No tool registry available"}
 
 
 @router.post("/{tool_id}/invoke")
 async def invoke_tool(tool_id: str, request: ToolInvokeRequest,
     user=Depends(get_current_user)):
-    adapter = _get_tool_adapter()
-    if adapter:
-        result = adapter.invoke_tool(tool_id, request.params)
-        if result.get("status") == "success":
-            return {"status": "success", "tool_id": tool_id, "result": result.get("result")}
-        raise HTTPException(status_code=404, detail=result.get("message", "Tool invocation failed"))
-
     registry = _get_tool_registry()
     if registry:
         try:
@@ -135,11 +106,6 @@ async def invoke_tool(tool_id: str, request: ToolInvokeRequest,
 
 @router.get("")
 async def list_tools(category: Optional[str] = Query(None)):
-    adapter = _get_tool_adapter()
-    if adapter:
-        result = adapter.list_tools(category)
-        return result
-
     registry = _get_tool_registry()
     if registry:
         tools = registry.discover(category=category)

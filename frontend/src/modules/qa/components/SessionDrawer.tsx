@@ -4,7 +4,7 @@ import { DeleteOutlined, LoadingOutlined, HistoryOutlined } from '@ant-design/ic
 import { useSession } from '../hooks/useSession';
 import type { Session } from '../hooks/useSession';
 import { css } from '@emotion/css';
-import { useWorkspace, useScenario } from '../../shared';
+import { useWorkspace, useScenario } from '@/modules/shared';
 
 const { Text } = Typography;
 

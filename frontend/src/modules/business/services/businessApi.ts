@@ -5,8 +5,8 @@ import type {
   BusinessIndicator, BusinessIndicatorFormData,
   BusinessEntity,
 } from '../types';
-import { fetchJson, apiClient } from '../../shared/services/apiClient';
-import { API_BASE } from '../../../config';
+import { fetchJson, apiClient } from '@/modules/shared/services/apiClient';
+import { API_BASE } from '@/config';
 
 function buildVersionQuery(ontologyId?: string, versionId?: string): string {
   const params: string[] = [];
@@ -78,4 +78,21 @@ export const indicatorApi = {
 export const entityApi = {
   listAll: (): Promise<BusinessEntity[]> =>
     fetchJson<BusinessEntity[]>(`${API_BASE}/api/business-entities`),
+};
+
+// Type definition queries for dropdown population
+export const processTypeDefinitions = {
+  list: (ontologyId: string) => apiClient.get(`/api/process-type-definitions?ontology_id=${ontologyId}`),
+};
+
+export const ruleTypeDefinitions = {
+  list: (ontologyId: string) => apiClient.get(`/api/rule-type-definitions?ontology_id=${ontologyId}`),
+};
+
+export const functionTypeDefinitions = {
+  list: (ontologyId: string) => apiClient.get(`/api/function-type-definitions?ontology_id=${ontologyId}`),
+};
+
+export const indicatorTypeDefinitions = {
+  list: (ontologyId: string) => apiClient.get(`/api/indicator-type-definitions?ontology_id=${ontologyId}`),
 };

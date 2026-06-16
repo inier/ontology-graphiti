@@ -1,0 +1,1047 @@
+<!DOCTYPE html>
+<html lang="zh-CN" data-theme="light">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>ODAP v2 — Design Preview</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=DM+Sans:opsz,wght@9..40,400;9..40,500;9..40,600;9..40,700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+<style>
+/* ============================================================
+   ODAP v2 — Design Token System
+   Tech-Modern: Indigo-Violet · Glass · Micro-interactions
+   ============================================================ */
+
+:root {
+  /* ── Color Tokens ── */
+  --c-primary-50: oklch(95% 0.02 280);
+  --c-primary-100: oklch(90% 0.04 280);
+  --c-primary-200: oklch(83% 0.07 280);
+  --c-primary-300: oklch(74% 0.11 280);
+  --c-primary-400: oklch(65% 0.15 275);
+  --c-primary-500: oklch(55% 0.18 270);
+  --c-primary-600: oklch(48% 0.19 268);
+  --c-primary-700: oklch(40% 0.18 265);
+  --c-primary-800: oklch(32% 0.15 262);
+  --c-primary-900: oklch(24% 0.12 260);
+
+  --c-accent-50: oklch(95% 0.02 300);
+  --c-accent-100: oklch(90% 0.04 300);
+  --c-accent-200: oklch(83% 0.07 300);
+  --c-accent-300: oklch(74% 0.11 300);
+  --c-accent-400: oklch(65% 0.15 295);
+  --c-accent-500: oklch(55% 0.18 290);
+  --c-accent-600: oklch(46% 0.20 288);
+
+  --c-success: #10B981;
+  --c-warning: #F59E0B;
+  --c-error: #EF4444;
+  --c-info: #06B6D4;
+
+  --c-gray-50: oklch(98% 0.005 270);
+  --c-gray-100: oklch(95% 0.008 270);
+  --c-gray-200: oklch(89% 0.01 270);
+  --c-gray-300: oklch(82% 0.008 270);
+  --c-gray-400: oklch(62% 0.01 270);
+  --c-gray-500: oklch(45% 0.01 270);
+  --c-gray-600: oklch(35% 0.01 270);
+  --c-gray-700: oklch(25% 0.01 270);
+  --c-gray-800: oklch(18% 0.01 270);
+  --c-gray-900: oklch(12% 0.01 270);
+
+  --c-bg-primary: #FFFFFF;
+  --c-bg-secondary: #F8F9FC;
+  --c-bg-tertiary: #F1F3F9;
+  --c-text-primary: oklch(18% 0.01 270);
+  --c-text-secondary: oklch(35% 0.01 270);
+  --c-text-tertiary: oklch(55% 0.01 270);
+  --c-border-primary: oklch(89% 0.01 270);
+  --c-border-secondary: oklch(93% 0.005 270);
+
+  /* ── Typography ── */
+  --font-sans: 'DM Sans', system-ui, -apple-system, sans-serif;
+  --font-mono: 'JetBrains Mono', 'Fira Code', monospace;
+  --text-xs: 0.6875rem;
+  --text-sm: 0.8125rem;
+  --text-base: 0.875rem;
+  --text-lg: 1rem;
+  --text-xl: 1.25rem;
+  --text-2xl: 1.5rem;
+  --text-3xl: 2rem;
+
+  /* ── Spacing (4px base) ── */
+  --s-1: 4px;  --s-2: 8px;  --s-3: 12px;
+  --s-4: 16px; --s-5: 20px; --s-6: 24px;
+  --s-8: 32px; --s-10: 40px; --s-12: 48px;
+
+  /* ── Radii ── */
+  --r-sm: 6px; --r-md: 8px; --r-lg: 12px;
+  --r-xl: 16px; --r-full: 9999px;
+
+  /* ── Shadows ── */
+  --shadow-xs: 0 1px 2px rgba(0,0,0,0.03);
+  --shadow-sm: 0 1px 3px rgba(0,0,0,0.04), 0 1px 2px rgba(0,0,0,0.03);
+  --shadow-md: 0 4px 6px -1px rgba(0,0,0,0.05), 0 2px 4px rgba(0,0,0,0.03);
+  --shadow-lg: 0 10px 15px -3px rgba(0,0,0,0.06), 0 4px 6px rgba(0,0,0,0.03);
+  --shadow-xl: 0 20px 25px -5px rgba(0,0,0,0.08), 0 8px 10px rgba(0,0,0,0.03);
+  --shadow-glow: 0 0 0 3px rgba(99,102,241,0.12);
+
+  /* ── Easing ── */
+  --ease-out: cubic-bezier(0.16,1,0.3,1);
+  --ease-in-out: cubic-bezier(0.65,0,0.35,1);
+  --ease-spring: cubic-bezier(0.34,1.56,0.64,1);
+  --dur-fast: 150ms;
+  --dur-normal: 250ms;
+  --dur-slow: 400ms;
+
+  /* ── Sidebar ── */
+  --sidebar-w: 200px;
+  --sidebar-collapsed: 64px;
+  --subsidebar-w: 200px;
+  --topbar-h: 56px;
+  --rightpanel-w: 320px;
+
+  /* ── Z-index ── */
+  --z-sidebar: 100;
+  --z-topbar: 90;
+  --z-rightpanel: 80;
+}
+
+/* ── Dark Theme ── */
+[data-theme="dark"] {
+  --c-bg-primary: oklch(12% 0.01 265);
+  --c-bg-secondary: oklch(14% 0.015 265);
+  --c-bg-tertiary: oklch(17% 0.02 265);
+  --c-text-primary: oklch(92% 0.005 270);
+  --c-text-secondary: oklch(70% 0.01 270);
+  --c-text-tertiary: oklch(50% 0.01 270);
+  --c-border-primary: oklch(22% 0.02 265);
+  --c-border-secondary: oklch(18% 0.015 265);
+  --c-gray-50: oklch(14% 0.008 270);
+  --c-gray-100: oklch(18% 0.01 270);
+  --c-gray-200: oklch(22% 0.015 270);
+  --c-gray-300: oklch(28% 0.015 270);
+  --c-gray-400: oklch(45% 0.01 270);
+  --c-gray-500: oklch(55% 0.01 270);
+  --c-gray-600: oklch(65% 0.01 270);
+  --c-gray-700: oklch(78% 0.005 270);
+  --c-primary-500: oklch(65% 0.15 275);
+  --c-primary-600: oklch(58% 0.16 272);
+  --shadow-xs: 0 1px 2px rgba(0,0,0,0.15);
+  --shadow-sm: 0 1px 3px rgba(0,0,0,0.2), 0 1px 2px rgba(0,0,0,0.12);
+  --shadow-md: 0 4px 6px rgba(0,0,0,0.25), 0 2px 4px rgba(0,0,0,0.15);
+  --shadow-lg: 0 10px 15px rgba(0,0,0,0.3), 0 4px 6px rgba(0,0,0,0.15);
+  --shadow-xl: 0 20px 25px rgba(0,0,0,0.35), 0 8px 10px rgba(0,0,0,0.15);
+  --shadow-glow: 0 0 0 3px rgba(129,140,248,0.2);
+}
+
+/* ── Reset ── */
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+html,body{height:100%;overflow:hidden}
+body{
+  font-family:var(--font-sans);
+  font-size:var(--text-base);
+  line-height:1.5;
+  color:var(--c-text-primary);
+  background:var(--c-bg-secondary);
+  -webkit-font-smoothing:antialiased;
+  -moz-osx-font-smoothing:grayscale;
+}
+a{color:var(--c-primary-600);text-decoration:none}
+button{cursor:pointer;font-family:inherit}
+::-webkit-scrollbar{width:5px;height:5px}
+::-webkit-scrollbar-track{background:transparent}
+::-webkit-scrollbar-thumb{background:var(--c-gray-300);border-radius:3px}
+::-webkit-scrollbar-thumb:hover{background:var(--c-gray-400)}
+
+/* ── App Shell ── */
+.app-shell{display:flex;height:100vh;overflow:hidden}
+
+/* ── Primary Sidebar ── */
+.sidebar-primary{
+  position:fixed;left:0;top:0;bottom:0;
+  width:var(--sidebar-w);
+  background:linear-gradient(180deg, #1E1B4B 0%, #0F0F1A 100%);
+  z-index:var(--z-sidebar);
+  display:flex;flex-direction:column;
+  transition:width var(--dur-normal) var(--ease-out);
+  overflow:hidden;
+  border-right:1px solid rgba(255,255,255,0.06);
+}
+.sidebar-primary.collapsed{width:var(--sidebar-collapsed)}
+
+.sidebar-logo{
+  height:var(--topbar-h);
+  display:flex;align-items:center;justify-content:center;
+  border-bottom:1px solid rgba(255,255,255,0.08);
+  flex-shrink:0;
+  cursor:pointer;
+}
+.sidebar-logo .logo-full{
+  font-size:1.25rem;font-weight:700;letter-spacing:0.05em;
+  background:linear-gradient(135deg,#818CF8,#A78BFA);
+  -webkit-background-clip:text;-webkit-text-fill-color:transparent;
+  background-clip:text;
+}
+.sidebar-logo .logo-icon{
+  font-size:1.25rem;font-weight:700;
+  color:#818CF8;
+}
+
+.sidebar-nav{
+  flex:1;overflow-y:auto;overflow-x:hidden;
+  padding:var(--s-2) 0;
+}
+.nav-item{
+  display:flex;align-items:center;
+  height:44px;padding:0 var(--s-4);
+  color:rgba(255,255,255,0.55);
+  transition:all var(--dur-fast) var(--ease-out);
+  cursor:pointer;gap:var(--s-3);
+  border-left:3px solid transparent;
+  white-space:nowrap;
+  position:relative;
+}
+.nav-item:hover{
+  color:rgba(255,255,255,0.85);
+  background:rgba(255,255,255,0.04);
+}
+.nav-item.active{
+  color:rgba(255,255,255,0.95);
+  background:rgba(99,102,241,0.15);
+  border-left-color:#818CF8;
+}
+.nav-item .nav-icon{font-size:1.1rem;flex-shrink:0;width:24px;text-align:center}
+.nav-item .nav-label{font-size:var(--text-sm);font-weight:500;opacity:1;transition:opacity var(--dur-fast)}
+
+.sidebar-primary.collapsed .nav-item{padding:0;justify-content:center}
+.sidebar-primary.collapsed .nav-label{opacity:0;width:0;overflow:hidden}
+.sidebar-primary.collapsed .logo-full{display:none}
+.sidebar-primary.collapsed .logo-icon{display:block}
+.sidebar-primary .logo-full{display:block}
+.sidebar-primary .logo-icon{display:none}
+
+.sidebar-toggle{
+  height:48px;display:flex;align-items:center;justify-content:center;
+  border-top:1px solid rgba(255,255,255,0.08);
+  color:rgba(255,255,255,0.4);
+  cursor:pointer;flex-shrink:0;
+  transition:all var(--dur-fast);
+}
+.sidebar-toggle:hover{color:rgba(255,255,255,0.75);background:rgba(255,255,255,0.04)}
+.sidebar-toggle svg{width:18px;height:18px;transition:transform var(--dur-normal)}
+.sidebar-primary.collapsed .sidebar-toggle svg{transform:rotate(180deg)}
+
+/* ── Sub Sidebar ── */
+.subsidebar{
+  position:fixed;left:var(--sidebar-w);top:0;bottom:0;
+  width:var(--subsidebar-w);
+  background:var(--c-bg-primary);
+  border-right:1px solid var(--c-border-primary);
+  z-index:calc(var(--z-sidebar) - 1);
+  display:flex;flex-direction:column;
+  transition:left var(--dur-normal) var(--ease-out), opacity var(--dur-normal);
+  overflow-y:auto;
+}
+.sidebar-primary.collapsed ~ .subsidebar{left:var(--sidebar-collapsed)}
+.subsidebar.hidden{opacity:0;pointer-events:none}
+
+.subsidebar-header{
+  height:var(--topbar-h);display:flex;align-items:center;justify-content:space-between;
+  padding:0 var(--s-4);border-bottom:1px solid var(--c-border-secondary);
+  flex-shrink:0;
+}
+.subsidebar-title{font-size:var(--text-sm);font-weight:600;color:var(--c-text-primary)}
+.subsidebar-close{
+  width:28px;height:28px;display:flex;align-items:center;justify-content:center;
+  border-radius:var(--r-sm);border:none;background:transparent;
+  color:var(--c-text-tertiary);font-size:1rem;transition:all var(--dur-fast);
+}
+.subsidebar-close:hover{background:var(--c-gray-100);color:var(--c-text-primary)}
+
+.subsidebar-nav{padding:var(--s-2) 0}
+.sub-nav-item{
+  display:flex;align-items:center;height:40px;padding:0 var(--s-4);gap:var(--s-3);
+  color:var(--c-text-secondary);font-size:var(--text-sm);
+  transition:all var(--dur-fast);cursor:pointer;
+  border-radius:0;margin:0 var(--s-2);
+}
+.sub-nav-item:hover{background:var(--c-primary-50);color:var(--c-primary-700)}
+.sub-nav-item.active{
+  background:var(--c-primary-50);color:var(--c-primary-700);font-weight:500
+}
+.sub-nav-item .sub-nav-dot{width:6px;height:6px;border-radius:50%;background:var(--c-primary-400);flex-shrink:0}
+
+.subsidebar-collapse-tab{
+  position:fixed;left:var(--sidebar-w);top:50%;transform:translateY(-50%);
+  width:20px;height:48px;background:var(--c-bg-primary);
+  border:1px solid var(--c-border-primary);border-left:none;
+  border-radius:0 var(--r-sm) var(--r-sm) 0;
+  display:flex;align-items:center;justify-content:center;
+  cursor:pointer;z-index:calc(var(--z-sidebar) - 2);
+  color:var(--c-text-tertiary);transition:all var(--dur-fast);
+}
+.subsidebar-collapse-tab:hover{color:var(--c-primary-600)}
+.subsidebar.hidden ~ .subsidebar-collapse-tab{display:flex}
+.subsidebar:not(.hidden) ~ .subsidebar-collapse-tab{display:none}
+.subsidebar-collapse-tab svg{width:12px;height:12px}
+
+/* ── Main Area ── */
+.main-area{
+  flex:1;margin-left:calc(var(--sidebar-w) + var(--subsidebar-w));
+  margin-right:0;
+  display:flex;flex-direction:column;
+  transition:margin-left var(--dur-normal) var(--ease-out);
+  min-width:0;height:100vh;overflow:hidden;
+}
+.sidebar-primary.collapsed ~ .main-area{margin-left:calc(var(--sidebar-collapsed) + var(--subsidebar-w))}
+.subsidebar.hidden ~ .main-area{margin-left:var(--sidebar-w)}
+.sidebar-primary.collapsed .subsidebar.hidden ~ .main-area{margin-left:var(--sidebar-collapsed)}
+.main-area.right-open{margin-right:var(--rightpanel-w)}
+
+/* ── Topbar ── */
+.topbar{
+  height:var(--topbar-h);background:var(--c-bg-primary);
+  border-bottom:1px solid var(--c-border-primary);
+  display:flex;align-items:center;justify-content:space-between;
+  padding:0 var(--s-6);flex-shrink:0;
+  position:sticky;top:0;z-index:var(--z-topbar);
+}
+.topbar-left{display:flex;align-items:center;gap:var(--s-6)}
+.topbar-right{display:flex;align-items:center;gap:var(--s-4)}
+.topbar-selector{display:flex;align-items:center;gap:var(--s-2)}
+.topbar-selector label{font-size:var(--text-xs);font-weight:500;color:var(--c-text-tertiary)}
+.topbar-selector select{
+  height:32px;padding:0 var(--s-3);font-size:var(--text-sm);
+  border:1px solid var(--c-border-primary);border-radius:var(--r-sm);
+  background:var(--c-bg-secondary);color:var(--c-text-primary);
+  cursor:pointer;font-family:inherit;
+  transition:all var(--dur-fast);
+}
+.topbar-selector select:hover{border-color:var(--c-primary-300)}
+.topbar-selector select:focus{outline:none;border-color:var(--c-primary-500);box-shadow:var(--shadow-glow)}
+
+/* ── Theme Toggle ── */
+.theme-toggle{
+  width:36px;height:36px;border-radius:var(--r-full);
+  border:1px solid var(--c-border-primary);background:var(--c-bg-secondary);
+  cursor:pointer;display:flex;align-items:center;justify-content:center;
+  color:var(--c-text-secondary);transition:all var(--dur-fast);
+  position:relative;overflow:hidden;
+}
+.theme-toggle:hover{background:var(--c-primary-50);border-color:var(--c-primary-200);color:var(--c-primary-600)}
+.theme-toggle svg{width:18px;height:18px;position:absolute;transition:all var(--dur-normal) var(--ease-spring)}
+.theme-toggle .sun{opacity:0;transform:scale(0.5) rotate(-90deg)}
+.theme-toggle .moon{opacity:1;transform:scale(1) rotate(0deg)}
+[data-theme="dark"] .theme-toggle .sun{opacity:1;transform:scale(1) rotate(0deg)}
+[data-theme="dark"] .theme-toggle .moon{opacity:0;transform:scale(0.5) rotate(90deg)}
+
+.user-avatar{
+  width:32px;height:32px;border-radius:var(--r-full);
+  background:linear-gradient(135deg,var(--c-primary-500),var(--c-accent-500));
+  color:white;display:flex;align-items:center;justify-content:center;
+  font-size:var(--text-xs);font-weight:600;cursor:pointer;
+}
+
+/* ── Content ── */
+.content{flex:1;overflow-y:auto;padding:var(--s-6)}
+.content-inner{max-width:1200px;margin:0 auto}
+
+/* ── Page Header ── */
+.page-header{margin-bottom:var(--s-6)}
+.breadcrumb{
+  display:flex;align-items:center;gap:var(--s-2);margin-bottom:var(--s-2);
+  font-size:var(--text-xs);color:var(--c-text-tertiary);
+}
+.breadcrumb a{color:var(--c-text-tertiary);transition:color var(--dur-fast)}
+.breadcrumb a:hover{color:var(--c-primary-600)}
+.breadcrumb .sep{color:var(--c-gray-300)}
+.page-title{font-size:var(--text-2xl);font-weight:700;color:var(--c-text-primary);letter-spacing:-0.02em}
+.page-subtitle{font-size:var(--text-sm);color:var(--c-text-secondary);margin-top:var(--s-1)}
+
+/* ── Stats Grid ── */
+.stats-grid{
+  display:grid;grid-template-columns:repeat(4,1fr);
+  gap:var(--s-4);margin-bottom:var(--s-6);
+}
+
+/* Glass Card */
+.glass-card{
+  background:rgba(255,255,255,0.7);
+  backdrop-filter:blur(20px);-webkit-backdrop-filter:blur(20px);
+  border:1px solid rgba(255,255,255,0.3);
+  border-radius:var(--r-lg);padding:var(--s-5);
+  box-shadow:var(--shadow-sm);
+  transition:all var(--dur-normal) var(--ease-out);
+  cursor:default;
+}
+.glass-card:hover{
+  box-shadow:var(--shadow-md);
+  border-color:rgba(99,102,241,0.15);
+  transform:translateY(-2px);
+}
+[data-theme="dark"] .glass-card{
+  background:rgba(26,26,46,0.75);
+  border-color:rgba(255,255,255,0.06);
+}
+[data-theme="dark"] .glass-card:hover{border-color:rgba(129,140,248,0.2)}
+
+.stat-label{font-size:var(--text-xs);color:var(--c-text-tertiary);font-weight:500;margin-bottom:var(--s-2);text-transform:uppercase;letter-spacing:0.04em}
+.stat-value{font-size:var(--text-3xl);font-weight:700;color:var(--c-text-primary);font-variant-numeric:tabular-nums;line-height:1.1}
+.stat-footer{display:flex;align-items:center;gap:var(--s-2);margin-top:var(--s-2)}
+.stat-trend{font-size:var(--text-xs);font-weight:600;display:flex;align-items:center;gap:2px}
+.stat-trend.up{color:var(--c-success)}
+.stat-trend.down{color:var(--c-error)}
+.stat-trend .trend-arrow{font-size:0.75rem}
+.stat-period{font-size:var(--text-xs);color:var(--c-text-tertiary)}
+
+/* ── Section ── */
+.section{margin-bottom:var(--s-6)}
+.section-title{font-size:var(--text-lg);font-weight:600;color:var(--c-text-primary);margin-bottom:var(--s-4);display:flex;align-items:center;gap:var(--s-3)}
+.section-title::before{content:'';width:3px;height:16px;background:linear-gradient(180deg,var(--c-primary-500),var(--c-accent-500));border-radius:2px}
+
+/* ── Data Table ── */
+.data-table-wrap{
+  background:var(--c-bg-primary);border:1px solid var(--c-border-primary);
+  border-radius:var(--r-lg);overflow:hidden;box-shadow:var(--shadow-xs);
+}
+.data-table{width:100%;border-collapse:collapse}
+.data-table th{
+  text-align:left;padding:var(--s-3) var(--s-4);font-size:var(--text-xs);
+  font-weight:600;color:var(--c-text-tertiary);text-transform:uppercase;
+  letter-spacing:0.04em;background:var(--c-gray-50);border-bottom:1px solid var(--c-border-primary);
+}
+.data-table td{
+  padding:var(--s-3) var(--s-4);font-size:var(--text-sm);color:var(--c-text-primary);
+  border-bottom:1px solid var(--c-border-secondary);
+}
+.data-table tr:last-child td{border-bottom:none}
+.data-table tr:hover td{background:var(--c-primary-50)}
+.data-table .mono{font-family:var(--font-mono);font-size:var(--text-xs);color:var(--c-primary-700)}
+
+/* ── Component Showcase ── */
+.comp-grid{display:grid;grid-template-columns:1fr 1fr;gap:var(--s-6)}
+.comp-group{margin-bottom:var(--s-4)}
+.comp-label{font-size:var(--text-xs);color:var(--c-text-tertiary);font-weight:500;margin-bottom:var(--s-2);text-transform:uppercase;letter-spacing:0.04em}
+.comp-row{display:flex;align-items:center;gap:var(--s-2);flex-wrap:wrap;margin-bottom:var(--s-3)}
+
+/* ── Buttons ── */
+.btn{
+  display:inline-flex;align-items:center;justify-content:center;gap:var(--s-2);
+  font-family:var(--font-sans);font-weight:500;border:none;
+  border-radius:var(--r-sm);cursor:pointer;white-space:nowrap;
+  transition:all var(--dur-fast) var(--ease-out);
+  user-select:none;text-decoration:none;
+  position:relative;overflow:hidden;
+}
+.btn:focus-visible{outline:2px solid var(--c-primary-500);outline-offset:2px}
+.btn:disabled{opacity:0.45;cursor:not-allowed;pointer-events:none}
+
+.btn-sm{height:32px;padding:0 var(--s-3);font-size:var(--text-xs)}
+.btn-md{height:36px;padding:0 var(--s-4);font-size:var(--text-sm)}
+.btn-lg{height:42px;padding:0 var(--s-5);font-size:var(--text-base)}
+
+.btn-primary{
+  background:linear-gradient(135deg,var(--c-primary-600),var(--c-accent-500));
+  color:white;box-shadow:var(--shadow-sm);
+}
+.btn-primary:hover:not(:disabled){
+  box-shadow:var(--shadow-md),0 0 0 3px rgba(99,102,241,0.15);
+  transform:translateY(-1px);
+}
+.btn-primary:active:not(:disabled){transform:translateY(0)}
+
+.btn-secondary{
+  background:var(--c-primary-50);color:var(--c-primary-700);
+  border:1px solid var(--c-primary-200);
+}
+.btn-secondary:hover:not(:disabled){
+  background:var(--c-primary-100);border-color:var(--c-primary-300);
+  transform:translateY(-1px);
+}
+
+.btn-outline{
+  background:transparent;color:var(--c-primary-600);
+  border:1px solid var(--c-primary-300);
+}
+.btn-outline:hover:not(:disabled){
+  background:var(--c-primary-50);border-color:var(--c-primary-400);
+}
+
+.btn-ghost{
+  background:transparent;color:var(--c-text-secondary);
+}
+.btn-ghost:hover:not(:disabled){background:var(--c-gray-100);color:var(--c-text-primary)}
+
+.btn-danger{
+  background:var(--c-error);color:white;
+}
+.btn-danger:hover:not(:disabled){opacity:0.9;box-shadow:0 0 0 3px rgba(239,68,68,0.15)}
+
+/* ── Input ── */
+.input{
+  height:36px;padding:0 var(--s-3);font-size:var(--text-sm);font-family:var(--font-sans);
+  border:1px solid var(--c-border-primary);border-radius:var(--r-sm);
+  background:var(--c-bg-primary);color:var(--c-text-primary);
+  transition:all var(--dur-fast) var(--ease-out);outline:none;
+}
+.input:hover{border-color:var(--c-gray-300)}
+.input:focus{border-color:var(--c-primary-500);box-shadow:var(--shadow-glow)}
+.input::placeholder{color:var(--c-text-tertiary)}
+.input-sm{height:32px;font-size:var(--text-xs);padding:0 var(--s-2)}
+.input-lg{height:42px;font-size:var(--text-base);padding:0 var(--s-4)}
+
+/* ── Badges ── */
+.badge{
+  display:inline-flex;align-items:center;height:22px;padding:0 var(--s-2);
+  border-radius:var(--r-full);font-size:var(--text-xs);font-weight:500;gap:4px;
+}
+.badge-blue{background:var(--c-primary-50);color:var(--c-primary-700);border:1px solid var(--c-primary-200)}
+.badge-green{background:#ECFDF5;color:#065F46;border:1px solid #A7F3D0}
+.badge-amber{background:#FFFBEB;color:#92400E;border:1px solid #FDE68A}
+.badge-red{background:#FEF2F2;color:#991B1B;border:1px solid #FECACA}
+.badge-purple{background:var(--c-accent-50);color:var(--c-accent-600);border:1px solid var(--c-accent-200)}
+.badge-dot{width:6px;height:6px;border-radius:50%}
+
+/* ── Right Panel ── */
+.right-panel{
+  position:fixed;right:0;top:0;bottom:0;
+  width:var(--rightpanel-w);background:var(--c-bg-primary);
+  border-left:1px solid var(--c-border-primary);
+  z-index:var(--z-rightpanel);
+  display:flex;flex-direction:column;
+  transform:translateX(0);transition:transform var(--dur-normal) var(--ease-out);
+}
+.right-panel.hidden{transform:translateX(100%)}
+.right-panel-header{
+  height:var(--topbar-h);display:flex;align-items:center;justify-content:space-between;
+  padding:0 var(--s-4);border-bottom:1px solid var(--c-border-secondary);
+  flex-shrink:0;
+}
+.right-panel-title{font-size:var(--text-sm);font-weight:600}
+.right-panel-body{flex:1;overflow-y:auto;padding:var(--s-4)}
+
+/* ── Quick Info Cards ── */
+.quick-info{
+  background:var(--c-bg-secondary);border-radius:var(--r-md);
+  padding:var(--s-4);margin-bottom:var(--s-3);
+  border:1px solid var(--c-border-secondary);
+}
+.quick-info-label{font-size:var(--text-xs);color:var(--c-text-tertiary);margin-bottom:var(--s-1)}
+.quick-info-value{font-size:var(--text-sm);font-weight:500}
+
+/* ── Responsive ── */
+@media(max-width:1400px){.stats-grid{grid-template-columns:repeat(2,1fr)}}
+@media(max-width:1200px){
+  .subsidebar{display:none}
+  .main-area{margin-left:var(--sidebar-w)}
+  .comp-grid{grid-template-columns:1fr}
+  .stats-grid{grid-template-columns:repeat(2,1fr)}
+}
+
+/* ── Toast ── */
+.toast{
+  position:fixed;top:var(--s-6);right:var(--s-6);z-index:1000;
+  display:flex;align-items:center;gap:var(--s-3);
+  background:var(--c-bg-primary);border:1px solid var(--c-border-primary);
+  border-radius:var(--r-lg);padding:var(--s-3) var(--s-4);
+  box-shadow:var(--shadow-lg);
+  font-size:var(--text-sm);
+  animation:toastIn var(--dur-normal) var(--ease-spring);
+  opacity:0;transform:translateX(20px);
+  pointer-events:none;
+}
+.toast.show{opacity:1;transform:translateX(0)}
+@keyframes toastIn{to{opacity:1;transform:translateX(0)}}
+</style>
+</head>
+<body>
+<div class="app-shell" id="app">
+
+<!-- ============ PRIMARY SIDEBAR ============ -->
+<aside class="sidebar-primary" id="sidebarPrimary">
+  <div class="sidebar-logo" onclick="navigateTo('/')">
+    <span class="logo-full">ODAP</span>
+    <span class="logo-icon">O</span>
+  </div>
+  <nav class="sidebar-nav">
+    <div class="nav-item active" data-key="ontology" onclick="selectPrimaryNav('ontology', this)">
+      <span class="nav-icon">🧩</span>
+      <span class="nav-label">语义地图</span>
+    </div>
+    <div class="nav-item" data-key="agent" onclick="selectPrimaryNav('agent', this)">
+      <span class="nav-icon">🤖</span>
+      <span class="nav-label">智能体</span>
+    </div>
+    <div class="nav-item" data-key="simulation" onclick="selectPrimaryNav('simulation', this)">
+      <span class="nav-icon">⚡</span>
+      <span class="nav-label">推演仿真</span>
+    </div>
+    <div class="nav-item" data-key="knowledge" onclick="selectPrimaryNav('knowledge', this)">
+      <span class="nav-icon">🗄️</span>
+      <span class="nav-label">知识检索</span>
+    </div>
+    <div class="nav-item" data-key="system" onclick="selectPrimaryNav('system', this)">
+      <span class="nav-icon">⚙️</span>
+      <span class="nav-label">系统管理</span>
+    </div>
+  </nav>
+  <div class="sidebar-toggle" onclick="toggleSidebar()">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+      <polyline points="15 18 9 12 15 6"></polyline>
+    </svg>
+  </div>
+</aside>
+
+<!-- ============ SUB SIDEBAR ============ -->
+<aside class="subsidebar" id="subSidebar">
+  <div class="subsidebar-header">
+    <span class="subsidebar-title" id="subSidebarTitle">语义地图</span>
+    <button class="subsidebar-close" onclick="toggleSubSidebar()" aria-label="收起子菜单">◂</button>
+  </div>
+  <nav class="subsidebar-nav" id="subNav">
+    <div class="sub-nav-item active" onclick="selectSubNav('/ontology/designer', this)">
+      <span class="sub-nav-dot"></span>本体设计器
+    </div>
+    <div class="sub-nav-item" onclick="selectSubNav('/ontology/graph', this)">
+      <span class="sub-nav-dot"></span>语义图谱
+    </div>
+    <div class="sub-nav-item" onclick="selectSubNav('/business/entities', this)">
+      <span class="sub-nav-dot"></span>对象管理
+    </div>
+    <div class="sub-nav-item" onclick="selectSubNav('/business/process', this)">
+      <span class="sub-nav-dot"></span>业务过程
+    </div>
+    <div class="sub-nav-item" onclick="selectSubNav('/business/rules', this)">
+      <span class="sub-nav-dot"></span>规则
+    </div>
+    <div class="sub-nav-item" onclick="selectSubNav('/business/indicators', this)">
+      <span class="sub-nav-dot"></span>指标
+    </div>
+    <div class="sub-nav-item" onclick="selectSubNav('/business/logic', this)">
+      <span class="sub-nav-dot"></span>逻辑
+    </div>
+    <div class="sub-nav-item" onclick="selectSubNav('/ingest', this)">
+      <span class="sub-nav-dot"></span>数据摄入
+    </div>
+    <div class="sub-nav-item" onclick="selectSubNav('/blueprint', this)">
+      <span class="sub-nav-dot"></span>蓝图设计
+    </div>
+    <div class="sub-nav-item" onclick="selectSubNav('/versions', this)">
+      <span class="sub-nav-dot"></span>版本历史
+    </div>
+  </nav>
+</aside>
+<div class="subsidebar-collapse-tab" onclick="toggleSubSidebar()" id="subCollapseTab" style="display:none">
+  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="9 18 15 12 9 6"></polyline></svg>
+</div>
+
+<!-- ============ MAIN AREA ============ -->
+<div class="main-area" id="mainArea">
+  <!-- Topbar -->
+  <header class="topbar">
+    <div class="topbar-left">
+      <div class="topbar-selector">
+        <label>工作空间</label>
+        <select id="wsSelect" onchange="showToast('已切换工作空间')">
+          <option>ODAP 主空间</option>
+          <option>军事推演空间</option>
+          <option>城市治理空间</option>
+        </select>
+      </div>
+      <div class="topbar-selector">
+        <label>场景</label>
+        <select id="scSelect" onchange="showToast('已切换场景')">
+          <option>红蓝对抗 v3.2</option>
+          <option>基线版本 v3.0</option>
+        </select>
+      </div>
+    </div>
+    <div class="topbar-right">
+      <button class="theme-toggle" onclick="toggleTheme()" aria-label="切换主题">
+        <svg class="sun" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="5"/><line x1="12" y1="1" x2="12" y2="3"/><line x1="12" y1="21" x2="12" y2="23"/><line x1="4.22" y1="4.22" x2="5.64" y2="5.64"/><line x1="18.36" y1="18.36" x2="19.78" y2="19.78"/><line x1="1" y1="12" x2="3" y2="12"/><line x1="21" y1="12" x2="23" y2="12"/><line x1="4.22" y1="19.78" x2="5.64" y2="18.36"/><line x1="18.36" y1="5.64" x2="19.78" y2="4.22"/></svg>
+        <svg class="moon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 12.79A9 9 0 1111.21 3 7 7 0 0021 12.79z"/></svg>
+      </button>
+      <button class="btn btn-ghost btn-sm" onclick="toggleRightPanel()">侧栏</button>
+      <div class="user-avatar" title="管理员">管</div>
+    </div>
+  </header>
+
+  <!-- Content -->
+  <main class="content" id="mainContent">
+    <div class="content-inner">
+
+      <!-- Page Header -->
+      <div class="page-header">
+        <div class="breadcrumb">
+          <a href="#">ODAP</a><span class="sep">/</span>
+          <a href="#">语义地图</a><span class="sep">/</span>
+          <span>本体设计器</span>
+        </div>
+        <h1 class="page-title">本体设计器</h1>
+        <p class="page-subtitle">管理知识本体定义，构建语义模型 — 当前工作版本 v3.2 · 最后更新 2 小时前</p>
+      </div>
+
+      <!-- Stats Cards -->
+      <div class="stats-grid">
+        <div class="glass-card">
+          <div class="stat-label">本体数量</div>
+          <div class="stat-value">1,247</div>
+          <div class="stat-footer">
+            <span class="stat-trend up"><span class="trend-arrow">↗</span> +12%</span>
+            <span class="stat-period">vs 上月</span>
+          </div>
+        </div>
+        <div class="glass-card">
+          <div class="stat-label">实体总数</div>
+          <div class="stat-value">89,432</div>
+          <div class="stat-footer">
+            <span class="stat-trend up"><span class="trend-arrow">↗</span> +5.3%</span>
+            <span class="stat-period">vs 上月</span>
+          </div>
+        </div>
+        <div class="glass-card">
+          <div class="stat-label">活跃智能体</div>
+          <div class="stat-value">38</div>
+          <div class="stat-footer">
+            <span class="stat-trend down"><span class="trend-arrow">↘</span> -2</span>
+            <span class="stat-period">vs 上周</span>
+          </div>
+        </div>
+        <div class="glass-card">
+          <div class="stat-label">今日摄入</div>
+          <div class="stat-value">2,847</div>
+          <div class="stat-footer">
+            <span class="stat-trend up"><span class="trend-arrow">↗</span> +18%</span>
+            <span class="stat-period">条数据</span>
+          </div>
+        </div>
+      </div>
+
+      <!-- Data Table -->
+      <div class="section">
+        <div class="section-title">最近本体记录</div>
+        <div class="data-table-wrap">
+          <table class="data-table">
+            <thead>
+              <tr>
+                <th>名称</th>
+                <th>类型</th>
+                <th>版本</th>
+                <th>实体数</th>
+                <th>状态</th>
+                <th>更新时间</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr>
+                <td style="font-weight:500">作战单元本体</td>
+                <td><span class="badge badge-blue"><span class="badge-dot" style="background:var(--c-primary-500)"></span>核心本体</span></td>
+                <td class="mono">v3.2.1</td>
+                <td>12,847</td>
+                <td><span class="badge badge-green">已发布</span></td>
+                <td class="mono">2026-06-15 10:32</td>
+              </tr>
+              <tr>
+                <td style="font-weight:500">地理空间本体</td>
+                <td><span class="badge badge-purple"><span class="badge-dot" style="background:var(--c-accent-500)"></span>扩展本体</span></td>
+                <td class="mono">v2.1.0</td>
+                <td>8,234</td>
+                <td><span class="badge badge-green">已发布</span></td>
+                <td class="mono">2026-06-14 16:45</td>
+              </tr>
+              <tr>
+                <td style="font-weight:500">事件时序本体</td>
+                <td><span class="badge badge-blue">核心本体</span></td>
+                <td class="mono">v1.8.3</td>
+                <td>5,621</td>
+                <td><span class="badge badge-amber">审核中</span></td>
+                <td class="mono">2026-06-14 09:18</td>
+              </tr>
+              <tr>
+                <td style="font-weight:500">组织架构本体</td>
+                <td><span class="badge badge-purple">扩展本体</span></td>
+                <td class="mono">v4.0.0</td>
+                <td>23,109</td>
+                <td><span class="badge badge-green">已发布</span></td>
+                <td class="mono">2026-06-13 22:10</td>
+              </tr>
+              <tr>
+                <td style="font-weight:500">装备参数本体</td>
+                <td><span class="badge badge-blue">核心本体</span></td>
+                <td class="mono">v2.5.0</td>
+                <td>3,892</td>
+                <td><span class="badge badge-red">已归档</span></td>
+                <td class="mono">2026-06-12 14:55</td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+
+      <!-- Component Showcase -->
+      <div class="section">
+        <div class="section-title">组件库预览</div>
+        <div class="comp-grid">
+
+          <!-- Buttons -->
+          <div class="glass-card">
+            <div class="comp-label">按钮 · Buttons</div>
+            <div class="comp-group">
+              <div class="comp-row">
+                <button class="btn btn-primary btn-md">主要按钮</button>
+                <button class="btn btn-primary btn-md" disabled>禁用</button>
+              </div>
+            </div>
+            <div class="comp-group">
+              <div class="comp-row">
+                <button class="btn btn-secondary btn-md">次要按钮</button>
+                <button class="btn btn-outline btn-md">线框按钮</button>
+                <button class="btn btn-ghost btn-md">幽灵按钮</button>
+                <button class="btn btn-danger btn-md">危险操作</button>
+              </div>
+            </div>
+            <div class="comp-group">
+              <div class="comp-label">尺寸变体</div>
+              <div class="comp-row">
+                <button class="btn btn-primary btn-sm">小号</button>
+                <button class="btn btn-primary btn-md">中号</button>
+                <button class="btn btn-primary btn-lg">大号</button>
+              </div>
+            </div>
+          </div>
+
+          <!-- Inputs & Badges -->
+          <div class="glass-card">
+            <div class="comp-label">输入框 & 标签 · Inputs & Badges</div>
+            <div class="comp-group">
+              <div class="comp-row">
+                <input class="input" placeholder="默认输入框">
+                <input class="input" value="已有内容" readonly>
+                <input class="input" placeholder="搜索..." style="border-color:var(--c-primary-400);box-shadow:var(--shadow-glow)">
+              </div>
+            </div>
+            <div class="comp-group">
+              <div class="comp-row">
+                <input class="input input-sm" placeholder="小号输入框">
+                <input class="input" placeholder="默认大小">
+                <input class="input input-lg" placeholder="大号输入框">
+              </div>
+            </div>
+            <div class="comp-group">
+              <div class="comp-label">状态标签</div>
+              <div class="comp-row">
+                <span class="badge badge-blue">信息</span>
+                <span class="badge badge-green">成功</span>
+                <span class="badge badge-amber">警告</span>
+                <span class="badge badge-red">错误</span>
+                <span class="badge badge-purple">特殊</span>
+              </div>
+            </div>
+          </div>
+
+        </div>
+      </div>
+
+      <!-- Design Notes -->
+      <div class="section">
+        <div class="section-title">设计说明</div>
+        <div class="glass-card" style="font-size:var(--text-sm);color:var(--c-text-secondary);line-height:1.8">
+          <p><strong>ODAP v2 设计系统</strong> — 科技现代方向，已在本原型中完整展示：</p>
+          <ul style="margin:var(--s-3) 0;padding-left:var(--s-5)">
+            <li><strong>Glass Morphism</strong>：统计卡片和组件展示卡片使用 backdrop-filter: blur(20px) 玻璃态效果，Light/Dark 双主题适配</li>
+            <li><strong>OKLCH 色彩体系</strong>：主色 Indigo-Violet 渐变，色彩感知均匀，避免了 HSL 的亮度不均匀问题</li>
+            <li><strong>DM Sans 字体</strong>：替代通用 Inter，几何感更强、更现代，搭配 JetBrains Mono 等宽数字</li>
+            <li><strong>微交互</strong>：按钮 hover 上浮 1px + 发光阴影、卡片 hover 抬升、状态过渡 150ms cubic-bezier 缓出</li>
+            <li><strong>暗色模式</strong>：完整的暗色 Token 体系，点击右上角 ☀/🌙 按钮切换</li>
+            <li><strong>侧边栏动画</strong>：点击左下角折叠按钮，200px ↔ 64px 平滑过渡</li>
+            <li><strong>WCAG AA</strong>：所有文字对比度 ≥ 4.5:1，focus-visible 键盘可访问</li>
+          </ul>
+          <p style="margin-top:var(--s-3);color:var(--c-text-tertiary);font-size:var(--text-xs)">完整设计规范文档：<code style="font-family:var(--font-mono);font-size:var(--text-xs);background:var(--c-gray-100);padding:2px 6px;border-radius:3px">docs/design/ODAP-v2-Design-System.md</code></p>
+        </div>
+      </div>
+
+    </div>
+  </main>
+
+  <!-- Toast -->
+  <div class="toast" id="toast">✓ 操作成功</div>
+</div>
+
+<!-- ============ RIGHT PANEL ============ -->
+<aside class="right-panel hidden" id="rightPanel">
+  <div class="right-panel-header">
+    <span class="right-panel-title">扩展面板</span>
+    <button class="subsidebar-close" onclick="toggleRightPanel()" aria-label="关闭面板">✕</button>
+  </div>
+  <div class="right-panel-body">
+    <div class="quick-info">
+      <div class="quick-info-label">当前本体</div>
+      <div class="quick-info-value">作战单元本体 v3.2.1</div>
+    </div>
+    <div class="quick-info">
+      <div class="quick-info-label">实体数量</div>
+      <div class="quick-info-value">12,847</div>
+    </div>
+    <div class="quick-info">
+      <div class="quick-info-label">关系数量</div>
+      <div class="quick-info-value">38,291</div>
+    </div>
+    <div class="quick-info">
+      <div class="quick-info-label">最后修改</div>
+      <div class="quick-info-value">2026-06-15 10:32:18</div>
+    </div>
+    <div class="quick-info">
+      <div class="quick-info-label">修改人</div>
+      <div class="quick-info-value">张晓明</div>
+    </div>
+  </div>
+</aside>
+
+</div>
+
+<script>
+// ============ State ============
+let sidebarCollapsed = false;
+let sidebarOpen = true;
+let subSidebarOpen = true;
+let rightPanelOpen = false;
+let currentTheme = 'light';
+
+// ============ DOM ============
+const root = document.documentElement;
+const sidebar = document.getElementById('sidebarPrimary');
+const subSidebar = document.getElementById('subSidebar');
+const mainArea = document.getElementById('mainArea');
+const rightPanel = document.getElementById('rightPanel');
+const subCollapseTab = document.getElementById('subCollapseTab');
+const toast = document.getElementById('toast');
+
+// ============ Theme ============
+function toggleTheme() {
+  currentTheme = currentTheme === 'light' ? 'dark' : 'light';
+  root.setAttribute('data-theme', currentTheme);
+  localStorage.setItem('odap-theme', currentTheme);
+}
+
+const savedTheme = localStorage.getItem('odap-theme');
+if (savedTheme) { currentTheme = savedTheme; root.setAttribute('data-theme', savedTheme); }
+
+// ============ Sidebar ============
+function toggleSidebar() {
+  sidebarCollapsed = !sidebarCollapsed;
+  sidebar.classList.toggle('collapsed', sidebarCollapsed);
+  adjustSubsidebarPosition();
+}
+
+function toggleSubSidebar() {
+  subSidebarOpen = !subSidebarOpen;
+  subSidebar.classList.toggle('hidden', !subSidebarOpen);
+  subCollapseTab.style.display = subSidebarOpen ? 'none' : 'flex';
+  adjustSubsidebarPosition();
+}
+
+function adjustSubsidebarPosition() {
+  const leftPos = sidebarCollapsed ? '64px' : '200px';
+  subSidebar.style.left = leftPos;
+}
+
+function toggleRightPanel() {
+  rightPanelOpen = !rightPanelOpen;
+  rightPanel.classList.toggle('hidden', !rightPanelOpen);
+  mainArea.classList.toggle('right-open', rightPanelOpen);
+}
+
+// ============ Navigation ============
+const subNavData = {
+  ontology: {
+    title: '语义地图',
+    items: [
+      { path: '/ontology/designer', label: '本体设计器' },
+      { path: '/ontology/graph', label: '语义图谱' },
+      { path: '/business/entities', label: '对象管理' },
+      { path: '/business/process', label: '业务过程' },
+      { path: '/business/rules', label: '规则' },
+      { path: '/business/indicators', label: '指标' },
+      { path: '/business/logic', label: '逻辑' },
+      { path: '/ingest', label: '数据摄入' },
+      { path: '/blueprint', label: '蓝图设计' },
+      { path: '/versions', label: '版本历史' }
+    ]
+  },
+  agent: {
+    title: '智能体',
+    items: [
+      { path: '/agent', label: 'Agent 调度' },
+      { path: '/admin/agents', label: '智能体管理' },
+      { path: '/skills', label: 'Skill 管理' }
+    ]
+  },
+  simulation: {
+    title: '推演仿真',
+    items: [
+      { path: '/simulation', label: '沙箱推演' },
+      { path: '/simulator', label: '事件模拟' },
+      { path: '/simulation/deduction', label: '策略推演' }
+    ]
+  },
+  knowledge: {
+    title: '知识检索',
+    items: [
+      { path: '/knowledge', label: '知识库' },
+      { path: '/knowledge/navigation', label: '知识导航' }
+    ]
+  },
+  system: {
+    title: '系统管理',
+    items: [
+      { path: '/workspace/manage', label: '工作空间' },
+      { path: '/policy-editor', label: '策略编辑器' },
+      { path: '/users', label: '用户管理' },
+      { path: '/roles', label: '角色管理' },
+      { path: '/audit', label: '审计日志' },
+      { path: '/i18n-admin', label: '国际化' }
+    ]
+  }
+};
+
+function selectPrimaryNav(key, el) {
+  document.querySelectorAll('.nav-item').forEach(n => n.classList.remove('active'));
+  el.classList.add('active');
+
+  const data = subNavData[key];
+  document.getElementById('subSidebarTitle').textContent = data.title;
+
+  const nav = document.getElementById('subNav');
+  nav.innerHTML = data.items.map((item, i) =>
+    `<div class="sub-nav-item${i === 0 ? ' active' : ''}" onclick="selectSubNav('${item.path}', this)">
+      <span class="sub-nav-dot"></span>${item.label}
+    </div>`
+  ).join('');
+
+  if (!subSidebarOpen) toggleSubSidebar();
+}
+
+function selectSubNav(path, el) {
+  document.querySelectorAll('.sub-nav-item').forEach(n => n.classList.remove('active'));
+  el.classList.add('active');
+  showToast('导航至: ' + path);
+}
+
+// ============ Toast ============
+let toastTimer;
+function showToast(msg) {
+  clearTimeout(toastTimer);
+  toast.textContent = msg;
+  toast.classList.add('show');
+  toastTimer = setTimeout(() => toast.classList.remove('show'), 2000);
+}
+
+// ============ Init ============
+function navigateTo(path) { showToast('导航至: ' + path); }
+
+adjustSubsidebarPosition();
+</script>
+</body>
+</html>

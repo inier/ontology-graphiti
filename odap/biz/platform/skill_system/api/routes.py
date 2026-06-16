@@ -269,3 +269,42 @@ async def transition_lifecycle(skill_id: str, target_status: str,
         raise
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
+
+
+@router.post("/execute")
+async def execute_skill(
+    request: Dict[str, Any],
+    user=Depends(get_current_user)):
+    """执行指定技能（通过 SkillManager.call_skill 调用）
+
+    Body: {"skill_name": "xxx", "parameters": {...}}
+    """
+    try:
+        skill_name = request.get("skill_name")
+        parameters = request.get("parameters", {})
+        if not skill_name:
+            raise HTTPException(status_code=400, detail="skill_name is required")
+
+        import time as _time
+        start_ms = _time.time() * 1000
+        result = skill_service.call_skill(skill_name, parameters)
+        elapsed_ms = _time.time() * 1000 - start_ms
+
+        if result.get("status") == "error":
+            status_code = 404 if "not found" in result.get("message", "") else 400
+            raise HTTPException(status_code=status_code, detail=result.get("message"))
+
+        # 统一输出格式
+        is_placeholder = result.get("status") == "placeholder"
+        return {
+            "success": not is_placeholder,
+            "data": result,
+            "error": result.get("message") if is_placeholder else None,
+            "execution_time_ms": round(elapsed_ms, 1),
+            "skill_name": skill_name,
+            "placeholder": is_placeholder,
+        }
+    except HTTPException:
+        raise
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))

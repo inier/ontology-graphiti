@@ -221,3 +221,7 @@ class SkillService:
             return {"status": "success", "skill_id": skill_id, "lifecycle": "archived"}
         except ValueError as e:
             return {"status": "error", "message": str(e)}
+
+    def call_skill(self, skill_name: str, parameters: Dict[str, Any] = None) -> Dict[str, Any]:
+        """调用技能，检查 placeholder 并记录警告"""
+        return self.manager.call_skill(skill_name, parameters)

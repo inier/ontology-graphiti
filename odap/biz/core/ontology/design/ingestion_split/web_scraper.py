@@ -6,6 +6,7 @@ WebScraper: 网页内容抓取（免费方案，无需 API Key）
 """
 
 import logging
+from datetime import datetime
 from typing import Any, Dict, List, Optional
 
 try:
@@ -129,8 +130,9 @@ class WebScraper:
                 {"url": "https://example.com", "text": "相关链接"}
             ],
             "publish_date": datetime.now().strftime("%Y-%m-%d"),
-            "status": "success",
-            "mock": True
+            "status": "mock",
+            "mock": True,
+            "mock_reason": "dependencies_not_available"
         }
 
     def _extract_title(self, soup: Any) -> str:

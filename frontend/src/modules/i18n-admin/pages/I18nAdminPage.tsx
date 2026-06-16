@@ -1,8 +1,8 @@
 import { useState, useEffect, useCallback } from 'react';
 import { Card, Table, Tag, Modal, Form, Input, Select as AntSelect, Space, Button as AntButton, Row, Col, message } from 'antd';
 import { TranslationOutlined, CheckOutlined, CloseOutlined, RobotOutlined } from '@ant-design/icons';
-import adapter from '../../shared/components/adapter';
-import { PageHeader } from '../../shared/components/PageHeader';
+import adapter from '@/modules/shared/components/adapter';
+import { PageHeader } from '@/modules/shared/components/PageHeader';
 import { useI18nAdminStore } from '../stores/i18nAdminStore';
 import type { TranslationEntry } from '../services/i18nApi';
 

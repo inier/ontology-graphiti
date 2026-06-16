@@ -3,12 +3,12 @@ from odap.infra.security.jwt_auth import get_current_user
 from typing import List, Optional
 
 from .schemas import ActionRequest, ActionRecord, ActionApproval, ActionRequestStatus
-from .storage.sqlite_action_storage import SQLiteActionStorage
+from .services.action_query_service import get_action_query_service
 from .executor import get_action_executor
 
 router = APIRouter(prefix="/api/actions", tags=["action-service"])
 
-storage = SQLiteActionStorage()
+action_query_service = get_action_query_service()
 
 
 @router.post("/submit", response_model=ActionRecord)
@@ -41,13 +41,13 @@ async def list_action_records(
     limit: int = Query(50, ge=1, le=200),
     offset: int = Query(0, ge=0),
     user=Depends(get_current_user)):
-    return storage.list_records(status=status, limit=limit, offset=offset)
+    return action_query_service.list_records(status=status, limit=limit, offset=offset)
 
 
 @router.get("/records/{record_id}", response_model=ActionRecord)
 async def get_action_record(record_id: str,
     user=Depends(get_current_user)):
-    record = storage.get_record(record_id)
+    record = action_query_service.get_record(record_id)
     if not record:
         raise HTTPException(status_code=404, detail="动作记录不存在")
     return record
@@ -56,4 +56,4 @@ async def get_action_record(record_id: str,
 @router.get("/target/{target_object_id}", response_model=List[ActionRecord])
 async def list_actions_by_target(target_object_id: str, limit: int = Query(20),
     user=Depends(get_current_user)):
-    return storage.list_by_target(target_object_id, limit=limit)
+    return action_query_service.list_by_target(target_object_id, limit=limit)

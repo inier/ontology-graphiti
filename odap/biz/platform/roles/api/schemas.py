@@ -10,7 +10,7 @@ class RoleType(str, Enum):
     TEAM_LEADER = "team_leader"
     MEMBER = "member"
     GUEST = "guest"
-    COMMANDER = "commander"
+    DIRECTOR = "director"
     INTELLIGENCE = "intelligence"
     OPERATOR = "operator"
     ANALYST = "analyst"

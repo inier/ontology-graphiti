@@ -418,6 +418,34 @@ SQLite 存储层每次操作必须 `sqlite3.connect()` → 用完 `conn.close()`
 容器环境下 `NEO4J_URI` 必须使用 `bolt://graphiti-neo4j:7687`，禁止写 `localhost`。容器间通过 Podman 网络通信。
 - 📎 [环境变量速查](#环境变量速查)
 
+### 规则 11：前端跨目录导入必须使用 `@` 别名
+
+前端 `src/` 下跨一级目录的导入必须使用 `@` 别名（`@` → `src/`），禁止使用相对路径跨目录引用。只有同模块内的引用才允许使用 `../` 相对路径。
+
+**规则**：
+- 跨模块引用：`@/modules/{模块名}/...`（如 `@/modules/shared/services/api`）
+- 跨到 `src/config.ts`：`@/config`
+- 同模块内引用：允许 `../hooks/`、`../services/` 等相对路径
+
+**示例**：
+```typescript
+// ✅ 正确：跨目录用 @ 别名
+import { api } from '@/modules/shared/services/api';
+import { API_BASE } from '@/config';
+import { agentApi } from '@/modules/agent/services/agentApi';
+
+// ❌ 错误：跨目录用相对路径
+import { api } from '../../shared/services/api';
+import { API_BASE } from '../../../config';
+import { agentApi } from '../../agent/services/agentApi';
+
+// ✅ 正确：同模块内允许相对路径
+import { useQAI } from '../hooks/useQAI';
+import type { Agent } from '../types';
+```
+
+- 📎 [API 层约定](#api-层约定)
+
 ---
 
 ## 6. 本地开发及验证流程
@@ -834,6 +862,7 @@ JWT Payload 含 `role` + `ws_id` + `ws_role`（工作空间隔离）。
 9. **SQLite 无连接池** — 每次 connect/close，不要保持长连接
 10. **新增路由必须注册** — 在 `odap/web/app.py` 中 `include_router()`，否则不生效
 11. **开发环境用 Podman 容器** — 不要在宿主机直接 `uvicorn` 或 `npm run dev`，用 `bootstep.py dev/restart`
+12. **前端跨目录导入用 `@` 别名** — 跨 `src/` 一级目录必须用 `@/modules/xxx`、`@/config` 等，禁止 `../../shared`、`../../../config` 等跨目录相对路径；同模块内允许 `../` 相对路径
 
 ### E. 端到端操作流程：创建领域智能体（以西游记为例）
 

@@ -30,8 +30,8 @@ class ActionExecutor:
     @property
     def graph(self):
         if self._graph_manager is None:
-            from odap.infra.graph.graph_service import GraphManager
-            self._graph_manager = GraphManager()
+            from odap.infra.query import get_graph_write_proxy
+            self._graph_manager = get_graph_write_proxy()
         return self._graph_manager
 
     @property

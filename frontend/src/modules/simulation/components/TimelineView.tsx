@@ -1,6 +1,6 @@
 import { Timeline, Button, Slider, Card, Tag, Space, Typography } from 'antd';
 import { PlayCircleOutlined, PauseCircleOutlined, FastForwardOutlined } from '@ant-design/icons';
-import { useI18n } from '../../shared/hooks/useI18n';
+import { useI18n } from '@/modules/shared/hooks/useI18n';
 
 const { Text } = Typography;
 
@@ -25,12 +25,12 @@ interface TimelineViewProps {
 }
 
 const EVENT_TYPE_COLORS: Record<string, string> = {
-  attack: 'red',
-  defend: 'blue',
+  engage: 'red',
+  hold: 'blue',
   move: 'green',
-  retreat: 'orange',
+  withdraw: 'orange',
   observe: 'purple',
-  reinforce: 'cyan',
+  support: 'cyan',
   communication: 'geekblue',
   logistics: 'magenta',
 };
@@ -43,7 +43,7 @@ function TimelineView({ events, clockState, onClockControl }: TimelineViewProps)
   const handleSpeedChange = (speed: number) => onClockControl?.('set_speed', speed);
 
   return (
-    <Space direction="vertical" style={{ width: '100%' }} size="middle">
+    <Space orientation="vertical" style={{ width: '100%' }} size="middle">
       <Card
         title={t('timeline.clock', 'Clock Control')}
         size="small"
@@ -53,7 +53,7 @@ function TimelineView({ events, clockState, onClockControl }: TimelineViewProps)
           </Tag>
         }
       >
-        <Space direction="vertical" style={{ width: '100%' }} size="middle">
+        <Space orientation="vertical" style={{ width: '100%' }} size="middle">
           <Space>
             <Button
               icon={<PlayCircleOutlined />}
@@ -106,7 +106,7 @@ function TimelineView({ events, clockState, onClockControl }: TimelineViewProps)
             items={events.map(event => ({
               color: EVENT_TYPE_COLORS[event.event_type] || 'blue',
               children: (
-                <Space direction="vertical" size={2}>
+                <Space orientation="vertical" size={2}>
                   <Space>
                     <Tag color={EVENT_TYPE_COLORS[event.event_type] || 'blue'}>
                       {event.event_type}

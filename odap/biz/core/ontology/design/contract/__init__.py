@@ -29,6 +29,7 @@ from .interface import (
     ContractValidationError,
 )
 from .facade import DesignContractFacade, get_design_contract
+from .bridge import get_ingest_service, get_builder_service, get_pipeline_service
 
 __all__ = [
     "OntologyDesignContract",
@@ -42,4 +43,7 @@ __all__ = [
     "ContractValidationError",
     "DesignContractFacade",
     "get_design_contract",
+    "get_ingest_service",
+    "get_builder_service",
+    "get_pipeline_service",
 ]

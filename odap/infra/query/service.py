@@ -1,3 +1,4 @@
+import asyncio
 import logging
 from typing import Any, Dict, List, Optional
 
@@ -60,6 +61,14 @@ class QueryService:
         except Exception as e:
             logger.error(f"QueryService execute error: {e}")
             return self._build_error_result(parsed, str(e))
+
+    async def execute_async(self, workspace_id: str, query: str, limit: int = 20, agent_safe: bool = False) -> QueryResult:
+        """Async version of execute() - runs in thread pool to avoid blocking event loop.
+
+        Use this in async contexts (FastAPI routes, async services) where execute()
+        may perform I/O (Neo4j queries, SQLite access) that would block the event loop.
+        """
+        return await asyncio.to_thread(self.execute, workspace_id, query, limit, agent_safe)
 
     def _check_agent_safe_block(self, parsed) -> Optional[QueryResult]:
         if parsed.source in (QuerySource.SCHEMA, QuerySource.ENTITY):

@@ -43,7 +43,7 @@ const EmptyState: React.FC<EmptyStateProps> = ({
             {icon}
           </div>
         )}
-        <Space direction="vertical" align="center" size="small">
+        <Space orientation="vertical" align="center" size="small">
           <Title level={4} style={{ margin: 0, color: '#262626' }}>
             {title}
           </Title>

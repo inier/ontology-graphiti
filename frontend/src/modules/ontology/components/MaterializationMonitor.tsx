@@ -18,8 +18,8 @@ import {
 } from '@ant-design/icons';
 import type { ReactNode } from 'react';
 import * as echarts from 'echarts';
-import { apiClient } from '../../shared/services/apiClient';
-import { useI18n } from '../../shared/hooks/useI18n';
+import { apiClient } from '@/modules/shared/services/apiClient';
+import { useI18n } from '@/modules/shared/hooks/useI18n';
 
 const { Text, Title } = Typography;
 
@@ -154,10 +154,10 @@ export function MaterializationMonitor({ workspaceId, refreshIntervalMs = 10000 
       }
     >
       <Row gutter={16} style={{ marginBottom: 16 }}>
-        <Col span={6}><Card><Statistic title="Active" value={totals.active} valueStyle={{ color: '#1677ff' }} /></Card></Col>
-        <Col span={6}><Card><Statistic title="Pending" value={totals.pending} valueStyle={{ color: '#faad14' }} /></Card></Col>
-        <Col span={6}><Card><Statistic title="Failed Today" value={totals.failed} valueStyle={{ color: '#cf1322' }} /></Card></Col>
-        <Col span={6}><Card><Statistic title="Success Today" value={totals.successToday} valueStyle={{ color: '#3f8600' }} /></Card></Col>
+        <Col span={6}><Card><Statistic title="Active" value={totals.active} styles={{ content: { color: '#1677ff' } }} /></Card></Col>
+        <Col span={6}><Card><Statistic title="Pending" value={totals.pending} styles={{ content: { color: '#faad14' } }} /></Card></Col>
+        <Col span={6}><Card><Statistic title="Failed Today" value={totals.failed} styles={{ content: { color: '#cf1322' } }} /></Card></Col>
+        <Col span={6}><Card><Statistic title="Success Today" value={totals.successToday} styles={{ content: { color: '#3f8600' } }} /></Card></Col>
       </Row>
 
       <Tabs
@@ -196,9 +196,9 @@ export function MaterializationMonitor({ workspaceId, refreshIntervalMs = 10000 
         ]}
       />
 
-      <Drawer open={drawerOpen} onClose={() => setDrawerOpen(false)} title={`任务详情: ${selected?.job_id || ''}`} width={520}>
+      <Drawer open={drawerOpen} onClose={() => setDrawerOpen(false)} title={`任务详情: ${selected?.job_id || ''}`}>
         {selected && (
-          <Space direction="vertical" style={{ width: '100%' }}>
+          <Space orientation="vertical" style={{ width: '100%' }}>
             <Alert type={selected.status === 'FAILED' ? 'error' : 'info'} showIcon message={`Status: ${selected.status}`} />
             <Text>ObjectType: <Text code>{selected.object_type_name}</Text></Text>
             <Text>Property: <Text code>{selected.computed_property_name}</Text></Text>

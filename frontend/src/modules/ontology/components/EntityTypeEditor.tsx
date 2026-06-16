@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react';
 import { Card, Form, Row, Col, Divider, Empty } from 'antd';
 import { PlusOutlined } from '@ant-design/icons';
-import adapter from '../../shared/components/adapter';
+import adapter from '@/modules/shared/components/adapter';
 import { PropertyEditor } from './PropertyEditor';
 import { RelationEditor } from './RelationEditor';
 import type { EntityType, PropertyDefinition, RelationDefinition } from '../services/ontologyApi';

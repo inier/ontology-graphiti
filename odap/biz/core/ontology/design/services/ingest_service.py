@@ -16,8 +16,10 @@ from datetime import datetime, timezone
 from typing import Dict, Any, List, Optional, Tuple
 from dataclasses import dataclass, field
 
+from odap.infra.config_composer import get_config
+
 from ..ingestion_split import (
-    NewsIngester, ManualInputHandler, RandomEventGenerator,
+    NewsIngester, ManualInputHandler, ConflictEventGenerator,
     FreeNewsIngester, WebScraper
 )
 from ..schema.document import OntologyDocument
@@ -78,7 +80,7 @@ class WebSearchService:
         self.llm = llm_client
         self._search_service = SearchService()
         self._news_ingester = NewsIngester(llm_client=llm_client)
-        self._tavily_api_key = os.getenv("TAVILY_API_KEY", "")
+        self._tavily_api_key = get_config("search.tavily_api_key", "")
 
     async def search(
         self,
@@ -254,8 +256,8 @@ def _lookup_ontology_id(scenario_id: str) -> Optional[str]:
         scenario = ws_manager.get_scenario(scenario_id)
         if scenario and hasattr(scenario, 'ontology_id'):
             return scenario.ontology_id
-    except Exception:
-        pass
+    except Exception as e:
+        logger.debug("Module import fallback: %s", e)
     return None
 
 
@@ -339,7 +341,7 @@ class IngestService:
 
         self.news_ingester = NewsIngester(llm_client=self.llm_client)
         self.manual_input_handler = ManualInputHandler(llm_client=self.llm_client)
-        self.random_event_generator = RandomEventGenerator(llm_client=self.llm_client)
+        self.random_event_generator = ConflictEventGenerator(llm_client=self.llm_client)
         self.web_scraper = WebScraper()
         self.free_news_ingester = FreeNewsIngester(
             scraper=self.web_scraper,
@@ -353,15 +355,15 @@ class IngestService:
 
     @staticmethod
     def _create_llm_client():
-        api_key = os.getenv("OPENAI_API_KEY", "")
+        api_key = get_config("llm.api_key", "")
         if not api_key:
             logger.warning("未配置 OPENAI_API_KEY，LLM 提取功能不可用")
             return None
         try:
             from odap.infra.llm.llm_service import ZhipuAIClient
             from graphiti_core.llm_client.config import LLMConfig
-            api_base = os.getenv("OPENAI_API_BASE", "https://open.bigmodel.cn/api/paas/v4")
-            model = os.getenv("OPENAI_MODEL", "glm-4-flash")
+            api_base = get_config("llm.api_base", "https://open.bigmodel.cn/api/paas/v4")
+            model = get_config("llm.model", "glm-4-flash")
             config = LLMConfig(model=model, api_key=api_key, base_url=api_base, temperature=0.7)
             client = ZhipuAIClient(config=config)
             logger.info(f"LLM 客户端初始化成功: model={model}, base_url={api_base}")
@@ -686,15 +688,15 @@ class IngestService:
         scenario_context: dict = None,
         count: int = 1,
         scenario_id: str = None,
-        generator_type: str = "military",
+        generator_type: str = "conflict",
         workspace_id: str = "default"
     ) -> str:
         """生成随机事件 - 简化版本，调用真实的 pipeline"""
-        from ..ingestion_split import RandomEventGeneratorFactory
+        from ..ingestion_split import ConflictEventGeneratorFactory
         from .pipeline_service import get_pipeline_service
 
         # 使用工厂类创建对应类型的生成器
-        generator = RandomEventGeneratorFactory.get_generator(generator_type, self.llm_client)
+        generator = ConflictEventGeneratorFactory.get_generator(generator_type, self.llm_client)
         generator_name = generator.get_generator_name()
 
         # 先生成 documents，获取真实内容
@@ -734,6 +736,20 @@ class IngestService:
         record_id, ingest_record = self.record_manager.create(builder)
 
         try:
+            # 构建 progress_callback 以推送 WebSocket 构建进度
+            async def _ws_progress_callback(stage, progress: float, message: str):
+                try:
+                    from odap.web.ws.routes import emit_build_progress
+                    await emit_build_progress(
+                        stage=stage.value if hasattr(stage, 'value') else str(stage),
+                        progress=progress,
+                        message=message,
+                        ingest_id=record_id,
+                        scenario_id=scenario_id or "default",
+                    )
+                except Exception as e:
+                    logger.debug("WebSocket push failed (non-blocking): %s", e)
+
             # 调用真实的 pipeline 处理，这样会自动记录所有日志
             pipeline_service = get_pipeline_service()
             context = await pipeline_service.run(
@@ -748,7 +764,8 @@ class IngestService:
                     "scenario_context": scenario_context,
                     "content": detailed_text
                 },
-                workspace_id=workspace_id
+                workspace_id=workspace_id,
+                progress_callback=_ws_progress_callback,
             )
 
             # 完成摄入记录
@@ -794,13 +811,13 @@ class IngestService:
 
     def get_random_generator_types(self) -> List[Dict[str, str]]:
         """获取所有可用的随机事件生成器类型"""
-        from ..ingestion_split import RandomEventGeneratorFactory
-        types = RandomEventGeneratorFactory.list_generator_types()
+        from ..ingestion_split import ConflictEventGeneratorFactory
+        types = ConflictEventGeneratorFactory.list_generator_types()
         return [
             {
                 "type": t,
-                "name": RandomEventGeneratorFactory.get_generator(t, None).get_generator_name(),
-                "description": RandomEventGeneratorFactory.get_generator(t, None).get_generator_description()
+                "name": ConflictEventGeneratorFactory.get_generator(t, None).get_generator_name(),
+                "description": ConflictEventGeneratorFactory.get_generator(t, None).get_generator_description()
             }
             for t in types
         ]
@@ -947,6 +964,203 @@ class IngestService:
             for d in ont_docs:
                 docs.append(d.to_dict() if hasattr(d, 'to_dict') else d)
         return docs
+
+    async def ingest_from_database(
+        self,
+        connection_id: str,
+        table_patterns: Optional[List[str]] = None,
+        scenario_id: str = None,
+        workspace_id: str = "default",
+    ) -> str:
+        """从数据库摄入数据 — 调用 DatabaseSchemaExtractor 提取 schema，
+        转换为 OntologyDocument 后通过 DocumentProcessor 处理。
+
+        Args:
+            connection_id: 数据库连接标识（格式: db_type://host:port/database，
+                           sqlite 类型直接为文件路径）
+            table_patterns: 可选的表名过滤列表
+            scenario_id: 场景 ID
+            workspace_id: 工作空间 ID
+
+        Returns:
+            摄入记录 ID
+        """
+        from ..ingestion_split.db_schema_ingester import DatabaseSchemaExtractor
+
+        extractor = DatabaseSchemaExtractor()
+
+        # 解析 connection_id -> 连接参数
+        db_params = self._parse_connection_id(connection_id)
+
+        builder = IngestRecordBuilder(
+            source='database',
+            source_details={
+                'connection_id': connection_id,
+                'table_patterns': table_patterns,
+            },
+            original_content=f"Database schema from {connection_id}",
+            record_count=0,
+            scenario_id=scenario_id,
+            workspace_id=workspace_id,
+        )
+        record_id, ingest_record = self.record_manager.create(builder)
+
+        try:
+            schema_result = extractor.extract_schema(
+                db_type=db_params['db_type'],
+                host=db_params.get('host', ''),
+                port=db_params.get('port', 0),
+                database=db_params.get('database', ''),
+                username=db_params.get('username'),
+                password=db_params.get('password'),
+                table_filter=table_patterns,
+            )
+
+            if schema_result.get('status') == 'error':
+                raise RuntimeError(schema_result.get('message', 'Schema extraction failed'))
+
+            # 将 schema 结果转换为 OntologyDocument
+            document = self._schema_to_ontology_document(schema_result, scenario_id)
+
+            source_data = [{
+                'url': connection_id,
+                'title': f'Database Schema: {db_params.get("database", connection_id)}',
+                'text': str(schema_result.get('summary', {})),
+                'description': f"Extracted {schema_result.get('summary', {}).get('tables', 0)} tables",
+                'publish_date': get_local_time().isoformat(),
+            }]
+
+            _, stats, builds = await self.document_processor.process(
+                [document], ingest_record, scenario_id or "default"
+            )
+
+            extracted_data = {
+                'source_data': source_data,
+                'document_ids': [document.doc_id],
+                'document_count': 1,
+                'schema_summary': schema_result.get('summary', {}),
+                **stats,
+            }
+
+            self.record_manager.complete(ingest_record, 1, extracted_data, builds)
+        except Exception as e:
+            self.record_manager.fail(ingest_record, e)
+
+        return record_id
+
+    @staticmethod
+    def _parse_connection_id(connection_id: str) -> Dict[str, Any]:
+        """解析 connection_id 为数据库连接参数。
+
+        支持格式:
+        - sqlite:///path/to/db
+        - postgresql://user:pass@host:port/database
+        - mysql://user:pass@host:port/database
+        - 简写: pg://user:pass@host:port/database
+        """
+        if connection_id.startswith("sqlite:///"):
+            return {
+                'db_type': 'sqlite',
+                'database': connection_id[len("sqlite:///"):],
+            }
+
+        # postgresql://user:pass@host:port/database
+        # mysql://user:pass@host:port/database
+        # pg://user:pass@host:port/database
+        rest = connection_id
+        if "://" in rest:
+            db_type_raw, rest = rest.split("://", 1)
+        else:
+            db_type_raw = "postgresql"
+
+        # 映射简写
+        type_map = {
+            'pg': 'postgresql',
+            'postgres': 'postgresql',
+            'postgresql': 'postgresql',
+            'mysql': 'mysql',
+        }
+        db_type = type_map.get(db_type_raw.lower(), db_type_raw.lower())
+
+        # 解析 user:pass@host:port/database
+        username = None
+        password = None
+        host = ''
+        port = 0
+        database = ''
+
+        if '@' in rest:
+            user_part, rest = rest.rsplit('@', 1)
+            if ':' in user_part:
+                username, password = user_part.split(':', 1)
+            else:
+                username = user_part
+
+        if '/' in rest:
+            host_port, database = rest.split('/', 1)
+        else:
+            host_port = rest
+
+        if ':' in host_port:
+            host, port_str = host_port.rsplit(':', 1)
+            try:
+                port = int(port_str)
+            except ValueError:
+                port = 0
+        else:
+            host = host_port
+
+        return {
+            'db_type': db_type,
+            'host': host,
+            'port': port,
+            'database': database,
+            'username': username,
+            'password': password,
+        }
+
+    def _schema_to_ontology_document(
+        self,
+        schema_result: Dict[str, Any],
+        scenario_id: Optional[str] = None,
+    ) -> OntologyDocument:
+        """将 DatabaseSchemaExtractor 的输出转换为 OntologyDocument。"""
+        from ..schema.document import (
+            OntologyEntity, OntologyRelation, OntologyEvent, SourceInfo,
+        )
+
+        entities = []
+        for obj_type in schema_result.get('object_types', []):
+            entities.append(OntologyEntity(
+                entity_id=f"db_{obj_type['name']}",
+                entity_type="DatabaseTable",
+                name=obj_type.get('display_name', obj_type['name']),
+                name_en=obj_type['name'],
+                basic_properties=obj_type,
+            ))
+
+        relations = []
+        for link_type in schema_result.get('link_types', []):
+            relations.append(OntologyRelation(
+                relation_id=f"db_rel_{link_type['name']}",
+                relation_type=link_type.get('link_type', 'ASSOCIATION'),
+                source_entity=link_type.get('source_type', ''),
+                target_entity=link_type.get('target_type', ''),
+                temporal={},
+            ))
+
+        document = OntologyDocument(
+            doc_type="entity",
+            source=SourceInfo(type="database"),
+            entities=entities,
+            relations=relations,
+            events=[],
+        )
+
+        if scenario_id:
+            document.scenario_id = scenario_id
+
+        return document
 
     def scan_data_conflicts(self) -> Dict[str, Any]:
         from ..impl.data_cleaner import DataCleaner

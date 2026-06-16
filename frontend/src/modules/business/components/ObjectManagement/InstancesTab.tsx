@@ -19,7 +19,7 @@ interface InstancesTabProps {
     byCategory: Record<string, number>;
   };
   extractionSources: ExtractionSource[];
-  currentScenario: any;
+  currentScenario: Record<string, unknown>;
   searchText: string;
   onSearchTextChange: (text: string) => void;
   typeFilter: string;
@@ -97,10 +97,10 @@ export function InstancesTab({
       <Row gutter={16} style={{ marginBottom: 16 }}>
         <Col span={4}><Card><Statistic title="实体总数" value={stats.total} prefix={<AimOutlined />} /></Card></Col>
         <Col span={4}><Card><Statistic title="对象类型数" value={stats.types} prefix={<TagOutlined />} /></Card></Col>
-        <Col span={4}><Card><Statistic title="结构化属性" value={stats.structured} valueStyle={{ color: '#1890ff' }} /></Card></Col>
-        <Col span={4}><Card><Statistic title="非结构化" value={stats.unstructured} valueStyle={{ color: '#fa8c16' }} /></Card></Col>
-        <Col span={4}><Card><Statistic title="计算属性" value={stats.computed} valueStyle={{ color: '#52c41a' }} /></Card></Col>
-        <Col span={4}><Card><Statistic title="推理属性" value={stats.inferred} valueStyle={{ color: '#722ed1' }} /></Card></Col>
+        <Col span={4}><Card><Statistic title="结构化属性" value={stats.structured} styles={{ content: { color: '#1890ff' } }} /></Card></Col>
+        <Col span={4}><Card><Statistic title="非结构化" value={stats.unstructured} styles={{ content: { color: '#fa8c16' } }} /></Card></Col>
+        <Col span={4}><Card><Statistic title="计算属性" value={stats.computed} styles={{ content: { color: '#52c41a' } }} /></Card></Col>
+        <Col span={4}><Card><Statistic title="推理属性" value={stats.inferred} styles={{ content: { color: '#722ed1' } }} /></Card></Col>
       </Row>
 
       {entityTypes.length > 0 && (
@@ -141,7 +141,7 @@ export function InstancesTab({
         </Space>}
         extra={<Input.Search placeholder="搜索实体..." value={searchText} onChange={e => onSearchTextChange(e.target.value)} style={{ width: 280 }} allowClear prefix={<SearchOutlined />} />}
       >
-        <div style={{ marginBottom: 12 }}>
+        <div style={{ marginBottom: 12 }} data-tour="obj-mgmt-filter">
           <Text type="secondary" style={{ marginRight: 8 }}>类型过滤:</Text>
           <Space size={8} wrap>
             <Tag color={typeFilter === 'all' ? 'blue' : 'default'} style={{ cursor: 'pointer' }} onClick={() => onTypeFilterChange('all')}>全部</Tag>

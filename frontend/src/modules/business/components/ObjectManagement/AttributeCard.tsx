@@ -8,7 +8,7 @@ import type { EntityAttribute } from './types';
 import { CATEGORY_COLORS, CATEGORY_LABELS, SOURCE_COLORS, SOURCE_LABELS } from './types';
 
 const { Text } = Typography;
-const { Panel } = Collapse;
+
 
 const ATTR_ICONS: Record<string, React.ReactNode> = {
   string: <FieldStringOutlined />,
@@ -72,11 +72,9 @@ export function AttributeCard({ attr }: AttributeCardProps) {
         ) : attr.type === 'json' ? (
           <div>
             {isNested ? (
-              <Collapse ghost size="small">
-                <Panel header={`展开 ${attr.children?.length || 0} 个子属性`} key="1">
-                  {attr.children?.map(child => <AttributeCard key={child.name} attr={child} />)}
-                </Panel>
-              </Collapse>
+              <Collapse variant="ghost" size="small" items={[
+                { key: '1', label: `展开 ${attr.children?.length || 0} 个子属性`, children: attr.children?.map(child => <AttributeCard key={child.name} attr={child} />) },
+              ]} />
             ) : (
               <pre style={{ margin: 0, whiteSpace: 'pre-wrap', fontSize: 12 }}>
                 {JSON.stringify(attr.value, null, 2)}
@@ -115,23 +113,20 @@ export function AttributeCategoryPanel({ attributes }: AttributeCategoryPanelPro
   });
 
   return (
-    <Collapse defaultActiveKey={Object.keys(grouped)}>
-      {Object.entries(grouped).map(([category, attrs]) => (
-        <Panel
-          key={category}
-          header={
-            <Space>
-              <Tag color={CATEGORY_COLORS[category]}>
-                {CATEGORY_LABELS[category]}
-              </Tag>
-              <Text type="secondary">{attrs.length} 个属性</Text>
-            </Space>
-          }
-        >
-          {attrs.map(attr => <AttributeCard key={attr.name} attr={attr} />)}
-        </Panel>
-      ))}
-    </Collapse>
+    <Collapse defaultActiveKey={Object.keys(grouped)} items={
+      Object.entries(grouped).map(([category, attrs]) => ({
+        key: category,
+        label: (
+          <Space>
+            <Tag color={CATEGORY_COLORS[category]}>
+              {CATEGORY_LABELS[category]}
+            </Tag>
+            <Text type="secondary">{attrs.length} 个属性</Text>
+          </Space>
+        ),
+        children: attrs.map(attr => <AttributeCard key={attr.name} attr={attr} />),
+      }))
+    } />
   );
 }
 

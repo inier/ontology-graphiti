@@ -21,26 +21,84 @@ logger = logging.getLogger(__name__)
 class ColdStartBootstrap:
     """冷启动引导器"""
 
-    def __init__(self, ontology_loader: Optional[Callable[[Dict[str, Any]], int]] = None):
+    def __init__(
+        self,
+        ontology_loader: Optional[Callable[[Dict[str, Any]], int]] = None,
+        storage: Optional[Any] = None,
+    ):
         """
         Args:
             ontology_loader: 可选回调，接收模板 dict 并返回实际写入的实体类型数。
                              None 表示不真实写入（dry-run / 测试场景）。
+            storage: 可选存储实例，用于查询工作空间数据。
+                     支持 SQLiteIngestStorage（有 list_scenarios / get_ingest_records）
+                     或任何具有 list_ontologies 方法的对象。
         """
         self.ontology_loader = ontology_loader
+        self.storage = storage
 
     def detect_empty_workspace(self, workspace_id: str) -> Dict[str, Any]:
         """
         检查工作空间是否为空。
-        实际生产应查询 ontology_count/instance_count；此处为占位实现。
+
+        判断逻辑（按优先级）：
+        1. 若注入了 storage 且有 list_scenarios / get_ingest_records，查询实际数据
+        2. 若注入了 storage 且有 list_ontologies，查询本体列表
+        3. 通过 design contract 延迟查询 ontology 列表
+        4. 以上均不可用时，默认视为非空（安全降级，避免误触发 bootstrap）
         """
-        # 真实实现会查询 storage/。当前使用 ontology_loader 行为推断：
-        #   若有注入 loader，则视为非空（loader 会返回 > 0）。
-        #   简化版：返回 status 信息，让调用方按需 bootstrap。
+        # 1. 通过注入的 storage 查询 ingest 数据
+        if self.storage is not None:
+            try:
+                if hasattr(self.storage, "list_scenarios"):
+                    scenarios = self.storage.list_scenarios()
+                    if scenarios:
+                        return {
+                            "workspace_id": workspace_id,
+                            "is_empty": False,
+                            "reason": "storage has scenarios",
+                        }
+                if hasattr(self.storage, "get_ingest_records"):
+                    records = self.storage.get_ingest_records(limit=1)
+                    if records:
+                        return {
+                            "workspace_id": workspace_id,
+                            "is_empty": False,
+                            "reason": "storage has ingest records",
+                        }
+                if hasattr(self.storage, "list_ontologies"):
+                    ontologies = self.storage.list_ontologies(workspace_id=workspace_id)
+                    if ontologies:
+                        return {
+                            "workspace_id": workspace_id,
+                            "is_empty": False,
+                            "reason": "workspace has ontologies",
+                        }
+            except Exception as exc:
+                logger.warning("detect_empty_workspace via storage failed: %s", exc)
+
+        # 2. 通过 design contract 延迟查询 ontology 列表
+        try:
+            from odap.biz.core.ontology.design.contract import get_design_contract
+
+            contract = get_design_contract()
+            ontologies = contract.list_ontologies(
+                workspace_id=workspace_id, limit=1, offset=0
+            )
+            if ontologies:
+                return {
+                    "workspace_id": workspace_id,
+                    "is_empty": False,
+                    "reason": "workspace has ontologies via contract",
+                }
+        except Exception as exc:
+            logger.debug("detect_empty_workspace via contract failed: %s", exc)
+
+        # 3. 无可用数据源时视为空工作空间
         return {
             "workspace_id": workspace_id,
-            "is_empty": True,  # 默认空，调用 bootstrap_if_needed 强制引导
-            "message": "Use bootstrap_if_needed to ensure sample data is loaded",
+            "is_empty": True,
+            "reason": "no data found in workspace",
         }
 
     def bootstrap(self, workspace_id: str, industry: str | Industry) -> ColdStartReport:

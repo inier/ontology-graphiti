@@ -85,7 +85,7 @@ class TestQAOntologyBuilder:
     async def test_process_question(self, qa_builder):
         """测试问题处理"""
         result = await qa_builder.process_question(
-            question="请分析美伊战争走势",
+            question="请分析当前局势走势",
             user_id="test-user"
         )
 
@@ -112,7 +112,7 @@ class TestQAOntologyBuilder:
     async def test_intent_analysis(self, qa_builder):
         """测试意图分析"""
         # 分析需要搜索的问题
-        result = await qa_builder._analyze_intent("请分析美伊战争最新消息")
+        result = await qa_builder._analyze_intent("请分析当前局势最新消息")
 
         assert result.requires_search is True
         assert result.intent_type.value in ["update", "analyze"]

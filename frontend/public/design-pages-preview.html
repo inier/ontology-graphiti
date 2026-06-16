@@ -1,0 +1,841 @@
+<!DOCTYPE html>
+<html lang="zh-CN" data-theme="light">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>ODAP v2 — 全页面原型预览</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=DM+Sans:opsz,wght@9..40,400;9..40,500;9..40,600;9..40,700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+<style>
+/* ===== Design Tokens ===== */
+:root {
+  --p50:#EEF2FF;--p100:#E0E7FF;--p200:#C7D2FE;--p300:#A5B4FC;--p400:#818CF8;--p500:#6366F1;--p600:#4F46E5;--p700:#4338CA;--p800:#3730A3;--p900:#312E81;
+  --a50:#F5F3FF;--a100:#EDE9FE;--a200:#DDD6FE;--a300:#C4B5FD;--a400:#A78BFA;--a500:#8B5CF6;--a600:#7C3AED;
+  --green:#10B981;--amber:#F59E0B;--red:#EF4444;--cyan:#06B6D4;
+  --g50:#F9FAFB;--g100:#F3F4F6;--g200:#E5E7EB;--g300:#D1D5DB;--g400:#9CA3AF;--g500:#6B7280;--g600:#4B5563;--g700:#374151;--g900:#111827;
+  --bg:#FFFFFF;--bg2:#F8F9FC;--bg3:#F1F3F9;--txt:#1F2937;--txt2:#6B7280;--txt3:#9CA3AF;--bdr:#E5E7EB;--bdr2:#F3F4F6;
+  --font:'DM Sans',system-ui,sans-serif;--mono:'JetBrains Mono',monospace;
+  --xs:11px;--sm:12px;--base:14px;--lg:16px;--xl:20px;--xxl:24px;--xxxl:32px;
+  --s1:4px;--s2:8px;--s3:12px;--s4:16px;--s5:20px;--s6:24px;--s8:32px;
+  --r1:6px;--r2:8px;--r3:12px;--r4:16px;--r5:9999px;
+  --sh1:0 1px 2px rgba(0,0,0,.03);--sh2:0 1px 3px rgba(0,0,0,.04),0 1px 2px rgba(0,0,0,.03);
+  --sh3:0 4px 6px -1px rgba(0,0,0,.05),0 2px 4px rgba(0,0,0,.03);--sh4:0 10px 15px -3px rgba(0,0,0,.06),0 4px 6px rgba(0,0,0,.03);
+  --shg:0 0 0 3px rgba(99,102,241,.12);--ease:cubic-bezier(0.16,1,0.3,1);
+  --sw:200px;--sc:64px;--ss:180px;--th:56px;--rw:300px;
+}
+[data-theme="dark"] {
+  --bg:#0F0F1A;--bg2:#1A1A2E;--bg3:#252540;--txt:#F3F4F6;--txt2:#9CA3AF;--txt3:#6B7280;
+  --bdr:#2D2D4A;--bdr2:#1F1F38;--g50:#1A1A2E;--g100:#1F1F38;--g200:#252540;--g300:#2D2D4A;
+  --sh1:0 1px 2px rgba(0,0,0,.2);--sh2:0 1px 3px rgba(0,0,0,.25);--sh3:0 4px 6px rgba(0,0,0,.3);--sh4:0 10px 15px rgba(0,0,0,.35);
+  --p500:#818CF8;--p600:#6366F1;
+}
+*{box-sizing:border-box;margin:0;padding:0}
+html,body{height:100%;overflow:hidden}
+body{font-family:var(--font);font-size:var(--base);line-height:1.5;color:var(--txt);background:var(--bg2);-webkit-font-smoothing:antialiased}
+::-webkit-scrollbar{width:5px;height:5px}::-webkit-scrollbar-track{background:transparent}::-webkit-scrollbar-thumb{background:var(--g300);border-radius:3px}
+.app{display:flex;height:100vh;overflow:hidden}
+
+/* Sidebar */
+.side{position:fixed;left:0;top:0;bottom:0;width:var(--sw);background:linear-gradient(180deg,#1E1B4B 0%,#0F0F1A 100%);z-index:100;display:flex;flex-direction:column;transition:width 250ms var(--ease);border-right:1px solid rgba(255,255,255,.06);overflow:hidden}
+.side.coll{width:var(--sc)}
+.side-logo{height:var(--th);display:flex;align-items:center;justify-content:center;border-bottom:1px solid rgba(255,255,255,.08);cursor:pointer;flex-shrink:0}
+.side-logo .lf{font-size:20px;font-weight:700;letter-spacing:.05em;background:linear-gradient(135deg,#818CF8,#A78BFA);-webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text}
+.side-logo .li{font-size:16px;font-weight:700;color:#818CF8}
+.side.coll .lf{display:none}.side.coll .li{display:block}.side .lf{display:block}.side .li{display:none}
+.side-nav{flex:1;overflow-y:auto;padding:var(--s2) 0}
+.nav-i{display:flex;align-items:center;height:44px;padding:0 var(--s4);color:rgba(255,255,255,.55);transition:all 150ms var(--ease);cursor:pointer;gap:var(--s3);border-left:3px solid transparent;white-space:nowrap;font-size:var(--sm)}
+.nav-i:hover{color:rgba(255,255,255,.85);background:rgba(255,255,255,.04)}
+.nav-i.act{color:rgba(255,255,255,.95);background:rgba(99,102,241,.15);border-left-color:#818CF8}
+.nav-i .ic{font-size:1.1rem;width:24px;text-align:center;flex-shrink:0}
+.side.coll .nav-i{padding:0;justify-content:center}.side.coll .nav-i .lb{display:none}
+.side-toggle{height:48px;display:flex;align-items:center;justify-content:center;border-top:1px solid rgba(255,255,255,.08);color:rgba(255,255,255,.4);cursor:pointer;flex-shrink:0;transition:color 150ms}
+.side-toggle:hover{color:rgba(255,255,255,.75)}
+.side-toggle svg{width:18px;height:18px;transition:transform 250ms}
+.side.coll .side-toggle svg{transform:rotate(180deg)}
+
+/* Sub sidebar */
+.subside{position:fixed;left:var(--sw);top:0;bottom:0;width:var(--ss);background:var(--bg);border-right:1px solid var(--bdr);z-index:99;display:flex;flex-direction:column;transition:left 250ms var(--ease),opacity 250ms;overflow-y:auto}
+.side.coll~.subside{left:var(--sc)}.subside.hid{opacity:0;pointer-events:none}
+.subside-h{height:var(--th);display:flex;align-items:center;justify-content:space-between;padding:0 var(--s4);border-bottom:1px solid var(--bdr2);flex-shrink:0;background:var(--bg2)}
+.subside-t{font-size:var(--sm);font-weight:600;color:var(--txt)}
+.subside-close{width:28px;height:28px;display:flex;align-items:center;justify-content:center;border-radius:var(--r1);border:none;background:transparent;color:var(--txt3);cursor:pointer;font-size:14px;transition:all 150ms}
+.subside-close:hover{background:var(--g100);color:var(--txt)}
+.sub-nav{padding:var(--s2) 0}
+.sn-i{display:flex;align-items:center;height:38px;padding:0 var(--s4);gap:var(--s3);color:var(--txt2);font-size:var(--sm);cursor:pointer;margin:0 var(--s2);border-radius:var(--r1);transition:all 150ms var(--ease)}
+.sn-i:hover{background:var(--p50);color:var(--p700)}
+.sn-i.act{background:var(--p50);color:var(--p700);font-weight:500}
+.sn-dot{width:6px;height:6px;border-radius:50%;background:var(--p400);flex-shrink:0}
+
+/* Main area */
+.main{margin-left:calc(var(--sw) + var(--ss));display:flex;flex-direction:column;height:100vh;flex:1;min-width:0;transition:margin 250ms var(--ease)}
+.subside.hid~.main{margin-left:var(--sw)}.side.coll.subside.hid~.main{margin-left:var(--sc)}
+
+/* Topbar */
+.topbar{height:var(--th);background:var(--bg);border-bottom:1px solid var(--bdr);display:flex;align-items:center;justify-content:space-between;padding:0 var(--s6);flex-shrink:0;z-index:90}
+.tbl{display:flex;align-items:center;gap:var(--s6)}.tbr{display:flex;align-items:center;gap:var(--s4)}
+.tb-label{font-size:var(--xs);font-weight:500;color:var(--txt3);text-transform:uppercase;letter-spacing:.04em}
+.tb-sel{padding:4px var(--s3);font-size:var(--sm);border:1px solid var(--bdr);border-radius:var(--r1);background:var(--bg2);color:var(--txt);font-family:var(--font);cursor:pointer;height:32px}
+.tb-sel:focus{outline:none;border-color:var(--p500);box-shadow:var(--shg)}
+
+/* Theme Toggle */
+.tm-btn{width:36px;height:36px;border-radius:var(--r5);border:1px solid var(--bdr);background:var(--bg2);cursor:pointer;display:flex;align-items:center;justify-content:center;color:var(--txt2);transition:all 150ms;position:relative;overflow:hidden}
+.tm-btn:hover{background:var(--p50);border-color:var(--p200);color:var(--p600)}
+.tm-btn .sun,.tm-btn .moon{position:absolute;font-size:16px;transition:all 300ms cubic-bezier(.34,1.56,.64,1)}
+[data-theme="light"] .tm-btn .sun{opacity:0;transform:scale(.5) rotate(-90deg)}
+[data-theme="light"] .tm-btn .moon{opacity:1;transform:scale(1) rotate(0)}
+[data-theme="dark"] .tm-btn .sun{opacity:1;transform:scale(1) rotate(0)}
+[data-theme="dark"] .tm-btn .moon{opacity:0;transform:scale(.5) rotate(90deg)}
+.u-avatar{width:32px;height:32px;border-radius:50%;background:linear-gradient(135deg,var(--p600),var(--a500));color:#fff;display:flex;align-items:center;justify-content:center;font-size:var(--xs);font-weight:600}
+
+/* Content */
+.content{flex:1;overflow-y:auto;padding:var(--s6)}.content-inner{max-width:1200px;margin:0 auto}
+
+/* Page Header */
+.pg-hdr{margin-bottom:var(--s6)}
+.bc{display:flex;align-items:center;gap:var(--s2);margin-bottom:var(--s2);font-size:var(--xs);color:var(--txt3)}
+.bc a{color:var(--txt3);text-decoration:none;transition:color 150ms}.bc a:hover{color:var(--p600)}
+.bc .sep{color:var(--g300)}
+.pg-title{font-size:var(--xxl);font-weight:700;color:var(--txt);letter-spacing:-.02em}
+.pg-sub{font-size:var(--sm);color:var(--txt2);margin-top:var(--s1)}
+
+/* Stats */
+.stats{display:grid;grid-template-columns:repeat(4,1fr);gap:var(--s4);margin-bottom:var(--s6)}
+.glass-card{background:rgba(255,255,255,.7);backdrop-filter:blur(20px);-webkit-backdrop-filter:blur(20px);border:1px solid rgba(255,255,255,.3);border-radius:var(--r3);padding:var(--s5);box-shadow:var(--sh2);transition:all 250ms var(--ease)}
+.glass-card:hover{box-shadow:var(--sh3);border-color:rgba(99,102,241,.15);transform:translateY(-2px)}
+[data-theme="dark"] .glass-card{background:rgba(26,26,46,.75);border-color:rgba(255,255,255,.06)}
+[data-theme="dark"] .glass-card:hover{border-color:rgba(129,140,248,.2)}
+.sl{font-size:var(--xs);color:var(--txt3);font-weight:500;margin-bottom:var(--s2);text-transform:uppercase;letter-spacing:.04em}
+.sv{font-size:var(--xxxl);font-weight:700;color:var(--txt);font-variant-numeric:tabular-nums;line-height:1.1}
+.sf{display:flex;align-items:center;gap:var(--s2);margin-top:var(--s2)}
+.st{font-size:var(--xs);font-weight:600;display:flex;align-items:center;gap:2px}.st.up{color:var(--green)}.st.down{color:var(--red)}
+.sp{font-size:var(--xs);color:var(--txt3)}
+
+/* Section */
+.sec{margin-bottom:var(--s6)}
+.sec-t{font-size:var(--lg);font-weight:600;color:var(--txt);margin-bottom:var(--s4);display:flex;align-items:center;gap:var(--s3)}
+.sec-t::before{content:'';width:3px;height:16px;background:linear-gradient(180deg,var(--p500),var(--a500));border-radius:2px}
+
+/* Table */
+.tbl-wrap{background:var(--bg);border:1px solid var(--bdr);border-radius:var(--r3);overflow:hidden;box-shadow:var(--sh1)}
+.tbl{width:100%;border-collapse:collapse}.tbl th{text-align:left;padding:var(--s3) var(--s4);font-size:var(--xs);font-weight:600;color:var(--txt3);text-transform:uppercase;letter-spacing:.04em;background:var(--g50);border-bottom:1px solid var(--bdr)}
+.tbl td{padding:var(--s3) var(--s4);font-size:var(--sm);color:var(--txt);border-bottom:1px solid var(--bdr2)}
+.tbl tr:last-child td{border-bottom:none}.tbl tr:hover td{background:var(--p50)}
+.tbl .mono{font-family:var(--mono);font-size:var(--xs);color:var(--p700)}
+
+/* Badge */
+.bdg{display:inline-flex;align-items:center;height:22px;padding:0 var(--s2);border-radius:var(--r5);font-size:var(--xs);font-weight:500;gap:4px}
+.bdg-b{background:var(--p50);color:var(--p700);border:1px solid var(--p200)}
+.bdg-g{background:#ECFDF5;color:#065F46;border:1px solid #A7F3D0}
+.bdg-a{background:#FFFBEB;color:#92400E;border:1px solid #FDE68A}
+.bdg-r{background:#FEF2F2;color:#991B1B;border:1px solid #FECACA}
+.bdg-p{background:var(--a50);color:var(--a600);border:1px solid var(--a200)}
+.bdg-dot{width:6px;height:6px;border-radius:50%}
+
+/* Buttons */
+.btn{display:inline-flex;align-items:center;justify-content:center;gap:var(--s2);font-family:var(--font);font-weight:500;border:none;border-radius:var(--r1);cursor:pointer;white-space:nowrap;transition:all 150ms var(--ease);font-size:var(--sm);height:36px;padding:0 var(--s4)}
+.btn:focus-visible{outline:2px solid var(--p500);outline-offset:2px}
+.btn-pri{background:linear-gradient(135deg,var(--p600),var(--a500));color:#fff;box-shadow:var(--sh2)}
+.btn-pri:hover{box-shadow:var(--sh3),var(--shg);transform:translateY(-1px)}
+.btn-pri:active{transform:translateY(0)}
+.btn-sec{background:var(--p50);color:var(--p700);border:1px solid var(--p200)}.btn-sec:hover{background:var(--p100);border-color:var(--p300)}
+.btn-out{background:transparent;color:var(--p600);border:1px solid var(--p300)}.btn-out:hover{background:var(--p50)}
+.btn-gho{background:transparent;color:var(--txt2)}.btn-gho:hover{background:var(--g100);color:var(--txt)}
+.btn-dan{background:var(--red);color:#fff}.btn-dan:hover{opacity:.9}
+.btn-sm{height:32px;padding:0 var(--s3);font-size:var(--xs)}.btn-lg{height:42px;padding:0 var(--s5);font-size:var(--base)}
+
+/* Input */
+.inp{height:36px;padding:0 var(--s3);font-size:var(--sm);font-family:var(--font);border:1px solid var(--bdr);border-radius:var(--r1);background:var(--bg);color:var(--txt);transition:all 150ms var(--ease);outline:none}
+.inp:hover{border-color:var(--g300)}.inp:focus{border-color:var(--p500);box-shadow:var(--shg)}.inp::placeholder{color:var(--txt3)}
+
+/* 2-col layout */
+.grid2{display:grid;grid-template-columns:1fr 1fr;gap:var(--s6)}.grid3{display:grid;grid-template-columns:repeat(3,1fr);gap:var(--s4)}
+.grid62{display:grid;grid-template-columns:6fr 4fr;gap:var(--s6)}.grid64{display:grid;grid-template-columns:6fr 4fr;gap:var(--s6)}
+
+/* Solid card */
+.card-s{background:var(--bg);border:1px solid var(--bdr);border-radius:var(--r3);padding:var(--s5);box-shadow:var(--sh1)}
+
+/* Page switch */
+.pg-view{display:none}.pg-view.act{display:block;animation:fadeIn 250ms var(--ease)}
+@keyframes fadeIn{from{opacity:0;transform:translateY(6px)}to{opacity:1;transform:translateY(0)}}
+
+/* ===== PAGE 2: Ontology Designer ===== */
+.onto-layout{display:flex;gap:var(--s4);min-height:500px}
+.onto-tree{width:260px;flex-shrink:0;background:var(--bg);border:1px solid var(--bdr);border-radius:var(--r3);overflow-y:auto;padding:var(--s3) 0;max-height:calc(100vh - 220px)}
+.onto-tree .tree-item{padding:var(--s2) var(--s4);font-size:var(--sm);cursor:pointer;display:flex;align-items:center;gap:var(--s2);color:var(--txt);transition:all 150ms;border-left:3px solid transparent}
+.onto-tree .tree-item:hover{background:var(--p50)}
+.onto-tree .tree-item.act{background:var(--p50);color:var(--p700);border-left-color:var(--p500);font-weight:500}
+.onto-tree .tree-item.l2{padding-left:var(--s8)}.onto-tree .tree-item.l3{padding-left:48px}
+.onto-tree .tree-arrow{font-size:10px;color:var(--txt3);width:14px;text-align:center}
+.onto-main{flex:1;overflow-y:auto;background:var(--bg);border:1px solid var(--bdr);border-radius:var(--r3);padding:var(--s6)}
+.onto-toolbar{display:flex;align-items:center;gap:var(--s3);margin-bottom:var(--s6);padding-bottom:var(--s4);border-bottom:1px solid var(--bdr2)}
+.form-g{margin-bottom:var(--s5)}.form-l{font-size:var(--sm);font-weight:500;color:var(--txt);margin-bottom:var(--s1);display:block}
+.kv-row{display:flex;align-items:center;gap:var(--s2);margin-bottom:var(--s2)}.kv-row .inp{flex:1}
+
+/* ===== PAGE 3: Semantic Graph ===== */
+.graph-toolbar{display:flex;align-items:center;gap:var(--s3);margin-bottom:var(--s4);padding:var(--s3) var(--s4);background:var(--bg);border:1px solid var(--bdr);border-radius:var(--r2)}
+.graph-canvas{background:#0F0F1A;border-radius:var(--r3);height:500px;position:relative;overflow:hidden;border:1px solid var(--bdr)}
+.graph-node{position:absolute;border-radius:50%;display:flex;align-items:center;justify-content:center;color:#fff;font-size:12px;font-weight:600;cursor:pointer;transition:all 200ms var(--ease);z-index:2}
+.graph-node:hover{transform:scale(1.1);box-shadow:0 0 20px rgba(99,102,241,.4)}
+.graph-edge{position:absolute;height:1.5px;background:rgba(255,255,255,.15);transform-origin:left center;z-index:1}
+.graph-ctr{width:80px;height:80px;left:50%;top:50%;transform:translate(-50%,-50%);background:linear-gradient(135deg,var(--p600),var(--a500));font-size:13px}
+.gnode-1{width:64px;height:64px;top:40px;left:calc(50% - 32px);background:var(--p600)}
+.gnode-2{width:56px;height:56px;top:120px;left:calc(50% + 160px);background:var(--green)}
+.gnode-3{width:56px;height:56px;top:320px;left:calc(50% + 140px);background:var(--amber)}
+.gnode-4{width:56px;height:56px;top:380px;left:calc(50% - 32px);background:var(--a500)}
+.gnode-5{width:56px;height:56px;top:280px;left:calc(50% - 220px);background:var(--cyan)}
+.gnode-6{width:56px;height:56px;top:60px;left:calc(50% - 200px);background:var(--p400)}
+.graph-legend{display:flex;gap:var(--s4);margin-top:var(--s3);font-size:var(--xs);color:var(--txt3)}
+
+/* ===== PAGE 4: Agent Cards ===== */
+.agent-toolbar{display:flex;align-items:center;justify-content:space-between;margin-bottom:var(--s4)}
+.agent-card{background:var(--bg);border:1px solid var(--bdr);border-radius:var(--r3);padding:var(--s5);box-shadow:var(--sh1);transition:all 250ms var(--ease)}
+.agent-card:hover{box-shadow:var(--sh3);border-color:rgba(99,102,241,.12);transform:translateY(-2px)}
+.agent-icon{width:48px;height:48px;border-radius:var(--r2);display:flex;align-items:center;justify-content:center;font-size:22px;margin-bottom:var(--s3)}
+.agent-name{font-size:var(--lg);font-weight:600;color:var(--txt);margin-bottom:var(--s1)}
+.agent-type{font-size:var(--xs);color:var(--txt3);margin-bottom:var(--s3)}
+.agent-time{font-size:var(--xs);color:var(--txt3);margin-top:var(--s3)}
+.agent-stats-row{display:flex;gap:var(--s4);margin-top:var(--s3);padding-top:var(--s3);border-top:1px solid var(--bdr2)}
+.agent-stat{text-align:center}.agent-stat .asv{font-size:var(--xl);font-weight:700;color:var(--txt)}.agent-stat .asl{font-size:var(--xs);color:var(--txt3)}
+
+/* ===== PAGE 5: Simulation Sandbox ===== */
+.sim-layout{display:flex;gap:var(--s4);min-height:500px}
+.sim-config{flex:6;background:var(--bg);border:1px solid var(--bdr);border-radius:var(--r3);padding:var(--s6);overflow-y:auto;max-height:calc(100vh - 220px)}
+.sim-logs{flex:4;background:#0D1117;border:1px solid var(--bdr);border-radius:var(--r3);overflow:hidden;display:flex;flex-direction:column}
+.sim-logs-h{height:44px;background:#161B22;border-bottom:1px solid #30363D;display:flex;align-items:center;padding:0 var(--s4);gap:var(--s2)}
+.sim-logs-h .dot{width:8px;height:8px;border-radius:50%}.dot-r{background:var(--red)}.dot-a{background:var(--amber)}.dot-g{background:var(--green)}
+.sim-logs-h .logtitle{font-size:var(--xs);color:var(--txt3);margin-left:var(--s2)}
+.sim-logs-body{flex:1;overflow-y:auto;padding:var(--s3) var(--s4);font-family:var(--mono);font-size:11px;line-height:1.8}
+.log-line{color:#7EE787}.log-line.warn{color:var(--amber)}.log-line.err{color:var(--red)}.log-line.info{color:#79C0FF}
+.log-time{color:#484F58;margin-right:var(--s2)}
+.sim-progress{height:8px;background:var(--bdr);border-radius:4px;margin:var(--s6) 0;overflow:hidden}.sim-progress .bar{height:100%;background:linear-gradient(90deg,var(--p500),var(--a500));border-radius:4px;transition:width 500ms var(--ease)}
+.sim-params{margin:var(--s4) 0}
+.sim-param{display:flex;align-items:center;justify-content:space-between;padding:var(--s3) 0;border-bottom:1px solid var(--bdr2)}
+.sim-param .pl{font-size:var(--sm);color:var(--txt)}.sim-param .pv{font-size:var(--sm);font-weight:500;color:var(--p600);font-family:var(--mono)}
+.sim-actions{display:flex;gap:var(--s3);margin-top:var(--s6)}
+
+/* ===== PAGE 6: Settings ===== */
+.settings-layout{display:flex;gap:0;background:var(--bg);border:1px solid var(--bdr);border-radius:var(--r3);overflow:hidden;min-height:500px}
+.settings-nav{width:200px;border-right:1px solid var(--bdr);padding:var(--s3) 0;flex-shrink:0}
+.settings-nav .set-ni{padding:var(--s3) var(--s5);font-size:var(--sm);cursor:pointer;color:var(--txt2);transition:all 150ms;border-left:3px solid transparent;display:flex;align-items:center;gap:var(--s3)}
+.settings-nav .set-ni:hover{background:var(--g50);color:var(--txt)}
+.settings-nav .set-ni.act{background:var(--p50);color:var(--p700);border-left-color:var(--p500);font-weight:500}
+.settings-main{flex:1;padding:var(--s8)}
+.settings-main h3{font-size:var(--xl);font-weight:600;margin-bottom:var(--s6)}
+.settings-form{max-width:520px}
+.settings-form .form-g{margin-bottom:var(--s5)}
+.settings-form .form-g select{width:100%}
+
+/* Page indicator */
+.pg-indicator{display:flex;align-items:center;gap:var(--s2);font-size:var(--xs);color:var(--txt3);margin-bottom:var(--s4)}
+.pg-dot{width:8px;height:8px;border-radius:50%;background:var(--g300)}.pg-dot.act{background:var(--p500);width:24px;border-radius:4px}
+
+/* Responsive */
+@media(max-width:1400px){.stats{grid-template-columns:repeat(2,1fr)}.grid2{grid-template-columns:1fr}.grid62{grid-template-columns:1fr}}
+@media(max-width:1200px){.subside{display:none}.main{margin-left:var(--sw)}.grid3{grid-template-columns:repeat(2,1fr)}}
+
+/* Toast */
+.toast{position:fixed;top:var(--s6);right:var(--s6);z-index:1000;background:var(--bg);border:1px solid var(--bdr);border-radius:var(--r3);padding:var(--s3) var(--s4);box-shadow:var(--sh4);font-size:var(--sm);opacity:0;transform:translateX(20px);transition:all 250ms var(--ease);pointer-events:none}
+.toast.show{opacity:1;transform:translateX(0)}
+</style>
+</head>
+<body>
+<div class="app">
+
+<!-- Sidebar -->
+<aside class="side" id="side">
+  <div class="side-logo" onclick="navPage('dashboard')"><span class="lf">ODAP</span><span class="li">O</span></div>
+  <nav class="side-nav">
+    <div class="nav-i act" data-page="dashboard" onclick="switchPage('dashboard',this)"><span class="ic">📊</span><span class="lb">仪表盘</span></div>
+    <div class="nav-i" data-page="ontology" onclick="switchPage('ontology',this)"><span class="ic">🧩</span><span class="lb">语义地图</span></div>
+    <div class="nav-i" data-page="agent" onclick="switchPage('agent',this)"><span class="ic">🤖</span><span class="lb">智能体</span></div>
+    <div class="nav-i" data-page="simulation" onclick="switchPage('simulation',this)"><span class="ic">⚡</span><span class="lb">推演仿真</span></div>
+    <div class="nav-i" data-page="settings" onclick="switchPage('settings',this)"><span class="ic">⚙️</span><span class="lb">系统设置</span></div>
+  </nav>
+  <div class="side-toggle" onclick="togSide()">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="15 18 9 12 15 6"/></svg>
+  </div>
+</aside>
+
+<!-- Sub sidebar -->
+<aside class="subside" id="subside">
+  <div class="subside-h"><span class="subside-t" id="subsideT">仪表盘</span><button class="subside-close" onclick="togSub()">◂</button></div>
+  <nav class="sub-nav" id="subNav">
+    <div class="sn-i act" onclick="navPage('dashboard')"><span class="sn-dot"></span>概览</div>
+    <div class="sn-i" onclick="navPage('ontology')"><span class="sn-dot"></span>本体设计器</div>
+    <div class="sn-i" onclick="navPage('ontology')"><span class="sn-dot"></span>语义图谱</div>
+    <div class="sn-i" onclick="navPage('ontology')"><span class="sn-dot"></span>对象管理</div>
+    <div class="sn-i" onclick="navPage('ontology')"><span class="sn-dot"></span>数据摄入</div>
+    <div class="sn-i" onclick="navPage('agent')"><span class="sn-dot"></span>Agent调度</div>
+    <div class="sn-i" onclick="navPage('agent')"><span class="sn-dot"></span>Skill管理</div>
+    <div class="sn-i" onclick="navPage('simulation')"><span class="sn-dot"></span>沙箱推演</div>
+    <div class="sn-i" onclick="navPage('simulation')"><span class="sn-dot"></span>策略推演</div>
+    <div class="sn-i" onclick="navPage('settings')"><span class="sn-dot"></span>通用设置</div>
+  </nav>
+</aside>
+
+<!-- Main -->
+<main class="main" id="main">
+  <header class="topbar">
+    <div class="tbl">
+      <span class="tb-label">工作空间</span>
+      <select class="tb-sel" onchange="toast('已切换工作空间')"><option>ODAP 主空间</option></select>
+      <span class="tb-label">场景</span>
+      <select class="tb-sel" onchange="toast('已切换场景')"><option>红蓝对抗 v3.2</option></select>
+      <span class="pg-indicator"><span class="pg-dot act"></span><span class="pg-dot"></span><span class="pg-dot"></span><span class="pg-dot"></span><span class="pg-dot"></span><span class="pg-dot"></span></span>
+    </div>
+    <div class="tbr">
+      <button class="tm-btn" onclick="togTheme()" title="切换主题"><span class="sun">☀</span><span class="moon">🌙</span></button>
+      <button class="btn btn-gho btn-sm" onclick="togSub()">子菜单</button>
+      <div class="u-avatar" title="管理员">管</div>
+    </div>
+  </header>
+
+  <div class="content" id="content">
+
+    <!-- ============ PAGE 1: Dashboard ============ -->
+    <div class="pg-view act" id="pg-dashboard">
+      <div class="content-inner">
+        <div class="pg-hdr">
+          <div class="bc"><a href="#">ODAP</a><span class="sep">/</span><span>仪表盘</span></div>
+          <h1 class="pg-title">工作台总览</h1>
+          <p class="pg-sub">本体驱动分析决策平台 — 当前版本 v3.2 · 最后同步 2 小时前</p>
+        </div>
+        <div class="stats">
+          <div class="glass-card"><div class="sl">本体数量</div><div class="sv">1,247</div><div class="sf"><span class="st up">↗ +12%</span><span class="sp">vs 上月</span></div></div>
+          <div class="glass-card"><div class="sl">实体总数</div><div class="sv">89,432</div><div class="sf"><span class="st up">↗ +5.3%</span><span class="sp">vs 上月</span></div></div>
+          <div class="glass-card"><div class="sl">活跃智能体</div><div class="sv">38</div><div class="sf"><span class="st down">↘ -2</span><span class="sp">vs 上周</span></div></div>
+          <div class="glass-card"><div class="sl">今日摄入</div><div class="sv">2,847</div><div class="sf"><span class="st up">↗ +18%</span><span class="sp">条数据</span></div></div>
+        </div>
+
+        <div class="grid2">
+          <div class="sec">
+            <div class="sec-t">最近本体记录</div>
+            <div class="tbl-wrap">
+              <table class="tbl">
+                <thead><tr><th>名称</th><th>类型</th><th>版本</th><th>状态</th><th>更新时间</th></tr></thead>
+                <tbody>
+                  <tr><td style="font-weight:500">作战单元本体</td><td><span class="bdg bdg-b"><span class="bdg-dot" style="background:var(--p500)"></span>核心</span></td><td class="mono">v3.2.1</td><td><span class="bdg bdg-g">已发布</span></td><td class="mono">06-15 10:32</td></tr>
+                  <tr><td style="font-weight:500">地理空间本体</td><td><span class="bdg bdg-p"><span class="bdg-dot" style="background:var(--a500)"></span>扩展</span></td><td class="mono">v2.1.0</td><td><span class="bdg bdg-g">已发布</span></td><td class="mono">06-14 16:45</td></tr>
+                  <tr><td style="font-weight:500">事件时序本体</td><td><span class="bdg bdg-b">核心</span></td><td class="mono">v1.8.3</td><td><span class="bdg bdg-a">审核中</span></td><td class="mono">06-14 09:18</td></tr>
+                  <tr><td style="font-weight:500">组织架构本体</td><td><span class="bdg bdg-p">扩展</span></td><td class="mono">v4.0.0</td><td><span class="bdg bdg-g">已发布</span></td><td class="mono">06-13 22:10</td></tr>
+                  <tr><td style="font-weight:500">装备参数本体</td><td><span class="bdg bdg-b">核心</span></td><td class="mono">v2.5.0</td><td><span class="bdg bdg-r">已归档</span></td><td class="mono">06-12 14:55</td></tr>
+                </tbody>
+              </table>
+            </div>
+          </div>
+          <div class="sec">
+            <div class="sec-t">7日摄入趋势</div>
+            <div class="card-s" style="height:300px;display:flex;align-items:flex-end;gap:var(--s4);padding:var(--s6) var(--s5)">
+              <div style="flex:1;display:flex;flex-direction:column;align-items:center;justify-content:flex-end;height:100%"><div style="width:100%;background:linear-gradient(180deg,var(--p400),var(--p200));border-radius:4px 4px 0 0;height:45%"></div><span style="font-size:var(--xs);color:var(--txt3);margin-top:var(--s2)">6/09</span></div>
+              <div style="flex:1;display:flex;flex-direction:column;align-items:center;justify-content:flex-end;height:100%"><div style="width:100%;background:linear-gradient(180deg,var(--p400),var(--p200));border-radius:4px 4px 0 0;height:58%"></div><span style="font-size:var(--xs);color:var(--txt3);margin-top:var(--s2)">6/10</span></div>
+              <div style="flex:1;display:flex;flex-direction:column;align-items:center;justify-content:flex-end;height:100%"><div style="width:100%;background:linear-gradient(180deg,var(--p500),var(--p300));border-radius:4px 4px 0 0;height:72%"></div><span style="font-size:var(--xs);color:var(--txt3);margin-top:var(--s2)">6/11</span></div>
+              <div style="flex:1;display:flex;flex-direction:column;align-items:center;justify-content:flex-end;height:100%"><div style="width:100%;background:linear-gradient(180deg,var(--p600),var(--p400));border-radius:4px 4px 0 0;height:85%"></div><span style="font-size:var(--xs);color:var(--txt3);margin-top:var(--s2)">6/12</span></div>
+              <div style="flex:1;display:flex;flex-direction:column;align-items:center;justify-content:flex-end;height:100%"><div style="width:100%;background:linear-gradient(180deg,var(--p500),var(--p300));border-radius:4px 4px 0 0;height:63%"></div><span style="font-size:var(--xs);color:var(--txt3);margin-top:var(--s2)">6/13</span></div>
+              <div style="flex:1;display:flex;flex-direction:column;align-items:center;justify-content:flex-end;height:100%"><div style="width:100%;background:linear-gradient(180deg,var(--p400),var(--p200));border-radius:4px 4px 0 0;height:48%"></div><span style="font-size:var(--xs);color:var(--txt3);margin-top:var(--s2)">6/14</span></div>
+              <div style="flex:1;display:flex;flex-direction:column;align-items:center;justify-content:flex-end;height:100%"><div style="width:100%;background:linear-gradient(180deg,var(--p400),var(--p200));border-radius:4px 4px 0 0;height:55%"></div><span style="font-size:var(--xs);color:var(--txt3);margin-top:var(--s2)">6/15</span></div>
+            </div>
+          </div>
+        </div>
+
+        <div class="sec">
+          <div class="sec-t">最近活动时间线</div>
+          <div class="card-s" style="padding:var(--s5) var(--s6)">
+            <div style="border-left:2px solid var(--bdr);padding-left:var(--s5);display:flex;flex-direction:column;gap:var(--s5)">
+              <div style="position:relative"><div style="position:absolute;left:-25px;top:4px;width:10px;height:10px;border-radius:50%;background:var(--p500);border:2px solid var(--bg)"></div><span style="font-size:var(--xs);color:var(--txt3)">10:32</span><span style="font-size:var(--sm);color:var(--txt);margin-left:var(--s3);font-weight:500">作战单元本体 v3.2.1 发布</span><span style="font-size:var(--xs);color:var(--txt3);margin-left:var(--s2)">— 张晓明</span></div>
+              <div style="position:relative"><div style="position:absolute;left:-25px;top:4px;width:10px;height:10px;border-radius:50%;background:var(--green);border:2px solid var(--bg)"></div><span style="font-size:var(--xs);color:var(--txt3)">09:15</span><span style="font-size:var(--sm);color:var(--txt);margin-left:var(--s3);font-weight:500">新增 347 条实体数据摄入完成</span><span style="font-size:var(--xs);color:var(--txt3);margin-left:var(--s2)">— 系统自动</span></div>
+              <div style="position:relative"><div style="position:absolute;left:-25px;top:4px;width:10px;height:10px;border-radius:50%;background:var(--amber);border:2px solid var(--bg)"></div><span style="font-size:var(--xs);color:var(--txt3)">08:00</span><span style="font-size:var(--sm);color:var(--txt);margin-left:var(--s3);font-weight:500">事件时序本体 v1.8.3 提交审核</span><span style="font-size:var(--xs);color:var(--txt3);margin-left:var(--s2)">— 李芳</span></div>
+              <div style="position:relative"><div style="position:absolute;left:-25px;top:4px;width:10px;height:10px;border-radius:50%;background:var(--p500);border:2px solid var(--bg)"></div><span style="font-size:var(--xs);color:var(--txt3)">昨日 16:45</span><span style="font-size:var(--sm);color:var(--txt);margin-left:var(--s3);font-weight:500">地理空间本体 v2.1.0 发布</span><span style="font-size:var(--xs);color:var(--txt3);margin-left:var(--s2)">— 王强</span></div>
+              <div style="position:relative"><div style="position:absolute;left:-25px;top:4px;width:10px;height:10px;border-radius:50%;background:var(--green);border:2px solid var(--bg)"></div><span style="font-size:var(--xs);color:var(--txt3)">昨日 14:20</span><span style="font-size:var(--sm);color:var(--txt);margin-left:var(--s3);font-weight:500">智能体"战场分析Agent"启动成功</span><span style="font-size:var(--xs);color:var(--txt3);margin-left:var(--s2)">— 系统自动</span></div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- ============ PAGE 2: Ontology Designer ============ -->
+    <div class="pg-view" id="pg-ontology">
+      <div class="pg-hdr">
+        <div class="bc"><a href="#">ODAP</a><span class="sep">/</span><a href="#">语义地图</a><span class="sep">/</span><span>本体设计器</span></div>
+        <h1 class="pg-title">本体设计器</h1>
+        <p class="pg-sub">管理知识本体定义，构建语义模型</p>
+      </div>
+      <div class="onto-toolbar">
+        <button class="btn btn-pri" onclick="toast('本体已保存')">保存本体</button>
+        <button class="btn btn-out">导出 JSON</button>
+        <button class="btn btn-out">导入</button>
+        <span style="margin-left:auto;display:flex;align-items:center;gap:var(--s2)">
+          <span style="font-size:var(--xs);color:var(--txt3)">版本</span>
+          <select class="tb-sel"><option>v3.2.1 (当前)</option><option>v3.2.0</option><option>v3.1.0</option></select>
+        </span>
+      </div>
+      <div class="onto-layout">
+        <div class="onto-tree">
+          <div class="tree-item act l1"><span class="tree-arrow">▼</span> 作战单元本体</div>
+          <div class="tree-item l2"><span class="tree-arrow">▼</span> 实体类型</div>
+          <div class="tree-item l3" onclick="toast('选中: 作战单元')">▶ 作战单元</div>
+          <div class="tree-item l3" onclick="toast('选中: 装备')">▶ 装备</div>
+          <div class="tree-item l3" onclick="toast('选中: 人员')">▶ 人员</div>
+          <div class="tree-item l2"><span class="tree-arrow">▶</span> 关系类型</div>
+          <div class="tree-item l2"><span class="tree-arrow">▶</span> 属性定义</div>
+          <div class="tree-item l1"><span class="tree-arrow">▶</span> 地理空间本体</div>
+          <div class="tree-item l1"><span class="tree-arrow">▶</span> 事件时序本体</div>
+        </div>
+        <div class="onto-main">
+          <h3 style="font-size:var(--xl);font-weight:600;margin-bottom:var(--s6)">作战单元 — 属性编辑器</h3>
+          <div class="form-g">
+            <label class="form-l">实体名称</label>
+            <input class="inp" value="作战单元" style="width:100%">
+          </div>
+          <div class="form-g">
+            <label class="form-l">实体类型</label>
+            <select class="tb-sel" style="width:100%;height:36px"><option>核心实体</option><option>扩展实体</option><option>临时实体</option></select>
+          </div>
+          <div class="form-g">
+            <label class="form-l">属性定义</label>
+            <div class="kv-row"><input class="inp" value="名称" placeholder="键"><input class="inp" value="string" placeholder="类型"><button class="btn btn-gho btn-sm" onclick="toast('已删除')">✕</button></div>
+            <div class="kv-row"><input class="inp" value="位置" placeholder="键"><input class="inp" value="geo_point" placeholder="类型"><button class="btn btn-gho btn-sm" onclick="toast('已删除')">✕</button></div>
+            <div class="kv-row"><input class="inp" value="状态" placeholder="键"><input class="inp" value="enum" placeholder="类型"><button class="btn btn-gho btn-sm" onclick="toast('已删除')">✕</button></div>
+            <div class="kv-row"><input class="inp" placeholder="新属性键"><input class="inp" placeholder="类型"><button class="btn btn-sec btn-sm" onclick="toast('已添加属性')">+ 添加</button></div>
+          </div>
+          <div class="form-g">
+            <label class="form-l">关联关系</label>
+            <div style="display:flex;gap:var(--s2);flex-wrap:wrap">
+              <span class="bdg bdg-b">指挥 → 下级单元</span><span class="bdg bdg-p">配属 → 支援部队</span>
+              <span class="bdg bdg-b">协同 → 友邻单元</span><span class="bdg bdg-g">通讯 → 指挥链路</span>
+              <button class="btn btn-gho btn-sm">+ 添加关系</button>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- ============ PAGE 3: Semantic Graph ============ -->
+    <div class="pg-view" id="pg-graph">
+      <div class="pg-hdr">
+        <div class="bc"><a href="#">ODAP</a><span class="sep">/</span><a href="#">语义地图</a><span class="sep">/</span><span>语义图谱</span></div>
+        <h1 class="pg-title">语义图谱</h1>
+        <p class="pg-sub">知识本体可视化 — 当前本体: 作战单元 v3.2.1</p>
+      </div>
+      <div class="graph-toolbar">
+        <select class="tb-sel"><option>作战单元本体</option><option>地理空间本体</option></select>
+        <input class="inp" placeholder="搜索节点..." style="width:200px">
+        <span style="margin-left:auto;display:flex;gap:var(--s2)">
+          <button class="btn btn-out btn-sm" onclick="toast('力导向布局')">力导向</button>
+          <button class="btn btn-pri btn-sm" onclick="toast('层级布局')">层级</button>
+          <button class="btn btn-out btn-sm" onclick="toast('环形布局')">环形</button>
+        </span>
+      </div>
+      <div class="graph-canvas" id="graphCanvas">
+        <div class="graph-node graph-ctr">作战单元A</div>
+        <div class="graph-node gnode-1">装备</div>
+        <div class="graph-node gnode-2">人员</div>
+        <div class="graph-node gnode-3">位置</div>
+        <div class="graph-node gnode-4">组织</div>
+        <div class="graph-node gnode-5">事件</div>
+        <div class="graph-node gnode-6">规则</div>
+        <!-- Simulated edges via CSS lines -->
+        <div style="position:absolute;z-index:1;pointer-events:none">
+          <svg width="100%" height="100%" style="position:absolute;top:0;left:0;width:100%;height:100%">
+            <line x1="50%" y1="50%" x2="50%" y2="13%" stroke="rgba(255,255,255,0.12)" stroke-width="1"/>
+            <line x1="50%" y1="50%" x2="77%" y2="29%" stroke="rgba(255,255,255,0.12)" stroke-width="1"/>
+            <line x1="50%" y1="50%" x2="74%" y2="69%" stroke="rgba(255,255,255,0.12)" stroke-width="1"/>
+            <line x1="50%" y1="50%" x2="50%" y2="81%" stroke="rgba(255,255,255,0.12)" stroke-width="1"/>
+            <line x1="50%" y1="50%" x2="14%" y2="61%" stroke="rgba(255,255,255,0.12)" stroke-width="1"/>
+            <line x1="50%" y1="50%" x2="17%" y2="17%" stroke="rgba(255,255,255,0.12)" stroke-width="1"/>
+          </svg>
+        </div>
+        <div style="position:absolute;bottom:12px;left:50%;transform:translateX(-50%);color:rgba(255,255,255,.3);font-size:11px">拖拽节点查看关系 · 滚轮缩放 · 右键更多操作</div>
+      </div>
+      <div class="graph-legend">
+        <span style="display:flex;align-items:center;gap:var(--s1)"><span class="bdg-dot" style="background:var(--p600)"></span>核心实体</span>
+        <span style="display:flex;align-items:center;gap:var(--s1)"><span class="bdg-dot" style="background:var(--green)"></span>关联实体</span>
+        <span style="display:flex;align-items:center;gap:var(--s1)"><span class="bdg-dot" style="background:var(--amber)"></span>属性节点</span>
+        <span style="display:flex;align-items:center;gap:var(--s1)"><span class="bdg-dot" style="background:var(--cyan)"></span>事件节点</span>
+        <span style="margin-left:var(--s6);color:var(--txt3)">连线 12条 · 节点 47个</span>
+      </div>
+    </div>
+
+    <!-- ============ PAGE 4: Agent Management ============ -->
+    <div class="pg-view" id="pg-agent">
+      <div class="pg-hdr">
+        <div class="bc"><a href="#">ODAP</a><span class="sep">/</span><span>智能体</span></div>
+        <h1 class="pg-title">智能体管理</h1>
+        <p class="pg-sub">管理AI智能体生命周期 — 运行中 24 / 已停止 14</p>
+      </div>
+      <div class="agent-toolbar">
+        <button class="btn btn-pri" onclick="toast('创建新智能体')">+ 新建智能体</button>
+        <input class="inp" placeholder="搜索智能体..." style="width:240px">
+      </div>
+      <div class="grid3">
+        <div class="agent-card">
+          <div style="display:flex;justify-content:space-between;align-items:flex-start">
+            <div class="agent-icon" style="background:var(--p50);color:var(--p600)">🤖</div>
+            <span class="bdg bdg-g">运行中</span>
+          </div>
+          <div class="agent-name">战场态势分析</div>
+          <div class="agent-type">推理型 · LLM-GPT4</div>
+          <div class="agent-stats-row">
+            <div class="agent-stat"><div class="asv">1.2k</div><div class="asl">执行次数</div></div>
+            <div class="agent-stat"><div class="asv">98.7%</div><div class="asl">成功率</div></div>
+            <div class="agent-stat"><div class="asv">2.1s</div><div class="asl">平均响应</div></div>
+          </div>
+          <div class="agent-time">最近活动: 2 分钟前</div>
+          <div style="margin-top:var(--s3);display:flex;gap:var(--s2)">
+            <button class="btn btn-out btn-sm" onclick="toast('已停止')">停止</button>
+            <button class="btn btn-out btn-sm" onclick="toast('配置中...')">配置</button>
+          </div>
+        </div>
+        <div class="agent-card">
+          <div style="display:flex;justify-content:space-between;align-items:flex-start">
+            <div class="agent-icon" style="background:#ECFDF5;color:var(--green)">📥</div>
+            <span class="bdg bdg-g">运行中</span>
+          </div>
+          <div class="agent-name">数据摄入调度</div>
+          <div class="agent-type">工具型 · ETL Pipeline</div>
+          <div class="agent-stats-row">
+            <div class="agent-stat"><div class="asv">8.4k</div><div class="asl">执行次数</div></div>
+            <div class="agent-stat"><div class="asv">99.2%</div><div class="asl">成功率</div></div>
+            <div class="agent-stat"><div class="asv">0.8s</div><div class="asl">平均响应</div></div>
+          </div>
+          <div class="agent-time">最近活动: 5 秒前</div>
+          <div style="margin-top:var(--s3);display:flex;gap:var(--s2)">
+            <button class="btn btn-out btn-sm" onclick="toast('已停止')">停止</button>
+            <button class="btn btn-out btn-sm" onclick="toast('配置中...')">配置</button>
+          </div>
+        </div>
+        <div class="agent-card">
+          <div style="display:flex;justify-content:space-between;align-items:flex-start">
+            <div class="agent-icon" style="background:#FFFBEB;color:var(--amber)">⚡</div>
+            <span class="bdg bdg-a">待启动</span>
+          </div>
+          <div class="agent-name">推演仿真引擎</div>
+          <div class="agent-type">模拟型 · Monte Carlo</div>
+          <div class="agent-stats-row">
+            <div class="agent-stat"><div class="asv">342</div><div class="asl">执行次数</div></div>
+            <div class="agent-stat"><div class="asv">91.5%</div><div class="asl">成功率</div></div>
+            <div class="agent-stat"><div class="asv">12.4s</div><div class="asl">平均响应</div></div>
+          </div>
+          <div class="agent-time">最近活动: 3 小时前</div>
+          <div style="margin-top:var(--s3);display:flex;gap:var(--s2)">
+            <button class="btn btn-pri btn-sm" onclick="toast('启动中...')">启动</button>
+            <button class="btn btn-out btn-sm" onclick="toast('配置中...')">配置</button>
+          </div>
+        </div>
+        <div class="agent-card">
+          <div style="display:flex;justify-content:space-between;align-items:flex-start">
+            <div class="agent-icon" style="background:var(--p50);color:var(--p600)">🔍</div>
+            <span class="bdg bdg-g">运行中</span>
+          </div>
+          <div class="agent-name">知识检索助手</div>
+          <div class="agent-type">问答型 · RAG Pipeline</div>
+          <div class="agent-stats-row">
+            <div class="agent-stat"><div class="asv">5.6k</div><div class="asl">执行次数</div></div>
+            <div class="agent-stat"><div class="asv">97.1%</div><div class="asl">成功率</div></div>
+            <div class="agent-stat"><div class="asv">1.5s</div><div class="asl">平均响应</div></div>
+          </div>
+          <div class="agent-time">最近活动: 12 秒前</div>
+          <div style="margin-top:var(--s3);display:flex;gap:var(--s2)">
+            <button class="btn btn-out btn-sm" onclick="toast('已停止')">停止</button>
+            <button class="btn btn-out btn-sm" onclick="toast('配置中...')">配置</button>
+          </div>
+        </div>
+        <div class="agent-card">
+          <div style="display:flex;justify-content:space-between;align-items:flex-start">
+            <div class="agent-icon" style="background:#FEF2F2;color:var(--red)">🛡️</div>
+            <span class="bdg bdg-r">已停止</span>
+          </div>
+          <div class="agent-name">安全策略审计</div>
+          <div class="agent-type">规则型 · OPA Engine</div>
+          <div class="agent-stats-row">
+            <div class="agent-stat"><div class="asv">890</div><div class="asl">执行次数</div></div>
+            <div class="agent-stat"><div class="asv">100%</div><div class="asl">成功率</div></div>
+            <div class="agent-stat"><div class="asv">0.3s</div><div class="asl">平均响应</div></div>
+          </div>
+          <div class="agent-time">最近活动: 2 天前</div>
+          <div style="margin-top:var(--s3);display:flex;gap:var(--s2)">
+            <button class="btn btn-pri btn-sm" onclick="toast('启动中...')">启动</button>
+            <button class="btn btn-out btn-sm" onclick="toast('配置中...')">配置</button>
+          </div>
+        </div>
+        <div class="agent-card">
+          <div style="display:flex;justify-content:space-between;align-items:flex-start">
+            <div class="agent-icon" style="background:var(--a50);color:var(--a600)">📊</div>
+            <span class="bdg bdg-g">运行中</span>
+          </div>
+          <div class="agent-name">指标监控告警</div>
+          <div class="agent-type">监控型 · Stream Processor</div>
+          <div class="agent-stats-row">
+            <div class="agent-stat"><div class="asv">24.7k</div><div class="asl">执行次数</div></div>
+            <div class="agent-stat"><div class="asv">99.9%</div><div class="asl">成功率</div></div>
+            <div class="agent-stat"><div class="asv">0.1s</div><div class="asl">平均响应</div></div>
+          </div>
+          <div class="agent-time">最近活动: 刚刚</div>
+          <div style="margin-top:var(--s3);display:flex;gap:var(--s2)">
+            <button class="btn btn-out btn-sm" onclick="toast('已停止')">停止</button>
+            <button class="btn btn-out btn-sm" onclick="toast('配置中...')">配置</button>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- ============ PAGE 5: Simulation Sandbox ============ -->
+    <div class="pg-view" id="pg-simulation">
+      <div class="pg-hdr">
+        <div class="bc"><a href="#">ODAP</a><span class="sep">/</span><span>推演仿真</span></div>
+        <h1 class="pg-title">沙箱推演</h1>
+        <p class="pg-sub">基于场景模型的仿真推演引擎 — 当前场景: 红蓝对抗 v3.2</p>
+      </div>
+      <div class="sim-layout">
+        <div class="sim-config">
+          <h3 style="font-size:var(--xl);font-weight:600;margin-bottom:var(--s6)">推演配置</h3>
+          <div class="form-g">
+            <label class="form-l">推演场景</label>
+            <select class="tb-sel" style="width:100%;height:36px"><option>红蓝对抗 v3.2</option><option>城市应急响应</option><option>供应链优化</option></select>
+          </div>
+          <div class="form-g">
+            <label class="form-l">推演轮次</label>
+            <input class="inp" type="number" value="100" min="1" max="1000" style="width:120px">
+          </div>
+          <div class="sim-params">
+            <div class="sim-param"><span class="pl">红方兵力系数</span><span class="pv">1.0</span></div>
+            <div class="sim-param"><span class="pl">蓝方防御系数</span><span class="pv">1.2</span></div>
+            <div class="sim-param"><span class="pl">随机种子</span><span class="pv">20240615</span></div>
+            <div class="sim-param"><span class="pl">蒙特卡洛采样</span><span class="pv">10,000</span></div>
+          </div>
+          <div class="sim-actions">
+            <button class="btn btn-pri btn-lg" onclick="startSim()">▶ 开始推演</button>
+            <button class="btn btn-out" onclick="toast('参数已重置')">重置参数</button>
+            <button class="btn btn-out" onclick="toast('配置已保存')">保存配置</button>
+          </div>
+          <div class="sim-progress" style="display:none" id="simProgress"><div class="bar" style="width:0%" id="simBar"></div></div>
+          <div style="text-align:center;font-size:var(--xs);color:var(--txt3);display:none" id="simPercent">0%</div>
+        </div>
+        <div class="sim-logs">
+          <div class="sim-logs-h">
+            <span class="dot dot-r"></span><span class="dot dot-a"></span><span class="dot dot-g"></span>
+            <span class="logtitle">推演日志 — 实时输出</span>
+          </div>
+          <div class="sim-logs-body" id="simLogs">
+            <div class="log-line info"><span class="log-time">10:32:15</span> [INFO] 推演引擎初始化完成 · 场景: 红蓝对抗 v3.2</div>
+            <div class="log-line info"><span class="log-time">10:32:15</span> [INFO] 加载本体: 作战单元 v3.2.1 · 实体 12,847</div>
+            <div class="log-line info"><span class="log-time">10:32:16</span> [INFO] 蒙特卡洛采样器就绪 · n=10,000</div>
+            <div class="log-line"><span class="log-time">10:32:16</span> [OK] 初始态势评估完成 · 均势比 1.0:1.2</div>
+            <div class="log-line warn"><span class="log-time">10:32:17</span> [WARN] 蓝方第3防区兵力不足阈值 · 自动补充</div>
+            <div class="log-line"><span class="log-time">10:32:18</span> [OK] 轮次 1/100 · 红方推进 0.3km · 战损 2.1%</div>
+            <div class="log-line"><span class="log-time">10:32:19</span> [OK] 轮次 2/100 · 蓝方反击 · 红方战损 1.8%</div>
+            <div class="log-line warn"><span class="log-time">10:32:21</span> [WARN] 检测到侧翼暴露 · 红方第2梯队增援</div>
+            <div class="log-line"><span class="log-time">10:32:23</span> [OK] 轮次 3/100 · 战线稳定 · 消耗比 1:1.4</div>
+            <div class="log-line info"><span class="log-time">10:32:25</span> [INFO] 等待下一指令...</div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- ============ PAGE 6: Settings ============ -->
+    <div class="pg-view" id="pg-settings">
+      <div class="pg-hdr">
+        <div class="bc"><a href="#">ODAP</a><span class="sep">/</span><span>系统设置</span></div>
+        <h1 class="pg-title">系统设置</h1>
+        <p class="pg-sub">平台全局配置管理</p>
+      </div>
+      <div class="settings-layout" id="settingsLayout">
+        <div class="settings-nav">
+          <div class="set-ni act" data-tab="general" onclick="switchSettings('general',this)">⚙️ 通用设置</div>
+          <div class="set-ni" data-tab="security" onclick="switchSettings('security',this)">🔒 安全策略</div>
+          <div class="set-ni" data-tab="notification" onclick="switchSettings('notification',this)">🔔 通知管理</div>
+          <div class="set-ni" data-tab="about" onclick="switchSettings('about',this)">ℹ️ 关于系统</div>
+        </div>
+        <div class="settings-main">
+          <div class="settings-tab act" id="stab-general">
+            <h3>通用设置</h3>
+            <div class="settings-form">
+              <div class="form-g"><label class="form-l">系统名称</label><input class="inp" value="ODAP Platform" style="width:100%"></div>
+              <div class="form-g"><label class="form-l">默认语言</label><select class="tb-sel" style="width:100%;height:36px"><option>简体中文</option><option>English</option></select></div>
+              <div class="form-g"><label class="form-l">默认时区</label><select class="tb-sel" style="width:100%;height:36px"><option>Asia/Shanghai (UTC+8)</option><option>America/New_York</option></select></div>
+              <div class="form-g"><label class="form-l">日志级别</label><select class="tb-sel" style="width:100%;height:36px"><option>INFO</option><option>DEBUG</option><option>WARN</option></select></div>
+              <div style="display:flex;gap:var(--s3);margin-top:var(--s6)">
+                <button class="btn btn-pri" onclick="toast('设置已保存')">保存设置</button>
+                <button class="btn btn-out" onclick="toast('已重置')">恢复默认</button>
+              </div>
+            </div>
+          </div>
+          <div class="settings-tab" id="stab-security" style="display:none">
+            <h3>安全策略</h3>
+            <div class="settings-form">
+              <div class="form-g"><label class="form-l">JWT 过期时间</label><input class="inp" value="3600" style="width:120px"><span style="font-size:var(--xs);color:var(--txt3);margin-left:var(--s2)">秒</span></div>
+              <div class="form-g"><label class="form-l">会话超时</label><input class="inp" value="30" style="width:120px"><span style="font-size:var(--xs);color:var(--txt3);margin-left:var(--s2)">分钟</span></div>
+              <div class="form-g"><label class="form-l">密码最小长度</label><input class="inp" value="8" style="width:120px"></div>
+              <div class="form-g"><label class="form-l">最大登录尝试</label><input class="inp" value="5" style="width:120px"><span style="font-size:var(--xs);color:var(--txt3);margin-left:var(--s2)">次</span></div>
+              <button class="btn btn-pri" style="margin-top:var(--s6)" onclick="toast('安全配置已保存')">保存设置</button>
+            </div>
+          </div>
+          <div class="settings-tab" id="stab-notification" style="display:none">
+            <h3>通知管理</h3>
+            <div class="settings-form">
+              <div class="form-g"><label class="form-l">邮件通知</label><input class="inp" value="admin@odap.local" style="width:100%"></div>
+              <div class="form-g"><label class="form-l">Webhook URL</label><input class="inp" placeholder="https://hooks.example.com/..." style="width:100%"></div>
+              <div class="form-g" style="display:flex;align-items:center;gap:var(--s4)">
+                <label class="form-l" style="margin-bottom:0">本体变更通知</label>
+                <input type="checkbox" checked style="accent-color:var(--p600)">
+              </div>
+              <div class="form-g" style="display:flex;align-items:center;gap:var(--s4)">
+                <label class="form-l" style="margin-bottom:0">智能体异常告警</label>
+                <input type="checkbox" checked style="accent-color:var(--p600)">
+              </div>
+              <button class="btn btn-pri" style="margin-top:var(--s6)" onclick="toast('通知配置已保存')">保存设置</button>
+            </div>
+          </div>
+          <div class="settings-tab" id="stab-about" style="display:none">
+            <h3>关于系统</h3>
+            <div style="font-size:var(--sm);color:var(--txt2);line-height:2">
+              <p><strong style="color:var(--txt)">ODAP</strong> — 本体驱动分析决策平台</p>
+              <p>版本: <span style="font-family:var(--mono);color:var(--p600)">v3.2.1</span></p>
+              <p>构建号: <span style="font-family:var(--mono)">2026.06.15-1032</span></p>
+              <p>前端: React 19 + TypeScript + Ant Design 6 + Zustand 5</p>
+              <p>后端: Python 3.10+ · FastAPI · Neo4j · OPA</p>
+              <p style="margin-top:var(--s4);color:var(--txt3)">© 2026 ODAP Team · All Rights Reserved</p>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+  </div>
+</main>
+
+<div class="toast" id="toast">操作成功</div>
+
+</div>
+
+<script>
+/* ===== State ===== */
+let currentPage = 'dashboard';
+let sidebarOpen = true;
+let subOpen = true;
+let simRunning = false;
+
+/* ===== Theme ===== */
+function togTheme(){
+  const t = document.documentElement.getAttribute('data-theme') === 'dark' ? 'light' : 'dark';
+  document.documentElement.setAttribute('data-theme', t);
+  localStorage.setItem('odap-theme', t);
+}
+const saved = localStorage.getItem('odap-theme');
+if(saved) document.documentElement.setAttribute('data-theme', saved);
+
+/* ===== Sidebar ===== */
+function togSide(){
+  const side = document.getElementById('side');
+  side.classList.toggle('coll');
+}
+function togSub(){
+  subOpen = !subOpen;
+  document.getElementById('subside').classList.toggle('hid', !subOpen);
+}
+
+/* ===== Page Navigation ===== */
+function switchPage(page, el){
+  currentPage = page;
+  document.querySelectorAll('.pg-view').forEach(v => v.classList.remove('act'));
+  document.querySelectorAll('.nav-i').forEach(n => n.classList.remove('act'));
+  var pgEl = document.getElementById('pg-' + page);
+  if(pgEl) pgEl.classList.add('act');
+  if(el) el.classList.add('act');
+
+  // Reset scroll position
+  var content = document.getElementById('content');
+  if(content) content.scrollTop = 0;
+
+  // Update subsidebar active
+  document.querySelectorAll('.sn-i').forEach(s => s.classList.remove('act'));
+
+  // Update page indicator dots
+  const pages = ['dashboard','ontology','graph','agent','simulation','settings'];
+  const dots = document.querySelectorAll('.pg-dot');
+  const idx = pages.indexOf(page);
+  dots.forEach((d,i) => d.classList.toggle('act', i === idx));
+
+  // Update sub title
+  const titles = {dashboard:'仪表盘',ontology:'语义地图',graph:'语义图谱',agent:'智能体',simulation:'推演仿真',settings:'系统设置'};
+  document.getElementById('subsideT').textContent = titles[page] || '';
+}
+
+function navPage(page){
+  currentPage = page;
+  document.querySelectorAll('.pg-view').forEach(v => v.classList.remove('act'));
+  var pgEl = document.getElementById('pg-' + page);
+  if(pgEl) pgEl.classList.add('act');
+  document.querySelectorAll('.nav-i').forEach(n => n.classList.remove('act'));
+  var ni = document.querySelector('.nav-i[data-page="'+page+'"]');
+  if(ni) ni.classList.add('act');
+
+  // Reset scroll
+  var content = document.getElementById('content');
+  if(content) content.scrollTop = 0;
+  const titles = {dashboard:'仪表盘',ontology:'语义地图',graph:'语义图谱',agent:'智能体',simulation:'推演仿真',settings:'系统设置'};
+  document.getElementById('subsideT').textContent = titles[page] || '';
+  const pages = ['dashboard','ontology','graph','agent','simulation','settings'];
+  const dots = document.querySelectorAll('.pg-dot');
+  const idx = pages.indexOf(page);
+  dots.forEach((d,i) => d.classList.toggle('act', i === idx));
+}
+
+/* ===== Settings Tabs ===== */
+function switchSettings(tab, el){
+  document.querySelectorAll('.settings-tab').forEach(t => t.style.display = 'none');
+  document.querySelectorAll('.set-ni').forEach(n => n.classList.remove('act'));
+  const st = document.getElementById('stab-' + tab);
+  if(st) st.style.display = 'block';
+  el.classList.add('act');
+}
+
+/* ===== Simulation ===== */
+function startSim(){
+  if(simRunning) return;
+  simRunning = true;
+  const bar = document.getElementById('simBar');
+  const progress = document.getElementById('simProgress');
+  const percent = document.getElementById('simPercent');
+  const logs = document.getElementById('simLogs');
+  progress.style.display = 'block';
+  percent.style.display = 'block';
+  let p = 0;
+  const int = setInterval(() => {
+    p += Math.random() * 8 + 2;
+    if(p > 100) p = 100;
+    bar.style.width = p + '%';
+    percent.textContent = Math.round(p) + '%';
+    if(Math.random() < 0.3){
+      const t = new Date().toLocaleTimeString();
+      const msgs = [
+        '<div class="log-line"><span class="log-time">'+t+'</span> [OK] 轮次 '+Math.round(p)+' · 红方推进 · 战损 '+(Math.random()*5).toFixed(1)+'%</div>',
+        '<div class="log-line warn"><span class="log-time">'+t+'</span> [WARN] 蓝方防线压力上升 · 触发增援</div>',
+        '<div class="log-line"><span class="log-time">'+t+'</span> [OK] 消耗比更新 · 当前 1:'+(Math.random()*2+1).toFixed(1)+'</div>',
+        '<div class="log-line info"><span class="log-time">'+t+'</span> [INFO] 态势评估中...</div>',
+      ];
+      logs.innerHTML += msgs[Math.floor(Math.random()*msgs.length)];
+    }
+    logs.scrollTop = logs.scrollHeight;
+    if(p >= 100){
+      clearInterval(int);
+      simRunning = false;
+      logs.innerHTML += '<div class="log-line" style="color:#10B981"><span class="log-time">'+new Date().toLocaleTimeString()+'</span> ✓ 推演完成 · 共 100 轮 · 结果已保存</div>';
+      logs.scrollTop = logs.scrollHeight;
+      toast('推演完成！结果已保存');
+    }
+  }, 200);
+}
+
+/* ===== Toast ===== */
+let tt;
+function toast(msg){
+  clearTimeout(tt);
+  const t = document.getElementById('toast');
+  t.textContent = '✓ ' + msg;
+  t.classList.add('show');
+  tt = setTimeout(() => t.classList.remove('show'), 2000);
+}
+</script>
+</body>
+</html>

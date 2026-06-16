@@ -122,14 +122,13 @@ class TestMemoryGraphSyncService:
 
     def test_sync_memory_to_graph_no_graph_manager(self, tmp_path):
         service = self._make_service(tmp_path)
-        with patch("odap.biz.platform.ontology_memory.graph_sync.memory_graph_sync.MemoryGraphSyncService.sync_memory_to_graph",
-                   wraps=service.sync_memory_to_graph):
-            with patch.dict("sys.modules", {"odap.infra.graph": None}):
-                result = service.sync_memory_to_graph("mem-3", memory_data={
-                    "memory_type": "episodic", "content": "test content",
-                    "importance": 0.7, "source_scenario_id": "sc-1"
-                })
-                assert result["status"] == "pending"
+        with patch("odap.infra.query.get_graph_write_proxy",
+                   side_effect=ImportError("GraphManager unavailable")):
+            result = service.sync_memory_to_graph("mem-3", memory_data={
+                "memory_type": "episodic", "content": "test content",
+                "importance": 0.7, "source_scenario_id": "sc-1"
+            })
+            assert result["status"] == "pending"
 
     def test_on_memory_consolidated(self, tmp_path):
         service = self._make_service(tmp_path)
@@ -195,9 +194,10 @@ class TestMemoryGraphSyncService:
 
     def test_sync_graph_to_memory_no_graph_manager(self, tmp_path):
         service = self._make_service(tmp_path)
-        with patch.dict("sys.modules", {"odap.infra.graph": None}):
-            result = service.sync_graph_to_memory()
-        assert result["status"] == "error"
+        with patch("odap.infra.query.get_query_service",
+                   side_effect=ImportError("GraphManager unavailable")):
+            with pytest.raises(ImportError, match="GraphManager unavailable"):
+                service.sync_graph_to_memory()
 
 
 class TestSharedMemoryStorage:

@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react';
 import { Collapse, Tag, Spin, Empty, Typography, Card, Space, Badge, Table } from 'antd';
 import { DatabaseOutlined, ApartmentOutlined, TeamOutlined, SafetyOutlined, CodeOutlined, FileTextOutlined, ProfileOutlined } from '@ant-design/icons';
-import { api } from '../../shared/services/api';
+import { api } from '@/modules/shared/services/api';
 
 const { Text, Paragraph } = Typography;
 
@@ -46,20 +46,20 @@ interface FieldDef {
 
 const TYPE_COLORS: Record<string, string> = {
   Location: 'orange',
-  MilitaryUnit: 'blue',
-  WeaponSystem: 'magenta',
-  CivilianInfrastructure: 'green',
-  BattleEvent: 'red',
+  OrganizationUnit: 'blue',
+  ToolSystem: 'magenta',
+  PublicAsset: 'green',
+  IncidentEvent: 'red',
   Mission: 'purple',
   Faction: 'cyan',
 };
 
 const TYPE_LABELS: Record<string, string> = {
   Location: '地理位置',
-  MilitaryUnit: '军事单位',
-  WeaponSystem: '武器系统',
-  CivilianInfrastructure: '民用设施',
-  BattleEvent: '领域事件',
+  OrganizationUnit: '组织单元',
+  ToolSystem: '工具系统',
+  PublicAsset: '公共资产',
+  IncidentEvent: '领域事件',
   Mission: '任务',
   Faction: '交战方',
 };
@@ -260,21 +260,20 @@ function renderDataClassSchema(name: string, schema: DataClassSchema) {
 
 function renderBusinessSection(title: string, icon: React.ReactNode, items: any[], color: string) {
   if (!items || items.length === 0) return null;
-  return (
-    <Collapse.Panel
-      key={title}
-      header={
-        <Space>
-          {icon}
-          <Text strong>{title}</Text>
-          <Badge count={items.length} style={{ backgroundColor: color }} />
-        </Space>
-      }
-    >
+  return {
+    key: title,
+    label: (
+      <Space>
+        {icon}
+        <Text strong>{title}</Text>
+        <Badge count={items.length} style={{ backgroundColor: color }} />
+      </Space>
+    ),
+    children: (
       <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
         {items.map((item: any, idx: number) => (
           <Card key={item.process_id || item.rule_id || item.logic_id || item.indicator_id || idx} size="small" style={{ borderLeft: `3px solid ${color}` }}>
-            <Space direction="vertical" size={2} style={{ width: '100%' }}>
+            <Space orientation="vertical" size={2} style={{ width: '100%' }}>
               <Space>
                 <Text strong>{item.display_name || item.name}</Text>
                 <Tag color={color}>{item.name}</Tag>
@@ -296,8 +295,8 @@ function renderBusinessSection(title: string, icon: React.ReactNode, items: any[
           </Card>
         ))}
       </div>
-    </Collapse.Panel>
-  );
+    ),
+  };
 }
 
 export function OntologySchemaViewer() {
@@ -322,9 +321,9 @@ export function OntologySchemaViewer() {
 
   if (loading) {
     return (
-      <div style={{ textAlign: 'center', padding: 60 }}>
-        <Spin description="加载本体定义..." />
-      </div>
+      <Spin spinning description="加载本体定义..." style={{ width: '100%' }}>
+        <div style={{ minHeight: 200 }} />
+      </Spin>
     );
   }
 
