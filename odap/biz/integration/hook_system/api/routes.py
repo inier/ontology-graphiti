@@ -14,6 +14,25 @@ router = APIRouter(prefix="/api/hooks", tags=["hooks"])
 hook_service = HookService()
 
 
+def _audit(action: str, user_id: str, result_status: str, result_message: str = "",
+           details: dict = None, service: str = "hook_system", workspace_id: str = "default"):
+    """审计便捷函数"""
+    try:
+        from odap.infra.security.unified_audit import log_audit
+        log_audit(
+            action=action,
+            resource="hook_system",
+            user=user_id,
+            service=service,
+            result_status=result_status,
+            result_message=result_message,
+            details=details or {},
+            workspace_id=workspace_id,
+        )
+    except Exception:
+        pass
+
+
 class RegisterHookRequest(BaseModel):
     name: str
     hook_type: str
@@ -31,6 +50,7 @@ class EnableHookRequest(BaseModel):
 @router.post("/register")
 async def register_hook(request: RegisterHookRequest,
     user=Depends(get_current_user)):
+    _uid = user.get("sub", "anonymous") if isinstance(user, dict) else "anonymous"
     try:
         try:
             hook_type = HookType(request.hook_type)
@@ -65,16 +85,19 @@ async def register_hook(request: RegisterHookRequest,
         except Exception as e:
             logging.getLogger(__name__).debug("Hook adapter registration fallback: %s", e)
 
+        _audit("hook_system_register", _uid, "success", details={"name": request.name, "hook_type": request.hook_type})
         return result
     except HTTPException:
         raise
     except Exception as e:
+        _audit("hook_system_register_failed", _uid, "failure", str(e), details={"name": request.name})
         raise HTTPException(status_code=500, detail=str(e))
 
 
 @router.delete("/{hook_id}")
 async def unregister_hook(hook_id: str,
     user=Depends(get_current_user)):
+    _uid = user.get("sub", "anonymous") if isinstance(user, dict) else "anonymous"
     try:
         try:
             from odap.biz.integration.openharness_agent.adapter.hook_adapter import HookAdapter
@@ -88,10 +111,12 @@ async def unregister_hook(hook_id: str,
         hook = hook_service.get_hook(hook_id)
         if hook.get("status") == "error":
             raise HTTPException(status_code=404, detail=hook.get("message", "Hook not found"))
+        _audit("hook_system_unregister", _uid, "success", details={"hook_id": hook_id})
         return {"status": "success", "hook_id": hook_id}
     except HTTPException:
         raise
     except Exception as e:
+        _audit("hook_system_unregister_failed", _uid, "failure", str(e), details={"hook_id": hook_id})
         raise HTTPException(status_code=500, detail=str(e))
 
 
@@ -102,6 +127,7 @@ async def list_hooks(
     hook_type: Optional[str] = None,
     user=Depends(get_current_user),
 ):
+    _uid = user.get("sub", "anonymous") if isinstance(user, dict) else "anonymous"
     try:
         filters = {}
         if hook_type:
@@ -110,32 +136,39 @@ async def list_hooks(
     except HTTPException:
         raise
     except Exception as e:
+        _audit("hook_system_list_failed", _uid, "failure", str(e))
         raise HTTPException(status_code=500, detail=str(e))
 
 
 @router.post("/{hook_id}/enable")
 async def enable_hook(hook_id: str,
     user=Depends(get_current_user)):
+    _uid = user.get("sub", "anonymous") if isinstance(user, dict) else "anonymous"
     try:
         hook = hook_service.get_hook(hook_id)
         if hook.get("status") == "error":
             raise HTTPException(status_code=404, detail=hook.get("message", "Hook not found"))
+        _audit("hook_system_enable", _uid, "success", details={"hook_id": hook_id})
         return {"status": "success", "hook_id": hook_id, "enabled": True}
     except HTTPException:
         raise
     except Exception as e:
+        _audit("hook_system_enable_failed", _uid, "failure", str(e), details={"hook_id": hook_id})
         raise HTTPException(status_code=500, detail=str(e))
 
 
 @router.post("/{hook_id}/disable")
 async def disable_hook(hook_id: str,
     user=Depends(get_current_user)):
+    _uid = user.get("sub", "anonymous") if isinstance(user, dict) else "anonymous"
     try:
         hook = hook_service.get_hook(hook_id)
         if hook.get("status") == "error":
             raise HTTPException(status_code=404, detail=hook.get("message", "Hook not found"))
+        _audit("hook_system_disable", _uid, "success", details={"hook_id": hook_id})
         return {"status": "success", "hook_id": hook_id, "enabled": False}
     except HTTPException:
         raise
     except Exception as e:
+        _audit("hook_system_disable_failed", _uid, "failure", str(e), details={"hook_id": hook_id})
         raise HTTPException(status_code=500, detail=str(e))

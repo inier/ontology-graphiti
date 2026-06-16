@@ -6,6 +6,24 @@ from .auth_service import AuthService
 from .auth_models import LoginRequest, TokenPair, UserInfo, GlobalRole
 from .jwt_auth import decode_token, security, get_current_user, verify_admin
 
+
+def _audit(action: str, user: str, result_status: str, result_message: str = "",
+           details: dict = None, service: str = "auth"):
+    """认证审计便捷函数"""
+    try:
+        from odap.infra.security.unified_audit import log_audit
+        log_audit(
+            action=action,
+            resource="auth",
+            user=user,
+            service=service,
+            result_status=result_status,
+            result_message=result_message,
+            details=details or {},
+        )
+    except Exception:
+        pass  # 审计写入失败不应阻断业务
+
 router = APIRouter(prefix="/api/auth", tags=["auth"])
 
 auth_service = AuthService()
@@ -53,7 +71,11 @@ async def login(request: LoginRequest, req: Request):
     ip_address = req.client.host if req.client else ""
     result = auth_service.login(request.username, request.password, ip_address)
     if not result:
+        _audit("login_failed", request.username, "failure",
+               "Invalid credentials", {"client_ip": ip_address})
         raise HTTPException(status_code=401, detail="Invalid credentials")
+    _audit("login_success", request.username, "success",
+           "User logged in", {"client_ip": ip_address})
     user_data = auth_service._users.get(request.username, {})
     global_role = user_data.get("global_role", "")
     return {
@@ -96,11 +118,18 @@ async def sso_callback(provider: str, data: SSOCallbackRequest):
             redirect_uri=data.redirect_uri,
         )
         if not result:
+            _audit("sso_failed", "unknown", "failure",
+                   f"SSO authentication failed for provider: {provider}",
+                   {"provider": provider})
             raise HTTPException(status_code=401, detail="SSO认证失败")
+        _audit("sso_success", "sso_user", "success",
+               f"SSO login via {provider}", {"provider": provider})
         return result.model_dump()
     except HTTPException:
         raise
     except Exception as e:
+        _audit("sso_error", "unknown", "failure",
+               f"SSO error: {str(e)[:200]}", {"provider": provider, "error": str(e)[:200]})
         raise HTTPException(status_code=500, detail=str(e))
 
 
@@ -108,7 +137,9 @@ async def sso_callback(provider: str, data: SSOCallbackRequest):
 async def refresh(request: RefreshRequest):
     result = auth_service.refresh(request.refresh_token)
     if not result:
+        _audit("token_refresh_failed", "unknown", "failure", "Invalid or expired refresh token")
         raise HTTPException(status_code=401, detail="Invalid refresh token")
+    _audit("token_refreshed", "unknown", "success", "Token refreshed")
     return result.model_dump()
 
 
@@ -116,7 +147,9 @@ async def refresh(request: RefreshRequest):
 async def logout(request: LogoutRequest):
     success = auth_service.logout(request.refresh_token)
     if not success:
+        _audit("logout_failed", "unknown", "failure", "Logout failed - token not found")
         raise HTTPException(status_code=400, detail="Logout failed")
+    _audit("logout_success", "unknown", "success", "User logged out")
     return {"status": "ok", "message": "Logged out"}
 
 
@@ -143,9 +176,12 @@ async def list_users(admin: dict = Depends(verify_admin)):
 
 @router.post("/users")
 async def create_user(request: CreateUserRequest, admin: dict = Depends(verify_admin)):
+    admin_user = admin.get("name", admin.get("sub", "admin"))
     try:
         role = GlobalRole(request.global_role)
     except ValueError:
+        _audit("user_create_failed", admin_user, "failure",
+               f"Invalid role: {request.global_role}", {"target_username": request.username})
         raise HTTPException(status_code=400, detail=f"Invalid role: {request.global_role}")
     user = auth_service.register_user(
         username=request.username,
@@ -154,7 +190,12 @@ async def create_user(request: CreateUserRequest, admin: dict = Depends(verify_a
         role=role,
     )
     if not user:
+        _audit("user_create_failed", admin_user, "failure",
+               "Username already exists", {"target_username": request.username})
         raise HTTPException(status_code=409, detail="Username already exists")
+    _audit("user_created", admin_user, "success",
+           f"Created user {request.username} with role {request.global_role}",
+           {"target_username": request.username, "target_role": request.global_role})
     return {
         "id": user.id,
         "username": user.username,
@@ -166,10 +207,13 @@ async def create_user(request: CreateUserRequest, admin: dict = Depends(verify_a
 
 @router.put("/users/{user_id}")
 async def update_user(user_id: str, request: UpdateUserRequest, admin: dict = Depends(verify_admin)):
+    admin_user = admin.get("name", admin.get("sub", "admin"))
     if request.global_role:
         try:
             GlobalRole(request.global_role)
         except ValueError:
+            _audit("user_update_failed", admin_user, "failure",
+                   f"Invalid role: {request.global_role}", {"target_user_id": user_id})
             raise HTTPException(status_code=400, detail=f"Invalid role: {request.global_role}")
     result = auth_service.update_user(
         user_id,
@@ -179,17 +223,28 @@ async def update_user(user_id: str, request: UpdateUserRequest, admin: dict = De
         password=request.password,
     )
     if not result:
+        _audit("user_update_failed", admin_user, "failure",
+               "User not found", {"target_user_id": user_id})
         raise HTTPException(status_code=404, detail="User not found")
+    _audit("user_updated", admin_user, "success",
+           f"Updated user {user_id}", {"target_user_id": user_id, "changes": request.model_dump(exclude_none=True)})
     result["role_id"] = GLOBAL_ROLE_TO_ID.get(result.get("global_role", ""), "5")
     return result
 
 
 @router.delete("/users/{user_id}")
 async def delete_user(user_id: str, admin: dict = Depends(verify_admin)):
+    admin_user = admin.get("name", admin.get("sub", "admin"))
     current_user_id = admin.get("sub", "")
     if user_id == current_user_id:
+        _audit("user_delete_failed", admin_user, "failure",
+               "Attempted to delete self", {"target_user_id": user_id})
         raise HTTPException(status_code=400, detail="Cannot delete yourself")
     success = auth_service.delete_user(user_id)
     if not success:
+        _audit("user_delete_failed", admin_user, "failure",
+               "User not found", {"target_user_id": user_id})
         raise HTTPException(status_code=404, detail="User not found")
+    _audit("user_deleted", admin_user, "success",
+           f"Deleted user {user_id}", {"target_user_id": user_id})
     return {"status": "ok", "message": "User deleted"}

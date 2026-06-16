@@ -36,11 +36,31 @@ from odap.biz.core.ontology.design.services.version_service import OntologyVersi
 version_manager = OntologyVersionManager()
 
 
+def _audit(action: str, user_id: str, result_status: str, result_message: str = "",
+           details: dict = None, service: str = "workspace", workspace_id: str = "default"):
+    """工作空间审计便捷函数"""
+    try:
+        from odap.infra.security.unified_audit import log_audit
+        log_audit(
+            action=action,
+            resource="workspace",
+            user=user_id,
+            service=service,
+            result_status=result_status,
+            result_message=result_message,
+            details=details or {},
+            workspace_id=workspace_id,
+        )
+    except Exception:
+        pass
+
+
 # 工作空间相关路由
 @router.post("", response_model=WorkspaceResponse)
 async def create_workspace(request: CreateWorkspaceRequest,
     user=Depends(get_current_user)):
     """创建工作空间"""
+    _uid = user.get("sub", "anonymous") if isinstance(user, dict) else "anonymous"
     try:
         result = workspace_service.create_workspace(
             name=request.name,
@@ -49,30 +69,37 @@ async def create_workspace(request: CreateWorkspaceRequest,
             config=request.config,
             owner=request.owner
         )
+        _audit("workspace_create", _uid, "success", details={"name": request.name}, workspace_id=result.get("workspace_id", "default"))
         return WorkspaceResponse(**result)
     except HTTPException:
         raise
     except Exception as e:
+        _audit("workspace_create_failed", _uid, "failure", str(e), details={"name": request.name})
         raise HTTPException(status_code=500, detail=str(e))
 
 
 @router.put("/{workspace_id}/isolation")
 async def update_isolation_level(workspace_id: str, request: UpdateIsolationLevelRequest,
     user=Depends(get_current_user)):
+    _uid = user.get("sub", "anonymous") if isinstance(user, dict) else "anonymous"
     try:
         result = workspace_service.update_isolation_level(workspace_id, request.isolation_level.value)
         if result.get("status") == "error":
+            _audit("workspace_update_isolation_failed", _uid, "failure", result.get("message", ""), workspace_id=workspace_id)
             raise HTTPException(status_code=400, detail=result.get("message"))
+        _audit("workspace_update_isolation", _uid, "success", workspace_id=workspace_id)
         return result
     except HTTPException:
         raise
     except Exception as e:
+        _audit("workspace_update_isolation_failed", _uid, "failure", str(e), workspace_id=workspace_id)
         raise HTTPException(status_code=500, detail=str(e))
 
 
 @router.post("/{workspace_id}/export")
 async def export_workspace_v2(workspace_id: str, request: ExportWorkspaceRequest = None,
     user=Depends(get_current_user)):
+    _uid = user.get("sub", "anonymous") if isinstance(user, dict) else "anonymous"
     try:
         if request is None:
             request = ExportWorkspaceRequest(workspace_id=workspace_id)
@@ -84,17 +111,21 @@ async def export_workspace_v2(workspace_id: str, request: ExportWorkspaceRequest
             created_by=request.created_by if request else "system",
         )
         if result.get("status") == "error":
+            _audit("workspace_export_failed", _uid, "failure", result.get("message", ""), workspace_id=workspace_id)
             raise HTTPException(status_code=400, detail=result.get("message"))
+        _audit("workspace_export", _uid, "success", workspace_id=workspace_id)
         return result
     except HTTPException:
         raise
     except Exception as e:
+        _audit("workspace_export_failed", _uid, "failure", str(e), workspace_id=workspace_id)
         raise HTTPException(status_code=500, detail=str(e))
 
 
 @router.post("/{workspace_id}/import")
 async def import_workspace_v2(workspace_id: str, request: ImportWorkspaceRequest,
     user=Depends(get_current_user)):
+    _uid = user.get("sub", "anonymous") if isinstance(user, dict) else "anonymous"
     try:
         result = workspace_service.import_workspace(
             import_path=request.import_path,
@@ -103,25 +134,32 @@ async def import_workspace_v2(workspace_id: str, request: ImportWorkspaceRequest
             created_by=request.created_by,
         )
         if result.get("status") == "error":
+            _audit("workspace_import_failed", _uid, "failure", result.get("message", ""), workspace_id=workspace_id)
             raise HTTPException(status_code=400, detail=result.get("message"))
+        _audit("workspace_import", _uid, "success", workspace_id=workspace_id)
         return result
     except HTTPException:
         raise
     except Exception as e:
+        _audit("workspace_import_failed", _uid, "failure", str(e), workspace_id=workspace_id)
         raise HTTPException(status_code=500, detail=str(e))
 
 
 @router.post("/{workspace_id}/scenarios/{scenario_id}/activate")
 async def activate_scenario(workspace_id: str, scenario_id: str,
     user=Depends(get_current_user)):
+    _uid = user.get("sub", "anonymous") if isinstance(user, dict) else "anonymous"
     try:
         result = scenario_service.activate_scenario(workspace_id, scenario_id)
         if result.get("status") == "error":
+            _audit("scenario_activate_failed", _uid, "failure", result.get("message", ""), workspace_id=workspace_id)
             raise HTTPException(status_code=400, detail=result.get("message"))
+        _audit("scenario_activate", _uid, "success", workspace_id=workspace_id)
         return result
     except HTTPException:
         raise
     except Exception as e:
+        _audit("scenario_activate_failed", _uid, "failure", str(e), workspace_id=workspace_id)
         raise HTTPException(status_code=500, detail=str(e))
 
 
@@ -129,14 +167,17 @@ async def activate_scenario(workspace_id: str, scenario_id: str,
 async def get_workspace(workspace_id: str,
     user=Depends(get_current_user)):
     """获取工作空间详情"""
+    _uid = user.get("sub", "anonymous") if isinstance(user, dict) else "anonymous"
     try:
         result = workspace_service.get_workspace(workspace_id)
         if result.get("status") == "error":
             raise HTTPException(status_code=404, detail=result.get("message"))
+        _audit("workspace_get", _uid, "success", workspace_id=workspace_id)
         return WorkspaceDetailResponse(**result)
     except HTTPException:
         raise
     except Exception as e:
+        _audit("workspace_get_failed", _uid, "failure", str(e), workspace_id=workspace_id)
         raise HTTPException(status_code=500, detail=str(e))
 
 
@@ -144,6 +185,7 @@ async def get_workspace(workspace_id: str,
 async def update_workspace(workspace_id: str, request: UpdateWorkspaceRequest,
     user=Depends(get_current_user)):
     """更新工作空间"""
+    _uid = user.get("sub", "anonymous") if isinstance(user, dict) else "anonymous"
     try:
         updates = {}
         if request.name is not None:
@@ -156,14 +198,17 @@ async def update_workspace(workspace_id: str, request: UpdateWorkspaceRequest,
             updates["config"] = request.config
         if request.tags is not None:
             updates["tags"] = request.tags
-        
+
         result = workspace_service.update_workspace(workspace_id, updates)
         if result.get("status") == "error":
+            _audit("workspace_update_failed", _uid, "failure", result.get("message", ""), workspace_id=workspace_id)
             raise HTTPException(status_code=404, detail=result.get("message"))
+        _audit("workspace_update", _uid, "success", workspace_id=workspace_id)
         return WorkspaceResponse(**result)
     except HTTPException:
         raise
     except Exception as e:
+        _audit("workspace_update_failed", _uid, "failure", str(e), workspace_id=workspace_id)
         raise HTTPException(status_code=500, detail=str(e))
 
 
@@ -171,14 +216,18 @@ async def update_workspace(workspace_id: str, request: UpdateWorkspaceRequest,
 async def delete_workspace(workspace_id: str,
     user=Depends(get_current_user)):
     """删除工作空间"""
+    _uid = user.get("sub", "anonymous") if isinstance(user, dict) else "anonymous"
     try:
         result = workspace_service.delete_workspace(workspace_id)
         if result.get("status") == "error":
+            _audit("workspace_delete_failed", _uid, "failure", result.get("message", ""), workspace_id=workspace_id)
             raise HTTPException(status_code=404, detail=result.get("message"))
+        _audit("workspace_delete", _uid, "success", workspace_id=workspace_id)
         return SuccessResponse(message=result.get("message"))
     except HTTPException:
         raise
     except Exception as e:
+        _audit("workspace_delete_failed", _uid, "failure", str(e), workspace_id=workspace_id)
         raise HTTPException(status_code=500, detail=str(e))
 
 
@@ -186,6 +235,7 @@ async def delete_workspace(workspace_id: str,
 async def get_workspace_deletion_preview(workspace_id: str,
     user=Depends(get_current_user)):
     """获取工作空间删除预览（将级联删除的资源类型及数量）"""
+    _uid = user.get("sub", "anonymous") if isinstance(user, dict) else "anonymous"
     try:
         result = workspace_service.get_workspace_deletion_preview(workspace_id)
         if result.get("status") == "error":
@@ -194,6 +244,7 @@ async def get_workspace_deletion_preview(workspace_id: str,
     except HTTPException:
         raise
     except Exception as e:
+        _audit("workspace_deletion_preview_failed", _uid, "failure", str(e), workspace_id=workspace_id)
         raise HTTPException(status_code=500, detail=str(e))
 
 
@@ -201,15 +252,18 @@ async def get_workspace_deletion_preview(workspace_id: str,
 async def generate_sample_data(workspace_id: str,
     user=Depends(get_current_user)):
     """为工作空间生成示例数据"""
+    _uid = user.get("sub", "anonymous") if isinstance(user, dict) else "anonymous"
     try:
         workspace = workspace_service.get_workspace(workspace_id)
         if workspace.get("status") == "error":
             raise HTTPException(status_code=404, detail="Workspace not found")
         result = sample_data_service.generate_sample_data(workspace_id)
+        _audit("workspace_sample_data", _uid, "success", workspace_id=workspace_id)
         return result
     except HTTPException:
         raise
     except Exception as e:
+        _audit("workspace_sample_data_failed", _uid, "failure", str(e), workspace_id=workspace_id)
         raise HTTPException(status_code=500, detail=str(e))
 
 
@@ -232,6 +286,7 @@ async def list_workspaces(
     except HTTPException:
         raise
     except Exception as e:
+        _audit("workspace_list_failed", "anonymous", "failure", str(e))
         raise HTTPException(status_code=500, detail=str(e))
 
 
@@ -239,14 +294,17 @@ async def list_workspaces(
 async def activate_workspace(workspace_id: str,
     user=Depends(get_current_user)):
     """激活工作空间"""
+    _uid = user.get("sub", "anonymous") if isinstance(user, dict) else "anonymous"
     try:
         result = workspace_service.activate_workspace(workspace_id)
         if result.get("status") == "error":
             raise HTTPException(status_code=404, detail=result.get("message"))
+        _audit("workspace_activate", _uid, "success", workspace_id=workspace_id)
         return SuccessResponse(message="Workspace activated")
     except HTTPException:
         raise
     except Exception as e:
+        _audit("workspace_activate_failed", _uid, "failure", str(e), workspace_id=workspace_id)
         raise HTTPException(status_code=500, detail=str(e))
 
 
@@ -254,14 +312,17 @@ async def activate_workspace(workspace_id: str,
 async def deactivate_workspace(workspace_id: str,
     user=Depends(get_current_user)):
     """停用工作空间"""
+    _uid = user.get("sub", "anonymous") if isinstance(user, dict) else "anonymous"
     try:
         result = workspace_service.deactivate_workspace(workspace_id)
         if result.get("status") == "error":
             raise HTTPException(status_code=404, detail=result.get("message"))
+        _audit("workspace_deactivate", _uid, "success", workspace_id=workspace_id)
         return SuccessResponse(message="Workspace deactivated")
     except HTTPException:
         raise
     except Exception as e:
+        _audit("workspace_deactivate_failed", _uid, "failure", str(e), workspace_id=workspace_id)
         raise HTTPException(status_code=500, detail=str(e))
 
 
@@ -269,14 +330,17 @@ async def deactivate_workspace(workspace_id: str,
 async def add_member(workspace_id: str, user_id: str,
     user=Depends(get_current_user)):
     """添加成员"""
+    _uid = user.get("sub", "anonymous") if isinstance(user, dict) else "anonymous"
     try:
         result = workspace_service.add_member(workspace_id, user_id)
         if result.get("status") == "error":
             raise HTTPException(status_code=404, detail=result.get("message"))
+        _audit("workspace_add_member", _uid, "success", details={"target_user_id": user_id}, workspace_id=workspace_id)
         return SuccessResponse(message="Member added")
     except HTTPException:
         raise
     except Exception as e:
+        _audit("workspace_add_member_failed", _uid, "failure", str(e), details={"target_user_id": user_id}, workspace_id=workspace_id)
         raise HTTPException(status_code=500, detail=str(e))
 
 
@@ -284,14 +348,17 @@ async def add_member(workspace_id: str, user_id: str,
 async def remove_member(workspace_id: str, user_id: str,
     user=Depends(get_current_user)):
     """移除成员"""
+    _uid = user.get("sub", "anonymous") if isinstance(user, dict) else "anonymous"
     try:
         result = workspace_service.remove_member(workspace_id, user_id)
         if result.get("status") == "error":
             raise HTTPException(status_code=404, detail=result.get("message"))
+        _audit("workspace_remove_member", _uid, "success", details={"target_user_id": user_id}, workspace_id=workspace_id)
         return SuccessResponse(message="Member removed")
     except HTTPException:
         raise
     except Exception as e:
+        _audit("workspace_remove_member_failed", _uid, "failure", str(e), details={"target_user_id": user_id}, workspace_id=workspace_id)
         raise HTTPException(status_code=500, detail=str(e))
 
 
@@ -300,6 +367,7 @@ async def remove_member(workspace_id: str, user_id: str,
 async def create_isolation_policy(request: CreateIsolationPolicyRequest,
     user=Depends(get_current_user)):
     """创建隔离策略"""
+    _uid = user.get("sub", "anonymous") if isinstance(user, dict) else "anonymous"
     try:
         result = isolation_service.create_isolation_policy(
             workspace_id=request.workspace_id,
@@ -307,10 +375,12 @@ async def create_isolation_policy(request: CreateIsolationPolicyRequest,
             resource_quota=request.resource_quota,
             network_policy=request.network_policy
         )
+        _audit("isolation_policy_create", _uid, "success", workspace_id=request.workspace_id)
         return IsolationPolicyResponse(**result)
     except HTTPException:
         raise
     except Exception as e:
+        _audit("isolation_policy_create_failed", _uid, "failure", str(e), workspace_id=request.workspace_id)
         raise HTTPException(status_code=500, detail=str(e))
 
 
@@ -318,6 +388,7 @@ async def create_isolation_policy(request: CreateIsolationPolicyRequest,
 async def get_isolation_policy(workspace_id: str,
     user=Depends(get_current_user)):
     """获取隔离策略"""
+    _uid = user.get("sub", "anonymous") if isinstance(user, dict) else "anonymous"
     try:
         result = isolation_service.get_isolation_policy(workspace_id)
         if result.get("status") == "error":
@@ -326,6 +397,7 @@ async def get_isolation_policy(workspace_id: str,
     except HTTPException:
         raise
     except Exception as e:
+        _audit("isolation_policy_get_failed", _uid, "failure", str(e), workspace_id=workspace_id)
         raise HTTPException(status_code=500, detail=str(e))
 
 
@@ -333,12 +405,14 @@ async def get_isolation_policy(workspace_id: str,
 async def get_resource_usage(workspace_id: str,
     user=Depends(get_current_user)):
     """获取资源使用情况"""
+    _uid = user.get("sub", "anonymous") if isinstance(user, dict) else "anonymous"
     try:
         result = isolation_service.get_resource_usage(workspace_id)
         return ResourceUsageResponse(**result)
     except HTTPException:
         raise
     except Exception as e:
+        _audit("resource_usage_get_failed", _uid, "failure", str(e), workspace_id=workspace_id)
         raise HTTPException(status_code=500, detail=str(e))
 
 
@@ -346,14 +420,18 @@ async def get_resource_usage(workspace_id: str,
 async def enforce_isolation(workspace_id: str,
     user=Depends(get_current_user)):
     """执行隔离"""
+    _uid = user.get("sub", "anonymous") if isinstance(user, dict) else "anonymous"
     try:
         result = isolation_service.enforce_isolation(workspace_id)
         if result.get("status") == "error":
+            _audit("isolation_enforce_failed", _uid, "failure", result.get("message", ""), workspace_id=workspace_id)
             raise HTTPException(status_code=400, detail=result.get("message"))
+        _audit("isolation_enforce", _uid, "success", workspace_id=workspace_id)
         return SuccessResponse(message=result.get("message"))
     except HTTPException:
         raise
     except Exception as e:
+        _audit("isolation_enforce_failed", _uid, "failure", str(e), workspace_id=workspace_id)
         raise HTTPException(status_code=500, detail=str(e))
 
 
@@ -362,6 +440,7 @@ async def enforce_isolation(workspace_id: str,
 async def export_workspace(request: ExportWorkspaceRequest,
     user=Depends(get_current_user)):
     """导出工作空间"""
+    _uid = user.get("sub", "anonymous") if isinstance(user, dict) else "anonymous"
     try:
         result = workspace_service.export_workspace(
             workspace_id=request.workspace_id,
@@ -370,10 +449,12 @@ async def export_workspace(request: ExportWorkspaceRequest,
             include_data=request.include_data,
             created_by=request.created_by
         )
+        _audit("workspace_export", _uid, "success", workspace_id=request.workspace_id)
         return ImportExportResponse(**result)
     except HTTPException:
         raise
     except Exception as e:
+        _audit("workspace_export_failed", _uid, "failure", str(e), workspace_id=request.workspace_id)
         raise HTTPException(status_code=500, detail=str(e))
 
 
@@ -381,6 +462,7 @@ async def export_workspace(request: ExportWorkspaceRequest,
 async def import_workspace(request: ImportWorkspaceRequest,
     user=Depends(get_current_user)):
     """导入工作空间"""
+    _uid = user.get("sub", "anonymous") if isinstance(user, dict) else "anonymous"
     try:
         result = workspace_service.import_workspace(
             import_path=request.import_path,
@@ -388,10 +470,12 @@ async def import_workspace(request: ImportWorkspaceRequest,
             overwrite=request.overwrite,
             created_by=request.created_by
         )
+        _audit("workspace_import", _uid, "success")
         return ImportExportResponse(**result)
     except HTTPException:
         raise
     except Exception as e:
+        _audit("workspace_import_failed", _uid, "failure", str(e))
         raise HTTPException(status_code=500, detail=str(e))
 
 
@@ -399,6 +483,7 @@ async def import_workspace(request: ImportWorkspaceRequest,
 async def get_import_export_record(record_id: str,
     user=Depends(get_current_user)):
     """获取导入导出记录"""
+    _uid = user.get("sub", "anonymous") if isinstance(user, dict) else "anonymous"
     try:
         record = import_export_manager.get_import_export_record(record_id)
         if not record:
@@ -415,6 +500,7 @@ async def get_import_export_record(record_id: str,
     except HTTPException:
         raise
     except Exception as e:
+        _audit("import_export_record_get_failed", _uid, "failure", str(e))
         raise HTTPException(status_code=500, detail=str(e))
 
 
@@ -427,6 +513,7 @@ async def list_import_export_records(
     status: Optional[ImportExportStatus] = None,
     user=Depends(get_current_user)):
     """列出导入导出记录"""
+    _uid = user.get("sub", "anonymous") if isinstance(user, dict) else "anonymous"
     try:
         records = import_export_manager.list_import_export_records(
             workspace_id=workspace_id,
@@ -457,6 +544,7 @@ async def list_import_export_records(
     except HTTPException:
         raise
     except Exception as e:
+        _audit("import_export_records_list_failed", _uid, "failure", str(e))
         raise HTTPException(status_code=500, detail=str(e))
 
 
@@ -464,14 +552,18 @@ async def list_import_export_records(
 async def cancel_import_export(record_id: str,
     user=Depends(get_current_user)):
     """取消导入导出"""
+    _uid = user.get("sub", "anonymous") if isinstance(user, dict) else "anonymous"
     try:
         success = import_export_manager.cancel_import_export(record_id)
         if not success:
+            _audit("import_export_cancel_failed", _uid, "failure", "Cannot cancel operation")
             raise HTTPException(status_code=400, detail="Cannot cancel operation")
+        _audit("import_export_cancel", _uid, "success")
         return SuccessResponse(message="Operation cancelled")
     except HTTPException:
         raise
     except Exception as e:
+        _audit("import_export_cancel_failed", _uid, "failure", str(e))
         raise HTTPException(status_code=500, detail=str(e))
 
 
@@ -480,6 +572,7 @@ async def cancel_import_export(record_id: str,
 async def create_scenario(workspace_id: str, request: CreateScenarioRequest,
     user=Depends(get_current_user)):
     """创建场景"""
+    _uid = user.get("sub", "anonymous") if isinstance(user, dict) else "anonymous"
     try:
         result = scenario_service.create_scenario(
             workspace_id=workspace_id,
@@ -489,10 +582,12 @@ async def create_scenario(workspace_id: str, request: CreateScenarioRequest,
             status=request.status or "draft",
             tags=request.tags
         )
+        _audit("scenario_create", _uid, "success", details={"name": request.name}, workspace_id=workspace_id)
         return ScenarioResponse(**result)
     except HTTPException:
         raise
     except Exception as e:
+        _audit("scenario_create_failed", _uid, "failure", str(e), details={"name": request.name}, workspace_id=workspace_id)
         raise HTTPException(status_code=500, detail=str(e))
 
 
@@ -503,6 +598,7 @@ async def get_scenarios(
     page_size: int = Query(10, ge=1, le=100),
     user=Depends(get_current_user)):
     """获取工作空间下的所有场景"""
+    _uid = user.get("sub", "anonymous") if isinstance(user, dict) else "anonymous"
     try:
         scenarios = scenario_service.get_scenarios_by_workspace(workspace_id, page, page_size)
         return ScenarioListResponse(
@@ -513,6 +609,7 @@ async def get_scenarios(
     except HTTPException:
         raise
     except Exception as e:
+        _audit("scenario_list_failed", _uid, "failure", str(e), workspace_id=workspace_id)
         raise HTTPException(status_code=500, detail=str(e))
 
 
@@ -520,6 +617,7 @@ async def get_scenarios(
 async def get_scenario(workspace_id: str, scenario_id: str,
     user=Depends(get_current_user)):
     """获取场景详情"""
+    _uid = user.get("sub", "anonymous") if isinstance(user, dict) else "anonymous"
     try:
         scenario = scenario_service.get_scenario(scenario_id)
         if not scenario:
@@ -534,6 +632,7 @@ async def get_scenario(workspace_id: str, scenario_id: str,
     except HTTPException:
         raise
     except Exception as e:
+        _audit("scenario_get_failed", _uid, "failure", str(e), workspace_id=workspace_id)
         raise HTTPException(status_code=500, detail=str(e))
 
 
@@ -541,6 +640,7 @@ async def get_scenario(workspace_id: str, scenario_id: str,
 async def update_scenario(workspace_id: str, scenario_id: str, request: UpdateScenarioRequest,
     user=Depends(get_current_user)):
     """更新场景"""
+    _uid = user.get("sub", "anonymous") if isinstance(user, dict) else "anonymous"
     try:
         # 检查场景是否存在且属于该工作空间
         scenario = scenario_service.get_scenario(scenario_id)
@@ -564,10 +664,12 @@ async def update_scenario(workspace_id: str, scenario_id: str, request: UpdateSc
             updates["ontology_id"] = request.ontology_id
         
         result = scenario_service.update_scenario(scenario_id, updates)
+        _audit("scenario_update", _uid, "success", workspace_id=workspace_id)
         return ScenarioResponse(**result)
     except HTTPException:
         raise
     except Exception as e:
+        _audit("scenario_update_failed", _uid, "failure", str(e), workspace_id=workspace_id)
         raise HTTPException(status_code=500, detail=str(e))
 
 
@@ -575,6 +677,7 @@ async def update_scenario(workspace_id: str, scenario_id: str, request: UpdateSc
 async def delete_scenario(workspace_id: str, scenario_id: str,
     user=Depends(get_current_user)):
     """删除场景"""
+    _uid = user.get("sub", "anonymous") if isinstance(user, dict) else "anonymous"
     try:
         # 检查场景是否存在且属于该工作空间
         scenario = scenario_service.get_scenario(scenario_id)
@@ -592,10 +695,12 @@ async def delete_scenario(workspace_id: str, scenario_id: str,
         success = scenario_service.delete_scenario(scenario_id)
         if not success:
             raise HTTPException(status_code=404, detail="Scenario not found")
+        _audit("scenario_delete", _uid, "success", workspace_id=workspace_id)
         return SuccessResponse(message="Scenario deleted")
     except HTTPException:
         raise
     except Exception as e:
+        _audit("scenario_delete_failed", _uid, "failure", str(e), workspace_id=workspace_id)
         raise HTTPException(status_code=500, detail=str(e))
 
 
@@ -603,6 +708,7 @@ async def delete_scenario(workspace_id: str, scenario_id: str,
 async def build_graph_for_scenario(workspace_id: str, scenario_id: str,
     user=Depends(get_current_user)):
     """从场景数据构建图谱"""
+    _uid = user.get("sub", "anonymous") if isinstance(user, dict) else "anonymous"
     try:
         scenario = scenario_service.get_scenario(scenario_id)
         if not scenario or scenario.get("workspace_id") != workspace_id:
@@ -610,11 +716,14 @@ async def build_graph_for_scenario(workspace_id: str, scenario_id: str,
         
         result = scenario_service.build_graph_from_scenario(scenario_id)
         if result.get("status") == "error":
+            _audit("scenario_build_graph_failed", _uid, "failure", result.get("message", ""), workspace_id=workspace_id)
             raise HTTPException(status_code=400, detail=result.get("message"))
+        _audit("scenario_build_graph", _uid, "success", workspace_id=workspace_id)
         return result
     except HTTPException:
         raise
     except Exception as e:
+        _audit("scenario_build_graph_failed", _uid, "failure", str(e), workspace_id=workspace_id)
         raise HTTPException(status_code=500, detail=str(e))
 
 
@@ -622,6 +731,7 @@ async def build_graph_for_scenario(workspace_id: str, scenario_id: str,
 async def bind_ontology_to_scenario(workspace_id: str, scenario_id: str, ontology_id: str, request: BindOntologyRequest = None,
     user=Depends(get_current_user)):
     """绑定本体到场景"""
+    _uid = user.get("sub", "anonymous") if isinstance(user, dict) else "anonymous"
     try:
         scenario = scenario_service.get_scenario(scenario_id)
         if not scenario:
@@ -632,11 +742,14 @@ async def bind_ontology_to_scenario(workspace_id: str, scenario_id: str, ontolog
         bound_by = request.bound_by if request else "system"
         result = scenario_service.bind_ontology(scenario_id, ontology_id, bound_by)
         if result.get("status") == "error":
+            _audit("scenario_bind_ontology_failed", _uid, "failure", result.get("message", ""), workspace_id=workspace_id)
             raise HTTPException(status_code=400, detail=result.get("message"))
+        _audit("scenario_bind_ontology", _uid, "success", details={"ontology_id": ontology_id}, workspace_id=workspace_id)
         return OntologyBindingResponse(**result)
     except HTTPException:
         raise
     except Exception as e:
+        _audit("scenario_bind_ontology_failed", _uid, "failure", str(e), workspace_id=workspace_id)
         raise HTTPException(status_code=500, detail=str(e))
 
 
@@ -644,6 +757,7 @@ async def bind_ontology_to_scenario(workspace_id: str, scenario_id: str, ontolog
 async def unbind_ontology_from_scenario(workspace_id: str, scenario_id: str, ontology_id: str,
     user=Depends(get_current_user)):
     """解绑本体"""
+    _uid = user.get("sub", "anonymous") if isinstance(user, dict) else "anonymous"
     try:
         scenario = scenario_service.get_scenario(scenario_id)
         if not scenario:
@@ -653,11 +767,14 @@ async def unbind_ontology_from_scenario(workspace_id: str, scenario_id: str, ont
         
         result = scenario_service.unbind_ontology(scenario_id, ontology_id)
         if result.get("status") == "error":
+            _audit("scenario_unbind_ontology_failed", _uid, "failure", result.get("message", ""), workspace_id=workspace_id)
             raise HTTPException(status_code=400, detail=result.get("message"))
+        _audit("scenario_unbind_ontology", _uid, "success", details={"ontology_id": ontology_id}, workspace_id=workspace_id)
         return SuccessResponse(message=result.get("message"))
     except HTTPException:
         raise
     except Exception as e:
+        _audit("scenario_unbind_ontology_failed", _uid, "failure", str(e), workspace_id=workspace_id)
         raise HTTPException(status_code=500, detail=str(e))
 
 
@@ -665,6 +782,7 @@ async def unbind_ontology_from_scenario(workspace_id: str, scenario_id: str, ont
 async def get_scenario_ontologies(workspace_id: str, scenario_id: str,
     user=Depends(get_current_user)):
     """获取场景绑定的所有本体"""
+    _uid = user.get("sub", "anonymous") if isinstance(user, dict) else "anonymous"
     try:
         scenario = scenario_service.get_scenario(scenario_id)
         if not scenario:
@@ -679,6 +797,7 @@ async def get_scenario_ontologies(workspace_id: str, scenario_id: str,
     except HTTPException:
         raise
     except Exception as e:
+        _audit("scenario_ontologies_get_failed", _uid, "failure", str(e), workspace_id=workspace_id)
         raise HTTPException(status_code=500, detail=str(e))
 
 
@@ -687,6 +806,7 @@ async def get_scenario_ontologies(workspace_id: str, scenario_id: str,
 async def get_scenario_versions(workspace_id: str, scenario_id: str,
     user=Depends(get_current_user)):
     """获取场景绑定本体的版本列表"""
+    _uid = user.get("sub", "anonymous") if isinstance(user, dict) else "anonymous"
     try:
         scenario = scenario_service.get_scenario(scenario_id)
         if not scenario:
@@ -723,6 +843,7 @@ async def get_scenario_versions(workspace_id: str, scenario_id: str,
     except HTTPException:
         raise
     except Exception as e:
+        _audit("scenario_versions_get_failed", _uid, "failure", str(e), workspace_id=workspace_id)
         raise HTTPException(status_code=500, detail=str(e))
 
 
@@ -730,6 +851,7 @@ async def get_scenario_versions(workspace_id: str, scenario_id: str,
 async def commit_scenario_version(workspace_id: str, scenario_id: str, message: str = "",
     user=Depends(get_current_user)):
     """手动提交版本：锁定当前版本 + 创建新版本"""
+    _uid = user.get("sub", "anonymous") if isinstance(user, dict) else "anonymous"
     try:
         scenario = scenario_service.get_scenario(scenario_id)
         if not scenario:
@@ -761,10 +883,12 @@ async def commit_scenario_version(workspace_id: str, scenario_id: str, message: 
             raise HTTPException(status_code=400, detail="Scenario is not bound to an ontology")
 
         new_version = await version_manager.commit(ontology_id, message=message or "")
+        _audit("scenario_commit_version", _uid, "success", workspace_id=workspace_id)
         return OntologyVersionResponse(**new_version.to_dict())
     except HTTPException:
         raise
     except Exception as e:
+        _audit("scenario_commit_version_failed", _uid, "failure", str(e), workspace_id=workspace_id)
         raise HTTPException(status_code=500, detail=str(e))
 
 
@@ -772,6 +896,7 @@ async def commit_scenario_version(workspace_id: str, scenario_id: str, message: 
 async def scan_data_conflicts(workspace_id: str,
     user=Depends(get_current_user)):
     """扫描数据冲突（同名实体不同ID）"""
+    _uid = user.get("sub", "anonymous") if isinstance(user, dict) else "anonymous"
     try:
         from odap.biz.core.ontology.design.services.ingest_service import IngestService
         svc = IngestService()
@@ -780,6 +905,7 @@ async def scan_data_conflicts(workspace_id: str,
     except HTTPException:
         raise
     except Exception as e:
+        _audit("data_conflicts_scan_failed", _uid, "failure", str(e), workspace_id=workspace_id)
         raise HTTPException(status_code=500, detail=str(e))
 
 
@@ -787,14 +913,17 @@ async def scan_data_conflicts(workspace_id: str,
 async def repair_data_conflicts(workspace_id: str, dry_run: bool = True,
     user=Depends(get_current_user)):
     """修复数据冲突（合并同名实体为确定性ID）"""
+    _uid = user.get("sub", "anonymous") if isinstance(user, dict) else "anonymous"
     try:
         from odap.biz.core.ontology.design.services.ingest_service import IngestService
         svc = IngestService()
         result = svc.repair_data_conflicts(dry_run=dry_run)
+        _audit("data_conflicts_repair", _uid, "success", workspace_id=workspace_id)
         return result
     except HTTPException:
         raise
     except Exception as e:
+        _audit("data_conflicts_repair_failed", _uid, "failure", str(e), workspace_id=workspace_id)
         raise HTTPException(status_code=500, detail=str(e))
 
 
@@ -802,6 +931,7 @@ async def repair_data_conflicts(workspace_id: str, dry_run: bool = True,
 async def switch_scenario_version(workspace_id: str, scenario_id: str, request: SwitchVersionRequest,
     user=Depends(get_current_user)):
     """切换场景使用的本体版本"""
+    _uid = user.get("sub", "anonymous") if isinstance(user, dict) else "anonymous"
     try:
         scenario = scenario_service.get_scenario(scenario_id)
         if not scenario:
@@ -848,6 +978,7 @@ async def switch_scenario_version(workspace_id: str, scenario_id: str, request: 
     except HTTPException:
         raise
     except Exception as e:
+        _audit("scenario_switch_version_failed", _uid, "failure", str(e), workspace_id=workspace_id)
         raise HTTPException(status_code=500, detail=str(e))
 
 
@@ -855,6 +986,7 @@ async def switch_scenario_version(workspace_id: str, scenario_id: str, request: 
 async def get_version_data(workspace_id: str, scenario_id: str, version_id: str,
     user=Depends(get_current_user)):
     """获取指定版本的本体数据"""
+    _uid = user.get("sub", "anonymous") if isinstance(user, dict) else "anonymous"
     try:
         scenario = scenario_service.get_scenario(scenario_id)
         if not scenario:
@@ -910,6 +1042,7 @@ async def get_version_data(workspace_id: str, scenario_id: str, version_id: str,
     except HTTPException:
         raise
     except Exception as e:
+        _audit("version_data_get_failed", _uid, "failure", str(e), workspace_id=workspace_id)
         raise HTTPException(status_code=500, detail=str(e))
 
 
@@ -923,6 +1056,7 @@ scenario_compat_router = APIRouter(prefix="/api/scenarios", tags=["scenario-comp
 async def get_scenario_entities_compat(scenario_id: str, workspace_id: str = None,
     user=Depends(get_current_user)):
     """获取场景下的实体列表（兼容前端 /api/scenarios/{id}/entities）"""
+    _uid = user.get("sub", "anonymous") if isinstance(user, dict) else "anonymous"
     try:
         entities = []
 
@@ -991,6 +1125,7 @@ async def get_scenario_entities_compat(scenario_id: str, workspace_id: str = Non
     except HTTPException:
         raise
     except Exception as e:
+        _audit("scenario_entities_compat_failed", _uid, "failure", str(e), workspace_id=workspace_id or "default")
         raise HTTPException(status_code=500, detail=str(e))
 
 
@@ -998,6 +1133,7 @@ async def get_scenario_entities_compat(scenario_id: str, workspace_id: str = Non
 async def get_scenario_relations_compat(scenario_id: str, workspace_id: str = None,
     user=Depends(get_current_user)):
     """获取场景下的关系列表（兼容前端 /api/scenarios/{id}/relations）"""
+    _uid = user.get("sub", "anonymous") if isinstance(user, dict) else "anonymous"
     try:
         nodes = []
         edges = []
@@ -1046,6 +1182,7 @@ async def get_scenario_relations_compat(scenario_id: str, workspace_id: str = No
     except HTTPException:
         raise
     except Exception as e:
+        _audit("scenario_relations_compat_failed", _uid, "failure", str(e), workspace_id=workspace_id or "default")
         raise HTTPException(status_code=500, detail=str(e))
 
 
@@ -1053,6 +1190,7 @@ async def get_scenario_relations_compat(scenario_id: str, workspace_id: str = No
 async def get_scenario_timeline_compat(scenario_id: str, workspace_id: str = None,
     user=Depends(get_current_user)):
     """获取场景时间线（兼容前端 /api/scenarios/{id}/timeline）"""
+    _uid = user.get("sub", "anonymous") if isinstance(user, dict) else "anonymous"
     try:
         events = []
         # 从本体模型服务获取事件
@@ -1101,4 +1239,5 @@ async def get_scenario_timeline_compat(scenario_id: str, workspace_id: str = Non
     except HTTPException:
         raise
     except Exception as e:
+        _audit("scenario_timeline_compat_failed", _uid, "failure", str(e), workspace_id=workspace_id or "default")
         raise HTTPException(status_code=500, detail=str(e))

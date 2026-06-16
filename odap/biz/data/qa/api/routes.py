@@ -132,6 +132,33 @@ router = APIRouter(prefix="/api/qa", tags=["qa"])
 
 logger = logging.getLogger(__name__)
 
+
+def _audit(action: str, user_id: str, result_status: str, result_message: str = "",
+           details: dict = None, service: str = "qa", workspace_id: str = "default"):
+    """QA审计便捷函数"""
+    try:
+        from odap.infra.security.unified_audit import log_audit
+        log_audit(
+            action=action,
+            resource="qa",
+            user=user_id,
+            service=service,
+            result_status=result_status,
+            result_message=result_message,
+            details=details or {},
+            workspace_id=workspace_id,
+        )
+    except Exception:
+        pass
+
+
+def _extract_user_id(user) -> str:
+    """从 Depends(get_current_user) 提取 user_id"""
+    if isinstance(user, dict):
+        return user.get("sub", "anonymous")
+    return "anonymous"
+
+
 _qa_engine_instance: Optional[QAEngineV2] = None
 
 
@@ -223,6 +250,8 @@ def _load_agent_context(agent_id: str) -> Dict[str, Any]:
 @router.post("/ask", response_model=AskResponse)
 async def ask_question(request: AskRequest,
     user=Depends(get_current_user)):
+    uid = request.user_id or _extract_user_id(user)
+    ws_id = request.workspace_id or "default"
     if not request.question:
         raise HTTPException(status_code=400, detail="问题不能为空")
     try:
@@ -248,12 +277,18 @@ async def ask_question(request: AskRequest,
         except asyncio.TimeoutError:
             # LLM 超时，降级为模板回答
             logger.warning(f"QA ask timed out for: {request.question[:50]}")
+            _audit("qa_ask_timeout", uid, "failure", "QA query timed out",
+                   {"question": request.question[:100], "workspace_id": ws_id},
+                   workspace_id=ws_id)
             result = {
                 "session_id": "",
                 "answer": f"抱歉，回答生成超时。请稍后重试或简化问题。",
                 "sources": [],
                 "dialog_state": "timeout",
             }
+        _audit("qa_ask", uid, "success", "QA query completed",
+               {"question": request.question[:100], "workspace_id": ws_id},
+               workspace_id=ws_id)
         return AskResponse(
             session_id=result.get("session_id", ""),
             answer=result.get("answer", ""),
@@ -265,12 +300,17 @@ async def ask_question(request: AskRequest,
     except HTTPException:
         raise
     except Exception as e:
+        _audit("qa_ask_failed", uid, "failure", f"QA engine error: {str(e)[:200]}",
+               {"question": request.question[:100], "error_type": type(e).__name__},
+               workspace_id=ws_id)
         raise HTTPException(status_code=503, detail=f"QA 引擎不可用: {str(e)}")
 
 
 @router.post("/ask/stream")
 async def ask_question_stream(request: AskStreamRequest,
     user=Depends(get_current_user)):
+    uid = request.user_id or _extract_user_id(user)
+    ws_id = request.workspace_id or "default"
     if not request.question:
         raise HTTPException(status_code=400, detail="问题不能为空")
     try:
@@ -290,6 +330,9 @@ async def ask_question_stream(request: AskStreamRequest,
             ):
                 yield f"data: {json.dumps(event, ensure_ascii=False)}\n\n"
 
+        _audit("qa_ask_stream", uid, "success", "QA stream started",
+               {"question": request.question[:100], "workspace_id": ws_id},
+               workspace_id=ws_id)
         return StreamingResponse(
             streaming_response(),
             media_type="text/event-stream",
@@ -298,6 +341,9 @@ async def ask_question_stream(request: AskStreamRequest,
     except HTTPException:
         raise
     except Exception as e:
+        _audit("qa_ask_stream_failed", uid, "failure", f"QA stream error: {str(e)[:200]}",
+               {"question": request.question[:100], "error_type": type(e).__name__},
+               workspace_id=ws_id)
         raise HTTPException(status_code=503, detail=f"QA 引擎不可用: {str(e)}")
 
 
@@ -308,6 +354,8 @@ async def list_sessions(
     scenario_id: Optional[str] = Query(None),
     limit: int = Query(50, ge=1, le=200),
     user=Depends(get_current_user)):
+    uid = _extract_user_id(user)
+    ws_id = workspace_id or "default"
     try:
         qa_engine = _get_qa_engine()
         sessions = qa_engine.dialog_manager._sessions
@@ -335,21 +383,30 @@ async def list_sessions(
             ))
 
         session_list.sort(key=lambda s: s.updated_at, reverse=True)
+        _audit("qa_list_sessions", uid, "success", "Listed QA sessions",
+               {"workspace_id": ws_id, "result_count": len(session_list[:limit])},
+               workspace_id=ws_id)
         return session_list[:limit]
     except HTTPException:
         raise
     except Exception as e:
+        _audit("qa_list_sessions_failed", uid, "failure", f"List sessions error: {str(e)[:200]}",
+               {"workspace_id": ws_id, "error_type": type(e).__name__},
+               workspace_id=ws_id)
         raise HTTPException(status_code=503, detail=f"QA 引擎不可用: {str(e)}")
 
 
 @router.get("/sessions/{session_id}", response_model=SessionDetailResponse)
 async def get_session(session_id: str,
     user=Depends(get_current_user)):
+    uid = _extract_user_id(user)
     try:
         qa_engine = _get_qa_engine()
         history = qa_engine.get_dialog_history(session_id)
         if not history:
             raise HTTPException(status_code=404, detail="会话不存在")
+        _audit("qa_get_session", uid, "success", "Retrieved QA session",
+               {"session_id": session_id})
         return SessionDetailResponse(
             session_id=session_id,
             messages=history,
@@ -358,22 +415,29 @@ async def get_session(session_id: str,
     except HTTPException:
         raise
     except Exception as e:
+        _audit("qa_get_session_failed", uid, "failure", f"Get session error: {str(e)[:200]}",
+               {"session_id": session_id, "error_type": type(e).__name__})
         raise HTTPException(status_code=503, detail=f"QA 引擎不可用: {str(e)}")
 
 
 @router.delete("/sessions/{session_id}")
 async def delete_session(session_id: str,
     user=Depends(get_current_user)):
+    uid = _extract_user_id(user)
     try:
         qa_engine = _get_qa_engine()
         session = qa_engine.dialog_manager.get_session(session_id)
         if not session:
             raise HTTPException(status_code=404, detail="会话不存在")
         qa_engine.close_dialog(session_id)
+        _audit("qa_delete_session", uid, "success", "Deleted QA session",
+               {"session_id": session_id})
         return {"status": "success", "session_id": session_id}
     except HTTPException:
         raise
     except Exception as e:
+        _audit("qa_delete_session_failed", uid, "failure", f"Delete session error: {str(e)[:200]}",
+               {"session_id": session_id, "error_type": type(e).__name__})
         raise HTTPException(status_code=503, detail=f"QA 引擎不可用: {str(e)}")
 
 
@@ -382,9 +446,12 @@ async def get_session_history(
     session_id: str,
     limit: int = Query(50, ge=1, le=200),
     user=Depends(get_current_user)):
+    uid = _extract_user_id(user)
     try:
         qa_engine = _get_qa_engine()
         history = qa_engine.get_dialog_history(session_id)
+        _audit("qa_get_history", uid, "success", "Retrieved session history",
+               {"session_id": session_id, "history_count": len(history)})
         return HistoryResponse(
             session_id=session_id,
             history=history[-limit:],
@@ -393,22 +460,29 @@ async def get_session_history(
     except HTTPException:
         raise
     except Exception as e:
+        _audit("qa_get_history_failed", uid, "failure", f"Get history error: {str(e)[:200]}",
+               {"session_id": session_id, "error_type": type(e).__name__})
         raise HTTPException(status_code=503, detail=f"QA 引擎不可用: {str(e)}")
 
 
 @router.post("/sessions/{session_id}/feedback", response_model=FeedbackResponse)
 async def submit_feedback(session_id: str, request: FeedbackRequest,
     user=Depends(get_current_user)):
+    uid = _extract_user_id(user)
     try:
         qa_engine = _get_qa_engine()
         session = qa_engine.dialog_manager.get_session(session_id)
         if not session:
             raise HTTPException(status_code=404, detail="会话不存在")
         feedback_id = f"fb_{uuid.uuid4().hex[:12]}"
+        _audit("qa_submit_feedback", uid, "success", "Submitted QA feedback",
+               {"session_id": session_id, "rating": request.rating})
         return FeedbackResponse(status="success", feedback_id=feedback_id)
     except HTTPException:
         raise
     except Exception as e:
+        _audit("qa_submit_feedback_failed", uid, "failure", f"Submit feedback error: {str(e)[:200]}",
+               {"session_id": session_id, "error_type": type(e).__name__})
         raise HTTPException(status_code=503, detail=f"QA 引擎不可用: {str(e)}")
 
 
@@ -418,6 +492,8 @@ async def get_stats(
     start_time: Optional[str] = Query(None),
     end_time: Optional[str] = Query(None),
     user=Depends(get_current_user)):
+    uid = _extract_user_id(user)
+    ws_id = workspace_id or "default"
     try:
         qa_engine = _get_qa_engine()
         sessions = qa_engine.dialog_manager._sessions
@@ -457,6 +533,9 @@ async def get_stats(
                 except Exception:
                     pass
 
+        _audit("qa_get_stats", uid, "success", "Retrieved QA stats",
+               {"workspace_id": ws_id, "total": total, "today": today_count},
+               workspace_id=ws_id)
         return StatsResponse(
             total=total,
             today=today_count,
@@ -468,6 +547,9 @@ async def get_stats(
     except HTTPException:
         raise
     except Exception as e:
+        _audit("qa_get_stats_failed", uid, "failure", f"Get stats error: {str(e)[:200]}",
+               {"workspace_id": ws_id, "error_type": type(e).__name__},
+               workspace_id=ws_id)
         raise HTTPException(status_code=503, detail=f"QA 引擎不可用: {str(e)}")
 
 
@@ -476,6 +558,8 @@ async def get_user_stats(
     workspace_id: Optional[str] = Query(None),
     limit: int = Query(10, ge=1, le=100),
     user=Depends(get_current_user)):
+    uid = _extract_user_id(user)
+    ws_id = workspace_id or "default"
     try:
         qa_engine = _get_qa_engine()
         sessions = qa_engine.dialog_manager._sessions
@@ -488,22 +572,25 @@ async def get_user_stats(
 
         user_stats: Dict[str, Dict[str, Any]] = {}
         for session in sessions.values():
-            uid = session.user_id
-            if uid not in user_stats:
-                user_stats[uid] = {
-                    "user_id": uid,
+            uid_stat = session.user_id
+            if uid_stat not in user_stats:
+                user_stats[uid_stat] = {
+                    "user_id": uid_stat,
                     "count": 0,
                     "first_time": session.created_at,
                     "last_time": session.updated_at,
                 }
-            user_stats[uid]["count"] += len(session.messages)
-            if session.updated_at > user_stats[uid]["last_time"]:
-                user_stats[uid]["last_time"] = session.updated_at
-            if session.created_at < user_stats[uid]["first_time"]:
-                user_stats[uid]["first_time"] = session.created_at
+            user_stats[uid_stat]["count"] += len(session.messages)
+            if session.updated_at > user_stats[uid_stat]["last_time"]:
+                user_stats[uid_stat]["last_time"] = session.updated_at
+            if session.created_at < user_stats[uid_stat]["first_time"]:
+                user_stats[uid_stat]["first_time"] = session.created_at
 
         sorted_users = sorted(user_stats.values(), key=lambda x: x["count"], reverse=True)[:limit]
 
+        _audit("qa_get_user_stats", uid, "success", "Retrieved QA user stats",
+               {"workspace_id": ws_id, "total_users": len(user_stats)},
+               workspace_id=ws_id)
         return UserStatsResponse(
             user_stats=sorted_users,
             total_users=len(user_stats),
@@ -512,6 +599,9 @@ async def get_user_stats(
     except HTTPException:
         raise
     except Exception as e:
+        _audit("qa_get_user_stats_failed", uid, "failure", f"Get user stats error: {str(e)[:200]}",
+               {"workspace_id": ws_id, "error_type": type(e).__name__},
+               workspace_id=ws_id)
         raise HTTPException(status_code=503, detail=f"QA 引擎不可用: {str(e)}")
 
 
@@ -520,6 +610,8 @@ async def get_topic_stats(
     workspace_id: Optional[str] = Query(None),
     limit: int = Query(20, ge=1, le=100),
     user=Depends(get_current_user)):
+    uid = _extract_user_id(user)
+    ws_id = workspace_id or "default"
     try:
         qa_engine = _get_qa_engine()
         sessions = qa_engine.dialog_manager._sessions
@@ -540,6 +632,9 @@ async def get_topic_stats(
 
         sorted_topics = sorted(topic_counts.items(), key=lambda x: x[1], reverse=True)[:limit]
 
+        _audit("qa_get_topic_stats", uid, "success", "Retrieved QA topic stats",
+               {"workspace_id": ws_id, "topic_count": len(topic_counts)},
+               workspace_id=ws_id)
         return TopicStatsResponse(
             topics=[{"topic": t, "count": c, "trend": "stable"} for t, c in sorted_topics],
             limit=limit,
@@ -547,6 +642,9 @@ async def get_topic_stats(
     except HTTPException:
         raise
     except Exception as e:
+        _audit("qa_get_topic_stats_failed", uid, "failure", f"Get topic stats error: {str(e)[:200]}",
+               {"workspace_id": ws_id, "error_type": type(e).__name__},
+               workspace_id=ws_id)
         raise HTTPException(status_code=503, detail=f"QA 引擎不可用: {str(e)}")
 
 
@@ -577,6 +675,8 @@ def _get_chart_renderer() -> ChartRenderer:
 @router.post("/ask/temporal", response_model=TemporalAskResponse)
 async def ask_temporal_question(request: TemporalAskRequest,
     user=Depends(get_current_user)):
+    uid = _extract_user_id(user)
+    ws_id = request.workspace_id or "default"
     if not request.question:
         raise HTTPException(status_code=400, detail="问题不能为空")
     try:
@@ -588,6 +688,9 @@ async def ask_temporal_question(request: TemporalAskRequest,
         )
         if result.get("status") == "error":
             raise HTTPException(status_code=400, detail=result.get("message", "时序解析失败"))
+        _audit("qa_ask_temporal", uid, "success", "Temporal QA query completed",
+               {"question": request.question[:100], "workspace_id": ws_id},
+               workspace_id=ws_id)
         return TemporalAskResponse(
             status=result.get("status", "success"),
             question=result.get("question", ""),
@@ -599,12 +702,16 @@ async def ask_temporal_question(request: TemporalAskRequest,
     except HTTPException:
         raise
     except Exception as e:
+        _audit("qa_ask_temporal_failed", uid, "failure", f"Temporal QA error: {str(e)[:200]}",
+               {"question": request.question[:100], "error_type": type(e).__name__},
+               workspace_id=ws_id)
         raise HTTPException(status_code=503, detail=f"时序问答不可用: {str(e)}")
 
 
 @router.post("/chart", response_model=ChartResponse)
 async def render_chart(request: ChartRequest,
     user=Depends(get_current_user)):
+    uid = _extract_user_id(user)
     if not request.chart_type:
         raise HTTPException(status_code=400, detail="图表类型不能为空")
     if not request.data:
@@ -620,6 +727,8 @@ async def render_chart(request: ChartRequest,
         )
         if result.get("status") == "error":
             raise HTTPException(status_code=400, detail=result.get("message", "图表渲染失败"))
+        _audit("qa_render_chart", uid, "success", "Chart rendered",
+               {"chart_type": request.chart_type, "title": request.title[:50]})
         return ChartResponse(
             status=result.get("status", "success"),
             chart_type=result.get("chart_type", request.chart_type),
@@ -630,4 +739,6 @@ async def render_chart(request: ChartRequest,
     except HTTPException:
         raise
     except Exception as e:
+        _audit("qa_render_chart_failed", uid, "failure", f"Chart render error: {str(e)[:200]}",
+               {"chart_type": request.chart_type, "error_type": type(e).__name__})
         raise HTTPException(status_code=503, detail=f"图表渲染不可用: {str(e)}")

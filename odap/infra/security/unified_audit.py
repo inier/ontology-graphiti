@@ -91,8 +91,12 @@ def audit_log(action: str, resource: str = None, user: str = None, service: str 
     审计日志装饰器
 
     同时记录到：
-    1. Graphiti 主存储
-    2. 标准日志
+    1. SQLite 主存储
+    2. Graphiti 辅助存储
+
+    自动区分成功/失败：
+    - 正常返回 → result_status="success"
+    - 抛出异常 → result_status="failure"，记录异常信息
 
     用法：
     @audit_log(action="user_login", resource="auth")
@@ -113,22 +117,20 @@ def audit_log(action: str, resource: str = None, user: str = None, service: str 
                         request = value
                         break
 
-            start_time = asyncio.get_event_loop().time() if asyncio.get_event_loop().is_running() else 0
-            if start_time == 0:
-                start_time = asyncio.get_event_loop().time()
+            import time as _time
+            start_time = _time.monotonic()
 
             client_ip = request.client.host if request and request.client else "unknown"
             user_agent = request.headers.get("user-agent", "unknown") if request else "unknown"
 
             try:
                 result = await func(*args, **kwargs)
-                execution_time = 0.1
-                duration_ms = int(execution_time * 1000)
+                duration_ms = int((_time.monotonic() - start_time) * 1000)
 
                 logger.info(
                     f"ACTION: {action} | RESOURCE: {resource} | USER: {user} | "
                     f"IP: {client_ip} | USER_AGENT: {user_agent} | "
-                    f"STATUS: SUCCESS | TIME: {execution_time:.3f}s"
+                    f"STATUS: SUCCESS | TIME: {duration_ms}ms"
                 )
 
                 log_audit(
@@ -136,29 +138,47 @@ def audit_log(action: str, resource: str = None, user: str = None, service: str 
                     resource=resource,
                     user=user,
                     service=service,
+                    result_status="success",
+                    result_message="Operation completed",
                     details={
                         "client_ip": client_ip,
                         "user_agent": user_agent,
                         "duration_ms": duration_ms
-                    }
+                    },
+                    duration_ms=duration_ms
                 )
 
                 return result
             except Exception as e:
-                execution_time = 0.1
-                duration_ms = int(execution_time * 1000)
+                duration_ms = int((_time.monotonic() - start_time) * 1000)
+
+                # 判断是否为权限拒绝
+                status = "failure"
+                msg = str(e)
+                if hasattr(e, 'status_code'):
+                    if e.status_code in (401, 403):
+                        status = "denied"
 
                 logger.error(
                     f"ACTION: {action} | RESOURCE: {resource} | USER: {user} | "
                     f"IP: {client_ip} | USER_AGENT: {user_agent} | "
-                    f"STATUS: ERROR | EXCEPTION: {str(e)} | TIME: {execution_time:.3f}s"
+                    f"STATUS: {status.upper()} | EXCEPTION: {msg} | TIME: {duration_ms}ms"
                 )
 
-                log_error(
-                    error=str(e),
-                    context=action,
+                log_audit(
+                    action=action,
+                    resource=resource,
                     user=user,
-                    service=service
+                    service=service,
+                    result_status=status,
+                    result_message=msg[:500],
+                    details={
+                        "client_ip": client_ip,
+                        "user_agent": user_agent,
+                        "duration_ms": duration_ms,
+                        "error_type": type(e).__name__,
+                    },
+                    duration_ms=duration_ms
                 )
 
                 raise
@@ -289,17 +309,46 @@ def _infer_event_type(action: str, service: str) -> AuditEventType:
     return AuditEventType.SYSTEM_HEALTH
 
 
-def log_audit(action: str, resource: str = None, user: str = None, service: str = "system", details: Dict[str, Any] = None):
-    """简化的审计日志记录 - 写入 SQLite 主存储 + Graphiti 辅助存储"""
+def log_audit(action: str, resource: str = None, user: str = None,
+              service: str = "system", details: Dict[str, Any] = None,
+              result_status: str = "success", result_message: str = "",
+              severity: Optional[str] = None, workspace_id: str = "default",
+              duration_ms: Optional[int] = None):
+    """简化的审计日志记录 - 写入 SQLite 主存储 + Graphiti 辅助存储
+
+    Args:
+        action: 操作名称（如 login_success, create_ontology, query_executed）
+        resource: 资源标识（如 /api/ontologies, workspace_id）
+        user: 操作者标识
+        service: 服务模块名
+        details: 附加详情
+        result_status: 操作结果状态 "success" | "failure" | "denied"
+        result_message: 结果描述信息
+        severity: 严重级别 "info" | "warn" | "error"，默认根据 result_status 推断
+        workspace_id: 工作空间 ID
+        duration_ms: 操作耗时（毫秒）
+    """
     logger.info(
-        f"AUDIT | ACTION: {action} | RESOURCE: {resource} | USER: {user} | SERVICE: {service}"
+        f"AUDIT | ACTION: {action} | RESOURCE: {resource} | USER: {user} | "
+        f"SERVICE: {service} | STATUS: {result_status} | MSG: {result_message}"
     )
+
+    # 根据 result_status 推断 severity
+    if severity is None:
+        if result_status == "denied":
+            severity = "warn"
+        elif result_status == "failure":
+            severity = "error"
+        else:
+            severity = "info"
+
+    severity_enum = AuditSeverity(severity)
 
     event = AuditEvent(
         id=str(uuid.uuid4()),
         timestamp=datetime.now(),
         event_type=_infer_event_type(action, service),
-        severity=AuditSeverity.INFO,
+        severity=severity_enum,
         source=service,
         actor={
             "actor_type": "user" if user else "system",
@@ -315,14 +364,14 @@ def log_audit(action: str, resource: str = None, user: str = None, service: str 
             "attributes": details or {}
         },
         result={
-            "status": "success",
-            "message": "Audit logged"
+            "status": result_status,
+            "message": result_message or ("Audit logged" if result_status == "success" else result_status),
         },
         context=details or {},
-        workspace_id="default",
+        workspace_id=workspace_id,
         trace_id=str(uuid.uuid4()),
         parent_event_id=None,
-        duration_ms=None
+        duration_ms=duration_ms
     )
 
     try:

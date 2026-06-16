@@ -25,6 +25,25 @@ logger = logging.getLogger(__name__)
 router = APIRouter(prefix="/api/agent", tags=["openharness-agent"])
 
 
+def _audit(action: str, user_id: str, result_status: str, result_message: str = "",
+           details: dict = None, service: str = "openharness", workspace_id: str = "default"):
+    """审计便捷函数"""
+    try:
+        from odap.infra.security.unified_audit import log_audit
+        log_audit(
+            action=action,
+            resource="openharness",
+            user=user_id,
+            service=service,
+            result_status=result_status,
+            result_message=result_message,
+            details=details or {},
+            workspace_id=workspace_id,
+        )
+    except Exception:
+        pass
+
+
 class AgentRunRequest(BaseModel):
     """Agent 运行请求"""
     input: str
@@ -54,6 +73,7 @@ class AgentChatRequest(BaseModel):
 @router.post("/init")
 async def init_agent_compat(request: AgentInitRequest,
     user=Depends(get_current_user)):
+    _uid = user.get("sub", "anonymous") if isinstance(user, dict) else "anonymous"
     config = request.config or {}
     user_role = config.get("user_role", request.user_role) if isinstance(config, dict) else request.user_role
     provider_config = config.get("provider_config", request.provider_config) if isinstance(config, dict) else request.provider_config
@@ -65,12 +85,15 @@ async def init_agent_compat(request: AgentInitRequest,
         if success:
             integration = get_openharness_integration()
             status = integration.get_status()
+            _audit("openharness_init", _uid, "success", details={"user_role": user_role})
             return {"success": True, "message": "Agent 初始化成功", "status": status}
         else:
+            _audit("openharness_init_failed", _uid, "failure", "Agent 初始化失败", details={"user_role": user_role})
             return {"success": False, "message": "Agent 初始化失败"}
     except HTTPException:
         raise
     except Exception as e:
+        _audit("openharness_init_failed", _uid, "failure", str(e))
         raise HTTPException(status_code=500, detail=str(e))
 
 
@@ -86,6 +109,7 @@ async def initialize_agent(config: AgentConfigRequest,
     Returns:
         初始化结果
     """
+    _uid = user.get("sub", "anonymous") if isinstance(user, dict) else "anonymous"
     try:
         success = await initialize_openharness(
             user_role=config.user_role,
@@ -95,12 +119,14 @@ async def initialize_agent(config: AgentConfigRequest,
         if success:
             integration = get_openharness_integration()
             status = integration.get_status()
+            _audit("openharness_initialize", _uid, "success", details={"user_role": config.user_role})
             return {
                 "success": True,
                 "message": "Agent 初始化成功",
                 "status": status,
             }
         else:
+            _audit("openharness_initialize_failed", _uid, "failure", "Agent 初始化失败", details={"user_role": config.user_role})
             return {
                 "success": False,
                 "message": "Agent 初始化失败",
@@ -108,6 +134,7 @@ async def initialize_agent(config: AgentConfigRequest,
     except HTTPException:
         raise
     except Exception as e:
+        _audit("openharness_initialize_failed", _uid, "failure", str(e))
         raise HTTPException(status_code=500, detail=str(e))
 
 
@@ -123,16 +150,18 @@ async def run_agent_endpoint(request: AgentRunRequest,
     Returns:
         运行结果
     """
+    _uid = user.get("sub", "anonymous") if isinstance(user, dict) else "anonymous"
     try:
         result = await run_agent(
             user_input=request.input,
             context=request.context,
         )
-        
+        _audit("openharness_run", _uid, "success")
         return result
     except HTTPException:
         raise
     except Exception as e:
+        _audit("openharness_run_failed", _uid, "failure", str(e))
         raise HTTPException(status_code=500, detail=str(e))
 
 
@@ -144,12 +173,14 @@ async def get_agent_status(user=Depends(get_current_user)):
     Returns:
         状态信息
     """
+    _uid = user.get("sub", "anonymous") if isinstance(user, dict) else "anonymous"
     try:
         integration = get_openharness_integration()
         return integration.get_status()
     except HTTPException:
         raise
     except Exception as e:
+        _audit("openharness_get_status_failed", _uid, "failure", str(e))
         raise HTTPException(status_code=500, detail=str(e))
 
 
@@ -161,6 +192,7 @@ async def list_agent_tools(user=Depends(get_current_user)):
     Returns:
         工具列表
     """
+    _uid = user.get("sub", "anonymous") if isinstance(user, dict) else "anonymous"
     try:
         integration = get_openharness_integration()
         status = integration.get_status()
@@ -171,12 +203,14 @@ async def list_agent_tools(user=Depends(get_current_user)):
     except HTTPException:
         raise
     except Exception as e:
+        _audit("openharness_list_tools_failed", _uid, "failure", str(e))
         raise HTTPException(status_code=500, detail=str(e))
 
 
 @router.post("/chat")
 async def chat_with_agent(request: AgentChatRequest,
     user=Depends(get_current_user)):
+    _uid = user.get("sub", "anonymous") if isinstance(user, dict) else "anonymous"
     try:
         from odap.biz.platform.session_memory.session_store import SessionStore, Session
         from odap.biz.platform.session_memory.context_window import ChatMessage, MessageRole
@@ -310,16 +344,19 @@ async def chat_with_agent(request: AgentChatRequest,
         except Exception as e:
             logger.warning(f"Failed to save session: {e}")
 
+        _audit("openharness_chat", _uid, "success", details={"workspace_id": workspace_id}, workspace_id=workspace_id)
         return response_data
     except HTTPException:
         raise
     except Exception as e:
+        _audit("openharness_chat_failed", _uid, "failure", str(e))
         raise HTTPException(status_code=500, detail=str(e))
 
 
 @router.get("/sessions")
 async def list_agent_sessions(workspace_id: str = "default", limit: int = 20,
     user=Depends(get_current_user)):
+    _uid = user.get("sub", "anonymous") if isinstance(user, dict) else "anonymous"
     try:
         from odap.biz.platform.session_memory.session_store import SessionStore
         store = SessionStore()
@@ -328,20 +365,24 @@ async def list_agent_sessions(workspace_id: str = "default", limit: int = 20,
     except HTTPException:
         raise
     except Exception as e:
+        _audit("openharness_list_sessions_failed", _uid, "failure", str(e), workspace_id=workspace_id)
         raise HTTPException(status_code=500, detail=str(e))
 
 
 @router.delete("/sessions/{session_id}")
 async def delete_agent_session(session_id: str,
     user=Depends(get_current_user)):
+    _uid = user.get("sub", "anonymous") if isinstance(user, dict) else "anonymous"
     try:
         from odap.biz.platform.session_memory.session_store import SessionStore
         store = SessionStore()
         deleted = store.delete_session(session_id)
         if not deleted:
             raise HTTPException(status_code=404, detail=f"Session {session_id} not found")
+        _audit("openharness_delete_session", _uid, "success", details={"session_id": session_id})
         return {"status": "ok", "session_id": session_id}
     except HTTPException:
         raise
     except Exception as e:
+        _audit("openharness_delete_session_failed", _uid, "failure", str(e), details={"session_id": session_id})
         raise HTTPException(status_code=500, detail=str(e))

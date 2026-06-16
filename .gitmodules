@@ -1,3 +1,6 @@
 [submodule "openharness"]
 	path = openharness
 	url = https://github.com/HKUDS/OpenHarness.git
+[submodule "hyper-extract"]
+	path = hyper-extract
+	url = https://github.com/yifanfeng97/Hyper-Extract.git

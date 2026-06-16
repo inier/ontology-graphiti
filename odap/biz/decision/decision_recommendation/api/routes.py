@@ -17,6 +17,25 @@ def _get_engine() -> DecisionRecommendationEngine:
     return _engine
 
 
+def _audit(action: str, user_id: str, result_status: str, result_message: str = "",
+           details: dict = None, service: str = "decision_recommendation", workspace_id: str = "default"):
+    """审计便捷函数"""
+    try:
+        from odap.infra.security.unified_audit import log_audit
+        log_audit(
+            action=action,
+            resource="decision_recommendation",
+            user=user_id,
+            service=service,
+            result_status=result_status,
+            result_message=result_message,
+            details=details or {},
+            workspace_id=workspace_id,
+        )
+    except Exception:
+        pass
+
+
 class RecommendRequest(BaseModel):
     simulation_results: Dict[str, Any]
     analysis_result: Optional[Dict[str, Any]] = None
@@ -37,6 +56,7 @@ class HistoryResponse(BaseModel):
 @router.post("/recommend")
 async def generate_recommendation(request: RecommendRequest,
     user=Depends(get_current_user)):
+    _uid = user.get("sub", "anonymous") if isinstance(user, dict) else "anonymous"
     try:
         engine = _get_engine()
         sim_results = request.simulation_results
@@ -49,29 +69,35 @@ async def generate_recommendation(request: RecommendRequest,
         if request.context:
             sim_results["context"] = request.context
         result = await engine.generate_recommendations(sim_results)
+        _audit("decision_recommendation_generate", _uid, "success")
         return result
     except HTTPException:
         raise
     except Exception as e:
+        _audit("decision_recommendation_generate_failed", _uid, "failure", str(e))
         raise HTTPException(status_code=500, detail=str(e))
 
 
 @router.post("/risk-assessment")
 async def risk_assessment(request: RiskAssessmentRequest,
     user=Depends(get_current_user)):
+    _uid = user.get("sub", "anonymous") if isinstance(user, dict) else "anonymous"
     try:
         engine = _get_engine()
         result = await engine.assess_risks(request.recommendation)
+        _audit("decision_recommendation_risk_assessment", _uid, "success")
         return result
     except HTTPException:
         raise
     except Exception as e:
+        _audit("decision_recommendation_risk_assessment_failed", _uid, "failure", str(e))
         raise HTTPException(status_code=500, detail=str(e))
 
 
 @router.get("/recommendations/{recommendation_id}/explain")
 async def explain_recommendation(recommendation_id: str,
     user=Depends(get_current_user)):
+    _uid = user.get("sub", "anonymous") if isinstance(user, dict) else "anonymous"
     try:
         engine = _get_engine()
         result = engine.explain_recommendation(recommendation_id)
@@ -81,6 +107,7 @@ async def explain_recommendation(recommendation_id: str,
     except HTTPException:
         raise
     except Exception as e:
+        _audit("decision_recommendation_explain_failed", _uid, "failure", str(e), details={"recommendation_id": recommendation_id})
         raise HTTPException(status_code=500, detail=str(e))
 
 
@@ -89,6 +116,7 @@ async def get_history(
     ontology_id: Optional[str] = None,
     limit: int = 20,
     user=Depends(get_current_user)):
+    _uid = user.get("sub", "anonymous") if isinstance(user, dict) else "anonymous"
     try:
         engine = _get_engine()
         history = engine.get_history(ontology_id=ontology_id, limit=limit)
@@ -96,4 +124,5 @@ async def get_history(
     except HTTPException:
         raise
     except Exception as e:
+        _audit("decision_recommendation_get_history_failed", _uid, "failure", str(e))
         raise HTTPException(status_code=500, detail=str(e))

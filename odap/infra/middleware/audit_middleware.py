@@ -83,6 +83,17 @@ class AuditMiddleware(BaseHTTPMiddleware):
 
             status_code = response.status_code
 
+            # HTTP 状态码映射到审计 result_status
+            if status_code < 400:
+                result_status = "success"
+                result_message = f"HTTP {status_code}"
+            elif status_code in (401, 403):
+                result_status = "denied"
+                result_message = f"HTTP {status_code} - {'Unauthorized' if status_code == 401 else 'Forbidden'}"
+            else:
+                result_status = "failure"
+                result_message = f"HTTP {status_code}"
+
             parts = path.strip("/").split("/")
             api_module = parts[1] if len(parts) > 1 else "unknown"
 
@@ -97,6 +108,8 @@ class AuditMiddleware(BaseHTTPMiddleware):
                 resource=resource,
                 user=user,
                 service=api_module,
+                result_status=result_status,
+                result_message=result_message,
                 details={
                     "method": method,
                     "path": path,
@@ -104,7 +117,8 @@ class AuditMiddleware(BaseHTTPMiddleware):
                     "duration_ms": duration_ms,
                     "client_ip": request.client.host if request.client else "unknown",
                     "trace_id": trace_id,
-                }
+                },
+                duration_ms=duration_ms
             )
         except Exception as e:
             logger.warning(f"Audit log write failed: {e}")

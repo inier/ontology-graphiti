@@ -171,6 +171,22 @@ class ABACPolicyEvaluator:
     def __init__(self):
         self.policy_rules = self._init_policy_rules()
 
+    @staticmethod
+    def _audit_policy_decision(user: Dict, action: str, resource: Dict, result: Dict):
+        """审计策略决策结果"""
+        try:
+            from odap.infra.security.unified_audit import audit_opa_decision
+            subject = user.get("id", user.get("name", "unknown"))
+            audit_opa_decision(
+                subject=subject,
+                action=action,
+                resource=resource.get("type", str(resource)),
+                result="allow" if result.get("allow") else "deny",
+                reason=result.get("reason", ""),
+            )
+        except Exception:
+            pass  # 审计写入失败不应阻断业务
+
     def _init_policy_rules(self) -> Dict[str, Any]:
         """初始化 ABAC 策略规则"""
         return {
@@ -218,10 +234,14 @@ class ABACPolicyEvaluator:
         resource_attrs = resource.get("attributes", {})
 
         if "system_admin" in user_roles:
-            return {"allow": True, "reason": "System admin has all permissions", "evaluated_policies": ["system_admin"]}
+            result = {"allow": True, "reason": "System admin has all permissions", "evaluated_policies": ["system_admin"]}
+            self._audit_policy_decision(user, action, resource, result)
+            return result
 
         if not user_roles:
-            return {"allow": False, "reason": "No role assigned", "evaluated_policies": []}
+            result = {"allow": False, "reason": "No role assigned", "evaluated_policies": []}
+            self._audit_policy_decision(user, action, resource, result)
+            return result
 
         evaluated = []
         for role in user_roles:
@@ -235,20 +255,29 @@ class ABACPolicyEvaluator:
                 for restriction in policy.get("restrictions", []):
                     if restriction == "cannot_engage_public_asset":
                         if resource_type == "PublicAsset" and action == "engage":
-                            return {"allow": False, "reason": f"Restriction: {restriction}", "evaluated_policies": evaluated}
+                            result = {"allow": False, "reason": f"Restriction: {restriction}", "evaluated_policies": evaluated}
+                            self._audit_policy_decision(user, action, resource, result)
+                            return result
                     elif restriction == f"cannot_{action}":
-                        return {"allow": False, "reason": f"Restriction: {restriction}", "evaluated_policies": evaluated}
+                        result = {"allow": False, "reason": f"Restriction: {restriction}", "evaluated_policies": evaluated}
+                        self._audit_policy_decision(user, action, resource, result)
+                        return result
 
         clearance_match = self._check_clearance(user_attrs, resource_attrs)
         if not clearance_match:
-            return {"allow": False, "reason": "Insufficient clearance level", "evaluated_policies": evaluated}
+            result = {"allow": False, "reason": "Insufficient clearance level", "evaluated_policies": evaluated}
+            self._audit_policy_decision(user, action, resource, result)
+            return result
 
         if environment:
             env_result = self._check_environment_constraints(environment, user_attrs)
             if not env_result["allowed"]:
+                self._audit_policy_decision(user, action, resource, env_result)
                 return env_result
 
-        return {"allow": True, "reason": "Permission granted", "evaluated_policies": evaluated}
+        result = {"allow": True, "reason": "Permission granted", "evaluated_policies": evaluated}
+        self._audit_policy_decision(user, action, resource, result)
+        return result
 
     def _check_clearance(self, user_attrs: Dict, resource_attrs: Dict) -> bool:
         user_level = user_attrs.get("clearance_level", "public")
@@ -434,6 +463,22 @@ class OPAClient:
         self.opa_url = (opa_url or get_config("opa.url", "http://localhost:8181")).rstrip("/")
         self.timeout = timeout
 
+    @staticmethod
+    def _audit_decision(subject: str, action: str, resource, allowed: bool, reason: str = ""):
+        """审计 OPA 策略决策结果"""
+        try:
+            from odap.infra.security.unified_audit import audit_opa_decision
+            resource_str = resource.get("package", "") if isinstance(resource, dict) else str(resource)
+            audit_opa_decision(
+                subject=subject,
+                action=action,
+                resource=resource_str or action,
+                result="allow" if allowed else "deny",
+                reason=reason or ("Permission granted" if allowed else "Permission denied"),
+            )
+        except Exception:
+            pass  # 审计写入失败不应阻断业务
+
     def check_permission(self, user_role: str, action: str, resource: Dict) -> bool:
         try:
             response = httpx.post(
@@ -442,8 +487,11 @@ class OPAClient:
                 timeout=self.timeout,
             )
             response.raise_for_status()
-            return response.json().get("result", False)
+            result = response.json().get("result", False)
+            self._audit_decision(user_role, action, resource, result)
+            return result
         except Exception as e:
+            self._audit_decision(user_role, action, resource, False, str(e))
             raise RuntimeError(f"OPA 调用失败: {e}")
 
     def check_package_permission(self, package: str, opa_input: Dict) -> bool:
@@ -460,8 +508,20 @@ class OPAClient:
                 timeout=self.timeout,
             )
             response.raise_for_status()
-            return response.json().get("result", False)
+            result = response.json().get("result", False)
+            self._audit_decision(
+                opa_input.get("user_role", "unknown"),
+                opa_input.get("action", package),
+                {"package": package},
+                result
+            )
+            return result
         except Exception as e:
+            self._audit_decision(
+                opa_input.get("user_role", "unknown"),
+                opa_input.get("action", package),
+                {"package": package}, False, str(e)
+            )
             raise RuntimeError(f"OPA 包级权限检查失败 ({package}): {e}")
 
     def check_permission_abac(self, user: Dict, action: str,

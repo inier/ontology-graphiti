@@ -32,6 +32,25 @@ router = APIRouter(prefix="/api/knowledge-bases", tags=["knowledge-bases"])
 kb_service = KnowledgeBaseService.get_instance()
 
 
+def _audit(action: str, user_id: str, result_status: str, result_message: str = "",
+           details: dict = None, service: str = "knowledge_base", workspace_id: str = "default"):
+    """审计便捷函数"""
+    try:
+        from odap.infra.security.unified_audit import log_audit
+        log_audit(
+            action=action,
+            resource="knowledge_base",
+            user=user_id,
+            service=service,
+            result_status=result_status,
+            result_message=result_message,
+            details=details or {},
+            workspace_id=workspace_id,
+        )
+    except Exception:
+        pass
+
+
 @router.get("", response_model=List[KnowledgeBase])
 async def list_knowledge_bases():
     try:
@@ -39,12 +58,14 @@ async def list_knowledge_bases():
     except HTTPException:
         raise
     except Exception as e:
+        _audit("knowledge_base_list_failed", "anonymous", "failure", str(e))
         raise HTTPException(status_code=500, detail=str(e))
 
 
 @router.get("/{kb_id}", response_model=KnowledgeBase)
 async def get_knowledge_base(kb_id: str,
     user=Depends(get_current_user)):
+    _uid = user.get("sub", "anonymous") if isinstance(user, dict) else "anonymous"
     try:
         result = kb_service.get_knowledge_base(kb_id)
         if isinstance(result, dict) and result.get("status") == "error":
@@ -53,22 +74,29 @@ async def get_knowledge_base(kb_id: str,
     except HTTPException:
         raise
     except Exception as e:
+        _audit("knowledge_base_get_failed", _uid, "failure", str(e), details={"kb_id": kb_id})
         raise HTTPException(status_code=500, detail=str(e))
 
 
 @router.post("", response_model=KnowledgeBase)
-async def create_knowledge_base(kb: KnowledgeBaseCreate):
+async def create_knowledge_base(kb: KnowledgeBaseCreate,
+    user=Depends(get_current_user)):
+    _uid = user.get("sub", "anonymous") if isinstance(user, dict) else "anonymous"
     try:
-        return kb_service.create_knowledge_base(kb.model_dump())
+        result = kb_service.create_knowledge_base(kb.model_dump())
+        _audit("knowledge_base_create", _uid, "success", details={"name": kb.name})
+        return result
     except HTTPException:
         raise
     except Exception as e:
+        _audit("knowledge_base_create_failed", _uid, "failure", str(e), details={"name": kb.name})
         raise HTTPException(status_code=500, detail=str(e))
 
 
 @router.put("/{kb_id}", response_model=KnowledgeBase)
 async def update_knowledge_base(kb_id: str, kb: KnowledgeBaseUpdate,
     user=Depends(get_current_user)):
+    _uid = user.get("sub", "anonymous") if isinstance(user, dict) else "anonymous"
     try:
         data = kb.model_dump(exclude_none=True)
         if not data:
@@ -76,71 +104,87 @@ async def update_knowledge_base(kb_id: str, kb: KnowledgeBaseUpdate,
         result = kb_service.update_knowledge_base(kb_id, data)
         if isinstance(result, dict) and result.get("status") == "error":
             raise HTTPException(status_code=404, detail=result.get("message", "知识库不存在"))
+        _audit("knowledge_base_update", _uid, "success", details={"kb_id": kb_id})
         return result
     except HTTPException:
         raise
     except Exception as e:
+        _audit("knowledge_base_update_failed", _uid, "failure", str(e), details={"kb_id": kb_id})
         raise HTTPException(status_code=500, detail=str(e))
 
 
 @router.delete("/{kb_id}")
 async def delete_knowledge_base(kb_id: str,
     user=Depends(get_current_user)):
+    _uid = user.get("sub", "anonymous") if isinstance(user, dict) else "anonymous"
     try:
         result = kb_service.delete_knowledge_base(kb_id)
         if isinstance(result, dict) and result.get("status") == "error":
             raise HTTPException(status_code=404, detail=result.get("message", "知识库不存在"))
+        _audit("knowledge_base_delete", _uid, "success", details={"kb_id": kb_id})
         return {"message": "知识库删除成功"}
     except HTTPException:
         raise
     except Exception as e:
+        _audit("knowledge_base_delete_failed", _uid, "failure", str(e), details={"kb_id": kb_id})
         raise HTTPException(status_code=500, detail=str(e))
 
 
 @router.get("/{kb_id}/categories", response_model=List[KnowledgeCategory])
 async def list_categories(kb_id: str,
     user=Depends(get_current_user)):
+    _uid = user.get("sub", "anonymous") if isinstance(user, dict) else "anonymous"
     try:
         return kb_service.list_categories(kb_id)
     except HTTPException:
         raise
     except Exception as e:
+        _audit("knowledge_base_list_categories_failed", _uid, "failure", str(e), details={"kb_id": kb_id})
         raise HTTPException(status_code=500, detail=str(e))
 
 
 @router.post("/{kb_id}/categories", response_model=KnowledgeCategory)
 async def create_category(kb_id: str, category: CategoryCreate,
     user=Depends(get_current_user)):
+    _uid = user.get("sub", "anonymous") if isinstance(user, dict) else "anonymous"
     try:
-        return kb_service.create_category(kb_id, category.model_dump())
+        result = kb_service.create_category(kb_id, category.model_dump())
+        _audit("knowledge_base_create_category", _uid, "success", details={"kb_id": kb_id, "name": category.name})
+        return result
     except HTTPException:
         raise
     except Exception as e:
+        _audit("knowledge_base_create_category_failed", _uid, "failure", str(e), details={"kb_id": kb_id, "name": category.name})
         raise HTTPException(status_code=500, detail=str(e))
 
 
 @router.delete("/{kb_id}/categories/{category_id}")
 async def delete_category(kb_id: str, category_id: str,
     user=Depends(get_current_user)):
+    _uid = user.get("sub", "anonymous") if isinstance(user, dict) else "anonymous"
     try:
         result = kb_service.delete_category(kb_id, category_id)
         if isinstance(result, dict) and result.get("status") == "error":
             raise HTTPException(status_code=404, detail=result.get("message", "分类不存在"))
+        _audit("knowledge_base_delete_category", _uid, "success", details={"kb_id": kb_id, "category_id": category_id})
         return {"message": "分类删除成功"}
     except HTTPException:
         raise
     except Exception as e:
+        _audit("knowledge_base_delete_category_failed", _uid, "failure", str(e), details={"kb_id": kb_id, "category_id": category_id})
         raise HTTPException(status_code=500, detail=str(e))
 
 
 @router.get("/{kb_id}/documents", response_model=List[KnowledgeDocument])
 async def list_documents(kb_id: str, category_id: Optional[str] = Query(None),
     user=Depends(get_current_user)):
+    _uid = user.get("sub", "anonymous") if isinstance(user, dict) else "anonymous"
     try:
         return kb_service.list_documents(kb_id, category_id)
     except HTTPException:
         raise
     except Exception as e:
+        _audit("knowledge_base_list_documents_failed", _uid, "failure", str(e), details={"kb_id": kb_id})
         raise HTTPException(status_code=500, detail=str(e))
 
 
@@ -153,6 +197,7 @@ async def upload_document(
     content: Optional[str] = Form(None),
     file: Optional[UploadFile] = File(None),
     user=Depends(get_current_user)):
+    _uid = user.get("sub", "anonymous") if isinstance(user, dict) else "anonymous"
     try:
         data = {
             'title': title,
@@ -165,16 +210,20 @@ async def upload_document(
             data['file_type'] = file.content_type
             data['file_size'] = len(file_content)
             data['content'] = file_content.decode('utf-8', errors='replace')
-        return kb_service.create_document(kb_id, data)
+        result = kb_service.create_document(kb_id, data)
+        _audit("knowledge_base_upload_document", _uid, "success", details={"kb_id": kb_id, "title": title})
+        return result
     except HTTPException:
         raise
     except Exception as e:
+        _audit("knowledge_base_upload_document_failed", _uid, "failure", str(e), details={"kb_id": kb_id, "title": title})
         raise HTTPException(status_code=500, detail=str(e))
 
 
 @router.get("/{kb_id}/documents/{doc_id}", response_model=KnowledgeDocument)
 async def get_document(kb_id: str, doc_id: str,
     user=Depends(get_current_user)):
+    _uid = user.get("sub", "anonymous") if isinstance(user, dict) else "anonymous"
     try:
         result = kb_service.get_document(kb_id, doc_id)
         if isinstance(result, dict) and result.get("status") == "error":
@@ -183,26 +232,31 @@ async def get_document(kb_id: str, doc_id: str,
     except HTTPException:
         raise
     except Exception as e:
+        _audit("knowledge_base_get_document_failed", _uid, "failure", str(e), details={"kb_id": kb_id, "doc_id": doc_id})
         raise HTTPException(status_code=500, detail=str(e))
 
 
 @router.delete("/{kb_id}/documents/{doc_id}")
 async def delete_document(kb_id: str, doc_id: str,
     user=Depends(get_current_user)):
+    _uid = user.get("sub", "anonymous") if isinstance(user, dict) else "anonymous"
     try:
         result = kb_service.delete_document(kb_id, doc_id)
         if isinstance(result, dict) and result.get("status") == "error":
             raise HTTPException(status_code=404, detail=result.get("message", "文档不存在"))
+        _audit("knowledge_base_delete_document", _uid, "success", details={"kb_id": kb_id, "doc_id": doc_id})
         return {"message": "文档删除成功"}
     except HTTPException:
         raise
     except Exception as e:
+        _audit("knowledge_base_delete_document_failed", _uid, "failure", str(e), details={"kb_id": kb_id, "doc_id": doc_id})
         raise HTTPException(status_code=500, detail=str(e))
 
 
 @router.post("/documents/{doc_id}/build-graph")
 async def build_graph(doc_id: str, request: BuildGraphRequest = None,
     user=Depends(get_current_user)):
+    _uid = user.get("sub", "anonymous") if isinstance(user, dict) else "anonymous"
     try:
         req = request or BuildGraphRequest()
         result = await kb_service.build_graph(
@@ -214,16 +268,19 @@ async def build_graph(doc_id: str, request: BuildGraphRequest = None,
             raise HTTPException(status_code=404, detail=result.get("message", "文档不存在"))
         if isinstance(result, dict) and result.get("status") == "failed":
             raise HTTPException(status_code=500, detail=f"{result.get('method', '')}提取失败")
+        _audit("knowledge_base_build_graph", _uid, "success", details={"doc_id": doc_id})
         return result
     except HTTPException:
         raise
     except Exception as e:
+        _audit("knowledge_base_build_graph_failed", _uid, "failure", str(e), details={"doc_id": doc_id})
         raise HTTPException(status_code=500, detail=str(e))
 
 
 @router.get("/graph-tasks/{task_id}")
 async def get_graph_build_status(task_id: str,
     user=Depends(get_current_user)):
+    _uid = user.get("sub", "anonymous") if isinstance(user, dict) else "anonymous"
     try:
         result = kb_service.get_graph_build_status(task_id)
         if isinstance(result, dict) and result.get("status") == "error":
@@ -232,34 +289,41 @@ async def get_graph_build_status(task_id: str,
     except HTTPException:
         raise
     except Exception as e:
+        _audit("knowledge_base_get_graph_task_failed", _uid, "failure", str(e), details={"task_id": task_id})
         raise HTTPException(status_code=500, detail=str(e))
 
 
 @router.post("/{kb_id}/rag-query")
 async def rag_query(kb_id: str, request: RAGQueryRequest,
     user=Depends(get_current_user)):
+    _uid = user.get("sub", "anonymous") if isinstance(user, dict) else "anonymous"
     try:
         result = await kb_service.rag_query(
             kb_id, request.query, top_k=request.top_k, threshold=request.threshold
         )
         if isinstance(result, dict) and result.get("status") == "error":
             raise HTTPException(status_code=404, detail=result.get("message", "知识库不存在"))
+        _audit("knowledge_base_rag_query", _uid, "success", details={"kb_id": kb_id})
         return result
     except HTTPException:
         raise
     except Exception as e:
+        _audit("knowledge_base_rag_query_failed", _uid, "failure", str(e), details={"kb_id": kb_id})
         raise HTTPException(status_code=500, detail=str(e))
 
 
 @router.post("/{kb_id}/crawl")
 async def crawl_web(kb_id: str, request: CrawlRequest,
     user=Depends(get_current_user)):
+    _uid = user.get("sub", "anonymous") if isinstance(user, dict) else "anonymous"
     try:
         result = await kb_service.crawl_web(kb_id, request.urls, max_depth=request.max_depth)
         if isinstance(result, dict) and result.get("status") == "error":
             raise HTTPException(status_code=404, detail=result.get("message", "知识库不存在"))
+        _audit("knowledge_base_crawl", _uid, "success", details={"kb_id": kb_id, "url_count": len(request.urls)})
         return result
     except HTTPException:
         raise
     except Exception as e:
+        _audit("knowledge_base_crawl_failed", _uid, "failure", str(e), details={"kb_id": kb_id})
         raise HTTPException(status_code=500, detail=str(e))

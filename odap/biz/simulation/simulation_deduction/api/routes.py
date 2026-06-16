@@ -12,9 +12,29 @@ router = APIRouter(prefix="/api/simulation/deduction", tags=["simulation-deducti
 service = DeductionService()
 
 
+def _audit(action: str, user_id: str, result_status: str, result_message: str = "",
+           details: dict = None, service: str = "simulation_deduction", workspace_id: str = "default"):
+    """审计便捷函数"""
+    try:
+        from odap.infra.security.unified_audit import log_audit
+        log_audit(
+            action=action,
+            resource="simulation_deduction",
+            user=user_id,
+            service=service,
+            result_status=result_status,
+            result_message=result_message,
+            details=details or {},
+            workspace_id=workspace_id,
+        )
+    except Exception:
+        pass
+
+
 @router.post("/scenarios")
 async def create_scenario(request: CreateScenarioRequest,
     user=Depends(get_current_user)):
+    _uid = user.get("sub", "anonymous") if isinstance(user, dict) else "anonymous"
     try:
         result = service.create_scenario(
             name=request.name,
@@ -26,10 +46,12 @@ async def create_scenario(request: CreateScenarioRequest,
         )
         if result.get("status") == "error":
             raise HTTPException(status_code=400, detail=result.get("message", "Unknown error"))
+        _audit("simulation_deduction_create_scenario", _uid, "success", details={"name": request.name})
         return result
     except HTTPException:
         raise
     except Exception as e:
+        _audit("simulation_deduction_create_scenario_failed", _uid, "failure", str(e), details={"name": request.name})
         raise HTTPException(status_code=500, detail=str(e))
 
 
@@ -38,6 +60,7 @@ async def list_scenarios(page: int = 1, page_size: int = 20,
                           status: str = None, name: str = None,
                           target_object_type: str = None,
     user=Depends(get_current_user)):
+    _uid = user.get("sub", "anonymous") if isinstance(user, dict) else "anonymous"
     try:
         filters = {}
         if status:
@@ -51,12 +74,14 @@ async def list_scenarios(page: int = 1, page_size: int = 20,
     except HTTPException:
         raise
     except Exception as e:
+        _audit("simulation_deduction_list_scenarios_failed", _uid, "failure", str(e))
         raise HTTPException(status_code=500, detail=str(e))
 
 
 @router.get("/scenarios/{scenario_id}")
 async def get_scenario(scenario_id: str,
     user=Depends(get_current_user)):
+    _uid = user.get("sub", "anonymous") if isinstance(user, dict) else "anonymous"
     try:
         result = service.get_scenario(scenario_id)
         if result.get("status") == "error":
@@ -65,34 +90,41 @@ async def get_scenario(scenario_id: str,
     except HTTPException:
         raise
     except Exception as e:
+        _audit("simulation_deduction_get_scenario_failed", _uid, "failure", str(e), details={"scenario_id": scenario_id})
         raise HTTPException(status_code=500, detail=str(e))
 
 
 @router.delete("/scenarios/{scenario_id}")
 async def delete_scenario(scenario_id: str,
     user=Depends(get_current_user)):
+    _uid = user.get("sub", "anonymous") if isinstance(user, dict) else "anonymous"
     try:
         result = service.delete_scenario(scenario_id)
         if result.get("status") == "error":
             raise HTTPException(status_code=404, detail=result.get("message", "Not found"))
+        _audit("simulation_deduction_delete_scenario", _uid, "success", details={"scenario_id": scenario_id})
         return result
     except HTTPException:
         raise
     except Exception as e:
+        _audit("simulation_deduction_delete_scenario_failed", _uid, "failure", str(e), details={"scenario_id": scenario_id})
         raise HTTPException(status_code=500, detail=str(e))
 
 
 @router.post("/scenarios/{scenario_id}/conditions")
 async def load_ontology_conditions(scenario_id: str,
     user=Depends(get_current_user)):
+    _uid = user.get("sub", "anonymous") if isinstance(user, dict) else "anonymous"
     try:
         result = service.load_ontology_conditions(scenario_id)
         if result.get("status") == "error":
             raise HTTPException(status_code=404, detail=result.get("message", "Not found"))
+        _audit("simulation_deduction_load_conditions", _uid, "success", details={"scenario_id": scenario_id})
         return result
     except HTTPException:
         raise
     except Exception as e:
+        _audit("simulation_deduction_load_conditions_failed", _uid, "failure", str(e), details={"scenario_id": scenario_id})
         raise HTTPException(status_code=500, detail=str(e))
 
 
@@ -100,20 +132,24 @@ async def load_ontology_conditions(scenario_id: str,
 async def update_condition(scenario_id: str, condition_id: str,
                             request: UpdateConditionRequest,
     user=Depends(get_current_user)):
+    _uid = user.get("sub", "anonymous") if isinstance(user, dict) else "anonymous"
     try:
         result = service.update_condition(scenario_id, condition_id, request.value)
         if result.get("status") == "error":
             raise HTTPException(status_code=404, detail=result.get("message", "Not found"))
+        _audit("simulation_deduction_update_condition", _uid, "success", details={"scenario_id": scenario_id, "condition_id": condition_id})
         return result
     except HTTPException:
         raise
     except Exception as e:
+        _audit("simulation_deduction_update_condition_failed", _uid, "failure", str(e), details={"scenario_id": scenario_id, "condition_id": condition_id})
         raise HTTPException(status_code=500, detail=str(e))
 
 
 @router.post("/scenarios/{scenario_id}/chains")
 async def add_execution_chain(scenario_id: str, request: AddChainRequest,
     user=Depends(get_current_user)):
+    _uid = user.get("sub", "anonymous") if isinstance(user, dict) else "anonymous"
     try:
         result = service.add_execution_chain(
             scenario_id=scenario_id,
@@ -124,30 +160,36 @@ async def add_execution_chain(scenario_id: str, request: AddChainRequest,
         )
         if result.get("status") == "error":
             raise HTTPException(status_code=400, detail=result.get("message", "Unknown error"))
+        _audit("simulation_deduction_add_chain", _uid, "success", details={"scenario_id": scenario_id, "name": request.name})
         return result
     except HTTPException:
         raise
     except Exception as e:
+        _audit("simulation_deduction_add_chain_failed", _uid, "failure", str(e), details={"scenario_id": scenario_id})
         raise HTTPException(status_code=500, detail=str(e))
 
 
 @router.delete("/scenarios/{scenario_id}/chains/{chain_id}")
 async def delete_chain(scenario_id: str, chain_id: str,
     user=Depends(get_current_user)):
+    _uid = user.get("sub", "anonymous") if isinstance(user, dict) else "anonymous"
     try:
         result = service.delete_chain(scenario_id, chain_id)
         if result.get("status") == "error":
             raise HTTPException(status_code=404, detail=result.get("message", "Not found"))
+        _audit("simulation_deduction_delete_chain", _uid, "success", details={"scenario_id": scenario_id, "chain_id": chain_id})
         return result
     except HTTPException:
         raise
     except Exception as e:
+        _audit("simulation_deduction_delete_chain_failed", _uid, "failure", str(e), details={"scenario_id": scenario_id, "chain_id": chain_id})
         raise HTTPException(status_code=500, detail=str(e))
 
 
 @router.put("/scenarios/{scenario_id}/chains/{chain_id}")
 async def update_chain(scenario_id: str, chain_id: str, request: AddChainRequest,
     user=Depends(get_current_user)):
+    _uid = user.get("sub", "anonymous") if isinstance(user, dict) else "anonymous"
     try:
         result = service.update_chain(
             scenario_id=scenario_id,
@@ -159,50 +201,61 @@ async def update_chain(scenario_id: str, chain_id: str, request: AddChainRequest
         )
         if result.get("status") == "error":
             raise HTTPException(status_code=404, detail=result.get("message", "Not found"))
+        _audit("simulation_deduction_update_chain", _uid, "success", details={"scenario_id": scenario_id, "chain_id": chain_id})
         return result
     except HTTPException:
         raise
     except Exception as e:
+        _audit("simulation_deduction_update_chain_failed", _uid, "failure", str(e), details={"scenario_id": scenario_id, "chain_id": chain_id})
         raise HTTPException(status_code=500, detail=str(e))
 
 
 @router.post("/scenarios/{scenario_id}/chains/{chain_id}/simulate")
 async def simulate_chain(scenario_id: str, chain_id: str,
     user=Depends(get_current_user)):
+    _uid = user.get("sub", "anonymous") if isinstance(user, dict) else "anonymous"
     try:
         result = service.simulate_chain(scenario_id, chain_id)
         if result.get("status") == "error":
             raise HTTPException(status_code=400, detail=result.get("message", "Unknown error"))
+        _audit("simulation_deduction_simulate_chain", _uid, "success", details={"scenario_id": scenario_id, "chain_id": chain_id})
         return result
     except HTTPException:
         raise
     except Exception as e:
+        _audit("simulation_deduction_simulate_chain_failed", _uid, "failure", str(e), details={"scenario_id": scenario_id, "chain_id": chain_id})
         raise HTTPException(status_code=500, detail=str(e))
 
 
 @router.post("/scenarios/{scenario_id}/simulate-all")
 async def simulate_all_chains(scenario_id: str,
     user=Depends(get_current_user)):
+    _uid = user.get("sub", "anonymous") if isinstance(user, dict) else "anonymous"
     try:
         result = service.simulate_all_chains(scenario_id)
         if result.get("status") == "error":
             raise HTTPException(status_code=400, detail=result.get("message", "Unknown error"))
+        _audit("simulation_deduction_simulate_all", _uid, "success", details={"scenario_id": scenario_id})
         return result
     except HTTPException:
         raise
     except Exception as e:
+        _audit("simulation_deduction_simulate_all_failed", _uid, "failure", str(e), details={"scenario_id": scenario_id})
         raise HTTPException(status_code=500, detail=str(e))
 
 
 @router.post("/scenarios/{scenario_id}/compare")
 async def compare_chains(scenario_id: str, request: CompareChainsRequest,
     user=Depends(get_current_user)):
+    _uid = user.get("sub", "anonymous") if isinstance(user, dict) else "anonymous"
     try:
         result = service.compare_chains(scenario_id, request.chain_ids)
         if result.get("status") == "error":
             raise HTTPException(status_code=400, detail=result.get("message", "Unknown error"))
+        _audit("simulation_deduction_compare_chains", _uid, "success", details={"scenario_id": scenario_id, "chain_ids": request.chain_ids})
         return result
     except HTTPException:
         raise
     except Exception as e:
+        _audit("simulation_deduction_compare_chains_failed", _uid, "failure", str(e), details={"scenario_id": scenario_id})
         raise HTTPException(status_code=500, detail=str(e))

@@ -1863,6 +1863,28 @@ class QAEngineV2:
 
             yield {"type": "end", "value": {"session_id": session_id, "reasoning_chain": reasoning_chain}}
 
+            # 审计：QA 问答完成
+            try:
+                from odap.infra.security.unified_audit import log_audit
+                log_audit(
+                    action="qa_ask_completed",
+                    resource=f"session:{session_id}",
+                    user=user_id,
+                    service="qa",
+                    result_status="success",
+                    result_message=f"QA query completed: {query[:100]}",
+                    details={
+                        "session_id": session_id,
+                        "workspace_id": workspace_id,
+                        "scenario_id": scenario_id,
+                        "query_length": len(query),
+                        "reasoning_steps": len(reasoning_chain),
+                    },
+                    workspace_id=workspace_id or "default",
+                )
+            except Exception:
+                pass
+
         except Exception as e:
             logger.error(f"QAEngine ask_stream failed: {e}")
             fallback_answer = self._answer_general(query, "未找到相关信息。", [])
@@ -1873,6 +1895,28 @@ class QAEngineV2:
                 reasoning_chain = simple_chain.to_list()
             else:
                 reasoning_chain = []
+
+            # 审计：QA 问答失败
+            try:
+                from odap.infra.security.unified_audit import log_audit
+                log_audit(
+                    action="qa_ask_failed",
+                    resource=f"session:{session_id}",
+                    user=user_id,
+                    service="qa",
+                    result_status="failure",
+                    result_message=f"QA query failed: {str(e)[:200]}",
+                    details={
+                        "session_id": session_id,
+                        "workspace_id": workspace_id,
+                        "query_length": len(query),
+                        "error_type": type(e).__name__,
+                    },
+                    workspace_id=workspace_id or "default",
+                )
+            except Exception:
+                pass
+
             yield {"type": "content", "value": fallback_answer}
             yield {"type": "end", "value": {"session_id": session_id, "error": str(e), "reasoning_chain": reasoning_chain}}
 
