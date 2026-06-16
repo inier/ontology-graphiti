@@ -1,9 +1,9 @@
 import { useState, useEffect } from 'react';
 import { Table, Card, Button, Space, Tag, Popconfirm, message, Modal } from 'antd';
 import { RollbackOutlined, DeleteOutlined, ReloadOutlined, FileTextOutlined } from '@ant-design/icons';
-import { api } from '../../shared/services/api';
-import { useScenario, useWorkspace } from '../../shared/components/AppLayout';
-import type { DiffResult } from '../../shared/types';
+import { api } from '@/modules/shared/services/api';
+import { useScenario, useWorkspace } from '@/modules/shared/components/AppLayout';
+import type { DiffResult } from '@/modules/shared/types';
 
 interface VersionItem {
   version_id: string;
@@ -38,8 +38,7 @@ export function VersionHistory() {
         const data = await api.getScenarioOntologyVersions(currentWorkspace, currentScenario);
         setVersions(data);
       } else {
-        const data = await api.listVersions();
-        setVersions(data);
+        setVersions([]);
       }
     } catch (error) {
       console.error('加载版本历史失败', error);

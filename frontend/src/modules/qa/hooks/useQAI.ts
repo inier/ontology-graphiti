@@ -1,7 +1,7 @@
 import { useCallback, useState, useRef, useEffect } from 'react';
 import { message } from 'antd';
 import { useChatStorage } from './useChatStorage';
-import { apiClient } from '../../shared/services/apiClient';
+import { apiClient } from '@/modules/shared/services/apiClient';
 
 export type ChartSpec = {
   chart_type: 'line' | 'bar' | 'pie' | 'scatter' | 'heatmap' | 'radar' | 'map' | 'network';
@@ -34,6 +34,9 @@ export type QAMessage = {
   charts?: ChartSpec[];
   temporal?: TemporalCard[];
   reports?: ReportLink[];
+  thinking?: string;
+  clarification?: { questions: string[]; reason: string };
+  reasoning?: Array<{ step: string; description: string }>;
 }
 
 export type UseQAIOptions = {
@@ -53,6 +56,8 @@ export type UseQAIReturn = {
   error: Error | null;
   sessionId: string | null;
   setSessionId: (id: string | null) => void;
+  // T050-fix: 暴露 setMessages 让外部（如会话切换时）直接替换消息列表
+  setMessages: React.Dispatch<React.SetStateAction<QAMessage[]>>;
   clearMessages: () => void;
   stop: () => void;
 }
@@ -191,6 +196,7 @@ export function useQAI({ sessionId: initialSessionId, workspaceId, scenarioId, a
       let accumulatedContent = '';
       let receivedSessionId = sessionId;
       let messageId = generateId();
+      let sseBuffer = '';
 
       setMessages(prev => [...prev, {
         id: messageId,
@@ -199,119 +205,151 @@ export function useQAI({ sessionId: initialSessionId, workspaceId, scenarioId, a
         timestamp: new Date().toISOString(),
       }]);
 
-      while (true) {
+      let streamDone = false;
+
+      while (!streamDone) {
         const { done, value } = await reader.read();
-        
+
         if (done) {
           break;
         }
 
         const chunk = decoder.decode(value, { stream: true });
-        
-        const lines = chunk.split('\n');
-        for (const line of lines) {
-          if (line.trim() === '') continue;
-          
-          try {
-            const data = JSON.parse(line);
-            
-            if (data.type === 'session_id') {
-              receivedSessionId = data.value;
-              if (!sessionId) {
-                setSessionIdState(data.value);
+        sseBuffer += chunk;
+
+        // 解析SSE事件：以 \n\n 分隔，每行以 "data: " 开头
+        const eventParts = sseBuffer.split('\n\n');
+        // 最后一段可能不完整，保留在buffer中
+        sseBuffer = eventParts.pop() || '';
+
+        for (const part of eventParts) {
+          if (streamDone) break;
+          const lines = part.split('\n');
+          for (const line of lines) {
+            if (!line.startsWith('data: ')) continue;
+            const jsonStr = line.slice(6);
+
+            try {
+              const data = JSON.parse(jsonStr);
+
+              if (data.type === 'session_id') {
+                receivedSessionId = data.value;
+                if (!sessionId) {
+                  setSessionIdState(data.value);
+                }
+              } else if (data.type === 'thinking') {
+                setMessages(prev => {
+                  const lastIndex = prev.length - 1;
+                  if (lastIndex >= 0 && prev[lastIndex].role === 'assistant') {
+                    return [
+                      ...prev.slice(0, lastIndex),
+                      { ...prev[lastIndex], thinking: data.value },
+                    ];
+                  }
+                  return prev;
+                });
+              } else if (data.type === 'reasoning') {
+                setMessages(prev => {
+                  const lastIndex = prev.length - 1;
+                  if (lastIndex >= 0 && prev[lastIndex].role === 'assistant') {
+                    const existing = prev[lastIndex].reasoning || [];
+                    return [
+                      ...prev.slice(0, lastIndex),
+                      {
+                        ...prev[lastIndex],
+                        reasoning: [...existing, data.value],
+                        thinking: data.value.description || prev[lastIndex].thinking,
+                      },
+                    ];
+                  }
+                  return prev;
+                });
+              } else if (data.type === 'clarification') {
+                setMessages(prev => {
+                  const lastIndex = prev.length - 1;
+                  if (lastIndex >= 0 && prev[lastIndex].role === 'assistant') {
+                    const questions = data.value?.questions || [];
+                    const reason = data.value?.reason || '';
+                    return [
+                      ...prev.slice(0, lastIndex),
+                      {
+                        ...prev[lastIndex],
+                        clarification: { questions, reason },
+                        thinking: undefined,
+                        content: questions.length > 0
+                          ? questions.map((q: string, i: number) => `${i + 1}. ${q}`).join('\n')
+                          : '请提供更多信息以便我准确回答您的问题。',
+                      },
+                    ];
+                  }
+                  return prev;
+                });
+              } else if (data.type === 'content') {
+                accumulatedContent += data.value;
+                setMessages(prev => {
+                  const lastIndex = prev.length - 1;
+                  if (lastIndex >= 0 && prev[lastIndex].role === 'assistant') {
+                    return [
+                      ...prev.slice(0, lastIndex),
+                      { ...prev[lastIndex], content: accumulatedContent },
+                    ];
+                  }
+                  return prev;
+                });
+              } else if (data.type === 'sources') {
+                setMessages(prev => {
+                  const lastIndex = prev.length - 1;
+                  if (lastIndex >= 0 && prev[lastIndex].role === 'assistant') {
+                    return [
+                      ...prev.slice(0, lastIndex),
+                      { ...prev[lastIndex], sources: data.value },
+                    ];
+                  }
+                  return prev;
+                });
+              } else if (data.type === 'chart') {
+                setMessages(prev => {
+                  const lastIndex = prev.length - 1;
+                  if (lastIndex >= 0 && prev[lastIndex].role === 'assistant') {
+                    const existing = prev[lastIndex].charts || [];
+                    return [
+                      ...prev.slice(0, lastIndex),
+                      { ...prev[lastIndex], charts: [...existing, data.value] },
+                    ];
+                  }
+                  return prev;
+                });
+              } else if (data.type === 'temporal') {
+                setMessages(prev => {
+                  const lastIndex = prev.length - 1;
+                  if (lastIndex >= 0 && prev[lastIndex].role === 'assistant') {
+                    const existing = prev[lastIndex].temporal || [];
+                    return [
+                      ...prev.slice(0, lastIndex),
+                      { ...prev[lastIndex], temporal: [...existing, data.value] },
+                    ];
+                  }
+                  return prev;
+                });
+              } else if (data.type === 'report') {
+                setMessages(prev => {
+                  const lastIndex = prev.length - 1;
+                  if (lastIndex >= 0 && prev[lastIndex].role === 'assistant') {
+                    const existing = prev[lastIndex].reports || [];
+                    return [
+                      ...prev.slice(0, lastIndex),
+                      { ...prev[lastIndex], reports: [...existing, data.value] },
+                    ];
+                  }
+                  return prev;
+                });
+              } else if (data.type === 'end' || data.type === 'done') {
+                streamDone = true;
+                break;
               }
-            } else if (data.type === 'content') {
-              accumulatedContent += data.value;
-              setMessages(prev => {
-                const lastIndex = prev.length - 1;
-                if (lastIndex >= 0 && prev[lastIndex].role === 'assistant') {
-                  return [
-                    ...prev.slice(0, lastIndex),
-                    {
-                      ...prev[lastIndex],
-                      content: accumulatedContent,
-                    },
-                  ];
-                }
-                return prev;
-              });
-            } else if (data.type === 'sources') {
-              setMessages(prev => {
-                const lastIndex = prev.length - 1;
-                if (lastIndex >= 0 && prev[lastIndex].role === 'assistant') {
-                  return [
-                    ...prev.slice(0, lastIndex),
-                    {
-                      ...prev[lastIndex],
-                      sources: data.value,
-                    },
-                  ];
-                }
-                return prev;
-              });
-            } else if (data.type === 'chart') {
-              setMessages(prev => {
-                const lastIndex = prev.length - 1;
-                if (lastIndex >= 0 && prev[lastIndex].role === 'assistant') {
-                  const existing = prev[lastIndex].charts || [];
-                  return [
-                    ...prev.slice(0, lastIndex),
-                    {
-                      ...prev[lastIndex],
-                      charts: [...existing, data.value],
-                    },
-                  ];
-                }
-                return prev;
-              });
-            } else if (data.type === 'temporal') {
-              setMessages(prev => {
-                const lastIndex = prev.length - 1;
-                if (lastIndex >= 0 && prev[lastIndex].role === 'assistant') {
-                  const existing = prev[lastIndex].temporal || [];
-                  return [
-                    ...prev.slice(0, lastIndex),
-                    {
-                      ...prev[lastIndex],
-                      temporal: [...existing, data.value],
-                    },
-                  ];
-                }
-                return prev;
-              });
-            } else if (data.type === 'report') {
-              setMessages(prev => {
-                const lastIndex = prev.length - 1;
-                if (lastIndex >= 0 && prev[lastIndex].role === 'assistant') {
-                  const existing = prev[lastIndex].reports || [];
-                  return [
-                    ...prev.slice(0, lastIndex),
-                    {
-                      ...prev[lastIndex],
-                      reports: [...existing, data.value],
-                    },
-                  ];
-                }
-                return prev;
-              });
-            } else if (data.type === 'end' || data.type === 'done') {
-              break;
+            } catch {
+              // 非JSON行，忽略
             }
-          } catch (e) {
-            accumulatedContent += line;
-            setMessages(prev => {
-              const lastIndex = prev.length - 1;
-              if (lastIndex >= 0 && prev[lastIndex].role === 'assistant') {
-                return [
-                  ...prev.slice(0, lastIndex),
-                  {
-                    ...prev[lastIndex],
-                    content: accumulatedContent,
-                  },
-                ];
-              }
-              return prev;
-            });
           }
         }
       }
@@ -352,6 +390,7 @@ export function useQAI({ sessionId: initialSessionId, workspaceId, scenarioId, a
     error,
     sessionId,
     setSessionId,
+    setMessages, // T050-fix: 让 QAChatPage 切换会话时直接替换消息
     clearMessages,
     stop,
   };

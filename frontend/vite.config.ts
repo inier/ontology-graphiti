@@ -20,6 +20,9 @@ export default defineConfig({
     watch: {
       usePolling: true,
     },
+    headers: {
+      'Cache-Control': 'no-store',
+    },
     proxy: {
       '/api': {
         target: proxyTarget,
@@ -35,6 +38,11 @@ export default defineConfig({
             console.log('[proxy res]', proxyRes.statusCode, req.url);
           });
         },
+      },
+      '/ws': {
+        target: proxyTarget.replace(/^http/, 'ws'),
+        ws: true,
+        changeOrigin: true,
       },
       '/health': {
         target: proxyTarget,

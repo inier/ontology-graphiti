@@ -1,12 +1,14 @@
 import React, { useState, useEffect } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { Layout, Typography, Button, Avatar, Empty, Tooltip, message, Divider, Modal, List, Tag } from 'antd';
-import { SendOutlined, UserOutlined, RobotOutlined, PlusOutlined, DeleteOutlined, SettingOutlined, LeftOutlined, RightOutlined, StarOutlined, HistoryOutlined, ThunderboltOutlined, ArrowRightOutlined } from '@ant-design/icons';
+import { SendOutlined, UserOutlined, RobotOutlined, PlusOutlined, DeleteOutlined, SettingOutlined, LeftOutlined, RightOutlined, StarOutlined, HistoryOutlined, ThunderboltOutlined, ArrowRightOutlined, ArrowLeftOutlined } from '@ant-design/icons';
 import { useQAI } from '../hooks/useQAI';
 import type { QAMessage } from '../hooks/useQAI';
 import { useSession } from '../hooks/useSession';
 import type { Session } from '../hooks/useSession';
-import { colors } from '../../shared/styles/colors';
-import { useWorkspace, useScenario, useRightPanel } from '../../shared';
+import { agentApi } from '@/modules/agent/services/agentApi';
+import { colors } from '@/modules/shared/styles/colors';
+import { useWorkspace, useScenario, useRightPanel } from '@/modules/shared';
 import { InlineChart } from '../components/InlineChart';
 import { TemporalCardView } from '../components/TemporalCardView';
 import { ReportLinkView } from '../components/ReportLinkView';
@@ -372,23 +374,36 @@ const chatHeaderStyles = css`
   }
 `;
 
-function ChatHeader({ 
-  sessionId, 
+function ChatHeader({
+  sessionId,
   sessionTitle,
-  onClear, 
-  isLoading 
-}: { 
+  onClear,
+  isLoading,
+  onBack,
+}: {
   sessionId: string | null;
   sessionTitle: string;
-  onClear: () => void; 
-  isLoading: boolean; 
+  onClear: () => void;
+  isLoading: boolean;
+  onBack?: () => void;
 }) {
   return (
     <div className={chatHeaderStyles}>
       <div className="header-left">
-        <Avatar 
-          icon={<StarOutlined />} 
-          style={{ background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)' }} 
+        {/* T051-fix: 返回按钮——点击回上一页（默认）或自定义 onBack 跳到指定路径（如 /my-agents） */}
+        {onBack && (
+          <Tooltip title="返回">
+            <Button
+              type="text"
+              icon={<ArrowLeftOutlined />}
+              onClick={onBack}
+              style={{ marginRight: 8 }}
+            />
+          </Tooltip>
+        )}
+        <Avatar
+          icon={<StarOutlined />}
+          style={{ background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)' }}
         />
         <div>
           <div className="header-title">{sessionTitle || '新对话'}</div>
@@ -401,9 +416,9 @@ function ChatHeader({
       </div>
       <div className="header-actions">
         <Tooltip title="清除对话">
-          <Button 
-            type="text" 
-            icon={<DeleteOutlined />} 
+          <Button
+            type="text"
+            icon={<DeleteOutlined />}
             onClick={onClear}
             loading={isLoading}
             danger
@@ -700,7 +715,29 @@ function MessageList({ messages, isLoading }: { messages: QAMessage[]; isLoading
             />
             <div className="message-content">
               <div className={`message-bubble ${msg.role}`}>
-                <div className="message-text">{msg.content}</div>
+                {msg.thinking && !msg.content ? (
+                  <div className="loading-indicator">
+                    <div className="thinking-dots">
+                      <span></span>
+                      <span></span>
+                      <span></span>
+                    </div>
+                    <Text type="secondary">{msg.thinking}</Text>
+                  </div>
+                ) : msg.clarification ? (
+                  <div>
+                    <div className="message-text" style={{ marginBottom: 8 }}>
+                      <Text type="warning">您的问题需要进一步澄清：</Text>
+                    </div>
+                    {msg.clarification.questions.map((q, idx) => (
+                      <div key={idx} style={{ padding: '4px 0', paddingLeft: 8 }}>
+                        <Text>{idx + 1}. {q}</Text>
+                      </div>
+                    ))}
+                  </div>
+                ) : (
+                  <div className="message-text">{msg.content}</div>
+                )}
                 {msg.charts && msg.charts.length > 0 && (
                   <div style={{ marginTop: 8 }}>
                     {msg.charts.map((chart, idx) => (
@@ -720,6 +757,46 @@ function MessageList({ messages, isLoading }: { messages: QAMessage[]; isLoading
                     {msg.reports.map((r, idx) => (
                       <ReportLinkView key={idx} report={r} />
                     ))}
+                  </div>
+                )}
+                {msg.reasoning && msg.reasoning.length > 0 && (
+                  <div style={{ marginTop: 8, padding: '8px 12px', background: 'rgba(0,0,0,0.03)', borderRadius: 6, fontSize: 12 }}>
+                    <div style={{ marginBottom: 6, color: '#8c8c8c', fontWeight: 500, display: 'flex', alignItems: 'center', gap: 4 }}>
+                      <span>推理过程</span>
+                    </div>
+                    {msg.reasoning.map((step, idx) => {
+                      const stepConfig: Record<string, { icon: string; color: string; label: string }> = {
+                        query_understanding: { icon: '🔍', color: '#1890ff', label: '查询理解' },
+                        entity_preretrieval: { icon: '📦', color: '#722ed1', label: '实体预检索' },
+                        rag_augment: { icon: '📚', color: '#13c2c2', label: 'RAG 检索' },
+                        source_trace: { icon: '🔗', color: '#fa8c16', label: '溯源' },
+                        answer_strategy: { icon: '⚡', color: '#52c41a', label: '回答策略' },
+                        llm_infer: { icon: '🤖', color: '#52c41a', label: '生成回答' },
+                        clarification: { icon: '❓', color: '#eb2f96', label: '澄清' },
+                      };
+                      const config = stepConfig[step.step] || { icon: '▸', color: '#8c8c8c', label: step.step };
+                      return (
+                        <div key={idx} style={{ padding: '3px 0', borderBottom: idx < msg.reasoning!.length - 1 ? '1px dashed rgba(0,0,0,0.06)' : 'none' }}>
+                          <div style={{ display: 'flex', gap: 6, alignItems: 'baseline' }}>
+                            <span style={{ flexShrink: 0 }}>{config.icon}</span>
+                            <span style={{ color: config.color, fontWeight: 500, flexShrink: 0 }}>{config.label}</span>
+                            <span style={{ color: '#595959' }}>{step.description}</span>
+                          </div>
+                          {step.detail && step.step === 'rag_augment' && (step.detail as Record<string, unknown>).source_breakdown && (
+                            <div style={{ marginLeft: 24, marginTop: 2, color: '#8c8c8c' }}>
+                              来源分布: {Object.entries((step.detail as Record<string, unknown>).source_breakdown as Record<string, number>)
+                                .map(([k, v]) => `${k}(${v}条)`).join(', ')}
+                              {(step.detail as Record<string, unknown>).multihop_used && ` | 多跳: ${(step.detail as Record<string, unknown>).hop_count}跳`}
+                            </div>
+                          )}
+                          {step.detail && step.step === 'source_trace' && (step.detail as Record<string, unknown>).content_preview && (
+                            <div style={{ marginLeft: 24, marginTop: 2, color: '#8c8c8c', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+                              {(step.detail as Record<string, unknown>).content_preview as string}
+                            </div>
+                          )}
+                        </div>
+                      );
+                    })}
                   </div>
                 )}
                 {msg.sources && msg.sources.length > 0 && (
@@ -743,7 +820,7 @@ function MessageList({ messages, isLoading }: { messages: QAMessage[]; isLoading
             </div>
           </div>
         ))}
-        {isLoading && (
+        {isLoading && !messages.some(m => m.role === 'assistant' && m.thinking && !m.content) && (
           <div className="message-item assistant">
             <Avatar
               className="message-avatar"
@@ -1141,10 +1218,37 @@ export function QAChatPage({ className, style, agentId }: { className?: string; 
   const [input, setInput] = useState('');
   const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(false);
   const [selectedSessionTitle, setSelectedSessionTitle] = useState('');
-  
+
   const { currentWorkspace } = useWorkspace();
   const { currentScenario } = useScenario();
   const { setShowRightPanel, setRightPanelContent, setRightPanelTitle } = useRightPanel();
+  const navigate = useNavigate();
+  // T051-fix: 返回按钮处理器——agent 上下文跳 /my-agents，其他场景智能返回上一页
+  const handleBack = () => {
+    if (agentId) {
+      navigate('/my-agents');
+    } else {
+      navigate(-1);
+    }
+  };
+
+  // T052-fix: 当 agentId 存在时加载 agent 名称同步到 ChatHeader 标题
+  // 切换不同 agentId 时，标题也要刷新
+  useEffect(() => {
+    let cancelled = false;
+    if (!agentId) return;
+    agentApi.getAgent(agentId)
+      .then((agent) => {
+        if (cancelled) return;
+        const title = agent?.display_name || agent?.name || `智能体 ${agentId.slice(0, 8)}`;
+        setSelectedSessionTitle(title);
+      })
+      .catch(() => {
+        if (cancelled) return;
+        setSelectedSessionTitle(`智能体 ${agentId.slice(0, 8)}`);
+      });
+    return () => { cancelled = true; };
+  }, [agentId]);
   
   const { sessions, fetchSessions, deleteSession } = useSession({
     workspaceId: currentWorkspace,
@@ -1262,9 +1366,36 @@ export function QAChatPage({ className, style, agentId }: { className?: string; 
     message.info('已创建新对话');
   };
 
-  const handleSelectSession = (session: Session) => {
+  const handleSelectSession = async (session: Session) => {
     setSessionId(session.session_id);
-    setSelectedSessionTitle(session.summary || '智能问答');
+    // T052-fix: 保留 agent 名称作为前缀，附加 session 摘要/标题
+    const agentPrefix = agentId ? '' : ''; // 名称已通过 useEffect 设置
+    const sessionLabel = session.summary || `会话 ${session.session_id.slice(0, 8)}`;
+    setSelectedSessionTitle((prev) => {
+      // 如果当前标题是 agent 名称（来自 useEffect），则追加 session 标签
+      if (agentId && prev && !prev.startsWith('会话')) {
+        return `${prev} · ${sessionLabel}`;
+      }
+      return sessionLabel;
+    });
+    // T050-fix: 切换会话时加载历史消息，填充到当前对话区
+    try {
+      const msgs = await loadSessionMessages(session.session_id);
+      if (msgs && msgs.length > 0) {
+        // 后端 messages 元素是 {role, content, timestamp, ...}，适配到 QAMessage 格式
+        setMessages(msgs.map((m: any) => ({
+          id: m.id || m.message_id || `${m.timestamp || ''}-${Math.random().toString(36).slice(2, 8)}`,
+          role: m.role === 'user' ? 'user' : 'assistant',
+          content: m.content || m.text || '',
+          timestamp: m.timestamp || new Date().toISOString(),
+        })));
+      } else {
+        setMessages([]);
+      }
+    } catch (err) {
+      // 加载失败保留原消息列表
+      console.warn('加载会话消息失败', err);
+    }
   };
 
   const handleDeleteSession = (deletedSessionId: string) => {
@@ -1292,6 +1423,7 @@ export function QAChatPage({ className, style, agentId }: { className?: string; 
           sessionTitle={selectedSessionTitle}
           onClear={handleClear}
           isLoading={isLoading}
+          onBack={handleBack}
         />
         <MessageList messages={messages} isLoading={isLoading} />
         <ChatInput

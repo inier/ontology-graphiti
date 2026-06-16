@@ -1,5 +1,5 @@
 import type { Scenario, Entity, TimelineEvent, Version, DiffResult, Stats } from '../types';
-import { API_BASE } from '../../../config';
+import { API_BASE } from '@/config';
 import { fetchJson, apiClient } from './apiClient';
 
 interface GraphNode {
@@ -162,7 +162,7 @@ export const api = {
    * ```javascript
    * await api.ingest({
    *   type: 'manual',
-   *   data: '红方部队进攻蓝方阵地',
+   *   data: '甲方单位交锋乙方阵地',
    *   scenario_id: currentScenario
    * });
    * ```
@@ -181,7 +181,7 @@ export const api = {
    *   type: 'news',
    *   data: {
    *     url: 'https://example.com/news',
-   *     event_context: '军事冲突',
+   *     event_context: '业务冲突',
    *     max_sources: 5
    *   },
    *   scenario_id: currentScenario
@@ -201,7 +201,7 @@ export const api = {
    * ```javascript
    * await api.ingest({
    *   type: 'natural_language',
-   *   data: '美军航母舰队在南海进行军事演习',
+   *   data: '某组织在南海进行业务演习',
    *   scenario_id: currentScenario
    * });
    * ```
@@ -223,7 +223,7 @@ export const api = {
    * await api.ingest({
    *   type: 'random',
    *   data: {
-   *     parties: ['蓝方', '红方'],
+   *     parties: ['乙方', '甲方'],
    *     count: 3
    *   },
    *   scenario_id: currentScenario
@@ -605,23 +605,28 @@ export const api = {
     return apiClient.upload(`${API_BASE}/api/ingest/file`, formData);
   },
 
-  async listVersions(): Promise<Version[]> {
-    const data = await fetchJson<{ versions: Version[] }>(`${API_BASE}/api/versions`);
-    return data.versions;
+  async listVersions(documentId?: string): Promise<Version[]> {
+    if (documentId) {
+      const data = await fetchJson<{ versions: Version[] }>(`${API_BASE}/api/ontology/versions/${documentId}`);
+      return data.versions;
+    }
+    const data = await fetchJson<{ versions: Version[] }>(`${API_BASE}/api/ontology/ingest/versions`);
+    return data.versions ?? [];
   },
 
-  async getVersion(versionId: string): Promise<Version> {
-    return fetchJson(`${API_BASE}/api/versions/${versionId}`);
+  async getVersion(documentId: string, versionId: string): Promise<Version> {
+    return fetchJson(`${API_BASE}/api/ontology/versions/${documentId}?version_id=${versionId}`);
   },
 
-  async rollback(versionId: string): Promise<{ status: string }> {
-    return fetchJson(`${API_BASE}/api/versions/${versionId}/rollback`, {
+  async rollback(documentId: string, versionId: string): Promise<{ status: string }> {
+    return fetchJson(`${API_BASE}/api/ontology/versions/${documentId}/rollback`, {
       method: 'POST',
+      body: JSON.stringify({ version_id: versionId }),
     });
   },
 
-  async diffVersions(versionA: string, versionB: string): Promise<DiffResult> {
-    return fetchJson(`${API_BASE}/api/versions/diff?version_a=${versionA}&version_b=${versionB}`);
+  async diffVersions(documentId: string, versionA: string, versionB: string): Promise<DiffResult> {
+    return fetchJson(`${API_BASE}/api/ontology/versions/${documentId}/compare?version_a=${versionA}&version_b=${versionB}`);
   },
 
   async deleteVersion(versionId: string): Promise<{ status: string; message: string }> {
@@ -1479,8 +1484,13 @@ export const api = {
 
   async getSystemHealth(): Promise<{
     status: string;
-    openharness_v1: boolean;
-    openharness_v2: Record<string, unknown>;
+    openharness: {
+      available: boolean;
+      engine_type: string;
+      agent_loop_initialized: boolean;
+      tools_count: number;
+      tools: Array<{ name: string; description: string; category: string; call_count: number }>;
+    };
     version: string;
   }> {
     return fetchJson(`${API_BASE}/health`);
@@ -1604,7 +1614,7 @@ export const api = {
     });
   },
 
-  // ==================== OMS 本体元数据服务 ====================
+  // ==================== OMS 本体元数据服务（只读） ====================
 
   async listObjectTypes(activeOnly = true): Promise<any[]> {
     return fetchJson(`${API_BASE}/api/ontology/oms/object-types?active_only=${activeOnly}`);
@@ -1612,24 +1622,6 @@ export const api = {
 
   async getObjectType(typeId: string): Promise<any> {
     return fetchJson(`${API_BASE}/api/ontology/oms/object-types/${typeId}`);
-  },
-
-  async createObjectType(data: any): Promise<any> {
-    return fetchJson(`${API_BASE}/api/ontology/oms/object-types`, {
-      method: 'POST',
-      body: JSON.stringify(data),
-    });
-  },
-
-  async updateObjectType(typeId: string, data: any): Promise<any> {
-    return fetchJson(`${API_BASE}/api/ontology/oms/object-types/${typeId}`, {
-      method: 'PUT',
-      body: JSON.stringify(data),
-    });
-  },
-
-  async deleteObjectType(typeId: string): Promise<void> {
-    return fetchJson(`${API_BASE}/api/ontology/oms/object-types/${typeId}`, { method: 'DELETE' });
   },
 
   async listActionTypes(targetType?: string): Promise<any[]> {
@@ -1641,6 +1633,98 @@ export const api = {
     return fetchJson(`${API_BASE}/api/ontology/oms/action-types/${actionTypeId}`);
   },
 
+  // ==================== TypeRegistry 统一类型定义服务 ====================
+
+  async registryCreateObjectType(ontologyId: string, data: any): Promise<any> {
+    return fetchJson(`${API_BASE}/api/ontology/registry/object-types`, {
+      method: 'POST',
+      body: JSON.stringify({ ...data, ontology_id: ontologyId }),
+    });
+  },
+
+  async registryGetObjectType(typeId: string): Promise<any> {
+    return fetchJson(`${API_BASE}/api/ontology/registry/object-types/${typeId}`);
+  },
+
+  async registryListObjectTypes(ontologyId: string): Promise<any> {
+    return fetchJson(`${API_BASE}/api/ontology/registry/ontologies/${ontologyId}/object-types`);
+  },
+
+  async registryUpdateObjectType(typeId: string, data: any): Promise<any> {
+    return fetchJson(`${API_BASE}/api/ontology/registry/object-types/${typeId}`, {
+      method: 'PUT',
+      body: JSON.stringify(data),
+    });
+  },
+
+  async registryDeleteObjectType(typeId: string): Promise<any> {
+    return fetchJson(`${API_BASE}/api/ontology/registry/object-types/${typeId}`, { method: 'DELETE' });
+  },
+
+  async registryCreateActionType(ontologyId: string, data: any): Promise<any> {
+    return fetchJson(`${API_BASE}/api/ontology/registry/action-types`, {
+      method: 'POST',
+      body: JSON.stringify({ ...data, ontology_id: ontologyId }),
+    });
+  },
+
+  async registryListActionTypes(ontologyId: string): Promise<any> {
+    return fetchJson(`${API_BASE}/api/ontology/registry/ontologies/${ontologyId}/action-types`);
+  },
+
+  async registryUpdateActionType(actionTypeId: string, data: any): Promise<any> {
+    return fetchJson(`${API_BASE}/api/ontology/registry/action-types/${actionTypeId}`, {
+      method: 'PUT',
+      body: JSON.stringify(data),
+    });
+  },
+
+  async registryDeleteActionType(actionTypeId: string): Promise<any> {
+    return fetchJson(`${API_BASE}/api/ontology/registry/action-types/${actionTypeId}`, { method: 'DELETE' });
+  },
+
+  async registryCreateLinkType(ontologyId: string, data: any): Promise<any> {
+    return fetchJson(`${API_BASE}/api/ontology/registry/link-types`, {
+      method: 'POST',
+      body: JSON.stringify({ ...data, ontology_id: ontologyId }),
+    });
+  },
+
+  async registryListLinkTypes(ontologyId: string): Promise<any> {
+    return fetchJson(`${API_BASE}/api/ontology/registry/ontologies/${ontologyId}/link-types`);
+  },
+
+  async registryCommitVersion(ontologyId: string, changelog: string = ''): Promise<any> {
+    return fetchJson(`${API_BASE}/api/ontology/registry/ontologies/${ontologyId}/commit`, {
+      method: 'POST',
+      body: JSON.stringify({ changelog }),
+    });
+  },
+
+  // ==================== OMS 写入（已弃用，请使用 Registry API） ====================
+
+  /** @deprecated 使用 registryCreateObjectType */
+  async createObjectType(data: any): Promise<any> {
+    return fetchJson(`${API_BASE}/api/ontology/oms/object-types`, {
+      method: 'POST',
+      body: JSON.stringify(data),
+    });
+  },
+
+  /** @deprecated 使用 registryUpdateObjectType */
+  async updateObjectType(typeId: string, data: any): Promise<any> {
+    return fetchJson(`${API_BASE}/api/ontology/oms/object-types/${typeId}`, {
+      method: 'PUT',
+      body: JSON.stringify(data),
+    });
+  },
+
+  /** @deprecated 使用 registryDeleteObjectType */
+  async deleteObjectType(typeId: string): Promise<void> {
+    return fetchJson(`${API_BASE}/api/ontology/oms/object-types/${typeId}`, { method: 'DELETE' });
+  },
+
+  /** @deprecated 使用 registryCreateActionType */
   async createActionType(data: any): Promise<any> {
     return fetchJson(`${API_BASE}/api/ontology/oms/action-types`, {
       method: 'POST',
@@ -1648,6 +1732,7 @@ export const api = {
     });
   },
 
+  /** @deprecated 使用 registryUpdateActionType */
   async updateActionType(actionTypeId: string, data: any): Promise<any> {
     return fetchJson(`${API_BASE}/api/ontology/oms/action-types/${actionTypeId}`, {
       method: 'PUT',
@@ -1655,6 +1740,7 @@ export const api = {
     });
   },
 
+  /** @deprecated 使用 registryDeleteActionType */
   async deleteActionType(actionTypeId: string): Promise<void> {
     return fetchJson(`${API_BASE}/api/ontology/oms/action-types/${actionTypeId}`, { method: 'DELETE' });
   },
@@ -2079,6 +2165,28 @@ export const api = {
     return fetchJson(`${API_BASE}/api/simulation/deduction/scenarios/${scenarioId}/compare`, {
       method: 'POST', body: JSON.stringify({ chain_ids: chainIds }),
     });
+  },
+
+  // ============================================================
+  // Web 数据采集 API
+  // ============================================================
+
+  async webSearch(query: string, maxResults: number = 5, searchDepth: string = 'basic'): Promise<any> {
+    return fetchJson(`${API_BASE}/api/web/search`, {
+      method: 'POST',
+      body: JSON.stringify({ query, max_results: maxResults, search_depth: searchDepth }),
+    });
+  },
+
+  async webCrawl(url: string, outputFormat: string = 'markdown', cssSelector?: string, timeout: number = 30): Promise<any> {
+    return fetchJson(`${API_BASE}/api/web/crawl`, {
+      method: 'POST',
+      body: JSON.stringify({ url, output_format: outputFormat, css_selector: cssSelector || null, timeout }),
+    });
+  },
+
+  async webCrawlHealth(): Promise<any> {
+    return fetchJson(`${API_BASE}/api/web/crawl/health`);
   },
 };
 
