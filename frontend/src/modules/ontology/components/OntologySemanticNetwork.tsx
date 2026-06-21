@@ -5,11 +5,12 @@
  * 保留：NodeDetailDrawer、Legend、版本选择器
  */
 import { useState, useEffect } from 'react';
-import { Drawer, Descriptions, Tag, Select, Space, Button, Table, Typography, message } from 'antd';
+import { Drawer, Descriptions, Tag, Select, Space, Button, Typography, message } from 'antd';
 import { ReloadOutlined, SearchOutlined, FilterOutlined } from '@ant-design/icons';
 import { PageHeader } from '@/modules/shared';
 import { GraphCanvas } from '@/modules/shared/modules/graph';
 import type { GraphNode, GraphEdge, NodeStyleConfig, EdgeStyleConfig } from '@/modules/shared/modules/graph';
+import { AdvancedTable } from '@/modules/shared';
 
 const { Text } = Typography;
 
@@ -161,7 +162,7 @@ function NodeDetailDrawer({
       <div style={{ marginTop: 24 }}>
         <Text strong style={{ display: 'block', marginBottom: 12 }}>关系 ({relatedEdges.length})</Text>
         {relatedEdges.length > 0 ? (
-          <Table
+          <AdvancedTable
             size="small"
             dataSource={relatedEdges}
             columns={[

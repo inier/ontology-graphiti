@@ -19,8 +19,9 @@
  */
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import {
-  Card, Row, Col, Input, Select, Button, Space, Typography, Form, Tag, message, Alert, Divider, Empty,
+  Card, Row, Col, Input, Select, Button, Space, Typography, Tag, message, Alert, Divider, Empty,
 } from 'antd';
+import { ProForm as Form } from '@ant-design/pro-components';
 import {
   SaveOutlined, ReloadOutlined, CheckCircleOutlined, CloseCircleOutlined, ThunderboltOutlined,
 } from '@ant-design/icons';
@@ -47,7 +48,16 @@ interface RuleFormValues {
   expression: string;
 }
 
-const DEFAULT_TEMPLATE = `# 数据健康规则（YAML / DSL）
+export function HealthRuleEditor({ workspaceId, ruleId, onSaved }: HealthRuleEditorProps) {
+  const { t } = useI18n('ontology');
+  const [source, setSource] = useState<string>('');
+  const [form] = Form.useForm<RuleFormValues>();
+  const [loading, setLoading] = useState(false);
+  const [saving, setSaving] = useState(false);
+  const [errorCount, setErrorCount] = useState(0);
+
+  const DEFAULT_TEMPLATE = useMemo(
+    () => `# 数据健康规则（YAML / DSL）
 # 保存后自动注册到健康扫描器
 rule_id: r-new-001
 name: "新规则"
@@ -55,70 +65,63 @@ description: "请描述规则用途"
 object_type: Asset
 severity: MEDIUM
 expression: "count(properties) >= 1"
-`;
+`,
+    [],
+  );
 
-const SEVERITY_OPTIONS: Array<{ value: Severity; label: string; color: string }> = [
-  { value: 'LOW', label: 'LOW', color: 'blue' },
-  { value: 'MEDIUM', label: 'MEDIUM', color: 'gold' },
-  { value: 'HIGH', label: 'HIGH', color: 'orange' },
-  { value: 'CRITICAL', label: 'CRITICAL', color: 'red' },
-];
+  const SEVERITY_OPTIONS: Array<{ value: Severity; label: string; color: string }> = useMemo(() => [
+    { value: 'LOW', label: 'LOW', color: 'blue' },
+    { value: 'MEDIUM', label: 'MEDIUM', color: 'gold' },
+    { value: 'HIGH', label: 'HIGH', color: 'orange' },
+    { value: 'CRITICAL', label: 'CRITICAL', color: 'red' },
+  ], []);
 
-function validateYaml(source: string): { ok: boolean; errors: string[]; values?: RuleFormValues } {
-  const errors: string[] = [];
-  const values: Partial<RuleFormValues> = {};
-  if (!source.trim()) {
-    return { ok: false, errors: ['内容为空'], values: undefined };
-  }
-  for (const line of source.split('\n')) {
-    const trimmed = line.trim();
-    if (!trimmed || trimmed.startsWith('#')) continue;
-    const colonIdx = trimmed.indexOf(':');
-    if (colonIdx === -1) {
-      errors.push(`格式错误行: ${line}`);
-      continue;
+  const validateYaml = useCallback((src: string): { ok: boolean; errors: string[]; values?: RuleFormValues } => {
+    const errors: string[] = [];
+    const values: Partial<RuleFormValues> = {};
+    if (!src.trim()) {
+      return { ok: false, errors: [t('healthRule.yamlErrorEmpty')], values: undefined };
     }
-    const key = trimmed.slice(0, colonIdx).trim();
-    let value = trimmed.slice(colonIdx + 1).trim();
-    if (value.startsWith('"') && value.endsWith('"')) value = value.slice(1, -1);
-    if (key === 'rule_id') values.rule_id = value;
-    else if (key === 'name') values.name = value;
-    else if (key === 'description') values.description = value;
-    else if (key === 'object_type') values.object_type = value;
-    else if (key === 'severity') values.severity = value as Severity;
-    else if (key === 'expression') values.expression = value;
-  }
-  if (!values.rule_id) errors.push('缺少 rule_id');
-  if (!values.name) errors.push('缺少 name');
-  if (!values.object_type) errors.push('缺少 object_type');
-  if (!values.severity) errors.push('缺少 severity');
-  else if (!['LOW', 'MEDIUM', 'HIGH', 'CRITICAL'].includes(values.severity)) errors.push('severity 非法');
-  if (!values.expression) errors.push('缺少 expression');
-  else {
-    let depth = 0;
-    for (const c of values.expression) {
-      if (c === '(') depth += 1;
-      else if (c === ')') depth -= 1;
-      if (depth < 0) {
-        errors.push('expression 括号不匹配');
-        break;
+    for (const line of src.split('\n')) {
+      const trimmed = line.trim();
+      if (!trimmed || trimmed.startsWith('#')) continue;
+      const colonIdx = trimmed.indexOf(':');
+      if (colonIdx === -1) {
+        errors.push(t('healthRule.yamlErrorLine', { line }));
+        continue;
       }
+      const key = trimmed.slice(0, colonIdx).trim();
+      let value = trimmed.slice(colonIdx + 1).trim();
+      if (value.startsWith('"') && value.endsWith('"')) value = value.slice(1, -1);
+      if (key === 'rule_id') values.rule_id = value;
+      else if (key === 'name') values.name = value;
+      else if (key === 'description') values.description = value;
+      else if (key === 'object_type') values.object_type = value;
+      else if (key === 'severity') values.severity = value as Severity;
+      else if (key === 'expression') values.expression = value;
     }
-    if (depth !== 0) errors.push('expression 括号不匹配');
-  }
-  return { ok: errors.length === 0, errors, values: values as RuleFormValues };
-}
+    if (!values.rule_id) errors.push(t('healthRule.yamlErrorMissingRuleId'));
+    if (!values.name) errors.push(t('healthRule.yamlErrorMissingName'));
+    if (!values.object_type) errors.push(t('healthRule.yamlErrorMissingObjectType'));
+    if (!values.severity) errors.push(t('healthRule.yamlErrorMissingSeverity'));
+    else if (!['LOW', 'MEDIUM', 'HIGH', 'CRITICAL'].includes(values.severity)) errors.push(t('healthRule.yamlErrorInvalidSeverity'));
+    if (!values.expression) errors.push(t('healthRule.yamlErrorMissingExpression'));
+    else {
+      let depth = 0;
+      for (const c of values.expression) {
+        if (c === '(') depth += 1;
+        else if (c === ')') depth -= 1;
+        if (depth < 0) {
+          errors.push(t('healthRule.yamlErrorParentheses'));
+          break;
+        }
+      }
+      if (depth !== 0) errors.push(t('healthRule.yamlErrorParentheses'));
+    }
+    return { ok: errors.length === 0, errors, values: values as RuleFormValues };
+  }, [t]);
 
-export function HealthRuleEditor({ workspaceId, ruleId, onSaved }: HealthRuleEditorProps) {
-  const { t } = useI18n();
-  void t;
-  const [source, setSource] = useState<string>(DEFAULT_TEMPLATE);
-  const [form] = Form.useForm<RuleFormValues>();
-  const [loading, setLoading] = useState(false);
-  const [saving, setSaving] = useState(false);
-  const [errorCount, setErrorCount] = useState(0);
-
-  const validation = useMemo(() => validateYaml(source), [source]);
+  const validation = useMemo(() => validateYaml(source), [source, validateYaml]);
 
   const fetchRule = useCallback(async (id: string) => {
     setLoading(true);
@@ -126,10 +129,15 @@ export function HealthRuleEditor({ workspaceId, ruleId, onSaved }: HealthRuleEdi
       const data = await apiClient.get<{ rule: { yaml: string } }>(`/api/ontology/health/rules/${id}`);
       setSource(data.rule?.yaml || DEFAULT_TEMPLATE);
     } catch (e) {
-      message.error(`加载失败: ${(e as Error).message}`);
+      message.error(t('healthRule.loadFailed', { msg: (e as Error).message }));
     } finally {
       setLoading(false);
     }
+  }, [t, DEFAULT_TEMPLATE]);
+
+  useEffect(() => {
+    if (!source) setSource(DEFAULT_TEMPLATE);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   useEffect(() => {
@@ -143,47 +151,47 @@ export function HealthRuleEditor({ workspaceId, ruleId, onSaved }: HealthRuleEdi
 
   const onSave = useCallback(async () => {
     if (!validation.ok) {
-      message.error('请先修复校验错误');
+      message.error(t('healthRule.fixErrorsFirst'));
       return;
     }
     setSaving(true);
     try {
       const payload = { yaml: source, workspace_id: workspaceId };
       const data = await apiClient.post<{ rule_id: string }>('/api/ontology/health/rules', payload);
-      message.success(`规则已保存: ${data.rule_id}`);
+      message.success(t('healthRule.saved', { id: data.rule_id }));
       onSaved?.(data.rule_id);
     } catch (e) {
-      message.error(`保存失败: ${(e as Error).message}`);
+      message.error(t('healthRule.saveFailed', { msg: (e as Error).message }));
     } finally {
       setSaving(false);
     }
-  }, [source, validation, workspaceId, onSaved]);
+  }, [source, validation, workspaceId, onSaved, t]);
 
   const onValidate = useCallback(() => {
-    if (validation.ok) message.success('校验通过');
-    else message.error(`发现 ${validation.errors.length} 处错误`);
-  }, [validation]);
+    if (validation.ok) message.success(t('healthRule.validatePass'));
+    else message.error(t('healthRule.errorsFound', { count: validation.errors.length }));
+  }, [validation, t]);
 
   const onReset = useCallback(() => {
     setSource(DEFAULT_TEMPLATE);
     form.resetFields();
-    message.info('已重置');
-  }, [form]);
+    message.info(t('healthRule.resetSuccess'));
+  }, [form, t, DEFAULT_TEMPLATE]);
 
   return (
     <Card
       title={
         <Space>
           <ThunderboltOutlined />
-          <Title level={5} style={{ margin: 0 }}>{ruleId ? `编辑规则 ${ruleId}` : '新建数据健康规则'}</Title>
+          <Title level={5} style={{ margin: 0 }}>{ruleId ? t('healthRule.editRule', { id: ruleId }) : t('healthRule.newHealthRule')}</Title>
         </Space>
       }
       extra={
         <Space>
-          <Button icon={<ReloadOutlined />} onClick={onReset}>重置</Button>
-          <Button icon={<ThunderboltOutlined />} onClick={onValidate}>校验</Button>
+          <Button icon={<ReloadOutlined />} onClick={onReset}>{t('healthRule.reset')}</Button>
+          <Button icon={<ThunderboltOutlined />} onClick={onValidate}>{t('healthRule.validate')}</Button>
           <Button type="primary" icon={<SaveOutlined />} loading={saving} onClick={onSave} disabled={!validation.ok}>
-            保存
+            {t('healthRule.save')}
           </Button>
         </Space>
       }
@@ -191,7 +199,7 @@ export function HealthRuleEditor({ workspaceId, ruleId, onSaved }: HealthRuleEdi
     >
       <Row gutter={16}>
         <Col span={14}>
-          <Card type="inner" title="YAML / DSL 源码" size="small">
+          <Card type="inner" title={t('healthRule.yamlSource')} size="small">
             <TextArea
               value={source}
               onChange={(e) => setSource(e.target.value)}
@@ -202,7 +210,7 @@ export function HealthRuleEditor({ workspaceId, ruleId, onSaved }: HealthRuleEdi
           </Card>
         </Col>
         <Col span={10}>
-          <Card type="inner" title="结构化表单（自动同步）" size="small">
+          <Card type="inner" title={t('healthRule.structuredForm')} size="small">
             <Form
               form={form}
               layout="vertical"
@@ -219,23 +227,23 @@ export function HealthRuleEditor({ workspaceId, ruleId, onSaved }: HealthRuleEdi
                 setSource(lines.join('\n'));
               }}
             >
-              <Form.Item label="Rule ID" name="rule_id" rules={[{ required: true, message: '请输入 ID' }]}>
-                <Input placeholder="r-001" />
+              <Form.Item label={t('healthRule.ruleIdLabel')} name="rule_id" rules={[{ required: true, message: t('healthRule.ruleIdRequired') }]}>
+                <Input placeholder={t('healthRule.ruleIdPlaceholder')} />
               </Form.Item>
-              <Form.Item label="Name" name="name" rules={[{ required: true, message: '请输入名称' }]}>
-                <Input placeholder="规则名称" />
+              <Form.Item label={t('healthRule.nameLabel')} name="name" rules={[{ required: true, message: t('healthRule.nameRequired') }]}>
+                <Input placeholder={t('healthRule.namePlaceholder')} />
               </Form.Item>
-              <Form.Item label="Description" name="description">
-                <Input placeholder="可选描述" />
+              <Form.Item label={t('healthRule.descriptionLabel')} name="description">
+                <Input placeholder={t('healthRule.descriptionPlaceholder')} />
               </Form.Item>
-              <Form.Item label="Object Type" name="object_type" rules={[{ required: true, message: '请输入 ObjectType' }]}>
-                <Input placeholder="Asset" />
+              <Form.Item label={t('healthRule.objectTypeLabel')} name="object_type" rules={[{ required: true, message: t('healthRule.objectTypeRequired') }]}>
+                <Input placeholder={t('healthRule.objectTypePlaceholder')} />
               </Form.Item>
-              <Form.Item label="Severity" name="severity" rules={[{ required: true }]}>
+              <Form.Item label={t('healthRule.severityLabel')} name="severity" rules={[{ required: true }]}>
                 <Select options={SEVERITY_OPTIONS.map((o) => ({ value: o.value, label: <Tag color={o.color}>{o.label}</Tag> }))} />
               </Form.Item>
-              <Form.Item label="Expression" name="expression" rules={[{ required: true, message: '请输入表达式' }]}>
-                <TextArea autoSize={{ minRows: 3, maxRows: 6 }} placeholder="count(properties) >= 5" />
+              <Form.Item label={t('healthRule.expressionLabel')} name="expression" rules={[{ required: true, message: t('healthRule.expressionRequired') }]}>
+                <TextArea autoSize={{ minRows: 3, maxRows: 6 }} placeholder={t('healthRule.expressionPlaceholder')} />
               </Form.Item>
             </Form>
           </Card>
@@ -245,15 +253,15 @@ export function HealthRuleEditor({ workspaceId, ruleId, onSaved }: HealthRuleEdi
               type="success"
               showIcon
               icon={<CheckCircleOutlined />}
-              message="表达式解析通过"
-              description="已就绪，可点击保存"
+              message={t('healthRule.parsePass')}
+              description={t('healthRule.parsePassDesc')}
             />
           ) : (
             <Alert
               type="error"
               showIcon
               icon={<CloseCircleOutlined />}
-              message={`发现 ${errorCount} 处错误`}
+              message={t('healthRule.errorsFoundCount', { count: errorCount })}
               description={
                 <ul style={{ margin: 0, paddingLeft: 18 }}>
                   {validation.errors.map((e, i) => (
@@ -266,7 +274,7 @@ export function HealthRuleEditor({ workspaceId, ruleId, onSaved }: HealthRuleEdi
         </Col>
       </Row>
       {Object.keys(validation.values || {}).length === 0 && (
-        <Empty description="请填写规则字段" style={{ marginTop: 12 }} />
+        <Empty description={t('healthRule.fillFields')} style={{ marginTop: 12 }} />
       )}
     </Card>
   );

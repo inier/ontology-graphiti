@@ -11,7 +11,8 @@
  */
 
 import React, { useState } from 'react';
-import { Button, Card, Input, Layout, Space, Typography } from 'antd';
+import { Button, Input, Layout, Space, Typography } from 'antd';
+import { ProCard as Card } from '@ant-design/pro-components';
 import { SendOutlined, ThunderboltOutlined } from '@ant-design/icons';
 import { AGUIProvider, useAGUIContext } from './AGUIProvider';
 import { HITLPanel } from './HITLPanel';

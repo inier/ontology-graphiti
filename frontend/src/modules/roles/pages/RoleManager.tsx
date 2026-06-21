@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { Table, Card, Button, Modal, Form, Input, Select, Space, Tag, Popconfirm, message, Row, Col, Statistic, Checkbox } from 'antd';
+import { Card, Button, Modal, Form, Input, Select, Space, Tag, Popconfirm, message, Row, Col, Statistic, Checkbox } from 'antd';
 import { PlusOutlined, EditOutlined, DeleteOutlined } from '@ant-design/icons';
 import {
   listRoles,
@@ -10,6 +10,7 @@ import {
   listPermissions
 } from '../services/rolesApi';
 import type { Role, RoleCreate, RoleUpdate, Permission } from '../types';
+import { AdvancedTable } from '@/modules/shared';
 
 const { Option } = Select;
 const { TextArea } = Input;
@@ -245,7 +246,7 @@ export function RoleManager() {
           </Col>
         </Row>
 
-        <Table
+        <AdvancedTable
           columns={columns}
           dataSource={roles}
           rowKey="id"

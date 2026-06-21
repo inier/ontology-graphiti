@@ -6,7 +6,7 @@
 """
 
 import uuid
-from datetime import datetime
+from datetime import datetime, timezone
 from enum import Enum
 from typing import Optional, Dict, List, Any
 from pydantic import BaseModel, Field
@@ -110,7 +110,7 @@ class ActionResult(BaseModel):
 class AuditEvent(BaseModel):
     """审计事件 - 最小审计单元"""
     id: str = Field(default_factory=lambda: str(uuid.uuid4()), description="事件唯一标识 (UUID)")
-    timestamp: datetime = Field(default_factory=datetime.now, description="事件时间戳")
+    timestamp: datetime = Field(default_factory=lambda: datetime.now(timezone.utc), description="事件时间戳")
     event_type: AuditEventType = Field(..., description="事件类型")
     severity: AuditSeverity = Field(default=AuditSeverity.INFO, description="严重级别")
     source: str = Field(default="system", description="事件来源")

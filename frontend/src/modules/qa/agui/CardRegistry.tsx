@@ -8,7 +8,8 @@
  */
 
 import React from 'react';
-import { Card, Typography } from 'antd';
+import { Typography } from 'antd';
+import { ProCard as Card } from '@ant-design/pro-components';
 import type { CardType, CardMetadata } from './agui_types';
 import { InlineChart } from '../components/InlineChart';
 import { TemporalCardView } from '../components/TemporalCardView';

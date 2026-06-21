@@ -381,11 +381,35 @@ class OHQueryEngineFactory:
         return True
 
     def _register_skills(self, opa_manager=None):
-        """将 SKILL_CATALOG 注册到 OH ToolRegistry"""
+        """注册工具到 OH ToolRegistry
+
+        注册两个来源的工具：
+        1. AI Assistant Plugin 的 16 个 BaseTool（本体查询/设计/写入）— Phase 1 迁移产物
+        2. SKILL_CATALOG 中的领域 Skill（通过 GraphitiToolAdapter 适配）
+        """
+        count = 0
+
+        # --- 1. AI Assistant Plugin BaseTools ---
+        try:
+            from odap.biz.core.assistant.plugins.ai_assistant.tools import ALL_TOOLS as AI_ASSISTANT_TOOLS
+            for tool in AI_ASSISTANT_TOOLS:
+                self._tool_registry.register(tool)
+                count += 1
+            logger.info(
+                "OHQueryEngineFactory: %d 个 AI Assistant Plugin 工具注册到 ToolRegistry",
+                count,
+            )
+        except Exception as e:
+            logger.warning("OHQueryEngineFactory: AI Assistant Plugin 工具注册失败: %s", e)
+
+        # --- 2. SKILL_CATALOG 领域 Skill（向后兼容） ---
         try:
             from odap.tools import SKILL_CATALOG
-            count = 0
+            skill_count = 0
             for name, entry in SKILL_CATALOG.items():
+                # 跳过与 AI Assistant Plugin 同名的工具，避免重复注册
+                if self._tool_registry.get(name) is not None:
+                    continue
                 tool = GraphitiToolAdapter(
                     name=name,
                     description=entry["description"],
@@ -394,10 +418,16 @@ class OHQueryEngineFactory:
                     opa_manager=opa_manager,
                 )
                 self._tool_registry.register(tool)
-                count += 1
-            logger.info("OHQueryEngineFactory: %d 个 Skill 注册到 ToolRegistry", count)
+                skill_count += 1
+            count += skill_count
+            logger.info(
+                "OHQueryEngineFactory: %d 个 SKILL_CATALOG Skill 注册到 ToolRegistry",
+                skill_count,
+            )
         except Exception as e:
-            logger.warning("OHQueryEngineFactory: Skill 注册失败: %s", e)
+            logger.warning("OHQueryEngineFactory: SKILL_CATALOG Skill 注册失败: %s", e)
+
+        logger.info("OHQueryEngineFactory: ToolRegistry 共注册 %d 个工具", count)
 
     def create_engine(self,
                       system_prompt: str = "",

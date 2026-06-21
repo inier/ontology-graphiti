@@ -1,6 +1,6 @@
 import { useState, useEffect, useCallback } from 'react';
 import {
-  Table, Button, Modal, Form, Input, Select, Tag,
+  Button, Modal, Form, Input, Select, Tag,
   Card, Space, Typography, Descriptions, message, Popconfirm, Empty, Spin,
 } from 'antd';
 import {
@@ -10,6 +10,7 @@ import {
 import type { ColumnsType } from 'antd/es/table';
 import { apiClient } from '@/modules/shared/services/apiClient';
 import { useI18n } from '@/modules/shared/hooks/useI18n';
+import { AdvancedTable } from '@/modules/shared';
 
 const { Text } = Typography;
 
@@ -226,7 +227,7 @@ const SandboxManager: React.FC = () => {
           </Space>
         }
       >
-        <Table
+        <AdvancedTable
           dataSource={sandboxes}
           columns={columns}
           rowKey="sandbox_id"
@@ -279,7 +280,7 @@ const SandboxManager: React.FC = () => {
             </Descriptions>
             {currentResult.metric_changes && currentResult.metric_changes.length > 0 && (
               <Card title="Metric Changes" size="small">
-                <Table
+                <AdvancedTable
                   dataSource={currentResult.metric_changes}
                   columns={[
                     { title: 'Metric', dataIndex: 'metric_name', key: 'metric_name' },

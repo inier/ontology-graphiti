@@ -1,8 +1,9 @@
-import { Card, Statistic, Row, Col, Tag, Space, Tooltip, Input, Empty, Table, Button } from 'antd';
+import { Card, Statistic, Row, Col, Tag, Space, Tooltip, Input, Empty, Button } from 'antd';
 import { SearchOutlined, EyeOutlined, DatabaseOutlined, ClusterOutlined, AimOutlined, TagOutlined, FileTextOutlined, InfoCircleOutlined } from '@ant-design/icons';
 import { Typography } from 'antd';
 import type { ManagedEntity, ExtractionSource } from './types';
 import { TYPE_COLORS, TYPE_LABELS } from './types';
+import { AdvancedTable } from '@/modules/shared';
 
 const { Text } = Typography;
 
@@ -167,7 +168,7 @@ export function InstancesTab({
         {filteredEntities.length === 0 ? (
           <Empty description={currentScenario ? '暂无实体数据' : '请先选择场景'} />
         ) : (
-          <Table dataSource={filteredEntities} columns={columns} rowKey="entity_id" loading={loading} pagination={{ pageSize: 10 }} scroll={{ x: 1000 }} />
+          <AdvancedTable dataSource={filteredEntities} columns={columns} rowKey="entity_id" loading={loading} pagination={{ pageSize: 10 }} scroll={{ x: 1000 }} />
         )}
       </Card>
     </div>

@@ -4,9 +4,16 @@
 - 目录Skills：合并 SKILL_CATALOG 运行时技能 + 文件系统扫描
 - 分类：从 SKILL_CATALOG 提取 category + 文件系统子目录
 - 已加载：反映 DomainHarness 实际可用工具
+
+安全说明：
+- 所有写操作端点强制 admin 认证（Depends(verify_admin)）。
+- category / name / filename 仅允许 [A-Za-z0-9_-] 白名单字符，并校验
+  resolve() 后路径仍位于 OPENHARNESS_SKILLS_DIR 之下，防止路径穿越。
 """
 
-from fastapi import APIRouter, HTTPException, Query, UploadFile, File
+import re
+
+from fastapi import APIRouter, HTTPException, Query, UploadFile, File, Depends
 from typing import Dict, Any, List, Optional
 import os
 import yaml
@@ -14,6 +21,7 @@ import shutil
 from pathlib import Path
 from ..services import get_skill_service, get_hotplug_service
 from ..models.skill import SkillType, SkillStatus
+from odap.infra.security.jwt_auth import get_current_user, verify_admin
 
 
 import logging
@@ -25,6 +33,63 @@ skill_service = get_skill_service()
 hotplug_service = get_hotplug_service()
 
 OPENHARNESS_SKILLS_DIR = Path(__file__).parent.parent.parent.parent.parent / "openharness" / ".claude" / "skills"
+
+# 安全：白名单字符集，防止路径穿越与非法字符
+_SAFE_NAME_RE = re.compile(r"^[A-Za-z0-9_\-]+$")
+# 安全：允许的文件扩展名
+_ALLOWED_FILE_EXTS = (".md", ".yaml", ".yml")
+
+
+def _validate_safe_name(value: str, field_name: str) -> str:
+    """校验 category/name/filename 等标识符仅含安全字符。
+
+    防止路径穿越（如 ../、绝对路径、空字节）与 shell 元字符注入。
+    """
+    if not value or not _SAFE_NAME_RE.match(value):
+        raise HTTPException(
+            status_code=400,
+            detail=f"Invalid {field_name}: only alphanumeric, underscore and hyphen are allowed",
+        )
+    return value
+
+
+def _validate_filename(filename: str) -> str:
+    """校验上传文件名：白名单字符 + 允许的扩展名。"""
+    if not filename:
+        raise HTTPException(status_code=400, detail="Filename is required")
+    # 拆分 stem 与 suffix 分别校验，避免 .md.md 之类绕过
+    stem = filename
+    suffix = ""
+    for ext in _ALLOWED_FILE_EXTS:
+        if filename.lower().endswith(ext):
+            stem = filename[: -len(ext)]
+            suffix = ext
+            break
+    if not suffix:
+        raise HTTPException(
+            status_code=400,
+            detail=f"Only {', '.join(_ALLOWED_FILE_EXTS)} files are allowed",
+        )
+    if not _SAFE_NAME_RE.match(stem):
+        raise HTTPException(
+            status_code=400,
+            detail="Invalid filename stem: only alphanumeric, underscore and hyphen are allowed",
+        )
+    return stem + suffix
+
+
+def _ensure_within_skills_dir(target: Path) -> Path:
+    """断言 target 解析后仍位于 OPENHARNESS_SKILLS_DIR 之下，否则拒绝。"""
+    resolved = target.resolve()
+    base = OPENHARNESS_SKILLS_DIR.resolve()
+    try:
+        resolved.relative_to(base)
+    except ValueError:
+        raise HTTPException(
+            status_code=400,
+            detail="Resolved path escapes the skills directory",
+        )
+    return resolved
 
 
 def _get_catalog_skills() -> List[Dict[str, Any]]:
@@ -142,31 +207,38 @@ def _get_filesystem_categories() -> List[Dict[str, Any]]:
 @router.post("/upload")
 async def upload_skill_file(
     skill_file: UploadFile = File(...),
-    category: str = "custom"
+    category: str = "custom",
+    user=Depends(verify_admin),
 ) -> Dict[str, Any]:
-    """上传Skill文件（SKILL.md）"""
-    try:
-        if not skill_file.filename.endswith(('.md', '.yaml', '.yml')):
-            raise HTTPException(status_code=400, detail="只支持 .md, .yaml, .yml 文件")
+    """上传Skill文件（SKILL.md）
 
-        content = await skill_file.read()
-        skill_dir = OPENHARNESS_SKILLS_DIR / category
+    安全：仅 admin 可调用；category 与 filename 经白名单校验，
+    并断言最终路径位于 OPENHARNESS_SKILLS_DIR 之下。
+    """
+    try:
+        safe_category = _validate_safe_name(category, "category")
+        safe_filename = _validate_filename(skill_file.filename or "")
+
+        skill_dir = OPENHARNESS_SKILLS_DIR / safe_category
+        file_path = skill_dir / safe_filename
+        # 二次防护：resolve() 后断言仍在 skills 目录下
+        _ensure_within_skills_dir(file_path)
 
         if not skill_dir.exists():
             skill_dir.mkdir(parents=True, exist_ok=True)
 
-        file_path = skill_dir / skill_file.filename
+        content = await skill_file.read()
         with open(file_path, 'wb') as f:
             f.write(content)
 
         skill_info = {
-            "filename": skill_file.filename,
-            "category": category,
+            "filename": safe_filename,
+            "category": safe_category,
             "path": str(file_path),
             "size": len(content)
         }
 
-        if skill_file.filename.endswith('.md'):
+        if safe_filename.endswith('.md'):
             try:
                 skill_md = content.decode('utf-8')
                 parsed = parse_skill_markdown(skill_md)
@@ -190,10 +262,15 @@ async def upload_skill_json(
     category: str = "custom",
     input_schema: Optional[str] = None,
     output_schema: Optional[str] = None,
-    implementation: Optional[str] = None
+    implementation: Optional[str] = None,
+    user=Depends(verify_admin),
 ) -> Dict[str, Any]:
-    """通过JSON上传Skill配置"""
+    """通过JSON上传Skill配置（仅 admin）"""
     try:
+        # 校验 name/category 防止注入到注册表与文件系统
+        _validate_safe_name(name, "name")
+        _validate_safe_name(category, "category")
+
         skill = skill_service.register_skill(
             name=name,
             skill_type=SkillType(skill_type),
@@ -308,10 +385,12 @@ async def get_all_skills() -> Dict[str, Any]:
 @router.post("/toggle/{skill_name}")
 async def toggle_skill(
     skill_name: str,
-    enabled: bool = True
+    enabled: bool = True,
+    user=Depends(get_current_user),
 ) -> Dict[str, Any]:
-    """启用/禁用Skill"""
+    """启用/禁用Skill（需登录）"""
     try:
+        _validate_safe_name(skill_name, "skill_name")
         result = skill_service.get_skill_by_name(skill_name)
         if result.get("status") == "error":
             return {"status": "success", "message": f"Skill '{skill_name}' not registered, treating as enabled", "enabled": True}
@@ -347,9 +426,10 @@ async def get_loaded_skills():
 
 
 @router.post("/skills/{skill_id}/reload")
-async def reload_skill(skill_id: str):
-    """热重载Skill"""
+async def reload_skill(skill_id: str, user=Depends(verify_admin)):
+    """热重载Skill（仅 admin）"""
     try:
+        _validate_safe_name(skill_id, "skill_id")
         success = hotplug_service.reload_skill(skill_id)
         if success:
             return {"status": "success", "message": f"Skill {skill_id} reloaded"}
@@ -364,17 +444,28 @@ async def reload_skill(skill_id: str):
 async def save_skill_content(
     name: str,
     category: str = "custom",
-    content: str = ""
+    content: str = "",
+    user=Depends(verify_admin),
 ) -> Dict[str, Any]:
-    """保存Skill内容到文件系统"""
+    """保存Skill内容到文件系统（仅 admin）
+
+    安全：name/category 经白名单校验，并断言最终路径位于
+    OPENHARNESS_SKILLS_DIR 之下，防止路径穿越。
+    """
     try:
-        skill_dir = OPENHARNESS_SKILLS_DIR / category / name
+        safe_name = _validate_safe_name(name, "name")
+        safe_category = _validate_safe_name(category, "category")
+
+        skill_dir = OPENHARNESS_SKILLS_DIR / safe_category / safe_name
+        # 二次防护：resolve() 后断言仍在 skills 目录下
+        _ensure_within_skills_dir(skill_dir)
         skill_dir.mkdir(parents=True, exist_ok=True)
 
         skill_md_path = skill_dir / "SKILL.md"
+        _ensure_within_skills_dir(skill_md_path)
         skill_md_path.write_text(content, encoding='utf-8')
 
-        return {"status": "success", "message": f"Skill '{name}' saved to {skill_dir}"}
+        return {"status": "success", "message": f"Skill '{safe_name}' saved to {skill_dir}"}
     except HTTPException:
         raise
     except Exception as e:

@@ -1,4 +1,5 @@
-import { Timeline, Card, Tag, Empty } from 'antd';
+import { Timeline, Tag, Empty } from 'antd';
+import { ProCard as Card } from '@ant-design/pro-components';
 import {
   EyeOutlined,
   CompassOutlined,

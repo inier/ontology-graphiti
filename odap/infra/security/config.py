@@ -105,13 +105,20 @@ class SecurityConfig:
             return ""
 
     @classmethod
-    def validate(cls):
+    def validate(cls, strict: bool = False):
         """验证配置有效性
 
         在生产环境启动时调用。开发/测试环境可跳过。
+
+        Args:
+            strict: 若为 True，则任何环境（含开发/测试）缺失关键密钥都 fail-fast。
+                    用于应用 lifespan 启动阶段，确保即使开发实例也不会在无密钥时启动。
+                    模块导入时（底部调用）应保持 strict=False，以便测试可导入模块。
         """
         env = os.environ.get("ENV", os.environ.get("ENVIRONMENT", "")).lower()
-        if env in ("production", "prod", "live"):
+        is_production = env in ("production", "prod", "live")
+
+        if is_production or strict:
             errors = []
             for name, fn in [
                 ("JWT_SECRET", cls.get_jwt_secret),
@@ -122,10 +129,11 @@ class SecurityConfig:
                     errors.append(str(e))
             if errors:
                 raise SecretValidationError(
-                    "Production configuration invalid:\n" + "\n".join(errors)
+                    "Configuration invalid (strict=%s, env=%s):\n%s"
+                    % (strict, env or "unset", "\n".join(errors))
                 )
         else:
-            # Non-production: warn but don't fail
+            # Non-production, non-strict: warn but don't fail
             try:
                 cls.get_jwt_secret()
             except SecretValidationError as e:

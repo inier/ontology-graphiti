@@ -231,11 +231,11 @@ class TestIntentRouterRuleRouting:
         assert result["confidence"] >= 0.9
 
     def test_commander_keywords(self):
-        """决策关键词应路由到 commander"""
+        """决策关键词应路由到 director"""
         from odap.biz.core.agent.swarm_orchestrator import IntentRouter
         router = IntentRouter(llm_available=False)
         result = router.route("制定决策方案")
-        assert result["agent"] == "commander"
+        assert result["agent"] == "director"
         assert result["confidence"] >= 0.8  # 部分匹配时置信度会降低
 
     def test_operations_keywords(self):

@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import {
-  Card, Table, Button, Modal, Form, Input, Select, Tag,
+  Card, Button, Modal, Form, Input, Select, Tag,
   Descriptions, Statistic, Progress, Tabs, Space, message, Popconfirm,
   Empty, Tooltip, Row, Col, Badge, Divider, Alert, Spin,
 } from 'antd';
@@ -13,6 +13,7 @@ import {
 import type { ColumnsType } from 'antd/es/table';
 import { fetchJson } from '@/modules/shared/services/apiClient';
 import { API_BASE } from '@/config';
+import { AdvancedTable } from '@/modules/shared';
 
 interface ApiResponse {
   [key: string]: unknown;
@@ -833,7 +834,7 @@ const StrategyDeduction: React.FC = () => {
         </Button>
       }
     >
-      <Table
+      <AdvancedTable
         dataSource={scenarioList}
         columns={scenarioColumns}
         rowKey="scenario_id"
@@ -913,7 +914,7 @@ const StrategyDeduction: React.FC = () => {
             </Button>
           }
         >
-          <Table
+          <AdvancedTable
             dataSource={allConditions}
             columns={conditionColumns}
             rowKey="condition_id"
@@ -948,7 +949,7 @@ const StrategyDeduction: React.FC = () => {
             </Space>
           }
         >
-          <Table
+          <AdvancedTable
             dataSource={selectedScenario.chains}
             columns={chainColumns}
             rowKey="chain_id"
@@ -1078,7 +1079,7 @@ const StrategyDeduction: React.FC = () => {
             </Button>
           }
         >
-          <Table
+          <AdvancedTable
             dataSource={results}
             columns={resultColumns}
             rowKey="chain_id"
@@ -1181,7 +1182,7 @@ const StrategyDeduction: React.FC = () => {
         width={Math.min(1200, 400 + compareResults.length * 200)}
         footer={null}
       >
-        <Table
+        <AdvancedTable
           dataSource={compareData}
           columns={compareColumns}
           rowKey="metric_name"

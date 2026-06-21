@@ -1,5 +1,6 @@
 from fastapi import APIRouter, HTTPException, Depends
 from odap.infra.security.jwt_auth import get_current_user
+from odap.infra.security.audit_helper import audit as _audit_shared
 from typing import Dict, Any
 import asyncio
 import logging
@@ -16,21 +17,17 @@ _orchestrator_instance = None
 
 def _audit(action: str, user_id: str, result_status: str, result_message: str = "",
            details: dict = None, service: str = "agent", workspace_id: str = "default"):
-    """Agent审计便捷函数"""
-    try:
-        from odap.infra.security.unified_audit import log_audit
-        log_audit(
-            action=action,
-            resource="agent",
-            user=user_id,
-            service=service,
-            result_status=result_status,
-            result_message=result_message,
-            details=details or {},
-            workspace_id=workspace_id,
-        )
-    except Exception:
-        pass
+    """Agent审计便捷函数 - 使用共享 helper"""
+    _audit_shared(
+        action=action,
+        user=user_id,
+        result_status=result_status,
+        result_message=result_message,
+        details=details,
+        service=service,
+        workspace_id=workspace_id,
+        resource="agent",
+    )
 
 
 def _get_swarm():

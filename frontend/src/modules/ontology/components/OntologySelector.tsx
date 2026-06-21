@@ -1,8 +1,9 @@
 import { useState, useEffect, useCallback } from 'react';
-import { Modal, Table, Button, Input, Form, Tag, Space, message } from 'antd';
+import { Modal, Button, Input, Form, Tag, Space, message } from 'antd';
 import { PlusOutlined, SearchOutlined } from '@ant-design/icons';
 import { fetchJson } from '@/modules/shared/services/apiClient';
 import { API_BASE } from '@/config';
+import { AdvancedTable } from '@/modules/shared';
 
 /* ------------------------------------------------------------------ */
 /*  Types                                                              */
@@ -261,7 +262,7 @@ export function OntologySelector({ open, onClose, onSelect, workspaceId, initial
       )}
 
       {/* Ontology table */}
-      <Table
+      <AdvancedTable
         rowKey="ontology_id"
         columns={columns}
         dataSource={filteredData}

@@ -1,5 +1,5 @@
 import type { FC, ReactNode, CSSProperties } from 'react';
-import { Card as AntCard } from 'antd';
+import { ProCard as AntCard } from '@ant-design/pro-components';
 
 interface CardProps {
   title?: ReactNode;

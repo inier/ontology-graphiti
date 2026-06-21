@@ -1,5 +1,6 @@
 import { useEffect, useCallback } from 'react';
-import { Card, Collapse, Space, Button, Spin, Alert, Typography } from 'antd';
+import { Collapse, Space, Button, Spin, Alert, Typography } from 'antd';
+import { ProCard as Card } from '@ant-design/pro-components';
 import { HistoryOutlined, SettingOutlined } from '@ant-design/icons';
 import { useConfigStore } from '../stores/configStore';
 import { ConfigGroup } from '../components/ConfigGroup';
@@ -56,8 +57,11 @@ export default function SettingsPage() {
     'graph_db',
     'object_storage',
     'search',
+    'mcp',
+    'crawl',
     'policy_engine',
     'cache',
+    'oauth',
     'auth',
     'general',
   ];

@@ -1,5 +1,6 @@
 import { useState } from 'react';
-import { List, Card, Button, Tag, Modal, Input, Space, message } from 'antd';
+import { List, Button, Tag, Modal, Input, Space, message } from 'antd';
+import { ProCard as Card } from '@ant-design/pro-components';
 import { PlusOutlined, DeleteOutlined, ForkOutlined } from '@ant-design/icons';
 import { useBlueprintStore } from '@/modules/ontology/stores/blueprintStore';
 import { blueprintApi } from '@/modules/ontology/services/blueprintApi';

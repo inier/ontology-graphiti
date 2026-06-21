@@ -1,8 +1,9 @@
 import { useState } from 'react';
-import { Upload, Table, Progress, Alert, Button, Card, Select, Space, Typography, message } from 'antd';
+import { Upload, Progress, Alert, Button, Card, Select, Space, Typography, message } from 'antd';
 import { UploadOutlined, InboxOutlined, DeleteOutlined } from '@ant-design/icons';
 import { apiClient } from '@/modules/shared/services/apiClient';
 import { useI18n } from '@/modules/shared/hooks/useI18n';
+import { AdvancedTable } from '@/modules/shared';
 
 const { Dragger } = Upload;
 const { Text } = Typography;
@@ -177,7 +178,7 @@ export default function BatchImporter({ workspaceId, scenarioId }: BatchImporter
               showIcon
             />
             {result.errors.length > 0 && (
-              <Table
+              <AdvancedTable
                 dataSource={result.errors}
                 columns={errorColumns}
                 rowKey={(_, idx) => String(idx)}

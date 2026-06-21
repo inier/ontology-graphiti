@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react';
-import { Timeline, Tag, Card, Space, Select, Button, Input, message } from 'antd';
+import { Timeline, Tag, Space, Select, Button, Input, message } from 'antd';
+import { ProCard as Card } from '@ant-design/pro-components';
 import { ReloadOutlined, FilterOutlined, SearchOutlined } from '@ant-design/icons';
 import { api } from '@/modules/shared/services/api';
 import type { AuditEvent } from '@/modules/shared/services/api';

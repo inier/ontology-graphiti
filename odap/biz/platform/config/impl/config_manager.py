@@ -39,9 +39,37 @@ class ConfigManager:
     def _load_cache(self):
         """启动时从数据库加载所有配置到内存缓存"""
         self._cache = self._storage.load_all_to_dict()
+        # 自动从环境变量初始化未配置的项
+        self._auto_populate_from_env()
         # 同步到 ConfigurationComposer DB 层
         self._sync_to_composer()
         logger.info("Loaded %d config items into cache", len(self._cache))
+
+    def _auto_populate_from_env(self):
+        """将环境变量中已存在但 DB 中为空的配置项自动写入 DB。
+
+        遍历 config_schema_registry 中所有带 env_mapping 的项，
+        如果该 env 已设置且 DB 中尚无记录，则自动保存。
+        """
+        import os
+        schemas = self._storage.list_schemas()
+        populated = 0
+        for schema in schemas:
+            env_name = schema.get("env_mapping")
+            if not env_name:
+                continue
+            env_value = os.environ.get(env_name, "")
+            if not env_value:
+                continue
+            key = schema["key"]
+            if key in self._cache:
+                continue  # DB 已有记录，不覆盖
+            # 写入 DB 和缓存
+            self._storage.save_config(key, env_value, "system_init")
+            self._cache[key] = env_value
+            populated += 1
+        if populated:
+            logger.info("Auto-populated %d config items from environment variables", populated)
 
     def _sync_to_composer(self):
         """将缓存同步到 ConfigurationComposer 的 DB 层"""

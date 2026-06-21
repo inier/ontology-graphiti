@@ -8,7 +8,6 @@ import {
   Tag,
   Button,
   Divider,
-  Table,
   Alert,
   Progress,
   Timeline,
@@ -18,6 +17,7 @@ import {
   Col
 } from 'antd';
 import {
+import { AdvancedTable } from '@/modules/shared';
   DatabaseOutlined,
   ApiOutlined,
   CloudServerOutlined,
@@ -336,7 +336,7 @@ export function OntologyIngestPipeline() {
         </Space>
       ),
       children: (
-        <Table
+        <AdvancedTable
           dataSource={MOCK_ENTITIES}
           columns={entityColumns}
           rowKey="id"
@@ -354,7 +354,7 @@ export function OntologyIngestPipeline() {
         </Space>
       ),
       children: (
-        <Table
+        <AdvancedTable
           dataSource={MOCK_RELATIONS}
           columns={relationColumns}
           rowKey="id"
@@ -372,7 +372,7 @@ export function OntologyIngestPipeline() {
         </Space>
       ),
       children: (
-        <Table
+        <AdvancedTable
           dataSource={MOCK_EVENTS}
           columns={eventColumns}
           rowKey="id"

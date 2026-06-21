@@ -6,7 +6,8 @@
  */
 
 import React from 'react';
-import { Button, Card, Space, Typography } from 'antd';
+import { Button, Space, Typography } from 'antd';
+import { ProCard as Card } from '@ant-design/pro-components';
 import { useAGUIContext } from './AGUIProvider';
 import { CardRenderer } from './CardRegistry';
 import type { Interrupt } from './agui_types';

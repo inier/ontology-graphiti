@@ -9,8 +9,9 @@
  */
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import {
-  Card, Row, Col, Form, Input, Select, Button, Space, Typography, Tag, Alert, List, Switch, message, Empty, Spin,
+  Card, Row, Col, Input, Select, Button, Space, Typography, Tag, Alert, List, Switch, message, Empty, Spin,
 } from 'antd';
+import { ProForm as Form } from '@ant-design/pro-components';
 import {
   PlayCircleOutlined, SaveOutlined, ReloadOutlined, CheckCircleOutlined, CloseCircleOutlined,
 } from '@ant-design/icons';
@@ -51,8 +52,7 @@ function extractDependencies(expr: string, candidates: string[]): string[] {
 }
 
 export function ComputedPropertyEditor({ workspaceId, propertyId, onSaved }: ComputedPropertyEditorProps) {
-  const { t } = useI18n();
-  void t;
+  const { t } = useI18n('ontology');
   const [form] = Form.useForm<ComputedFormValues>();
   const [objectTypes, setObjectTypes] = useState<ObjectTypeSummary[]>([]);
   const [objectTypeId, setObjectTypeId] = useState<string | undefined>();
@@ -62,14 +62,21 @@ export function ComputedPropertyEditor({ workspaceId, propertyId, onSaved }: Com
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
+  const returnTypeOptions = useMemo(() => [
+    { value: 'number', label: t('computed.returnTypeNumber') },
+    { value: 'string', label: t('computed.returnTypeString') },
+    { value: 'boolean', label: t('computed.returnTypeBoolean') },
+    { value: 'date', label: t('computed.returnTypeDate') },
+  ], [t]);
+
   const fetchObjectTypes = useCallback(async () => {
     try {
       const data = await apiClient.get<{ object_types: ObjectTypeSummary[] }>('/api/ontology/object-types');
       setObjectTypes(data.object_types || []);
     } catch (e) {
-      message.error(`加载 ObjectType 失败: ${(e as Error).message}`);
+      message.error(t('computed.loadObjectTypeFailed', { msg: (e as Error).message }));
     }
-  }, []);
+  }, [t]);
 
   const fetchProperty = useCallback(async (id: string) => {
     try {
@@ -86,9 +93,9 @@ export function ComputedPropertyEditor({ workspaceId, propertyId, onSaved }: Com
       setObjectTypeId(p.object_type_id);
       setExpression(p.expression);
     } catch (e) {
-      message.error(`加载失败: ${(e as Error).message}`);
+      message.error(t('computed.loadFailed', { msg: (e as Error).message }));
     }
-  }, [form]);
+  }, [form, t]);
 
   useEffect(() => { fetchObjectTypes(); }, [fetchObjectTypes]);
   useEffect(() => { if (propertyId) fetchProperty(propertyId); }, [propertyId, fetchProperty]);
@@ -122,18 +129,18 @@ export function ComputedPropertyEditor({ workspaceId, propertyId, onSaved }: Com
       setSaving(true);
       const payload = { ...values, workspace_id: workspaceId, dependencies: deps };
       const data = await apiClient.post<{ property_id: string }>('/api/ontology/computed', payload);
-      message.success(`已保存: ${data.property_id}`);
+      message.success(t('computed.saved', { id: data.property_id }));
       onSaved?.(data.property_id);
     } catch (e) {
       if ((e as { errorFields?: unknown[] }).errorFields) {
-        message.error('请检查必填字段');
+        message.error(t('computed.checkRequired'));
       } else {
-        message.error(`保存失败: ${(e as Error).message}`);
+        message.error(t('computed.saveFailed', { msg: (e as Error).message }));
       }
     } finally {
       setSaving(false);
     }
-  }, [form, deps, workspaceId, onSaved]);
+  }, [form, deps, workspaceId, onSaved, t]);
 
   const onReset = useCallback(() => {
     form.resetFields();
@@ -147,23 +154,23 @@ export function ComputedPropertyEditor({ workspaceId, propertyId, onSaved }: Com
     <Card
       title={
         <Space>
-          <Title level={5} style={{ margin: 0 }}>{propertyId ? `编辑计算属性 ${propertyId}` : '新建计算属性'}</Title>
+          <Title level={5} style={{ margin: 0 }}>{propertyId ? t('computed.editComputed', { id: propertyId }) : t('computed.newComputed')}</Title>
         </Space>
       }
       extra={
         <Space>
-          <Button icon={<ReloadOutlined />} onClick={onReset}>重置</Button>
-          <Button icon={<PlayCircleOutlined />} loading={testing} onClick={onTest}>测试</Button>
-          <Button type="primary" icon={<SaveOutlined />} loading={saving} onClick={onSave}>保存</Button>
+          <Button icon={<ReloadOutlined />} onClick={onReset}>{t('computed.reset')}</Button>
+          <Button icon={<PlayCircleOutlined />} loading={testing} onClick={onTest}>{t('computed.test')}</Button>
+          <Button type="primary" icon={<SaveOutlined />} loading={saving} onClick={onSave}>{t('computed.save')}</Button>
         </Space>
       }
     >
       <Form form={form} layout="vertical" initialValues={{ return_type: 'number', materialized: false }}>
         <Row gutter={16}>
           <Col span={8}>
-            <Form.Item label="ObjectType" name="object_type_id" rules={[{ required: true }]}>
+            <Form.Item label={t('computed.objectType')} name="object_type_id" rules={[{ required: true }]}>
               <Select
-                placeholder="选择 ObjectType"
+                placeholder={t('computed.objectTypePlaceholder')}
                 options={objectTypes.map((o) => ({ value: o.object_type_id, label: o.name }))}
                 onChange={(v) => setObjectTypeId(v)}
                 showSearch
@@ -172,45 +179,38 @@ export function ComputedPropertyEditor({ workspaceId, propertyId, onSaved }: Com
             </Form.Item>
           </Col>
           <Col span={8}>
-            <Form.Item label="Property Name" name="name" rules={[{ required: true, pattern: /^[a-z_][a-z0-9_]*$/, message: '小写字母+下划线' }]}>
-              <Input placeholder="total_amount" />
+            <Form.Item label={t('computed.propertyName')} name="name" rules={[{ required: true, pattern: /^[a-z_][a-z0-9_]*$/, message: t('computed.propertyNamePattern') }]}>
+              <Input placeholder={t('computed.propertyNamePlaceholder')} />
             </Form.Item>
           </Col>
           <Col span={8}>
-            <Form.Item label="Return Type" name="return_type" rules={[{ required: true }]}>
-              <Select
-                options={[
-                  { value: 'number', label: 'Number' },
-                  { value: 'string', label: 'String' },
-                  { value: 'boolean', label: 'Boolean' },
-                  { value: 'date', label: 'Date' },
-                ]}
-              />
+            <Form.Item label={t('computed.returnType')} name="return_type" rules={[{ required: true }]}>
+              <Select options={returnTypeOptions} />
             </Form.Item>
           </Col>
         </Row>
         <Row gutter={16}>
           <Col span={14}>
-            <Form.Item label="Expression" name="expression" rules={[{ required: true }]}>
+            <Form.Item label={t('computed.expression')} name="expression" rules={[{ required: true }]}>
               <TextArea
                 value={expression}
                 onChange={(e) => setExpression(e.target.value)}
                 autoSize={{ minRows: 6, maxRows: 14 }}
                 style={{ fontFamily: 'Menlo, Consolas, monospace', fontSize: 13 }}
-                placeholder="count(properties) * unit_price"
+                placeholder={t('computed.expressionPlaceholder')}
               />
             </Form.Item>
-            <Form.Item label="Materialized" name="materialized" valuePropName="checked">
-              <Switch checkedChildren="ON" unCheckedChildren="OFF" />
+            <Form.Item label={t('computed.materialized')} name="materialized" valuePropName="checked">
+              <Switch checkedChildren={t('computed.materializedOn')} unCheckedChildren={t('computed.materializedOff')} />
             </Form.Item>
-            <Form.Item label="Description" name="description">
-              <Input.TextArea autoSize={{ minRows: 2, maxRows: 4 }} placeholder="可选说明" />
+            <Form.Item label={t('computed.description')} name="description">
+              <Input.TextArea autoSize={{ minRows: 2, maxRows: 4 }} placeholder={t('computed.descriptionPlaceholder')} />
             </Form.Item>
           </Col>
           <Col span={10}>
-            <Card type="inner" title="依赖字段（AST 解析）" size="small">
+            <Card type="inner" title={t('computed.dependencyTitle')} size="small">
               {candidateProps.length === 0 ? (
-                <Empty description="请先选择 ObjectType" />
+                <Empty description={t('computed.selectObjectTypeFirst')} />
               ) : (
                 <List
                   size="small"
@@ -233,7 +233,7 @@ export function ComputedPropertyEditor({ workspaceId, propertyId, onSaved }: Com
                   style={{ marginTop: 8 }}
                   type="success"
                   showIcon
-                  message={`已解析 ${deps.length} 个依赖`}
+                  message={t('computed.parsedDeps', { count: deps.length })}
                   description={deps.join(', ')}
                 />
               )}
@@ -242,17 +242,17 @@ export function ComputedPropertyEditor({ workspaceId, propertyId, onSaved }: Com
         </Row>
       </Form>
 
-      <Card type="inner" title="测试结果" size="small" style={{ marginTop: 12 }}>
+      <Card type="inner" title={t('computed.testResult')} size="small" style={{ marginTop: 12 }}>
         <Spin spinning={testing}>
           {error ? (
-            <Alert type="error" showIcon message="求值失败" description={error} />
+            <Alert type="error" showIcon message={t('computed.evalFailed')} description={error} />
           ) : testResult ? (
             <Space orientation="vertical" style={{ width: '100%' }}>
-              <Text>结果: <Text code>{JSON.stringify(testResult.value)}</Text></Text>
-              <Text type="secondary">耗时: {testResult.duration_ms} ms</Text>
+              <Text>{t('computed.result')} <Text code>{JSON.stringify(testResult.value)}</Text></Text>
+              <Text type="secondary">{t('computed.durationMs', { ms: testResult.duration_ms })}</Text>
             </Space>
           ) : (
-            <Empty description="点击'测试'按钮以执行表达式" />
+            <Empty description={t('computed.testEmpty')} />
           )}
         </Spin>
       </Card>

@@ -5,7 +5,8 @@
  * 支持：5种布局、搜索定位、类型筛选、审计过滤、Minimap、LOD、版本切换
  */
 import { useEffect, useRef, useState, useCallback, useMemo } from 'react';
-import { Card, Empty, Space, Tag } from 'antd';
+import { Empty, Space, Tag } from 'antd';
+import { ProCard as Card } from '@ant-design/pro-components';
 import GraphView from './GraphView';
 import type { GraphViewApi } from './GraphView';
 import type { GraphNode, GraphEdge, SigmaLayoutType, NodeStyleConfig, EdgeStyleConfig } from '../types';

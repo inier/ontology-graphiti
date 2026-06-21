@@ -6,6 +6,9 @@ export type ServiceCategory =
   | 'policy_engine'
   | 'cache'
   | 'auth'
+  | 'mcp'
+  | 'crawl'
+  | 'oauth'
   | 'general';
 
 export type ConfigValueType =

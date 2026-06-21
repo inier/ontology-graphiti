@@ -204,11 +204,12 @@ class MCPService:
 
         仅在对应容器运行时注册，不会因容器不可用而阻塞启动。
         """
-        import os
+        from odap.infra.config_composer import get_config
+
         registered = []
 
         # Browser-Use MCP Server
-        browser_url = os.environ.get("BROWSER_MCP_URL", "http://graphiti-browser-use:8030")
+        browser_url = get_config("mcp.browser_mcp_url", "http://graphiti-browser-use:8030")
         try:
             result = self.register_server(
                 name="browser-use",

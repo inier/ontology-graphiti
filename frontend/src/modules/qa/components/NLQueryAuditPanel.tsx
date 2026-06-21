@@ -2,9 +2,10 @@
  * NL 查询审计面板 - 嵌入审计页面的查询审计标签页
  */
 import React, { useEffect, useState } from 'react';
-import { Table, Card, Tag, Space, Typography, Statistic, Row, Col, Select, Button } from 'antd';
+import { Card, Tag, Space, Typography, Statistic, Row, Col, Select, Button } from 'antd';
 import { ReloadOutlined, SearchOutlined, ApiOutlined, BranchesOutlined } from '@ant-design/icons';
 import { useNLQueryStore } from '@/modules/qa/stores/nlQueryStore';
+import { AdvancedTable } from '@/modules/shared';
 
 const { Text } = Typography;
 
@@ -168,7 +169,7 @@ export function NLQueryAuditPanel() {
       </Space>
 
       {/* 审计表格 */}
-      <Table
+      <AdvancedTable
         columns={columns}
         dataSource={auditRecords}
         rowKey="query_id"

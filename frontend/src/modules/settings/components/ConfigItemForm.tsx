@@ -1,5 +1,6 @@
 import { useCallback } from 'react';
-import { Input, InputNumber, Switch, Select, Form, Tooltip } from 'antd';
+import { Input, InputNumber, Switch, Select, Tooltip } from 'antd';
+import { ProForm as Form } from '@ant-design/pro-components';
 import { QuestionCircleOutlined } from '@ant-design/icons';
 import type { ConfigItem } from '../types';
 

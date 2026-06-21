@@ -1,4 +1,6 @@
-import { Card, Row, Col, Descriptions, Tag, Typography, Space } from 'antd';
+import { Row, Col, Tag, Typography, Space } from 'antd';
+import { ProDescriptions as Descriptions } from '@ant-design/pro-components';
+import { ProCard as Card } from '@ant-design/pro-components';
 import { useI18n } from '@/modules/shared/hooks/useI18n';
 
 const { Text } = Typography;

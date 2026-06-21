@@ -1,7 +1,7 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
 import { useState, useMemo, useCallback } from 'react';
 import {
-  Card, Tabs, Table, Tag, Space, Button, Alert, Radio,
+  Card, Tabs, Tag, Space, Button, Alert, Radio,
   Modal, Form, Input, Checkbox, message, Statistic, Row, Col,
 } from 'antd';
 import {
@@ -9,6 +9,7 @@ import {
   EditOutlined, DeleteOutlined, ImportOutlined,
 } from '@ant-design/icons';
 import { ontologyApi } from '../services/ontologyApi';
+import { AdvancedTable } from '@/modules/shared';
 
 /* ------------------------------------------------------------------ */
 /*  Types                                                              */
@@ -276,7 +277,7 @@ export function ExtractionPreview({
       key: 'object',
       label: `对象类型 (${stats.objectTypes})`,
       children: (
-        <Table
+        <AdvancedTable
           rowKey="name"
           size="small"
           dataSource={localData.object}
@@ -289,7 +290,7 @@ export function ExtractionPreview({
       key: 'link',
       label: `关系类型 (${stats.linkTypes})`,
       children: (
-        <Table
+        <AdvancedTable
           rowKey="name"
           size="small"
           dataSource={localData.link}
@@ -302,7 +303,7 @@ export function ExtractionPreview({
       key: 'action',
       label: `动作类型 (${stats.actionTypes})`,
       children: (
-        <Table
+        <AdvancedTable
           rowKey="name"
           size="small"
           dataSource={localData.action}
@@ -315,7 +316,7 @@ export function ExtractionPreview({
       key: 'rule',
       label: `规则类型 (${stats.ruleTypes})`,
       children: (
-        <Table
+        <AdvancedTable
           rowKey="name"
           size="small"
           dataSource={localData.rule}
@@ -328,7 +329,7 @@ export function ExtractionPreview({
       key: 'process',
       label: `流程类型 (${stats.processTypes})`,
       children: (
-        <Table
+        <AdvancedTable
           rowKey="name"
           size="small"
           dataSource={localData.process}
@@ -341,7 +342,7 @@ export function ExtractionPreview({
       key: 'function',
       label: `函数类型 (${stats.functionTypes})`,
       children: (
-        <Table
+        <AdvancedTable
           rowKey="name"
           size="small"
           dataSource={localData.function}
@@ -354,7 +355,7 @@ export function ExtractionPreview({
       key: 'indicator',
       label: `指标类型 (${stats.indicatorTypes})`,
       children: (
-        <Table
+        <AdvancedTable
           rowKey="name"
           size="small"
           dataSource={localData.indicator}

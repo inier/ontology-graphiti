@@ -25,9 +25,23 @@ class JWTService:
         from .config import security_config
         # P0-8 fix: use lazy-validated method that raises on placeholder in prod
         if secret_key is None:
-            secret_key = os.getenv("JWT_SECRET") or security_config.get_jwt_secret()
+            try:
+                from odap.infra.config_composer import get_config
+                secret_key = get_config("auth.jwt_secret", "")
+            except Exception:
+                secret_key = ""
+            if not secret_key:
+                secret_key = os.getenv("JWT_SECRET") or security_config.get_jwt_secret()
         self.secret_key = secret_key
-        self.algorithm = algorithm or os.getenv("JWT_ALGORITHM", self.ALGORITHM)
+        if algorithm is None:
+            try:
+                from odap.infra.config_composer import get_config
+                algorithm = get_config("auth.jwt_algorithm", "")
+            except Exception:
+                algorithm = ""
+            if not algorithm:
+                algorithm = os.getenv("JWT_ALGORITHM", self.ALGORITHM)
+        self.algorithm = algorithm or self.ALGORITHM
 
     def issue_access_token(self, user_id: str, user_name: str, role: str,
                            workspace_id: str = "", workspace_role: str = "") -> str:

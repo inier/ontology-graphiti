@@ -1,9 +1,13 @@
 import { useState, useEffect } from 'react';
-import { Card, Timeline, Tag, Button as AntButton, Space, Input, Modal, Form, Select as AntSelect, Row, Col, Empty, Spin, Popconfirm, message } from 'antd';
+import { Timeline, Tag, Button as AntButton, Space, Input, Modal, Select as AntSelect, Row, Col, Empty, Spin, Popconfirm, message } from 'antd';
+import { ProForm as Form } from '@ant-design/pro-components';
+import { ProCard as Card } from '@ant-design/pro-components';
 import { RollbackOutlined, SwapOutlined, ClockCircleOutlined } from '@ant-design/icons';
+import { useI18n } from '@/modules/shared/hooks/useI18n';
 import adapter from '@/modules/shared/components/adapter';
 import { useVersionStore } from '../stores/versionStore';
 import type { VersionInfo } from '../stores/versionStore';
+import { getCurrentLocale } from '@/modules/shared/stores/i18nStore';
 
 interface VersionPanelProps {
   documentId: string;
@@ -18,6 +22,7 @@ const STATUS_COLORS: Record<string, string> = {
 };
 
 export function VersionPanel({ documentId }: VersionPanelProps) {
+  const { t } = useI18n('ontology');
   const {
     versions,
     comparisonResult,
@@ -45,7 +50,7 @@ export function VersionPanel({ documentId }: VersionPanelProps) {
       await createVersion(documentId, values.changelog);
       setCreateModalVisible(false);
       createForm.resetFields();
-      adapter.getMessage().success('版本创建成功');
+      adapter.getMessage().success(t('versionPanel.versionCreated'));
     } catch {
       // validation error
     }
@@ -53,7 +58,7 @@ export function VersionPanel({ documentId }: VersionPanelProps) {
 
   const handleRollback = async (versionId: string) => {
     await rollbackVersion(documentId, versionId);
-    adapter.getMessage().success('回滚成功');
+    adapter.getMessage().success(t('versionPanel.rollbackSuccess'));
     loadVersions(documentId);
   };
 
@@ -67,7 +72,7 @@ export function VersionPanel({ documentId }: VersionPanelProps) {
     if (temporalInput) {
       const result = await temporalQuery(documentId, temporalInput);
       if (result) {
-        adapter.getMessage().success('时序查询完成');
+        adapter.getMessage().success(t('versionPanel.temporalComplete'));
       }
     }
   };
@@ -89,7 +94,7 @@ export function VersionPanel({ documentId }: VersionPanelProps) {
       <Space style={{ marginBottom: 16, width: '100%', justifyContent: 'space-between' }}>
         <Space>
           <Button type="primary" onClick={() => setCreateModalVisible(true)}>
-            创建版本
+            {t('versionPanel.createVersion')}
           </Button>
           <Button
             type={compareMode ? 'primary' : 'default'}
@@ -98,7 +103,7 @@ export function VersionPanel({ documentId }: VersionPanelProps) {
               setSelectedForCompare([]);
             }}
           >
-            <SwapOutlined /> 对比
+            <SwapOutlined /> {t('versionPanel.compare')}
           </Button>
         </Space>
       </Space>
@@ -106,49 +111,49 @@ export function VersionPanel({ documentId }: VersionPanelProps) {
       {compareMode && (
         <Card size="small" style={{ marginBottom: 16 }}>
           <Space>
-            <span>已选择 {selectedForCompare.length}/2 个版本</span>
+            <span>{t('versionPanel.selected', { count: selectedForCompare.length })}</span>
             <Button
               onClick={handleCompare}
               disabled={selectedForCompare.length !== 2}
             >
-              执行对比
+              {t('versionPanel.executeCompare')}
             </Button>
           </Space>
         </Card>
       )}
 
       {comparisonResult && (
-        <Card size="small" title="对比结果" style={{ marginBottom: 16 }}>
+        <Card size="small" title={t('versionPanel.compareResult')} style={{ marginBottom: 16 }}>
           <Row gutter={[8, 8]}>
             <Col span={8}>
-              <Card size="small" title="新增类型">
+              <Card size="small" title={t('versionPanel.addedTypes')}>
                 {comparisonResult.added_types.length === 0 ? (
-                  <span style={{ color: '#999' }}>无</span>
+                  <span style={{ color: '#999' }}>{t('versionPanel.none')}</span>
                 ) : (
-                  comparisonResult.added_types.map((t) => (
-                    <Tag key={t} color="green">{t}</Tag>
+                  comparisonResult.added_types.map((tp) => (
+                    <Tag key={tp} color="green">{tp}</Tag>
                   ))
                 )}
               </Card>
             </Col>
             <Col span={8}>
-              <Card size="small" title="删除类型">
+              <Card size="small" title={t('versionPanel.deletedTypes')}>
                 {comparisonResult.removed_types.length === 0 ? (
-                  <span style={{ color: '#999' }}>无</span>
+                  <span style={{ color: '#999' }}>{t('versionPanel.none')}</span>
                 ) : (
-                  comparisonResult.removed_types.map((t) => (
-                    <Tag key={t} color="red">{t}</Tag>
+                  comparisonResult.removed_types.map((tp) => (
+                    <Tag key={tp} color="red">{tp}</Tag>
                   ))
                 )}
               </Card>
             </Col>
             <Col span={8}>
-              <Card size="small" title="修改类型">
+              <Card size="small" title={t('versionPanel.modifiedTypes')}>
                 {comparisonResult.modified_types.length === 0 ? (
-                  <span style={{ color: '#999' }}>无</span>
+                  <span style={{ color: '#999' }}>{t('versionPanel.none')}</span>
                 ) : (
-                  comparisonResult.modified_types.map((t) => (
-                    <Tag key={t.type_name} color="orange">{t.type_name}</Tag>
+                  comparisonResult.modified_types.map((tp) => (
+                    <Tag key={tp.type_name} color="orange">{tp.type_name}</Tag>
                   ))
                 )}
               </Card>
@@ -157,23 +162,23 @@ export function VersionPanel({ documentId }: VersionPanelProps) {
         </Card>
       )}
 
-      <Card size="small" title="时序查询" style={{ marginBottom: 16 }}>
+      <Card size="small" title={t('versionPanel.temporalQuery')} style={{ marginBottom: 16 }}>
         <Space>
           <Input
-            placeholder="输入时间点 (ISO格式)"
+            placeholder={t('versionPanel.temporalPlaceholder')}
             value={temporalInput}
             onChange={(e) => setTemporalInput(e.target.value)}
             style={{ width: 240 }}
           />
           <Button onClick={handleTemporalQuery}>
-            <ClockCircleOutlined /> 查询
+            <ClockCircleOutlined /> {t('versionPanel.query')}
           </Button>
         </Space>
       </Card>
 
       <Spin spinning={loading}>
         {versions.length === 0 ? (
-          <Empty description="暂无版本" image={Empty.PRESENTED_IMAGE_SIMPLE} />
+          <Empty description={t('versionPanel.noVersion')} image={Empty.PRESENTED_IMAGE_SIMPLE} />
         ) : (
           <Timeline
             items={versions.map((v: VersionInfo) => ({
@@ -200,11 +205,11 @@ export function VersionPanel({ documentId }: VersionPanelProps) {
                         {v.changelog}
                       </div>
                       <div style={{ color: '#999', fontSize: 11, marginTop: 2 }}>
-                        {new Date(v.created_at).toLocaleString('zh-CN')} · {v.entity_count} 实体 · {v.relation_count} 关系
+                        {new Date(v.created_at).toLocaleString(getCurrentLocale())} · {v.entity_count} {t('versionPanel.entity')} · {v.relation_count} {t('versionPanel.relation')}
                       </div>
                     </div>
                     <Popconfirm
-                      title="确认回滚到此版本？"
+                      title={t('versionPanel.rollbackConfirm')}
                       onConfirm={() => handleRollback(v.version_id)}
                     >
                       <AntButton
@@ -213,7 +218,7 @@ export function VersionPanel({ documentId }: VersionPanelProps) {
                         icon={<RollbackOutlined />}
                         disabled={v.status === 'archived'}
                       >
-                        回滚
+                        {t('versionPanel.rollback')}
                       </AntButton>
                     </Popconfirm>
                   </div>
@@ -225,23 +230,23 @@ export function VersionPanel({ documentId }: VersionPanelProps) {
       </Spin>
 
       <Modal
-        title="创建版本"
+        title={t('versionPanel.createVersion')}
         open={createModalVisible}
         onOk={handleCreate}
         onCancel={() => {
           setCreateModalVisible(false);
           createForm.resetFields();
         }}
-        okText="创建"
-        cancelText="取消"
+        okText={t('versionPanel.create')}
+        cancelText={t('versionPanel.cancel')}
       >
         <Form form={createForm} layout="vertical">
           <Form.Item
             name="changelog"
-            label="变更说明"
-            rules={[{ required: true, message: '请输入变更说明' }]}
+            label={t('versionPanel.changelog')}
+            rules={[{ required: true, message: t('versionPanel.changelogRequired') }]}
           >
-            <Input.TextArea rows={3} placeholder="描述本次变更内容" />
+            <Input.TextArea rows={3} placeholder={t('versionPanel.changelogPlaceholder')} />
           </Form.Item>
         </Form>
       </Modal>

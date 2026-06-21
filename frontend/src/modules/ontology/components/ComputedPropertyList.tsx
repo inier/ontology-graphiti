@@ -9,7 +9,7 @@
  */
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import {
-  Card, Table, Tag, Button, Space, Select, Input, Typography, Empty, Spin, Popconfirm, Modal, Form, Input as AntInput, message, Tooltip,
+  Card, Tag, Button, Space, Select, Input, Typography, Empty, Spin, Popconfirm, Modal, Form, Input as AntInput, message, Tooltip,
 } from 'antd';
 import type { ColumnsType } from 'antd/es/table';
 import {
@@ -17,6 +17,7 @@ import {
 } from '@ant-design/icons';
 import { apiClient } from '@/modules/shared/services/apiClient';
 import { useI18n } from '@/modules/shared/hooks/useI18n';
+import { AdvancedTable } from '@/modules/shared';
 
 const { Text, Title } = Typography;
 const { TextArea } = AntInput;
@@ -286,7 +287,7 @@ export function ComputedPropertyList({ objectTypeId, onEdit }: ComputedPropertyL
           {filtered.length === 0 ? (
             <Empty description="暂无计算属性" />
           ) : (
-            <Table<ComputedProperty>
+            <AdvancedTable<ComputedProperty>
               rowKey="id"
               size="small"
               dataSource={filtered}

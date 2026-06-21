@@ -1,7 +1,10 @@
 import { useState } from 'react';
-import { Card, Form, Switch, Row, Col } from 'antd';
+import { Switch, Row, Col } from 'antd';
+import { ProForm as Form } from '@ant-design/pro-components';
+import { ProCard as Card } from '@ant-design/pro-components';
 import { DeleteOutlined } from '@ant-design/icons';
 import adapter from '@/modules/shared/components/adapter';
+import { useI18n } from '@/modules/shared/hooks/useI18n';
 import type { PropertyDefinition } from '../services/ontologyApi';
 
 interface PropertyEditorProps {
@@ -15,25 +18,27 @@ const Button = adapter.getButton();
 const Input = adapter.getInput();
 const Select = adapter.getSelect();
 
-const DATA_TYPE_OPTIONS = [
-  { label: 'String', value: 'string' },
-  { label: 'Integer', value: 'integer' },
-  { label: 'Float', value: 'float' },
-  { label: 'Boolean', value: 'boolean' },
-  { label: 'Date', value: 'date' },
-  { label: 'DateTime', value: 'datetime' },
-  { label: 'JSON', value: 'json' },
-  { label: 'Array', value: 'array' },
-];
-
-const CLASSIFICATION_OPTIONS = [
-  { label: 'TS', value: 'TS' },
-  { label: 'S', value: 'S' },
-  { label: 'C', value: 'C' },
-  { label: 'U', value: 'U' },
-];
-
 export function PropertyEditor({ property, index, onChange, onRemove }: PropertyEditorProps) {
+  const { t } = useI18n('ontology');
+
+  const DATA_TYPE_OPTIONS = [
+    { label: t('property.types.string'), value: 'string' },
+    { label: t('property.types.integer'), value: 'integer' },
+    { label: t('property.types.float'), value: 'float' },
+    { label: t('property.types.boolean'), value: 'boolean' },
+    { label: t('property.types.date'), value: 'date' },
+    { label: t('property.types.datetime'), value: 'datetime' },
+    { label: t('property.types.json'), value: 'json' },
+    { label: t('property.types.array'), value: 'array' },
+  ];
+
+  const CLASSIFICATION_OPTIONS = [
+    { label: 'TS', value: 'TS' },
+    { label: 'S', value: 'S' },
+    { label: 'C', value: 'C' },
+    { label: 'U', value: 'U' },
+  ];
+
   const [localProperty, setLocalProperty] = useState<PropertyDefinition>(property);
 
   const updateField = <K extends keyof PropertyDefinition>(key: K, value: PropertyDefinition[K]) => {
@@ -57,7 +62,7 @@ export function PropertyEditor({ property, index, onChange, onRemove }: Property
     >
       <Row gutter={[8, 8]}>
         <Col span={6}>
-          <Form.Item label="属性名" style={{ marginBottom: 0 }}>
+          <Form.Item label={t('property.name')} style={{ marginBottom: 0 }}>
             <Input
               value={localProperty.name}
               onChange={(val) => updateField('name', val)}
@@ -66,7 +71,7 @@ export function PropertyEditor({ property, index, onChange, onRemove }: Property
           </Form.Item>
         </Col>
         <Col span={5}>
-          <Form.Item label="数据类型" style={{ marginBottom: 0 }}>
+          <Form.Item label={t('property.dataType')} style={{ marginBottom: 0 }}>
             <Select
               value={localProperty.data_type}
               onChange={(val) => updateField('data_type', val)}
@@ -75,7 +80,7 @@ export function PropertyEditor({ property, index, onChange, onRemove }: Property
           </Form.Item>
         </Col>
         <Col span={4}>
-          <Form.Item label="必填" style={{ marginBottom: 0 }}>
+          <Form.Item label={t('property.required')} style={{ marginBottom: 0 }}>
             <Switch
               checked={localProperty.required}
               onChange={(val) => updateField('required', val)}
@@ -83,7 +88,7 @@ export function PropertyEditor({ property, index, onChange, onRemove }: Property
           </Form.Item>
         </Col>
         <Col span={5}>
-          <Form.Item label="默认值" style={{ marginBottom: 0 }}>
+          <Form.Item label={t('property.defaultValue')} style={{ marginBottom: 0 }}>
             <Input
               value={localProperty.default_value || ''}
               onChange={(val) => updateField('default_value', val)}
@@ -92,7 +97,7 @@ export function PropertyEditor({ property, index, onChange, onRemove }: Property
           </Form.Item>
         </Col>
         <Col span={4}>
-          <Form.Item label="密级" style={{ marginBottom: 0 }}>
+          <Form.Item label={t('property.classificationLevel')} style={{ marginBottom: 0 }}>
             <Select
               value={localProperty.classification_level}
               onChange={(val) => updateField('classification_level', val)}

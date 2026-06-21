@@ -2,7 +2,8 @@
  * 审计时间线 - 展示查询审计记录
  */
 import React from 'react';
-import { Card, Timeline, Typography, Tag, Space, Empty, Spin, Pagination } from 'antd';
+import { Timeline, Typography, Tag, Space, Empty, Spin, Pagination } from 'antd';
+import { ProCard as Card } from '@ant-design/pro-components';
 import {
   ClockCircleOutlined,
   SearchOutlined,
@@ -11,6 +12,7 @@ import {
   CheckCircleOutlined,
 } from '@ant-design/icons';
 import type { AuditRecord } from '../services/nlQueryApi';
+import { useI18n } from '@/modules/shared/hooks/useI18n';
 
 const { Text } = Typography;
 
@@ -35,10 +37,12 @@ export function QueryAuditTimeline({
   onPageChange,
   pageSize = 10,
 }: QueryAuditTimelineProps) {
+  const { t } = useI18n('qa');
+
   if (records.length === 0 && !loading) {
     return (
       <Card size="small">
-        <Empty description="暂无审计记录" image={Empty.PRESENTED_IMAGE_SIMPLE} />
+        <Empty description={t('audit.empty')} image={Empty.PRESENTED_IMAGE_SIMPLE} />
       </Card>
     );
   }
@@ -58,7 +62,7 @@ export function QueryAuditTimeline({
   };
 
   return (
-    <Card size="small" title="查询审计记录" style={{ marginBottom: 12 }}>
+    <Card size="small" title={t('audit.title')} style={{ marginBottom: 12 }}>
       <Spin spinning={!!loading}>
       <Timeline
         items={records.map((r) => ({
@@ -85,7 +89,7 @@ export function QueryAuditTimeline({
                     {r.total_time_ms.toFixed(0)}ms
                   </Text>
                   <Tag icon={<CheckCircleOutlined />} color="success" style={{ fontSize: 10, margin: 0 }}>
-                    {r.source_count} 来源
+                    {t('audit.sourceCount', { count: r.source_count })}
                   </Tag>
                   <Text type="secondary" style={{ fontSize: 11 }}>{r.intent}</Text>
                 </Space>
@@ -96,7 +100,7 @@ export function QueryAuditTimeline({
                     <Tag key={i} style={{ fontSize: 10, marginBottom: 0 }} color="processing">{e}</Tag>
                   ))}
                   {r.extracted_entities.length > 3 && (
-                    <Text type="secondary" style={{ fontSize: 10 }}>+{r.extracted_entities.length - 3}</Text>
+                    <Text type="secondary" style={{ fontSize: 10 }}>{t('audit.moreEntities', { count: r.extracted_entities.length - 3 })}</Text>
                   )}
                 </div>
               )}

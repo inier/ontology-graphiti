@@ -10,7 +10,7 @@
  */
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import {
-  Card, Row, Col, Tabs, Table, Tag, Progress, Button, Space, Statistic, Empty, Spin, Drawer, Typography, message, Alert,
+  Card, Row, Col, Tabs, Tag, Progress, Button, Space, Statistic, Empty, Spin, Drawer, Typography, message, Alert,
 } from 'antd';
 import type { ColumnsType } from 'antd/es/table';
 import {
@@ -20,6 +20,7 @@ import type { ReactNode } from 'react';
 import * as echarts from 'echarts';
 import { apiClient } from '@/modules/shared/services/apiClient';
 import { useI18n } from '@/modules/shared/hooks/useI18n';
+import { AdvancedTable } from '@/modules/shared';
 
 const { Text, Title } = Typography;
 
@@ -163,8 +164,8 @@ export function MaterializationMonitor({ workspaceId, refreshIntervalMs = 10000 
       <Tabs
         defaultActiveKey="active"
         items={[
-          { key: 'active', label: `Active / Pending (${totals.active + totals.pending})`, children: <Table rowKey="job_id" dataSource={jobs.filter((j) => j.status === 'RUNNING' || j.status === 'PENDING')} columns={activeColumns} pagination={false} size="small" /> },
-          { key: 'history', label: `History (${jobs.length})`, children: <Table rowKey="job_id" dataSource={jobs} columns={activeColumns} pagination={{ pageSize: 20 }} size="small" /> },
+          { key: 'active', label: `Active / Pending (${totals.active + totals.pending})`, children: <AdvancedTable rowKey="job_id" dataSource={jobs.filter((j) => j.status === 'RUNNING' || j.status === 'PENDING')} columns={activeColumns} pagination={false} size="small" /> },
+          { key: 'history', label: `History (${jobs.length})`, children: <AdvancedTable rowKey="job_id" dataSource={jobs} columns={activeColumns} pagination={{ pageSize: 20 }} size="small" /> },
           {
             key: 'stats', label: 'Stats',
             children: stats.length === 0 ? <Empty description="暂无统计数据" /> : (
@@ -176,7 +177,7 @@ export function MaterializationMonitor({ workspaceId, refreshIntervalMs = 10000 
             children: (
               <Spin spinning={loading}>
                 {jobs.filter((j) => j.status === 'FAILED').length === 0 ? <Empty description="无失败任务" /> : (
-                  <Table
+                  <AdvancedTable
                     rowKey="job_id"
                     pagination={false}
                     size="small"

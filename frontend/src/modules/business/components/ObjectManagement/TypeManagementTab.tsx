@@ -1,7 +1,8 @@
 import { useState } from 'react';
-import { Card, Button, Input, Table, Tag, Space, Popconfirm, Modal, Form, Switch, message } from 'antd';
+import { Card, Button, Input, Tag, Space, Popconfirm, Modal, Form, Switch, message } from 'antd';
 import { PlusOutlined, EditOutlined, DeleteOutlined } from '@ant-design/icons';
 import type { ObjectType } from './types';
+import { AdvancedTable } from '@/modules/shared';
 
 interface TypeManagementTabProps {
   objectTypes: ObjectType[];
@@ -95,7 +96,7 @@ export function TypeManagementTab({
         <span style={{ fontSize: 16, fontWeight: 600 }}>对象类型定义</span>
         <Button type="primary" icon={<PlusOutlined />} onClick={handleCreate}>新建类型</Button>
       </div>
-      <Table
+      <AdvancedTable
         dataSource={objectTypes}
         columns={columns}
         rowKey="type_id"

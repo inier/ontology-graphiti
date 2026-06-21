@@ -1,5 +1,6 @@
 import { useState, useCallback } from 'react';
-import { Collapse, Tag, Space, Form, Button, Divider } from 'antd';
+import { Collapse, Tag, Space, Button, Divider } from 'antd';
+import { ProForm as Form } from '@ant-design/pro-components';
 import {
   CheckCircleOutlined,
   CloseCircleOutlined,

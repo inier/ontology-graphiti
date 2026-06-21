@@ -4,7 +4,6 @@ import {
   Button,
   Space,
   Tag,
-  Table,
   Modal,
   Form,
   Input,
@@ -33,6 +32,7 @@ import {
 } from '@ant-design/icons';
 import { apiService } from '@/modules/shared/services/api';
 import type { ColumnsType } from 'antd/es/table';
+import { AdvancedTable } from '@/modules/shared';
 
 const { TextArea } = Input;
 const { Paragraph, Text } = Typography;
@@ -266,7 +266,7 @@ const PolicyManagement: React.FC = () => {
           </Space>
         }
       >
-        <Table
+        <AdvancedTable
           columns={columns}
           dataSource={policies}
           rowKey="policy_id"

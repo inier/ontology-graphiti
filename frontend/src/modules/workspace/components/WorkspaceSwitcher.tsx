@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react';
-import { Select, Space, Tag, Button, Modal, Form, Input, message } from 'antd';
+import { Select, Space, Tag, Button, Modal, Input, message } from 'antd';
+import { ProForm as Form } from '@ant-design/pro-components';
 import { PlusOutlined, SettingOutlined } from '@ant-design/icons';
 import { api } from '@/modules/shared/services/api';
 import type { Workspace } from '@/modules/shared/services/api';

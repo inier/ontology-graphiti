@@ -7,9 +7,7 @@
 """
 
 from typing import Optional, List, Dict, Any
-from pydantic import Field
-from datetime import datetime
-import uuid
+from pydantic import BaseModel, Field
 import logging
 
 from odap.tools.base import (
@@ -25,7 +23,7 @@ logger = logging.getLogger(__name__)
 
 
 # ============================================================
-# 输入/输出模型
+# 输入/输出模型（对应 data-model.md 第 4-9 节）
 # ============================================================
 
 class WebSearchInput(SkillInput):
@@ -43,9 +41,52 @@ class WebCrawlInput(SkillInput):
     timeout: int = Field(default=30, description="超时时间（秒）", ge=5, le=120)
 
 
-class SearchResultItem(dict):
-    """单条搜索结果"""
-    pass
+class SearchResultItem(BaseModel):
+    """单条搜索结果（data-model.md 第 5 节）"""
+    title: str = ""
+    url: str = ""
+    snippet: str = ""
+    source_domain: str = ""
+    published_date: str = ""
+
+
+class WebSearchData(BaseModel):
+    """搜索结果数据（data-model.md 第 4 节）"""
+    query: str
+    results: List[SearchResultItem] = Field(default_factory=list)
+    total_count: int = 0
+    engine_used: str = "unknown"
+    source: str = "external"
+    confidence: str = "medium"
+
+
+class LinkItem(BaseModel):
+    """页面链接（data-model.md 第 8 节）"""
+    text: str = ""
+    href: str = ""
+    link_type: str = "external"
+
+
+class PageMetadata(BaseModel):
+    """页面元数据（data-model.md 第 9 节）"""
+    title: str = ""
+    description: str = ""
+    author: str = ""
+    published_date: str = ""
+    language: str = ""
+
+
+class WebCrawlData(BaseModel):
+    """爬取结果数据（data-model.md 第 7 节）"""
+    url: str
+    title: str = ""
+    content: str = ""
+    links: List[LinkItem] = Field(default_factory=list)
+    metadata: PageMetadata = Field(default_factory=PageMetadata)
+    source: str = "external"
+    confidence: str = "medium"
+    is_complete: bool = True
+    crawl_method: str = "requests_fallback"
 
 
 class WebSearchSkill(BaseSkill):
@@ -66,16 +107,17 @@ class WebSearchSkill(BaseSkill):
     def execute(self, input_data: WebSearchInput) -> SkillOutput:
         try:
             results = self._do_search(input_data.query, input_data.max_results, input_data.search_depth)
+            data = WebSearchData(
+                query=input_data.query,
+                results=results,
+                total_count=len(results),
+                engine_used=self._get_engine_name(),
+                source="external",
+                confidence="medium",
+            )
             return SkillOutput(
                 success=True,
-                data={
-                    "query": input_data.query,
-                    "results": results,
-                    "total_count": len(results),
-                    "engine_used": self._get_engine_name(),
-                    "source": "external",
-                    "confidence": "medium",
-                },
+                data=data.model_dump(),
                 execution_time_ms=0,
                 skill_name=self.metadata.name,
                 request_id=input_data.request_id,
@@ -90,7 +132,7 @@ class WebSearchSkill(BaseSkill):
                 request_id=input_data.request_id,
             )
 
-    def _do_search(self, query: str, max_results: int, search_depth: str) -> List[Dict[str, Any]]:
+    def _do_search(self, query: str, max_results: int, search_depth: str) -> List[SearchResultItem]:
         """执行搜索，复用现有 SearchService 四级降级链"""
         try:
             from odap.biz.core.ontology.design.services.search_service import SearchService
@@ -102,25 +144,25 @@ class WebSearchSkill(BaseSkill):
             logger.warning("SearchService not available, using fallback")
             return self._fallback_search(query, max_results)
 
-    def _normalize_results(self, raw_results: Any) -> List[Dict[str, Any]]:
+    def _normalize_results(self, raw_results: Any) -> List[SearchResultItem]:
         """将搜索结果标准化为统一格式"""
         if isinstance(raw_results, list):
             results = []
             for item in raw_results:
                 if isinstance(item, dict):
-                    results.append({
-                        "title": item.get("title", ""),
-                        "url": item.get("url", item.get("link", "")),
-                        "snippet": item.get("snippet", item.get("content", "")),
-                        "source_domain": self._extract_domain(item.get("url", item.get("link", ""))),
-                        "published_date": item.get("published_date", ""),
-                    })
+                    results.append(SearchResultItem(
+                        title=item.get("title", ""),
+                        url=item.get("url", item.get("link", "")),
+                        snippet=item.get("snippet", item.get("content", "")),
+                        source_domain=self._extract_domain(item.get("url", item.get("link", ""))),
+                        published_date=item.get("published_date", ""),
+                    ))
                 elif isinstance(item, str):
-                    results.append({"title": item, "url": "", "snippet": "", "source_domain": "", "published_date": ""})
+                    results.append(SearchResultItem(title=item))
             return results
         return []
 
-    def _fallback_search(self, query: str, max_results: int) -> List[Dict[str, Any]]:
+    def _fallback_search(self, query: str, max_results: int) -> List[SearchResultItem]:
         """降级搜索：尝试 OH WebSearchTool"""
         try:
             from odap.biz.core.ontology.design.services.search_service import OHWebSearchProvider
@@ -131,7 +173,7 @@ class WebSearchSkill(BaseSkill):
                 return self._normalize_results(raw)
         except Exception:
             pass
-        return [{"title": "搜索服务暂不可用", "url": "", "snippet": f"无法搜索: {query}", "source_domain": "", "published_date": ""}]
+        return [SearchResultItem(title="搜索服务暂不可用", snippet=f"无法搜索: {query}")]
 
     def _get_engine_name(self) -> str:
         """获取当前使用的搜索引擎名称"""
@@ -199,16 +241,45 @@ class WebCrawlSkill(BaseSkill):
             service = CrawlService()
             result = service.crawl_url(url, output_format, css_selector, timeout)
             if result.get("status") == "error":
-                return {"url": url, "title": "", "content": result.get("message", "Crawl failed"),
-                        "links": [], "metadata": {}, "source": "external", "confidence": "low",
-                        "crawl_method": "none", "is_complete": False}
-            result["is_complete"] = True
-            return result
+                data = WebCrawlData(
+                    url=url,
+                    title="",
+                    content=result.get("message", "Crawl failed"),
+                    source="external",
+                    confidence="low",
+                    crawl_method="none",
+                    is_complete=False,
+                )
+                return data.model_dump()
+            # 将 service 返回的 dict 转换为 WebCrawlData
+            raw_links = result.get("links", [])
+            links = [LinkItem(**link) if isinstance(link, dict) else link for link in raw_links]
+            raw_meta = result.get("metadata", {})
+            metadata = PageMetadata(**raw_meta) if isinstance(raw_meta, dict) else PageMetadata()
+            data = WebCrawlData(
+                url=result.get("url", url),
+                title=result.get("title", ""),
+                content=result.get("content", ""),
+                links=links,
+                metadata=metadata,
+                source=result.get("source", "external"),
+                confidence=result.get("confidence", "medium"),
+                is_complete=True,
+                crawl_method=result.get("crawl_method", "requests_fallback"),
+            )
+            return data.model_dump()
         except Exception as e:
             logger.error(f"Crawl delegation failed: {e}")
-            return {"url": url, "title": "", "content": f"爬取失败: {e}",
-                    "links": [], "metadata": {}, "source": "external", "confidence": "low",
-                    "crawl_method": "none", "is_complete": False}
+            data = WebCrawlData(
+                url=url,
+                title="",
+                content=f"爬取失败: {e}",
+                source="external",
+                confidence="low",
+                crawl_method="none",
+                is_complete=False,
+            )
+            return data.model_dump()
 
 
 # ============================================================
@@ -296,30 +367,102 @@ class BrowserAutomateSkill(BaseSkill):
     input_schema = BrowserAutomateInput
 
     def execute(self, input_data: BrowserAutomateInput) -> SkillOutput:
-        """执行浏览器自动化任务，通过 MCP 调用 browser-use Server"""
-        try:
-            import httpx
-            import os
+        """执行浏览器自动化任务，通过 MCP 协议层调用 browser-use Server
 
-            mcp_url = os.environ.get(
-                "BROWSER_MCP_URL",
-                "http://graphiti-browser-use:8030",
+        优先通过 MCPService（MCPServerManagerV2）调用，享受连接池/重试/健康检查；
+        若 MCPService 不可用则降级为直接 httpx 调用。
+        """
+        arguments = {
+            "task": input_data.task,
+            "max_steps": input_data.max_steps,
+            "timeout_seconds": min(input_data.timeout_seconds, 300),  # 硬限制 5 分钟
+        }
+        if input_data.url:
+            arguments["url"] = input_data.url
+
+        # 优先：通过 MCPService（MCPServerManagerV2）调用
+        result = self._call_via_mcp_service(arguments, input_data.timeout_seconds)
+        if result is not None:
+            return result
+
+        # 降级：直接 httpx 调用（MCPService 不可用时）
+        return self._call_via_httpx(arguments, input_data)
+
+    def _call_via_mcp_service(self, arguments: Dict[str, Any], timeout_seconds: int):
+        """通过 MCPService.call_tool 调用 browser-use MCP Server
+
+        Returns:
+            SkillOutput（仅成功时）或 None（失败/不可用时返回 None 以触发 httpx 降级）
+        """
+        try:
+            import asyncio
+            from odap.biz.integration.mcp_adapter.services.mcp_service import MCPService
+
+            mcp_service = MCPService()
+
+            # 确保内置 server 已注册
+            try:
+                mcp_service.register_builtin_servers()
+            except Exception:
+                pass  # 已注册或注册失败不阻塞，call_tool 会返回错误
+
+            # Skill.execute 在同步上下文中，可安全使用 asyncio.run()
+            result = asyncio.run(
+                mcp_service.call_tool("browser-use", "browse_task", arguments)
             )
 
-            payload = {
-                "task": input_data.task,
-                "max_steps": input_data.max_steps,
-                "timeout_seconds": min(input_data.timeout_seconds, 300),  # 硬限制 5 分钟
-            }
-            if input_data.url:
-                payload["url"] = input_data.url
+            if result.get("success"):
+                data = result.get("data", {})
+                # MCPService 返回的 data 可能嵌套在 "data" 字段中
+                if isinstance(data, dict) and "data" in data and "success" in data:
+                    inner = data["data"]
+                    return SkillOutput(
+                        success=data.get("success", False),
+                        data=inner.get("data", inner) if isinstance(inner, dict) else inner,
+                        execution_time_ms=result.get("execution_time_ms", 0),
+                        skill_name=self.metadata.name,
+                        request_id="",
+                    )
+                return SkillOutput(
+                    success=True,
+                    data=data,
+                    execution_time_ms=result.get("execution_time_ms", 0),
+                    skill_name=self.metadata.name,
+                    request_id="",
+                )
+            else:
+                # MCPService 调用失败（如 Server not found），降级到 httpx
+                logger.debug(f"MCPService call failed ({result.get('error')}), falling back to httpx")
+                return None
+        except ImportError:
+            logger.debug("MCPService not available, falling back to httpx")
+            return None
+        except Exception as e:
+            logger.warning(f"MCPService call failed, falling back to httpx: {e}")
+            return None
+
+    def _call_via_httpx(self, arguments: Dict[str, Any], input_data: BrowserAutomateInput) -> SkillOutput:
+    """降级方案：直接通过 httpx 调用 browser-use MCP Server"""
+    try:
+        import httpx
+        import os
+
+        mcp_url = os.environ.get("BROWSER_MCP_URL", "")
+        if not mcp_url:
+            try:
+                from odap.infra.config_composer import get_config
+                mcp_url = get_config("mcp.browser_mcp_url", "")
+            except Exception:
+                pass
+        if not mcp_url:
+            mcp_url = "http://graphiti-browser-use:8030"
 
             # 同步调用 MCP Server（带超时）
             timeout = input_data.timeout_seconds + 30  # 额外 30s 网络缓冲
             with httpx.Client(timeout=timeout) as client:
                 resp = client.post(
                     f"{mcp_url}/tools/browse_task/execute",
-                    json=payload,
+                    json=arguments,
                 )
                 resp.raise_for_status()
                 result = resp.json()

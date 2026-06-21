@@ -6,8 +6,12 @@ markers = [
     "integration: 集成测试（需要外部服务）",
     "slow: 慢速测试",
     "e2e: 端到端测试",
+    "smoke: 冒烟测试（核心功能快速验证，<60s）",
+    "regression: 回归测试（核心业务路径验证）",
+    "perf: 性能基准测试",
+    "docker: 需要 Docker/Podman 容器的测试",
 ]
-addopts = "-v --tb=short"
+addopts = "-v --tb=short --strict-markers"
 filterwarnings = [
     "ignore::DeprecationWarning",
 ]

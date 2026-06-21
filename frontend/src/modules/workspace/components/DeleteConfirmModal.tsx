@@ -1,7 +1,8 @@
 import { useState, useEffect } from 'react';
-import { Modal, Table, Typography, Space, Alert, Spin } from 'antd';
+import { Modal, Typography, Space, Alert, Spin } from 'antd';
 import { ExclamationCircleOutlined, DeleteOutlined } from '@ant-design/icons';
 import { api } from '@/modules/shared/services/api';
+import { AdvancedTable } from '@/modules/shared';
 
 const { Text } = Typography;
 
@@ -131,7 +132,7 @@ export function DeleteConfirmModal({
               <Text type="secondary">
                 以下资源将被级联删除（共 {preview.total_count} 项）：
               </Text>
-              <Table
+              <AdvancedTable
                 dataSource={preview.resources}
                 columns={columns}
                 rowKey="type"

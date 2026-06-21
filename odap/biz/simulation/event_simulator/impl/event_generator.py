@@ -2,7 +2,7 @@ import logging
 import uuid
 import random
 from typing import Dict, Any, List, Optional
-from datetime import datetime, timezone
+from datetime import datetime, timezone, timedelta
 
 logger = logging.getLogger(__name__)
 
@@ -104,6 +104,7 @@ class EventGenerator:
         count: int = 5,
         base_time: Optional[str] = None,
         entity_types: Optional[List[str]] = None,
+        ontology_id: str = "",
     ) -> Dict[str, Any]:
         sequence_id = f"seq_{uuid.uuid4().hex[:12]}"
         ontology_entity_types = entity_types or self._get_entity_types(workspace_id)
@@ -111,25 +112,28 @@ class EventGenerator:
         if not ontology_entity_types:
             ontology_entity_types = ["entity", "relation", "event", "attribute"]
 
+        # 从本体加载事件类型（若提供 ontology_id）
+        ontology_event_types = self._load_event_types_from_ontology(ontology_id, workspace_id)
+        event_type_source = "ontology" if ontology_event_types else "hardcoded"
+
         events = []
         start_time = datetime.fromisoformat(base_time) if base_time else datetime.now(timezone.utc)
 
         for i in range(count):
-            event_type = self._pick_event_type(template_id, ontology_entity_types)
+            event_type = self._pick_event_type(template_id, ontology_entity_types, ontology_event_types)
             target_type = random.choice(ontology_entity_types)
             event = {
                 "event_id": f"evt_{uuid.uuid4().hex[:8]}",
                 "sequence_id": sequence_id,
                 "event_type": event_type,
                 "target_entity_type": target_type,
-                "timestamp": datetime(
-                    start_time.year, start_time.month, start_time.day,
-                    start_time.hour, start_time.minute + i,
-                    tzinfo=timezone.utc,
-                ).isoformat(),
-                "data": self._generate_event_data(event_type, target_type),
+                "timestamp": (start_time + timedelta(minutes=i)).isoformat(),
+                "data": self._generate_event_data(event_type, target_type, ontology_event_types),
                 "status": "pending",
-                "ontology_relevance": self._compute_ontology_relevance(event_type, target_type),
+                "ontology_id": ontology_id,
+                "ontology_relevance": self._compute_ontology_relevance(
+                    event_type, target_type, ontology_id=ontology_id, workspace_id=workspace_id
+                ),
             }
             events.append(event)
 
@@ -139,9 +143,11 @@ class EventGenerator:
             "sequence_id": sequence_id,
             "template_id": template_id,
             "workspace_id": workspace_id,
+            "ontology_id": ontology_id,
             "total_events": len(events),
             "events": events,
             "entity_types_used": ontology_entity_types,
+            "event_type_source": event_type_source,
         }
 
         if self._storage:
@@ -150,8 +156,10 @@ class EventGenerator:
                     "sequence_id": sequence_id,
                     "template_id": template_id,
                     "workspace_id": workspace_id,
+                    "ontology_id": ontology_id,
                     "events": events,
                     "total_events": len(events),
+                    "event_type_source": event_type_source,
                 })
             except Exception:
                 logger.warning("Failed to persist sequence to storage")
@@ -165,6 +173,7 @@ class EventGenerator:
         data: Dict[str, Any] = None,
         workspace_id: str = "default",
         timestamp: Optional[str] = None,
+        ontology_id: str = "",
     ) -> Dict[str, Any]:
         event_id = f"evt_{uuid.uuid4().hex[:8]}"
         event = {
@@ -175,7 +184,10 @@ class EventGenerator:
             "data": data or {},
             "status": "injected",
             "workspace_id": workspace_id,
-            "ontology_relevance": self._compute_ontology_relevance(event_type, target_entity_type),
+            "ontology_id": ontology_id,
+            "ontology_relevance": self._compute_ontology_relevance(
+                event_type, target_entity_type, ontology_id=ontology_id, workspace_id=workspace_id
+            ),
         }
         return event
 
@@ -194,7 +206,14 @@ class EventGenerator:
             logger.warning(f"Failed to get entity types from ModelService: {e}")
             return []
 
-    def _pick_event_type(self, template_id: str, entity_types: List[str]) -> str:
+    def _pick_event_type(self, template_id: str, entity_types: List[str],
+                         ontology_event_types: Optional[Dict[str, Any]] = None) -> str:
+        # 优先使用本体事件类型
+        if ontology_event_types:
+            ontology_keys = list(ontology_event_types.keys())
+            if ontology_keys:
+                return random.choice(ontology_keys)
+
         template_event_map = {
             "conflict": ["engage", "hold", "withdraw", "support"],
             "logistics": ["supply", "transport", "deploy", "withdraw"],
@@ -205,11 +224,24 @@ class EventGenerator:
         event_pool = template_event_map.get(template_id, template_event_map["default"])
         return random.choice(event_pool)
 
-    def _generate_event_data(self, event_type: str, target_type: str) -> Dict[str, Any]:
+    def _generate_event_data(self, event_type: str, target_type: str,
+                             ontology_event_types: Optional[Dict[str, Any]] = None) -> Dict[str, Any]:
         data = {
             "event_type": event_type,
             "target_type": target_type,
         }
+
+        # 优先使用本体事件模板
+        if ontology_event_types and event_type in ontology_event_types:
+            ontology_template = ontology_event_types[event_type]
+            intensity_range = ontology_template.get("intensity", (0.1, 1.0))
+            data["intensity"] = round(random.uniform(intensity_range[0], intensity_range[1]), 3)
+            for field, range_val in ontology_template.items():
+                if field in ("_source", "target_object_type", "intensity"):
+                    continue
+                if isinstance(range_val, (list, tuple)) and len(range_val) == 2:
+                    data[field] = round(random.uniform(range_val[0], range_val[1]), 3)
+            return data
 
         template = EVENT_DATA_TEMPLATES.get(event_type)
         if template:
@@ -229,7 +261,14 @@ class EventGenerator:
 
         return data
 
-    def _compute_ontology_relevance(self, event_type: str, target_type: str) -> float:
+    def _compute_ontology_relevance(self, event_type: str, target_type: str,
+                                    ontology_id: str = "", workspace_id: str = "default") -> float:
+        # 优先从本体查询相关性
+        if ontology_id:
+            oms_relevance = self._lookup_ontology_relevance(event_type, target_type, ontology_id, workspace_id)
+            if oms_relevance is not None:
+                return oms_relevance
+
         relevance_map = {
             ("engage", "entity"): 0.9, ("engage", "relation"): 0.7,
             ("hold", "entity"): 0.85, ("hold", "relation"): 0.6,
@@ -253,6 +292,89 @@ class EventGenerator:
         base = CATEGORY_BASE_RELEVANCE.get(category, 0.5) if category else 0.5
         type_modifier = {"entity": 0.1, "relation": 0.0, "event": 0.05, "attribute": -0.05}.get(target_type, 0.0)
         return round(max(0.1, min(1.0, base + type_modifier)), 2)
+
+    def _load_event_types_from_ontology(self, ontology_id: str, workspace_id: str = "default") -> Dict[str, Any]:
+        """从 OMS action_types 动态构建事件模板。"""
+        if not ontology_id:
+            return {}
+
+        try:
+            from odap.biz.core.ontology.application.oms.services.oms_service import OMSService
+            oms = OMSService.get_instance()
+            action_types = oms.list_action_types()
+
+            templates = {}
+            for at in action_types:
+                name = at.get("name", "")
+                if not name or not at.get("is_active", True):
+                    continue
+
+                template: Dict[str, Any] = {"_source": "ontology"}
+
+                # 从 parameters 解析 intensity
+                params = at.get("parameters", [])
+                if isinstance(params, list):
+                    for param in params:
+                        pname = param.get("name", "")
+                        if "intensity" in pname.lower():
+                            default_val = param.get("default")
+                            if isinstance(default_val, (int, float)):
+                                template["intensity"] = (max(0.1, default_val - 0.3), min(1.0, default_val + 0.3))
+                                break
+
+                if "intensity" not in template:
+                    template["intensity"] = (0.1, 1.0)
+
+                # 从 writeback_config 解析 delta 字段
+                writeback = at.get("writeback_config", {})
+                if isinstance(writeback, dict):
+                    for delta_field in ("capability_index_delta", "resource_level_delta", "readiness_delta"):
+                        if delta_field in writeback:
+                            val = writeback[delta_field]
+                            if isinstance(val, (int, float)):
+                                template[delta_field] = (min(val, 0), max(val, 0))
+
+                target_obj_type = at.get("target_object_type", "")
+                if target_obj_type:
+                    template["target_object_type"] = target_obj_type
+
+                templates[name] = template
+
+            return templates
+        except Exception as e:
+            logger.debug(f"Failed to load event types from ontology: {e}")
+            return {}
+
+    def _lookup_ontology_relevance(self, event_type: str, target_type: str,
+                                   ontology_id: str, workspace_id: str) -> Optional[float]:
+        """从 OMS action_types 查询事件相关性。"""
+        try:
+            from odap.biz.core.ontology.application.oms.services.oms_service import OMSService
+            oms = OMSService.get_instance()
+            action_types = oms.list_action_types()
+
+            for at in action_types:
+                if at.get("name", "") != event_type:
+                    continue
+
+                # 优先从 writeback_config.relevance 读取
+                writeback = at.get("writeback_config", {})
+                if isinstance(writeback, dict) and "relevance" in writeback:
+                    return float(writeback["relevance"])
+
+                # 根据 target_object_type 与 target_type 的匹配度推断
+                target_obj_type = at.get("target_object_type", "")
+                if target_obj_type and target_type:
+                    if target_obj_type.lower() == target_type.lower():
+                        return 0.85
+                    if target_obj_type.lower() in target_type.lower() or target_type.lower() in target_obj_type.lower():
+                        return 0.65
+
+                return None
+            return None
+        except Exception as e:
+            logger.debug(f"Failed to lookup ontology relevance: {e}")
+            return None
 
     def get_sequence(self, sequence_id: str) -> Dict[str, Any]:
         events = self._generated_sequences.get(sequence_id)

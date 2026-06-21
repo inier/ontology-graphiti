@@ -1,5 +1,6 @@
 import { useState, useRef, useEffect } from 'react';
-import { Card, Input, Button, Space, Typography, List, Avatar } from 'antd';
+import { Input, Button, Space, Typography, List, Avatar } from 'antd';
+import { ProCard as Card } from '@ant-design/pro-components';
 import { SendOutlined, RobotOutlined, UserOutlined } from '@ant-design/icons';
 import { apiClient } from '../services/apiClient';
 

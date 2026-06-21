@@ -234,6 +234,26 @@ interface OntologyState {
   // ─── Graph actions ─────────────────────────────────────────────
 
   loadGraph: () => Promise<void>;
+
+  // ─── AI Assistant state (T078) ──────────────────────────────────
+
+  /** AI 助手是否可用（健康检查结果） */
+  aiAvailable: boolean;
+  /** AI 助手面板是否打开 */
+  aiPanelOpen: boolean;
+  /** 待处理的 AI 建议数量 */
+  pendingSuggestionCount: number;
+
+  // ─── AI Assistant actions (T078) ────────────────────────────────
+
+  /** 设置 AI 面板开关 */
+  setAIPanelOpen: (open: boolean) => void;
+  /** 设置 AI 可用性 */
+  setAIAvailable: (available: boolean) => void;
+  /** 更新待处理建议数量 */
+  updatePendingSuggestionCount: (count: number) => void;
+  /** 加载待处理建议数量（从后端获取） */
+  loadPendingSuggestionCount: () => Promise<void>;
 }
 
 // ─── Helper: get current ontology ID ───────────────────────────────
@@ -954,6 +974,45 @@ export const useOntologyStore = create<OntologyState>((set, get) => ({
       set({ graphData: result as Record<string, unknown>, loading: false });
     } catch (e) {
       set({ error: (e as Error).message, loading: false });
+    }
+  },
+
+  // ═══════════════════════════════════════════════════════════════
+  // AI Assistant state (T078)
+  // ═══════════════════════════════════════════════════════════════
+
+  aiAvailable: false,
+  aiPanelOpen: false,
+  pendingSuggestionCount: 0,
+
+  // ═══════════════════════════════════════════════════════════════
+  // AI Assistant actions (T078)
+  // ═══════════════════════════════════════════════════════════════
+
+  setAIPanelOpen: (open: boolean) => {
+    set({ aiPanelOpen: open });
+  },
+
+  setAIAvailable: (available: boolean) => {
+    set({ aiAvailable: available });
+  },
+
+  updatePendingSuggestionCount: (count: number) => {
+    set({ pendingSuggestionCount: Math.max(0, count) });
+  },
+
+  loadPendingSuggestionCount: async () => {
+    const { currentOntology } = get();
+    if (!currentOntology) return;
+    try {
+      const result = await ontologyApi.aiAssistant.listSuggestions({
+        ontologyId: currentOntology.ontology_id,
+        status: 'pending',
+      });
+      set({ pendingSuggestionCount: (result.suggestions || []).length });
+    } catch {
+      // 静默失败：AI 服务不可用不应阻断 UI
+      set({ pendingSuggestionCount: 0 });
     }
   },
 }));

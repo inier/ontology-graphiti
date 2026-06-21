@@ -1,8 +1,9 @@
 import { useState } from 'react';
-import { Tabs, Card, Input, Button, Table, Tag, Space, Form, message, Descriptions, List } from 'antd';
+import { Tabs, Card, Input, Button, Tag, Space, Form, message, Descriptions, List } from 'antd';
 import { SearchOutlined, CompassOutlined, BulbOutlined, ToolOutlined, ThunderboltOutlined } from '@ant-design/icons';
 import { useKnowledgeStore } from '../stores/knowledgeStore';
 import { knowledgePageApi } from '../services/knowledgePageApi';
+import { AdvancedTable } from '@/modules/shared';
 
 const { TextArea } = Input;
 
@@ -205,7 +206,7 @@ export function KnowledgePage() {
                     <Button type="primary" onClick={handleAddSynonym}>添加</Button>
                     <Button onClick={() => loadSynonyms()}>刷新</Button>
                   </Space>
-                  <Table columns={synonymColumns} dataSource={synonymData} size="small" pagination={false} />
+                  <AdvancedTable columns={synonymColumns} dataSource={synonymData} size="small" pagination={false} />
                 </Card>
                 <Card title="扩写规则" size="small">
                   <Space style={{ marginBottom: 16 }}>
@@ -214,7 +215,7 @@ export function KnowledgePage() {
                     <Button type="primary" onClick={handleAddExpansionRule}>添加</Button>
                     <Button onClick={() => loadExpansionRules()}>刷新</Button>
                   </Space>
-                  <Table columns={expansionColumns} dataSource={expansionRules.map((r, i) => ({ key: i, ...r }))} size="small" pagination={false} />
+                  <AdvancedTable columns={expansionColumns} dataSource={expansionRules.map((r, i) => ({ key: i, ...r }))} size="small" pagination={false} />
                 </Card>
               </Space>
             ),

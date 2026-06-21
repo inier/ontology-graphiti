@@ -6,7 +6,8 @@
  */
 
 import React, { useEffect, useState } from 'react';
-import { Card, List, Tag, Typography } from 'antd';
+import { List, Tag, Typography } from 'antd';
+import { ProCard as Card } from '@ant-design/pro-components';
 import { useAGUIContext } from './AGUIProvider';
 import type { StateDeltaEvent, StateSnapshotEvent } from './agui_types';
 

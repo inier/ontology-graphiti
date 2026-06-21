@@ -1,5 +1,6 @@
 import { useState, useEffect, useCallback } from 'react';
-import { Card, List, Collapse, Tag, Rate, Progress, Space, Typography } from 'antd';
+import { List, Collapse, Tag, Rate, Progress, Space, Typography } from 'antd';
+import { ProCard as Card } from '@ant-design/pro-components';
 import { SafetyOutlined, CheckCircleOutlined, WarningOutlined } from '@ant-design/icons';
 import { apiClient } from '@/modules/shared/services/apiClient';
 import { useI18n } from '@/modules/shared/hooks/useI18n';

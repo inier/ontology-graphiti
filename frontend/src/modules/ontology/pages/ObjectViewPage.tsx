@@ -9,13 +9,14 @@
  */
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import {
-  Card, Row, Col, List, Tag, Button, Space, Table, Input, Empty, Spin, message, Typography, Statistic, Alert, Modal, Tooltip, Divider,
+  Card, Row, Col, List, Tag, Button, Space, Input, Empty, Spin, message, Typography, Statistic, Alert, Modal, Tooltip, Divider,
 } from 'antd';
 import {
   ReloadOutlined, SearchOutlined, DownloadOutlined, EyeOutlined, LockOutlined, UnlockOutlined, PlusOutlined,
 } from '@ant-design/icons';
 import { viewApi, type ObjectView, type ViewPermission } from '../services/viewApi';
 import { useI18n } from '@/modules/shared/hooks/useI18n';
+import { AdvancedTable } from '@/modules/shared';
 
 const { Title, Text } = Typography;
 
@@ -214,7 +215,7 @@ export function ObjectViewPage({ workspaceId, onCreateView }: ObjectViewPageProp
                   )}
                   <Spin spinning={querying}>
                     {rows.length === 0 ? <Empty description="无数据" /> : (
-                      <Table
+                      <AdvancedTable
                         size="small"
                         rowKey={(_, i) => String(i)}
                         dataSource={rows}

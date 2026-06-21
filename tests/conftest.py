@@ -7,6 +7,12 @@ project_root = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 if project_root not in sys.path:
     sys.path.insert(0, project_root)
 
+# C3 fix: 测试环境注入 JWT_SECRET，使 app.py lifespan 的 strict 校验通过。
+# 仅当未显式设置时注入，允许单个测试用 monkeypatch 覆盖为非法值以测试 fail-fast。
+_TEST_JWT_SECRET = "test_secret_key_for_unit_tests_padded_to_32bytes"  # 43 bytes
+if not os.environ.get("JWT_SECRET"):
+    os.environ["JWT_SECRET"] = _TEST_JWT_SECRET
+
 
 @pytest.fixture
 def mock_sqlite():

@@ -11,8 +11,9 @@
  */
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import {
-  Card, Row, Col, Select, Input, Button, Space, Typography, Tag, Empty, Spin, Drawer, Descriptions, Switch, Modal, Form, message, List, Tooltip,
+  Card, Row, Col, Select, Input, Button, Space, Typography, Tag, Empty, Spin, Drawer, Descriptions, Switch, Modal, message, List, Tooltip,
 } from 'antd';
+import { ProForm as Form } from '@ant-design/pro-components';
 import {
   PlusOutlined, ReloadOutlined, ApartmentOutlined, FileTextOutlined, DragOutlined, AimOutlined,
 } from '@ant-design/icons';
@@ -27,17 +28,17 @@ const { TextArea } = Input;
 
 interface KanbanColumn {
   status: GoalStatus;
-  title: string;
+  titleKey: string;
   color: string;
   bg: string;
 }
 
-const COLUMNS: KanbanColumn[] = [
-  { status: 'proposed', title: 'Proposed', color: '#d48806', bg: '#fffbe6' },
-  { status: 'approved', title: 'Approved', color: '#1677ff', bg: '#e6f4ff' },
-  { status: 'in-progress', title: 'In Progress', color: '#52c41a', bg: '#f6ffed' },
-  { status: 'achieved', title: 'Achieved', color: '#722ed1', bg: '#f9f0ff' },
-  { status: 'abandoned', title: 'Abandoned', color: '#8c8c8c', bg: '#fafafa' },
+const COLUMN_DEFS: KanbanColumn[] = [
+  { status: 'proposed', titleKey: 'column.proposed', color: '#d48806', bg: '#fffbe6' },
+  { status: 'approved', titleKey: 'column.approved', color: '#1677ff', bg: '#e6f4ff' },
+  { status: 'in-progress', titleKey: 'column.inProgress', color: '#52c41a', bg: '#f6ffed' },
+  { status: 'achieved', titleKey: 'column.achieved', color: '#722ed1', bg: '#f9f0ff' },
+  { status: 'abandoned', titleKey: 'column.abandoned', color: '#8c8c8c', bg: '#fafafa' },
 ];
 
 interface CreateFormValues {
@@ -49,9 +50,13 @@ interface CreateFormValues {
 }
 
 export function GoalKanban() {
-  const { t } = useI18n();
-  void t;
+  const { t } = useI18n('ontology');
   const { workspaces, currentWorkspace, loadWorkspaces } = useWorkspaceStore();
+
+  const COLUMNS: KanbanColumn[] = useMemo(
+    () => COLUMN_DEFS.map((c) => ({ ...c, title: t(c.titleKey) })),
+    [t],
+  );
 
   const [workspaceId, setWorkspaceId] = useState<string | undefined>(currentWorkspace?.workspace_id);
   const [searchText, setSearchText] = useState('');
@@ -92,11 +97,11 @@ export function GoalKanban() {
       const data = await goalApi.list({ workspace_id: wsId, page_size: 200 });
       setGoals(data.goals || []);
     } catch (e) {
-      message.error(`加载 Goal 失败: ${(e as Error).message}`);
+      message.error(`${t('goal.loadFailed')}: ${(e as Error).message}`);
     } finally {
       setLoading(false);
     }
-  }, []);
+  }, [t]);
 
   useEffect(() => {
     if (workspaceId) void fetchGoals(workspaceId);
@@ -135,7 +140,7 @@ export function GoalKanban() {
 
   const handleCreate = useCallback(async () => {
     if (!workspaceId) {
-      message.warning('请先选择 Workspace');
+      message.warning(t('goal.selectWorkspaceWarn'));
       return;
     }
     try {
@@ -154,16 +159,16 @@ export function GoalKanban() {
         parent_goal_id: values.parent_goal_id || undefined,
         tags,
       });
-      message.success('Goal 已创建');
+      message.success(t('goal.createSuccess'));
       setCreateOpen(false);
       void fetchGoals(workspaceId);
     } catch (e) {
       if ((e as { errorFields?: unknown[] }).errorFields) return;
-      message.error(`创建失败: ${(e as Error).message}`);
+      message.error(`${t('goal.createFailed')}: ${(e as Error).message}`);
     } finally {
       setCreating(false);
     }
-  }, [createForm, workspaceId, fetchGoals]);
+  }, [createForm, workspaceId, fetchGoals, t]);
 
   const handleDragStart = useCallback((goalId: string) => (e: React.DragEvent) => {
     setDraggingGoalId(goalId);
@@ -194,11 +199,11 @@ export function GoalKanban() {
     try {
       const updated = await goalApi.transition(goal.id, targetStatus);
       setGoals((prev) => prev.map((g) => (g.id === updated.id ? updated : g)));
-      message.success(`已切换到 ${targetStatus}`);
+      message.success(t('goal.switchedTo', { status: targetStatus }));
     } catch (e) {
-      message.error(`状态切换失败: ${(e as Error).message}`);
+      message.error(`${t('goal.transitionFailed')}: ${(e as Error).message}`);
     }
-  }, [draggingGoalId, goals]);
+  }, [draggingGoalId, goals, t]);
 
   const fetchLineage = useCallback(async (goalId: string) => {
     setLineageLoading(true);
@@ -206,11 +211,11 @@ export function GoalKanban() {
       const data = await goalApi.getLineage(goalId);
       setLineage(data);
     } catch (e) {
-      message.error(`加载血缘失败: ${(e as Error).message}`);
+      message.error(`${t('goal.lineageFailed')}: ${(e as Error).message}`);
     } finally {
       setLineageLoading(false);
     }
-  }, []);
+  }, [t]);
 
   const fetchProposals = useCallback(async (goalId: string) => {
     setProposalsLoading(true);
@@ -297,7 +302,7 @@ export function GoalKanban() {
       timelineChart.current?.dispose();
       timelineChart.current = null;
     };
-  }, [timelineMode, goals]);
+  }, [timelineMode, goals, COLUMNS]);
 
   const handleRefresh = useCallback(() => {
     if (workspaceId) void fetchGoals(workspaceId);
@@ -310,10 +315,10 @@ export function GoalKanban() {
           <Col xs={24} md={16}>
             <Space wrap>
               <Title level={4} style={{ margin: 0 }}>
-                <AimOutlined /> Goal 看板
+                <AimOutlined /> {t('goal.kanban')}
               </Title>
               <Select
-                placeholder="选择 Workspace"
+                placeholder={t('goal.selectWorkspace')}
                 style={{ minWidth: 200 }}
                 value={workspaceId}
                 onChange={(v) => setWorkspaceId(v)}
@@ -321,7 +326,7 @@ export function GoalKanban() {
                 allowClear
               />
               <Search
-                placeholder="搜索 Goal"
+                placeholder={t('goal.searchGoal')}
                 allowClear
                 style={{ width: 200 }}
                 onChange={(e) => setSearchText(e.target.value)}
@@ -332,12 +337,12 @@ export function GoalKanban() {
           <Col xs={24} md={8} style={{ textAlign: 'right' }}>
             <Space>
               <Space size={4}>
-                <Text type="secondary">时间线</Text>
+                <Text type="secondary">{t('goal.timeline')}</Text>
                 <Switch checked={timelineMode} onChange={setTimelineMode} />
               </Space>
-              <Button icon={<ReloadOutlined />} onClick={handleRefresh}>刷新</Button>
+              <Button icon={<ReloadOutlined />} onClick={handleRefresh}>{t('goal.refresh')}</Button>
               <Button type="primary" icon={<PlusOutlined />} onClick={handleNewGoal}>
-                New Goal
+                {t('goal.newGoalBtn')}
               </Button>
             </Space>
           </Col>
@@ -346,11 +351,11 @@ export function GoalKanban() {
 
       <Spin spinning={loading}>
         {!workspaceId ? (
-          <Empty description="请先选择一个 Workspace" />
+          <Empty description={t('goal.selectWorkspaceFirst')} />
         ) : timelineMode ? (
-          <Card size="small" title="Goal 时间线 (Gantt)">
+          <Card size="small" title={t('goal.ganttTitle')}>
             <div ref={timelineRef} style={{ width: '100%', height: 500 }} />
-            {goals.length === 0 && <Empty description="暂无数据" />}
+            {goals.length === 0 && <Empty description={t('goal.noData')} />}
           </Card>
         ) : (
           <Row gutter={8}>
@@ -380,7 +385,7 @@ export function GoalKanban() {
                       }}
                     >
                       {list.length === 0 ? (
-                        <Empty description="拖动卡片到此处" image={Empty.PRESENTED_IMAGE_SIMPLE} />
+                        <Empty description={t('goal.dropHere')} image={Empty.PRESENTED_IMAGE_SIMPLE} />
                       ) : (
                         <Space orientation="vertical" style={{ width: '100%' }} size={6}>
                           {list.map((g) => (
@@ -407,7 +412,7 @@ export function GoalKanban() {
                                   {g.business_objective}
                                 </Text>
                                 <Space wrap size={4} style={{ fontSize: 11 }}>
-                                  <Text type="secondary" style={{ fontSize: 11 }}>by {g.created_by}</Text>
+                                  <Text type="secondary" style={{ fontSize: 11 }}>{t('goal.by', { user: g.created_by })}</Text>
                                   {(g.tags || []).slice(0, 2).map((tag) => (
                                     <Tag key={tag} style={{ fontSize: 10, padding: '0 4px', margin: 0 }}>{tag}</Tag>
                                   ))}
@@ -427,7 +432,7 @@ export function GoalKanban() {
       </Spin>
 
       <Drawer
-        title={selectedGoal ? selectedGoal.title : 'Goal 详情'}
+        title={selectedGoal ? selectedGoal.title : t('goal.goalDetail')}
         open={!!selectedGoal}
         onClose={() => setSelectedGoal(null)}
         width={560}
@@ -437,34 +442,34 @@ export function GoalKanban() {
             <Space orientation="vertical" size="middle" style={{ width: '100%' }}>
               <Card size="small">
                 <Descriptions column={1} size="small">
-                  <Descriptions.Item label="标题">{selectedGoal.title}</Descriptions.Item>
-                  <Descriptions.Item label="业务目标">{selectedGoal.business_objective}</Descriptions.Item>
-                  <Descriptions.Item label="描述">{selectedGoal.description || '-'}</Descriptions.Item>
-                  <Descriptions.Item label="状态">
+                  <Descriptions.Item label={t('goal.labelTitle')}>{selectedGoal.title}</Descriptions.Item>
+                  <Descriptions.Item label={t('goal.labelBusinessObjective')}>{selectedGoal.business_objective}</Descriptions.Item>
+                  <Descriptions.Item label={t('goal.labelDescription')}>{selectedGoal.description || '-'}</Descriptions.Item>
+                  <Descriptions.Item label={t('goal.labelStatus')}>
                     <Tag color={COLUMNS.find((c) => c.status === selectedGoal.status)?.color || 'default'}>
                       {selectedGoal.status}
                     </Tag>
                   </Descriptions.Item>
-                  <Descriptions.Item label="Workspace">{selectedGoal.workspace_id}</Descriptions.Item>
-                  <Descriptions.Item label="创建者">{selectedGoal.created_by}</Descriptions.Item>
-                  <Descriptions.Item label="标签">
+                  <Descriptions.Item label={t('goal.labelWorkspace')}>{selectedGoal.workspace_id}</Descriptions.Item>
+                  <Descriptions.Item label={t('goal.labelCreatedBy')}>{selectedGoal.created_by}</Descriptions.Item>
+                  <Descriptions.Item label={t('goal.labelTags')}>
                     {(selectedGoal.tags || []).map((tag) => <Tag key={tag}>{tag}</Tag>)}
                   </Descriptions.Item>
-                  <Descriptions.Item label="创建时间">
+                  <Descriptions.Item label={t('goal.labelCreatedAt')}>
                     {new Date(selectedGoal.created_at).toLocaleString()}
                   </Descriptions.Item>
                 </Descriptions>
               </Card>
 
               {selectedGoal.rationale && (
-                <Card size="small" title="Rationale (LLM)">
+                <Card size="small" title={t('goal.rationaleTitle')}>
                   <Text>{selectedGoal.rationale}</Text>
                 </Card>
               )}
 
-              <Card size="small" title="关联 ChangeProposal">
+              <Card size="small" title={t('goal.relatedProposals')}>
                 {goalProposals.length === 0 ? (
-                  <Empty description="暂无提案" image={Empty.PRESENTED_IMAGE_SIMPLE} />
+                  <Empty description={t('goal.noProposals')} image={Empty.PRESENTED_IMAGE_SIMPLE} />
                 ) : (
                   <List
                     size="small"
@@ -478,7 +483,7 @@ export function GoalKanban() {
                             <Tag color="blue">{p.status}</Tag>
                           </Space>
                           <Text type="secondary" style={{ fontSize: 12 }}>
-                            by {p.proposed_by} · {new Date(p.created_at).toLocaleString()}
+                            {t('goal.by', { user: p.proposed_by })} · {new Date(p.created_at).toLocaleString()}
                           </Text>
                         </Space>
                       </List.Item>
@@ -489,14 +494,14 @@ export function GoalKanban() {
 
               <Card size="small" title={
                 <Space>
-                  <ApartmentOutlined /> Lineage（血缘）
+                  <ApartmentOutlined /> {t('goal.lineageTitle')}
                 </Space>
               }>
                 {lineage ? (
                   <Space orientation="vertical" size="small" style={{ width: '100%' }}>
                     {lineage.ancestors.length > 0 && (
                       <div>
-                        <Text type="secondary">祖先：</Text>
+                        <Text type="secondary">{t('goal.ancestors')}</Text>
                         <Space wrap>
                           {lineage.ancestors.map((g) => (
                             <Tag key={g.id} color="blue">{g.title}</Tag>
@@ -506,7 +511,7 @@ export function GoalKanban() {
                     )}
                     {lineage.children.length > 0 && (
                       <div>
-                        <Text type="secondary">子：</Text>
+                        <Text type="secondary">{t('goal.children')}</Text>
                         <Space wrap>
                           {lineage.children.map((g) => (
                             <Tag key={g.id} color="green">{g.title}</Tag>
@@ -516,7 +521,7 @@ export function GoalKanban() {
                     )}
                     {lineage.proposals.length > 0 && (
                       <div>
-                        <Text type="secondary">提案：</Text>
+                        <Text type="secondary">{t('goal.proposal')}</Text>
                         <Space wrap>
                           {lineage.proposals.map((p) => (
                             <Tooltip key={p.id} title={p.title}>
@@ -527,11 +532,11 @@ export function GoalKanban() {
                       </div>
                     )}
                     {lineage.ancestors.length === 0 && lineage.children.length === 0 && lineage.proposals.length === 0 && (
-                      <Text type="secondary">无血缘关联</Text>
+                      <Text type="secondary">{t('goal.noLineage')}</Text>
                     )}
                   </Space>
                 ) : (
-                  <Empty description="暂无血缘" image={Empty.PRESENTED_IMAGE_SIMPLE} />
+                  <Empty description={t('goal.lineageEmpty')} image={Empty.PRESENTED_IMAGE_SIMPLE} />
                 )}
               </Card>
             </Space>
@@ -540,38 +545,38 @@ export function GoalKanban() {
       </Drawer>
 
       <Modal
-        title="New Goal"
+        title={t('goal.createTitle')}
         open={createOpen}
         onOk={() => void handleCreate()}
         onCancel={() => setCreateOpen(false)}
         confirmLoading={creating}
-        okText="创建"
-        cancelText="取消"
+        okText={t('goal.createOk')}
+        cancelText={t('goal.createCancel')}
         destroyOnHidden
       >
         <Form<CreateFormValues> form={createForm} layout="vertical">
           <Form.Item
             name="title"
-            label="标题"
-            rules={[{ required: true, message: '请输入标题' }]}
+            label={t('goal.labelTitle')}
+            rules={[{ required: true, message: t('goal.titleRequired') }]}
           >
-            <Input placeholder="目标标题" />
+            <Input placeholder={t('goal.titlePlaceholder')} />
           </Form.Item>
           <Form.Item
             name="business_objective"
-            label="业务目标"
-            rules={[{ required: true, message: '请输入业务目标' }]}
+            label={t('goal.labelBusinessObjective')}
+            rules={[{ required: true, message: t('goal.businessObjectiveRequired') }]}
           >
-            <TextArea rows={2} placeholder="业务层面要达成的结果" />
+            <TextArea rows={2} placeholder={t('goal.businessObjectivePlaceholder')} />
           </Form.Item>
-          <Form.Item name="description" label="描述">
-            <TextArea rows={2} placeholder="可选" />
+          <Form.Item name="description" label={t('goal.labelDescription')}>
+            <TextArea rows={2} placeholder={t('goal.descriptionOptional')} />
           </Form.Item>
-          <Form.Item name="parent_goal_id" label="父 Goal ID（可选）">
-            <Input placeholder="可选的父 Goal ID" />
+          <Form.Item name="parent_goal_id" label={t('goal.parentGoalIdOptional')}>
+            <Input placeholder={t('goal.parentGoalIdPlaceholder')} />
           </Form.Item>
-          <Form.Item name="tags" label="标签（逗号分隔）">
-            <Input placeholder="tag1, tag2" />
+          <Form.Item name="tags" label={`${t('goal.labelTags')}（逗号分隔）`}>
+            <Input placeholder={t('goal.tagsPlaceholder')} />
           </Form.Item>
         </Form>
       </Modal>

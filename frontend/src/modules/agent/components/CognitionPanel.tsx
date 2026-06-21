@@ -1,5 +1,7 @@
 import { useState, useEffect } from 'react';
-import { Tabs, Card, Descriptions, Tag, Progress, Space, Typography, Spin, Empty, Input, Button } from 'antd';
+import { Tabs, Tag, Progress, Space, Typography, Spin, Empty, Input, Button } from 'antd';
+import { ProDescriptions as Descriptions } from '@ant-design/pro-components';
+import { ProCard as Card } from '@ant-design/pro-components';
 import { BulbOutlined, CompassOutlined, AimOutlined, SearchOutlined } from '@ant-design/icons';
 import { apiClient } from '@/modules/shared/services/apiClient';
 import { useI18n } from '@/modules/shared/hooks/useI18n';

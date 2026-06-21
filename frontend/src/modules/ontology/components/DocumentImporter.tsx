@@ -1,5 +1,7 @@
 import { useState } from 'react';
-import { Upload, Button, Card, Select, Space, Typography, Descriptions, Tag, Alert, message } from 'antd';
+import { Upload, Button, Select, Space, Typography, Tag, Alert, message } from 'antd';
+import { ProDescriptions as Descriptions } from '@ant-design/pro-components';
+import { ProCard as Card } from '@ant-design/pro-components';
 import { UploadOutlined, DownloadOutlined, InboxOutlined } from '@ant-design/icons';
 import { apiClient } from '@/modules/shared/services/apiClient';
 import { useI18n } from '@/modules/shared/hooks/useI18n';
@@ -20,7 +22,7 @@ interface OntologyDocumentData {
 type ExportFormat = 'json' | 'owl' | 'rdf';
 
 export default function DocumentImporter() {
-  const { t } = useI18n();
+  const { t } = useI18n('ontology');
   const [fileList, setFileList] = useState<any[]>([]);
   const [preview, setPreview] = useState<OntologyDocumentData | null>(null);
   const [importing, setImporting] = useState(false);
@@ -42,7 +44,7 @@ export default function DocumentImporter() {
 
   const handleImport = async () => {
     if (!preview) {
-      message.warning(t('ontology.selectDocument') || '请先选择文件');
+      message.warning(t('documentImport.selectDocument'));
       return;
     }
 
@@ -51,9 +53,9 @@ export default function DocumentImporter() {
 
     try {
       await apiClient.post('/api/ontology/documents/import', preview);
-      message.success(t('ontology.importSuccess') || '导入成功');
+      message.success(t('documentImport.importSuccess'));
     } catch (e) {
-      setError((e as Error).message);
+      setError(t('documentImport.importFailed', { msg: (e as Error).message }));
     } finally {
       setImporting(false);
     }
@@ -61,7 +63,7 @@ export default function DocumentImporter() {
 
   const handleExport = async () => {
     if (!preview) {
-      message.warning(t('ontology.selectDocument') || '请先选择文件');
+      message.warning(t('documentImport.selectDocument'));
       return;
     }
 
@@ -84,9 +86,9 @@ export default function DocumentImporter() {
       a.download = `${preview.name || 'ontology'}.${exportFormat === 'json' ? 'json' : exportFormat === 'owl' ? 'owl' : 'rdf'}`;
       a.click();
       URL.revokeObjectURL(url);
-      message.success(t('ontology.exportSuccess') || '导出成功');
+      message.success(t('documentImport.exportSuccess'));
     } catch (e) {
-      setError((e as Error).message);
+      setError(t('documentImport.exportFailed', { msg: (e as Error).message }));
     } finally {
       setExporting(false);
     }
@@ -99,7 +101,7 @@ export default function DocumentImporter() {
   };
 
   return (
-    <Card title={t('ontology.documentImport') || '本体文档导入/导出'} style={{ borderRadius: 8 }}>
+    <Card title={t('documentImport.title')} style={{ borderRadius: 8 }}>
       <Space orientation="vertical" style={{ width: '100%' }} size="middle">
         <Dragger
           accept=".json"
@@ -116,35 +118,35 @@ export default function DocumentImporter() {
             <InboxOutlined />
           </p>
           <p className="ant-upload-text">
-            {t('ontology.dragDocument') || '点击或拖拽 JSON 文件到此区域上传'}
+            {t('documentImport.dragDocument')}
           </p>
-          <p className="ant-upload-hint">OntologyDocument JSON</p>
+          <p className="ant-upload-hint">{t('documentImport.fileTypeHint')}</p>
         </Dragger>
 
         {error && (
-          <Alert type="error" message={t('ontology.parseError') || '解析错误'} description={error} showIcon closable onClose={() => setError(null)} />
+          <Alert type="error" message={t('documentImport.parseError')} description={error} showIcon closable onClose={() => setError(null)} />
         )}
 
         {preview && (
-          <Card size="small" title={t('ontology.preview') || '文档预览'} style={{ borderRadius: 6 }}>
+          <Card size="small" title={t('documentImport.preview')} style={{ borderRadius: 6 }}>
             <Descriptions variant="bordered" column={2} size="small">
               <Descriptions.Item label="ID">{preview.id || '-'}</Descriptions.Item>
-              <Descriptions.Item label={t('ontology.name') || '名称'}>{preview.name}</Descriptions.Item>
-              <Descriptions.Item label={t('ontology.version') || '版本'}>{preview.version}</Descriptions.Item>
-              <Descriptions.Item label={t('ontology.objectTypes') || '对象类型'}>
+              <Descriptions.Item label={t('documentImport.name')}>{preview.name}</Descriptions.Item>
+              <Descriptions.Item label={t('documentImport.version')}>{preview.version}</Descriptions.Item>
+              <Descriptions.Item label={t('documentImport.objectTypes')}>
                 <Tag color="blue">{preview.object_types?.length ?? 0}</Tag>
               </Descriptions.Item>
-              <Descriptions.Item label={t('ontology.actionTypes') || '动作类型'}>
+              <Descriptions.Item label={t('documentImport.actionTypes')}>
                 <Tag color="green">{preview.action_types?.length ?? 0}</Tag>
               </Descriptions.Item>
-              <Descriptions.Item label={t('ontology.relations') || '关系'}>
+              <Descriptions.Item label={t('documentImport.relations')}>
                 <Tag color="orange">{preview.relations?.length ?? 0}</Tag>
               </Descriptions.Item>
             </Descriptions>
 
             {preview.object_types?.length > 0 && (
               <div style={{ marginTop: 12 }}>
-                <Text strong>{t('ontology.objectTypes') || '对象类型'}:</Text>
+                <Text strong>{t('documentImport.objectTypes')}:</Text>
                 <div style={{ marginTop: 4 }}>
                   {preview.object_types.map((ot, i) => (
                     <Tag key={i} color="blue" style={{ marginBottom: 4 }}>
@@ -157,7 +159,7 @@ export default function DocumentImporter() {
 
             {preview.relations?.length > 0 && (
               <div style={{ marginTop: 12 }}>
-                <Text strong>{t('ontology.relations') || '关系'}:</Text>
+                <Text strong>{t('documentImport.relations')}:</Text>
                 <div style={{ marginTop: 4 }}>
                   {preview.relations.map((rel, i) => (
                     <Tag key={i} color="orange" style={{ marginBottom: 4 }}>
@@ -178,7 +180,7 @@ export default function DocumentImporter() {
             loading={importing}
             disabled={!preview}
           >
-            {t('ontology.import') || '导入'}
+            {t('documentImport.import')}
           </Button>
 
           <Select
@@ -186,9 +188,9 @@ export default function DocumentImporter() {
             onChange={setExportFormat}
             style={{ width: 120 }}
             options={[
-              { value: 'json', label: 'JSON' },
-              { value: 'owl', label: 'OWL' },
-              { value: 'rdf', label: 'RDF' },
+              { value: 'json', label: t('documentImport.formatJson') },
+              { value: 'owl', label: t('documentImport.formatOwl') },
+              { value: 'rdf', label: t('documentImport.formatRdf') },
             ]}
           />
 
@@ -198,7 +200,7 @@ export default function DocumentImporter() {
             loading={exporting}
             disabled={!preview}
           >
-            {t('ontology.export') || '导出'}
+            {t('documentImport.export')}
           </Button>
         </Space>
       </Space>

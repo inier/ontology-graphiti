@@ -117,6 +117,12 @@ def create_router_registry() -> List[tuple]:
     from odap.biz.data.qa.api.routes import router as qa_router
     from odap.biz.data.qa.api.nl_routes import router as qa_nl_router
 
+    # ── AI 助手 (统一) ──
+    from odap.biz.core.assistant.api.routes import router as assistant_router
+
+    # ── 本体 - AI 辅助设计 ──
+    from odap.biz.core.ontology.assistant.api.routes import router as ontology_assistant_router
+
     # ── 认知 ──
     from odap.biz.core.cognition.api.routes import router as cognition_router
     from odap.biz.core.cognition.thought_graph.api.routes import router as thought_router
@@ -271,6 +277,10 @@ def create_router_registry() -> List[tuple]:
         # QA
         (qa_router,),
         (qa_nl_router,),
+
+        # AI 助手
+        (assistant_router,),
+        (ontology_assistant_router,),
 
         # 认知
         (cognition_router,),

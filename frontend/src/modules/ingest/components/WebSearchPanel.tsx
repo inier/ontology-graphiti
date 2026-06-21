@@ -1,7 +1,9 @@
 import React, { useState } from 'react';
-import { Input, Button, Select, Card, Typography, Space, Alert, Spin, Tag, Divider } from 'antd';
+import { Input, Button, Select, Typography, Space, Alert, Spin, Tag, Divider } from 'antd';
+import { ProCard as Card } from '@ant-design/pro-components';
 import { SearchOutlined, LinkOutlined, GlobalOutlined } from '@ant-design/icons';
 import { api } from '@/modules/shared';
+import { useI18n } from '@/modules/shared/hooks/useI18n';
 
 const { TextArea } = Input;
 const { Text, Paragraph } = Typography;
@@ -15,6 +17,7 @@ interface SearchResult {
 }
 
 const WebSearchPanel: React.FC = () => {
+  const { t } = useI18n('ingest');
   const [query, setQuery] = useState('');
   const [maxResults, setMaxResults] = useState(5);
   const [searchDepth, setSearchDepth] = useState('basic');
@@ -34,7 +37,7 @@ const WebSearchPanel: React.FC = () => {
       setTotalCount(res.total_count || 0);
       setEngineUsed(res.engine_used || 'unknown');
     } catch (e: any) {
-      setError(e.message || '搜索失败');
+      setError(e.message || t('webSearch.searchFailed'));
     } finally {
       setLoading(false);
     }
@@ -44,7 +47,7 @@ const WebSearchPanel: React.FC = () => {
     <div style={{ padding: '0 4px' }}>
       <Space orientation="vertical" style={{ width: '100%' }} size="middle">
         <Input
-          placeholder="输入搜索关键词..."
+          placeholder={t('webSearch.searchPlaceholder')}
           value={query}
           onChange={e => setQuery(e.target.value)}
           onPressEnter={handleSearch}
@@ -52,25 +55,28 @@ const WebSearchPanel: React.FC = () => {
           size="large"
         />
         <Space>
-          <span>结果数:</span>
+          <span>{t('webSearch.resultCount')}</span>
           <Select value={maxResults} onChange={setMaxResults} style={{ width: 80 }} size="small"
             options={[1, 3, 5, 10, 20].map(n => ({ value: n, label: n }))} />
-          <span>深度:</span>
+          <span>{t('webSearch.depth')}</span>
           <Select value={searchDepth} onChange={setSearchDepth} style={{ width: 100 }} size="small"
-            options={[{ value: 'basic', label: '基础' }, { value: 'advanced', label: '深度' }]} />
+            options={[
+              { value: 'basic', label: t('webSearch.depthBasic') },
+              { value: 'advanced', label: t('webSearch.depthAdvanced') },
+            ]} />
           <Button type="primary" icon={<SearchOutlined />} onClick={handleSearch} loading={loading}>
-            搜索
+            {t('webSearch.searchBtn')}
           </Button>
         </Space>
 
         {error && <Alert type="error" message={error} showIcon closable onClose={() => setError('')} />}
 
-        {loading && <Spin spinning description="搜索中..." style={{ width: '100%' }}><div style={{ minHeight: 40 }} /></Spin>}
+        {loading && <Spin spinning description={t('webSearch.searching')} style={{ width: '100%' }}><div style={{ minHeight: 40 }} /></Spin>}
 
         {results.length > 0 && (
           <div>
             <Text type="secondary">
-              找到 {totalCount} 条结果 (引擎: {engineUsed})
+              {t('webSearch.resultSummary', { count: totalCount, engine: engineUsed })}
             </Text>
             <Divider style={{ margin: '8px 0' }} />
             {results.map((r, i) => (

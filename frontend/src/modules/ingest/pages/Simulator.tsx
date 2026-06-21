@@ -4,7 +4,6 @@ import {
   Button,
   Space,
   Tag,
-  Table,
   Modal,
   Form,
   Input,
@@ -45,6 +44,7 @@ import {
 } from '@ant-design/icons';
 import { apiService } from '@/modules/shared/services/api';
 import type { ColumnsType } from 'antd/es/table';
+import { AdvancedTable } from '@/modules/shared';
 
 const { Option } = Select;
 
@@ -543,7 +543,7 @@ const Simulator: React.FC = () => {
                   key: 'all',
                   label: `全部 (${events.length})`,
                   children: (
-                    <Table
+                    <AdvancedTable
                       columns={eventColumns}
                       dataSource={events}
                       rowKey="event_id"
@@ -558,7 +558,7 @@ const Simulator: React.FC = () => {
                   key: 'pending',
                   label: `待采纳 (${pendingCount})`,
                   children: (
-                    <Table
+                    <AdvancedTable
                       columns={eventColumns}
                       dataSource={events.filter(e => e.status === 'pending')}
                       rowKey="event_id"
@@ -572,7 +572,7 @@ const Simulator: React.FC = () => {
                   key: 'adopted',
                   label: `已采纳 (${adoptedCount})`,
                   children: (
-                    <Table
+                    <AdvancedTable
                       columns={eventColumns}
                       dataSource={events.filter(e => e.status === 'adopted')}
                       rowKey="event_id"
@@ -610,7 +610,7 @@ const Simulator: React.FC = () => {
             {templates.length === 0 ? (
               <Empty description="暂无模板" image={Empty.PRESENTED_IMAGE_SIMPLE} />
             ) : (
-              <Table
+              <AdvancedTable
                 columns={templateColumns}
                 dataSource={templates}
                 rowKey="template_id"

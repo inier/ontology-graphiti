@@ -1,5 +1,6 @@
 import { useState } from 'react';
-import { Steps, Card, Collapse, Tag, Typography } from 'antd';
+import { Steps, Collapse, Tag, Typography } from 'antd';
+import { ProCard as Card } from '@ant-design/pro-components';
 import { useI18n } from '@/modules/shared/hooks/useI18n';
 
 const { Text } = Typography;

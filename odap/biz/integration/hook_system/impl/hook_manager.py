@@ -3,6 +3,8 @@
 import json
 import logging
 import os
+import re
+import shlex
 import subprocess
 import sys
 import tempfile
@@ -15,6 +17,21 @@ logger = logging.getLogger(__name__)
 
 # 最大执行时间上限（秒），防止 hook.timeout_ms 设置过大
 MAX_EXECUTION_TIMEOUT_SECONDS = 30
+
+# 安全：Shell Hook 允许的命令白名单（仅这些命令可执行，禁止任意脚本注入）
+# 选用 shlex.split + argv[0] 白名单，避免 shell=True 带来的元字符注入风险。
+_ALLOWED_SHELL_COMMANDS = frozenset({
+    "echo", "printf", "date", "true", "false",
+    "cat", "head", "tail", "wc", "sort", "uniq", "cut", "tr",
+    "grep", "egrep", "fgrep",
+    "ls", "pwd", "env", "whoami", "hostname",
+    "test", "[",
+    "python", "python3", sys.executable,
+    "node", "jq",
+})
+
+# 安全：Shell Hook 禁止的危险元字符（出现即拒绝执行）
+_SHELL_DANGEROUS_CHARS = re.compile(r"[;&|`$<>{}\n\r]")
 
 
 class HookManager(IHookManager):
@@ -213,16 +230,55 @@ class HookManager(IHookManager):
 
     def _execute_shell(self, script: str, context: Dict[str, Any],
                        timeout_seconds: float) -> Dict[str, Any]:
-        """通过 subprocess 执行 Shell 命令"""
-        # 将 context 作为环境变量传入
+        """通过 subprocess 执行 Shell 命令（白名单模式）
+
+        安全策略（C2 修复）：
+        1. 拒绝包含危险元字符（; & | ` $ < > { } 换行）的脚本，阻断 shell 注入。
+        2. 使用 shlex.split 解析 argv，shell=False 执行，避免 shell 元字符解释。
+        3. argv[0] 必须在 _ALLOWED_SHELL_COMMANDS 白名单内，禁止任意可执行文件。
+        4. context 作为环境变量传入（HOOK_<KEY> 前缀），不参与命令拼接。
+        """
+        # 1. 危险元字符检查
+        if _SHELL_DANGEROUS_CHARS.search(script):
+            return {
+                "status": "error",
+                "message": (
+                    "Shell script contains forbidden characters "
+                    "(; & | ` $ < > {{ }} newline). Refusing to execute."
+                ),
+            }
+
+        # 2. 解析 argv
+        try:
+            argv = shlex.split(script, comments=True, posix=True)
+        except ValueError as e:
+            return {
+                "status": "error",
+                "message": f"Failed to parse shell script: {e}",
+            }
+        if not argv:
+            return {"status": "error", "message": "Empty shell script"}
+
+        # 3. argv[0] 白名单校验
+        cmd_name = os.path.basename(argv[0])
+        if cmd_name not in _ALLOWED_SHELL_COMMANDS:
+            return {
+                "status": "error",
+                "message": (
+                    f"Command '{cmd_name}' is not in the allowed whitelist. "
+                    f"Allowed: {sorted(_ALLOWED_SHELL_COMMANDS)}"
+                ),
+            }
+
+        # 4. context 作为环境变量传入（不参与命令拼接）
         env = os.environ.copy()
         for key, value in context.items():
             env[f"HOOK_{key.upper()}"] = str(value)
 
         try:
             proc = subprocess.run(
-                script,
-                shell=True,
+                argv,
+                shell=False,  # 关键：不再使用 shell=True
                 capture_output=True,
                 text=True,
                 timeout=timeout_seconds,

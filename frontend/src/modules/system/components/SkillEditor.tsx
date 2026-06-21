@@ -1,8 +1,9 @@
 import { useState, useEffect } from 'react';
-import { 
-  Modal, Form, Input, Select, Tabs, Button, Space, Typography, 
+import {
+  Modal, Input, Select, Tabs, Button, Space, Typography,
   Divider, Card, Collapse, message
 } from 'antd';
+import { ProForm as Form } from '@ant-design/pro-components';
 import { 
   SaveOutlined, PlusOutlined,
   CodeOutlined, EditOutlined

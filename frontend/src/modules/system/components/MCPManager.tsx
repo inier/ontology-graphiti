@@ -1,11 +1,12 @@
 import { useState, useEffect, useCallback } from 'react';
-import { Table, Button, Modal, Input, Card, Tag, Badge, Space, Typography, message, Popconfirm, Form } from 'antd';
+import { Button, Modal, Input, Card, Tag, Badge, Space, Typography, message, Popconfirm, Form } from 'antd';
 import {
   PlusOutlined, DeleteOutlined,
   ThunderboltOutlined, ReloadOutlined,
 } from '@ant-design/icons';
 import { apiClient } from '@/modules/shared/services/apiClient';
 import { useI18n } from '@/modules/shared/hooks/useI18n';
+import { AdvancedTable } from '@/modules/shared';
 
 const { Text } = Typography;
 
@@ -235,7 +236,7 @@ function MCPManager() {
         </Space>
       }
     >
-      <Table
+      <AdvancedTable
         dataSource={servers}
         columns={columns}
         rowKey="server_id"
@@ -270,7 +271,7 @@ function MCPManager() {
         footer={null}
         width={640}
       >
-        <Table
+        <AdvancedTable
           dataSource={selectedServerTools}
           columns={toolColumns}
           rowKey="tool_id"

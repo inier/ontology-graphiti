@@ -79,9 +79,29 @@ class OAuth2ProviderRegistry:
     def _load_from_env(self):
         import os
 
+        # 在线配置映射：provider_id → (config_key_id, config_key_secret)
+        CONFIG_MAP = {
+            "google": ("oauth.google_client_id", "oauth.google_client_secret"),
+            "github": ("oauth.github_client_id", "oauth.github_client_secret"),
+        }
+
+        def _get_value(provider_id: str, suffix: str) -> str:
+            """优先在线配置 → fallback 环境变量"""
+            try:
+                from odap.infra.config_composer import get_config
+                mapping = CONFIG_MAP.get(provider_id)
+                if mapping:
+                    key = mapping[0] if suffix == "CLIENT_ID" else mapping[1]
+                    val = get_config(key, "")
+                    if val:
+                        return val
+            except Exception:
+                pass
+            return os.getenv(f"OAUTH2_{provider_id.upper()}_{suffix}", "")
+
         for provider_id, defaults in self.DEFAULT_PROVIDERS.items():
-            client_id = os.getenv(f"OAUTH2_{provider_id.upper()}_CLIENT_ID", "")
-            client_secret = os.getenv(f"OAUTH2_{provider_id.upper()}_CLIENT_SECRET", "")
+            client_id = _get_value(provider_id, "CLIENT_ID")
+            client_secret = _get_value(provider_id, "CLIENT_SECRET")
             if client_id:
                 self._providers[provider_id] = OAuth2ProviderConfig(
                     provider_id=provider_id,
@@ -101,8 +121,8 @@ class OAuth2ProviderRegistry:
                 parts = entry.strip().split(",")
                 if len(parts) >= 5:
                     pid, name, auth_url, token_url, userinfo_url = parts[:5]
-                    cid = os.getenv(f"OAUTH2_{pid.upper()}_CLIENT_ID", "")
-                    csecret = os.getenv(f"OAUTH2_{pid.upper()}_CLIENT_SECRET", "")
+                    cid = _get_value(pid, "CLIENT_ID")
+                    csecret = _get_value(pid, "CLIENT_SECRET")
                     if cid:
                         self._providers[pid] = OAuth2ProviderConfig(
                             provider_id=pid,

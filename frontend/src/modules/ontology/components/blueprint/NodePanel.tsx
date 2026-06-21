@@ -1,4 +1,4 @@
-import { Card } from 'antd';
+import { ProCard as Card } from '@ant-design/pro-components';
 import { NODE_TYPE_LIST, type BlueprintNodeType } from './nodeTypes';
 
 export function NodePanel() {

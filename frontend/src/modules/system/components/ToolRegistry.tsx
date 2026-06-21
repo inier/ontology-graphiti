@@ -1,7 +1,8 @@
 import { useState, useEffect } from 'react';
-import { Table, Button, Modal, Input, Select, Card, Tag, Space, Typography, message, Popconfirm, Form } from 'antd';
+import { Button, Modal, Input, Select, Card, Tag, Space, Typography, message, Popconfirm, Form } from 'antd';
 import { PlusOutlined, DeleteOutlined, SearchOutlined, ThunderboltOutlined } from '@ant-design/icons';
 import { apiClient } from '@/modules/shared/services/apiClient';
+import { AdvancedTable } from '@/modules/shared';
 
 const { Text } = Typography;
 
@@ -226,7 +227,7 @@ export default function ToolRegistry() {
           </Space>
         }
       >
-        <Table
+        <AdvancedTable
           dataSource={tools}
           columns={columns}
           rowKey={(record) => record.tool_id || record.name}

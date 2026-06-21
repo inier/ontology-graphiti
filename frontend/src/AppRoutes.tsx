@@ -21,6 +21,7 @@ import { I18nAdminPage } from '@/modules/i18n-admin';
 import { QAPage, QueryPage, EvaluationPage } from '@/modules/qa';
 import { GuidePage } from '@/modules/guide';
 import { SettingsPage } from '@/modules/settings';
+import { KeepAliveOutlet } from '@/modules/shared/components/KeepAliveOutlet';
 
 function ProtectedRoute({ children }: { children: ReactNode }) {
   const token = localStorage.getItem('token');
@@ -35,46 +36,48 @@ export function AppRoutes() {
     <Routes>
       <Route path="/login" element={<LoginPage />} />
 
-      <Route path="/my-agents" element={<ProtectedRoute><MyAgents /></ProtectedRoute>} />
-      <Route path="/agent-chat/:agentId" element={<ProtectedRoute><AgentChat /></ProtectedRoute>} />
-      <Route path="/agent" element={<ProtectedRoute><AgentPage /></ProtectedRoute>} />
+      {/* keep-alive 布局路由：所有受保护路由作为子路由，KeepAliveOutlet 缓存组件状态 */}
+      <Route element={<KeepAliveOutlet />}>
+        <Route path="/my-agents" element={<ProtectedRoute><MyAgents /></ProtectedRoute>} />
+        <Route path="/agent-chat/:agentId" element={<ProtectedRoute><AgentChat /></ProtectedRoute>} />
+        <Route path="/agent" element={<ProtectedRoute><AgentPage /></ProtectedRoute>} />
 
-      <Route path="/ontology/designer" element={<ProtectedRoute><OntologyDesignerPage /></ProtectedRoute>} />
-      <Route path="/ontology/graph" element={<ProtectedRoute><OntologyGraphPage /></ProtectedRoute>} />
-      <Route path="/ontology" element={<Navigate to="/ontology/designer" replace />} />
-      <Route path="/ontology/goals" element={<ProtectedRoute><GoalKanban /></ProtectedRoute>} />
-      <Route path="/blueprint" element={<ProtectedRoute><BlueprintDesignerPage /></ProtectedRoute>} />
-      <Route path="/versions" element={<ProtectedRoute><VersionHistory /></ProtectedRoute>} />
-      <Route path="/business/process" element={<ProtectedRoute><BusinessProcess /></ProtectedRoute>} />
-      <Route path="/business/rules" element={<ProtectedRoute><Rules /></ProtectedRoute>} />
-      <Route path="/business/indicators" element={<ProtectedRoute><Indicators /></ProtectedRoute>} />
-      <Route path="/business/logic" element={<ProtectedRoute><Logic /></ProtectedRoute>} />
-      <Route path="/business/entities" element={<ProtectedRoute><ObjectManagement /></ProtectedRoute>} />
-      <Route path="/business/extraction" element={<Navigate to="/ingest" replace />} />
-      <Route path="/ingest" element={<ProtectedRoute><IngestPanel /></ProtectedRoute>} />
-      <Route path="/skills" element={<ProtectedRoute><SkillManagement /></ProtectedRoute>} />
-      <Route path="/simulator" element={<ProtectedRoute><Simulator /></ProtectedRoute>} />
-      <Route path="/simulation/deduction" element={<ProtectedRoute><StrategyDeduction /></ProtectedRoute>} />
-      <Route path="/simulation" element={<ProtectedRoute><SimulationPage /></ProtectedRoute>} />
-      <Route path="/knowledge" element={<ProtectedRoute><KnowledgeBase /></ProtectedRoute>} />
-      <Route path="/knowledge/navigation" element={<ProtectedRoute><KnowledgePage /></ProtectedRoute>} />
-      <Route path="/qa" element={<ProtectedRoute><QAPage /></ProtectedRoute>} />
-      <Route path="/qa/query" element={<ProtectedRoute><QueryPage /></ProtectedRoute>} />
-      <Route path="/qa/evaluation" element={<ProtectedRoute><EvaluationPage /></ProtectedRoute>} />
-      <Route path="/workspace/manage" element={<ProtectedRoute><WorkspacePage /></ProtectedRoute>} />
-      <Route path="/workspace" element={<Navigate to="/workspace/manage" replace />} />
-      <Route path="/i18n-admin" element={<ProtectedRoute><I18nAdminPage /></ProtectedRoute>} />
-      <Route path="/roles" element={<ProtectedRoute><RoleManager /></ProtectedRoute>} />
-      <Route path="/users" element={<ProtectedRoute><UserManagement /></ProtectedRoute>} />
-      <Route path="/policy-editor" element={<ProtectedRoute><PolicyPage /></ProtectedRoute>} />
-      <Route path="/policies" element={<Navigate to="/policy-editor" replace />} />
-      <Route path="/settings" element={<ProtectedRoute><SettingsPage /></ProtectedRoute>} />
-      <Route path="/audit" element={<ProtectedRoute><AuditLog /></ProtectedRoute>} />
-      <Route path="/admin/agents" element={<ProtectedRoute><AgentManagement /></ProtectedRoute>} />
-
-      <Route path="/guide" element={<ProtectedRoute><GuidePage /></ProtectedRoute>} />
-      <Route path="/" element={<ProtectedRoute><GuidePage /></ProtectedRoute>} />
-      <Route path="/admin" element={<Navigate to="/ontology/designer" replace />} />
+        <Route path="/ontology/designer" element={<ProtectedRoute><OntologyDesignerPage /></ProtectedRoute>} />
+        <Route path="/ontology/graph" element={<ProtectedRoute><OntologyGraphPage /></ProtectedRoute>} />
+        <Route path="/ontology" element={<Navigate to="/ontology/designer" replace />} />
+        <Route path="/ontology/goals" element={<ProtectedRoute><GoalKanban /></ProtectedRoute>} />
+        <Route path="/blueprint" element={<ProtectedRoute><BlueprintDesignerPage /></ProtectedRoute>} />
+        <Route path="/versions" element={<ProtectedRoute><VersionHistory /></ProtectedRoute>} />
+        <Route path="/business/process" element={<ProtectedRoute><BusinessProcess /></ProtectedRoute>} />
+        <Route path="/business/rules" element={<ProtectedRoute><Rules /></ProtectedRoute>} />
+        <Route path="/business/indicators" element={<ProtectedRoute><Indicators /></ProtectedRoute>} />
+        <Route path="/business/logic" element={<ProtectedRoute><Logic /></ProtectedRoute>} />
+        <Route path="/business/entities" element={<ProtectedRoute><ObjectManagement /></ProtectedRoute>} />
+        <Route path="/business/extraction" element={<Navigate to="/ingest" replace />} />
+        <Route path="/ingest" element={<ProtectedRoute><IngestPanel /></ProtectedRoute>} />
+        <Route path="/skills" element={<ProtectedRoute><SkillManagement /></ProtectedRoute>} />
+        <Route path="/simulator" element={<ProtectedRoute><Simulator /></ProtectedRoute>} />
+        <Route path="/simulation/deduction" element={<ProtectedRoute><StrategyDeduction /></ProtectedRoute>} />
+        <Route path="/simulation" element={<ProtectedRoute><SimulationPage /></ProtectedRoute>} />
+        <Route path="/knowledge" element={<ProtectedRoute><KnowledgeBase /></ProtectedRoute>} />
+        <Route path="/knowledge/navigation" element={<ProtectedRoute><KnowledgePage /></ProtectedRoute>} />
+        <Route path="/qa" element={<ProtectedRoute><QAPage /></ProtectedRoute>} />
+        <Route path="/qa/query" element={<ProtectedRoute><QueryPage /></ProtectedRoute>} />
+        <Route path="/qa/evaluation" element={<ProtectedRoute><EvaluationPage /></ProtectedRoute>} />
+        <Route path="/workspace/manage" element={<ProtectedRoute><WorkspacePage /></ProtectedRoute>} />
+        <Route path="/workspace" element={<Navigate to="/workspace/manage" replace />} />
+        <Route path="/i18n-admin" element={<ProtectedRoute><I18nAdminPage /></ProtectedRoute>} />
+        <Route path="/roles" element={<ProtectedRoute><RoleManager /></ProtectedRoute>} />
+        <Route path="/users" element={<ProtectedRoute><UserManagement /></ProtectedRoute>} />
+        <Route path="/policy-editor" element={<ProtectedRoute><PolicyPage /></ProtectedRoute>} />
+        <Route path="/policies" element={<Navigate to="/policy-editor" replace />} />
+        <Route path="/settings" element={<ProtectedRoute><SettingsPage /></ProtectedRoute>} />
+        <Route path="/audit" element={<ProtectedRoute><AuditLog /></ProtectedRoute>} />
+        <Route path="/admin/agents" element={<ProtectedRoute><AgentManagement /></ProtectedRoute>} />
+        <Route path="/guide" element={<ProtectedRoute><GuidePage /></ProtectedRoute>} />
+        <Route path="/" element={<ProtectedRoute><GuidePage /></ProtectedRoute>} />
+        <Route path="/admin" element={<Navigate to="/ontology/designer" replace />} />
+      </Route>
     </Routes>
   );
 }

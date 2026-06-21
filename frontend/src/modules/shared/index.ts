@@ -1,4 +1,12 @@
-export { AppLayout, useWorkspace, useScenario, useRightPanel } from './components/AppLayout';
+export { useWorkspace, useScenario, useRightPanel, useOntologyVersion } from './components/LayoutContexts';
+export type { Workspace, Scenario, WorkspaceContextType, ScenarioContextType, OntologyVersionContextType, RightPanelContextType } from './components/LayoutContexts';
+export { WorkspaceContext, ScenarioContext, OntologyVersionContext, RightPanelContext } from './components/LayoutContexts';
+export { ProLayout } from './components/ProLayout';
+export { AdvancedTable } from './components/AdvancedTable';
+export type { AdvancedTableProps } from './components/AdvancedTable';
+export { LayoutHeader } from './components/LayoutHeader';
+export { AdminLayout } from './components/AdminLayout';
+export { AgentLayout } from './components/AgentLayout';
 export { QAPanel } from './components/QAPanel';
 export { StatCard } from './components/StatCard';
 export { ToolHealthIndicator } from './components/ToolHealthIndicator';

@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback } from 'react';
-import { Card, Tabs, Button, Space, Input, Upload, message, Table, Tag, Descriptions, Spin, Drawer, Empty, Typography, Row, Col, Steps, Timeline, Select, Statistic, Progress } from 'antd';
+import { Card, Tabs, Button, Space, Input, Upload, message, Tag, Descriptions, Spin, Drawer, Empty, Typography, Row, Col, Steps, Timeline, Select, Statistic, Progress } from 'antd';
 import { UploadOutlined, SyncOutlined, CheckCircleOutlined, LoadingOutlined, DatabaseOutlined, ApiOutlined, RobotOutlined, CloudServerOutlined, GitlabOutlined, FolderOutlined, PlusOutlined, EyeOutlined, SwapOutlined, CheckCircleFilled, CloseCircleFilled, SearchOutlined, GlobalOutlined } from '@ant-design/icons';
 import { api } from '@/modules/shared';
 import { useScenario, useWorkspace } from '@/modules/shared';
@@ -7,6 +7,7 @@ import { useBuildProgress } from '../hooks';
 import WebSearchPanel from '../components/WebSearchPanel';
 import WebCrawlPanel from '../components/WebCrawlPanel';
 import { PageTourWrapper, ingestTourSteps, PAGE_IDS } from '@/modules/guide';
+import { AdvancedTable } from '@/modules/shared';
 const { Dragger } = Upload;
 const { TextArea } = Input;
 const { Text, Paragraph } = Typography;
@@ -1061,7 +1062,7 @@ export function IngestPanel() {
             ) : ingestHistory.length === 0 ? (
               <Empty description="暂无摄入记录，请通过上方方式摄入数据" />
             ) : (
-              <Table
+              <AdvancedTable
                 dataSource={ingestHistory}
                 columns={ingestColumns}
                 rowKey="id"

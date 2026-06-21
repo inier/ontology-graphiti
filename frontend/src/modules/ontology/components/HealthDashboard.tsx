@@ -8,13 +8,14 @@
  */
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import {
-  Card, Row, Col, Tabs, Table, Tag, Button, Space, Empty, Spin, Drawer, Typography, Statistic, message,
+  Card, Row, Col, Tabs, Tag, Button, Space, Empty, Spin, Drawer, Typography, Statistic, message,
 } from 'antd';
 import type { ColumnsType } from 'antd/es/table';
 import { ReloadOutlined, ThunderboltOutlined, CheckCircleTwoTone, CloseCircleTwoTone, WarningTwoTone, MinusCircleTwoTone } from '@ant-design/icons';
 import * as echarts from 'echarts';
 import { apiClient } from '@/modules/shared/services/apiClient';
 import { useI18n } from '@/modules/shared/hooks/useI18n';
+import { AdvancedTable } from '@/modules/shared';
 
 const { Text, Title } = Typography;
 
@@ -313,7 +314,7 @@ export function HealthDashboard({ workspaceId }: HealthDashboardProps) {
                   {rules.length === 0 ? (
                     <Empty description="暂无规则" />
                   ) : (
-                    <Table<HealthRule>
+                    <AdvancedTable<HealthRule>
                       rowKey="rule_id"
                       size="small"
                       dataSource={rules}
@@ -385,7 +386,7 @@ export function HealthDashboard({ workspaceId }: HealthDashboardProps) {
                 {violations.length === 0 ? (
                   <Empty description="暂无违规" image={Empty.PRESENTED_IMAGE_SIMPLE} />
                 ) : (
-                  <Table<HealthViolation>
+                  <AdvancedTable<HealthViolation>
                     rowKey="id"
                     size="small"
                     dataSource={violations}

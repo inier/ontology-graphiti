@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import {
-  Card, Table, Button, Modal, Form, Select, Input, Tag, Space,
+  Card, Button, Modal, Form, Select, Input, Tag, Space,
   Descriptions, Badge, message, Tooltip, Drawer,
 } from 'antd';
 import {
@@ -8,6 +8,7 @@ import {
   ClockCircleOutlined, ExclamationCircleOutlined, SyncOutlined,
 } from '@ant-design/icons';
 import { api } from '@/modules/shared/services/api';
+import { AdvancedTable } from '@/modules/shared';
 
 const STATUS_CONFIG: Record<string, { color: string; icon: React.ReactNode; label: string }> = {
   pending: { color: 'default', icon: <ClockCircleOutlined />, label: '待处理' },
@@ -202,7 +203,7 @@ const ActionPanel: React.FC = () => {
           </Space>
         }
       >
-        <Table
+        <AdvancedTable
           columns={columns}
           dataSource={records}
           rowKey="action_record_id"

@@ -390,7 +390,7 @@ export function useQAI({ sessionId: initialSessionId, workspaceId, scenarioId, a
     error,
     sessionId,
     setSessionId,
-    setMessages, // T050-fix: 让 QAChatPage 切换会话时直接替换消息
+    setMessages, // T050-fix: 切换会话时直接替换消息
     clearMessages,
     stop,
   };

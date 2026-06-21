@@ -72,17 +72,20 @@ def get_channel() -> SQLiteAuditChannel:
 
 
 def _run_sync(coro):
-    """将协程同步执行"""
+    """将协程同步执行
+
+    使用 asyncio.get_running_loop() 替代弃用的 get_event_loop()。
+    当在运行中的事件循环内调用时，使用新线程执行以避免阻塞。
+    """
     try:
-        loop = asyncio.get_event_loop()
-        if loop.is_running():
-            import concurrent.futures
-            with concurrent.futures.ThreadPoolExecutor() as pool:
-                future = pool.submit(asyncio.run, coro)
-                return future.result()
-        else:
-            return loop.run_until_complete(coro)
+        loop = asyncio.get_running_loop()
+        # 在运行中的事件循环内 - 使用新线程执行
+        import concurrent.futures
+        with concurrent.futures.ThreadPoolExecutor(max_workers=1) as pool:
+            future = pool.submit(asyncio.run, coro)
+            return future.result()
     except RuntimeError:
+        # 没有运行中的事件循环 - 直接运行
         return asyncio.run(coro)
 
 
@@ -310,7 +313,7 @@ def _infer_event_type(action: str, service: str) -> AuditEventType:
 
 
 def log_audit(action: str, resource: str = None, user: str = None,
-              service: str = "system", details: Dict[str, Any] = None,
+              service: str = "system", details: Optional[Dict[str, Any]] = None,
               result_status: str = "success", result_message: str = "",
               severity: Optional[str] = None, workspace_id: str = "default",
               duration_ms: Optional[int] = None):
@@ -384,8 +387,8 @@ def log_audit(action: str, resource: str = None, user: str = None,
     try:
         graphiti_ch = get_graphiti_channel()
         _run_sync(graphiti_ch.write(event))
-    except Exception:
-        pass
+    except Exception as e:
+        logger.warning(f"Graphiti audit write failed: {e}")
 
 
 def audit_opa_decision(
@@ -396,6 +399,7 @@ def audit_opa_decision(
     reason: str = "",
     policy_version: str = "",
     service: str = "opa",
+    workspace_id: str = "default",
 ) -> None:
     event = AuditEvent(
         id=str(uuid.uuid4()),
@@ -432,7 +436,7 @@ def audit_opa_decision(
             "reason": reason,
             "policy_version": policy_version,
         },
-        workspace_id="default",
+        workspace_id=workspace_id,
         trace_id=str(uuid.uuid4()),
         parent_event_id=None,
         duration_ms=None,
@@ -448,8 +452,8 @@ def audit_opa_decision(
     try:
         graphiti_ch = get_graphiti_channel()
         _run_sync(graphiti_ch.write(event))
-    except Exception:
-        pass
+    except Exception as e:
+        logger.warning(f"Graphiti OPA audit write failed: {e}")
 
 
 def get_audit_logs(user: str = None, service: str = None, action: str = None, limit: int = 100) -> List[Dict[str, Any]]:

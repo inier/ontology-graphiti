@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
-import { Form, Input, Button, message, Divider } from 'antd';
+import { Input, Button, message, Divider } from 'antd';
+import { ProForm as Form } from '@ant-design/pro-components';
 import { UserOutlined, LockOutlined, SafetyCertificateOutlined, ApartmentOutlined, TeamOutlined, ThunderboltOutlined, GithubOutlined, GoogleOutlined } from '@ant-design/icons';
 import { useAuthStore } from '../stores/authStore';
 import { apiClient } from '../services/apiClient';
@@ -199,7 +200,7 @@ export function LoginPage() {
           <h2 style={{ fontSize: 26, fontWeight: 700, color: '#1a1a1a', margin: 0 }}>欢迎回来</h2>
           <p style={{ fontSize: 14, color: '#8c8c8c', marginTop: 8 }}>登录以访问您的工作空间</p>
         </div>
-        <Form layout="vertical" onFinish={onFinish} autoComplete="off" size="large" initialValues={{ username: 'admin', password: 'admin123' }}>
+        <Form layout="vertical" onFinish={onFinish} autoComplete="off" size="large" submitter={false} initialValues={{ username: 'admin', password: 'admin123' }}>
           <Form.Item name="username" rules={[{ required: true, message: '请输入用户名' }]}>
             <Input
               prefix={<UserOutlined style={{ color: '#bfbfbf' }} />}

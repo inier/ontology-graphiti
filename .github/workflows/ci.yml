@@ -63,19 +63,22 @@ jobs:
           npm install
 
       - name: Run type check
+        # M5 fix: 移除 || true，改为 continue-on-error 以暴露类型错误但不阻塞 CI。
+        # 类型错误属于 M1（前端 any 专项治理，P2）范畴，待 M1 完成后移除 continue-on-error。
+        continue-on-error: true
         run: |
           cd frontend
-          npm run typecheck || true
+          npm run typecheck
 
       - name: Run linter
         run: |
           cd frontend
-          npm run lint || true
+          npm run lint
 
       - name: Run unit tests
         run: |
           cd frontend
-          npm test -- --watchAll=false || true
+          npm test -- --watchAll=false
 
   build:
     runs-on: ubuntu-latest

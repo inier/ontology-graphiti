@@ -1,7 +1,8 @@
 import { useState, useEffect } from 'react';
-import { Collapse, Tag, Spin, Empty, Typography, Card, Space, Badge, Table } from 'antd';
+import { Collapse, Tag, Spin, Empty, Typography, Card, Space, Badge } from 'antd';
 import { DatabaseOutlined, ApartmentOutlined, TeamOutlined, SafetyOutlined, CodeOutlined, FileTextOutlined, ProfileOutlined } from '@ant-design/icons';
 import { api } from '@/modules/shared/services/api';
+import { AdvancedTable } from '@/modules/shared';
 
 const { Text, Paragraph } = Typography;
 
@@ -246,7 +247,7 @@ function renderDataClassSchema(name: string, schema: DataClassSchema) {
           </div>
         </div>
       )}
-      <Table
+      <AdvancedTable
         dataSource={dataSource}
         columns={columns}
         size="small"

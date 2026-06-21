@@ -1,4 +1,5 @@
-import { Timeline, Button, Slider, Card, Tag, Space, Typography } from 'antd';
+import { Timeline, Button, Slider, Tag, Space, Typography } from 'antd';
+import { ProCard as Card } from '@ant-design/pro-components';
 import { PlayCircleOutlined, PauseCircleOutlined, FastForwardOutlined } from '@ant-design/icons';
 import { useI18n } from '@/modules/shared/hooks/useI18n';
 

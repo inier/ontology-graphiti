@@ -2,8 +2,10 @@
  * Cypher 预览 - 展示生成的 Cypher 查询
  */
 import React from 'react';
-import { Card, Typography, Tag, Space, Tooltip } from 'antd';
+import { Typography, Tag, Space, Tooltip } from 'antd';
+import { ProCard as Card } from '@ant-design/pro-components';
 import { CodeOutlined, SafetyCertificateOutlined, CopyOutlined } from '@ant-design/icons';
+import { useI18n } from '@/modules/shared/hooks/useI18n';
 
 const { Paragraph } = Typography;
 
@@ -14,6 +16,8 @@ interface CypherPreviewProps {
 }
 
 export function CypherPreview({ cypher, validated, source }: CypherPreviewProps) {
+  const { t } = useI18n('qa');
+
   if (!cypher) return null;
 
   const handleCopy = () => {
@@ -26,21 +30,21 @@ export function CypherPreview({ cypher, validated, source }: CypherPreviewProps)
       title={
         <Space>
           <CodeOutlined />
-          <span>生成的 Cypher 查询</span>
+          <span>{t('cypher.title')}</span>
           {validated !== undefined && (
             <Tag
               icon={<SafetyCertificateOutlined />}
               color={validated ? 'success' : 'error'}
               style={{ fontSize: 11 }}
             >
-              {validated ? '已校验' : '校验失败'}
+              {validated ? t('cypher.validated') : t('cypher.validationFailed')}
             </Tag>
           )}
           {source && <Tag style={{ fontSize: 11 }}>{source}</Tag>}
         </Space>
       }
       extra={
-        <Tooltip title="复制">
+        <Tooltip title={t('cypher.copy')}>
           <CopyOutlined style={{ cursor: 'pointer', color: '#999' }} onClick={handleCopy} />
         </Tooltip>
       }

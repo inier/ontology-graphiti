@@ -260,7 +260,14 @@ class SerpAPISearch(BaseSearchProvider):
         self.api_key = api_key or self._get_api_key()
 
     def _get_api_key(self) -> Optional[str]:
-        """从环境变量获取 API Key"""
+        """从在线配置获取 API Key（fallback 环境变量）"""
+        try:
+            from odap.infra.config_composer import get_config
+            val = get_config("search.serpapi_key", "")
+            if val:
+                return val
+        except Exception:
+            pass
         return os.getenv('SERPAPI_KEY', '')
 
     async def search(self, query: str, max_results: int = 5) -> List[SearchResult]:

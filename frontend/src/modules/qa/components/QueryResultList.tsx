@@ -2,11 +2,13 @@
  * 查询结果列表 - 展示检索结果和回答
  */
 import React from 'react';
-import { Card, Empty, Spin, Typography, Divider, Space, Tag, Progress, Tabs } from 'antd';
+import { Empty, Spin, Typography, Divider, Space, Tag, Progress, Tabs } from 'antd';
+import { ProCard as Card } from '@ant-design/pro-components';
 import { FileSearchOutlined, CheckCircleOutlined } from '@ant-design/icons';
 import { OverlaySpin } from '@/modules/shared/components/OverlaySpin';
 import { RetrievalResultCard } from './RetrievalResultCard';
 import type { QueryResponse, NLSearchResponse, SourceReference, RetrievalResult } from '../services/nlQueryApi';
+import { useI18n } from '@/modules/shared/hooks/useI18n';
 
 const { Text, Paragraph } = Typography;
 
@@ -18,6 +20,8 @@ interface QueryResultListProps {
 }
 
 export function QueryResultList({ queryResult, searchResult, loading, error }: QueryResultListProps) {
+  const { t } = useI18n('qa');
+
   if (error) {
     return (
       <Card size="small" style={{ margin: 12 }}>
@@ -31,11 +35,11 @@ export function QueryResultList({ queryResult, searchResult, loading, error }: Q
 
   if (!hasQueryResult && !hasSearchResult) {
     return (
-      <OverlaySpin spinning={!!loading} tip="正在检索和分析...">
+      <OverlaySpin spinning={!!loading} tip={t('result.searching')}>
         <div style={{ padding: 40 }}>
           <Empty
             image={<FileSearchOutlined style={{ fontSize: 48, color: '#d9d9d9' }} />}
-            description="输入查询以开始检索"
+            description={t('result.empty')}
           />
         </div>
       </OverlaySpin>
@@ -72,7 +76,7 @@ export function QueryResultList({ queryResult, searchResult, loading, error }: Q
         label: (
           <Space>
             <CheckCircleOutlined />
-            <span>回答</span>
+            <span>{t('result.answer')}</span>
           </Space>
         ),
         children: (
@@ -83,14 +87,14 @@ export function QueryResultList({ queryResult, searchResult, loading, error }: Q
             </Paragraph>
             <Divider style={{ margin: '12px 0' }} />
             <Text type="secondary" style={{ fontSize: 12 }}>
-              查询耗时: {queryResult!.total_time_ms.toFixed(0)}ms | 来源数: {queryResult!.sources.length}
+              {t('result.queryTime', { time: queryResult!.total_time_ms.toFixed(0), count: queryResult!.sources.length })}
             </Text>
           </div>
         ),
       },
       {
         key: 'sources',
-        label: `来源 (${queryResult!.sources.length})`,
+        label: t('result.sourcesLabel', { count: queryResult!.sources.length }),
         children: (
           <div>
             {queryResult!.sources.map((s: SourceReference, i: number) => (
@@ -114,8 +118,8 @@ export function QueryResultList({ queryResult, searchResult, loading, error }: Q
       <div style={{ padding: '12px 16px' }}>
         <div style={{ marginBottom: 8 }}>
           <Space>
-            <Text strong>检索结果</Text>
-            <Tag>{searchResult!.total} 条</Tag>
+            <Text strong>{t('result.searchResults')}</Text>
+            <Tag>{t('result.resultCount', { count: searchResult!.total })}</Tag>
           </Space>
         </div>
         {renderPillarContributions(searchResult!.pillar_scores)}

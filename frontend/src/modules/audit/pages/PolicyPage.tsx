@@ -4,7 +4,6 @@ import {
   Button,
   Space,
   Tag,
-  Table,
   Modal,
   Form,
   Input,
@@ -35,6 +34,7 @@ import {
 } from '@ant-design/icons';
 import { useAuditStore } from '../stores/auditStore';
 import type { ColumnsType } from 'antd/es/table';
+import { AdvancedTable } from '@/modules/shared';
 
 const { TextArea } = Input;
 
@@ -256,7 +256,7 @@ const PolicyPage: React.FC = () => {
               </Space>
             ),
             children: (
-              <Table
+              <AdvancedTable
                 columns={policyColumns}
                 dataSource={policies}
                 rowKey="policy_id"

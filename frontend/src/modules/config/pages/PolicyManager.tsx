@@ -1,7 +1,6 @@
 import { useState, useEffect, useCallback } from 'react';
 import {
   Card,
-  Table,
   Button,
   Space,
   Tag,
@@ -28,6 +27,7 @@ import {
 import { apiClient } from '@/modules/shared/services/apiClient';
 import { useI18n } from '@/modules/shared/hooks/useI18n';
 import { PolicyEditor } from '../components/PolicyEditor';
+import { AdvancedTable } from '@/modules/shared';
 
 interface Policy {
   policy_id: string;
@@ -282,7 +282,7 @@ export function PolicyManager() {
           </Space>
         }
       >
-        <Table
+        <AdvancedTable
           columns={columns}
           dataSource={policies}
           rowKey="policy_id"

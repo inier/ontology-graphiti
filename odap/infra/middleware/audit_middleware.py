@@ -29,24 +29,33 @@ _EXCLUDED_PREFIXES = (
 _WRITE_METHODS = {"POST", "PUT", "DELETE", "PATCH"}
 
 
-def _extract_user_from_request(request: Request) -> str:
+def _extract_user_from_request(request: Request) -> tuple:
+    """从请求中提取用户信息和工作空间 ID
+
+    Returns:
+        (user_id, workspace_id) 元组。无法提取时返回 ("anonymous", "default")。
+        过期 token 返回 ("expired_token", "default") 以避免错误归属。
+    """
     auth_header = request.headers.get("Authorization", "")
     if auth_header.startswith("Bearer "):
         try:
             import jwt as pyjwt
             from odap.infra.security.config import security_config
             token = auth_header[7:]
+            # 验证签名 + 过期时间（默认 verify_exp=True）
             payload = pyjwt.decode(
                 token,
-                # P0-8 fix: use lazy-validated method
                 security_config.get_jwt_secret(),
                 algorithms=[security_config.get_jwt_algorithm()],
-                options={"verify_exp": False},
             )
-            return payload.get("name") or payload.get("sub") or "authenticated"
-        except Exception:
-            pass
-    return "anonymous"
+            user_id = payload.get("name") or payload.get("sub") or "authenticated"
+            workspace_id = payload.get("ws_id", "default")
+            return user_id, workspace_id
+        except Exception as e:
+            # 过期 token 或无效 token - 不归属到任何用户
+            logger.debug(f"Audit middleware: token decode failed: {e}")
+            return "anonymous", "default"
+    return "anonymous", "default"
 
 
 class AuditMiddleware(BaseHTTPMiddleware):
@@ -72,7 +81,7 @@ class AuditMiddleware(BaseHTTPMiddleware):
 
         start_time = time.time()
         trace_id = request.headers.get("X-Request-ID", str(uuid.uuid4()))
-        user = _extract_user_from_request(request)
+        user, workspace_id = _extract_user_from_request(request)
 
         response = await call_next(request)
 
@@ -118,6 +127,7 @@ class AuditMiddleware(BaseHTTPMiddleware):
                     "client_ip": request.client.host if request.client else "unknown",
                     "trace_id": trace_id,
                 },
+                workspace_id=workspace_id,
                 duration_ms=duration_ms
             )
         except Exception as e:

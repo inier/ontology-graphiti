@@ -5,24 +5,23 @@ from typing import Optional
 from .auth_service import AuthService
 from .auth_models import LoginRequest, TokenPair, UserInfo, GlobalRole
 from .jwt_auth import decode_token, security, get_current_user, verify_admin
+from odap.infra.security.audit_helper import audit as _audit_shared
 
 
 def _audit(action: str, user: str, result_status: str, result_message: str = "",
-           details: dict = None, service: str = "auth"):
-    """认证审计便捷函数"""
-    try:
-        from odap.infra.security.unified_audit import log_audit
-        log_audit(
-            action=action,
-            resource="auth",
-            user=user,
-            service=service,
-            result_status=result_status,
-            result_message=result_message,
-            details=details or {},
-        )
-    except Exception:
-        pass  # 审计写入失败不应阻断业务
+           details: dict = None, workspace_id: str = "default"):
+    """认证审计便捷函数 - 固定 service=auth，使用共享 helper"""
+    _audit_shared(
+        action=action,
+        user=user,
+        result_status=result_status,
+        result_message=result_message,
+        details=details,
+        service="auth",
+        workspace_id=workspace_id,
+        resource="auth",
+    )
+
 
 router = APIRouter(prefix="/api/auth", tags=["auth"])
 
@@ -135,21 +134,37 @@ async def sso_callback(provider: str, data: SSOCallbackRequest):
 
 @router.post("/refresh")
 async def refresh(request: RefreshRequest):
+    # 从 refresh_token 解码用户身份用于审计（不验证签名，仅提取身份）
+    refresh_user = "unknown"
+    try:
+        payload = decode_token(request.refresh_token)
+        if payload:
+            refresh_user = payload.get("name") or payload.get("sub") or "unknown"
+    except Exception:
+        pass
     result = auth_service.refresh(request.refresh_token)
     if not result:
-        _audit("token_refresh_failed", "unknown", "failure", "Invalid or expired refresh token")
+        _audit("token_refresh_failed", refresh_user, "failure", "Invalid or expired refresh token")
         raise HTTPException(status_code=401, detail="Invalid refresh token")
-    _audit("token_refreshed", "unknown", "success", "Token refreshed")
+    _audit("token_refreshed", refresh_user, "success", "Token refreshed")
     return result.model_dump()
 
 
 @router.post("/logout")
 async def logout(request: LogoutRequest):
+    # 从 refresh_token 解码用户身份用于审计
+    logout_user = "unknown"
+    try:
+        payload = decode_token(request.refresh_token)
+        if payload:
+            logout_user = payload.get("name") or payload.get("sub") or "unknown"
+    except Exception:
+        pass
     success = auth_service.logout(request.refresh_token)
     if not success:
-        _audit("logout_failed", "unknown", "failure", "Logout failed - token not found")
+        _audit("logout_failed", logout_user, "failure", "Logout failed - token not found")
         raise HTTPException(status_code=400, detail="Logout failed")
-    _audit("logout_success", "unknown", "success", "User logged out")
+    _audit("logout_success", logout_user, "success", "User logged out")
     return {"status": "ok", "message": "Logged out"}
 
 
@@ -227,7 +242,10 @@ async def update_user(user_id: str, request: UpdateUserRequest, admin: dict = De
                "User not found", {"target_user_id": user_id})
         raise HTTPException(status_code=404, detail="User not found")
     _audit("user_updated", admin_user, "success",
-           f"Updated user {user_id}", {"target_user_id": user_id, "changes": request.model_dump(exclude_none=True)})
+           f"Updated user {user_id}",
+           {"target_user_id": user_id,
+            "changes": {"email": request.email, "global_role": request.global_role,
+                        "is_active": request.is_active, "password_changed": request.password is not None}})
     result["role_id"] = GLOBAL_ROLE_TO_ID.get(result.get("global_role", ""), "5")
     return result
 

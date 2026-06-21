@@ -112,60 +112,66 @@ services:
 
   # Crawl4AI JS 渲染爬取服务（独立容器，避免主容器镜像膨胀）
   # 启用前需先构建镜像：podman build -t localhost/crawl4ai -f docker/Dockerfile.crawl4ai .
-  # crawl4ai:
-  #   build:
-  #     context: ..
-  #     dockerfile: docker/Dockerfile.crawl4ai
-  #   container_name: graphiti-crawl4ai
-  #   ports:
-  #     - "8020:8020"
-  #   environment:
-  #     - CHROME_BIN=/usr/bin/chromium
-  #     - CHROMIUM_PATH=/usr/bin/chromium
-  #     - CRAWL4AI_API_URL=http://graphiti-crawl4ai:8020
-  #   networks:
-  #     - graphiti-network
-  #   restart: unless-stopped
-  #   healthcheck:
-  #     test: ["CMD", "python", "-c", "import crawl4ai; print('ok')"]
-  #     interval: 30s
-  #     timeout: 10s
-  #     retries: 3
-  #     start_period: 60s
-  #   deploy:
-  #     resources:
-  #       limits:
-  #         memory: 2G
+  # 启动方式：python bootstep.py dev --profile data-collection
+  crawl4ai:
+    profiles: ["data-collection"]
+    build:
+      context: ..
+      dockerfile: docker/Dockerfile.crawl4ai
+    image: localhost/crawl4ai:latest
+    container_name: graphiti-crawl4ai
+    ports:
+      - "8020:8020"
+    environment:
+      - CHROME_BIN=/usr/bin/chromium
+      - CHROMIUM_PATH=/usr/bin/chromium
+      - CRAWL4AI_API_URL=http://graphiti-crawl4ai:8020
+    networks:
+      - graphiti-network
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "python", "-c", "import crawl4ai; print('ok')"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 60s
+    deploy:
+      resources:
+        limits:
+          memory: 2G
 
   # Browser-Use MCP Server（AI 驱动浏览器自动化）
   # 启用前需先构建镜像：podman build -t localhost/browser-use -f docker/Dockerfile.browser-use .
-  # browser-use-mcp:
-  #   build:
-  #     context: ..
-  #     dockerfile: docker/Dockerfile.browser-use
-  #   container_name: graphiti-browser-use
-  #   ports:
-  #     - "8030:8030"
-  #   environment:
-  #     - OPENAI_API_KEY=${OPENAI_API_KEY}
-  #     - OPENAI_API_BASE=${OPENAI_API_BASE}
-  #     - OPENAI_MODEL=${OPENAI_MODEL}
-  #     - CHROME_BIN=/usr/bin/chromium
-  #     - CHROMIUM_PATH=/usr/bin/chromium
-  #     - BROWSER_MCP_PORT=8030
-  #   networks:
-  #     - graphiti-network
-  #   restart: unless-stopped
-  #   healthcheck:
-  #     test: ["CMD", "python", "-c", "import browser_use; print('ok')"]
-  #     interval: 30s
-  #     timeout: 10s
-  #     retries: 3
-  #     start_period: 60s
-  #   deploy:
-  #     resources:
-  #       limits:
-  #         memory: 4G
+  # 启动方式：python bootstep.py dev --profile data-collection
+  browser-use-mcp:
+    profiles: ["data-collection"]
+    build:
+      context: ..
+      dockerfile: docker/Dockerfile.browser-use
+    image: localhost/browser-use:latest
+    container_name: graphiti-browser-use
+    ports:
+      - "8030:8030"
+    environment:
+      - OPENAI_API_KEY=${OPENAI_API_KEY}
+      - OPENAI_API_BASE=${OPENAI_API_BASE}
+      - OPENAI_MODEL=${OPENAI_MODEL}
+      - CHROME_BIN=/usr/bin/chromium
+      - CHROMIUM_PATH=/usr/bin/chromium
+      - BROWSER_MCP_PORT=8030
+    networks:
+      - graphiti-network
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "python", "-c", "import browser_use; print('ok')"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 60s
+    deploy:
+      resources:
+        limits:
+          memory: 4G
 
 volumes:
   neo4j-data:

@@ -2,6 +2,7 @@
 
 import os
 from contextlib import asynccontextmanager
+from datetime import datetime
 from typing import List
 
 from fastapi import FastAPI
@@ -64,10 +65,132 @@ def _ensure_default_workspace_and_scenario() -> None:
         logger.error(f"初始化默认工作空间失败: {e}")
 
 
+def _initialize_audit_retention() -> None:
+    """初始化审计日志保留策略并调度定期清理 (ADR-008 / ADR-042).
+
+    ADR-008: 默认 1 年 (365 天) 保留
+    ADR-042: 按严重级别保留 - DEBUG 7d, INFO 90d, WARN 180d, ERROR/CRITICAL 永久
+    保留策略失败不应阻断应用启动。
+    """
+    try:
+        from odap.infra.security.audit_retention import (
+            AuditRetentionManager,
+            RetentionPolicy,
+            RetentionAction,
+        )
+        from odap.infra.security.unified_audit import get_channel
+
+        # 复用审计通道的 db_path，确保留存管理器能访问 audit_events 表
+        audit_db_path = get_channel().db_path
+
+        # 尝试获取 MinIO 客户端（不可用时降级，不影响启动）
+        minio_client = None
+        try:
+            from odap.infra.storage.minio_client import MinIOClient
+            minio_client = MinIOClient()
+        except Exception as exc:
+            logger.warning(f"MinIO 客户端不可用，审计归档将降级: {exc}")
+
+        manager = AuditRetentionManager(
+            db_path=audit_db_path,
+            minio_client=minio_client,
+        )
+
+        # 注册默认保留策略 (ADR-008 默认 + ADR-042 严重级别)
+        now = datetime.now()
+        default_policies = [
+            # ADR-042: 按严重级别保留
+            RetentionPolicy(
+                ws_id="*", classification="DEBUG",
+                retention_days=7, action=RetentionAction.HARD_DELETE,
+                created_at=now,
+            ),
+            RetentionPolicy(
+                ws_id="*", classification="INFO",
+                retention_days=90, action=RetentionAction.ARCHIVE_TO_MINIO,
+                created_at=now,
+            ),
+            RetentionPolicy(
+                ws_id="*", classification="WARN",
+                retention_days=180, action=RetentionAction.ARCHIVE_TO_MINIO,
+                created_at=now,
+            ),
+            RetentionPolicy(
+                ws_id="*", classification="ERROR",
+                retention_days=365, action=RetentionAction.KEEP_FOREVER,
+                created_at=now,
+            ),
+            RetentionPolicy(
+                ws_id="*", classification="CRITICAL",
+                retention_days=365, action=RetentionAction.KEEP_FOREVER,
+                created_at=now,
+            ),
+            # ADR-008: 默认 1 年保留 (双通配兜底)
+            RetentionPolicy(
+                ws_id="*", classification="*",
+                retention_days=365, action=RetentionAction.ARCHIVE_TO_MINIO,
+                created_at=now,
+            ),
+        ]
+        for policy in default_policies:
+            manager.upsert_policy(policy)
+
+        logger.info(
+            "审计保留策略已注册: %d 条 (ADR-008 默认 365d / ADR-042 严重级别)",
+            len(default_policies),
+        )
+
+        _schedule_audit_retention_cleanup(manager)
+    except Exception as exc:
+        logger.error(f"审计保留策略初始化失败（不影响启动）: {exc}")
+
+
+def _schedule_audit_retention_cleanup(manager) -> None:
+    """调度审计保留定期清理任务（启动时执行一次，之后每日循环）。"""
+    async def _cleanup_loop():
+        # 初始清理
+        try:
+            summary = await asyncio.to_thread(manager.archive_expired)
+            logger.info(
+                "审计保留初始清理完成: 归档/删除 %d 条, %d 字节, 耗时 %dms",
+                summary.get("archived_count", 0),
+                summary.get("archived_bytes", 0),
+                summary.get("duration_ms", 0),
+            )
+        except Exception as exc:
+            logger.warning(f"审计保留初始清理失败: {exc}")
+
+        # 每日循环
+        while True:
+            await asyncio.sleep(86400)  # 24 小时
+            try:
+                summary = await asyncio.to_thread(manager.archive_expired)
+                logger.info(
+                    "审计保留每日清理完成: 归档/删除 %d 条, %d 字节, 耗时 %dms",
+                    summary.get("archived_count", 0),
+                    summary.get("archived_bytes", 0),
+                    summary.get("duration_ms", 0),
+                )
+            except Exception as exc:
+                logger.warning(f"审计保留每日清理失败: {exc}")
+
+    asyncio.create_task(_cleanup_loop())
+
+
 @asynccontextmanager
 async def lifespan(app: FastAPI):
+    # C3 fix: 任何环境（含开发/测试）启动时强制校验关键密钥，fail-fast。
+    # 防止开发实例意外暴露到公网时 JWT_SECRET 缺失导致任意人可伪造 token。
+    # 测试环境通过 conftest.py 注入 JWT_SECRET 环境变量。
+    try:
+        security_config.validate(strict=True)
+    except Exception as e:
+        logger.error(f"Startup aborted: security configuration invalid: {e}")
+        raise
+
     _schedule_deferred_openharness_init()
     _ensure_default_workspace_and_scenario()
+    _initialize_audit_retention()
     yield
 
     integration = get_openharness_integration()

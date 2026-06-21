@@ -1,7 +1,10 @@
 import { useState, useEffect } from 'react';
-import { Card, Form, Row, Col, Divider, Empty } from 'antd';
+import { Row, Col, Divider, Empty } from 'antd';
+import { ProForm as Form } from '@ant-design/pro-components';
+import { ProCard as Card } from '@ant-design/pro-components';
 import { PlusOutlined } from '@ant-design/icons';
 import adapter from '@/modules/shared/components/adapter';
+import { useI18n } from '@/modules/shared/hooks/useI18n';
 import { PropertyEditor } from './PropertyEditor';
 import { RelationEditor } from './RelationEditor';
 import type { EntityType, PropertyDefinition, RelationDefinition } from '../services/ontologyApi';
@@ -16,14 +19,16 @@ const Button = adapter.getButton();
 const Input = adapter.getInput();
 const Select = adapter.getSelect();
 
-const CLASSIFICATION_OPTIONS = [
-  { label: 'TS - 绝密', value: 'TS' },
-  { label: 'S - 机密', value: 'S' },
-  { label: 'C - 秘密', value: 'C' },
-  { label: 'U - 公开', value: 'U' },
-];
-
 export function EntityTypeEditor({ entityType, allEntityTypes, onSave }: EntityTypeEditorProps) {
+  const { t } = useI18n('ontology');
+
+  const CLASSIFICATION_OPTIONS = [
+    { label: t('classification.TS') ? `TS - ${t('classification.TS')}` : 'TS', value: 'TS' },
+    { label: t('classification.S') ? `S - ${t('classification.S')}` : 'S', value: 'S' },
+    { label: t('classification.C') ? `C - ${t('classification.C')}` : 'C', value: 'C' },
+    { label: t('classification.U') ? `U - ${t('classification.U')}` : 'U', value: 'U' },
+  ];
+
   const [formData, setFormData] = useState<{
     name: string;
     display_name: string;
@@ -123,7 +128,7 @@ export function EntityTypeEditor({ entityType, allEntityTypes, onSave }: EntityT
   if (!entityType) {
     return (
       <Card>
-        <Empty description="请选择一个实体类型" />
+        <Empty description={t('designer.noSelection')} />
       </Card>
     );
   }
@@ -134,14 +139,14 @@ export function EntityTypeEditor({ entityType, allEntityTypes, onSave }: EntityT
         title={entityType.display_name || entityType.name}
         extra={
           <Button type="primary" onClick={handleSave}>
-            保存
+            {t('designer.save')}
           </Button>
         }
       >
         <Form layout="vertical">
           <Row gutter={[16, 0]}>
             <Col span={8}>
-              <Form.Item label="名称">
+              <Form.Item label={t('entityType.name')}>
                 <Input
                   value={formData.name}
                   onChange={(val) => updateField('name', val)}
@@ -150,16 +155,16 @@ export function EntityTypeEditor({ entityType, allEntityTypes, onSave }: EntityT
               </Form.Item>
             </Col>
             <Col span={8}>
-              <Form.Item label="显示名称">
+              <Form.Item label={t('entityType.displayName')}>
                 <Input
                   value={formData.display_name}
                   onChange={(val) => updateField('display_name', val)}
-                  placeholder="显示名称"
+                  placeholder={t('entityType.displayName')}
                 />
               </Form.Item>
             </Col>
             <Col span={8}>
-              <Form.Item label="密级">
+              <Form.Item label={t('entityType.classificationLevel')}>
                 <Select
                   value={formData.classification_level}
                   onChange={(val) => updateField('classification_level', val)}
@@ -168,24 +173,24 @@ export function EntityTypeEditor({ entityType, allEntityTypes, onSave }: EntityT
               </Form.Item>
             </Col>
           </Row>
-          <Form.Item label="描述">
+          <Form.Item label={t('entityType.description')}>
             <Input
               value={formData.description}
               onChange={(val) => updateField('description', val)}
-              placeholder="描述"
+              placeholder={t('entityType.description')}
             />
           </Form.Item>
-          <Form.Item label="主键">
+          <Form.Item label={t('designer.primaryKey')}>
             <Select
               value={formData.primary_key || undefined}
               onChange={(val) => updateField('primary_key', val)}
               options={primaryKeyOptions}
-              placeholder="选择主键属性"
+              placeholder={t('designer.primaryKey')}
             />
           </Form.Item>
         </Form>
 
-        <Divider orientation={"left" as React.ComponentProps<typeof Divider>['orientation']}>属性列表</Divider>
+        <Divider orientation={"left" as React.ComponentProps<typeof Divider>['orientation']}>{t('designer.propertiesList')}</Divider>
         {formData.properties.map((prop, idx) => (
           <PropertyEditor
             key={idx}
@@ -201,10 +206,10 @@ export function EntityTypeEditor({ entityType, allEntityTypes, onSave }: EntityT
           onClick={handleAddProperty}
           style={{ width: '100%', marginBottom: 16 }}
         >
-          新增属性
+          {t('designer.addProperty')}
         </Button>
 
-        <Divider orientation={"left" as React.ComponentProps<typeof Divider>['orientation']}>关系列表</Divider>
+        <Divider orientation={"left" as React.ComponentProps<typeof Divider>['orientation']}>{t('designer.relationsList')}</Divider>
         {formData.relations.map((rel, idx) => (
           <RelationEditor
             key={idx}
@@ -221,7 +226,7 @@ export function EntityTypeEditor({ entityType, allEntityTypes, onSave }: EntityT
           onClick={handleAddRelation}
           style={{ width: '100%' }}
         >
-          新增关系
+          {t('designer.addRelation')}
         </Button>
       </Card>
     </div>

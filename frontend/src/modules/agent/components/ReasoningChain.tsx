@@ -1,4 +1,5 @@
-import { Collapse, Steps, Card, Empty, Tag } from 'antd';
+import { Collapse, Steps, Empty, Tag } from 'antd';
+import { ProCard as Card } from '@ant-design/pro-components';
 import {
   BulbOutlined,
   FileSearchOutlined,

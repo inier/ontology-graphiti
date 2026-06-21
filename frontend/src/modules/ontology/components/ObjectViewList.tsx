@@ -16,7 +16,7 @@
  */
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import {
-  Card, Row, Col, Select, Input, Button, Space, Table, Tag, Tooltip, Empty, Spin, Popconfirm, Modal, Form, message, InputNumber, Switch,
+  Card, Row, Col, Select, Input, Button, Space, Tag, Tooltip, Empty, Spin, Popconfirm, Modal, Form, message, InputNumber, Switch,
 } from 'antd';
 import type { ColumnsType } from 'antd/es/table';
 import {
@@ -24,6 +24,7 @@ import {
 } from '@ant-design/icons';
 import { viewApi, type ObjectView } from '../services/viewApi';
 import { useI18n } from '@/modules/shared/hooks/useI18n';
+import { AdvancedTable } from '@/modules/shared';
 
 const { Search } = Input;
 
@@ -337,7 +338,7 @@ export function ObjectViewList({ workspaceId, onEdit, onPreview }: ObjectViewLis
           {filtered.length === 0 ? (
             <Empty description="暂无视图" />
           ) : (
-            <Table<ObjectView>
+            <AdvancedTable<ObjectView>
               rowKey="id"
               size="small"
               dataSource={filtered}

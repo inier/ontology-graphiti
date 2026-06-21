@@ -1,6 +1,7 @@
 import type { ReactElement } from 'react';
-import { Button, Input, Table, Modal, Form, Select, Tag, Tooltip, message, notification } from 'antd';
+import { Button, Input, Modal, Form, Select, Tag, Tooltip, message, notification } from 'antd';
 import type { UIAdapter, ButtonProps, InputProps, TableProps, ModalProps, FormProps, SelectProps, TagProps, TooltipProps, MessageInstance, NotificationInstance } from './UIAdapter.ts';
+import { AdvancedTable } from '@/modules/shared';
 
 function AntButton(props: ButtonProps) {
   const { children, onClick, type, disabled, loading, icon, size, danger, className, style } = props;
@@ -39,7 +40,7 @@ function AntInput(props: InputProps) {
 function AntTable<T = any>(props: TableProps<T>): ReactElement {
   const { columns, dataSource, loading, pagination, onChange, rowKey, className } = props;
   return (
-    <Table<T>
+    <AdvancedTable<T>
       columns={columns}
       dataSource={dataSource}
       loading={loading}

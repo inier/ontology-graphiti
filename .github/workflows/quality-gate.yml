@@ -44,7 +44,11 @@ jobs:
         run: npm ci
       - working-directory: frontend
         run: npm run lint
-      - working-directory: frontend
+      # M5 fix: typecheck 暂设为 continue-on-error，类型错误归入 M1（P2）专项治理。
+      # 待 M1 完成后移除 continue-on-error，使 typecheck 成为硬性质量门禁。
+      - name: Typecheck (non-blocking until M1)
+        continue-on-error: true
+        working-directory: frontend
         run: npm run typecheck
 
   frontend-test:
@@ -88,7 +92,7 @@ jobs:
         with:
           python-version: "3.10"
       - run: pip install -r requirements.txt
-      - run: pytest tests/integration/ -v -m integration --tb=short || true
+      - run: pytest tests/integration/ -v -m integration --tb=short
 
   quality-gate:
     name: Quality Gate

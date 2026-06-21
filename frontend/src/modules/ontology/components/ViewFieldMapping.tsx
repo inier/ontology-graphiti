@@ -22,7 +22,7 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import {
   Card, Row, Col, Tree, Input, Button, Space, Typography, Tag, Switch, Select, Empty, Spin, Drawer,
-  Tabs, InputNumber, Form, List, Popconfirm, Table, message, Alert, Checkbox,
+  Tabs, InputNumber, Form, List, Popconfirm, message, Alert, Checkbox,
 } from 'antd';
 import type { DataNode } from 'antd/es/tree';
 import type { ColumnsType } from 'antd/es/table';
@@ -31,6 +31,7 @@ import {
 } from '@ant-design/icons';
 import { viewApi, type ObjectView, type ViewPermission } from '../services/viewApi';
 import { useI18n } from '@/modules/shared/hooks/useI18n';
+import { AdvancedTable } from '@/modules/shared';
 
 const { Text, Title } = Typography;
 const { Search } = Input;
@@ -633,7 +634,7 @@ export function ViewFieldMapping({ viewId, onClose }: ViewFieldMappingProps) {
                   {filters.length === 0 ? (
                     <Empty description="暂无过滤条件" image={Empty.PRESENTED_IMAGE_SIMPLE} />
                   ) : (
-                    <Table<FilterRule> rowKey="id" size="small" dataSource={filters} columns={filterColumns} pagination={false} />
+                    <AdvancedTable<FilterRule> rowKey="id" size="small" dataSource={filters} columns={filterColumns} pagination={false} />
                   )}
                 </Space>
               ),
@@ -665,7 +666,7 @@ export function ViewFieldMapping({ viewId, onClose }: ViewFieldMappingProps) {
                   {sorts.length === 0 ? (
                     <Empty description="暂无排序" image={Empty.PRESENTED_IMAGE_SIMPLE} />
                   ) : (
-                    <Table<SortRule> rowKey="id" size="small" dataSource={sorts} columns={sortColumns} pagination={false} />
+                    <AdvancedTable<SortRule> rowKey="id" size="small" dataSource={sorts} columns={sortColumns} pagination={false} />
                   )}
                 </Space>
               ),

@@ -1,7 +1,8 @@
 import { useState, useEffect } from 'react';
-import { Table, Input, Button, Card, Space, Typography, Popconfirm, message } from 'antd';
+import { Input, Button, Card, Space, Typography, Popconfirm, message } from 'antd';
 import { PlusOutlined, DeleteOutlined, ReloadOutlined } from '@ant-design/icons';
 import { apiClient } from '@/modules/shared/services/apiClient';
+import { AdvancedTable } from '@/modules/shared';
 
 const { Text } = Typography;
 
@@ -202,7 +203,7 @@ export default function SemanticConfig() {
             Add
           </Button>
         </Space>
-        <Table
+        <AdvancedTable
           dataSource={synonyms}
           columns={synonymColumns}
           rowKey="key"
@@ -238,7 +239,7 @@ export default function SemanticConfig() {
             Add
           </Button>
         </Space>
-        <Table
+        <AdvancedTable
           dataSource={expansionRules}
           columns={expansionColumns}
           rowKey="key"

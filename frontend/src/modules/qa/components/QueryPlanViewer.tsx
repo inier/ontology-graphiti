@@ -2,24 +2,18 @@
  * 查询计划可视化 - 展示五阶段管线的理解和计划
  */
 import React from 'react';
-import { Card, Tag, Space, Typography, Descriptions, Collapse } from 'antd';
+import { Tag, Space, Typography, Collapse } from 'antd';
+import { ProDescriptions as Descriptions } from '@ant-design/pro-components';
+import { ProCard as Card } from '@ant-design/pro-components';
 import {
   BulbOutlined,
   ScheduleOutlined,
   FormOutlined,
 } from '@ant-design/icons';
 import type { QueryUnderstanding, QueryPlan, SubQuery } from '../services/nlQueryApi';
+import { useI18n } from '@/modules/shared/hooks/useI18n';
 
 const { Text, Paragraph } = Typography;
-
-const INTENT_LABELS: Record<string, { label: string; color: string }> = {
-  keyword_lookup: { label: '关键词查找', color: 'blue' },
-  semantic_search: { label: '语义搜索', color: 'green' },
-  graph_traverse: { label: '图遍历', color: 'orange' },
-  complex_analysis: { label: '复杂分析', color: 'purple' },
-  temporal_query: { label: '时态查询', color: 'cyan' },
-  action: { label: '执行动作', color: 'red' },
-};
 
 const PILLAR_COLORS: Record<string, string> = {
   bm25: '#1890ff',
@@ -34,14 +28,26 @@ interface QueryPlanViewerProps {
   loading?: boolean;
 }
 
+function getIntentLabel(intent: string, t: (key: string) => string): { label: string; color: string } {
+  switch (intent) {
+    case 'keyword_lookup': return { label: t('plan.intentKeyword'), color: 'blue' };
+    case 'semantic_search': return { label: t('plan.intentSemantic'), color: 'green' };
+    case 'graph_traverse': return { label: t('plan.intentGraph'), color: 'orange' };
+    case 'complex_analysis': return { label: t('plan.intentComplex'), color: 'purple' };
+    case 'temporal_query': return { label: t('plan.intentTemporal'), color: 'cyan' };
+    case 'action': return { label: t('plan.intentAction'), color: 'red' };
+    default: return { label: intent, color: 'default' };
+  }
+}
+
 export function QueryPlanViewer({ understanding, plan, explanation, loading }: QueryPlanViewerProps) {
+  const { t } = useI18n('qa');
+
   if (!understanding && !plan && !explanation) {
     return null;
   }
 
-  const intentInfo = understanding
-    ? INTENT_LABELS[understanding.intent] || { label: understanding.intent, color: 'default' }
-    : null;
+  const intentInfo = understanding ? getIntentLabel(understanding.intent, t) : null;
 
   const renderSubQuery = (sq: SubQuery, idx: number) => (
     <div
@@ -70,42 +76,42 @@ export function QueryPlanViewer({ understanding, plan, explanation, loading }: Q
       label: (
         <Space>
           <BulbOutlined />
-          <span>查询理解</span>
+          <span>{t('plan.understanding')}</span>
           {intentInfo && <Tag color={intentInfo.color}>{intentInfo.label}</Tag>}
-          {understanding?.needs_clarification && <Tag color="warning">需澄清</Tag>}
+          {understanding?.needs_clarification && <Tag color="warning">{t('plan.needsClarification')}</Tag>}
         </Space>
       ),
       children: understanding ? (
         <Descriptions size="small" column={1} variant="bordered">
-          <Descriptions.Item label="原始查询">{understanding.original_query}</Descriptions.Item>
-          <Descriptions.Item label="意图">
+          <Descriptions.Item label={t('plan.originalQuery')}>{understanding.original_query}</Descriptions.Item>
+          <Descriptions.Item label={t('plan.intent')}>
             <Tag color={intentInfo?.color}>{intentInfo?.label}</Tag>
             <Text type="secondary" style={{ fontSize: 12, marginLeft: 8 }}>
-              置信度 {(understanding.confidence * 100).toFixed(0)}%
+              {t('plan.confidence', { value: (understanding.confidence * 100).toFixed(0) })}
             </Text>
           </Descriptions.Item>
           {understanding.extracted_entities.length > 0 && (
-            <Descriptions.Item label="提取实体">
+            <Descriptions.Item label={t('plan.extractedEntities')}>
               {understanding.extracted_entities.map((e, i) => (
                 <Tag key={i} color="processing" style={{ marginBottom: 2 }}>{e}</Tag>
               ))}
             </Descriptions.Item>
           )}
           {understanding.rewritten_queries.length > 0 && (
-            <Descriptions.Item label="改写查询">
+            <Descriptions.Item label={t('plan.rewrittenQueries')}>
               {understanding.rewritten_queries.map((q, i) => (
                 <div key={i} style={{ fontSize: 12, color: '#666', marginBottom: 2 }}>{q}</div>
               ))}
             </Descriptions.Item>
           )}
           {understanding.needs_clarification && (
-            <Descriptions.Item label="澄清原因">
+            <Descriptions.Item label={t('plan.clarificationReason')}>
               <Text type="warning">{understanding.clarification_reason}</Text>
             </Descriptions.Item>
           )}
         </Descriptions>
       ) : (
-        <Text type="secondary">暂无理解结果</Text>
+        <Text type="secondary">{t('plan.noUnderstanding')}</Text>
       ),
     },
     {
@@ -113,7 +119,7 @@ export function QueryPlanViewer({ understanding, plan, explanation, loading }: Q
       label: (
         <Space>
           <ScheduleOutlined />
-          <span>查询计划</span>
+          <span>{t('plan.plan')}</span>
           {plan && (
             <Tag color="geekblue">{plan.fusion_strategy.toUpperCase()}</Tag>
           )}
@@ -123,18 +129,18 @@ export function QueryPlanViewer({ understanding, plan, explanation, loading }: Q
         <div>
           <div style={{ marginBottom: 8 }}>
             <Text type="secondary" style={{ fontSize: 12 }}>
-              选用支柱: {plan.pillars.map((p) => (
+              {t('plan.selectedPillars')} {plan.pillars.map((p) => (
                 <Tag key={p} color={p === 'bm25' ? 'blue' : p === 'vector' ? 'green' : 'orange'} style={{ fontSize: 11 }}>
                   {p.toUpperCase()}
                 </Tag>
               ))}
-              <span style={{ marginLeft: 8 }}>Top-K: {plan.top_k}</span>
+              <span style={{ marginLeft: 8 }}>{t('plan.topK', { value: plan.top_k })}</span>
             </Text>
           </div>
           {plan.sub_queries.map(renderSubQuery)}
         </div>
       ) : (
-        <Text type="secondary">暂无计划</Text>
+        <Text type="secondary">{t('plan.noPlan')}</Text>
       ),
     },
     ...(explanation ? [{
@@ -142,7 +148,7 @@ export function QueryPlanViewer({ understanding, plan, explanation, loading }: Q
       label: (
         <Space>
           <FormOutlined />
-          <span>解释说明</span>
+          <span>{t('plan.explanation')}</span>
         </Space>
       ),
       children: <Paragraph style={{ fontSize: 13, margin: 0 }}>{explanation}</Paragraph>,
@@ -152,7 +158,7 @@ export function QueryPlanViewer({ understanding, plan, explanation, loading }: Q
   return (
     <Card
       size="small"
-      title="查询分析与计划"
+      title={t('plan.title')}
       loading={loading}
       style={{ marginBottom: 12 }}
     >

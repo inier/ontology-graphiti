@@ -1,7 +1,8 @@
 import { useState, useEffect } from 'react';
-import { Table, Switch, Button, Modal, Select, Card, Tag, Space, message, Popconfirm, Form, Input } from 'antd';
+import { Switch, Button, Modal, Select, Card, Tag, Space, message, Popconfirm, Form, Input } from 'antd';
 import { PlusOutlined, DeleteOutlined, ReloadOutlined } from '@ant-design/icons';
 import { apiClient } from '@/modules/shared/services/apiClient';
+import { AdvancedTable } from '@/modules/shared';
 
 interface HookRecord {
   hook_id: string;
@@ -190,7 +191,7 @@ export default function HookManager() {
           </Space>
         }
       >
-        <Table
+        <AdvancedTable
           dataSource={hooks}
           columns={columns}
           rowKey="hook_id"

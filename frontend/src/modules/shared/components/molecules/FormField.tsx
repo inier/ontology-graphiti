@@ -1,5 +1,5 @@
 import type { FC, ReactNode, CSSProperties } from 'react';
-import { Form } from 'antd';
+import { ProForm as Form } from '@ant-design/pro-components';
 import adapter from '../adapter';
 import type { InputProps, SelectProps } from '../adapter';
 

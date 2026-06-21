@@ -1,4 +1,5 @@
-import { Card, Progress, Tag, Space, Tooltip, Alert } from 'antd';
+import { Progress, Tag, Space, Tooltip, Alert } from 'antd';
+import { ProCard as Card } from '@ant-design/pro-components';
 import {
   CheckCircleFilled,
   LoadingOutlined,
@@ -7,6 +8,7 @@ import {
   CloseCircleFilled,
   SyncOutlined
 } from '@ant-design/icons';
+import { useI18n } from '@/modules/shared/hooks/useI18n';
 
 export interface Stage {
   id: string;
@@ -43,30 +45,34 @@ const STATUS_ICONS = {
   warning: <WarningFilled style={{ color: STAGE_COLORS.warning }} />
 };
 
-const STATUS_TEXT = {
-  pending: '等待中',
-  in_progress: '进行中',
-  completed: '已完成',
-  error: '失败',
-  warning: '异常'
+type StatusKey = keyof typeof STATUS_ICONS;
+
+const STATUS_KEY_MAP: Record<StatusKey, string> = {
+  pending: 'buildProgress.statusPending',
+  in_progress: 'buildProgress.statusInProgress',
+  completed: 'buildProgress.statusCompleted',
+  error: 'buildProgress.statusError',
+  warning: 'buildProgress.statusWarning',
 };
 
-function formatTime(seconds?: number): string {
+function formatTime(seconds?: number, t: (key: string, opts?: Record<string, unknown>) => string): string {
   if (!seconds) return '--';
-  if (seconds < 60) return `${Math.round(seconds)}秒`;
+  if (seconds < 60) return `${Math.round(seconds)}${t('buildProgress.seconds')}`;
   const minutes = Math.floor(seconds / 60);
   const remainingSeconds = Math.round(seconds % 60);
-  return `${minutes}分${remainingSeconds}秒`;
+  return t('buildProgress.minutesSeconds', { m: minutes, s: remainingSeconds });
 }
 
 function StageNode({
   stage,
   isLast,
-  onClick
+  onClick,
+  t,
 }: {
   stage: Stage;
   isLast: boolean;
   onClick?: () => void;
+  t: (key: string) => string;
 }) {
   return (
     <div style={{ display: 'flex', alignItems: 'center', minWidth: 100 }}>
@@ -102,7 +108,7 @@ function StageNode({
             color={STAGE_COLORS[stage.status]}
             style={{ margin: 0, fontSize: 12 }}
           >
-            {STATUS_TEXT[stage.status]}
+            {t(STATUS_KEY_MAP[stage.status])}
           </Tag>
         </div>
       </Tooltip>
@@ -130,6 +136,7 @@ export function OntologyBuildProgress({
   taskDescription,
   errorMessage
 }: ProgressTrackerProps) {
+  const { t } = useI18n('ontology');
   return (
     <Card
       style={{ borderRadius: 8, marginBottom: 16 }}
@@ -139,7 +146,7 @@ export function OntologyBuildProgress({
         <div style={{ marginBottom: 16 }}>
           <Space>
             <SyncOutlined spin={stages.some(s => s.status === 'in_progress')} />
-            <span style={{ color: '#8c8c8c', fontSize: 14 }}>当前任务:</span>
+            <span style={{ color: '#8c8c8c', fontSize: 14 }}>{t('buildProgress.currentTask')}:</span>
             <span style={{ color: '#262626', fontSize: 14, fontWeight: 500 }}>
               {taskDescription}
             </span>
@@ -163,6 +170,7 @@ export function OntologyBuildProgress({
             stage={stage}
             isLast={index === stages.length - 1}
             onClick={onStageClick ? () => onStageClick(stage) : undefined}
+            t={t}
           />
         ))}
       </div>
@@ -181,14 +189,14 @@ export function OntologyBuildProgress({
         <Space size={24}>
           <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
             <ClockCircleOutlined style={{ color: '#8c8c8c' }} />
-            <span style={{ color: '#8c8c8c', fontSize: 14 }}>预计剩余时间:</span>
+            <span style={{ color: '#8c8c8c', fontSize: 14 }}>{t('buildProgress.estimatedTime')}:</span>
             <span style={{ color: '#262626', fontSize: 14, fontWeight: 500 }}>
-              {formatTime(estimatedTimeRemaining)}
+              {formatTime(estimatedTimeRemaining, t)}
             </span>
           </div>
         </Space>
         <div style={{ display: 'flex', alignItems: 'center', gap: 8, minWidth: 200 }}>
-          <span style={{ color: '#8c8c8c', fontSize: 14 }}>实时进度:</span>
+          <span style={{ color: '#8c8c8c', fontSize: 14 }}>{t('buildProgress.realtimeProgress')}:</span>
           <Progress
             percent={Math.round(progress)}
             size="small"
@@ -201,7 +209,7 @@ export function OntologyBuildProgress({
 
       {errorMessage && (
         <Alert
-          title="异常提示"
+          title={t('buildProgress.errorAlert')}
           description={errorMessage}
           type="warning"
           showIcon
@@ -214,7 +222,6 @@ export function OntologyBuildProgress({
         @keyframes spin {
           from { transform: rotate(0deg); }
           to { transform: rotate(360deg); }
-        }
       `}</style>
     </Card>
   );

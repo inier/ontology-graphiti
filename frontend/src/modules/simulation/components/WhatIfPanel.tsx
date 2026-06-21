@@ -1,8 +1,9 @@
 import { useState } from 'react';
-import { Form, InputNumber, Button, Card, Table, Tag, Space, Typography, message } from 'antd';
+import { Form, InputNumber, Button, Card, Tag, Space, Typography, message } from 'antd';
 import { ExperimentOutlined } from '@ant-design/icons';
 import { apiClient } from '@/modules/shared/services/apiClient';
 import { useI18n } from '@/modules/shared/hooks/useI18n';
+import { AdvancedTable } from '@/modules/shared';
 
 const { Text } = Typography;
 
@@ -170,7 +171,7 @@ function WhatIfPanel({ sandboxId, scenarioId }: WhatIfPanelProps) {
 
         {sensitivityData.length > 0 && (
           <Card type="inner" title={t('whatif.sensitivity', 'Sensitivity Analysis')} size="small">
-            <Table
+            <AdvancedTable
               dataSource={sensitivityData}
               columns={columns}
               rowKey={(r) => `${r.parameter}-${r.delta}`}

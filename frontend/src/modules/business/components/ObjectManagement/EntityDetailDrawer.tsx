@@ -1,4 +1,6 @@
-import { Drawer, Descriptions, Tag, Space, Badge, Typography, Card, Tabs, List } from 'antd';
+import { Drawer, Tag, Space, Badge, Typography, Tabs, List } from 'antd';
+import { ProDescriptions as Descriptions } from '@ant-design/pro-components';
+import { ProCard as Card } from '@ant-design/pro-components';
 import { DatabaseOutlined, InfoCircleOutlined, ClusterOutlined, BranchesOutlined, BuildOutlined, AimOutlined } from '@ant-design/icons';
 import type { ManagedEntity } from './types';
 import { TYPE_COLORS, TYPE_LABELS, SOURCE_LABELS } from './types';

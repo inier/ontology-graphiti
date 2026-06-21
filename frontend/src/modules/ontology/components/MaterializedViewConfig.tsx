@@ -11,8 +11,9 @@
  */
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import {
-  Card, Row, Col, Tree, Checkbox, Typography, Tag, Space, Button, Form, Select, Input, Empty, Spin, message, Statistic, List, Tooltip,
+  Card, Row, Col, Tree, Checkbox, Typography, Tag, Space, Button, Select, Input, Empty, Spin, message, Statistic, List, Tooltip,
 } from 'antd';
+import { ProForm as Form } from '@ant-design/pro-components';
 import type { DataNode } from 'antd/es/tree';
 import {
   ReloadOutlined, PlayCircleOutlined, SaveOutlined, CheckOutlined, CloseOutlined, ClockCircleOutlined,
@@ -51,23 +52,8 @@ interface MaterializedView {
   error_count: number;
 }
 
-const STORAGE_OPTIONS = [
-  { value: 'sqlite', label: 'SQLite' },
-  { value: 'neo4j', label: 'Neo4j' },
-  { value: 'redis', label: 'Redis' },
-];
-
-const SCHEDULE_PRESETS: Array<{ value: string; label: string; cron: string }> = [
-  { value: '5min', label: '每 5 分钟', cron: '*/5 * * * *' },
-  { value: 'hourly', label: '每小时', cron: '0 * * * *' },
-  { value: 'daily', label: '每天 (00:00)', cron: '0 0 * * *' },
-  { value: 'manual', label: '手动', cron: '' },
-];
-
 export function MaterializedViewConfig({ workspaceId }: MaterializedViewConfigProps) {
-  const { t } = useI18n();
-  void t;
-  void workspaceId;
+  const { t } = useI18n('ontology');
   const [objectTypeTree, setObjectTypeTree] = useState<ObjectTypeNode[]>([]);
   const [selectedObjectTypeIds, setSelectedObjectTypeIds] = useState<string[]>([]);
   const [computedByOT, setComputedByOT] = useState<Record<string, ComputedSummary[]>>({});
@@ -77,6 +63,19 @@ export function MaterializedViewConfig({ workspaceId }: MaterializedViewConfigPr
   const [form] = Form.useForm();
   const [saving, setSaving] = useState(false);
   const [triggering, setTriggering] = useState(false);
+
+  const STORAGE_OPTIONS = useMemo(() => [
+    { value: 'sqlite', label: t('materializedView.storageSqlite') },
+    { value: 'neo4j', label: t('materializedView.storageNeo4j') },
+    { value: 'redis', label: t('materializedView.storageRedis') },
+  ], [t]);
+
+  const SCHEDULE_PRESETS: Array<{ value: string; label: string; cron: string }> = useMemo(() => [
+    { value: '5min', label: t('materializedView.schedule5min'), cron: '*/5 * * * *' },
+    { value: 'hourly', label: t('materializedView.scheduleHourly'), cron: '0 * * * *' },
+    { value: 'daily', label: t('materializedView.scheduleDaily'), cron: '0 0 * * *' },
+    { value: 'manual', label: t('materializedView.scheduleManual'), cron: '' },
+  ], [t]);
 
   const fetchAll = useCallback(async () => {
     setLoading(true);
@@ -88,11 +87,11 @@ export function MaterializedViewConfig({ workspaceId }: MaterializedViewConfigPr
       setObjectTypeTree(otRes.object_types || []);
       setViews(viewRes.views || []);
     } catch (e) {
-      message.error(`加载失败: ${(e as Error).message}`);
+      message.error(t('materializedView.loadFailed', { msg: (e as Error).message }));
     } finally {
       setLoading(false);
     }
-  }, []);
+  }, [t]);
 
   useEffect(() => { void fetchAll(); }, [fetchAll]);
 
@@ -146,18 +145,18 @@ export function MaterializedViewConfig({ workspaceId }: MaterializedViewConfigPr
       enabled: v.enabled,
       computed_property_ids: v.computed_property_ids,
     });
-  }, [form]);
+  }, [form, SCHEDULE_PRESETS]);
 
   const handlePresetChange = useCallback((preset: string) => {
     const found = SCHEDULE_PRESETS.find((p) => p.value === preset);
     if (found) {
       form.setFieldsValue({ cron: found.cron });
     }
-  }, [form]);
+  }, [form, SCHEDULE_PRESETS]);
 
   const handleSave = useCallback(async () => {
     if (!selectedView) {
-      message.warning('请先选择或新建视图');
+      message.warning(t('materializedView.selectOrCreateView'));
       return;
     }
     try {
@@ -172,19 +171,19 @@ export function MaterializedViewConfig({ workspaceId }: MaterializedViewConfigPr
           computed_property_ids: values.computed_property_ids,
         },
       );
-      message.success('已保存');
+      message.success(t('materializedView.saved'));
       void fetchAll();
     } catch (e) {
       if ((e as { errorFields?: unknown[] }).errorFields) return;
-      message.error(`保存失败: ${(e as Error).message}`);
+      message.error(t('materializedView.saveFailed', { msg: (e as Error).message }));
     } finally {
       setSaving(false);
     }
-  }, [form, selectedView, fetchAll]);
+  }, [form, selectedView, fetchAll, t]);
 
   const handleTrigger = useCallback(async () => {
     if (!selectedView) {
-      message.warning('请先选择视图');
+      message.warning(t('materializedView.selectView'));
       return;
     }
     setTriggering(true);
@@ -193,14 +192,14 @@ export function MaterializedViewConfig({ workspaceId }: MaterializedViewConfigPr
         `/api/ontology/computed/materialized-views/${selectedView.id}/trigger`,
         {},
       );
-      message.success('物化已触发');
+      message.success(t('materializedView.triggered'));
       void fetchAll();
     } catch (e) {
-      message.error(`触发失败: ${(e as Error).message}`);
+      message.error(t('materializedView.triggerFailed', { msg: (e as Error).message }));
     } finally {
       setTriggering(false);
     }
-  }, [selectedView, fetchAll]);
+  }, [selectedView, fetchAll, t]);
 
   const selectedOTName = useMemo(() => {
     if (!selectedView) return '';
@@ -220,16 +219,16 @@ export function MaterializedViewConfig({ workspaceId }: MaterializedViewConfigPr
   return (
     <div data-testid="materialized-view-config" style={{ padding: 16 }}>
       <Space style={{ marginBottom: 16, width: '100%', justifyContent: 'space-between' }} wrap>
-        <Title level={3} style={{ margin: 0 }}>物化视图配置</Title>
-        <Button icon={<ReloadOutlined />} onClick={() => void fetchAll()}>刷新</Button>
+        <Title level={3} style={{ margin: 0 }}>{t('materializedView.title')}</Title>
+        <Button icon={<ReloadOutlined />} onClick={() => void fetchAll()}>{t('materializedView.refresh')}</Button>
       </Space>
 
       <Spin spinning={loading}>
         <Row gutter={16}>
           <Col xs={24} md={8}>
-            <Card size="small" title="ObjectType">
+            <Card size="small" title={t('materializedView.objectTypeCardTitle')}>
               {treeData.length === 0 ? (
-                <Empty description="无 ObjectType" image={Empty.PRESENTED_IMAGE_SIMPLE} />
+                <Empty description={t('materializedView.noObjectType')} image={Empty.PRESENTED_IMAGE_SIMPLE} />
               ) : (
                 <Tree
                   checkable
@@ -242,15 +241,15 @@ export function MaterializedViewConfig({ workspaceId }: MaterializedViewConfigPr
               {selectedObjectTypeIds.length > 0 && (
                 <div style={{ marginTop: 8 }}>
                   <Text type="secondary" style={{ fontSize: 12 }}>
-                    已选 {selectedObjectTypeIds.length} 个 ObjectType
+                    {t('materializedView.selectedObjectTypeCount', { count: selectedObjectTypeIds.length })}
                   </Text>
                 </div>
               )}
             </Card>
 
-            <Card size="small" title="已配置视图" style={{ marginTop: 12 }}>
+            <Card size="small" title={t('materializedView.configuredViewsTitle')} style={{ marginTop: 12 }}>
               {views.length === 0 ? (
-                <Empty description="暂无视图" image={Empty.PRESENTED_IMAGE_SIMPLE} />
+                <Empty description={t('materializedView.noViews')} image={Empty.PRESENTED_IMAGE_SIMPLE} />
               ) : (
                 <List
                   size="small"
@@ -267,11 +266,11 @@ export function MaterializedViewConfig({ workspaceId }: MaterializedViewConfigPr
                         <Space>
                           <Text strong>{v.object_type_name}</Text>
                           {v.enabled
-                            ? <Tag color="green" icon={<CheckOutlined />}>enabled</Tag>
-                            : <Tag color="default" icon={<CloseOutlined />}>disabled</Tag>}
+                            ? <Tag color="green" icon={<CheckOutlined />}>{t('materializedView.enabled')}</Tag>
+                            : <Tag color="default" icon={<CloseOutlined />}>{t('materializedView.disabled')}</Tag>}
                         </Space>
                         <Text type="secondary" style={{ fontSize: 12 }}>
-                          {v.schedule_cron || 'manual'} · {v.storage}
+                          {v.schedule_cron || t('materializedView.manual')} · {v.storage}
                         </Text>
                       </Space>
                     </List.Item>
@@ -284,29 +283,29 @@ export function MaterializedViewConfig({ workspaceId }: MaterializedViewConfigPr
           <Col xs={24} md={16}>
             {!selectedView ? (
               <Card>
-                <Empty description="请从左侧选择一个 ObjectType 或已配置视图" />
+                <Empty description={t('materializedView.selectFromLeft')} />
               </Card>
             ) : (
               <Space orientation="vertical" size="middle" style={{ width: '100%' }}>
-                <Card size="small" title={`视图: ${selectedOTName}`}>
+                <Card size="small" title={t('materializedView.viewTitle', { name: selectedOTName })}>
                   <Row gutter={12}>
                     <Col span={8}>
                       <Statistic
-                        title="最近物化时间"
-                        value={selectedView.last_run_at ? new Date(selectedView.last_run_at).toLocaleString() : '从未运行'}
+                        title={t('materializedView.statLastRun')}
+                        value={selectedView.last_run_at ? new Date(selectedView.last_run_at).toLocaleString() : t('materializedView.neverRun')}
                         styles={{ content: { fontSize: 14 } }}
                       />
                     </Col>
                     <Col span={8}>
                       <Statistic
-                        title="耗时 (ms)"
+                        title={t('materializedView.statDuration')}
                         value={selectedView.last_run_duration_ms ?? 0}
                         styles={{ content: { fontSize: 14 } }}
                       />
                     </Col>
                     <Col span={8}>
                       <Statistic
-                        title="错误数"
+                        title={t('materializedView.statErrorCount')}
                         value={selectedView.error_count}
                         styles={{ content: { fontSize: 14, color: selectedView.error_count > 0 ? '#ff4d4f' : undefined } }}
                       />
@@ -314,7 +313,7 @@ export function MaterializedViewConfig({ workspaceId }: MaterializedViewConfigPr
                   </Row>
                 </Card>
 
-                <Card size="small" title="配置">
+                <Card size="small" title={t('materializedView.configTitle')}>
                   <Form
                     form={form}
                     layout="vertical"
@@ -322,11 +321,11 @@ export function MaterializedViewConfig({ workspaceId }: MaterializedViewConfigPr
                   >
                     <Row gutter={12}>
                       <Col xs={24} md={12}>
-                        <Form.Item name="schedule_preset" label="Schedule 预设">
+                        <Form.Item name="schedule_preset" label={t('materializedView.schedulePreset')}>
                           <Select
                             options={[
                               ...SCHEDULE_PRESETS,
-                              { value: 'custom', label: '自定义 Cron' },
+                              { value: 'custom', label: t('materializedView.scheduleCustom') },
                             ]}
                             onChange={handlePresetChange}
                           />
@@ -335,11 +334,11 @@ export function MaterializedViewConfig({ workspaceId }: MaterializedViewConfigPr
                       <Col xs={24} md={12}>
                         <Form.Item
                           name="cron"
-                          label="Cron 表达式"
-                          tooltip="标准 5 段 Cron，例：0 0 * * * 表示每天 0 点"
+                          label={t('materializedView.cronExpression')}
+                          tooltip={t('materializedView.cronTooltip')}
                         >
                           <Input
-                            placeholder="0 0 * * *"
+                            placeholder={t('materializedView.cronPlaceholder')}
                             prefix={<ClockCircleOutlined />}
                           />
                         </Form.Item>
@@ -347,19 +346,19 @@ export function MaterializedViewConfig({ workspaceId }: MaterializedViewConfigPr
                     </Row>
                     <Row gutter={12}>
                       <Col xs={24} md={12}>
-                        <Form.Item name="storage" label="物化目标存储">
+                        <Form.Item name="storage" label={t('materializedView.storageLabel')}>
                           <Select options={STORAGE_OPTIONS} />
                         </Form.Item>
                       </Col>
                       <Col xs={24} md={12}>
-                        <Form.Item name="enabled" label="启用" valuePropName="checked">
-                          <Checkbox>启用物化任务</Checkbox>
+                        <Form.Item name="enabled" label={t('materializedView.enableLabel')} valuePropName="checked">
+                          <Checkbox>{t('materializedView.enableMaterialize')}</Checkbox>
                         </Form.Item>
                       </Col>
                     </Row>
-                    <Form.Item label="计算的属性">
+                    <Form.Item label={t('materializedView.computedProperties')}>
                       {computedOptions.length === 0 ? (
-                        <Empty description="该 ObjectType 下无计算属性" image={Empty.PRESENTED_IMAGE_SIMPLE} />
+                        <Empty description={t('materializedView.noComputedProperties')} image={Empty.PRESENTED_IMAGE_SIMPLE} />
                       ) : (
                         <Form.Item name="computed_property_ids" noStyle>
                           <Checkbox.Group style={{ width: '100%' }}>
@@ -387,14 +386,14 @@ export function MaterializedViewConfig({ workspaceId }: MaterializedViewConfigPr
                       loading={saving}
                       onClick={handleSave}
                     >
-                      保存配置
+                      {t('materializedView.saveConfig')}
                     </Button>
                     <Button
                       icon={<PlayCircleOutlined />}
                       loading={triggering}
                       onClick={handleTrigger}
                     >
-                      Trigger Now
+                      {t('materializedView.triggerNow')}
                     </Button>
                   </Space>
                 </Card>

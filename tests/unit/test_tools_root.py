@@ -30,9 +30,9 @@ class TestTools(unittest.TestCase):
         
         # 验证关键技能存在
         expected_skills = [
-            'attack_target',
+            'engage_target',
             'command_unit',
-            'search_radar',
+            'search_sensor',
             'analyze_domain'
         ]
         
@@ -44,9 +44,9 @@ class TestTools(unittest.TestCase):
 
     def test_skill_execution(self):
         """测试技能执行"""
-        # 测试 search_radar 技能
-        if 'search_radar' in SKILL_CATALOG:
-            handler = SKILL_CATALOG['search_radar']['handler']
+        # 测试 search_sensor 技能
+        if 'search_sensor' in SKILL_CATALOG:
+            handler = SKILL_CATALOG['search_sensor']['handler']
             result = handler(area="B")
             self.assertIsInstance(result, list)
         

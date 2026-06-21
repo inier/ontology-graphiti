@@ -10,7 +10,7 @@
  */
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import {
-  Card, Row, Col, Tree, Form, Input, Select, Button, Space, Tabs, Table, Tag, Empty, Spin, Drawer, message, Typography, Alert, InputNumber, Switch, Checkbox, Divider,
+  Card, Row, Col, Tree, Form, Input, Select, Button, Space, Tabs, Tag, Empty, Spin, Drawer, message, Typography, Alert, InputNumber, Switch, Checkbox, Divider,
 } from 'antd';
 import type { DataNode } from 'antd/es/tree';
 import type { ColumnsType } from 'antd/es/table';
@@ -19,6 +19,7 @@ import {
 } from '@ant-design/icons';
 import { viewApi, type ObjectView, type ViewPermission } from '../services/viewApi';
 import { useI18n } from '@/modules/shared/hooks/useI18n';
+import { AdvancedTable } from '@/modules/shared';
 
 const { Text, Title } = Typography;
 
@@ -219,7 +220,7 @@ export function ViewDesigner({ viewId, onSaved, onClose }: ViewDesignerProps) {
                 {
                   key: 'fields', label: `字段 (${fields.length})`,
                   children: fields.length === 0 ? <Empty description="从左侧选择字段" /> : (
-                    <Table
+                    <AdvancedTable
                       rowKey="field" size="small" pagination={false}
                       dataSource={fields.map((f) => ({ ...f, key: f.field }))}
                       columns={[
@@ -287,7 +288,7 @@ export function ViewDesigner({ viewId, onSaved, onClose }: ViewDesignerProps) {
           <Card type="inner" title="实时预览" size="small">
             <Spin spinning={previewing}>
               {previewRows.length === 0 ? <Empty description="点击'测试查询'" /> : (
-                <Table size="small" pagination={false} scroll={{ x: 'max-content' }} dataSource={previewRows.map((r, i) => ({ ...r, key: i }))} columns={previewColumns} />
+                <AdvancedTable size="small" pagination={false} scroll={{ x: 'max-content' }} dataSource={previewRows.map((r, i) => ({ ...r, key: i }))} columns={previewColumns} />
               )}
             </Spin>
             <Divider />

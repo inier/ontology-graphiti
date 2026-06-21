@@ -1,8 +1,9 @@
 import { useState, useEffect } from 'react';
-import { Card, Table, Button, Modal, Form, Input, Select, Tag, Space, message, Popconfirm } from 'antd';
+import { Card, Button, Modal, Form, Input, Select, Tag, Space, message, Popconfirm } from 'antd';
 import { PlusOutlined, SearchOutlined, DeleteOutlined, SwapOutlined } from '@ant-design/icons';
 import { fetchJson } from '@/modules/shared/services/apiClient';
 import { API_BASE } from '@/config';
+import { AdvancedTable } from '@/modules/shared';
 
 const BASE = `${API_BASE}/api/skill`;
 
@@ -174,7 +175,7 @@ export function SkillManager() {
           </Space>
         }
       >
-        <Table
+        <AdvancedTable
           dataSource={skills}
           columns={columns}
           rowKey="skill_id"

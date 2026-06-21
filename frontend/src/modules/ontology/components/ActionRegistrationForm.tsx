@@ -17,8 +17,9 @@
  */
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import {
-  Card, Form, Input, Select, Button, Space, Row, Col, Typography, Tag, message, Empty, Alert,
+  Card, Input, Select, Button, Space, Row, Col, Typography, Tag, message, Empty, Alert,
 } from 'antd';
+import { ProForm as Form } from '@ant-design/pro-components';
 import {
   SaveOutlined, PlayCircleOutlined, CloseOutlined, PlusOutlined, DeleteOutlined,
 } from '@ant-design/icons';
@@ -59,28 +60,8 @@ interface ActionFormValues {
   tags: string[];
 }
 
-const RETURN_TYPE_OPTIONS = [
-  { value: 'void', label: 'void（无返回值）' },
-  { value: 'boolean', label: 'boolean' },
-  { value: 'object', label: 'object' },
-  { value: 'array', label: 'array' },
-  { value: 'string', label: 'string' },
-  { value: 'integer', label: 'integer' },
-  { value: 'float', label: 'float' },
-];
-
-const PARAM_TYPE_OPTIONS = [
-  { value: 'string', label: 'string' },
-  { value: 'integer', label: 'integer' },
-  { value: 'float', label: 'float' },
-  { value: 'boolean', label: 'boolean' },
-  { value: 'object', label: 'object' },
-  { value: 'array', label: 'array' },
-];
-
 export function ActionRegistrationForm({ actionId, onClose, onSaved }: ActionRegistrationFormProps) {
-  const { t } = useI18n();
-  void t;
+  const { t } = useI18n('ontology');
   const [form] = Form.useForm<ActionFormValues>();
   const [parameters, setParameters] = useState<ParameterDef[]>([]);
   const [tagInput, setTagInput] = useState('');
@@ -97,6 +78,25 @@ export function ActionRegistrationForm({ actionId, onClose, onSaved }: ActionReg
   const [actionSkillId, setActionSkillId] = useState<string | undefined>();
   const [actionOpaPolicyId, setActionOpaPolicyId] = useState<string>('');
 
+  const RETURN_TYPE_OPTIONS = useMemo(() => [
+    { value: 'void', label: t('action.returnTypeVoid') },
+    { value: 'boolean', label: 'boolean' },
+    { value: 'object', label: 'object' },
+    { value: 'array', label: 'array' },
+    { value: 'string', label: 'string' },
+    { value: 'integer', label: 'integer' },
+    { value: 'float', label: 'float' },
+  ], [t]);
+
+  const PARAM_TYPE_OPTIONS = useMemo(() => [
+    { value: 'string', label: 'string' },
+    { value: 'integer', label: 'integer' },
+    { value: 'float', label: 'float' },
+    { value: 'boolean', label: 'boolean' },
+    { value: 'object', label: 'object' },
+    { value: 'array', label: 'array' },
+  ], []);
+
   // ---- fetch skills ----
   const fetchSkills = useCallback(async () => {
     setSkillsLoading(true);
@@ -104,11 +104,11 @@ export function ActionRegistrationForm({ actionId, onClose, onSaved }: ActionReg
       const data = await apiClient.get<{ skills: SkillOption[] }>('/api/skills');
       setSkillOptions(data.skills || []);
     } catch (e) {
-      message.error(`加载 Skill 失败: ${(e as Error).message}`);
+      message.error(t('action.loadSkillFailed', { msg: (e as Error).message }));
     } finally {
       setSkillsLoading(false);
     }
-  }, []);
+  }, [t]);
 
   const fetchExistingNames = useCallback(async () => {
     try {
@@ -153,9 +153,9 @@ export function ActionRegistrationForm({ actionId, onClose, onSaved }: ActionReg
       setTags(data.tags || []);
       setPreconditionsText(data.preconditions ? JSON.stringify(data.preconditions, null, 2) : '');
     } catch (e) {
-      message.error(`加载 Action 失败: ${(e as Error).message}`);
+      message.error(t('action.loadActionFailed', { msg: (e as Error).message }));
     }
-  }, [actionId, form]);
+  }, [actionId, form, t]);
 
   useEffect(() => {
     void fetchSkills();
@@ -181,8 +181,8 @@ export function ActionRegistrationForm({ actionId, onClose, onSaved }: ActionReg
     setTagInput('');
   }, [tagInput, tags]);
 
-  const handleRemoveTag = useCallback((t: string) => {
-    setTags((prev) => prev.filter((x) => x !== t));
+  const handleRemoveTag = useCallback((tag: string) => {
+    setTags((prev) => prev.filter((x) => x !== tag));
   }, []);
 
   const previewJson = useMemo(() => {
@@ -220,7 +220,7 @@ export function ActionRegistrationForm({ actionId, onClose, onSaved }: ActionReg
       try {
         preconditions = JSON.parse(preconditionsText);
       } catch {
-        message.error('Preconditions JSON 格式错误');
+        message.error(t('action.preconditionsError'));
         throw new Error('preconditions-json');
       }
     }
@@ -231,7 +231,7 @@ export function ActionRegistrationForm({ actionId, onClose, onSaved }: ActionReg
       parameters: cleanedParams,
       preconditions,
     };
-  }, [form, preconditionsText, parameters]);
+  }, [form, preconditionsText, parameters, t]);
 
   const handleSave = useCallback(async (testAfter: boolean) => {
     let payload: Awaited<ReturnType<typeof validateAndCollect>>;
@@ -246,33 +246,32 @@ export function ActionRegistrationForm({ actionId, onClose, onSaved }: ActionReg
       const saved = actionId
         ? await apiClient.put<{ id: string; name: string }>(`/api/ontology/action-types/${actionId}`, payload)
         : await apiClient.post<{ id: string; name: string }>('/api/ontology/action-types', payload);
-      message.success(actionId ? 'Action 已更新' : 'Action 已创建');
+      message.success(actionId ? t('action.updated') : t('action.created'));
       onSaved?.(saved);
       if (testAfter) {
-        // mock 跳转到测试页面
         console.log('[ActionRegistrationForm] Navigate to test page with params:', saved);
         try {
           await apiClient.post(`/api/ontology/action-types/${saved.id}/test`, {
             parameters: {},
           });
-          message.info('测试已触发（mock）');
+          message.info(t('action.testTriggered'));
         } catch {
           // 非阻塞
         }
       }
     } catch (e) {
-      message.error(`保存失败: ${(e as Error).message}`);
+      message.error(t('action.saveFailed', { msg: (e as Error).message }));
     } finally {
       setSaving(false);
     }
-  }, [actionId, validateAndCollect, onSaved]);
+  }, [actionId, validateAndCollect, onSaved, t]);
 
   return (
     <div data-testid="action-registration-form" style={{ padding: 16 }}>
       <Space style={{ marginBottom: 16, width: '100%', justifyContent: 'space-between' }} wrap>
-        <Title level={3} style={{ margin: 0 }}>{actionId ? '编辑 Action' : '注册新 Action'}</Title>
+        <Title level={3} style={{ margin: 0 }}>{actionId ? t('action.edit') : t('action.create')}</Title>
         {onClose && (
-          <Button icon={<CloseOutlined />} onClick={onClose}>关闭</Button>
+          <Button icon={<CloseOutlined />} onClick={onClose}>{t('action.close')}</Button>
         )}
       </Space>
 
@@ -294,36 +293,36 @@ export function ActionRegistrationForm({ actionId, onClose, onSaved }: ActionReg
             >
               <Form.Item
                 name="name"
-                label="名称 (name)"
+                label={t('action.name')}
                 rules={[
-                  { required: true, message: '请输入名称' },
-                  { pattern: /^[a-zA-Z][a-zA-Z0-9_]*$/, message: '以字母开头，仅允许字母数字下划线' },
+                  { required: true, message: t('action.nameRequired') },
+                  { pattern: /^[a-zA-Z][a-zA-Z0-9_]*$/, message: t('action.namePattern') },
                   {
                     validator: (_, value: string) => {
                       if (!value) return Promise.resolve();
                       if (actionId) return Promise.resolve();
                       if (existingNames.includes(value)) {
-                        return Promise.reject(new Error('名称已存在，请使用其他名称'));
+                        return Promise.reject(new Error(t('action.nameDuplicate')));
                       }
                       return Promise.resolve();
                     },
                   },
                 ]}
               >
-                <Input placeholder="create_user" />
+                <Input placeholder={t('action.namePlaceholder')} />
               </Form.Item>
 
-              <Form.Item name="display_name" label="显示名 (display_name)">
-                <Input placeholder="创建用户" />
+              <Form.Item name="display_name" label={t('action.displayName')}>
+                <Input placeholder={t('action.displayNamePlaceholder')} />
               </Form.Item>
 
-              <Form.Item name="description" label="描述">
-                <TextArea rows={3} placeholder="Action 用途说明" />
+              <Form.Item name="description" label={t('action.description')}>
+                <TextArea rows={3} placeholder={t('action.descriptionPlaceholder')} />
               </Form.Item>
 
-              <Form.Item label="参数 (parameters)">
+              <Form.Item label={t('action.parameters')}>
                 {parameters.length === 0 ? (
-                  <Empty description="暂无参数" image={Empty.PRESENTED_IMAGE_SIMPLE} />
+                  <Empty description={t('action.noParameters')} image={Empty.PRESENTED_IMAGE_SIMPLE} />
                 ) : (
                   parameters.map((p, idx) => (
                     <Card
@@ -342,16 +341,16 @@ export function ActionRegistrationForm({ actionId, onClose, onSaved }: ActionReg
                     >
                       <Row gutter={8}>
                         <Col span={8}>
-                          <Form.Item label="参数名" style={{ marginBottom: 0 }}>
+                          <Form.Item label={t('action.paramName')} style={{ marginBottom: 0 }}>
                             <Input
                               value={p.name}
-                              placeholder="param_name"
+                              placeholder={t('action.paramNamePlaceholder')}
                               onChange={(e) => updateParameter(idx, { ...p, name: e.target.value })}
                             />
                           </Form.Item>
                         </Col>
                         <Col span={6}>
-                          <Form.Item label="类型" style={{ marginBottom: 0 }}>
+                          <Form.Item label={t('action.paramType')} style={{ marginBottom: 0 }}>
                             <Select
                               value={p.type}
                               onChange={(v) => updateParameter(idx, { ...p, type: v as ParameterDef['type'] })}
@@ -360,19 +359,19 @@ export function ActionRegistrationForm({ actionId, onClose, onSaved }: ActionReg
                           </Form.Item>
                         </Col>
                         <Col span={4}>
-                          <Form.Item label="必填" style={{ marginBottom: 0 }}>
+                          <Form.Item label={t('action.paramRequired')} style={{ marginBottom: 0 }}>
                             <Select
                               value={p.required ? 'yes' : 'no'}
                               onChange={(v) => updateParameter(idx, { ...p, required: v === 'yes' })}
-                              options={[{ value: 'yes', label: '是' }, { value: 'no', label: '否' }]}
+                              options={[{ value: 'yes', label: t('action.yes') }, { value: 'no', label: t('action.no') }]}
                             />
                           </Form.Item>
                         </Col>
                         <Col span={6}>
-                          <Form.Item label="默认值" style={{ marginBottom: 0 }}>
+                          <Form.Item label={t('action.paramDefault')} style={{ marginBottom: 0 }}>
                             <Input
                               value={p.default_value || ''}
-                              placeholder="default"
+                              placeholder={t('action.paramDefaultPlaceholder')}
                               onChange={(e) => updateParameter(idx, { ...p, default_value: e.target.value })}
                             />
                           </Form.Item>
@@ -388,69 +387,69 @@ export function ActionRegistrationForm({ actionId, onClose, onSaved }: ActionReg
                   block
                   style={{ marginTop: 8 }}
                 >
-                  新增参数
+                  {t('action.addParameter')}
                 </Button>
               </Form.Item>
 
-              <Form.Item name="return_type" label="返回类型 (return_type)" rules={[{ required: true, message: '请选择返回类型' }]}>
+              <Form.Item name="return_type" label={t('action.returnType')} rules={[{ required: true, message: t('action.returnTypeRequired') }]}>
                 <Select options={RETURN_TYPE_OPTIONS} />
               </Form.Item>
 
-              <Form.Item name="linked_skill_id" label="关联 Skill (linked_skill_id)">
+              <Form.Item name="linked_skill_id" label={t('action.linkedSkill')}>
                 <Select
                   allowClear
                   showSearch
                   optionFilterProp="label"
                   loading={skillsLoading}
-                  placeholder="选择已注册 Skill"
+                  placeholder={t('action.selectSkill')}
                   options={skillOptions.map((s) => ({ value: s.skill_id, label: s.name }))}
                 />
               </Form.Item>
 
-              <Form.Item name="opa_policy_id" label="OPA 策略 ID (opa_policy_id)">
-                <Input placeholder="ontology.action.create_user" />
+              <Form.Item name="opa_policy_id" label={t('action.opaPolicyId')}>
+                <Input placeholder={t('action.opaPolicyPlaceholder')} />
               </Form.Item>
 
-              <Form.Item label="前置条件 (preconditions, JSON)">
+              <Form.Item label={t('action.preconditions')}>
                 <TextArea
                   rows={4}
                   value={preconditionsText}
                   onChange={(e) => setPreconditionsText(e.target.value)}
-                  placeholder='{"requires_role": "admin"}'
+                  placeholder={t('action.preconditionsPlaceholder')}
                 />
                 {preconditionsText.trim() && (() => {
                   try {
                     JSON.parse(preconditionsText);
                     return null;
                   } catch {
-                    return <Alert type="error" showIcon message="JSON 格式错误" style={{ marginTop: 4 }} />;
+                    return <Alert type="error" showIcon message={t('action.preconditionsInvalid')} style={{ marginTop: 4 }} />;
                   }
                 })()}
               </Form.Item>
 
-              <Form.Item label="标签 (tags)">
+              <Form.Item label={t('action.tags')}>
                 <Space.Compact style={{ width: '100%' }}>
                   <Input
                     value={tagInput}
                     onChange={(e) => setTagInput(e.target.value)}
                     onPressEnter={(e) => { e.preventDefault(); handleAddTag(); }}
-                    placeholder="输入后回车"
+                    placeholder={t('action.tagInputPlaceholder')}
                   />
-                  <Button type="primary" onClick={handleAddTag}>添加</Button>
+                  <Button type="primary" onClick={handleAddTag}>{t('action.addTag')}</Button>
                 </Space.Compact>
                 <div style={{ marginTop: 8 }}>
                   {tags.length === 0 ? (
-                    <Text type="secondary" style={{ fontSize: 12 }}>暂无标签</Text>
+                    <Text type="secondary" style={{ fontSize: 12 }}>{t('action.noTags')}</Text>
                   ) : (
-                    tags.map((t) => (
+                    tags.map((tag) => (
                       <Tag
-                        key={t}
+                        key={tag}
                         color="blue"
                         closable
-                        onClose={() => handleRemoveTag(t)}
+                        onClose={() => handleRemoveTag(tag)}
                         style={{ marginBottom: 4 }}
                       >
-                        {t}
+                        {tag}
                       </Tag>
                     ))
                   )}
@@ -461,7 +460,7 @@ export function ActionRegistrationForm({ actionId, onClose, onSaved }: ActionReg
         </Col>
 
         <Col xs={24} md={10}>
-          <Card title="JSON 预览" size="small">
+          <Card title={t('action.jsonPreview')} size="small">
             <pre
               style={{
                 background: '#fafafa',
@@ -481,14 +480,14 @@ export function ActionRegistrationForm({ actionId, onClose, onSaved }: ActionReg
 
       <div style={{ marginTop: 16, textAlign: 'right' }}>
         <Space>
-          {onClose && <Button onClick={onClose}>取消</Button>}
+          {onClose && <Button onClick={onClose}>{t('action.cancel')}</Button>}
           <Button
             type="primary"
             icon={<SaveOutlined />}
             loading={saving}
             onClick={() => handleSave(false)}
           >
-            Save
+            {t('action.save')}
           </Button>
           <Button
             type="primary"
@@ -497,7 +496,7 @@ export function ActionRegistrationForm({ actionId, onClose, onSaved }: ActionReg
             loading={saving}
             onClick={() => handleSave(true)}
           >
-            Save & Test
+            {t('action.saveAndTest')}
           </Button>
         </Space>
       </div>

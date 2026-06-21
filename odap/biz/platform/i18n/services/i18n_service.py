@@ -6,9 +6,9 @@ from ..storage import Storage
 
 logger = logging.getLogger("i18n_service")
 
-SUPPORTED_LOCALES = [
-    LocaleInfo(code="zh-CN", name="Chinese (Simplified)", native_name="简体中文"),
-    LocaleInfo(code="en-US", name="English (US)", native_name="English"),
+DEFAULT_LOCALES = [
+    {"code": "zh-CN", "name": "Chinese (Simplified)", "native_name": "简体中文"},
+    {"code": "en-US", "name": "English (US)", "native_name": "English"},
 ]
 
 
@@ -24,7 +24,20 @@ class I18nService:
         if hasattr(self, "_initialized"):
             return
         self._storage = Storage()
+        self._seed_default_locales()
         self._initialized = True
+
+    def _seed_default_locales(self):
+        """Seed default locales on first init."""
+        existing = self._storage.list_locales()
+        existing_codes = {loc["code"] for loc in existing}
+        for loc in DEFAULT_LOCALES:
+            if loc["code"] not in existing_codes:
+                self._storage.add_locale(
+                    code=loc["code"], name=loc["name"], native_name=loc["native_name"]
+                )
+
+    # ── Translation CRUD ──
 
     def get_translations(
         self, module: Optional[str] = None, locale: Optional[str] = None
@@ -32,10 +45,42 @@ class I18nService:
         return self._storage.list_translations(module=module, locale=locale)
 
     def save_translation(
-        self, key: str, module: str, locale: str, value: str
+        self, key: str, module: str, locale: str, value: str, updated_by: str = "system"
     ) -> Dict[str, Any]:
         translation = Translation(key=key, module=module, locale=locale, value=value)
-        return self._storage.save_translation(translation)
+        return self._storage.save_translation(translation, updated_by=updated_by)
+
+    def save_translations_bulk(
+        self, items: List[Dict[str, Any]], updated_by: str = "system"
+    ) -> Dict[str, Any]:
+        count = self._storage.save_translations_bulk(items, updated_by=updated_by)
+        return {"status": "success", "count": count}
+
+    def delete_translation(
+        self, key: str, module: str, locale: str
+    ) -> Dict[str, Any]:
+        deleted = self._storage.delete_translation(key, module, locale)
+        if not deleted:
+            return {"status": "error", "message": "Translation not found"}
+        return {"status": "success", "deleted": True}
+
+    def review_translation(
+        self, key: str, module: str, locale: str, approved: bool, updated_by: str = "system"
+    ) -> Dict[str, Any]:
+        updated = self._storage.review_translation(key, module, locale, approved, updated_by)
+        if not updated:
+            return {"status": "error", "message": "Translation not found"}
+        return {"status": "success", "approved": approved}
+
+    def get_bundle(self, namespace: str, locale: str) -> Dict[str, Any]:
+        bundle = self._storage.get_bundle(namespace, locale)
+        return {"status": "success", "namespace": namespace, "locale": locale, "bundle": bundle}
+
+    def scan_missing(self, module: str, locale: str) -> Dict[str, Any]:
+        result = self._storage.scan_missing(module, locale)
+        return {"status": "success", "module": module, "locale": locale, **result}
+
+    # ── Auto translate ──
 
     def auto_translate(
         self, module: str, source_locale: str, target_locale: str
@@ -49,6 +94,7 @@ class I18nService:
             return {"status": "error", "message": "No source translations found"}
 
         translated = []
+        skipped = 0
         for item in items:
             try:
                 translated_value = self._call_llm_translate(
@@ -69,8 +115,11 @@ class I18nService:
                             "translated_value": translated_value,
                         }
                     )
+                else:
+                    skipped += 1
             except Exception as e:
                 logger.warning("Auto-translate failed for key %s: %s", item["key"], e)
+                skipped += 1
 
         return {
             "status": "success",
@@ -79,6 +128,7 @@ class I18nService:
             "target_locale": target_locale,
             "translated_count": len(translated),
             "total_count": len(items),
+            "skipped": skipped,
             "translations": translated,
         }
 
@@ -114,20 +164,26 @@ class I18nService:
             logger.warning("LLM translate failed: %s", e)
             return None
 
+    # ── Module ──
+
     def list_modules(self) -> Dict[str, Any]:
         modules = self._storage.list_modules()
         return {"status": "success", "modules": modules, "count": len(modules)}
 
+    # ── Locale management ──
+
     def list_locales(self) -> Dict[str, Any]:
-        db_locales = self._storage.list_locales()
-        all_locales = list(set(db_locales + [loc.code for loc in SUPPORTED_LOCALES]))
-        locale_infos = []
-        for loc in SUPPORTED_LOCALES:
-            if loc.code in all_locales:
-                locale_infos.append(loc.model_dump())
-        for code in db_locales:
-            if code not in [loc.code for loc in SUPPORTED_LOCALES]:
-                locale_infos.append(
-                    {"code": code, "name": code, "native_name": code}
-                )
-        return {"status": "success", "locales": locale_infos, "count": len(locale_infos)}
+        locales = self._storage.list_locales()
+        return {"status": "success", "locales": locales, "count": len(locales)}
+
+    def add_locale(
+        self, code: str, name: str, native_name: str, is_active: bool = True
+    ) -> Dict[str, Any]:
+        result = self._storage.add_locale(code, name, native_name)
+        return {"status": "success", "locale": result}
+
+    def remove_locale(self, code: str, delete_translations: bool = False) -> Dict[str, Any]:
+        removed = self._storage.remove_locale(code, delete_translations)
+        if not removed:
+            return {"status": "error", "message": "Locale not found"}
+        return {"status": "success", "code": code, "deactivated": True}

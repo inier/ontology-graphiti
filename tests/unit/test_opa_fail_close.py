@@ -139,8 +139,8 @@ class TestCheckPermissionFailClose:
 
             mgr = OPAManager()
             # In mock mode, falls back to mock implementation
-            result = mgr.check_permission("pilot", "view_intelligence", {"id": "r1"})
-            # pilot has "view_intelligence" in mock, so should be True
+            result = mgr.check_permission("pilot", "view_information", {"id": "r1"})
+            # pilot has "view_information" in mock, so should be True
             assert result is True
 
 

@@ -31,6 +31,10 @@ python-dateutil
 
 # 序列化
 jsonpickle
+pyyaml>=6.0
+
+# 任务队列
+celery>=5.3.0
 
 # 新增依赖
 pydantic>=2.0.0

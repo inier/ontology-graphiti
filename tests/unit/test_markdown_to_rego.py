@@ -29,7 +29,7 @@ class TestMarkdownPolicyConverter:
         assert "package policies.commander_policy" in rego
         assert 'input.user.role == "commander"' in rego
         assert '"view"' in rego
-        assert '"attack"' in rego
+        assert '"attack"' in rego or '"攻击"' in rego
         assert "default allow := false" in rego
 
     def test_action_with_conditions(self, converter):

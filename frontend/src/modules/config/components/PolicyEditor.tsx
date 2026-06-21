@@ -1,5 +1,6 @@
 import { useState } from 'react';
-import { Input, Card, Tag, Space, Button } from 'antd';
+import { Input, Tag, Space, Button } from 'antd';
+import { ProCard as Card } from '@ant-design/pro-components';
 import {
   EyeOutlined,
   EditOutlined,
@@ -24,7 +25,7 @@ export function PolicyEditor({
   compileStatus,
   readOnly = false,
 }: PolicyEditorProps) {
-  const { t } = useI18n('audit');
+  const { t } = useI18n('config');
   const [preview, setPreview] = useState(false);
 
   const renderCompileStatus = () => {
@@ -41,7 +42,7 @@ export function PolicyEditor({
         </Tag>
         {compileStatus.errors && compileStatus.errors.length > 0 && (
           <span style={{ fontSize: 12, color: '#ff4d4f' }}>
-            {compileStatus.errors.length} error(s)
+            {t('policy.errorCount', { count: compileStatus.errors.length })}
           </span>
         )}
       </Space>
@@ -107,7 +108,7 @@ export function PolicyEditor({
             icon={<EyeOutlined />}
             onClick={() => setPreview(true)}
           >
-            Preview
+            {t('policy.preview')}
           </Button>
         </Space>
       }
@@ -122,7 +123,7 @@ export function PolicyEditor({
           rows={16}
           readOnly={readOnly}
           style={{ fontFamily: 'monospace', fontSize: 13 }}
-          placeholder={`# Policy Title\n\n## Rules\nAllow access during working hours.\n\n## Conditions\n- Role: analyst\n- Time: 09:00-18:00\n\n## Actions\n- Allow read\n- Deny write`}
+          placeholder={t('policy.contentPlaceholderEn')}
         />
       )}
       {compileStatus?.errors && compileStatus.errors.length > 0 && (

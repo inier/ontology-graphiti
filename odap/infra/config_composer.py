@@ -166,6 +166,16 @@ class ConfigurationComposer:
             "CORS_ORIGINS": "general.cors_origins",
             "RATE_LIMIT_ENABLED": "rate_limit.enabled",
             "RATE_LIMIT_RPS": "rate_limit.requests_per_second",
+            # MCP / Browser automation
+            "BROWSER_MCP_URL": "mcp.browser_mcp_url",
+            "MCP_URL": "mcp.mcp_url",
+            # Crawl4AI
+            "CRAWL4AI_API_URL": "crawl.api_url",
+            # OAuth2 / Third-party login
+            "OAUTH2_GOOGLE_CLIENT_ID": "oauth.google_client_id",
+            "OAUTH2_GOOGLE_CLIENT_SECRET": "oauth.google_client_secret",
+            "OAUTH2_GITHUB_CLIENT_ID": "oauth.github_client_id",
+            "OAUTH2_GITHUB_CLIENT_SECRET": "oauth.github_client_secret",
         }
         for env_key, config_key in mapping.items():
             value = os.getenv(env_key)

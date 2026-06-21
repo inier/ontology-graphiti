@@ -13,7 +13,7 @@
  */
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import {
-  Card, Tabs, Table, Tag, Button, Space, Typography, Empty, Spin, Modal, Form, Input, Popconfirm, Transfer, Input as AntInput, Select, Switch, message, Row, Col,
+  Card, Tabs, Tag, Button, Space, Typography, Empty, Spin, Modal, Form, Input, Popconfirm, Transfer, Input as AntInput, Select, Switch, message, Row, Col,
 } from 'antd';
 import type { ColumnsType } from 'antd/es/table';
 import type { TransferProps } from 'antd';
@@ -21,6 +21,7 @@ import { PlusOutlined, ReloadOutlined, EditOutlined, DeleteOutlined, AppstoreOut
 import { apiClient } from '@/modules/shared/services/apiClient';
 import { useI18n } from '@/modules/shared/hooks/useI18n';
 import type { PropertyDefinition } from '../services/ontologyApi';
+import { AdvancedTable } from '@/modules/shared';
 
 const { Text, Title } = Typography;
 const { TextArea } = AntInput;
@@ -294,7 +295,7 @@ export function MixinConfig({ workspaceId }: MixinConfigProps) {
                   {mixins.length === 0 ? (
                     <Empty description="暂无 Mixin" />
                   ) : (
-                    <Table<Mixin>
+                    <AdvancedTable<Mixin>
                       rowKey="mixin_id"
                       size="small"
                       dataSource={mixins}

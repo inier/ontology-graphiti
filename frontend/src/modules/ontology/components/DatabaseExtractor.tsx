@@ -1,9 +1,10 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
 import { useState, useCallback } from 'react';
 import {
-  Card, Form, Input, InputNumber, Select, Button, Switch,
+  Card, Input, InputNumber, Select, Button, Switch,
   Space, Alert, Spin, Steps, message, Tag,
 } from 'antd';
+import { ProForm as Form } from '@ant-design/pro-components';
 import {
   DatabaseOutlined, ApiOutlined, ThunderboltOutlined,
   CheckCircleOutlined,
@@ -11,6 +12,7 @@ import {
 import { ontologyApi } from '../services/ontologyApi';
 import { ExtractionPreview } from './ExtractionPreview';
 import type { ExtractionResult, ExtractionConflict } from './ExtractionPreview';
+import { useI18n } from '@/modules/shared/hooks/useI18n';
 
 /* ------------------------------------------------------------------ */
 /*  Types                                                              */
@@ -48,6 +50,7 @@ const DEFAULT_PORTS: Record<DbType, number | null> = {
 /* ------------------------------------------------------------------ */
 
 export function DatabaseExtractor({ ontologyId, onImportComplete }: DatabaseExtractorProps) {
+  const { t } = useI18n('ontology');
   const [form] = Form.useForm<ConnectionFormValues>();
 
   // ── State ────────────────────────────────────────────────────────
@@ -89,22 +92,22 @@ export function DatabaseExtractor({ ontologyId, onImportComplete }: DatabaseExtr
         setAvailableTables(tables);
         setSelectedTables(tables);
         setCurrentStep(1);
-        message.success('连接成功');
+        message.success(t('databaseExtract.connectSuccess'));
       } else {
-        message.error(result?.message || '连接失败');
+        message.error(result?.message || t('databaseExtract.connectFailed', { msg: '' }));
       }
     } catch (e) {
       if ((e as any)?.errorFields) return; // form validation
-      message.error(`连接失败: ${(e as Error).message}`);
+      message.error(t('databaseExtract.connectFailed', { msg: (e as Error).message }));
     } finally {
       setTesting(false);
     }
-  }, [form]);
+  }, [form, t]);
 
   // ── Step 2: Start Extraction ──────────────────────────────────────
   const handleExtract = useCallback(async () => {
     if (selectedTables.length === 0) {
-      message.warning('请至少选择一个表');
+      message.warning(t('databaseExtract.selectOneTableFirst'));
       return;
     }
 
@@ -136,13 +139,13 @@ export function DatabaseExtractor({ ontologyId, onImportComplete }: DatabaseExtr
       });
       setExtractionConflicts(result?.conflicts || []);
       setCurrentStep(2);
-      message.success('抽取完成');
+      message.success(t('databaseExtract.extractSuccess'));
     } catch (e) {
-      message.error(`抽取失败: ${(e as Error).message}`);
+      message.error(t('databaseExtract.extractFailed', { msg: (e as Error).message }));
     } finally {
       setExtracting(false);
     }
-  }, [form, ontologyId, selectedTables, useLLM]);
+  }, [form, ontologyId, selectedTables, useLLM, t]);
 
   // ── Step indicators ───────────────────────────────────────────────
   const stepStatuses: StepStatus[] = [
@@ -160,26 +163,26 @@ export function DatabaseExtractor({ ontologyId, onImportComplete }: DatabaseExtr
         size="small"
         current={currentStep}
         items={[
-          { title: '连接数据库', status: stepStatuses[0], icon: connectionOk ? <CheckCircleOutlined /> : <DatabaseOutlined /> },
-          { title: '选择表', status: stepStatuses[1], icon: <ApiOutlined /> },
-          { title: '预览导入', status: stepStatuses[2], icon: <ThunderboltOutlined /> },
+          { title: t('databaseExtract.stepConnect'), status: stepStatuses[0], icon: connectionOk ? <CheckCircleOutlined /> : <DatabaseOutlined /> },
+          { title: t('databaseExtract.stepSelect'), status: stepStatuses[1], icon: <ApiOutlined /> },
+          { title: t('databaseExtract.stepPreview'), status: stepStatuses[2], icon: <ThunderboltOutlined /> },
         ]}
       />
 
       {/* ── Step 0: Connection Form ──────────────────────────────── */}
       {currentStep === 0 && (
-        <Card title="数据库连接配置" size="small">
+        <Card title={t('databaseExtract.connectionConfig')} size="small">
           <Form
             form={form}
             layout="vertical"
             initialValues={{ db_type: 'mysql', port: 3306 }}
           >
-            <Form.Item name="db_type" label="数据库类型" rules={[{ required: true, message: '请选择数据库类型' }]}>
+            <Form.Item name="db_type" label={t('databaseExtract.dbType')} rules={[{ required: true, message: t('databaseExtract.dbTypeRequired') }]}>
               <Select
                 options={[
-                  { label: 'MySQL', value: 'mysql' },
-                  { label: 'PostgreSQL', value: 'postgresql' },
-                  { label: 'SQLite', value: 'sqlite' },
+                  { label: t('databaseExtract.dbTypeMysql'), value: 'mysql' },
+                  { label: t('databaseExtract.dbTypePostgresql'), value: 'postgresql' },
+                  { label: t('databaseExtract.dbTypeSqlite'), value: 'sqlite' },
                 ]}
                 onChange={(v: DbType) => {
                   setDbType(v);
@@ -192,16 +195,16 @@ export function DatabaseExtractor({ ontologyId, onImportComplete }: DatabaseExtr
 
             {!isSqlite && (
               <>
-                <Form.Item name="host" label="主机地址" rules={[{ required: true, message: '请输入主机地址' }]}>
-                  <Input placeholder="例如: 192.168.1.100" />
+                <Form.Item name="host" label={t('databaseExtract.host')} rules={[{ required: true, message: t('databaseExtract.hostRequired') }]}>
+                  <Input placeholder={t('databaseExtract.hostPlaceholder')} />
                 </Form.Item>
-                <Form.Item name="port" label="端口" rules={[{ required: true, message: '请输入端口' }]}>
+                <Form.Item name="port" label={t('databaseExtract.port')} rules={[{ required: true, message: t('databaseExtract.portRequired') }]}>
                   <InputNumber style={{ width: '100%' }} min={1} max={65535} />
                 </Form.Item>
-                <Form.Item name="username" label="用户名" rules={[{ required: true, message: '请输入用户名' }]}>
+                <Form.Item name="username" label={t('databaseExtract.username')} rules={[{ required: true, message: t('databaseExtract.usernameRequired') }]}>
                   <Input />
                 </Form.Item>
-                <Form.Item name="password" label="密码">
+                <Form.Item name="password" label={t('databaseExtract.password')}>
                   <Input.Password />
                 </Form.Item>
               </>
@@ -209,10 +212,10 @@ export function DatabaseExtractor({ ontologyId, onImportComplete }: DatabaseExtr
 
             <Form.Item
               name="database"
-              label={isSqlite ? '数据库文件路径' : '数据库名称'}
-              rules={[{ required: true, message: isSqlite ? '请输入文件路径' : '请输入数据库名称' }]}
+              label={isSqlite ? t('databaseExtract.dbFile') : t('databaseExtract.dbName')}
+              rules={[{ required: true, message: isSqlite ? t('databaseExtract.dbFileRequired') : t('databaseExtract.dbNameRequired') }]}
             >
-              <Input placeholder={isSqlite ? '/path/to/database.db' : 'my_database'} />
+              <Input placeholder={isSqlite ? t('databaseExtract.dbFilePlaceholder') : t('databaseExtract.dbNamePlaceholder')} />
             </Form.Item>
 
             <Form.Item>
@@ -223,10 +226,10 @@ export function DatabaseExtractor({ ontologyId, onImportComplete }: DatabaseExtr
                   onClick={handleTestConnection}
                   loading={testing}
                 >
-                  测试连接
+                  {t('databaseExtract.testConnection')}
                 </Button>
                 {connectionOk && (
-                  <Tag icon={<CheckCircleOutlined />} color="success">连接成功</Tag>
+                  <Tag icon={<CheckCircleOutlined />} color="success">{t('databaseExtract.connectionOk')}</Tag>
                 )}
               </Space>
             </Form.Item>
@@ -237,26 +240,26 @@ export function DatabaseExtractor({ ontologyId, onImportComplete }: DatabaseExtr
       {/* ── Step 1: Table Filter ─────────────────────────────────── */}
       {currentStep === 1 && (
         <Card
-          title="选择要抽取的表"
+          title={t('databaseExtract.selectTables')}
           size="small"
           extra={
             <Button size="small" onClick={() => { setCurrentStep(0); setConnectionOk(false); }}>
-              返回修改连接
+              {t('databaseExtract.backToConfig')}
             </Button>
           }
         >
           <Space orientation="vertical" style={{ width: '100%' }} size="middle">
             <Alert
               type="info"
-              message={`已发现 ${availableTables.length} 个表，请选择需要抽取的表`}
+              message={t('databaseExtract.tablesFound', { count: availableTables.length })}
               showIcon
             />
 
             <Form layout="vertical">
-              <Form.Item label="选择表">
+              <Form.Item label={t('databaseExtract.selectTableLabel')}>
                 <Select
                   mode="multiple"
-                  placeholder="选择要抽取的表"
+                  placeholder={t('databaseExtract.selectTablePlaceholder')}
                   value={selectedTables}
                   onChange={setSelectedTables}
                   options={availableTables.map((t) => ({ label: t, value: t }))}
@@ -265,10 +268,10 @@ export function DatabaseExtractor({ ontologyId, onImportComplete }: DatabaseExtr
                 />
               </Form.Item>
 
-              <Form.Item label="LLM 增强">
+              <Form.Item label={t('databaseExtract.llmEnhancement')}>
                 <Space>
                   <Switch checked={useLLM} onChange={setUseLLM} />
-                  <span style={{ color: '#666' }}>使用 LLM 补充字段描述和关系推断</span>
+                  <span style={{ color: '#666' }}>{t('databaseExtract.llmDescription')}</span>
                 </Space>
               </Form.Item>
             </Form>
@@ -282,7 +285,7 @@ export function DatabaseExtractor({ ontologyId, onImportComplete }: DatabaseExtr
                 disabled={selectedTables.length === 0}
                 size="large"
               >
-                开始抽取
+                {t('databaseExtract.startExtract')}
               </Button>
             </div>
           </Space>
@@ -293,15 +296,15 @@ export function DatabaseExtractor({ ontologyId, onImportComplete }: DatabaseExtr
       {currentStep === 2 && extractionResult && (
         <>
           <Card
-            title="抽取结果预览"
+            title={t('databaseExtract.extractResultPreview')}
             size="small"
             extra={
               <Space>
                 <Button size="small" onClick={() => { setCurrentStep(1); setExtractionResult(null); }}>
-                  返回重新选择
+                  {t('databaseExtract.reselectTables')}
                 </Button>
                 <Button size="small" onClick={() => { setCurrentStep(0); setConnectionOk(false); setExtractionResult(null); }}>
-                  重新连接
+                  {t('databaseExtract.reconnect')}
                 </Button>
               </Space>
             }
@@ -319,7 +322,7 @@ export function DatabaseExtractor({ ontologyId, onImportComplete }: DatabaseExtr
       {/* ── Loading overlay ──────────────────────────────────────── */}
       {extracting && (
         <div style={{ textAlign: 'center', padding: 40 }}>
-          <Spin size="large" description="正在抽取数据库 Schema..." />
+          <Spin size="large" description={t('databaseExtract.extractingDb')} />
         </div>
       )}
     </div>

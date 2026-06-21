@@ -232,13 +232,23 @@ class NewsIngester:
 
         self.llm = llm_client
 
-        # 优先使用传入的参数,其次从环境变量读取
+        # 优先使用传入的参数,其次从在线配置读取,最后从环境变量
 
-        self._search_api_key = search_api_key or os.getenv('SERPAPI_KEY', '')
+        def _read_config(key: str, env_key: str, default: str = "") -> str:
+            try:
+                from odap.infra.config_composer import get_config
+                val = get_config(key, "")
+                if val:
+                    return val
+            except Exception:
+                pass
+            return os.getenv(env_key, default)
 
-        self._tavily_api_key = tavily_api_key or os.getenv('TAVILY_API_KEY', '')
+        self._search_api_key = search_api_key or _read_config("search.serpapi_key", "SERPAPI_KEY")
 
-        self._ddg_api_url = os.getenv('DDG_API_URL', '')
+        self._tavily_api_key = tavily_api_key or _read_config("search.tavily_api_key", "TAVILY_API_KEY")
+
+        self._ddg_api_url = _read_config("search.ddg_api_url", "DDG_API_URL")
 
         self._use_mock = (llm_client is None)
 

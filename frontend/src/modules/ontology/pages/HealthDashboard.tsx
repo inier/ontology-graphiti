@@ -6,7 +6,7 @@
  */
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import {
-  Card, Row, Col, Button, Space, Tabs, Table, Empty, Spin, Drawer, Statistic, Tag, message, Typography, List, Divider, Alert,
+  Card, Row, Col, Button, Space, Tabs, Empty, Spin, Drawer, Statistic, Tag, message, Typography, List, Divider, Alert,
 } from 'antd';
 import {
   ReloadOutlined, PlusOutlined, ThunderboltOutlined, CheckCircleTwoTone, CloseCircleTwoTone, WarningTwoTone, MinusCircleTwoTone,
@@ -16,6 +16,7 @@ import { HealthRuleEditor } from '../components/HealthRuleEditor';
 import { apiClient } from '@/modules/shared/services/apiClient';
 import { useI18n } from '@/modules/shared/hooks/useI18n';
 import type { ReactNode } from 'react';
+import { AdvancedTable } from '@/modules/shared';
 
 const { Title, Text } = Typography;
 
@@ -123,7 +124,7 @@ export function HealthDashboardPage({ workspaceId }: HealthDashboardPageProps) {
                   {rules.length === 0 ? (
                     <Empty description="暂无规则" />
                   ) : (
-                    <Table
+                    <AdvancedTable
                       rowKey="rule_id"
                       dataSource={rules}
                       pagination={false}

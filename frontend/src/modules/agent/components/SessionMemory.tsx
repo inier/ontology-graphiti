@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react';
-import { Tabs, List, Input, Button, Card, Tag, Space, Typography, Empty, Spin, message, Popconfirm } from 'antd';
+import { Tabs, List, Input, Button, Tag, Space, Typography, Empty, Spin, message, Popconfirm } from 'antd';
+import { ProCard as Card } from '@ant-design/pro-components';
 import { SearchOutlined, ClearOutlined } from '@ant-design/icons';
 import { apiClient } from '@/modules/shared/services/apiClient';
 

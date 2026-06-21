@@ -5,7 +5,8 @@
  * 支持：dagre/force/circular 布局、节点选中高亮、边点击、搜索、导出PNG、侧面板 slot
  */
 import { useEffect, useRef, useState, useCallback, useMemo } from 'react';
-import { Card, Empty, Space, Tag, Select, Input, Button, Tooltip } from 'antd';
+import { Empty, Space, Tag, Select, Input, Button, Tooltip } from 'antd';
+import { ProCard as Card } from '@ant-design/pro-components';
 import { ZoomInOutlined, ZoomOutOutlined, FullscreenOutlined, ExportOutlined, SearchOutlined } from '@ant-design/icons';
 import GraphView from './GraphView';
 import type { GraphViewApi } from './GraphView';

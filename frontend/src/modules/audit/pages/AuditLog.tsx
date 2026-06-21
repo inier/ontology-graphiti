@@ -1,11 +1,12 @@
 import { useState, useEffect } from 'react';
-import { Table, Card, Select, DatePicker, Row, Col, Tag, Statistic, Button, Space, message, Tabs } from 'antd';
+import { Card, Select, DatePicker, Row, Col, Tag, Statistic, Button, Space, message, Tabs } from 'antd';
 import { ReloadOutlined } from '@ant-design/icons';
 import { api } from '@/modules/shared/services/api';
 import type { AuditEvent } from '@/modules/shared/services/api';
 import type { Dayjs } from 'dayjs';
 import dayjs from 'dayjs';
 import { NLQueryAuditPanel } from '@/modules/qa/components/NLQueryAuditPanel';
+import { AdvancedTable } from '@/modules/shared';
 
 const { RangePicker } = DatePicker;
 
@@ -273,7 +274,7 @@ export function AuditLog() {
                     </Button>
                   </Space>
 
-                  <Table
+                  <AdvancedTable
                     columns={columns}
                     dataSource={events}
                     rowKey="id"

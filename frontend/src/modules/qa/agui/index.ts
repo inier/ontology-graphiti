@@ -3,8 +3,14 @@
  */
 
 export * from './agui_types';
-export { AGUIProvider, useAGUIContext } from './AGUIProvider';
-export type { AGUIProviderProps, AGUIProviderConfig, AGUIContextValue } from './AGUIProvider';
+export { AGUIProvider, useAGUIContext, AGUIErrorBoundary } from './AGUIProvider';
+export type {
+  AGUIProviderProps,
+  AGUIProviderConfig,
+  AGUIContextValue,
+  AGUINamespace,
+  AGUIErrorBoundaryProps,
+} from './AGUIProvider';
 export { useAGUI } from './useAGUI';
 export type { UseAGUIOptions, UseAGUIReturn } from './useAGUI';
 export { CardRenderer, getRegisteredCardTypes } from './CardRegistry';

@@ -1,9 +1,10 @@
 import { useState, useEffect } from 'react';
-import { Card, Table, Button, Space, Tag, Switch, Upload, Modal, Form, Input, Select, Tabs, Row, Col, Statistic, message, Popconfirm, Empty, Descriptions, Badge, Divider, Typography } from 'antd';
+import { Card, Button, Space, Tag, Switch, Upload, Modal, Form, Input, Select, Tabs, Row, Col, Statistic, message, Popconfirm, Empty, Descriptions, Badge, Divider, Typography } from 'antd';
 import { UploadOutlined, ReloadOutlined, PlusOutlined, DeleteOutlined, CheckCircleOutlined, StopOutlined, AppstoreOutlined, FolderOutlined, FileTextOutlined, EyeOutlined, ThunderboltOutlined } from '@ant-design/icons';
 import { api } from '@/modules/shared';
 import { PageHeader } from '@/modules/shared';
 import { SkillEditor } from '../components/SkillEditor';
+import { AdvancedTable } from '@/modules/shared';
 
 const { Text } = Typography;
 const { TextArea } = Input;
@@ -179,7 +180,7 @@ export function SkillManagement() {
         {scannedSkills.length === 0 ? (
           <Empty description="暂无目录Skills，请上传或扫描" image={Empty.PRESENTED_IMAGE_SIMPLE} />
         ) : (
-          <Table
+          <AdvancedTable
             dataSource={scannedSkills}
             rowKey="name"
             pagination={{ pageSize: 10 }}
@@ -304,7 +305,7 @@ export function SkillManagement() {
       {registeredSkills.length === 0 ? (
         <Empty description="暂无注册的Skills" image={Empty.PRESENTED_IMAGE_SIMPLE} />
       ) : (
-        <Table
+        <AdvancedTable
           dataSource={registeredSkills}
           rowKey="skill_id"
           pagination={{ pageSize: 10 }}

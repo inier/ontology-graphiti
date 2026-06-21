@@ -1,7 +1,8 @@
 import { useState } from 'react';
-import { Select, Input, Button, Table, Card, Space, Typography, Tabs, Tag, Empty, Spin, message } from 'antd';
+import { Select, Input, Button, Card, Space, Typography, Tabs, Tag, Empty, Spin, message } from 'antd';
 import { SearchOutlined } from '@ant-design/icons';
 import { apiClient } from '@/modules/shared/services/apiClient';
+import { AdvancedTable } from '@/modules/shared';
 
 const { Text } = Typography;
 const { TextArea } = Input;
@@ -172,7 +173,7 @@ export default function QueryPanel({ workspaceId }: QueryPanelProps) {
                   {total} result{total !== 1 ? 's' : ''} from <Tag color="blue">{source}</Tag> source
                 </Text>
               </div>
-              <Table
+              <AdvancedTable
                 dataSource={results}
                 columns={columns}
                 rowKey={(_, index) => String(index)}

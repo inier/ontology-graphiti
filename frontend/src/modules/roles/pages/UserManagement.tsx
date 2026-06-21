@@ -1,7 +1,8 @@
 import { useState, useEffect } from 'react';
-import { Card, Button, Input, Modal, Form, message, Tag, Space, Table, Popconfirm, Select, Switch, Descriptions, Avatar } from 'antd';
+import { Card, Button, Input, Modal, Form, message, Tag, Space, Popconfirm, Select, Switch, Descriptions, Avatar } from 'antd';
 import { PlusOutlined, SearchOutlined, EditOutlined, DeleteOutlined, UserOutlined, SafetyCertificateOutlined } from '@ant-design/icons';
 import { fetchJson, API_BASE } from '@/modules/shared';
+import { AdvancedTable } from '@/modules/shared';
 
 const ROLE_OPTIONS = [
   { value: 'system_admin', label: '系统管理员', color: 'red' },
@@ -220,7 +221,7 @@ export function UserManagement() {
           </Space>
         }
       >
-        <Table
+        <AdvancedTable
           dataSource={filteredUsers}
           columns={columns}
           rowKey="id"

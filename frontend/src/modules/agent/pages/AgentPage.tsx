@@ -1,8 +1,9 @@
 import { useState } from 'react';
-import { Card, Input, Button, Timeline, Table, Tag, Space, Spin, Typography, Tabs, Descriptions, Tooltip } from 'antd';
+import { Card, Input, Button, Timeline, Tag, Space, Spin, Typography, Tabs, Descriptions, Tooltip } from 'antd';
 import { SendOutlined, ThunderboltOutlined, BranchesOutlined } from '@ant-design/icons';
 import { useAgentStore } from '../stores/agentStore';
 import type { DecisionStep } from '../services/agentApi';
+import { AdvancedTable } from '@/modules/shared';
 
 const { Title, Text } = Typography;
 
@@ -135,7 +136,7 @@ export function AgentPage() {
                 title="Decision Records"
                 extra={<Button onClick={handleLoadDecisions} loading={loading}>Refresh</Button>}
               >
-                <Table
+                <AdvancedTable
                   dataSource={decisions.decisions}
                   columns={decisionColumns}
                   rowKey="decision_id"

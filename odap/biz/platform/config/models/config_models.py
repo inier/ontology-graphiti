@@ -16,6 +16,9 @@ class ServiceCategory(str, Enum):
     CACHE = "cache"
     AUTH = "auth"
     GENERAL = "general"
+    MCP = "mcp"
+    CRAWL = "crawl"
+    OAUTH = "oauth"
 
 
 class ConfigValueType(str, Enum):
@@ -98,6 +101,9 @@ SERVICE_CATEGORY_META: Dict[str, Dict[str, str]] = {
     ServiceCategory.CACHE: {"label": "缓存服务", "description": "配置 Redis 缓存服务", "icon": "thunderbolt"},
     ServiceCategory.AUTH: {"label": "认证服务", "description": "配置 JWT 认证参数", "icon": "lock"},
     ServiceCategory.GENERAL: {"label": "通用设置", "description": "系统通用配置", "icon": "setting"},
+    ServiceCategory.MCP: {"label": "MCP 工具集成", "description": "配置 MCP 及浏览器自动化工具", "icon": "tool"},
+    ServiceCategory.CRAWL: {"label": "网页爬取", "description": "配置 Crawl4AI 爬取服务", "icon": "global"},
+    ServiceCategory.OAUTH: {"label": "第三方登录", "description": "配置 OAuth2 / OIDC 第三方登录", "icon": "login"},
 }
 
 # 预定义配置项注册表
@@ -131,4 +137,15 @@ PREDEFINED_CONFIG_ITEMS: List[Dict[str, Any]] = [
     # General
     {"key": "general.cors_origins", "value_type": "string", "category": "general", "label": "CORS 白名单", "description": "跨域白名单（逗号分隔）", "is_sensitive": False, "is_required": False, "sort_order": 1, "group": "network", "env_mapping": "CORS_ORIGINS"},
     {"key": "general.log_level", "value_type": "string", "category": "general", "label": "日志级别", "description": "系统日志级别", "is_sensitive": False, "is_required": False, "default_value": "INFO", "choices": ["DEBUG", "INFO", "WARNING", "ERROR"], "sort_order": 2, "group": "logging", "env_mapping": "LOG_LEVEL"},
+
+    # MCP
+    {"key": "mcp.browser_mcp_url", "value_type": "url", "category": "mcp", "label": "Browser MCP URL", "description": "浏览器自动化 MCP 服务地址", "is_sensitive": False, "is_required": False, "default_value": "http://localhost:8030", "sort_order": 1, "group": "browser", "env_mapping": "BROWSER_MCP_URL"},
+    {"key": "mcp.mcp_url", "value_type": "url", "category": "mcp", "label": "MCP 服务 URL", "description": "MCP 工具集成服务地址", "is_sensitive": False, "is_required": False, "default_value": "http://localhost:8010", "sort_order": 2, "group": "general", "env_mapping": "MCP_URL"},
+    # Crawl4AI
+    {"key": "crawl.api_url", "value_type": "url", "category": "crawl", "label": "Crawl4AI API URL", "description": "Crawl4AI 网页爬取服务地址", "is_sensitive": False, "is_required": False, "default_value": "http://localhost:8020", "sort_order": 1, "group": "connection", "env_mapping": "CRAWL4AI_API_URL"},
+    # OAuth / Third-party Login
+    {"key": "oauth.google_client_id", "value_type": "string", "category": "oauth", "label": "Google Client ID", "description": "Google OAuth2 客户端 ID", "is_sensitive": False, "is_required": False, "sort_order": 1, "group": "google", "env_mapping": "OAUTH2_GOOGLE_CLIENT_ID"},
+    {"key": "oauth.google_client_secret", "value_type": "password", "category": "oauth", "label": "Google Client Secret", "description": "Google OAuth2 客户端密钥", "is_sensitive": True, "is_required": False, "sort_order": 2, "group": "google", "env_mapping": "OAUTH2_GOOGLE_CLIENT_SECRET"},
+    {"key": "oauth.github_client_id", "value_type": "string", "category": "oauth", "label": "GitHub Client ID", "description": "GitHub OAuth2 客户端 ID", "is_sensitive": False, "is_required": False, "sort_order": 3, "group": "github", "env_mapping": "OAUTH2_GITHUB_CLIENT_ID"},
+    {"key": "oauth.github_client_secret", "value_type": "password", "category": "oauth", "label": "GitHub Client Secret", "description": "GitHub OAuth2 客户端密钥", "is_sensitive": True, "is_required": False, "sort_order": 4, "group": "github", "env_mapping": "OAUTH2_GITHUB_CLIENT_SECRET"},
 ]

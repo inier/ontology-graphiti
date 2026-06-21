@@ -1,5 +1,6 @@
 from fastapi import APIRouter, HTTPException, Depends
 from odap.infra.security.jwt_auth import get_current_user
+from odap.infra.security.audit_helper import audit as _audit_shared
 from typing import Dict, Any, Optional, List
 
 from ..impl.event_generator import get_event_generator
@@ -17,21 +18,17 @@ simulator_service = EventSimulatorService()
 
 def _audit(action: str, user_id: str, result_status: str, result_message: str = "",
            details: dict = None, service: str = "event_simulator", workspace_id: str = "default"):
-    """审计便捷函数"""
-    try:
-        from odap.infra.security.unified_audit import log_audit
-        log_audit(
-            action=action,
-            resource="event_simulator",
-            user=user_id,
-            service=service,
-            result_status=result_status,
-            result_message=result_message,
-            details=details or {},
-            workspace_id=workspace_id,
-        )
-    except Exception:
-        pass
+    """审计便捷函数 - 使用共享 helper"""
+    _audit_shared(
+        action=action,
+        user=user_id,
+        result_status=result_status,
+        result_message=result_message,
+        details=details,
+        service=service,
+        workspace_id=workspace_id,
+        resource="event_simulator",
+    )
 
 
 @router.post("/generate")

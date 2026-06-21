@@ -1,7 +1,10 @@
 import { useState, useEffect } from 'react';
-import { Card, Descriptions, Button, Tag, Space, Typography, List, Progress, Spin, Empty, message } from 'antd';
+import { Button, Tag, Space, Typography, List, Progress, Spin, Empty, message } from 'antd';
+import { ProDescriptions as Descriptions } from '@ant-design/pro-components';
+import { ProCard as Card } from '@ant-design/pro-components';
 import { CheckCircleOutlined, SyncOutlined } from '@ant-design/icons';
 import { apiClient } from '@/modules/shared/services/apiClient';
+import { useI18n } from '@/modules/shared/hooks/useI18n';
 
 const { Text } = Typography;
 
@@ -38,6 +41,7 @@ const SEVERITY_COLORS: Record<string, string> = {
 };
 
 export default function FeedbackPanel({ taskId, ontologyId }: FeedbackPanelProps) {
+  const { t } = useI18n('simulation');
   const [analysis, setAnalysis] = useState<FeedbackAnalysis | null>(null);
   const [aggregation, setAggregation] = useState<AggregatedFeedback | null>(null);
   const [loading, setLoading] = useState(false);
@@ -45,6 +49,7 @@ export default function FeedbackPanel({ taskId, ontologyId }: FeedbackPanelProps
   useEffect(() => {
     if (taskId) loadAnalysis(taskId);
     if (ontologyId) loadAggregation(ontologyId);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [taskId, ontologyId]);
 
   const loadAnalysis = async (id: string) => {
@@ -71,7 +76,7 @@ export default function FeedbackPanel({ taskId, ontologyId }: FeedbackPanelProps
   const handleCloseLoop = async () => {
     const sourceId = taskId || ontologyId || '';
     if (!sourceId) {
-      message.warning('No task or ontology specified');
+      message.warning(t('feedback.noSource'));
       return;
     }
     setLoading(true);
@@ -89,11 +94,11 @@ export default function FeedbackPanel({ taskId, ontologyId }: FeedbackPanelProps
         outcome: 'success',
         data: {},
       });
-      message.success(`Close-loop completed. Lesson: ${data.lesson_learned || 'N/A'}`);
+      message.success(t('feedback.closeLoopCompleted', { lesson: data.lesson_learned || 'N/A' }));
       if (taskId) loadAnalysis(taskId);
       if (ontologyId) loadAggregation(ontologyId);
     } catch (e) {
-      message.error(`Close-loop failed: ${(e as Error).message}`);
+      message.error(t('feedback.closeLoopFailed', { error: (e as Error).message }));
     } finally {
       setLoading(false);
     }
@@ -101,14 +106,14 @@ export default function FeedbackPanel({ taskId, ontologyId }: FeedbackPanelProps
 
   const renderAnalysis = () => {
     if (!analysis) {
-      return <Empty description="No feedback analysis available" image={Empty.PRESENTED_IMAGE_SIMPLE} />;
+      return <Empty description={t('feedback.noAnalysis')} image={Empty.PRESENTED_IMAGE_SIMPLE} />;
     }
     return (
       <Space orientation="vertical" style={{ width: '100%' }} size="middle">
         <Descriptions variant="bordered" size="small" column={2}>
-          <Descriptions.Item label="Task ID">{analysis.task_id}</Descriptions.Item>
-          <Descriptions.Item label="Total Feedbacks">{analysis.total_feedbacks}</Descriptions.Item>
-          <Descriptions.Item label="Avg Deviation" span={2}>
+          <Descriptions.Item label={t('feedback.taskId')}>{analysis.task_id}</Descriptions.Item>
+          <Descriptions.Item label={t('feedback.totalFeedbacks')}>{analysis.total_feedbacks}</Descriptions.Item>
+          <Descriptions.Item label={t('feedback.avgDeviation')} span={2}>
             <Progress
               percent={Math.round((1 - analysis.average_deviation) * 100)}
               size="small"
@@ -118,7 +123,7 @@ export default function FeedbackPanel({ taskId, ontologyId }: FeedbackPanelProps
         </Descriptions>
 
         {analysis.severity_distribution && Object.keys(analysis.severity_distribution).length > 0 && (
-          <Card title="Severity Distribution" size="small">
+          <Card title={t('feedback.severityDistribution')} size="small">
             <Space wrap>
               {Object.entries(analysis.severity_distribution).map(([severity, count]) => (
                 <Tag key={severity} color={SEVERITY_COLORS[severity] || 'default'}>
@@ -130,7 +135,7 @@ export default function FeedbackPanel({ taskId, ontologyId }: FeedbackPanelProps
         )}
 
         {analysis.lessons_learned && analysis.lessons_learned.length > 0 && (
-          <Card title="Lessons Learned" size="small">
+          <Card title={t('feedback.lessonsLearned')} size="small">
             <List
               size="small"
               dataSource={analysis.lessons_learned}
@@ -147,7 +152,7 @@ export default function FeedbackPanel({ taskId, ontologyId }: FeedbackPanelProps
         )}
 
         {analysis.recommendations && analysis.recommendations.length > 0 && (
-          <Card title="Recommendations" size="small">
+          <Card title={t('feedback.recommendations')} size="small">
             <List
               size="small"
               dataSource={analysis.recommendations}
@@ -168,17 +173,17 @@ export default function FeedbackPanel({ taskId, ontologyId }: FeedbackPanelProps
 
   const renderAggregation = () => {
     if (!aggregation) {
-      return <Empty description="No experience aggregation available" image={Empty.PRESENTED_IMAGE_SIMPLE} />;
+      return <Empty description={t('feedback.noAggregation')} image={Empty.PRESENTED_IMAGE_SIMPLE} />;
     }
     return (
       <Space orientation="vertical" style={{ width: '100%' }} size="middle">
         <Descriptions variant="bordered" size="small" column={2}>
-          <Descriptions.Item label="Ontology ID">{aggregation.ontology_id}</Descriptions.Item>
-          <Descriptions.Item label="Total Feedbacks">{aggregation.total_feedbacks}</Descriptions.Item>
+          <Descriptions.Item label={t('feedback.ontologyId')}>{aggregation.ontology_id}</Descriptions.Item>
+          <Descriptions.Item label={t('feedback.totalFeedbacks')}>{aggregation.total_feedbacks}</Descriptions.Item>
         </Descriptions>
 
         {aggregation.experience_items && aggregation.experience_items.length > 0 && (
-          <Card title="Experience Aggregation" size="small">
+          <Card title={t('feedback.experienceAggregation')} size="small">
             <List
               size="small"
               dataSource={aggregation.experience_items}
@@ -187,7 +192,7 @@ export default function FeedbackPanel({ taskId, ontologyId }: FeedbackPanelProps
                   <Space>
                     <Tag color="blue">{item.key}</Tag>
                     <Text>{typeof item.value === 'string' ? item.value : JSON.stringify(item.value)}</Text>
-                    <Tag>count: {item.count}</Tag>
+                    <Tag>{t('feedback.countLabel')}{item.count}</Tag>
                   </Space>
                 </List.Item>
               )}
@@ -196,7 +201,7 @@ export default function FeedbackPanel({ taskId, ontologyId }: FeedbackPanelProps
         )}
 
         {aggregation.top_lessons && aggregation.top_lessons.length > 0 && (
-          <Card title="Top Lessons" size="small">
+          <Card title={t('feedback.topLessons')} size="small">
             <List
               size="small"
               dataSource={aggregation.top_lessons}
@@ -218,7 +223,7 @@ export default function FeedbackPanel({ taskId, ontologyId }: FeedbackPanelProps
   return (
     <Spin spinning={loading}>
       <Card
-        title="Feedback Panel"
+        title={t('feedback.panelTitle')}
         size="small"
         extra={
           <Button
@@ -227,7 +232,7 @@ export default function FeedbackPanel({ taskId, ontologyId }: FeedbackPanelProps
             onClick={handleCloseLoop}
             loading={loading}
           >
-            Close Loop
+            {t('feedback.closeLoop')}
           </Button>
         }
       >

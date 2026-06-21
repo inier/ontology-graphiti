@@ -1,5 +1,7 @@
 import { useState, useRef, useEffect } from 'react';
-import { Card, Row, Col, Form, InputNumber, Select, Button, Space, Progress, Statistic } from 'antd';
+import { Row, Col, InputNumber, Select, Button, Space, Progress, Statistic } from 'antd';
+import { ProForm as Form } from '@ant-design/pro-components';
+import { ProCard as Card } from '@ant-design/pro-components';
 import { PlayCircleOutlined, PauseCircleOutlined, StopOutlined, ReloadOutlined } from '@ant-design/icons';
 import * as echarts from 'echarts';
 

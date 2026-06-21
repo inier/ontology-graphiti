@@ -153,6 +153,10 @@ export function useAGUI(options: UseAGUIOptions = {}): UseAGUIReturn {
         });
         if (!response.ok) throw new Error(`HTTP ${response.status}`);
         if (!response.body) throw new Error('No response body');
+        // 连接已建立，立即进入 streaming 状态（不等待 RUN_STARTED 事件）。
+        // 这样即使后端流尚未发送任何事件，UI 也能反映"请求进行中"，
+        // 且 cancel() 能正确将状态从 streaming 转为 cancelled。
+        setStatus('streaming');
         const reader = response.body.getReader();
         const decoder = new TextDecoder('utf-8');
         let buffer = '';

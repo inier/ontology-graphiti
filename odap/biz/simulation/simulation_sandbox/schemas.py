@@ -27,6 +27,8 @@ class WhatIfScenario(BaseModel):
     target_object_type: str
     parameters: Dict[str, Any] = Field(default_factory=dict)
     variant_parameters: List[Dict[str, Any]] = Field(default_factory=list)
+    ontology_id: str = ""
+    workspace_id: str = ""
 
 
 class WhatIfResult(BaseModel):
@@ -39,6 +41,8 @@ class WhatIfResult(BaseModel):
     recommendation: str = ""
     confidence: float = 0.0
     error: Optional[str] = None
+    simulated_writes: List[Dict[str, Any]] = Field(default_factory=list)
+    adoption_available: bool = True
 
 
 class WhatIfComparison(BaseModel):

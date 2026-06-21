@@ -1,8 +1,9 @@
 import { useState, useEffect } from 'react';
-import { Card, Table, Tag, Space, Input, Select, Button, Row, Col, Statistic, Drawer, Descriptions, Typography } from 'antd';
+import { Card, Tag, Space, Input, Select, Button, Row, Col, Statistic, Drawer, Descriptions, Typography } from 'antd';
 import { SearchOutlined, SafetyCertificateOutlined, CheckCircleOutlined, CloseCircleOutlined, WarningOutlined, InfoCircleOutlined } from '@ant-design/icons';
 import { api } from '@/modules/shared/services/api';
 import type { AuditEvent } from '@/modules/shared/services/api';
+import { AdvancedTable } from '@/modules/shared';
 
 export function AuditTimeline() {
   const [events, setEvents] = useState<AuditEvent[]>([]);
@@ -256,7 +257,7 @@ export function AuditTimeline() {
           </Space>
         }
       >
-        <Table
+        <AdvancedTable
           columns={columns}
           dataSource={events}
           rowKey="id"

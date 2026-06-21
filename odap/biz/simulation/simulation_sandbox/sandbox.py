@@ -173,8 +173,10 @@ class SimulationSandbox:
             projected['error'] = f"Action type {action_type_id} not found"
             return projected
 
-        impact_rules = self._load_impact_rules(action_type_id)
+        impact_rules_result = self._load_impact_rules(action_type_id)
+        impact_rules = impact_rules_result.get("rules", {})
         projected['estimated_impact'] = impact_rules
+        projected['rules_source'] = impact_rules_result.get("source", "default")
 
         llm_impact = await self._project_impact_with_llm(
             target_id, target_type, action_type_id, parameters, impact_rules
@@ -297,7 +299,14 @@ class SimulationSandbox:
             logger.debug(f"LLM impact projection failed: {e}")
             return None
 
-    def _load_impact_rules(self, action_type_id: str) -> Dict[str, float]:
+    def _load_impact_rules(self, action_type_id: str) -> Dict[str, Any]:
+        """加载影响规则，返回 {"source": "ontology"/"default", "rules": Dict[str, float]}。
+
+        优先级链：
+        1. config/simulation_impact_rules.json（若存在）
+        2. OMS action_type.parameters 启发式生成
+        3. DEFAULT_IMPACT_RULES 硬编码回退
+        """
         import json
         import os
 
@@ -306,7 +315,7 @@ class SimulationSandbox:
             try:
                 with open(rules_path, 'r', encoding='utf-8') as f:
                     all_rules = json.load(f)
-                return all_rules.get(action_type_id, {})
+                return {"source": "ontology", "rules": all_rules.get(action_type_id, {})}
             except Exception as e:
                 logger.warning(f"Failed to load impact rules from {rules_path}: {e}")
 
@@ -331,7 +340,7 @@ class SimulationSandbox:
                         except (ValueError, TypeError):
                             pass
                 if rules:
-                    return rules
+                    return {"source": "ontology", "rules": rules}
         except Exception as e:
             logger.debug("OMS fallback: %s", e)
 
@@ -344,7 +353,7 @@ class SimulationSandbox:
             'observe': {'resource_level': -0.02},
             'communicate': {},
         }
-        return DEFAULT_IMPACT_RULES.get(action_type_id, {})
+        return {"source": "default", "rules": DEFAULT_IMPACT_RULES.get(action_type_id, {})}
 
     def _compute_confidence(self, baseline: Dict[str, Any], projected: Dict[str, Any], action_type_id: str) -> float:
         confidence = 0.4

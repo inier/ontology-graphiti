@@ -18,7 +18,7 @@
  */
 import { useState, useCallback, useMemo } from 'react';
 import {
-  Card, Button, Table, Tag, Space, Alert, Typography, message,
+  Card, Button, Tag, Space, Alert, Typography, message,
   Radio, Divider, Empty, Tooltip, Input, Tabs,
 } from 'antd';
 import {
@@ -27,6 +27,7 @@ import {
 } from '@ant-design/icons';
 import { apiClient } from '@/modules/shared/services/apiClient';
 import {
+import { AdvancedTable } from '@/modules/shared';
   STRATEGY_OPTIONS,
   type ConflictStrategy,
   type ConflictRecord,
@@ -378,7 +379,7 @@ export default function ConflictResolver() {
                   <Empty description="暂无冲突" />
                 ) : (
                   <Card title={`冲突列表 (${conflicts.length})`} size="small">
-                    <Table<ConflictRecord>
+                    <AdvancedTable<ConflictRecord>
                       rowKey="id"
                       size="small"
                       dataSource={conflicts}
@@ -422,7 +423,7 @@ export default function ConflictResolver() {
                   <Divider style={{ margin: '12px 0' }} />
 
                   <Title level={5}>候选值对比</Title>
-                  <Table<ConflictCandidate>
+                  <AdvancedTable<ConflictCandidate>
                     rowKey={(r) => `${r.source_id}-${r.observed_at}`}
                     size="small"
                     dataSource={selected.candidates}

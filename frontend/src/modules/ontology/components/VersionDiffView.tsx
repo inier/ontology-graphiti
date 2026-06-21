@@ -1,6 +1,7 @@
 import { useMemo } from 'react';
-import { Table, Tag, Collapse, Empty, Space } from 'antd';
+import { Tag, Collapse, Empty, Space } from 'antd';
 import type { ColumnsType } from 'antd/es/table';
+import { AdvancedTable } from '@/modules/shared';
 
 export interface VersionDiffViewProps {
   diffData: Record<string, unknown> | null;
@@ -203,7 +204,7 @@ export function VersionDiffView({ diffData, versionA, versionB }: VersionDiffVie
             </Space>
           ),
           children: (
-            <Table<DiffItem>
+            <AdvancedTable<DiffItem>
               dataSource={category.items}
               columns={columns}
               size="small"

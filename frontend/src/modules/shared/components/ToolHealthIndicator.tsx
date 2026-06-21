@@ -1,4 +1,5 @@
-import { Card, Typography, Space, Progress, Tag } from 'antd';
+import { Typography, Space, Progress, Tag } from 'antd';
+import { ProCard as Card } from '@ant-design/pro-components';
 
 const { Text } = Typography;
 

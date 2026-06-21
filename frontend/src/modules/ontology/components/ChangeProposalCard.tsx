@@ -15,8 +15,9 @@
  */
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import {
-  Card, Tabs, Tag, Space, Button, Modal, Form, Input, Alert, Drawer, Empty, Spin, Statistic, message, Row, Col, Typography,
+  Card, Tabs, Tag, Space, Button, Modal, Input, Alert, Drawer, Empty, Spin, Statistic, message, Row, Col, Typography,
 } from 'antd';
+import { ProForm as Form } from '@ant-design/pro-components';
 import {
   CheckOutlined, CloseOutlined, FileTextOutlined, AlertOutlined, RiseOutlined,
 } from '@ant-design/icons';
@@ -69,8 +70,7 @@ export interface ChangeProposalCardProps {
 }
 
 export function ChangeProposalCard({ proposalId, onReview }: ChangeProposalCardProps) {
-  const { t } = useI18n();
-  void t;
+  const { t } = useI18n('ontology');
   const [proposal, setProposal] = useState<ChangeProposal | null>(null);
   const [impact, setImpact] = useState<ImpactAnalysis | null>(null);
   const [loading, setLoading] = useState(false);
@@ -96,11 +96,11 @@ export function ChangeProposalCard({ proposalId, onReview }: ChangeProposalCardP
         setImpact(null);
       }
     } catch (e) {
-      message.error(`加载提案失败: ${(e as Error).message}`);
+      message.error(t('changeProposalCard.loadFailed', { msg: (e as Error).message }));
     } finally {
       setLoading(false);
     }
-  }, [proposalId]);
+  }, [proposalId, t]);
 
   useEffect(() => { void fetchProposal(); }, [fetchProposal]);
 
@@ -118,17 +118,17 @@ export function ChangeProposalCard({ proposalId, onReview }: ChangeProposalCardP
         decision,
         reviewer_notes: v.reviewer_notes || '',
       });
-      message.success(decision === 'approve' ? '已批准' : '已拒绝');
+      message.success(decision === 'approve' ? t('changeProposalCard.approved') : t('changeProposalCard.rejected'));
       setReviewOpen(false);
       onReview?.(decision);
       void fetchProposal();
     } catch (e) {
       if ((e as { errorFields?: unknown[] }).errorFields) return;
-      message.error(`操作失败: ${(e as Error).message}`);
+      message.error(t('changeProposalCard.operationFailed', { msg: (e as Error).message }));
     } finally {
       setReviewing(false);
     }
-  }, [reviewForm, decision, proposalId, onReview, fetchProposal]);
+  }, [reviewForm, decision, proposalId, onReview, fetchProposal, t]);
 
   const changes: JsonPatch[] = useMemo(() => {
     if (!proposal?.changes) return [];
@@ -144,7 +144,7 @@ export function ChangeProposalCard({ proposalId, onReview }: ChangeProposalCardP
     return (
       <Card size="small">
         <Spin spinning={loading}>
-          <Empty description="加载中..." />
+          <Empty description={t('changeProposalCard.loading')} />
         </Spin>
       </Card>
     );
@@ -178,23 +178,23 @@ export function ChangeProposalCard({ proposalId, onReview }: ChangeProposalCardP
           items={[
             {
               key: 'details',
-              label: 'Details',
+              label: t('changeProposalCard.tabDetails'),
               children: (
                 <Space orientation="vertical" size="middle" style={{ width: '100%' }}>
                   <div>
-                    <Text type="secondary">Description</Text>
+                    <Text type="secondary">{t('changeProposalCard.description')}</Text>
                     <div style={{ marginTop: 4 }}>
                       {proposal.description || <Text type="secondary">-</Text>}
                     </div>
                   </div>
                   <div>
-                    <Text type="secondary">Estimated Benefit</Text>
+                    <Text type="secondary">{t('changeProposalCard.estimatedBenefit')}</Text>
                     <div style={{ marginTop: 4 }}>
                       {proposal.estimated_benefit || <Text type="secondary">-</Text>}
                     </div>
                   </div>
                   <div>
-                    <Text type="secondary">Estimated Cost</Text>
+                    <Text type="secondary">{t('changeProposalCard.estimatedCost')}</Text>
                     <div style={{ marginTop: 4 }}>
                       {proposal.estimated_cost || <Text type="secondary">-</Text>}
                     </div>
@@ -203,8 +203,8 @@ export function ChangeProposalCard({ proposalId, onReview }: ChangeProposalCardP
                     <Alert
                       type="info"
                       showIcon
-                      message={`Reviewed at ${new Date(proposal.reviewed_at).toLocaleString()}`}
-                      description={proposal.reviewer_notes || 'No notes'}
+                      message={t('changeProposalCard.reviewedAt', { time: new Date(proposal.reviewed_at).toLocaleString() })}
+                      description={proposal.reviewer_notes || t('changeProposalCard.noReviewerNotes')}
                     />
                   )}
                 </Space>
@@ -212,9 +212,9 @@ export function ChangeProposalCard({ proposalId, onReview }: ChangeProposalCardP
             },
             {
               key: 'changes',
-              label: `Changes (${changes.length})`,
+              label: t('changeProposalCard.tabChanges', { count: changes.length }),
               children: changes.length === 0 ? (
-                <Empty description="无变更" image={Empty.PRESENTED_IMAGE_SIMPLE} />
+                <Empty description={t('changeProposalCard.noChanges')} image={Empty.PRESENTED_IMAGE_SIMPLE} />
               ) : (
                 <Space orientation="vertical" style={{ width: '100%' }} size={4}>
                   {changes.map((c, i) => {
@@ -230,7 +230,7 @@ export function ChangeProposalCard({ proposalId, onReview }: ChangeProposalCardP
                             </Text>
                           )}
                           {c.from && (
-                            <Text type="secondary" style={{ fontSize: 12 }}>from: {c.from}</Text>
+                            <Text type="secondary" style={{ fontSize: 12 }}>{t('changeProposalCard.fromPrefix')} {c.from}</Text>
                           )}
                         </Space>
                       </Card>
@@ -241,16 +241,16 @@ export function ChangeProposalCard({ proposalId, onReview }: ChangeProposalCardP
             },
             {
               key: 'impact',
-              label: 'Impact Analysis',
+              label: t('changeProposalCard.tabImpact'),
               children: !impact ? (
-                <Empty description="无影响分析数据" image={Empty.PRESENTED_IMAGE_SIMPLE} />
+                <Empty description={t('changeProposalCard.noImpactData')} image={Empty.PRESENTED_IMAGE_SIMPLE} />
               ) : (
                 <Space orientation="vertical" size="middle" style={{ width: '100%' }}>
                   <Row gutter={12}>
                     <Col xs={24} sm={8}>
                       <Card size="small">
                         <Statistic
-                          title="Affected ObjectTypes"
+                          title={t('changeProposalCard.affectedObjectTypes')}
                           value={impact.affected_object_types.length}
                           prefix={<AlertOutlined />}
                         />
@@ -259,7 +259,7 @@ export function ChangeProposalCard({ proposalId, onReview }: ChangeProposalCardP
                     <Col xs={24} sm={8}>
                       <Card size="small">
                         <Statistic
-                          title="Affected ActionTypes"
+                          title={t('changeProposalCard.affectedActionTypes')}
                           value={impact.affected_action_types.length}
                         />
                       </Card>
@@ -267,7 +267,7 @@ export function ChangeProposalCard({ proposalId, onReview }: ChangeProposalCardP
                     <Col xs={24} sm={8}>
                       <Card size="small">
                         <Statistic
-                          title="Affected Instances"
+                          title={t('changeProposalCard.affectedInstances')}
                           value={impact.affected_instances_count}
                           prefix={<RiseOutlined />}
                         />
@@ -275,7 +275,7 @@ export function ChangeProposalCard({ proposalId, onReview }: ChangeProposalCardP
                     </Col>
                   </Row>
 
-                  <Card size="small" title="Migration Cost">
+                  <Card size="small" title={t('changeProposalCard.migrationCost')}>
                     <Space>
                       <Tag color={impact.estimated_migration_cost === 'low' ? 'green' : impact.estimated_migration_cost === 'medium' ? 'orange' : 'red'}>
                         {impact.estimated_migration_cost.toUpperCase()}
@@ -293,7 +293,7 @@ export function ChangeProposalCard({ proposalId, onReview }: ChangeProposalCardP
                     </Space>
                   </Card>
 
-                  <Card size="small" title="Risk Level">
+                  <Card size="small" title={t('changeProposalCard.riskLevel')}>
                     <Space>
                       <Tag color={impact.risk_level === 'low' ? 'green' : impact.risk_level === 'medium' ? 'orange' : impact.risk_level === 'high' ? 'volcano' : 'red'}>
                         {impact.risk_level.toUpperCase()}
@@ -312,7 +312,7 @@ export function ChangeProposalCard({ proposalId, onReview }: ChangeProposalCardP
                   </Card>
 
                   {impact.breaking_changes.length > 0 && (
-                    <Card size="small" title={`Breaking Changes (${impact.breaking_changes.length})`}>
+                    <Card size="small" title={t('changeProposalCard.breakingChangesWithCount', { count: impact.breaking_changes.length })}>
                       <Space orientation="vertical" size={4} style={{ width: '100%' }}>
                         {impact.breaking_changes.map((bc, i) => (
                           <Alert key={i} type="error" message={bc} showIcon />
@@ -329,7 +329,7 @@ export function ChangeProposalCard({ proposalId, onReview }: ChangeProposalCardP
         <div style={{ marginTop: 12, textAlign: 'right' }} data-testid="proposal-actions">
           <Space>
             <Button size="small" onClick={() => setJsonOpen(true)}>
-              View Source JSON
+              {t('changeProposalCard.viewSourceJson')}
             </Button>
             {canReview && (
               <>
@@ -339,7 +339,7 @@ export function ChangeProposalCard({ proposalId, onReview }: ChangeProposalCardP
                   icon={<CloseOutlined />}
                   onClick={() => openReview('reject')}
                 >
-                  Reject
+                  {t('changeProposalCard.rejectBtn')}
                 </Button>
                 <Button
                   size="small"
@@ -347,7 +347,7 @@ export function ChangeProposalCard({ proposalId, onReview }: ChangeProposalCardP
                   icon={<CheckOutlined />}
                   onClick={() => openReview('approve')}
                 >
-                  Approve
+                  {t('changeProposalCard.approveBtn')}
                 </Button>
               </>
             )}
@@ -356,24 +356,24 @@ export function ChangeProposalCard({ proposalId, onReview }: ChangeProposalCardP
       </Card>
 
       <Modal
-        title={decision === 'approve' ? 'Approve Proposal' : 'Reject Proposal'}
+        title={decision === 'approve' ? t('changeProposalCard.approveTitle') : t('changeProposalCard.rejectTitle')}
         open={reviewOpen}
         onOk={() => void handleReview()}
         onCancel={() => setReviewOpen(false)}
         confirmLoading={reviewing}
-        okText={decision === 'approve' ? '批准' : '拒绝'}
-        cancelText="取消"
+        okText={decision === 'approve' ? t('changeProposalCard.approveOk') : t('changeProposalCard.rejectOk')}
+        cancelText={t('changeProposalCard.cancelOk')}
         destroyOnHidden
       >
         <Form form={reviewForm} layout="vertical">
-          <Form.Item name="reviewer_notes" label="Reviewer Notes">
-            <Input.TextArea rows={4} placeholder="备注（可选）" />
+          <Form.Item name="reviewer_notes" label={t('changeProposalCard.reviewerNotesLabel')}>
+            <Input.TextArea rows={4} placeholder={t('changeProposalCard.reviewerNotesPlaceholder')} />
           </Form.Item>
         </Form>
       </Modal>
 
       <Drawer
-        title="Source JSON"
+        title={t('changeProposalCard.sourceJsonTitle')}
         open={jsonOpen}
         onClose={() => setJsonOpen(false)}
         width={560}
