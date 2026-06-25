@@ -173,8 +173,10 @@ class WorkspaceService:
                 "type": workspace.type.value,
                 "status": workspace.status.value,
                 "owner": workspace.owner,
-                "member_count": len(workspace.members),
-                "created_at": workspace.created_at.isoformat()
+                "members": workspace.members or [],
+                "member_count": len(workspace.members or []),
+                "created_at": workspace.created_at.isoformat(),
+                "updated_at": (workspace.updated_at or workspace.created_at).isoformat()
             })
         
         return {

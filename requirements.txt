@@ -54,6 +54,20 @@ sqlalchemy>=2.0.0
 psycopg2-binary>=2.9.0
 pymysql>=1.1.0
 
+# Hyper-Extract 本体提取引擎（可选 - 需要 Python >=3.11）
+# 如需启用 HE 提取，请取消下行注释并确保 Python >=3.11
+# -e ./hyper-extract
+langchain>=0.1.0
+langchain-openai>=0.1.0
+faiss-cpu>=1.7.0
+
+# 文档解析
+PyPDF2>=3.0.0
+python-docx>=1.0.0
+openpyxl>=3.1.0
+pytesseract>=0.3.10
+Pillow>=10.0.0
+
 # 开发依赖
 pytest>=8.0.0
 pytest-asyncio>=0.23.0

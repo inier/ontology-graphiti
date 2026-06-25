@@ -42,11 +42,11 @@ def _get_username(user) -> str:
 async def get_translations(
     module: str = None,
     locale: str = None,
-    page: int = 1,
-    page_size: int = 50,
+    page: int = Query(1, ge=1),
+    page_size: int = Query(20, ge=1, le=100),
     user=Depends(get_current_user)):
     try:
-        result = i18n_service.get_translations(module=module, locale=locale)
+        result = i18n_service.get_translations(module=module, locale=locale, page=page, page_size=page_size)
         return TranslationListResponse(
             translations=result.get("translations", []),
             total=result.get("total", 0),
@@ -213,7 +213,11 @@ async def list_modules(user=Depends(get_current_user)):
 # ── Locales ──
 
 @router.get("/locales", response_model=LocaleListResponse)
-async def list_locales(user=Depends(get_current_user)):
+async def list_locales():
+    """获取可用语言列表。
+    
+    公开接口，无需认证。
+    """
     try:
         result = i18n_service.list_locales()
         return LocaleListResponse(

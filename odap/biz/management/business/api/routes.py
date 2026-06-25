@@ -1,30 +1,12 @@
 from fastapi import APIRouter, HTTPException, Query, Depends
 from odap.infra.security.jwt_auth import get_current_user
+from odap.infra.security.audit_helper import audit, extract_user_id
 from pydantic import BaseModel, Field
 from typing import List, Optional
 from ..services import BusinessService
 
 router = APIRouter(prefix="/api", tags=["business"])
 service = BusinessService()
-
-
-def _audit(action: str, user_id: str, result_status: str, result_message: str = "",
-           details: dict = None, service: str = "business", workspace_id: str = "default"):
-    """审计便捷函数"""
-    try:
-        from odap.infra.security.unified_audit import log_audit
-        log_audit(
-            action=action,
-            resource="business",
-            user=user_id,
-            service=service,
-            result_status=result_status,
-            result_message=result_message,
-            details=details or {},
-            workspace_id=workspace_id,
-        )
-    except Exception:
-        pass
 
 
 class FlowNodeSchema(BaseModel):
@@ -162,20 +144,27 @@ async def list_processes(
     ontology_id: Optional[str] = Query(None),
     version_id: Optional[str] = Query(None),
     user=Depends(get_current_user)):
-    _uid = user.get("sub", "anonymous") if isinstance(user, dict) else "anonymous"
+    _uid = extract_user_id(user)
     try:
         return service.list_processes(ontology_id=ontology_id, version_id=version_id)
     except HTTPException:
         raise
     except Exception as e:
-        _audit("business_list_processes_failed", _uid, "failure", str(e))
+        audit(
+            action="business_list_processes_failed",
+            user=_uid,
+            result_status="failure",
+            result_message=str(e),
+            service="business",
+            resource="business",
+        )
         raise HTTPException(status_code=500, detail=str(e))
 
 
 @router.get("/business-processes/{process_id}")
 async def get_process(process_id: str,
     user=Depends(get_current_user)):
-    _uid = user.get("sub", "anonymous") if isinstance(user, dict) else "anonymous"
+    _uid = extract_user_id(user)
     try:
         result = service.get_process(process_id)
         if result.get("status") == "error":
@@ -184,56 +173,109 @@ async def get_process(process_id: str,
     except HTTPException:
         raise
     except Exception as e:
-        _audit("business_get_process_failed", _uid, "failure", str(e), details={"process_id": process_id})
+        audit(
+            action="business_get_process_failed",
+            user=_uid,
+            result_status="failure",
+            result_message=str(e),
+            service="business",
+            resource="business",
+            details={"process_id": process_id},
+        )
         raise HTTPException(status_code=500, detail=str(e))
 
 
 @router.post("/business-processes")
 async def create_process(data: ProcessCreate,
     user=Depends(get_current_user)):
-    _uid = user.get("sub", "anonymous") if isinstance(user, dict) else "anonymous"
+    _uid = extract_user_id(user)
     try:
         result = service.create_process(data.model_dump())
-        _audit("business_create_process", _uid, "success", details={"name": data.name})
+        audit(
+            action="business_create_process",
+            user=_uid,
+            result_status="success",
+            service="business",
+            resource="business",
+            details={"name": data.name},
+        )
         return result
     except HTTPException:
         raise
     except Exception as e:
-        _audit("business_create_process_failed", _uid, "failure", str(e), details={"name": data.name})
+        audit(
+            action="business_create_process_failed",
+            user=_uid,
+            result_status="failure",
+            result_message=str(e),
+            service="business",
+            resource="business",
+            details={"name": data.name},
+        )
         raise HTTPException(status_code=500, detail=str(e))
 
 
 @router.put("/business-processes/{process_id}")
 async def update_process(process_id: str, data: ProcessUpdate,
     user=Depends(get_current_user)):
-    _uid = user.get("sub", "anonymous") if isinstance(user, dict) else "anonymous"
+    _uid = extract_user_id(user)
     try:
         result = service.update_process(process_id, data.model_dump(exclude_none=True))
         if result.get("status") == "error":
             raise HTTPException(status_code=404, detail=result.get("message", "Process not found"))
-        _audit("business_update_process", _uid, "success", details={"process_id": process_id})
+        audit(
+            action="business_update_process",
+            user=_uid,
+            result_status="success",
+            service="business",
+            resource="business",
+            details={"process_id": process_id},
+        )
         return result
     except HTTPException:
         raise
     except Exception as e:
-        _audit("business_update_process_failed", _uid, "failure", str(e), details={"process_id": process_id})
+        audit(
+            action="business_update_process_failed",
+            user=_uid,
+            result_status="failure",
+            result_message=str(e),
+            service="business",
+            resource="business",
+            details={"process_id": process_id},
+        )
         raise HTTPException(status_code=500, detail=str(e))
 
 
 @router.delete("/business-processes/{process_id}")
 async def delete_process(process_id: str,
     user=Depends(get_current_user)):
-    _uid = user.get("sub", "anonymous") if isinstance(user, dict) else "anonymous"
+    _uid = extract_user_id(user)
     try:
         result = service.delete_process(process_id)
         if result.get("status") == "error":
             raise HTTPException(status_code=404, detail=result.get("message", "Process not found"))
-        _audit("business_delete_process", _uid, "success", details={"process_id": process_id})
+        audit(
+            action="business_delete_process",
+            user=_uid,
+            result_status="success",
+            service="business",
+            resource="business",
+            details={"process_id": process_id},
+        )
         return {"status": "deleted"}
     except HTTPException:
         raise
     except Exception as e:
-        _audit("business_delete_process_failed", _uid, "failure", str(e), details={"process_id": process_id})
+        audit(
+            action="business_delete_process_failed",
+            user=_uid,
+            result_status="failure",
+            result_message=str(e),
+            service="business",
+            resource="business",
+            details={"process_id": process_id},
+        )
         raise HTTPException(status_code=500, detail=str(e))
 
 
@@ -243,20 +285,27 @@ async def list_rules(
     ontology_id: Optional[str] = Query(None),
     version_id: Optional[str] = Query(None),
     user=Depends(get_current_user)):
-    _uid = user.get("sub", "anonymous") if isinstance(user, dict) else "anonymous"
+    _uid = extract_user_id(user)
     try:
         return service.list_rules(ontology_id=ontology_id, version_id=version_id)
     except HTTPException:
         raise
     except Exception as e:
-        _audit("business_list_rules_failed", _uid, "failure", str(e))
+        audit(
+            action="business_list_rules_failed",
+            user=_uid,
+            result_status="failure",
+            result_message=str(e),
+            service="business",
+            resource="business",
+        )
         raise HTTPException(status_code=500, detail=str(e))
 
 
 @router.get("/business-rules/{rule_id}")
 async def get_rule(rule_id: str,
     user=Depends(get_current_user)):
-    _uid = user.get("sub", "anonymous") if isinstance(user, dict) else "anonymous"
+    _uid = extract_user_id(user)
     try:
         result = service.get_rule(rule_id)
         if result.get("status") == "error":
@@ -265,56 +314,109 @@ async def get_rule(rule_id: str,
     except HTTPException:
         raise
     except Exception as e:
-        _audit("business_get_rule_failed", _uid, "failure", str(e), details={"rule_id": rule_id})
+        audit(
+            action="business_get_rule_failed",
+            user=_uid,
+            result_status="failure",
+            result_message=str(e),
+            service="business",
+            resource="business",
+            details={"rule_id": rule_id},
+        )
         raise HTTPException(status_code=500, detail=str(e))
 
 
 @router.post("/business-rules")
 async def create_rule(data: RuleCreate,
     user=Depends(get_current_user)):
-    _uid = user.get("sub", "anonymous") if isinstance(user, dict) else "anonymous"
+    _uid = extract_user_id(user)
     try:
         result = service.create_rule(data.model_dump())
-        _audit("business_create_rule", _uid, "success", details={"name": data.name})
+        audit(
+            action="business_create_rule",
+            user=_uid,
+            result_status="success",
+            service="business",
+            resource="business",
+            details={"name": data.name},
+        )
         return result
     except HTTPException:
         raise
     except Exception as e:
-        _audit("business_create_rule_failed", _uid, "failure", str(e), details={"name": data.name})
+        audit(
+            action="business_create_rule_failed",
+            user=_uid,
+            result_status="failure",
+            result_message=str(e),
+            service="business",
+            resource="business",
+            details={"name": data.name},
+        )
         raise HTTPException(status_code=500, detail=str(e))
 
 
 @router.put("/business-rules/{rule_id}")
 async def update_rule(rule_id: str, data: RuleUpdate,
     user=Depends(get_current_user)):
-    _uid = user.get("sub", "anonymous") if isinstance(user, dict) else "anonymous"
+    _uid = extract_user_id(user)
     try:
         result = service.update_rule(rule_id, data.model_dump(exclude_none=True))
         if result.get("status") == "error":
             raise HTTPException(status_code=404, detail=result.get("message", "Rule not found"))
-        _audit("business_update_rule", _uid, "success", details={"rule_id": rule_id})
+        audit(
+            action="business_update_rule",
+            user=_uid,
+            result_status="success",
+            service="business",
+            resource="business",
+            details={"rule_id": rule_id},
+        )
         return result
     except HTTPException:
         raise
     except Exception as e:
-        _audit("business_update_rule_failed", _uid, "failure", str(e), details={"rule_id": rule_id})
+        audit(
+            action="business_update_rule_failed",
+            user=_uid,
+            result_status="failure",
+            result_message=str(e),
+            service="business",
+            resource="business",
+            details={"rule_id": rule_id},
+        )
         raise HTTPException(status_code=500, detail=str(e))
 
 
 @router.delete("/business-rules/{rule_id}")
 async def delete_rule(rule_id: str,
     user=Depends(get_current_user)):
-    _uid = user.get("sub", "anonymous") if isinstance(user, dict) else "anonymous"
+    _uid = extract_user_id(user)
     try:
         result = service.delete_rule(rule_id)
         if result.get("status") == "error":
             raise HTTPException(status_code=404, detail=result.get("message", "Rule not found"))
-        _audit("business_delete_rule", _uid, "success", details={"rule_id": rule_id})
+        audit(
+            action="business_delete_rule",
+            user=_uid,
+            result_status="success",
+            service="business",
+            resource="business",
+            details={"rule_id": rule_id},
+        )
         return {"status": "deleted"}
     except HTTPException:
         raise
     except Exception as e:
-        _audit("business_delete_rule_failed", _uid, "failure", str(e), details={"rule_id": rule_id})
+        audit(
+            action="business_delete_rule_failed",
+            user=_uid,
+            result_status="failure",
+            result_message=str(e),
+            service="business",
+            resource="business",
+            details={"rule_id": rule_id},
+        )
         raise HTTPException(status_code=500, detail=str(e))
 
 
@@ -324,20 +426,27 @@ async def list_logics(
     ontology_id: Optional[str] = Query(None),
     version_id: Optional[str] = Query(None),
     user=Depends(get_current_user)):
-    _uid = user.get("sub", "anonymous") if isinstance(user, dict) else "anonymous"
+    _uid = extract_user_id(user)
     try:
         return service.list_logics(ontology_id=ontology_id, version_id=version_id)
     except HTTPException:
         raise
     except Exception as e:
-        _audit("business_list_logics_failed", _uid, "failure", str(e))
+        audit(
+            action="business_list_logics_failed",
+            user=_uid,
+            result_status="failure",
+            result_message=str(e),
+            service="business",
+            resource="business",
+        )
         raise HTTPException(status_code=500, detail=str(e))
 
 
 @router.get("/business-logics/{logic_id}")
 async def get_logic(logic_id: str,
     user=Depends(get_current_user)):
-    _uid = user.get("sub", "anonymous") if isinstance(user, dict) else "anonymous"
+    _uid = extract_user_id(user)
     try:
         result = service.get_logic(logic_id)
         if result.get("status") == "error":
@@ -346,56 +455,109 @@ async def get_logic(logic_id: str,
     except HTTPException:
         raise
     except Exception as e:
-        _audit("business_get_logic_failed", _uid, "failure", str(e), details={"logic_id": logic_id})
+        audit(
+            action="business_get_logic_failed",
+            user=_uid,
+            result_status="failure",
+            result_message=str(e),
+            service="business",
+            resource="business",
+            details={"logic_id": logic_id},
+        )
         raise HTTPException(status_code=500, detail=str(e))
 
 
 @router.post("/business-logics")
 async def create_logic(data: LogicCreate,
     user=Depends(get_current_user)):
-    _uid = user.get("sub", "anonymous") if isinstance(user, dict) else "anonymous"
+    _uid = extract_user_id(user)
     try:
         result = service.create_logic(data.model_dump())
-        _audit("business_create_logic", _uid, "success", details={"name": data.name})
+        audit(
+            action="business_create_logic",
+            user=_uid,
+            result_status="success",
+            service="business",
+            resource="business",
+            details={"name": data.name},
+        )
         return result
     except HTTPException:
         raise
     except Exception as e:
-        _audit("business_create_logic_failed", _uid, "failure", str(e), details={"name": data.name})
+        audit(
+            action="business_create_logic_failed",
+            user=_uid,
+            result_status="failure",
+            result_message=str(e),
+            service="business",
+            resource="business",
+            details={"name": data.name},
+        )
         raise HTTPException(status_code=500, detail=str(e))
 
 
 @router.put("/business-logics/{logic_id}")
 async def update_logic(logic_id: str, data: LogicUpdate,
     user=Depends(get_current_user)):
-    _uid = user.get("sub", "anonymous") if isinstance(user, dict) else "anonymous"
+    _uid = extract_user_id(user)
     try:
         result = service.update_logic(logic_id, data.model_dump(exclude_none=True))
         if result.get("status") == "error":
             raise HTTPException(status_code=404, detail=result.get("message", "Logic not found"))
-        _audit("business_update_logic", _uid, "success", details={"logic_id": logic_id})
+        audit(
+            action="business_update_logic",
+            user=_uid,
+            result_status="success",
+            service="business",
+            resource="business",
+            details={"logic_id": logic_id},
+        )
         return result
     except HTTPException:
         raise
     except Exception as e:
-        _audit("business_update_logic_failed", _uid, "failure", str(e), details={"logic_id": logic_id})
+        audit(
+            action="business_update_logic_failed",
+            user=_uid,
+            result_status="failure",
+            result_message=str(e),
+            service="business",
+            resource="business",
+            details={"logic_id": logic_id},
+        )
         raise HTTPException(status_code=500, detail=str(e))
 
 
 @router.delete("/business-logics/{logic_id}")
 async def delete_logic(logic_id: str,
     user=Depends(get_current_user)):
-    _uid = user.get("sub", "anonymous") if isinstance(user, dict) else "anonymous"
+    _uid = extract_user_id(user)
     try:
         result = service.delete_logic(logic_id)
         if result.get("status") == "error":
             raise HTTPException(status_code=404, detail=result.get("message", "Logic not found"))
-        _audit("business_delete_logic", _uid, "success", details={"logic_id": logic_id})
+        audit(
+            action="business_delete_logic",
+            user=_uid,
+            result_status="success",
+            service="business",
+            resource="business",
+            details={"logic_id": logic_id},
+        )
         return {"status": "deleted"}
     except HTTPException:
         raise
     except Exception as e:
-        _audit("business_delete_logic_failed", _uid, "failure", str(e), details={"logic_id": logic_id})
+        audit(
+            action="business_delete_logic_failed",
+            user=_uid,
+            result_status="failure",
+            result_message=str(e),
+            service="business",
+            resource="business",
+            details={"logic_id": logic_id},
+        )
         raise HTTPException(status_code=500, detail=str(e))
 
 
@@ -405,20 +567,27 @@ async def list_indicators(
     ontology_id: Optional[str] = Query(None),
     version_id: Optional[str] = Query(None),
     user=Depends(get_current_user)):
-    _uid = user.get("sub", "anonymous") if isinstance(user, dict) else "anonymous"
+    _uid = extract_user_id(user)
     try:
         return service.list_indicators(ontology_id=ontology_id, version_id=version_id)
     except HTTPException:
         raise
     except Exception as e:
-        _audit("business_list_indicators_failed", _uid, "failure", str(e))
+        audit(
+            action="business_list_indicators_failed",
+            user=_uid,
+            result_status="failure",
+            result_message=str(e),
+            service="business",
+            resource="business",
+        )
         raise HTTPException(status_code=500, detail=str(e))
 
 
 @router.get("/business-indicators/{indicator_id}")
 async def get_indicator(indicator_id: str,
     user=Depends(get_current_user)):
-    _uid = user.get("sub", "anonymous") if isinstance(user, dict) else "anonymous"
+    _uid = extract_user_id(user)
     try:
         result = service.get_indicator(indicator_id)
         if result.get("status") == "error":
@@ -427,56 +596,109 @@ async def get_indicator(indicator_id: str,
     except HTTPException:
         raise
     except Exception as e:
-        _audit("business_get_indicator_failed", _uid, "failure", str(e), details={"indicator_id": indicator_id})
+        audit(
+            action="business_get_indicator_failed",
+            user=_uid,
+            result_status="failure",
+            result_message=str(e),
+            service="business",
+            resource="business",
+            details={"indicator_id": indicator_id},
+        )
         raise HTTPException(status_code=500, detail=str(e))
 
 
 @router.post("/business-indicators")
 async def create_indicator(data: IndicatorCreate,
     user=Depends(get_current_user)):
-    _uid = user.get("sub", "anonymous") if isinstance(user, dict) else "anonymous"
+    _uid = extract_user_id(user)
     try:
         result = service.create_indicator(data.model_dump())
-        _audit("business_create_indicator", _uid, "success", details={"name": data.name})
+        audit(
+            action="business_create_indicator",
+            user=_uid,
+            result_status="success",
+            service="business",
+            resource="business",
+            details={"name": data.name},
+        )
         return result
     except HTTPException:
         raise
     except Exception as e:
-        _audit("business_create_indicator_failed", _uid, "failure", str(e), details={"name": data.name})
+        audit(
+            action="business_create_indicator_failed",
+            user=_uid,
+            result_status="failure",
+            result_message=str(e),
+            service="business",
+            resource="business",
+            details={"name": data.name},
+        )
         raise HTTPException(status_code=500, detail=str(e))
 
 
 @router.put("/business-indicators/{indicator_id}")
 async def update_indicator(indicator_id: str, data: IndicatorUpdate,
     user=Depends(get_current_user)):
-    _uid = user.get("sub", "anonymous") if isinstance(user, dict) else "anonymous"
+    _uid = extract_user_id(user)
     try:
         result = service.update_indicator(indicator_id, data.model_dump(exclude_none=True))
         if result.get("status") == "error":
             raise HTTPException(status_code=404, detail=result.get("message", "Indicator not found"))
-        _audit("business_update_indicator", _uid, "success", details={"indicator_id": indicator_id})
+        audit(
+            action="business_update_indicator",
+            user=_uid,
+            result_status="success",
+            service="business",
+            resource="business",
+            details={"indicator_id": indicator_id},
+        )
         return result
     except HTTPException:
         raise
     except Exception as e:
-        _audit("business_update_indicator_failed", _uid, "failure", str(e), details={"indicator_id": indicator_id})
+        audit(
+            action="business_update_indicator_failed",
+            user=_uid,
+            result_status="failure",
+            result_message=str(e),
+            service="business",
+            resource="business",
+            details={"indicator_id": indicator_id},
+        )
         raise HTTPException(status_code=500, detail=str(e))
 
 
 @router.delete("/business-indicators/{indicator_id}")
 async def delete_indicator(indicator_id: str,
     user=Depends(get_current_user)):
-    _uid = user.get("sub", "anonymous") if isinstance(user, dict) else "anonymous"
+    _uid = extract_user_id(user)
     try:
         result = service.delete_indicator(indicator_id)
         if result.get("status") == "error":
             raise HTTPException(status_code=404, detail=result.get("message", "Indicator not found"))
-        _audit("business_delete_indicator", _uid, "success", details={"indicator_id": indicator_id})
+        audit(
+            action="business_delete_indicator",
+            user=_uid,
+            result_status="success",
+            service="business",
+            resource="business",
+            details={"indicator_id": indicator_id},
+        )
         return {"status": "deleted"}
     except HTTPException:
         raise
     except Exception as e:
-        _audit("business_delete_indicator_failed", _uid, "failure", str(e), details={"indicator_id": indicator_id})
+        audit(
+            action="business_delete_indicator_failed",
+            user=_uid,
+            result_status="failure",
+            result_message=str(e),
+            service="business",
+            resource="business",
+            details={"indicator_id": indicator_id},
+        )
         raise HTTPException(status_code=500, detail=str(e))
 
 
@@ -487,7 +709,7 @@ async def list_process_type_definitions(
     user=Depends(get_current_user),
 ):
     """列出业务过程类型定义（供下拉选择）"""
-    _uid = user.get("sub", "anonymous") if isinstance(user, dict) else "anonymous"
+    _uid = extract_user_id(user)
     try:
         from odap.biz.core.ontology.ontology_api.services import OntologyService
         ontology_service = OntologyService()
@@ -498,7 +720,15 @@ async def list_process_type_definitions(
     except HTTPException:
         raise
     except Exception as e:
-        _audit("business_list_process_type_definitions_failed", _uid, "failure", str(e), details={"ontology_id": ontology_id})
+        audit(
+            action="business_list_process_type_definitions_failed",
+            user=_uid,
+            result_status="failure",
+            result_message=str(e),
+            service="business",
+            resource="business",
+            details={"ontology_id": ontology_id},
+        )
         raise HTTPException(status_code=500, detail=str(e))
 
 
@@ -508,7 +738,7 @@ async def list_rule_type_definitions(
     user=Depends(get_current_user),
 ):
     """列出规则类型定义（供下拉选择）"""
-    _uid = user.get("sub", "anonymous") if isinstance(user, dict) else "anonymous"
+    _uid = extract_user_id(user)
     try:
         from odap.biz.core.ontology.ontology_api.services import OntologyService
         ontology_service = OntologyService()
@@ -519,7 +749,15 @@ async def list_rule_type_definitions(
     except HTTPException:
         raise
     except Exception as e:
-        _audit("business_list_rule_type_definitions_failed", _uid, "failure", str(e), details={"ontology_id": ontology_id})
+        audit(
+            action="business_list_rule_type_definitions_failed",
+            user=_uid,
+            result_status="failure",
+            result_message=str(e),
+            service="business",
+            resource="business",
+            details={"ontology_id": ontology_id},
+        )
         raise HTTPException(status_code=500, detail=str(e))
 
 
@@ -529,7 +767,7 @@ async def list_function_type_definitions(
     user=Depends(get_current_user),
 ):
     """列出逻辑函数类型定义（供下拉选择）"""
-    _uid = user.get("sub", "anonymous") if isinstance(user, dict) else "anonymous"
+    _uid = extract_user_id(user)
     try:
         from odap.biz.core.ontology.ontology_api.services import OntologyService
         ontology_service = OntologyService()
@@ -540,7 +778,15 @@ async def list_function_type_definitions(
     except HTTPException:
         raise
     except Exception as e:
-        _audit("business_list_function_type_definitions_failed", _uid, "failure", str(e), details={"ontology_id": ontology_id})
+        audit(
+            action="business_list_function_type_definitions_failed",
+            user=_uid,
+            result_status="failure",
+            result_message=str(e),
+            service="business",
+            resource="business",
+            details={"ontology_id": ontology_id},
+        )
         raise HTTPException(status_code=500, detail=str(e))
 
 
@@ -550,7 +796,7 @@ async def list_indicator_type_definitions(
     user=Depends(get_current_user),
 ):
     """列出指标类型定义（供下拉选择）"""
-    _uid = user.get("sub", "anonymous") if isinstance(user, dict) else "anonymous"
+    _uid = extract_user_id(user)
     try:
         from odap.biz.core.ontology.ontology_api.services import OntologyService
         ontology_service = OntologyService()
@@ -561,5 +807,13 @@ async def list_indicator_type_definitions(
     except HTTPException:
         raise
     except Exception as e:
-        _audit("business_list_indicator_type_definitions_failed", _uid, "failure", str(e), details={"ontology_id": ontology_id})
+        audit(
+            action="business_list_indicator_type_definitions_failed",
+            user=_uid,
+            result_status="failure",
+            result_message=str(e),
+            service="business",
+            resource="business",
+            details={"ontology_id": ontology_id},
+        )
         raise HTTPException(status_code=500, detail=str(e))

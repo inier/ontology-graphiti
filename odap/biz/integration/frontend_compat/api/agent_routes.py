@@ -1,71 +1,28 @@
-"""前端API兼容层 - Agent调度/决策/反馈路由"""
+"""前端API兼容层 - Agent调度/决策/反馈路由
+
+1:1 重复原生 /api/agent/ 的端点已删除，前端应直接调用:
+  GET  /api/agent/tools       — 列出工具
+  POST /api/agent/run          — 运行 Agent
+  GET  /api/agent/status       — 健康状态
+
+反馈端点已修正为代理到原生 FeedbackLoop（而非仅写审计日志），前端也可直接调用:
+  POST /api/feedback/action             — 提交动作反馈
+  GET  /api/feedback/decision/{id}      — 获取决策反馈
+"""
 
 from fastapi import APIRouter, HTTPException, Request, Depends
 from odap.infra.security.jwt_auth import get_current_user
 from typing import Dict, Any
-import uuid
-import asyncio
-from datetime import datetime as dt
 
-from odap.biz.integration.frontend_compat.api._deps import (
-    audit_logger,
-    AuditEventType,
-    ActorInfo,
-    ResourceInfo,
-)
 
 router = APIRouter(prefix="/api/compat", tags=["frontend-compat-agent"])
 
 
-# ==================== OpenHarness 路由 ====================
-
-@router.get("/openharness/tools")
-async def list_openharness_tools(user=Depends(get_current_user)):
-    """列出所有 OpenHarness 工具"""
-    try:
-        from odap.infra.openharness import create_harness
-        harness = create_harness()
-        if harness:
-            tools = harness.list_available_tools()
-            return {"tools": tools, "count": len(tools)}
-        return {"tools": [], "count": 0, "message": "OpenHarness 不可用"}
-    except HTTPException:
-        raise
-    except Exception as e:
-        raise HTTPException(status_code=500, detail=str(e))
-
-
-@router.post("/openharness/run")
-async def run_openharness_action(data: Dict[str, Any],
-    user=Depends(get_current_user)):
-    """运行 OpenHarness 工具"""
-    try:
-        from odap.infra.openharness import create_harness
-        harness = create_harness()
-        if not harness:
-            raise HTTPException(status_code=503, detail="OpenHarness 不可用")
-
-        action = data.get("action")
-        if not action:
-            raise HTTPException(status_code=400, detail="action 不能为空")
-
-        obs, reward, done, info = harness.step(action)
-        return {
-            "observation": obs,
-            "reward": reward,
-            "done": done,
-            "info": info,
-        }
-    except HTTPException:
-        raise
-    except Exception as e:
-        raise HTTPException(status_code=500, detail=str(e))
-
+# ==================== OpenHarness 独有能力（原生 /api/agent/ 无此功能） ====================
 
 @router.post("/openharness/run-episode")
 async def run_openharness_episode(data: Dict[str, Any],
     user=Depends(get_current_user)):
-    """运行完整的 OpenHarness 会话"""
     try:
         from odap.infra.openharness import create_harness
         harness = create_harness()
@@ -90,7 +47,6 @@ async def run_openharness_episode(data: Dict[str, Any],
 
 @router.get("/openharness/health")
 async def check_openharness_health():
-    """检查 OpenHarness 健康状态"""
     try:
         from odap.infra.openharness import create_harness
         harness = create_harness()
@@ -119,7 +75,6 @@ async def check_openharness_health():
 
 @router.get("/openharness/schemas")
 async def get_openharness_schemas(user=Depends(get_current_user)):
-    """获取 OpenHarness 工具的 OpenAI 格式 schema"""
     try:
         from odap.infra.openharness import export_tool_schemas
         schemas = export_tool_schemas()
@@ -133,13 +88,13 @@ async def get_openharness_schemas(user=Depends(get_current_user)):
         raise HTTPException(status_code=500, detail=str(e))
 
 
-# ==================== 闭环反馈路由 ====================
+# ==================== 闭环反馈路由（代理到原生 FeedbackLoop） ====================
 
 @router.post("/feedback/action")
 async def submit_action_feedback(request: Request, data: Dict[str, Any],
     user=Depends(get_current_user)):
     """
-    提交动作执行反馈
+    提交动作执行反馈 — 代理到原生 FeedbackLoop
 
     请求体:
     {
@@ -152,42 +107,33 @@ async def submit_action_feedback(request: Request, data: Dict[str, Any],
     """
     try:
         action_id = data.get("action_id", "")
-        decision_id = data.get("decision_id")
+        data.get("decision_id")
         outcome = data.get("outcome", "success")
         result_data = data.get("result_data", {})
         error_message = data.get("error_message")
 
-        asyncio.create_task(
-            audit_logger.log_success(
-                event_type=AuditEventType.DATA_INGEST,
-                action="ACTION_FEEDBACK",
-                resource=ResourceInfo(
-                    resource_type="feedback",
-                    resource_id=action_id,
-                    resource_name="动作反馈",
-                ),
-                message=f"动作反馈: {outcome}",
-                actor=ActorInfo(
-                    actor_type="user",
-                    actor_id=data.get("user_id", "system"),
-                    actor_name=data.get("user_id", "System"),
-                    roles=[],
-                ),
-                context={
-                    "action_id": action_id,
-                    "decision_id": decision_id,
-                    "outcome": outcome,
-                    "result_data": result_data,
-                    "error_message": error_message,
-                    "duration_ms": data.get("duration_ms", 0),
-                },
-            )
+        if not action_id:
+            raise HTTPException(status_code=400, detail="action_id 不能为空")
+
+        from odap.biz.simulation.feedback.loop import get_feedback_loop
+        feedback_loop = get_feedback_loop()
+        feedback = feedback_loop.collector.collect_action_result(
+            action_id=action_id,
+            outcome=outcome,
+            result_data=result_data,
+            error_message=error_message,
         )
+        loop_result = feedback_loop.close_loop(feedback)
 
         return {
             "status": "success",
-            "feedback_id": f"af_{uuid.uuid4().hex[:12]}",
+            "feedback_id": feedback.id,
             "outcome": outcome,
+            "deviation_score": feedback.deviation_score,
+            "lesson_learned": loop_result.get("lesson_learned", ""),
+            "graph_updated": loop_result.get("graph_updated", False),
+            "episode_created": loop_result.get("episode_created", False),
+            "hook_emitted": loop_result.get("hook_emitted", False),
         }
     except HTTPException:
         raise
@@ -198,33 +144,24 @@ async def submit_action_feedback(request: Request, data: Dict[str, Any],
 @router.get("/feedback/decision/{decision_id}")
 async def get_decision_feedback(decision_id: str,
     user=Depends(get_current_user)):
-    """获取决策的反馈历史"""
     try:
-        from odap.biz.integration.frontend_compat.api._deps import AuditFilter
-
-        audit_filter = AuditFilter(
-            limit=100,
-            order_by="timestamp",
-            order_desc=True,
-        )
-
-        events = await audit_logger.query(audit_filter)
-
-        feedback_events = [
-            e for e in events
-            if e.context and e.context.get("decision_id") == decision_id
-        ]
+        from odap.biz.simulation.feedback.loop import get_feedback_loop
+        feedback_loop = get_feedback_loop()
+        feedbacks = feedback_loop.get_feedback_history(decision_id)
 
         return {
             "decision_id": decision_id,
-            "feedback_count": len(feedback_events),
+            "feedback_count": len(feedbacks),
             "feedbacks": [
                 {
-                    "feedback_id": e.id,
-                    "outcome": e.context.get("outcome", "unknown"),
-                    "timestamp": e.timestamp.isoformat() if isinstance(e.timestamp, dt) else str(e.timestamp),
+                    "feedback_id": fb.id,
+                    "outcome": fb.feedback_type.value,
+                    "severity": fb.severity.value,
+                    "deviation_score": fb.deviation_score,
+                    "lesson_learned": fb.lesson_learned,
+                    "timestamp": fb.timestamp.isoformat() if hasattr(fb, 'timestamp') else "",
                 }
-                for e in feedback_events
+                for fb in feedbacks
             ],
         }
     except HTTPException:

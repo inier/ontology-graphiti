@@ -442,20 +442,20 @@ class BrowserAutomateSkill(BaseSkill):
             return None
 
     def _call_via_httpx(self, arguments: Dict[str, Any], input_data: BrowserAutomateInput) -> SkillOutput:
-    """降级方案：直接通过 httpx 调用 browser-use MCP Server"""
-    try:
-        import httpx
-        import os
+        """降级方案：直接通过 httpx 调用 browser-use MCP Server"""
+        try:
+            import httpx
+            import os
 
-        mcp_url = os.environ.get("BROWSER_MCP_URL", "")
-        if not mcp_url:
-            try:
-                from odap.infra.config_composer import get_config
-                mcp_url = get_config("mcp.browser_mcp_url", "")
-            except Exception:
-                pass
-        if not mcp_url:
-            mcp_url = "http://graphiti-browser-use:8030"
+            mcp_url = os.environ.get("BROWSER_MCP_URL", "")
+            if not mcp_url:
+                try:
+                    from odap.infra.config_composer import get_config
+                    mcp_url = get_config("mcp.browser_mcp_url", "")
+                except Exception:
+                    pass
+            if not mcp_url:
+                mcp_url = "http://graphiti-browser-use:8030"
 
             # 同步调用 MCP Server（带超时）
             timeout = input_data.timeout_seconds + 30  # 额外 30s 网络缓冲

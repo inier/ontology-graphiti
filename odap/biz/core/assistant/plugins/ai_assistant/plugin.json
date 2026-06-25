@@ -1,0 +1,7 @@
+{
+  "name": "ai-assistant",
+  "version": "1.0.0",
+  "description": "AI Assistant plugin — ontology-aware query, design, and write tools for the ODAP platform.",
+  "enabled_by_default": true,
+  "tools_dir": "tools"
+}

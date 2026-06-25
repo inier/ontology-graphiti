@@ -210,7 +210,8 @@ class SQLiteAgentStorage:
             val = d.get(key, '[]')
             if isinstance(val, str):
                 try:
-                    d[key] = json.loads(val)
+                    parsed = json.loads(val)
+                    d[key] = parsed if isinstance(parsed, list) else []
                 except (json.JSONDecodeError, TypeError):
                     d[key] = []
             elif not isinstance(val, list):
@@ -232,7 +233,7 @@ class SQLiteAgentStorage:
             conditions = []
             params = []
             if workspace_id:
-                conditions.append("(workspace_id = ? OR workspace_id = '' OR workspace_id IS NULL)")
+                conditions.append("workspace_id = ?")
                 params.append(workspace_id)
             if role_id:
                 conditions.append(
@@ -272,9 +273,9 @@ class SQLiteAgentStorage:
             'related_rules': json.dumps(data.get('related_rules', []), ensure_ascii=False),
             'related_business_logic': json.dumps(data.get('related_business_logic', []), ensure_ascii=False),
             'related_indicators': json.dumps(data.get('related_indicators', []), ensure_ascii=False),
-            'related_skills': json.dumps(data.get('related_skills', []), ensure_ascii=False),
-            'related_knowledge_bases': json.dumps(data.get('related_knowledge_bases', []), ensure_ascii=False),
-            'allowed_roles': json.dumps(data.get('allowed_roles', []), ensure_ascii=False),
+            'related_skills': json.dumps(data.get('related_skills', []) if isinstance(data.get('related_skills'), list) else [], ensure_ascii=False),
+            'related_knowledge_bases': json.dumps(data.get('related_knowledge_bases', []) if isinstance(data.get('related_knowledge_bases'), list) else [], ensure_ascii=False),
+            'allowed_roles': json.dumps(data.get('allowed_roles', []) if isinstance(data.get('allowed_roles'), list) else [], ensure_ascii=False),
             'workspace_id': data.get('workspace_id', ''),
             'resolved_names': json.dumps(resolved, ensure_ascii=False),
             'created_by': data.get('created_by', 'system'),
@@ -306,9 +307,12 @@ class SQLiteAgentStorage:
         for key, val in data.items():
             if key in ('agent_id', 'created_at', 'created_by'):
                 continue
-            if key in json_fields and isinstance(val, list):
-                sets.append(f"{key} = ?")
-                values.append(json.dumps(val, ensure_ascii=False))
+            if key in json_fields:
+                if isinstance(val, list):
+                    sets.append(f"{key} = ?")
+                    values.append(json.dumps(val, ensure_ascii=False))
+                elif val is not None:
+                    continue
             elif val is not None:
                 sets.append(f"{key} = ?")
                 values.append(val)
@@ -371,9 +375,9 @@ class SQLiteAgentStorage:
                 'related_rules': json.dumps(data.get('related_rules', []), ensure_ascii=False),
                 'related_business_logic': json.dumps(data.get('related_business_logic', []), ensure_ascii=False),
                 'related_indicators': json.dumps(data.get('related_indicators', []), ensure_ascii=False),
-                'related_skills': json.dumps(data.get('related_skills', []), ensure_ascii=False),
-                'related_knowledge_bases': json.dumps(data.get('related_knowledge_bases', []), ensure_ascii=False),
-                'allowed_roles': json.dumps(data.get('allowed_roles', []), ensure_ascii=False),
+                'related_skills': json.dumps(data.get('related_skills', []) if isinstance(data.get('related_skills'), list) else [], ensure_ascii=False),
+                'related_knowledge_bases': json.dumps(data.get('related_knowledge_bases', []) if isinstance(data.get('related_knowledge_bases'), list) else [], ensure_ascii=False),
+                'allowed_roles': json.dumps(data.get('allowed_roles', []) if isinstance(data.get('allowed_roles'), list) else [], ensure_ascii=False),
                 'workspace_id': data.get('workspace_id', ''),
                 'created_by': data.get('created_by', 'system'),
                 'created_at': data.get('created_at', now),

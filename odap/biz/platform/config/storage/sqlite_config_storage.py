@@ -123,7 +123,14 @@ class SQLiteConfigStorage(ConfigRepository):
                     "SELECT * FROM config_schema_registry ORDER BY category, sort_order"
                 ).fetchall()
             cols = [d[0] for d in conn.execute("SELECT * FROM config_schema_registry LIMIT 0").description]
-            return [dict(zip(cols, row)) for row in rows]
+            results = [dict(zip(cols, row)) for row in rows]
+            for item in results:
+                if isinstance(item.get('choices'), str):
+                    try:
+                        item['choices'] = json.loads(item['choices'])
+                    except (json.JSONDecodeError, TypeError):
+                        item['choices'] = []
+            return results
         finally:
             conn.close()
 
@@ -134,7 +141,13 @@ class SQLiteConfigStorage(ConfigRepository):
             if not row:
                 return None
             cols = [d[0] for d in conn.execute("SELECT * FROM config_schema_registry LIMIT 0").description]
-            return dict(zip(cols, row))
+            result = dict(zip(cols, row))
+            if isinstance(result.get('choices'), str):
+                try:
+                    result['choices'] = json.loads(result['choices'])
+                except (json.JSONDecodeError, TypeError):
+                    result['choices'] = []
+            return result
         finally:
             conn.close()
 
@@ -219,6 +232,11 @@ class SQLiteConfigStorage(ConfigRepository):
                 else:
                     item["display_value"] = item.get("value")
                 item["has_value"] = item.get("value") is not None
+                if isinstance(item.get("choices"), str):
+                    try:
+                        item["choices"] = json.loads(item["choices"])
+                    except (json.JSONDecodeError, TypeError):
+                        item["choices"] = []
                 results.append(item)
             return results
         finally:

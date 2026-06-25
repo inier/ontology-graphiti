@@ -61,6 +61,9 @@ def create_router_registry() -> List[tuple]:
     from odap.biz.integration.frontend_compat.api.routes import router as frontend_router
     from odap.biz.integration.openharness_agent.api.routes import router as agent_router
 
+    # ── 渠道管理 ──
+    from odap.biz.integration.channel_management.api.routes import router as channel_router
+
     # ── 智能体 ──
     from odap.biz.core.agent.api.routes import router as agent_dispatch_router
     from odap.biz.core.agent.api.decision_routes import router as agent_decision_router
@@ -221,6 +224,9 @@ def create_router_registry() -> List[tuple]:
         (mcp_router,),
         (frontend_router,),
         (agent_router,),
+
+        # 渠道管理
+        (channel_router,),
 
         # 智能体
         (agent_dispatch_router,),

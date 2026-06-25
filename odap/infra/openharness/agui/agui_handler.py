@@ -468,11 +468,18 @@ async def _produce_query_engine_events(
         ):
             await transport_queue.put(event_dict)
 
+        # 从 request.state 中获取 ontology_id（由 web_channel._build_run_agent_input 注入）
+        request_state = dict(request.state) if request.state else {}
+        ontology_id = request_state.get("ontology_id")
+        page_context = request_state.get("page_context", {})
+
         for event_dict in to_agui_events(
             StateSnapshotEvent(snapshot={
                 "memory": {"facts": []},
                 "active_skills": [],
                 "workspace_id": ws_id,
+                "ontology_id": ontology_id,
+                "page_context": page_context,
             }),
             state,
         ):
@@ -483,12 +490,19 @@ async def _produce_query_engine_events(
         if integration.agent_loop is None:
             await integration.initialize()
 
-        result = await integration.run_agent(user_message, context={
+        # 构建 context（包含 ontology_id 和原始 page_context）
+        agent_context = {
             "user_id": user_id,
             "ws_id": ws_id,
             "thread_id": request.threadId,
             "run_id": request.runId,
-        })
+        }
+        if ontology_id:
+            agent_context["ontology_id"] = ontology_id
+        if page_context:
+            agent_context["page_context"] = page_context
+
+        result = await integration.run_agent(user_message, context=agent_context)
 
         # 3c. 翻译 result 为 AG-UI 事件
         if isinstance(result, dict) and result.get("success"):

@@ -169,7 +169,7 @@ class SampleDataService:
             "agent_type": "intelligence",
             "workspace_id": workspace_id,
             "role_id": "analyst",
-            "related_skills": "情报收集,态势分析,威胁评估",
+            "related_skills": ["情报收集", "态势分析", "威胁评估"],
             "ref_labels": "{}",
             "avatar": "",
             "config": '{"model": "gpt-4", "temperature": 0.7, "max_tokens": 2000}',

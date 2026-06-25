@@ -11,7 +11,15 @@ RUN pip config set global.index-url https://pypi.tuna.tsinghua.edu.cn/simple
 RUN apt-get update && apt-get install -y --no-install-recommends \
     gcc \
     g++ \
+    tesseract-ocr \
+    tesseract-ocr-chi-sim \
     && rm -rf /var/lib/apt/lists/*
+
+# 先复制 openharness 子模块（requirements.txt 依赖它）
+COPY openharness ./openharness
+
+# 复制 hyper-extract 子模块（requirements.txt 依赖它）
+COPY hyper-extract ./hyper-extract
 
 # M6 fix: 统一使用 requirements.txt 作为依赖单一事实来源。
 # 移除所有 || echo WARNING，安装失败时构建直接中断（fail-fast），
@@ -25,9 +33,6 @@ RUN pip install --no-cache-dir -r requirements.txt
 RUN pip install --no-cache-dir graphiti-core || echo "WARNING: graphiti-core install failed, falling back to Neo4j Driver mode (non-fatal)"
 
 COPY . .
-
-# openharness 子模块安装：失败时降级到 mock 模式（engine_adapter 已处理）。
-RUN pip install --no-cache-dir -e ./openharness || echo "WARNING: openharness install failed, using mock mode (non-fatal)"
 
 RUN mkdir -p /app/data
 

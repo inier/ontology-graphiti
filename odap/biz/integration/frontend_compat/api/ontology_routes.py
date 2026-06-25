@@ -1,32 +1,31 @@
-"""前端API兼容层 - 本体/图谱/查询/场景路由"""
+"""前端API兼容层 - 本体/图谱/场景路由
+
+仅保留跨服务聚合端点。1:1 重复原生 /api/query/ 的端点已删除，
+前端应直接调用:
+  POST /api/query/entities    — 实体查询
+  POST /api/query/relations   — 关系查询
+  POST /api/query/complex     — 复合查询
+  GET  /api/query/history     — 查询历史
+"""
 
 import logging
 
-from fastapi import APIRouter, HTTPException, Query, Request, Depends
+from fastapi import APIRouter, HTTPException, Query, Depends
 from odap.infra.security.jwt_auth import get_current_user
-from typing import Dict, Any, List, Optional
+from typing import Dict, Any
 import json
 import uuid
-from datetime import datetime
 
 logger = logging.getLogger(__name__)
 
 from odap.biz.integration.frontend_compat.api._deps import (
     scenario_store,
-    _get_graph_write_proxy,
-    _get_query_service,
-    audit_logger,
-    AuditFilter,
-    AuditEventType,
-    local_audit_log,
-    log_query,
-    log_error,
 )
 
 router = APIRouter(prefix="/api/compat", tags=["frontend-compat-ontology"])
 
 
-# ==================== 场景查询路由 ====================
+# ==================== 场景查询路由（跨服务聚合） ====================
 
 @router.get("/scenarios/{scenario_id}/entities")
 async def get_entities(scenario_id: str, workspace_id: str = None,
@@ -52,202 +51,11 @@ async def get_relations(scenario_id: str, workspace_id: str = None,
         raise HTTPException(status_code=500, detail=str(e))
 
 
-# ==================== 图谱查询路由 ====================
-
-@router.post("/query/entities")
-@local_audit_log(action="QUERY_ENTITIES", resource="entities")
-async def query_entities(request: Request, data: Dict[str, Any],
-    user=Depends(get_current_user)):
-    """查询实体（兼容前端）"""
-    try:
-        query = data.get("query", {})
-        workspace_id = data.get("workspace_id", "default")
-
-        query_service = _get_query_service()
-
-        if query.get("keyword"):
-            # 使用 QueryService 的 entity 源进行关键词搜索
-            result = query_service.execute(
-                workspace_id=workspace_id,
-                query=f".entity with(search='{query.get('keyword')}')",
-                limit=100,
-            )
-            entities = [
-                {
-                    "entity_id": r.get("id", r.get("name", "")),
-                    "name": r.get("name", ""),
-                    "type": r.get("type", r.get("entity_type", "")),
-                    "properties": r,
-                }
-                for r in result.rows
-            ]
-        else:
-            # 使用 QueryService 的 entity 源列出所有实体
-            result = query_service.execute(
-                workspace_id=workspace_id,
-                query=".entity",
-                limit=500,
-            )
-            entities = []
-            for e in result.rows:
-                props = e.get("properties", {})
-                eid = e.get("id", "") or props.get("id", "")
-                ename = props.get("name", "") or e.get("name", "")
-                etype = e.get("type", e.get("entity_type", "Entity"))
-                if not eid or not ename:
-                    continue
-                if not props.get("source_type"):
-                    props["source_type"] = "random"
-                entities.append({
-                    "entity_id": eid,
-                    "name": ename,
-                    "type": etype,
-                    "properties": props,
-                })
-
-        log_query(query.get("keyword", ""), len(entities), user="system")
-
-        return {
-            "entities": entities,
-            "total": len(entities),
-        }
-    except HTTPException:
-        raise
-    except Exception as e:
-        log_error(str(e), context="query_entities")
-        raise HTTPException(status_code=500, detail=str(e))
-
-
-@router.post("/query/relations")
-async def query_relations(data: Dict[str, Any],
-    user=Depends(get_current_user)):
-    """查询关系（兼容前端）"""
-    try:
-        query = data.get("query", {})
-        source_id = query.get("source_id")
-        target_id = query.get("target_id")
-        relation_type = query.get("relation_type")
-        workspace_id = data.get("workspace_id", "default")
-
-        # 使用 QueryService 的 topo 源查询关系
-        query_service = _get_query_service()
-        result = query_service.execute(
-            workspace_id=workspace_id,
-            query=".topo",
-            limit=500,
-        )
-
-        relations = []
-        for r in result.rows:
-            if source_id and r.get("source_entity", r.get("source", "")) != source_id:
-                continue
-            if target_id and r.get("target_entity", r.get("target", "")) != target_id:
-                continue
-            if relation_type and r.get("relation_type", r.get("type", "")) != relation_type:
-                continue
-            relations.append({
-                "relation_id": r.get("relation_id", r.get("id", "")),
-                "source": r.get("source_entity", r.get("source", "")),
-                "target": r.get("target_entity", r.get("target", "")),
-                "type": r.get("relation_type", r.get("type", "")),
-                "properties": r.get("properties", {}),
-            })
-
-        return {
-            "relations": relations,
-            "total": len(relations),
-        }
-    except HTTPException:
-        raise
-    except Exception as e:
-        raise HTTPException(status_code=500, detail=str(e))
-
-
-@router.post("/query/complex")
-@local_audit_log(action="QUERY_COMPLEX", resource="complex")
-async def complex_query(request: Request, data: Dict[str, Any],
-    user=Depends(get_current_user)):
-    """复合查询（兼容前端）"""
-    try:
-        conditions = data.get("conditions", [])
-        workspace_id = data.get("workspace_id", "default")
-
-        query_service = _get_query_service()
-        results = []
-        for condition in conditions:
-            if condition.get("type") == "entity":
-                keyword = condition.get("value", "")
-                if keyword:
-                    result = query_service.execute(
-                        workspace_id=workspace_id,
-                        query=f".entity with(search='{keyword}')",
-                        limit=100,
-                    )
-                    for r in result.rows:
-                        if r not in results:
-                            results.append(r)
-
-        entities = [
-            {
-                "entity_id": r.get("id", r.get("name", "")),
-                "name": r.get("name", ""),
-                "type": r.get("type", ""),
-                "properties": r,
-            }
-            for r in results
-        ]
-
-        query_str = str(conditions)
-        log_query(query_str, len(entities), user="system")
-
-        return {
-            "results": entities,
-            "total": len(entities),
-        }
-    except HTTPException:
-        raise
-    except Exception as e:
-        log_error(str(e), context="query_complex")
-        raise HTTPException(status_code=500, detail=str(e))
-
-
-@router.get("/query/history")
-async def get_query_history(limit: int = Query(50, ge=1, le=200),
-    user=Depends(get_current_user)):
-    """获取查询历史（兼容前端）"""
-    try:
-        audit_filter = AuditFilter(
-            limit=limit,
-            order_by="timestamp",
-            order_desc=True,
-        )
-        events = await audit_logger.query(audit_filter)
-        query_events = [e for e in events if "QUERY" in e.action]
-
-        history = []
-        for e in query_events:
-            history.append({
-                "query_id": e.id,
-                "action": e.action,
-                "timestamp": e.timestamp.isoformat() if isinstance(e.timestamp, datetime) else str(e.timestamp),
-                "actor": e.actor.actor_id if e.actor else "system",
-                "context": e.context,
-            })
-
-        return {
-            "history": history,
-            "limit": limit,
-        }
-    except HTTPException:
-        raise
-    except Exception as e:
-        raise HTTPException(status_code=500, detail=str(e))
-
+# ==================== 查询导出（原生 /api/query/ 无此能力） ====================
 
 @router.post("/query/export")
 async def export_query_results(data: Dict[str, Any],
     user=Depends(get_current_user)):
-    """导出查询结果（兼容前端）"""
     try:
         results = data.get("results", [])
         export_format = data.get("format", "json")
@@ -282,12 +90,11 @@ async def export_query_results(data: Dict[str, Any],
         raise HTTPException(status_code=500, detail=str(e))
 
 
-# ==================== 图谱生成路由 ====================
+# ==================== 图谱生成任务（Celery 异步编排） ====================
 
 @router.post("/graph/generate")
 async def generate_graph(data: Dict[str, Any],
     user=Depends(get_current_user)):
-    """创建图谱生成任务（兼容前端）"""
     try:
         from odap.tasks import generate_graph_task
 
@@ -299,7 +106,7 @@ async def generate_graph(data: Dict[str, Any],
 
         task_id = f"graph_task_{uuid.uuid4().hex[:12]}"
 
-        task = generate_graph_task.delay(
+        generate_graph_task.delay(
             task_id,
             scenario_id,
             config,
@@ -319,7 +126,6 @@ async def generate_graph(data: Dict[str, Any],
 @router.get("/graph/progress/{task_id}")
 async def get_graph_progress(task_id: str,
     user=Depends(get_current_user)):
-    """获取图谱生成进度（兼容前端）"""
     try:
         try:
             from celery.result import AsyncResult
@@ -357,7 +163,6 @@ async def get_graph_progress(task_id: str,
 @router.post("/graph/cancel/{task_id}")
 async def cancel_graph_task(task_id: str,
     user=Depends(get_current_user)):
-    """取消图谱生成任务（兼容前端）"""
     try:
         try:
             from celery.result import AsyncResult
@@ -378,7 +183,6 @@ async def cancel_graph_task(task_id: str,
 @router.get("/graph/history")
 async def get_graph_history(limit: int = Query(20, ge=1, le=100),
     user=Depends(get_current_user)):
-    """获取图谱生成历史（兼容前端）"""
     try:
         from odap.biz.core.ontology.design.services.ingest_service import get_ingest_service
         ingest_service = get_ingest_service()
@@ -398,7 +202,7 @@ async def get_graph_history(limit: int = Query(20, ge=1, le=100),
         }
     except HTTPException:
         raise
-    except Exception as e:
+    except Exception:
         return {
             "history": [],
             "limit": limit,
@@ -409,7 +213,6 @@ async def get_graph_history(limit: int = Query(20, ge=1, le=100),
 @router.get("/graph/{graph_id}")
 async def get_graph_detail(graph_id: str,
     user=Depends(get_current_user)):
-    """获取图谱详情（兼容前端）"""
     try:
         from odap.biz.core.ontology.design.services.ingest_service import get_ingest_service
         ingest_service = get_ingest_service()
@@ -454,11 +257,10 @@ async def get_graph_detail(graph_id: str,
         raise HTTPException(status_code=500, detail=str(e))
 
 
-# ==================== 本体 Schema 路由 ====================
+# ==================== 本体 Schema（跨服务聚合：dataclass + 业务规则 + 领域配置） ====================
 
 @router.get("/ontology/schema")
 async def get_ontology_schema(user=Depends(get_current_user)):
-    """获取当前本体定义Schema"""
     try:
         from odap.biz.core.ontology.design.schema.domain import ENTITY_TYPES, ROLES, DOMAIN_CONFIG, ONTOLOGY_VERSION, ONTOLOGY_LAST_UPDATED
         from odap.biz.core.ontology.design.schema.document import (
@@ -518,7 +320,7 @@ async def get_ontology_schema(user=Depends(get_current_user)):
         return schema
     except HTTPException:
         raise
-    except Exception as e:
+    except Exception:
         from odap.biz.core.ontology.design.schema.domain import ENTITY_TYPES, ROLES, DOMAIN_CONFIG, ONTOLOGY_VERSION, ONTOLOGY_LAST_UPDATED
         return {
             "version": ONTOLOGY_VERSION,

@@ -2,13 +2,11 @@
 
 from fastapi import APIRouter, HTTPException, UploadFile, File, Form, Request, Depends
 from odap.infra.security.jwt_auth import get_current_user
-from typing import Dict, Any, Optional
+from typing import Optional
 import os
 import uuid
 
 from odap.biz.integration.frontend_compat.api._deps import (
-    audit_logger,
-    AuditEventType,
     local_audit_log,
     log_ingest,
     log_error,
@@ -82,8 +80,6 @@ async def ingest_file(request: Request, file: UploadFile = File(...), scenario_i
     user=Depends(get_current_user)):
     """文件上传摄入（兼容前端）"""
     try:
-        import pandas as pd
-        import json
         from odap.tasks import process_file_upload_task
 
         filename = file.filename
@@ -95,7 +91,7 @@ async def ingest_file(request: Request, file: UploadFile = File(...), scenario_i
             raise HTTPException(status_code=400, detail="Unsupported file format")
 
         task_id = f"task_{uuid.uuid4().hex[:12]}"
-        task = process_file_upload_task.delay(
+        process_file_upload_task.delay(
             task_id,
             filename,
             content,

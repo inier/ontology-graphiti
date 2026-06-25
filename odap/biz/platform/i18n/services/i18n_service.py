@@ -40,9 +40,10 @@ class I18nService:
     # ── Translation CRUD ──
 
     def get_translations(
-        self, module: Optional[str] = None, locale: Optional[str] = None
+        self, module: Optional[str] = None, locale: Optional[str] = None,
+        page: int = 1, page_size: int = 20,
     ) -> Dict[str, Any]:
-        return self._storage.list_translations(module=module, locale=locale)
+        return self._storage.list_translations(module=module, locale=locale, page=page, page_size=page_size)
 
     def save_translation(
         self, key: str, module: str, locale: str, value: str, updated_by: str = "system"

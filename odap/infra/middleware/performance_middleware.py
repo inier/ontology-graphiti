@@ -93,6 +93,7 @@ class GzipMiddleware(BaseHTTPMiddleware):
         new_response = Response(
             content=compressed,
             status_code=response.status_code,
+            headers=dict(response.headers),
             media_type=response.media_type,
         )
         new_response.headers["Content-Encoding"] = "gzip"

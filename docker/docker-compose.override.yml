@@ -28,8 +28,8 @@ services:
       - ../app:/app/app
       - ../odap:/app/odap
       - ../main.py:/app/main.py
-      # 数据持久化
-      - app-data:/app/data
+      # 数据持久化 - 开发模式使用 bind mount
+      - ../data:/app/data
     networks:
       - graphiti-network
     restart: unless-stopped

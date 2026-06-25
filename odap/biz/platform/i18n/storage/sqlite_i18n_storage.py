@@ -153,7 +153,7 @@ class SQLiteI18nStorage:
         module: Optional[str] = None,
         locale: Optional[str] = None,
         page: int = 1,
-        page_size: int = 50,
+        page_size: int = 20,
     ) -> Dict[str, Any]:
         conn = sqlite3.connect(self.db_path)
         try:
