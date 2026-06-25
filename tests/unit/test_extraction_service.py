@@ -543,9 +543,9 @@ class TestConfirmExtraction:
         )
         return session_id
 
-    def test_skip_strategy_skips_conflicting_types(self, service, ontology_id):
+    @pytest.mark.asyncio
+    async def test_skip_strategy_skips_conflicting_types(self, service, ontology_id):
         """With skip strategy, conflicting types are not imported."""
-        # Pre-create an existing object type
         existing = service.ontology_service.create_object_type(
             ontology_id, _make_object_type(name="customer")
         )
@@ -561,12 +561,13 @@ class TestConfirmExtraction:
         }
         session_id = self._setup_session_with_result(service, ontology_id, result_data)
 
-        result = service.confirm_extraction(session_id, merge_strategy="skip")
+        result = await service.confirm_extraction(session_id, merge_strategy="skip")
 
         assert result["status"] == "ok"
         assert result["imported"]["object_types"] == 0
 
-    def test_overwrite_strategy_updates_existing(self, service, ontology_id):
+    @pytest.mark.asyncio
+    async def test_overwrite_strategy_updates_existing(self, service, ontology_id):
         """With overwrite strategy, existing types are updated."""
         existing = service.ontology_service.create_object_type(
             ontology_id, _make_object_type(name="customer", description="Old description")
@@ -585,16 +586,16 @@ class TestConfirmExtraction:
         }
         session_id = self._setup_session_with_result(service, ontology_id, result_data)
 
-        result = service.confirm_extraction(session_id, merge_strategy="overwrite")
+        result = await service.confirm_extraction(session_id, merge_strategy="overwrite")
 
         assert result["status"] == "ok"
         assert result["imported"]["object_types"] == 1
 
-        # Verify the existing type was updated
         updated = service.ontology_service.get_object_type(existing_type_id)
         assert updated["description"] == "New description"
 
-    def test_rename_strategy_adds_imported_suffix(self, service, ontology_id):
+    @pytest.mark.asyncio
+    async def test_rename_strategy_adds_imported_suffix(self, service, ontology_id):
         """With rename strategy, conflicting types get '_imported' suffix."""
         service.ontology_service.create_object_type(
             ontology_id, _make_object_type(name="customer")
@@ -612,24 +613,25 @@ class TestConfirmExtraction:
         }
         session_id = self._setup_session_with_result(service, ontology_id, result_data)
 
-        result = service.confirm_extraction(session_id, merge_strategy="rename")
+        result = await service.confirm_extraction(session_id, merge_strategy="rename")
 
         assert result["status"] == "ok"
         assert result["imported"]["object_types"] == 1
 
-        # Verify a new type with _imported suffix was created
         types_result = service.ontology_service.list_object_types(ontology_id)
         names = [ot["name"] for ot in types_result["object_types"]]
         assert "customer_imported" in names
 
-    def test_session_not_found_returns_error(self, service):
+    @pytest.mark.asyncio
+    async def test_session_not_found_returns_error(self, service):
         """Confirming a nonexistent session returns error dict."""
-        result = service.confirm_extraction("nonexistent-session-id")
+        result = await service.confirm_extraction("nonexistent-session-id")
 
         assert result["status"] == "error"
         assert "not found" in result["message"]
 
-    def test_imports_all_type_categories(self, service, ontology_id):
+    @pytest.mark.asyncio
+    async def test_imports_all_type_categories(self, service, ontology_id):
         """Confirm extraction imports all type categories (object, link, action, etc.)."""
         result_data = {
             "object_types": [_make_object_type(name="product")],
@@ -642,7 +644,7 @@ class TestConfirmExtraction:
         }
         session_id = self._setup_session_with_result(service, ontology_id, result_data)
 
-        result = service.confirm_extraction(session_id, merge_strategy="skip")
+        result = await service.confirm_extraction(session_id, merge_strategy="skip")
 
         assert result["status"] == "ok"
         assert result["imported"]["object_types"] == 1
@@ -653,7 +655,8 @@ class TestConfirmExtraction:
         assert result["imported"]["function_types"] == 1
         assert result["imported"]["indicator_types"] == 1
 
-    def test_selected_type_ids_filters_import(self, service, ontology_id):
+    @pytest.mark.asyncio
+    async def test_selected_type_ids_filters_import(self, service, ontology_id):
         """Only selected type IDs are imported when specified."""
         result_data = {
             "object_types": [
@@ -669,7 +672,7 @@ class TestConfirmExtraction:
         }
         session_id = self._setup_session_with_result(service, ontology_id, result_data)
 
-        result = service.confirm_extraction(
+        result = await service.confirm_extraction(
             session_id,
             selected_type_ids=["product"],
             merge_strategy="skip",
@@ -683,7 +686,8 @@ class TestConfirmExtraction:
         assert "product" in names
         assert "category" not in names
 
-    def test_confirm_sets_session_status_completed(self, service, ontology_id):
+    @pytest.mark.asyncio
+    async def test_confirm_sets_session_status_completed(self, service, ontology_id):
         """After confirmation, session status is set to 'completed'."""
         result_data = {
             "object_types": [_make_object_type(name="product")],
@@ -696,12 +700,13 @@ class TestConfirmExtraction:
         }
         session_id = self._setup_session_with_result(service, ontology_id, result_data)
 
-        service.confirm_extraction(session_id)
+        await service.confirm_extraction(session_id)
 
         session = service.ontology_service.get_extraction_session(session_id)
         assert session["status"] == "completed"
 
-    def test_no_conflict_creates_new_type(self, service, ontology_id):
+    @pytest.mark.asyncio
+    async def test_no_conflict_creates_new_type(self, service, ontology_id):
         """When no conflict exists, a new type is created regardless of strategy."""
         result_data = {
             "object_types": [_make_object_type(name="product")],
@@ -714,7 +719,7 @@ class TestConfirmExtraction:
         }
         session_id = self._setup_session_with_result(service, ontology_id, result_data)
 
-        result = service.confirm_extraction(session_id, merge_strategy="skip")
+        result = await service.confirm_extraction(session_id, merge_strategy="skip")
 
         assert result["status"] == "ok"
         assert result["imported"]["object_types"] == 1
@@ -722,6 +727,47 @@ class TestConfirmExtraction:
         types_result = service.ontology_service.list_object_types(ontology_id)
         names = [ot["name"] for ot in types_result["object_types"]]
         assert "product" in names
+
+    @pytest.mark.asyncio
+    async def test_confirm_returns_channel_statuses(self, service, ontology_id):
+        """confirm_extraction returns channel_a_status and channel_b_status."""
+        result_data = {
+            "object_types": [_make_object_type(name="product")],
+            "link_types": [],
+            "action_types": [],
+            "process_types": [],
+            "rule_types": [],
+            "function_types": [],
+            "indicator_types": [],
+        }
+        session_id = self._setup_session_with_result(service, ontology_id, result_data)
+
+        result = await service.confirm_extraction(session_id, merge_strategy="skip")
+
+        assert result["status"] == "ok"
+        assert "channel_a_status" in result
+        assert "channel_b_status" in result
+        assert result["channel_a_status"] in ("success", "skipped", "failed")
+        assert result["channel_b_status"] in ("success", "skipped", "failed")
+
+    @pytest.mark.asyncio
+    async def test_confirm_session_stores_channel_b_status(self, service, ontology_id):
+        """Session data includes channel_b_status after confirmation."""
+        result_data = {
+            "object_types": [_make_object_type(name="product")],
+            "link_types": [],
+            "action_types": [],
+            "process_types": [],
+            "rule_types": [],
+            "function_types": [],
+            "indicator_types": [],
+        }
+        session_id = self._setup_session_with_result(service, ontology_id, result_data)
+
+        await service.confirm_extraction(session_id, merge_strategy="skip")
+
+        session = service.ontology_service.get_extraction_session(session_id)
+        assert session["status"] == "completed"
 
 
 # ===========================================================================
