@@ -1,0 +1,100 @@
+feature: 006-hyper-extract-integration
+status: completed
+started_at: "2026-06-16T00:00:00+08:00"
+completed_at: "2026-06-16T12:00:00+08:00"
+
+phases:
+  phase1_setup:
+    status: completed
+    tasks: [T001, T002, T003]
+    checkpoint: "Submodule 初始化，模块骨架 15 文件创建，requirements.txt 更新"
+
+  phase2_foundational:
+    status: completed
+    tasks: [T004, T005, T006, T007]
+    checkpoint: "HEAdapter/OntologyMapper/TemplateGenerator/Storage 实现，25 个单元测试通过"
+    tests:
+      total: 25
+      passed: 25
+      failed: 0
+
+  phase3_us1_dual_channel:
+    status: completed
+    tasks: [T008, T009, T010, T011, T012]
+    checkpoint: "DualChannelWriter 双通道写入，ExtractService 编排，API 路由注册"
+    endpoints:
+      - "POST /api/he/extract"
+      - "GET /api/he/templates/{ontology_id}"
+      - "POST /api/he/extract/batch"
+
+  phase4_us2_skill_opa:
+    status: completed
+    tasks: [T013, T014, T015, T016]
+    checkpoint: "KnowledgeExtractSkill 注册，OPA 策略 data_collection.rego 创建"
+    skill:
+      name: knowledge_extract
+      requires_opa_check: true
+      opa_action: data_collection:extract
+
+  phase5_us3_ingest_service:
+    status: completed
+    tasks: [T017, T018, T019]
+    checkpoint: "IngestService 新增 ontology_id 可选参数，HE 路径降级兼容"
+
+  phase6_polish:
+    status: completed
+    tasks: [T020, T021, T022, T023]
+    checkpoint: "前端 HE 提取标签页，增量演化，批量并行，安全加固"
+    security_verification:
+      total_checks: 7
+      passed: 7
+      failed: 0
+      details:
+        content_sanitizer_integration: pass
+        opa_policy_extract: pass
+        skill_opa_check: pass
+        http_exception_transparency: pass
+        input_validation: pass
+        batch_concurrency_limit: pass
+        graphwriteproxy_label_validation: pass
+
+additional_work:
+  graphwriteproxy_hardening:
+    status: completed
+    description: "GraphWriteProxy 输入校验增强 — 标签校验 + 属性键校验 + ID 非空校验"
+    file: odap/infra/query/graph_write_proxy.py
+    validation_tests: 15
+
+files_created:
+  - hyper-extract/ (Git Submodule)
+  - odap/biz/data/hyper_extract/__init__.py
+  - odap/biz/data/hyper_extract/api/__init__.py
+  - odap/biz/data/hyper_extract/api/routes.py
+  - odap/biz/data/hyper_extract/api/schemas.py
+  - odap/biz/data/hyper_extract/services/__init__.py
+  - odap/biz/data/hyper_extract/services/extract_service.py
+  - odap/biz/data/hyper_extract/services/template_generator.py
+  - odap/biz/data/hyper_extract/impl/__init__.py
+  - odap/biz/data/hyper_extract/impl/he_adapter.py
+  - odap/biz/data/hyper_extract/impl/ontology_mapper.py
+  - odap/biz/data/hyper_extract/impl/dual_channel_writer.py
+  - odap/biz/data/hyper_extract/models/__init__.py
+  - odap/biz/data/hyper_extract/models/extraction_task.py
+  - odap/biz/data/hyper_extract/storage/__init__.py
+  - odap/biz/data/hyper_extract/storage/sqlite_extraction_storage.py
+  - tests/unit/test_extraction_storage.py
+  - tests/unit/test_ontology_mapper.py
+  - tests/unit/test_template_generator.py
+  - tests/unit/test_dual_channel_writer.py
+  - odap/infra/opa/policies/data_collection.rego
+
+files_modified:
+  - requirements.txt
+  - odap/tools/web/web_skills.py
+  - odap/tools/web/__init__.py
+  - odap/biz/core/ontology/design/services/ingest_service.py
+  - odap/web/router_registry.py
+  - odap/web/app.py
+  - odap/infra/query/graph_write_proxy.py
+  - frontend/src/modules/ingest/pages/IngestPanel.tsx
+  - frontend/src/modules/shared/services/api.ts
