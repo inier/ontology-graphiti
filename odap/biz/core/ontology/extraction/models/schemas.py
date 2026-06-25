@@ -8,6 +8,7 @@ from enum import Enum
 class ExtractionType(str, Enum):
     DATABASE = "database"
     NATURAL_LANGUAGE = "natural_language"
+    KNOWLEDGE_BASE = "knowledge_base"
 
 
 class ExtractionStatus(str, Enum):
@@ -54,6 +55,9 @@ class NLExtractionRequest(BaseModel):
     ontology_id: str = Field(..., description="目标本体ID")
     text: str = Field(..., min_length=1, description="自然语言需求描述")
     auto_search: bool = False
+    source_type: str = Field(default="text", description="来源类型: text/document/knowledge_base")
+    template_id: Optional[str] = Field(default=None, description="指定 HE 模板 ID")
+    method: Optional[str] = Field(default=None, description="HE 提取方法: graph_rag/light_rag/auto")
 
 
 class ExtractionSessionResponse(BaseModel):
@@ -66,9 +70,21 @@ class ExtractionSessionResponse(BaseModel):
     result_data: Optional[Dict[str, Any]] = None
     conflicts: List[Dict[str, Any]] = Field(default_factory=list)
     created_at: str = ""
+    template_used: Optional[str] = Field(default=None, description="使用的 HE 模板名称")
+    provenance_summary: Optional[Dict[str, Any]] = Field(default=None, description="溯源摘要")
 
 
 class ExtractionConfirmRequest(BaseModel):
     """抽取确认请求"""
     selected_type_ids: List[str] = Field(default_factory=list, description="选择导入的类型ID，空=全部导入")
     merge_strategy: str = "skip"  # skip / overwrite / rename
+
+
+class KBExtractionRequest(BaseModel):
+    """知识库提取请求"""
+    ontology_id: str = Field(..., description="目标本体ID")
+    kb_id: str = Field(..., description="知识库ID")
+    document_ids: Optional[List[str]] = Field(default=None, description="指定文档ID列表，空=全部文档")
+    template_id: Optional[str] = Field(default=None, description="指定 HE 模板 ID")
+    method: Optional[str] = Field(default=None, description="HE 提取方法: graph_rag/light_rag/auto")
+    batch_size: int = Field(default=10, description="批量处理文档数")
