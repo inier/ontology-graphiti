@@ -158,7 +158,7 @@ export default function BatchImporter({ workspaceId, scenarioId }: BatchImporter
         )}
 
         {error && (
-          <Alert type="error" message={t('ingest.importFailed') || '导入失败'} description={error} showIcon />
+          <Alert type="error" title={t('ingest.importFailed') || '导入失败'} description={error} showIcon />
         )}
 
         {result && (

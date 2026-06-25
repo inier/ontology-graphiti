@@ -209,7 +209,7 @@ export function ViewDesigner({ viewId, onSaved, onClose }: ViewDesignerProps) {
               />
             )}
             <Divider />
-            <Alert type="info" showIcon message="点击字段添加到视图，点击 ObjectType 切换数据源" />
+            <Alert type="info" showIcon title="点击字段添加到视图，点击 ObjectType 切换数据源" />
           </Card>
         </Col>
         <Col span={12}>
@@ -277,7 +277,7 @@ export function ViewDesigner({ viewId, onSaved, onClose }: ViewDesignerProps) {
                 {
                   key: 'permissions', label: `权限 (${permissions.length})`,
                   children: (
-                    <Alert type="info" showIcon message="权限基于 OPA，绑定 role + redaction rules" description="后端 POST /api/ontology/views/{id}/permissions 维护" />
+                    <Alert type="info" showIcon title="权限基于 OPA，绑定 role + redaction rules" description="后端 POST /api/ontology/views/{id}/permissions 维护" />
                   ),
                 },
               ]}

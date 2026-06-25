@@ -46,6 +46,8 @@ export function I18nAdminPage() {
   // Edit modal
   const [editModalVisible, setEditModalVisible] = useState(false);
   const [editForm] = Form.useForm();
+  const [currentPage, setCurrentPage] = useState(1);
+  const [currentPageSize, setCurrentPageSize] = useState(20);
 
   // Filter
   const [filterModule, setFilterModule] = useState<string | undefined>();
@@ -75,13 +77,15 @@ export function I18nAdminPage() {
   useEffect(() => {
     loadModules();
     loadLocales();
-    loadTranslations({ module: filterModule, locale: filterLocale });
+    loadTranslations({ module: filterModule, locale: filterLocale, page: 1, page_size: currentPageSize });
+    setCurrentPage(1);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   const handleFilter = useCallback(() => {
-    loadTranslations({ module: filterModule, locale: filterLocale });
-  }, [filterModule, filterLocale, loadTranslations]);
+    setCurrentPage(1);
+    loadTranslations({ module: filterModule, locale: filterLocale, page: 1, page_size: currentPageSize });
+  }, [filterModule, filterLocale, currentPageSize, loadTranslations]);
 
   const handleEdit = useCallback((entry: TranslationEntry) => {
     editForm.setFieldsValue({
@@ -360,7 +364,7 @@ export function I18nAdminPage() {
   ];
 
   return (
-    <div style={{ padding: 24 }}>
+    <div>
       <PageHeader
         title={t('title')}
         actions={
@@ -446,16 +450,22 @@ export function I18nAdminPage() {
           rowKey={(record) => `${record.key}-${record.module}-${record.locale}`}
           loading={loading}
           pagination={{
+            current: currentPage,
+            pageSize: currentPageSize,
             total,
-            pageSize: 20,
+            showSizeChanger: true,
             showTotal: (total) => t('totalItems', { count: total }),
           }}
           onChange={(pagination) => {
+            const page = pagination.current || 1;
+            const pageSize = pagination.pageSize || 20;
+            setCurrentPage(page);
+            setCurrentPageSize(pageSize);
             loadTranslations({
               module: filterModule,
               locale: filterLocale,
-              page: pagination.current,
-              page_size: pagination.pageSize,
+              page,
+              page_size: pageSize,
             });
           }}
         />
@@ -756,11 +766,11 @@ export function I18nAdminPage() {
         {scanResult && (
           <div style={{ marginTop: 16 }}>
             {scanResult.missing === 0 ? (
-              <Alert message={t('noMissing')} type="success" showIcon />
+              <Alert title={t('noMissing')} type="success" showIcon />
             ) : (
               <div>
                 <Alert
-                  message={t('scanComplete', { total: scanResult.total, missing: scanResult.missing })}
+                  title={t('scanComplete', { total: scanResult.total, missing: scanResult.missing })}
                   type="warning"
                   showIcon
                   style={{ marginBottom: 12 }}

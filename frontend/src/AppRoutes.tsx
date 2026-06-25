@@ -21,6 +21,7 @@ import { I18nAdminPage } from '@/modules/i18n-admin';
 import { QAPage, QueryPage, EvaluationPage } from '@/modules/qa';
 import { GuidePage } from '@/modules/guide';
 import { SettingsPage } from '@/modules/settings';
+import { ChannelManagementPage } from '@/modules/channels';
 import { KeepAliveOutlet } from '@/modules/shared/components/KeepAliveOutlet';
 
 function ProtectedRoute({ children }: { children: ReactNode }) {
@@ -72,6 +73,8 @@ export function AppRoutes() {
         <Route path="/policy-editor" element={<ProtectedRoute><PolicyPage /></ProtectedRoute>} />
         <Route path="/policies" element={<Navigate to="/policy-editor" replace />} />
         <Route path="/settings" element={<ProtectedRoute><SettingsPage /></ProtectedRoute>} />
+        <Route path="/settings/channels/default" element={<ProtectedRoute><ChannelManagementPage /></ProtectedRoute>} />
+        <Route path="/settings/channels/:workspaceId" element={<ProtectedRoute><ChannelManagementPage /></ProtectedRoute>} />
         <Route path="/audit" element={<ProtectedRoute><AuditLog /></ProtectedRoute>} />
         <Route path="/admin/agents" element={<ProtectedRoute><AgentManagement /></ProtectedRoute>} />
         <Route path="/guide" element={<ProtectedRoute><GuidePage /></ProtectedRoute>} />

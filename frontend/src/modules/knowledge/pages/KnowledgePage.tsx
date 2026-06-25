@@ -103,7 +103,7 @@ export function KnowledgePage() {
   ];
 
   return (
-    <div style={{ padding: 24 }}>
+    <div>
       <Card title="知识导航与语义层配置">
         <Tabs activeKey={activeTab} onChange={setActiveTab} items={[
           {

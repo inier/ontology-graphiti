@@ -63,13 +63,16 @@ export function DeleteConfirmModal({
     }
   };
 
-  const handleConfirm = () => {
+  const handleConfirm = async () => {
     if (!confirmed) {
       setConfirmed(true);
       return;
     }
-    onConfirm();
-    setConfirmed(false);
+    try {
+      await onConfirm();
+    } finally {
+      setConfirmed(false);
+    }
   };
 
   const handleCancel = () => {
@@ -123,7 +126,7 @@ export function DeleteConfirmModal({
           <Alert
             type="warning"
             showIcon
-            message={`即将删除工作空间「${workspaceName}」及其所有关联数据`}
+            title={`即将删除工作空间「${workspaceName}」及其所有关联数据`}
             description="此操作不可恢复，删除后所有关联的场景、智能体、会话等数据将被永久清除。"
           />
 
@@ -148,7 +151,7 @@ export function DeleteConfirmModal({
               type="error"
               showIcon
               icon={<DeleteOutlined />}
-              message="二次确认"
+              title="二次确认"
               description="请再次点击「确认删除」按钮以执行删除操作。"
             />
           )}

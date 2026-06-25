@@ -829,7 +829,7 @@ const SimulationPage: React.FC = () => {
 
           {store.simulationResult.status === 'timeout' ? (
 
-            <Alert type="warning" showIcon message="推演超时" description={store.simulationResult.message} />
+            <Alert type="warning" showIcon title="推演超时" description={store.simulationResult.message} />
 
           ) : (
 
@@ -875,7 +875,7 @@ const SimulationPage: React.FC = () => {
 
               {store.simulationResult.recommendation && (
 
-                <Alert type="info" message="推荐" description={store.simulationResult.recommendation} />
+                <Alert type="info" title="推荐" description={store.simulationResult.recommendation} />
 
               )}
 

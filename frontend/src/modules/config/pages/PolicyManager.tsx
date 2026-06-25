@@ -258,7 +258,7 @@ export function PolicyManager() {
   ];
 
   return (
-    <div style={{ padding: 24 }}>
+    <div>
       <Card
         title={
           <Space>

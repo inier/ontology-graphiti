@@ -69,7 +69,7 @@ const WebSearchPanel: React.FC = () => {
           </Button>
         </Space>
 
-        {error && <Alert type="error" message={error} showIcon closable onClose={() => setError('')} />}
+        {error && <Alert type="error" title={error} showIcon closable onClose={() => setError('')} />}
 
         {loading && <Spin spinning description={t('webSearch.searching')} style={{ width: '100%' }}><div style={{ minHeight: 40 }} /></Spin>}
 

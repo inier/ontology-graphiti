@@ -126,7 +126,7 @@ export function ObjectViewPage({ workspaceId, onCreateView }: ObjectViewPageProp
   }, [currentView]);
 
   return (
-    <div style={{ padding: 24 }}>
+    <div>
       <Card
         title={
           <Space>

@@ -77,10 +77,6 @@ function AppContent() {
   /* ── 加载场景 ── */
   const loadScenarios = useCallback(async (workspaceId: string) => {
     if (!workspaceId) return;
-    if (cachedScenarios.length > 0 && currentWorkspace === workspaceId) {
-      setScenarios(cachedScenarios);
-      return;
-    }
     try {
       const data = await api.listScenarios(workspaceId);
       cachedScenarios = data ?? [];
@@ -90,6 +86,7 @@ function AppContent() {
       const saved = localStorage.getItem('currentScenarioId');
       const valid = (data ?? []).find(s => s.scenario_id === saved);
       if (valid) setCurrentScenarioState(valid.scenario_id);
+      else if (data && data.length > 0) setCurrentScenarioState(data[0].scenario_id);
     } catch (e) {
       console.error('加载场景失败:', e);
     }

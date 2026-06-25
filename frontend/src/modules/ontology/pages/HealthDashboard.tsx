@@ -90,7 +90,7 @@ export function HealthDashboardPage({ workspaceId }: HealthDashboardPageProps) {
   }, [rules]);
 
   return (
-    <div style={{ padding: 24 }}>
+    <div>
       <Card
         title={
           <Space>

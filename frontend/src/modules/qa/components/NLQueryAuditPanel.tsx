@@ -35,6 +35,7 @@ export function NLQueryAuditPanel() {
   } = useNLQueryStore();
 
   const [workspaceFilter, setWorkspaceFilter] = useState<string | undefined>(undefined);
+  const [auditPage, setAuditPage] = useState(1);
 
   useEffect(() => {
     fetchAuditRecords({ limit: 20 });
@@ -177,11 +178,13 @@ export function NLQueryAuditPanel() {
         size="small"
         scroll={{ x: 770 }}
         pagination={{
+          current: auditPage,
           total: auditTotal,
           pageSize: 20,
           showSizeChanger: false,
           showTotal: (t) => `共 ${t} 条`,
           onChange: (page) => {
+            setAuditPage(page);
             fetchAuditRecords({ limit: 20, offset: (page - 1) * 20, workspace_id: workspaceFilter });
           },
         }}

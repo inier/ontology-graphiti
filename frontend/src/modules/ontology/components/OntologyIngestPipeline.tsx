@@ -17,7 +17,6 @@ import {
   Col
 } from 'antd';
 import {
-import { AdvancedTable } from '@/modules/shared';
   DatabaseOutlined,
   ApiOutlined,
   CloudServerOutlined,
@@ -28,6 +27,7 @@ import { AdvancedTable } from '@/modules/shared';
   FolderOutlined,
   BarChartOutlined
 } from '@ant-design/icons';
+import { AdvancedTable } from '@/modules/shared';
 
 const { Text, Paragraph } = Typography;
 
@@ -480,7 +480,7 @@ export function OntologyIngestPipeline() {
             <Card
               style={{ borderRadius: 8 }}
               size="small"
-              extra={<Alert type="success" message="构建完成！本体已成功生成" banner />}
+              extra={<Alert type="success" title="构建完成！本体已成功生成" banner />}
             >
               <Collapse items={collapseItems} defaultActiveKey={['1']} size="small" />
             </Card>

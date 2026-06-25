@@ -82,7 +82,7 @@ export function AgentPage() {
   ];
 
   return (
-    <div style={{ padding: 24 }}>
+    <div>
       <Title level={3}>Agent Dispatch Center</Title>
 
       <Tabs

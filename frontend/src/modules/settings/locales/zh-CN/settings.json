@@ -1,0 +1,45 @@
+{
+  "title": "系统配置",
+  "loading": "加载配置中...",
+  "changeHistory": "变更历史",
+  "configChangeHistory": "配置变更历史",
+  "loadHistoryFailed": "加载变更历史失败",
+  "noHistory": "暂无变更记录",
+  "loadingText": "加载中...",
+  "emptyValue": "(空)",
+  "rollbackConfirm": "确认回滚至版本 #{{version}}？",
+  "rollbackDescription": "回滚后当前配置将被替换为该版本的配置",
+  "rollbackOk": "确认回滚",
+  "rollback": "回滚",
+  "rollbackSuccess": "已回滚至版本 #{{version}}",
+  "rollbackFailed": "回滚失败",
+
+  "exportConfig": "导出配置",
+  "importConfig": "导入配置",
+  "exportSuccess": "配置已导出",
+  "exportFailed": "导出配置失败",
+  "importNoItems": "导入文件中没有配置项",
+  "importFormatError": "导入文件格式错误，请检查 JSON 格式",
+  "importFailed": "导入配置失败",
+  "importSuccess": "成功导入 {{count}} 项配置（版本 #{{version}}）",
+
+  "saveButton": "保存 {{label}} 配置",
+
+  "currentConfiguredMasked": "当前已配置，显示为掩码",
+
+  "placeholderSelect": "请选择{{label}}",
+  "placeholderInput": "请输入{{label}}",
+  "placeholderInputUrl": "请输入{{label}}，如 https://example.com",
+
+  "connectionTest": "测试连接",
+  "testing": "测试中",
+  "connectionRequestFailed": "连接测试请求失败",
+  "connectionSuccess": "连接成功 ({{ms}}ms)",
+  "connectionFailed": "连接失败",
+  "connectionFailedWithMsg": "连接失败: {{msg}}",
+
+  "statusConnected": "已连接",
+  "statusDisconnected": "已断开",
+  "statusNotConfigured": "未配置",
+  "statusUnknown": "未知"
+}

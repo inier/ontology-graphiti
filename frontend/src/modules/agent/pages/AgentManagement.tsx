@@ -480,7 +480,7 @@ export function AgentManagement() {
 
     const ws = workspaceOptions.find(w => w.id === id);
 
-    return ws ? ws.name : (agent.resolved_names?.workspace_name || id.slice(0, 8));
+    return ws ? ws.name : (agent.resolved_names?.workspace_name || id);
 
   };
 
@@ -490,24 +490,38 @@ export function AgentManagement() {
 
     const role = roleOptions.find(r => r.id === id);
 
-    return role ? role.name : (agent.resolved_names?.role_names?.[id] || id.slice(0, 8));
+    return role ? role.name : (agent.resolved_names?.role_names?.[id] || id);
 
   };
 
 
 
   const resolveName = (id: string, agent: Agent, category: keyof import('../types').ResolvedNames) => {
-
     const rn = agent.resolved_names;
+    if (rn) {
+      const map = rn[category];
+      if (map && typeof map === 'object' && id in map) return (map as Record<string, string>)[id];
+    }
+    if (category === 'skill_names') {
+      const sk = skillOptions.find(s => s.id === id);
+      if (sk) return sk.name;
+    }
+    if (category === 'object_names') {
+      const o = entityOptions.find(e => e.id === id);
+      if (o) return o.name;
+    }
+    return id;
+  };
 
-    if (!rn) return id.slice(0, 8);
-
-    const map = rn[category];
-
-    if (map && typeof map === 'object' && id in map) return (map as Record<string, string>)[id];
-
-    return id.slice(0, 8);
-
+  const resolveMainObject = (agent: Agent) => {
+    if (!agent.main_object) return '';
+    const rn = agent.resolved_names;
+    if (rn?.object_names && agent.main_object in rn.object_names) {
+      return rn.object_names[agent.main_object];
+    }
+    const found = entityOptions.find(o => o.id === agent.main_object);
+    if (found) return found.name;
+    return agent.main_object;
   };
 
 
@@ -596,7 +610,7 @@ export function AgentManagement() {
 
                 hoverable
 
-                style={{ borderRadius: 12, height: '100%' }}
+                style={{ borderRadius: 12, height: '100%', display: 'flex', flexDirection: 'column', justifyContent: 'space-between' }}
 
                 styles={{ body: { padding: 20 } }}
 
@@ -628,11 +642,17 @@ export function AgentManagement() {
 
                   </div>
 
-                  {agent.main_object && (
-
-                    <Tag color="blue" style={{ margin: 0 }}>主对象: {agent.main_object}</Tag>
-
-                  )}
+                  {agent.main_object && (() => {
+                    const name = resolveMainObject(agent);
+                    const isUuid = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(agent.main_object);
+                    const resolved = name !== agent.main_object;
+                    const label = resolved ? name : (isUuid ? `已删除: ${agent.main_object.slice(0, 8)}...` : name);
+                    return (
+                      <Tag color={resolved ? 'blue' : 'default'} style={{ margin: 0, color: resolved ? undefined : '#bfbfbf' }} title={agent.main_object}>
+                        主对象: {label}
+                      </Tag>
+                    );
+                  })()}
 
                   {agent.workspace_id ? (
 
@@ -658,11 +678,18 @@ export function AgentManagement() {
 
                   <div style={{ display: 'flex', flexWrap: 'wrap', gap: 4, justifyContent: 'center', width: '100%' }}>
 
-                    {(agent.related_skills || []).slice(0, 3).map(sk => (
-
-                      <Tag key={sk} color="purple" style={{ fontSize: 11 }}>{resolveName(sk, agent, 'skill_names')}</Tag>
-
-                    ))}
+                    {(agent.related_skills || []).slice(0, 3).map(sk => {
+                      const name = resolveName(sk, agent, 'skill_names');
+                      const isUuid = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(sk);
+                      const resolved = name !== sk;
+                      if (resolved) {
+                        return <Tag key={sk} color="purple" style={{ fontSize: 11 }}>{name}</Tag>;
+                      }
+                      if (isUuid) {
+                        return <Tag key={sk} color="default" style={{ fontSize: 11, color: '#bfbfbf' }} title={sk}>已删除: {sk.slice(0, 8)}...</Tag>;
+                      }
+                      return <Tag key={sk} color="purple" style={{ fontSize: 11 }}>{sk}</Tag>;
+                    })}
 
                     {(agent.related_skills || []).length > 3 && (
 
@@ -1114,7 +1141,7 @@ export function AgentManagement() {
 
               <Descriptions.Item label="主对象">
 
-                <Tag color="blue">{viewingAgent.main_object}</Tag>
+                <Tag color="blue">{resolveMainObject(viewingAgent)}</Tag>
 
               </Descriptions.Item>
 
@@ -1172,7 +1199,14 @@ export function AgentManagement() {
 
                 <Space wrap>
 
-                  {(viewingAgent.related_skills || []).map(o => <Tag key={o} color="purple">{resolveName(o, viewingAgent, 'skill_names')}</Tag>)}
+                  {(viewingAgent.related_skills || []).map(o => {
+                    const name = resolveName(o, viewingAgent, 'skill_names');
+                    const isUuid = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(o);
+                    const resolved = name !== o;
+                    if (resolved) return <Tag key={o} color="purple">{name}</Tag>;
+                    if (isUuid) return <Tag key={o} color="default" style={{ color: '#bfbfbf' }} title={o}>已删除: {o.slice(0, 8)}...</Tag>;
+                    return <Tag key={o} color="purple">{o}</Tag>;
+                  })}
 
                 </Space>
 

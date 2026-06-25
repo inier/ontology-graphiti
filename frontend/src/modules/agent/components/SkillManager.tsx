@@ -154,7 +154,7 @@ export function SkillManager() {
   ];
 
   return (
-    <div style={{ padding: 24 }}>
+    <div>
       <Card
         title="Skill Manager"
         extra={

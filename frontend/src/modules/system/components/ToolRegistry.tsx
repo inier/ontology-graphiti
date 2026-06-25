@@ -200,7 +200,7 @@ export default function ToolRegistry() {
   ];
 
   return (
-    <div style={{ padding: 24 }}>
+    <div>
       <Card
         title="Tool Registry"
         extra={

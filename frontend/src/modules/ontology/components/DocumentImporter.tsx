@@ -124,7 +124,7 @@ export default function DocumentImporter() {
         </Dragger>
 
         {error && (
-          <Alert type="error" message={t('documentImport.parseError')} description={error} showIcon closable onClose={() => setError(null)} />
+          <Alert type="error" title={t('documentImport.parseError')} description={error} showIcon closable onClose={() => setError(null)} />
         )}
 
         {preview && (

@@ -35,6 +35,7 @@ export interface Workspace {
   created_at: string;
   updated_at?: string;
   member_count?: number;
+  tags?: string[];
 }
 
 export interface AuditEvent {
@@ -75,9 +76,15 @@ function safeCastArray<T>(arr: unknown, validator: (item: unknown) => boolean): 
 export { fetchJson };
 
 export const api = {
-  async listScenarios(): Promise<Scenario[]> {
+  async listScenarios(workspaceId?: string): Promise<Scenario[]> {
+    // 如果提供了workspaceId，直接获取该工作空间的场景
+    if (workspaceId) {
+      const data = await fetchJson<{ scenarios: Scenario[] }>(`${API_BASE}/api/workspaces/${workspaceId}/scenarios`);
+      return data.scenarios || [];
+    }
+
+    // 否则获取所有工作空间的场景
     try {
-      // 先尝试获取所有工作空间的场景
       const workspacesData = await fetchJson<{ workspaces: Workspace[] }>(`${API_BASE}/api/workspaces`);
       let allScenarios: Scenario[] = [];
       for (const ws of workspacesData.workspaces || []) {
@@ -551,7 +558,7 @@ export const api = {
   // ==================== 本体文档 API ====================
 
   async getOntologySchema(): Promise<Record<string, unknown>> {
-    return fetchJson(`${API_BASE}/api/ontology/schema`);
+    return fetchJson(`${API_BASE}/api/compat/ontology/schema`);
   },
 
   async getOntologyDocuments(scenarioId?: string, limit: number = 100): Promise<Array<Record<string, unknown>>> {
@@ -864,11 +871,11 @@ export const api = {
     });
   },
 
-  async getScenariosInWorkspace(workspaceId: string): Promise<{ scenarios: Array<{ scenario_id: string; name: string; description: string; workspace_id: string; ontology_id?: string; current_ontology_version?: string; doc_count: number; event_count: number; entity_count: number; created_at: string; updated_at: string }>; workspace_id: string; total: number }> {
+  async getScenariosInWorkspace(workspaceId: string): Promise<{ scenarios: Array<{ scenario_id: string; name: string; description: string; workspace_id: string; status?: string; tags?: string[]; ontology_id?: string; ontology_ids?: string[]; current_ontology_version?: string; doc_count: number; event_count: number; entity_count: number; created_at: string; updated_at: string }>; workspace_id: string; total: number }> {
     return fetchJson(`${API_BASE}/api/workspaces/${workspaceId}/scenarios`);
   },
 
-  async getScenarioInWorkspace(workspaceId: string, scenarioId: string): Promise<{ scenario_id: string; name: string; description: string; workspace_id: string; ontology_id?: string; current_ontology_version?: string; doc_count: number; event_count: number; entity_count: number; created_at: string; updated_at: string }> {
+  async getScenarioInWorkspace(workspaceId: string, scenarioId: string): Promise<{ scenario_id: string; name: string; description: string; workspace_id: string; status?: string; tags?: string[]; ontology_id?: string; ontology_ids?: string[]; current_ontology_version?: string; doc_count: number; event_count: number; entity_count: number; created_at: string; updated_at: string }> {
     return fetchJson(`${API_BASE}/api/workspaces/${workspaceId}/scenarios/${scenarioId}`);
   },
 

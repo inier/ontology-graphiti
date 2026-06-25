@@ -308,7 +308,7 @@ export function MergeDiffViewer({ branchId, baseVersionId, onMerged }: MergeDiff
           type={remainingConflicts > 0 ? 'warning' : 'success'}
           showIcon
           icon={<ExclamationCircleOutlined />}
-          message={
+          title={
             <Space>
               <Text>共 {conflictCount} 个冲突，已解决 {resolvedCount}，剩余 {remainingConflicts}</Text>
             </Space>

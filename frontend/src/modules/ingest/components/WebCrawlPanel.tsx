@@ -86,7 +86,7 @@ const WebCrawlPanel: React.FC = () => {
           </Space>
         )}
 
-        {error && <Alert type="error" message={error} showIcon closable onClose={() => setError('')} />}
+        {error && <Alert type="error" title={error} showIcon closable onClose={() => setError('')} />}
 
         {loading && <Spin spinning description={t('webCrawl.crawling')} style={{ width: '100%' }}><div style={{ minHeight: 40 }} /></Spin>}
 
@@ -104,7 +104,7 @@ const WebCrawlPanel: React.FC = () => {
           }>
             <Space orientation="vertical" style={{ width: '100%' }} size="small">
               {result.sanitize_warnings && result.sanitize_warnings.length > 0 && (
-                <Alert type="warning" message={`${t('webCrawl.safetyFilter')} ${result.sanitize_warnings.join('; ')}`} showIcon />
+                <Alert type="warning" title={`${t('webCrawl.safetyFilter')} ${result.sanitize_warnings.join('; ')}`} showIcon />
               )}
               <Paragraph>
                 <Text type="secondary">{t('webCrawl.urlLabel')}</Text>

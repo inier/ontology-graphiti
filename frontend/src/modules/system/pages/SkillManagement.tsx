@@ -390,7 +390,7 @@ export function SkillManagement() {
   );
 
   return (
-    <div style={{ padding: 24 }}>
+    <div>
       <PageHeader title="Skill 管理" />
 
       <Tabs

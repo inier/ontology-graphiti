@@ -1,0 +1,40 @@
+{
+  "title": "版本历史",
+  "loadHistoryFailed": "加载版本历史失败",
+  "rollbackSuccess": "回滚成功",
+  "rollbackFailed": "回滚失败",
+  "selectTwoVersions": "请选择两个版本进行对比",
+  "compareFailed": "版本对比失败",
+  "deleteSuccess": "删除成功",
+  "deleteFailed": "删除版本失败",
+  "compare": "对比版本",
+  "refresh": "刷新",
+
+  "columnVersionId": "版本号",
+  "columnTime": "时间",
+  "columnCommit": "提交信息",
+  "columnStatus": "状态",
+  "columnCounts": "数据量",
+  "columnActions": "操作",
+
+  "statusCurrent": "当前",
+  "statusDraft": "草稿",
+  "statusReleased": "已发布",
+  "statusDeprecated": "已废弃",
+  "statusArchived": "已归档",
+  "statusUnknown": "未知",
+
+  "rollback": "回滚",
+  "delete": "删除",
+  "confirmDelete": "确定删除此版本？",
+  "ok": "确定",
+  "cancel": "取消",
+  "close": "关闭",
+  "selectAll": "全选",
+
+  "comparisonTitle": "版本对比结果",
+  "addedSection": "新增",
+  "removedSection": "删除",
+  "modifiedSection": "修改",
+  "noDifference": "两个版本无差异"
+}

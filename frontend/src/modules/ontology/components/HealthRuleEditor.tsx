@@ -253,7 +253,7 @@ expression: "count(properties) >= 1"
               type="success"
               showIcon
               icon={<CheckCircleOutlined />}
-              message={t('healthRule.parsePass')}
+              title={t('healthRule.parsePass')}
               description={t('healthRule.parsePassDesc')}
             />
           ) : (
@@ -261,7 +261,7 @@ expression: "count(properties) >= 1"
               type="error"
               showIcon
               icon={<CloseCircleOutlined />}
-              message={t('healthRule.errorsFoundCount', { count: errorCount })}
+              title={t('healthRule.errorsFoundCount', { count: errorCount })}
               description={
                 <ul style={{ margin: 0, paddingLeft: 18 }}>
                   {validation.errors.map((e, i) => (

@@ -1,0 +1,209 @@
+/* AdvancedTable 样式 */
+
+/* 容器 */
+.advanced-table-container {
+  width: 100%;
+}
+
+/* ProTable 工具栏样式优化 */
+.advanced-table-container .ant-pro-table-list-toolbar {
+  padding: 8px 0 !important;
+  border-bottom: 1px solid rgba(0, 0, 0, 0.06);
+  margin-bottom: 8px;
+}
+
+.advanced-table-container .ant-pro-table-list-toolbar-left {
+  flex: 1;
+}
+
+.advanced-table-container .ant-pro-table-list-toolbar-right {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+}
+
+/* 密度切换按钮样式 */
+.advanced-table-container .ant-pro-table-list-toolbar button {
+  border-radius: 4px;
+  transition: all 0.2s;
+}
+
+/* 列设置下拉菜单 */
+.advanced-table-container .ant-table-column-sorter {
+  margin-left: 4px;
+  opacity: 0.6;
+  transition: opacity 0.2s;
+}
+
+.advanced-table-container .ant-table-column-sorter:hover {
+  opacity: 1;
+}
+
+/* 表头排序图标 */
+.advanced-table-container .ant-table-column-sorter-up,
+.advanced-table-container .ant-table-column-sorter-down {
+  font-size: 10px;
+}
+
+/* 全屏模式 */
+.advanced-table-container.advanced-table-fullscreen {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  z-index: 9999;
+  background: #fff;
+  padding: 16px;
+  overflow: auto;
+}
+
+/* 表头 */
+.advanced-table-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 0 0 8px 0;
+}
+
+.advanced-table-title {
+  font-size: 14px;
+  font-weight: 500;
+}
+
+.advanced-table-toolbar {
+  flex-shrink: 0;
+}
+
+/* 可调节列宽手柄 - 与 Ant Design 标准兼容 */
+.react-resizable {
+  position: relative;
+  background-clip: padding-box;
+}
+
+.react-resizable-handle {
+  position: absolute;
+  right: -8px;
+  bottom: 0;
+  z-index: 1;
+  width: 16px;
+  height: 100%;
+  cursor: col-resize;
+  background: transparent;
+}
+
+.react-resizable-handle::after {
+  content: '';
+  position: absolute;
+  top: 50%;
+  right: 0;
+  transform: translateY(-50%);
+  width: 2px;
+  height: 60%;
+  min-height: 12px;
+  max-height: 24px;
+  background-color: rgba(0, 0, 0, 0.12);
+  border-radius: 1px;
+  transition: background-color 0.2s;
+}
+
+.react-resizable-handle:hover::after {
+  background-color: rgba(24, 144, 255, 0.6);
+}
+
+/* 全屏模式下隐藏滚动条样式优化 */
+.advanced-table-fullscreen .ant-table {
+  max-height: calc(100vh - 80px);
+  overflow: auto;
+}
+
+/* ========== 密度切换样式（ProTable v3 官方用法）========== */
+
+/* ProTable 工具栏中的密度按钮 */
+.advanced-table-container .ant-pro-table-list-toolbar button[data-density] {
+  padding: 4px 8px;
+  font-size: 12px;
+  line-height: 1;
+}
+
+/* 密度切换 - 正确作用于表格列表（ProTable v3 会将密度类名添加到 .ant-pro-table-list 元素） */
+.advanced-table-container .ant-pro-table-list.ant-pro-table-density-large .ant-table-thead > tr > th,
+.advanced-table-container .ant-pro-table-list.ant-pro-table-density-large .ant-table-cell {
+  padding: 16px 16px !important;
+}
+.advanced-table-container .ant-pro-table-list.ant-pro-table-density-large .ant-table-tbody > tr > td {
+  padding: 16px 16px !important;
+}
+
+/* 中等模式（默认） */
+.advanced-table-container .ant-pro-table-list.ant-pro-table-density-middle .ant-table-thead > tr > th,
+.advanced-table-container .ant-pro-table-list.ant-pro-table-density-middle .ant-table-cell {
+  padding: 12px 16px !important;
+}
+.advanced-table-container .ant-pro-table-list.ant-pro-table-density-middle .ant-table-tbody > tr > td {
+  padding: 12px 16px !important;
+}
+
+/* 紧凑模式 */
+.advanced-table-container .ant-pro-table-list.ant-pro-table-density-small .ant-table-thead > tr > th,
+.advanced-table-container .ant-pro-table-list.ant-pro-table-density-small .ant-table-cell {
+  padding: 8px 8px !important;
+}
+.advanced-table-container .ant-pro-table-list.ant-pro-table-density-small .ant-table-tbody > tr > td {
+  padding: 8px 8px !important;
+}
+
+/* ========== 表格边框和分割线样式 ========== */
+
+/* 表格整体边框 */
+.advanced-table-container .ant-table-wrapper {
+  border-radius: 6px;
+  overflow: hidden;
+}
+
+/* 单元格边框 */
+.advanced-table-container .ant-table {
+  border: 1px solid rgba(0, 0, 0, 0.08);
+  border-radius: 6px;
+}
+
+/* 表头背景和边框 */
+.advanced-table-container .ant-table-thead > tr > th {
+  background: rgba(0, 0, 0, 0.02);
+  border-bottom: 2px solid rgba(0, 0, 0, 0.08);
+  font-weight: 600;
+}
+
+/* 表格行边框（横向分割线） */
+.advanced-table-container .ant-table-tbody > tr > td {
+  border-bottom: 1px solid rgba(0, 0, 0, 0.04);
+}
+
+.advanced-table-container .ant-table-tbody > tr:hover > td {
+  background: rgba(24, 144, 255, 0.02) !important;
+}
+
+/* 斑马纹（可选） */
+.advanced-table-container .ant-table-tbody > tr:nth-child(even) > td {
+  background: rgba(0, 0, 0, 0.005);
+}
+
+/* 分页器样式 */
+.advanced-table-container .ant-pagination {
+  margin-top: 12px;
+  padding-top: 12px;
+  border-top: 1px solid rgba(0, 0, 0, 0.06);
+}
+
+/* 表格工具栏右侧按钮间距 */
+.advanced-table-container .ant-space-item .ant-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+}
+
+/* ProTable 设置列下拉框样式 */
+.advanced-table-container .ant-table-column-settings .ant-dropdown-menu {
+  max-height: 400px;
+  overflow-y: auto;
+}

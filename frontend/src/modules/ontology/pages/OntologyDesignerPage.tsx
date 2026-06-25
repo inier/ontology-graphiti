@@ -17,6 +17,7 @@ import {
   SwapOutlined, CheckCircleOutlined, ApartmentOutlined,
 
   HistoryOutlined, ReloadOutlined, DatabaseOutlined, MessageOutlined,
+
   RobotOutlined,
 } from '@ant-design/icons';
 
@@ -501,8 +502,6 @@ export function OntologyDesignerPage() {
 
 
   useEffect(() => { if (!currentOntology) { setSelectorOpen(true); setSelectorCreate(false); } }, [currentOntology]);
-
-
 
   // 工作空间切换时，如果当前本体不属于新工作空间，清空选择
 

@@ -1,0 +1,40 @@
+{
+  "title": "Version History",
+  "loadHistoryFailed": "Failed to load version history",
+  "rollbackSuccess": "Rollback succeeded",
+  "rollbackFailed": "Rollback failed",
+  "selectTwoVersions": "Please select two versions to compare",
+  "compareFailed": "Version comparison failed",
+  "deleteSuccess": "Deleted successfully",
+  "deleteFailed": "Failed to delete version",
+  "compare": "Compare Versions",
+  "refresh": "Refresh",
+
+  "columnVersionId": "Version",
+  "columnTime": "Time",
+  "columnCommit": "Commit Message",
+  "columnStatus": "Status",
+  "columnCounts": "Counts",
+  "columnActions": "Actions",
+
+  "statusCurrent": "Current",
+  "statusDraft": "Draft",
+  "statusReleased": "Released",
+  "statusDeprecated": "Deprecated",
+  "statusArchived": "Archived",
+  "statusUnknown": "Unknown",
+
+  "rollback": "Rollback",
+  "delete": "Delete",
+  "confirmDelete": "Are you sure to delete this version?",
+  "ok": "OK",
+  "cancel": "Cancel",
+  "close": "Close",
+  "selectAll": "Select All",
+
+  "comparisonTitle": "Version Comparison Result",
+  "addedSection": "Added",
+  "removedSection": "Removed",
+  "modifiedSection": "Modified",
+  "noDifference": "No difference between the two versions"
+}

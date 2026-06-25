@@ -853,7 +853,7 @@ export function WorkspaceManager() {
 
   return (
 
-    <div style={{ padding: 24 }}>
+    <div>
 
       <Row gutter={[16, 16]}>
 

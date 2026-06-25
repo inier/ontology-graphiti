@@ -484,7 +484,7 @@ export function ViewFieldMapping({ viewId, onClose }: ViewFieldMappingProps) {
               type="info"
               showIcon
               style={{ marginTop: 8, fontSize: 12 }}
-              message="双击叶子节点加入视图"
+              title="双击叶子节点加入视图"
             />
           </Card>
         </Col>

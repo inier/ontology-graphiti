@@ -26,9 +26,8 @@ import {
   ClockCircleOutlined, RobotOutlined, ReloadOutlined,
 } from '@ant-design/icons';
 import { apiClient } from '@/modules/shared/services/apiClient';
-import {
 import { AdvancedTable } from '@/modules/shared';
-  STRATEGY_OPTIONS,
+import {
   type ConflictStrategy,
   type ConflictRecord,
   type ConflictSource,

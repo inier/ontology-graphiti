@@ -167,6 +167,7 @@ export function useSigmaGraph({
       maxCameraRatio: 10,
       defaultNodeColor: '#999',
       defaultEdgeColor: '#ccc',
+      allowInvalidContainer: true,
     });
 
     // 事件绑定

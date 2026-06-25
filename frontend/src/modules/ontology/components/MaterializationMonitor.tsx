@@ -200,13 +200,13 @@ export function MaterializationMonitor({ workspaceId, refreshIntervalMs = 10000 
       <Drawer open={drawerOpen} onClose={() => setDrawerOpen(false)} title={`任务详情: ${selected?.job_id || ''}`}>
         {selected && (
           <Space orientation="vertical" style={{ width: '100%' }}>
-            <Alert type={selected.status === 'FAILED' ? 'error' : 'info'} showIcon message={`Status: ${selected.status}`} />
+            <Alert type={selected.status === 'FAILED' ? 'error' : 'info'} showIcon title={`Status: ${selected.status}`} />
             <Text>ObjectType: <Text code>{selected.object_type_name}</Text></Text>
             <Text>Property: <Text code>{selected.computed_property_name}</Text></Text>
             <Text>Progress: <Progress percent={selected.progress} /></Text>
             <Text>Rows: {selected.row_count ?? '-'}</Text>
             <Text>Duration: {selected.duration_ms ?? '-'} ms</Text>
-            {selected.error && <Alert type="error" message="Error" description={selected.error} />}
+            {selected.error && <Alert type="error" title="Error" description={selected.error} />}
           </Space>
         )}
       </Drawer>

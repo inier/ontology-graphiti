@@ -169,7 +169,7 @@ export default function HookManager() {
   ];
 
   return (
-    <div style={{ padding: 24 }}>
+    <div>
       <Card
         title="Hook Manager"
         extra={

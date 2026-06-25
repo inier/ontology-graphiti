@@ -333,7 +333,7 @@ export function VersionHistory() {
 
   return (
 
-    <div style={{ padding: 24 }}>
+    <div>
 
       <Card
 

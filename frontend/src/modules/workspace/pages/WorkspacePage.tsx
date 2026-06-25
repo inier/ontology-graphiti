@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 
-import { Row, Col, Card, Tag, Modal, Form, Input, Select as AntSelect, Space, Popconfirm, Statistic, Tabs, message, Empty, Spin } from 'antd';
+import { Row, Col, Card, Tag, Modal, Form, Input, Select as AntSelect, Space, Statistic, Tabs, message, Empty } from 'antd';
 
 import { PlusOutlined, EditOutlined, DeleteOutlined, ExportOutlined, ImportOutlined, PlayCircleOutlined, StopOutlined } from '@ant-design/icons';
 
@@ -11,6 +11,7 @@ import { PageHeader } from '@/modules/shared/components/PageHeader';
 import { useWorkspace, useScenario } from '@/modules/shared/components/LayoutContexts';
 
 import { useWorkspaceStore } from '../stores/workspaceStore';
+import { DeleteConfirmModal } from '../components/DeleteConfirmModal';
 
 import type { WorkspaceDetail, ScenarioDetail } from '../stores/workspaceStore';
 
@@ -89,6 +90,8 @@ export function WorkspacePage() {
 
   const [scenarioModalVisible, setScenarioModalVisible] = useState(false);
 
+  const [deleteModalVisible, setDeleteModalVisible] = useState(false);
+  const [deletingWorkspace, setDeletingWorkspace] = useState<WorkspaceDetail | null>(null);
   const [editingWorkspace, setEditingWorkspace] = useState<WorkspaceDetail | null>(null);
 
   const [createForm] = Form.useForm();
@@ -194,13 +197,16 @@ export function WorkspacePage() {
 
 
   const handleDelete = async (workspaceId: string) => {
-
-    await deleteWorkspace(workspaceId);
-
-    adapter.getMessage().success('删除成功');
-
+    try {
+      await deleteWorkspace(workspaceId);
+      adapter.getMessage().success('删除成功');
+    } catch {
+      adapter.getMessage().error('删除失败');
+    } finally {
+      setDeleteModalVisible(false);
+      setDeletingWorkspace(null);
+    }
     reloadWorkspaces();
-
   };
 
 
@@ -403,21 +409,17 @@ export function WorkspacePage() {
 
           </Button>
 
-          <Popconfirm
-
-            title="确认删除此工作空间？"
-
-            onConfirm={() => handleDelete(record.workspace_id)}
-
+          <Button
+            type="link"
+            size="small"
+            icon={<DeleteOutlined />}
+            onClick={() => {
+              setDeletingWorkspace(record);
+              setDeleteModalVisible(true);
+            }}
           >
-
-            <Button type="link" danger size="small" icon={<DeleteOutlined />}>
-
-              删除
-
-            </Button>
-
-          </Popconfirm>
+            删除
+          </Button>
 
         </Space>
 
@@ -531,7 +533,7 @@ export function WorkspacePage() {
 
     <PageTourWrapper pageId={PAGE_IDS.WORKSPACE} steps={workspaceTourSteps}>
 
-    <div style={{ padding: 24 }}>
+    <div>
 
       <PageHeader
 
@@ -898,6 +900,17 @@ export function WorkspacePage() {
         </Form>
 
       </Modal>
+
+      <DeleteConfirmModal
+        open={deleteModalVisible}
+        workspaceId={deletingWorkspace?.workspace_id || ''}
+        workspaceName={deletingWorkspace?.name || ''}
+        onConfirm={() => handleDelete(deletingWorkspace?.workspace_id || '')}
+        onCancel={() => {
+          setDeleteModalVisible(false);
+          setDeletingWorkspace(null);
+        }}
+      />
 
     </div>
 

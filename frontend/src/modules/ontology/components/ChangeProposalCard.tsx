@@ -315,7 +315,7 @@ export function ChangeProposalCard({ proposalId, onReview }: ChangeProposalCardP
                     <Card size="small" title={t('changeProposalCard.breakingChangesWithCount', { count: impact.breaking_changes.length })}>
                       <Space orientation="vertical" size={4} style={{ width: '100%' }}>
                         {impact.breaking_changes.map((bc, i) => (
-                          <Alert key={i} type="error" message={bc} showIcon />
+                          <Alert key={i} type="error" title={bc} showIcon />
                         ))}
                       </Space>
                     </Card>

@@ -197,7 +197,7 @@ export function UserManagement() {
   ];
 
   return (
-    <div style={{ padding: 24 }}>
+    <div>
       <Card
         title={
           <Space>

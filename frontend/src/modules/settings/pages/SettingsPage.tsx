@@ -73,7 +73,7 @@ export default function SettingsPage() {
   });
 
   return (
-    <div style={{ padding: 24, maxWidth: 960, margin: '0 auto' }}>
+    <div>
       <Card>
         <div
           style={{
@@ -111,7 +111,9 @@ export default function SettingsPage() {
         )}
 
         {loading && categories.length === 0 ? (
-          <div style={{ minHeight: 200 }} />
+          <div style={{ minHeight: 200, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+            <Spin size="large" tip="加载配置中..." />
+          </div>
         ) : (
           <Collapse
             defaultActiveKey={sortedCategories.map((c) => c.category)}

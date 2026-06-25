@@ -1,0 +1,624 @@
+/* ═══════════════════════════════════════════════════════════════
+ * ODAP Layout — 4 列布局样式
+ *
+ * 结构:
+ *   ┌──────────────────────────────────────────────────────────┐
+ *   │                    Global Header                          │
+ *   ├──────┬──────────┬──────────────────────┬──────────────────┤
+ *   │ Menu │  Task    │     Workspace        │   Extension      │
+ *   │      │  Panel   │                      │   Panel          │
+ *   │      ├──────────┤                      │                  │
+ *   │      │ Quick    │                      │                  │
+ *   │      │ Action   │                      │                  │
+ *   └──────┴──────────┴──────────────────────┴──────────────────┘
+ * ═══════════════════════════════════════════════════════════════ */
+
+/* ── Layout Variables ── */
+:root {
+  --odap-layout-header-height: 48px;
+  --odap-layout-menu-width-collapsed: 48px;
+  --odap-layout-menu-width-expanded: 220px;
+  --odap-layout-divider-width: 6px;
+  --odap-layout-divider-hover: 4px;
+  --odap-layout-border-color: var(--odap-color-border-light, #e8e8e8);
+  --odap-layout-bg: var(--odap-color-bg-primary, #fff);
+  --odap-layout-bg-secondary: var(--odap-color-bg-secondary, #fafafa);
+  --odap-layout-text: var(--odap-color-text, rgba(0,0,0,0.88));
+  --odap-layout-text-secondary: var(--odap-color-text-secondary, rgba(0,0,0,0.45));
+  --odap-layout-primary: var(--odap-color-primary, #6366F1);
+  --odap-layout-transition: 0.2s ease;
+  --odap-layout-workspace-padding: 24px;
+}
+
+/* ── Main Layout Container ── */
+.odap-layout {
+  display: flex;
+  flex-direction: column;
+  height: 100vh;
+  overflow: hidden;
+  background: var(--odap-layout-bg);
+}
+
+/* ── Global Header ── */
+.odap-layout-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  height: var(--odap-layout-header-height);
+  padding: 0 16px;
+  background: var(--odap-layout-bg);
+  border-bottom: 1px solid var(--odap-layout-border-color);
+  flex-shrink: 0;
+  z-index: 100;
+  gap: 12px;
+}
+
+.odap-header-left {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  flex-shrink: 0;
+}
+
+.odap-header-center {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  flex: 1;
+  justify-content: center;
+}
+
+.odap-header-right {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-shrink: 0;
+}
+
+.odap-header-brand {
+  font-size: 18px;
+  font-weight: 700;
+  color: var(--odap-layout-text);
+  white-space: nowrap;
+}
+
+.odap-header-selector {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.odap-header-selector-label {
+  font-size: 11px;
+  font-weight: 500;
+  color: var(--odap-layout-text-secondary);
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  white-space: nowrap;
+}
+
+/* ── Body Container ── */
+.odap-layout-body {
+  display: flex;
+  flex: 1;
+  overflow: hidden;
+}
+
+/* ── Menu (Column 1) — ProLayout handles this ── */
+
+/* ── Task Panel (Column 2) ── */
+.odap-task-panel {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+  background: var(--odap-layout-bg-secondary);
+  border-right: 1px solid var(--odap-layout-border-color);
+  overflow: hidden;
+}
+
+.odap-task-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 8px 12px;
+  border-bottom: 1px solid var(--odap-layout-border-color);
+  flex-shrink: 0;
+}
+
+.odap-task-title {
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--odap-layout-text-secondary);
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+
+.odap-task-view-toggle {
+  display: flex;
+  gap: 2px;
+}
+
+.odap-task-view-toggle button {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 24px;
+  height: 24px;
+  border: none;
+  background: transparent;
+  color: var(--odap-layout-text-secondary);
+  cursor: pointer;
+  border-radius: 4px;
+  transition: all var(--odap-layout-transition);
+  font-size: 12px;
+}
+
+.odap-task-view-toggle button:hover {
+  background: var(--odap-layout-border-color);
+  color: var(--odap-layout-text);
+}
+
+.odap-task-view-toggle button.active {
+  background: var(--odap-layout-primary);
+  color: #fff;
+}
+
+.odap-task-empty {
+  flex: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.odap-task-list {
+  flex: 1;
+  overflow-y: auto;
+  padding: 4px;
+}
+
+/* ── Task List View ── */
+.odap-task-list-view {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.odap-task-item {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 8px;
+  border-radius: 6px;
+  cursor: pointer;
+  transition: background var(--odap-layout-transition);
+  user-select: none;
+  border: 1px solid transparent;
+}
+
+.odap-task-item:hover {
+  background: var(--odap-layout-border-color);
+}
+
+.odap-task-item.active {
+  background: rgba(22, 119, 255, 0.08);
+  border-color: var(--odap-layout-primary);
+}
+
+.odap-task-item.drag-over {
+  border-color: var(--odap-layout-primary);
+  border-style: dashed;
+}
+
+.odap-task-item.dragging {
+  opacity: 0.5;
+}
+
+.odap-task-item-icon {
+  font-size: 12px;
+  flex-shrink: 0;
+}
+
+.odap-task-item-title {
+  flex: 1;
+  font-size: 12px;
+  color: var(--odap-layout-text);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.odap-task-item-close {
+  display: none;
+  border: none;
+  background: transparent;
+  color: var(--odap-layout-text-secondary);
+  cursor: pointer;
+  padding: 2px;
+  border-radius: 3px;
+  font-size: 10px;
+}
+
+.odap-task-item:hover .odap-task-item-close {
+  display: flex;
+}
+
+.odap-task-item-close:hover {
+  background: var(--odap-layout-border-color);
+  color: var(--odap-layout-text);
+}
+
+/* ── Task Card View ── */
+.odap-task-card-view {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  padding: 4px;
+}
+
+.odap-task-card {
+  padding: 8px;
+  border-radius: 8px;
+  border: 1px solid var(--odap-layout-border-color);
+  background: var(--odap-layout-bg);
+  cursor: pointer;
+  transition: all var(--odap-layout-transition);
+  user-select: none;
+}
+
+.odap-task-card:hover {
+  border-color: var(--odap-layout-primary);
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.06);
+}
+
+.odap-task-card.active {
+  border-color: var(--odap-layout-primary);
+  background: rgba(22, 119, 255, 0.04);
+}
+
+.odap-task-card.drag-over {
+  border-color: var(--odap-layout-primary);
+  border-style: dashed;
+}
+
+.odap-task-card.dragging {
+  opacity: 0.5;
+}
+
+.odap-task-card-header {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin-bottom: 4px;
+}
+
+.odap-task-card-icon {
+  font-size: 14px;
+}
+
+.odap-task-card-title {
+  flex: 1;
+  font-size: 12px;
+  font-weight: 500;
+  color: var(--odap-layout-text);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.odap-task-card-close {
+  display: none;
+  border: none;
+  background: transparent;
+  color: var(--odap-layout-text-secondary);
+  cursor: pointer;
+  padding: 2px;
+  border-radius: 3px;
+  font-size: 10px;
+}
+
+.odap-task-card:hover .odap-task-card-close {
+  display: flex;
+}
+
+.odap-task-card-summary {
+  font-size: 11px;
+  color: var(--odap-layout-text-secondary);
+  line-height: 1.4;
+  margin-bottom: 4px;
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+
+.odap-task-card-meta {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.odap-task-card-time {
+  font-size: 10px;
+  color: var(--odap-layout-text-secondary);
+}
+
+/* ── Quick Action Bar ── */
+.odap-quick-action-bar {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+  background: var(--odap-layout-bg-secondary);
+  border-top: 1px solid var(--odap-layout-border-color);
+  overflow: hidden;
+  transition: background var(--odap-layout-transition);
+}
+
+.odap-quick-action-bar.drag-over {
+  background: rgba(22, 119, 255, 0.06);
+}
+
+.odap-quick-action-header {
+  display: flex;
+  align-items: center;
+  padding: 6px 12px;
+  border-bottom: 1px solid var(--odap-layout-border-color);
+  flex-shrink: 0;
+}
+
+.odap-quick-action-title {
+  font-size: 11px;
+  font-weight: 600;
+  color: var(--odap-layout-text-secondary);
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+
+.odap-quick-action-empty {
+  flex: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 8px;
+}
+
+.odap-quick-action-list {
+  flex: 1;
+  overflow-y: auto;
+  padding: 4px;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.odap-quick-action-item {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 4px 6px;
+  border-radius: 4px;
+  cursor: pointer;
+  transition: background var(--odap-layout-transition);
+  user-select: none;
+}
+
+.odap-quick-action-item:hover {
+  background: var(--odap-layout-border-color);
+}
+
+.odap-quick-action-icon {
+  font-size: 12px;
+  flex-shrink: 0;
+}
+
+.odap-quick-action-label {
+  flex: 1;
+  font-size: 11px;
+  color: var(--odap-layout-text);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.odap-quick-action-close {
+  display: none;
+  border: none;
+  background: transparent;
+  color: var(--odap-layout-text-secondary);
+  cursor: pointer;
+  padding: 1px;
+  border-radius: 3px;
+  font-size: 10px;
+}
+
+.odap-quick-action-item:hover .odap-quick-action-close {
+  display: flex;
+}
+
+.odap-quick-action-close:hover {
+  background: var(--odap-layout-border-color);
+  color: var(--odap-layout-text);
+}
+
+/* ── Extension Panel (Column 4) ── */
+.odap-extension-panel {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+  background: var(--odap-layout-bg);
+  border-left: 1px solid var(--odap-layout-border-color);
+  overflow: hidden;
+}
+
+.odap-extension-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 8px 12px;
+  border-bottom: 1px solid var(--odap-layout-border-color);
+  flex-shrink: 0;
+}
+
+.odap-extension-title {
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--odap-layout-text);
+  display: flex;
+  align-items: center;
+}
+
+.odap-extension-close {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 24px;
+  height: 24px;
+  border: none;
+  background: transparent;
+  color: var(--odap-layout-text-secondary);
+  cursor: pointer;
+  border-radius: 4px;
+  transition: all var(--odap-layout-transition);
+  font-size: 12px;
+}
+
+.odap-extension-close:hover {
+  background: var(--odap-layout-border-color);
+  color: var(--odap-layout-text);
+}
+
+.odap-extension-content {
+  flex: 1;
+  overflow-y: auto;
+}
+
+/* ── Workspace Content ── */
+.odap-workspace-content {
+  height: 100%;
+  overflow: auto;
+  background: var(--odap-layout-bg);
+}
+
+/* ── Resize Handle (3-column layout) ── */
+.odap-resize-handle {
+  position: relative;
+  flex-shrink: 0;
+  background: var(--odap-layout-border-color);
+  transition: background var(--odap-layout-transition);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 5;
+}
+
+.odap-resize-handle.horizontal {
+  width: 4px;
+  height: 100%;
+  cursor: col-resize;
+}
+
+.odap-resize-handle.vertical {
+  width: 100%;
+  height: 4px;
+  cursor: row-resize;
+}
+
+.odap-resize-handle:hover,
+.odap-resize-handle:active {
+  background: var(--odap-layout-primary);
+}
+
+.odap-resize-handle.collapsed {
+  cursor: pointer;
+}
+
+.odap-resize-toggle-btn {
+  position: absolute;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 16px;
+  height: 16px;
+  border: 1px solid var(--odap-layout-border-color);
+  background: var(--odap-layout-bg);
+  color: var(--odap-layout-text-secondary);
+  cursor: pointer;
+  border-radius: 50%;
+  font-size: 10px;
+  z-index: 1;
+  padding: 0;
+  line-height: 1;
+}
+
+.odap-resize-handle:hover .odap-resize-toggle-btn {
+  color: var(--odap-layout-primary);
+  border-color: var(--odap-layout-primary);
+}
+
+/* ── Column containers ── */
+.odap-col-function {
+  background: var(--odap-layout-bg-secondary);
+  border-right: 1px solid var(--odap-layout-border-color);
+}
+
+.odap-col-workspace {
+  padding: var(--odap-layout-workspace-padding);
+}
+
+.odap-col-extension {
+  background: var(--odap-layout-bg);
+  border-left: 1px solid var(--odap-layout-border-color);
+}
+
+/* ── Keep-Alive: React 19 <Activity> 处理可见性，此处仅保留布局样式 ── */
+
+/* ── Dark Mode ── */
+[data-theme="dark"] {
+  --odap-layout-bg: #141414;
+  --odap-layout-bg-secondary: #1f1f1f;
+  --odap-layout-text: rgba(255, 255, 255, 0.85);
+  --odap-layout-text-secondary: rgba(255, 255, 255, 0.45);
+  --odap-layout-border-color: #303030;
+}
+
+/* ── Sidebar Menu: collapsed state — click-only, no hover popup ── */
+.ant-layout-sider-collapsed .ant-menu-submenu-popup {
+  visibility: hidden !important;
+  pointer-events: none !important;
+}
+
+/* ── Sidebar Menu: submenu expand animation ── */
+.ant-menu-inline .ant-menu-submenu-expand,
+.ant-menu-inline .ant-menu-submenu-collapse {
+  transition: height 300ms cubic-bezier(0.4, 0, 0.2, 1), opacity 200ms ease;
+}
+
+/* ── Color Themes ── */
+[data-color-theme="indigo"] {
+  --odap-layout-primary: #6366F1;
+  --odap-layout-primary-light: rgba(99, 102, 241, 0.12);
+  --odap-layout-primary-gradient: linear-gradient(135deg, #6366F1, #818CF8);
+}
+
+[data-color-theme="blue"] {
+  --odap-layout-primary: #3B82F6;
+  --odap-layout-primary-light: rgba(59, 130, 246, 0.12);
+  --odap-layout-primary-gradient: linear-gradient(135deg, #3B82F6, #60A5FA);
+}
+
+[data-color-theme="green"] {
+  --odap-layout-primary: #10B981;
+  --odap-layout-primary-light: rgba(16, 185, 129, 0.12);
+  --odap-layout-primary-gradient: linear-gradient(135deg, #10B981, #34D399);
+}
+
+[data-color-theme="violet"] {
+  --odap-layout-primary: #8B5CF6;
+  --odap-layout-primary-light: rgba(139, 92, 246, 0.12);
+  --odap-layout-primary-gradient: linear-gradient(135deg, #8B5CF6, #A78BFA);
+}
+
+[data-color-theme="amber"] {
+  --odap-layout-primary: #F59E0B;
+  --odap-layout-primary-light: rgba(245, 158, 11, 0.12);
+  --odap-layout-primary-gradient: linear-gradient(135deg, #F59E0B, #FBBF24);
+}

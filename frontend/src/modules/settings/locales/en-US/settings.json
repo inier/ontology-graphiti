@@ -1,0 +1,45 @@
+{
+  "title": "System Configuration",
+  "loading": "Loading configuration...",
+  "changeHistory": "Change History",
+  "configChangeHistory": "Configuration Change History",
+  "loadHistoryFailed": "Failed to load change history",
+  "noHistory": "No change records",
+  "loadingText": "Loading...",
+  "emptyValue": "(empty)",
+  "rollbackConfirm": "Confirm rollback to version #{{version}}?",
+  "rollbackDescription": "Current configuration will be replaced by this version's configuration",
+  "rollbackOk": "Confirm Rollback",
+  "rollback": "Rollback",
+  "rollbackSuccess": "Rolled back to version #{{version}}",
+  "rollbackFailed": "Rollback failed",
+
+  "exportConfig": "Export Config",
+  "importConfig": "Import Config",
+  "exportSuccess": "Configuration exported",
+  "exportFailed": "Failed to export configuration",
+  "importNoItems": "No configuration items in the import file",
+  "importFormatError": "Invalid import file format, please check the JSON",
+  "importFailed": "Failed to import configuration",
+  "importSuccess": "Successfully imported {{count}} configuration items (version #{{version}})",
+
+  "saveButton": "Save {{label}} Configuration",
+
+  "currentConfiguredMasked": "Currently configured, displayed as masked",
+
+  "placeholderSelect": "Please select {{label}}",
+  "placeholderInput": "Please enter {{label}}",
+  "placeholderInputUrl": "Please enter {{label}}, e.g. https://example.com",
+
+  "connectionTest": "Test Connection",
+  "testing": "Testing",
+  "connectionRequestFailed": "Connection test request failed",
+  "connectionSuccess": "Connection succeeded ({{ms}}ms)",
+  "connectionFailed": "Connection failed",
+  "connectionFailedWithMsg": "Connection failed: {{msg}}",
+
+  "statusConnected": "Connected",
+  "statusDisconnected": "Disconnected",
+  "statusNotConfigured": "Not configured",
+  "statusUnknown": "Unknown"
+}

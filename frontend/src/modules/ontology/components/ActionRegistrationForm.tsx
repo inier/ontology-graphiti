@@ -422,7 +422,7 @@ export function ActionRegistrationForm({ actionId, onClose, onSaved }: ActionReg
                     JSON.parse(preconditionsText);
                     return null;
                   } catch {
-                    return <Alert type="error" showIcon message={t('action.preconditionsInvalid')} style={{ marginTop: 4 }} />;
+                    return <Alert type="error" showIcon title={t('action.preconditionsInvalid')} style={{ marginTop: 4 }} />;
                   }
                 })()}
               </Form.Item>

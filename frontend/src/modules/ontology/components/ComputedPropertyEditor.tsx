@@ -245,7 +245,7 @@ export function ComputedPropertyEditor({ workspaceId, propertyId, onSaved }: Com
       <Card type="inner" title={t('computed.testResult')} size="small" style={{ marginTop: 12 }}>
         <Spin spinning={testing}>
           {error ? (
-            <Alert type="error" showIcon message={t('computed.evalFailed')} description={error} />
+            <Alert type="error" showIcon title={t('computed.evalFailed')} description={error} />
           ) : testResult ? (
             <Space orientation="vertical" style={{ width: '100%' }}>
               <Text>{t('computed.result')} <Text code>{JSON.stringify(testResult.value)}</Text></Text>

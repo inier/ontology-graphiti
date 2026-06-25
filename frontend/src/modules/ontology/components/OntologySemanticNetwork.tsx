@@ -260,7 +260,7 @@ export function OntologySemanticNetwork({
   const currentVersionData = versions.find((v) => v.versionId === currentVersion);
 
   return (
-    <div style={{ padding: 24 }}>
+    <div>
       <PageHeader title="本体语义网络" />
 
       {/* 版本选择器 */}

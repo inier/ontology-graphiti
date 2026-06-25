@@ -202,7 +202,7 @@ export function AuditLog() {
   ];
 
   return (
-    <div style={{ padding: 24 }}>
+    <div>
       <Tabs
         defaultActiveKey="system"
         items={[
