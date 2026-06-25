@@ -239,21 +239,31 @@
 
 ---
 
-## 5. 自然语言提取 API
+## 5. 自然语言提取 API（Hyper-Extract 增强）
 
 | Method | Path | Description | Auth |
 |--------|------|-------------|------|
-| POST | `/api/ontologies/{ontology_id}/extract/natural-language` | 从自然语言提取本体 | Required |
-| GET | `/api/ontologies/{ontology_id}/extract/sessions/{session_id}` | 获取提取会话状态 | Required |
-| POST | `/api/ontologies/{ontology_id}/extract/sessions/{session_id}/confirm` | 确认导入提取结果 | Required |
+| POST | `/api/extraction/extract/natural-language` | 从自然语言文本提取本体 | Required |
+| POST | `/api/extraction/extract/document` | 从上传文档提取本体 | Required |
+| POST | `/api/extraction/extract/knowledge-base` | 从知识库提取本体 | Required |
+| GET | `/api/extraction/sessions/{session_id}` | 获取提取会话状态 | Required |
+| POST | `/api/extraction/sessions/{session_id}/confirm` | 确认导入提取结果 | Required |
+| GET | `/api/extraction/templates` | 列出可用 HE 模板 | Required |
+| POST | `/api/extraction/templates/recommend` | 根据文本推荐模板 | Required |
+| GET | `/api/extraction/provenance/{entity_id}` | 查询实体溯源信息 | Required |
+| GET | `/api/extraction/provenance/by-source/{doc_id}` | 反向查询文档产生的实体 | Required |
 
-#### POST /api/ontologies/{ontology_id}/extract/natural-language
+#### POST /api/extraction/extract/natural-language
 
 **Request**:
 ```json
 {
+  "ontology_id": "ont-001",
   "text": "电商系统需要管理用户、商品和订单。用户可以下单购买商品，订单包含多个商品项。库存不足时触发补货规则。",
-  "auto_search": true
+  "source_type": "text",
+  "template_id": null,
+  "method": "graph_rag",
+  "auto_search": false
 }
 ```
 
@@ -262,7 +272,162 @@
 {
   "session_id": "ext-session-002",
   "status": "extracting",
-  "message": "正在从自然语言中提取本体结构..."
+  "template_used": "general/base_graph",
+  "message": "正在使用 Hyper-Extract 提取本体结构..."
+}
+```
+
+#### POST /api/extraction/extract/document
+
+**Request** (multipart/form-data):
+```
+ontology_id: ont-001
+file: <binary file data>
+template_id: null
+method: graph_rag
+```
+
+**Response** (202):
+```json
+{
+  "session_id": "ext-session-003",
+  "status": "extracting",
+  "template_used": "general/doc_structure",
+  "message": "正在解析文档并提取本体结构...",
+  "chunks_total": 5,
+  "chunks_processed": 0
+}
+```
+
+#### POST /api/extraction/extract/knowledge-base
+
+**Request**:
+```json
+{
+  "ontology_id": "ont-001",
+  "kb_id": "kb-001",
+  "template_id": null,
+  "method": "graph_rag",
+  "batch_size": 10
+}
+```
+
+**Response** (202):
+```json
+{
+  "session_id": "ext-session-004",
+  "status": "extracting",
+  "template_used": "general/base_graph",
+  "message": "正在从知识库增量提取...",
+  "docs_total": 25,
+  "docs_processed": 0
+}
+```
+
+#### GET /api/extraction/sessions/{session_id}
+
+**Response** (200):
+```json
+{
+  "session_id": "ext-session-002",
+  "ontology_id": "ont-001",
+  "extraction_type": "natural_language",
+  "status": "reviewing",
+  "template_used": "general/base_graph",
+  "method_used": "graph_rag",
+  "result_data": {
+    "schema": {
+      "object_types": [...],
+      "link_types": [...],
+      "action_types": [...],
+      "rule_types": [...]
+    },
+    "instances": {
+      "entities": [...],
+      "relations": [...]
+    }
+  },
+  "conflicts": [
+    {
+      "type": "duplicate_name",
+      "name": "User",
+      "existing_type_id": "type-existing",
+      "proposed_name": "User"
+    }
+  ],
+  "provenance_summary": {
+    "source_docs": 1,
+    "total_chunks": 1,
+    "total_entities": 3,
+    "total_relations": 2
+  },
+  "created_at": "2026-06-23T10:00:00"
+}
+```
+
+#### POST /api/extraction/sessions/{session_id}/confirm
+
+**Request**:
+```json
+{
+  "selected_type_ids": ["type-001", "type-002"],
+  "selected_entity_ids": ["ent-001", "ent-002"],
+  "merge_strategy": "skip",
+  "write_channels": ["graph_write_proxy", "graphiti_episode"]
+}
+```
+
+**Response** (200):
+```json
+{
+  "status": "success",
+  "imported_schema_types": 4,
+  "imported_entities": 3,
+  "imported_relations": 2,
+  "channel_a_status": "success",
+  "channel_b_status": "success",
+  "provenance_records": 5
+}
+```
+
+#### GET /api/extraction/provenance/{entity_id}
+
+**Response** (200):
+```json
+{
+  "entity_id": "ent-001",
+  "entity_type": "object_instance",
+  "source_doc_id": "doc-001",
+  "source_doc_name": "电商系统需求文档.pdf",
+  "vector_chunk_id": "chunk-003",
+  "doc_fragment_id": "page:2,para:3",
+  "extraction_method": "graph_rag",
+  "he_template_version": "general/base_graph@v1",
+  "confidence_score": 0.92,
+  "timestamp": "2026-06-23T10:05:00"
+}
+```
+
+#### GET /api/extraction/templates
+
+**Query Parameters**: `domain=general&auto_type=graph&page=1&page_size=20`
+
+**Response** (200):
+```json
+{
+  "templates": [
+    {
+      "template_id": "tpl-001",
+      "name": "general/base_graph",
+      "description": "通用知识图谱提取模板",
+      "domain": "general",
+      "auto_type": "graph",
+      "method": "graph_rag",
+      "source": "preset"
+    }
+  ],
+  "total": 80,
+  "page": 1
 }
 ```
 

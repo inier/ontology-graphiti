@@ -96,14 +96,18 @@ frontend/src/modules/
 │   │   ├── OntologySelector.tsx        # 新增: 本体选择器
 │   │   ├── DesignMethodSelector.tsx    # 新增: 设计方式选择
 │   │   ├── DatabaseExtractor.tsx       # 新增: 数据库抽取UI
-│   │   ├── NLExtractor.tsx             # 新增: 自然语言提取UI
-│   │   ├── ExtractionPreview.tsx       # 新增: 抽取结果预览
+│   │   ├── NLExtractor.tsx             # 重构: 3-Tab（文本/文档/知识库）
+│   │   ├── DocumentUploader.tsx        # 新增: 文档上传组件
+│   │   ├── KnowledgeBaseSelector.tsx   # 新增: 知识库选择组件
+│   │   ├── ExtractionPreview.tsx       # 重构: 双层预览（Schema+Instance）
+│   │   ├── ProvenanceViewer.tsx        # 新增: 溯源信息查看
+│   │   ├── TemplateRecommender.tsx     # 新增: 模板推荐选择
 │   │   ├── GraphCanvas.tsx             # 现有: 增强编辑交互
 │   │   └── NodeEdgeEditor.tsx          # 新增: 节点/边编辑面板
 │   ├── stores/
 │   │   └── ontologyStore.ts            # 现有: 重构
 │   └── services/
-│       └── ontologyApi.ts              # 现有: 扩展API
+│       └── ontologyApi.ts              # 现有: 扩展API（extraction/document/KB/provenance/templates）
 └── business/
     ├── services/
     │   └── businessApi.ts              # 现有: 扩展Schema查询
@@ -114,6 +118,11 @@ tests/unit/
 ├── test_ontology_storage.py            # 新增
 ├── test_db_schema_ingester.py          # 新增
 ├── test_extraction_service.py          # 新增
+├── test_he_adapter.py                  # 新增: HE 适配器
+├── test_ontology_mapper.py             # 新增: HE→ODAP 映射
+├── test_document_parser.py             # 新增: 文档解析
+├── test_template_generator.py          # 新增: 模板生成
+├── test_provenance_tracker.py          # 新增: 溯源追踪
 └── test_route_exception_handling.py    # 现有: 扩展
 ```
 
@@ -125,23 +134,33 @@ tests/unit/
 
 - [ ] **ontology_service.py**: 本体CRUD+版本管理的核心业务逻辑，多状态转换和边界条件
 - [ ] **db_schema_ingester.py**: 数据库Schema到本体模型的映射逻辑，类型转换和冲突检测
-- [ ] **extraction_service.py**: 抽取会话生命周期管理，冲突合并策略
+- [ ] **extraction_service.py**: 抽取会话生命周期管理，冲突合并策略，双通道写入
+- [ ] **he_adapter.py**: Hyper-Extract Python API 适配，降级模式
+- [ ] **ontology_mapper.py**: HE KnowledgeAbstract → ODAP Schema+Instance 映射
+- [ ] **document_parser.py**: 文档解析管线，分块策略
+- [ ] **template_generator.py**: HE YAML 模板生成，三级回退
+- [ ] **provenance_tracker.py**: 全链路溯源记录和查询
 - [ ] **sqlite_ontology_storage.py**: 存储层CRUD，JSON序列化/反序列化
 
 ### Parallel Execution Opportunities
 
 - [ ] 后端本体CRUD模块（ontology_api/）与前端本体选择器组件可并行开发
 - [ ] 数据库抽取后端（db_schema_ingester.py）与自然语言提取后端可并行开发
-- [ ] 前端图谱增强（NodeEdgeEditor）与前端抽取UI（DatabaseExtractor/NLExtractor）可并行开发
-- [ ] 业务实体is_schema扩展与本体CRUD模块可并行开发
+- [ ] HE 适配层 5 个核心组件（he_adapter/ontology_mapper/document_parser/template_generator/provenance_tracker）可并行开发
+- [ ] 文档上传提取与知识库增量提取可并行开发
+- [ ] 前端图谱增强（NodeEdgeEditor）与前端抽取UI（NLExtractor/DocumentUploader/KnowledgeBaseSelector）可并行开发
+- [ ] 多模态处理链路与联网搜索模板生成可并行开发
 
 ### Human Checkpoints
 
 1. **数据模型统一后** — 验证三套模型合并到统一Schema层，OMS API与本体设计器API共享数据
 2. **本体选择器完成后** — 验证设计器入口流程：选择本体→选择设计方式→进入设计
 3. **数据库抽取完成后** — 验证端到端：连接数据库→抽取Schema→预览编辑→确认导入
-4. **结构与实例统一后** — 验证设计器定义的结构在子菜单页面可见，子菜单可创建实例
-5. **全部故事完成后** — 运行完整测试套件，验证所有Acceptance Scenarios
+4. **HE 适配层完成后** — 验证 NL 文本提取走 HE 引擎，模板三级回退可用
+5. **文档上传+知识库提取完成后** — 验证文档解析、分块提取、增量提取流程
+6. **双通道写入完成后** — 验证 Neo4j 中既有完整属性又有双时态索引
+7. **结构与实例统一后** — 验证设计器定义的结构在子菜单页面可见，子菜单可创建实例
+8. **全部故事完成后** — 运行完整测试套件，验证所有Acceptance Scenarios
 
 ### Review Gates
 

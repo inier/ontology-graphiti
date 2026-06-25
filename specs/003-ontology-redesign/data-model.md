@@ -222,11 +222,46 @@
 |-------|------|----------|---------|-------------|
 | session_id | str | auto (uuid4) | - | 会话唯一标识 |
 | ontology_id | str | yes | - | 目标本体 |
-| extraction_type | str | yes | - | 抽取类型（database/natural_language） |
+| extraction_type | str | yes | - | 抽取类型（database/natural_language/document/knowledge_base） |
 | status | str | no | "pending" | 状态（pending/extracting/reviewing/completed/failed） |
-| input_data | str (JSON) | no | null | 输入数据（连接配置或自然语言文本） |
-| result_data | str (JSON) | no | null | 抽取结果 JSON（Schema 级类型定义） |
+| input_data | str (JSON) | no | null | 输入数据（连接配置/文本/文档路径/知识库 ID） |
+| result_data | str (JSON) | no | null | 提取结果 JSON（Schema 层定义 + Instance 层数据） |
 | conflicts | List[Dict] | no | [] | 冲突列表 |
+| template_used | str | no | null | 使用的 HE 模板名称/ID |
+| method_used | str | no | null | 使用的 HE 提取方法（如 graph_rag） |
+| provenance_summary | Dict | no | {} | 溯源摘要（文档数、切片数等） |
+| created_at | str | auto | now | 创建时间 |
+
+### ExtractionProvenance（提取溯源记录 — 新增）
+
+| Field | Type | Required | Default | Description |
+|-------|------|----------|---------|-------------|
+| provenance_id | str | auto (uuid4) | - | 溯源记录唯一标识 |
+| entity_id | str | yes | - | 提取的实体/关系 ID |
+| entity_type | str | yes | - | 实体类型（object_instance/link_instance） |
+| session_id | str | yes | - | 所属提取会话 |
+| source_doc_id | str | yes | - | 来源文档 ID |
+| vector_chunk_id | str | no | null | 向量切片 ID |
+| doc_fragment_id | str | no | null | 文档碎片 ID（页码/段落偏移） |
+| extraction_method | str | yes | - | 提取方法（graph_rag/light_rag/itext2kg 等） |
+| he_template_version | str | no | null | HE 模板版本 |
+| confidence_score | float | no | null | 提取置信度（0-1） |
+| timestamp | str | auto | now | 提取时间戳 |
+
+### HETemplate（Hyper-Extract 模板 — 新增）
+
+| Field | Type | Required | Default | Description |
+|-------|------|----------|---------|-------------|
+| template_id | str | auto (uuid4) | - | 模板唯一标识 |
+| name | str | yes | - | 模板名称 |
+| description | str | no | "" | 模板描述 |
+| domain | str | no | "general" | 适用领域（general/finance/legal/medicine/tcm/industry） |
+| auto_type | str | yes | "graph" | HE 知识结构类型（model/list/set/graph/hypergraph/temporal_graph/spatial_graph/spatio_temporal_graph） |
+| method | str | no | "graph_rag" | 默认提取方法 |
+| yaml_content | str (YAML) | yes | - | HE YAML 模板内容 |
+| source | str | yes | - | 来源（preset/generated_from_ontology/generated_from_web） |
+| ontology_id | str | no | null | 关联本体 ID（自动生成时） |
+| is_active | bool | no | true | 是否激活 |
 | created_at | str | auto | now | 创建时间 |
 
 ---
@@ -253,7 +288,8 @@ Workspace ─ 1:N ─→ Ontology ─ 1:N ─→ OntologySchemaVersion（Schema 
                      BusinessIndicator（实例） ←───┘
 
 Workspace ─ 1:N ─→ DatabaseConnection
-Ontology ─ 1:N ─→ ExtractionSession
+Ontology ─ 1:N ─→ ExtractionSession ─ 1:N ─→ ExtractionProvenance
+HETemplate ─ N:1 ─→ Ontology（自动生成时关联）
 
 Ontology ─ 1:N ─→ OntologyVersion（数据版本链，现有，不变）
 ```
@@ -274,7 +310,9 @@ Ontology ─ 1:N ─→ OntologyVersion（数据版本链，现有，不变）
 8. **function_type_definitions** — 逻辑函数类型定义
 9. **indicator_type_definitions** — 指标类型定义
 10. **database_connections** — 数据库连接配置
-11. **extraction_sessions** — 抽取会话
+11. **extraction_sessions** — 抽取会话（扩展：新增 template_used/method_used/provenance_summary 列）
+12. **extraction_provenance** — 提取溯源记录（新增）
+13. **he_templates** — HE 模板管理（新增）
 
 ### 修改表（新增列）
 

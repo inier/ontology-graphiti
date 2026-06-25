@@ -80,34 +80,71 @@ pymysql>=1.1.0             # MySQL（可选，用户选择 MySQL 时才需要）
 ## R3: 自然语言提取技术方案
 
 ### Decision
-复用 LLM 基础设施（ZhipuAIClient + JSON 解析/字段校正链路），创建专用的 Schema 级提取器，不复用 NewsIngester 或 ManualInputHandler。
+使用 Hyper-Extract（项目已有 Git Submodule `hyper-extract/`）替代原有 SchemaLevelExtractor，作为统一提取引擎。Hyper-Extract 提供 8 种知识结构类型（AutoModel/AutoList/AutoSet/AutoGraph/AutoHypergraph/AutoTemporalGraph/AutoSpatialGraph/AutoSpatioTemporalGraph）、10+ 提取方法（graph_rag/light_rag/hyper_rag/itext2kg/kg_gen/atom 等）、80+ YAML 预设模板，以及增量演化（feed_text）、批量合并（merge_batch_data）、语义搜索（FAISS 索引）等能力。
 
 ### Rationale
-原方案说"复用 NewsIngester + ManualInputHandler"是误导。这两个提取器的输出是 Instance 级数据（`OntologyDocument`/`OntologyEntity`），而我们需要的是 Schema 级定义（`ObjectTypeDefinition`/`LinkTypeDefinition`）。输出格式根本不同，不能复用提取器本身。
+原方案使用硬编码 Prompt + ZhipuAIClient 直接调用，存在以下问题：
+1. 提取质量依赖 Prompt 工程，无模板约束，结果不稳定
+2. 不支持增量提取和文档间合并
+3. 不支持文档上传和知识库选择
+4. 无确定性 ID 机制，每次提取生成不同 UUID
+5. 无溯源能力
 
-应该复用的是 **LLM 基础设施**（客户端、JSON 解析、字段校正、降级策略），而非提取器逻辑。
+Hyper-Extract 解决了以上所有问题，且已作为 Git Submodule 引入项目，Python API 可直接调用。
 
 ### Alternatives Considered
-1. **直接复用 NewsIngester**：输出格式不匹配（Instance 级 vs Schema 级），强行转换等于隐式映射层
+1. **直接复用 NewsIngester**：输出格式不匹配（Instance 级 vs Schema 级），且无模板化能力
 2. **使用 LangChain structured output**：引入新依赖，违反宪法"优先使用项目已有依赖"
 3. **纯规则提取（无 LLM）**：无法从自然语言中提取语义信息
+4. **保留 SchemaLevelExtractor + 扩展文档解析**：两套引擎并存维护成本高，且硬编码 Prompt 无法模板化
 
-### 架构反思
+### 架构设计
 
-**联网检索是否应该自动触发？** 不应该自动触发。联网检索增加延迟和非确定性，应作为用户显式触发的选项（`auto_search: true` 参数由用户勾选控制）。当用户输入信息不足时，提示用户"建议开启联网检索补充领域知识"，而非自动执行。
+#### 提取引擎定位
+Hyper-Extract **完全替代** SchemaLevelExtractor。所有 NL 提取（文本/文档/知识库）统一走 HE 的 `Template.parse()` / `feed_text()` / `merge_batch_data()`。
 
-**提取结果与已有本体的冲突检测应在哪一层？** 服务层。提取器返回纯数据，冲突检测和合并策略由 `ExtractionService` 编排层处理。这保持了提取器的单一职责。
+#### 模板生成策略（三级回退）
+1. **本体定义自动生成**：从 OntologyService 获取当前本体的类型定义，调用 `TemplateGenerator.generate_from_ontology()` 自动生成 HE YAML 模板
+2. **预设模板库回退**：本体为空时，从 HE 80+ 预设模板中选择匹配模板（`TemplateGenerator.select_preset()`）
+3. **联网搜索动态生成**：预设模板也无匹配时，结合联网搜索动态生成模板（`TemplateGenerator.generate_with_web_search()`）
 
-**Schema 级提取 Prompt 与 Instance 级提取 Prompt 的关系？** 完全独立。Schema 级 Prompt 输出类型定义结构（属性名+类型+约束），Instance 级 Prompt 输出实体实例（属性名+值）。两者不应共享 Prompt 模板。
+#### 输入源扩展
+- **文本输入**：直接调用 HE `Template.parse(text)`
+- **文档上传**：DocumentParser 解析 → 分块 → 每块 `parse()` → `merge_batch_data()` 合并
+- **知识库选择**：逐篇读取文档 → `feed_text()` 增量提取 → 合并
 
-### Prompt 设计
-新增 `ONTOLOGY_SCHEMA_EXTRACT_PROMPT`，输出格式：
-- `object_types[]`: name, display_name, properties[{name, property_type, required}], classification_level
-- `link_types[]`: name, source_type, target_type, cardinality, link_type
-- `action_types[]`: name, target_object_type, parameters[], description
-- `rule_types[]`: name, condition, consequence, priority
-- `indicator_types[]`: name, indicator_type, calculation_formula, unit
-- `process_types[]`: name, flow_nodes[], related_objects
+#### 提取目标层级
+HE 提取结果同时写入 Schema 层和 Instance 层：
+- Schema 层：通过 `OntologyMapper.map_to_schema()` 将 HE 节点/边映射为 7 类类型定义
+- Instance 层：通过 `OntologyMapper.map_to_instances()` 将 HE 节点/边映射为实体/关系实例
+
+#### 双通道互补写入
+- 通道 A（GraphWriteProxy）：写入完整属性到 Neo4j，含 Provenance 属性
+- 通道 B（graphiti.add_episode）：写入结构化摘要（OntologyDocument JSON），建立双时态索引和语义搜索
+
+#### 全链路溯源
+每个提取的实体/关系保留完整溯源信息：
+- 来源文档 ID + 向量切片 ID + 文档碎片 ID
+- 提取时间戳 + 提取方法 + HE 模板版本
+
+#### 降级策略
+HE 导入失败时回退到 SchemaLevelExtractor（降级模式），确保系统可用性。
+
+### 新增依赖
+```
+-e ./hyper-extract          # Git Submodule，已存在
+langchain>=0.1.0            # HE 核心依赖
+langchain-openai>=0.1.0     # HE LLM 客户端
+faiss-cpu>=1.7.0            # HE 向量索引
+ontomem>=0.1.0              # HE 知识去重
+ontosight>=0.1.0            # HE 可视化
+semhash>=0.1.0              # HE 语义哈希
+PyPDF2>=3.0.0               # PDF 解析
+python-docx>=1.0.0          # Word 解析
+openpyxl>=3.1.0             # Excel 解析
+pytesseract>=0.3.10         # OCR
+Pillow>=10.0.0              # 图片处理
+```
 
 ---
 
