@@ -242,6 +242,31 @@ export const ontologyApi = {
       apiClient.post('/api/extraction/extract/natural-language', data),
     getSession: (sessionId: string) =>
       apiClient.get(`/api/extraction/sessions/${sessionId}`),
+    extractDocument: (formData: FormData) =>
+      fetch(`${API_BASE}/api/extraction/extract/document`, {
+        method: 'POST',
+        headers: {
+          ...(localStorage.getItem('token')
+            ? { Authorization: `Bearer ${localStorage.getItem('token')}` }
+            : {}),
+        },
+        body: formData,
+      }).then(async (res) => {
+        if (!res.ok) throw new Error(await res.text());
+        return res.json();
+      }),
+    extractKB: (data: Record<string, unknown>) =>
+      apiClient.post('/api/extraction/extract/knowledge-base', data),
+    listTemplates: () =>
+      apiClient.get('/api/extraction/templates'),
+    recommendTemplates: (data: Record<string, unknown>) =>
+      apiClient.post('/api/extraction/templates/recommend', data),
+    generateTemplateWebSearch: (data: Record<string, unknown>) =>
+      apiClient.post('/api/extraction/templates/generate-web-search', data),
+    getProvenance: (entityId: string) =>
+      apiClient.get(`/api/extraction/provenance/${entityId}`),
+    getProvenanceBySource: (docId: string) =>
+      apiClient.get(`/api/extraction/provenance/by-source/${docId}`),
     confirm: (sessionId: string, data: Record<string, unknown>) =>
       apiClient.post(`/api/extraction/sessions/${sessionId}/confirm`, data),
   },

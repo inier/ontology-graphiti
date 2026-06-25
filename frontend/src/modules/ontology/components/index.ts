@@ -22,3 +22,13 @@ export { AIInlineCompletion } from './AIInlineCompletion';
 export type { AIInlineCompletionProps } from './AIInlineCompletion';
 export { AISuggestionList } from './AISuggestionList';
 export type { AISuggestionListProps } from './AISuggestionList';
+
+// Extraction components (US3)
+export { DocumentUploader } from './DocumentUploader';
+export type { DocumentUploaderProps } from './DocumentUploader';
+export { KnowledgeBaseSelector } from './KnowledgeBaseSelector';
+export type { KnowledgeBaseSelectorProps } from './KnowledgeBaseSelector';
+export { ProvenanceViewer } from './ProvenanceViewer';
+export type { ProvenanceViewerProps } from './ProvenanceViewer';
+export { TemplateRecommender } from './TemplateRecommender';
+export type { TemplateRecommenderProps, HETemplate } from './TemplateRecommender';

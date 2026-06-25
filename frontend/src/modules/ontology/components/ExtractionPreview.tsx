@@ -2,11 +2,13 @@
 import { useState, useMemo, useCallback } from 'react';
 import {
   Card, Tabs, Tag, Space, Button, Alert, Radio,
-  Modal, Form, Input, Checkbox, message, Statistic, Row, Col,
+  Modal, Form, Input, Checkbox, message, Statistic, Row, Col, Table,
 } from 'antd';
 import {
   CheckCircleOutlined, ExclamationCircleOutlined,
   EditOutlined, DeleteOutlined, ImportOutlined,
+  LinkOutlined, SearchOutlined, LoadingOutlined,
+  CloseCircleOutlined,
 } from '@ant-design/icons';
 import { ontologyApi } from '../services/ontologyApi';
 import { AdvancedTable } from '@/modules/shared';
@@ -33,15 +35,40 @@ export interface ExtractionConflict {
   message?: string;
 }
 
+export interface ExtractionEntity {
+  id: string;
+  name: string;
+  type: string;
+  attributes: Record<string, unknown>;
+}
+
+export interface ExtractionRelation {
+  id: string;
+  name: string;
+  source_id: string;
+  target_id: string;
+  attributes: Record<string, unknown>;
+}
+
 export interface ExtractionPreviewProps {
   sessionId: string;
   result: ExtractionResult;
   conflicts: ExtractionConflict[];
   ontologyId: string;
   onImportComplete?: () => void;
+  entities?: ExtractionEntity[];
+  relations?: ExtractionRelation[];
+  onViewProvenance?: (entityId: string) => void;
 }
 
 type MergeStrategy = 'skip' | 'overwrite' | 'rename';
+
+type ChannelStatus = 'pending' | 'running' | 'success' | 'failed';
+
+interface ChannelProgress {
+  channelA: ChannelStatus;
+  channelB: ChannelStatus;
+}
 
 interface EditableItem {
   name: string;
@@ -124,7 +151,6 @@ function EditItemModal({
     }
   }, [item, form]);
 
-  // Reset form when item changes
   useMemo(() => { if (open) handleOpen(); }, [open, handleOpen]);
 
   if (!item) return null;
@@ -161,11 +187,138 @@ function EditItemModal({
 }
 
 /* ------------------------------------------------------------------ */
+/*  Instance layer: Entity columns                                     */
+/* ------------------------------------------------------------------ */
+
+function makeEntityColumns(
+  selectedEntityIds: string[],
+  onToggleEntity: (id: string) => void,
+  onViewProvenance?: (entityId: string) => void,
+) {
+  return [
+    {
+      title: '',
+      dataIndex: 'id',
+      width: 48,
+      render: (id: string) => (
+        <Checkbox checked={selectedEntityIds.includes(id)} onChange={() => onToggleEntity(id)} />
+      ),
+    },
+    {
+      title: '名称',
+      dataIndex: 'name',
+      width: 180,
+      render: (v: string) => <Tag color="blue">{v}</Tag>,
+    },
+    {
+      title: '类型',
+      dataIndex: 'type',
+      width: 140,
+      render: (v: string) => <Tag color="geekblue">{v}</Tag>,
+    },
+    {
+      title: '属性',
+      dataIndex: 'attributes',
+      ellipsis: true,
+      render: (v: Record<string, unknown>) => {
+        const json = JSON.stringify(v);
+        return (
+          <span style={{ fontFamily: 'monospace', fontSize: 12 }}>
+            {json.length > 120 ? json.slice(0, 120) + '…' : json}
+          </span>
+        );
+      },
+    },
+    {
+      title: '操作',
+      width: 64,
+      render: (_: unknown, record: ExtractionEntity) =>
+        onViewProvenance ? (
+          <Button
+            type="text"
+            size="small"
+            icon={<SearchOutlined />}
+            title="溯源"
+            onClick={() => onViewProvenance(record.id)}
+          />
+        ) : null,
+    },
+  ];
+}
+
+/* ------------------------------------------------------------------ */
+/*  Instance layer: Relation columns                                   */
+/* ------------------------------------------------------------------ */
+
+function makeRelationColumns(
+  selectedRelationIds: string[],
+  onToggleRelation: (id: string) => void,
+  onViewProvenance?: (entityId: string) => void,
+) {
+  return [
+    {
+      title: '',
+      dataIndex: 'id',
+      width: 48,
+      render: (id: string) => (
+        <Checkbox checked={selectedRelationIds.includes(id)} onChange={() => onToggleRelation(id)} />
+      ),
+    },
+    {
+      title: '名称',
+      dataIndex: 'name',
+      width: 180,
+      render: (v: string) => <Tag color="green">{v}</Tag>,
+    },
+    {
+      title: '源实体',
+      dataIndex: 'source_id',
+      width: 160,
+      render: (v: string) => <Tag color="orange">{v}</Tag>,
+    },
+    {
+      title: '目标实体',
+      dataIndex: 'target_id',
+      width: 160,
+      render: (v: string) => <Tag color="purple">{v}</Tag>,
+    },
+    {
+      title: '属性',
+      dataIndex: 'attributes',
+      ellipsis: true,
+      render: (v: Record<string, unknown>) => {
+        const json = JSON.stringify(v);
+        return (
+          <span style={{ fontFamily: 'monospace', fontSize: 12 }}>
+            {json.length > 120 ? json.slice(0, 120) + '…' : json}
+          </span>
+        );
+      },
+    },
+    {
+      title: '操作',
+      width: 64,
+      render: (_: unknown, record: ExtractionRelation) =>
+        onViewProvenance ? (
+          <Button
+            type="text"
+            size="small"
+            icon={<SearchOutlined />}
+            title="溯源"
+            onClick={() => onViewProvenance(record.id)}
+          />
+        ) : null,
+    },
+  ];
+}
+
+/* ------------------------------------------------------------------ */
 /*  Main Component                                                     */
 /* ------------------------------------------------------------------ */
 
 export function ExtractionPreview({
   sessionId, result, conflicts, ontologyId, onImportComplete,
+  entities, relations, onViewProvenance,
 }: ExtractionPreviewProps) {
   const [mergeStrategy, setMergeStrategy] = useState<MergeStrategy>('skip');
   const [selectedMap, setSelectedMap] = useState<Record<string, string[]>>({
@@ -178,12 +331,19 @@ export function ExtractionPreview({
     indicator: result.indicator_types?.map((t: any) => t.name) || [],
   });
 
+  const [selectedEntityIds, setSelectedEntityIds] = useState<string[]>(
+    entities?.map((e) => e.id) || [],
+  );
+  const [selectedRelationIds, setSelectedRelationIds] = useState<string[]>(
+    relations?.map((r) => r.id) || [],
+  );
+
   const [editItem, setEditItem] = useState<EditableItem | null>(null);
   const [editModalOpen, setEditModalOpen] = useState(false);
   const [editTabKey, setEditTabKey] = useState<string>('object');
   const [importing, setImporting] = useState(false);
+  const [channelProgress, setChannelProgress] = useState<ChannelProgress | null>(null);
 
-  // Local mutable copies of result data
   const [localData, setLocalData] = useState<Record<string, any[]>>({
     object: result.object_types || [],
     link: result.link_types || [],
@@ -195,7 +355,7 @@ export function ExtractionPreview({
   });
 
   // ── Summary stats ────────────────────────────────────────────────
-  const stats = useMemo(() => ({
+  const schemaStats = useMemo(() => ({
     objectTypes: localData.object.length,
     linkTypes: localData.link.length,
     actionTypes: localData.action.length,
@@ -205,7 +365,15 @@ export function ExtractionPreview({
     indicatorTypes: localData.indicator.length,
   }), [localData]);
 
-  // ── Selection helpers ────────────────────────────────────────────
+  const totalSchemaTypes = useMemo(
+    () => Object.values(schemaStats).reduce((a, b) => a + b, 0),
+    [schemaStats],
+  );
+
+  const entityCount = entities?.length ?? 0;
+  const relationCount = relations?.length ?? 0;
+
+  // ── Selection helpers (schema) ───────────────────────────────────
   const toggleSelect = (tabKey: string, name: string) => {
     setSelectedMap((prev) => {
       const list = prev[tabKey] || [];
@@ -214,6 +382,19 @@ export function ExtractionPreview({
         [tabKey]: list.includes(name) ? list.filter((n) => n !== name) : [...list, name],
       };
     });
+  };
+
+  // ── Selection helpers (instance) ─────────────────────────────────
+  const toggleEntitySelect = (id: string) => {
+    setSelectedEntityIds((prev) =>
+      prev.includes(id) ? prev.filter((x) => x !== id) : [...prev, id],
+    );
+  };
+
+  const toggleRelationSelect = (id: string) => {
+    setSelectedRelationIds((prev) =>
+      prev.includes(id) ? prev.filter((x) => x !== id) : [...prev, id],
+    );
   };
 
   // ── Edit helpers ─────────────────────────────────────────────────
@@ -247,8 +428,9 @@ export function ExtractionPreview({
   // ── Confirm import ───────────────────────────────────────────────
   const handleConfirm = async () => {
     setImporting(true);
+    setChannelProgress({ channelA: 'running', channelB: 'running' });
     try {
-      await ontologyApi.extraction.confirm(sessionId, {
+      const res = await ontologyApi.extraction.confirm(sessionId, {
         ontology_id: ontologyId,
         merge_strategy: mergeStrategy,
         selected: {
@@ -261,21 +443,35 @@ export function ExtractionPreview({
           indicator_types: selectedMap.indicator || [],
         },
         data: localData,
-      });
-      message.success('导入成功');
+      }) as Record<string, any>;
+
+      const aStatus: ChannelStatus =
+        res.channel_a_status === 'failed' ? 'failed' : 'success';
+      const bStatus: ChannelStatus =
+        res.channel_b_status === 'failed' ? 'failed' : 'success';
+
+      setChannelProgress({ channelA: aStatus, channelB: bStatus });
+
+      if (bStatus === 'failed') {
+        message.warning('索引写入失败，数据已保存但搜索功能可能延迟');
+      } else {
+        message.success('导入成功');
+      }
+
       onImportComplete?.();
     } catch (e) {
+      setChannelProgress({ channelA: 'failed', channelB: 'failed' });
       message.error(`导入失败: ${(e as Error).message}`);
     } finally {
       setImporting(false);
     }
   };
 
-  // ── Tab items ────────────────────────────────────────────────────
-  const tabItems = [
+  // ── Schema tab items (7 type categories) ─────────────────────────
+  const schemaTabItems = [
     {
       key: 'object',
-      label: `对象类型 (${stats.objectTypes})`,
+      label: `对象类型 (${schemaStats.objectTypes})`,
       children: (
         <AdvancedTable
           rowKey="name"
@@ -288,7 +484,7 @@ export function ExtractionPreview({
     },
     {
       key: 'link',
-      label: `关系类型 (${stats.linkTypes})`,
+      label: `关系类型 (${schemaStats.linkTypes})`,
       children: (
         <AdvancedTable
           rowKey="name"
@@ -301,7 +497,7 @@ export function ExtractionPreview({
     },
     {
       key: 'action',
-      label: `动作类型 (${stats.actionTypes})`,
+      label: `动作类型 (${schemaStats.actionTypes})`,
       children: (
         <AdvancedTable
           rowKey="name"
@@ -314,7 +510,7 @@ export function ExtractionPreview({
     },
     {
       key: 'rule',
-      label: `规则类型 (${stats.ruleTypes})`,
+      label: `规则类型 (${schemaStats.ruleTypes})`,
       children: (
         <AdvancedTable
           rowKey="name"
@@ -327,7 +523,7 @@ export function ExtractionPreview({
     },
     {
       key: 'process',
-      label: `流程类型 (${stats.processTypes})`,
+      label: `流程类型 (${schemaStats.processTypes})`,
       children: (
         <AdvancedTable
           rowKey="name"
@@ -340,7 +536,7 @@ export function ExtractionPreview({
     },
     {
       key: 'function',
-      label: `函数类型 (${stats.functionTypes})`,
+      label: `函数类型 (${schemaStats.functionTypes})`,
       children: (
         <AdvancedTable
           rowKey="name"
@@ -353,7 +549,7 @@ export function ExtractionPreview({
     },
     {
       key: 'indicator',
-      label: `指标类型 (${stats.indicatorTypes})`,
+      label: `指标类型 (${schemaStats.indicatorTypes})`,
       children: (
         <AdvancedTable
           rowKey="name"
@@ -366,19 +562,67 @@ export function ExtractionPreview({
     },
   ];
 
+  // ── Instance tab content ─────────────────────────────────────────
+  const instanceContent = (
+    <Space orientation="vertical" style={{ width: '100%' }} size="middle">
+      <Card size="small" title={<><LinkOutlined /> 实体</>} styles={{ body: { padding: 0 } }}>
+        <Table
+          rowKey="id"
+          size="small"
+          dataSource={entities || []}
+          columns={makeEntityColumns(selectedEntityIds, toggleEntitySelect, onViewProvenance)}
+          pagination={entities && entities.length > 10 ? { pageSize: 10 } : false}
+          locale={{ emptyText: '暂无实体数据' }}
+        />
+      </Card>
+      <Card size="small" title={<><LinkOutlined /> 关系</>} styles={{ body: { padding: 0 } }}>
+        <Table
+          rowKey="id"
+          size="small"
+          dataSource={relations || []}
+          columns={makeRelationColumns(selectedRelationIds, toggleRelationSelect, onViewProvenance)}
+          pagination={relations && relations.length > 10 ? { pageSize: 10 } : false}
+          locale={{ emptyText: '暂无关系数据' }}
+        />
+      </Card>
+    </Space>
+  );
+
+  // ── Top-level dual-layer tabs ────────────────────────────────────
+  const topLevelTabItems = [
+    {
+      key: 'schema',
+      label: `Schema 层 (${totalSchemaTypes})`,
+      children: (
+        <Card size="small" styles={{ body: { padding: '0 16px 16px' } }}>
+          <Tabs items={schemaTabItems} />
+        </Card>
+      ),
+    },
+    {
+      key: 'instance',
+      label: `Instance 层 (${entityCount} + ${relationCount})`,
+      children: instanceContent,
+    },
+  ];
+
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
       {/* ── Summary ──────────────────────────────────────────────── */}
       <Card size="small">
         <Row gutter={16}>
-          <Col span={3}><Statistic title="对象类型" value={stats.objectTypes} prefix={<CheckCircleOutlined style={{ color: '#1677ff' }} />} /></Col>
-          <Col span={3}><Statistic title="关系类型" value={stats.linkTypes} prefix={<CheckCircleOutlined style={{ color: '#52c41a' }} />} /></Col>
-          <Col span={3}><Statistic title="动作类型" value={stats.actionTypes} prefix={<CheckCircleOutlined style={{ color: '#722ed1' }} />} /></Col>
-          <Col span={3}><Statistic title="规则类型" value={stats.ruleTypes} prefix={<CheckCircleOutlined style={{ color: '#fa8c16' }} />} /></Col>
-          <Col span={3}><Statistic title="流程类型" value={stats.processTypes} prefix={<CheckCircleOutlined style={{ color: '#13c2c2' }} />} /></Col>
-          <Col span={3}><Statistic title="函数类型" value={stats.functionTypes} prefix={<CheckCircleOutlined style={{ color: '#eb2f96' }} />} /></Col>
-          <Col span={3}><Statistic title="指标类型" value={stats.indicatorTypes} prefix={<CheckCircleOutlined style={{ color: '#f5222d' }} />} /></Col>
+          <Col span={3}><Statistic title="对象类型" value={schemaStats.objectTypes} prefix={<CheckCircleOutlined style={{ color: '#1677ff' }} />} /></Col>
+          <Col span={3}><Statistic title="关系类型" value={schemaStats.linkTypes} prefix={<CheckCircleOutlined style={{ color: '#52c41a' }} />} /></Col>
+          <Col span={3}><Statistic title="动作类型" value={schemaStats.actionTypes} prefix={<CheckCircleOutlined style={{ color: '#722ed1' }} />} /></Col>
+          <Col span={3}><Statistic title="规则类型" value={schemaStats.ruleTypes} prefix={<CheckCircleOutlined style={{ color: '#fa8c16' }} />} /></Col>
+          <Col span={3}><Statistic title="流程类型" value={schemaStats.processTypes} prefix={<CheckCircleOutlined style={{ color: '#13c2c2' }} />} /></Col>
+          <Col span={3}><Statistic title="函数类型" value={schemaStats.functionTypes} prefix={<CheckCircleOutlined style={{ color: '#eb2f96' }} />} /></Col>
+          <Col span={3}><Statistic title="指标类型" value={schemaStats.indicatorTypes} prefix={<CheckCircleOutlined style={{ color: '#f5222d' }} />} /></Col>
+          <Col span={3}><Statistic title="实体" value={entityCount} prefix={<LinkOutlined style={{ color: '#1677ff' }} />} /></Col>
         </Row>
+        <div style={{ marginTop: 8, color: 'rgba(0,0,0,0.45)', fontSize: 13 }}>
+          Schema 层: {totalSchemaTypes} 个类型定义 | Instance 层: {entityCount} 个实体 + {relationCount} 个关系
+        </div>
       </Card>
 
       {/* ── Conflicts Alert ──────────────────────────────────────── */}
@@ -387,7 +631,7 @@ export function ExtractionPreview({
           type="warning"
           showIcon
           icon={<ExclamationCircleOutlined />}
-          message={`检测到 ${conflicts.length} 个冲突`}
+          title={`检测到 ${conflicts.length} 个冲突`}
           description={
             <ul style={{ margin: '8px 0 0', paddingLeft: 20 }}>
               {conflicts.map((c, i) => (
@@ -413,10 +657,12 @@ export function ExtractionPreview({
         </Radio.Group>
       </Card>
 
-      {/* ── Type Tabs ────────────────────────────────────────────── */}
-      <Card size="small" styles={{ body: { padding: '0 16px 16px' } }}>
-        <Tabs items={tabItems} />
-      </Card>
+      {/* ── Dual-layer Tabs: Schema + Instance ───────────────────── */}
+      <Tabs
+        items={topLevelTabItems}
+        type="card"
+        size="large"
+      />
 
       {/* ── Confirm Button ───────────────────────────────────────── */}
       <div style={{ textAlign: 'right' }}>
@@ -430,6 +676,34 @@ export function ExtractionPreview({
           确认导入
         </Button>
       </div>
+
+      {/* ── Dual-Channel Progress ────────────────────────────────── */}
+      {channelProgress && (
+        <Card size="small" title="导入进度">
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+              {channelProgress.channelA === 'running' && <LoadingOutlined spin style={{ color: '#1677ff' }} />}
+              {channelProgress.channelA === 'success' && <CheckCircleOutlined style={{ color: '#52c41a' }} />}
+              {channelProgress.channelA === 'failed' && <CloseCircleOutlined style={{ color: '#ff4d4f' }} />}
+              <span>通道 A: 写入实体属性{channelProgress.channelA === 'running' ? '...' : ''}</span>
+            </div>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+              {channelProgress.channelB === 'running' && <LoadingOutlined spin style={{ color: '#1677ff' }} />}
+              {channelProgress.channelB === 'success' && <CheckCircleOutlined style={{ color: '#52c41a' }} />}
+              {channelProgress.channelB === 'failed' && <CloseCircleOutlined style={{ color: '#ff4d4f' }} />}
+              <span>通道 B: 写入双时态索引{channelProgress.channelB === 'running' ? '...' : ''}</span>
+            </div>
+          </div>
+          {channelProgress.channelB === 'failed' && (
+            <Alert
+              type="warning"
+              showIcon
+              message="索引写入失败，数据已保存但搜索功能可能延迟"
+              style={{ marginTop: 12 }}
+            />
+          )}
+        </Card>
+      )}
 
       {/* ── Edit Modal ───────────────────────────────────────────── */}
       <EditItemModal

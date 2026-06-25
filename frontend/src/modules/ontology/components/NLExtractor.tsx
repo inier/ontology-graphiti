@@ -1,40 +1,41 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
 import { useState, useCallback } from 'react';
 import {
-  Card, Input, Switch, Button, Space, Alert, Spin, Steps, message,
+  Card, Input, Switch, Button, Space, Alert, Spin, Steps, Tabs, Select, message,
 } from 'antd';
 import {
   MessageOutlined, ThunderboltOutlined, CheckCircleOutlined,
-  SearchOutlined,
+  SearchOutlined, FileTextOutlined, DatabaseOutlined,
 } from '@ant-design/icons';
 import { ontologyApi } from '../services/ontologyApi';
 import { ExtractionPreview } from './ExtractionPreview';
+import { DocumentUploader } from './DocumentUploader';
+import { KnowledgeBaseSelector } from './KnowledgeBaseSelector';
 import type { ExtractionResult, ExtractionConflict } from './ExtractionPreview';
-
-/* ------------------------------------------------------------------ */
-/*  Types                                                              */
-/* ------------------------------------------------------------------ */
 
 export interface NLExtractorProps {
   ontologyId: string;
   onImportComplete?: () => void;
 }
 
-/* ------------------------------------------------------------------ */
-/*  Component                                                          */
-/* ------------------------------------------------------------------ */
+const METHOD_OPTIONS = [
+  { value: 'auto', label: '自动选择' },
+  { value: 'graph_rag', label: 'Graph RAG' },
+  { value: 'light_rag', label: 'Light RAG' },
+];
 
 export function NLExtractor({ ontologyId, onImportComplete }: NLExtractorProps) {
-  // ── State ────────────────────────────────────────────────────────
+  const [activeTab, setActiveTab] = useState('text');
   const [text, setText] = useState('');
   const [autoSearch, setAutoSearch] = useState(false);
+  const [selectedMethod, setSelectedMethod] = useState<string>('auto');
+  const [selectedTemplate, setSelectedTemplate] = useState<string>('');
   const [extracting, setExtracting] = useState(false);
   const [currentStep, setCurrentStep] = useState(0);
   const [extractionResult, setExtractionResult] = useState<ExtractionResult | null>(null);
   const [extractionConflicts, setExtractionConflicts] = useState<ExtractionConflict[]>([]);
   const [sessionId, setSessionId] = useState<string>('');
 
-  // ── Start Extraction ──────────────────────────────────────────────
   const handleExtract = useCallback(async () => {
     if (!text.trim()) {
       message.warning('请输入自然语言描述');
@@ -47,6 +48,9 @@ export function NLExtractor({ ontologyId, onImportComplete }: NLExtractorProps) 
         ontology_id: ontologyId,
         text: text.trim(),
         auto_search: autoSearch,
+        source_type: 'text',
+        method: selectedMethod !== 'auto' ? selectedMethod : undefined,
+        template_id: selectedTemplate || undefined,
       };
 
       const result = await ontologyApi.extraction.extractNL(payload) as any;
@@ -57,6 +61,9 @@ export function NLExtractor({ ontologyId, onImportComplete }: NLExtractorProps) 
         link_types: result?.result?.link_types || result?.link_types || [],
         action_types: result?.result?.action_types || result?.action_types || [],
         rule_types: result?.result?.rule_types || result?.rule_types || [],
+        process_types: result?.result?.process_types || [],
+        function_types: result?.result?.function_types || [],
+        indicator_types: result?.result?.indicator_types || [],
       });
       setExtractionConflicts(result?.conflicts || []);
       setCurrentStep(1);
@@ -66,9 +73,23 @@ export function NLExtractor({ ontologyId, onImportComplete }: NLExtractorProps) 
     } finally {
       setExtracting(false);
     }
-  }, [text, autoSearch, ontologyId]);
+  }, [text, autoSearch, ontologyId, selectedMethod, selectedTemplate]);
 
-  // ── Reset ─────────────────────────────────────────────────────────
+  const handleExtractionComplete = useCallback((result: any) => {
+    setSessionId(result?.session_id || '');
+    setExtractionResult({
+      object_types: result?.result?.object_types || result?.object_types || [],
+      link_types: result?.result?.link_types || result?.link_types || [],
+      action_types: result?.result?.action_types || result?.action_types || [],
+      rule_types: result?.result?.rule_types || result?.rule_types || [],
+      process_types: result?.result?.process_types || [],
+      function_types: result?.result?.function_types || [],
+      indicator_types: result?.result?.indicator_types || [],
+    });
+    setExtractionConflicts(result?.conflicts || []);
+    setCurrentStep(1);
+  }, []);
+
   const handleReset = useCallback(() => {
     setCurrentStep(0);
     setExtractionResult(null);
@@ -78,7 +99,6 @@ export function NLExtractor({ ontologyId, onImportComplete }: NLExtractorProps) 
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
-      {/* ── Steps indicator ──────────────────────────────────────── */}
       <Steps
         size="small"
         current={currentStep}
@@ -88,52 +108,117 @@ export function NLExtractor({ ontologyId, onImportComplete }: NLExtractorProps) 
         ]}
       />
 
-      {/* ── Step 0: Text Input ───────────────────────────────────── */}
       {currentStep === 0 && (
-        <Card title="自然语言提取" size="small">
-          <Space orientation="vertical" style={{ width: '100%' }} size="middle">
-            <Alert
-              type="info"
-              message="请用自然语言描述您的业务领域，系统将自动提取对象类型、关系类型、动作类型和规则"
-              showIcon
-            />
+        <Card title="知识提取" size="small">
+          <Tabs
+            activeKey={activeTab}
+            onChange={setActiveTab}
+            items={[
+              {
+                key: 'text',
+                label: (
+                  <span>
+                    <MessageOutlined /> 文本输入
+                  </span>
+                ),
+                children: (
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
+                    <Alert
+                      type="info"
+                      message="请用自然语言描述您的业务领域，系统将使用 Hyper-Extract 模板化提取对象类型、关系类型等"
+                      showIcon
+                    />
 
-            <Input.TextArea
-              value={text}
-              onChange={(e) => setText(e.target.value)}
-              placeholder="例如：我们的系统管理客户和订单。每个客户可以下多个订单，每个订单包含多个商品。订单有状态（待付款、已付款、已发货、已完成），当订单状态变更时需要通知客户。客户有姓名、邮箱、手机号等属性..."
-              autoSize={{ minRows: 3, maxRows: 10 }}
-            />
+                    <Input.TextArea
+                      value={text}
+                      onChange={(e) => setText(e.target.value)}
+                      placeholder="例如：我们的系统管理客户和订单。每个客户可以下多个订单，每个订单包含多个商品..."
+                      autoSize={{ minRows: 3, maxRows: 10 }}
+                    />
 
-            <Space>
-              <Switch
-                checked={autoSearch}
-                onChange={setAutoSearch}
-                checkedChildren="开"
-                unCheckedChildren="关"
-              />
-              <span style={{ color: '#666' }}>
-                <SearchOutlined /> 联网检索补充领域知识
-              </span>
-            </Space>
-
-            <div style={{ textAlign: 'right' }}>
-              <Button
-                type="primary"
-                icon={<ThunderboltOutlined />}
-                onClick={handleExtract}
-                loading={extracting}
-                disabled={!text.trim()}
-                size="large"
-              >
-                开始提取
-              </Button>
-            </div>
-          </Space>
+                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: 8 }}>
+                      <Space wrap>
+                        <Space>
+                          <Switch
+                            checked={autoSearch}
+                            onChange={setAutoSearch}
+                            checkedChildren="开"
+                            unCheckedChildren="关"
+                          />
+                          <span style={{ color: '#666' }}>
+                            <SearchOutlined /> 联网检索补充
+                          </span>
+                        </Space>
+                        <Select
+                          value={selectedMethod}
+                          onChange={setSelectedMethod}
+                          options={METHOD_OPTIONS}
+                          style={{ width: 140 }}
+                          size="small"
+                        />
+                        <Select
+                          value={selectedTemplate || undefined}
+                          onChange={setSelectedTemplate}
+                          placeholder="自动选择模板"
+                          allowClear
+                          style={{ width: 180 }}
+                          size="small"
+                          options={[
+                            { value: '', label: '自动选择模板' },
+                            { value: 'general/base_graph', label: '通用知识图谱' },
+                            { value: 'general/concept_graph', label: '概念关系图' },
+                            { value: 'finance/earnings_summary', label: '财报摘要' },
+                            { value: 'legal/contract_obligation', label: '合同义务' },
+                          ]}
+                        />
+                      </Space>
+                      <Button
+                        type="primary"
+                        icon={<ThunderboltOutlined />}
+                        onClick={handleExtract}
+                        loading={extracting}
+                        disabled={!text.trim()}
+                        size="large"
+                      >
+                        开始提取
+                      </Button>
+                    </div>
+                  </div>
+                ),
+              },
+              {
+                key: 'document',
+                label: (
+                  <span>
+                    <FileTextOutlined /> 文档上传
+                  </span>
+                ),
+                children: (
+                  <DocumentUploader
+                    ontologyId={ontologyId}
+                    onExtractionComplete={handleExtractionComplete}
+                  />
+                ),
+              },
+              {
+                key: 'knowledge_base',
+                label: (
+                  <span>
+                    <DatabaseOutlined /> 知识库选择
+                  </span>
+                ),
+                children: (
+                  <KnowledgeBaseSelector
+                    ontologyId={ontologyId}
+                    onExtractionComplete={handleExtractionComplete}
+                  />
+                ),
+              },
+            ]}
+          />
         </Card>
       )}
 
-      {/* ── Step 1: Extraction Preview ───────────────────────────── */}
       {currentStep === 1 && extractionResult && (
         <>
           <Card
@@ -155,10 +240,10 @@ export function NLExtractor({ ontologyId, onImportComplete }: NLExtractorProps) 
         </>
       )}
 
-      {/* ── Loading overlay ──────────────────────────────────────── */}
       {extracting && (
         <div style={{ textAlign: 'center', padding: 40 }}>
-          <Spin size="large" description="正在分析自然语言描述..." />
+          <Spin size="large" />
+          <div style={{ marginTop: 12, color: '#666' }}>正在分析自然语言描述...</div>
         </div>
       )}
     </div>
