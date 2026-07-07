@@ -77,13 +77,16 @@ cp .env.example .env.docker                       # 必填：OPENAI_API_KEY / NE
 | 场景 | 命令 | 镜像 | 挂载策略 | 启动耗时 | 热重载 |
 |------|------|------|----------|----------|--------|
 | **日常开发** ⭐ | `python bootstep.py dev` | `docker_app:latest` + `docker_frontend:dev` | bind mount 源码 | **< 30s** | ✅ 前端 HMR + 后端 uvicorn --reload |
+| **重启开发环境** | `python bootstep.py restart-dev` | 复用已有 | 复用 | < 30s | ✅ |
 | **生产部署** | `python bootstep.py up` | `docker_app:latest` + `docker_frontend:latest` | 命名卷（app-data） | < 60s | ❌ |
 | **重建后端镜像** | `python bootstep.py rebuild main` | 重建后启动 | 同 prod | 3-5 min | ❌ |
 | **重建前端镜像** | `python bootstep.py rebuild frontend` | 重建后启动 | bind mount | 3-5 min | ✅ |
 | **仅查看状态** | `python bootstep.py status` | — | — | < 5s | — |
 | **停止所有** | `python bootstep.py down` | — | — | < 10s | — |
-| **重启服务** | `python bootstep.py restart` | 复用已有 | 复用 | < 30s | ✅（dev）/ ❌（prod） |
+| **重启（生产）** | `python bootstep.py restart` | 复用已有 | 复用 | < 30s | ❌ |
 | **清理镜像** | `python bootstep.py clean` | 删除 dangling | — | < 30s | — |
+
+> **环境隔离**：`dev` 使用独立的 `docker-compose.dev.yml`，`up` 使用 `docker-compose.yml`，两者完全隔离。启动 `dev` 会自动停止生产前端容器 (`graphiti-frontend`)，反之亦然。`down` 同时清理两个环境。
 
 #### 2.2.2 开发模式 (`bootstep.py dev`) — 唯一推荐
 
@@ -92,14 +95,15 @@ cp .env.example .env.docker                       # 必填：OPENAI_API_KEY / NE
 **工作机制**：
 ```
 ┌─────────────────────────────────────────────────────────────┐
-│  1. 复用本地镜像（不重建）                                     │
+│  1. 自动停止生产前端容器 (graphiti-frontend)，防止端口冲突      │
+│  2. 复用本地镜像（不重建）                                     │
 │     - docker_app:latest   (后端 + 全部 pip 依赖)              │
 │     - docker_frontend:dev (前端 + node_modules)              │
-│  2. 启动容器 (compose override + 不带 --build)                │
-│  3. bind mount 源码到容器内：                                  │
+│  3. 启动容器 (docker-compose.dev.yml 独立配置 + 不带 --build) │
+│  4. bind mount 源码到容器内：                                  │
 │     - ../odap → /app/odap    (后端代码)                       │
 │     - ../frontend/src → /app/src (前端代码)                   │
-│  4. 启动命令改为：                                             │
+│  5. 启动命令改为：                                             │
 │     - 后端: uvicorn --reload (检测 .py 变化自动重启)          │
 │     - 前端: vite dev (HMR 热模块替换)                         │
 └─────────────────────────────────────────────────────────────┘
@@ -117,7 +121,7 @@ cp .env.example .env.docker                       # 必填：OPENAI_API_KEY / NE
 | `requirements.txt` | `python bootstep.py rebuild main` 后 `dev` | 3-5 min |
 | `frontend/package.json` | `podman exec graphiti-frontend-dev npm i <pkg>` | 30s |
 | `docker/Dockerfile` | `python bootstep.py rebuild all` | 5-10 min |
-| `.env.docker` | `python bootstep.py restart` | < 30s |
+| `.env.docker` | `python bootstep.py restart-dev` | < 30s |
 
 #### 2.2.3 生产模式 (`bootstep.py up`)
 
@@ -126,11 +130,12 @@ cp .env.example .env.docker                       # 必填：OPENAI_API_KEY / NE
 **工作机制**：
 ```
 ┌─────────────────────────────────────────────────────────────┐
-│  1. 强制重建镜像（无 build cache 复用）                       │
-│  2. 启动容器 (compose 主文件 + --build)                      │
-│  3. 数据卷挂载（无源码 bind mount）                            │
+│  1. 自动停止开发前端容器 (graphiti-frontend-dev)，防止冲突     │
+│  2. 强制重建镜像（无 build cache 复用）                       │
+│  3. 启动容器 (docker-compose.yml + --build)                  │
+│  4. 数据卷挂载（无源码 bind mount）                            │
 │     - app-data → /app/data (SQLite/缓存)                    │
-│  4. 启动命令：                                                │
+│  5. 启动命令：                                                │
 │     - 后端: uvicorn --workers 4 (4 进程)                     │
 │     - 前端: nginx (静态文件)                                  │
 └─────────────────────────────────────────────────────────────┘
@@ -149,7 +154,7 @@ cp .env.example .env.docker                       # 必填：OPENAI_API_KEY / NE
 | `JWT_SECRET has a placeholder value` | 默认 `.env.docker` 密钥太短 | 已修复：`.env.docker` 默认值改为 64 字符 |
 | OPA 启动报 `merge error` | `/policies` 目录含 bundles JSON | 已修复：`docker-compose.yml` 改为挂载 `../odap/infra/opa/policies:/policies` |
 | `Module not found: 'react-i18next'` | 旧前端镜像未含此包 | 已修复：在容器内 `npm i react-i18next i18next`；下次 `rebuild frontend` 时会基于最新 `package.json` |
-| `apt-get` 拉 gcc/g++ 失败 | dev 构建时容器无外网 | 已修复：`docker-compose.override.yml` 改用 `docker_app:latest` 而非重新构建 |
+| `apt-get` 拉 gcc/g++ 失败 | dev 构建时容器无外网 | 已修复：`docker-compose.dev.yml` 使用 `docker_app:latest` 镜像而非重新构建 |
 | 容器启动后立即退出 | bind mount 路径不存在 | 已修复：根目录创建 `app/` 空目录 |
 | 端口 8000 占用 | 旧容器未清理 | `podman rm -f --depend graphiti-main-app graphiti-frontend-dev` |
 
@@ -171,7 +176,7 @@ podman ps --format "table {{.Names}} {{.Status}} {{.Ports}}"
 
 # 4. 日常开发 - 仅在以下情况重启
 #    - 改了 .env.docker / Dockerfile / 依赖
-python bootstep.py restart
+python bootstep.py restart-dev
 
 # 5. 查看日志（开发时常用）
 podman logs -f graphiti-main-app
@@ -185,6 +190,7 @@ python bootstep.py down
 | 服务 | 端口 | URL |
 |------|------|-----|
 | 前端（dev） | 5173 | http://localhost:5173 |
+| 前端（prod） | 8080 | http://localhost:8080 |
 | 后端 API | 8000 | http://localhost:8000 |
 | API 文档 | 8000 | http://localhost:8000/docs |
 | 健康检查 | 8000 | http://localhost:8000/health |
@@ -200,7 +206,8 @@ python bootstep.py down
 |------|------|----------|
 | `bootstep.py` | 一键启动脚本 | 添加新容器/调整流程 |
 | `docker/docker-compose.yml` | 生产 compose | 添加/修改服务 |
-| `docker/docker-compose.override.yml` | 开发 compose 覆盖 | 调整 bind mount 或 dev 镜像 |
+| `docker/docker-compose.dev.yml` | **开发 compose（独立，与生产隔离）** | 调整 bind mount 或 dev 配置 |
+| `docker/docker-compose.override.yml` | 开发 compose 覆盖（旧版，已弃用） | 仅作 fallback |
 | `docker/Dockerfile` | 生产后端镜像 | 添加系统依赖 |
 | `docker/Dockerfile.dev` | 开发后端镜像（备用） | 一般用最新镜像 |
 | `frontend/Dockerfile` | 生产前端镜像 | 添加 nginx 配置 |
@@ -398,9 +405,9 @@ List/Dict/Set 等可变容器字段必须用 `Field(default_factory=list)` 或 `
 严格遵循 `routes.py → services/ → impl/ → storage/` 调用链，禁止跨层调用（如路由层直接访问 storage）。
 - 📎 [biz 模块内部结构](#biz-模块内部结构)
 
-### 规则 7：开发环境用 Podman 容器
+### 规则 7：容器开发用 Podman，dev/prod 严格隔离
 
-前后端服务统一通过 `python bootstep.py dev` 在 Podman 容器内运行。**禁止在宿主机直接 `uvicorn` 或 `npm run dev`**。代码修改后需执行 `bootstep.py restart` 或 `rebuild` 才能生效。
+前后端服务统一通过 `python bootstep.py dev` 在 Podman 容器内运行。**禁止在宿主机直接 `uvicorn` 或 `npm run dev`**。`dev` 和 `up` 使用独立的 compose 文件，启动时会自动停止对方环境的冲突容器。日常开发重启用 `bootstep.py restart-dev`（先 down 再 dev）。
 - 📎 [开发环境部署规则](#开发环境部署规则)
 
 ### 规则 8：SQLite 无连接池，每次 connect/close
@@ -446,6 +453,27 @@ import type { Agent } from '../types';
 
 - 📎 [API 层约定](#api-层约定)
 
+### 规则 12：代码变更必须同步更新文档
+
+代码结构变更必须同步更新对应文档，防止文档腐烂。具体触发条件：
+
+| 代码变更 | 必须同步的文档 |
+|---------|--------------|
+| 新增/删除/重命名后端模块 (`odap/biz/`) | `docs/03-modules/README.md` 模块列表 |
+| 新增/删除前端模块 (`frontend/src/modules/`) | `docs/03-modules/README.md` 前端模块表 |
+| 新增路由模块 (`api/routes.py`) | `odap/web/router_registry.py` 注册 + `docs/03-modules/README.md` |
+| 架构级决策（新基础设施、新模式、新数据流） | 创建 ADR 到 `docs/07-adr/` + 更新 `docs/07-adr/README.md` 索引 |
+| 新增/变更 API 路径前缀 | `agents.md` § 附录 E 关键 API 路径速查表 |
+| 新增/变更环境变量 | `agents.md` § 2.3 环境变量速查 |
+| 新增/变更 compose 服务或启动命令 | `agents.md` § 2.2 启动命令 |
+| 存储层新增表或字段变更 | 对应模块 `DESIGN.md` + `agents.md` MEMORY |
+
+**执行要求**：
+- 提交代码前对照 `docs/09-checklists/DOC_SYNC_CHECKLIST.md` 逐项检查
+- ADR 索引表 (`docs/07-adr/README.md`) 必须与实际 ADR 文件一致
+- 模块索引 (`docs/03-modules/README.md`) 必须与实际代码目录一致
+- 发现文档与实际不符时，**立即修正**，不要留 TODO
+
 ---
 
 ## 6. 本地开发及验证流程
@@ -461,7 +489,7 @@ import type { Agent } from '../types';
 ├─────────────────────────────────────────────────────────────────────┤
 │  Step 2: 构建/重启                                                    │
 │  ─────────────────────────────────────────────────────────────────  │
-│  • 容器开发：python bootstep.py restart      (代码修改后必须执行)      │
+│  • 容器开发：python bootstep.py restart-dev  (代码修改后必须执行)      │
 │  • 依赖变更：python bootstep.py rebuild      (requirements/package.json) │
 │  • 本地后端：python main.py --web             (仅快速调试)             │
 │  • 本地前端：cd frontend && npm run dev      (仅快速调试)             │
@@ -647,7 +675,7 @@ docs/
 │   ├── ARCHITECTURE_FULL_CHAIN.md   # 全链路数据流概述
 │   ├── ARCHITECTURE_FULL_CHAIN_DEEP.md  # 全链路深入实现
 │   └── ARCHITECTURE_OPS.md          # 运维架构
-├── 03-modules/               # 模块设计（17 个活跃模块）
+├── 03-modules/               # 模块设计（38+ 后端模块 + 22 前端模块）
 │   ├── ontology/DESIGN.md
 │   ├── swarm_orchestrator/DESIGN.md
 │   ├── opa_policy/DESIGN.md
@@ -661,7 +689,10 @@ docs/
 ├── 04-ui/                    # UI 设计（组件层级、规范、本体构建 UI）
 ├── 05-security/              # 安全设计
 ├── 06-dfx/                   # DFX 设计（可测试性、可维护性）
-└── 07-adr/                   # 架构决策记录（ADR-001 ~ ADR-039）
+├── 07-adr/                   # 架构决策记录（ADR-001 ~ ADR-060）
+├── 09-checklists/             # 检查清单
+│   └── DOC_SYNC_CHECKLIST.md # ⭐ 文档同步检查清单（提交前必查）
+└── ...
 ```
 
 ### 10.2 详细文档索引表
@@ -670,7 +701,7 @@ docs/
 |------|----------|------|
 | **架构总览** | [docs/02-architecture/ARCHITECTURE.md](docs/02-architecture/ARCHITECTURE.md) | 四层架构定义、Phase 演进 |
 | **全链路实现** | [docs/02-architecture/ARCHITECTURE_FULL_CHAIN_DEEP.md](docs/02-architecture/ARCHITECTURE_FULL_CHAIN_DEEP.md) | 5-Phase 完整代码实现 |
-| **模块设计总览** | [docs/03-modules/README.md](docs/03-modules/README.md) | 17 个活跃模块索引 |
+| **模块设计总览** | [docs/03-modules/README.md](docs/03-modules/README.md) | 38+ 后端模块 + 22 前端模块索引 |
 | **本体管理** | [docs/03-modules/ontology/DESIGN.md](docs/03-modules/ontology/DESIGN.md) | 本体 CRUD、版本控制 |
 | **Agent 编排** | [docs/03-modules/swarm_orchestrator/DESIGN.md](docs/03-modules/swarm_orchestrator/DESIGN.md) | Swarm 调度与协同 |
 | **OPA 策略** | [docs/03-modules/opa_policy/DESIGN.md](docs/03-modules/opa_policy/DESIGN.md) | Rego 策略与权限 |
@@ -682,6 +713,7 @@ docs/
 | **UI 组件规范** | [docs/04-ui/COMPONENT_SPEC.md](docs/04-ui/COMPONENT_SPEC.md) | 组件设计规范 |
 | **安全设计** | [docs/05-security/SECURITY.md](docs/05-security/SECURITY.md) | JWT、OAuth2、审计 |
 | **测试设计** | [docs/06-dfx/TEST_DESIGN.md](docs/06-dfx/TEST_DESIGN.md) | 测试策略与规范 |
+| **文档同步检查** | [docs/09-checklists/DOC_SYNC_CHECKLIST.md](docs/09-checklists/DOC_SYNC_CHECKLIST.md) | ⭐ 提交前文档防腐清单 |
 
 ---
 
@@ -861,8 +893,10 @@ JWT Payload 含 `role` + `ws_id` + `ws_role`（工作空间隔离）。
 8. **集成测试** — 需要 Neo4j 运行，否则跳过
 9. **SQLite 无连接池** — 每次 connect/close，不要保持长连接
 10. **新增路由必须注册** — 在 `odap/web/app.py` 中 `include_router()`，否则不生效
-11. **开发环境用 Podman 容器** — 不要在宿主机直接 `uvicorn` 或 `npm run dev`，用 `bootstep.py dev/restart`
-12. **前端跨目录导入用 `@` 别名** — 跨 `src/` 一级目录必须用 `@/modules/xxx`、`@/config` 等，禁止 `../../shared`、`../../../config` 等跨目录相对路径；同模块内允许 `../` 相对路径
+11. **开发环境用 Podman 容器** — 不要在宿主机直接 `uvicorn` 或 `npm run dev`，用 `bootstep.py dev/restart-dev`
+12. **dev/prod 环境隔离** — `dev` 和 `up` 使用独立 compose 文件，不会混跑；启动 `dev` 会自动停止 prod 前端，反之亦然
+13. **前端跨目录导入用 `@` 别名** — 跨 `src/` 一级目录必须用 `@/modules/xxx`、`@/config` 等，禁止 `../../shared`、`../../../config` 等跨目录相对路径；同模块内允许 `../` 相对路径
+14. **文档必须与代码同步** — 新增模块/路由/ADR 必须同步更新 `docs/03-modules/README.md`、`docs/07-adr/README.md`、`agents.md` 对应章节；提交前对照 `docs/09-checklists/DOC_SYNC_CHECKLIST.md` 检查；发现文档过期立即修正，不留 TODO
 
 ### E. 端到端操作流程：创建领域智能体（以西游记为例）
 
