@@ -1,11 +1,11 @@
-# 开发环境覆盖配置
-# 使用此配置可以启用热重载功能
+# 开发环境覆盖配置 — fallback 模式
+# 仅当 docker-compose.dev.yml 不存在时，与 docker-compose.yml 叠加使用
+# 正常情况应使用独立的 docker-compose.dev.yml（单文件，完全隔离）
+
 services:
   app:
-    # 使用生产镜像 (已包含 pyjwt/openai/graphiti-core 等所有依赖) + 源代码热挂载
-    # 避免每次启动都重新 apt-get 拉 gcc/g++ (网络依赖)
     image: localhost/docker_app:latest
-    container_name: graphiti-main-app
+    container_name: graphiti-dev-app
     ports:
       - "8000:8000"
     env_file:
@@ -18,17 +18,20 @@ services:
       - NEO4J_PASSWORD=neo4j123456
       - OPA_URL=http://graphiti-policy-service:8181
       - REDIS_URL=redis://graphiti-cache:6379
+      - MINIO_ENDPOINT=graphiti-minio:9000
+      - MINIO_ACCESS_KEY=${MINIO_ROOT_USER:-minioadmin}
+      - MINIO_SECRET_KEY=${MINIO_ROOT_PASSWORD:-minioadmin}
+      - MINIO_SECURE=false
       - CORS_ORIGINS=http://localhost,http://localhost:80,http://localhost:5173,http://localhost:8000
     depends_on:
       - graphiti-neo4j
       - graphiti-policy-service
       - graphiti-cache
+      - minio
     volumes:
-      # 挂载源代码，支持热重载
       - ../app:/app/app
       - ../odap:/app/odap
       - ../main.py:/app/main.py
-      # 数据持久化 - 开发模式使用 bind mount
       - ../data:/app/data
     networks:
       - graphiti-network
@@ -39,19 +42,17 @@ services:
       timeout: 5s
       retries: 5
       start_period: 30s
-    # 开发模式启用 uvicorn --reload
     command: ["python", "-m", "uvicorn", "odap.web.app:app", "--host", "0.0.0.0", "--port", "8000", "--reload"]
 
   frontend:
     image: localhost/docker_frontend:dev
-    container_name: graphiti-frontend-dev
+    container_name: graphiti-dev-frontend
     ports:
       - "5173:5173"
-    # 覆盖 base compose 的 80:80（rootless Podman 无法绑定特权端口）
-    # 显式声明 ports 会替换而非合并 base 的端口映射
     volumes:
-      # 挂载源代码，支持热重载
-      # 注意：不挂载 package.json，避免覆盖镜像内已安装的 node_modules
+      - ../frontend/package.json:/app/package.json
+      - ../frontend/pnpm-lock.yaml:/app/pnpm-lock.yaml
+      - ../frontend/.npmrc:/app/.npmrc
       - ../frontend/src:/app/src
       - ../frontend/public:/app/public
       - ../frontend/index.html:/app/index.html
@@ -63,11 +64,9 @@ services:
       - ../frontend/.env.production:/app/.env.production
     environment:
       - NODE_ENV=development
-      # T049-fix: VITE_API_BASE 留空，让 apiClient 用相对路径 /api/* → vite proxy 转发
-      # 之前设为 http://localhost:8000 让 fetch 跨域，依赖后端 CORS 配置；
-      # 改为相对路径后浏览器走同源 vite proxy，**根除跨域问题**
       - VITE_API_BASE=
       - PROXY_TARGET=http://app:8000
     networks:
       - graphiti-network
     restart: unless-stopped
+    command: ["sh", "-c", "pnpm install --frozen-lockfile 2>&1 | tail -3; pnpm dev --host 0.0.0.0"]

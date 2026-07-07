@@ -50,6 +50,11 @@ def main():
     spec = importlib.util.spec_from_file_location("podman_compose", compose_module_path)
     mod = importlib.util.module_from_spec(spec)
 
+    # 必须在 exec_module 前注册到 sys.modules，否则 Python 3.13 的
+    # dataclass._is_type() 通过 sys.modules.get(cls.__module__) 查找
+    # 模块时会拿到 None，触发 AttributeError。
+    sys.modules["podman_compose"] = mod
+
     spec.loader.exec_module(mod)
 
     original_is_context_git_url = mod.is_context_git_url

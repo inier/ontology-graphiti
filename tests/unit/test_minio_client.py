@@ -41,6 +41,8 @@ class TestUploadObject:
         with patch.dict("os.environ", {"MINIO_ENDPOINT": "localhost:9000"}):
             client = MinIOClient()
             client._client = mock_client
+            client._ping_ok = True
+            client._ping_ok = True
 
             result = client.upload_object(
                 "test-bucket", "test-key", b"hello world", "text/plain", 11
@@ -67,6 +69,8 @@ class TestUploadObject:
         with patch.dict("os.environ", {"MINIO_ENDPOINT": "localhost:9000"}):
             client = MinIOClient()
             client._client = mock_client
+            client._ping_ok = True
+            client._ping_ok = True
 
             data = b"auto length data"
             result = client.upload_object("bucket", "key", data)
@@ -95,6 +99,7 @@ class TestDownloadObject:
         with patch.dict("os.environ", {"MINIO_ENDPOINT": "localhost:9000"}):
             client = MinIOClient()
             client._client = mock_client
+            client._ping_ok = True
 
             result = client.download_object("bucket", "key")
             assert result["status"] == "success"
@@ -128,6 +133,7 @@ class TestGetPresignedUrl:
         with patch.dict("os.environ", {"MINIO_ENDPOINT": "localhost:9000"}):
             client = MinIOClient()
             client._client = mock_client
+            client._ping_ok = True
 
             result = client.get_presigned_url("bucket", "key")
             assert result["status"] == "success"
@@ -142,6 +148,7 @@ class TestGetPresignedUrl:
         with patch.dict("os.environ", {"MINIO_ENDPOINT": "localhost:9000"}):
             client = MinIOClient()
             client._client = mock_client
+            client._ping_ok = True
 
             result = client.get_presigned_url("bucket", "key", expires=timedelta(minutes=30))
             assert result["status"] == "success"
@@ -164,6 +171,7 @@ class TestDeleteObject:
         with patch.dict("os.environ", {"MINIO_ENDPOINT": "localhost:9000"}):
             client = MinIOClient()
             client._client = mock_client
+            client._ping_ok = True
 
             result = client.delete_object("bucket", "key")
             assert result["status"] == "success"
@@ -196,6 +204,7 @@ class TestEnsureBucket:
         with patch.dict("os.environ", {"MINIO_ENDPOINT": "localhost:9000"}):
             client = MinIOClient()
             client._client = mock_client
+            client._ping_ok = True
 
             result = client.ensure_bucket("new-bucket")
             assert result["status"] == "success"
@@ -210,6 +219,7 @@ class TestEnsureBucket:
         with patch.dict("os.environ", {"MINIO_ENDPOINT": "localhost:9000"}):
             client = MinIOClient()
             client._client = mock_client
+            client._ping_ok = True
 
             result = client.ensure_bucket("existing-bucket")
             assert result["status"] == "success"
@@ -240,6 +250,7 @@ class TestListObjects:
         with patch.dict("os.environ", {"MINIO_ENDPOINT": "localhost:9000"}):
             client = MinIOClient()
             client._client = mock_client
+            client._ping_ok = True
 
             result = client.list_objects("bucket", prefix="prefix/")
             assert result["status"] == "success"
@@ -254,6 +265,7 @@ class TestListObjects:
         with patch.dict("os.environ", {"MINIO_ENDPOINT": "localhost:9000"}):
             client = MinIOClient()
             client._client = mock_client
+            client._ping_ok = True
 
             result = client.list_objects("bucket", prefix="docs/")
             assert result["status"] == "success"
@@ -277,6 +289,7 @@ class TestUploadLargeFile:
         with patch.dict("os.environ", {"MINIO_ENDPOINT": "localhost:9000"}):
             client = MinIOClient()
             client._client = mock_client
+            client._ping_ok = True
 
             large_data = b"x" * (5 * 1024 * 1024)
             result = client.upload_object("bucket", "large-file.bin", large_data, "application/octet-stream")
@@ -301,6 +314,7 @@ class TestWorkspaceBucketIsolation:
         with patch.dict("os.environ", {"MINIO_ENDPOINT": "localhost:9000"}):
             client = MinIOClient()
             client._client = mock_client
+            client._ping_ok = True
 
             ws1_bucket = "ws-abc123"
             ws2_bucket = "ws-def456"
@@ -340,6 +354,7 @@ class TestErrorHandling:
         with patch.dict("os.environ", {"MINIO_ENDPOINT": "localhost:9000"}):
             client = MinIOClient()
             client._client = mock_client
+            client._ping_ok = True
 
             result = client.upload_object("nonexistent", "key", b"data")
             assert result["status"] == "error"
@@ -352,6 +367,7 @@ class TestErrorHandling:
         with patch.dict("os.environ", {"MINIO_ENDPOINT": "localhost:9000"}):
             client = MinIOClient()
             client._client = mock_client
+            client._ping_ok = True
 
             result = client.download_object("bucket", "key")
             assert result["status"] == "error"
@@ -382,3 +398,46 @@ class TestErrorHandling:
             client = MinIOClient()
             client._client = None
             assert client.available is False
+
+    def test_available_property_ping_failed(self):
+        from odap.infra.storage.minio_client import MinIOClient
+        mock_client = MagicMock()
+        with patch.dict("os.environ", {"MINIO_ENDPOINT": "localhost:9000"}):
+            client = MinIOClient()
+            client._client = mock_client
+            client._ping_ok = False
+            # available is False even though _client is set, because ping failed
+            assert client.available is False
+
+
+class TestPing:
+    def setup_method(self):
+        from odap.infra.storage.minio_client import MinIOClient
+        MinIOClient._instance = None
+
+    def teardown_method(self):
+        from odap.infra.storage.minio_client import MinIOClient
+        MinIOClient._instance = None
+
+    def test_ping_success(self):
+        from odap.infra.storage import minio_client as mc_mod
+        mock_client = MagicMock()
+        with patch.dict("os.environ", {"MINIO_ENDPOINT": "localhost:9000"}), \
+             patch.object(mc_mod, "MINIO_SDK_AVAILABLE", True):
+            client = mc_mod.MinIOClient()
+            client._client = mock_client
+            result = client.ping()
+            assert result["status"] == "success"
+            assert result["endpoint"] == "localhost:9000"
+
+    def test_ping_connection_error(self):
+        from odap.infra.storage import minio_client as mc_mod
+        mock_client = MagicMock()
+        mock_client.list_buckets.side_effect = ConnectionError("Connection refused")
+        with patch.dict("os.environ", {"MINIO_ENDPOINT": "bad-host:9000"}), \
+             patch.object(mc_mod, "MINIO_SDK_AVAILABLE", True):
+            client = mc_mod.MinIOClient()
+            client._client = mock_client
+            result = client.ping()
+            assert result["status"] == "error"
+            assert "Connection refused" in result["message"]

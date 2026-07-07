@@ -1,8 +1,3 @@
-"""
-CI/CD 配置文件
-GitHub Actions 工作流
-"""
-
 name: ODAP Integration Tests
 
 on:
@@ -20,7 +15,7 @@ jobs:
       - name: Set up Python
         uses: actions/setup-python@v5
         with:
-          python-version: '3.11'
+          python-version: '3.10'
 
       - name: Cache pip packages
         uses: actions/cache@v4
@@ -33,7 +28,7 @@ jobs:
       - name: Install dependencies
         run: |
           pip install -q pytest pytest-cov pytest-mock
-          pip install -q -e .
+          pip install -q -r requirements.txt
 
       - name: Run unit tests
         run: |
@@ -49,6 +44,11 @@ jobs:
           - 7687:7687
         env:
           NEO4J_AUTH: neo4j/test123
+        options: >-
+          --health-cmd "cypher-shell -u neo4j -p test123 'RETURN 1'"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 10
 
       redis:
         image: redis:7-alpine
@@ -62,16 +62,18 @@ jobs:
 
     steps:
       - uses: actions/checkout@v4
+        with:
+          submodules: recursive
 
       - name: Set up Python
         uses: actions/setup-python@v5
         with:
-          python-version: '3.11'
+          python-version: '3.10'
 
       - name: Install dependencies
         run: |
           pip install -q pytest pytest-cov pytest-mock
-          pip install -q -e .
+          pip install -q -r requirements.txt
 
       - name: Run integration tests
         env:
@@ -105,18 +107,18 @@ jobs:
       - name: Set up Python
         uses: actions/setup-python@v5
         with:
-          python-version: '3.11'
+          python-version: '3.10'
 
       - name: Install dependencies
         run: |
           pip install -q pytest pytest-cov
-          pip install -q -e .
+          pip install -q -r requirements.txt
 
       - name: Generate coverage report
         run: |
           pytest tests/ --cov=odap --cov-report=xml --cov-report=html
 
       - name: Upload coverage to Codecov
-        uses: codecov/codecov-action@v4
+        uses: codecov/codecov-action@v5
         with:
-          file: ./coverage.xml
+          files: ./coverage.xml

@@ -6,7 +6,7 @@
 services:
   # Neo4j 图数据库
   test-neo4j:
-    image: neo4j:5
+    image: localhost/neo4j:latest
     container_name: odap-test-neo4j
     ports:
       - "7474:7474"
@@ -30,7 +30,7 @@ services:
 
   # OPA 策略服务
   test-opa:
-    image: openpolicyagent/opa:0.58.0
+    image: localhost/openpolicyagent/opa:0.58.0
     container_name: odap-test-opa
     ports:
       - "8181:8181"
@@ -48,7 +48,7 @@ services:
 
   # Redis 缓存
   test-redis:
-    image: redis:7-alpine
+    image: localhost/redis:6
     container_name: odap-test-redis
     ports:
       - "6379:6379"

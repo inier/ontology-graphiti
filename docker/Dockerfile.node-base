@@ -1,0 +1,12 @@
+FROM localhost/node:24-alpine
+
+LABEL maintainer="ODAP" description="Node 24 base image with build toolchain for all Node projects"
+
+# node-gyp 依赖：python3 + make + g++
+# alpine 默认不含这些，导致 canvas / bcrypt 等原生模块编译失败
+RUN apk add --no-cache python3 make g++ git
+
+# 预装 pnpm 9（与 lockfileVersion 9.0 匹配，兼容 Node 24）
+RUN corepack enable && corepack prepare pnpm@9 --activate
+
+WORKDIR /app
