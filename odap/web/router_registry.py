@@ -194,6 +194,12 @@ def create_router_registry() -> List[tuple]:
     # ── 配置管理 ──
     from odap.biz.platform.config.api.routes import router as config_router
 
+    # ── MinIO 对象存储管理 ──
+    from odap.biz.platform.minio_admin.api.routes import router as minio_admin_router
+
+    # ── 菜单配置 ──
+    from odap.biz.platform.menu_config.api.routes import router as menu_config_router
+
     # ── 统一数据摄入 ──
     from odap.biz.data.ingest.api.routes import router as unified_ingest_router
 
@@ -355,6 +361,12 @@ def create_router_registry() -> List[tuple]:
 
         # 配置管理
         (config_router,),
+
+        # MinIO 对象存储管理
+        (minio_admin_router,),
+
+        # 菜单配置
+        (menu_config_router,),
 
         # 统一数据摄入
         (unified_ingest_router,),

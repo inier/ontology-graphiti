@@ -307,7 +307,11 @@ class GraphManager(CacheMixin, EntityOpsMixin, RelationshipOpsMixin, TemporalOps
                     for entity_type, entities in entities_by_type.items():
                         safe_type = entity_type.replace(' ', '_')
                         self._validate_label(safe_type)
-                        labels = f"Entity:{safe_type}"
+                        entity_type_id = entity_type.lower().replace(' ', '_')
+                        if re.search(r'[\u4e00-\u9fff]', entity_type_id):
+                            entity_type_id = "zh_type"
+                        self._validate_label(entity_type_id)
+                        labels = f"Entity:{safe_type}:EntityType:{entity_type_id}"
                         cypher = f"""
                         UNWIND $entities AS entity
                         MERGE (n:{labels} {{id: entity.id}})
@@ -317,8 +321,11 @@ class GraphManager(CacheMixin, EntityOpsMixin, RelationshipOpsMixin, TemporalOps
                             "entities": [
                                 {
                                     "id": entity["id"],
-                                    "properties": {**entity.get("properties", {}),
-                                                   "workspace_id": entity.get("properties", {}).get("workspace_id", "default")}
+                                    "properties": {
+                                        **entity.get("properties", {}),
+                                        "workspace_id": entity.get("properties", {}).get("workspace_id", "default"),
+                                        "entity_type_id": entity_type_id,
+                                    }
                                 }
                                 for entity in entities
                             ]
@@ -337,8 +344,13 @@ class GraphManager(CacheMixin, EntityOpsMixin, RelationshipOpsMixin, TemporalOps
                                 props["workspace_id"] = "default"
                             safe_type = entity_type.replace(' ', '_')
                             self._validate_label(safe_type)
-                            labels = f"Entity:{safe_type}"
+                            entity_type_id = entity_type.lower().replace(' ', '_')
+                            if re.search(r'[\u4e00-\u9fff]', entity_type_id):
+                                entity_type_id = "zh_type"
+                            self._validate_label(entity_type_id)
+                            labels = f"Entity:{safe_type}:EntityType:{entity_type_id}"
                             cypher = f"MERGE (n:{labels} {{id: $eid}}) SET n += $props"
+                            props["entity_type_id"] = entity_type_id
                             session.run(cypher, eid=entity_id, props=props)
                             count += 1
                         except Exception as e2:

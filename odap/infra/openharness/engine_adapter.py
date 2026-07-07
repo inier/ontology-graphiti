@@ -22,6 +22,8 @@ from typing import Any, Dict, List, Optional, Callable
 from dataclasses import dataclass, field
 from datetime import datetime
 
+from odap.infra.config_composer import get_config
+
 logger = logging.getLogger("openharness")
 
 # 配置 OpenHarness 路径
@@ -311,6 +313,7 @@ class OHQueryEngineFactory:
         self._api_key: str = ""
         self._base_url: str = ""
         self._initialized: bool = False
+        self._hot_reload_subscribed: bool = False
 
     @classmethod
     def get_instance(cls) -> 'OHQueryEngineFactory':
@@ -331,9 +334,9 @@ class OHQueryEngineFactory:
             model: 模型名称
             opa_manager: OPA 权限管理器
         """
-        self._api_key = api_key or os.environ.get("OPENAI_API_KEY", "")
-        self._base_url = base_url or os.environ.get("OPENAI_API_BASE", "https://api.openai.com/v1")
-        self._model = model or os.environ.get("OPENAI_MODEL", "gpt-4")
+        self._api_key = api_key or get_config("llm.api_key") or os.environ.get("OPENAI_API_KEY", "")
+        self._base_url = base_url or get_config("llm.api_base") or os.environ.get("OPENAI_API_BASE", "https://api.openai.com/v1")
+        self._model = model or get_config("llm.model") or os.environ.get("OPENAI_MODEL", "gpt-4")
 
         if not self._api_key:
             logger.warning("OHQueryEngineFactory: API key not configured")
@@ -378,6 +381,10 @@ class OHQueryEngineFactory:
             self._hook_executor = None
 
         self._initialized = True
+
+        # 注册热更新订阅：当 LLM 配置变更时自动重新配置
+        self._setup_hot_reload()
+
         return True
 
     def _register_skills(self, opa_manager=None):
@@ -428,6 +435,43 @@ class OHQueryEngineFactory:
             logger.warning("OHQueryEngineFactory: SKILL_CATALOG Skill 注册失败: %s", e)
 
         logger.info("OHQueryEngineFactory: ToolRegistry 共注册 %d 个工具", count)
+
+    def _setup_hot_reload(self):
+        """注册配置热更新订阅。
+
+        当用户通过 SettingsPage 修改 LLM 配置时，
+        ConfigManager 会通知本工厂自动重新配置，无需重启服务。
+        """
+        if self._hot_reload_subscribed:
+            return
+        try:
+            from odap.biz.platform.config.impl.config_manager import ConfigManager
+            mgr = ConfigManager.get_instance()
+
+            # 订阅 LLM 相关配置项的变更
+            config_keys = ["llm.api_key", "llm.api_base", "llm.model", "llm.temperature"]
+            for key in config_keys:
+                mgr.subscribe(key, self._on_llm_config_changed)
+            self._hot_reload_subscribed = True
+            logger.info("OHQueryEngineFactory: 已注册 LLM 配置热更新订阅 (keys=%s)", config_keys)
+        except Exception as e:
+            logger.warning("OHQueryEngineFactory: 注册热更新订阅失败 (可能 ConfigManager 尚未初始化): %s", e)
+
+    def _on_llm_config_changed(self, key: str, old_value: Optional[str], new_value: str):
+        """LLM 配置变更回调 — 自动重新配置工厂"""
+        logger.info(
+            "OHQueryEngineFactory: LLM 配置变更 detected (key=%s), 开始热重载...",
+            key,
+        )
+        try:
+            # 重新读取所有 LLM 配置并重新配置工厂
+            reconfigured = self.configure()
+            if reconfigured:
+                logger.info("OHQueryEngineFactory: 热重载成功 (model=%s)", self._model)
+            else:
+                logger.warning("OHQueryEngineFactory: 热重载失败，保持现有配置")
+        except Exception as e:
+            logger.error("OHQueryEngineFactory: 热重载异常: %s", e)
 
     def create_engine(self,
                       system_prompt: str = "",
@@ -587,9 +631,9 @@ class GraphitiAgentLoop:
         if self._factory.is_available:
             return
 
-        api_key = os.environ.get("OPENAI_API_KEY", "")
-        base_url = os.environ.get("OPENAI_API_BASE", "https://api.openai.com/v1")
-        model = os.environ.get("OPENAI_MODEL", "gpt-4")
+        api_key = get_config("llm.api_key") or os.environ.get("OPENAI_API_KEY", "")
+        base_url = get_config("llm.api_base") or os.environ.get("OPENAI_API_BASE", "https://api.openai.com/v1")
+        model = get_config("llm.model") or os.environ.get("OPENAI_MODEL", "gpt-4")
 
         self._factory.configure(
             api_key=api_key,
@@ -729,9 +773,9 @@ class GraphitiAgentLoop:
         logger.info("使用 fallback 模式运行 Agent Loop")
 
         # 使用 OpenAICompatClient（统一 LLM 客户端）直接调用
-        api_key = os.environ.get("OPENAI_API_KEY", "")
-        base_url = os.environ.get("OPENAI_API_BASE", "https://api.openai.com/v1")
-        model = os.environ.get("OPENAI_MODEL", "gpt-4")
+        api_key = get_config("llm.api_key") or os.environ.get("OPENAI_API_KEY", "")
+        base_url = get_config("llm.api_base") or os.environ.get("OPENAI_API_BASE", "https://api.openai.com/v1")
+        model = get_config("llm.model") or os.environ.get("OPENAI_MODEL", "gpt-4")
 
         if api_key:
             try:

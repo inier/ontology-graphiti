@@ -22,6 +22,8 @@ from typing import Any, Dict, List, Optional
 
 import logging
 
+from odap.infra.config_composer import get_config
+
 logger = logging.getLogger(__name__)
 
 # 首先处理项目根目录
@@ -203,9 +205,9 @@ class DomainHarness:
 
             factory = OHQueryEngineFactory.get_instance()
             if not factory.is_available:
-                api_key = os.environ.get("OPENAI_API_KEY", "")
-                base_url = os.environ.get("OPENAI_API_BASE", "https://api.openai.com/v1")
-                model = os.environ.get("OPENAI_MODEL", "gpt-4")
+                api_key = get_config("llm.api_key") or os.environ.get("OPENAI_API_KEY", "")
+                base_url = get_config("llm.api_base") or os.environ.get("OPENAI_API_BASE", "https://api.openai.com/v1")
+                model = get_config("llm.model") or os.environ.get("OPENAI_MODEL", "gpt-4")
                 factory.configure(
                     api_key=api_key,
                     base_url=base_url,

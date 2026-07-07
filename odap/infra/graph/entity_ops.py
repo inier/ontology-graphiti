@@ -5,6 +5,7 @@
 """
 
 import asyncio
+import re
 from datetime import datetime, timezone
 from typing import Optional, List, Dict, Any
 
@@ -41,13 +42,28 @@ class EntityOpsMixin:
 
     def _add_entity_neo4j(self, entity_id: str, entity_type: str,
                            properties: Dict[str, Any]) -> bool:
-        """Neo4j Driver 模式：添加实体（类型安全）"""
+        """Neo4j Driver 模式：添加实体（类型安全）
+
+        双 Label 策略：
+        - Entity:{safe_type}   → 向后兼容的旧 Label（自然语言名）
+        - EntityType:{type_id} → 新的 type_id Label（安全、可索引）
+        """
         try:
             safe_type = entity_type.replace(' ', '_')
             self._validate_label(safe_type)
-            label = f"Entity:{safe_type}"
+
+            # 生成 type_id（ASCII 安全标识符）
+            entity_type_id = entity_type.lower().replace(' ', '_')
+            # 中文类型名转换为安全 ASCII 别名
+            if re.search(r'[\u4e00-\u9fff]', entity_type_id):
+                entity_type_id = "zh_type"
+            self._validate_label(entity_type_id)
+
+            # 双 Label: 旧兼容 + 新 type_id
+            label = f"Entity:{safe_type}:EntityType:{entity_type_id}"
 
             sane_props = self._sanitize_neo4j_properties(properties)
+            sane_props["entity_type_id"] = entity_type_id
 
             prop_items = [(k, v) for k, v in sane_props.items()
                           if k not in ("entity_id", "entity_type", "id", "eid")]

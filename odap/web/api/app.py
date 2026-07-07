@@ -416,6 +416,14 @@ class MockDataWebService:
         if static_dir:
             app.mount("/static", StaticFiles(directory=static_dir), name="static")
 
+        # 知识库上传文件静态服务（仅 MinIO 不可用时的本地降级兜底）
+        _uploads_dir = os.path.join(
+            os.environ.get("DATA_DIR", os.path.join(os.getcwd(), "data")),
+            "uploads", "kb"
+        )
+        os.makedirs(_uploads_dir, exist_ok=True)
+        app.mount("/uploads/kb", StaticFiles(directory=_uploads_dir), name="kb-uploads")
+
         # ── 基础接口 ──────────────────────────────────────
 
         @app.get("/")

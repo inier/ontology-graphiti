@@ -1,0 +1,3 @@
+from .sqlite_menu_config_storage import SQLiteMenuConfigStorage
+
+Storage = SQLiteMenuConfigStorage

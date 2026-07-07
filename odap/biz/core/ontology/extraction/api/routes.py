@@ -304,7 +304,8 @@ async def confirm_extraction(
     try:
         result = await _extraction_service.confirm_extraction(
             session_id=session_id,
-            selected_type_ids=request.selected_type_ids if request.selected_type_ids else None,
+            selected=request.selected if request.selected else None,
+            data=request.data if request.data else None,
             merge_strategy=request.merge_strategy,
         )
         if result.get("status") == "error":

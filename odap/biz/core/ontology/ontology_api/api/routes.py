@@ -8,7 +8,6 @@
 from fastapi import APIRouter, HTTPException, Query, Depends, Response
 from odap.infra.security.jwt_auth import get_current_user
 from odap.infra.security.audit_helper import audit, extract_user_id
-from odap.infra.security.audit_helper import audit, extract_user_id
 from typing import Optional
 
 from ..services import OntologyService
@@ -28,31 +27,7 @@ def _get_type_registry():
 
 # 写入操作弃用提示
 _REGISTRY_HINT = "X-Registry-Recommended"
-_REGISTRY_MSG = "建议使用 /api/ontology/registry/object-types 统一入口，确�?OMS 缓存同步"
-
-
-def extract_user_id(user) -> str:
-    """�?JWT user 对象提取用户标识"""
-    return user.get("sub", "anonymous") if isinstance(user, dict) else "anonymous"
-
-
-def audit(action: str, user_id: str, result_status: str, result_message: str = "",
-           details: dict = None, service: str = "ontology", workspace_id: str = "default"):
-    """本体审计便捷函数"""
-    try:
-        from odap.infra.security.unified_audit import log_audit
-        logaudit(
-            action=action,
-            resource="ontology",
-            user=user_id,
-            service=service,
-            result_status=result_status,
-            result_message=result_message,
-            details=details or {},
-            workspace_id=workspace_id,
-        )
-    except Exception:
-        pass
+_REGISTRY_MSG = "建议使用 /api/ontology/registry/object-types 统一入口，确?OMS 缓存同步"
 
 
 # ===== Ontology CRUD =====

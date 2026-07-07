@@ -1,0 +1,3 @@
+from .knowledge_base_service import KnowledgeBaseService
+
+get_kb_service = KnowledgeBaseService.get_instance

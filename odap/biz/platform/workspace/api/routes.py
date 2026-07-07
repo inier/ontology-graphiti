@@ -5,7 +5,6 @@ import logging
 from fastapi import APIRouter, HTTPException, Query, Depends
 from odap.infra.security.jwt_auth import get_current_user
 from odap.infra.security.audit_helper import audit, extract_user_id
-from odap.infra.security.audit_helper import audit, extract_user_id
 from typing import Any, List, Optional
 from ..services.workspace_service import WorkspaceService
 from ..services.isolation_service import IsolationService
@@ -36,25 +35,6 @@ sample_data_service = SampleDataService()
 import_export_manager = ImportExportManager()
 from odap.biz.core.ontology.design.services.version_service import OntologyVersionManager
 version_manager = OntologyVersionManager()
-
-
-def audit(action: str, user_id: str, result_status: str, result_message: str = "",
-           details: dict = None, service: str = "workspace", workspace_id: str = "default"):
-    """工作空间审计便捷函数"""
-    try:
-        from odap.infra.security.unified_audit import log_audit
-        logaudit(
-            action=action,
-            resource="workspace",
-            user=user_id,
-            service=service,
-            result_status=result_status,
-            result_message=result_message,
-            details=details or {},
-            workspace_id=workspace_id,
-        )
-    except Exception:
-        pass
 
 
 # 工作空间相关路由

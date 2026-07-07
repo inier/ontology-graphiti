@@ -1,7 +1,6 @@
 from fastapi import APIRouter, HTTPException, Depends
 from odap.infra.security.jwt_auth import get_current_user
 from odap.infra.security.audit_helper import audit, extract_user_id
-from odap.infra.security.audit_helper import audit, extract_user_id
 from pydantic import BaseModel
 from typing import List, Optional
 

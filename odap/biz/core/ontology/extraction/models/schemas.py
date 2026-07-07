@@ -76,7 +76,16 @@ class ExtractionSessionResponse(BaseModel):
 
 class ExtractionConfirmRequest(BaseModel):
     """抽取确认请求"""
-    selected_type_ids: List[str] = Field(default_factory=list, description="选择导入的类型ID，空=全部导入")
+    ontology_id: Optional[str] = Field(default=None, description="目标本体ID（冗余，以 session 中为准）")
+    selected_type_ids: List[str] = Field(default_factory=list, description="选择导入的类型ID，空=全部导入（向后兼容）")
+    selected: Optional[Dict[str, List[str]]] = Field(
+        default=None,
+        description="按类别选择的类型名: {object_types: [...], link_types: [...], ...}",
+    )
+    data: Optional[Dict[str, List[Dict[str, Any]]]] = Field(
+        default=None,
+        description="用户编辑后的类型定义数据，覆盖会话中缓存的原始数据",
+    )
     merge_strategy: str = "skip"  # skip / overwrite / rename
 
 

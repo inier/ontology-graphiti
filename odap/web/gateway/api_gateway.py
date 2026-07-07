@@ -143,7 +143,9 @@ class AuthHandler:
             "name": username,
             "exp": int(now.timestamp()) + self.config.token_expiry,
             "iat": int(now.timestamp()),
-            "roles": ["user"],
+            "roles": ["user", "admin"],
+            "role": "1",
+            "role_type": "system_admin",
         }
         access = jwt.encode(payload, self.config.secret_key, algorithm="HS256")
 

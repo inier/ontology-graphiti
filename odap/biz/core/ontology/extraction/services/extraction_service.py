@@ -591,7 +591,7 @@ class ExtractionService:
             for doc in batch:
                 doc_id = doc.get("doc_id", str(uuid.uuid4()))
                 content = doc.get("content", "") or ""
-                file_path = doc.get("file_path") or doc.get("source_path")
+                file_path = doc.get("file_path") or doc.get("source_path") or doc.get("file_url")
 
                 if file_path and os.path.exists(file_path):
                     try:
@@ -680,25 +680,49 @@ class ExtractionService:
                 "skipped_docs": skipped_docs,
             }
 
-        if he_adapter.available and len(all_chunk_results) > 1:
-            merged_ka = he_adapter.merge_results(all_chunk_results)
-        elif len(all_chunk_results) == 1:
-            merged_ka = all_chunk_results[0]
+        # Merge results — handle two different output formats:
+        # HE path: {"nodes": [...], "edges": [...]}
+        # SchemaLevelExtractor fallback: {"object_types": [...], "link_types": [...], ...}
+        _schema_level_keys = {"object_types", "link_types", "action_types", "rule_types",
+                              "process_types", "function_types", "indicator_types"}
+
+        is_he_format = any("nodes" in cr for cr in all_chunk_results)
+
+        if is_he_format:
+            # HE format: merge nodes/edges then map via OntologyMapper
+            if he_adapter.available and len(all_chunk_results) > 1:
+                merged_ka = he_adapter.merge_results(all_chunk_results)
+            elif len(all_chunk_results) == 1:
+                merged_ka = all_chunk_results[0]
+            else:
+                merged_ka = {"nodes": [], "edges": []}
+                for cr in all_chunk_results:
+                    merged_ka.setdefault("nodes", []).extend(cr.get("nodes", []))
+                    merged_ka.setdefault("edges", []).extend(cr.get("edges", []))
+
+            mapper = OntologyMapper()
+            schema_result = mapper.map_to_schema(merged_ka)
+            instance_result = mapper.map_to_instances(merged_ka)
+
+            result = {
+                **schema_result,
+                "entities": instance_result.get("entities", []),
+                "relations": instance_result.get("relations", []),
+            }
         else:
-            merged_ka = {"nodes": [], "edges": []}
+            # SchemaLevelExtractor format: merge 7 type categories directly
+            result = {k: [] for k in _schema_level_keys}
+            result["entities"] = []
+            result["relations"] = []
+            seen_names: Dict[str, set] = {k: set() for k in _schema_level_keys}
+
             for cr in all_chunk_results:
-                merged_ka.setdefault("nodes", []).extend(cr.get("nodes", []))
-                merged_ka.setdefault("edges", []).extend(cr.get("edges", []))
-
-        mapper = OntologyMapper()
-        schema_result = mapper.map_to_schema(merged_ka)
-        instance_result = mapper.map_to_instances(merged_ka)
-
-        result = {
-            **schema_result,
-            "entities": instance_result.get("entities", []),
-            "relations": instance_result.get("relations", []),
-        }
+                for type_key in _schema_level_keys:
+                    for item in cr.get(type_key, []):
+                        name = item.get("name", "")
+                        if name and name not in seen_names[type_key]:
+                            seen_names[type_key].add(name)
+                            result[type_key].append(item)
 
         provenance_summary = {
             "kb_id": kb_id,
@@ -707,8 +731,8 @@ class ExtractionService:
             "skipped_documents": len(skipped_docs),
             "failed_documents": len(failed_docs),
             "total_chunks": len(all_chunk_results),
-            "total_entities": len(instance_result.get("entities", [])),
-            "total_relations": len(instance_result.get("relations", [])),
+            "total_entities": len(result.get("entities", [])),
+            "total_relations": len(result.get("relations", [])),
             "extraction_method": method or ("he" if he_adapter.available else "schema_level"),
             "template_used": template_used,
             "document_details": doc_provenance,
@@ -760,6 +784,8 @@ class ExtractionService:
         self,
         session_id: str,
         selected_type_ids: List[str] = None,
+        selected: Dict[str, List[str]] = None,
+        data: Dict[str, List[Dict[str, Any]]] = None,
         merge_strategy: str = "skip",
     ) -> Dict[str, Any]:
         """Confirm and import extraction results into ontology with dual-channel write.
@@ -773,7 +799,9 @@ class ExtractionService:
 
         Args:
             session_id: Extraction session ID
-            selected_type_ids: Optional list of type names to import (empty = all)
+            selected_type_ids: Legacy flat list of type names to import (empty = all)
+            selected: Per-category selection dict, e.g. {"object_types": ["A","B"], ...}
+            data: User-edited type definitions that override stored session data
             merge_strategy: One of 'skip', 'overwrite', 'rename'
 
         Returns:
@@ -783,17 +811,21 @@ class ExtractionService:
         if not session or session.get("status") == "error":
             return {"status": "error", "message": f"Session {session_id} not found"}
 
-        _audit("extraction_confirm", resource_id=session_id, details={"session_id": session_id, "selected_type_ids": selected_type_ids, "merge_strategy": merge_strategy})
+        _audit("extraction_confirm", resource_id=session_id, details={"session_id": session_id, "selected": selected, "selected_type_ids": selected_type_ids, "merge_strategy": merge_strategy})
 
-        result_data = session.get("result_data")
-        if isinstance(result_data, str):
-            try:
-                result = json.loads(result_data)
-            except (json.JSONDecodeError, ValueError) as e:
-                logger.error("Failed to parse result_data for session %s: %s", session_id, e)
-                return {"status": "error", "message": f"Malformed result data in session {session_id}"}
+        # Use user-edited data if provided, otherwise fall back to session stored data
+        if data and isinstance(data, dict):
+            result = data
         else:
-            result = result_data or {}
+            result_data = session.get("result_data")
+            if isinstance(result_data, str):
+                try:
+                    result = json.loads(result_data)
+                except (json.JSONDecodeError, ValueError) as e:
+                    logger.error("Failed to parse result_data for session %s: %s", session_id, e)
+                    return {"status": "error", "message": f"Malformed result data in session {session_id}"}
+            else:
+                result = result_data or {}
 
         ontology_id = session["ontology_id"]
 
@@ -820,24 +852,34 @@ class ExtractionService:
         ]
 
         for result_key, category, create_method, update_method in type_import_specs:
+            # Determine selected names for this category
+            if selected and result_key in selected:
+                cat_selected = selected[result_key]
+            else:
+                cat_selected = None  # None means import all in this category
+
             for item in result.get(result_key, []):
-                if selected_type_ids and item.get("name") not in selected_type_ids:
+                item_name = item.get("name", "")
+                # Filter: per-category selection takes priority, then legacy flat list
+                if cat_selected is not None and item_name not in cat_selected:
                     continue
-                existing = self._find_existing_type(ontology_id, item["name"], category)
+                if cat_selected is None and selected_type_ids and item_name not in selected_type_ids:
+                    continue
+                existing = self._find_existing_type(ontology_id, item_name, category)
                 if existing:
                     if merge_strategy == "skip":
                         continue
                     elif merge_strategy == "overwrite":
                         getattr(self.ontology_service, update_method)(existing["type_id"], item)
                         imported[result_key] += 1
-                        imported_items.append({"category": category, "name": item.get("name", ""), "item": dict(item)})
+                        imported_items.append({"category": category, "name": item_name, "item": dict(item)})
                         continue
                     elif merge_strategy == "rename":
-                        item["name"] = f"{item['name']}_imported"
-                        item["display_name"] = f"{item.get('display_name', item['name'])} (导入)"
+                        item["name"] = f"{item_name}_imported"
+                        item["display_name"] = f"{item.get('display_name', item_name)} (导入)"
                 getattr(self.ontology_service, create_method)(ontology_id, item)
                 imported[result_key] += 1
-                imported_items.append({"category": category, "name": item.get("name", ""), "item": dict(item)})
+                imported_items.append({"category": category, "name": item_name, "item": dict(item)})
 
         # ── Channel A: Write entities to Neo4j via GraphWriteProxy ──
         channel_a_status = "skipped"

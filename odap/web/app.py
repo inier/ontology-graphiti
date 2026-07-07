@@ -177,6 +177,77 @@ def _schedule_audit_retention_cleanup(manager) -> None:
     asyncio.create_task(_cleanup_loop())
 
 
+def _seed_default_menus() -> None:
+    """首次启动时将所有默认菜单项种子到 menu_config 数据库。
+
+    仅当菜单表为空时执行，后续可通过菜单配置页面自由调整。
+    """
+    try:
+        from odap.biz.platform.menu_config.services.menu_config_service import MenuConfigService
+        svc = MenuConfigService()
+        existing = svc.list_items(active_only=False)
+        if existing.get("total", 0) > 0:
+            logger.info(f"菜单配置已有 {existing['total']} 条记录，跳过种子")
+            return
+
+        now = datetime.now().isoformat()
+        # 所有默认菜单项：(group_key, group_label, group_icon, sort_order, icon, path, name)
+        items = [
+            # ── 快速指南 ──
+            ("guide", "快速指南", "BookOutlined", 0, "BookOutlined", "/guide", "系统指南"),
+            # ── 语义地图 ──
+            ("ontology-map", "语义地图", "BlockOutlined", 0, "BlockOutlined", "/ontology/designer", "本体设计器"),
+            ("ontology-map", "语义地图", "BlockOutlined", 1, "ApartmentOutlined", "/ontology/graph", "语义图谱"),
+            ("ontology-map", "语义地图", "BlockOutlined", 2, "UnorderedListOutlined", "/business/entities", "对象管理"),
+            ("ontology-map", "语义地图", "BlockOutlined", 3, "BranchesOutlined", "/business/process", "业务过程"),
+            ("ontology-map", "语义地图", "BlockOutlined", 4, "FileProtectOutlined", "/business/rules", "规则"),
+            ("ontology-map", "语义地图", "BlockOutlined", 5, "FundOutlined", "/business/indicators", "指标"),
+            ("ontology-map", "语义地图", "BlockOutlined", 6, "NodeIndexOutlined", "/business/logic", "逻辑"),
+            ("ontology-map", "语义地图", "BlockOutlined", 7, "ExperimentOutlined", "/ingest", "数据摄入"),
+            ("ontology-map", "语义地图", "BlockOutlined", 8, "PartitionOutlined", "/blueprint", "蓝图设计"),
+            ("ontology-map", "语义地图", "BlockOutlined", 9, "HistoryOutlined", "/versions", "版本历史"),
+            # ── 智能体 ──
+            ("agent", "智能体", "RobotOutlined", 0, "ApiOutlined", "/agent", "Agent调度"),
+            ("agent", "智能体", "RobotOutlined", 1, "TeamOutlined", "/admin/agents", "智能体管理"),
+            ("agent", "智能体", "RobotOutlined", 2, "AppstoreOutlined", "/skills", "Skill管理"),
+            # ── 推演仿真 ──
+            ("simulation", "推演仿真", "ThunderboltOutlined", 0, "ThunderboltOutlined", "/simulation", "沙箱推演"),
+            ("simulation", "推演仿真", "ThunderboltOutlined", 1, "ExperimentOutlined", "/simulator", "事件模拟"),
+            ("simulation", "推演仿真", "ThunderboltOutlined", 2, "SafetyOutlined", "/simulation/deduction", "策略推演"),
+            # ── 知识检索 ──
+            ("knowledge", "知识检索", "DatabaseOutlined", 0, "DatabaseOutlined", "/knowledge", "知识库"),
+            ("knowledge", "知识检索", "DatabaseOutlined", 1, "CompassOutlined", "/knowledge/navigation", "知识导航"),
+            # ── 系统管理 ──
+            ("system", "系统管理", "SettingOutlined", 0, "BlockOutlined", "/workspace/manage", "工作空间"),
+            ("system", "系统管理", "SettingOutlined", 1, "FileTextOutlined", "/policy-editor", "策略编辑器"),
+            ("system", "系统管理", "SettingOutlined", 2, "UserOutlined", "/users", "用户管理"),
+            ("system", "系统管理", "SettingOutlined", 3, "TeamOutlined", "/roles", "角色管理"),
+            ("system", "系统管理", "SettingOutlined", 4, "AuditOutlined", "/audit", "审计日志"),
+            ("system", "系统管理", "SettingOutlined", 5, "GlobalOutlined", "/i18n-admin", "国际化"),
+            ("system", "系统管理", "SettingOutlined", 6, "MessageOutlined", "/settings/channels/default", "IM渠道"),
+            ("system", "系统管理", "SettingOutlined", 7, "SettingOutlined", "/settings", "系统配置"),
+            ("system", "系统管理", "SettingOutlined", 8, "AppstoreOutlined", "/menu-config", "菜单配置"),
+        ]
+
+        for group_key, group_label, group_icon, sort_order, icon, path, name in items:
+            svc.create_item({
+                "name": name,
+                "path": path,
+                "icon": icon,
+                "menu_type": "internal",
+                "group": group_key,
+                "group_label": group_label,
+                "group_icon": group_icon,
+                "sort_order": sort_order,
+                "is_active": True,
+                "description": "",
+            })
+
+        logger.info(f"✓ 默认菜单已种子: {len(items)} 条")
+    except Exception as e:
+        logger.error(f"菜单种子失败（不影响启动）: {e}")
+
+
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     # C3 fix: 任何环境（含开发/测试）启动时强制校验关键密钥，fail-fast。
@@ -191,6 +262,7 @@ async def lifespan(app: FastAPI):
     _schedule_deferred_openharness_init()
     _ensure_default_workspace_and_scenario()
     _initialize_audit_retention()
+    _seed_default_menus()
     yield
 
     integration = get_openharness_integration()
@@ -227,6 +299,17 @@ app.add_middleware(AuditMiddleware)
 
 # 统一注册所有路由（路由配置集中在 router_registry.py 管理）
 register_routers(app, DEFAULT_ROUTER_REGISTRY)
+
+# 知识库上传文件静态服务（仅 MinIO 不可用时的本地降级兜底）
+# 正常情况下文件存储在 MinIO，通过 presigned URL 访问；此挂载仅在 MinIO 故障降级到本地磁盘时生效
+from starlette.staticfiles import StaticFiles as StaticFiles
+
+_uploads_dir = os.path.join(
+    os.environ.get("DATA_DIR", os.path.join(os.getcwd(), "data")),
+    "uploads", "kb"
+)
+os.makedirs(_uploads_dir, exist_ok=True)
+app.mount("/uploads/kb", StaticFiles(directory=_uploads_dir), name="kb-uploads")
 
 @app.get("/")
 async def root():
