@@ -539,7 +539,7 @@
 - [ ] ADR-042: 审计日志存储与查询架构
 - [ ] ADR-043: Agent Router 语义路由实现
 - [ ] ADR-044: 测试策略与自动化框架选择
-- [ ] 更新 `docs/adr/README.md` 索引
+- [ ] 更新 `docs/07-adr/README.md` 索引
 
 ---
 

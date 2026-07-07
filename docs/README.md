@@ -1,8 +1,8 @@
 # ODAP 文档中心
 
 > **项目**: ODAP (Ontology-Driven Analysis Platform) — 本体驱动分析决策平台
-> **文档体系**: SDD (Software Design Document) 层次化 | 11层 | 防腐文档
-> **版本**: 3.0.0 | **日期**: 2026-05-07
+> **文档体系**: SDD (Software Design Document) 层次化 | 11层 + 契约层 + 归档层 | 防腐文档
+> **版本**: 3.1.0 | **日期**: 2026-07-04 | **更新**: 文档体系治理：消除散落目录、统一归档路径、新增 subsystems 专项架构索引
 
 ---
 
@@ -73,30 +73,40 @@
 
 ## 目录结构
 
+> **治理原则**：docs/ 根目录仅保留 4 份文档管理文件，其余所有内容必须归入 SDD 编号目录。禁止在根目录新增自由命名目录。
+
 ```
 docs/
-├── README.md                           # 本文件 - 总索引
-├── DOCUMENT_MANAGEMENT.md              # 防腐维护指南
-├── DOCUMENT_BASELINE_v1.0.0.md         # 文档基线
-├── DOCUMENT_RELATIONSHIP.md            # 文档关系图
+├── README.md                           # ⭐ 本文件 - SDD 文档中心总索引
+├── DOCUMENT_MANAGEMENT.md              # 防腐文档体系维护指南
+├── DOCUMENT_BASELINE_v1.0.0.md         # 文档基线（首个可信版本）
+├── DOCUMENT_RELATIONSHIP.md            # 文档关系完整索引 + 角色阅读路径
 │
-├── 00-requirements/                    # 原始需求 + 开发需求
-│   ├── req-ok.md                       # ⭐ 唯一权威需求
-│   ├── archive/                        # 早期技术研究
+├── 00-requirements/                    # 层1+2：原始需求 + 开发需求
+│   ├── req-ok.md                       # ⭐ 唯一权威需求定稿
+│   ├── archive/                        # 早期技术研究归档
 │   ├── backlog/                        # 需求待办
-│   └── documents/                      # 补充文档
-├── 01-product-design/                  # 产品设计
-├── 02-architecture/                    # 架构设计
-│   └── reports/                        # 历史审查报告
-├── 03-modules/                         # 22个模块设计
-├── 04-ui/                              # UI设计
-├── 05-security/                        # 安全设计
-├── 06-dfx/                             # DFX设计
-├── 07-adr/                             # 架构决策记录（54个ADR）
-├── 08-tasks/                           # 任务分解
-├── 09-checklists/                      # 检查清单
-├── 10-api/                             # API规范
-└── 11-archive/                         # 归档
-    ├── legacy_code/
-    └── specs/                          # 早期spec（已取代）
+│   └── documents/                      # 补充前端文档
+│
+├── 01-product-design/                  # 层3：产品设计
+│
+├── 02-architecture/                    # 层4：架构设计（唯一权威 ARCHITECTURE.md）
+│   ├── subsystems/                     # ✨ 子系统专项架构（AI 助手/本体隔离等）
+│   └── reports/                        # 历史审查报告归档
+│
+├── 03-modules/                         # 层5：模块设计（25个 DESIGN.md）
+│
+├── 04-ui/                              # 层6：UI设计（含 v2 Design System）
+├── 05-security/                        # 层7：安全设计
+├── 06-dfx/                             # 层8：DFX设计（性能/测试/可维护性）
+├── 07-adr/                             # 层9：架构决策记录（60+ ADR）
+├── 08-tasks/                           # 层10：任务分解
+├── 09-checklists/                      # 层11：检查清单（验收/文档同步）
+├── 10-api/                             # 契约层：API + 数据库设计规范
+│
+└── 11-archive/                         # 归档层：演进依据（不删除、只归档）
+    ├── legacy_code/                    # 废弃代码保留（Python）
+    ├── specs/                          # 早期 Spec-kit 规格（已被根 specs/ 取代）
+    ├── audit/                          # 审查报告归档（R1~R5 / 升级 / 测试报告）
+    └── feature-specs/                  # 早期超能力专项设计规格归档
 ```

@@ -629,4 +629,4 @@ logs = get_audit_logs(user="admin", limit=50)
 |---------|------|
 | `docs/modules/audit_log/DESIGN.md` | 模块设计文档 |
 | `docs/modules/audit_log/GRAPHITI_INTEGRATION.md` | Graphiti集成实现文档 |
-| `docs/adr/ADR-042_audit_log_storage_query.md` | 架构决策记录 |
+| `docs/07-adr/ADR-042_audit_log_storage_query.md` | 架构决策记录 |

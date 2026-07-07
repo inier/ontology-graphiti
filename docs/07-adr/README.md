@@ -48,6 +48,10 @@
 | ADR-026 | 采用 MCP 协议作为外部系统集成标准 | 已接受 | P1 | [ADR-026](ADR-026_mcp_protocol_integration.md) |
 | ADR-031 | 模拟器 Web 可视化与实时本体热写入架构 | 已接受 | P0 | [ADR-031](ADR-031_simulator_web_visualization_realtime_ontology.md) |
 | ADR-032 | 标准化本体文档格式（OntologyDocument） | 已接受 | P0 | [ADR-032](ADR-032_standard_ontology_document_format.md) |
+| ADR-055 | 统一查询服务 (QueryService) | 已接受 | P0 | [ADR-055](ADR-055-统一查询服务.md) |
+| ADR-056 | 语义层修正（类型校验执行与模型统一） | 提议 | P0 | [ADR-056](ADR-056-语义层修正.md) |
+| ADR-057 | 领域本体语义层（四大名著中英文映射） | 提议 | P1 | [ADR-057](ADR-057-domain-ontology-semantic-layer.md) |
+| ADR-060 | 知识库文档存储与图谱构建架构 | 已接受 | P0 | [ADR-060](ADR-060-knowledge-base-document-storage.md) |
 
 ### 平台架构（P0/P1 混合）
 
@@ -65,6 +69,8 @@
 | ADR-046 | Phase 4 采用模块化单体部署架构 | 已接受 | P0 | [ADR-046](ADR-046_modular_monolith_deployment.md) |
 | ADR-048 | 本体管理引擎架构决策 | 已接受 | P0 | [ADR-048](ADR-048_本体管理引擎架构决策.md) |
 | ADR-049 | 用户认知引擎架构决策 | 已接受 | P0 | [ADR-049](ADR-049_用户认知引擎架构决策.md) |
+| ADR-058 | RBAC 三级菜单管理架构 | 已接受 | P0 | [ADR-058](ADR-058-rbac-menu-management.md) |
+| ADR-059 | Dev/Prod 开发生产环境隔离架构 | 已接受 | P0 | [ADR-059](ADR-059-dev-prod-environment-isolation.md) |
 
 ### WebUI与Skill管理选型（Phase 5）
 
@@ -92,7 +98,7 @@
 | ADR-043 | Agent Router 语义路由架构 | 已接受 | P0 | [ADR-043](ADR-043_agent_router_semantic_routing.md) |
 | ADR-044 | 测试策略与框架 | 已接受 | P1 | [ADR-044](ADR-044_test_strategy_framework.md) |
 
-### 完整索引（ADR-001~ADR-054）
+### 完整索引（ADR-001~ADR-060）
 
 | ADR | 决策标题 | 状态 | 文件 |
 |-----|---------|------|------|
@@ -148,6 +154,12 @@
 | ADR-052 | 智能问答WebUI开源项目选型 | 提议 | [ADR-052](ADR-052_webui_opensource_selection.md) |
 | ADR-053 | Skill可视化管理开源方案选型 | 提议 | [ADR-053](ADR-053_skill_management_selection.md) |
 | ADR-054 | 全链路深入实现设计 v2.3 | 已接受 | [ARCHITECTURE_FULL_CHAIN_DEEP.md](../02-architecture/ARCHITECTURE_FULL_CHAIN_DEEP.md) |
+| ADR-055 | 统一查询服务 (QueryService) | 已接受 | [ADR-055](ADR-055-统一查询服务.md) |
+| ADR-056 | 语义层修正（类型校验执行与模型统一） | 提议 | [ADR-056](ADR-056-语义层修正.md) |
+| ADR-057 | 领域本体语义层（四大名著中英文映射） | 提议 | [ADR-057](ADR-057-domain-ontology-semantic-layer.md) |
+| ADR-058 | RBAC 三级菜单管理架构 | 已接受 | [ADR-058](ADR-058-rbac-menu-management.md) |
+| ADR-059 | Dev/Prod 开发生产环境隔离架构 | 已接受 | [ADR-059](ADR-059-dev-prod-environment-isolation.md) |
+| ADR-060 | 知识库文档存储与图谱构建架构 | 已接受 | [ADR-060](ADR-060-knowledge-base-document-storage.md) |
 
 ---
 
@@ -189,3 +201,8 @@
 - ADR-050 ~ ADR-051：Phase 4-5 语义体系+闭环反馈（OADP业务语义、闭环反馈机制）
 - ADR-052 ~ ADR-053：Phase 5 WebUI与Skill选型（智能问答WebUI选型、Skill可视化管理选型）
 - ADR-054：Phase 1~5 全链路深入设计（Python/TypeScript/DB完整实现）
+- ADR-055 ~ ADR-056：Phase 5 统一查询服务与语义层修正（QueryService、类型校验统一）
+- ADR-057：Phase 5 领域本体语义层（四大名著中英文映射、Disambiguator 扩展）
+- ADR-058：Phase 5 RBAC 三级菜单管理（目录/菜单/操作三级 + 角色多对多关联）
+- ADR-059：Phase 5 Dev/Prod 环境隔离（独立 compose 文件 + 互斥启动）
+- ADR-060：Phase 5 知识库文档存储（双轨存储 + 双链路提取 + 图谱构建）

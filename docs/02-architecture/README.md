@@ -29,9 +29,21 @@
 | [REVIEW_REPORT_20260505.md](REVIEW_REPORT_20260505.md) | 架构审查报告 |
 | [reports/](reports/) | 历史审查报告归档 |
 
+## 子系统专项架构 (subsystems/)
+
+针对特定子系统的深度架构设计，均为总体架构（ARCHITECTURE.md）的延伸。
+
+| 文档 | 定位 | 说明 |
+|------|------|------|
+| [AI_ASSISTANT_UNIFIED.md](subsystems/AI_ASSISTANT_UNIFIED.md) | AI 助手统一架构 | 双本体模型、知识库接入、前端组件化、服务分层设计 |
+| [AI_ASSISTANT_STANDALONE.md](subsystems/AI_ASSISTANT_STANDALONE.md) | AI 助手独立组件化 | Host-Plugin 架构 + OHMO 接入 + AGUI 协议统一通信 |
+| [AI_ASSISTANT_PLATFORM_ONTOLOGY.md](subsystems/AI_ASSISTANT_PLATFORM_ONTOLOGY.md) | 平台功能本体建模 | FunctionalModule/Page/Operation 等实体类型定义 |
+| [AI_ASSISTANT_OPERATIONS_MANUAL_SCHEMA.md](subsystems/AI_ASSISTANT_OPERATIONS_MANUAL_SCHEMA.md) | 操作手册知识库 Schema | Markdown 格式规范、结构化 JSON Schema、入库 Pipeline |
+| [ONTOLOGY_SUBSYSTEM_BOUNDARY.md](subsystems/ONTOLOGY_SUBSYSTEM_BOUNDARY.md) | 本体子系统隔离架构 | design/application 两层边界规则、契约层访问、统一查询服务 |
+
 ## 阅读路径
 
 - **新成员**: ARCHITECTURE.md → ARCHITECTURE_FULL_CHAIN.md
 - **开发者**: ARCHITECTURE_FULL_CHAIN_DEEP.md（按Phase查阅）
 - **运维**: ARCHITECTURE_OPS.md
-- **架构师**: ARCHITECTURE.md + ARCHITECTURE_EVOLVE.md
+- **架构师**: ARCHITECTURE.md + ARCHITECTURE_EVOLVE.md + subsystems/*（按子系统查阅）

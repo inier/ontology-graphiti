@@ -11,6 +11,7 @@
 |------|------|
 | [DFX_DESIGN.md](DFX_DESIGN.md) | ⭐ DFX总纲：性能/安全/可靠性/可维护性/可用性/兼容性设计决策 |
 | [TEST_DESIGN.md](TEST_DESIGN.md) | 测试策略：pytest+vitest+Playwright三层体系 |
+| [TDD_BEHAVIOR_LIST.md](TDD_BEHAVIOR_LIST.md) | TDD行为清单：测试驱动开发行为规范 |
 
 ## DFX维度
 
