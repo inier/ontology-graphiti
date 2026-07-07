@@ -7,6 +7,7 @@ import type {
   GraphBuildRequest,
   RAGQueryRequest,
   RAGQueryResult,
+  KbGraphData,
 } from '../types';
 import { fetchJson, apiClient } from '@/modules/shared/services/apiClient';
 import { API_BASE } from '@/config';
@@ -86,6 +87,9 @@ export const knowledgeApi = {
       method: 'POST',
       body: JSON.stringify(data),
     }),
+
+  getKbGraph: (kbId: string): Promise<KbGraphData> =>
+    fetchJson<KbGraphData>(`${API_BASE}/api/knowledge-bases/${kbId}/graph`),
 
   crawlWeb: (kbId: string, url: string, config?: { max_depth?: number; max_pages?: number }): Promise<{ task_id: string }> =>
     fetchJson<{ task_id: string }>(`${API_BASE}/api/knowledge-bases/${kbId}/crawl`, {

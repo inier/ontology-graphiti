@@ -17,6 +17,7 @@ import {
   ClockCircleOutlined,
 } from '@ant-design/icons';
 import { configApi } from '../services/configApi';
+import { useI18n } from '@/modules/shared/hooks/useI18n';
 import type { ConfigRevision, ConfigChange } from '../types';
 
 const { Text, Paragraph } = Typography;
@@ -32,6 +33,7 @@ export function ConfigHistoryDrawer({
   onClose,
   onRollback,
 }: ConfigHistoryDrawerProps) {
+  const { t } = useI18n('settings');
   const [revisions, setRevisions] = useState<ConfigRevision[]>([]);
   const [loading, setLoading] = useState(false);
   const [rollingBack, setRollingBack] = useState<number | null>(null);
@@ -42,11 +44,11 @@ export function ConfigHistoryDrawer({
       const data = await configApi.getConfigHistory({ page: 1, page_size: 50 });
       setRevisions(data.revisions || []);
     } catch {
-      message.error('加载变更历史失败');
+      message.error(t('loadHistoryFailed'));
     } finally {
       setLoading(false);
     }
-  }, []);
+  }, [t]);
 
   useEffect(() => {
     if (open) {
@@ -58,11 +60,11 @@ export function ConfigHistoryDrawer({
     setRollingBack(revisionNumber);
     try {
       await configApi.rollbackConfig(revisionNumber);
-      message.success(`已回滚至版本 #${revisionNumber}`);
+      message.success(t('rollbackSuccess', { version: revisionNumber }));
       onRollback?.();
       fetchHistory();
     } catch {
-      message.error('回滚失败');
+      message.error(t('rollbackFailed'));
     } finally {
       setRollingBack(null);
     }
@@ -71,10 +73,10 @@ export function ConfigHistoryDrawer({
   const renderChangeItem = (change: ConfigChange, idx: number) => {
     const oldValueDisplay = change.is_sensitive
       ? '******'
-      : change.old_value ?? '(空)';
+      : change.old_value ?? t('emptyValue');
     const newValueDisplay = change.is_sensitive
       ? '******'
-      : change.new_value ?? '(空)';
+      : change.new_value ?? t('emptyValue');
 
     return (
       <div key={idx} style={{ marginBottom: 4 }}>
@@ -99,18 +101,18 @@ export function ConfigHistoryDrawer({
 
   return (
     <Drawer
-      title="配置变更历史"
+      title={t('configChangeHistory')}
       placement="right"
       width={560}
       open={open}
       onClose={onClose}
     >
       {loading ? (
-        <Spin spinning description="加载中..." style={{ width: '100%' }}>
+        <Spin spinning description={t('loadingText')} style={{ width: '100%' }}>
           <div style={{ minHeight: 100 }} />
         </Spin>
       ) : revisions.length === 0 ? (
-        <Empty description="暂无变更记录" />
+        <Empty description={t('noHistory')} />
       ) : (
         <Timeline
           items={revisions.map((rev) => ({
@@ -145,11 +147,11 @@ export function ConfigHistoryDrawer({
                       {formatTime(rev.changed_at)}
                     </Text>
                     <Popconfirm
-                      title={`确认回滚至版本 #${rev.revision_number}？`}
-                      description="回滚后当前配置将被替换为该版本的配置"
+                      title={t('rollbackConfirm', { version: rev.revision_number })}
+                      description={t('rollbackDescription')}
                       onConfirm={() => handleRollback(rev.revision_number)}
-                      okText="确认回滚"
-                      cancelText="取消"
+                      okText={t('rollbackOk')}
+                      cancelText={t('cancel', { ns: 'common' })}
                     >
                       <Button
                         type="link"
@@ -158,7 +160,7 @@ export function ConfigHistoryDrawer({
                         loading={rollingBack === rev.revision_number}
                         danger
                       >
-                        回滚
+                        {t('rollback')}
                       </Button>
                     </Popconfirm>
                   </Space>

@@ -1,11 +1,17 @@
-FROM localhost/node:20-alpine
+FROM localhost/node-base:24
 
 WORKDIR /app
 
-COPY package.json ./
+# pnpm 9 已在 node-base 镜像中预装，此处为幂等操作
+RUN corepack enable && corepack prepare pnpm@9 --activate
 
-RUN npm install --registry https://registry.npmmirror.com || npm install
+# 先复制 lock 文件和 package.json，利用 Docker 缓存层
+COPY package.json pnpm-lock.yaml ./
+COPY .npmrc ./
+
+# 使用 pnpm 安装依赖
+RUN pnpm install --frozen-lockfile || pnpm install
 
 EXPOSE 5173
 
-CMD ["node", "./node_modules/vite/bin/vite.js", "--host", "0.0.0.0"]
+CMD ["pnpm", "dev", "--host", "0.0.0.0"]

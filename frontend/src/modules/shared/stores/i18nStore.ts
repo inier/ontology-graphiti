@@ -44,9 +44,47 @@ import knowledgeEn from '@/modules/knowledge/locales/en-US/knowledge.json';
 import systemZh from '@/modules/system/locales/zh-CN/system.json';
 import systemEn from '@/modules/system/locales/en-US/system.json';
 
+// menu-config
+import menuConfigZh from '@/modules/menu-config/locales/zh-CN/menu-config.json';
+import menuConfigEn from '@/modules/menu-config/locales/en-US/menu-config.json';
+import menuNamesZh from '@/modules/menu-config/locales/zh-CN/menu-names.json';
+import menuNamesEn from '@/modules/menu-config/locales/en-US/menu-names.json';
+
 // i18n-admin
 import i18nAdminZh from '@/modules/i18n-admin/locales/zh-CN/i18n-admin.json';
 import i18nAdminEn from '@/modules/i18n-admin/locales/en-US/i18n-admin.json';
+
+// settings
+import settingsZh from '@/modules/settings/locales/zh-CN/settings.json';
+import settingsEn from '@/modules/settings/locales/en-US/settings.json';
+
+// business
+import businessZh from '@/modules/business/locales/zh-CN/business.json';
+import businessEn from '@/modules/business/locales/en-US/business.json';
+
+// config
+import configZh from '@/modules/config/locales/zh-CN/config.json';
+import configEn from '@/modules/config/locales/en-US/config.json';
+
+// guide
+import guideZh from '@/modules/guide/locales/zh-CN/guide.json';
+import guideEn from '@/modules/guide/locales/en-US/guide.json';
+
+// ingest
+import ingestZh from '@/modules/ingest/locales/zh-CN/ingest.json';
+import ingestEn from '@/modules/ingest/locales/en-US/ingest.json';
+
+// roles
+import rolesZh from '@/modules/roles/locales/zh-CN/roles.json';
+import rolesEn from '@/modules/roles/locales/en-US/roles.json';
+
+// version
+import versionZh from '@/modules/version/locales/zh-CN/version.json';
+import versionEn from '@/modules/version/locales/en-US/version.json';
+
+// ai-assistant
+import aiAssistantZh from '@/modules/ai-assistant/locales/zh-CN/ai-assistant.json';
+import aiAssistantEn from '@/modules/ai-assistant/locales/en-US/ai-assistant.json';
 
 const STORAGE_KEY = 'odap-locale';
 
@@ -66,7 +104,17 @@ i18n
         qa: qaZh,
         knowledge: knowledgeZh,
         system: systemZh,
+        'menu-config': menuConfigZh,
+        'menu-names': menuNamesZh,
         'i18n-admin': i18nAdminZh,
+        settings: settingsZh,
+        business: businessZh,
+        config: configZh,
+        guide: guideZh,
+        ingest: ingestZh,
+        roles: rolesZh,
+        version: versionZh,
+        'ai-assistant': aiAssistantZh,
       },
       'en-US': {
         common: commonEn,
@@ -79,11 +127,21 @@ i18n
         qa: qaEn,
         knowledge: knowledgeEn,
         system: systemEn,
+        'menu-config': menuConfigEn,
+        'menu-names': menuNamesEn,
         'i18n-admin': i18nAdminEn,
+        settings: settingsEn,
+        business: businessEn,
+        config: configEn,
+        guide: guideEn,
+        ingest: ingestEn,
+        roles: rolesEn,
+        version: versionEn,
+        'ai-assistant': aiAssistantEn,
       },
     },
     fallbackLng: 'zh-CN',
-    ns: ['common', 'messages', 'agent', 'audit', 'ontology', 'simulation', 'workspace', 'qa', 'knowledge', 'system', 'i18n-admin'],
+    ns: ['common', 'messages', 'agent', 'audit', 'ontology', 'simulation', 'workspace', 'qa', 'knowledge', 'system', 'menu-config', 'menu-names', 'i18n-admin', 'settings', 'business', 'config', 'guide', 'ingest', 'roles', 'version', 'ai-assistant'],
     defaultNS: 'common',
     interpolation: {
       escapeValue: false,

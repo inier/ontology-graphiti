@@ -7,11 +7,13 @@ import { ConfigGroup } from '../components/ConfigGroup';
 import { ConfigHistoryDrawer } from '../components/ConfigHistoryDrawer';
 import { ConfigImportExport } from '../components/ConfigImportExport';
 import { useGlobalLoading } from '@/modules/shared/stores/globalLoadingStore';
+import { useI18n } from '@/modules/shared/hooks/useI18n';
 import type { ServiceCategory } from '../types';
 
 const { Title } = Typography;
 
 export default function SettingsPage() {
+  const { t } = useI18n('settings');
   const {
     categories,
     loading,
@@ -26,11 +28,11 @@ export default function SettingsPage() {
 
   useEffect(() => {
     if (loading && categories.length === 0) {
-      showGlobalLoading('加载配置中...');
+      showGlobalLoading(t('loading'));
     } else {
       hideGlobalLoading();
     }
-  }, [loading, categories.length, showGlobalLoading, hideGlobalLoading]);
+  }, [loading, categories.length, showGlobalLoading, hideGlobalLoading, t]);
 
   useEffect(() => {
     fetchConfigs();
@@ -86,7 +88,7 @@ export default function SettingsPage() {
           <Space>
             <SettingOutlined style={{ fontSize: 20 }} />
             <Title level={4} style={{ margin: 0 }}>
-              系统配置
+              {t('title')}
             </Title>
           </Space>
           <Space>
@@ -95,7 +97,7 @@ export default function SettingsPage() {
               icon={<HistoryOutlined />}
               onClick={() => toggleHistoryDrawer(true)}
             >
-              变更历史
+              {t('changeHistory')}
             </Button>
           </Space>
         </div>
@@ -112,7 +114,7 @@ export default function SettingsPage() {
 
         {loading && categories.length === 0 ? (
           <div style={{ minHeight: 200, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-            <Spin size="large" tip="加载配置中..." />
+            <Spin size="large" tip={t('loading')} />
           </div>
         ) : (
           <Collapse

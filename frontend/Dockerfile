@@ -1,4 +1,4 @@
-FROM localhost/node:20-alpine AS builder
+FROM localhost/node-base:24 AS builder
 
 WORKDIR /app
 

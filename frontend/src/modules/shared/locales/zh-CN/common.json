@@ -57,5 +57,25 @@
     "maxLength": "最多输入 {{max}} 个字符",
     "email": "请输入有效的邮箱地址",
     "url": "请输入有效的URL地址"
+  },
+  "layout": {
+    "collapse": "折叠",
+    "expand": "展开",
+    "expandPanel": "展开功能区 ({{count}} 个任务)",
+    "expandExtension": "展开扩展区",
+    "expandExtensionWithName": "展开扩展区 ({{name}})",
+    "extension": "扩展",
+    "extensionArea": "扩展区",
+    "selectExtension": "选择一个扩展"
+  },
+  "nav": {
+    "aiAssistant": "AI 助手",
+    "myAgents": "我的智能体",
+    "agentChat": "智能体对话",
+    "qaEngine": "问答引擎"
+  },
+  "workspace": {
+    "switched": "已切换工作空间",
+    "scenarioSwitched": "已切换场景"
   }
 }

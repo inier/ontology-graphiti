@@ -6,6 +6,7 @@ import {
   CloseCircleOutlined,
 } from '@ant-design/icons';
 import { configApi } from '../services/configApi';
+import { useI18n } from '@/modules/shared/hooks/useI18n';
 import type { ServiceCategory, ConfigValidationResult } from '../types';
 
 interface ConnectionTestButtonProps {
@@ -19,6 +20,7 @@ export function ConnectionTestButton({
   items,
   onTestComplete,
 }: ConnectionTestButtonProps) {
+  const { t } = useI18n('settings');
   const [testing, setTesting] = useState(false);
   const [result, setResult] = useState<ConfigValidationResult | null>(null);
 
@@ -39,7 +41,7 @@ export function ConnectionTestButton({
       setResult({
         category,
         success: false,
-        message: '连接测试请求失败',
+        message: t('connectionRequestFailed'),
         response_time_ms: 0,
         tested_at: new Date().toISOString(),
       });
@@ -53,13 +55,15 @@ export function ConnectionTestButton({
     if (result.success) {
       return (
         <Tag icon={<CheckCircleOutlined />} color="success">
-          连接成功 ({result.response_time_ms}ms)
+          {t('connectionSuccess', { ms: result.response_time_ms })}
         </Tag>
       );
     }
     return (
       <Tag icon={<CloseCircleOutlined />} color="error">
-        连接失败{result.message ? `: ${result.message}` : ''}
+        {result.message
+          ? t('connectionFailedWithMsg', { msg: result.message })
+          : t('connectionFailed')}
       </Tag>
     );
   };
@@ -73,7 +77,7 @@ export function ConnectionTestButton({
         disabled={testing || items.length === 0}
         size="small"
       >
-        {testing ? '测试中' : '测试连接'}
+        {testing ? t('testing') : t('connectionTest')}
       </Button>
       {testing && <Spin size="small" />}
       {renderResultTag()}

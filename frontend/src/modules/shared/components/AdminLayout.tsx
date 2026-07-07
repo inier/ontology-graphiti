@@ -2,35 +2,16 @@ import React, { useState, useEffect, useCallback, useRef, useMemo, useContext } 
 import { Layout, Menu, Select, Spin, App, Button, Tooltip, Dropdown, Badge, ConfigProvider, theme as antdTheme, Drawer } from 'antd';
 import { useNavigate, useLocation } from 'react-router-dom';
 import {
-  BlockOutlined,
-  ThunderboltOutlined,
-  SettingOutlined,
-  TeamOutlined,
-  FileTextOutlined,
-  AuditOutlined,
-  AppstoreOutlined,
-  ApartmentOutlined,
-  BranchesOutlined,
-  NodeIndexOutlined,
-  FundOutlined,
-  DatabaseOutlined,
-  FileProtectOutlined,
-  UnorderedListOutlined,
-  ExperimentOutlined,
   RobotOutlined,
+  FileTextOutlined,
+  BlockOutlined,
   SwitcherOutlined,
   MenuFoldOutlined,
   MenuUnfoldOutlined,
-  SafetyOutlined,
   LogoutOutlined,
   UserOutlined,
-  PartitionOutlined,
-  HistoryOutlined,
-  ApiOutlined,
   CompassOutlined,
   QuestionCircleOutlined,
-  GlobalOutlined,
-  BookOutlined,
   RightOutlined,
   LeftOutlined,
   MessageOutlined,
@@ -39,6 +20,10 @@ import type { MenuProps } from 'antd';
 import { api } from '../services/api';
 import { useAuthStore } from '../stores/authStore';
 import { applyColorTheme } from '../styles/colorThemeUtils';
+import { resolveIcon } from '@/modules/menu-config/utils/iconResolver';
+import { resolveMenuName } from '@/modules/menu-config/utils/resolveMenuName';
+import { menuConfigApi, type MenuItem as MenuConfigItem } from '@/modules/menu-config/services/menuConfigApi';
+import { useI18n } from '@/modules/shared/hooks/useI18n';
 import { GlobalLoading } from './GlobalLoading';
 import { TaskPanel } from './TaskPanel';
 import { QuickActionBar } from './QuickActionBar';
@@ -96,77 +81,10 @@ interface MenuItem {
   children?: { key: string; icon?: React.ReactNode; label: string }[];
 }
 
-const primaryMenus: MenuItem[] = [
-  {
-    key: 'guide',
-    icon: <BookOutlined />,
-    label: '快速指南',
-    children: [{ key: '/guide', icon: <BookOutlined />, label: '系统指南' }],
-  },
-  {
-    key: 'ontology-map',
-    icon: <BlockOutlined />,
-    label: '语义地图',
-    children: [
-      { key: '/ontology/designer', icon: <BlockOutlined />, label: '本体设计器' },
-      { key: '/ontology/graph', icon: <ApartmentOutlined />, label: '语义图谱' },
-      { key: '/business/entities', icon: <UnorderedListOutlined />, label: '对象管理' },
-      { key: '/business/process', icon: <BranchesOutlined />, label: '业务过程' },
-      { key: '/business/rules', icon: <FileProtectOutlined />, label: '规则' },
-      { key: '/business/indicators', icon: <FundOutlined />, label: '指标' },
-      { key: '/business/logic', icon: <NodeIndexOutlined />, label: '逻辑' },
-      { key: '/ingest', icon: <ExperimentOutlined />, label: '数据摄入' },
-      { key: '/blueprint', icon: <PartitionOutlined />, label: '蓝图设计' },
-      { key: '/versions', icon: <HistoryOutlined />, label: '版本历史' },
-    ],
-  },
-  {
-    key: 'agent',
-    icon: <RobotOutlined />,
-    label: '智能体',
-    children: [
-      { key: '/agent', icon: <ApiOutlined />, label: 'Agent调度' },
-      { key: '/admin/agents', icon: <TeamOutlined />, label: '智能体管理' },
-      { key: '/skills', icon: <AppstoreOutlined />, label: 'Skill管理' },
-    ],
-  },
-  {
-    key: 'simulation',
-    icon: <ThunderboltOutlined />,
-    label: '推演仿真',
-    children: [
-      { key: '/simulation', icon: <ThunderboltOutlined />, label: '沙箱推演' },
-      { key: '/simulator', icon: <ExperimentOutlined />, label: '事件模拟' },
-      { key: '/simulation/deduction', icon: <SafetyOutlined />, label: '策略推演' },
-    ],
-  },
-  {
-    key: 'knowledge',
-    icon: <DatabaseOutlined />,
-    label: '知识检索',
-    children: [
-      { key: '/knowledge', icon: <DatabaseOutlined />, label: '知识库' },
-      { key: '/knowledge/navigation', icon: <CompassOutlined />, label: '知识导航' },
-    ],
-  },
-  {
-    key: 'system',
-    icon: <SettingOutlined />,
-    label: '系统管理',
-    children: [
-      { key: '/workspace/manage', icon: <BlockOutlined />, label: '工作空间' },
-      { key: '/policy-editor', icon: <FileTextOutlined />, label: '策略编辑器' },
-      { key: '/users', icon: <UserOutlined />, label: '用户管理' },
-      { key: '/roles', icon: <TeamOutlined />, label: '角色管理' },
-      { key: '/audit', icon: <AuditOutlined />, label: '审计日志' },
-      { key: '/i18n-admin', icon: <GlobalOutlined />, label: '国际化' },
-      { key: '/settings/channels/default', icon: <MessageOutlined />, label: 'IM渠道' },
-      { key: '/settings', icon: <SettingOutlined />, label: '系统配置' },
-    ],
-  },
-];
+const primaryMenus: MenuItem[] = [];
+// 所有菜单项已由后端 /api/menu-config 统一管理，primaryMenus 保留为空以兼容
 
-/* Build flat route → tab info map */
+/* Build flat route → tab info map (静态部分，动态部分在 hook 中追加) */
 const routeTabInfo: Record<string, { title: string }> = {};
 primaryMenus.forEach((m) => {
   if (m.children) {
@@ -180,6 +98,79 @@ primaryMenus.forEach((m) => {
 routeTabInfo['/my-agents'] = { title: '我的智能体' };
 routeTabInfo['/agent-chat'] = { title: '智能体对话' };
 routeTabInfo['/qa'] = { title: '问答引擎' };
+
+/* ── 动态菜单项 Hook（从后端树形 API 加载，按角色过滤，递归处理多级目录） ── */
+function useDynamicMenuItems() {
+  const [dynamicMenus, setDynamicMenus] = useState<MenuItem[]>([]);
+  const fetchedRef = useRef(false);
+  const { t } = useI18n();
+
+  useEffect(() => {
+    if (fetchedRef.current) return;
+    fetchedRef.current = true;
+
+    menuConfigApi.getUserTree()
+      .then(data => {
+        const tree = data.tree || [];
+        console.log('[AdminLayout] menu tree loaded:', tree.length, 'nodes');
+
+        if (tree.length === 0) {
+          console.warn('[AdminLayout] menu tree is empty');
+          return;
+        }
+
+        const menus: MenuItem[] = [];
+
+        function buildMenu(nodes: typeof tree, parentKey: string): MenuItem[] {
+          const items: MenuItem[] = [];
+          for (const node of nodes) {
+            if (node.menu_type === 'action') continue;
+
+            const isVisible = node.is_visible !== false;
+            if (!isVisible) {
+              console.warn('[AdminLayout] skipped (not visible):', node.name, node.is_visible);
+              continue;
+            }
+
+            if (node.menu_type === 'directory') {
+              const children = buildMenu(node.children || [], `${parentKey}-${node.code}`);
+              if (children.length > 0) {
+                items.push({
+                  key: `dynamic-${parentKey}-${node.code}`,
+                  icon: resolveIcon(node.icon),
+                  label: resolveMenuName(t, node.name),
+                  children,
+                });
+              }
+            } else if (node.menu_type === 'menu') {
+              const key = node.link_type === 'iframe'
+                ? `/iframe-viewer?url=${encodeURIComponent(node.url || '')}&title=${encodeURIComponent(resolveMenuName(t, node.name))}`
+                : (node.path || `/${node.code}`);
+              routeTabInfo[key] = { title: resolveMenuName(t, node.name) };
+              items.push({
+                key,
+                icon: resolveIcon(node.icon),
+                label: resolveMenuName(t, node.name),
+              });
+            } else {
+              console.warn('[AdminLayout] skipped (unknown type):', { menu_type: node.menu_type, name: node.name });
+            }
+          }
+          return items;
+        }
+
+        const topLevel = buildMenu(tree, 'root');
+        console.log('[AdminLayout] built menu items:', topLevel.length);
+        menus.push(...topLevel);
+        setDynamicMenus(menus);
+      })
+      .catch((err) => {
+        console.error('[AdminLayout] menu load failed:', err);
+      });
+  }, []);
+
+  return dynamicMenus;
+}
 
 /* ── Resize Handle (inline, absolute-position based) ── */
 
@@ -406,31 +397,53 @@ export function AdminLayout({ children }: { children: React.ReactNode }) {
   const handleWorkspaceChange = (value: string) => {
     setWorkspaceInContext(value);
     if (message && typeof message.success === 'function') {
-      message.success('已切换工作空间');
+      message.success(t('workspace.switched'));
     }
   };
 
   const handleScenarioChange = (value: string) => {
     setScenarioInContext(value);
     if (message && typeof message.success === 'function') {
-      message.success('已切换场景');
+      message.success(t('workspace.scenarioSwitched'));
     }
   };
+
+  /* ── Dynamic menu items from backend API ── */
+  const dynamicMenus = useDynamicMenuItems();
+
+  /* ── Merge static + dynamic menus ── */
+  const allMenus = useMemo(
+    () => [...primaryMenus, ...dynamicMenus],
+    [dynamicMenus],
+  );
 
   /* ── Navigation → Tab integration ── */
   useEffect(() => {
     // AdminLayout: always create tabs
     const path = location.pathname;
-    const info = routeTabInfo[path] || routeTabInfo['/' + path.split('/')[1]];
+    let info = routeTabInfo[path] || routeTabInfo['/' + path.split('/')[1]];
+    if (!info) {
+      for (const m of allMenus) {
+        if (m.children) {
+          for (const c of m.children) {
+            if (c.key === path || c.key === '/' + path.split('/')[1]) {
+              info = { title: c.label };
+              break;
+            }
+          }
+        }
+        if (info) break;
+      }
+    }
     if (info) {
       openTab({ id: path, title: info.title, path });
     }
-  }, [location.pathname, isFullWidthMode, openTab]);
+  }, [location.pathname, isFullWidthMode, openTab, allMenus]);
 
   /* ── Determine active menu keys ── */
   const activeMenuKey = (() => {
     const path = location.pathname;
-    for (const m of primaryMenus) {
+    for (const m of allMenus) {
       if (m.children) {
         for (const c of m.children) {
           if (c.key === path || c.key === '/' + path.split('/')[1]) {
@@ -444,7 +457,7 @@ export function AdminLayout({ children }: { children: React.ReactNode }) {
 
   const activeParentKey = (() => {
     const path = location.pathname;
-    for (const m of primaryMenus) {
+    for (const m of allMenus) {
       if (m.children) {
         for (const c of m.children) {
           if (c.key === path || c.key === '/' + path.split('/')[1]) {
@@ -466,7 +479,7 @@ export function AdminLayout({ children }: { children: React.ReactNode }) {
     }
   }
 
-  const parentMenuKeys = useMemo(() => primaryMenus.map(m => m.key), []);
+  const parentMenuKeys = useMemo(() => allMenus.map(m => m.key), [allMenus]);
 
   const menuClickRef = useRef(0);
 
@@ -568,7 +581,7 @@ export function AdminLayout({ children }: { children: React.ReactNode }) {
   };
 
   /* ── Menu items for Ant Design Menu ── */
-  const menuItems: MenuProps['items'] = primaryMenus.map((m) => ({
+  const menuItems: MenuProps['items'] = allMenus.map((m) => ({
     key: m.key,
     icon: m.icon,
     label: m.label,
@@ -764,7 +777,7 @@ export function AdminLayout({ children }: { children: React.ReactNode }) {
                           setActiveExtension('ai-chat');
                         }}
                         style={{ color: 'var(--odap-color-text-secondary)', marginRight: 4 }}
-                        title="AI 助手"
+                        title={t('nav.aiAssistant')}
                       />
                       <Button
                         type="text"
@@ -773,7 +786,7 @@ export function AdminLayout({ children }: { children: React.ReactNode }) {
                         onClick={handleSwitchMode}
                         style={{ color: 'var(--odap-color-text-secondary)' }}
                       >
-                        我的智能体
+                        {t('nav.myAgents')}
                       </Button>
                     </>
                   }
@@ -831,7 +844,7 @@ export function AdminLayout({ children }: { children: React.ReactNode }) {
 
                   {/* Collapsed function area toggle with tab count badge */}
                   {!isFullWidthMode && taskPanelCollapsed && (
-                    <Tooltip title={`展开功能区 (${tabs.length} 个任务)`} placement="right">
+                    <Tooltip title={t('layout.expandPanel', { count: tabs.length })} placement="right">
                       <div
                         style={{
                           width: 24,
@@ -901,7 +914,7 @@ export function AdminLayout({ children }: { children: React.ReactNode }) {
                       {extensionPanelCollapsed ? (
                         /* Collapsed: reopen strip */
                         <Tooltip
-                          title={activeExtensionSpec ? `展开扩展区 (${activeExtensionSpec.name})` : '展开扩展区'}
+                          title={activeExtensionSpec ? t('layout.expandExtensionWithName', { name: activeExtensionSpec.name }) : t('layout.expandExtension')}
                           placement="left"
                         >
                           <div
@@ -929,7 +942,7 @@ export function AdminLayout({ children }: { children: React.ReactNode }) {
                               letterSpacing: 2,
                               userSelect: 'none',
                             }}>
-                              {activeExtensionSpec?.name ?? '扩展'}
+                              {activeExtensionSpec?.name ?? t('layout.extension')}
                             </div>
                             <LeftOutlined style={{ fontSize: 10, color: 'var(--odap-color-text-tertiary)' }} />
                           </div>
@@ -947,7 +960,7 @@ export function AdminLayout({ children }: { children: React.ReactNode }) {
                           <ExtensionPanel
                             onClose={toggleExtensionPanel}
                             icon={activeExtensionIcon}
-                            title={activeExtensionSpec?.name ?? '扩展区'}
+                            title={activeExtensionSpec?.name ?? t('layout.extensionArea')}
                             extensions={extensionSpecs}
                             activeExtensionId={activeExtensionId}
                             onSwitchExtension={setActiveExtension}
@@ -956,7 +969,7 @@ export function AdminLayout({ children }: { children: React.ReactNode }) {
                           >
                             {activeExtensionComponent ? React.createElement(activeExtensionComponent) : (
                               <div style={{ padding: 16, color: 'var(--odap-color-text-secondary)', textAlign: 'center' }}>
-                                选择一个扩展
+                                {t('layout.selectExtension')}
                               </div>
                             )}
                           </ExtensionPanel>
@@ -983,7 +996,7 @@ export function AdminLayout({ children }: { children: React.ReactNode }) {
                       <ExtensionPanel
                         onClose={toggleExtensionPanel}
                         icon={activeExtensionIcon}
-                        title={activeExtensionSpec?.name ?? '扩展区'}
+                        title={activeExtensionSpec?.name ?? t('layout.extensionArea')}
                         extensions={extensionSpecs}
                         activeExtensionId={activeExtensionId}
                         onSwitchExtension={setActiveExtension}

@@ -22,6 +22,8 @@ import { QAPage, QueryPage, EvaluationPage } from '@/modules/qa';
 import { GuidePage } from '@/modules/guide';
 import { SettingsPage } from '@/modules/settings';
 import { ChannelManagementPage } from '@/modules/channels';
+import { IframeViewerPage } from '@/modules/iframe-viewer';
+import { MenuConfigPage } from '@/modules/menu-config';
 import { KeepAliveOutlet } from '@/modules/shared/components/KeepAliveOutlet';
 
 function ProtectedRoute({ children }: { children: ReactNode }) {
@@ -77,6 +79,8 @@ export function AppRoutes() {
         <Route path="/settings/channels/:workspaceId" element={<ProtectedRoute><ChannelManagementPage /></ProtectedRoute>} />
         <Route path="/audit" element={<ProtectedRoute><AuditLog /></ProtectedRoute>} />
         <Route path="/admin/agents" element={<ProtectedRoute><AgentManagement /></ProtectedRoute>} />
+        <Route path="/iframe-viewer" element={<ProtectedRoute><IframeViewerPage /></ProtectedRoute>} />
+        <Route path="/menu-config" element={<ProtectedRoute><MenuConfigPage /></ProtectedRoute>} />
         <Route path="/guide" element={<ProtectedRoute><GuidePage /></ProtectedRoute>} />
         <Route path="/" element={<ProtectedRoute><GuidePage /></ProtectedRoute>} />
         <Route path="/admin" element={<Navigate to="/ontology/designer" replace />} />

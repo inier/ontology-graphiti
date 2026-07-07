@@ -1,0 +1,36 @@
+{
+  "title": "AI Assistant",
+  "newChat": "New Chat",
+  "noConversations": "No conversations yet",
+  "unnamed": "Unnamed",
+  "thinking": "Thinking...",
+  "clearConversation": "Clear conversation",
+  "placeholder": "Type a message, Enter to send...",
+
+  "source": "Source",
+  "unknown": "Unknown",
+  "confidence": "Confidence",
+  "reasoning": "Reasoning",
+  "references": "References",
+  "messageCount": "messages",
+
+  "quickActions": {
+    "ontologyOverview": "Ontology Overview",
+    "integrityCheck": "Integrity Check",
+    "suggestProperties": "Suggest Properties",
+    "suggestRelations": "Suggest Relations"
+  },
+
+  "welcome": {
+    "base": "Hello! I'm ODAP AI Assistant.\n\nI can help you with:\n🔍 Data querying (entities, relations)\n🔧 Ontology integrity analysis",
+    "default": "Ask me anything in natural language!",
+    "withType": "💡 Suggestions for '{{name}}' properties and relations\n\nAsk me anything in natural language!",
+    "currentOntology": "📋 **Current Ontology** ({{count}} types):\n{{list}}"
+  },
+
+  "relativeTime": {
+    "justNow": "Just now",
+    "hoursAgo": "{{hours}}h ago",
+    "daysAgo": "{{days}}d ago"
+  }
+}

@@ -15,18 +15,22 @@ export interface KnowledgeBaseSelectorProps {
 }
 
 interface KnowledgeBaseItem {
-  id: string;
+  kb_id: string;
   name: string;
   description?: string;
-  document_count?: number;
+  knowledge_count?: number;
   created_at?: string;
 }
 
 interface DocumentItem {
-  id: string;
-  name: string;
+  doc_id: string;
+  kb_id: string;
+  title: string;
+  content_type?: string;
+  file_type?: string;
+  file_size?: number;
   status?: string;
-  size?: number;
+  graph_built?: boolean;
 }
 
 export function KnowledgeBaseSelector({ ontologyId, onExtractionComplete }: KnowledgeBaseSelectorProps) {
@@ -61,7 +65,7 @@ export function KnowledgeBaseSelector({ ontologyId, onExtractionComplete }: Know
       const result = await apiClient.get(`/api/knowledge-bases/${kbId}/documents`) as any;
       const docs = result?.documents || result?.data || [];
       setDocuments(Array.isArray(docs) ? docs : []);
-      setSelectedDocIds(new Set(Array.isArray(docs) ? docs.map((d: DocumentItem) => d.id) : []));
+      setSelectedDocIds(new Set(Array.isArray(docs) ? docs.map((d: DocumentItem) => d.doc_id) : []));
     } catch {
       setDocuments([]);
     }
@@ -153,18 +157,18 @@ export function KnowledgeBaseSelector({ ontologyId, onExtractionComplete }: Know
                   <List.Item
                     style={{
                       cursor: 'pointer',
-                      background: selectedKbId === kb.id ? '#e6f4ff' : undefined,
+                      background: selectedKbId === kb.kb_id ? '#e6f4ff' : undefined,
                       padding: '8px 12px',
                       borderRadius: 6,
                     }}
-                    onClick={() => handleSelectKb(kb.id)}
+                    onClick={() => handleSelectKb(kb.kb_id)}
                   >
                     <List.Item.Meta
                       avatar={<DatabaseOutlined style={{ fontSize: 20, color: '#1677ff' }} />}
                       title={kb.name}
-                      description={`${kb.document_count || 0} 篇文档`}
+                      description={`${kb.knowledge_count || 0} 篇文档`}
                     />
-                    {selectedKbId === kb.id && <Tag color="blue">已选择</Tag>}
+                    {selectedKbId === kb.kb_id && <Tag color="blue">已选择</Tag>}
                   </List.Item>
                 )}
               />
@@ -179,7 +183,7 @@ export function KnowledgeBaseSelector({ ontologyId, onExtractionComplete }: Know
           size="small"
           extra={
             <Space>
-              <Button size="small" onClick={() => setSelectedDocIds(new Set(documents.map((d) => d.id)))}>
+              <Button size="small" onClick={() => setSelectedDocIds(new Set(documents.map((d) => d.doc_id)))}>
                 全选
               </Button>
               <Button size="small" onClick={() => setSelectedDocIds(new Set())}>
@@ -195,11 +199,11 @@ export function KnowledgeBaseSelector({ ontologyId, onExtractionComplete }: Know
             renderItem={(doc) => (
               <List.Item style={{ padding: '4px 0' }}>
                 <Checkbox
-                  checked={selectedDocIds.has(doc.id)}
-                  onChange={() => toggleDoc(doc.id)}
+                  checked={selectedDocIds.has(doc.doc_id)}
+                  onChange={() => toggleDoc(doc.doc_id)}
                 >
                   <FileTextOutlined style={{ marginRight: 8 }} />
-                  {doc.name}
+                  {doc.title}
                 </Checkbox>
               </List.Item>
             )}

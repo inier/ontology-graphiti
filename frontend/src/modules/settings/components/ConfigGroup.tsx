@@ -9,6 +9,7 @@ import {
 } from '@ant-design/icons';
 import { ConfigItemForm } from './ConfigItemForm';
 import { ConnectionTestButton } from './ConnectionTestButton';
+import { useI18n } from '@/modules/shared/hooks/useI18n';
 import type { ServiceConfig, ConfigItem } from '../types';
 
 interface ConfigGroupProps {
@@ -17,33 +18,9 @@ interface ConfigGroupProps {
   saving?: boolean;
 }
 
-const CONNECTION_STATUS_MAP: Record<
-  string,
-  { color: string; icon: React.ReactNode; text: string }
-> = {
-  connected: {
-    color: 'success',
-    icon: <CheckCircleOutlined />,
-    text: '已连接',
-  },
-  disconnected: {
-    color: 'error',
-    icon: <CloseCircleOutlined />,
-    text: '已断开',
-  },
-  not_configured: {
-    color: 'default',
-    icon: <MinusCircleOutlined />,
-    text: '未配置',
-  },
-  unknown: {
-    color: 'warning',
-    icon: <QuestionCircleOutlined />,
-    text: '未知',
-  },
-};
-
 export function ConfigGroup({ config, onSave, saving = false }: ConfigGroupProps) {
+  const { t } = useI18n('settings');
+
   const [formValues, setFormValues] = useState<Record<string, string>>(() => {
     const initial: Record<string, string> = {};
     config.items.forEach((item: ConfigItem) => {
@@ -66,6 +43,32 @@ export function ConfigGroup({ config, onSave, saving = false }: ConfigGroupProps
 
   const handleTestComplete = () => {
     // After test, refresh is handled by the store
+  };
+
+  const CONNECTION_STATUS_MAP: Record<
+    string,
+    { color: string; icon: React.ReactNode; text: string }
+  > = {
+    connected: {
+      color: 'success',
+      icon: <CheckCircleOutlined />,
+      text: t('statusConnected'),
+    },
+    disconnected: {
+      color: 'error',
+      icon: <CloseCircleOutlined />,
+      text: t('statusDisconnected'),
+    },
+    not_configured: {
+      color: 'default',
+      icon: <MinusCircleOutlined />,
+      text: t('statusNotConfigured'),
+    },
+    unknown: {
+      color: 'warning',
+      icon: <QuestionCircleOutlined />,
+      text: t('statusUnknown'),
+    },
   };
 
   const statusInfo = CONNECTION_STATUS_MAP[config.connection_status] || CONNECTION_STATUS_MAP.unknown;
@@ -133,7 +136,7 @@ export function ConfigGroup({ config, onSave, saving = false }: ConfigGroupProps
           <Divider />
           <Form.Item>
             <Button type="primary" onClick={handleSave} loading={saving}>
-              保存 {config.label} 配置
+              {t('saveButton', { label: config.label })}
             </Button>
           </Form.Item>
         </Form>

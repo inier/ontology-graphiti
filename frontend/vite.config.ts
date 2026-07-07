@@ -2,7 +2,7 @@ import { defineConfig } from 'vite'
 import react from '@vitejs/plugin-react'
 import path from 'path'
 
-const proxyTarget = process.env.PROXY_TARGET || process.env.VITE_API_BASE || 'http://localhost:8765';
+const proxyTarget = process.env.PROXY_TARGET || process.env.VITE_API_BASE || 'http://localhost:8000';
 console.log('[vite config] PROXY_TARGET env:', process.env.PROXY_TARGET);
 console.log('[vite config] VITE_API_BASE env:', process.env.VITE_API_BASE);
 console.log('[vite config] Resolved proxy target:', proxyTarget);
@@ -13,6 +13,9 @@ export default defineConfig({
     alias: {
       '@': path.resolve(__dirname, './src'),
     },
+  },
+  optimizeDeps: {
+    include: ['jit-viewer'],
   },
   server: {
     host: true,
@@ -52,6 +55,10 @@ export default defineConfig({
         changeOrigin: true,
       },
       '/health': {
+        target: proxyTarget,
+        changeOrigin: true,
+      },
+      '/uploads': {
         target: proxyTarget,
         changeOrigin: true,
       },

@@ -15,6 +15,7 @@ import { useState, useEffect, useRef } from 'react';
 import { Tag, Spin, Tooltip } from 'antd';
 import { ThunderboltOutlined, CheckOutlined, CloseOutlined } from '@ant-design/icons';
 import { useTypeInference } from '../hooks/useTypeInference';
+import { useI18n } from '@/modules/shared/hooks/useI18n';
 
 export interface AIInlineCompletionProps {
   /** 当前属性名 */
@@ -39,6 +40,7 @@ export function AIInlineCompletion({
   onReject,
   disabled = false,
 }: AIInlineCompletionProps) {
+  const { t } = useI18n('ontology');
   const { inference, loading, inferType, reset } = useTypeInference();
   const lastQueriedRef = useRef<string>('');
   // 跟踪已被用户忽略的属性名；属性名变化时自动重置（render 期间调整 state，合法模式）
@@ -105,7 +107,7 @@ export function AIInlineCompletion({
         }}
       >
         <Spin size="small" />
-        <span style={{ color: '#999' }}>AI 推断中...</span>
+        <span style={{ color: '#999' }}>{t('aiInline.inferring')}</span>
       </div>
     );
   }
@@ -117,11 +119,11 @@ export function AIInlineCompletion({
 
   const confidenceColor = inference.confidence >= 0.8 ? 'green' : inference.confidence >= 0.5 ? 'blue' : 'orange';
   const matchRuleLabel: Record<string, string> = {
-    exact: '精确匹配',
-    prefix: '前缀匹配',
-    suffix: '后缀匹配',
-    contains: '包含匹配',
-    default: '默认',
+    exact: t('aiInline.matchRules.exact'),
+    prefix: t('aiInline.matchRules.prefix'),
+    suffix: t('aiInline.matchRules.suffix'),
+    contains: t('aiInline.matchRules.contains'),
+    default: t('aiInline.matchRules.default'),
   };
 
   return (
@@ -141,13 +143,13 @@ export function AIInlineCompletion({
     >
       <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginBottom: 4 }}>
         <ThunderboltOutlined style={{ color: '#722ed1' }} />
-        <span style={{ fontWeight: 500, color: '#722ed1' }}>AI 建议</span>
+        <span style={{ fontWeight: 500, color: '#722ed1' }}>{t('aiInline.suggestion')}</span>
         <Tag color={confidenceColor} style={{ marginLeft: 'auto', fontSize: 11 }}>
           {Math.round(inference.confidence * 100)}%
         </Tag>
       </div>
       <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-        <span>推荐类型:</span>
+        <span>{t('aiInline.recommendedType')}</span>
         <Tag color="purple" style={{ fontWeight: 600 }}>
           {inference.inferredType}
         </Tag>
@@ -157,7 +159,7 @@ export function AIInlineCompletion({
       </div>
       {inference.constraints && Object.keys(inference.constraints).length > 0 && (
         <div style={{ marginTop: 4, color: '#666' }}>
-          <span>约束: </span>
+          <span>{t('aiInline.constraints')} </span>
           {Object.keys(inference.constraints).map((k) => (
             <Tag key={k} style={{ fontSize: 10 }}>
               {k}
@@ -170,13 +172,13 @@ export function AIInlineCompletion({
           style={{ fontSize: 11, color: '#999', cursor: 'pointer' }}
           onClick={handleReject}
         >
-          <CloseOutlined /> 忽略
+          <CloseOutlined /> {t('aiInline.ignore')}
         </a>
         <a
           style={{ fontSize: 11, color: '#722ed1', cursor: 'pointer', fontWeight: 500 }}
           onClick={handleAccept}
         >
-          <CheckOutlined /> 接受 (Tab)
+          <CheckOutlined /> {t('aiInline.accept')}
         </a>
       </div>
     </div>

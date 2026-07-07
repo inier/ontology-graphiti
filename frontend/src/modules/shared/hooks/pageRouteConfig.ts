@@ -164,6 +164,11 @@ export const PAGE_ROUTE_CONFIG: Record<RoutePattern, PageMetadata> = {
     description: '管理技能库',
     requiresWorkspace: true,
   },
+  '/minio-admin': {
+    pageId: 'minio_admin',
+    name: '对象存储管理',
+    description: '管理 MinIO 对象存储',
+  },
 
   // ── 版本管理 ──
   '/versions': {

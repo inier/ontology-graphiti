@@ -442,7 +442,15 @@ export function ExtractionPreview({
           function_types: selectedMap.function || [],
           indicator_types: selectedMap.indicator || [],
         },
-        data: localData,
+        data: {
+          object_types: localData.object || [],
+          link_types: localData.link || [],
+          action_types: localData.action || [],
+          rule_types: localData.rule || [],
+          process_types: localData.process || [],
+          function_types: localData.function || [],
+          indicator_types: localData.indicator || [],
+        },
       }) as Record<string, any>;
 
       const aStatus: ChannelStatus =

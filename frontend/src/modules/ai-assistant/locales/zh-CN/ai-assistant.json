@@ -1,0 +1,36 @@
+{
+  "title": "AI 助手",
+  "newChat": "新对话",
+  "noConversations": "暂无对话记录",
+  "unnamed": "未命名对话",
+  "thinking": "思考中...",
+  "clearConversation": "清空对话",
+  "placeholder": "输入消息，Enter 发送...",
+
+  "source": "来源",
+  "unknown": "未知",
+  "confidence": "置信度",
+  "reasoning": "推理过程",
+  "references": "参考来源",
+  "messageCount": "条",
+
+  "quickActions": {
+    "ontologyOverview": "本体概况",
+    "integrityCheck": "完整性检查",
+    "suggestProperties": "建议属性",
+    "suggestRelations": "建议关系"
+  },
+
+  "welcome": {
+    "base": "你好！我是 ODAP AI 助手。\n\n我可以帮你：\n🔍 查询数据（实体、关系）\n🔧 分析本体完整性",
+    "default": "请用自然语言提问！",
+    "withType": "💡 建议「{{name}}」的属性和关系\n\n请用自然语言提问！",
+    "currentOntology": "📋 **当前本体** ({{count}} 个类型):\n{{list}}"
+  },
+
+  "relativeTime": {
+    "justNow": "刚刚",
+    "hoursAgo": "{{hours}}小时前",
+    "daysAgo": "{{days}}天前"
+  }
+}

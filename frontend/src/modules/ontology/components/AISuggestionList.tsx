@@ -34,6 +34,7 @@ import {
 } from '@ant-design/icons';
 import { ontologyApi } from '../services/ontologyApi';
 import type { AISuggestion } from '../services/ontologyApi';
+import { useI18n } from '@/modules/shared/hooks/useI18n';
 
 export interface AISuggestionListProps {
   /** 本体 ID */
@@ -57,6 +58,7 @@ export function AISuggestionList({
   autoRefreshMs = 0,
   maxHeight = 400,
 }: AISuggestionListProps) {
+  const { t } = useI18n('ontology');
   const [suggestions, setSuggestions] = useState<AISuggestion[]>([]);
   const [loading, setLoading] = useState(false);
   const [statusFilter, setStatusFilter] = useState<StatusFilter>('pending');
@@ -98,7 +100,7 @@ export function AISuggestionList({
     async (suggestionId: string) => {
       try {
         const result = await ontologyApi.aiAssistant.acceptSuggestion(suggestionId);
-        message.success('建议已接受');
+        message.success(t('aiSuggestion.acceptSuccess'));
         onAccept?.(result.suggestion);
         // 更新本地列表
         setSuggestions((prev) =>
@@ -109,7 +111,7 @@ export function AISuggestionList({
           ),
         );
       } catch (err) {
-        message.error(`接受失败: ${err instanceof Error ? err.message : String(err)}`);
+        message.error(t('aiSuggestion.acceptFailed', { error: err instanceof Error ? err.message : String(err) }));
       }
     },
     [onAccept],
@@ -119,7 +121,7 @@ export function AISuggestionList({
     async (suggestionId: string) => {
       try {
         const result = await ontologyApi.aiAssistant.rejectSuggestion(suggestionId, '用户拒绝');
-        message.success('建议已拒绝');
+        message.success(t('aiSuggestion.rejectSuccess'));
         onReject?.(result.suggestion, '用户拒绝');
         // 更新本地列表
         setSuggestions((prev) =>
@@ -135,7 +137,7 @@ export function AISuggestionList({
           ),
         );
       } catch (err) {
-        message.error(`拒绝失败: ${err instanceof Error ? err.message : String(err)}`);
+        message.error(t('aiSuggestion.rejectFailed', { error: err instanceof Error ? err.message : String(err) }));
       }
     },
     [onReject],
@@ -146,19 +148,19 @@ export function AISuggestionList({
       case 'pending':
         return (
           <Tag icon={<ClockCircleOutlined />} color="processing">
-            待处理
+            {t('aiSuggestion.pending')}
           </Tag>
         );
       case 'accepted':
         return (
           <Tag icon={<CheckCircleOutlined />} color="success">
-            已接受
+            {t('aiSuggestion.accepted')}
           </Tag>
         );
       case 'rejected':
         return (
           <Tag icon={<StopOutlined />} color="default">
-            已拒绝
+            {t('aiSuggestion.rejected')}
           </Tag>
         );
       default:
@@ -167,16 +169,7 @@ export function AISuggestionList({
   };
 
   const categoryLabel = (category: string): string => {
-    const labels: Record<string, string> = {
-      add_property: '添加属性',
-      add_link_type: '添加关系',
-      add_action_type: '添加动作',
-      suggest_properties: '属性推荐',
-      validate_constraint: '约束验证',
-      pattern_discovery: '模式发现',
-      completeness_check: '完整性检查',
-    };
-    return labels[category] || category;
+    return t(`aiSuggestion.types.${category}`, category);
   };
 
   return (
@@ -195,13 +188,13 @@ export function AISuggestionList({
           value={statusFilter}
           onChange={(v) => setStatusFilter(v as StatusFilter)}
           options={[
-            { label: '待处理', value: 'pending' },
-            { label: '已接受', value: 'accepted' },
-            { label: '已拒绝', value: 'rejected' },
-            { label: '全部', value: 'all' },
+            { label: t('aiSuggestion.pending'), value: 'pending' },
+            { label: t('aiSuggestion.accepted'), value: 'accepted' },
+            { label: t('aiSuggestion.rejected'), value: 'rejected' },
+            { label: t('common.message.all', '全部'), value: 'all' },
           ]}
         />
-        <Tooltip title="刷新">
+        <Tooltip title={t('common.button.refresh')}>
           <Button
             size="small"
             type="text"
@@ -219,7 +212,7 @@ export function AISuggestionList({
           </div>
         ) : suggestions.length === 0 ? (
           <Empty
-            description={`暂无${statusFilter === 'all' ? '' : statusFilter === 'pending' ? '待处理' : statusFilter === 'accepted' ? '已接受' : '已拒绝'}建议`}
+            description={t('aiSuggestion.noSuggestions', '暂无建议')}
             image={Empty.PRESENTED_IMAGE_SIMPLE}
             style={{ padding: '24px 0' }}
           />
@@ -234,11 +227,11 @@ export function AISuggestionList({
                     ? [
                         <Popconfirm
                           key="reject"
-                          title="确认拒绝此建议？"
+                          title={t('aiSuggestion.confirmReject', '确认拒绝此建议？')}
                           onConfirm={() => handleReject(suggestion.suggestion_id)}
                         >
                           <Button size="small" danger icon={<CloseOutlined />}>
-                            拒绝
+                            {t('aiSuggestion.reject', '拒绝')}
                           </Button>
                         </Popconfirm>,
                         <Button
@@ -248,7 +241,7 @@ export function AISuggestionList({
                           icon={<CheckOutlined />}
                           onClick={() => handleAccept(suggestion.suggestion_id)}
                         >
-                          接受
+                          {t('aiSuggestion.accept', '接受')}
                         </Button>,
                       ]
                     : undefined
@@ -283,7 +276,7 @@ export function AISuggestionList({
                       </pre>
                       {suggestion.rejection_reason && (
                         <div style={{ color: '#999' }}>
-                          拒绝原因: {suggestion.rejection_reason}
+                          {t('aiSuggestion.rejectReason', '拒绝原因')}: {suggestion.rejection_reason}
                         </div>
                       )}
                       <div style={{ color: '#ccc', fontSize: 10 }}>

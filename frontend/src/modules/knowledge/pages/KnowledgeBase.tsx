@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef, useCallback } from 'react';
 
 import {
 
@@ -22,7 +22,7 @@ import {
 
   RobotOutlined, ArrowLeftOutlined, InboxOutlined, DatabaseOutlined,
 
-  BookOutlined, TagOutlined, BarChartOutlined,
+  BookOutlined, TagOutlined, BarChartOutlined, ApartmentOutlined,
 
 } from '@ant-design/icons';
 
@@ -34,14 +34,14 @@ import type {
 
   KnowledgeBase as KB, KnowledgeCategory, KnowledgeDocument,
 
-  KnowledgeBaseFormData, DocumentUploadData,
+  KnowledgeBaseFormData, DocumentUploadData, KbGraphData,
 
 } from '../types';
 
 import { EmptyState } from '@/modules/shared/components/organisms';
 
 import { useWorkspace } from '@/modules/shared/components/LayoutContexts';
-import { AdvancedTable } from '@/modules/shared';
+import { AdvancedTable, DocumentViewer } from '@/modules/shared';
 
 
 
@@ -50,6 +50,38 @@ const { Dragger } = Upload;
 const { TextArea } = Input;
 
 const { Title, Text } = Typography;
+
+const MIME_FRIENDLY: Record<string, string> = {
+  'application/pdf': 'PDF',
+  'application/vnd.openxmlformats-officedocument.wordprocessingml.document': 'Word 文档',
+  'application/msword': 'Word 文档 (旧版)',
+  'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet': 'Excel 表格',
+  'application/vnd.ms-excel': 'Excel 表格 (旧版)',
+  'application/vnd.openxmlformats-officedocument.presentationml.presentation': 'PPT 演示',
+  'application/vnd.ms-powerpoint': 'PPT 演示 (旧版)',
+  'text/plain': '纯文本',
+  'text/markdown': 'Markdown',
+  'text/csv': 'CSV 表格',
+  'text/html': 'HTML',
+  'application/json': 'JSON',
+  'image/png': 'PNG 图片',
+  'image/jpeg': 'JPEG 图片',
+  'image/gif': 'GIF 图片',
+  'image/svg+xml': 'SVG 图片',
+};
+
+function friendlyFileType(fileType?: string): string {
+  if (!fileType) return '未知';
+  return MIME_FRIENDLY[fileType] || fileType.split('/').pop()?.toUpperCase() || fileType;
+}
+
+function deriveDocStatus(doc: KnowledgeDocument): { label: string; color: string } {
+  if (doc.status === 'error') return { label: '处理失败', color: 'error' };
+  if (doc.status === 'processing') return { label: '处理中', color: 'processing' };
+  if (doc.graph_built) return { label: '图谱已构建', color: 'success' };
+  if (doc.status === 'indexed') return { label: '已索引', color: 'success' };
+  return { label: '待处理', color: 'default' };
+}
 
 
 
@@ -101,12 +133,32 @@ export function KnowledgeBase() {
 
   const [categoryForm] = Form.useForm();
 
+  const [graphModalOpen, setGraphModalOpen] = useState(false);
+
+  const [graphData, setGraphData] = useState<KbGraphData | null>(null);
+
+  const [graphLoading, setGraphLoading] = useState(false);
+
+  const graphChartRef = useRef<HTMLDivElement>(null);
+
+  const echartsInstanceRef = useRef<any>(null);
+
 
 
   useEffect(() => {
 
     loadKnowledgeBases();
 
+  }, []);
+
+  // 组件卸载时清理 ECharts 实例
+  useEffect(() => {
+    return () => {
+      if (echartsInstanceRef.current) {
+        echartsInstanceRef.current.dispose();
+        echartsInstanceRef.current = null;
+      }
+    };
   }, []);
 
 
@@ -313,6 +365,30 @@ export function KnowledgeBase() {
 
       const values = uploadForm.getFieldsValue();
 
+      // 如果标题为空且上传了文件，自动使用文件名作为标题
+      let title = values.title;
+      if (!title && uploadFile) {
+        title = uploadFile.name.replace(/\.[^.]+$/, ''); // 去除扩展名
+      }
+
+      // 按 tab 类型验证必填字段
+      if (uploadTab === 'file' && !uploadFile) {
+        message.warning('请选择要上传的文件');
+        return;
+      }
+      if ((uploadTab === 'online_doc' || uploadTab === 'web') && !values.web_url) {
+        message.warning('请输入文档链接');
+        return;
+      }
+      if (uploadTab === 'text' && !values.content?.trim()) {
+        message.warning('请输入文本内容');
+        return;
+      }
+      if (!title && uploadTab !== 'file') {
+        message.warning('请输入文档标题');
+        return;
+      }
+
       const data: DocumentUploadData = {
 
         kb_id: currentKb.kb_id,
@@ -321,7 +397,7 @@ export function KnowledgeBase() {
 
         content_type: uploadTab === 'web' ? 'web_crawl' : uploadTab,
 
-        title: values.title,
+        title: title || '',
 
         content: values.content,
 
@@ -405,13 +481,141 @@ export function KnowledgeBase() {
 
   };
 
+  const handleViewGraph = async (kbId: string) => {
+    setGraphModalOpen(true);
+    setGraphLoading(true);
+    setGraphData(null);
+    try {
+      const data = await knowledgeApi.getKbGraph(kbId);
+      setGraphData(data);
+      // 延迟渲染，确保 Modal DOM 就绪
+      setTimeout(() => renderGraph(data), 100);
+    } catch {
+      message.error('加载图谱数据失败');
+    } finally {
+      setGraphLoading(false);
+    }
+  };
+
+  const renderGraph = useCallback((data: KbGraphData) => {
+    if (!graphChartRef.current) return;
+    // 清理旧实例
+    if (echartsInstanceRef.current) {
+      echartsInstanceRef.current.dispose();
+    }
+    const echarts = (window as any).echarts;
+    if (!echarts) {
+      // 动态加载 echarts
+      import('echarts').then((ec) => {
+        (window as any).echarts = ec;
+        doRender(ec, data);
+      });
+      return;
+    }
+    doRender(echarts, data);
+  }, []);
+
+  const doRender = (echarts: any, data: KbGraphData) => {
+    if (!graphChartRef.current) return;
+    const chart = echarts.init(graphChartRef.current);
+    echartsInstanceRef.current = chart;
+
+    // 按类型分配颜色
+    const typeColors: Record<string, string> = {};
+    const palette = ['#5470c6', '#91cc75', '#fac858', '#ee6666', '#73c0de', '#3ba272', '#fc8452', '#9a60b4', '#ea7ccc'];
+    let colorIdx = 0;
+
+    const categories = [...new Set(data.nodes.map(n => n.type))];
+    categories.forEach(cat => {
+      typeColors[cat] = palette[colorIdx % palette.length];
+      colorIdx++;
+    });
+
+    const nodes = data.nodes.map(node => ({
+      id: node.id,
+      name: node.name,
+      symbolSize: 40,
+      category: categories.indexOf(node.type),
+      itemStyle: { color: typeColors[node.type] || '#5470c6' },
+      label: { show: true, fontSize: 12 },
+    }));
+
+    const links = data.edges.map(edge => ({
+      source: edge.source,
+      target: edge.target,
+      label: { show: true, formatter: edge.type, fontSize: 10, color: '#666' },
+      lineStyle: { color: '#aaa', curveness: 0.1 },
+    }));
+
+    chart.setOption({
+      tooltip: {
+        trigger: 'item',
+        formatter: (params: any) => {
+          if (params.dataType === 'node') {
+            const node = data.nodes.find(n => n.id === params.data.id);
+            return `<b>${node?.name || params.data.name}</b><br/>类型: ${node?.type || '—'}`;
+          }
+          if (params.dataType === 'edge') {
+            return `${params.data.source} → ${params.data.target}<br/>${params.data.label?.formatter || ''}`;
+          }
+          return '';
+        },
+      },
+      legend: {
+        data: categories,
+        orient: 'vertical',
+        left: 10,
+        top: 10,
+      },
+      series: [{
+        type: 'graph',
+        layout: 'force',
+        data: nodes,
+        links: links,
+        categories: categories.map(c => ({ name: c })),
+        roam: true,
+        draggable: true,
+        force: {
+          repulsion: 300,
+          edgeLength: [80, 200],
+          gravity: 0.1,
+        },
+        emphasis: {
+          focus: 'adjacency',
+          lineStyle: { width: 3 },
+        },
+        label: { show: true, position: 'bottom', fontSize: 11 },
+        lineStyle: { opacity: 0.7, width: 1.5 },
+      }],
+    });
+
+    // 响应窗口变化
+    const resizeHandler = () => chart.resize();
+    window.addEventListener('resize', resizeHandler);
+    chart.on('disposed', () => window.removeEventListener('resize', resizeHandler));
+  };
 
 
-  const handleViewDoc = (doc: KnowledgeDocument) => {
+
+  const handleViewDoc = async (doc: KnowledgeDocument) => {
 
     setCurrentDoc(doc);
 
     setDocDrawerOpen(true);
+
+    // 获取最新的 presigned URL（可能已过期或需要刷新）
+    if (doc.file_url) {
+      try {
+        const freshDoc = await knowledgeApi.getDocument(selectedKb, doc.doc_id);
+        if (freshDoc?.presigned_url) {
+          setCurrentDoc(prev => prev && prev.doc_id === doc.doc_id
+            ? { ...prev, presigned_url: freshDoc.presigned_url }
+            : prev);
+        }
+      } catch {
+        // 静默降级：使用列表返回的 presigned_url
+      }
+    }
 
   };
 
@@ -777,7 +981,7 @@ export function KnowledgeBase() {
 
             <div>
 
-              <div>{record.title}</div>
+              <div>{record.title || record.file_url?.split('/').pop() || '未命名文档'}</div>
 
               {record.keywords?.length > 0 && (
 
@@ -803,9 +1007,9 @@ export function KnowledgeBase() {
 
         dataIndex: 'content_type',
 
-        width: 100,
+        width: 130,
 
-        render: (t: string) => {
+        render: (t: string, record: KnowledgeDocument) => {
 
           const typeMap: Record<string, string> = {
 
@@ -813,7 +1017,12 @@ export function KnowledgeBase() {
 
           };
 
-          return <Tag>{typeMap[t] || t}</Tag>;
+          return (
+            <Space size={4}>
+              <Tag>{typeMap[t] || t}</Tag>
+              {record.file_type && <Tag color="blue" style={{ fontSize: 11 }}>{friendlyFileType(record.file_type)}</Tag>}
+            </Space>
+          );
 
         },
 
@@ -825,25 +1034,13 @@ export function KnowledgeBase() {
 
         dataIndex: 'status',
 
-        width: 100,
+        width: 120,
 
-        render: (status: string) => {
+        render: (_status: string, record: KnowledgeDocument) => {
 
-          const statusMap: Record<string, { color: string; text: string }> = {
+          const st = deriveDocStatus(record);
 
-            pending: { color: 'default', text: '待处理' },
-
-            processing: { color: 'processing', text: '处理中' },
-
-            indexed: { color: 'success', text: '已索引' },
-
-            error: { color: 'error', text: '异常' },
-
-          };
-
-          const s = statusMap[status] || { color: 'default', text: status };
-
-          return <Badge status={s.color as any} text={s.text} />;
+          return <Tag color={st.color}>{st.label}</Tag>;
 
         },
 
@@ -855,11 +1052,20 @@ export function KnowledgeBase() {
 
         dataIndex: 'graph_built',
 
-        width: 120,
+        width: 150,
 
         render: (built: boolean, record: KnowledgeDocument) => (
 
-          built ? <Tag color="success">已构建</Tag> :
+          built ? (
+            <Space>
+              <Tag color="success">已构建</Tag>
+              <Tooltip title="查看图谱">
+                <Button size="small" type="link" icon={<ApartmentOutlined />} onClick={() => handleViewGraph(record.kb_id)}>
+                  查看
+                </Button>
+              </Tooltip>
+            </Space>
+          ) :
 
           buildProgress[record.doc_id] !== undefined ? (
 
@@ -1033,9 +1239,9 @@ export function KnowledgeBase() {
 
           <Form form={uploadForm} layout="vertical">
 
-            <Form.Item name="title" label="标题" rules={[{ required: true }]}>
+            <Form.Item name="title" label="标题" rules={[{ required: uploadTab !== 'file', message: '请输入文档标题' }]}>
 
-              <Input placeholder="请输入文档标题" />
+              <Input placeholder={uploadTab === 'file' ? '留空则自动使用文件名' : '请输入文档标题'} />
 
             </Form.Item>
 
@@ -1235,25 +1441,51 @@ export function KnowledgeBase() {
 
               <Descriptions column={1} variant="bordered" size="small">
 
-                <Descriptions.Item label="标题">{currentDoc.title}</Descriptions.Item>
+                <Descriptions.Item label="标题">{currentDoc.title || '未命名文档'}</Descriptions.Item>
 
                 <Descriptions.Item label="类型">
 
                   <Tag>{currentDoc.content_type}</Tag>
+                  {currentDoc.file_type && <Tag color="blue">{friendlyFileType(currentDoc.file_type)}</Tag>}
 
                 </Descriptions.Item>
 
-                <Descriptions.Item label="状态">
-
-                  <Badge status={currentDoc.status === 'indexed' ? 'success' : 'processing'} text={currentDoc.status} />
-
+                <Descriptions.Item label="处理状态">
+                  {(() => {
+                    const st = deriveDocStatus(currentDoc);
+                    return <Tag color={st.color}>{st.label}</Tag>;
+                  })()}
                 </Descriptions.Item>
+
+                {currentDoc.file_size != null && (
+                  <Descriptions.Item label="文件大小">
+                    {currentDoc.file_size < 1024 * 1024
+                      ? `${(currentDoc.file_size / 1024).toFixed(1)} KB`
+                      : `${(currentDoc.file_size / 1024 / 1024).toFixed(1)} MB`}
+                  </Descriptions.Item>
+                )}
+
+                {currentDoc.file_url && (
+                  <Descriptions.Item label="存储路径">
+                    <Tooltip title={currentDoc.file_url}>
+                      <Text copyable style={{ maxWidth: 400, wordBreak: 'break-all' }}>
+                        {currentDoc.file_url.startsWith('/') ? currentDoc.file_url : `minio://odap-documents/${currentDoc.file_url}`}
+                      </Text>
+                    </Tooltip>
+                    {currentDoc.presigned_url && (
+                      <Button size="small" type="link" href={currentDoc.presigned_url} target="_blank" rel="noreferrer">
+                        下载
+                      </Button>
+                    )}
+                  </Descriptions.Item>
+                )}
 
                 <Descriptions.Item label="关键词">
 
                   <Space wrap>
 
-                    {currentDoc.keywords?.map(k => <Tag key={k}>{k}</Tag>)}
+                    {(currentDoc.keywords?.length ? currentDoc.keywords : []).map(k => <Tag key={k}>{k}</Tag>)}
+                    {(!currentDoc.keywords?.length) && <Text type="secondary">暂无关键词</Text>}
 
                   </Space>
 
@@ -1263,7 +1495,14 @@ export function KnowledgeBase() {
 
                 <Descriptions.Item label="图谱状态">
 
-                  {currentDoc.graph_built ? <Tag color="success">已构建</Tag> : <Tag>未构建</Tag>}
+                  <Space>
+                    {currentDoc.graph_built ? <Tag color="success">已构建</Tag> : <Tag>未构建</Tag>}
+                    {currentDoc.graph_built && (
+                      <Button size="small" type="link" icon={<ApartmentOutlined />} onClick={() => handleViewGraph(currentDoc.kb_id)}>
+                        查看图谱
+                      </Button>
+                    )}
+                  </Space>
 
                 </Descriptions.Item>
 
@@ -1271,8 +1510,19 @@ export function KnowledgeBase() {
 
 
 
-              {currentDoc.content && (
-
+              {/* 文档预览区域 */}
+              {currentDoc.file_url ? (
+                <div style={{ marginTop: 24 }}>
+                  <Title level={5}>文档预览</Title>
+                  <DocumentViewer
+                    fileUrl={currentDoc.file_url}
+                    presignedUrl={currentDoc.presigned_url}
+                    filename={currentDoc.title || currentDoc.file_url.split('/').pop()}
+                    fileType={currentDoc.file_type}
+                    height={500}
+                  />
+                </div>
+              ) : currentDoc.content ? (
                 <div style={{ marginTop: 24 }}>
 
                   <Title level={5}>内容预览</Title>
@@ -1290,8 +1540,7 @@ export function KnowledgeBase() {
                   </div>
 
                 </div>
-
-              )}
+              ) : null}
 
 
 
@@ -1314,6 +1563,55 @@ export function KnowledgeBase() {
           )}
 
         </Drawer>
+
+      {/* 知识图谱可视化弹窗 */}
+      <Modal
+        title={
+          <Space>
+            <ApartmentOutlined />
+            <span>知识图谱 — {currentKb?.name || ''}</span>
+          </Space>
+        }
+        open={graphModalOpen}
+        onCancel={() => {
+          setGraphModalOpen(false);
+          if (echartsInstanceRef.current) {
+            echartsInstanceRef.current.dispose();
+            echartsInstanceRef.current = null;
+          }
+        }}
+        footer={
+          graphData ? (
+            <Space>
+              <Tag>实体: {graphData.statistics.total_entities}</Tag>
+              <Tag>关系: {graphData.statistics.total_relationships}</Tag>
+              <Button onClick={() => { setGraphModalOpen(false); if (echartsInstanceRef.current) { echartsInstanceRef.current.dispose(); echartsInstanceRef.current = null; } }}>
+                关闭
+              </Button>
+            </Space>
+          ) : null
+        }
+        width={900}
+        destroyOnHidden
+      >
+        {graphLoading ? (
+          <div style={{ height: 500, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+            <Spin tip="加载图谱数据..." />
+          </div>
+        ) : graphData && graphData.nodes.length > 0 ? (
+          <>
+            <div ref={graphChartRef} style={{ width: '100%', height: 500 }} />
+            <div style={{ marginTop: 8, color: '#999', fontSize: 12 }}>
+              提示：鼠标拖拽移动画布，滚轮缩放，点击节点高亮关联关系
+            </div>
+          </>
+        ) : (
+          <Empty
+            description={graphData?.error ? `图谱加载失败: ${graphData.error}` : '暂无图谱数据，请先为文档构建图谱'}
+            style={{ height: 300, display: 'flex', flexDirection: 'column', justifyContent: 'center' }}
+          />
+        )}
+      </Modal>
 
       </div>
 

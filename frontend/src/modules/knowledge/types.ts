@@ -29,6 +29,7 @@ export interface KnowledgeDocument {
   file_type?: string;
   file_size?: number;
   file_url?: string;
+  presigned_url?: string;
   content?: string;
   keywords: string[];
   summary?: string;
@@ -85,4 +86,30 @@ export interface RAGQueryResult {
     name: string;
     type: string;
   }[];
+}
+
+export interface KbGraphNode {
+  id: string;
+  name: string;
+  type: string;
+  source_doc?: string;
+  properties?: Record<string, unknown>;
+}
+
+export interface KbGraphEdge {
+  id: string;
+  source: string;
+  target: string;
+  type: string;
+  properties?: Record<string, unknown>;
+}
+
+export interface KbGraphData {
+  nodes: KbGraphNode[];
+  edges: KbGraphEdge[];
+  statistics: {
+    total_entities: number;
+    total_relationships: number;
+  };
+  error?: string;
 }

@@ -2,6 +2,7 @@ import { useCallback } from 'react';
 import { Input, InputNumber, Switch, Select, Tooltip } from 'antd';
 import { ProForm as Form } from '@ant-design/pro-components';
 import { QuestionCircleOutlined } from '@ant-design/icons';
+import { useI18n } from '@/modules/shared/hooks/useI18n';
 import type { ConfigItem } from '../types';
 
 interface ConfigItemFormProps {
@@ -11,6 +12,8 @@ interface ConfigItemFormProps {
 }
 
 export function ConfigItemForm({ item, value, onChange }: ConfigItemFormProps) {
+  const { t } = useI18n('settings');
+
   const handleChange = useCallback(
     (val: string | number | boolean | null) => {
       onChange(item.key, val == null ? '' : String(val));
@@ -25,7 +28,7 @@ export function ConfigItemForm({ item, value, onChange }: ConfigItemFormProps) {
         <Select
           value={value || undefined}
           onChange={handleChange}
-          placeholder={`请选择${item.label}`}
+          placeholder={t('placeholderSelect', { label: item.label })}
           allowClear
           options={item.choices.map((c) => ({ label: c, value: c }))}
           style={{ width: '100%' }}
@@ -39,7 +42,7 @@ export function ConfigItemForm({ item, value, onChange }: ConfigItemFormProps) {
           <Input.Password
             value={value}
             onChange={(e) => handleChange(e.target.value)}
-            placeholder={`请输入${item.label}`}
+            placeholder={t('placeholderInput', { label: item.label })}
             visibilityToggle
           />
         );
@@ -57,7 +60,7 @@ export function ConfigItemForm({ item, value, onChange }: ConfigItemFormProps) {
           <InputNumber
             value={value !== '' ? Number(value) : undefined}
             onChange={(val) => handleChange(val)}
-            placeholder={`请输入${item.label}`}
+            placeholder={t('placeholderInput', { label: item.label })}
             min={item.min_val}
             max={item.max_val}
             precision={0}
@@ -70,7 +73,7 @@ export function ConfigItemForm({ item, value, onChange }: ConfigItemFormProps) {
           <InputNumber
             value={value !== '' ? Number(value) : undefined}
             onChange={(val) => handleChange(val)}
-            placeholder={`请输入${item.label}`}
+            placeholder={t('placeholderInput', { label: item.label })}
             min={item.min_val}
             max={item.max_val}
             style={{ width: '100%' }}
@@ -82,7 +85,7 @@ export function ConfigItemForm({ item, value, onChange }: ConfigItemFormProps) {
           <Input
             value={value}
             onChange={(e) => handleChange(e.target.value)}
-            placeholder={`请输入${item.label}，如 https://example.com`}
+            placeholder={t('placeholderInputUrl', { label: item.label })}
           />
         );
 
@@ -92,7 +95,7 @@ export function ConfigItemForm({ item, value, onChange }: ConfigItemFormProps) {
           <Input
             value={value}
             onChange={(e) => handleChange(e.target.value)}
-            placeholder={`请输入${item.label}`}
+            placeholder={t('placeholderInput', { label: item.label })}
           />
         );
     }
@@ -117,7 +120,7 @@ export function ConfigItemForm({ item, value, onChange }: ConfigItemFormProps) {
       }
       extra={
         item.has_value && item.is_sensitive
-          ? '当前已配置，显示为掩码'
+          ? t('currentConfiguredMasked')
           : undefined
       }
     >

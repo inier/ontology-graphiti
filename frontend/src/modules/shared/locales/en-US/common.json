@@ -57,5 +57,25 @@
     "maxLength": "Maximum {{max}} characters",
     "email": "Please enter a valid email address",
     "url": "Please enter a valid URL"
+  },
+  "layout": {
+    "collapse": "Collapse",
+    "expand": "Expand",
+    "expandPanel": "Expand panel ({{count}} tasks)",
+    "expandExtension": "Expand extension",
+    "expandExtensionWithName": "Expand extension ({{name}})",
+    "extension": "Extension",
+    "extensionArea": "Extension Area",
+    "selectExtension": "Select an extension"
+  },
+  "nav": {
+    "aiAssistant": "AI Assistant",
+    "myAgents": "My Agents",
+    "agentChat": "Agent Chat",
+    "qaEngine": "Q&A Engine"
+  },
+  "workspace": {
+    "switched": "Workspace switched",
+    "scenarioSwitched": "Scenario switched"
   }
 }

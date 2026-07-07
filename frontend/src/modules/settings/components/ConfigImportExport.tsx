@@ -6,12 +6,14 @@ import {
   UploadOutlined,
 } from '@ant-design/icons';
 import { configApi } from '../services/configApi';
+import { useI18n } from '@/modules/shared/hooks/useI18n';
 
 interface ConfigImportExportProps {
   onImportComplete?: () => void;
 }
 
 export function ConfigImportExport({ onImportComplete }: ConfigImportExportProps) {
+  const { t } = useI18n('settings');
   const [exporting, setExporting] = useState(false);
   const [importing, setImporting] = useState(false);
 
@@ -30,9 +32,9 @@ export function ConfigImportExport({ onImportComplete }: ConfigImportExportProps
       link.click();
       document.body.removeChild(link);
       URL.revokeObjectURL(url);
-      message.success('配置已导出');
+      message.success(t('exportSuccess'));
     } catch {
-      message.error('导出配置失败');
+      message.error(t('exportFailed'));
     } finally {
       setExporting(false);
     }
@@ -50,20 +52,20 @@ export function ConfigImportExport({ onImportComplete }: ConfigImportExportProps
         : parsed.items || [];
 
       if (items.length === 0) {
-        message.warning('导入文件中没有配置项');
+        message.warning(t('importNoItems'));
         return false;
       }
 
       const result = await configApi.importConfigs(items);
       message.success(
-        `成功导入 ${result.saved_count} 项配置（版本 #${result.revision_number}）`,
+        t('importSuccess', { count: result.saved_count, version: result.revision_number }),
       );
       onImportComplete?.();
     } catch (e) {
       if (e instanceof SyntaxError) {
-        message.error('导入文件格式错误，请检查 JSON 格式');
+        message.error(t('importFormatError'));
       } else {
-        message.error('导入配置失败');
+        message.error(t('importFailed'));
       }
     } finally {
       setImporting(false);
@@ -78,7 +80,7 @@ export function ConfigImportExport({ onImportComplete }: ConfigImportExportProps
         onClick={handleExport}
         loading={exporting}
       >
-        导出配置
+        {t('exportConfig')}
       </Button>
       <Upload
         accept=".json"
@@ -87,7 +89,7 @@ export function ConfigImportExport({ onImportComplete }: ConfigImportExportProps
         disabled={importing}
       >
         <Button icon={<ImportOutlined />} loading={importing}>
-          导入配置
+          {t('importConfig')}
         </Button>
       </Upload>
     </Space>

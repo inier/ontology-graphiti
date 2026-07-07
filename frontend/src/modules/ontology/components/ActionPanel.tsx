@@ -9,19 +9,21 @@ import {
 } from '@ant-design/icons';
 import { api } from '@/modules/shared/services/api';
 import { AdvancedTable } from '@/modules/shared';
+import { useI18n } from '@/modules/shared/hooks/useI18n';
 
-const STATUS_CONFIG: Record<string, { color: string; icon: React.ReactNode; label: string }> = {
-  pending: { color: 'default', icon: <ClockCircleOutlined />, label: '待处理' },
-  validating: { color: 'processing', icon: <SyncOutlined spin />, label: '校验中' },
-  approved: { color: 'blue', icon: <CheckCircleOutlined />, label: '已审批' },
-  rejected: { color: 'red', icon: <CloseCircleOutlined />, label: '已拒绝' },
-  executing: { color: 'processing', icon: <SyncOutlined spin />, label: '执行中' },
-  completed: { color: 'success', icon: <CheckCircleOutlined />, label: '已完成' },
-  failed: { color: 'error', icon: <CloseCircleOutlined />, label: '失败' },
-  rolled_back: { color: 'warning', icon: <ExclamationCircleOutlined />, label: '已回滚' },
+const STATUS_ICONS: Record<string, { color: string; icon: React.ReactNode }> = {
+  pending: { color: 'default', icon: <ClockCircleOutlined /> },
+  validating: { color: 'processing', icon: <SyncOutlined spin /> },
+  approved: { color: 'blue', icon: <CheckCircleOutlined /> },
+  rejected: { color: 'red', icon: <CloseCircleOutlined /> },
+  executing: { color: 'processing', icon: <SyncOutlined spin /> },
+  completed: { color: 'success', icon: <CheckCircleOutlined /> },
+  failed: { color: 'error', icon: <CloseCircleOutlined /> },
+  rolled_back: { color: 'warning', icon: <ExclamationCircleOutlined /> },
 };
 
 const ActionPanel: React.FC = () => {
+  const { t } = useI18n('ontology');
   const [records, setRecords] = useState<any[]>([]);
   const [actionTypes, setActionTypes] = useState<any[]>([]);
   const [objectTypes, setObjectTypes] = useState<any[]>([]);
@@ -79,12 +81,12 @@ const ActionPanel: React.FC = () => {
         requested_by: values.requested_by || 'user',
         reason: values.reason || '',
       });
-      message.success('动作已提交');
+      message.success(t('actionPanel.submitted'));
       setSubmitOpen(false);
       form.resetFields();
       loadRecords();
     } catch (e: any) {
-      message.error(e?.message || '提交失败');
+      message.error(e?.message || t('actionPanel.submitFailed'));
     }
   };
 
@@ -93,13 +95,13 @@ const ActionPanel: React.FC = () => {
       await api.approveAction(recordId, {
         approved,
         approver: 'user',
-        comment: approved ? '审批通过' : '审批拒绝',
+        comment: approved ? t('actionPanel.approved') : t('actionPanel.rejected'),
       });
-      message.success(approved ? '已审批通过' : '已拒绝');
+      message.success(approved ? t('actionPanel.approved') : t('actionPanel.rejected'));
       loadRecords();
       setDetailOpen(false);
     } catch (e: any) {
-      message.error(e?.message || '操作失败');
+      message.error(e?.message || t('actionPanel.operationFailed'));
     }
   };
 
@@ -112,65 +114,66 @@ const ActionPanel: React.FC = () => {
       render: (id: string) => <a onClick={() => { setCurrentRecord(records.find(r => r.action_record_id === id)); setDetailOpen(true); }}>{id.slice(0, 16)}…</a>,
     },
     {
-      title: '动作类型',
+      title: t('actionPanel.actionType'),
       dataIndex: 'action_type_id',
       key: 'type',
       width: 100,
       render: (t: string) => <Tag color="blue">{t}</Tag>,
     },
     {
-      title: '目标对象',
+      title: t('actionPanel.targetObject'),
       dataIndex: 'target_object_id',
       key: 'target',
       width: 120,
       ellipsis: true,
     },
     {
-      title: '目标类型',
+      title: t('actionPanel.targetType'),
       dataIndex: 'target_object_type',
       key: 'target_type',
       width: 90,
     },
     {
-      title: '状态',
+      title: t('common.label.status'),
       dataIndex: 'status',
       key: 'status',
       width: 100,
       render: (status: string) => {
-        const cfg = STATUS_CONFIG[status] || { color: 'default', icon: null, label: status };
-        return <Tag icon={cfg.icon} color={cfg.color}>{cfg.label}</Tag>;
+        const cfg = STATUS_ICONS[status] || { color: 'default', icon: null };
+        const label = t(`actionPanel.statuses.${status}`, status);
+        return <Tag icon={cfg.icon} color={cfg.color}>{label}</Tag>;
       },
     },
     {
-      title: '请求者',
+      title: t('actionPanel.requester'),
       dataIndex: 'requested_by',
       key: 'by',
       width: 80,
     },
     {
-      title: '时间',
+      title: t('actionPanel.time'),
       dataIndex: 'created_at',
       key: 'time',
       width: 160,
       render: (t: string) => t ? new Date(t).toLocaleString() : '-',
     },
     {
-      title: '操作',
+      title: t('common.label.actions'),
       key: 'action',
       width: 100,
       render: (_: any, record: any) => {
         if (record.status === 'approved') {
           return (
             <Button size="small" type="primary" onClick={() => handleApprove(record.action_record_id, true)}>
-              执行
+              {t('actionPanel.execute')}
             </Button>
           );
         }
         if (record.status === 'pending') {
           return (
             <Space size="small">
-              <Button size="small" type="primary" onClick={() => handleApprove(record.action_record_id, true)}>批准</Button>
-              <Button size="small" danger onClick={() => handleApprove(record.action_record_id, false)}>拒绝</Button>
+              <Button size="small" type="primary" onClick={() => handleApprove(record.action_record_id, true)}>{t('actionPanel.approve')}</Button>
+              <Button size="small" danger onClick={() => handleApprove(record.action_record_id, false)}>{t('actionPanel.reject')}</Button>
             </Space>
           );
         }
@@ -182,23 +185,23 @@ const ActionPanel: React.FC = () => {
   return (
     <div style={{ padding: 16 }}>
       <Card
-        title={<Space><ThunderboltOutlined />动作管理</Space>}
+        title={<Space><ThunderboltOutlined />{t('actionPanel.title')}</Space>}
         styles={{ body: { padding: 16 } }}
         extra={
           <Space>
             <Select
-              placeholder="状态筛选"
+              placeholder={t('actionPanel.filterPlaceholder')}
               allowClear
               style={{ width: 120 }}
               value={statusFilter}
               onChange={setStatusFilter}
             >
-              {Object.entries(STATUS_CONFIG).map(([k, v]) => (
-                <Select.Option key={k} value={k}>{v.label}</Select.Option>
+              {Object.entries(STATUS_ICONS).map(([k]) => (
+                <Select.Option key={k} value={k}>{t(`actionPanel.statuses.${k}`, k)}</Select.Option>
               ))}
             </Select>
             <Button type="primary" icon={<ThunderboltOutlined />} onClick={() => setSubmitOpen(true)}>
-              提交动作
+              {t('actionPanel.submitAction')}
             </Button>
           </Space>
         }
@@ -214,15 +217,15 @@ const ActionPanel: React.FC = () => {
       </Card>
 
       <Modal
-        title="提交动作"
+        title={t('actionPanel.submitAction')}
         open={submitOpen}
         onCancel={() => { setSubmitOpen(false); form.resetFields(); }}
         onOk={() => form.submit()}
         destroyOnHidden
       >
         <Form form={form} layout="vertical" onFinish={handleSubmit}>
-          <Form.Item name="action_type_id" label="动作类型" rules={[{ required: true, message: '请选择动作类型' }]}>
-            <Select placeholder="选择动作类型">
+          <Form.Item name="action_type_id" label={t('actionPanel.actionType')} rules={[{ required: true, message: t('actionPanel.selectActionType') }]}>
+            <Select placeholder={t('actionPanel.selectActionType')}>
               {actionTypes.map(a => (
                 <Select.Option key={a.action_type_id} value={a.action_type_id}>
                   {a.display_name || a.name} → {a.target_object_type}
@@ -230,73 +233,74 @@ const ActionPanel: React.FC = () => {
               ))}
             </Select>
           </Form.Item>
-          <Form.Item name="target_object_id" label="目标对象ID" rules={[{ required: true, message: '请输入目标对象ID' }]}>
-            <Input placeholder="输入目标对象的唯一标识" />
+          <Form.Item name="target_object_id" label={t('actionPanel.targetObjectId')} rules={[{ required: true, message: t('actionPanel.enterTargetId') }]}>
+            <Input placeholder={t('actionPanel.enterTargetId')} />
           </Form.Item>
-          <Form.Item name="parameters" label="参数 (JSON)">
-            <Input.TextArea rows={3} placeholder='{"destination": "A区", "speed": 50}' />
+          <Form.Item name="parameters" label={t('actionPanel.parameters')}>
+            <Input.TextArea rows={3} placeholder={t('actionPanel.parametersPlaceholder')} />
           </Form.Item>
-          <Form.Item name="reason" label="原因">
-            <Input.TextArea rows={2} placeholder="执行此动作的原因" />
+          <Form.Item name="reason" label={t('actionPanel.reason')}>
+            <Input.TextArea rows={2} placeholder={t('actionPanel.executeReason')} />
           </Form.Item>
-          <Form.Item name="requested_by" label="请求者">
-            <Input placeholder="默认: user" />
+          <Form.Item name="requested_by" label={t('actionPanel.requester')}>
+            <Input placeholder={t('actionPanel.defaultUser')} />
           </Form.Item>
         </Form>
       </Modal>
 
       <Drawer
-        title="动作详情"
+        title={t('actionPanel.actionDetail')}
         open={detailOpen}
         onClose={() => setDetailOpen(false)}
         width={520}
       >
         {currentRecord && (
           <Descriptions column={1} variant="bordered" size="small">
-            <Descriptions.Item label="记录ID">{currentRecord.action_record_id}</Descriptions.Item>
-            <Descriptions.Item label="动作类型">
+            <Descriptions.Item label={t('actionPanel.recordId')}>{currentRecord.action_record_id}</Descriptions.Item>
+            <Descriptions.Item label={t('actionPanel.actionType')}>
               <Tag color="blue">{currentRecord.action_type_id}</Tag>
             </Descriptions.Item>
-            <Descriptions.Item label="目标对象">{currentRecord.target_object_id}</Descriptions.Item>
-            <Descriptions.Item label="目标类型">{currentRecord.target_object_type}</Descriptions.Item>
-            <Descriptions.Item label="状态">
+            <Descriptions.Item label={t('actionPanel.targetObject')}>{currentRecord.target_object_id}</Descriptions.Item>
+            <Descriptions.Item label={t('actionPanel.targetType')}>{currentRecord.target_object_type}</Descriptions.Item>
+            <Descriptions.Item label={t('common.label.status')}>
               {(() => {
-                const cfg = STATUS_CONFIG[currentRecord.status] || { color: 'default', icon: null, label: currentRecord.status };
-                return <Badge status={cfg.color as any} text={cfg.label} />;
+                const cfg = STATUS_ICONS[currentRecord.status] || { color: 'default', icon: null };
+                const label = t(`actionPanel.statuses.${currentRecord.status}`, currentRecord.status);
+                return <Badge status={cfg.color as any} text={label} />;
               })()}
             </Descriptions.Item>
-            <Descriptions.Item label="请求者">{currentRecord.requested_by}</Descriptions.Item>
-            <Descriptions.Item label="原因">{currentRecord.reason || '-'}</Descriptions.Item>
-            <Descriptions.Item label="参数">
+            <Descriptions.Item label={t('actionPanel.requester')}>{currentRecord.requested_by}</Descriptions.Item>
+            <Descriptions.Item label={t('actionPanel.reason')}>{currentRecord.reason || '-'}</Descriptions.Item>
+            <Descriptions.Item label={t('actionPanel.parameters')}>
               <pre style={{ margin: 0, fontSize: 12 }}>
                 {JSON.stringify(currentRecord.parameters, null, 2)}
               </pre>
             </Descriptions.Item>
             {currentRecord.opa_decision && (
-              <Descriptions.Item label="OPA 决策">
+              <Descriptions.Item label={t('actionPanel.opaDecision')}>
                 <pre style={{ margin: 0, fontSize: 12 }}>
                   {JSON.stringify(currentRecord.opa_decision, null, 2)}
                 </pre>
               </Descriptions.Item>
             )}
             {currentRecord.execution_result && (
-              <Descriptions.Item label="执行结果">
+              <Descriptions.Item label={t('actionPanel.execResult')}>
                 <pre style={{ margin: 0, fontSize: 12 }}>
                   {JSON.stringify(currentRecord.execution_result, null, 2)}
                 </pre>
               </Descriptions.Item>
             )}
             {currentRecord.writeback_result && (
-              <Descriptions.Item label="写回结果">
+              <Descriptions.Item label={t('actionPanel.writebackResult')}>
                 <pre style={{ margin: 0, fontSize: 12 }}>
                   {JSON.stringify(currentRecord.writeback_result, null, 2)}
                 </pre>
               </Descriptions.Item>
             )}
-            <Descriptions.Item label="创建时间">
+            <Descriptions.Item label={t('actionPanel.createdAt')}>
               {currentRecord.created_at ? new Date(currentRecord.created_at).toLocaleString() : '-'}
             </Descriptions.Item>
-            <Descriptions.Item label="更新时间">
+            <Descriptions.Item label={t('actionPanel.updatedAt')}>
               {currentRecord.updated_at ? new Date(currentRecord.updated_at).toLocaleString() : '-'}
             </Descriptions.Item>
           </Descriptions>

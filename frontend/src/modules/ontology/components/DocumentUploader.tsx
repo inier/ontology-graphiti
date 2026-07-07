@@ -52,16 +52,19 @@ export function DocumentUploader({ ontologyId, onExtractionComplete }: DocumentU
     setProgress({ current: 0, total: fileList.length });
 
     try {
-      const formData = new FormData();
-      formData.append('ontology_id', ontologyId);
-      fileList.forEach((f) => {
-        formData.append('files', f.originFileObj || f);
-      });
+      const results: any[] = [];
+      for (let i = 0; i < fileList.length; i++) {
+        const formData = new FormData();
+        formData.append('ontology_id', ontologyId);
+        formData.append('file', fileList[i].originFileObj || fileList[i]);
 
-      const result = await ontologyApi.extraction.extractDocument(formData);
-      setProgress({ current: fileList.length, total: fileList.length });
-      message.success('文档提取完成');
-      onExtractionComplete?.(result);
+        const result = await ontologyApi.extraction.extractDocument(formData);
+        results.push(result);
+        setProgress({ current: i + 1, total: fileList.length });
+      }
+
+      message.success(`文档提取完成，共处理 ${fileList.length} 个文件`);
+      onExtractionComplete?.(results.length === 1 ? results[0] : results);
     } catch (e) {
       message.error(`文档提取失败: ${(e as Error).message}`);
     } finally {

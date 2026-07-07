@@ -4,6 +4,8 @@ export { WorkspaceContext, ScenarioContext, OntologyVersionContext, RightPanelCo
 export { ProLayout } from './components/ProLayout';
 export { AdvancedTable } from './components/AdvancedTable';
 export type { AdvancedTableProps } from './components/AdvancedTable';
+export { DocumentViewer } from './components/DocumentViewer';
+export type { DocumentViewerProps } from './components/DocumentViewer';
 export { LayoutHeader } from './components/LayoutHeader';
 export { AdminLayout } from './components/AdminLayout';
 export { AgentLayout } from './components/AgentLayout';
