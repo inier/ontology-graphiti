@@ -12,7 +12,7 @@ import logging
 from datetime import datetime
 from typing import List, Dict, Any, Optional, Union
 from abc import ABC, abstractmethod
-from .audit_models import AuditEvent, AuditFilter, AuditSeverity, AuditEventType
+from .audit_models import AuditEvent, AuditFilter, AuditSeverity, AuditEventType, UTC_TZ
 
 logger = logging.getLogger(__name__)
 
@@ -331,9 +331,12 @@ class SQLiteAuditChannel(AuditChannel):
                     row_dict['changes'] = json.loads(row_dict['changes'])
                 
                 # 构建 AuditEvent 对象
+                ts = datetime.fromisoformat(row_dict['timestamp'])
+                if ts.tzinfo is None:
+                    ts = ts.replace(tzinfo=UTC_TZ)
                 event = AuditEvent(
                     id=row_dict['id'],
-                    timestamp=datetime.fromisoformat(row_dict['timestamp']),
+                    timestamp=ts,
                     event_type=AuditEventType(row_dict['event_type']),
                     severity=AuditSeverity(row_dict['severity']),
                     source="system",

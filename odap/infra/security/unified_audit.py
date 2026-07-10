@@ -13,6 +13,8 @@
 
 import logging
 import asyncio
+
+from odap.infra.observability.setup import get_current_trace_id, get_current_span_id
 import uuid
 from functools import wraps
 from fastapi import Request
@@ -27,7 +29,9 @@ from odap.infra.security.audit_models import (
     ActorInfo,
     ResourceInfo,
     ActionResult,
-    IntegrityReport
+    IntegrityReport,
+    utc_now,
+    isoformat_beijing,
 )
 from odap.infra.security.audit_sqlite_channel import (
     SQLiteAuditChannel,
@@ -38,15 +42,37 @@ from odap.infra.security.audit_graphiti_channel import (
     get_graphiti_audit_channel
 )
 
-# 配置基础日志
-logging.basicConfig(
-    level=getattr(logging, security_config.LOG_LEVEL),
-    format='%(asctime)s - %(name)s - %(levelname)s - %(message)s',
-    handlers=[
-        logging.FileHandler(security_config.LOG_FILE),
-        logging.StreamHandler()
-    ]
-)
+# 配置基础日志（必须健壮：LOG_LEVEL 大小写容错 + 函数/常量区分 + 降级）
+def _resolve_log_level(raw_value: Any) -> int:
+    value = str(raw_value).strip().upper() if raw_value is not None else "INFO"
+    level = getattr(logging, value, None)
+    if isinstance(level, int):
+        return level
+    if isinstance(level, str):
+        level2 = getattr(logging, level.upper(), None)
+        if isinstance(level2, int):
+            return level2
+    return logging.INFO
+
+
+try:
+    _log_level = _resolve_log_level(security_config.LOG_LEVEL)
+    logging.basicConfig(
+        level=_log_level,
+        format='%(asctime)s - %(name)s - %(levelname)s - %(message)s',
+        handlers=[
+            logging.FileHandler(security_config.LOG_FILE),
+            logging.StreamHandler()
+        ],
+        force=False,
+    )
+except Exception as _log_init_err:
+    fallback = logging.INFO
+    logging.basicConfig(level=fallback, force=False)
+    logging.getLogger("audit").warning(
+        "Failed to initialize audit logging config (level=%r), falling back to INFO: %s",
+        security_config.LOG_LEVEL, _log_init_err,
+    )
 
 logger = logging.getLogger("audit")
 
@@ -349,7 +375,7 @@ def log_audit(action: str, resource: str = None, user: str = None,
 
     event = AuditEvent(
         id=str(uuid.uuid4()),
-        timestamp=datetime.now(),
+        timestamp=utc_now(),
         event_type=_infer_event_type(action, service),
         severity=severity_enum,
         source=service,
@@ -372,8 +398,8 @@ def log_audit(action: str, resource: str = None, user: str = None,
         },
         context=details or {},
         workspace_id=workspace_id,
-        trace_id=str(uuid.uuid4()),
-        parent_event_id=None,
+        trace_id=get_current_trace_id() or str(uuid.uuid4()),
+        parent_event_id=get_current_span_id() or None,
         duration_ms=duration_ms
     )
 
@@ -403,7 +429,7 @@ def audit_opa_decision(
 ) -> None:
     event = AuditEvent(
         id=str(uuid.uuid4()),
-        timestamp=datetime.now(),
+        timestamp=utc_now(),
         event_type=AuditEventType.POLICY_EVALUATE,
         severity=AuditSeverity.INFO if result == "allow" else AuditSeverity.WARN,
         source=service,
@@ -474,7 +500,7 @@ def get_audit_logs(user: str = None, service: str = None, action: str = None, li
         event_dict = event.model_dump() if hasattr(event, 'model_dump') else event
 
         if isinstance(event_dict.get('timestamp'), datetime):
-            event_dict['timestamp'] = event_dict['timestamp'].isoformat()
+            event_dict['timestamp'] = isoformat_beijing(event_dict['timestamp'])
 
         if user:
             actor_id = event_dict.get('actor', {}).get('actor_id', '')

@@ -33,9 +33,9 @@ except ImportError:
     optional_current_user = None
     verify_admin = None
 
-# 导入 audit_logger 提供向后兼容性
+# 导入 audit_logger 提供向后兼容性（已迁移到 v2）
 try:
-    from .audit_logger import get_audit_logger, reset_audit_logger
+    from .audit_logger_v2 import get_audit_logger, reset_audit_logger
 except ImportError:
     get_audit_logger = None
     reset_audit_logger = None

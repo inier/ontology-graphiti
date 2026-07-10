@@ -6,10 +6,37 @@
 """
 
 import uuid
-from datetime import datetime, timezone
+from datetime import datetime, timezone, timedelta
 from enum import Enum
 from typing import Optional, Dict, List, Any
 from pydantic import BaseModel, Field
+
+try:
+    from zoneinfo import ZoneInfo
+except ImportError:  # pragma: no cover - Python < 3.9 fallback
+    ZoneInfo = None
+
+_BEIJING_TZ = timezone(timedelta(hours=8))
+BEIJING_TZ = ZoneInfo("Asia/Shanghai") if ZoneInfo else _BEIJING_TZ
+UTC_TZ = timezone.utc
+
+
+def utc_now() -> datetime:
+    return datetime.now(UTC_TZ)
+
+
+def to_beijing(dt: datetime) -> datetime:
+    if dt.tzinfo is None:
+        dt = dt.replace(tzinfo=UTC_TZ)
+    return dt.astimezone(BEIJING_TZ)
+
+
+def format_beijing(dt: datetime) -> str:
+    return to_beijing(dt).strftime("%Y-%m-%d %H:%M:%S")
+
+
+def isoformat_beijing(dt: datetime) -> str:
+    return to_beijing(dt).isoformat()
 
 
 class AuditSeverity(str, Enum):
@@ -110,7 +137,7 @@ class ActionResult(BaseModel):
 class AuditEvent(BaseModel):
     """审计事件 - 最小审计单元"""
     id: str = Field(default_factory=lambda: str(uuid.uuid4()), description="事件唯一标识 (UUID)")
-    timestamp: datetime = Field(default_factory=lambda: datetime.now(timezone.utc), description="事件时间戳")
+    timestamp: datetime = Field(default_factory=utc_now, description="事件时间戳 (UTC timezone-aware)")
     event_type: AuditEventType = Field(..., description="事件类型")
     severity: AuditSeverity = Field(default=AuditSeverity.INFO, description="严重级别")
     source: str = Field(default="system", description="事件来源")

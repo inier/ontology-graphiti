@@ -531,6 +531,18 @@ def get_audit_logger_v2(db_path: str = None) -> AuditLoggerV2:
     return AuditLoggerV2(db_path)
 
 
+# === 向后兼容别名（v1 → v2 迁移用） ===
+# 以下别名使 audit_logger_v2 可作为 audit_logger 的直接替代品，无需修改调用方。
+# 注意：reset_audit_logger 在 v2 中无对应功能（v2 无全局单例），设为 no-op。
+AuditLogger = AuditLoggerV2
+get_audit_logger = get_audit_logger_v2
+
+
+def reset_audit_logger():
+    """v2 无全局单例，此函数为向后兼容 no-op。"""
+    pass
+
+
 if __name__ == "__main__":
     logger = get_audit_logger_v2()
 

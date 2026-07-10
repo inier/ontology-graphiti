@@ -11,7 +11,7 @@ from datetime import datetime
 import sqlite3
 
 from .audit_sqlite_channel import get_sqlite_audit_channel
-from .audit_models import AuditFilter, AuditEventType, AuditSeverity
+from .audit_models import AuditFilter, AuditEventType, AuditSeverity, isoformat_beijing
 from .unified_audit import get_audit_logs as get_unified_audit_logs
 
 router = APIRouter(prefix="/api/audit", tags=["audit"])
@@ -56,7 +56,7 @@ def _normalize_event_type(raw: str) -> str:
 def _event_to_flat_dict(event) -> Dict[str, Any]:
     event_dict = event.model_dump()
     if isinstance(event_dict["timestamp"], datetime):
-        event_dict["timestamp"] = event_dict["timestamp"].isoformat()
+        event_dict["timestamp"] = isoformat_beijing(event_dict["timestamp"])
     actor = event_dict.pop("actor", {})
     resource = event_dict.pop("resource", {})
     res = event_dict.pop("result", {})
@@ -474,7 +474,7 @@ async def query_logs(
         for event in events:
             logs.append({
                 "id": event.id,
-                "timestamp": event.timestamp.isoformat(),
+                "timestamp": isoformat_beijing(event.timestamp),
                 "level": event.severity.value,
                 "type": event.event_type.value,
                 "service": "audit",

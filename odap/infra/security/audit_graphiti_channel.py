@@ -10,6 +10,7 @@ import uuid
 from datetime import datetime
 from typing import List, Dict, Any, Optional
 from .audit_models import AuditEvent, AuditFilter, AuditEventType, AuditSeverity
+from odap.infra.security.audit_helper import audit_graph_write_context
 
 
 
@@ -56,13 +57,15 @@ class GraphitiAuditChannel:
             logger.info('GraphManager 未初始化，跳过写入')
             return
         
-        # 转换为字典格式
+        with audit_graph_write_context():
+            self._write_internal(event)
+    
+    def _write_internal(self, event: AuditEvent) -> None:
+        """实际写入逻辑（已在审计图谱写入上下文中）"""
         event_dict = event.model_dump()
         
-        # 创建审计日志实体
         audit_id = f"audit_{uuid.uuid4().hex[:12]}"
         
-        # 构建实体属性
         action = event_dict.get("action", "unknown")
         timestamp = event_dict.get("timestamp", datetime.now().isoformat())
         properties = {
@@ -81,14 +84,12 @@ class GraphitiAuditChannel:
             "workspace_id": event_dict.get("workspace_id", "default")
         }
         
-        # 添加到 Graphiti
         success = self._graph_manager.add_entity(
             entity_id=audit_id,
             entity_type="AuditLog",
             properties=properties
         )
         
-        # 创建相关实体和关系
         if success:
             user_id = event_dict.get("actor", {}).get("actor_id", "system")
             resource_id = event_dict.get("resource", {}).get("resource_id", "unknown")

@@ -92,15 +92,27 @@ def _build_archive_key(ws_id: str, ts: datetime) -> str:
 
 
 def _parse_event_timestamp(value: Any) -> datetime:
-    """兼容 datetime / ISO 字符串 / SQLite 默认时间戳."""
+    """兼容 datetime / ISO 字符串 / SQLite 默认时间戳.
+
+    永远返回 UTC-aware datetime. 历史 naive 值按 UTC 基准补齐 tzinfo.
+    """
     if isinstance(value, datetime):
-        return value
-    if isinstance(value, str):
+        ts = value
+    elif isinstance(value, str):
         try:
-            return datetime.fromisoformat(value)
+            ts = datetime.fromisoformat(value)
         except ValueError:
-            return datetime.now()
-    return datetime.now()
+            ts = datetime.now(timezone.utc)
+    else:
+        ts = datetime.now(timezone.utc)
+    if ts.tzinfo is None:
+        ts = ts.replace(tzinfo=timezone.utc)
+    return ts
+
+
+def _utc_now() -> datetime:
+    """返回带 UTC tzinfo 的当前时间戳."""
+    return datetime.now(timezone.utc)
 
 
 def _is_wildcard(value: str) -> bool:
@@ -279,7 +291,7 @@ class AuditRetentionManager:
             classification=classification,
             retention_days=DEFAULT_RETENTION_DAYS,
             action=RetentionAction.ARCHIVE_TO_MINIO,
-            created_at=datetime.now(),
+            created_at=_utc_now(),
         )
 
     # ---- Expiry 判断 ----------------------------------------------------
@@ -297,7 +309,8 @@ class AuditRetentionManager:
         if policy.action == RetentionAction.KEEP_FOREVER:
             return False
         ts = _parse_event_timestamp(event.get("timestamp"))
-        # 用 total_seconds 精确比较 (避免 days 字段舍入误差)
+        if now.tzinfo is None:
+            now = now.replace(tzinfo=timezone.utc)
         elapsed_seconds = (now - ts).total_seconds()
         threshold = policy.retention_days * 86400
         return elapsed_seconds > threshold
@@ -307,9 +320,9 @@ class AuditRetentionManager:
     def _fetch_expired_batch(
         self, now: datetime, batch_size: int
     ) -> List[Dict[str, Any]]:
-        """按 batch 取出过期的 audit_events 行 (用 Python 端 is_expired 过滤)."""
+        """(保留用于向后兼容) 按 batch 取出过期的 audit_events 行."""
         results: List[Dict[str, Any]] = []
-        rows = self._select_all_audit_rows()
+        rows = self._select_candidate_rows(now, limit=batch_size)
         for row in rows:
             if len(results) >= batch_size:
                 break
@@ -318,15 +331,30 @@ class AuditRetentionManager:
                 results.append(event)
         return results
 
-    def _select_all_audit_rows(self) -> List[tuple]:
-        conn = sqlite3.connect(self.db_path)
+    def _select_candidate_rows(
+        self, now: datetime, limit: int
+    ) -> List[tuple]:
+        """候选拉取:
+          - 用 SQL 级 timestamp < now-(最短保留期) 过滤 (保守但大量减少行);
+          - LIMIT 避免 OOM;
+          - busy_timeout=50ms, 锁竞争直接抛错 (让调用方降级).
+        """
+        min_retention_days = 7
+        threshold = (now.timestamp() - min_retention_days * 86400)
+        threshold_str = datetime.fromtimestamp(threshold, tz=timezone.utc).isoformat()
+        conn = sqlite3.connect(self.db_path, timeout=0.05)
         try:
+            conn.execute("PRAGMA busy_timeout = 50;")
             cur = conn.execute(
                 "SELECT id, timestamp, event_type, severity, actor_type, "
                 "actor_id, actor_name, action, resource_type, resource_id, "
                 "result_status, result_message, workspace_id, trace_id, "
                 "parent_event_id, duration_ms, context, changes, checksum "
-                "FROM audit_events ORDER BY timestamp ASC"
+                "FROM audit_events "
+                "WHERE timestamp < ? "
+                "ORDER BY timestamp ASC "
+                "LIMIT ?",
+                (threshold_str, int(limit)),
             )
             return cur.fetchall()
         finally:
@@ -346,11 +374,12 @@ class AuditRetentionManager:
         }
 
     def _delete_events(self, event_ids: List[str]) -> int:
-        """从 audit_events 物理删除指定 id 列表."""
+        """从 audit_events 物理删除指定 id 列表 (低优先级, busy_timeout=50ms)."""
         if not event_ids:
             return 0
-        conn = sqlite3.connect(self.db_path)
+        conn = sqlite3.connect(self.db_path, timeout=0.05)
         try:
+            conn.execute("PRAGMA busy_timeout = 50;")
             placeholders = ",".join(["?"] * len(event_ids))
             cur = conn.execute(
                 f"DELETE FROM audit_events WHERE id IN ({placeholders})",
@@ -373,8 +402,9 @@ class AuditRetentionManager:
         end_time: datetime,
         size_bytes: int,
     ) -> None:
-        conn = sqlite3.connect(self.db_path)
+        conn = sqlite3.connect(self.db_path, timeout=0.05)
         try:
+            conn.execute("PRAGMA busy_timeout = 50;")
             conn.execute(
                 """
                 INSERT INTO audit_archive_index
@@ -390,7 +420,7 @@ class AuditRetentionManager:
                     event_count,
                     start_time.isoformat(),
                     end_time.isoformat(),
-                    datetime.now().isoformat(),
+                    _utc_now().isoformat(),
                     size_bytes,
                 ),
             )
@@ -433,23 +463,50 @@ class AuditRetentionManager:
         self,
         now: Optional[datetime] = None,
         batch_size: int = 1000,
+        max_batches: int = 5,
     ) -> Dict[str, Any]:
-        """执行归档任务并返回 summary."""
-        start = now or datetime.now()
-        t0 = datetime.now()
+        """执行归档任务并返回 summary (低优先级, 不阻塞请求).
+
+        为避免长时间持有 SQLite 读锁从而阻塞审计写入 (HTTP 请求):
+          - 仅跑 max_batches 批, 后续批次留给下一次调度;
+          - 一次性从 SQL 拉取候选行 (LIMIT + timestamp 过滤), 不再每批全表扫;
+          - 所有 sqlite3 连接设置 busy_timeout=50ms, 锁竞争直接放弃 (可重跑).
+        """
+        start = now or _utc_now()
+        if start.tzinfo is None:
+            start = start.replace(tzinfo=timezone.utc)
+        t0 = _utc_now()
         summary = self._new_summary()
 
-        while True:
-            batch = self._fetch_expired_batch(start, batch_size)
+        all_candidates = self._select_candidate_rows(
+            start, limit=batch_size * max_batches
+        )
+        if not all_candidates:
+            summary["duration_ms"] = int(
+                (_utc_now() - t0).total_seconds() * 1000
+            )
+            return summary
+
+        offset = 0
+        batches_done = 0
+        while batches_done < max_batches and offset < len(all_candidates):
+            slice_rows = all_candidates[offset : offset + batch_size]
+            offset += batch_size
+            batch: List[Dict[str, Any]] = []
+            for row in slice_rows:
+                event = self._row_to_event_dict(row)
+                if self.is_expired(event, start):
+                    batch.append(event)
             if not batch:
-                break
+                continue
             by_ws = self._group_by_workspace(batch)
             failed = self._process_workspace_groups(start, by_ws, summary)
+            batches_done += 1
             if failed:
                 break
 
         summary["duration_ms"] = int(
-            (datetime.now() - t0).total_seconds() * 1000
+            (_utc_now() - t0).total_seconds() * 1000
         )
         return summary
 

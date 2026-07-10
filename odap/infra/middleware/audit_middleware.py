@@ -1,7 +1,8 @@
 """审计中间件
 
-自动记录写操作（POST/PUT/DELETE/PATCH）到审计日志。
-GET 请求不记录，避免大量重复查询记录。
+自动记录所有 HTTP 方法（GET/POST/PUT/DELETE/PATCH）到审计日志，
+支持操作审计与查询审计双重记录。
+排除路径（/docs、/health、/static、/api/audit、/favicon.ico 等）不记录。
 """
 
 import time
@@ -59,7 +60,7 @@ def _extract_user_from_request(request: Request) -> tuple:
 
 
 class AuditMiddleware(BaseHTTPMiddleware):
-    """审计中间件 - 仅记录写操作（POST/PUT/DELETE/PATCH）"""
+    """审计中间件 - 记录所有 HTTP 方法（GET/POST/PUT/DELETE/PATCH）"""
 
     async def dispatch(self, request: Request, call_next) -> Response:
         path = request.url.path
@@ -76,14 +77,15 @@ class AuditMiddleware(BaseHTTPMiddleware):
 
         method = request.method
 
-        if method not in _WRITE_METHODS:
-            return await call_next(request)
-
-        start_time = time.time()
+        # 生成 trace_id 并记录起始时间（在 call_next 之前）
         trace_id = request.headers.get("X-Request-ID", str(uuid.uuid4()))
+        start_time = time.time()
         user, workspace_id = _extract_user_from_request(request)
 
         response = await call_next(request)
+
+        # 将 trace_id 写入响应头，便于客户端关联
+        response.headers["X-Trace-ID"] = trace_id
 
         duration_ms = int((time.time() - start_time) * 1000)
 
@@ -112,6 +114,19 @@ class AuditMiddleware(BaseHTTPMiddleware):
             action = f"{method.lower()}_{api_module}"
             resource = path
 
+            # 收集增强字段
+            query_string = str(request.url.query)[:500]
+            raw_cl = request.headers.get("Content-Length")
+            try:
+                request_content_length = int(raw_cl) if raw_cl else 0
+            except (ValueError, TypeError):
+                request_content_length = 0
+            raw_rcl = response.headers.get("Content-Length")
+            try:
+                response_size = int(raw_rcl) if raw_rcl else 0
+            except (ValueError, TypeError):
+                response_size = 0
+
             log_audit(
                 action=action,
                 resource=resource,
@@ -126,6 +141,10 @@ class AuditMiddleware(BaseHTTPMiddleware):
                     "duration_ms": duration_ms,
                     "client_ip": request.client.host if request.client else "unknown",
                     "trace_id": trace_id,
+                    "user_agent": request.headers.get("User-Agent", ""),
+                    "query_string": query_string,
+                    "request_content_length": request_content_length,
+                    "response_size": response_size,
                 },
                 workspace_id=workspace_id,
                 duration_ms=duration_ms

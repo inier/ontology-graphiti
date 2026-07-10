@@ -10,7 +10,7 @@ from typing import Optional, Dict, Any, List, TYPE_CHECKING
 from .audit_models import AuditEvent, AuditSeverity, AuditEventType
 
 if TYPE_CHECKING:
-    from .audit_logger import AuditLogger
+    from .audit_logger_v2 import AuditLoggerV2 as AuditLogger
 
 
 class AuditSpan:
