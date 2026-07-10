@@ -86,7 +86,7 @@ const WebCrawlPanel: React.FC = () => {
           </Space>
         )}
 
-        {error && <Alert type="error" title={error} showIcon closable onClose={() => setError('')} />}
+        {error && <Alert type="error" title={error} showIcon closable={{ onClose: () => setError('') }}  />}
 
         {loading && <Spin spinning description={t('webCrawl.crawling')} style={{ width: '100%' }}><div style={{ minHeight: 40 }} /></Spin>}
 

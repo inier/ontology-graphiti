@@ -13,6 +13,7 @@
   "menu.data.event_sim": "事件模拟",
   "menu.data.simulation": "仿真分析",
   "menu.system.admin": "系统管理",
+  "menu.system.policy_management": "策略管理",
   "menu.system.user_management": "用户管理",
   "menu.system.role_management": "角色管理",
   "menu.system.audit_log": "审计日志",

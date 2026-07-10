@@ -4,8 +4,8 @@ import type { TourProps } from 'antd';
  * Helper: create a target getter from a data-tour attribute selector.
  * Returns null-safe function for antd Tour `target` prop.
  */
-const tourTarget = (selector: string): (() => HTMLElement | null) => {
-  return () => document.querySelector(`[data-tour="${selector}"]`) as HTMLElement | null;
+const tourTarget = (selector: string): (() => HTMLElement) => {
+  return (() => document.querySelector(`[data-tour="${selector}"]`) as HTMLElement) as () => HTMLElement;
 };
 
 /* ─── Guide Page Tour Steps (5 steps) ─────────────────────────────── */

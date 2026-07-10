@@ -82,7 +82,7 @@ export function ReasoningChain({ reasoning, evidence, steps }: ReasoningChainPro
           style={{ marginBottom: 16 }}
         />
       )}
-      <Collapse items={collapseItems} defaultActiveKey={['reasoning']} size="small" />
+      <Collapse items={collapseItems} defaultActiveKey={['reasoning']} />
     </Card>
   );
 }

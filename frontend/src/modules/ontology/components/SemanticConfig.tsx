@@ -141,7 +141,7 @@ export default function SemanticConfig() {
           {syns.map((s) => (
             <span key={s} style={{ display: 'inline-flex', alignItems: 'center', gap: 4 }}>
               <Text style={{ background: '#f0f0f0', padding: '2px 8px', borderRadius: 4, fontSize: 12 }}>{s}</Text>
-              <Popconfirm description={`Remove "${s}" from "${record.canonical}"?`} onConfirm={() => handleRemoveSynonym(record.canonical, s)}>
+              <Popconfirm title={`Remove "${s}" from "${record.canonical}"?`} onConfirm={() => handleRemoveSynonym(record.canonical, s)}>
                 <DeleteOutlined style={{ color: '#ff4d4f', cursor: 'pointer', fontSize: 11 }} />
               </Popconfirm>
             </span>
@@ -167,7 +167,7 @@ export default function SemanticConfig() {
           {exp.map((e) => (
             <Text key={e} style={{ background: '#e6f7ff', padding: '2px 8px', borderRadius: 4, fontSize: 12 }}>{e}</Text>
           ))}
-          <Popconfirm description={`Remove rule "${record.pattern}"?`} onConfirm={() => handleRemoveExpansionRule(record.pattern)}>
+          <Popconfirm title={`Remove rule "${record.pattern}"?`} onConfirm={() => handleRemoveExpansionRule(record.pattern)}>
             <DeleteOutlined style={{ color: '#ff4d4f', cursor: 'pointer', fontSize: 11 }} />
           </Popconfirm>
         </Space>

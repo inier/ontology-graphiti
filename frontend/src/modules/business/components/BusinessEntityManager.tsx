@@ -928,7 +928,7 @@ export function BusinessEntityManager({
 
                   <Button type="text" size="small" icon={<EditOutlined />} onClick={(e) => { e.stopPropagation(); handleEdit(entity); }}>编辑</Button>
 
-                  <Popconfirm description="确认删除？" onConfirm={(e) => { e?.stopPropagation(); handleDelete(entity.id); }}>
+                  <Popconfirm title="确认删除？" onConfirm={(e) => { e?.stopPropagation(); handleDelete(entity.id); }}>
 
                     <Button type="text" size="small" danger icon={<DeleteOutlined />} onClick={(e) => e.stopPropagation()}>删除</Button>
 
@@ -1364,7 +1364,7 @@ export function BusinessEntityManager({
 
 
 
-            <Descriptions column={1} size="small">
+            <Descriptions column={1}>
 
               {viewingEntity.schema_type_id && (
 
@@ -1472,7 +1472,7 @@ export function BusinessEntityManager({
 
                 <Steps
 
-                  direction="vertical"
+                  orientation="vertical"
 
                   size="small"
 
@@ -1590,7 +1590,7 @@ export function BusinessEntityManager({
 
               <Button icon={<CodeOutlined />} onClick={() => { setYamlViewContent(viewingEntity.yaml_definition || ''); setYamlViewOpen(true); }}>查看 YAML 代码</Button>
 
-              <Popconfirm description="确认删除？" onConfirm={() => handleDelete(viewingEntity.id)}>
+              <Popconfirm title="确认删除？" onConfirm={() => handleDelete(viewingEntity.id)}>
 
                 <Button danger icon={<DeleteOutlined />}>删除</Button>
 

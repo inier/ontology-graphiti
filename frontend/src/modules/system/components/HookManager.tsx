@@ -159,7 +159,7 @@ export default function HookManager() {
       key: 'actions',
       width: 100,
       render: (_: unknown, record: HookRecord) => (
-        <Popconfirm description="Unregister this hook?" onConfirm={() => handleUnregister(record.hook_id)}>
+        <Popconfirm title="Unregister this hook?" onConfirm={() => handleUnregister(record.hook_id)}>
           <Button size="small" danger icon={<DeleteOutlined />}>
             Remove
           </Button>

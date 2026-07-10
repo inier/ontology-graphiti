@@ -227,7 +227,7 @@ export default function SessionMemory({ sessionId }: SessionMemoryProps) {
         title="Session Memory"
         size="small"
         extra={
-          <Popconfirm description="Clear all session memory?" onConfirm={handleClearSession}>
+          <Popconfirm title="Clear all session memory?" onConfirm={handleClearSession}>
             <Button size="small" danger icon={<ClearOutlined />}>
               Clear
             </Button>

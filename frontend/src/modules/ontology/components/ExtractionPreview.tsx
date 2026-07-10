@@ -706,7 +706,7 @@ export function ExtractionPreview({
             <Alert
               type="warning"
               showIcon
-              message="索引写入失败，数据已保存但搜索功能可能延迟"
+              title="索引写入失败，数据已保存但搜索功能可能延迟"
               style={{ marginTop: 12 }}
             />
           )}

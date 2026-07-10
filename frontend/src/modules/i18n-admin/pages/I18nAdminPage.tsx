@@ -516,7 +516,7 @@ export function I18nAdminPage() {
         cancelText={t('cancel')}
       >
         <Alert
-          message={t('autoTranslateHint')}
+          title={t('autoTranslateHint')}
           type="info"
           showIcon
           style={{ marginBottom: 16 }}
@@ -571,7 +571,7 @@ export function I18nAdminPage() {
         width={520}
       >
         <Alert
-          message={t('addLocaleHint')}
+          title={t('addLocaleHint')}
           type="info"
           showIcon
           style={{ marginBottom: 16 }}
@@ -628,7 +628,7 @@ export function I18nAdminPage() {
         width={640}
       >
         <Alert
-          message={t('bulkFormatHint')}
+          title={t('bulkFormatHint')}
           description={
             <div>
               <div style={{ fontFamily: 'monospace', fontSize: 12, marginTop: 4 }}>

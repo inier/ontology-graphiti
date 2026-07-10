@@ -125,7 +125,7 @@ export function NLExtractor({ ontologyId, onImportComplete }: NLExtractorProps) 
                   <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
                     <Alert
                       type="info"
-                      message="请用自然语言描述您的业务领域，系统将使用 Hyper-Extract 模板化提取对象类型、关系类型等"
+                      title="请用自然语言描述您的业务领域，系统将使用 Hyper-Extract 模板化提取对象类型、关系类型等"
                       showIcon
                     />
 

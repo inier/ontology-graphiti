@@ -192,7 +192,7 @@ export function HealthDashboardPage({ workspaceId }: HealthDashboardPageProps) {
           style={{ marginTop: 16 }}
           type="info"
           showIcon
-          message="数据健康规则说明"
+          title="数据健康规则说明"
           description={
             <List
               size="small"

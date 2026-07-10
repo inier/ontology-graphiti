@@ -82,7 +82,7 @@ export function TypeManagementTab({
       render: (_: unknown, record: ObjectType) => (
         <Space>
           <Button size="small" icon={<EditOutlined />} onClick={() => handleEdit(record)} />
-          <Popconfirm description="确认删除？" onConfirm={() => onDeleteType(record.type_id)}>
+          <Popconfirm title="确认删除？" onConfirm={() => onDeleteType(record.type_id)}>
             <Button size="small" danger icon={<DeleteOutlined />} />
           </Popconfirm>
         </Space>

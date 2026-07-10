@@ -54,14 +54,14 @@ export function MinioAdminPage() {
             ),
             children: (
               <Card
-                bodyStyle={{ padding: 0 }}
+                styles={{ body: { padding: 0 }}}
                 style={{ overflow: 'hidden' }}
               >
                 {iframeError && (
                   <Alert
                     type="error"
                     showIcon
-                    message="MinIO Console 加载失败"
+                    title="MinIO Console 加载失败"
                     description="请检查 MinIO 容器是否正常运行（podman ps graphiti-minio），以及后端代理是否正常。"
                     action={<Button onClick={handleReload}>重试</Button>}
                     style={{ margin: 16 }}
@@ -75,7 +75,7 @@ export function MinioAdminPage() {
                     alignItems: 'center',
                     height: 200,
                   }}>
-                    <Spin size="large" tip="正在加载 MinIO Console..." />
+                    <Spin size="large" description="正在加载 MinIO Console..." />
                   </div>
                 )}
 

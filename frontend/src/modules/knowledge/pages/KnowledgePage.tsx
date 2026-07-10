@@ -132,7 +132,7 @@ export function KnowledgePage() {
                   </Button>
                 </Space>
                 {navigationResults && (
-                  <Descriptions title="导航结果" variant="bordered" size="small" column={1}>
+                  <Descriptions title="导航结果" column={1}>
                     <Descriptions.Item label="实体ID">{navigationResults.entity_id}</Descriptions.Item>
                     <Descriptions.Item label="导航路径">
                       {navigationResults.navigation_path?.map((p: string, i: number) => (
@@ -166,7 +166,7 @@ export function KnowledgePage() {
                   </Button>
                 </Space>
                 {intentResult && (
-                  <Descriptions title="解析结果" variant="bordered" size="small" column={2}>
+                  <Descriptions title="解析结果" column={2}>
                     <Descriptions.Item label="意图">{String(intentResult.intent || '')}</Descriptions.Item>
                     <Descriptions.Item label="置信度">{String(intentResult.confidence || '')}</Descriptions.Item>
                     <Descriptions.Item label="实体" span={2}>

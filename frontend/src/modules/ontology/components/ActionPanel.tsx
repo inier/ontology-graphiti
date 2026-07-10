@@ -255,7 +255,7 @@ const ActionPanel: React.FC = () => {
         width={520}
       >
         {currentRecord && (
-          <Descriptions column={1} variant="bordered" size="small">
+          <Descriptions column={1}>
             <Descriptions.Item label={t('actionPanel.recordId')}>{currentRecord.action_record_id}</Descriptions.Item>
             <Descriptions.Item label={t('actionPanel.actionType')}>
               <Tag color="blue">{currentRecord.action_type_id}</Tag>

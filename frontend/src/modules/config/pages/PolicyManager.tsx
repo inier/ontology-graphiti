@@ -361,7 +361,7 @@ export function PolicyManager() {
       >
         {selectedPolicy && (
           <>
-            <Descriptions variant="bordered" column={2} size="small" style={{ marginBottom: 16 }}>
+            <Descriptions column={2} style={{ marginBottom: 16 }}>
               <Descriptions.Item label={t('policy.name')}>
                 {selectedPolicy.name}
               </Descriptions.Item>

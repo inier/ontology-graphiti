@@ -74,7 +74,7 @@ export function ProvenanceViewer({
     >
       <Spin spinning={loading}>
         {provenance ? (
-          <Descriptions column={1} bordered size="small">
+          <Descriptions column={1} bordered>
             <Descriptions.Item label="实体 ID">
               <Tag>{provenance.entity_id}</Tag>
             </Descriptions.Item>

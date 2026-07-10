@@ -843,7 +843,6 @@ const StrategyDeduction: React.FC = () => {
           current: scenarioPage,
           pageSize: scenarioPageSize,
           total: scenarioTotal,
-          size: 'small',
           onChange: (page, pageSize) => fetchScenarioList(page, pageSize),
           showTotal: t => `共 ${t} 条`,
         }}
@@ -866,7 +865,7 @@ const StrategyDeduction: React.FC = () => {
     return (
       <Space orientation="vertical" size="middle" style={{ width: '100%' }}>
         <Card title="场景信息" size="small">
-          <Descriptions size="small" column={2} variant="bordered">
+          <Descriptions column={2}>
             <Descriptions.Item label="场景名称">{selectedScenario.name}</Descriptions.Item>
             <Descriptions.Item label="状态">
               <Tag color={SCENARIO_STATUS_COLORS[selectedScenario.status] || 'default'}>
@@ -919,7 +918,7 @@ const StrategyDeduction: React.FC = () => {
             columns={conditionColumns}
             rowKey="condition_id"
             size="small"
-            pagination={allConditions.length > 10 ? { pageSize: 10, size: 'small' } : false}
+            pagination={allConditions.length > 10 ? { pageSize: 10 } : false}
             locale={{ emptyText: <Empty description={'点击「加载本体条件」从 OMS 获取'} image={Empty.PRESENTED_IMAGE_SIMPLE} /> }}
           />
         </Card>
@@ -1033,7 +1032,7 @@ const StrategyDeduction: React.FC = () => {
                   type={optimalResult.risk_level === 'low' ? 'success' : optimalResult.risk_level === 'critical' ? 'error' : 'warning'}
                   showIcon
                   icon={<WarningOutlined />}
-                  message="推演建议"
+                  title="推演建议"
                   description={optimalResult.recommendation}
                 />
               )}
@@ -1043,7 +1042,7 @@ const StrategyDeduction: React.FC = () => {
                   type="warning"
                   showIcon
                   icon={<WarningOutlined />}
-                  message={`最优链路仍有 ${optimalResult.rule_violations.length} 条规则违反`}
+                  title={`最优链路仍有 ${optimalResult.rule_violations.length} 条规则违反`}
                   description={
                     <ul style={{ margin: '4px 0 0 0', paddingLeft: 20 }}>
                       {optimalResult.rule_violations.slice(0, 3).map((v, idx) => (

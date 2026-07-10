@@ -1094,7 +1094,7 @@ export function IngestPanel() {
       >
         {currentBuild && (
           <Space orientation="vertical" size="large">
-            <Descriptions variant="bordered" column={2} size="small">
+            <Descriptions column={2}>
               <Descriptions.Item label="摄入ID">{currentBuild.ingest_id}</Descriptions.Item>
               <Descriptions.Item label="来源">
                 <Tag color="blue">{currentBuild.source}</Tag>
@@ -1188,7 +1188,7 @@ export function IngestPanel() {
               </Card>
 
               <Card title="本体架构说明" size="small">
-                <Descriptions variant="bordered" column={1} size="small">
+                <Descriptions column={1}>
                   <Descriptions.Item label="文档格式">OntologyDocument</Descriptions.Item>
                   <Descriptions.Item label="实体类型">
                     <Space wrap>

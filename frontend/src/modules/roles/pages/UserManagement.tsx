@@ -288,7 +288,7 @@ export function UserManagement() {
         width={520}
       >
         {viewingUser && (
-          <Descriptions column={1} variant="bordered" size="small" style={{ marginTop: 16 }}>
+          <Descriptions column={1} style={{ marginTop: 16 }}>
             <Descriptions.Item label="用户名">{viewingUser.username}</Descriptions.Item>
             <Descriptions.Item label="邮箱">{viewingUser.email || '-'}</Descriptions.Item>
             <Descriptions.Item label="角色">

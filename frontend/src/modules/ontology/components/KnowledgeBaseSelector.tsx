@@ -118,7 +118,7 @@ export function KnowledgeBaseSelector({ ontologyId, onExtractionComplete }: Know
       <Alert
         type="info"
         showIcon
-        message="从知识库中选择文档进行增量提取"
+        title="从知识库中选择文档进行增量提取"
         description="系统将逐篇解析文档内容，使用增量提取合并知识结构"
       />
 
@@ -148,7 +148,7 @@ export function KnowledgeBaseSelector({ ontologyId, onExtractionComplete }: Know
         <Spin spinning={loading}>
           <Card title="选择知识库" size="small" style={{ maxHeight: 300, overflow: 'auto' }}>
             {filteredKbs.length === 0 ? (
-              <Alert type="warning" message="暂无知识库" description="请先在知识库管理中创建知识库并上传文档" />
+              <Alert type="warning" title="暂无知识库" description="请先在知识库管理中创建知识库并上传文档" />
             ) : (
               <List
                 size="small"

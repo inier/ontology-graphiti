@@ -620,7 +620,7 @@ export function AgentManagement() {
 
                   <Tooltip key="edit" title="编辑"><EditOutlined onClick={() => handleEdit(agent)} /></Tooltip>,
 
-                  <Popconfirm key="del" description="确认删除？" onConfirm={() => handleDelete(agent.agent_id)}>
+                  <Popconfirm key="del" title="确认删除？" onConfirm={() => handleDelete(agent.agent_id)}>
 
                     <DeleteOutlined style={{ color: '#ff4d4f' }} />
 
@@ -1137,7 +1137,7 @@ export function AgentManagement() {
 
             </div>
 
-            <Descriptions column={1} variant="bordered" size="small">
+            <Descriptions column={1}>
 
               <Descriptions.Item label="主对象">
 

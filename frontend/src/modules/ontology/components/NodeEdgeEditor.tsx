@@ -144,7 +144,7 @@ export function NodeEdgeEditor({
     const props = (nodeTypeDef.properties as Array<Record<string, unknown>>) || [];
     return (
       <>
-        <Descriptions column={1} size="small" variant="bordered">
+        <Descriptions column={1}>
           <Descriptions.Item label={t('nodeEditor.nodeId')}>{nodeTypeDef.id}</Descriptions.Item>
           <Descriptions.Item label={t('nodeEditor.name')}>{nodeTypeDef.name}</Descriptions.Item>
           <Descriptions.Item label={t('nodeEditor.displayName')}>{nodeTypeDef.display_name || '-'}</Descriptions.Item>
@@ -204,7 +204,7 @@ export function NodeEdgeEditor({
     const targetObj = objectTypes.find((t) => t.id === edgeTypeDef.target_type);
     return (
       <>
-        <Descriptions column={1} size="small" variant="bordered">
+        <Descriptions column={1}>
           <Descriptions.Item label={t('nodeEditor.nodeId')}>{edgeTypeDef.id}</Descriptions.Item>
           <Descriptions.Item label={t('nodeEditor.name')}>{edgeTypeDef.name}</Descriptions.Item>
           <Descriptions.Item label={t('nodeEditor.displayName')}>{edgeTypeDef.display_name || '-'}</Descriptions.Item>

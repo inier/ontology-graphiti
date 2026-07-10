@@ -128,7 +128,7 @@ export default function CognitionPanel({ workspaceId, scenarioId }: CognitionPan
         <Empty description={t('noData')} image={Empty.PRESENTED_IMAGE_SIMPLE} />
       ) : (
         <Space orientation="vertical" style={{ width: '100%' }} size="middle">
-          <Descriptions variant="bordered" size="small" column={2}>
+          <Descriptions column={2}>
             <Descriptions.Item label="Intent Type">
               <Tag color="blue">{intentResult.primary_intent || 'unknown'}</Tag>
             </Descriptions.Item>
@@ -182,7 +182,7 @@ export default function CognitionPanel({ workspaceId, scenarioId }: CognitionPan
         <Empty description={t('noData')} image={Empty.PRESENTED_IMAGE_SIMPLE} />
       ) : (
         <Space orientation="vertical" style={{ width: '100%' }} size="middle">
-          <Descriptions variant="bordered" size="small" column={2}>
+          <Descriptions column={2}>
             <Descriptions.Item label="Query">{explanation.query}</Descriptions.Item>
             <Descriptions.Item label="Confidence">
               <Progress
@@ -221,7 +221,7 @@ export default function CognitionPanel({ workspaceId, scenarioId }: CognitionPan
       return <Empty description={t('noData')} image={Empty.PRESENTED_IMAGE_SIMPLE} />;
     }
     return (
-      <Descriptions variant="bordered" size="small" column={1}>
+      <Descriptions column={1}>
         <Descriptions.Item label="Role">
           <Tag color="purple">{roleView.role}</Tag>
         </Descriptions.Item>

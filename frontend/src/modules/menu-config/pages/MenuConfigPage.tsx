@@ -349,7 +349,7 @@ export function MenuConfigPage() {
             title={t('menuTree')}
             size="small"
             style={{ width: 520, flexShrink: 0, display: 'flex', flexDirection: 'column' }}
-            bodyStyle={{ padding: 8, overflow: 'auto', flex: 1 }}
+            styles={{ body: { padding: 8, overflow: 'auto', flex: 1 } }}
           >
             {loading ? (
               <div style={{ textAlign: 'center', padding: 48 }}>
@@ -375,11 +375,11 @@ export function MenuConfigPage() {
             title={selectedNode ? resolveMenuName(t, selectedNode.name) : t('menuDetails')}
             size="small"
             style={{ flex: 1, display: 'flex', flexDirection: 'column' }}
-            bodyStyle={{ overflow: 'auto', flex: 1 }}
+            styles={{ body: { overflow: 'auto', flex: 1 }}}
           >
             {selectedNode ? (
               <>
-                <Descriptions column={2} size="small" bordered>
+                <Descriptions column={2} bordered>
                   <Descriptions.Item label={t('name')}>{resolveMenuName(t, selectedNode.name)}</Descriptions.Item>
                   <Descriptions.Item label={t('permissionCode')}>
                     <Text code>{selectedNode.code}</Text>
@@ -460,7 +460,7 @@ export function MenuConfigPage() {
         onOk={handleSubmit}
         onCancel={() => setModalOpen(false)}
         width={640}
-        destroyOnClose
+        destroyOnHidden
       >
         <Form form={form} layout="vertical" style={{ marginTop: 16 }}>
           <Form.Item name="parent_id" label={t('parentMenu')}>

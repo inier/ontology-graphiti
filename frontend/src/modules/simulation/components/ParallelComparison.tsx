@@ -55,7 +55,7 @@ function ParallelComparison({ scenarios, results }: ParallelComparisonProps) {
               size="small"
               extra={<Tag color={RISK_COLORS[scenario.risk_level] || 'default'}>{scenario.risk_level}</Tag>}
             >
-              <Descriptions size="small" column={1} variant="bordered">
+              <Descriptions column={1}>
                 <Descriptions.Item label={t('comparison.status', 'Status')}>
                   <Tag color={scenario.status === 'completed' ? 'green' : 'processing'}>{scenario.status}</Tag>
                 </Descriptions.Item>

@@ -108,7 +108,7 @@ export function RoleMenuAssigner({
           display: 'flex',
           flexDirection: 'column',
         }}
-        bodyStyle={{ padding: 0, overflow: 'auto', flex: 1 }}
+        styles={{ body: { padding: 0, overflow: 'auto', flex: 1 }}}
       >
         {roles.length > 0 ? (
           <List
@@ -197,7 +197,7 @@ export function RoleMenuAssigner({
           display: 'flex',
           flexDirection: 'column',
         }}
-        bodyStyle={{ overflow: 'auto', flex: 1, padding: 12 }}
+        styles={{ body: { overflow: 'auto', flex: 1, padding: 12 }}}
       >
         <Text type="secondary" style={{ display: 'block', marginBottom: 12 }}>
           勾选角色可访问的菜单与操作节点，保存后即时生效。

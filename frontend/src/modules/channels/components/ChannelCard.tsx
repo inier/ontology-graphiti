@@ -103,7 +103,7 @@ export const ChannelCard: React.FC<ChannelCardProps> = ({
         </Space>
       }
     >
-      <Space direction="vertical" style={{ width: '100%' }}>
+      <Space orientation="vertical" style={{ width: '100%' }}>
         <div>
           <span style={{ color: '#888' }}>类型：</span>
           <span>{CHANNEL_TYPE_NAMES[channel.channel_type]}</span>

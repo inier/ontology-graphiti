@@ -136,7 +136,7 @@ function NodeDetailDrawer({
         </Space>
       }
     >
-      <Descriptions column={1} variant="bordered" size="small">
+      <Descriptions column={1}>
         <Descriptions.Item label="节点ID">{node.id}</Descriptions.Item>
         <Descriptions.Item label="名称">{node.name}</Descriptions.Item>
         <Descriptions.Item label="类型">
@@ -147,7 +147,7 @@ function NodeDetailDrawer({
       <div style={{ marginTop: 24 }}>
         <Text strong style={{ display: 'block', marginBottom: 12 }}>属性</Text>
         {node.properties && Object.keys(node.properties).length > 0 ? (
-          <Descriptions column={1} size="small">
+          <Descriptions column={1}>
             {Object.entries(node.properties).map(([key, value]) => (
               <Descriptions.Item key={key} label={key}>
                 {typeof value === 'object' ? JSON.stringify(value) : String(value)}

@@ -251,7 +251,7 @@ export function DatabaseExtractor({ ontologyId, onImportComplete }: DatabaseExtr
           <Space orientation="vertical" style={{ width: '100%' }} size="middle">
             <Alert
               type="info"
-              message={t('databaseExtract.tablesFound', { count: availableTables.length })}
+              title={t('databaseExtract.tablesFound', { count: availableTables.length })}
               showIcon
             />
 

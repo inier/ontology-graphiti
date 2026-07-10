@@ -107,7 +107,7 @@ export function TemplateRecommender({
       <Alert
         type="info"
         showIcon
-        message="模板推荐"
+        title="模板推荐"
         description="系统根据您的描述推荐最匹配的提取模板。三级回退：本体定义自动生成 → 预设模板 → 联网搜索动态生成"
       />
 

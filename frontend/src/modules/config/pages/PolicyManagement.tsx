@@ -369,7 +369,7 @@ const PolicyManagement: React.FC = () => {
         loading={detailLoading}
       >
         {detailData && (
-          <Descriptions variant="bordered" column={2} size="small">
+          <Descriptions column={2}>
             <Descriptions.Item label="策略ID">{detailData.policy_id as string}</Descriptions.Item>
             <Descriptions.Item label="策略名称">{detailData.name as string}</Descriptions.Item>
             <Descriptions.Item label="分类">

@@ -124,12 +124,12 @@ export default function DocumentImporter() {
         </Dragger>
 
         {error && (
-          <Alert type="error" title={t('documentImport.parseError')} description={error} showIcon closable onClose={() => setError(null)} />
+          <Alert type="error" title={t('documentImport.parseError')} description={error} showIcon closable={{ onClose: () => setError(null) }}  />
         )}
 
         {preview && (
           <Card size="small" title={t('documentImport.preview')} style={{ borderRadius: 6 }}>
-            <Descriptions variant="bordered" column={2} size="small">
+            <Descriptions column={2}>
               <Descriptions.Item label="ID">{preview.id || '-'}</Descriptions.Item>
               <Descriptions.Item label={t('documentImport.name')}>{preview.name}</Descriptions.Item>
               <Descriptions.Item label={t('documentImport.version')}>{preview.version}</Descriptions.Item>

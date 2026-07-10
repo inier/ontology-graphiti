@@ -82,7 +82,7 @@ export function DocumentUploader({ ontologyId, onExtractionComplete }: DocumentU
       <Alert
         type="info"
         showIcon
-        message="上传文档进行知识提取"
+        title="上传文档进行知识提取"
         description={`支持格式：PDF / Word / TXT / Markdown / CSV / Excel / JSON / XML / 图片。单文件最大 ${MAX_FILE_SIZE_MB}MB。`}
       />
 

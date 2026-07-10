@@ -30,7 +30,7 @@ export function EntityDetailDrawer({ open, entity, onClose }: EntityDetailDrawer
       width={720}
     >
       <Card size="small" style={{ marginBottom: 16 }} title="基本信息">
-        <Descriptions column={1} variant="bordered" size="small">
+        <Descriptions column={1}>
           <Descriptions.Item label="实体ID">
             <Text code copyable style={{ fontSize: 12 }}>{entity.entity_id}</Text>
           </Descriptions.Item>

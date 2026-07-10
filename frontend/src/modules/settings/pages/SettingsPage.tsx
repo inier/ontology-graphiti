@@ -105,16 +105,16 @@ export default function SettingsPage() {
         {error && (
           <Alert
             type="error"
-            message={error}
-            closable
-            onClose={clearError}
+            title={error}
+            closable={{ onClose: clearError }}
+            
             style={{ marginBottom: 16 }}
           />
         )}
 
         {loading && categories.length === 0 ? (
           <div style={{ minHeight: 200, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-            <Spin size="large" tip={t('loading')} />
+            <Spin size="large" description={t('loading')} />
           </div>
         ) : (
           <Collapse

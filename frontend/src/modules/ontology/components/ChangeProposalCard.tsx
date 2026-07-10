@@ -203,7 +203,7 @@ export function ChangeProposalCard({ proposalId, onReview }: ChangeProposalCardP
                     <Alert
                       type="info"
                       showIcon
-                      message={t('changeProposalCard.reviewedAt', { time: new Date(proposal.reviewed_at).toLocaleString() })}
+                      title={t('changeProposalCard.reviewedAt', { time: new Date(proposal.reviewed_at).toLocaleString() })}
                       description={proposal.reviewer_notes || t('changeProposalCard.noReviewerNotes')}
                     />
                   )}

@@ -390,7 +390,7 @@ export function OntologyIngestPipeline() {
         </Space>
       ),
       children: (
-        <Descriptions variant="bordered" column={1} size="small">
+        <Descriptions column={1}>
           <Descriptions.Item label="文档格式">OntologyDocument (JSON)</Descriptions.Item>
           <Descriptions.Item label="实体类型">Unit, Equipment, Location, Person, Organization, EventNode</Descriptions.Item>
           <Descriptions.Item label="关系类型">engaged_with, commands, supported_by, deployed_at, supports</Descriptions.Item>
@@ -449,7 +449,7 @@ export function OntologyIngestPipeline() {
               size="small"
             >
               {currentStep < steps.length && steps[currentStep] && (
-                <Descriptions variant="bordered" column={1} size="small">
+                <Descriptions column={1}>
                   <Descriptions.Item label="步骤">
                     {steps[currentStep].title}
                   </Descriptions.Item>
@@ -482,7 +482,7 @@ export function OntologyIngestPipeline() {
               size="small"
               extra={<Alert type="success" title="构建完成！本体已成功生成" banner />}
             >
-              <Collapse items={collapseItems} defaultActiveKey={['1']} size="small" />
+              <Collapse items={collapseItems} defaultActiveKey={['1']} />
             </Card>
           )}
         </>

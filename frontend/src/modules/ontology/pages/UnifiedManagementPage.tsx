@@ -425,7 +425,7 @@ function SemanticLayerTab() {
       }>
         <Row gutter={16}>
           <Col span={12}>
-            <Descriptions column={1} size="small" title={<span><ApartmentOutlined /> {t('unified.objectTypesCount', { count: omsObjTypes.length })}</span>}>
+            <Descriptions column={1} title={<span><ApartmentOutlined /> {t('unified.objectTypesCount', { count: omsObjTypes.length })}</span>}>
               {omsObjTypes.length === 0 ? (
                 <Descriptions.Item label={t('unified.state')}>{t('unified.noCacheData')}</Descriptions.Item>
               ) : (
@@ -437,7 +437,7 @@ function SemanticLayerTab() {
             </Descriptions>
           </Col>
           <Col span={12}>
-            <Descriptions column={1} size="small" title={<span><ExperimentOutlined /> {t('unified.actionTypesCount', { count: omsActTypes.length })}</span>}>
+            <Descriptions column={1} title={<span><ExperimentOutlined /> {t('unified.actionTypesCount', { count: omsActTypes.length })}</span>}>
               {omsActTypes.length === 0 ? (
                 <Descriptions.Item label={t('unified.state')}>{t('unified.noCacheData')}</Descriptions.Item>
               ) : (
@@ -636,7 +636,7 @@ function IngestTab() {
     <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
       {/* Ingest Configuration */}
       <Card size="small" title={t('unified.ingestConfig')}>
-        <Descriptions column={2} size="small">
+        <Descriptions column={2}>
           <Descriptions.Item label={t('unified.boundOntology')}>
             {ontologyStore.currentOntology ? (
               <Space>

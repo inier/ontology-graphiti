@@ -233,7 +233,7 @@ export function ComputedPropertyEditor({ workspaceId, propertyId, onSaved }: Com
                   style={{ marginTop: 8 }}
                   type="success"
                   showIcon
-                  message={t('computed.parsedDeps', { count: deps.length })}
+                  title={t('computed.parsedDeps', { count: deps.length })}
                   description={deps.join(', ')}
                 />
               )}

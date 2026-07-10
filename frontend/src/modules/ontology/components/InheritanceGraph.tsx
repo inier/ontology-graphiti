@@ -193,7 +193,7 @@ export function InheritanceGraph({ workspaceId }: InheritanceGraphProps) {
           >
             {selectedNode && (
               <>
-                <Descriptions column={1} size="small" variant="bordered">
+                <Descriptions column={1}>
                   <Descriptions.Item label={t('inheritanceGraph.parentCount')}>{selectedNode.parent_count}</Descriptions.Item>
                   <Descriptions.Item label={t('inheritanceGraph.childCount')}>{selectedNode.child_count}</Descriptions.Item>
                   <Descriptions.Item label={t('inheritanceGraph.inheritedPropertyCount')}>{selectedNode.inherited_property_count}</Descriptions.Item>

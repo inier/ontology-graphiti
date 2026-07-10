@@ -478,7 +478,7 @@ export default function ConflictResolver() {
                   <Alert
                     type={lastResult.status === 'resolved' ? 'success' : 'warning'}
                     showIcon
-                    message={
+                    title={
                       <Space>
                         <CheckCircleOutlined />
                         <Text strong>

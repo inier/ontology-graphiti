@@ -285,7 +285,7 @@ export function AuditLog() {
                       pageSize: pagination.pageSize,
                       total: total,
                       showSizeChanger: true,
-                      showQuickJumper: true,
+                      showQuickJump: true,
                       showTotal: (tot) => `共 ${tot} 条记录`,
                       onChange: (page, pageSize) => {
                         setPagination({ current: page, pageSize });

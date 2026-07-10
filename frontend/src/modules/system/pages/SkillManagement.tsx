@@ -416,7 +416,7 @@ export function SkillManagement() {
       >
         {selectedSkill && (
           <Space orientation="vertical" style={{ width: '100%' }}>
-            <Descriptions variant="bordered" column={1} size="small">
+            <Descriptions column={1}>
               <Descriptions.Item label="名称">
                 <Text strong>{selectedSkill.name}</Text>
               </Descriptions.Item>

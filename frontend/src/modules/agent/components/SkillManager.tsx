@@ -142,7 +142,7 @@ export function SkillManager() {
             </Button>
           ))}
           {record.status !== 'archived' && (
-            <Popconfirm description="Archive this skill?" onConfirm={() => handleUnregister(record.skill_id)}>
+            <Popconfirm title="Archive this skill?" onConfirm={() => handleUnregister(record.skill_id)}>
               <Button size="small" danger icon={<DeleteOutlined />}>
                 Archive
               </Button>

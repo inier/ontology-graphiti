@@ -189,7 +189,7 @@ export default function ToolRegistry() {
           >
             Invoke
           </Button>
-          <Popconfirm description="Unregister this tool?" onConfirm={() => handleUnregister(record.tool_id || record.name)}>
+          <Popconfirm title="Unregister this tool?" onConfirm={() => handleUnregister(record.tool_id || record.name)}>
             <Button size="small" danger icon={<DeleteOutlined />}>
               Remove
             </Button>

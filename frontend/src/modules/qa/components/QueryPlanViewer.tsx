@@ -82,7 +82,7 @@ export function QueryPlanViewer({ understanding, plan, explanation, loading }: Q
         </Space>
       ),
       children: understanding ? (
-        <Descriptions size="small" column={1} variant="bordered">
+        <Descriptions column={1}>
           <Descriptions.Item label={t('plan.originalQuery')}>{understanding.original_query}</Descriptions.Item>
           <Descriptions.Item label={t('plan.intent')}>
             <Tag color={intentInfo?.color}>{intentInfo?.label}</Tag>
@@ -162,7 +162,7 @@ export function QueryPlanViewer({ understanding, plan, explanation, loading }: Q
       loading={loading}
       style={{ marginBottom: 12 }}
     >
-      <Collapse items={items} defaultActiveKey={['understanding', 'plan']} size="small" />
+      <Collapse items={items} defaultActiveKey={['understanding', 'plan']} />
     </Card>
   );
 }

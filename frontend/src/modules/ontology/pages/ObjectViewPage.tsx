@@ -209,7 +209,7 @@ export function ObjectViewPage({ workspaceId, onCreateView }: ObjectViewPageProp
                     <Alert
                       type="warning"
                       showIcon
-                      message="字段脱敏规则已生效"
+                      title="字段脱敏规则已生效"
                       description={`当前角色对 ${userPerm.redaction_rules.length} 个字段应用了脱敏`}
                     />
                   )}

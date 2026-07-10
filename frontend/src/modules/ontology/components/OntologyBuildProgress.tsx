@@ -201,7 +201,7 @@ export function OntologyBuildProgress({
             percent={Math.round(progress)}
             size="small"
             strokeColor="#1890ff"
-            trailColor="#e8e8e8"
+            railColor="#e8e8e8"
             style={{ margin: 0, flex: 1 }}
           />
         </div>

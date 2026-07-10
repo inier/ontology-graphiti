@@ -110,7 +110,7 @@ export default function FeedbackPanel({ taskId, ontologyId }: FeedbackPanelProps
     }
     return (
       <Space orientation="vertical" style={{ width: '100%' }} size="middle">
-        <Descriptions variant="bordered" size="small" column={2}>
+        <Descriptions column={2}>
           <Descriptions.Item label={t('feedback.taskId')}>{analysis.task_id}</Descriptions.Item>
           <Descriptions.Item label={t('feedback.totalFeedbacks')}>{analysis.total_feedbacks}</Descriptions.Item>
           <Descriptions.Item label={t('feedback.avgDeviation')} span={2}>
@@ -177,7 +177,7 @@ export default function FeedbackPanel({ taskId, ontologyId }: FeedbackPanelProps
     }
     return (
       <Space orientation="vertical" style={{ width: '100%' }} size="middle">
-        <Descriptions variant="bordered" size="small" column={2}>
+        <Descriptions column={2}>
           <Descriptions.Item label={t('feedback.ontologyId')}>{aggregation.ontology_id}</Descriptions.Item>
           <Descriptions.Item label={t('feedback.totalFeedbacks')}>{aggregation.total_feedbacks}</Descriptions.Item>
         </Descriptions>

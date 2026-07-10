@@ -797,7 +797,7 @@ const SimulationPage: React.FC = () => {
 
         <Card title="沙箱状态" size="small">
 
-          <Descriptions size="small" column={2} variant="bordered">
+          <Descriptions column={2}>
 
             <Descriptions.Item label="沙箱 ID">{store.sandboxStatus.sandbox_id}</Descriptions.Item>
 
@@ -981,7 +981,7 @@ const SimulationPage: React.FC = () => {
 
         <Card title="并行推演结果" size="small">
 
-          <Descriptions size="small" column={2} variant="bordered">
+          <Descriptions column={2}>
 
             <Descriptions.Item label="运行 ID">{store.parallelResult.run_id}</Descriptions.Item>
 
@@ -1033,7 +1033,7 @@ const SimulationPage: React.FC = () => {
 
         <Card title="What-if 分析结果" size="small">
 
-          <Descriptions size="small" column={2} variant="bordered">
+          <Descriptions column={2}>
 
             <Descriptions.Item label="运行 ID">{store.whatIfResult.run_id}</Descriptions.Item>
 
@@ -1109,7 +1109,7 @@ const SimulationPage: React.FC = () => {
 
           <Space orientation="vertical" style={{ width: '100%' }}>
 
-            <Descriptions size="small" column={2} variant="bordered">
+            <Descriptions column={2}>
 
               <Descriptions.Item label="序列 ID">{store.eventSequence.sequence_id}</Descriptions.Item>
 

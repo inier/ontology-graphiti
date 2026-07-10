@@ -269,7 +269,7 @@ const SandboxManager: React.FC = () => {
       >
         {currentResult ? (
           <Space orientation="vertical" style={{ width: '100%' }} size="middle">
-            <Descriptions variant="bordered" size="small" column={2}>
+            <Descriptions column={2}>
               <Descriptions.Item label="Sandbox ID">{currentResult.sandbox_id}</Descriptions.Item>
               <Descriptions.Item label="Status">
                 <Tag color={currentResult.status === 'completed' ? 'green' : 'red'}>{currentResult.status}</Tag>

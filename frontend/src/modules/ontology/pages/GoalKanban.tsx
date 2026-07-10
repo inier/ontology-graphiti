@@ -441,7 +441,7 @@ export function GoalKanban() {
           <Spin spinning={lineageLoading || proposalsLoading}>
             <Space orientation="vertical" size="middle" style={{ width: '100%' }}>
               <Card size="small">
-                <Descriptions column={1} size="small">
+                <Descriptions column={1}>
                   <Descriptions.Item label={t('goal.labelTitle')}>{selectedGoal.title}</Descriptions.Item>
                   <Descriptions.Item label={t('goal.labelBusinessObjective')}>{selectedGoal.business_objective}</Descriptions.Item>
                   <Descriptions.Item label={t('goal.labelDescription')}>{selectedGoal.description || '-'}</Descriptions.Item>

@@ -13,6 +13,7 @@
   "menu.data.event_sim": "Event Simulation",
   "menu.data.simulation": "Simulation Analysis",
   "menu.system.admin": "System Admin",
+  "menu.system.policy_management": "Policy Management",
   "menu.system.user_management": "User Management",
   "menu.system.role_management": "Role Management",
   "menu.system.audit_log": "Audit Log",

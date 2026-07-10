@@ -80,7 +80,7 @@ export function AttributeCard({ attr }: AttributeCardProps) {
         ) : attr.type === 'json' ? (
           <div>
             {isNested ? (
-              <Collapse variant="ghost" size="small" items={[
+              <Collapse items={[
                 { key: '1', label: t('attributeCard.expandChildren', { count: attr.children?.length || 0 }), children: attr.children?.map(child => <AttributeCard key={child.name} attr={child} />) },
               ]} />
             ) : (

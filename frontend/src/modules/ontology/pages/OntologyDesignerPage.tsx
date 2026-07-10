@@ -192,7 +192,7 @@ function TypeDefList<T extends { name: string; display_name?: string; descriptio
 
                 </div>
 
-                <Popconfirm description="确认删除？" onConfirm={(e) => e?.stopPropagation()}>
+                <Popconfirm title="确认删除？" onConfirm={(e) => e?.stopPropagation()}>
 
                   <AntButton type="text" danger size="small" icon={<DeleteOutlined />}
 

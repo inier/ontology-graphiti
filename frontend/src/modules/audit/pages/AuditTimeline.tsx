@@ -265,7 +265,7 @@ export function AuditTimeline() {
           pagination={{ pageSize: 20, showSizeChanger: true, showTotal: (total) => `共 ${total} 条`}}
           expandable={{
             expandedRowRender: (record) => (
-              <Descriptions size="small" column={2}>
+              <Descriptions column={2}>
                 <Descriptions.Item label="追踪ID">{record.trace_id || '-'}</Descriptions.Item>
                 <Descriptions.Item label="耗时">{record.duration_ms != null ? `${record.duration_ms}ms` : '-'}</Descriptions.Item>
                 <Descriptions.Item label="完整消息" span={2}>{record.result_message || '-'}</Descriptions.Item>
@@ -283,7 +283,7 @@ export function AuditTimeline() {
         open={drawerVisible}
       >
         {selectedEvent && (
-          <Descriptions column={1} variant="bordered">
+          <Descriptions column={1}>
             <Descriptions.Item label="事件ID">{selectedEvent.id}</Descriptions.Item>
             <Descriptions.Item label="时间">{selectedEvent.timestamp ? new Date(selectedEvent.timestamp).toLocaleString('zh-CN') : '-'}</Descriptions.Item>
             <Descriptions.Item label="严重级别">

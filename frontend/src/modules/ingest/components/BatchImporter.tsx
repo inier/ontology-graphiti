@@ -165,7 +165,7 @@ export default function BatchImporter({ workspaceId, scenarioId }: BatchImporter
           <>
             <Alert
               type={result.fail_count > 0 ? 'warning' : 'success'}
-              message={
+              title={
                 <Space>
                   <Text>
                     {t('ingest.successCount') || '成功'}: {result.success_count}

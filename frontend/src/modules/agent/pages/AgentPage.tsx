@@ -110,7 +110,7 @@ export function AgentPage() {
                   {error && <Text type="danger">{error}</Text>}
 
                   {lastDispatch && (
-                    <Descriptions variant="bordered" size="small" style={{ marginTop: 16 }} column={2}>
+                    <Descriptions style={{ marginTop: 16 }} column={2}>
                       <Descriptions.Item label="Task ID"><Tooltip title={lastDispatch.task_id}>{shortId(lastDispatch.task_id)}</Tooltip></Descriptions.Item>
                       <Descriptions.Item label="Assigned Agent">
                         <Tag color="blue">{lastDispatch.assigned_agent}</Tag>

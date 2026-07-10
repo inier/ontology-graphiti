@@ -1248,7 +1248,7 @@ export function OntologySemanticNetwork() {
 
         {selectedNode && (
 
-          <Descriptions column={1} variant="bordered">
+          <Descriptions column={1}>
 
             <Descriptions.Item label="节点ID">{selectedNode.id}</Descriptions.Item>
 
@@ -1302,7 +1302,7 @@ export function OntologySemanticNetwork() {
 
               {selectedNode.properties && Object.keys(selectedNode.properties).length > 0 ? (
 
-                <Descriptions column={1} size="small">
+                <Descriptions column={1}>
 
                   {Object.entries(selectedNode.properties).map(([key, value]) => (
 
@@ -1370,7 +1370,7 @@ export function OntologySemanticNetwork() {
 
         {selectedEdge && (
 
-          <Descriptions column={1} variant="bordered">
+          <Descriptions column={1}>
 
             <Descriptions.Item label="边ID">{selectedEdge.id}</Descriptions.Item>
 

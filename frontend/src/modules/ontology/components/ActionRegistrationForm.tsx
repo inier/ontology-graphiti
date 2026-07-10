@@ -491,7 +491,7 @@ export function ActionRegistrationForm({ actionId, onClose, onSaved }: ActionReg
           </Button>
           <Button
             type="primary"
-            variant="ghost"
+            ghost
             icon={<PlayCircleOutlined />}
             loading={saving}
             onClick={() => handleSave(true)}
