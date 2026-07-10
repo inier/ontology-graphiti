@@ -27,7 +27,7 @@ services:
       - graphiti-neo4j
       - graphiti-policy-service
       - graphiti-cache
-      - minio
+      - graphiti-minio
     volumes:
       - ../app:/app/app
       - ../odap:/app/odap

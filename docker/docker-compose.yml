@@ -23,7 +23,7 @@ services:
       - graphiti-neo4j
       - graphiti-policy-service
       - graphiti-cache
-      - minio
+      - graphiti-minio
     volumes:
       - app-data:/app/data
     networks:
@@ -78,7 +78,7 @@ services:
       - graphiti-network
     restart: unless-stopped
 
-  minio:
+  graphiti-minio:
     image: localhost/minio:latest
     container_name: graphiti-minio
     ports:

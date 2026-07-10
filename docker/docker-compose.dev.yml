@@ -37,7 +37,7 @@ services:
       - graphiti-neo4j
       - graphiti-policy-service
       - graphiti-cache
-      - minio
+      - graphiti-minio
     volumes:
       - ../app:/app/app
       - ../odap:/app/odap
@@ -52,7 +52,7 @@ services:
       timeout: 5s
       retries: 5
       start_period: 30s
-    command: ["python", "-m", "uvicorn", "odap.web.app:app", "--host", "0.0.0.0", "--port", "8000", "--reload"]
+    command: ["python", "-m", "uvicorn", "odap.web.app:app", "--host", "0.0.0.0", "--port", "8000"]
 
   frontend:
     build:
@@ -78,7 +78,7 @@ services:
     environment:
       - NODE_ENV=development
       - VITE_API_BASE=
-      - PROXY_TARGET=http://app:8000
+      - PROXY_TARGET=http://graphiti-dev-app:8000
     networks:
       - graphiti-network
     restart: unless-stopped
@@ -113,7 +113,7 @@ services:
       - graphiti-network
     restart: unless-stopped
 
-  minio:
+  graphiti-minio:
     image: localhost/minio:latest
     container_name: graphiti-dev-minio
     ports:

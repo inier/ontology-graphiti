@@ -43,6 +43,7 @@ IMAGES = [
     (f"{MIRROR}/library/neo4j:latest",                "localhost/neo4j:latest"),
     (f"{MIRROR}/openpolicyagent/opa:0.58.0",           "localhost/openpolicyagent/opa:0.58.0"),
     (f"{MIRROR}/library/python:3.10-slim",             "localhost/python:3.10-slim"),
+    (f"{MIRROR}/library/python:3.11-slim",             "localhost/python:3.11-slim"),
     (f"{MIRROR}/library/node:24-alpine",               "localhost/node:24-alpine"),
     (f"{MIRROR}/library/nginx:alpine",                 "localhost/nginx:alpine"),
     (f"{MIRROR}/minio/minio:latest",                   "localhost/minio:latest"),
