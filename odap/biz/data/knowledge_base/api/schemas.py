@@ -1,4 +1,4 @@
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, ConfigDict
 from typing import List, Optional
 from datetime import datetime
 
@@ -14,6 +14,11 @@ class KnowledgeBaseUpdate(BaseModel):
 
 
 class KnowledgeBase(BaseModel):
+    """Uses ``extra="allow"`` to remain backward compatible with all existing
+    storage columns that haven't been typed into the schema yet (e.g.
+    ``cleaned_content``, ``cleaning_level``, ``raw_content``)."""
+    model_config = ConfigDict(extra="allow")
+
     kb_id: str
     name: str
     description: str
@@ -31,6 +36,8 @@ class CategoryCreate(BaseModel):
 
 
 class KnowledgeCategory(BaseModel):
+    model_config = ConfigDict(extra="allow")
+
     category_id: str
     kb_id: str
     name: str
@@ -40,6 +47,11 @@ class KnowledgeCategory(BaseModel):
 
 
 class KnowledgeDocument(BaseModel):
+    """Uses ``extra="allow"`` so storage-level fields (``segments_json``,
+    ``entities_json``, ``cleaning_status``, etc.) flow through the API layer
+    without triggering Pydantic errors on older / hand-written rows."""
+    model_config = ConfigDict(extra="allow")
+
     doc_id: str
     kb_id: str
     category_id: Optional[str] = None

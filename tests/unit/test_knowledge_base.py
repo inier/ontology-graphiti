@@ -1,10 +1,14 @@
 import pytest
 import sys
 import os
+import json
+from typing import List
+from pydantic import TypeAdapter, ValidationError
 
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), '..', '..', '..'))
 
 from odap.biz.data.knowledge_base.storage.sqlite_kb_storage import SQLiteKnowledgeBaseStorage
+from odap.biz.data.knowledge_base.api.schemas import KnowledgeDocument
 
 
 @pytest.fixture
@@ -288,3 +292,74 @@ class TestKnowledgeBaseService:
         content = '第一装甲师在北方演习'
         result = service._extract_with_regex(content, entity_types=['师'])
         assert len(result['entities']) > 0
+
+
+class TestListDocumentsKeywordsSanitizeToPydantic:
+    """Regression: doc.keywords 若存为 list[dict]/list[int]，HTTP response_model=List[KnowledgeDocument]
+    会抛 ValidationError → 500。storage._row_to_dict 必须在反序列化后把 keywords 净化为 List[str]。"""
+
+    def _raw_insert_doc_with_keywords(self, storage, kb_id, keywords_json_str: str):
+        """绕过 create_document，直接把脏 keywords 写入 kb_documents，模拟历史/清洗服务写入的脏数据。"""
+        import sqlite3
+        conn = sqlite3.connect(storage.db_path)
+        try:
+            conn.execute(
+                """INSERT INTO kb_documents
+                (doc_id, kb_id, category_id, title, content_type, file_type, file_size, file_url,
+                 content, keywords, summary, status, graph_built, created_at, updated_at)
+                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)""",
+                (
+                    "doc_dirty_kw", kb_id, None, "Dirty Keywords Doc",
+                    "text", None, None, None,
+                    "hello world", keywords_json_str, "", "indexed", 0,
+                    "2025-01-01T00:00:00", "2025-01-01T00:00:00",
+                )
+            )
+            conn.commit()
+        finally:
+            conn.close()
+
+    def test_keywords_list_of_dict_must_survive_pydantic(self, storage, tmp_path):
+        """Bug repro: keywords = [{index,content,type}, ...] (list of dicts)"""
+        kb = storage.create_knowledge_base({"name": "Repro 500"})
+        dirty_json = json.dumps([
+            {"index": 0, "content": "汽车企业B2B2C会员电商本体前置资料文档", "type": "paragraph"},
+            {"index": 1, "content": "2024年度业务规划", "type": "heading"},
+            "normal-string-keyword",
+        ])
+        self._raw_insert_doc_with_keywords(storage, kb["kb_id"], dirty_json)
+
+        docs = storage.list_documents(kb["kb_id"])
+        assert len(docs) == 1
+        doc = docs[0]
+
+        # 关键断言：经过 storage 层后返回的 keywords 必须是 list[str]
+        assert isinstance(doc["keywords"], list)
+        # 每个元素必须是 str（dict 元素要被丢弃 or 转为 str，根据实现策略）
+        for kw in doc["keywords"]:
+            assert isinstance(kw, str), f"keyword {kw!r} 是 {type(kw).__name__}，应为 str"
+
+        # Pydantic 校验必须通过（等价于 HTTP response_model 的校验）
+        adapter = TypeAdapter(List[KnowledgeDocument])
+        try:
+            adapter.validate_python(docs)
+        except ValidationError as e:
+            pytest.fail(f"storage 返回后 Pydantic 校验失败，将导致真实 HTTP 500:\n{e}")
+
+    def test_keywords_invalid_json_fallback_empty_list(self, storage):
+        """keywords 不是合法 JSON（历史脏数据）→ _row_to_dict 必须返回 []"""
+        kb = storage.create_knowledge_base({"name": "Bad JSON"})
+        self._raw_insert_doc_with_keywords(storage, kb["kb_id"], "not-valid-json{")
+        doc = storage.list_documents(kb["kb_id"])[0]
+        assert doc["keywords"] == []
+
+    def test_keywords_mixed_types_all_strings(self, storage):
+        """keywords 混了 int/float/None → 全部转 str 或丢弃，最终 List[str]"""
+        kb = storage.create_knowledge_base({"name": "Mixed Types"})
+        dirty_json = json.dumps(["hello", 42, 3.14, None, True])
+        self._raw_insert_doc_with_keywords(storage, kb["kb_id"], dirty_json)
+        doc = storage.list_documents(kb["kb_id"])[0]
+        for kw in doc["keywords"]:
+            assert isinstance(kw, str)
+        # Pydantic 通过
+        KnowledgeDocument.model_validate(doc)

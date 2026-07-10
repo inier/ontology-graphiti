@@ -1,8 +1,8 @@
 import { useState, useEffect, useRef, useCallback } from 'react';
 
 import {
-
-  Card, Button, Input, Modal, Form, message, Popconfirm,
+  App,
+  Card, Button, Input, Modal, Form, Popconfirm,
 
   Space, Tag, Tooltip, Tree, Upload, Tabs, Progress, Spin,
 
@@ -75,6 +75,42 @@ function friendlyFileType(fileType?: string): string {
   return MIME_FRIENDLY[fileType] || fileType.split('/').pop()?.toUpperCase() || fileType;
 }
 
+/** 检测关键词是否为 URL */
+const URL_RE = /^https?:\/\/\S+/i;
+function isUrlKeyword(k: string): boolean { return URL_RE.test(k.trim()); }
+
+/** 从 URL 提取简短域名显示 */
+function shortDomain(url: string): string {
+  try {
+    const u = new URL(url.trim());
+    return u.hostname.replace(/^www\./, '');
+  } catch { return url.slice(0, 30); }
+}
+
+/** 智能关键词标签：URL 显示为可点击链接，长文本截断+Tooltip */
+function KeywordTag({ keyword, maxLen = 24 }: { keyword: string; maxLen?: number }) {
+  if (isUrlKeyword(keyword)) {
+    return (
+      <Tooltip title={keyword}>
+        <Tag icon={<LinkOutlined />} color="blue" style={{ cursor: 'pointer' }}>
+          <a href={keyword.trim()} target="_blank" rel="noreferrer" style={{ color: 'inherit' }}>
+            {shortDomain(keyword)}
+          </a>
+        </Tag>
+      </Tooltip>
+    );
+  }
+  const truncated = keyword.length > maxLen;
+  const display = truncated ? keyword.slice(0, maxLen) + '…' : keyword;
+  return truncated ? (
+    <Tooltip title={keyword}>
+      <Tag style={{ maxWidth: maxLen * 10 + 40 }}>{display}</Tag>
+    </Tooltip>
+  ) : (
+    <Tag>{keyword}</Tag>
+  );
+}
+
 function deriveDocStatus(doc: KnowledgeDocument): { label: string; color: string } {
   if (doc.status === 'error') return { label: '处理失败', color: 'error' };
   if (doc.status === 'processing') return { label: '处理中', color: 'processing' };
@@ -90,6 +126,8 @@ type ViewMode = 'list' | 'detail' | 'document';
 
 
 export function KnowledgeBase() {
+
+  const { message } = App.useApp();
 
   const [viewMode, setViewMode] = useState<ViewMode>('list');
 
@@ -198,6 +236,7 @@ export function KnowledgeBase() {
     } catch (e) {
 
       console.warn('加载分类失败', e);
+      message.error('加载分类失败，请稍后重试');
 
     }
 
@@ -216,6 +255,7 @@ export function KnowledgeBase() {
     } catch (e) {
 
       console.warn('加载文档失败', e);
+      message.error('加载文档列表失败，请稍后重试');
 
     }
 
@@ -389,11 +429,13 @@ export function KnowledgeBase() {
         return;
       }
 
+      const docCategoryId: string | undefined = values.category_id || selectedCategory || undefined;
+
       const data: DocumentUploadData = {
 
         kb_id: currentKb.kb_id,
 
-        category_id: selectedCategory || undefined,
+        category_id: docCategoryId,
 
         content_type: uploadTab === 'web' ? 'web_crawl' : uploadTab,
 
@@ -413,7 +455,7 @@ export function KnowledgeBase() {
 
       setUploadModalOpen(false);
 
-      loadDocuments(currentKb.kb_id, selectedCategory || undefined);
+      loadDocuments(currentKb.kb_id, docCategoryId);
 
       loadKnowledgeBases();
 
@@ -606,7 +648,9 @@ export function KnowledgeBase() {
     // 获取最新的 presigned URL（可能已过期或需要刷新）
     if (doc.file_url) {
       try {
-        const freshDoc = await knowledgeApi.getDocument(selectedKb, doc.doc_id);
+        const kbId = doc.kb_id || currentKb?.kb_id;
+        if (!kbId) return;
+        const freshDoc = await knowledgeApi.getDocument(kbId, doc.doc_id);
         if (freshDoc?.presigned_url) {
           setCurrentDoc(prev => prev && prev.doc_id === doc.doc_id
             ? { ...prev, presigned_url: freshDoc.presigned_url }
@@ -789,7 +833,7 @@ export function KnowledgeBase() {
 
             <Button type="text" icon={<EditOutlined />} onClick={() => handleEditKb(record)}>编辑</Button>
 
-            <Popconfirm description="确认删除？" onConfirm={() => handleDeleteKb(record.kb_id)}>
+            <Popconfirm title="确认删除？" onConfirm={() => handleDeleteKb(record.kb_id)}>
 
               <Button type="text" danger icon={<DeleteOutlined />}>删除</Button>
 
@@ -985,9 +1029,10 @@ export function KnowledgeBase() {
 
               {record.keywords?.length > 0 && (
 
-                <Space size={4} style={{ marginTop: 4 }}>
+                <Space size={4} style={{ marginTop: 4 }} wrap>
 
-                  {record.keywords.slice(0, 3).map(k => <Tag key={k}>{k}</Tag>)}
+                  {[...new Set(record.keywords)].slice(0, 3).map((k, idx) => <KeywordTag key={`${k}-${idx}`} keyword={k} maxLen={16} />)}
+                  {record.keywords.length > 3 && <Tag>+{record.keywords.length - 3}</Tag>}
 
                 </Space>
 
@@ -1109,7 +1154,7 @@ export function KnowledgeBase() {
 
             <Button type="text" icon={<EyeOutlined />} onClick={() => handleViewDoc(record)} />
 
-            <Popconfirm description="确认删除？" onConfirm={() => handleDeleteDoc(record.doc_id)}>
+            <Popconfirm title="确认删除？" onConfirm={() => handleDeleteDoc(record.doc_id)}>
 
               <Button type="text" danger icon={<DeleteOutlined />} />
 
@@ -1339,7 +1384,7 @@ export function KnowledgeBase() {
 
                       showIcon
 
-                      message="系统将自动抓取网页内容并提取结构化知识"
+                      title="系统将自动抓取网页内容并提取结构化知识"
 
                       style={{ marginTop: 8 }}
 
@@ -1431,7 +1476,7 @@ export function KnowledgeBase() {
 
           onClose={() => setDocDrawerOpen(false)}
 
-          width={600}
+          size="large"
 
         >
 
@@ -1439,7 +1484,7 @@ export function KnowledgeBase() {
 
             <div>
 
-              <Descriptions column={1} variant="bordered" size="small">
+              <Descriptions column={1}>
 
                 <Descriptions.Item label="标题">{currentDoc.title || '未命名文档'}</Descriptions.Item>
 
@@ -1484,7 +1529,7 @@ export function KnowledgeBase() {
 
                   <Space wrap>
 
-                    {(currentDoc.keywords?.length ? currentDoc.keywords : []).map(k => <Tag key={k}>{k}</Tag>)}
+                    {([...new Set(currentDoc.keywords ?? [])]).map((k, idx) => <KeywordTag key={`${k}-${idx}`} keyword={k} maxLen={40} />)}
                     {(!currentDoc.keywords?.length) && <Text type="secondary">暂无关键词</Text>}
 
                   </Space>
@@ -1596,7 +1641,7 @@ export function KnowledgeBase() {
       >
         {graphLoading ? (
           <div style={{ height: 500, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-            <Spin tip="加载图谱数据..." />
+            <Spin description="加载图谱数据..." />
           </div>
         ) : graphData && graphData.nodes.length > 0 ? (
           <>

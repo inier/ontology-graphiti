@@ -1,13 +1,12 @@
-import sqlite3
+from odap.infra.storage.sqlite_base import SqliteBaseStorage
 import json
 import os
+import sqlite3
 import uuid
 from datetime import datetime, timezone
 from typing import Dict, Any, List, Optional
 
-DEFAULT_DB_DIR = os.environ.get("DATA_DIR", os.path.join(os.getcwd(), "data"))
-DEFAULT_DB_PATH = os.path.join(DEFAULT_DB_DIR, "knowledge_bases.db")
-
+from odap.infra.security.audit_helper import storage_audit
 
 def _migrate_add_column(cursor, table: str, column: str, column_type: str):
     """安全添加列（兼容 SQLite 不支持 IF NOT EXISTS for ALTER TABLE）"""
@@ -16,19 +15,9 @@ def _migrate_add_column(cursor, table: str, column: str, column_type: str):
     except sqlite3.OperationalError:
         pass  # 列已存在
 
-
-class SQLiteKnowledgeBaseStorage:
+class SQLiteKnowledgeBaseStorage(SqliteBaseStorage):
     def __init__(self, db_path: str = None):
-        if db_path is None:
-            os.makedirs(DEFAULT_DB_DIR, exist_ok=True)
-            db_path = DEFAULT_DB_PATH
-        self.db_path = db_path
-        self._init_db()
-
-    def _get_conn(self):
-        conn = sqlite3.connect(self.db_path)
-        conn.row_factory = sqlite3.Row
-        return conn
+        super().__init__(db_path, db_name="knowledge_bases.db")
 
     def _init_db(self):
         conn = self._get_conn()
@@ -84,6 +73,9 @@ class SQLiteKnowledgeBaseStorage:
         _migrate_add_column(c, "kb_documents", "cleaning_level", "TEXT DEFAULT 'basic'")
         _migrate_add_column(c, "kb_documents", "segments_json", "TEXT")
         _migrate_add_column(c, "kb_documents", "entities_json", "TEXT")
+        _migrate_add_column(c, "kb_documents", "relations_json", "TEXT")
+        _migrate_add_column(c, "kb_documents", "extraction_quality_json", "TEXT")
+        _migrate_add_column(c, "kb_documents", "extraction_method", "TEXT")
         conn.commit()
         conn.close()
 
@@ -94,6 +86,32 @@ class SQLiteKnowledgeBaseStorage:
                 d['keywords'] = json.loads(d['keywords'])
             except (json.JSONDecodeError, TypeError):
                 d['keywords'] = []
+        # Sanitize keywords → always List[str] (matches Pydantic schema KnowledgeDocument.keywords)
+        if isinstance(d.get('keywords'), list):
+            sanitized: List[str] = []
+            for kw in d['keywords']:
+                if isinstance(kw, str):
+                    if kw:
+                        sanitized.append(kw)
+                elif isinstance(kw, dict):
+                    val = (
+                        kw.get('keyword')
+                        or kw.get('content')
+                        or kw.get('name')
+                        or kw.get('value')
+                        or kw.get('label')
+                    )
+                    if isinstance(val, str) and val:
+                        sanitized.append(val)
+                elif kw is None:
+                    continue
+                else:
+                    s = str(kw)
+                    if s:
+                        sanitized.append(s)
+            d['keywords'] = sanitized
+        elif d.get('keywords') is not None:
+            d['keywords'] = []
         if 'graph_built' in d:
             d['graph_built'] = bool(d['graph_built'])
         # 反序列化 JSON 字段
@@ -144,7 +162,29 @@ class SQLiteKnowledgeBaseStorage:
             placeholders = ', '.join(['?'] * len(record))
             conn.execute(f"INSERT INTO knowledge_bases ({cols}) VALUES ({placeholders})", list(record.values()))
             conn.commit()
-            return self.get_knowledge_base(kb_id)
+            result = self.get_knowledge_base(kb_id)
+            storage_audit(
+                "storage_create_kb_success",
+                resource=kb_id,
+                details={
+                    "kb_id": kb_id,
+                    "name": record['name'],
+                    "description_length": len(record['description']),
+                },
+            )
+            return result
+        except Exception as e:
+            storage_audit(
+                "storage_create_kb_failed",
+                result_status="failure",
+                result_message=str(e),
+                resource=kb_id,
+                details={
+                    "kb_id": kb_id,
+                    "name": record.get('name', ''),
+                },
+            )
+            raise
         finally:
             conn.close()
 
@@ -155,12 +195,14 @@ class SQLiteKnowledgeBaseStorage:
         now = datetime.now(timezone.utc).isoformat()
         sets = []
         values = []
+        changed_keys = []
         for key, val in data.items():
             if key in ('kb_id', 'created_at', 'created_by'):
                 continue
             if val is not None:
                 sets.append(f"{key} = ?")
                 values.append(val)
+                changed_keys.append(key)
         sets.append("updated_at = ?")
         values.append(now)
         values.append(kb_id)
@@ -168,7 +210,22 @@ class SQLiteKnowledgeBaseStorage:
         try:
             conn.execute(f"UPDATE knowledge_bases SET {', '.join(sets)} WHERE kb_id = ?", values)
             conn.commit()
-            return self.get_knowledge_base(kb_id)
+            result = self.get_knowledge_base(kb_id)
+            storage_audit(
+                "storage_update_kb_success",
+                resource=kb_id,
+                details={"kb_id": kb_id, "changed_keys": changed_keys},
+            )
+            return result
+        except Exception as e:
+            storage_audit(
+                "storage_update_kb_failed",
+                result_status="failure",
+                result_message=str(e),
+                resource=kb_id,
+                details={"kb_id": kb_id, "changed_keys": changed_keys},
+            )
+            raise
         finally:
             conn.close()
 
@@ -176,13 +233,28 @@ class SQLiteKnowledgeBaseStorage:
         existing = self.get_knowledge_base(kb_id)
         if not existing:
             return False
+        doc_count = existing.get('knowledge_count', 0)
         conn = self._get_conn()
         try:
             conn.execute("DELETE FROM kb_documents WHERE kb_id = ?", (kb_id,))
             conn.execute("DELETE FROM kb_categories WHERE kb_id = ?", (kb_id,))
             conn.execute("DELETE FROM knowledge_bases WHERE kb_id = ?", (kb_id,))
             conn.commit()
+            storage_audit(
+                "storage_delete_kb_success",
+                resource=kb_id,
+                details={"kb_id": kb_id, "doc_count": doc_count},
+            )
             return True
+        except Exception as e:
+            storage_audit(
+                "storage_delete_kb_failed",
+                result_status="failure",
+                result_message=str(e),
+                resource=kb_id,
+                details={"kb_id": kb_id},
+            )
+            raise
         finally:
             conn.close()
 
@@ -213,7 +285,29 @@ class SQLiteKnowledgeBaseStorage:
             conn.execute(f"INSERT INTO kb_categories ({cols}) VALUES ({placeholders})", list(record.values()))
             conn.execute("UPDATE knowledge_bases SET category_count = category_count + 1, updated_at = ? WHERE kb_id = ?", (now, kb_id))
             conn.commit()
+            storage_audit(
+                "storage_create_category_success",
+                resource=category_id,
+                details={
+                    "kb_id": kb_id,
+                    "category_id": category_id,
+                    "name": record['name'],
+                },
+            )
             return dict(record)
+        except Exception as e:
+            storage_audit(
+                "storage_create_category_failed",
+                result_status="failure",
+                result_message=str(e),
+                resource=category_id,
+                details={
+                    "kb_id": kb_id,
+                    "category_id": category_id,
+                    "name": record.get('name', ''),
+                },
+            )
+            raise
         finally:
             conn.close()
 
@@ -223,11 +317,33 @@ class SQLiteKnowledgeBaseStorage:
             row = conn.execute("SELECT * FROM kb_categories WHERE category_id = ? AND kb_id = ?", (category_id, kb_id)).fetchone()
             if not row:
                 return False
+            cat_name = dict(row).get('name', '')
             now = datetime.now(timezone.utc).isoformat()
             conn.execute("DELETE FROM kb_categories WHERE category_id = ? AND kb_id = ?", (category_id, kb_id))
             conn.execute("UPDATE knowledge_bases SET category_count = category_count - 1, updated_at = ? WHERE kb_id = ?", (now, kb_id))
             conn.commit()
+            storage_audit(
+                "storage_delete_category_success",
+                resource=category_id,
+                details={
+                    "kb_id": kb_id,
+                    "category_id": category_id,
+                    "name": cat_name,
+                },
+            )
             return True
+        except Exception as e:
+            storage_audit(
+                "storage_delete_category_failed",
+                result_status="failure",
+                result_message=str(e),
+                resource=category_id,
+                details={
+                    "kb_id": kb_id,
+                    "category_id": category_id,
+                },
+            )
+            raise
         finally:
             conn.close()
 
@@ -246,6 +362,7 @@ class SQLiteKnowledgeBaseStorage:
     def create_document(self, kb_id: str, data: Dict[str, Any]) -> Dict[str, Any]:
         now = datetime.now(timezone.utc).isoformat()
         doc_id = f"doc_{uuid.uuid4().hex[:12]}"
+        content = data.get('content') or ''
         record = {
             'doc_id': doc_id,
             'kb_id': kb_id,
@@ -255,8 +372,8 @@ class SQLiteKnowledgeBaseStorage:
             'file_type': data.get('file_type'),
             'file_size': data.get('file_size'),
             'file_url': data.get('file_url'),
-            'content': data.get('content'),
-            'raw_content': data.get('raw_content') or data.get('content'),
+            'content': content,
+            'raw_content': data.get('raw_content') or content,
             'cleaned_content': data.get('cleaned_content'),
             'cleaning_status': data.get('cleaning_status', 'pending'),
             'cleaning_level': data.get('cleaning_level', 'basic'),
@@ -276,7 +393,32 @@ class SQLiteKnowledgeBaseStorage:
             conn.execute(f"INSERT INTO kb_documents ({cols}) VALUES ({placeholders})", list(record.values()))
             conn.execute("UPDATE knowledge_bases SET knowledge_count = knowledge_count + 1, updated_at = ? WHERE kb_id = ?", (now, kb_id))
             conn.commit()
-            return self._row_to_dict(conn.execute("SELECT * FROM kb_documents WHERE doc_id = ?", (doc_id,)).fetchone())
+            result = self._row_to_dict(conn.execute("SELECT * FROM kb_documents WHERE doc_id = ?", (doc_id,)).fetchone())
+            storage_audit(
+                "storage_create_document_success",
+                resource=doc_id,
+                details={
+                    "kb_id": kb_id,
+                    "doc_id": doc_id,
+                    "title": record['title'],
+                    "file_size": record.get('file_size'),
+                    "content_length": len(content) if isinstance(content, str) else 0,
+                },
+            )
+            return result
+        except Exception as e:
+            storage_audit(
+                "storage_create_document_failed",
+                result_status="failure",
+                result_message=str(e),
+                resource=doc_id,
+                details={
+                    "kb_id": kb_id,
+                    "doc_id": doc_id,
+                    "title": record.get('title', ''),
+                },
+            )
+            raise
         finally:
             conn.close()
 
@@ -287,6 +429,15 @@ class SQLiteKnowledgeBaseStorage:
             if not row:
                 return None
             return self._row_to_dict(row)
+        except Exception as e:
+            storage_audit(
+                "storage_get_document_failed",
+                result_status="failure",
+                result_message=str(e),
+                resource=doc_id,
+                details={"kb_id": kb_id, "doc_id": doc_id},
+            )
+            raise
         finally:
             conn.close()
 
@@ -300,7 +451,21 @@ class SQLiteKnowledgeBaseStorage:
             conn.execute("DELETE FROM kb_documents WHERE doc_id = ? AND kb_id = ?", (doc_id, kb_id))
             conn.execute("UPDATE knowledge_bases SET knowledge_count = knowledge_count - 1, updated_at = ? WHERE kb_id = ?", (now, kb_id))
             conn.commit()
+            storage_audit(
+                "storage_delete_document_success",
+                resource=doc_id,
+                details={"kb_id": kb_id, "doc_id": doc_id},
+            )
             return True
+        except Exception as e:
+            storage_audit(
+                "storage_delete_document_failed",
+                result_status="failure",
+                result_message=str(e),
+                resource=doc_id,
+                details={"kb_id": kb_id, "doc_id": doc_id},
+            )
+            raise
         finally:
             conn.close()
 
@@ -318,7 +483,25 @@ class SQLiteKnowledgeBaseStorage:
                 (1 if graph_built else 0, new_status, now, doc_id)
             )
             conn.commit()
+            storage_audit(
+                "storage_update_document_graph_status_success",
+                resource=doc_id,
+                details={
+                    "doc_id": doc_id,
+                    "graph_built": graph_built,
+                    "entities_count": entities_extracted,
+                },
+            )
             return True
+        except Exception as e:
+            storage_audit(
+                "storage_update_document_graph_status_failed",
+                result_status="failure",
+                result_message=str(e),
+                resource=doc_id,
+                details={"doc_id": doc_id},
+            )
+            raise
         finally:
             conn.close()
 
@@ -329,6 +512,15 @@ class SQLiteKnowledgeBaseStorage:
             if not row:
                 return None
             return self._row_to_dict(row)
+        except Exception as e:
+            storage_audit(
+                "storage_find_document_by_id_failed",
+                result_status="failure",
+                result_message=str(e),
+                resource=doc_id,
+                details={"doc_id": doc_id},
+            )
+            raise
         finally:
             conn.close()
 
@@ -342,7 +534,26 @@ class SQLiteKnowledgeBaseStorage:
                 (status, level, now, doc_id)
             )
             conn.commit()
-            return conn.total_changes > 0
+            result = conn.total_changes > 0
+            storage_audit(
+                "storage_update_document_cleaning_status_success",
+                resource=doc_id,
+                details={
+                    "doc_id": doc_id,
+                    "status": status,
+                    "level": level,
+                },
+            )
+            return result
+        except Exception as e:
+            storage_audit(
+                "storage_update_document_cleaning_status_failed",
+                result_status="failure",
+                result_message=str(e),
+                resource=doc_id,
+                details={"doc_id": doc_id},
+            )
+            raise
         finally:
             conn.close()
 
@@ -384,6 +595,82 @@ class SQLiteKnowledgeBaseStorage:
                 ),
             )
             conn.commit()
+            result = conn.total_changes > 0
+            storage_audit(
+                "storage_update_document_keywords_success",
+                resource=doc_id,
+                details={
+                    "doc_id": doc_id,
+                    "keywords_count": len(keywords) if keywords else 0,
+                    "entities_count": len(entities) if entities else 0,
+                },
+            )
+            return result
+        except Exception as e:
+            storage_audit(
+                "storage_update_document_keywords_failed",
+                result_status="failure",
+                result_message=str(e),
+                resource=doc_id,
+                details={"doc_id": doc_id},
+            )
+            raise
+        finally:
+            conn.close()
+
+    def save_extraction_result(
+        self,
+        doc_id: str,
+        entities: List[Dict[str, Any]],
+        relations: List[Dict[str, Any]],
+        quality: Dict[str, Any] = None,
+        method: str = "",
+    ) -> bool:
+        """保存提取中间结果（entities + relations + quality），供业务审查编辑。"""
+        conn = self._get_conn()
+        try:
+            now = datetime.now(timezone.utc).isoformat()
+            conn.execute(
+                """UPDATE kb_documents SET
+                    entities_json = ?, relations_json = ?,
+                    extraction_quality_json = ?, extraction_method = ?,
+                    updated_at = ?
+                WHERE doc_id = ?""",
+                (
+                    json.dumps(entities, ensure_ascii=False),
+                    json.dumps(relations, ensure_ascii=False),
+                    json.dumps(quality, ensure_ascii=False) if quality else None,
+                    method,
+                    now,
+                    doc_id,
+                ),
+            )
+            conn.commit()
             return conn.total_changes > 0
+        except Exception as e:
+            logger.warning(f"保存提取结果失败: {e}")
+            return False
+        finally:
+            conn.close()
+
+    def get_extraction_result(self, doc_id: str) -> Optional[Dict[str, Any]]:
+        """读取文档的提取中间结果"""
+        conn = self._get_conn()
+        try:
+            row = conn.execute(
+                "SELECT entities_json, relations_json, extraction_quality_json, "
+                "extraction_method FROM kb_documents WHERE doc_id = ?", (doc_id,)
+            ).fetchone()
+            if not row:
+                return None
+            return {
+                "entities": json.loads(row[0]) if row[0] else [],
+                "relations": json.loads(row[1]) if row[1] else [],
+                "quality": json.loads(row[2]) if row[2] else {},
+                "method": row[3] or "",
+            }
+        except Exception as e:
+            logger.warning(f"读取提取结果失败: {e}")
+            return None
         finally:
             conn.close()
