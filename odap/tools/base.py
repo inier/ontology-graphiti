@@ -13,6 +13,8 @@ Skill 基类模块
 import time
 import uuid
 import threading
+
+from odap.infra.observability.instruments import skill_span
 import importlib
 import inspect
 from abc import ABC, abstractmethod
@@ -141,24 +143,25 @@ class BaseSkill(ABC):
         raw_input = raw_input or {}
         start = time.perf_counter()
 
-        try:
-            input_data = self.validate_input(raw_input)
-            result = self.execute(input_data)
-        except Exception as e:
-            logger.warning("silent except caught in {exc} (line 147)", exc_info=True)
-            elapsed = (time.perf_counter() - start) * 1000
-            return SkillOutput(
-                success=False,
-                error=str(e),
-                execution_time_ms=elapsed,
-                skill_name=self.metadata.name,
-                request_id=raw_input.get("request_id", ""),
-            )
+        with skill_span(self.metadata.name):
+            try:
+                input_data = self.validate_input(raw_input)
+                result = self.execute(input_data)
+            except Exception as e:
+                logger.warning("silent except caught in {exc} (line 147)", exc_info=True)
+                elapsed = (time.perf_counter() - start) * 1000
+                return SkillOutput(
+                    success=False,
+                    error=str(e),
+                    execution_time_ms=elapsed,
+                    skill_name=self.metadata.name,
+                    request_id=raw_input.get("request_id", ""),
+                )
 
-        if not result.request_id:
-            result.request_id = raw_input.get("request_id", "")
+            if not result.request_id:
+                result.request_id = raw_input.get("request_id", "")
 
-        return result
+            return result
 
 
 # ============================================================

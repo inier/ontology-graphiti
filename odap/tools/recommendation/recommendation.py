@@ -3,12 +3,8 @@
 实现执行决策和任务规划推荐功能
 """
 
-import sys
-import os
 import random
 import logging
-
-sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 from odap.tools import register_skill
 from odap.infra.graph import GraphManager
@@ -420,20 +416,17 @@ register_skill(
     handler=recommend_engage_targets,
     category="recommendation")
 
-
 register_skill(
     name="recommend_task_planning",
     description="推荐任务规划",
     handler=recommend_task_planning,
     category="recommendation")
 
-
 register_skill(
     name="recommend_resource_deployment",
     description="推荐资源部署",
     handler=recommend_resource_deployment,
     category="recommendation")
-
 
 register_skill(
     name="check_execution_risk",

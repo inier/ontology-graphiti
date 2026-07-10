@@ -3,13 +3,9 @@
 实现领域态势计算和预测功能
 """
 
-import sys
-import os
 import math
 import logging
 from datetime import datetime
-
-sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 from odap.tools import register_skill
 from odap.infra.graph import GraphManager
@@ -367,20 +363,17 @@ register_skill(
     handler=calculate_distance,
     category="computation")
 
-
 register_skill(
     name="predict_outcome",
     description="预测交锋结果",
     handler=predict_outcome,
     category="computation")
 
-
 register_skill(
     name="analyze_threat_level",
     description="分析威胁等级",
     handler=analyze_threat_level,
     category="computation")
-
 
 register_skill(
     name="calculate_impact_assessment",

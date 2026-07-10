@@ -3,11 +3,7 @@
 实现领域态势可视化和报告生成功能
 """
 
-import sys
-import os
 from datetime import datetime
-
-sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 from odap.tools import register_skill
 from odap.infra.graph import GraphManager
@@ -238,20 +234,17 @@ register_skill(
     handler=generate_map_overlay,
     category="visualization")
 
-
 register_skill(
     name="summarize_mission",
     description="生成任务摘要",
     handler=summarize_mission,
     category="visualization")
 
-
 register_skill(
     name="generate_domain_report",
     description="生成领域态势报告",
     handler=generate_domain_report,
     category="visualization")
-
 
 register_skill(
     name="generate_situation_awareness",

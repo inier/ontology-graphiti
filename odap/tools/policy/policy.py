@@ -1,9 +1,6 @@
-import sys
 import os
 import json
 import datetime
-
-sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 from odap.tools import register_skill
 from odap.infra.opa import OPAManager
@@ -15,7 +12,6 @@ _policy_dir = "core/policies"
 
 if not os.path.exists(_policy_dir):
     os.makedirs(_policy_dir)
-
 
 def simulate_policy_execution(user_role, action, target_type=None):
     result = {
@@ -76,7 +72,6 @@ def simulate_policy_execution(user_role, action, target_type=None):
 
     return result
 
-
 def get_policy_version():
     version = opa_manager.get_policy_version()
 
@@ -85,7 +80,6 @@ def get_policy_version():
         "version": version,
         "message": f"当前策略版本: {version}"
     }
-
 
 def rollback_policy():
     old_version = opa_manager.get_policy_version()
@@ -97,7 +91,6 @@ def rollback_policy():
         "new_version": new_version,
         "message": f"策略已从 {old_version} 回退到 {new_version}"
     }
-
 
 def export_policy(policy_name, version=None, description=""):
     if not version:
@@ -123,7 +116,6 @@ def export_policy(policy_name, version=None, description=""):
         "message": f"策略 '{policy_name}' 导出成功"
     }
 
-
 def import_policy(policy_file):
     if not os.path.exists(policy_file):
         return {
@@ -143,7 +135,6 @@ def import_policy(policy_file):
             "status": "error",
             "message": f"策略导入失败: {policy_file}"
         }
-
 
 def list_policy_versions():
     policies = []
@@ -182,7 +173,6 @@ def list_policy_versions():
         "policies": policies
     }
 
-
 def rollback_policy_version(policy_name, version):
     import_file = os.path.join(_policy_dir, f"policy_{policy_name}_{version}.json")
 
@@ -205,7 +195,6 @@ def rollback_policy_version(policy_name, version):
             "message": f"策略回滚失败: {policy_name}@{version}"
         }
 
-
 def check_permission(user_role, action, resource_type):
     allowed = opa_manager.check_permission(
         user_role,
@@ -222,14 +211,12 @@ def check_permission(user_role, action, resource_type):
         "message": "允许执行" if allowed else "拒绝执行"
     }
 
-
 def get_policy_history():
     return {
         "status": "success",
         "total": len(_policy_history),
         "history": _policy_history
     }
-
 
 def clear_policy_history():
     _policy_history.clear()
@@ -239,13 +226,11 @@ def clear_policy_history():
         "message": "策略执行历史已清除"
     }
 
-
 register_skill(
     name="simulate_policy_execution",
     description="模拟策略执行",
     handler=simulate_policy_execution,
     category="policy")
-
 
 register_skill(
     name="get_policy_version",
@@ -253,13 +238,11 @@ register_skill(
     handler=get_policy_version,
     category="policy")
 
-
 register_skill(
     name="rollback_policy",
     description="回退策略版本",
     handler=rollback_policy,
     category="policy")
-
 
 register_skill(
     name="export_policy",
@@ -267,13 +250,11 @@ register_skill(
     handler=export_policy,
     category="policy")
 
-
 register_skill(
     name="import_policy",
     description="导入策略",
     handler=import_policy,
     category="policy")
-
 
 register_skill(
     name="list_policy_versions",
@@ -281,13 +262,11 @@ register_skill(
     handler=list_policy_versions,
     category="policy")
 
-
 register_skill(
     name="rollback_policy_version",
     description="回滚策略版本",
     handler=rollback_policy_version,
     category="policy")
-
 
 register_skill(
     name="check_permission",
@@ -295,13 +274,11 @@ register_skill(
     handler=check_permission,
     category="policy")
 
-
 register_skill(
     name="get_policy_history",
     description="获取策略执行历史",
     handler=get_policy_history,
     category="policy")
-
 
 register_skill(
     name="clear_policy_history",

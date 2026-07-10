@@ -10,11 +10,7 @@ Category: intelligence
 - register_skill() 保留向后兼容
 """
 
-import sys
-import os
-
 # 确保当前目录在Python路径中
-sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 from typing import Optional, List
 from pydantic import Field
@@ -32,7 +28,6 @@ from odap.infra.graph import GraphManager
 # 初始化图谱管理器
 manager = GraphManager()
 
-
 # ============================================================
 # SensorSearchSkill（新方式：BaseSkill）
 # ============================================================
@@ -40,7 +35,6 @@ manager = GraphManager()
 class SensorSearchInput(SkillInput):
     """传感器搜索输入"""
     area: Optional[str] = Field(default=None, description="搜索区域（如 'B'、'A'）")
-
 
 class SensorSearchSkill(BaseSkill):
     """
@@ -76,7 +70,6 @@ class SensorSearchSkill(BaseSkill):
             skill_name=self.metadata.name,
             request_id=input_data.request_id,
         )
-
 
 # ============================================================
 # AnalyzeDomainSkill（新方式：BaseSkill）
@@ -149,14 +142,12 @@ class AnalyzeDomainSkill(BaseSkill):
             request_id=input_data.request_id,
         )
 
-
 # ============================================================
 # 创建 BaseSkill 实例
 # ============================================================
 
 _sensor_skill = SensorSearchSkill()
 _domain_skill = AnalyzeDomainSkill()
-
 
 # ============================================================
 # 旧式裸函数（向后兼容，委托给 BaseSkill 实现）
@@ -177,7 +168,6 @@ def search_sensor(area=None):
         return result.data.get("sensors", [])
     return []
 
-
 def analyze_domain():
     """
     分析领域态势（旧式接口）
@@ -189,7 +179,6 @@ def analyze_domain():
     if result.success:
         return result.data
     return {}
-
 
 # ============================================================
 # 先注册旧式（SKILL_CATALOG），再注册新式（SkillRegistry）覆盖

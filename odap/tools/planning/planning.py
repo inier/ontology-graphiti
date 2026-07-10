@@ -3,12 +3,8 @@
 实现任务规划和执行流程管理
 """
 
-import sys
-import os
 import logging
 from datetime import datetime
-
-sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 from odap.tools import register_skill
 from odap.infra.graph import GraphManager
@@ -354,20 +350,17 @@ register_skill(
     handler=create_plan,
     category="planning")
 
-
 register_skill(
     name="execute_workflow",
     description="执行工作流",
     handler=execute_workflow,
     category="planning")
 
-
 register_skill(
     name="validate_plan",
     description="验证计划可行性",
     handler=validate_plan,
     category="planning")
-
 
 register_skill(
     name="estimate_resources",

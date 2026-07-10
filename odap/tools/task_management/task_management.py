@@ -3,11 +3,7 @@
 实现基于图谱的任务预留和管理功能
 """
 
-import sys
-import os
 from datetime import datetime
-
-sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 from odap.tools import register_skill
 from odap.infra.graph import GraphManager
@@ -153,13 +149,11 @@ register_skill(
     handler=reserve_task,
     category="task_management")
 
-
 register_skill(
     name="get_reserved_tasks",
     description="获取所有预留任务",
     handler=get_reserved_tasks,
     category="task_management")
-
 
 register_skill(
     name="clear_reserved_tasks",
@@ -167,20 +161,17 @@ register_skill(
     handler=clear_reserved_tasks,
     category="task_management")
 
-
 register_skill(
     name="get_task_by_id",
     description="根据ID获取任务",
     handler=get_task_by_id,
     category="task_management")
 
-
 register_skill(
     name="cancel_task",
     description="取消任务",
     handler=cancel_task,
     category="task_management")
-
 
 register_skill(
     name="query_tasks_by_status",

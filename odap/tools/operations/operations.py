@@ -6,11 +6,7 @@ Category: operations
 Danger Level: high (交锋/协调操作需要 OPA 权限校验)
 """
 
-import sys
-import os
-
 # 确保当前目录在Python路径中
-sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 from odap.tools import register_skill
 from odap.infra.graph import GraphManager

@@ -8,18 +8,13 @@
 5. 时序知识图谱支持（graphiti特性）
 """
 
-import sys
-import os
 import matplotlib.pyplot as plt
 import networkx as nx
 import plotly.graph_objects as go
 import plotly.io as pio
 from collections import defaultdict
 
-sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
-
 from odap.infra.graph import GraphManager
-
 
 import logging
 

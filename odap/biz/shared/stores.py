@@ -5,12 +5,31 @@
 
 import os
 import json
+import copy
 import uuid
 import logging
 from datetime import datetime, timezone
 from typing import Any, Dict, List, Optional
 
 logger = logging.getLogger("simulator_web")
+
+
+def _scenario_audit(action: str, *, result_status: str = "success",
+                    result_message: str = "", resource: str = None,
+                    details: Dict[str, Any] = None) -> None:
+    """Scenario 存储操作审计（actor=system），失败不阻断业务"""
+    try:
+        from odap.infra.security.audit_helper import storage_audit
+        storage_audit(
+            action=action,
+            result_status=result_status,
+            result_message=result_message,
+            resource=resource,
+            details=details or {},
+            service="simulation_sandbox",
+        )
+    except Exception as e:
+        logger.warning(f"Audit write failed for action={action}: {e}")
 
 SCENARIOS_DIR = os.path.join(
     os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))),
@@ -98,9 +117,25 @@ class ScenarioStore:
             "entity_count": 0,
         }
 
-        self._db.save_scenario(scenario)
-        self._ensure_initial_version(ontology_id, name)
-        return scenario_id
+        try:
+            self._db.save_scenario(scenario)
+            self._ensure_initial_version(ontology_id, name)
+            _scenario_audit(
+                "scenario_create",
+                result_status="success",
+                resource=scenario_id,
+                details={"scenario_id": scenario_id, "ontology_id": ontology_id},
+            )
+            return scenario_id
+        except Exception as e:
+            _scenario_audit(
+                "scenario_create",
+                result_status="failure",
+                resource=scenario_id,
+                result_message=str(e),
+                details={"scenario_id": scenario_id, "ontology_id": ontology_id},
+            )
+            raise
 
     def _ensure_initial_version(self, ontology_id: str, scenario_name: str = "") -> None:
         """确保本体有初始版本"""
@@ -145,14 +180,118 @@ class ScenarioStore:
 
     def update_scenario(self, scenario_id: str, updates: Dict[str, Any]) -> Optional[Dict[str, Any]]:
         """更新场景"""
-        success = self._db.update_scenario(scenario_id, updates)
-        if success:
-            return self._db.get_scenario(scenario_id)
-        return None
+        # 只保留统计量类更新字段，用于审计 details（不记录完整明文内容）
+        audit_updates = {k: v for k, v in updates.items()
+                         if k in ("doc_count", "event_count", "entity_count",
+                                  "synced_entities", "synced_events", "last_synced")}
+        try:
+            success = self._db.update_scenario(scenario_id, updates)
+            if success:
+                result = self._db.get_scenario(scenario_id)
+                _scenario_audit(
+                    "scenario_update",
+                    result_status="success",
+                    resource=scenario_id,
+                    details={
+                        "scenario_id": scenario_id,
+                        "updated_fields_count": len(updates),
+                        **({"doc_count": result.get("doc_count")} if result and "doc_count" in result else {}),
+                        **({"entity_count": result.get("entity_count")} if result and "entity_count" in result else {}),
+                        **({"event_count": result.get("event_count")} if result and "event_count" in result else {}),
+                    },
+                )
+                return result
+            _scenario_audit(
+                "scenario_update",
+                result_status="failure",
+                resource=scenario_id,
+                result_message="Scenario not found or no-op update",
+                details={"scenario_id": scenario_id},
+            )
+            return None
+        except Exception as e:
+            _scenario_audit(
+                "scenario_update",
+                result_status="failure",
+                resource=scenario_id,
+                result_message=str(e),
+                details={"scenario_id": scenario_id, "updated_fields_count": len(updates)},
+            )
+            raise
 
     def delete_scenario(self, scenario_id: str) -> bool:
         """删除场景"""
-        return self._db.delete_scenario(scenario_id)
+        try:
+            result = self._db.delete_scenario(scenario_id)
+            _scenario_audit(
+                "scenario_delete",
+                result_status="success" if result else "failure",
+                resource=scenario_id,
+                result_message="" if result else "Scenario not found",
+                details={"scenario_id": scenario_id},
+            )
+            return result
+        except Exception as e:
+            _scenario_audit(
+                "scenario_delete",
+                result_status="failure",
+                resource=scenario_id,
+                result_message=str(e),
+                details={"scenario_id": scenario_id},
+            )
+            raise
+
+    def clone_scenario(self, source_scenario_id: str, new_name: str = "") -> Optional[str]:
+        """克隆场景（关键操作，必记审计）"""
+        source = self._db.get_scenario(source_scenario_id)
+        if not source:
+            _scenario_audit(
+                "scenario_clone",
+                result_status="failure",
+                resource=source_scenario_id,
+                result_message="Source scenario not found",
+                details={"source_scenario_id": source_scenario_id},
+            )
+            return None
+        try:
+            new_scenario_id = f"scenario-{datetime.now().strftime('%Y%m%d')}-{uuid.uuid4().hex[:6]}"
+            cloned = copy.deepcopy(source)
+            cloned["scenario_id"] = new_scenario_id
+            cloned["name"] = new_name or f"{source.get('name', 'scenario')} (clone)"
+            cloned["created_at"] = datetime.now(timezone.utc).isoformat()
+            cloned["cloned_from"] = source_scenario_id
+            cloned["ontology_id"] = str(uuid.uuid4())
+
+            self._db.save_scenario(cloned)
+
+            # 复制关联文档
+            docs = self._db.get_scenario_documents(source_scenario_id)
+            for doc in docs:
+                self._db.add_scenario_document(new_scenario_id, copy.deepcopy(doc))
+
+            # 触发审计
+            _scenario_audit(
+                "scenario_clone",
+                result_status="success",
+                resource=new_scenario_id,
+                details={
+                    "source_scenario_id": source_scenario_id,
+                    "new_scenario_id": new_scenario_id,
+                    "doc_count": len(docs),
+                    "entity_count": source.get("entity_count", 0),
+                    "event_count": source.get("event_count", 0),
+                },
+            )
+            return new_scenario_id
+        except Exception as e:
+            _scenario_audit(
+                "scenario_clone",
+                result_status="failure",
+                resource=source_scenario_id,
+                result_message=str(e),
+                details={"source_scenario_id": source_scenario_id},
+            )
+            raise
 
     def get_documents(self, scenario_id: str) -> List[Dict[str, Any]]:
         """获取场景文档"""

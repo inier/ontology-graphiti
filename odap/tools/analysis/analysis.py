@@ -3,11 +3,7 @@
 实现领域态势分析和实体状态分析功能
 """
 
-import sys
-import os
 import logging
-
-sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 from odap.tools import register_skill
 from odap.infra.graph import GraphManager
@@ -377,13 +373,11 @@ register_skill(
     handler=analyze_entity_status,
     category="analysis")
 
-
 register_skill(
     name="analyze_incident_events",
     description="分析领域事件",
     handler=analyze_incident_events,
     category="analysis")
-
 
 register_skill(
     name="analyze_force_comparison",
@@ -391,20 +385,17 @@ register_skill(
     handler=analyze_force_comparison,
     category="analysis")
 
-
 register_skill(
     name="analyze_equipment_capabilities",
     description="分析设备能力",
     handler=analyze_equipment_capabilities,
     category="analysis")
 
-
 register_skill(
     name="analyze_public_asset",
     description="分析公共资产",
     handler=analyze_public_asset,
     category="analysis")
-
 
 register_skill(
     name="get_domain_summary",
