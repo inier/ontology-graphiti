@@ -1,26 +1,14 @@
-import sqlite3
+from odap.infra.storage.sqlite_base import SqliteBaseStorage
 import json
 import os
+import sqlite3
 import uuid
 from datetime import datetime, timezone
 from typing import Dict, Any, List, Optional
 
-DEFAULT_DB_DIR = os.environ.get("DATA_DIR", os.path.join(os.getcwd(), "data"))
-DEFAULT_DB_PATH = os.path.join(DEFAULT_DB_DIR, "event_simulator.db")
-
-
-class SQLiteEventStorage:
+class SQLiteEventStorage(SqliteBaseStorage):
     def __init__(self, db_path: str = None):
-        if db_path is None:
-            os.makedirs(DEFAULT_DB_DIR, exist_ok=True)
-            db_path = DEFAULT_DB_PATH
-        self.db_path = db_path
-        self._init_db()
-
-    def _get_conn(self):
-        conn = sqlite3.connect(self.db_path)
-        conn.row_factory = sqlite3.Row
-        return conn
+        super().__init__(db_path, db_name="event_simulator.db")
 
     def _init_db(self):
         conn = self._get_conn()

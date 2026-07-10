@@ -13,6 +13,8 @@ import sys
 import os
 import json
 import time
+
+from odap.infra.observability.instruments import opa_span
 import hashlib
 import threading
 import logging
@@ -480,19 +482,21 @@ class OPAClient:
             pass  # 审计写入失败不应阻断业务
 
     def check_permission(self, user_role: str, action: str, resource: Dict) -> bool:
-        try:
-            response = httpx.post(
-                f"{self.opa_url}/v1/data/domain/allow",
-                json={"input": {"user_role": user_role, "action": action, "resource": resource}},
-                timeout=self.timeout,
-            )
-            response.raise_for_status()
-            result = response.json().get("result", False)
-            self._audit_decision(user_role, action, resource, result)
-            return result
-        except Exception as e:
-            self._audit_decision(user_role, action, resource, False, str(e))
-            raise RuntimeError(f"OPA 调用失败: {e}")
+        with opa_span("check_permission", package="domain",
+                      attributes={"opa.user_role": user_role, "opa.action": action}):
+            try:
+                response = httpx.post(
+                    f"{self.opa_url}/v1/data/domain/allow",
+                    json={"input": {"user_role": user_role, "action": action, "resource": resource}},
+                    timeout=self.timeout,
+                )
+                response.raise_for_status()
+                result = response.json().get("result", False)
+                self._audit_decision(user_role, action, resource, result)
+                return result
+            except Exception as e:
+                self._audit_decision(user_role, action, resource, False, str(e))
+                raise RuntimeError(f"OPA 调用失败: {e}")
 
     def check_package_permission(self, package: str, opa_input: Dict) -> bool:
         """检查指定 OPA 包的权限策略

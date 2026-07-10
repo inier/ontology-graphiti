@@ -15,6 +15,23 @@ from ..models.hook import Hook, HookType, HookStatus, HookExecution
 
 logger = logging.getLogger(__name__)
 
+# ── 审计工具（懒加载 + 容错，审计失败不打断业务） ──
+def _hook_audit(action: str, *, result_status: str = "success",
+                result_message: str = "", resource: str = None,
+                details: Dict[str, Any] = None) -> None:
+    try:
+        from odap.infra.security.audit_helper import storage_audit
+        storage_audit(
+            action=action,
+            result_status=result_status,
+            result_message=result_message,
+            resource=resource,
+            details=details or {},
+            service="integration_hook",
+        )
+    except Exception as e:
+        logger.warning(f"audit failed: {e}")
+
 # 最大执行时间上限（秒），防止 hook.timeout_ms 设置过大
 MAX_EXECUTION_TIMEOUT_SECONDS = 30
 
@@ -53,6 +70,18 @@ class HookManager(IHookManager):
         )
         self._hooks[hook.id] = hook
         self._executions[hook.id] = []
+        # 审计：注册成功（只记 hook_id/type/language，不记脚本明文）
+        _hook_audit(
+            action="hook_register",
+            result_status="success",
+            resource=hook.id,
+            details={
+                "hook_id": hook.id,
+                "hook_type": hook_type.value if hasattr(hook_type, "value") else str(hook_type),
+                "language": language,
+                "name_len": len(name),
+            },
+        )
         return hook
     
     def get_hook(self, hook_id: str) -> Optional[Hook]:
@@ -63,20 +92,47 @@ class HookManager(IHookManager):
         """更新Hook"""
         hook = self._hooks.get(hook_id)
         if not hook:
+            _hook_audit(
+                action="hook_update",
+                result_status="failure",
+                result_message="Hook not found",
+                resource=hook_id,
+                details={"hook_id": hook_id},
+            )
             raise ValueError("Hook not found")
-        
+
+        changed_keys = [k for k in updates.keys() if hasattr(hook, k)]
         for key, value in updates.items():
             if hasattr(hook, key):
                 setattr(hook, key, value)
-        
+
         hook.updated_at = datetime.now()
+        _hook_audit(
+            action="hook_update",
+            result_status="success",
+            resource=hook_id,
+            details={"hook_id": hook_id, "changed_fields": changed_keys, "field_count": len(changed_keys)},
+        )
         return hook
-    
+
     def delete_hook(self, hook_id: str) -> bool:
         """删除Hook"""
         if hook_id in self._hooks:
             del self._hooks[hook_id]
+            _hook_audit(
+                action="hook_unregister",
+                result_status="success",
+                resource=hook_id,
+                details={"hook_id": hook_id},
+            )
             return True
+        _hook_audit(
+            action="hook_unregister",
+            result_status="failure",
+            result_message="Hook not found",
+            resource=hook_id,
+            details={"hook_id": hook_id},
+        )
         return False
     
     def list_hooks(self, filters: Dict[str, Any] = None, 
@@ -104,9 +160,23 @@ class HookManager(IHookManager):
         """
         hook = self._hooks.get(hook_id)
         if not hook:
+            _hook_audit(
+                action="trigger_hook",
+                result_status="failure",
+                result_message="Hook not found",
+                resource=hook_id,
+                details={"hook_id": hook_id, "sandboxed": False},
+            )
             raise ValueError("Hook not found")
 
         if hook.status == HookStatus.INACTIVE:
+            _hook_audit(
+                action="trigger_hook",
+                result_status="failure",
+                result_message="Hook is inactive",
+                resource=hook_id,
+                details={"hook_id": hook_id, "sandboxed": False},
+            )
             raise ValueError(f"Hook {hook_id} is inactive")
 
         execution = HookExecution(hook_id=hook_id)
@@ -118,6 +188,8 @@ class HookManager(IHookManager):
             timeout_seconds = MAX_EXECUTION_TIMEOUT_SECONDS
 
         start_time = datetime.now()
+        event_name = context.get("event_name", "") if isinstance(context, dict) else ""
+        failure_excerpt = ""
 
         try:
             script = hook.script
@@ -139,21 +211,46 @@ class HookManager(IHookManager):
 
             execution.status = "success"
             execution.result = result
+            if result.get("status") and result.get("status") != "success":
+                failure_excerpt = str(result.get("message", ""))[:200]
+                execution.status = "error"
+                execution.error = failure_excerpt
 
         except subprocess.TimeoutExpired:
             execution.status = "error"
             execution.error = f"Hook execution timed out after {timeout_seconds}s"
+            failure_excerpt = execution.error[:200]
             logger.warning(f"Hook {hook_id} timed out after {timeout_seconds}s")
         except SyntaxError as e:
             execution.status = "error"
             execution.error = f"Syntax error in hook script: {e}"
+            failure_excerpt = execution.error[:200]
             logger.warning(f"Hook {hook_id} syntax error: {e}")
         except Exception as e:
             execution.status = "error"
             execution.error = str(e)
+            failure_excerpt = execution.error[:200]
             logger.warning(f"Hook {hook_id} execution failed: {e}")
 
         execution.duration_ms = int((datetime.now() - start_time).total_seconds() * 1000)
+
+        # 审计：触发执行（只记统计量，不记 context/result 明文）
+        result_status_str = "success" if execution.status == "success" else "failure"
+        _hook_audit(
+            action="trigger_hook",
+            result_status=result_status_str,
+            result_message=failure_excerpt if failure_excerpt else "",
+            resource=hook_id,
+            details={
+                "hook_id": hook_id,
+                "event_name": event_name[:80] if event_name else "",
+                "sandboxed": True,
+                "execution_duration_ms": execution.duration_ms,
+                "result_status": result_status_str,
+                "failure_message": failure_excerpt,
+                "language": hook.language,
+            },
+        )
 
         # 保存执行记录
         if hook_id in self._executions:

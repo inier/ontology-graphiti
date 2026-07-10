@@ -73,6 +73,9 @@ def create_router_registry() -> List[tuple]:
     # ── 知识库 ──
     from odap.biz.data.knowledge_base.api.routes import router as kb_router
 
+    # ── Hyper-Extract 知识提取（ADR-066） ──
+    from odap.biz.data.hyper_extract.api.routes import router as he_router
+
     # ── 本体 - OMS 与查询 ──
     from odap.biz.core.ontology.application.oms.routes import router as oms_router
     from odap.biz.core.ontology.application.query_api.nl_routes import router as ontology_nl_router
@@ -242,6 +245,9 @@ def create_router_registry() -> List[tuple]:
 
         # 知识库
         (kb_router,),
+
+        # Hyper-Extract 知识提取（ADR-066）
+        (he_router,),
 
         # 本体 - OMS 与查询
         (oms_router,),

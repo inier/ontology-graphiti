@@ -8,6 +8,7 @@ from datetime import datetime, timezone
 from typing import Dict, Any, List
 
 from ._utils import _run_async
+from odap.infra.security.audit_helper import graph_audit
 
 
 
@@ -34,11 +35,38 @@ class RelationshipOpsMixin:
         Returns:
             是否成功
         """
-        if self._mode in ("neo4j_driver", "graphiti") and self.neo4j_driver:
-            return self._add_relationship_neo4j(source_id, target_id, relationship, properties)
-        if self._test_mode and self._use_fallback:
-            return self._add_relationship_fallback(source_id, target_id, relationship, properties)
-        return False
+        try:
+            if self._mode in ("neo4j_driver", "graphiti") and self.neo4j_driver:
+                result = self._add_relationship_neo4j(source_id, target_id, relationship, properties)
+            elif self._test_mode and self._use_fallback:
+                result = self._add_relationship_fallback(source_id, target_id, relationship, properties)
+            else:
+                result = False
+            graph_audit(
+                "graph_add_relationship_success" if result else "graph_add_relationship_failed",
+                result_status="success" if result else "failure",
+                resource=f"{source_id}->{target_id}",
+                details={
+                    "source_id": source_id,
+                    "target_id": target_id,
+                    "relationship": relationship,
+                    "property_keys": list(properties.keys()) if isinstance(properties, dict) else [],
+                },
+            )
+            return result
+        except Exception as e:
+            graph_audit(
+                "graph_add_relationship_failed",
+                result_status="failure",
+                result_message=str(e),
+                resource=f"{source_id}->{target_id}",
+                details={
+                    "source_id": source_id,
+                    "target_id": target_id,
+                    "relationship": relationship,
+                },
+            )
+            raise
 
     def _add_relationship_neo4j(self, source_id: str, target_id: str,
                                 relationship: str, properties: Dict = None) -> bool:
@@ -322,6 +350,13 @@ class RelationshipOpsMixin:
             清理结果统计
         """
         if not self.neo4j_driver:
+            graph_audit(
+                "graph_cleanup_self_loops_failed",
+                result_status="failure",
+                result_message="no neo4j driver",
+                resource="graph_engine",
+                details={},
+            )
             return {"status": "no_neo4j", "cleaned": 0}
 
         try:
@@ -346,9 +381,21 @@ class RelationshipOpsMixin:
 
                 cleaned = before - after
                 logger.info(f'自环关系清理完成: 清理了 {cleaned} 条自环关系')
-
-                return {"status": "success", "cleaned": cleaned, "remaining": after}
+                result = {"status": "success", "cleaned": cleaned, "remaining": after}
+                graph_audit(
+                    "graph_cleanup_self_loops_success",
+                    resource="graph_engine",
+                    details={"cleaned": cleaned, "remaining": after},
+                )
+                return result
 
         except Exception as e:
             logger.info(f'自环关系清理失败: {e}')
+            graph_audit(
+                "graph_cleanup_self_loops_failed",
+                result_status="failure",
+                result_message=str(e),
+                resource="graph_engine",
+                details={},
+            )
             return {"status": "error", "error": str(e), "cleaned": 0}

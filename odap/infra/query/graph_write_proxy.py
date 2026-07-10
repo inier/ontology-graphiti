@@ -318,14 +318,6 @@ class GraphWriteProxy:
             return getattr(gm, "_mode", "unknown")
         return "unavailable"
 
-    def get_raw_graph_manager(self):
-        """Removed - use GraphWriteProxy methods instead."""
-        raise NotImplementedError(
-            "get_raw_graph_manager() has been removed. "
-            "Use GraphWriteProxy methods (add_entity, update_entity, etc.) "
-            "or QueryService for read operations."
-        )
-
 
 # ------------------------------------------------------------------
 # 模块级单例获取函数

@@ -18,6 +18,19 @@ import uuid
 
 logger = logging.getLogger(__name__)
 
+def _fc_audit(action: str, *, result_status: str = "success",
+               result_message: str = "", resource: str = None,
+               details: Dict[str, Any] = None) -> None:
+    try:
+        from odap.infra.security.audit_helper import storage_audit
+        storage_audit(action=action, result_status=result_status,
+                      result_message=result_message, resource=resource,
+                      details=details or {}, service="integration_frontend_compat")
+    except Exception as e:
+        logger.warning(f"audit failed: {e}")
+
+
+
 from odap.biz.integration.frontend_compat.api._deps import (
     scenario_store,
 )
@@ -61,12 +74,28 @@ async def export_query_results(data: Dict[str, Any],
         export_format = data.get("format", "json")
 
         if export_format == "json":
+            _fc_audit(
+                action="frontend_compat_query_export",
+                result_status="success",
+                resource="export",
+                details={
+                    "item_count": len(results),
+                    "format": "json",
+                    "results_count": len(results),
+                },
+            )
             return {
                 "success": True,
                 "data": json.dumps(results, ensure_ascii=False, indent=2),
             }
         elif export_format == "csv":
             if not results:
+                _fc_audit(
+                    action="frontend_compat_query_export",
+                    result_status="success",
+                    resource="export",
+                    details={"item_count": 0, "format": "csv"},
+                )
                 return {"success": True, "data": ""}
 
             import csv
@@ -78,15 +107,39 @@ async def export_query_results(data: Dict[str, Any],
                 writer.writeheader()
                 writer.writerows(results)
 
+            _fc_audit(
+                action="frontend_compat_query_export",
+                result_status="success",
+                resource="export",
+                details={
+                    "item_count": len(results),
+                    "format": "csv",
+                    "results_count": len(results),
+                },
+            )
             return {
                 "success": True,
                 "data": output.getvalue(),
             }
         else:
             raise HTTPException(status_code=400, detail="Unsupported export format")
-    except HTTPException:
+    except HTTPException as he:
+        _fc_audit(
+            action="frontend_compat_query_export",
+            result_status="failure",
+            result_message=str(he.detail)[:200],
+            resource="export",
+            details={"format": data.get("format", "json")},
+        )
         raise
     except Exception as e:
+        _fc_audit(
+            action="frontend_compat_query_export",
+            result_status="failure",
+            result_message=str(e)[:200],
+            resource="export",
+            details={},
+        )
         raise HTTPException(status_code=500, detail=str(e))
 
 
@@ -111,15 +164,39 @@ async def generate_graph(data: Dict[str, Any],
             scenario_id,
             config,
         )
+        _fc_audit(
+            action="frontend_compat_graph_generate",
+            result_status="success",
+            resource=task_id,
+            details={
+                "task_id": task_id,
+                "scenario_id": scenario_id or "",
+                "config_keys_count": len(config.keys()),
+            },
+        )
 
         return {
             "task_id": task_id,
             "status": "created",
             "scenario_id": scenario_id,
         }
-    except HTTPException:
+    except HTTPException as he:
+        _fc_audit(
+            action="frontend_compat_graph_generate",
+            result_status="failure",
+            result_message=str(he.detail)[:200],
+            resource="",
+            details={"scenario_id": data.get("scenario_id") or ""},
+        )
         raise
     except Exception as e:
+        _fc_audit(
+            action="frontend_compat_graph_generate",
+            result_status="failure",
+            result_message=str(e)[:200],
+            resource="",
+            details={},
+        )
         raise HTTPException(status_code=500, detail=str(e))
 
 
@@ -170,13 +247,33 @@ async def cancel_graph_task(task_id: str,
             task_result.revoke(terminate=True)
         except ImportError:
             pass
+        _fc_audit(
+            action="frontend_compat_graph_cancel",
+            result_status="success",
+            resource=task_id,
+            details={"task_id": task_id},
+        )
         return {
             "task_id": task_id,
             "status": "cancelled",
         }
-    except HTTPException:
+    except HTTPException as he:
+        _fc_audit(
+            action="frontend_compat_graph_cancel",
+            result_status="failure",
+            result_message=str(he.detail)[:200],
+            resource=task_id,
+            details={"task_id": task_id},
+        )
         raise
     except Exception as e:
+        _fc_audit(
+            action="frontend_compat_graph_cancel",
+            result_status="failure",
+            result_message=str(e)[:200],
+            resource=task_id,
+            details={"task_id": task_id},
+        )
         raise HTTPException(status_code=500, detail=str(e))
 
 

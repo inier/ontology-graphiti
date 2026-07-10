@@ -11,12 +11,43 @@ from __future__ import annotations
 import logging
 from typing import Any, Dict, Optional
 
+from odap.infra.security.audit_helper import storage_audit
+
 from ..impl import ViewQueryEngineImpl, ViewRepositoryImpl
 from ..interfaces import ViewQueryContext, ViewQueryResult
 from ..models import ObjectView, ViewPermission
 from ..storage import SQLiteViewStorage
 
 logger = logging.getLogger(__name__)
+
+_AUDIT_SERVICE = "ontology_design"
+
+
+def _audit_success(action: str, resource: str = None, details: Dict[str, Any] = None) -> None:
+    try:
+        storage_audit(
+            action=action,
+            result_status="success",
+            resource=resource,
+            details=details or {},
+            service=_AUDIT_SERVICE,
+        )
+    except Exception as e:
+        logger.warning(f"audit failed: {e}")
+
+
+def _audit_failure(action: str, msg: str = "", resource: str = None, details: Dict[str, Any] = None) -> None:
+    try:
+        storage_audit(
+            action=action,
+            result_status="failure",
+            result_message=(msg or "")[:200],
+            resource=resource,
+            details=details or {},
+            service=_AUDIT_SERVICE,
+        )
+    except Exception as e:
+        logger.warning(f"audit failed: {e}")
 
 
 class ViewService:
@@ -46,24 +77,43 @@ class ViewService:
 
     def create_view(self, payload: Dict[str, Any]) -> Dict[str, Any]:
         """创建视图"""
+        action = "view.create_view"
         try:
             view = self._build_view(payload, new_id=True)
             self.repository.save(view)
+            _audit_success(action, resource=view.id,
+                            details={"view_id": view.id,
+                                     "base_type_id_len": len(view.base_type_id or ""),
+                                     "role_len": len(view.role or ""),
+                                     "projected_count": len(view.projected_properties or []),
+                                     "enabled": view.enabled})
             return self._view_to_dict(view)
         except ValueError as exc:
+            _audit_failure(action, msg=str(exc),
+                            details={"base_type_id_len": len(payload.get("base_type_id", "") or "")})
             return {"status": "error", "message": str(exc)}
         except Exception as exc:
             logger.exception("create_view failed")
+            _audit_failure(action, msg=str(exc))
             return {"status": "error", "message": f"create_view failed: {exc}"}
 
     def get_view(self, view_id: str) -> Dict[str, Any]:
         """获取视图"""
+        action = "view.get_view"
         try:
             view = self.repository.get(view_id)
             if not view:
+                _audit_failure(action, msg="view not found", resource=view_id,
+                                details={"view_id": view_id})
                 return {"status": "error", "message": f"view not found: {view_id}"}
+            _audit_success(action, resource=view_id,
+                            details={"view_id": view_id,
+                                     "base_type_id_len": len(view.base_type_id or ""),
+                                     "role_len": len(view.role or "")})
             return self._view_to_dict(view)
         except Exception as exc:
+            _audit_failure(action, msg=str(exc), resource=view_id,
+                            details={"view_id": view_id})
             return {"status": "error", "message": f"get_view failed: {exc}"}
 
     def list_views(
@@ -72,6 +122,7 @@ class ViewService:
         role: Optional[str] = None,
     ) -> Dict[str, Any]:
         """列出视图；支持 base_type / role 过滤"""
+        action = "view.list_views"
         try:
             if base_type:
                 views = self.repository.list_by_base_type(base_type)
@@ -79,35 +130,58 @@ class ViewService:
                 views = self.repository.list_by_role(role)
             else:
                 views = self.repository.list()
+            _audit_success(action,
+                            details={"has_base_type_filter": bool(base_type),
+                                     "has_role_filter": bool(role),
+                                     "count": len(views)})
             return {
                 "views": [self._view_to_dict(v) for v in views],
                 "count": len(views),
             }
         except Exception as exc:
+            _audit_failure(action, msg=str(exc))
             return {"status": "error", "message": f"list_views failed: {exc}"}
 
     def update_view(self, view_id: str, payload: Dict[str, Any]) -> Dict[str, Any]:
         """更新视图（部分字段）"""
+        action = "view.update_view"
         try:
             existing = self.repository.get(view_id)
             if not existing:
+                _audit_failure(action, msg="view not found", resource=view_id,
+                                details={"view_id": view_id})
                 return {"status": "error", "message": f"view not found: {view_id}"}
             merged = self._merge_view(existing, payload)
             self.repository.save(merged)
+            _audit_success(action, resource=view_id,
+                            details={"view_id": view_id,
+                                     "projected_count": len(merged.projected_properties or []),
+                                     "enabled": merged.enabled})
             return self._view_to_dict(merged)
         except ValueError as exc:
+            _audit_failure(action, msg=str(exc), resource=view_id,
+                            details={"view_id": view_id})
             return {"status": "error", "message": str(exc)}
         except Exception as exc:
+            _audit_failure(action, msg=str(exc), resource=view_id,
+                            details={"view_id": view_id})
             return {"status": "error", "message": f"update_view failed: {exc}"}
 
     def delete_view(self, view_id: str) -> Dict[str, Any]:
         """删除视图"""
+        action = "view.delete_view"
         try:
             ok = self.repository.delete(view_id)
             if not ok:
+                _audit_failure(action, msg="view not found", resource=view_id,
+                                details={"view_id": view_id})
                 return {"status": "error", "message": f"view not found: {view_id}"}
+            _audit_success(action, resource=view_id,
+                            details={"view_id": view_id, "deleted": True})
             return {"view_id": view_id, "deleted": True}
         except Exception as exc:
+            _audit_failure(action, msg=str(exc), resource=view_id,
+                            details={"view_id": view_id})
             return {"status": "error", "message": f"delete_view failed: {exc}"}
 
     # ---------- 查询 ----------
@@ -116,18 +190,30 @@ class ViewService:
         self, view_id: str, context_payload: Dict[str, Any]
     ) -> Dict[str, Any]:
         """执行视图查询"""
+        action = "view.query_view"
         try:
             view = self.repository.get(view_id)
             if not view:
+                _audit_failure(action, msg="view not found", resource=view_id,
+                                details={"view_id": view_id})
                 return {"status": "error", "message": f"view not found: {view_id}"}
             context = self._build_context(context_payload)
             result: ViewQueryResult = self.engine.query(view, context)
+            _audit_success(action, resource=view_id,
+                            details={"view_id": view_id,
+                                     "role_len": len(context_payload.get("role", "") or ""),
+                                     "total_count": int(result.total_count),
+                                     "truncated": bool(result.truncated)})
             return self._result_to_dict(result)
         except Exception as exc:
             from ..impl import AccessDeniedError
 
             if isinstance(exc, AccessDeniedError):
+                _audit_failure(action, msg=f"AccessDenied: {exc}", resource=view_id,
+                                details={"view_id": view_id, "denied": True})
                 return {"status": "error", "message": str(exc)}
+            _audit_failure(action, msg=str(exc), resource=view_id,
+                            details={"view_id": view_id})
             return {"status": "error", "message": f"query_view failed: {exc}"}
 
     # ---------- 权限管理 ----------
@@ -136,40 +222,64 @@ class ViewService:
         self, view_id: str, payload: Dict[str, Any]
     ) -> Dict[str, Any]:
         """为视图添加/更新角色权限"""
+        action = "view.attach_permission"
         try:
             view = self.repository.get(view_id)
             if not view:
+                _audit_failure(action, msg="view not found", resource=view_id,
+                                details={"view_id": view_id})
                 return {"status": "error", "message": f"view not found: {view_id}"}
             perm = self._build_perm(view_id, payload)
             self.repository.save_permission(perm)
+            _audit_success(action, resource=perm.id,
+                            details={"view_id": view_id,
+                                     "role_len": len(perm.role or ""),
+                                     "can_export": perm.can_export,
+                                     "can_share": perm.can_share})
             return self._perm_to_dict(perm)
         except ValueError as exc:
+            _audit_failure(action, msg=str(exc), resource=view_id,
+                            details={"view_id": view_id})
             return {"status": "error", "message": str(exc)}
         except Exception as exc:
+            _audit_failure(action, msg=str(exc), resource=view_id,
+                            details={"view_id": view_id})
             return {"status": "error", "message": f"attach_permission failed: {exc}"}
 
     def detach_permission(self, perm_id: str) -> Dict[str, Any]:
         """删除权限"""
+        action = "view.detach_permission"
         try:
             ok = self.repository.delete_permission(perm_id)
             if not ok:
+                _audit_failure(action, msg="permission not found", resource=perm_id,
+                                details={"perm_id": perm_id})
                 return {
                     "status": "error",
                     "message": f"permission not found: {perm_id}",
                 }
+            _audit_success(action, resource=perm_id,
+                            details={"perm_id": perm_id, "deleted": True})
             return {"perm_id": perm_id, "deleted": True}
         except Exception as exc:
+            _audit_failure(action, msg=str(exc), resource=perm_id,
+                            details={"perm_id": perm_id})
             return {"status": "error", "message": f"detach_permission failed: {exc}"}
 
     def get_permissions(self, view_id: str) -> Dict[str, Any]:
         """列出视图权限"""
+        action = "view.get_permissions"
         try:
             perms = self.repository.get_permissions(view_id)
+            _audit_success(action, resource=view_id,
+                            details={"view_id": view_id, "count": len(perms)})
             return {
                 "permissions": [self._perm_to_dict(p) for p in perms],
                 "count": len(perms),
             }
         except Exception as exc:
+            _audit_failure(action, msg=str(exc), resource=view_id,
+                            details={"view_id": view_id})
             return {"status": "error", "message": f"get_permissions failed: {exc}"}
 
     # ---------- 内部工具 ----------

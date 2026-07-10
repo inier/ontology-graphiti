@@ -6,32 +6,19 @@
 
 import logging
 import os
-import sqlite3
+from odap.infra.storage.sqlite_base import SqliteBaseStorage
 from datetime import datetime, timezone
 from typing import Dict, Any, Optional
 
 logger = logging.getLogger(__name__)
 
-DEFAULT_DB_DIR = os.environ.get("DATA_DIR", os.path.join(os.getcwd(), "data"))
-DEFAULT_DB_PATH = os.path.join(DEFAULT_DB_DIR, "edit_locks.db")
-
 LOCK_TIMEOUT_SECONDS = 30
 
-
-class EditLockService:
+class EditLockService(SqliteBaseStorage):
     """本体编辑锁服务"""
 
     def __init__(self, db_path: str = None):
-        if db_path is None:
-            os.makedirs(DEFAULT_DB_DIR, exist_ok=True)
-            db_path = DEFAULT_DB_PATH
-        self.db_path = db_path
-        self._init_db()
-
-    def _get_conn(self):
-        conn = sqlite3.connect(self.db_path)
-        conn.row_factory = sqlite3.Row
-        return conn
+        super().__init__(db_path, db_name="edit_locks.db")
 
     def _init_db(self):
         conn = self._get_conn()
@@ -263,10 +250,8 @@ class EditLockService:
         finally:
             conn.close()
 
-
 # 模块级单例
 _edit_lock_service: Optional[EditLockService] = None
-
 
 def get_edit_lock_service() -> EditLockService:
     global _edit_lock_service

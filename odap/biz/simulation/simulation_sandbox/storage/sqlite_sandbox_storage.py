@@ -1,7 +1,28 @@
 import os
 import json
 import sqlite3
+import logging
 from typing import List, Dict, Any, Optional
+
+logger = logging.getLogger(__name__)
+
+
+def _sb_storage_audit(action: str, *, result_status: str = "success",
+                      result_message: str = "", resource: str = None,
+                      details: Dict[str, Any] = None) -> None:
+    """Sandbox 存储层审计：失败仅 warning，不阻断业务"""
+    try:
+        from odap.infra.security.audit_helper import storage_audit
+        storage_audit(
+            action=action,
+            result_status=result_status,
+            result_message=result_message,
+            resource=resource,
+            details=details or {},
+            service="simulation_sandbox",
+        )
+    except Exception as e:
+        logger.warning(f"Audit write failed (sandbox storage) action={action}: {e}")
 
 
 class SQLiteSandboxStorage:
@@ -45,6 +66,7 @@ class SQLiteSandboxStorage:
 
     def save_sandbox(self, sandbox: Dict[str, Any]) -> Dict[str, Any]:
         conn = sqlite3.connect(self.db_path)
+        sid = sandbox.get("sandbox_id", "")
         try:
             config = sandbox.get("config", {})
             if isinstance(config, str):
@@ -58,7 +80,7 @@ class SQLiteSandboxStorage:
                  isolation_level, created_at, started_at, completed_at)
                 VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
             """, (
-                sandbox.get("sandbox_id", ""),
+                sid,
                 sandbox.get("name", ""),
                 sandbox.get("description", ""),
                 sandbox.get("status", "created"),
@@ -69,6 +91,25 @@ class SQLiteSandboxStorage:
                 sandbox.get("completed_at"),
             ))
             conn.commit()
+            _sb_storage_audit(
+                "sandbox_storage_save",
+                result_status="success",
+                resource=sid,
+                details={
+                    "sandbox_id": sid,
+                    "status": sandbox.get("status", "created"),
+                    "scenario_id": config.get("scenario_id", "") if isinstance(config, dict) else "",
+                },
+            )
+        except Exception as e:
+            _sb_storage_audit(
+                "sandbox_storage_save",
+                result_status="failure",
+                resource=sid,
+                result_message=str(e),
+                details={"sandbox_id": sid},
+            )
+            raise
         finally:
             conn.close()
         return sandbox
@@ -112,7 +153,24 @@ class SQLiteSandboxStorage:
                 (sandbox_id,)
             )
             conn.commit()
-            return cursor.rowcount > 0
+            deleted = cursor.rowcount > 0
+            _sb_storage_audit(
+                "sandbox_storage_delete",
+                result_status="success" if deleted else "failure",
+                resource=sandbox_id,
+                result_message="" if deleted else "Sandbox not found in storage",
+                details={"sandbox_id": sandbox_id},
+            )
+            return deleted
+        except Exception as e:
+            _sb_storage_audit(
+                "sandbox_storage_delete",
+                result_status="failure",
+                resource=sandbox_id,
+                result_message=str(e),
+                details={"sandbox_id": sandbox_id},
+            )
+            raise
         finally:
             conn.close()
 
@@ -147,6 +205,25 @@ class SQLiteSandboxStorage:
                 created_at,
             ))
             conn.commit()
+            _sb_storage_audit(
+                "sandbox_storage_save_result",
+                result_status="success",
+                resource=sandbox_id,
+                details={
+                    "sandbox_id": sandbox_id,
+                    "metric_changes_count": len(metric_changes),
+                    "recommendations_count": len(recommendations),
+                },
+            )
+        except Exception as e:
+            _sb_storage_audit(
+                "sandbox_storage_save_result",
+                result_status="failure",
+                resource=sandbox_id,
+                result_message=str(e),
+                details={"sandbox_id": sandbox_id},
+            )
+            raise
         finally:
             conn.close()
         return result

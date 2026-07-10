@@ -9,7 +9,10 @@ import re
 from datetime import datetime, timezone
 from typing import List, Dict, Any
 
+from odap.infra.observability.instruments import graphiti_span
+
 from ._utils import _run_async
+from odap.infra.security.audit_helper import graph_audit
 
 
 
@@ -33,11 +36,29 @@ class SearchOpsMixin:
         Returns:
             匹配的实体列表
         """
-        if self._mode in ("neo4j_driver", "graphiti") and self.neo4j_driver:
-            return self._search_neo4j(query, limit)
-        if self._test_mode and self._use_fallback:
-            return self._search_fallback(query, limit)
-        return []
+        try:
+            if self._mode in ("neo4j_driver", "graphiti") and self.neo4j_driver:
+                result = self._search_neo4j(query, limit)
+            elif self._test_mode and self._use_fallback:
+                result = self._search_fallback(query, limit)
+            else:
+                result = []
+            if isinstance(result, list) and result:
+                graph_audit(
+                    "graph_search_success",
+                    resource=query[:100],
+                    details={"query_len": len(query), "limit": limit, "result_count": len(result)},
+                )
+            return result
+        except Exception as e:
+            graph_audit(
+                "graph_search_failed",
+                result_status="failure",
+                result_message=str(e),
+                resource=query[:100],
+                details={"query_len": len(query), "limit": limit},
+            )
+            raise
 
     def _search_neo4j(self, query: str, limit: int = 10) -> List[Dict]:
         """Neo4j Driver 模式：全文搜索"""
@@ -131,7 +152,8 @@ class SearchOpsMixin:
         """Graphiti模式：搜索（返回 EntityEdge 列表）"""
         async def search():
             try:
-                results = await self.graph.search(query=query, num_results=limit)
+                with graphiti_span("search", "graphiti", {"graphiti.query": query, "graphiti.limit": limit}):
+                    results = await self.graph.search(query=query, num_results=limit)
                 return [
                     {
                         "id": r.name or str(r.uuid),
@@ -174,7 +196,25 @@ class SearchOpsMixin:
         if self._use_fallback or not self._connected:
             if self._test_mode:
                 logger.info(f"[DEBUG] 使用回退模式搜索: '{query_text}'")
-                return self._search_fallback(query_text, limit=top_k)
+                result = self._search_fallback(query_text, limit=top_k)
+                graph_audit(
+                    "graph_search_hybrid_success",
+                    resource=query_text[:100],
+                    details={
+                        "query_len": len(query_text),
+                        "top_k": top_k,
+                        "result_count": len(result),
+                        "fallback": True,
+                    },
+                )
+                return result
+            graph_audit(
+                "graph_search_hybrid_failed",
+                result_status="failure",
+                result_message="graph unavailable",
+                resource=query_text[:100],
+                details={"query_len": len(query_text), "top_k": top_k},
+            )
             return self._unavailable_error()
 
         if self.graph and self._connected:
@@ -186,9 +226,7 @@ class SearchOpsMixin:
                     if self.neo4j_driver:
                         try:
                             with self.neo4j_driver.session() as session:
-                                # 根据是否有本体约束选择不同的 Cypher 查询
                                 if ontology_ids or entity_types:
-                                    # 有本体约束时：添加 ontology_id / entity_type 过滤
                                     cypher = (
                                         "MATCH (n) "
                                         "WHERE (n.id CONTAINS $q OR n.name CONTAINS $q) "
@@ -235,10 +273,29 @@ class SearchOpsMixin:
                             combined[r["id"]] = r
 
                     final_results = sorted(combined.values(), key=lambda x: x.get("score", 0), reverse=True)[:top_k]
+                    graph_audit(
+                        "graph_search_hybrid_success",
+                        resource=query_text[:100],
+                        details={
+                            "query_len": len(query_text),
+                            "top_k": top_k,
+                            "result_count": len(final_results),
+                            "vector_count": len(vector_results),
+                            "keyword_count": len(keyword_results),
+                            "has_ontology_filter": bool(ontology_ids or entity_types),
+                        },
+                    )
                     return final_results
 
                 except Exception as e:
                     logger.info(f'Graphiti混合检索失败: {e}')
+                    graph_audit(
+                        "graph_search_hybrid_failed",
+                        result_status="failure",
+                        result_message=str(e),
+                        resource=query_text[:100],
+                        details={"query_len": len(query_text), "top_k": top_k},
+                    )
                     if self.neo4j_driver:
                         return self._search_neo4j_keyword(query_text, limit=top_k)
                     raise RuntimeError("Graphiti检索失败，且没有可用的降级方案")
@@ -246,8 +303,26 @@ class SearchOpsMixin:
             return _run_async(hybrid_search())
 
         if self.neo4j_driver:
-            return self._search_neo4j_keyword(query_text, limit=top_k)
+            result = self._search_neo4j_keyword(query_text, limit=top_k)
+            graph_audit(
+                "graph_search_hybrid_success",
+                resource=query_text[:100],
+                details={
+                    "query_len": len(query_text),
+                    "top_k": top_k,
+                    "result_count": len(result) if isinstance(result, list) else 0,
+                    "neo4j_only": True,
+                },
+            )
+            return result
 
+        graph_audit(
+            "graph_search_hybrid_failed",
+            result_status="failure",
+            result_message="graph unavailable",
+            resource=query_text[:100],
+            details={"query_len": len(query_text), "top_k": top_k},
+        )
         return self._unavailable_error()
 
     # ------------------------------------------------------------------
@@ -379,12 +454,35 @@ class SearchOpsMixin:
         Returns:
             邻居节点列表，每个元素含 id, type, properties, distance, direction
         """
-        depth = max(1, min(depth, 3))
-        if self._mode in ("neo4j_driver", "graphiti") and self.neo4j_driver:
-            return self._get_neighbors_neo4j(entity_id, direction, depth, workspace_id)
-        if self._test_mode and self._use_fallback:
-            return self._get_neighbors_fallback(entity_id, direction, depth)
-        return []
+        try:
+            depth = max(1, min(depth, 3))
+            if self._mode in ("neo4j_driver", "graphiti") and self.neo4j_driver:
+                result = self._get_neighbors_neo4j(entity_id, direction, depth, workspace_id)
+            elif self._test_mode and self._use_fallback:
+                result = self._get_neighbors_fallback(entity_id, direction, depth)
+            else:
+                result = []
+            if isinstance(result, list) and (result or True):
+                graph_audit(
+                    "graph_get_neighbors_success",
+                    resource=entity_id,
+                    details={
+                        "entity_id": entity_id,
+                        "direction": direction,
+                        "depth": depth,
+                        "result_count": len(result) if isinstance(result, list) else 0,
+                    },
+                )
+            return result
+        except Exception as e:
+            graph_audit(
+                "graph_get_neighbors_failed",
+                result_status="failure",
+                result_message=str(e),
+                resource=entity_id,
+                details={"entity_id": entity_id, "direction": direction, "depth": depth},
+            )
+            raise
 
     def _get_neighbors_neo4j(self, entity_id: str, direction: str, depth: int, workspace_id: str = None) -> List[Dict]:
         """Neo4j Driver 模式：获取邻居节点"""
@@ -476,12 +574,37 @@ class SearchOpsMixin:
         Returns:
             子图数据，含 nodes 和 edges
         """
-        max_depth = max(1, min(max_depth, 5))
-        if self._mode in ("neo4j_driver", "graphiti") and self.neo4j_driver:
-            return self._traverse_neo4j(start_id, max_depth, workspace_id)
-        if self._test_mode and self._use_fallback:
-            return self._traverse_fallback(start_id, max_depth)
-        return self._unavailable_error()
+        try:
+            max_depth = max(1, min(max_depth, 5))
+            if self._mode in ("neo4j_driver", "graphiti") and self.neo4j_driver:
+                result = self._traverse_neo4j(start_id, max_depth, workspace_id)
+            elif self._test_mode and self._use_fallback:
+                result = self._traverse_fallback(start_id, max_depth)
+            else:
+                result = self._unavailable_error()
+            nodes = result.get("nodes", []) if isinstance(result, dict) else []
+            edges = result.get("edges", []) if isinstance(result, dict) else []
+            graph_audit(
+                "graph_traverse_success",
+                resource=start_id,
+                details={
+                    "start_id": start_id,
+                    "max_depth": max_depth,
+                    "node_count": len(nodes),
+                    "edge_count": len(edges),
+                    "has_workspace": bool(workspace_id),
+                },
+            )
+            return result
+        except Exception as e:
+            graph_audit(
+                "graph_traverse_failed",
+                result_status="failure",
+                result_message=str(e),
+                resource=start_id,
+                details={"start_id": start_id, "max_depth": max_depth},
+            )
+            raise
 
     def _traverse_neo4j(self, start_id: str, max_depth: int, workspace_id: str = None) -> Dict[str, Any]:
         """Neo4j Driver 模式：图遍历"""

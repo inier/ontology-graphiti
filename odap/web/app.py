@@ -2,7 +2,7 @@
 
 import os
 from contextlib import asynccontextmanager
-from datetime import datetime
+from datetime import datetime, timezone
 from typing import List
 
 from fastapi import FastAPI
@@ -13,6 +13,8 @@ from odap.web.router_registry import register_routers, DEFAULT_ROUTER_REGISTRY
 from odap.infra.security import security_config
 from odap.infra.openharness.engine_adapter import initialize_openharness, get_openharness_integration
 from odap.infra.config_composer import get_config
+from odap.infra.observability.setup import setup_observability, shutdown_observability
+from odap.infra.observability.metrics import setup_metrics, metrics_endpoint
 import logging
 import asyncio
 
@@ -97,7 +99,7 @@ def _initialize_audit_retention() -> None:
         )
 
         # 注册默认保留策略 (ADR-008 默认 + ADR-042 严重级别)
-        now = datetime.now()
+        now = datetime.now(timezone.utc)
         default_policies = [
             # ADR-042: 按严重级别保留
             RetentionPolicy(
@@ -146,31 +148,41 @@ def _initialize_audit_retention() -> None:
 
 
 def _schedule_audit_retention_cleanup(manager) -> None:
-    """调度审计保留定期清理任务（启动时执行一次，之后每日循环）。"""
+    """调度审计保留定期清理任务（启动时执行一次，之后每日循环）。清理是低优先级，任何时候都不能阻塞请求。"""
     async def _cleanup_loop():
-        # 初始清理
+        # 初始清理 - 严格 30s 超时：审计清理绝不能影响主流程
         try:
-            summary = await asyncio.to_thread(manager.archive_expired)
+            summary = await asyncio.wait_for(
+                asyncio.to_thread(manager.archive_expired),
+                timeout=30.0,
+            )
             logger.info(
                 "审计保留初始清理完成: 归档/删除 %d 条, %d 字节, 耗时 %dms",
                 summary.get("archived_count", 0),
                 summary.get("archived_bytes", 0),
                 summary.get("duration_ms", 0),
             )
+        except asyncio.TimeoutError:
+            logger.warning("审计保留初始清理超时(30s)，跳过（不影响启动，留给下一次调度）")
         except Exception as exc:
             logger.warning(f"审计保留初始清理失败: {exc}")
 
         # 每日循环
         while True:
-            await asyncio.sleep(86400)  # 24 小时
+            await asyncio.sleep(86400)
             try:
-                summary = await asyncio.to_thread(manager.archive_expired)
+                summary = await asyncio.wait_for(
+                    asyncio.to_thread(manager.archive_expired),
+                    timeout=60.0,
+                )
                 logger.info(
                     "审计保留每日清理完成: 归档/删除 %d 条, %d 字节, 耗时 %dms",
                     summary.get("archived_count", 0),
                     summary.get("archived_bytes", 0),
                     summary.get("duration_ms", 0),
                 )
+            except asyncio.TimeoutError:
+                logger.warning("审计保留每日清理超时(60s)，提前中止")
             except Exception as exc:
                 logger.warning(f"审计保留每日清理失败: {exc}")
 
@@ -219,7 +231,7 @@ def _seed_default_menus() -> None:
             ("knowledge", "知识检索", "DatabaseOutlined", 1, "CompassOutlined", "/knowledge/navigation", "知识导航"),
             # ── 系统管理 ──
             ("system", "系统管理", "SettingOutlined", 0, "BlockOutlined", "/workspace/manage", "工作空间"),
-            ("system", "系统管理", "SettingOutlined", 1, "FileTextOutlined", "/policy-editor", "策略编辑器"),
+            ("system", "系统管理", "SettingOutlined", 1, "FileTextOutlined", "/policy-editor", "策略管理"),
             ("system", "系统管理", "SettingOutlined", 2, "UserOutlined", "/users", "用户管理"),
             ("system", "系统管理", "SettingOutlined", 3, "TeamOutlined", "/roles", "角色管理"),
             ("system", "系统管理", "SettingOutlined", 4, "AuditOutlined", "/audit", "审计日志"),
@@ -263,10 +275,20 @@ async def lifespan(app: FastAPI):
     _ensure_default_workspace_and_scenario()
     _initialize_audit_retention()
     _seed_default_menus()
+
+    # ADR-064: 初始化可观测性（OTel 追踪 + Prometheus 指标）
+    _obs_ok = setup_observability()
+    _met_ok = setup_metrics()
+    if _obs_ok or _met_ok:
+        logger.info(
+            f"可观测性基线: otel={_obs_ok}, metrics={_met_ok}"
+        )
+
     yield
 
     integration = get_openharness_integration()
     await integration.shutdown()
+    shutdown_observability()
     logger.info("应用关闭中...")
 
 
@@ -290,6 +312,17 @@ app.add_middleware(
 )
 
 register_exception_handler(app)
+
+# ADR-064: OpenTelemetry FastAPI auto-instrument + 自定义追踪中间件
+try:
+    from opentelemetry.instrumentation.fastapi import FastAPIInstrumentor
+    FastAPIInstrumentor.instrument_app(app)
+    logger.info("FastAPI OTel instrumentation 已启用")
+except ImportError:
+    logger.debug("opentelemetry-instrumentation-fastapi 未安装，跳过自动 instrumentation")
+
+from odap.infra.observability.middleware import TraceMiddleware
+app.add_middleware(TraceMiddleware)
 
 from odap.infra.middleware.audit_middleware import AuditMiddleware
 from odap.infra.middleware.performance_middleware import PerformanceMiddleware, GzipMiddleware
@@ -366,3 +399,10 @@ async def health_check():
         "graphiti": graphiti_status,
         "version": "2.0.0"
     }
+
+
+@app.get("/metrics")
+async def metrics():
+    """Prometheus 指标端点 — ADR-064"""
+    from fastapi import Response
+    return Response(content=await metrics_endpoint(), media_type="text/plain; version=0.0.4; charset=utf-8")

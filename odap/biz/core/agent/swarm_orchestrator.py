@@ -13,6 +13,8 @@ import json
 import os
 import uuid
 import time
+
+from odap.infra.observability.instruments import agent_span
 import logging
 from datetime import datetime, timezone
 from typing import Dict, Any, List, Optional, AsyncGenerator, Callable
@@ -212,7 +214,7 @@ class OHSwarmAgent:
         self.config = AgentConfig(
             name=role.capitalize(),
             agent_type=agent_type,
-            model=os.environ.get("OPENAI_MODEL", "gpt-4"),
+            model=get_config("llm.model", "gpt-4"),
             role=role,
             tools=["*"],
             permission_level=role,
@@ -778,95 +780,99 @@ class DomainSwarm(OODAInterface):
 
         max_ooda_loops = self.config.get("ooda", {}).get("max_ooda_loops", 3)
 
-        try:
-            while mission_ctx["ooda_loop_count"] < max_ooda_loops:
-                mission_ctx["ooda_loop_count"] += 1
-                loop_num = mission_ctx["ooda_loop_count"]
-                logger.info(f"[{mission_id}] OODA 循环 #{loop_num}/{max_ooda_loops}")
+        with agent_span("execute_mission", mission_type="ooda",
+                        attributes={"agent.mission_id": mission_id}) as span:
+            try:
+                while mission_ctx["ooda_loop_count"] < max_ooda_loops:
+                    mission_ctx["ooda_loop_count"] += 1
+                    loop_num = mission_ctx["ooda_loop_count"]
+                    logger.info(f"[{mission_id}] OODA 循环 #{loop_num}/{max_ooda_loops}")
+    
+                    # --- OBSERVE ---
+                    observe_result = await self._execute_phase_with_tolerance(
+                        OODAPhase.OBSERVE, mission_ctx, "intelligence",
+                        lambda: self._observe(mission_ctx["mission"], mission_ctx.get("context")),
+                    )
+                    mission_ctx["phase_data"]["observe"] = observe_result
+    
+                    # --- ORIENT ---
+                    orient_result = await self._execute_phase_with_tolerance(
+                        OODAPhase.ORIENT, mission_ctx, "intelligence",
+                        lambda: self._orient(observe_result, mission_ctx.get("context")),
+                    )
+                    mission_ctx["phase_data"]["orient"] = orient_result
+    
+                    # --- DECIDE ---
+                    decide_result = await self._execute_phase_with_tolerance(
+                        OODAPhase.DECIDE, mission_ctx, "director",
+                        lambda: self._decide(orient_result, mission_ctx.get("context")),
+                    )
+                    mission_ctx["phase_data"]["decide"] = decide_result
+    
+                    # --- ACT ---
+                    act_result = await self._execute_phase_with_tolerance(
+                        OODAPhase.ACT, mission_ctx, "operations",
+                        lambda: self._act(decide_result, mission_ctx.get("context")),
+                    )
+                    mission_ctx["phase_data"]["act"] = act_result
+    
+                    # --- EVALUATE ---
+                    evaluate_result = await self._execute_phase_with_tolerance(
+                        OODAPhase.EVALUATE, mission_ctx, "intelligence",
+                        lambda: self._evaluate(act_result, decide_result, mission_ctx),
+                    )
+                    mission_ctx["phase_data"]["evaluate"] = evaluate_result
+    
+                    if self.config.get("ooda", {}).get("write_to_graphiti", True):
+                        await self._write_episodes(mission_ctx)
+    
+                    # 条件性 Re-loop：评估结果要求持续监控时触发新一轮 OODA
+                    requires_monitoring = evaluate_result.get("requires_monitoring", False)
+                    if not requires_monitoring:
+                        logger.info(f"[{mission_id}] 评估完成，无需持续监控，OODA 闭环结束")
+                        break
+                    else:
+                        logger.info(f"[{mission_id}] 评估结果要求持续监控，启动 OODA 循环 #{loop_num + 1}")
+                        # 将评估结果注入下一轮的上下文
+                        mission_ctx["context"] = mission_ctx.get("context") or {}
+                        mission_ctx["context"]["previous_evaluation"] = evaluate_result
+                        mission_ctx["context"]["previous_act_result"] = act_result
 
-                # --- OBSERVE ---
-                observe_result = await self._execute_phase_with_tolerance(
-                    OODAPhase.OBSERVE, mission_ctx, "intelligence",
-                    lambda: self._observe(mission_ctx["mission"], mission_ctx.get("context")),
+                execution_time_ms = (time.perf_counter() - start_time) * 1000
+
+                result = MissionResult(
+                    mission_id=mission_id,
+                    success=True,
+                    phases_completed=mission_ctx["phases_completed"],
+                    final_decision=mission_ctx["phase_data"].get("decide"),
+                    execution_time_ms=round(execution_time_ms, 2),
+                    graphiti_episodes=mission_ctx["graphiti_episodes"],
                 )
-                mission_ctx["phase_data"]["observe"] = observe_result
 
-                # --- ORIENT ---
-                orient_result = await self._execute_phase_with_tolerance(
-                    OODAPhase.ORIENT, mission_ctx, "intelligence",
-                    lambda: self._orient(observe_result, mission_ctx.get("context")),
+                logger.info(f"[{mission_id}] 任务完成，耗时: {execution_time_ms:.2f}ms, OODA 循环: {mission_ctx['ooda_loop_count']} 次")
+
+            except Exception as e:
+                import traceback
+                logger.error(f"[{mission_id}] 任务执行失败: {e}")
+                logger.error(f"[{mission_id}] 详细错误: {traceback.format_exc()}")
+                span.set_attribute("error", True)
+                span.set_attribute("error.message", str(e))
+
+                # 通过 FaultRecoveryManager 处理故障
+                recovery = await self.fault_manager.handle_failure(
+                    agent_id="domain_swarm",
+                    error=e,
                 )
-                mission_ctx["phase_data"]["orient"] = orient_result
+                logger.info(f"[{mission_id}] 故障恢复策略: {recovery.get('action', 'none')}")
 
-                # --- DECIDE ---
-                decide_result = await self._execute_phase_with_tolerance(
-                    OODAPhase.DECIDE, mission_ctx, "director",
-                    lambda: self._decide(orient_result, mission_ctx.get("context")),
+                execution_time_ms = (time.perf_counter() - start_time) * 1000
+                result = MissionResult(
+                    mission_id=mission_id,
+                    success=False,
+                    phases_completed=mission_ctx["phases_completed"],
+                    execution_time_ms=round(execution_time_ms, 2),
+                    error_message=str(e),
                 )
-                mission_ctx["phase_data"]["decide"] = decide_result
-
-                # --- ACT ---
-                act_result = await self._execute_phase_with_tolerance(
-                    OODAPhase.ACT, mission_ctx, "operations",
-                    lambda: self._act(decide_result, mission_ctx.get("context")),
-                )
-                mission_ctx["phase_data"]["act"] = act_result
-
-                # --- EVALUATE ---
-                evaluate_result = await self._execute_phase_with_tolerance(
-                    OODAPhase.EVALUATE, mission_ctx, "intelligence",
-                    lambda: self._evaluate(act_result, decide_result, mission_ctx),
-                )
-                mission_ctx["phase_data"]["evaluate"] = evaluate_result
-
-                if self.config.get("ooda", {}).get("write_to_graphiti", True):
-                    await self._write_episodes(mission_ctx)
-
-                # 条件性 Re-loop：评估结果要求持续监控时触发新一轮 OODA
-                requires_monitoring = evaluate_result.get("requires_monitoring", False)
-                if not requires_monitoring:
-                    logger.info(f"[{mission_id}] 评估完成，无需持续监控，OODA 闭环结束")
-                    break
-                else:
-                    logger.info(f"[{mission_id}] 评估结果要求持续监控，启动 OODA 循环 #{loop_num + 1}")
-                    # 将评估结果注入下一轮的上下文
-                    mission_ctx["context"] = mission_ctx.get("context") or {}
-                    mission_ctx["context"]["previous_evaluation"] = evaluate_result
-                    mission_ctx["context"]["previous_act_result"] = act_result
-
-            execution_time_ms = (time.perf_counter() - start_time) * 1000
-
-            result = MissionResult(
-                mission_id=mission_id,
-                success=True,
-                phases_completed=mission_ctx["phases_completed"],
-                final_decision=mission_ctx["phase_data"].get("decide"),
-                execution_time_ms=round(execution_time_ms, 2),
-                graphiti_episodes=mission_ctx["graphiti_episodes"],
-            )
-
-            logger.info(f"[{mission_id}] 任务完成，耗时: {execution_time_ms:.2f}ms, OODA 循环: {mission_ctx['ooda_loop_count']} 次")
-
-        except Exception as e:
-            import traceback
-            logger.error(f"[{mission_id}] 任务执行失败: {e}")
-            logger.error(f"[{mission_id}] 详细错误: {traceback.format_exc()}")
-
-            # 通过 FaultRecoveryManager 处理故障
-            recovery = await self.fault_manager.handle_failure(
-                agent_id="domain_swarm",
-                error=e,
-            )
-            logger.info(f"[{mission_id}] 故障恢复策略: {recovery.get('action', 'none')}")
-
-            execution_time_ms = (time.perf_counter() - start_time) * 1000
-            result = MissionResult(
-                mission_id=mission_id,
-                success=False,
-                phases_completed=mission_ctx["phases_completed"],
-                execution_time_ms=round(execution_time_ms, 2),
-                error_message=str(e),
-            )
 
         self.mission_history.append(result)
         if mission_id in self.active_missions:

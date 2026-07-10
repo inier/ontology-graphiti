@@ -181,9 +181,9 @@ class ChatService:
             try:
                 from odap.infra.llm.llm_service import ZhipuAIClient
                 import os
-                api_key = os.environ.get("OPENAI_API_KEY", "")
-                base_url = os.environ.get("OPENAI_API_BASE", "https://open.bigmodel.cn/api/paas/v4")
-                model = os.environ.get("OPENAI_MODEL", "glm-4-flash")
+                api_key = get_config("llm.api_key", "")
+                base_url = get_config("llm.api_base", "https://open.bigmodel.cn/api/paas/v4")
+                model = get_config("llm.model", "glm-4-flash")
 
                 if api_key:
                     self._llm = ZhipuAIClient(

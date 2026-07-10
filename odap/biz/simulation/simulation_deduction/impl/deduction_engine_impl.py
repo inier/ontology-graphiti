@@ -15,6 +15,24 @@ from odap.biz.simulation.simulation_deduction.storage import Storage
 logger = logging.getLogger(__name__)
 
 
+def _ded_audit(action: str, *, result_status: str = "success",
+               result_message: str = "", resource: str = None,
+               details: Dict[str, Any] = None) -> None:
+    """Deduction 审计便捷函数：失败仅 warning，不阻断业务"""
+    try:
+        from odap.infra.security.audit_helper import storage_audit
+        storage_audit(
+            action=action,
+            result_status=result_status,
+            result_message=result_message,
+            resource=resource,
+            details=details or {},
+            service="simulation_deduction",
+        )
+    except Exception as e:
+        logger.warning(f"Audit write failed deduction action={action}: {e}")
+
+
 class DeductionEngineImpl(IDeductionEngine):
     def __init__(self, storage=None):
         self._storage = storage or Storage()
@@ -203,6 +221,13 @@ class DeductionEngineImpl(IDeductionEngine):
     async def simulate_chain(self, scenario_id: str, chain_id: str) -> Dict[str, Any]:
         data = self._storage.get_scenario(scenario_id)
         if not data:
+            _ded_audit(
+                "deduction_run",
+                result_status="failure",
+                resource=scenario_id,
+                result_message="Scenario not found",
+                details={"scenario_id": scenario_id, "chain_id": chain_id},
+            )
             return {"status": "error", "message": "Scenario not found"}
 
         chain_data = None
@@ -212,17 +237,37 @@ class DeductionEngineImpl(IDeductionEngine):
                 break
 
         if not chain_data:
+            _ded_audit(
+                "deduction_run",
+                result_status="failure",
+                resource=scenario_id,
+                result_message="Chain not found",
+                details={"scenario_id": scenario_id, "chain_id": chain_id},
+            )
             return {"status": "error", "message": "Chain not found"}
 
         chain_data["status"] = ChainStatus.SIMULATING.value
         data["status"] = DeductionStatus.RUNNING.value
         self._storage.save_scenario(data)
 
+        steps_count = len(chain_data.get("steps", []))
+        _ded_audit(
+            "deduction_run",
+            result_status="success",
+            resource=scenario_id,
+            details={
+                "scenario_id": scenario_id,
+                "deduction_id": chain_id,
+                "steps_count": steps_count,
+            },
+        )
+
         try:
             baseline = data.get("baseline_metrics", {})
             projected = copy.deepcopy(baseline)
             all_impacts = []
             all_violations = []
+            generated_events_count = 0
 
             for step in chain_data.get("steps", []):
                 step_impacts = await self._simulate_step(step, projected, chain_data.get("conditions", []))
@@ -235,6 +280,7 @@ class DeductionEngineImpl(IDeductionEngine):
 
                 violations = self._check_rule_violations(step, chain_data.get("conditions", []), projected)
                 all_violations.extend(violations)
+                generated_events_count += len(violations) + len(step_impacts)
 
             risk_score = self._calculate_risk_score(all_impacts, all_violations)
             risk_level = "low" if risk_score < 30 else "medium" if risk_score < 60 else "high" if risk_score < 80 else "critical"
@@ -270,6 +316,17 @@ class DeductionEngineImpl(IDeductionEngine):
             data["status"] = DeductionStatus.COMPLETED.value
             data["updated_at"] = datetime.now().isoformat()
             self._storage.save_scenario(data)
+            _ded_audit(
+                "deduction_complete",
+                result_status="success",
+                resource=scenario_id,
+                details={
+                    "scenario_id": scenario_id,
+                    "deduction_id": chain_id,
+                    "steps_count": steps_count,
+                    "generated_events_count": generated_events_count,
+                },
+            )
             return result_dict
 
         except Exception as e:
@@ -277,12 +334,41 @@ class DeductionEngineImpl(IDeductionEngine):
             chain_data["status"] = ChainStatus.FAILED.value
             data["status"] = DeductionStatus.FAILED.value
             self._storage.save_scenario(data)
+            _ded_audit(
+                "deduction_complete",
+                result_status="failure",
+                resource=scenario_id,
+                result_message=str(e),
+                details={
+                    "scenario_id": scenario_id,
+                    "deduction_id": chain_id,
+                    "steps_count": steps_count,
+                },
+            )
             return {"status": "error", "message": str(e)}
 
     async def simulate_all_chains(self, scenario_id: str) -> Dict[str, Any]:
         data = self._storage.get_scenario(scenario_id)
         if not data:
+            _ded_audit(
+                "deduction_run_all",
+                result_status="failure",
+                resource=scenario_id,
+                result_message="Scenario not found",
+                details={"scenario_id": scenario_id},
+            )
             return {"status": "error", "message": "Scenario not found"}
+
+        total_chains = len(data.get("chains", []))
+        _ded_audit(
+            "deduction_run_all",
+            result_status="success",
+            resource=scenario_id,
+            details={
+                "scenario_id": scenario_id,
+                "total_chains": total_chains,
+            },
+        )
 
         results = []
         for chain in data.get("chains", []):
@@ -306,6 +392,86 @@ class DeductionEngineImpl(IDeductionEngine):
             "results": results,
             "best_chain_id": best_chain_id,
             "total_chains": len(data.get("chains", [])) if data else 0,
+        }
+
+    def cancel_deduction(self, scenario_id: str, chain_id: Optional[str] = None) -> Dict[str, Any]:
+        """取消推演（关键操作，必记审计）"""
+        data = self._storage.get_scenario(scenario_id)
+        if not data:
+            _ded_audit(
+                "deduction_cancel",
+                result_status="failure",
+                resource=scenario_id,
+                result_message="Scenario not found",
+                details={"scenario_id": scenario_id, "chain_id": chain_id or ""},
+            )
+            return {"status": "error", "message": "Scenario not found"}
+
+        cancelled_count = 0
+        try:
+            if chain_id:
+                for c in data.get("chains", []):
+                    if c.get("chain_id") == chain_id and c.get("status") == ChainStatus.SIMULATING.value:
+                        c["status"] = ChainStatus.CANCELLED.value if hasattr(ChainStatus, 'CANCELLED') else "cancelled"
+                        cancelled_count = 1
+                        break
+            else:
+                for c in data.get("chains", []):
+                    if c.get("status") == ChainStatus.SIMULATING.value:
+                        c["status"] = ChainStatus.CANCELLED.value if hasattr(ChainStatus, 'CANCELLED') else "cancelled"
+                        cancelled_count += 1
+                if cancelled_count > 0:
+                    data["status"] = DeductionStatus.FAILED.value
+            data["updated_at"] = datetime.now().isoformat()
+            self._storage.save_scenario(data)
+            _ded_audit(
+                "deduction_cancel",
+                result_status="success",
+                resource=scenario_id,
+                details={
+                    "scenario_id": scenario_id,
+                    "chain_id": chain_id or "",
+                    "cancelled_chains_count": cancelled_count,
+                },
+            )
+            return {"status": "ok", "scenario_id": scenario_id, "cancelled_count": cancelled_count}
+        except Exception as e:
+            _ded_audit(
+                "deduction_cancel",
+                result_status="failure",
+                resource=scenario_id,
+                result_message=str(e),
+                details={"scenario_id": scenario_id, "chain_id": chain_id or ""},
+            )
+            raise
+
+    def get_deduction_status(self, scenario_id: str, chain_id: Optional[str] = None) -> Dict[str, Any]:
+        """获取推演状态（只读，可不记审计，但返回结构化）"""
+        data = self._storage.get_scenario(scenario_id)
+        if not data:
+            return {"status": "error", "message": "Scenario not found"}
+        if chain_id:
+            for c in data.get("chains", []):
+                if c.get("chain_id") == chain_id:
+                    return {
+                        "scenario_id": scenario_id,
+                        "chain_id": chain_id,
+                        "status": c.get("status", "unknown"),
+                        "steps_count": len(c.get("steps", [])),
+                    }
+            return {"status": "error", "message": "Chain not found"}
+        return {
+            "scenario_id": scenario_id,
+            "status": data.get("status", "unknown"),
+            "total_chains": len(data.get("chains", [])),
+            "chains": [
+                {
+                    "chain_id": c.get("chain_id", ""),
+                    "status": c.get("status", "unknown"),
+                    "steps_count": len(c.get("steps", [])),
+                }
+                for c in data.get("chains", [])
+            ],
         }
 
     async def compare_chains(self, scenario_id: str,

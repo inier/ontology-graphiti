@@ -8,6 +8,7 @@ from datetime import datetime, timezone
 from typing import List, Dict, Any
 
 from ._utils import _run_async
+from odap.infra.security.audit_helper import graph_audit
 
 
 
@@ -21,15 +22,51 @@ class TemporalOpsMixin:
         cache_key = self._cache_key("qt", valid_time=str(valid_time), transaction_time=str(transaction_time), entity_type=entity_type)
         cached = self._cache_get(cache_key)
         if cached is not None:
+            result_count = len(cached) if isinstance(cached, list) else 0
+            graph_audit(
+                "graph_query_temporal_success",
+                resource=str(entity_type)[:100] or "all",
+                details={
+                    "entity_type": str(entity_type),
+                    "result_count": result_count,
+                    "cached": True,
+                    "has_valid_time": bool(valid_time),
+                    "has_transaction_time": bool(transaction_time),
+                },
+            )
             return cached
 
         if self._mode == "unavailable" and not self._test_mode:
+            graph_audit(
+                "graph_query_temporal_failed",
+                result_status="failure",
+                result_message="graph unavailable",
+                resource=str(entity_type)[:100] or "all",
+                details={"entity_type": str(entity_type)},
+            )
             return self._unavailable_error()
 
         if self._use_fallback or not self._connected:
             if self._test_mode:
                 logger.info('警告: 回退模式不支持时态查询，返回所有实体')
-                return self.query_entities(entity_type)
+                result = self.query_entities(entity_type)
+                graph_audit(
+                    "graph_query_temporal_success",
+                    resource=str(entity_type)[:100] or "all",
+                    details={
+                        "entity_type": str(entity_type),
+                        "result_count": len(result) if isinstance(result, list) else 0,
+                        "fallback": True,
+                    },
+                )
+                return result
+            graph_audit(
+                "graph_query_temporal_failed",
+                result_status="failure",
+                result_message="graph unavailable",
+                resource=str(entity_type)[:100] or "all",
+                details={"entity_type": str(entity_type)},
+            )
             return self._unavailable_error()
 
         self._build_temporal_index()
@@ -49,6 +86,15 @@ class TemporalOpsMixin:
                                     continue
                             result.append(entry)
                 self._cache_set(cache_key, result)
+                graph_audit(
+                    "graph_query_temporal_success",
+                    resource=str(entity_type)[:100] or "all",
+                    details={
+                        "entity_type": str(entity_type),
+                        "result_count": len(result),
+                        "index_mode": True,
+                    },
+                )
                 return result
             except Exception as e:
                 logger.info(f'时间索引查询失败，降级到 Graphiti 查询: {e}')
@@ -92,10 +138,25 @@ class TemporalOpsMixin:
                 return result
             except Exception as e:
                 logger.info(f'Graphiti时态查询失败，降级到普通查询: {e}')
+                graph_audit(
+                    "graph_query_temporal_failed",
+                    result_status="failure",
+                    result_message=str(e),
+                    resource=str(entity_type)[:100] or "all",
+                    details={"entity_type": str(entity_type)},
+                )
                 return self.query_entities(entity_type)
 
         result = _run_async(temporal_query())
         self._cache_set(cache_key, result)
+        graph_audit(
+            "graph_query_temporal_success",
+            resource=str(entity_type)[:100] or "all",
+            details={
+                "entity_type": str(entity_type),
+                "result_count": len(result) if isinstance(result, list) else 0,
+            },
+        )
         return result
 
     def query_at_valid_time(self, entity_type=None, valid_time=None) -> List[Dict]:

@@ -10,6 +10,23 @@ from ..models.tool_server import ServerStatus
 
 logger = logging.getLogger(__name__)
 
+# ── 审计工具（懒加载 + 容错，审计失败不打断业务） ──
+def _mcp_audit(action: str, *, result_status: str = "success",
+               result_message: str = "", resource: str = None,
+               details: Dict[str, Any] = None) -> None:
+    try:
+        from odap.infra.security.audit_helper import storage_audit
+        storage_audit(
+            action=action,
+            result_status=result_status,
+            result_message=result_message,
+            resource=resource,
+            details=details or {},
+            service="integration_mcp",
+        )
+    except Exception as e:
+        logger.warning(f"audit failed: {e}")
+
 
 class MCPService:
     # Circuit breaker & retry configuration
@@ -39,6 +56,18 @@ class MCPService:
     def register_server(self, name: str, url: str, description: str = "") -> Dict[str, Any]:
         server = self.server_manager.register_server(name, url, description)
         self.pool_manager.create_pool(server.id)
+        # 审计：MCP 服务注册（不记明文 URL 的敏感部分）
+        _mcp_audit(
+            action="mcp_register_server",
+            result_status="success",
+            resource=server.id,
+            details={
+                "mcp_server_id": server.id,
+                "server_url": url,
+                "name_len": len(name),
+                "status": server.status.value,
+            },
+        )
         return {
             "server_id": server.id,
             "name": server.name,
@@ -48,16 +77,47 @@ class MCPService:
 
     def unregister_server(self, server_id: str) -> Dict[str, Any]:
         success = self.server_manager.unregister_server(server_id)
+        _mcp_audit(
+            action="mcp_unregister_server",
+            result_status="success" if success else "failure",
+            result_message="" if success else f"Server {server_id} not found",
+            resource=server_id,
+            details={"mcp_server_id": server_id},
+        )
         if not success:
             return {"status": "error", "message": f"Server {server_id} not found"}
         return {"status": "success", "server_id": server_id}
 
     def connect_server(self, server_id: str) -> Dict[str, Any]:
         success = self.server_manager.connect_server(server_id)
+        server = self.server_manager.get_server(server_id)
+        _mcp_audit(
+            action="mcp_connect_server",
+            result_status="success" if success else "failure",
+            result_message="" if success else f"Server {server_id} connect failed",
+            resource=server_id,
+            details={
+                "mcp_server_id": server_id,
+                "server_url": server.url if server else "",
+                "status": "connected" if success else "failed",
+            },
+        )
         return {"status": "success" if success else "error"}
 
     def disconnect_server(self, server_id: str) -> Dict[str, Any]:
         success = self.server_manager.disconnect_server(server_id)
+        server = self.server_manager.get_server(server_id)
+        _mcp_audit(
+            action="mcp_disconnect_server",
+            result_status="success" if success else "failure",
+            result_message="" if success else f"Server {server_id} disconnect failed",
+            resource=server_id,
+            details={
+                "mcp_server_id": server_id,
+                "server_url": server.url if server else "",
+                "status": "disconnected" if success else "failed",
+            },
+        )
         return {"status": "success" if success else "error"}
 
     def list_servers(self, status: str = None) -> List[Dict[str, Any]]:
@@ -109,6 +169,12 @@ class MCPService:
         self._v2_circuit_open = False
 
     async def call_tool(self, server_id: str, tool_name: str, arguments: Dict[str, Any] = None) -> Dict[str, Any]:
+        _invoke_start = time.perf_counter()
+        args_count = len(arguments) if arguments else 0
+        result_ok = False
+        failure_msg = ""
+        duration_ms = 0
+
         v2 = self._get_v2_manager()
         if v2 and not self._is_circuit_open():
             try:
@@ -117,6 +183,21 @@ class MCPService:
                     try:
                         result = await v2.execute_tool(server_id, tool_name, arguments or {})
                         self._record_v2_success()
+                        result_ok = True
+                        duration_ms = int((time.perf_counter() - _invoke_start) * 1000)
+                        # 审计：MCP invoke_tool（成功）
+                        _mcp_audit(
+                            action="mcp_invoke_tool",
+                            result_status="success",
+                            resource=server_id,
+                            details={
+                                "mcp_server_id": server_id,
+                                "tool_name": tool_name,
+                                "args_count": args_count,
+                                "duration_ms": duration_ms,
+                                "result_ok": True,
+                            },
+                        )
                         return result
                     except (TimeoutError, ConnectionError) as e:
                         if attempt < self.MAX_RETRIES:
@@ -127,8 +208,10 @@ class MCPService:
                             )
                             await asyncio.sleep(delay)
                             continue
+                        failure_msg = str(e)[:200]
                         raise
-                    except Exception:
+                    except Exception as _e:
+                        failure_msg = str(_e)[:200]
                         # Non-transient error: don't retry, just break out
                         break
 
@@ -137,9 +220,11 @@ class MCPService:
             except (TimeoutError, ConnectionError) as e:
                 # Exhausted retries for transient errors
                 logger.warning("MCPService call_tool v2 failed after %d retries: %s", self.MAX_RETRIES, e)
+                failure_msg = str(e)[:200]
                 self._record_v2_failure()
             except Exception as e:
                 logger.warning(f"MCPService call_tool via v2 failed: {e}")
+                failure_msg = str(e)[:200]
                 self._record_v2_failure()
 
         # v2 manager 不可用时，尝试通过 ToolRegistry 查找并执行
@@ -149,6 +234,23 @@ class MCPService:
             tool_id = registry._resolve_tool_id(tool_name)
             if tool_id:
                 result = registry.execute(tool_name, arguments or {})
+                duration_ms = int((time.perf_counter() - _invoke_start) * 1000)
+                result_ok = result.success
+                # 审计：通过 ToolRegistry 调用的 invoke_tool
+                _mcp_audit(
+                    action="mcp_invoke_tool",
+                    result_status="success" if result_ok else "failure",
+                    result_message="" if result_ok else (result.error or "")[:200],
+                    resource=server_id,
+                    details={
+                        "mcp_server_id": server_id,
+                        "tool_name": tool_name,
+                        "args_count": args_count,
+                        "duration_ms": duration_ms,
+                        "result_ok": result_ok,
+                        "via": "tool_registry",
+                    },
+                )
                 return {
                     "status": "success" if result.success else "error",
                     "server_id": server_id,
@@ -159,9 +261,32 @@ class MCPService:
                 }
         except Exception as e:
             logger.warning(f"MCPService call_tool via ToolRegistry failed: {e}")
+            failure_msg = str(e)[:200]
 
         # ToolRegistry 也无法执行，检查服务器状态并返回明确错误
         server = self.server_manager.get_server(server_id)
+        duration_ms = int((time.perf_counter() - _invoke_start) * 1000)
+        final_msg = ""
+        if not server:
+            final_msg = f"Server {server_id} not found"
+        elif server.status != ServerStatus.CONNECTED:
+            final_msg = f"Server {server_id} not connected"
+        else:
+            final_msg = f"MCP tool '{tool_name}' execution unavailable"
+        # 审计：invoke_tool（失败兜底）
+        _mcp_audit(
+            action="mcp_invoke_tool",
+            result_status="failure",
+            result_message=final_msg[:200] if not failure_msg else failure_msg,
+            resource=server_id,
+            details={
+                "mcp_server_id": server_id,
+                "tool_name": tool_name,
+                "args_count": args_count,
+                "duration_ms": duration_ms,
+                "result_ok": False,
+            },
+        )
         if not server:
             return {"status": "error", "message": f"Server {server_id} not found"}
         if server.status != ServerStatus.CONNECTED:

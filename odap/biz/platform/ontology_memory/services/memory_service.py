@@ -1,9 +1,29 @@
+import logging
 from typing import Dict, Any, List, Optional
 from datetime import datetime
 from ..models import (
     MemoryEntry, MemoryType, MemoryStatus, DecayConfig
 )
 from ..impl.memory_engine import OntologyMemoryEngine
+
+logger = logging.getLogger(__name__)
+
+# ── 审计工具（懒加载 + 容错） ──
+def _om_audit(action: str, *, result_status: str = "success",
+              result_message: str = "", resource: str = None,
+              details: Dict[str, Any] = None) -> None:
+    try:
+        from odap.infra.security.audit_helper import storage_audit
+        storage_audit(
+            action=action,
+            result_status=result_status,
+            result_message=result_message,
+            resource=resource,
+            details=details or {},
+            service="platform_ontology_memory",
+        )
+    except Exception as e:
+        logger.warning(f"audit failed: {e}")
 
 
 class OntologyMemoryService:
@@ -38,6 +58,19 @@ class OntologyMemoryService:
                 metadata=metadata or {}
             )
             result = self.engine.store(entry)
+            _om_audit(
+                action="ontology_memory_store",
+                result_status="success",
+                resource=result.memory_id,
+                details={
+                    "memory_id": result.memory_id,
+                    "memory_type": result.memory_type.value,
+                    "content_len": len(content or ""),
+                    "keywords_count": len(result.keywords or []),
+                    "entities_count": len(result.entities or []),
+                    "item_count": 1,
+                },
+            )
             return {
                 "memory_id": result.memory_id,
                 "memory_type": result.memory_type.value,
@@ -50,6 +83,13 @@ class OntologyMemoryService:
                 "created_at": result.created_at.isoformat()
             }
         except ValueError as e:
+            _om_audit(
+                action="ontology_memory_store",
+                result_status="failure",
+                result_message=str(e)[:200],
+                resource="",
+                details={"memory_type": memory_type},
+            )
             return {"status": "error", "message": str(e)}
 
     def get_memory(self, memory_id: str) -> Dict[str, Any]:
@@ -110,6 +150,13 @@ class OntologyMemoryService:
 
     def delete_memory(self, memory_id: str) -> Dict[str, Any]:
         success = self.engine.storage.delete_memory(memory_id)
+        _om_audit(
+            action="ontology_memory_delete",
+            result_status="success" if success else "failure",
+            result_message="" if success else "Memory not found",
+            resource=memory_id,
+            details={"memory_id": memory_id},
+        )
         return {
             "status": "success" if success else "error",
             "message": "Memory deleted" if success else "Memory not found"

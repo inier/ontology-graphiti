@@ -33,6 +33,24 @@ if TYPE_CHECKING:
 logger = logging.getLogger(__name__)
 
 
+def _dr_audit(action: str, *, result_status: str = "success",
+              result_message: str = "", resource: str = None,
+              details: Dict[str, Any] = None) -> None:
+    """Decision Recommendation 审计便捷函数：失败仅 warning，不阻断业务"""
+    try:
+        from odap.infra.security.audit_helper import storage_audit
+        storage_audit(
+            action=action,
+            result_status=result_status,
+            result_message=result_message,
+            resource=resource,
+            details=details or {},
+            service="decision_recommendation",
+        )
+    except Exception as e:
+        logger.warning(f"Audit write failed (decision_rec) action={action}: {e}")
+
+
 class DecisionRecommendationEngine:
     def __init__(
         self,
@@ -52,6 +70,8 @@ class DecisionRecommendationEngine:
         analysis_result = simulation_results.get("analysis_result", simulation_results)
         available_options = simulation_results.get("available_options", [])
         constraints = simulation_results.get("constraints", {})
+        workspace_id = simulation_results.get("context", {}).get("workspace_id", "default")
+        request_id = simulation_results.get("context", {}).get("request_id", f"req_{__import__('uuid').uuid4().hex[:12]}")
 
         request = RecommendationRequest(
             analysis_result=analysis_result,
@@ -60,7 +80,24 @@ class DecisionRecommendationEngine:
             context=simulation_results.get("context", {}),
         )
 
-        recommendation = await self.generate_recommendation(request)
+        try:
+            recommendation = await self.generate_recommendation(request)
+        except Exception as e:
+            _dr_audit(
+                "recommendation_generate",
+                result_status="failure",
+                resource=request_id,
+                result_message=str(e),
+                details={
+                    "request_id": request_id,
+                    "workspace_id": workspace_id,
+                    "candidate_count": len(available_options),
+                },
+            )
+            raise
+
+        candidate_count = len(recommendation.options)
+        scenarios_considered = max(1, len(recommendation.options))
 
         self._history.append({
             "recommendation_id": recommendation.recommendation_id,
@@ -88,6 +125,18 @@ class DecisionRecommendationEngine:
             except Exception as e:
                 logger.warning(f"Failed to persist recommendation to graph: {e}")
 
+        _dr_audit(
+            "recommendation_generate",
+            result_status="success",
+            resource=recommendation.recommendation_id,
+            details={
+                "request_id": request_id,
+                "workspace_id": workspace_id,
+                "recommendation_id": recommendation.recommendation_id,
+                "candidate_count": candidate_count,
+                "scenarios_considered": scenarios_considered,
+            },
+        )
         return {
             "recommendation_id": recommendation.recommendation_id,
             "type": recommendation.type.value,
@@ -243,40 +292,65 @@ class DecisionRecommendationEngine:
         request: RecommendationRequest,
     ) -> DecisionRecommendation:
         logger.info(f"生成决策推荐: {request.request_id}")
+        candidate_count_before = len(request.available_options) if request.available_options else 0
 
-        options = await self._generate_options(request)
+        try:
+            options = await self._generate_options(request)
 
-        evaluated_options = []
-        for option in options:
-            evaluated = await self._evaluate_option(option, request)
-            evaluated_options.append(evaluated)
+            evaluated_options = []
+            for option in options:
+                evaluated = await self._evaluate_option(option, request)
+                evaluated_options.append(evaluated)
 
-        validated_options = await self._validate_with_policy(evaluated_options, request)
+            validated_options = await self._validate_with_policy(evaluated_options, request)
 
-        ranked_options = self._rank_options(validated_options)
+            ranked_options = self._rank_options(validated_options)
 
-        recommended = ranked_options[0] if ranked_options else None
-        alternatives = ranked_options[1:]
+            recommended = ranked_options[0] if ranked_options else None
+            alternatives = ranked_options[1:]
 
-        summary = self._generate_summary(ranked_options, recommended, request)
+            summary = self._generate_summary(ranked_options, recommended, request)
 
-        recommendation = DecisionRecommendation(
-            request_id=request.request_id,
-            type=self._infer_recommendation_type(request),
-            options=ranked_options,
-            recommended_option=recommended,
-            alternatives=alternatives,
-            decision_summary=summary,
-            confidence=self._calculate_confidence(ranked_options, request),
-        )
+            recommendation = DecisionRecommendation(
+                request_id=request.request_id,
+                type=self._infer_recommendation_type(request),
+                options=ranked_options,
+                recommended_option=recommended,
+                alternatives=alternatives,
+                decision_summary=summary,
+                confidence=self._calculate_confidence(ranked_options, request),
+            )
 
-        logger.info(
-            f"决策推荐生成完成: {recommendation.recommendation_id}, "
-            f"候选方案: {len(ranked_options)}, "
-            f"推荐方案: {recommended.option_id if recommended else 'None'}"
-        )
+            logger.info(
+                f"决策推荐生成完成: {recommendation.recommendation_id}, "
+                f"候选方案: {len(ranked_options)}, "
+                f"推荐方案: {recommended.option_id if recommended else 'None'}"
+            )
 
-        return recommendation
+            _dr_audit(
+                "recommendation_generate_internal",
+                result_status="success",
+                resource=recommendation.recommendation_id,
+                details={
+                    "request_id": request.request_id,
+                    "recommendation_id": recommendation.recommendation_id,
+                    "candidate_count": len(ranked_options),
+                    "scenarios_considered": max(candidate_count_before, len(ranked_options)),
+                },
+            )
+            return recommendation
+        except Exception as e:
+            _dr_audit(
+                "recommendation_generate_internal",
+                result_status="failure",
+                resource=request.request_id,
+                result_message=str(e),
+                details={
+                    "request_id": request.request_id,
+                    "candidate_count": candidate_count_before,
+                },
+            )
+            raise
 
     async def _generate_options(
         self,
@@ -609,6 +683,125 @@ class DecisionRecommendationEngine:
         confidence = option_count_factor + score_factor + evidence_factor
 
         return round(min(1.0, max(0.0, confidence)), 2)
+
+    def adopt_recommendation(
+        self,
+        recommendation_id: str,
+        option_id: str,
+        user_id: str = "anonymous",
+        reason: str = "",
+    ) -> Dict[str, Any]:
+        """用户点击采纳（审计必记，记 recommendation_id, user, reason_len）"""
+        if not recommendation_id:
+            _dr_audit(
+                "recommendation_adopt",
+                result_status="failure",
+                resource="unknown",
+                result_message="Empty recommendation_id",
+                details={"user_id": user_id},
+            )
+            return {"status": "error", "message": "recommendation_id is required"}
+
+        matched = None
+        for rec in self._history:
+            if rec.get("recommendation_id") == recommendation_id:
+                matched = rec
+                break
+
+        if not matched:
+            _dr_audit(
+                "recommendation_adopt",
+                result_status="failure",
+                resource=recommendation_id,
+                result_message="Recommendation not found in history",
+                details={
+                    "recommendation_id": recommendation_id,
+                    "option_id": option_id,
+                    "user_id": user_id,
+                },
+            )
+
+        try:
+            _dr_audit(
+                "recommendation_adopt",
+                result_status="success",
+                resource=recommendation_id,
+                details={
+                    "recommendation_id": recommendation_id,
+                    "option_id": option_id,
+                    "user_id": user_id,
+                    "reason_len": len(reason or ""),
+                    "option_count": matched.get("option_count", 0) if matched else 0,
+                },
+            )
+            return {
+                "status": "ok",
+                "recommendation_id": recommendation_id,
+                "adopted_option_id": option_id,
+                "adopted_at": datetime.now(timezone.utc).isoformat(),
+            }
+        except Exception as e:
+            _dr_audit(
+                "recommendation_adopt",
+                result_status="failure",
+                resource=recommendation_id,
+                result_message=str(e),
+                details={
+                    "recommendation_id": recommendation_id,
+                    "option_id": option_id,
+                    "user_id": user_id,
+                },
+            )
+            raise
+
+    def reject_recommendation(
+        self,
+        recommendation_id: str,
+        reason: str = "",
+        user_id: str = "anonymous",
+    ) -> Dict[str, Any]:
+        """用户拒绝（审计必记，记 reason）"""
+        if not recommendation_id:
+            _dr_audit(
+                "recommendation_reject",
+                result_status="failure",
+                resource="unknown",
+                result_message="Empty recommendation_id",
+                details={"user_id": user_id},
+            )
+            return {"status": "error", "message": "recommendation_id is required"}
+
+        reason_len = len(reason or "")
+        # 只记录 reason 的长度，不记录明文
+        try:
+            _dr_audit(
+                "recommendation_reject",
+                result_status="success",
+                resource=recommendation_id,
+                details={
+                    "recommendation_id": recommendation_id,
+                    "user_id": user_id,
+                    "reason_len": reason_len,
+                },
+            )
+            return {
+                "status": "ok",
+                "recommendation_id": recommendation_id,
+                "rejected_at": datetime.now(timezone.utc).isoformat(),
+            }
+        except Exception as e:
+            _dr_audit(
+                "recommendation_reject",
+                result_status="failure",
+                resource=recommendation_id,
+                result_message=str(e),
+                details={
+                    "recommendation_id": recommendation_id,
+                    "user_id": user_id,
+                    "reason_len": reason_len,
+                },
+            )
+            raise
 
     async def record_feedback(
         self,

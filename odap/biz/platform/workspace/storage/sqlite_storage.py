@@ -2,15 +2,35 @@
 
 import sqlite3
 import json
+import logging
 import os
 from typing import Dict, Any, List, Optional
 from datetime import datetime
 from ..models.workspace import Workspace
 from ..models.import_export import ImportExportRecord
 
+logger = logging.getLogger(__name__)
+
 # 优先使用 DATA_DIR 环境变量，如果没有则使用当前目录下的 data 文件夹
 DEFAULT_WORKSPACE_DB_DIR = os.environ.get("DATA_DIR", os.path.join(os.getcwd(), "data"))
 DEFAULT_WORKSPACE_DB_PATH = os.path.join(DEFAULT_WORKSPACE_DB_DIR, "workspace.db")
+
+# ── 存储层审计工具（懒加载 + 容错） ──
+def _ws_storage_audit(action: str, *, result_status: str = "success",
+                      result_message: str = "", resource: str = None,
+                      details: Dict[str, Any] = None) -> None:
+    try:
+        from odap.infra.security.audit_helper import storage_audit
+        storage_audit(
+            action=action,
+            result_status=result_status,
+            result_message=result_message,
+            resource=resource,
+            details=details or {},
+            service="platform_workspace",
+        )
+    except Exception as e:
+        logger.warning(f"audit failed: {e}")
 
 
 class SQLiteStorage:
@@ -190,6 +210,18 @@ class SQLiteStorage:
             conn.commit()
         finally:
             conn.close()
+
+        _ws_storage_audit(
+            action="workspace_storage_save",
+            result_status="success",
+            resource=workspace.id,
+            details={
+                "ws_id": workspace.id,
+                "status": workspace.status.value if hasattr(workspace.status, "value") else str(workspace.status),
+                "member_count": len(workspace.members or []),
+                "side": "execution_storage",
+            },
+        )
     
     def get_workspace(self, workspace_id: str) -> Optional[Workspace]:
         """获取工作空间"""
@@ -274,6 +306,17 @@ class SQLiteStorage:
             conn.commit()
         finally:
             conn.close()
+
+        _ws_storage_audit(
+            action="workspace_storage_delete",
+            result_status="success",
+            resource=workspace_id,
+            details={
+                "ws_id": workspace_id,
+                "scenario_count": len(scenario_ids) if 'scenario_ids' in locals() else 0,
+                "side": "execution_storage",
+            },
+        )
 
     def _cascade_delete_external_tables(self, cursor, workspace_id: str, scenario_ids: list) -> None:
         """级联删除其他数据库中与工作空间关联的数据"""

@@ -8,6 +8,23 @@ from ..models.tool_server import ToolServer, ServerStatus, ServerCapability
 
 logger = logging.getLogger(__name__)
 
+# ── 审计工具（懒加载 + 容错） ──
+def _mcp_sm_audit(action: str, *, result_status: str = "success",
+                  result_message: str = "", resource: str = None,
+                  details: Dict[str, Any] = None) -> None:
+    try:
+        from odap.infra.security.audit_helper import storage_audit
+        storage_audit(
+            action=action,
+            result_status=result_status,
+            result_message=result_message,
+            resource=resource,
+            details=details or {},
+            service="integration_mcp",
+        )
+    except Exception as e:
+        logger.warning(f"audit failed: {e}")
+
 
 class ToolServerManager(IToolServerManager):
     """Tool Server管理器实现"""
@@ -23,37 +40,94 @@ class ToolServerManager(IToolServerManager):
             description=description
         )
         self._servers[server.id] = server
+        _mcp_sm_audit(
+            action="mcp_register_server",
+            result_status="success",
+            resource=server.id,
+            details={
+                "mcp_server_id": server.id,
+                "server_url": url,
+                "name_len": len(name),
+            },
+        )
         return server
-    
+
     def get_server(self, server_id: str) -> Optional[ToolServer]:
         """获取服务器"""
         return self._servers.get(server_id)
-    
+
     def unregister_server(self, server_id: str) -> bool:
         """取消注册服务器"""
         if server_id in self._servers:
             del self._servers[server_id]
+            _mcp_sm_audit(
+                action="mcp_unregister_server",
+                result_status="success",
+                resource=server_id,
+                details={"mcp_server_id": server_id},
+            )
             return True
+        _mcp_sm_audit(
+            action="mcp_unregister_server",
+            result_status="failure",
+            result_message="Server not found",
+            resource=server_id,
+            details={"mcp_server_id": server_id},
+        )
         return False
-    
+
     def connect_server(self, server_id: str) -> bool:
         """连接服务器"""
         server = self._servers.get(server_id)
         if not server:
+            _mcp_sm_audit(
+                action="mcp_connect_server",
+                result_status="failure",
+                result_message="Server not found",
+                resource=server_id,
+                details={"mcp_server_id": server_id, "status": "failed"},
+            )
             return False
-        
+
         server.status = ServerStatus.CONNECTED
         server.connected_at = datetime.now()
+        _mcp_sm_audit(
+            action="mcp_connect_server",
+            result_status="success",
+            resource=server_id,
+            details={
+                "mcp_server_id": server_id,
+                "server_url": server.url,
+                "status": "connected",
+            },
+        )
         return True
-    
+
     def disconnect_server(self, server_id: str) -> bool:
         """断开服务器连接"""
         server = self._servers.get(server_id)
         if not server:
+            _mcp_sm_audit(
+                action="mcp_disconnect_server",
+                result_status="failure",
+                result_message="Server not found",
+                resource=server_id,
+                details={"mcp_server_id": server_id, "status": "failed"},
+            )
             return False
-        
+
         server.status = ServerStatus.DISCONNECTED
         server.connected_at = None
+        _mcp_sm_audit(
+            action="mcp_disconnect_server",
+            result_status="success",
+            resource=server_id,
+            details={
+                "mcp_server_id": server_id,
+                "server_url": server.url,
+                "status": "disconnected",
+            },
+        )
         return True
     
     def list_servers(self, filters: Dict[str, Any] = None) -> List[ToolServer]:

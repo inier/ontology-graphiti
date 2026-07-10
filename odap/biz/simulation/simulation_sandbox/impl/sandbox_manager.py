@@ -8,6 +8,24 @@ from datetime import datetime, timezone
 logger = logging.getLogger(__name__)
 
 
+def _sb_audit(action: str, *, result_status: str = "success",
+              result_message: str = "", resource: str = None,
+              details: Dict[str, Any] = None) -> None:
+    """Sandbox 审计便捷函数：失败仅 warning，不阻断业务"""
+    try:
+        from odap.infra.security.audit_helper import storage_audit
+        storage_audit(
+            action=action,
+            result_status=result_status,
+            result_message=result_message,
+            resource=resource,
+            details=details or {},
+            service="simulation_sandbox",
+        )
+    except Exception as e:
+        logger.warning(f"Audit write failed sandbox action={action}: {e}")
+
+
 class SandboxStatus(str):
     CREATED = "created"
     RUNNING = "running"
@@ -76,6 +94,8 @@ class SandboxManager:
             "completed_at": None,
             "process_handle": None,
             "isolation_level": "process",
+            "current_step_id": None,
+            "step_history": [],
         }
 
         try:
@@ -87,6 +107,18 @@ class SandboxManager:
         self._sandboxes[sandbox_id] = sandbox
         self._persist_sandbox(sandbox)
         logger.info(f"Created sandbox {sandbox_id} with isolation level {sandbox['isolation_level']}")
+
+        _sb_audit(
+            "sandbox_create",
+            result_status="success",
+            resource=sandbox_id,
+            details={
+                "sandbox_id": sandbox_id,
+                "scenario_id": scenario_id,
+                "workspace_id": workspace_id,
+                "isolation_level": sandbox["isolation_level"],
+            },
+        )
         return {
             "sandbox_id": sandbox_id,
             "status": sandbox["status"],
@@ -117,25 +149,66 @@ class SandboxManager:
                     self._sandboxes[sandbox_id] = stored
                     sandbox = stored
         if not sandbox:
+            _sb_audit(
+                "sandbox_start",
+                result_status="failure",
+                resource=sandbox_id,
+                result_message="Sandbox not found",
+                details={"sandbox_id": sandbox_id, "mode": params.get("mode", "async")},
+            )
             return {"status": "error", "message": f"Sandbox {sandbox_id} not found"}
         if sandbox["status"] not in (SandboxStatus.CREATED, SandboxStatus.COMPLETED, SandboxStatus.FAILED, SandboxStatus.TIMEOUT):
+            _sb_audit(
+                "sandbox_start",
+                result_status="failure",
+                resource=sandbox_id,
+                result_message=f"Invalid state {sandbox['status']}",
+                details={"sandbox_id": sandbox_id, "current_status": sandbox["status"]},
+            )
             return {"status": "error", "message": f"Sandbox {sandbox_id} is in {sandbox['status']} state, cannot run"}
 
         sandbox["status"] = SandboxStatus.RUNNING
         sandbox["started_at"] = datetime.now(timezone.utc).isoformat()
         max_time = sandbox["config"]["max_time_seconds"]
         start_time = time.time()
+        scenario_id = sandbox["config"].get("scenario_id", "")
+        run_mode = params.get("mode", "async")
+
+        _sb_audit(
+            "sandbox_start",
+            result_status="success",
+            resource=sandbox_id,
+            details={
+                "sandbox_id": sandbox_id,
+                "scenario_id": scenario_id,
+                "mode": run_mode,
+            },
+        )
 
         try:
             result = await asyncio.wait_for(
                 self._execute_simulation(sandbox_id, params),
                 timeout=max_time,
             )
+            duration = round(time.time() - start_time, 2)
             sandbox["status"] = SandboxStatus.COMPLETED
             sandbox["completed_at"] = datetime.now(timezone.utc).isoformat()
+            final_entity_count = len(result.get("metric_changes", []))
             self._results[sandbox_id] = result
             self._persist_sandbox(sandbox)
             self._persist_result(sandbox_id, result)
+            _sb_audit(
+                "sandbox_complete",
+                result_status="success",
+                resource=sandbox_id,
+                details={
+                    "sandbox_id": sandbox_id,
+                    "scenario_id": scenario_id,
+                    "duration_seconds": duration,
+                    "final_entity_count": final_entity_count,
+                    "exit_code": 0,
+                },
+            )
             return result
         except asyncio.TimeoutError:
             elapsed = time.time() - start_time
@@ -151,6 +224,18 @@ class SandboxManager:
             self._results[sandbox_id] = partial_result
             self._persist_sandbox(sandbox)
             self._persist_result(sandbox_id, partial_result)
+            _sb_audit(
+                "sandbox_complete",
+                result_status="failure",
+                resource=sandbox_id,
+                result_message="Timeout",
+                details={
+                    "sandbox_id": sandbox_id,
+                    "scenario_id": scenario_id,
+                    "duration_seconds": round(elapsed, 2),
+                    "exit_code": 124,
+                },
+            )
             return partial_result
         except Exception as e:
             sandbox["status"] = SandboxStatus.FAILED
@@ -163,6 +248,18 @@ class SandboxManager:
             self._results[sandbox_id] = error_result
             self._persist_sandbox(sandbox)
             self._persist_result(sandbox_id, error_result)
+            _sb_audit(
+                "sandbox_complete",
+                result_status="failure",
+                resource=sandbox_id,
+                result_message=str(e),
+                details={
+                    "sandbox_id": sandbox_id,
+                    "scenario_id": scenario_id,
+                    "duration_seconds": round(time.time() - start_time, 2),
+                    "exit_code": 1,
+                },
+            )
             return error_result
 
     async def _execute_simulation(self, sandbox_id: str, params: Dict[str, Any]) -> Dict[str, Any]:
@@ -249,8 +346,22 @@ class SandboxManager:
                     sandbox = stored
                     self._sandboxes[sandbox_id] = stored
             if not sandbox:
+                _sb_audit(
+                    "sandbox_destroy",
+                    result_status="failure",
+                    resource=sandbox_id,
+                    result_message="Sandbox not found",
+                    details={"sandbox_id": sandbox_id},
+                )
                 return {"status": "error", "message": f"Sandbox {sandbox_id} not found"}
         if sandbox["status"] == SandboxStatus.RUNNING:
+            _sb_audit(
+                "sandbox_destroy",
+                result_status="failure",
+                resource=sandbox_id,
+                result_message="Sandbox is running",
+                details={"sandbox_id": sandbox_id},
+            )
             return {"status": "error", "message": f"Sandbox {sandbox_id} is running, cannot destroy"}
 
         if sandbox.get("process_handle") and sandbox.get("isolation_level") == "process":
@@ -268,7 +379,236 @@ class SandboxManager:
             except Exception as e:
                 logger.warning(f"Failed to delete sandbox from storage: {e}")
         logger.info(f"Destroyed sandbox {sandbox_id}")
+        _sb_audit(
+            "sandbox_destroy",
+            result_status="success",
+            resource=sandbox_id,
+            details={"sandbox_id": sandbox_id},
+        )
         return {"status": "ok", "sandbox_id": sandbox_id}
+
+    def pause_sandbox(self, sandbox_id: str) -> Dict[str, Any]:
+        """暂停沙盒（审计关键操作）"""
+        sandbox = self._sandboxes.get(sandbox_id)
+        if not sandbox and self._storage:
+            stored = self._storage.get_sandbox(sandbox_id)
+            if stored:
+                self._sandboxes[sandbox_id] = stored
+                sandbox = stored
+        if not sandbox:
+            _sb_audit(
+                "sandbox_pause",
+                result_status="failure",
+                resource=sandbox_id,
+                result_message="Sandbox not found",
+                details={"sandbox_id": sandbox_id},
+            )
+            return {"status": "error", "message": f"Sandbox {sandbox_id} not found"}
+        if sandbox["status"] != SandboxStatus.RUNNING:
+            _sb_audit(
+                "sandbox_pause",
+                result_status="failure",
+                resource=sandbox_id,
+                result_message=f"Cannot pause from state {sandbox['status']}",
+                details={"sandbox_id": sandbox_id, "current_status": sandbox["status"]},
+            )
+            return {"status": "error", "message": f"Sandbox {sandbox_id} not running"}
+
+        sandbox["status"] = "paused"
+        sandbox["paused_at"] = datetime.now(timezone.utc).isoformat()
+        self._persist_sandbox(sandbox)
+        _sb_audit(
+            "sandbox_pause",
+            result_status="success",
+            resource=sandbox_id,
+            details={
+                "sandbox_id": sandbox_id,
+                "scenario_id": sandbox["config"].get("scenario_id", ""),
+            },
+        )
+        return {"status": "ok", "sandbox_id": sandbox_id, "paused_at": sandbox["paused_at"]}
+
+    def resume_sandbox(self, sandbox_id: str) -> Dict[str, Any]:
+        """恢复沙盒（审计关键操作）"""
+        sandbox = self._sandboxes.get(sandbox_id)
+        if not sandbox and self._storage:
+            stored = self._storage.get_sandbox(sandbox_id)
+            if stored:
+                self._sandboxes[sandbox_id] = stored
+                sandbox = stored
+        if not sandbox:
+            _sb_audit(
+                "sandbox_resume",
+                result_status="failure",
+                resource=sandbox_id,
+                result_message="Sandbox not found",
+                details={"sandbox_id": sandbox_id},
+            )
+            return {"status": "error", "message": f"Sandbox {sandbox_id} not found"}
+        if sandbox["status"] != "paused":
+            _sb_audit(
+                "sandbox_resume",
+                result_status="failure",
+                resource=sandbox_id,
+                result_message=f"Cannot resume from state {sandbox['status']}",
+                details={"sandbox_id": sandbox_id, "current_status": sandbox["status"]},
+            )
+            return {"status": "error", "message": f"Sandbox {sandbox_id} not paused"}
+
+        sandbox["status"] = SandboxStatus.RUNNING
+        sandbox["resumed_at"] = datetime.now(timezone.utc).isoformat()
+        self._persist_sandbox(sandbox)
+        _sb_audit(
+            "sandbox_resume",
+            result_status="success",
+            resource=sandbox_id,
+            details={
+                "sandbox_id": sandbox_id,
+                "scenario_id": sandbox["config"].get("scenario_id", ""),
+            },
+        )
+        return {"status": "ok", "sandbox_id": sandbox_id, "resumed_at": sandbox["resumed_at"]}
+
+    def step_sandbox(self, sandbox_id: str, events_processed_count: int = 0) -> Dict[str, Any]:
+        """单步执行沙盒（记 step_id + events_processed_count）"""
+        sandbox = self._sandboxes.get(sandbox_id)
+        if not sandbox and self._storage:
+            stored = self._storage.get_sandbox(sandbox_id)
+            if stored:
+                self._sandboxes[sandbox_id] = stored
+                sandbox = stored
+        if not sandbox:
+            _sb_audit(
+                "sandbox_step",
+                result_status="failure",
+                resource=sandbox_id,
+                result_message="Sandbox not found",
+                details={"sandbox_id": sandbox_id},
+            )
+            return {"status": "error", "message": f"Sandbox {sandbox_id} not found"}
+
+        try:
+            step_id = f"step_{uuid.uuid4().hex[:8]}"
+            sandbox["current_step_id"] = step_id
+            sandbox.setdefault("step_history", []).append(step_id)
+            self._persist_sandbox(sandbox)
+            _sb_audit(
+                "sandbox_step",
+                result_status="success",
+                resource=sandbox_id,
+                details={
+                    "sandbox_id": sandbox_id,
+                    "step_id": step_id,
+                    "events_processed_count": events_processed_count,
+                },
+            )
+            return {
+                "status": "ok",
+                "sandbox_id": sandbox_id,
+                "step_id": step_id,
+                "events_processed_count": events_processed_count,
+            }
+        except Exception as e:
+            _sb_audit(
+                "sandbox_step",
+                result_status="failure",
+                resource=sandbox_id,
+                result_message=str(e),
+                details={"sandbox_id": sandbox_id},
+            )
+            raise
+
+    def rollback_sandbox(self, sandbox_id: str, rollback_to_step_id: str) -> Dict[str, Any]:
+        """破坏性回滚（必记审计，含 rollback_to_step_id、current_step_id）"""
+        sandbox = self._sandboxes.get(sandbox_id)
+        if not sandbox and self._storage:
+            stored = self._storage.get_sandbox(sandbox_id)
+            if stored:
+                self._sandboxes[sandbox_id] = stored
+                sandbox = stored
+        if not sandbox:
+            _sb_audit(
+                "sandbox_rollback",
+                result_status="failure",
+                resource=sandbox_id,
+                result_message="Sandbox not found",
+                details={"sandbox_id": sandbox_id, "rollback_to_step_id": rollback_to_step_id},
+            )
+            return {"status": "error", "message": f"Sandbox {sandbox_id} not found"}
+
+        try:
+            current_step_id = sandbox.get("current_step_id", "")
+            sandbox["current_step_id"] = rollback_to_step_id
+            sandbox["rolled_back_at"] = datetime.now(timezone.utc).isoformat()
+            self._persist_sandbox(sandbox)
+            _sb_audit(
+                "sandbox_rollback",
+                result_status="success",
+                resource=sandbox_id,
+                details={
+                    "sandbox_id": sandbox_id,
+                    "rollback_to_step_id": rollback_to_step_id,
+                    "current_step_id": current_step_id,
+                },
+            )
+            return {
+                "status": "ok",
+                "sandbox_id": sandbox_id,
+                "rollback_to_step_id": rollback_to_step_id,
+                "current_step_id_before": current_step_id,
+            }
+        except Exception as e:
+            _sb_audit(
+                "sandbox_rollback",
+                result_status="failure",
+                resource=sandbox_id,
+                result_message=str(e),
+                details={
+                    "sandbox_id": sandbox_id,
+                    "rollback_to_step_id": rollback_to_step_id,
+                },
+            )
+            raise
+
+    def stop_sandbox(self, sandbox_id: str, exit_code: int = 0,
+                     final_entity_count: int = 0, duration_seconds: float = 0.0) -> Dict[str, Any]:
+        """停止沙盒（含 exit_code、final_entity_count、duration_seconds）"""
+        sandbox = self._sandboxes.get(sandbox_id)
+        if not sandbox and self._storage:
+            stored = self._storage.get_sandbox(sandbox_id)
+            if stored:
+                self._sandboxes[sandbox_id] = stored
+                sandbox = stored
+        if not sandbox:
+            _sb_audit(
+                "sandbox_stop",
+                result_status="failure",
+                resource=sandbox_id,
+                result_message="Sandbox not found",
+                details={"sandbox_id": sandbox_id},
+            )
+            return {"status": "error", "message": f"Sandbox {sandbox_id} not found"}
+
+        sandbox["status"] = "stopped"
+        sandbox["stopped_at"] = datetime.now(timezone.utc).isoformat()
+        self._persist_sandbox(sandbox)
+        _sb_audit(
+            "sandbox_stop",
+            result_status="success",
+            resource=sandbox_id,
+            details={
+                "sandbox_id": sandbox_id,
+                "exit_code": exit_code,
+                "final_entity_count": final_entity_count,
+                "duration_seconds": round(duration_seconds, 2),
+            },
+        )
+        return {
+            "status": "ok",
+            "sandbox_id": sandbox_id,
+            "stopped_at": sandbox["stopped_at"],
+            "exit_code": exit_code,
+        }
 
     def export_results(self, sandbox_id: str, approved_by: str = "") -> Dict[str, Any]:
         sandbox = self._sandboxes.get(sandbox_id)

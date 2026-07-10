@@ -10,6 +10,23 @@ from ..models.isolation import IsolationLevel
 
 logger = logging.getLogger(__name__)
 
+# ── 审计工具（懒加载 + 容错） ──
+def _ws_audit(action: str, *, result_status: str = "success",
+              result_message: str = "", resource: str = None,
+              details: Dict[str, Any] = None) -> None:
+    try:
+        from odap.infra.security.audit_helper import storage_audit
+        storage_audit(
+            action=action,
+            result_status=result_status,
+            result_message=result_message,
+            resource=resource,
+            details=details or {},
+            service="platform_workspace",
+        )
+    except Exception as e:
+        logger.warning(f"audit failed: {e}")
+
 
 class WorkspaceService:
     """工作空间服务"""
@@ -45,6 +62,19 @@ class WorkspaceService:
             workspace_type=workspace_type,
             config=config,
             owner=owner
+        )
+
+        # 审计：创建工作空间（只记统计量，不记明文敏感配置）
+        _ws_audit(
+            action="workspace_create",
+            result_status="success",
+            resource=workspace.id,
+            details={
+                "ws_id": workspace.id,
+                "workspace_type": workspace.type.value,
+                "name_len": len(name),
+                "owner": owner,
+            },
         )
         
         return {
@@ -99,6 +129,16 @@ class WorkspaceService:
         """
         try:
             workspace = self.manager.update_workspace(workspace_id, updates)
+            _ws_audit(
+                action="workspace_update",
+                result_status="success",
+                resource=workspace_id,
+                details={
+                    "ws_id": workspace_id,
+                    "changed_fields": sorted(list(updates.keys())),
+                    "field_count": len(updates),
+                },
+            )
             return {
                 "workspace_id": workspace.id,
                 "name": workspace.name,
@@ -110,6 +150,13 @@ class WorkspaceService:
                 "updated_at": workspace.updated_at.isoformat()
             }
         except ValueError as e:
+            _ws_audit(
+                action="workspace_update",
+                result_status="failure",
+                result_message=str(e)[:200],
+                resource=workspace_id,
+                details={"ws_id": workspace_id},
+            )
             return {"status": "error", "message": str(e)}
     
     def delete_workspace(self, workspace_id: str) -> Dict[str, Any]:
@@ -122,6 +169,13 @@ class WorkspaceService:
             删除结果
         """
         success = self.manager.delete_workspace(workspace_id)
+        _ws_audit(
+            action="workspace_delete",
+            result_status="success" if success else "failure",
+            result_message="" if success else "Workspace not found",
+            resource=workspace_id,
+            details={"ws_id": workspace_id},
+        )
         return {
             "status": "success" if success else "error",
             "message": "Workspace deleted" if success else "Workspace not found"
@@ -197,11 +251,24 @@ class WorkspaceService:
         """
         try:
             workspace = self.manager.activate_workspace(workspace_id)
+            _ws_audit(
+                action="workspace_activate",
+                result_status="success",
+                resource=workspace_id,
+                details={"ws_id": workspace_id, "status": "active"},
+            )
             return {
                 "workspace_id": workspace.id,
                 "status": workspace.status.value
             }
         except ValueError as e:
+            _ws_audit(
+                action="workspace_activate",
+                result_status="failure",
+                result_message=str(e)[:200],
+                resource=workspace_id,
+                details={"ws_id": workspace_id},
+            )
             return {"status": "error", "message": str(e)}
     
     def deactivate_workspace(self, workspace_id: str) -> Dict[str, Any]:
@@ -215,11 +282,24 @@ class WorkspaceService:
         """
         try:
             workspace = self.manager.deactivate_workspace(workspace_id)
+            _ws_audit(
+                action="workspace_deactivate",
+                result_status="success",
+                resource=workspace_id,
+                details={"ws_id": workspace_id, "status": "inactive"},
+            )
             return {
                 "workspace_id": workspace.id,
                 "status": workspace.status.value
             }
         except ValueError as e:
+            _ws_audit(
+                action="workspace_deactivate",
+                result_status="failure",
+                result_message=str(e)[:200],
+                resource=workspace_id,
+                details={"ws_id": workspace_id},
+            )
             return {"status": "error", "message": str(e)}
     
     def add_member(self, workspace_id: str, user_id: str) -> Dict[str, Any]:
@@ -234,11 +314,28 @@ class WorkspaceService:
         """
         try:
             workspace = self.manager.add_member(workspace_id, user_id)
+            _ws_audit(
+                action="workspace_add_member",
+                result_status="success",
+                resource=workspace_id,
+                details={
+                    "ws_id": workspace_id,
+                    "user_id": user_id,
+                    "member_count_after": len(workspace.members or []),
+                },
+            )
             return {
                 "workspace_id": workspace.id,
                 "members": workspace.members
             }
         except ValueError as e:
+            _ws_audit(
+                action="workspace_add_member",
+                result_status="failure",
+                result_message=str(e)[:200],
+                resource=workspace_id,
+                details={"ws_id": workspace_id, "user_id": user_id},
+            )
             return {"status": "error", "message": str(e)}
     
     def remove_member(self, workspace_id: str, user_id: str) -> Dict[str, Any]:
@@ -253,11 +350,28 @@ class WorkspaceService:
         """
         try:
             workspace = self.manager.remove_member(workspace_id, user_id)
+            _ws_audit(
+                action="workspace_remove_member",
+                result_status="success",
+                resource=workspace_id,
+                details={
+                    "ws_id": workspace_id,
+                    "user_id": user_id,
+                    "member_count_after": len(workspace.members or []),
+                },
+            )
             return {
                 "workspace_id": workspace.id,
                 "members": workspace.members
             }
         except ValueError as e:
+            _ws_audit(
+                action="workspace_remove_member",
+                result_status="failure",
+                result_message=str(e)[:200],
+                resource=workspace_id,
+                details={"ws_id": workspace_id, "user_id": user_id},
+            )
             return {"status": "error", "message": str(e)}
     
     def export_workspace(self, workspace_id: str, 
@@ -284,6 +398,16 @@ class WorkspaceService:
             include_data=include_data,
             created_by=created_by
         )
+        _ws_audit(
+            action="workspace_export",
+            result_status="success",
+            resource=workspace_id,
+            details={
+                "ws_id": workspace_id,
+                "include_resources": include_resources,
+                "include_data": include_data,
+            },
+        )
         
         return {
             "record_id": record.id,
@@ -298,15 +422,36 @@ class WorkspaceService:
         try:
             level = IsolationLevel(isolation_level)
         except ValueError:
+            _ws_audit(
+                action="workspace_isolation_update",
+                result_status="failure",
+                result_message=f"Invalid isolation level: {isolation_level}"[:200],
+                resource=workspace_id,
+                details={"ws_id": workspace_id, "requested_isolation": isolation_level},
+            )
             return {"status": "error", "message": f"Invalid isolation level: {isolation_level}. Must be one of: low, standard, high, strict"}
 
         workspace = self.manager.get_workspace(workspace_id)
         if not workspace:
+            _ws_audit(
+                action="workspace_isolation_update",
+                result_status="failure",
+                result_message="Workspace not found",
+                resource=workspace_id,
+                details={"ws_id": workspace_id, "requested_isolation": isolation_level},
+            )
             return {"status": "error", "message": "Workspace not found"}
 
         if level == IsolationLevel.STRICT:
             validation = self._validate_strict_isolation(workspace)
             if not validation.get("valid"):
+                _ws_audit(
+                    action="workspace_isolation_update",
+                    result_status="failure",
+                    result_message=validation.get("reason", "")[:200],
+                    resource=workspace_id,
+                    details={"ws_id": workspace_id, "requested_isolation": isolation_level},
+                )
                 return {"status": "error", "message": f"Cannot set STRICT isolation: {validation.get('reason')}"}
 
         from ..storage import Storage
@@ -325,6 +470,16 @@ class WorkspaceService:
         workspace.config.isolation_level = level.value
         workspace.updated_at = __import__("datetime").datetime.now()
         storage.update_workspace(workspace)
+
+        _ws_audit(
+            action="workspace_isolation_update",
+            result_status="success",
+            resource=workspace_id,
+            details={
+                "ws_id": workspace_id,
+                "isolation_level": level.value,
+            },
+        )
 
         return {
             "workspace_id": workspace_id,
@@ -374,6 +529,16 @@ class WorkspaceService:
             workspace_name=workspace_name,
             overwrite=overwrite,
             created_by=created_by
+        )
+        _ws_audit(
+            action="workspace_import",
+            result_status="success",
+            resource=record.workspace_id or "",
+            details={
+                "ws_id": record.workspace_id or "",
+                "overwrite": overwrite,
+                "path_len": len(import_path) if import_path else 0,
+            },
         )
         
         return {

@@ -34,6 +34,23 @@ from odap.biz.integration.hook_system.models.sandbox import SandboxConfig, Sandb
 import logging
 
 logger = logging.getLogger(__name__)
+
+# ── 审计工具（懒加载 + 容错，审计失败不打断业务） ──
+def _ehook_audit(action: str, *, result_status: str = "success",
+                 result_message: str = "", resource: str = None,
+                 details: Dict[str, Any] = None) -> None:
+    try:
+        from odap.infra.security.audit_helper import storage_audit
+        storage_audit(
+            action=action,
+            result_status=result_status,
+            result_message=result_message,
+            resource=resource,
+            details=details or {},
+            service="integration_hook",
+        )
+    except Exception as e:
+        logger.warning(f"audit failed: {e}")
 class CodeSignatureStatus(str, Enum):
     VALID = "valid"
     INVALID = "invalid"
@@ -593,6 +610,21 @@ class EnhancedHookManager:
             self._hooks[hook.id] = hook
             self._executions[hook.id] = []
 
+            # 审计：注册成功（只记统计量，不记脚本明文）
+            _ehook_audit(
+                action="hook_register",
+                result_status="success",
+                resource=hook.id,
+                details={
+                    "hook_id": hook.id,
+                    "hook_type": hook_type.value if hasattr(hook_type, "value") else str(hook_type),
+                    "language": language,
+                    "name_len": len(name),
+                    "require_signature": require_signature,
+                    "sandbox_id": sandbox_id or self._default_sandbox_id,
+                },
+            )
+
             return hook
 
     def update_hook(self, hook_id: str, updates: Dict[str, Any]) -> Hook:
@@ -600,8 +632,16 @@ class EnhancedHookManager:
         with self._lock:
             hook = self._hooks.get(hook_id)
             if not hook:
+                _ehook_audit(
+                    action="hook_update",
+                    result_status="failure",
+                    result_message="Hook not found",
+                    resource=hook_id,
+                    details={"hook_id": hook_id},
+                )
                 raise ValueError(f"Hook not found: {hook_id}")
 
+            changed_fields = list(updates.keys())
             if "script" in updates:
                 new_script = updates["script"]
                 if hook.config.get("require_signature"):
@@ -614,6 +654,13 @@ class EnhancedHookManager:
                     setattr(hook, key, value)
 
             hook.updated_at = datetime.now()
+
+            _ehook_audit(
+                action="hook_update",
+                result_status="success",
+                resource=hook_id,
+                details={"hook_id": hook_id, "changed_fields": changed_fields, "field_count": len(changed_fields)},
+            )
             return hook
 
     def sign_hook(self, hook_id: str) -> CodeSignature:
@@ -645,17 +692,44 @@ class EnhancedHookManager:
         """
         hook = self._hooks.get(hook_id)
         if not hook:
+            _ehook_audit(
+                action="trigger_hook",
+                result_status="failure",
+                result_message="Hook not found",
+                resource=hook_id,
+                details={"hook_id": hook_id, "sandboxed": True},
+            )
             raise ValueError(f"Hook not found: {hook_id}")
 
         execution = HookExecution(hook_id=hook_id)
         start_time = time.perf_counter()
+        context = context or {}
+        event_name = context.get("event_name", "") if isinstance(context, dict) else ""
+        failure_excerpt = ""
 
         if hook.config.get("require_signature", False):
             status = self.verify_hook_signature(hook_id)
             if status != CodeSignatureStatus.VALID:
                 execution.status = "error"
                 execution.error = f"Signature verification failed: {status.value}"
+                failure_excerpt = execution.error[:200]
                 execution.duration_ms = int((time.perf_counter() - start_time) * 1000)
+                _ehook_audit(
+                    action="trigger_hook",
+                    result_status="failure",
+                    result_message=failure_excerpt,
+                    resource=hook_id,
+                    details={
+                        "hook_id": hook_id,
+                        "event_name": event_name[:80] if event_name else "",
+                        "sandboxed": True,
+                        "execution_duration_ms": execution.duration_ms,
+                        "result_status": "failure",
+                        "failure_message": failure_excerpt,
+                        "language": hook.language,
+                        "sig_status": status.value,
+                    },
+                )
                 return execution
 
         sandbox_id = hook.config.get("sandbox_id", self._default_sandbox_id)
@@ -672,10 +746,12 @@ class EnhancedHookManager:
                 execution.result = {"output": result.output}
             else:
                 execution.error = result.error
+                failure_excerpt = str(result.error or "")[:200]
 
         except Exception as e:
             execution.status = "error"
             execution.error = str(e)
+            failure_excerpt = execution.error[:200]
             execution.duration_ms = int((time.perf_counter() - start_time) * 1000)
 
         self._monitor.record_execution(
@@ -684,6 +760,26 @@ class EnhancedHookManager:
             execution.duration_ms,
             execution.error,
             execution.status == "timeout"
+        )
+
+        # 审计：触发执行（只记统计量，不记脚本/context/result 明文）
+        result_status_str = "success" if execution.status == "success" else "failure"
+        _ehook_audit(
+            action="execute_sandboxed_hook",
+            result_status=result_status_str,
+            result_message=failure_excerpt if failure_excerpt else "",
+            resource=hook_id,
+            details={
+                "hook_id": hook_id,
+                "event_name": event_name[:80] if event_name else "",
+                "sandboxed": True,
+                "execution_duration_ms": execution.duration_ms,
+                "result_status": result_status_str,
+                "failure_message": failure_excerpt,
+                "language": hook.language,
+                "sandbox_id": sandbox_id,
+                "require_signature": hook.config.get("require_signature", False),
+            },
         )
 
         if hook_id in self._executions:

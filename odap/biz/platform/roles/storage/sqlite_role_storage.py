@@ -2,6 +2,7 @@
 
 import sqlite3
 import json
+import logging
 import os
 import uuid
 import tempfile
@@ -9,9 +10,27 @@ from typing import Dict, Any, List, Optional
 from datetime import datetime
 from ..api.schemas import Role, RoleType, Permission, PermissionScope
 
+logger = logging.getLogger(__name__)
 
 DEFAULT_DB_DIR = os.path.join(os.getenv("DATA_DIR", os.path.join(os.getcwd(), "data")))
 DEFAULT_DB_PATH = os.path.join(DEFAULT_DB_DIR, "roles.db")
+
+# ── 存储层审计工具（懒加载 + 容错） ──
+def _role_storage_audit(action: str, *, result_status: str = "success",
+                        result_message: str = "", resource: str = None,
+                        details: Dict[str, Any] = None) -> None:
+    try:
+        from odap.infra.security.audit_helper import storage_audit
+        storage_audit(
+            action=action,
+            result_status=result_status,
+            result_message=result_message,
+            resource=resource,
+            details=details or {},
+            service="platform_roles",
+        )
+    except Exception as e:
+        logger.warning(f"audit failed: {e}")
 
 
 class SQLiteRoleStorage:
@@ -452,7 +471,14 @@ class SQLiteRoleStorage:
         
         conn.commit()
         conn.close()
-        
+
+        _role_storage_audit(
+            action="role_storage_delete",
+            result_status="success" if affected_rows > 0 else "failure",
+            result_message="" if affected_rows > 0 else "Role not found",
+            resource=role_id,
+            details={"role_id": role_id, "side": "execution_storage"},
+        )
         return affected_rows > 0
 
     def bind_skill(self, role_id: str, skill_id: str, enabled: bool = True) -> bool:
@@ -464,6 +490,17 @@ class SQLiteRoleStorage:
         ''', (role_id, skill_id, 1 if enabled else 0))
         conn.commit()
         conn.close()
+        _role_storage_audit(
+            action="role_storage_bind_skill",
+            result_status="success",
+            resource=role_id,
+            details={
+                "role_id": role_id,
+                "skill_id": skill_id,
+                "enabled": enabled,
+                "side": "execution_storage",
+            },
+        )
         return True
 
     def unbind_skill(self, role_id: str, skill_id: str) -> bool:

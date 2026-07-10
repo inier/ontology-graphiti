@@ -1,10 +1,59 @@
 import logging
+import time
 from typing import Optional, Dict, Any
 
 from .schemas import ActionRequest, ActionRecord, ActionRequestStatus, ActionExecutionResult
 from .storage.sqlite_action_storage import SQLiteActionStorage
 
 logger = logging.getLogger(__name__)
+
+
+# ---------------------------------------------------------------------------
+# 审计辅助：决策层 Action Service，service="agent_action"
+# ---------------------------------------------------------------------------
+
+def _executor_audit(
+    action: str,
+    *,
+    resource: str,
+    details: Optional[Dict[str, Any]] = None,
+    result_status: str = "success",
+    result_message: str = "",
+    latency_ms: Optional[int] = None,
+) -> None:
+    """决策 action 服务审计：优先 storage_audit → 回退 log_audit → logger.warning"""
+    _details = dict(details or {})
+    if latency_ms is not None:
+        _details.setdefault("latency_ms", latency_ms)
+    try:
+        from odap.infra.security.audit_helper import storage_audit
+        storage_audit(
+            action=action,
+            resource=resource,
+            details=_details,
+            service="agent_action",
+            result_status=result_status,
+            result_message=result_message,
+        )
+        return
+    except Exception as e:
+        logger.warning(f"audit failed: {e}")
+
+    try:
+        from odap.infra.security.unified_audit import log_audit
+        log_audit(
+            action=action,
+            resource=resource,
+            user="system",
+            service="agent_action",
+            details=_details,
+            result_status=result_status,
+            result_message=result_message,
+            duration_ms=latency_ms,
+        )
+        return
+    except Exception as e:
+        logger.warning(f"audit failed (log_audit fallback): {e}")
 
 
 class ActionExecutor:
@@ -46,59 +95,229 @@ class ActionExecutor:
         return self._opa_manager
 
     async def submit_action(self, request: ActionRequest) -> ActionRecord:
-        action_type_def = self.oms.get_action_type(request.action_type_id)
-        if not action_type_def:
-            raise ValueError(f"Action type '{request.action_type_id}' not found in OMS")
-
-        record_data = request.model_dump()
-        record = self.action_storage.create_record(record_data)
-
+        """提交 Action（execute 主入口）：start/success/failed 三维度审计"""
+        start = time.perf_counter()
+        action_type_id = request.action_type_id
+        requested_by = getattr(request, "requested_by", "system") or "system"
+        record_id = ""
         try:
-            self.action_storage.update_status(record['action_record_id'], 'validating')
-            validation = await self._validate(record, action_type_def)
-            if not validation['valid']:
-                self.action_storage.update_status(
-                    record['action_record_id'], 'rejected',
-                    validation_result=validation
+            # start 审计
+            try:
+                _executor_audit(
+                    "decision_action_submit_start",
+                    resource=action_type_id,
+                    details={
+                        "action_type_id": action_type_id,
+                        "requested_by": requested_by,
+                        "params_count": len(getattr(request, "parameters", {}) or {}),
+                    },
+                    result_status="success",
                 )
-                return self.action_storage.get_record(record['action_record_id'])
+            except Exception as e:
+                logger.warning(f"audit failed: {e}")
 
-            opa_result = await self._check_opa(record, action_type_def)
-            if not opa_result.get('allow', False):
+            action_type_def = self.oms.get_action_type(request.action_type_id)
+            if not action_type_def:
+                raise ValueError(f"Action type '{request.action_type_id}' not found in OMS")
+
+            record_data = request.model_dump()
+            record = self.action_storage.create_record(record_data)
+            record_id = record.get("action_record_id", "")
+
+            try:
+                self.action_storage.update_status(record['action_record_id'], 'validating')
+                validation = await self._validate(record, action_type_def)
+                if not validation['valid']:
+                    self.action_storage.update_status(
+                        record['action_record_id'], 'rejected',
+                        validation_result=validation
+                    )
+                    latency_ms = int((time.perf_counter() - start) * 1000)
+                    try:
+                        _executor_audit(
+                            "decision_action_submit_rejected",
+                            resource=record.get("action_record_id", action_type_id),
+                            details={
+                                "action_record_id": record.get("action_record_id", ""),
+                                "action_type_id": action_type_id,
+                                "errors_count": len(validation.get("errors", [])),
+                            },
+                            result_status="failure",
+                            result_message="validation failed: "
+                                           + ("; ".join(validation.get("errors", [])[:3]))[:500],
+                            latency_ms=latency_ms,
+                        )
+                    except Exception as e:
+                        logger.warning(f"audit failed: {e}")
+                    return self.action_storage.get_record(record['action_record_id'])
+
+                opa_result = await self._check_opa(record, action_type_def)
+                if not opa_result.get('allow', False):
+                    self.action_storage.update_status(
+                        record['action_record_id'], 'rejected',
+                        opa_decision=opa_result,
+                        validation_result=validation,
+                    )
+                    latency_ms = int((time.perf_counter() - start) * 1000)
+                    try:
+                        _executor_audit(
+                            "decision_action_submit_opa_denied",
+                            resource=record.get("action_record_id", action_type_id),
+                            details={
+                                "action_record_id": record.get("action_record_id", ""),
+                                "action_type_id": action_type_id,
+                                "opa_reason": opa_result.get("reason", "")[:200],
+                            },
+                            result_status="denied",
+                            result_message="OPA denied",
+                            latency_ms=latency_ms,
+                        )
+                    except Exception as e:
+                        logger.warning(f"audit failed: {e}")
+                    return self.action_storage.get_record(record['action_record_id'])
+
+                if action_type_def.get('confirmation_required', False):
+                    self.action_storage.update_status(
+                        record['action_record_id'], 'approved',
+                        validation_result=validation,
+                        opa_decision=opa_result,
+                    )
+                    latency_ms = int((time.perf_counter() - start) * 1000)
+                    try:
+                        _executor_audit(
+                            "decision_action_submit_approved",
+                            resource=record.get("action_record_id", action_type_id),
+                            details={
+                                "action_record_id": record.get("action_record_id", ""),
+                                "action_type_id": action_type_id,
+                            },
+                            result_status="success",
+                            result_message="confirmation_required",
+                            latency_ms=latency_ms,
+                        )
+                    except Exception as e:
+                        logger.warning(f"audit failed: {e}")
+                    return self.action_storage.get_record(record['action_record_id'])
+
+                result_record = await self._execute(record, action_type_def, validation, opa_result)
+                latency_ms = int((time.perf_counter() - start) * 1000)
+                try:
+                    final_status = result_record.get("status") if isinstance(result_record, dict) else getattr(result_record, "status", "unknown")
+                    _executor_audit(
+                        "decision_action_submit_success",
+                        resource=record.get("action_record_id", action_type_id),
+                        details={
+                            "action_record_id": record.get("action_record_id", ""),
+                            "action_type_id": action_type_id,
+                            "final_status": str(final_status),
+                        },
+                        result_status="success",
+                        latency_ms=latency_ms,
+                    )
+                except Exception as e:
+                    logger.warning(f"audit failed: {e}")
+                return result_record
+
+            except Exception as e:
+                latency_ms = int((time.perf_counter() - start) * 1000)
+                logger.error(f"Action execution failed: {e}")
                 self.action_storage.update_status(
-                    record['action_record_id'], 'rejected',
-                    opa_decision=opa_result,
-                    validation_result=validation,
+                    record['action_record_id'], 'failed',
+                    execution_result={'error': str(e)},
                 )
+                try:
+                    _executor_audit(
+                        "decision_action_submit_failed",
+                        resource=record.get("action_record_id", action_type_id),
+                        details={
+                            "action_record_id": record.get("action_record_id", ""),
+                            "action_type_id": action_type_id,
+                        },
+                        result_status="failure",
+                        result_message=str(e)[:500],
+                        latency_ms=latency_ms,
+                    )
+                except Exception as e_a:
+                    logger.warning(f"audit failed: {e_a}")
                 return self.action_storage.get_record(record['action_record_id'])
-
-            if action_type_def.get('confirmation_required', False):
-                self.action_storage.update_status(
-                    record['action_record_id'], 'approved',
-                    validation_result=validation,
-                    opa_decision=opa_result,
-                )
-                return self.action_storage.get_record(record['action_record_id'])
-
-            return await self._execute(record, action_type_def, validation, opa_result)
-
         except Exception as e:
-            logger.error(f"Action execution failed: {e}")
-            self.action_storage.update_status(
-                record['action_record_id'], 'failed',
-                execution_result={'error': str(e)},
-            )
-            return self.action_storage.get_record(record['action_record_id'])
+            latency_ms = int((time.perf_counter() - start) * 1000)
+            try:
+                _executor_audit(
+                    "decision_action_submit_failed",
+                    resource=record_id or action_type_id,
+                    details={
+                        "action_record_id": record_id,
+                        "action_type_id": action_type_id,
+                    },
+                    result_status="failure",
+                    result_message=str(e)[:500],
+                    latency_ms=latency_ms,
+                )
+            except Exception as e_a:
+                logger.warning(f"audit failed: {e_a}")
+            raise
 
     async def approve_and_execute(self, record_id: str, approver: str = "", comment: str = "") -> ActionRecord:
-        record = self.action_storage.get_record(record_id)
-        if not record:
-            raise ValueError(f"Action record '{record_id}' not found")
-        if record['status'] != 'approved':
-            raise ValueError(f"Action record is in '{record['status']}' status, cannot execute")
+        """批准并执行（execute 第二入口）：start/success/failed 审计"""
+        start = time.perf_counter()
+        try:
+            try:
+                _executor_audit(
+                    "decision_action_approve_start",
+                    resource=record_id,
+                    details={
+                        "action_record_id": record_id,
+                        "approver": approver or "system",
+                        "comment_len": len(comment or ""),
+                    },
+                    result_status="success",
+                )
+            except Exception as e:
+                logger.warning(f"audit failed: {e}")
 
-        action_type_def = self.oms.get_action_type(record['action_type_id'])
-        return await self._execute(record, action_type_def or {}, record.get('validation_result'), record.get('opa_decision'))
+            record = self.action_storage.get_record(record_id)
+            if not record:
+                raise ValueError(f"Action record '{record_id}' not found")
+            if record['status'] != 'approved':
+                raise ValueError(f"Action record is in '{record['status']}' status, cannot execute")
+
+            action_type_def = self.oms.get_action_type(record['action_type_id'])
+            result = await self._execute(record, action_type_def or {}, record.get('validation_result'), record.get('opa_decision'))
+            latency_ms = int((time.perf_counter() - start) * 1000)
+            try:
+                final_status = result.get("status") if isinstance(result, dict) else getattr(result, "status", "unknown")
+                _executor_audit(
+                    "decision_action_approve_success",
+                    resource=record_id,
+                    details={
+                        "action_record_id": record_id,
+                        "approver": approver or "system",
+                        "final_status": str(final_status),
+                    },
+                    result_status="success",
+                    latency_ms=latency_ms,
+                )
+            except Exception as e:
+                logger.warning(f"audit failed: {e}")
+            return result
+        except Exception as e:
+            latency_ms = int((time.perf_counter() - start) * 1000)
+            try:
+                _executor_audit(
+                    "decision_action_approve_failed",
+                    resource=record_id,
+                    details={
+                        "action_record_id": record_id,
+                        "approver": approver or "system",
+                    },
+                    result_status="failure",
+                    result_message=str(e)[:500],
+                    latency_ms=latency_ms,
+                )
+            except Exception as e_a:
+                logger.warning(f"audit failed: {e_a}")
+            raise
 
     async def _validate(self, record: Dict[str, Any], action_type_def: Dict[str, Any]) -> Dict[str, Any]:
         errors = []
@@ -143,17 +362,68 @@ class ActionExecutor:
         validation: Optional[Dict[str, Any]],
         opa_decision: Optional[Dict[str, Any]],
     ) -> ActionRecord:
+        """内部 execute + writeback_execution + feedback_loop_update 审计"""
         self.action_storage.update_status(
             record['action_record_id'], 'executing',
             validation_result=validation,
             opa_decision=opa_decision,
         )
 
+        execute_start = time.perf_counter()
         execution_result = await self._do_execute(record, action_type_def)
+        execute_latency_ms = int((time.perf_counter() - execute_start) * 1000)
 
+        # do_execute 完成审计
+        try:
+            try:
+                result_len = len(str(execution_result.model_dump())[:200])
+            except Exception:
+                result_len = 0
+            _executor_audit(
+                "decision_action_do_execute_done",
+                resource=record.get("action_record_id", ""),
+                details={
+                    "action_record_id": record.get("action_record_id", ""),
+                    "action_type_id": record.get("action_type_id", ""),
+                    "success": bool(getattr(execution_result, "success", False)),
+                    "result_len": result_len,
+                },
+                result_status="success" if getattr(execution_result, "success", False) else "failure",
+                latency_ms=execute_latency_ms,
+            )
+        except Exception as e:
+            logger.warning(f"audit failed: {e}")
+
+        # writeback_execution（成功时才执行）
         writeback_result = None
+        writeback_latency_ms = None
         if execution_result.success:
-            writeback_result = await self._do_writeback(record, action_type_def, execution_result)
+            wb_start = time.perf_counter()
+            try:
+                writeback_result = await self._do_writeback(record, action_type_def, execution_result)
+                writeback_latency_ms = int((time.perf_counter() - wb_start) * 1000)
+            except Exception:
+                writeback_latency_ms = int((time.perf_counter() - wb_start) * 1000)
+            # writeback_execution 审计
+            try:
+                wb_success = (
+                    bool(writeback_result.get("success"))
+                    if isinstance(writeback_result, dict)
+                    else bool(writeback_result)
+                )
+                _executor_audit(
+                    "decision_action_writeback_execution",
+                    resource=record.get("action_record_id", ""),
+                    details={
+                        "action_record_id": record.get("action_record_id", ""),
+                        "action_type_id": record.get("action_type_id", ""),
+                        "writeback_success": wb_success,
+                    },
+                    result_status="success" if wb_success else "failure",
+                    latency_ms=writeback_latency_ms,
+                )
+            except Exception as e:
+                logger.warning(f"audit failed: {e}")
 
         final_status = 'completed' if execution_result.success else 'failed'
         self.action_storage.update_status(
@@ -164,13 +434,35 @@ class ActionExecutor:
 
         updated_record = self.action_storage.get_record(record['action_record_id'])
 
+        # feedback_loop_update（成功时 close_loop）
+        fb_start = time.perf_counter()
+        feedback_error = ""
+        feedback_done = False
         if execution_result.success:
             try:
                 from .feedback_loop import get_feedback_loop
                 feedback_loop = get_feedback_loop()
                 await feedback_loop.close_loop(updated_record)
+                feedback_done = True
             except Exception as e:
+                feedback_error = str(e)[:500]
                 logger.warning(f"Feedback loop failed for {record['action_record_id']}: {e}")
+            fb_latency_ms = int((time.perf_counter() - fb_start) * 1000)
+            try:
+                _executor_audit(
+                    "decision_action_feedback_loop_update",
+                    resource=record.get("action_record_id", ""),
+                    details={
+                        "action_record_id": record.get("action_record_id", ""),
+                        "action_type_id": record.get("action_type_id", ""),
+                        "feedback_done": feedback_done,
+                    },
+                    result_status="success" if feedback_done and not feedback_error else "failure",
+                    result_message=feedback_error,
+                    latency_ms=fb_latency_ms,
+                )
+            except Exception as e:
+                logger.warning(f"audit failed: {e}")
 
         return updated_record
 
@@ -250,6 +542,7 @@ class ActionExecutor:
         action_type_def: Dict[str, Any],
         execution_result: ActionExecutionResult,
     ) -> Optional[Dict[str, Any]]:
+        """writeback_execution（记录到审计）"""
         writeback_config = action_type_def.get('writeback_config')
         if not writeback_config:
             return None

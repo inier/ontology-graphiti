@@ -10,6 +10,23 @@ from ..memory_tiers import get_session_memory_manager
 
 logger = logging.getLogger(__name__)
 
+# ── 审计工具（懒加载 + 容错） ──
+def _session_audit(action: str, *, result_status: str = "success",
+                   result_message: str = "", resource: str = None,
+                   details: Dict[str, Any] = None) -> None:
+    try:
+        from odap.infra.security.audit_helper import storage_audit
+        storage_audit(
+            action=action,
+            result_status=result_status,
+            result_message=result_message,
+            resource=resource,
+            details=details or {},
+            service="platform_session",
+        )
+    except Exception as e:
+        logger.warning(f"audit failed: {e}")
+
 
 class SessionMemoryService:
     """会话记忆服务，封装存储层调用，提供业务语义接口"""
@@ -26,6 +43,17 @@ class SessionMemoryService:
             context_window=ContextWindow(max_tokens=max_tokens),
         )
         session_id = self.store.save_session(session)
+        _session_audit(
+            action="session_create",
+            result_status="success",
+            resource=session_id,
+            details={
+                "workspace_id": workspace_id,
+                "session_id": session_id,
+                "max_tokens": max_tokens,
+                "title_len": len(title or ""),
+            },
+        )
         return {"session_id": session_id, "title": session.title}
 
     def list_sessions(self, workspace_id: str, limit: int) -> Dict[str, Any]:
@@ -74,6 +102,19 @@ class SessionMemoryService:
             logger.info(f"Session {session_id} needs compaction (usage_ratio={session.context_window.usage_ratio:.2f})")
 
         self.store.save_session(session)
+        _session_audit(
+            action="session_add_message",
+            result_status="success",
+            resource=session_id,
+            details={
+                "session_id": session_id,
+                "role": role,
+                "tokens": tokens,
+                "message_count": len(session.messages),
+                "needs_compaction": session.needs_compaction,
+                "item_count": tokens,
+            },
+        )
         return {"message_id": message.id, "context_window": session.context_window.to_dict(), "needs_compaction": session.needs_compaction}
 
     async def compact_if_needed(self, session_id: str) -> Dict[str, Any]:
@@ -117,7 +158,15 @@ class SessionMemoryService:
 
     def delete_session(self, session_id: str) -> bool:
         """删除会话"""
-        return self.store.delete_session(session_id)
+        result = self.store.delete_session(session_id)
+        _session_audit(
+            action="session_delete",
+            result_status="success" if result else "failure",
+            result_message="" if result else "Session not found",
+            resource=session_id,
+            details={"session_id": session_id},
+        )
+        return result
 
     def get_session_memory(self, session_id: str) -> Dict[str, Any]:
         """获取会话记忆"""
@@ -137,7 +186,14 @@ class SessionMemoryService:
     def clear_short_term_memory(self, session_id: str) -> Dict[str, Any]:
         """清除短期记忆"""
         manager = get_session_memory_manager()
-        return manager.clear_short_term(session_id)
+        result = manager.clear_short_term(session_id)
+        _session_audit(
+            action="session_clear_short_term_memory",
+            result_status="success",
+            resource=session_id,
+            details={"session_id": session_id},
+        )
+        return result
 
     def retrieve_long_term_memory(self, query: str, limit: int) -> Dict[str, Any]:
         """检索长期记忆"""

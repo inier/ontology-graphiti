@@ -10,6 +10,7 @@ from datetime import datetime, timezone
 from typing import Optional, List, Dict, Any
 
 from ._utils import _run_async
+from odap.infra.security.audit_helper import graph_audit
 
 
 
@@ -34,11 +35,33 @@ class EntityOpsMixin:
         Returns:
             是否添加成功
         """
-        if self._mode in ("neo4j_driver", "graphiti") and self.neo4j_driver:
-            return self._add_entity_neo4j(entity_id, entity_type, properties)
-        if self._test_mode and self._use_fallback:
-            return self._add_entity_fallback(entity_id, entity_type, properties)
-        return False
+        try:
+            if self._mode in ("neo4j_driver", "graphiti") and self.neo4j_driver:
+                result = self._add_entity_neo4j(entity_id, entity_type, properties)
+            elif self._test_mode and self._use_fallback:
+                result = self._add_entity_fallback(entity_id, entity_type, properties)
+            else:
+                result = False
+            graph_audit(
+                "graph_add_entity_success" if result else "graph_add_entity_failed",
+                result_status="success" if result else "failure",
+                resource=entity_id,
+                details={
+                    "entity_id": entity_id,
+                    "entity_type": entity_type,
+                    "property_keys": list(properties.keys()) if isinstance(properties, dict) else [],
+                },
+            )
+            return result
+        except Exception as e:
+            graph_audit(
+                "graph_add_entity_failed",
+                result_status="failure",
+                result_message=str(e),
+                resource=entity_id,
+                details={"entity_id": entity_id, "entity_type": entity_type},
+            )
+            raise
 
     def _add_entity_neo4j(self, entity_id: str, entity_type: str,
                            properties: Dict[str, Any]) -> bool:
@@ -152,12 +175,26 @@ class EntityOpsMixin:
         cache_key = self._cache_key("qe", entity_type=entity_type, area=area, workspace_id=workspace_id)
         cached = self._cache_get(cache_key)
         if cached is not None:
+            result_count = len(cached) if isinstance(cached, list) else 0
+            graph_audit(
+                "graph_query_entities_success",
+                resource=str(entity_type)[:100] or "all",
+                details={"entity_type": str(entity_type), "result_count": result_count, "cached": True},
+            )
             return cached
 
         self._try_reconnect()
 
         if self._mode == "unavailable" and not self._test_mode:
-            return self._unavailable_error()
+            err = self._unavailable_error()
+            graph_audit(
+                "graph_query_entities_failed",
+                result_status="failure",
+                result_message="graph unavailable",
+                resource=str(entity_type)[:100] or "all",
+                details={"entity_type": str(entity_type)},
+            )
+            return err
 
         try:
             if self._mode in ("neo4j_driver", "graphiti") and self.neo4j_driver:
@@ -165,13 +202,34 @@ class EntityOpsMixin:
             elif self._test_mode and self._use_fallback:
                 result = self._query_entities_fallback(entity_type, area, workspace_id)
             else:
-                return self._unavailable_error()
+                err = self._unavailable_error()
+                graph_audit(
+                    "graph_query_entities_failed",
+                    result_status="failure",
+                    result_message="graph unavailable",
+                    resource=str(entity_type)[:100] or "all",
+                    details={"entity_type": str(entity_type)},
+                )
+                return err
             self._record_success()
             self._cache_set(cache_key, result)
+            result_count = len(result) if isinstance(result, list) else 0
+            graph_audit(
+                "graph_query_entities_success",
+                resource=str(entity_type)[:100] or "all",
+                details={"entity_type": str(entity_type), "result_count": result_count},
+            )
             return result
         except Exception as e:
             self._record_failure()
             logger.info(f'Query entities failed: {e}')
+            graph_audit(
+                "graph_query_entities_failed",
+                result_status="failure",
+                result_message=str(e),
+                resource=str(entity_type)[:100] or "all",
+                details={"entity_type": str(entity_type)},
+            )
             if self._test_mode and self._use_fallback:
                 return self._query_entities_fallback(entity_type, area, workspace_id)
             return self._unavailable_error()
@@ -280,11 +338,32 @@ class EntityOpsMixin:
         Returns:
             是否成功
         """
-        if self._mode in ("neo4j_driver", "graphiti") and self.neo4j_driver:
-            return self._update_entity_neo4j(entity_id, properties)
-        if self._test_mode and self._use_fallback:
-            return self._update_entity_fallback(entity_id, properties)
-        return False
+        try:
+            if self._mode in ("neo4j_driver", "graphiti") and self.neo4j_driver:
+                result = self._update_entity_neo4j(entity_id, properties)
+            elif self._test_mode and self._use_fallback:
+                result = self._update_entity_fallback(entity_id, properties)
+            else:
+                result = False
+            graph_audit(
+                "graph_update_entity_success" if result else "graph_update_entity_failed",
+                result_status="success" if result else "failure",
+                resource=entity_id,
+                details={
+                    "entity_id": entity_id,
+                    "property_keys": list(properties.keys()) if isinstance(properties, dict) else [],
+                },
+            )
+            return result
+        except Exception as e:
+            graph_audit(
+                "graph_update_entity_failed",
+                result_status="failure",
+                result_message=str(e),
+                resource=entity_id,
+                details={"entity_id": entity_id},
+            )
+            raise
 
     def _update_entity_neo4j(self, entity_id: str, properties: Dict) -> bool:
         """Neo4j Driver 模式：更新实体"""
@@ -353,11 +432,29 @@ class EntityOpsMixin:
         Returns:
             实体信息
         """
-        if self._mode in ("neo4j_driver", "graphiti") and self.neo4j_driver:
-            return self._get_entity_neo4j(entity_id)
-        if self._test_mode and self._use_fallback:
-            return self._get_entity_fallback(entity_id)
-        return None
+        try:
+            if self._mode in ("neo4j_driver", "graphiti") and self.neo4j_driver:
+                result = self._get_entity_neo4j(entity_id)
+            elif self._test_mode and self._use_fallback:
+                result = self._get_entity_fallback(entity_id)
+            else:
+                result = None
+            if isinstance(result, dict) and result:
+                graph_audit(
+                    "graph_get_entity_success",
+                    resource=entity_id,
+                    details={"entity_id": entity_id, "found": True},
+                )
+            return result
+        except Exception as e:
+            graph_audit(
+                "graph_get_entity_failed",
+                result_status="failure",
+                result_message=str(e),
+                resource=entity_id,
+                details={"entity_id": entity_id},
+            )
+            raise
 
     def _get_entity_neo4j(self, entity_id: str) -> Optional[Dict]:
         """Neo4j Driver 模式：获取单个实体"""
@@ -418,28 +515,63 @@ class EntityOpsMixin:
         Returns:
             历史记录列表
         """
-        if self._mode == "unavailable" and not self._test_mode:
-            return []
-        if self._use_fallback or not self._connected:
-            logger.info(f'警告: 回退模式不支持时态查询 (entity_id={entity_id})')
-            return []
-
-        async def get_history():
-            try:
-                episodes = await self.graph.retrieve_episodes(
-                    reference_time=datetime.now()
+        try:
+            if self._mode == "unavailable" and not self._test_mode:
+                graph_audit(
+                    "graph_get_entity_history_failed",
+                    result_status="failure",
+                    result_message="graph unavailable",
+                    resource=entity_id,
+                    details={"entity_id": entity_id},
                 )
-                return [
-                    {
-                        "entity_id": e.name or str(e.uuid),
-                        "timestamp": str(e.created_at),
-                        "body": e.content
-                    }
-                    for e in episodes
-                    if e.name == entity_id or str(e.uuid) == entity_id
-                ]
-            except Exception as e:
-                logger.info(f'Graphiti查询实体历史失败: {e}')
+                return []
+            if self._use_fallback or not self._connected:
+                logger.info(f'警告: 回退模式不支持时态查询 (entity_id={entity_id})')
+                graph_audit(
+                    "graph_get_entity_history_success",
+                    resource=entity_id,
+                    details={"entity_id": entity_id, "result_count": 0, "fallback": True},
+                )
                 return []
 
-        return _run_async(get_history())
+            async def get_history():
+                try:
+                    episodes = await self.graph.retrieve_episodes(
+                        reference_time=datetime.now()
+                    )
+                    return [
+                        {
+                            "entity_id": e.name or str(e.uuid),
+                            "timestamp": str(e.created_at),
+                            "body": e.content
+                        }
+                        for e in episodes
+                        if e.name == entity_id or str(e.uuid) == entity_id
+                    ]
+                except Exception as e:
+                    logger.info(f'Graphiti查询实体历史失败: {e}')
+                    graph_audit(
+                        "graph_get_entity_history_failed",
+                        result_status="failure",
+                        result_message=str(e),
+                        resource=entity_id,
+                        details={"entity_id": entity_id},
+                    )
+                    return []
+
+            result = _run_async(get_history())
+            graph_audit(
+                "graph_get_entity_history_success",
+                resource=entity_id,
+                details={"entity_id": entity_id, "result_count": len(result)},
+            )
+            return result
+        except Exception as e:
+            graph_audit(
+                "graph_get_entity_history_failed",
+                result_status="failure",
+                result_message=str(e),
+                resource=entity_id,
+                details={"entity_id": entity_id},
+            )
+            raise

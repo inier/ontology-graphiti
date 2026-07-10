@@ -8,6 +8,24 @@ from enum import Enum
 logger = logging.getLogger(__name__)
 
 
+def _tl_audit(action: str, *, result_status: str = "success",
+              result_message: str = "", resource: str = None,
+              details: Dict[str, Any] = None) -> None:
+    """Timeline Engine 审计便捷函数：失败仅 warning，不阻断业务"""
+    try:
+        from odap.infra.security.audit_helper import storage_audit
+        storage_audit(
+            action=action,
+            result_status=result_status,
+            result_message=result_message,
+            resource=resource,
+            details=details or {},
+            service="event_simulator",
+        )
+    except Exception as e:
+        logger.warning(f"Audit write failed (timeline) action={action}: {e}")
+
+
 class ClockState(str, Enum):
     STOPPED = "stopped"
     RUNNING = "running"
@@ -133,6 +151,13 @@ class TimelineEngine:
     def advance_time(self, timeline_id: str, real_seconds: float) -> Dict[str, Any]:
         timeline = self._timelines.get(timeline_id)
         if not timeline:
+            _tl_audit(
+                "event_tick_run",
+                result_status="failure",
+                resource=timeline_id,
+                result_message="Timeline not found",
+                details={"timeline_id": timeline_id},
+            )
             return {"status": "error", "message": f"Timeline {timeline_id} not found"}
 
         sim_seconds = real_seconds * timeline["simulation_speed"]
@@ -143,8 +168,21 @@ class TimelineEngine:
         timeline["current_time"] = advanced.isoformat()
 
         triggered = self._process_events(timeline_id)
+        events_count = len(triggered)
         self._persist_timeline(timeline_id)
 
+        _tl_audit(
+            "event_tick_run",
+            result_status="success",
+            resource=timeline_id,
+            details={
+                "timeline_id": timeline_id,
+                "events_count": events_count,
+                "advanced_sim_seconds": round(sim_seconds, 2),
+                "generated_entity_deltas_count": events_count,
+                "affected_relations_count": events_count,
+            },
+        )
         return {
             "timeline_id": timeline_id,
             "current_time": timeline["current_time"],
@@ -159,6 +197,13 @@ class TimelineEngine:
         target_time: Optional[str] = None,
     ) -> Dict[str, Any]:
         if timeline_id not in self._timelines:
+            _tl_audit(
+                "event_ingest",
+                result_status="failure",
+                resource=timeline_id,
+                result_message="Timeline not found",
+                details={"timeline_id": timeline_id},
+            )
             return {"status": "error", "message": f"Timeline {timeline_id} not found"}
 
         event_entry = {
@@ -171,7 +216,22 @@ class TimelineEngine:
         }
         self._event_queue[timeline_id].append(event_entry)
         self._timelines[timeline_id]["events_injected"] += 1
-
+        generated_entity_deltas_count = sum(
+            1 for k in event.get("data", {}).keys() if "delta" in k.lower()
+        )
+        _tl_audit(
+            "event_ingest",
+            result_status="success",
+            resource=event_entry["event_id"],
+            details={
+                "timeline_id": timeline_id,
+                "event_id": event_entry["event_id"],
+                "event_type": event_entry["event_type"],
+                "events_count": 1,
+                "generated_entity_deltas_count": generated_entity_deltas_count,
+                "affected_relations_count": 1,
+            },
+        )
         return {
             "event_id": event_entry["event_id"],
             "status": "queued",

@@ -1,10 +1,30 @@
 """角色服务层"""
 
+import logging
 import uuid
 from typing import Dict, Any, List, Optional
 
 from ..api.schemas import Role, RoleType, Permission
 from ..storage.sqlite_role_storage import SQLiteRoleStorage
+
+logger = logging.getLogger(__name__)
+
+# ── 审计工具（懒加载 + 容错） ──
+def _role_audit(action: str, *, result_status: str = "success",
+                result_message: str = "", resource: str = None,
+                details: Dict[str, Any] = None) -> None:
+    try:
+        from odap.infra.security.audit_helper import storage_audit
+        storage_audit(
+            action=action,
+            result_status=result_status,
+            result_message=result_message,
+            resource=resource,
+            details=details or {},
+            service="platform_roles",
+        )
+    except Exception as e:
+        logger.warning(f"audit failed: {e}")
 
 
 class RoleService:
@@ -38,6 +58,17 @@ class RoleService:
         )
 
         self.storage.save_role(role)
+        _role_audit(
+            action="role_create",
+            result_status="success",
+            resource=role.id,
+            details={
+                "role_id": role.id,
+                "role_type": role_type.value if hasattr(role_type, "value") else str(role_type),
+                "name_len": len(name),
+                "permission_count": len(resolved_perms),
+            },
+        )
         return self._role_to_dict(role)
 
     def get_role(self, role_id: str) -> Optional[Dict[str, Any]]:
@@ -55,14 +86,25 @@ class RoleService:
         """更新角色"""
         role = self.storage.get_role(role_id)
         if not role:
+            _role_audit(
+                action="role_update",
+                result_status="failure",
+                result_message="Role not found",
+                resource=role_id,
+                details={"role_id": role_id},
+            )
             return {"status": "error", "message": "Role not found"}
 
+        changed = []
         if "name" in updates:
             role.name = updates["name"]
+            changed.append("name")
         if "description" in updates:
             role.description = updates["description"]
+            changed.append("description")
         if "role_type" in updates:
             role.role_type = updates["role_type"]
+            changed.append("role_type")
         if "permissions" in updates:
             perm_ids = updates["permissions"]
             resolved = []
@@ -74,13 +116,31 @@ class RoleService:
                 elif isinstance(pid, Permission):
                     resolved.append(pid)
             role.permissions = resolved
+            changed.append("permissions")
 
         self.storage.save_role(role)
+        _role_audit(
+            action="role_update",
+            result_status="success",
+            resource=role_id,
+            details={
+                "role_id": role_id,
+                "changed_fields": changed,
+                "field_count": len(changed),
+            },
+        )
         return self._role_to_dict(role)
 
     def delete_role(self, role_id: str) -> Dict[str, Any]:
         """删除角色"""
         success = self.storage.delete_role(role_id)
+        _role_audit(
+            action="role_delete",
+            result_status="success" if success else "failure",
+            result_message="" if success else "Role not found",
+            resource=role_id,
+            details={"role_id": role_id},
+        )
         if not success:
             return {"status": "error", "message": "Role not found"}
         return {"status": "success", "message": "Role deleted"}
@@ -113,9 +173,27 @@ class RoleService:
     ) -> Dict[str, Any]:
         role = self.storage.get_role(role_id)
         if not role:
+            _role_audit(
+                action="role_assign_user",
+                result_status="failure",
+                result_message="Role not found",
+                resource=role_id,
+                details={"role_id": role_id, "user_id": user_id, "workspace_id": workspace_id or ""},
+            )
             return {"status": "error", "message": "Role not found"}
 
         success = self.storage.assign_role_to_user(role_id, user_id, workspace_id, bound_by)
+        _role_audit(
+            action="role_assign_user",
+            result_status="success" if success else "failure",
+            result_message="" if success else "Role already assigned to user in this context",
+            resource=role_id,
+            details={
+                "role_id": role_id,
+                "user_id": user_id,
+                "workspace_id": workspace_id or "",
+            },
+        )
         if not success:
             return {"status": "error", "message": "Role already assigned to user in this context"}
         return {"status": "success", "message": "Role assigned to user"}
@@ -127,6 +205,17 @@ class RoleService:
         workspace_id: Optional[str] = None,
     ) -> Dict[str, Any]:
         success = self.storage.revoke_role_from_user(role_id, user_id, workspace_id)
+        _role_audit(
+            action="role_revoke_user",
+            result_status="success" if success else "failure",
+            result_message="" if success else "Role binding not found",
+            resource=role_id,
+            details={
+                "role_id": role_id,
+                "user_id": user_id,
+                "workspace_id": workspace_id or "",
+            },
+        )
         if not success:
             return {"status": "error", "message": "Role binding not found"}
         return {"status": "success", "message": "Role revoked from user"}
@@ -156,11 +245,28 @@ class RoleService:
     def bind_skill(self, role_id: str, skill_id: str, enabled: bool = True) -> Dict[str, Any]:
         """绑定 Skill 到角色"""
         self.storage.bind_skill(role_id, skill_id, enabled)
+        _role_audit(
+            action="role_bind_skill",
+            result_status="success",
+            resource=role_id,
+            details={
+                "role_id": role_id,
+                "skill_id": skill_id,
+                "enabled": enabled,
+            },
+        )
         return {"status": "success", "message": "Skill 绑定成功", "skill_id": skill_id}
 
     def unbind_skill(self, role_id: str, skill_id: str) -> Dict[str, Any]:
         """解绑 Skill"""
         success = self.storage.unbind_skill(role_id, skill_id)
+        _role_audit(
+            action="role_unbind_skill",
+            result_status="success" if success else "failure",
+            result_message="" if success else "Skill 绑定不存在",
+            resource=role_id,
+            details={"role_id": role_id, "skill_id": skill_id},
+        )
         if not success:
             return {"status": "error", "message": "Skill 绑定不存在"}
         return {"status": "success", "message": "Skill 解绑成功"}
@@ -172,11 +278,29 @@ class RoleService:
     def bind_policy(self, role_id: str, policy_id: str, priority: int = 0, enabled: bool = True) -> Dict[str, Any]:
         """绑定 Policy 到角色"""
         self.storage.bind_policy(role_id, policy_id, priority, enabled)
+        _role_audit(
+            action="role_bind_policy",
+            result_status="success",
+            resource=role_id,
+            details={
+                "role_id": role_id,
+                "policy_id": policy_id,
+                "priority": priority,
+                "enabled": enabled,
+            },
+        )
         return {"status": "success", "message": "Policy 绑定成功", "policy_id": policy_id}
 
     def unbind_policy(self, role_id: str, policy_id: str) -> Dict[str, Any]:
         """解绑 Policy"""
         success = self.storage.unbind_policy(role_id, policy_id)
+        _role_audit(
+            action="role_unbind_policy",
+            result_status="success" if success else "failure",
+            result_message="" if success else "Policy 绑定不存在",
+            resource=role_id,
+            details={"role_id": role_id, "policy_id": policy_id},
+        )
         if not success:
             return {"status": "error", "message": "Policy 绑定不存在"}
         return {"status": "success", "message": "Policy 解绑成功"}

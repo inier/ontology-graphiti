@@ -45,6 +45,26 @@ try:
 except ImportError:
     OPAManagerV2 = None
 
+import logging
+_logger = logging.getLogger(__name__)
+
+# ── 审计工具（懒加载 + 容错） ──
+def _tool_audit(action: str, *, result_status: str = "success",
+                result_message: str = "", resource: str = None,
+                details: Dict[str, Any] = None) -> None:
+    try:
+        from odap.infra.security.audit_helper import storage_audit
+        storage_audit(
+            action=action,
+            result_status=result_status,
+            result_message=result_message,
+            resource=resource,
+            details=details or {},
+            service="platform_tool",
+        )
+    except Exception as e:
+        _logger.warning(f"audit failed: {e}")
+
 
 class ToolType(str, Enum):
     SKILL = "skill"
@@ -465,6 +485,19 @@ class ToolRegistry:
             self._skill_registry.register(skill, version, changelog)
             self._semantic_discovery.index_tool(metadata)
 
+            _tool_audit(
+                action="tool_register_skill",
+                result_status="success",
+                resource=tool_id,
+                details={
+                    "tool_id": tool_id,
+                    "tool_name": skill.metadata.name,
+                    "category": skill.metadata.category,
+                    "version": version,
+                    "danger_level": skill.metadata.danger_level,
+                },
+            )
+
             return True
 
     def register_mcp_server(self, server_name: str, tools: List[Dict]) -> int:
@@ -480,6 +513,16 @@ class ToolRegistry:
             )
             self._tools[tool_id] = registration
             self._semantic_discovery.index_tool(tool)
+        _tool_audit(
+            action="tool_register_mcp_server",
+            result_status="success",
+            resource=server_name,
+            details={
+                "server_name": server_name,
+                "tools_count": count,
+                "item_count": count,
+            },
+        )
         return count
 
     def register_rest_api(self, name: str, description: str, endpoint: str,
@@ -534,6 +577,17 @@ class ToolRegistry:
 
             self._tools[tool_id] = registration
             self._semantic_discovery.index_tool(metadata)
+
+            _tool_audit(
+                action="tool_register_function",
+                result_status="success",
+                resource=tool_id,
+                details={
+                    "tool_id": tool_id,
+                    "tool_name": name,
+                    "category": category,
+                },
+            )
 
             return True
 
@@ -595,6 +649,13 @@ class ToolRegistry:
 
         tool_id = self._resolve_tool_id(tool_name)
         if not tool_id or tool_id not in self._tools:
+            _tool_audit(
+                action="tool_execute",
+                result_status="failure",
+                result_message=f"Tool not found: {tool_name}"[:200],
+                resource=tool_name,
+                details={"tool_name": tool_name},
+            )
             return ToolExecutionResult(
                 tool_id=tool_name,
                 tool_name=tool_name,
@@ -609,6 +670,16 @@ class ToolRegistry:
 
         if user and reg.metadata.requires_opa_check and self._opa_manager:
             if not self._check_permission(user, reg):
+                _tool_audit(
+                    action="tool_execute",
+                    result_status="failure",
+                    result_message="Permission denied",
+                    resource=tool_id,
+                    details={
+                        "tool_id": tool_id,
+                        "tool_name": tool_name,
+                    },
+                )
                 return ToolExecutionResult(
                     tool_id=tool_id,
                     tool_name=tool_name,
@@ -645,6 +716,20 @@ class ToolRegistry:
             )
             self._add_to_history(result)
 
+            _tool_audit(
+                action="tool_execute",
+                result_status="success" if result.success else "failure",
+                result_message="" if result.success else (result.error or "")[:200],
+                resource=tool_id,
+                details={
+                    "tool_id": tool_id,
+                    "tool_name": tool_name,
+                    "tool_type": reg.tool_type.value if hasattr(reg.tool_type, 'value') else str(reg.tool_type),
+                    "execution_time_ms": round(result.execution_time_ms, 1),
+                    "item_count": 1,
+                },
+            )
+
             return result
 
         except Exception as e:
@@ -652,6 +737,18 @@ class ToolRegistry:
             execution_time_ms = (time.perf_counter() - start_time) * 1000
             self._update_execution_stats(reg, False)
             self._health_monitor.record_call(tool_name, False, execution_time_ms, str(e))
+
+            _tool_audit(
+                action="tool_execute",
+                result_status="failure",
+                result_message=str(e)[:200],
+                resource=tool_id,
+                details={
+                    "tool_id": tool_id,
+                    "tool_name": tool_name,
+                    "execution_time_ms": round(execution_time_ms, 1),
+                },
+            )
 
             return ToolExecutionResult(
                 tool_id=tool_id,

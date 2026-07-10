@@ -21,12 +21,15 @@ from typing import Optional, List, Dict, Any
 from collections import deque
 
 from odap.infra.config_composer import get_config
+from odap.infra.security.audit_helper import graph_audit
 from ._utils import _run_async
 from .cache_mixin import CacheMixin
 from .entity_ops import EntityOpsMixin
 from .relationship_ops import RelationshipOpsMixin
 from .temporal_ops import TemporalOpsMixin
 from .search_ops import SearchOpsMixin
+
+from odap.infra.observability.instruments import graphiti_span
 
 
 import logging
@@ -738,11 +741,34 @@ class GraphManager(CacheMixin, EntityOpsMixin, RelationshipOpsMixin, TemporalOps
         Returns:
             统计信息字典
         """
-        if self._mode in ("neo4j_driver", "graphiti") and self.neo4j_driver:
-            return self._get_statistics_neo4j()
-        if self._test_mode and self._use_fallback:
-            return self._get_statistics_fallback()
-        return self._unavailable_error()
+        try:
+            if self._mode in ("neo4j_driver", "graphiti") and self.neo4j_driver:
+                result = self._get_statistics_neo4j()
+            elif self._test_mode and self._use_fallback:
+                result = self._get_statistics_fallback()
+            else:
+                result = self._unavailable_error()
+            if isinstance(result, dict):
+                graph_audit(
+                    "graph_get_statistics_success",
+                    resource="graph_engine",
+                    details={
+                        "total_entities": result.get("total_entities", 0),
+                        "total_relationships": result.get("total_relationships", 0),
+                        "mode": result.get("mode", str(self._mode)),
+                        "entity_type_count": len(result.get("entity_types", {})) if isinstance(result.get("entity_types"), dict) else 0,
+                    },
+                )
+            return result
+        except Exception as e:
+            graph_audit(
+                "graph_get_statistics_failed",
+                result_status="failure",
+                result_message=str(e),
+                resource="graph_engine",
+                details={},
+            )
+            raise
 
     def get_graph_statistics(self) -> Dict[str, Any]:
         """别名，保持向后兼容"""
@@ -923,13 +949,21 @@ class GraphManager(CacheMixin, EntityOpsMixin, RelationshipOpsMixin, TemporalOps
         """
         import uuid
 
-
         task_id = f"TASK-{uuid.uuid4().hex[:8].upper()}"
         task_data["id"] = task_id
         task_data["status"] = "reserved"
         task_data["created_at"] = datetime.now().isoformat()
         self.reserved_tasks.append(task_data)
         logger.info(f'任务已预留: {task_id}')
+        graph_audit(
+            "graph_reserve_task_success",
+            resource=task_id,
+            details={
+                "task_id": task_id,
+                "task_keys": list(task_data.keys())[:20],
+                "total_reserved": len(self.reserved_tasks),
+            },
+        )
         return task_id
 
     def get_reserved_tasks(self) -> List[Dict]:
@@ -956,6 +990,13 @@ class GraphManager(CacheMixin, EntityOpsMixin, RelationshipOpsMixin, TemporalOps
             清空结果统计
         """
         if not self.neo4j_driver:
+            graph_audit(
+                "graph_clear_graph_failed",
+                result_status="failure",
+                result_message="no neo4j driver",
+                resource="graph_engine",
+                details={},
+            )
             return {"status": "no_neo4j", "cleared": 0}
 
         try:
@@ -972,43 +1013,93 @@ class GraphManager(CacheMixin, EntityOpsMixin, RelationshipOpsMixin, TemporalOps
                 cleared_rels = before_rels - after_rels
 
                 logger.info(f'图谱清空完成: 删除了 {cleared_nodes} 个节点和 {cleared_rels} 条关系')
-
-                return {
+                result = {
                     "status": "success",
                     "cleared_nodes": cleared_nodes,
                     "cleared_relationships": cleared_rels,
                     "remaining_nodes": after_nodes,
                     "remaining_relationships": after_rels
                 }
+                graph_audit(
+                    "graph_clear_graph_success",
+                    resource="graph_engine",
+                    details={
+                        "cleared_nodes": cleared_nodes,
+                        "cleared_relationships": cleared_rels,
+                        "remaining_nodes": after_nodes,
+                        "remaining_relationships": after_rels,
+                    },
+                )
+                return result
 
         except Exception as e:
             logger.info(f'图谱清空失败: {e}')
+            graph_audit(
+                "graph_clear_graph_failed",
+                result_status="failure",
+                result_message=str(e),
+                resource="graph_engine",
+                details={},
+            )
             return {"status": "error", "error": str(e), "cleared": 0}
 
     async def add_episode(self, name: str, content: str,
                     source_description: str = "",
                     reference_time=None) -> bool:
-        if self._use_fallback or not self._connected:
-            return False
-
-        if reference_time is None:
-            reference_time = datetime.now(timezone.utc)
-
         try:
-            if self.graph is None:
-                logger.info('Graphiti 未初始化，无法添加 Episode')
+            if self._use_fallback or not self._connected:
+                graph_audit(
+                    "graph_add_episode_failed",
+                    result_status="failure",
+                    result_message="fallback or not connected",
+                    resource=name[:100],
+                    details={"name_len": len(name), "content_len": len(content)},
+                )
                 return False
 
-            await self.graph.add_episode(
-                name=name,
-                episode_body=content,
-                source_description=source_description,
-                reference_time=reference_time,
-                update_communities=False,
+            if reference_time is None:
+                reference_time = datetime.now(timezone.utc)
+
+            if self.graph is None:
+                logger.info('Graphiti 未初始化，无法添加 Episode')
+                graph_audit(
+                    "graph_add_episode_failed",
+                    result_status="failure",
+                    result_message="graph not initialized",
+                    resource=name[:100],
+                    details={"name_len": len(name), "content_len": len(content)},
+                )
+                return False
+
+            with graphiti_span("add_episode", "graphiti",
+                              attributes={"graphiti.entity_name": name[:100]}):
+                await self.graph.add_episode(
+                    name=name,
+                    episode_body=content,
+                    source_description=source_description,
+                    reference_time=reference_time,
+                    update_communities=False,
+                )
+            graph_audit(
+                "graph_add_episode_success",
+                resource=name[:100],
+                details={
+                    "name_len": len(name),
+                    "content_len": len(content),
+                    "has_source_description": bool(source_description),
+                    "has_reference_time": bool(reference_time),
+                },
             )
             return True
         except Exception as e:
             logger.info(f'Graphiti 添加 Episode 失败: {e}')
+            graph_audit(
+                "graph_add_episode_failed",
+                result_status="failure",
+                result_message=str(e),
+                resource=name[:100],
+                details={"name_len": len(name), "content_len": len(content)},
+            )
             return False
 
     def add_episodes_batch(self, episodes: List[Dict], batch_size: int = 10) -> Dict[str, Any]:
@@ -1023,6 +1114,13 @@ class GraphManager(CacheMixin, EntityOpsMixin, RelationshipOpsMixin, TemporalOps
             处理结果，包含成功和失败的数量
         """
         if self._use_fallback or not self._connected:
+            graph_audit(
+                "graph_add_episodes_batch_failed",
+                result_status="failure",
+                result_message="fallback or not connected",
+                resource="graph_engine",
+                details={"total_episodes": len(episodes), "batch_size": batch_size},
+            )
             return {"success": 0, "failed": len(episodes), "error": "Fallback mode not supported"}
 
         async def add_batch():
@@ -1062,10 +1160,22 @@ class GraphManager(CacheMixin, EntityOpsMixin, RelationshipOpsMixin, TemporalOps
                         failed_count += 1
                         failed_episodes.append({"episode": episode, "error": str(e)})
 
-            return {
+            result = {
                 "success": success_count,
                 "failed": failed_count,
                 "failed_episodes": failed_episodes
             }
+            graph_audit(
+                "graph_add_episodes_batch_success",
+                resource="graph_engine",
+                details={
+                    "total_episodes": len(episodes),
+                    "unique_episodes": len(unique_episodes),
+                    "success": success_count,
+                    "failed": failed_count,
+                    "batch_size": batch_size,
+                },
+            )
+            return result
 
         return _run_async(add_batch())

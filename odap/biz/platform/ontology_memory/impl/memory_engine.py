@@ -318,7 +318,7 @@ class OntologyMemoryEngine(IOntologyMemoryEngine):
             self._embedding_client = {
                 "api_key": api_key,
                 "api_base": api_base.rstrip("/") if api_base else "https://api.openai.com/v1",
-                "model": os.environ.get("EMBEDDING_MODEL", "text-embedding-3-small"),
+                "model": get_config("llm.embedding_model", "text-embedding-3-small"),
                 "httpx_client": httpx.Client(timeout=5.0),
             }
             return self._embedding_client

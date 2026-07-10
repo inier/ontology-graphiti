@@ -13,6 +13,20 @@
 from fastapi import APIRouter, HTTPException, Request, Depends
 from odap.infra.security.jwt_auth import get_current_user
 from typing import Dict, Any
+import logging
+
+logger = logging.getLogger(__name__)
+
+def _fca_audit(action: str, *, result_status: str = "success",
+               result_message: str = "", resource: str = None,
+               details: Dict[str, Any] = None) -> None:
+    try:
+        from odap.infra.security.audit_helper import storage_audit
+        storage_audit(action=action, result_status=result_status,
+                      result_message=result_message, resource=resource,
+                      details=details or {}, service="integration_frontend_compat")
+    except Exception as e:
+        logger.warning(f"audit failed: {e}")
 
 
 router = APIRouter(prefix="/api/compat", tags=["frontend-compat-agent"])
@@ -34,14 +48,38 @@ async def run_openharness_episode(data: Dict[str, Any],
             raise HTTPException(status_code=400, detail="actions 必须是数组")
 
         results = harness.run_episode(actions)
+        _fca_audit(
+            action="frontend_compat_openharness_run_episode",
+            result_status="success",
+            resource="openharness_episode",
+            details={
+                "actions_count": len(actions),
+                "total_steps": len(results),
+                "item_count": len(actions),
+            },
+        )
         return {
             "results": results,
             "total_steps": len(results),
             "done": results[-1]["done"] if results else False,
         }
-    except HTTPException:
+    except HTTPException as he:
+        _fca_audit(
+            action="frontend_compat_openharness_run_episode",
+            result_status="failure",
+            result_message=str(he.detail)[:200],
+            resource="openharness_episode",
+            details={"actions_count": len(data.get("actions", []))},
+        )
         raise
     except Exception as e:
+        _fca_audit(
+            action="frontend_compat_openharness_run_episode",
+            result_status="failure",
+            result_message=str(e)[:200],
+            resource="openharness_episode",
+            details={},
+        )
         raise HTTPException(status_code=500, detail=str(e))
 
 
@@ -125,6 +163,19 @@ async def submit_action_feedback(request: Request, data: Dict[str, Any],
         )
         loop_result = feedback_loop.close_loop(feedback)
 
+        _fca_audit(
+            action="frontend_compat_feedback_action",
+            result_status="success",
+            resource=feedback.id,
+            details={
+                "feedback_id": feedback.id,
+                "outcome": outcome,
+                "deviation_score": feedback.deviation_score,
+                "graph_updated": loop_result.get("graph_updated", False),
+                "item_count": 1,
+            },
+        )
+
         return {
             "status": "success",
             "feedback_id": feedback.id,
@@ -135,9 +186,23 @@ async def submit_action_feedback(request: Request, data: Dict[str, Any],
             "episode_created": loop_result.get("episode_created", False),
             "hook_emitted": loop_result.get("hook_emitted", False),
         }
-    except HTTPException:
+    except HTTPException as he:
+        _fca_audit(
+            action="frontend_compat_feedback_action",
+            result_status="failure",
+            result_message=str(he.detail)[:200],
+            resource="",
+            details={"action_id": data.get("action_id", "")},
+        )
         raise
     except Exception as e:
+        _fca_audit(
+            action="frontend_compat_feedback_action",
+            result_status="failure",
+            result_message=str(e)[:200],
+            resource="",
+            details={},
+        )
         raise HTTPException(status_code=500, detail=str(e))
 
 

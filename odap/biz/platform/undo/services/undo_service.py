@@ -7,6 +7,23 @@ from .operation_history_service import OperationHistoryService
 
 logger = logging.getLogger(__name__)
 
+# ── 审计工具（懒加载 + 容错） ──
+def _undo_audit(action: str, *, result_status: str = "success",
+                result_message: str = "", resource: str = None,
+                details: Dict[str, Any] = None) -> None:
+    try:
+        from odap.infra.security.audit_helper import storage_audit
+        storage_audit(
+            action=action,
+            result_status=result_status,
+            result_message=result_message,
+            resource=resource,
+            details=details or {},
+            service="platform_undo",
+        )
+    except Exception as e:
+        logger.warning(f"audit failed: {e}")
+
 
 class UndoService:
     """撤销/重做服务"""
@@ -27,13 +44,34 @@ class UndoService:
         """
         operation = self.history.get_operation(operation_id)
         if not operation:
+            _undo_audit(
+                action="undo_operation",
+                result_status="failure",
+                result_message="Operation not found",
+                resource=operation_id,
+                details={"operation_id": operation_id},
+            )
             return {"status": "error", "message": "Operation not found"}
 
         if operation.get("undone"):
+            _undo_audit(
+                action="undo_operation",
+                result_status="failure",
+                result_message="Operation already undone",
+                resource=operation_id,
+                details={"operation_id": operation_id},
+            )
             return {"status": "error", "message": "Operation already undone"}
 
         before_state = operation.get("before_state")
         if before_state is None:
+            _undo_audit(
+                action="undo_operation",
+                result_status="failure",
+                result_message="Cannot undo: no before_state available",
+                resource=operation_id,
+                details={"operation_id": operation_id},
+            )
             return {"status": "error", "message": "Cannot undo: no before_state available"}
 
         # 尝试恢复 before_state
@@ -48,6 +86,18 @@ class UndoService:
 
         # 标记为已撤销
         self.history.mark_undone(operation_id)
+
+        _undo_audit(
+            action="undo_operation",
+            result_status="success",
+            resource=operation_id,
+            details={
+                "operation_id": operation_id,
+                "resource_type": operation.get("resource_type", ""),
+                "resource_id": operation.get("resource_id", ""),
+                "item_count": 1,
+            },
+        )
 
         return {
             "status": "success",
@@ -71,13 +121,34 @@ class UndoService:
         """
         operation = self.history.get_operation(operation_id)
         if not operation:
+            _undo_audit(
+                action="redo_operation",
+                result_status="failure",
+                result_message="Operation not found",
+                resource=operation_id,
+                details={"operation_id": operation_id},
+            )
             return {"status": "error", "message": "Operation not found"}
 
         if not operation.get("undone"):
+            _undo_audit(
+                action="redo_operation",
+                result_status="failure",
+                result_message="Operation is not undone, cannot redo",
+                resource=operation_id,
+                details={"operation_id": operation_id},
+            )
             return {"status": "error", "message": "Operation is not undone, cannot redo"}
 
         after_state = operation.get("after_state")
         if after_state is None:
+            _undo_audit(
+                action="redo_operation",
+                result_status="failure",
+                result_message="Cannot redo: no after_state available",
+                resource=operation_id,
+                details={"operation_id": operation_id},
+            )
             return {"status": "error", "message": "Cannot redo: no after_state available"}
 
         # 尝试恢复 after_state
@@ -92,6 +163,18 @@ class UndoService:
 
         # 取消撤销标记
         self.history.mark_redone(operation_id)
+
+        _undo_audit(
+            action="redo_operation",
+            result_status="success",
+            resource=operation_id,
+            details={
+                "operation_id": operation_id,
+                "resource_type": operation.get("resource_type", ""),
+                "resource_id": operation.get("resource_id", ""),
+                "item_count": 1,
+            },
+        )
 
         return {
             "status": "success",

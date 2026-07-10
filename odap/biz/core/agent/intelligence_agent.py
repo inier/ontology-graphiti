@@ -51,6 +51,54 @@ from odap.infra.openharness.engine_adapter import (
 logger = logging.getLogger("intelligence_agent")
 
 
+# ---------------------------------------------------------------------------
+# 审计辅助：IntelligenceAgent analyze / process_message
+# ---------------------------------------------------------------------------
+
+def _ia_audit(
+    action: str,
+    *,
+    resource: str,
+    details: Optional[Dict[str, Any]] = None,
+    result_status: str = "success",
+    result_message: str = "",
+    latency_ms: Optional[int] = None,
+) -> None:
+    """IntelligenceAgent 审计：优先 storage_audit → 回退 log_audit → logger.warning"""
+    _details = dict(details or {})
+    if latency_ms is not None:
+        _details.setdefault("latency_ms", latency_ms)
+    try:
+        from odap.infra.security.audit_helper import storage_audit
+        storage_audit(
+            action=action,
+            resource=resource,
+            details=_details,
+            service="agent_action",
+            result_status=result_status,
+            result_message=result_message,
+        )
+        return
+    except Exception as e:
+        logger.warning(f"audit failed: {e}")
+
+    try:
+        from odap.infra.security.unified_audit import log_audit
+        log_audit(
+            action=action,
+            resource=resource,
+            user="system",
+            service="agent_action",
+            details=_details,
+            result_status=result_status,
+            result_message=result_message,
+            duration_ms=latency_ms,
+        )
+        return
+    except Exception as e:
+        logger.warning(f"audit failed (log_audit fallback): {e}")
+
+
 class TraceSpan:
     """轻量级链路追踪 Span"""
 
@@ -253,7 +301,7 @@ class IntelligenceAgent:
 
     async def analyze(self, query: str) -> Dict[str, Any]:
         """
-        执行情报分析
+        执行情报分析（start/success/failed 三维度审计）
 
         优先使用 OH QueryEngine（完全复用 OH 运行时），
         OH 不可用时降级到自建 ReAct 循环。
@@ -274,18 +322,100 @@ class IntelligenceAgent:
 
         start_time = time.perf_counter()
 
-        # RAG 上下文注入
-        rag_context = self._retrieve_rag_context(query)
+        # analyze start 审计
+        try:
+            _ia_audit(
+                "agent_analyze_start",
+                resource="intelligence_agent",
+                details={
+                    "agent_id": "intelligence_agent",
+                    "user_role": self.user_role,
+                    "query_len": len(query or ""),
+                    "trace_id": trace_id,
+                },
+                result_status="success",
+            )
+        except Exception as e:
+            logger.warning(f"audit failed: {e}")
 
-        # 尝试 OH QueryEngine 路径
-        if self._engine_factory.is_available:
-            result = await self._analyze_with_engine(query, rag_context, trace_id, start_time)
-            if result is not None:
-                return result
-            # QueryEngine 失败，降级
+        try:
+            # RAG 上下文注入
+            rag_context = self._retrieve_rag_context(query)
 
-        # 降级到自建 ReAct 循环
-        return await self._analyze_fallback(query, rag_context, trace_id, start_time)
+            # 尝试 OH QueryEngine 路径
+            if self._engine_factory.is_available:
+                result = await self._analyze_with_engine(query, rag_context, trace_id, start_time)
+                if result is not None:
+                    # 成功分支：审计
+                    elapsed_ms = int((time.perf_counter() - start_time) * 1000)
+                    has_err = bool(result.get("error"))
+                    try:
+                        _ia_audit(
+                            "agent_analyze_success" if not has_err else "agent_analyze_failed",
+                            resource="intelligence_agent",
+                            details={
+                                "agent_id": "intelligence_agent",
+                                "user_role": self.user_role,
+                                "query_len": len(query or ""),
+                                "trace_id": trace_id,
+                                "engine": "openharness_query_engine",
+                                "has_error": has_err,
+                                "summary_len": len(str(result.get("summary", "")) or ""),
+                                "threat_level": result.get("threat_level", "unknown"),
+                            },
+                            result_status="failure" if has_err else "success",
+                            result_message=(result.get("error") or "")[:500],
+                            latency_ms=elapsed_ms,
+                        )
+                    except Exception as e:
+                        logger.warning(f"audit failed: {e}")
+                    return result
+                # QueryEngine 失败，降级
+
+            # 降级到自建 ReAct 循环
+            result = await self._analyze_fallback(query, rag_context, trace_id, start_time)
+            elapsed_ms = int((time.perf_counter() - start_time) * 1000)
+            has_err = bool(result.get("error"))
+            try:
+                _ia_audit(
+                    "agent_analyze_success" if not has_err else "agent_analyze_failed",
+                    resource="intelligence_agent",
+                    details={
+                        "agent_id": "intelligence_agent",
+                        "user_role": self.user_role,
+                        "query_len": len(query or ""),
+                        "trace_id": trace_id,
+                        "engine": "fallback_react",
+                        "has_error": has_err,
+                        "summary_len": len(str(result.get("summary", "")) or ""),
+                        "threat_level": result.get("threat_level", "unknown"),
+                    },
+                    result_status="failure" if has_err else "success",
+                    result_message=(result.get("error") or "")[:500],
+                    latency_ms=elapsed_ms,
+                )
+            except Exception as e:
+                logger.warning(f"audit failed: {e}")
+            return result
+        except Exception as exc:
+            elapsed_ms = int((time.perf_counter() - start_time) * 1000)
+            try:
+                _ia_audit(
+                    "agent_analyze_failed",
+                    resource="intelligence_agent",
+                    details={
+                        "agent_id": "intelligence_agent",
+                        "user_role": self.user_role,
+                        "query_len": len(query or ""),
+                        "trace_id": trace_id,
+                    },
+                    result_status="failure",
+                    result_message=f"analyze failed: {exc}"[:500],
+                    latency_ms=elapsed_ms,
+                )
+            except Exception as e:
+                logger.warning(f"audit failed: {e}")
+            raise
 
     async def _analyze_with_engine(self, query: str, rag_context: str,
                                    trace_id: str, start_time: float) -> Optional[Dict[str, Any]]:

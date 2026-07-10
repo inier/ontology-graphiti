@@ -16,12 +16,44 @@ import logging
 import re
 from typing import Any, Callable, Dict, List, Optional
 
+from odap.infra.security.audit_helper import storage_audit
+
 from ..interfaces import HealthRuleRepository, HealthScanner
 from ..models import HealthReport, HealthRule, HealthSeverity, HealthStatus
 from ..storage import SQLiteHealthStorage
 from .health_rule_repository_impl import HealthRuleRepositoryImpl
 
 logger = logging.getLogger(__name__)
+
+_AUDIT_SERVICE = "ontology_design"
+
+
+def _audit_success(action: str, resource: str = None, details: Dict[str, Any] = None) -> None:
+    try:
+        storage_audit(
+            action=action,
+            result_status="success",
+            resource=resource,
+            details=details or {},
+            service=_AUDIT_SERVICE,
+        )
+    except Exception as e:
+        logger.warning(f"audit failed: {e}")
+
+
+def _audit_failure(action: str, msg: str = "", resource: str = None, details: Dict[str, Any] = None) -> None:
+    try:
+        storage_audit(
+            action=action,
+            result_status="failure",
+            result_message=(msg or "")[:200],
+            resource=resource,
+            details=details or {},
+            service=_AUDIT_SERVICE,
+        )
+    except Exception as e:
+        logger.warning(f"audit failed: {e}")
+
 
 InstanceLoader = Callable[[str], List[Dict[str, Any]]]
 """instance_loader(target_type_id) -> List of instance dicts.
@@ -55,38 +87,83 @@ class HealthScannerImpl(HealthScanner):
 
     def scan(self, rule_id: Optional[str] = None) -> List[HealthReport]:
         """执行扫描；rule_id 为 None 时扫描所有启用规则"""
-        if rule_id:
-            rule = self.repository.get(rule_id)
-            if not rule:
-                return []
-            rules = [rule]
-        else:
-            rules = self.repository.list(enabled_only=True)
-        all_reports: List[HealthReport] = []
-        for rule in rules:
-            try:
-                reports = self.scan_one(rule)
-            except Exception as exc:  # 单条规则失败不影响其他
-                logger.exception("scan rule %s failed: %s", rule.id, exc)
-                continue
-            for r in reports:
-                self._persist_report(r)
-            all_reports.extend(reports)
-        return all_reports
+        action = "health_scanner.scan"
+        try:
+            if rule_id:
+                rule = self.repository.get(rule_id)
+                if not rule:
+                    _audit_failure(action, msg="rule not found", resource=rule_id,
+                                    details={"rule_id": rule_id})
+                    return []
+                rules = [rule]
+            else:
+                rules = self.repository.list(enabled_only=True)
+            all_reports: List[HealthReport] = []
+            rule_failures = 0
+            for rule in rules:
+                try:
+                    reports = self.scan_one(rule)
+                except Exception as exc:  # 单条规则失败不影响其他
+                    rule_failures += 1
+                    logger.exception("scan rule %s failed: %s", rule.id, exc)
+                    _audit_failure("health_scanner.scan_one", msg=str(exc),
+                                    resource=rule.id, details={"rule_id": rule.id})
+                    continue
+                for r in reports:
+                    self._persist_report(r)
+                all_reports.extend(reports)
+            pass_count = sum(1 for r in all_reports if r.status == HealthStatus.PASS)
+            fail_count = sum(1 for r in all_reports if r.status == HealthStatus.FAIL)
+            warn_count = len(all_reports) - pass_count - fail_count
+            _audit_success(action, resource=rule_id,
+                            details={"rule_id": rule_id or "",
+                                     "rules_count": len(rules),
+                                     "rule_failures": rule_failures,
+                                     "reports_count": len(all_reports),
+                                     "pass_count": pass_count,
+                                     "warn_count": warn_count,
+                                     "fail_count": fail_count})
+            return all_reports
+        except Exception as exc:
+            _audit_failure(action, msg=str(exc), resource=rule_id,
+                            details={"rule_id": rule_id or ""})
+            raise
 
     def scan_one(self, rule: HealthRule) -> List[HealthReport]:
         """扫描单条规则"""
-        checker = _RULE_CHECKERS.get(rule.rule_type)
-        if checker is None:
-            logger.warning("unknown rule_type=%s; skip", rule.rule_type)
-            return []
-        instances = self._safe_load(rule.target_type_id)
-        return checker(rule, instances)
+        action = "health_scanner.scan_one"
+        try:
+            checker = _RULE_CHECKERS.get(rule.rule_type)
+            if checker is None:
+                logger.warning("unknown rule_type=%s; skip", rule.rule_type)
+                _audit_failure(action, msg=f"unknown rule_type: {rule.rule_type}",
+                                resource=rule.id, details={"rule_id": rule.id,
+                                                           "rule_type": rule.rule_type})
+                return []
+            instances = self._safe_load(rule.target_type_id)
+            reports = checker(rule, instances)
+            pass_c = sum(1 for r in reports if r.status == HealthStatus.PASS)
+            fail_c = sum(1 for r in reports if r.status == HealthStatus.FAIL)
+            warn_c = len(reports) - pass_c - fail_c
+            _audit_success(action, resource=rule.id,
+                            details={"rule_id": rule.id,
+                                     "rule_type": rule.rule_type,
+                                     "instances_count": len(instances),
+                                     "reports_count": len(reports),
+                                     "pass_count": pass_c,
+                                     "warn_count": warn_c,
+                                     "fail_count": fail_c})
+            return reports
+        except Exception as exc:
+            _audit_failure(action, msg=str(exc), resource=rule.id,
+                            details={"rule_id": rule.id})
+            raise
 
     # ---------- 持久化 ----------
 
     def _persist_report(self, report: HealthReport) -> None:
         """将报告写入存储（忽略存储异常）"""
+        action = "health_scanner.persist_report"
         try:
             self.storage.save_report(
                 {
@@ -103,13 +180,24 @@ class HealthScannerImpl(HealthScanner):
             )
         except Exception as exc:  # 持久化失败不阻塞
             logger.warning("save_report failed: %s", exc)
+            _audit_failure(action, msg=str(exc), resource=report.id,
+                            details={"report_id": report.id,
+                                     "rule_id": report.rule_id,
+                                     "status": report.status.value})
 
     def _safe_load(self, target_type_id: str) -> List[Dict[str, Any]]:
         """安全加载实例（loader 异常时返回空列表）"""
+        action = "health_scanner.load_instances"
         try:
-            return list(self._instance_loader(target_type_id) or [])
+            results = list(self._instance_loader(target_type_id) or [])
+            _audit_success(action,
+                            details={"target_type_id_len": len(target_type_id or ""),
+                                     "count": len(results)})
+            return results
         except Exception as exc:
             logger.warning("instance_loader failed for %s: %s", target_type_id, exc)
+            _audit_failure(action, msg=str(exc),
+                            details={"target_type_id_len": len(target_type_id or "")})
             return []
 
 

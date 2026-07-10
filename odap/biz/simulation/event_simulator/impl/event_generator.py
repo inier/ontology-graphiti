@@ -6,6 +6,24 @@ from datetime import datetime, timezone, timedelta
 
 logger = logging.getLogger(__name__)
 
+
+def _ev_audit(action: str, *, result_status: str = "success",
+              result_message: str = "", resource: str = None,
+              details: Dict[str, Any] = None) -> None:
+    """Event Simulator 审计便捷函数：失败仅 warning，不阻断业务"""
+    try:
+        from odap.infra.security.audit_helper import storage_audit
+        storage_audit(
+            action=action,
+            result_status=result_status,
+            result_message=result_message,
+            resource=resource,
+            details=details or {},
+            service="event_simulator",
+        )
+    except Exception as e:
+        logger.warning(f"Audit write failed (event_sim) action={action}: {e}")
+
 EVENT_DATA_TEMPLATES = {
     "engage": {
         "intensity": (0.6, 1.0),
@@ -118,53 +136,85 @@ class EventGenerator:
 
         events = []
         start_time = datetime.fromisoformat(base_time) if base_time else datetime.now(timezone.utc)
+        generated_entity_deltas_count = 0
 
-        for i in range(count):
-            event_type = self._pick_event_type(template_id, ontology_entity_types, ontology_event_types)
-            target_type = random.choice(ontology_entity_types)
-            event = {
-                "event_id": f"evt_{uuid.uuid4().hex[:8]}",
+        try:
+            for i in range(count):
+                event_type = self._pick_event_type(template_id, ontology_entity_types, ontology_event_types)
+                target_type = random.choice(ontology_entity_types)
+                event = {
+                    "event_id": f"evt_{uuid.uuid4().hex[:8]}",
+                    "sequence_id": sequence_id,
+                    "event_type": event_type,
+                    "target_entity_type": target_type,
+                    "timestamp": (start_time + timedelta(minutes=i)).isoformat(),
+                    "data": self._generate_event_data(event_type, target_type, ontology_event_types),
+                    "status": "pending",
+                    "ontology_id": ontology_id,
+                    "ontology_relevance": self._compute_ontology_relevance(
+                        event_type, target_type, ontology_id=ontology_id, workspace_id=workspace_id
+                    ),
+                }
+                events.append(event)
+                data = event.get("data", {})
+                generated_entity_deltas_count += sum(
+                    1 for k in data.keys() if "delta" in k.lower() or "_delta" in k.lower()
+                )
+
+            self._generated_sequences[sequence_id] = events
+
+            result = {
                 "sequence_id": sequence_id,
-                "event_type": event_type,
-                "target_entity_type": target_type,
-                "timestamp": (start_time + timedelta(minutes=i)).isoformat(),
-                "data": self._generate_event_data(event_type, target_type, ontology_event_types),
-                "status": "pending",
+                "template_id": template_id,
+                "workspace_id": workspace_id,
                 "ontology_id": ontology_id,
-                "ontology_relevance": self._compute_ontology_relevance(
-                    event_type, target_type, ontology_id=ontology_id, workspace_id=workspace_id
-                ),
+                "total_events": len(events),
+                "events": events,
+                "entity_types_used": ontology_entity_types,
+                "event_type_source": event_type_source,
             }
-            events.append(event)
 
-        self._generated_sequences[sequence_id] = events
+            if self._storage:
+                try:
+                    self._storage.save_sequence({
+                        "sequence_id": sequence_id,
+                        "template_id": template_id,
+                        "workspace_id": workspace_id,
+                        "ontology_id": ontology_id,
+                        "events": events,
+                        "total_events": len(events),
+                        "event_type_source": event_type_source,
+                    })
+                except Exception:
+                    logger.warning("Failed to persist sequence to storage")
 
-        result = {
-            "sequence_id": sequence_id,
-            "template_id": template_id,
-            "workspace_id": workspace_id,
-            "ontology_id": ontology_id,
-            "total_events": len(events),
-            "events": events,
-            "entity_types_used": ontology_entity_types,
-            "event_type_source": event_type_source,
-        }
-
-        if self._storage:
-            try:
-                self._storage.save_sequence({
+            _ev_audit(
+                "event_generate_batch",
+                result_status="success",
+                resource=sequence_id,
+                details={
                     "sequence_id": sequence_id,
                     "template_id": template_id,
-                    "workspace_id": workspace_id,
+                    "events_count": len(events),
+                    "generated_entity_deltas_count": generated_entity_deltas_count,
+                    "affected_relations_count": len(events),
                     "ontology_id": ontology_id,
-                    "events": events,
-                    "total_events": len(events),
-                    "event_type_source": event_type_source,
-                })
-            except Exception:
-                logger.warning("Failed to persist sequence to storage")
-
-        return result
+                },
+            )
+            return result
+        except Exception as e:
+            _ev_audit(
+                "event_generate_batch",
+                result_status="failure",
+                resource=sequence_id,
+                result_message=str(e),
+                details={
+                    "sequence_id": sequence_id,
+                    "template_id": template_id,
+                    "events_count": count,
+                },
+            )
+            raise
 
     def inject_event(
         self,
@@ -189,6 +239,22 @@ class EventGenerator:
                 event_type, target_entity_type, ontology_id=ontology_id, workspace_id=workspace_id
             ),
         }
+        generated_entity_deltas_count = sum(
+            1 for k in (data or {}).keys() if "delta" in k.lower() or "_delta" in k.lower()
+        )
+        _ev_audit(
+            "event_ingest",
+            result_status="success",
+            resource=event_id,
+            details={
+                "event_id": event_id,
+                "event_type": event_type,
+                "events_count": 1,
+                "generated_entity_deltas_count": generated_entity_deltas_count,
+                "affected_relations_count": 1,
+                "ontology_id": ontology_id,
+            },
+        )
         return event
 
     def _get_entity_types(self, workspace_id: str) -> List[str]:

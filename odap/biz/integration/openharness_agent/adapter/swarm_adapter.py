@@ -13,6 +13,18 @@ from typing import Any, Dict, List, Optional
 
 logger = logging.getLogger("swarm_adapter")
 
+
+def _openharness_audit(action: str, *, result_status: str = "success",
+                       result_message: str = "", resource: str = None,
+                       details: Dict[str, Any] = None) -> None:
+    try:
+        from odap.infra.security.audit_helper import storage_audit
+        storage_audit(action=action, result_status=result_status,
+                      result_message=result_message, resource=resource,
+                      details=details or {}, service="integration_openharness")
+    except Exception as e:
+        logger.warning(f"audit failed: {e}")
+
 try:
     from odap.infra.openharness.tool_adapter import DomainHarness, OPENHARNESS_AVAILABLE
     _SWARM_AVAILABLE = OPENHARNESS_AVAILABLE
@@ -56,13 +68,31 @@ class SwarmAdapter:
                     "config": config,
                     "status": "active",
                 }
-                return {
+                result = {
                     "status": "success",
                     "swarm_id": swarm_id,
                     "tools_count": len(harness.list_available_tools()),
                 }
+                _openharness_audit(
+                    action="openharness_swarm_create",
+                    result_status="success",
+                    resource=swarm_id,
+                    details={
+                        "swarm_id": swarm_id,
+                        "user_role": user_role,
+                        "tools_count": len(harness.list_available_tools()),
+                    },
+                )
+                return result
             except Exception as e:
                 logger.warning("Create swarm failed: %s", e)
+                _openharness_audit(
+                    action="openharness_swarm_create",
+                    result_status="failure",
+                    result_message=str(e)[:200],
+                    resource=swarm_id,
+                    details={"swarm_id": swarm_id, "user_role": user_role},
+                )
                 return {"status": "error", "message": str(e)}
 
         self._swarms[swarm_id] = {
@@ -70,6 +100,12 @@ class SwarmAdapter:
             "config": config,
             "status": "fallback",
         }
+        _openharness_audit(
+            action="openharness_swarm_create",
+            result_status="success",
+            resource=swarm_id,
+            details={"swarm_id": swarm_id, "mode": "fallback", "user_role": user_role},
+        )
         return {"status": "success", "swarm_id": swarm_id, "mode": "fallback"}
 
     def dispatch_intent(
@@ -77,6 +113,13 @@ class SwarmAdapter:
     ) -> Dict[str, Any]:
         swarm = self._swarms.get(swarm_id)
         if not swarm:
+            _openharness_audit(
+                action="openharness_intent_dispatch",
+                result_status="failure",
+                result_message=f"Swarm {swarm_id} not found"[:200],
+                resource=swarm_id,
+                details={"swarm_id": swarm_id},
+            )
             return {"status": "error", "message": f"Swarm {swarm_id} not found"}
 
         harness = swarm.get("harness")
@@ -85,6 +128,18 @@ class SwarmAdapter:
                 obs = harness.reset()
                 action = {"tool_name": intent, "action": context or {}}
                 observation, reward, done, info = harness.step(action)
+                _openharness_audit(
+                    action="openharness_intent_dispatch",
+                    result_status="success",
+                    resource=swarm_id,
+                    details={
+                        "swarm_id": swarm_id,
+                        "intent_len": len(intent or ""),
+                        "reward": reward,
+                        "done": done,
+                        "item_count": 1,
+                    },
+                )
                 return {
                     "status": "success",
                     "swarm_id": swarm_id,
@@ -94,8 +149,25 @@ class SwarmAdapter:
                     "info": info,
                 }
             except Exception as e:
+                _openharness_audit(
+                    action="openharness_intent_dispatch",
+                    result_status="failure",
+                    result_message=str(e)[:200],
+                    resource=swarm_id,
+                    details={"swarm_id": swarm_id},
+                )
                 return {"status": "error", "message": str(e)}
 
+        _openharness_audit(
+            action="openharness_intent_dispatch",
+            result_status="success",
+            resource=swarm_id,
+            details={
+                "swarm_id": swarm_id,
+                "mode": "fallback",
+                "intent_len": len(intent or ""),
+            },
+        )
         return {
             "status": "fallback",
             "swarm_id": swarm_id,
@@ -103,21 +175,22 @@ class SwarmAdapter:
             "context": context,
         }
 
-    def get_swarm_status(self, swarm_id: str) -> Dict[str, Any]:
-        swarm = self._swarms.get(swarm_id)
-        if not swarm:
-            return {"status": "error", "message": f"Swarm {swarm_id} not found"}
-
-        return {
-            "status": "success",
-            "swarm_id": swarm_id,
-            "swarm_status": swarm.get("status"),
-            "config": swarm.get("config"),
-        }
-
     def destroy_swarm(self, swarm_id: str) -> Dict[str, Any]:
         if swarm_id not in self._swarms:
+            _openharness_audit(
+                action="openharness_swarm_destroy",
+                result_status="failure",
+                result_message=f"Swarm {swarm_id} not found"[:200],
+                resource=swarm_id,
+                details={"swarm_id": swarm_id},
+            )
             return {"status": "error", "message": f"Swarm {swarm_id} not found"}
 
         del self._swarms[swarm_id]
+        _openharness_audit(
+            action="openharness_swarm_destroy",
+            result_status="success",
+            resource=swarm_id,
+            details={"swarm_id": swarm_id},
+        )
         return {"status": "success", "swarm_id": swarm_id}

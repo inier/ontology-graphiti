@@ -22,6 +22,23 @@ from odap.biz.integration.channel_management.storage.sqlite_channel_storage impo
 
 logger = logging.getLogger(__name__)
 
+# ── 审计工具（懒加载 + 容错，审计失败不打断业务） ──
+def _channel_audit(action: str, *, result_status: str = "success",
+                   result_message: str = "", resource: str = None,
+                   details: Dict[str, Any] = None) -> None:
+    try:
+        from odap.infra.security.audit_helper import storage_audit
+        storage_audit(
+            action=action,
+            result_status=result_status,
+            result_message=result_message,
+            resource=resource,
+            details=details or {},
+            service="integration_channel",
+        )
+    except Exception as e:
+        logger.warning(f"audit failed: {e}")
+
 
 class ChannelService:
     """渠道配置服务。
@@ -101,7 +118,21 @@ class ChannelService:
             创建后的配置（脱敏）
         """
         # 验证必填字段
-        self._validate_config(channel_type, config)
+        try:
+            self._validate_config(channel_type, config)
+        except ValueError as ve:
+            _channel_audit(
+                action="channel_register",
+                result_status="failure",
+                result_message=str(ve)[:200],
+                resource="",
+                details={
+                    "workspace_id": workspace_id,
+                    "channel_type": channel_type.value if hasattr(channel_type, "value") else str(channel_type),
+                    "name_len": len(name),
+                },
+            )
+            raise
 
         channel_config = ChannelConfig(
             workspace_id=workspace_id,
@@ -114,6 +145,19 @@ class ChannelService:
         )
 
         saved = self._storage.save(channel_config)
+        # 审计：注册渠道（不记凭证，只记统计量）
+        _channel_audit(
+            action="channel_register",
+            result_status="success",
+            resource=saved.id,
+            details={
+                "channel_id": saved.id,
+                "workspace_id": workspace_id,
+                "channel_type": channel_type.value if hasattr(channel_type, "value") else str(channel_type),
+                "name_len": len(name),
+                "enabled": enabled,
+            },
+        )
         return self._mask_credentials(saved)
 
     def update_channel(
@@ -138,20 +182,43 @@ class ChannelService:
         """
         existing = self._storage.get(config_id)
         if not existing:
+            _channel_audit(
+                action="channel_update",
+                result_status="failure",
+                result_message="Channel not found",
+                resource=config_id,
+                details={"channel_id": config_id},
+            )
             return None
 
+        changed = []
         # 更新字段
         if name is not None:
             existing.name = name
+            changed.append("name")
         if config is not None:
             self._validate_config(existing.channel_type, config)
             existing.config = config
+            changed.append("config")
         if enabled is not None:
             existing.enabled = enabled
+            changed.append("enabled")
         if allow_from is not None:
             existing.allow_from = allow_from
+            changed.append("allow_from")
 
         saved = self._storage.save(existing)
+        _channel_audit(
+            action="channel_update",
+            result_status="success",
+            resource=config_id,
+            details={
+                "channel_id": config_id,
+                "workspace_id": existing.workspace_id,
+                "changed_fields": changed,
+                "field_count": len(changed),
+            },
+        )
         return self._mask_credentials(saved)
 
     def delete_channel(self, config_id: str) -> bool:
@@ -163,7 +230,15 @@ class ChannelService:
         Returns:
             是否删除成功
         """
-        return self._storage.delete(config_id)
+        result = self._storage.delete(config_id)
+        _channel_audit(
+            action="channel_unregister",
+            result_status="success" if result else "failure",
+            result_message="" if result else "Channel not found",
+            resource=config_id,
+            details={"channel_id": config_id},
+        )
+        return result
 
     def enable_channel(self, config_id: str) -> Optional[Dict[str, Any]]:
         """启用渠道（热更新）。
@@ -176,10 +251,30 @@ class ChannelService:
         """
         existing = self._storage.get(config_id)
         if not existing:
+            _channel_audit(
+                action="channel_connect",
+                result_status="failure",
+                result_message="Channel not found",
+                resource=config_id,
+                details={"channel_id": config_id, "status": "enable_failed"},
+            )
             return None
 
         existing.enabled = True
         saved = self._storage.save(existing)
+
+        # 审计：接入/启用渠道
+        _channel_audit(
+            action="channel_connect",
+            result_status="success",
+            resource=config_id,
+            details={
+                "channel_id": config_id,
+                "workspace_id": existing.workspace_id,
+                "channel_type": existing.channel_type.value if hasattr(existing.channel_type, "value") else str(existing.channel_type),
+                "status": "enabled",
+            },
+        )
 
         # 发布配置变更事件（供 OHMO ChannelManager 订阅）
         self._publish_config_change(existing)
@@ -197,10 +292,30 @@ class ChannelService:
         """
         existing = self._storage.get(config_id)
         if not existing:
+            _channel_audit(
+                action="channel_disconnect",
+                result_status="failure",
+                result_message="Channel not found",
+                resource=config_id,
+                details={"channel_id": config_id, "status": "disable_failed"},
+            )
             return None
 
         existing.enabled = False
         saved = self._storage.save(existing)
+
+        # 审计：断开/停用渠道
+        _channel_audit(
+            action="channel_disconnect",
+            result_status="success",
+            resource=config_id,
+            details={
+                "channel_id": config_id,
+                "workspace_id": existing.workspace_id,
+                "channel_type": existing.channel_type.value if hasattr(existing.channel_type, "value") else str(existing.channel_type),
+                "status": "disabled",
+            },
+        )
 
         # 发布配置变更事件
         self._publish_config_change(existing)
@@ -216,26 +331,65 @@ class ChannelService:
         Returns:
             测试结果
         """
+        import time as _time
+        _t0 = _time.perf_counter()
         config = self._storage.get(config_id)
         if not config:
+            _channel_audit(
+                action="channel_test_connection",
+                result_status="failure",
+                result_message="Config not found",
+                resource=config_id,
+                details={"channel_id": config_id},
+            )
             return {"success": False, "message": "配置不存在"}
 
         try:
             # 获取解密后的配置进行测试
             decrypted_config = self._storage.get_decrypted_config(config_id)
             if not decrypted_config:
+                _dur = int((_time.perf_counter() - _t0) * 1000)
+                _channel_audit(
+                    action="channel_test_connection",
+                    result_status="failure",
+                    result_message="Decrypt failed",
+                    resource=config_id,
+                    details={"channel_id": config_id, "duration_ms": _dur},
+                )
                 return {"success": False, "message": "配置解密失败"}
 
             # TODO: 实现实际的连接测试
             # 目前返回模拟结果
             success = self._try_connect(config.channel_type, decrypted_config)
+            _dur = int((_time.perf_counter() - _t0) * 1000)
+
+            # 审计：连接测试（绝不记明文凭证）
+            _channel_audit(
+                action="channel_test_connection",
+                result_status="success" if success else "failure",
+                resource=config_id,
+                details={
+                    "channel_id": config_id,
+                    "channel_type": config.channel_type.value if hasattr(config.channel_type, "value") else str(config.channel_type),
+                    "duration_ms": _dur,
+                    "delivery_status": "delivered" if success else "failed",
+                },
+            )
 
             return {
                 "success": success,
                 "message": "连接成功" if success else "连接失败",
             }
         except Exception as e:
+            _dur = int((_time.perf_counter() - _t0) * 1000)
             logger.error(f"连接测试失败: {e}")
+            _channel_audit(
+                action="channel_test_connection",
+                result_status="failure",
+                result_message=str(e)[:200],
+                resource=config_id,
+                details={"channel_id": config_id, "duration_ms": _dur},
+            )
             return {"success": False, "message": str(e)}
 
     def get_channel_types(self) -> List[Dict[str, Any]]:

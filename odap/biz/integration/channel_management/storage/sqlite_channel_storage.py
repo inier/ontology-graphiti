@@ -24,6 +24,23 @@ from odap.biz.integration.channel_management.models.channel import (
 
 logger = logging.getLogger(__name__)
 
+# ── 存储层审计工具（懒加载 + 容错） ──
+def _channel_storage_audit(action: str, *, result_status: str = "success",
+                           result_message: str = "", resource: str = None,
+                           details: Dict[str, Any] = None) -> None:
+    try:
+        from odap.infra.security.audit_helper import storage_audit
+        storage_audit(
+            action=action,
+            result_status=result_status,
+            result_message=result_message,
+            resource=resource,
+            details=details or {},
+            service="integration_channel",
+        )
+    except Exception as e:
+        logger.warning(f"audit failed: {e}")
+
 
 class SQLiteChannelStorage:
     """SQLite 渠道配置持久化存储。
@@ -81,6 +98,12 @@ class SQLiteChannelStorage:
             保存后的配置
         """
         conn = self._connect()
+        # 判断是 insert 还是 update（通过检查 ID 是否存在）
+        existing = conn.execute(
+            "SELECT id FROM channel_configs WHERE id = ?",
+            (channel_config.id,)
+        ).fetchone()
+        is_update = existing is not None
         try:
             # 加密敏感配置
             encrypted_config = encrypt_config(channel_config.config)
@@ -107,9 +130,25 @@ class SQLiteChannelStorage:
 
             # 返回更新后的配置
             channel_config.updated_at = datetime.fromisoformat(now)
-            return channel_config
         finally:
             conn.close()
+
+        # 存储层审计：持久化写入
+        _channel_storage_audit(
+            action="channel_storage_save",
+            result_status="success",
+            resource=channel_config.id,
+            details={
+                "channel_id": channel_config.id,
+                "workspace_id": channel_config.workspace_id,
+                "channel_type": channel_config.channel_type.value,
+                "name_len": len(channel_config.name),
+                "config_keys_count": len(channel_config.config),
+                "is_update": is_update,
+                "side": "execution_storage",
+            },
+        )
+        return channel_config
 
     def get(self, config_id: str) -> Optional[ChannelConfig]:
         """根据 ID 获取渠道配置。
@@ -182,9 +221,21 @@ class SQLiteChannelStorage:
                 (config_id,)
             )
             conn.commit()
-            return cursor.rowcount > 0
+            result = cursor.rowcount > 0
         finally:
             conn.close()
+
+        _channel_storage_audit(
+            action="channel_storage_delete",
+            result_status="success" if result else "failure",
+            result_message="" if result else "Not found",
+            resource=config_id,
+            details={
+                "channel_id": config_id,
+                "side": "execution_storage",
+            },
+        )
+        return result
 
     def update_status(self, config_id: str, status: ChannelStatus) -> bool:
         """更新渠道状态。
@@ -206,9 +257,22 @@ class SQLiteChannelStorage:
                 (status.value, now, config_id)
             )
             conn.commit()
-            return cursor.rowcount > 0
+            result = cursor.rowcount > 0
         finally:
             conn.close()
+
+        _channel_storage_audit(
+            action="channel_storage_status_change",
+            result_status="success" if result else "failure",
+            result_message="" if result else "Not found",
+            resource=config_id,
+            details={
+                "channel_id": config_id,
+                "status": status.value,
+                "side": "execution_storage",
+            },
+        )
+        return result
 
     def get_decrypted_config(self, config_id: str) -> Optional[Dict[str, Any]]:
         """获取解密后的配置（仅限内部管理使用）。

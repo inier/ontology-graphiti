@@ -20,16 +20,12 @@ from __future__ import annotations
 
 import json
 import os
-import sqlite3
+from odap.infra.storage.sqlite_base import SqliteBaseStorage
 import uuid
 from datetime import datetime, timezone
 from typing import Any, Dict, List, Optional
 
 from odap.infra.security.encryption import ClassifiedFieldEncryptor
-
-DEFAULT_DB_DIR = os.environ.get("DATA_DIR", os.path.join(os.getcwd(), "data"))
-DEFAULT_DB_PATH = os.path.join(DEFAULT_DB_DIR, "ontology_api.db")
-
 
 def _safe_json_loads(value: Any, default: Any) -> Any:
     """安全地解析 JSON 字符串；失败时返回 default"""
@@ -42,22 +38,11 @@ def _safe_json_loads(value: Any, default: Any) -> Any:
     except (TypeError, ValueError):
         return default
 
-
-class SQLiteOntologyStorage:
+class SQLiteOntologyStorage(SqliteBaseStorage):
     """Ontology API 模块的 SQLite 持久化"""
 
     def __init__(self, db_path: str = None):
-        if db_path is None:
-            os.makedirs(DEFAULT_DB_DIR, exist_ok=True)
-            db_path = DEFAULT_DB_PATH
-        self.db_path = db_path
-        self._init_db()
-
-    def _get_conn(self):
-        """获取连接（每次操作独立连接，用完即关）"""
-        conn = sqlite3.connect(self.db_path)
-        conn.row_factory = sqlite3.Row
-        return conn
+        super().__init__(db_path, db_name="ontology_api.db")
 
     @staticmethod
     def _now() -> str:

@@ -72,14 +72,30 @@ def _is_admin(user: dict) -> bool:
 
 def _audit(action: str, user_id: str, result_status: str, result_message: str = "",
            details: dict = None, workspace_id: str = "default"):
-    """审计便捷函数"""
+    """审计便捷函数
+
+    优先 storage_audit，回退 log_audit；审计异常永远不打断业务。
+    """
+    try:
+        from odap.infra.security.audit_helper import storage_audit
+        storage_audit(
+            action=action,
+            result_status=result_status,
+            result_message=result_message,
+            resource=details.get("bucket", "") if details else "",
+            details={**(details or {}), "user": user_id, "workspace_id": workspace_id},
+            service="platform_minio",
+        )
+        return
+    except Exception:
+        pass
     try:
         from odap.infra.security.unified_audit import log_audit
         log_audit(
             action=action,
             resource="minio_admin",
             user=user_id,
-            service="minio_admin",
+            service="platform_minio",
             result_status=result_status,
             result_message=result_message,
             details=details or {},

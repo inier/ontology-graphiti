@@ -12,10 +12,41 @@ import logging
 from abc import ABC, abstractmethod
 from typing import Any, Dict, List, Optional
 
+from odap.infra.security.audit_helper import storage_audit
+
 from ..interfaces.inheritance_repository import InheritanceRepository
 from ..models.resolved_property import ResolvedProperty
 
 logger = logging.getLogger(__name__)
+
+_AUDIT_SERVICE = "ontology_design"
+
+
+def _audit_success(action: str, resource: str = None, details: Dict[str, Any] = None) -> None:
+    try:
+        storage_audit(
+            action=action,
+            result_status="success",
+            resource=resource,
+            details=details or {},
+            service=_AUDIT_SERVICE,
+        )
+    except Exception as e:
+        logger.warning(f"audit failed: {e}")
+
+
+def _audit_failure(action: str, msg: str = "", resource: str = None, details: Dict[str, Any] = None) -> None:
+    try:
+        storage_audit(
+            action=action,
+            result_status="failure",
+            result_message=(msg or "")[:200],
+            resource=resource,
+            details=details or {},
+            service=_AUDIT_SERVICE,
+        )
+    except Exception as e:
+        logger.warning(f"audit failed: {e}")
 
 
 SOURCE_SELF = "self"
@@ -128,34 +159,60 @@ class InheritanceResolver:
         self, type_id: str, property_name: str
     ) -> List[ResolvedProperty]:
         """解析单个属性的来源链（self → parent → mixin）"""
-        return self._resolved_for_property(type_id, property_name)
+        action = "inheritance.resolve_property_chain"
+        try:
+            result = self._resolved_for_property(type_id, property_name)
+            _audit_success(action,
+                            details={"type_id_len": len(type_id or ""),
+                                     "property_name_len": len(property_name or ""),
+                                     "chain_length": len(result or [])})
+            return result
+        except Exception as exc:
+            _audit_failure(action, msg=str(exc),
+                            details={"type_id_len": len(type_id or ""),
+                                     "property_name_len": len(property_name or "")})
+            raise
 
     def resolve_all_properties(
         self, type_id: str
     ) -> Dict[str, List[ResolvedProperty]]:
         """解析 ObjectType 完整属性集，按 (self+parent+mixin) 合并去重。"""
-        seen: set = set()
-        if self._provider is not None:
-            collected: List[str] = list(self._provider.get_property_names(type_id))
-            seen.update(collected)
-        else:
-            collected = []
-        parent_chain = self._parent_chain(type_id)
-        # 父类属性
-        for parent_id in parent_chain:
-            if self._provider is None:
-                break
-            for prop in self._provider.get_property_names(parent_id):
-                if prop not in seen:
-                    seen.add(prop)
-                    collected.append(prop)
-        # Mixin 属性
-        for mixin in self._repo.list_mixins_for_type(type_id):
-            for prop in mixin.get("properties", []) or []:
-                if prop not in seen:
-                    seen.add(prop)
-                    collected.append(prop)
-        return {p: self._resolved_for_property(type_id, p) for p in collected}
+        action = "inheritance.resolve_all_properties"
+        try:
+            seen: set = set()
+            if self._provider is not None:
+                collected: List[str] = list(self._provider.get_property_names(type_id))
+                seen.update(collected)
+            else:
+                collected = []
+            parent_chain = self._parent_chain(type_id)
+            # 父类属性
+            for parent_id in parent_chain:
+                if self._provider is None:
+                    break
+                for prop in self._provider.get_property_names(parent_id):
+                    if prop not in seen:
+                        seen.add(prop)
+                        collected.append(prop)
+            # Mixin 属性
+            mixin_count = 0
+            for mixin in self._repo.list_mixins_for_type(type_id):
+                mixin_count += 1
+                for prop in mixin.get("properties", []) or []:
+                    if prop not in seen:
+                        seen.add(prop)
+                        collected.append(prop)
+            result = {p: self._resolved_for_property(type_id, p) for p in collected}
+            _audit_success(action,
+                            details={"type_id_len": len(type_id or ""),
+                                     "property_count": len(result or {}),
+                                     "parent_chain_depth": len(parent_chain),
+                                     "mixin_count": mixin_count})
+            return result
+        except Exception as exc:
+            _audit_failure(action, msg=str(exc),
+                            details={"type_id_len": len(type_id or "")})
+            raise
 
 
 # ---------- 兼容旧函数式接口 ----------

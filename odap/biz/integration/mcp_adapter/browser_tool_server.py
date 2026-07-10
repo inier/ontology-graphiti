@@ -100,9 +100,9 @@ class BrowserUseEngine:
 
             # 创建 LLM 客户端（复用项目环境变量）
             llm = ChatOpenAI(
-                model=os.environ.get("OPENAI_MODEL", "gpt-4o"),
-                api_key=os.environ.get("OPENAI_API_KEY", ""),
-                base_url=os.environ.get("OPENAI_API_BASE"),
+                model=get_config("llm.model", "gpt-4o"),
+                api_key=get_config("llm.api_key", ""),
+                base_url=get_config("llm.api_base"),
             )
 
             # 构建任务描述
@@ -204,9 +204,9 @@ class BrowserUseEngine:
             from langchain_openai import ChatOpenAI
 
             llm = ChatOpenAI(
-                model=os.environ.get("OPENAI_MODEL", "gpt-4o"),
-                api_key=os.environ.get("OPENAI_API_KEY", ""),
-                base_url=os.environ.get("OPENAI_API_BASE"),
+                model=get_config("llm.model", "gpt-4o"),
+                api_key=get_config("llm.api_key", ""),
+                base_url=get_config("llm.api_base"),
             )
 
             task_desc = f"Go to {request.url} and extract: {request.extraction_prompt}"

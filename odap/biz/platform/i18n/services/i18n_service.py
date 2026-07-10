@@ -6,6 +6,23 @@ from ..storage import Storage
 
 logger = logging.getLogger("i18n_service")
 
+# ── 审计工具（懒加载 + 容错） ──
+def _i18n_audit(action: str, *, result_status: str = "success",
+                result_message: str = "", resource: str = None,
+                details: Dict[str, Any] = None) -> None:
+    try:
+        from odap.infra.security.audit_helper import storage_audit
+        storage_audit(
+            action=action,
+            result_status=result_status,
+            result_message=result_message,
+            resource=resource,
+            details=details or {},
+            service="platform_i18n",
+        )
+    except Exception as e:
+        logger.warning(f"audit failed: {e}")
+
 DEFAULT_LOCALES = [
     {"code": "zh-CN", "name": "Chinese (Simplified)", "native_name": "简体中文"},
     {"code": "en-US", "name": "English (US)", "native_name": "English"},
@@ -49,18 +66,51 @@ class I18nService:
         self, key: str, module: str, locale: str, value: str, updated_by: str = "system"
     ) -> Dict[str, Any]:
         translation = Translation(key=key, module=module, locale=locale, value=value)
-        return self._storage.save_translation(translation, updated_by=updated_by)
+        result = self._storage.save_translation(translation, updated_by=updated_by)
+        _i18n_audit(
+            action="i18n_translation_upsert",
+            result_status="success",
+            resource=key,
+            details={
+                "i18n_key_count": 1,
+                "module": module,
+                "locale": locale,
+                "key_len": len(key),
+            },
+        )
+        return result
 
     def save_translations_bulk(
         self, items: List[Dict[str, Any]], updated_by: str = "system"
     ) -> Dict[str, Any]:
         count = self._storage.save_translations_bulk(items, updated_by=updated_by)
+        _i18n_audit(
+            action="i18n_translation_bulk_save",
+            result_status="success",
+            resource="bulk",
+            details={
+                "i18n_key_count": count,
+                "item_count": count,
+            },
+        )
         return {"status": "success", "count": count}
 
     def delete_translation(
         self, key: str, module: str, locale: str
     ) -> Dict[str, Any]:
         deleted = self._storage.delete_translation(key, module, locale)
+        _i18n_audit(
+            action="i18n_translation_delete",
+            result_status="success" if deleted else "failure",
+            result_message="" if deleted else "Translation not found",
+            resource=key,
+            details={
+                "key": key,
+                "module": module,
+                "locale": locale,
+                "i18n_key_count": 1 if deleted else 0,
+            },
+        )
         if not deleted:
             return {"status": "error", "message": "Translation not found"}
         return {"status": "success", "deleted": True}
@@ -69,6 +119,18 @@ class I18nService:
         self, key: str, module: str, locale: str, approved: bool, updated_by: str = "system"
     ) -> Dict[str, Any]:
         updated = self._storage.review_translation(key, module, locale, approved, updated_by)
+        _i18n_audit(
+            action="i18n_translation_review",
+            result_status="success" if updated else "failure",
+            result_message="" if updated else "Translation not found",
+            resource=key,
+            details={
+                "key": key,
+                "module": module,
+                "locale": locale,
+                "approved": approved,
+            },
+        )
         if not updated:
             return {"status": "error", "message": "Translation not found"}
         return {"status": "success", "approved": approved}

@@ -18,6 +18,8 @@ import uuid
 from datetime import datetime
 from typing import Any, Dict, List, Optional
 
+from odap.infra.security.audit_helper import storage_audit
+
 from ..impl import (
     GoalRepositoryImpl,
     ImpactAnalyzerImpl,
@@ -35,6 +37,35 @@ from ..models.goal import is_valid_goal_transition
 from ..storage import SQLiteGoalStorage
 
 logger = logging.getLogger(__name__)
+
+_AUDIT_SERVICE = "ontology_design"
+
+
+def _audit_success(action: str, resource: str = None, details: Dict[str, Any] = None) -> None:
+    try:
+        storage_audit(
+            action=action,
+            result_status="success",
+            resource=resource,
+            details=details or {},
+            service=_AUDIT_SERVICE,
+        )
+    except Exception as e:
+        logger.warning(f"audit failed: {e}")
+
+
+def _audit_failure(action: str, msg: str = "", resource: str = None, details: Dict[str, Any] = None) -> None:
+    try:
+        storage_audit(
+            action=action,
+            result_status="failure",
+            result_message=(msg or "")[:200],
+            resource=resource,
+            details=details or {},
+            service=_AUDIT_SERVICE,
+        )
+    except Exception as e:
+        logger.warning(f"audit failed: {e}")
 
 
 def _new_id() -> str:
@@ -71,6 +102,7 @@ class GoalService:
         auto_rationale: bool = True,
     ) -> Dict[str, Any]:
         """创建 Goal；可选自动生成 rationale"""
+        action = "goal.create_goal"
         try:
             self._validate_create_goal_inputs(
                 title, business_objective, workspace_id, parent_goal_id
@@ -79,13 +111,27 @@ class GoalService:
                 title, description, business_objective,
                 workspace_id, created_by, parent_goal_id, tags, metadata,
             )
+            rationale_generated = False
             if auto_rationale:
-                goal.rationale = await self._safe_generate_rationale(goal)
+                generated = await self._safe_generate_rationale(goal)
+                goal.rationale = generated
+                rationale_generated = bool(generated)
             saved = self.repository.save_goal(goal)
+            _audit_success(action, resource=saved.id,
+                            details={"goal_id": saved.id,
+                                     "workspace_id_len": len(workspace_id or ""),
+                                     "has_parent": bool(parent_goal_id),
+                                     "tags_count": len(tags or []),
+                                     "rationale_generated": rationale_generated,
+                                     "status": saved.status.value})
             return self._goal_to_dict(saved)
         except ValueError as exc:
+            _audit_failure(action, msg=str(exc),
+                            details={"workspace_id_len": len(workspace_id or ""),
+                                     "has_parent": bool(parent_goal_id)})
             return {"status": "error", "message": str(exc)}
         except Exception as exc:
+            _audit_failure(action, msg=str(exc))
             return {"status": "error", "message": f"create_goal failed: {exc}"}
 
     def _validate_create_goal_inputs(
@@ -126,12 +172,21 @@ class GoalService:
 
     def get_goal(self, goal_id: str) -> Dict[str, Any]:
         """获取 Goal"""
+        action = "goal.get_goal"
         try:
             goal = self.repository.get_goal(goal_id)
             if not goal:
+                _audit_failure(action, msg="goal not found", resource=goal_id,
+                                details={"goal_id": goal_id})
                 return {"status": "error", "message": f"goal not found: {goal_id}"}
+            _audit_success(action, resource=goal_id,
+                            details={"goal_id": goal_id,
+                                     "status": goal.status.value,
+                                     "has_parent": bool(goal.parent_goal_id)})
             return self._goal_to_dict(goal)
         except Exception as exc:
+            _audit_failure(action, msg=str(exc), resource=goal_id,
+                            details={"goal_id": goal_id})
             return {"status": "error", "message": f"get_goal failed: {exc}"}
 
     def list_goals(
@@ -142,6 +197,7 @@ class GoalService:
         page_size: int = 20,
     ) -> Dict[str, Any]:
         """分页列出 Goal"""
+        action = "goal.list_goals"
         try:
             if not workspace_id or not str(workspace_id).strip():
                 raise ValueError("workspace_id is required")
@@ -151,6 +207,12 @@ class GoalService:
                 page=page,
                 page_size=page_size,
             )
+            _audit_success(action,
+                            details={"workspace_id_len": len(workspace_id or ""),
+                                     "has_status_filter": bool(status),
+                                     "count": len(data.get("goals", []) or []),
+                                     "total": int(data.get("total", 0)),
+                                     "page": page})
             return {
                 "goals": [self._goal_to_dict(g) for g in data["goals"]],
                 "total": data["total"],
@@ -159,35 +221,56 @@ class GoalService:
                 "count": len(data["goals"]),
             }
         except ValueError as exc:
+            _audit_failure(action, msg=str(exc),
+                            details={"workspace_id_len": len(workspace_id or "")})
             return {"status": "error", "message": str(exc)}
         except Exception as exc:
+            _audit_failure(action, msg=str(exc))
             return {"status": "error", "message": f"list_goals failed: {exc}"}
 
     def update_goal(
         self, goal_id: str, payload: Dict[str, Any]
     ) -> Dict[str, Any]:
         """更新 Goal（部分字段）"""
+        action = "goal.update_goal"
         try:
             existing = self.repository.get_goal(goal_id)
             if not existing:
+                _audit_failure(action, msg="goal not found", resource=goal_id,
+                                details={"goal_id": goal_id})
                 return {"status": "error", "message": f"goal not found: {goal_id}"}
             merged = self._merge_goal(existing, payload)
             merged.updated_at = datetime.now()
             saved = self.repository.save_goal(merged)
+            _audit_success(action, resource=goal_id,
+                            details={"goal_id": goal_id,
+                                     "status": saved.status.value,
+                                     "tags_count": len(saved.tags or [])})
             return self._goal_to_dict(saved)
         except ValueError as exc:
+            _audit_failure(action, msg=str(exc), resource=goal_id,
+                            details={"goal_id": goal_id})
             return {"status": "error", "message": str(exc)}
         except Exception as exc:
+            _audit_failure(action, msg=str(exc), resource=goal_id,
+                            details={"goal_id": goal_id})
             return {"status": "error", "message": f"update_goal failed: {exc}"}
 
     def delete_goal(self, goal_id: str) -> Dict[str, Any]:
         """删除 Goal"""
+        action = "goal.delete_goal"
         try:
             ok = self.repository.delete_goal(goal_id)
             if not ok:
+                _audit_failure(action, msg="goal not found", resource=goal_id,
+                                details={"goal_id": goal_id})
                 return {"status": "error", "message": f"goal not found: {goal_id}"}
+            _audit_success(action, resource=goal_id,
+                            details={"goal_id": goal_id, "deleted": True})
             return {"goal_id": goal_id, "deleted": True}
         except Exception as exc:
+            _audit_failure(action, msg=str(exc), resource=goal_id,
+                            details={"goal_id": goal_id})
             return {"status": "error", "message": f"delete_goal failed: {exc}"}
 
     # ---------- 状态机 ----------
@@ -196,18 +279,28 @@ class GoalService:
         self, goal_id: str, new_status: str
     ) -> Dict[str, Any]:
         """转换 Goal 状态 (校验合法状态机)"""
+        action = "goal.change_status"
         try:
             existing = self.repository.get_goal(goal_id)
             if not existing:
+                _audit_failure(action, msg="goal not found", resource=goal_id,
+                                details={"goal_id": goal_id})
                 return {"status": "error", "message": f"goal not found: {goal_id}"}
             try:
                 target = GoalStatus(new_status)
             except ValueError:
+                _audit_failure(action, msg=f"invalid new_status: {new_status}",
+                                resource=goal_id, details={"goal_id": goal_id,
+                                                             "new_status": str(new_status)})
                 return {
                     "status": "error",
                     "message": f"invalid new_status: {new_status}",
                 }
             if not is_valid_goal_transition(existing.status, target):
+                _audit_failure(action, msg=f"invalid transition {existing.status.value}->{target.value}",
+                                resource=goal_id, details={"goal_id": goal_id,
+                                                             "from_status": existing.status.value,
+                                                             "to_status": target.value})
                 return {
                     "status": "error",
                     "message": (
@@ -218,8 +311,14 @@ class GoalService:
             existing.status = target
             existing.updated_at = datetime.now()
             saved = self.repository.save_goal(existing)
+            _audit_success(action, resource=goal_id,
+                            details={"goal_id": goal_id,
+                                     "from_status": existing.status.value,  # already updated - use target
+                                     "to_status": target.value})
             return self._goal_to_dict(saved)
         except Exception as exc:
+            _audit_failure(action, msg=str(exc), resource=goal_id,
+                            details={"goal_id": goal_id})
             return {"status": "error", "message": f"change_status failed: {exc}"}
 
     # ---------- Proposal + Impact ----------
@@ -235,9 +334,12 @@ class GoalService:
         estimated_cost: Optional[str] = None,
     ) -> Dict[str, Any]:
         """创建 ChangeProposal 并自动运行 ImpactAnalyzer"""
+        action = "goal.propose_change"
         try:
             goal = self.repository.get_goal(goal_id)
             if not goal:
+                _audit_failure(action, msg="goal not found", resource=goal_id,
+                                details={"goal_id": goal_id})
                 return {"status": "error", "message": f"goal not found: {goal_id}"}
             self._validate_proposal_inputs(title, proposed_by)
             proposal = self._build_proposal(
@@ -245,13 +347,23 @@ class GoalService:
                 proposed_by, estimated_benefit, estimated_cost,
             )
             impact = self._analyze_and_persist(proposal)
+            _audit_success(action, resource=proposal.id,
+                            details={"proposal_id": proposal.id,
+                                     "goal_id": goal_id,
+                                     "changes_count": len(changes or []),
+                                     "impact_affected_count": int(impact.affected_instances_count),
+                                     "risk_level": impact.risk_level.value})
             return {
                 "proposal": self._proposal_to_dict(proposal),
                 "impact": self._impact_to_dict(impact),
             }
         except ValueError as exc:
+            _audit_failure(action, msg=str(exc), resource=goal_id,
+                            details={"goal_id": goal_id})
             return {"status": "error", "message": str(exc)}
         except Exception as exc:
+            _audit_failure(action, msg=str(exc), resource=goal_id,
+                            details={"goal_id": goal_id})
             return {"status": "error", "message": f"propose_change failed: {exc}"}
 
     @staticmethod
@@ -293,13 +405,19 @@ class GoalService:
         status: Optional[str] = None,
     ) -> Dict[str, Any]:
         """列出 ChangeProposal"""
+        action = "goal.list_proposals"
         try:
             items = self.repository.list_proposals(goal_id=goal_id, status=status)
+            _audit_success(action,
+                            details={"has_goal_filter": bool(goal_id),
+                                     "has_status_filter": bool(status),
+                                     "count": len(items or [])})
             return {
                 "proposals": [self._proposal_to_dict(p) for p in items],
                 "count": len(items),
             }
         except Exception as exc:
+            _audit_failure(action, msg=str(exc))
             return {"status": "error", "message": f"list_proposals failed: {exc}"}
 
     def review_proposal(
@@ -309,15 +427,22 @@ class GoalService:
         reviewer_notes: Optional[str] = None,
     ) -> Dict[str, Any]:
         """审批 ChangeProposal (approve/reject/...)"""
+        action = "goal.review_proposal"
         try:
             proposal = self.repository.get_proposal(proposal_id)
             if not proposal:
+                _audit_failure(action, msg="proposal not found", resource=proposal_id,
+                                details={"proposal_id": proposal_id})
                 return {
                     "status": "error",
                     "message": f"proposal not found: {proposal_id}",
                 }
             new_status = self._map_decision_to_status(decision)
             if new_status is None:
+                _audit_failure(action, msg=f"invalid decision: {decision}",
+                                resource=proposal_id,
+                                details={"proposal_id": proposal_id,
+                                         "decision": str(decision)})
                 return {
                     "status": "error",
                     "message": f"invalid decision: {decision}",
@@ -326,8 +451,14 @@ class GoalService:
             proposal.reviewed_at = datetime.now()
             proposal.reviewer_notes = reviewer_notes
             self.repository.update_proposal(proposal)
+            _audit_success(action, resource=proposal_id,
+                            details={"proposal_id": proposal_id,
+                                     "new_status": new_status.value,
+                                     "has_notes": bool(reviewer_notes)})
             return self._proposal_to_dict(proposal)
         except Exception as exc:
+            _audit_failure(action, msg=str(exc), resource=proposal_id,
+                            details={"proposal_id": proposal_id})
             return {
                 "status": "error",
                 "message": f"review_proposal failed: {exc}",
@@ -352,10 +483,18 @@ class GoalService:
 
     def get_goal_lineage(self, goal_id: str) -> Dict[str, Any]:
         """获取 Goal 血缘"""
+        action = "goal.get_goal_lineage"
         try:
             data = self.repository.get_goal_lineage(goal_id)
             if data.get("goal") is None:
+                _audit_failure(action, msg="goal not found", resource=goal_id,
+                                details={"goal_id": goal_id})
                 return {"status": "error", "message": f"goal not found: {goal_id}"}
+            _audit_success(action, resource=goal_id,
+                            details={"goal_id": goal_id,
+                                     "ancestors_count": len(data.get("ancestors", []) or []),
+                                     "children_count": len(data.get("children", []) or []),
+                                     "proposals_count": len(data.get("proposals", []) or [])})
             return {
                 "goal": self._goal_to_dict(data["goal"]),
                 "ancestors": [self._goal_to_dict(g) for g in data["ancestors"]],
@@ -365,6 +504,8 @@ class GoalService:
                 ],
             }
         except Exception as exc:
+            _audit_failure(action, msg=str(exc), resource=goal_id,
+                            details={"goal_id": goal_id})
             return {
                 "status": "error",
                 "message": f"get_goal_lineage failed: {exc}",
