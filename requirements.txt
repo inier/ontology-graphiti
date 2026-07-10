@@ -55,9 +55,9 @@ sqlalchemy>=2.0.0
 psycopg2-binary>=2.9.0
 pymysql>=1.1.0
 
-# Hyper-Extract 本体提取引擎（可选 - 需要 Python >=3.11）
-# 如需启用 HE 提取，请取消下行注释并确保 Python >=3.11
-# -e ./hyper-extract
+# Hyper-Extract 本体提取引擎（ADR-066: KB 文档实体关系提取）
+# 提供 Pydantic Schema 约束的 AutoGraph 提取，替代纯 regex/LLM prompt
+-e ./hyper-extract
 langchain>=0.1.0
 langchain-openai>=0.1.0
 faiss-cpu>=1.7.0
@@ -68,6 +68,13 @@ python-docx>=1.0.0
 openpyxl>=3.1.0
 pytesseract>=0.3.10
 Pillow>=10.0.0
+
+# 可观测性 — ADR-064（OpenTelemetry 追踪 + Prometheus 指标）
+opentelemetry-api>=1.25.0
+opentelemetry-sdk>=1.25.0
+opentelemetry-exporter-otlp-proto-http>=1.25.0
+opentelemetry-instrumentation-fastapi>=0.46b0
+prometheus-client>=0.20.0
 
 # 开发依赖
 pytest>=8.0.0
