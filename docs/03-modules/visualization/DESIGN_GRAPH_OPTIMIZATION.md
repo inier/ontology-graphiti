@@ -540,4 +540,4 @@ const initLargeGraph = (container: HTMLElement, nodeCount: number) => {
 
 ---
 
-*关联文档: [全链路架构设计](../../02-architecture/ARCHITECTURE_FULL_CHAIN.md), [全链路深入实现设计 v2.0](../../02-architecture/ARCHITECTURE_FULL_CHAIN_DEEP.md), [ARCHITECTURE_WEB.md](../../02-architecture/ARCHITECTURE_WEB.md), [ADR-045](../../07-adr/ADR-045_frontend_visualization_g6_leaflet.md)*
+*关联文档: [全链路架构设计](../../02-architecture/ARCHITECTURE_FULL_CHAIN.md), [全链路深入实现设计 v2.0](../../02-architecture/ARCHITECTURE_FULL_CHAIN.md), [ARCHITECTURE_WEB.md](../../02-architecture/ARCHITECTURE_WEB.md), [ADR-045](../../07-adr/ADR-045_frontend_visualization_g6_leaflet.md)*

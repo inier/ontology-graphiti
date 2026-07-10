@@ -11,7 +11,7 @@
 |------|:----:|------|------|
 | [ARCHITECTURE.md](ARCHITECTURE.md) | 4.0.1 | ⭐ **唯一权威架构** | 四层架构定义、Phase 4-5演进、Checklist、异常确认 |
 | [ARCHITECTURE_FULL_CHAIN.md](ARCHITECTURE_FULL_CHAIN.md) | 1.0.0 | 全链路架构概述 | 5-Phase数据流：摄入→构建→问答→执行→反馈 |
-| [ARCHITECTURE_FULL_CHAIN_DEEP.md](ARCHITECTURE_FULL_CHAIN_DEEP.md) | 2.3.0 | 全链路深入实现 | Python/TypeScript/DB Schema完整代码 |
+| [ARCHITECTURE_FULL_CHAIN.md](ARCHITECTURE_FULL_CHAIN.md) | 2.3.0 | 全链路深入实现 | Python/TypeScript/DB Schema完整代码 |
 | [ARCHITECTURE_BIZ.md](ARCHITECTURE_BIZ.md) | — | 业务架构 | L3-L4业务层详细设计 |
 | [ARCHITECTURE_INFRA.md](ARCHITECTURE_INFRA.md) | — | 基础设施架构 | L1基础设施：Neo4j/OPA/图数据库 |
 | [ARCHITECTURE_TOOLS.md](ARCHITECTURE_TOOLS.md) | — | 领域工具架构 | L2领域工具层 |
@@ -44,6 +44,6 @@
 ## 阅读路径
 
 - **新成员**: ARCHITECTURE.md → ARCHITECTURE_FULL_CHAIN.md
-- **开发者**: ARCHITECTURE_FULL_CHAIN_DEEP.md（按Phase查阅）
+- **开发者**: ARCHITECTURE_FULL_CHAIN.md（按Phase查阅）
 - **运维**: ARCHITECTURE_OPS.md
 - **架构师**: ARCHITECTURE.md + ARCHITECTURE_EVOLVE.md + subsystems/*（按子系统查阅）

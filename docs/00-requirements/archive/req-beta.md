@@ -596,7 +596,7 @@
 
 ## 5. 架构决策记录摘要
 
-> 完整 ADR 列表和详细内容见 [`docs/adr/README.md`](adr/README.md)。
+> 完整 ADR 列表和详细内容见 [`docs/adr/README.md`](07-adr/README.md)。
 
 | ADR | 决策 | 状态 | 优先级 |
 |-----|------|------|--------|

@@ -361,8 +361,8 @@ print(f"平均执行时间: {stats.avg_execution_time_ms}ms")
 
 1. [工具注册表模块设计](../03-modules/tool_registry/DESIGN.md)
 2. [Hook系统模块设计](../03-modules/hook_system/DESIGN.md)
-3. [权限校验模块设计](../03-modules/permission_checker/DESIGN.md)
-4. [工具开发规范](../../tools/DEVELOPMENT_GUIDE.md)
+3. [权限校验模块设计](../03-modules/opa_policy/DESIGN.md)
+4. 工具开发规范
 
 ## 决策记录
 

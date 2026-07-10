@@ -919,7 +919,7 @@ simulation_visualization:
 
 **相关文档**:
 - [全链路架构设计](../../02-architecture/ARCHITECTURE_FULL_CHAIN.md) — Phase 1-5 可视化需求全景
-- [全链路深入实现设计 v2.0](../../02-architecture/ARCHITECTURE_FULL_CHAIN_DEEP.md) — Phase 2.10 版本差异可视化
+- [全链路深入实现设计 v2.0](../../02-architecture/ARCHITECTURE_FULL_CHAIN.md) — Phase 2.10 版本差异可视化
 - [图谱可视化优化设计](DESIGN_GRAPH_OPTIMIZATION.md) — G6 v5 三层渲染架构
 - [Graphiti 客户端模块设计](../graphiti_client/DESIGN.md)
 - [Ontology 本体管理层设计](../ontology/DESIGN.md)

@@ -153,7 +153,7 @@
 | ADR-051 | 闭环反馈机制设计 | 已接受 | [ADR-051](ADR-051_闭环反馈机制设计.md) |
 | ADR-052 | 智能问答WebUI开源项目选型 | 提议 | [ADR-052](ADR-052_webui_opensource_selection.md) |
 | ADR-053 | Skill可视化管理开源方案选型 | 提议 | [ADR-053](ADR-053_skill_management_selection.md) |
-| ADR-054 | 全链路深入实现设计 v2.3 | 已接受 | [ARCHITECTURE_FULL_CHAIN_DEEP.md](../02-architecture/ARCHITECTURE_FULL_CHAIN_DEEP.md) |
+| ADR-054 | 全链路深入实现设计 v2.3 | 已接受 | [ARCHITECTURE_FULL_CHAIN.md](../02-architecture/ARCHITECTURE_FULL_CHAIN.md) |
 | ADR-055 | 统一查询服务 (QueryService) | 已接受 | [ADR-055](ADR-055-统一查询服务.md) |
 | ADR-056 | 语义层修正（类型校验执行与模型统一） | 提议 | [ADR-056](ADR-056-语义层修正.md) |
 | ADR-057 | 领域本体语义层（四大名著中英文映射） | 提议 | [ADR-057](ADR-057-domain-ontology-semantic-layer.md) |

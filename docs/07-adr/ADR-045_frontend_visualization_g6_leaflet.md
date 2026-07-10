@@ -68,7 +68,7 @@ ODAP 前端需要两类核心可视化能力：
 
 - 关闭 ANOMALY_REPORT I-17（图谱可视化选型）、I-18（地图可视化选型）
 - 关联 [全链路架构设计](../02-architecture/ARCHITECTURE_FULL_CHAIN.md) — Phase 1-5 可视化需求全景
-- 关联 [全链路深入实现设计 v2.0](../02-architecture/ARCHITECTURE_FULL_CHAIN_DEEP.md) — Phase 2.10 版本差异可视化 / Phase 5.10 仪表盘
+- 关联 [全链路深入实现设计 v2.0](../02-architecture/ARCHITECTURE_FULL_CHAIN.md) — Phase 2.10 版本差异可视化 / Phase 5.10 仪表盘
 - 关联 ADR-007（React + Ant Design 技术栈）
 - 关联 ADR-015（可扩展图表系统）
 - 关联 ADR-031（模拟器 Web 可视化）

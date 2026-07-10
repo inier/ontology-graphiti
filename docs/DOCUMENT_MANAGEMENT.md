@@ -57,7 +57,7 @@
 
 1. 需求变更 → 更新 `00-requirements/req-ok.md` → 同步更新 `02-architecture/ARCHITECTURE.md`
 2. 架构决策 → 创建新 ADR → 更新 `ARCHITECTURE.md` 引用
-3. 模块变更 → 更新对应 `03-modules/*/DESIGN.md` → 同步更新 `ARCHITECTURE_FULL_CHAIN_DEEP.md`
+3. 模块变更 → 更新对应 `03-modules/*/DESIGN.md` → 同步更新 `ARCHITECTURE_FULL_CHAIN.md`
 4. 废弃文档 → 移至 `11-archive/`，保留演进历史，**禁止直接删除**
 
 ### 2.3 路径变更影响链

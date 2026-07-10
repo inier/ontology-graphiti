@@ -1708,6 +1708,6 @@ ws.onmessage = (event) => {
 
 **相关文档**:
 - [OpenHarness领域适配指南](../openharness_bridge/DESIGN.md)
-- [权限校验模块设计](../permission_checker/DESIGN.md)
+- [权限校验模块设计](../opa_policy/DESIGN.md)
 - [MCP协议集成模块设计](../mcp_protocol/DESIGN.md)
 - [安全策略文档](../../05-security/SECURITY.md)

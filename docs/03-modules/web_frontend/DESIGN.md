@@ -620,7 +620,7 @@ npm run build
 
 **相关文档**:
 - [全链路架构设计](../../02-architecture/ARCHITECTURE_FULL_CHAIN.md) — Phase 1-5 前端架构全景
-- [全链路深入实现设计 v2.0](../../02-architecture/ARCHITECTURE_FULL_CHAIN_DEEP.md) — Phase 1-5 前端组件实现 (IngestionWizard, OntologyReviewPage, VersionDiffViewer, CitationPopover, FeedbackDashboard)
+- [全链路深入实现设计 v2.0](../../02-architecture/ARCHITECTURE_FULL_CHAIN.md) — Phase 1-5 前端组件实现 (IngestionWizard, OntologyReviewPage, VersionDiffViewer, CitationPopover, FeedbackDashboard)
 - [ADR-052: 智能问答WebUI开源项目选型](../../07-adr/ADR-052_webui_opensource_selection.md)
 - [图谱可视化优化设计](../visualization/DESIGN_GRAPH_OPTIMIZATION.md) — G6 v5 三层渲染架构
 - [安全策略文档](../../05-security/SECURITY.md)

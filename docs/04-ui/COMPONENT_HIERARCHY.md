@@ -243,5 +243,5 @@ export function Component({ className }: ComponentProps) {
 
 ## 6. 相关文档
 
-- [移动优先设计规范](../ui/MOBILE_FIRST_DESIGN.md)
+- [移动优先设计规范](04-ui/MOBILE_FIRST_DESIGN.md)
 - [响应式与国际化 ADR](../07-adr/ADR-037_frontend_mobile_first_i18n.md)

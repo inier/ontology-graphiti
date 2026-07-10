@@ -117,7 +117,7 @@ class SkillRegistry:
 ## 6. 相关文档
 
 - [全链路架构设计](../02-architecture/ARCHITECTURE_FULL_CHAIN.md) — Phase 4 Skill执行架构
-- [全链路深入实现设计 v2.0](../02-architecture/ARCHITECTURE_FULL_CHAIN_DEEP.md) — Phase 4 热重载/并发控制/版本化
+- [全链路深入实现设计 v2.0](../02-architecture/ARCHITECTURE_FULL_CHAIN.md) — Phase 4 热重载/并发控制/版本化
 - [ADR-014: 技能热插拔架构](ADR-014_技能热插拔架构.md)
 - [Skills 模块设计](../03-modules/skills/DESIGN.md)
 - [ADR-053: Skill可视化管理开源方案选型](ADR-053_skill_management_selection.md)

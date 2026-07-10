@@ -27,9 +27,9 @@
 
 前端采用 **移动优先（Mobile First）** 的响应式设计策略，详见：
 
-- [ADR-037: 移动优先与国际化策略](adr/ADR-037_frontend_mobile_first_i18n.md)
-- [UI 设计 - 移动优先规范](ui/MOBILE_FIRST_DESIGN.md)
-- [UI 设计 - 组件分级管理](ui/COMPONENT_HIERARCHY.md)
+- [ADR-037: 移动优先与国际化策略](07-adr/ADR-037_frontend_mobile_first_i18n.md)
+- [UI 设计 - 移动优先规范](04-ui/MOBILE_FIRST_DESIGN.md)
+- [UI 设计 - 组件分级管理](04-ui/COMPONENT_HIERARCHY.md)
 
 响应式断点设计：
 
@@ -1089,4 +1089,3 @@ is_protected_target(target) if {
 
 *文档版本: 5.0.0 | 最后更新: 2026-05-19 | 作者: 软件架构师*
 *附录D.4 (OMS/对象服务/动作服务 API) 于 2026-05-19 新增*
-

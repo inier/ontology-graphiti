@@ -32,9 +32,9 @@
 
 **参考文档**:
 
-- [ARCHITECTURE_VALIDATION_REPORT.md](ARCHITECTURE_VALIDATION_REPORT.md) - 架构合理性验证报告
+- ARCHITECTURE_VALIDATION_REPORT.md - 架构合理性验证报告
 - [PHASE4_5_PLAN.md](PHASE4_5_PLAN.md) - Phase 4-5 演进规划（详细版）
-- [../00-00-requirements/req-ok.md](../00-00-requirements/req-ok.md) - 需求规格文档（上游）
+- [../00-00-requirements/req-ok.md](../00-requirements/req-ok.md) - 需求规格文档（上游）
 - [adr/README.md](../07-adr/README.md) - 架构决策记录
 
 ---

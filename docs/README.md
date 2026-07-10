@@ -51,7 +51,7 @@
 |:------:|------|------|
 | ⭐⭐⭐ | **唯一权威需求来源** | [00-requirements/req-ok.md](00-requirements/req-ok.md) |
 | ⭐⭐⭐ | **唯一权威架构文档** | [02-architecture/ARCHITECTURE.md](02-architecture/ARCHITECTURE.md) |
-| ⭐⭐ | 全链路深入实现 | [02-architecture/ARCHITECTURE_FULL_CHAIN_DEEP.md](02-architecture/ARCHITECTURE_FULL_CHAIN_DEEP.md) |
+| ⭐⭐ | 全链路深入实现 | [02-architecture/ARCHITECTURE_FULL_CHAIN.md](02-architecture/ARCHITECTURE_FULL_CHAIN.md) |
 | ⭐⭐ | 综合优化设计 | [01-product-design/ODAP综合优化设计文档.md](01-product-design/ODAP综合优化设计文档.md) |
 
 ---

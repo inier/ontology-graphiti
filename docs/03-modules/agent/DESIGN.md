@@ -402,7 +402,7 @@ AgentFactory.register("custom", CustomAgent)
 
 - [ADR-004: 统一 Skill 体系架构](../../07-adr/ADR-004_统一_skill_体系架构.md)
 - [ADR-005: 分层 Agent 架构](../../07-adr/ADR-005_分层_agent_架构openharness_原生_领域扩展.md)
-- [ADR-006: Agent 链路追踪系统](../../07-adr/ADR-006_agent_链路追踪系统.md)
+- ADR-006: Agent 链路追踪系统
 - [Swarm 编排模块](../swarm_orchestrator/DESIGN.md)
 - [OPA Policy 模块](../opa_policy/DESIGN.md)
 - [Skills 模块](../skills/DESIGN.md)

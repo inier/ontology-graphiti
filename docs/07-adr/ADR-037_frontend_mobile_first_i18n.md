@@ -210,7 +210,7 @@ const useBreakpoint = () => {
 
 - [ADR-007: 前端技术栈](ADR-007_前端采用_react_ant_design_技术栈.md)
 - [UI 设计稿](../04-ui/UI_DESIGN.md)
-- [Web 模块设计](../03-modules/web/DESIGN.md)
+- [Web 模块设计](../03-modules/web_frontend/DESIGN.md)
 
 ## Amendment (2026-05-31)
 

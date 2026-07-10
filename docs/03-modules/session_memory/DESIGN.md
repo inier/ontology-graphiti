@@ -570,6 +570,6 @@ class CoTWebSocketHandler:
 
 - [ADR-039: QA Engine 架构](../../07-adr/ADR-039_qa_engine_architecture.md)
 - [全链路架构设计](../../02-architecture/ARCHITECTURE_FULL_CHAIN.md) — Phase 3 问答 & Phase 5 闭环反馈
-- [全链路深入实现设计 v2.0](../../02-architecture/ARCHITECTURE_FULL_CHAIN_DEEP.md) — §3.7 会话记忆管理, §3.8 上下文窗口
+- [全链路深入实现设计 v2.0](../../02-architecture/ARCHITECTURE_FULL_CHAIN.md) — §3.7 会话记忆管理, §3.8 上下文窗口
 - [QA Engine 模块设计](../qa_engine/DESIGN.md)
 - [Visualization 可视化模块设计](../visualization/DESIGN.md)

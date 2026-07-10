@@ -1351,7 +1351,7 @@ services:
 
 **相关文档**:
 - [全链路架构设计](../../02-architecture/ARCHITECTURE_FULL_CHAIN.md) — Phase 2 本体构建架构
-- [全链路深入实现设计 v2.0](../../02-architecture/ARCHITECTURE_FULL_CHAIN_DEEP.md) — Phase 2 版本管理/回滚实现
+- [全链路深入实现设计 v2.0](../../02-architecture/ARCHITECTURE_FULL_CHAIN.md) — Phase 2 版本管理/回滚实现
 - [Graphiti 客户端模块设计](../graphiti_client/DESIGN.md)
 - [本体模块设计](../ontology/DESIGN.md)
 - [安全策略文档](../../05-security/SECURITY.md)

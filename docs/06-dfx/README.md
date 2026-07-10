@@ -17,7 +17,7 @@
 
 | 维度 | 目标 | 关键文档 |
 |------|------|---------|
-| **性能** | P95延迟 < 3s | [ARCHITECTURE_FULL_CHAIN_DEEP.md §5.12](../02-architecture/ARCHITECTURE_FULL_CHAIN_DEEP.md) |
+| **性能** | P95延迟 < 3s | [ARCHITECTURE_FULL_CHAIN.md §5.12](../02-architecture/ARCHITECTURE_FULL_CHAIN.md) |
 | **安全** | RBAC+ABAC全覆盖 | [05-安全设计](../05-security) |
 | **可靠性** | 可用性 99.9% | [ARCHITECTURE_OPS.md](../02-architecture/ARCHITECTURE_OPS.md) |
 | **可维护性** | 测试覆盖率 > 80% | 本目录 TEST_DESIGN.md |

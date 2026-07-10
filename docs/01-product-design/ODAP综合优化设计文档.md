@@ -13,12 +13,12 @@
 | 目标 | 详细文档 | 类型 |
 |------|---------|------|
 | 1. 架构检查与补充 | [全链路架构设计](02-architecture/ARCHITECTURE_FULL_CHAIN.md) | 架构设计 |
-| 2. WebUI选型 | [ADR-052: 智能问答WebUI开源项目选型](adr/ADR-052_webui_opensource_selection.md) | 选型报告 |
-| 3. 图谱可视化 | [图谱可视化优化设计](modules/visualization/DESIGN_GRAPH_OPTIMIZATION.md) | 详细设计 |
+| 2. WebUI选型 | [ADR-052: 智能问答WebUI开源项目选型](07-adr/ADR-052_webui_opensource_selection.md) | 选型报告 |
+| 3. 图谱可视化 | [图谱可视化优化设计](03-modules/visualization/DESIGN_GRAPH_OPTIMIZATION.md) | 详细设计 |
 | 4. 全链路闭环 | [全链路架构设计](02-architecture/ARCHITECTURE_FULL_CHAIN.md) | 架构设计 |
-| 5. Skill管理选型 | [ADR-053: Skill可视化管理开源方案选型](adr/ADR-053_skill_management_selection.md) | 选型报告 |
+| 5. Skill管理选型 | [ADR-053: Skill可视化管理开源方案选型](../07-adr/ADR-053_skill_management_selection.md) | 选型报告 |
 | 6. 设计文档 | 本目录下所有上述文档 | 综合输出 |
-| 🔧 深入实现 | [全链路深入设计 v2.0](02-architecture/ARCHITECTURE_FULL_CHAIN_DEEP.md) | **5118行完整代码** |
+| 🔧 深入实现 | [全链路深入设计 v2.0](02-architecture/ARCHITECTURE_FULL_CHAIN.md) | **5118行完整代码** |
 
 ---
 
@@ -323,7 +323,7 @@ const graph = new G6.Graph({
 
 ### 4.1 链路总览
 
-> **📘 完整实现代码参考**: [全链路深入实现设计 v2.3](./02-architecture/ARCHITECTURE_FULL_CHAIN_DEEP.md) (~5310行，已去重精简)
+> **📘 完整实现代码参考**: [全链路深入实现设计 v2.3](./02-architecture/ARCHITECTURE_FULL_CHAIN.md) (~5310行，已去重精简)
 
 ```
 ┌─────────────┐    ┌──────────────┐    ┌─────────┐    ┌─────────┐
@@ -720,21 +720,21 @@ interface SkillAPI {
 **架构设计文档**：
 - [ODAP核心架构设计 v4.1](./02-architecture/ARCHITECTURE.md)
 - [全链路架构设计](./02-architecture/ARCHITECTURE_FULL_CHAIN.md)
-- [全链路深入实现设计 v2.0](./02-architecture/ARCHITECTURE_FULL_CHAIN_DEEP.md) — **5118行完整代码实现**
+- [全链路深入实现设计 v2.0](./02-architecture/ARCHITECTURE_FULL_CHAIN.md) — **5118行完整代码实现**
 
 **选型报告 (ADR)**：
-- [ADR-052: 智能问答WebUI开源项目选型](adr/ADR-052_webui_opensource_selection.md)
-- [ADR-053: Skill可视化管理开源方案选型](adr/ADR-053_skill_management_selection.md)
-- [ADR-054: 全链路深入实现设计](02-architecture/ARCHITECTURE_FULL_CHAIN_DEEP.md)
+- [ADR-052: 智能问答WebUI开源项目选型](07-adr/ADR-052_webui_opensource_selection.md)
+- [ADR-053: Skill可视化管理开源方案选型](../07-adr/ADR-053_skill_management_selection.md)
+- [ADR-054: 全链路深入实现设计](02-architecture/ARCHITECTURE_FULL_CHAIN.md)
 
 **模块设计文档**：
-- [Web前端设计文档](./modules/web_frontend/DESIGN.md)
-- [图谱可视化优化设计](./modules/visualization/DESIGN_GRAPH_OPTIMIZATION.md)
-- [问答引擎设计文档](./modules/qa_engine/DESIGN.md)
-- [Skill模块设计文档](./modules/skills/DESIGN.md)
-- [本体模块设计文档](./modules/ontology/DESIGN.md)
-- [本体管理引擎设计文档](./modules/ontology_management_engine/DESIGN.md)
-- [架构决策记录 (ADR)](./adr/README.md)
+- [Web前端设计文档](../03-modules/web_frontend/DESIGN.md)
+- [图谱可视化优化设计](03-modules/visualization/DESIGN_GRAPH_OPTIMIZATION.md)
+- [问答引擎设计文档](03-modules/qa_engine/DESIGN.md)
+- [Skill模块设计文档](03-modules/skills/DESIGN.md)
+- [本体模块设计文档](03-modules/ontology/DESIGN.md)
+- [本体管理引擎设计文档](../03-modules/ontology_management_engine/DESIGN.md)
+- [架构决策记录 (ADR)](07-adr/README.md)
 
 ### B. 参考项目
 
@@ -760,12 +760,11 @@ interface SkillAPI {
 
 | 文档 | 用途 | 路径 |
 |------|------|------|
-| **身份认证模块设计** | SSO/OAuth2/本地认证/JWT Token/与OPA对接 | [modules/auth/DESIGN.md](modules/auth/DESIGN.md) |
+| **身份认证模块设计** | SSO/OAuth2/本地认证/JWT Token/与OPA对接 | [modules/auth/DESIGN.md](03-modules/auth/DESIGN.md) |
 | **运维架构设计** | Prometheus+Grafana监控/日志收集Loki/Neo4j+PG备份/Docker部署拓扑 | [02-architecture/ARCHITECTURE_OPS.md](02-architecture/ARCHITECTURE_OPS.md) |
-| **会话记忆与思维链可视化** | 上下文窗口管理/CoT树渲染/步骤回溯/解释引擎 | [modules/session_memory/DESIGN.md](modules/session_memory/DESIGN.md) |
-| **管理员控制台深化** | 双模式配置编辑器/用户-角色矩阵/审计日志时间线 | [adr/ADR-020_管理员控制台统一界面.md](adr/ADR-020_管理员控制台统一界面.md) |
-| **场景导入导出格式** | .owp包结构/manifest校验和/冲突处理策略 | [modules/workspace/DESIGN.md §3.4](modules/workspace/DESIGN.md) |
-| **测试策略设计** | pytest+vitest+Playwright三层体系/CI流水线/API文档自动生成 | [modules/test/DESIGN.md](modules/test/DESIGN.md) |
+| **会话记忆与思维链可视化** | 上下文窗口管理/CoT树渲染/步骤回溯/解释引擎 | [modules/session_memory/DESIGN.md](03-modules/session_memory/DESIGN.md) |
+| **管理员控制台深化** | 双模式配置编辑器/用户-角色矩阵/审计日志时间线 | [adr/ADR-020_管理员控制台统一界面.md](../07-adr/ADR-020_管理员控制台统一界面.md) |
+| **场景导入导出格式** | .owp包结构/manifest校验和/冲突处理策略 | [modules/workspace/DESIGN.md §3.4](03-modules/workspace/DESIGN.md) |
+| **测试策略设计** | pytest+vitest+Playwright三层体系/CI流水线/API文档自动生成 | [modules/test/DESIGN.md](../03-modules/test/DESIGN.md) |
 
 **文档结束**
-

@@ -172,7 +172,7 @@
 
 数据摄入采用分步向导模式（Step Wizard），核心状态包括：数据源选择 → 文件上传 → 文档解析 → 实体抽取预览 → 审核确认。每个步骤通过 `IngestionState` 接口管理状态流转。
 
-> **📘 实现参考**: `ARCHITECTURE_FULL_CHAIN_DEEP.md` [§3.3 前端摄入组件](ARCHITECTURE_FULL_CHAIN_DEEP.md) — 含完整的 IngestionWizard TSX 组件代码和状态管理实现。
+> **📘 实现参考**: `ARCHITECTURE_FULL_CHAIN.md` [§3.3 前端摄入组件](ARCHITECTURE_FULL_CHAIN.md) — 含完整的 IngestionWizard TSX 组件代码和状态管理实现。
 
 ### 3.4 后端API
 
@@ -257,7 +257,7 @@ interface IngestResult {
 
 审核面板按"实体/关系/冲突"分 Tab，支持逐条审批（通过/驳回/编辑）、批量确认、一键构建本体。
 
-> **📘 实现参考**: `ARCHITECTURE_FULL_CHAIN_DEEP.md` [§4.2 人工审核界面](ARCHITECTURE_FULL_CHAIN_DEEP.md) — 含完整的 OntologyReviewPanel TSX 组件代码和审核工作流实现。
+> **📘 实现参考**: `ARCHITECTURE_FULL_CHAIN.md` [§4.2 人工审核界面](ARCHITECTURE_FULL_CHAIN.md) — 含完整的 OntologyReviewPanel TSX 组件代码和审核工作流实现。
 
 ### 4.3 写入Graphiti
 
@@ -383,7 +383,7 @@ async def build_ontology(workspace_id: str, entities: list[dict], relations: lis
 
 基于 Ant Design X 的 `useXChat` Hook 实现流式问答，SSE 流式传输消息内容、Skill 建议和实体链接事件。
 
-> **📘 实现参考**: `ARCHITECTURE_FULL_CHAIN_DEEP.md` [§5.3 问答前端组件](ARCHITECTURE_FULL_CHAIN_DEEP.md) — 含完整的 QASession TSX 组件、SSE 流处理、Markdown 实体链接和 Sender 配置。
+> **📘 实现参考**: `ARCHITECTURE_FULL_CHAIN.md` [§5.3 问答前端组件](ARCHITECTURE_FULL_CHAIN.md) — 含完整的 QASession TSX 组件、SSE 流处理、Markdown 实体链接和 Sender 配置。
 
 ---
 
@@ -429,7 +429,7 @@ async def build_ontology(workspace_id: str, entities: list[dict], relations: lis
 
 问答完成后，右侧面板展示 Skill 执行建议卡片，包含技能名称、类别标签、置信度进度条。用户可一键执行或忽略。
 
-> **📘 实现参考**: `ARCHITECTURE_FULL_CHAIN_DEEP.md` [§6.2 右侧Suggestion面板](ARCHITECTURE_FULL_CHAIN_DEEP.md) — 含完整的 SuggestionPanel TSX 组件代码和事件总线集成。
+> **📘 实现参考**: `ARCHITECTURE_FULL_CHAIN.md` [§6.2 右侧Suggestion面板](ARCHITECTURE_FULL_CHAIN.md) — 含完整的 SuggestionPanel TSX 组件代码和事件总线集成。
 
 ### 6.3 Skill新增后自动生效流程
 
@@ -555,7 +555,7 @@ const EventBus = {
 
 使用 Zustand 管理全局状态，跨 Phase 共享工作空间、场景、会话、摄入进度和 Skill 执行状态。
 
-> **📘 实现参考**: `ARCHITECTURE_FULL_CHAIN_DEEP.md` [§8.2 Zustand全局Store](ARCHITECTURE_FULL_CHAIN_DEEP.md) — 含完整的 ODAPGlobalStore 接口定义、selector 和 action 实现。
+> **📘 实现参考**: `ARCHITECTURE_FULL_CHAIN.md` [§8.2 Zustand全局Store](ARCHITECTURE_FULL_CHAIN.md) — 含完整的 ODAPGlobalStore 接口定义、selector 和 action 实现。
 
 ---
 
@@ -633,4 +633,4 @@ Phase5 反馈 ────────▶ Phase2 本体 (更新) ← 形成闭�
 - [ADR-052 WebUI选型](../07-adr/ADR-052_webui_opensource_selection.md)
 - [ADR-053 Skill管理选型](../07-adr/ADR-053_skill_management_selection.md)
 - [图谱可视化优化设计](../03-modules/visualization/DESIGN_GRAPH_OPTIMIZATION.md)
-- [ODAP综合优化设计文档](../ODAP综合优化设计文档.md)
+- [ODAP综合优化设计文档](../01-product-design/ODAP综合优化设计文档.md)

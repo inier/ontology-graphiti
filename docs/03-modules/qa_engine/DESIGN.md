@@ -961,7 +961,7 @@ const SESSIONS_ENDPOINT = 'http://localhost:8000/api/qa/sessions';
 
 **相关文档**:
 - [全链路架构设计](../../02-architecture/ARCHITECTURE_FULL_CHAIN.md) — Phase 3 用户问答架构
-- [全链路深入实现设计 v2.0](../../02-architecture/ARCHITECTURE_FULL_CHAIN_DEEP.md) — Phase 3 会话记忆/上下文窗口/引用溯源
+- [全链路深入实现设计 v2.0](../../02-architecture/ARCHITECTURE_FULL_CHAIN.md) — Phase 3 会话记忆/上下文窗口/引用溯源
 - [OPA 策略模块设计](../opa_policy/DESIGN.md)
 - [知识图谱模块设计](../graphiti_client/DESIGN.md)
 - [安全策略文档](../../05-security/SECURITY.md)

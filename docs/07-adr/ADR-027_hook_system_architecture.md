@@ -304,7 +304,7 @@ class AuditHook(BaseHook):
 ## 相关文档
 
 1. [Hook系统模块设计](../03-modules/hook_system/DESIGN.md)
-2. [权限校验模块设计](../03-modules/permission_checker/DESIGN.md)
+2. [权限校验模块设计](../03-modules/opa_policy/DESIGN.md)
 3. [OpenHarness Hook规范](https://openharness.io/docs/hooks/)
 4. [安全策略文档](../05-security/SECURITY.md)
 

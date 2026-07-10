@@ -916,7 +916,7 @@ async def get_workflow_status(workflow_id: str) -> Dict[str, Any]:
 
 **相关文档**:
 - [全链路架构设计](../../02-architecture/ARCHITECTURE_FULL_CHAIN.md) — Phase 4 Skill执行架构
-- [全链路深入实现设计 v2.0](../../02-architecture/ARCHITECTURE_FULL_CHAIN_DEEP.md) — Phase 4 热重载/并发/版本化实现
+- [全链路深入实现设计 v2.0](../../02-architecture/ARCHITECTURE_FULL_CHAIN.md) — Phase 4 热重载/并发/版本化实现
 - [ADR-053: Skill可视化管理开源方案选型](../../07-adr/ADR-053_skill_management_selection.md)
 - [OpenHarness 桥接模块设计](../openharness_bridge/DESIGN.md)
 - [Swarm 编排模块设计](../swarm_orchestrator/DESIGN.md)

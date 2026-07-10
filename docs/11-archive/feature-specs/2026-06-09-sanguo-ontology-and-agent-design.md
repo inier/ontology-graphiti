@@ -3,7 +3,7 @@
 **日期**: 2026-06-09
 **作者**: AI 代理
 **状态**: 已批准
-**关联**: ODAP 平台（specs/001-odap-platform/） / CopilotKit 评估（specs/002-copilotkit-eval/）
+**关联**: ODAP 平台（specs/001-odap-platform/） / CopilotKit 评估（specs/002 规格，已于 2026-07-08 文档瘦身时删除，见 ADR-049）
 
 ---
 

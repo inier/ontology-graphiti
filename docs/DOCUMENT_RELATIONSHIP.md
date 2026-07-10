@@ -48,7 +48,7 @@ docs/
 │   ├── ARCHITECTURE_BIZ.md               # 业务架构
 │   ├── ARCHITECTURE_EVOLVE.md            # 演进架构
 │   ├── ARCHITECTURE_FULL_CHAIN.md        # 全链路概要
-│   ├── ARCHITECTURE_FULL_CHAIN_DEEP.md   # ⭐ 全链路深入（v2.3）
+│   ├── ARCHITECTURE_FULL_CHAIN.md   # ⭐ 全链路深入（v2.3）
 │   ├── ARCHITECTURE_INFRA.md             # 基础设施架构
 │   ├── ARCHITECTURE_OPS.md               # 运维架构
 │   ├── ARCHITECTURE_TOOLS.md             # 工具链架构
@@ -344,6 +344,6 @@ docs/
 - [文档基线 v1.0.0](./DOCUMENT_BASELINE_v1.0.0.md)
 - [需求定稿](./00-requirements/req-ok.md)
 - [核心架构](./02-architecture/ARCHITECTURE.md)
-- [全链路深入](./02-architecture/ARCHITECTURE_FULL_CHAIN_DEEP.md)
+- [全链路深入](./02-architecture/ARCHITECTURE_FULL_CHAIN.md)
 - [ADR 索引](./07-adr/README.md)
 - [验收清单](./09-checklists/CHECKLIST_v2.md)

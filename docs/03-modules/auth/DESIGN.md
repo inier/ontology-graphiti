@@ -427,5 +427,5 @@ def require_auth(roles: list[str] | None = None):
 - [ADR-003: OPA 策略治理引擎](../../07-adr/ADR-003_opa_策略治理引擎mvp_生产化.md)
 - [ADR-028: 权限检查 OPA 集成](../../07-adr/ADR-028_permission_checker_opa_integration.md)
 - [OPA Policy 模块设计](../opa_policy/DESIGN.md)
-- [全链路深入实现设计](../../02-architecture/ARCHITECTURE_FULL_CHAIN_DEEP.md) — Phase 4 Skill 执行中 OPA 校验流程
+- [全链路深入实现设计](../../02-architecture/ARCHITECTURE_FULL_CHAIN.md) — Phase 4 Skill 执行中 OPA 校验流程
 - [架构文档 (L1 基础设施)](../../02-architecture/ARCHITECTURE_INFRA.md)

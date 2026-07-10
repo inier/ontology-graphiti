@@ -1406,7 +1406,7 @@ odap/biz/core/ontology/inheritance/
 
 ## 12. Action Type 动作类型（FR-034）
 
-Action Type 是本体的"一等公民"，将"可执行动作"提升为本体层级的概念。详见 [ADR-055 2026-06-06 状态修正](../07-adr/ADR-055-统一查询服务.md#2026-06-06-状态修正action-type-与-skill-分层原则) 中 ActionType（业务接口）↔ Skill（工程实现）的分层原则。
+Action Type 是本体的"一等公民"，将"可执行动作"提升为本体层级的概念。详见 [ADR-055 2026-06-06 状态修正](../../07-adr/ADR-055-统一查询服务.md#2026-06-06-状态修正action-type-与-skill-分层原则) 中 ActionType（业务接口）↔ Skill（工程实现）的分层原则。
 
 ### 12.1 业务接口（Action Type）与工程实现（Skill）分离
 
@@ -1582,7 +1582,7 @@ odap/biz/core/ontology/view/
 
 ## 15. OntoFlow Goal 目标驱动（FR-037）
 
-OntoFlow 范式的核心是"业务目标驱动本体演化"。Goal 不仅是"待办事项"，而是连接"业务意图"与"本体变更"的第一类实体。详见 [spec §FR-037](../../specs/001-odap-platform/spec.md#fr-037-ontoflow-goal-目标驱动演化)。
+OntoFlow 范式的核心是"业务目标驱动本体演化"。Goal 不仅是"待办事项"，而是连接"业务意图"与"本体变更"的第一类实体。详见 [spec §FR-037](../../../specs/001-odap-platform/spec.md#fr-037-ontoflow-goal-目标驱动演化)。
 
 ### 15.1 Goal 状态机
 
@@ -1669,7 +1669,7 @@ Goal → ChangeProposal 审批通过后，自动化引擎（未来实现）会�
 
 **相关文档**:
 - [全链路架构设计](../../02-architecture/ARCHITECTURE_FULL_CHAIN.md) — Phase 2 本体构建架构
-- [全链路深入实现设计 v2.0](../../02-architecture/ARCHITECTURE_FULL_CHAIN_DEEP.md) — Phase 2 完整代码实现
+- [全链路深入实现设计 v2.0](../../02-architecture/ARCHITECTURE_FULL_CHAIN.md) — Phase 2 完整代码实现
 - [Graphiti 客户端模块设计](../graphiti_client/DESIGN.md)
 - [Decision Recommendation 决策推荐模块设计](../decision_recommendation/DESIGN.md)
 - [Visualization 可视化模块设计](../visualization/DESIGN.md)

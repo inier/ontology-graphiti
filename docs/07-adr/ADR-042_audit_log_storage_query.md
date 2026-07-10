@@ -148,7 +148,7 @@ class HashChain:
 
 ### 实现方案
 
-详见：[docs/modules/audit_log/GRAPHITI_INTEGRATION.md](./docs/modules/audit_log/GRAPHITI_INTEGRATION.md)
+详见：[docs/modules/audit_log/GRAPHITI_INTEGRATION.md](../03-modules/audit_log/GRAPHITI_INTEGRATION.md)
 
 ### 技术特点
 

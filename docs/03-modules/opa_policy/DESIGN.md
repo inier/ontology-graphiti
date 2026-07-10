@@ -651,7 +651,7 @@ class PolicyMonitor:
 ---
 
 **相关文档**:
-- [权限校验模块设计](../permission_checker/DESIGN.md)
+- [权限校验模块设计](../opa_policy/DESIGN.md)
 - [Hook 系统模块设计](../hook_system/DESIGN.md)
 - [OpenHarness 桥接模块设计](../openharness_bridge/DESIGN.md)
 - [安全策略文档](../../05-security/SECURITY.md)

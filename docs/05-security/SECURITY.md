@@ -134,12 +134,12 @@
 ## 9. 相关文档
 
 - [OPA 策略管理模块设计](../03-modules/opa_policy/DESIGN.md)
-- [权限校验模块设计](../03-modules/permission_checker/DESIGN.md)
+- [权限校验模块设计](../03-modules/opa_policy/DESIGN.md)
 - [Hook 系统模块设计](../03-modules/hook_system/DESIGN.md)
 - [MCP 协议集成模块设计](../03-modules/mcp_protocol/DESIGN.md)
-- [系统架构文档](../ARCHITECTURE.md)
-- [ADR-003 OPA 策略治理](../07-adr/ADR-003_opa_policy_governance.md)
-- [ADR-028 权限校验系统](../07-adr/ADR-028_permission_checker_system.md)
+- [系统架构文档](../02-architecture/ARCHITECTURE.md)
+- [ADR-003 OPA 策略治理](../07-adr/ADR-003_opa_策略治理引擎mvp_生产化.md)
+- [ADR-028 权限校验系统](../07-adr/ADR-028_permission_checker_opa_integration.md)
 
 ---
 

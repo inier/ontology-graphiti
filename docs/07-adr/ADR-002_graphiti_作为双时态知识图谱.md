@@ -67,6 +67,6 @@
 ## 5. 相关文档
 
 - [全链路架构设计](../02-architecture/ARCHITECTURE_FULL_CHAIN.md) — Phase 2 本体构建中的Graphiti双时态读写
-- [全链路深入实现设计 v2.0](../02-architecture/ARCHITECTURE_FULL_CHAIN_DEEP.md) — Phase 2 GraphitiWriter/版本快照/回滚实现
+- [全链路深入实现设计 v2.0](../02-architecture/ARCHITECTURE_FULL_CHAIN.md) — Phase 2 GraphitiWriter/版本快照/回滚实现
 - [Graphiti Client 模块](../03-modules/graphiti_client/DESIGN.md)
 - [ADR-024: 本体驱动分析核心架构](ADR-024_本体驱动分析核心架构.md)

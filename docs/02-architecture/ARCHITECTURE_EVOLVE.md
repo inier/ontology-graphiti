@@ -232,7 +232,7 @@ jobs:
 
 ## 17. 架构决策记录（ADR）
 
-> 所有 ADR 已拆分为独立文件，存放在 [`do../07-adr/`](adr/) 目录下。
+> 所有 ADR 已拆分为独立文件，存放在 [`do../07-adr/`](07-adr/) 目录下。
 
 ### 17.1 ADR 索引
 
@@ -240,39 +240,39 @@ jobs:
 
 | ADR | 决策标题 | 状态 | 文件 |
 |-----|---------|------|------|
-| ADR-001 | Agent 基础设施（OpenHarness + LangGraph） | 已接受 | [adr/ADR-001_agent_基础设施openharness_langgraph.md](adr/ADR-001_agent_基础设施openharness_langgraph.md) |
-| ADR-002 | Graphiti 作为双时态知识图谱 | 已接受 | [adr/ADR-002_graphiti_作为双时态知识图谱.md](adr/ADR-002_graphiti_作为双时态知识图谱.md) |
-| ADR-003 | OPA 策略治理引擎（MVP + 生产化） | 已接受 | [adr/ADR-003_opa_策略治理引擎mvp_生产化.md](adr/ADR-003_opa_策略治理引擎mvp_生产化.md) |
-| ADR-004 | 统一 Skill 体系架构 | 已接受 | [adr/ADR-004_统一_skill_体系架构.md](adr/ADR-004_统一_skill_体系架构.md) |
-| ADR-005 | 分层 Agent 架构（OpenHarness 原生 + 领域扩展） | 已接受 | [adr/ADR-005_分层_agent_架构openharness_原生_领域扩展.md](adr/ADR-005_分层_agent_架构openharness_原生_领域扩展.md) |
-| ADR-006 | OpenHarness 复用策略（完全复用 + 适配复用 + 独立扩展） | 已接受 | [adr/ADR-006_openharness_复用策略完全复用_适配复用_独立扩展.md](adr/ADR-006_openharness_复用策略完全复用_适配复用_独立扩展.md) |
-| ADR-007 | 前端采用 React + Ant Design 技术栈 | 已接受 | [adr/ADR-007_前端采用_react_ant_design_技术栈.md](adr/ADR-007_前端采用_react_ant_design_技术栈.md) |
-| ADR-008 | 审计日志完整记录 | 已接受 | [adr/ADR-008_审计日志完整记录.md](adr/ADR-008_审计日志完整记录.md) |
-| ADR-009 | Markdown 编写 OPA 策略 | 已接受 | [adr/ADR-009_markdown_编写_opa_策略.md](adr/ADR-009_markdown_编写_opa_策略.md) |
-| ADR-010 | 多模态文档处理可配置 | 已接受 | [adr/ADR-010_多模态文档处理可配置.md](adr/ADR-010_多模态文档处理可配置.md) |
-| ADR-011 | 角色配置热生效 | 已接受 | [adr/ADR-011_角色配置热生效.md](adr/ADR-011_角色配置热生效.md) |
-| ADR-012 | 配置组合引擎 | 已接受 | [adr/ADR-012_配置组合引擎.md](adr/ADR-012_配置组合引擎.md) |
-| ADR-013 | 多数据源统一接入 | 已接受 | [adr/ADR-013_多数据源统一接入.md](adr/ADR-013_多数据源统一接入.md) |
-| ADR-014 | 技能热插拔架构 | 已接受 | [adr/ADR-014_技能热插拔架构.md](adr/ADR-014_技能热插拔架构.md) |
-| ADR-015 | 可扩展图表系统 | 已接受 | [adr/ADR-015_可扩展图表系统.md](adr/ADR-015_可扩展图表系统.md) |
-| ADR-016 | 完备文档体系 | 已接受 | [adr/ADR-016_完备文档体系.md](adr/ADR-016_完备文档体系.md) |
-| ADR-017 | 原子提交规范 | 已接受 | [adr/ADR-017_原子提交规范.md](adr/ADR-017_原子提交规范.md) |
-| ADR-018 | 模拟领域数据生成引擎 | 已接受 | [adr/ADR-018_模拟领域数据生成引擎.md](adr/ADR-018_模拟领域数据生成引擎.md) |
-| ADR-019 | 多模态文档处理流水线 | 已接受 | [adr/ADR-019_多模态文档处理流水线.md](adr/ADR-019_多模态文档处理流水线.md) |
-| ADR-020 | 管理员控制台统一界面 | 已接受 | [adr/ADR-020_管理员控制台统一界面.md](adr/ADR-020_管理员控制台统一界面.md) |
-| ADR-036 | 领域实体标准本体库 | 已接受 | [adr/ADR-036_palantir_ontology_reference.md](adr/ADR-036_palantir_ontology_reference.md) |
-| ADR-037 | 前端移动优先、响应式设计和国际化策略 | 已接受 | [adr/ADR-037_frontend_mobile_first_i18n.md](adr/ADR-037_frontend_mobile_first_i18n.md) |
-| ADR-022 | 模拟数仓与统一查询服务 | 提议中 | [adr/ADR-022_模拟数仓与统一查询服务.md](adr/ADR-022_模拟数仓与统一查询服务.md) |
-| ADR-023 | 多工作空间隔离架构 | 已接受 | [adr/ADR-023_多工作空间隔离架构.md](adr/ADR-023_多工作空间隔离架构.md) |
-| ADR-024 | 本体驱动分析核心架构 | 已接受 | [adr/ADR-024_本体驱动分析核心架构.md](adr/ADR-024_本体驱动分析核心架构.md) |
-| ADR-025 | 基于 OpenHarness 实现多智能体协同 | 已接受 | [adr/ADR-025_openharness_integration.md](adr/ADR-025_openharness_integration.md) |
-| ADR-026 | 采用 MCP 协议作为外部系统集成标准 | 已接受 | [adr/ADR-026_mcp_protocol_integration.md](adr/ADR-026_mcp_protocol_integration.md) |
-| ADR-027 | Hook 系统作为可扩展性核心架构 | 已接受 | [adr/ADR-027_hook_system_architecture.md](adr/ADR-027_hook_system_architecture.md) |
-| ADR-028 | OPA 作为统一权限校验引擎 | 已接受 | [adr/ADR-028_permission_checker_opa_integration.md](adr/ADR-028_permission_checker_opa_integration.md) |
-| ADR-029 | 统一工具注册表架构 | 已接受 | [adr/ADR-029_tool_registry_architecture.md](adr/ADR-029_tool_registry_architecture.md) |
-| ADR-050 | OADP 业务语义体系架构 | 已接受 | [adr/ADR-050_OADP业务语义体系架构.md](adr/ADR-050_OADP业务语义体系架构.md) |
-| ADR-051 | 闭环反馈机制设计 | 已接受 | [adr/ADR-051_闭环反馈机制设计.md](adr/ADR-051_闭环反馈机制设计.md) |
-| ADR-054 | 全链路深度实现设计 v2.3 | 已接受 | [adr/ADR-054_full_chain_deep_implementation_v2.3.md](adr/ADR-054_full_chain_deep_implementation_v2.3.md) |
+| ADR-001 | Agent 基础设施（OpenHarness + LangGraph） | 已接受 | [adr/ADR-001_agent_基础设施openharness_langgraph.md](07-adr/ADR-001_agent_基础设施openharness_langgraph.md) |
+| ADR-002 | Graphiti 作为双时态知识图谱 | 已接受 | [adr/ADR-002_graphiti_作为双时态知识图谱.md](07-adr/ADR-002_graphiti_作为双时态知识图谱.md) |
+| ADR-003 | OPA 策略治理引擎（MVP + 生产化） | 已接受 | [adr/ADR-003_opa_策略治理引擎mvp_生产化.md](../07-adr/ADR-003_opa_策略治理引擎mvp_生产化.md) |
+| ADR-004 | 统一 Skill 体系架构 | 已接受 | [adr/ADR-004_统一_skill_体系架构.md](07-adr/ADR-004_统一_skill_体系架构.md) |
+| ADR-005 | 分层 Agent 架构（OpenHarness 原生 + 领域扩展） | 已接受 | [adr/ADR-005_分层_agent_架构openharness_原生_领域扩展.md](../07-adr/ADR-005_分层_agent_架构openharness_原生_领域扩展.md) |
+| ADR-006 | OpenHarness 复用策略（完全复用 + 适配复用 + 独立扩展） | 已接受 | [adr/ADR-006_openharness_复用策略完全复用_适配复用_独立扩展.md](../07-adr/ADR-006_openharness_复用策略完全复用_适配复用_独立扩展.md) |
+| ADR-007 | 前端采用 React + Ant Design 技术栈 | 已接受 | [adr/ADR-007_前端采用_react_ant_design_技术栈.md](07-adr/ADR-007_前端采用_react_ant_design_技术栈.md) |
+| ADR-008 | 审计日志完整记录 | 已接受 | [adr/ADR-008_审计日志完整记录.md](../07-adr/ADR-008_审计日志完整记录.md) |
+| ADR-009 | Markdown 编写 OPA 策略 | 已接受 | [adr/ADR-009_markdown_编写_opa_策略.md](../07-adr/ADR-009_markdown_编写_opa_策略.md) |
+| ADR-010 | 多模态文档处理可配置 | 已接受 | [adr/ADR-010_多模态文档处理可配置.md](07-adr/ADR-010_多模态文档处理可配置.md) |
+| ADR-011 | 角色配置热生效 | 已接受 | [adr/ADR-011_角色配置热生效.md](07-adr/ADR-011_角色配置热生效.md) |
+| ADR-012 | 配置组合引擎 | 已接受 | [adr/ADR-012_配置组合引擎.md](../07-adr/ADR-012_配置组合引擎.md) |
+| ADR-013 | 多数据源统一接入 | 已接受 | [adr/ADR-013_多数据源统一接入.md](../07-adr/ADR-013_多数据源统一接入.md) |
+| ADR-014 | 技能热插拔架构 | 已接受 | [adr/ADR-014_技能热插拔架构.md](07-adr/ADR-014_技能热插拔架构.md) |
+| ADR-015 | 可扩展图表系统 | 已接受 | [adr/ADR-015_可扩展图表系统.md](../07-adr/ADR-015_可扩展图表系统.md) |
+| ADR-016 | 完备文档体系 | 已接受 | [adr/ADR-016_完备文档体系.md](07-adr/ADR-016_完备文档体系.md) |
+| ADR-017 | 原子提交规范 | 已接受 | [adr/ADR-017_原子提交规范.md](07-adr/ADR-017_原子提交规范.md) |
+| ADR-018 | 模拟领域数据生成引擎 | 已接受 | adr/ADR-018_模拟领域数据生成引擎.md |
+| ADR-019 | 多模态文档处理流水线 | 已接受 | [adr/ADR-019_多模态文档处理流水线.md](../07-adr/ADR-019_多模态文档处理流水线.md) |
+| ADR-020 | 管理员控制台统一界面 | 已接受 | [adr/ADR-020_管理员控制台统一界面.md](../07-adr/ADR-020_管理员控制台统一界面.md) |
+| ADR-036 | 领域实体标准本体库 | 已接受 | [adr/ADR-036_palantir_ontology_reference.md](../07-adr/ADR-036_palantir_ontology_reference.md) |
+| ADR-037 | 前端移动优先、响应式设计和国际化策略 | 已接受 | [adr/ADR-037_frontend_mobile_first_i18n.md](07-adr/ADR-037_frontend_mobile_first_i18n.md) |
+| ADR-022 | 模拟数仓与统一查询服务 | 提议中 | [adr/ADR-022_模拟数仓与统一查询服务.md](07-adr/ADR-022_模拟数仓与统一查询服务.md) |
+| ADR-023 | 多工作空间隔离架构 | 已接受 | [adr/ADR-023_多工作空间隔离架构.md](../07-adr/ADR-023_多工作空间隔离架构.md) |
+| ADR-024 | 本体驱动分析核心架构 | 已接受 | [adr/ADR-024_本体驱动分析核心架构.md](07-adr/ADR-024_本体驱动分析核心架构.md) |
+| ADR-025 | 基于 OpenHarness 实现多智能体协同 | 已接受 | [adr/ADR-025_openharness_integration.md](../07-adr/ADR-025_openharness_integration.md) |
+| ADR-026 | 采用 MCP 协议作为外部系统集成标准 | 已接受 | [adr/ADR-026_mcp_protocol_integration.md](../07-adr/ADR-026_mcp_protocol_integration.md) |
+| ADR-027 | Hook 系统作为可扩展性核心架构 | 已接受 | [adr/ADR-027_hook_system_architecture.md](07-adr/ADR-027_hook_system_architecture.md) |
+| ADR-028 | OPA 作为统一权限校验引擎 | 已接受 | [adr/ADR-028_permission_checker_opa_integration.md](07-adr/ADR-028_permission_checker_opa_integration.md) |
+| ADR-029 | 统一工具注册表架构 | 已接受 | [adr/ADR-029_tool_registry_architecture.md](../07-adr/ADR-029_tool_registry_architecture.md) |
+| ADR-050 | OADP 业务语义体系架构 | 已接受 | [adr/ADR-050_OADP业务语义体系架构.md](../07-adr/ADR-050_OADP业务语义体系架构.md) |
+| ADR-051 | 闭环反馈机制设计 | 已接受 | [adr/ADR-051_闭环反馈机制设计.md](../07-adr/ADR-051_闭环反馈机制设计.md) |
+| ADR-054 | 全链路深度实现设计 v2.3 | 已接受 | adr/ADR-054_full_chain_deep_implementation_v2.3.md |
 
 ### 17.2 ADR 分类
 
@@ -795,5 +795,3 @@ ZHIPU_API_KEY=...
 SILICONFLOW_API_KEY=...
 TAVILY_API_KEY=...
 ```
-
-

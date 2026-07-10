@@ -376,7 +376,7 @@ async def check_data_permission(user_id: str,
 
 ## 相关文档
 
-1. [权限校验模块设计](../03-modules/permission_checker/DESIGN.md)
+1. [权限校验模块设计](../03-modules/opa_policy/DESIGN.md)
 2. [Hook系统模块设计](../03-modules/hook_system/DESIGN.md)
 3. [Open Policy Agent官方文档](https://www.openpolicyagent.org/docs/latest/)
 4. [Rego策略语言指南](https://www.openpolicyagent.org/docs/latest/policy-language/)

@@ -69,5 +69,5 @@
 
 ## 5. 相关文档
 
-- [Web 模块](../03-modules/web/DESIGN.md)
+- [Web 模块](../03-modules/web_frontend/DESIGN.md)
 - [ADR-031: Web 可视化与实时本体热写入](ADR-031_simulator_web_visualization_realtime_ontology.md)

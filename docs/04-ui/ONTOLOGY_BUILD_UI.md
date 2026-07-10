@@ -598,6 +598,6 @@ interface OntologyState {
 ## 10. 相关文档
 
 - [前端技术栈 ADR-007](../07-adr/ADR-007_前端采用_react_ant_design_技术栈.md)
-- [UI设计文档](../../docs/ui/UI_DESIGN.md)
-- [本体模块设计](../../docs/modules/ontology/DESIGN.md)
+- [UI设计文档](../04-ui/UI_DESIGN.md)
+- [本体模块设计](../03-modules/ontology/DESIGN.md)
 - [QA引擎架构 ADR-039](../07-adr/ADR-039_qa_engine_architecture.md)
