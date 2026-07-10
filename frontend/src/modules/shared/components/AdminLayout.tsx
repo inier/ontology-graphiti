@@ -16,7 +16,7 @@ import {
   LeftOutlined,
   MessageOutlined,
 } from '@ant-design/icons';
-import type { MenuProps } from 'antd';
+import type { MenuProps, ThemeConfig } from 'antd';
 import { api } from '../services/api';
 import { useAuthStore } from '../stores/authStore';
 import { applyColorTheme } from '../styles/colorThemeUtils';
@@ -321,6 +321,7 @@ export function AdminLayout({ children }: { children: React.ReactNode }) {
   const { user, logout } = useAuthStore();
   const { resetGuideTour } = useTourStore();
   const { message } = App.useApp();
+  const { t } = useI18n();
 
   /* ── Layout store ── */
   const {
@@ -481,16 +482,31 @@ export function AdminLayout({ children }: { children: React.ReactNode }) {
 
   const parentMenuKeys = useMemo(() => allMenus.map(m => m.key), [allMenus]);
 
-  const menuClickRef = useRef(0);
-
-  const handleMenuMouseDown = () => {
-    menuClickRef.current = Date.now();
-  };
+  /** 根据子菜单 key 反查所属的父级 group key */
+  const findParentKey = useCallback((childKey: string): string | null => {
+    for (const m of allMenus) {
+      if (m.children?.some(c => c.key === childKey)) {
+        return m.key;
+      }
+    }
+    return null;
+  }, [allMenus]);
 
   const handleMenuClick: MenuProps['onClick'] = ({ key }) => {
-    if (leftCollapsed && parentMenuKeys.includes(key)) {
+    if (leftCollapsed) {
+      // 收折态：先展开侧边栏
       setLeftCollapsed(false);
-      setOpenKeys([key]);
+      // 是父级分组 → 展开该子菜单，不导航
+      if (parentMenuKeys.includes(key)) {
+        setOpenKeys([key]);
+        return;
+      }
+      // 是子级菜单项 → 同时展开其父级分组，再导航
+      const parentKey = findParentKey(key);
+      if (parentKey) {
+        setOpenKeys([parentKey]);
+      }
+      navigate(key);
       return;
     }
     navigate(key);
@@ -498,10 +514,9 @@ export function AdminLayout({ children }: { children: React.ReactNode }) {
 
   const handleOpenChange = (keys: string[]) => {
     if (leftCollapsed && keys.length > 0) {
-      if (Date.now() - menuClickRef.current < 300) {
-        setLeftCollapsed(false);
-        setOpenKeys(keys);
-      }
+      // 收折态下弹出子菜单时自动展开侧边栏
+      setLeftCollapsed(false);
+      setOpenKeys(keys);
       return;
     }
     setOpenKeys(keys);
@@ -593,8 +608,8 @@ export function AdminLayout({ children }: { children: React.ReactNode }) {
   }));
 
   /* ── Ant Design theme (synced with theme / colorTheme) ── */
-  const antdThemeConfig = useMemo(() => ({
-    cssVar: true,
+  const antdThemeConfig = useMemo((): ThemeConfig => ({
+    cssVar: {},
     algorithm: theme === 'dark' ? antdTheme.darkAlgorithm : antdTheme.defaultAlgorithm,
     token: {
       colorPrimary: COLOR_THEME_PRIMARY[colorTheme] || '#6366F1',
@@ -649,7 +664,6 @@ export function AdminLayout({ children }: { children: React.ReactNode }) {
                   collapsedWidth={48}
                   width={200}
                   style={{
-                    overflow: 'auto',
                     height: '100vh',
                     position: 'fixed',
                     left: 0,
@@ -659,12 +673,16 @@ export function AdminLayout({ children }: { children: React.ReactNode }) {
                     background: 'var(--odap-sidebar-bg)',
                     borderRight: 'var(--odap-sidebar-border)',
                     transition: 'width 350ms cubic-bezier(0.4, 0, 0.2, 1)',
+                    overflow: 'hidden',
                   }}
                 >
+                  {/* Flex wrapper: ensures layout works regardless of Ant Design internal wrapper */}
+                  <div style={{ display: 'flex', flexDirection: 'column', height: '100%' }}>
                   {/* Logo */}
                   <div
                     style={{
                       height: 48,
+                      flexShrink: 0,
                       display: 'flex',
                       alignItems: 'center',
                       justifyContent: 'center',
@@ -696,26 +714,36 @@ export function AdminLayout({ children }: { children: React.ReactNode }) {
                     </span>
                   </div>
 
-                  {/* Menu with inline sub-menus */}
-                  <Menu
-                    theme="dark"
-                    mode="inline"
-                    selectedKeys={[activeMenuKey]}
-                    openKeys={leftCollapsed ? [] : openKeys}
-                    onOpenChange={handleOpenChange}
-                    onClick={handleMenuClick}
-                    onMouseDown={handleMenuMouseDown}
-                    style={{ background: 'transparent', borderRight: 0 }}
-                    items={menuItems}
-                  />
-
-                  {/* Collapse toggle at bottom */}
+                  {/* Menu scroll area: fills remaining space, scrolls internally */}
                   <div
                     style={{
-                      position: 'absolute',
-                      bottom: 0,
+                      flex: 1,
+                      minHeight: 0,
+                      overflowY: 'auto',
+                      overflowX: 'hidden',
+                    }}
+                  >
+                    <Menu
+                      theme="dark"
+                      mode="inline"
+                      triggerSubMenuAction="click"
+                      selectedKeys={[activeMenuKey]}
+                      openKeys={leftCollapsed ? [] : openKeys}
+                      onOpenChange={handleOpenChange}
+                      onClick={handleMenuClick}
+                      style={{ background: 'transparent', borderRight: 0 }}
+                      items={menuItems}
+                    />
+                  </div>
+
+                  {/* Collapse toggle at bottom — fixed height */}
+                  <div
+                    style={{
+                      flexShrink: 0,
+                      height: 40,
                       width: '100%',
                       borderTop: 'var(--odap-sidebar-border-strong)',
+                      background: 'var(--odap-sidebar-bg)',
                     }}
                   >
                     <Button
@@ -733,6 +761,7 @@ export function AdminLayout({ children }: { children: React.ReactNode }) {
                       onMouseLeave={(e) => (e.currentTarget.style.color = 'var(--odap-sidebar-text)')}
                     />
                   </div>
+                  </div>{/* end flex wrapper */}
                 </Sider>
               )}
 

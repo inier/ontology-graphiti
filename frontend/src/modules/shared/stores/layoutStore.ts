@@ -114,7 +114,7 @@ interface LayoutState {
   setActiveExtension: (id: string | null) => void;
 
   /* Tab actions */
-  openTab: (tab: Omit<TaskTab, 'active' | 'createdAt' | 'lastVisitedAt'>) => void;
+  openTab: (tab: Omit<TaskTab, 'active' | 'createdAt' | 'lastVisitedAt' | 'refreshToken'> & Partial<Pick<TaskTab, 'refreshToken'>>) => void;
   closeTab: (id: string) => void;
   closeAllTabs: () => void;
   closeTabsAbove: (id: string) => void;

@@ -654,8 +654,11 @@ export const api = {
     return fetchJson(`${API_BASE}/health`);
   },
 
-  async listWorkspaces(): Promise<Workspace[]> {
-    const data = await fetchJson<{ workspaces: Workspace[]; total: number }>(`${API_BASE}/api/workspaces?page_size=100`);
+  async listWorkspaces(opts?: { signal?: AbortSignal }): Promise<Workspace[]> {
+    const data = await fetchJson<{ workspaces: Workspace[]; total: number }>(
+      `${API_BASE}/api/workspaces?page_size=100`,
+      { signal: opts?.signal },
+    );
     return data.workspaces || [];
   },
 

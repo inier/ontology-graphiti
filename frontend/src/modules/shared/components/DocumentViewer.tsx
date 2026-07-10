@@ -216,7 +216,7 @@ export function DocumentViewer({
             borderRadius: 8,
           }}
         >
-          <Spin tip="正在加载文档..." />
+          <Spin description="正在加载文档..." />
         </div>
       )}
       {status === 'error' && (

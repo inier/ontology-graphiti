@@ -500,7 +500,7 @@ export function AIChatPanel({
   ontologyId: ontologyIdProp,
   workspaceId: workspaceIdProp,
   context: contextProp,
-  title = t('title'),
+  title,
   welcomeMessage,
   onOntologyChanged,
   asDrawer = false,
@@ -508,6 +508,7 @@ export function AIChatPanel({
   onClose,
 }: AIChatPanelProps) {
   const { t } = useI18n('ai-assistant');
+  const panelTitle = title ?? t('title');
   const compact = mode === 'compact';
   const [inputValue, setInputValue] = useState('');
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
@@ -674,7 +675,7 @@ export function AIChatPanel({
               <RobotOutlined />
             </div>
             <div style={{ fontSize: compact ? 14 : 24, fontWeight: 600, marginTop: 16, color: 'var(--odap-color-text-primary, #1f2937)' }}>
-              {title}
+              {panelTitle}
             </div>
             <div style={{ color: 'var(--odap-color-text-secondary, #6b7280)', fontSize: compact ? 12 : 14, marginTop: 8, whiteSpace: 'pre-wrap' }}>
               {welcomeMessage || defaultWelcome}
@@ -775,7 +776,7 @@ export function AIChatPanel({
             <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
               <Avatar icon={<RobotOutlined />} style={{ background: 'var(--odap-layout-primary-gradient, linear-gradient(135deg, #6366F1, #818CF8))' }} />
               <div>
-                <div style={{ fontSize: 15, fontWeight: 600 }}>{title}</div>
+                <div style={{ fontSize: 15, fontWeight: 600 }}>{panelTitle}</div>
                 {ai.currentSessionId && (
                   <div style={{ fontSize: 11, color: 'var(--odap-color-text-tertiary, #9ca3af)' }}>
                     会话: {ai.currentSessionId.slice(0, 8)}
@@ -821,7 +822,7 @@ export function AIChatPanel({
         title={
           <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
             <RobotOutlined style={{ color: 'var(--odap-color-primary, #6366F1)' }} />
-            {title}
+            {panelTitle}
             {ontologyId && (
               <span style={{ fontSize: 10, color: 'var(--odap-color-text-tertiary, #999)', fontWeight: 400 }}>
                 · 本体: {ontologyId.slice(-8)}

@@ -116,7 +116,7 @@ function AgentLayoutInner() {
 
   /* ── Ant Design theme (synced with theme / colorTheme) ── */
   const antdThemeConfig = useMemo(() => ({
-    cssVar: true,
+    cssVar: {},
     algorithm: theme === 'dark' ? antdTheme.darkAlgorithm : antdTheme.defaultAlgorithm,
     token: {
       colorPrimary: COLOR_THEME_PRIMARY[colorTheme] || '#6366F1',

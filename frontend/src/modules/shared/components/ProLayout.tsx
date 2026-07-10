@@ -563,18 +563,30 @@ export function ProLayout({ children, currentWorkspace, onWorkspaceChange }: Pro
     }
   }
 
-  const parentMenuKeys = useMemo(() => primaryMenus.map(m => m.key), []);
+  const parentMenuKeys = useMemo(() => allMenus.map(m => m.key), [allMenus]);
 
-  const menuClickRef = useRef(0);
-
-  const handleMenuMouseDown = () => {
-    menuClickRef.current = Date.now();
-  };
+  /** 根据子菜单 key 反查所属的父级 group key */
+  const findParentKey = useCallback((childKey: string): string | null => {
+    for (const m of allMenus) {
+      if (m.children?.some(c => c.key === childKey)) {
+        return m.key;
+      }
+    }
+    return null;
+  }, [allMenus]);
 
   const handleMenuClick: MenuProps['onClick'] = ({ key }) => {
-    if (leftCollapsed && parentMenuKeys.includes(key)) {
+    if (leftCollapsed) {
       setLeftCollapsed(false);
-      setOpenKeys([key]);
+      if (parentMenuKeys.includes(key)) {
+        setOpenKeys([key]);
+        return;
+      }
+      const parentKey = findParentKey(key);
+      if (parentKey) {
+        setOpenKeys([parentKey]);
+      }
+      navigate(key);
       return;
     }
     navigate(key);
@@ -582,10 +594,8 @@ export function ProLayout({ children, currentWorkspace, onWorkspaceChange }: Pro
 
   const handleOpenChange = (keys: string[]) => {
     if (leftCollapsed && keys.length > 0) {
-      if (Date.now() - menuClickRef.current < 300) {
-        setLeftCollapsed(false);
-        setOpenKeys(keys);
-      }
+      setLeftCollapsed(false);
+      setOpenKeys(keys);
       return;
     }
     setOpenKeys(keys);
@@ -678,16 +688,31 @@ export function ProLayout({ children, currentWorkspace, onWorkspaceChange }: Pro
   };
 
   /* ── Menu items for Ant Design Menu ── */
-  const menuItems: MenuProps['items'] = primaryMenus.map((m) => ({
-    key: m.key,
-    icon: m.icon,
-    label: m.label,
-    children: m.children?.map((c) => ({
-      key: c.key,
-      icon: c.icon,
-      label: c.label,
-    })),
-  }));
+  const menuItems: MenuProps['items'] = primaryMenus.map((m) => {
+    const baseItem = {
+      key: m.key,
+      icon: m.icon,
+      label: m.label,
+      children: m.children?.map((c) => ({
+        key: c.key,
+        icon: c.icon,
+        label: c.label,
+      })),
+    };
+    if (m.children) {
+      return {
+        ...baseItem,
+        onTitleClick: ({ domEvent }) => {
+          if (!leftCollapsed) return;
+          domEvent.preventDefault();
+          domEvent.stopPropagation();
+          setLeftCollapsed(false);
+          setOpenKeys((prev) => (prev.includes(m.key) ? prev : [...prev, m.key]));
+        },
+      };
+    }
+    return baseItem;
+  });
 
   /* ── Ant Design theme (synced with theme / colorTheme) ── */
   const antdThemeConfig = useMemo(() => ({
@@ -750,7 +775,6 @@ export function ProLayout({ children, currentWorkspace, onWorkspaceChange }: Pro
                   collapsedWidth={48}
                   width={200}
                   style={{
-                    overflow: 'auto',
                     height: '100vh',
                     position: 'fixed',
                     left: 0,
@@ -760,12 +784,16 @@ export function ProLayout({ children, currentWorkspace, onWorkspaceChange }: Pro
                     background: 'linear-gradient(180deg, #1E1B4B 0%, #0F0F1A 100%)',
                     borderRight: '1px solid rgba(255,255,255,0.06)',
                     transition: 'width 350ms cubic-bezier(0.4, 0, 0.2, 1)',
+                    overflow: 'hidden',
                   }}
                 >
+                  {/* Flex wrapper: ensures layout works regardless of Ant Design internal wrapper */}
+                  <div style={{ display: 'flex', flexDirection: 'column', height: '100%' }}>
                   {/* Logo */}
                   <div
                     style={{
                       height: 48,
+                      flexShrink: 0,
                       display: 'flex',
                       alignItems: 'center',
                       justifyContent: 'center',
@@ -797,26 +825,36 @@ export function ProLayout({ children, currentWorkspace, onWorkspaceChange }: Pro
                     </span>
                   </div>
 
-                  {/* Menu with inline sub-menus */}
-                  <Menu
-                    theme="dark"
-                    mode="inline"
-                    selectedKeys={[activeMenuKey]}
-                    openKeys={leftCollapsed ? [] : openKeys}
-                    onOpenChange={handleOpenChange}
-                    onClick={handleMenuClick}
-                    onMouseDown={handleMenuMouseDown}
-                    style={{ background: 'transparent', borderRight: 0 }}
-                    items={menuItems}
-                  />
-
-                  {/* Collapse toggle at bottom */}
+                  {/* Menu scroll area: fills remaining space, scrolls internally */}
                   <div
                     style={{
-                      position: 'absolute',
-                      bottom: 0,
+                      flex: 1,
+                      minHeight: 0,
+                      overflowY: 'auto',
+                      overflowX: 'hidden',
+                    }}
+                  >
+                    <Menu
+                      theme="dark"
+                      mode="inline"
+                      triggerSubMenuAction="click"
+                      selectedKeys={[activeMenuKey]}
+                      openKeys={leftCollapsed ? [] : openKeys}
+                      onOpenChange={handleOpenChange}
+                      onClick={handleMenuClick}
+                      style={{ background: 'transparent', borderRight: 0 }}
+                      items={menuItems}
+                    />
+                  </div>
+
+                  {/* Collapse toggle at bottom — fixed height */}
+                  <div
+                    style={{
+                      flexShrink: 0,
+                      height: 40,
                       width: '100%',
                       borderTop: '1px solid rgba(255,255,255,0.1)',
+                      background: 'inherit',
                     }}
                   >
                     <Button
@@ -834,6 +872,7 @@ export function ProLayout({ children, currentWorkspace, onWorkspaceChange }: Pro
                       onMouseLeave={(e) => (e.currentTarget.style.color = 'rgba(255,255,255,0.4)')}
                     />
                   </div>
+                  </div>{/* end flex wrapper */}
                 </Sider>
               )}
 
