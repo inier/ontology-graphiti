@@ -1,7 +1,7 @@
 # ODAP API Contracts — Phase 4 (Palantir/OntoFlow 增强)
 
-> **Date**: 2026-06-05 | **Spec**: [spec.md](../../specs/001-odap-platform/spec.md) FR-031..FR-037
-> **Plan**: [plan.md](../../specs/001-odap-platform/plan.md) Phase 4
+> **Date**: 2026-06-05 | **Spec**: [spec.md](../../../specs/001-odap-platform/spec.md) FR-031..FR-037
+> **Plan**: [plan.md](../../../specs/001-odap-platform/plan.md) Phase 4
 
 本契约文件覆盖 Phase 4 新增的 35+ 端点，与现有 contracts/core-ontology.md 互补。
 
