@@ -5,7 +5,7 @@
 """
 
 from typing import List, Optional
-from fastapi import FastAPI, APIRouter
+from fastapi import FastAPI
 
 
 def register_routers(app: FastAPI, routers: List[tuple], prefix: Optional[str] = None) -> None:
@@ -136,6 +136,25 @@ def create_router_registry() -> List[tuple]:
     # ── 语义地图 ──
     from odap.biz.data.semantic_map.api.routes import router as semantic_map_router
 
+    # ── 语义管理 - 统一语义层（USL Iter 1）──
+    from odap.biz.semantic_admin.usl_manager.api.routes import router as semantic_admin_usl_router
+
+    # ── 语义管理 - OL Pipeline + Candidates（Iter 2 6 层流水线 + HITL）──
+    from odap.biz.semantic_admin.ol_pipeline.api.routes import router as semantic_admin_pipeline_router
+
+    # ── 语义管理 - QualityGate 16 指标评估 + Dashboard（Iter 2 C1/C2/C3）──
+    from odap.biz.semantic_admin.quality_gate.api.routes import router as semantic_admin_quality_gate_router
+
+    # ── 语义管理 - 2 级审批工作流（Iter 2 D1~D5）──
+    from odap.biz.semantic_admin.approval_workflow.api.routes import router as semantic_admin_approval_router
+
+    # ── 语义管理 - Candidate CRUD（FR-018/019 List/详情/Modify/软删/批量/导出/Promote）──
+    from odap.biz.semantic_admin.candidate_store.api.routes import router as semantic_admin_candidate_router
+
+    # ── 语义管理 - 动态配置（sa_config，内置常量落库）──
+    from odap.biz.semantic_admin.sa_config.api.routes import router as semantic_admin_sa_config_router
+    from odap.biz.semantic_admin.usl_writeback.api.routes import router as semantic_admin_writeback_router
+
     # ── 本体 - 运行时 ──
     from odap.biz.core.ontology.application.runtime.api.routes import router as runtime_router
     from odap.biz.core.ontology.application.runtime.state_machine.api.routes import router as state_machine_router
@@ -174,7 +193,6 @@ def create_router_registry() -> List[tuple]:
     from odap.biz.core.ontology.design.engine.api.routes import router as ontology_engine_router
     from odap.biz.core.ontology.design.ingestion.api.routes import router as ingestion_router
     from odap.biz.core.ontology.design.version.api.routes import router as ontology_version_router
-    from odap.biz.core.ontology.design.schema.semantic_layer.api.routes import router as semantic_layer_router
 
     # ── 本体 - 冲突/分支/冷启动/继承/计算 ──
     from odap.biz.core.ontology.conflict.api.routes import router as conflict_router
@@ -307,6 +325,25 @@ def create_router_registry() -> List[tuple]:
         # 语义地图
         (semantic_map_router,),
 
+        # 语义管理 - 统一语义层（USL Iter 1）
+        (semantic_admin_usl_router,),
+
+        # 语义管理 - OL Pipeline + Candidates（Iter 2 6 层流水线 + HITL）
+        (semantic_admin_pipeline_router,),
+
+        # 语义管理 - QualityGate 16 指标评估 + Dashboard（Iter 2 C1/C2/C3）
+        (semantic_admin_quality_gate_router,),
+
+        # 语义管理 - 2 级审批工作流（Iter 2 D1~D5）
+        (semantic_admin_approval_router,),
+
+        # 语义管理 - Candidate CRUD（FR-018/019）
+        (semantic_admin_candidate_router,),
+
+        # 语义管理 - 动态配置（sa_config，内置常量落库）
+        (semantic_admin_sa_config_router,),
+        (semantic_admin_writeback_router,),
+
         # 本体 - 运行时
         (runtime_router,),
         (state_machine_router,),
@@ -345,7 +382,6 @@ def create_router_registry() -> List[tuple]:
         (ontology_engine_router,),
         (ingestion_router,),
         (ontology_version_router,),
-        (semantic_layer_router,),
 
         # 本体 - 冲突/分支/冷启动/继承/计算
         (conflict_router,),
