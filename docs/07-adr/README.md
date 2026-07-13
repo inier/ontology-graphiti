@@ -52,6 +52,12 @@
 | ADR-056 | 语义层修正（类型校验执行与模型统一） | 提议 | P0 | [ADR-056](ADR-056-语义层修正.md) |
 | ADR-057 | 领域本体语义层（四大名著中英文映射） | 提议 | P1 | [ADR-057](ADR-057-domain-ontology-semantic-layer.md) |
 | ADR-060 | 知识库文档存储与图谱构建架构 | 已接受 | P0 | [ADR-060](ADR-060-knowledge-base-document-storage.md) |
+| ADR-061 | Semantic Admin Suite 独立业务域架构 | Accepted | P0 | [ADR-061](ADR-061-semantic-admin-suite-architecture.md) |
+| ADR-061b | Skill 插件包分发与沙箱执行机制 | 提议 | P2 | [ADR-061b](ADR-061_skill_plugin_packaging.md) |
+| ADR-062 | Graph CQRS 分层读写分离（Graphiti → Redis） | 提议 | P2 | [ADR-062](ADR-062_graph_cqrs_tiering.md) |
+| ADR-063 | 租户/工作空间双级感知与资源隔离 | 提议 | P1 | [ADR-063](ADR-063_tenant_aware_isolation.md) |
+| ADR-064 | 可观测性基线（Trace/Metrics/Log 三面） | 提议 | P1 | [ADR-064](ADR-064_observability_baseline.md) |
+| ADR-065 | 模块化单体 → 微服务拆分剧本 | 提议 | P3 | [ADR-065](ADR-065_microservice_extraction_playbook.md) |
 
 ### 平台架构（P0/P1 混合）
 
@@ -98,7 +104,7 @@
 | ADR-043 | Agent Router 语义路由架构 | 已接受 | P0 | [ADR-043](ADR-043_agent_router_semantic_routing.md) |
 | ADR-044 | 测试策略与框架 | 已接受 | P1 | [ADR-044](ADR-044_test_strategy_framework.md) |
 
-### 完整索引（ADR-001~ADR-060）
+### 完整索引（ADR-001~ADR-061）
 
 | ADR | 决策标题 | 状态 | 文件 |
 |-----|---------|------|------|
@@ -149,6 +155,7 @@
 | ADR-047 | 工具注册表升级 P0 + 分步实现 | 已接受 | [ADR-047](ADR-047_tool_registry_p0_phased_implementation.md) |
 | ADR-048 | 本体管理引擎架构决策 | 已接受 | [ADR-048](ADR-048_本体管理引擎架构决策.md) |
 | ADR-049 | 用户认知引擎架构决策 | 已接受 | [ADR-049](ADR-049_用户认知引擎架构决策.md) |
+| ADR-049b | 规格与架构文档瘦身（4MB→1.4MB 模板化） | 已接受 | [ADR-049b](ADR-049_规格与架构文档瘦身.md) |
 | ADR-050 | OADP业务语义体系架构 | 已接受 | [ADR-050](ADR-050_OADP业务语义体系架构.md) |
 | ADR-051 | 闭环反馈机制设计 | 已接受 | [ADR-051](ADR-051_闭环反馈机制设计.md) |
 | ADR-052 | 智能问答WebUI开源项目选型 | 提议 | [ADR-052](ADR-052_webui_opensource_selection.md) |
@@ -160,6 +167,12 @@
 | ADR-058 | RBAC 三级菜单管理架构 | 已接受 | [ADR-058](ADR-058-rbac-menu-management.md) |
 | ADR-059 | Dev/Prod 开发生产环境隔离架构 | 已接受 | [ADR-059](ADR-059-dev-prod-environment-isolation.md) |
 | ADR-060 | 知识库文档存储与图谱构建架构 | 已接受 | [ADR-060](ADR-060-knowledge-base-document-storage.md) |
+| ADR-061 | Semantic Admin Suite 独立业务域架构 | Accepted | [ADR-061](ADR-061-semantic-admin-suite-architecture.md) |
+| ADR-061b | Skill 插件包分发与沙箱执行机制 | 提议 | [ADR-061b](ADR-061_skill_plugin_packaging.md) |
+| ADR-062 | Graph CQRS 分层读写分离（Graphiti → Redis） | 提议 | [ADR-062](ADR-062_graph_cqrs_tiering.md) |
+| ADR-063 | 租户/工作空间双级感知与资源隔离 | 提议 | [ADR-063](ADR-063_tenant_aware_isolation.md) |
+| ADR-064 | 可观测性基线（Trace/Metrics/Log 三面） | 提议 | [ADR-064](ADR-064_observability_baseline.md) |
+| ADR-065 | 模块化单体 → 微服务拆分剧本 | 提议 | [ADR-065](ADR-065_microservice_extraction_playbook.md) |
 
 ---
 
@@ -206,3 +219,11 @@
 - ADR-058：Phase 5 RBAC 三级菜单管理（目录/菜单/操作三级 + 角色多对多关联）
 - ADR-059：Phase 5 Dev/Prod 环境隔离（独立 compose 文件 + 互斥启动）
 - ADR-060：Phase 5 知识库文档存储（双轨存储 + 双链路提取 + 图谱构建）
+- ADR-061：Phase 5 Semantic Admin Suite 独立业务域（USL 治理 + OL 6 层流水线 + HITL 审批飞轮 + 双写存储）
+- ADR-061b：Phase 5 Skill 插件包分发与沙箱执行机制（与 ADR-061 同日提审，共享编号后缀 `b` 区分）
+- ADR-049b：Phase 4 规格与架构文档瘦身（与 ADR-049 同日提审，共享编号后缀 `b` 区分）
+- ADR-062：Phase 6 Graph CQRS 分层读写分离（读多写少路径缓存 Redis）
+- ADR-063：Phase 6 租户/工作空间双级感知与资源隔离（软多租户）
+- ADR-064：Phase 6 可观测性基线（OTel Trace + Prometheus Metrics + slog JSON Log）
+- ADR-065：Phase 6 模块化单体 → 微服务拆分剧本（按业务域垂直切）
+- 编号冲突处理：若同日提审新 ADR 时编号已被占用，采用 `<number>b/c/d...` 后缀登记，**永远不重命名已被外部链接引用的 ADR 文件**

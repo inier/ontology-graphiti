@@ -1,0 +1,232 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<title>Iter 2 · L1-L2 OL Pipeline + Candidate Store 详细设计</title>
+<script src="https://cdn.jsdelivr.net/npm/mermaid@10/dist/mermaid.min.js"></script>
+<style>
+  body { font-family: "Segoe UI", "PingFang SC", "Microsoft YaHei", sans-serif; margin: 28px; background: #fafbff; color: #1a1f2e; }
+  h1 { font-size: 22px; margin: 0 0 4px; }
+  h2 { font-size: 18px; margin: 24px 0 12px; border-left: 4px solid #16a34a; padding-left: 12px; }
+  h3 { font-size: 15px; margin: 16px 0 8px; color: #374151; }
+  .subtitle { color: #6b7280; margin: 0 0 20px; }
+  .card { background: #fff; border: 1px solid #e5e7eb; border-radius: 10px; padding: 20px 24px; margin-bottom: 20px; }
+  table { border-collapse: collapse; width: 100%; font-size: 13.5px; }
+  th, td { border: 1px solid #e5e7eb; padding: 6px 10px; text-align: left; vertical-align: top; }
+  th { background: #f3f4f6; font-weight: 600; white-space: nowrap; }
+  code { background: #f3f4f6; padding: 1px 5px; border-radius: 3px; font-size: 12.5px; font-family: "JetBrains Mono", Consolas, monospace; }
+  pre { background: #0f172a; color: #e2e8f0; padding: 14px 18px; border-radius: 8px; overflow-x: auto; font-size: 12.5px; line-height: 1.55; }
+  pre code { background: transparent; padding: 0; color: inherit; font-size: inherit; }
+  .tag { display: inline-block; padding: 2px 8px; border-radius: 999px; font-size: 11.5px; font-weight: 600; }
+  .t1 { background: #ecfdf5; color: #047857; border: 1px solid #6ee7b7; }
+  .t2 { background: #eff6ff; color: #1d4ed8; border: 1px solid #93c5fd; }
+  .t3 { background: #faf5ff; color: #6d28d9; border: 1px solid #c4b5fd; }
+  .t4 { background: #fef3c7; color: #92400e; border: 1px solid #fcd34d; }
+  .warn { background: #fff7ed; border: 1px solid #fdba74; color: #9a3412; padding: 10px 14px; border-radius: 8px; font-size: 13px; }
+  .split { display: grid; grid-template-columns: 1fr 1fr; gap: 20px; }
+  .kv { display: grid; grid-template-columns: 200px 1fr; gap: 4px 14px; font-size: 13px; }
+  .kv b { color: #374151; }
+  .progress { height: 14px; background: #e5e7eb; border-radius: 7px; overflow: hidden; margin-top: 6px; }
+  .progress > div { height: 100%; background: linear-gradient(90deg,#4f46e5,#16a34a); }
+</style>
+</head>
+<body>
+<p style="color:#6b7280;margin:0 0 12px">← <a href="../spec.md">返回 Feature Spec</a> · ← <a href="01-architecture-planB.html">返回架构总览</a></p>
+<h1>🧪 Iteration 2 · L1-L2 OL 流水线 + Candidate 双写存储 — 详细设计</h1>
+<p class="subtitle">Scope: L1 术语抽取(对齐USL) + L2 概念聚合(BGE聚类) + candidate_store 双写(SQLite+Neo4j) + 前端 /semantic-admin/pipeline 监控页<br/>
+验收标准: 输入一篇三国/西游文档 → 产生 ≥30 个 L2 Schema Candidate; 候选同时出现在 SQLite candidate.db 与 Neo4j _schema_graph 命名空间中; HE 文档路径不再依赖 ObjectTypes 硬编码</p>
+
+<div class="card">
+  <h2>① L1-L2 流水线编排 Mermaid</h2>
+  <pre class="mermaid">
+flowchart TD
+  Doc["📄 输入文档<br/>(用户上传 / workspace MinIO 引用)"] --> Pre["🫧 预处理<br/>LangChain 切分（chunk_size=500, overlap=80）"]
+  Pre --> HE["🤖 Hyper-Extract mode=schema_learning<br/><span class='tag t2'>NEW! mode 参数</span><br/>ExtractService.extract(input, mode='schema_learning')"]
+  HE --> Raw["📦 Raw Concepts<br/>(token, pos_tag, count, doc_ref, start_offset)<br/>典型 200~2000 个/文档"]
+  Raw --> L1a["L1-1 USL 对齐<br/>对每个 token 查 usl_terms + 同义词 B 树匹配"]
+  L1a --> L1b["L1-2 规范化<br/>中文→en_mapping 翻译 + 去噪(停用词表 + stoplist_flag)"]
+  L1b --> L1c["L1-3 词性筛选<br/>只保留 n(名词)/nr(人名)/ns(地名)/nt(机构名)/vn(名动词)"]
+  L1c --> L1Out["✅ L1 输出: CanonicalTerm[ ]<br/>(canonical, en, pos, freq, doc_hits[], origin: usl|new, usl_confidence)"]
+  L1Out --> L2a["L2-1 Embedding 向量化<br/>BAAI/bge-small-zh-v1.5 (384d)"]
+  L2a --> L2b["L2-2 余弦聚类<br/>HDBSCAN(min_cluster_size=2, min_samples=1, metric='cosine')<br/>→ 概念簇簇心 + 每簇成员词"]
+  L2b --> L2c["L2-3 语义类型推断<br/>聚类代表词 + LLM few-shot prompt → 类型 = 对象类型 / 关系类型 / 属性（置信度）"]
+  L2c --> L2Out["✅ L2 输出: SchemaCandidate[ ]<br/>(id, canonical, en, semantic_type, synonyms[], cluster_confidence, usl_align_confidence, origin_domain, doc_refs[])<br/>典型 50~300 个候选"]
+  L2Out --> DDLW["💾 Double Write (SQLite ↔ Neo4j)"]
+  DDLW --> SQLite[(SQLite<br/>candidates.db<br/>元数据 · 置信度 · 状态 · JSON)]
+  DDLW --> Neo4j[(Neo4j<br/>graphiti-schema-graph 命名空间<br/>节点(:Candidate{status:'L2_DONE'})<br/>边[:L2_MEMBER_OF] + [:IS_A_DRAFT])]
+  </pre>
+</div>
+
+<div class="card">
+  <h2>② 关键改动：ExtractService 新增 mode="schema_learning"</h2>
+  <div class="warn">⚠️ 现有 ExtractService 只有 <code>concept_graph</code> mode，返回 boolean 型存在性判定。Iter 2 必改：返回 <b>置信度连续分</b>，供后续质量闸打分。</div>
+  <h3>②a. 修改文件</h3>
+  <table>
+    <tr><th>文件</th><th>改动内容</th><th>是否破坏向后兼容</th></tr>
+    <tr><td>biz/data/hyper_extract/services/extract_service.py</td><td>extract() 新增参数 mode: Literal["concept_graph", "schema_learning"] = "concept_graph"；mode=schema_learning 时跳过 concept_edges 简化分支</td><td>否（mode 有默认值）</td></tr>
+    <tr><td>biz/data/hyper_extract/impl/concept_extractor.py</td><td>concept_extract_triplets() schema_learning mode 不再过滤低置信度（让下游自己评），返回完整 triplets + 单概念 token-level 分数</td><td>否</td></tr>
+    <tr><td>biz/data/hyper_extract/api/schemas.py</td><td>ExtractRequest 增加 mode 字段；ExtractResponse 增加 schema_candidates 数组（仅 schema_learning 填充）</td><td>否（可选字段）</td></tr>
+  </table>
+  <h3>②b. SchemaLearningResponse（新增响应结构）</h3>
+<pre><code>{
+  "mode": "schema_learning",
+  "raw_tokens": [
+    {"token": "刘备", "pos": "nr", "count": 18, "offset": [12,34,...]},
+    {"token": "蜀汉", "pos": "ns", "count": 12, "offset": [...]}
+  ],
+  "schema_candidates": [
+    {"canonical": "势力", "en": "Faction", "semantic_type": "对象类型",
+     "synonyms": ["阵营","国家","方"],
+     "cluster_confidence": 0.96, "usl_align_confidence": 0.99,
+     "origin": "usl",  // usl=命中 USL 表 /  llm=LLM新造
+     "doc_refs": ["doc-a#p3","doc-b#p7"]},
+    {"canonical": "武将", "en": "General", "semantic_type": "对象类型",
+     "synonyms": ["大将","将领","将军"],
+     "cluster_confidence": 0.82, "usl_align_confidence": 0.87,
+     "origin": "llm",  // 没命中三国 USL，LLM 新造
+     "doc_refs": ["doc-a#p5"]}
+  ]
+}</code></pre>
+</div>
+
+<div class="split">
+<div class="card">
+  <h2>③a. Candidate 存储 · SQLite DDL</h2>
+  <pre><code>-- 表 1: OL 运行批次（一次文档上传 = 一个 pipeline_run）
+CREATE TABLE IF NOT EXISTS usl_pipeline_runs (
+  id            TEXT PRIMARY KEY,           -- uuid
+  domain_id     TEXT,                       -- 关联的 usl_domains.id（可选，用户未选则为 NULL）
+  workspace_id  TEXT NOT NULL,              -- ODAP 工作空间隔离
+  doc_sources_json TEXT NOT NULL,           -- JSON: [{source, title, url, checksum}]
+  status        TEXT NOT NULL,              -- DRAFT / RUNNING / L1_DONE / L2_DONE / L3_DONE / ...
+  started_at    TEXT NOT NULL,
+  finished_at   TEXT,
+  error_message TEXT,
+  stats_json    TEXT NOT NULL DEFAULT '{}'  -- 每一层候选数统计 JSON
+);
+
+-- 表 2: Schema Candidate（核心）
+CREATE TABLE IF NOT EXISTS usl_schema_candidates (
+  id                     TEXT PRIMARY KEY,
+  run_id                 TEXT NOT NULL REFERENCES usl_pipeline_runs(id) ON DELETE CASCADE,
+  canonical              TEXT NOT NULL,
+  en                     TEXT NOT NULL DEFAULT '',
+  semantic_type          TEXT NOT NULL,
+  synonyms_json          TEXT NOT NULL DEFAULT '[]',
+  aliases_json           TEXT NOT NULL DEFAULT '[]',
+  origin                 TEXT NOT NULL,   -- usl | llm | hybrid(=混合) | human
+  cluster_confidence     REAL NOT NULL DEFAULT 0,
+  usl_align_confidence   REAL NOT NULL DEFAULT 0,
+  review_confidence      REAL NOT NULL DEFAULT 0,   -- 留空，Iter 3 审批后写入
+  status                 TEXT NOT NULL DEFAULT 'DRAFT',
+  -- 状态机: DRAFT → L2_DONE → PENDING_REVIEW(3审) → APPROVED / MODIFIED / REJECTED → WRITTEN_BACK(4)
+  domain_id              TEXT,                       -- 最终推荐归属的 USL 域
+  doc_refs_json          TEXT NOT NULL DEFAULT '[]', -- 文档证据
+  parent_candidates_json TEXT NOT NULL DEFAULT '[]', -- L3 分类层级草稿
+  created_at             TEXT NOT NULL,
+  updated_at             TEXT NOT NULL
+);
+CREATE INDEX IF NOT EXISTS idx_cand_run ON usl_schema_candidates(run_id);
+CREATE INDEX IF NOT EXISTS idx_cand_status ON usl_schema_candidates(status);
+CREATE INDEX IF NOT EXISTS idx_cand_sem_type ON usl_schema_candidates(semantic_type);
+
+-- 表 3: 每一层的原始输入/输出快照（调试用，保留 30 天）
+CREATE TABLE IF NOT EXISTS usl_pipeline_layer_snapshots (
+  id           TEXT PRIMARY KEY,
+  run_id       TEXT NOT NULL REFERENCES usl_pipeline_runs(id) ON DELETE CASCADE,
+  layer_name   TEXT NOT NULL,  -- L1/L2/L3/L4/L5/L6
+  input_json   TEXT NOT NULL,
+  output_json  TEXT NOT NULL,
+  duration_ms  INTEGER NOT NULL,
+  created_at   TEXT NOT NULL
+);</code></pre>
+</div>
+
+<div class="card">
+  <h2>③b. Candidate 存储 · Neo4j 双写命名空间</h2>
+  <div class="warn">🔐 命名空间隔离：所有 Candidate 节点标签前缀 <code>:USL__</code>，避免污染 ODAP 生产 Ontology TBox/ABox。</div>
+  <pre><code>// L2 完成后同步写入的 Neo4j 图（草稿图，Iter 3 批准前仅供可视化预览）
+
+// Candidate 节点
+(:USL__Candidate {
+    id: 'c-uuid-1',
+    canonical: '武将', en: 'General',
+    semantic_type: '对象类型',
+    status: 'L2_DONE',
+    cluster_confidence: 0.82,
+    usl_align_confidence: 0.87,
+    origin: 'llm'
+})
+
+// 簇成员边 (cluster member → cluster head)
+(:USL__Token {value:'大将'}) -[:USL__L2_MEMBER_OF {score:0.91}]-> (:USL__Candidate)
+(:USL__Token {value:'将领'}) -[:USL__L2_MEMBER_OF {score:0.88}]-> (:USL__Candidate)
+
+// 草稿 is_a 边 (仅 Iter 2 粗粒度，Iter 3 质量闸验证 + Iter 4 精化 FCA)
+(:USL__Candidate {canonical:'武将'})
+  -[:USL__IS_A_DRAFT {confidence:0.74, provenance:'llm_hierarchy_prompt_v1'}]
+->(:USL__Candidate {canonical:'人物'})</code></pre>
+  <h3>③c. 双写一致性（弱一致，可读即可）</h3>
+  <p class="muted" style="margin:0;font-size:13px;color:#6b7280">
+  SQLite 为主，Neo4j 为从（可降级）。<br/>
+  ✅ SQLite 写成功但 Neo4j 失败 → 记录 error_message + console warning，不阻断；下一次 /pipeline retry 会 idempotent 覆盖。<br/>
+  ❌ SQLite 失败 → 直接抛异常，状态回滚到 RUNNING → ERROR。
+  </p>
+</div>
+</div>
+
+<div class="card">
+  <h2>④ 后端 API 路由：/api/semantic-admin/pipeline + /candidates（共 7 接口）</h2>
+  <table>
+    <tr><th>Method</th><th>路径</th><th>功能</th><th>关键参数 / 返回结构</th></tr>
+    <tr><td><span class="tag t1">POST</span></td><td><code>/pipeline/runs</code></td><td>新建运行 → 立即开始 L1→L2 异步任务（asyncio.create_task）</td><td>Body: {workspace_id, domain_id?, doc_sources:[]}<br/>返回: {run_id, status:'RUNNING'}</td></tr>
+    <tr><td><span class="tag t1">GET</span></td><td><code>/pipeline/runs</code></td><td>分页列出流水线历史（按工作空间过滤）</td><td>返回: {items:[{run_id, doc_count, created_at, status, progress:{L1:100,L2:87,...}}]}</td></tr>
+    <tr><td><span class="tag t1">GET</span></td><td><code>/pipeline/runs/{id}</code></td><td>查看单运行详情（含每层 stats）</td><td>返回含: {stats:{L1_raw:234, L1_filtered:147, L2_clusters:62}, snapshots_preview: '前 10 条...'}</td></tr>
+    <tr><td><span class="tag t2">POST</span></td><td><code>/pipeline/runs/{id}/retry</span></td><td>幂等重试失败层（或 force 重跑全部）</td><td>Query: ?from_layer=L1|L2&force=true/false</td></tr>
+    <tr><td><span class="tag t2">GET</span></td><td><code>/candidates</code></td><td>按条件搜索候选（run_id · semantic_type · origin · min_confidence · status）</td><td>返回: {items:SchemaCandidate[], total, page, page_size}</td></tr>
+    <tr><td><span class="tag t3">GET</span></td><td><code>/candidates/{id}</code></td><td>单个候选详情（含 doc_refs 展开、同义词、置信度）</td><td>返回全量 JSON</td></tr>
+    <tr><td><span class="tag t3">GET</span></td><td><code>/candidates/{id}/graph-preview</span></td><td>从 Neo4j _schema_graph 返回该候选的局部可视化（前后端传 Cytoscape JSON）</td><td>返回 Cytoscape 格式: {nodes[], edges[]}</td></tr>
+  </table>
+</div>
+
+<div class="card">
+  <h2>⑤ 前端 /semantic-admin/pipeline 页面结构</h2>
+  <h3>5.1 页面布局（三栏：输入栏 × 进度栏 × 结果栏）</h3>
+  <table>
+    <tr><th>区域</th><th>组件</th><th>交互</th></tr>
+    <tr><td>📥 上 · 输入</td><td>Upload（MinIO 多文件拖拽）+ Select（选择 USL Domain 可选）+ Button「开始 OL 流水线」</td><td>Upload 完成 → POST /pipeline/runs → 进入实时进度</td></tr>
+    <tr><td>📊 中 · 实时进度（6 层垂直 Steps 组件）</td><td>Ant Design 6 Steps（status: process/finish/error/wait）<br/>每层: 名称 · 候选数 · 耗时 ms · 展开查看 Samples</td><td>轮询 GET /pipeline/runs/{id} 每 2s；WebSocket 优先（Iter4 升级 SSE）</td></tr>
+    <tr><td>📋 下 · L2 候选结果 Table</td><td>列：canonical Tag(semantic_type 颜色) · en · origin · cluster_confidence(0-1 进度条) · usl_align_confidence · 操作「查看图谱」</td><td>Filter 面板：min_conf 双滑块；semantic_type CheckboxGroup；origin RadioGroup</td></tr>
+  </table>
+  <h3>5.2 进度 Steps 示意（真实数据）</h3>
+  <table>
+    <tr><th>层</th><th>名称</th><th>输入数</th><th>输出数</th><th>耗时</th><th>状态</th><th>进度</th></tr>
+    <tr><td>L1</td><td>术语层（抽取 + 对齐 USL）</td><td>文档 2 个 = 38,012 字</td><td>147 tokens</td><td>1.8s</td><td>✅ Finish</td><td><div class="progress"><div style="width:100%"></div></div></td></tr>
+    <tr><td>L2</td><td>概念层（BGE 聚类）</td><td>147</td><td>62 candidates</td><td>3.4s</td><td>✅ Finish</td><td><div class="progress"><div style="width:100%"></div></div></td></tr>
+    <tr><td>L3</td><td>分类层（FCA）</td><td>62</td><td>—</td><td>—</td><td>⏳ Wait</td><td><div class="progress"><div style="width:0%"></div></div></td></tr>
+    <tr><td>L4</td><td>关系层</td><td>—</td><td>—</td><td>—</td><td>⏳ Wait</td><td><div class="progress"><div style="width:0%"></div></div></td></tr>
+    <tr><td>L5</td><td>模式层</td><td>—</td><td>—</td><td>—</td><td>⏳ Wait</td><td><div class="progress"><div style="width:0%"></div></div></td></tr>
+    <tr><td>L6</td><td>公理层</td><td>—</td><td>—</td><td>—</td><td>⏳ Wait</td><td><div class="progress"><div style="width:0%"></div></div></td></tr>
+  </table>
+</div>
+
+<div class="card">
+  <h2>⑥ Iter 2 任务矩阵（≈ 45 小步）</h2>
+  <table>
+    <tr><th>#</th><th>任务分组</th><th>产物</th><th>单元测试要求</th></tr>
+    <tr><td>1</td><td>📦 新建 ol_pipeline 子服务 7 层</td><td>骨架目录（interfaces OLStage 抽象基类 run(input)→output）</td><td>OLStage 接口 2 个 TC</td></tr>
+    <tr><td>2</td><td>⚙️ L1 阶段 3 子步 Impl</td><td>UslAlignStage | CanonicalizeStage | PosFilterStage 三个实现 + 编排 PipelineOrchestrator</td><td>三国测试文档 → L1 输出 ≥ 140 tokens 非空；stoplist_flag 正确过滤</td></tr>
+    <tr><td>3</td><td>⚙️ L2 阶段 3 子步 Impl</td><td>EmbedStage(BGE) | ClusterStage(HDBSCAN) | SemanticTypeStage(LLM few-shot)</td><td>离线测试：聚类簇心相似度 ≥ 0.92（典型已知文档）</td></tr>
+    <tr><td>4</td><td>🔧 ExtractService 改造</td><td>mode="schema_learning" + SchemaLearningResponse 类型</td><td>向后兼容：mode 不传 → 原 concept_graph 行为不变</td></tr>
+    <tr><td>5</td><td>📦 新建 candidate_store 子服务 7 层</td><td>SqliteCandidateStorage（3 表）+ Neo4jSchemaGraphWriter 双写 + 降级策略</td><td>tmp_path 真实 DB 全 CRUD；Neo4j mock 关闭时自动降级不抛错</td></tr>
+    <tr><td>6</td><td>🛣️ 7 个 API Routes</td><td>/pipeline/runs/* + /candidates/* 在新 semantic_admin router 注册</td><td>asyncio 任务状态轮询 4 次 状态正确变 L2_DONE；retry 幂等 2 次不重复插入</td></tr>
+    <tr><td>7</td><td>🎨 前端 pipeline 页 3 栏布局</td><td>components/UploadZone | StepsProgress | CandidateTable + zustand pipelineStore</td><td>模拟 2 秒轮询 5 次后步骤完成，Table ≥ 62 条</td></tr>
+    <tr><td>8</td><td>🧪 端到端沙箱测试</td><td>tests/integration/test_ol_pipeline_e2e_sanguo.py（@pytest.mark.integration，需要 Neo4j）</td><td>三国 3 段样例文本 → ≥ 30 candidates；双写检查；删除 run_id → cascade 清 200+ 子记录</td></tr>
+  </table>
+</div>
+
+<script>
+  mermaid.initialize({ startOnLoad: true, theme: 'default', flowchart: { curve: 'basis', htmlLabels: true } });
+</script>
+</body>
+</html>

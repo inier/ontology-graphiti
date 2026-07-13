@@ -7,7 +7,7 @@
 
 ## 模块总览
 
-### 后端模块（38 个，按 8 大业务领域组织）
+### 后端模块（39 个，按 9 大业务领域组织）
 
 #### core/ — 核心领域（4 模块）
 
@@ -82,9 +82,22 @@
 | Simulation Sandbox 沙盘 | `odap/biz/simulation/simulation_sandbox/` | 并行沙盘推演 | ✅ 活跃 |
 | Visualization 可视化 | `odap/biz/simulation/visualization/` | 仿真结果可视化 | ✅ 活跃 |
 
+#### semantic_admin/ — 语义管理台顶级域（7 子服务）
+
+| 模块 | 路径 | 职责 | 状态 |
+|------|------|------|------|
+| Semantic Admin 语义管理台 | `odap/biz/semantic_admin/` | 顶级域 — USL 管理 + OL 6 层流水线 + 质量闸 + 2级审批 + HITL 飞轮（[specs/007-semantic-admin-suite/](file:///e:/DEMO/AI/ontology-graphiti/specs/007-semantic-admin-suite/)） | 🆕 新增 |
+|   - usl_manager USL 管理 | `odap/biz/semantic_admin/usl_manager/` | USL 元数据 CRUD、分类层级、版本快照发布/回滚 | 🆕 新增 |
+|   - ol_pipeline OL 流水线 | `odap/biz/semantic_admin/ol_pipeline/` | 6 层 Ontology Learning 状态机（L1 term tokenize Ngram→L2 concept merge 聚类→L3 FCA 形式概念格+BordNet 层级→L4 4 类关系分类 is-a/part-of/attr-of/related→L5 三分类融合 merge/keep/flag→L6 OWL 公理 subClassOf/disjoint/domain/range/card） | 🆕 新增 |
+|   - candidate_store 候选存储 | `odap/biz/semantic_admin/candidate_store/` | 语义草稿去重、MinHash 聚类、增量合并 | 🆕 新增 |
+|   - quality_gate 质量闸 | `odap/biz/semantic_admin/quality_gate/` | 16 子指标三关公式化、O(N) 纯算 P95≤100ms | 🆕 新增 |
+|   - approval_workflow 审批 | `odap/biz/semantic_admin/approval_workflow/` | 10 状态机 + OPA 二级审批 + 加速通道判定 | 🆕 新增 |
+|   - usl_writeback 写回 | `odap/biz/semantic_admin/usl_writeback/` | 审批通过写回本体 TBox + 同步 Neo4j 从副本 + 语义地图 + I4T8 手动触发/状态查询 API | 🆕 新增 |
+|   - sa_config 动态配置 | `odap/biz/semantic_admin/sa_config/` | 语义层配置从硬编码迁移到 SQLite 持久化（scoped key/value）+ ensure-builtin 内置常量化石回填 | 🆕 新增 |
+
 #### shared/ — 共享工具（无子模块）
 
-### 前端模块（22 个）
+### 前端模块（23 个）
 
 | 模块 | 路径 | 职责 |
 |------|------|------|
@@ -110,6 +123,7 @@
 | System | `frontend/src/modules/system/` | 系统管理（技能等） |
 | Version | `frontend/src/modules/version/` | 版本历史 |
 | Workspace | `frontend/src/modules/workspace/` | 工作空间管理 |
+| Semantic Admin | `frontend/src/modules/semantic-admin/` | 语义管理台（路由 /semantic-admin/*，子页：/usl /pipeline /candidates /quality） |
 
 ### API 路由注册（80 个路由）
 
