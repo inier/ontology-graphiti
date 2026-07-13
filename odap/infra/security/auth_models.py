@@ -42,6 +42,7 @@ class GlobalRole(str, Enum):
     ANALYST = "analyst"
     OPERATOR = "operator"
     OBSERVER = "observer"
+    SCHEMA_AUDITOR = "schema_auditor"
 
     @classmethod
     def _missing_(cls, value):

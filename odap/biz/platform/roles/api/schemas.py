@@ -14,6 +14,16 @@ class RoleType(str, Enum):
     INTELLIGENCE = "intelligence"
     OPERATOR = "operator"
     ANALYST = "analyst"
+    SCHEMA_AUDITOR = "schema_auditor"
+
+    @classmethod
+    def _missing_(cls, value):
+        """容错：未知角色类型一律落到 GUEST，防止新增枚举在历史数据上抛 ValueError。
+
+        新增 SCHEMA_AUDITOR（Spec 007 Iter 1）需确保既不触发既存 switch/case
+        的未处理分支，也不会对 RoleType(unknown) 构造产生运行时异常。
+        """
+        return cls.GUEST
 
 
 class PermissionScope(str, Enum):

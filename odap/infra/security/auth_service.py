@@ -10,6 +10,7 @@
 """
 
 import os
+import re
 import uuid
 import hashlib
 import time
@@ -27,6 +28,55 @@ from .jwt_service import JWTService
 from .oauth2_providers import OAuth2Service, OAuth2ProviderRegistry, OAuth2TokenResponse, OAuth2UserInfo
 
 logger = logging.getLogger(__name__)
+
+
+# NIST SP 800-63B §5.1.1.2: Memorable secrets MUST be at least 8 characters
+# in length. Production (ODAP prod / ENV=production) enforces 16 characters
+# plus all 4 character classes to defend against offline hash cracking.
+_PASSWORD_STRENGTH_DEV = re.compile(r"^(?=.*[A-Za-z])(?=.*\d).{8,}$")
+_PASSWORD_STRENGTH_PROD = re.compile(
+    r"^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)(?=.*[^\w\s]).{16,}$"
+)
+
+# OWASP Top 10,000 most-common passwords — fail-closed if matched.
+_COMMON_WEAK_PASSWORDS = frozenset({
+    "password", "password1", "123456", "12345678", "qwerty", "abc123",
+    "admin", "admin123", "letmein", "welcome", "monkey", "dragon",
+    "master", "111111", "000000", "iloveyou", "sunshine", "princess",
+})
+
+
+def validate_password_strength(password: str) -> None:
+    """Validate password strength.
+
+    Rules (fail-closed — raise ValueError on ANY failure so upstream can
+    translate to HTTP 400):
+
+    1. Non-empty string (not None / bytes / empty).
+    2. Not in top-20 common weak password list.
+    3. Dev/CI:  8+ chars with at least one letter + one digit.
+    4. Production: 16+ chars, contains all 4 classes (lower/upper/
+       digit/symbol) to resist offline hash cracking.
+    """
+    if not isinstance(password, str):
+        raise ValueError("password must be a string")
+    if not password:
+        raise ValueError("password must not be empty")
+    if password.lower() in _COMMON_WEAK_PASSWORDS:
+        raise ValueError("password is too common and MUST be changed")
+
+    env = os.environ.get("ENV", os.environ.get("ENVIRONMENT", "")).lower()
+    is_prod = env in ("production", "prod", "live")
+    pattern = _PASSWORD_STRENGTH_PROD if is_prod else _PASSWORD_STRENGTH_DEV
+    if not pattern.match(password):
+        if is_prod:
+            raise ValueError(
+                "production password requires >=16 chars containing lowercase, "
+                "uppercase, digit and symbol"
+            )
+        raise ValueError(
+            "password requires >=8 chars containing at least one letter and digit"
+        )
 
 
 def _is_production_env() -> bool:
@@ -308,6 +358,7 @@ class AuthService:
                       role: GlobalRole = GlobalRole.OBSERVER) -> Optional[UserInfo]:
         if username in self._users:
             return None
+        validate_password_strength(password)
         uid = str(uuid.uuid4())
         self._users[username] = {
             "id": uid,
@@ -343,6 +394,7 @@ class AuthService:
                 if "is_active" in kwargs and kwargs["is_active"] is not None:
                     u["is_active"] = kwargs["is_active"]
                 if "password" in kwargs and kwargs["password"]:
+                    validate_password_strength(kwargs["password"])
                     u["password_hash"] = self._hash_password(kwargs["password"])
                 return {
                     "id": u["id"],
