@@ -76,34 +76,163 @@ class OpenAICompatClient:
     def __init__(self, api_key: str, base_url: str, model: str):
         try:
             import openai
-            self._client = openai.AsyncOpenAI(api_key=api_key, base_url=base_url)
+            # timeout: NVIDIA API 等部分端点响应较慢，设置 120s 超时
+            self._client = openai.AsyncOpenAI(api_key=api_key, base_url=base_url, timeout=120.0)
         except ImportError:
             raise ImportError("openai package required: pip install openai")
         self._model = model
         self._api_key = api_key
         self._base_url = base_url
 
+    @staticmethod
+    def _convert_tools_to_openai_format(tools):
+        """将 OH ToolRegistry.to_api_schema() 返回的 Anthropic 格式转为 OpenAI 格式。
+
+        OH 的 to_api_schema() 返回:
+            [{"name": ..., "description": ..., "input_schema": {...}}]
+        OpenAI 兼容 API 需要:
+            [{"type": "function",
+              "function": {"name": ..., "description": ..., "parameters": {...}}}]
+
+        同时清理 input_schema 中的 anyOf（来自 str|None 联合类型），
+        因为部分 OpenAI 兼容端点（如 NVIDIA）不接受 anyOf，要求每个属性
+        都有直接的 type 字段。
+        """
+        if not tools:
+            return None
+
+        def _simplify_schema(schema):
+            """递归清理 schema：把 anyOf 折叠为简单 type，去掉 title 等冗余字段。"""
+            if not isinstance(schema, dict):
+                return schema
+
+            # anyOf: 取第一个非 null 的类型
+            if "anyOf" in schema:
+                for sub in schema["anyOf"]:
+                    if isinstance(sub, dict) and sub.get("type") != "null":
+                        simplified = _simplify_schema(sub)
+                        if "default" in schema:
+                            simplified = {**simplified, "default": schema["default"]}
+                        if "description" in schema:
+                            simplified.setdefault("description", schema["description"])
+                        return simplified
+                # 全部为 null 或空，回退为 string
+                return {"type": "string"}
+
+            result = {}
+            for k, v in schema.items():
+                if k == "properties" and isinstance(v, dict):
+                    result["properties"] = {
+                        prop: _simplify_schema(val) for prop, val in v.items()
+                    }
+                elif k == "items":
+                    result["items"] = _simplify_schema(v)
+                elif k in ("title",):
+                    # 跳过冗余字段
+                    continue
+                else:
+                    result[k] = v
+            return result
+
+        openai_tools = []
+        for t in tools:
+            if isinstance(t, dict):
+                # 已经是 OpenAI 格式
+                if t.get("type") == "function" and "function" in t:
+                    openai_tools.append(t)
+                    continue
+                # Anthropic 格式转换
+                input_schema = t.get("input_schema") or t.get("parameters") or {}
+                parameters = _simplify_schema(input_schema)
+                openai_tools.append({
+                    "type": "function",
+                    "function": {
+                        "name": t.get("name", ""),
+                        "description": t.get("description", ""),
+                        "parameters": parameters,
+                    },
+                })
+        return openai_tools or None
+
     async def stream_message(self, request):
-        """流式消息接口（适配 OpenHarness QueryEngine）"""
+        """流式消息接口（适配 OpenHarness QueryEngine）
+
+        完整支持 OpenAI tool calling：
+        - 解析 delta.tool_calls 并组装为 ToolUseBlock
+        - 将 ConversationMessage 中的 ToolUseBlock/ToolResultBlock 转为 OpenAI 格式
+        """
         from openharness.api.client import (
             ApiMessageRequest,
-            ApiMessageStreamEvent,
+            ApiTextDeltaEvent,
             ApiMessageCompleteEvent,
         )
+        from openharness.engine.messages import (
+            ConversationMessage,
+            TextBlock,
+            ToolUseBlock,
+            ToolResultBlock,
+        )
 
+        # ── 将 OH ConversationMessage 列表转为 OpenAI messages 格式 ──
         formatted = []
         for msg in request.messages:
             if hasattr(msg, 'role') and hasattr(msg, 'content'):
-                content = msg.content
-                if isinstance(content, list):
+                if isinstance(msg.content, list):
                     text_parts = []
-                    for block in content:
-                        if hasattr(block, 'text'):
+                    tool_calls_openai = []
+                    tool_result_blocks = []
+                    for block in msg.content:
+                        if isinstance(block, TextBlock):
                             text_parts.append(block.text)
-                        elif isinstance(block, dict) and 'text' in block:
-                            text_parts.append(block['text'])
-                    content = "\n".join(text_parts)
-                formatted.append({"role": msg.role, "content": str(content)})
+                        elif isinstance(block, ToolUseBlock):
+                            tool_calls_openai.append({
+                                "id": block.id,
+                                "type": "function",
+                                "function": {
+                                    "name": block.name,
+                                    "arguments": json.dumps(block.input, ensure_ascii=False),
+                                },
+                            })
+                        elif isinstance(block, ToolResultBlock):
+                            tool_result_blocks.append(block)
+                        elif isinstance(block, dict):
+                            if block.get("type") == "text":
+                                text_parts.append(block.get("text", ""))
+                            elif block.get("type") == "tool_use":
+                                tool_calls_openai.append({
+                                    "id": block.get("id", ""),
+                                    "type": "function",
+                                    "function": {
+                                        "name": block.get("name", ""),
+                                        "arguments": json.dumps(block.get("input", {}), ensure_ascii=False),
+                                    },
+                                })
+                            elif block.get("type") == "tool_result":
+                                tool_result_blocks.append(ToolResultBlock(
+                                    tool_use_id=block.get("tool_use_id", ""),
+                                    content=block.get("content", ""),
+                                    is_error=block.get("is_error", False),
+                                ))
+
+                    # tool_result 块需要作为独立的 "tool" role 消息发送
+                    for trb in tool_result_blocks:
+                        formatted.append({
+                            "role": "tool",
+                            "tool_call_id": trb.tool_use_id,
+                            "content": trb.content,
+                        })
+
+                    # assistant 消息（可能含文本 + tool_calls）
+                    if msg.role == "assistant":
+                        msg_dict = {"role": "assistant", "content": "\n".join(text_parts) if text_parts else None}
+                        if tool_calls_openai:
+                            msg_dict["tool_calls"] = tool_calls_openai
+                        formatted.append(msg_dict)
+                    else:
+                        # user 消息
+                        formatted.append({"role": msg.role, "content": "\n".join(text_parts) if text_parts else ""})
+                else:
+                    formatted.append({"role": msg.role, "content": str(msg.content)})
             elif isinstance(msg, dict):
                 formatted.append(msg)
             else:
@@ -118,21 +247,79 @@ class OpenAICompatClient:
         if request.system_prompt:
             params["messages"] = [{"role": "system", "content": request.system_prompt}] + params["messages"]
 
-        # 工具定义
-        if request.tools:
-            params["tools"] = request.tools
+        # 工具定义：将 OH Anthropic 格式转为 OpenAI 格式（清理 anyOf）
+        openai_tools = self._convert_tools_to_openai_format(request.tools)
+        if openai_tools:
+            params["tools"] = openai_tools
 
+        # ── 流式收集：文本 + 工具调用 ──
         response_text = ""
+        # tool_calls_buffer: {index: {"id":..., "name":..., "arguments": "..."}}
+        tool_calls_buffer: Dict[int, Dict[str, Any]] = {}
+        finish_reason = None
+
         async for chunk in await self._client.chat.completions.create(**params):
-            if chunk.choices and chunk.choices[0].delta:
-                delta = chunk.choices[0].delta
+            if not chunk.choices:
+                continue
+            choice = chunk.choices[0]
+            delta = choice.delta
+
+            if delta:
+                # 文本增量
                 if delta.content:
                     response_text += delta.content
-                    yield ApiMessageStreamEvent(text=delta.content)
+                    yield ApiTextDeltaEvent(text=delta.content)
 
-        # 发送完成事件
-        complete_msg = ConversationMessage(role="assistant", content=[])
-        yield ApiMessageCompleteEvent(message=complete_msg, usage=None, stop_reason="end_turn")
+                # 工具调用增量（OpenAI 流式格式：分片到达）
+                if delta.tool_calls:
+                    for tc_delta in delta.tool_calls:
+                        idx = tc_delta.index if tc_delta.index is not None else 0
+                        if idx not in tool_calls_buffer:
+                            tool_calls_buffer[idx] = {
+                                "id": "",
+                                "name": "",
+                                "arguments": "",
+                            }
+                        if tc_delta.id:
+                            tool_calls_buffer[idx]["id"] = tc_delta.id
+                        if tc_delta.function:
+                            if tc_delta.function.name:
+                                tool_calls_buffer[idx]["name"] = tc_delta.function.name
+                            if tc_delta.function.arguments:
+                                tool_calls_buffer[idx]["arguments"] += tc_delta.function.arguments
+
+            if choice.finish_reason:
+                finish_reason = choice.finish_reason
+
+        # ── 组装最终 ConversationMessage ──
+        content_blocks = []
+        if response_text.strip():
+            content_blocks.append(TextBlock(text=response_text))
+
+        # 将收集到的 tool_calls 转为 ToolUseBlock
+        for idx in sorted(tool_calls_buffer.keys()):
+            tc = tool_calls_buffer[idx]
+            tc_id = tc["id"] or f"toolu_{idx}"
+            tc_name = tc["name"]
+            tc_args_str = tc["arguments"] or "{}"
+            try:
+                tc_input = json.loads(tc_args_str) if tc_args_str else {}
+            except json.JSONDecodeError:
+                logger.warning("Failed to parse tool call arguments: %s", tc_args_str)
+                tc_input = {"_raw": tc_args_str}
+
+            content_blocks.append(ToolUseBlock(
+                id=tc_id,
+                name=tc_name,
+                input=tc_input,
+            ))
+
+        complete_msg = ConversationMessage(role="assistant", content=content_blocks)
+
+        # stop_reason: "tool_calls" → "tool_use", "stop" → "end_turn"
+        stop_reason = "tool_use" if finish_reason == "tool_calls" else (finish_reason or "end_turn")
+
+        yield ApiMessageCompleteEvent(message=complete_msg, usage=None, stop_reason=stop_reason)
 
 
 # ---------------------------------------------------------------------------
@@ -334,9 +521,11 @@ class OHQueryEngineFactory:
             model: 模型名称
             opa_manager: OPA 权限管理器
         """
-        self._api_key = api_key or get_config("llm.api_key") or os.environ.get("OPENAI_API_KEY", "")
-        self._base_url = base_url or get_config("llm.api_base") or os.environ.get("OPENAI_API_BASE", "https://api.openai.com/v1")
-        self._model = model or get_config("llm.model") or os.environ.get("OPENAI_MODEL", "gpt-4")
+        # 环境变量优先于 get_config：get_config 可能返回加密后无法解密的密文
+        # （CONFIG_ENCRYPTION_KEY 在容器重启后重新生成，导致旧密文无法解密）
+        self._api_key = api_key or os.environ.get("OPENAI_API_KEY", "") or get_config("llm.api_key", "")
+        self._base_url = base_url or os.environ.get("OPENAI_API_BASE", "") or get_config("llm.api_base", "")
+        self._model = model or os.environ.get("OPENAI_MODEL", "") or get_config("llm.model", "")
 
         if not self._api_key:
             logger.warning("OHQueryEngineFactory: API key not configured")
@@ -631,9 +820,11 @@ class GraphitiAgentLoop:
         if self._factory.is_available:
             return
 
-        api_key = get_config("llm.api_key") or os.environ.get("OPENAI_API_KEY", "")
-        base_url = get_config("llm.api_base") or os.environ.get("OPENAI_API_BASE", "https://api.openai.com/v1")
-        model = get_config("llm.model") or os.environ.get("OPENAI_MODEL", "gpt-4")
+        # 环境变量优先于 get_config：get_config 可能返回加密后无法解密的密文
+        # （CONFIG_ENCRYPTION_KEY 在容器重启后重新生成，导致旧密文无法解密）
+        api_key = os.environ.get("OPENAI_API_KEY", "") or get_config("llm.api_key", "")
+        base_url = os.environ.get("OPENAI_API_BASE", "") or get_config("llm.api_base", "https://api.openai.com/v1")
+        model = os.environ.get("OPENAI_MODEL", "") or get_config("llm.model", "gpt-4")
 
         self._factory.configure(
             api_key=api_key,
@@ -658,20 +849,74 @@ class GraphitiAgentLoop:
         except Exception as e:
             logger.warning("Build fallback tools failed: %s", e)
 
-    def _get_system_prompt(self) -> str:
-        """构建系统提示词"""
-        return f"""你是 ODAP 平台的领域分析智能体，当前角色: {self.user_role}
+    def _get_system_prompt(self, ontology_id: str = None) -> str:
+        """构建系统提示词
 
-你可以使用以下工具来完成任务：
-- 查询本体结构和实体
-- 搜索知识图谱
-- 分析领域数据
-- 管理工作空间和场景
+        当 ontology_id 存在时，自动注入当前本体的类型列表，
+        并启用本体设计辅助与增删改查能力。
+        """
+        base_prompt = f"""你是 ODAP 平台的领域分析智能体，当前角色: {self.user_role}
+
+你的核心能力:
+1. **查询知识图谱**: 查询实体、搜索关系、分析图谱结构
+2. **本体设计辅助**: 获取本体上下文、建议属性、建议关系、检查完整性
+3. **本体增删改查**: 你可以**直接修改**本体设计！包括：
+   - 给对象类型新增/更新/删除属性 (add_property / update_property / remove_property)
+   - 批量添加属性 (add_properties)
+   - 创建/删除对象类型 (create_object_type / delete_object_type)
+   - 创建/删除关系类型 (create_link_type / delete_link_type)
+4. **日常问答**: 回答关于平台使用、本体设计最佳实践的问题
+
+类型名称智能匹配:
+- 用户可能用中文或英文指代类型（如「里程碑」=Milestone、「任务」=Task）
+- 你只需将用户原始输入作为 object_type_name 参数传入，后端会自动进行中英文别名和模糊匹配
+
+工作规则:
+- 当用户问"有哪些对象类型""本体结构"时 → 调用 get_ontology_context
+- 当用户问"完整性怎么样""缺什么"时 → 调用 check_completeness
+- 当用户问"建议属性""还缺什么属性"时 → 调用 suggest_properties
+- 当用户问"建议关系"时 → 调用 suggest_relations
+- 当用户要求"新增""添加""创建""删除"等操作时 → **直接调用对应的写操作工具执行，不要只是建议**
+- data_type 可选值: STRING, INTEGER, FLOAT, BOOLEAN, DATETIME, TEXT
+- 返回清晰、结构化的回答，中文优先
+- 写操作执行后，明确告诉用户操作是否成功，以及具体做了什么
 
 工作空间: {self.workspace_id or '未指定'}
-场景: {self.scenario_id or '未指定'}
+场景: {self.scenario_id or '未指定'}"""
 
-请根据用户输入，选择合适的工具执行任务。如果任务完成，请总结结果。"""
+        # 自动注入当前本体上下文
+        if ontology_id:
+            try:
+                from odap.biz.core.assistant.plugins.ai_assistant.registry import (
+                    get_ontology_context as _get_ctx,
+                )
+                ctx_result = _get_ctx(ontology_id)
+                if ctx_result.get("status") == "success":
+                    ctx = ctx_result.get("context", {})
+                    type_lines = []
+                    for t in ctx.get("object_types", []):
+                        props = ", ".join(t.get("properties", [])[:8])
+                        type_lines.append(f"  - {t.get('name','?')}: [{props}]")
+                    link_lines = []
+                    for l in ctx.get("link_types", []):
+                        link_lines.append(
+                            f"  - {l.get('name','?')}: {l.get('source','')} -> {l.get('target','')}"
+                        )
+
+                    base_prompt += (
+                        f"\n\n【当前本体上下文（自动注入）】\n"
+                        f"本体ID: {ontology_id}\n"
+                        f"对象类型 ({ctx.get('object_type_count',0)} 个):\n"
+                        + (chr(10).join(type_lines) if type_lines else "  (无)") + "\n\n"
+                        f"关系类型 ({ctx.get('link_type_count',0)} 个):\n"
+                        + (chr(10).join(link_lines) if link_lines else "  (无)") + "\n\n"
+                        "重要: 用户可能用中文或英文指代类型（如「里程碑」=Milestone），"
+                        "请根据上方类型列表智能匹配。object_type_name 参数传入用户原始输入即可。"
+                    )
+            except Exception as e:
+                logger.warning("Auto-inject ontology context into system prompt failed: %s", e)
+
+        return base_prompt
 
     async def run(self, user_input: str, context: Dict[str, Any] = None) -> Dict[str, Any]:
         """运行 Agent Loop
@@ -688,11 +933,12 @@ class GraphitiAgentLoop:
         """通过 OH QueryEngine 运行 Agent Loop（主路径）"""
         max_turns = (context or {}).get("max_turns", 8)
         session_id = (context or {}).get("session_id", "")
+        ontology_id = (context or {}).get("ontology_id")
 
         # 根据 session_id 决定是否复用或新建 QueryEngine
         if not self._engine or (session_id and session_id != self._current_session_id):
             self._engine = self._factory.create_engine(
-                system_prompt=self._get_system_prompt(),
+                system_prompt=self._get_system_prompt(ontology_id),
                 max_turns=max_turns,
                 workspace_id=self.workspace_id,
                 scenario_id=self.scenario_id,
@@ -701,7 +947,7 @@ class GraphitiAgentLoop:
             self._current_session_id = session_id
         elif not session_id and not self._engine:
             self._engine = self._factory.create_engine(
-                system_prompt=self._get_system_prompt(),
+                system_prompt=self._get_system_prompt(ontology_id),
                 max_turns=max_turns,
                 workspace_id=self.workspace_id,
                 scenario_id=self.scenario_id,
@@ -771,11 +1017,12 @@ class GraphitiAgentLoop:
         确保 fallback 路径与主路径使用相同的 LLM 基础设施。
         """
         logger.info("使用 fallback 模式运行 Agent Loop")
+        ontology_id = (context or {}).get("ontology_id")
 
-        # 使用 OpenAICompatClient（统一 LLM 客户端）直接调用
-        api_key = get_config("llm.api_key") or os.environ.get("OPENAI_API_KEY", "")
-        base_url = get_config("llm.api_base") or os.environ.get("OPENAI_API_BASE", "https://api.openai.com/v1")
-        model = get_config("llm.model") or os.environ.get("OPENAI_MODEL", "gpt-4")
+        # 环境变量优先于 get_config（与 _try_init_factory 保持一致）
+        api_key = os.environ.get("OPENAI_API_KEY", "") or get_config("llm.api_key", "")
+        base_url = os.environ.get("OPENAI_API_BASE", "") or get_config("llm.api_base", "https://api.openai.com/v1")
+        model = os.environ.get("OPENAI_MODEL", "") or get_config("llm.model", "gpt-4")
 
         if api_key:
             try:
@@ -784,7 +1031,7 @@ class GraphitiAgentLoop:
                     base_url=base_url,
                     model=model,
                 )
-                system_prompt = self._get_system_prompt()
+                system_prompt = self._get_system_prompt(ontology_id)
 
                 # 通过 OpenAI SDK 直接调用（非流式）
                 import openai as _openai
