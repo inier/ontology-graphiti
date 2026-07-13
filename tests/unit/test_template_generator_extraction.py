@@ -1,12 +1,27 @@
-import sys
+"""TemplateEngine.generate_from_ontology() extraction tests.
+
+Tests the ontology-based template generation that was absorbed from
+the deleted OntologyTemplateGenerator (T073).
+
+Methods select_preset, recommend_templates, _infer_domain, and
+generate_with_web_search from the old TemplateGenerator are no longer
+tested here — their functionality is replaced by TemplateEngine.assess()
+and TemplateEngine.generate_custom(), which are tested in
+test_template_engine.py.
+"""
+
 import pytest
 from unittest.mock import patch, MagicMock
 
+from odap.biz.data.hyper_extract.services.template_engine import TemplateEngine
+from odap.biz.data.hyper_extract.impl.he_adapter import HEAdapter
+from odap.biz.data.hyper_extract.storage import Storage
+
 
 @pytest.fixture
-def template_gen():
-    from odap.biz.core.ontology.extraction.impl.template_generator import TemplateGenerator
-    return TemplateGenerator()
+def engine(tmp_path):
+    storage = Storage(db_path=str(tmp_path / "test_he_templates.db"))
+    return TemplateEngine(HEAdapter(), storage)
 
 
 _DEFAULT_OBJECT_TYPES = [
@@ -43,128 +58,110 @@ def _make_ontology_result(object_types=_DEFAULT_OBJECT_TYPES, link_types=_DEFAUL
     }
 
 
-def _patch_ontology_service(svc):
-    return patch(
-        "odap.biz.core.ontology.ontology_api.services.ontology_service.OntologyService",
-        return_value=svc,
+def _mock_ontology_service(object_types=None, link_types=None, action_types=None):
+    svc = MagicMock()
+    svc.get_ontology.return_value = _make_ontology_result(
+        object_types=object_types or _DEFAULT_OBJECT_TYPES,
+        link_types=link_types or _DEFAULT_LINK_TYPES,
     )
+    svc.list_object_types.return_value = {
+        "object_types": object_types or _DEFAULT_OBJECT_TYPES,
+    }
+    svc.list_link_types.return_value = {
+        "link_types": link_types or _DEFAULT_LINK_TYPES,
+    }
+    svc.list_action_types.return_value = {
+        "action_types": action_types or [],
+    }
+    return svc
 
 
-def _patch_news_ingester(ingester):
-    mock_module = MagicMock()
-    mock_module.NewsIngester = MagicMock(return_value=ingester)
-    return patch.dict(sys.modules, {
-        "odap.biz.data.knowledge_base.ingestion": mock_module,
-        "odap.biz.data.knowledge_base.ingestion.news_ingester": mock_module,
-    })
+class TestGenerateFromOntology:
 
+    def test_generate_graph_template_success(self, engine):
+        """Without action types, template type is 'graph'."""
+        svc = _mock_ontology_service()
+        with patch(
+            "odap.biz.core.ontology.ontology_api.services.ontology_service.OntologyService",
+            return_value=svc,
+        ):
+            result = engine.generate_from_ontology("ont-1")
 
-class TestTemplateGenerator:
-
-    def test_generate_from_ontology_success(self, template_gen):
-        svc = MagicMock()
-        svc.get_ontology.return_value = _make_ontology_result()
-        with _patch_ontology_service(svc):
-            result = template_gen.generate_from_ontology("abc12345-6789")
-        assert result is not None
-        assert result["auto_type"] == "graph"
-        assert result["method"] == "graph_rag"
+        assert result["type"] == "graph"
         assert result["language"] == "zh"
-        assert result["source"] == "generated_from_ontology"
-        assert "node_schema" in result
-        assert "Company" in result["node_schema"]
-        assert "Person" in result["node_schema"]
-        assert result["node_schema"]["Company"]["name"]["type"] == "string"
-        assert result["node_schema"]["Company"]["revenue"]["type"] == "float"
-        assert "edge_schema" in result
-        assert "employs" in result["edge_schema"]
-        assert result["edge_schema"]["employs"]["source"] == "Company"
-        assert result["edge_schema"]["employs"]["target"] == "Person"
-        assert result["name"].startswith("ontology_abc12345")
+        assert "entities" in result["output"]
+        assert "relations" in result["output"]
+        assert "events" not in result["output"]
 
-    def test_generate_from_ontology_empty_types(self, template_gen):
-        svc = MagicMock()
-        svc.get_ontology.return_value = _make_ontology_result(object_types=[], link_types=[])
-        with _patch_ontology_service(svc):
-            result = template_gen.generate_from_ontology("ont-1")
-        assert result is None
+    def test_generate_temporal_graph_with_actions(self, engine):
+        """With action types, template type is 'temporal_graph' with events."""
+        actions = [{"name": "hire", "target_object_type": "Person", "parameters": []}]
+        svc = _mock_ontology_service(action_types=actions)
+        with patch(
+            "odap.biz.core.ontology.ontology_api.services.ontology_service.OntologyService",
+            return_value=svc,
+        ):
+            result = engine.generate_from_ontology("ont-1")
 
-    def test_generate_from_ontology_service_error(self, template_gen):
+        assert result["type"] == "temporal_graph"
+        assert "events" in result["output"]
+
+    def test_generate_empty_ontology_id(self, engine):
+        """Empty ontology_id returns error dict."""
+        result = engine.generate_from_ontology("")
+        assert result.get("status") == "error"
+
+    def test_generate_service_error(self, engine):
+        """When OntologyService returns error, generate propagates it."""
         svc = MagicMock()
         svc.get_ontology.return_value = {"status": "error", "message": "not found"}
-        with _patch_ontology_service(svc):
-            result = template_gen.generate_from_ontology("ont-1")
-        assert result is None
+        with patch(
+            "odap.biz.core.ontology.ontology_api.services.ontology_service.OntologyService",
+            return_value=svc,
+        ):
+            result = engine.generate_from_ontology("ont-1")
+        assert result.get("status") == "error"
 
-    def test_generate_from_ontology_exception(self, template_gen):
-        svc = MagicMock()
-        svc.get_ontology.side_effect = RuntimeError("db down")
-        with _patch_ontology_service(svc):
-            result = template_gen.generate_from_ontology("ont-1")
-        assert result is None
+    def test_generate_entity_fields_include_properties(self, engine):
+        """Entity fields should include properties from object types."""
+        svc = _mock_ontology_service()
+        with patch(
+            "odap.biz.core.ontology.ontology_api.services.ontology_service.OntologyService",
+            return_value=svc,
+        ):
+            result = engine.generate_from_ontology("ont-1")
 
-    def test_select_preset_finance(self, template_gen):
-        result = template_gen.select_preset("finance")
-        assert result is not None
-        assert result["name"] == "finance/earnings_summary"
-        assert result["auto_type"] == "graph"
-        assert result["source"] == "preset"
+        entity_fields = result["output"]["entities"]["fields"]
+        field_names = [f["name"] for f in entity_fields]
+        assert "name" in field_names
+        assert "type" in field_names
+        assert "revenue" in field_names
+        assert "full_name" in field_names
 
-    def test_select_preset_legal(self, template_gen):
-        result = template_gen.select_preset("legal")
-        assert result is not None
-        assert result["name"] == "legal/contract_obligation"
-        assert result["source"] == "preset"
+    def test_generate_relation_fields_include_core(self, engine):
+        """Relation fields should include source, target, type."""
+        svc = _mock_ontology_service()
+        with patch(
+            "odap.biz.core.ontology.ontology_api.services.ontology_service.OntologyService",
+            return_value=svc,
+        ):
+            result = engine.generate_from_ontology("ont-1")
 
-    def test_select_preset_unknown(self, template_gen):
-        result = template_gen.select_preset("astronomy")
-        assert result is not None
-        assert result["name"] == "general/base_graph"
-        assert result["source"] == "preset"
+        relation_fields = result["output"]["relations"]["fields"]
+        field_names = [f["name"] for f in relation_fields]
+        assert "source" in field_names
+        assert "target" in field_names
+        assert "type" in field_names
 
-    def test_generate_with_web_search_success(self, template_gen):
-        ingester = MagicMock()
-        ingester.search.return_value = [{"title": "金融新闻", "content": "股票上涨"}]
-        with _patch_news_ingester(ingester):
-            result = template_gen.generate_with_web_search("金融投资分析")
-        assert result is not None
-        assert result["source"] == "preset"
-        assert result["name"] == "finance/earnings_summary"
-        ingester.search.assert_called_once_with("金融投资分析", max_results=5)
+    def test_generate_property_type_mapping(self, engine):
+        """Property types should be mapped from ODAP to HE format."""
+        svc = _mock_ontology_service()
+        with patch(
+            "odap.biz.core.ontology.ontology_api.services.ontology_service.OntologyService",
+            return_value=svc,
+        ):
+            result = engine.generate_from_ontology("ont-1")
 
-    def test_generate_with_web_search_failure(self, template_gen):
-        ingester = MagicMock()
-        ingester.search.side_effect = ConnectionError("network unreachable")
-        with _patch_news_ingester(ingester):
-            result = template_gen.generate_with_web_search("some text")
-        assert result is not None
-        assert result["name"] == "general/base_graph"
-        assert result["source"] == "preset"
-
-    def test_recommend_templates_returns_top_k(self, template_gen):
-        result = template_gen.recommend_templates("generic text", top_k=2)
-        assert len(result) == 2
-        for item in result:
-            assert "name" in item
-            assert "score" in item
-
-    def test_recommend_templates_domain_boost(self, template_gen):
-        result = template_gen.recommend_templates("finance 投资分析", top_k=5)
-        finance_items = [r for r in result if r["domain"] == "finance"]
-        general_items = [r for r in result if r["domain"] == "general" and r["name"] == "general/base_graph"]
-        assert len(finance_items) > 0
-        assert finance_items[0]["score"] > general_items[0]["score"]
-
-    def test_recommend_templates_default_order(self, template_gen):
-        result = template_gen.recommend_templates("完全无关的文本", top_k=5)
-        scores = [r["score"] for r in result]
-        assert scores == sorted(scores, reverse=True)
-
-    def test_infer_domain_finance(self, template_gen):
-        assert template_gen._infer_domain("金融市场分析") == "finance"
-        assert template_gen._infer_domain("股票投资策略") == "finance"
-        assert template_gen._infer_domain("finance report") == "finance"
-
-    def test_infer_domain_general(self, template_gen):
-        assert template_gen._infer_domain("今天天气不错") == "general"
-        assert template_gen._infer_domain("random text without keywords") == "general"
+        entity_fields = result["output"]["entities"]["fields"]
+        revenue_field = next(f for f in entity_fields if f["name"] == "revenue")
+        assert revenue_field["type"] == "float"

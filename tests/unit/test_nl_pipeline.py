@@ -1,3 +1,9 @@
+"""NL Pipeline 迁移后测试（Spec 007 Iter 1）。
+
+对应迁移源：tests/unit/test_semantic_layer.py —— 原路径引用已迁移到
+odap.biz.data.qa.nl_pipeline.*，此文件用于验证新路径可独立运行 pytest。
+"""
+
 import pytest
 
 from odap.biz.data.qa.nl_pipeline.intent_parser import IntentParser, StructuredQuery
@@ -5,7 +11,7 @@ from odap.biz.data.qa.nl_pipeline.query_planner import QueryPlanner
 from odap.biz.data.qa.nl_pipeline.disambiguator import Disambiguator
 
 
-class TestIntentParser:
+class TestNLPipelineIntentParser:
     @pytest.fixture
     def parser(self):
         return IntentParser()
@@ -81,7 +87,7 @@ class TestIntentParser:
         assert "filters" in d
 
 
-class TestQueryPlanner:
+class TestNLPipelineQueryPlanner:
     @pytest.fixture
     def planner(self):
         return QueryPlanner()
@@ -148,10 +154,12 @@ class TestQueryPlanner:
         assert "plan_id" in result
 
 
-class TestDisambiguator:
+class TestNLPipelineDisambiguator:
     @pytest.fixture
     def disambiguator(self):
-        return Disambiguator()
+        d = Disambiguator()
+        d.reset()
+        return d
 
     def test_disambiguate_known_term(self, disambiguator):
         result = disambiguator.disambiguate("传感器")

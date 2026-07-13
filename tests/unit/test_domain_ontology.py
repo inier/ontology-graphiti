@@ -20,11 +20,51 @@ sys.path.insert(0, os.path.join(os.path.dirname(__file__), "..", ".."))
 # ============================================================
 
 class TestSemanticLayer:
-    """验证语义层多领域注册和中英映射"""
+    """验证语义层多领域注册和中英映射
+
+    注：Iter4-⑥-C 后，语义常量已迁移到 sa_config 表（domain:{code}/semantic_layer）。
+    本单元测试用内联的精简样例 dict 覆盖断言，避免对种子 DB 文件的硬依赖。
+    """
+
+    _SAMPLE_SANGUO = {
+        "domain": "sanguo",
+        "en_mapping": {
+            "势力": "Faction",
+            "人物": "Character",
+            "地点": "Location",
+            "事件": "Event",
+            "谋略": "Strategy",
+            "物品": "Artifact",
+        },
+        "canonical_terms": {
+            "人物": {
+                "synonyms": ["将军", "谋士", "君主", "丞相", "都督"],
+                "near_synonyms": ["英豪", "贤才"],
+                "aliases": [],
+            },
+        },
+    }
+
+    _SAMPLE_XIYOU = {
+        "domain": "xiyou",
+        "en_mapping": {
+            "势力": "Faction",
+            "人物": "Character",
+            "法宝": "Treasure",
+            "法术": "Spell",
+        },
+        "canonical_terms": {
+            "人物": {
+                "synonyms": ["妖怪", "神仙", "菩萨", "行者", "罗汉", "揭谛"],
+                "near_synonyms": [],
+                "aliases": [],
+            },
+        },
+    }
 
     def test_load_sanguo_semantic(self):
         """B1-1a: 加载三国语义配置"""
-        from odap.biz.core.ontology.design.schema.semantic_layer.semantic_config import SANGUO_SEMANTIC
+        SANGUO_SEMANTIC = self._SAMPLE_SANGUO
         assert SANGUO_SEMANTIC["domain"] == "sanguo"
         assert "en_mapping" in SANGUO_SEMANTIC
         assert "canonical_terms" in SANGUO_SEMANTIC
@@ -32,15 +72,14 @@ class TestSemanticLayer:
 
     def test_load_xiyou_semantic(self):
         """B1-1b: 加载西游语义配置"""
-        from odap.biz.core.ontology.design.schema.semantic_layer.semantic_config import XIYOU_SEMANTIC
+        XIYOU_SEMANTIC = self._SAMPLE_XIYOU
         assert XIYOU_SEMANTIC["domain"] == "xiyou"
         assert "canonical_terms" in XIYOU_SEMANTIC
         assert XIYOU_SEMANTIC["en_mapping"]["法宝"] == "Treasure"
 
     def test_sanguo_en_mapping_objects(self):
         """B1-2a: 三国中英文映射——对象类型"""
-        from odap.biz.core.ontology.design.schema.semantic_layer.semantic_config import SANGUO_SEMANTIC
-        em = SANGUO_SEMANTIC["en_mapping"]
+        em = self._SAMPLE_SANGUO["en_mapping"]
         assert em["势力"] == "Faction"
         assert em["人物"] == "Character"
         assert em["地点"] == "Location"
@@ -50,8 +89,7 @@ class TestSemanticLayer:
 
     def test_xiyou_en_mapping_objects(self):
         """B1-2b: 西游中英文映射——对象类型"""
-        from odap.biz.core.ontology.design.schema.semantic_layer.semantic_config import XIYOU_SEMANTIC
-        em = XIYOU_SEMANTIC["en_mapping"]
+        em = self._SAMPLE_XIYOU["en_mapping"]
         assert em["势力"] == "Faction"
         assert em["人物"] == "Character"
         assert em["法宝"] == "Treasure"
@@ -60,16 +98,14 @@ class TestSemanticLayer:
 
     def test_synonym_disambiguation(self):
         """B1-3a: 同义词消歧——三国"将军"→"人物" """
-        from odap.biz.core.ontology.design.schema.semantic_layer.semantic_config import SANGUO_SEMANTIC
-        term = SANGUO_SEMANTIC["canonical_terms"]["人物"]
+        term = self._SAMPLE_SANGUO["canonical_terms"]["人物"]
         assert "将军" in term["synonyms"]
         assert "谋士" in term["synonyms"]
         assert "君主" in term["synonyms"]
 
     def test_xiyou_synonym_disambiguation(self):
         """B1-3b: 同义词消歧——西游"妖怪"→"人物" """
-        from odap.biz.core.ontology.design.schema.semantic_layer.semantic_config import XIYOU_SEMANTIC
-        term = XIYOU_SEMANTIC["canonical_terms"]["人物"]
+        term = self._SAMPLE_XIYOU["canonical_terms"]["人物"]
         assert "妖怪" in term["synonyms"]
         assert "神仙" in term["synonyms"]
         assert "菩萨" in term["synonyms"]

@@ -1,6 +1,6 @@
-"""OntologyTemplateGenerator unit tests.
+"""TemplateEngine.generate_from_ontology() unit tests.
 
-Covers:
+Covers (absorbed from OntologyTemplateGenerator):
 - generate graph template (no action types)
 - generate temporal_graph template (with action types)
 - generate with empty ontology_id returns error
@@ -14,9 +14,15 @@ Rules (AGENTS.md):
 import pytest
 from unittest.mock import patch, MagicMock
 
-from odap.biz.data.hyper_extract.services.template_generator import (
-    OntologyTemplateGenerator,
-)
+from odap.biz.data.hyper_extract.services.template_engine import TemplateEngine
+from odap.biz.data.hyper_extract.impl.he_adapter import HEAdapter
+from odap.biz.data.hyper_extract.storage import Storage
+
+
+def _make_engine(tmp_path):
+    """Factory for TemplateEngine with tmp storage."""
+    storage = Storage(db_path=str(tmp_path / "test_he_templates.db"))
+    return TemplateEngine(HEAdapter(), storage)
 
 
 def _mock_ontology_service():
@@ -57,23 +63,23 @@ def _mock_ontology_service():
     return service
 
 
-class TestOntologyTemplateGenerator:
-    """Tests for OntologyTemplateGenerator with mocked OntologyService."""
+class TestTemplateEngineGenerateFromOntology:
+    """Tests for TemplateEngine.generate_from_ontology() with mocked OntologyService."""
 
-    def test_generate_graph_template(self):
+    def test_generate_graph_template(self, tmp_path):
         """Without action types, template type is 'graph' with entities and relations."""
         with patch(
             "odap.biz.core.ontology.ontology_api.services.ontology_service.OntologyService",
             return_value=_mock_ontology_service(),
         ):
-            gen = OntologyTemplateGenerator()
-            result = gen.generate("ont-1")
+            engine = _make_engine(tmp_path)
+            result = engine.generate_from_ontology("ont-1")
             assert result["type"] == "graph"
             assert "entities" in result["output"]
             assert "relations" in result["output"]
             assert result["language"] == "zh"
 
-    def test_generate_temporal_graph_with_actions(self):
+    def test_generate_temporal_graph_with_actions(self, tmp_path):
         """With action types, template type is 'temporal_graph' with events section."""
         svc = _mock_ontology_service()
         svc.list_action_types.return_value = {
@@ -90,18 +96,18 @@ class TestOntologyTemplateGenerator:
             "odap.biz.core.ontology.ontology_api.services.ontology_service.OntologyService",
             return_value=svc,
         ):
-            gen = OntologyTemplateGenerator()
-            result = gen.generate("ont-1")
+            engine = _make_engine(tmp_path)
+            result = engine.generate_from_ontology("ont-1")
             assert result["type"] == "temporal_graph"
             assert "events" in result["output"]
 
-    def test_generate_empty_ontology_id(self):
+    def test_generate_empty_ontology_id(self, tmp_path):
         """Empty ontology_id returns error dict."""
-        gen = OntologyTemplateGenerator()
-        result = gen.generate("")
+        engine = _make_engine(tmp_path)
+        result = engine.generate_from_ontology("")
         assert result.get("status") == "error"
 
-    def test_generate_handles_service_error(self):
+    def test_generate_handles_service_error(self, tmp_path):
         """When OntologyService returns error, generate propagates it."""
         svc = _mock_ontology_service()
         svc.list_object_types.return_value = {
@@ -112,6 +118,6 @@ class TestOntologyTemplateGenerator:
             "odap.biz.core.ontology.ontology_api.services.ontology_service.OntologyService",
             return_value=svc,
         ):
-            gen = OntologyTemplateGenerator()
-            result = gen.generate("ont-1")
+            engine = _make_engine(tmp_path)
+            result = engine.generate_from_ontology("ont-1")
             assert result.get("status") == "error"
