@@ -719,12 +719,6 @@ const SimulationPage: React.FC = () => {
 
           <Space size="small">
 
-            <Button size="small" icon={<ReloadOutlined />} onClick={() => store.fetchSandboxes()}>
-
-              刷新
-
-            </Button>
-
             <Button type="primary" size="small" icon={<PlusOutlined />} onClick={() => setSandboxModalOpen(true)}>
 
               创建沙箱
@@ -748,6 +742,8 @@ const SimulationPage: React.FC = () => {
           size="small"
 
           pagination={false}
+
+          onReload={() => store.fetchSandboxes()}
 
           locale={{ emptyText: (
 
@@ -1205,6 +1201,8 @@ const SimulationPage: React.FC = () => {
 
           pagination={false}
 
+          onReload={() => store.fetchTemplates()}
+
           locale={{ emptyText: <Empty description="暂无模板" image={Empty.PRESENTED_IMAGE_SIMPLE} /> }}
 
         />
@@ -1242,6 +1240,8 @@ const SimulationPage: React.FC = () => {
           size="small"
 
           pagination={false}
+
+          onReload={() => store.fetchTimelines()}
 
           locale={{ emptyText: <Empty description="暂无时间线" image={Empty.PRESENTED_IMAGE_SIMPLE} /> }}
 

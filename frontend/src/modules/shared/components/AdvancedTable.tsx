@@ -18,6 +18,24 @@ import {
 import './AdvancedTable.css';
 
 /**
+ * 工具函数：将简单的数据获取函数包装为 ProTable request 格式。
+ * 各页面只需传入返回 T[] 的异步函数，即可让 ProTable 接管 loading + 刷新。
+ */
+function wrapRequest<T>(
+  fetcher: () => Promise<T[]>,
+): (params: { current?: number; pageSize?: number }, sort: unknown, filter: unknown) => Promise<{ data: T[]; success: boolean; total: number }> {
+  return async () => {
+    try {
+      const data = await fetcher();
+      return { data, success: true, total: data.length };
+    } catch (error) {
+      console.error('[AdvancedTable] request error:', error);
+      return { data: [], success: false, total: 0 };
+    }
+  };
+}
+
+/**
  * AdvancedTable — 基于 ProTable 的封装，兼容原有 antd Table API。
  *
  * 内部使用 @ant-design/pro-components v3 的 ProTable（antd v6 适配），
@@ -309,7 +327,7 @@ function AdvancedTableInner<T extends object>(
     }
   }, [densitySize, externalSize]);
 
-  // ===== 自定义 reload：同时支持 request 模式和静态 dataSource 模式 =====
+  // ===== 自定义 reload =====
   const handleReload = useCallback(async () => {
     // 优先调用外部回调
     if (onReload) {
@@ -323,6 +341,15 @@ function AdvancedTableInner<T extends object>(
     // request 模式：通过 actionRef 触发 ProTable 内置 reload
     if (request && internalActionRef.current?.reload) {
       internalActionRef.current.reload();
+    }
+    // onReload 回调
+    if (!request && onReload) {
+      try {
+        await Promise.resolve(onReload());
+      } catch (err) {
+        console.error('[AdvancedTable] reload error:', err);
+        message?.error?.('刷新失败');
+      }
     }
   }, [onReload, request, message]);
 
@@ -586,5 +613,5 @@ const AdvancedTable = React.forwardRef(AdvancedTableInner) as <
   props: AdvancedTableProps<T> & { ref?: React.Ref<HTMLDivElement> },
 ) => React.ReactElement;
 
-export { AdvancedTable };
+export { AdvancedTable, wrapRequest };
 export default AdvancedTable;

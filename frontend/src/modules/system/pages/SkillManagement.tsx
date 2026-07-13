@@ -1,10 +1,11 @@
-import { useState, useEffect } from 'react';
+import { useState, useRef, useEffect } from 'react';
 import { Card, Button, Space, Tag, Switch, Upload, Modal, Form, Input, Select, Tabs, Row, Col, Statistic, message, Popconfirm, Empty, Descriptions, Badge, Divider, Typography } from 'antd';
-import { UploadOutlined, ReloadOutlined, PlusOutlined, DeleteOutlined, CheckCircleOutlined, StopOutlined, AppstoreOutlined, FolderOutlined, FileTextOutlined, EyeOutlined, ThunderboltOutlined } from '@ant-design/icons';
+import { UploadOutlined, PlusOutlined, DeleteOutlined, CheckCircleOutlined, StopOutlined, AppstoreOutlined, FolderOutlined, FileTextOutlined, EyeOutlined, ThunderboltOutlined } from '@ant-design/icons';
 import { api } from '@/modules/shared';
 import { PageHeader } from '@/modules/shared';
 import { SkillEditor } from '../components/SkillEditor';
-import { AdvancedTable } from '@/modules/shared';
+import { AdvancedTable, wrapRequest } from '@/modules/shared';
+import type { ActionType } from '@ant-design/pro-components';
 
 const { Text } = Typography;
 const { TextArea } = Input;
@@ -30,11 +31,10 @@ interface Skill {
 
 export function SkillManagement() {
   const [activeTab, setActiveTab] = useState('directory');
-  const [scannedSkills, setScannedSkills] = useState<Skill[]>([]);
-  const [registeredSkills, setRegisteredSkills] = useState<Skill[]>([]);
-  const [loadedSkills, setLoadedSkills] = useState<string[]>([]);
+  const [scannedCount, setScannedCount] = useState(0);
+  const [registeredCount, setRegisteredCount] = useState(0);
   const [categories, setCategories] = useState<Array<{ name: string; skill_count: number; path: string }>>([]);
-  const [loading, setLoading] = useState(false);
+  const [loadedSkills, setLoadedSkills] = useState<string[]>([]);
   const [selectedSkill, setSelectedSkill] = useState<Skill | null>(null);
   const [detailModalVisible, setDetailModalVisible] = useState(false);
   const [uploadModalVisible, setUploadModalVisible] = useState(false);
@@ -44,42 +44,66 @@ export function SkillManagement() {
   const [skillEditorVisible, setSkillEditorVisible] = useState(false);
   const [editingSkill, setEditingSkill] = useState<Skill | null>(null);
 
-  useEffect(() => {
-    loadData();
-  }, []);
+  const scannedActionRef = useRef<ActionType>(null);
+  const registeredActionRef = useRef<ActionType>(null);
 
-  const loadData = async () => {
-    setLoading(true);
+  // 统计数据加载（分类 + 已加载Skill）
+  const loadStats = async () => {
     try {
-      const [scanResult, allResult, categoriesResult, loadedResult] = await Promise.all([
-        api.scanSkillsDirectory().catch(() => ({ skills: [] as Skill[], total: 0 })),
-        api.getAllSkills().catch(() => ({ registered: [] as Skill[], scanned: [] as Skill[], total_registered: 0, total_scanned: 0 })),
+      const [categoriesResult, loadedResult] = await Promise.all([
         api.getSkillCategories().catch(() => ({ categories: [] as { name: string; skill_count: number; path: string }[] })),
         api.getLoadedSkills().catch(() => ({ skills: [] as string[] })),
       ]);
-
-      setScannedSkills((scanResult.skills || []) as Skill[]);
-      setRegisteredSkills((allResult.registered || []) as Skill[]);
       setCategories(categoriesResult.categories || []);
       setLoadedSkills(loadedResult.skills || []);
-
-      const enabledNames = new Set((allResult.registered as Skill[] | undefined)?.map((s) => s.name) || []);
-      setScannedSkills(prev => prev.map(s => ({
-        ...s,
-        enabled: enabledNames.has(s.name)
-      })));
     } catch (error) {
-      console.error('加载Skill数据失败:', error);
-    } finally {
-      setLoading(false);
+      console.error('加载统计数据失败:', error);
     }
+  };
+
+  useEffect(() => {
+    loadStats();
+  }, []);
+
+  // 目录Skills请求
+  const fetchScannedSkills = async (): Promise<Skill[]> => {
+    const [scanResult, allResult] = await Promise.all([
+      api.scanSkillsDirectory().catch(() => ({ skills: [] as Skill[], total: 0 })),
+      api.getAllSkills().catch(() => ({ registered: [] as Skill[], scanned: [] as Skill[], total_registered: 0, total_scanned: 0 })),
+    ]);
+    const enabledNames = new Set((allResult.registered as Skill[] | undefined)?.map((s) => s.name) || []);
+    return ((scanResult.skills || []) as Skill[]).map(s => ({ ...s, enabled: enabledNames.has(s.name) }));
+  };
+
+  const scannedRequest = async (params: { current?: number; pageSize?: number }, sort: unknown, filter: unknown) => {
+    const result = await wrapRequest(fetchScannedSkills)(params, sort, filter);
+    setScannedCount(result.total);
+    return result;
+  };
+
+  // 已注册Skills请求
+  const fetchRegisteredSkills = async (): Promise<Skill[]> => {
+    const allResult = await api.getAllSkills().catch(() => ({ registered: [] as Skill[], scanned: [] as Skill[], total_registered: 0, total_scanned: 0 }));
+    return (allResult.registered || []) as Skill[];
+  };
+
+  const registeredRequest = async (params: { current?: number; pageSize?: number }, sort: unknown, filter: unknown) => {
+    const result = await wrapRequest(fetchRegisteredSkills)(params, sort, filter);
+    setRegisteredCount(result.total);
+    return result;
+  };
+
+  const refreshAll = () => {
+    scannedActionRef.current?.reload();
+    registeredActionRef.current?.reload();
+    loadStats();
   };
 
   const handleToggleSkill = async (skill: Skill, enabled: boolean) => {
     try {
       await api.toggleSkill(skill.name, enabled);
       message.success(`Skill "${skill.name}" 已${enabled ? '启用' : '禁用'}`);
-      loadData();
+      refreshAll();
     } catch (error) {
       message.error(`操作失败: ${error}`);
     }
@@ -91,7 +115,7 @@ export function SkillManagement() {
       message.success('Skill 注册成功');
       setRegisterModalVisible(false);
       registerForm.resetFields();
-      loadData();
+      refreshAll();
     } catch (error) {
       message.error(`注册失败: ${error}`);
     }
@@ -103,7 +127,7 @@ export function SkillManagement() {
       if (result.status === 'success') {
         message.success(`文件 ${file.name} 上传成功`);
         setUploadModalVisible(false);
-        loadData();
+        refreshAll();
       }
     } catch (error) {
       message.error(`上传失败: ${error}`);
@@ -123,7 +147,7 @@ export function SkillManagement() {
           <Card>
             <Statistic
               title="目录中的Skills"
-              value={scannedSkills.length}
+              value={scannedCount}
               prefix={<FolderOutlined />}
               styles={{ content: { color: '#1890ff' } }}
             />
@@ -133,7 +157,7 @@ export function SkillManagement() {
           <Card>
             <Statistic
               title="已注册的Skills"
-              value={registeredSkills.length}
+              value={registeredCount}
               prefix={<AppstoreOutlined />}
               styles={{ content: { color: '#52c41a' } }}
             />
@@ -165,9 +189,6 @@ export function SkillManagement() {
         title="目录Skills"
         extra={
           <Space>
-            <Button icon={<ReloadOutlined />} onClick={loadData} loading={loading}>
-              刷新
-            </Button>
             <Button type="primary" icon={<UploadOutlined />} onClick={() => setUploadModalVisible(true)}>
               上传Skill
             </Button>
@@ -177,11 +198,12 @@ export function SkillManagement() {
           </Space>
         }
       >
-        {scannedSkills.length === 0 ? (
+        {scannedCount === 0 ? (
           <Empty description="暂无目录Skills，请上传或扫描" image={Empty.PRESENTED_IMAGE_SIMPLE} />
         ) : (
           <AdvancedTable
-            dataSource={scannedSkills}
+            request={scannedRequest}
+            actionRef={scannedActionRef}
             rowKey="name"
             pagination={{ pageSize: 10 }}
             columns={[
@@ -268,7 +290,7 @@ export function SkillManagement() {
     try {
       await api.toggleSkill(skill.name, false);
       message.success(`Skill "${skill.name}" 已禁用并从注册列表移除`);
-      loadData();
+      refreshAll();
     } catch (error) {
       message.error(`删除失败: ${error}`);
     }
@@ -294,7 +316,7 @@ export function SkillManagement() {
       message.success(`Skill "${skillDef.name}" 保存成功`);
       setSkillEditorVisible(false);
       setEditingSkill(null);
-      loadData();
+      refreshAll();
     } catch (error) {
       message.error(`保存失败: ${error}`);
     }
@@ -302,11 +324,12 @@ export function SkillManagement() {
 
   const renderRegisteredTab = () => (
     <Card title="已注册的Skills">
-      {registeredSkills.length === 0 ? (
+      {registeredCount === 0 ? (
         <Empty description="暂无注册的Skills" image={Empty.PRESENTED_IMAGE_SIMPLE} />
       ) : (
         <AdvancedTable
-          dataSource={registeredSkills}
+          request={registeredRequest}
+          actionRef={registeredActionRef}
           rowKey="skill_id"
           pagination={{ pageSize: 10 }}
           columns={[

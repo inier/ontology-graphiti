@@ -1,16 +1,17 @@
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useRef, useEffect, useCallback } from 'react';
 import {
   Button, Modal, Form, Input, Select, Tag,
-  Card, Space, Typography, Descriptions, message, Popconfirm, Empty, Spin,
+  Card, Space, Typography, Descriptions, message, Popconfirm, Empty,
 } from 'antd';
 import {
   PlusOutlined, PlayCircleOutlined, StopOutlined, DeleteOutlined,
-  ReloadOutlined, EyeOutlined,
+  EyeOutlined,
 } from '@ant-design/icons';
 import type { ColumnsType } from 'antd/es/table';
 import { apiClient } from '@/modules/shared/services/apiClient';
 import { useI18n } from '@/modules/shared/hooks/useI18n';
-import { AdvancedTable } from '@/modules/shared';
+import { AdvancedTable, wrapRequest } from '@/modules/shared';
+import type { ActionType } from '@ant-design/pro-components';
 
 const { Text } = Typography;
 
@@ -48,25 +49,19 @@ const STATUS_COLORS: Record<string, string> = {
 
 const SandboxManager: React.FC = () => {
   const { t } = useI18n('simulation');
-  const [sandboxes, setSandboxes] = useState<SandboxRecord[]>([]);
-  const [loading, setLoading] = useState(false);
+  const actionRef = useRef<ActionType>(null);
   const [createOpen, setCreateOpen] = useState(false);
   const [resultOpen, setResultOpen] = useState(false);
   const [currentResult, setCurrentResult] = useState<SandboxResult | null>(null);
   const [ontologies, setOntologies] = useState<Array<{ id: string; name: string }>>([]);
   const [form] = Form.useForm();
 
-  const fetchSandboxes = useCallback(async () => {
-    setLoading(true);
-    try {
-      const data = await apiClient.get<{ sandboxes: SandboxRecord[] }>('/api/simulation/sandbox');
-      setSandboxes(data.sandboxes || []);
-    } catch {
-      setSandboxes([]);
-    } finally {
-      setLoading(false);
-    }
-  }, []);
+  const fetchSandboxList = async (): Promise<SandboxRecord[]> => {
+    const data = await apiClient.get<{ sandboxes: SandboxRecord[] }>('/api/simulation/sandbox');
+    return data.sandboxes || [];
+  };
+
+  const request = wrapRequest(fetchSandboxList);
 
   const fetchOntologies = useCallback(async () => {
     try {
@@ -78,9 +73,8 @@ const SandboxManager: React.FC = () => {
   }, []);
 
   useEffect(() => {
-    fetchSandboxes();
     fetchOntologies();
-  }, [fetchSandboxes, fetchOntologies]);
+  }, [fetchOntologies]);
 
   const handleCreate = async (values: Record<string, unknown>) => {
     try {
@@ -92,7 +86,7 @@ const SandboxManager: React.FC = () => {
       message.success(t('sandbox.created', 'Sandbox created'));
       setCreateOpen(false);
       form.resetFields();
-      fetchSandboxes();
+      actionRef.current?.reload();
     } catch (e) {
       message.error(`${t('sandbox.createFailed', 'Create failed')}: ${(e as Error).message}`);
     }
@@ -102,7 +96,7 @@ const SandboxManager: React.FC = () => {
     try {
       await apiClient.post(`/api/simulation/sandbox/${sandboxId}/run`, {});
       message.success(t('sandbox.started', 'Sandbox started'));
-      fetchSandboxes();
+      actionRef.current?.reload();
     } catch (e) {
       message.error(`${t('sandbox.runFailed', 'Run failed')}: ${(e as Error).message}`);
     }
@@ -112,7 +106,7 @@ const SandboxManager: React.FC = () => {
     try {
       await apiClient.post(`/api/simulation/sandbox/${sandboxId}/stop`, {});
       message.success(t('sandbox.stopped', 'Sandbox stopped'));
-      fetchSandboxes();
+      actionRef.current?.reload();
     } catch (e) {
       message.error(`${t('sandbox.stopFailed', 'Stop failed')}: ${(e as Error).message}`);
     }
@@ -122,7 +116,7 @@ const SandboxManager: React.FC = () => {
     try {
       await apiClient.delete(`/api/simulation/sandbox/${sandboxId}`);
       message.success(t('sandbox.destroyed', 'Sandbox destroyed'));
-      fetchSandboxes();
+      actionRef.current?.reload();
     } catch (e) {
       message.error(`${t('sandbox.destroyFailed', 'Destroy failed')}: ${(e as Error).message}`);
     }
@@ -213,14 +207,11 @@ const SandboxManager: React.FC = () => {
   ];
 
   return (
-    <Spin spinning={loading}>
+    <>
       <Card
         title={t('sandbox.title', 'Sandbox Manager')}
         extra={
           <Space>
-            <Button size="small" icon={<ReloadOutlined />} onClick={fetchSandboxes}>
-              {t('common.refresh', 'Refresh')}
-            </Button>
             <Button type="primary" size="small" icon={<PlusOutlined />} onClick={() => setCreateOpen(true)}>
               {t('sandbox.create', 'Create Sandbox')}
             </Button>
@@ -228,7 +219,8 @@ const SandboxManager: React.FC = () => {
         }
       >
         <AdvancedTable
-          dataSource={sandboxes}
+          request={request}
+          actionRef={actionRef}
           columns={columns}
           rowKey="sandbox_id"
           size="small"
@@ -242,7 +234,6 @@ const SandboxManager: React.FC = () => {
         open={createOpen}
         onCancel={() => { setCreateOpen(false); form.resetFields(); }}
         onOk={() => form.submit()}
-        confirmLoading={loading}
       >
         <Form form={form} layout="vertical" onFinish={handleCreate}>
           <Form.Item name="name" label={t('sandbox.name', 'Name')} rules={[{ required: true }]}>
@@ -314,7 +305,7 @@ const SandboxManager: React.FC = () => {
           <Empty description="No results available" />
         )}
       </Modal>
-    </Spin>
+    </>
   );
 };
 

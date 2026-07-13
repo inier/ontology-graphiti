@@ -1,12 +1,13 @@
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useRef, useMemo } from 'react';
 import { Button, Modal, Input, Card, Tag, Badge, Space, Typography, message, Popconfirm, Form } from 'antd';
 import {
   PlusOutlined, DeleteOutlined,
-  ThunderboltOutlined, ReloadOutlined,
+  ThunderboltOutlined,
 } from '@ant-design/icons';
 import { apiClient } from '@/modules/shared/services/apiClient';
 import { useI18n } from '@/modules/shared/hooks/useI18n';
-import { AdvancedTable } from '@/modules/shared';
+import { AdvancedTable, wrapRequest } from '@/modules/shared';
+import type { ActionType } from '@ant-design/pro-components';
 
 const { Text } = Typography;
 
@@ -35,8 +36,7 @@ const STATUS_BADGE: Record<string, 'success' | 'error' | 'default' | 'processing
 
 function MCPManager() {
   const { t } = useI18n('system');
-  const [servers, setServers] = useState<MCPServer[]>([]);
-  const [loading, setLoading] = useState(false);
+  const actionRef = useRef<ActionType>(null);
   const [registerOpen, setRegisterOpen] = useState(false);
   const [invokeOpen, setInvokeOpen] = useState(false);
   const [invokeTool, setInvokeTool] = useState<MCPTool | null>(null);
@@ -45,21 +45,12 @@ function MCPManager() {
   const [toolsOpen, setToolsOpen] = useState(false);
   const [form] = Form.useForm();
 
-  const fetchServers = useCallback(async () => {
-    setLoading(true);
-    try {
-      const data = await apiClient.get<{ servers: MCPServer[] }>('/api/mcp/servers');
-      setServers(data.servers || []);
-    } catch {
-      setServers([]);
-    } finally {
-      setLoading(false);
-    }
-  }, []);
+  const fetchServerList = async (): Promise<MCPServer[]> => {
+    const data = await apiClient.get<{ servers: MCPServer[] }>('/api/mcp/servers');
+    return data.servers || [];
+  };
 
-  useEffect(() => {
-    fetchServers();
-  }, [fetchServers]);
+  const request = useMemo(() => wrapRequest(fetchServerList), []);
 
   const handleRegister = async (values: Record<string, unknown>) => {
     try {
@@ -67,7 +58,7 @@ function MCPManager() {
       message.success(t('mcp.registered', 'MCP server registered'));
       setRegisterOpen(false);
       form.resetFields();
-      fetchServers();
+      actionRef.current?.reload();
     } catch (e) {
       message.error(`${t('mcp.registerFailed', 'Registration failed')}: ${(e as Error).message}`);
     }
@@ -77,7 +68,7 @@ function MCPManager() {
     try {
       await apiClient.delete(`/api/mcp/servers/${serverId}`);
       message.success(t('mcp.unregistered', 'MCP server unregistered'));
-      fetchServers();
+      actionRef.current?.reload();
     } catch (e) {
       message.error(`${t('mcp.unregisterFailed', 'Unregister failed')}: ${(e as Error).message}`);
     }
@@ -227,9 +218,6 @@ function MCPManager() {
       title={t('mcp.title', 'MCP Server Manager')}
       extra={
         <Space>
-          <Button size="small" icon={<ReloadOutlined />} onClick={fetchServers}>
-            {t('common.refresh', 'Refresh')}
-          </Button>
           <Button type="primary" size="small" icon={<PlusOutlined />} onClick={() => setRegisterOpen(true)}>
             {t('mcp.register', 'Register Server')}
           </Button>
@@ -237,10 +225,10 @@ function MCPManager() {
       }
     >
       <AdvancedTable
-        dataSource={servers}
+        request={request}
+        actionRef={actionRef}
         columns={columns}
         rowKey="server_id"
-        loading={loading}
         size="small"
         pagination={{ pageSize: 10 }}
       />

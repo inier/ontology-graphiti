@@ -619,6 +619,8 @@ export function WorkspacePage() {
 
                   pagination={{ pageSize: 10 }}
 
+                  onReload={() => loadWorkspaces()}
+
                 />
 
               </Card>
@@ -678,6 +680,8 @@ export function WorkspacePage() {
                     loading={loading}
 
                     pagination={{ pageSize: 10 }}
+
+                    onReload={() => { if (activeWorkspaceId) loadScenarios(activeWorkspaceId); }}
 
                   />
 

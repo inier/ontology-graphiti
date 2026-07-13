@@ -846,6 +846,7 @@ const StrategyDeduction: React.FC = () => {
           onChange: (page, pageSize) => fetchScenarioList(page, pageSize),
           showTotal: t => `共 ${t} 条`,
         }}
+        onReload={() => fetchScenarioList()}
         locale={{ emptyText: <Empty description="暂无推演场景" image={Empty.PRESENTED_IMAGE_SIMPLE} /> }}
       />
     </Card>

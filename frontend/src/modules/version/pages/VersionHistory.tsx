@@ -1,15 +1,16 @@
-import { useState, useEffect } from 'react';
+import { useState, useRef, useMemo } from 'react';
 
 import { Card, Button, Space, Tag, Popconfirm, message, Modal } from 'antd';
 
-import { RollbackOutlined, DeleteOutlined, ReloadOutlined, FileTextOutlined } from '@ant-design/icons';
+import { RollbackOutlined, DeleteOutlined, FileTextOutlined } from '@ant-design/icons';
 
 import { api } from '@/modules/shared/services/api';
 
 import { useScenario, useWorkspace } from '@/modules/shared/components/LayoutContexts';
 
 import type { DiffResult } from '@/modules/shared/types';
-import { AdvancedTable } from '@/modules/shared';
+import { AdvancedTable, wrapRequest } from '@/modules/shared';
+import type { ActionType } from '@ant-design/pro-components';
 
 
 
@@ -41,9 +42,7 @@ interface VersionItem {
 
 export function VersionHistory() {
 
-  const [versions, setVersions] = useState<VersionItem[]>([]);
-
-  const [loading, setLoading] = useState(true);
+  const actionRef = useRef<ActionType>(null);
 
   const [selectedVersions, setSelectedVersions] = useState<string[]>([]);
 
@@ -55,47 +54,14 @@ export function VersionHistory() {
 
   const { currentWorkspace } = useWorkspace();
 
-
-
-  useEffect(() => {
-
-    loadVersions();
-
-  }, [currentScenario, currentWorkspace]);
-
-
-
-  const loadVersions = async () => {
-
-    try {
-
-      setLoading(true);
-
-      if (currentWorkspace && currentScenario) {
-
-        const data = await api.getScenarioOntologyVersions(currentWorkspace, currentScenario);
-
-        setVersions(data);
-
-      } else {
-
-        setVersions([]);
-
-      }
-
-    } catch (error) {
-
-      console.error('加载版本历史失败', error);
-
-      message.error('加载版本历史失败');
-
-    } finally {
-
-      setLoading(false);
-
+  const fetchVersions = async (): Promise<VersionItem[]> => {
+    if (currentWorkspace && currentScenario) {
+      return await api.getScenarioOntologyVersions(currentWorkspace, currentScenario);
     }
-
+    return [];
   };
+
+  const request = useMemo(() => wrapRequest(fetchVersions), [currentScenario, currentWorkspace]);
 
 
 
@@ -115,7 +81,7 @@ export function VersionHistory() {
 
       message.success('回滚成功');
 
-      loadVersions();
+      actionRef.current?.reload();
 
     } catch (error) {
 
@@ -167,7 +133,7 @@ export function VersionHistory() {
 
       message.success('删除成功');
 
-      loadVersions();
+      actionRef.current?.reload();
 
     } catch (error) {
 
@@ -357,12 +323,6 @@ export function VersionHistory() {
 
             </Button>
 
-            <Button icon={<ReloadOutlined />} onClick={loadVersions}>
-
-              刷新
-
-            </Button>
-
           </Space>
 
         }
@@ -373,11 +333,11 @@ export function VersionHistory() {
 
           columns={columns}
 
-          dataSource={versions}
+          request={request}
+
+          actionRef={actionRef}
 
           rowKey="version_id"
-
-          loading={loading}
 
           pagination={{ pageSize: 10 }}
 
@@ -386,20 +346,6 @@ export function VersionHistory() {
             selectedRowKeys: selectedVersions,
 
             onChange: (selectedKeys) => setSelectedVersions(selectedKeys as string[]),
-
-            selections: [
-
-              {
-
-                key: 'all-data',
-
-                text: '全选',
-
-                onSelect: () => setSelectedVersions(versions.map(v => v.version_id)),
-
-              },
-
-            ],
 
           }}
 
