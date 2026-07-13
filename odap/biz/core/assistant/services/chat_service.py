@@ -21,6 +21,7 @@ from odap.biz.core.assistant.plugins.ai_assistant.registry import (
     execute_tool_async,
     get_ontology_context as _get_ontology_context,
 )
+from odap.infra.config_composer import get_config
 
 logger = logging.getLogger(__name__)
 
@@ -180,17 +181,20 @@ class ChatService:
         if self._llm is None:
             try:
                 from odap.infra.llm.llm_service import ZhipuAIClient
-                import os
-                api_key = get_config("llm.api_key", "")
-                base_url = get_config("llm.api_base", "https://open.bigmodel.cn/api/paas/v4")
-                model = get_config("llm.model", "glm-4-flash")
+                from graphiti_core.llm_client.config import LLMConfig
+                import os as _os
+                # 环境变量优先：get_config 可能返回加密后无法解密的密文
+                api_key = _os.environ.get("OPENAI_API_KEY", "") or get_config("llm.api_key", "")
+                base_url = _os.environ.get("OPENAI_API_BASE", "") or get_config("llm.api_base", "https://open.bigmodel.cn/api/paas/v4")
+                model = _os.environ.get("OPENAI_MODEL", "") or get_config("llm.model", "glm-4-flash")
 
                 if api_key:
-                    self._llm = ZhipuAIClient(
+                    config = LLMConfig(
                         api_key=api_key,
                         base_url=base_url,
                         model=model,
                     )
+                    self._llm = ZhipuAIClient(config=config)
                 else:
                     logger.warning("No LLM API key configured, using rule-based fallback")
                     self._llm = None
@@ -303,7 +307,7 @@ class ChatService:
 
         try:
             import httpx
-            async with httpx.AsyncClient(timeout=30.0) as client:
+            async with httpx.AsyncClient(timeout=120.0) as client:
                 # Step 1: Get LLM response with tool calls
                 response = await client.post(
                     f"{self.llm.base_url}/chat/completions",

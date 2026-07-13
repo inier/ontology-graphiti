@@ -506,14 +506,20 @@ async def _produce_query_engine_events(
 
         # 3c. 翻译 result 为 AG-UI 事件
         if isinstance(result, dict) and result.get("success"):
+            # 优先发送 LLM 回复文本（response 字段）作为 AssistantTextDelta
+            response_text = result.get("response", "")
+            if response_text:
+                for event_dict in to_agui_events(_ThoughtDelta(response_text), state):
+                    await transport_queue.put(event_dict)
+            # 处理 steps（可能是字符串列表或字典列表）
             steps = result.get("steps", [])
             for step in steps:
-                action = step.get("action", {})
-                thought = action.get("thought", "")
-                if thought:
-                    # 把 thought 当作 AssistantTextDelta 走 transport
-                    for event_dict in to_agui_events(_ThoughtDelta(thought), state):
-                        await transport_queue.put(event_dict)
+                if isinstance(step, dict):
+                    action = step.get("action", {})
+                    thought = action.get("thought", "")
+                    if thought:
+                        for event_dict in to_agui_events(_ThoughtDelta(thought), state):
+                            await transport_queue.put(event_dict)
 
         # 3d. emit RUN_FINISHED (success)
         for event_dict in to_agui_events(

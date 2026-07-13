@@ -185,10 +185,12 @@ async def list_templates(
 ):
     """List available HE templates."""
     try:
-        from odap.biz.core.ontology.extraction.impl.template_generator import TemplateGenerator
+        from odap.biz.data.hyper_extract.services.template_engine import TemplateEngine
+        from odap.biz.data.hyper_extract.impl.he_adapter import HEAdapter
+        from odap.biz.data.hyper_extract.storage import Storage
 
-        generator = TemplateGenerator()
-        presets = generator.list_all_presets()
+        engine = TemplateEngine(HEAdapter(), Storage())
+        presets = engine.list_presets()
         return {"status": "ok", "templates": presets}
     except HTTPException:
         raise
@@ -203,14 +205,17 @@ async def recommend_templates(
 ):
     """Recommend templates based on text description."""
     try:
-        from odap.biz.core.ontology.extraction.impl.template_generator import TemplateGenerator
+        from odap.biz.data.hyper_extract.services.template_engine import TemplateEngine
+        from odap.biz.data.hyper_extract.impl.he_adapter import HEAdapter
+        from odap.biz.data.hyper_extract.storage import Storage
 
         text = request.get("text", "")
-        top_k = request.get("top_k", 3)
+        ontology_id = request.get("ontology_id", "")
 
-        generator = TemplateGenerator()
-        recommendations = generator.recommend_templates(text, top_k=top_k)
-        return {"status": "ok", "templates": recommendations}
+        engine = TemplateEngine(HEAdapter(), Storage())
+        assess_result = engine.assess(text, ontology_id)
+        candidates = assess_result.get("candidates", [])
+        return {"status": "ok", "templates": candidates, "assessment": assess_result}
     except HTTPException:
         raise
     except Exception as e:
@@ -224,12 +229,20 @@ async def generate_template_web_search(
 ):
     """Generate template via web search."""
     try:
-        from odap.biz.core.ontology.extraction.impl.template_generator import TemplateGenerator
+        from odap.biz.data.hyper_extract.services.template_engine import TemplateEngine
+        from odap.biz.data.hyper_extract.impl.he_adapter import HEAdapter
+        from odap.biz.data.hyper_extract.storage import Storage
 
         text = request.get("text", "")
+        ontology_id = request.get("ontology_id", "")
 
-        generator = TemplateGenerator()
-        template = generator.generate_with_web_search(text)
+        engine = TemplateEngine(HEAdapter(), Storage())
+        template = engine.generate_custom_with_fallback(
+            text=text,
+            ontology_schema={},
+            gaps=["object", "relation", "action", "rule", "process"],
+            ontology_id=ontology_id,
+        )
         if template:
             return {"status": "ok", "template": template}
         return {"status": "ok", "template": None, "message": "No template generated"}
@@ -246,7 +259,7 @@ async def get_provenance(
 ):
     """Get extraction provenance for an entity."""
     try:
-        from odap.biz.core.ontology.extraction.impl.provenance_tracker import ProvenanceTracker
+        from odap.biz.data.hyper_extract.impl.provenance_tracker import ProvenanceTracker
 
         tracker = ProvenanceTracker()
         provenance = tracker.get_provenance(entity_id)
@@ -266,7 +279,7 @@ async def get_provenance_by_source(
 ):
     """Get all entities extracted from a source document."""
     try:
-        from odap.biz.core.ontology.extraction.impl.provenance_tracker import ProvenanceTracker
+        from odap.biz.data.hyper_extract.impl.provenance_tracker import ProvenanceTracker
 
         tracker = ProvenanceTracker()
         entities = tracker.get_entities_by_source(doc_id)

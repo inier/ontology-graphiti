@@ -18,6 +18,7 @@ try:
     from opentelemetry.sdk.trace import TracerProvider
     from opentelemetry.sdk.trace.export import BatchSpanProcessor, ConsoleSpanExporter
     from opentelemetry.sdk.resources import SERVICE_NAME, Resource
+    from opentelemetry.sdk.trace.sampling import TraceIdRatioBased
     from opentelemetry.exporter.otlp.proto.http.trace_exporter import OTLPSpanExporter
     from opentelemetry.trace import SpanContext, NonRecordingSpan
 
@@ -73,7 +74,7 @@ def setup_observability(
 
     _tracer_provider = TracerProvider(
         resource=resource,
-        sampler=trace.sampling.TraceIdRatioBased(sample_ratio),
+        sampler=TraceIdRatioBased(sample_ratio),
     )
 
     if otlp_endpoint:
