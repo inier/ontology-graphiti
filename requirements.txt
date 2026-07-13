@@ -60,7 +60,9 @@ pymysql>=1.1.0
 -e ./hyper-extract
 langchain>=0.1.0
 langchain-openai>=0.1.0
+langchain-community>=0.1.0
 faiss-cpu>=1.7.0
+sentence-transformers>=2.2.0
 
 # 文档解析
 PyPDF2>=3.0.0
