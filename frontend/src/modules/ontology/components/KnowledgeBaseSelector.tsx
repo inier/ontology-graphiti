@@ -63,7 +63,7 @@ export function KnowledgeBaseSelector({ ontologyId, onExtractionComplete }: Know
     setSelectedDocIds(new Set());
     try {
       const result = await apiClient.get(`/api/knowledge-bases/${kbId}/documents`) as any;
-      const docs = result?.documents || result?.data || [];
+      const docs = result?.documents || result?.data || result || [];
       setDocuments(Array.isArray(docs) ? docs : []);
       setSelectedDocIds(new Set(Array.isArray(docs) ? docs.map((d: DocumentItem) => d.doc_id) : []));
     } catch {

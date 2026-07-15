@@ -15,7 +15,6 @@ import {
   Switch,
   Select,
   Typography,
-  Chips,
 } from 'antd';
 import type { ColumnsType } from 'antd/es/table';
 import {
@@ -103,7 +102,7 @@ export function TermTable() {
   const handleToggleStoplist = async (record: UslTerm, checked: boolean) => {
     if (!record.id) return;
     try {
-      await updateTerm(record.id, { stoplist: checked });
+      await updateTerm(record.id, { stoplist_flag: checked });
       message.success(`术语「${record.canonical}」已${checked ? '加入' : '移出'}停用词表`);
       void fetchData();
     } catch (err) {
@@ -162,7 +161,11 @@ export function TermTable() {
       width: 200,
       render: (arr?: string[]) =>
         arr && arr.length ? (
-          <Chips options={arr.map((x) => ({ label: x, value: x }))} size="small" closable={false} />
+          <Space size={[4, 4]} wrap>
+            {arr.map((x) => (
+              <Tag key={x} style={{ margin: 0 }}>{x}</Tag>
+            ))}
+          </Space>
         ) : (
           <Text type="secondary">空</Text>
         ),
@@ -191,7 +194,7 @@ export function TermTable() {
     },
     {
       title: '停用词',
-      dataIndex: 'stoplist',
+      dataIndex: 'stoplist_flag',
       width: 110,
       align: 'center',
       render: (v: boolean | undefined, record) => (

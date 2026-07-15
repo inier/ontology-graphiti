@@ -14,7 +14,6 @@ import {
   App,
   Space,
   Alert,
-  Chips,
   Typography,
 } from 'antd';
 import type { SemanticType, UslTerm, TermPayload } from '../types';
@@ -35,7 +34,7 @@ export interface TermFormValues {
   synonyms?: string[];
   near_synonyms_text?: string;
   aliases_text?: string;
-  stoplist?: boolean;
+  stoplist_flag?: boolean;
 }
 
 interface TermFormProps {
@@ -70,13 +69,13 @@ export function TermForm({ open, mode, initial, onCancel, onSubmitted }: TermFor
         synonyms: initial.synonyms || [],
         near_synonyms_text: (initial.near_synonyms || []).join('、'),
         aliases_text: (initial.aliases || []).join('、'),
-        stoplist: !!initial.stoplist,
+        stoplist_flag: !!initial.stoplist_flag,
       });
     } else {
       form.resetFields();
       form.setFieldsValue({
         semantic_type: '对象类型' as SemanticType,
-        stoplist: false,
+        stoplist_flag: false,
         synonyms: [],
       });
     }
@@ -116,7 +115,7 @@ export function TermForm({ open, mode, initial, onCancel, onSubmitted }: TermFor
         synonyms: values.synonyms?.filter((s) => s && s.trim()) || [],
         near_synonyms: splitLinesToStrings(values.near_synonyms_text),
         aliases: splitLinesToStrings(values.aliases_text),
-        stoplist: !!values.stoplist,
+        stoplist_flag: !!values.stoplist_flag,
       };
 
       setSubmitting(true);
@@ -186,12 +185,13 @@ export function TermForm({ open, mode, initial, onCancel, onSubmitted }: TermFor
         </Form.Item>
 
         <Form.Item label="同义词 synonyms（点击添加）" name="synonyms">
-          <Chips
+          <Select
+            mode="tags"
             placeholder="输入后回车添加同义词，如 大将、将领、五虎将"
             style={{ width: '100%' }}
             size="large"
-            variant="outlined"
             disabled={!canWrite}
+            open={false}
           />
         </Form.Item>
 
@@ -204,7 +204,7 @@ export function TermForm({ open, mode, initial, onCancel, onSubmitted }: TermFor
           </Form.Item>
         </Space.Compact>
 
-        <Form.Item label="停用词 Stoplist" name="stoplist" valuePropName="checked">
+        <Form.Item label="停用词 Stoplist" name="stoplist_flag" valuePropName="checked">
           <Space>
             <Switch disabled={!canWrite} />
             <Text type="secondary">

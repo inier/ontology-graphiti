@@ -3,6 +3,7 @@ import {
   Row, Col, Input, Select, Button, Space, Table,
   Tag, Progress, Tooltip, Drawer, Typography, Tabs, Badge,
   Steps, Tree, Empty, Alert, Divider, Statistic, Card,
+  message,
 } from 'antd';
 import type { TableProps, TreeDataNode } from 'antd';
 import { ReloadOutlined, ClearOutlined, PlayCircleOutlined, EyeOutlined, CopyOutlined, BulbOutlined, BranchesOutlined, NodeIndexOutlined } from '@ant-design/icons';
@@ -17,6 +18,7 @@ const ST_OPS: Array<{ label: string; value: PipelineRunStatus }> = [
   { label: 'pending', value: 'pending' }, { label: 'running', value: 'running' },
   { label: 'succeeded', value: 'succeeded' }, { label: 'failed', value: 'failed' },
 ];
+const { Text } = Typography;
 const ST_COL: Record<string, string> = { running: 'blue', pending: 'default', succeeded: 'green', failed: 'red' };
 const GD_COL: Record<string, string> = { A: '#52c41a', B: '#1677ff', C: '#faad14', D: '#ff4d4f' };
 const LAYER_KEYS = ['L1_tokens', 'L2_concepts', 'L3_entities', 'L4_relations', 'L5_patterns', 'L6_axioms'] as const;
@@ -180,7 +182,7 @@ const PipelineRunsPage: React.FC = () => {
 
 function RunDrawerContent({ run }: { run?: PipelineRun }) {
   const currentLayer = useMemo(() => deriveCurrentLayer(run), [run]);
-  const stats = (run?.stats || {}) as Record<string, any>;
+  const stats = (run?.stats || {}) as Record<string, number | Record<string, number>>;
   const layerCounts = LAYER_KEYS.map((k) => ({ key: k, count: (stats?.grades?.[k] ?? stats?.[k] ?? null as number | null) }));
 
   const layerSteps = useMemo(() => LAYER_KEYS.map((k, i) => {
@@ -200,7 +202,7 @@ function RunDrawerContent({ run }: { run?: PipelineRun }) {
           {cnt != null && <Text type="secondary" style={{ fontSize: 12 }}>Records: {cnt}</Text>}
         </Space>
       ),
-      status: (run?.status === 'failed' && active ? 'error' : done ? 'finish' : active ? 'process' : 'wait') as any,
+      status: (run?.status === 'failed' && active ? 'error' : done ? 'finish' : active ? 'process' : 'wait') as 'error' | 'finish' | 'process' | 'wait',
       icon: meta.icon,
     };
   }), [currentLayer, layerCounts, run?.status]);

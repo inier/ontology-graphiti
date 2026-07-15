@@ -2,6 +2,8 @@ import { create } from 'zustand';
 import type { UslDomain } from '../types';
 import type { CandidateStatus, PipelineRunStatus } from '../services/pipelineApi';
 
+const DASHBOARD_TTL_MS = 5 * 60 * 1000;
+
 export type AdminTopTab = 'usl' | 'pipeline' | 'candidates' | 'quality' | 'dashboard' | 'approvals';
 
 export type UslSubTab =
@@ -85,60 +87,86 @@ interface SemanticAdminState {
   ) => void;
 }
 
-export const useSemanticAdminStore = create<SemanticAdminState>((set) => ({
-  currentTopTab: 'usl',
-  setCurrentTopTab: (tab) => set({ currentTopTab: tab }),
+export const useSemanticAdminStore = create<SemanticAdminState>((set) => {
+  let ttlTimer: ReturnType<typeof setTimeout> | null = null;
 
-  currentUslSubTab: 'domains',
-  setCurrentUslSubTab: (tab) => set({ currentUslSubTab: tab }),
+  const clearTimer = () => {
+    if (ttlTimer) {
+      clearTimeout(ttlTimer);
+      ttlTimer = null;
+    }
+  };
 
-  currentDomain: null,
-  setCurrentDomain: (domain) => set({ currentDomain: domain, termPage: 1 }),
+  const scheduleExpire = () => {
+    clearTimer();
+    ttlTimer = setTimeout(() => {
+      set({ dashboardSummary: null });
+      ttlTimer = null;
+    }, DASHBOARD_TTL_MS);
+  };
 
-  filters: {
-    termSemanticType: '',
-    termKeyword: '',
-    termStoplist: null,
-  },
-  setTermSemanticType: (v) =>
-    set((prev) => ({ filters: { ...prev.filters, termSemanticType: v }, termPage: 1 })),
-  setTermKeyword: (v) => set((prev) => ({ filters: { ...prev.filters, termKeyword: v } })),
-  setTermStoplist: (v) =>
-    set((prev) => ({ filters: { ...prev.filters, termStoplist: v }, termPage: 1 })),
+  return {
+    currentTopTab: 'usl',
+    setCurrentTopTab: (tab) => set({ currentTopTab: tab }),
 
-  termPage: 1,
-  termPageSize: 10,
-  setTermPage: (page) => set({ termPage: page }),
-  setTermPageSize: (size) => set({ termPageSize: size, termPage: 1 }),
+    currentUslSubTab: 'domains',
+    setCurrentUslSubTab: (tab) => set({ currentUslSubTab: tab }),
 
-  candidateFilters: { page: 1, page_size: 20 },
-  setCandidateFilters: (patch) =>
-    set((s) => ({ candidateFilters: { ...s.candidateFilters, ...patch } })),
-  resetCandidateFilters: () =>
-    set({ candidateFilters: { page: 1, page_size: 20 }, selectedCandidateIds: [] }),
-  selectedCandidateIds: [],
-  toggleCandidateSelect: (id) =>
-    set((s) => ({
-      selectedCandidateIds: s.selectedCandidateIds.includes(id)
-        ? s.selectedCandidateIds.filter((x) => x !== id)
-        : [...s.selectedCandidateIds, id],
-    })),
-  setAllCandidateSelected: (ids) => set({ selectedCandidateIds: ids }),
-  clearCandidateSelected: () => set({ selectedCandidateIds: [] }),
+    currentDomain: null,
+    setCurrentDomain: (domain) => set({ currentDomain: domain, termPage: 1 }),
 
-  pipelineRunFilters: { page: 1, page_size: 50 },
-  setPipelineRunFilters: (patch) =>
-    set((s) => ({ pipelineRunFilters: { ...s.pipelineRunFilters, ...patch } })),
-  resetPipelineRunFilters: () => set({ pipelineRunFilters: { page: 1, page_size: 50 } }),
+    filters: {
+      termSemanticType: '',
+      termKeyword: '',
+      termStoplist: null,
+    },
+    setTermSemanticType: (v) =>
+      set((prev) => ({ filters: { ...prev.filters, termSemanticType: v }, termPage: 1 })),
+    setTermKeyword: (v) => set((prev) => ({ filters: { ...prev.filters, termKeyword: v } })),
+    setTermStoplist: (v) =>
+      set((prev) => ({ filters: { ...prev.filters, termStoplist: v }, termPage: 1 })),
 
-  dashboardSummary: null,
-  setDashboardSummary: (updater) =>
-    set((s) => ({
-      dashboardSummary:
-        typeof updater === 'function'
-          ? (updater as (p: DashboardSummaryCache | null) => DashboardSummaryCache | null)(
-              s.dashboardSummary,
-            )
-          : updater,
-    })),
-}));
+    termPage: 1,
+    termPageSize: 10,
+    setTermPage: (page) => set({ termPage: page }),
+    setTermPageSize: (size) => set({ termPageSize: size, termPage: 1 }),
+
+    candidateFilters: { page: 1, page_size: 20 },
+    setCandidateFilters: (patch) =>
+      set((s) => ({ candidateFilters: { ...s.candidateFilters, ...patch } })),
+    resetCandidateFilters: () =>
+      set({ candidateFilters: { page: 1, page_size: 20 }, selectedCandidateIds: [] }),
+    selectedCandidateIds: [],
+    toggleCandidateSelect: (id) =>
+      set((s) => ({
+        selectedCandidateIds: s.selectedCandidateIds.includes(id)
+          ? s.selectedCandidateIds.filter((x) => x !== id)
+          : [...s.selectedCandidateIds, id],
+      })),
+    setAllCandidateSelected: (ids) => set({ selectedCandidateIds: ids }),
+    clearCandidateSelected: () => set({ selectedCandidateIds: [] }),
+
+    pipelineRunFilters: { page: 1, page_size: 50 },
+    setPipelineRunFilters: (patch) =>
+      set((s) => ({ pipelineRunFilters: { ...s.pipelineRunFilters, ...patch } })),
+    resetPipelineRunFilters: () => set({ pipelineRunFilters: { page: 1, page_size: 50 } }),
+
+    dashboardSummary: null,
+    setDashboardSummary: (updater) => {
+      set((s) => {
+        const newValue =
+          typeof updater === 'function'
+            ? (updater as (p: DashboardSummaryCache | null) => DashboardSummaryCache | null)(
+                s.dashboardSummary,
+              )
+            : updater;
+        if (newValue) {
+          scheduleExpire();
+        } else {
+          clearTimer();
+        }
+        return { dashboardSummary: newValue };
+      });
+    },
+  };
+});

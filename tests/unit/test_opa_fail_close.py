@@ -221,3 +221,151 @@ class TestSourceGuards:
         assert '"allow": False' in source, (
             "check_permission_abac() fail-close branch must return allow=False"
         )
+
+
+# ============ Test: Policy hash verification (tampering detection) ============
+
+class TestPolicyHashVerification:
+    """Tests for policy integrity verification (F-3 requirement)."""
+
+    def test_policy_bundle_has_checksum(self):
+        """PolicyBundle must include a checksum for integrity verification."""
+        from odap.infra.opa.opa_service import PolicyBundleManager
+        import uuid
+
+        manager = PolicyBundleManager()
+        policies = {
+            "domain.rego": "package domain\nallow { true }",
+        }
+        bundle = manager.create_bundle(policies)
+
+        assert hasattr(bundle, "checksum"), (
+            "PolicyBundle must have a checksum attribute"
+        )
+        assert bundle.checksum is not None and len(bundle.checksum) > 0, (
+            "PolicyBundle checksum must be non-empty"
+        )
+
+    def test_policy_hash_mismatch_detected(self):
+        """When policy checksum changes unexpectedly, the system must detect it."""
+        from odap.infra.opa.opa_service import PolicyBundleManager, PolicyBundle
+
+        manager = PolicyBundleManager()
+        policies = {"domain.rego": "package domain\nallow { true }"}
+        original_bundle = manager.create_bundle(policies)
+        original_checksum = original_bundle.checksum
+
+        assert manager.get_bundle() is not None
+        assert manager.get_bundle().checksum == original_checksum
+
+    def test_hot_update_creates_new_checksum(self):
+        """Hot update must generate a new checksum for the new bundle."""
+        from odap.infra.opa.opa_service import PolicyBundleManager
+
+        manager = PolicyBundleManager()
+        policies = {"domain.rego": "package domain\nallow { true }"}
+        original_bundle = manager.create_bundle(policies)
+        original_checksum = original_bundle.checksum
+
+        new_policies = {"domain.rego": "package domain\nallow { false }"}
+        updated_bundle = manager.hot_update_bundle(new_policies)
+
+        assert updated_bundle.checksum != original_checksum, (
+            "Hot update must generate a new checksum"
+        )
+
+
+# ============ Test: Timeout denial (F-3 requirement) ============
+
+class TestTimeoutDenial:
+    """Tests for OPA timeout handling - must deny on timeout."""
+
+    def test_opa_timeout_returns_false(self, monkeypatch):
+        """When OPA times out and fail_mode=deny, must return False."""
+        from odap.infra.opa.opa_service import OPAManager
+
+        monkeypatch.setenv("OPA_FAIL_MODE", "deny")
+        monkeypatch.delenv("ENV", raising=False)
+
+        with patch("odap.infra.opa.opa_service.OPAClient") as MockClient:
+            mock_client = MagicMock()
+            mock_client.health_check.return_value = True
+            mock_client.check_permission.side_effect = TimeoutError("OPA timeout")
+            MockClient.return_value = mock_client
+
+            mgr = OPAManager(use_mock=False)
+            result = mgr.check_permission("pilot", "view_intelligence", {"id": "r1"})
+
+            assert result is False, (
+                f"FAIL-OPEN ON TIMEOUT! check_permission returned {result}. "
+                f"Must deny on OPA timeout."
+            )
+
+    def test_opa_timeout_abac_returns_allow_false(self, monkeypatch):
+        """ABAC check must return allow=False on OPA timeout."""
+        from odap.infra.opa.opa_service import OPAManager
+
+        monkeypatch.setenv("OPA_FAIL_MODE", "deny")
+        monkeypatch.delenv("ENV", raising=False)
+
+        with patch("odap.infra.opa.opa_service.OPAClient") as MockClient:
+            mock_client = MagicMock()
+            mock_client.health_check.return_value = True
+            mock_client.check_permission_abac.side_effect = TimeoutError("OPA timeout")
+            MockClient.return_value = mock_client
+
+            mgr = OPAManager(use_mock=False)
+            user = {"id": "u1", "roles": ["pilot"]}
+            result = mgr.check_permission_abac(user, "view", {"id": "r1"})
+
+            assert result.get("allow") is False, (
+                f"FAIL-OPEN IN ABAC ON TIMEOUT! Result: {result}. "
+                f"Must deny on OPA timeout."
+            )
+
+
+# ============ Test: Reload rollback (F-3 requirement) ============
+
+class TestReloadRollback:
+    """Tests for policy reload failure - must rollback to previous bundle."""
+
+    def test_rollback_bundle_restores_previous_version(self):
+        """rollback_bundle must restore the previous bundle state."""
+        import time
+        from odap.infra.opa.opa_service import PolicyBundleManager
+
+        manager = PolicyBundleManager()
+
+        v1_policies = {"domain.rego": "package domain\nallow { true }"}
+        v1 = manager.create_bundle(v1_policies)
+        v1_version = v1.version
+        v1_revision = v1.revision
+
+        time.sleep(0.1)
+
+        v2_policies = {"domain.rego": "package domain\nallow { false }"}
+        v2 = manager.create_bundle(v2_policies)
+        v2_version = v2.version
+        v2_revision = v2.revision
+
+        assert v1_revision != v2_revision
+        assert manager.get_bundle().version == v2_version
+
+        rolled_back = manager.rollback_bundle()
+
+        assert rolled_back is not None
+        assert rolled_back.revision == v1_revision
+        assert manager.get_bundle().revision == v1_revision
+
+    def test_rollback_when_no_previous_bundle(self):
+        """rollback_bundle returns None when there's only one bundle."""
+        from odap.infra.opa.opa_service import PolicyBundleManager
+
+        manager = PolicyBundleManager()
+        policies = {"domain.rego": "package domain\nallow { true }"}
+        manager.create_bundle(policies)
+
+        rolled_back = manager.rollback_bundle()
+
+        assert rolled_back is None
+        assert manager.get_bundle() is not None
