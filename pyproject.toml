@@ -1,5 +1,32 @@
+[project]
+name = "odap-monorepo"
+version = "0.1.0"
+description = "ODAP Monorepo - Ontology-Driven Analysis & Decision Platform"
+requires-python = ">=3.10"
+
+[tool.uv.workspace]
+members = [
+    "apps/api",
+    "packages/openharness",
+    "packages/hyper-extract",
+]
+
+[tool.uv.sources]
+openharness-ai = { workspace = true }
+hyperextract = { workspace = true }
+
+[dependency-groups]
+dev = [
+    "pytest>=8.0.0",
+    "pytest-asyncio>=0.23.0",
+    "pytest-mock>=3.12.0",
+    "ruff>=0.5.0",
+    "black>=23.0.0",
+    "flake8>=6.1.0",
+]
+
 [tool.pytest.ini_options]
-testpaths = ["tests"]
+testpaths = ["apps/api/tests", "tests"]
 asyncio_mode = "auto"
 markers = [
     "unit: 单元测试",
@@ -7,14 +34,16 @@ markers = [
     "slow: 慢速测试",
     "e2e: 端到端测试",
     "smoke: 冒烟测试（核心功能快速验证，<60s）",
-    "regression: 回归测试（核心业务路径验证）",
+    "regression: 回归测试",
     "perf: 性能基准测试",
     "docker: 需要 Docker/Podman 容器的测试",
 ]
 addopts = "-v --tb=short --strict-markers"
-filterwarnings = [
-    "ignore::DeprecationWarning",
-]
+filterwarnings = ["ignore::DeprecationWarning"]
 
 [tool.pytest-asyncio]
 asyncio_mode = "auto"
+
+[tool.ruff]
+line-length = 100
+target-version = "py310"

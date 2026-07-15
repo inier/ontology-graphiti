@@ -1,0 +1,12 @@
+{
+  "version": "1.0.1783868365",
+  "revision": "45c8cd6b",
+  "policies": {
+    "domain.test": "package domain.test\ndefault allow := false"
+  },
+  "metadata": {
+    "update_type": "hot_update"
+  },
+  "created_at": "2026-07-12T22:59:25.665844",
+  "checksum": "2beee3a32daa159566554ff3bd47ef6255dd126f6ae4258e9e11f4d63d908305"
+}

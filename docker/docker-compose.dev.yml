@@ -39,10 +39,12 @@ services:
       - graphiti-cache
       - graphiti-minio
     volumes:
-      - ../app:/app/app
-      - ../odap:/app/odap
-      - ../main.py:/app/main.py
+      - ../apps/api/odap:/app/apps/api/odap
+      - ../apps/api/main.py:/app/apps/api/main.py
+      - ../packages/openharness:/app/packages/openharness
+      - ../packages/hyper-extract:/app/packages/hyper-extract
       - ../data:/app/data
+    working_dir: /app/apps/api
     networks:
       - graphiti-network
     restart: unless-stopped
@@ -52,7 +54,7 @@ services:
       timeout: 5s
       retries: 5
       start_period: 30s
-    command: ["python", "-m", "uvicorn", "odap.web.app:app", "--host", "0.0.0.0", "--port", "8000"]
+    command: ["python", "-m", "uvicorn", "odap.web.app:app", "--host", "0.0.0.0", "--port", "8000", "--reload", "--reload-dir", "/app/apps/api/odap"]
 
   frontend:
     build:
@@ -107,7 +109,7 @@ services:
     ports:
       - "8181:8181"
     volumes:
-      - ../odap/infra/opa/policies:/policies
+      - ../apps/api/odap/infra/opa/policies:/policies
     command: run --server --log-level=info --set=decision_logs.console=true /policies
     networks:
       - graphiti-network

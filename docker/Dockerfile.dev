@@ -5,29 +5,36 @@ WORKDIR /app
 ENV PYTHONDONTWRITEBYTECODE 1
 ENV PYTHONUNBUFFERED 1
 ENV ENVIRONMENT development
+ENV UV_PROJECT_ENVIRONMENT=/usr/local
+ENV UV_LINK_MODE=copy
 
 RUN pip config set global.index-url https://pypi.tuna.tsinghua.edu.cn/simple
 
 RUN apt-get update && apt-get install -y --no-install-recommends \
     gcc \
     g++ \
+    tesseract-ocr \
+    tesseract-ocr-chi-sim \
     && rm -rf /var/lib/apt/lists/*
 
-COPY requirements.txt ./
+RUN pip install --no-cache-dir uv
 
-RUN pip install --no-cache-dir fastapi pydantic uvicorn[standard] httpx starlette python-multipart || echo "WARNING: core web packages install had issues"
-RUN pip install --no-cache-dir neo4j networkx redis python-dateutil || echo "WARNING: data packages install had issues"
-RUN pip install --no-cache-dir python-jose[cryptography] pyjwt bcrypt jsonpickle opa-python celery || echo "WARNING: infra packages install had issues"
-RUN pip install --no-cache-dir openai pyyaml aiohttp watchdog || echo "WARNING: util packages install had issues"
+# 复制 workspace 元数据 + 子模块源码（让 uv sync 能跑通）
+COPY pyproject.toml uv.lock ./
+COPY apps/api/pyproject.toml ./apps/api/
+COPY packages/openharness ./packages/openharness
+COPY packages/hyper-extract ./packages/hyper-extract
 
-RUN pip install --no-cache-dir graphiti-core || echo "WARNING: graphiti-core install failed, falling back to Neo4j Driver mode"
+# 开发模式装全依赖（含 dev）
+RUN uv sync --frozen --package odap
 
-COPY openharness ./openharness
+# graphiti-core 容错
+RUN pip install --no-cache-dir graphiti-core \
+    || echo "WARNING: graphiti-core install failed (non-fatal)"
 
-RUN pip install --no-cache-dir -e ./openharness || echo "WARNING: openharness install failed, using mock mode"
-
-RUN mkdir -p /app/app /app/odap /app/data
+RUN mkdir -p /app/data
 
 EXPOSE 8000
 
-CMD ["python", "-m", "uvicorn", "odap.web.app:app", "--host", "0.0.0.0", "--port", "8000", "--reload"]
+WORKDIR /app/apps/api
+CMD ["python", "-m", "uvicorn", "odap.web.app:app", "--host", "0.0.0.0", "--port", "8000"]

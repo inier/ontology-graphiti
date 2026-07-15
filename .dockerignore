@@ -28,4 +28,5 @@ data/
 specs/
 docs/
 tests/
+apps/api/tests/
 .specify/
