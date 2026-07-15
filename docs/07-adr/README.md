@@ -58,6 +58,7 @@
 | ADR-063 | 租户/工作空间双级感知与资源隔离 | 提议 | P1 | [ADR-063](ADR-063_tenant_aware_isolation.md) |
 | ADR-064 | 可观测性基线（Trace/Metrics/Log 三面） | 提议 | P1 | [ADR-064](ADR-064_observability_baseline.md) |
 | ADR-065 | 模块化单体 → 微服务拆分剧本 | 提议 | P3 | [ADR-065](ADR-065_microservice_extraction_playbook.md) |
+| ADR-066 | Monorepo 重构（uv workspace + pnpm workspace） | 已接受 | P1 | [ADR-066](ADR-066-monorepo-restructure.md) |
 
 ### 平台架构（P0/P1 混合）
 
@@ -173,6 +174,7 @@
 | ADR-063 | 租户/工作空间双级感知与资源隔离 | 提议 | [ADR-063](ADR-063_tenant_aware_isolation.md) |
 | ADR-064 | 可观测性基线（Trace/Metrics/Log 三面） | 提议 | [ADR-064](ADR-064_observability_baseline.md) |
 | ADR-065 | 模块化单体 → 微服务拆分剧本 | 提议 | [ADR-065](ADR-065_microservice_extraction_playbook.md) |
+| ADR-066 | Monorepo 重构（uv workspace + pnpm workspace） | 已接受 | [ADR-066](ADR-066-monorepo-restructure.md) |
 
 ---
 
