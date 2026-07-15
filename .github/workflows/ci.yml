@@ -26,24 +26,26 @@ jobs:
 
     steps:
       - uses: actions/checkout@v4
+        with:
+          submodules: recursive
 
       - name: Set up Python
         uses: actions/setup-python@v5
         with:
-          python-version: '3.10'
+          python-version: '3.11'
+
+      - name: Install uv
+        uses: astral-sh/setup-uv@v3
 
       - name: Install dependencies
-        run: |
-          pip install -r requirements.txt
-          pip install pytest pytest-asyncio httpx
+        run: uv sync --frozen --no-dev --package odap
 
       - name: Run unit tests
-        run: |
-          pytest tests/unit/ -v --cov=odap --cov-report=xml
+        run: uv run pytest tests/unit/ apps/api/tests/ -v --cov=odap --cov-report=xml
 
       - name: Run integration tests
         run: |
-          pytest tests/integration/ -v
+          uv run pytest tests/integration/ -v
         env:
           NEO4J_URI: bolt://localhost:7687
           NEO4J_USER: neo4j
@@ -55,33 +57,33 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
+      - name: Set up pnpm
+        uses: pnpm/action-setup@v4
+        with:
+          version: 9
+
       - name: Set up Node.js
         uses: actions/setup-node@v4
         with:
           node-version: '22'
+          cache: 'pnpm'
 
       - name: Install dependencies
-        run: |
-          cd frontend
-          npm install
+        working-directory: apps/web
+        run: pnpm install --frozen-lockfile
 
       - name: Run type check
-        # M5 fix: 移除 || true，改为 continue-on-error 以暴露类型错误但不阻塞 CI。
-        # 类型错误属于 M1（前端 any 专项治理，P2）范畴，待 M1 完成后移除 continue-on-error。
         continue-on-error: true
-        run: |
-          cd frontend
-          npm run typecheck
+        working-directory: apps/web
+        run: pnpm typecheck
 
       - name: Run linter
-        run: |
-          cd frontend
-          npm run lint
+        working-directory: apps/web
+        run: pnpm lint
 
       - name: Run unit tests
-        run: |
-          cd frontend
-          npm test -- --watchAll=false
+        working-directory: apps/web
+        run: pnpm test --run
 
   build:
     runs-on: ubuntu-latest
@@ -89,6 +91,8 @@ jobs:
 
     steps:
       - uses: actions/checkout@v4
+        with:
+          submodules: recursive
 
       - name: Build Docker image
         run: |

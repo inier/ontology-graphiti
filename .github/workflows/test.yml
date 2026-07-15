@@ -11,28 +11,31 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
+        with:
+          submodules: recursive
 
       - name: Set up Python
         uses: actions/setup-python@v5
         with:
-          python-version: '3.10'
+          python-version: '3.11'
 
-      - name: Cache pip packages
+      - name: Install uv
+        uses: astral-sh/setup-uv@v3
+
+      - name: Cache uv
         uses: actions/cache@v4
         with:
-          path: ~/.cache/pip
-          key: ${{ runner.os }}-pip-${{ hashFiles('**/requirements*.txt') }}
+          path: ~/.local/share/uv
+          key: ${{ runner.os }}-uv-${{ hashFiles('uv.lock') }}
           restore-keys: |
-            ${{ runner.os }}-pip-
+            ${{ runner.os }}-uv-
 
       - name: Install dependencies
-        run: |
-          pip install -q pytest pytest-cov pytest-mock
-          pip install -q -r requirements.txt
+        run: uv sync --frozen --no-dev --package odap
 
       - name: Run unit tests
         run: |
-          pytest tests/ -v --tb=short -m "not integration"
+          uv run pytest tests/ apps/api/tests/ -v --tb=short -m "not integration"
 
   integration-tests:
     runs-on: ubuntu-latest
@@ -68,12 +71,13 @@ jobs:
       - name: Set up Python
         uses: actions/setup-python@v5
         with:
-          python-version: '3.10'
+          python-version: '3.11'
+
+      - name: Install uv
+        uses: astral-sh/setup-uv@v3
 
       - name: Install dependencies
-        run: |
-          pip install -q pytest pytest-cov pytest-mock
-          pip install -q -r requirements.txt
+        run: uv sync --frozen --no-dev --package odap
 
       - name: Run integration tests
         env:
@@ -83,7 +87,7 @@ jobs:
           OPA_URL: http://localhost:8181
           REDIS_URL: redis://localhost:6379
         run: |
-          pytest tests/ -v --tb=short -m "integration"
+          uv run pytest tests/ apps/api/tests/ -v --tb=short -m "integration"
 
   docker-tests:
     runs-on: ubuntu-latest
@@ -103,20 +107,23 @@ jobs:
     needs: [unit-tests, integration-tests]
     steps:
       - uses: actions/checkout@v4
+        with:
+          submodules: recursive
 
       - name: Set up Python
         uses: actions/setup-python@v5
         with:
-          python-version: '3.10'
+          python-version: '3.11'
+
+      - name: Install uv
+        uses: astral-sh/setup-uv@v3
 
       - name: Install dependencies
-        run: |
-          pip install -q pytest pytest-cov
-          pip install -q -r requirements.txt
+        run: uv sync --frozen --no-dev --package odap
 
       - name: Generate coverage report
         run: |
-          pytest tests/ --cov=odap --cov-report=xml --cov-report=html
+          uv run pytest tests/ apps/api/tests/ --cov=odap --cov-report=xml --cov-report=html
 
       - name: Upload coverage to Codecov
         uses: codecov/codecov-action@v5
