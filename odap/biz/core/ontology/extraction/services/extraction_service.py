@@ -155,23 +155,28 @@ class ExtractionService:
         auto_search: bool = False,
         template_id: str = None,
         method: str = None,
+        mode: str = None,
     ) -> Dict[str, Any]:
         """Extract schema from natural language text.
 
         Delegates to data.hyper_extract.ExtractService.extract_from_nl()
         which provides full orchestration: assess → select → multi-parse →
         LLM supplement → merge → validate → conflicts → finalize.
+
+        Args:
+            mode: Optional mode flag. When "schema_learning", enhances schema inference.
         """
         _audit(
             "extraction_nl_start",
             resource_id=ontology_id,
-            details={"text_length": len(text), "auto_search": auto_search, "template_id": template_id, "method": method},
+            details={"text_length": len(text), "auto_search": auto_search, "template_id": template_id, "method": method, "mode": mode},
         )
         result = await self.he_service.extract_from_nl(
             text=text,
             ontology_id=ontology_id,
             template_id=template_id,
             method=method,
+            mode=mode,
         )
         _audit(
             "extraction_nl_complete",
@@ -190,22 +195,27 @@ class ExtractionService:
         file_path: str,
         template_id: str = None,
         method: str = None,
+        mode: str = None,
     ) -> Dict[str, Any]:
         """Extract schema from a document file.
 
         Delegates to data.hyper_extract.ExtractService.extract_from_document()
         which handles document parsing, chunking, and per-chunk multi-parse.
+
+        Args:
+            mode: Optional mode flag. When "schema_learning", enhances schema inference.
         """
         _audit(
             "extraction_document_start",
             resource_id=ontology_id,
-            details={"file_path": file_path, "template_id": template_id, "method": method},
+            details={"file_path": file_path, "template_id": template_id, "method": method, "mode": mode},
         )
         result = await self.he_service.extract_from_document(
             file_path=file_path,
             ontology_id=ontology_id,
             template_id=template_id,
             method=method,
+            mode=mode,
         )
         _audit(
             "extraction_document_complete",
@@ -225,16 +235,20 @@ class ExtractionService:
         method: str = None,
         document_ids: List[str] = None,
         batch_size: int = 5,
+        mode: str = None,
     ) -> Dict[str, Any]:
         """Extract schema from a knowledge base.
 
         Delegates to data.hyper_extract.ExtractService.extract_from_knowledge_base()
         which iterates KB documents, chunks each, and runs multi-parse per chunk.
+
+        Args:
+            mode: Optional mode flag. When "schema_learning", enhances schema inference.
         """
         _audit(
             "extraction_kb_start",
             resource_id=ontology_id,
-            details={"kb_id": kb_id, "template_id": template_id, "document_ids": document_ids},
+            details={"kb_id": kb_id, "template_id": template_id, "document_ids": document_ids, "mode": mode},
         )
         result = await self.he_service.extract_from_knowledge_base(
             ontology_id=ontology_id,
@@ -242,6 +256,7 @@ class ExtractionService:
             template_id=template_id,
             method=method,
             document_ids=document_ids,
+            mode=mode,
         )
         _audit(
             "extraction_kb_complete",

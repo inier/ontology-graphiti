@@ -456,3 +456,134 @@ class TestExtractServiceValidationIntegration:
         # No validation-related degradation flags
         degradation_flags = result.get("degradation_flags", [])
         assert "validation_skipped" not in degradation_flags
+
+
+# ---------------------------------------------------------------------------
+# FR-021/FR-025: schema_learning mode tests
+# ---------------------------------------------------------------------------
+
+class TestExtractServiceSchemaLearning:
+    """FR-021/FR-025: schema_learning mode extraction."""
+
+    @pytest.fixture
+    def service(self):
+        from odap.biz.data.hyper_extract.services.extract_service import ExtractService
+        comps = _make_mock_components()
+        return ExtractService(**comps), comps
+
+    def test_schema_learning_mode_populates_schema_candidates(self, service):
+        """FR-025: mode=schema_learning populates session.result_data.schema_candidates."""
+        svc, comps = service
+        merged = _make_merged_result(
+            object_types=[
+                {"name": "Person", "description": "A person", "properties": {"age": int}},
+                {"name": "Organization", "description": "An org", "properties": {"employees": int}},
+                {"name": "Product", "description": "A product", "properties": {"price": float}},
+                {"name": "Order", "description": "An order", "properties": {"total": float}},
+                {"name": "Customer", "description": "A customer", "properties": {"email": str}},
+            ],
+            link_types=[
+                {"name": "works_at", "description": "Person works at Organization"},
+                {"name": "buys", "description": "Customer buys Product"},
+                {"name": "contains", "description": "Order contains Product"},
+            ],
+            action_types=[
+                {"name": "create_order", "description": "Create an order"},
+                {"name": "update_product", "description": "Update product info"},
+            ],
+            rule_types=[
+                {"name": "min_order_value", "description": "Minimum order value rule"},
+            ],
+        )
+        comps["ontology_mapper"].merge_and_map.return_value = merged
+
+        result = asyncio.run(svc.extract_from_nl("test text", "ont-1", mode="schema_learning"))
+
+        assert result.get("status") == "ok"
+        assert "schema_candidates" in result
+
+        schema_candidates = result["schema_candidates"]
+        assert isinstance(schema_candidates, dict)
+
+        assert schema_candidates.get("object_type_count") == 5
+        assert schema_candidates.get("relation_type_count") == 3
+        assert schema_candidates.get("property_count") == 5
+
+        candidates = schema_candidates.get("candidates", [])
+        assert len(candidates) > 0
+
+        for cand in candidates:
+            assert "id" in cand
+            assert "name" in cand
+            assert "semantic_type" in cand
+            assert cand.get("status") == "proposed"
+
+    def test_schema_learning_session_status_is_reviewing_schema(self, service):
+        """FR-022: mode=schema_learning sets session.status to reviewing_schema."""
+        svc, comps = service
+        merged = _make_merged_result(
+            object_types=[{"name": "TestType"}],
+        )
+        comps["ontology_mapper"].merge_and_map.return_value = merged
+
+        asyncio.run(svc.extract_from_nl("test text", "ont-1", mode="schema_learning"))
+
+        update_call = comps["storage"].update_session.call_args
+        args, kwargs = update_call
+        update_data = args[1] if len(args) > 1 else kwargs
+        update_str = json.dumps(update_data, default=str)
+        assert "reviewing_schema" in update_str
+
+    def test_default_mode_does_not_populate_schema_candidates(self, service):
+        """Default mode (no mode) does NOT populate schema_candidates."""
+        svc, comps = service
+        merged = _make_merged_result(
+            object_types=[{"name": "TestType"}],
+        )
+        comps["ontology_mapper"].merge_and_map.return_value = merged
+
+        result = asyncio.run(svc.extract_from_nl("test text", "ont-1"))
+
+        assert result.get("status") == "ok"
+        assert "schema_candidates" not in result
+
+    def test_schema_candidates_includes_l1_l2_reports(self, service):
+        """FR-025: schema_candidates includes l1_clusters_report and l2_fca_report."""
+        svc, comps = service
+        merged = _make_merged_result(
+            object_types=[{"name": "Obj1"}, {"name": "Obj2"}, {"name": "Obj3"}],
+            link_types=[{"name": "Rel1"}],
+        )
+        comps["ontology_mapper"].merge_and_map.return_value = merged
+
+        result = asyncio.run(svc.extract_from_nl("test text", "ont-1", mode="schema_learning"))
+
+        schema_candidates = result.get("schema_candidates", {})
+
+        l1_report = schema_candidates.get("l1_clusters_report", {})
+        assert "noise_count" in l1_report
+        assert "cluster_count" in l1_report
+        assert "avg_cluster_size" in l1_report
+        assert "cluster_confidence_distribution" in l1_report
+
+        l2_report = schema_candidates.get("l2_fca_report", {})
+        assert "concept_count" in l2_report
+        assert "lattice_edge_count" in l2_report
+        assert "dropped_small_concepts" in l2_report
+
+    def test_schema_learning_with_empty_result(self, service):
+        """schema_learning mode with empty extraction result still creates candidates."""
+        svc, comps = service
+        merged = _make_merged_result()
+        comps["ontology_mapper"].merge_and_map.return_value = merged
+
+        result = asyncio.run(svc.extract_from_nl("test text", "ont-1", mode="schema_learning"))
+
+        assert result.get("status") == "ok"
+        assert "schema_candidates" in result
+
+        schema_candidates = result["schema_candidates"]
+        assert schema_candidates.get("object_type_count") == 0
+        assert schema_candidates.get("relation_type_count") == 0
+        assert schema_candidates.get("property_count") == 0
+        assert len(schema_candidates.get("candidates", [])) == 0

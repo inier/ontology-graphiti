@@ -69,6 +69,7 @@ class TestExtractionServiceDelegation:
             ontology_id=ontology_id,
             template_id=None,
             method=None,
+            mode=None,
         )
 
     async def test_extract_from_nl_empty_text(self, service, ontology_id):
@@ -101,6 +102,7 @@ class TestExtractionServiceDelegation:
             ontology_id=ontology_id,
             template_id=None,
             method=None,
+            mode=None,
         )
 
     async def test_extract_from_kb_delegates(self, service, ontology_id):
