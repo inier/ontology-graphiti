@@ -459,14 +459,14 @@ _REBUILD_TARGETS = {
     },
     "frontend": {
         "tag": "localhost/docker_frontend:dev",
-        "dockerfile": "frontend/Dockerfile.dev",
-        "context": "frontend",
+        "dockerfile": "apps/web/Dockerfile.dev",
+        "context": ".",
         "desc": "前端 dev 镜像 (Vite 热重载)",
     },
     "frontend-prod": {
         "tag": "localhost/docker_frontend:latest",
-        "dockerfile": "frontend/Dockerfile",
-        "context": "frontend",
+        "dockerfile": "apps/web/Dockerfile",
+        "context": ".",
         "desc": "前端 prod 镜像 (Nginx 静态)",
     },
 }

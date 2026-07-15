@@ -1,3 +1,6 @@
+packages:
+  - 'apps/web'
+
 allowBuilds:
   canvas: true
   esbuild: true

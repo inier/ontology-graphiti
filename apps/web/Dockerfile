@@ -2,16 +2,24 @@ FROM localhost/node-base:24 AS builder
 
 WORKDIR /app
 
+RUN corepack enable && corepack prepare pnpm@9 --activate
+
 ARG VITE_API_BASE=
 
-COPY package.json ./
-RUN npm install --registry https://registry.npmmirror.com
+# 复制 workspace 配置 + 前端 package.json（层缓存友好）
+COPY pnpm-workspace.yaml pnpm-lock.yaml .npmrc ./
+COPY apps/web/package.json ./apps/web/
 
-COPY . .
+# 安装依赖（workspace 模式）
+RUN pnpm install --frozen-lockfile || pnpm install
+
+# 复制前端源码并构建
+COPY apps/web ./apps/web
+WORKDIR /app/apps/web
 RUN node ./node_modules/vite/bin/vite.js build
 
 FROM localhost/nginx:alpine
-COPY --from=builder /app/dist /usr/share/nginx/html
+COPY --from=builder /app/apps/web/dist /usr/share/nginx/html
 COPY <<'EOF' /etc/nginx/conf.d/default.conf
 server {
     listen 80;

@@ -5,13 +5,14 @@ WORKDIR /app
 # pnpm 9 已在 node-base 镜像中预装，此处为幂等操作
 RUN corepack enable && corepack prepare pnpm@9 --activate
 
-# 先复制 lock 文件和 package.json，利用 Docker 缓存层
-COPY package.json pnpm-lock.yaml ./
-COPY .npmrc ./
+# 复制 workspace 配置 + 前端 package.json（层缓存友好）
+COPY pnpm-workspace.yaml pnpm-lock.yaml .npmrc ./
+COPY apps/web/package.json ./apps/web/
 
-# 使用 pnpm 安装依赖
+# 使用 pnpm 安装依赖（workspace 模式）
 RUN pnpm install --frozen-lockfile || pnpm install
 
 EXPOSE 5173
 
+WORKDIR /app/apps/web
 CMD ["pnpm", "dev", "--host", "0.0.0.0"]

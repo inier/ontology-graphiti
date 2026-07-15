@@ -38,8 +38,8 @@ services:
 
   frontend:
     build:
-      context: ../frontend
-      dockerfile: Dockerfile
+      context: ..
+      dockerfile: apps/web/Dockerfile
     container_name: graphiti-frontend
     ports:
       - "8080:80"

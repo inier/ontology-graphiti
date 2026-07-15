@@ -58,25 +58,23 @@ services:
 
   frontend:
     build:
-      context: ../frontend
-      dockerfile: Dockerfile.dev
+      context: ..
+      dockerfile: apps/web/Dockerfile.dev
     image: localhost/docker_frontend:dev
     container_name: graphiti-dev-frontend
     ports:
       - "5173:5173"
     volumes:
-      - ../frontend/package.json:/app/package.json
-      - ../frontend/pnpm-lock.yaml:/app/pnpm-lock.yaml
-      - ../frontend/.npmrc:/app/.npmrc
-      - ../frontend/src:/app/src
-      - ../frontend/public:/app/public
-      - ../frontend/index.html:/app/index.html
-      - ../frontend/vite.config.ts:/app/vite.config.ts
-      - ../frontend/tsconfig.json:/app/tsconfig.json
-      - ../frontend/tsconfig.app.json:/app/tsconfig.app.json
-      - ../frontend/tsconfig.node.json:/app/tsconfig.node.json
-      - ../frontend/.env.development:/app/.env.development
-      - ../frontend/.env.production:/app/.env.production
+      - ../apps/web/package.json:/app/apps/web/package.json
+      - ../apps/web/src:/app/apps/web/src
+      - ../apps/web/public:/app/apps/web/public
+      - ../apps/web/index.html:/app/apps/web/index.html
+      - ../apps/web/vite.config.ts:/app/apps/web/vite.config.ts
+      - ../apps/web/tsconfig.json:/app/apps/web/tsconfig.json
+      - ../apps/web/tsconfig.app.json:/app/apps/web/tsconfig.app.json
+      - ../apps/web/tsconfig.node.json:/app/apps/web/tsconfig.node.json
+      - ../apps/web/.env.development:/app/apps/web/.env.development
+      - ../apps/web/.env.production:/app/apps/web/.env.production
     environment:
       - NODE_ENV=development
       - VITE_API_BASE=
