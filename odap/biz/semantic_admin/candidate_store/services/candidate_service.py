@@ -2,10 +2,13 @@
 
 2 级审批：approve/reject（HIGH/MEDIUM 加速通道→writeback；LOW→admin_pending；VERY_LOW→reject）。
 所有方法返回 Dict[str, Any]，错误格式 {"status": "error", "message": "..."}。
+
+双写策略：Candidate 写入 SQLite 的同时，尝试写入 Neo4j（容错，Neo4j 失败不影响主流程）。
 """
 
 from __future__ import annotations
 
+import logging
 from typing import Any, Dict, List, Optional, TYPE_CHECKING
 
 from ._approval_helper import (
@@ -20,6 +23,10 @@ from ._approval_helper import (
 if TYPE_CHECKING:  # pragma: no cover
     from ..storage.sqlite_candidate_storage import SQLiteCandidateStorage
     from ...usl_writeback.services.writeback_service import WritebackService
+    from odap.infra.graph.graph_service import GraphManager
+
+
+logger = logging.getLogger(__name__)
 
 
 # 新枚举 → 旧枚举的兼容映射（service 对外层暴露旧语义）

@@ -8,8 +8,20 @@ AGENTS.md §C 服务层规则：
 
 from __future__ import annotations
 
+import logging
 import time
 from typing import Any, Dict, List, Optional, TYPE_CHECKING
+
+
+try:
+    from sentence_transformers import SentenceTransformer  # type: ignore[import-untyped]
+    import hdbscan  # type: ignore[import-untyped]
+    _BGE_HDBSCAN_AVAILABLE = True
+except Exception:
+    _BGE_HDBSCAN_AVAILABLE = False
+
+
+logger = logging.getLogger(__name__)
 
 if TYPE_CHECKING:  # pragma: no cover
     from odap.biz.semantic_admin.candidate_store.storage import SQLiteCandidateStorage
@@ -98,7 +110,7 @@ class PipelineService:
         self.usl_storage = usl_storage
 
         if l1_extractor is None:
-            from ..impl import NgramTermExtractor
+            from ..impl import BgeHdbscanTermExtractor, NgramTermExtractor
             l1_extractor = NgramTermExtractor()
         self.l1 = l1_extractor
         if l2_merger is None:
@@ -130,6 +142,12 @@ class PipelineService:
             from ..impl.l6_axiom_deriver import AxiomDeriver
             l6_axiom_deriver = AxiomDeriver()
         self.l6_axioms = l6_axiom_deriver
+
+        try:
+            from odap.infra.graph.graph_service import GraphManager
+            self.graph_manager = GraphManager()
+        except Exception:
+            self.graph_manager = None
 
     def create_run(self, **kwargs) -> Dict[str, Any]:
         """创建 pipeline run。kwargs 对齐 storage.create_pipeline_run 签名。
@@ -232,12 +250,21 @@ class PipelineService:
             self.candidate_storage.update_pipeline_run_status(
                 run_id, status="running", progress=10,
             )
-            tokens = self.l1.extract(
+            l1_config = cfg.get("l1", {})
+            extractor_type = str(l1_config.get("extractor_type", "ngram"))
+            if extractor_type == "bge_hdbscan" and _BGE_HDBSCAN_AVAILABLE:
+                from ..impl import BgeHdbscanTermExtractor
+                l1_extractor = BgeHdbscanTermExtractor()
+            else:
+                if extractor_type == "bge_hdbscan":
+                    logger.warning("extractor_type=bge_hdbscan requested but hdbscan not installed; falling back to ngram")
+                l1_extractor = self.l1
+            tokens = l1_extractor.extract(
                 text=(text or ""),
                 extra_docs=(extra_docs or []),
                 workspace_id=workspace_id,
                 ontology_id=ontology_id,
-                config=cfg.get("l1"),
+                config=l1_config,
             )
             timing["l1_ms"] = int((time.perf_counter() - t1) * 1000)
             self.candidate_storage.append_audit_log(
@@ -371,6 +398,24 @@ class PipelineService:
                 c["status"] = cstatus
             # 批量写入 candidate（每个 candidate 然后生成quality_report
             inserted = self.candidate_storage.bulk_insert_candidates(merged_candidates)
+
+            if self.graph_manager:
+                for cand in inserted:
+                    try:
+                        cand_id = cand.get("id", "")
+                        props = {
+                            "canonical": cand.get("canonical", ""),
+                            "semantic_type": cand.get("semantic_type", ""),
+                            "status": cand.get("status", ""),
+                            "domain_id": cand.get("domain_id", ""),
+                            "confidence": float(cand.get("confidence") or 0),
+                            "run_id": cand.get("run_id", ""),
+                            "origin": cand.get("origin", ""),
+                            "stoplist_flag": bool(cand.get("stoplist_flag")),
+                        }
+                        self.graph_manager.add_entity(cand_id, "USL__Candidate", props)
+                    except Exception as e:
+                        logger.warning(f"Neo4j write failed for candidate {cand_id}: {e}")
             for c, cand in zip(merged_candidates, inserted):
                 scores = grade_map.get(c["canonical"], {})
                 if not scores:

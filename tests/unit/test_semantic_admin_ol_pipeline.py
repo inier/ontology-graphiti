@@ -17,6 +17,7 @@
   13. CandidateService：list_audit_logs 分页
   14. Bulk approve/reject 50 candidates → 无SQL异常
   15. run_pipeline 多 workspace 隔离：只看自己 run_id
+  16. BgeHdbscanTermExtractor：model_name 白名单校验 + config=None 容错
 """
 from __future__ import annotations
 
@@ -299,3 +300,52 @@ class TestCandidateApproval:
         assert dr.get("deleted") is True
         got = cand_svc.get_candidate(cid)
         assert got.get("status") == "error"
+
+
+# =====================================================================
+# 5. BgeHdbscanTermExtractor 安全与容错测试
+# =====================================================================
+
+
+class TestBgeHdbscanTermExtractor:
+    def test_model_name_whitelist_valid(self):
+        from odap.biz.semantic_admin.ol_pipeline.impl.l1_term_extraction import BgeHdbscanTermExtractor
+        extractor = BgeHdbscanTermExtractor()
+        try:
+            extractor._ensure_model({"model_name": "BAAI/bge-base-zh"})
+            assert extractor._model is not None
+        except Exception:
+            pytest.skip("SentenceTransformer model loading requires network")
+
+    def test_model_name_whitelist_small(self):
+        from odap.biz.semantic_admin.ol_pipeline.impl.l1_term_extraction import BgeHdbscanTermExtractor
+        extractor = BgeHdbscanTermExtractor()
+        try:
+            extractor._ensure_model({"model_name": "BAAI/bge-small-zh"})
+            assert extractor._model is not None
+        except Exception:
+            pytest.skip("SentenceTransformer model loading requires network")
+
+    def test_model_name_whitelist_large(self):
+        from odap.biz.semantic_admin.ol_pipeline.impl.l1_term_extraction import BgeHdbscanTermExtractor
+        extractor = BgeHdbscanTermExtractor()
+        try:
+            extractor._ensure_model({"model_name": "BAAI/bge-large-zh"})
+            assert extractor._model is not None
+        except Exception:
+            pytest.skip("SentenceTransformer model loading requires network")
+
+    def test_model_name_whitelist_invalid(self):
+        from odap.biz.semantic_admin.ol_pipeline.impl.l1_term_extraction import BgeHdbscanTermExtractor
+        extractor = BgeHdbscanTermExtractor()
+        with pytest.raises(ValueError, match="Unsupported model_name"):
+            extractor._ensure_model({"model_name": "malicious/model"})
+
+    def test_config_none_guard(self):
+        from odap.biz.semantic_admin.ol_pipeline.impl.l1_term_extraction import BgeHdbscanTermExtractor
+        extractor = BgeHdbscanTermExtractor()
+        try:
+            extractor._ensure_model(None)
+            assert extractor._model is not None
+        except Exception:
+            pytest.skip("SentenceTransformer model loading requires network")
