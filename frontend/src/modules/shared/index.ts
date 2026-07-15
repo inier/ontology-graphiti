@@ -2,7 +2,7 @@ export { useWorkspace, useScenario, useRightPanel, useOntologyVersion } from './
 export type { Workspace, Scenario, WorkspaceContextType, ScenarioContextType, OntologyVersionContextType, RightPanelContextType } from './components/LayoutContexts';
 export { WorkspaceContext, ScenarioContext, OntologyVersionContext, RightPanelContext } from './components/LayoutContexts';
 export { ProLayout } from './components/ProLayout';
-export { AdvancedTable } from './components/AdvancedTable';
+export { AdvancedTable, wrapRequest } from './components/AdvancedTable';
 export type { AdvancedTableProps } from './components/AdvancedTable';
 export { DocumentViewer } from './components/DocumentViewer';
 export type { DocumentViewerProps } from './components/DocumentViewer';

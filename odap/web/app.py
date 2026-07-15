@@ -311,6 +311,9 @@ app.add_middleware(
     allow_headers=["Content-Type", "Authorization", "X-Request-ID"],
 )
 
+from odap.infra.middleware.xss_middleware import XSSMiddleware
+app.add_middleware(XSSMiddleware)
+
 register_exception_handler(app)
 
 # ADR-064: OpenTelemetry FastAPI auto-instrument + 自定义追踪中间件

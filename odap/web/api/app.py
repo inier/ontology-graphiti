@@ -350,12 +350,18 @@ class MockDataWebService:
         except Exception as e:
             logger.warning(f"i18n路由注册失败: {e}")
 
-        # 注册语义层路由
+        # 注册语义管理台 - 动态配置 + USL 写回
         try:
-            from odap.biz.core.ontology.design.schema.semantic_layer.api.routes import router as semantic_layer_router
-            self.app.include_router(semantic_layer_router)
+            from odap.biz.semantic_admin.sa_config.api.routes import router as semantic_admin_sa_config_router
+            self.app.include_router(semantic_admin_sa_config_router)
         except Exception as e:
-            logger.warning(f"语义层路由注册失败: {e}")
+            logger.warning(f"sa_config路由注册失败: {e}")
+
+        try:
+            from odap.biz.semantic_admin.usl_writeback.api.routes import router as semantic_admin_writeback_router
+            self.app.include_router(semantic_admin_writeback_router)
+        except Exception as e:
+            logger.warning(f"USL写回路由注册失败: {e}")
 
         # 注册本体版本管理路由
         try:

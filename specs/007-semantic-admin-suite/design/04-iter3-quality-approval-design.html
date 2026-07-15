@@ -1,0 +1,318 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<title>Iter 3 · 三关质量闸 + 二级审批 + 审核台 UI — 详细设计</title>
+<script src="https://cdn.jsdelivr.net/npm/mermaid@10/dist/mermaid.min.js"></script>
+<style>
+  body { font-family: "Segoe UI", "PingFang SC", "Microsoft YaHei", sans-serif; margin: 28px; background: #fafbff; color: #1a1f2e; }
+  h1 { font-size: 22px; margin: 0 0 4px; }
+  h2 { font-size: 18px; margin: 24px 0 12px; border-left: 4px solid #7c3aed; padding-left: 12px; }
+  h3 { font-size: 15px; margin: 16px 0 8px; color: #374151; }
+  .subtitle { color: #6b7280; margin: 0 0 20px; }
+  .card { background: #fff; border: 1px solid #e5e7eb; border-radius: 10px; padding: 20px 24px; margin-bottom: 20px; }
+  table { border-collapse: collapse; width: 100%; font-size: 13.5px; }
+  th, td { border: 1px solid #e5e7eb; padding: 6px 10px; text-align: left; vertical-align: top; }
+  th { background: #f3f4f6; font-weight: 600; white-space: nowrap; }
+  code { background: #f3f4f6; padding: 1px 5px; border-radius: 3px; font-size: 12.5px; font-family: "JetBrains Mono", Consolas, monospace; }
+  pre { background: #0f172a; color: #e2e8f0; padding: 14px 18px; border-radius: 8px; overflow-x: auto; font-size: 12.5px; line-height: 1.55; }
+  pre code { background: transparent; padding: 0; color: inherit; font-size: inherit; }
+  .tag { display: inline-block; padding: 2px 8px; border-radius: 999px; font-size: 11.5px; font-weight: 600; }
+  .t-pass { background: #ecfdf5; color: #047857; border: 1px solid #6ee7b7; }
+  .t-fail { background: #fef2f2; color: #b91c1c; border: 1px solid #fca5a5; }
+  .t-warn { background: #fffbeb; color: #92400e; border: 1px solid #fcd34d; }
+  .t-info { background: #eff6ff; color: #1d4ed8; border: 1px solid #93c5fd; }
+  .gate-box { border-radius: 12px; padding: 14px 18px; margin-bottom: 12px; border-left: 6px solid; }
+  .gate-1 { background: #eff6ff; border-color: #3b82f6; }
+  .gate-2 { background: #ecfdf5; border-color: #10b981; }
+  .gate-3 { background: #faf5ff; border-color: #a855f7; }
+  .score-bar { display: flex; align-items: center; gap: 10px; }
+  .score-bar > .track { flex: 1; height: 10px; background: #e5e7eb; border-radius: 5px; overflow: hidden; }
+  .score-bar > .track > span { display: block; height: 100%; border-radius: 5px; }
+  .sm-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 14px; }
+  .kv { display: grid; grid-template-columns: 200px 1fr; gap: 4px 14px; font-size: 13px; }
+  .kv b { color: #374151; }
+  .timeline { border-left: 2px solid #d1d5db; margin-left: 8px; padding-left: 20px; }
+  .tl-item { position: relative; margin-bottom: 14px; }
+  .tl-item::before { content: ''; width: 12px; height: 12px; border-radius: 50%; background: #6366f1; border: 2px solid #fff; position: absolute; left: -27px; top: 4px; box-shadow: 0 0 0 2px #6366f1; }
+</style>
+</head>
+<body>
+<p style="color:#6b7280;margin:0 0 12px">← <a href="../spec.md">返回 Feature Spec</a> · ← <a href="01-architecture-planB.html">返回架构总览</a></p>
+<h1>🛡️ Iteration 3 · 三关质量闸 + 二级审批 + 审核台 UI — 详细设计</h1>
+<p class="subtitle">Scope: quality_gate 3 关 × 8 指标 + approval_workflow 2 级状态机 + OPA 策略 + 前端 candidates 审核台<br/>
+验收标准: 输入 Iter 2 产生的候选 → 三关报告可生成(100ms 内) → 状态机可推进 → auditor+admin 操作权限互斥(OPA 断言) → 审核台 500+ 候选流加载性能 ≤ 800ms</p>
+
+<div class="card">
+  <h2>① 三关质量闸 Mermaid + 公式</h2>
+  <pre class="mermaid">
+flowchart LR
+  Batch["🧺 L2_DONE 候选批次<br/>(62 candidates × 1 run)"] --> G1["<b>Gate 1 · 句法/结构闸</b><br/>✅ 可并行，O(N) 毫秒级"]
+  G1 -->|每关独立打分不串联<br/>失败=扣分不阻断| G2["<b>Gate 2 · 语义一致性闸</b><br/>🟡 OPA+LLM+图推理 O(N·E)"]
+  G2 --> G3["<b>Gate 3 · 领域质量闸</b><br/>🔮 5 密度/新颖度指标"]
+  G1 --> ScoreCard["📄 统一质量卡<br/>(每个 candidate 一份)<br/>总得分 = Σwᵢ × sᵢ 线性加权"]
+  G2 --> ScoreCard
+  G3 --> ScoreCard
+  ScoreCard --> Reviewer["🧑‍💼 schema_auditor 初审<br/>(ws 工作空间级)"]
+  Reviewer --> AuditorResult["AUDITOR_APPROVED / AUDITOR_REJECTED / AUDITOR_MODIFIED"]
+  AuditorResult -->|"AUDITOR_APPROVED +<br/>总得分 < 0.7"| Admin["👨‍💼 admin 终局审批<br/>(全局级)"]
+  AuditorResult -->|"AUDITOR_APPROVED +<br/>总得分 ≥ 0.7"| FinalDirect["✅ 直接生效（跳过 admin 加速）"]
+  AuditorResult -->|"AUDITOR_REJECTED"| Reject["❌ 写入 USL stoplist + 写回 USL HITL"]
+  AuditorResult -->|"AUDITOR_MODIFIED"| BackL2["↩️ 回退到 L2_DONE 重新评分"]
+  Admin -->|ADMIN_APPROVED| Final["✅ 终局 APPROVED → 触发 Hook Ontology.create"]
+  Admin -->|ADMIN_REJECTED| Reject
+  </pre>
+</div>
+
+<div class="card">
+  <h2>② Gate 1 · 句法/结构闸（7 项子检查，权重 35%）</h2>
+  <div class="gate-box gate-1">
+    <b>目标</b>：纯 Pydantic/正则/字符串检查，无外部依赖，不做推理<br/>
+    <b>权重</b>：w₁ = 0.35（3 关中最高——基础格式错直接否决 35% 分）
+  </div>
+  <table>
+    <tr><th>子指标</th><th>算法</th><th>阈值</th><th>失败动作</th></tr>
+    <tr><td>G1.1 名称合规</td><td>正则 <code>/^[\u4e00-\u9fa5A-Za-z][\u4e00-\u9fa5A-Za-z0-9_·-]{0,39}$/</code>（中文+英文+数字+下划线+中划线+点，长度 1~40）</td><td>布尔</td><td><span class="tag t-fail">FAIL</span> 得分 -0.35</td></tr>
+    <tr><td>G1.2 en_mapping 可用</td><td>字段 en 非空且符合 PascalCase <code>/^[A-Z][a-zA-Z0-9]*$/</code></td><td>布尔</td><td><span class="tag t-warn">WARN</span> 得分 -0.08，候选自动查 USL 域 en_mapping 尝试回退补全</td></tr>
+    <tr><td>G1.3 semantic_type ∈ 合法枚举</td><td>{对象类型, 关系类型, 属性, 动作类型, 过程类型, 规则类型}</td><td>31}</td><td>布尔</td><td><span class="tag t-fail">FAIL</span> 得分 -0.15，改回默认 "对象类型"</td></tr>
+    <tr><td>G1.4 同义词集大小在 [0, 30] 内</td><td><code>0 ≤ len(synonyms) ≤ 30</code></td><td>布尔</td><td><span class="tag t-warn">WARN</span> 截断到前 30 个</td></tr>
+    <tr><td>G1.5 同义词去重率</td><td><code>len(set(synonyms)) / max(1,len(synonyms))</code></td><td>≥ 0.98</td><td><span class="tag t-warn">WARN</span> 自动去重</td></tr>
+    <tr><td>G1.6 canonical 与同义词无互相包含环</td><td>canonical 不在 synonyms 中；同义词不包含 canonical</td><td>布尔</td><td><span class="tag t-warn">WARN</span> 自动剔除</td></tr>
+    <tr><td>G1.7 与 USL 同名冲突检查（去重）</td><td>对同一 domain_id，canonical 已存在于 usl_terms → 标 origin=usl 并去重合并</td><td>布尔</td><td><span class="tag t-info">INFO</span> 合并为 origin=usl，不失败</td></tr>
+  </table>
+</div>
+
+<div class="card">
+  <h2>③ Gate 2 · 语义一致性闸（4 项子检查，权重 40%）</h2>
+  <div class="gate-box gate-2">
+    <b>目标</b>：避免"刘备既是势力又是人物"这种明显自相矛盾<br/>
+    <b>权重</b>：w₂ = 0.40（最高）&nbsp;&nbsp;<b>失败成本</b>：高（语义错 = Schema 错）
+  </div>
+  <table>
+    <tr><th>子指标</th><th>算法</th><th>阈值</th><th>失败动作</th></tr>
+    <tr><td>G2.1 USL Disjointness 不相交检查</td><td>查 usl_disjoint_pairs：若 C₁=人物 与 C₂=势力 ∈ disjoint → 候选不能同时 is_a(C₁) 且 is_a(C₂)</td><td>布尔</td><td><span class="tag t-fail">FAIL</span> 得分 -0.40，写回候选 warning_message</td></tr>
+    <tr><td>G2.2 基数约束检查</td><td>关系类型候选查 usl_cardinality：min ≤ 实际出现 ≤ max</td><td>min=0 max=NULL</td><td><span class="tag t-warn">WARN</span> 得分 -0.06 每超 10%</td></tr>
+    <tr><td>G2.3 is_a 无环检查（L3 草稿层级）</td><td>对 USL__IS_A_DRAFT 关系做拓扑排序：若 DAG 有环 → 失败</td><td>布尔</td><td><span class="tag t-fail">FAIL</span> 得分 -0.20，列出环边</td></tr>
+    <tr><td>G2.4 LLM 语义一致性 Judge（可选，可关闭）</td><td>10 tokens 以内的 LLM prompt："候选 {c} 与 USL 中 {x1,x2,...} 是否矛盾？只输出 yes/no + 1 行理由"</td><td>yes/no</td><td><span class="tag t-warn">WARN</span> 得分 -0.05 每一次 no（关闭时跳过）</td></tr>
+  </table>
+  <div class="tag t-info" style="margin-top:8px">💡 G2.4 可选开关：全局配置项 <code>global_config.quality_gate.enable_llm_judge = True/False</code>（默认 False，避免 LLM 超时）</div>
+</div>
+
+<div class="card">
+  <h2>④ Gate 3 · 领域质量闸（5 项子指标，权重 25%）</h2>
+  <div class="gate-box gate-3">
+    <b>目标</b>：衡量"这个候选是否有价值"，不是对错而是密度<br/>
+    <b>权重</b>：w₃ = 0.25
+  </div>
+  <table>
+    <tr><th>子指标</th><th>公式（连续分 0~1）</th><th>权重子比</th><th>低分动作</th></tr>
+    <tr><td>G3.1 属性密度</td><td>s = min(1, 关系类型出现次数 / 5)&nbsp;&nbsp;（属性越多越有价值，≥ 5 满分）</td><td>0.30</td><td rowspan="5">综合分 &lt; 0.3 → <span class="tag t-warn">LOW_QUALITY</span><br/>不阻断审批，但审核台打灰色高亮</td></tr>
+    <tr><td>G3.2 词频覆盖率</td><td>s = min(1, doc_hits / 10)&nbsp;&nbsp;（在 10 个以上文档片段出现=满分）</td><td>0.20</td></tr>
+    <tr><td>G3.3 同义词丰富度</td><td>s = min(1, (同义词数+近义词数+别名数)/5)</td><td>0.15</td></tr>
+    <tr><td>G3.4 USL 对齐率（反向：新颖度）</td><td>s = 1 − usl_align_confidence（和 USL 越不像，价值越大=补空白）</td><td>0.15</td></tr>
+    <tr><td>G3.5 层级贡献度</td><td>s = min(1, number_of_L3_children_estimation / 3)&nbsp;&nbsp;（作为父节点能挂多少子节点估计）</td><td>0.20</td></tr>
+  </table>
+  <h3>总得分公式</h3>
+  <pre><code>total_score = 0.35 × gate1 + 0.40 × gate2 + 0.25 × gate3
+
+阈值分层：
+  total_score ≥ 0.85 → HIGH        审核台绿色（直接 AUTO_APPROVE? 默认关闭）
+  0.70 ≤ total < 0.85 → MEDIUM     审核台白色（正常审核）
+  0.50 ≤ total < 0.70 → LOW        审核台黄色（需 auditor 格外注意）
+  total_score < 0.50 → VERY_LOW    审核台灰色（建议拒绝）</code></pre>
+</div>
+
+<div class="card">
+  <h2>⑤ 审批状态机（10 状态 + 2 级）+ SQLite DDL</h2>
+  <div class="sm-grid">
+    <div>
+      <h3>状态机：候选生命周期</h3>
+      <pre class="mermaid">
+stateDiagram-v2
+  [*] --> DRAFT
+  DRAFT --> L1_DONE: L1 完成
+  L1_DONE --> L2_DONE: L2 完成
+  L2_DONE --> PENDING_REVIEW: quality_gate 通过
+  PENDING_REVIEW --> AUDITOR_APPROVED: schema_auditor ✅
+  PENDING_REVIEW --> AUDITOR_REJECTED: schema_auditor ❌
+  PENDING_REVIEW --> AUDITOR_MODIFIED: schema_auditor ✏️
+  AUDITOR_MODIFIED --> L2_DONE: 重新评分
+  AUDITOR_APPROVED --> ADMIN_PENDING: 总得分 < 0.7
+  AUDITOR_APPROVED --> APPROVED: 总得分 ≥ 0.7 ⚡
+  ADMIN_PENDING --> APPROVED: admin ✅
+  ADMIN_PENDING --> REJECTED: admin ❌
+  AUDITOR_REJECTED --> REJECTED: (自动升级)
+  APPROVED --> WRITTEN_BACK: 写回 USL + Ontology.create Hook
+  REJECTED --> STOPLISTED: 写回 USL stoplist
+  WRITTEN_BACK --> [*]
+  STOPLISTED --> [*]</pre>
+    </div>
+    <div>
+      <h3>DDL：审批记录表</h3>
+<pre><code>CREATE TABLE IF NOT EXISTS usl_approval_records (
+  id              TEXT PRIMARY KEY,
+  candidate_id    TEXT NOT NULL REFERENCES usl_schema_candidates(id) ON DELETE CASCADE,
+  approver_id     TEXT NOT NULL,            -- user.id
+  approver_role   TEXT NOT NULL,            -- schema_auditor | admin
+  workspace_id    TEXT NOT NULL,
+  action          TEXT NOT NULL,            -- APPROVE | REJECT | MODIFY | COMMENT
+  before_status   TEXT NOT NULL,
+  after_status    TEXT NOT NULL,
+  review_score    REAL,                     -- 审核者人工打分 0~1
+  comment         TEXT,                     -- 审核理由（必填当 MODIFY/REJECT）
+  changes_json    TEXT NOT NULL DEFAULT '{}',-- MODIFY 时的字段变更 diff
+  created_at      TEXT NOT NULL
+);
+CREATE INDEX idx_appr_cand ON usl_approval_records(candidate_id);
+CREATE INDEX idx_appr_user ON usl_approval_records(approver_id);
+
+-- 质量卡快照（每关独立存档，可审计回查）
+CREATE TABLE IF NOT EXISTS usl_quality_reports (
+  id              TEXT PRIMARY KEY,
+  candidate_id    TEXT NOT NULL REFERENCES usl_schema_candidates(id) ON DELETE CASCADE,
+  gate1_score     REAL NOT NULL,
+  gate1_details   TEXT NOT NULL,  -- JSON 7 子项
+  gate2_score     REAL NOT NULL,
+  gate2_details   TEXT NOT NULL,  -- JSON 4 子项
+  gate3_score     REAL NOT NULL,
+  gate3_details   TEXT NOT NULL,  -- JSON 5 子项
+  total_score     REAL NOT NULL,  -- 0~1
+  tier            TEXT NOT NULL,  -- HIGH/MEDIUM/LOW/VERY_LOW
+  created_at      TEXT NOT NULL
+);</code></pre>
+    </div>
+  </div>
+</div>
+
+<div class="card">
+  <h2>⑥ OPA 策略 & Depends 权限钩子（2 级审批权限模型）</h2>
+  <h3>6a. Rego 新策略文件：policies/semantic_admin.rego</h3>
+<pre><code># schema_auditor = 工作空间级的"本体审核员"
+# admin           = 全局级的"平台管理员"
+package semantic_admin
+
+default allow = false
+
+# --- 规则 1: schema_auditor 对本工作空间内候选有"初审权限"（PENDING_REVIEW → AUDITOR_*） ---
+allow {
+    input.action == "audit_candidate"
+    input.ws_role == "schema_auditor"        # JWT ws_role 字段
+    input.candidate.workspace_id == input.ws_id
+    input.candidate.status == "PENDING_REVIEW"
+}
+
+# --- 规则 2: admin 有"终局审批权限"（ADMIN_PENDING → APPROVED / REJECTED） ---
+allow {
+    input.action == "final_approve"
+    input.role == "admin"                    # JWT 全局 role
+    input.candidate.status == "ADMIN_PENDING"
+}
+
+# --- 规则 3: auto-skip（总得分 ≥ 0.7）只允许由系统 service_account 触发 ---
+allow {
+    input.action == "auto_approve_skip_admin"
+    input.subject == "service:semantic-admin-workflow"
+    input.quality_report.total_score >= 0.7
+}
+
+# --- 规则 4: 任何人都可以读质量报告 ---
+allow {
+    input.action == "read_quality_report"
+}
+
+# --- 规则 5: 修改/拒绝时必填 comment ---
+deny[message] {
+    input.action == "audit_candidate"
+    input.audit_action == "MODIFY"
+    not input.comment
+    message := "MODIFY 必须填写 comment"
+}
+deny[message] {
+    input.action == "audit_candidate"
+    input.audit_action == "REJECT"
+    not input.comment
+    message := "REJECT 必须填写拒绝理由"
+}</code></pre>
+  <h3>6b. FastAPI Depends 新钩子（routes 层用）</h3>
+<pre><code># biz/semantic_admin/approval_workflow/impl/permissions.py
+def verify_schema_auditor(candidate_id: str = Path(...),
+                          user = Depends(get_current_user)) -> Candidate:
+    cand = candidate_store.get(candidate_id)
+    result = opa_client.evaluate("data.semantic_admin.allow", input={
+        "action": "audit_candidate", "ws_role": user.ws_role,
+        "candidate": cand.model_dump(), "ws_id": user.ws_id,
+        "role": user.role, "audit_action": request.audit_action,
+        "comment": request.comment
+    })
+    if not result.allow: raise HTTPException(403, f"无权审核: {result.deny}")
+    return cand
+
+def verify_final_approve(candidate_id: str = Path(...),
+                         user = Depends(get_current_user)) -> Candidate:
+    # 同上，action=final_approve，role=="admin"</code></pre>
+</div>
+
+<div class="card">
+  <h2>⑦ 前端 /semantic-admin/candidates 审核台 UI 结构</h2>
+  <div class="sm-grid">
+    <div>
+      <h3>7.1 顶部 Filter 区</h3>
+      <ul>
+        <li>🔍 搜索框：按 canonical / en / synonyms 模糊搜索</li>
+        <li>Select：工作空间 / domain_id / semantic_type / origin / status</li>
+        <li>双滑块 Slider：总得分（0~1），cluster_conf，usl_align_conf</li>
+        <li>3 个 Radio：<b>仅我待审（PENDING_REVIEW + ws_id=我）</b> / 仅我待终局（ADMIN_PENDING）/ 全部</li>
+        <li>Reset 按钮 + 提交查询按钮</li>
+      </ul>
+      <h3>7.2 候选卡片流（Masonry 3 列）</h3>
+      <div class="gate-box gate-3" style="padding:14px 18px">
+        <p style="margin:0 0 6px"><b>🔵 武将 · General · 对象类型</b> <span class="tag t-warn">MEDIUM</span></p>
+        <div class="score-bar" style="margin-bottom:8px">
+          <b>0.78</b><div class="track"><span style="width:78%;background:linear-gradient(90deg,#f59e0b,#10b981)"></span></div>
+        </div>
+        <p style="margin:2px 0"><b>Gate 1</b> 0.98 · <b>Gate 2</b> 0.64 · <b>Gate 3</b> 0.74</p>
+        <p style="margin:2px 0">同义词: 大将、将领、将军、良将、猛将</p>
+        <p style="margin:2px 0">origin: llm &nbsp;|&nbsp; doc_hits: 12 &nbsp;|&nbsp; run_id: r-uuid</p>
+        <div style="margin-top:10px;display:flex;gap:8px">
+          <button style="background:#10b981;color:#fff;padding:5px 12px;border:none;border-radius:6px">✅ 通过</button>
+          <button style="background:#3b82f6;color:#fff;padding:5px 12px;border:none;border-radius:6px">✏️ 修改后过</button>
+          <button style="background:#ef4444;color:#fff;padding:5px 12px;border:none;border-radius:6px">❌ 拒绝</button>
+          <button style="background:#6366f1;color:#fff;padding:5px 12px;border:none;border-radius:6px">📄 质量详情</button>
+        </div>
+      </div>
+    </div>
+    <div>
+      <h3>7.3 右侧详情抽屉 Drawer</h3>
+      <div class="timeline">
+        <div class="tl-item"><b>2026-07-11 15:23 L2_DONE → PENDING_REVIEW</b><br/><span style="color:#6b7280">system：三关评分完成，总得分 0.78 = MEDIUM</span></div>
+        <div class="tl-item"><b>2026-07-11 15:42 AUDITOR_MODIFIED</b><br/><span style="color:#6b7280">schema_auditor (alex)：同义词增加「五虎将」，semantic_type 不变，回 L2 重新评分</span></div>
+        <div class="tl-item"><b>2026-07-11 15:43 L2_DONE → PENDING_REVIEW</b><br/><span style="color:#6b7280">system：重评完成总得分 0.82 = HIGH</span></div>
+        <div class="tl-item"><b>2026-07-11 15:45 AUDITOR_APPROVED</b><br/><span style="color:#6b7280">schema_auditor (alex)：comment「通过，分类正确」，因 ≥ 0.7 跳过 admin → 自动 WRITTEN_BACK</span></div>
+      </div>
+      <h3>7.4 三关雷达图</h3>
+      <p class="subtitle" style="margin:0">ECharts 5 雷达图：7 轴（G1.1~G1.7 合 1 轴 = G1，G2.1~G2.4 合 1 轴 = G2，G3.1~G3.5 分 5 轴 = G3 属性/覆盖/同义词/新颖/层级）</p>
+    </div>
+  </div>
+</div>
+
+<div class="card">
+  <h2>⑧ Iter 3 任务矩阵（≈ 55 小步）</h2>
+  <table>
+    <tr><th>#</th><th>任务分组</th><th>产物</th><th>单元测试要求</th></tr>
+    <tr><td>1</td><td>📦 quality_gate 子服务 7 层</td><td>QualityReportService + Gate{1,2,3}Impl，每关独立可单测</td><td>三国样例 62 候选 → Gate1 100% 通过；Gate2 Disjoint 构造 4 对不相交对 → 检测命中</td></tr>
+    <tr><td>2</td><td>🧮 线性加权 & Tier 分层</td><td>weight config（可热更新 Pydantic BaseSettings）</td><td>权重改 w1=0 w2=0 w3=0 → total=0；HIGH 阈值下 <0.7 触发 admin 必须终局</td></tr>
+    <tr><td>3</td><td>📦 approval_workflow 子服务 7 层</td><td>状态机 StateMachineService；action=APPROVE/MODIFY/REJECT 推进</td><td>10 状态 × 合法动作组合 = 20 条路径测试 + 非法动作抛 ValueError</td></tr>
+    <tr><td>4</td><td>🗃️ 2 张新表 DDL</td><td>usl_approval_records + usl_quality_reports + 索引</td><td>tmp_path 真实 DB：10 万条审核记录不阻塞分页</td></tr>
+    <tr><td>5</td><td>🔐 OPA 策略 + Depends</td><td>semantic_admin.rego 16 条规则 + verify_schema_auditor / verify_final_approve Depends</td><td>OPA 单测：schema_auditor 不能 final_approve；普通 viewer 不能 audit；MODIFY 缺 comment 被 deny</td></tr>
+    <tr><td>6</td><td>🧑‍💼 角色模块激活 schema_auditor</td><td>RoleManager 页面 + roles_enum.py 补 schema_auditor 枚举</td><td>JWT ws_role=schema_auditor → 审核台 3 按钮可见</td></tr>
+    <tr><td>7</td><td>🛣️ 新 API Routes</td><td>POST quality-gate/evaluate | POST candidates/{id}/audit | POST candidates/{id}/final-approve | GET candidates/{id}/quality-report | GET candidates/{id}/approval-history</td><td>HTTP 403 权限测试（5 条）；状态码 200 测试（15 条）</td></tr>
+    <tr><td>8</td><td>🎨 前端审核台 Drawer + Filter + 卡片</td><td>zustand candidatesStore + AntD 6 Table（或 List 卡片流）+ Drawer + Timeline + ECharts 雷达</td><td>500 条候选虚拟滚动，首屏 ≤ 800ms；3 按钮 onClick → ws_role=schema_auditor 仅本人 workspace 的 PENDING_REVIEW 可点</td></tr>
+    <tr><td>9</td><td>🧪 集成测试</td><td>tests/integration/test_quality_gate_e2e.py（Neo4j 需要）</td><td>端到端：三国 3 文档 → L2 候选 60+ → 三关评分 → 状态 PENDING_REVIEW → schema_auditor 批 → 自动 WRITTEN_BACK（≥ 0.7 时跳过 admin）</td></tr>
+  </table>
+</div>
+
+<script>
+  mermaid.initialize({ startOnLoad: true, theme: 'default', flowchart: { curve: 'basis' } });
+</script>
+</body>
+</html>

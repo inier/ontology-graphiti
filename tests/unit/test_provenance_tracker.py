@@ -5,7 +5,7 @@ import pytest
 
 @pytest.fixture
 def tracker(tmp_path):
-    from odap.biz.core.ontology.extraction.impl.provenance_tracker import ProvenanceTracker
+    from odap.biz.data.hyper_extract.impl.provenance_tracker import ProvenanceTracker
 
     db_path = str(tmp_path / "test_provenance.db")
     return ProvenanceTracker(db_path=db_path)
@@ -13,7 +13,7 @@ def tracker(tmp_path):
 
 class TestProvenanceTracker:
     def test_init_creates_db_and_table(self, tmp_path):
-        from odap.biz.core.ontology.extraction.impl.provenance_tracker import ProvenanceTracker
+        from odap.biz.data.hyper_extract.impl.provenance_tracker import ProvenanceTracker
 
         db_path = str(tmp_path / "new_db.db")
         tracker = ProvenanceTracker(db_path=db_path)
@@ -82,7 +82,7 @@ class TestProvenanceTracker:
         conn.commit()
         conn.close()
 
-        from odap.biz.core.ontology.extraction.impl.provenance_tracker import ProvenanceTracker
+        from odap.biz.data.hyper_extract.impl.provenance_tracker import ProvenanceTracker
 
         tracker_local = ProvenanceTracker(db_path=db_path)
         tracker_local.record_extraction(
@@ -162,7 +162,7 @@ class TestProvenanceTracker:
         assert results == []
 
     def test_indexes_created(self, tmp_path):
-        from odap.biz.core.ontology.extraction.impl.provenance_tracker import ProvenanceTracker
+        from odap.biz.data.hyper_extract.impl.provenance_tracker import ProvenanceTracker
 
         db_path = str(tmp_path / "idx_test.db")
         ProvenanceTracker(db_path=db_path)

@@ -227,14 +227,14 @@ class TestDisambiguator:
 
     def test_default_domain_terms(self):
         """B0-5a: 默认军事领域术语仍可用"""
-        from odap.biz.core.ontology.design.schema.semantic_layer.disambiguator import Disambiguator
+        from odap.biz.data.qa.nl_pipeline.disambiguator import Disambiguator
         d = Disambiguator()
         result = d.disambiguate("传感器")
         assert result["canonical"] == "传感器"
 
     def test_add_sanguo_domain_terms(self):
         """B0-5b: 可注册三国领域术语"""
-        from odap.biz.core.ontology.design.schema.semantic_layer.disambiguator import Disambiguator
+        from odap.biz.data.qa.nl_pipeline.disambiguator import Disambiguator
         d = Disambiguator()
         d.reset()
         d.add_synonym("人物", "将军")
@@ -244,7 +244,7 @@ class TestDisambiguator:
 
     def test_add_xiyou_domain_terms(self):
         """B0-5c: 可注册西游领域术语"""
-        from odap.biz.core.ontology.design.schema.semantic_layer.disambiguator import Disambiguator
+        from odap.biz.data.qa.nl_pipeline.disambiguator import Disambiguator
         d = Disambiguator()
         d.reset()
         d.add_synonym("法宝", "兵器")
@@ -254,7 +254,7 @@ class TestDisambiguator:
 
     def test_chinese_english_mapping(self):
         """B0-5d: 支持中英文映射查询"""
-        from odap.biz.core.ontology.design.schema.semantic_layer.disambiguator import Disambiguator
+        from odap.biz.data.qa.nl_pipeline.disambiguator import Disambiguator
         d = Disambiguator()
         d.reset()
         d.add_synonym("人物", "Character")
@@ -267,7 +267,7 @@ class TestDisambiguator:
 
     def test_expansion_rules(self):
         """B0-5e: 支持扩展规则"""
-        from odap.biz.core.ontology.design.schema.semantic_layer.disambiguator import Disambiguator
+        from odap.biz.data.qa.nl_pipeline.disambiguator import Disambiguator
         d = Disambiguator()
         d.reset()
         d.add_expansion_rule("人物", "三国人物")

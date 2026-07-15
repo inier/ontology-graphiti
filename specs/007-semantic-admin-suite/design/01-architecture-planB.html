@@ -1,0 +1,154 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<title>007-semantic-admin Spec — Architecture & Iterations</title>
+<script src="https://cdn.jsdelivr.net/npm/mermaid@10/dist/mermaid.min.js"></script>
+<style>
+  body { font-family: "Segoe UI", "PingFang SC", "Microsoft YaHei", sans-serif; margin: 32px; background: #fafbff; color: #1a1f2e; }
+  h1 { font-size: 22px; margin: 0 0 4px; }
+  h2 { font-size: 18px; margin: 24px 0 12px; border-left: 4px solid #4f46e5; padding-left: 12px; }
+  .subtitle { color: #6b7280; margin: 0 0 20px; }
+  .card { background: #fff; border: 1px solid #e5e7eb; border-radius: 10px; padding: 20px 24px; margin-bottom: 24px; box-shadow: 0 1px 2px rgba(0,0,0,.03); }
+  .legend { display: flex; flex-wrap: wrap; gap: 16px; margin-top: 8px; font-size: 13px; color: #4b5563; }
+  .legend span { display: inline-flex; align-items: center; gap: 6px; }
+  .chip { display: inline-block; padding: 2px 10px; border-radius: 999px; font-size: 12px; font-weight: 600; }
+  .new { background: #ecfdf5; color: #047857; border: 1px solid #6ee7b7; }
+  .mig { background: #eff6ff; color: #1d4ed8; border: 1px solid #93c5fd; }
+  .del { background: #fef2f2; color: #b91c1c; border: 1px solid #fca5a5; }
+  .keep { background: #fffbeb; color: #92400e; border: 1px solid #fcd34d; }
+  table { border-collapse: collapse; width: 100%; font-size: 14px; }
+  th, td { border: 1px solid #e5e7eb; padding: 8px 12px; text-align: left; }
+  th { background: #f3f4f6; }
+  .iter-header { display: flex; align-items: baseline; justify-content: space-between; }
+  .iter-tag { font-weight: bold; color: #4f46e5; }
+  .scope { color: #6b7280; font-size: 13px; margin: 4px 0 12px; }
+</style>
+</head>
+<body>
+<p style="color:#6b7280;margin:0 0 12px">← <a href="../spec.md">返回 Feature Spec</a> · ← <a href="../plan.md">返回 Implementation Plan</a></p>
+<h1>📋 Feature 007 — Semantic Admin & Ontology Learning Suite</h1>
+<p class="subtitle">推荐方案 B：独立顶级业务域 + 6 子服务松耦合 &nbsp;|&nbsp; 4 个迭代拆解 &nbsp;|&nbsp; 编号：specs/007-semantic-admin-suite</p>
+
+<div class="card">
+  <div class="legend">
+    <span><i class="chip new">● 新建</i> 本 Spec 新增的服务/页面</span>
+    <span><i class="chip mig">● 迁移</i> 从 semantic_layer 移出</span>
+    <span><i class="chip del">● 删除</i> 废弃清理</span>
+    <span><i class="chip keep">● 保留</i> 原状不动</span>
+  </div>
+</div>
+
+<div class="card">
+  <h2>① 整体架构 Mermaid（6 子服务松耦合）</h2>
+  <pre class="mermaid">
+flowchart TB
+  subgraph UI["🖥️ 前端 modules/semantic-admin (独立顶级路由 /semantic-admin)"]
+    U1[📚 /semantic-admin/usl<br/>USL 规范术语配置页]
+    U2[🧪 /semantic-admin/pipeline<br/>OL 6 层流水线监控]
+    U3[✅ /semantic-admin/candidates<br/>Schema Candidate 审核台]
+    U4[📊 /semantic-admin/quality<br/>质量闸指标面板]
+  end
+
+  subgraph Backend["🔧 后端 biz/semantic_admin (顶级新域，6 子服务，7 层目录规范)"]
+    S1["🧠 usl_manager<br/>规范术语·同义词·层级<br/>(SQLite CRUD + API)"]
+    S2["⚙️ ol_pipeline<br/>L1-L6 流水线编排<br/>(每步可插拔)"]
+    S3["🗃️ candidate_store<br/>候选持久化<br/>(SQLite 元数据 + Neo4j 分类图双写)"]
+    S4["🔐 approval_workflow<br/>2 级审批<br/>(schema_auditor + admin) OPA"]
+    S5["🛡️ quality_gate<br/>3 关质量闸<br/>(句法·语义·密度)"]
+    S6["♻️ usl_writeback<br/>HITL 飞轮<br/>(已批准→写回 USL)"]
+  end
+
+  subgraph Mig["➡️ 清理迁移动作（depth = 深度清理）"]
+    M1["🔀 intent_parser<br/>& query_planner<br/>& disambiguator<br/>→ biz/data/qa/nl_pipeline/"]
+    M2["♻️ /api/semantic 中的<br/>意图解析·任务规划·消歧<br/>路由 → 删除"]
+  end
+
+  subgraph Keep["💎 保留且复用（不合并）"]
+    K1["🗺️ biz/data/semantic_map<br/>本体实例图谱可视化"]
+    K2["🧬 biz/core/ontology/*<br/>本体 TBox CRUD + 版本"]
+    K3["🤖 biz/data/hyper_extract<br/>HE 抽取 (concept_graph)"]
+  end
+
+  UI --REST API /api/semantic-admin/*--> Backend
+  S2 --"mode=schema_learning"--> K3
+  S4 --HookEvent: candidate.approved--> K2
+  S1 --"对齐参考"--> S2
+  S3 --双写--> Neo4j[(Neo4j _schema_graph 命名空间)]
+  S3 --双写--> SQLite[(SQLite usl_candidate.db)]
+  S6 --写回--> S1
+  S4 --调用--> S5
+  Mig --删除死路由--> Backend
+  </pre>
+</div>
+
+<div class="card">
+  <h2>② 4 个迭代拆解（Scope 边界 × 交付物 × 验收）</h2>
+
+  <div class="iter-header"><p><span class="iter-tag">Iteration 1 · USL 服务化深度清理</span> — Week 1</p><p>🟢 基线</p></div>
+  <p class="scope">核心目标：消灭 semantic_config.py 静态硬编码；把 QA 问答逻辑迁到正确域；为后续 3 个迭代打地基</p>
+  <table>
+    <tr><th>类型</th><th>交付物</th></tr>
+    <tr><td><span class="chip mig">迁移</span></td><td>intent_parser / query_planner / disambiguator 三个文件 + 单测 → biz/data/qa/nl_pipeline/</td></tr>
+    <tr><td><span class="chip del">删除</span></td><td>/api/semantic 中 parse_intent / plan_tasks / disambiguate 三个路由（更新 router_registry）</td></tr>
+    <tr><td><span class="chip new">新建</span></td><td>biz/semantic_admin/usl_manager + SQLite 存储 + 完整 CRUD API</td></tr>
+    <tr><td><span class="chip new">新建</span></td><td>前端 /semantic-admin/usl 配置页（语义规范术语表格、同义词簇编辑、en_mapping 编辑）</td></tr>
+    <tr><td>🔁 数据</td><td>三国/西游现有 SANGUO_SEMANTIC / XYOU_SEMANTIC dict 数据 → USL DB 初始化 migration 脚本</td></tr>
+  </table>
+
+  <div class="iter-header"><p><span class="iter-tag">Iteration 2 · L1-L2 概念抽取 + Candidate 存储</span> — Week 2-3</p><p>🟡 核心</p></div>
+  <p class="scope">核心目标：Hyper-Extract concept_graph 正式接入 OL，产生真 Schema Candidate，不再人工写 scripts/build_*_ontology.py OBJECT_TYPES</p>
+  <table>
+    <tr><th>类型</th><th>交付物</th></tr>
+    <tr><td><span class="chip new">新建</span></td><td>biz/semantic_admin/ol_pipeline/ 编排框架 + L1 术语 + L2 概念聚合计（BGE 余弦 + USL 对齐）</td></tr>
+    <tr><td><span class="chip new">新建</span></td><td>biz/semantic_admin/candidate_store/ + SQLite(元数据)·Neo4j(_schema_graph) 双写 DDL</td></tr>
+    <tr><td><span class="chip new">新建</span></td><td>前端 /semantic-admin/pipeline：文档上传 → 触发 OL → 6 层进度条 → 每一层候选数统计</td></tr>
+    <tr><td>🔁 API</td><td>ExtractService 新增 mode="schema_learning"（默认 concept_graph，返回带置信度连续分）</td></tr>
+  </table>
+
+  <div class="iter-header"><p><span class="iter-tag">Iteration 3 · 质量闸 + 2 级审批 + 细粒度角色</span> — Week 4-5</p><p>⭐ 价值交付</p></div>
+  <p class="scope">核心目标：候选不能直接进 Ontology，必须 3 关 + 2 审，质量保证的核心闸</p>
+  <table>
+    <tr><th>类型</th><th>交付物</th></tr>
+    <tr><td><span class="chip new">新建</span></td><td>biz/semantic_admin/quality_gate/ 3 关：句法(Pydantic)·语义(DL 可满足性)·领域密度(5 指标)</td></tr>
+    <tr><td><span class="chip new">新建</span></td><td>biz/semantic_admin/approval_workflow/ schema_auditor + admin 2 级 Depends；OPA Rego 策略</td></tr>
+    <tr><td><span class="chip new">新建</span></td><td>前端 /semantic-admin/candidates 审核台：提案卡模式·置信度分层·通过/修改/拒绝三按钮·审批流记录</td></tr>
+    <tr><td>🔁 权限</td><td>roles 模块新增 schema_auditor 细粒度角色 + RoleManager 页 + JWT ws_role 校验</td></tr>
+  </table>
+
+  <div class="iter-header"><p><span class="iter-tag">Iteration 4 · HITL 飞轮 + L3-L6 全量 + 清理</span> — Week 6</p><p>🔷 闭环</p></div>
+  <p class="scope">核心目标：自动闭环 + 覆盖 6 层全量 + 清理 old semantic_layer 目录，标志 Feature 闭环</p>
+  <table>
+    <tr><th>类型</th><th>交付物</th></tr>
+    <tr><td><span class="chip new">新建</span></td><td>usl_writeback/ 已批准 Candidate → USL canonical_terms/stoplist 自动写入 Hook</td></tr>
+    <tr><td><span class="chip new">新建</span></td><td>ol_pipeline 中 L3(FCA 分类)·L4(关系扩展)·L5(SchemaFusion)·L6(AxiomInductor)</td></tr>
+    <tr><td><span class="chip new">新建</span></td><td>前端 /semantic-admin/quality 指标面板：USL 对齐率·属性密度·审核积压·通过率趋势</td></tr>
+    <tr><td><span class="chip del">清理</span></td><td>删除 design/schema/semantic_layer 老目录 + 死代码 + 老单测用例更新路径</td></tr>
+    <tr><td>🔁 集成</td><td>scripts/build_ecommerce_ontology.py 改造：可选 --from-doc 参数走 OL 自动生成 + 人工对比 OBJECT_TYPES 差异率</td></tr>
+  </table>
+</div>
+
+<div class="card">
+  <h2>③ 4 迭代 × 6 子服务交付矩阵</h2>
+  <table>
+    <tr><th>子服务 ↓ / Iter →</th><th>1</th><th>2</th><th>3</th><th>4</th></tr>
+    <tr><td>🧠 usl_manager</td><td>✅ 全量</td><td></td><td>+ stoplist 字段</td><td>+ writeback API</td></tr>
+    <tr><td>⚙️ ol_pipeline</td><td>框架骨架</td><td>✅ L1+L2</td><td>Hook 质量闸</td><td>✅ L3-L6 全量</td></tr>
+    <tr><td>🗃️ candidate_store</td><td></td><td>✅ 双写 DDL</td><td>+ 审批字段</td><td></td></tr>
+    <tr><td>🔐 approval_workflow</td><td></td><td></td><td>✅ 2 级</td><td></td></tr>
+    <tr><td>🛡️ quality_gate</td><td></td><td></td><td>✅ 3 关</td><td>+ 指标输出</td></tr>
+    <tr><td>♻️ usl_writeback</td><td></td><td></td><td></td><td>✅</td></tr>
+    <tr><th>页面 ↓ / Iter →</th><th>1</th><th>2</th><th>3</th><th>4</th></tr>
+    <tr><td>USL 配置 /usl</td><td>✅</td><td></td><td></td><td></td></tr>
+    <tr><td>流水线 /pipeline</td><td></td><td>✅</td><td></td><td></td></tr>
+    <tr><td>审核台 /candidates</td><td></td><td></td><td>✅</td><td></td></tr>
+    <tr><td>质量面板 /quality</td><td></td><td></td><td></td><td>✅</td></tr>
+    <tr><td>🧹 清理动作</td><td>✅ QA 迁出</td><td></td><td></td><td>✅ 删除老目录</td></tr>
+  </table>
+</div>
+
+<script>
+  mermaid.initialize({ startOnLoad: true, theme: 'default', flowchart: { curve: 'basis', htmlLabels: true } });
+</script>
+</body>
+</html>

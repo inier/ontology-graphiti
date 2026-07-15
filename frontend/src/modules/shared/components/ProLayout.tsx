@@ -34,6 +34,7 @@ import {
   RightOutlined,
   LeftOutlined,
   ReloadOutlined,
+  DeploymentUnitOutlined,
 } from '@ant-design/icons';
 import type { MenuProps } from 'antd';
 import { api } from '../services/api';
@@ -168,6 +169,17 @@ const primaryMenus: MenuItem[] = [
     children: [
       { key: '/knowledge', icon: <DatabaseOutlined />, label: '知识库' },
       { key: '/knowledge/navigation', icon: <CompassOutlined />, label: '知识导航' },
+    ],
+  },
+  {
+    key: 'semantic-admin',
+    icon: <DeploymentUnitOutlined />,
+    label: '语义管理(USL+OL)',
+    children: [
+      { key: '/semantic-admin/usl', icon: <ApartmentOutlined />, label: 'USL 配置' },
+      { key: '/semantic-admin/pipeline', icon: <BranchesOutlined />, label: '本体学习流水线' },
+      { key: '/semantic-admin/candidates', icon: <AuditOutlined />, label: '候选审核台' },
+      { key: '/semantic-admin/quality', icon: <FundOutlined />, label: '质量指标面板' },
     ],
   },
   {
@@ -563,17 +575,17 @@ export function ProLayout({ children, currentWorkspace, onWorkspaceChange }: Pro
     }
   }
 
-  const parentMenuKeys = useMemo(() => allMenus.map(m => m.key), [allMenus]);
+  const parentMenuKeys = useMemo(() => primaryMenus.map(m => m.key), [primaryMenus]);
 
   /** 根据子菜单 key 反查所属的父级 group key */
   const findParentKey = useCallback((childKey: string): string | null => {
-    for (const m of allMenus) {
+    for (const m of primaryMenus) {
       if (m.children?.some(c => c.key === childKey)) {
         return m.key;
       }
     }
     return null;
-  }, [allMenus]);
+  }, [primaryMenus]);
 
   const handleMenuClick: MenuProps['onClick'] = ({ key }) => {
     if (leftCollapsed) {

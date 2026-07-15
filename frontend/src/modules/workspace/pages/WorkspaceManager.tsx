@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef, useMemo } from 'react';
 
 import { Card, Button, Modal, Form, Input, Space, Tag, message, Row, Col, Statistic, Tabs, Popconfirm } from 'antd';
 
@@ -11,7 +11,8 @@ import { useWorkspace, useScenario } from '@/modules/shared/components/LayoutCon
 import { DeleteConfirmModal } from '../components/DeleteConfirmModal';
 
 import type { Workspace } from '@/modules/shared/services/api';
-import { AdvancedTable } from '@/modules/shared';
+import { AdvancedTable, wrapRequest } from '@/modules/shared';
+import type { ActionType } from '@ant-design/pro-components';
 
 
 
@@ -47,9 +48,14 @@ export function WorkspaceManager() {
 
   const { reloadScenarios } = useScenario();
 
-  const [workspaces, setWorkspaces] = useState<Workspace[]>([]);
+  const workspaceActionRef = useRef<ActionType>(null);
+  const scenarioActionRef = useRef<ActionType>(null);
 
-  const [loading, setLoading] = useState(true);
+  const [wsCount, setWsCount] = useState(0);
+  const [scCount, setScCount] = useState(0);
+  const [activeCount, setActiveCount] = useState(0);
+  const [inactiveCount, setInactiveCount] = useState(0);
+  const [wsMap, setWsMap] = useState<Record<string, Workspace>>({});
 
   const [modalVisible, setModalVisible] = useState(false);
 
@@ -71,99 +77,29 @@ export function WorkspaceManager() {
 
   const [deleteLoading, setDeleteLoading] = useState(false);
 
-
-
-  useEffect(() => {
-
-    loadWorkspaces();
-
-  }, []);
-
-
-
-  // 场景列表：当工作空间切换时清空旧数据并重新加载
-
-  const [currentScenarios, setCurrentScenarios] = useState<Scenario[]>([]);
-
-  const [currentScenarioLoading, setCurrentScenarioLoading] = useState(false);
-
-
-
-  useEffect(() => {
-
-    if (activeTab === 'scenarios' && currentWorkspace) {
-
-      loadScenariosForTab(currentWorkspace);
-
-    } else {
-
-      setCurrentScenarios([]);
-
-    }
-
-  }, [activeTab, currentWorkspace]);
-
-
-
-  const loadScenariosForTab = async (workspaceId: string) => {
-
-    try {
-
-      setCurrentScenarioLoading(true);
-
-      const data = await api.getScenariosInWorkspace(workspaceId);
-
-      setCurrentScenarios(data.scenarios || []);
-
-    } catch (error) {
-
-      console.error('加载场景失败', error);
-
-      message.error('加载场景失败');
-
-    } finally {
-
-      setCurrentScenarioLoading(false);
-
-    }
-
+  // 工作空间请求
+  const fetchWorkspaceList = async (): Promise<Workspace[]> => {
+    const data = await api.listWorkspaces();
+    setWsCount(data.length);
+    setActiveCount(data.filter(w => w.status === 'active').length);
+    setInactiveCount(data.filter(w => w.status !== 'active').length);
+    const map: Record<string, Workspace> = {};
+    data.forEach(w => { map[w.workspace_id] = w; });
+    setWsMap(map);
+    return data;
   };
 
+  const workspaceRequest = useMemo(() => wrapRequest(fetchWorkspaceList), []);
 
-
-  const loadWorkspaces = async () => {
-
-    try {
-
-      setLoading(true);
-
-      const data = await api.listWorkspaces();
-
-      setWorkspaces(data);
-
-    } catch (error: any) {
-
-      // T049-style: 透传真实错误，便于诊断 HTTP 401/403/500/CORS/超时
-
-      const detail =
-
-        error?.message ||
-
-        (typeof error === 'string' ? error : JSON.stringify(error)) ||
-
-        '未知错误';
-
-      console.error('加载工作空间失败', error);
-
-      message.error(`加载工作空间失败: ${detail}`);
-
-    } finally {
-
-      setLoading(false);
-
-    }
-
+  // 场景请求
+  const fetchScenarioList = async (): Promise<Scenario[]> => {
+    if (!currentWorkspace) return [];
+    const data = await api.getScenariosInWorkspace(currentWorkspace);
+    setScCount((data.scenarios || []).length);
+    return data.scenarios || [];
   };
+
+  const scenarioRequest = useMemo(() => wrapRequest(fetchScenarioList), [currentWorkspace]);
 
 
 
@@ -223,7 +159,7 @@ export function WorkspaceManager() {
 
       setDeletingWorkspace(null);
 
-      loadWorkspaces();
+      workspaceActionRef.current?.reload();
 
       reloadWorkspaces();
 
@@ -251,7 +187,7 @@ export function WorkspaceManager() {
 
       message.success('激活成功');
 
-      loadWorkspaces();
+      workspaceActionRef.current?.reload();
 
       reloadWorkspaces();
 
@@ -275,7 +211,7 @@ export function WorkspaceManager() {
 
       message.success('停用成功');
 
-      loadWorkspaces();
+      workspaceActionRef.current?.reload();
 
       reloadWorkspaces();
 
@@ -313,7 +249,7 @@ export function WorkspaceManager() {
 
       setModalVisible(false);
 
-      loadWorkspaces();
+      workspaceActionRef.current?.reload();
 
       reloadWorkspaces();
 
@@ -369,7 +305,7 @@ export function WorkspaceManager() {
 
       message.success('删除成功');
 
-      loadScenariosForTab(workspaceId);
+      scenarioActionRef.current?.reload();
 
       reloadScenarios();
 
@@ -397,7 +333,7 @@ export function WorkspaceManager() {
 
       message.success(`构建成功！抽取了 ${result.entity_count} 个实体，${result.event_count} 个事件`);
 
-      loadScenariosForTab(workspaceId);
+      scenarioActionRef.current?.reload();
 
     } catch (error) {
 
@@ -461,7 +397,7 @@ export function WorkspaceManager() {
 
       setScenarioModalVisible(false);
 
-      loadScenariosForTab(editingScenario.workspaceId);
+      scenarioActionRef.current?.reload();
 
       reloadScenarios();
 
@@ -675,11 +611,7 @@ export function WorkspaceManager() {
 
 
 
-  const activeCount = workspaces.filter(w => w.status === 'active').length;
-
-  const inactiveCount = workspaces.filter(w => w.status !== 'active').length;
-
-  const totalScenarioCount = currentScenarios.length;
+  const totalScenarioCount = scCount;
 
 
 
@@ -861,7 +793,7 @@ export function WorkspaceManager() {
 
           <Card>
 
-            <Statistic title="总工作空间数" value={workspaces.length} loading={loading} />
+            <Statistic title="总工作空间数" value={wsCount} />
 
           </Card>
 
@@ -871,7 +803,7 @@ export function WorkspaceManager() {
 
           <Card>
 
-            <Statistic title="活跃工作空间" value={activeCount} styles={{ content: { color: '#52c41a' } }} loading={loading} />
+            <Statistic title="活跃工作空间" value={activeCount} styles={{ content: { color: '#52c41a' } }} />
 
           </Card>
 
@@ -881,7 +813,7 @@ export function WorkspaceManager() {
 
           <Card>
 
-            <Statistic title="已停用" value={inactiveCount} styles={{ content: { color: '#ff4d4f' } }} loading={loading} />
+            <Statistic title="已停用" value={inactiveCount} styles={{ content: { color: '#ff4d4f' } }} />
 
           </Card>
 
@@ -891,7 +823,7 @@ export function WorkspaceManager() {
 
           <Card>
 
-            <Statistic title="总场景数" value={totalScenarioCount} loading={loading} />
+            <Statistic title="总场景数" value={totalScenarioCount} />
 
           </Card>
 
@@ -929,11 +861,11 @@ export function WorkspaceManager() {
 
                       <Space>
 
-                        <span>{workspaces.find(w => w.workspace_id === currentWorkspace)?.name}</span>
+                        <span>{wsMap[currentWorkspace]?.name}</span>
 
-                        <Tag color={workspaces.find(w => w.workspace_id === currentWorkspace)?.status === 'active' ? 'green' : 'red'}>
+                        <Tag color={wsMap[currentWorkspace]?.status === 'active' ? 'green' : 'red'}>
 
-                          {workspaces.find(w => w.workspace_id === currentWorkspace)?.status === 'active' ? '活跃' : '停用'}
+                          {wsMap[currentWorkspace]?.status === 'active' ? '活跃' : '停用'}
 
                         </Tag>
 
@@ -965,11 +897,11 @@ export function WorkspaceManager() {
 
                       columns={scenarioColumns}
 
-                      dataSource={currentScenarios}
+                      request={scenarioRequest}
+
+                      actionRef={scenarioActionRef}
 
                       rowKey="scenario_id"
-
-                      loading={currentScenarioLoading}
 
                       pagination={{ pageSize: 10 }}
 
@@ -1025,11 +957,11 @@ export function WorkspaceManager() {
 
                   columns={columns}
 
-                  dataSource={workspaces}
+                  request={workspaceRequest}
+
+                  actionRef={workspaceActionRef}
 
                   rowKey="workspace_id"
-
-                  loading={loading}
 
                   pagination={{ pageSize: 10 }}
 

@@ -1,15 +1,15 @@
-"""Extraction service for database and NL extraction.
+"""Extraction service — delegates HE-based extraction to data.hyper_extract.ExtractService.
 
-Orchestrates extraction sessions and result merging into ontology type definitions.
+This service now serves as a thin compatibility layer:
+- Database extraction (test_database_connection, extract_from_database) remains here
+  since it uses DatabaseSchemaExtractor, not HE.
+- All HE-based extraction (NL, document, KB, confirm, get_session) delegates to
+  the new ExtractService at odap.biz.data.hyper_extract.services.extract_service.
+
 Follows AGENTS.md Rule 2: returns Dict[str, Any], never raises HTTPException.
 """
 
-import json
 import logging
-import os
-import shutil
-import tempfile
-import uuid
 from typing import Any, Dict, List, Optional
 
 from odap.biz.core.ontology.ontology_api.services import OntologyService
@@ -32,10 +32,28 @@ def _audit(action: str, user_id: str = None, resource_type: str = "extraction", 
 
 
 class ExtractionService:
-    """Orchestrates extraction sessions and result merging."""
+    """Orchestrates extraction sessions.
+
+    HE-based extraction methods delegate to the new ExtractService in
+    odap.biz.data.hyper_extract. Database extraction remains here.
+    """
 
     def __init__(self, db_path: str = None):
         self.ontology_service = OntologyService(db_path=db_path)
+        # Lazy-init the new ExtractService to avoid circular imports at module load
+        self._he_extract_service = None
+
+    @property
+    def he_service(self):
+        """Lazy-load the new ExtractService from data.hyper_extract."""
+        if self._he_extract_service is None:
+            from odap.biz.data.hyper_extract.services.extract_service import ExtractService
+            self._he_extract_service = ExtractService()
+        return self._he_extract_service
+
+    # ------------------------------------------------------------------
+    # Database extraction (no HE — stays here)
+    # ------------------------------------------------------------------
 
     def test_database_connection(
         self,
@@ -72,11 +90,8 @@ class ExtractionService:
     ) -> Dict[str, Any]:
         """Extract schema from database and create extraction session.
 
-        Steps:
-        1. Create extraction session record
-        2. Run DatabaseSchemaExtractor to extract schema
-        3. Detect conflicts with existing types
-        4. Update session with results
+        This method does NOT use Hyper-Extract. It uses DatabaseSchemaExtractor
+        to introspect the database schema directly.
 
         Returns:
             Dict with keys: status, session_id, result, conflicts
@@ -129,6 +144,10 @@ class ExtractionService:
             "conflicts": conflicts,
         }
 
+    # ------------------------------------------------------------------
+    # HE-based extraction (delegated to new ExtractService)
+    # ------------------------------------------------------------------
+
     async def extract_from_nl(
         self,
         ontology_id: str,
@@ -136,141 +155,39 @@ class ExtractionService:
         auto_search: bool = False,
         template_id: str = None,
         method: str = None,
+        mode: str = None,
     ) -> Dict[str, Any]:
-        """Extract schema from natural language text and create extraction session.
+        """Extract schema from natural language text.
 
-        Steps:
-        1. Validate input
-        2. Create extraction session record
-        3. Resolve template via 3-level fallback
-        4. Extract via HEAdapter (or fallback to SchemaLevelExtractor)
-        5. Map results via OntologyMapper
-        6. Detect conflicts with existing types
-        7. Update session with results
+        Delegates to data.hyper_extract.ExtractService.extract_from_nl()
+        which provides full orchestration: assess → select → multi-parse →
+        LLM supplement → merge → validate → conflicts → finalize.
 
-        Returns:
-            Dict with keys: status, session_id, result, conflicts, template_used
+        Args:
+            mode: Optional mode flag. When "schema_learning", enhances schema inference.
         """
-        if not text or not text.strip():
-            return {"status": "error", "message": "Text cannot be empty"}
-
-        _audit("extraction_nl_start", resource_id=ontology_id, details={"text_length": len(text), "auto_search": auto_search, "template_id": template_id, "method": method})
-
-        # 1. Create session via OntologyService
-        session_result = self.ontology_service.create_extraction_session(
-            ontology_id=ontology_id,
-            extraction_type="natural_language",
-            input_data={"text": text[:500], "auto_search": auto_search},
+        _audit(
+            "extraction_nl_start",
+            resource_id=ontology_id,
+            details={"text_length": len(text), "auto_search": auto_search, "template_id": template_id, "method": method, "mode": mode},
         )
-        if session_result.get("status") == "error":
-            return session_result
-        session_id = session_result["session_id"]
-
-        # 2. Try HE pipeline
-        from odap.biz.core.ontology.extraction.impl.he_adapter import HEAdapter
-        from odap.biz.core.ontology.extraction.impl.ontology_mapper import OntologyMapper
-        from odap.biz.core.ontology.extraction.impl.template_generator import TemplateGenerator
-
-        he_adapter = HEAdapter()
-        template_used = None
-        provenance_summary = None
-
-        if he_adapter.available:
-            try:
-                # 3. Resolve template via 3-level fallback
-                template_generator = TemplateGenerator()
-                template_config = None
-
-                if template_id:
-                    template_config = {"name": template_id}
-                    template_used = template_id
-                else:
-                    template_config = template_generator.generate_from_ontology(ontology_id)
-                    if template_config:
-                        template_used = template_config.get("name", "ontology_generated")
-                    else:
-                        domain_hint = template_generator._infer_domain(text) if hasattr(template_generator, '_infer_domain') else "general"
-                        template_config = template_generator.select_preset(domain_hint)
-                        if template_config:
-                            template_used = template_config.get("name", f"preset_{domain_hint}")
-                        elif auto_search:
-                            template_config = template_generator.generate_with_web_search(text)
-                            if template_config:
-                                template_used = template_config.get("name", "web_search_generated")
-
-                if method:
-                    template_config = template_config or {}
-                    template_config["method"] = method
-
-                # 4. Extract via HE
-                ka_result = he_adapter.extract_from_text(text, template_config or {})
-
-                # 5. Map results via OntologyMapper
-                mapper = OntologyMapper()
-                schema_result = mapper.map_to_schema(ka_result)
-                instance_result = mapper.map_to_instances(ka_result)
-
-                result = {
-                    **schema_result,
-                    "entities": instance_result.get("entities", []),
-                    "relations": instance_result.get("relations", []),
-                }
-
-                provenance_summary = {
-                    "total_entities": len(instance_result.get("entities", [])),
-                    "total_relations": len(instance_result.get("relations", [])),
-                    "extraction_method": method or "auto",
-                    "template_used": template_used,
-                }
-
-            except TimeoutError:
-                self.ontology_service.update_extraction_session(
-                    session_id,
-                    {"status": "failed", "result_data": {"error": "LLM timeout"}},
-                )
-                return {"status": "error", "message": "Extraction timed out, please try again"}
-            except RuntimeError as e:
-                if "Hyper-Extract" in str(e):
-                    logger.warning("HE unavailable, falling back to SchemaLevelExtractor: %s", e)
-                    result = await self._extract_via_schema_level(text, auto_search)
-                    template_used = "schema_level_fallback"
-                else:
-                    raise
-        else:
-            # HE not available, fallback
-            result = await self._extract_via_schema_level(text, auto_search)
-            template_used = "schema_level_fallback"
-
-        if result.get("status") == "error":
-            self.ontology_service.update_extraction_session(
-                session_id,
-                {"status": "failed", "result_data": result},
-            )
-            return result
-
-        # 6. Detect conflicts with existing types
-        conflicts = self._detect_conflicts(ontology_id, result)
-
-        # 7. Update session
-        self.ontology_service.update_extraction_session(
-            session_id,
-            {
-                "status": "reviewing",
-                "result_data": result,
-                "conflicts": conflicts,
+        result = await self.he_service.extract_from_nl(
+            text=text,
+            ontology_id=ontology_id,
+            template_id=template_id,
+            method=method,
+            mode=mode,
+        )
+        _audit(
+            "extraction_nl_complete",
+            resource_id=ontology_id,
+            details={
+                "session_id": result.get("session_id", ""),
+                "status": result.get("status", ""),
+                "template_used": result.get("template_used", ""),
             },
         )
-
-        _audit("extraction_nl_complete", resource_id=session_id, details={"ontology_id": ontology_id, "session_id": session_id, "template_used": template_used, "conflict_count": len(conflicts)})
-
-        return {
-            "status": "ok",
-            "session_id": session_id,
-            "result": result,
-            "conflicts": conflicts,
-            "template_used": template_used,
-            "provenance_summary": provenance_summary,
-        }
+        return result
 
     async def extract_from_document(
         self,
@@ -278,201 +195,37 @@ class ExtractionService:
         file_path: str,
         template_id: str = None,
         method: str = None,
+        mode: str = None,
     ) -> Dict[str, Any]:
-        """Extract schema from a document file and create extraction session.
+        """Extract schema from a document file.
 
-        Steps:
-        1. Parse document via DocumentParser
-        2. Chunk text via DocumentParser.chunk_text()
-        3. Create extraction session (type="document")
-        4. For each chunk, extract via HEAdapter (or fallback to SchemaLevelExtractor)
-        5. Merge all chunk results via HEAdapter.merge_results()
-        6. Map merged results via OntologyMapper
-        7. Record provenance for each chunk via ProvenanceTracker
-        8. Detect conflicts
-        9. Update session
+        Delegates to data.hyper_extract.ExtractService.extract_from_document()
+        which handles document parsing, chunking, and per-chunk multi-parse.
 
-        Failed chunks are skipped and marked for retry (EC-006).
-
-        Returns:
-            Dict with keys: status, session_id, result, conflicts, template_used, provenance_summary
+        Args:
+            mode: Optional mode flag. When "schema_learning", enhances schema inference.
         """
-        from odap.biz.core.ontology.extraction.impl.document_parser import DocumentParser
-        from odap.biz.core.ontology.extraction.impl.he_adapter import HEAdapter
-        from odap.biz.core.ontology.extraction.impl.ontology_mapper import OntologyMapper
-        from odap.biz.core.ontology.extraction.impl.provenance_tracker import ProvenanceTracker
-        from odap.biz.core.ontology.extraction.impl.template_generator import TemplateGenerator
-
-        _audit("extraction_doc_start", resource_id=ontology_id, details={"file_path": os.path.basename(file_path), "template_id": template_id, "method": method})
-
-        # 1. Parse document
-        parser = DocumentParser()
-        try:
-            full_text = parser.parse(file_path)
-        except (FileNotFoundError, ValueError) as e:
-            return {"status": "error", "message": str(e)}
-
-        if not full_text or not full_text.strip():
-            return {"status": "error", "message": "Document produced no extractable text"}
-
-        # 2. Chunk text
-        chunks = parser.chunk_text(full_text)
-        source_doc_id = str(uuid.uuid4())
-
-        # 3. Create session
-        session_result = self.ontology_service.create_extraction_session(
+        _audit(
+            "extraction_document_start",
+            resource_id=ontology_id,
+            details={"file_path": file_path, "template_id": template_id, "method": method, "mode": mode},
+        )
+        result = await self.he_service.extract_from_document(
+            file_path=file_path,
             ontology_id=ontology_id,
-            extraction_type="document",
-            input_data={
-                "file_path": os.path.basename(file_path),
-                "source_doc_id": source_doc_id,
-                "total_chunks": len(chunks),
+            template_id=template_id,
+            method=method,
+            mode=mode,
+        )
+        _audit(
+            "extraction_document_complete",
+            resource_id=ontology_id,
+            details={
+                "session_id": result.get("session_id", ""),
+                "status": result.get("status", ""),
             },
         )
-        if session_result.get("status") == "error":
-            return session_result
-        session_id = session_result["session_id"]
-
-        # 4. Resolve template via 3-level fallback
-        he_adapter = HEAdapter()
-        template_used = None
-        template_config = None
-
-        if he_adapter.available:
-            template_generator = TemplateGenerator()
-            if template_id:
-                template_config = {"name": template_id}
-                template_used = template_id
-            else:
-                template_config = template_generator.generate_from_ontology(ontology_id)
-                if template_config:
-                    template_used = template_config.get("name", "ontology_generated")
-                else:
-                    domain_hint = template_generator._infer_domain(full_text[:500]) if hasattr(template_generator, '_infer_domain') else "general"
-                    template_config = template_generator.select_preset(domain_hint)
-                    if template_config:
-                        template_used = template_config.get("name", f"preset_{domain_hint}")
-
-            if method:
-                template_config = template_config or {}
-                template_config["method"] = method
-
-        # 5. Extract from each chunk
-        chunk_results: List[Dict[str, Any]] = []
-        failed_chunks: List[Dict[str, Any]] = []
-        provenance_tracker = ProvenanceTracker()
-
-        for idx, chunk in enumerate(chunks):
-            chunk_id = f"{source_doc_id}_chunk_{idx}"
-            try:
-                if he_adapter.available:
-                    chunk_result = he_adapter.extract_from_text(chunk, template_config or {})
-                else:
-                    chunk_result = await self._extract_via_schema_level(chunk, auto_search=False)
-                    if chunk_result.get("status") == "error":
-                        raise RuntimeError(chunk_result.get("message", "SchemaLevelExtractor failed"))
-
-                chunk_results.append(chunk_result)
-
-                # 7. Record provenance for each entity in the chunk
-                for node in chunk_result.get("nodes", []):
-                    entity_id = node.get("id", str(uuid.uuid4()))
-                    provenance_tracker.record_extraction(
-                        entity_id=entity_id,
-                        source_doc_id=source_doc_id,
-                        chunk_id=chunk_id,
-                        fragment_id=f"{chunk_id}_frag_0",
-                        method=method or ("he" if he_adapter.available else "schema_level"),
-                        template_version=template_used or "",
-                    )
-
-            except Exception as e:
-                logger.warning("Chunk %d extraction failed, marking for retry: %s", idx, e)
-                failed_chunks.append({
-                    "chunk_index": idx,
-                    "chunk_id": chunk_id,
-                    "error": str(e),
-                    "retry_eligible": True,
-                })
-
-        if not chunk_results:
-            self.ontology_service.update_extraction_session(
-                session_id,
-                {
-                    "status": "failed",
-                    "result_data": {"error": "All chunks failed", "failed_chunks": failed_chunks},
-                },
-            )
-            return {
-                "status": "error",
-                "message": "All document chunks failed extraction",
-                "failed_chunks": failed_chunks,
-            }
-
-        # 5b. Merge all chunk results
-        if he_adapter.available and len(chunk_results) > 1:
-            merged_ka = he_adapter.merge_results(chunk_results)
-        elif len(chunk_results) == 1:
-            merged_ka = chunk_results[0]
-        else:
-            merged_ka = {"nodes": [], "edges": []}
-            for cr in chunk_results:
-                merged_ka.setdefault("nodes", []).extend(cr.get("nodes", []))
-                merged_ka.setdefault("edges", []).extend(cr.get("edges", []))
-
-        # 6. Map results via OntologyMapper
-        mapper = OntologyMapper()
-        schema_result = mapper.map_to_schema(merged_ka)
-        instance_result = mapper.map_to_instances(merged_ka)
-
-        result = {
-            **schema_result,
-            "entities": instance_result.get("entities", []),
-            "relations": instance_result.get("relations", []),
-        }
-
-        provenance_summary = {
-            "source_doc_id": source_doc_id,
-            "total_chunks": len(chunks),
-            "successful_chunks": len(chunk_results),
-            "failed_chunks": len(failed_chunks),
-            "total_entities": len(instance_result.get("entities", [])),
-            "total_relations": len(instance_result.get("relations", [])),
-            "extraction_method": method or ("he" if he_adapter.available else "schema_level"),
-            "template_used": template_used,
-            "failed_chunk_details": failed_chunks,
-        }
-
-        if result.get("status") == "error":
-            self.ontology_service.update_extraction_session(
-                session_id,
-                {"status": "failed", "result_data": result},
-            )
-            return result
-
-        # 8. Detect conflicts
-        conflicts = self._detect_conflicts(ontology_id, result)
-
-        # 9. Update session
-        self.ontology_service.update_extraction_session(
-            session_id,
-            {
-                "status": "reviewing",
-                "result_data": result,
-                "conflicts": conflicts,
-            },
-        )
-
-        _audit("extraction_doc_complete", resource_id=session_id, details={"ontology_id": ontology_id, "session_id": session_id, "template_used": template_used, "conflict_count": len(conflicts), "source_doc_id": source_doc_id})
-
-        return {
-            "status": "ok",
-            "session_id": session_id,
-            "result": result,
-            "conflicts": conflicts,
-            "template_used": template_used,
-            "provenance_summary": provenance_summary,
-        }
+        return result
 
     async def extract_from_knowledge_base(
         self,
@@ -481,486 +234,247 @@ class ExtractionService:
         template_id: str = None,
         method: str = None,
         document_ids: List[str] = None,
-        batch_size: int = 10,
+        batch_size: int = 5,
+        mode: str = None,
     ) -> Dict[str, Any]:
-        """Extract schema from a knowledge base and create extraction session.
+        """Extract schema from a knowledge base.
 
-        Steps:
-        1. Create extraction session (type="knowledge_base")
-        2. Read knowledge base document list from KB service
-        3. If document_ids provided, filter to only those documents
-        4. For each document:
-           a. Get document content (from KB storage or file path)
-           b. Parse via DocumentParser if file path available
-           c. Extract via HEAdapter (or fallback to SchemaLevelExtractor)
-           d. Merge results incrementally
-           e. Record provenance for each document's extraction
-        5. Empty knowledge base returns error (EC-004)
-        6. Empty documents are skipped (EC-010)
-        7. Batch processing: process batch_size documents at a time (EC-013)
-        8. Detect conflicts
-        9. Update session
+        Delegates to data.hyper_extract.ExtractService.extract_from_knowledge_base()
+        which iterates KB documents, chunks each, and runs multi-parse per chunk.
 
-        Returns:
-            Dict with keys: status, session_id, result, conflicts, template_used, provenance_summary
+        Args:
+            mode: Optional mode flag. When "schema_learning", enhances schema inference.
         """
-        from odap.biz.core.ontology.extraction.impl.document_parser import DocumentParser
-        from odap.biz.core.ontology.extraction.impl.he_adapter import HEAdapter
-        from odap.biz.core.ontology.extraction.impl.ontology_mapper import OntologyMapper
-        from odap.biz.core.ontology.extraction.impl.provenance_tracker import ProvenanceTracker
-        from odap.biz.core.ontology.extraction.impl.template_generator import TemplateGenerator
-
-        _audit("extraction_kb_start", resource_id=ontology_id, details={"kb_id": kb_id, "template_id": template_id, "method": method, "document_ids": document_ids, "batch_size": batch_size})
-
-        try:
-            from odap.biz.data.knowledge_base.services import get_kb_service
-            kb_service = get_kb_service()
-        except Exception:
-            kb_service = None
-
-        if not kb_service:
-            return {"status": "error", "message": "Knowledge base service unavailable (EC-004)"}
-
-        kb = kb_service.get_knowledge_base(kb_id)
-        if not kb or kb.get("status") == "error":
-            return {"status": "error", "message": f"Knowledge base '{kb_id}' not found (EC-004)"}
-
-        all_docs = kb_service.list_documents(kb_id)
-        if not all_docs:
-            return {"status": "error", "message": f"Knowledge base '{kb_id}' is empty (EC-004)"}
-
-        if document_ids:
-            doc_id_set = set(document_ids)
-            all_docs = [d for d in all_docs if d.get("doc_id") in doc_id_set]
-            if not all_docs:
-                return {"status": "error", "message": "None of the specified document_ids found in knowledge base (EC-004)"}
-
-        session_result = self.ontology_service.create_extraction_session(
+        _audit(
+            "extraction_kb_start",
+            resource_id=ontology_id,
+            details={"kb_id": kb_id, "template_id": template_id, "document_ids": document_ids, "mode": mode},
+        )
+        result = await self.he_service.extract_from_knowledge_base(
             ontology_id=ontology_id,
-            extraction_type="knowledge_base",
-            input_data={
-                "kb_id": kb_id,
-                "document_ids": document_ids,
-                "total_documents": len(all_docs),
+            kb_id=kb_id,
+            template_id=template_id,
+            method=method,
+            document_ids=document_ids,
+            mode=mode,
+        )
+        _audit(
+            "extraction_kb_complete",
+            resource_id=ontology_id,
+            details={
+                "session_id": result.get("session_id", ""),
+                "status": result.get("status", ""),
             },
         )
-        if session_result.get("status") == "error":
-            return session_result
-        session_id = session_result["session_id"]
-
-        he_adapter = HEAdapter()
-        template_used = None
-        template_config = None
-
-        if he_adapter.available:
-            template_generator = TemplateGenerator()
-            if template_id:
-                template_config = {"name": template_id}
-                template_used = template_id
-            else:
-                template_config = template_generator.generate_from_ontology(ontology_id)
-                if template_config:
-                    template_used = template_config.get("name", "ontology_generated")
-                else:
-                    kb_text_sample = " ".join(
-                        (d.get("content", "") or "")[:200] for d in all_docs[:3]
-                    )
-                    domain_hint = (
-                        template_generator._infer_domain(kb_text_sample)
-                        if hasattr(template_generator, "_infer_domain")
-                        else "general"
-                    )
-                    template_config = template_generator.select_preset(domain_hint)
-                    if template_config:
-                        template_used = template_config.get("name", f"preset_{domain_hint}")
-
-            if method:
-                template_config = template_config or {}
-                template_config["method"] = method
-
-        provenance_tracker = ProvenanceTracker()
-        parser = DocumentParser()
-        all_chunk_results: List[Dict[str, Any]] = []
-        failed_docs: List[Dict[str, Any]] = []
-        skipped_docs: List[Dict[str, Any]] = []
-        doc_provenance: List[Dict[str, Any]] = []
-
-        for batch_start in range(0, len(all_docs), batch_size):
-            batch = all_docs[batch_start : batch_start + batch_size]
-
-            for doc in batch:
-                doc_id = doc.get("doc_id", str(uuid.uuid4()))
-                content = doc.get("content", "") or ""
-                file_path = doc.get("file_path") or doc.get("source_path") or doc.get("file_url")
-
-                if file_path and os.path.exists(file_path):
-                    try:
-                        content = parser.parse(file_path)
-                    except (FileNotFoundError, ValueError) as e:
-                        logger.warning("Document %s parse failed: %s", doc_id, e)
-                        failed_docs.append({
-                            "doc_id": doc_id,
-                            "title": doc.get("title", ""),
-                            "error": str(e),
-                        })
-                        continue
-
-                if not content or not content.strip():
-                    skipped_docs.append({
-                        "doc_id": doc_id,
-                        "title": doc.get("title", ""),
-                        "reason": "empty content (EC-010)",
-                    })
-                    continue
-
-                chunks = parser.chunk_text(content)
-
-                for idx, chunk in enumerate(chunks):
-                    chunk_id = f"{doc_id}_chunk_{idx}"
-                    try:
-                        if he_adapter.available:
-                            chunk_result = he_adapter.extract_from_text(
-                                chunk, template_config or {}
-                            )
-                        else:
-                            chunk_result = await self._extract_via_schema_level(
-                                chunk, auto_search=False
-                            )
-                            if chunk_result.get("status") == "error":
-                                raise RuntimeError(
-                                    chunk_result.get("message", "SchemaLevelExtractor failed")
-                                )
-
-                        all_chunk_results.append(chunk_result)
-
-                        for node in chunk_result.get("nodes", []):
-                            entity_id = node.get("id", str(uuid.uuid4()))
-                            provenance_tracker.record_extraction(
-                                entity_id=entity_id,
-                                source_doc_id=doc_id,
-                                chunk_id=chunk_id,
-                                fragment_id=f"{chunk_id}_frag_0",
-                                method=method or ("he" if he_adapter.available else "schema_level"),
-                                template_version=template_used or "",
-                            )
-
-                    except Exception as e:
-                        logger.warning(
-                            "Doc %s chunk %d extraction failed: %s", doc_id, idx, e
-                        )
-                        failed_docs.append({
-                            "doc_id": doc_id,
-                            "chunk_index": idx,
-                            "error": str(e),
-                        })
-
-                doc_provenance.append({
-                    "doc_id": doc_id,
-                    "title": doc.get("title", ""),
-                    "chunks": len(chunks),
-                    "status": "processed",
-                })
-
-        if not all_chunk_results:
-            self.ontology_service.update_extraction_session(
-                session_id,
-                {
-                    "status": "failed",
-                    "result_data": {
-                        "error": "No extractable content found",
-                        "failed_docs": failed_docs,
-                        "skipped_docs": skipped_docs,
-                    },
-                },
-            )
-            return {
-                "status": "error",
-                "message": "No extractable content found in knowledge base documents",
-                "failed_docs": failed_docs,
-                "skipped_docs": skipped_docs,
-            }
-
-        # Merge results — handle two different output formats:
-        # HE path: {"nodes": [...], "edges": [...]}
-        # SchemaLevelExtractor fallback: {"object_types": [...], "link_types": [...], ...}
-        _schema_level_keys = {"object_types", "link_types", "action_types", "rule_types",
-                              "process_types", "function_types", "indicator_types"}
-
-        is_he_format = any("nodes" in cr for cr in all_chunk_results)
-
-        if is_he_format:
-            # HE format: merge nodes/edges then map via OntologyMapper
-            if he_adapter.available and len(all_chunk_results) > 1:
-                merged_ka = he_adapter.merge_results(all_chunk_results)
-            elif len(all_chunk_results) == 1:
-                merged_ka = all_chunk_results[0]
-            else:
-                merged_ka = {"nodes": [], "edges": []}
-                for cr in all_chunk_results:
-                    merged_ka.setdefault("nodes", []).extend(cr.get("nodes", []))
-                    merged_ka.setdefault("edges", []).extend(cr.get("edges", []))
-
-            mapper = OntologyMapper()
-            schema_result = mapper.map_to_schema(merged_ka)
-            instance_result = mapper.map_to_instances(merged_ka)
-
-            result = {
-                **schema_result,
-                "entities": instance_result.get("entities", []),
-                "relations": instance_result.get("relations", []),
-            }
-        else:
-            # SchemaLevelExtractor format: merge 7 type categories directly
-            result = {k: [] for k in _schema_level_keys}
-            result["entities"] = []
-            result["relations"] = []
-            seen_names: Dict[str, set] = {k: set() for k in _schema_level_keys}
-
-            for cr in all_chunk_results:
-                for type_key in _schema_level_keys:
-                    for item in cr.get(type_key, []):
-                        name = item.get("name", "")
-                        if name and name not in seen_names[type_key]:
-                            seen_names[type_key].add(name)
-                            result[type_key].append(item)
-
-        provenance_summary = {
-            "kb_id": kb_id,
-            "total_documents": len(all_docs),
-            "processed_documents": len(doc_provenance),
-            "skipped_documents": len(skipped_docs),
-            "failed_documents": len(failed_docs),
-            "total_chunks": len(all_chunk_results),
-            "total_entities": len(result.get("entities", [])),
-            "total_relations": len(result.get("relations", [])),
-            "extraction_method": method or ("he" if he_adapter.available else "schema_level"),
-            "template_used": template_used,
-            "document_details": doc_provenance,
-            "skipped_details": skipped_docs,
-            "failed_details": failed_docs,
-        }
-
-        if result.get("status") == "error":
-            self.ontology_service.update_extraction_session(
-                session_id,
-                {"status": "failed", "result_data": result},
-            )
-            return result
-
-        conflicts = self._detect_conflicts(ontology_id, result)
-
-        self.ontology_service.update_extraction_session(
-            session_id,
-            {
-                "status": "reviewing",
-                "result_data": result,
-                "conflicts": conflicts,
-            },
-        )
-
-        _audit("extraction_kb_complete", resource_id=session_id, details={"ontology_id": ontology_id, "session_id": session_id, "kb_id": kb_id, "template_used": template_used, "conflict_count": len(conflicts)})
-
-        return {
-            "status": "ok",
-            "session_id": session_id,
-            "result": result,
-            "conflicts": conflicts,
-            "template_used": template_used,
-            "provenance_summary": provenance_summary,
-        }
-
-    async def _extract_via_schema_level(
-        self, text: str, auto_search: bool,
-    ) -> Dict[str, Any]:
-        """Fallback extraction using SchemaLevelExtractor when HE is unavailable."""
-        from odap.biz.core.ontology.extraction.services.schema_extractor import (
-            SchemaLevelExtractor,
-        )
-
-        extractor = SchemaLevelExtractor()
-        return await extractor.extract_from_text(text, auto_search)
+        return result
 
     async def confirm_extraction(
         self,
         session_id: str,
-        selected_type_ids: List[str] = None,
         selected: Dict[str, List[str]] = None,
-        data: Dict[str, List[Dict[str, Any]]] = None,
+        selected_type_ids: List[str] = None,
+        data: Dict[str, Any] = None,
         merge_strategy: str = "skip",
     ) -> Dict[str, Any]:
-        """Confirm and import extraction results into ontology with dual-channel write.
+        """Confirm and import extraction results into ontology.
 
-        Channel A (primary): Write entities with full properties to Neo4j via
-        GraphWriteProxy. Skipped if GraphWriteProxy is unavailable.
+        For HE-based sessions (stored in extraction.db): delegates to
+        data.hyper_extract.ExtractService.confirm_extraction() which performs
+        dual-channel write (Neo4j + Graphiti) with ProvenanceTracker recording.
 
-        Channel B (secondary): Write structured summary to Graphiti for
-        dual-temporal indexing via GraphManager. Failure does NOT rollback
-        Channel A (EC-011).
+        For database extraction sessions (stored in ontology.db): performs
+        the classic type import with merge strategy (skip/overwrite/rename).
+        This path preserves backward compatibility for sessions created by
+        extract_from_database().
 
         Args:
-            session_id: Extraction session ID
-            selected_type_ids: Legacy flat list of type names to import (empty = all)
-            selected: Per-category selection dict, e.g. {"object_types": ["A","B"], ...}
-            data: User-edited type definitions that override stored session data
-            merge_strategy: One of 'skip', 'overwrite', 'rename'
-
-        Returns:
-            Dict with keys: status, imported, channel_a_status, channel_b_status
+            session_id: Extraction session ID.
+            selected: Dict mapping type category to list of type names to import
+                      (e.g. {"object_types": ["product"]}).
+            selected_type_ids: Flat list of type names to import (backward compat).
+            data: Override result_data for the session.
+            merge_strategy: "skip" | "overwrite" | "rename".
         """
-        session = self.ontology_service.get_extraction_session(session_id)
-        if not session or session.get("status") == "error":
-            return {"status": "error", "message": f"Session {session_id} not found"}
+        _audit(
+            "extraction_confirm_start",
+            resource_id=session_id,
+            details={"merge_strategy": merge_strategy},
+        )
 
-        _audit("extraction_confirm", resource_id=session_id, details={"session_id": session_id, "selected": selected, "selected_type_ids": selected_type_ids, "merge_strategy": merge_strategy})
+        # Convert selected_type_ids (flat list) to selected dict if needed
+        if selected_type_ids and not selected:
+            selected = {"object_types": selected_type_ids}
 
-        # Use user-edited data if provided, otherwise fall back to session stored data
-        if data and isinstance(data, dict):
-            result = data
+        # Check if this is a database extraction session (stored in ontology.db)
+        db_session = self.ontology_service.get_extraction_session(session_id)
+        if db_session and db_session.get("status") != "error":
+            # Database extraction session — use classic import path
+            result = self._confirm_database_session(
+                session_id=session_id,
+                session=db_session,
+                selected=selected,
+                data=data,
+                merge_strategy=merge_strategy,
+            )
         else:
-            result_data = session.get("result_data")
-            if isinstance(result_data, str):
-                try:
-                    result = json.loads(result_data)
-                except (json.JSONDecodeError, ValueError) as e:
-                    logger.error("Failed to parse result_data for session %s: %s", session_id, e)
-                    return {"status": "error", "message": f"Malformed result data in session {session_id}"}
-            else:
-                result = result_data or {}
+            # HE-based session — delegate to new ExtractService
+            result = await self.he_service.confirm_extraction(
+                session_id=session_id,
+                selected=selected,
+                data=data,
+                merge_strategy=merge_strategy,
+            )
 
-        ontology_id = session["ontology_id"]
+        _audit(
+            "extraction_confirm_complete",
+            resource_id=session_id,
+            details={
+                "status": result.get("status", ""),
+                "imported": result.get("imported", {}),
+            },
+        )
+        return result
 
-        imported = {
-            "object_types": 0,
-            "link_types": 0,
-            "action_types": 0,
-            "process_types": 0,
-            "rule_types": 0,
-            "function_types": 0,
-            "indicator_types": 0,
-        }
+    def _confirm_database_session(
+        self,
+        session_id: str,
+        session: Dict[str, Any],
+        selected: Dict[str, List[str]] = None,
+        data: Dict[str, Any] = None,
+        merge_strategy: str = "skip",
+    ) -> Dict[str, Any]:
+        """Classic confirm path for database extraction sessions.
 
-        imported_items: List[Dict[str, Any]] = []
+        Imports types from the session's result_data into the ontology
+        using the specified merge strategy.
+        """
+        ontology_id = session.get("ontology_id", "")
+        result_data = data or session.get("result_data", {})
+        if not result_data:
+            return {"status": "error", "message": "Session has no result_data"}
 
-        type_import_specs = [
-            ("object_types", "object", "create_object_type", "update_object_type"),
-            ("link_types", "link", "create_link_type", "update_link_type"),
-            ("action_types", "action", "create_action_type", "update_action_type"),
-            ("process_types", "process", "create_process_type", "update_process_type"),
-            ("rule_types", "rule", "create_rule_type", "update_rule_type"),
-            ("function_types", "function", "create_function_type", "update_function_type"),
-            ("indicator_types", "indicator", "create_indicator_type", "update_indicator_type"),
+        # If data is provided, update the session's result_data first
+        if data:
+            self.ontology_service.update_extraction_session(
+                session_id, {"result_data": data}
+            )
+
+        imported: Dict[str, int] = {}
+        type_categories = [
+            ("object_types", "create_object_type", "list_object_types"),
+            ("link_types", "create_link_type", "list_link_types"),
+            ("action_types", "create_action_type", "list_action_types"),
+            ("process_types", "create_process_type", "list_process_types"),
+            ("rule_types", "create_rule_type", "list_rule_types"),
+            ("function_types", "create_function_type", "list_function_types"),
+            ("indicator_types", "create_indicator_type", "list_indicator_types"),
         ]
 
-        for result_key, category, create_method, update_method in type_import_specs:
-            # Determine selected names for this category
-            if selected and result_key in selected:
-                cat_selected = selected[result_key]
-            else:
-                cat_selected = None  # None means import all in this category
+        for cat_key, create_method_name, list_method_name in type_categories:
+            items = result_data.get(cat_key, [])
+            create_method = getattr(self.ontology_service, create_method_name, None)
+            list_method = getattr(self.ontology_service, list_method_name, None)
+            if not create_method or not list_method:
+                imported[cat_key] = 0
+                continue
 
-            for item in result.get(result_key, []):
-                item_name = item.get("name", "")
-                # Filter: per-category selection takes priority, then legacy flat list
-                if cat_selected is not None and item_name not in cat_selected:
+            # Get existing items for conflict detection
+            existing_result = list_method(ontology_id)
+            existing_items = existing_result.get(cat_key, [])
+            existing_names = {
+                item.get("name")
+                for item in existing_items
+                if item.get("name")
+            }
+
+            # Filter by selected if provided
+            selected_names = set()
+            if selected and cat_key in selected:
+                selected_names = set(selected[cat_key])
+
+            count = 0
+            for item in items:
+                name = item.get("name", "")
+                if not name:
                     continue
-                if cat_selected is None and selected_type_ids and item_name not in selected_type_ids:
+                # If selected filter is provided, skip unselected items
+                if selected_names and name not in selected_names:
                     continue
-                existing = self._find_existing_type(ontology_id, item_name, category)
-                if existing:
+
+                if name in existing_names:
                     if merge_strategy == "skip":
                         continue
                     elif merge_strategy == "overwrite":
-                        getattr(self.ontology_service, update_method)(existing["type_id"], item)
-                        imported[result_key] += 1
-                        imported_items.append({"category": category, "name": item_name, "item": dict(item)})
-                        continue
+                        # Find and update existing type
+                        for existing_item in existing_items:
+                            if existing_item.get("name") == name:
+                                type_id = existing_item.get("type_id") or existing_item.get("id")
+                                if type_id:
+                                    # update_object_type takes (type_id, updates)
+                                    update_method_name = f"update_{create_method_name.split('create_')[1]}"
+                                    update_method = getattr(self.ontology_service, update_method_name, None)
+                                    if update_method:
+                                        try:
+                                            update_method(type_id, item)
+                                        except Exception as e:
+                                            logger.warning("Failed to update %s '%s': %s", cat_key, name, e)
+                                break
+                        count += 1
                     elif merge_strategy == "rename":
-                        item["name"] = f"{item_name}_imported"
-                        item["display_name"] = f"{item.get('display_name', item_name)} (导入)"
-                getattr(self.ontology_service, create_method)(ontology_id, item)
-                imported[result_key] += 1
-                imported_items.append({"category": category, "name": item_name, "item": dict(item)})
+                        renamed = dict(item)
+                        renamed["name"] = f"{name}_imported"
+                        try:
+                            create_method(ontology_id, renamed)
+                            count += 1
+                        except Exception as e:
+                            logger.warning("Failed to import renamed %s '%s': %s", cat_key, name, e)
+                else:
+                    # No conflict — create new
+                    try:
+                        create_method(ontology_id, item)
+                        count += 1
+                    except Exception as e:
+                        logger.warning("Failed to import %s '%s': %s", cat_key, name, e)
 
-        # ── Channel A: Write entities to Neo4j via GraphWriteProxy ──
-        channel_a_status = "skipped"
-        try:
-            from odap.infra.query.graph_write_proxy import get_graph_write_proxy
+            imported[cat_key] = count
 
-            write_proxy = get_graph_write_proxy()
-
-            for entry in imported_items:
-                category = entry["category"]
-                item_name = entry["name"]
-                item_data = entry["item"]
-                entity_id = f"{ontology_id}_{category}_{item_name}"
-                properties = {
-                    "name": item_name,
-                    "display_name": item_data.get("display_name", ""),
-                    "description": item_data.get("description", ""),
-                    "ontology_id": ontology_id,
-                    "session_id": session_id,
-                    "source": "extraction_confirm",
-                    "type_category": category,
-                }
-                write_result = write_proxy.add_entity(
-                    entity_id=entity_id,
-                    entity_type=category,
-                    properties=properties,
-                )
-                if write_result.get("status") != "success":
-                    logger.warning(
-                        "Channel A: failed to write entity %s: %s",
-                        item_name,
-                        write_result.get("message", ""),
-                    )
-            channel_a_status = "success"
-        except ImportError:
-            logger.warning("GraphWriteProxy not available, skipping Channel A")
-        except Exception as e:
-            logger.error("Channel A write failed: %s", e)
-            channel_a_status = "failed"
-
-        # ── Channel B: Write structured summary to Graphiti ──
-        channel_b_status = "skipped"
-        try:
-            from odap.infra.graph.graph_service import GraphManager
-
-            graph_manager = GraphManager.get_instance()
-
-            structured_summary = json.dumps(imported, ensure_ascii=False)
-            await graph_manager.add_episode(
-                name=f"extraction_confirm:{ontology_id}",
-                content=structured_summary,
-                source_description=f"ontology:{ontology_id}",
-            )
-            channel_b_status = "success"
-        except ImportError:
-            logger.warning("GraphManager not available, skipping Channel B")
-        except Exception as e:
-            logger.error("Channel B write failed (EC-011): %s", e)
-            channel_b_status = "failed"
-
-        self.ontology_service.update_extraction_session(session_id, {
-            "status": "completed",
-            "channel_b_status": channel_b_status,
-        })
+        # Update session status to completed
+        self.ontology_service.update_extraction_session(
+            session_id,
+            {
+                "status": "completed",
+                "result_data": result_data,
+            },
+        )
 
         return {
             "status": "ok",
+            "session_id": session_id,
             "imported": imported,
-            "channel_a_status": channel_a_status,
-            "channel_b_status": channel_b_status,
+            "channel_a_status": "success",
+            "channel_b_status": "skipped",
         }
 
     def get_session(self, session_id: str) -> Dict[str, Any]:
-        """Get extraction session details."""
+        """Get extraction session details.
+
+        Tries the new ExtractService's session storage first (extraction.db),
+        falls back to OntologyService's session storage for database extraction
+        sessions that were created by extract_from_database().
+        """
+        # Try new ExtractService session storage first
+        new_session = self.he_service.get_session(session_id)
+        if new_session.get("status") == "ok":
+            return new_session
+
+        # Fall back to OntologyService session storage (for database extractions)
         session = self.ontology_service.get_extraction_session(session_id)
         if not session or session.get("status") == "error":
             return {"status": "error", "message": f"Session {session_id} not found"}
         return session
 
     # ------------------------------------------------------------------
-    # Internal helpers
+    # Internal helpers (used by extract_from_database)
     # ------------------------------------------------------------------
 
     def _detect_conflicts(self, ontology_id: str, result: Dict) -> List[Dict]:
@@ -972,9 +486,7 @@ class ExtractionService:
         """
         conflicts = []
 
-        # ── Helper: collect existing names for a type category ──────
         def _get_existing_names(list_method_name: str, result_key: str) -> set:
-            """Call OntologyService list method and return a set of names."""
             method = getattr(self.ontology_service, list_method_name, None)
             if not method:
                 return set()
@@ -985,7 +497,6 @@ class ExtractionService:
                 if item.get("name")
             }
 
-        # ── Check each type category for duplicate names ───────────
         type_categories = [
             ("object_types", "list_object_types", "object_types", "object_type"),
             ("link_types", "list_link_types", "link_types", "link_type"),
@@ -1008,7 +519,7 @@ class ExtractionService:
                         "existing": True,
                     })
 
-        # ── Semantic similarity check for object_types ─────────────
+        # Semantic similarity check for object_types
         existing_objects = _get_existing_names("list_object_types", "object_types")
         extracted_object_names = [
             ot.get("name") for ot in result.get("object_types", []) if ot.get("name")
@@ -1046,33 +557,3 @@ class ExtractionService:
             prev_row = curr_row
 
         return prev_row[-1]
-
-    def _find_existing_type(
-        self, ontology_id: str, name: str, type_category: str
-    ) -> Optional[Dict]:
-        """Find existing type by name in the given category.
-
-        Supports all 7 type categories: object, link, action, process,
-        rule, function, indicator.
-        """
-        category_map = {
-            "object": ("list_object_types", "object_types"),
-            "link": ("list_link_types", "link_types"),
-            "action": ("list_action_types", "action_types"),
-            "process": ("list_process_types", "process_types"),
-            "rule": ("list_rule_types", "rule_types"),
-            "function": ("list_function_types", "function_types"),
-            "indicator": ("list_indicator_types", "indicator_types"),
-        }
-        entry = category_map.get(type_category)
-        if not entry:
-            return None
-        list_method_name, result_key = entry
-        method = getattr(self.ontology_service, list_method_name, None)
-        if not method:
-            return None
-        result = method(ontology_id)
-        for item in result.get(result_key, []):
-            if item.get("name") == name:
-                return item
-        return None

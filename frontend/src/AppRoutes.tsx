@@ -25,6 +25,15 @@ import { ChannelManagementPage } from '@/modules/channels';
 import { IframeViewerPage } from '@/modules/iframe-viewer';
 import { MenuConfigPage } from '@/modules/menu-config';
 import { KeepAliveOutlet } from '@/modules/shared/components/KeepAliveOutlet';
+import {
+  SemanticAdminIndex,
+  UslConfigPage,
+  QualityDashboardPage,
+  ApprovalsPage,
+  CandidatesPage,
+  PipelineRunsPage,
+  DashboardPage,
+} from '@/modules/semantic-admin';
 
 function ProtectedRoute({ children }: { children: ReactNode }) {
   const token = localStorage.getItem('token');
@@ -81,6 +90,14 @@ export function AppRoutes() {
         <Route path="/admin/agents" element={<ProtectedRoute><AgentManagement /></ProtectedRoute>} />
         <Route path="/iframe-viewer" element={<ProtectedRoute><IframeViewerPage /></ProtectedRoute>} />
         <Route path="/menu-config" element={<ProtectedRoute><MenuConfigPage /></ProtectedRoute>} />
+        <Route path="/semantic-admin" element={<ProtectedRoute><SemanticAdminIndex /></ProtectedRoute>} />
+        <Route path="/semantic-admin/usl" element={<ProtectedRoute><UslConfigPage /></ProtectedRoute>} />
+        <Route path="/semantic-admin/pipeline" element={<ProtectedRoute><PipelineRunsPage /></ProtectedRoute>} />
+        <Route path="/semantic-admin/pipeline-runs" element={<ProtectedRoute><PipelineRunsPage /></ProtectedRoute>} />
+        <Route path="/semantic-admin/candidates" element={<ProtectedRoute><CandidatesPage /></ProtectedRoute>} />
+        <Route path="/semantic-admin/quality" element={<ProtectedRoute><QualityDashboardPage /></ProtectedRoute>} />
+        <Route path="/semantic-admin/dashboard" element={<ProtectedRoute><DashboardPage /></ProtectedRoute>} />
+        <Route path="/semantic-admin/approvals" element={<ProtectedRoute><ApprovalsPage /></ProtectedRoute>} />
         <Route path="/guide" element={<ProtectedRoute><GuidePage /></ProtectedRoute>} />
         <Route path="/" element={<ProtectedRoute><GuidePage /></ProtectedRoute>} />
         <Route path="/admin" element={<Navigate to="/ontology/designer" replace />} />

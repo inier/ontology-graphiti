@@ -1,0 +1,194 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<title>Iter 1 · USL 服务化 + 深度清理 详细设计</title>
+<script src="https://cdn.jsdelivr.net/npm/mermaid@10/dist/mermaid.min.js"></script>
+<style>
+  body { font-family: "Segoe UI", "PingFang SC", "Microsoft YaHei", sans-serif; margin: 28px; background: #fafbff; color: #1a1f2e; }
+  h1 { font-size: 22px; margin: 0 0 4px; }
+  h2 { font-size: 18px; margin: 24px 0 12px; border-left: 4px solid #4f46e5; padding-left: 12px; }
+  h3 { font-size: 15px; margin: 16px 0 8px; color: #374151; }
+  .subtitle { color: #6b7280; margin: 0 0 20px; }
+  .card { background: #fff; border: 1px solid #e5e7eb; border-radius: 10px; padding: 20px 24px; margin-bottom: 20px; }
+  table { border-collapse: collapse; width: 100%; font-size: 13.5px; }
+  th, td { border: 1px solid #e5e7eb; padding: 6px 10px; text-align: left; vertical-align: top; }
+  th { background: #f3f4f6; font-weight: 600; white-space: nowrap; }
+  code { background: #f3f4f6; padding: 1px 5px; border-radius: 3px; font-size: 12.5px; font-family: "JetBrains Mono", Consolas, monospace; }
+  pre { background: #0f172a; color: #e2e8f0; padding: 14px 18px; border-radius: 8px; overflow-x: auto; font-size: 12.5px; line-height: 1.55; }
+  pre code { background: transparent; padding: 0; color: inherit; font-size: inherit; }
+  .tag { display: inline-block; padding: 2px 8px; border-radius: 999px; font-size: 11.5px; font-weight: 600; }
+  .t1 { background: #ecfdf5; color: #047857; border: 1px solid #6ee7b7; }
+  .t2 { background: #eff6ff; color: #1d4ed8; border: 1px solid #93c5fd; }
+  .t3 { background: #faf5ff; color: #6d28d9; border: 1px solid #c4b5fd; }
+  .kv { display: grid; grid-template-columns: 180px 1fr; gap: 4px 16px; font-size: 13.5px; }
+  .kv b { color: #374151; }
+  .muted { color: #6b7280; font-size: 12.5px; }
+  .split { display: grid; grid-template-columns: 1fr 1fr; gap: 20px; }
+</style>
+</head>
+<body>
+<p style="color:#6b7280;margin:0 0 12px">← <a href="../spec.md">返回 Feature Spec</a> · ← <a href="01-architecture-planB.html">返回架构总览</a></p>
+<h1>🔧 Iteration 1 · USL 服务化 + 深度清理 — 详细设计</h1>
+<p class="subtitle">Scope: 后端 6 子服务之 usl_manager + QA 清理迁移 + 删除老路由 + 前端 /semantic-admin/usl<br/>
+验收标准: semantic_config.py static dict 不再被业务代码 import；老 /api/semantic 路由 3 个问答 API 从 router_registry 移除；三国/西游 USL 初始数据完整</p>
+
+<div class="card">
+  <h2>① 清理迁移动作 Mermaid（深度清理策略）</h2>
+  <pre class="mermaid">
+flowchart LR
+  Old["🧵 OLD biz/core/ontology/design/schema/semantic_layer<br/>(8 文件 5 职责混杂)"]
+  Old --> M1["🧠 semantic_config.py<br/>静态 dict<br/>→ 迁移为 SQLite 初始化 + <b>usl_manager</b> 服务"]
+  Old --> M2["🔀 intent_parser.py<br/>query_planner.py<br/>disambiguator.py<br/>→ 📂 biz/data/qa/nl_pipeline/<br/>(问答认知层，新存储位置)"]
+  Old --> M3["♻️ api/routes.py 中<br/>parse_intent() plan_tasks() disambiguate()<br/>→ 💀 删除（更新 router_registry）"]
+  Old --> M4["📄 semantic_config.py 保留 SANGUO_SEMANTIC dict<br/>→ 仅作为 DB migration 的 seeds.py 输入（不参与运行时）"]
+  QA["📂 NEW biz/data/qa/nl_pipeline/<br/>+ 对应 tests/unit 迁移<br/>更新 import 路径"]
+  USL["📂 NEW biz/semantic_admin/usl_manager/<br/>7 层: api/models/interfaces/impl/services/storage<br/>+ SqliteUslStorage DDL + 初始化 seeds.py"]
+  M2 --> QA
+  M1 --> USL
+  M4 --> USL
+  </pre>
+</div>
+
+<div class="card">
+  <h2>② 数据库 DDL（usl.db · SqliteUslStorage）</h2>
+  <div class="muted">共 6 张表，对应 USL 6 类语义约束；按 AGENTS.md §C SQLite 规则：每次 connect/close，复杂字段存 JSON TEXT。</div>
+<pre><code>-- 表 1: 语义域（domain = 一个领域的 USL 单元：三国 / 西游 / 电商 / ...）
+CREATE TABLE IF NOT EXISTS usl_domains (
+    id              TEXT PRIMARY KEY,             -- uuid
+    code            TEXT UNIQUE NOT NULL,         -- 'sanguo' / 'xiyou' / 'auto_b2b2c'
+    display_name    TEXT NOT NULL,                -- 显示名（中文）
+    description     TEXT,
+    en_mapping_json TEXT NOT NULL DEFAULT '{}',   -- JSON TEXT: {中文名:英文名, 势力:Faction}
+    created_at      TEXT NOT NULL,
+    updated_at      TEXT NOT NULL
+);
+
+-- 表 2: 规范术语 canonical_terms（每个术语归属一个域）
+CREATE TABLE IF NOT EXISTS usl_terms (
+    id              TEXT PRIMARY KEY,
+    domain_id       TEXT NOT NULL REFERENCES usl_domains(id) ON DELETE CASCADE,
+    canonical       TEXT NOT NULL,                -- 规范术语（主键：势力 / 会员）
+    semantic_type   TEXT NOT NULL,                -- 对象类型 / 关系类型 / 属性 / 动作 / 公理
+    definition      TEXT,                         -- 术语定义（可选）
+    synonyms_json   TEXT NOT NULL DEFAULT '[]',   -- JSON TEXT 数组：同义词 ['阵营','国家']
+    near_syn_json   TEXT NOT NULL DEFAULT '[]',   -- JSON TEXT 数组：近义词
+    aliases_json    TEXT NOT NULL DEFAULT '[]',   -- JSON TEXT 数组：别名
+    stoplist_flag   INTEGER NOT NULL DEFAULT 0,   -- 1=黑名单（HITL 拒绝后写入）
+    UNIQUE(domain_id, canonical)
+);
+CREATE INDEX IF NOT EXISTS idx_usl_terms_domain ON usl_terms(domain_id);
+
+-- 表 3: 层级关系 is_a / part_of（L3 分类基础，USL 手工 + HITL 写入）
+CREATE TABLE IF NOT EXISTS usl_hierarchy (
+    id            TEXT PRIMARY KEY,
+    domain_id     TEXT NOT NULL REFERENCES usl_domains(id) ON DELETE CASCADE,
+    rel_type      TEXT NOT NULL,                  -- 'is_a' / 'part_of' / 'instance_of'
+    parent_term   TEXT NOT NULL,                  -- 父级规范术语
+    child_term    TEXT NOT NULL,                  -- 子级规范术语
+    confidence    REAL NOT NULL DEFAULT 1.0,      -- 1.0=人工 0.6~0.9=HITL 审核 <0.6=OL 候选未批准
+    created_at    TEXT NOT NULL,
+    UNIQUE(domain_id, rel_type, parent_term, child_term)
+);
+
+-- 表 4: 属性规范（property_canonical 字段标准化）
+CREATE TABLE IF NOT EXISTS usl_property_specs (
+    id            TEXT PRIMARY KEY,
+    domain_id     TEXT NOT NULL REFERENCES usl_domains(id) ON DELETE CASCADE,
+    for_term      TEXT NOT NULL,                  -- 作用在哪个术语（会员 / 车辆，可 '*'=全局）
+    prop_name     TEXT NOT NULL,                  -- 属性名：price / phone
+    data_type     TEXT NOT NULL,                  -- string / integer / float / boolean / date / datetime / json
+    unit          TEXT,                           -- 单位：元、辆、次（可选）
+    required_flag INTEGER NOT NULL DEFAULT 0,
+    description   TEXT,
+    UNIQUE(domain_id, for_term, prop_name)
+);
+
+-- 表 5: 不相交约束（disjointness）
+CREATE TABLE IF NOT EXISTS usl_disjoint_pairs (
+    id          TEXT PRIMARY KEY,
+    domain_id   TEXT NOT NULL REFERENCES usl_domains(id) ON DELETE CASCADE,
+    term_a      TEXT NOT NULL,
+    term_b      TEXT NOT NULL,
+    reason      TEXT,                             -- 理由：会员/车辆语义不交
+    UNIQUE(domain_id, term_a, term_b)
+);
+
+-- 表 6: 关系基数（cardinality）
+CREATE TABLE IF NOT EXISTS usl_cardinality (
+    id          TEXT PRIMARY KEY,
+    domain_id   TEXT NOT NULL REFERENCES usl_domains(id) ON DELETE CASCADE,
+    rel_name    TEXT NOT NULL,                    -- 关系类型：拥有 / 销售
+    domain_term TEXT NOT NULL,                    -- 域术语：会员
+    range_term  TEXT NOT NULL,                    -- 值域术语：车辆
+    min_card    INTEGER NOT NULL DEFAULT 0,
+    max_card    INTEGER,                          -- NULL = 无限
+    UNIQUE(domain_id, rel_name, domain_term, range_term)
+);
+</code></pre>
+</div>
+
+<div class="card">
+  <h2>③ 后端 API 路由：/api/semantic-admin/usl/*（9 个接口）</h2>
+  <div class="muted">遵循 AGENTS.md 规则：routes → services → impl → storage；服务层返回 Dict[str, Any]，routes 翻译 HTTPException。</div>
+  <table>
+    <tr><th>Method</th><th>路径</th><th>功能</th><th>权限</th></tr>
+    <tr><td><span class="tag t1">GET</span></td><td><code>/domains</code></td><td>列出所有语义域（三国/西游/电商…）</td><td>登录用户（工作空间成员）</td></tr>
+    <tr><td><span class="tag t1">POST</span></td><td><code>/domains</code></td><td>创建新语义域</td><td>schema_auditor(ws) 或 admin</td></tr>
+    <tr><td><span class="tag t1">PUT</span></td><td><code>/domains/{id}</code></td><td>更新域配置（含 en_mapping）</td><td>schema_auditor 或 admin</td></tr>
+    <tr><td><span class="tag t2">GET</span></td><td><code>/domains/{id}/terms</code></td><td>分页列出域内规范术语（支持按 semantic_type 过滤 + 同义词检索）</td><td>登录</td></tr>
+    <tr><td><span class="tag t2">POST</span></td><td><code>/domains/{id}/terms</code></td><td>新增规范术语（同义词/近义词/别名 JSON 数组）</td><td>schema_auditor 或 admin</td></tr>
+    <tr><td><span class="tag t2">PUT</span></td><td><code>/terms/{id}</code></td><td>编辑术语；切换 stoplist_flag=1 时加入黑名单</td><td>schema_auditor 或 admin</td></tr>
+    <tr><td><span class="tag t3">GET/POST/PUT/DELETE</span></td><td><code>/domains/{id}/hierarchy</code><br/><code>/property-specs</code><br/><code>/disjoint-pairs</code><br/><code>/cardinality</code></td><td>层级 / 属性规范 / 不相交对 / 关系基数 四类 CRUD（共 4 组）</td><td>schema_auditor 或 admin</td></tr>
+  </table>
+  <div class="muted" style="margin-top:10px">所有写接口（PUT/POST/DELETE）通过 OPA 策略 <code>semantic_admin.rego</code> 校验：<code>schema_auditor(ws_id, user_id)</code> = 工作空间级，<code>role == "admin"</code> = 全局级。</div>
+</div>
+
+<div class="split">
+<div class="card">
+  <h2>④ 服务层返回值（Dict[str, Any] 示例）</h2>
+  <div class="kv">
+    <b>get_term(term_id) → success</b><code>{"status":"ok","id":"t-1","canonical":"势力","semantic_type":"对象类型","synonyms":["阵营","国家"],"stoplist_flag":false,"created_at":"2026-07-11T12:00:00"}</code>
+    <b>get_term(term_id) → 404</b><code>{"status":"error","message":"Term not found"}</code>
+    <b>create_disjoint_pair 失败</b><br/><code>{"status":"error","message":"(会员,会员) self-disjoint not allowed"}</code>
+    <b>list_terms 分页</b><code>{"items":[...],"total":57,"page":1,"page_size":20}</code>
+  </div>
+</div>
+<div class="card">
+  <h2>⑤ 前端 /semantic-admin/usl 页面结构</h2>
+  <h3>5 个 Tab（Ant Design 6 Tabs）</h3>
+  <ol>
+    <li><b>语义域列表</b>：Table + 新增/编辑域表单（en_mapping = JSON 编辑器）</li>
+    <li><b>规范术语</b>：Table（列：canonical / semantic_type Tag / 同义词 Chips / 近义词 / 别名 / stoplist Switch / 操作）</li>
+    <li><b>层级结构</b>：AntV G6 6.x 树形可视化（is_a 一棵树 + part_of 另一棵，切换 Tab）+ 拖拽编辑父子关系</li>
+    <li><b>属性规范</b>：Table（for_term / prop_name / data_type Select / unit / required Switch）</li>
+    <li><b>高级约束</b>：子 Tab 分开——不相交对（2列 Select）+ 关系基数（4列+min/max NumberInput）</li>
+  </ol>
+  <h3>权限控制（前端）</h3>
+  <p class="muted" style="margin:0">Zustand <code>authStore.role</code> + <code>ws_role</code>：<br/>
+  🔒 编辑按钮仅 role==='admin' <b>或</b> ws_role==='schema_auditor' 时 visible；只读模式下按钮 disabled+tooltip。</p>
+</div>
+</div>
+
+<div class="card">
+  <h2>⑥ Iter 1 任务矩阵（≈ 50 小步）</h2>
+  <table>
+    <tr><th>#</th><th>任务分组</th><th>产物</th><th>单元测试要求</th></tr>
+    <tr><td>1</td><td>📦 新建 biz/semantic_admin/usl_manager 7 层结构</td><td>目录 + __init__.py 共 14 空文件骨架</td><td>—</td></tr>
+    <tr><td>2</td><td>🗃️ SqliteUslStorage + 6 表 DDL</td><td>storage/sqlite_usl_storage.py + _init_db + _migrate_seeds</td><td>tmp_path 真实 DB：CRUD 全覆盖；同义词 JSON 反序列化</td></tr>
+    <tr><td>3</td><td>🧱 Pydantic 领域模型</td><td>models/{UslDomain, UslTerm, UslHierarchy, UslPropertySpec, UslDisjointPair, UslCardinality}.py — Enum (str, Enum) + Field(default_factory)</td><td>必填字段校验、容器 default_factory</td></tr>
+    <tr><td>4</td><td>🔌 Impl + Services（编排）</td><td>impl/ + services/ 全部 Dict 返回，错误 status=error</td><td>pytest.raises + 404/唯一性冲突 + en_mapping JSON round-trip</td></tr>
+    <tr><td>5</td><td>🛣️ Routes 注册 + 权限 Depends</td><td>api/routes.py prefix=/api/semantic-admin，router_registry.py 注册</td><td>HTTP 状态码 + except HTTPException: raise 透传测试</td></tr>
+    <tr><td>6</td><td>🌱 初始化三国/西游 seed</td><td>migrations/seed_sanguo_xiyou.py 从现有 semantic_config.py 读 dict 写库</td><td>迁移后三国语义域术语数 ≥ 20，同义词 ≥ 80</td></tr>
+    <tr><td>7</td><td>🔀 迁移 QA 三文件</td><td>intent_parser.py + query_planner.py + disambiguator.py → biz/data/qa/nl_pipeline/，import 更新 + 测试迁移</td><td>现有 test_semantic_layer.py 12 TC 全绿 + 新路径</td></tr>
+    <tr><td>8</td><td>💀 删除死路由 + 更新文档</td><td>/api/semantic 3 问答 API 从 routes.py 删 + router_registry 删 + docs/03-modules/README.md</td><td>GET /api/semantic/parse → 404</td></tr>
+    <tr><td>9</td><td>🎨 前端 5 Tab 页面 + Zustand store</td><td>modules/semantic-admin/ 新模块 + AppRoutes 注册 + 菜单</td><td>渲染测试 + 禁用按钮权限逻辑测试</td></tr>
+    <tr><td>10</td><td>🔐 细粒度角色 schema_auditor</td><td>roles 模块新增角色枚举 + OPA Rego 新策略 semantic_admin.rego</td><td>policy 测试：auditor 能写，viewer 不能写</td></tr>
+  </table>
+</div>
+
+<script>
+  mermaid.initialize({ startOnLoad: true, theme: 'default', flowchart: { curve: 'basis' } });
+</script>
+</body>
+</html>

@@ -1,0 +1,213 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<title>Iter 4 · HITL Writeback + L3-L6 + 清理 + 质量面板 — 详细设计</title>
+<script src="https://cdn.jsdelivr.net/npm/mermaid@10/dist/mermaid.min.js"></script>
+<style>
+  body { font-family: "Segoe UI", "PingFang SC", "Microsoft YaHei", sans-serif; margin: 28px; background: #fafbff; color: #1a1f2e; }
+  h1 { font-size: 22px; margin: 0 0 4px; }
+  h2 { font-size: 18px; margin: 24px 0 12px; border-left: 4px solid #f59e0b; padding-left: 12px; }
+  h3 { font-size: 15px; margin: 16px 0 8px; color: #374151; }
+  .subtitle { color: #6b7280; margin: 0 0 20px; }
+  .card { background: #fff; border: 1px solid #e5e7eb; border-radius: 10px; padding: 20px 24px; margin-bottom: 20px; }
+  table { border-collapse: collapse; width: 100%; font-size: 13.5px; }
+  th, td { border: 1px solid #e5e7eb; padding: 6px 10px; text-align: left; vertical-align: top; }
+  th { background: #f3f4f6; font-weight: 600; white-space: nowrap; }
+  code { background: #f3f4f6; padding: 1px 5px; border-radius: 3px; font-size: 12.5px; font-family: "JetBrains Mono", Consolas, monospace; }
+  pre { background: #0f172a; color: #e2e8f0; padding: 14px 18px; border-radius: 8px; overflow-x: auto; font-size: 12.5px; line-height: 1.55; }
+  pre code { background: transparent; padding: 0; color: inherit; font-size: inherit; }
+  .tag { display: inline-block; padding: 2px 8px; border-radius: 999px; font-size: 11.5px; font-weight: 600; }
+  .t-new { background: #ecfdf5; color: #047857; border: 1px solid #6ee7b7; }
+  .t-clean { background: #fef2f2; color: #b91c1c; border: 1px solid #fca5a5; }
+  .t-int { background: #eff6ff; color: #1d4ed8; border: 1px solid #93c5fd; }
+  .split { display: grid; grid-template-columns: 1fr 1fr; gap: 20px; }
+  .kv { display: grid; grid-template-columns: 220px 1fr; gap: 4px 14px; font-size: 13px; }
+  .kv b { color: #374151; }
+  .metric-card { border:1px solid #e5e7eb; border-radius:10px; padding:14px 18px; }
+  .metric-card h4 { margin:0 0 6px; font-size:13px; color:#6b7280; font-weight:500; }
+  .metric-card .num { font-size:28px; font-weight:700; color:#111827; }
+  .metric-card .sub { font-size:12px; color:#6b7280; margin-top:4px; }
+</style>
+</head>
+<body>
+<p style="color:#6b7280;margin:0 0 12px">← <a href="../spec.md">返回 Feature Spec</a> · ← <a href="01-architecture-planB.html">返回架构总览</a></p>
+<h1>♻️ Iteration 4 · HITL Writeback + L3-L6 + 清理 + 质量面板 — 详细设计</h1>
+<p class="subtitle">Scope: usl_writeback 飞轮 Hook → USL/Ontology 双写 + ol_pipeline L3~L6 全量补全 + 老目录深度清理 + 质量面板 + 电商脚本改造<br/>
+验收标准: 三国/西游 OL Candidate → 审核通过 → USL 表 + Ontology TBox 均有记录（一致性断言）；删除 old semantic_layer 目录无 import 报错；电商脚本 --from-doc 参数可用</p>
+
+<div class="card">
+  <h2>① HITL 飞轮（usl_writeback 服务）Mermaid</h2>
+  <pre class="mermaid">
+flowchart TB
+  Appr["✅ Candidate.APPROVED<br/>(2 级审批通过 或 加速通道跳过 admin)"]
+  Appr --> W1["♻️ W1. 写回 USL canonical_terms<br/>usl_manager.create_term(domain, canonical, semantic_type, synonyms, ...)"]
+  W1 --> W2["♻️ W2. 写回 USL 层级结构 (is_a/part_of)<br/>usl_manager.add_hierarchy(rel_type, parent, child, conf=1.0)"]
+  W2 --> W3["♻️ W3. 写回 USL 其他四类<br/>(属性规范 · 不相交对 · 关系基数 · en_mapping 更新)"]
+  W3 --> W4["♻️ W4. 触发 HookEvent: schema_candidate.written_back<br/>通过 biz/integration/hook_system 全局广播"]
+  W4 --> W5a["🧬 W5a. 同步生成 Ontology TBox ObjectType / LinkType<br/>调用 biz/core/ontology/ API<br/>POST /api/ontologies/{oid}/object-types<br/>POST /api/ontologies/{oid}/link-types ..."]
+  W4 --> W5b["🔁 W5b. 同步回写 Candidate 状态 → WRITTEN_BACK<br/>(写入 usl_schema_candidates.status + updated_at)"]
+  W4 --> W5c["📊 W5c. 更新质量面板累计指标（writeback_count++）"]
+  Rej["❌ Candidate.REJECTED<br/>(schema_auditor 或 admin 拒绝)"]
+  Rej --> R1["🛑 R1. 写回 USL stoplist<br/>usl_terms.stoplist_flag = 1<br/>(下次 OL L1 直接过滤)"]
+  R1 --> R2["🛑 R2. 记录 rejection_reason 到 stoplist 表备注<br/>(下次 USL 查询给出拒绝理由)"]
+  </pre>
+  <div class="tag t-new" style="margin-top:6px">🆕 新服务 7 层：biz/semantic_admin/usl_writeback/ — 核心是 2 个写回函数 <code>write_approved(cand_id)</code> + <code>write_rejected(cand_id, reason)</code>，都 <b>幂等</b>（重复调用不重复写入，有 ON CONFLICT DO UPDATE）。</div>
+</div>
+
+<div class="card">
+  <h2>② L3~L6 四层流水线补全设计</h2>
+  <table>
+    <tr><th>层</th><th>名称</th><th>算法核心</th><th>输入→输出</th><th>复杂度</th><th>可选跳过？</th></tr>
+    <tr><td><b>L3</b></td><td>分类层（Taxonomy）</td><td><b>FCA 形式概念分析</b>：属性×对象二部图构造概念格 → 合并 LLM few-shot 层级推断 → 后处理去环</td><td>L2 Candidates × 属性关系 → 候选父子对 (parent, child, confidence)</td><td>O(C²·A) 中等（≤ 200 候选）</td><td class="tag t-new">可选（不跳）</td></tr>
+    <tr><td><b>L4</b></td><td>关系层</td><td><b>LLM 关系三元组抽取 + SchemaFusion 归并</b>："A-V-B" 主谓宾抽取 → 按 domain/range 语义类型过滤 (人物-势力→归属OK，人物-价格→归属NO) → 归并到已有关系类型 或 新建</td><td>L3 分类树 × 文档 raw_tokens → RelationType candidates[]</td><td>O(C·T) 较高</td><td class="tag t-new">可选（默认）</td></tr>
+    <tr><td><b>L5</b></td><td>模式层（SchemaFusion）</td><td><b>Embedding 相似度 + 结构等价 + 规则一致性</b> 三层判同："订单状态" vs "订单_状态" vs "状态(订单)" → 合并同义 Schema 元素</td><td>L3+L4 合并集合 → 去重后 Schema + 等价组映射</td><td>O(E²) 低</td><td class="tag t-new">不跳</td></tr>
+    <tr><td><b>L6</b></td><td>公理层</td><td><b>AxiomInductor 规则发现</b>：Association Rule Mining (Apriori min_support=0.1) → 产生 ∀x,y (R(x,y) → S(x,y)) 等公理 → 结合 USL 约束验证</td><td>L3 分类 × L4 关系 × 文档证据 → Axiom candidates[]</td><td>O(E³) 最高（≤ 200 元素）</td><td class="tag t-new">默认跳过（配置开关）</td></tr>
+  </table>
+  <h3>②a. Pipeline 配置（全局 Config）</h3>
+<pre><code># biz/semantic_admin/ol_pipeline/models/pipeline_config.py
+class OLPipelineConfig(BaseModel):
+    domain_id: str | None = None
+    workspace_id: str
+    enabled_layers: set[str] = {"L1","L2","L3","L4","L5"}  # 默认跳过 L6 公理
+    enable_llm_judge: bool = False                          # G2.4 LLM Judge
+    enable_auto_skip_admin: bool = True                     # Iter 3 加速通道
+    auto_approve_high_threshold: float | None = None        # ≥ 0.85 全自通（默认关=None）
+    fca_min_extent: int = 2                                 # L3 FCA 最小外延
+    relation_confidence_cut: float = 0.65                   # L4 关系置信度截断
+    fusion_embedding_sim_cut: float = 0.90                  # L5 SchemaFusion 合并阈值
+    axiom_min_support: float = 0.10                         # L6 Apriori 支持度阈值
+    # 写回策略
+    writeback_target_usl: bool = True                       # 写 USL
+    writeback_target_ontology_tbox: bool = True             # 写 Ontology TBox
+    writeback_target_neo4j: bool = True                     # Neo4j 正式 TBox 命名空间（非 _schema_graph）
+</code></pre>
+</div>
+
+<div class="split">
+<div class="card">
+  <h2>③ 深度清理清单（删除/迁移）</h2>
+  <h3>③a. 删除文件（× 8 文件，4 职责死代码）</h3>
+  <div class="tag t-clean">🗑️ 深度清理：整个目录 biz/core/ontology/design/schema/semantic_layer/</div>
+  <br/><br/>
+  <table>
+    <tr><th>文件</th><th>死亡原因</th><th>迁移去向</th></tr>
+    <tr><td><code>semantic_config.py</code></td><td>静态 dict 硬编码</td><td>→ Iter 1 seed_sanguo_xiyou.py 仅做初始化 seeds（已迁移）</td></tr>
+    <tr><td><code>intent_parser.py</code></td><td>问答认知能力</td><td>→ Iter 1 biz/data/qa/nl_pipeline/（已迁移）</td></tr>
+    <tr><td><code>query_planner.py</code></td><td>问答认知能力</td><td>→ Iter 1 biz/data/qa/nl_pipeline/（已迁移）</td></tr>
+    <tr><td><code>disambiguator.py</code></td><td>问答消歧能力</td><td>→ Iter 1 biz/data/qa/nl_pipeline/（已迁移）</td></tr>
+    <tr><td><code>api/routes.py (3 dead routes)</code></td><td>死路由（parse-intent / plan-tasks / disambiguate）</td><td>→ Iter 1 已删除</td></tr>
+    <tr><td>interfaces/*.py（×2）</td><td>旧语义层抽象</td><td>→ biz/semantic_admin/interfaces/ 新一套抽象（不迁，重写）</td></tr>
+    <tr><td>__init__.py 引用</td><td>包结构</td><td>→ 删除整个目录包</td></tr>
+  </table>
+  <h3>③b. 引用修复</h3>
+  <ul>
+    <li>Grep 全工程 <code>from .*semantic_layer</code> / <code>from .*semantic_config</code> → 替换为新路径或彻底删除 import</li>
+    <li>tests/unit/test_semantic_config.py → 重命名为 <code>tests/unit/test_semantic_admin_usl_seed.py</code>，断言迁移后 DB 种子内容与原 dict 一致</li>
+    <li>docs/03-modules/README.md 模块清单补 biz/semantic_admin 条目 + 删除 semantic_layer</li>
+    <li>AGENTS.md §3.1 包结构树更新</li>
+  </ul>
+  <div class="tag t-clean" style="margin-top:6px">⚠️ 清理原则：任何 import 找不到 → 立刻失败；<b>不允许</b> import 成功但调用 AttributeError（先修再删）。</div>
+</div>
+
+<div class="card">
+  <h2>④ 质量面板 UI：/semantic-admin/quality（4 张卡 + 4 图）</h2>
+  <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:14px">
+    <div class="metric-card">
+      <h4>USL 对齐率</h4>
+      <div class="num">76.4%</div>
+      <div class="sub">三国域 · 近 7 天 OL 平均 · ↑ 3.2%</div>
+    </div>
+    <div class="metric-card">
+      <h4>属性密度中位数</h4>
+      <div class="num">3.8</div>
+      <div class="sub">G3.1 per candidate · 期望 ≥ 5</div>
+    </div>
+    <div class="metric-card">
+      <h4>审核积压（PENDING_REVIEW）</h4>
+      <div class="num">127</div>
+      <div class="sub">HIGH 14 · MEDIUM 73 · LOW 34 · VLOW 6</div>
+    </div>
+    <div class="metric-card">
+      <h4>通过率（近 7 天）</h4>
+      <div class="num">82.3%</div>
+      <div class="sub">AUDITOR_APPROVED(加速通 51%) · ADMIN(31%) · REJECT(17.7%)</div>
+    </div>
+  </div>
+  <h3>4 张图（ECharts 6）</h3>
+  <ul>
+    <li><b>通过率趋势（14 天折线）</b>：按天 AVERAGE(total_score) + stacked bar 审批动作数量</li>
+    <li><b>三关质量分布图（堆叠柱状）</b>：HIGH / MEDIUM / LOW / VERY_LOW 4 档按天堆叠</li>
+    <li><b>审核 SLA 箱线图</b>：PENDING_REVIEW → 终审（AUDITOR_APPROVED 或 REJECTED）的耗时分布，≥12h 红色高亮</li>
+    <li><b>HITL 飞轮贡献（Area Chart）</b>：USL canonical_terms 累计数 vs "写回数 vs 手工新增数" 堆叠面积</li>
+  </ul>
+  <h3>后端数据接口（只读聚合查询）</h3>
+  <ul>
+    <li>GET <code>/api/semantic-admin/dashboard/overview</code> → 4 张卡指标 JSON</li>
+    <li>GET <code>/api/semantic-admin/dashboard/charts/pass-rate?range=14d</code></li>
+    <li>GET <code>/api/semantic-admin/dashboard/charts/quality-distribution</code></li>
+    <li>GET <code>/api/semantic-admin/dashboard/charts/sla-box</code></li>
+    <li>GET <code>/api/semantic-admin/dashboard/charts/hitl-contribution</code></li>
+  </ul>
+</div>
+</div>
+
+<div class="card">
+  <h2>⑤ 电商脚本改造：scripts/build_ecommerce_ontology.py + --from-doc 参数</h2>
+  <h3>⑤a. CLI 参数设计</h3>
+<pre><code>#!/usr/bin/env python3
+""" Build Ontology: two modes
+
+  Mode A (legacy / current):   hardcoded OBJECT_TYPES dict
+      $ python scripts/build_ecommerce_ontology.py --mode manual \
+          --workspace-id ws-xxx --scenario-id sc-xxx
+
+  Mode B (new OL 自动生成):    通过 Hyper-Extract → L1~L6 全量 + 审核通过写回
+      $ python scripts/build_ecommerce_ontology.py --mode ol-from-docs \
+          --workspace-id ws-xxx --scenario-id sc-xxx \
+          --from-doc ./docs/ecommerce/product_catalog.md \
+          --from-doc ./docs/ecommerce/process_flow.md
+          [--auto-approve-high]        # HIGH 档(≥0.85) 自动全通（谨慎使用）
+          [--enabled-layers L1,L2,L3,L4,L5]   # 默认跳过 L6
+          [--diff]                    # 与 --mode manual 结果对比差异率
+"""</code></pre>
+  <h3>⑤b. --diff 对比报告输出</h3>
+<pre><code>============================================
+ OL vs Manual OBJECT_TYPES 差异报告 (三国)
+============================================
+ Manual 定义数:    58 object types
+ OL 生成数:        67 candidates → 审核通过 55 object types
+  精确匹配:        42 / 58 = 72.4%  ✓
+  合并:            4  对（例如：将军/武将 → 合并为 武将 带 4 同义词）
+  OL 新增:         9  个（兵器、兵种、官职、地盘、...）
+  手工有 OL 无:    3  个（乌桓、黄巾、反贼——文档中提及不足，OL 没抽出来）
+  建议下次文档补充:
+     - 乌桓: 北方游牧民族 → 补充 5 句描述段落
+     - 黄巾: 东汉农民起义 → 补充 3 句描述段落
+============================================
+ 综合差异率: 27.6%  (目标: OL 覆盖率 ≥ 80% 判定 OK)
+============================================</code></pre>
+</div>
+
+<div class="card">
+  <h2>⑥ Iter 4 任务矩阵（≈ 60 小步，4 迭代合计 ≈ 210）</h2>
+  <table>
+    <tr><th>#</th><th>任务分组</th><th>产物</th><th>单元测试要求</th></tr>
+    <tr><td>1</td><td>📦 usl_writeback 子服务 7 层</td><td>WritebackServiceImpl 2 函数 write_approved + write_rejected + ON CONFLICT idempotency</td><td>同 candidate_id 写 3 次 → USL 表 COUNT 不变；写回后 USL 查询新 term 立即可得</td></tr>
+    <tr><td>2</td><td>🧬 双写 USL + Ontology TBox</td><td>调用 ontology/create-object-type/link-type/... REST API；失败回滚策略：先写 USL（成功）再写 Ontology（失败时标记 ontology_write_failed + 重试 scheduled job，不回滚 USL）</td><td>写入断网场景：USL 成功 / Ontology 失败 → 状态 NOT_WRITTEN_BACK；30 分钟后 retry ONCE 成功</td></tr>
+    <tr><td>3</td><td>⚙️ L3 FCA 分类层</td><td>FCAImpl (概念格构造 + 去环) + LLMHierarchyPromptImpl 双路择优</td><td>三国 62 候选 → 分类层级深度 ≤ 7；无环（环检测命中 0 次）</td></tr>
+    <tr><td>4</td><td>⚙️ L4 关系层</td><td>RelationExtractor + SchemaTypeFilter（domain/range 过滤）</td><td>关系类型 ≥ 15；domain/range 不匹配过滤命中 ≥ 20 次（保证约束生效）</td></tr>
+    <tr><td>5</td><td>⚙️ L5 SchemaFusion</td><td>Embedding + 结构 + 规则 三层融合 + 等价组映射</td><td>4 对构造同义词 → 合并命中 4/4</td></tr>
+    <tr><td>6</td><td>⚙️ L6 公理层（默认跳过）</td><td>Apriori + AxiomValidator</td><td>100 条人工合成关系 → 抽 10+ 条支持度 ≥ 0.1 公理</td></tr>
+    <tr><td>7</td><td>🧹 删除 semantic_layer 目录</td><td>整目录 rm -rf + Grep import 修复</td><td>build 无 ModuleNotFound；ruff import 扫描零错误</td></tr>
+    <tr><td>8</td><td>🎨 前端质量面板 4 卡 + 4 图</td><td>dashboard API × 5 + ECharts 4 图组件</td><td>mock 数据：14 天 5000 条审批记录渲染无空白</td></tr>
+    <tr><td>9</td><td>🐍 电商脚本改造 --from-doc + --diff</td><td>argparse 参数 + 模式分支 + Markdown 差异报告</td><td>--diff 输出差异率数值可预期（三国 ≈ 25~30%）</td></tr>
+    <tr><td>10</td><td>🏁 Feature 闭环 E2E</td><td>tests/e2e/test_feature_007_full.py（pytest.mark.e2e，需要 Neo4j + Podman）</td><td>上传三国文档 → OL 全 5 层 → 质量闸 → 2 级审批加速通 → 写回 USL + Ontology TBox → 写回成功事件 hook 触发 3 个订阅者</td></tr>
+  </table>
+</div>
+
+<script>
+  mermaid.initialize({ startOnLoad: true, theme: 'default', flowchart: { curve: 'basis' } });
+</script>
+</body>
+</html>

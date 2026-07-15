@@ -84,3 +84,14 @@ minio_data/
 *.sqlite3
 .workbuddy/
 *.bak
+
+# Trae IDE - local skill installation cache (保留 .trae/rules 版本控制)
+.trae/skills/
+.superpowers/
+
+# Local diagnostic and debugging scratch scripts
+diag_*.py
+
+# Local temporary runtime artifacts (JSON bodies, PowerShell snippets, token dumps)
+tmp_*
+token.txt

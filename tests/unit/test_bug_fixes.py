@@ -21,17 +21,65 @@ sys.path.insert(0, os.path.join(os.path.dirname(__file__), "..", ".."))
 # F-3: Disambiguator 多领域语义加载
 # ============================================================
 
+# Iter4-⑥-C: 语义常量已从 semantic_config.py 迁移到 sa_config 表。
+# 此处用内联的精简样例 dict（仅包含 Disambiguator 测试所需的 canonical_terms/synonyms）。
+# Disambiguator.load_domain() 的 API 为 load_domain(code: str, semantic_dict: dict)。
+_SAMPLE_SANGUO_SEMANTIC = {
+    "domain": "sanguo",
+    "en_mapping": {
+        "势力": "Faction",
+        "人物": "Character",
+        "地点": "Location",
+    },
+    "canonical_terms": {
+        "人物": {
+            "synonyms": ["将军", "谋士", "君主", "丞相", "都督", "诸侯"],
+            "near_synonyms": ["英豪", "贤才"],
+            "aliases": [],
+        },
+        "地点": {
+            "synonyms": ["城池", "山川", "关隘", "要塞", "府", "州"],
+            "near_synonyms": ["郡县", "治所"],
+            "aliases": [],
+        },
+    },
+    "expansion_rules": [],
+}
+
+_SAMPLE_XIYOU_SEMANTIC = {
+    "domain": "xiyou",
+    "en_mapping": {
+        "势力": "Faction",
+        "人物": "Character",
+        "法宝": "Treasure",
+        "法术": "Spell",
+    },
+    "canonical_terms": {
+        "人物": {
+            "synonyms": ["妖怪", "神仙", "菩萨", "行者", "罗汉", "揭谛", "行者"],
+            "near_synonyms": ["佛", "圣僧"],
+            "aliases": [],
+        },
+        "法宝": {
+            "synonyms": ["宝贝", "宝物", "法器", "神器", "如意", "仙器"],
+            "near_synonyms": [],
+            "aliases": [],
+        },
+    },
+    "expansion_rules": [],
+}
+
+
 class TestDisambiguatorMultiDomain:
-    """验证 Disambiguator 支持从 semantic_config 加载多领域术语"""
+    """验证 Disambiguator 支持从样例语义 dict 加载多领域术语"""
 
     def test_load_sanguo_domain_from_config(self):
-        """F-3a: 从 semantic_config 加载三国语义到 Disambiguator"""
-        from odap.biz.core.ontology.design.schema.semantic_layer.disambiguator import Disambiguator
-        from odap.biz.core.ontology.design.schema.semantic_layer.semantic_config import SANGUO_SEMANTIC
+        """F-3a: 加载三国语义到 Disambiguator"""
+        from odap.biz.data.qa.nl_pipeline.disambiguator import Disambiguator
 
         d = Disambiguator()
         # 加载三国领域术语
-        d.load_domain("sanguo", SANGUO_SEMANTIC)
+        d.load_domain("sanguo", _SAMPLE_SANGUO_SEMANTIC)
 
         # 验证三国术语已加载
         result = d.disambiguate("将军")
@@ -41,12 +89,11 @@ class TestDisambiguatorMultiDomain:
         assert result["canonical"] == "地点", f"城池应消歧为地点，实际: {result['canonical']}"
 
     def test_load_xiyou_domain_from_config(self):
-        """F-3b: 从 semantic_config 加载西游语义到 Disambiguator"""
-        from odap.biz.core.ontology.design.schema.semantic_layer.disambiguator import Disambiguator
-        from odap.biz.core.ontology.design.schema.semantic_layer.semantic_config import XIYOU_SEMANTIC
+        """F-3b: 加载西游语义到 Disambiguator"""
+        from odap.biz.data.qa.nl_pipeline.disambiguator import Disambiguator
 
         d = Disambiguator()
-        d.load_domain("xiyou", XIYOU_SEMANTIC)
+        d.load_domain("xiyou", _SAMPLE_XIYOU_SEMANTIC)
 
         # 行者 → 人物（西游特有，不与三国冲突）
         result = d.disambiguate("行者")
@@ -58,12 +105,11 @@ class TestDisambiguatorMultiDomain:
 
     def test_load_both_domains(self):
         """F-3c: 同时加载三国和西游两个领域不冲突"""
-        from odap.biz.core.ontology.design.schema.semantic_layer.disambiguator import Disambiguator
-        from odap.biz.core.ontology.design.schema.semantic_layer.semantic_config import SANGUO_SEMANTIC, XIYOU_SEMANTIC
+        from odap.biz.data.qa.nl_pipeline.disambiguator import Disambiguator
 
         d = Disambiguator()
-        d.load_domain("sanguo", SANGUO_SEMANTIC)
-        d.load_domain("xiyou", XIYOU_SEMANTIC)
+        d.load_domain("sanguo", _SAMPLE_SANGUO_SEMANTIC)
+        d.load_domain("xiyou", _SAMPLE_XIYOU_SEMANTIC)
 
         # 三国术语仍然可用
         assert d.disambiguate("将军")["canonical"] == "人物"
@@ -78,20 +124,18 @@ class TestDisambiguatorMultiDomain:
 
     def test_load_domain_overwrite_protection(self):
         """F-3d: 重复加载同一领域不会丢失数据"""
-        from odap.biz.core.ontology.design.schema.semantic_layer.disambiguator import Disambiguator
-        from odap.biz.core.ontology.design.schema.semantic_layer.semantic_config import SANGUO_SEMANTIC
+        from odap.biz.data.qa.nl_pipeline.disambiguator import Disambiguator
 
         d = Disambiguator()
-        d.load_domain("sanguo", SANGUO_SEMANTIC)
+        d.load_domain("sanguo", _SAMPLE_SANGUO_SEMANTIC)
         count_before = len(d.get_synonyms())
-        d.load_domain("sanguo", SANGUO_SEMANTIC)
+        d.load_domain("sanguo", _SAMPLE_SANGUO_SEMANTIC)
         count_after = len(d.get_synonyms())
         assert count_after == count_before, f"重复加载不应增加数据: {count_before} → {count_after}"
 
     def test_disambiguator_has_initial_data(self):
         """F-3e: 新建 Disambiguator 仍保留默认军事术语"""
-        from odap.biz.core.ontology.design.schema.semantic_layer.disambiguator import Disambiguator
-        # 注意: Disambiguator 是单例，此测试需考虑状态
+        from odap.biz.data.qa.nl_pipeline.disambiguator import Disambiguator
         d = Disambiguator.__new__(Disambiguator)
         # 不调用 __init__
         syns = d.get_synonyms() if hasattr(d, "_synonyms") else {}
@@ -108,7 +152,7 @@ class TestIntentParserMultiDomain:
 
     def test_extract_sanguo_person_names(self):
         """F-4a: 提取三国人物名称实体"""
-        from odap.biz.core.ontology.design.schema.semantic_layer.intent_parser import IntentParser
+        from odap.biz.data.qa.nl_pipeline.intent_parser import IntentParser
         parser = IntentParser()
 
         entities = parser._extract_entities("刘备和关羽是什么关系")
@@ -118,7 +162,7 @@ class TestIntentParserMultiDomain:
 
     def test_extract_xiyou_person_names(self):
         """F-4b: 提取西游人物名称实体"""
-        from odap.biz.core.ontology.design.schema.semantic_layer.intent_parser import IntentParser
+        from odap.biz.data.qa.nl_pipeline.intent_parser import IntentParser
         parser = IntentParser()
 
         entities = parser._extract_entities("孙悟空用什么法宝")
@@ -126,7 +170,7 @@ class TestIntentParserMultiDomain:
 
     def test_extract_sanguo_location(self):
         """F-4c: 提取三国地点实体"""
-        from odap.biz.core.ontology.design.schema.semantic_layer.intent_parser import IntentParser
+        from odap.biz.data.qa.nl_pipeline.intent_parser import IntentParser
         parser = IntentParser()
 
         entities = parser._extract_entities("赤壁之战发生在哪里")
@@ -135,7 +179,7 @@ class TestIntentParserMultiDomain:
 
     def test_extract_xiyou_treasure(self):
         """F-4d: 提取西游法宝实体"""
-        from odap.biz.core.ontology.design.schema.semantic_layer.intent_parser import IntentParser
+        from odap.biz.data.qa.nl_pipeline.intent_parser import IntentParser
         parser = IntentParser()
 
         entities = parser._extract_entities("金箍棒多重")
@@ -143,7 +187,7 @@ class TestIntentParserMultiDomain:
 
     def test_intent_recognize_sanguo_query(self):
         """F-4e: 识别三国查询意图"""
-        from odap.biz.core.ontology.design.schema.semantic_layer.intent_parser import IntentParser
+        from odap.biz.data.qa.nl_pipeline.intent_parser import IntentParser
         parser = IntentParser()
 
         query = parser.parse("三国时期魏国有哪些大将")

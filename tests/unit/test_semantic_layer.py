@@ -1,8 +1,8 @@
 import pytest
 
-from odap.biz.core.ontology.design.schema.semantic_layer.intent_parser import IntentParser, StructuredQuery
-from odap.biz.core.ontology.design.schema.semantic_layer.query_planner import QueryPlanner
-from odap.biz.core.ontology.design.schema.semantic_layer.disambiguator import Disambiguator
+from odap.biz.data.qa.nl_pipeline.intent_parser import IntentParser, StructuredQuery
+from odap.biz.data.qa.nl_pipeline.query_planner import QueryPlanner
+from odap.biz.data.qa.nl_pipeline.disambiguator import Disambiguator
 
 
 class TestIntentParser:

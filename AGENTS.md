@@ -1,6 +1,6 @@
 # AGENTS.md — AI 代理工作规则
 
-> **ODAP**（本体驱动分析决策平台）—— 基于 Graphiti 双时态知识图谱，提供本体管理、智能体编排、决策推演与模拟仿真能力。后端 Python/FastAPI + 前端 React 19/TypeScript，7大业务领域、30+ 路由模块、Podman 容器化部署。
+> **ODAP**（本体驱动分析决策平台）—— 基于 Graphiti 双时态知识图谱，提供本体管理、智能体编排、决策推演与模拟仿真能力。后端 Python/FastAPI + 前端 React 19/TypeScript，8大业务领域、30+ 路由模块、Podman 容器化部署。
 > **技术栈**：Python 3.10+ · FastAPI · Pydantic v2 · Neo4j/SQLite/Redis · OPA · OpenHarness v1/v2 · React 19 · TypeScript · Ant Design 6 · Zustand 5 · Podman
 
 ---
@@ -36,8 +36,8 @@ ODAP 是一个**本体驱动的分析决策平台**，核心能力围绕 Graphit
 
 ```
 ontology-graphiti/           # 项目根目录
-├── odap/                   # 后端主包（7大业务领域）
-│   ├── biz/                #   业务模块：core / decision / integration / platform / data / simulation / management
+├── odap/                   # 后端主包（8大业务领域）
+│   ├── biz/                #   业务模块：core / decision / integration / platform / data / simulation / management / semantic_admin
 │   ├── infra/              #   基础设施：graph / query / opa / security / openharness / llm 等
 │   ├── tools/              #   领域 Skills（base.py + registry.py + 9个技能包）
 │   └── web/                #   Web 入口与网关
@@ -244,7 +244,7 @@ python bootstep.py down
 
 ```
 odap/
-├── biz/                           # 业务模块（7 个领域，禁止跨层调用）
+├── biz/                           # 业务模块（8 个领域，禁止跨层调用）
 │   ├── core/                      #   本体(Ontology) + 认知(Cognition) + Agent 编排
 │   │   └── {module}/
 │   │       ├── api/
@@ -262,7 +262,8 @@ odap/
 │   ├── platform/                  #   workspace + roles + skill_system + tool_registry + session_memory + ontology_memory
 │   ├── data/                      #   data_warehouse + knowledge_base + perception + qa + semantic_map
 │   ├── simulation/                #   event_simulator + simulation_sandbox + feedback + simulation_deduction
-│   └── management/                #   agent_management + business
+│   ├── management/                #   agent_management + business
+│   └── semantic_admin/            #   usl_manager + ol_pipeline + candidate_store + quality_gate + approval_workflow + usl_writeback（7 层 6 子服务）
 ├── infra/                         # 基础设施（可横向复用）
 │   ├── graph/                     #   GraphManager（Neo4j 生产 / NetworkX 回退）
 │   ├── query/                     #   统一查询服务 (ADR-055)
@@ -291,6 +292,7 @@ odap/
 | **模拟仿真** | 事件推演、沙盘推演 | `odap/biz/simulation/` | [docs/03-modules/event_simulator/DESIGN.md](docs/03-modules/event_simulator/DESIGN.md) |
 | **审计日志** | 全链路审计、统一写入/读取 | `odap/infra/security/unified_audit.py` | [docs/03-modules/audit_log/DESIGN.md](docs/03-modules/audit_log/DESIGN.md) |
 | **统一查询** | 多数据源查询抽象 | `odap/infra/query/` | ADR-055 |
+| **语义管理台** | USL 管理 + OL 6 层流水线 + 质量闸 + 2 级审批 + HITL 飞轮 | `odap/biz/semantic_admin/` | [docs/03-modules/semantic_admin/DESIGN.md](docs/03-modules/semantic_admin/DESIGN.md) |
 
 ### 3.3 前后端术语映射
 
@@ -677,7 +679,7 @@ docs/
 │   ├── ARCHITECTURE_FULL_CHAIN.md   # 全链路数据流概述
 │   ├── ARCHITECTURE_FULL_CHAIN_DEEP.md  # 全链路深入实现
 │   └── ARCHITECTURE_OPS.md          # 运维架构
-├── 03-modules/               # 模块设计（38+ 后端模块 + 22 前端模块）
+├── 03-modules/               # 模块设计（39+ 后端模块 + 23 前端模块）
 │   ├── ontology/DESIGN.md
 │   ├── swarm_orchestrator/DESIGN.md
 │   ├── opa_policy/DESIGN.md
@@ -687,11 +689,12 @@ docs/
 │   ├── event_simulator/DESIGN.md
 │   ├── audit_log/DESIGN.md
 │   ├── workspace/DESIGN.md
+│   ├── semantic_admin/DESIGN.md
 │   └── ...
 ├── 04-ui/                    # UI 设计（组件层级、规范、本体构建 UI）
 ├── 05-security/              # 安全设计
 ├── 06-dfx/                   # DFX 设计（可测试性、可维护性）
-├── 07-adr/                   # 架构决策记录（ADR-001 ~ ADR-060）
+├── 07-adr/                   # 架构决策记录（ADR-001 ~ ADR-061）
 ├── 09-checklists/             # 检查清单
 │   └── DOC_SYNC_CHECKLIST.md # ⭐ 文档同步检查清单（提交前必查）
 └── ...
@@ -703,7 +706,7 @@ docs/
 |------|----------|------|
 | **架构总览** | [docs/02-architecture/ARCHITECTURE.md](docs/02-architecture/ARCHITECTURE.md) | 四层架构定义、Phase 演进 |
 | **全链路实现** | [docs/02-architecture/ARCHITECTURE_FULL_CHAIN_DEEP.md](docs/02-architecture/ARCHITECTURE_FULL_CHAIN_DEEP.md) | 5-Phase 完整代码实现 |
-| **模块设计总览** | [docs/03-modules/README.md](docs/03-modules/README.md) | 38+ 后端模块 + 22 前端模块索引 |
+| **模块设计总览** | [docs/03-modules/README.md](docs/03-modules/README.md) | 39+ 后端模块 + 23 前端模块索引 |
 | **本体管理** | [docs/03-modules/ontology/DESIGN.md](docs/03-modules/ontology/DESIGN.md) | 本体 CRUD、版本控制 |
 | **Agent 编排** | [docs/03-modules/swarm_orchestrator/DESIGN.md](docs/03-modules/swarm_orchestrator/DESIGN.md) | Swarm 调度与协同 |
 | **OPA 策略** | [docs/03-modules/opa_policy/DESIGN.md](docs/03-modules/opa_policy/DESIGN.md) | Rego 策略与权限 |
@@ -711,6 +714,7 @@ docs/
 | **MCP 协议** | [docs/03-modules/mcp_protocol/DESIGN.md](docs/03-modules/mcp_protocol/DESIGN.md) | Model Context Protocol |
 | **问答引擎** | [docs/03-modules/qa_engine/DESIGN.md](docs/03-modules/qa_engine/DESIGN.md) | RAG 问答实现 |
 | **审计日志** | [docs/03-modules/audit_log/DESIGN.md](docs/03-modules/audit_log/DESIGN.md) | 统一审计机制 |
+| **语义管理台** | [docs/03-modules/semantic_admin/DESIGN.md](docs/03-modules/semantic_admin/DESIGN.md) | USL 治理 + OL 6 层流水线 + 2 级审批飞轮 + 双写存储 |
 | **Web 前端** | [docs/03-modules/web_frontend/DESIGN.md](docs/03-modules/web_frontend/DESIGN.md) | 前端模块设计 |
 | **UI 组件规范** | [docs/04-ui/COMPONENT_SPEC.md](docs/04-ui/COMPONENT_SPEC.md) | 组件设计规范 |
 | **安全设计** | [docs/05-security/SECURITY.md](docs/05-security/SECURITY.md) | JWT、OAuth2、审计 |
@@ -965,6 +969,19 @@ Step 10: 智能问答
 | Agent 对话 | `/api/agent/chat` |
 | Agent 编排 | `/api/agent/orchestrate` |
 | QA 问答 | `/api/qa/ask` |
+| 语义管理台 B2 USL Domain | `/api/semantic-admin/usl/domains` |
+| 语义管理台 B3 USL Term | `/api/semantic-admin/usl/terms` |
+| 语义管理台 B3 USL 层级/属性/不相交/基数 | `/api/semantic-admin/usl/hierarchies` · `/properties` · `/disjoint-pairs` · `/cardinalities` |
+| 语义管理台 C1 OL Pipeline Run 创建 | `/api/semantic-admin/pipeline/runs` |
+| 语义管理台 C3 候选列表 | `/api/semantic-admin/candidates` |
+| 语义管理台 C4 候选审批/拒绝 | `/api/semantic-admin/candidates/{id}/approve` · `/reject` |
+| 语义管理台 C6 全链路 OL 推进 | `/api/semantic-admin/pipeline/runs/{id}/advance` · `/execute-all` |
+| 语义管理台 B7 候选写回 USL | `/api/semantic-admin/candidates/{id}/promote-to-usl` |
+| 语义管理台 C1 质量闸报告 | `/api/semantic-admin/quality-gate/reports/{cand_id}` · `/quality-gate/reports`（批量重评） |
+| 语义管理台 C5 仪表盘 3 视图 | `/api/semantic-admin/dashboard/summary` · `/terms-trend` · `/approvals-breakdown` |
+| 语义管理台 D 系列 2 级审批工作流 | `/api/semantic-admin/approval/tasks` · `/tasks/{id}/audit|modify|reject|final-approve` |
+| 语义管理台 I4T8 USL 写回触发与状态 | `/api/semantic-admin/writeback/candidates/{id}` · `/writeback/status/{id}` |
+| 语义管理台 Sa 动态配置 | `/api/semantic-admin/config` · `/{scope}/{key}` · `/domain/{domain_code}` · `/ensure-builtin` |
 
 ### F. Git 提交规范
 

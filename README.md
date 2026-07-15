@@ -165,11 +165,12 @@ pip install -r requirements.txt
 # 安装前端依赖
 cd frontend && npm install
 
-# 终端 1 - 启动后端
-python main.py --web
-
-# 终端 2 - 启动前端
-cd frontend && npm run dev
+# ⚠️ 严禁直接在宿主机跑 uvicorn 或 vite 开发服务器（AGENTS.md Rule 7）
+# ⚠️ 所有开发服务必须运行在 Podman 容器内，通过 bootstep.py 统一启动：
+#   开发模式（HMR 热重载 + 代码挂载 + 数据源持久化）
+python bootstep.py dev
+#   验证容器健康
+python bootstep.py status
 ```
 
 ## 服务访问

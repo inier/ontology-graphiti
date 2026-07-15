@@ -167,7 +167,8 @@ export function RoleManager() {
   const getRoleTypeColor = (roleType: string) => {
     const colors: Record<string, string> = {
       system_admin: 'red', project_owner: 'orange', team_leader: 'blue',
-      member: 'green', guest: 'gray',
+      member: 'green', guest: 'gray', director: 'purple', intelligence: 'cyan',
+      operator: 'geekblue', analyst: 'magenta', schema_auditor: 'volcano',
     };
     return colors[roleType] || 'default';
   };
@@ -175,7 +176,8 @@ export function RoleManager() {
   const getRoleTypeLabel = (roleType: string) => {
     const labels: Record<string, string> = {
       system_admin: '系统管理员', project_owner: '项目所有者', team_leader: '团队领导',
-      member: '成员', guest: '访客',
+      member: '成员', guest: '访客', director: '负责人', intelligence: '情报员',
+      operator: '操作员', analyst: '分析员', schema_auditor: 'Schema 审计员',
     };
     return labels[roleType] || roleType;
   };
@@ -264,6 +266,11 @@ export function RoleManager() {
               <Option value="team_leader">团队领导</Option>
               <Option value="member">成员</Option>
               <Option value="guest">访客</Option>
+              <Option value="director">负责人</Option>
+              <Option value="intelligence">情报员</Option>
+              <Option value="operator">操作员</Option>
+              <Option value="analyst">分析员</Option>
+              <Option value="schema_auditor">Schema 审计员</Option>
             </Select>
           </Form.Item>
           <Form.Item label="权限">

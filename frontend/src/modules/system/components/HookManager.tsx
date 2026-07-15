@@ -1,8 +1,9 @@
-import { useState, useEffect } from 'react';
+import { useState, useRef, useMemo } from 'react';
 import { Switch, Button, Modal, Select, Card, Tag, Space, message, Popconfirm, Form, Input } from 'antd';
-import { PlusOutlined, DeleteOutlined, ReloadOutlined } from '@ant-design/icons';
+import { PlusOutlined, DeleteOutlined } from '@ant-design/icons';
 import { apiClient } from '@/modules/shared/services/apiClient';
-import { AdvancedTable } from '@/modules/shared';
+import { AdvancedTable, wrapRequest } from '@/modules/shared';
+import type { ActionType } from '@ant-design/pro-components';
 
 interface HookRecord {
   hook_id: string;
@@ -45,32 +46,22 @@ const PHASE_OPTIONS = [
 ];
 
 export default function HookManager() {
-  const [hooks, setHooks] = useState<HookRecord[]>([]);
-  const [loading, setLoading] = useState(false);
+  const actionRef = useRef<ActionType>(null);
   const [typeFilter, setTypeFilter] = useState('');
   const [registerOpen, setRegisterOpen] = useState(false);
   const [form] = Form.useForm();
 
-  useEffect(() => {
-    loadHooks();
-  }, []);
-
-  const loadHooks = async (hookType?: string) => {
-    setLoading(true);
-    try {
-      const qs = hookType ? `?hook_type=${encodeURIComponent(hookType)}` : '';
-      const data = await apiClient.get<{ hooks: HookRecord[]; total: number }>(`/api/hooks${qs}`);
-      setHooks(data.hooks || []);
-    } catch {
-      setHooks([]);
-    } finally {
-      setLoading(false);
-    }
+  const fetchHooks = async (): Promise<HookRecord[]> => {
+    const qs = typeFilter ? `?hook_type=${encodeURIComponent(typeFilter)}` : '';
+    const data = await apiClient.get<{ hooks: HookRecord[]; total: number }>(`/api/hooks${qs}`);
+    return data.hooks || [];
   };
+
+  const request = useMemo(() => wrapRequest(fetchHooks), [typeFilter]);
 
   const handleTypeFilter = (value: string) => {
     setTypeFilter(value);
-    loadHooks(value || undefined);
+    setTimeout(() => actionRef.current?.reload(), 0);
   };
 
   const handleRegister = async (values: { name: string; hook_type: string; script: string; description: string; language: string; phase: string; priority: number }) => {
@@ -79,7 +70,7 @@ export default function HookManager() {
       message.success('Hook registered');
       setRegisterOpen(false);
       form.resetFields();
-      loadHooks(typeFilter || undefined);
+      actionRef.current?.reload();
     } catch (e) {
       message.error(`Register failed: ${(e as Error).message}`);
     }
@@ -89,7 +80,7 @@ export default function HookManager() {
     try {
       await apiClient.delete(`/api/hooks/${hookId}`);
       message.success('Hook unregistered');
-      loadHooks(typeFilter || undefined);
+      actionRef.current?.reload();
     } catch (e) {
       message.error(`Unregister failed: ${(e as Error).message}`);
     }
@@ -100,7 +91,7 @@ export default function HookManager() {
       const endpoint = enabled ? 'enable' : 'disable';
       await apiClient.post(`/api/hooks/${hookId}/${endpoint}`);
       message.success(`Hook ${enabled ? 'enabled' : 'disabled'}`);
-      loadHooks(typeFilter || undefined);
+      actionRef.current?.reload();
     } catch (e) {
       message.error(`Toggle failed: ${(e as Error).message}`);
     }
@@ -182,9 +173,6 @@ export default function HookManager() {
               allowClear
               options={[{ value: '', label: 'All' }, ...HOOK_TYPE_OPTIONS]}
             />
-            <Button icon={<ReloadOutlined />} onClick={() => loadHooks(typeFilter || undefined)}>
-              Refresh
-            </Button>
             <Button type="primary" icon={<PlusOutlined />} onClick={() => setRegisterOpen(true)}>
               Register
             </Button>
@@ -192,10 +180,10 @@ export default function HookManager() {
         }
       >
         <AdvancedTable
-          dataSource={hooks}
+          request={request}
+          actionRef={actionRef}
           columns={columns}
           rowKey="hook_id"
-          loading={loading}
           size="small"
           pagination={{ pageSize: 15 }}
         />

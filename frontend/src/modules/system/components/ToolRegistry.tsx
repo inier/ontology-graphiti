@@ -1,8 +1,9 @@
-import { useState, useEffect } from 'react';
+import { useState, useRef, useMemo } from 'react';
 import { Button, Modal, Input, Select, Card, Tag, Space, Typography, message, Popconfirm, Form } from 'antd';
 import { PlusOutlined, DeleteOutlined, SearchOutlined, ThunderboltOutlined } from '@ant-design/icons';
 import { apiClient } from '@/modules/shared/services/apiClient';
-import { AdvancedTable } from '@/modules/shared';
+import { AdvancedTable, wrapRequest } from '@/modules/shared';
+import type { ActionType } from '@ant-design/pro-components';
 
 const { Text } = Typography;
 
@@ -36,8 +37,7 @@ const DANGER_COLORS: Record<string, string> = {
 };
 
 export default function ToolRegistry() {
-  const [tools, setTools] = useState<ToolRecord[]>([]);
-  const [loading, setLoading] = useState(false);
+  const actionRef = useRef<ActionType>(null);
   const [categoryFilter, setCategoryFilter] = useState('');
   const [registerOpen, setRegisterOpen] = useState(false);
   const [invokeOpen, setInvokeOpen] = useState(false);
@@ -46,27 +46,18 @@ export default function ToolRegistry() {
   const [invokeParams, setInvokeParams] = useState('');
   const [form] = Form.useForm();
 
-  useEffect(() => {
-    loadTools();
-  }, []);
-
-  const loadTools = async (category?: string) => {
-    setLoading(true);
-    try {
-      const qs = category ? `?category=${encodeURIComponent(category)}` : '';
-      const data = await apiClient.get<{ tools: ToolRecord[]; count: number }>(`/api/tools${qs}`);
-      setTools(data.tools || []);
-    } catch {
-      message.error('Failed to load tools');
-      setTools([]);
-    } finally {
-      setLoading(false);
-    }
+  const fetchTools = async (): Promise<ToolRecord[]> => {
+    const qs = categoryFilter ? `?category=${encodeURIComponent(categoryFilter)}` : '';
+    const data = await apiClient.get<{ tools: ToolRecord[]; count: number }>(`/api/tools${qs}`);
+    return data.tools || [];
   };
+
+  const request = useMemo(() => wrapRequest(fetchTools), [categoryFilter]);
 
   const handleCategoryChange = (value: string) => {
     setCategoryFilter(value);
-    loadTools(value || undefined);
+    // categoryFilter 变化后，下一次 request 调用会用新值，触发表格刷新
+    setTimeout(() => actionRef.current?.reload(), 0);
   };
 
   const handleRegister = async (values: ToolRecord) => {
@@ -75,7 +66,7 @@ export default function ToolRegistry() {
       message.success('Tool registered');
       setRegisterOpen(false);
       form.resetFields();
-      loadTools(categoryFilter || undefined);
+      actionRef.current?.reload();
     } catch (e) {
       message.error(`Register failed: ${(e as Error).message}`);
     }
@@ -85,7 +76,7 @@ export default function ToolRegistry() {
     try {
       await apiClient.delete(`/api/tools/${toolId}`);
       message.success('Tool unregistered');
-      loadTools(categoryFilter || undefined);
+      actionRef.current?.reload();
     } catch (e) {
       message.error(`Unregister failed: ${(e as Error).message}`);
     }
@@ -93,20 +84,18 @@ export default function ToolRegistry() {
 
   const handleDiscover = async () => {
     if (!discoverQuery.trim()) {
-      loadTools(categoryFilter || undefined);
+      actionRef.current?.reload();
       return;
     }
-    setLoading(true);
     try {
       const data = await apiClient.post<{ tools: ToolRecord[]; count: number }>('/api/tools/discover', {
         query: discoverQuery,
         top_k: 10,
       });
-      setTools(data.tools || []);
+      message.success(`Discovered ${data.tools?.length || 0} tools`);
+      actionRef.current?.reload();
     } catch (e) {
       message.error(`Discovery failed: ${(e as Error).message}`);
-    } finally {
-      setLoading(false);
     }
   };
 
@@ -228,10 +217,10 @@ export default function ToolRegistry() {
         }
       >
         <AdvancedTable
-          dataSource={tools}
+          request={request}
+          actionRef={actionRef}
           columns={columns}
           rowKey={(record) => record.tool_id || record.name}
-          loading={loading}
           size="small"
           pagination={{ pageSize: 15 }}
         />
