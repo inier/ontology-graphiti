@@ -441,3 +441,159 @@ class TestServiceTypeConversion:
                 if k in obj:
                     assert isinstance(obj[k], str), f"{name}.{k} 不是字符串"
                     assert ISO_RE.match(obj[k]), f"{name}.{k} 不是 ISO 格式: {obj[k]}"
+
+
+# =====================================================================
+# 8. HITL (Human-in-the-Loop) 操作测试
+# =====================================================================
+
+
+class TestServiceHITLOperations:
+    def test_hitl_update_term_definition_and_synonyms(self, tmp_path: Path):
+        """HITL: 用户更新术语定义和同义词（canonical 不可改）。"""
+        svc, _ = _mk_service(tmp_path)
+        did = _create_domain(svc, "d")
+        t = svc.create_term(dict(
+            domain_id=did, canonical="人物",
+            semantic_type="对象类型",
+            definition="原始定义",
+            synonyms=["角色"],
+        ))
+        assert t["canonical"] == "人物"
+        assert t["definition"] == "原始定义"
+
+        r = svc.update_term(t["id"], dict(
+            definition="更新后的定义：人类个体",
+            synonyms=["角色", "人类", "个体"],
+        ))
+        assert "status" not in r
+        assert r["canonical"] == "人物"
+        assert r["definition"] == "更新后的定义：人类个体"
+        assert set(r["synonyms"]) == {"角色", "人类", "个体"}
+
+    def test_hitl_merge_duplicate_terms(self, tmp_path: Path):
+        """HITL: 合并重复术语。"""
+        svc, _ = _mk_service(tmp_path)
+        did = _create_domain(svc, "d")
+        t1 = svc.create_term(dict(
+            domain_id=did, canonical="武将",
+            semantic_type="对象类型",
+            synonyms=["战士"],
+        ))
+        t2 = svc.create_term(dict(
+            domain_id=did, canonical="武将角色",
+            semantic_type="对象类型",
+            synonyms=["武勇"],
+        ))
+
+        r = svc.update_term(t2["id"], dict(
+            canonical="武将",
+            synonyms=["战士", "武勇"],
+        ))
+        assert "status" not in r
+        assert r["synonyms"] == ["战士", "武勇"]
+
+    def test_hitl_add_synonyms_to_existing_term(self, tmp_path: Path):
+        """HITL: 为现有术语添加同义词。"""
+        svc, _ = _mk_service(tmp_path)
+        did = _create_domain(svc, "d")
+        t = svc.create_term(dict(
+            domain_id=did, canonical="人物",
+            semantic_type="对象类型",
+            synonyms=["角色"],
+        ))
+
+        r = svc.update_term(t["id"], dict(
+            synonyms=["角色", "人类", "个体"],
+        ))
+        assert "status" not in r
+        assert set(r["synonyms"]) == {"角色", "人类", "个体"}
+
+    def test_hitl_mark_term_as_stoplisted(self, tmp_path: Path):
+        """HITL: 将术语标记为停止列表（拒绝）。"""
+        svc, _ = _mk_service(tmp_path)
+        did = _create_domain(svc, "d")
+        t = svc.create_term(dict(
+            domain_id=did, canonical="噪声术语",
+            semantic_type="对象类型",
+            stoplist_flag=False,
+        ))
+        assert t["stoplist_flag"] is False
+
+        r = svc.update_term(t["id"], dict(stoplist_flag=True))
+        assert "status" not in r
+        assert r["stoplist_flag"] is True
+
+    def test_hitl_update_definition_and_properties(self, tmp_path: Path):
+        """HITL: 更新术语定义和属性。"""
+        svc, _ = _mk_service(tmp_path)
+        did = _create_domain(svc, "d")
+        t = svc.create_term(dict(
+            domain_id=did, canonical="组织",
+            semantic_type="对象类型",
+            definition="简单定义",
+            near_synonyms=["机构"],
+        ))
+
+        r = svc.update_term(t["id"], dict(
+            definition="详细的组织定义：由多个个体组成的协作实体",
+            near_synonyms=["机构", "公司", "企业"],
+            aliases=["机关", "团体"],
+        ))
+        assert "status" not in r
+        assert "详细的组织定义" in r["definition"]
+        assert set(r["near_synonyms"]) == {"机构", "公司", "企业"}
+        assert set(r["aliases"]) == {"机关", "团体"}
+
+    def test_hitl_create_hierarchy_between_existing_terms(self, tmp_path: Path):
+        """HITL: 在现有术语之间创建层级关系。"""
+        svc, _ = _mk_service(tmp_path)
+        did = _create_domain(svc, "d")
+        svc.create_term(dict(domain_id=did, canonical="生物", semantic_type="对象类型"))
+        svc.create_term(dict(domain_id=did, canonical="人类", semantic_type="对象类型"))
+        svc.create_term(dict(domain_id=did, canonical="武将", semantic_type="对象类型"))
+
+        r = svc.create_hierarchy(dict(
+            domain_id=did, rel_type="IS_A",
+            parent_term="生物", child_term="人类",
+            confidence=0.95,
+        ))
+        assert "status" not in r
+        assert r["rel_type"] == "IS_A"
+
+        r2 = svc.create_hierarchy(dict(
+            domain_id=did, rel_type="IS_A",
+            parent_term="人类", child_term="武将",
+            confidence=0.9,
+        ))
+        assert "status" not in r2
+
+    def test_hitl_create_property_for_term(self, tmp_path: Path):
+        """HITL: 为术语创建属性规格。"""
+        svc, _ = _mk_service(tmp_path)
+        did = _create_domain(svc, "d")
+        svc.create_term(dict(domain_id=did, canonical="人物", semantic_type="对象类型"))
+
+        r = svc.create_property_spec(dict(
+            domain_id=did, for_term="人物", prop_name="年龄",
+            data_type="INTEGER", unit="岁", required_flag=True,
+            description="人物的年龄",
+        ))
+        assert "status" not in r
+        assert r["prop_name"] == "年龄"
+        assert r["data_type"] == "INTEGER"
+        assert r["required_flag"] is True
+
+    def test_hitl_create_disjoint_pair_for_conflicting_terms(self, tmp_path: Path):
+        """HITL: 为冲突术语创建互斥对。"""
+        svc, _ = _mk_service(tmp_path)
+        did = _create_domain(svc, "d")
+        svc.create_term(dict(domain_id=did, canonical="男性", semantic_type="对象类型"))
+        svc.create_term(dict(domain_id=did, canonical="女性", semantic_type="对象类型"))
+
+        r = svc.create_disjoint_pair(dict(
+            domain_id=did, term_a="男性", term_b="女性",
+            reason="性别互斥，一个实体不能同时为男性和女性",
+        ))
+        assert "status" not in r
+        assert r["reason"] == "性别互斥，一个实体不能同时为男性和女性"

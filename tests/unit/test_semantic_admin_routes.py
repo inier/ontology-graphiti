@@ -289,7 +289,7 @@ class TestDisjointRoutesHttp:
 
 class TestOtherRoutes404:
     def test_hierarchy_get_404(self, admin_client):
-        r = admin_client.get("/api/semantic-admin/usl/hierarchy/N")
+        r = admin_client.get("/api/semantic-admin/usl/hierarchies/N")
         assert r.status_code == 404
 
     def test_property_spec_get_404(self, admin_client):

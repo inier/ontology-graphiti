@@ -795,8 +795,69 @@ def run_seed(
 
 
 if __name__ == "__main__":  # pragma: no cover
+    import argparse
+
+    parser = argparse.ArgumentParser(description="USL Seed Migration Script")
+    parser.add_argument(
+        "--check",
+        action="store_true",
+        help="检查迁移状态（不执行）",
+    )
+    parser.add_argument(
+        "--apply",
+        action="store_true",
+        help="执行迁移（默认行为）",
+    )
+    parser.add_argument(
+        "--rollback",
+        action="store_true",
+        help="回滚迁移（删除 sanguo/xiyou 领域及其数据）",
+    )
+    parser.add_argument(
+        "--domain",
+        type=str,
+        choices=["sanguo", "xiyou"],
+        help="指定领域（默认全部）",
+    )
+    args = parser.parse_args()
+
     logging.basicConfig(
         level=logging.INFO, format="%(asctime)s %(levelname)s %(message)s"
     )
-    result = run_seed()
-    print(result)
+
+    usl_storage = SQLiteUslStorage()
+
+    if args.rollback:
+        domains = [args.domain] if args.domain else ["sanguo", "xiyou"]
+        for domain_code in domains:
+            domain = usl_storage.get_domain_by_code(domain_code)
+            if domain:
+                usl_storage.delete_domain(domain["id"])
+                logger.info(f"[rollback] 已删除领域: {domain_code}")
+            else:
+                logger.info(f"[rollback] 领域不存在: {domain_code}")
+        print({"status": "ok", "action": "rollback", "domains": domains})
+    elif args.check:
+        domains = [args.domain] if args.domain else ["sanguo", "xiyou"]
+        result = []
+        for domain_code in domains:
+            domain = usl_storage.get_domain_by_code(domain_code)
+            if domain:
+                terms, _ = usl_storage.list_terms(domain_id=domain["id"], page=1, page_size=10000)
+                result.append({"domain": domain_code, "exists": True, "terms_count": len(terms)})
+            else:
+                result.append({"domain": domain_code, "exists": False, "terms_count": 0})
+        print({"status": "ok", "action": "check", "domains": result})
+    else:
+        if args.domain:
+            from odap.biz.semantic_admin.usl_manager.storage import SQLiteUslStorage
+            sem = _BUILTIN_SEMANTIC_FALLBACK.get(args.domain)
+            if sem:
+                usl_storage = SQLiteUslStorage()
+                idx = _seed_one_domain(usl_storage, sem)
+                result = {"status": "ok", "seed_stats": {args.domain: {"term_count": len(idx)}}}
+            else:
+                result = {"status": "error", "message": f"未知领域: {args.domain}"}
+        else:
+            result = run_seed()
+        print(result)

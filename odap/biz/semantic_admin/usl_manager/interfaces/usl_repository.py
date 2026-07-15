@@ -212,5 +212,37 @@ class UslRepository(ABC):
         """删除基数约束；返回是否成功。"""
         raise NotImplementedError
 
+    # ================================================================
+    # Role Assignments CRUD + 列表
+    # ================================================================
+
+    @abstractmethod
+    def assign_role(self, payload: dict) -> dict:
+        """分配角色到工作空间用户。"""
+        raise NotImplementedError
+
+    @abstractmethod
+    def get_role_assignment(self, workspace_id: str, user_id: str) -> Optional[dict]:
+        """获取用户在工作空间的角色分配。"""
+        raise NotImplementedError
+
+    @abstractmethod
+    def list_role_assignments(
+        self,
+        *,
+        workspace_id: Optional[str] = None,
+        ws_role: Optional[str] = None,
+        user_id: Optional[str] = None,
+        page: int = 1,
+        page_size: int = 50,
+    ) -> Tuple[List[dict], int]:
+        """分页列出角色分配。"""
+        raise NotImplementedError
+
+    @abstractmethod
+    def remove_role_assignment(self, assignment_id: str) -> bool:
+        """删除角色分配；返回是否成功。"""
+        raise NotImplementedError
+
 
 __all__ = ["UslRepository"]

@@ -616,7 +616,7 @@ class UslManagerService:
 
     def assign_role(self, payload: Dict[str, Any]) -> Dict[str, Any]:
         try:
-            saved = self.storage.assign_role(payload)
+            saved = self.repository.assign_role(payload)
             return saved
         except ValueError as e:
             return {"status": "error", "message": str(e)}
@@ -628,7 +628,7 @@ class UslManagerService:
         self, workspace_id: str, user_id: str
     ) -> Dict[str, Any]:
         try:
-            assignment = self.storage.get_role_assignment(workspace_id, user_id)
+            assignment = self.repository.get_role_assignment(workspace_id, user_id)
             if not assignment:
                 return {
                     "status": "error",
@@ -654,7 +654,7 @@ class UslManagerService:
         page_size: int = 50,
     ) -> Dict[str, Any]:
         try:
-            items, total = self.storage.list_role_assignments(
+            items, total = self.repository.list_role_assignments(
                 workspace_id=workspace_id,
                 ws_role=ws_role,
                 user_id=user_id,
@@ -670,7 +670,7 @@ class UslManagerService:
 
     def remove_role_assignment(self, assignment_id: str) -> Dict[str, Any]:
         try:
-            ok = self.storage.delete_role_assignment(assignment_id)
+            ok = self.repository.remove_role_assignment(assignment_id)
             return {"status": "ok", "deleted": bool(ok), "id": assignment_id}
         except ValueError as e:
             return {"status": "error", "message": str(e)}

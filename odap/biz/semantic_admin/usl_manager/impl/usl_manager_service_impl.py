@@ -267,5 +267,35 @@ class UslManagerServiceImpl(UslRepository):
     def delete_cardinality(self, card_id: str) -> bool:
         return self.storage.delete_cardinality(card_id)
 
+    # =================================================================
+    # Role Assignments
+    # =================================================================
+
+    def assign_role(self, payload: dict) -> dict:
+        return self.storage.assign_role(payload)
+
+    def get_role_assignment(self, workspace_id: str, user_id: str) -> Optional[dict]:
+        return self.storage.get_role_assignment(workspace_id, user_id)
+
+    def list_role_assignments(
+        self,
+        *,
+        workspace_id: Optional[str] = None,
+        ws_role: Optional[str] = None,
+        user_id: Optional[str] = None,
+        page: int = 1,
+        page_size: int = 50,
+    ) -> Tuple[List[dict], int]:
+        return self.storage.list_role_assignments(
+            workspace_id=workspace_id,
+            ws_role=ws_role,
+            user_id=user_id,
+            page=page,
+            page_size=page_size,
+        )
+
+    def remove_role_assignment(self, assignment_id: str) -> bool:
+        return self.storage.delete_role_assignment(assignment_id)
+
 
 __all__ = ["UslManagerServiceImpl"]

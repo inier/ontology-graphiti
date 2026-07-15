@@ -331,7 +331,7 @@ async def delete_term(
 # =====================================================================
 
 
-@router.get("/hierarchy", response_model=HierarchyListResponse)
+@router.get("/hierarchies", response_model=HierarchyListResponse)
 async def list_hierarchies(
     domain_id: Optional[str] = Query(None),
     page: int = Query(1, ge=1),
@@ -354,7 +354,7 @@ async def list_hierarchies(
         raise HTTPException(status_code=500, detail=str(e))
 
 
-@router.post("/hierarchy", response_model=HierarchyResponse)
+@router.post("/hierarchies", response_model=HierarchyResponse)
 async def create_hierarchy(
     request: CreateHierarchyRequest,
     _auth: Dict[str, Any] = Depends(verify_semantic_writer),
@@ -371,7 +371,7 @@ async def create_hierarchy(
         raise HTTPException(status_code=500, detail=str(e))
 
 
-@router.get("/hierarchy/{hierarchy_id}", response_model=HierarchyResponse)
+@router.get("/hierarchies/{hierarchy_id}", response_model=HierarchyResponse)
 async def get_hierarchy(
     hierarchy_id: str,
     _auth: Dict[str, Any] = Depends(get_current_user),
@@ -388,7 +388,7 @@ async def get_hierarchy(
         raise HTTPException(status_code=500, detail=str(e))
 
 
-@router.put("/hierarchy/{hierarchy_id}", response_model=HierarchyResponse)
+@router.put("/hierarchies/{hierarchy_id}", response_model=HierarchyResponse)
 async def update_hierarchy(
     hierarchy_id: str,
     request: UpdateHierarchyRequest,
@@ -408,7 +408,7 @@ async def update_hierarchy(
         raise HTTPException(status_code=500, detail=str(e))
 
 
-@router.delete("/hierarchy/{hierarchy_id}", response_model=DeleteResponse)
+@router.delete("/hierarchies/{hierarchy_id}", response_model=DeleteResponse)
 async def delete_hierarchy(
     hierarchy_id: str,
     _auth: Dict[str, Any] = Depends(verify_semantic_writer),

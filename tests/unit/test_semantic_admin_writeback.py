@@ -245,3 +245,52 @@ class TestWritebackGetStatus:
     def test_status_empty_cid_errors(self, wb: WritebackService):
         r = wb.get_writeback_status("")
         assert r["status"] == "error"
+
+
+# 7. Writeback 错误处理与回滚 --------------------------------------------------------
+class TestWritebackErrorHandling:
+    def test_writeback_failure_returns_error_and_preserves_status(
+        self, wb: WritebackService, cs: SQLiteCandidateStorage, us: SQLiteUslStorage
+    ):
+        """Writeback failure returns error and preserves candidate status."""
+        c = _mc(cs, canon="FailT", status="approved")
+        b0 = _cnt(us.db_path)
+
+        from unittest.mock import patch
+        with patch.object(us, 'save_term') as mock_save:
+            mock_save.side_effect = RuntimeError("Storage failure")
+
+            r = wb.write_approved(c["id"], executed_by="u1")
+
+            assert r["status"] == "error"
+            assert _cnt(us.db_path) == b0
+
+            upd = cs.get_candidate(c["id"]) or {}
+            assert upd.get("status") == "approved"
+
+    def test_writeback_without_candidate_returns_404(
+        self, wb: WritebackService, cs: SQLiteCandidateStorage
+    ):
+        """Writeback on non-existent candidate returns 404 error."""
+        r = wb.write_approved("non-existent-id", executed_by="u1")
+
+        assert r["status"] == "error"
+        assert "404" in str(r.get("code", "")) or "不存在" in r.get("message", "")
+
+    def test_writeback_empty_candidate_id_returns_error(
+        self, wb: WritebackService
+    ):
+        """Writeback with empty candidate_id returns error."""
+        r = wb.write_approved("", executed_by="u1")
+
+        assert r["status"] == "error"
+        assert "不能为空" in r.get("message", "")
+
+    def test_write_rejected_without_candidate_returns_404(
+        self, wb: WritebackService, cs: SQLiteCandidateStorage
+    ):
+        """Write rejected on non-existent candidate returns 404 error."""
+        r = wb.write_rejected("non-existent-id", reason_code="DUPLICATE")
+
+        assert r["status"] == "error"
+        assert "404" in str(r.get("code", "")) or "不存在" in r.get("message", "")
