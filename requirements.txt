@@ -62,7 +62,7 @@ langchain>=0.1.0
 langchain-openai>=0.1.0
 langchain-community>=0.1.0
 faiss-cpu>=1.7.0
-sentence-transformers>=2.2.0
+# sentence-transformers>=2.2.0  # 临时注释：torch+CUDA 包过大(2GB+)，embedder 走 fallback
 
 # 文档解析
 PyPDF2>=3.0.0
