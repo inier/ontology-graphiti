@@ -11,9 +11,15 @@ import os
 import sys
 import pytest
 
-project_root = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
-if project_root not in sys.path:
-    sys.path.insert(0, project_root)
+# apps/api/tests/integration/conftest.py
+#   3 dirname -> apps/api/   (使 `import odap` 可用)
+#   5 dirname -> monorepo root
+_this = os.path.abspath(__file__)
+_api_dir = os.path.dirname(os.path.dirname(os.path.dirname(_this)))  # apps/api/
+_root = os.path.dirname(os.path.dirname(_api_dir))                   # monorepo root
+for _p in (_api_dir, _root):
+    if _p not in sys.path:
+        sys.path.insert(0, _p)
 
 
 def _is_service_available(url: str, timeout: float = 2.0) -> bool:

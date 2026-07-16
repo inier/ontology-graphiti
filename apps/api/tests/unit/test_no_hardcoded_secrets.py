@@ -22,7 +22,9 @@ import re
 from pathlib import Path
 import pytest
 
-ROOT = Path(r"e:\DEMO\AI\ontology-graphiti\odap")
+# apps/api/tests/unit/ -> apps/api/ (3 parents) -> odap/
+_ROOT = Path(__file__).resolve().parent.parent.parent
+ROOT = _ROOT / "odap"
 
 # The 7 placeholder defaults we are guarding against
 KNOWN_PLACEHOLDER_DEFAULTS = {

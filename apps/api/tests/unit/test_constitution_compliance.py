@@ -25,6 +25,8 @@ from pathlib import Path
 
 import pytest
 
+_TESTS_DIR = Path(__file__).resolve().parent  # apps/api/tests/unit/
+
 SPECS_ROOT = Path("specs")
 CONSTITUTION_PATH = Path(".specify/memory/constitution.md")
 
@@ -200,14 +202,13 @@ def test_g7_g8_g9_required_test_files_exist():
     """G-7/G-8/G-9: the regression test files referenced by quality gates
     MUST exist in the test suite."""
     required = [
-        "tests/unit/test_route_exception_handling.py",    # G-7
-        "tests/unit/test_audit_cypher_injection.py",      # G-8 (Cypher)
-        "tests/unit/test_silent_except_handling.py",      # R-P1-004
-        "tests/unit/test_function_length.py",             # R-P3-001
+        _TESTS_DIR / "test_route_exception_handling.py",    # G-7
+        _TESTS_DIR / "test_audit_cypher_injection.py",      # G-8 (Cypher)
+        _TESTS_DIR / "test_silent_except_handling.py",      # R-P1-004
+        _TESTS_DIR / "test_function_length.py",             # R-P3-001
     ]
-    for rel in required:
-        p = Path(rel)
-        assert p.exists(), f"G-7/G-8 required test missing: {rel}"
+    for p in required:
+        assert p.exists(), f"G-7/G-8 required test missing: {p}"
 
 
 # ---------------------------------------------------------------------------

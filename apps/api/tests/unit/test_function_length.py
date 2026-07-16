@@ -13,6 +13,10 @@ from pathlib import Path
 
 import pytest
 
+# apps/api/tests/unit/ -> apps/api/ (3 parents) -> odap/
+_ROOT = Path(__file__).resolve().parent.parent.parent
+ODAP_ROOT = _ROOT / "odap"
+
 # Per constitution §"I. 简单"
 MAX_FUNCTION_LINES = 40
 
@@ -33,7 +37,7 @@ def _is_exempt(path: Path) -> bool:
 def _collect_violations() -> list[tuple[str, int, int, str]]:
     """Walk odap/ and collect all (file, line, n_lines, function_name) > MAX."""
     violations: list[tuple[str, int, int, str]] = []
-    for f in Path("odap").rglob("*.py"):
+    for f in ODAP_ROOT.rglob("*.py"):
         if _is_exempt(f):
             continue
         try:
@@ -86,7 +90,7 @@ def test_no_function_exceeds_40_lines_in_exempt_files_clean():
     }
     violations_by_file: dict[str, int] = {}
     for rel, _count in BASELINE_EXEMPT.items():
-        p = Path(rel)
+        p = _ROOT / rel
         if not p.exists():
             continue
         try:
@@ -121,7 +125,7 @@ def test_function_length_regression_guard():
     """
     # Snapshot of current offenders (regenerated on each test run)
     violations = _collect_violations()
-    snapshot_path = Path("tests/unit/test_function_length_snapshot.txt")
+    snapshot_path = Path(__file__).resolve().parent / "test_function_length_snapshot.txt"
     if not snapshot_path.exists():
         snapshot_path.write_text(
             "\n".join(f"{f}:{l} {n}L {name}" for f, l, n, name in violations),

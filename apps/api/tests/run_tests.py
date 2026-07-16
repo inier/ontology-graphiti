@@ -37,7 +37,9 @@ from datetime import datetime
 from pathlib import Path
 from typing import Optional
 
-PROJECT_ROOT = Path(__file__).resolve().parent
+PROJECT_ROOT = Path(__file__).resolve().parent          # apps/api/tests/
+MONOREPO_ROOT = PROJECT_ROOT.parent.parent.parent        # monorepo root
+FRONTEND_DIR = MONOREPO_ROOT / "apps" / "web"            # apps/web/
 REPORT_DIR = PROJECT_ROOT / "test-reports"
 
 
@@ -160,19 +162,19 @@ def build_pytest_command(
     cmd = [_python(), "-m", "pytest"]
 
     if mode == "smoke":
-        cmd += ["-m", "smoke", "tests/"]
+        cmd += ["-m", "smoke", str(PROJECT_ROOT)]
     elif mode == "unit":
-        cmd += ["tests/unit/"]
+        cmd += [str(PROJECT_ROOT / "unit")]
     elif mode == "regression":
-        cmd += ["-m", "regression", "tests/unit/"]
+        cmd += ["-m", "regression", str(PROJECT_ROOT / "unit")]
     elif mode == "integration":
-        cmd += ["tests/integration/", "-m", "integration"]
+        cmd += [str(PROJECT_ROOT / "integration"), "-m", "integration"]
     elif mode == "e2e":
-        cmd += ["tests/e2e/", "-m", "e2e"]
+        cmd += [str(MONOREPO_ROOT / "tests" / "e2e"), "-m", "e2e"]
     elif mode == "perf":
-        cmd += ["tests/perf/", "-m", "perf"]
+        cmd += [str(MONOREPO_ROOT / "tests" / "perf"), "-m", "perf"]
     else:
-        cmd += ["tests/unit/"]
+        cmd += [str(PROJECT_ROOT / "unit")]
 
     # 并行（仅当安装了 pytest-xdist 时生效；未安装时忽略）
     if parallel and parallel > 1 and _has_pytest_xdist():
@@ -199,9 +201,9 @@ def build_pytest_command(
 
 def build_frontend_command(coverage: bool) -> list:
     """构建前端 vitest 命令。"""
-    cmd = ["npm", "run", "test"]
+    cmd = ["pnpm", "test"]
     if coverage:
-        cmd = ["npm", "run", "test:coverage"]
+        cmd = ["pnpm", "test:coverage"]
     return cmd
 
 
@@ -513,14 +515,14 @@ def _build_stages(mode: str, args) -> list:
         stages.append(("perf", cmd, PROJECT_ROOT, f"junit-perf.xml"))
     elif mode == "frontend":
         cmd = build_frontend_command(coverage=args.coverage)
-        stages.append(("frontend", cmd, PROJECT_ROOT / "frontend", None))
+        stages.append(("frontend", cmd, FRONTEND_DIR, None))
     elif mode == "full":
         cmd = build_pytest_command(
             "unit", coverage=args.coverage, junit_xml=args.junit_xml, parallel=parallel
         )
         stages.append(("unit", cmd, PROJECT_ROOT, f"junit-unit.xml"))
         fe_cmd = build_frontend_command(coverage=args.coverage)
-        stages.append(("frontend", fe_cmd, PROJECT_ROOT / "frontend", None))
+        stages.append(("frontend", fe_cmd, FRONTEND_DIR, None))
     elif mode == "all":
         for m, junit_name in [
             ("unit", "junit-unit.xml"),
@@ -536,7 +538,7 @@ def _build_stages(mode: str, args) -> list:
             )
             stages.append((m, cmd, PROJECT_ROOT, junit_name))
         fe_cmd = build_frontend_command(coverage=args.coverage)
-        stages.append(("frontend", fe_cmd, PROJECT_ROOT / "frontend", None))
+        stages.append(("frontend", fe_cmd, FRONTEND_DIR, None))
 
     return stages
 

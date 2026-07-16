@@ -87,7 +87,7 @@ class TestSilentExceptsFixed:
         """The 12 files we fixed in R-P1-004 must be clean."""
         violations = []
         for rel in TOP_12_TARGETS:
-            path = Path(r"e:\DEMO\AI\ontology-graphiti") / rel
+            path = _ROOT / rel
             if not path.exists():
                 continue
             try:

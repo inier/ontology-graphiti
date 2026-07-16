@@ -3,9 +3,15 @@ import os
 import pytest
 from unittest.mock import MagicMock, AsyncMock
 
-project_root = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
-if project_root not in sys.path:
-    sys.path.insert(0, project_root)
+# apps/api/tests/conftest.py
+#   2 dirname -> apps/api/   (使 `import odap` 可用)
+#   4 dirname -> monorepo root
+_this = os.path.abspath(__file__)
+_api_dir = os.path.dirname(os.path.dirname(_this))   # apps/api/
+_root = os.path.dirname(os.path.dirname(_api_dir))   # monorepo root
+for _p in (_api_dir, _root):
+    if _p not in sys.path:
+        sys.path.insert(0, _p)
 
 # C3 fix: 测试环境注入 JWT_SECRET，使 app.py lifespan 的 strict 校验通过。
 # 仅当未显式设置时注入，允许单个测试用 monkeypatch 覆盖为非法值以测试 fail-fast。
