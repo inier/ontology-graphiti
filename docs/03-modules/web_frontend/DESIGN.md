@@ -23,7 +23,7 @@ Web 前端是 ODAP 平台的**用户交互界面**，提供全流程可视化操
 ### 1.3 现有状态
 
 ```
-frontend/src/
+apps/web/src/
 ├── components/          # 7 个组件
 │   ├── AppLayout.tsx    # 布局框架（侧边栏+顶栏+内容区）
 │   ├── GraphCanvas.tsx  # 知识图谱可视化（D3.js）
@@ -560,7 +560,7 @@ const darkThemeConfig = {
 
 ```bash
 # 启动开发服务器
-cd frontend && npm run dev
+cd apps/web && pnpm dev
 # → http://localhost:5173
 
 # API 代理到后端
@@ -571,11 +571,11 @@ cd frontend && npm run dev
 
 ```bash
 # 构建
-npm run build
+pnpm build
 # → dist/
 
 # 集成到 FastAPI 静态文件
-# main.py → mount_static("frontend/dist")
+# apps/api/main.py → mount_static("apps/web/dist")
 ```
 
 ---

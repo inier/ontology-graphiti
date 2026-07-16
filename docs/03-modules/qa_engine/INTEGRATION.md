@@ -32,10 +32,10 @@
 
 ```bash
 # 安装依赖
-npm install @openharness/react
+pnpm add @openharness/react
 
 # 检查版本
-npm list @openharness/react
+pnpm list @openharness/react
 ```
 
 ### 2.3 Provider 配置
@@ -94,7 +94,7 @@ export { API_ENDPOINT };
 ### 3.1 目录结构
 
 ```
-frontend/src/modules/qa/
+apps/web/src/modules/qa/
 ├── providers/
 │   └── QAIProvider.tsx       # OpenHarness Provider 集成
 ├── hooks/

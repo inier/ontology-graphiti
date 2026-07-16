@@ -129,7 +129,7 @@
 - 如果 `filename`（通常是文档标题，如"电商产品说明文档"）不包含扩展名，自动追加 `.{ext}`
 - 确保 Word/Excel/PPT/PDF 等 Office 文档均可被 jit-viewer 正确识别和渲染
 
-**影响文件**: `frontend/src/modules/shared/components/DocumentViewer.tsx`
+**影响文件**: `apps/web/src/modules/shared/components/DocumentViewer.tsx`
 
 ---
 
@@ -158,8 +158,8 @@ KB 模块的图谱写入必须遵循 AGENTS.md 规则：业务模块通过 `Grap
 
 | 文件 | 层 | 改动内容 |
 |------|---|----------|
-| `frontend/src/modules/knowledge/pages/KnowledgeBase.tsx` | 展示层 | MIME 映射、状态派生、详情 Drawer 增强 |
-| `frontend/src/modules/shared/components/DocumentViewer.tsx` | 展示层 | 确保 jit-viewer filename 包含扩展名（FR-06） |
+| `apps/web/src/modules/knowledge/pages/KnowledgeBase.tsx` | 展示层 | MIME 映射、状态派生、详情 Drawer 增强 |
+| `apps/web/src/modules/shared/components/DocumentViewer.tsx` | 展示层 | 确保 jit-viewer filename 包含扩展名（FR-06） |
 | `odap/biz/data/knowledge_base/storage/sqlite_kb_storage.py` | 存储层 | `update_document_graph_status` 同步更新 `status` |
 | `odap/biz/data/knowledge_base/services/knowledge_base_service.py` | 服务层 | `_write_to_graph` 改用 `GraphWriteProxy` |
 

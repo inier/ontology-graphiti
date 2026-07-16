@@ -13,7 +13,7 @@
 - [ ] `docs/03-modules/{领域}/` — 新增或更新对应模块的 `DESIGN.md`
 - [ ] `agents.md` § 3.1 — 更新后端包结构树（如有新领域或结构变更）
 
-当 `frontend/src/modules/` 下新增/删除/重命名模块时：
+当 `apps/web/src/modules/` 下新增/删除/重命名模块时：
 
 - [ ] `docs/03-modules/README.md` — 更新前端模块表
 - [ ] `agents.md` § 4.2 — 更新前端路由方案表（如有新页面路由）
@@ -79,7 +79,7 @@ ls odap/biz/*/  | sort
 # 然后与 docs/03-modules/README.md 中的模块列表逐项对照
 
 # 前端模块审计
-ls frontend/src/modules/ | sort
+ls apps/web/src/modules/ | sort
 # 然后与 docs/03-modules/README.md 前端模块表对照
 
 # ADR 审计

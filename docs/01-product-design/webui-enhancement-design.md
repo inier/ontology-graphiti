@@ -102,7 +102,7 @@
 
 ### 2.4 实现方案
 
-**文件**: `frontend/src/modules/shared/components/AppLayout.tsx`
+**文件**: `apps/web/src/modules/shared/components/AppLayout.tsx`
 
 ```typescript
 // 新增 RightPanelContext
@@ -194,7 +194,7 @@ interface GraphEdge {
 ### 3.4 修复实现
 
 ```typescript
-// 文件: frontend/src/modules/ontology/pages/OntologySemanticNetwork.tsx
+// 文件: apps/web/src/modules/ontology/pages/OntologySemanticNetwork.tsx
 
 const loadGraph = async (scenarioId: string) => {
   try {
@@ -567,18 +567,18 @@ interface SkillDefinition {
 
 | 文件路径 | 修改内容 |
 |----------|----------|
-| `frontend/src/modules/shared/components/AppLayout.tsx` | 添加右栏 Context 和布局 |
-| `frontend/src/modules/ontology/pages/OntologySemanticNetwork.tsx` | 接入真实 API |
-| `frontend/src/modules/qa/pages/QAChatPage.tsx` | 添加右栏建议展示 |
-| `frontend/src/modules/system/pages/SkillManagement.tsx` | 增强 Skill 管理 |
+| `apps/web/src/modules/shared/components/AppLayout.tsx` | 添加右栏 Context 和布局 |
+| `apps/web/src/modules/ontology/pages/OntologySemanticNetwork.tsx` | 接入真实 API |
+| `apps/web/src/modules/qa/pages/QAChatPage.tsx` | 添加右栏建议展示 |
+| `apps/web/src/modules/system/pages/SkillManagement.tsx` | 增强 Skill 管理 |
 
 ### 7.2 需要新建的文件
 
 | 文件路径 | 用途 |
 |----------|------|
-| `frontend/src/modules/shared/components/RightPanel.tsx` | 右栏通用组件 |
-| `frontend/src/modules/system/components/SkillEditor.tsx` | Skill 可视化编辑器 |
-| `frontend/src/modules/system/components/SchemaEditor.tsx` | JSON Schema 编辑器 |
+| `apps/web/src/modules/shared/components/RightPanel.tsx` | 右栏通用组件 |
+| `apps/web/src/modules/system/components/SkillEditor.tsx` | Skill 可视化编辑器 |
+| `apps/web/src/modules/system/components/SchemaEditor.tsx` | JSON Schema 编辑器 |
 
 ### 7.3 需要修改的后端文件
 
