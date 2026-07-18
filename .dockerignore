@@ -30,3 +30,37 @@ docs/
 tests/
 apps/api/tests/
 .specify/
+
+# IDE / 工具配置（容器内不需要）
+.qoder/
+.trae/
+.claude/
+.github/
+.qoder/
+.galaxy/
+.galaxycode-core/
+.crush/
+.workbuddy/
+.superpowers/
+
+# 根目录散落的非生产文档（容器内不需要）
+AGENTS.md
+overview.md
+ANTD_DEPRECATION_CLEANUP.md
+README.md
+
+# 一次性脚本与审计产物
+scripts/
+apps/web/antd_deprecation_audit.json
+apps/web/.utoo.toml
+
+# 子模块的 git 元数据与缓存
+packages/*/.git
+packages/*/.venv
+packages/*/.pytest_cache
+packages/*/.mypy_cache
+packages/*/.ruff_cache
+packages/*/build/
+packages/*/dist/
+packages/*/.openharness
+packages/*/.openharness-venv

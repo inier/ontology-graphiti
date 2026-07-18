@@ -3650,6 +3650,7 @@ dependencies = [
     { name = "faiss-cpu" },
     { name = "fastapi" },
     { name = "flask" },
+    { name = "graphiti-core" },
     { name = "httpx" },
     { name = "hyperextract" },
     { name = "jsonpickle" },
@@ -3697,9 +3698,6 @@ crawl4ai = [
 embedder = [
     { name = "sentence-transformers" },
 ]
-graph = [
-    { name = "graphiti-core" },
-]
 
 [package.metadata]
 requires-dist = [
@@ -3712,7 +3710,7 @@ requires-dist = [
     { name = "faiss-cpu", specifier = ">=1.7.0" },
     { name = "fastapi" },
     { name = "flask" },
-    { name = "graphiti-core", marker = "extra == 'graph'", specifier = ">=0.28.0" },
+    { name = "graphiti-core", specifier = ">=0.28.0" },
     { name = "httpx", specifier = ">=0.25.0" },
     { name = "hyperextract", editable = "packages/hyper-extract" },
     { name = "jsonpickle" },
@@ -3752,7 +3750,7 @@ requires-dist = [
     { name = "sqlalchemy", specifier = ">=2.0.0" },
     { name = "uvicorn" },
 ]
-provides-extras = ["graph", "crawl4ai", "embedder"]
+provides-extras = ["crawl4ai", "embedder"]
 
 [[package]]
 name = "odap-monorepo"

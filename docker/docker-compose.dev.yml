@@ -10,7 +10,7 @@
 # 与 docker-compose.yml (生产) 的区别:
 #   1. 无 nginx 静态前端，改用 Vite dev server (5173)
 #   2. 后端 bind mount 源代码 + uvicorn --reload
-#   3. 数据持久化用 bind mount (../data) 而非 named volume
+#   3. 数据持久化用 bind mount (../apps/api/data) 而非 named volume
 
 services:
   app:
@@ -43,7 +43,7 @@ services:
       - ../apps/api/main.py:/app/apps/api/main.py
       - ../packages/openharness:/app/packages/openharness
       - ../packages/hyper-extract:/app/packages/hyper-extract
-      - ../data:/app/data
+      - ../apps/api/data:/app/data
     working_dir: /app/apps/api
     networks:
       - graphiti-network
@@ -57,11 +57,11 @@ services:
     command: ["python", "-m", "uvicorn", "odap.web.app:app", "--host", "0.0.0.0", "--port", "8000", "--reload", "--reload-dir", "/app/apps/api/odap"]
 
   frontend:
-    build:
-      context: ..
-      dockerfile: apps/web/Dockerfile.dev
+    # dev 模式复用预构建镜像（docker_frontend:dev），不在此触发构建
+    # 镜像缺失时请先运行: python apps/api/bootstep.py rebuild frontend
     image: localhost/docker_frontend:dev
     container_name: graphiti-dev-frontend
+    working_dir: /app/apps/web
     ports:
       - "5173:5173"
     volumes:
@@ -82,7 +82,7 @@ services:
     networks:
       - graphiti-network
     restart: unless-stopped
-    command: ["sh", "-c", "pnpm install --frozen-lockfile 2>&1 | tail -3; pnpm dev --host 0.0.0.0"]
+    command: ["sh", "-c", "cd /app/apps/web && /app/node_modules/.bin/vite --host 0.0.0.0"]
 
   graphiti-neo4j:
     image: localhost/neo4j:latest

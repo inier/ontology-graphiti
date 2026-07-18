@@ -17,7 +17,9 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     tesseract-ocr-chi-sim \
     && rm -rf /var/lib/apt/lists/*
 
-RUN pip install --no-cache-dir uv
+# 固定 uv 版本，避免 uv.lock 与 uv 版本不匹配导致 --frozen 解析失败
+ARG UV_VERSION=0.5.11
+RUN pip install --no-cache-dir uv==${UV_VERSION}
 
 # ─── 阶段 1：复制 workspace 元数据（层缓存友好） ───
 COPY pyproject.toml uv.lock ./
@@ -30,11 +32,8 @@ COPY packages/openharness ./packages/openharness
 COPY packages/hyper-extract ./packages/hyper-extract
 
 # ─── 阶段 2：安装依赖 ───
+# graphiti-core 已是必需依赖（apps/api/pyproject.toml），uv sync 会一并安装
 RUN uv sync --frozen --no-dev --package odap
-
-# graphiti-core 容错（保持原版降级行为）
-RUN pip install --no-cache-dir graphiti-core \
-    || echo "WARNING: graphiti-core install failed, fallback to Neo4j Driver mode (non-fatal)"
 
 # ─── 阶段 3：复制后端源码（最常变，放最后） ───
 COPY apps/api/odap ./apps/api/odap

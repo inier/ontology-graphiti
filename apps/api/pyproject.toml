@@ -59,10 +59,11 @@ dependencies = [
     "langchain-openai>=0.1.0",
     "langchain-community>=0.1.0",
     "faiss-cpu>=1.7.0",
+    # 图谱核心 — 必需依赖（双时态知识图谱基础，不再是 optional）
+    "graphiti-core>=0.28.0",
 ]
 
 [project.optional-dependencies]
-graph = ["graphiti-core>=0.28.0"]
 crawl4ai = ["crawl4ai>=0.6.0"]
 embedder = ["sentence-transformers>=2.2.0"]
 
