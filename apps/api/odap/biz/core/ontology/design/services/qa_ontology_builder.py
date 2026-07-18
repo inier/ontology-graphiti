@@ -324,7 +324,7 @@ class QAOntologyBuilder:
         """
         try:
             # 导入新闻摄入器
-            from odap.biz.core.ontology.ingestion_split import NewsIngester
+            from odap.biz.core.ontology.design.ingestion_split import NewsIngester
 
             if self._news_ingester is None:
                 self._news_ingester = NewsIngester()
@@ -366,7 +366,7 @@ class QAOntologyBuilder:
         将搜索结果转换为 OntologyDocument 并构建本体
         """
         try:
-            from odap.biz.core.ontology.services.transform_service import get_transform_service
+            from odap.biz.core.ontology.design.services.transform_service import get_transform_service
 
             if self._transform_service is None:
                 self._transform_service = get_transform_service()

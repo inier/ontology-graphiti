@@ -161,7 +161,7 @@ class IngestService:
             return {"status": "error", "message": f"Unsupported format: {format}"}
 
         try:
-            from odap.biz.core.ontology.engine.impl.audit_recorder_impl import AuditRecorderImpl
+            from odap.biz.core.ontology.design.engine.impl.audit_recorder_impl import AuditRecorderImpl
             recorder = AuditRecorderImpl()
             recorder.record_ingest(
                 entity_type_id=entity_type_id,

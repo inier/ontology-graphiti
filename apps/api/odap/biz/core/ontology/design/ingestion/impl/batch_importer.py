@@ -16,7 +16,7 @@ class BatchImporter:
     def _validate_against_entity_type(self, entity_type_id: str, properties: Dict[str, Any]) -> Optional[str]:
         """根据实体类型定义验证属性完整性，返回错误信息或 None"""
         try:
-            from odap.biz.core.ontology.model.storage.sqlite_model_storage import SQLiteModelStorage
+            from odap.biz.core.ontology.design.model.storage.sqlite_model_storage import SQLiteModelStorage
             model_storage = SQLiteModelStorage()
             entity_type = model_storage.get_entity_type(entity_type_id)
             if not entity_type:

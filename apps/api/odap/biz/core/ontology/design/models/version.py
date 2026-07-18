@@ -13,7 +13,7 @@ def __getattr__(name):
             DeprecationWarning,
             stacklevel=2,
         )
-        from odap.biz.core.ontology.services.version_service import OntologyVersion, OntologyDiff, EntitySnapshot
+        from odap.biz.core.ontology.design.services.version_service import OntologyVersion, OntologyDiff, EntitySnapshot
         return locals().get(name, {"OntologyVersion": OntologyVersion, "OntologyDiff": OntologyDiff, "EntitySnapshot": EntitySnapshot}[name])
     raise AttributeError(f"module {__name__!r} has no attribute {name!r}")
 

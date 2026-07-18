@@ -101,7 +101,7 @@ class WebSearchService:
         max_results: int = 5,
         search_depth: str = "basic"
     ) -> WebSearchResult:
-        from odap.biz.core.ontology.services.search_service import TavilySearch
+        from odap.biz.core.ontology.design.services.search_service import TavilySearch
         tavily = TavilySearch()
         if not tavily.is_available():
             raise ValueError("Tavily API Key 未配置，请设置 TAVILY_API_KEY 环境变量")

@@ -310,7 +310,7 @@ class OntologyTransformService:
         metadata: Dict
     ) -> 'OntologyDocument':
         """URL 数据转换 - 抓取网页内容"""
-        from odap.biz.core.ontology.ingestion_split import WebScraper, FreeNewsIngester
+        from odap.biz.core.ontology.design.ingestion_split import WebScraper, FreeNewsIngester
 
         scraper = WebScraper()
         result = scraper.scrape(url)
