@@ -99,6 +99,9 @@ async def chat(
                     "X-Accel-Buffering": "no",
                 },
             )
+        except HTTPException:
+            # AGENTS.md 规则 3：HTTPException 必须透传，不能被降级吞掉
+            raise
         except Exception as e:
             logger.warning("AGUI bridge failed, falling back to ChatService: %s", e)
 
@@ -115,6 +118,9 @@ async def chat(
             ):
                 yield f"data: {json.dumps(event, ensure_ascii=False)}\n\n"
             yield "data: [DONE]\n\n"
+        except HTTPException:
+            # AGENTS.md 规则 3：HTTPException 透传，不降级为 SSE ERROR 事件
+            raise
         except Exception as e:
             logger.exception("Chat SSE error (fallback path)")
             yield f"data: {json.dumps({'type': 'ERROR', 'message': str(e)}, ensure_ascii=False)}\n\n"
@@ -175,6 +181,9 @@ async def execute_tool_direct(request: ToolExecuteRequest, user=Depends(get_curr
             "tool_name": request.tool_name,
             "result": result,
         }
+    except HTTPException:
+        # AGENTS.md 规则 3：工具内部抛 HTTPException（如 404）必须透传，不能被 500 吞掉
+        raise
     except Exception as e:
         logger.exception("Tool execution failed")
         raise HTTPException(status_code=500, detail=f"工具执行失败: {str(e)}")

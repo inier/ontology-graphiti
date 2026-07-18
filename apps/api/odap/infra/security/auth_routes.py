@@ -140,6 +140,10 @@ async def refresh(request: RefreshRequest):
         payload = decode_token(request.refresh_token)
         if payload:
             refresh_user = payload.get("name") or payload.get("sub") or "unknown"
+    except HTTPException:
+        # decode_token 对过期/无效 token 抛 401，refresh 场景应容错：
+        # refresh_token 自身可能过期，仍允许走后续 refresh 流程
+        pass
     except Exception:
         pass
     result = auth_service.refresh(request.refresh_token)
@@ -158,6 +162,10 @@ async def logout(request: LogoutRequest):
         payload = decode_token(request.refresh_token)
         if payload:
             logout_user = payload.get("name") or payload.get("sub") or "unknown"
+    except HTTPException:
+        # decode_token 对过期/无效 token 抛 401，logout 场景应容错：
+        # 即使 refresh_token 已过期也应允许用户登出
+        pass
     except Exception:
         pass
     success = auth_service.logout(request.refresh_token)
