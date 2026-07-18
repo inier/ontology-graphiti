@@ -99,3 +99,17 @@ diag_*.py
 # Local temporary runtime artifacts (JSON bodies, PowerShell snippets, token dumps)
 tmp_*
 token.txt
+
+# === 临时文件目录化治理（AGENTS.md 规则 13）===
+# 根目录散落临时文件锁定（前导 / 锁定根目录，防止误跟踪）
+# 注：*.log 和 *.db 已在上方全局忽略，此处显式锁定根目录，文档化意图
+/app.log
+/bootstep_dev.log
+/sessions.db
+# 各模块 temp/ 子目录（运行时产物，可随时清理）
+# 注：git 的 ! 例外规则无法重新包含被通配符排除的文件，因此不在
+# 根 .gitignore 中递归忽略 **/temp/。模块若需忽略 temp/，在模块
+# .gitignore 中配置；若需将 temp/README.md 或 .gitkeep 骨架纳入版本
+# 控制，使用 git add -f 强制添加（详见 AGENTS.md 规则 13）。
+# 归档目录不忽略（scripts/archive/ 需跟踪）
+!scripts/archive/
