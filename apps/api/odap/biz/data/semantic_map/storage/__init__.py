@@ -1,0 +1,3 @@
+from .sqlite_semantic_map_storage import SQLiteSemanticMapStorage
+
+Storage = SQLiteSemanticMapStorage
