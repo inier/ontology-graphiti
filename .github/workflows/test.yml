@@ -35,7 +35,10 @@ jobs:
 
       - name: Run unit tests
         run: |
-          uv run pytest tests/ apps/api/tests/ -v --tb=short -m "not integration"
+          # 排除 integration 和 e2e 标记：e2e 需要完整服务栈（含 LLM），
+          # 在专门环境（本地/dev 容器）跑，CI unit-tests job 不跑。
+          # E2E 测试自带 skip_if_no_service 守卫，被 collect 时会自动 skip。
+          uv run pytest tests/ apps/api/tests/ -v --tb=short -m "not integration and not e2e"
 
   integration-tests:
     runs-on: ubuntu-latest
