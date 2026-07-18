@@ -47,7 +47,7 @@ from odap.biz.core.ontology.design.services.version_service import OntologyVersi
 from odap.biz.core.ontology.design.ingestion_split import NewsIngester, FreeNewsIngester, ManualInputHandler, ConflictEventGenerator, OntologyDocumentIO
 from odap.infra.graph.graph_service import GraphManager
 
-from odap.biz.shared.stores import ScenarioStore, scenario_store as _shared_scenario_store
+from odap.infra.storage.scenario_store import ScenarioStore, scenario_store as _shared_scenario_store
 
 class MockDataWebService:
     """

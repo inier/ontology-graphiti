@@ -17,7 +17,7 @@ _storage_base = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(
 _odap_root = os.path.dirname(os.path.dirname(_storage_base))
 SCENARIOS_DIR = os.path.join(_odap_root, "storage", "versions", "scenarios")
 
-from odap.biz.shared.stores import ScenarioStore
+from odap.infra.storage.scenario_store import ScenarioStore
 from odap.infra.query import get_graph_write_proxy, get_query_service
 
 

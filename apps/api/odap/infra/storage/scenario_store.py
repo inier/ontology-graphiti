@@ -1,6 +1,6 @@
 """ScenarioStore — 场景持久化存储（SQLite 单源）
 
-从 odap.web.api.app 中提取，供 biz 层和 web 层共享引用。
+ADR-067: 从 biz/shared/ 迁移到 infra/storage/，明确其基础设施定位。
 """
 
 import os
@@ -180,7 +180,6 @@ class ScenarioStore:
 
     def update_scenario(self, scenario_id: str, updates: Dict[str, Any]) -> Optional[Dict[str, Any]]:
         """更新场景"""
-        # 只保留统计量类更新字段，用于审计 details（不记录完整明文内容）
         audit_updates = {k: v for k, v in updates.items()
                          if k in ("doc_count", "event_count", "entity_count",
                                   "synced_entities", "synced_events", "last_synced")}
@@ -264,12 +263,10 @@ class ScenarioStore:
 
             self._db.save_scenario(cloned)
 
-            # 复制关联文档
             docs = self._db.get_scenario_documents(source_scenario_id)
             for doc in docs:
                 self._db.add_scenario_document(new_scenario_id, copy.deepcopy(doc))
 
-            # 触发审计
             _scenario_audit(
                 "scenario_clone",
                 result_status="success",
@@ -375,5 +372,5 @@ class ScenarioStore:
             return {"status": "error", "error": str(e), "synced_scenario": scenario_id}
 
 
-# 模块级单例 — 供 biz 层和 web 层共享
+# 模块级单例 — 全项目共享
 scenario_store = ScenarioStore()

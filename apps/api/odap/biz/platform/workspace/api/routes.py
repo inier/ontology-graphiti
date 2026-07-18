@@ -603,7 +603,7 @@ async def get_scenario(workspace_id: str, scenario_id: str,
     try:
         scenario = scenario_service.get_scenario(scenario_id)
         if not scenario:
-            from odap.biz.shared.stores import scenario_store
+            from odap.infra.storage.scenario_store import scenario_store
             scenario = scenario_store.get_scenario(scenario_id)
         if not scenario:
             raise HTTPException(status_code=404, detail="Scenario not found")
@@ -627,7 +627,7 @@ async def update_scenario(workspace_id: str, scenario_id: str, request: UpdateSc
         # 检查场景是否存在且属于该工作空间
         scenario = scenario_service.get_scenario(scenario_id)
         if not scenario:
-            from odap.biz.shared.stores import scenario_store
+            from odap.infra.storage.scenario_store import scenario_store
             scenario = scenario_store.get_scenario(scenario_id)
         if not scenario:
             raise HTTPException(status_code=404, detail="Scenario not found")
@@ -664,7 +664,7 @@ async def delete_scenario(workspace_id: str, scenario_id: str,
         # 检查场景是否存在且属于该工作空间
         scenario = scenario_service.get_scenario(scenario_id)
         if not scenario:
-            from odap.biz.shared.stores import scenario_store
+            from odap.infra.storage.scenario_store import scenario_store
             scenario = scenario_store.get_scenario(scenario_id)
         if not scenario:
             raise HTTPException(status_code=404, detail="Scenario not found")
@@ -801,7 +801,7 @@ async def get_scenario_versions(workspace_id: str, scenario_id: str,
                 logger.debug("Fallback source failed: %s", e)
         if not scenario:
             try:
-                from odap.biz.shared.stores import scenario_store as global_scenario_store
+                from odap.infra.storage.scenario_store import scenario_store as global_scenario_store
                 scenario = global_scenario_store.get_scenario(scenario_id)
             except HTTPException:
                 raise
@@ -846,7 +846,7 @@ async def commit_scenario_version(workspace_id: str, scenario_id: str, message: 
                 logger.debug("Fallback source failed: %s", e)
         if not scenario:
             try:
-                from odap.biz.shared.stores import scenario_store as global_scenario_store
+                from odap.infra.storage.scenario_store import scenario_store as global_scenario_store
                 scenario = global_scenario_store.get_scenario(scenario_id)
             except HTTPException:
                 raise
@@ -926,7 +926,7 @@ async def switch_scenario_version(workspace_id: str, scenario_id: str, request: 
                 logger.debug("Fallback source failed: %s", e)
         if not scenario:
             try:
-                from odap.biz.shared.stores import scenario_store as global_scenario_store
+                from odap.infra.storage.scenario_store import scenario_store as global_scenario_store
                 scenario = global_scenario_store.get_scenario(scenario_id)
             except HTTPException:
                 raise
@@ -981,7 +981,7 @@ async def get_version_data(workspace_id: str, scenario_id: str, version_id: str,
                 logger.debug("Fallback source failed: %s", e)
         if not scenario:
             try:
-                from odap.biz.shared.stores import scenario_store as global_scenario_store
+                from odap.infra.storage.scenario_store import scenario_store as global_scenario_store
                 scenario = global_scenario_store.get_scenario(scenario_id)
             except HTTPException:
                 raise
