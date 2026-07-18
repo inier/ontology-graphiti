@@ -54,8 +54,8 @@
 - Phase 0~3: ✅ 已完成（基础设施→四组件验证→单Agent闭环→三Agent协同→模拟器增强）
 - Phase 4: ⬜ 生产化部署（文档体系九步已全部完成，23工作项+6 Sprint，关键路径 WR-01→03→04→05→17→18）
 
-### 关键 ADR（共48个，存放 `docs/adr/`）
-ADR-001(OpenHarness), 002(Graphiti), 003(OPA), 004(Skill), 005(分层Agent), 006(复用策略), 045(G6+Leaflet), 046(模块化单体), 047(工具注册表P0分步), 048(AI助手独立组件化)
+### 关键 ADR（共50个，存放 `docs/07-adr/`）
+ADR-001(OpenHarness), 002(Graphiti), 003(OPA), 004(Skill), 005(分层Agent), 006(复用策略), 045(G6+Leaflet), 046(模块化单体), 047(工具注册表P0分步), 048(AI助手独立组件化), 050(统一AI助手与智能问答服务), 051(基于OpenHarness全能力的AI助手架构)
 - ANOMALY_REPORT 14条待确认项已全部关闭
 - Redis/消息队列 Phase 4 不引入(YAGNI)，Phase 5+ 评估
 
@@ -75,13 +75,21 @@ ADR-001(OpenHarness), 002(Graphiti), 003(OPA), 004(Skill), 005(分层Agent), 006
 - `odap/biz/swarm/`: Swarm 编排器
 - `odap/biz/ontology/`: 本体管理引擎（schema/services/storage/ingestion_split）
 
-## AI 助手架构（2026-06-21）
-- **统一助手**: Header入口与本体设计器AI助手是同一个，共享会话历史
-- **双本体问答**: 业务本体(用户设计) + 平台功能本体(ontology_id="platform")
-- **操作手册知识库**: `docs/user-manual/` Markdown → JSON → 向量索引 → 链接平台功能本体
-- **前端组件化**: AIChatProvider + Full/Compact 双模式
-- **工具开发**: `odap/biz/core/assistant/tools.py`（名称泛化匹配引擎5级、批量写入、上下文自动注入、写操作SSE联动刷新）
-- **独立组件化**: Host(ODAP/OHMO)-Plugin(OpenHarness)分层，Web作为OHMO的web渠道
+## AI 助手架构（2026-07-18 更新：ADR-050 统一方案）
+
+### 当前状态（分裂架构）
+- **AI 助手** (`core/assistant/`): ChatService (900行), 16 BaseTool, AG-UI 协议, AIChatPanel 前端
+- **智能问答** (`data/qa/`): QAEngineV2 (3000行), 五阶段 RAG Pipeline, 自定义 SSE, 13 个专用组件
+- **本体辅助** (`core/ontology/assistant/`): 独立路由, 类型推断/约束建议/完整性检查
+- **问题**: 双 SSE 协议、双引擎、双 Hook、会话耦合、能力孤立
+
+### ADR-050 统一方案（2026-07-18）
+- **目标**: 合并为 `core/chat/` 统一模块, `/api/chat/` 端点
+- **引擎**: UnifiedChatService（组合 tool-calling + RAG pipeline）
+- **协议**: AG-UI + CUSTOM 扩展（保留 THINKING/SOURCES/CHART/TEMPORAL/REPORT）
+- **前端**: useUnifiedChat + AIChatPanel persona 模式 + 渲染器插件
+- **迁移**: 三阶段渐进（Phase A 并行 → Phase B 切换 → Phase C 清理）
+- **ADR 文档**: `docs/07-adr/ADR-050_统一AI助手与智能问答服务.md`
 
 ## 系统配置与热更新（2026-06-21 修复）
 - **配置存储**: SQLite (`data/config.db`)，3张表 `config_items`/`config_schema_registry`/`config_revisions`
@@ -99,3 +107,20 @@ ADR-001(OpenHarness), 002(Graphiti), 003(OPA), 004(Skill), 005(分层Agent), 006
 - **podman_compose.py not found**: bootstep 用 `sys.executable`（受管 Python 3.13.12），而 podman-compose 仅装在 Miniconda。修复：受管 Python `pip install podman-compose`
 - **后台任务 vs 前台**: WorkBuddy 后台 Bash 即使 `dangerouslyDisableSandbox=true` 仍可能 HOME 受限、读不到 ssh config。**必须以前台 + dangerouslyDisableSandbox=true 方式运行 `python bootstep.py dev`**（bootstep dev 会自动退出，容器持续后台运行）
 - **Neo4j 启动延迟**: 容器 Up 后数据库进程还需 30-60s 初始化，app 的 neo4j 驱动带指数退避重试，最终会自动连上
+
+## 本体模块审计与分层架构（2026-07-18）
+
+### 当前本体模块状态
+- **路径**: `odap/biz/core/ontology/` — 20 子模块，名义两层（design/ + application/）
+- **L1 设计层**: `design/model/`, `design/version/`, `design/engine/`, `design/contract/` + 游离模块
+- **L2 构建层**: 混在 `design/ingestion/`, `design/ingestion_split/`, `design/services/{build,ingest,pipeline,qa_ontology}*`
+- **L3 推理层**: ❌ 完全缺失 — 分散在 `cognition/`, `assistant/rules/`, `health/` 4 个模块
+- **L4 应用层**: 三套 AI 助手并存 + `application/{oms,runtime,servitization,query,team,harness,abution}`
+- **核心问题**: 6 项（构建混入设计、推理缺失、三套助手、application 膨胀、契约不足、游离模块）
+
+### ADR-068: 目标四层架构 (Proposed)
+- `design/`(L1) → `construction/`(L2, 新建) → `reasoning/`(L3, 新建) → `application/`(L4)
+- 四层契约矩阵: DesignContract → BuildResultContract → ReasoningSvcContract
+- 迁移路线: Phase A(推理, 1-2w) → B(构建, 1w) → C(应用+ADR-050, 1w) → D(文档)
+- 审计报告: `docs/ARCHITECTURE_AUDIT_ONTOLOGY_LAYERING_2026-07-18.md`
+- ADR 文档: `docs/07-adr/ADR-068_本体模块四层分层架构.md`
