@@ -1,8 +1,13 @@
-"""决策领域：推荐 + 管道 + 动作"""
+"""决策领域：推荐 + 管道 + 动作
+
+ADR-065: interfaces/ 提供 IDecisionOMSService/ISemanticRetriever 抽象接口。
+"""
 
 import logging
 
 logger = logging.getLogger(__name__)
+
+from odap.biz.decision.interfaces import IDecisionOMSService, ISemanticRetriever
 
 try:
     from odap.biz.decision.decision_recommendation.engine import DecisionRecommendationEngine

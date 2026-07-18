@@ -4,6 +4,7 @@ from typing import Optional, Dict, Any
 
 from .schemas import ActionRequest, ActionRecord, ActionRequestStatus, ActionExecutionResult
 from .storage.sqlite_action_storage import SQLiteActionStorage
+from odap.biz.decision.interfaces.idecision_oms_service import IDecisionOMSService
 
 logger = logging.getLogger(__name__)
 
@@ -70,7 +71,7 @@ class ActionExecutor:
         return self._action_storage
 
     @property
-    def oms(self):
+    def oms(self) -> Optional[IDecisionOMSService]:
         if self._oms is None:
             from odap.biz.core.ontology.application.oms.services import OMSService
             self._oms = OMSService.get_instance()

@@ -6,6 +6,9 @@ from .schemas import (
     AnalysisInput, AnalysisResult, DecisionResult, DecisionOption,
     ActionCommand, PipelineResult, PipelineStageStatus,
 )
+from odap.biz.decision.interfaces.isemantic_retriever import ISemanticRetriever
+from odap.biz.decision.interfaces.idecision_oms_service import IDecisionOMSService
+from odap.infra.events import get_event_bus
 
 logger = logging.getLogger(__name__)
 
@@ -38,7 +41,7 @@ class DecisionPipeline:
         self._pipelines: Dict[str, Dict[str, Any]] = {}
 
     @property
-    def semantic_retriever(self):
+    def semantic_retriever(self) -> Optional[ISemanticRetriever]:
         if self._semantic_retriever is None:
             from odap.biz.data.qa.semantic_retriever.retriever import get_semantic_retriever
             self._semantic_retriever = get_semantic_retriever()
@@ -153,10 +156,13 @@ class DecisionPipeline:
             analysis = await self._analyze(input_data)
             result.analysis = analysis
             result.stages['analyze'] = PipelineStageStatus.COMPLETED
+            await get_event_bus().emit_decision_step(pipeline_id, "analyze",
+                f"Analysis complete: {analysis.summary[:200] if analysis.summary else 'N/A'}")
         except Exception as e:
             logger.error(f"DecisionPipeline analyze failed: {e}")
             result.stages['analyze'] = PipelineStageStatus.FAILED
             result.error = f"Analyze failed: {e}"
+            await get_event_bus().emit_decision_step(pipeline_id, "analyze_failed", str(e)[:200])
             succ, fail, skip = _stages_stats(result.stages)
             _dp_audit(
                 "pipeline_execute",
@@ -181,6 +187,8 @@ class DecisionPipeline:
             decision = await self._decide(analysis, input_data)
             result.decision = decision
             result.stages['decide'] = PipelineStageStatus.COMPLETED
+            desc = f"Decision made: {decision.recommended_action[:200] if decision.recommended_action else 'N/A'}"
+            await get_event_bus().emit_decision_step(pipeline_id, "decide", desc)
         except Exception as e:
             logger.error(f"DecisionPipeline decide failed: {e}")
             result.stages['decide'] = PipelineStageStatus.FAILED
@@ -292,6 +300,13 @@ class DecisionPipeline:
                     (_dt.datetime.now(_dt.timezone.utc) - started_at).total_seconds(), 3),
             },
         )
+        # ADR-065 R3: 通知外部订阅者
+        if fail == 0:
+            await get_event_bus().emit_decision_completed(
+                pipeline_id,
+                reasoning=result.decision.recommended_action if result.decision else "",
+                evidence=[r.get("name", "") for r in result.decision.options[:5]] if result.decision and result.decision.options else [],
+            )
         return result
 
     def cancel_pipeline(self, pipeline_id: str, reason: str = "",
@@ -415,7 +430,7 @@ class DecisionPipeline:
 
     async def _fallback_decide(self, analysis: AnalysisResult, input_data: AnalysisInput) -> DecisionResult:
         from odap.biz.core.ontology.application.oms.services import get_oms_service
-        oms = get_oms_service()
+        oms: IDecisionOMSService = get_oms_service()
 
         options = []
         for entity in analysis.entities[:5]:
