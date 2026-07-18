@@ -161,6 +161,7 @@ async def extract_from_knowledge_base(
     user=Depends(get_current_user),
 ):
     """Extract schema from a knowledge base and create extraction session."""
+    import traceback
     try:
         result = await _extraction_service.extract_from_knowledge_base(
             ontology_id=request.ontology_id,
@@ -176,7 +177,9 @@ async def extract_from_knowledge_base(
     except HTTPException:
         raise
     except Exception as e:
-        raise HTTPException(status_code=500, detail=str(e))
+        # T064-fix: 记录完整 traceback 以便诊断 500
+        logger.error("extract_from_knowledge_base failed: %s\n%s", e, traceback.format_exc())
+        raise HTTPException(status_code=500, detail=f"{type(e).__name__}: {str(e)}")
 
 
 @router.get("/templates")
