@@ -57,7 +57,7 @@ graphiti/                      ← 52 个 .py 文件，架构层级混乱
 | P1 | `core/` 是个"大杂烩"，21 个文件横跨 5 个架构层次 | 任何修改都需要理解整个 core/ |
 | P2 | 基础设施和业务逻辑无分离 | 无法独立测试/替换基础设施 |
 | P3 | 本体相关分散在 `ontology/` + `core/ontology_*` 三个文件 | 本体管理模块不内聚 |
-| P4 | 模拟器模块分散在 `odap/biz/simulator/` + `odap/biz/core/ontology/mock_data/` + `odap/web/` | 模拟器模块职责划分不清晰 |
+| P4 | 模拟器模块分散在 `apps/api/odap/biz/simulator/` + `apps/api/odap/biz/core/ontology/mock_data/` + `apps/api/odap/web/` | 模拟器模块职责划分不清晰 |
 | P5 | 前端资源分散（`visualization/web_interface.py` + `simulator_ui/` + 根目录 HTML） | 前端入口不统一 |
 | P6 | 不兼容 OpenHarness 的 `src/openharness/` 模块结构 | 后续 OpenHarness 集成困难 |
 | P7 | `visualization/` 与 `simulator_ui/` 职责重叠 | 维护两套可视化 |
@@ -107,7 +107,7 @@ tests/        → 所有层                     （测试依赖全部）
 ## 3. 新目录结构
 
 ```
-odap/                                  # 项目根目录（建议从 graphiti 更名）
+apps/api/odap/                                  # 项目根目录（建议从 graphiti 更名）
 │
 ├── pyproject.toml                      # Python 项目配置（替代 requirements.txt）
 ├── README.md                           # 项目说明
@@ -117,7 +117,7 @@ odap/                                  # 项目根目录（建议从 graphiti �
 # ═══════════════════════════════════════
 # L2 基础设施层 (infra/) — 技术组件，无业务逻辑
 # ═══════════════════════════════════════
-├── odap/
+├── apps/api/odap/
 │   ├── __init__.py                     # 包根
 │   │
 │   ├── infra/                          # 【基础设施层】
@@ -393,48 +393,48 @@ odap/                                  # 项目根目录（建议从 graphiti �
 
 | 旧路径 | 新路径 | 说明 |
 |--------|--------|------|
-| `core/graph_manager.py` | `odap/infra/graph/graph_service.py` | 基础设施层 |
-| `core/llm_clients.py` | `odap/infra/llm/llm_service.py` + `zhipu_client.py` | 拆分为统一接口 + 适配器 |
-| `core/opa_manager.py` | `odap/infra/opa/opa_service.py` | 基础设施层 |
-| `core/opa_policy.rego` | `odap/infra/opa/opa_policy.rego` | 随 OPA 服务走 |
-| `core/hook_system.py` | `odap/infra/events/hook_system.py` | 事件基础设施 |
-| `core/fault_tolerance.py` | `odap/infra/resilience/fault_tolerance.py` | 韧性基础设施 |
-| `core/health_monitor.py` | `odap/infra/resilience/health_monitor.py` | 韧性基础设施 |
-| `core/state_persistence.py` | `odap/infra/resilience/state_persistence.py` | 韧性基础设施 |
-| `skills/base.py` | `odap/tools/base.py` | 工具层基类 |
-| `skills/__init__.py`（注册逻辑） | `odap/tools/registry.py` | 工具层注册 |
-| `skills/intelligence.py` | `odap/tools/intelligence/intelligence.py` | 工具层 |
-| `skills/operations.py` | `odap/tools/operations/operations.py` | 工具层 |
-| `skills/analysis.py` | `odap/tools/analysis/analysis.py` | 工具层 |
-| `skills/planning.py` | `odap/tools/planning/planning.py` | 工具层 |
-| `skills/recommendation.py` | `odap/tools/recommendation/recommendation.py` | 工具层 |
-| `skills/policy.py` | `odap/tools/policy/policy.py` | 工具层 |
-| `skills/computation.py` | `odap/tools/computation/computation.py` | 工具层 |
-| `skills/task_management.py` | `odap/tools/task_management/task_management.py` | 工具层 |
-| `skills/visualization_skill.py` | `odap/tools/visualization/visualization_skill.py` | 工具层 |
-| `skills/ontology_management.py` | `odap/biz/core/ontology/` (合并到 service.py) | 业务层 |
-| `ontology/domain_ontology.py` | `odap/biz/core/ontology/schema/domain.py` | 领域 Schema |
-| `ontology/ontology_manager.py` | `odap/biz/core/ontology/service.py` | 业务层 |
-| `core/ontology_document.py` | `odap/biz/core/ontology/schema/document.py` | 领域 Schema |
-| `core/ontology_hot_write_pipeline.py` | `odap/biz/core/ontology/hot_write.py` | 业务层 |
-| `core/ontology_version_manager.py` | `odap/biz/core/ontology/version_manager.py` | 业务层 |
-| `core/data_ingestion.py` | `odap/biz/core/ontology/ingestion.py` | 业务层（数据采集归本体管理） |
-| `ontology/versions/` | `odap/infra/storage/versions/` | 数据存储 |
-| `ontology/versions/scenarios/` | `odap/infra/storage/scenarios/` | 数据存储 |
-| `core/intelligence_agent.py` | `odap/biz/core/agent/intelligence_agent.py` | 业务层 |
-| `core/swarm_orchestrator.py` | `odap/biz/core/agent/swarm_orchestrator.py` | 业务层 |
-| `core/orchestrator.py` | `odap/biz/core/agent/orchestrator.py` | 业务层（旧版，标记 @deprecated） |
-| `core/decision_recommender.py` | `odap/biz/core/agent/recommender.py` | 业务层 |
-| `core/intelligence_collector.py` | `odap/biz/core/agent/collector.py` | 业务层 |
-| `core/permission_checker.py` | `odap/biz/permission/checker.py` | 业务层 |
-| `core/simulation_engine.py` | `odap/biz/simulator/engine.py` | 业务层（模拟推演） |
-| `data/simulation_data.py` | `odap/biz/core/ontology/mock_data/` | 业务层（Mock 数据） |
-| `core/simulator_web_service.py` | `odap/web/api/app.py` + `routers/` | Web 层（拆分） |
-| `simulator_ui/index.html` | `odap/web/static/index.html` | Web 前端 |
-| `visualization/dialog_interface.py` | `odap/web/legacy/dialog_interface.py` | 旧版保留 |
-| `visualization/web_interface.py` | `odap/web/legacy/web_interface.py` | 旧版保留 |
-| `visualization/visualization.py` | `odap/tools/visualization/plotting.py` | 工具层（Python 绘图） |
-| `core/openharness_integration.py` | `odap/adapters/openharness/tool_adapter.py` | 适配层 |
+| `core/graph_manager.py` | `apps/api/odap/infra/graph/graph_service.py` | 基础设施层 |
+| `core/llm_clients.py` | `apps/api/odap/infra/llm/llm_service.py` + `zhipu_client.py` | 拆分为统一接口 + 适配器 |
+| `core/opa_manager.py` | `apps/api/odap/infra/opa/opa_service.py` | 基础设施层 |
+| `core/opa_policy.rego` | `apps/api/odap/infra/opa/opa_policy.rego` | 随 OPA 服务走 |
+| `core/hook_system.py` | `apps/api/odap/infra/events/hook_system.py` | 事件基础设施 |
+| `core/fault_tolerance.py` | `apps/api/odap/infra/resilience/fault_tolerance.py` | 韧性基础设施 |
+| `core/health_monitor.py` | `apps/api/odap/infra/resilience/health_monitor.py` | 韧性基础设施 |
+| `core/state_persistence.py` | `apps/api/odap/infra/resilience/state_persistence.py` | 韧性基础设施 |
+| `skills/base.py` | `apps/api/odap/tools/base.py` | 工具层基类 |
+| `skills/__init__.py`（注册逻辑） | `apps/api/odap/tools/registry.py` | 工具层注册 |
+| `skills/intelligence.py` | `apps/api/odap/tools/intelligence/intelligence.py` | 工具层 |
+| `skills/operations.py` | `apps/api/odap/tools/operations/operations.py` | 工具层 |
+| `skills/analysis.py` | `apps/api/odap/tools/analysis/analysis.py` | 工具层 |
+| `skills/planning.py` | `apps/api/odap/tools/planning/planning.py` | 工具层 |
+| `skills/recommendation.py` | `apps/api/odap/tools/recommendation/recommendation.py` | 工具层 |
+| `skills/policy.py` | `apps/api/odap/tools/policy/policy.py` | 工具层 |
+| `skills/computation.py` | `apps/api/odap/tools/computation/computation.py` | 工具层 |
+| `skills/task_management.py` | `apps/api/odap/tools/task_management/task_management.py` | 工具层 |
+| `skills/visualization_skill.py` | `apps/api/odap/tools/visualization/visualization_skill.py` | 工具层 |
+| `skills/ontology_management.py` | `apps/api/odap/biz/core/ontology/` (合并到 service.py) | 业务层 |
+| `ontology/domain_ontology.py` | `apps/api/odap/biz/core/ontology/schema/domain.py` | 领域 Schema |
+| `ontology/ontology_manager.py` | `apps/api/odap/biz/core/ontology/service.py` | 业务层 |
+| `core/ontology_document.py` | `apps/api/odap/biz/core/ontology/schema/document.py` | 领域 Schema |
+| `core/ontology_hot_write_pipeline.py` | `apps/api/odap/biz/core/ontology/hot_write.py` | 业务层 |
+| `core/ontology_version_manager.py` | `apps/api/odap/biz/core/ontology/version_manager.py` | 业务层 |
+| `core/data_ingestion.py` | `apps/api/odap/biz/core/ontology/ingestion.py` | 业务层（数据采集归本体管理） |
+| `ontology/versions/` | `apps/api/odap/infra/storage/versions/` | 数据存储 |
+| `ontology/versions/scenarios/` | `apps/api/odap/infra/storage/scenarios/` | 数据存储 |
+| `core/intelligence_agent.py` | `apps/api/odap/biz/core/agent/intelligence_agent.py` | 业务层 |
+| `core/swarm_orchestrator.py` | `apps/api/odap/biz/core/agent/swarm_orchestrator.py` | 业务层 |
+| `core/orchestrator.py` | `apps/api/odap/biz/core/agent/orchestrator.py` | 业务层（旧版，标记 @deprecated） |
+| `core/decision_recommender.py` | `apps/api/odap/biz/core/agent/recommender.py` | 业务层 |
+| `core/intelligence_collector.py` | `apps/api/odap/biz/core/agent/collector.py` | 业务层 |
+| `core/permission_checker.py` | `apps/api/odap/biz/permission/checker.py` | 业务层 |
+| `core/simulation_engine.py` | `apps/api/odap/biz/simulator/engine.py` | 业务层（模拟推演） |
+| `data/simulation_data.py` | `apps/api/odap/biz/core/ontology/mock_data/` | 业务层（Mock 数据） |
+| `core/simulator_web_service.py` | `apps/api/odap/web/api/app.py` + `routers/` | Web 层（拆分） |
+| `simulator_ui/index.html` | `apps/api/odap/web/static/index.html` | Web 前端 |
+| `visualization/dialog_interface.py` | `apps/api/odap/web/legacy/dialog_interface.py` | 旧版保留 |
+| `visualization/web_interface.py` | `apps/api/odap/web/legacy/web_interface.py` | 旧版保留 |
+| `visualization/visualization.py` | `apps/api/odap/tools/visualization/plotting.py` | 工具层（Python 绘图） |
+| `core/openharness_integration.py` | `apps/api/odap/adapters/openharness/tool_adapter.py` | 适配层 |
 | `main.py` | `src/cli.py` + `src/web_server.py` | 入口拆分 |
 | `requirements.txt` | `pyproject.toml` | 现代化依赖管理 |
 | `*.html`（根目录） | `assets/templates/` 或删除 | 清理根目录 |
@@ -442,10 +442,10 @@ odap/                                  # 项目根目录（建议从 graphiti �
 
 ## 5. 各模块对外 API 设计
 
-### 5.1 本体管理模块 (`odap/biz/core/ontology/`)
+### 5.1 本体管理模块 (`apps/api/odap/biz/core/ontology/`)
 
 ```python
-# odap/biz/core/ontology/__init__.py — 对外 API
+# apps/api/odap/biz/core/ontology/__init__.py — 对外 API
 from .service import OntologyManager
 
 # OntologyManager 对外方法:
@@ -476,10 +476,10 @@ class OntologyManager:
     async def import_doc(data, format="odoc") -> ImportResult
 ```
 
-### 5.2 工作空间管理模块 (`odap/biz/platform/workspace/`)
+### 5.2 工作空间管理模块 (`apps/api/odap/biz/platform/workspace/`)
 
 ```python
-# odap/biz/platform/workspace/__init__.py — 对外 API
+# apps/api/odap/biz/platform/workspace/__init__.py — 对外 API
 from .manager import WorkspaceManager
 
 class WorkspaceManager:
@@ -491,10 +491,10 @@ class WorkspaceManager:
     async def update_config(workspace_id, config) -> Workspace
 ```
 
-### 5.3 Agent 协同模块 (`odap/biz/core/agent/`)
+### 5.3 Agent 协同模块 (`apps/api/odap/biz/core/agent/`)
 
 ```python
-# odap/biz/core/agent/__init__.py — 对外 API
+# apps/api/odap/biz/core/agent/__init__.py — 对外 API
 from .swarm_orchestrator import DomainSwarm
 from .intelligence_agent import IntelligenceAgent
 
@@ -507,10 +507,10 @@ class IntelligenceAgent:
     def analyze(query: str, context=None) -> AnalysisReport
 ```
 
-### 5.4 模拟推演模块 (`odap/biz/simulator/`)
+### 5.4 模拟推演模块 (`apps/api/odap/biz/simulator/`)
 
 ```python
-# odap/biz/simulator/__init__.py — 对外 API
+# apps/api/odap/biz/simulator/__init__.py — 对外 API
 from .engine import SimulatorEngine
 
 # 职责: 沙盘推演引擎，用于验证方案可行性，辅助决策
@@ -537,7 +537,7 @@ class SimulatorEngine:
         """获取推演结果"""
 ```
 
-### 5.5 Web 服务层 (`odap/web/api/`)
+### 5.5 Web 服务层 (`apps/api/odap/web/api/`)
 
 ```
 API 路由规划:
@@ -614,45 +614,45 @@ from odap.tools.registry import SkillRegistry, register_skill, SKILL_CATALOG
 1. 创建新目录结构（空 `__init__.py`）
 2. 编写 `pyproject.toml`（替代 `requirements.txt`）
 3. 编写 `conftest.py`（共享测试 fixtures）
-4. 编写 `odap/__init__.py` 和各子包 `__init__.py`
+4. 编写 `apps/api/odap/__init__.py` 和各子包 `__init__.py`
 5. 创建向后兼容 shim
 
 ### Phase R-2: 基础设施层迁移（2-3 天）
-1. `core/graph_manager.py` → `odap/infra/graph/`
-2. `core/llm_clients.py` → `odap/infra/llm/`
-3. `core/opa_manager.py` → `odap/infra/opa/`
-4. `core/hook_system.py` → `odap/infra/events/`
-5. `core/fault_tolerance.py` + `health_monitor.py` + `state_persistence.py` → `odap/infra/resilience/`
+1. `core/graph_manager.py` → `apps/api/odap/infra/graph/`
+2. `core/llm_clients.py` → `apps/api/odap/infra/llm/`
+3. `core/opa_manager.py` → `apps/api/odap/infra/opa/`
+4. `core/hook_system.py` → `apps/api/odap/infra/events/`
+5. `core/fault_tolerance.py` + `health_monitor.py` + `state_persistence.py` → `apps/api/odap/infra/resilience/`
 6. 更新 shim re-export
 7. 运行测试验证
 
 ### Phase R-3: 领域工具层迁移（1-2 天）
-1. `skills/base.py` → `odap/tools/base.py`
-2. 提取 `skills/__init__.py` 注册逻辑 → `odap/tools/registry.py`
-3. 各 Skill 模块迁移到 `odap/tools/{category}/`
-4. `visualization/visualization.py` → `odap/tools/visualization/plotting.py`
+1. `skills/base.py` → `apps/api/odap/tools/base.py`
+2. 提取 `skills/__init__.py` 注册逻辑 → `apps/api/odap/tools/registry.py`
+3. 各 Skill 模块迁移到 `apps/api/odap/tools/{category}/`
+4. `visualization/visualization.py` → `apps/api/odap/tools/visualization/plotting.py`
 5. 运行测试验证
 
 ### Phase R-4: 业务领域层迁移（3-4 天）
-1. 本体模块: `ontology/` + `core/ontology_*` + `core/data_ingestion.py` → `odap/biz/core/ontology/`
-2. Agent 模块: `core/intelligence_agent.py` + `core/swarm_orchestrator.py` + ... → `odap/biz/core/agent/`
-3. 模拟器模块: `core/simulation_engine.py` + `data/simulation_data.py` → `odap/biz/simulator/`
-4. 权限模块: `core/permission_checker.py` → `odap/biz/permission/`
-5. 创建 `odap/biz/platform/workspace/manager.py`（新模块）
+1. 本体模块: `ontology/` + `core/ontology_*` + `core/data_ingestion.py` → `apps/api/odap/biz/core/ontology/`
+2. Agent 模块: `core/intelligence_agent.py` + `core/swarm_orchestrator.py` + ... → `apps/api/odap/biz/core/agent/`
+3. 模拟器模块: `core/simulation_engine.py` + `data/simulation_data.py` → `apps/api/odap/biz/simulator/`
+4. 权限模块: `core/permission_checker.py` → `apps/api/odap/biz/permission/`
+5. 创建 `apps/api/odap/biz/platform/workspace/manager.py`（新模块）
 6. 更新各模块 `__init__.py` 对外 API
 7. 运行测试验证
 
 ### Phase R-5: Web 服务层迁移（2-3 天）
-1. `core/simulator_web_service.py` 拆分为 `odap/web/api/` 路由模块
-2. 前端 HTML 拆分为 `odap/web/static/`（CSS/JS 分离）
-3. `visualization/dialog_interface.py` + `web_interface.py` → `odap/web/legacy/`
+1. `core/simulator_web_service.py` 拆分为 `apps/api/odap/web/api/` 路由模块
+2. 前端 HTML 拆分为 `apps/api/odap/web/static/`（CSS/JS 分离）
+3. `visualization/dialog_interface.py` + `web_interface.py` → `apps/api/odap/web/legacy/`
 4. `main.py` 拆分为 `src/cli.py` + `src/web_server.py`
 5. 运行测试 + 手动验证 Web 服务
 
 ### Phase R-6: 适配层 + 清理（1-2 天）
-1. `core/openharness_integration.py` → `odap/adapters/openharness/`
+1. `core/openharness_integration.py` → `apps/api/odap/adapters/openharness/`
 2. 根目录散落文件清理（HTML → `assets/templates/`，PNG → `assets/images/`）
-3. 数据文件迁移（`ontology/versions/` → `odap/infra/storage/`）
+3. 数据文件迁移（`ontology/versions/` → `apps/api/odap/infra/storage/`）
 4. 更新文档（ARCHITECTURE.md、ADR-033）
 5. 删除向后兼容 shim（v1.0 正式版）
 
@@ -670,7 +670,7 @@ from odap.tools.registry import SkillRegistry, register_skill, SKILL_CATALOG
 
 ## 9. 成功标准
 
-1. ✅ 每个 `odap/` 子包的 `__init__.py` 清晰暴露对外 API
+1. ✅ 每个 `apps/api/odap/` 子包的 `__init__.py` 清晰暴露对外 API
 2. ✅ 模块间零循环依赖（通过 `import-linter` 或 `pydeps` 验证）
 3. ✅ 所有测试通过（60+ passed）
 4. ✅ `python src/web_server.py --web` 正常启动 Web 服务

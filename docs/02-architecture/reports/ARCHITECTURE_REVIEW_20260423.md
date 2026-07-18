@@ -35,9 +35,9 @@
 | **文档位置** | `docs/modules/decision_recommendation/DESIGN.md` |
 | **模块 ID** | M-13（活跃模块） |
 | **状态** | ✅ 已实现 |
-| **描述** | 设计文档定义了 `StrikePlan`、`RiskAssessment`、`DecisionRecommendationEngine` 接口，已实现于 `odap/biz/decision_recommendation/` |
+| **描述** | 设计文档定义了 `StrikePlan`、`RiskAssessment`、`DecisionRecommendationEngine` 接口，已实现于 `apps/api/odap/biz/decision_recommendation/` |
 
-**建议**: ~~删除 `docs/modules/decision_recommendation/DESIGN.md`，或在 `odap/biz/decision_recommendation/` 中实现基础框架（可先做 stub）~~ 已实现
+**建议**: ~~删除 `docs/modules/decision_recommendation/DESIGN.md`，或在 `apps/api/odap/biz/decision_recommendation/` 中实现基础框架（可先做 stub）~~ 已实现
 
 ### 2.2 user_cognition_engine（用户认知引擎）
 
@@ -46,7 +46,7 @@
 | **文档位置** | `docs/modules/user_cognition_engine/DESIGN.md` |
 | **相关 ADR** | ADR-038, ADR-049 |
 | **状态** | ✅ 已实现 |
-| **描述** | 设计文档定义了 `IntentRecognizer`、`KnowledgeNavigator`、`ExplanationEngine`、`RoleViewManager` 等组件，已实现于 `odap/biz/cognition/` |
+| **描述** | 设计文档定义了 `IntentRecognizer`、`KnowledgeNavigator`、`ExplanationEngine`、`RoleViewManager` 等组件，已实现于 `apps/api/odap/biz/cognition/` |
 
 **建议**: ~~删除设计文档（Phase 4 暂不考虑）~~ 已实现
 
@@ -65,10 +65,10 @@
 
 | 项目 | 详情 |
 |------|------|
-| **文档位置** | `docs/modules/web_frontend/DESIGN.md` |
+| **文档位置** | `docs/modules/web_apps/web/DESIGN.md` |
 | **模块 ID** | M-17（活跃模块） |
 | **状态** | ⚠️ 仅设计文档，无 React 实现 |
-| **描述** | 设计文档定义了 React 19 + TypeScript + Ant Design 技术栈，但 `odap/` 下无前端代码仓库 |
+| **描述** | 设计文档定义了 React 19 + TypeScript + Ant Design 技术栈，但 `apps/api/odap/` 下无前端代码仓库 |
 
 **说明**: 前端代码可能在独立仓库中，不在本项目范围内
 
@@ -83,7 +83,7 @@
 ### 3.1 orchestrator（编排器）
 
 ```
-odap/biz/agent/
+apps/api/odap/biz/agent/
 ├── orchestrator.py       # v1: SelfCorrectingOrchestrator
 ├── orchestrator_v2.py    # v2: 更复杂，带 OODA 循环
 └── __init__.py
@@ -99,7 +99,7 @@ odap/biz/agent/
 ### 3.2 ontology_management_engine（本体管理引擎）
 
 ```
-odap/biz/ontology/
+apps/api/odap/biz/ontology/
 ├── ontology_management_engine.py       # v1
 ├── ontology_management_engine_v3.py    # v3（跳过 v2）
 ├── ontology_manager_v2.py              # v2（独立文件）
@@ -117,7 +117,7 @@ odap/biz/ontology/
 ### 3.3 simulator/engine（模拟引擎）
 
 ```
-odap/biz/simulator/
+apps/api/odap/biz/simulator/
 ├── engine.py       # v1
 └── engine_v2.py    # v2
 ```
@@ -127,7 +127,7 @@ odap/biz/simulator/
 ### 3.4 qa_engine（问答引擎）
 
 ```
-odap/biz/qa/
+apps/api/odap/biz/qa/
 └── qa_engine_v2.py  # 仅 v2，无 v1
 ```
 
@@ -136,7 +136,7 @@ odap/biz/qa/
 ### 3.5 graphiti_client（Graphiti 客户端）
 
 ```
-odap/infra/graph/
+apps/api/odap/infra/graph/
 ├── graphiti_client_v2.py  # v2
 └── (无 v1？)
 ```
@@ -146,7 +146,7 @@ odap/infra/graph/
 ### 3.6 opa_service（OPA 服务）
 
 ```
-odap/infra/opa/
+apps/api/odap/infra/opa/
 ├── opa_service.py     # v1
 └── opa_service_v2.py  # v2
 ```
@@ -156,7 +156,7 @@ odap/infra/opa/
 ### 3.7 api_gateway（API 网关）
 
 ```
-odap/gateway/
+apps/api/odap/gateway/
 └── api_gateway_v2.py  # 仅 v2
 ```
 
@@ -165,7 +165,7 @@ odap/gateway/
 ### 3.8 audit_logger（审计日志）
 
 ```
-odap/infra/security/
+apps/api/odap/infra/security/
 ├── audit_logger.py        # v1
 ├── audit_logger_v2.py     # v2
 ├── audit_sqlite_channel.py # Channel 实现
@@ -178,7 +178,7 @@ odap/infra/security/
 ### 3.9 visualization/visualization_engine（可视化引擎）
 
 ```
-odap/biz/visualization/
+apps/api/odap/biz/visualization/
 └── visualization_engine_v2.py  # 仅 v2
 ```
 
@@ -187,7 +187,7 @@ odap/biz/visualization/
 ### 3.10 tools/base（工具基类）
 
 ```
-odap/tools/
+apps/api/odap/tools/
 ├── base.py     # v1: BaseSkill 基础版
 └── base_v2.py  # v2: BaseSkill 增强版 + SkillExecutor
 ```
@@ -240,8 +240,8 @@ odap/tools/
 
 | 项目 | 清理内容 | 状态 |
 |------|----------|------|
-| mongodb_storage.py | 删除 `odap/biz/ontology/storage/mongodb_storage.py` | ✅ 完成 |
-| postgres_storage.py | 删除 `odap/biz/ontology/storage/postgres_storage.py` | ✅ 完成 |
+| mongodb_storage.py | 删除 `apps/api/odap/biz/ontology/storage/mongodb_storage.py` | ✅ 完成 |
+| postgres_storage.py | 删除 `apps/api/odap/biz/ontology/storage/postgres_storage.py` | ✅ 完成 |
 | docker-compose.yml | 移除 graphiti-mongo 服务 | ✅ 完成 |
 | docker-compose.test.yml | 移除 test-postgres 服务 | ✅ 完成 |
 | ADR-048 | 更新文档说明使用 SQLite | ✅ 完成 |
@@ -251,7 +251,7 @@ odap/tools/
 
 | 项目 | 详情 |
 |------|------|
-| audit_mongodb_channel.py | `odap/infra/security/audit_mongodb_channel.py` - MongoDB Channel 已废弃，应删除 |
+| audit_mongodb_channel.py | `apps/api/odap/infra/security/audit_mongodb_channel.py` - MongoDB Channel 已废弃，应删除 |
 | pymongo/psycopg2 | `requirements.txt` 中应已删除（需确认） |
 
 ---
@@ -263,7 +263,7 @@ odap/tools/
 | 项目 | 文档声明 | 实际位置 |
 |------|----------|----------|
 | **文档** | `docs/modules/audit_log/DESIGN.md`（独立模块） |
-| **实现** | `odap/infra/security/`（基础设施层） |
+| **实现** | `apps/api/odap/infra/security/`（基础设施层） |
 
 **说明**: 实现位于 `infra/security/` 而非 `biz/audit_log/`，文档描述为独立模块但实现为基础设施组件
 
@@ -274,7 +274,7 @@ odap/tools/
 | 项目 | 文档声明 | 实际位置 |
 |------|----------|----------|
 | **文档** | `docs/modules/graphiti_client/DESIGN.md`（M-01） |
-| **实现** | `odap/infra/graph/graphiti_client_v2.py` |
+| **实现** | `apps/api/odap/infra/graph/graphiti_client_v2.py` |
 
 **说明**: 文档正确，位置合理
 
@@ -283,7 +283,7 @@ odap/tools/
 | 项目 | 文档声明 | 实际位置 |
 |------|----------|----------|
 | **文档** | `docs/modules/opa_policy/DESIGN.md`（M-02） |
-| **实现** | `odap/infra/opa/` |
+| **实现** | `apps/api/odap/infra/opa/` |
 
 **说明**: 文档正确，位置合理
 
@@ -302,8 +302,8 @@ docs/modules/
 ├── permission_checker/    # ⚠️ 已合并至 opa_policy
 ├── web/                   # ⚠️ 已拆分为 api_gateway + web_frontend
 ├── ontology_management_engine/  # ⚠️ 重构为 ontology/ 模块
-├── user_cognition_engine/  # ✅ 已实现 (odap/biz/cognition/)
-└── decision_recommendation/    # ✅ 已实现 (odap/biz/decision_recommendation/)
+├── user_cognition_engine/  # ✅ 已实现 (apps/api/odap/biz/cognition/)
+└── decision_recommendation/    # ✅ 已实现 (apps/api/odap/biz/decision_recommendation/)
 ```
 
 ### 7.2 活跃模块设计文档（保留）
@@ -360,19 +360,19 @@ docs/modules/
 ### 🔴 高优先级（影响架构正确性）
 
 - [x] **删除** `docs/modules/decision_recommendation/DESIGN.md` ✅ 2026-04-23
-- [x] **删除** `docs/modules/user_cognition_engine/DESIGN.md` ✅ 2026-04-23（已恢复为待实现 → ✅ 已实现于 `odap/biz/cognition/`）
+- [x] **删除** `docs/modules/user_cognition_engine/DESIGN.md` ✅ 2026-04-23（已恢复为待实现 → ✅ 已实现于 `apps/api/odap/biz/cognition/`）
 - [ ] **确认** ADR-022（模拟数仓）是否有部分实现
 
 ### 🟡 中优先级（OADP 架构缺口）
 
 - [x] **实现** Decision Recommendation 完整实现（M-13） ✅ 2026-04-23
-  - 核心引擎: `odap/biz/decision_recommendation/engine.py`
-  - 数据模型: `odap/biz/decision_recommendation/models.py`
-  - 测试用例: `odap/biz/decision_recommendation/tests/`
+  - 核心引擎: `apps/api/odap/biz/decision_recommendation/engine.py`
+  - 数据模型: `apps/api/odap/biz/decision_recommendation/models.py`
+  - 测试用例: `apps/api/odap/biz/decision_recommendation/tests/`
 - [x] **设计** ADR-051 Feedback Loop 机制（OADP 闭环反馈） ✅ 2026-04-23
-- [x] **实现** 闭环反馈模块（M-20） ✅ `odap/biz/action_service/feedback_loop.py`
-- [x] **实现** 用户认知引擎（M-19） ✅ `odap/biz/cognition/`
-- [x] **实现** 知识库 RAG/爬取（M-21） ✅ `odap/biz/knowledge_base/`
+- [x] **实现** 闭环反馈模块（M-20） ✅ `apps/api/odap/biz/action_service/feedback_loop.py`
+- [x] **实现** 用户认知引擎（M-19） ✅ `apps/api/odap/biz/cognition/`
+- [x] **实现** 知识库 RAG/爬取（M-21） ✅ `apps/api/odap/biz/knowledge_base/`
 - [ ] **设计** IObserver 感知层接口（OADP 感知层抽象）
 
 ### 🟢 低优先级（文档清理）
@@ -445,9 +445,9 @@ docs/modules/
 | ✅ req-ok.md | 更新核心技术路线为 OADP 闭环 |
 | ✅ M-13 实现 | 实现 Decision Recommendation 完整实现 |
 | ✅ ADR-051 | 新增闭环反馈机制设计 ADR |
-| ✅ M-19 实现 | 实现 User Cognition Engine（odap/biz/cognition/） |
-| ✅ M-20 实现 | 实现闭环反馈模块（odap/biz/action_service/feedback_loop.py） |
-| ✅ M-21 实现 | 实现知识库 RAG/爬取（odap/biz/knowledge_base/） |
+| ✅ M-19 实现 | 实现 User Cognition Engine（apps/api/odap/biz/cognition/） |
+| ✅ M-20 实现 | 实现闭环反馈模块（apps/api/odap/biz/action_service/feedback_loop.py） |
+| ✅ M-21 实现 | 实现知识库 RAG/爬取（apps/api/odap/biz/knowledge_base/） |
 
 ---
 

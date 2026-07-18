@@ -14,19 +14,19 @@
 
 | 组件 | 位置 | 职责 |
 |------|------|------|
-| Graph | `odap/infra/graph/` | 知识图谱管理（Graphiti） |
-| OPA | `odap/infra/opa/` | 策略引擎（权限控制） |
-| Events | `odap/infra/events/` | 事件系统（Hook） |
-| LLM | `odap/infra/llm/` | LLM 接口封装 |
-| Resilience | `odap/infra/resilience/` | 容错机制 |
-| Config | `odap/infra/config/` | 配置管理 |
+| Graph | `apps/api/odap/infra/graph/` | 知识图谱管理（Graphiti） |
+| OPA | `apps/api/odap/infra/opa/` | 策略引擎（权限控制） |
+| Events | `apps/api/odap/infra/events/` | 事件系统（Hook） |
+| LLM | `apps/api/odap/infra/llm/` | LLM 接口封装 |
+| Resilience | `apps/api/odap/infra/resilience/` | 容错机制 |
+| Config | `apps/api/odap/infra/config/` | 配置管理 |
 
 ---
 
 ## 2. 核心架构
 
 ```
-odap/infra/
+apps/api/odap/infra/
 ├── graph/                # 知识图谱基础设施
 │   ├── graph_service.py  # GraphManager (核心类)
 │   └── __init__.py
@@ -421,7 +421,7 @@ CORE_CONFIG = {
     "LLM_MODEL": "glm-4",
 
     # 存储配置
-    "STORAGE_PATH": "./odap/storage",
+    "STORAGE_PATH": "./apps/api/odap/storage",
 }
 ```
 

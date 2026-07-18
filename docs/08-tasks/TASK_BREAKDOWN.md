@@ -34,17 +34,17 @@
 
 | 目录 | 模块 | 行数(估) | 对应 M-ID |
 |------|------|---------|-----------|
-| `odap/infra/graph/` | Graphiti 客户端 | ~400 | M-01 |
-| `odap/infra/opa/` | OPA 策略管理 | ~300 | M-02 |
-| `odap/biz/core/ontology/` | 本体管理 | ~450 | M-03 |
-| `odap/biz/platform/workspace/` | 工作空间 | ~100 | M-04 |
-| `odap/infra/events/` | Hook 事件系统 | ~200 | M-05 |
-| `odap/adapters/` | MCP 适配 | ~150 | M-06 |
-| `odap/biz/core/agent/` | Agent + Router | ~700 | M-09, M-10 |
-| `odap/tools/` | Skill 工具集 | ~800 | M-08, M-11 |
-| `odap/biz/simulator/` | 模拟推演 | ~300 | M-14 |
-| `odap/web/` | API + WebSocket | ~350 | M-16 |
-| `frontend/` | React SPA | ~2000 | M-17, M-18 |
+| `apps/api/odap/infra/graph/` | Graphiti 客户端 | ~400 | M-01 |
+| `apps/api/odap/infra/opa/` | OPA 策略管理 | ~300 | M-02 |
+| `apps/api/odap/biz/core/ontology/` | 本体管理 | ~450 | M-03 |
+| `apps/api/odap/biz/platform/workspace/` | 工作空间 | ~100 | M-04 |
+| `apps/api/odap/infra/events/` | Hook 事件系统 | ~200 | M-05 |
+| `apps/api/odap/adapters/` | MCP 适配 | ~150 | M-06 |
+| `apps/api/odap/biz/core/agent/` | Agent + Router | ~700 | M-09, M-10 |
+| `apps/api/odap/tools/` | Skill 工具集 | ~800 | M-08, M-11 |
+| `apps/api/odap/biz/simulator/` | 模拟推演 | ~300 | M-14 |
+| `apps/api/odap/web/` | API + WebSocket | ~350 | M-16 |
+| `apps/web/` | React SPA | ~2000 | M-17, M-18 |
 | 缺失 | 审计日志 | 0 | M-07 |
 | 缺失 | 问答引擎 | 0 | M-12 |
 | 缺失 | 决策推荐 | 0 | M-13 |

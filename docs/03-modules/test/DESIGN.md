@@ -374,7 +374,7 @@ jobs:
 ## 9. API 文档自动生成
 
 ```python
-# odap/web/app.py
+# apps/api/odap/web/app.py
 from fastapi import FastAPI
 from fastapi.openapi.utils import get_openapi
 
@@ -419,14 +419,14 @@ app.openapi = custom_openapi
 ```
 模块                          行覆盖率    分支覆盖率
 ─────────────────────────────────────────────────────
-odap/auth/                      92%         88%
-odap/qa_engine/                 85%         80%
-odap/workspace/                 88%         84%
-odap/ontology/                  82%         78%
-odap/skill/                     84%         80%
-odap/simulator/                 80%         76%
-odap/opa_client/                95%         90%
-odap/web/ (API路由)             80%         75%
+apps/api/odap/auth/                      92%         88%
+apps/api/odap/qa_engine/                 85%         80%
+apps/api/odap/workspace/                 88%         84%
+apps/api/odap/ontology/                  82%         78%
+apps/api/odap/skill/                     84%         80%
+apps/api/odap/simulator/                 80%         76%
+apps/api/odap/opa_client/                95%         90%
+apps/api/odap/web/ (API路由)             80%         75%
 ─────────────────────────────────────────────────────
 总体                             84%         81%
 ```

@@ -383,7 +383,7 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-      - run: bandit -r odap/
+      - run: bandit -r apps/api/odap/
       - run: safety check
 ```
 

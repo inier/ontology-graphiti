@@ -15,17 +15,17 @@ ODAP 后端基于 FastAPI 构建，统一入口为 `app/main.py`，注册了 12 
 
 | 序号 | 路由模块 | 前缀 | 来源文件 | 端点数 |
 |------|---------|------|---------|--------|
-| 1 | ingest_router | `/api/ontology/ingest` | odap/biz/core/ontology/api/routes.py | 16 |
-| 2 | workspace_router | `/api/workspaces` | odap/biz/platform/workspace/api/routes.py | 20+ |
-| 3 | roles_router | `/api/roles` | odap/biz/platform/roles/api/routes.py | 6 |
-| 4 | audit_router | - | odap/infra/security/audit_api.py | - |
-| 5 | skill_router | `/api/skill` | odap/biz/platform/skill_system/api/routes.py | 8 |
-| 6 | hook_router | `/api/hook` | odap/biz/hook_system/api/routes.py | 4 |
-| 7 | mcp_router | `/api/mcp` | odap/biz/mcp_adapter/api/routes.py | 6 |
-| 8 | event_router | `/api/event-simulator` | odap/biz/event_simulator/api/routes.py | 6 |
-| 9 | frontend_router | `/api` | odap/biz/frontend_compat/api/routes.py | 40+ |
-| 10 | agent_router | `/api/agent` | odap/biz/openharness_agent/api/routes.py | 5 |
-| 11 | business_router | `/api` | odap/biz/business/api/routes.py | 16 |
+| 1 | ingest_router | `/api/ontology/ingest` | apps/api/odap/biz/core/ontology/api/routes.py | 16 |
+| 2 | workspace_router | `/api/workspaces` | apps/api/odap/biz/platform/workspace/api/routes.py | 20+ |
+| 3 | roles_router | `/api/roles` | apps/api/odap/biz/platform/roles/api/routes.py | 6 |
+| 4 | audit_router | - | apps/api/odap/infra/security/audit_api.py | - |
+| 5 | skill_router | `/api/skill` | apps/api/odap/biz/platform/skill_system/api/routes.py | 8 |
+| 6 | hook_router | `/api/hook` | apps/api/odap/biz/hook_system/api/routes.py | 4 |
+| 7 | mcp_router | `/api/mcp` | apps/api/odap/biz/mcp_adapter/api/routes.py | 6 |
+| 8 | event_router | `/api/event-simulator` | apps/api/odap/biz/event_simulator/api/routes.py | 6 |
+| 9 | frontend_router | `/api` | apps/api/odap/biz/frontend_compat/api/routes.py | 40+ |
+| 10 | agent_router | `/api/agent` | apps/api/odap/biz/openharness_agent/api/routes.py | 5 |
+| 11 | business_router | `/api` | apps/api/odap/biz/business/api/routes.py | 16 |
 | 12 | monitoring_router | `/api/v1/monitoring` | - | 2 |
 
 ### 1.3 通用响应格式
@@ -66,7 +66,7 @@ ODAP 后端基于 FastAPI 构建，统一入口为 `app/main.py`，注册了 12 
 ## 2. 本体摄入 API
 
 **路由前缀**: `/api/ontology/ingest`
-**来源文件**: `odap/biz/core/ontology/api/routes.py`
+**来源文件**: `apps/api/odap/biz/core/ontology/api/routes.py`
 
 ### 2.1 通用摄入接口
 
@@ -195,7 +195,7 @@ ODAP 后端基于 FastAPI 构建，统一入口为 `app/main.py`，注册了 12 
 ## 3. 工作空间 API
 
 **路由前缀**: `/api/workspaces`
-**来源文件**: `odap/biz/platform/workspace/api/routes.py`
+**来源文件**: `apps/api/odap/biz/platform/workspace/api/routes.py`
 
 ### 3.1 工作空间 CRUD
 
@@ -282,7 +282,7 @@ ODAP 后端基于 FastAPI 构建，统一入口为 `app/main.py`，注册了 12 
 ## 4. 业务规则 API
 
 **路由前缀**: `/api`
-**来源文件**: `odap/biz/business/api/routes.py`
+**来源文件**: `apps/api/odap/biz/business/api/routes.py`
 
 ### 4.1 业务流程
 
@@ -329,7 +329,7 @@ ODAP 后端基于 FastAPI 构建，统一入口为 `app/main.py`，注册了 12 
 ## 5. 角色管理 API
 
 **路由前缀**: `/api/roles`
-**来源文件**: `odap/biz/platform/roles/api/routes.py`
+**来源文件**: `apps/api/odap/biz/platform/roles/api/routes.py`
 
 | 方法 | 路径 | 说明 |
 |------|------|------|
@@ -355,7 +355,7 @@ ODAP 后端基于 FastAPI 构建，统一入口为 `app/main.py`，注册了 12 
 ## 6. 技能系统 API
 
 **路由前缀**: `/api/skill`
-**来源文件**: `odap/biz/platform/skill_system/api/routes.py`
+**来源文件**: `apps/api/odap/biz/platform/skill_system/api/routes.py`
 
 | 方法 | 路径 | 说明 |
 |------|------|------|
@@ -374,7 +374,7 @@ ODAP 后端基于 FastAPI 构建，统一入口为 `app/main.py`，注册了 12 
 ## 7. Hook 系统 API
 
 **路由前缀**: `/api/hook`
-**来源文件**: `odap/biz/hook_system/api/routes.py`
+**来源文件**: `apps/api/odap/biz/hook_system/api/routes.py`
 
 | 方法 | 路径 | 说明 |
 |------|------|------|
@@ -388,7 +388,7 @@ ODAP 后端基于 FastAPI 构建，统一入口为 `app/main.py`，注册了 12 
 ## 8. MCP 适配器 API
 
 **路由前缀**: `/api/mcp`
-**来源文件**: `odap/biz/mcp_adapter/api/routes.py`
+**来源文件**: `apps/api/odap/biz/mcp_adapter/api/routes.py`
 
 | 方法 | 路径 | 说明 |
 |------|------|------|
@@ -404,7 +404,7 @@ ODAP 后端基于 FastAPI 构建，统一入口为 `app/main.py`，注册了 12 
 ## 9. 工具注册表 API
 
 **路由前缀**: `/api/v1/tools`
-**来源文件**: `odap/biz/platform/tool_registry/api/routes.py`
+**来源文件**: `apps/api/odap/biz/platform/tool_registry/api/routes.py`
 
 | 方法 | 路径 | 说明 |
 |------|------|------|
@@ -424,7 +424,7 @@ ODAP 后端基于 FastAPI 构建，统一入口为 `app/main.py`，注册了 12 
 ## 10. Agent API
 
 **路由前缀**: `/api/agent`
-**来源文件**: `odap/biz/openharness_agent/api/routes.py`
+**来源文件**: `apps/api/odap/biz/openharness_agent/api/routes.py`
 
 | 方法 | 路径 | 说明 |
 |------|------|------|
@@ -456,7 +456,7 @@ ODAP 后端基于 FastAPI 构建，统一入口为 `app/main.py`，注册了 12 
 ## 11. 事件模拟器 API
 
 **路由前缀**: `/api/event-simulator`
-**来源文件**: `odap/biz/event_simulator/api/routes.py`
+**来源文件**: `apps/api/odap/biz/event_simulator/api/routes.py`
 
 | 方法 | 路径 | 说明 |
 |------|------|------|
@@ -472,7 +472,7 @@ ODAP 后端基于 FastAPI 构建，统一入口为 `app/main.py`，注册了 12 
 ## 12. 前端兼容层 API
 
 **路由前缀**: `/api`
-**来源文件**: `odap/biz/frontend_compat/api/routes.py`
+**来源文件**: `apps/api/odap/biz/frontend_compat/api/routes.py`
 
 这是最大的路由文件（2031行），包含 40+ 个端点，覆盖以下功能域：
 
@@ -588,7 +588,7 @@ ODAP 后端基于 FastAPI 构建，统一入口为 `app/main.py`，注册了 12 
 
 | 路径 | 说明 | 来源 |
 |------|------|------|
-| `/ws/events` | 实时事件流 | odap/web/api/app.py |
+| `/ws/events` | 实时事件流 | apps/api/odap/web/api/app.py |
 
 ---
 

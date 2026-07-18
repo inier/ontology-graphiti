@@ -166,7 +166,7 @@
 ### 问答链（用户 → 知识 → 答案）
 
 ```
-frontend/ → web/gateway/ → biz/data/qa/ → infra/graph/ + biz/platform/skill_system/
+apps/web/ → web/gateway/ → biz/data/qa/ → infra/graph/ + biz/platform/skill_system/
                                     ↓
                               biz/core/agent/ (复杂问题升级)
 ```
@@ -223,12 +223,12 @@ biz/core/ontology/ → biz/platform/workspace/ → biz/integration/hook_system/ 
 - **与推演关系**: 事件模拟器生成"发生了什么"，推演引擎分析"该怎么做"
 - **关键接口**: `EventSimulator.create_scenario()` / `EventSimulator.inject_event()`
 
-### odap/web/gateway/ — API 网关
+### apps/api/odap/web/gateway/ — API 网关
 - **职责**: 统一入口，认证鉴权，流量治理，协议适配
 - **管道**: Request → CORS → Auth → RateLimit → Route → Permission → Proxy → Response
 - **关键接口**: REST API + WebSocket + SSE
 
-### frontend/ — Web 前端
+### apps/web/ — Web 前端
 - **职责**: 用户交互界面，全流程可视化
 - **技术栈**: React 19 + TypeScript + Ant Design 6 + Zustand + Vite
 - **关键页面**: 智能问答(P0)、审计日志(P0)、工具管理(P1)

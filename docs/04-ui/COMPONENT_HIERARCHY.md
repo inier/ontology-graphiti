@@ -21,7 +21,7 @@
 ## 2. 组件目录结构
 
 ```
-frontend/src/
+apps/web/src/
 ├── components/                    # L1-L3 组件
 │   ├── atoms/                    # L1 原子组件
 │   │   ├── Button/

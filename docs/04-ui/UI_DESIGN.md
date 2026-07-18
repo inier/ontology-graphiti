@@ -536,7 +536,7 @@
 
 - [ADR-007: 前端采用 React + Ant Design 技术栈](../07-adr/ADR-007_前端采用_react_ant_design_技术栈.md)
 - [ADR-031: 模拟器 Web 可视化与实时本体热写入](../07-adr/ADR-031_simulator_web_visualization_realtime_ontology.md)
-- [Web 模块设计](../03-modules/web_frontend/DESIGN.md)
+- [Web 模块设计](../03-modules/web_apps/web/DESIGN.md)
 - [前端组件设计文档](./FRONTEND_COMPONENT_DESIGN.md)
 - [组件规范](./COMPONENT_SPEC.md)
 - [组件层级](./COMPONENT_HIERARCHY.md)

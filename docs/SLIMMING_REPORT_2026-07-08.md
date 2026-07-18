@@ -18,7 +18,7 @@
 | 目标 | 行数 | 理由 |
 |------|------|------|
 | `specs/002-copilotkit-eval/` | 4,922 | CopilotKit 全仓零引用，从未实现 |
-| `specs/006-llm-config-management/` | 1,516 | 功能已由 `odap/biz/platform/config/`（config.db + 热更新）实现 |
+| `specs/006-llm-config-management/` | 1,516 | 功能已由 `apps/api/odap/biz/platform/config/`（config.db + 热更新）实现 |
 | `specs/004-microservice-split/` | 329 | 微服务拆分未采纳，零引用 |
 | `specs/ui-ux-pro-max/` | 245 | 早期碎片 |
 | `docs/02-architecture/ARCHITECTURE_FULL_CHAIN_DEEP.md` | 5,210 | 内联源码，与仓库 100% 重复 |

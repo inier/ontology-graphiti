@@ -59,6 +59,8 @@
 | ADR-064 | 可观测性基线（Trace/Metrics/Log 三面） | 提议 | P1 | [ADR-064](ADR-064_observability_baseline.md) |
 | ADR-065 | 模块化单体 → 微服务拆分剧本 | 提议 | P3 | [ADR-065](ADR-065_microservice_extraction_playbook.md) |
 | ADR-066 | Monorepo 重构（uv workspace + pnpm workspace） | 已接受 | P1 | [ADR-066](ADR-066-monorepo-restructure.md) |
+| ADR-067 | `biz/shared` 下沉到 `infra/storage/` | 提出 | P2 | [ADR-067](ADR-067_biz_shared_relocation.md) |
+| ADR-068 | 本体模块四层分层架构（Design→Construction→Reasoning→Application） | 提议 | P0 | [ADR-068](ADR-068_本体模块四层分层架构.md) |
 
 ### 平台架构（P0/P1 混合）
 
@@ -175,6 +177,7 @@
 | ADR-064 | 可观测性基线（Trace/Metrics/Log 三面） | 提议 | [ADR-064](ADR-064_observability_baseline.md) |
 | ADR-065 | 模块化单体 → 微服务拆分剧本 | 提议 | [ADR-065](ADR-065_microservice_extraction_playbook.md) |
 | ADR-066 | Monorepo 重构（uv workspace + pnpm workspace） | 已接受 | [ADR-066](ADR-066-monorepo-restructure.md) |
+| ADR-068 | 本体模块四层分层架构（Design→Construction→Reasoning→Application） | 提议 | [ADR-068](ADR-068_本体模块四层分层架构.md) |
 
 ---
 
@@ -228,4 +231,5 @@
 - ADR-063：Phase 6 租户/工作空间双级感知与资源隔离（软多租户）
 - ADR-064：Phase 6 可观测性基线（OTel Trace + Prometheus Metrics + slog JSON Log）
 - ADR-065：Phase 6 模块化单体 → 微服务拆分剧本（按业务域垂直切）
+- ADR-068：Phase 6 本体模块四层分层架构（Design→Construction→Reasoning→Application）
 - 编号冲突处理：若同日提审新 ADR 时编号已被占用，采用 `<number>b/c/d...` 后缀登记，**永远不重命名已被外部链接引用的 ADR 文件**

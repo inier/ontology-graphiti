@@ -26,7 +26,7 @@
 ### 1.2 目录结构
 
 ```
-frontend/src/
+apps/web/src/
 ├── App.tsx                    # 应用根组件
 ├── AppRoutes.tsx              # 路由配置
 ├── App.css                    # 全局样式
@@ -56,7 +56,7 @@ frontend/src/
 
 ## 2. 路由配置
 
-**来源文件**: `frontend/src/AppRoutes.tsx`
+**来源文件**: `apps/web/src/AppRoutes.tsx`
 
 | 路径 | 组件 | 模块 | 说明 |
 |------|------|------|------|
@@ -84,7 +84,7 @@ frontend/src/
 
 ### 3.1 agent 模块 — 智能体
 
-**目录**: `frontend/src/modules/agent/`
+**目录**: `apps/web/src/modules/agent/`
 
 #### 3.1.1 MyAgents
 
@@ -148,7 +148,7 @@ interface Agent {
 
 ### 3.2 audit 模块 — 审计
 
-**目录**: `frontend/src/modules/audit/`
+**目录**: `apps/web/src/modules/audit/`
 
 #### 3.2.1 AuditLog
 
@@ -179,7 +179,7 @@ interface Agent {
 
 ### 3.3 business 模块 — 业务规则
 
-**目录**: `frontend/src/modules/business/`
+**目录**: `apps/web/src/modules/business/`
 
 #### 3.3.1 Logic
 
@@ -227,7 +227,7 @@ interface BusinessEntity {
 
 ### 3.4 config 模块 — 策略管理
 
-**目录**: `frontend/src/modules/config/`
+**目录**: `apps/web/src/modules/config/`
 
 #### 3.4.1 PolicyManagement
 
@@ -245,7 +245,7 @@ interface BusinessEntity {
 
 ### 3.5 ingest 模块 — 数据摄入
 
-**目录**: `frontend/src/modules/ingest/`
+**目录**: `apps/web/src/modules/ingest/`
 
 #### 3.5.1 IngestPanel
 
@@ -272,7 +272,7 @@ interface BusinessEntity {
 
 ### 3.6 ontology 模块 — 本体
 
-**目录**: `frontend/src/modules/ontology/`
+**目录**: `apps/web/src/modules/ontology/`
 
 #### 3.6.1 OntologySemanticNetwork
 
@@ -297,7 +297,7 @@ interface BusinessEntity {
 
 ### 3.7 qa 模块 — 智能问答
 
-**目录**: `frontend/src/modules/qa/`
+**目录**: `apps/web/src/modules/qa/`
 
 #### 3.7.1 QAChatPage（新版）
 
@@ -339,7 +339,7 @@ interface BusinessEntity {
 
 ### 3.8 roles 模块 — 角色管理
 
-**目录**: `frontend/src/modules/roles/`
+**目录**: `apps/web/src/modules/roles/`
 
 #### 3.8.1 RoleManager
 
@@ -357,7 +357,7 @@ interface BusinessEntity {
 
 ### 3.9 shared 模块 — 共享
 
-**目录**: `frontend/src/modules/shared/`
+**目录**: `apps/web/src/modules/shared/`
 
 #### 3.9.1 api.ts — 统一 API 服务
 
@@ -482,7 +482,7 @@ interface Relation {
 
 ### 3.10 system 模块 — 系统管理
 
-**目录**: `frontend/src/modules/system/`
+**目录**: `apps/web/src/modules/system/`
 
 #### 3.10.1 SkillManagement
 
@@ -500,7 +500,7 @@ interface Relation {
 
 ### 3.11 version 模块 — 版本管理
 
-**目录**: `frontend/src/modules/version/`
+**目录**: `apps/web/src/modules/version/`
 
 #### 3.11.1 VersionHistory
 
@@ -516,7 +516,7 @@ interface Relation {
 
 ### 3.12 workspace 模块 — 工作空间
 
-**目录**: `frontend/src/modules/workspace/`
+**目录**: `apps/web/src/modules/workspace/`
 
 #### 3.12.1 WorkspaceManager
 
@@ -538,7 +538,7 @@ interface Relation {
 
 ### 3.13 knowledge 模块 — 知识库
 
-**目录**: `frontend/src/modules/knowledge/`
+**目录**: `apps/web/src/modules/knowledge/`
 
 #### 3.13.1 KnowledgeBase
 

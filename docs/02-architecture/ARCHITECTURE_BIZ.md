@@ -295,7 +295,7 @@ class QueryServiceWriteGuard:
 
 def test_no_direct_graphmanager_import_in_agents():
     """Agent 模块禁止直接导入 GraphManager"""
-    agent_files = glob.glob("odap/biz/core/agent/*.py")
+    agent_files = glob.glob("apps/api/odap/biz/core/agent/*.py")
     for f in agent_files:
         content = Path(f).read_text()
         assert "from odap.infra.graph" not in content, f"{f} 直接导入了 GraphManager"
@@ -394,11 +394,11 @@ ActionTypeDefinition 中的 `writeback_config` 支持两种写回模式：
 
 | 文件 | 说明 |
 |------|------|
-| `odap/biz/action_service/schemas.py` | ActionRequest、ActionRecord、ActionExecutionResult |
-| `odap/biz/action_service/storage/sqlite_action_storage.py` | SQLite 持久化存储 |
-| `odap/biz/action_service/executor.py` | 核心执行引擎（校验→OPA→执行→写回→反馈） |
-| `odap/biz/action_service/feedback_loop.py` | 三层反馈回路（ADR-051） |
-| `odap/biz/action_service/routes.py` | FastAPI 路由 |
+| `apps/api/odap/biz/action_service/schemas.py` | ActionRequest、ActionRecord、ActionExecutionResult |
+| `apps/api/odap/biz/action_service/storage/sqlite_action_storage.py` | SQLite 持久化存储 |
+| `apps/api/odap/biz/action_service/executor.py` | 核心执行引擎（校验→OPA→执行→写回→反馈） |
+| `apps/api/odap/biz/action_service/feedback_loop.py` | 三层反馈回路（ADR-051） |
+| `apps/api/odap/biz/action_service/routes.py` | FastAPI 路由 |
 
 ---
 
@@ -519,7 +519,7 @@ SemanticRetrievalResult {
 
 | 文件 | 说明 |
 |------|------|
-| `odap/biz/qa/semantic_retriever/retriever.py` | SemanticObjectRetriever + SemanticRetrievalResult |
+| `apps/api/odap/biz/qa/semantic_retriever/retriever.py` | SemanticObjectRetriever + SemanticRetrievalResult |
 
 ---
 

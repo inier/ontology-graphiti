@@ -7,7 +7,7 @@
 
 ## 一、模块变更检查
 
-当 `odap/biz/` 下新增/删除/重命名模块时：
+当 `apps/api/odap/biz/` 下新增/删除/重命名模块时：
 
 - [ ] `docs/03-modules/README.md` — 更新对应领域下的模块列表（模块名、路径、职责摘要）
 - [ ] `docs/03-modules/{领域}/` — 新增或更新对应模块的 `DESIGN.md`
@@ -24,8 +24,8 @@
 
 当新增 `api/routes.py` 路由模块时：
 
-- [ ] `odap/web/router_registry.py` — 注册新路由到 `router_registry`
-- [ ] `odap/web/app.py` — 确认 `include_router()` 已注册（生产入口）
+- [ ] `apps/api/odap/web/router_registry.py` — 注册新路由到 `router_registry`
+- [ ] `apps/api/odap/web/app.py` — 确认 `include_router()` 已注册（生产入口）
 - [ ] `agents.md` § 附录 E — 更新关键 API 路径速查表（如有新路径前缀）
 
 ---
@@ -75,7 +75,7 @@
 
 ```bash
 # 后端模块审计：对比代码目录与文档索引
-ls odap/biz/*/  | sort
+ls apps/api/odap/biz/*/  | sort
 # 然后与 docs/03-modules/README.md 中的模块列表逐项对照
 
 # 前端模块审计

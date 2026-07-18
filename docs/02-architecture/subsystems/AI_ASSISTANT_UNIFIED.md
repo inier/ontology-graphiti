@@ -430,7 +430,7 @@ interface AIChatContextValue {
 ### 5.3 文件结构
 
 ```
-frontend/src/modules/shared/components/ai-chat/
+apps/web/src/modules/shared/components/ai-chat/
 ├── AIChatProvider.tsx       # Context Provider
 ├── AIChatPanel.tsx         # 统一入口组件（对外暴露）
 ├── AIChatFullMode.tsx      # 完全体模式

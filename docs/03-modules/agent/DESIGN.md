@@ -20,11 +20,11 @@ Agent 模块是系统的**智能决策中枢**，负责协调各组件完成复�
 
 | 组件 | 位置 | 职责 |
 |------|------|------|
-| IntelligenceAgent | `odap/biz/core/agent/` | 情报收集与分析 |
-| CommanderAgent | `odap/biz/core/agent/` | 决策制定 |
-| OperationsAgent | `odap/biz/core/agent/` | 执行决策 |
-| SelfCorrectingOrchestrator | `odap/biz/core/agent/` | 自校正编排器 |
-| DomainSwarm | `odap/biz/core/agent/` | 多 Agent 协同 |
+| IntelligenceAgent | `apps/api/odap/biz/core/agent/` | 情报收集与分析 |
+| CommanderAgent | `apps/api/odap/biz/core/agent/` | 决策制定 |
+| OperationsAgent | `apps/api/odap/biz/core/agent/` | 执行决策 |
+| SelfCorrectingOrchestrator | `apps/api/odap/biz/core/agent/` | 自校正编排器 |
+| DomainSwarm | `apps/api/odap/biz/core/agent/` | 多 Agent 协同 |
 
 ---
 

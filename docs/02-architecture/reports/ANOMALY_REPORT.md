@@ -34,7 +34,7 @@
 | # | ADR | 问题 | 建议 |
 |---|-----|------|------|
 | I-05 | ADR-022（模拟数仓与统一查询服务） | 状态为"提议中"，长期未推进，且 M-14 推演引擎已实现类似功能 | ✅ 维持"已接受"：ADR 头部已标注"已接受"，M-14 实现部分功能与数仓互补而非替代 |
-| I-06 | ADR-033（项目目录结构重构） | 状态为"提议"，但实际目录已按 `odap/` 分层组织（infra/biz/tools/web） | ✅ 标记为"已接受"：实际目录已按 ADR 落地，事实已确认 |
+| I-06 | ADR-033（项目目录结构重构） | 状态为"提议"，但实际目录已按 `apps/api/odap/` 分层组织（infra/biz/tools/web） | ✅ 标记为"已接受"：实际目录已按 ADR 落地，事实已确认 |
 | I-07 | ADR-025（OpenHarness 集成）与 ADR-030（推迟引入） | 两者存在表述矛盾：ADR-025 说"基于 OpenHarness 实现"，ADR-030 说"Phase 1 不引入" | ✅ 更新：ADR-025 标注"被 ADR-030 部分取代，Phase 4 参考" |
 
 ### 1.3 req-beta 冗余信息
@@ -82,7 +82,7 @@
 
 | # | 决策点 | 问题 | 建议 |
 |---|--------|------|------|
-| I-21 | 单体 vs 微服务 | 当前代码为单体（odap/ 包），ARCHITECTURE_PLAN 按微服务风格设计 | ✅ 已决策：模块化单体（ADR-046），Phase 4 维持，Phase 5+ 视需拆分 |
+| I-21 | 单体 vs 微服务 | 当前代码为单体（apps/api/odap/ 包），ARCHITECTURE_PLAN 按微服务风格设计 | ✅ 已决策：模块化单体（ADR-046），Phase 4 维持，Phase 5+ 视需拆分 |
 | I-22 | 数据库选型 | 审计日志存储未确定（文件 / SQLite / PostgreSQL / Neo4j） | ✅ 已决策：SQLite + 文件哈希链锚点（ADR-042） |
 
 ---
@@ -91,12 +91,12 @@
 
 | # | 位置 | 问题 | 建议 |
 |---|------|------|------|
-| I-23 | `odap/web/legacy/` | 遗留代码目录，可能已废弃 | ✅ 归档：Gradio 旧界面无代码引用，移到 `docs/archive/legacy_code/` |
-| I-24 | `odap/storage/` | 空目录（无文件） | 🔄 修正：非空目录（含 7 个本体版本文件），保留不变 |
+| I-23 | `apps/api/odap/web/legacy/` | 遗留代码目录，可能已废弃 | ✅ 归档：Gradio 旧界面无代码引用，移到 `docs/archive/legacy_code/` |
+| I-24 | `apps/api/odap/storage/` | 空目录（无文件） | 🔄 修正：非空目录（含 7 个本体版本文件），保留不变 |
 | I-25 | `1~` | 项目根目录下的 `1~` 文件，疑似临时文件 | ✅ 已删除（2026-04-19） |
-| I-26 | `odap/adapters/` | MCP 适配器目录，与 `odap/infra/` 职责边界不清 | ✅ adapters 并入 infra：无代码引用，mcp/ 和 openharness/ 适配器归入 infra/ |
-| I-27 | `odap/biz/permission/` | permission_checker 已合并到 opa_policy，此目录可能冗余 | ✅ 删除：仅剩 checker.py，已合并到 opa_policy，无代码引用 |
-| I-28 | `simulator_ui/` | Phase 3 的单页应用，与 `frontend/` React SPA 功能重叠 | ✅ 不操作：目录不存在，ANOMALY_REPORT 记录有误 |
+| I-26 | `apps/api/odap/adapters/` | MCP 适配器目录，与 `apps/api/odap/infra/` 职责边界不清 | ✅ adapters 并入 infra：无代码引用，mcp/ 和 openharness/ 适配器归入 infra/ |
+| I-27 | `apps/api/odap/biz/permission/` | permission_checker 已合并到 opa_policy，此目录可能冗余 | ✅ 删除：仅剩 checker.py，已合并到 opa_policy，无代码引用 |
+| I-28 | `simulator_ui/` | Phase 3 的单页应用，与 `apps/web/` React SPA 功能重叠 | ✅ 不操作：目录不存在，ANOMALY_REPORT 记录有误 |
 
 ---
 

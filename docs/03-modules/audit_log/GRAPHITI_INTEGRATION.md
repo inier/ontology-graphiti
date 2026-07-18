@@ -271,7 +271,7 @@ service_logs = get_audit_logs(service="frontend_compat", action="INGEST_FILE")
 
 #### 1.1 创建审计存储适配器
 
-- **文件位置**：`odap/infra/security/audit_storage.py`
+- **文件位置**：`apps/api/odap/infra/security/audit_storage.py`
 - **核心类**：`AuditStorageAdapter`
 - **实现功能**：
   - 将审计日志存储到Graphiti中
@@ -281,7 +281,7 @@ service_logs = get_audit_logs(service="frontend_compat", action="INGEST_FILE")
 
 #### 1.2 更新统一审计模块
 
-- **文件位置**：`odap/infra/security/unified_audit.py`
+- **文件位置**：`apps/api/odap/infra/security/unified_audit.py`
 - **实现功能**：
   - 使用Graphiti作为存储后端
   - 保留简化的API接口
@@ -290,7 +290,7 @@ service_logs = get_audit_logs(service="frontend_compat", action="INGEST_FILE")
 
 #### 1.3 更新安全模块导出
 
-- **文件位置**：`odap/infra/security/__init__.py`
+- **文件位置**：`apps/api/odap/infra/security/__init__.py`
 - **实现功能**：
   - 导出新的审计存储适配器
   - 导出简化的API函数
@@ -298,7 +298,7 @@ service_logs = get_audit_logs(service="frontend_compat", action="INGEST_FILE")
 
 #### 1.4 修复Celery配置
 
-- **文件位置**：`odap/celery_app.py`
+- **文件位置**：`apps/api/odap/celery_app.py`
 - **修改内容**：
   - 将Redis默认URL从`redis://graphiti-cache:6379/0`改为`redis://localhost:6379/0`
   - 适配本地开发环境和Docker环境的不同需求
@@ -425,15 +425,15 @@ logs = get_audit_logs(service="frontend_compat", action="INGEST_FILE")
 
 | 文件路径 | 说明 |
 |---------|------|
-| `odap/infra/security/audit_storage.py` | 审计存储适配器实现 |
+| `apps/api/odap/infra/security/audit_storage.py` | 审计存储适配器实现 |
 
 #### 7.2 修改文件
 
 | 文件路径 | 修改内容 |
 |---------|---------|
-| `odap/infra/security/unified_audit.py` | 使用Graphiti作为存储后端 |
-| `odap/infra/security/__init__.py` | 导出新的审计存储适配器和API |
-| `odap/celery_app.py` | 修改Redis默认URL |
+| `apps/api/odap/infra/security/unified_audit.py` | 使用Graphiti作为存储后端 |
+| `apps/api/odap/infra/security/__init__.py` | 导出新的审计存储适配器和API |
+| `apps/api/odap/celery_app.py` | 修改Redis默认URL |
 
 #### 7.3 测试文件
 

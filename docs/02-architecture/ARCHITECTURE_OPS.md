@@ -480,7 +480,7 @@ server {
 ### 5.1 健康检查端点
 
 ```python
-# odap/web/health.py
+# apps/api/odap/web/health.py
 from fastapi import APIRouter
 
 router = APIRouter()

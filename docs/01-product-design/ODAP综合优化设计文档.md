@@ -728,7 +728,7 @@ interface SkillAPI {
 - [ADR-054: 全链路深入实现设计](02-architecture/ARCHITECTURE_FULL_CHAIN.md)
 
 **模块设计文档**：
-- [Web前端设计文档](../03-modules/web_frontend/DESIGN.md)
+- [Web前端设计文档](../03-modules/web_apps/web/DESIGN.md)
 - [图谱可视化优化设计](03-modules/visualization/DESIGN_GRAPH_OPTIMIZATION.md)
 - [问答引擎设计文档](03-modules/qa_engine/DESIGN.md)
 - [Skill模块设计文档](03-modules/skills/DESIGN.md)

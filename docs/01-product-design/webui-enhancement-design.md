@@ -39,11 +39,11 @@
 - `modules/shared/components/AppLayout.tsx` - 布局组件 (完善度: ⭐⭐)
 
 **后端模块**:
-- `odap/biz/ontology/` - 本体业务逻辑
-- `odap/biz/skill_system/` - Skill 系统
-- `odap/biz/qa/` - 问答系统
-- `odap/infra/graph/` - Graphiti 集成
-- `odap/infra/openharness/` - OpenHarness 集成
+- `apps/api/odap/biz/ontology/` - 本体业务逻辑
+- `apps/api/odap/biz/skill_system/` - Skill 系统
+- `apps/api/odap/biz/qa/` - 问答系统
+- `apps/api/odap/infra/graph/` - Graphiti 集成
+- `apps/api/odap/infra/openharness/` - OpenHarness 集成
 
 ---
 
@@ -584,8 +584,8 @@ interface SkillDefinition {
 
 | 文件路径 | 修改内容 |
 |----------|----------|
-| `odap/biz/qa/` | 添加建议生成接口 |
-| `odap/biz/skill_system/` | 添加 Skill 解析/验证 |
+| `apps/api/odap/biz/qa/` | 添加建议生成接口 |
+| `apps/api/odap/biz/skill_system/` | 添加 Skill 解析/验证 |
 
 ---
 

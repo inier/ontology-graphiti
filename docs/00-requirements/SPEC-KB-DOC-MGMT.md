@@ -160,8 +160,8 @@ KB 模块的图谱写入必须遵循 AGENTS.md 规则：业务模块通过 `Grap
 |------|---|----------|
 | `apps/web/src/modules/knowledge/pages/KnowledgeBase.tsx` | 展示层 | MIME 映射、状态派生、详情 Drawer 增强 |
 | `apps/web/src/modules/shared/components/DocumentViewer.tsx` | 展示层 | 确保 jit-viewer filename 包含扩展名（FR-06） |
-| `odap/biz/data/knowledge_base/storage/sqlite_kb_storage.py` | 存储层 | `update_document_graph_status` 同步更新 `status` |
-| `odap/biz/data/knowledge_base/services/knowledge_base_service.py` | 服务层 | `_write_to_graph` 改用 `GraphWriteProxy` |
+| `apps/api/odap/biz/data/knowledge_base/storage/sqlite_kb_storage.py` | 存储层 | `update_document_graph_status` 同步更新 `status` |
+| `apps/api/odap/biz/data/knowledge_base/services/knowledge_base_service.py` | 服务层 | `_write_to_graph` 改用 `GraphWriteProxy` |
 
 ### 4.2 数据流
 

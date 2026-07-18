@@ -129,7 +129,7 @@ entity.name = "new"  # ❌ FrozenInstanceError
 
 ## 统一查询服务
 
-[odap/infra/query/](../../../odap/infra/query/) 作为语义查询的统一入口，提供：
+[apps/api/odap/infra/query/](../../../apps/api/odap/infra/query/) 作为语义查询的统一入口，提供：
 
 - `QueryService` — 单一查询服务门面
 - `SchemaSource` / `EntitySource` / `TopoSource` / `TemporalSource` — 数据源协议

@@ -587,7 +587,7 @@ Week 21-24 性能优化 + 文档
 > **注意**: 本文档描述实际项目结构（2026-05-19更新）。
 
 ```
-odap/                                  # Python 主包
+apps/api/odap/                                  # Python 主包
 │
 ├── __init__.py
 ├── celery_app.py                      # Celery 应用配置
@@ -739,7 +739,7 @@ odap/                                  # Python 主包
 
 openharness/                          # OpenHarness 子模块（Agent 基础设施）
 
-frontend/                             # 前端（React + TypeScript + Vite）
+apps/web/                             # 前端（React + TypeScript + Vite）
 ├── src/
 │   ├── components/
 │   ├── pages/

@@ -203,4 +203,4 @@ padding-inline-end: 16px;
 
 - [ADR-007: 前端技术栈](../07-adr/ADR-007_前端采用_react_ant_design_技术栈.md)
 - [ADR-037: 移动优先与国际化策略](../07-adr/ADR-037_frontend_mobile_first_i18n.md)
-- [Web 模块设计](../03-modules/web_frontend/DESIGN.md)
+- [Web 模块设计](../03-modules/web_apps/web/DESIGN.md)

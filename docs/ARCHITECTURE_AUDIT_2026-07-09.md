@@ -1,6 +1,6 @@
 # ODAP 架构审查报告 — 过度设计 · 冗余设计 · 假实现
 
-> **日期**: 2026-07-09 | **审计范围**: `odap/` (908 .py)、`docs/03-modules/` (24 模块)、`docs/adr/` (49 ADR)
+> **日期**: 2026-07-09 | **审计范围**: `apps/api/odap/` (908 .py)、`docs/03-modules/` (24 模块)、`docs/adr/` (49 ADR)
 > **方法**: 全仓代码扫描 + 文档-代码对齐 + neat-freak 系统枚举
 
 ---
@@ -21,7 +21,7 @@
 
 ### 1.1 80 个空文件（0 字节）
 
-全部为 `__init__.py` 或未填充的模块文件，分布在 `odap/biz/core/` 深处——`cognition/`、`agent/`、`ontology/application/` 等子包下。
+全部为 `__init__.py` 或未填充的模块文件，分布在 `apps/api/odap/biz/core/` 深处——`cognition/`、`agent/`、`ontology/application/` 等子包下。
 
 **根因**: 目录骨架"先建后填"的规划没跟上实现节奏。
 
@@ -33,7 +33,7 @@
 
 **最典型的假实现信号**:
 
-- `IDeductionEngine` (`odap/biz/simulation/simulation_deduction/interfaces/deduction_engine.py`): 12 个方法全部 `raise NotImplementedError`，仅有 1 个实现者
+- `IDeductionEngine` (`apps/api/odap/biz/simulation/simulation_deduction/interfaces/deduction_engine.py`): 12 个方法全部 `raise NotImplementedError`，仅有 1 个实现者
 - `extraction_interfaces.py`: 11 个方法全是 `pass`（甚至连 NotImplementedError 都没抛）
 
 **处置建议**: 
@@ -42,15 +42,15 @@
 
 ### 1.3 已废弃代码未删除
 
-- `odap/infra/security/audit_logger.py` 行 1 标注 `# DEPRECATED: Use audit_logger_v2 instead`，但文件仍在
+- `apps/api/odap/infra/security/audit_logger.py` 行 1 标注 `# DEPRECATED: Use audit_logger_v2 instead`，但文件仍在
 - 4 个 `__init__.py` 用 `try/except ImportError: pass` 做静默重新导出——如果导入失败就无声跳过，无法区分"不存在的模块"和"模块已删"
-- `odap/biz/management/__init__.py` 定义了 `__all__ = []`（空列表），等于说"本包什么都不导出"，但仍然在 `try/except` 里尝试导入
+- `apps/api/odap/biz/management/__init__.py` 定义了 `__all__ = []`（空列表），等于说"本包什么都不导出"，但仍然在 `try/except` 里尝试导入
 
 **处置建议**: 删 `audit_logger.py`；静默导入的 `__init__.py` 要么变成显式导入(报错即知缺），要么删掉
 
 ### 1.4 文档描述但代码路径不存在
 
-- `docs/03-modules/simulator/DESIGN.md` 行 24: 记录代码路径为 `odap/biz/simulator/`，实际是 `odap/biz/simulation/` —— 包名有歧义
+- `docs/03-modules/simulator/DESIGN.md` 行 24: 记录代码路径为 `apps/api/odap/biz/simulator/`，实际是 `apps/api/odap/biz/simulation/` —— 包名有歧义
 - `docs/03-modules/openharness_bridge/DESIGN.md`: 整篇标为 DEFERRED（推迟至 Phase 4），但 DESIGN 仍列为 P0 优先级文档
 
 **处置建议**: 修正 simulator DESIGN 里的代码路径；openharness_bridge DESIGN 加 `> ⚠️ 推迟中，本模块暂无代码` 头部标注
@@ -61,7 +61,7 @@
 
 ### 2.1 9+ 个模块复制粘贴同一套 SQLite 存储样板 ⚠️⚠️
 
-`odap/biz/{management,data,decision,simulation,platform}/**/storage/sqlite_*_storage.py` 各自独立实现：
+`apps/api/odap/biz/{management,data,decision,simulation,platform}/**/storage/sqlite_*_storage.py` 各自独立实现：
 
 ```python
 DEFAULT_DB_DIR = os.environ.get("DATA_DIR", "data")
@@ -75,14 +75,14 @@ class XStorage:
 
 **量化**: 9 个文件 × ~25 行样板 = ~225 行可消除。不只是一次性的代码量问题——加字段/修 bug 要改 9 个地方，这是维护炸弹。
 
-**处置建议**: 提取 `odap/infra/storage/sqlite_base.py`（`_get_conn` + `_init_db` + 上下文管理器），各模块继承。成本 < 2 人日，收益是未来所有 SQLite 操作的单一修改点。
+**处置建议**: 提取 `apps/api/odap/infra/storage/sqlite_base.py`（`_get_conn` + `_init_db` + 上下文管理器），各模块继承。成本 < 2 人日，收益是未来所有 SQLite 操作的单一修改点。
 
 ### 2.2 两套 Hook 系统并存（infra + biz）⚠️⚠️
 
 | 位置 | 组件 | 职责 |
 |------|------|------|
-| `odap/infra/events/hook_system.py` | HookRegistry + HookExecutor + HookDecorator | 基础设施 Hook |
-| `odap/biz/integration/hook_system/` | HookManager + HookService + HookMonitor + HookMetrics | 业务层 Hook |
+| `apps/api/odap/infra/events/hook_system.py` | HookRegistry + HookExecutor + HookDecorator | 基础设施 Hook |
+| `apps/api/odap/biz/integration/hook_system/` | HookManager + HookService + HookMonitor + HookMetrics | 业务层 Hook |
 
 **重叠**: 两套都独立管理注册/执行/监控，数据模型互不相通。
 
@@ -138,13 +138,13 @@ SkillAdapter → ToolAdapter → EngineAdapter → GraphitiAgentLoop → QueryEn
 
 ### 3.3 OHQueryEngineFactory（200+ 行单例工厂，只造一种对象）⚠️
 
-`odap/infra/openharness/engine_adapter.py:294-568`。包含订阅式热更新、环境变量降级、缓存的工厂模式——但只创建 `QueryEngine` 一种类型。
+`apps/api/odap/infra/openharness/engine_adapter.py:294-568`。包含订阅式热更新、环境变量降级、缓存的工厂模式——但只创建 `QueryEngine` 一种类型。
 
 **判定**: 热更新订阅是明确的功能需求（LLM 配置变更 → 重建引擎 → 不重启服务），工厂是合理的封装。200 行不算过分——如果把热更新逻辑拆出去可能更清。不是假实现，但"只为一种类型而建的工厂"是过度设计的信号。
 
 ### 3.4 3 个独立 FastAPI 应用 ⚠️
 
-`odap/web/app.py`（主）、`odap/web/api/app.py`（simulator_web，含 WebSocket）、`odap/biz/integration/mcp_adapter/browser_tool_server.py`（MCP 浏览器工具）。每个独立配置 CORS、中间件、路由。
+`apps/api/odap/web/app.py`（主）、`apps/api/odap/web/api/app.py`（simulator_web，含 WebSocket）、`apps/api/odap/biz/integration/mcp_adapter/browser_tool_server.py`（MCP 浏览器工具）。每个独立配置 CORS、中间件、路由。
 
 **判定**: 3 个应用共享同一个进程/端口是不合理的——dev 时可能端口冲突。建议统一为一个 FastAPI 实例，用 router/mount 区分。
 
@@ -208,7 +208,7 @@ SkillAdapter → ToolAdapter → EngineAdapter → GraphitiAgentLoop → QueryEn
 
 | 步骤 | 操作 | 验证 |
 |------|------|------|
-| 1 | `grep -rn "os.environ.get" --include="*.py" odap/ > /tmp/config_leaks.txt` 生成泄漏清单 | 人工确认 ~20 个文件 |
+| 1 | `grep -rn "os.environ.get" --include="*.py" apps/api/odap/ > /tmp/config_leaks.txt` 生成泄漏清单 | 人工确认 ~20 个文件 |
 | 2 | 对每个泄漏点判断：是否在配置初始化路径（config_manager / config_composer 自身）？ | 若是 → 保留防御链；若不是 → 标记可改 |
 | 3 | 逐一改为 `get_config("key", default=None)` 或等效调用 | 单元测试或 `python -c "from odap.xxx import yyy"` |
 | 4 | 排查是否有 `get_config` 不可用的初始化时序问题 → 若有，调整模块加载顺序 | 容器启动日志无 ImportError |
@@ -220,8 +220,8 @@ SkillAdapter → ToolAdapter → EngineAdapter → GraphitiAgentLoop → QueryEn
 ### 计划 B：合并两套 Hook 系统 [P1, ~3 人日]
 
 **现状**:
-- infra 层 `odap/infra/events/hook_system.py`: HookRegistry + HookExecutor + HookDecorator（框架级 Hook）
-- biz 层 `odap/biz/integration/hook_system/`: HookManager + HookService + HookMonitor + HookMetrics（业务层 Hook）
+- infra 层 `apps/api/odap/infra/events/hook_system.py`: HookRegistry + HookExecutor + HookDecorator（框架级 Hook）
+- biz 层 `apps/api/odap/biz/integration/hook_system/`: HookManager + HookService + HookMonitor + HookMetrics（业务层 Hook）
 
 **两套互不知晓、数据模型不互通。**
 
@@ -233,7 +233,7 @@ SkillAdapter → ToolAdapter → EngineAdapter → GraphitiAgentLoop → QueryEn
 
 | 步骤 | 操作 | 验证 |
 |------|------|------|
-| 1 | 列出两套 Hook 的调用方（`grep -rn "HookRegistry\|HookManager\|HookService" odap/`） | 两套各 5-10 处调用 |
+| 1 | 列出两套 Hook 的调用方（`grep -rn "HookRegistry\|HookManager\|HookService" apps/api/odap/`） | 两套各 5-10 处调用 |
 | 2 | 确认 biz 层 HookManager 独有的功能（HookAlert、HookMetrics） | 读 `hook_manager_enhanced.py` |
 | 3 | 将独有功能移到 infra 层或作为 decorator/observer 挂载到 infra HookRegistry | 单元测试 |
 | 4 | 将 biz 层 HookManager 的所有 register/trigger 调用改为 infra 层 | 集成测试 |
@@ -245,7 +245,7 @@ SkillAdapter → ToolAdapter → EngineAdapter → GraphitiAgentLoop → QueryEn
 
 ### 计划 C：统一为单个 FastAPI 应用实例 [P2, ~2 人日]
 
-**现状**: 3 个独立 FastAPI 实例 — `odap/web/app.py`（主）、`odap/web/api/app.py`（simulator_web）、`odap/biz/integration/mcp_adapter/browser_tool_server.py`（MCP 浏览器工具）
+**现状**: 3 个独立 FastAPI 实例 — `apps/api/odap/web/app.py`（主）、`apps/api/odap/web/api/app.py`（simulator_web）、`apps/api/odap/biz/integration/mcp_adapter/browser_tool_server.py`（MCP 浏览器工具）
 
 **目标**: 统一为一个 FastAPI 实例，用 `app.mount()` / `APIRouter` 区分子路径。
 
@@ -295,7 +295,7 @@ SkillAdapter → ToolAdapter → EngineAdapter → GraphitiAgentLoop → QueryEn
 
 | 步骤 | 操作 |
 |------|------|
-| 1 | `grep -rn "NotImplementedError" --include="*.py" odap/ | grep -v "interfaces/" > /tmp/impl_notimpl.txt` |
+| 1 | `grep -rn "NotImplementedError" --include="*.py" apps/api/odap/ | grep -v "interfaces/" > /tmp/impl_notimpl.txt` |
 | 2 | 对每个文件逐条判断：该方法是类契约要求但未实现？还是遗留的死方法？ |
 | 3 | 标记为 TODO 的补实现；标记为死方法的删除；不确定的标注 `# FIXME(ADR-XXX)` |
 

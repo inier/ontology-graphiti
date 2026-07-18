@@ -76,9 +76,9 @@ ObjectService 通过 Source Fetcher 模式联邦查询多个底层存储：
 
 | 文件 | 说明 |
 |------|------|
-| `odap/infra/object_service/schemas.py` | ObjectQuery、SemanticQuery、ObjectQueryResult 等数据模型 |
-| `odap/infra/object_service/object_service.py` | 核心虚拟化层，多源联邦查询 + 链接遍历 + 动作发现 |
-| `odap/infra/object_service/routes.py` | FastAPI 路由 |
+| `apps/api/odap/infra/object_service/schemas.py` | ObjectQuery、SemanticQuery、ObjectQueryResult 等数据模型 |
+| `apps/api/odap/infra/object_service/object_service.py` | 核心虚拟化层，多源联邦查询 + 链接遍历 + 动作发现 |
+| `apps/api/odap/infra/object_service/routes.py` | FastAPI 路由 |
 
 ---
 
@@ -161,9 +161,9 @@ interface ActionTypeDefinition {
 
 | 文件 | 说明 |
 |------|------|
-| `odap/biz/core/ontology/oms/schemas.py` | Pydantic 模型定义 |
-| `odap/biz/core/ontology/oms/storage/sqlite_oms_storage.py` | SQLite 存储 + ADR-036 种子数据 |
-| `odap/biz/core/ontology/oms/routes.py` | FastAPI 路由 |
+| `apps/api/odap/biz/core/ontology/oms/schemas.py` | Pydantic 模型定义 |
+| `apps/api/odap/biz/core/ontology/oms/storage/sqlite_oms_storage.py` | SQLite 存储 + ADR-036 种子数据 |
+| `apps/api/odap/biz/core/ontology/oms/routes.py` | FastAPI 路由 |
 
 ---
 ## 3. OpenHarness Agent 基础设施层
@@ -1039,12 +1039,12 @@ class QueryServiceWriteGuard:
 
 | 文件 | 说明 |
 |------|------|
-| `odap/infra/query/service.py` | QueryService 核心实现 |
-| `odap/infra/query/parser.py` | 查询语法解析器 |
-| `odap/infra/query/sources/schema_source.py` | SchemaSource（适配 OMS） |
-| `odap/infra/query/sources/entity_source.py` | EntitySource（适配 GraphManager） |
-| `odap/infra/query/sources/topo_source.py` | TopoSource（适配 GraphManager） |
-| `odap/infra/query/protocols.py` | 接口定义（Protocol 类） |
-| `odap/infra/query/routes.py` | FastAPI 路由 |
+| `apps/api/odap/infra/query/service.py` | QueryService 核心实现 |
+| `apps/api/odap/infra/query/parser.py` | 查询语法解析器 |
+| `apps/api/odap/infra/query/sources/schema_source.py` | SchemaSource（适配 OMS） |
+| `apps/api/odap/infra/query/sources/entity_source.py` | EntitySource（适配 GraphManager） |
+| `apps/api/odap/infra/query/sources/topo_source.py` | TopoSource（适配 GraphManager） |
+| `apps/api/odap/infra/query/protocols.py` | 接口定义（Protocol 类） |
+| `apps/api/odap/infra/query/routes.py` | FastAPI 路由 |
 | `tests/unit/test_query_guard.py` | 架构守卫测试 |
 

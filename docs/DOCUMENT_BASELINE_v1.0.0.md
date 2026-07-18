@@ -86,7 +86,7 @@
 | Tool Registry | 03-modules/tool_registry/DESIGN.md |
 | User Cognition Engine | 03-modules/user_cognition_engine/DESIGN.md |
 | Visualization | 03-modules/visualization/DESIGN.md |
-| Web Frontend | 03-modules/web_frontend/DESIGN.md |
+| Web Frontend | 03-modules/web_apps/web/DESIGN.md |
 | Workspace | 03-modules/workspace/DESIGN.md |
 
 ---

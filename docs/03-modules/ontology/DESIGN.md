@@ -1102,7 +1102,7 @@ class SimulationOntologyManager(OntologyManager):
 **解析器实现**:
 
 ```python
-# odap/ontology/markdown_parser.py
+# apps/api/odap/ontology/markdown_parser.py
 import re
 from dataclasses import dataclass
 
@@ -1265,7 +1265,7 @@ Data Health 模块是 Palantir/OntoFlow 范式下"写入后验证"的执行者�
 ### 9.4 模型与存储
 
 ```
-odap/biz/core/ontology/health/
+apps/api/odap/biz/core/ontology/health/
 ├── api/                  # FastAPI 路由（35+ 端点）
 ├── models/
 │   ├── rule.py           # HealthRule（target_type_id, rule_type, severity, schedule）
@@ -1326,7 +1326,7 @@ odap/biz/core/ontology/health/
 ### 10.4 模型与存储
 
 ```
-odap/biz/core/ontology/branch/
+apps/api/odap/biz/core/ontology/branch/
 ├── api/                       # FastAPI 路由
 ├── models/
 │   ├── branch.py              # Branch（name, ontology_id, base_version_id, head_version_id）
@@ -1381,7 +1381,7 @@ InheritanceResolver 给定 ObjectType ID，返回完整属性链：
 ### 11.4 模型与存储
 
 ```
-odap/biz/core/ontology/inheritance/
+apps/api/odap/biz/core/ontology/inheritance/
 ├── api/                   # FastAPI 路由（12 端点）
 ├── models/
 │   ├── inheritance.py     # InheritanceEdge（child_type_id, parent_type_id, depth）
@@ -1411,7 +1411,7 @@ Action Type 是本体的"一等公民"，将"可执行动作"提升为本体层�
 ### 12.1 业务接口（Action Type）与工程实现（Skill）分离
 
 - **ActionType** 面向业务用户/Agent，定义参数 schema、返回类型、副作用
-- **Skill** 是 ActionType 的实现细节（位于 `odap/tools/` 现有技能包），可被多个 ActionType 绑定复用
+- **Skill** 是 ActionType 的实现细节（位于 `apps/api/odap/tools/` 现有技能包），可被多个 ActionType 绑定复用
 - `ActionType.linked_skill_id` 字段强制非空，强制"业务逻辑只能通过 ActionType 暴露"
 
 ### 12.2 OPA 写入权限校验
@@ -1434,7 +1434,7 @@ OPA 拒绝时**仍**创建一条 DENIED 状态的执行记录，便于审计追�
 ### 12.4 模型与存储
 
 ```
-odap/biz/core/ontology/action/
+apps/api/odap/biz/core/ontology/action/
 ├── api/                # FastAPI 路由（7 端点）
 ├── models/
 │   ├── action_type.py  # ActionType（name, parameters, linked_skill_id, opa_policy_ref）
@@ -1493,7 +1493,7 @@ Computed Property 让本体具备"派生属性"能力，例如根据 `birthdate`
 ### 13.4 模型与存储
 
 ```
-odap/biz/core/ontology/computed/
+apps/api/odap/biz/core/ontology/computed/
 ├── api/                  # FastAPI 路由
 ├── models/
 │   ├── property.py       # ComputedProperty（name, expression, dependencies, materialization）
@@ -1558,7 +1558,7 @@ GET /api/ontology/views/{view_id}/resolve?instance_id=X&user_id=Y
 ### 14.5 模型与存储
 
 ```
-odap/biz/core/ontology/view/
+apps/api/odap/biz/core/ontology/view/
 ├── api/                  # FastAPI 路由
 ├── models/
 │   ├── view.py           # ObjectView（base_type_id, role, projected_properties, filters, row_limit）
@@ -1628,7 +1628,7 @@ Proposal 状态机：`draft → submitted → under-review → approved/rejected
 ### 15.5 模型与存储
 
 ```
-odap/biz/core/ontology/goal/
+apps/api/odap/biz/core/ontology/goal/
 ├── api/                  # FastAPI 路由（11 端点）
 ├── models/
 │   ├── goal.py           # Goal（title, business_objective, status, parent_goal_id, rationale）

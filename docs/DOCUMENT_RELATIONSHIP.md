@@ -11,7 +11,7 @@
 | 角色 | 推荐阅读路径 |
 |------|-------------|
 | 新成员 | [README.md](./README.md) → [需求定稿](00-requirements/req-ok.md) → [核心架构](02-architecture/ARCHITECTURE.md) |
-| 前端开发 | [ADR-007](07-adr/ADR-007_前端采用_react_ant_design_技术栈.md) → [ADR-037](07-adr/ADR-037_frontend_mobile_first_i18n.md) → [ADR-045](07-adr/ADR-045_frontend_visualization_g6_leaflet.md) → [04-UI设计](04-ui/) → [web_frontend](03-modules/web_frontend/DESIGN.md) |
+| 前端开发 | [ADR-007](07-adr/ADR-007_前端采用_react_ant_design_技术栈.md) → [ADR-037](07-adr/ADR-037_frontend_mobile_first_i18n.md) → [ADR-045](07-adr/ADR-045_frontend_visualization_g6_leaflet.md) → [04-UI设计](04-ui/) → [web_frontend](03-modules/web_apps/web/DESIGN.md) |
 | 后端开发 | [核心架构](02-architecture/ARCHITECTURE.md) → [03-模块设计](03-modules/) → [07-ADR](07-adr/) → [08-任务分解](08-tasks/TASK_BREAKDOWN.md) |
 | 架构师 | [需求定稿](00-requirements/req-ok.md) → [核心架构](02-architecture/ARCHITECTURE.md) → [07-ADR](07-adr/) → [09-检查清单](09-checklists/CHECKLIST_v2.md) |
 | 产品经理 | [需求定稿](00-requirements/req-ok.md) → [产品设计](01-product-design/ODAP综合优化设计文档.md) → [09-检查清单](09-checklists/CHECKLIST_v2.md) |
@@ -82,7 +82,7 @@ docs/
 │   ├── tool_registry/DESIGN.md
 │   ├── user_cognition_engine/DESIGN.md
 │   ├── visualization/DESIGN.md
-│   ├── web_frontend/DESIGN.md
+│   ├── web_apps/web/DESIGN.md
 │   ├── workspace/DESIGN.md
 │   └── README.md                         # 模块索引
 │
@@ -186,7 +186,7 @@ docs/
 5. 04-ui/UI_DESIGN.md                             UI设计稿
 6. 04-ui/MOBILE_FIRST_DESIGN.md                   移动优先规范
 7. 04-ui/COMPONENT_HIERARCHY.md                   组件分级管理
-8. 03-modules/web_frontend/DESIGN.md              前端模块设计
+8. 03-modules/web_apps/web/DESIGN.md              前端模块设计
 ```
 
 ### 3.3 后端开发路径
@@ -220,7 +220,7 @@ docs/
 | `02-architecture/ARCHITECTURE.md` | `07-adr/*` | 架构→决策 |
 | `07-adr/ADR-007` | `04-ui/UI_DESIGN.md` | 技术选型→UI |
 | `07-adr/ADR-037` | `04-ui/MOBILE_FIRST_DESIGN.md` | 响应式→移动 |
-| `07-adr/ADR-045` | `03-modules/web_frontend/DESIGN.md` | 可视化→前端 |
+| `07-adr/ADR-045` | `03-modules/web_apps/web/DESIGN.md` | 可视化→前端 |
 | `01-product-design/ODAP综合优化设计文档.md` | `02-architecture/ARCHITECTURE.md` | 产品→架构 |
 | CHANGELOG | 最新变更跟踪 | — |
 
@@ -318,7 +318,7 @@ docs/
 | Test | `03-modules/test/DESIGN.md` | — |
 | Tool Registry | `03-modules/tool_registry/DESIGN.md` | L2 |
 | Visualization | `03-modules/visualization/DESIGN.md` | L4 |
-| Web Frontend | `03-modules/web_frontend/DESIGN.md` | L6 |
+| Web Frontend | `03-modules/web_apps/web/DESIGN.md` | L6 |
 | Workspace | `03-modules/workspace/DESIGN.md` | L1 |
 
 ---

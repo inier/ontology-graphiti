@@ -30,7 +30,7 @@
 ## 2. 包结构（7 层标准目录树）
 
 ```
-odap/biz/semantic_admin/
+apps/api/odap/biz/semantic_admin/
 ├── api/
 │   ├── routes.py                          # FastAPI 路由聚合：include 6 个子路由
 │   ├── routes_usl.py                      #   /api/semantic-admin/usl/*         (9 接口)
@@ -114,7 +114,7 @@ flowchart LR
 **存储位置标注**：
 - **SQLite 主存储**：A→G 各阶段结果、H 评分矩阵、J/O/Q 审批记录、R USL 元数据、Outbox 消息表。
 - **Neo4j 从存储（USL__* 命名空间）**：S 分类层级树、G 候选相似度边、T→U USL 与 Ontology TBox 映射关系。
-- **外部依赖（只读）**：本体 TBox `odap/biz/core/ontology/` OPA 策略引擎 `odap/infra/opa/`。
+- **外部依赖（只读）**：本体 TBox `apps/api/odap/biz/core/ontology/` OPA 策略引擎 `apps/api/odap/infra/opa/`。
 
 ---
 
@@ -179,12 +179,12 @@ PipelineService 通过 `_STEP_ORDER = [DRAFT, RUNNING, L1_DONE, L2_DONE, L3_DONE
 
 | 层 | 实现文件 | 算法 | 核心 stats 字段（写入 run.stats_json） |
 |----|---------|------|----------------------------------------|
-| L1 术语分词 | [impl/l1_ngram_extractor.py](file:///e:/DEMO/AI/ontology-graphiti/odap/biz/semantic_admin/ol_pipeline/impl/l1_ngram_extractor.py) | N-gram (2/3/4) + 停用词过滤 + 词频阈值 | `L1=ok, L1_tokens=int` |
-| L2 概念合并 | [impl/l2_concept_merge.py](file:///e:/DEMO/AI/ontology-graphiti/odap/biz/semantic_admin/ol_pipeline/impl/l2_concept_merge.py) | Jaccard + 编辑距离 + 同义词近邻聚类 | `L2=ok, L2_concepts=int` |
-| **L3 形式概念分析 (FCA)** | [impl/l3_formal_concept.py](file:///e:/DEMO/AI/ontology-graphiti/odap/biz/semantic_admin/ol_pipeline/impl/l3_formal_concept.py) | 形式背景 (G,M,I) 构建 + BordNet 属性概念枚举 + 稳定性过滤 + 直接子概念层级边 | `L3=ok, l3_concept_count, l3_suggested_edges, l3_context_size (objects/attributes/incidence)` |
-| **L4 关系分类** | [impl/l4_relation_extraction.py](file:///e:/DEMO/AI/ontology-graphiti/odap/biz/semantic_admin/ol_pipeline/impl/l4_relation_extraction.py) | 关键词规则 (是一种/part-of/具有/关联) + 词频 → 4 类关系 {is_a, part_of, attribute_of, related_to} + provenance 三元组 | `L4=ok, l4_relation_count, l4_relations_by_type (Dict[str,int])` |
-| **L5 本体融合** | [impl/l5_ontology_fusion.py](file:///e:/DEMO/AI/ontology-graphiti/odap/biz/semantic_admin/ol_pipeline/impl/l5_ontology_fusion.py) | 加权相似度 (Jaccard 0.4 + 编辑距离 0.3 + 同义词重叠 0.3) + 同名 boost → 三分类决策 {merge, keep-as-new, flag-conflict}，阈值 0.82/0.55 | `L5=ok, l5_merged_count, l5_kept_new_count, l5_flagged_count` |
-| **L6 公理推导** | [impl/l6_axiom_deriver.py](file:///e:/DEMO/AI/ontology-graphiti/odap/biz/semantic_admin/ol_pipeline/impl/l6_axiom_deriver.py) | 层级边 → subClassOf(直传+传递闭包)；同父兄弟 → disjointClasses；L4 关系三元组 → object_property_domain/range/cardinality(min=0 max=*) | `L6=ok, l6_axiom_total, l6_axioms_by_type (5 类 breakdown)` |
+| L1 术语分词 | [impl/l1_ngram_extractor.py](file:///e:/DEMO/AI/ontology-graphiti/apps/api/odap/biz/semantic_admin/ol_pipeline/impl/l1_ngram_extractor.py) | N-gram (2/3/4) + 停用词过滤 + 词频阈值 | `L1=ok, L1_tokens=int` |
+| L2 概念合并 | [impl/l2_concept_merge.py](file:///e:/DEMO/AI/ontology-graphiti/apps/api/odap/biz/semantic_admin/ol_pipeline/impl/l2_concept_merge.py) | Jaccard + 编辑距离 + 同义词近邻聚类 | `L2=ok, L2_concepts=int` |
+| **L3 形式概念分析 (FCA)** | [impl/l3_formal_concept.py](file:///e:/DEMO/AI/ontology-graphiti/apps/api/odap/biz/semantic_admin/ol_pipeline/impl/l3_formal_concept.py) | 形式背景 (G,M,I) 构建 + BordNet 属性概念枚举 + 稳定性过滤 + 直接子概念层级边 | `L3=ok, l3_concept_count, l3_suggested_edges, l3_context_size (objects/attributes/incidence)` |
+| **L4 关系分类** | [impl/l4_relation_extraction.py](file:///e:/DEMO/AI/ontology-graphiti/apps/api/odap/biz/semantic_admin/ol_pipeline/impl/l4_relation_extraction.py) | 关键词规则 (是一种/part-of/具有/关联) + 词频 → 4 类关系 {is_a, part_of, attribute_of, related_to} + provenance 三元组 | `L4=ok, l4_relation_count, l4_relations_by_type (Dict[str,int])` |
+| **L5 本体融合** | [impl/l5_ontology_fusion.py](file:///e:/DEMO/AI/ontology-graphiti/apps/api/odap/biz/semantic_admin/ol_pipeline/impl/l5_ontology_fusion.py) | 加权相似度 (Jaccard 0.4 + 编辑距离 0.3 + 同义词重叠 0.3) + 同名 boost → 三分类决策 {merge, keep-as-new, flag-conflict}，阈值 0.82/0.55 | `L5=ok, l5_merged_count, l5_kept_new_count, l5_flagged_count` |
+| **L6 公理推导** | [impl/l6_axiom_deriver.py](file:///e:/DEMO/AI/ontology-graphiti/apps/api/odap/biz/semantic_admin/ol_pipeline/impl/l6_axiom_deriver.py) | 层级边 → subClassOf(直传+传递闭包)；同父兄弟 → disjointClasses；L4 关系三元组 → object_property_domain/range/cardinality(min=0 max=*) | `L6=ok, l6_axiom_total, l6_axioms_by_type (5 类 breakdown)` |
 
 **关键设计**：
 1. 纯 Python 零外部依赖 — L3 FCA 的 BordNet 枚举无需 `concept_analysis` pip 包，`RuleBasedRelationExtractor` 纯关键词规则无 `sklearn`；保证纯逻辑部分能在无 graphiti/openharness 容器独立跑通（解决 `openharness.tools` 缺失导致的 `ImportError`）。
@@ -350,12 +350,12 @@ DETACH DELETE n;
 
 | 依赖模块 | 依赖方式 | 边界约束 |
 |---------|---------|---------|
-| `odap/biz/core/ontology/` | 通过 **OntologyService** 公开接口写回 TBox（ObjectType / LinkType / Property） | 禁止直接 import ontology storage 层、禁止跨层直接操作 ontology SQLite |
-| `odap/infra/opa/` | 通过 OPA REST `/v1/data/semantic_admin/approval/...` | 仅审批阶段调用，降级时回退内存 RBAC，不做本地 policy copy |
-| `odap/infra/graph/` | GraphManager Neo4j 执行 Cypher（USL__* 命名空间） | 仅 Outbox daemon 调用，路由层禁止直接 Cypher |
-| `odap/infra/security/unified_audit.py` | 审批 / 状态迁移 / 写回动作写审计日志 | 100% 操作覆盖，CRITICAL 级同步写 |
-| `odap/infra/llm/` | L2 术语抽取、L5 关系抽取 LLM 调用 | 仅 impl 内部使用，超时降级回规则词典 |
-| `odap/biz/data/semantic_map/` | **仅被引用**（semantic_map 前端读 USL__* Neo4j） | 本模块从不 import semantic_map 任何代码，数据单向流动 |
+| `apps/api/odap/biz/core/ontology/` | 通过 **OntologyService** 公开接口写回 TBox（ObjectType / LinkType / Property） | 禁止直接 import ontology storage 层、禁止跨层直接操作 ontology SQLite |
+| `apps/api/odap/infra/opa/` | 通过 OPA REST `/v1/data/semantic_admin/approval/...` | 仅审批阶段调用，降级时回退内存 RBAC，不做本地 policy copy |
+| `apps/api/odap/infra/graph/` | GraphManager Neo4j 执行 Cypher（USL__* 命名空间） | 仅 Outbox daemon 调用，路由层禁止直接 Cypher |
+| `apps/api/odap/infra/security/unified_audit.py` | 审批 / 状态迁移 / 写回动作写审计日志 | 100% 操作覆盖，CRITICAL 级同步写 |
+| `apps/api/odap/infra/llm/` | L2 术语抽取、L5 关系抽取 LLM 调用 | 仅 impl 内部使用，超时降级回规则词典 |
+| `apps/api/odap/biz/data/semantic_map/` | **仅被引用**（semantic_map 前端读 USL__* Neo4j） | 本模块从不 import semantic_map 任何代码，数据单向流动 |
 
 ### 9.2 与 semantic_map 的边界（**不合并，仅可视化引用**）
 

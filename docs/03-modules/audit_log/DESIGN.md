@@ -617,11 +617,11 @@ logs = get_audit_logs(user="admin", limit=50)
 
 | 文件路径 | 说明 |
 |---------|------|
-| `odap/infra/security/audit_storage.py` | 审计存储适配器（Graphiti集成） |
-| `odap/infra/security/unified_audit.py` | 统一审计模块 |
-| `odap/infra/security/__init__.py` | 安全模块导出 |
-| `odap/infra/security/config.py` | 安全配置 |
-| `odap/infra/security/jwt_auth.py` | JWT认证 |
+| `apps/api/odap/infra/security/audit_storage.py` | 审计存储适配器（Graphiti集成） |
+| `apps/api/odap/infra/security/unified_audit.py` | 统一审计模块 |
+| `apps/api/odap/infra/security/__init__.py` | 安全模块导出 |
+| `apps/api/odap/infra/security/config.py` | 安全配置 |
+| `apps/api/odap/infra/security/jwt_auth.py` | JWT认证 |
 
 ### 11.2 文档文件
 

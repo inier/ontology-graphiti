@@ -47,7 +47,7 @@
 ### 11.4 实时领域同步机制
 
 ```typescript
-// frontend/services/websocket.ts
+// apps/web/services/websocket.ts
 import { io, Socket } from 'socket.io-client';
 
 class DomainSocket {

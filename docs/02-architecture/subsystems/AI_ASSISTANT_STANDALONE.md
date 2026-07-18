@@ -15,7 +15,7 @@
 
 | 维度 | ODAP 自建 `assistant/` | OpenHarness AGUI 层 |
 |------|----------------------|---------------------|
-| **后端** | `odap/biz/core/assistant/` | `odap/infra/openharness/agui/` |
+| **后端** | `apps/api/odap/biz/core/assistant/` | `apps/api/odap/infra/openharness/agui/` |
 | **工具** | 字典注册表 16 个工具 | OH BaseTool（GraphitiToolAdapter 适配） |
 | **协议** | 自定义 SSE（6 类事件） | AG-UI v0.x（17 类事件） |
 | **LLM 路径** | ZhipuAI 直接调用 | OpenHarness QueryEngine |
@@ -192,7 +192,7 @@ OhmoGatewayBridge → OutboundMessage → ChannelAdapter
 ### 3.1 目录结构
 
 ```
-odap/plugins/ai_assistant/              # 独立 OH Plugin 组件
+apps/api/odap/plugins/ai_assistant/              # 独立 OH Plugin 组件
 ├── plugin.json                          # OH Plugin 清单（声明 tools/skills/hooks）
 ├── __init__.py                          # 插件入口
 ├── tools/                               # OH BaseTool 实现
@@ -398,7 +398,7 @@ class OntologyChangedHook:
 ### 4.1 目录结构
 
 ```
-frontend/src/modules/ai-assistant/      # 独立前端模块
+apps/web/src/modules/ai-assistant/      # 独立前端模块
 ├── index.ts                             # 统一导出
 ├── hooks/
 │   ├── useAIChat.ts                     # 统一 Hook（基于 AG-UI 协议）
@@ -683,7 +683,7 @@ HTTP POST /api/assistant/chat
 
 | 步骤 | 内容 | 产出 |
 |------|------|------|
-| 1.1 | 创建 `odap/plugins/ai_assistant/` 目录结构 | 目录 + plugin.json |
+| 1.1 | 创建 `apps/api/odap/plugins/ai_assistant/` 目录结构 | 目录 + plugin.json |
 | 1.2 | 将 tools.py 的 16 个工具迁移为 BaseTool 子类 | tools/*.py |
 | 1.3 | 通过 ToolExecutionContext 注入 OntologyService（消除直接导入） | context.py |
 | 1.4 | 创建 OntologyChangedHook（PostToolUse 钩子） | hooks/ |
@@ -712,7 +712,7 @@ HTTP POST /api/assistant/chat
 
 | 步骤 | 内容 | 产出 |
 |------|------|------|
-| 3.1 | 创建 `frontend/src/modules/ai-assistant/` 独立模块 | 目录结构 |
+| 3.1 | 创建 `apps/web/src/modules/ai-assistant/` 独立模块 | 目录结构 |
 | 3.2 | useAIChat 重构为 AG-UI 协议解析 | hooks/useAIChat.ts |
 | 3.3 | AIChatPanel 迁移到独立模块 | components/ |
 | 3.4 | 更新所有引用点（QAPage, OntologyDesignerPage, AdminLayout, ProLayout） | 导入路径更新 |
@@ -725,7 +725,7 @@ HTTP POST /api/assistant/chat
 
 | 步骤 | 内容 | 产出 |
 |------|------|------|
-| 4.1 | 删除 `odap/biz/core/assistant/` 旧模块 | 清理 |
+| 4.1 | 删除 `apps/api/odap/biz/core/assistant/` 旧模块 | 清理 |
 | 4.2 | 删除旧的前端 useAIChat/AIChatPanel（已迁移到独立模块） | 清理 |
 | 4.3 | 配置飞书/Slack 渠道适配器 | IM 配置 |
 | 4.4 | 端到端测试：Web + IM 双渠道验证 | 测试报告 |
@@ -778,10 +778,10 @@ HTTP POST /api/assistant/chat
 
 | 现有组件 | 角色 | 复用方式 |
 |---------|------|---------|
-| `odap/infra/openharness/agui/` | AG-UI 协议层 | 直接复用，作为统一事件转换层 |
-| `odap/infra/openharness/engine_adapter.py` | OH 引擎适配 | 复用 GraphitiToolAdapter、OHQueryEngineFactory |
-| `odap/infra/openharness/permission_backend.py` | OPA 权限后端 | 复用，注入 PermissionChecker |
-| `odap/infra/openharness/memory_adapter.py` | Graphiti 记忆适配 | 复用，注入 Memory |
+| `apps/api/odap/infra/openharness/agui/` | AG-UI 协议层 | 直接复用，作为统一事件转换层 |
+| `apps/api/odap/infra/openharness/engine_adapter.py` | OH 引擎适配 | 复用 GraphitiToolAdapter、OHQueryEngineFactory |
+| `apps/api/odap/infra/openharness/permission_backend.py` | OPA 权限后端 | 复用，注入 PermissionChecker |
+| `apps/api/odap/infra/openharness/memory_adapter.py` | Graphiti 记忆适配 | 复用，注入 Memory |
 | `openharness/ohmo/gateway/` | OHMO 网关 | 直接复用，新增 WebChannelAdapter |
 | `openharness/src/openharness/channels/` | 渠道适配器框架 | 直接复用 BaseChannel |
 
@@ -789,20 +789,20 @@ HTTP POST /api/assistant/chat
 
 | 旧组件 | 新组件 | 原因 |
 |--------|--------|------|
-| `odap/biz/core/assistant/tools.py` | `odap/plugins/ai_assistant/tools/*.py` | 迁移为 BaseTool |
-| `odap/biz/core/assistant/services/chat_service.py` | OHMO Gateway + QueryEngine | 不再自建 LLM 调用 |
-| `odap/biz/core/assistant/api/routes.py` | `odap/plugins/ai_assistant/api/routes.py` | 桥接到 OHMO Gateway |
+| `apps/api/odap/biz/core/assistant/tools.py` | `apps/api/odap/plugins/ai_assistant/tools/*.py` | 迁移为 BaseTool |
+| `apps/api/odap/biz/core/assistant/services/chat_service.py` | OHMO Gateway + QueryEngine | 不再自建 LLM 调用 |
+| `apps/api/odap/biz/core/assistant/api/routes.py` | `apps/api/odap/plugins/ai_assistant/api/routes.py` | 桥接到 OHMO Gateway |
 | 自定义 SSE（6 类事件） | AG-UI v0.x（17 类事件） | 统一协议 |
 
 ### 10.3 新增的组件
 
 | 新组件 | 职责 |
 |--------|------|
-| `odap/plugins/ai_assistant/plugin.json` | OH Plugin 清单 |
-| `odap/plugins/ai_assistant/context.py` | ToolExecutionContext 扩展 |
-| `odap/plugins/ai_assistant/api/web_channel.py` | Web 渠道适配器 |
-| `odap/plugins/ai_assistant/hooks/ontology_changed_hook.py` | 写操作后刷新钩子 |
-| `frontend/src/modules/ai-assistant/` | 独立前端模块 |
+| `apps/api/odap/plugins/ai_assistant/plugin.json` | OH Plugin 清单 |
+| `apps/api/odap/plugins/ai_assistant/context.py` | ToolExecutionContext 扩展 |
+| `apps/api/odap/plugins/ai_assistant/api/web_channel.py` | Web 渠道适配器 |
+| `apps/api/odap/plugins/ai_assistant/hooks/ontology_changed_hook.py` | 写操作后刷新钩子 |
+| `apps/web/src/modules/ai-assistant/` | 独立前端模块 |
 
 ---
 
