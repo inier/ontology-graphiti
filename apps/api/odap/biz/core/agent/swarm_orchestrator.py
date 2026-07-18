@@ -27,6 +27,7 @@ logger = logging.getLogger("swarm_orchestrator")
 
 from odap.biz.core.agent.agent_factory import AgentType, AgentState
 from odap.biz.core.agent.interfaces.ooda_interface import OODAInterface, OODALifecycleHook
+from odap.biz.core.agent.interfaces.iswarm_adapter import ISwarmAdapter
 
 
 class OODAPhase(str, Enum):
@@ -763,6 +764,7 @@ class DomainSwarm(OODAInterface):
             logger.info(f"[{mission_id}] 从检查点恢复，已完成阶段: {[p.value for p in mission_ctx.get('phases_completed', [])]}")
         else:
             logger.info(f"[{mission_id}] 开始执行任务: {mission}")
+            await self._emit_ooda_event("ooda:mission_started", mission_id, {"mission": mission})
             mission_ctx = {
                 "mission": mission,
                 "mission_id": mission_id,
@@ -848,6 +850,7 @@ class DomainSwarm(OODAInterface):
                     execution_time_ms=round(execution_time_ms, 2),
                     graphiti_episodes=mission_ctx["graphiti_episodes"],
                 )
+                await self._emit_ooda_event("ooda:mission_completed", mission_id, {"success": True, "execution_time_ms": round(execution_time_ms, 2)})
 
                 logger.info(f"[{mission_id}] 任务完成，耗时: {execution_time_ms:.2f}ms, OODA 循环: {mission_ctx['ooda_loop_count']} 次")
 
@@ -873,6 +876,7 @@ class DomainSwarm(OODAInterface):
                     execution_time_ms=round(execution_time_ms, 2),
                     error_message=str(e),
                 )
+                await self._emit_ooda_event("ooda:mission_failed", mission_id, {"success": False, "error": str(e)[:200]})
 
         self.mission_history.append(result)
         if mission_id in self.active_missions:
@@ -889,6 +893,7 @@ class DomainSwarm(OODAInterface):
     ) -> Dict[str, Any]:
         """执行单个 OODA 阶段，含生命周期钩子 + 检查点 + 容错"""
         await self._fire_phase_start(phase.value, mission_ctx)
+        await self._emit_ooda_event(f"ooda:{phase.value}_started", mission_ctx["mission_id"], None)
 
         # 通过 FaultRecoveryManager 的 execute_with_tolerance 包装执行
         tolerance_result = await self.fault_manager.execute_with_tolerance(
@@ -1352,7 +1357,7 @@ class DomainSwarm(OODAInterface):
         except Exception as e:
             logger.warning(f"Graphiti 写入失败: {e}")
 
-    def _get_swarm_adapter(self):
+    def _get_swarm_adapter(self) -> Optional[ISwarmAdapter]:
         if self._swarm_adapter is not None:
             return self._swarm_adapter
         try:

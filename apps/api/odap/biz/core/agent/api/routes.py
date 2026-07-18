@@ -1,11 +1,12 @@
 from fastapi import APIRouter, HTTPException, Depends
 from odap.infra.security.jwt_auth import get_current_user
 from odap.infra.security.audit_helper import audit as _audit_shared
-from typing import Dict, Any
+from typing import Dict, Any, Optional
 import asyncio
 import logging
 
 from .schemas import DispatchRequest, SwarmConfigRequest, OrchestrateRequest, CreateSessionRequest
+from odap.biz.core.agent.interfaces.isession_memory import ISessionMemory
 
 router = APIRouter(prefix="/api/agent", tags=["agent"])
 
@@ -204,7 +205,7 @@ async def orchestrate(request: OrchestrateRequest,
         if request.session_id:
             try:
                 from odap.biz.platform.session_memory.services.session_memory_service import get_session_memory_service
-                sms = get_session_memory_service()
+                sms: ISessionMemory = get_session_memory_service()
 
                 # 保存用户消息
                 sms.add_message(
@@ -286,7 +287,7 @@ async def create_agent_session(request: CreateSessionRequest,
     ws_id = request.workspace_id or "default"
     try:
         from odap.biz.platform.session_memory.services.session_memory_service import get_session_memory_service
-        sms = get_session_memory_service()
+        sms: ISessionMemory = get_session_memory_service()
         result = sms.create_session(
             workspace_id=request.workspace_id,
             title=request.title,
@@ -314,7 +315,7 @@ async def get_session_messages(session_id: str,
     user_id = user.get("sub", "anonymous") if isinstance(user, dict) else "anonymous"
     try:
         from odap.biz.platform.session_memory.services.session_memory_service import get_session_memory_service
-        sms = get_session_memory_service()
+        sms: ISessionMemory = get_session_memory_service()
         context = sms.get_context(session_id)
         if not context:
             raise HTTPException(status_code=404, detail="Session not found")
