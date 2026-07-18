@@ -93,6 +93,23 @@ python -c "from odap.web.router_registry import router_registry; print(f'共 {le
 
 ---
 
+## 八、临时文件目录化检查
+
+当新增/修改写入文件（日志、SQLite、缓存、临时 dump）的代码时：
+
+- [ ] **路径合规** — 写入路径符合 [AGENTS.md 规则 13](../../AGENTS.md) 的位置约束表：
+  - 运行时日志 → `apps/api/data/logs/`
+  - SQLite 数据库 → `apps/api/data/`（受 `DATA_DIR` 环境变量控制）
+  - 临时缓存 → `<模块>/temp/`
+  - 诊断脚本 → `scripts/` 或 `scripts/archive/`
+- [ ] **无相对路径污染 CWD** — 代码中无 `open('app.log')`、`sqlite3.connect('sessions.db')` 等相对路径写入；用 `os.path.abspath(__file__)` 反推或读取 `DATA_DIR`
+- [ ] **`os.makedirs` 幂等** — 目录创建使用 `exist_ok=True`
+- [ ] **`.gitignore` 同步** — 若引入新的根目录散落临时文件模式，在 `.gitignore` 追加 `/` 前缀锁定规则；模块 `temp/` 目录由模块自行管理（`!` 例外规则在 git 中无法重新包含被通配符排除的文件）
+- [ ] **模块 temp/ README** — 若新增 `<模块>/temp/` 目录，必须创建 `README.md` 描述用途、清理时机、负责人
+- [ ] **AGENTS.md § 2.3 / § 6.4 同步** — 若新增环境变量（如 `DATA_DIR`）或日志路径变更，同步更新 `agents.md` 对应章节
+
+---
+
 ## 七、文档层级与优先级
 
 当不同文档对同一事项描述冲突时，按以下优先级裁决：

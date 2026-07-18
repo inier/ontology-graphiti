@@ -488,6 +488,59 @@ import type { Agent } from '../types';
 - 模块索引 (`docs/03-modules/README.md`) 必须与实际代码目录一致
 - 发现文档与实际不符时，**立即修正**，不要留 TODO
 
+### 规则 13：临时文件目录化管理
+
+临时文件（运行时日志、SQLite 数据库、缓存、诊断脚本、JSON dump 等）**禁止直接写入项目根目录或任意 CWD**，必须按所属功能目录组织到 `temp/` 或 `data/` 子目录中，并记录可清理时机。
+
+**写入位置约束**：
+
+| 文件类型 | 允许路径 | 禁止路径 | 清理时机 |
+|---------|---------|---------|---------|
+| 运行时日志 | `apps/api/data/logs/` | 项目根目录 `app.log` | 日志轮转或部署重启时 |
+| SQLite 数据库 | `apps/api/data/`（受 `DATA_DIR` 环境变量控制） | 项目根目录 `*.db` | 永不清理（持久化数据） |
+| 临时缓存 | `<模块>/temp/` | 项目根目录 `tmp_*` | 任意时刻可清理 |
+| 诊断脚本 | `scripts/` 或 `scripts/archive/`（一次性脚本归档） | 项目根目录 `diag_*.py` | 诊断完成后归档或删除 |
+| JSON dump / Token dump | `<模块>/temp/` | 项目根目录 `tmp_*`、`token.txt` | 调试会话结束后立即清理 |
+
+**禁止行为**：
+1. **禁止相对路径写入 CWD** — `open('app.log', 'w')`、`sqlite3.connect('sessions.db')` 等相对路径写入会污染 CWD（CWD 通常是项目根目录）。必须用 `os.path.abspath(__file__)` 反推绝对路径，或读取 `DATA_DIR` 环境变量。
+2. **禁止 `os.makedirs` 不带 `exist_ok=True`** — 目录可能已被其他模块创建，必须幂等。
+3. **禁止在 `temp/` 目录提交业务代码** — `temp/` 仅用于运行时产物，业务代码必须放在正式目录中。
+4. **禁止跨模块写入 `temp/`** — 每个模块的 `temp/` 仅供本模块使用，跨模块共享数据必须走 `apps/api/data/` 或显式 API。
+
+**路径构造规范**：
+
+```python
+# ✅ 正确：日志文件写入 apps/api/data/logs/
+# __file__ = apps/api/odap/infra/security/config.py，回溯 4 级到 apps/api/
+_DEFAULT_LOG_DIR = os.path.join(
+    os.path.dirname(os.path.dirname(os.path.dirname(os.path.dirname(
+        os.path.abspath(__file__))))),
+    'data', 'logs',
+)
+os.makedirs(_DEFAULT_LOG_DIR, exist_ok=True)
+LOG_FILE = os.getenv('LOG_FILE', os.path.join(_DEFAULT_LOG_DIR, 'security.log'))
+
+# ✅ 正确：SQLite 数据库写入 DATA_DIR
+data_dir = os.environ.get('DATA_DIR', os.path.join(os.getcwd(), 'apps', 'api', 'data'))
+db_path = os.path.join(data_dir, 'sessions.db')
+
+# ❌ 错误：相对路径污染 CWD
+LOG_FILE = os.getenv('LOG_FILE', 'app.log')                    # 会写入项目根目录
+db_path = 'sessions.db'                                          # 会写入 CWD（通常是项目根目录）
+```
+
+**模块 temp/ 目录骨架要求**：
+
+每个需要在模块内写临时文件的模块，必须创建 `<模块>/temp/README.md` 描述：
+- 该 `temp/` 目录的用途
+- 可清理时机（如"调试会话结束"、"日志轮转后"、"任意时刻"）
+- 谁负责清理
+
+`.gitignore` 已锁定根目录 `/app.log`、`/bootstep_dev.log`、`/sessions.db` 防止误跟踪。模块 `temp/` 目录**不**在根 `.gitignore` 中递归忽略（git 的 `!` 例外规则无法重新包含被通配符排除的文件）；模块若需忽略 `temp/`，在模块 `.gitignore` 中配置；若需将 `temp/README.md` 或 `.gitkeep` 骨架纳入版本控制，使用 `git add -f` 强制添加。
+
+- 📎 [开发环境部署规则](#开发环境部署规则)
+
 ---
 
 ## 6. 本地开发及验证流程
@@ -572,7 +625,7 @@ curl -H "Authorization: Bearer <token>" \
 |----------|----------|
 | 后端容器日志 | `python apps/api/bootstep.py logs` |
 | 前端容器日志 | `python apps/api/bootstep.py logs fe` |
-| 本地后端日志 | `app.log`（由 `LOG_FILE` 环境变量控制） |
+| 本地后端日志 | `apps/api/data/logs/security.log`（由 `LOG_FILE` 环境变量控制，规则 13） |
 | 审计日志 | `apps/api/odap/infra/security/unified_audit.py` 统一写入 SQLite |
 
 ---
@@ -913,6 +966,7 @@ JWT Payload 含 `role` + `ws_id` + `ws_role`（工作空间隔离）。
 12. **dev/prod 环境隔离** — `dev` 和 `up` 使用独立 compose 文件，不会混跑；启动 `dev` 会自动停止 prod 前端，反之亦然
 13. **前端跨目录导入用 `@` 别名** — 跨 `src/` 一级目录必须用 `@/modules/xxx`、`@/config` 等，禁止 `../../shared`、`../../../config` 等跨目录相对路径；同模块内允许 `../` 相对路径
 14. **文档必须与代码同步** — 新增模块/路由/ADR 必须同步更新 `docs/03-modules/README.md`、`docs/07-adr/README.md`、`agents.md` 对应章节；提交前对照 `docs/09-checklists/DOC_SYNC_CHECKLIST.md` 检查；发现文档过期立即修正，不留 TODO
+15. **临时文件禁止写入项目根目录** — `open('app.log')`、`sqlite3.connect('sessions.db')` 等相对路径会污染 CWD（规则 13）；必须用 `os.path.abspath(__file__)` 反推路径或读取 `DATA_DIR` 环境变量；`.gitignore` 已锁定 `/app.log`、`/bootstep_dev.log`、`/sessions.db` 防止误跟踪
 
 ### E. 端到端操作流程：创建领域智能体（以西游记为例）
 
