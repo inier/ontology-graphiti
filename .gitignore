@@ -86,8 +86,11 @@ minio_data/
 .workbuddy/
 *.bak
 
-# Trae IDE - local skill installation cache (保留 .trae/rules 版本控制)
+# Trae IDE - local skill installation cache + planning documents
+# (保留 .trae/rules 版本控制；skills/ 是 IDE 本地缓存；documents/ 是
+# 临时规划文档，不应纳入版本控制)
 .trae/skills/
+.trae/documents/
 .superpowers/
 
 # Qoder IDE - auto-generated repo wiki snapshot (与 docs/ 重复，不纳入版本控制)
