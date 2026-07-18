@@ -36,16 +36,26 @@ jobs:
 
       - name: Install uv
         uses: astral-sh/setup-uv@v3
+        with:
+          version: "0.5.11"
+
+      - name: Verify lock file consistency
+        run: uv lock --check
 
       - name: Install dependencies
         run: uv sync --frozen --no-dev --package odap
 
+      - name: Run ruff lint
+        # 历史代码有 1500+ lint 错误，先作为非阻塞检查，等清理后改为阻塞
+        continue-on-error: true
+        run: uv run ruff check apps/api/odap apps/api/tests/
+
       - name: Run unit tests
-        run: uv run pytest tests/unit/ apps/api/tests/ -v --cov=odap --cov-report=xml
+        run: uv run pytest apps/api/tests/unit/ -v --cov=odap --cov-report=xml
 
       - name: Run integration tests
         run: |
-          uv run pytest tests/integration/ -v
+          uv run pytest apps/api/tests/integration/ -v
         env:
           NEO4J_URI: bolt://localhost:7687
           NEO4J_USER: neo4j
