@@ -26,8 +26,10 @@ def _get_type_registry():
     return _type_registry
 
 # 写入操作弃用提示
+# 注意：HTTP header 值必须 latin-1 可编码，禁止含中文等非 ASCII 字符
+# （历史 Bug：含中文会导致 UnicodeEncodeError，数据已写入但响应 500）
 _REGISTRY_HINT = "X-Registry-Recommended"
-_REGISTRY_MSG = "建议使用 /api/ontology/registry/object-types 统一入口，确?OMS 缓存同步"
+_REGISTRY_MSG = "Use /api/ontology/registry/object-types for OMS cache sync"
 
 
 # ===== Ontology CRUD =====
