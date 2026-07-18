@@ -62,7 +62,18 @@ class SecurityConfig:
 
     # 日志配置
     LOG_LEVEL = get_config("logging.level", 'INFO')
-    LOG_FILE = os.getenv('LOG_FILE', 'app.log')
+    # 日志默认写入 apps/api/data/logs/，避免污染项目根目录（规则 13）
+    # __file__ = apps/api/odap/infra/security/config.py，回溯 4 级到 apps/api/
+    _DEFAULT_LOG_DIR = os.path.join(
+        os.path.dirname(os.path.dirname(os.path.dirname(os.path.dirname(
+            os.path.abspath(__file__))))),
+        'data', 'logs',
+    )
+    try:
+        os.makedirs(_DEFAULT_LOG_DIR, exist_ok=True)
+    except OSError as _e:
+        logger.warning("无法创建日志目录 %s: %s", _DEFAULT_LOG_DIR, _e)
+    LOG_FILE = os.getenv('LOG_FILE', os.path.join(_DEFAULT_LOG_DIR, 'security.log'))
 
     @classmethod
     def get_jwt_secret(cls) -> str:

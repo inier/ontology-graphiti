@@ -1,4 +1,5 @@
 import json
+import os
 import uuid
 import logging
 import sqlite3
@@ -37,7 +38,14 @@ class SessionSummary(BaseModel):
 
 
 class SessionStore:
-    def __init__(self, db_path: str = "sessions.db"):
+    def __init__(self, db_path: Optional[str] = None):
+        # 默认写入 DATA_DIR/sessions.db，避免污染项目根目录（规则 13）
+        if db_path is None:
+            data_dir = os.environ.get(
+                'DATA_DIR',
+                os.path.join(os.getcwd(), 'apps', 'api', 'data'),
+            )
+            db_path = os.path.join(data_dir, 'sessions.db')
         self.db_path = db_path
         self._init_db()
 
