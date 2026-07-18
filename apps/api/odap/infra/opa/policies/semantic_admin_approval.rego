@@ -22,6 +22,7 @@ package semantic_admin_approval
 
 import future.keywords.if
 import future.keywords.in
+import future.keywords.contains
 
 # ======================================================================
 # FAIL-CLOSED: 未被任何规则允许的请求一律拒绝（default deny 安全兜底）
@@ -128,8 +129,7 @@ deny_reject contains msg if {
 deny_reject contains msg if {
   input.action == "reject"
   reject_reason != ""
-  allow_set := array.concat(r3_allow_reject, [])
-  count(allow_set) == 0
+  count(r3_allow_reject) == 0
   msg := "rule3 reject DENY: 需 L1 审核员权限"
 }
 
@@ -183,15 +183,9 @@ deny_auto_skip contains msg if {
 # 聚合 allow / deny 汇总
 # ======================================================================
 
-all_allows := array.concat(
-  array.concat(array.concat(array.concat(r1_allow_audit, r2_allow_modify), r3_allow_reject),
-                r4_allow_final),
-  r5_allow_auto_skip)
+all_allows := r1_allow_audit | r2_allow_modify | r3_allow_reject | r4_allow_final | r5_allow_auto_skip
 
-all_denials := array.concat(
-  array.concat(array.concat(array.concat(deny_audit, deny_modify), deny_reject),
-                deny_final),
-  deny_auto_skip)
+all_denials := deny_audit | deny_modify | deny_reject | deny_final | deny_auto_skip
 
 allow_messages := all_allows
 deny_messages  := all_denials
