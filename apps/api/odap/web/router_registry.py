@@ -126,6 +126,9 @@ def create_router_registry() -> List[tuple]:
     # ── AI 助手 (统一) ──
     from odap.biz.core.assistant.api.routes import router as assistant_router
 
+    # ── 统一对话服务 (ADR-050, Phase A 并行) ──
+    from odap.biz.core.chat.api.routes import router as unified_chat_router
+
     # ── 本体 - AI 辅助设计 ──
     from odap.biz.core.ontology.assistant.api.routes import router as ontology_assistant_router
 
@@ -316,6 +319,7 @@ def create_router_registry() -> List[tuple]:
 
         # AI 助手
         (assistant_router,),
+        (unified_chat_router,),          # ADR-050: 统一对话服务 (Phase A 并行)
         (ontology_assistant_router,),
 
         # 认知
