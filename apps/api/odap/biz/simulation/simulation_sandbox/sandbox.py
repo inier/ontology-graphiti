@@ -4,6 +4,7 @@ import copy
 from typing import List, Optional, Dict, Any
 
 from odap.infra.config_composer import get_config
+from odap.biz.simulation.interfaces.ioms_service import IOMSService
 from .schemas import (
     WhatIfScenario, WhatIfResult, WhatIfComparison,
     MetricChange, SimulationStatus,
@@ -36,7 +37,7 @@ class SimulationSandbox:
         return self._query_service
 
     @property
-    def oms(self):
+    def oms(self) -> IOMSService:
         if self._oms is None:
             from odap.biz.core.ontology.application.oms.services import get_oms_service
             self._oms = get_oms_service()

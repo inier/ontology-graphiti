@@ -5,6 +5,8 @@ from typing import List, Dict, Any, Optional
 from datetime import datetime
 
 from odap.biz.simulation.simulation_deduction.interfaces.deduction_engine import IDeductionEngine
+from odap.biz.simulation.interfaces.ioms_service import IOMSService
+from odap.biz.simulation.interfaces.iruntime_service import IRuntimeService
 from odap.biz.simulation.simulation_deduction.models.deduction import (
     DeductionScenario, ExecutionChain, ChainStep, SimulationCondition,
     ChainResult, MetricImpact, RuleViolation, DeductionStatus,
@@ -51,7 +53,7 @@ class DeductionEngineImpl(IDeductionEngine):
         return self._graph_manager
 
     @property
-    def oms(self):
+    def oms(self) -> Optional[IOMSService]:
         if self._oms is None:
             try:
                 from odap.biz.core.ontology.application.oms.services import OMSService
@@ -657,7 +659,7 @@ class DeductionEngineImpl(IDeductionEngine):
         impacts = []
         try:
             from odap.biz.core.ontology.application.runtime.services.runtime_service import OntologyRuntimeService
-            service = OntologyRuntimeService.get_instance()
+            service: IRuntimeService = OntologyRuntimeService.get_instance()
             contract_result = service.get_contract_by_action(action_type_id)
             if contract_result.get("status") == "error":
                 return impacts

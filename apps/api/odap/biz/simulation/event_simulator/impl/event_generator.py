@@ -4,6 +4,9 @@ import random
 from typing import Dict, Any, List, Optional
 from datetime import datetime, timezone, timedelta
 
+from odap.biz.simulation.interfaces.imodel_service import IModelService
+from odap.biz.simulation.interfaces.ioms_service import IOMSService
+
 logger = logging.getLogger(__name__)
 
 
@@ -260,7 +263,7 @@ class EventGenerator:
     def _get_entity_types(self, workspace_id: str) -> List[str]:
         try:
             from odap.biz.core.ontology.design.model.services.model_service import ModelService
-            service = ModelService()
+            service: IModelService = ModelService()
             result = service.list_entity_types(filters=None, page=1, page_size=100)
             entity_types = []
             for et in result.get("entity_types", []):
@@ -366,7 +369,7 @@ class EventGenerator:
 
         try:
             from odap.biz.core.ontology.application.oms.services.oms_service import OMSService
-            oms = OMSService.get_instance()
+            oms: IOMSService = OMSService.get_instance()
             action_types = oms.list_action_types()
 
             templates = {}
@@ -416,7 +419,7 @@ class EventGenerator:
         """从 OMS action_types 查询事件相关性。"""
         try:
             from odap.biz.core.ontology.application.oms.services.oms_service import OMSService
-            oms = OMSService.get_instance()
+            oms: IOMSService = OMSService.get_instance()
             action_types = oms.list_action_types()
 
             for at in action_types:

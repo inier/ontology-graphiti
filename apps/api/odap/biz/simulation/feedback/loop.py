@@ -5,6 +5,7 @@ from odap.biz.simulation.feedback.models import Feedback, FeedbackQuery
 from odap.biz.simulation.feedback.collector import FeedbackCollector
 from odap.biz.simulation.feedback.analyzer import FeedbackAnalyzer
 from odap.biz.simulation.feedback.aggregator import FeedbackAggregator
+from odap.infra.events import get_event_bus
 
 logger = logging.getLogger(__name__)
 
@@ -36,24 +37,24 @@ class FeedbackLoop:
         return result
 
     def _propagate(self, feedback: Feedback) -> Dict[str, Any]:
+        """ADR-065 R3: 通过 EventBus 发布反馈事件，替代直接调用 HookAdapter"""
+        import asyncio
         targets = []
         try:
-            from odap.biz.integration.openharness_agent.adapter.hook_adapter import HookAdapter
-            adapter = HookAdapter()
-            result = adapter.emit_event(
-                f"feedback.propagate.{feedback.feedback_type.value}",
-                context={
-                    "feedback_id": feedback.id,
-                    "source_id": feedback.source_id,
-                    "deviation_score": feedback.deviation_score,
-                    "lesson_learned": feedback.lesson_learned,
-                },
-            )
-            if result.get("status") == "success":
-                for hr in result.get("hook_results", []):
-                    targets.append(hr.get("hook_id"))
+            event_bus = get_event_bus()
+            loop = asyncio.get_event_loop()
+            if loop.is_running():
+                loop.create_task(event_bus.emit(
+                    f"feedback.propagate.{feedback.feedback_type.value}",
+                    {
+                        "feedback_id": feedback.id,
+                        "source_id": feedback.source_id,
+                        "deviation_score": feedback.deviation_score,
+                        "lesson_learned": feedback.lesson_learned,
+                    },
+                ))
         except Exception as e:
-            logger.debug("FeedbackLoop propagate fallback: %s", e)
+            logger.debug("FeedbackLoop propagate EventBus fallback: %s", e)
 
         for hook in self._propagate_hooks:
             try:
