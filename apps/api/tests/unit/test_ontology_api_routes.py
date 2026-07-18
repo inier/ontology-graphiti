@@ -169,16 +169,25 @@ class TestBadRequestResponses:
         assert "Name already exists" in resp.json()["detail"]
 
     def test_create_object_type_error_returns_400(self, client, mock_service):
-        """Service returns error -> route raises 400 for create_object_type."""
-        mock_service.create_object_type.return_value = {
-            "status": "error",
-            "message": "Invalid type definition",
-        }
-        resp = client.post(
-            "/api/ontologies/ont-123/object-types",
-            json={"name": "BadType"},
-        )
-        assert resp.status_code == 400
+        """Registry returns error -> route raises 400 for create_object_type.
+
+        Note: route uses TypeRegistry (not service) for writes to keep OMS cache
+        in sync (see routes.py `_get_type_registry`). Mock the registry, not service.
+        """
+        with patch(
+            "odap.biz.core.ontology.ontology_api.api.routes._get_type_registry"
+        ) as mock_get_reg:
+            mock_registry = mock_get_reg.return_value
+            mock_registry.create_object_type.return_value = {
+                "status": "error",
+                "message": "Invalid type definition",
+            }
+            resp = client.post(
+                "/api/ontologies/ont-123/object-types",
+                json={"name": "BadType"},
+            )
+            assert resp.status_code == 400
+            assert "Invalid type definition" in resp.json()["detail"]
 
     def test_create_link_type_error_returns_400(self, client, mock_service):
         """Service returns error -> route raises 400 for create_link_type."""
