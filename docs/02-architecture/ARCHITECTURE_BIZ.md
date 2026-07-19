@@ -1,7 +1,8 @@
 # 本体驱动分析决策平台 (ODAP) - L3-L4 业务层
-> **部分**: Agent协同 + OADP + 数据架构 + 本体管理 + 角色权限 + 配置 + 动作服务 + 反馈闭环 + 语义检索
-> **版本**: 5.1.0 | **日期**: 2026-05-23
+> **部分**: Agent协同 + OADP + 数据架构 + 本体管理(3+1分层) + 角色权限 + 配置 + 动作服务 + 反馈闭环 + 语义检索
+> **版本**: 6.0.0 | **日期**: 2026-07-18
 > **上级文档**: [ARCHITECTURE.md](ARCHITECTURE.md)
+> **架构变更**: 第13章根据 ADR-068 重写为 3+1 分层架构（Design→Construction→+Reasoning→Application）
 ---
 ## 7. 三 Agent 协同编排设计
 
@@ -755,9 +756,38 @@ class OODALoop:
 
 ## 13. 本体管理层
 
-### 13.1 本体定位
+> **架构版本**: v6.0.0 (2026-07-18) — 基于 ADR-068 的 3+1 分层架构重写。
+> **旧版描述** (v5.1.0): 本体管理引擎 + 数据接入处理器 — 已被四层分层替代，详见 [ADR-068](../07-adr/ADR-068_本体模块四层分层架构.md)。
 
-本体（Ontology）是系统的"词汇表"，定义了领域上所有实体、关系和属性。本体作为统一的语义层，支撑 Graphiti 图谱和前端展示。
+### 13.1 本体定位与分层架构
+
+本体（Ontology）是 ODAP 平台的核心语义层——它不仅是"词汇表"，更是一个有完整生命周期的子系统。
+
+**3+1 分层架构**（详见 ADR-068）：
+
+```
+┌──────────────────────────────────────────────────────────────────┐
+│  L1  本体设计 (Design)                                            │
+│  类型定义 / Schema建模 / 版本管理 / 约束 / 分支合并 / 冲突解决    │
+│  继承系统 / 计算属性 / 对象视图 / 动作类型 / 冷启动模板           │
+│  对外契约: DesignContract (只读 Frozen Views)                     │
+├──────────────────────────────────────────────────────────────────┤
+│  L2  本体构建 (Construction)                                      │
+│  数据摄入 / 信息抽取 / 构建流水线 / 质量验证(实例级) / 分片策略   │
+│  对外契约: BuildResultContract                                    │
+├──────────────────────────────────────────────────────────────────┤
+│  +AI 推理能力层 (Reasoning) —— 技术层，非领域层                   │
+│  类型推断 / 约束建议 / 一致性校验(跨Schema-实例)                   │
+│  对外契约: ReasoningServiceContract                               │
+├──────────────────────────────────────────────────────────────────┤
+│  L3  本体应用 (Application)                                       │
+│  统一 AI 助手 / 意图识别 / 知识导航 / 解释引擎 / 思维图谱          │
+│  OMS 元数据 / 运行时引擎 / 服务化部署 / NL 查询 / 团队智能体       │
+└──────────────────────────────────────────────────────────────────┘
+```
+
+各层通过 Contract（Frozen Dataclass Views）通信。上层依赖下层，禁止反向引用。
+写入操作走独立的 Bridge 路径，不走只读 Contract。
 
 ### 13.2 领域实体定义（中英文）
 
@@ -950,60 +980,58 @@ export const BATTLEFIELD_RELATIONS = {
 };
 ```
 
-### 13.4 多数据源接入架构
+### 13.4 L2 Construction: 数据接入与构建流水线
+
+> 归属于 ADR-068 的 L2 Construction 层。摄入、抽取、流水线、质量验证均在此层统一管理。
 
 ```
 ┌─────────────────────────────────────────────────────────────────────────────┐
-│                          多数据源接入层 (Multi-Source Adapter)                 │
+│                    L2 Construction — 本体构建层                               │
 ├─────────────────────────────────────────────────────────────────────────────┤
 │                                                                              │
 │  ┌─────────────────┐  ┌─────────────────┐  ┌─────────────────┐             │
 │  │   结构化数据源   │  │  非结构化数据源   │  │   实时数据源     │             │
-│  │  Structured     │  │  Unstructured    │  │  Real-time      │             │
-│  ├─────────────────┤  ├─────────────────┤  ├─────────────────┤             │
-│  │ • PostgreSQL    │  │ • PDF 文档      │  │ • WebSocket     │             │
-│  │ • MySQL         │  │ • 图像/视频     │  │ • Kafka         │             │
-│  │ • MongoDB       │  │ • 语音转文本    │  │ • MQTT          │             │
-│  │ • Elasticsearch │  │ • 网页爬虫     │  │ • Redis PubSub  │             │
+│  │  PostgreSQL      │  │  PDF/Word       │  │  Kafka          │             │
+│  │  MySQL/MongoDB   │  │  图像/视频/网页 │  │  WebSocket/MQTT │             │
 │  └────────┬────────┘  └────────┬────────┘  └────────┬────────┘             │
 │           │                      │                      │                       │
 │           ▼                      ▼                      ▼                       │
 │  ┌─────────────────────────────────────────────────────────────────────┐   │
-│  │                      统一数据抽象层 (Data Abstraction)                 │   │
-│  │                                                                      │   │
-│  │  ┌──────────────┐  ┌──────────────┐  ┌──────────────┐            │   │
-│  │  │  DataEntity  │  │ DataDocument │  │ DataStream   │            │   │
-│  │  │  结构化实体  │  │ 非结构化文档 │  │ 实时数据流   │            │   │
-│  │  └──────────────┘  └──────────────┘  └──────────────┘            │   │
-│  │                                                                      │   │
-│  └─────────────────────────────────────────────────────────────────────┘   │
-│                                    │                                        │
-│                                    ▼                                        │
+│  │                ingestion/ — 统一摄入子系统                             │   │
+│  │  合并原 ingestion/ (文档处理器) + ingestion_split/ (新闻/爬虫/DB)    │   │
+│  └────────────────────────────────┬────────────────────────────────────┘   │
+│                                   │                                         │
+│                                   ▼                                         │
 │  ┌─────────────────────────────────────────────────────────────────────┐   │
-│  │                      本体映射层 (Ontology Mapping)                    │   │
-│  │                                                                      │   │
-│  │  ┌──────────────┐  ┌──────────────┐  ┌──────────────┐            │   │
-│  │  │  FieldMapper  │  │ ParserMapper │  │ StreamMapper │            │   │
-│  │  │  字段映射     │  │ 解析器映射   │  │ 流映射       │            │   │
-│  │  └──────────────┘  └──────────────┘  └──────────────┘            │   │
-│  │                                                                      │   │
-│  └─────────────────────────────────────────────────────────────────────┘   │
-│                                    │                                        │
-│                                    ▼                                        │
+│  │              extraction/ — 信息抽取                                    │   │
+│  │  实体提取 / 关系识别 / 属性映射 / LLM 结构化抽取                      │   │
+│  └────────────────────────────────┬────────────────────────────────────┘   │
+│                                   │                                         │
+│                                   ▼                                         │
 │  ┌─────────────────────────────────────────────────────────────────────┐   │
-│  │                      Graphiti 图谱 (知识融合)                          │   │
+│  │              pipeline/ — 构建流水线                                    │   │
+│  │  标准化 → 去重 → 实体解析 → 关系验证 → 一致性检查 → 写入 Graphiti    │   │
+│  └────────────────────────────────┬────────────────────────────────────┘   │
+│                                   │                                         │
+│                                   ▼                                         │
+│  ┌─────────────────────────────────────────────────────────────────────┐   │
+│  │              quality/ — 构建质量验证 (实例级)                          │   │
+│  │  数据完整性 / 字段合规 / 去重精度 / 实体解析召回率                    │   │
 │  └─────────────────────────────────────────────────────────────────────┘   │
 │                                                                              │
+│  对外契约: BuildResultContract (只读 Frozen Views)                           │
+│  写入桥接: construction/contract/bridge.py                                   │
 └─────────────────────────────────────────────────────────────────────────────┘
 ```
 
-### 13.5 数据源配置模型
+### 13.5 数据源配置与本体映射
 
 ```python
 # models/data_source.py
 
 @dataclass
 class DataSource:
+    """数据源定义 — L2 Construction 层的输入配置"""
     id: str
     name: str                          # 数据源名称
     source_type: DataSourceType        # 数据源类型
@@ -1039,9 +1067,9 @@ class DataSourceType(Enum):
 
 @dataclass
 class OntologyMapping:
-    """本体映射配置"""
+    """本体映射配置 — 定义数据源字段到本体 EntityType 属性的映射规则"""
     source_entity_type: str           # 源数据类型
-    target_ontology_class: str        # 目标本体类
+    target_ontology_class: str        # 目标本体类 (对应 L1 Design 的 EntityType)
     field_mappings: List[FieldMapping]  # 字段映射
     transformation_rules: List[str]    # 转换规则
     filter_conditions: List[str]      # 过滤条件
@@ -1050,132 +1078,55 @@ class OntologyMapping:
 @dataclass
 class FieldMapping:
     source_field: str                 # 源字段
-    target_field: str                 # 目标字段
+    target_field: str                 # 目标字段 (对应 L1 Design 的 Property)
     transform_type: TransformType     # 转换类型
     transform_params: Dict[str, Any]  # 转换参数
-
-### 13.6 本体管理引擎
-
-**核心功能**：将信息采集到本体图谱构建的黑盒过程透明化，提供可视化审计界面。
-
-```
-┌─────────────────────────────────────────────────────────────────────────────┐
-│                         本体管理引擎                                         │
-├─────────────────────────────────────────────────────────────────────────────┤
-│                                                                             │
-│  ┌─────────────────┐    ┌─────────────────┐    ┌─────────────────┐         │
-│  │  Ingestion Audit│    │  Ontology Builder│    │  Version Control│         │
-│  │  • 数据来源     │    │  • 实体提取     │    │  • 版本追踪     │         │
-│  │  • 处理过程     │    │  • 关系识别     │    │  • 变更对比     │         │
-│  │  • 转换规则     │    │  • 属性映射     │    │  • 回滚机制     │         │
-│  └────────┬────────┘    └────────┬────────┘    └────────┬────────┘         │
-│           │                     │                     │                    │
-│           └─────────────────────┼─────────────────────┘                    │
-│                                 ▼                                          │
-│                    ┌────────────────────────┐                              │
-│                    │  Validation Engine    │                              │
-│                    │  • 数据质量检查       │                              │
-│                    │  • 一致性验证         │                              │
-│                    │  • 完整性验证         │                              │
-│                    └──────────┬─────────────┘                              │
-│                               │                                            │
-│                               ▼                                            │
-│                    ┌────────────────────────┐                              │
-│                    │  Audit Dashboard      │                              │
-│                    │  • 实时监控           │                              │
-│                    │  • 历史审计           │                              │
-│                    │  • 异常告警           │                              │
-│                    └────────────────────────┘                              │
-│                                                                             │
-└─────────────────────────────────────────────────────────────────────────────┘
 ```
 
-#### 13.6.1 数据摄入审计流程
+### 13.6 L1 Design + L2 Construction: 分层构建流程
 
-| 阶段 | 描述 | 审计点 |
-|------|------|--------|
-| **数据采集** | 从外部源获取数据 | 数据来源、格式、时间戳 |
-| **预处理** | 数据清洗、标准化 | 清洗规则、处理结果 |
-| **标准化** | 转换为 OntologyDocument | 转换规则、映射关系 |
-| **构建** | 构建本体结构 | 实体提取、关系识别 |
-| **存储** | 写入 Graphiti/Neo4j | 写入状态、时间戳 |
-| **验证** | 数据质量检查 | 验证结果、异常信息 |
+> **旧版描述** (v5.1.0): 单一"本体管理引擎"类（OntologyManagementEngine）——已被分层替代。
 
-#### 13.6.2 本体构建可视化
+根据 ADR-068，构建本体实例不再是单一引擎的工作，而是**L1 Design 定义 Schema + L2 Construction 按 Schema 构建实例**的协作：
 
-**功能**：
-- 实时展示实体提取过程
-- 可视化关系识别算法
-- 属性映射配置界面
-- 构建过程时间线
-- 异常检测与告警
+```
+  L1 Design                                     L2 Construction
+  ┌──────────────────────────┐                  ┌──────────────────────────┐
+  │  定义 EntityType Schema  │──DesignContract──→│  读取 Schema 定义         │
+  │  (类型/属性/关系/约束)    │                  │  按 Schema 构建实体实例    │
+  │                          │                  │                           │
+  │  版本管理                 │                  │  六步构建流水线:           │
+  │  Schema 级验证 (L1)       │                  │  1.数据采集 → 2.预处理    │
+  │                          │                  │  3.标准化  → 4.实体提取    │
+  │                          │←─BuildResult──── │  5.关系识别 → 6.质量验证  │
+  │                          │     Contract     │                           │
+  └──────────────────────────┘                  └───────────┬───────────────┘
+                                                           │
+                                                           ▼
+                                              ┌──────────────────────────┐
+                                              │  Graphiti / Neo4j 写入    │
+                                              │  + 版本快照创建            │
+                                              └──────────────────────────┘
+```
 
-#### 13.6.3 技术实现
+**六步构建流水线**（从 `ARCHITECTURE_FULL_CHAIN.md` Phase 2 提取）：
+
+| 步骤 | 名称 | 操作 | 审计点 | 所属层 |
+|------|------|------|--------|--------|
+| 1 | 实体标准化 | 去重、同义词合并、链接已有实体 | 标准化规则、命中率 | L2 |
+| 2 | 关系验证 | 验证关系两端实体存在、类型兼容 | 验证失败数、类型不匹配 | L2 |
+| 3 | 一致性检查 | 检测冲突、冗余、孤立节点 | 冲突数、冗余数 | +AI Reasoning |
+| 4 | 人工审核 | 用户确认/修正/拒绝 | 通过率、驳回原因 | L3 Application UI |
+| 5 | 写入 Graphiti | 创建节点+关系+事务时间戳 | 写入成功数、耗时 | L2 |
+| 6 | 版本快照 | 创建本体版本记录 | 版本号、变更摘要 | L1 Design |
+
+### 13.7 数据接入适配器
 
 ```python
-# services/ontology_management_engine.py
-
-class OntologyManagementEngine:
-    """本体管理引擎"""
-    
-    def __init__(self, ingestion_audit, ontology_builder, version_control, validation_engine):
-        self.ingestion_audit = ingestion_audit
-        self.ontology_builder = ontology_builder
-        self.version_control = version_control
-        self.validation_engine = validation_engine
-    
-    def process_data(self, data_source, data):
-        """处理数据并构建本体"""
-        # 1. 数据摄入审计
-        audit_id = self.ingestion_audit.start_audit(data_source, data)
-        
-        try:
-            # 2. 数据预处理
-            processed_data = self.ingestion_audit.preprocess(data)
-            
-            # 3. 标准化为 OntologyDocument
-            ontology_doc = self.ingestion_audit.standardize(processed_data)
-            
-            # 4. 构建本体
-            build_result = self.ontology_builder.build(ontology_doc)
-            
-            # 5. 验证
-            validation_result = self.validation_engine.validate(build_result)
-            
-            # 6. 版本控制
-            version_id = self.version_control.create_version(build_result)
-            
-            # 7. 完成审计
-            self.ingestion_audit.complete_audit(audit_id, {
-                'processed_data': processed_data,
-                'ontology_doc': ontology_doc,
-                'build_result': build_result,
-                'validation_result': validation_result,
-                'version_id': version_id
-            })
-            
-            return {
-                'success': True,
-                'version_id': version_id,
-                'audit_id': audit_id
-            }
-            
-        except Exception as e:
-            self.ingestion_audit.fail_audit(audit_id, str(e))
-            return {
-                'success': False,
-                'error': str(e),
-                'audit_id': audit_id
-            }
-```
-
-### 13.7 数据接入处理器
-
-```python
-# services/data_ingestion.py
+# construction/ingestion/services/data_ingestion.py
 
 class DataIngestionService:
-    """数据接入服务"""
+    """数据接入服务 — L2 Construction 层入口"""
 
     def __init__(
         self,
@@ -1188,48 +1139,35 @@ class DataIngestionService:
         self.graphiti_client = graphiti_client
 
     async def ingest(self, data_source: DataSource, data: Any) -> IngestionResult:
-        # 1. 数据解析 - 适配器统一化
+        # 1. 通过 L1 DesignContract 读取目标 EntityType Schema
+        schema = await self.design_contract.get_entity_type_schema_json(
+            data_source.ontology_mapping.target_ontology_class
+        )
+        # 2. 数据解析 - 适配器统一化
         adapter = self.source_adapters[data_source.source_type]
         parsed_data = await adapter.parse(data)
-
-        # 2. 本体映射 - 转换为图谱实体
-        entities = await self.ontology_mapper.map(
-            parsed_data,
-            data_source.ontology_mapping
-        )
-
-        # 3. 图谱写入
+        # 3. 本体映射 - 按 Schema 验证并转换为图谱实体
+        entities = await self.ontology_mapper.map(parsed_data, schema)
+        # 4. 图谱写入
         for entity in entities:
             await self.graphiti_client.add_entity(entity)
-
-        # 4. 审计记录
-        await self.audit_log.record_ingestion(
-            source=data_source.id,
-            record_count=len(entities)
-        )
-
+        # 5. 通过 BuildResultContract 暴露构建产物
         return IngestionResult(success=True, count=len(entities))
 
 
 class DataSourceAdapter(ABC):
     """数据源适配器基类"""
-
     @abstractmethod
     async def parse(self, raw_data: Any) -> ParsedData:
-        """解析原始数据为统一格式"""
         pass
-
     @abstractmethod
     async def test_connection(self) -> bool:
-        """测试数据源连接"""
         pass
 
 
 class StructuredDataAdapter(DataSourceAdapter):
     """结构化数据适配器"""
-
     async def parse(self, raw_data: Any) -> ParsedData:
-        # 保持原始结构
         return ParsedData(
             data_type=DataType.STRUCTURED,
             records=raw_data if isinstance(raw_data, list) else [raw_data],
@@ -1239,47 +1177,25 @@ class StructuredDataAdapter(DataSourceAdapter):
 
 class PDFDocumentAdapter(DataSourceAdapter):
     """PDF 文档适配器"""
-
     def __init__(self, ocr_service: OCRService, llm_extractor: LLMExtractor):
         self.ocr_service = ocr_service
         self.llm_extractor = llm_extractor
-
     async def parse(self, raw_data: bytes) -> ParsedData:
-        # 1. OCR 提取文本
         text = await self.ocr_service.extract(raw_data)
-
-        # 2. LLM 抽取结构化信息
-        structured = await self.llm_extractor.extract(
-            text,
-            extraction_schema=self.get_schema()
-        )
-
-        return ParsedData(
-            data_type=DataType.DOCUMENT,
-            raw_text=text,
-            entities=structured,
-            metadata={'source': 'pdf', 'page_count': self.get_page_count(raw_data)}
-        )
+        structured = await self.llm_extractor.extract(text, extraction_schema=self.get_schema())
+        return ParsedData(data_type=DataType.DOCUMENT, raw_text=text, entities=structured)
 
 
 class KafkaStreamAdapter(DataSourceAdapter):
     """Kafka 流数据适配器"""
-
     def __init__(self, kafka_config: KafkaConfig):
         self.consumer = AIOKafkaConsumer(**kafka_config)
-
     async def parse(self, raw_data: ConsumerRecord) -> ParsedData:
-        return ParsedData(
-            data_type=DataType.STREAM,
-            records=[{
-                'topic': raw_data.topic,
-                'partition': raw_data.partition,
-                'offset': raw_data.offset,
-                'timestamp': raw_data.timestamp,
-                'value': json.loads(raw_data.value)
-            }],
-            metadata={'kafka_topic': raw_data.topic}
-        )
+        return ParsedData(data_type=DataType.STREAM, records=[{
+            'topic': raw_data.topic, 'partition': raw_data.partition,
+            'offset': raw_data.offset, 'timestamp': raw_data.timestamp,
+            'value': json.loads(raw_data.value)
+        }], metadata={'kafka_topic': raw_data.topic})
 ```
 
 ### 13.8 技能自动注册机制

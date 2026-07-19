@@ -4,7 +4,7 @@ import uuid
 from typing import Dict, Any, List, Optional
 
 from odap.infra.config_composer import get_config
-from odap.biz.core.ontology.design.services.qa_ontology_builder import IntentType
+from odap.biz.core.ontology.common.types import IntentType
 from odap.biz.platform.roles.api.schemas import RoleType
 
 logger = logging.getLogger(__name__)

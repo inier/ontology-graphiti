@@ -34,7 +34,7 @@ from enum import Enum
 import uuid
 import logging
 
-from odap.biz.core.ontology.design.services.qa_ontology_builder import IntentType
+from odap.biz.core.ontology.common.types import IntentType
 from odap.biz.platform.roles.api.schemas import RoleType
 
 logger = logging.getLogger(__name__)

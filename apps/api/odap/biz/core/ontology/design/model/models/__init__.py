@@ -8,6 +8,7 @@ from .ontology_document import ActionTypeDefinition, OntologyDocument
 from .property import Property, DataType
 from .relation import Relation, Cardinality, LinkType
 from .constraint import Constraint, ConstraintType
+from .metric import MetricDefinition, MetricBinding, AggregationFunction
 
 __all__ = [
     "PropertyDefinition",
@@ -23,4 +24,7 @@ __all__ = [
     "LinkType",
     "Constraint",
     "ConstraintType",
+    "MetricDefinition",
+    "MetricBinding",
+    "AggregationFunction",
 ]

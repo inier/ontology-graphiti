@@ -7,7 +7,7 @@ from odap.biz.platform.workspace.models.workspace import WorkspaceType, Workspac
 from odap.biz.platform.workspace.models.isolation import IsolationLevel
 from odap.biz.platform.workspace.models.import_export import ImportExportStatus
 from odap.biz.platform.workspace.models.scenario import ScenarioStatus
-from odap.biz.core.ontology.design.models.audit import ProcessingStatus
+from odap.biz.core.ontology.common.types import ProcessingStatus
 
 
 # 状态码常量

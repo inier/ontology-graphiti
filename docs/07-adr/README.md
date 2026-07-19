@@ -60,7 +60,11 @@
 | ADR-065 | 模块化单体 → 微服务拆分剧本 | 提议 | P3 | [ADR-065](ADR-065_microservice_extraction_playbook.md) |
 | ADR-066 | Monorepo 重构（uv workspace + pnpm workspace） | 已接受 | P1 | [ADR-066](ADR-066-monorepo-restructure.md) |
 | ADR-067 | `biz/shared` 下沉到 `infra/storage/` | 提出 | P2 | [ADR-067](ADR-067_biz_shared_relocation.md) |
-| ADR-068 | 本体模块四层分层架构（Design→Construction→Reasoning→Application） | 提议 | P0 | [ADR-068](ADR-068_本体模块四层分层架构.md) |
+| ADR-068 | 本体模块 3+1 分层架构（Design→Construction→+Reasoning→Application） | 已接受 | P0 | [ADR-068](ADR-068_本体模块四层分层架构.md) |
+| ADR-069 | 统一 AI 助手与智能问答服务 | 提议 | P0 | [ADR-069](ADR-069_统一AI助手与智能问答服务.md) |
+| ADR-070 | 基于 OpenHarness 全能力的 AI 助手架构 | 提议 | P0 | [ADR-070](ADR-070_基于OpenHarness全能力的AI助手架构.md) |
+| ADR-071 | BuildResultContract — L2 Construction 构建产物契约 | 提议 | P1 | [ADR-071](ADR-071_BuildResultContract_构建产物契约.md) |
+| ADR-072 | ReasoningServiceContract — +AI Reasoning 推理服务契约 | 提议 | P1 | [ADR-072](ADR-072_ReasoningServiceContract_推理服务契约.md) |
 
 ### 平台架构（P0/P1 混合）
 
@@ -74,10 +78,11 @@
 | ADR-023 | 多工作空间隔离架构 | 已接受 | P0 | [ADR-023](ADR-023_多工作空间隔离架构.md) |
 | ADR-024 | 本体驱动分析核心架构 | 已接受 | P0 | [ADR-024](ADR-024_本体驱动分析核心架构.md) |
 | ADR-025 | 基于 OpenHarness 实现多智能体协同 | 已接受 | P0 | [ADR-025](ADR-025_openharness_integration.md) |
-| ADR-038 | 本体管理引擎与用户认知引擎架构 | 已接受 | P0 | [ADR-038](ADR-038_本体管理引擎与用户认知引擎架构.md) |
+| ADR-038 | 本体管理引擎与用户认知引擎架构 | 已废弃 | P0 | [ADR-038](ADR-038_本体管理引擎与用户认知引擎架构.md) — 被 [ADR-068](ADR-068_本体模块四层分层架构.md) 取代 |
 | ADR-046 | Phase 4 采用模块化单体部署架构 | 已接受 | P0 | [ADR-046](ADR-046_modular_monolith_deployment.md) |
-| ADR-048 | 本体管理引擎架构决策 | 已接受 | P0 | [ADR-048](ADR-048_本体管理引擎架构决策.md) |
-| ADR-049 | 用户认知引擎架构决策 | 已接受 | P0 | [ADR-049](ADR-049_用户认知引擎架构决策.md) |
+| ADR-048 | 本体管理引擎架构决策 | 已废弃 | P0 | [ADR-048](ADR-048_本体管理引擎架构决策.md) — 被 [ADR-068](ADR-068_本体模块四层分层架构.md) 取代 |
+| ADR-049 | 用户认知引擎架构决策 | 已废弃 | P0 | [ADR-049](ADR-049_用户认知引擎架构决策.md) — 被 [ADR-068](ADR-068_本体模块四层分层架构.md) 取代 |
+| ADR-054 | 规格与架构文档瘦身 | 已接受 | P2 | [ADR-054](ADR-054_规格与架构文档瘦身.md) |
 | ADR-058 | RBAC 三级菜单管理架构 | 已接受 | P0 | [ADR-058](ADR-058-rbac-menu-management.md) |
 | ADR-059 | Dev/Prod 开发生产环境隔离架构 | 已接受 | P0 | [ADR-059](ADR-059-dev-prod-environment-isolation.md) |
 
@@ -156,9 +161,9 @@
 | ADR-045 | 前端可视化选型 — G6 + Leaflet | 已接受 | [ADR-045](ADR-045_frontend_visualization_g6_leaflet.md) |
 | ADR-046 | Phase 4 采用模块化单体部署架构 | 已接受 | [ADR-046](ADR-046_modular_monolith_deployment.md) |
 | ADR-047 | 工具注册表升级 P0 + 分步实现 | 已接受 | [ADR-047](ADR-047_tool_registry_p0_phased_implementation.md) |
-| ADR-048 | 本体管理引擎架构决策 | 已接受 | [ADR-048](ADR-048_本体管理引擎架构决策.md) |
-| ADR-049 | 用户认知引擎架构决策 | 已接受 | [ADR-049](ADR-049_用户认知引擎架构决策.md) |
-| ADR-049b | 规格与架构文档瘦身（4MB→1.4MB 模板化） | 已接受 | [ADR-049b](ADR-049_规格与架构文档瘦身.md) |
+| ADR-048 | 本体管理引擎架构决策 | 已废弃 | [ADR-048](ADR-048_本体管理引擎架构决策.md) — 被 ADR-068 取代 |
+| ADR-049 | 用户认知引擎架构决策 | 已废弃 | [ADR-049](ADR-049_用户认知引擎架构决策.md) — 被 ADR-068 取代 |
+| ADR-054 | 规格与架构文档瘦身（4MB→1.4MB 模板化） | 已接受 | [ADR-054](ADR-054_规格与架构文档瘦身.md) |
 | ADR-050 | OADP业务语义体系架构 | 已接受 | [ADR-050](ADR-050_OADP业务语义体系架构.md) |
 | ADR-051 | 闭环反馈机制设计 | 已接受 | [ADR-051](ADR-051_闭环反馈机制设计.md) |
 | ADR-052 | 智能问答WebUI开源项目选型 | 提议 | [ADR-052](ADR-052_webui_opensource_selection.md) |
@@ -177,7 +182,11 @@
 | ADR-064 | 可观测性基线（Trace/Metrics/Log 三面） | 提议 | [ADR-064](ADR-064_observability_baseline.md) |
 | ADR-065 | 模块化单体 → 微服务拆分剧本 | 提议 | [ADR-065](ADR-065_microservice_extraction_playbook.md) |
 | ADR-066 | Monorepo 重构（uv workspace + pnpm workspace） | 已接受 | [ADR-066](ADR-066-monorepo-restructure.md) |
-| ADR-068 | 本体模块四层分层架构（Design→Construction→Reasoning→Application） | 提议 | [ADR-068](ADR-068_本体模块四层分层架构.md) |
+| ADR-068 | 本体模块 3+1 分层架构（Design→Construction→+Reasoning→Application） | 已接受 | [ADR-068](ADR-068_本体模块四层分层架构.md) |
+| ADR-069 | 统一 AI 助手与智能问答服务 | 提议 | [ADR-069](ADR-069_统一AI助手与智能问答服务.md) |
+| ADR-070 | 基于 OpenHarness 全能力的 AI 助手架构 | 提议 | [ADR-070](ADR-070_基于OpenHarness全能力的AI助手架构.md) |
+| ADR-071 | BuildResultContract — L2 Construction 构建产物契约 | 提议 | [ADR-071](ADR-071_BuildResultContract_构建产物契约.md) |
+| ADR-072 | ReasoningServiceContract — +AI Reasoning 推理服务契约 | 提议 | [ADR-072](ADR-072_ReasoningServiceContract_推理服务契约.md) |
 
 ---
 
@@ -215,10 +224,10 @@
 - ADR-039 ~ ADR-044：Phase 4 问答/API网关/工作空间/审计/Agent路由/测试策略决策
 - ADR-045 ~ ADR-046：Phase 4 关键决策拍板（G6+Leaflet 可视化选型、模块化单体部署）
 - ADR-047：Phase 4 优先级调整（工具注册表 P0 分步实现）
-- ADR-048 ~ ADR-049：Phase 4 引擎架构决策（本体管理引擎、用户认知引擎）
+- ADR-048 ~ ADR-049：Phase 4 引擎架构决策（本体管理引擎、用户认知引擎）— **2026-07-18 已废弃，被 ADR-068 取代**
 - ADR-050 ~ ADR-051：Phase 4-5 语义体系+闭环反馈（OADP业务语义、闭环反馈机制）
 - ADR-052 ~ ADR-053：Phase 5 WebUI与Skill选型（智能问答WebUI选型、Skill可视化管理选型）
-- ADR-054：Phase 1~5 全链路深入设计（Python/TypeScript/DB完整实现）
+- ADR-054：Phase 4 规格与架构文档瘦身（原编号 ADR-049b，2026-07-18 重编号解决冲突）
 - ADR-055 ~ ADR-056：Phase 5 统一查询服务与语义层修正（QueryService、类型校验统一）
 - ADR-057：Phase 5 领域本体语义层（四大名著中英文映射、Disambiguator 扩展）
 - ADR-058：Phase 5 RBAC 三级菜单管理（目录/菜单/操作三级 + 角色多对多关联）
@@ -231,5 +240,9 @@
 - ADR-063：Phase 6 租户/工作空间双级感知与资源隔离（软多租户）
 - ADR-064：Phase 6 可观测性基线（OTel Trace + Prometheus Metrics + slog JSON Log）
 - ADR-065：Phase 6 模块化单体 → 微服务拆分剧本（按业务域垂直切）
-- ADR-068：Phase 6 本体模块四层分层架构（Design→Construction→Reasoning→Application）
-- 编号冲突处理：若同日提审新 ADR 时编号已被占用，采用 `<number>b/c/d...` 后缀登记，**永远不重命名已被外部链接引用的 ADR 文件**
+- ADR-068：Phase 6 本体模块 3+1 分层架构（Design→Construction→+Reasoning→Application，3 领域层 + 1 技术能力层）
+- ADR-069：Phase 6 统一 AI 助手与智能问答服务（原编号 ADR-050-统一AI，2026-07-18 重编号解决冲突）
+- ADR-070：Phase 6 基于 OpenHarness 全能力的 AI 助手架构
+- ADR-071：Phase 6 L2 Construction BuildResultContract 构建产物契约（归属于 ADR-068 子决策）
+- ADR-072：Phase 6 +AI ReasoningServiceContract 推理服务契约（归属于 ADR-068 子决策）
+- 编号冲突处理：若同日提审新 ADR 时编号已被占用，**禁止采用后缀 `b/c/d`**，必须使用下一个可用编号。已存在冲突的后缀编号（ADR-049b, 061b）在新批次的 ADR 中已修复。**永远不重命名已被外部链接引用的 ADR 文件**，但尚未被外部引用的冲突编号必须在发现时立即修复。

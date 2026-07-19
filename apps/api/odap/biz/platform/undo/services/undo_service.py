@@ -266,7 +266,7 @@ class UndoService:
 
             elif resource_type == "ontology_version":
                 # Restore ontology to the before_state version
-                from odap.biz.core.ontology.design.services.pipeline_service import get_pipeline_service
+                from odap.biz.core.ontology.construction.pipeline.services import get_pipeline_service
                 pipeline = get_pipeline_service()
                 before = state  # contains ontology_id and version_id
                 ontology_id = before.get("ontology_id")

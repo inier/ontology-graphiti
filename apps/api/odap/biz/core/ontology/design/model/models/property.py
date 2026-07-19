@@ -3,6 +3,7 @@ from __future__ import annotations
 from enum import Enum
 from typing import Any, Dict, List, Optional
 from pydantic import BaseModel, Field
+from dataclasses import field
 import uuid
 
 
@@ -21,6 +22,12 @@ class Property(BaseModel):
     name: str
     display_name: Optional[str] = None
     data_type: DataType = DataType.STRING
+    semantic_type: Optional[str] = None
+    tags: list = field(default_factory=list)
+    unit: str = ""
+    domain: str = ""
+    formula: Optional[str] = None
+    metric_ids: List[str] = Field(default_factory=list, description="引用此属性的指标ID列表")
     required: bool = False
     default_value: Optional[Any] = None
     classification_level: str = "U"

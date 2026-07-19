@@ -170,3 +170,53 @@ class ProvenanceTracker:
         ).fetchall()
         conn.close()
         return [dict(r) for r in rows]
+
+    def get_by_document_id(self, document_id: str) -> List[Dict[str, Any]]:
+        """按文档ID查询所有关联的提取记录。
+
+        反向查询: 从提取溯源表查找所有与指定文档关联的实体记录。
+
+        Args:
+            document_id: 来源文档ID
+
+        Returns:
+            List[dict]: 匹配的提取记录列表，按时间倒序排列
+        """
+        conn = sqlite3.connect(self.db_path)
+        conn.row_factory = sqlite3.Row
+        try:
+            rows = conn.execute(
+                "SELECT * FROM extraction_provenance WHERE source_doc_id = ? ORDER BY timestamp DESC",
+                (document_id,),
+            ).fetchall()
+            return [dict(r) for r in rows]
+        except Exception as e:
+            logger.warning("get_by_document_id failed for %s: %s", document_id, e)
+            return []
+        finally:
+            conn.close()
+
+    def get_by_pipeline_run(self, pipeline_run_id: str) -> List[Dict[str, Any]]:
+        """按pipeline_run_id查询所有关联记录。
+
+        反向查询: 从提取溯源表查找所有与指定构建批次关联的实体记录。
+
+        Args:
+            pipeline_run_id: 构建流水线运行ID
+
+        Returns:
+            List[dict]: 匹配的提取记录列表，按时间倒序排列
+        """
+        conn = sqlite3.connect(self.db_path)
+        conn.row_factory = sqlite3.Row
+        try:
+            rows = conn.execute(
+                "SELECT * FROM extraction_provenance WHERE session_id = ? ORDER BY timestamp DESC",
+                (pipeline_run_id,),
+            ).fetchall()
+            return [dict(r) for r in rows]
+        except Exception as e:
+            logger.warning("get_by_pipeline_run failed for %s: %s", pipeline_run_id, e)
+            return []
+        finally:
+            conn.close()

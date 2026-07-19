@@ -1,7 +1,11 @@
-# 本体模块架构审计 — 四层分层模型对齐
+# 本体模块架构审计 — 3+1 分层模型决策
 
-> **日期**: 2026-07-18 | **审计范围**: `apps/api/odap/biz/core/ontology/` (20 子模块, 300+ .py) + 关联模块 (`core/assistant/`, `core/chat/`, `core/cognition/`)
-> **目标**: 将本体模块对齐到「本体设计 → 本体构建 → 本体推理服务 → 本体应用(AI助手)」四层模型
+> **日期**: 2026-07-18 | **状态**: 已完成 — 最终架构已采纳
+> **审计范围**: `apps/api/odap/biz/core/ontology/` (20 子模块, 300+ .py) + 关联模块 (`core/assistant/`, `core/chat/`, `core/cognition/`)
+> **最终决策**: ADR-068 — 3 领域层 (Design / Construction / Application) + 1 技术能力层 (+Reasoning)
+> **论证方式**: 三视角多智能体协同审查（领域DDD专家 + 代码审计员 + 文档对齐员）
+> 
+> **关键结论**: Design↔Construction 分离通过 DDD 五项测试；AI 推理能力作为技术层独立管理（非领域层）；cognition 模块合并入 L3 Application；ADR-038/048/049 标记废弃；3 组 ADR 编号冲突已修复
 
 ---
 

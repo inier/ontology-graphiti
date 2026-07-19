@@ -42,8 +42,8 @@ from odap.biz.core.ontology.design.schema.document import (
     OntologyDocument, OntologyDocumentSchema, OntologyValidationError,
     DocType, SourceType
 )
-from odap.biz.core.ontology.design.services.pipeline_service import PipelineService as OntologyHotWritePipeline
-from odap.biz.core.ontology.design.services.version_service import OntologyVersionManager
+from odap.biz.core.ontology.construction.pipeline.services import PipelineService as OntologyHotWritePipeline
+from odap.biz.core.ontology import OntologyVersionManager
 from odap.biz.core.ontology.design.ingestion_split import NewsIngester, FreeNewsIngester, ManualInputHandler, ConflictEventGenerator, OntologyDocumentIO
 from odap.infra.graph.graph_service import GraphManager
 

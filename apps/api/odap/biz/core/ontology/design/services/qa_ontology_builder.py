@@ -31,17 +31,8 @@ class QABuildStatus(str, Enum):
     FAILED = "failed"
 
 
-class IntentType(str, Enum):
-    QUERY = "query"
-    UPDATE = "update"
-    CREATE = "create"
-    ANALYZE = "analyze"
-    UNKNOWN = "unknown"
-    ACTION = "action"
-    EXPLAIN = "explain"
-    RECOMMEND = "recommend"
-    NAVIGATE = "navigate"
-    COMPARE = "compare"
+# IntentType 已迁移到 ontology/common/types.py（消除与 cognition/ 的重复定义）
+from odap.biz.core.ontology.common.types import IntentType  # noqa: E402
 
 
 @dataclass

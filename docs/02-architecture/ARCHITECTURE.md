@@ -1,7 +1,7 @@
 # 本体驱动分析决策平台 (ODAP) - 架构设计文档
 
-> **版本**: 5.1.0 | **日期**: 2026-05-23 | **状态**: 正式
-> **版本说明**: v5.1.0 = 语义层架构版，新增统一查询服务 + Query First 原则
+> **版本**: 6.0.0 | **日期**: 2026-07-18 | **状态**: 正式
+> **版本说明**: v6.0.0 = 本体模块 3+1 分层架构版（Design→Construction→+Reasoning→Application），基于 ADR-068
 >
 > **定位**: ⭐ **唯一权威架构文档入口** - 开发实现的权威参考
 >
@@ -17,10 +17,10 @@
 |------|------|----------|------|
 | **[ARCHITECTURE_INFRA.md](ARCHITECTURE_INFRA.md)** | L1 基础设施层 | OpenHarness + Graphiti + OPA + 审计日志 | 778 |
 | **[ARCHITECTURE_TOOLS.md](ARCHITECTURE_TOOLS.md)** | L2 领域工具层 | Python Skills 领域工具 | 159 |
-| **[ARCHITECTURE_BIZ.md](ARCHITECTURE_BIZ.md)** | L3-L4 业务层 | Agent协同 + OODA + 数据架构 + 本体管理 + 角色权限 + 配置 | 1524 |
+| **[ARCHITECTURE_BIZ.md](ARCHITECTURE_BIZ.md)** | L3-L4 业务层 | Agent协同 + OADP + 数据架构 + 本体管理(3+1分层) + 角色权限 + 配置 | 1524 |
 | **[ARCHITECTURE_WEB.md](ARCHITECTURE_WEB.md)** | L5-L6 接口层 | 前端界面 + 管理后台 + API端点 | 1048 |
 | **[ARCHITECTURE_EVOLVE.md](ARCHITECTURE_EVOLVE.md)** | 演进与决策 | 技术选型 + ADR + 需求追溯 + 演进路线图 | 772 |
-| **本文档** | 入口索引 | 愿景与目标 + 核心架构总览 | 约620 |
+| **本文档** | 入口索引 | 愿景与目标 + 核心架构总览 + 本体模块分层 | 约700 |
 
 **子文档链接**:
 
@@ -586,6 +586,48 @@ class QueryServiceWriteGuard:
                     │ (用户可见响应)   │
                     └─────────────────┘
 ```
+
+### 2.5 本体模块内部 3+1 分层架构
+
+> **决策依据**: ADR-068 (2026-07-18)。旧的双引擎模型（ADR-038/048/049，本体管理引擎 + 用户认知引擎）已被分层架构取代。
+
+本体层不是单一模块，而是按生命周期组织的 **3+1 分层子系统**：
+
+```
+┌──────────────────────────────────────────────────────────────────┐
+│  L1  本体设计 (Design)         —  odap/biz/core/ontology/design/  │
+│  类型定义 / Schema建模 / 版本管理 / 约束 / 分支 / 冲突解决       │
+│  对外: DesignContract (只读 Frozen Views)                        │
+├──────────────────────────────────────────────────────────────────┤
+│  L2  本体构建 (Construction)   —  odap/biz/core/ontology/const..  │
+│  数据摄入 / 信息抽取 / 构建流水线 / 质量验证 / 分片              │
+│  对外: BuildResultContract                                       │
+├──────────────────────────────────────────────────────────────────┤
+│  +AI 推理能力层 (Reasoning)    —  odap/biz/core/ontology/reason.. │
+│  类型推断 / 约束建议 / 一致性校验                                │
+│  ★ 技术能力层（非领域层），对上中下三层注入 AI 增强能力           │
+│  对外: ReasoningServiceContract                                  │
+├──────────────────────────────────────────────────────────────────┤
+│  L3  本体应用 (Application)    —  odap/biz/core/ontology/app...   │
+│  统一AI助手(三合一) / 意图识别 / 知识导航 / 解释引擎             │
+│  OMS元数据 / 运行时引擎 / 服务化 / NL查询 / 团队智能体            │
+└──────────────────────────────────────────────────────────────────┘
+```
+
+**关键设计决策**:
+- 四层通过 **Contract (Frozen Dataclass Views)** 通信，写入走独立 Bridge 路径
+- `reasoning/` 是**技术能力层**而非领域层——不定义新领域概念，只操作已有对象
+- 原 `cognition/` 模块的推理代码全部迁入 L3 Application
+- 原三套 AI 助手（ontology/assistant + core/assistant + core/chat）合并为 L3 的统一 Chat 入口
+
+**与 OADP 各阶段的对应关系**:
+
+| OADP 阶段 | 参与的本体层 | 说明 |
+|-----------|------------|------|
+| Observe 感知 | L2 Construction | 数据摄入与预处理 |
+| Analyze 理解 | L2 Construction + +AI Reasoning + L1 Design | Schema 参考 + 实例构建 + AI 推理分析 |
+| Decide 决策 | L3 Application (runtime) + +AI Reasoning | 运行时引擎 + 一致性校验辅助决策 |
+| Perform 执行 | L3 Application (servitization, feedback) | 动作执行与状态回写 |
 
 ---
 

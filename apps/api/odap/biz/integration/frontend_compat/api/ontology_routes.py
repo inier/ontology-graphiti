@@ -281,7 +281,7 @@ async def cancel_graph_task(task_id: str,
 async def get_graph_history(limit: int = Query(20, ge=1, le=100),
     user=Depends(get_current_user)):
     try:
-        from odap.biz.core.ontology.design.services.ingest_service import get_ingest_service
+        from odap.biz.core.ontology.construction.pipeline.services import get_ingest_service
         ingest_service = get_ingest_service()
         versions = ingest_service.list_all_versions()
         history = []
@@ -311,7 +311,7 @@ async def get_graph_history(limit: int = Query(20, ge=1, le=100),
 async def get_graph_detail(graph_id: str,
     user=Depends(get_current_user)):
     try:
-        from odap.biz.core.ontology.design.services.ingest_service import get_ingest_service
+        from odap.biz.core.ontology.construction.pipeline.services import get_ingest_service
         ingest_service = get_ingest_service()
         docs = ingest_service.get_version_documents(graph_id)
         nodes = []

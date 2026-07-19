@@ -33,7 +33,7 @@ isolation_service = IsolationService()
 scenario_service = ScenarioService()
 sample_data_service = SampleDataService()
 import_export_manager = ImportExportManager()
-from odap.biz.core.ontology.design.services.version_service import OntologyVersionManager
+from odap.biz.core.ontology import OntologyVersionManager
 version_manager = OntologyVersionManager()
 
 
@@ -880,7 +880,7 @@ async def scan_data_conflicts(workspace_id: str,
     """扫描数据冲突（同名实体不同ID）"""
     _uid = extract_user_id(user)
     try:
-        from odap.biz.core.ontology.design.services.ingest_service import IngestService
+        from odap.biz.core.ontology.construction.pipeline.services import IngestService
         svc = IngestService()
         result = svc.scan_data_conflicts()
         return result
@@ -897,7 +897,7 @@ async def repair_data_conflicts(workspace_id: str, dry_run: bool = True,
     """修复数据冲突（合并同名实体为确定性ID）"""
     _uid = extract_user_id(user)
     try:
-        from odap.biz.core.ontology.design.services.ingest_service import IngestService
+        from odap.biz.core.ontology.construction.pipeline.services import IngestService
         svc = IngestService()
         result = svc.repair_data_conflicts(dry_run=dry_run)
         audit("data_conflicts_repair", _uid, "success", workspace_id=workspace_id)

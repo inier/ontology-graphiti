@@ -50,7 +50,7 @@ class ScenarioStore:
         self.storage_dir = storage_dir
         os.makedirs(self.storage_dir, exist_ok=True)
         self._graph_manager = graph_manager
-        from odap.biz.core.ontology.design.services.ingest_service import IngestService
+        from odap.biz.core.ontology.construction.pipeline.services import IngestService
         self._db = IngestService().storage
         self._migrate_from_json()
 
@@ -140,7 +140,7 @@ class ScenarioStore:
     def _ensure_initial_version(self, ontology_id: str, scenario_name: str = "") -> None:
         """确保本体有初始版本"""
         try:
-            from odap.biz.core.ontology.design.services.version_service import OntologyVersionManager
+            from odap.biz.core.ontology import OntologyVersionManager
             vm = OntologyVersionManager.get_instance()
             vm.ensure_initial_version(ontology_id, scenario_name)
         except Exception as e:

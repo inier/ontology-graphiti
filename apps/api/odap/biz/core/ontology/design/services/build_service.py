@@ -313,7 +313,7 @@ class OntologyBuilderService:
         actual_ontology_id = ontology_id or scenario_id
         
         try:
-            from odap.biz.core.ontology.design.services.version_service import OntologyVersionManager
+            from odap.biz.core.ontology import OntologyVersionManager
 
             if self._version_manager is None:
                 self._version_manager = OntologyVersionManager()

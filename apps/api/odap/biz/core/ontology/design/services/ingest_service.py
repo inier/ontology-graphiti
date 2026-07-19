@@ -1175,11 +1175,10 @@ class IngestService:
 
 from ..schema.document import OntologyDocumentSchema
 
-_ingest_service_instance = None
-
-def get_ingest_service() -> IngestService:
-    """获取摄入服务实例（单例）"""
-    global _ingest_service_instance
-    if _ingest_service_instance is None:
-        _ingest_service_instance = IngestService()
-    return _ingest_service_instance
+# 向后兼容 — 代理到 construction/ingestion/
+def get_ingest_service():
+    """获取摄入服务实例（单例）— 向后兼容桥接"""
+    from odap.biz.core.ontology.construction.ingestion.services.unified_ingest_service import (
+        get_unified_ingestion_service,
+    )
+    return get_unified_ingestion_service()

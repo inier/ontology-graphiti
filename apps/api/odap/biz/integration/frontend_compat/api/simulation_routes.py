@@ -31,7 +31,7 @@ async def get_news_ingest_progress(task_id: str,
     - completed/failed: 完成/失败
     """
     try:
-        from odap.biz.core.ontology.design.services.qa_ontology_builder import get_qa_builder
+        from odap.biz.core.ontology.construction.pipeline.services import get_qa_builder
 
         builder = get_qa_builder()
         progress = await builder.get_progress(task_id)

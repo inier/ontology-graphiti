@@ -55,7 +55,7 @@ class PerceptionHub:
     @property
     def oms(self):
         if self._oms is None:
-            from odap.biz.core.ontology.application.oms.storage.sqlite_oms_storage import SQLiteOMSStorage
+            from odap.biz.core.ontology import OMSStorage
             self._oms = SQLiteOMSStorage()
         return self._oms
 

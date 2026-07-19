@@ -30,7 +30,7 @@ class OMSSyncAdapter:
     @property
     def oms_storage(self):
         if self._oms_storage is None:
-            from odap.biz.core.ontology.application.oms.storage.sqlite_oms_storage import SQLiteOMSStorage
+            from odap.biz.core.ontology import OMSStorage
             self._oms_storage = SQLiteOMSStorage()
         return self._oms_storage
 

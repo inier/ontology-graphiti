@@ -55,7 +55,7 @@ class SampleDataService:
     def _create_sample_ontology(self, workspace_id: str) -> Dict[str, Any]:
         """创建示例本体（含3个实体类型和10个实例）"""
         try:
-            from odap.biz.core.ontology.application.oms.storage.sqlite_oms_storage import SQLiteOMSStorage
+            from odap.biz.core.ontology import OMSStorage
             storage = SQLiteOMSStorage()
         except ImportError:
             logger.warning("OMS存储不可用，使用对象服务替代")

@@ -18,6 +18,7 @@ from .constants import (
     ISO_FORMAT_WITH_TZ,
     DB_DATE_FORMAT,
 )
+from .semantic_types import SemanticType, DomainCategory
 
 __all__ = [
     "ProcessingStatus",
@@ -36,4 +37,6 @@ __all__ = [
     "ISO_FORMAT",
     "ISO_FORMAT_WITH_TZ",
     "DB_DATE_FORMAT",
+    "SemanticType",
+    "DomainCategory",
 ]

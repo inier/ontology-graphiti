@@ -5,15 +5,8 @@ from typing import Any, Dict, List, Optional
 
 from pydantic import BaseModel, Field
 
-
-class IntentType(str, Enum):
-    QUERY = "query"
-    ACTION = "action"
-    EXPLAIN = "explain"
-    RECOMMEND = "recommend"
-    NAVIGATE = "navigate"
-    COMPARE = "compare"
-    ANALYZE = "analyze"
+# IntentType 统一从 ontology/common/ 导入（源定义，消除重复）
+from odap.biz.core.ontology.common.types import IntentType  # noqa: E402
 
 
 class IntentResult(BaseModel):

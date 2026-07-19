@@ -203,3 +203,8 @@ class IngestService:
             logger.warning("MinIO download failed: %s", e)
 
         return None
+
+
+# 向后兼容 — 代理到 construction/ingestion/
+# IngestService（单例）保留原类代码不变，仅新增此桥接说明
+# 新代码请使用 odap.biz.core.ontology.construction.ingestion.UnifiedIngestionService

@@ -1,5 +1,6 @@
 from pydantic import BaseModel, Field
 from typing import Dict, List, Any, Optional
+from dataclasses import field
 from enum import Enum
 
 
@@ -55,4 +56,8 @@ class EntityTypeDefinition(BaseModel):
     actions: List[str] = Field(default_factory=list)
     constraints: List[ConstraintDefinition] = Field(default_factory=list)
     classification_level: str = "U"
+    domain: str = ""
+    category: str = ""
+    tags: list = field(default_factory=list)
+    semantic_hints: dict = field(default_factory=dict)
     metadata: Dict[str, Any] = Field(default_factory=dict)

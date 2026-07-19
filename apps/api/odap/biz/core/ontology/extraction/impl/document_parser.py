@@ -53,7 +53,7 @@ class DocumentParser(DocumentParserInterface):
 
     def _parse_pdf(self, file_path: str) -> str:
         try:
-            from odap.biz.core.ontology.design.ingestion.impl.pdf_processor import PDFProcessor
+            from odap.biz.core.ontology.construction.ingestion.services import PDFProcessor
             processor = PDFProcessor()
             result = processor.extract_text(file_path)
             return result if isinstance(result, str) else str(result)
@@ -68,7 +68,7 @@ class DocumentParser(DocumentParserInterface):
 
     def _parse_docx(self, file_path: str) -> str:
         try:
-            from odap.biz.core.ontology.design.ingestion.impl.word_processor import WordProcessor
+            from odap.biz.core.ontology.construction.ingestion.services import WordProcessor
             processor = WordProcessor()
             result = processor.extract_text(file_path)
             return result if isinstance(result, str) else str(result)
@@ -125,7 +125,7 @@ class DocumentParser(DocumentParserInterface):
 
     def _parse_image(self, file_path: str) -> str:
         try:
-            from odap.biz.core.ontology.design.ingestion.impl.ocr_processor import OCRProcessor
+            from odap.biz.core.ontology.construction.ingestion.services import OCRProcessor
             processor = OCRProcessor()
             result = processor.extract_text(file_path)
             return result if isinstance(result, str) else str(result)
