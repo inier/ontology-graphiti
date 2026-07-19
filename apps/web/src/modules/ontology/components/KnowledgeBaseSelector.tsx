@@ -1,7 +1,7 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
 import { useState, useCallback } from 'react';
 import {
-  Card, List, Checkbox, Space, Tag, Spin, Alert, Input, Button, Progress, message,
+  Card, List, Checkbox, Space, Tag, Spin, Alert, Input, Button, Progress, message, Empty,
 } from 'antd';
 import {
   DatabaseOutlined, SearchOutlined, FileTextOutlined, ReloadOutlined,
@@ -137,13 +137,11 @@ export function KnowledgeBaseSelector({ ontologyId, onExtractionComplete }: Know
       </Space>
 
       {!loaded ? (
-        <Card size="small">
-          <div style={{ textAlign: 'center', padding: 20 }}>
-            <Button type="primary" icon={<DatabaseOutlined />} onClick={loadKnowledgeBases} loading={loading}>
-              加载知识库列表
-            </Button>
-          </div>
-        </Card>
+        <Empty description="未加载知识库" image={Empty.PRESENTED_IMAGE_SIMPLE}>
+          <Button type="primary" icon={<DatabaseOutlined />} onClick={loadKnowledgeBases} loading={loading}>
+            加载知识库列表
+          </Button>
+        </Empty>
       ) : (
         <Spin spinning={loading}>
           <Card title="选择知识库" size="small" style={{ maxHeight: 300, overflow: 'auto' }}>
