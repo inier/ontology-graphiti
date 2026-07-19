@@ -5,6 +5,7 @@
 
 from __future__ import annotations
 
+import asyncio
 import logging
 from typing import Any, Dict, List, Optional
 
@@ -358,8 +359,8 @@ class ChannelService:
                 )
                 return {"success": False, "message": "配置解密失败"}
 
-            # TODO: 实现实际的连接测试
-            # 目前返回模拟结果
+            # _try_connect 当前仅做必填字段校验；真实网络连接测试应由
+            # 各 channel adapter 在协议层实现（见 _try_connect 文档）
             success = self._try_connect(config.channel_type, decrypted_config)
             _dur = int((_time.perf_counter() - _t0) * 1000)
 
@@ -439,15 +440,68 @@ class ChannelService:
             )
 
     def _try_connect(self, channel_type: ChannelType, config: Dict[str, Any]) -> bool:
-        """尝试建立连接（占位实现）。"""
-        # TODO: 实现实际的连接测试
-        # 目前简单返回 True
-        return True
+        """执行连接前的配置完整性校验。
+
+        真实网络连接测试应由各 channel adapter 在协议层实现（如 TELEGRAM
+        调用 getMe API 验证 token、EMAIL 通过 SMTP EHLO 验证服务器响应）。
+        当前实现仅复用 _validate_config 做必填字段校验，避免 mock 返回
+        True 误导审计与调用方。
+
+        Args:
+            channel_type: 渠道类型
+            config: 解密后的渠道配置 dict
+
+        Returns:
+            True 如果必填字段完整；False 如果缺失关键字段
+        """
+        try:
+            self._validate_config(channel_type, config)
+            return True
+        except ValueError as e:
+            logger.warning(f"连接测试失败（必填字段缺失）: {e}")
+            return False
 
     def _publish_config_change(self, config: ChannelConfig) -> None:
-        """发布配置变更事件。"""
-        # TODO: 实现事件发布（供 OHMO ChannelManager 订阅）
+        """发布配置变更事件（供 OHMO ChannelManager 订阅）。
+
+        通过 DomainEventBus 广播 'channel:config_changed' 事件类型。
+        订阅者可在该事件类型上注册回调（参考
+        odap.infra.events.DomainEventBus.subscribe）。
+
+        事件发布采用 fire-and-forget 模式：在 event loop 中调度异步 emit，
+        无 event loop 时降级为日志记录，事件发布失败不打断业务流程。
+        """
+        event_data = {
+            "channel_id": config.id,
+            "channel_type": config.channel_type.value,
+            "workspace_id": config.workspace_id,
+            "enabled": config.enabled,
+            "name": config.name,
+        }
+        try:
+            from odap.infra.events import get_event_bus
+            bus = get_event_bus()
+            try:
+                loop = asyncio.get_running_loop()
+                loop.create_task(
+                    bus.emit(
+                        "channel:config_changed",
+                        event_data,
+                        workspace_id=config.workspace_id,
+                    )
+                )
+            except RuntimeError:
+                # No running event loop — fall back to log only
+                logger.info(
+                    f"配置变更事件（无 event loop，跳过总线广播）: "
+                    f"channel={config.channel_type.value}, "
+                    f"workspace={config.workspace_id}, enabled={config.enabled}"
+                )
+                return
+        except Exception as e:
+            logger.warning(f"事件总线加载失败（不打断业务）: {e}")
+            return
         logger.info(
-            f"配置变更事件: channel={config.channel_type.value}, "
+            f"配置变更事件已发布: channel={config.channel_type.value}, "
             f"workspace={config.workspace_id}, enabled={config.enabled}"
         )
