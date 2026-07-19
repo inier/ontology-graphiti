@@ -98,6 +98,7 @@ minio_data/
 
 # Local diagnostic and debugging scratch scripts
 diag_*.py
+debug_*.py
 
 # Local temporary runtime artifacts (JSON bodies, PowerShell snippets, token dumps)
 tmp_*
