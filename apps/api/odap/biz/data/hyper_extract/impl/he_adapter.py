@@ -95,6 +95,118 @@ def _nodes_in_edge_extractor(edge: _ExtractionEdge) -> Tuple[str, str]:
     return (src, tgt)
 
 
+def _clean_json_response(text: str) -> str:
+    text = text.strip()
+    if not text:
+        return text
+    first_brace = text.find("{")
+    last_brace = text.rfind("}")
+    if first_brace != -1 and last_brace != -1 and last_brace >= first_brace:
+        return text[first_brace : last_brace + 1]
+    first_bracket = text.find("[")
+    last_bracket = text.rfind("]")
+    if first_bracket != -1 and last_bracket != -1 and last_bracket >= first_bracket:
+        return text[first_bracket : last_bracket + 1]
+    return text
+
+
+_CUSTOM_NODE_PROMPT = (
+    "You are an expert information extraction assistant specialized in entity/node recognition. "
+    "Extract ALL relevant entities, concepts, or nodes from the following text with high precision.\n\n"
+    "Focus on:\n"
+    "- Being EXHAUSTIVE: capture all entity types mentioned\n"
+    "- Being PRECISE: extract exact entity names and descriptions\n"
+    "- Clarity: provide clear, concise descriptions for each entity\n\n"
+    "Do not attempt to extract relationships at this stage, only identify entities.\n\n"
+    "### Output Format:\n"
+    "Output ONLY a valid JSON object with an 'items' field containing an array of entity objects.\n"
+    "Do NOT add any explanations, descriptions, or additional text before or after the JSON.\n"
+    "### Source Text:\n"
+    "{source_text}"
+)
+
+_CUSTOM_EDGE_PROMPT = (
+    "You are an expert relationship extraction assistant. "
+    "Extract relationships (edges) between the provided entities.\n\n"
+    "CRITICAL RULES:\n"
+    "1. ONLY extract edges connecting entities from the known entity list below\n"
+    "2. DO NOT invent or hallucinate new entities that are not listed\n"
+    "3. If an entity in the text is not in the known list, DO NOT create edges involving it\n"
+    "4. Focus on explicit relationships mentioned in the text\n\n"
+    "### Output Format:\n"
+    "Output ONLY a valid JSON object with an 'items' field containing an array of relationship objects.\n"
+    "Each relationship object must have: 'source' (entity name), 'target' (entity name), 'relation_type' (relationship type).\n"
+    "Do NOT add any explanations, descriptions, or additional text before or after the JSON.\n"
+    "# Provided Entities\n"
+    "{known_nodes}\n\n"
+    "# Source Text:\n"
+    "{source_text}"
+)
+
+
+class _JsonCleaningLLM:
+    """LLM wrapper that cleans JSON responses before returning.
+
+    Some LLMs (especially Chinese models) may return non-pure JSON responses
+    with prefixes like "我们{...}" or suffixes. This wrapper strips those
+    and returns only the JSON part.
+    """
+
+    def __init__(self, llm_client):
+        self._llm = llm_client
+
+    def invoke(self, input_data, **kwargs):
+        if hasattr(input_data, 'to_messages'):
+            messages = input_data.to_messages()
+        elif isinstance(input_data, dict) and 'messages' in input_data:
+            messages = input_data['messages']
+        else:
+            messages = input_data
+        response = self._llm.invoke(messages, **kwargs)
+        if hasattr(response, 'content') and response.content:
+            cleaned = _clean_json_response(response.content)
+            response.content = cleaned
+        return response
+
+    def batch(self, messages_list, **kwargs):
+        responses = self._llm.batch(messages_list, **kwargs)
+        for response in responses:
+            if hasattr(response, 'content') and response.content:
+                cleaned = _clean_json_response(response.content)
+                response.content = cleaned
+        return responses
+
+    def with_structured_output(self, schema):
+        from langchain_core.runnables import RunnableLambda
+        structured_chain = self._llm.with_structured_output(schema)
+
+        def _clean_and_parse(input_data):
+            try:
+                result = structured_chain.invoke(input_data)
+                return result
+            except Exception:
+                if hasattr(input_data, 'to_messages'):
+                    messages = input_data.to_messages()
+                elif isinstance(input_data, dict) and 'messages' in input_data:
+                    messages = input_data['messages']
+                else:
+                    messages = input_data
+                raw_response = self._llm.invoke(messages)
+                text = raw_response.content if hasattr(raw_response, 'content') else str(raw_response)
+                cleaned = _clean_json_response(text)
+                try:
+                    import json
+                    data = json.loads(cleaned)
+                    return schema(**data) if hasattr(schema, '__call__') else schema.model_validate(data)
+                except Exception:
+                    try:
+                        return schema.model_validate_json(cleaned)
+                    except Exception:
+                        return schema()
+
+        return RunnableLambda(_clean_and_parse)
+
+
 class HEAdapter:
     """Hyper-Extract adapter — sole entry point to HE API.
 
@@ -381,7 +493,7 @@ class HEAdapter:
         nodes_in_edge_extractor = (
             template.get("nodes_in_edge_extractor") or _nodes_in_edge_extractor
         )
-        extraction_mode = template.get("extraction_mode", "one_stage")
+        extraction_mode = template.get("extraction_mode", "two_stage")
 
         return self._AutoGraph(
             node_schema=_ExtractionNode,
@@ -392,6 +504,8 @@ class HEAdapter:
             llm_client=llm_client,
             embedder=embedder,
             extraction_mode=extraction_mode,
+            prompt_for_node_extraction=_CUSTOM_NODE_PROMPT,
+            prompt_for_edge_extraction=_CUSTOM_EDGE_PROMPT,
         )
 
     def _create_llm_client(self):
@@ -408,13 +522,13 @@ class HEAdapter:
         config = self._parse_client_spec(spec, api_key=api_key, default_kind="llm")
 
         from langchain_openai import ChatOpenAI
-        return ChatOpenAI(
+        llm = ChatOpenAI(
             model=config["model"],
             api_key=config["api_key"] or os.environ.get("OPENAI_API_KEY", ""),
             base_url=config.get("base_url") or None,
             temperature=config.get("temperature", 0),
-            response_format={"type": "json_object"},
         )
+        return _JsonCleaningLLM(llm)
 
     def _create_embedder(self):
         """Create embedder from ODAP config (cached — only attempted once).

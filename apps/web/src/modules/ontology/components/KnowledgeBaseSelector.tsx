@@ -8,6 +8,7 @@ import {
 } from '@ant-design/icons';
 import { apiClient } from '@/modules/shared/services/apiClient';
 import { ontologyApi } from '../services/ontologyApi';
+import { useExtractionProgress } from '../hooks/useExtractionProgress';
 
 export interface KnowledgeBaseSelectorProps {
   ontologyId: string;
@@ -40,9 +41,11 @@ export function KnowledgeBaseSelector({ ontologyId, onExtractionComplete }: Know
   const [selectedDocIds, setSelectedDocIds] = useState<Set<string>>(new Set());
   const [loading, setLoading] = useState(false);
   const [extracting, setExtracting] = useState(false);
-  const [progress, setProgress] = useState({ current: 0, total: 0 });
+  const [sessionId, setSessionId] = useState<string>('');
   const [searchText, setSearchText] = useState('');
   const [loaded, setLoaded] = useState(false);
+
+  const { progress } = useExtractionProgress(sessionId || null);
 
   const loadKnowledgeBases = useCallback(async () => {
     setLoading(true);
@@ -91,7 +94,7 @@ export function KnowledgeBaseSelector({ ontologyId, onExtractionComplete }: Know
     }
 
     setExtracting(true);
-    setProgress({ current: 0, total: selectedDocIds.size });
+    setSessionId('');
 
     try {
       const result = await ontologyApi.extraction.extractKB({
@@ -99,7 +102,7 @@ export function KnowledgeBaseSelector({ ontologyId, onExtractionComplete }: Know
         kb_id: selectedKbId,
         document_ids: Array.from(selectedDocIds),
       });
-      setProgress({ current: selectedDocIds.size, total: selectedDocIds.size });
+      setSessionId(result?.session_id || '');
       message.success('知识库提取完成');
       onExtractionComplete?.(result);
     } catch (e) {
@@ -209,12 +212,22 @@ export function KnowledgeBaseSelector({ ontologyId, onExtractionComplete }: Know
         </Card>
       )}
 
-      {extracting && progress.total > 0 && (
-        <Progress
-          percent={Math.round((progress.current / progress.total) * 100)}
-          status="active"
-          format={() => `已处理 ${progress.current}/${progress.total} 篇文档`}
-        />
+      {extracting && (
+        <Card title="提取进度" size="small">
+          <Progress
+            percent={progress?.progress_percent || 0}
+            showInfo={true}
+            strokeColor={{
+              '0%': '#10B981',
+              '100%': '#3B82F6',
+            }}
+            status="active"
+          />
+          <div style={{ marginTop: 12, color: '#666' }}>
+            {progress?.stage || '初始化'}
+            {progress?.message && ` - ${progress.message}`}
+          </div>
+        </Card>
       )}
 
       <div style={{ textAlign: 'right' }}>

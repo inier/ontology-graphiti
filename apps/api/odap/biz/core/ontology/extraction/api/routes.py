@@ -7,8 +7,10 @@
 """
 
 import logging
+from typing import AsyncGenerator
 
 from fastapi import APIRouter, HTTPException, Depends, UploadFile, File, Form
+from fastapi.responses import StreamingResponse
 
 from odap.biz.core.ontology.extraction.services.extraction_service import ExtractionService
 from odap.biz.core.ontology.extraction.models.schemas import (
@@ -20,6 +22,7 @@ from odap.biz.core.ontology.extraction.models.schemas import (
     ExtractionSessionResponse,
     ExtractionConfirmRequest,
 )
+from odap.biz.data.hyper_extract.services.progress_manager import get_progress_manager
 from odap.infra.security.jwt_auth import get_current_user
 
 logger = logging.getLogger(__name__)
@@ -93,6 +96,7 @@ def _simple_nl_extract(text: str, is_async: bool = False) -> dict:
     """
     import json as _json
     import os as _os
+    import uuid as _uuid
     from langchain_openai import ChatOpenAI
     from langchain_core.messages import HumanMessage
 
@@ -148,16 +152,22 @@ def _simple_nl_extract(text: str, is_async: bool = False) -> dict:
     if not isinstance(parsed, dict):
         return {"status": "error", "message": "LLM response is not a JSON object"}
 
+    session_id = str(_uuid.uuid4())
     result = {
         "status": "ok",
-        "object_types": parsed.get("object_types", []),
-        "link_types": parsed.get("link_types", []),
-        "action_types": parsed.get("action_types", []),
-        "rule_types": parsed.get("rule_types", []),
-        "process_types": parsed.get("process_types", []),
-        "indicator_types": parsed.get("indicator_types", []),
-        "entities": [],
-        "relations": [],
+        "session_id": session_id,
+        "result": {
+            "object_types": parsed.get("object_types", []),
+            "link_types": parsed.get("link_types", []),
+            "action_types": parsed.get("action_types", []),
+            "rule_types": parsed.get("rule_types", []),
+            "process_types": parsed.get("process_types", []),
+            "indicator_types": parsed.get("indicator_types", []),
+            "entities": [],
+            "relations": [],
+            "conflicts": [],
+        },
+        "conflicts": [],
         "source": "simple_nl_extract",
         "summary": {
             "object_types": len(parsed.get("object_types", [])),
@@ -184,6 +194,23 @@ async def extract_from_natural_language(
         result = _simple_nl_extract(request.text)
         if result.get("status") == "error":
             raise HTTPException(status_code=400, detail=result.get("message", "Extraction failed"))
+
+        from odap.biz.core.ontology.ontology_api.services import get_ontology_service
+
+        session_id = result.get("session_id", "")
+        if session_id:
+            ontology_service = get_ontology_service()
+            ontology_service.create_extraction_session(
+                ontology_id=request.ontology_id,
+                extraction_type="natural_language",
+                input_data={"text": request.text},
+                session_id=session_id,
+            )
+            ontology_service.update_extraction_session(
+                session_id,
+                {"status": "completed", "result_data": result.get("result", {})},
+            )
+
         return result
     except HTTPException:
         raise
@@ -466,6 +493,66 @@ async def confirm_extraction(
         if result.get("status") == "error":
             raise HTTPException(status_code=400, detail=result.get("message"))
         return result
+    except HTTPException:
+        raise
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@router.get("/progress/{session_id}")
+async def extraction_progress_stream(
+    session_id: str,
+    user=Depends(get_current_user),
+):
+    """SSE 进度流：订阅指定提取会话的实时进度更新"""
+
+    async def event_generator() -> AsyncGenerator[str, None]:
+        pm = await get_progress_manager()
+        queue = await pm.subscribe(session_id)
+
+        try:
+            while True:
+                event = await queue.get()
+                if event is None:
+                    break
+                import json
+
+                yield f"data: {json.dumps(event)}\n\n"
+        finally:
+            await pm.unsubscribe(session_id, queue)
+
+    return StreamingResponse(
+        event_generator(),
+        media_type="text/event-stream",
+        headers={
+            "Cache-Control": "no-cache",
+            "Connection": "keep-alive",
+            "X-Accel-Buffering": "no",
+        },
+    )
+
+
+@router.get("/progress/{session_id}/status")
+async def get_extraction_progress_status(
+    session_id: str,
+    user=Depends(get_current_user),
+):
+    """获取指定提取会话的当前进度状态"""
+    try:
+        pm = await get_progress_manager()
+        state = pm.get_progress(session_id)
+        if not state:
+            raise HTTPException(status_code=404, detail="会话不存在或进度已过期")
+        return {
+            "session_id": session_id,
+            "stage": state.stage,
+            "progress_percent": state.progress_percent,
+            "message": state.message,
+            "current_step": state.current_step,
+            "total_steps": state.total_steps,
+            "is_completed": state.is_completed,
+            "result": state.result,
+        }
     except HTTPException:
         raise
     except Exception as e:

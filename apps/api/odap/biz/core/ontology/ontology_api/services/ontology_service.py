@@ -1050,6 +1050,7 @@ class OntologyService:
         ontology_id: str,
         extraction_type: str,
         input_data: Dict,
+        session_id: str = None,
     ) -> Dict[str, Any]:
         """创建抽取/提取会话"""
         try:
@@ -1057,7 +1058,7 @@ class OntologyService:
                 return {"status": "error", "message": "extraction_type is required"}
 
             now = datetime.now(timezone.utc).isoformat()
-            session_id = str(uuid.uuid4())
+            session_id = session_id or str(uuid.uuid4())
 
             session = {
                 "session_id": session_id,

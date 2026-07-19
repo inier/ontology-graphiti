@@ -269,6 +269,18 @@ export const ontologyApi = {
       apiClient.get(`/api/extraction/provenance/by-source/${docId}`),
     confirm: (sessionId: string, data: Record<string, unknown>) =>
       apiClient.post(`/api/extraction/sessions/${sessionId}/confirm`, data),
+    progressStream: (sessionId: string): Promise<Response> => {
+      const token = localStorage.getItem('token');
+      return fetch(`${API_BASE}/api/extraction/progress/${sessionId}`, {
+        method: 'GET',
+        headers: {
+          Accept: 'text/event-stream',
+          ...(token ? { Authorization: `Bearer ${token}` } : {}),
+        },
+      });
+    },
+    progressStatus: (sessionId: string) =>
+      apiClient.get(`/api/extraction/progress/${sessionId}/status`),
   },
 
   // ─── AI Assistant (T077) ─────────────────────────────────────────

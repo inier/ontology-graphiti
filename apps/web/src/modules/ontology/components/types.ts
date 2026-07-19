@@ -1,4 +1,32 @@
 /**
+ * 提取进度类型定义
+ * 对应后端 ProgressState 和 SSE 事件格式
+ */
+
+export interface ExtractionProgress {
+  session_id: string;
+  stage: string | null;
+  progress_percent: number;
+  message: string | null;
+  current_step: number | null;
+  total_steps: number | null;
+  is_completed: boolean;
+  result?: Record<string, unknown> | null;
+}
+
+export type ProgressStage =
+  | '初始化'
+  | '模板评估'
+  | '模板选择'
+  | '分块解析'
+  | '文档解析'
+  | '合并映射'
+  | 'LLM补充'
+  | '验证'
+  | '冲突检测'
+  | '完成';
+
+/**
  * ConflictResolver 类型定义
  * 对应后端 /api/ontology/conflict/* 接口契约
  */

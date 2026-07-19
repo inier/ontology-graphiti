@@ -9,3 +9,5 @@ export type {
   UseTypeInferenceResult,
 } from './useTypeInference';
 
+export { useExtractionProgress } from './useExtractionProgress';
+

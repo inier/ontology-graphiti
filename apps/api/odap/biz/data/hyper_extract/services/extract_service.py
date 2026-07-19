@@ -30,6 +30,7 @@ from ..impl.dual_channel_writer import DualChannelWriter
 from ..impl.provenance_tracker import ProvenanceTracker
 from ..services.template_engine import TemplateEngine
 from ..services.validation_engine import ValidationEngine
+from ..services.progress_manager import get_progress_manager, ProgressCallback
 from ..storage import Storage
 from ..storage.sqlite_template_storage import SqliteTemplateStorage
 
@@ -123,43 +124,56 @@ class ExtractService:
             return session_result
         session_id = session_result["session_id"]
 
+        progress_callback = ProgressCallback(session_id)
+        await progress_callback("初始化", 0, "创建提取会话")
+
         degradation_flags: List[str] = []
         ontology_schema = self._get_ontology_schema(ontology_id)
 
         # Step 3: Assess templates
+        await progress_callback("模板评估", 10, "评估模板适用性")
         assess_result = self.template_engine.assess(text, ontology_id)
         if assess_result.get("best_score", 0) < assess_result.get("threshold", 0.5):
             degradation_flags.append("template_below_threshold")
 
         # Step 4: Select templates (custom or complementary)
+        await progress_callback("模板选择", 20, "选择互补模板")
         templates, template_used = self._select_templates(
             assess_result, text, ontology_schema, degradation_flags, template_id
         )
 
         # Step 5: Multi-parse with EC-006 isolation
+        await progress_callback("多模板解析", 30, f"使用 {len(templates)} 个模板解析")
         parse_results = self._multi_parse(text, templates, degradation_flags)
+        await progress_callback("多模板解析", 50, f"解析完成，获取 {len(parse_results)} 个结果")
 
         # Step 6-7: Merge and map
+        await progress_callback("合并映射", 60, "合并解析结果并映射到 ODAP 模型")
         merged = self.ontology_mapper.merge_and_map(parse_results)
 
         # Step 6b: LLM supplement for sparse categories
+        await progress_callback("LLM补充", 70, "为稀疏类别补充实体")
         self._llm_supplement(merged, text, ontology_schema, degradation_flags)
 
         # Step 8: Validate (EC-018: non-blocking)
+        await progress_callback("验证", 80, "运行四维验证引擎")
         template_score = assess_result.get("best_score", 0.0)
         validation_report = self._run_validation(
             merged, ontology_schema, template_score, degradation_flags
         )
 
         # Step 8b: Detect conflicts
+        await progress_callback("冲突检测", 90, "检测与已有类型的冲突")
         conflicts = self._detect_conflicts(ontology_id, merged)
 
         # Step 8c: Schema learning mode — generate schema candidates
         schema_candidates = None
         if mode == "schema_learning":
+            await progress_callback("Schema学习", 95, "生成Schema候选")
             schema_candidates = self._generate_schema_candidates(merged)
 
         # Step 9: Finalize session
+        await progress_callback("完成", 98, "完成会话")
         self._finalize_session(
             session_id, merged, validation_report, assess_result,
             templates, template_used, degradation_flags, conflicts,
@@ -177,6 +191,10 @@ class ExtractService:
         }
         if schema_candidates:
             result["schema_candidates"] = schema_candidates
+
+        await progress_callback("完成", 100, "提取完成")
+        pm = await get_progress_manager()
+        await pm.complete_progress(session_id, result)
         return result
 
     # ------------------------------------------------------------------
@@ -246,28 +264,38 @@ class ExtractService:
             return session_result
         session_id = session_result["session_id"]
 
+        progress_callback = ProgressCallback(session_id)
+        await progress_callback("初始化", 0, "创建提取会话")
+
         degradation_flags: List[str] = []
         ontology_schema = self._get_ontology_schema(ontology_id)
 
         # Step 4: Assess using first chunk as sample
+        await progress_callback("模板评估", 10, "评估模板适用性")
         sample_text = chunks[0] if chunks else full_text[:1500]
         assess_result = self.template_engine.assess(sample_text, ontology_id)
 
         # Step 5: Select templates (once for all chunks — EC-011)
+        await progress_callback("模板选择", 20, "选择互补模板")
         templates, template_used = self._select_templates(
             assess_result, sample_text, ontology_schema, degradation_flags, template_id
         )
 
         # Step 6: Per-chunk multi-parse
+        await progress_callback("分块解析", 25, f"开始解析 {len(chunks)} 个文本块")
         all_parse_results: List[Dict[str, Any]] = []
         failed_chunks: List[Dict[str, Any]] = []
         for idx, chunk in enumerate(chunks):
             chunk_id = f"{source_doc_id}_chunk_{idx}"
+            await progress_callback(
+                "分块解析",
+                25 + int((idx / len(chunks)) * 40),
+                f"解析块 {idx + 1}/{len(chunks)}",
+            )
             chunk_results = self._multi_parse(chunk, templates, degradation_flags)
             if not chunk_results:
                 failed_chunks.append({"chunk_index": idx, "chunk_id": chunk_id})
             else:
-                # Tag with source_template for provenance
                 for r in chunk_results:
                     r.setdefault("source_doc_id", source_doc_id)
                     r.setdefault("chunk_id", chunk_id)
@@ -277,20 +305,25 @@ class ExtractService:
             degradation_flags.append("all_chunks_failed")
 
         # Step 7: Merge and map
+        await progress_callback("合并映射", 68, "合并解析结果")
         merged = self.ontology_mapper.merge_and_map(all_parse_results)
 
         # Step 7b: LLM supplement
+        await progress_callback("LLM补充", 78, "为稀疏类别补充实体")
         self._llm_supplement(merged, full_text[:2000], ontology_schema, degradation_flags)
 
         # Step 8: Validate
+        await progress_callback("验证", 88, "运行四维验证引擎")
         validation_report = self._run_validation(
             merged, ontology_schema, assess_result.get("best_score", 0.0), degradation_flags
         )
 
         # Step 8b: Conflicts
+        await progress_callback("冲突检测", 95, "检测与已有类型的冲突")
         conflicts = self._detect_conflicts(ontology_id, merged)
 
         # Step 9: Finalize
+        await progress_callback("完成", 98, "完成会话")
         provenance_summary = {
             "source_doc_id": source_doc_id,
             "total_chunks": len(chunks),
@@ -304,7 +337,7 @@ class ExtractService:
             provenance_summary,
         )
 
-        return {
+        result = {
             "status": "ok",
             "session_id": session_id,
             "result": merged,
@@ -314,6 +347,11 @@ class ExtractService:
             "validation_report": validation_report,
             "provenance_summary": provenance_summary,
         }
+
+        await progress_callback("完成", 100, "提取完成")
+        pm = await get_progress_manager()
+        await pm.complete_progress(session_id, result)
+        return result
 
     # ------------------------------------------------------------------
     # T061: extract_from_knowledge_base
@@ -387,21 +425,27 @@ class ExtractService:
             return session_result
         session_id = session_result["session_id"]
 
+        progress_callback = ProgressCallback(session_id)
+        await progress_callback("初始化", 0, "创建提取会话")
+
         degradation_flags: List[str] = []
         ontology_schema = self._get_ontology_schema(ontology_id)
 
         # Step 3: Assess using KB sample (prefer cleaned_content)
+        await progress_callback("模板评估", 10, "评估模板适用性")
         sample_text = " ".join(
             (d.get("cleaned_content", "") or d.get("content", "") or "")[:200] for d in all_docs[:3]
         )
         assess_result = self.template_engine.assess(sample_text, ontology_id)
 
         # Step 4: Select templates
+        await progress_callback("模板选择", 20, "选择互补模板")
         templates, template_used = self._select_templates(
             assess_result, sample_text, ontology_schema, degradation_flags, template_id
         )
 
         # Step 5: Iterate documents
+        await progress_callback("文档解析", 25, f"开始处理 {len(all_docs)} 篇文档")
         all_parse_results: List[Dict[str, Any]] = []
         doc_provenance: List[Dict[str, Any]] = []
         failed_docs: List[Dict[str, Any]] = []
@@ -413,8 +457,15 @@ class ExtractService:
         except ImportError:
             parser = None
 
-        for doc in all_docs:
+        total_docs = len(all_docs)
+        for doc_idx, doc in enumerate(all_docs):
             doc_id = doc.get("doc_id", str(uuid.uuid4()))
+            await progress_callback(
+                "文档解析",
+                25 + int((doc_idx / total_docs) * 50),
+                f"处理文档 {doc_idx + 1}/{total_docs}: {doc.get('title', doc_id)[:30]}",
+            )
+
             content = doc.get("cleaned_content", "") or doc.get("content", "") or ""
             file_path = doc.get("file_path") or doc.get("source_path")
             file_url = doc.get("file_url")
@@ -464,7 +515,6 @@ class ExtractService:
                 all_parse_results.extend(chunk_results)
 
             doc_provenance.append({"doc_id": doc_id, "chunks": len(chunks), "status": "processed"})
-            # Small delay between documents to avoid API rate limits
             import time as _time
             _time.sleep(0.5)
 
@@ -472,23 +522,28 @@ class ExtractService:
             degradation_flags.append("all_documents_failed")
 
         # Step 6: Merge and map
+        await progress_callback("合并映射", 80, "合并解析结果")
         merged = self.ontology_mapper.merge_and_map(all_parse_results)
 
         # Step 6b: LLM supplement (use richer text for better supplement results)
+        await progress_callback("LLM补充", 85, "为稀疏类别补充实体")
         supplement_text = " ".join(
             (d.get("cleaned_content", "") or d.get("content", "") or "")[:2000] for d in all_docs[:3]
         )
         self._llm_supplement(merged, supplement_text, ontology_schema, degradation_flags)
 
         # Step 7: Validate
+        await progress_callback("验证", 92, "运行四维验证引擎")
         validation_report = self._run_validation(
             merged, ontology_schema, assess_result.get("best_score", 0.0), degradation_flags
         )
 
         # Step 7b: Conflicts
+        await progress_callback("冲突检测", 96, "检测与已有类型的冲突")
         conflicts = self._detect_conflicts(ontology_id, merged)
 
         # Step 8: Finalize
+        await progress_callback("完成", 98, "完成会话")
         provenance_summary = {
             "kb_id": kb_id,
             "total_documents": len(all_docs),
@@ -505,7 +560,7 @@ class ExtractService:
             provenance_summary,
         )
 
-        return {
+        result = {
             "status": "ok",
             "session_id": session_id,
             "result": merged,
@@ -515,6 +570,11 @@ class ExtractService:
             "validation_report": validation_report,
             "provenance_summary": provenance_summary,
         }
+
+        await progress_callback("完成", 100, "提取完成")
+        pm = await get_progress_manager()
+        await pm.complete_progress(session_id, result)
+        return result
 
     # ------------------------------------------------------------------
     # T064: confirm_extraction — dual-channel write

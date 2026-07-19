@@ -57,6 +57,7 @@ apps/api/odap/infra/opa/bundles/
 .specify/extensions/superspec/
 
 # Frontend
+node_modules/
 apps/web/node_modules/
 apps/web/dist/
 apps/web/coverage/

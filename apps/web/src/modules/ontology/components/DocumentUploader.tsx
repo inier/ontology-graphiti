@@ -1,12 +1,13 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
 import { useState, useCallback } from 'react';
 import {
-  Upload, Button, Space, Alert, Progress, message,
+  Upload, Button, Space, Alert, Progress, message, Card, Spin,
 } from 'antd';
 import {
   InboxOutlined, FileTextOutlined, ClearOutlined,
 } from '@ant-design/icons';
 import { ontologyApi } from '../services/ontologyApi';
+import { useExtractionProgress } from '../hooks/useExtractionProgress';
 
 const { Dragger } = Upload;
 
@@ -27,7 +28,10 @@ const MAX_FILE_SIZE_MB = 100;
 export function DocumentUploader({ ontologyId, onExtractionComplete }: DocumentUploaderProps) {
   const [fileList, setFileList] = useState<any[]>([]);
   const [uploading, setUploading] = useState(false);
-  const [progress, setProgress] = useState({ current: 0, total: 0 });
+  const [currentFileIndex, setCurrentFileIndex] = useState(0);
+  const [sessionId, setSessionId] = useState<string>('');
+
+  const { progress } = useExtractionProgress(sessionId || null);
 
   const handleBeforeUpload = useCallback((file: File) => {
     const ext = '.' + file.name.split('.').pop()?.toLowerCase();
@@ -49,18 +53,20 @@ export function DocumentUploader({ ontologyId, onExtractionComplete }: DocumentU
     }
 
     setUploading(true);
-    setProgress({ current: 0, total: fileList.length });
+    setCurrentFileIndex(0);
+    setSessionId('');
 
     try {
       const results: any[] = [];
       for (let i = 0; i < fileList.length; i++) {
+        setCurrentFileIndex(i);
         const formData = new FormData();
         formData.append('ontology_id', ontologyId);
         formData.append('file', fileList[i].originFileObj || fileList[i]);
 
         const result = await ontologyApi.extraction.extractDocument(formData);
+        setSessionId(result?.session_id || '');
         results.push(result);
-        setProgress({ current: i + 1, total: fileList.length });
       }
 
       message.success(`文档提取完成，共处理 ${fileList.length} 个文件`);
@@ -74,7 +80,8 @@ export function DocumentUploader({ ontologyId, onExtractionComplete }: DocumentU
 
   const handleClear = useCallback(() => {
     setFileList([]);
-    setProgress({ current: 0, total: 0 });
+    setCurrentFileIndex(0);
+    setSessionId('');
   }, []);
 
   return (
@@ -101,12 +108,30 @@ export function DocumentUploader({ ontologyId, onExtractionComplete }: DocumentU
         <p className="ant-upload-hint">支持批量上传，系统将自动解析文档内容并提取知识结构</p>
       </Dragger>
 
-      {uploading && progress.total > 0 && (
-        <Progress
-          percent={Math.round((progress.current / progress.total) * 100)}
-          status="active"
-          format={() => `已处理 ${progress.current}/${progress.total} 个文件`}
-        />
+      {uploading && (
+        <Card title="提取进度" size="small">
+          <div style={{ marginBottom: 16 }}>
+            <Progress
+              percent={Math.round(((currentFileIndex) / fileList.length) * 100)}
+              showInfo={true}
+              status="active"
+              format={() => `文件 ${currentFileIndex + 1}/${fileList.length}`}
+            />
+          </div>
+          <Progress
+            percent={progress?.progress_percent || 0}
+            showInfo={true}
+            strokeColor={{
+              '0%': '#10B981',
+              '100%': '#3B82F6',
+            }}
+            status="active"
+          />
+          <div style={{ marginTop: 12, color: '#666' }}>
+            {progress?.stage || '初始化'}
+            {progress?.message && ` - ${progress.message}`}
+          </div>
+        </Card>
       )}
 
       <div style={{ textAlign: 'right' }}>

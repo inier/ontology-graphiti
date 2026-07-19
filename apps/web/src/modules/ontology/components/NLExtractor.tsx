@@ -1,7 +1,7 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
-import { useState, useCallback } from 'react';
+import { useState, useCallback, useEffect } from 'react';
 import {
-  Card, Input, Switch, Button, Space, Alert, Spin, Steps, Tabs, Select, message,
+  Card, Input, Switch, Button, Space, Alert, Spin, Steps, Tabs, Select, message, Progress,
 } from 'antd';
 import {
   MessageOutlined, ThunderboltOutlined, CheckCircleOutlined,
@@ -11,6 +11,7 @@ import { ontologyApi } from '../services/ontologyApi';
 import { ExtractionPreview } from './ExtractionPreview';
 import { DocumentUploader } from './DocumentUploader';
 import { KnowledgeBaseSelector } from './KnowledgeBaseSelector';
+import { useExtractionProgress } from '../hooks/useExtractionProgress';
 import type { ExtractionResult, ExtractionConflict } from './ExtractionPreview';
 
 export interface NLExtractorProps {
@@ -36,6 +37,8 @@ export function NLExtractor({ ontologyId, onImportComplete }: NLExtractorProps) 
   const [extractionConflicts, setExtractionConflicts] = useState<ExtractionConflict[]>([]);
   const [sessionId, setSessionId] = useState<string>('');
 
+  const { progress } = useExtractionProgress(sessionId || null);
+
   const handleExtract = useCallback(async () => {
     if (!text.trim()) {
       message.warning('请输入自然语言描述');
@@ -43,6 +46,10 @@ export function NLExtractor({ ontologyId, onImportComplete }: NLExtractorProps) 
     }
 
     setExtracting(true);
+    setExtractionResult(null);
+    setExtractionConflicts([]);
+    setSessionId('');
+
     try {
       const payload: Record<string, unknown> = {
         ontology_id: ontologyId,
@@ -54,8 +61,9 @@ export function NLExtractor({ ontologyId, onImportComplete }: NLExtractorProps) 
       };
 
       const result = await ontologyApi.extraction.extractNL(payload) as any;
+      const newSessionId = result?.session_id || '';
+      setSessionId(newSessionId);
 
-      setSessionId(result?.session_id || '');
       setExtractionResult({
         object_types: result?.result?.object_types || result?.object_types || [],
         link_types: result?.result?.link_types || result?.link_types || [],
@@ -253,10 +261,26 @@ export function NLExtractor({ ontologyId, onImportComplete }: NLExtractorProps) 
       )}
 
       {extracting && (
-        <div style={{ textAlign: 'center', padding: 40 }}>
-          <Spin size="large" />
-          <div style={{ marginTop: 12, color: '#666' }}>正在分析自然语言描述...</div>
-        </div>
+        <Card title="提取进度" size="small">
+          <div style={{ padding: 24 }}>
+            <div style={{ textAlign: 'center', marginBottom: 16 }}>
+              <Spin size="large" />
+            </div>
+            <Progress
+              percent={progress?.progress_percent || 0}
+              showInfo={true}
+              strokeColor={{
+                '0%': '#10B981',
+                '100%': '#3B82F6',
+              }}
+              size="default"
+            />
+            <div style={{ textAlign: 'center', marginTop: 12, color: '#666' }}>
+              {progress?.stage || '初始化'}
+              {progress?.message && ` - ${progress.message}`}
+            </div>
+          </div>
+        </Card>
       )}
     </div>
   );
