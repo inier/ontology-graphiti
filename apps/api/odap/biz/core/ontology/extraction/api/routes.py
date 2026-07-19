@@ -248,26 +248,77 @@ async def extract_from_knowledge_base(
     request: KBExtractionRequest,
     user=Depends(get_current_user),
 ):
-    """Extract schema from a knowledge base and create extraction session."""
-    import traceback
+    """Extract schema from a knowledge base using simple LLM extraction.
+
+    Bypasses hyper-extract due to compatibility issues with non-OpenAI endpoints.
+    Reads KB documents, concatenates text, and extracts via LLM.
+    """
+    import uuid
     try:
-        result = await _extraction_service.extract_from_knowledge_base(
-            ontology_id=request.ontology_id,
-            kb_id=request.kb_id,
-            template_id=request.template_id,
-            method=request.method,
-            document_ids=request.document_ids if request.document_ids else None,
-            batch_size=request.batch_size,
-        )
-        if result.get("status") == "error":
-            raise HTTPException(status_code=400, detail=result.get("message", "Extraction failed"))
-        return result
+        # Read KB documents
+        from odap.biz.data.knowledge_base.services import get_kb_service
+        kb_service = get_kb_service()
+        kb = kb_service.get_knowledge_base(request.kb_id)
+        if not kb or kb.get("status") == "error":
+            raise HTTPException(status_code=400, detail=f"Knowledge base '{request.kb_id}' not found")
+
+        docs = kb_service.list_documents(request.kb_id)
+        if not docs:
+            raise HTTPException(status_code=400, detail=f"Knowledge base '{request.kb_id}' is empty")
+
+        # Filter and extract text
+        doc_ids = set(request.document_ids) if request.document_ids else None
+        texts = []
+        processed_count = 0
+        for doc in docs:
+            if doc_ids and doc.get("doc_id") not in doc_ids:
+                continue
+            content = doc.get("cleaned_content", "") or doc.get("content", "") or ""
+            if content.strip():
+                texts.append(content[:2000])  # Truncate per doc to stay within limits
+            processed_count += 1
+
+        if not texts:
+            raise HTTPException(status_code=400, detail="No text content found in knowledge base documents")
+
+        combined_text = "\n\n".join(texts)
+
+        # Use simple NL extraction
+        nl_result = _simple_nl_extract(combined_text)
+
+        if nl_result.get("status") == "error":
+            raise HTTPException(status_code=400, detail=nl_result.get("message", "Extraction failed"))
+
+        # Wrap in the format frontend expects (with result sub-dict)
+        session_id = str(uuid.uuid4())
+        return {
+            "status": "ok",
+            "session_id": session_id,
+            "result": {
+                "entities": nl_result.get("entities", []),
+                "relations": nl_result.get("relations", []),
+                "object_types": nl_result.get("object_types", []),
+                "link_types": nl_result.get("link_types", []),
+                "action_types": nl_result.get("action_types", []),
+                "rule_types": nl_result.get("rule_types", []),
+                "process_types": nl_result.get("process_types", []),
+                "indicator_types": nl_result.get("indicator_types", []),
+                "conflicts": [],
+            },
+            "conflicts": [],
+            "source": "simple_kb_extract",
+            "summary": nl_result.get("summary", {}),
+            "provenance_summary": {
+                "kb_id": request.kb_id,
+                "total_documents": len(docs),
+                "processed_documents": processed_count,
+            },
+        }
     except HTTPException:
         raise
     except Exception as e:
-        # T064-fix: 记录完整 traceback 以便诊断 500
-        logger.error("extract_from_knowledge_base failed: %s\n%s", e, traceback.format_exc())
-        raise HTTPException(status_code=500, detail=f"{type(e).__name__}: {str(e)}")
+        logger.error("extract_from_knowledge_base failed: %s", e)
+        raise HTTPException(status_code=500, detail=str(e))
 
 
 @router.get("/templates")
