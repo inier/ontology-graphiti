@@ -13,7 +13,7 @@ Key API alignments (from research.md):
 import logging
 from typing import Any, Dict, List, Optional, Tuple
 
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, field_validator
 
 from odap.infra.config_composer import get_config
 
@@ -35,6 +35,15 @@ class _ExtractionNode(BaseModel):
     # Allow HE to populate extra fields during extraction
     model_config = {"extra": "allow"}
 
+    @classmethod
+    def _coerce_field(cls, v: Any) -> str:
+        """Coerce field value to string; join lists to keep AutoGraph hashable."""
+        return _coerce_str(v)
+
+    _name_validator = field_validator("name", mode="before")(_coerce_field)
+    _type_validator = field_validator("type", mode="before")(_coerce_field)
+    _description_validator = field_validator("description", mode="before")(_coerce_field)
+
 
 class _ExtractionEdge(BaseModel):
     """Edge schema for AutoGraph — represents an extracted relation."""
@@ -45,6 +54,10 @@ class _ExtractionEdge(BaseModel):
     properties: Dict[str, Any] = Field(default_factory=dict)
 
     model_config = {"extra": "allow"}
+
+    _src_validator = field_validator("source", mode="before")(_ExtractionNode._coerce_field)
+    _tgt_validator = field_validator("target", mode="before")(_ExtractionNode._coerce_field)
+    _rel_validator = field_validator("relation_type", mode="before")(_ExtractionNode._coerce_field)
 
 
 def _coerce_str(value: Any) -> str:
@@ -95,6 +108,7 @@ class HEAdapter:
         self._AutoGraph = None
         self._create_llm_fn = None
         self._create_embedder_fn = None
+        self._embedder_cache = None  # Cache: None=not tried, False=failed, obj=embedder
 
         try:
             from hyperextract import Template, AutoGraph
@@ -403,7 +417,7 @@ class HEAdapter:
         )
 
     def _create_embedder(self):
-        """Create embedder from ODAP config.
+        """Create embedder from ODAP config (cached — only attempted once).
 
         Strategy (provider=auto):
         1. Try SaaS API embedder (OpenAI/NVIDIA compatible /embeddings endpoint).
@@ -412,35 +426,37 @@ class HEAdapter:
 
         provider=api:  Only try SaaS API.
         provider=local: Only try local HuggingFace.
+
+        Embedder creation is expensive (API round-trips) and rarely succeeds
+        with non-OpenAI endpoints. We cache the result per HEAdapter instance.
         """
+        if self._embedder_cache is not None:
+            return self._embedder_cache if self._embedder_cache is not False else None
+
         provider = get_config("llm.embedder_provider", "auto")
 
+        result = None
         if provider == "local":
-            embedder = self._create_local_embedder()
-            if embedder is not None:
-                return embedder
-            logger.warning("Local embedder unavailable, trying SaaS API as fallback")
-            return self._create_api_embedder()
+            result = self._create_local_embedder()
+            if result is None:
+                logger.warning("Local embedder unavailable, trying SaaS API as fallback")
+                result = self._create_api_embedder()
+        elif provider == "api":
+            result = self._create_api_embedder()
+            if result is None:
+                logger.warning("API embedder unavailable, trying local as fallback")
+                result = self._create_local_embedder()
+        else:
+            # provider == "auto": try API first, then local
+            result = self._create_api_embedder()
+            if result is None:
+                logger.info("API embedder unavailable, trying local HuggingFace")
+                result = self._create_local_embedder()
 
-        if provider == "api":
-            embedder = self._create_api_embedder()
-            if embedder is not None:
-                return embedder
-            logger.warning("API embedder unavailable, trying local as fallback")
-            return self._create_local_embedder()
-
-        # provider == "auto": try API first, then local
-        embedder = self._create_api_embedder()
-        if embedder is not None:
-            return embedder
-
-        logger.info("API embedder unavailable, trying local HuggingFace")
-        embedder = self._create_local_embedder()
-        if embedder is not None:
-            return embedder
-
-        logger.warning("All embedder strategies failed, using LLM-only mode")
-        return None
+        if result is None:
+            logger.warning("All embedder strategies failed, using LLM-only mode")
+        self._embedder_cache = result if result is not None else False
+        return result
 
     def _create_api_embedder(self):
         """Create SaaS API embedder using OpenAI-compatible /embeddings endpoint.

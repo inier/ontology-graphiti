@@ -256,7 +256,6 @@ class ExtractionService:
             template_id=template_id,
             method=method,
             document_ids=document_ids,
-            mode=mode,
         )
         _audit(
             "extraction_kb_complete",

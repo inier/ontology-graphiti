@@ -174,14 +174,17 @@ class TemplateEngine:
         # Step 4: Trial extract each candidate
         trial_results: List[Tuple[Dict[str, Any], Dict[str, Any]]] = []
         for preset in filtered:
+            if not isinstance(preset, dict):
+                logger.warning("Skipping non-dict preset: %s", type(preset).__name__)
+                continue
             # Use template_path (full path like "general/graph") for Template.create()
-            tpl_path = preset.get("template_path") or preset["name"]
+            tpl_path = preset.get("template_path") or preset.get("name", "unknown")
             template_config = {"template_path": tpl_path, "language": preset.get("language", "zh")}
             try:
                 trial = self._adapter.trial_extract(text, template=template_config)
                 trial_results.append((preset, trial))
             except Exception as exc:
-                logger.warning("trial_extract failed for %s: %s", preset["name"], exc)
+                logger.warning("trial_extract failed for %s: %s", preset.get("name", "unknown"), exc)
                 trial_results.append((preset, {
                     "entity_count": 0, "relation_count": 0,
                     "field_coverage": 0.0, "type_diversity": 0.0, "types_found": [],
@@ -856,7 +859,11 @@ display:
 """
 
     def _extract_yaml_from_response(self, response: Any) -> Optional[str]:
-        """Extract YAML string from LLM response."""
+        """Extract YAML string from LLM response (handles JSON responses too).
+
+        The LLM may return JSON (when response_format=json_object) or YAML.
+        We convert JSON to YAML automatically.
+        """
         if response is None:
             return None
         # LangChain ChatModel response has .content
@@ -872,6 +879,23 @@ display:
             # Remove first line (```yaml or ```) and last line (```)
             lines = [l for l in lines if not l.strip().startswith("```")]
             content = "\n".join(lines)
+
+        # Try parsing as JSON first (LLM often returns JSON due to response_format)
+        # If it's valid JSON, convert to YAML string for downstream YAML parser
+        import json as _json
+        for i, ch in enumerate(content):
+            if ch in "[{":
+                try:
+                    parsed = _json.loads(content[i:])
+                    if isinstance(parsed, dict):
+                        return yaml.dump(parsed, allow_unicode=True, sort_keys=False)
+                    elif isinstance(parsed, list):
+                        # Wrap list in a dict for YAML compatibility
+                        return yaml.dump({"items": parsed}, allow_unicode=True, sort_keys=False)
+                except (_json.JSONDecodeError, ValueError):
+                    pass
+                break
+
         return content
 
     def _validate_custom_yaml(self, yaml_content: str, text: str) -> Optional[float]:

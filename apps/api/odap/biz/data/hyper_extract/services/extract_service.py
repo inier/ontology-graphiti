@@ -464,6 +464,9 @@ class ExtractService:
                 all_parse_results.extend(chunk_results)
 
             doc_provenance.append({"doc_id": doc_id, "chunks": len(chunks), "status": "processed"})
+            # Small delay between documents to avoid API rate limits
+            import time as _time
+            _time.sleep(0.5)
 
         if not all_parse_results:
             degradation_flags.append("all_documents_failed")
@@ -670,6 +673,9 @@ class ExtractService:
                 tpl_name = template.get("name", "unknown")
                 logger.warning("Template '%s' parse failed (EC-006): %s", tpl_name, e)
                 degradation_flags.append(f"template_parse_failed:{tpl_name}")
+            # Small delay between templates to avoid API rate limits
+            import time as _time
+            _time.sleep(0.3)
         return results
 
     def _llm_supplement(
@@ -713,6 +719,9 @@ class ExtractService:
             except Exception as e:
                 logger.warning("LLM supplement for %s failed: %s", category_name, e)
                 degradation_flags.append("llm_supplement_failed")
+            # Small delay between categories to avoid API rate limits
+            import time as _time
+            _time.sleep(0.5)
 
     @staticmethod
     def _call_llm_for_category(

@@ -97,6 +97,18 @@ export function NLExtractor({ ontologyId, onImportComplete }: NLExtractorProps) 
     setSessionId('');
   }, []);
 
+  const handleReextract = useCallback(() => {
+    // Reset result then re-trigger extraction with same text/method/template
+    setExtractionResult(null);
+    setExtractionConflicts([]);
+    setSessionId('');
+    setCurrentStep(0);
+    // Trigger handleExtract on next tick after state reset
+    setTimeout(() => {
+      void handleExtract();
+    }, 50);
+  }, [handleExtract]);
+
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
       <Steps
@@ -225,7 +237,7 @@ export function NLExtractor({ ontologyId, onImportComplete }: NLExtractorProps) 
             title="提取结果预览"
             size="small"
             extra={
-              <Button size="small" onClick={handleReset}>
+              <Button size="small" onClick={handleReextract}>
                 重新提取
               </Button>
             }

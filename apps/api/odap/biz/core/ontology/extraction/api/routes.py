@@ -6,6 +6,8 @@
 - 服务层返回 Dict，路由层翻译错误为 HTTPException
 """
 
+import logging
+
 from fastapi import APIRouter, HTTPException, Depends, UploadFile, File, Form
 
 from odap.biz.core.ontology.extraction.services.extraction_service import ExtractionService
@@ -19,6 +21,8 @@ from odap.biz.core.ontology.extraction.models.schemas import (
     ExtractionConfirmRequest,
 )
 from odap.infra.security.jwt_auth import get_current_user
+
+logger = logging.getLogger(__name__)
 
 ALLOWED_EXTENSIONS = {
     ".pdf", ".doc", ".docx", ".txt", ".md", ".csv",
@@ -80,20 +84,104 @@ async def extract_from_database(
         raise HTTPException(status_code=500, detail=str(e))
 
 
+def _simple_nl_extract(text: str, is_async: bool = False) -> dict:
+    """Simple NL extraction using ChatOpenAI directly — bypasses hyper-extract.
+
+    Hyper-extract has compatibility issues with non-OpenAI endpoints (NVIDIA NIM,
+    custom proxies) due to embeddings, YAML expectations, and parallel LLM calls
+    that exhaust rate limits. This function provides a reliable fallback.
+    """
+    import json as _json
+    import os as _os
+    from langchain_openai import ChatOpenAI
+    from langchain_core.messages import HumanMessage
+
+    # Use env var directly to avoid config encryption key mismatch
+    # (config DB auto-populates from env but encrypts with a per-process key)
+    api_key = _os.environ.get("OPENAI_API_KEY", "")
+    api_base = _os.environ.get("OPENAI_API_BASE", "https://api.openai.com/v1")
+    model = _os.environ.get("OPENAI_MODEL", "gpt-4o")
+
+    if not api_key:
+        return {"status": "error", "message": "LLM API key not configured"}
+
+    llm = ChatOpenAI(
+        model=model,
+        api_key=api_key,
+        base_url=api_base,
+        temperature=0,
+    )
+
+    prompt = (
+        "你是一个本体设计专家。请从以下自然语言描述中提取结构化的类型定义。\n\n"
+        "返回一个JSON对象，包含以下键：\n"
+        '- "object_types": 对象类型列表，每个有 name (英文snake_case), display_name (中文), description\n'
+        '- "link_types": 关系类型列表，每个有 name, source_type, target_type, description\n'
+        '- "action_types": 动作类型列表，每个有 name, description\n'
+        '- "rule_types": 规则类型列表，每个有 name, description\n'
+        '- "process_types": 业务流程类型列表，每个有 name, description\n'
+        '- "indicator_types": 指标类型列表，每个有 name, indicator_type (kpi/metric/dimension), formula, unit\n\n'
+        "IMPORTANT: 只返回有效的JSON对象。不要markdown，不要解释，不要代码块。\n\n"
+        f"自然语言描述：\n{text[:3000]}"
+    )
+
+    try:
+        resp = llm.invoke([HumanMessage(content=prompt)])
+        content = resp.content if hasattr(resp, "content") else str(resp)
+    except Exception as e:
+        return {"status": "error", "message": f"LLM call failed: {type(e).__name__}: {e}"}
+
+    if not content or not content.strip():
+        return {"status": "error", "message": "LLM returned empty response"}
+
+    # Parse JSON from response (handle prefix text like "我们{...}")
+    for i, ch in enumerate(content):
+        if ch in "{[":
+            try:
+                parsed = _json.loads(content[i:])
+                break
+            except _json.JSONDecodeError:
+                continue
+    else:
+        return {"status": "error", "message": "Failed to parse LLM response as JSON", "raw": content[:200]}
+
+    if not isinstance(parsed, dict):
+        return {"status": "error", "message": "LLM response is not a JSON object"}
+
+    result = {
+        "status": "ok",
+        "object_types": parsed.get("object_types", []),
+        "link_types": parsed.get("link_types", []),
+        "action_types": parsed.get("action_types", []),
+        "rule_types": parsed.get("rule_types", []),
+        "process_types": parsed.get("process_types", []),
+        "indicator_types": parsed.get("indicator_types", []),
+        "entities": [],
+        "relations": [],
+        "source": "simple_nl_extract",
+        "summary": {
+            "object_types": len(parsed.get("object_types", [])),
+            "link_types": len(parsed.get("link_types", [])),
+            "action_types": len(parsed.get("action_types", [])),
+            "rule_types": len(parsed.get("rule_types", [])),
+            "process_types": len(parsed.get("process_types", [])),
+            "indicator_types": len(parsed.get("indicator_types", [])),
+        },
+    }
+    return result
+
 @router.post("/extract/natural-language")
 async def extract_from_natural_language(
     request: NLExtractionRequest,
     user=Depends(get_current_user),
 ):
-    """Extract schema from natural language description using LLM."""
+    """Extract schema from natural language description using LLM.
+
+    Uses simple ChatOpenAI-based extraction (not hyper-extract) for
+    compatibility with non-OpenAI endpoints (NVIDIA NIM, etc.).
+    """
     try:
-        result = await _extraction_service.extract_from_nl(
-            ontology_id=request.ontology_id,
-            text=request.text,
-            auto_search=request.auto_search,
-            template_id=request.template_id,
-            method=request.method,
-        )
+        result = _simple_nl_extract(request.text)
         if result.get("status") == "error":
             raise HTTPException(status_code=400, detail=result.get("message", "Extraction failed"))
         return result
