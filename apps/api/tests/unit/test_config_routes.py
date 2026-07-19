@@ -7,14 +7,26 @@ from fastapi.testclient import TestClient
 
 @pytest.fixture
 def client():
-    """创建测试客户端"""
+    """创建测试客户端（注入 mock JWT user，模拟认证通过）"""
     os.environ.pop("CONFIG_ENCRYPTION_KEY", None)
     from fastapi import FastAPI
     from odap.biz.platform.config.api.routes import router
+    from odap.infra.security.jwt_auth import get_current_user
 
     app = FastAPI()
     app.include_router(router)
-    return TestClient(app)
+
+    # 模拟 JWT 认证通过（参考 test_agent_api_routes.py 模式）
+    # 写操作路由（update_configs/rollback/import_configs）依赖
+    # get_current_user 提取操作者身份，这里注入 mock admin user
+    async def _mock_user():
+        return {"sub": "test-user", "name": "Test User", "role": "admin"}
+
+    app.dependency_overrides[get_current_user] = _mock_user
+
+    with TestClient(app) as c:
+        yield c
+    app.dependency_overrides.clear()
 
 
 class TestConfigRoutes:

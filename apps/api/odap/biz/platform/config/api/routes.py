@@ -13,6 +13,7 @@ from odap.biz.platform.config.api.schemas import (
 )
 from odap.biz.platform.config.services.config_service import ConfigService
 from odap.biz.platform.config.models.config_models import ServiceCategory
+from odap.infra.security.jwt_auth import get_current_user
 
 logger = logging.getLogger(__name__)
 
@@ -35,6 +36,25 @@ def _verify_admin():
         return Depends(verify_admin)
     except ImportError:
         return None
+
+
+def _extract_operator(user) -> tuple[str, str]:
+    """从 JWT payload 提取操作者身份。
+
+    与项目其他 routes.py 一致（参考 biz/core/agent/api/routes.py）：
+    user 是 JWT payload dict，'sub' 字段是 user_id。
+
+    Args:
+        user: get_current_user 返回的 JWT payload dict
+
+    Returns:
+        (operator_id, operator_name) 元组；缺失字段降级为 "anonymous"
+    """
+    if not isinstance(user, dict):
+        return "anonymous", "anonymous"
+    operator_id = user.get("sub") or user.get("user_id") or "anonymous"
+    operator_name = user.get("name") or user.get("username") or operator_id
+    return operator_id, operator_name
 
 
 # ── 静态路径路由（必须在 /{category} 之前定义） ──
@@ -174,15 +194,16 @@ async def get_configs_by_category(category: str):
 
 
 @router.put("")
-async def update_configs(request: UpdateConfigRequest):
+async def update_configs(request: UpdateConfigRequest, user=Depends(get_current_user)):
     """批量更新配置"""
     try:
         service = _get_service()
+        operator_id, operator_name = _extract_operator(user)
         result = await service.update_configs(
             items=[item.model_dump() for item in request.items],
             test_connection=request.test_connection,
-            operator_id="admin",  # TODO: 从 JWT 获取
-            operator_name="admin",
+            operator_id=operator_id,
+            operator_name=operator_name,
         )
         if result.get("status") == "error":
             raise HTTPException(status_code=400, detail=result.get("message", "Update failed"))
@@ -211,14 +232,15 @@ async def test_connection(request: TestConnectionRequest):
 
 
 @router.post("/rollback")
-async def rollback_config(request: RollbackRequest):
+async def rollback_config(request: RollbackRequest, user=Depends(get_current_user)):
     """回滚配置"""
     try:
         service = _get_service()
+        operator_id, operator_name = _extract_operator(user)
         result = await service.rollback_to_revision(
             request.revision_number,
-            operator_id="admin",
-            operator_name="admin",
+            operator_id=operator_id,
+            operator_name=operator_name,
         )
         if result.get("status") == "error":
             raise HTTPException(status_code=404, detail=result.get("message", "Revision not found"))
@@ -230,14 +252,15 @@ async def rollback_config(request: RollbackRequest):
 
 
 @router.post("/import")
-async def import_configs(request: ImportConfigRequest):
+async def import_configs(request: ImportConfigRequest, user=Depends(get_current_user)):
     """导入配置"""
     try:
         service = _get_service()
+        operator_id, operator_name = _extract_operator(user)
         result = service.import_configs(
             items=[item.model_dump() for item in request.items],
-            operator_id="admin",
-            operator_name="admin",
+            operator_id=operator_id,
+            operator_name=operator_name,
         )
         return result
     except HTTPException:
