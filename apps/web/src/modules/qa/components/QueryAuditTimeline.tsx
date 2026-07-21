@@ -62,7 +62,7 @@ export function QueryAuditTimeline({
   };
 
   return (
-    <Card size="small" title={t('audit.title')} style={{ marginBottom: 12 }}>
+    <Card size="small" title={t('审计日志')} style={{ marginBottom: 12 }}>
       <Spin spinning={!!loading}>
       <Timeline
         items={records.map((r) => ({

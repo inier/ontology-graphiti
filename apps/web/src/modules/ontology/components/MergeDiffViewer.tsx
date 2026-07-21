@@ -74,7 +74,7 @@ const PROPERTY_HIGHLIGHT = {
 };
 
 export function MergeDiffViewer({ branchId, baseVersionId, onMerged }: MergeDiffViewerProps) {
-  const { t } = useI18n();
+  const { t } = useI18n('ontology');
   void t;
   const [baseVersion, setBaseVersion] = useState<string | undefined>(baseVersionId);
   const [oursVersion, setOursVersion] = useState<string | undefined>(baseVersionId);

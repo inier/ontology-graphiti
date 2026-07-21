@@ -32,9 +32,9 @@ export function ConfigImportExport({ onImportComplete }: ConfigImportExportProps
       link.click();
       document.body.removeChild(link);
       URL.revokeObjectURL(url);
-      message.success(t('exportSuccess'));
+      message.success(t('配置已导出'));
     } catch {
-      message.error(t('exportFailed'));
+      message.error(t('导出配置失败'));
     } finally {
       setExporting(false);
     }
@@ -52,7 +52,7 @@ export function ConfigImportExport({ onImportComplete }: ConfigImportExportProps
         : parsed.items || [];
 
       if (items.length === 0) {
-        message.warning(t('importNoItems'));
+        message.warning(t('导入文件中没有配置项'));
         return false;
       }
 
@@ -63,9 +63,9 @@ export function ConfigImportExport({ onImportComplete }: ConfigImportExportProps
       onImportComplete?.();
     } catch (e) {
       if (e instanceof SyntaxError) {
-        message.error(t('importFormatError'));
+        message.error(t('导入文件格式错误，请检查 JSON 格式'));
       } else {
-        message.error(t('importFailed'));
+        message.error(t('导入配置失败'));
       }
     } finally {
       setImporting(false);
@@ -80,7 +80,7 @@ export function ConfigImportExport({ onImportComplete }: ConfigImportExportProps
         onClick={handleExport}
         loading={exporting}
       >
-        {t('exportConfig')}
+        {t('导出配置')}
       </Button>
       <Upload
         accept=".json"
@@ -89,7 +89,7 @@ export function ConfigImportExport({ onImportComplete }: ConfigImportExportProps
         disabled={importing}
       >
         <Button icon={<ImportOutlined />} loading={importing}>
-          {t('importConfig')}
+          {t('导入配置')}
         </Button>
       </Upload>
     </Space>

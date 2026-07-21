@@ -21,7 +21,7 @@ import { useNLQueryStore } from '../stores/nlQueryStore';
 const { Text, Title } = Typography;
 
 export function EvaluationPage() {
-  const { t } = useI18n('qa');
+  const { t } = useI18n();
   const {
     evalLoading,
     evalResult,
@@ -72,7 +72,7 @@ export function EvaluationPage() {
     };
 
     return (
-      <Card size="small" title={t('evaluation.pillarUsage')} style={{ marginBottom: 12 }}>
+      <Card size="small" title={t('支柱使用')} style={{ marginBottom: 12 }}>
         <Space orientation="vertical" style={{ width: '100%' }} size={8}>
           {Object.entries(usage).map(([pillar, count]) => {
             const config = pillarConfig[pillar] || { icon: null, color: '#999', label: pillar };
@@ -84,7 +84,7 @@ export function EvaluationPage() {
                     <span style={{ color: config.color }}>{config.icon}</span>
                     <Text style={{ fontSize: 12 }}>{config.label}</Text>
                   </Space>
-                  <Text style={{ fontSize: 12, color: '#999' }}>{t('evaluation.usageCount', { count, pct })}</Text>
+                  <Text style={{ fontSize: 12, color: '#999' }}>{t('用量: {{count}} ({{pct}}%)', { count, pct })}</Text>
                 </div>
                 <Progress percent={pct} showInfo={false} strokeColor={config.color} size="small" />
               </div>
@@ -99,7 +99,7 @@ export function EvaluationPage() {
     <div style={{ padding: 20, maxWidth: 900, margin: '0 auto' }}>
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16 }}>
         <Title level={4} style={{ margin: 0 }}>
-          <TrophyOutlined /> {t('evaluation.title')}
+          <TrophyOutlined /> {t('评估')}
         </Title>
         <Button
           type="primary"
@@ -107,7 +107,7 @@ export function EvaluationPage() {
           onClick={executeEvaluation}
           loading={evalLoading}
         >
-          {t('evaluation.runBenchmark')}
+          {t('运行基准测试')}
         </Button>
       </div>
 
@@ -120,7 +120,7 @@ export function EvaluationPage() {
 
       {/* 加载中 - overlay 遮罩，不占空间 */}
       {evalLoading && (
-        <OverlaySpin spinning tip={t('evaluation.running')} />
+        <OverlaySpin spinning tip={t('运行中...')} />
       )}
 
       {/* 评估结果 */}
@@ -131,14 +131,14 @@ export function EvaluationPage() {
             <Row gutter={16}>
               <Col span={6}>
                 <Statistic
-                  title={t('evaluation.testCases')}
+                  title={t('测试用例')}
                   value={evalResult.total_cases}
                   prefix={<CheckCircleOutlined />}
                 />
               </Col>
               <Col span={6}>
                 <Statistic
-                  title={t('evaluation.p50Latency')}
+                  title={t('P50 延迟')}
                   value={evalResult.latency_p50_ms}
                   suffix="ms"
                   prefix={<ClockCircleOutlined />}
@@ -147,7 +147,7 @@ export function EvaluationPage() {
               </Col>
               <Col span={6}>
                 <Statistic
-                  title={t('evaluation.p95Latency')}
+                  title={t('P95 延迟')}
                   value={evalResult.latency_p95_ms}
                   suffix="ms"
                   prefix={<ThunderboltOutlined />}
@@ -156,18 +156,18 @@ export function EvaluationPage() {
               </Col>
               <Col span={6}>
                 <Statistic
-                  title={t('evaluation.dataset')}
-                  value={evalResult.dataset_name || t('evaluation.defaultDataset')}
+                  title={t('数据集')}
+                  value={evalResult.dataset_name || t('默认数据集')}
                 />
               </Col>
             </Row>
           </Card>
 
           {/* 检索指标 */}
-          {renderMetrics(evalResult.retrieval_metrics, t('evaluation.retrievalMetrics'))}
+          {renderMetrics(evalResult.retrieval_metrics, t('检索指标'))}
 
           {/* QA 指标 */}
-          {renderMetrics(evalResult.qa_metrics, t('evaluation.qaMetrics'))}
+          {renderMetrics(evalResult.qa_metrics, t('QA 指标'))}
 
           {/* 支柱使用 */}
           {renderPillarUsage(evalResult.pillar_usage)}
@@ -177,7 +177,7 @@ export function EvaluationPage() {
       {/* 无结果 */}
       {!evalResult && !evalLoading && !evalError && (
         <Empty
-          description={t('evaluation.emptyHint')}
+          description={t('暂无评估结果')}
           style={{ padding: 40 }}
         />
       )}
@@ -185,15 +185,15 @@ export function EvaluationPage() {
       {/* 审计统计 */}
       {auditStats && (
         <>
-          <Divider>{t('evaluation.historyStats')}</Divider>
+          <Divider>{t('历史统计')}</Divider>
           <Card size="small">
             <Row gutter={16}>
               <Col span={8}>
-                <Statistic title={t('evaluation.totalQueries')} value={auditStats.total_queries} />
+                <Statistic title={t('总查询')} value={auditStats.total_queries} />
               </Col>
               <Col span={8}>
                 <Statistic
-                  title={t('evaluation.avgLatency')}
+                  title={t('平均延迟')}
                   value={auditStats.avg_time_ms}
                   suffix="ms"
                   styles={{ content: { color: auditStats.avg_time_ms < 1000 ? '#52c41a' : '#faad14' } }}
@@ -201,7 +201,7 @@ export function EvaluationPage() {
               </Col>
               <Col span={8}>
                 <Space orientation="vertical" size={2}>
-                  <Text type="secondary" style={{ fontSize: 12 }}>{t('evaluation.pillarUsageLabel')}</Text>
+                  <Text type="secondary" style={{ fontSize: 12 }}>{t('支柱使用')}</Text>
                   {Object.entries(auditStats.pillar_usage).map(([p, c]) => (
                     <Tag key={p} color={p === 'bm25' ? 'blue' : p === 'vector' ? 'green' : 'orange'} style={{ fontSize: 11 }}>
                       {p}: {c}

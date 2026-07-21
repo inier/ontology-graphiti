@@ -31,8 +31,8 @@ export default function ReasoningPath({ path, onNodeClick }: ReasoningPathProps)
 
   if (!path || path.length === 0) {
     return (
-      <Card title={t('reasoningChain')} size="small">
-        <Text type="secondary">{t('noData')}</Text>
+      <Card title={t('推理链')} size="small">
+        <Text type="secondary">{t('暂无数据')}</Text>
       </Card>
     );
   }
@@ -72,7 +72,7 @@ export default function ReasoningPath({ path, onNodeClick }: ReasoningPathProps)
   }));
 
   return (
-    <Card title={t('reasoningChain')} size="small">
+    <Card title={t('推理链')} size="small">
       <Steps
         orientation="vertical"
         size="small"

@@ -6,6 +6,8 @@ import { PlusOutlined, EditOutlined, DeleteOutlined, PlayCircleOutlined, StopOut
 
 import { api } from '@/modules/shared/services/api';
 
+import { useI18n } from '@/modules/shared/hooks/useI18n';
+
 import { useWorkspace, useScenario } from '@/modules/shared/components/LayoutContexts';
 
 import { DeleteConfirmModal } from '../components/DeleteConfirmModal';
@@ -43,6 +45,8 @@ interface Scenario {
 
 
 export function WorkspaceManager() {
+
+  const { t } = useI18n();
 
   const { reloadWorkspaces, currentWorkspace } = useWorkspace();
 
@@ -153,7 +157,7 @@ export function WorkspaceManager() {
 
       await api.deleteWorkspace(deletingWorkspace.workspace_id);
 
-      message.success('删除成功');
+      message.success(t('删除成功'));
 
       setDeleteModalOpen(false);
 
@@ -167,7 +171,7 @@ export function WorkspaceManager() {
 
       console.error('删除失败', error);
 
-      message.error('删除失败');
+      message.error(t('删除失败'));
 
     } finally {
 
@@ -185,7 +189,7 @@ export function WorkspaceManager() {
 
       await api.activateWorkspace(workspaceId);
 
-      message.success('激活成功');
+      message.success(t('激活成功'));
 
       workspaceActionRef.current?.reload();
 
@@ -195,7 +199,7 @@ export function WorkspaceManager() {
 
       console.error('激活失败', error);
 
-      message.error('激活失败');
+      message.error(t('激活失败'));
 
     }
 
@@ -209,7 +213,7 @@ export function WorkspaceManager() {
 
       await api.deactivateWorkspace(workspaceId);
 
-      message.success('停用成功');
+      message.success(t('停用成功'));
 
       workspaceActionRef.current?.reload();
 
@@ -219,7 +223,7 @@ export function WorkspaceManager() {
 
       console.error('停用失败', error);
 
-      message.error('停用失败');
+      message.error(t('停用失败'));
 
     }
 
@@ -237,13 +241,13 @@ export function WorkspaceManager() {
 
         await api.updateWorkspace(editingWorkspace.workspace_id, values);
 
-        message.success('更新成功');
+        message.success(t('更新成功'));
 
       } else {
 
         await api.createWorkspace(values);
 
-        message.success('创建成功');
+        message.success(t('创建成功'));
 
       }
 
@@ -257,7 +261,7 @@ export function WorkspaceManager() {
 
       console.error('操作失败', error);
 
-      message.error('操作失败');
+      message.error(t('操作失败'));
 
     }
 
@@ -303,7 +307,7 @@ export function WorkspaceManager() {
 
       await api.deleteScenario(workspaceId, scenarioId);
 
-      message.success('删除成功');
+      message.success(t('删除成功'));
 
       scenarioActionRef.current?.reload();
 
@@ -313,7 +317,7 @@ export function WorkspaceManager() {
 
       console.error('删除失败', error);
 
-      message.error('删除失败');
+      message.error(t('删除失败'));
 
     }
 
@@ -323,7 +327,7 @@ export function WorkspaceManager() {
 
   const handleBuildGraph = async (workspaceId: string, scenarioId: string) => {
 
-    const hide = message.loading('正在构建图谱...', 0);
+    const hide = message.loading(t('正在构建图谱...'), 0);
 
     try {
 
@@ -331,7 +335,7 @@ export function WorkspaceManager() {
 
       hide();
 
-      message.success(`构建成功！抽取了 ${result.entity_count} 个实体，${result.event_count} 个事件`);
+      message.success(t('构建成功！抽取了 {{entity_count}} 个实体，{{event_count}} 个事件', { entity_count: result.entity_count, event_count: result.event_count }));
 
       scenarioActionRef.current?.reload();
 
@@ -341,7 +345,7 @@ export function WorkspaceManager() {
 
       console.error('构建图谱失败', error);
 
-      message.error('构建图谱失败');
+      message.error(t('构建图谱失败'));
 
     }
 
@@ -375,7 +379,7 @@ export function WorkspaceManager() {
 
         );
 
-        message.success('更新成功');
+        message.success(t('更新成功'));
 
       } else {
 
@@ -391,7 +395,7 @@ export function WorkspaceManager() {
 
         );
 
-        message.success('创建成功');
+        message.success(t('创建成功'));
 
       }
 
@@ -405,7 +409,7 @@ export function WorkspaceManager() {
 
       console.error('操作失败', error);
 
-      message.error('操作失败');
+      message.error(t('操作失败'));
 
     }
 
@@ -417,7 +421,7 @@ export function WorkspaceManager() {
 
     {
 
-      title: '名称',
+      title: t('名称'),
 
       dataIndex: 'name',
 
@@ -431,7 +435,7 @@ export function WorkspaceManager() {
 
           <Tag color={record.status === 'active' ? 'green' : 'red'}>
 
-            {record.status === 'active' ? '活跃' : '停用'}
+            {record.status === 'active' ? t('活跃') : t('停用')}
 
           </Tag>
 
@@ -443,7 +447,7 @@ export function WorkspaceManager() {
 
     {
 
-      title: '描述',
+      title: t('描述'),
 
       dataIndex: 'description',
 
@@ -455,7 +459,7 @@ export function WorkspaceManager() {
 
     {
 
-      title: '类型',
+      title: t('类型'),
 
       dataIndex: 'type',
 
@@ -465,11 +469,11 @@ export function WorkspaceManager() {
 
         const typeMap: Record<string, { color: string; text: string }> = {
 
-          default: { color: 'blue', text: '默认' },
+          default: { color: 'blue', text: t('默认') },
 
-          project: { color: 'purple', text: '项目' },
+          project: { color: 'purple', text: t('项目') },
 
-          team: { color: 'orange', text: '团队' },
+          team: { color: 'orange', text: t('团队') },
 
         };
 
@@ -483,7 +487,7 @@ export function WorkspaceManager() {
 
     {
 
-      title: '所有者',
+      title: t('所有者'),
 
       dataIndex: 'owner',
 
@@ -493,7 +497,7 @@ export function WorkspaceManager() {
 
     {
 
-      title: '成员数',
+      title: t('成员数'),
 
       dataIndex: 'member_count',
 
@@ -505,7 +509,7 @@ export function WorkspaceManager() {
 
     {
 
-      title: '创建时间',
+      title: t('创建时间'),
 
       dataIndex: 'created_at',
 
@@ -517,7 +521,7 @@ export function WorkspaceManager() {
 
     {
 
-      title: '操作',
+      title: t('操作'),
 
       key: 'action',
 
@@ -539,7 +543,7 @@ export function WorkspaceManager() {
 
           >
 
-            编辑
+            {t('编辑')}
 
           </Button>
 
@@ -559,7 +563,7 @@ export function WorkspaceManager() {
 
             >
 
-              停用
+              {t('停用')}
 
             </Button>
 
@@ -577,7 +581,7 @@ export function WorkspaceManager() {
 
             >
 
-              激活
+              {t('激活')}
 
             </Button>
 
@@ -597,7 +601,7 @@ export function WorkspaceManager() {
 
           >
 
-            删除
+            {t('删除')}
 
           </Button>
 
@@ -619,7 +623,7 @@ export function WorkspaceManager() {
 
     {
 
-      title: '场景名称',
+      title: t('场景名称'),
 
       dataIndex: 'name',
 
@@ -631,7 +635,7 @@ export function WorkspaceManager() {
 
           <span style={{ fontWeight: 500 }}>{name}</span>
 
-          {record.ontology_id && <Tag color="blue">绑定本体</Tag>}
+          {record.ontology_id && <Tag color="blue">{t('绑定本体')}</Tag>}
 
         </Space>
 
@@ -641,7 +645,7 @@ export function WorkspaceManager() {
 
     {
 
-      title: '描述',
+      title: t('描述'),
 
       dataIndex: 'description',
 
@@ -653,7 +657,7 @@ export function WorkspaceManager() {
 
     {
 
-      title: '本体 ID',
+      title: t('本体 ID'),
 
       dataIndex: 'ontology_id',
 
@@ -661,7 +665,7 @@ export function WorkspaceManager() {
 
       render: (ontologyId: string) => (
 
-        <span>{ontologyId || <span style={{ color: '#999' }}>未绑定</span>}</span>
+        <span>{ontologyId || <span style={{ color: '#999' }}>{t('未绑定')}</span>}</span>
 
       ),
 
@@ -669,7 +673,7 @@ export function WorkspaceManager() {
 
     {
 
-      title: '文档数',
+      title: t('文档数'),
 
       dataIndex: 'doc_count',
 
@@ -679,7 +683,7 @@ export function WorkspaceManager() {
 
     {
 
-      title: '事件数',
+      title: t('事件数'),
 
       dataIndex: 'event_count',
 
@@ -689,7 +693,7 @@ export function WorkspaceManager() {
 
     {
 
-      title: '实体数',
+      title: t('实体数'),
 
       dataIndex: 'entity_count',
 
@@ -699,7 +703,7 @@ export function WorkspaceManager() {
 
     {
 
-      title: '创建时间',
+      title: t('创建时间'),
 
       dataIndex: 'created_at',
 
@@ -711,7 +715,7 @@ export function WorkspaceManager() {
 
     {
 
-      title: '操作',
+      title: t('操作'),
 
       key: 'action',
 
@@ -733,7 +737,7 @@ export function WorkspaceManager() {
 
           >
 
-            编辑
+            {t('编辑')}
 
           </Button>
 
@@ -749,25 +753,25 @@ export function WorkspaceManager() {
 
           >
 
-            构建图谱
+            {t('构建图谱')}
 
           </Button>
 
           <Popconfirm
 
-            title="确定删除此场景？"
+            title={t('确定删除此场景？')}
 
             onConfirm={() => handleDeleteScenario(record.workspace_id, record.scenario_id)}
 
-            okText="确定"
+            okText={t('确定')}
 
-            cancelText="取消"
+            cancelText={t('取消')}
 
           >
 
             <Button type="link" danger size="small" icon={<DeleteOutlined />}>
 
-              删除
+              {t('删除')}
 
             </Button>
 
@@ -793,7 +797,7 @@ export function WorkspaceManager() {
 
           <Card>
 
-            <Statistic title="总工作空间数" value={wsCount} />
+            <Statistic title={t('总工作空间数')} value={wsCount} />
 
           </Card>
 
@@ -803,7 +807,7 @@ export function WorkspaceManager() {
 
           <Card>
 
-            <Statistic title="活跃工作空间" value={activeCount} styles={{ content: { color: '#52c41a' } }} />
+            <Statistic title={t('活跃工作空间')} value={activeCount} styles={{ content: { color: '#52c41a' } }} />
 
           </Card>
 
@@ -813,7 +817,7 @@ export function WorkspaceManager() {
 
           <Card>
 
-            <Statistic title="已停用" value={inactiveCount} styles={{ content: { color: '#ff4d4f' } }} />
+            <Statistic title={t('已停用')} value={inactiveCount} styles={{ content: { color: '#ff4d4f' } }} />
 
           </Card>
 
@@ -823,7 +827,7 @@ export function WorkspaceManager() {
 
           <Card>
 
-            <Statistic title="总场景数" value={totalScenarioCount} />
+            <Statistic title={t('总场景数')} value={totalScenarioCount} />
 
           </Card>
 
@@ -847,7 +851,7 @@ export function WorkspaceManager() {
 
             key: 'scenarios',
 
-            label: '场景管理',
+            label: t('场景管理'),
 
             children: (
 
@@ -865,7 +869,7 @@ export function WorkspaceManager() {
 
                         <Tag color={wsMap[currentWorkspace]?.status === 'active' ? 'green' : 'red'}>
 
-                          {wsMap[currentWorkspace]?.status === 'active' ? '活跃' : '停用'}
+                          {wsMap[currentWorkspace]?.status === 'active' ? t('活跃') : t('停用')}
 
                         </Tag>
 
@@ -885,7 +889,7 @@ export function WorkspaceManager() {
 
                       >
 
-                        创建场景
+                        {t('创建场景')}
 
                       </Button>
 
@@ -915,7 +919,7 @@ export function WorkspaceManager() {
 
                     <div style={{ textAlign: 'center', color: '#8c8c8c', padding: '40px 0' }}>
 
-                      请先在顶部选择一个工作空间以查看其场景
+                      {t('请先在顶部选择一个工作空间以查看其场景')}
 
                     </div>
 
@@ -933,19 +937,19 @@ export function WorkspaceManager() {
 
             key: 'workspaces',
 
-            label: '工作空间管理',
+            label: t('工作空间管理'),
 
             children: (
 
               <Card
 
-                title="工作空间管理"
+                title={t('工作空间管理')}
 
                 extra={
 
                   <Button type="primary" icon={<PlusOutlined />} onClick={handleCreate}>
 
-                    创建工作空间
+                    {t('创建工作空间')}
 
                   </Button>
 
@@ -981,7 +985,7 @@ export function WorkspaceManager() {
 
       <Modal
 
-        title={editingWorkspace ? '编辑工作空间' : '创建工作空间'}
+        title={editingWorkspace ? t('编辑工作空间') : t('创建工作空间')}
 
         open={modalVisible}
 
@@ -989,9 +993,9 @@ export function WorkspaceManager() {
 
         onCancel={() => setModalVisible(false)}
 
-        okText={editingWorkspace ? '更新' : '创建'}
+        okText={editingWorkspace ? t('更新') : t('创建')}
 
-        cancelText="取消"
+        cancelText={t('取消')}
 
       >
 
@@ -1001,25 +1005,25 @@ export function WorkspaceManager() {
 
             name="name"
 
-            label="名称"
+            label={t('名称')}
 
-            rules={[{ required: true, message: '请输入工作空间名称' }]}
+            rules={[{ required: true, message: t('请输入工作空间名称') }]}
 
           >
 
-            <Input placeholder="请输入工作空间名称" />
+            <Input placeholder={t('请输入工作空间名称')} />
 
           </Form.Item>
 
-          <Form.Item name="description" label="描述">
+          <Form.Item name="description" label={t('描述')}>
 
-            <Input.TextArea rows={3} placeholder="请输入工作空间描述" />
+            <Input.TextArea rows={3} placeholder={t('请输入工作空间描述')} />
 
           </Form.Item>
 
-          <Form.Item name="owner" label="所有者">
+          <Form.Item name="owner" label={t('所有者')}>
 
-            <Input placeholder="请输入所有者" defaultValue="system" />
+            <Input placeholder={t('请输入所有者')} defaultValue="system" />
 
           </Form.Item>
 
@@ -1031,7 +1035,7 @@ export function WorkspaceManager() {
 
       <Modal
 
-        title={editingScenario?.scenario ? '编辑场景' : '创建场景'}
+        title={editingScenario?.scenario ? t('编辑场景') : t('创建场景')}
 
         open={scenarioModalVisible}
 
@@ -1039,9 +1043,9 @@ export function WorkspaceManager() {
 
         onCancel={() => setScenarioModalVisible(false)}
 
-        okText={editingScenario?.scenario ? '更新' : '创建'}
+        okText={editingScenario?.scenario ? t('更新') : t('创建')}
 
-        cancelText="取消"
+        cancelText={t('取消')}
 
       >
 
@@ -1051,25 +1055,25 @@ export function WorkspaceManager() {
 
             name="name"
 
-            label="场景名称"
+            label={t('场景名称')}
 
-            rules={[{ required: true, message: '请输入场景名称' }]}
+            rules={[{ required: true, message: t('请输入场景名称') }]}
 
           >
 
-            <Input placeholder="请输入场景名称" />
+            <Input placeholder={t('请输入场景名称')} />
 
           </Form.Item>
 
-          <Form.Item name="description" label="描述">
+          <Form.Item name="description" label={t('描述')}>
 
-            <Input.TextArea rows={3} placeholder="请输入场景描述" />
+            <Input.TextArea rows={3} placeholder={t('请输入场景描述')} />
 
           </Form.Item>
 
-          <Form.Item name="ontology_id" label="绑定本体 ID（可选）">
+          <Form.Item name="ontology_id" label={t('绑定本体 ID（可选）')}>
 
-            <Input placeholder="请输入本体 ID" />
+            <Input placeholder={t('请输入本体 ID')} />
 
           </Form.Item>
 

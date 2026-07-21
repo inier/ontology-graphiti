@@ -315,7 +315,7 @@ export function GoalKanban() {
           <Col xs={24} md={16}>
             <Space wrap>
               <Title level={4} style={{ margin: 0 }}>
-                <AimOutlined /> {t('goal.kanban')}
+                <AimOutlined /> {t('Goal 看板')}
               </Title>
               <Select
                 placeholder={t('goal.selectWorkspace')}
@@ -521,7 +521,7 @@ export function GoalKanban() {
                     )}
                     {lineage.proposals.length > 0 && (
                       <div>
-                        <Text type="secondary">{t('goal.proposal')}</Text>
+                        <Text type="secondary">{t('Change Proposal')}</Text>
                         <Space wrap>
                           {lineage.proposals.map((p) => (
                             <Tooltip key={p.id} title={p.title}>
@@ -575,7 +575,7 @@ export function GoalKanban() {
           <Form.Item name="parent_goal_id" label={t('goal.parentGoalIdOptional')}>
             <Input placeholder={t('goal.parentGoalIdPlaceholder')} />
           </Form.Item>
-          <Form.Item name="tags" label={`${t('goal.labelTags')}（逗号分隔）`}>
+          <Form.Item name="tags" label={`${t('goal.labelTags')}${t('（逗号分隔）')}`}>
             <Input placeholder={t('goal.tagsPlaceholder')} />
           </Form.Item>
         </Form>

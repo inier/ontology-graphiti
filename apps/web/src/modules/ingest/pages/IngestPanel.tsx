@@ -8,6 +8,7 @@ import WebSearchPanel from '../components/WebSearchPanel';
 import WebCrawlPanel from '../components/WebCrawlPanel';
 import { PageTourWrapper, ingestTourSteps, PAGE_IDS } from '@/modules/guide';
 import { AdvancedTable } from '@/modules/shared';
+import { useI18n } from '@/modules/shared/hooks/useI18n';
 const { Dragger } = Upload;
 const { TextArea } = Input;
 const { Text, Paragraph } = Typography;
@@ -80,15 +81,6 @@ interface BuildDetail {
   completed: boolean;
 }
 
-const PIPELINE_STAGES = [
-  { key: 'collection', title: '数据采集', icon: <DatabaseOutlined /> },
-  { key: 'cleaning', title: '数据清洗', icon: <ApiOutlined /> },
-  { key: 'llm', title: 'LLM归纳', icon: <RobotOutlined /> },
-  { key: 'ontology', title: '本体构建', icon: <CloudServerOutlined /> },
-  { key: 'version', title: '版本管理', icon: <GitlabOutlined /> },
-  { key: 'graph', title: '图谱生成', icon: <FolderOutlined /> },
-];
-
 const STAGE_COLORS: Record<string, string> = {
   collection: 'blue',
   cleaning: 'cyan',
@@ -108,10 +100,20 @@ const _PIPELINE_DESCRIPTIONS: Record<string, string> = {
 };
 
 export function IngestPanel() {
+  const { t } = useI18n();
   const { currentScenario } = useScenario();
   const { currentWorkspace } = useWorkspace();
   const buildProgress = useBuildProgress(currentScenario || undefined);
   const [activeTab, setActiveTab] = useState('text');
+
+  const PIPELINE_STAGES = [
+    { key: 'collection', title: t('数据采集'), icon: <DatabaseOutlined /> },
+    { key: 'cleaning', title: t('数据清洗'), icon: <ApiOutlined /> },
+    { key: 'llm', title: t('LLM归纳'), icon: <RobotOutlined /> },
+    { key: 'ontology', title: t('本体构建'), icon: <CloudServerOutlined /> },
+    { key: 'version', title: t('版本管理'), icon: <GitlabOutlined /> },
+    { key: 'graph', title: t('图谱生成'), icon: <FolderOutlined /> },
+  ];
 
   const [text, setText] = useState('');
   const [url, setUrl] = useState('');
@@ -292,10 +294,10 @@ export function IngestPanel() {
           : record
       ));
 
-      message.success('构建完成！');
+      message.success(t('构建完成！'));
     } catch (error) {
       console.error('Build pipeline failed:', error);
-      message.error('构建失败，请查看控制台日志');
+      message.error(t('构建失败，请查看控制台日志'));
     } finally {
       setBuildingIngestId(null);
     }
@@ -377,34 +379,34 @@ export function IngestPanel() {
         {/* 审计信息 - 时间回溯 */}
         {_audit && (
           <div style={{ marginBottom: 6, paddingLeft: 8, borderLeft: '2px solid #d9d9d9' }}>
-            <Text strong style={{ color: '#722ed1' }}>审计信息:</Text>
+            <Text strong style={{ color: '#722ed1' }}>{t('审计信息:')}</Text>
             <div style={{ marginTop: 2, fontSize: 10 }}>
               {_audit.start_time && (
                 <div>
-                  <Text style={{ color: '#666' }}>开始时间: </Text>
+                  <Text style={{ color: '#666' }}>{t('开始时间: ')}</Text>
                   <Text>{new Date(_audit.start_time).toLocaleString()}</Text>
                 </div>
               )}
               {_audit.end_time && (
                 <div>
-                  <Text style={{ color: '#666' }}>结束时间: </Text>
+                  <Text style={{ color: '#666' }}>{t('结束时间: ')}</Text>
                   <Text>{new Date(_audit.end_time).toLocaleString()}</Text>
                 </div>
               )}
               {_audit.duration_ms != null && (
                 <div>
-                  <Text style={{ color: '#666' }}>执行时长: </Text>
+                  <Text style={{ color: '#666' }}>{t('执行时长: ')}</Text>
                   <Text>{_audit.duration_ms.toFixed(2)}ms</Text>
                 </div>
               )}
             </div>
           </div>
         )}
-        
+
         {/* 输入输出信息 */}
         {input && (
           <div style={{ marginBottom: 4 }}>
-            <Text strong style={{ color: '#1890ff' }}>输入:</Text>
+            <Text strong style={{ color: '#1890ff' }}>{t('输入:')}</Text>
             <pre style={{ margin: '2px 0 0 8px', fontSize: 10 }}>
               {JSON.stringify(input, null, 2)}
             </pre>
@@ -412,7 +414,7 @@ export function IngestPanel() {
         )}
         {output && (
           <div>
-            <Text strong style={{ color: '#52c41a' }}>输出:</Text>
+            <Text strong style={{ color: '#52c41a' }}>{t('输出:')}</Text>
             <pre style={{ margin: '2px 0 0 8px', fontSize: 10 }}>
               {JSON.stringify(output, null, 2)}
             </pre>
@@ -424,7 +426,7 @@ export function IngestPanel() {
 
   const handleIngestText = async () => {
     if (!text) {
-      message.warning('请输入文本内容');
+      message.warning(t('请输入文本内容'));
       return;
     }
     try {
@@ -434,11 +436,11 @@ export function IngestPanel() {
         data: text,
         scenario_id: currentScenario || undefined,
       });
-      message.success(`文本摄入成功，摄入ID: ${result.ingest_id}`);
+      message.success(t('文本摄入成功，摄入ID: {{id}}', { id: result.ingest_id }));
       setText('');
       await loadHistory();
     } catch (error) {
-      message.error('文本摄入失败');
+      message.error(t('文本摄入失败'));
     } finally {
       setLoading(false);
     }
@@ -446,7 +448,7 @@ export function IngestPanel() {
 
   const handleIngestNews = async () => {
     if (!url) {
-      message.warning('请输入新闻URL');
+      message.warning(t('请输入新闻URL'));
       return;
     }
     try {
@@ -456,11 +458,11 @@ export function IngestPanel() {
         data: url,
         scenario_id: currentScenario || undefined,
       });
-      message.success(`新闻摄入成功，摄入ID: ${result.ingest_id}`);
+      message.success(t('新闻摄入成功，摄入ID: {{id}}', { id: result.ingest_id }));
       setUrl('');
       await loadHistory();
     } catch (error) {
-      message.error('新闻摄入失败');
+      message.error(t('新闻摄入失败'));
     } finally {
       setLoading(false);
     }
@@ -468,7 +470,7 @@ export function IngestPanel() {
 
   const handleIngestJson = async () => {
     if (!jsonData) {
-      message.warning('请输入JSON数据');
+      message.warning(t('请输入JSON数据'));
       return;
     }
     try {
@@ -478,11 +480,11 @@ export function IngestPanel() {
         data: jsonData,
         scenario_id: currentScenario || undefined,
       });
-      message.success(`JSON摄入成功，摄入ID: ${result.ingest_id}`);
+      message.success(t('JSON摄入成功，摄入ID: {{id}}', { id: result.ingest_id }));
       setJsonData('');
       await loadHistory();
     } catch (error) {
-      message.error('JSON摄入失败');
+      message.error(t('JSON摄入失败'));
     } finally {
       setLoading(false);
     }
@@ -490,7 +492,7 @@ export function IngestPanel() {
 
   const handleIngestNaturalLanguage = async () => {
     if (!nlDescription) {
-      message.warning('请输入自然语言描述');
+      message.warning(t('请输入自然语言描述'));
       return;
     }
     try {
@@ -500,11 +502,11 @@ export function IngestPanel() {
         data: nlDescription,
         scenario_id: currentScenario || undefined,
       });
-      message.success(`自然语言摄入成功，摄入ID: ${result.ingest_id}`);
+      message.success(t('自然语言摄入成功，摄入ID: {{id}}', { id: result.ingest_id }));
       setNlDescription('');
       await loadHistory();
     } catch (error) {
-      message.error('自然语言摄入失败');
+      message.error(t('自然语言摄入失败'));
     } finally {
       setLoading(false);
     }
@@ -515,16 +517,16 @@ export function IngestPanel() {
       setLoading(true);
       const result = await api.ingest({
         type: 'random',
-        data: { 
+        data: {
           parties: ['乙方', '甲方'],
           generator_type: selectedGeneratorType
         },
         scenario_id: currentScenario || undefined,
       });
-      message.success(`随机事件生成成功，摄入ID: ${result.ingest_id}`);
+      message.success(t('随机事件生成成功，摄入ID: {{id}}', { id: result.ingest_id }));
       await loadHistory();
     } catch (error) {
-      message.error('随机事件生成失败');
+      message.error(t('随机事件生成失败'));
     } finally {
       setLoading(false);
     }
@@ -532,7 +534,7 @@ export function IngestPanel() {
 
   const handleIngestManual = async () => {
     if (!manualData.title || !manualData.description) {
-      message.warning('请输入标题和描述');
+      message.warning(t('请输入标题和描述'));
       return;
     }
     try {
@@ -542,11 +544,11 @@ export function IngestPanel() {
         data: manualData,
         scenario_id: currentScenario || undefined,
       });
-      message.success(`手动录入成功，摄入ID: ${result.ingest_id}`);
+      message.success(t('手动录入成功，摄入ID: {{id}}', { id: result.ingest_id }));
       setManualData({ title: '', description: '' });
       await loadHistory();
     } catch (error) {
-      message.error('手动录入失败');
+      message.error(t('手动录入失败'));
     } finally {
       setLoading(false);
     }
@@ -561,11 +563,11 @@ export function IngestPanel() {
         setUploadLoading(true);
         await api.ingestFile(file, currentScenario || undefined);
         onSuccess();
-        message.success(`${file.name} 文件上传成功`);
+        message.success(t('{{name}} 文件上传成功', { name: file.name }));
         await loadHistory();
       } catch (error) {
         onError();
-        message.error(`${file.name} 文件上传失败`);
+        message.error(t('{{name}} 文件上传失败', { name: file.name }));
       } finally {
         setUploadLoading(false);
       }
@@ -633,7 +635,7 @@ export function IngestPanel() {
 
         const buildDetail: BuildDetail = {
           ingest_id: record.id,
-          version_id: build?.version_info?.version_id || record.version_id || '未构建',
+          version_id: build?.version_info?.version_id || record.version_id || t('未构建'),
           source: record.source,
           start_time: buildStartTime || fullRecord.start_time || record.start_time,
           current_stage: hasBuild ? 6 : -1,
@@ -655,7 +657,7 @@ export function IngestPanel() {
     // 回退到简化版本
     const buildDetail: BuildDetail = {
       ingest_id: record.id,
-      version_id: build?.version_info?.version_id || record.version_id || '未构建',
+      version_id: build?.version_info?.version_id || record.version_id || t('未构建'),
       source: record.source,
       start_time: record.start_time,
       current_stage: hasBuild ? 6 : -1,
@@ -666,7 +668,7 @@ export function IngestPanel() {
           id: `log-completed-${s.key}`,
           timestamp: record.end_time || record.start_time,
           stage: s.key as ProcessLog['stage'],
-          operation: `${s.title}完成`,
+          operation: t('{{stage}}完成', { stage: s.title }),
           details: getStepDetails(s.key, 0),
           status: 'completed' as const,
           duration_ms: 500,
@@ -691,20 +693,20 @@ export function IngestPanel() {
       if (currentWorkspace && currentScenario) {
         await api.switchScenarioOntologyVersion(currentWorkspace, currentScenario, versionId);
       }
-      message.success(`已切换到版本 ${versionId}`);
+      message.success(t('已切换到版本 {{versionId}}', { versionId }));
       loadHistory();
     } catch (error) {
       console.error('切换版本失败:', error);
-      message.error('切换版本失败');
+      message.error(t('切换版本失败'));
     }
   };
 
   const getStatusTag = (status: string) => {
     const statusMap: Record<string, { color: string; text: string }> = {
-      completed: { color: 'success', text: '已完成' },
-      processing: { color: 'processing', text: '处理中' },
-      pending: { color: 'default', text: '等待中' },
-      failed: { color: 'error', text: '失败' },
+      completed: { color: 'success', text: t('已完成') },
+      processing: { color: 'processing', text: t('处理中') },
+      pending: { color: 'default', text: t('等待中') },
+      failed: { color: 'error', text: t('失败') },
     };
     const map = statusMap[status] || { color: 'default', text: status };
     return <Tag color={map.color}>{map.text}</Tag>;
@@ -712,7 +714,7 @@ export function IngestPanel() {
 
   const ingestColumns = [
     {
-      title: '时间',
+      title: t('时间'),
       dataIndex: 'start_time',
       key: 'start_time',
       width: 180,
@@ -720,25 +722,25 @@ export function IngestPanel() {
       render: (time: string) => new Date(time).toLocaleString('zh-CN'),
     },
     {
-      title: '来源',
+      title: t('来源'),
       dataIndex: 'source',
       key: 'source',
       width: 100,
       resizable: true,
       render: (source: string) => {
         const sourceMap: Record<string, string> = {
-          news: '新闻',
-          manual: '手动',
+          news: t('新闻'),
+          manual: t('手动'),
           json: 'JSON',
-          natural_language: '自然语言',
-          random: '随机',
-          qa_query: '问答',
+          natural_language: t('自然语言'),
+          random: t('随机'),
+          qa_query: t('问答'),
         };
         return <Tag color="blue">{sourceMap[source] || source}</Tag>;
       },
     },
     {
-      title: '原始信息',
+      title: t('原始信息'),
       key: 'original_info',
       width: 250,
       resizable: true,
@@ -751,7 +753,7 @@ export function IngestPanel() {
       },
     },
     {
-      title: '状态',
+      title: t('状态'),
       dataIndex: 'status',
       key: 'status',
       width: 100,
@@ -759,7 +761,7 @@ export function IngestPanel() {
       render: (status: string) => getStatusTag(status),
     },
     {
-      title: '版本',
+      title: t('版本'),
       key: 'version',
       width: 150,
       resizable: true,
@@ -792,7 +794,7 @@ export function IngestPanel() {
       },
     },
     {
-      title: '操作',
+      title: t('操作'),
       key: 'action',
       width: 180,
       resizable: true,
@@ -800,7 +802,7 @@ export function IngestPanel() {
         const hasBuild = record.builds && record.builds.length > 0;
         // 使用根级的 build_status 字段更准确
         const buildFailed = record.build_status === 'failed';
-        
+
         return (
           <Space>
             <Button
@@ -809,7 +811,7 @@ export function IngestPanel() {
               icon={<EyeOutlined />}
               onClick={() => handleViewBuild(record)}
             >
-              {hasBuild ? '查看构建' : '详情'}
+              {hasBuild ? t('查看构建') : t('详情')}
             </Button>
             {record.build_status === 'none' && (
               <Button
@@ -819,7 +821,7 @@ export function IngestPanel() {
                 loading={buildingIngestId === record.id}
                 onClick={() => handleBuild(record)}
               >
-                构建
+                {t('构建')}
               </Button>
             )}
             {record.build_status === 'failed' && (
@@ -831,7 +833,7 @@ export function IngestPanel() {
                 loading={buildingIngestId === record.id}
                 onClick={() => handleBuild(record)}
               >
-                重新构建
+                {t('重新构建')}
               </Button>
             )}
           </Space>
@@ -843,21 +845,21 @@ export function IngestPanel() {
   const tabItems = [
     {
       key: 'text',
-      label: '文本摄入',
+      label: t('文本摄入'),
       children: (
         <Card style={{ marginBottom: 16 }}>
           <TextArea
             rows={6}
-            placeholder="请输入要摄入的文本内容，支持多行输入"
+            placeholder={t('请输入要摄入的文本内容，支持多行输入')}
             value={text}
             onChange={(e) => setText(e.target.value)}
           />
           <Space style={{ marginTop: 16 }}>
             <Button type="primary" onClick={handleIngestText} loading={loading} data-tour="ingest-start-btn">
-              开始摄入
+              {t('开始摄入')}
             </Button>
             <Button onClick={() => setText('')}>
-              清空
+              {t('清空')}
             </Button>
           </Space>
         </Card>
@@ -865,39 +867,39 @@ export function IngestPanel() {
     },
     {
       key: 'news',
-      label: '新闻摄入',
+      label: t('新闻摄入'),
       children: (
         <Card style={{ marginBottom: 16 }}>
           <Input
-            placeholder="请输入新闻URL"
+            placeholder={t('请输入新闻URL')}
             value={url}
             onChange={(e) => setUrl(e.target.value)}
             style={{ marginBottom: 16 }}
           />
           <Button type="primary" onClick={handleIngestNews} loading={loading}>
-            开始摄入
+            {t('开始摄入')}
           </Button>
         </Card>
       ),
     },
     {
       key: 'json',
-      label: 'JSON数据',
+      label: t('JSON数据'),
       children: (
         <Card style={{ marginBottom: 16 }}>
           <TextArea
             rows={8}
-            placeholder="请输入JSON格式的本体数据"
+            placeholder={t('请输入JSON格式的本体数据')}
             value={jsonData}
             onChange={(e) => setJsonData(e.target.value)}
             style={{ fontFamily: 'monospace' }}
           />
           <Space style={{ marginTop: 16 }}>
             <Button type="primary" onClick={handleIngestJson} loading={loading}>
-              开始摄入
+              {t('开始摄入')}
             </Button>
             <Button onClick={() => setJsonData('')}>
-              清空
+              {t('清空')}
             </Button>
           </Space>
         </Card>
@@ -905,21 +907,21 @@ export function IngestPanel() {
     },
     {
       key: 'natural_language',
-      label: '自然语言',
+      label: t('自然语言'),
       children: (
         <Card style={{ marginBottom: 16 }}>
           <TextArea
             rows={4}
-            placeholder="用自然语言描述一个事件或情况，例如：甲方第1机动组在B区高地与乙方第2行动组发生交锋"
+            placeholder={t('用自然语言描述一个事件或情况，例如：甲方第1机动组在B区高地与乙方第2行动组发生交锋')}
             value={nlDescription}
             onChange={(e) => setNlDescription(e.target.value)}
           />
           <Space style={{ marginTop: 16 }}>
             <Button type="primary" onClick={handleIngestNaturalLanguage} loading={loading}>
-              开始摄入
+              {t('开始摄入')}
             </Button>
             <Button onClick={() => setNlDescription('')}>
-              清空
+              {t('清空')}
             </Button>
           </Space>
         </Card>
@@ -927,13 +929,13 @@ export function IngestPanel() {
     },
     {
       key: 'random',
-      label: '随机事件',
+      label: t('随机事件'),
       children: (
         <Card style={{ marginBottom: 16 }}>
-          <Paragraph>生成随机的事件数据，用于测试和演示</Paragraph>
+          <Paragraph>{t('生成随机的事件数据，用于测试和演示')}</Paragraph>
           <Space orientation="vertical" style={{ width: '100%' }}>
             <div>
-              <Text strong>事件类型：</Text>
+              <Text strong>{t('事件类型：')}</Text>
               <Select
                 value={selectedGeneratorType}
                 onChange={setSelectedGeneratorType}
@@ -950,7 +952,7 @@ export function IngestPanel() {
               </Text>
             )}
             <Button type="primary" onClick={handleIngestRandom} loading={loading}>
-              生成随机事件
+              {t('生成随机事件')}
             </Button>
           </Space>
         </Card>
@@ -958,27 +960,27 @@ export function IngestPanel() {
     },
     {
       key: 'manual',
-      label: '手动录入',
+      label: t('手动录入'),
       children: (
         <Card style={{ marginBottom: 16 }}>
           <Space orientation="vertical" style={{ width: '100%' }}>
             <Input
-              placeholder="标题"
+              placeholder={t('标题')}
               value={manualData.title}
               onChange={(e) => setManualData({ ...manualData, title: e.target.value })}
             />
             <TextArea
               rows={4}
-              placeholder="详细描述"
+              placeholder={t('详细描述')}
               value={manualData.description}
               onChange={(e) => setManualData({ ...manualData, description: e.target.value })}
             />
             <Space>
               <Button type="primary" onClick={handleIngestManual} loading={loading}>
-                提交
+                {t('提交')}
               </Button>
               <Button onClick={() => setManualData({ title: '', description: '' })}>
-                清空
+                {t('清空')}
               </Button>
             </Space>
           </Space>
@@ -987,27 +989,27 @@ export function IngestPanel() {
     },
     {
       key: 'file',
-      label: '文件上传',
+      label: t('文件上传'),
       children: (
         <Card style={{ marginBottom: 16 }}>
           <Dragger {...uploadProps}>
             <p className="ant-upload-drag-icon">
               <UploadOutlined />
             </p>
-            <p className="ant-upload-text">点击或拖拽文件到此区域上传</p>
-            <p className="ant-upload-hint">支持 JSON、TXT、CSV 等格式的文件</p>
+            <p className="ant-upload-text">{t('点击或拖拽文件到此区域上传')}</p>
+            <p className="ant-upload-hint">{t('支持 JSON、TXT、CSV 等格式的文件')}</p>
           </Dragger>
         </Card>
       ),
     },
     {
       key: 'web_search',
-      label: '联网搜索',
+      label: t('联网搜索'),
       children: <Card style={{ marginBottom: 16 }}><WebSearchPanel /></Card>,
     },
     {
       key: 'web_crawl',
-      label: '智能爬取',
+      label: t('智能爬取'),
       children: <Card style={{ marginBottom: 16 }}><WebCrawlPanel /></Card>,
     },
   ];
@@ -1020,7 +1022,7 @@ export function IngestPanel() {
           <Space orientation="vertical" style={{ width: '100%' }} size={4}>
             <Space>
               <LoadingOutlined spin />
-              <Text strong>构建进度: {buildProgress.stage}</Text>
+              <Text strong>{t('构建进度: ')}{buildProgress.stage}</Text>
               <Tag color="blue">{buildProgress.message}</Tag>
             </Space>
             <Progress
@@ -1051,7 +1053,7 @@ export function IngestPanel() {
             data-tour="ingest-history-table"
             extra={
               <Button size="small" icon={<SyncOutlined />} onClick={loadHistory} loading={loadingHistory}>
-                刷新
+                {t('刷新')}
               </Button>
             }
           >
@@ -1060,7 +1062,7 @@ export function IngestPanel() {
                 <div style={{ minHeight: 100 }} />
               </Spin>
             ) : ingestHistory.length === 0 ? (
-              <Empty description="暂无摄入记录，请通过上方方式摄入数据" />
+              <Empty description={t('暂无摄入记录，请通过上方方式摄入数据')} />
             ) : (
               <AdvancedTable
                 dataSource={ingestHistory}
@@ -1078,7 +1080,7 @@ export function IngestPanel() {
         title={
           <Space>
             <CloudServerOutlined />
-            <Text strong>本体构建详情</Text>
+            <Text strong>{t('本体构建详情')}</Text>
             {currentBuild?.version_id && (
               <Tag color="green">{currentBuild.version_id}</Tag>
             )}
@@ -1095,23 +1097,23 @@ export function IngestPanel() {
         {currentBuild && (
           <Space orientation="vertical" size="large">
             <Descriptions column={2}>
-              <Descriptions.Item label="摄入ID">{currentBuild.ingest_id}</Descriptions.Item>
-              <Descriptions.Item label="来源">
+              <Descriptions.Item label={t('摄入ID')}>{currentBuild.ingest_id}</Descriptions.Item>
+              <Descriptions.Item label={t('来源')}>
                 <Tag color="blue">{currentBuild.source}</Tag>
               </Descriptions.Item>
-              <Descriptions.Item label="开始时间">
+              <Descriptions.Item label={t('开始时间')}>
                 {new Date(currentBuild.start_time).toLocaleString('zh-CN')}
               </Descriptions.Item>
-              <Descriptions.Item label="状态">
+              <Descriptions.Item label={t('状态')}>
                 {currentBuild.completed ? (
-                  <Tag color="success" icon={<CheckCircleFilled />}>构建完成</Tag>
+                  <Tag color="success" icon={<CheckCircleFilled />}>{t('构建完成')}</Tag>
                 ) : (
-                  <Tag color="processing" icon={<LoadingOutlined />}>构建中</Tag>
+                  <Tag color="processing" icon={<LoadingOutlined />}>{t('构建中')}</Tag>
                 )}
               </Descriptions.Item>
             </Descriptions>
 
-            <Card title="构建进度" size="small">
+            <Card title={t('构建进度')} size="small">
               <Steps
                 current={currentBuild.current_stage}
                 size="small"
@@ -1123,7 +1125,7 @@ export function IngestPanel() {
               />
             </Card>
 
-            <Card title="处理日志" size="small">
+            <Card title={t('处理日志')} size="small">
               <Timeline
                 items={currentBuild.stages.flatMap(stage =>
                   stage.logs.map(log => ({
@@ -1155,12 +1157,12 @@ export function IngestPanel() {
 
             {currentBuild.completed && (
               <>
-              <Card title="构建结果" size="small">
+              <Card title={t('构建结果')} size="small">
                 <Row gutter={16}>
                   <Col span={8}>
                     <Card size="small">
                       <Statistic
-                        title="实体数量"
+                        title={t('实体数量')}
                         value={currentBuild.entity_count}
                         styles={{ content: { color: '#1890ff' } }}
                       />
@@ -1169,7 +1171,7 @@ export function IngestPanel() {
                   <Col span={8}>
                     <Card size="small">
                       <Statistic
-                        title="关系数量"
+                        title={t('关系数量')}
                         value={currentBuild.relation_count}
                         styles={{ content: { color: '#52c41a' } }}
                       />
@@ -1178,7 +1180,7 @@ export function IngestPanel() {
                   <Col span={8}>
                     <Card size="small">
                       <Statistic
-                        title="事件数量"
+                        title={t('事件数量')}
                         value={currentBuild.event_count}
                         styles={{ content: { color: '#722ed1' } }}
                       />
@@ -1187,10 +1189,10 @@ export function IngestPanel() {
                 </Row>
               </Card>
 
-              <Card title="本体架构说明" size="small">
+              <Card title={t('本体架构说明')} size="small">
                 <Descriptions column={1}>
-                  <Descriptions.Item label="文档格式">OntologyDocument</Descriptions.Item>
-                  <Descriptions.Item label="实体类型">
+                  <Descriptions.Item label={t('文档格式')}>OntologyDocument</Descriptions.Item>
+                  <Descriptions.Item label={t('实体类型')}>
                     <Space wrap>
                       <Tag color="blue">Unit</Tag>
                       <Tag color="green">Equipment</Tag>
@@ -1198,7 +1200,7 @@ export function IngestPanel() {
                       <Tag color="purple">Person</Tag>
                     </Space>
                   </Descriptions.Item>
-                  <Descriptions.Item label="关系类型">
+                  <Descriptions.Item label={t('关系类型')}>
                     <Space wrap size={[4, 4]}>
                       <Tag>engaged_with</Tag>
                       <Tag>commands</Tag>
@@ -1206,7 +1208,7 @@ export function IngestPanel() {
                       <Tag>deployed_at</Tag>
                     </Space>
                   </Descriptions.Item>
-                  <Descriptions.Item label="事件类型">
+                  <Descriptions.Item label={t('事件类型')}>
                     <Space wrap size={[4, 4]}>
                       <Tag color="orange">contact</Tag>
                       <Tag color="red">engage</Tag>

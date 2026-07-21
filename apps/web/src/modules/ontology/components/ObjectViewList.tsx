@@ -63,7 +63,7 @@ function deriveStatus(view: ObjectView): keyof typeof STATUS_META {
 }
 
 export function ObjectViewList({ workspaceId, onEdit, onPreview }: ObjectViewListProps) {
-  const { t } = useI18n();
+  const { t } = useI18n('ontology');
   void workspaceId;
   const [views, setViews] = useState<ObjectView[]>([]);
   const [loading, setLoading] = useState(false);

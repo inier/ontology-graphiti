@@ -7,10 +7,12 @@ import type { Dayjs } from 'dayjs';
 import dayjs from 'dayjs';
 import { NLQueryAuditPanel } from '@/modules/qa/components/NLQueryAuditPanel';
 import { AdvancedTable } from '@/modules/shared';
+import { useI18n } from '@/modules/shared/hooks/useI18n';
 
 const { RangePicker } = DatePicker;
 
 export function AuditLog() {
+  const { t } = useI18n();
   const [events, setEvents] = useState<AuditEvent[]>([]);
   const [loading, setLoading] = useState(true);
   const [total, setTotal] = useState(0);
@@ -63,7 +65,7 @@ export function AuditLog() {
       setTotal(data.total);
     } catch (error) {
       console.error('加载审计事件失败', error);
-      message.error('加载审计事件失败');
+      message.error(t('加载审计事件失败'));
     } finally {
       setLoading(false);
     }
@@ -118,21 +120,21 @@ export function AuditLog() {
 
   const columns = [
     {
-      title: '时间',
+      title: t('时间'),
       dataIndex: 'timestamp',
       key: 'timestamp',
       width: 170,
       render: (timestamp: string) => dayjs(timestamp).format('YYYY-MM-DD HH:mm:ss'),
     },
     {
-      title: '事件类型',
+      title: t('事件类型'),
       dataIndex: 'event_type',
       key: 'event_type',
       width: 130,
       render: (type: string) => <Tag color="blue">{type}</Tag>,
     },
     {
-      title: '严重程度',
+      title: t('严重程度'),
       dataIndex: 'severity',
       key: 'severity',
       width: 90,
@@ -141,28 +143,28 @@ export function AuditLog() {
       ),
     },
     {
-      title: '操作者',
+      title: t('操作者'),
       dataIndex: 'actor_name',
       key: 'actor_name',
       width: 100,
       ellipsis: true,
     },
     {
-      title: '动作',
+      title: t('动作'),
       dataIndex: 'action',
       key: 'action',
       width: 140,
       ellipsis: true,
     },
     {
-      title: '资源',
+      title: t('资源'),
       dataIndex: 'resource_id',
       key: 'resource_id',
       width: 200,
       ellipsis: true,
     },
     {
-      title: '状态',
+      title: t('状态'),
       dataIndex: 'result_status',
       key: 'result_status',
       width: 80,
@@ -171,7 +173,7 @@ export function AuditLog() {
       ),
     },
     {
-      title: '追踪ID',
+      title: t('追踪ID'),
       dataIndex: 'trace_id',
       key: 'trace_id',
       width: 130,
@@ -180,25 +182,25 @@ export function AuditLog() {
   ];
 
   const eventTypeOptions = [
-    { value: 'user.login', label: '用户登录' },
-    { value: 'user.logout', label: '用户登出' },
-    { value: 'workspace.create', label: '创建工作空间' },
-    { value: 'workspace.switch', label: '切换工作空间' },
-    { value: 'workspace.delete', label: '删除工作空间' },
-    { value: 'ontology.create', label: '创建本体' },
-    { value: 'data.ingest', label: '数据摄入' },
-    { value: 'query.execute', label: '查询执行' },
-    { value: 'system.health', label: '系统健康' },
-    { value: 'system.error', label: '系统错误' },
-    { value: 'skill.execute', label: '技能执行' },
-    { value: 'agent.execute', label: 'Agent 执行' },
+    { value: 'user.login', label: t('用户登录') },
+    { value: 'user.logout', label: t('用户登出') },
+    { value: 'workspace.create', label: t('创建工作空间') },
+    { value: 'workspace.switch', label: t('切换工作空间') },
+    { value: 'workspace.delete', label: t('删除工作空间') },
+    { value: 'ontology.create', label: t('创建本体') },
+    { value: 'data.ingest', label: t('数据摄入') },
+    { value: 'query.execute', label: t('查询执行') },
+    { value: 'system.health', label: t('系统健康') },
+    { value: 'system.error', label: t('系统错误') },
+    { value: 'skill.execute', label: t('技能执行') },
+    { value: 'agent.execute', label: t('Agent 执行') },
   ];
 
   const severityOptions = [
-    { value: 'info', label: '信息' },
-    { value: 'warn', label: '警告' },
-    { value: 'error', label: '错误' },
-    { value: 'critical', label: '严重' },
+    { value: 'info', label: t('信息') },
+    { value: 'warn', label: t('警告') },
+    { value: 'error', label: t('错误') },
+    { value: 'critical', label: t('严重') },
   ];
 
   return (
@@ -208,19 +210,19 @@ export function AuditLog() {
         items={[
           {
             key: 'system',
-            label: '系统审计',
+            label: t('系统审计'),
             children: (
               <>
                 <Row gutter={[16, 16]}>
                   <Col span={6}>
                     <Card>
-                      <Statistic title="总事件数" value={stats?.total ?? 0} loading={loading} />
+                      <Statistic title={t('总事件数')} value={stats?.total ?? 0} loading={loading} />
                     </Card>
                   </Col>
                   <Col span={6}>
                     <Card>
                       <Statistic
-                        title="成功事件"
+                        title={t('成功事件')}
                         value={stats?.by_status?.success ?? 0}
                         styles={{ content: { color: '#52c41a' } }}
                       />
@@ -229,7 +231,7 @@ export function AuditLog() {
                   <Col span={6}>
                     <Card>
                       <Statistic
-                        title="失败事件"
+                        title={t('失败事件')}
                         value={stats?.by_status?.failure ?? 0}
                         styles={{ content: { color: '#ff4d4f' } }}
                       />
@@ -238,7 +240,7 @@ export function AuditLog() {
                   <Col span={6}>
                     <Card>
                       <Statistic
-                        title="警告事件"
+                        title={t('警告事件')}
                         value={stats?.by_status?.warning ?? 0}
                         styles={{ content: { color: '#faad14' } }}
                       />
@@ -246,10 +248,10 @@ export function AuditLog() {
                   </Col>
                 </Row>
 
-                <Card title="审计日志" style={{ marginTop: 16 }}>
+                <Card title={t('审计日志')} style={{ marginTop: 16 }}>
                   <Space wrap style={{ marginBottom: 16 }}>
                     <Select
-                      placeholder="事件类型"
+                      placeholder={t('事件类型')}
                       allowClear
                       style={{ width: 150 }}
                       value={filters.event_type}
@@ -257,7 +259,7 @@ export function AuditLog() {
                       options={eventTypeOptions}
                     />
                     <Select
-                      placeholder="严重程度"
+                      placeholder={t('严重程度')}
                       allowClear
                       style={{ width: 120 }}
                       value={filters.severity}
@@ -267,10 +269,10 @@ export function AuditLog() {
                     <RangePicker
                       showTime
                       onChange={handleTimeRangeChange}
-                      placeholder={['开始时间', '结束时间'] as [string, string]}
+                      placeholder={[t('开始时间'), t('结束时间')] as [string, string]}
                     />
                     <Button icon={<ReloadOutlined />} onClick={handleRefresh}>
-                      刷新
+                      {t('刷新')}
                     </Button>
                   </Space>
 
@@ -286,7 +288,7 @@ export function AuditLog() {
                       total: total,
                       showSizeChanger: true,
                       showQuickJump: true,
-                      showTotal: (tot) => `共 ${tot} 条记录`,
+                      showTotal: (tot) => t('共 {{count}} 条记录', { count: tot }),
                       onChange: (page, pageSize) => {
                         setPagination({ current: page, pageSize });
                       },
@@ -294,10 +296,10 @@ export function AuditLog() {
                   />
                 </Card>
 
-                <Card title="事件统计" style={{ marginTop: 16 }}>
+                <Card title={t('事件统计')} style={{ marginTop: 16 }}>
                   <Row gutter={[16, 16]}>
                     <Col span={12}>
-                      <Card title="按事件类型" size="small">
+                      <Card title={t('按事件类型')} size="small">
                         {stats?.by_type && Object.entries(stats.by_type).length > 0 ? (
                           <Space orientation="vertical" style={{ width: '100%' }}>
                             {Object.entries(stats.by_type).map(([type, count]) => (
@@ -308,12 +310,12 @@ export function AuditLog() {
                             ))}
                           </Space>
                         ) : (
-                          <div style={{ textAlign: 'center', color: '#999' }}>暂无数据</div>
+                          <div style={{ textAlign: 'center', color: '#999' }}>{t('暂无数据')}</div>
                         )}
                       </Card>
                     </Col>
                     <Col span={12}>
-                      <Card title="按严重程度" size="small">
+                      <Card title={t('按严重程度')} size="small">
                         {stats?.by_severity && Object.entries(stats.by_severity).length > 0 ? (
                           <Space orientation="vertical" style={{ width: '100%' }}>
                             {Object.entries(stats.by_severity).map(([severity, count]) => (
@@ -324,7 +326,7 @@ export function AuditLog() {
                             ))}
                           </Space>
                         ) : (
-                          <div style={{ textAlign: 'center', color: '#999' }}>暂无数据</div>
+                          <div style={{ textAlign: 'center', color: '#999' }}>{t('暂无数据')}</div>
                         )}
                       </Card>
                     </Col>
@@ -335,7 +337,7 @@ export function AuditLog() {
           },
           {
             key: 'query',
-            label: '查询审计',
+            label: t('查询审计'),
             children: <NLQueryAuditPanel />,
           },
         ]}

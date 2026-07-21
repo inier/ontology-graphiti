@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import { CloseOutlined, DownOutlined, PushpinOutlined, PushpinFilled } from '@ant-design/icons';
 import { Dropdown, Tooltip } from 'antd';
 import type { ExtensionSpec } from '../stores/layoutStore';
+import { useI18n } from '@/modules/shared/hooks/useI18n';
 
 /**
  * ExtensionPanel — 扩展区（第3列）通用内容容器
@@ -29,7 +30,7 @@ interface ExtensionPanelProps {
 export function ExtensionPanel({
   onClose,
   children,
-  title = '扩展区',
+  title,
   icon,
   extensions = [],
   activeExtensionId,
@@ -37,6 +38,8 @@ export function ExtensionPanel({
   hold = true,
   onToggleHold,
 }: ExtensionPanelProps) {
+  const { t } = useI18n();
+  const resolvedTitle = title || t('扩展区');
   const hasMultiple = extensions.length > 1;
 
   const switcherItems = extensions.map((ext) => ({
@@ -65,7 +68,7 @@ export function ExtensionPanel({
               {icon && (
                 <span style={{ marginRight: 6, display: 'inline-flex', alignItems: 'center' }}>{icon}</span>
               )}
-              {title}
+              {resolvedTitle}
               <DownOutlined style={{ marginLeft: 6, fontSize: 10, opacity: 0.5 }} />
             </span>
           </Dropdown>
@@ -74,23 +77,23 @@ export function ExtensionPanel({
             {icon && (
               <span style={{ marginRight: 6, display: 'inline-flex', alignItems: 'center' }}>{icon}</span>
             )}
-            {title}
+            {resolvedTitle}
           </span>
         )}
         <span style={{ display: 'flex', gap: 4, alignItems: 'center' }}>
           {onToggleHold && (
-            <Tooltip title={hold ? '取消固定（切换为抽屉）' : '固定到面板'}>
+            <Tooltip title={hold ? t('取消固定（切换为抽屉）') : t('固定到面板')}>
               <button
                 className="odap-extension-close"
                 onClick={onToggleHold}
-                title={hold ? '取消固定' : '固定'}
+                title={hold ? t('取消固定') : t('固定')}
                 style={{ color: hold ? 'var(--odap-color-primary)' : undefined }}
               >
                 {hold ? <PushpinFilled /> : <PushpinOutlined />}
               </button>
             </Tooltip>
           )}
-          <button className="odap-extension-close" onClick={onClose} title="折叠扩展区">
+          <button className="odap-extension-close" onClick={onClose} title={t('折叠扩展区')}>
             <CloseOutlined />
           </button>
         </span>
@@ -98,7 +101,7 @@ export function ExtensionPanel({
       <div className="odap-extension-content">
         {children || (
           <div style={{ padding: 16, color: 'var(--odap-color-text-secondary)', textAlign: 'center' }}>
-            扩展内容区
+            {t('扩展内容区')}
           </div>
         )}
       </div>

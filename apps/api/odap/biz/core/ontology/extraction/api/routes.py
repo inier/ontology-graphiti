@@ -195,18 +195,15 @@ async def extract_from_natural_language(
         if result.get("status") == "error":
             raise HTTPException(status_code=400, detail=result.get("message", "Extraction failed"))
 
-        from odap.biz.core.ontology.ontology_api.services import get_ontology_service
-
         session_id = result.get("session_id", "")
         if session_id:
-            ontology_service = get_ontology_service()
-            ontology_service.create_extraction_session(
+            _extraction_service.ontology_service.create_extraction_session(
                 ontology_id=request.ontology_id,
                 extraction_type="natural_language",
                 input_data={"text": request.text},
                 session_id=session_id,
             )
-            ontology_service.update_extraction_session(
+            _extraction_service.ontology_service.update_extraction_session(
                 session_id,
                 {"status": "completed", "result_data": result.get("result", {})},
             )
@@ -316,9 +313,8 @@ async def extract_from_knowledge_base(
         if nl_result.get("status") == "error":
             raise HTTPException(status_code=400, detail=nl_result.get("message", "Extraction failed"))
 
-        # Wrap in the format frontend expects (with result sub-dict)
         session_id = str(uuid.uuid4())
-        return {
+        result = {
             "status": "ok",
             "session_id": session_id,
             "result": {
@@ -341,6 +337,19 @@ async def extract_from_knowledge_base(
                 "processed_documents": processed_count,
             },
         }
+
+        _extraction_service.ontology_service.create_extraction_session(
+            ontology_id=request.ontology_id,
+            extraction_type="knowledge_base",
+            input_data={"kb_id": request.kb_id, "document_ids": request.document_ids},
+            session_id=session_id,
+        )
+        _extraction_service.ontology_service.update_extraction_session(
+            session_id,
+            {"status": "completed", "result_data": result.get("result", {})},
+        )
+
+        return result
     except HTTPException:
         raise
     except Exception as e:

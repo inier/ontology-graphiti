@@ -32,19 +32,14 @@ import { SEMANTIC_ADMIN_TAB_ITEMS } from '../constants';
 import { useSemanticAdminStore } from '../store/useSemanticAdminStore';
 import type { ReactNode } from 'react';
 import * as echarts from 'echarts';
+import { useI18n } from '@/modules/shared/hooks/useI18n';
 
 const { Title } = Typography;
 
 type DashboardResponse = Record<string, unknown>;
 
-const KPI_TOOLTIPS: Record<string, string> = {
-  '3 关加权平均分': 'weighted_avg = Σ Gm_weight × Gm_avg，达标线 ≥ 0.80',
-  '一次通过率': '通过 (TIER A/B+C 中 A 占比 ×0.5 + A/B 数/总数 ×0.5)',
-  'HITL 总吞吐': '已审批候选总数（approve + reject + auto-skip）',
-  'USL 写回数': '已 promote-to-usl 且 writeback 成功的候选数',
-};
-
 export function QualityDashboardPage() {
+  const { t } = useI18n();
   const navigate = useNavigate();
   const [tab, setTab] = useState<string>('overview');
   const [summary, setSummary] = useState<DashboardResponse | null>(null);
@@ -54,6 +49,13 @@ export function QualityDashboardPage() {
   const lastErrorTs = useRef(0);
   const dashboardSummary = useSemanticAdminStore(s => s.dashboardSummary);
   const setDashboardSummary = useSemanticAdminStore(s => s.setDashboardSummary);
+
+  const kpiTooltips: Record<string, string> = useMemo(() => ({
+    [t('3 关加权平均分')]: t('weighted_avg = Σ Gm_weight × Gm_avg，达标线 ≥ 0.80'),
+    [t('一次通过率')]: t('通过 (TIER A/B+C 中 A 占比 ×0.5 + A/B 数/总数 ×0.5)'),
+    [t('HITL 总吞吐')]: t('已审批候选总数（approve + reject + auto-skip）'),
+    [t('USL 写回数')]: t('已 promote-to-usl 且 writeback 成功的候选数'),
+  }), [t]);
 
   const loadAll = useCallback(async () => {
     // 1. store 缓存命中 → 直接 use（无 loading）
@@ -85,13 +87,13 @@ export function QualityDashboardPage() {
       const now = Date.now();
       if (now - lastErrorTs.current > 30_000) {
         lastErrorTs.current = now;
-        message.warning('Dashboard 接口未就绪（后端 Dev Profile 常跳过），已降级为离线占位');
+        message.warning(t('Dashboard 接口未就绪（后端 Dev Profile 常跳过），已降级为离线占位'));
       }
       setSummary(null); setTrend(null); setApprovals(null);
     } finally {
       setLoading(false);
     }
-  }, [dashboardSummary, setDashboardSummary]);
+  }, [dashboardSummary, setDashboardSummary, t]);
 
   // eslint-disable-next-line react-hooks/set-state-in-effect
   useEffect(() => { void loadAll(); }, [loadAll]);
@@ -99,43 +101,43 @@ export function QualityDashboardPage() {
   const kpiList = useMemo(() => {
     const d = summary as { weighted_avg?: number; first_pass_rate?: number; total_candidates?: number; written_count?: number } | null;
     return [
-      { key: '3 关加权平均分', value: (d?.weighted_avg ?? 0) * 100, suffix: '%', precision: 1, icon: <DashboardOutlined />, color: '#1677ff' },
-      { key: '一次通过率', value: (d?.first_pass_rate ?? 0) * 100, suffix: '%', precision: 1, icon: <CheckCircleOutlined />, color: '#52c41a' },
-      { key: 'HITL 总吞吐', value: d?.total_candidates ?? 0, icon: <ThunderboltOutlined />, color: '#faad14' },
-      { key: 'USL 写回数', value: d?.written_count ?? 0, icon: <CheckCircleOutlined />, color: '#13c2c2' },
+      { key: t('3 关加权平均分'), value: (d?.weighted_avg ?? 0) * 100, suffix: '%', precision: 1, icon: <DashboardOutlined />, color: '#1677ff' },
+      { key: t('一次通过率'), value: (d?.first_pass_rate ?? 0) * 100, suffix: '%', precision: 1, icon: <CheckCircleOutlined />, color: '#52c41a' },
+      { key: t('HITL 总吞吐'), value: d?.total_candidates ?? 0, icon: <ThunderboltOutlined />, color: '#faad14' },
+      { key: t('USL 写回数'), value: d?.written_count ?? 0, icon: <CheckCircleOutlined />, color: '#13c2c2' },
     ];
-  }, [summary]);
+  }, [summary, t]);
 
   return (
     <SemanticAdminTabsContainer>
-      <Spin spinning={loading} tip="拉取 Dashboard 3 API...">
+      <Spin spinning={loading} tip={t('拉取 Dashboard 3 API...')}>
         <Card
           title={
             <Space size="middle">
-              <span>质量总览 · Quality Dashboard</span>
+              <span>{t('质量总览 · Quality Dashboard')}</span>
               <Tag color="geekblue" style={{ marginInlineStart: 8 }}>
-                P0-4 重命名落地：QualityComingSoon → QualityDashboardPage
+                {t('P0-4 重命名落地：QualityComingSoon → QualityDashboardPage')}
               </Tag>
             </Space>
           }
           extra={
             <Space>
-              <Tooltip title="仅刷新当前会话缓存，不写回全局 store">
-                <Button size="small" icon={<ReloadOutlined />} onClick={() => setDashboardSummary(null)}>刷新缓存</Button>
+              <Tooltip title={t('仅刷新当前会话缓存，不写回全局 store')}>
+                <Button size="small" icon={<ReloadOutlined />} onClick={() => setDashboardSummary(null)}>{t('刷新缓存')}</Button>
               </Tooltip>
-              <Tooltip title="调 OL 流水线触发新候选后，质量仪表盘会自动反映">
-                <Button size="small" onClick={() => navigate('/semantic-admin/pipeline')}>去 Pipeline ↗</Button>
+              <Tooltip title={t('调 OL 流水线触发新候选后，质量仪表盘会自动反映')}>
+                <Button size="small" onClick={() => navigate('/semantic-admin/pipeline')}>{t('去 Pipeline ↗')}</Button>
               </Tooltip>
             </Space>
           }
         >
-          <QualityKpiCards kpis={kpiList} tooltipMap={KPI_TOOLTIPS} />
+          <QualityKpiCards kpis={kpiList} tooltipMap={kpiTooltips} />
         </Card>
 
         <Space style={{ marginTop: 24, marginBottom: 12 }} size={16} wrap>
           <Title level={5} style={{ margin: 0 }}>
-            质量视角分栏
-            <Tooltip title="4 张 ECharts 覆盖架构 → 语义 → 业务 3 关整体画像">
+            {t('质量视角分栏')}
+            <Tooltip title={t('4 张 ECharts 覆盖架构 → 语义 → 业务 3 关整体画像')}>
               <QuestionCircleOutlined style={{ marginLeft: 8, color: '#8c8c8c' }} />
             </Tooltip>
           </Title>
@@ -144,14 +146,14 @@ export function QualityDashboardPage() {
         <Tabs activeKey={tab} onChange={setTab} items={[
           {
             key: 'overview',
-            label: '仪表盘总览',
+            label: t('仪表盘总览'),
             children: (
               <QualityChartRow summary={summary} trend={trend} approvals={approvals} />
             ),
           },
           {
             key: 'kpis',
-            label: 'KPI 卡（纯统计）',
+            label: t('KPI 卡（纯统计）'),
             children: (
               <Row gutter={[16, 16]} style={{ marginTop: 8 }}>
                 {kpiList.map(k => (
@@ -161,7 +163,7 @@ export function QualityDashboardPage() {
                         title={
                           <Space>
                             {k.key}
-                            {KPI_TOOLTIPS[k.key] ? <Tooltip title={KPI_TOOLTIPS[k.key]}><QuestionCircleOutlined /></Tooltip> : null}
+                            {kpiTooltips[k.key] ? <Tooltip title={kpiTooltips[k.key]}><QuestionCircleOutlined /></Tooltip> : null}
                           </Space>
                         }
                         value={k.value}
@@ -271,6 +273,7 @@ export function QualityChartRow({
   trend: DashboardResponse | null;
   approvals: DashboardResponse | null;
 }) {
+  const { t } = useI18n();
   const radarRef = useRef<HTMLDivElement>(null);
   const pieRef = useRef<HTMLDivElement>(null);
   const lineRef = useRef<HTMLDivElement>(null);
@@ -286,13 +289,13 @@ export function QualityChartRow({
     const radarChart = echarts.init(radarRef.current!);
     radarChart.setOption({
       tooltip: { trigger: 'item' },
-      legend: { bottom: 4, data: ['实际得分'] },
+      legend: { bottom: 4, data: [t('实际得分')] },
       radar: {
         indicator: [
-          { name: 'G1 架构', max: 1 },
-          { name: 'G2 语义', max: 1 },
-          { name: 'G3 业务', max: 1 },
-          { name: '综合', max: 1 },
+          { name: t('G1 架构'), max: 1 },
+          { name: t('G2 语义'), max: 1 },
+          { name: t('G3 业务'), max: 1 },
+          { name: t('综合'), max: 1 },
         ],
         radius: '65%',
       },
@@ -305,7 +308,7 @@ export function QualityChartRow({
             gateScores.gate3_avg ?? 0,
             gateScores.total_avg ?? 0,
           ],
-          name: '实际得分',
+          name: t('实际得分'),
           areaStyle: { color: 'rgba(22, 119, 255, 0.2)' },
           lineStyle: { color: '#1677ff', width: 2 },
           itemStyle: { color: '#1677ff' },
@@ -346,13 +349,13 @@ export function QualityChartRow({
     const lineChart = echarts.init(lineRef.current!);
     lineChart.setOption({
       tooltip: { trigger: 'axis' },
-      legend: { bottom: 4, data: ['写回数', '候选数'] },
+      legend: { bottom: 4, data: [t('写回数'), t('候选数')] },
       grid: { left: 30, right: 20, bottom: 30, top: 10 },
       xAxis: { type: 'category', boundaryGap: false, data: days },
       yAxis: { type: 'value' },
       series: [
         {
-          name: '写回数',
+          name: t('写回数'),
           type: 'line',
           smooth: true,
           data: writebackData,
@@ -360,7 +363,7 @@ export function QualityChartRow({
           areaStyle: { color: 'rgba(22, 119, 255, 0.15)' },
         },
         {
-          name: '候选数',
+          name: t('候选数'),
           type: 'line',
           smooth: true,
           data: totalData,
@@ -379,20 +382,20 @@ export function QualityChartRow({
     };
     barChart.setOption({
       tooltip: { trigger: 'axis', axisPointer: { type: 'shadow' } },
-      legend: { bottom: 4, data: ['通过', '驳回'] },
+      legend: { bottom: 4, data: [t('通过'), t('驳回')] },
       grid: { left: 30, right: 20, bottom: 30, top: 10 },
-      xAxis: { type: 'category', data: ['L1 审核', 'L2 终审', '写回'] },
+      xAxis: { type: 'category', data: [t('L1 审核'), t('L2 终审'), t('写回')] },
       yAxis: { type: 'value' },
       series: [
         {
-          name: '通过',
+          name: t('通过'),
           type: 'bar',
           stack: 'total',
           itemStyle: { color: '#52c41a', borderRadius: [4, 4, 0, 0] },
           data: [approvalData.L1.approve, approvalData.L2.approve, approvalData.Written.approve],
         },
         {
-          name: '驳回',
+          name: t('驳回'),
           type: 'bar',
           stack: 'total',
           itemStyle: { color: '#ff4d4f', borderRadius: [4, 4, 0, 0] },
@@ -407,14 +410,14 @@ export function QualityChartRow({
       lineChart.dispose();
       barChart.dispose();
     };
-  }, [summary, trend, approvals]);
+  }, [summary, trend, approvals, t]);
 
   return (
     <Row gutter={[16, 16]} style={{ marginTop: 8 }}>
       <Col xs={24} lg={12} key="radar">
         <Card
           size="small"
-          title="3 关平均分雷达（G1 架构 / G2 语义 / G3 业务）"
+          title={t('3 关平均分雷达（G1 架构 / G2 语义 / G3 业务）')}
           extra={<Tooltip title="avg_gate_scores: {g1,g2,g3,total}"><QuestionCircleOutlined style={{ color: '#8c8c8c' }} /></Tooltip>}
         >
           <div ref={radarRef} style={{ width: '100%', height: 220 }} />
@@ -423,7 +426,7 @@ export function QualityChartRow({
       <Col xs={24} lg={12} key="pie">
         <Card
           size="small"
-          title="TIER 分布（5 档）"
+          title={t('TIER 分布（5 档）')}
           extra={<Tooltip title="by_tier: VERY_HIGH/HIGH/MEDIUM/LOW/VERY_LOW"><QuestionCircleOutlined style={{ color: '#8c8c8c' }} /></Tooltip>}
         >
           <div ref={pieRef} style={{ width: '100%', height: 220 }} />
@@ -432,8 +435,8 @@ export function QualityChartRow({
       <Col xs={24} lg={12} key="line">
         <Card
           size="small"
-          title="近 7 天写回趋势"
-          extra={<Tooltip title="写回数 vs 候选数"><QuestionCircleOutlined style={{ color: '#8c8c8c' }} /></Tooltip>}
+          title={t('近 7 天写回趋势')}
+          extra={<Tooltip title={t('写回数 vs 候选数')}><QuestionCircleOutlined style={{ color: '#8c8c8c' }} /></Tooltip>}
         >
           <div ref={lineRef} style={{ width: '100%', height: 220 }} />
         </Card>
@@ -441,8 +444,8 @@ export function QualityChartRow({
       <Col xs={24} lg={12} key="bar">
         <Card
           size="small"
-          title="2 级审批拆分"
-          extra={<Tooltip title="L1/L2/写回 × 通过/驳回"><QuestionCircleOutlined style={{ color: '#8c8c8c' }} /></Tooltip>}
+          title={t('2 级审批拆分')}
+          extra={<Tooltip title={t('L1/L2/写回 × 通过/驳回')}><QuestionCircleOutlined style={{ color: '#8c8c8c' }} /></Tooltip>}
         >
           <div ref={barRef} style={{ width: '100%', height: 220 }} />
         </Card>

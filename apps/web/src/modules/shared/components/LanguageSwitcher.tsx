@@ -62,6 +62,7 @@ export function LanguageSwitcher({
       : [
           { code: 'zh-CN', name: 'Chinese', native_name: '简体中文' },
           { code: 'en-US', name: 'English', native_name: 'English' },
+          { code: 'ja-JP', name: 'Japanese', native_name: '日本語' },
         ]
   ).map((loc) => ({
     value: loc.code,

@@ -107,7 +107,7 @@ export function AIInlineCompletion({
         }}
       >
         <Spin size="small" />
-        <span style={{ color: '#999' }}>{t('aiInline.inferring')}</span>
+        <span style={{ color: '#999' }}>{t('AI 推断中...')}</span>
       </div>
     );
   }
@@ -119,11 +119,11 @@ export function AIInlineCompletion({
 
   const confidenceColor = inference.confidence >= 0.8 ? 'green' : inference.confidence >= 0.5 ? 'blue' : 'orange';
   const matchRuleLabel: Record<string, string> = {
-    exact: t('aiInline.matchRules.exact'),
-    prefix: t('aiInline.matchRules.prefix'),
-    suffix: t('aiInline.matchRules.suffix'),
-    contains: t('aiInline.matchRules.contains'),
-    default: t('aiInline.matchRules.default'),
+    exact: t('精确匹配'),
+    prefix: t('前缀匹配'),
+    suffix: t('后缀匹配'),
+    contains: t('包含匹配'),
+    default: t('默认'),
   };
 
   return (
@@ -143,13 +143,13 @@ export function AIInlineCompletion({
     >
       <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginBottom: 4 }}>
         <ThunderboltOutlined style={{ color: '#722ed1' }} />
-        <span style={{ fontWeight: 500, color: '#722ed1' }}>{t('aiInline.suggestion')}</span>
+        <span style={{ fontWeight: 500, color: '#722ed1' }}>{t('AI 建议')}</span>
         <Tag color={confidenceColor} style={{ marginLeft: 'auto', fontSize: 11 }}>
           {Math.round(inference.confidence * 100)}%
         </Tag>
       </div>
       <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-        <span>{t('aiInline.recommendedType')}</span>
+        <span>{t('推荐类型:')}</span>
         <Tag color="purple" style={{ fontWeight: 600 }}>
           {inference.inferredType}
         </Tag>
@@ -159,7 +159,7 @@ export function AIInlineCompletion({
       </div>
       {inference.constraints && Object.keys(inference.constraints).length > 0 && (
         <div style={{ marginTop: 4, color: '#666' }}>
-          <span>{t('aiInline.constraints')} </span>
+          <span>{t('约束:')} </span>
           {Object.keys(inference.constraints).map((k) => (
             <Tag key={k} style={{ fontSize: 10 }}>
               {k}
@@ -172,13 +172,13 @@ export function AIInlineCompletion({
           style={{ fontSize: 11, color: '#999', cursor: 'pointer' }}
           onClick={handleReject}
         >
-          <CloseOutlined /> {t('aiInline.ignore')}
+          <CloseOutlined /> {t('忽略')}
         </a>
         <a
           style={{ fontSize: 11, color: '#722ed1', cursor: 'pointer', fontWeight: 500 }}
           onClick={handleAccept}
         >
-          <CheckOutlined /> {t('aiInline.accept')}
+          <CheckOutlined /> {t('接受 (Tab)')}
         </a>
       </div>
     </div>

@@ -26,8 +26,7 @@ export interface ObjectViewPageProps {
 }
 
 export function ObjectViewPage({ workspaceId, onCreateView }: ObjectViewPageProps) {
-  const { t } = useI18n();
-  void t;
+  const { t } = useI18n('ontology');
   const [views, setViews] = useState<ObjectView[]>([]);
   const [loading, setLoading] = useState(false);
   const [selectedId, setSelectedId] = useState<string | null>(null);
@@ -44,11 +43,11 @@ export function ObjectViewPage({ workspaceId, onCreateView }: ObjectViewPageProp
       setViews(data);
       if (data.length > 0 && !selectedId) setSelectedId(data[0].id);
     } catch (e) {
-      message.error(`加载视图列表失败: ${(e as Error).message}`);
+      message.error(`${t('加载视图列表失败')}: ${(e as Error).message}`);
     } finally {
       setLoading(false);
     }
-  }, [workspaceId, selectedId]);
+  }, [workspaceId, selectedId, t]);
 
   const fetchUserPermission = useCallback(async (viewId: string) => {
     try {
@@ -65,11 +64,11 @@ export function ObjectViewPage({ workspaceId, onCreateView }: ObjectViewPageProp
       const data = await viewApi.queryView(viewId, {});
       setRows(data.rows || []);
     } catch (e) {
-      message.error(`查询失败: ${(e as Error).message}`);
+      message.error(`${t('查询失败')}: ${(e as Error).message}`);
     } finally {
       setQuerying(false);
     }
-  }, []);
+  }, [t]);
 
   useEffect(() => { fetchViews(); }, [fetchViews]);
   useEffect(() => { if (selectedId) { fetchUserPermission(selectedId); runQuery(selectedId); } }, [selectedId, fetchUserPermission, runQuery]);
@@ -83,19 +82,19 @@ export function ObjectViewPage({ workspaceId, onCreateView }: ObjectViewPageProp
   const grouped = useMemo(() => {
     const map = new Map<string, ObjectView[]>();
     for (const v of filteredViews) {
-      const k = v.object_type_name || '未分类';
+      const k = v.object_type_name || t('未分类');
       if (!map.has(k)) map.set(k, []);
       map.get(k)!.push(v);
     }
     return Array.from(map.entries());
-  }, [filteredViews]);
+  }, [filteredViews, t]);
 
   const currentView = useMemo(() => views.find((v) => v.id === selectedId), [views, selectedId]);
 
   const onExport = useCallback(async (format: 'csv' | 'json') => {
     if (!currentView) return;
     if (!userPerm?.can_export) {
-      Modal.warning({ title: '权限不足', content: '当前角色无权导出此视图' });
+      Modal.warning({ title: t('权限不足'), content: t('当前角色无权导出此视图') });
       return;
     }
     setExporting(true);
@@ -107,13 +106,13 @@ export function ObjectViewPage({ workspaceId, onCreateView }: ObjectViewPageProp
       a.download = `${currentView.name}.${format}`;
       a.click();
       URL.revokeObjectURL(url);
-      message.success(`已导出 ${format.toUpperCase()}`);
+      message.success(t('已导出 {{format}}', { format: format.toUpperCase() }));
     } catch (e) {
-      message.error(`导出失败: ${(e as Error).message}`);
+      message.error(`${t('导出失败')}: ${(e as Error).message}`);
     } finally {
       setExporting(false);
     }
-  }, [currentView, userPerm]);
+  }, [currentView, userPerm, t]);
 
   const tableColumns = useMemo(() => {
     if (!currentView) return [];
@@ -130,23 +129,23 @@ export function ObjectViewPage({ workspaceId, onCreateView }: ObjectViewPageProp
       <Card
         title={
           <Space>
-            <Title level={4} style={{ margin: 0 }}>对象视图查询</Title>
+            <Title level={4} style={{ margin: 0 }}>{t('对象视图查询')}</Title>
             <Tag color="blue">{workspaceId || 'default'}</Tag>
           </Space>
         }
         extra={
           <Space>
-            <Input prefix={<SearchOutlined />} placeholder="搜索视图..." value={searchText} onChange={(e) => setSearchText(e.target.value)} style={{ width: 220 }} />
-            <Button icon={<ReloadOutlined />} onClick={fetchViews}>刷新</Button>
-            {onCreateView && <Button type="primary" icon={<PlusOutlined />} onClick={onCreateView}>新建视图</Button>}
+            <Input prefix={<SearchOutlined />} placeholder={t('搜索视图...')} value={searchText} onChange={(e) => setSearchText(e.target.value)} style={{ width: 220 }} />
+            <Button icon={<ReloadOutlined />} onClick={fetchViews}>{t('刷新')}</Button>
+            {onCreateView && <Button type="primary" icon={<PlusOutlined />} onClick={onCreateView}>{t('新建视图')}</Button>}
           </Space>
         }
       >
         <Row gutter={16}>
           <Col span={7}>
-            <Card type="inner" title={`视图列表 (${filteredViews.length})`} size="small">
+            <Card type="inner" title={t('视图列表 ({{count}})', { count: filteredViews.length })} size="small">
               <Spin spinning={loading}>
-                {grouped.length === 0 ? <Empty description="无视图" /> : (
+                {grouped.length === 0 ? <Empty description={t('无视图')} /> : (
                   <List
                     size="small"
                     dataSource={grouped}
@@ -164,7 +163,7 @@ export function ObjectViewPage({ workspaceId, onCreateView }: ObjectViewPageProp
                           >
                             <Space>
                               <Text strong={v.id === selectedId}>{v.name}</Text>
-                              {v.id === selectedId && <Tag color="blue">当前</Tag>}
+                              {v.id === selectedId && <Tag color="blue">{t('当前')}</Tag>}
                             </Space>
                           </List.Item>
                         ))}
@@ -178,20 +177,20 @@ export function ObjectViewPage({ workspaceId, onCreateView }: ObjectViewPageProp
           <Col span={17}>
             <Card
               type="inner"
-              title={currentView ? `查询结果: ${currentView.name}` : '请选择视图'}
+              title={currentView ? t('查询结果: {{name}}', { name: currentView.name }) : t('请选择视图')}
               size="small"
               extra={
                 currentView && (
                   <Space>
                     {userPerm ? (
-                      <Tag icon={<UnlockOutlined />} color="green">可访问</Tag>
+                      <Tag icon={<UnlockOutlined />} color="green">{t('可访问')}</Tag>
                     ) : (
-                      <Tag icon={<LockOutlined />} color="red">受限</Tag>
+                      <Tag icon={<LockOutlined />} color="red">{t('受限')}</Tag>
                     )}
-                    <Tooltip title={userPerm?.can_export ? '导出为 CSV' : '无导出权限'}>
+                    <Tooltip title={userPerm?.can_export ? t('导出为 CSV') : t('无导出权限')}>
                       <Button size="small" icon={<DownloadOutlined />} loading={exporting} disabled={!userPerm?.can_export} onClick={() => onExport('csv')}>CSV</Button>
                     </Tooltip>
-                    <Tooltip title={userPerm?.can_export ? '导出为 JSON' : '无导出权限'}>
+                    <Tooltip title={userPerm?.can_export ? t('导出为 JSON') : t('无导出权限')}>
                       <Button size="small" icon={<DownloadOutlined />} loading={exporting} disabled={!userPerm?.can_export} onClick={() => onExport('json')}>JSON</Button>
                     </Tooltip>
                   </Space>
@@ -201,20 +200,20 @@ export function ObjectViewPage({ workspaceId, onCreateView }: ObjectViewPageProp
               {currentView ? (
                 <Space orientation="vertical" style={{ width: '100%' }}>
                   <Row gutter={16}>
-                    <Col span={8}><Statistic title="总行数" value={rows.length} /></Col>
-                    <Col span={8}><Statistic title="可见字段" value={currentView.fields.filter((f) => f.visible).length} /></Col>
+                    <Col span={8}><Statistic title={t('总行数')} value={rows.length} /></Col>
+                    <Col span={8}><Statistic title={t('可见字段')} value={currentView.fields.filter((f) => f.visible).length} /></Col>
                     <Col span={8}><Statistic title="Limit" value={currentView.limit} /></Col>
                   </Row>
                   {userPerm?.redaction_rules && userPerm.redaction_rules.length > 0 && (
                     <Alert
                       type="warning"
                       showIcon
-                      title="字段脱敏规则已生效"
-                      description={`当前角色对 ${userPerm.redaction_rules.length} 个字段应用了脱敏`}
+                      title={t('字段脱敏规则已生效')}
+                      description={t('当前角色对 {{count}} 个字段应用了脱敏', { count: userPerm.redaction_rules.length })}
                     />
                   )}
                   <Spin spinning={querying}>
-                    {rows.length === 0 ? <Empty description="无数据" /> : (
+                    {rows.length === 0 ? <Empty description={t('无数据')} /> : (
                       <AdvancedTable
                         size="small"
                         rowKey={(_, i) => String(i)}
@@ -227,7 +226,7 @@ export function ObjectViewPage({ workspaceId, onCreateView }: ObjectViewPageProp
                   </Spin>
                 </Space>
               ) : (
-                <Empty description="从左侧选择一个视图" />
+                <Empty description={t('从左侧选择一个视图')} />
               )}
             </Card>
           </Col>

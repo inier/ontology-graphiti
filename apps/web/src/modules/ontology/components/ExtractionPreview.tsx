@@ -12,6 +12,7 @@ import {
 } from '@ant-design/icons';
 import { ontologyApi } from '../services/ontologyApi';
 import { AdvancedTable } from '@/modules/shared';
+import { useI18n } from '@/modules/shared/hooks/useI18n';
 
 /* ------------------------------------------------------------------ */
 /*  Types                                                              */
@@ -86,6 +87,7 @@ function makeColumns<T extends EditableItem>(
   onToggle: (name: string) => void,
   onEdit: (item: T) => void,
   onDelete: (name: string) => void,
+  t: (key: string) => string,
 ) {
   return [
     {
@@ -97,25 +99,25 @@ function makeColumns<T extends EditableItem>(
       ),
     },
     {
-      title: '名称',
+      title: t('名称'),
       dataIndex: 'name',
       width: 180,
       render: (v: string) => <Tag color="blue">{v}</Tag>,
     },
     {
-      title: '显示名称',
+      title: t('显示名称'),
       dataIndex: 'display_name',
       width: 180,
       render: (v: string) => v || '-',
     },
     {
-      title: '描述',
+      title: t('描述'),
       dataIndex: 'description',
       ellipsis: true,
       render: (v: string) => v || '-',
     },
     {
-      title: '操作',
+      title: t('操作'),
       width: 100,
       render: (_: unknown, record: T) => (
         <Space size={4}>
@@ -139,6 +141,7 @@ function EditItemModal({
   onClose: () => void;
   onSave: (updated: EditableItem) => void;
 }) {
+  const { t } = useI18n('ontology');
   const [form] = Form.useForm();
 
   const handleOpen = useCallback(() => {
@@ -163,22 +166,22 @@ function EditItemModal({
 
   return (
     <Modal
-      title="编辑类型定义"
+      title={t('编辑类型定义')}
       open={open}
       onOk={handleOk}
       onCancel={onClose}
-      okText="保存"
-      cancelText="取消"
+      okText={t('保存')}
+      cancelText={t('取消')}
       destroyOnHidden
     >
       <Form form={form} layout="vertical">
-        <Form.Item name="name" label="名称" rules={[{ required: true, message: '名称必填' }]}>
+        <Form.Item name="name" label={t('名称')} rules={[{ required: true, message: t('名称必填') }]}>
           <Input />
         </Form.Item>
-        <Form.Item name="display_name" label="显示名称">
+        <Form.Item name="display_name" label={t('显示名称')}>
           <Input />
         </Form.Item>
-        <Form.Item name="description" label="描述">
+        <Form.Item name="description" label={t('描述')}>
           <Input.TextArea rows={3} />
         </Form.Item>
       </Form>
@@ -194,6 +197,7 @@ function makeEntityColumns(
   selectedEntityIds: string[],
   onToggleEntity: (id: string) => void,
   onViewProvenance?: (entityId: string) => void,
+  t?: (key: string) => string,
 ) {
   return [
     {
@@ -205,19 +209,19 @@ function makeEntityColumns(
       ),
     },
     {
-      title: '名称',
+      title: t?.('extraction.preview.name') || '名称',
       dataIndex: 'name',
       width: 180,
       render: (v: string) => <Tag color="blue">{v}</Tag>,
     },
     {
-      title: '类型',
+      title: t?.('extraction.preview.type') || '类型',
       dataIndex: 'type',
       width: 140,
       render: (v: string) => <Tag color="geekblue">{v}</Tag>,
     },
     {
-      title: '属性',
+      title: t?.('extraction.preview.attributes') || '属性',
       dataIndex: 'attributes',
       ellipsis: true,
       render: (v: Record<string, unknown>) => {
@@ -230,7 +234,7 @@ function makeEntityColumns(
       },
     },
     {
-      title: '操作',
+      title: t?.('extraction.preview.actions') || '操作',
       width: 64,
       render: (_: unknown, record: ExtractionEntity) =>
         onViewProvenance ? (
@@ -238,7 +242,7 @@ function makeEntityColumns(
             type="text"
             size="small"
             icon={<SearchOutlined />}
-            title="溯源"
+            title={t?.('extraction.preview.provenance') || '溯源'}
             onClick={() => onViewProvenance(record.id)}
           />
         ) : null,
@@ -254,6 +258,7 @@ function makeRelationColumns(
   selectedRelationIds: string[],
   onToggleRelation: (id: string) => void,
   onViewProvenance?: (entityId: string) => void,
+  t?: (key: string) => string,
 ) {
   return [
     {
@@ -265,25 +270,25 @@ function makeRelationColumns(
       ),
     },
     {
-      title: '名称',
+      title: t?.('extraction.preview.name') || '名称',
       dataIndex: 'name',
       width: 180,
       render: (v: string) => <Tag color="green">{v}</Tag>,
     },
     {
-      title: '源实体',
+      title: t?.('extraction.preview.sourceEntity') || '源实体',
       dataIndex: 'source_id',
       width: 160,
       render: (v: string) => <Tag color="orange">{v}</Tag>,
     },
     {
-      title: '目标实体',
+      title: t?.('extraction.preview.targetEntity') || '目标实体',
       dataIndex: 'target_id',
       width: 160,
       render: (v: string) => <Tag color="purple">{v}</Tag>,
     },
     {
-      title: '属性',
+      title: t?.('extraction.preview.attributes') || '属性',
       dataIndex: 'attributes',
       ellipsis: true,
       render: (v: Record<string, unknown>) => {
@@ -296,7 +301,7 @@ function makeRelationColumns(
       },
     },
     {
-      title: '操作',
+      title: t?.('extraction.preview.actions') || '操作',
       width: 64,
       render: (_: unknown, record: ExtractionRelation) =>
         onViewProvenance ? (
@@ -304,7 +309,7 @@ function makeRelationColumns(
             type="text"
             size="small"
             icon={<SearchOutlined />}
-            title="溯源"
+            title={t?.('extraction.preview.provenance') || '溯源'}
             onClick={() => onViewProvenance(record.id)}
           />
         ) : null,
@@ -320,6 +325,7 @@ export function ExtractionPreview({
   sessionId, result, conflicts, ontologyId, onImportComplete,
   entities, relations, onViewProvenance,
 }: ExtractionPreviewProps) {
+  const { t } = useI18n('ontology');
   const [mergeStrategy, setMergeStrategy] = useState<MergeStrategy>('skip');
   const [selectedMap, setSelectedMap] = useState<Record<string, string[]>>({
     object: result.object_types?.map((t: any) => t.name) || [],
@@ -461,15 +467,15 @@ export function ExtractionPreview({
       setChannelProgress({ channelA: aStatus, channelB: bStatus });
 
       if (bStatus === 'failed') {
-        message.warning('索引写入失败，数据已保存但搜索功能可能延迟');
+        message.warning(t('索引写入失败，数据已保存但搜索功能可能延迟'));
       } else {
-        message.success('导入成功');
+        message.success(t('导入成功'));
       }
 
       onImportComplete?.();
     } catch (e) {
       setChannelProgress({ channelA: 'failed', channelB: 'failed' });
-      message.error(`导入失败: ${(e as Error).message}`);
+      message.error(t('extraction.preview.importFailed', { msg: (e as Error).message }));
     } finally {
       setImporting(false);
     }
@@ -479,91 +485,91 @@ export function ExtractionPreview({
   const schemaTabItems = [
     {
       key: 'object',
-      label: `对象类型 (${schemaStats.objectTypes})`,
+      label: `${t('对象类型')} (${schemaStats.objectTypes})`,
       children: (
         <AdvancedTable
           rowKey="name"
           size="small"
           dataSource={localData.object}
-          columns={makeColumns(selectedMap.object || [], (n) => toggleSelect('object', n), handleEdit('object'), handleDelete('object'))}
+          columns={makeColumns(selectedMap.object || [], (n) => toggleSelect('object', n), handleEdit('object'), handleDelete('object'), t)}
           pagination={false}
         />
       ),
     },
     {
       key: 'link',
-      label: `关系类型 (${schemaStats.linkTypes})`,
+      label: `${t('关系类型')} (${schemaStats.linkTypes})`,
       children: (
         <AdvancedTable
           rowKey="name"
           size="small"
           dataSource={localData.link}
-          columns={makeColumns(selectedMap.link || [], (n) => toggleSelect('link', n), handleEdit('link'), handleDelete('link'))}
+          columns={makeColumns(selectedMap.link || [], (n) => toggleSelect('link', n), handleEdit('link'), handleDelete('link'), t)}
           pagination={false}
         />
       ),
     },
     {
       key: 'action',
-      label: `动作类型 (${schemaStats.actionTypes})`,
+      label: `${t('动作类型')} (${schemaStats.actionTypes})`,
       children: (
         <AdvancedTable
           rowKey="name"
           size="small"
           dataSource={localData.action}
-          columns={makeColumns(selectedMap.action || [], (n) => toggleSelect('action', n), handleEdit('action'), handleDelete('action'))}
+          columns={makeColumns(selectedMap.action || [], (n) => toggleSelect('action', n), handleEdit('操作'), handleDelete('action'), t)}
           pagination={false}
         />
       ),
     },
     {
       key: 'rule',
-      label: `规则类型 (${schemaStats.ruleTypes})`,
+      label: `${t('规则类型')} (${schemaStats.ruleTypes})`,
       children: (
         <AdvancedTable
           rowKey="name"
           size="small"
           dataSource={localData.rule}
-          columns={makeColumns(selectedMap.rule || [], (n) => toggleSelect('rule', n), handleEdit('rule'), handleDelete('rule'))}
+          columns={makeColumns(selectedMap.rule || [], (n) => toggleSelect('rule', n), handleEdit('rule'), handleDelete('rule'), t)}
           pagination={false}
         />
       ),
     },
     {
       key: 'process',
-      label: `流程类型 (${schemaStats.processTypes})`,
+      label: `${t('流程类型')} (${schemaStats.processTypes})`,
       children: (
         <AdvancedTable
           rowKey="name"
           size="small"
           dataSource={localData.process}
-          columns={makeColumns(selectedMap.process || [], (n) => toggleSelect('process', n), handleEdit('process'), handleDelete('process'))}
+          columns={makeColumns(selectedMap.process || [], (n) => toggleSelect('process', n), handleEdit('process'), handleDelete('process'), t)}
           pagination={false}
         />
       ),
     },
     {
       key: 'function',
-      label: `函数类型 (${schemaStats.functionTypes})`,
+      label: `${t('函数类型')} (${schemaStats.functionTypes})`,
       children: (
         <AdvancedTable
           rowKey="name"
           size="small"
           dataSource={localData.function}
-          columns={makeColumns(selectedMap.function || [], (n) => toggleSelect('function', n), handleEdit('function'), handleDelete('function'))}
+          columns={makeColumns(selectedMap.function || [], (n) => toggleSelect('function', n), handleEdit('function'), handleDelete('function'), t)}
           pagination={false}
         />
       ),
     },
     {
       key: 'indicator',
-      label: `指标类型 (${schemaStats.indicatorTypes})`,
+      label: `${t('指标类型')} (${schemaStats.indicatorTypes})`,
       children: (
         <AdvancedTable
           rowKey="name"
           size="small"
           dataSource={localData.indicator}
-          columns={makeColumns(selectedMap.indicator || [], (n) => toggleSelect('indicator', n), handleEdit('indicator'), handleDelete('indicator'))}
+          columns={makeColumns(selectedMap.indicator || [], (n) => toggleSelect('indicator', n), handleEdit('indicator'), handleDelete('indicator'), t)}
           pagination={false}
         />
       ),
@@ -573,24 +579,24 @@ export function ExtractionPreview({
   // ── Instance tab content ─────────────────────────────────────────
   const instanceContent = (
     <Space orientation="vertical" style={{ width: '100%' }} size="middle">
-      <Card size="small" title={<><LinkOutlined /> 实体</>} styles={{ body: { padding: 0 } }}>
+      <Card size="small" title={<><LinkOutlined /> {t('实体')}</>} styles={{ body: { padding: 0 } }}>
         <Table
           rowKey="id"
           size="small"
           dataSource={entities || []}
-          columns={makeEntityColumns(selectedEntityIds, toggleEntitySelect, onViewProvenance)}
+          columns={makeEntityColumns(selectedEntityIds, toggleEntitySelect, onViewProvenance, t)}
           pagination={entities && entities.length > 10 ? { pageSize: 10 } : false}
-          locale={{ emptyText: '暂无实体数据' }}
+          locale={{ emptyText: t('暂无实体数据') }}
         />
       </Card>
-      <Card size="small" title={<><LinkOutlined /> 关系</>} styles={{ body: { padding: 0 } }}>
+      <Card size="small" title={<><LinkOutlined /> {t('关系')}</>} styles={{ body: { padding: 0 } }}>
         <Table
           rowKey="id"
           size="small"
           dataSource={relations || []}
-          columns={makeRelationColumns(selectedRelationIds, toggleRelationSelect, onViewProvenance)}
+          columns={makeRelationColumns(selectedRelationIds, toggleRelationSelect, onViewProvenance, t)}
           pagination={relations && relations.length > 10 ? { pageSize: 10 } : false}
-          locale={{ emptyText: '暂无关系数据' }}
+          locale={{ emptyText: t('暂无关系数据') }}
         />
       </Card>
     </Space>
@@ -600,7 +606,7 @@ export function ExtractionPreview({
   const topLevelTabItems = [
     {
       key: 'schema',
-      label: `Schema 层 (${totalSchemaTypes})`,
+      label: `${t('Schema 层')} (${totalSchemaTypes})`,
       children: (
         <Card size="small" styles={{ body: { padding: '0 16px 16px' } }}>
           <Tabs items={schemaTabItems} />
@@ -609,7 +615,7 @@ export function ExtractionPreview({
     },
     {
       key: 'instance',
-      label: `Instance 层 (${entityCount} + ${relationCount})`,
+      label: `${t('Instance 层')} (${entityCount} + ${relationCount})`,
       children: instanceContent,
     },
   ];
@@ -619,17 +625,17 @@ export function ExtractionPreview({
       {/* ── Summary ──────────────────────────────────────────────── */}
       <Card size="small">
         <Row gutter={16}>
-          <Col span={3}><Statistic title="对象类型" value={schemaStats.objectTypes} prefix={<CheckCircleOutlined style={{ color: '#1677ff' }} />} /></Col>
-          <Col span={3}><Statistic title="关系类型" value={schemaStats.linkTypes} prefix={<CheckCircleOutlined style={{ color: '#52c41a' }} />} /></Col>
-          <Col span={3}><Statistic title="动作类型" value={schemaStats.actionTypes} prefix={<CheckCircleOutlined style={{ color: '#722ed1' }} />} /></Col>
-          <Col span={3}><Statistic title="规则类型" value={schemaStats.ruleTypes} prefix={<CheckCircleOutlined style={{ color: '#fa8c16' }} />} /></Col>
-          <Col span={3}><Statistic title="流程类型" value={schemaStats.processTypes} prefix={<CheckCircleOutlined style={{ color: '#13c2c2' }} />} /></Col>
-          <Col span={3}><Statistic title="函数类型" value={schemaStats.functionTypes} prefix={<CheckCircleOutlined style={{ color: '#eb2f96' }} />} /></Col>
-          <Col span={3}><Statistic title="指标类型" value={schemaStats.indicatorTypes} prefix={<CheckCircleOutlined style={{ color: '#f5222d' }} />} /></Col>
-          <Col span={3}><Statistic title="实体" value={entityCount} prefix={<LinkOutlined style={{ color: '#1677ff' }} />} /></Col>
+          <Col span={3}><Statistic title={t('对象类型')} value={schemaStats.objectTypes} prefix={<CheckCircleOutlined style={{ color: '#1677ff' }} />} /></Col>
+          <Col span={3}><Statistic title={t('关系类型')} value={schemaStats.linkTypes} prefix={<CheckCircleOutlined style={{ color: '#52c41a' }} />} /></Col>
+          <Col span={3}><Statistic title={t('动作类型')} value={schemaStats.actionTypes} prefix={<CheckCircleOutlined style={{ color: '#722ed1' }} />} /></Col>
+          <Col span={3}><Statistic title={t('规则类型')} value={schemaStats.ruleTypes} prefix={<CheckCircleOutlined style={{ color: '#fa8c16' }} />} /></Col>
+          <Col span={3}><Statistic title={t('流程类型')} value={schemaStats.processTypes} prefix={<CheckCircleOutlined style={{ color: '#13c2c2' }} />} /></Col>
+          <Col span={3}><Statistic title={t('函数类型')} value={schemaStats.functionTypes} prefix={<CheckCircleOutlined style={{ color: '#eb2f96' }} />} /></Col>
+          <Col span={3}><Statistic title={t('指标类型')} value={schemaStats.indicatorTypes} prefix={<CheckCircleOutlined style={{ color: '#f5222d' }} />} /></Col>
+          <Col span={3}><Statistic title={t('实体')} value={entityCount} prefix={<LinkOutlined style={{ color: '#1677ff' }} />} /></Col>
         </Row>
         <div style={{ marginTop: 8, color: 'rgba(0,0,0,0.45)', fontSize: 13 }}>
-          Schema 层: {totalSchemaTypes} 个类型定义 | Instance 层: {entityCount} 个实体 + {relationCount} 个关系
+          {t('extraction.preview.layerSummary', { schemaTypes: totalSchemaTypes, entityCount, relationCount })}
         </div>
       </Card>
 
@@ -639,13 +645,13 @@ export function ExtractionPreview({
           type="warning"
           showIcon
           icon={<ExclamationCircleOutlined />}
-          title={`检测到 ${conflicts.length} 个冲突`}
+          title={t('extraction.preview.conflictCount', { count: conflicts.length })}
           description={
             <ul style={{ margin: '8px 0 0', paddingLeft: 20 }}>
               {conflicts.map((c, i) => (
                 <li key={i}>
                   <Tag color="orange">{c.type}</Tag> {c.name}
-                  {c.existing_name && ` (已有: ${c.existing_name})`}
+                  {c.existing_name && ` (${t('extraction.preview.existing', { name: c.existing_name })})`}
                   {c.message && ` - ${c.message}`}
                 </li>
               ))}
@@ -655,12 +661,12 @@ export function ExtractionPreview({
       )}
 
       {/* ── Merge Strategy ───────────────────────────────────────── */}
-      <Card size="small" title="合并策略">
+      <Card size="small" title={t('合并策略')}>
         <Radio.Group value={mergeStrategy} onChange={(e) => setMergeStrategy(e.target.value)}>
           <Space orientation="vertical">
-            <Radio value="skip">跳过 - 保留已有定义，忽略冲突项</Radio>
-            <Radio value="overwrite">覆盖 - 用新定义替换已有定义</Radio>
-            <Radio value="rename">重命名 - 为冲突项自动生成新名称</Radio>
+            <Radio value="skip">{t('跳过 - 保留已有定义，忽略冲突项')}</Radio>
+            <Radio value="overwrite">{t('覆盖 - 用新定义替换已有定义')}</Radio>
+            <Radio value="rename">{t('重命名 - 为冲突项自动生成新名称')}</Radio>
           </Space>
         </Radio.Group>
       </Card>
@@ -681,32 +687,32 @@ export function ExtractionPreview({
           loading={importing}
           size="large"
         >
-          确认导入
+          {t('确认导入')}
         </Button>
       </div>
 
       {/* ── Dual-Channel Progress ────────────────────────────────── */}
       {channelProgress && (
-        <Card size="small" title="导入进度">
+        <Card size="small" title={t('导入进度')}>
           <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
             <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
               {channelProgress.channelA === 'running' && <LoadingOutlined spin style={{ color: '#1677ff' }} />}
               {channelProgress.channelA === 'success' && <CheckCircleOutlined style={{ color: '#52c41a' }} />}
               {channelProgress.channelA === 'failed' && <CloseCircleOutlined style={{ color: '#ff4d4f' }} />}
-              <span>通道 A: 写入实体属性{channelProgress.channelA === 'running' ? '...' : ''}</span>
+              <span>{t('通道 A: 写入实体属性')}{channelProgress.channelA === 'running' ? '...' : ''}</span>
             </div>
             <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
               {channelProgress.channelB === 'running' && <LoadingOutlined spin style={{ color: '#1677ff' }} />}
               {channelProgress.channelB === 'success' && <CheckCircleOutlined style={{ color: '#52c41a' }} />}
               {channelProgress.channelB === 'failed' && <CloseCircleOutlined style={{ color: '#ff4d4f' }} />}
-              <span>通道 B: 写入双时态索引{channelProgress.channelB === 'running' ? '...' : ''}</span>
+              <span>{t('通道 B: 写入双时态索引')}{channelProgress.channelB === 'running' ? '...' : ''}</span>
             </div>
           </div>
           {channelProgress.channelB === 'failed' && (
             <Alert
               type="warning"
               showIcon
-              title="索引写入失败，数据已保存但搜索功能可能延迟"
+              title={t('索引写入失败，数据已保存但搜索功能可能延迟')}
               style={{ marginTop: 12 }}
             />
           )}

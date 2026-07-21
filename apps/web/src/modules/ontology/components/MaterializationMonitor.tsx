@@ -55,7 +55,7 @@ const STATUS_MAP: Record<JobStatus, { color: string; icon: ReactNode }> = {
 };
 
 export function MaterializationMonitor({ workspaceId, refreshIntervalMs = 10000 }: MaterializationMonitorProps) {
-  const { t } = useI18n();
+  const { t } = useI18n('ontology');
   void t;
   const [jobs, setJobs] = useState<MaterializationJob[]>([]);
   const [stats, setStats] = useState<StatsPoint[]>([]);

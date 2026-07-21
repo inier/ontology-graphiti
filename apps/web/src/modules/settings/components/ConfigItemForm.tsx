@@ -120,7 +120,7 @@ export function ConfigItemForm({ item, value, onChange }: ConfigItemFormProps) {
       }
       extra={
         item.has_value && item.is_sensitive
-          ? t('currentConfiguredMasked')
+          ? t('当前已配置，显示为掩码')
           : undefined
       }
     >

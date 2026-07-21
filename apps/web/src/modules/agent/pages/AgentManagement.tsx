@@ -15,6 +15,7 @@ import { knowledgeApi } from '@/modules/knowledge/services/knowledgeApi';
 import { useScenario, useWorkspace } from '@/modules/shared/components/LayoutContexts';
 
 import type { Agent, AgentFormData } from '../types';
+import { useI18n } from '@/modules/shared/hooks/useI18n';
 
 
 
@@ -73,6 +74,7 @@ export function AgentManagement() {
   const { currentScenario } = useScenario();
 
   const { currentWorkspace } = useWorkspace();
+  const { t } = useI18n();
 
   const [agents, setAgents] = useState<Agent[]>([]);
 
@@ -150,7 +152,7 @@ export function AgentManagement() {
 
     } catch (e) {
 
-      message.error('加载智能体列表失败');
+      message.error(t('加载智能体列表失败'));
 
     } finally {
 
@@ -410,13 +412,13 @@ export function AgentManagement() {
 
       await agentApi.deleteAgent(id);
 
-      message.success('删除成功');
+      message.success(t('删除成功'));
 
       loadAgents();
 
     } catch (e) {
 
-      message.error('删除失败');
+      message.error(t('删除失败'));
 
     }
 
@@ -434,13 +436,13 @@ export function AgentManagement() {
 
         await agentApi.updateAgent(editingAgent.agent_id, payload);
 
-        message.success('更新成功');
+        message.success(t('更新成功'));
 
       } else {
 
         await agentApi.createAgent(payload);
 
-        message.success('创建成功');
+        message.success(t('创建成功'));
 
       }
 
@@ -452,7 +454,7 @@ export function AgentManagement() {
 
       console.error('保存智能体失败:', e);
 
-      message.error(`保存失败: ${e?.message || '未知错误'}`);
+      message.error(t('保存失败: {{message}}', { message: e?.message || t('未知错误') }));
 
     }
 
@@ -536,7 +538,7 @@ export function AgentManagement() {
 
           <Input.Search
 
-            placeholder="搜索智能体"
+            placeholder={t('搜索智能体')}
 
             value={searchText}
 
@@ -552,7 +554,7 @@ export function AgentManagement() {
 
           <Select
 
-            placeholder="按工作空间过滤"
+            placeholder={t('按工作空间过滤')}
 
             value={workspaceFilter}
 
@@ -564,7 +566,7 @@ export function AgentManagement() {
 
             options={[
 
-              { value: '__all__', label: '全部空间（未绑定）' },
+              { value: '__all__', label: t('全部空间（未绑定）') },
 
               ...workspaceOptions.map(w => ({ value: w.id, label: w.name })),
 
@@ -576,7 +578,7 @@ export function AgentManagement() {
 
         <Button type="primary" icon={<PlusOutlined />} onClick={handleCreate}>
 
-          新建智能体
+          {t('新建智能体')}
 
         </Button>
 
@@ -594,7 +596,7 @@ export function AgentManagement() {
 
           <RobotOutlined style={{ fontSize: 48, color: '#d9d9d9', marginBottom: 16 }} />
 
-          <div style={{ color: '#8c8c8c' }}>暂无智能体</div>
+          <div style={{ color: '#8c8c8c' }}>{t('暂无智能体')}</div>
 
         </div>
 
@@ -616,11 +618,11 @@ export function AgentManagement() {
 
                 actions={[
 
-                  <Tooltip key="view" title="查看"><EyeOutlined onClick={() => handleView(agent)} /></Tooltip>,
+                  <Tooltip key="view" title={t('查看')}><EyeOutlined onClick={() => handleView(agent)} /></Tooltip>,
 
-                  <Tooltip key="edit" title="编辑"><EditOutlined onClick={() => handleEdit(agent)} /></Tooltip>,
+                  <Tooltip key="edit" title={t('编辑')}><EditOutlined onClick={() => handleEdit(agent)} /></Tooltip>,
 
-                  <Popconfirm key="del" title="确认删除？" onConfirm={() => handleDelete(agent.agent_id)}>
+                  <Popconfirm key="del" title={t('确认删除？')} onConfirm={() => handleDelete(agent.agent_id)}>
 
                     <DeleteOutlined style={{ color: '#ff4d4f' }} />
 
@@ -646,10 +648,10 @@ export function AgentManagement() {
                     const name = resolveMainObject(agent);
                     const isUuid = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(agent.main_object);
                     const resolved = name !== agent.main_object;
-                    const label = resolved ? name : (isUuid ? `已删除: ${agent.main_object.slice(0, 8)}...` : name);
+                    const label = resolved ? name : (isUuid ? t('已删除: {{id}}...', { id: agent.main_object.slice(0, 8) }) : name);
                     return (
                       <Tag color={resolved ? 'blue' : 'default'} style={{ margin: 0, color: resolved ? undefined : '#bfbfbf' }} title={agent.main_object}>
-                        主对象: {label}
+                        {t('主对象: {{name}}', { name: label })}
                       </Tag>
                     );
                   })()}
@@ -660,7 +662,7 @@ export function AgentManagement() {
 
                   ) : (
 
-                    <Tag style={{ margin: 0 }}>全部空间</Tag>
+                    <Tag style={{ margin: 0 }}>{t('全部空间')}</Tag>
 
                   )}
 
@@ -672,7 +674,7 @@ export function AgentManagement() {
 
                   >
 
-                    {agent.description || '暂无描述'}
+                    {agent.description || t('暂无描述')}
 
                   </Paragraph>
 
@@ -686,7 +688,7 @@ export function AgentManagement() {
                         return <Tag key={sk} color="purple" style={{ fontSize: 11 }}>{name}</Tag>;
                       }
                       if (isUuid) {
-                        return <Tag key={sk} color="default" style={{ fontSize: 11, color: '#bfbfbf' }} title={sk}>已删除: {sk.slice(0, 8)}...</Tag>;
+                        return <Tag key={sk} color="default" style={{ fontSize: 11, color: '#bfbfbf' }} title={sk}>{t('已删除: {{id}}...', { id: sk.slice(0, 8) })}</Tag>;
                       }
                       return <Tag key={sk} color="purple" style={{ fontSize: 11 }}>{sk}</Tag>;
                     })}
@@ -735,7 +737,7 @@ export function AgentManagement() {
 
       <Modal
 
-        title={editingAgent ? '编辑智能体' : '新建智能体'}
+        title={editingAgent ? t('编辑智能体') : t('新建智能体')}
 
         open={modalOpen}
 
@@ -747,9 +749,9 @@ export function AgentManagement() {
 
         destroyOnHidden
 
-        okText="保存"
+        okText={t('保存')}
 
-        cancelText="取消"
+        cancelText={t('取消')}
 
       >
 
@@ -777,13 +779,13 @@ export function AgentManagement() {
 
             name="name"
 
-            label="智能体名称"
+            label={t('智能体名称')}
 
-            rules={[{ required: true, message: '请输入智能体名称' }]}
+            rules={[{ required: true, message: t('请输入智能体名称') }]}
 
           >
 
-            <Input placeholder="仅支持英文和下划线" maxLength={20} showCount />
+            <Input placeholder={t('仅支持英文和下划线')} maxLength={20} showCount />
 
           </Form.Item>
 
@@ -793,19 +795,19 @@ export function AgentManagement() {
 
             name="display_name"
 
-            label="前台展示名称"
+            label={t('前台展示名称')}
 
-            rules={[{ required: true, message: '请输入前台展示名称' }]}
+            rules={[{ required: true, message: t('请输入前台展示名称') }]}
 
           >
 
-            <Input placeholder="请输入前台展示名称" maxLength={20} showCount />
+            <Input placeholder={t('请输入前台展示名称')} maxLength={20} showCount />
 
           </Form.Item>
 
 
 
-          <Form.Item label="形象" required>
+          <Form.Item label={t('形象')} required>
 
             <Space size={12} wrap>
 
@@ -849,11 +851,11 @@ export function AgentManagement() {
 
 
 
-          <Form.Item name="description" label="描述">
+          <Form.Item name="description" label={t('描述')}>
 
             <Input.TextArea
 
-              placeholder="此运营对象所服务的具体业务场景、核心目标和用户群体等描述"
+              placeholder={t('此运营对象所服务的具体业务场景、核心目标和用户群体等描述')}
 
               maxLength={1000}
 
@@ -867,7 +869,7 @@ export function AgentManagement() {
 
 
 
-          <Divider>对象关联</Divider>
+          <Divider>{t('对象关联')}</Divider>
 
 
 
@@ -875,15 +877,15 @@ export function AgentManagement() {
 
             name="main_object"
 
-            label="主对象"
+            label={t('主对象')}
 
-            rules={[{ required: true, message: '请选择主对象' }]}
+            rules={[{ required: true, message: t('请选择主对象') }]}
 
           >
 
             <Select
 
-              placeholder="请选择主对象"
+              placeholder={t('请选择主对象')}
 
               options={entityOptions.map(v => ({ value: v.id, label: v.name }))}
 
@@ -891,7 +893,7 @@ export function AgentManagement() {
 
               optionFilterProp="label"
 
-              notFoundContent="暂无实体类型，请先构建本体图谱"
+              notFoundContent={t('暂无实体类型，请先构建本体图谱')}
 
             />
 
@@ -899,13 +901,13 @@ export function AgentManagement() {
 
 
 
-          <Form.Item name="related_objects" label="关联对象类型">
+          <Form.Item name="related_objects" label={t('关联对象类型')}>
 
             <Select
 
               mode="multiple"
 
-              placeholder="请选择关联对象类型"
+              placeholder={t('请选择关联对象类型')}
 
               options={entityOptions.map(v => ({ value: v.id, label: v.name }))}
 
@@ -913,7 +915,7 @@ export function AgentManagement() {
 
               optionFilterProp="label"
 
-              notFoundContent="暂无实体类型，请先构建本体图谱"
+              notFoundContent={t('暂无实体类型，请先构建本体图谱')}
 
             />
 
@@ -921,17 +923,17 @@ export function AgentManagement() {
 
 
 
-          <Divider>业务关联</Divider>
+          <Divider>{t('业务关联')}</Divider>
 
 
 
-          <Form.Item name="related_processes" label="关联业务过程">
+          <Form.Item name="related_processes" label={t('关联业务过程')}>
 
             <Select
 
               mode="multiple"
 
-              placeholder="请选择关联的业务过程"
+              placeholder={t('请选择关联的业务过程')}
 
               options={processOptions.map(o => ({ value: o.id, label: o.name }))}
 
@@ -945,13 +947,13 @@ export function AgentManagement() {
 
 
 
-          <Form.Item name="related_rules" label="关联业务规则">
+          <Form.Item name="related_rules" label={t('关联业务规则')}>
 
             <Select
 
               mode="multiple"
 
-              placeholder="请选择关联的业务规则"
+              placeholder={t('请选择关联的业务规则')}
 
               options={ruleOptions.map(o => ({ value: o.id, label: o.name }))}
 
@@ -965,13 +967,13 @@ export function AgentManagement() {
 
 
 
-          <Form.Item name="related_business_logic" label="关联业务逻辑">
+          <Form.Item name="related_business_logic" label={t('关联业务逻辑')}>
 
             <Select
 
               mode="multiple"
 
-              placeholder="请选择关联的业务逻辑"
+              placeholder={t('请选择关联的业务逻辑')}
 
               options={businessLogicOptions.map(o => ({ value: o.id, label: o.name }))}
 
@@ -985,13 +987,13 @@ export function AgentManagement() {
 
 
 
-          <Form.Item name="related_indicators" label="关联指标">
+          <Form.Item name="related_indicators" label={t('关联指标')}>
 
             <Select
 
               mode="multiple"
 
-              placeholder="请选择关联的指标"
+              placeholder={t('请选择关联的指标')}
 
               options={indicatorOptions.map(o => ({ value: o.id, label: o.name }))}
 
@@ -1005,13 +1007,13 @@ export function AgentManagement() {
 
 
 
-          <Form.Item name="related_skills" label="可用技能">
+          <Form.Item name="related_skills" label={t('可用技能')}>
 
             <Select
 
               mode="multiple"
 
-              placeholder="请选择可用技能"
+              placeholder={t('请选择可用技能')}
 
               options={skillOptions.map(o => ({ value: o.id, label: o.name }))}
 
@@ -1025,13 +1027,13 @@ export function AgentManagement() {
 
 
 
-          <Form.Item name="related_knowledge_bases" label="关联知识库">
+          <Form.Item name="related_knowledge_bases" label={t('关联知识库')}>
 
             <Select
 
               mode="multiple"
 
-              placeholder="请选择关联的知识库"
+              placeholder={t('请选择关联的知识库')}
 
               options={knowledgeBaseOptions.map(o => ({ value: o.id, label: o.name }))}
 
@@ -1045,7 +1047,7 @@ export function AgentManagement() {
 
 
 
-          <Divider>权限配置</Divider>
+          <Divider>{t('权限配置')}</Divider>
 
 
 
@@ -1053,9 +1055,9 @@ export function AgentManagement() {
 
             name="allowed_roles"
 
-            label="可见角色（哪些角色可以看到和使用此智能体）"
+            label={t('可见角色（哪些角色可以看到和使用此智能体）')}
 
-            rules={[{ required: true, message: '请至少选择一个可见角色' }]}
+            rules={[{ required: true, message: t('请至少选择一个可见角色') }]}
 
           >
 
@@ -1063,7 +1065,7 @@ export function AgentManagement() {
 
               mode="multiple"
 
-              placeholder="请选择可见角色"
+              placeholder={t('请选择可见角色')}
 
               options={roleOptions.map(o => ({ value: o.id, label: o.name }))}
 
@@ -1077,11 +1079,11 @@ export function AgentManagement() {
 
 
 
-          <Form.Item name="workspace_id" label="工作空间">
+          <Form.Item name="workspace_id" label={t('工作空间')}>
 
             <Select
 
-              placeholder="不选则表示全部空间"
+              placeholder={t('不选则表示全部空间')}
 
               options={workspaceOptions.map(w => ({ value: w.id, label: w.name }))}
 
@@ -1103,7 +1105,7 @@ export function AgentManagement() {
 
       <Modal
 
-        title="智能体详情"
+        title={t('智能体详情')}
 
         open={detailOpen}
 
@@ -1111,7 +1113,7 @@ export function AgentManagement() {
 
         footer={[
 
-          <Button key="close" onClick={() => setDetailOpen(false)}>关闭</Button>,
+          <Button key="close" onClick={() => setDetailOpen(false)}>{t('关闭')}</Button>,
 
         ]}
 
@@ -1139,13 +1141,13 @@ export function AgentManagement() {
 
             <Descriptions column={1}>
 
-              <Descriptions.Item label="主对象">
+              <Descriptions.Item label={t('主对象')}>
 
                 <Tag color="blue">{resolveMainObject(viewingAgent)}</Tag>
 
               </Descriptions.Item>
 
-              <Descriptions.Item label="关联对象">
+              <Descriptions.Item label={t('关联对象')}>
 
                 <Space wrap>
 
@@ -1155,7 +1157,7 @@ export function AgentManagement() {
 
               </Descriptions.Item>
 
-              <Descriptions.Item label="关联业务过程">
+              <Descriptions.Item label={t('关联业务过程')}>
 
                 <Space wrap>
 
@@ -1165,7 +1167,7 @@ export function AgentManagement() {
 
               </Descriptions.Item>
 
-              <Descriptions.Item label="关联业务规则">
+              <Descriptions.Item label={t('关联业务规则')}>
 
                 <Space wrap>
 
@@ -1175,7 +1177,7 @@ export function AgentManagement() {
 
               </Descriptions.Item>
 
-              <Descriptions.Item label="关联业务逻辑">
+              <Descriptions.Item label={t('关联业务逻辑')}>
 
                 <Space wrap>
 
@@ -1185,7 +1187,7 @@ export function AgentManagement() {
 
               </Descriptions.Item>
 
-              <Descriptions.Item label="关联指标">
+              <Descriptions.Item label={t('关联指标')}>
 
                 <Space wrap>
 
@@ -1195,7 +1197,7 @@ export function AgentManagement() {
 
               </Descriptions.Item>
 
-              <Descriptions.Item label="可用技能">
+              <Descriptions.Item label={t('可用技能')}>
 
                 <Space wrap>
 
@@ -1204,7 +1206,7 @@ export function AgentManagement() {
                     const isUuid = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(o);
                     const resolved = name !== o;
                     if (resolved) return <Tag key={o} color="purple">{name}</Tag>;
-                    if (isUuid) return <Tag key={o} color="default" style={{ color: '#bfbfbf' }} title={o}>已删除: {o.slice(0, 8)}...</Tag>;
+                    if (isUuid) return <Tag key={o} color="default" style={{ color: '#bfbfbf' }} title={o}>{t('已删除: {{id}}...', { id: o.slice(0, 8) })}</Tag>;
                     return <Tag key={o} color="purple">{o}</Tag>;
                   })}
 
@@ -1212,7 +1214,7 @@ export function AgentManagement() {
 
               </Descriptions.Item>
 
-              <Descriptions.Item label="关联知识库">
+              <Descriptions.Item label={t('关联知识库')}>
 
                 <Space wrap>
 
@@ -1222,7 +1224,7 @@ export function AgentManagement() {
 
               </Descriptions.Item>
 
-              <Descriptions.Item label="可见角色">
+              <Descriptions.Item label={t('可见角色')}>
 
                 <Space wrap>
 
@@ -1238,7 +1240,7 @@ export function AgentManagement() {
 
               </Descriptions.Item>
 
-              <Descriptions.Item label="工作空间">
+              <Descriptions.Item label={t('工作空间')}>
 
                 {viewingAgent.workspace_id
 
@@ -1250,13 +1252,13 @@ export function AgentManagement() {
 
                     })()
 
-                  : <Tag>全部空间</Tag>
+                  : <Tag>{t('全部空间')}</Tag>
 
                 }
 
               </Descriptions.Item>
 
-              <Descriptions.Item label="描述">{viewingAgent.description || '—'}</Descriptions.Item>
+              <Descriptions.Item label={t('描述')}>{viewingAgent.description || '—'}</Descriptions.Item>
 
             </Descriptions>
 

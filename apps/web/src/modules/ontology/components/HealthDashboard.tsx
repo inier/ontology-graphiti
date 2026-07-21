@@ -58,7 +58,7 @@ const STATUS_META: Record<RuleStatus, { color: string; label: string; icon: Reac
 };
 
 export function HealthDashboard({ workspaceId }: HealthDashboardProps) {
-  const { t } = useI18n();
+  const { t } = useI18n('ontology');
   void workspaceId;
   const [rules, setRules] = useState<HealthRule[]>([]);
   const [reports, setReports] = useState<HealthReportPoint[]>([]);

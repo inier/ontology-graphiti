@@ -105,7 +105,7 @@ interface TestQueryResult {
 }
 
 export function ViewFieldMapping({ viewId, onClose }: ViewFieldMappingProps) {
-  const { t } = useI18n();
+  const { t } = useI18n('ontology');
   void t;
   const [view, setView] = useState<ObjectView | null>(null);
   const [objectType, setObjectType] = useState<ObjectTypeInfo | null>(null);

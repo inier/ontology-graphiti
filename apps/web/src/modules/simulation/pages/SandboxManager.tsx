@@ -48,7 +48,7 @@ const STATUS_COLORS: Record<string, string> = {
 };
 
 const SandboxManager: React.FC = () => {
-  const { t } = useI18n('simulation');
+  const { t } = useI18n();
   const actionRef = useRef<ActionType>(null);
   const [createOpen, setCreateOpen] = useState(false);
   const [resultOpen, setResultOpen] = useState(false);
@@ -83,42 +83,42 @@ const SandboxManager: React.FC = () => {
         description: values.description,
         ontology_id: values.ontology_id,
       });
-      message.success(t('sandbox.created', 'Sandbox created'));
+      message.success(t('沙箱创建成功'));
       setCreateOpen(false);
       form.resetFields();
       actionRef.current?.reload();
     } catch (e) {
-      message.error(`${t('sandbox.createFailed', 'Create failed')}: ${(e as Error).message}`);
+      message.error(`${t('创建失败')}: ${(e as Error).message}`);
     }
   };
 
   const handleRun = async (sandboxId: string) => {
     try {
       await apiClient.post(`/api/simulation/sandbox/${sandboxId}/run`, {});
-      message.success(t('sandbox.started', 'Sandbox started'));
+      message.success(t('沙箱已启动'));
       actionRef.current?.reload();
     } catch (e) {
-      message.error(`${t('sandbox.runFailed', 'Run failed')}: ${(e as Error).message}`);
+      message.error(`${t('运行失败')}: ${(e as Error).message}`);
     }
   };
 
   const handleStop = async (sandboxId: string) => {
     try {
       await apiClient.post(`/api/simulation/sandbox/${sandboxId}/stop`, {});
-      message.success(t('sandbox.stopped', 'Sandbox stopped'));
+      message.success(t('沙箱已停止'));
       actionRef.current?.reload();
     } catch (e) {
-      message.error(`${t('sandbox.stopFailed', 'Stop failed')}: ${(e as Error).message}`);
+      message.error(`${t('停止失败')}: ${(e as Error).message}`);
     }
   };
 
   const handleDestroy = async (sandboxId: string) => {
     try {
       await apiClient.delete(`/api/simulation/sandbox/${sandboxId}`);
-      message.success(t('sandbox.destroyed', 'Sandbox destroyed'));
+      message.success(t('沙箱已销毁'));
       actionRef.current?.reload();
     } catch (e) {
-      message.error(`${t('sandbox.destroyFailed', 'Destroy failed')}: ${(e as Error).message}`);
+      message.error(`${t('销毁失败')}: ${(e as Error).message}`);
     }
   };
 
@@ -128,19 +128,19 @@ const SandboxManager: React.FC = () => {
       setCurrentResult(data);
       setResultOpen(true);
     } catch (e) {
-      message.error(`${t('sandbox.resultsFailed', 'Failed to load results')}: ${(e as Error).message}`);
+      message.error(`${t('加载结果失败')}: ${(e as Error).message}`);
     }
   };
 
   const columns: ColumnsType<SandboxRecord> = [
     {
-      title: t('sandbox.name', 'Name'),
+      title: t('名称'),
       dataIndex: 'name',
       key: 'name',
       ellipsis: true,
     },
     {
-      title: t('sandbox.status', 'Status'),
+      title: t('状态'),
       dataIndex: 'status',
       key: 'status',
       width: 100,
@@ -149,21 +149,21 @@ const SandboxManager: React.FC = () => {
       ),
     },
     {
-      title: t('sandbox.ontology', 'Ontology'),
+      title: t('本体'),
       dataIndex: 'ontology_id',
       key: 'ontology_id',
       width: 140,
       ellipsis: true,
     },
     {
-      title: t('sandbox.createdAt', 'Created'),
+      title: t('创建时间'),
       dataIndex: 'created_at',
       key: 'created_at',
       width: 160,
       ellipsis: true,
     },
     {
-      title: t('sandbox.actions', 'Actions'),
+      title: t('操作'),
       key: 'actions',
       width: 220,
       render: (_: unknown, record: SandboxRecord) => (
@@ -175,7 +175,7 @@ const SandboxManager: React.FC = () => {
               icon={<PlayCircleOutlined />}
               onClick={() => handleRun(record.sandbox_id)}
             >
-              {t('sandbox.run', 'Run')}
+              {t('运行')}
             </Button>
           ) : null}
           {record.status === 'running' ? (
@@ -184,7 +184,7 @@ const SandboxManager: React.FC = () => {
               icon={<StopOutlined />}
               onClick={() => handleStop(record.sandbox_id)}
             >
-              {t('sandbox.stop', 'Stop')}
+              {t('停止')}
             </Button>
           ) : null}
           <Button
@@ -193,10 +193,10 @@ const SandboxManager: React.FC = () => {
             onClick={() => handleViewResults(record.sandbox_id)}
             disabled={record.status === 'created' || record.status === 'destroyed'}
           >
-            {t('sandbox.results', 'Results')}
+            {t('结果')}
           </Button>
           <Popconfirm
-            title={t('sandbox.destroyConfirm', 'Destroy this sandbox?')}
+            title={t('确认销毁此沙箱？')}
             onConfirm={() => handleDestroy(record.sandbox_id)}
           >
             <Button type="text" danger size="small" icon={<DeleteOutlined />} />
@@ -209,11 +209,11 @@ const SandboxManager: React.FC = () => {
   return (
     <>
       <Card
-        title={t('sandbox.title', 'Sandbox Manager')}
+        title={t('沙箱管理')}
         extra={
           <Space>
             <Button type="primary" size="small" icon={<PlusOutlined />} onClick={() => setCreateOpen(true)}>
-              {t('sandbox.create', 'Create Sandbox')}
+              {t('创建沙箱')}
             </Button>
           </Space>
         }
@@ -225,26 +225,26 @@ const SandboxManager: React.FC = () => {
           rowKey="sandbox_id"
           size="small"
           pagination={{ pageSize: 10 }}
-          locale={{ emptyText: <Empty description={t('sandbox.empty', 'No sandboxes')} image={Empty.PRESENTED_IMAGE_SIMPLE} /> }}
+          locale={{ emptyText: <Empty description={t('暂无沙箱')} image={Empty.PRESENTED_IMAGE_SIMPLE} /> }}
         />
       </Card>
 
       <Modal
-        title={t('sandbox.createTitle', 'Create Sandbox')}
+        title={t('创建沙箱')}
         open={createOpen}
         onCancel={() => { setCreateOpen(false); form.resetFields(); }}
         onOk={() => form.submit()}
       >
         <Form form={form} layout="vertical" onFinish={handleCreate}>
-          <Form.Item name="name" label={t('sandbox.name', 'Name')} rules={[{ required: true }]}>
+          <Form.Item name="name" label={t('名称')} rules={[{ required: true }]}>
             <Input />
           </Form.Item>
-          <Form.Item name="description" label={t('sandbox.description', 'Description')}>
+          <Form.Item name="description" label={t('描述')}>
             <Input.TextArea rows={3} />
           </Form.Item>
-          <Form.Item name="ontology_id" label={t('sandbox.ontology', 'Ontology Binding')} rules={[{ required: true }]}>
+          <Form.Item name="ontology_id" label={t('本体绑定')} rules={[{ required: true }]}>
             <Select
-              placeholder={t('sandbox.selectOntology', 'Select ontology')}
+              placeholder={t('请选择本体')}
               options={ontologies.map(o => ({ value: o.id, label: o.name }))}
             />
           </Form.Item>
@@ -252,7 +252,7 @@ const SandboxManager: React.FC = () => {
       </Modal>
 
       <Modal
-        title={t('sandbox.resultsTitle', 'Sandbox Results')}
+        title={t('沙箱结果')}
         open={resultOpen}
         onCancel={() => { setResultOpen(false); setCurrentResult(null); }}
         footer={null}
@@ -261,24 +261,24 @@ const SandboxManager: React.FC = () => {
         {currentResult ? (
           <Space orientation="vertical" style={{ width: '100%' }} size="middle">
             <Descriptions column={2}>
-              <Descriptions.Item label="Sandbox ID">{currentResult.sandbox_id}</Descriptions.Item>
-              <Descriptions.Item label="Status">
+              <Descriptions.Item label={t('沙箱 ID')}>{currentResult.sandbox_id}</Descriptions.Item>
+              <Descriptions.Item label={t('状态')}>
                 <Tag color={currentResult.status === 'completed' ? 'green' : 'red'}>{currentResult.status}</Tag>
               </Descriptions.Item>
-              <Descriptions.Item label="Confidence">
+              <Descriptions.Item label={t('置信度')}>
                 <Text>{(currentResult.confidence * 100).toFixed(1)}%</Text>
               </Descriptions.Item>
             </Descriptions>
             {currentResult.metric_changes && currentResult.metric_changes.length > 0 && (
-              <Card title="Metric Changes" size="small">
+              <Card title={t('指标变化')} size="small">
                 <AdvancedTable
                   dataSource={currentResult.metric_changes}
                   columns={[
-                    { title: 'Metric', dataIndex: 'metric_name', key: 'metric_name' },
-                    { title: 'Before', dataIndex: 'before', key: 'before' },
-                    { title: 'After', dataIndex: 'after', key: 'after' },
+                    { title: t('指标'), dataIndex: 'metric_name', key: 'metric_name' },
+                    { title: t('变化前'), dataIndex: 'before', key: 'before' },
+                    { title: t('变化后'), dataIndex: 'after', key: 'after' },
                     {
-                      title: 'Delta',
+                      title: t('变化量'),
                       dataIndex: 'delta',
                       key: 'delta',
                       render: (v: number | null) => v != null ? (
@@ -296,13 +296,13 @@ const SandboxManager: React.FC = () => {
             )}
             {currentResult.recommendation && (
               <Card size="small">
-                <Text strong>Recommendation: </Text>
+                <Text strong>{t('推荐')}: </Text>
                 <Text>{currentResult.recommendation}</Text>
               </Card>
             )}
           </Space>
         ) : (
-          <Empty description="No results available" />
+          <Empty description={t('暂无结果')} />
         )}
       </Modal>
     </>

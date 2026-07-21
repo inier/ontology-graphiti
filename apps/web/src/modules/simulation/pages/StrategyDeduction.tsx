@@ -14,6 +14,7 @@ import type { ColumnsType } from 'antd/es/table';
 import { fetchJson } from '@/modules/shared/services/apiClient';
 import { API_BASE } from '@/config';
 import { AdvancedTable } from '@/modules/shared';
+import { useI18n } from '@/modules/shared/hooks/useI18n';
 
 interface ApiResponse {
   [key: string]: unknown;
@@ -113,29 +114,6 @@ interface ScenarioListItem {
   updated_at: string;
 }
 
-const ACTION_TYPES = [
-  { value: 'adjust_parameter', label: '调整参数' },
-  { value: 'apply_policy', label: '应用策略' },
-  { value: 'trigger_event', label: '触发事件' },
-  { value: 'modify_relation', label: '修改关系' },
-  { value: 'add_constraint', label: '添加约束' },
-  { value: 'remove_constraint', label: '移除约束' },
-];
-
-const OBJECT_TYPES = [
-  { value: 'entity', label: '实体' },
-  { value: 'relation', label: '关系' },
-  { value: 'attribute', label: '属性' },
-  { value: 'policy', label: '策略' },
-  { value: 'event', label: '事件' },
-];
-
-const CONDITION_TYPE_CONFIG: Record<string, { color: string; label: string }> = {
-  rule_based: { color: 'blue', label: '规则条件' },
-  constraint_based: { color: 'orange', label: '约束条件' },
-  custom: { color: 'green', label: '自定义条件' },
-};
-
 const CHAIN_STATUS_COLORS: Record<string, string> = {
   pending: 'default',
   simulating: 'processing',
@@ -159,6 +137,31 @@ const RISK_LEVEL_CONFIG: Record<string, { color: string; percent: number }> = {
 };
 
 const StrategyDeduction: React.FC = () => {
+  const { t } = useI18n();
+
+  const ACTION_TYPES = [
+    { value: 'adjust_parameter', label: t('调整参数') },
+    { value: 'apply_policy', label: t('应用策略') },
+    { value: 'trigger_event', label: t('触发事件') },
+    { value: 'modify_relation', label: t('修改关系') },
+    { value: 'add_constraint', label: t('添加约束') },
+    { value: 'remove_constraint', label: t('移除约束') },
+  ];
+
+  const OBJECT_TYPES = [
+    { value: 'entity', label: t('实体') },
+    { value: 'relation', label: t('关系') },
+    { value: 'attribute', label: t('属性') },
+    { value: 'policy', label: t('策略') },
+    { value: 'event', label: t('事件') },
+  ];
+
+  const CONDITION_TYPE_CONFIG: Record<string, { color: string; label: string }> = {
+    rule_based: { color: 'blue', label: t('规则条件') },
+    constraint_based: { color: 'orange', label: t('约束条件') },
+    custom: { color: 'green', label: t('自定义条件') },
+  };
+
   const [scenarioList, setScenarioList] = useState<ScenarioListItem[]>([]);
   const [scenarioTotal, setScenarioTotal] = useState(0);
   const [scenarioPage, setScenarioPage] = useState(1);
@@ -261,12 +264,12 @@ const StrategyDeduction: React.FC = () => {
           target_object_type: values.target_object_type,
         }),
       });
-      message.success('场景创建成功');
+      message.success(t('场景创建成功'));
       setScenarioModalOpen(false);
       scenarioForm.resetFields();
       fetchScenarioList();
     } catch (error) {
-      message.error(`场景创建失败: ${error}`);
+      message.error(`${t('场景创建失败')}: ${error}`);
     } finally {
       setLoading(false);
     }
@@ -277,13 +280,13 @@ const StrategyDeduction: React.FC = () => {
       await fetchJson(`${API_BASE}/api/simulation/deduction/scenarios/${scenarioId}`, {
         method: 'DELETE',
       });
-      message.success('场景已删除');
+      message.success(t('场景已删除'));
       if (selectedScenario?.scenario_id === scenarioId) {
         setSelectedScenario(null);
       }
       fetchScenarioList();
     } catch (error) {
-      message.error(`删除失败: ${error}`);
+      message.error(`${t('删除失败')}: ${error}`);
     }
   };
 
@@ -295,10 +298,10 @@ const StrategyDeduction: React.FC = () => {
         `${API_BASE}/api/simulation/deduction/scenarios/${selectedScenario.scenario_id}/conditions`,
         { method: 'POST' }
       );
-      message.success(`已加载 ${data.total || 0} 条本体条件`);
+      message.success(t('已加载 {{n}} 条本体条件', { n: (data.total as number) || 0 }));
       await refreshSelectedScenario();
     } catch (error) {
-      message.error(`加载条件失败: ${error}`);
+      message.error(`${t('加载条件失败')}: ${error}`);
     } finally {
       setLoading(false);
     }
@@ -314,10 +317,10 @@ const StrategyDeduction: React.FC = () => {
           body: JSON.stringify({ value }),
         }
       );
-      message.success('条件值已更新');
+      message.success(t('条件值已更新'));
       await refreshSelectedScenario();
     } catch (error) {
-      message.error(`更新失败: ${error}`);
+      message.error(`${t('更新失败')}: ${error}`);
     }
   };
 
@@ -376,7 +379,7 @@ const StrategyDeduction: React.FC = () => {
             body: JSON.stringify(payload),
           }
         );
-        message.success('执行链已更新');
+        message.success(t('执行链已更新'));
       } else {
         await fetchJson(
           `${API_BASE}/api/simulation/deduction/scenarios/${selectedScenario.scenario_id}/chains`,
@@ -385,7 +388,7 @@ const StrategyDeduction: React.FC = () => {
             body: JSON.stringify(payload),
           }
         );
-        message.success('执行链已创建');
+        message.success(t('执行链已创建'));
       }
       setChainModalOpen(false);
       chainForm.resetFields();
@@ -394,7 +397,7 @@ const StrategyDeduction: React.FC = () => {
       setEditingChain(null);
       await refreshSelectedScenario();
     } catch (error) {
-      message.error(`保存失败: ${error}`);
+      message.error(`${t('保存失败')}: ${error}`);
     } finally {
       setLoading(false);
     }
@@ -407,10 +410,10 @@ const StrategyDeduction: React.FC = () => {
         `${API_BASE}/api/simulation/deduction/scenarios/${selectedScenario.scenario_id}/chains/${chainId}`,
         { method: 'DELETE' }
       );
-      message.success('执行链已删除');
+      message.success(t('执行链已删除'));
       await refreshSelectedScenario();
     } catch (error) {
-      message.error(`删除失败: ${error}`);
+      message.error(`${t('删除失败')}: ${error}`);
     }
   };
 
@@ -446,11 +449,11 @@ const StrategyDeduction: React.FC = () => {
         `${API_BASE}/api/simulation/deduction/scenarios/${selectedScenario.scenario_id}/chains/${chainId}/simulate`,
         { method: 'POST' }
       );
-      message.success('推演完成');
+      message.success(t('推演完成'));
       await refreshSelectedScenario();
       setActiveTab('results');
     } catch (error) {
-      message.error(`推演失败: ${error}`);
+      message.error(`${t('推演失败')}: ${error}`);
     } finally {
       setLoading(false);
     }
@@ -464,11 +467,11 @@ const StrategyDeduction: React.FC = () => {
         `${API_BASE}/api/simulation/deduction/scenarios/${selectedScenario.scenario_id}/simulate-all`,
         { method: 'POST' }
       );
-      message.success('全部推演完成');
+      message.success(t('全部推演完成'));
       await refreshSelectedScenario();
       setActiveTab('results');
     } catch (error) {
-      message.error(`推演失败: ${error}`);
+      message.error(`${t('推演失败')}: ${error}`);
     } finally {
       setLoading(false);
     }
@@ -478,7 +481,7 @@ const StrategyDeduction: React.FC = () => {
     if (!selectedScenario) return;
     const chainIds = selectedScenario.chains.map(c => c.chain_id);
     if (chainIds.length < 2) {
-      message.warning('至少需要 2 条执行链才能对比');
+      message.warning(t('至少需要 2 条执行链才能对比'));
       return;
     }
     try {
@@ -493,7 +496,7 @@ const StrategyDeduction: React.FC = () => {
       setCompareResult(data);
       setCompareModalOpen(true);
     } catch (error) {
-      message.error(`对比失败: ${error}`);
+      message.error(`${t('对比失败')}: ${error}`);
     } finally {
       setLoading(false);
     }
@@ -509,7 +512,7 @@ const StrategyDeduction: React.FC = () => {
 
   const scenarioColumns: ColumnsType<ScenarioListItem> = [
     {
-      title: '场景名称',
+      title: t('场景名称'),
       dataIndex: 'name',
       key: 'name',
       ellipsis: true,
@@ -524,14 +527,14 @@ const StrategyDeduction: React.FC = () => {
       ),
     },
     {
-      title: '目标类型',
+      title: t('目标类型'),
       dataIndex: 'target_object_type',
       key: 'target_object_type',
       width: 90,
       render: (type: string) => <Tag>{type || '-'}</Tag>,
     },
     {
-      title: '状态',
+      title: t('状态'),
       dataIndex: 'status',
       key: 'status',
       width: 80,
@@ -540,15 +543,15 @@ const StrategyDeduction: React.FC = () => {
       ),
     },
     {
-      title: '操作',
+      title: t('操作'),
       key: 'action',
       width: 60,
       render: (_: unknown, record: ScenarioListItem) => (
         <Popconfirm
-          title="确认删除此场景？"
+          title={t('确认删除此场景？')}
           onConfirm={() => handleDeleteScenario(record.scenario_id)}
-          okText="删除"
-          cancelText="取消"
+          okText={t('删除')}
+          cancelText={t('取消')}
         >
           <Button type="text" danger size="small" icon={<DeleteOutlined />} />
         </Popconfirm>
@@ -558,14 +561,14 @@ const StrategyDeduction: React.FC = () => {
 
   const conditionColumns: ColumnsType<SimulationCondition> = [
     {
-      title: '条件名称',
+      title: t('条件名称'),
       dataIndex: 'name',
       key: 'name',
       width: 150,
       ellipsis: true,
     },
     {
-      title: '类型',
+      title: t('类型'),
       dataIndex: 'condition_type',
       key: 'condition_type',
       width: 100,
@@ -575,13 +578,13 @@ const StrategyDeduction: React.FC = () => {
       },
     },
     {
-      title: '描述',
+      title: t('描述'),
       dataIndex: 'description',
       key: 'description',
       ellipsis: true,
     },
     {
-      title: '当前值',
+      title: t('当前值'),
       dataIndex: 'value',
       key: 'value',
       width: 180,
@@ -624,20 +627,20 @@ const StrategyDeduction: React.FC = () => {
       },
     },
     {
-      title: '状态',
+      title: t('状态'),
       dataIndex: 'is_active',
       key: 'is_active',
       width: 60,
       render: (active: boolean) => (
-        <Tag color={active ? 'green' : 'default'}>{active ? '启用' : '禁用'}</Tag>
+        <Tag color={active ? 'green' : 'default'}>{active ? t('启用') : t('禁用')}</Tag>
       ),
     },
     {
-      title: '操作',
+      title: t('操作'),
       key: 'action',
       width: 60,
       render: (_: unknown, record: SimulationCondition) => (
-        <Tooltip title="重置为原始值">
+        <Tooltip title={t('重置为原始值')}>
           <Button
             type="text"
             size="small"
@@ -653,14 +656,14 @@ const StrategyDeduction: React.FC = () => {
 
   const chainColumns: ColumnsType<ExecutionChain> = [
     {
-      title: '链路名称',
+      title: t('链路名称'),
       dataIndex: 'name',
       key: 'name',
       width: 150,
       ellipsis: true,
     },
     {
-      title: '步骤数',
+      title: t('步骤数'),
       key: 'step_count',
       width: 70,
       render: (_: unknown, record: ExecutionChain) => (
@@ -668,7 +671,7 @@ const StrategyDeduction: React.FC = () => {
       ),
     },
     {
-      title: '条件数',
+      title: t('条件数'),
       key: 'condition_count',
       width: 70,
       render: (_: unknown, record: ExecutionChain) => (
@@ -676,7 +679,7 @@ const StrategyDeduction: React.FC = () => {
       ),
     },
     {
-      title: '状态',
+      title: t('状态'),
       dataIndex: 'status',
       key: 'status',
       width: 90,
@@ -685,12 +688,12 @@ const StrategyDeduction: React.FC = () => {
       ),
     },
     {
-      title: '操作',
+      title: t('操作'),
       key: 'action',
       width: 160,
       render: (_: unknown, record: ExecutionChain) => (
         <Space size="small">
-          <Tooltip title="推演">
+          <Tooltip title={t('推演')}>
             <Button
               type="primary"
               size="small"
@@ -699,7 +702,7 @@ const StrategyDeduction: React.FC = () => {
               onClick={() => handleSimulateChain(record.chain_id)}
             />
           </Tooltip>
-          <Tooltip title="编辑">
+          <Tooltip title={t('编辑')}>
             <Button
               size="small"
               icon={<EditOutlined />}
@@ -707,10 +710,10 @@ const StrategyDeduction: React.FC = () => {
             />
           </Tooltip>
           <Popconfirm
-            title="确认删除此执行链？"
+            title={t('确认删除此执行链？')}
             onConfirm={() => handleDeleteChain(record.chain_id)}
-            okText="删除"
-            cancelText="取消"
+            okText={t('删除')}
+            cancelText={t('取消')}
           >
             <Button type="text" danger size="small" icon={<DeleteOutlined />} />
           </Popconfirm>
@@ -721,7 +724,7 @@ const StrategyDeduction: React.FC = () => {
 
   const resultColumns: ColumnsType<ChainResult> = [
     {
-      title: '链路名称',
+      title: t('链路名称'),
       dataIndex: 'chain_id',
       key: 'chain_id',
       width: 140,
@@ -729,14 +732,14 @@ const StrategyDeduction: React.FC = () => {
       render: (chainId: string) => (
         <Space>
           {selectedScenario?.best_chain_id === chainId && (
-            <Tag color="gold" icon={<CheckCircleOutlined />}>最优</Tag>
+            <Tag color="gold" icon={<CheckCircleOutlined />}>{t('最优')}</Tag>
           )}
           {getChainName(chainId)}
         </Space>
       ),
     },
     {
-      title: '风险评分',
+      title: t('风险评分'),
       dataIndex: 'risk_score',
       key: 'risk_score',
       width: 120,
@@ -751,7 +754,7 @@ const StrategyDeduction: React.FC = () => {
       ),
     },
     {
-      title: '风险等级',
+      title: t('风险等级'),
       dataIndex: 'risk_level',
       key: 'risk_level',
       width: 100,
@@ -760,7 +763,7 @@ const StrategyDeduction: React.FC = () => {
       ),
     },
     {
-      title: '置信度',
+      title: t('置信度'),
       dataIndex: 'confidence',
       key: 'confidence',
       width: 100,
@@ -774,7 +777,7 @@ const StrategyDeduction: React.FC = () => {
       ),
     },
     {
-      title: '规则违反',
+      title: t('规则违反'),
       key: 'violations',
       width: 80,
       render: (_: unknown, record: ChainResult) => (
@@ -786,7 +789,7 @@ const StrategyDeduction: React.FC = () => {
       ),
     },
     {
-      title: '指标变化',
+      title: t('指标变化'),
       key: 'metrics',
       render: (_: unknown, record: ChainResult) => (
         <Space orientation="vertical" size={2}>
@@ -800,13 +803,13 @@ const StrategyDeduction: React.FC = () => {
             </span>
           ))}
           {record.metric_impacts.length > 3 && (
-            <span style={{ fontSize: 12, color: '#999' }}>+{record.metric_impacts.length - 3} 更多</span>
+            <span style={{ fontSize: 12, color: '#999' }}>+{record.metric_impacts.length - 3} {t('更多')}</span>
           )}
         </Space>
       ),
     },
     {
-      title: '推荐',
+      title: t('推荐'),
       dataIndex: 'recommendation',
       key: 'recommendation',
       ellipsis: true,
@@ -821,7 +824,7 @@ const StrategyDeduction: React.FC = () => {
 
   const renderScenarioList = () => (
     <Card
-      title="推演场景"
+      title={t('推演场景')}
       size="small"
       extra={
         <Button
@@ -830,7 +833,7 @@ const StrategyDeduction: React.FC = () => {
           icon={<PlusOutlined />}
           onClick={() => setScenarioModalOpen(true)}
         >
-          新建场景
+          {t('新建场景')}
         </Button>
       }
     >
@@ -844,10 +847,10 @@ const StrategyDeduction: React.FC = () => {
           pageSize: scenarioPageSize,
           total: scenarioTotal,
           onChange: (page, pageSize) => fetchScenarioList(page, pageSize),
-          showTotal: t => `共 ${t} 条`,
+          showTotal: (total) => t('共 {{n}} 条', { n: total }),
         }}
         onReload={() => fetchScenarioList()}
-        locale={{ emptyText: <Empty description="暂无推演场景" image={Empty.PRESENTED_IMAGE_SIMPLE} /> }}
+        locale={{ emptyText: <Empty description={t('暂无推演场景')} image={Empty.PRESENTED_IMAGE_SIMPLE} /> }}
       />
     </Card>
   );
@@ -856,7 +859,7 @@ const StrategyDeduction: React.FC = () => {
     if (!selectedScenario) {
       return (
         <Card>
-          <Empty description="请先选择一个推演场景" image={Empty.PRESENTED_IMAGE_SIMPLE} />
+          <Empty description={t('请先选择一个推演场景')} image={Empty.PRESENTED_IMAGE_SIMPLE} />
         </Card>
       );
     }
@@ -865,28 +868,28 @@ const StrategyDeduction: React.FC = () => {
 
     return (
       <Space orientation="vertical" size="middle" style={{ width: '100%' }}>
-        <Card title="场景信息" size="small">
+        <Card title={t('场景信息')} size="small">
           <Descriptions column={2}>
-            <Descriptions.Item label="场景名称">{selectedScenario.name}</Descriptions.Item>
-            <Descriptions.Item label="状态">
+            <Descriptions.Item label={t('场景名称')}>{selectedScenario.name}</Descriptions.Item>
+            <Descriptions.Item label={t('状态')}>
               <Tag color={SCENARIO_STATUS_COLORS[selectedScenario.status] || 'default'}>
                 {selectedScenario.status}
               </Tag>
             </Descriptions.Item>
-            <Descriptions.Item label="目标对象">{selectedScenario.target_object_id || '-'}</Descriptions.Item>
-            <Descriptions.Item label="目标类型">
+            <Descriptions.Item label={t('目标对象')}>{selectedScenario.target_object_id || '-'}</Descriptions.Item>
+            <Descriptions.Item label={t('目标类型')}>
               <Tag>{selectedScenario.target_object_type || '-'}</Tag>
             </Descriptions.Item>
-            <Descriptions.Item label="描述" span={2}>
+            <Descriptions.Item label={t('描述')} span={2}>
               {selectedScenario.description || '-'}
             </Descriptions.Item>
-            <Descriptions.Item label="创建时间" span={2}>
+            <Descriptions.Item label={t('创建时间')} span={2}>
               {selectedScenario.created_at || '-'}
             </Descriptions.Item>
           </Descriptions>
           {Object.keys(selectedScenario.baseline_metrics).length > 0 && (
             <>
-              <Divider titlePlacement="left" style={{ fontSize: 13, margin: '12px 0 8px' }}>基线指标</Divider>
+              <Divider titlePlacement="left" style={{ fontSize: 13, margin: '12px 0 8px' }}>{t('基线指标')}</Divider>
               <Row gutter={[16, 8]}>
                 {Object.entries(selectedScenario.baseline_metrics)
                   .filter(([k]) => k !== 'target_id' && k !== 'target_type')
@@ -901,7 +904,7 @@ const StrategyDeduction: React.FC = () => {
         </Card>
 
         <Card
-          title="本体条件"
+          title={t('本体条件')}
           size="small"
           extra={
             <Button
@@ -910,7 +913,7 @@ const StrategyDeduction: React.FC = () => {
               onClick={handleLoadOntologyConditions}
               loading={loading}
             >
-              加载本体条件
+              {t('加载本体条件')}
             </Button>
           }
         >
@@ -920,12 +923,12 @@ const StrategyDeduction: React.FC = () => {
             rowKey="condition_id"
             size="small"
             pagination={allConditions.length > 10 ? { pageSize: 10 } : false}
-            locale={{ emptyText: <Empty description={'点击「加载本体条件」从 OMS 获取'} image={Empty.PRESENTED_IMAGE_SIMPLE} /> }}
+            locale={{ emptyText: <Empty description={t('点击「加载本体条件」从 OMS 获取')} image={Empty.PRESENTED_IMAGE_SIMPLE} /> }}
           />
         </Card>
 
         <Card
-          title="执行链路"
+          title={t('执行链路')}
           size="small"
           extra={
             <Space size="small">
@@ -934,7 +937,7 @@ const StrategyDeduction: React.FC = () => {
                 icon={<PlusOutlined />}
                 onClick={handleAddChain}
               >
-                添加执行链
+                {t('添加执行链')}
               </Button>
               <Button
                 size="small"
@@ -944,7 +947,7 @@ const StrategyDeduction: React.FC = () => {
                 loading={loading}
                 disabled={selectedScenario.chains.length === 0}
               >
-                全部推演
+                {t('全部推演')}
               </Button>
             </Space>
           }
@@ -955,7 +958,7 @@ const StrategyDeduction: React.FC = () => {
             rowKey="chain_id"
             size="small"
             pagination={false}
-            locale={{ emptyText: <Empty description={'暂无执行链，点击「添加执行链」创建'} image={Empty.PRESENTED_IMAGE_SIMPLE} /> }}
+            locale={{ emptyText: <Empty description={t('暂无执行链，点击「添加执行链」创建')} image={Empty.PRESENTED_IMAGE_SIMPLE} /> }}
           />
         </Card>
       </Space>
@@ -966,7 +969,7 @@ const StrategyDeduction: React.FC = () => {
     if (!selectedScenario) {
       return (
         <Card>
-          <Empty description="请先选择场景并执行推演" image={Empty.PRESENTED_IMAGE_SIMPLE} />
+          <Empty description={t('请先选择场景并执行推演')} image={Empty.PRESENTED_IMAGE_SIMPLE} />
         </Card>
       );
     }
@@ -976,7 +979,7 @@ const StrategyDeduction: React.FC = () => {
     if (results.length === 0) {
       return (
         <Card>
-          <Empty description="暂无推演结果，请先执行推演" image={Empty.PRESENTED_IMAGE_SIMPLE} />
+          <Empty description={t('暂无推演结果，请先执行推演')} image={Empty.PRESENTED_IMAGE_SIMPLE} />
         </Card>
       );
     }
@@ -991,13 +994,13 @@ const StrategyDeduction: React.FC = () => {
 
     return (
       <Space orientation="vertical" size="middle" style={{ width: '100%' }}>
-        <Card title="最优链路推荐" size="small">
+        <Card title={t('最优链路推荐')} size="small">
           {optimalResult && (
             <>
               <Row gutter={16}>
                 <Col span={8}>
                   <Statistic
-                    title="推荐链路"
+                    title={t('推荐链路')}
                     value={getChainName(optimalResult.chain_id)}
                     styles={{ content: { fontSize: 16 } }}
                     prefix={<CheckCircleOutlined style={{ color: '#52c41a' }} />}
@@ -1005,7 +1008,7 @@ const StrategyDeduction: React.FC = () => {
                 </Col>
                 <Col span={8}>
                   <Statistic
-                    title="风险评分"
+                    title={t('风险评分')}
                     value={optimalResult.risk_score}
                     precision={1}
                     suffix="/ 100"
@@ -1014,7 +1017,7 @@ const StrategyDeduction: React.FC = () => {
                 </Col>
                 <Col span={8}>
                   <div style={{ textAlign: 'center' }}>
-                    <div style={{ marginBottom: 4, color: '#999', fontSize: 14 }}>风险等级</div>
+                    <div style={{ marginBottom: 4, color: '#999', fontSize: 14 }}>{t('风险等级')}</div>
                     <Progress
                       type="circle"
                       percent={Math.round(optimalResult.risk_score)}
@@ -1033,7 +1036,7 @@ const StrategyDeduction: React.FC = () => {
                   type={optimalResult.risk_level === 'low' ? 'success' : optimalResult.risk_level === 'critical' ? 'error' : 'warning'}
                   showIcon
                   icon={<WarningOutlined />}
-                  title="推演建议"
+                  title={t('推演建议')}
                   description={optimalResult.recommendation}
                 />
               )}
@@ -1043,7 +1046,7 @@ const StrategyDeduction: React.FC = () => {
                   type="warning"
                   showIcon
                   icon={<WarningOutlined />}
-                  title={`最优链路仍有 ${optimalResult.rule_violations.length} 条规则违反`}
+                  title={t('最优链路仍有 {{n}} 条规则违反', { n: optimalResult.rule_violations.length })}
                   description={
                     <ul style={{ margin: '4px 0 0 0', paddingLeft: 20 }}>
                       {optimalResult.rule_violations.slice(0, 3).map((v, idx) => (
@@ -1055,7 +1058,7 @@ const StrategyDeduction: React.FC = () => {
                         </li>
                       ))}
                       {optimalResult.rule_violations.length > 3 && (
-                        <li style={{ color: '#999' }}>...还有 {optimalResult.rule_violations.length - 3} 条</li>
+                        <li style={{ color: '#999' }}>{t('...还有 {{n}} 条', { n: optimalResult.rule_violations.length - 3 })}</li>
                       )}
                     </ul>
                   }
@@ -1066,7 +1069,7 @@ const StrategyDeduction: React.FC = () => {
         </Card>
 
         <Card
-          title="推演结果对比"
+          title={t('推演结果对比')}
           size="small"
           extra={
             <Button
@@ -1075,7 +1078,7 @@ const StrategyDeduction: React.FC = () => {
               onClick={handleCompare}
               disabled={results.length < 2}
             >
-              详细对比
+              {t('详细对比')}
             </Button>
           }
         >
@@ -1088,7 +1091,7 @@ const StrategyDeduction: React.FC = () => {
           />
         </Card>
 
-        <Card title="风险评估总览" size="small">
+        <Card title={t('风险评估总览')} size="small">
           <Row gutter={[16, 16]}>
             {results.map(result => (
               <Col span={Math.max(6, 24 / results.length)} key={result.chain_id}>
@@ -1097,18 +1100,18 @@ const StrategyDeduction: React.FC = () => {
                     <Progress
                       percent={Math.round(result.risk_score)}
                       strokeColor={getRiskColor(result.risk_level)}
-                      format={p => `风险 ${p}`}
+                      format={p => `${t('风险')} ${p}`}
                     />
                     <div style={{ display: 'flex', justifyContent: 'space-between' }}>
                       <Statistic
-                        title="置信度"
+                        title={t('置信度')}
                         value={result.confidence * 100}
                         precision={1}
                         suffix="%"
                         styles={{ content: { fontSize: 14 } }}
                       />
                       <Statistic
-                        title="违反"
+                        title={t('违反')}
                         value={result.rule_violations.length}
                         styles={{ content: { fontSize: 14, color: result.rule_violations.length > 0 ? '#ff4d4f' : '#52c41a' } }}
                         prefix={result.rule_violations.length > 0 ? <WarningOutlined /> : <SafetyOutlined />}
@@ -1143,7 +1146,7 @@ const StrategyDeduction: React.FC = () => {
 
     const compareColumns: ColumnsType<Record<string, unknown>> = [
       {
-        title: '指标',
+        title: t('指标'),
         dataIndex: 'metric_name',
         key: 'metric_name',
         fixed: 'left',
@@ -1153,7 +1156,7 @@ const StrategyDeduction: React.FC = () => {
         title: getChainName(r.chain_id),
         children: [
           {
-            title: '变化量',
+            title: t('变化量'),
             dataIndex: `${r.chain_id}_delta`,
             key: `${r.chain_id}_delta`,
             width: 100,
@@ -1173,7 +1176,7 @@ const StrategyDeduction: React.FC = () => {
 
     return (
       <Modal
-        title="链路对比详情"
+        title={t('链路对比详情')}
         open={compareModalOpen}
         onCancel={() => {
           setCompareModalOpen(false);
@@ -1191,7 +1194,7 @@ const StrategyDeduction: React.FC = () => {
           pagination={false}
         />
         <Divider />
-        <Card size="small" title="风险对比">
+        <Card size="small" title={t('风险对比')}>
           <Row gutter={16}>
             {compareResults.map(r => (
               <Col span={Math.max(6, 24 / compareResults.length)} key={r.chain_id}>
@@ -1207,7 +1210,7 @@ const StrategyDeduction: React.FC = () => {
                   styles={{ content: { color: getRiskColor(r.risk_level) } }}
                 />
                 {bestChainId === r.chain_id && (
-                  <Tag color="gold" style={{ marginTop: 4 }}>最优</Tag>
+                  <Tag color="gold" style={{ marginTop: 4 }}>{t('最优')}</Tag>
                 )}
               </Col>
             ))}
@@ -1219,7 +1222,7 @@ const StrategyDeduction: React.FC = () => {
 
   const renderScenarioModal = () => (
     <Modal
-      title="新建推演场景"
+      title={t('新建推演场景')}
       open={scenarioModalOpen}
       onCancel={() => {
         setScenarioModalOpen(false);
@@ -1231,27 +1234,27 @@ const StrategyDeduction: React.FC = () => {
       <Form form={scenarioForm} layout="vertical" onFinish={handleCreateScenario}>
         <Form.Item
           name="name"
-          label="场景名称"
-          rules={[{ required: true, message: '请输入场景名称' }]}
+          label={t('场景名称')}
+          rules={[{ required: true, message: t('请输入场景名称') }]}
         >
-          <Input placeholder="输入场景名称" />
+          <Input placeholder={t('输入场景名称')} />
         </Form.Item>
-        <Form.Item name="description" label="描述">
-          <Input.TextArea rows={3} placeholder="输入场景描述" />
+        <Form.Item name="description" label={t('描述')}>
+          <Input.TextArea rows={3} placeholder={t('输入场景描述')} />
         </Form.Item>
         <Form.Item
           name="target_object_id"
-          label="目标对象 ID"
-          rules={[{ required: true, message: '请输入目标对象 ID' }]}
+          label={t('目标对象 ID')}
+          rules={[{ required: true, message: t('请输入目标对象 ID') }]}
         >
-          <Input placeholder="输入目标对象 ID" />
+          <Input placeholder={t('输入目标对象 ID')} />
         </Form.Item>
         <Form.Item
           name="target_object_type"
-          label="目标对象类型"
-          rules={[{ required: true, message: '请选择目标对象类型' }]}
+          label={t('目标对象类型')}
+          rules={[{ required: true, message: t('请选择目标对象类型') }]}
         >
-          <Select placeholder="选择目标对象类型" options={OBJECT_TYPES} />
+          <Select placeholder={t('选择目标对象类型')} options={OBJECT_TYPES} />
         </Form.Item>
       </Form>
     </Modal>
@@ -1259,7 +1262,7 @@ const StrategyDeduction: React.FC = () => {
 
   const renderChainModal = () => (
     <Modal
-      title={editingChain ? '编辑执行链' : '新建执行链'}
+      title={editingChain ? t('编辑执行链') : t('新建执行链')}
       open={chainModalOpen}
       onCancel={() => {
         setChainModalOpen(false);
@@ -1275,21 +1278,21 @@ const StrategyDeduction: React.FC = () => {
       <Form form={chainForm} layout="vertical" onFinish={handleSaveChain}>
         <Form.Item
           name="name"
-          label="链路名称"
-          rules={[{ required: true, message: '请输入链路名称' }]}
+          label={t('链路名称')}
+          rules={[{ required: true, message: t('请输入链路名称') }]}
         >
-          <Input placeholder="输入链路名称" />
+          <Input placeholder={t('输入链路名称')} />
         </Form.Item>
-        <Form.Item name="description" label="描述">
-          <Input.TextArea rows={2} placeholder="输入链路描述" />
+        <Form.Item name="description" label={t('描述')}>
+          <Input.TextArea rows={2} placeholder={t('输入链路描述')} />
         </Form.Item>
       </Form>
 
-      <Divider titlePlacement="left" style={{ fontSize: 14 }}>执行步骤</Divider>
+      <Divider titlePlacement="left" style={{ fontSize: 14 }}>{t('执行步骤')}</Divider>
 
       <Space orientation="vertical" style={{ width: '100%' }}>
         {chainSteps.map((step, idx) => (
-          <Card key={step.step_id} size="small" type="inner" title={`步骤 ${idx + 1}`}>
+          <Card key={step.step_id} size="small" type="inner" title={`${t('步骤')} ${idx + 1}`}>
             <Row gutter={8}>
               <Col span={7}>
                 <Select
@@ -1298,7 +1301,7 @@ const StrategyDeduction: React.FC = () => {
                   onChange={v => handleStepChange(step.step_id, 'action_type_id', v)}
                   options={ACTION_TYPES}
                   style={{ width: '100%' }}
-                  placeholder="动作类型"
+                  placeholder={t('动作类型')}
                 />
               </Col>
               <Col span={7}>
@@ -1306,7 +1309,7 @@ const StrategyDeduction: React.FC = () => {
                   size="small"
                   value={step.target_object_id}
                   onChange={e => handleStepChange(step.step_id, 'target_object_id', e.target.value)}
-                  placeholder="目标对象 ID"
+                  placeholder={t('目标对象 ID')}
                 />
               </Col>
               <Col span={6}>
@@ -1316,7 +1319,7 @@ const StrategyDeduction: React.FC = () => {
                   onChange={v => handleStepChange(step.step_id, 'target_object_type', v)}
                   options={OBJECT_TYPES}
                   style={{ width: '100%' }}
-                  placeholder="目标类型"
+                  placeholder={t('目标类型')}
                 />
               </Col>
               <Col span={4}>
@@ -1332,14 +1335,14 @@ const StrategyDeduction: React.FC = () => {
             <Input
               size="small"
               style={{ marginTop: 8 }}
-              placeholder="步骤描述（可选）"
+              placeholder={t('步骤描述（可选）')}
               value={step.description}
               onChange={e => handleStepChange(step.step_id, 'description', e.target.value)}
             />
             <Input
               size="small"
               style={{ marginTop: 4 }}
-              placeholder="参数 (JSON 格式，可选)"
+              placeholder={t('参数 (JSON 格式，可选)')}
               value={Object.keys(step.parameters).length > 0 ? JSON.stringify(step.parameters) : ''}
               onChange={e => {
                 try {
@@ -1358,14 +1361,14 @@ const StrategyDeduction: React.FC = () => {
           icon={<PlusOutlined />}
           onClick={handleAddStep}
         >
-          添加步骤
+          {t('添加步骤')}
         </Button>
       </Space>
     </Modal>
   );
 
   return (
-    <Spin spinning={loading} description="推演进行中...">
+    <Spin spinning={loading} description={t('推演进行中...')}>
       <Row gutter={16}>
         <Col span={6}>
           {renderScenarioList()}
@@ -1381,7 +1384,7 @@ const StrategyDeduction: React.FC = () => {
                   label: (
                     <span>
                       <ExperimentOutlined />
-                      场景配置
+                      {t('场景配置')}
                     </span>
                   ),
                   children: renderScenarioConfig(),
@@ -1391,7 +1394,7 @@ const StrategyDeduction: React.FC = () => {
                   label: (
                     <span>
                       <SafetyOutlined />
-                      推演结果
+                      {t('推演结果')}
                       {selectedScenario.results.length > 0 && (
                         <Badge count={selectedScenario.results.length} size="small" style={{ marginLeft: 6 }} />
                       )}
@@ -1405,7 +1408,7 @@ const StrategyDeduction: React.FC = () => {
           {!selectedScenario && (
             <Card>
               <Empty
-                description="请从左侧选择一个推演场景开始"
+                description={t('请从左侧选择一个推演场景开始')}
                 image={Empty.PRESENTED_IMAGE_SIMPLE}
               />
             </Card>

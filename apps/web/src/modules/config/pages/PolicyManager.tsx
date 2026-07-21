@@ -52,17 +52,17 @@ const POLICY_CATEGORIES = [
   { value: 'custom', label: 'Custom' },
 ];
 
-const CATEGORY_LABELS: Record<string, string> = {
-  access_control: '访问控制',
-  data_privacy: '数据隐私',
-  compliance: '合规审计',
-  security: '安全策略',
-  workflow: '工作流控制',
-  custom: '自定义',
-};
-
 export function PolicyManager() {
   const { t } = useI18n('audit');
+
+  const CATEGORY_LABELS: Record<string, string> = {
+    access_control: t('访问控制'),
+    data_privacy: t('数据隐私'),
+    compliance: t('合规审计'),
+    security: t('安全策略'),
+    workflow: t('工作流控制'),
+    custom: t('自定义'),
+  };
   const [policies, setPolicies] = useState<Policy[]>([]);
   const [loading, setLoading] = useState(false);
   const [createModalOpen, setCreateModalOpen] = useState(false);
@@ -98,7 +98,7 @@ export function PolicyManager() {
   }) => {
     try {
       await apiClient.post('/api/policy/markdown', values);
-      message.success(t('policy.create') + ' success');
+      message.success(t('创建策略') + ' success');
       setCreateModalOpen(false);
       createForm.resetFields();
       fetchPolicies();
@@ -122,15 +122,15 @@ export function PolicyManager() {
       }));
       message.success(
         result.compile_status === 'compiled'
-          ? t('policy.compileSuccess')
-          : t('policy.compileFailed')
+          ? t('编译成功')
+          : t('编译失败')
       );
     } catch (error) {
       setCompileStatuses((prev) => ({
         ...prev,
         [policyId]: { status: 'error', errors: [String(error)] },
       }));
-      message.error(t('policy.compileFailed'));
+      message.error(t('编译失败'));
     }
   };
 
@@ -139,7 +139,7 @@ export function PolicyManager() {
       await apiClient.put(`/api/policy/markdown/${policyId}`, {
         markdown_content: markdownContent,
       });
-      message.success(t('policy.hotUpdate') + ' success');
+      message.success(t('热更新') + ' success');
       fetchPolicies();
     } catch (error) {
       message.error(`Hot update failed: ${error}`);
@@ -175,14 +175,14 @@ export function PolicyManager() {
     if (status === 'compiled' || status === 'success') {
       return (
         <Tag icon={<CheckCircleOutlined />} color="success">
-          {t('policy.compileSuccess')}
+          {t('编译成功')}
         </Tag>
       );
     }
     if (status === 'error' || status === 'failed') {
       return (
         <Tag icon={<CloseCircleOutlined />} color="error">
-          {t('policy.compileFailed')}
+          {t('编译失败')}
         </Tag>
       );
     }
@@ -191,7 +191,7 @@ export function PolicyManager() {
 
   const columns = [
     {
-      title: t('policy.name'),
+      title: t('策略名称'),
       dataIndex: 'name',
       key: 'name',
       render: (name: string, record: Policy) => (
@@ -202,7 +202,7 @@ export function PolicyManager() {
       ),
     },
     {
-      title: t('policy.category'),
+      title: t('策略分类'),
       dataIndex: 'category',
       key: 'category',
       width: 120,
@@ -211,13 +211,13 @@ export function PolicyManager() {
       ),
     },
     {
-      title: t('policy.compileStatus'),
+      title: t('编译状态'),
       key: 'compile_status',
       width: 140,
       render: (_: unknown, record: Policy) => getCompileStatusTag(record),
     },
     {
-      title: t('policy.version'),
+      title: t('版本'),
       dataIndex: 'version',
       key: 'version',
       width: 80,
@@ -234,7 +234,7 @@ export function PolicyManager() {
             icon={<ThunderboltOutlined />}
             onClick={() => handleCompile(record.policy_id)}
           >
-            {t('policy.compile')}
+            {t('编译')}
           </Button>
           <Button
             type="link"
@@ -242,7 +242,7 @@ export function PolicyManager() {
             icon={<EditOutlined />}
             onClick={() => handleEditOpen(record)}
           >
-            {t('policy.edit')}
+            {t('编辑策略')}
           </Button>
           <Popconfirm
             title="Confirm delete this policy?"
@@ -263,7 +263,7 @@ export function PolicyManager() {
         title={
           <Space>
             <SafetyCertificateOutlined />
-            <span>{t('policy.title')}</span>
+            <span>{t('OPA 策略管理')}</span>
             <Badge count={policies.length} style={{ backgroundColor: '#1890ff' }} />
           </Space>
         }
@@ -277,7 +277,7 @@ export function PolicyManager() {
               icon={<PlusOutlined />}
               onClick={() => setCreateModalOpen(true)}
             >
-              {t('policy.create')}
+              {t('创建策略')}
             </Button>
           </Space>
         }
@@ -295,24 +295,24 @@ export function PolicyManager() {
       </Card>
 
       <Modal
-        title={t('policy.create')}
+        title={t('创建策略')}
         open={createModalOpen}
         onCancel={() => setCreateModalOpen(false)}
         onOk={() => createForm.submit()}
-        okText={t('policy.create')}
+        okText={t('创建策略')}
         width={800}
       >
         <Form form={createForm} layout="vertical" onFinish={handleCreate}>
           <Form.Item
             name="name"
-            label={t('policy.name')}
+            label={t('策略名称')}
             rules={[{ required: true, message: 'Please enter policy name' }]}
           >
             <Input placeholder="e.g. Analyst Access Control Policy" />
           </Form.Item>
           <Form.Item
             name="category"
-            label={t('policy.category')}
+            label={t('策略分类')}
             rules={[{ required: true, message: 'Please select category' }]}
             initialValue="access_control"
           >
@@ -326,14 +326,14 @@ export function PolicyManager() {
           </Form.Item>
           <Form.Item
             name="description"
-            label={t('policy.description')}
+            label={t('策略描述')}
             rules={[{ required: true, message: 'Please enter description' }]}
           >
             <Input.TextArea rows={2} placeholder="Brief description of the policy" />
           </Form.Item>
           <Form.Item
             name="markdown_content"
-            label={t('policy.content')}
+            label={t('策略内容')}
             rules={[{ required: true, message: 'Please enter policy content' }]}
           >
             <PolicyEditor
@@ -348,7 +348,7 @@ export function PolicyManager() {
       </Modal>
 
       <Modal
-        title={`${t('policy.edit')} — ${selectedPolicy?.name || ''}`}
+        title={`${t('编辑策略')} — ${selectedPolicy?.name || ''}`}
         open={editModalOpen}
         onCancel={() => {
           setEditModalOpen(false);
@@ -356,24 +356,24 @@ export function PolicyManager() {
           setEditContent('');
         }}
         onOk={handleEditSave}
-        okText={t('policy.hotUpdate')}
+        okText={t('热更新')}
         width={800}
       >
         {selectedPolicy && (
           <>
             <Descriptions column={2} style={{ marginBottom: 16 }}>
-              <Descriptions.Item label={t('policy.name')}>
+              <Descriptions.Item label={t('策略名称')}>
                 {selectedPolicy.name}
               </Descriptions.Item>
-              <Descriptions.Item label={t('policy.category')}>
+              <Descriptions.Item label={t('策略分类')}>
                 <Tag color="blue">
                   {CATEGORY_LABELS[selectedPolicy.category] || selectedPolicy.category}
                 </Tag>
               </Descriptions.Item>
-              <Descriptions.Item label={t('policy.version')}>
+              <Descriptions.Item label={t('版本')}>
                 {selectedPolicy.version}
               </Descriptions.Item>
-              <Descriptions.Item label={t('policy.compileStatus')}>
+              <Descriptions.Item label={t('编译状态')}>
                 {getCompileStatusTag(selectedPolicy)}
               </Descriptions.Item>
             </Descriptions>

@@ -16,6 +16,8 @@ import { EmptyState } from '@/modules/shared/components/organisms';
 
 import { useGlobalLoading } from '@/modules/shared/stores/globalLoadingStore';
 
+import { useI18n } from '@/modules/shared/hooks/useI18n';
+
 import type { GraphNode as SharedGraphNode, GraphEdge as SharedGraphEdge } from '@/modules/shared/modules/graph';
 
 
@@ -147,6 +149,8 @@ interface OntologyVersion {
 
 
 export function OntologySemanticNetwork() {
+
+  const { t } = useI18n('ontology');
 
   const { currentScenario, scenarios } = useScenario();
 
@@ -298,7 +302,7 @@ export function OntologySemanticNetwork() {
 
       setLoading(true);
 
-      showGlobalLoading('加载语义地图数据...');
+      showGlobalLoading(t('加载语义地图数据...'));
 
       const result = await api.getSemanticMapGraph(mapId);
 
@@ -306,7 +310,7 @@ export function OntologySemanticNetwork() {
 
         id: n.id,
 
-        label: n.name,
+        label: n.display_name || n.name,
 
         type: n.type,
 
@@ -352,7 +356,7 @@ export function OntologySemanticNetwork() {
 
       console.error('加载语义地图图谱失败:', error);
 
-      message.error('加载语义地图图谱失败');
+      message.error(t('加载语义地图图谱失败'));
 
     } finally {
 
@@ -362,7 +366,7 @@ export function OntologySemanticNetwork() {
 
     }
 
-  }, []);
+  }, [t]);
 
 
 
@@ -374,7 +378,7 @@ export function OntologySemanticNetwork() {
 
       setLoading(true);
 
-      showGlobalLoading('加载语义地图数据...');
+      showGlobalLoading(t('加载语义地图数据...'));
 
 
 
@@ -386,7 +390,7 @@ export function OntologySemanticNetwork() {
 
           id: e.entity_id,
 
-          label: e.name,
+          label: e.display_name || e.name,
 
           type: e.entity_type,
 
@@ -458,7 +462,7 @@ export function OntologySemanticNetwork() {
 
           id: e.entity_id,
 
-          label: e.name,
+          label: e.display_name || e.name,
 
           type: e.entity_type,
 
@@ -506,7 +510,7 @@ export function OntologySemanticNetwork() {
 
       console.error('加载语义网络失败:', error);
 
-      message.error('加载语义网络失败');
+      message.error(t('加载语义网络失败'));
 
     } finally {
 
@@ -516,7 +520,7 @@ export function OntologySemanticNetwork() {
 
     }
 
-  }, [currentWorkspace]);
+  }, [currentWorkspace, t]);
 
 
 
@@ -564,7 +568,7 @@ export function OntologySemanticNetwork() {
 
       if (!ontologyId) {
 
-        message.warning('当前场景未关联本体，无法生成语义地图');
+        message.warning(t('当前场景未关联本体，无法生成语义地图'));
 
         return;
 
@@ -574,9 +578,9 @@ export function OntologySemanticNetwork() {
 
       const result = await api.createSemanticMap({
 
-        name: `${scenario?.name || currentScenario} - 语义地图`,
+        name: t('{{name}} - 语义地图', { name: scenario?.name || currentScenario }),
 
-        description: `基于场景 ${scenario?.name || currentScenario} 自动生成的语义地图`,
+        description: t('基于场景 {{name}} 自动生成的语义地图', { name: scenario?.name || currentScenario }),
 
         ontology_version_id: versionId || 'latest',
 
@@ -596,7 +600,7 @@ export function OntologySemanticNetwork() {
 
         await loadSemanticMaps(currentScenario);
 
-        message.success('语义地图生成成功');
+        message.success(t('语义地图生成成功'));
 
       }
 
@@ -604,7 +608,7 @@ export function OntologySemanticNetwork() {
 
       console.error('生成语义地图失败:', error);
 
-      message.error('生成语义地图失败');
+      message.error(t('生成语义地图失败'));
 
     } finally {
 
@@ -630,7 +634,7 @@ export function OntologySemanticNetwork() {
 
         await loadSemanticMapGraph(currentSemanticMapId);
 
-        message.success('语义地图重新生成成功');
+        message.success(t('语义地图重新生成成功'));
 
       }
 
@@ -638,7 +642,7 @@ export function OntologySemanticNetwork() {
 
       console.error('重新生成语义地图失败:', error);
 
-      message.error('重新生成语义地图失败');
+      message.error(t('重新生成语义地图失败'));
 
     } finally {
 
@@ -686,7 +690,7 @@ export function OntologySemanticNetwork() {
 
           await api.switchScenarioOntologyVersion(currentWorkspace, currentScenario, versionId);
 
-          message.success('已切换本体版本');
+          message.success(t('已切换本体版本'));
 
         } catch (error) {
 
@@ -716,7 +720,7 @@ export function OntologySemanticNetwork() {
 
       await api.commitScenarioOntologyVersion(currentWorkspace, currentScenario, commitMessage);
 
-      message.success('版本提交成功');
+      message.success(t('版本提交成功'));
 
       setCommitModalOpen(false);
 
@@ -728,7 +732,7 @@ export function OntologySemanticNetwork() {
 
       console.error('提交版本失败:', error);
 
-      message.error('提交版本失败');
+      message.error(t('提交版本失败'));
 
     } finally {
 
@@ -812,7 +816,7 @@ export function OntologySemanticNetwork() {
 
           <ApartmentOutlined style={{ marginRight: 4 }} />
 
-          语义地图
+          {t('语义地图')}
 
         </span>
 
@@ -830,7 +834,7 @@ export function OntologySemanticNetwork() {
 
                 <Statistic
 
-                  title="对象总数"
+                  title={t('对象总数')}
 
                   value={stats.entityCount}
 
@@ -848,7 +852,7 @@ export function OntologySemanticNetwork() {
 
                 <Statistic
 
-                  title="关系总数"
+                  title={t('关系总数')}
 
                   value={stats.relationCount}
 
@@ -866,7 +870,7 @@ export function OntologySemanticNetwork() {
 
                 <Statistic
 
-                  title="聚类数"
+                  title={t('聚类数')}
 
                   value={clusters.length}
 
@@ -884,7 +888,7 @@ export function OntologySemanticNetwork() {
 
                 <Statistic
 
-                  title="覆盖率"
+                  title={t('覆盖率')}
 
                   value={statistics?.coverage_score ? `${(statistics.coverage_score * 100).toFixed(0)}%` : '-'}
 
@@ -906,7 +910,7 @@ export function OntologySemanticNetwork() {
 
                     <span style={{ color: '#ff4d4f' }}>
 
-                      <InfoCircleOutlined /> 请先选择场景
+                      <InfoCircleOutlined /> {t('请先选择场景')}
 
                     </span>
 
@@ -918,7 +922,7 @@ export function OntologySemanticNetwork() {
 
                         <span style={{ color: '#333', fontSize: 13, fontWeight: 500 }}>
 
-                          场景: {scenarios.find(s => s.scenario_id === currentScenario)?.name || currentScenario}
+                          {t('场景')}: {scenarios.find(s => s.scenario_id === currentScenario)?.name || currentScenario}
 
                         </span>
 
@@ -938,13 +942,13 @@ export function OntologySemanticNetwork() {
 
                           options={[
 
-                            { value: '__legacy__', label: '原始数据' },
+                            { value: '__legacy__', label: t('原始数据') },
 
                             ...semanticMaps.map(m => ({
 
                               value: m.id,
 
-                              label: `${m.name} (${m.total_objects}对象)`,
+                              label: t('{{name}} ({{count}}对象)', { name: m.name, count: m.total_objects }),
 
                             })),
 
@@ -954,7 +958,7 @@ export function OntologySemanticNetwork() {
 
                         {currentSemanticMapId ? (
 
-                          <Tooltip title="重新生成">
+                          <Tooltip title={t('重新生成')}>
 
                             <Button
 
@@ -986,7 +990,7 @@ export function OntologySemanticNetwork() {
 
                           >
 
-                            生成语义地图
+                            {t('生成语义地图')}
 
                           </Button>
 
@@ -1006,7 +1010,7 @@ export function OntologySemanticNetwork() {
 
                           options={[
 
-                            { value: 'latest', label: '最新版本' },
+                            { value: 'latest', label: t('最新版本') },
 
                             ...versions.map(v => ({
 
@@ -1030,7 +1034,7 @@ export function OntologySemanticNetwork() {
 
                         >
 
-                          提交版本
+                          {t('提交版本')}
 
                         </Button>
 
@@ -1056,7 +1060,7 @@ export function OntologySemanticNetwork() {
 
               <Col span={24}>
 
-                <Card size="small" title="类型分布">
+                <Card size="small" title={t('类型分布')}>
 
                   <Space wrap>
 
@@ -1102,19 +1106,19 @@ export function OntologySemanticNetwork() {
 
                     icon={<ApartmentOutlined />}
 
-                    title="暂无语义地图数据"
+                    title={t('暂无语义地图数据')}
 
                     description={
 
                       currentSemanticMapId
 
-                        ? '语义地图为空，请尝试重新生成'
+                        ? t('语义地图为空，请尝试重新生成')
 
-                        : '请点击"生成语义地图"按钮，或通过数据摄入添加实体'
+                        : t('请点击"生成语义地图"按钮，或通过数据摄入添加实体')
 
                     }
 
-                    actionLabel={currentSemanticMapId ? '重新生成' : '生成语义地图'}
+                    actionLabel={currentSemanticMapId ? t('重新生成') : t('生成语义地图')}
 
                     onAction={currentSemanticMapId ? handleRegenerateSemanticMap : handleGenerateSemanticMap}
 
@@ -1122,13 +1126,13 @@ export function OntologySemanticNetwork() {
 
                     onLoadSampleData={async () => {
 
-                      if (!currentWorkspace) { message.warning('请先选择工作空间'); return; }
+                      if (!currentWorkspace) { message.warning(t('请先选择工作空间')); return; }
 
                       try {
 
                         await api.generateSampleData(currentWorkspace);
 
-                        message.success('示例数据已加载');
+                        message.success(t('示例数据已加载'));
 
                         if (currentScenario) {
 
@@ -1136,7 +1140,7 @@ export function OntologySemanticNetwork() {
 
                         }
 
-                      } catch (e) { message.error('加载示例数据失败'); }
+                      } catch (e) { message.error(t('加载示例数据失败')); }
 
                     }}
 
@@ -1202,7 +1206,7 @@ export function OntologySemanticNetwork() {
 
           <DatabaseOutlined style={{ marginRight: 4 }} />
 
-          本体定义
+          {t('本体定义')}
 
         </span>
 
@@ -1234,7 +1238,7 @@ export function OntologySemanticNetwork() {
 
       <Drawer
 
-        title={selectedEdge ? '边详情' : '节点详情'}
+        title={selectedEdge ? t('边详情') : t('节点详情')}
 
         placement="right"
 
@@ -1250,11 +1254,11 @@ export function OntologySemanticNetwork() {
 
           <Descriptions column={1}>
 
-            <Descriptions.Item label="节点ID">{selectedNode.id}</Descriptions.Item>
+            <Descriptions.Item label={t('节点ID')}>{selectedNode.id}</Descriptions.Item>
 
-            <Descriptions.Item label="名称">{selectedNode.label}</Descriptions.Item>
+            <Descriptions.Item label={t('名称')}>{selectedNode.label}</Descriptions.Item>
 
-            <Descriptions.Item label="类型">
+            <Descriptions.Item label={t('类型')}>
 
               <Tag color={getEntityTypeColor(selectedNode.type)}>{selectedNode.type}</Tag>
 
@@ -1262,7 +1266,7 @@ export function OntologySemanticNetwork() {
 
             {selectedNode.type_definition_name && (
 
-              <Descriptions.Item label="本体定义">
+              <Descriptions.Item label={t('本体定义')}>
 
                 <Tag color="geekblue">{selectedNode.type_definition_name}</Tag>
 
@@ -1272,7 +1276,7 @@ export function OntologySemanticNetwork() {
 
             {selectedNode.cluster && (
 
-              <Descriptions.Item label="所属聚类">
+              <Descriptions.Item label={t('所属聚类')}>
 
                 <Tag color="purple">{selectedNode.cluster}</Tag>
 
@@ -1280,13 +1284,13 @@ export function OntologySemanticNetwork() {
 
             )}
 
-            <Descriptions.Item label="方位">
+            <Descriptions.Item label={t('方位')}>
 
               {selectedNode.side ? (
 
                 <Tag color={selectedNode.side === 'party_a' ? 'red' : 'blue'}>
 
-                  {selectedNode.side === 'party_a' ? '甲方' : '乙方'}
+                  {selectedNode.side === 'party_a' ? t('甲方') : t('乙方')}
 
                 </Tag>
 
@@ -1298,7 +1302,7 @@ export function OntologySemanticNetwork() {
 
             </Descriptions.Item>
 
-            <Descriptions.Item label="属性">
+            <Descriptions.Item label={t('属性')}>
 
               {selectedNode.properties && Object.keys(selectedNode.properties).length > 0 ? (
 
@@ -1318,13 +1322,13 @@ export function OntologySemanticNetwork() {
 
               ) : (
 
-                '无'
+                t('无')
 
               )}
 
             </Descriptions.Item>
 
-            <Descriptions.Item label="关联关系">
+            <Descriptions.Item label={t('关联关系')}>
 
               {edges.filter(e => e.source === selectedNode.id || e.target === selectedNode.id).length > 0 ? (
 
@@ -1358,7 +1362,7 @@ export function OntologySemanticNetwork() {
 
               ) : (
 
-                '无'
+                t('无')
 
               )}
 
@@ -1372,21 +1376,21 @@ export function OntologySemanticNetwork() {
 
           <Descriptions column={1}>
 
-            <Descriptions.Item label="边ID">{selectedEdge.id}</Descriptions.Item>
+            <Descriptions.Item label={t('边ID')}>{selectedEdge.id}</Descriptions.Item>
 
-            <Descriptions.Item label="类型">
+            <Descriptions.Item label={t('类型')}>
 
               <Tag color="blue">{selectedEdge.type}</Tag>
 
             </Descriptions.Item>
 
-            <Descriptions.Item label="源节点">
+            <Descriptions.Item label={t('源节点')}>
 
               {nodes.find((n) => n.id === selectedEdge.source)?.label || selectedEdge.source}
 
             </Descriptions.Item>
 
-            <Descriptions.Item label="目标节点">
+            <Descriptions.Item label={t('目标节点')}>
 
               {nodes.find((n) => n.id === selectedEdge.target)?.label || selectedEdge.target}
 
@@ -1402,7 +1406,7 @@ export function OntologySemanticNetwork() {
 
       <Modal
 
-        title="提交版本"
+        title={t('提交版本')}
 
         open={commitModalOpen}
 
@@ -1412,15 +1416,15 @@ export function OntologySemanticNetwork() {
 
         confirmLoading={committing}
 
-        okText="提交"
+        okText={t('提交')}
 
-        cancelText="取消"
+        cancelText={t('取消')}
 
       >
 
         <div style={{ marginBottom: 12, color: '#666', fontSize: 13 }}>
 
-          将当前场景的本体数据锁定为新版本，提交后可在版本列表中切换查看。
+          {t('将当前场景的本体数据锁定为新版本，提交后可在版本列表中切换查看。')}
 
         </div>
 
@@ -1430,7 +1434,7 @@ export function OntologySemanticNetwork() {
 
           onChange={e => setCommitMessage(e.target.value)}
 
-          placeholder="请输入版本说明（可选）"
+          placeholder={t('请输入版本说明（可选）')}
 
           rows={3}
 

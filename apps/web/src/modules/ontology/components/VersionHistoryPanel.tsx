@@ -4,6 +4,7 @@ import { RollbackOutlined, SwapOutlined, CheckCircleOutlined } from '@ant-design
 import { useOntologyStore } from '../stores/ontologyStore';
 import type { SchemaVersion } from '../stores/ontologyStore';
 import { ontologyApi } from '../services/ontologyApi';
+import { useI18n } from '@/modules/shared/hooks/useI18n';
 
 export interface VersionHistoryPanelProps {
   ontologyId: string;
@@ -12,6 +13,7 @@ export interface VersionHistoryPanelProps {
 }
 
 export function VersionHistoryPanel({ ontologyId, onRollback, onDiff }: VersionHistoryPanelProps) {
+  const { t } = useI18n('ontology');
   const { schemaVersions, loadSchemaVersions, loading } = useOntologyStore();
   const [selectedIds, setSelectedIds] = useState<string[]>([]);
   const [compareMode, setCompareMode] = useState(false);
@@ -44,11 +46,11 @@ export function VersionHistoryPanel({ ontologyId, onRollback, onDiff }: VersionH
   const handleRollback = useCallback(async (versionId: string) => {
     try {
       await ontologyApi.schemaVersions.rollback(ontologyId, versionId);
-      message.success('回滚成功');
+      message.success(t('回滚成功'));
       await loadSchemaVersions();
       onRollback?.(versionId);
     } catch (e) {
-      message.error(`回滚失败: ${(e as Error).message}`);
+      message.error(t('version.rollbackFailed', { msg: (e as Error).message }));
     }
   }, [ontologyId, loadSchemaVersions, onRollback]);
 
@@ -101,7 +103,7 @@ export function VersionHistoryPanel({ ontologyId, onRollback, onDiff }: VersionH
   return (
     <div>
       <Space style={{ marginBottom: 12, width: '100%', justifyContent: 'space-between' }}>
-        <span style={{ fontWeight: 500 }}>版本历史</span>
+        <span style={{ fontWeight: 500 }}>{t('版本历史')}</span>
         <Space>
           <Button
             size="small"
@@ -109,11 +111,11 @@ export function VersionHistoryPanel({ ontologyId, onRollback, onDiff }: VersionH
             icon={<SwapOutlined />}
             onClick={toggleCompareMode}
           >
-            {compareMode ? '取消对比' : '版本对比'}
+            {compareMode ? t('取消对比') : t('版本对比')}
           </Button>
           {compareMode && selectedIds.length === 2 && (
             <Button size="small" type="primary" icon={<CheckCircleOutlined />} onClick={handleCompare}>
-              查看差异
+              {t('查看差异')}
             </Button>
           )}
         </Space>
@@ -128,7 +130,7 @@ export function VersionHistoryPanel({ ontologyId, onRollback, onDiff }: VersionH
           fontSize: 13,
           color: '#666',
         }}>
-          点击选择两个版本进行对比（已选 {selectedIds.length}/2）
+          {t('请选择两个版本进行对比')}（{t('version.selectedCount', { selected: selectedIds.length, total: 2 })}）
           {selectedIds.length > 0 && (
             <div style={{ marginTop: 4 }}>
               {selectedIds.map((id, idx) => {
@@ -145,7 +147,7 @@ export function VersionHistoryPanel({ ontologyId, onRollback, onDiff }: VersionH
       )}
 
       {schemaVersions.length === 0 ? (
-        <Empty description="暂无版本记录" image={Empty.PRESENTED_IMAGE_SIMPLE} />
+        <Empty description={t('暂无版本记录')} image={Empty.PRESENTED_IMAGE_SIMPLE} />
       ) : (
         <Timeline
           items={schemaVersions.map((version: SchemaVersion) => ({
@@ -174,19 +176,19 @@ export function VersionHistoryPanel({ ontologyId, onRollback, onDiff }: VersionH
                       <Tag color={statusColor(version.status)}>{statusLabel(version.status)}</Tag>
                     </Space>
                     <div style={{ color: '#666', fontSize: 13, marginTop: 4 }}>
-                      {version.changelog || '无变更说明'}
+                      {version.changelog || t('无变更说明')}
                     </div>
                     <div style={{ color: '#999', fontSize: 12, marginTop: 2 }}>
-                      {new Date(version.created_at).toLocaleString('zh-CN')}
+                      {new Date(version.created_at).toLocaleString()}
                       {version.created_by && ` · ${version.created_by}`}
                     </div>
                   </div>
                   <Popconfirm
-                    title="确认回滚到此版本？"
-                    description="仅回滚类型定义，不影响实例数据"
+                    title={t('确认回滚到此版本？')}
+                    description={t('仅回滚类型定义，不影响实例数据')}
                     onConfirm={() => handleRollback(version.id)}
-                    okText="确认回滚"
-                    cancelText="取消"
+                    okText={t('确认回滚')}
+                    cancelText={t('取消')}
                   >
                     <Button
                       type="text"
@@ -194,7 +196,7 @@ export function VersionHistoryPanel({ ontologyId, onRollback, onDiff }: VersionH
                       icon={<RollbackOutlined />}
                       danger
                     >
-                      回滚到此版本
+                      {t('回滚到此版本')}
                     </Button>
                   </Popconfirm>
                 </div>

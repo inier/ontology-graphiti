@@ -43,16 +43,16 @@ export interface BranchListProps {
   onSelectBranch?: (branch: BranchInfo) => void;
 }
 
-const STATUS_META: Record<BranchStatus, { color: string; label: string }> = {
-  active: { color: 'green', label: 'active' },
-  merged: { color: 'blue', label: 'merged' },
-  archived: { color: 'default', label: 'archived' },
-  abandoned: { color: 'red', label: 'abandoned' },
-};
-
 export function BranchList({ workspaceId, onViewDiff, onSelectBranch }: BranchListProps) {
-  const { t } = useI18n();
+  const { t } = useI18n('ontology');
   const [branches, setBranches] = useState<BranchInfo[]>([]);
+
+  const STATUS_META: Record<BranchStatus, { color: string; label: string }> = {
+    active: { color: 'green', label: t('活跃') },
+    merged: { color: 'blue', label: t('已合并') },
+    archived: { color: 'default', label: t('已归档') },
+    abandoned: { color: 'red', label: t('已废弃') },
+  };
   const [loading, setLoading] = useState(false);
   const [searchText, setSearchText] = useState('');
   const [createOpen, setCreateOpen] = useState(false);
@@ -70,11 +70,11 @@ export function BranchList({ workspaceId, onViewDiff, onSelectBranch }: BranchLi
       );
       setBranches(data.branches || []);
     } catch (e) {
-      message.error(`加载分支失败: ${(e as Error).message}`);
+      message.error(t('branch.loadFailed', { msg: (e as Error).message }));
     } finally {
       setLoading(false);
     }
-  }, [workspaceId]);
+  }, [workspaceId, t]);
 
   const fetchVersions = useCallback(async () => {
     try {
@@ -113,7 +113,7 @@ export function BranchList({ workspaceId, onViewDiff, onSelectBranch }: BranchLi
         ...values,
         workspace_id: workspaceId,
       });
-      message.success('分支已创建');
+      message.success(t('分支已创建'));
       setCreateOpen(false);
       form.resetFields();
       void fetchBranches();
@@ -122,55 +122,55 @@ export function BranchList({ workspaceId, onViewDiff, onSelectBranch }: BranchLi
         // 表单校验错误
         return;
       }
-      message.error(`创建失败: ${(e as Error).message}`);
+      message.error(t('branch.createFailed', { msg: (e as Error).message }));
     } finally {
       setCreating(false);
     }
-  }, [form, workspaceId, fetchBranches]);
+  }, [form, workspaceId, fetchBranches, t]);
 
   const handleSwitch = useCallback(async (b: BranchInfo) => {
     try {
       await apiClient.post(`/api/ontology/branches/${b.branch_id}/switch`, {});
-      message.success(`已切换到分支 ${b.name}`);
+      message.success(t('branch.switchedToBranch', { name: b.name }));
       onSelectBranch?.(b);
     } catch (e) {
-      message.error(`切换失败: ${(e as Error).message}`);
+      message.error(t('branch.switchFailed', { msg: (e as Error).message }));
     }
-  }, [onSelectBranch]);
+  }, [onSelectBranch, t]);
 
   const handleMerge = useCallback(async (b: BranchInfo) => {
     try {
       await apiClient.post(`/api/ontology/branches/${b.branch_id}/merge`, {});
-      message.success(`分支 ${b.name} 已合并`);
+      message.success(t('branch.branchMerged', { name: b.name }));
       void fetchBranches();
     } catch (e) {
-      message.error(`合并失败: ${(e as Error).message}`);
+      message.error(t('branch.mergeFailed', { msg: (e as Error).message }));
     }
-  }, [fetchBranches]);
+  }, [fetchBranches, t]);
 
   const handleArchive = useCallback(async (b: BranchInfo) => {
     try {
       await apiClient.post(`/api/ontology/branches/${b.branch_id}/archive`, {});
-      message.success('分支已归档');
+      message.success(t('分支已归档'));
       void fetchBranches();
     } catch (e) {
-      message.error(`归档失败: ${(e as Error).message}`);
+      message.error(t('branch.archiveFailed', { msg: (e as Error).message }));
     }
-  }, [fetchBranches]);
+  }, [fetchBranches, t]);
 
   const handleDelete = useCallback(async (b: BranchInfo) => {
     try {
       await apiClient.delete(`/api/ontology/branches/${b.branch_id}`);
-      message.success('分支已删除');
+      message.success(t('分支已删除'));
       void fetchBranches();
     } catch (e) {
-      message.error(`删除失败: ${(e as Error).message}`);
+      message.error(t('branch.deleteFailed', { msg: (e as Error).message }));
     }
-  }, [fetchBranches]);
+  }, [fetchBranches, t]);
 
   const columns: ColumnsType<BranchInfo> = [
     {
-      title: '分支名',
+      title: t('分支名'),
       dataIndex: 'name',
       key: 'name',
       render: (v: string, r) => (
@@ -184,29 +184,29 @@ export function BranchList({ workspaceId, onViewDiff, onSelectBranch }: BranchLi
       ),
     },
     {
-      title: '基于版本',
+      title: t('基于版本'),
       dataIndex: 'base_version_label',
       key: 'base_version_label',
       width: 140,
       render: (v?: string, r?: BranchInfo) => v || (r?.base_version_id ? r.base_version_id.slice(0, 8) : '-'),
     },
-    { title: '创建人', dataIndex: 'created_by', key: 'created_by', width: 130 },
+    { title: t('创建人'), dataIndex: 'created_by', key: 'created_by', width: 130 },
     {
-      title: '创建时间',
+      title: t('创建时间'),
       dataIndex: 'created_at',
       key: 'created_at',
       width: 170,
       render: (v: string) => new Date(v).toLocaleString(),
     },
     {
-      title: '状态',
+      title: t('状态'),
       dataIndex: 'status',
       key: 'status',
       width: 110,
       render: (s: BranchStatus) => <Tag color={STATUS_META[s].color}>{STATUS_META[s].label}</Tag>,
     },
     {
-      title: '操作',
+      title: t('操作'),
       key: 'actions',
       width: 260,
       render: (_: unknown, r) => (
@@ -218,7 +218,7 @@ export function BranchList({ workspaceId, onViewDiff, onSelectBranch }: BranchLi
             onClick={() => handleSwitch(r)}
             disabled={r.status !== 'active'}
           >
-            Switch
+            {t('切换')}
           </Button>
           <Button
             size="small"
@@ -227,7 +227,7 @@ export function BranchList({ workspaceId, onViewDiff, onSelectBranch }: BranchLi
             onClick={() => handleMerge(r)}
             disabled={r.status !== 'active'}
           >
-            Merge
+            {t('合并')}
           </Button>
           {onViewDiff && (
             <Button
@@ -236,7 +236,7 @@ export function BranchList({ workspaceId, onViewDiff, onSelectBranch }: BranchLi
               icon={<DiffOutlined />}
               onClick={() => onViewDiff(r)}
             >
-              View Diff
+              {t('查看差异')}
             </Button>
           )}
           <Button
@@ -246,16 +246,16 @@ export function BranchList({ workspaceId, onViewDiff, onSelectBranch }: BranchLi
             onClick={() => handleArchive(r)}
             disabled={r.status !== 'active'}
           >
-            Archive
+            {t('归档')}
           </Button>
           <Popconfirm
-            title="确认删除此分支？"
-            okText="删除"
-            cancelText="取消"
+            title={t('确认删除此分支？')}
+            okText={t('删除')}
+            cancelText={t('取消')}
             onConfirm={() => handleDelete(r)}
           >
             <Button size="small" type="link" danger icon={<DeleteOutlined />}>
-              Delete
+              {t('删除')}
             </Button>
           </Popconfirm>
         </Space>
@@ -266,25 +266,25 @@ export function BranchList({ workspaceId, onViewDiff, onSelectBranch }: BranchLi
   return (
     <div data-testid="branch-list" style={{ padding: 16 }}>
       <Space style={{ marginBottom: 16, width: '100%', justifyContent: 'space-between' }} wrap>
-        <Title level={3} style={{ margin: 0 }}>{t('ontology.branch.title') || '本体分支管理'}</Title>
+        <Title level={3} style={{ margin: 0 }}>{t('本体分支管理')}</Title>
         <Space>
           <Input
             allowClear
             prefix={<SearchOutlined />}
-            placeholder="搜索分支..."
+            placeholder={t('搜索分支...')}
             value={searchText}
             onChange={(e) => setSearchText(e.target.value)}
             style={{ width: 240 }}
           />
           <Button icon={<ReloadOutlined />} onClick={() => void fetchBranches()}>
-            刷新
+            {t('刷新')}
           </Button>
           <Button
             type="primary"
             icon={<PlusOutlined />}
             onClick={() => setCreateOpen(true)}
           >
-            New Branch
+            {t('新建分支')}
           </Button>
         </Space>
       </Space>
@@ -292,7 +292,7 @@ export function BranchList({ workspaceId, onViewDiff, onSelectBranch }: BranchLi
       <Card>
         <Spin spinning={loading}>
           {filtered.length === 0 ? (
-            <Empty description="暂无分支" />
+            <Empty description={t('暂无分支')} />
           ) : (
             <AdvancedTable<BranchInfo>
               rowKey="branch_id"
@@ -306,37 +306,37 @@ export function BranchList({ workspaceId, onViewDiff, onSelectBranch }: BranchLi
       </Card>
 
       <Modal
-        title="创建分支"
+        title={t('创建分支')}
         open={createOpen}
         onOk={handleCreate}
         onCancel={() => { setCreateOpen(false); form.resetFields(); }}
         confirmLoading={creating}
-        okText="创建"
-        cancelText="取消"
+        okText={t('创建')}
+        cancelText={t('取消')}
         destroyOnHidden
       >
         <Form form={form} layout="vertical" preserve={false}>
           <Form.Item
             name="name"
-            label="分支名"
+            label={t('分支名')}
             rules={[
-              { required: true, message: '请输入分支名' },
-              { pattern: /^[a-zA-Z0-9_/][a-zA-Z0-9_/-]*$/, message: '分支名仅允许字母、数字、下划线、连字符和斜杠' },
+              { required: true, message: t('请输入分支名') },
+              { pattern: /^[a-zA-Z0-9_/][a-zA-Z0-9_/-]*$/, message: t('分支名仅允许字母、数字、下划线、连字符和斜杠') },
             ]}
           >
             <Input placeholder="feature/new-ontology" />
           </Form.Item>
-          <Form.Item name="base_version_id" label="基于版本">
+          <Form.Item name="base_version_id" label={t('基于版本')}>
             <Select
               allowClear
-              placeholder="选择基础版本"
+              placeholder={t('选择基础版本')}
               options={versionOptions}
               showSearch
               optionFilterProp="label"
             />
           </Form.Item>
-          <Form.Item name="description" label="描述">
-            <TextArea rows={3} placeholder="本次分支的目的和范围" />
+          <Form.Item name="description" label={t('描述')}>
+            <TextArea rows={3} placeholder={t('本次分支的目的和范围')} />
           </Form.Item>
         </Form>
       </Modal>

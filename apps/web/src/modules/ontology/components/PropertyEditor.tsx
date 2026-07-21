@@ -22,14 +22,14 @@ export function PropertyEditor({ property, index, onChange, onRemove }: Property
   const { t } = useI18n('ontology');
 
   const DATA_TYPE_OPTIONS = [
-    { label: t('property.types.string'), value: 'string' },
-    { label: t('property.types.integer'), value: 'integer' },
-    { label: t('property.types.float'), value: 'float' },
-    { label: t('property.types.boolean'), value: 'boolean' },
-    { label: t('property.types.date'), value: 'date' },
-    { label: t('property.types.datetime'), value: 'datetime' },
-    { label: t('property.types.json'), value: 'json' },
-    { label: t('property.types.array'), value: 'array' },
+    { label: t('字符串'), value: 'string' },
+    { label: t('整数'), value: 'integer' },
+    { label: t('浮点数'), value: 'float' },
+    { label: t('布尔值'), value: 'boolean' },
+    { label: t('日期'), value: 'date' },
+    { label: t('日期时间'), value: 'datetime' },
+    { label: t('JSON'), value: 'json' },
+    { label: t('数组'), value: 'array' },
   ];
 
   const CLASSIFICATION_OPTIONS = [
@@ -62,7 +62,7 @@ export function PropertyEditor({ property, index, onChange, onRemove }: Property
     >
       <Row gutter={[8, 8]}>
         <Col span={6}>
-          <Form.Item label={t('property.name')} style={{ marginBottom: 0 }}>
+          <Form.Item label={t('属性名')} style={{ marginBottom: 0 }}>
             <Input
               value={localProperty.name}
               onChange={(val) => updateField('name', val)}
@@ -71,7 +71,7 @@ export function PropertyEditor({ property, index, onChange, onRemove }: Property
           </Form.Item>
         </Col>
         <Col span={5}>
-          <Form.Item label={t('property.dataType')} style={{ marginBottom: 0 }}>
+          <Form.Item label={t('数据类型')} style={{ marginBottom: 0 }}>
             <Select
               value={localProperty.data_type}
               onChange={(val) => updateField('data_type', val)}
@@ -80,7 +80,7 @@ export function PropertyEditor({ property, index, onChange, onRemove }: Property
           </Form.Item>
         </Col>
         <Col span={4}>
-          <Form.Item label={t('property.required')} style={{ marginBottom: 0 }}>
+          <Form.Item label={t('必填')} style={{ marginBottom: 0 }}>
             <Switch
               checked={localProperty.required}
               onChange={(val) => updateField('required', val)}
@@ -88,7 +88,7 @@ export function PropertyEditor({ property, index, onChange, onRemove }: Property
           </Form.Item>
         </Col>
         <Col span={5}>
-          <Form.Item label={t('property.defaultValue')} style={{ marginBottom: 0 }}>
+          <Form.Item label={t('默认值')} style={{ marginBottom: 0 }}>
             <Input
               value={localProperty.default_value || ''}
               onChange={(val) => updateField('default_value', val)}
@@ -97,7 +97,7 @@ export function PropertyEditor({ property, index, onChange, onRemove }: Property
           </Form.Item>
         </Col>
         <Col span={4}>
-          <Form.Item label={t('property.classificationLevel')} style={{ marginBottom: 0 }}>
+          <Form.Item label={t('密级')} style={{ marginBottom: 0 }}>
             <Select
               value={localProperty.classification_level}
               onChange={(val) => updateField('classification_level', val)}

@@ -23,10 +23,10 @@ export function EntityTypeEditor({ entityType, allEntityTypes, onSave }: EntityT
   const { t } = useI18n('ontology');
 
   const CLASSIFICATION_OPTIONS = [
-    { label: t('classification.TS') ? `TS - ${t('classification.TS')}` : 'TS', value: 'TS' },
-    { label: t('classification.S') ? `S - ${t('classification.S')}` : 'S', value: 'S' },
-    { label: t('classification.C') ? `C - ${t('classification.C')}` : 'C', value: 'C' },
-    { label: t('classification.U') ? `U - ${t('classification.U')}` : 'U', value: 'U' },
+    { label: t('绝密') ? `TS - ${t('绝密')}` : 'TS', value: 'TS' },
+    { label: t('机密') ? `S - ${t('机密')}` : 'S', value: 'S' },
+    { label: t('秘密') ? `C - ${t('秘密')}` : 'C', value: 'C' },
+    { label: t('公开') ? `U - ${t('公开')}` : 'U', value: 'U' },
   ];
 
   const [formData, setFormData] = useState<{
@@ -128,7 +128,7 @@ export function EntityTypeEditor({ entityType, allEntityTypes, onSave }: EntityT
   if (!entityType) {
     return (
       <Card>
-        <Empty description={t('designer.noSelection')} />
+        <Empty description={t('请选择一个实体类型')} />
       </Card>
     );
   }
@@ -146,7 +146,7 @@ export function EntityTypeEditor({ entityType, allEntityTypes, onSave }: EntityT
         <Form layout="vertical">
           <Row gutter={[16, 0]}>
             <Col span={8}>
-              <Form.Item label={t('entityType.name')}>
+              <Form.Item label={t('名称')}>
                 <Input
                   value={formData.name}
                   onChange={(val) => updateField('name', val)}
@@ -155,16 +155,16 @@ export function EntityTypeEditor({ entityType, allEntityTypes, onSave }: EntityT
               </Form.Item>
             </Col>
             <Col span={8}>
-              <Form.Item label={t('entityType.displayName')}>
+              <Form.Item label={t('显示名称')}>
                 <Input
                   value={formData.display_name}
                   onChange={(val) => updateField('display_name', val)}
-                  placeholder={t('entityType.displayName')}
+                  placeholder={t('显示名称')}
                 />
               </Form.Item>
             </Col>
             <Col span={8}>
-              <Form.Item label={t('entityType.classificationLevel')}>
+              <Form.Item label={t('密级')}>
                 <Select
                   value={formData.classification_level}
                   onChange={(val) => updateField('classification_level', val)}
@@ -173,19 +173,19 @@ export function EntityTypeEditor({ entityType, allEntityTypes, onSave }: EntityT
               </Form.Item>
             </Col>
           </Row>
-          <Form.Item label={t('entityType.description')}>
+          <Form.Item label={t('描述')}>
             <Input
               value={formData.description}
               onChange={(val) => updateField('description', val)}
-              placeholder={t('entityType.description')}
+              placeholder={t('描述')}
             />
           </Form.Item>
-          <Form.Item label={t('designer.primaryKey')}>
+          <Form.Item label={t('主键')}>
             <Select
               value={formData.primary_key || undefined}
               onChange={(val) => updateField('primary_key', val)}
               options={primaryKeyOptions}
-              placeholder={t('designer.primaryKey')}
+              placeholder={t('主键')}
             />
           </Form.Item>
         </Form>
@@ -206,7 +206,7 @@ export function EntityTypeEditor({ entityType, allEntityTypes, onSave }: EntityT
           onClick={handleAddProperty}
           style={{ width: '100%', marginBottom: 16 }}
         >
-          {t('designer.addProperty')}
+          {t('新增属性')}
         </Button>
 
         <Divider orientation={"left" as React.ComponentProps<typeof Divider>['orientation']}>{t('designer.relationsList')}</Divider>
@@ -226,7 +226,7 @@ export function EntityTypeEditor({ entityType, allEntityTypes, onSave }: EntityT
           onClick={handleAddRelation}
           style={{ width: '100%' }}
         >
-          {t('designer.addRelation')}
+          {t('新增关系')}
         </Button>
       </Card>
     </div>

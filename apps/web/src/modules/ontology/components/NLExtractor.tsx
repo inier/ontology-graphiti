@@ -7,6 +7,7 @@ import {
   MessageOutlined, ThunderboltOutlined, CheckCircleOutlined,
   SearchOutlined, FileTextOutlined, DatabaseOutlined,
 } from '@ant-design/icons';
+import { useI18n } from '@/modules/shared/hooks/useI18n';
 import { ontologyApi } from '../services/ontologyApi';
 import { ExtractionPreview } from './ExtractionPreview';
 import { DocumentUploader } from './DocumentUploader';
@@ -19,13 +20,14 @@ export interface NLExtractorProps {
   onImportComplete?: () => void;
 }
 
-const METHOD_OPTIONS = [
-  { value: 'auto', label: '自动选择' },
-  { value: 'graph_rag', label: 'Graph RAG' },
-  { value: 'light_rag', label: 'Light RAG' },
-];
-
 export function NLExtractor({ ontologyId, onImportComplete }: NLExtractorProps) {
+  const { t } = useI18n('ontology');
+
+  const METHOD_OPTIONS = [
+    { value: 'auto', label: t('自动选择') },
+    { value: 'graph_rag', label: 'Graph RAG' },
+    { value: 'light_rag', label: 'Light RAG' },
+  ];
   const [activeTab, setActiveTab] = useState('text');
   const [text, setText] = useState('');
   const [autoSearch, setAutoSearch] = useState(false);
@@ -41,7 +43,7 @@ export function NLExtractor({ ontologyId, onImportComplete }: NLExtractorProps) 
 
   const handleExtract = useCallback(async () => {
     if (!text.trim()) {
-      message.warning('请输入自然语言描述');
+      message.warning(t('请输入自然语言描述'));
       return;
     }
 
@@ -75,9 +77,9 @@ export function NLExtractor({ ontologyId, onImportComplete }: NLExtractorProps) 
       });
       setExtractionConflicts(result?.conflicts || []);
       setCurrentStep(1);
-      message.success('提取完成');
+      message.success(t('提取完成'));
     } catch (e) {
-      message.error(`提取失败: ${(e as Error).message}`);
+      message.error(t('extraction.extractFailed', { msg: (e as Error).message }));
     } finally {
       setExtracting(false);
     }
@@ -123,13 +125,13 @@ export function NLExtractor({ ontologyId, onImportComplete }: NLExtractorProps) 
         size="small"
         current={currentStep}
         items={[
-          { title: '输入描述', status: currentStep === 0 ? 'process' : 'finish', icon: currentStep > 0 ? <CheckCircleOutlined /> : <MessageOutlined /> },
-          { title: '预览导入', status: currentStep === 1 ? 'process' : 'wait', icon: <ThunderboltOutlined /> },
+          { title: t('输入描述'), status: currentStep === 0 ? 'process' : 'finish', icon: currentStep > 0 ? <CheckCircleOutlined /> : <MessageOutlined /> },
+          { title: t('预览导入'), status: currentStep === 1 ? 'process' : 'wait', icon: <ThunderboltOutlined /> },
         ]}
       />
 
       {currentStep === 0 && (
-        <Card title="知识提取" size="small">
+        <Card title={t('知识提取')} size="small">
           <Tabs
             activeKey={activeTab}
             onChange={setActiveTab}
@@ -138,21 +140,21 @@ export function NLExtractor({ ontologyId, onImportComplete }: NLExtractorProps) 
                 key: 'text',
                 label: (
                   <span>
-                    <MessageOutlined /> 文本输入
+                    <MessageOutlined /> {t('文本输入')}
                   </span>
                 ),
                 children: (
                   <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
                     <Alert
                       type="info"
-                      title="请用自然语言描述您的业务领域，系统将使用 Hyper-Extract 模板化提取对象类型、关系类型等"
+                      title={t('请用自然语言描述您的业务领域，系统将使用 Hyper-Extract 模板化提取对象类型、关系类型等')}
                       showIcon
                     />
 
                     <Input.TextArea
                       value={text}
                       onChange={(e) => setText(e.target.value)}
-                      placeholder="例如：我们的系统管理客户和订单。每个客户可以下多个订单，每个订单包含多个商品..."
+                      placeholder={t('例如：我们的系统管理客户和订单。每个客户可以下多个订单，每个订单包含多个商品...')}
                       autoSize={{ minRows: 3, maxRows: 10 }}
                     />
 
@@ -162,11 +164,11 @@ export function NLExtractor({ ontologyId, onImportComplete }: NLExtractorProps) 
                           <Switch
                             checked={autoSearch}
                             onChange={setAutoSearch}
-                            checkedChildren="开"
-                            unCheckedChildren="关"
+                            checkedChildren={t('开')}
+                            unCheckedChildren={t('关')}
                           />
                           <span style={{ color: '#666' }}>
-                            <SearchOutlined /> 联网检索补充
+                            <SearchOutlined /> {t('联网检索补充')}
                           </span>
                         </Space>
                         <Select
@@ -179,16 +181,16 @@ export function NLExtractor({ ontologyId, onImportComplete }: NLExtractorProps) 
                         <Select
                           value={selectedTemplate || undefined}
                           onChange={setSelectedTemplate}
-                          placeholder="自动选择模板"
+                          placeholder={t('自动选择模板')}
                           allowClear
                           style={{ width: 180 }}
                           size="small"
                           options={[
-                            { value: '', label: '自动选择模板' },
-                            { value: 'general/base_graph', label: '通用知识图谱' },
-                            { value: 'general/concept_graph', label: '概念关系图' },
-                            { value: 'finance/earnings_summary', label: '财报摘要' },
-                            { value: 'legal/contract_obligation', label: '合同义务' },
+                            { value: '', label: t('自动选择模板') },
+                            { value: 'general/base_graph', label: t('通用知识图谱') },
+                            { value: 'general/concept_graph', label: t('概念关系图') },
+                            { value: 'finance/earnings_summary', label: t('财报摘要') },
+                            { value: 'legal/contract_obligation', label: t('合同义务') },
                           ]}
                         />
                       </Space>
@@ -200,7 +202,7 @@ export function NLExtractor({ ontologyId, onImportComplete }: NLExtractorProps) 
                         disabled={!text.trim()}
                         size="large"
                       >
-                        开始提取
+                        {t('开始提取')}
                       </Button>
                     </div>
                   </div>
@@ -210,7 +212,7 @@ export function NLExtractor({ ontologyId, onImportComplete }: NLExtractorProps) 
                 key: 'document',
                 label: (
                   <span>
-                    <FileTextOutlined /> 文档上传
+                    <FileTextOutlined /> {t('文档上传')}
                   </span>
                 ),
                 children: (
@@ -224,7 +226,7 @@ export function NLExtractor({ ontologyId, onImportComplete }: NLExtractorProps) 
                 key: 'knowledge_base',
                 label: (
                   <span>
-                    <DatabaseOutlined /> 知识库选择
+                    <DatabaseOutlined /> {t('知识库选择')}
                   </span>
                 ),
                 children: (
@@ -242,11 +244,11 @@ export function NLExtractor({ ontologyId, onImportComplete }: NLExtractorProps) 
       {currentStep === 1 && extractionResult && (
         <>
           <Card
-            title="提取结果预览"
+            title={t('提取结果预览')}
             size="small"
             extra={
               <Button size="small" onClick={handleReextract}>
-                重新提取
+                {t('重新提取')}
               </Button>
             }
           />
@@ -261,7 +263,7 @@ export function NLExtractor({ ontologyId, onImportComplete }: NLExtractorProps) 
       )}
 
       {extracting && (
-        <Card title="提取进度" size="small">
+        <Card title={t('提取进度')} size="small">
           <div style={{ padding: 24 }}>
             <div style={{ textAlign: 'center', marginBottom: 16 }}>
               <Spin size="large" />
@@ -276,7 +278,7 @@ export function NLExtractor({ ontologyId, onImportComplete }: NLExtractorProps) 
               size="default"
             />
             <div style={{ textAlign: 'center', marginTop: 12, color: '#666' }}>
-              {progress?.stage || '初始化'}
+              {progress?.stage || t('初始化')}
               {progress?.message && ` - ${progress.message}`}
             </div>
           </div>

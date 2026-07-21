@@ -1,6 +1,7 @@
 import React, { useEffect, useRef, useCallback, useState } from 'react';
 import { Tag, Tooltip, message } from 'antd';
 import { LockOutlined, UnlockOutlined } from '@ant-design/icons';
+import { useI18n } from '@/modules/shared/hooks/useI18n';
 
 interface EditLockIndicatorProps {
   ontologyId: string;
@@ -27,6 +28,7 @@ const EditLockIndicator: React.FC<EditLockIndicatorProps> = ({
   userId,
   editing = false,
 }) => {
+  const { t } = useI18n('ontology');
   const [lockHolder, setLockHolder] = useState<string | null>(null);
   const [lockAcquiredAt, setLockAcquiredAt] = useState<string | null>(null);
   const wsRef = useRef<WebSocket | null>(null);
@@ -82,11 +84,11 @@ const EditLockIndicator: React.FC<EditLockIndicatorProps> = ({
           const data = msg.data || {};
           setLockHolder(data.locked_by || 'unknown');
           setLockAcquiredAt(data.locked_at || null);
-          message.warning(`本体正在被用户 ${data.locked_by || '他人'} 编辑，暂时无法获取编辑锁`);
+          message.warning(t('editLock.lockedByOther', { user: data.locked_by || t('无人编辑') }));
         } else if (msg.type === 'lock_expired') {
           setLockHolder(null);
           setLockAcquiredAt(null);
-          message.info('编辑锁已过期');
+          message.info(t('编辑锁已过期'));
         } else if (msg.type === 'lock_released') {
           setLockHolder(null);
           setLockAcquiredAt(null);
@@ -105,7 +107,7 @@ const EditLockIndicator: React.FC<EditLockIndicatorProps> = ({
     };
 
     ws.onerror = () => {
-      message.error('编辑锁连接失败');
+      message.error(t('编辑锁连接失败'));
     };
   }, [ontologyId, userId, disconnectWs, clearHeartbeat]);
 
@@ -135,21 +137,21 @@ const EditLockIndicator: React.FC<EditLockIndicatorProps> = ({
   const isLockedByMe = lockHolder === userId;
 
   const lockTag = isLockedByMe ? (
-    <Tooltip title={`你正在编辑（获取于 ${lockAcquiredAt ? new Date(lockAcquiredAt).toLocaleTimeString() : ''}）`}>
+    <Tooltip title={t('editLock.editingTooltip', { time: lockAcquiredAt ? new Date(lockAcquiredAt).toLocaleTimeString() : '' })}>
       <Tag icon={<LockOutlined />} color="blue">
-        编辑中
+        {t('编辑中')}
       </Tag>
     </Tooltip>
   ) : isLockedByOther ? (
-    <Tooltip title={`用户 ${lockHolder} 正在编辑（获取于 ${lockAcquiredAt ? new Date(lockAcquiredAt).toLocaleTimeString() : ''}）`}>
+    <Tooltip title={t('editLock.lockedByOtherTooltip', { user: lockHolder, time: lockAcquiredAt ? new Date(lockAcquiredAt).toLocaleTimeString() : '' })}>
       <Tag icon={<LockOutlined />} color="red">
-        已锁定 - {lockHolder}
+        {t('已锁定')} - {lockHolder}
       </Tag>
     </Tooltip>
   ) : (
-    <Tooltip title="无人编辑">
+    <Tooltip title={t('无人编辑')}>
       <Tag icon={<UnlockOutlined />} color="default">
-        未锁定
+        {t('未锁定')}
       </Tag>
     </Tooltip>
   );

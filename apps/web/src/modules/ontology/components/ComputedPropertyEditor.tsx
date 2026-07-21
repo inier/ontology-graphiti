@@ -154,7 +154,7 @@ export function ComputedPropertyEditor({ workspaceId, propertyId, onSaved }: Com
     <Card
       title={
         <Space>
-          <Title level={5} style={{ margin: 0 }}>{propertyId ? t('computed.editComputed', { id: propertyId }) : t('computed.newComputed')}</Title>
+          <Title level={5} style={{ margin: 0 }}>{propertyId ? t('computed.editComputed', { id: propertyId }) : t('新建计算属性')}</Title>
         </Space>
       }
       extra={
@@ -168,7 +168,7 @@ export function ComputedPropertyEditor({ workspaceId, propertyId, onSaved }: Com
       <Form form={form} layout="vertical" initialValues={{ return_type: 'number', materialized: false }}>
         <Row gutter={16}>
           <Col span={8}>
-            <Form.Item label={t('computed.objectType')} name="object_type_id" rules={[{ required: true }]}>
+            <Form.Item label={t('对象类型')} name="object_type_id" rules={[{ required: true }]}>
               <Select
                 placeholder={t('computed.objectTypePlaceholder')}
                 options={objectTypes.map((o) => ({ value: o.object_type_id, label: o.name }))}
@@ -191,7 +191,7 @@ export function ComputedPropertyEditor({ workspaceId, propertyId, onSaved }: Com
         </Row>
         <Row gutter={16}>
           <Col span={14}>
-            <Form.Item label={t('computed.expression')} name="expression" rules={[{ required: true }]}>
+            <Form.Item label={t('表达式')} name="expression" rules={[{ required: true }]}>
               <TextArea
                 value={expression}
                 onChange={(e) => setExpression(e.target.value)}
@@ -200,7 +200,7 @@ export function ComputedPropertyEditor({ workspaceId, propertyId, onSaved }: Com
                 placeholder={t('computed.expressionPlaceholder')}
               />
             </Form.Item>
-            <Form.Item label={t('computed.materialized')} name="materialized" valuePropName="checked">
+            <Form.Item label={t('已物化')} name="materialized" valuePropName="checked">
               <Switch checkedChildren={t('computed.materializedOn')} unCheckedChildren={t('computed.materializedOff')} />
             </Form.Item>
             <Form.Item label={t('computed.description')} name="description">

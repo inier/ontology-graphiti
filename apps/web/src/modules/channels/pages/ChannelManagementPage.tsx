@@ -22,9 +22,11 @@ import { ChannelConfigForm } from '../components/ChannelConfigForm';
 import { useChannelStore } from '../stores/channelStore';
 import { useGlobalLoading } from '@/modules/shared/stores/globalLoadingStore';
 import { WorkspaceContext } from '@/modules/shared/components/LayoutContexts';
+import { useI18n } from '@/modules/shared/hooks/useI18n';
 import type { ChannelConfig, CreateChannelRequest } from '../types';
 
 export const ChannelManagementPage: React.FC = () => {
+  const { t } = useI18n();
   const navigate = useNavigate();
   const { workspaceId } = useParams<{ workspaceId: string }>();
   
@@ -58,7 +60,7 @@ export const ChannelManagementPage: React.FC = () => {
 
   useEffect(() => {
     if (effectiveWorkspaceId) {
-      showLoading('加载渠道配置中...');
+      showLoading(t('加载渠道配置中...'));
       Promise.all([
         fetchChannels(effectiveWorkspaceId),
         fetchChannelTypes(),
@@ -88,7 +90,7 @@ export const ChannelManagementPage: React.FC = () => {
   const handleDelete = async (channelId: string) => {
     try {
       await deleteChannel(channelId);
-      message.success('删除成功');
+      message.success(t('删除成功'));
     } catch {
       // error handled by store
     }
@@ -97,7 +99,7 @@ export const ChannelManagementPage: React.FC = () => {
   const handleEnable = async (channelId: string) => {
     try {
       await enableChannel(channelId);
-      message.success('启用成功');
+      message.success(t('启用成功'));
     } catch {
       // error handled by store
     }
@@ -106,7 +108,7 @@ export const ChannelManagementPage: React.FC = () => {
   const handleDisable = async (channelId: string) => {
     try {
       await disableChannel(channelId);
-      message.success('停用成功');
+      message.success(t('停用成功'));
     } catch {
       // error handled by store
     }
@@ -169,28 +171,28 @@ export const ChannelManagementPage: React.FC = () => {
         >
           <Space>
             <SettingOutlined style={{ fontSize: 20 }} />
-            <h2 style={{ margin: 0 }}>渠道管理</h2>
+            <h2 style={{ margin: 0 }}>{t('渠道管理')}</h2>
           </Space>
           <Space>
             <Button
               icon={<RollbackOutlined />}
               onClick={() => navigate('/settings')}
             >
-              返回设置
+              {t('返回设置')}
             </Button>
             <Button
               type="primary"
               icon={<LinkOutlined />}
               onClick={() => window.open('/settings/channels', '_blank')}
             >
-              新窗口打开
+              {t('新窗口打开')}
             </Button>
           </Space>
         </div>
 
         <Alert
-          title="渠道配置说明"
-          description="配置 IM 渠道后，用户可以通过对应的聊天平台与 AI 助手交互。凭证信息会被加密存储，AI/Agent 无法读取实际凭证值。"
+          title={t('渠道配置说明')}
+          description={t('配置 IM 渠道后，用户可以通过对应的聊天平台与 AI 助手交互。凭证信息会被加密存储，AI/Agent 无法读取实际凭证值。')}
           type="info"
           showIcon
           style={{ marginBottom: 16 }}
@@ -209,7 +211,7 @@ export const ChannelManagementPage: React.FC = () => {
       </ProCard>
 
       <Modal
-        title={editingChannel ? '编辑渠道配置' : '添加渠道配置'}
+        title={editingChannel ? t('编辑渠道配置') : t('添加渠道配置')}
         open={modalVisible}
         onCancel={handleCancel}
         footer={null}

@@ -44,7 +44,7 @@ export function ConfigHistoryDrawer({
       const data = await configApi.getConfigHistory({ page: 1, page_size: 50 });
       setRevisions(data.revisions || []);
     } catch {
-      message.error(t('loadHistoryFailed'));
+      message.error(t('加载版本历史失败'));
     } finally {
       setLoading(false);
     }
@@ -64,7 +64,7 @@ export function ConfigHistoryDrawer({
       onRollback?.();
       fetchHistory();
     } catch {
-      message.error(t('rollbackFailed'));
+      message.error(t('回滚失败'));
     } finally {
       setRollingBack(null);
     }
@@ -73,10 +73,10 @@ export function ConfigHistoryDrawer({
   const renderChangeItem = (change: ConfigChange, idx: number) => {
     const oldValueDisplay = change.is_sensitive
       ? '******'
-      : change.old_value ?? t('emptyValue');
+      : change.old_value ?? t('(空)');
     const newValueDisplay = change.is_sensitive
       ? '******'
-      : change.new_value ?? t('emptyValue');
+      : change.new_value ?? t('(空)');
 
     return (
       <div key={idx} style={{ marginBottom: 4 }}>
@@ -101,18 +101,18 @@ export function ConfigHistoryDrawer({
 
   return (
     <Drawer
-      title={t('configChangeHistory')}
+      title={t('配置变更历史')}
       placement="right"
       width={560}
       open={open}
       onClose={onClose}
     >
       {loading ? (
-        <Spin spinning description={t('loadingText')} style={{ width: '100%' }}>
+        <Spin spinning description={t('加载中...')} style={{ width: '100%' }}>
           <div style={{ minHeight: 100 }} />
         </Spin>
       ) : revisions.length === 0 ? (
-        <Empty description={t('noHistory')} />
+        <Empty description={t('暂无变更记录')} />
       ) : (
         <Timeline
           items={revisions.map((rev) => ({
@@ -148,9 +148,9 @@ export function ConfigHistoryDrawer({
                     </Text>
                     <Popconfirm
                       title={t('rollbackConfirm', { version: rev.revision_number })}
-                      description={t('rollbackDescription')}
+                      description={t('回滚后当前配置将被替换为该版本的配置')}
                       onConfirm={() => handleRollback(rev.revision_number)}
-                      okText={t('rollbackOk')}
+                      okText={t('确认回滚')}
                       cancelText={t('cancel', { ns: 'common' })}
                     >
                       <Button
@@ -160,7 +160,7 @@ export function ConfigHistoryDrawer({
                         loading={rollingBack === rev.revision_number}
                         danger
                       >
-                        {t('rollback')}
+                        {t('回滚')}
                       </Button>
                     </Popconfirm>
                   </Space>

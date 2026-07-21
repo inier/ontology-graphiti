@@ -32,6 +32,7 @@ import { EmptyState } from '@/modules/shared/components/organisms';
 
 import { useWorkspace } from '@/modules/shared/components/LayoutContexts';
 import { AdvancedTable } from '@/modules/shared';
+import { useI18n } from '@/modules/shared/hooks/useI18n';
 
 
 
@@ -66,6 +67,8 @@ const CLOCK_STATE_COLORS: Record<string, string> = {
 
 
 const SimulationPage: React.FC = () => {
+
+  const { t } = useI18n();
 
   const store = useSimulationStore();
 
@@ -119,7 +122,7 @@ const SimulationPage: React.FC = () => {
 
     if (sandboxId) {
 
-      message.success(`沙箱 ${sandboxId} 创建成功`);
+      message.success(t('沙箱 {{id}} 创建成功', { id: sandboxId }));
 
       setSandboxModalOpen(false);
 
@@ -137,7 +140,7 @@ const SimulationPage: React.FC = () => {
 
     if (store.simulationResult) {
 
-      message.success('推演完成');
+      message.success(t('推演完成'));
 
       setRunModalOpen(false);
 
@@ -155,11 +158,11 @@ const SimulationPage: React.FC = () => {
 
       await store.destroySandbox(sandboxId);
 
-      message.success('沙箱已销毁');
+      message.success(t('沙箱已销毁'));
 
     } catch (error) {
 
-      message.error(`销毁失败: ${error}`);
+      message.error(t('销毁失败: {{error}}', { error: String(error) }));
 
     }
 
@@ -173,11 +176,11 @@ const SimulationPage: React.FC = () => {
 
       await store.exportResults(sandboxId, 'admin');
 
-      message.success('结果已导出');
+      message.success(t('结果已导出'));
 
     } catch (error) {
 
-      message.error(`导出失败: ${error}`);
+      message.error(t('导出失败: {{error}}', { error: String(error) }));
 
     }
 
@@ -197,7 +200,7 @@ const SimulationPage: React.FC = () => {
 
       if (store.parallelResult) {
 
-        message.success('并行推演完成');
+        message.success(t('并行推演完成'));
 
         setParallelModalOpen(false);
 
@@ -207,7 +210,7 @@ const SimulationPage: React.FC = () => {
 
     } catch {
 
-      message.error('方案 JSON 格式错误');
+      message.error(t('方案 JSON 格式错误'));
 
     }
 
@@ -231,7 +234,7 @@ const SimulationPage: React.FC = () => {
 
       if (store.whatIfResult) {
 
-        message.success('What-if 分析完成');
+        message.success(t('What-if 分析完成'));
 
         setWhatIfModalOpen(false);
 
@@ -241,7 +244,7 @@ const SimulationPage: React.FC = () => {
 
     } catch {
 
-      message.error('参数 JSON 格式错误');
+      message.error(t('参数 JSON 格式错误'));
 
     }
 
@@ -255,7 +258,7 @@ const SimulationPage: React.FC = () => {
 
     if (timelineId) {
 
-      message.success(`时间线 ${timelineId} 创建成功`);
+      message.success(t('时间线 {{id}} 创建成功', { id: timelineId }));
 
       setTimelineModalOpen(false);
 
@@ -277,11 +280,13 @@ const SimulationPage: React.FC = () => {
 
       await store.controlClock(params);
 
-      message.success(`时钟${action === 'start' ? '启动' : action === 'pause' ? '暂停' : action === 'resume' ? '恢复' : '调整'}成功`);
+      const actionLabel = action === 'start' ? t('启动') : action === 'pause' ? t('暂停') : action === 'resume' ? t('恢复') : t('调整');
+
+      message.success(t('时钟{{action}}成功', { action: actionLabel }));
 
     } catch (error) {
 
-      message.error(`时钟控制失败: ${error}`);
+      message.error(t('时钟控制失败: {{error}}', { error: String(error) }));
 
     }
 
@@ -295,7 +300,7 @@ const SimulationPage: React.FC = () => {
 
       await store.createTemplate(values);
 
-      message.success('模板创建成功');
+      message.success(t('模板创建成功'));
 
       setTemplateModalOpen(false);
 
@@ -303,7 +308,7 @@ const SimulationPage: React.FC = () => {
 
     } catch (error) {
 
-      message.error(`创建模板失败: ${error}`);
+      message.error(t('创建模板失败: {{error}}', { error: String(error) }));
 
     }
 
@@ -317,7 +322,7 @@ const SimulationPage: React.FC = () => {
 
     if (store.eventSequence) {
 
-      message.success(`生成 ${store.eventSequence.total_events} 个事件`);
+      message.success(t('生成 {{n}} 个事件', { n: store.eventSequence.total_events }));
 
     }
 
@@ -331,7 +336,7 @@ const SimulationPage: React.FC = () => {
 
       await store.injectEvent(values);
 
-      message.success('事件已注入');
+      message.success(t('事件已注入'));
 
       setInjectModalOpen(false);
 
@@ -339,7 +344,7 @@ const SimulationPage: React.FC = () => {
 
     } catch (error) {
 
-      message.error(`注入事件失败: ${error}`);
+      message.error(t('注入事件失败: {{error}}', { error: String(error) }));
 
     }
 
@@ -351,7 +356,7 @@ const SimulationPage: React.FC = () => {
 
     {
 
-      title: '沙箱 ID',
+      title: t('沙箱 ID'),
 
       dataIndex: 'sandbox_id',
 
@@ -373,7 +378,7 @@ const SimulationPage: React.FC = () => {
 
     {
 
-      title: '状态',
+      title: t('状态'),
 
       dataIndex: 'status',
 
@@ -391,7 +396,7 @@ const SimulationPage: React.FC = () => {
 
     {
 
-      title: '创建时间',
+      title: t('创建时间'),
 
       dataIndex: 'created_at',
 
@@ -405,7 +410,7 @@ const SimulationPage: React.FC = () => {
 
     {
 
-      title: '操作',
+      title: t('操作'),
 
       key: 'action',
 
@@ -415,7 +420,7 @@ const SimulationPage: React.FC = () => {
 
         <Space size="small">
 
-          <Tooltip title="运行推演">
+          <Tooltip title={t('运行推演')}>
 
             <Button
 
@@ -439,7 +444,7 @@ const SimulationPage: React.FC = () => {
 
           </Tooltip>
 
-          <Tooltip title="导出结果">
+          <Tooltip title={t('导出结果')}>
 
             <Button
 
@@ -457,7 +462,7 @@ const SimulationPage: React.FC = () => {
 
           <Popconfirm
 
-            title="确认销毁此沙箱？"
+            title={t('确认销毁此沙箱？')}
 
             onConfirm={() => handleDestroySandbox(record.sandbox_id)}
 
@@ -481,7 +486,7 @@ const SimulationPage: React.FC = () => {
 
     {
 
-      title: '时间线 ID',
+      title: t('时间线 ID'),
 
       dataIndex: 'timeline_id',
 
@@ -493,7 +498,7 @@ const SimulationPage: React.FC = () => {
 
     {
 
-      title: '时钟状态',
+      title: t('时钟状态'),
 
       dataIndex: 'clock_state',
 
@@ -511,7 +516,7 @@ const SimulationPage: React.FC = () => {
 
     {
 
-      title: '速度',
+      title: t('速度'),
 
       dataIndex: 'simulation_speed',
 
@@ -525,7 +530,7 @@ const SimulationPage: React.FC = () => {
 
     {
 
-      title: '当前时间',
+      title: t('当前时间'),
 
       dataIndex: 'current_time',
 
@@ -539,7 +544,7 @@ const SimulationPage: React.FC = () => {
 
     {
 
-      title: '操作',
+      title: t('操作'),
 
       key: 'action',
 
@@ -607,7 +612,7 @@ const SimulationPage: React.FC = () => {
 
     {
 
-      title: '模板名称',
+      title: t('模板名称'),
 
       dataIndex: 'name',
 
@@ -619,7 +624,7 @@ const SimulationPage: React.FC = () => {
 
     {
 
-      title: '分类',
+      title: t('分类'),
 
       dataIndex: 'category',
 
@@ -633,7 +638,7 @@ const SimulationPage: React.FC = () => {
 
     {
 
-      title: '事件类型',
+      title: t('事件类型'),
 
       dataIndex: 'event_types',
 
@@ -645,7 +650,7 @@ const SimulationPage: React.FC = () => {
 
         <Space size={2} wrap>
 
-          {(types as string[]).slice(0, 3).map(t => <Tag key={t}>{t}</Tag>)}
+          {(types as string[]).slice(0, 3).map(tp => <Tag key={tp}>{tp}</Tag>)}
 
           {(types as string[]).length > 3 && <Tag>+{(types as string[]).length - 3}</Tag>}
 
@@ -657,7 +662,7 @@ const SimulationPage: React.FC = () => {
 
     {
 
-      title: '操作',
+      title: t('操作'),
 
       key: 'action',
 
@@ -679,13 +684,13 @@ const SimulationPage: React.FC = () => {
 
           >
 
-            生成
+            {t('生成')}
 
           </Button>
 
           <Popconfirm
 
-            title="确认删除此模板？"
+            title={t('确认删除此模板？')}
 
             onConfirm={() => store.deleteTemplate(record.template_id)}
 
@@ -711,7 +716,7 @@ const SimulationPage: React.FC = () => {
 
       <Card
 
-        title="沙箱管理"
+        title={t('沙箱管理')}
 
         size="small"
 
@@ -721,7 +726,7 @@ const SimulationPage: React.FC = () => {
 
             <Button type="primary" size="small" icon={<PlusOutlined />} onClick={() => setSandboxModalOpen(true)}>
 
-              创建沙箱
+              {t('创建沙箱')}
 
             </Button>
 
@@ -751,11 +756,11 @@ const SimulationPage: React.FC = () => {
 
               icon={<ExperimentOutlined />}
 
-              title="暂无沙箱"
+              title={t('暂无沙箱')}
 
-              description="创建沙箱以进行推演仿真，或加载示例数据快速体验"
+              description={t('创建沙箱以进行推演仿真，或加载示例数据快速体验')}
 
-              actionLabel="创建沙箱"
+              actionLabel={t('创建沙箱')}
 
               onAction={() => setSandboxModalOpen(true)}
 
@@ -763,7 +768,7 @@ const SimulationPage: React.FC = () => {
 
               onLoadSampleData={async () => {
 
-                if (!currentWorkspace) { message.warning('请先选择工作空间'); return; }
+                if (!currentWorkspace) { message.warning(t('请先选择工作空间')); return; }
 
                 try {
 
@@ -771,11 +776,11 @@ const SimulationPage: React.FC = () => {
 
                   await api.generateSampleData(currentWorkspace);
 
-                  message.success('示例数据已加载');
+                  message.success(t('示例数据已加载'));
 
                   store.fetchSandboxes();
 
-                } catch (e) { message.error('加载示例数据失败'); }
+                } catch (e) { message.error(t('加载示例数据失败')); }
 
               }}
 
@@ -791,13 +796,13 @@ const SimulationPage: React.FC = () => {
 
       {store.sandboxStatus && (
 
-        <Card title="沙箱状态" size="small">
+        <Card title={t('沙箱状态')} size="small">
 
           <Descriptions column={2}>
 
-            <Descriptions.Item label="沙箱 ID">{store.sandboxStatus.sandbox_id}</Descriptions.Item>
+            <Descriptions.Item label={t('沙箱 ID')}>{store.sandboxStatus.sandbox_id}</Descriptions.Item>
 
-            <Descriptions.Item label="状态">
+            <Descriptions.Item label={t('状态')}>
 
               <Tag color={SANDBOX_STATUS_COLORS[store.sandboxStatus.status] || 'default'}>
 
@@ -807,9 +812,9 @@ const SimulationPage: React.FC = () => {
 
             </Descriptions.Item>
 
-            <Descriptions.Item label="隔离级别">{store.sandboxStatus.isolation_level}</Descriptions.Item>
+            <Descriptions.Item label={t('隔离级别')}>{store.sandboxStatus.isolation_level}</Descriptions.Item>
 
-            <Descriptions.Item label="创建时间">{store.sandboxStatus.created_at}</Descriptions.Item>
+            <Descriptions.Item label={t('创建时间')}>{store.sandboxStatus.created_at}</Descriptions.Item>
 
           </Descriptions>
 
@@ -821,11 +826,11 @@ const SimulationPage: React.FC = () => {
 
       {store.simulationResult && (
 
-        <Card title="推演结果" size="small">
+        <Card title={t('推演结果')} size="small">
 
           {store.simulationResult.status === 'timeout' ? (
 
-            <Alert type="warning" showIcon title="推演超时" description={store.simulationResult.message} />
+            <Alert type="warning" showIcon title={t('推演超时')} description={store.simulationResult.message} />
 
           ) : (
 
@@ -839,7 +844,7 @@ const SimulationPage: React.FC = () => {
 
                     <Statistic
 
-                      title="风险等级"
+                      title={t('风险等级')}
 
                       value={(store.simulationResult.risk_assessment as Record<string, unknown>).overall_risk as string || 'unknown'}
 
@@ -861,7 +866,7 @@ const SimulationPage: React.FC = () => {
 
                   <Col span={8}>
 
-                    <Statistic title="置信度" value={(store.simulationResult.confidence || 0) as number * 100} precision={1} suffix="%" />
+                    <Statistic title={t('置信度')} value={(store.simulationResult.confidence || 0) as number * 100} precision={1} suffix="%" />
 
                   </Col>
 
@@ -871,7 +876,7 @@ const SimulationPage: React.FC = () => {
 
               {store.simulationResult.recommendation && (
 
-                <Alert type="info" title="推荐" description={store.simulationResult.recommendation} />
+                <Alert type="info" title={t('推荐')} description={store.simulationResult.recommendation} />
 
               )}
 
@@ -883,15 +888,15 @@ const SimulationPage: React.FC = () => {
 
                   columns={[
 
-                    { title: '指标', dataIndex: 'metric_name', key: 'metric_name' },
+                    { title: t('指标'), dataIndex: 'metric_name', key: 'metric_name' },
 
-                    { title: '变化前', dataIndex: 'before', key: 'before' },
+                    { title: t('变化前'), dataIndex: 'before', key: 'before' },
 
-                    { title: '变化后', dataIndex: 'after', key: 'after' },
+                    { title: t('变化后'), dataIndex: 'after', key: 'after' },
 
                     {
 
-                      title: '变化量',
+                      title: t('变化量'),
 
                       dataIndex: 'delta',
 
@@ -941,7 +946,7 @@ const SimulationPage: React.FC = () => {
 
       <Card
 
-        title="并行推演 & What-if 分析"
+        title={t('并行推演 & What-if 分析')}
 
         size="small"
 
@@ -951,13 +956,13 @@ const SimulationPage: React.FC = () => {
 
             <Button size="small" icon={<ThunderboltOutlined />} onClick={() => setParallelModalOpen(true)}>
 
-              并行推演
+              {t('并行推演')}
 
             </Button>
 
             <Button size="small" icon={<ExperimentOutlined />} onClick={() => setWhatIfModalOpen(true)}>
 
-              What-if 分析
+              {t('What-if 分析')}
 
             </Button>
 
@@ -967,7 +972,7 @@ const SimulationPage: React.FC = () => {
 
       >
 
-        <Empty description="配置并行推演或 What-if 分析" image={Empty.PRESENTED_IMAGE_SIMPLE} />
+        <Empty description={t('配置并行推演或 What-if 分析')} image={Empty.PRESENTED_IMAGE_SIMPLE} />
 
       </Card>
 
@@ -975,17 +980,17 @@ const SimulationPage: React.FC = () => {
 
       {store.parallelResult && (
 
-        <Card title="并行推演结果" size="small">
+        <Card title={t('并行推演结果')} size="small">
 
           <Descriptions column={2}>
 
-            <Descriptions.Item label="运行 ID">{store.parallelResult.run_id}</Descriptions.Item>
+            <Descriptions.Item label={t('运行 ID')}>{store.parallelResult.run_id}</Descriptions.Item>
 
-            <Descriptions.Item label="方案数量">{store.parallelResult.total_scenarios}</Descriptions.Item>
+            <Descriptions.Item label={t('方案数量')}>{store.parallelResult.total_scenarios}</Descriptions.Item>
 
-            <Descriptions.Item label="最优方案">
+            <Descriptions.Item label={t('最优方案')}>
 
-              <Tag color="gold">{store.parallelResult.best_scenario_id || '无'}</Tag>
+              <Tag color="gold">{store.parallelResult.best_scenario_id || t('无')}</Tag>
 
             </Descriptions.Item>
 
@@ -993,7 +998,7 @@ const SimulationPage: React.FC = () => {
 
           {store.parallelResult.results?.map((r, idx) => (
 
-            <Card key={idx} size="small" type="inner" title={`方案 ${idx + 1}: ${(r as Record<string, unknown>).scenario_id as string || ''}`} style={{ marginTop: 8 }}>
+            <Card key={idx} size="small" type="inner" title={t('方案 {{n}}: {{id}}', { n: idx + 1, id: (r as Record<string, unknown>).scenario_id as string || '' })} style={{ marginTop: 8 }}>
 
               <Space>
 
@@ -1007,7 +1012,7 @@ const SimulationPage: React.FC = () => {
 
                   <Tag color={((r as Record<string, unknown>).risk_assessment as Record<string, unknown>).overall_risk === 'high' ? 'red' : 'green'}>
 
-                    {`风险: ${((r as Record<string, unknown>).risk_assessment as Record<string, unknown>).overall_risk as string}`}
+                    {t('风险: {{risk}}', { risk: ((r as Record<string, unknown>).risk_assessment as Record<string, unknown>).overall_risk as string })}
 
                   </Tag>
 
@@ -1027,19 +1032,19 @@ const SimulationPage: React.FC = () => {
 
       {store.whatIfResult && (
 
-        <Card title="What-if 分析结果" size="small">
+        <Card title={t('What-if 分析结果')} size="small">
 
           <Descriptions column={2}>
 
-            <Descriptions.Item label="运行 ID">{store.whatIfResult.run_id}</Descriptions.Item>
+            <Descriptions.Item label={t('运行 ID')}>{store.whatIfResult.run_id}</Descriptions.Item>
 
-            <Descriptions.Item label="变异数量">{store.whatIfResult.total_variations}</Descriptions.Item>
+            <Descriptions.Item label={t('变异数量')}>{store.whatIfResult.total_variations}</Descriptions.Item>
 
           </Descriptions>
 
           {store.whatIfResult.sensitivity_analysis ? (
 
-            <Card size="small" type="inner" title="敏感性分析" style={{ marginTop: 8 }}>
+            <Card size="small" type="inner" title={t('敏感性分析')} style={{ marginTop: 8 }}>
 
               {Object.entries(store.whatIfResult.sensitivity_analysis).map(([metric, values]) => (
 
@@ -1081,7 +1086,7 @@ const SimulationPage: React.FC = () => {
 
       <Card
 
-        title="事件模拟器"
+        title={t('事件模拟器')}
 
         size="small"
 
@@ -1091,7 +1096,7 @@ const SimulationPage: React.FC = () => {
 
             <Button size="small" icon={<PlusOutlined />} onClick={() => setInjectModalOpen(true)}>
 
-              注入事件
+              {t('注入事件')}
 
             </Button>
 
@@ -1107,9 +1112,9 @@ const SimulationPage: React.FC = () => {
 
             <Descriptions column={2}>
 
-              <Descriptions.Item label="序列 ID">{store.eventSequence.sequence_id}</Descriptions.Item>
+              <Descriptions.Item label={t('序列 ID')}>{store.eventSequence.sequence_id}</Descriptions.Item>
 
-              <Descriptions.Item label="事件数量">
+              <Descriptions.Item label={t('事件数量')}>
 
                 <Badge count={store.eventSequence.total_events} showZero color="blue" />
 
@@ -1123,17 +1128,17 @@ const SimulationPage: React.FC = () => {
 
               columns={[
 
-                { title: '事件 ID', dataIndex: 'event_id', key: 'event_id', ellipsis: true },
+                { title: t('事件 ID'), dataIndex: 'event_id', key: 'event_id', ellipsis: true },
 
-                { title: '类型', dataIndex: 'event_type', key: 'event_type', render: (t) => <Tag>{t as string}</Tag> },
+                { title: t('类型'), dataIndex: 'event_type', key: 'event_type', render: (tp) => <Tag>{tp as string}</Tag> },
 
-                { title: '目标类型', dataIndex: 'target_entity_type', key: 'target_entity_type', render: (t) => <Tag color="blue">{t as string}</Tag> },
+                { title: t('目标类型'), dataIndex: 'target_entity_type', key: 'target_entity_type', render: (tp) => <Tag color="blue">{tp as string}</Tag> },
 
-                { title: '时间', dataIndex: 'timestamp', key: 'timestamp', ellipsis: true, width: 160 },
+                { title: t('时间'), dataIndex: 'timestamp', key: 'timestamp', ellipsis: true, width: 160 },
 
                 {
 
-                  title: '相关性',
+                  title: t('相关性'),
 
                   dataIndex: 'ontology_relevance',
 
@@ -1163,7 +1168,7 @@ const SimulationPage: React.FC = () => {
 
         ) : (
 
-          <Empty description="选择模板生成事件序列" image={Empty.PRESENTED_IMAGE_SIMPLE} />
+          <Empty description={t('选择模板生成事件序列')} image={Empty.PRESENTED_IMAGE_SIMPLE} />
 
         )}
 
@@ -1173,7 +1178,7 @@ const SimulationPage: React.FC = () => {
 
       <Card
 
-        title="事件模板"
+        title={t('事件模板')}
 
         size="small"
 
@@ -1181,7 +1186,7 @@ const SimulationPage: React.FC = () => {
 
           <Button size="small" icon={<PlusOutlined />} onClick={() => setTemplateModalOpen(true)}>
 
-            新建模板
+            {t('新建模板')}
 
           </Button>
 
@@ -1203,7 +1208,7 @@ const SimulationPage: React.FC = () => {
 
           onReload={() => store.fetchTemplates()}
 
-          locale={{ emptyText: <Empty description="暂无模板" image={Empty.PRESENTED_IMAGE_SIMPLE} /> }}
+          locale={{ emptyText: <Empty description={t('暂无模板')} image={Empty.PRESENTED_IMAGE_SIMPLE} /> }}
 
         />
 
@@ -1213,7 +1218,7 @@ const SimulationPage: React.FC = () => {
 
       <Card
 
-        title="时间线控制"
+        title={t('时间线控制')}
 
         size="small"
 
@@ -1221,7 +1226,7 @@ const SimulationPage: React.FC = () => {
 
           <Button size="small" icon={<PlusOutlined />} onClick={() => setTimelineModalOpen(true)}>
 
-            新建时间线
+            {t('新建时间线')}
 
           </Button>
 
@@ -1243,7 +1248,7 @@ const SimulationPage: React.FC = () => {
 
           onReload={() => store.fetchTimelines()}
 
-          locale={{ emptyText: <Empty description="暂无时间线" image={Empty.PRESENTED_IMAGE_SIMPLE} /> }}
+          locale={{ emptyText: <Empty description={t('暂无时间线')} image={Empty.PRESENTED_IMAGE_SIMPLE} /> }}
 
         />
 
@@ -1257,7 +1262,7 @@ const SimulationPage: React.FC = () => {
 
   return (
 
-    <Spin spinning={store.loading} description="推演进行中...">
+    <Spin spinning={store.loading} description={t('推演进行中...')}>
 
       <Tabs
 
@@ -1277,7 +1282,7 @@ const SimulationPage: React.FC = () => {
 
                 <ExperimentOutlined />
 
-                沙箱推演
+                {t('沙箱推演')}
 
               </span>
 
@@ -1297,7 +1302,7 @@ const SimulationPage: React.FC = () => {
 
                 <ThunderboltOutlined />
 
-                并行推演
+                {t('并行推演')}
 
               </span>
 
@@ -1317,7 +1322,7 @@ const SimulationPage: React.FC = () => {
 
                 <ClockCircleOutlined />
 
-                事件模拟器
+                {t('事件模拟器')}
 
               </span>
 
@@ -1335,7 +1340,7 @@ const SimulationPage: React.FC = () => {
 
       <Modal
 
-        title="创建沙箱"
+        title={t('创建沙箱')}
 
         open={sandboxModalOpen}
 
@@ -1349,19 +1354,19 @@ const SimulationPage: React.FC = () => {
 
         <Form form={sandboxForm} layout="vertical" onFinish={handleCreateSandbox}>
 
-          <Form.Item name="max_memory_mb" label="最大内存 (MB)" initialValue={512}>
+          <Form.Item name="max_memory_mb" label={t('最大内存 (MB)')} initialValue={512}>
 
             <InputNumber min={128} max={4096} style={{ width: '100%' }} />
 
           </Form.Item>
 
-          <Form.Item name="max_time_seconds" label="最大时间 (秒)" initialValue={300}>
+          <Form.Item name="max_time_seconds" label={t('最大时间 (秒)')} initialValue={300}>
 
             <InputNumber min={30} max={3600} style={{ width: '100%' }} />
 
           </Form.Item>
 
-          <Form.Item name="workspace_id" label="工作空间 ID">
+          <Form.Item name="workspace_id" label={t('工作空间 ID')}>
 
             <Input placeholder="default" />
 
@@ -1375,7 +1380,7 @@ const SimulationPage: React.FC = () => {
 
       <Modal
 
-        title="运行推演"
+        title={t('运行推演')}
 
         open={runModalOpen}
 
@@ -1389,23 +1394,23 @@ const SimulationPage: React.FC = () => {
 
         <Form form={runForm} layout="vertical" onFinish={handleRunSimulation}>
 
-          <Form.Item name="action_type_id" label="动作类型" rules={[{ required: true }]}>
+          <Form.Item name="action_type_id" label={t('动作类型')} rules={[{ required: true }]}>
 
             <Select
 
               options={[
 
-                { value: 'move', label: '移动' },
+                { value: 'move', label: t('移动') },
 
-                { value: 'engage', label: '交锋' },
+                { value: 'engage', label: t('交锋') },
 
-                { value: 'hold', label: '坚守' },
+                { value: 'hold', label: t('坚守') },
 
-                { value: 'support', label: '支援' },
+                { value: 'support', label: t('支援') },
 
-                { value: 'withdraw', label: '撤离' },
+                { value: 'withdraw', label: t('撤离') },
 
-                { value: 'observe', label: '观察' },
+                { value: 'observe', label: t('观察') },
 
               ]}
 
@@ -1413,19 +1418,19 @@ const SimulationPage: React.FC = () => {
 
           </Form.Item>
 
-          <Form.Item name="target_object_id" label="目标对象 ID" rules={[{ required: true }]}>
+          <Form.Item name="target_object_id" label={t('目标对象 ID')} rules={[{ required: true }]}>
 
             <Input />
 
           </Form.Item>
 
-          <Form.Item name="target_object_type" label="目标对象类型" rules={[{ required: true }]}>
+          <Form.Item name="target_object_type" label={t('目标对象类型')} rules={[{ required: true }]}>
 
             <Input />
 
           </Form.Item>
 
-          <Form.Item name="parameters" label="参数 (JSON)">
+          <Form.Item name="parameters" label={t('参数 (JSON)')}>
 
             <Input.TextArea rows={3} placeholder='{"key": "value"}' />
 
@@ -1439,7 +1444,7 @@ const SimulationPage: React.FC = () => {
 
       <Modal
 
-        title="并行推演"
+        title={t('并行推演')}
 
         open={parallelModalOpen}
 
@@ -1455,7 +1460,7 @@ const SimulationPage: React.FC = () => {
 
         <Form form={parallelForm} layout="vertical" onFinish={handleRunParallel}>
 
-          <Form.Item name="scenarios" label="方案列表 (JSON)" rules={[{ required: true }]}>
+          <Form.Item name="scenarios" label={t('方案列表 (JSON)')} rules={[{ required: true }]}>
 
             <Input.TextArea
 
@@ -1475,7 +1480,7 @@ const SimulationPage: React.FC = () => {
 
       <Modal
 
-        title="What-if 分析"
+        title={t('What-if 分析')}
 
         open={whatIfModalOpen}
 
@@ -1491,13 +1496,13 @@ const SimulationPage: React.FC = () => {
 
         <Form form={whatIfForm} layout="vertical" onFinish={handleRunWhatIf}>
 
-          <Form.Item name="base_scenario" label="基础方案 (JSON)" rules={[{ required: true }]}>
+          <Form.Item name="base_scenario" label={t('基础方案 (JSON)')} rules={[{ required: true }]}>
 
             <Input.TextArea rows={4} placeholder='{"action_type_id":"move","target_object_id":"unit_1","target_object_type":"entity","parameters":{}}' />
 
           </Form.Item>
 
-          <Form.Item name="param_variations" label="参数变异 (JSON)" rules={[{ required: true }]}>
+          <Form.Item name="param_variations" label={t('参数变异 (JSON)')} rules={[{ required: true }]}>
 
             <Input.TextArea rows={4} placeholder='[{"speed": 0.5}, {"speed": 1.0}, {"speed": 2.0}]' />
 
@@ -1511,7 +1516,7 @@ const SimulationPage: React.FC = () => {
 
       <Modal
 
-        title="创建时间线"
+        title={t('创建时间线')}
 
         open={timelineModalOpen}
 
@@ -1525,15 +1530,15 @@ const SimulationPage: React.FC = () => {
 
         <Form form={timelineForm} layout="vertical" onFinish={handleCreateTimeline}>
 
-          <Form.Item name="speed" label="模拟速度" initialValue={1.0}>
+          <Form.Item name="speed" label={t('模拟速度')} initialValue={1.0}>
 
             <Slider min={0.1} max={10} step={0.1} marks={{ 0.1: '0.1x', 1: '1x', 5: '5x', 10: '10x' }} />
 
           </Form.Item>
 
-          <Form.Item name="start_time" label="起始时间">
+          <Form.Item name="start_time" label={t('起始时间')}>
 
-            <Input placeholder="ISO 时间（可选）" />
+            <Input placeholder={t('ISO 时间（可选）')} />
 
           </Form.Item>
 
@@ -1545,7 +1550,7 @@ const SimulationPage: React.FC = () => {
 
       <Modal
 
-        title="新建事件模板"
+        title={t('新建事件模板')}
 
         open={templateModalOpen}
 
@@ -1559,35 +1564,35 @@ const SimulationPage: React.FC = () => {
 
         <Form form={templateForm} layout="vertical" onFinish={handleCreateTemplate}>
 
-          <Form.Item name="name" label="模板名称" rules={[{ required: true }]}>
+          <Form.Item name="name" label={t('模板名称')} rules={[{ required: true }]}>
 
             <Input />
 
           </Form.Item>
 
-          <Form.Item name="description" label="描述">
+          <Form.Item name="description" label={t('描述')}>
 
             <Input.TextArea rows={2} />
 
           </Form.Item>
 
-          <Form.Item name="category" label="分类">
+          <Form.Item name="category" label={t('分类')}>
 
             <Select
 
               options={[
 
-                { value: 'conflict', label: '冲突' },
+                { value: 'conflict', label: t('冲突') },
 
-                { value: 'logistics', label: '物流' },
+                { value: 'logistics', label: t('物流') },
 
-                { value: 'survey', label: '监测' },
+                { value: 'survey', label: t('监测') },
 
-                { value: 'communication', label: '通信' },
+                { value: 'communication', label: t('通信') },
 
-                { value: 'management', label: '管理' },
+                { value: 'management', label: t('管理') },
 
-                { value: 'custom', label: '自定义' },
+                { value: 'custom', label: t('自定义') },
 
               ]}
 
@@ -1595,7 +1600,7 @@ const SimulationPage: React.FC = () => {
 
           </Form.Item>
 
-          <Form.Item name="event_types" label="事件类型 (逗号分隔)">
+          <Form.Item name="event_types" label={t('事件类型 (逗号分隔)')}>
 
             <Input placeholder="engage,hold,withdraw" />
 
@@ -1609,7 +1614,7 @@ const SimulationPage: React.FC = () => {
 
       <Modal
 
-        title="注入事件"
+        title={t('注入事件')}
 
         open={injectModalOpen}
 
@@ -1623,19 +1628,19 @@ const SimulationPage: React.FC = () => {
 
         <Form form={injectForm} layout="vertical" onFinish={handleInjectEvent}>
 
-          <Form.Item name="event_type" label="事件类型" rules={[{ required: true }]}>
+          <Form.Item name="event_type" label={t('事件类型')} rules={[{ required: true }]}>
 
             <Input />
 
           </Form.Item>
 
-          <Form.Item name="target_entity_type" label="目标实体类型" rules={[{ required: true }]}>
+          <Form.Item name="target_entity_type" label={t('目标实体类型')} rules={[{ required: true }]}>
 
             <Input />
 
           </Form.Item>
 
-          <Form.Item name="data" label="事件数据 (JSON)">
+          <Form.Item name="data" label={t('事件数据 (JSON)')}>
 
             <Input.TextArea rows={3} placeholder='{"key": "value"}' />
 
@@ -1654,4 +1659,3 @@ const SimulationPage: React.FC = () => {
 
 
 export default SimulationPage;
-

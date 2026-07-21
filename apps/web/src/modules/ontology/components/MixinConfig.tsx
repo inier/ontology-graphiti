@@ -65,7 +65,7 @@ const CLASSIFICATION_OPTIONS = [
 ];
 
 export function MixinConfig({ workspaceId }: MixinConfigProps) {
-  const { t } = useI18n();
+  const { t } = useI18n('ontology');
   void t;
   void workspaceId;
   const [activeTab, setActiveTab] = useState<'library' | 'bindings'>('library');

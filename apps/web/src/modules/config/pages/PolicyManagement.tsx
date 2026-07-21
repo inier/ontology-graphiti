@@ -33,6 +33,7 @@ import {
 import { apiService } from '@/modules/shared/services/api';
 import type { ColumnsType } from 'antd/es/table';
 import { AdvancedTable } from '@/modules/shared';
+import { useI18n } from '@/modules/shared/hooks/useI18n';
 
 const { TextArea } = Input;
 const { Paragraph, Text } = Typography;
@@ -56,19 +57,20 @@ const POLICY_CATEGORIES = [
   'custom',
 ];
 
-const getCategoryLabel = (cat: string) => {
-  const labels: Record<string, string> = {
-    access_control: '访问控制',
-    data_privacy: '数据隐私',
-    compliance: '合规审计',
-    security: '安全策略',
-    workflow: '工作流控制',
-    custom: '自定义',
-  };
-  return labels[cat] || cat;
-};
-
 const PolicyManagement: React.FC = () => {
+  const { t } = useI18n();
+
+  const getCategoryLabel = (cat: string) => {
+    const labels: Record<string, string> = {
+      access_control: t('访问控制'),
+      data_privacy: t('数据隐私'),
+      compliance: t('合规审计'),
+      security: t('安全策略'),
+      workflow: t('工作流控制'),
+      custom: t('自定义'),
+    };
+    return labels[cat] || cat;
+  };
   const [policies, setPolicies] = useState<Policy[]>([]);
   const [loading, setLoading] = useState(false);
   const [createModalOpen, setCreateModalOpen] = useState(false);
@@ -105,12 +107,12 @@ const PolicyManagement: React.FC = () => {
         markdown_content: values.markdown_content as string,
         category: values.category as string,
       });
-      message.success('策略创建成功');
+      message.success(t('策略创建成功'));
       setCreateModalOpen(false);
       createForm.resetFields();
       fetchPolicies();
     } catch (error) {
-      message.error(`创建失败: ${error}`);
+      message.error(t('创建失败') + `: ${error}`);
     }
   };
 
@@ -123,22 +125,22 @@ const PolicyManagement: React.FC = () => {
         markdown_content: values.markdown_content as string | undefined,
         status: values.status as string | undefined,
       });
-      message.success('策略更新成功');
+      message.success(t('策略更新成功'));
       setEditModalOpen(false);
       editForm.resetFields();
       fetchPolicies();
     } catch (error) {
-      message.error(`更新失败: ${error}`);
+      message.error(t('更新失败') + `: ${error}`);
     }
   };
 
   const handleToggleStatus = async (policy: Policy, enabled: boolean) => {
     try {
       await apiService.togglePolicyStatus(policy.policy_id, enabled);
-      message.success(`策略已${enabled ? '启用' : '禁用'}`);
+      message.success(enabled ? t('策略已启用') : t('策略已禁用'));
       fetchPolicies();
     } catch (error) {
-      message.error(`操作失败: ${error}`);
+      message.error(t('操作失败') + `: ${error}`);
     }
   };
 
@@ -150,7 +152,7 @@ const PolicyManagement: React.FC = () => {
       const detail = await apiService.getPolicy(policy.policy_id);
       setDetailData(detail as unknown as Record<string, unknown>);
     } catch (error) {
-      message.error(`获取详情失败: ${error}`);
+      message.error(t('获取详情失败') + `: ${error}`);
     } finally {
       setDetailLoading(false);
     }
@@ -168,7 +170,7 @@ const PolicyManagement: React.FC = () => {
 
   const columns: ColumnsType<Policy> = [
     {
-      title: '策略名称',
+      title: t('策略名称'),
       dataIndex: 'name',
       key: 'name',
       render: (name: string, record: Policy) => (
@@ -179,7 +181,7 @@ const PolicyManagement: React.FC = () => {
       ),
     },
     {
-      title: '分类',
+      title: t('分类'),
       dataIndex: 'category',
       key: 'category',
       width: 120,
@@ -188,7 +190,7 @@ const PolicyManagement: React.FC = () => {
       ),
     },
     {
-      title: '状态',
+      title: t('状态'),
       dataIndex: 'status',
       key: 'status',
       width: 90,
@@ -203,24 +205,24 @@ const PolicyManagement: React.FC = () => {
       ),
     },
     {
-      title: '版本',
+      title: t('版本'),
       dataIndex: 'version',
       key: 'version',
       width: 80,
     },
     {
-      title: '更新时间',
+      title: t('更新时间'),
       dataIndex: 'updated_at',
       key: 'updated_at',
       width: 170,
     },
     {
-      title: '操作',
+      title: t('操作'),
       key: 'actions',
       width: 160,
       render: (_, record: Policy) => (
         <Space>
-          <Tooltip title="查看详情">
+          <Tooltip title={t('查看详情')}>
             <Button
               type="link"
               size="small"
@@ -228,7 +230,7 @@ const PolicyManagement: React.FC = () => {
               onClick={() => handleViewDetail(record)}
             />
           </Tooltip>
-          <Tooltip title="编辑">
+          <Tooltip title={t('编辑')}>
             <Button
               type="link"
               size="small"
@@ -247,21 +249,21 @@ const PolicyManagement: React.FC = () => {
         title={
           <Space>
             <SafetyCertificateOutlined />
-            <span>OPA 策略管理</span>
+            <span>{t('OPA 策略管理')}</span>
             <Badge count={policies.length} style={{ backgroundColor: '#1890ff' }} />
           </Space>
         }
         extra={
           <Space>
             <Button icon={<ReloadOutlined />} onClick={fetchPolicies}>
-              刷新
+              {t('刷新')}
             </Button>
             <Button
               type="primary"
               icon={<PlusOutlined />}
               onClick={() => setCreateModalOpen(true)}
             >
-              创建策略
+              {t('创建策略')}
             </Button>
           </Space>
         }
@@ -271,8 +273,8 @@ const PolicyManagement: React.FC = () => {
           dataSource={policies}
           rowKey="policy_id"
           loading={loading}
-          pagination={{ pageSize: 10, showTotal: (total) => `共 ${total} 条策略` }}
-          locale={{ emptyText: <Empty description="暂无策略，点击创建按钮添加" /> }}
+          pagination={{ pageSize: 10, showTotal: (total) => t('共 {{n}} 条策略', { n: total }) }}
+          locale={{ emptyText: <Empty description={t('暂无策略，点击创建按钮添加')} /> }}
         />
       </Card>
 
@@ -281,14 +283,14 @@ const PolicyManagement: React.FC = () => {
         title={
           <Space>
             <PlusOutlined />
-            <span>创建 OPA 策略</span>
+            <span>{t('创建 OPA 策略')}</span>
           </Space>
         }
         open={createModalOpen}
         onCancel={() => setCreateModalOpen(false)}
         onOk={() => createForm.submit()}
-        okText="创建"
-        cancelText="取消"
+        okText={t('创建')}
+        cancelText={t('取消')}
         width={700}
       >
         <Form
@@ -298,15 +300,15 @@ const PolicyManagement: React.FC = () => {
         >
           <Form.Item
             name="name"
-            label="策略名称"
-            rules={[{ required: true, message: '请输入策略名称' }]}
+            label={t('策略名称')}
+            rules={[{ required: true, message: t('请输入策略名称') }]}
           >
-            <Input placeholder="例如: 分析师访问控制策略" />
+            <Input placeholder={t('例如: 分析师访问控制策略')} />
           </Form.Item>
           <Form.Item
             name="category"
-            label="策略分类"
-            rules={[{ required: true, message: '请选择分类' }]}
+            label={t('策略分类')}
+            rules={[{ required: true, message: t('请选择分类') }]}
             initialValue="access_control"
           >
             <Select>
@@ -317,24 +319,24 @@ const PolicyManagement: React.FC = () => {
           </Form.Item>
           <Form.Item
             name="description"
-            label="策略描述"
-            rules={[{ required: true, message: '请输入描述' }]}
+            label={t('策略描述')}
+            rules={[{ required: true, message: t('请输入描述') }]}
           >
-            <Input.TextArea rows={2} placeholder="简要描述策略用途" />
+            <Input.TextArea rows={2} placeholder={t('简要描述策略用途')} />
           </Form.Item>
           <Form.Item
             name="markdown_content"
             label={
               <Space>
-                <span>策略内容 (Markdown)</span>
-                <Tag color="green">将自动转换为 Rego</Tag>
+                <span>{t('策略内容 (Markdown)')}</span>
+                <Tag color="green">{t('将自动转换为 Rego')}</Tag>
               </Space>
             }
-            rules={[{ required: true, message: '请输入策略内容' }]}
+            rules={[{ required: true, message: t('请输入策略内容') }]}
           >
             <TextArea
               rows={12}
-              placeholder={`# 访问控制策略
+              placeholder={t(`# 访问控制策略
 
 ## 规则
 允许分析师在值班时间访问情报数据。
@@ -347,7 +349,7 @@ const PolicyManagement: React.FC = () => {
 ## 操作
 - 允许读取
 - 拒绝写入
-`}
+`)}
               style={{ fontFamily: 'monospace' }}
             />
           </Form.Item>
@@ -359,7 +361,7 @@ const PolicyManagement: React.FC = () => {
         title={
           <Space>
             <EyeOutlined />
-            <span>策略详情</span>
+            <span>{t('策略详情')}</span>
           </Space>
         }
         open={detailModalOpen}
@@ -370,26 +372,26 @@ const PolicyManagement: React.FC = () => {
       >
         {detailData && (
           <Descriptions column={2}>
-            <Descriptions.Item label="策略ID">{detailData.policy_id as string}</Descriptions.Item>
-            <Descriptions.Item label="策略名称">{detailData.name as string}</Descriptions.Item>
-            <Descriptions.Item label="分类">
+            <Descriptions.Item label={t('策略ID')}>{detailData.policy_id as string}</Descriptions.Item>
+            <Descriptions.Item label={t('策略名称')}>{detailData.name as string}</Descriptions.Item>
+            <Descriptions.Item label={t('分类')}>
               <Tag color="blue">{getCategoryLabel(detailData.category as string)}</Tag>
             </Descriptions.Item>
-            <Descriptions.Item label="状态">
+            <Descriptions.Item label={t('状态')}>
               <Badge
                 status={(detailData.status as string) === 'active' ? 'success' : 'default'}
                 text={detailData.status as string}
               />
             </Descriptions.Item>
-            <Descriptions.Item label="版本">{detailData.version as string}</Descriptions.Item>
-            <Descriptions.Item label="创建时间">{detailData.created_at as string}</Descriptions.Item>
-            <Descriptions.Item label="更新时间" span={2}>{detailData.updated_at as string}</Descriptions.Item>
-            <Descriptions.Item label="描述" span={2}>{detailData.description as string}</Descriptions.Item>
+            <Descriptions.Item label={t('版本')}>{detailData.version as string}</Descriptions.Item>
+            <Descriptions.Item label={t('创建时间')}>{detailData.created_at as string}</Descriptions.Item>
+            <Descriptions.Item label={t('更新时间')} span={2}>{detailData.updated_at as string}</Descriptions.Item>
+            <Descriptions.Item label={t('描述')} span={2}>{detailData.description as string}</Descriptions.Item>
           </Descriptions>
         )}
         {Boolean(detailData?.markdown_content) && (
           <>
-            <Divider titlePlacement="left">Markdown 策略内容</Divider>
+            <Divider titlePlacement="left">{t('Markdown 策略内容')}</Divider>
             <Card size="small" style={{ maxHeight: 300, overflow: 'auto' }}>
               <pre style={{ whiteSpace: 'pre-wrap', margin: 0, fontSize: 13 }}>
                 {String(detailData?.markdown_content)}
@@ -402,7 +404,7 @@ const PolicyManagement: React.FC = () => {
             <Divider titlePlacement="left">
               <Space>
                 <CodeOutlined />
-                <span>生成的 Rego 代码</span>
+                <span>{t('生成的 Rego 代码')}</span>
               </Space>
             </Divider>
             <Card size="small" style={{ maxHeight: 300, overflow: 'auto', background: '#f6f8fa' }}>
@@ -413,7 +415,7 @@ const PolicyManagement: React.FC = () => {
           </>
         )}
         {!detailData?.markdown_content && !detailData?.rego_content && !detailLoading && (
-          <Empty description="暂无更多详情" />
+          <Empty description={t('暂无更多详情')} />
         )}
       </Modal>
 
@@ -422,14 +424,14 @@ const PolicyManagement: React.FC = () => {
         title={
           <Space>
             <EditOutlined />
-            <span>编辑策略</span>
+            <span>{t('编辑策略')}</span>
           </Space>
         }
         open={editModalOpen}
         onCancel={() => setEditModalOpen(false)}
         onOk={() => editForm.submit()}
-        okText="保存"
-        cancelText="取消"
+        okText={t('保存')}
+        cancelText={t('取消')}
         width={700}
       >
         <Form
@@ -439,27 +441,27 @@ const PolicyManagement: React.FC = () => {
         >
           <Form.Item
             name="name"
-            label="策略名称"
+            label={t('策略名称')}
           >
             <Input />
           </Form.Item>
           <Form.Item
             name="description"
-            label="策略描述"
+            label={t('策略描述')}
           >
             <Input.TextArea rows={2} />
           </Form.Item>
           <Form.Item
             name="markdown_content"
-            label="策略内容 (Markdown)"
+            label={t('策略内容 (Markdown)')}
           >
             <TextArea rows={12} style={{ fontFamily: 'monospace' }} />
           </Form.Item>
-          <Form.Item name="status" label="状态">
+          <Form.Item name="status" label={t('状态')}>
             <Select>
-              <Select.Option value="active">启用</Select.Option>
-              <Select.Option value="inactive">禁用</Select.Option>
-              <Select.Option value="draft">草稿</Select.Option>
+              <Select.Option value="active">{t('启用')}</Select.Option>
+              <Select.Option value="inactive">{t('禁用')}</Select.Option>
+              <Select.Option value="draft">{t('草稿')}</Select.Option>
             </Select>
           </Form.Item>
         </Form>

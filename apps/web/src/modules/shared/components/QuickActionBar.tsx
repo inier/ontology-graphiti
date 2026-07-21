@@ -2,6 +2,7 @@ import React, { useState, useCallback } from 'react';
 import { Tooltip, Empty } from 'antd';
 import { CloseOutlined } from '@ant-design/icons';
 import { useLayoutStore, type QuickAction } from '@/modules/shared/stores/layoutStore';
+import { useI18n } from '@/modules/shared/hooks/useI18n';
 
 /**
  * QuickActionBar — 快捷操作区
@@ -19,6 +20,7 @@ interface QuickActionBarProps {
 
 export function QuickActionBar({ onQuickActionClick }: QuickActionBarProps) {
   const { quickActions, addQuickAction, removeQuickAction, tabs } = useLayoutStore();
+  const { t } = useI18n();
   const [dragOver, setDragOver] = useState(false);
 
   const handleClick = useCallback(
@@ -60,13 +62,13 @@ export function QuickActionBar({ onQuickActionClick }: QuickActionBarProps) {
       onDrop={handleDrop}
     >
       <div className="odap-quick-action-header">
-        <span className="odap-quick-action-title">快捷操作</span>
+        <span className="odap-quick-action-title">{t('快捷操作')}</span>
       </div>
 
       {quickActions.length === 0 ? (
         <div className="odap-quick-action-empty">
           <Empty
-            description={dragOver ? '松开添加到快捷区' : '拖拽任务至此添加快捷操作'}
+            description={dragOver ? t('松开添加到快捷区') : t('拖拽任务至此添加快捷操作')}
             image={Empty.PRESENTED_IMAGE_SIMPLE}
           />
         </div>

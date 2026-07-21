@@ -45,6 +45,7 @@ import {
 import { apiService } from '@/modules/shared/services/api';
 import type { ColumnsType } from 'antd/es/table';
 import { AdvancedTable } from '@/modules/shared';
+import { useI18n } from '@/modules/shared/hooks/useI18n';
 
 const { Option } = Select;
 
@@ -86,6 +87,7 @@ const EVENT_TYPES = [
 ];
 
 const Simulator: React.FC = () => {
+  const { t } = useI18n();
   const [events, setEvents] = useState<SimulationEvent[]>([]);
   const [templates, setTemplates] = useState<EventTemplate[]>([]);
   const [simStatus, setSimStatus] = useState<SimulationStatus | null>(null);
@@ -146,12 +148,13 @@ const Simulator: React.FC = () => {
     try {
       setLoading(true);
       const response = await apiService.controlSimulationTime({ action });
-      addLog(`时间控制: ${action}`, 'info');
-      message.success(`模拟${action === 'start' ? '已开始' : action === 'pause' ? '已暂停' : action === 'resume' ? '已恢复' : '已停止'}`);
+      addLog(t('时间控制: {{action}}', { action }), 'info');
+      const actionMsg = action === 'start' ? t('已开始') : action === 'pause' ? t('已暂停') : action === 'resume' ? t('已恢复') : t('已停止');
+      message.success(t('模拟{{state}}', { state: actionMsg }));
       fetchStatus();
     } catch (error) {
-      message.error(`操作失败: ${error}`);
-      addLog(`时间控制失败: ${action}`, 'error');
+      message.error(t('操作失败: {{error}}', { error: String(error) }));
+      addLog(t('时间控制失败: {{action}}', { action }), 'error');
     } finally {
       setLoading(false);
     }
@@ -160,11 +163,11 @@ const Simulator: React.FC = () => {
   const handleSpeedChange = async (speed: number) => {
     try {
       await apiService.controlSimulationTime({ action: 'set_speed', speed });
-      message.success(`模拟速度已设置为 ${speed}x`);
-      addLog(`速度调整为 ${speed}x`, 'info');
+      message.success(t('模拟速度已设置为 {{speed}}x', { speed }));
+      addLog(t('速度调整为 {{speed}}x', { speed }), 'info');
       fetchStatus();
     } catch (error) {
-      message.error(`速度调整失败: ${error}`);
+      message.error(t('速度调整失败: {{error}}', { error: String(error) }));
     }
   };
 
@@ -178,15 +181,15 @@ const Simulator: React.FC = () => {
         event_types: values.event_types as string[] | undefined,
         scenario_id: values.scenario_id as string | undefined,
       });
-      addLog(`成功生成 ${response.events_generated} 个事件`, 'success');
-      message.success(`成功生成 ${response.events_generated} 个事件`);
+      addLog(t('成功生成 {{count}} 个事件', { count: response.events_generated }), 'success');
+      message.success(t('成功生成 {{count}} 个事件', { count: response.events_generated }));
       setGenerateModalOpen(false);
       generateForm.resetFields();
       fetchEvents();
       fetchStatus();
     } catch (error) {
-      addLog(`事件生成失败: ${error}`, 'error');
-      message.error(`事件生成失败: ${error}`);
+      addLog(t('事件生成失败: {{error}}', { error: String(error) }), 'error');
+      message.error(t('事件生成失败: {{error}}', { error: String(error) }));
     } finally {
       setLoading(false);
     }
@@ -200,42 +203,42 @@ const Simulator: React.FC = () => {
         event_type: values.event_type as string,
         parameters: (values.parameters || {}) as Record<string, unknown>,
       });
-      addLog(`创建模板: ${values.name}`, 'success');
-      message.success('模板创建成功');
+      addLog(t('创建模板: {{name}}', { name: String(values.name) }), 'success');
+      message.success(t('模板创建成功'));
       setTemplateModalOpen(false);
       templateForm.resetFields();
       fetchTemplates();
     } catch (error) {
-      message.error(`模板创建失败: ${error}`);
+      message.error(t('模板创建失败: {{error}}', { error: String(error) }));
     }
   };
 
   const handleAdoptEvent = async (eventId: string) => {
     try {
       await apiService.adoptEvent(eventId);
-      addLog(`采纳事件: ${eventId}`, 'success');
-      message.success('事件已采纳');
+      addLog(t('采纳事件: {{eventId}}', { eventId }), 'success');
+      message.success(t('事件已采纳'));
       fetchEvents();
       fetchStatus();
     } catch (error) {
-      message.error(`事件采纳失败: ${error}`);
+      message.error(t('事件采纳失败: {{error}}', { error: String(error) }));
     }
   };
 
   const handleAdoptAll = async () => {
     const pendingEvents = events.filter(e => e.status === 'pending').map(e => e.event_id);
     if (pendingEvents.length === 0) {
-      message.info('没有待采纳的事件');
+      message.info(t('没有待采纳的事件'));
       return;
     }
     try {
       const response = await apiService.adoptEventsBulk(pendingEvents);
-      addLog(`批量采纳: ${response.adopted_count} 成功 / ${response.failed_count} 失败`, 'success');
-      message.success(`成功采纳 ${response.adopted_count} 个事件`);
+      addLog(t('批量采纳: {{adopted}} 成功 / {{failed}} 失败', { adopted: response.adopted_count, failed: response.failed_count }), 'success');
+      message.success(t('成功采纳 {{count}} 个事件', { count: response.adopted_count }));
       fetchEvents();
       fetchStatus();
     } catch (error) {
-      message.error(`批量采纳失败: ${error}`);
+      message.error(t('批量采纳失败: {{error}}', { error: String(error) }));
     }
   };
 
@@ -275,21 +278,21 @@ const Simulator: React.FC = () => {
 
   const getEventTypeLabel = (type: string) => {
     const labels: Record<string, string> = {
-      operational_movement: '业务调动',
-      diplomatic_signal: '外交信号',
-      economic_sanction: '经济制裁',
-      cyber_operation: '网络行动',
-      intelligence_report: '情报报告',
-      supply_chain_disruption: '供应链中断',
-      political_statement: '政治声明',
-      strategic_deployment: '战略部署',
+      operational_movement: t('业务调动'),
+      diplomatic_signal: t('外交信号'),
+      economic_sanction: t('经济制裁'),
+      cyber_operation: t('网络行动'),
+      intelligence_report: t('情报报告'),
+      supply_chain_disruption: t('供应链中断'),
+      political_statement: t('政治声明'),
+      strategic_deployment: t('战略部署'),
     };
     return labels[type] || type;
   };
 
   const eventColumns: ColumnsType<SimulationEvent> = [
     {
-      title: '状态',
+      title: t('状态'),
       dataIndex: 'status',
       key: 'status',
       width: 80,
@@ -300,14 +303,14 @@ const Simulator: React.FC = () => {
       ),
     },
     {
-      title: '事件ID',
+      title: t('事件ID'),
       dataIndex: 'event_id',
       key: 'event_id',
       width: 120,
       ellipsis: true,
     },
     {
-      title: '类型',
+      title: t('类型'),
       dataIndex: 'type',
       key: 'type',
       width: 110,
@@ -316,26 +319,26 @@ const Simulator: React.FC = () => {
       ),
     },
     {
-      title: '描述',
+      title: t('描述'),
       dataIndex: 'description',
       key: 'description',
       ellipsis: true,
     },
     {
-      title: '时间',
+      title: t('时间'),
       dataIndex: 'timestamp',
       key: 'timestamp',
       width: 170,
       sorter: (a, b) => new Date(a.timestamp).getTime() - new Date(b.timestamp).getTime(),
     },
     {
-      title: '来源',
+      title: t('来源'),
       dataIndex: 'source',
       key: 'source',
       width: 80,
     },
     {
-      title: '操作',
+      title: t('操作'),
       key: 'actions',
       width: 100,
       render: (_, record) => (
@@ -347,11 +350,11 @@ const Simulator: React.FC = () => {
               icon={<CheckCircleOutlined />}
               onClick={() => handleAdoptEvent(record.event_id)}
             >
-              采纳
+              {t('采纳')}
             </Button>
           )}
           {record.status === 'adopted' && (
-            <Tag color="green">已采纳</Tag>
+            <Tag color="green">{t('已采纳')}</Tag>
           )}
         </Space>
       ),
@@ -360,12 +363,12 @@ const Simulator: React.FC = () => {
 
   const templateColumns: ColumnsType<EventTemplate> = [
     {
-      title: '模板名称',
+      title: t('模板名称'),
       dataIndex: 'name',
       key: 'name',
     },
     {
-      title: '事件类型',
+      title: t('事件类型'),
       dataIndex: 'event_type',
       key: 'event_type',
       render: (type: string) => (
@@ -373,7 +376,7 @@ const Simulator: React.FC = () => {
       ),
     },
     {
-      title: '描述',
+      title: t('描述'),
       dataIndex: 'description',
       key: 'description',
       ellipsis: true,
@@ -390,13 +393,13 @@ const Simulator: React.FC = () => {
         title={
           <Space>
             <ExperimentOutlined />
-            <span>模拟推演引擎</span>
+            <span>{t('模拟推演引擎')}</span>
           </Space>
         }
         style={{ marginBottom: 16 }}
         extra={
           <Space>
-            <Tooltip title="刷新">
+            <Tooltip title={t('刷新')}>
               <Button icon={<ReloadOutlined />} onClick={() => { fetchEvents(); fetchStatus(); }} />
             </Tooltip>
           </Space>
@@ -406,7 +409,7 @@ const Simulator: React.FC = () => {
           <Col xs={24} sm={12} md={6}>
             <Card size="small">
               <Statistic
-                title="模拟状态"
+                title={t('模拟状态')}
                 value={simStatus?.status || 'unknown'}
                 styles={{
                   content: {
@@ -424,7 +427,7 @@ const Simulator: React.FC = () => {
           <Col xs={24} sm={12} md={6}>
             <Card size="small">
               <Statistic
-                title="模拟速度"
+                title={t('模拟速度')}
                 value={simStatus?.speed || 1}
                 suffix="x"
                 prefix={<FieldTimeOutlined />}
@@ -434,7 +437,7 @@ const Simulator: React.FC = () => {
           <Col xs={24} sm={12} md={6}>
             <Card size="small">
               <Statistic
-                title="生成事件"
+                title={t('生成事件')}
                 value={simStatus?.events_generated || 0}
                 prefix={<ThunderboltOutlined />}
               />
@@ -443,7 +446,7 @@ const Simulator: React.FC = () => {
           <Col xs={24} sm={12} md={6}>
             <Card size="small">
               <Statistic
-                title="待采纳"
+                title={t('待采纳')}
                 value={simStatus?.events_pending || pendingCount}
                 prefix={<ClockCircleOutlined />}
                 styles={{ content: { color: pendingCount > 0 ? '#faad14' : undefined } }}
@@ -464,34 +467,34 @@ const Simulator: React.FC = () => {
                 disabled={simStatus?.status === 'running'}
                 loading={loading}
               >
-                开始
+                {t('开始')}
               </Button>
               <Button
                 icon={<PauseCircleOutlined />}
                 onClick={() => handleTimeControl('pause')}
                 disabled={simStatus?.status !== 'running'}
               >
-                暂停
+                {t('暂停')}
               </Button>
               <Button
                 icon={<ReloadOutlined />}
                 onClick={() => handleTimeControl('resume')}
                 disabled={simStatus?.status !== 'paused'}
               >
-                恢复
+                {t('恢复')}
               </Button>
               <Button
                 danger
                 icon={<StopOutlined />}
                 onClick={() => handleTimeControl('stop')}
               >
-                停止
+                {t('停止')}
               </Button>
             </Space>
           </Col>
           <Col>
             <Space>
-              <span style={{ color: '#666' }}>速度:</span>
+              <span style={{ color: '#666' }}>{t('速度:')}</span>
               <Select
                 value={simStatus?.speed || 1}
                 onChange={handleSpeedChange}
@@ -509,14 +512,14 @@ const Simulator: React.FC = () => {
                 icon={<ThunderboltOutlined />}
                 onClick={() => setGenerateModalOpen(true)}
               >
-                生成事件
+                {t('生成事件')}
               </Button>
               <Button
                 icon={<CheckCircleOutlined />}
                 onClick={handleAdoptAll}
                 disabled={pendingCount === 0}
               >
-                全部采纳
+                {t('全部采纳')}
               </Button>
             </Space>
           </Col>
@@ -530,7 +533,7 @@ const Simulator: React.FC = () => {
             title={
               <Space>
                 <DashboardOutlined />
-                <span>模拟事件列表</span>
+                <span>{t('模拟事件列表')}</span>
                 <Badge count={events.length} style={{ backgroundColor: '#1890ff' }} />
               </Space>
             }
@@ -541,22 +544,22 @@ const Simulator: React.FC = () => {
               items={[
                 {
                   key: 'all',
-                  label: `全部 (${events.length})`,
+                  label: t('全部 ({{count}})', { count: events.length }),
                   children: (
                     <AdvancedTable
                       columns={eventColumns}
                       dataSource={events}
                       rowKey="event_id"
                       size="small"
-                      pagination={{ pageSize: 15, showSizeChanger: true, showTotal: (total) => `共 ${total} 个事件` }}
+                      pagination={{ pageSize: 15, showSizeChanger: true, showTotal: (total) => t('共 {{count}} 个事件', { count: total }) }}
                       loading={loading}
-                      locale={{ emptyText: <Empty description="暂无模拟事件，请先生成事件" /> }}
+                      locale={{ emptyText: <Empty description={t('暂无模拟事件，请先生成事件')} /> }}
                     />
                   ),
                 },
                 {
                   key: 'pending',
-                  label: `待采纳 (${pendingCount})`,
+                  label: t('待采纳 ({{count}})', { count: pendingCount }),
                   children: (
                     <AdvancedTable
                       columns={eventColumns}
@@ -570,7 +573,7 @@ const Simulator: React.FC = () => {
                 },
                 {
                   key: 'adopted',
-                  label: `已采纳 (${adoptedCount})`,
+                  label: t('已采纳 ({{count}})', { count: adoptedCount }),
                   children: (
                     <AdvancedTable
                       columns={eventColumns}
@@ -592,7 +595,7 @@ const Simulator: React.FC = () => {
             title={
               <Space>
                 <SettingOutlined />
-                <span>事件模板</span>
+                <span>{t('事件模板')}</span>
               </Space>
             }
             extra={
@@ -602,13 +605,13 @@ const Simulator: React.FC = () => {
                 onClick={() => setTemplateModalOpen(true)}
                 size="small"
               >
-                新建
+                {t('新建')}
               </Button>
             }
             style={{ marginBottom: 16 }}
           >
             {templates.length === 0 ? (
-              <Empty description="暂无模板" image={Empty.PRESENTED_IMAGE_SIMPLE} />
+              <Empty description={t('暂无模板')} image={Empty.PRESENTED_IMAGE_SIMPLE} />
             ) : (
               <AdvancedTable
                 columns={templateColumns}
@@ -625,14 +628,14 @@ const Simulator: React.FC = () => {
             title={
               <Space>
                 <RocketOutlined />
-                <span>模拟日志</span>
+                <span>{t('模拟日志')}</span>
               </Space>
             }
             styles={{ body: { padding: '8px', maxHeight: 320, overflow: 'auto' } }}
           >
             {simulationLog.length === 0 ? (
               <div style={{ color: '#999', textAlign: 'center', padding: '24px 0' }}>
-                暂无日志，开始模拟后查看
+                {t('暂无日志，开始模拟后查看')}
               </div>
             ) : (
               <Timeline
@@ -658,15 +661,15 @@ const Simulator: React.FC = () => {
         title={
           <Space>
             <ThunderboltOutlined />
-            <span>生成模拟事件</span>
+            <span>{t('生成模拟事件')}</span>
           </Space>
         }
         open={generateModalOpen}
         onCancel={() => setGenerateModalOpen(false)}
         onOk={() => generateForm.submit()}
         confirmLoading={loading}
-        okText="生成"
-        cancelText="取消"
+        okText={t('生成')}
+        cancelText={t('取消')}
       >
         <Form
           form={generateForm}
@@ -674,8 +677,8 @@ const Simulator: React.FC = () => {
           onFinish={handleGenerateEvents}
           initialValues={{ count: 5 }}
         >
-          <Form.Item name="template_id" label="事件模板">
-            <Select allowClear placeholder="选择模板（可选）">
+          <Form.Item name="template_id" label={t('事件模板')}>
+            <Select allowClear placeholder={t('选择模板（可选）')}>
               {templates.map(t => (
                 <Option key={t.template_id} value={t.template_id}>
                   {t.name} - {getEventTypeLabel(t.event_type)}
@@ -683,11 +686,11 @@ const Simulator: React.FC = () => {
               ))}
             </Select>
           </Form.Item>
-          <Form.Item name="count" label="生成数量">
+          <Form.Item name="count" label={t('生成数量')}>
             <InputNumber min={1} max={100} style={{ width: '100%' }} />
           </Form.Item>
-          <Form.Item name="event_types" label="事件类型筛选">
-            <Select mode="multiple" allowClear placeholder="选择类型（可选）">
+          <Form.Item name="event_types" label={t('事件类型筛选')}>
+            <Select mode="multiple" allowClear placeholder={t('选择类型（可选）')}>
               {EVENT_TYPES.map(et => (
                 <Option key={et} value={et}>
                   <Tag color={getEventTypeColor(et)}>{getEventTypeLabel(et)}</Tag>
@@ -695,11 +698,11 @@ const Simulator: React.FC = () => {
               ))}
             </Select>
           </Form.Item>
-          <Form.Item name="region" label="区域">
-            <Input placeholder="例如: 中东、亚太" />
+          <Form.Item name="region" label={t('区域')}>
+            <Input placeholder={t('例如: 中东、亚太')} />
           </Form.Item>
-          <Form.Item name="scenario_id" label="目标场景ID">
-            <Input placeholder="关联场景ID（可选）" />
+          <Form.Item name="scenario_id" label={t('目标场景ID')}>
+            <Input placeholder={t('关联场景ID（可选）')} />
           </Form.Item>
         </Form>
       </Modal>
@@ -709,14 +712,14 @@ const Simulator: React.FC = () => {
         title={
           <Space>
             <PlusOutlined />
-            <span>创建事件模板</span>
+            <span>{t('创建事件模板')}</span>
           </Space>
         }
         open={templateModalOpen}
         onCancel={() => setTemplateModalOpen(false)}
         onOk={() => templateForm.submit()}
-        okText="创建"
-        cancelText="取消"
+        okText={t('创建')}
+        cancelText={t('取消')}
       >
         <Form
           form={templateForm}
@@ -725,17 +728,17 @@ const Simulator: React.FC = () => {
         >
           <Form.Item
             name="name"
-            label="模板名称"
-            rules={[{ required: true, message: '请输入模板名称' }]}
+            label={t('模板名称')}
+            rules={[{ required: true, message: t('请输入模板名称') }]}
           >
-            <Input placeholder="例如: 标准业务冲突模板" />
+            <Input placeholder={t('例如: 标准业务冲突模板')} />
           </Form.Item>
           <Form.Item
             name="event_type"
-            label="事件类型"
-            rules={[{ required: true, message: '请选择事件类型' }]}
+            label={t('事件类型')}
+            rules={[{ required: true, message: t('请选择事件类型') }]}
           >
-            <Select placeholder="选择事件类型">
+            <Select placeholder={t('选择事件类型')}>
               {EVENT_TYPES.map(et => (
                 <Option key={et} value={et}>{getEventTypeLabel(et)}</Option>
               ))}
@@ -743,10 +746,10 @@ const Simulator: React.FC = () => {
           </Form.Item>
           <Form.Item
             name="description"
-            label="模板描述"
-            rules={[{ required: true, message: '请输入描述' }]}
+            label={t('模板描述')}
+            rules={[{ required: true, message: t('请输入描述') }]}
           >
-            <Input.TextArea rows={3} placeholder="描述该模板的用途" />
+            <Input.TextArea rows={3} placeholder={t('描述该模板的用途')} />
           </Form.Item>
         </Form>
       </Modal>

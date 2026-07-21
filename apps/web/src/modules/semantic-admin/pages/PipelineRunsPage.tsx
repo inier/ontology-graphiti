@@ -13,6 +13,7 @@ import { useSemanticAdminStore } from '../store/useSemanticAdminStore';
 import type { CandidateFilters, PipelineRunFilters } from '../store/useSemanticAdminStore';
 import type { PipelineRun, PipelineRunStatus } from '../services/pipelineApi';
 import { getPipelineRuns, runPipelineNow } from '../services/pipelineApi';
+import { useI18n } from '@/modules/shared/hooks/useI18n';
 
 const ST_OPS: Array<{ label: string; value: PipelineRunStatus }> = [
   { label: 'pending', value: 'pending' }, { label: 'running', value: 'running' },
@@ -27,62 +28,7 @@ const sId = (id?: string, n = 8): string => !id ? '-' : id.length > n * 2 + 3 ? 
 const fmt = (s?: string): string => !s ? '-' : s.substring(0, 19).replace('T', ' ');
 const copy = (v: string) => { try { navigator.clipboard.writeText(v); message.success('Copied'); } catch { message.error('Copy failed'); } };
 
-const LAYER_LABELS: Record<string, { title: string; desc: string; icon: React.ReactNode }> = {
-  L1_tokens: { title: 'L1 Tokens 归一', desc: '同义词合并 / 规范校正 / 词频过滤', icon: <BulbOutlined /> },
-  L2_concepts: { title: 'L2 Concepts 上下位', desc: '上下位抽取 / 传递闭包 / 环检测', icon: <BranchesOutlined /> },
-  L3_entities: { title: 'L3 FCA 形式概念', desc: '概念格 Hasse 图 / stability ≥ 0.6 输出', icon: <NodeIndexOutlined /> },
-  L4_relations: { title: 'L4 Relations 关系', desc: 'is-a / part-of / attribute-of / related-to 发现', icon: <BranchesOutlined /> },
-  L5_patterns: { title: 'L5 Fusion 融合', desc: 'merge / keep-as-new / flag-conflict 三分类', icon: <NodeIndexOutlined /> },
-  L6_axioms: { title: 'L6 Axioms 公理', desc: 'subClassOf / disjoint / domain / range / cardinality', icon: <BulbOutlined /> },
-};
-
-const layerIndexOf = (k: string) => Object.keys(LAYER_LABELS).indexOf(k);
-
-function deriveCurrentLayer(run?: PipelineRun): number {
-  if (!run) return 0;
-  const st = run.status;
-  if (st === 'pending') return 0;
-  if (st === 'running') return (run.progress ? Math.min(5, Math.floor(run.progress * 6)) : 1);
-  if (st === 'failed') return Math.max(0, Math.min(5, Math.floor((run.progress || 0.3) * 6) - 1));
-  if (st === 'succeeded' || st === 'COMPLETED') return 6;
-  // l1_done..l6_done
-  const m = /^l(\d)_done$/.exec(st || '');
-  if (m) return Math.min(6, parseInt(m[1], 10));
-  return 0;
-}
-
-const MOCK_L3_HASSE_TREE: TreeDataNode[] = [
-  {
-    title: '⊤ 顶概念 (全部样本)',
-    key: 'c-top',
-    children: [
-      {
-        title: '商品类 Product (extent=58)',
-        key: 'c-product',
-        children: [
-          { title: '数码产品 Digital (extent=22)', key: 'c-digital', children: [
-            { title: '手机 Phone (extent=9)', key: 'c-phone' },
-            { title: '笔记本 Laptop (extent=7)', key: 'c-laptop' },
-            { title: '耳机 Earphone (extent=6)', key: 'c-earphone' },
-          ]},
-          { title: '服饰 Apparel (extent=19)', key: 'c-apparel', children: [
-            { title: '男装 Men (extent=8)', key: 'c-men' },
-            { title: '女装 Women (extent=11)', key: 'c-women' },
-          ]},
-          { title: '食品 Food (extent=17)', key: 'c-food' },
-        ],
-      },
-      {
-        title: '品牌 Brand (extent=36)',
-        key: 'c-brand',
-      },
-      {
-        title: '订单 Order (extent=41)',
-        key: 'c-order',
-      },
-    ],
-  },
-];
+const layerIndexOf = (k: string) => LAYER_KEYS.indexOf(k as typeof LAYER_KEYS[number]);
 
 type RelBubble = { name: string; x: number; y: number; r: number; kind: 'is-a' | 'part-of' | 'attribute-of' | 'related-to'; };
 const REL_KIND_COLOR: Record<RelBubble['kind'], string> = {
@@ -113,6 +59,19 @@ const MOCK_L4_BUBBLES: RelBubble[] = (() => {
   }
   return arr;
 })();
+
+function deriveCurrentLayer(run?: PipelineRun): number {
+  if (!run) return 0;
+  const st = run.status;
+  if (st === 'pending') return 0;
+  if (st === 'running') return (run.progress ? Math.min(5, Math.floor(run.progress * 6)) : 1);
+  if (st === 'failed') return Math.max(0, Math.min(5, Math.floor((run.progress || 0.3) * 6) - 1));
+  if (st === 'succeeded' || st === 'COMPLETED') return 6;
+  // l1_done..l6_done
+  const m = /^l(\d)_done$/.exec(st || '');
+  if (m) return Math.min(6, parseInt(m[1], 10));
+  return 0;
+}
 
 const PipelineRunsPage: React.FC = () => {
   const nav = useNavigate();
@@ -181,12 +140,55 @@ const PipelineRunsPage: React.FC = () => {
 };
 
 function RunDrawerContent({ run }: { run?: PipelineRun }) {
+  const { t } = useI18n();
   const currentLayer = useMemo(() => deriveCurrentLayer(run), [run]);
   const stats = (run?.stats || {}) as Record<string, number | Record<string, number>>;
   const layerCounts = LAYER_KEYS.map((k) => ({ key: k, count: (stats?.grades?.[k] ?? stats?.[k] ?? null as number | null) }));
 
+  const layerLabels: Record<string, { title: string; desc: string; icon: React.ReactNode }> = useMemo(() => ({
+    L1_tokens: { title: t('L1 Tokens 归一'), desc: t('同义词合并 / 规范校正 / 词频过滤'), icon: <BulbOutlined /> },
+    L2_concepts: { title: t('L2 Concepts 上下位'), desc: t('上下位抽取 / 传递闭包 / 环检测'), icon: <BranchesOutlined /> },
+    L3_entities: { title: t('L3 FCA 形式概念'), desc: t('概念格 Hasse 图 / stability ≥ 0.6 输出'), icon: <NodeIndexOutlined /> },
+    L4_relations: { title: t('L4 Relations 关系'), desc: t('is-a / part-of / attribute-of / related-to 发现'), icon: <BranchesOutlined /> },
+    L5_patterns: { title: t('L5 Fusion 融合'), desc: t('merge / keep-as-new / flag-conflict 三分类'), icon: <NodeIndexOutlined /> },
+    L6_axioms: { title: t('L6 Axioms 公理'), desc: t('subClassOf / disjoint / domain / range / cardinality'), icon: <BulbOutlined /> },
+  }), [t]);
+
+  const mockL3HasseTree: TreeDataNode[] = useMemo(() => [
+    {
+      title: t('⊤ 顶概念 (全部样本)'),
+      key: 'c-top',
+      children: [
+        {
+          title: t('商品类 Product (extent=58)'),
+          key: 'c-product',
+          children: [
+            { title: t('数码产品 Digital (extent=22)'), key: 'c-digital', children: [
+              { title: t('手机 Phone (extent=9)'), key: 'c-phone' },
+              { title: t('笔记本 Laptop (extent=7)'), key: 'c-laptop' },
+              { title: t('耳机 Earphone (extent=6)'), key: 'c-earphone' },
+            ]},
+            { title: t('服饰 Apparel (extent=19)'), key: 'c-apparel', children: [
+              { title: t('男装 Men (extent=8)'), key: 'c-men' },
+              { title: t('女装 Women (extent=11)'), key: 'c-women' },
+            ]},
+            { title: t('食品 Food (extent=17)'), key: 'c-food' },
+          ],
+        },
+        {
+          title: t('品牌 Brand (extent=36)'),
+          key: 'c-brand',
+        },
+        {
+          title: t('订单 Order (extent=41)'),
+          key: 'c-order',
+        },
+      ],
+    },
+  ], [t]);
+
   const layerSteps = useMemo(() => LAYER_KEYS.map((k, i) => {
-    const meta = LAYER_LABELS[k];
+    const meta = layerLabels[k];
     const done = currentLayer > i;
     const active = currentLayer === i + 1;
     const cnt = layerCounts[i]?.count;
@@ -205,7 +207,7 @@ function RunDrawerContent({ run }: { run?: PipelineRun }) {
       status: (run?.status === 'failed' && active ? 'error' : done ? 'finish' : active ? 'process' : 'wait') as 'error' | 'finish' | 'process' | 'wait',
       icon: meta.icon,
     };
-  }), [currentLayer, layerCounts, run?.status]);
+  }), [currentLayer, layerCounts, run?.status, layerLabels]);
 
   return (
     <Space direction="vertical" size="middle" style={{ width: '100%' }}>
@@ -232,7 +234,7 @@ function RunDrawerContent({ run }: { run?: PipelineRun }) {
                 </Card>
                 <Card size="small" title={<Space><BulbOutlined />Per-layer counts</Space>}>
                   {LAYER_KEYS.every((k) => stats?.[k] == null && stats?.grades?.[k] == null) ? (
-                    <Empty image={Empty.PRESENTED_IMAGE_SIMPLE} description="暂无层级统计数据" />
+                    <Empty image={Empty.PRESENTED_IMAGE_SIMPLE} description={t('暂无层级统计数据')} />
                   ) : (
                     <Row gutter={[8, 8]}>
                       {LAYER_KEYS.map((k) => {
@@ -241,7 +243,7 @@ function RunDrawerContent({ run }: { run?: PipelineRun }) {
                           <Col key={k} xs={12} md={8}>
                             <Card size="small" style={{ borderLeft: `3px solid ${layerIndexOf(k) < currentLayer ? '#52c41a' : layerIndexOf(k) + 1 === currentLayer ? '#1677ff' : '#d9d9d9'}` }}>
                               <Space direction="vertical" size={2}>
-                                <Text strong>{LAYER_LABELS[k]?.title || k}</Text>
+                                <Text strong>{layerLabels[k]?.title || k}</Text>
                                 <Statistic value={n} valueStyle={{ fontSize: 20, color: layerIndexOf(k) < currentLayer ? '#52c41a' : '#1677ff' }} />
                               </Space>
                             </Card>
@@ -256,27 +258,27 @@ function RunDrawerContent({ run }: { run?: PipelineRun }) {
           },
           {
             key: 'l3',
-            label: <Space><NodeIndexOutlined />L3 Hasse 概念格</Space>,
+            label: <Space><NodeIndexOutlined />{t('L3 Hasse 概念格')}</Space>,
             children: (
-              <Card size="small" title="L3 FCA 形式概念 Hasse 图（简化树，前 20 概念）">
+              <Card size="small" title={t('L3 FCA 形式概念 Hasse 图（简化树，前 20 概念）')}>
                 <Tree
                   showLine
                   defaultExpandAll
-                  treeData={MOCK_L3_HASSE_TREE}
+                  treeData={mockL3HasseTree}
                   style={{ padding: '8px 12px', minHeight: 300 }}
                 />
                 <Divider style={{ margin: '12px 0' }} />
                 <Text type="secondary">
-                  <BulbOutlined /> Stability ≥ 0.6 的概念共 12 个，按 is-a 映射为层级边。
+                  <BulbOutlined /> {t('Stability ≥ 0.6 的概念共 12 个，按 is-a 映射为层级边。')}
                 </Text>
               </Card>
             ),
           },
           {
             key: 'l4',
-            label: <Space><BranchesOutlined />L4 关系气泡图</Space>,
+            label: <Space><BranchesOutlined />{t('L4 关系气泡图')}</Space>,
             children: (
-              <Card size="small" title={<>L4 RelationDiscoverer 4 类关系 SVG 气泡图（示意，前 50 条）</>} extra={
+              <Card size="small" title={<>{t('L4 RelationDiscoverer 4 类关系 SVG 气泡图（示意，前 50 条）')}</>} extra={
                 <Space size="small">
                   {(['is-a','part-of','attribute-of','related-to'] as RelBubble['kind'][]).map((k) => (
                     <Tag key={k} color={REL_KIND_COLOR[k]}>{k}</Tag>
@@ -295,10 +297,10 @@ function RunDrawerContent({ run }: { run?: PipelineRun }) {
                 </svg>
                 <Divider style={{ margin: '12px 0' }} />
                 <Row gutter={[12, 8]}>
-                  <Col span={6}><Statistic title="is-a (继承)" value={MOCK_L4_BUBBLES.filter((b)=>b.kind==='is-a').length} valueStyle={{ color: REL_KIND_COLOR['is-a'] }} /></Col>
-                  <Col span={6}><Statistic title="part-of (部分)" value={MOCK_L4_BUBBLES.filter((b)=>b.kind==='part-of').length} valueStyle={{ color: REL_KIND_COLOR['part-of'] }} /></Col>
-                  <Col span={6}><Statistic title="attribute-of (属性)" value={MOCK_L4_BUBBLES.filter((b)=>b.kind==='attribute-of').length} valueStyle={{ color: REL_KIND_COLOR['attribute-of'] }} /></Col>
-                  <Col span={6}><Statistic title="related-to (关联)" value={MOCK_L4_BUBBLES.filter((b)=>b.kind==='related-to').length} valueStyle={{ color: REL_KIND_COLOR['related-to'] }} /></Col>
+                  <Col span={6}><Statistic title={t('is-a (继承)')} value={MOCK_L4_BUBBLES.filter((b)=>b.kind==='is-a').length} valueStyle={{ color: REL_KIND_COLOR['is-a'] }} /></Col>
+                  <Col span={6}><Statistic title={t('part-of (部分)')} value={MOCK_L4_BUBBLES.filter((b)=>b.kind==='part-of').length} valueStyle={{ color: REL_KIND_COLOR['part-of'] }} /></Col>
+                  <Col span={6}><Statistic title={t('attribute-of (属性)')} value={MOCK_L4_BUBBLES.filter((b)=>b.kind==='attribute-of').length} valueStyle={{ color: REL_KIND_COLOR['attribute-of'] }} /></Col>
+                  <Col span={6}><Statistic title={t('related-to (关联)')} value={MOCK_L4_BUBBLES.filter((b)=>b.kind==='related-to').length} valueStyle={{ color: REL_KIND_COLOR['related-to'] }} /></Col>
                 </Row>
               </Card>
             ),

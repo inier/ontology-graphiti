@@ -14,7 +14,6 @@ const { Text } = Typography;
 
 const PRESET_LOCALES = [
   { code: 'ja-JP', name: 'Japanese', native_name: '日本語' },
-  { code: 'ko-KR', name: 'Korean', native_name: '한국어' },
   { code: 'fr-FR', name: 'French', native_name: 'Français' },
   { code: 'de-DE', name: 'German', native_name: 'Deutsch' },
   { code: 'es-ES', name: 'Spanish', native_name: 'Español' },

@@ -33,25 +33,11 @@ import {
   QUALITY_TIER_COLOR,
 } from '../types';
 import { SEMANTIC_ADMIN_TAB_ITEMS, TOP_TAB_TO_PATH } from '../constants';
+import { useI18n } from '@/modules/shared/hooks/useI18n';
 
 const { Title, Text } = Typography;
 
 type DashboardView = 'overview' | 'trend' | 'approvals';
-
-const VIEW_OPTIONS: Array<{ label: string; value: DashboardView }> = [
-  { label: '概览', value: 'overview' },
-  { label: '术语趋势', value: 'trend' },
-  { label: '审批拆分', value: 'approvals' },
-];
-
-function formatDuration(seconds: number): string {
-  if (!Number.isFinite(seconds) || seconds <= 0) return '-';
-  if (seconds < 60) return `${Math.round(seconds)} 秒`;
-  if (seconds < 3600) return `${Math.round(seconds / 60)} 分钟`;
-  const h = Math.floor(seconds / 3600);
-  const m = Math.round((seconds % 3600) / 60);
-  return m > 0 ? `${h} 小时 ${m} 分` : `${h} 小时`;
-}
 
 function sumRecord(rec: Record<string, number> | undefined, keys: string[]): number {
   if (!rec) return 0;
@@ -61,6 +47,7 @@ function sumRecord(rec: Record<string, number> | undefined, keys: string[]): num
 }
 
 export function DashboardPage() {
+  const { t } = useI18n();
   const navigate = useNavigate();
   const [view, setView] = useState<DashboardView>('overview');
   const [summary, setSummary] = useState<DashboardResponse | null>(null);
@@ -75,6 +62,21 @@ export function DashboardPage() {
   const decisionChart = useRef<echarts.ECharts | null>(null);
   const roleChart = useRef<echarts.ECharts | null>(null);
 
+  const viewOptions: Array<{ label: string; value: DashboardView }> = useMemo(() => [
+    { label: t('概览'), value: 'overview' },
+    { label: t('术语趋势'), value: 'trend' },
+    { label: t('审批拆分'), value: 'approvals' },
+  ], [t]);
+
+  const formatDuration = useCallback((seconds: number): string => {
+    if (!Number.isFinite(seconds) || seconds <= 0) return '-';
+    if (seconds < 60) return t('{{n}} 秒', { n: Math.round(seconds) });
+    if (seconds < 3600) return t('{{n}} 分钟', { n: Math.round(seconds / 60) });
+    const h = Math.floor(seconds / 3600);
+    const m = Math.round((seconds % 3600) / 60);
+    return m > 0 ? t('{{h}} 小时 {{m}} 分', { h, m }) : t('{{h}} 小时', { h });
+  }, [t]);
+
   const loadAll = useCallback(async () => {
     setLoading(true);
     try {
@@ -87,11 +89,11 @@ export function DashboardPage() {
       setTrend(t);
       setApprovals(a);
     } catch (e) {
-      message.error(`加载仪表盘失败: ${(e as Error).message}`);
+      message.error(t('加载仪表盘失败: {{msg}}', { msg: (e as Error).message }));
     } finally {
       setLoading(false);
     }
-  }, []);
+  }, [t]);
 
   useEffect(() => {
     void loadAll();
@@ -146,33 +148,33 @@ export function DashboardPage() {
     new: number;
     approved: number;
     rejected: number;
-  }> = [
-    { title: '日期', dataIndex: 'date', key: 'date', width: 140 },
-    { title: '日新增', dataIndex: 'new', key: 'new', width: 100, sorter: (a, b) => a.new - b.new },
+  }> = useMemo(() => [
+    { title: t('日期'), dataIndex: 'date', key: 'date', width: 140 },
+    { title: t('日新增'), dataIndex: 'new', key: 'new', width: 100, sorter: (a, b) => a.new - b.new },
     {
-      title: '日通过',
+      title: t('日通过'),
       dataIndex: 'approved',
       key: 'approved',
       width: 100,
       sorter: (a, b) => a.approved - b.approved,
     },
     {
-      title: '日驳回',
+      title: t('日驳回'),
       dataIndex: 'rejected',
       key: 'rejected',
       width: 100,
       sorter: (a, b) => a.rejected - b.rejected,
     },
-  ];
+  ], [t]);
 
   const statusCols: ColumnsType<{
     key: string;
     status: string;
     label: string;
     count: number;
-  }> = [
+  }> = useMemo(() => [
     {
-      title: '状态',
+      title: t('状态'),
       dataIndex: 'status',
       key: 'status',
       render: (s: string, r) => (
@@ -182,38 +184,38 @@ export function DashboardPage() {
       ),
     },
     {
-      title: '数量',
+      title: t('数量'),
       dataIndex: 'count',
       key: 'count',
       width: 120,
       sorter: (a, b) => a.count - b.count,
     },
-  ];
+  ], [t]);
 
   const tierCols: ColumnsType<{
     key: string;
     tier: string;
     label: string;
     count: number;
-  }> = [
+  }> = useMemo(() => [
     {
-      title: '质量层级',
+      title: t('质量层级'),
       dataIndex: 'tier',
       key: 'tier',
-      render: (t: string, r) => (
-        <Tag color={QUALITY_TIER_COLOR[t as QualityTier] || 'default'}>
+      render: (tierVal: string, r) => (
+        <Tag color={QUALITY_TIER_COLOR[tierVal as QualityTier] || 'default'}>
           {r.label}
         </Tag>
       ),
     },
     {
-      title: '数量',
+      title: t('数量'),
       dataIndex: 'count',
       key: 'count',
       width: 120,
       sorter: (a, b) => a.count - b.count,
     },
-  ];
+  ], [t]);
 
   const approvalTimesRows = useMemo(() => {
     const d = approvals || summary;
@@ -228,36 +230,36 @@ export function DashboardPage() {
     if (at) {
       rows.push({
         key: 'l1',
-        stage: 'L1 审核员审核',
+        stage: t('L1 审核员审核'),
         avg: formatDuration(d.avg_l1_seconds ?? at.l1_avg_secs),
         samples: at.l1_samples,
       });
       rows.push({
         key: 'l2',
-        stage: 'L2 管理员审批',
+        stage: t('L2 管理员审批'),
         avg: formatDuration(d.avg_l2_seconds ?? at.l2_avg_secs),
         samples: at.l2_samples,
       });
       rows.push({
         key: 'total',
-        stage: '端到端总时长',
+        stage: t('端到端总时长'),
         avg: formatDuration(at.total_avg_secs),
         samples: at.total_samples,
       });
     }
     return rows;
-  }, [approvals, summary]);
+  }, [approvals, summary, t, formatDuration]);
 
   const approvalTimeCols: ColumnsType<{
     key: string;
     stage: string;
     avg: string;
     samples: number;
-  }> = [
-    { title: '审批阶段', dataIndex: 'stage', key: 'stage' },
-    { title: '平均耗时', dataIndex: 'avg', key: 'avg', width: 160 },
-    { title: '样本数', dataIndex: 'samples', key: 'samples', width: 100 },
-  ];
+  }> = useMemo(() => [
+    { title: t('审批阶段'), dataIndex: 'stage', key: 'stage' },
+    { title: t('平均耗时'), dataIndex: 'avg', key: 'avg', width: 160 },
+    { title: t('样本数'), dataIndex: 'samples', key: 'samples', width: 100 },
+  ], [t]);
 
   useEffect(() => {
     if (view !== 'trend' || !trendChartRef.current) return;
@@ -272,16 +274,16 @@ export function DashboardPage() {
     const xAxisDates = dates.length > 0 ? dates : accum.map((a) => a.date);
     trendChart.current.setOption({
       tooltip: { trigger: 'axis' },
-      legend: { data: ['日新增', '累计新增'], top: 0 },
+      legend: { data: [t('日新增'), t('累计新增')], top: 0 },
       grid: { left: 56, right: 56, top: 40, bottom: 56 },
       xAxis: { type: 'category', boundaryGap: false, data: xAxisDates },
       yAxis: [
-        { type: 'value', name: '日新增', position: 'left' },
-        { type: 'value', name: '累计', position: 'right' },
+        { type: 'value', name: t('日新增'), position: 'left' },
+        { type: 'value', name: t('累计'), position: 'right' },
       ],
       series: [
         {
-          name: '日新增',
+          name: t('日新增'),
           type: 'line',
           smooth: true,
           data: newData,
@@ -290,7 +292,7 @@ export function DashboardPage() {
           areaStyle: { opacity: 0.12 },
         },
         {
-          name: '累计新增',
+          name: t('累计新增'),
           type: 'line',
           smooth: true,
           data: accumAligned,
@@ -307,7 +309,7 @@ export function DashboardPage() {
       trendChart.current?.dispose();
       trendChart.current = null;
     };
-  }, [view, trend]);
+  }, [view, trend, t]);
 
   useEffect(() => {
     if (view !== 'approvals') return;
@@ -323,7 +325,7 @@ export function DashboardPage() {
         legend: { bottom: 0, type: 'scroll' },
         series: [
           {
-            name: '按决策分布',
+            name: t('按决策分布'),
             type: 'pie',
             radius: ['40%', '70%'],
             avoidLabelOverlap: true,
@@ -345,7 +347,7 @@ export function DashboardPage() {
         legend: { bottom: 0, type: 'scroll' },
         series: [
           {
-            name: '按角色分布',
+            name: t('按角色分布'),
             type: 'pie',
             radius: ['40%', '70%'],
             avoidLabelOverlap: true,
@@ -369,7 +371,7 @@ export function DashboardPage() {
       roleChart.current?.dispose();
       roleChart.current = null;
     };
-  }, [view, approvals]);
+  }, [view, approvals, t]);
 
   const avg = summary?.avg_gate_scores;
 
@@ -389,11 +391,11 @@ export function DashboardPage() {
           <Row justify="space-between" align="middle">
             <Col>
               <Title level={4} style={{ margin: 0 }}>
-                治理仪表盘
+                {t('治理仪表盘')}
               </Title>
               {summary?.generated_at && (
                 <Text type="secondary" style={{ fontSize: 12 }}>
-                  数据生成时间：{summary.generated_at}
+                  {t('数据生成时间：{{time}}', { time: summary.generated_at })}
                 </Text>
               )}
             </Col>
@@ -403,7 +405,7 @@ export function DashboardPage() {
                 onChange={(e) => setView(e.target.value)}
                 optionType="button"
                 buttonStyle="solid"
-                options={VIEW_OPTIONS}
+                options={viewOptions}
               />
             </Col>
           </Row>
@@ -411,13 +413,13 @@ export function DashboardPage() {
 
         {loading && (
           <div style={{ textAlign: 'center', padding: 48 }}>
-            <Spin size="large" tip="加载仪表盘数据..." />
+            <Spin size="large" tip={t('加载仪表盘数据...')} />
           </div>
         )}
 
         {!loading && !summary && (
           <Card>
-            <Empty description="暂无仪表盘数据" />
+            <Empty description={t('暂无仪表盘数据')} />
           </Card>
         )}
 
@@ -427,27 +429,27 @@ export function DashboardPage() {
               <Col xs={12} sm={12} md={8} lg={4} xl={4}>
                 <Card>
                   <Statistic
-                    title="Total Domains（总域数）"
+                    title={t('Total Domains（总域数）')}
                     value={summary.usl_domains ?? 3}
                     valueStyle={{ color: '#1677ff' }}
-                    suffix={<Text type="secondary" style={{ fontSize: 12 }}>USL 注册域</Text>}
+                    suffix={<Text type="secondary" style={{ fontSize: 12 }}>{t('USL 注册域')}</Text>}
                   />
                 </Card>
               </Col>
               <Col xs={12} sm={12} md={8} lg={5} xl={5}>
                 <Card>
                   <Statistic
-                    title="Total Terms（总术语）"
+                    title={t('Total Terms（总术语）')}
                     value={summary.usl_terms ?? 247}
                     valueStyle={{ color: '#13c2c2' }}
-                    suffix={<Text type="secondary" style={{ fontSize: 12 }}>对象+关系+属性</Text>}
+                    suffix={<Text type="secondary" style={{ fontSize: 12 }}>{t('对象+关系+属性')}</Text>}
                   />
                 </Card>
               </Col>
               <Col xs={12} sm={12} md={8} lg={5} xl={5}>
                 <Card>
                   <Statistic
-                    title="Total Edges（总层级边）"
+                    title={t('Total Edges（总层级边）')}
                     value={summary.usl_edges ?? 412}
                     valueStyle={{ color: '#722ed1' }}
                     suffix={<Text type="secondary" style={{ fontSize: 12 }}>is-a/part-of</Text>}
@@ -457,7 +459,7 @@ export function DashboardPage() {
               <Col xs={12} sm={12} md={12} lg={6} xl={6}>
                 <Card>
                   <Statistic
-                    title="Approved This Week（本周通过）"
+                    title={t('Approved This Week（本周通过）')}
                     value={
                       summary.approved_this_week ??
                       (() => {
@@ -468,7 +470,7 @@ export function DashboardPage() {
                       })()
                     }
                     valueStyle={{ color: '#52c41a' }}
-                    suffix={<Text type="secondary" style={{ fontSize: 12 }}>近 7 日累计</Text>}
+                    suffix={<Text type="secondary" style={{ fontSize: 12 }}>{t('近 7 日累计')}</Text>}
                   />
                 </Card>
               </Col>
@@ -480,13 +482,13 @@ export function DashboardPage() {
                     precision={1}
                     valueStyle={{ color: '#fa8c16' }}
                     formatter={(v) => `${(Number(v) * 100).toFixed(1)}%`}
-                    suffix={<Text type="secondary" style={{ fontSize: 12 }}>近 7 日流水线</Text>}
+                    suffix={<Text type="secondary" style={{ fontSize: 12 }}>{t('近 7 日流水线')}</Text>}
                   />
                 </Card>
               </Col>
             </Row>
 
-            <Card title="质量闸平均得分">
+            <Card title={t('质量闸平均得分')}>
               <Space direction="vertical" size="large" style={{ width: '100%' }}>
                 <div>
                   <Space style={{ width: 120, justifyContent: 'space-between' }}>
@@ -523,7 +525,7 @@ export function DashboardPage() {
                 </div>
                 <div>
                   <Space style={{ width: 120, justifyContent: 'space-between' }}>
-                    <Text strong>总分</Text>
+                    <Text strong>{t('总分')}</Text>
                     <Text code>{avg ? (avg.total_avg * 100).toFixed(1) + '%' : '-'}</Text>
                   </Space>
                   <Progress
@@ -537,7 +539,7 @@ export function DashboardPage() {
 
             <Row gutter={[16, 16]}>
               <Col xs={24} md={12}>
-                <Card title="按状态分布">
+                <Card title={t('按状态分布')}>
                   {byStatusRows.length === 0 ? (
                     <Empty image={Empty.PRESENTED_IMAGE_SIMPLE} />
                   ) : (
@@ -552,7 +554,7 @@ export function DashboardPage() {
                 </Card>
               </Col>
               <Col xs={24} md={12}>
-                <Card title="按质量层级分布">
+                <Card title={t('按质量层级分布')}>
                   {byTierRows.length === 0 ? (
                     <Empty image={Empty.PRESENTED_IMAGE_SIMPLE} />
                   ) : (
@@ -572,14 +574,14 @@ export function DashboardPage() {
 
         {!loading && view === 'trend' && (
           <>
-            <Card title="术语趋势 (近 30 天)">
+            <Card title={t('术语趋势 (近 30 天)')}>
               {!trend?.daily_points?.length && !trend?.accumulative_new?.length ? (
-                <Empty description="暂无趋势数据" />
+                <Empty description={t('暂无趋势数据')} />
               ) : (
                 <div ref={trendChartRef} style={{ height: 380, width: '100%' }} />
               )}
             </Card>
-            <Card title="每日状态明细">
+            <Card title={t('每日状态明细')}>
               <Table
                 size="small"
                 columns={dailyStatusCols}
@@ -600,7 +602,7 @@ export function DashboardPage() {
           <>
             <Row gutter={[16, 16]}>
               <Col xs={24} md={12}>
-                <Card title="按决策分布">
+                <Card title={t('按决策分布')}>
                   {!approvals?.by_decision || Object.keys(approvals.by_decision).length === 0 ? (
                     <Empty image={Empty.PRESENTED_IMAGE_SIMPLE} />
                   ) : (
@@ -609,7 +611,7 @@ export function DashboardPage() {
                 </Card>
               </Col>
               <Col xs={24} md={12}>
-                <Card title="按角色分布">
+                <Card title={t('按角色分布')}>
                   {!approvals?.by_role || Object.keys(approvals.by_role).length === 0 ? (
                     <Empty image={Empty.PRESENTED_IMAGE_SIMPLE} />
                   ) : (
@@ -618,9 +620,9 @@ export function DashboardPage() {
                 </Card>
               </Col>
             </Row>
-            <Card title="审批耗时 (Approval Times)">
+            <Card title={t('审批耗时 (Approval Times)')}>
               {approvalTimesRows.length === 0 ? (
-                <Alert type="info" showIcon message="暂无审批耗时统计" />
+                <Alert type="info" showIcon message={t('暂无审批耗时统计')} />
               ) : (
                 <Table
                   size="small"

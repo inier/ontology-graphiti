@@ -3,6 +3,7 @@ import { Tabs, Spin, Empty, Tag } from 'antd';
 import { ExperimentOutlined, DatabaseOutlined } from '@ant-design/icons';
 import { IngestPanel } from '@/modules/ingest';
 import { api } from '@/modules/shared';
+import { useI18n } from '@/modules/shared/hooks/useI18n';
 
 interface ExtractionStep {
   title: string;
@@ -10,13 +11,6 @@ interface ExtractionStep {
   output: string;
   color: string;
 }
-
-const PIPELINE_REFERENCE: ExtractionStep[] = [
-  { title: '文档预处理', input: '原始文档', output: '结构化文本段落', color: '#1890ff' },
-  { title: '实体识别与抽取', input: '结构化文本', output: '实体列表及属性', color: '#52c41a' },
-  { title: '关系构建', input: '实体列表', output: '实体关系三元组', color: '#722ed1' },
-  { title: '知识入库', input: '实体关系三元组', output: '知识图谱更新', color: '#fa8c16' },
-];
 
 interface ExtractionRecord {
   id: string;
@@ -28,13 +22,14 @@ interface ExtractionRecord {
 }
 
 export function SmartGeneration() {
+  const { t } = useI18n();
   const tabItems = [
     {
       key: 'ingest',
       label: (
         <span>
           <DatabaseOutlined style={{ marginRight: 4 }} />
-          数据摄入
+          {t('数据摄入')}
         </span>
       ),
       children: <IngestPanel />,
@@ -44,7 +39,7 @@ export function SmartGeneration() {
       label: (
         <span>
           <ExperimentOutlined style={{ marginRight: 4 }} />
-          抽取记录
+          {t('抽取记录')}
         </span>
       ),
       children: <ExtractionRecords />,
@@ -60,8 +55,16 @@ export function SmartGeneration() {
 }
 
 function ExtractionRecords({ ingestId }: { ingestId?: string }) {
+  const { t } = useI18n();
   const [records, setRecords] = useState<ExtractionRecord[]>([]);
   const [loading, setLoading] = useState(false);
+
+  const PIPELINE_REFERENCE: ExtractionStep[] = [
+    { title: t('文档预处理'), input: t('原始文档'), output: t('结构化文本段落'), color: '#1890ff' },
+    { title: t('实体识别与抽取'), input: t('结构化文本'), output: t('实体列表及属性'), color: '#52c41a' },
+    { title: t('关系构建'), input: t('实体列表'), output: t('实体关系三元组'), color: '#722ed1' },
+    { title: t('知识入库'), input: t('实体关系三元组'), output: t('知识图谱更新'), color: '#fa8c16' },
+  ];
 
   const loadRecords = useCallback(async () => {
     if (!ingestId) return;
@@ -116,10 +119,10 @@ function ExtractionRecords({ ingestId }: { ingestId?: string }) {
       <div style={{ flex: 1 }}>
         <div style={{ fontWeight: 600, marginBottom: 4 }}>
           {step.title}
-          {isReal && <Tag color="blue" style={{ marginLeft: 8 }}>实际数据</Tag>}
+          {isReal && <Tag color="blue" style={{ marginLeft: 8 }}>{t('实际数据')}</Tag>}
         </div>
         <div style={{ fontSize: 12, color: '#8c8c8c' }}>
-          输入：{step.input} → 输出：{step.output}
+          {t('输入：')}{step.input} → {t('输出：')}{step.output}
         </div>
       </div>
     </div>
@@ -131,7 +134,7 @@ function ExtractionRecords({ ingestId }: { ingestId?: string }) {
 
       {ingestId && records.length > 0 && (
         <div style={{ marginBottom: 24 }}>
-          <div style={{ marginBottom: 12, fontWeight: 600, fontSize: 14 }}>抽取记录（摄入 {ingestId}）</div>
+          <div style={{ marginBottom: 12, fontWeight: 600, fontSize: 14 }}>{t('抽取记录（摄入 {{ingestId}}）', { ingestId })}</div>
           <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
             {records.map((rec, index) => {
               const details = rec.details || {};
@@ -153,11 +156,11 @@ function ExtractionRecords({ ingestId }: { ingestId?: string }) {
       )}
 
       {ingestId && !loading && records.length === 0 && (
-        <Empty description="暂无抽取记录" style={{ margin: '40px 0' }} />
+        <Empty description={t('暂无抽取记录')} style={{ margin: '40px 0' }} />
       )}
 
       <div style={{ marginBottom: 16, color: '#8c8c8c', fontSize: 13 }}>
-        流程说明：展示当前本体版本定义的自动抽取过程，以及每一步的输入和输出。
+        {t('流程说明：展示当前本体版本定义的自动抽取过程，以及每一步的输入和输出。')}
       </div>
       <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
         {PIPELINE_REFERENCE.map((step, index) => renderStep(step, index))}

@@ -230,10 +230,10 @@ export function InheritanceGraph({ workspaceId }: InheritanceGraphProps) {
       >
         <Form form={addEdgeForm} layout="vertical">
           <Form.Item name="source" label={t('inheritanceGraph.source')} rules={[{ required: true }]}>
-            <Select options={data.nodes.map((n) => ({ label: n.name, value: n.id }))} />
+            <Select options={data.nodes.map((n) => ({ label: n.display_name || n.name, value: n.id }))} />
           </Form.Item>
           <Form.Item name="target" label={t('inheritanceGraph.target')} rules={[{ required: true }]}>
-            <Select options={data.nodes.map((n) => ({ label: n.name, value: n.id }))} />
+            <Select options={data.nodes.map((n) => ({ label: n.display_name || n.name, value: n.id }))} />
           </Form.Item>
           <Form.Item name="relation" label={t('inheritanceGraph.relationType')} rules={[{ required: true }]}>
             <Select options={[{ label: t('inheritanceGraph.inheritanceExtends'), value: 'inheritance' }, { label: t('inheritanceGraph.mixin'), value: 'mixin' }]} />

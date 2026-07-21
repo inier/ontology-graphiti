@@ -1,15 +1,17 @@
 import { NodeIndexOutlined } from '@ant-design/icons';
 import { BusinessEntityManager } from '../components/BusinessEntityManager';
 import { logicApi } from '../services/businessApi';
+import { useI18n } from '@/modules/shared/hooks/useI18n';
 
 export function Logic() {
+  const { t } = useI18n();
   return (
     <BusinessEntityManager
       entityType="logic"
-      title="逻辑"
+      title={t('逻辑')}
       icon={<NodeIndexOutlined />}
       tagColor="purple"
-      tagText="逻辑"
+      tagText={t('逻辑')}
       api={logicApi}
       entityIdField="logic_id"
       showLogicExpression

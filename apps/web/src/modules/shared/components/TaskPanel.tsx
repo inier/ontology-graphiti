@@ -11,6 +11,7 @@ import {
   UnorderedListOutlined,
 } from '@ant-design/icons';
 import { useLayoutStore, type TaskTab } from '@/modules/shared/stores/layoutStore';
+import { useI18n } from '@/modules/shared/hooks/useI18n';
 
 /**
  * TaskPanel — 任务区面板
@@ -31,6 +32,7 @@ interface TaskPanelProps {
 }
 
 export function TaskPanel({ onTabClick, onTabRefresh }: TaskPanelProps) {
+  const { t, instance } = useI18n('common');
   const {
     tabs,
     activeTabId,
@@ -73,44 +75,44 @@ export function TaskPanel({ onTabClick, onTabRefresh }: TaskPanelProps) {
         {
           key: 'refresh',
           icon: <ReloadOutlined />,
-          label: '刷新',
+          label: t('刷新'),
           onClick: () => handleRefresh(tab),
         },
         {
           key: 'close',
           icon: <CloseOutlined />,
-          label: '关闭',
+          label: t('关闭'),
           disabled: tabs.length <= 1,
           onClick: () => closeTab(tab.id),
         },
         {
           key: 'closeAbove',
           icon: <ArrowUpOutlined />,
-          label: '关闭上方任务',
+          label: t('关闭上方任务'),
           onClick: () => closeTabsAbove(tab.id),
         },
         {
           key: 'closeBelow',
           icon: <ArrowDownOutlined />,
-          label: '关闭下方任务',
+          label: t('关闭下方任务'),
           onClick: () => closeTabsBelow(tab.id),
         },
         {
           key: 'closeAll',
           icon: <CloseCircleOutlined />,
-          label: '关闭全部任务',
+          label: t('关闭全部任务'),
           onClick: () => closeAllTabs(),
         },
         { type: 'divider' as const },
         {
           key: 'pin',
           icon: <PushpinOutlined />,
-          label: '添加到快捷区',
+          label: t('添加到快捷区'),
           onClick: () => addQuickAction(tab.id),
         },
       ],
     }),
-    [tabs.length, handleRefresh, closeTab, closeTabsAbove, closeTabsBelow, closeAllTabs, addQuickAction],
+    [tabs.length, handleRefresh, closeTab, closeTabsAbove, closeTabsBelow, closeAllTabs, addQuickAction, instance.language],
   );
 
   /* 拖拽排序 */
@@ -145,9 +147,9 @@ export function TaskPanel({ onTabClick, onTabRefresh }: TaskPanelProps) {
     return (
       <div className="odap-task-panel" ref={panelRef}>
         <div className="odap-task-header">
-          <span className="odap-task-title">任务</span>
+          <span className="odap-task-title">{t('任务')}</span>
           <div className="odap-task-view-toggle">
-            <Tooltip title="列表视图">
+            <Tooltip title={t('列表视图')}>
               <button
                 className={taskViewMode === 'list' ? 'active' : ''}
                 onClick={() => setTaskViewMode('list')}
@@ -155,7 +157,7 @@ export function TaskPanel({ onTabClick, onTabRefresh }: TaskPanelProps) {
                 <UnorderedListOutlined />
               </button>
             </Tooltip>
-            <Tooltip title="卡片视图">
+            <Tooltip title={t('卡片视图')}>
               <button
                 className={taskViewMode === 'card' ? 'active' : ''}
                 onClick={() => setTaskViewMode('card')}
@@ -166,7 +168,7 @@ export function TaskPanel({ onTabClick, onTabRefresh }: TaskPanelProps) {
           </div>
         </div>
         <div className="odap-task-empty">
-          <Empty description="暂无任务" image={Empty.PRESENTED_IMAGE_SIMPLE} />
+          <Empty description={t('暂无任务')} image={Empty.PRESENTED_IMAGE_SIMPLE} />
         </div>
       </div>
     );
@@ -175,9 +177,9 @@ export function TaskPanel({ onTabClick, onTabRefresh }: TaskPanelProps) {
   return (
     <div className="odap-task-panel" ref={panelRef}>
       <div className="odap-task-header">
-        <span className="odap-task-title">任务</span>
+        <span className="odap-task-title">{t('任务')}</span>
         <div className="odap-task-view-toggle">
-          <Tooltip title="列表视图">
+          <Tooltip title={t('列表视图')}>
             <button
               className={taskViewMode === 'list' ? 'active' : ''}
               onClick={() => setTaskViewMode('list')}
@@ -185,7 +187,7 @@ export function TaskPanel({ onTabClick, onTabRefresh }: TaskPanelProps) {
               <UnorderedListOutlined />
             </button>
           </Tooltip>
-          <Tooltip title="卡片视图">
+          <Tooltip title={t('卡片视图')}>
             <button
               className={taskViewMode === 'card' ? 'active' : ''}
               onClick={() => setTaskViewMode('card')}
@@ -259,7 +261,7 @@ export function TaskPanel({ onTabClick, onTabRefresh }: TaskPanelProps) {
                   <div className="odap-task-card-meta">
                     <Badge status={tab.active ? 'processing' : 'default'} />
                     <span className="odap-task-card-time">
-                      {new Date(tab.lastVisitedAt).toLocaleTimeString('zh-CN', { hour: '2-digit', minute: '2-digit' })}
+                      {new Date(tab.lastVisitedAt).toLocaleTimeString(instance.language, { hour: '2-digit', minute: '2-digit' })}
                     </span>
                   </div>
                 </div>

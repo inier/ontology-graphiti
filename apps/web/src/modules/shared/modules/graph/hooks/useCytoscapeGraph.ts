@@ -216,7 +216,10 @@ export function useCytoscapeGraph({
   const buildElements = useCallback((nodeList: GraphNode[], edgeList: GraphEdge[]): cytoscape.ElementDefinition[] => {
     const elements: cytoscape.ElementDefinition[] = [];
 
-    for (const n of nodeList) {
+    const validNodes = nodeList.filter(n => n.id != null && typeof n.id === 'string' && n.id.trim() !== '');
+    const validNodeIds = new Set(validNodes.map(n => n.id));
+
+    for (const n of validNodes) {
       const nodeData: Record<string, unknown> = {
         id: n.id,
         label: n.label,
@@ -234,6 +237,9 @@ export function useCytoscapeGraph({
     }
 
     for (const e of edgeList) {
+      if (e.source == null || e.target == null || !validNodeIds.has(e.source) || !validNodeIds.has(e.target)) {
+        continue;
+      }
       const edgeData: Record<string, unknown> = {
         id: e.id,
         source: e.source,

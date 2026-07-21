@@ -5,9 +5,11 @@ import { ProForm as Form } from '@ant-design/pro-components';
 import { UserOutlined, LockOutlined, SafetyCertificateOutlined, ApartmentOutlined, TeamOutlined, ThunderboltOutlined, GithubOutlined, GoogleOutlined } from '@ant-design/icons';
 import { useAuthStore } from '../stores/authStore';
 import { apiClient } from '../services/apiClient';
+import { useI18n } from '@/modules/shared/hooks/useI18n';
 
 export function LoginPage() {
   const navigate = useNavigate();
+  const { t } = useI18n();
   const [searchParams] = useSearchParams();
   const login = useAuthStore((s) => s.login);
   const loginSSO = useAuthStore((s) => s.loginSSO);
@@ -40,10 +42,10 @@ export function LoginPage() {
     setLoading(true);
     try {
       await loginSSO(provider, code, state);
-      message.success('SSO登录成功');
+      message.success(t('SSO登录成功'));
       navigate('/');
     } catch {
-      message.error('SSO登录失败');
+      message.error(t('SSO登录失败'));
     } finally {
       setLoading(false);
     }
@@ -53,10 +55,10 @@ export function LoginPage() {
     setLoading(true);
     try {
       await login(values.username, values.password);
-      message.success('登录成功');
+      message.success(t('登录成功'));
       navigate('/');
     } catch {
-      message.error('登录失败，请检查用户名和密码');
+      message.error(t('登录失败，请检查用户名和密码'));
     } finally {
       setLoading(false);
     }
@@ -69,7 +71,7 @@ export function LoginPage() {
         window.location.href = data.authorize_url;
       }
     } catch {
-      message.error('获取SSO登录地址失败');
+      message.error(t('获取SSO登录地址失败'));
     }
   };
 
@@ -80,10 +82,10 @@ export function LoginPage() {
   };
 
   const features = [
-    { icon: <ApartmentOutlined />, title: '本体建模', desc: '多领域本体驱动，知识图谱可视化构建' },
-    { icon: <ThunderboltOutlined />, title: '智能决策', desc: 'Agent 协同推理，OODA 循环决策引擎' },
-    { icon: <SafetyCertificateOutlined />, title: '策略治理', desc: 'OPA 策略引擎，细粒度权限管控' },
-    { icon: <TeamOutlined />, title: '角色协同', desc: '多角色工作空间，任务智能分配' },
+    { icon: <ApartmentOutlined />, title: t('本体建模'), desc: t('多领域本体驱动，知识图谱可视化构建') },
+    { icon: <ThunderboltOutlined />, title: t('智能决策'), desc: t('Agent 协同推理，OODA 循环决策引擎') },
+    { icon: <SafetyCertificateOutlined />, title: t('策略治理'), desc: t('OPA 策略引擎，细粒度权限管控') },
+    { icon: <TeamOutlined />, title: t('角色协同'), desc: t('多角色工作空间，任务智能分配') },
   ];
 
   return (
@@ -144,7 +146,7 @@ export function LoginPage() {
               ODAP
             </h1>
             <p style={{ fontSize: 18, color: 'rgba(255,255,255,0.65)', marginTop: 12, lineHeight: 1.6 }}>
-              本体驱动分析决策平台
+              {t('本体驱动分析决策平台')}
             </p>
             <p style={{ fontSize: 14, color: 'rgba(255,255,255,0.4)', marginTop: 8, lineHeight: 1.8 }}>
               Ontology-Driven Analysis & Decision Platform
@@ -197,21 +199,21 @@ export function LoginPage() {
         }}
       >
         <div style={{ marginBottom: 40 }}>
-          <h2 style={{ fontSize: 26, fontWeight: 700, color: '#1a1a1a', margin: 0 }}>欢迎回来</h2>
-          <p style={{ fontSize: 14, color: '#8c8c8c', marginTop: 8 }}>登录以访问您的工作空间</p>
+          <h2 style={{ fontSize: 26, fontWeight: 700, color: '#1a1a1a', margin: 0 }}>{t('欢迎回来')}</h2>
+          <p style={{ fontSize: 14, color: '#8c8c8c', marginTop: 8 }}>{t('登录以访问您的工作空间')}</p>
         </div>
         <Form layout="vertical" onFinish={onFinish} autoComplete="off" size="large" submitter={false} initialValues={{ username: 'admin', password: 'admin123' }}>
-          <Form.Item name="username" rules={[{ required: true, message: '请输入用户名' }]}>
+          <Form.Item name="username" rules={[{ required: true, message: t('请输入用户名') }]}>
             <Input
               prefix={<UserOutlined style={{ color: '#bfbfbf' }} />}
-              placeholder="用户名"
+              placeholder={t('用户名')}
               style={{ height: 48, borderRadius: 10 }}
             />
           </Form.Item>
-          <Form.Item name="password" rules={[{ required: true, message: '请输入密码' }]}>
+          <Form.Item name="password" rules={[{ required: true, message: t('请输入密码') }]}>
             <Input.Password
               prefix={<LockOutlined style={{ color: '#bfbfbf' }} />}
-              placeholder="密码"
+              placeholder={t('密码')}
               style={{ height: 48, borderRadius: 10 }}
             />
           </Form.Item>
@@ -231,14 +233,14 @@ export function LoginPage() {
                 boxShadow: '0 4px 12px rgba(22,119,255,0.35)',
               }}
             >
-              登 录
+              {t('登 录')}
             </Button>
           </Form.Item>
         </Form>
 
         {ssoProviders.length > 0 && (
           <>
-            <Divider style={{ margin: '24px 0', color: '#8c8c8c', fontSize: 13 }}>或使用 SSO 登录</Divider>
+            <Divider style={{ margin: '24px 0', color: '#8c8c8c', fontSize: 13 }}>{t('或使用 SSO 登录')}</Divider>
             <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
               {ssoProviders.map((provider) => (
                 <Button
@@ -249,7 +251,7 @@ export function LoginPage() {
                   style={{ height: 44, borderRadius: 10 }}
                   block
                 >
-                  {provider.display_name} 登录
+                  {provider.display_name} {t('登录')}
                 </Button>
               ))}
             </div>
@@ -257,10 +259,10 @@ export function LoginPage() {
         )}
 
         <div style={{ marginTop: 32, padding: '16px 20px', background: '#f6f8fa', borderRadius: 10 }}>
-          <div style={{ fontSize: 12, color: '#8c8c8c', marginBottom: 6 }}>演示账号</div>
+          <div style={{ fontSize: 12, color: '#8c8c8c', marginBottom: 6 }}>{t('演示账号')}</div>
           <div style={{ fontSize: 13, color: '#595959' }}>
-            用户名 <span style={{ fontWeight: 600, color: '#1677ff' }}>admin</span>
-            &nbsp;&nbsp;密码 <span style={{ fontWeight: 600, color: '#1677ff' }}>admin123</span>
+            {t('用户名')} <span style={{ fontWeight: 600, color: '#1677ff' }}>admin</span>
+            &nbsp;&nbsp;{t('密码')} <span style={{ fontWeight: 600, color: '#1677ff' }}>admin123</span>
           </div>
         </div>
       </div>

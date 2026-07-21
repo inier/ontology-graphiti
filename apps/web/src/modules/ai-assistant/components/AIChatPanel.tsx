@@ -259,7 +259,7 @@ function SessionSidebar({
     const date = new Date(ts);
     const diff = Date.now() - date.getTime();
     const hours = Math.floor(diff / (1000 * 60 * 60));
-    if (hours < 1) return t('relativeTime.justNow');
+    if (hours < 1) return t('刚刚');
     if (hours < 24) return t('relativeTime.hoursAgo', { hours });
     const days = Math.floor(hours / 24);
     if (days < 30) return t('relativeTime.daysAgo', { days });
@@ -272,7 +272,7 @@ function SessionSidebar({
         {!collapsed && (
           <div className="sidebar-title">
             <RobotOutlined style={{ color: 'var(--odap-color-primary, #6366F1)' }} />
-            {t('title')}
+            {t('工作空间管理')}
           </div>
         )}
         <Button type="text" size="small" icon={collapsed ? <MenuOutlined /> : <CloseOutlined />} onClick={onToggleCollapse} />
@@ -281,12 +281,12 @@ function SessionSidebar({
         <>
           <div style={{ padding: '8px 12px' }}>
             <Button block icon={<PlusOutlined />} onClick={onNew} style={{ borderRadius: 8 }}>
-              {t('newChat')}
+              {t('新对话')}
             </Button>
           </div>
           <div className="sidebar-menu">
             {sessions.length === 0 ? (
-              <Empty description={t('noConversations')} image={Empty.PRESENTED_IMAGE_SIMPLE} />
+              <Empty description={t('暂无对话记录')} image={Empty.PRESENTED_IMAGE_SIMPLE} />
             ) : (
               sessions.map(s => (
                 <div
@@ -295,8 +295,8 @@ function SessionSidebar({
                   onClick={() => onSelect(s.session_id)}
                 >
                   <div className="session-info">
-                    <div className="session-title">{s.summary || t('unnamed')}</div>
-                    <div className="session-meta">{s.message_count} {t('messageCount')} · {formatDate(s.created_at)}</div>
+                    <div className="session-title">{s.summary || t('未命名对话')}</div>
+                    <div className="session-meta">{s.message_count} {t('条')} · {formatDate(s.created_at)}</div>
                   </div>
                   <button
                     className="session-delete"
@@ -405,7 +405,7 @@ function MessageList({
               borderTopRightRadius: msg.role === 'user' ? 4 : (compact ? 8 : 16),
             }}
           >
-            {msg.content || (sending && msg.id === messages[messages.length - 1]?.id ? t('thinking') : '')}
+            {msg.content || (sending && msg.id === messages[messages.length - 1]?.id ? t('思考中...') : '')}
 
             {/* Tool calls */}
             {msg.tool_calls && msg.tool_calls.length > 0 && (
@@ -425,13 +425,13 @@ function MessageList({
             {/* Sources (full mode only) */}
             {!compact && msg.sources && msg.sources.length > 0 && (
               <div style={{ marginTop: 12, paddingTop: 12, borderTop: '1px solid rgba(0,0,0,0.06)' }}>
-                <div style={{ fontSize: 12, fontWeight: 500, marginBottom: 8, color: 'var(--odap-color-text-secondary, #6b7280)' }}>{t('references')}</div>
+                <div style={{ fontSize: 12, fontWeight: 500, marginBottom: 8, color: 'var(--odap-color-text-secondary, #6b7280)' }}>{t('参考来源')}</div>
                 {msg.sources.slice(0, 3).map((src, idx) => (
                   <div key={idx} style={{ background: '#f9fafb', borderRadius: 8, padding: '10px 14px', marginBottom: 8, border: '1px solid #f3f4f6' }}>
                     <div style={{ fontSize: 13, color: '#374151', lineHeight: 1.6 }}>{src.excerpt}</div>
                     <div style={{ marginTop: 6, display: 'flex', gap: 8, fontSize: 11, color: '#9ca3af' }}>
-                      <span>{t('source')}: {src.source || t('unknown')}</span>
-                      <span>{t('confidence')}: {(src.confidence * 100).toFixed(0)}%</span>
+                      <span>{t('来源')}: {src.source || t('未知')}</span>
+                      <span>{t('置信度')}: {(src.confidence * 100).toFixed(0)}%</span>
                     </div>
                   </div>
                 ))}
@@ -441,7 +441,7 @@ function MessageList({
             {/* Reasoning (full mode only) */}
             {!compact && msg.reasoning && msg.reasoning.length > 0 && (
               <div style={{ marginTop: 8, padding: '8px 12px', background: 'rgba(0,0,0,0.03)', borderRadius: 6, fontSize: 12 }}>
-                <div style={{ marginBottom: 6, color: '#8c8c8c', fontWeight: 500 }}>{t('reasoning')}</div>
+                <div style={{ marginBottom: 6, color: '#8c8c8c', fontWeight: 500 }}>{t('推理过程')}</div>
                 {msg.reasoning.map((step, idx) => (
                   <div key={idx} style={{ padding: '3px 0', borderBottom: idx < msg.reasoning!.length - 1 ? '1px dashed rgba(0,0,0,0.06)' : 'none' }}>
                     <span style={{ marginRight: 6 }}>▸</span>
@@ -508,7 +508,7 @@ export function AIChatPanel({
   onClose,
 }: AIChatPanelProps) {
   const { t } = useI18n('ai-assistant');
-  const panelTitle = title ?? t('title');
+  const panelTitle = title ?? t('工作空间管理');
   const compact = mode === 'compact';
   const [inputValue, setInputValue] = useState('');
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
@@ -576,12 +576,12 @@ export function AIChatPanel({
   const quickActions = (() => {
     if (!ontologyId) return [];
     const base: Array<{ label: string; msg: string; toolName?: string }> = [
-      { label: t('quickActions.ontologyOverview'), msg: '当前本体包含哪些类型？请给我一个概览' },
-      { label: t('quickActions.integrityCheck'), msg: '帮我检查一下本体完整性' },
+      { label: t('本体概况'), msg: '当前本体包含哪些类型？请给我一个概览' },
+      { label: t('完整性检查'), msg: '帮我检查一下本体完整性' },
     ];
     if (currentTypeName) {
-      base.push({ label: t('quickActions.suggestProperties'), msg: `为「${currentTypeName}」类型建议缺失的属性`, toolName: 'suggest_properties' });
-      base.push({ label: t('quickActions.suggestRelations'), msg: `为「${currentTypeName}」类型建议可能的关系`, toolName: 'suggest_relations' });
+      base.push({ label: t('建议属性'), msg: `为「${currentTypeName}」类型建议缺失的属性`, toolName: 'suggest_properties' });
+      base.push({ label: t('建议关系'), msg: `为「${currentTypeName}」类型建议可能的关系`, toolName: 'suggest_relations' });
     }
     return base;
   })();
@@ -725,13 +725,13 @@ export function AIChatPanel({
           value={inputValue}
           onChange={(e) => setInputValue(e.target.value)}
           onKeyDown={handleKeyDown}
-          placeholder={t('placeholder')}
+          placeholder={t('输入消息，Enter 发送...')}
           autoSize={{ minRows: 1, maxRows: 3 }}
           style={{ fontSize: compact ? 11 : 14, resize: 'none' }}
           disabled={ai.sending}
         />
         <div style={{ display: 'flex', gap: 2 }}>
-          <Tooltip title={t('clearConversation')}>
+          <Tooltip title={t('清空对话')}>
             <Button type="text" size="small" icon={<ClearOutlined />} onClick={ai.clearMessages} disabled={ai.sending} />
           </Tooltip>
           <Button

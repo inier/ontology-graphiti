@@ -1,0 +1,2777 @@
+{
+  "total_strings": 386,
+  "strings": [
+    {
+      "text": "是",
+      "files": [
+        "components\\ComputedPropertyList.tsx"
+      ],
+      "suggested_key": ""
+    },
+    {
+      "text": "否",
+      "files": [
+        "components\\ComputedPropertyList.tsx"
+      ],
+      "suggested_key": ""
+    },
+    {
+      "text": "高",
+      "files": [
+        "components\\OntologyIngestPipeline.tsx",
+        "components\\OntologySemanticNetwork.tsx"
+      ],
+      "suggested_key": ""
+    },
+    {
+      "text": "低",
+      "files": [
+        "components\\OntologyIngestPipeline.tsx"
+      ],
+      "suggested_key": ""
+    },
+    {
+      "text": "值",
+      "files": [
+        "components\\ViewFieldMapping.tsx"
+      ],
+      "suggested_key": ""
+    },
+    {
+      "text": "无",
+      "files": [
+        "pages\\OntologySemanticNetwork.tsx"
+      ],
+      "suggested_key": ""
+    },
+    {
+      "text": "预览",
+      "files": [
+        "components\\ActionRegistrationForm.tsx"
+      ],
+      "suggested_key": ""
+    },
+    {
+      "text": "全部",
+      "files": [
+        "components\\AISuggestionList.tsx"
+      ],
+      "suggested_key": ""
+    },
+    {
+      "text": "拒绝",
+      "files": [
+        "components\\AISuggestionList.tsx"
+      ],
+      "suggested_key": ""
+    },
+    {
+      "text": "接受",
+      "files": [
+        "components\\AISuggestionList.tsx"
+      ],
+      "suggested_key": ""
+    },
+    {
+      "text": "名称",
+      "files": [
+        "components\\ComputedPropertyList.tsx",
+        "components\\ExtractionPreview.tsx",
+        "components\\MixinConfig.tsx",
+        "components\\OntologyIngestPipeline.tsx",
+        "components\\OntologySemanticNetwork.tsx",
+        "pages\\OntologySemanticNetwork.tsx"
+      ],
+      "suggested_key": ""
+    },
+    {
+      "text": "操作",
+      "files": [
+        "components\\ComputedPropertyList.tsx",
+        "components\\ExtractionPreview.tsx",
+        "components\\MaterializationMonitor.tsx",
+        "components\\MixinConfig.tsx",
+        "components\\ViewDesigner.tsx",
+        "components\\ViewFieldMapping.tsx"
+      ],
+      "suggested_key": ""
+    },
+    {
+      "text": "删除",
+      "files": [
+        "components\\ComputedPropertyList.tsx",
+        "components\\MixinConfig.tsx",
+        "components\\ObjectViewList.tsx"
+      ],
+      "suggested_key": ""
+    },
+    {
+      "text": "取消",
+      "files": [
+        "components\\ComputedPropertyList.tsx",
+        "components\\MergeDiffViewer.tsx",
+        "components\\MixinConfig.tsx",
+        "components\\ObjectViewList.tsx",
+        "pages\\OntologySemanticNetwork.tsx",
+        "components\\blueprint\\BlueprintList.tsx"
+      ],
+      "suggested_key": ""
+    },
+    {
+      "text": "搜索",
+      "files": [
+        "components\\ComputedPropertyList.tsx"
+      ],
+      "suggested_key": ""
+    },
+    {
+      "text": "保存",
+      "files": [
+        "components\\ComputedPropertyList.tsx",
+        "components\\MixinConfig.tsx",
+        "components\\blueprint\\BlueprintToolbar.tsx"
+      ],
+      "suggested_key": ""
+    },
+    {
+      "text": "实体",
+      "files": [
+        "components\\ConflictResolver.tsx",
+        "components\\HealthDashboard.tsx",
+        "components\\OntologyIngestPipeline.tsx",
+        "components\\OntologySchemaViewer.tsx"
+      ],
+      "suggested_key": ""
+    },
+    {
+      "text": "类型",
+      "files": [
+        "components\\ConflictResolver.tsx",
+        "components\\ExtractionPreview.tsx",
+        "components\\HealthDashboard.tsx",
+        "components\\OntologyIngestPipeline.tsx",
+        "components\\OntologySchemaViewer.tsx",
+        "components\\OntologySemanticNetwork.tsx",
+        "pages\\OntologySemanticNetwork.tsx"
+      ],
+      "suggested_key": ""
+    },
+    {
+      "text": "字段",
+      "files": [
+        "components\\ConflictResolver.tsx",
+        "components\\ViewDesigner.tsx",
+        "components\\ViewFieldMapping.tsx"
+      ],
+      "suggested_key": ""
+    },
+    {
+      "text": "状态",
+      "files": [
+        "components\\ConflictResolver.tsx",
+        "components\\HealthDashboard.tsx",
+        "components\\OntologyIngestPipeline.tsx"
+      ],
+      "suggested_key": ""
+    },
+    {
+      "text": "环形",
+      "files": [
+        "components\\constants.ts"
+      ],
+      "suggested_key": ""
+    },
+    {
+      "text": "网格",
+      "files": [
+        "components\\constants.ts"
+      ],
+      "suggested_key": ""
+    },
+    {
+      "text": "层次",
+      "files": [
+        "components\\constants.ts"
+      ],
+      "suggested_key": ""
+    },
+    {
+      "text": "辐射",
+      "files": [
+        "components\\constants.ts"
+      ],
+      "suggested_key": ""
+    },
+    {
+      "text": "属性",
+      "files": [
+        "components\\ExtractionPreview.tsx",
+        "components\\OntologyIngestPipeline.tsx",
+        "pages\\OntologySemanticNetwork.tsx"
+      ],
+      "suggested_key": ""
+    },
+    {
+      "text": "溯源",
+      "files": [
+        "components\\ExtractionPreview.tsx"
+      ],
+      "suggested_key": ""
+    },
+    {
+      "text": "规则",
+      "files": [
+        "components\\HealthDashboard.tsx",
+        "components\\OntologyIngestPipeline.tsx",
+        "components\\OntologySchemaViewer.tsx"
+      ],
+      "suggested_key": ""
+    },
+    {
+      "text": "描述",
+      "files": [
+        "components\\HealthDashboard.tsx",
+        "components\\MixinConfig.tsx",
+        "components\\ObjectViewList.tsx",
+        "components\\OntologyIngestPipeline.tsx"
+      ],
+      "suggested_key": ""
+    },
+    {
+      "text": "刷新",
+      "files": [
+        "components\\HealthDashboard.tsx",
+        "components\\ObjectViewList.tsx"
+      ],
+      "suggested_key": ""
+    },
+    {
+      "text": "行数",
+      "files": [
+        "components\\MaterializationMonitor.tsx"
+      ],
+      "suggested_key": ""
+    },
+    {
+      "text": "错误",
+      "files": [
+        "components\\MaterializationMonitor.tsx"
+      ],
+      "suggested_key": ""
+    },
+    {
+      "text": "应用",
+      "files": [
+        "components\\MergeDiffViewer.tsx"
+      ],
+      "suggested_key": ""
+    },
+    {
+      "text": "必填",
+      "files": [
+        "components\\MixinConfig.tsx"
+      ],
+      "suggested_key": ""
+    },
+    {
+      "text": "密级",
+      "files": [
+        "components\\MixinConfig.tsx"
+      ],
+      "suggested_key": ""
+    },
+    {
+      "text": "创建",
+      "files": [
+        "components\\ObjectViewList.tsx",
+        "components\\blueprint\\BlueprintList.tsx"
+      ],
+      "suggested_key": ""
+    },
+    {
+      "text": "角色",
+      "files": [
+        "components\\ObjectViewList.tsx",
+        "components\\ViewFieldMapping.tsx"
+      ],
+      "suggested_key": ""
+    },
+    {
+      "text": "可选",
+      "files": [
+        "components\\ObjectViewList.tsx",
+        "components\\OntologySchemaViewer.tsx"
+      ],
+      "suggested_key": ""
+    },
+    {
+      "text": "启用",
+      "files": [
+        "components\\ObjectViewList.tsx"
+      ],
+      "suggested_key": ""
+    },
+    {
+      "text": "文本",
+      "files": [
+        "components\\OntologyIngestPipeline.tsx"
+      ],
+      "suggested_key": ""
+    },
+    {
+      "text": "去重",
+      "files": [
+        "components\\OntologyIngestPipeline.tsx"
+      ],
+      "suggested_key": ""
+    },
+    {
+      "text": "关系",
+      "files": [
+        "components\\OntologyIngestPipeline.tsx",
+        "components\\OntologySchemaViewer.tsx",
+        "components\\OntologySemanticNetwork.tsx"
+      ],
+      "suggested_key": ""
+    },
+    {
+      "text": "事件",
+      "files": [
+        "components\\OntologyIngestPipeline.tsx",
+        "components\\OntologySchemaViewer.tsx",
+        "components\\OntologySemanticNetwork.tsx"
+      ],
+      "suggested_key": ""
+    },
+    {
+      "text": "行动",
+      "files": [
+        "components\\OntologyIngestPipeline.tsx",
+        "components\\OntologySchemaViewer.tsx"
+      ],
+      "suggested_key": ""
+    },
+    {
+      "text": "约束",
+      "files": [
+        "components\\OntologyIngestPipeline.tsx",
+        "components\\OntologySchemaViewer.tsx"
+      ],
+      "suggested_key": ""
+    },
+    {
+      "text": "回滚",
+      "files": [
+        "components\\OntologyIngestPipeline.tsx"
+      ],
+      "suggested_key": ""
+    },
+    {
+      "text": "索引",
+      "files": [
+        "components\\OntologyIngestPipeline.tsx"
+      ],
+      "suggested_key": ""
+    },
+    {
+      "text": "待命",
+      "files": [
+        "components\\OntologyIngestPipeline.tsx"
+      ],
+      "suggested_key": ""
+    },
+    {
+      "text": "巡查",
+      "files": [
+        "components\\OntologyIngestPipeline.tsx"
+      ],
+      "suggested_key": ""
+    },
+    {
+      "text": "高地",
+      "files": [
+        "components\\OntologyIngestPipeline.tsx"
+      ],
+      "suggested_key": ""
+    },
+    {
+      "text": "中等",
+      "files": [
+        "components\\OntologyIngestPipeline.tsx"
+      ],
+      "suggested_key": ""
+    },
+    {
+      "text": "阵营",
+      "files": [
+        "components\\OntologyIngestPipeline.tsx"
+      ],
+      "suggested_key": ""
+    },
+    {
+      "text": "位置",
+      "files": [
+        "components\\OntologyIngestPipeline.tsx"
+      ],
+      "suggested_key": ""
+    },
+    {
+      "text": "步骤",
+      "files": [
+        "components\\OntologyIngestPipeline.tsx"
+      ],
+      "suggested_key": ""
+    },
+    {
+      "text": "详情",
+      "files": [
+        "components\\OntologyIngestPipeline.tsx"
+      ],
+      "suggested_key": ""
+    },
+    {
+      "text": "任务",
+      "files": [
+        "components\\OntologySchemaViewer.tsx"
+      ],
+      "suggested_key": ""
+    },
+    {
+      "text": "整数",
+      "files": [
+        "components\\OntologySchemaViewer.tsx"
+      ],
+      "suggested_key": ""
+    },
+    {
+      "text": "布尔",
+      "files": [
+        "components\\OntologySchemaViewer.tsx"
+      ],
+      "suggested_key": ""
+    },
+    {
+      "text": "字典",
+      "files": [
+        "components\\OntologySchemaViewer.tsx"
+      ],
+      "suggested_key": ""
+    },
+    {
+      "text": "列表",
+      "files": [
+        "components\\OntologySchemaViewer.tsx"
+      ],
+      "suggested_key": ""
+    },
+    {
+      "text": "概念",
+      "files": [
+        "components\\OntologySemanticNetwork.tsx"
+      ],
+      "suggested_key": ""
+    },
+    {
+      "text": "领域",
+      "files": [
+        "components\\OntologySemanticNetwork.tsx"
+      ],
+      "suggested_key": ""
+    },
+    {
+      "text": "实例",
+      "files": [
+        "components\\OntologySemanticNetwork.tsx"
+      ],
+      "suggested_key": ""
+    },
+    {
+      "text": "挑战",
+      "files": [
+        "components\\OntologySemanticNetwork.tsx"
+      ],
+      "suggested_key": ""
+    },
+    {
+      "text": "影响",
+      "files": [
+        "components\\OntologySemanticNetwork.tsx"
+      ],
+      "suggested_key": ""
+    },
+    {
+      "text": "面临",
+      "files": [
+        "components\\OntologySemanticNetwork.tsx"
+      ],
+      "suggested_key": ""
+    },
+    {
+      "text": "包括",
+      "files": [
+        "components\\OntologySemanticNetwork.tsx"
+      ],
+      "suggested_key": ""
+    },
+    {
+      "text": "导致",
+      "files": [
+        "components\\OntologySemanticNetwork.tsx"
+      ],
+      "suggested_key": ""
+    },
+    {
+      "text": "促进",
+      "files": [
+        "components\\OntologySemanticNetwork.tsx"
+      ],
+      "suggested_key": ""
+    },
+    {
+      "text": "失败",
+      "files": [
+        "components\\OntologySemanticNetwork.tsx"
+      ],
+      "suggested_key": ""
+    },
+    {
+      "text": "基数",
+      "files": [
+        "components\\RelationEditor.tsx"
+      ],
+      "suggested_key": ""
+    },
+    {
+      "text": "验证",
+      "files": [
+        "components\\types.ts",
+        "components\\blueprint\\BlueprintToolbar.tsx"
+      ],
+      "suggested_key": ""
+    },
+    {
+      "text": "完成",
+      "files": [
+        "components\\types.ts"
+      ],
+      "suggested_key": ""
+    },
+    {
+      "text": "过滤",
+      "files": [
+        "components\\ViewDesigner.tsx"
+      ],
+      "suggested_key": ""
+    },
+    {
+      "text": "排序",
+      "files": [
+        "components\\ViewDesigner.tsx"
+      ],
+      "suggested_key": ""
+    },
+    {
+      "text": "限制",
+      "files": [
+        "components\\ViewDesigner.tsx"
+      ],
+      "suggested_key": ""
+    },
+    {
+      "text": "权限",
+      "files": [
+        "components\\ViewDesigner.tsx"
+      ],
+      "suggested_key": ""
+    },
+    {
+      "text": "可见",
+      "files": [
+        "components\\ViewDesigner.tsx"
+      ],
+      "suggested_key": ""
+    },
+    {
+      "text": "点击",
+      "files": [
+        "components\\ViewDesigner.tsx",
+        "pages\\HealthDashboard.tsx"
+      ],
+      "suggested_key": ""
+    },
+    {
+      "text": "方向",
+      "files": [
+        "components\\ViewFieldMapping.tsx"
+      ],
+      "suggested_key": ""
+    },
+    {
+      "text": "别名",
+      "files": [
+        "components\\ViewFieldMapping.tsx"
+      ],
+      "suggested_key": ""
+    },
+    {
+      "text": "方位",
+      "files": [
+        "pages\\OntologySemanticNetwork.tsx"
+      ],
+      "suggested_key": ""
+    },
+    {
+      "text": "甲方",
+      "files": [
+        "pages\\OntologySemanticNetwork.tsx"
+      ],
+      "suggested_key": ""
+    },
+    {
+      "text": "乙方",
+      "files": [
+        "pages\\OntologySemanticNetwork.tsx"
+      ],
+      "suggested_key": ""
+    },
+    {
+      "text": "提交",
+      "files": [
+        "pages\\OntologySemanticNetwork.tsx"
+      ],
+      "suggested_key": ""
+    },
+    {
+      "text": "草稿",
+      "files": [
+        "components\\blueprint\\BlueprintList.tsx"
+      ],
+      "suggested_key": ""
+    },
+    {
+      "text": "分叉",
+      "files": [
+        "components\\blueprint\\BlueprintList.tsx"
+      ],
+      "suggested_key": ""
+    },
+    {
+      "text": "发布",
+      "files": [
+        "components\\blueprint\\BlueprintToolbar.tsx"
+      ],
+      "suggested_key": ""
+    },
+    {
+      "text": "转换",
+      "files": [
+        "components\\blueprint\\nodeTypes.tsx"
+      ],
+      "suggested_key": ""
+    },
+    {
+      "text": "本体",
+      "files": [
+        "components\\blueprint\\nodeTypes.tsx"
+      ],
+      "suggested_key": ""
+    },
+    {
+      "text": "动作",
+      "files": [
+        "components\\blueprint\\nodeTypes.tsx"
+      ],
+      "suggested_key": ""
+    },
+    {
+      "text": "校验",
+      "files": [
+        "components\\blueprint\\nodeTypes.tsx"
+      ],
+      "suggested_key": ""
+    },
+    {
+      "text": "输出",
+      "files": [
+        "components\\blueprint\\nodeTypes.tsx"
+      ],
+      "suggested_key": ""
+    },
+    {
+      "text": "决策",
+      "files": [
+        "components\\blueprint\\nodeTypes.tsx"
+      ],
+      "suggested_key": ""
+    },
+    {
+      "text": "已更新",
+      "files": [
+        "components\\ComputedPropertyList.tsx"
+      ],
+      "suggested_key": ""
+    },
+    {
+      "text": "已创建",
+      "files": [
+        "components\\ComputedPropertyList.tsx"
+      ],
+      "suggested_key": ""
+    },
+    {
+      "text": "已删除",
+      "files": [
+        "components\\ComputedPropertyList.tsx"
+      ],
+      "suggested_key": ""
+    },
+    {
+      "text": "表达式",
+      "files": [
+        "components\\ComputedPropertyList.tsx"
+      ],
+      "suggested_key": ""
+    },
+    {
+      "text": "依赖数",
+      "files": [
+        "components\\ComputedPropertyList.tsx"
+      ],
+      "suggested_key": ""
+    },
+    {
+      "text": "已物化",
+      "files": [
+        "components\\ComputedPropertyList.tsx"
+      ],
+      "suggested_key": ""
+    },
+    {
+      "text": "待处理",
+      "files": [
+        "components\\ConflictResolver.tsx"
+      ],
+      "suggested_key": ""
+    },
+    {
+      "text": "已解决",
+      "files": [
+        "components\\ConflictResolver.tsx"
+      ],
+      "suggested_key": ""
+    },
+    {
+      "text": "候选数",
+      "files": [
+        "components\\ConflictResolver.tsx"
+      ],
+      "suggested_key": ""
+    },
+    {
+      "text": "数据源",
+      "files": [
+        "components\\ConflictResolver.tsx",
+        "components\\blueprint\\nodeTypes.tsx"
+      ],
+      "suggested_key": ""
+    },
+    {
+      "text": "候选值",
+      "files": [
+        "components\\ConflictResolver.tsx"
+      ],
+      "suggested_key": ""
+    },
+    {
+      "text": "置信度",
+      "files": [
+        "components\\ConflictResolver.tsx",
+        "components\\OntologyIngestPipeline.tsx",
+        "components\\ProvenanceViewer.tsx"
+      ],
+      "suggested_key": ""
+    },
+    {
+      "text": "力导向",
+      "files": [
+        "components\\constants.ts"
+      ],
+      "suggested_key": ""
+    },
+    {
+      "text": "源实体",
+      "files": [
+        "components\\ExtractionPreview.tsx",
+        "components\\OntologyIngestPipeline.tsx"
+      ],
+      "suggested_key": ""
+    },
+    {
+      "text": "失败数",
+      "files": [
+        "components\\HealthDashboard.tsx",
+        "pages\\HealthDashboard.tsx"
+      ],
+      "suggested_key": ""
+    },
+    {
+      "text": "新规则",
+      "files": [
+        "components\\HealthRuleEditor.tsx"
+      ],
+      "suggested_key": ""
+    },
+    {
+      "text": "初始化",
+      "files": [
+        "components\\KnowledgeBaseSelector.tsx",
+        "components\\types.ts"
+      ],
+      "suggested_key": ""
+    },
+    {
+      "text": "无差异",
+      "files": [
+        "components\\MergeDiffViewer.tsx"
+      ],
+      "suggested_key": ""
+    },
+    {
+      "text": "属性数",
+      "files": [
+        "components\\MixinConfig.tsx"
+      ],
+      "suggested_key": ""
+    },
+    {
+      "text": "可添加",
+      "files": [
+        "components\\MixinConfig.tsx"
+      ],
+      "suggested_key": ""
+    },
+    {
+      "text": "已绑定",
+      "files": [
+        "components\\MixinConfig.tsx"
+      ],
+      "suggested_key": ""
+    },
+    {
+      "text": "属性名",
+      "files": [
+        "components\\MixinConfig.tsx"
+      ],
+      "suggested_key": ""
+    },
+    {
+      "text": "已停用",
+      "files": [
+        "components\\ObjectViewList.tsx"
+      ],
+      "suggested_key": ""
+    },
+    {
+      "text": "已启用",
+      "files": [
+        "components\\ObjectViewList.tsx"
+      ],
+      "suggested_key": ""
+    },
+    {
+      "text": "已完成",
+      "files": [
+        "components\\OntologyBuildProgress.test.tsx",
+        "components\\OntologyIngestPipeline.tsx",
+        "components\\OntologySemanticNetwork.tsx"
+      ],
+      "suggested_key": ""
+    },
+    {
+      "text": "进行中",
+      "files": [
+        "components\\OntologyBuildProgress.test.tsx"
+      ],
+      "suggested_key": ""
+    },
+    {
+      "text": "等待中",
+      "files": [
+        "components\\OntologyBuildProgress.test.tsx",
+        "components\\OntologyIngestPipeline.tsx"
+      ],
+      "suggested_key": ""
+    },
+    {
+      "text": "关系边",
+      "files": [
+        "components\\OntologyIngestPipeline.tsx"
+      ],
+      "suggested_key": ""
+    },
+    {
+      "text": "时间戳",
+      "files": [
+        "components\\OntologyIngestPipeline.tsx"
+      ],
+      "suggested_key": ""
+    },
+    {
+      "text": "参与者",
+      "files": [
+        "components\\OntologyIngestPipeline.tsx"
+      ],
+      "suggested_key": ""
+    },
+    {
+      "text": "处理中",
+      "files": [
+        "components\\OntologyIngestPipeline.tsx"
+      ],
+      "suggested_key": ""
+    },
+    {
+      "text": "交战方",
+      "files": [
+        "components\\OntologySchemaViewer.tsx"
+      ],
+      "suggested_key": ""
+    },
+    {
+      "text": "字符串",
+      "files": [
+        "components\\OntologySchemaViewer.tsx"
+      ],
+      "suggested_key": ""
+    },
+    {
+      "text": "浮点数",
+      "files": [
+        "components\\OntologySchemaViewer.tsx"
+      ],
+      "suggested_key": ""
+    },
+    {
+      "text": "字段名",
+      "files": [
+        "components\\OntologySchemaViewer.tsx"
+      ],
+      "suggested_key": ""
+    },
+    {
+      "text": "默认值",
+      "files": [
+        "components\\OntologySchemaViewer.tsx"
+      ],
+      "suggested_key": ""
+    },
+    {
+      "text": "万亿级",
+      "files": [
+        "components\\OntologySemanticNetwork.tsx"
+      ],
+      "suggested_key": ""
+    },
+    {
+      "text": "构建中",
+      "files": [
+        "components\\OntologySemanticNetwork.tsx"
+      ],
+      "suggested_key": ""
+    },
+    {
+      "text": "关系名",
+      "files": [
+        "components\\RelationEditor.tsx"
+      ],
+      "suggested_key": ""
+    },
+    {
+      "text": "无描述",
+      "files": [
+        "components\\TemplateRecommender.tsx"
+      ],
+      "suggested_key": ""
+    },
+    {
+      "text": "显示名",
+      "files": [
+        "components\\ViewDesigner.tsx"
+      ],
+      "suggested_key": ""
+    },
+    {
+      "text": "已保存",
+      "files": [
+        "components\\ViewFieldMapping.tsx"
+      ],
+      "suggested_key": ""
+    },
+    {
+      "text": "操作符",
+      "files": [
+        "components\\ViewFieldMapping.tsx"
+      ],
+      "suggested_key": ""
+    },
+    {
+      "text": "无字段",
+      "files": [
+        "components\\ViewFieldMapping.tsx"
+      ],
+      "suggested_key": ""
+    },
+    {
+      "text": "角色名",
+      "files": [
+        "components\\ViewFieldMapping.tsx"
+      ],
+      "suggested_key": ""
+    },
+    {
+      "text": "无结果",
+      "files": [
+        "components\\ViewFieldMapping.tsx"
+      ],
+      "suggested_key": ""
+    },
+    {
+      "text": "通过率",
+      "files": [
+        "pages\\HealthDashboard.tsx"
+      ],
+      "suggested_key": ""
+    },
+    {
+      "text": "可视化",
+      "files": [
+        "pages\\HealthDashboard.tsx"
+      ],
+      "suggested_key": ""
+    },
+    {
+      "text": "未分类",
+      "files": [
+        "pages\\ObjectViewPage.tsx"
+      ],
+      "suggested_key": ""
+    },
+    {
+      "text": "无视图",
+      "files": [
+        "pages\\ObjectViewPage.tsx"
+      ],
+      "suggested_key": ""
+    },
+    {
+      "text": "总行数",
+      "files": [
+        "pages\\ObjectViewPage.tsx"
+      ],
+      "suggested_key": ""
+    },
+    {
+      "text": "无数据",
+      "files": [
+        "pages\\ObjectViewPage.tsx"
+      ],
+      "suggested_key": ""
+    },
+    {
+      "text": "聚类数",
+      "files": [
+        "pages\\OntologySemanticNetwork.tsx"
+      ],
+      "suggested_key": ""
+    },
+    {
+      "text": "覆盖率",
+      "files": [
+        "pages\\OntologySemanticNetwork.tsx"
+      ],
+      "suggested_key": ""
+    },
+    {
+      "text": "请点击",
+      "files": [
+        "pages\\OntologySemanticNetwork.tsx"
+      ],
+      "suggested_key": ""
+    },
+    {
+      "text": "边详情",
+      "files": [
+        "pages\\OntologySemanticNetwork.tsx"
+      ],
+      "suggested_key": ""
+    },
+    {
+      "text": "源节点",
+      "files": [
+        "pages\\OntologySemanticNetwork.tsx"
+      ],
+      "suggested_key": ""
+    },
+    {
+      "text": "已发布",
+      "files": [
+        "components\\blueprint\\BlueprintList.tsx"
+      ],
+      "suggested_key": ""
+    },
+    {
+      "text": "智能体",
+      "files": [
+        "components\\blueprint\\nodeTypes.tsx"
+      ],
+      "suggested_key": ""
+    },
+    {
+      "text": "用户拒绝",
+      "files": [
+        "components\\AISuggestionList.tsx"
+      ],
+      "suggested_key": ""
+    },
+    {
+      "text": "暂无建议",
+      "files": [
+        "components\\AISuggestionList.tsx"
+      ],
+      "suggested_key": ""
+    },
+    {
+      "text": "拒绝原因",
+      "files": [
+        "components\\AISuggestionList.tsx"
+      ],
+      "suggested_key": ""
+    },
+    {
+      "text": "测试完成",
+      "files": [
+        "components\\ComputedPropertyList.tsx"
+      ],
+      "suggested_key": ""
+    },
+    {
+      "text": "启用物化",
+      "files": [
+        "components\\ComputedPropertyList.tsx"
+      ],
+      "suggested_key": ""
+    },
+    {
+      "text": "测试结果",
+      "files": [
+        "components\\ComputedPropertyList.tsx"
+      ],
+      "suggested_key": ""
+    },
+    {
+      "text": "等待人工",
+      "files": [
+        "components\\ConflictResolver.tsx"
+      ],
+      "suggested_key": ""
+    },
+    {
+      "text": "观测时间",
+      "files": [
+        "components\\ConflictResolver.tsx"
+      ],
+      "suggested_key": ""
+    },
+    {
+      "text": "检测冲突",
+      "files": [
+        "components\\ConflictResolver.tsx"
+      ],
+      "suggested_key": ""
+    },
+    {
+      "text": "暂无冲突",
+      "files": [
+        "components\\ConflictResolver.tsx"
+      ],
+      "suggested_key": ""
+    },
+    {
+      "text": "解决冲突",
+      "files": [
+        "components\\ConflictResolver.tsx"
+      ],
+      "suggested_key": ""
+    },
+    {
+      "text": "选择策略",
+      "files": [
+        "components\\ConflictResolver.tsx"
+      ],
+      "suggested_key": ""
+    },
+    {
+      "text": "目标实体",
+      "files": [
+        "components\\ExtractionPreview.tsx",
+        "components\\OntologyIngestPipeline.tsx"
+      ],
+      "suggested_key": ""
+    },
+    {
+      "text": "对象类型",
+      "files": [
+        "components\\HealthDashboard.tsx"
+      ],
+      "suggested_key": ""
+    },
+    {
+      "text": "最近检查",
+      "files": [
+        "components\\HealthDashboard.tsx",
+        "pages\\HealthDashboard.tsx"
+      ],
+      "suggested_key": ""
+    },
+    {
+      "text": "检测时间",
+      "files": [
+        "components\\HealthDashboard.tsx"
+      ],
+      "suggested_key": ""
+    },
+    {
+      "text": "暂无规则",
+      "files": [
+        "components\\HealthDashboard.tsx",
+        "pages\\HealthDashboard.tsx"
+      ],
+      "suggested_key": ""
+    },
+    {
+      "text": "规则详情",
+      "files": [
+        "components\\HealthDashboard.tsx",
+        "pages\\HealthDashboard.tsx"
+      ],
+      "suggested_key": ""
+    },
+    {
+      "text": "暂无违规",
+      "files": [
+        "components\\HealthDashboard.tsx"
+      ],
+      "suggested_key": ""
+    },
+    {
+      "text": "提取进度",
+      "files": [
+        "components\\KnowledgeBaseSelector.tsx"
+      ],
+      "suggested_key": ""
+    },
+    {
+      "text": "失败时间",
+      "files": [
+        "components\\MaterializationMonitor.tsx"
+      ],
+      "suggested_key": ""
+    },
+    {
+      "text": "手动编辑",
+      "files": [
+        "components\\MergeDiffViewer.tsx"
+      ],
+      "suggested_key": ""
+    },
+    {
+      "text": "被引用数",
+      "files": [
+        "components\\MixinConfig.tsx"
+      ],
+      "suggested_key": ""
+    },
+    {
+      "text": "暂无属性",
+      "files": [
+        "components\\MixinConfig.tsx"
+      ],
+      "suggested_key": ""
+    },
+    {
+      "text": "数据类型",
+      "files": [
+        "components\\MixinConfig.tsx"
+      ],
+      "suggested_key": ""
+    },
+    {
+      "text": "暂无视图",
+      "files": [
+        "components\\ObjectViewList.tsx"
+      ],
+      "suggested_key": ""
+    },
+    {
+      "text": "新建视图",
+      "files": [
+        "components\\ObjectViewList.tsx"
+      ],
+      "suggested_key": ""
+    },
+    {
+      "text": "视图名称",
+      "files": [
+        "components\\ObjectViewList.tsx"
+      ],
+      "suggested_key": ""
+    },
+    {
+      "text": "行数限制",
+      "files": [
+        "components\\ObjectViewList.tsx"
+      ],
+      "suggested_key": ""
+    },
+    {
+      "text": "数据提取",
+      "files": [
+        "components\\OntologyBuildProgress.test.tsx"
+      ],
+      "suggested_key": ""
+    },
+    {
+      "text": "数据校验",
+      "files": [
+        "components\\OntologyBuildProgress.test.tsx"
+      ],
+      "suggested_key": ""
+    },
+    {
+      "text": "图谱构建",
+      "files": [
+        "components\\OntologyBuildProgress.test.tsx"
+      ],
+      "suggested_key": ""
+    },
+    {
+      "text": "数据采集",
+      "files": [
+        "components\\OntologyIngestPipeline.tsx"
+      ],
+      "suggested_key": ""
+    },
+    {
+      "text": "网页爬取",
+      "files": [
+        "components\\OntologyIngestPipeline.tsx"
+      ],
+      "suggested_key": ""
+    },
+    {
+      "text": "手动输入",
+      "files": [
+        "components\\OntologyIngestPipeline.tsx"
+      ],
+      "suggested_key": ""
+    },
+    {
+      "text": "网页内容",
+      "files": [
+        "components\\OntologyIngestPipeline.tsx"
+      ],
+      "suggested_key": ""
+    },
+    {
+      "text": "数据清洗",
+      "files": [
+        "components\\OntologyIngestPipeline.tsx"
+      ],
+      "suggested_key": ""
+    },
+    {
+      "text": "格式转换",
+      "files": [
+        "components\\OntologyIngestPipeline.tsx"
+      ],
+      "suggested_key": ""
+    },
+    {
+      "text": "实体识别",
+      "files": [
+        "components\\OntologyIngestPipeline.tsx"
+      ],
+      "suggested_key": ""
+    },
+    {
+      "text": "关系提取",
+      "files": [
+        "components\\OntologyIngestPipeline.tsx"
+      ],
+      "suggested_key": ""
+    },
+    {
+      "text": "事件建模",
+      "files": [
+        "components\\OntologyIngestPipeline.tsx"
+      ],
+      "suggested_key": ""
+    },
+    {
+      "text": "属性推断",
+      "files": [
+        "components\\OntologyIngestPipeline.tsx"
+      ],
+      "suggested_key": ""
+    },
+    {
+      "text": "本体构建",
+      "files": [
+        "components\\OntologyIngestPipeline.tsx"
+      ],
+      "suggested_key": ""
+    },
+    {
+      "text": "版本管理",
+      "files": [
+        "components\\OntologyIngestPipeline.tsx"
+      ],
+      "suggested_key": ""
+    },
+    {
+      "text": "版本历史",
+      "files": [
+        "components\\OntologyIngestPipeline.tsx"
+      ],
+      "suggested_key": ""
+    },
+    {
+      "text": "差异比较",
+      "files": [
+        "components\\OntologyIngestPipeline.tsx"
+      ],
+      "suggested_key": ""
+    },
+    {
+      "text": "图谱生成",
+      "files": [
+        "components\\OntologyIngestPipeline.tsx"
+      ],
+      "suggested_key": ""
+    },
+    {
+      "text": "实体节点",
+      "files": [
+        "components\\OntologyIngestPipeline.tsx"
+      ],
+      "suggested_key": ""
+    },
+    {
+      "text": "查询优化",
+      "files": [
+        "components\\OntologyIngestPipeline.tsx"
+      ],
+      "suggested_key": ""
+    },
+    {
+      "text": "重型载具",
+      "files": [
+        "components\\OntologyIngestPipeline.tsx"
+      ],
+      "suggested_key": ""
+    },
+    {
+      "text": "突击步枪",
+      "files": [
+        "components\\OntologyIngestPipeline.tsx"
+      ],
+      "suggested_key": ""
+    },
+    {
+      "text": "交锋事件",
+      "files": [
+        "components\\OntologyIngestPipeline.tsx"
+      ],
+      "suggested_key": ""
+    },
+    {
+      "text": "未分胜负",
+      "files": [
+        "components\\OntologyIngestPipeline.tsx"
+      ],
+      "suggested_key": ""
+    },
+    {
+      "text": "关系类型",
+      "files": [
+        "components\\OntologyIngestPipeline.tsx"
+      ],
+      "suggested_key": ""
+    },
+    {
+      "text": "事件类型",
+      "files": [
+        "components\\OntologyIngestPipeline.tsx"
+      ],
+      "suggested_key": ""
+    },
+    {
+      "text": "文档格式",
+      "files": [
+        "components\\OntologyIngestPipeline.tsx"
+      ],
+      "suggested_key": ""
+    },
+    {
+      "text": "实体类型",
+      "files": [
+        "components\\OntologyIngestPipeline.tsx",
+        "components\\ProvenanceViewer.tsx"
+      ],
+      "suggested_key": ""
+    },
+    {
+      "text": "四层属性",
+      "files": [
+        "components\\OntologyIngestPipeline.tsx"
+      ],
+      "suggested_key": ""
+    },
+    {
+      "text": "版本控制",
+      "files": [
+        "components\\OntologyIngestPipeline.tsx"
+      ],
+      "suggested_key": ""
+    },
+    {
+      "text": "地理位置",
+      "files": [
+        "components\\OntologySchemaViewer.tsx"
+      ],
+      "suggested_key": ""
+    },
+    {
+      "text": "组织单元",
+      "files": [
+        "components\\OntologySchemaViewer.tsx"
+      ],
+      "suggested_key": ""
+    },
+    {
+      "text": "工具系统",
+      "files": [
+        "components\\OntologySchemaViewer.tsx"
+      ],
+      "suggested_key": ""
+    },
+    {
+      "text": "公共资产",
+      "files": [
+        "components\\OntologySchemaViewer.tsx"
+      ],
+      "suggested_key": ""
+    },
+    {
+      "text": "领域事件",
+      "files": [
+        "components\\OntologySchemaViewer.tsx"
+      ],
+      "suggested_key": ""
+    },
+    {
+      "text": "本体文档",
+      "files": [
+        "components\\OntologySchemaViewer.tsx"
+      ],
+      "suggested_key": ""
+    },
+    {
+      "text": "数据来源",
+      "files": [
+        "components\\OntologySchemaViewer.tsx"
+      ],
+      "suggested_key": ""
+    },
+    {
+      "text": "时序信息",
+      "files": [
+        "components\\OntologySchemaViewer.tsx"
+      ],
+      "suggested_key": ""
+    },
+    {
+      "text": "版本引用",
+      "files": [
+        "components\\OntologySchemaViewer.tsx"
+      ],
+      "suggested_key": ""
+    },
+    {
+      "text": "业务过程",
+      "files": [
+        "components\\OntologySchemaViewer.tsx"
+      ],
+      "suggested_key": ""
+    },
+    {
+      "text": "业务规则",
+      "files": [
+        "components\\OntologySchemaViewer.tsx"
+      ],
+      "suggested_key": ""
+    },
+    {
+      "text": "业务逻辑",
+      "files": [
+        "components\\OntologySchemaViewer.tsx"
+      ],
+      "suggested_key": ""
+    },
+    {
+      "text": "业务指标",
+      "files": [
+        "components\\OntologySchemaViewer.tsx"
+      ],
+      "suggested_key": ""
+    },
+    {
+      "text": "关联节点",
+      "files": [
+        "components\\OntologySemanticNetwork.tsx"
+      ],
+      "suggested_key": ""
+    },
+    {
+      "text": "人工智能",
+      "files": [
+        "components\\OntologySemanticNetwork.tsx"
+      ],
+      "suggested_key": ""
+    },
+    {
+      "text": "教育行业",
+      "files": [
+        "components\\OntologySemanticNetwork.tsx"
+      ],
+      "suggested_key": ""
+    },
+    {
+      "text": "技术应用",
+      "files": [
+        "components\\OntologySemanticNetwork.tsx"
+      ],
+      "suggested_key": ""
+    },
+    {
+      "text": "在线教育",
+      "files": [
+        "components\\OntologySemanticNetwork.tsx"
+      ],
+      "suggested_key": ""
+    },
+    {
+      "text": "发展趋势",
+      "files": [
+        "components\\OntologySemanticNetwork.tsx"
+      ],
+      "suggested_key": ""
+    },
+    {
+      "text": "目标类型",
+      "files": [
+        "components\\RelationEditor.tsx"
+      ],
+      "suggested_key": ""
+    },
+    {
+      "text": "关联类型",
+      "files": [
+        "components\\RelationEditor.tsx"
+      ],
+      "suggested_key": ""
+    },
+    {
+      "text": "本体生成",
+      "files": [
+        "components\\TemplateRecommender.tsx"
+      ],
+      "suggested_key": ""
+    },
+    {
+      "text": "预设模板",
+      "files": [
+        "components\\TemplateRecommender.tsx"
+      ],
+      "suggested_key": ""
+    },
+    {
+      "text": "联网搜索",
+      "files": [
+        "components\\TemplateRecommender.tsx"
+      ],
+      "suggested_key": ""
+    },
+    {
+      "text": "模板推荐",
+      "files": [
+        "components\\TemplateRecommender.tsx"
+      ],
+      "suggested_key": ""
+    },
+    {
+      "text": "模板评估",
+      "files": [
+        "components\\types.ts"
+      ],
+      "suggested_key": ""
+    },
+    {
+      "text": "模板选择",
+      "files": [
+        "components\\types.ts"
+      ],
+      "suggested_key": ""
+    },
+    {
+      "text": "分块解析",
+      "files": [
+        "components\\types.ts"
+      ],
+      "suggested_key": ""
+    },
+    {
+      "text": "文档解析",
+      "files": [
+        "components\\types.ts"
+      ],
+      "suggested_key": ""
+    },
+    {
+      "text": "合并映射",
+      "files": [
+        "components\\types.ts"
+      ],
+      "suggested_key": ""
+    },
+    {
+      "text": "冲突检测",
+      "files": [
+        "components\\types.ts"
+      ],
+      "suggested_key": ""
+    },
+    {
+      "text": "视图配置",
+      "files": [
+        "components\\ViewDesigner.tsx"
+      ],
+      "suggested_key": ""
+    },
+    {
+      "text": "实时预览",
+      "files": [
+        "components\\ViewDesigner.tsx"
+      ],
+      "suggested_key": ""
+    },
+    {
+      "text": "已选字段",
+      "files": [
+        "components\\ViewFieldMapping.tsx"
+      ],
+      "suggested_key": ""
+    },
+    {
+      "text": "搜索字段",
+      "files": [
+        "components\\ViewFieldMapping.tsx"
+      ],
+      "suggested_key": ""
+    },
+    {
+      "text": "字段属性",
+      "files": [
+        "components\\ViewFieldMapping.tsx"
+      ],
+      "suggested_key": ""
+    },
+    {
+      "text": "暂无排序",
+      "files": [
+        "components\\ViewFieldMapping.tsx"
+      ],
+      "suggested_key": ""
+    },
+    {
+      "text": "总规则数",
+      "files": [
+        "pages\\HealthDashboard.tsx"
+      ],
+      "suggested_key": ""
+    },
+    {
+      "text": "失败规则",
+      "files": [
+        "pages\\HealthDashboard.tsx"
+      ],
+      "suggested_key": ""
+    },
+    {
+      "text": "最后扫描",
+      "files": [
+        "pages\\HealthDashboard.tsx"
+      ],
+      "suggested_key": ""
+    },
+    {
+      "text": "规则列表",
+      "files": [
+        "pages\\HealthDashboard.tsx"
+      ],
+      "suggested_key": ""
+    },
+    {
+      "text": "权限不足",
+      "files": [
+        "pages\\ObjectViewPage.tsx"
+      ],
+      "suggested_key": ""
+    },
+    {
+      "text": "可见字段",
+      "files": [
+        "pages\\ObjectViewPage.tsx"
+      ],
+      "suggested_key": ""
+    },
+    {
+      "text": "语义图谱",
+      "files": [
+        "pages\\OntologyGraphPage.tsx"
+      ],
+      "suggested_key": ""
+    },
+    {
+      "text": "选择本体",
+      "files": [
+        "pages\\OntologyGraphPage.tsx"
+      ],
+      "suggested_key": ""
+    },
+    {
+      "text": "对象总数",
+      "files": [
+        "pages\\OntologySemanticNetwork.tsx"
+      ],
+      "suggested_key": ""
+    },
+    {
+      "text": "关系总数",
+      "files": [
+        "pages\\OntologySemanticNetwork.tsx"
+      ],
+      "suggested_key": ""
+    },
+    {
+      "text": "原始数据",
+      "files": [
+        "pages\\OntologySemanticNetwork.tsx"
+      ],
+      "suggested_key": ""
+    },
+    {
+      "text": "重新生成",
+      "files": [
+        "pages\\OntologySemanticNetwork.tsx"
+      ],
+      "suggested_key": ""
+    },
+    {
+      "text": "最新版本",
+      "files": [
+        "pages\\OntologySemanticNetwork.tsx"
+      ],
+      "suggested_key": ""
+    },
+    {
+      "text": "类型分布",
+      "files": [
+        "pages\\OntologySemanticNetwork.tsx"
+      ],
+      "suggested_key": ""
+    },
+    {
+      "text": "节点详情",
+      "files": [
+        "pages\\OntologySemanticNetwork.tsx"
+      ],
+      "suggested_key": ""
+    },
+    {
+      "text": "本体定义",
+      "files": [
+        "pages\\OntologySemanticNetwork.tsx"
+      ],
+      "suggested_key": ""
+    },
+    {
+      "text": "所属聚类",
+      "files": [
+        "pages\\OntologySemanticNetwork.tsx"
+      ],
+      "suggested_key": ""
+    },
+    {
+      "text": "关联关系",
+      "files": [
+        "pages\\OntologySemanticNetwork.tsx"
+      ],
+      "suggested_key": ""
+    },
+    {
+      "text": "目标节点",
+      "files": [
+        "pages\\OntologySemanticNetwork.tsx"
+      ],
+      "suggested_key": ""
+    },
+    {
+      "text": "提交版本",
+      "files": [
+        "pages\\OntologySemanticNetwork.tsx"
+      ],
+      "suggested_key": ""
+    },
+    {
+      "text": "导出失败",
+      "files": [
+        "components\\blueprint\\BlueprintDesigner.tsx"
+      ],
+      "suggested_key": ""
+    },
+    {
+      "text": "确认删除",
+      "files": [
+        "components\\blueprint\\BlueprintList.tsx"
+      ],
+      "suggested_key": ""
+    },
+    {
+      "text": "暂无蓝图",
+      "files": [
+        "components\\blueprint\\BlueprintList.tsx"
+      ],
+      "suggested_key": ""
+    },
+    {
+      "text": "新建蓝图",
+      "files": [
+        "components\\blueprint\\BlueprintList.tsx"
+      ],
+      "suggested_key": ""
+    },
+    {
+      "text": "分叉蓝图",
+      "files": [
+        "components\\blueprint\\BlueprintList.tsx"
+      ],
+      "suggested_key": ""
+    },
+    {
+      "text": "自动布局",
+      "files": [
+        "components\\blueprint\\BlueprintToolbar.tsx"
+      ],
+      "suggested_key": ""
+    },
+    {
+      "text": "导出代码",
+      "files": [
+        "components\\blueprint\\BlueprintToolbar.tsx"
+      ],
+      "suggested_key": ""
+    },
+    {
+      "text": "已触发物化",
+      "files": [
+        "components\\ComputedPropertyList.tsx"
+      ],
+      "suggested_key": ""
+    },
+    {
+      "text": "请输入名称",
+      "files": [
+        "components\\ComputedPropertyList.tsx",
+        "components\\MixinConfig.tsx",
+        "components\\ObjectViewList.tsx"
+      ],
+      "suggested_key": ""
+    },
+    {
+      "text": "冲突已解决",
+      "files": [
+        "components\\ConflictResolver.tsx"
+      ],
+      "suggested_key": ""
+    },
+    {
+      "text": "扫描已触发",
+      "files": [
+        "components\\HealthDashboard.tsx"
+      ],
+      "suggested_key": ""
+    },
+    {
+      "text": "资产覆盖率",
+      "files": [
+        "components\\HealthRuleEditor.tsx"
+      ],
+      "suggested_key": ""
+    },
+    {
+      "text": "创建边失败",
+      "files": [
+        "components\\InheritanceGraph.tsx"
+      ],
+      "suggested_key": ""
+    },
+    {
+      "text": "删除边失败",
+      "files": [
+        "components\\InheritanceGraph.tsx"
+      ],
+      "suggested_key": ""
+    },
+    {
+      "text": "选择知识库",
+      "files": [
+        "components\\KnowledgeBaseSelector.tsx"
+      ],
+      "suggested_key": ""
+    },
+    {
+      "text": "暂无知识库",
+      "files": [
+        "components\\KnowledgeBaseSelector.tsx"
+      ],
+      "suggested_key": ""
+    },
+    {
+      "text": "无失败任务",
+      "files": [
+        "components\\MaterializationMonitor.tsx"
+      ],
+      "suggested_key": ""
+    },
+    {
+      "text": "合并已提交",
+      "files": [
+        "components\\MergeDiffViewer.tsx"
+      ],
+      "suggested_key": ""
+    },
+    {
+      "text": "绑定已保存",
+      "files": [
+        "components\\MixinConfig.tsx"
+      ],
+      "suggested_key": ""
+    },
+    {
+      "text": "视图已创建",
+      "files": [
+        "components\\ObjectViewList.tsx"
+      ],
+      "suggested_key": ""
+    },
+    {
+      "text": "视图已删除",
+      "files": [
+        "components\\ObjectViewList.tsx"
+      ],
+      "suggested_key": ""
+    },
+    {
+      "text": "视图已克隆",
+      "files": [
+        "components\\ObjectViewList.tsx"
+      ],
+      "suggested_key": ""
+    },
+    {
+      "text": "按名称搜索",
+      "files": [
+        "components\\ObjectViewList.tsx"
+      ],
+      "suggested_key": ""
+    },
+    {
+      "text": "请输入角色",
+      "files": [
+        "components\\ObjectViewList.tsx"
+      ],
+      "suggested_key": ""
+    },
+    {
+      "text": "结构化数据",
+      "files": [
+        "components\\OntologyIngestPipeline.tsx"
+      ],
+      "suggested_key": ""
+    },
+    {
+      "text": "缺失值处理",
+      "files": [
+        "components\\OntologyIngestPipeline.tsx"
+      ],
+      "suggested_key": ""
+    },
+    {
+      "text": "文本预处理",
+      "files": [
+        "components\\OntologyIngestPipeline.tsx"
+      ],
+      "suggested_key": ""
+    },
+    {
+      "text": "文档元数据",
+      "files": [
+        "components\\OntologySchemaViewer.tsx"
+      ],
+      "suggested_key": ""
+    },
+    {
+      "text": "字段已存在",
+      "files": [
+        "components\\ViewDesigner.tsx",
+        "components\\ViewFieldMapping.tsx"
+      ],
+      "suggested_key": ""
+    },
+    {
+      "text": "视图已保存",
+      "files": [
+        "components\\ViewDesigner.tsx"
+      ],
+      "suggested_key": ""
+    },
+    {
+      "text": "权限已添加",
+      "files": [
+        "components\\ViewFieldMapping.tsx"
+      ],
+      "suggested_key": ""
+    },
+    {
+      "text": "权限已移除",
+      "files": [
+        "components\\ViewFieldMapping.tsx"
+      ],
+      "suggested_key": ""
+    },
+    {
+      "text": "无匹配字段",
+      "files": [
+        "components\\ViewFieldMapping.tsx"
+      ],
+      "suggested_key": ""
+    },
+    {
+      "text": "请选择字段",
+      "files": [
+        "components\\ViewFieldMapping.tsx"
+      ],
+      "suggested_key": ""
+    },
+    {
+      "text": "无返回数据",
+      "files": [
+        "components\\ViewFieldMapping.tsx"
+      ],
+      "suggested_key": ""
+    },
+    {
+      "text": "扫描已启动",
+      "files": [
+        "pages\\HealthDashboard.tsx"
+      ],
+      "suggested_key": ""
+    },
+    {
+      "text": "请选择视图",
+      "files": [
+        "pages\\ObjectViewPage.tsx"
+      ],
+      "suggested_key": ""
+    },
+    {
+      "text": "无导出权限",
+      "files": [
+        "pages\\ObjectViewPage.tsx"
+      ],
+      "suggested_key": ""
+    },
+    {
+      "text": "图谱已刷新",
+      "files": [
+        "pages\\OntologyGraphPage.tsx"
+      ],
+      "suggested_key": ""
+    },
+    {
+      "text": "蓝图已保存",
+      "files": [
+        "components\\blueprint\\BlueprintDesigner.tsx"
+      ],
+      "suggested_key": ""
+    },
+    {
+      "text": "蓝图已发布",
+      "files": [
+        "components\\blueprint\\BlueprintDesigner.tsx"
+      ],
+      "suggested_key": ""
+    },
+    {
+      "text": "蓝图已创建",
+      "files": [
+        "components\\blueprint\\BlueprintList.tsx"
+      ],
+      "suggested_key": ""
+    },
+    {
+      "text": "蓝图已删除",
+      "files": [
+        "components\\blueprint\\BlueprintList.tsx"
+      ],
+      "suggested_key": ""
+    },
+    {
+      "text": "蓝图已分叉",
+      "files": [
+        "components\\blueprint\\BlueprintList.tsx"
+      ],
+      "suggested_key": ""
+    },
+    {
+      "text": "暂无计算属性",
+      "files": [
+        "components\\ComputedPropertyList.tsx"
+      ],
+      "suggested_key": ""
+    },
+    {
+      "text": "编辑计算属性",
+      "files": [
+        "components\\ComputedPropertyList.tsx"
+      ],
+      "suggested_key": ""
+    },
+    {
+      "text": "创建计算属性",
+      "files": [
+        "components\\ComputedPropertyList.tsx"
+      ],
+      "suggested_key": ""
+    },
+    {
+      "text": "请输入表达式",
+      "files": [
+        "components\\ComputedPropertyList.tsx"
+      ],
+      "suggested_key": ""
+    },
+    {
+      "text": "未检测到冲突",
+      "files": [
+        "components\\ConflictResolver.tsx"
+      ],
+      "suggested_key": ""
+    },
+    {
+      "text": "该冲突已处理",
+      "files": [
+        "components\\ConflictResolver.tsx"
+      ],
+      "suggested_key": ""
+    },
+    {
+      "text": "数据健康看板",
+      "files": [
+        "components\\HealthDashboard.tsx"
+      ],
+      "suggested_key": ""
+    },
+    {
+      "text": "暂无失败规则",
+      "files": [
+        "components\\HealthDashboard.tsx"
+      ],
+      "suggested_key": ""
+    },
+    {
+      "text": "暂无历史报告",
+      "files": [
+        "components\\HealthDashboard.tsx"
+      ],
+      "suggested_key": ""
+    },
+    {
+      "text": "未加载知识库",
+      "files": [
+        "components\\KnowledgeBaseSelector.tsx"
+      ],
+      "suggested_key": ""
+    },
+    {
+      "text": "暂无统计数据",
+      "files": [
+        "components\\MaterializationMonitor.tsx"
+      ],
+      "suggested_key": ""
+    },
+    {
+      "text": "选择基础版本",
+      "files": [
+        "components\\MergeDiffViewer.tsx"
+      ],
+      "suggested_key": ""
+    },
+    {
+      "text": "选择本地版本",
+      "files": [
+        "components\\MergeDiffViewer.tsx"
+      ],
+      "suggested_key": ""
+    },
+    {
+      "text": "选择远端版本",
+      "files": [
+        "components\\MergeDiffViewer.tsx"
+      ],
+      "suggested_key": ""
+    },
+    {
+      "text": "教育相关领域",
+      "files": [
+        "components\\OntologySemanticNetwork.tsx"
+      ],
+      "suggested_key": ""
+    },
+    {
+      "text": "未来发展方向",
+      "files": [
+        "components\\OntologySemanticNetwork.tsx"
+      ],
+      "suggested_key": ""
+    },
+    {
+      "text": "本体语义网络",
+      "files": [
+        "components\\OntologySemanticNetwork.tsx"
+      ],
+      "suggested_key": ""
+    },
+    {
+      "text": "暂无溯源信息",
+      "files": [
+        "components\\ProvenanceViewer.tsx"
+      ],
+      "suggested_key": ""
+    },
+    {
+      "text": "选择目标类型",
+      "files": [
+        "components\\RelationEditor.tsx"
+      ],
+      "suggested_key": ""
+    },
+    {
+      "text": "暂无过滤条件",
+      "files": [
+        "components\\ViewFieldMapping.tsx"
+      ],
+      "suggested_key": ""
+    },
+    {
+      "text": "暂无角色权限",
+      "files": [
+        "components\\ViewFieldMapping.tsx"
+      ],
+      "suggested_key": ""
+    },
+    {
+      "text": "新建健康规则",
+      "files": [
+        "pages\\HealthDashboard.tsx"
+      ],
+      "suggested_key": ""
+    },
+    {
+      "text": "版本提交成功",
+      "files": [
+        "pages\\OntologySemanticNetwork.tsx"
+      ],
+      "suggested_key": ""
+    },
+    {
+      "text": "提交版本失败",
+      "files": [
+        "pages\\OntologySemanticNetwork.tsx"
+      ],
+      "suggested_key": ""
+    },
+    {
+      "text": "生成语义地图",
+      "files": [
+        "pages\\OntologySemanticNetwork.tsx"
+      ],
+      "suggested_key": ""
+    },
+    {
+      "text": "蓝图验证通过",
+      "files": [
+        "components\\blueprint\\BlueprintDesigner.tsx"
+      ],
+      "suggested_key": ""
+    },
+    {
+      "text": "自动布局完成",
+      "files": [
+        "components\\blueprint\\BlueprintDesigner.tsx"
+      ],
+      "suggested_key": ""
+    },
+    {
+      "text": "创建蓝图失败",
+      "files": [
+        "components\\blueprint\\BlueprintList.tsx"
+      ],
+      "suggested_key": ""
+    },
+    {
+      "text": "分叉蓝图失败",
+      "files": [
+        "components\\blueprint\\BlueprintList.tsx"
+      ],
+      "suggested_key": ""
+    },
+    {
+      "text": "请描述规则用途",
+      "files": [
+        "components\\HealthRuleEditor.tsx"
+      ],
+      "suggested_key": ""
+    },
+    {
+      "text": "请先选择知识库",
+      "files": [
+        "components\\KnowledgeBaseSelector.tsx"
+      ],
+      "suggested_key": ""
+    },
+    {
+      "text": "知识库提取完成",
+      "files": [
+        "components\\KnowledgeBaseSelector.tsx"
+      ],
+      "suggested_key": ""
+    },
+    {
+      "text": "技术的实际应用",
+      "files": [
+        "components\\OntologySemanticNetwork.tsx"
+      ],
+      "suggested_key": ""
+    },
+    {
+      "text": "从左侧选择字段",
+      "files": [
+        "components\\ViewDesigner.tsx"
+      ],
+      "suggested_key": ""
+    },
+    {
+      "text": "已切换本体版本",
+      "files": [
+        "pages\\OntologySemanticNetwork.tsx"
+      ],
+      "suggested_key": ""
+    },
+    {
+      "text": "示例数据已加载",
+      "files": [
+        "pages\\OntologySemanticNetwork.tsx"
+      ],
+      "suggested_key": ""
+    },
+    {
+      "text": "请输入蓝图名称",
+      "files": [
+        "components\\blueprint\\BlueprintList.tsx"
+      ],
+      "suggested_key": ""
+    },
+    {
+      "text": "请先选择一条冲突",
+      "files": [
+        "components\\ConflictResolver.tsx"
+      ],
+      "suggested_key": ""
+    },
+    {
+      "text": "已标记为等待人工",
+      "files": [
+        "components\\ConflictResolver.tsx"
+      ],
+      "suggested_key": ""
+    },
+    {
+      "text": "加载继承关系失败",
+      "files": [
+        "components\\InheritanceGraph.tsx"
+      ],
+      "suggested_key": ""
+    },
+    {
+      "text": "正在构建本体图谱",
+      "files": [
+        "components\\OntologyBuildProgress.test.tsx"
+      ],
+      "suggested_key": ""
+    },
+    {
+      "text": "数据校验发现异常",
+      "files": [
+        "components\\OntologyBuildProgress.test.tsx"
+      ],
+      "suggested_key": ""
+    },
+    {
+      "text": "无法加载本体定义",
+      "files": [
+        "components\\OntologySchemaViewer.tsx"
+      ],
+      "suggested_key": ""
+    },
+    {
+      "text": "面临的问题和挑战",
+      "files": [
+        "components\\OntologySemanticNetwork.tsx"
+      ],
+      "suggested_key": ""
+    },
+    {
+      "text": "加载语义网络失败",
+      "files": [
+        "components\\OntologySemanticNetwork.tsx",
+        "pages\\OntologySemanticNetwork.tsx"
+      ],
+      "suggested_key": ""
+    },
+    {
+      "text": "请先输入描述文本",
+      "files": [
+        "components\\TemplateRecommender.tsx"
+      ],
+      "suggested_key": ""
+    },
+    {
+      "text": "请从左侧添加字段",
+      "files": [
+        "components\\ViewFieldMapping.tsx"
+      ],
+      "suggested_key": ""
+    },
+    {
+      "text": "数据健康规则说明",
+      "files": [
+        "pages\\HealthDashboard.tsx"
+      ],
+      "suggested_key": ""
+    },
+    {
+      "text": "语义地图生成成功",
+      "files": [
+        "pages\\OntologySemanticNetwork.tsx"
+      ],
+      "suggested_key": ""
+    },
+    {
+      "text": "生成语义地图失败",
+      "files": [
+        "pages\\OntologySemanticNetwork.tsx"
+      ],
+      "suggested_key": ""
+    },
+    {
+      "text": "暂无语义地图数据",
+      "files": [
+        "pages\\OntologySemanticNetwork.tsx"
+      ],
+      "suggested_key": ""
+    },
+    {
+      "text": "请先选择工作空间",
+      "files": [
+        "pages\\OntologySemanticNetwork.tsx"
+      ],
+      "suggested_key": ""
+    },
+    {
+      "text": "加载示例数据失败",
+      "files": [
+        "pages\\OntologySemanticNetwork.tsx"
+      ],
+      "suggested_key": ""
+    },
+    {
+      "text": "请输入新蓝图名称",
+      "files": [
+        "components\\blueprint\\BlueprintList.tsx"
+      ],
+      "suggested_key": ""
+    },
+    {
+      "text": "请至少选择一篇文档",
+      "files": [
+        "components\\KnowledgeBaseSelector.tsx"
+      ],
+      "suggested_key": ""
+    },
+    {
+      "text": "创建版本记录并存储",
+      "files": [
+        "components\\OntologyIngestPipeline.tsx"
+      ],
+      "suggested_key": ""
+    },
+    {
+      "text": "模拟人类智能的技术",
+      "files": [
+        "components\\OntologySemanticNetwork.tsx"
+      ],
+      "suggested_key": ""
+    },
+    {
+      "text": "字段脱敏规则已生效",
+      "files": [
+        "pages\\ObjectViewPage.tsx"
+      ],
+      "suggested_key": ""
+    },
+    {
+      "text": "从左侧选择一个视图",
+      "files": [
+        "pages\\ObjectViewPage.tsx"
+      ],
+      "suggested_key": ""
+    },
+    {
+      "text": "清洗和标准化原始数据",
+      "files": [
+        "components\\OntologyIngestPipeline.tsx"
+      ],
+      "suggested_key": ""
+    },
+    {
+      "text": "联网搜索生成模板成功",
+      "files": [
+        "components\\TemplateRecommender.tsx"
+      ],
+      "suggested_key": ""
+    },
+    {
+      "text": "双击叶子节点加入视图",
+      "files": [
+        "components\\ViewFieldMapping.tsx"
+      ],
+      "suggested_key": ""
+    },
+    {
+      "text": "加载语义地图图谱失败",
+      "files": [
+        "pages\\OntologySemanticNetwork.tsx"
+      ],
+      "suggested_key": ""
+    },
+    {
+      "text": "语义地图重新生成成功",
+      "files": [
+        "pages\\OntologySemanticNetwork.tsx"
+      ],
+      "suggested_key": ""
+    },
+    {
+      "text": "重新生成语义地图失败",
+      "files": [
+        "pages\\OntologySemanticNetwork.tsx"
+      ],
+      "suggested_key": ""
+    },
+    {
+      "text": "创建第一个数据健康规则",
+      "files": [
+        "pages\\HealthDashboard.tsx"
+      ],
+      "suggested_key": ""
+    },
+    {
+      "text": "立即对所有规则触发扫描",
+      "files": [
+        "pages\\HealthDashboard.tsx"
+      ],
+      "suggested_key": ""
+    },
+    {
+      "text": "当前角色无权导出此视图",
+      "files": [
+        "pages\\ObjectViewPage.tsx"
+      ],
+      "suggested_key": ""
+    },
+    {
+      "text": "从多个数据源收集原始数据",
+      "files": [
+        "components\\OntologyIngestPipeline.tsx"
+      ],
+      "suggested_key": ""
+    },
+    {
+      "text": "存在冲突但未指定任何解决方案",
+      "files": [
+        "components\\MergeDiffViewer.tsx"
+      ],
+      "suggested_key": ""
+    },
+    {
+      "text": "使用大语言模型提取结构化信息",
+      "files": [
+        "components\\OntologyIngestPipeline.tsx"
+      ],
+      "suggested_key": ""
+    },
+    {
+      "text": "从知识库中选择文档进行增量提取",
+      "files": [
+        "components\\KnowledgeBaseSelector.tsx"
+      ],
+      "suggested_key": ""
+    },
+    {
+      "text": "请先选择一个本体以查看语义图谱",
+      "files": [
+        "pages\\OntologyGraphPage.tsx"
+      ],
+      "suggested_key": ""
+    },
+    {
+      "text": "请先在知识库管理中创建知识库并上传文档",
+      "files": [
+        "components\\KnowledgeBaseSelector.tsx"
+      ],
+      "suggested_key": ""
+    }
+  ]
+}

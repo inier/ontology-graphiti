@@ -10,6 +10,7 @@ import { useScenario, useWorkspace } from '@/modules/shared/components/LayoutCon
 
 import type { DiffResult } from '@/modules/shared/types';
 import { AdvancedTable, wrapRequest } from '@/modules/shared';
+import { useI18n } from '@/modules/shared/hooks/useI18n';
 import type { ActionType } from '@ant-design/pro-components';
 
 
@@ -41,6 +42,8 @@ interface VersionItem {
 
 
 export function VersionHistory() {
+
+  const { t } = useI18n();
 
   const actionRef = useRef<ActionType>(null);
 
@@ -79,7 +82,7 @@ export function VersionHistory() {
 
       }
 
-      message.success('回滚成功');
+      message.success(t('回滚成功'));
 
       actionRef.current?.reload();
 
@@ -87,7 +90,7 @@ export function VersionHistory() {
 
       console.error('回滚失败', error);
 
-      message.error('回滚失败');
+      message.error(t('回滚失败'));
 
     }
 
@@ -99,7 +102,7 @@ export function VersionHistory() {
 
     if (selectedVersions.length !== 2) {
 
-      message.warning('请选择两个版本进行对比');
+      message.warning(t('请选择两个版本进行对比'));
 
       return;
 
@@ -117,7 +120,7 @@ export function VersionHistory() {
 
       console.error('版本对比失败', error);
 
-      message.error('版本对比失败');
+      message.error(t('版本对比失败'));
 
     }
 
@@ -131,7 +134,7 @@ export function VersionHistory() {
 
       await api.deleteVersion(versionId);
 
-      message.success('删除成功');
+      message.success(t('删除成功'));
 
       actionRef.current?.reload();
 
@@ -139,7 +142,7 @@ export function VersionHistory() {
 
       console.error('删除版本失败', error);
 
-      message.error('删除版本失败');
+      message.error(t('删除版本失败'));
 
     }
 
@@ -151,7 +154,7 @@ export function VersionHistory() {
 
     {
 
-      title: '版本号',
+      title: t('版本号'),
 
       dataIndex: 'version_id',
 
@@ -173,7 +176,7 @@ export function VersionHistory() {
 
     {
 
-      title: '时间',
+      title: t('时间'),
 
       dataIndex: 'created_at',
 
@@ -185,7 +188,7 @@ export function VersionHistory() {
 
     {
 
-      title: '提交信息',
+      title: t('提交信息'),
 
       dataIndex: 'commit_message',
 
@@ -199,7 +202,7 @@ export function VersionHistory() {
 
     {
 
-      title: '状态',
+      title: t('状态'),
 
       dataIndex: 'status',
 
@@ -207,7 +210,7 @@ export function VersionHistory() {
 
       render: (status: string, record: VersionItem) => {
 
-        if (record.is_current) return <Tag color="blue">当前</Tag>;
+        if (record.is_current) return <Tag color="blue">{t('当前')}</Tag>;
 
         const colorMap: Record<string, string> = {
 
@@ -215,7 +218,7 @@ export function VersionHistory() {
 
         };
 
-        return <Tag color={colorMap[status] || 'default'}>{status || '未知'}</Tag>;
+        return <Tag color={colorMap[status] || 'default'}>{status || t('未知')}</Tag>;
 
       },
 
@@ -223,7 +226,7 @@ export function VersionHistory() {
 
     {
 
-      title: '数据量',
+      title: t('数据量'),
 
       key: 'counts',
 
@@ -245,7 +248,7 @@ export function VersionHistory() {
 
     {
 
-      title: '操作',
+      title: t('操作'),
 
       key: 'action',
 
@@ -263,25 +266,25 @@ export function VersionHistory() {
 
           >
 
-            回滚
+            {t('回滚')}
 
           </Button>
 
           <Popconfirm
 
-            title="确定删除此版本？"
+            title={t('确定删除此版本？')}
 
             onConfirm={() => handleDeleteVersion(record.version_id)}
 
-            okText="确定"
+            okText={t('确定')}
 
-            cancelText="取消"
+            cancelText={t('取消')}
 
           >
 
             <Button type="link" danger icon={<DeleteOutlined />}>
 
-              删除
+              {t('删除')}
 
             </Button>
 
@@ -303,7 +306,7 @@ export function VersionHistory() {
 
       <Card
 
-        title="版本历史"
+        title={t('版本历史')}
 
         extra={
 
@@ -319,7 +322,7 @@ export function VersionHistory() {
 
             >
 
-              对比版本
+              {t('对比版本')}
 
             </Button>
 
@@ -357,13 +360,13 @@ export function VersionHistory() {
 
       <Modal
 
-        title="版本对比结果"
+        title={t('版本对比结果')}
 
         open={comparisonModalOpen}
 
         onCancel={() => setComparisonModalOpen(false)}
 
-        footer={<Button onClick={() => setComparisonModalOpen(false)}>关闭</Button>}
+        footer={<Button onClick={() => setComparisonModalOpen(false)}>{t('关闭')}</Button>}
 
         width={640}
 
@@ -377,7 +380,7 @@ export function VersionHistory() {
 
               <div style={{ marginBottom: 16 }}>
 
-                <div style={{ fontWeight: 600, color: '#52c41a', marginBottom: 8 }}>新增 ({comparisonResult.added.length})</div>
+                <div style={{ fontWeight: 600, color: '#52c41a', marginBottom: 8 }}>{t('新增 ({{n}})', { n: comparisonResult.added.length })}</div>
 
                 {comparisonResult.added.map((item, i) => (
 
@@ -397,7 +400,7 @@ export function VersionHistory() {
 
               <div style={{ marginBottom: 16 }}>
 
-                <div style={{ fontWeight: 600, color: '#ff4d4f', marginBottom: 8 }}>删除 ({comparisonResult.removed.length})</div>
+                <div style={{ fontWeight: 600, color: '#ff4d4f', marginBottom: 8 }}>{t('删除 ({{n}})', { n: comparisonResult.removed.length })}</div>
 
                 {comparisonResult.removed.map((item, i) => (
 
@@ -417,7 +420,7 @@ export function VersionHistory() {
 
               <div>
 
-                <div style={{ fontWeight: 600, color: '#fa8c16', marginBottom: 8 }}>修改 ({comparisonResult.modified.length})</div>
+                <div style={{ fontWeight: 600, color: '#fa8c16', marginBottom: 8 }}>{t('修改 ({{n}})', { n: comparisonResult.modified.length })}</div>
 
                 {comparisonResult.modified.map((item, i) => (
 
@@ -437,7 +440,7 @@ export function VersionHistory() {
 
             {comparisonResult.added.length === 0 && comparisonResult.removed.length === 0 && comparisonResult.modified.length === 0 && (
 
-              <div style={{ textAlign: 'center', color: '#8c8c8c', padding: 24 }}>两个版本无差异</div>
+              <div style={{ textAlign: 'center', color: '#8c8c8c', padding: 24 }}>{t('两个版本无差异')}</div>
 
             )}
 
@@ -452,4 +455,3 @@ export function VersionHistory() {
   );
 
 }
-

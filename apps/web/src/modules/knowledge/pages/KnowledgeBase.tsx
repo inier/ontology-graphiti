@@ -1,6 +1,7 @@
 import { useState, useEffect, useRef, useCallback } from 'react';
 
 import {
+
   App,
   Card, Button, Input, Modal, Form, Popconfirm,
 
@@ -42,6 +43,7 @@ import { EmptyState } from '@/modules/shared/components/organisms';
 
 import { useWorkspace } from '@/modules/shared/components/LayoutContexts';
 import { AdvancedTable, DocumentViewer } from '@/modules/shared';
+import { useI18n } from '@/modules/shared/hooks/useI18n';
 
 
 
@@ -50,30 +52,6 @@ const { Dragger } = Upload;
 const { TextArea } = Input;
 
 const { Title, Text } = Typography;
-
-const MIME_FRIENDLY: Record<string, string> = {
-  'application/pdf': 'PDF',
-  'application/vnd.openxmlformats-officedocument.wordprocessingml.document': 'Word 文档',
-  'application/msword': 'Word 文档 (旧版)',
-  'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet': 'Excel 表格',
-  'application/vnd.ms-excel': 'Excel 表格 (旧版)',
-  'application/vnd.openxmlformats-officedocument.presentationml.presentation': 'PPT 演示',
-  'application/vnd.ms-powerpoint': 'PPT 演示 (旧版)',
-  'text/plain': '纯文本',
-  'text/markdown': 'Markdown',
-  'text/csv': 'CSV 表格',
-  'text/html': 'HTML',
-  'application/json': 'JSON',
-  'image/png': 'PNG 图片',
-  'image/jpeg': 'JPEG 图片',
-  'image/gif': 'GIF 图片',
-  'image/svg+xml': 'SVG 图片',
-};
-
-function friendlyFileType(fileType?: string): string {
-  if (!fileType) return '未知';
-  return MIME_FRIENDLY[fileType] || fileType.split('/').pop()?.toUpperCase() || fileType;
-}
 
 /** 检测关键词是否为 URL */
 const URL_RE = /^https?:\/\/\S+/i;
@@ -111,14 +89,6 @@ function KeywordTag({ keyword, maxLen = 24 }: { keyword: string; maxLen?: number
   );
 }
 
-function deriveDocStatus(doc: KnowledgeDocument): { label: string; color: string } {
-  if (doc.status === 'error') return { label: '处理失败', color: 'error' };
-  if (doc.status === 'processing') return { label: '处理中', color: 'processing' };
-  if (doc.graph_built) return { label: '图谱已构建', color: 'success' };
-  if (doc.status === 'indexed') return { label: '已索引', color: 'success' };
-  return { label: '待处理', color: 'default' };
-}
-
 
 
 type ViewMode = 'list' | 'detail' | 'document';
@@ -126,6 +96,8 @@ type ViewMode = 'list' | 'detail' | 'document';
 
 
 export function KnowledgeBase() {
+
+  const { t } = useI18n();
 
   const { message } = App.useApp();
 
@@ -181,6 +153,38 @@ export function KnowledgeBase() {
 
   const echartsInstanceRef = useRef<any>(null);
 
+  const MIME_FRIENDLY: Record<string, string> = {
+    'application/pdf': 'PDF',
+    'application/vnd.openxmlformats-officedocument.wordprocessingml.document': t('Word 文档'),
+    'application/msword': t('Word 文档 (旧版)'),
+    'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet': t('Excel 表格'),
+    'application/vnd.ms-excel': t('Excel 表格 (旧版)'),
+    'application/vnd.openxmlformats-officedocument.presentationml.presentation': t('PPT 演示'),
+    'application/vnd.ms-powerpoint': t('PPT 演示 (旧版)'),
+    'text/plain': t('纯文本'),
+    'text/markdown': 'Markdown',
+    'text/csv': t('CSV 表格'),
+    'text/html': 'HTML',
+    'application/json': 'JSON',
+    'image/png': t('PNG 图片'),
+    'image/jpeg': t('JPEG 图片'),
+    'image/gif': t('GIF 图片'),
+    'image/svg+xml': t('SVG 图片'),
+  };
+
+  function friendlyFileType(fileType?: string): string {
+    if (!fileType) return t('未知');
+    return MIME_FRIENDLY[fileType] || fileType.split('/').pop()?.toUpperCase() || fileType;
+  }
+
+  function deriveDocStatus(doc: KnowledgeDocument): { label: string; color: string } {
+    if (doc.status === 'error') return { label: t('处理失败'), color: 'error' };
+    if (doc.status === 'processing') return { label: t('处理中'), color: 'processing' };
+    if (doc.graph_built) return { label: t('图谱已构建'), color: 'success' };
+    if (doc.status === 'indexed') return { label: t('已索引'), color: 'success' };
+    return { label: t('待处理'), color: 'default' };
+  }
+
 
 
   useEffect(() => {
@@ -213,7 +217,7 @@ export function KnowledgeBase() {
 
     } catch (e) {
 
-      message.error('加载知识库列表失败');
+      message.error(t('加载知识库列表失败'));
 
     } finally {
 
@@ -236,7 +240,7 @@ export function KnowledgeBase() {
     } catch (e) {
 
       console.warn('加载分类失败', e);
-      message.error('加载分类失败，请稍后重试');
+      message.error(t('加载分类失败，请稍后重试'));
 
     }
 
@@ -255,7 +259,7 @@ export function KnowledgeBase() {
     } catch (e) {
 
       console.warn('加载文档失败', e);
-      message.error('加载文档列表失败，请稍后重试');
+      message.error(t('加载文档列表失败，请稍后重试'));
 
     }
 
@@ -295,13 +299,13 @@ export function KnowledgeBase() {
 
         await knowledgeApi.updateKnowledgeBase(editingKb.kb_id, values);
 
-        message.success('更新成功');
+        message.success(t('更新成功'));
 
       } else {
 
         await knowledgeApi.createKnowledgeBase(values);
 
-        message.success('创建成功');
+        message.success(t('创建成功'));
 
       }
 
@@ -311,7 +315,7 @@ export function KnowledgeBase() {
 
     } catch (e) {
 
-      message.error('保存失败');
+      message.error(t('保存失败'));
 
     }
 
@@ -325,13 +329,13 @@ export function KnowledgeBase() {
 
       await knowledgeApi.deleteKnowledgeBase(id);
 
-      message.success('删除成功');
+      message.success(t('删除成功'));
 
       loadKnowledgeBases();
 
     } catch (e) {
 
-      message.error('删除失败');
+      message.error(t('删除失败'));
 
     }
 
@@ -377,7 +381,7 @@ export function KnowledgeBase() {
 
       await knowledgeApi.createCategory(currentKb.kb_id, values);
 
-      message.success('分类创建成功');
+      message.success(t('分类创建成功'));
 
       setCategoryModalOpen(false);
 
@@ -389,7 +393,7 @@ export function KnowledgeBase() {
 
     } catch (error) {
 
-      message.error(`创建分类失败: ${error}`);
+      message.error(t('创建分类失败: {{error}}', { error: String(error) }));
 
     }
 
@@ -413,19 +417,19 @@ export function KnowledgeBase() {
 
       // 按 tab 类型验证必填字段
       if (uploadTab === 'file' && !uploadFile) {
-        message.warning('请选择要上传的文件');
+        message.warning(t('请选择要上传的文件'));
         return;
       }
       if ((uploadTab === 'online_doc' || uploadTab === 'web') && !values.web_url) {
-        message.warning('请输入文档链接');
+        message.warning(t('请输入文档链接'));
         return;
       }
       if (uploadTab === 'text' && !values.content?.trim()) {
-        message.warning('请输入文本内容');
+        message.warning(t('请输入文本内容'));
         return;
       }
       if (!title && uploadTab !== 'file') {
-        message.warning('请输入文档标题');
+        message.warning(t('请输入文档标题'));
         return;
       }
 
@@ -451,7 +455,7 @@ export function KnowledgeBase() {
 
       await knowledgeApi.uploadDocument(data);
 
-      message.success('上传成功');
+      message.success(t('上传成功'));
 
       setUploadModalOpen(false);
 
@@ -461,7 +465,7 @@ export function KnowledgeBase() {
 
     } catch (e) {
 
-      message.error('上传失败');
+      message.error(t('上传失败'));
 
     }
 
@@ -493,7 +497,7 @@ export function KnowledgeBase() {
 
       });
 
-      message.success('图谱构建任务已启动');
+      message.success(t('图谱构建任务已启动'));
 
       // 模拟进度
 
@@ -517,7 +521,7 @@ export function KnowledgeBase() {
 
     } catch (e) {
 
-      message.error('图谱构建失败');
+      message.error(t('图谱构建失败'));
 
     }
 
@@ -533,7 +537,7 @@ export function KnowledgeBase() {
       // 延迟渲染，确保 Modal DOM 就绪
       setTimeout(() => renderGraph(data), 100);
     } catch {
-      message.error('加载图谱数据失败');
+      message.error(t('加载图谱数据失败'));
     } finally {
       setGraphLoading(false);
     }
@@ -595,7 +599,7 @@ export function KnowledgeBase() {
         formatter: (params: any) => {
           if (params.dataType === 'node') {
             const node = data.nodes.find(n => n.id === params.data.id);
-            return `<b>${node?.name || params.data.name}</b><br/>类型: ${node?.type || '—'}`;
+            return `<b>${node?.name || params.data.name}</b><br/>${t('类型')}: ${node?.type || '—'}`;
           }
           if (params.dataType === 'edge') {
             return `${params.data.source} → ${params.data.target}<br/>${params.data.label?.formatter || ''}`;
@@ -673,13 +677,13 @@ export function KnowledgeBase() {
 
       await knowledgeApi.deleteDocument(currentKb.kb_id, docId);
 
-      message.success('删除成功');
+      message.success(t('删除成功'));
 
       loadDocuments(currentKb.kb_id, selectedCategory || undefined);
 
     } catch (e) {
 
-      message.error('删除失败');
+      message.error(t('删除失败'));
 
     }
 
@@ -721,7 +725,7 @@ export function KnowledgeBase() {
 
       {
 
-        title: '知识库',
+        title: t('知识库'),
 
         dataIndex: 'name',
 
@@ -757,7 +761,7 @@ export function KnowledgeBase() {
 
       {
 
-        title: '知识数',
+        title: t('知识数'),
 
         dataIndex: 'knowledge_count',
 
@@ -769,7 +773,7 @@ export function KnowledgeBase() {
 
       {
 
-        title: '分类数',
+        title: t('分类数'),
 
         dataIndex: 'category_count',
 
@@ -781,7 +785,7 @@ export function KnowledgeBase() {
 
       {
 
-        title: '状态',
+        title: t('状态'),
 
         dataIndex: 'status',
 
@@ -791,11 +795,11 @@ export function KnowledgeBase() {
 
           const statusMap: Record<string, { color: string; text: string }> = {
 
-            active: { color: 'success', text: '正常' },
+            active: { color: 'success', text: t('正常') },
 
-            building: { color: 'processing', text: '构建中' },
+            building: { color: 'processing', text: t('构建中') },
 
-            error: { color: 'error', text: '异常' },
+            error: { color: 'error', text: t('异常') },
 
           };
 
@@ -809,7 +813,7 @@ export function KnowledgeBase() {
 
       {
 
-        title: '更新时间',
+        title: t('更新时间'),
 
         dataIndex: 'updated_at',
 
@@ -821,7 +825,7 @@ export function KnowledgeBase() {
 
       {
 
-        title: '操作',
+        title: t('操作'),
 
         width: 160,
 
@@ -829,13 +833,13 @@ export function KnowledgeBase() {
 
           <Space>
 
-            <Button type="text" icon={<EyeOutlined />} onClick={() => handleEnterKb(record)}>查看</Button>
+            <Button type="text" icon={<EyeOutlined />} onClick={() => handleEnterKb(record)}>{t('查看')}</Button>
 
-            <Button type="text" icon={<EditOutlined />} onClick={() => handleEditKb(record)}>编辑</Button>
+            <Button type="text" icon={<EditOutlined />} onClick={() => handleEditKb(record)}>{t('编辑')}</Button>
 
-            <Popconfirm title="确认删除？" onConfirm={() => handleDeleteKb(record.kb_id)}>
+            <Popconfirm title={t('确认删除？')} onConfirm={() => handleDeleteKb(record.kb_id)}>
 
-              <Button type="text" danger icon={<DeleteOutlined />}>删除</Button>
+              <Button type="text" danger icon={<DeleteOutlined />}>{t('删除')}</Button>
 
             </Popconfirm>
 
@@ -853,13 +857,13 @@ export function KnowledgeBase() {
 
       <Card
 
-        title={<Title level={4} style={{ margin: 0 }}><DatabaseOutlined /> 知识库</Title>}
+        title={<Title level={4} style={{ margin: 0 }}><DatabaseOutlined /> {t('知识库')}</Title>}
 
         extra={
 
           <Button type="primary" icon={<PlusOutlined />} onClick={handleCreateKb}>
 
-            新建知识库
+            {t('新建知识库')}
 
           </Button>
 
@@ -869,7 +873,7 @@ export function KnowledgeBase() {
 
         <Input.Search
 
-          placeholder="搜索知识库"
+          placeholder={t('搜索知识库')}
 
           value={searchText}
 
@@ -889,11 +893,11 @@ export function KnowledgeBase() {
 
             icon={<DatabaseOutlined />}
 
-            title="暂无知识库"
+            title={t('暂无知识库')}
 
-            description="创建知识库来管理文档和构建知识图谱，或加载示例数据快速体验"
+            description={t('创建知识库来管理文档和构建知识图谱，或加载示例数据快速体验')}
 
-            actionLabel="新建知识库"
+            actionLabel={t('新建知识库')}
 
             onAction={handleCreateKb}
 
@@ -901,7 +905,7 @@ export function KnowledgeBase() {
 
             onLoadSampleData={async () => {
 
-              if (!currentWorkspace) { message.warning('请先选择工作空间'); return; }
+              if (!currentWorkspace) { message.warning(t('请先选择工作空间')); return; }
 
               try {
 
@@ -909,11 +913,11 @@ export function KnowledgeBase() {
 
                 await api.generateSampleData(currentWorkspace);
 
-                message.success('示例数据已加载');
+                message.success(t('示例数据已加载'));
 
                 loadKnowledgeBases();
 
-              } catch (e) { message.error('加载示例数据失败'); }
+              } catch (e) { message.error(t('加载示例数据失败')); }
 
             }}
 
@@ -941,7 +945,7 @@ export function KnowledgeBase() {
 
         <Modal
 
-          title={editingKb ? '编辑知识库' : '新建知识库'}
+          title={editingKb ? t('编辑知识库') : t('新建知识库')}
 
           open={kbModalOpen}
 
@@ -955,15 +959,15 @@ export function KnowledgeBase() {
 
           <Form form={kbForm} layout="vertical" onFinish={handleSaveKb}>
 
-            <Form.Item name="name" label="知识库名称" rules={[{ required: true }]}>
+            <Form.Item name="name" label={t('知识库名称')} rules={[{ required: true }]}>
 
-              <Input placeholder="请输入知识库名称" />
+              <Input placeholder={t('请输入知识库名称')} />
 
             </Form.Item>
 
-            <Form.Item name="description" label="描述">
+            <Form.Item name="description" label={t('描述')}>
 
-              <TextArea placeholder="请输入知识库描述" rows={3} />
+              <TextArea placeholder={t('请输入知识库描述')} rows={3} />
 
             </Form.Item>
 
@@ -1009,7 +1013,7 @@ export function KnowledgeBase() {
 
       {
 
-        title: '文档',
+        title: t('文档'),
 
         dataIndex: 'title',
 
@@ -1025,7 +1029,7 @@ export function KnowledgeBase() {
 
             <div>
 
-              <div>{record.title || record.file_url?.split('/').pop() || '未命名文档'}</div>
+              <div>{record.title || record.file_url?.split('/').pop() || t('未命名文档')}</div>
 
               {record.keywords?.length > 0 && (
 
@@ -1048,23 +1052,23 @@ export function KnowledgeBase() {
 
       {
 
-        title: '类型',
+        title: t('类型'),
 
         dataIndex: 'content_type',
 
         width: 130,
 
-        render: (t: string, record: KnowledgeDocument) => {
+        render: (tp: string, record: KnowledgeDocument) => {
 
           const typeMap: Record<string, string> = {
 
-            file: '文件', online_doc: '在线文档', text: '纯文本', web_crawl: '网页抓取',
+            file: t('文件'), online_doc: t('在线文档'), text: t('纯文本'), web_crawl: t('网页抓取'),
 
           };
 
           return (
             <Space size={4}>
-              <Tag>{typeMap[t] || t}</Tag>
+              <Tag>{typeMap[tp] || tp}</Tag>
               {record.file_type && <Tag color="blue" style={{ fontSize: 11 }}>{friendlyFileType(record.file_type)}</Tag>}
             </Space>
           );
@@ -1075,7 +1079,7 @@ export function KnowledgeBase() {
 
       {
 
-        title: '状态',
+        title: t('状态'),
 
         dataIndex: 'status',
 
@@ -1093,7 +1097,7 @@ export function KnowledgeBase() {
 
       {
 
-        title: '图谱',
+        title: t('图谱'),
 
         dataIndex: 'graph_built',
 
@@ -1103,10 +1107,10 @@ export function KnowledgeBase() {
 
           built ? (
             <Space>
-              <Tag color="success">已构建</Tag>
-              <Tooltip title="查看图谱">
+              <Tag color="success">{t('已构建')}</Tag>
+              <Tooltip title={t('查看图谱')}>
                 <Button size="small" type="link" icon={<ApartmentOutlined />} onClick={() => handleViewGraph(record.kb_id)}>
-                  查看
+                  {t('查看')}
                 </Button>
               </Tooltip>
             </Space>
@@ -1120,7 +1124,7 @@ export function KnowledgeBase() {
 
             <Button size="small" icon={<BuildOutlined />} onClick={() => handleBuildGraph(record)}>
 
-              构建图谱
+              {t('构建图谱')}
 
             </Button>
 
@@ -1132,7 +1136,7 @@ export function KnowledgeBase() {
 
       {
 
-        title: '更新时间',
+        title: t('更新时间'),
 
         dataIndex: 'updated_at',
 
@@ -1144,7 +1148,7 @@ export function KnowledgeBase() {
 
       {
 
-        title: '操作',
+        title: t('操作'),
 
         width: 120,
 
@@ -1154,7 +1158,7 @@ export function KnowledgeBase() {
 
             <Button type="text" icon={<EyeOutlined />} onClick={() => handleViewDoc(record)} />
 
-            <Popconfirm title="确认删除？" onConfirm={() => handleDeleteDoc(record.doc_id)}>
+            <Popconfirm title={t('确认删除？')} onConfirm={() => handleDeleteDoc(record.doc_id)}>
 
               <Button type="text" danger icon={<DeleteOutlined />} />
 
@@ -1190,9 +1194,9 @@ export function KnowledgeBase() {
 
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 8 }}>
 
-            <Text type="secondary">分类</Text>
+            <Text type="secondary">{t('分类')}</Text>
 
-            <Button type="text" size="small" icon={<PlusOutlined />} onClick={() => { categoryForm.resetFields(); setCategoryModalOpen(true); }}>新建</Button>
+            <Button type="text" size="small" icon={<PlusOutlined />} onClick={() => { categoryForm.resetFields(); setCategoryModalOpen(true); }}>{t('新建')}</Button>
 
           </div>
 
@@ -1224,19 +1228,19 @@ export function KnowledgeBase() {
 
               <Space>
 
-                <span>{selectedCategory ? '分类文档' : '全部文档'}</span>
+                <span>{selectedCategory ? t('分类文档') : t('全部文档')}</span>
 
-                <Tag>{documents.length} 个文档</Tag>
+                <Tag>{t('{{n}} 个文档', { n: documents.length })}</Tag>
 
               </Space>
 
               <Space>
 
-                <Button icon={<GlobalOutlined />}>外部抓取</Button>
+                <Button icon={<GlobalOutlined />}>{t('外部抓取')}</Button>
 
                 <Button type="primary" icon={<PlusOutlined />} onClick={handleUploadDoc}>
 
-                  添加知识
+                  {t('添加知识')}
 
                 </Button>
 
@@ -1268,7 +1272,7 @@ export function KnowledgeBase() {
 
         <Modal
 
-          title="添加知识"
+          title={t('添加知识')}
 
           open={uploadModalOpen}
 
@@ -1284,9 +1288,9 @@ export function KnowledgeBase() {
 
           <Form form={uploadForm} layout="vertical">
 
-            <Form.Item name="title" label="标题" rules={[{ required: uploadTab !== 'file', message: '请输入文档标题' }]}>
+            <Form.Item name="title" label={t('标题')} rules={[{ required: uploadTab !== 'file', message: t('请输入文档标题') }]}>
 
-              <Input placeholder={uploadTab === 'file' ? '留空则自动使用文件名' : '请输入文档标题'} />
+              <Input placeholder={uploadTab === 'file' ? t('留空则自动使用文件名') : t('请输入文档标题')} />
 
             </Form.Item>
 
@@ -1298,7 +1302,7 @@ export function KnowledgeBase() {
 
                 key: 'file',
 
-                label: '文件',
+                label: t('文件'),
 
                 children: (
 
@@ -1316,9 +1320,9 @@ export function KnowledgeBase() {
 
                     <p className="ant-upload-drag-icon"><InboxOutlined /></p>
 
-                    <p className="ant-upload-text">点击或拖拽文件到此区域</p>
+                    <p className="ant-upload-text">{t('点击或拖拽文件到此区域')}</p>
 
-                    <p className="ant-upload-hint">支持 PDF、Word、PPT、TXT 等格式</p>
+                    <p className="ant-upload-hint">{t('支持 PDF、Word、PPT、TXT 等格式')}</p>
 
                   </Dragger>
 
@@ -1330,13 +1334,13 @@ export function KnowledgeBase() {
 
                 key: 'online_doc',
 
-                label: '在线文档',
+                label: t('在线文档'),
 
                 children: (
 
-                  <Form.Item name="web_url" label="文档链接">
+                  <Form.Item name="web_url" label={t('文档链接')}>
 
-                    <Input placeholder="请输入在线文档链接" prefix={<LinkOutlined />} />
+                    <Input placeholder={t('请输入在线文档链接')} prefix={<LinkOutlined />} />
 
                   </Form.Item>
 
@@ -1348,13 +1352,13 @@ export function KnowledgeBase() {
 
                 key: 'text',
 
-                label: '纯文本',
+                label: t('纯文本'),
 
                 children: (
 
-                  <Form.Item name="content" label="内容">
+                  <Form.Item name="content" label={t('内容')}>
 
-                    <TextArea placeholder="请输入文本内容" rows={6} />
+                    <TextArea placeholder={t('请输入文本内容')} rows={6} />
 
                   </Form.Item>
 
@@ -1366,15 +1370,15 @@ export function KnowledgeBase() {
 
                 key: 'web',
 
-                label: '网页抓取',
+                label: t('网页抓取'),
 
                 children: (
 
                   <>
 
-                    <Form.Item name="web_url" label="网页URL">
+                    <Form.Item name="web_url" label={t('网页URL')}>
 
-                      <Input placeholder="请输入要抓取的网页URL" prefix={<GlobalOutlined />} />
+                      <Input placeholder={t('请输入要抓取的网页URL')} prefix={<GlobalOutlined />} />
 
                     </Form.Item>
 
@@ -1384,7 +1388,7 @@ export function KnowledgeBase() {
 
                       showIcon
 
-                      title="系统将自动抓取网页内容并提取结构化知识"
+                      title={t('系统将自动抓取网页内容并提取结构化知识')}
 
                       style={{ marginTop: 8 }}
 
@@ -1400,9 +1404,9 @@ export function KnowledgeBase() {
 
 
 
-            <Form.Item name="category_id" label="分类">
+            <Form.Item name="category_id" label={t('分类')}>
 
-              <Select placeholder="请选择分类（可选）" allowClear>
+              <Select placeholder={t('请选择分类（可选）')} allowClear>
 
                 {categories.map(cat => (
 
@@ -1424,7 +1428,7 @@ export function KnowledgeBase() {
 
         <Modal
 
-          title="新建分类"
+          title={t('新建分类')}
 
           open={categoryModalOpen}
 
@@ -1432,23 +1436,23 @@ export function KnowledgeBase() {
 
           onCancel={() => { setCategoryModalOpen(false); categoryForm.resetFields(); }}
 
-          okText="创建"
+          okText={t('创建')}
 
-          cancelText="取消"
+          cancelText={t('取消')}
 
         >
 
           <Form form={categoryForm} layout="vertical">
 
-            <Form.Item name="name" label="分类名称" rules={[{ required: true, message: '请输入分类名称' }]}>
+            <Form.Item name="name" label={t('分类名称')} rules={[{ required: true, message: t('请输入分类名称') }]}>
 
-              <Input placeholder="输入分类名称" />
+              <Input placeholder={t('输入分类名称')} />
 
             </Form.Item>
 
-            <Form.Item name="parent_id" label="父级分类">
+            <Form.Item name="parent_id" label={t('父级分类')}>
 
-              <Select placeholder="无（顶级分类）" allowClear>
+              <Select placeholder={t('无（顶级分类）')} allowClear>
 
                 {categories.map(c => (
 
@@ -1470,7 +1474,7 @@ export function KnowledgeBase() {
 
         <Drawer
 
-          title="文档详情"
+          title={t('文档详情')}
 
           open={docDrawerOpen}
 
@@ -1486,16 +1490,16 @@ export function KnowledgeBase() {
 
               <Descriptions column={1}>
 
-                <Descriptions.Item label="标题">{currentDoc.title || '未命名文档'}</Descriptions.Item>
+                <Descriptions.Item label={t('标题')}>{currentDoc.title || t('未命名文档')}</Descriptions.Item>
 
-                <Descriptions.Item label="类型">
+                <Descriptions.Item label={t('类型')}>
 
                   <Tag>{currentDoc.content_type}</Tag>
                   {currentDoc.file_type && <Tag color="blue">{friendlyFileType(currentDoc.file_type)}</Tag>}
 
                 </Descriptions.Item>
 
-                <Descriptions.Item label="处理状态">
+                <Descriptions.Item label={t('处理状态')}>
                   {(() => {
                     const st = deriveDocStatus(currentDoc);
                     return <Tag color={st.color}>{st.label}</Tag>;
@@ -1503,7 +1507,7 @@ export function KnowledgeBase() {
                 </Descriptions.Item>
 
                 {currentDoc.file_size != null && (
-                  <Descriptions.Item label="文件大小">
+                  <Descriptions.Item label={t('文件大小')}>
                     {currentDoc.file_size < 1024 * 1024
                       ? `${(currentDoc.file_size / 1024).toFixed(1)} KB`
                       : `${(currentDoc.file_size / 1024 / 1024).toFixed(1)} MB`}
@@ -1511,7 +1515,7 @@ export function KnowledgeBase() {
                 )}
 
                 {currentDoc.file_url && (
-                  <Descriptions.Item label="存储路径">
+                  <Descriptions.Item label={t('存储路径')}>
                     <Tooltip title={currentDoc.file_url}>
                       <Text copyable style={{ maxWidth: 400, wordBreak: 'break-all' }}>
                         {currentDoc.file_url.startsWith('/') ? currentDoc.file_url : `minio://odap-documents/${currentDoc.file_url}`}
@@ -1519,32 +1523,32 @@ export function KnowledgeBase() {
                     </Tooltip>
                     {currentDoc.presigned_url && (
                       <Button size="small" type="link" href={currentDoc.presigned_url} target="_blank" rel="noreferrer">
-                        下载
+                        {t('下载')}
                       </Button>
                     )}
                   </Descriptions.Item>
                 )}
 
-                <Descriptions.Item label="关键词">
+                <Descriptions.Item label={t('关键词')}>
 
                   <Space wrap>
 
                     {([...new Set(currentDoc.keywords ?? [])]).map((k, idx) => <KeywordTag key={`${k}-${idx}`} keyword={k} maxLen={40} />)}
-                    {(!currentDoc.keywords?.length) && <Text type="secondary">暂无关键词</Text>}
+                    {(!currentDoc.keywords?.length) && <Text type="secondary">{t('暂无关键词')}</Text>}
 
                   </Space>
 
                 </Descriptions.Item>
 
-                <Descriptions.Item label="摘要">{currentDoc.summary || '—'}</Descriptions.Item>
+                <Descriptions.Item label={t('摘要')}>{currentDoc.summary || '—'}</Descriptions.Item>
 
-                <Descriptions.Item label="图谱状态">
+                <Descriptions.Item label={t('图谱状态')}>
 
                   <Space>
-                    {currentDoc.graph_built ? <Tag color="success">已构建</Tag> : <Tag>未构建</Tag>}
+                    {currentDoc.graph_built ? <Tag color="success">{t('已构建')}</Tag> : <Tag>{t('未构建')}</Tag>}
                     {currentDoc.graph_built && (
                       <Button size="small" type="link" icon={<ApartmentOutlined />} onClick={() => handleViewGraph(currentDoc.kb_id)}>
-                        查看图谱
+                        {t('查看图谱')}
                       </Button>
                     )}
                   </Space>
@@ -1558,7 +1562,7 @@ export function KnowledgeBase() {
               {/* 文档预览区域 */}
               {currentDoc.file_url ? (
                 <div style={{ marginTop: 24 }}>
-                  <Title level={5}>文档预览</Title>
+                  <Title level={5}>{t('文档预览')}</Title>
                   <DocumentViewer
                     fileUrl={currentDoc.file_url}
                     presignedUrl={currentDoc.presigned_url}
@@ -1570,7 +1574,7 @@ export function KnowledgeBase() {
               ) : currentDoc.content ? (
                 <div style={{ marginTop: 24 }}>
 
-                  <Title level={5}>内容预览</Title>
+                  <Title level={5}>{t('内容预览')}</Title>
 
                   <div style={{
 
@@ -1595,7 +1599,7 @@ export function KnowledgeBase() {
 
                   <Button type="primary" icon={<BuildOutlined />} block onClick={() => handleBuildGraph(currentDoc)}>
 
-                    构建知识图谱
+                    {t('构建知识图谱')}
 
                   </Button>
 
@@ -1614,7 +1618,7 @@ export function KnowledgeBase() {
         title={
           <Space>
             <ApartmentOutlined />
-            <span>知识图谱 — {currentKb?.name || ''}</span>
+            <span>{t('知识图谱 — {{name}}', { name: currentKb?.name || '' })}</span>
           </Space>
         }
         open={graphModalOpen}
@@ -1628,10 +1632,10 @@ export function KnowledgeBase() {
         footer={
           graphData ? (
             <Space>
-              <Tag>实体: {graphData.statistics.total_entities}</Tag>
-              <Tag>关系: {graphData.statistics.total_relationships}</Tag>
+              <Tag>{t('实体: {{n}}', { n: graphData.statistics.total_entities })}</Tag>
+              <Tag>{t('关系: {{n}}', { n: graphData.statistics.total_relationships })}</Tag>
               <Button onClick={() => { setGraphModalOpen(false); if (echartsInstanceRef.current) { echartsInstanceRef.current.dispose(); echartsInstanceRef.current = null; } }}>
-                关闭
+                {t('关闭')}
               </Button>
             </Space>
           ) : null
@@ -1641,18 +1645,18 @@ export function KnowledgeBase() {
       >
         {graphLoading ? (
           <div style={{ height: 500, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-            <Spin description="加载图谱数据..." />
+            <Spin description={t('加载图谱数据...')} />
           </div>
         ) : graphData && graphData.nodes.length > 0 ? (
           <>
             <div ref={graphChartRef} style={{ width: '100%', height: 500 }} />
             <div style={{ marginTop: 8, color: '#999', fontSize: 12 }}>
-              提示：鼠标拖拽移动画布，滚轮缩放，点击节点高亮关联关系
+              {t('提示：鼠标拖拽移动画布，滚轮缩放，点击节点高亮关联关系')}
             </div>
           </>
         ) : (
           <Empty
-            description={graphData?.error ? `图谱加载失败: ${graphData.error}` : '暂无图谱数据，请先为文档构建图谱'}
+            description={graphData?.error ? t('图谱加载失败: {{error}}', { error: graphData.error }) : t('暂无图谱数据，请先为文档构建图谱')}
             style={{ height: 300, display: 'flex', flexDirection: 'column', justifyContent: 'center' }}
           />
         )}
@@ -1669,4 +1673,3 @@ export function KnowledgeBase() {
   return null;
 
 }
-

@@ -4,6 +4,7 @@ import { useNavigate, useLocation, Outlet } from 'react-router-dom';
 import { RobotOutlined, MenuFoldOutlined, MenuUnfoldOutlined } from '@ant-design/icons';
 import { api } from '../services/api';
 import { useAuthStore } from '../stores/authStore';
+import { useI18n } from '@/modules/shared/hooks/useI18n';
 import { GlobalLoading } from './GlobalLoading';
 import { LayoutHeader } from './LayoutHeader';
 import { useLayoutStore, type ColorTheme } from '../stores/layoutStore';
@@ -22,11 +23,8 @@ const COLOR_THEME_PRIMARY: Record<string, string> = {
   amber:   '#F59E0B',
 };
 
-/** Agent 模式下需要创建 tab 的路由 */
-const agentRouteTabInfo: Record<string, { title: string }> = {
-  '/my-agents': { title: '我的智能体' },
-  '/agent-chat/new': { title: '新建对话' },
-};
+/** Agent 模式下需要创建 tab 的路由（动态更新） */
+const agentRouteTabInfo: Record<string, { title: string }> = {};
 
 /* ──────────────────────────────────────────
  * AgentLayoutInner — 渲染在 <App> 内部，

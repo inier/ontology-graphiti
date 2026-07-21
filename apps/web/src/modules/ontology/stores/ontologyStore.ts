@@ -468,7 +468,7 @@ export const useOntologyStore = create<OntologyState>((set, get) => ({
   },
 
   selectOntology: async (ontologyId) => {
-    set({ loading: true, error: null });
+    set({ loading: true, error: null, graphData: null });
     try {
       const result = await ontologyApi.ontologies.get(ontologyId);
       const ontology = result as Ontology;

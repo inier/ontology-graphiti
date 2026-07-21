@@ -6,6 +6,7 @@ import {
   GlobalOutlined,
 } from '@ant-design/icons';
 import { useNavigate } from 'react-router-dom';
+import { useTranslation } from 'react-i18next';
 import { api } from '../services/api';
 import { useAuthStore } from '../stores/authStore';
 import { LanguageSwitcher } from './LanguageSwitcher';
@@ -77,6 +78,7 @@ export function LayoutHeader({
   onLogout,
 }: LayoutHeaderProps) {
   const navigate = useNavigate();
+  const { t } = useTranslation();
 
   return (
     <Header
@@ -98,9 +100,9 @@ export function LayoutHeader({
         {leftExtra}
 
         <div className="odap-header-selector">
-          <span className="odap-header-selector-label">工作空间</span>
+          <span className="odap-header-selector-label">{t('工作空间')}</span>
           {loading ? (
-            <span style={{ color: 'var(--odap-color-text-tertiary)', fontSize: 13 }}>加载中…</span>
+            <span style={{ color: 'var(--odap-color-text-tertiary)', fontSize: 13 }}>{t('加载中...')}</span>
           ) : workspaces.length > 0 ? (
             <Select
               value={activeWorkspaceId || undefined}
@@ -113,14 +115,14 @@ export function LayoutHeader({
               }))}
             />
           ) : (
-            <span style={{ color: 'var(--odap-color-text-tertiary)', fontSize: 13 }}>暂无</span>
+            <span style={{ color: 'var(--odap-color-text-tertiary)', fontSize: 13 }}>{t('暂无')}</span>
           )}
         </div>
 
         <div className="odap-header-selector">
-          <span className="odap-header-selector-label">场景</span>
+          <span className="odap-header-selector-label">{t('场景')}</span>
           {scenariosLoading ? (
-            <span style={{ color: 'var(--odap-color-text-tertiary)', fontSize: 13 }}>加载中…</span>
+            <span style={{ color: 'var(--odap-color-text-tertiary)', fontSize: 13 }}>{t('加载中...')}</span>
           ) : scenarios.length > 0 ? (
             <Select
               value={activeScenarioId || undefined}
@@ -133,7 +135,7 @@ export function LayoutHeader({
               }))}
             />
           ) : (
-            <span style={{ color: 'var(--odap-color-text-tertiary)', fontSize: 13 }}>暂无</span>
+            <span style={{ color: 'var(--odap-color-text-tertiary)', fontSize: 13 }}>{t('暂无')}</span>
           )}
         </div>
       </div>
@@ -144,7 +146,7 @@ export function LayoutHeader({
 
         <ThemeColorPicker value={colorTheme} onChange={onColorThemeChange} size="small" />
 
-        <Tooltip title={theme === 'light' ? '切换暗色模式' : '切换亮色模式'}>
+        <Tooltip title={theme === 'light' ? t('切换暗色模式') : t('切换亮色模式')}>
           <Button
             type="text"
             size="small"
@@ -154,7 +156,7 @@ export function LayoutHeader({
           />
         </Tooltip>
 
-        <Tooltip title="帮助与引导">
+        <Tooltip title={t('帮助与引导')}>
           <Button
             type="text"
             size="small"
@@ -172,7 +174,7 @@ export function LayoutHeader({
               {
                 key: 'logout',
                 icon: <LogoutOutlined />,
-                label: '退出登录',
+                label: t('退出登录'),
                 onClick: onLogout,
               },
             ],

@@ -2,6 +2,7 @@ import { useMemo } from 'react';
 import { Tag, Collapse, Empty, Space } from 'antd';
 import type { ColumnsType } from 'antd/es/table';
 import { AdvancedTable } from '@/modules/shared';
+import { useI18n } from '@/modules/shared/hooks/useI18n';
 
 export interface VersionDiffViewProps {
   diffData: Record<string, unknown> | null;
@@ -31,11 +32,7 @@ const CHANGE_COLORS: Record<string, string> = {
   deleted: 'red',
 };
 
-const CHANGE_LABELS: Record<string, string> = {
-  added: '新增',
-  modified: '修改',
-  deleted: '删除',
-};
+const CHANGE_TYPE_KEYS = ['added', 'modified', 'deleted'];
 
 /* ── Helper: extract diff items from a category ───────────────────── */
 
@@ -108,33 +105,27 @@ function extractDiffItems(
 
 /* ── Category definitions ─────────────────────────────────────────── */
 
-const CATEGORY_KEYS: Array<{ key: string; label: string }> = [
-  { key: 'object_types', label: '对象类型' },
-  { key: 'link_types', label: '关系类型' },
-  { key: 'action_types', label: '动作类型' },
-  { key: 'process_types', label: '业务过程' },
-  { key: 'rule_types', label: '规则类型' },
-  { key: 'function_types', label: '逻辑函数' },
-  { key: 'indicator_types', label: '指标类型' },
-];
+const CATEGORY_KEYS = ['object_types', 'link_types', 'action_types', 'process_types', 'rule_types', 'function_types', 'indicator_types'];
 
 /* ── Main Component ───────────────────────────────────────────────── */
 
 export function VersionDiffView({ diffData, versionA, versionB }: VersionDiffViewProps) {
+  const { t } = useI18n('ontology');
+
   const categories = useMemo<CategoryDiff[]>(() => {
     if (!diffData) return [];
 
-    return CATEGORY_KEYS.map(({ key, label }) => {
-      // Try both nested and flat key patterns
+    return CATEGORY_KEYS.map((key) => {
+      const label = t(`diff.categories.${key}`);
       const categoryData = diffData[key] || diffData;
       const items = extractDiffItems(categoryData, key);
       return { label, items };
     }).filter((cat) => cat.items.length > 0);
-  }, [diffData]);
+  }, [diffData, t]);
 
   const columns: ColumnsType<DiffItem> = [
     {
-      title: '名称',
+      title: t('名称'),
       dataIndex: 'name',
       key: 'name',
       width: '35%',
@@ -148,16 +139,16 @@ export function VersionDiffView({ diffData, versionA, versionB }: VersionDiffVie
       ),
     },
     {
-      title: '变更类型',
+      title: t('变更类型'),
       dataIndex: 'changeType',
       key: 'changeType',
       width: '20%',
       render: (type: string) => (
-        <Tag color={CHANGE_COLORS[type]}>{CHANGE_LABELS[type]}</Tag>
+        <Tag color={CHANGE_COLORS[type]}>{t(`diff.${type}`)}</Tag>
       ),
     },
     {
-      title: '变更详情',
+      title: t('变更详情'),
       dataIndex: 'details',
       key: 'details',
       width: '45%',
@@ -166,11 +157,11 @@ export function VersionDiffView({ diffData, versionA, versionB }: VersionDiffVie
   ];
 
   if (!diffData) {
-    return <Empty description="请选择两个版本进行对比" image={Empty.PRESENTED_IMAGE_SIMPLE} />;
+    return <Empty description={t('请选择两个版本进行对比')} image={Empty.PRESENTED_IMAGE_SIMPLE} />;
   }
 
   if (categories.length === 0) {
-    return <Empty description="两个版本之间无差异" image={Empty.PRESENTED_IMAGE_SIMPLE} />;
+    return <Empty description={t('两个版本之间无差异')} image={Empty.PRESENTED_IMAGE_SIMPLE} />;
   }
 
   // Summary stats
@@ -183,11 +174,11 @@ export function VersionDiffView({ diffData, versionA, versionB }: VersionDiffVie
       <div style={{ marginBottom: 16 }}>
         <Space>
           <span style={{ fontWeight: 500 }}>
-            v{versionA} → v{versionB} 差异对比
+            {t('diff.diffBetween', { a: versionA, b: versionB })}
           </span>
-          <Tag color="green">+{totalAdded} 新增</Tag>
-          <Tag color="gold">~{totalModified} 修改</Tag>
-          <Tag color="red">-{totalDeleted} 删除</Tag>
+          <Tag color="green">+{totalAdded} {t('新增')}</Tag>
+          <Tag color="gold">~{totalModified} {t('修改')}</Tag>
+          <Tag color="red">-{totalDeleted} {t('删除')}</Tag>
         </Space>
       </div>
 
@@ -198,9 +189,9 @@ export function VersionDiffView({ diffData, versionA, versionB }: VersionDiffVie
           label: (
             <Space>
               <span>{category.label}</span>
-              <Tag color="green">{category.items.filter((i) => i.changeType === 'added').length} 新增</Tag>
-              <Tag color="gold">{category.items.filter((i) => i.changeType === 'modified').length} 修改</Tag>
-              <Tag color="red">{category.items.filter((i) => i.changeType === 'deleted').length} 删除</Tag>
+              <Tag color="green">{category.items.filter((i) => i.changeType === 'added').length} {t('新增')}</Tag>
+              <Tag color="gold">{category.items.filter((i) => i.changeType === 'modified').length} {t('修改')}</Tag>
+              <Tag color="red">{category.items.filter((i) => i.changeType === 'deleted').length} {t('删除')}</Tag>
             </Space>
           ),
           children: (

@@ -6,6 +6,8 @@ import { PlusOutlined, EditOutlined, DeleteOutlined, ExportOutlined, ImportOutli
 
 import adapter from '@/modules/shared/components/adapter';
 
+import { useI18n } from '@/modules/shared/hooks/useI18n';
+
 import { PageHeader } from '@/modules/shared/components/PageHeader';
 
 import { useWorkspace, useScenario } from '@/modules/shared/components/LayoutContexts';
@@ -38,21 +40,21 @@ const ISOLATION_COLORS: Record<string, string> = {
 
 
 
-const ISOLATION_LABELS: Record<string, string> = {
-
-  LOW: '低',
-
-  STANDARD: '标准',
-
-  HIGH: '高',
-
-  STRICT: '严格',
-
-};
-
-
-
 export function WorkspacePage() {
+
+  const { t } = useI18n();
+
+  const ISOLATION_LABELS: Record<string, string> = {
+
+    LOW: t('低'),
+
+    STANDARD: t('标准'),
+
+    HIGH: t('高'),
+
+    STRICT: t('严格'),
+
+  };
 
   const { currentWorkspace: activeWorkspaceId, reloadWorkspaces } = useWorkspace();
 
@@ -136,7 +138,7 @@ export function WorkspacePage() {
 
       createForm.resetFields();
 
-      adapter.getMessage().success('创建成功');
+      adapter.getMessage().success(t('创建成功'));
 
     } catch {
 
@@ -184,7 +186,7 @@ export function WorkspacePage() {
 
       setEditingWorkspace(null);
 
-      adapter.getMessage().success('更新成功');
+      adapter.getMessage().success(t('更新成功'));
 
     } catch {
 
@@ -199,9 +201,9 @@ export function WorkspacePage() {
   const handleDelete = async (workspaceId: string) => {
     try {
       await deleteWorkspace(workspaceId);
-      adapter.getMessage().success('删除成功');
+      adapter.getMessage().success(t('删除成功'));
     } catch {
-      adapter.getMessage().error('删除失败');
+      adapter.getMessage().error(t('删除失败'));
     } finally {
       setDeleteModalVisible(false);
       setDeletingWorkspace(null);
@@ -231,7 +233,7 @@ export function WorkspacePage() {
 
       URL.revokeObjectURL(url);
 
-      adapter.getMessage().success('导出成功');
+      adapter.getMessage().success(t('导出成功'));
 
     }
 
@@ -253,7 +255,7 @@ export function WorkspacePage() {
 
       scenarioForm.resetFields();
 
-      adapter.getMessage().success('场景创建成功');
+      adapter.getMessage().success(t('场景创建成功'));
 
       reloadScenarios();
 
@@ -273,7 +275,7 @@ export function WorkspacePage() {
 
     await activateScenario(activeWorkspaceId, scenarioId);
 
-    adapter.getMessage().success('场景已激活');
+    adapter.getMessage().success(t('场景已激活'));
 
     reloadScenarios();
 
@@ -285,7 +287,7 @@ export function WorkspacePage() {
 
     {
 
-      title: '名称',
+      title: t('名称'),
 
       dataIndex: 'name',
 
@@ -299,7 +301,7 @@ export function WorkspacePage() {
 
           <Tag color={record.status === 'active' ? 'green' : 'red'}>
 
-            {record.status === 'active' ? '活跃' : '停用'}
+            {record.status === 'active' ? t('活跃') : t('停用')}
 
           </Tag>
 
@@ -311,7 +313,7 @@ export function WorkspacePage() {
 
     {
 
-      title: '隔离级别',
+      title: t('隔离级别'),
 
       dataIndex: 'isolation_level',
 
@@ -331,7 +333,7 @@ export function WorkspacePage() {
 
     {
 
-      title: '描述',
+      title: t('描述'),
 
       dataIndex: 'description',
 
@@ -343,7 +345,7 @@ export function WorkspacePage() {
 
     {
 
-      title: '成员数',
+      title: t('成员数'),
 
       dataIndex: 'member_count',
 
@@ -355,7 +357,7 @@ export function WorkspacePage() {
 
     {
 
-      title: '创建时间',
+      title: t('创建时间'),
 
       dataIndex: 'created_at',
 
@@ -367,7 +369,7 @@ export function WorkspacePage() {
 
     {
 
-      title: '操作',
+      title: t('操作'),
 
       key: 'action',
 
@@ -389,7 +391,7 @@ export function WorkspacePage() {
 
           >
 
-            编辑
+            {t('编辑')}
 
           </Button>
 
@@ -405,20 +407,24 @@ export function WorkspacePage() {
 
           >
 
-            导出
+            {t('导出')}
 
           </Button>
 
           <Button
+
             type="link"
+
             size="small"
+
             icon={<DeleteOutlined />}
+
             onClick={() => {
               setDeletingWorkspace(record);
               setDeleteModalVisible(true);
             }}
           >
-            删除
+            {t('删除')}
           </Button>
 
         </Space>
@@ -435,7 +441,7 @@ export function WorkspacePage() {
 
     {
 
-      title: '场景名称',
+      title: t('场景名称'),
 
       dataIndex: 'name',
 
@@ -447,7 +453,7 @@ export function WorkspacePage() {
 
     {
 
-      title: '描述',
+      title: t('描述'),
 
       dataIndex: 'description',
 
@@ -459,7 +465,7 @@ export function WorkspacePage() {
 
     {
 
-      title: '状态',
+      title: t('状态'),
 
       dataIndex: 'status',
 
@@ -475,7 +481,7 @@ export function WorkspacePage() {
 
     {
 
-      title: '创建时间',
+      title: t('创建时间'),
 
       dataIndex: 'created_at',
 
@@ -487,7 +493,7 @@ export function WorkspacePage() {
 
     {
 
-      title: '操作',
+      title: t('操作'),
 
       key: 'action',
 
@@ -509,7 +515,7 @@ export function WorkspacePage() {
 
           >
 
-            激活
+            {t('激活')}
 
           </Button>
 
@@ -537,13 +543,13 @@ export function WorkspacePage() {
 
       <PageHeader
 
-        title="工作空间管理"
+        title={t('工作空间管理')}
 
         actions={
 
           <Button type="primary" icon={<PlusOutlined />} onClick={() => setCreateModalVisible(true)} data-tour="workspace-create-btn">
 
-            创建工作空间
+            {t('创建工作空间')}
 
           </Button>
 
@@ -559,7 +565,7 @@ export function WorkspacePage() {
 
           <Card>
 
-            <Statistic title="总工作空间数" value={workspaces.length} loading={loading} />
+            <Statistic title={t('总工作空间数')} value={workspaces.length} loading={loading} />
 
           </Card>
 
@@ -569,7 +575,7 @@ export function WorkspacePage() {
 
           <Card>
 
-            <Statistic title="活跃工作空间" value={activeCount} loading={loading} />
+            <Statistic title={t('活跃工作空间')} value={activeCount} loading={loading} />
 
           </Card>
 
@@ -579,7 +585,7 @@ export function WorkspacePage() {
 
           <Card>
 
-            <Statistic title="已停用" value={inactiveCount} loading={loading} />
+            <Statistic title={t('已停用')} value={inactiveCount} loading={loading} />
 
           </Card>
 
@@ -601,7 +607,7 @@ export function WorkspacePage() {
 
             key: 'workspaces',
 
-            label: '工作空间管理',
+            label: t('工作空间管理'),
 
             children: (
 
@@ -633,13 +639,13 @@ export function WorkspacePage() {
 
             key: 'scenarios',
 
-            label: <span data-tour="workspace-scenario-tab">场景管理</span>,
+            label: <span data-tour="workspace-scenario-tab">{t('场景管理')}</span>,
 
             children: (
 
               <Card
 
-                title={activeWorkspaceId ? `场景 - ${workspaces.find(w => w.workspace_id === activeWorkspaceId)?.name || ''}` : '请选择工作空间'}
+                title={activeWorkspaceId ? t('场景 - {{name}}', { name: workspaces.find(w => w.workspace_id === activeWorkspaceId)?.name || '' }) : t('请选择工作空间')}
 
                 extra={
 
@@ -657,7 +663,7 @@ export function WorkspacePage() {
 
                     >
 
-                      创建场景
+                      {t('创建场景')}
 
                     </Button>
 
@@ -687,7 +693,7 @@ export function WorkspacePage() {
 
                 ) : (
 
-                  <Empty description="请先选择一个工作空间" />
+                  <Empty description={t('请先选择一个工作空间')} />
 
                 )}
 
@@ -705,7 +711,7 @@ export function WorkspacePage() {
 
       <Modal
 
-        title="创建工作空间"
+        title={t('创建工作空间')}
 
         open={createModalVisible}
 
@@ -719,9 +725,9 @@ export function WorkspacePage() {
 
         }}
 
-        okText="创建"
+        okText={t('创建')}
 
-        cancelText="取消"
+        cancelText={t('取消')}
 
       >
 
@@ -731,35 +737,35 @@ export function WorkspacePage() {
 
             name="name"
 
-            label="名称"
+            label={t('名称')}
 
-            rules={[{ required: true, message: '请输入工作空间名称' }]}
+            rules={[{ required: true, message: t('请输入工作空间名称') }]}
 
           >
 
-            <Input placeholder="请输入工作空间名称" />
+            <Input placeholder={t('请输入工作空间名称')} />
 
           </Form.Item>
 
-          <Form.Item name="description" label="描述">
+          <Form.Item name="description" label={t('描述')}>
 
-            <Input.TextArea rows={3} placeholder="请输入工作空间描述" />
+            <Input.TextArea rows={3} placeholder={t('请输入工作空间描述')} />
 
           </Form.Item>
 
-          <Form.Item name="isolation_level" label="隔离级别" initialValue="STANDARD">
+          <Form.Item name="isolation_level" label={t('隔离级别')} initialValue="STANDARD">
 
             <AntSelect
 
               options={[
 
-                { label: '低', value: 'LOW' },
+                { label: t('低'), value: 'LOW' },
 
-                { label: '标准', value: 'STANDARD' },
+                { label: t('标准'), value: 'STANDARD' },
 
-                { label: '高', value: 'HIGH' },
+                { label: t('高'), value: 'HIGH' },
 
-                { label: '严格', value: 'STRICT' },
+                { label: t('严格'), value: 'STRICT' },
 
               ]}
 
@@ -767,9 +773,9 @@ export function WorkspacePage() {
 
           </Form.Item>
 
-          <Form.Item name="owner" label="所有者">
+          <Form.Item name="owner" label={t('所有者')}>
 
-            <Input placeholder="请输入所有者" />
+            <Input placeholder={t('请输入所有者')} />
 
           </Form.Item>
 
@@ -781,7 +787,7 @@ export function WorkspacePage() {
 
       <Modal
 
-        title="编辑工作空间"
+        title={t('编辑工作空间')}
 
         open={editModalVisible}
 
@@ -797,9 +803,9 @@ export function WorkspacePage() {
 
         }}
 
-        okText="更新"
+        okText={t('更新')}
 
-        cancelText="取消"
+        cancelText={t('取消')}
 
       >
 
@@ -809,35 +815,35 @@ export function WorkspacePage() {
 
             name="name"
 
-            label="名称"
+            label={t('名称')}
 
-            rules={[{ required: true, message: '请输入工作空间名称' }]}
+            rules={[{ required: true, message: t('请输入工作空间名称') }]}
 
           >
 
-            <Input placeholder="请输入工作空间名称" />
+            <Input placeholder={t('请输入工作空间名称')} />
 
           </Form.Item>
 
-          <Form.Item name="description" label="描述">
+          <Form.Item name="description" label={t('描述')}>
 
-            <Input.TextArea rows={3} placeholder="请输入工作空间描述" />
+            <Input.TextArea rows={3} placeholder={t('请输入工作空间描述')} />
 
           </Form.Item>
 
-          <Form.Item name="isolation_level" label="隔离级别">
+          <Form.Item name="isolation_level" label={t('隔离级别')}>
 
             <AntSelect
 
               options={[
 
-                { label: '低', value: 'LOW' },
+                { label: t('低'), value: 'LOW' },
 
-                { label: '标准', value: 'STANDARD' },
+                { label: t('标准'), value: 'STANDARD' },
 
-                { label: '高', value: 'HIGH' },
+                { label: t('高'), value: 'HIGH' },
 
-                { label: '严格', value: 'STRICT' },
+                { label: t('严格'), value: 'STRICT' },
 
               ]}
 
@@ -853,7 +859,7 @@ export function WorkspacePage() {
 
       <Modal
 
-        title="创建场景"
+        title={t('创建场景')}
 
         open={scenarioModalVisible}
 
@@ -867,9 +873,9 @@ export function WorkspacePage() {
 
         }}
 
-        okText="创建"
+        okText={t('创建')}
 
-        cancelText="取消"
+        cancelText={t('取消')}
 
       >
 
@@ -879,25 +885,25 @@ export function WorkspacePage() {
 
             name="name"
 
-            label="场景名称"
+            label={t('场景名称')}
 
-            rules={[{ required: true, message: '请输入场景名称' }]}
+            rules={[{ required: true, message: t('请输入场景名称') }]}
 
           >
 
-            <Input placeholder="请输入场景名称" />
+            <Input placeholder={t('请输入场景名称')} />
 
           </Form.Item>
 
-          <Form.Item name="description" label="描述">
+          <Form.Item name="description" label={t('描述')}>
 
-            <Input.TextArea rows={3} placeholder="请输入场景描述" />
+            <Input.TextArea rows={3} placeholder={t('请输入场景描述')} />
 
           </Form.Item>
 
-          <Form.Item name="ontology_id" label="绑定本体 ID（可选）">
+          <Form.Item name="ontology_id" label={t('绑定本体 ID（可选）')}>
 
-            <Input placeholder="请输入本体 ID" />
+            <Input placeholder={t('请输入本体 ID')} />
 
           </Form.Item>
 

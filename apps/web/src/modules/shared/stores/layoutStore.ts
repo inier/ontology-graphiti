@@ -123,6 +123,7 @@ interface LayoutState {
   setActiveTab: (id: string) => void;
   reorderTabs: (fromId: string, toId: string) => void;
   setTaskViewMode: (mode: TaskViewMode) => void;
+  updateTabTitles: (titleMap: Record<string, string>) => void;
 
   /* Quick action actions */
   addQuickAction: (tabId: string) => void;
@@ -279,6 +280,14 @@ export const useLayoutStore = create<LayoutState>()(
         }),
 
       setTaskViewMode: (mode) => set({ taskViewMode: mode }),
+
+      updateTabTitles: (titleMap) =>
+        set((state) => ({
+          tabs: state.tabs.map((tab) => ({
+            ...tab,
+            title: titleMap[tab.path] || tab.title,
+          })),
+        })),
 
       /* ── 快捷操作 ── */
       addQuickAction: (tabId) =>

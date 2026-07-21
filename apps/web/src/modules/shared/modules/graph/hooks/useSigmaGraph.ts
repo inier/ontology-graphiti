@@ -69,7 +69,9 @@ export function useSigmaGraph({
   const buildGraph = useCallback((nodeList: GraphNode[], edgeList: GraphEdge[]): Graph => {
     const g = new Graph({ multi: false, type: 'directed' });
 
-    for (const n of nodeList) {
+    const validNodes = nodeList.filter(n => n.id != null && typeof n.id === 'string' && n.id.trim() !== '');
+
+    for (const n of validNodes) {
       const color = getNodeColor(n.type);
       const sideColor = getSideColor(n.side || 'neutral');
       g.addNode(n.id, {
@@ -86,7 +88,7 @@ export function useSigmaGraph({
     }
 
     for (const e of edgeList) {
-      if (g.hasNode(e.source) && g.hasNode(e.target)) {
+      if (e.source != null && e.target != null && g.hasNode(e.source) && g.hasNode(e.target)) {
         const style = getEdgeStyle(e.type);
         g.addEdge(e.source, e.target, {
           edgeType: e.type,

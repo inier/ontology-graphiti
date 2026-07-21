@@ -35,6 +35,7 @@ import {
 import { useAuditStore } from '../stores/auditStore';
 import type { ColumnsType } from 'antd/es/table';
 import { AdvancedTable } from '@/modules/shared';
+import { useI18n } from '@/modules/shared/hooks/useI18n';
 
 const { TextArea } = Input;
 
@@ -61,30 +62,17 @@ const POLICY_CATEGORIES = [
   'custom',
 ];
 
-const getCategoryLabel = (cat: string) => {
-  const labels: Record<string, string> = {
-    access_control: '访问控制',
-    data_privacy: '数据隐私',
-    compliance: '合规审计',
-    security: '安全策略',
-    workflow: '工作流控制',
-    custom: '自定义',
-  };
-  return labels[cat] || cat;
-};
-
 const PolicyPage: React.FC = () => {
+  const { t } = useI18n();
   const {
     policies,
     policyVersions,
-    compileStatus,
     loading,
     loadPolicies,
     loadPolicyVersions,
     savePolicy,
     compilePolicy,
     hotUpdate,
-    getCompileStatus,
   } = useAuditStore();
 
   const [createModalOpen, setCreateModalOpen] = useState(false);
@@ -94,6 +82,18 @@ const PolicyPage: React.FC = () => {
 
   const [createForm] = Form.useForm();
   const [editForm] = Form.useForm();
+
+  const getCategoryLabel = (cat: string) => {
+    const labels: Record<string, string> = {
+      access_control: t('访问控制'),
+      data_privacy: t('数据隐私'),
+      compliance: t('合规审计'),
+      security: t('安全策略'),
+      workflow: t('工作流控制'),
+      custom: t('自定义'),
+    };
+    return labels[cat] || cat;
+  };
 
   useEffect(() => {
     loadPolicies();
@@ -107,7 +107,7 @@ const PolicyPage: React.FC = () => {
       category: values.category as string,
     });
     if (result) {
-      message.success('策略创建成功');
+      message.success(t('策略创建成功'));
       setCreateModalOpen(false);
       createForm.resetFields();
     }
@@ -117,18 +117,18 @@ const PolicyPage: React.FC = () => {
     await compilePolicy(policyId);
     const status = useAuditStore.getState().compileStatus[policyId];
     if (status?.status === 'success') {
-      message.success('编译成功');
+      message.success(t('编译成功'));
     } else {
-      message.error(`编译失败: ${status?.errors?.join(', ') || '未知错误'}`);
+      message.error(t('编译失败: {{error}}', { error: status?.errors?.join(', ') || t('未知错误') }));
     }
   };
 
   const handleHotUpdate = async (policyId: string, markdownContent: string) => {
     try {
       await hotUpdate(policyId, markdownContent);
-      message.success('热更新完成');
+      message.success(t('热更新完成'));
     } catch (error) {
-      message.error(`热更新失败: ${error}`);
+      message.error(t('热更新失败: {{error}}', { error: String(error) }));
     }
   };
 
@@ -157,7 +157,7 @@ const PolicyPage: React.FC = () => {
 
   const policyColumns: ColumnsType<Policy> = [
     {
-      title: '策略名称',
+      title: t('策略名称'),
       dataIndex: 'name',
       key: 'name',
       render: (name, record) => (
@@ -168,56 +168,56 @@ const PolicyPage: React.FC = () => {
       ),
     },
     {
-      title: '分类',
+      title: t('分类'),
       dataIndex: 'category',
       key: 'category',
       width: 120,
       render: (cat) => <Tag color="blue">{getCategoryLabel(cat as string)}</Tag>,
     },
     {
-      title: '状态',
+      title: t('状态'),
       dataIndex: 'compile_status',
       key: 'compile_status',
       width: 90,
       render: (status) => (
         <Badge
           status={(status as string) === 'active' || (status as string) === 'enabled' ? 'success' : 'default'}
-          text={(status as string) === 'active' || (status as string) === 'enabled' ? '启用' : '禁用'}
+          text={(status as string) === 'active' || (status as string) === 'enabled' ? t('启用') : t('禁用')}
         />
       ),
     },
     {
-      title: '版本',
+      title: t('版本'),
       dataIndex: 'version',
       key: 'version',
       width: 80,
     },
     {
-      title: '更新时间',
+      title: t('更新时间'),
       dataIndex: 'updated_at',
       key: 'updated_at',
       width: 170,
     },
     {
-      title: '操作',
+      title: t('操作'),
       key: 'actions',
       width: 220,
       render: (_, record) => (
         <Space>
-          <Tooltip title="编辑">
+          <Tooltip title={t('编辑')}>
             <Button type="link" size="small" icon={<EditOutlined />} onClick={() => handleEditOpen(record)} />
           </Tooltip>
-          <Tooltip title="编译">
+          <Tooltip title={t('编译')}>
             <Button type="link" size="small" icon={<CodeOutlined />} onClick={() => handleCompile(record.policy_id)} />
           </Tooltip>
-          <Tooltip title="热更新">
+          <Tooltip title={t('热更新')}>
             <Button type="link" size="small" icon={<ThunderboltOutlined />} onClick={() => {
               if (record.markdown_content) {
                 handleHotUpdate(record.policy_id, record.markdown_content);
               }
             }} />
           </Tooltip>
-          <Tooltip title="版本历史">
+          <Tooltip title={t('版本历史')}>
             <Button type="link" size="small" icon={<HistoryOutlined />} onClick={() => handleViewVersions(record)} />
           </Tooltip>
         </Space>
@@ -231,16 +231,16 @@ const PolicyPage: React.FC = () => {
         title={
           <Space>
             <SafetyCertificateOutlined />
-            <span>策略管理</span>
+            <span>{t('策略管理')}</span>
           </Space>
         }
         extra={
           <Space>
             <Button icon={<ReloadOutlined />} onClick={() => { loadPolicies(); }}>
-              刷新
+              {t('刷新')}
             </Button>
             <Button type="primary" icon={<PlusOutlined />} onClick={() => setCreateModalOpen(true)}>
-              创建策略
+              {t('创建策略')}
             </Button>
           </Space>
         }
@@ -251,7 +251,7 @@ const PolicyPage: React.FC = () => {
             label: (
               <Space>
                 <FileTextOutlined />
-                <span>策略管理</span>
+                <span>{t('策略管理')}</span>
                 <Badge count={policies.length} style={{ backgroundColor: '#1890ff' }} />
               </Space>
             ),
@@ -261,8 +261,8 @@ const PolicyPage: React.FC = () => {
                 dataSource={policies}
                 rowKey="policy_id"
                 loading={loading}
-                pagination={{ pageSize: 10, showTotal: (total) => `共 ${total} 条策略` }}
-                locale={{ emptyText: <Empty description="暂无策略" /> }}
+                pagination={{ pageSize: 10, showTotal: (total) => t('共 {{count}} 条策略', { count: total }) }}
+                locale={{ emptyText: <Empty description={t('暂无策略')} /> }}
               />
             ),
           },
@@ -270,41 +270,41 @@ const PolicyPage: React.FC = () => {
       </Card>
 
       <Modal
-        title={<Space><PlusOutlined /><span>创建 Markdown 策略</span></Space>}
+        title={<Space><PlusOutlined /><span>{t('创建 Markdown 策略')}</span></Space>}
         open={createModalOpen}
         onCancel={() => setCreateModalOpen(false)}
         onOk={() => createForm.submit()}
-        okText="创建"
-        cancelText="取消"
+        okText={t('创建')}
+        cancelText={t('取消')}
         width={700}
       >
         <Form form={createForm} layout="vertical" onFinish={handleCreate}>
-          <Form.Item name="name" label="策略名称" rules={[{ required: true, message: '请输入策略名称' }]}>
-            <Input placeholder="例如: 分析师访问控制策略" />
+          <Form.Item name="name" label={t('策略名称')} rules={[{ required: true, message: t('请输入策略名称') }]}>
+            <Input placeholder={t('例如: 分析师访问控制策略')} />
           </Form.Item>
-          <Form.Item name="category" label="策略分类" initialValue="access_control">
+          <Form.Item name="category" label={t('策略分类')} initialValue="access_control">
             <Select>
               {POLICY_CATEGORIES.map(cat => (
                 <Select.Option key={cat} value={cat}>{getCategoryLabel(cat)}</Select.Option>
               ))}
             </Select>
           </Form.Item>
-          <Form.Item name="description" label="策略描述">
-            <Input.TextArea rows={2} placeholder="简要描述策略用途" />
+          <Form.Item name="description" label={t('策略描述')}>
+            <Input.TextArea rows={2} placeholder={t('简要描述策略用途')} />
           </Form.Item>
           <Form.Item
             name="markdown_content"
             label={
               <Space>
-                <span>策略内容 (Markdown DSL)</span>
-                <Tag color="green">自动编译为 Rego</Tag>
+                <span>{t('策略内容 (Markdown DSL)')}</span>
+                <Tag color="green">{t('自动编译为 Rego')}</Tag>
               </Space>
             }
-            rules={[{ required: true, message: '请输入策略内容' }]}
+            rules={[{ required: true, message: t('请输入策略内容') }]}
           >
             <TextArea
               rows={12}
-              placeholder={`## 规则: 分析师访问控制\n当 [角色为分析师] 且 [密级<=secret] 时 [允许]\n\n## 规则: 禁止跨空间访问\n当 [工作空间为其他空间] 时 [拒绝]`}
+              placeholder={t('## 规则: 分析师访问控制\n当 [角色为分析师] 且 [密级<=secret] 时 [允许]\n\n## 规则: 禁止跨空间访问\n当 [工作空间为其他空间] 时 [拒绝]')}
               style={{ fontFamily: 'monospace' }}
             />
           </Form.Item>
@@ -312,27 +312,27 @@ const PolicyPage: React.FC = () => {
       </Modal>
 
       <Modal
-        title={<Space><EditOutlined /><span>编辑策略</span></Space>}
+        title={<Space><EditOutlined /><span>{t('编辑策略')}</span></Space>}
         open={editModalOpen}
         onCancel={() => setEditModalOpen(false)}
         onOk={() => editForm.submit()}
-        okText="热更新"
-        cancelText="取消"
+        okText={t('热更新')}
+        cancelText={t('取消')}
         width={700}
       >
         <Form form={editForm} layout="vertical" onFinish={handleEditSave}>
-          <Form.Item name="name" label="策略名称">
+          <Form.Item name="name" label={t('策略名称')}>
             <Input disabled />
           </Form.Item>
-          <Form.Item name="description" label="策略描述">
+          <Form.Item name="description" label={t('策略描述')}>
             <Input.TextArea rows={2} />
           </Form.Item>
           <Form.Item
             name="markdown_content"
             label={
               <Space>
-                <span>策略内容 (Markdown DSL)</span>
-                <Tag color="orange">热更新将编译并替换当前策略</Tag>
+                <span>{t('策略内容 (Markdown DSL)')}</span>
+                <Tag color="orange">{t('热更新将编译并替换当前策略')}</Tag>
               </Space>
             }
           >
@@ -342,7 +342,7 @@ const PolicyPage: React.FC = () => {
       </Modal>
 
       <Modal
-        title={<Space><HistoryOutlined /><span>版本历史</span></Space>}
+        title={<Space><HistoryOutlined /><span>{t('版本历史')}</span></Space>}
         open={versionModalOpen}
         onCancel={() => setVersionModalOpen(false)}
         footer={null}
@@ -353,13 +353,13 @@ const PolicyPage: React.FC = () => {
             color: v.status === 'active' ? 'green' : 'gray',
             children: (
               <div>
-                <div style={{ fontWeight: 600 }}>版本 {v.version} <Tag color={v.status === 'active' ? 'green' : 'default'}>{v.status}</Tag></div>
+                <div style={{ fontWeight: 600 }}>{t('版本 {{count}}', { count: v.version })} <Tag color={v.status === 'active' ? 'green' : 'default'}>{v.status}</Tag></div>
                 <div style={{ fontSize: 12, color: '#8c8c8c' }}>{v.created_at}</div>
               </div>
             ),
           }))}
         />
-        {policyVersions.length === 0 && <Empty description="暂无版本历史" />}
+        {policyVersions.length === 0 && <Empty description={t('暂无版本历史')} />}
       </Modal>
     </div>
   );

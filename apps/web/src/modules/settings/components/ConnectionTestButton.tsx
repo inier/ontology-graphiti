@@ -41,7 +41,7 @@ export function ConnectionTestButton({
       setResult({
         category,
         success: false,
-        message: t('connectionRequestFailed'),
+        message: t('连接测试请求失败'),
         response_time_ms: 0,
         tested_at: new Date().toISOString(),
       });
@@ -63,7 +63,7 @@ export function ConnectionTestButton({
       <Tag icon={<CloseCircleOutlined />} color="error">
         {result.message
           ? t('connectionFailedWithMsg', { msg: result.message })
-          : t('connectionFailed')}
+          : t('连接失败')}
       </Tag>
     );
   };
@@ -77,7 +77,7 @@ export function ConnectionTestButton({
         disabled={testing || items.length === 0}
         size="small"
       >
-        {testing ? t('testing') : t('connectionTest')}
+        {testing ? t('测试中') : t('测试连接')}
       </Button>
       {testing && <Spin size="small" />}
       {renderResultTag()}

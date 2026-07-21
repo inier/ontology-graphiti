@@ -236,7 +236,7 @@ export function OntologySemanticNetwork({
   // ─── 转换为通用 GraphNode/GraphEdge ───
   const graphNodes: GraphNode[] = semanticNodes.map((n) => ({
     id: n.id,
-    label: n.name,
+    label: n.display_name || n.name,
     type: n.type,
     properties: n.properties,
   }));
@@ -246,7 +246,7 @@ export function OntologySemanticNetwork({
     source: e.source,
     target: e.target,
     type: e.type,
-    label: e.name,
+    label: e.display_name || e.name,
   }));
 
   const handleNodeClick = (node: GraphNode) => {

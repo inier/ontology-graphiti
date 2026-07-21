@@ -38,8 +38,7 @@ interface HealthRule {
 }
 
 export function HealthDashboardPage({ workspaceId }: HealthDashboardPageProps) {
-  const { t } = useI18n();
-  void t;
+  const { t } = useI18n('ontology');
   const [rules, setRules] = useState<HealthRule[]>([]);
   const [loading, setLoading] = useState(false);
   const [scanning, setScanning] = useState(false);
@@ -53,11 +52,11 @@ export function HealthDashboardPage({ workspaceId }: HealthDashboardPageProps) {
       const data = await apiClient.get<{ rules: HealthRule[] }>('/api/ontology/health/rules');
       setRules(data.rules || []);
     } catch (e) {
-      message.error(`加载失败: ${(e as Error).message}`);
+      message.error(`${t('加载失败')}: ${(e as Error).message}`);
     } finally {
       setLoading(false);
     }
-  }, []);
+  }, [t]);
 
   useEffect(() => { fetchRules(); }, [fetchRules]);
 
@@ -65,14 +64,14 @@ export function HealthDashboardPage({ workspaceId }: HealthDashboardPageProps) {
     setScanning(true);
     try {
       await apiClient.post('/api/ontology/health/scan', { workspace_id: workspaceId });
-      message.success('扫描已启动');
+      message.success(t('扫描已启动'));
       await fetchRules();
     } catch (e) {
-      message.error(`扫描失败: ${(e as Error).message}`);
+      message.error(`${t('扫描失败')}: ${(e as Error).message}`);
     } finally {
       setScanning(false);
     }
-  }, [fetchRules, workspaceId]);
+  }, [fetchRules, workspaceId, t]);
 
   const totals = useMemo(() => {
     const total = rules.length;
@@ -94,35 +93,35 @@ export function HealthDashboardPage({ workspaceId }: HealthDashboardPageProps) {
       <Card
         title={
           <Space>
-            <Title level={4} style={{ margin: 0 }}>数据健康看板</Title>
+            <Title level={4} style={{ margin: 0 }}>{t('数据健康看板')}</Title>
             <Tag color="blue">{workspaceId || 'default'}</Tag>
           </Space>
         }
         extra={
           <Space>
-            <Button icon={<PlusOutlined />} onClick={() => setEditorOpen(true)}>新建规则</Button>
+            <Button icon={<PlusOutlined />} onClick={() => setEditorOpen(true)}>{t('新建规则')}</Button>
             <Button type="primary" icon={<ThunderboltOutlined />} loading={scanning} onClick={onRunScan}>
-              运行扫描
+              {t('运行扫描')}
             </Button>
           </Space>
         }
       >
         <Row gutter={16} style={{ marginBottom: 16 }}>
-          <Col span={6}><Card><Statistic title="总规则数" value={totals.total} prefix={<ThunderboltOutlined />} /></Card></Col>
-          <Col span={6}><Card><Statistic title="通过率" value={totals.rate} suffix="%" styles={{ content: { color: '#3f8600' } }} /></Card></Col>
-          <Col span={6}><Card><Statistic title="失败规则" value={totals.fail} styles={{ content: { color: '#cf1322' } }} prefix={<CloseCircleTwoTone twoToneColor="#cf1322" />} /></Card></Col>
-          <Col span={6}><Card><Statistic title="最后扫描" value={lastScanAt} styles={{ content: { fontSize: 14 } }} /></Card></Col>
+          <Col span={6}><Card><Statistic title={t('总规则数')} value={totals.total} prefix={<ThunderboltOutlined />} /></Card></Col>
+          <Col span={6}><Card><Statistic title={t('通过率')} value={totals.rate} suffix="%" styles={{ content: { color: '#3f8600' } }} /></Card></Col>
+          <Col span={6}><Card><Statistic title={t('失败规则')} value={totals.fail} styles={{ content: { color: '#cf1322' } }} prefix={<CloseCircleTwoTone twoToneColor="#cf1322" />} /></Card></Col>
+          <Col span={6}><Card><Statistic title={t('最后扫描')} value={lastScanAt} styles={{ content: { fontSize: 14 } }} /></Card></Col>
         </Row>
         <Tabs
           defaultActiveKey="rules"
           items={[
             {
               key: 'rules',
-              label: '规则列表',
+              label: t('规则列表'),
               children: (
                 <Spin spinning={loading}>
                   {rules.length === 0 ? (
-                    <Empty description="暂无规则" />
+                    <Empty description={t('暂无规则')} />
                   ) : (
                     <AdvancedTable
                       rowKey="rule_id"
@@ -149,8 +148,8 @@ export function HealthDashboardPage({ workspaceId }: HealthDashboardPageProps) {
                             return <Space>{map[s].icon}<Text>{s}</Text></Space>;
                           },
                         },
-                        { title: '失败数', dataIndex: 'failure_count', width: 100 },
-                        { title: '最近检查', dataIndex: 'last_checked_at', width: 180 },
+                        { title: t('失败数'), dataIndex: 'failure_count', width: 100 },
+                        { title: t('最近检查'), dataIndex: 'last_checked_at', width: 180 },
                       ]}
                     />
                   )}
@@ -159,7 +158,7 @@ export function HealthDashboardPage({ workspaceId }: HealthDashboardPageProps) {
             },
             {
               key: 'dashboard',
-              label: '可视化',
+              label: t('可视化'),
               children: <HealthDashboard workspaceId={workspaceId} />,
             },
           ]}
@@ -167,7 +166,7 @@ export function HealthDashboardPage({ workspaceId }: HealthDashboardPageProps) {
       </Card>
 
       <Drawer
-        title={selectedRuleId ? `规则详情: ${selectedRuleId}` : '规则详情'}
+        title={selectedRuleId ? t('规则详情: {{id}}', { id: selectedRuleId }) : t('规则详情')}
         open={drawerOpen}
         onClose={() => setDrawerOpen(false)}
         width={720}
@@ -176,7 +175,7 @@ export function HealthDashboardPage({ workspaceId }: HealthDashboardPageProps) {
       </Drawer>
 
       <Drawer
-        title="新建健康规则"
+        title={t('新建健康规则')}
         open={editorOpen}
         onClose={() => setEditorOpen(false)}
         width={960}
@@ -192,14 +191,14 @@ export function HealthDashboardPage({ workspaceId }: HealthDashboardPageProps) {
           style={{ marginTop: 16 }}
           type="info"
           showIcon
-          title="数据健康规则说明"
+          title={t('数据健康规则说明')}
           description={
             <List
               size="small"
               dataSource={[
-                '点击"新建规则"创建第一个数据健康规则',
-                '点击"运行扫描"立即对所有规则触发扫描',
-                '点击表格行查看 / 编辑已有规则',
+                t('点击"新建规则"创建第一个数据健康规则'),
+                t('点击"运行扫描"立即对所有规则触发扫描'),
+                t('点击表格行查看 / 编辑已有规则'),
               ]}
               renderItem={(it) => <List.Item>{it}</List.Item>}
             />

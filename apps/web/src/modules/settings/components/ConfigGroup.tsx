@@ -52,22 +52,22 @@ export function ConfigGroup({ config, onSave, saving = false }: ConfigGroupProps
     connected: {
       color: 'success',
       icon: <CheckCircleOutlined />,
-      text: t('statusConnected'),
+      text: t('已连接'),
     },
     disconnected: {
       color: 'error',
       icon: <CloseCircleOutlined />,
-      text: t('statusDisconnected'),
+      text: t('已断开'),
     },
     not_configured: {
       color: 'default',
       icon: <MinusCircleOutlined />,
-      text: t('statusNotConfigured'),
+      text: t('未配置'),
     },
     unknown: {
       color: 'warning',
       icon: <QuestionCircleOutlined />,
-      text: t('statusUnknown'),
+      text: t('未知'),
     },
   };
 

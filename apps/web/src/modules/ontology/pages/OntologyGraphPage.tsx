@@ -8,6 +8,8 @@ import { PageHeader } from '@/modules/shared/components/PageHeader';
 
 import { useWorkspace } from '@/modules/shared/components/LayoutContexts';
 
+import { useI18n } from '@/modules/shared/hooks/useI18n';
+
 import { useOntologyStore } from '../stores/ontologyStore';
 
 import { GraphCanvas } from '@/modules/shared/modules/graph/components/GraphCanvas';
@@ -19,6 +21,8 @@ import { NodeEdgeEditor } from '../components/NodeEdgeEditor';
 
 
 export function OntologyGraphPage() {
+
+  const { t } = useI18n('ontology');
 
   const { currentWorkspace } = useWorkspace();
 
@@ -132,7 +136,7 @@ export function OntologyGraphPage() {
 
         await loadGraph();
 
-        message.success('图谱已刷新');
+        message.success(t('图谱已刷新'));
 
       } finally {
 
@@ -142,7 +146,7 @@ export function OntologyGraphPage() {
 
     }
 
-  }, [currentOntology, loadGraph]);
+  }, [currentOntology, loadGraph, t]);
 
 
 
@@ -269,11 +273,8 @@ export function OntologyGraphPage() {
 
 
   const ontologyOptions = ontologies.map((o) => ({
-
     label: o.name,
-
-    value: o.id,
-
+    value: o.ontology_id,
   }));
 
 
@@ -284,7 +285,7 @@ export function OntologyGraphPage() {
 
       <PageHeader
 
-        title="语义图谱"
+        title={t('语义图谱')}
 
         actions={
 
@@ -298,7 +299,7 @@ export function OntologyGraphPage() {
 
               options={ontologyOptions}
 
-              placeholder="选择本体"
+              placeholder={t('选择本体')}
 
               showSearch
 
@@ -322,7 +323,7 @@ export function OntologyGraphPage() {
 
               image={<ApartmentOutlined style={{ fontSize: 64, color: '#bfbfbf' }} />}
 
-              description="请先选择一个本体以查看语义图谱"
+              description={t('请先选择一个本体以查看语义图谱')}
 
             />
 
@@ -332,7 +333,7 @@ export function OntologyGraphPage() {
 
           <Card style={{ height: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
 
-            <Spin size="large" description="加载图谱数据中..." />
+            <Spin size="large" description={t('加载图谱数据中...')} />
 
           </Card>
 
@@ -340,7 +341,7 @@ export function OntologyGraphPage() {
 
           <Card style={{ height: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
 
-            <Empty description="暂无图谱数据，请先定义对象类型和关系类型" />
+            <Empty description={t('暂无图谱数据，请先定义对象类型和关系类型')} />
 
           </Card>
 

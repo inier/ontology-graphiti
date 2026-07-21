@@ -28,10 +28,10 @@ import { AdvancedTable } from '@/modules/shared/components/AdvancedTable';
 /* ── Constants ──────────────────────────────────────────────────────── */
 
 const useClassificationOptions = (t: (k: string) => string) => [
-  { label: `TS - ${t('classification.TS')}`, value: 'TS' },
-  { label: `S - ${t('classification.S')}`, value: 'S' },
-  { label: `C - ${t('classification.C')}`, value: 'C' },
-  { label: `U - ${t('classification.U')}`, value: 'U' },
+  { label: `TS - ${t('绝密')}`, value: 'TS' },
+  { label: `S - ${t('机密')}`, value: 'S' },
+  { label: `C - ${t('秘密')}`, value: 'C' },
+  { label: `U - ${t('公开')}`, value: 'U' },
 ];
 
 const CARDINALITY_OPTIONS = [
@@ -43,10 +43,10 @@ const CARDINALITY_OPTIONS = [
 ];
 
 const useLinkTypeOptions = (t: (k: string) => string) => [
-  { label: t('relation.linkTypes.association'), value: 'association' },
-  { label: t('relation.linkTypes.composition'), value: 'composition' },
-  { label: t('relation.linkTypes.dependency'), value: 'dependency' },
-  { label: t('relation.linkTypes.inheritance'), value: 'inheritance' },
+  { label: t('关联'), value: 'association' },
+  { label: t('组合'), value: 'composition' },
+  { label: t('依赖'), value: 'dependency' },
+  { label: t('继承'), value: 'inheritance' },
 ];
 
 const useSourceTypeOptions = (t: (k: string) => string) => [

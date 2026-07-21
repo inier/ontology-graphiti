@@ -5,6 +5,7 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { Layout, message } from 'antd';
 import { useWorkspace, useScenario } from '@/modules/shared';
+import { useI18n } from '@/modules/shared/hooks/useI18n';
 import { QueryInput } from '../components/QueryInput';
 import { QueryResultList } from '../components/QueryResultList';
 import { QueryPlanViewer } from '../components/QueryPlanViewer';
@@ -20,6 +21,7 @@ export function QueryPage() {
   const [input, setInput] = useState('');
   const { currentWorkspace } = useWorkspace();
   const { currentScenario } = useScenario();
+  const { t } = useI18n();
 
   const {
     queryLoading,
@@ -56,19 +58,19 @@ export function QueryPage() {
 
   const handleSearch = useCallback(() => {
     if (!input.trim()) {
-      message.warning('请输入查询内容');
+      message.warning(t('请输入查询内容'));
       return;
     }
     executeQuery(input, currentWorkspace, currentScenario);
-  }, [input, currentWorkspace, currentScenario, executeQuery]);
+  }, [input, currentWorkspace, currentScenario, executeQuery, t]);
 
   const handleExplain = useCallback(() => {
     if (!input.trim()) {
-      message.warning('请输入查询内容');
+      message.warning(t('请输入查询内容'));
       return;
     }
     executeExplain(input, currentWorkspace, currentScenario);
-  }, [input, currentWorkspace, currentScenario, executeExplain]);
+  }, [input, currentWorkspace, currentScenario, executeExplain, t]);
 
   const handleModeChange = useCallback((mode: QueryMode) => {
     setMode(mode);
@@ -105,7 +107,7 @@ export function QueryPage() {
         />
         {auditStats && (
           <div style={{ padding: '4px 8px', fontSize: 11, color: '#999' }}>
-            总查询: {auditStats.total_queries} | 平均耗时: {auditStats.avg_time_ms.toFixed(0)}ms
+            {t('总查询: {{total}} | 平均耗时: {{avg}}ms', { total: auditStats.total_queries, avg: auditStats.avg_time_ms.toFixed(0) })}
           </div>
         )}
       </Sider>
@@ -134,7 +136,7 @@ export function QueryPage() {
         />
 
         {/* Cypher 预览 */}
-        <CypherPreview cypher={latestCypher} validated source="审计记录" />
+        <CypherPreview cypher={latestCypher} validated source={t('审计记录')} />
 
         {/* 结果列表 */}
         <div style={{ flex: 1, overflow: 'auto' }}>

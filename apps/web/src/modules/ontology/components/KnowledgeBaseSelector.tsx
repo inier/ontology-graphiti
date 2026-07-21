@@ -9,6 +9,7 @@ import {
 import { apiClient } from '@/modules/shared/services/apiClient';
 import { ontologyApi } from '../services/ontologyApi';
 import { useExtractionProgress } from '../hooks/useExtractionProgress';
+import { useI18n } from '@/modules/shared/hooks/useI18n';
 
 export interface KnowledgeBaseSelectorProps {
   ontologyId: string;
@@ -35,6 +36,7 @@ interface DocumentItem {
 }
 
 export function KnowledgeBaseSelector({ ontologyId, onExtractionComplete }: KnowledgeBaseSelectorProps) {
+  const { t } = useI18n('ontology');
   const [knowledgeBases, setKnowledgeBases] = useState<KnowledgeBaseItem[]>([]);
   const [selectedKbId, setSelectedKbId] = useState<string>('');
   const [documents, setDocuments] = useState<DocumentItem[]>([]);
@@ -85,11 +87,11 @@ export function KnowledgeBaseSelector({ ontologyId, onExtractionComplete }: Know
 
   const handleExtract = useCallback(async () => {
     if (!selectedKbId) {
-      message.warning('请先选择知识库');
+      message.warning(t('选择知识库'));
       return;
     }
     if (selectedDocIds.size === 0) {
-      message.warning('请至少选择一篇文档');
+      message.warning(t('请至少选择一篇文档'));
       return;
     }
 
@@ -103,10 +105,10 @@ export function KnowledgeBaseSelector({ ontologyId, onExtractionComplete }: Know
         document_ids: Array.from(selectedDocIds),
       });
       setSessionId(result?.session_id || '');
-      message.success('知识库提取完成');
+      message.success(t('知识库提取完成'));
       onExtractionComplete?.(result);
     } catch (e) {
-      message.error(`知识库提取失败: ${(e as Error).message}`);
+      message.error(t('extraction.kbExtractFailed', { msg: (e as Error).message }));
     } finally {
       setExtracting(false);
     }
@@ -121,13 +123,13 @@ export function KnowledgeBaseSelector({ ontologyId, onExtractionComplete }: Know
       <Alert
         type="info"
         showIcon
-        title="从知识库中选择文档进行增量提取"
-        description="系统将逐篇解析文档内容，使用增量提取合并知识结构"
+        title={t('从知识库中选择文档进行增量提取')}
+        description={t('系统将逐篇解析文档内容，使用增量提取合并知识结构')}
       />
 
       <Space>
         <Input
-          placeholder="搜索知识库..."
+          placeholder={t('搜索知识库...')}
           prefix={<SearchOutlined />}
           value={searchText}
           onChange={(e) => setSearchText(e.target.value)}
@@ -135,21 +137,21 @@ export function KnowledgeBaseSelector({ ontologyId, onExtractionComplete }: Know
           style={{ width: 300 }}
         />
         <Button icon={<ReloadOutlined />} onClick={loadKnowledgeBases} loading={loading}>
-          刷新
+          {t('刷新')}
         </Button>
       </Space>
 
       {!loaded ? (
-        <Empty description="未加载知识库" image={Empty.PRESENTED_IMAGE_SIMPLE}>
+        <Empty description={t('未加载知识库')} image={Empty.PRESENTED_IMAGE_SIMPLE}>
           <Button type="primary" icon={<DatabaseOutlined />} onClick={loadKnowledgeBases} loading={loading}>
-            加载知识库列表
+            {t('加载知识库列表')}
           </Button>
         </Empty>
       ) : (
         <Spin spinning={loading}>
-          <Card title="选择知识库" size="small" style={{ maxHeight: 300, overflow: 'auto' }}>
+          <Card title={t('选择知识库')} size="small" style={{ maxHeight: 300, overflow: 'auto' }}>
             {filteredKbs.length === 0 ? (
-              <Alert type="warning" title="暂无知识库" description="请先在知识库管理中创建知识库并上传文档" />
+              <Alert type="warning" title={t('暂无知识库')} description={t('请先在知识库管理中创建知识库并上传文档')} />
             ) : (
               <List
                 size="small"
@@ -167,9 +169,9 @@ export function KnowledgeBaseSelector({ ontologyId, onExtractionComplete }: Know
                     <List.Item.Meta
                       avatar={<DatabaseOutlined style={{ fontSize: 20, color: '#1677ff' }} />}
                       title={kb.name}
-                      description={`${kb.knowledge_count || 0} 篇文档`}
+                      description={t('extraction.kbDocCount', { count: kb.knowledge_count || 0 })}
                     />
-                    {selectedKbId === kb.kb_id && <Tag color="blue">已选择</Tag>}
+                    {selectedKbId === kb.kb_id && <Tag color="blue">{t('已选择')}</Tag>}
                   </List.Item>
                 )}
               />
@@ -180,15 +182,15 @@ export function KnowledgeBaseSelector({ ontologyId, onExtractionComplete }: Know
 
       {selectedKbId && documents.length > 0 && (
         <Card
-          title={`文档列表 (${selectedDocIds.size}/${documents.length})`}
+          title={t('extraction.docList', { selected: selectedDocIds.size, total: documents.length })}
           size="small"
           extra={
             <Space>
               <Button size="small" onClick={() => setSelectedDocIds(new Set(documents.map((d) => d.doc_id)))}>
-                全选
+                {t('全选')}
               </Button>
               <Button size="small" onClick={() => setSelectedDocIds(new Set())}>
-                取消全选
+                {t('取消全选')}
               </Button>
             </Space>
           }
@@ -213,7 +215,7 @@ export function KnowledgeBaseSelector({ ontologyId, onExtractionComplete }: Know
       )}
 
       {extracting && (
-        <Card title="提取进度" size="small">
+        <Card title={t('提取进度')} size="small">
           <Progress
             percent={progress?.progress_percent || 0}
             showInfo={true}
@@ -224,7 +226,7 @@ export function KnowledgeBaseSelector({ ontologyId, onExtractionComplete }: Know
             status="active"
           />
           <div style={{ marginTop: 12, color: '#666' }}>
-            {progress?.stage || '初始化'}
+            {progress?.stage || t('初始化')}
             {progress?.message && ` - ${progress.message}`}
           </div>
         </Card>
@@ -239,7 +241,7 @@ export function KnowledgeBaseSelector({ ontologyId, onExtractionComplete }: Know
           disabled={!selectedKbId || selectedDocIds.size === 0}
           size="large"
         >
-          开始提取
+          {t('开始提取')}
         </Button>
       </div>
     </div>

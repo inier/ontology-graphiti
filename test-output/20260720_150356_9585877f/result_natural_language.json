@@ -1,0 +1,7 @@
+{
+  "status": "error",
+  "step": "network",
+  "error_message": "HTTPConnectionPool(host='localhost', port=8000): Max retries exceeded with url: /api/extraction/extract/natural-language (Caused by NewConnectionError(\"HTTPConnection(host='localhost', port=8000): Failed to establish a new connection: [WinError 10061] 由于目标计算机积极拒绝，无法连接。\"))",
+  "test_run_id": "20260720_150356_9585877f",
+  "total_time": 4.108995199203491
+}

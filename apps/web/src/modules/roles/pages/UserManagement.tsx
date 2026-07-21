@@ -3,19 +3,7 @@ import { Card, Button, Input, Modal, Form, message, Tag, Space, Popconfirm, Sele
 import { PlusOutlined, SearchOutlined, EditOutlined, DeleteOutlined, UserOutlined, SafetyCertificateOutlined } from '@ant-design/icons';
 import { fetchJson, API_BASE } from '@/modules/shared';
 import { AdvancedTable } from '@/modules/shared';
-
-const ROLE_OPTIONS = [
-  { value: 'system_admin', label: '系统管理员', color: 'red' },
-  { value: 'project_owner', label: '项目所有者', color: 'orange' },
-  { value: 'team_leader', label: '团队负责人', color: 'blue' },
-  { value: 'member', label: '成员', color: 'green' },
-  { value: 'guest', label: '访客', color: 'default' },
-  { value: 'admin', label: '管理员(旧)', color: 'red' },
-  { value: 'commander', label: '负责人(旧)', color: 'orange' },
-  { value: 'analyst', label: '分析师(旧)', color: 'blue' },
-  { value: 'operator', label: '操作员(旧)', color: 'green' },
-  { value: 'observer', label: '观察者(旧)', color: 'default' },
-];
+import { useI18n } from '@/modules/shared/hooks/useI18n';
 
 interface UserRecord {
   id: string;
@@ -28,6 +16,7 @@ interface UserRecord {
 }
 
 export function UserManagement() {
+  const { t } = useI18n();
   const [users, setUsers] = useState<UserRecord[]>([]);
   const [loading, setLoading] = useState(false);
   const [searchText, setSearchText] = useState('');
@@ -39,6 +28,19 @@ export function UserManagement() {
   const [createForm] = Form.useForm();
   const [editForm] = Form.useForm();
 
+  const ROLE_OPTIONS = [
+    { value: 'system_admin', label: t('系统管理员'), color: 'red' },
+    { value: 'project_owner', label: t('项目所有者'), color: 'orange' },
+    { value: 'team_leader', label: t('团队负责人'), color: 'blue' },
+    { value: 'member', label: t('成员'), color: 'green' },
+    { value: 'guest', label: t('访客'), color: 'default' },
+    { value: 'admin', label: `${t('管理员')}(${t('旧')})`, color: 'red' },
+    { value: 'commander', label: `${t('负责人')}(${t('旧')})`, color: 'orange' },
+    { value: 'analyst', label: `${t('分析师')}(${t('旧')})`, color: 'blue' },
+    { value: 'operator', label: `${t('操作员')}(${t('旧')})`, color: 'green' },
+    { value: 'observer', label: `${t('观察者')}(${t('旧')})`, color: 'default' },
+  ];
+
   useEffect(() => {
     loadUsers();
   }, []);
@@ -49,7 +51,7 @@ export function UserManagement() {
       const data = await fetchJson<{ users: UserRecord[]; total: number }>(`${API_BASE}/api/auth/users`);
       setUsers(data.users || []);
     } catch {
-      message.error('加载用户列表失败');
+      message.error(t('加载用户列表失败'));
     } finally {
       setLoading(false);
     }
@@ -62,17 +64,17 @@ export function UserManagement() {
         method: 'POST',
         body: JSON.stringify(values),
       });
-      message.success('用户创建成功');
+      message.success(t('用户创建成功'));
       setModalOpen(false);
       createForm.resetFields();
       loadUsers();
     } catch (e: any) {
       if (e.message?.includes('409')) {
-        message.error('用户名已存在');
+        message.error(t('用户名已存在'));
       } else if (e.errorFields) {
         return;
       } else {
-        message.error('创建失败: ' + (e.message || '未知错误'));
+        message.error(t('创建失败') + ': ' + (e.message || t('未知错误')));
       }
     }
   };
@@ -91,24 +93,24 @@ export function UserManagement() {
         method: 'PUT',
         body: JSON.stringify(payload),
       });
-      message.success('用户更新成功');
+      message.success(t('用户更新成功'));
       setEditModalOpen(false);
       setEditingUser(null);
       editForm.resetFields();
       loadUsers();
     } catch (e: any) {
       if (e.errorFields) return;
-      message.error('更新失败: ' + (e.message || '未知错误'));
+      message.error(t('更新失败') + ': ' + (e.message || t('未知错误')));
     }
   };
 
   const handleDelete = async (userId: string) => {
     try {
       await fetchJson(`${API_BASE}/api/auth/users/${userId}`, { method: 'DELETE' });
-      message.success('用户已删除');
+      message.success(t('用户已删除'));
       loadUsers();
     } catch (e: any) {
-      message.error('删除失败: ' + (e.message || '未知错误'));
+      message.error(t('删除失败') + ': ' + (e.message || t('未知错误')));
     }
   };
 
@@ -129,12 +131,12 @@ export function UserManagement() {
   const filteredUsers = users.filter(u =>
     u.username.toLowerCase().includes(searchText.toLowerCase()) ||
     u.email?.toLowerCase().includes(searchText.toLowerCase()) ||
-    getRoleLabel(u.global_role).includes(searchText)
+    String(getRoleLabel(u.global_role)).includes(searchText)
   );
 
   const columns = [
     {
-      title: '用户',
+      title: t('用户'),
       key: 'user',
       render: (_: any, record: UserRecord) => (
         <Space>
@@ -146,49 +148,49 @@ export function UserManagement() {
       ),
     },
     {
-      title: '邮箱',
+      title: t('邮箱'),
       dataIndex: 'email',
       key: 'email',
       render: (email: string) => email || '-',
     },
     {
-      title: '角色',
+      title: t('角色'),
       dataIndex: 'global_role',
       key: 'global_role',
       render: (role: string) => <Tag color={getRoleColor(role)}>{getRoleLabel(role)}</Tag>,
     },
     {
-      title: '认证方式',
+      title: t('认证方式'),
       dataIndex: 'auth_provider',
       key: 'auth_provider',
-      render: (provider: string) => provider === 'local' ? '本地' : provider?.toUpperCase() || '-',
+      render: (provider: string) => provider === 'local' ? t('本地') : provider?.toUpperCase() || '-',
     },
     {
-      title: '状态',
+      title: t('状态'),
       dataIndex: 'is_active',
       key: 'is_active',
-      render: (active: boolean) => active ? <Tag color="success">启用</Tag> : <Tag color="error">禁用</Tag>,
+      render: (active: boolean) => active ? <Tag color="success">{t('启用')}</Tag> : <Tag color="error">{t('禁用')}</Tag>,
     },
     {
-      title: '操作',
+      title: t('操作'),
       key: 'actions',
       render: (_: any, record: UserRecord) => (
         <Space>
           <Button type="link" size="small" icon={<EditOutlined />} onClick={() => openEdit(record)}>
-            编辑
+            {t('编辑')}
           </Button>
           <Button type="link" size="small" onClick={() => { setViewingUser(record); setDetailOpen(true); }}>
-            详情
+            {t('详情')}
           </Button>
           <Popconfirm
-            title="确认删除该用户？"
+            title={t('确认删除该用户？')}
             onConfirm={() => handleDelete(record.id)}
-            okText="删除"
-            cancelText="取消"
+            okText={t('删除')}
+            cancelText={t('取消')}
             okButtonProps={{ danger: true }}
           >
             <Button type="link" size="small" danger icon={<DeleteOutlined />}>
-              删除
+              {t('删除')}
             </Button>
           </Popconfirm>
         </Space>
@@ -202,13 +204,13 @@ export function UserManagement() {
         title={
           <Space>
             <SafetyCertificateOutlined />
-            <span>用户管理</span>
+            <span>{t('用户管理')}</span>
           </Space>
         }
         extra={
           <Space>
             <Input
-              placeholder="搜索用户名/邮箱"
+              placeholder={t('搜索用户名/邮箱')}
               prefix={<SearchOutlined />}
               value={searchText}
               onChange={e => setSearchText(e.target.value)}
@@ -216,7 +218,7 @@ export function UserManagement() {
               allowClear
             />
             <Button type="primary" icon={<PlusOutlined />} onClick={() => { createForm.resetFields(); setModalOpen(true); }}>
-              新增用户
+              {t('新增用户')}
             </Button>
           </Space>
         }
@@ -226,62 +228,62 @@ export function UserManagement() {
           columns={columns}
           rowKey="id"
           loading={loading}
-          pagination={{ pageSize: 10, showSizeChanger: true, showTotal: t => `共 ${t} 个用户` }}
+          pagination={{ pageSize: 10, showSizeChanger: true, showTotal: (total: number) => t('共 {{n}} 个用户', { n: total }) }}
         />
       </Card>
 
       <Modal
-        title="新增用户"
+        title={t('新增用户')}
         open={modalOpen}
         onOk={handleCreate}
         onCancel={() => { setModalOpen(false); createForm.resetFields(); }}
-        okText="创建"
-        cancelText="取消"
+        okText={t('创建')}
+        cancelText={t('取消')}
         width={480}
       >
         <Form form={createForm} layout="vertical" style={{ marginTop: 16 }}>
-          <Form.Item name="username" label="用户名" rules={[{ required: true, message: '请输入用户名' }]}>
-            <Input prefix={<UserOutlined />} placeholder="请输入用户名" />
+          <Form.Item name="username" label={t('用户名')} rules={[{ required: true, message: t('请输入用户名') }]}>
+            <Input prefix={<UserOutlined />} placeholder={t('请输入用户名')} />
           </Form.Item>
-          <Form.Item name="password" label="密码" rules={[{ required: true, message: '请输入密码' }, { min: 6, message: '密码至少6位' }]}>
-            <Input.Password placeholder="请输入密码" />
+          <Form.Item name="password" label={t('密码')} rules={[{ required: true, message: t('请输入密码') }, { min: 6, message: t('密码至少6位') }]}>
+            <Input.Password placeholder={t('请输入密码')} />
           </Form.Item>
-          <Form.Item name="email" label="邮箱">
-            <Input placeholder="请输入邮箱（可选）" />
+          <Form.Item name="email" label={t('邮箱')}>
+            <Input placeholder={t('请输入邮箱（可选）')} />
           </Form.Item>
-          <Form.Item name="global_role" label="角色" rules={[{ required: true, message: '请选择角色' }]} initialValue="guest">
+          <Form.Item name="global_role" label={t('角色')} rules={[{ required: true, message: t('请选择角色') }]} initialValue="guest">
             <Select options={ROLE_OPTIONS.map(r => ({ value: r.value, label: r.label }))} />
           </Form.Item>
         </Form>
       </Modal>
 
       <Modal
-        title={`编辑用户 - ${editingUser?.username || ''}`}
+        title={`${t('编辑用户')} - ${editingUser?.username || ''}`}
         open={editModalOpen}
         onOk={handleUpdate}
         onCancel={() => { setEditModalOpen(false); setEditingUser(null); editForm.resetFields(); }}
-        okText="保存"
-        cancelText="取消"
+        okText={t('保存')}
+        cancelText={t('取消')}
         width={480}
       >
         <Form form={editForm} layout="vertical" style={{ marginTop: 16 }}>
-          <Form.Item name="email" label="邮箱">
-            <Input placeholder="请输入邮箱" />
+          <Form.Item name="email" label={t('邮箱')}>
+            <Input placeholder={t('请输入邮箱')} />
           </Form.Item>
-          <Form.Item name="global_role" label="角色" rules={[{ required: true, message: '请选择角色' }]}>
+          <Form.Item name="global_role" label={t('角色')} rules={[{ required: true, message: t('请选择角色') }]}>
             <Select options={ROLE_OPTIONS.map(r => ({ value: r.value, label: r.label }))} />
           </Form.Item>
-          <Form.Item name="is_active" label="启用状态" valuePropName="checked">
-            <Switch checkedChildren="启用" unCheckedChildren="禁用" />
+          <Form.Item name="is_active" label={t('启用状态')} valuePropName="checked">
+            <Switch checkedChildren={t('启用')} unCheckedChildren={t('禁用')} />
           </Form.Item>
-          <Form.Item name="password" label="重置密码" extra="留空则不修改密码">
-            <Input.Password placeholder="输入新密码以重置" />
+          <Form.Item name="password" label={t('重置密码')} extra={t('留空则不修改密码')}>
+            <Input.Password placeholder={t('输入新密码以重置')} />
           </Form.Item>
         </Form>
       </Modal>
 
       <Modal
-        title="用户详情"
+        title={t('用户详情')}
         open={detailOpen}
         onCancel={() => { setDetailOpen(false); setViewingUser(null); }}
         footer={null}
@@ -289,15 +291,15 @@ export function UserManagement() {
       >
         {viewingUser && (
           <Descriptions column={1} style={{ marginTop: 16 }}>
-            <Descriptions.Item label="用户名">{viewingUser.username}</Descriptions.Item>
-            <Descriptions.Item label="邮箱">{viewingUser.email || '-'}</Descriptions.Item>
-            <Descriptions.Item label="角色">
+            <Descriptions.Item label={t('用户名')}>{viewingUser.username}</Descriptions.Item>
+            <Descriptions.Item label={t('邮箱')}>{viewingUser.email || '-'}</Descriptions.Item>
+            <Descriptions.Item label={t('角色')}>
               <Tag color={getRoleColor(viewingUser.global_role)}>{getRoleLabel(viewingUser.global_role)}</Tag>
             </Descriptions.Item>
-            <Descriptions.Item label="角色ID">{viewingUser.role_id || '-'}</Descriptions.Item>
-            <Descriptions.Item label="认证方式">{viewingUser.auth_provider === 'local' ? '本地认证' : viewingUser.auth_provider}</Descriptions.Item>
-            <Descriptions.Item label="状态">{viewingUser.is_active ? '启用' : '禁用'}</Descriptions.Item>
-            <Descriptions.Item label="用户ID">{viewingUser.id}</Descriptions.Item>
+            <Descriptions.Item label={t('角色ID')}>{viewingUser.role_id || '-'}</Descriptions.Item>
+            <Descriptions.Item label={t('认证方式')}>{viewingUser.auth_provider === 'local' ? t('本地认证') : viewingUser.auth_provider}</Descriptions.Item>
+            <Descriptions.Item label={t('状态')}>{viewingUser.is_active ? t('启用') : t('禁用')}</Descriptions.Item>
+            <Descriptions.Item label={t('用户ID')}>{viewingUser.id}</Descriptions.Item>
           </Descriptions>
         )}
       </Modal>

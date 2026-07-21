@@ -18,9 +18,13 @@ import { parsePropertiesToAttributes, getAttributeSemantic, detectValueType } fr
 
 import { PageTourWrapper, objectManagementTourSteps, PAGE_IDS } from '@/modules/guide';
 
+import { useI18n } from '@/modules/shared/hooks/useI18n';
+
 
 
 export function ObjectManagement() {
+
+  const { t } = useI18n();
 
   const { currentScenario } = useScenario();
 
@@ -72,7 +76,7 @@ export function ObjectManagement() {
 
     } catch {
 
-      message.error('加载对象类型失败');
+      message.error(t('加载对象类型失败'));
 
     } finally {
 
@@ -98,13 +102,13 @@ export function ObjectManagement() {
 
       await api.deleteObjectType(typeId);
 
-      message.success('删除成功');
+      message.success(t('删除成功'));
 
       loadObjectTypes();
 
     } catch {
 
-      message.error('删除失败');
+      message.error(t('删除失败'));
 
     }
 
@@ -118,13 +122,13 @@ export function ObjectManagement() {
 
       await api.updateObjectType(editingType.type_id, values);
 
-      message.success('更新成功');
+      message.success(t('更新成功'));
 
     } else {
 
       await api.createObjectType(values);
 
-      message.success('创建成功');
+      message.success(t('创建成功'));
 
     }
 
@@ -280,7 +284,7 @@ export function ObjectManagement() {
 
     } catch {
 
-      message.error('加载实体列表失败');
+      message.error(t('加载实体列表失败'));
 
     } finally {
 
@@ -304,7 +308,7 @@ export function ObjectManagement() {
 
         doc_id: doc.doc_id || doc.id, doc_type: doc.doc_type || 'unknown',
 
-        source_type: doc.source?.type || 'unknown', title: doc.meta?.title || '未命名',
+        source_type: doc.source?.type || 'unknown', title: doc.meta?.title || t('未命名'),
 
         description: doc.meta?.description || '', collected_at: doc.source?.collected_at || '',
 
@@ -340,7 +344,7 @@ export function ObjectManagement() {
 
           key: 'types',
 
-          label: <span data-tour="obj-mgmt-type-tab">对象类型定义</span>,
+          label: <span data-tour="obj-mgmt-type-tab">{t('对象类型定义')}</span>,
 
           children: (
 
@@ -368,7 +372,7 @@ export function ObjectManagement() {
 
           key: 'instances',
 
-          label: <span data-tour="obj-mgmt-instances-tab">实体实例</span>,
+          label: <span data-tour="obj-mgmt-instances-tab">{t('实体实例')}</span>,
 
           children: (
 

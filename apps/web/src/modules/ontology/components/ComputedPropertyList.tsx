@@ -49,7 +49,7 @@ interface ComputedFormValues {
 const EXPRESSION_MAX = 80;
 
 export function ComputedPropertyList({ objectTypeId, onEdit }: ComputedPropertyListProps) {
-  const { t } = useI18n();
+  const { t } = useI18n('ontology');
   void t;
   const [items, setItems] = useState<ComputedProperty[]>([]);
   const [loading, setLoading] = useState(false);

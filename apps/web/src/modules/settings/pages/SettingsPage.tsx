@@ -28,7 +28,7 @@ export default function SettingsPage() {
 
   useEffect(() => {
     if (loading && categories.length === 0) {
-      showGlobalLoading(t('loading'));
+      showGlobalLoading(t('加载配置中...'));
     } else {
       hideGlobalLoading();
     }
@@ -88,7 +88,7 @@ export default function SettingsPage() {
           <Space>
             <SettingOutlined style={{ fontSize: 20 }} />
             <Title level={4} style={{ margin: 0 }}>
-              {t('title')}
+              {t('版本历史')}
             </Title>
           </Space>
           <Space>
@@ -97,7 +97,7 @@ export default function SettingsPage() {
               icon={<HistoryOutlined />}
               onClick={() => toggleHistoryDrawer(true)}
             >
-              {t('changeHistory')}
+              {t('变更历史')}
             </Button>
           </Space>
         </div>
@@ -114,7 +114,7 @@ export default function SettingsPage() {
 
         {loading && categories.length === 0 ? (
           <div style={{ minHeight: 200, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-            <Spin size="large" description={t('loading')} />
+            <Spin size="large" description={t('加载配置中...')} />
           </div>
         ) : (
           <Collapse

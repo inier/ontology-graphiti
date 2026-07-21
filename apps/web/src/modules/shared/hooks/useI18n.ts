@@ -8,7 +8,7 @@ export function useI18n(namespace?: string) {
     setLocale(locale);
   };
 
-  const currentLocale = getCurrentLocale();
+  const currentLocale = (instance.language as Locale) || 'zh-CN';
 
   return {
     t,
@@ -16,6 +16,7 @@ export function useI18n(namespace?: string) {
     changeLocale,
     isZh: currentLocale === 'zh-CN',
     isEn: currentLocale === 'en-US',
+    isJa: currentLocale === 'ja-JP',
     instance,
   };
 }

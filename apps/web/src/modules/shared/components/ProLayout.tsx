@@ -46,6 +46,7 @@ import {
 } from '../services/workspaceCache';
 import { useAuthStore } from '../stores/authStore';
 import { useOntologyStore } from '@/modules/ontology/stores/ontologyStore';
+import { useI18n } from '@/modules/shared/hooks/useI18n';
 import { GlobalLoading } from './GlobalLoading';
 import { LanguageSwitcher } from './LanguageSwitcher';
 import { TaskPanel } from './TaskPanel';
@@ -197,20 +198,8 @@ const primaryMenus: MenuItem[] = [
   },
 ];
 
-/* Build flat route → tab info map */
+/* Build flat route → tab info map (动态更新) */
 const routeTabInfo: Record<string, { title: string }> = {};
-primaryMenus.forEach((m) => {
-  if (m.children) {
-    m.children.forEach((c) => {
-      routeTabInfo[c.key] = { title: c.label };
-    });
-  } else {
-    routeTabInfo[m.key] = { title: m.label };
-  }
-});
-routeTabInfo['/my-agents'] = { title: '我的智能体' };
-routeTabInfo['/agent-chat'] = { title: '智能体对话' };
-routeTabInfo['/qa'] = { title: '问答引擎' };
 
 /* ── Resize Handle (inline, absolute-position based) ── */
 
@@ -348,6 +337,7 @@ export function ProLayout({ children, currentWorkspace, onWorkspaceChange }: Pro
   const { user, logout } = useAuthStore();
   const { resetGuideTour } = useTourStore();
   const { currentOntology } = useOntologyStore();
+  const { t, instance } = useI18n();
 
   /* ── Layout store ── */
   const {
@@ -372,6 +362,7 @@ export function ProLayout({ children, currentWorkspace, onWorkspaceChange }: Pro
     registerExtension,
     unregisterExtension,
     setActiveExtension,
+    updateTabTitles,
   } = useLayoutStore();
 
   const bodyRef = useRef<HTMLDivElement>(null);
@@ -399,6 +390,18 @@ export function ProLayout({ children, currentWorkspace, onWorkspaceChange }: Pro
     };
     // Only run on mount/unmount
   }, []); // eslint-disable-line react-hooks/exhaustive-deps
+
+  /* ── Dynamic tab title updates based on locale ── */
+  useEffect(() => {
+    routeTabInfo['/my-agents'] = { title: t('我的智能体') };
+    routeTabInfo['/agent-chat'] = { title: t('智能体对话') };
+    routeTabInfo['/qa'] = { title: t('问答引擎') };
+    const titleMap: Record<string, string> = {};
+    for (const [path, info] of Object.entries(routeTabInfo)) {
+      titleMap[path] = info.title;
+    }
+    updateTabTitles(titleMap);
+  }, [menuItems]);
 
   /* ── Derived: active extension spec ── */
   const activeExtensionSpec = extensionSpecs.find((e) => e.id === activeExtensionId) ?? null;
@@ -700,31 +703,38 @@ export function ProLayout({ children, currentWorkspace, onWorkspaceChange }: Pro
   };
 
   /* ── Menu items for Ant Design Menu ── */
-  const menuItems: MenuProps['items'] = primaryMenus.map((m) => {
-    const baseItem = {
-      key: m.key,
-      icon: m.icon,
-      label: m.label,
-      children: m.children?.map((c) => ({
-        key: c.key,
-        icon: c.icon,
-        label: c.label,
-      })),
-    };
-    if (m.children) {
-      return {
-        ...baseItem,
-        onTitleClick: ({ domEvent }) => {
-          if (!leftCollapsed) return;
-          domEvent.preventDefault();
-          domEvent.stopPropagation();
-          setLeftCollapsed(false);
-          setOpenKeys((prev) => (prev.includes(m.key) ? prev : [...prev, m.key]));
-        },
+  const menuItems: MenuProps['items'] = useMemo(() => {
+    return primaryMenus.map((m) => {
+      const translatedChildren = m.children?.map((c) => {
+        const translatedLabel = t(c.label);
+        routeTabInfo[c.key] = { title: translatedLabel };
+        return {
+          key: c.key,
+          icon: c.icon,
+          label: translatedLabel,
+        };
+      });
+      const baseItem = {
+        key: m.key,
+        icon: m.icon,
+        label: t(m.label),
+        children: translatedChildren,
       };
-    }
-    return baseItem;
-  });
+      if (m.children) {
+        return {
+          ...baseItem,
+          onTitleClick: ({ domEvent }) => {
+            if (!leftCollapsed) return;
+            domEvent.preventDefault();
+            domEvent.stopPropagation();
+            setLeftCollapsed(false);
+            setOpenKeys((prev) => (prev.includes(m.key) ? prev : [...prev, m.key]));
+          },
+        };
+      }
+      return baseItem;
+    });
+  }, [instance.language, leftCollapsed]);
 
   /* ── Ant Design theme (synced with theme / colorTheme) ── */
   const antdThemeConfig = useMemo(() => ({
@@ -915,7 +925,7 @@ export function ProLayout({ children, currentWorkspace, onWorkspaceChange }: Pro
                     {!isFullWidthMode && (
                       <>
                         <div className="odap-header-selector">
-                          <span className="odap-header-selector-label">工作空间</span>
+                          <span className="odap-header-selector-label">{t('工作空间')}</span>
                           {loading ? (
                             <Spin size="small" />
                           ) : workspaces.length > 0 ? (
@@ -930,7 +940,7 @@ export function ProLayout({ children, currentWorkspace, onWorkspaceChange }: Pro
                                   label: w.name,
                                 }))}
                               />
-                              <Tooltip title="刷新工作空间列表">
+                              <Tooltip title={t('刷新工作空间列表')}>
                                 <Button
                                   type="text"
                                   size="small"
@@ -942,12 +952,12 @@ export function ProLayout({ children, currentWorkspace, onWorkspaceChange }: Pro
                             </div>
                           ) : (
                             <span style={{ color: 'var(--odap-color-text-tertiary)', fontSize: 13 }}>
-                              暂无
+                              {t('暂无')}
                             </span>
                           )}
                         </div>
                         <div className="odap-header-selector">
-                          <span className="odap-header-selector-label">场景</span>
+                          <span className="odap-header-selector-label">{t('场景')}</span>
                           {scenariosLoading ? (
                             <Spin size="small" />
                           ) : scenarios.length > 0 ? (
@@ -963,7 +973,7 @@ export function ProLayout({ children, currentWorkspace, onWorkspaceChange }: Pro
                             />
                           ) : (
                             <span style={{ color: 'var(--odap-color-text-tertiary)', fontSize: 13 }}>
-                              暂无
+                              {t('暂无')}
                             </span>
                           )}
                         </div>
@@ -973,7 +983,7 @@ export function ProLayout({ children, currentWorkspace, onWorkspaceChange }: Pro
                       <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
                         <RobotOutlined style={{ fontSize: 18, color: 'var(--odap-color-primary)' }} />
                         <span style={{ fontSize: 15, fontWeight: 600, color: 'var(--odap-color-text-primary)' }}>
-                          ODAP 智能体
+                          {t('ODAP 智能体')}
                         </span>
                       </div>
                     )}
@@ -988,7 +998,7 @@ export function ProLayout({ children, currentWorkspace, onWorkspaceChange }: Pro
                     <ThemeColorPicker />
 
                     {/* Theme toggle (light/dark) */}
-                    <Tooltip title={theme === 'light' ? '切换暗色模式' : '切换亮色模式'}>
+                    <Tooltip title={theme === 'light' ? t('切换暗色模式') : t('切换亮色模式')}>
                       <Button
                         type="text"
                         size="small"
@@ -999,7 +1009,7 @@ export function ProLayout({ children, currentWorkspace, onWorkspaceChange }: Pro
                     </Tooltip>
 
                     {/* Help */}
-                    <Tooltip title="帮助与引导">
+                    <Tooltip title={t('帮助与引导')}>
                       <Button
                         type="text"
                         size="small"
@@ -1020,7 +1030,7 @@ export function ProLayout({ children, currentWorkspace, onWorkspaceChange }: Pro
                       onClick={handleSwitchMode}
                       style={{ color: 'var(--odap-color-text-secondary)' }}
                     >
-                      {isAgentArea ? '管理后台' : '我的智能体'}
+                      {isAgentArea ? t('管理后台') : t('我的智能体')}
                     </Button>
 
                     {/* Account dropdown */}
@@ -1030,7 +1040,7 @@ export function ProLayout({ children, currentWorkspace, onWorkspaceChange }: Pro
                           {
                             key: 'logout',
                             icon: <LogoutOutlined />,
-                            label: '退出登录',
+                            label: t('退出登录'),
                             onClick: () => {
                               logout();
                               navigate('/login');
@@ -1115,7 +1125,7 @@ export function ProLayout({ children, currentWorkspace, onWorkspaceChange }: Pro
 
                   {/* Collapsed function area toggle with tab count badge */}
                   {!isFullWidthMode && taskPanelCollapsed && (
-                    <Tooltip title={`展开功能区 (${tabs.length} 个任务)`} placement="right">
+                    <Tooltip title={t('展开功能区 ({{count}} 个任务)', { count: tabs.length })} placement="right">
                       <div
                         style={{
                           width: 24,
@@ -1211,7 +1221,7 @@ export function ProLayout({ children, currentWorkspace, onWorkspaceChange }: Pro
                               letterSpacing: 2,
                               userSelect: 'none',
                             }}>
-                              {activeExtensionSpec?.name ?? '扩展'}
+                              {activeExtensionSpec?.name ? t(activeExtensionSpec.name) : t('扩展')}
                             </div>
                             <LeftOutlined style={{ fontSize: 10, color: 'var(--odap-color-text-tertiary)' }} />
                           </div>
@@ -1229,7 +1239,7 @@ export function ProLayout({ children, currentWorkspace, onWorkspaceChange }: Pro
                           <ExtensionPanel
                             onClose={toggleExtensionPanel}
                             icon={activeExtensionIcon}
-                            title={activeExtensionSpec?.name ?? '扩展区'}
+                            title={activeExtensionSpec?.name ? t(activeExtensionSpec.name) : t('扩展区')}
                             extensions={extensionSpecs}
                             activeExtensionId={activeExtensionId}
                             onSwitchExtension={setActiveExtension}
@@ -1245,7 +1255,7 @@ export function ProLayout({ children, currentWorkspace, onWorkspaceChange }: Pro
                               },
                             }) : (
                               <div style={{ padding: 16, color: 'var(--odap-color-text-secondary)', textAlign: 'center' }}>
-                                选择一个扩展
+                                {t('选择一个扩展')}
                               </div>
                             )}
                           </ExtensionPanel>

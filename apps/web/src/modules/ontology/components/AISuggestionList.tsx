@@ -100,7 +100,7 @@ export function AISuggestionList({
     async (suggestionId: string) => {
       try {
         const result = await ontologyApi.aiAssistant.acceptSuggestion(suggestionId);
-        message.success(t('aiSuggestion.acceptSuccess'));
+        message.success(t('建议已接受'));
         onAccept?.(result.suggestion);
         // 更新本地列表
         setSuggestions((prev) =>
@@ -121,7 +121,7 @@ export function AISuggestionList({
     async (suggestionId: string) => {
       try {
         const result = await ontologyApi.aiAssistant.rejectSuggestion(suggestionId, '用户拒绝');
-        message.success(t('aiSuggestion.rejectSuccess'));
+        message.success(t('建议已拒绝'));
         onReject?.(result.suggestion, '用户拒绝');
         // 更新本地列表
         setSuggestions((prev) =>
@@ -148,19 +148,19 @@ export function AISuggestionList({
       case 'pending':
         return (
           <Tag icon={<ClockCircleOutlined />} color="processing">
-            {t('aiSuggestion.pending')}
+            {t('待处理')}
           </Tag>
         );
       case 'accepted':
         return (
           <Tag icon={<CheckCircleOutlined />} color="success">
-            {t('aiSuggestion.accepted')}
+            {t('已接受')}
           </Tag>
         );
       case 'rejected':
         return (
           <Tag icon={<StopOutlined />} color="default">
-            {t('aiSuggestion.rejected')}
+            {t('已拒绝')}
           </Tag>
         );
       default:
@@ -188,9 +188,9 @@ export function AISuggestionList({
           value={statusFilter}
           onChange={(v) => setStatusFilter(v as StatusFilter)}
           options={[
-            { label: t('aiSuggestion.pending'), value: 'pending' },
-            { label: t('aiSuggestion.accepted'), value: 'accepted' },
-            { label: t('aiSuggestion.rejected'), value: 'rejected' },
+            { label: t('待处理'), value: 'pending' },
+            { label: t('已接受'), value: 'accepted' },
+            { label: t('已拒绝'), value: 'rejected' },
             { label: t('common.message.all', '全部'), value: 'all' },
           ]}
         />

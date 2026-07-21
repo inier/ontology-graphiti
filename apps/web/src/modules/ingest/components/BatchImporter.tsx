@@ -30,7 +30,7 @@ interface ImportResult {
 }
 
 export default function BatchImporter({ workspaceId, scenarioId }: BatchImporterProps) {
-  const { t } = useI18n();
+  const { t } = useI18n('ingest');
   const [format, setFormat] = useState<'csv' | 'json'>('csv');
   const [fileList, setFileList] = useState<any[]>([]);
   const [importing, setImporting] = useState(false);
@@ -40,7 +40,7 @@ export default function BatchImporter({ workspaceId, scenarioId }: BatchImporter
 
   const handleUpload = async () => {
     if (fileList.length === 0) {
-      message.warning(t('ingest.selectFile') || '请先选择文件');
+      message.warning(t('请先选择文件') || '请先选择文件');
       return;
     }
 
@@ -86,24 +86,24 @@ export default function BatchImporter({ workspaceId, scenarioId }: BatchImporter
 
   const errorColumns = [
     {
-      title: t('ingest.row') || '行号',
+      title: t('行号') || '行号',
       dataIndex: 'row',
       key: 'row',
       width: 80,
       render: (row: number, record: ImportError) => row ?? record.index ?? '-',
     },
     {
-      title: t('ingest.errorDetail') || '错误详情',
+      title: t('错误详情') || '错误详情',
       dataIndex: 'error',
       key: 'error',
     },
   ];
 
   return (
-    <Card title={t('ingest.batchImport') || '批量导入'} style={{ borderRadius: 8 }}>
+    <Card title={t('批量导入') || '批量导入'} style={{ borderRadius: 8 }}>
       <Space orientation="vertical" style={{ width: '100%' }} size="middle">
         <Space>
-          <Text>{t('ingest.format') || '格式'}:</Text>
+          <Text>{t('格式') || '格式'}:</Text>
           <Select
             value={format}
             onChange={setFormat}
@@ -129,10 +129,10 @@ export default function BatchImporter({ workspaceId, scenarioId }: BatchImporter
             <InboxOutlined />
           </p>
           <p className="ant-upload-text">
-            {t('ingest.dragFile') || '点击或拖拽文件到此区域上传'}
+            {t('点击或拖拽文件到此区域上传') || '点击或拖拽文件到此区域上传'}
           </p>
           <p className="ant-upload-hint">
-            {format === 'csv' ? 'CSV' : 'JSON'} {t('ingest.formatOnly') || '格式文件'}
+            {format === 'csv' ? 'CSV' : 'JSON'} {t('格式文件') || '格式文件'}
           </p>
         </Dragger>
 
@@ -144,11 +144,11 @@ export default function BatchImporter({ workspaceId, scenarioId }: BatchImporter
             loading={importing}
             disabled={fileList.length === 0}
           >
-            {t('ingest.startImport') || '开始导入'}
+            {t('开始导入') || '开始导入'}
           </Button>
           {fileList.length > 0 && (
             <Button icon={<DeleteOutlined />} onClick={handleRemoveFile}>
-              {t('ingest.clear') || '清除'}
+              {t('清除') || '清除'}
             </Button>
           )}
         </Space>
@@ -158,7 +158,7 @@ export default function BatchImporter({ workspaceId, scenarioId }: BatchImporter
         )}
 
         {error && (
-          <Alert type="error" title={t('ingest.importFailed') || '导入失败'} description={error} showIcon />
+          <Alert type="error" title={t('导入失败') || '导入失败'} description={error} showIcon />
         )}
 
         {result && (
@@ -168,10 +168,10 @@ export default function BatchImporter({ workspaceId, scenarioId }: BatchImporter
               title={
                 <Space>
                   <Text>
-                    {t('ingest.successCount') || '成功'}: {result.success_count}
+                    {t('成功') || '成功'}: {result.success_count}
                   </Text>
                   <Text type="danger">
-                    {t('ingest.failCount') || '失败'}: {result.fail_count}
+                    {t('失败') || '失败'}: {result.fail_count}
                   </Text>
                 </Space>
               }
@@ -186,7 +186,7 @@ export default function BatchImporter({ workspaceId, scenarioId }: BatchImporter
                 size="small"
                 title={() => (
                   <Text strong>
-                    {t('ingest.errorDetails') || '错误详情'} ({result.errors.length})
+                    {t('错误详情') || '错误详情'} ({result.errors.length})
                   </Text>
                 )}
               />

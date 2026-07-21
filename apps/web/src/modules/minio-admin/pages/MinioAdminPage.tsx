@@ -4,6 +4,7 @@ import {
   CloudServerOutlined, ReloadOutlined, ExpandOutlined,
   DatabaseOutlined, InboxOutlined,
 } from '@ant-design/icons';
+import { useI18n } from '@/modules/shared/hooks/useI18n';
 
 const { Title, Text } = Typography;
 
@@ -11,6 +12,7 @@ const { Title, Text } = Typography;
 const MINIO_CONSOLE_PROXY = '/minio-console/';
 
 export function MinioAdminPage() {
+  const { t } = useI18n();
   const [iframeError, setIframeError] = useState(false);
   const [iframeLoading, setIframeLoading] = useState(true);
   const [iframeKey, setIframeKey] = useState(0);
@@ -30,14 +32,14 @@ export function MinioAdminPage() {
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 24 }}>
         <Title level={3} style={{ margin: 0 }}>
           <CloudServerOutlined style={{ marginRight: 8 }} />
-          对象存储管理
+          {t('对象存储管理')}
         </Title>
         <Space>
           <Button icon={<ReloadOutlined />} onClick={handleReload}>
-            刷新
+            {t('刷新')}
           </Button>
           <Button icon={<ExpandOutlined />} onClick={handleOpenInNewTab}>
-            新窗口打开
+            {t('新窗口打开')}
           </Button>
         </Space>
       </div>
@@ -61,9 +63,9 @@ export function MinioAdminPage() {
                   <Alert
                     type="error"
                     showIcon
-                    title="MinIO Console 加载失败"
-                    description="请检查 MinIO 容器是否正常运行（podman ps graphiti-minio），以及后端代理是否正常。"
-                    action={<Button onClick={handleReload}>重试</Button>}
+                    title={t('MinIO Console 加载失败')}
+                    description={t('请检查 MinIO 容器是否正常运行（podman ps graphiti-minio），以及后端代理是否正常。')}
+                    action={<Button onClick={handleReload}>{t('重试')}</Button>}
                     style={{ margin: 16 }}
                   />
                 )}
@@ -75,7 +77,7 @@ export function MinioAdminPage() {
                     alignItems: 'center',
                     height: 200,
                   }}>
-                    <Spin size="large" description="正在加载 MinIO Console..." />
+                    <Spin size="large" description={t('正在加载 MinIO Console...')} />
                   </div>
                 )}
 
@@ -103,27 +105,26 @@ export function MinioAdminPage() {
             key: 'about',
             label: (
               <span>
-                <DatabaseOutlined /> 关于
+                <DatabaseOutlined /> {t('关于')}
               </span>
             ),
             children: (
               <Card>
                 <div style={{ maxWidth: 640 }}>
                   <Text>
-                    此处嵌入了 MinIO Console 管理界面，提供完整的对象存储管理功能，包括：
+                    {t('此处嵌入了 MinIO Console 管理界面，提供完整的对象存储管理功能，包括：')}
                   </Text>
                   <ul style={{ marginTop: 12, paddingLeft: 20, lineHeight: 2 }}>
-                    <li>存储桶管理（创建、查看、删除）</li>
-                    <li>文件浏览与目录导航</li>
-                    <li>文件上传与下载</li>
-                    <li>对象元数据查看</li>
-                    <li>访问策略配置</li>
-                    <li>用户与权限管理</li>
+                    <li>{t('存储桶管理（创建、查看、删除）')}</li>
+                    <li>{t('文件浏览与目录导航')}</li>
+                    <li>{t('文件上传与下载')}</li>
+                    <li>{t('对象元数据查看')}</li>
+                    <li>{t('访问策略配置')}</li>
+                    <li>{t('用户与权限管理')}</li>
                   </ul>
                   <div style={{ marginTop: 16 }}>
                     <Text type="secondary">
-                      MinIO Console 通过后端反向代理嵌入，自动完成认证登录。
-                      所有操作受平台权限管控，仅管理员可访问。
+                      {t('MinIO Console 通过后端反向代理嵌入，自动完成认证登录。所有操作受平台权限管控，仅管理员可访问。')}
                     </Text>
                   </div>
                 </div>

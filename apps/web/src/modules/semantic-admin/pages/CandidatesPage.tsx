@@ -1,4 +1,4 @@
-import React, { useCallback, useEffect, useState } from 'react';
+import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import {
   Row, Col, Select, InputNumber, Input, Button, Space,
   message, Modal, Form, Tabs, Drawer, Tag,
@@ -19,8 +19,8 @@ import type { Candidate } from '../services/pipelineApi';
 import {
   listCandidates, approveCandidate, rejectCandidate, deleteCandidate,
 } from '../services/pipelineApi';
+import { useI18n } from '@/modules/shared/hooks/useI18n';
 
-const SEMANTIC_TYPES = ['对象类型', '关系类型', '属性', '动作类型', '过程类型', '规则类型'];
 const STATUSES: Array<Candidate['status']> = [
   'new', 'gated', 'approved', 'rejected', 'written',
   'auditor_approved', 'admin_pending', 'written_back', 'stoplisted',
@@ -33,8 +33,10 @@ interface ReviewFormData {
 
 const CandidatesPage: React.FC = () => {
   const navigate = useNavigate();
+  const { t } = useI18n();
   const { canWrite } = useUslPermissions();
   const authUser = useAuthStore((s) => s.user);
+  const semanticTypes = useMemo(() => [t('对象类型'), t('关系类型'), t('属性'), t('动作类型'), t('过程类型'), t('规则类型')], [t]);
   const candidateFilters = useSemanticAdminStore((s) => s.candidateFilters);
   const setCF = useSemanticAdminStore((s) => s.setCandidateFilters);
   const resetCF = useSemanticAdminStore((s) => s.resetCandidateFilters);
@@ -144,7 +146,7 @@ const CandidatesPage: React.FC = () => {
             value={candidateFilters.semantic_type ? [candidateFilters.semantic_type] : []}
             maxTagCount="responsive"
             onChange={(v) => onFilterChange({ semantic_type: v.length ? v[0] : '' })}
-            options={SEMANTIC_TYPES.map((x) => ({ label: x, value: x }))} />
+            options={semanticTypes.map((x) => ({ label: x, value: x }))} />
         </Col>
         <Col span={4}>
           <Select allowClear style={{ width: '100%' }} placeholder="Status"
@@ -216,7 +218,7 @@ const CandidatesPage: React.FC = () => {
         title={
           <Space>
             <RadarChartOutlined style={{ color: '#1677ff' }} />
-            <span>质量雷达 · 16 子指标</span>
+            <span>{t('质量雷达 · 16 子指标')}</span>
             {activeCandidate ? (
               <>
                 <Tag color="blue">{activeCandidate.semantic_type}</Tag>

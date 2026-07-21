@@ -6,6 +6,7 @@ import {
 import {
   InboxOutlined, FileTextOutlined, ClearOutlined,
 } from '@ant-design/icons';
+import { useI18n } from '@/modules/shared/hooks/useI18n';
 import { ontologyApi } from '../services/ontologyApi';
 import { useExtractionProgress } from '../hooks/useExtractionProgress';
 
@@ -26,6 +27,7 @@ const ACCEPTED_FORMATS = [
 const MAX_FILE_SIZE_MB = 100;
 
 export function DocumentUploader({ ontologyId, onExtractionComplete }: DocumentUploaderProps) {
+  const { t } = useI18n('ontology');
   const [fileList, setFileList] = useState<any[]>([]);
   const [uploading, setUploading] = useState(false);
   const [currentFileIndex, setCurrentFileIndex] = useState(0);
@@ -36,19 +38,19 @@ export function DocumentUploader({ ontologyId, onExtractionComplete }: DocumentU
   const handleBeforeUpload = useCallback((file: File) => {
     const ext = '.' + file.name.split('.').pop()?.toLowerCase();
     if (!ACCEPTED_FORMATS.includes(ext)) {
-      message.error(`不支持的文件格式: ${ext}，仅支持 ${ACCEPTED_FORMATS.join(', ')}`);
+      message.error(t('extraction.unsupportedFormat', { format: ext, formats: ACCEPTED_FORMATS.join(', ') }));
       return Upload.LIST_IGNORE;
     }
     if (file.size / 1024 / 1024 > MAX_FILE_SIZE_MB) {
-      message.error(`文件大小不能超过 ${MAX_FILE_SIZE_MB}MB`);
+      message.error(t('extraction.fileSizeExceeded', { size: MAX_FILE_SIZE_MB }));
       return Upload.LIST_IGNORE;
     }
     return false;
-  }, []);
+  }, [t]);
 
   const handleUpload = useCallback(async () => {
     if (fileList.length === 0) {
-      message.warning('请先选择文件');
+      message.warning(t('请输入自然语言描述'));
       return;
     }
 
@@ -69,14 +71,14 @@ export function DocumentUploader({ ontologyId, onExtractionComplete }: DocumentU
         results.push(result);
       }
 
-      message.success(`文档提取完成，共处理 ${fileList.length} 个文件`);
+      message.success(t('extraction.documentExtractComplete', { count: fileList.length }));
       onExtractionComplete?.(results.length === 1 ? results[0] : results);
     } catch (e) {
-      message.error(`文档提取失败: ${(e as Error).message}`);
+      message.error(t('extraction.documentExtractFailed', { msg: (e as Error).message }));
     } finally {
       setUploading(false);
     }
-  }, [fileList, ontologyId, onExtractionComplete]);
+  }, [fileList, ontologyId, onExtractionComplete, t]);
 
   const handleClear = useCallback(() => {
     setFileList([]);
@@ -89,8 +91,8 @@ export function DocumentUploader({ ontologyId, onExtractionComplete }: DocumentU
       <Alert
         type="info"
         showIcon
-        title="上传文档进行知识提取"
-        description={`支持格式：PDF / Word / TXT / Markdown / CSV / Excel / JSON / XML / 图片。单文件最大 ${MAX_FILE_SIZE_MB}MB。`}
+        title={t('上传文档进行知识提取')}
+        description={`${t('支持格式：PDF / Word / TXT / Markdown / CSV / Excel / JSON / XML / 图片')} ${t('单文件最大 100MB')}`}
       />
 
       <Dragger
@@ -104,12 +106,12 @@ export function DocumentUploader({ ontologyId, onExtractionComplete }: DocumentU
         <p className="ant-upload-drag-icon">
           <InboxOutlined />
         </p>
-        <p className="ant-upload-text">点击或拖拽文件到此区域上传</p>
-        <p className="ant-upload-hint">支持批量上传，系统将自动解析文档内容并提取知识结构</p>
+        <p className="ant-upload-text">{t('点击或拖拽文件到此区域上传')}</p>
+        <p className="ant-upload-hint">{t('支持批量上传，系统将自动解析文档内容并提取知识结构')}</p>
       </Dragger>
 
       {uploading && (
-        <Card title="提取进度" size="small">
+        <Card title={t('提取进度')} size="small">
           <div style={{ marginBottom: 16 }}>
             <Progress
               percent={Math.round(((currentFileIndex) / fileList.length) * 100)}
@@ -128,7 +130,7 @@ export function DocumentUploader({ ontologyId, onExtractionComplete }: DocumentU
             status="active"
           />
           <div style={{ marginTop: 12, color: '#666' }}>
-            {progress?.stage || '初始化'}
+            {progress?.stage || t('初始化')}
             {progress?.message && ` - ${progress.message}`}
           </div>
         </Card>
@@ -141,7 +143,7 @@ export function DocumentUploader({ ontologyId, onExtractionComplete }: DocumentU
             onClick={handleClear}
             disabled={uploading || fileList.length === 0}
           >
-            清空
+            {t('清空')}
           </Button>
           <Button
             type="primary"
@@ -151,7 +153,7 @@ export function DocumentUploader({ ontologyId, onExtractionComplete }: DocumentU
             disabled={fileList.length === 0}
             size="large"
           >
-            开始提取
+            {t('开始提取')}
           </Button>
         </Space>
       </div>

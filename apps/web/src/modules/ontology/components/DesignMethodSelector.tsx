@@ -67,7 +67,7 @@ export function DesignMethodSelector({ onSelect, ontologyName }: DesignMethodSel
     <div style={{ padding: '24px 0' }}>
       <div style={{ textAlign: 'center', marginBottom: 32 }}>
         <h2 style={{ margin: 0, fontSize: 20, fontWeight: 600 }}>
-          {t('designMethod.title')}
+          {t('选择设计方式')}
         </h2>
         <p style={{ margin: '8px 0 0', color: '#666' }}>
           {t('designMethod.subtitle', { name: ontologyName })}
@@ -103,7 +103,7 @@ export function DesignMethodSelector({ onSelect, ontologyName }: DesignMethodSel
                 <span style={{ fontSize: 16, fontWeight: 600 }}>{t(method.titleKey)}</span>
                 {method.recommended && (
                   <Tag color="blue" style={{ marginLeft: 0 }}>
-                    {t('designMethod.recommended')}
+                    {t('推荐')}
                   </Tag>
                 )}
               </div>

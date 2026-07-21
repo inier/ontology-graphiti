@@ -84,26 +84,69 @@ interface MenuItem {
 const primaryMenus: MenuItem[] = [];
 // 所有菜单项已由后端 /api/menu-config 统一管理，primaryMenus 保留为空以兼容
 
-/* Build flat route → tab info map (静态部分，动态部分在 hook 中追加) */
+/* Build flat route → tab info map (动态更新) */
 const routeTabInfo: Record<string, { title: string }> = {};
-primaryMenus.forEach((m) => {
-  if (m.children) {
-    m.children.forEach((c) => {
-      routeTabInfo[c.key] = { title: c.label };
-    });
-  } else {
-    routeTabInfo[m.key] = { title: m.label };
-  }
-});
-routeTabInfo['/my-agents'] = { title: '我的智能体' };
-routeTabInfo['/agent-chat'] = { title: '智能体对话' };
-routeTabInfo['/qa'] = { title: '问答引擎' };
 
-/* ── 动态菜单项 Hook（从后端树形 API 加载，按角色过滤，递归处理多级目录） ── */
+interface RawMenuNode {
+  code: string;
+  name: string;
+  menu_type: string;
+  is_visible?: boolean;
+  icon?: string;
+  children?: RawMenuNode[];
+  link_type?: string;
+  url?: string;
+  path?: string;
+}
+
+function buildMenuTree(nodes: RawMenuNode[], parentKey: string): MenuItem[] {
+  const items: MenuItem[] = [];
+  for (const node of nodes) {
+    if (node.menu_type === 'action') continue;
+
+    const isVisible = node.is_visible !== false;
+    if (!isVisible) continue;
+
+    if (node.menu_type === 'directory') {
+      const children = buildMenuTree(node.children || [], `${parentKey}-${node.code}`);
+      if (children.length > 0) {
+        items.push({
+          key: `dynamic-${parentKey}-${node.code}`,
+          icon: resolveIcon(node.icon),
+          label: node.name,
+          children,
+        });
+      }
+    } else if (node.menu_type === 'menu') {
+      const key = node.link_type === 'iframe'
+        ? `/iframe-viewer?url=${encodeURIComponent(node.url || '')}&title=${encodeURIComponent(node.name)}`
+        : (node.path || `/${node.code}`);
+      items.push({
+        key,
+        icon: resolveIcon(node.icon),
+        label: node.name,
+      });
+    }
+  }
+  return items;
+}
+
+function translateMenuItems(items: MenuItem[], t: (key: string, options?: Record<string, any>) => string): MenuItem[] {
+  return items.map(item => {
+    const translatedLabel = resolveMenuName(t, item.label);
+    routeTabInfo[item.key] = { title: translatedLabel };
+    return {
+      ...item,
+      label: translatedLabel,
+      children: item.children ? translateMenuItems(item.children, t) : undefined,
+    };
+  });
+}
+
 function useDynamicMenuItems() {
-  const [dynamicMenus, setDynamicMenus] = useState<MenuItem[]>([]);
+  const [rawMenus, setRawMenus] = useState<MenuItem[]>([]);
   const fetchedRef = useRef(false);
-  const { t } = useI18n();
+  const { t, instance } = useI18n();
 
   useEffect(() => {
     if (fetchedRef.current) return;
@@ -119,57 +162,20 @@ function useDynamicMenuItems() {
           return;
         }
 
-        const menus: MenuItem[] = [];
-
-        function buildMenu(nodes: typeof tree, parentKey: string): MenuItem[] {
-          const items: MenuItem[] = [];
-          for (const node of nodes) {
-            if (node.menu_type === 'action') continue;
-
-            const isVisible = node.is_visible !== false;
-            if (!isVisible) {
-              console.warn('[AdminLayout] skipped (not visible):', node.name, node.is_visible);
-              continue;
-            }
-
-            if (node.menu_type === 'directory') {
-              const children = buildMenu(node.children || [], `${parentKey}-${node.code}`);
-              if (children.length > 0) {
-                items.push({
-                  key: `dynamic-${parentKey}-${node.code}`,
-                  icon: resolveIcon(node.icon),
-                  label: resolveMenuName(t, node.name),
-                  children,
-                });
-              }
-            } else if (node.menu_type === 'menu') {
-              const key = node.link_type === 'iframe'
-                ? `/iframe-viewer?url=${encodeURIComponent(node.url || '')}&title=${encodeURIComponent(resolveMenuName(t, node.name))}`
-                : (node.path || `/${node.code}`);
-              routeTabInfo[key] = { title: resolveMenuName(t, node.name) };
-              items.push({
-                key,
-                icon: resolveIcon(node.icon),
-                label: resolveMenuName(t, node.name),
-              });
-            } else {
-              console.warn('[AdminLayout] skipped (unknown type):', { menu_type: node.menu_type, name: node.name });
-            }
-          }
-          return items;
-        }
-
-        const topLevel = buildMenu(tree, 'root');
+        const topLevel = buildMenuTree(tree as RawMenuNode[], 'root');
         console.log('[AdminLayout] built menu items:', topLevel.length);
-        menus.push(...topLevel);
-        setDynamicMenus(menus);
+        setRawMenus(topLevel);
       })
       .catch((err) => {
         console.error('[AdminLayout] menu load failed:', err);
       });
   }, []);
 
-  return dynamicMenus;
+  const translatedMenus = useMemo(() => {
+    return translateMenuItems(rawMenus, t);
+  }, [rawMenus, instance.language]);
+
+  return translatedMenus;
 }
 
 /* ── Resize Handle (inline, absolute-position based) ── */
@@ -350,6 +356,7 @@ export function AdminLayout({ children }: { children: React.ReactNode }) {
     registerExtension,
     unregisterExtension,
     setActiveExtension,
+    updateTabTitles,
   } = useLayoutStore();
 
   const bodyRef = useRef<HTMLDivElement>(null);
@@ -398,14 +405,14 @@ export function AdminLayout({ children }: { children: React.ReactNode }) {
   const handleWorkspaceChange = (value: string) => {
     setWorkspaceInContext(value);
     if (message && typeof message.success === 'function') {
-      message.success(t('workspace.switched'));
+      message.success(t('已切换工作空间'));
     }
   };
 
   const handleScenarioChange = (value: string) => {
     setScenarioInContext(value);
     if (message && typeof message.success === 'function') {
-      message.success(t('workspace.scenarioSwitched'));
+      message.success(t('已切换场景'));
     }
   };
 
@@ -417,6 +424,18 @@ export function AdminLayout({ children }: { children: React.ReactNode }) {
     () => [...primaryMenus, ...dynamicMenus],
     [dynamicMenus],
   );
+
+  /* ── Dynamic tab title updates based on locale ── */
+  useEffect(() => {
+    routeTabInfo['/my-agents'] = { title: t('我的智能体') };
+    routeTabInfo['/agent-chat'] = { title: t('智能体对话') };
+    routeTabInfo['/qa'] = { title: t('问答引擎') };
+    const titleMap: Record<string, string> = {};
+    for (const [path, info] of Object.entries(routeTabInfo)) {
+      titleMap[path] = info.title;
+    }
+    updateTabTitles(titleMap);
+  }, [dynamicMenus]);
 
   /* ── Navigation → Tab integration ── */
   useEffect(() => {
@@ -806,7 +825,7 @@ export function AdminLayout({ children }: { children: React.ReactNode }) {
                           setActiveExtension('ai-chat');
                         }}
                         style={{ color: 'var(--odap-color-text-secondary)', marginRight: 4 }}
-                        title={t('nav.aiAssistant')}
+                        title={t('AI 助手')}
                       />
                       <Button
                         type="text"
@@ -815,7 +834,7 @@ export function AdminLayout({ children }: { children: React.ReactNode }) {
                         onClick={handleSwitchMode}
                         style={{ color: 'var(--odap-color-text-secondary)' }}
                       >
-                        {t('nav.myAgents')}
+                        {t('我的智能体')}
                       </Button>
                     </>
                   }
@@ -943,7 +962,7 @@ export function AdminLayout({ children }: { children: React.ReactNode }) {
                       {extensionPanelCollapsed ? (
                         /* Collapsed: reopen strip */
                         <Tooltip
-                          title={activeExtensionSpec ? t('layout.expandExtensionWithName', { name: activeExtensionSpec.name }) : t('layout.expandExtension')}
+                          title={activeExtensionSpec ? t('layout.expandExtensionWithName', { name: activeExtensionSpec.name }) : t('展开扩展区')}
                           placement="left"
                         >
                           <div
@@ -971,7 +990,7 @@ export function AdminLayout({ children }: { children: React.ReactNode }) {
                               letterSpacing: 2,
                               userSelect: 'none',
                             }}>
-                              {activeExtensionSpec?.name ?? t('layout.extension')}
+                              {activeExtensionSpec?.name ?? t('扩展')}
                             </div>
                             <LeftOutlined style={{ fontSize: 10, color: 'var(--odap-color-text-tertiary)' }} />
                           </div>
@@ -989,7 +1008,7 @@ export function AdminLayout({ children }: { children: React.ReactNode }) {
                           <ExtensionPanel
                             onClose={toggleExtensionPanel}
                             icon={activeExtensionIcon}
-                            title={activeExtensionSpec?.name ?? t('layout.extensionArea')}
+                            title={activeExtensionSpec?.name ?? t('扩展区')}
                             extensions={extensionSpecs}
                             activeExtensionId={activeExtensionId}
                             onSwitchExtension={setActiveExtension}
@@ -998,7 +1017,7 @@ export function AdminLayout({ children }: { children: React.ReactNode }) {
                           >
                             {activeExtensionComponent ? React.createElement(activeExtensionComponent) : (
                               <div style={{ padding: 16, color: 'var(--odap-color-text-secondary)', textAlign: 'center' }}>
-                                {t('layout.selectExtension')}
+                                {t('选择一个扩展')}
                               </div>
                             )}
                           </ExtensionPanel>
@@ -1025,7 +1044,7 @@ export function AdminLayout({ children }: { children: React.ReactNode }) {
                       <ExtensionPanel
                         onClose={toggleExtensionPanel}
                         icon={activeExtensionIcon}
-                        title={activeExtensionSpec?.name ?? t('layout.extensionArea')}
+                        title={activeExtensionSpec?.name ?? t('扩展区')}
                         extensions={extensionSpecs}
                         activeExtensionId={activeExtensionId}
                         onSwitchExtension={setActiveExtension}

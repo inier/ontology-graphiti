@@ -36,8 +36,8 @@ export function DecisionTimeline({ decisionId, steps }: DecisionTimelineProps) {
 
   if (!steps || steps.length === 0) {
     return (
-      <Card title={t('decisionTimeline')} size="small">
-        <Empty description={t('noData')} image={Empty.PRESENTED_IMAGE_SIMPLE} />
+      <Card title={t('决策时间线')} size="small">
+        <Empty description={t('暂无数据')} image={Empty.PRESENTED_IMAGE_SIMPLE} />
       </Card>
     );
   }
@@ -73,7 +73,7 @@ export function DecisionTimeline({ decisionId, steps }: DecisionTimelineProps) {
           </div>
           {step.evidence && step.evidence.length > 0 && (
             <div style={{ marginTop: 4, fontSize: 12, color: '#8c8c8c' }}>
-              {t('evidence')}: {step.evidence.length} items
+              {t('证据')}: {step.evidence.length} items
             </div>
           )}
         </div>
@@ -82,7 +82,7 @@ export function DecisionTimeline({ decisionId, steps }: DecisionTimelineProps) {
   });
 
   return (
-    <Card title={`${t('decisionTimeline')} #${decisionId.slice(0, 8)}`} size="small">
+    <Card title={`${t('决策时间线')} #${decisionId.slice(0, 8)}`} size="small">
       <Timeline items={timelineItems} />
     </Card>
   );

@@ -27,6 +27,8 @@ import {
 } from '@ant-design/icons';
 import { apiClient } from '@/modules/shared/services/apiClient';
 import { AdvancedTable } from '@/modules/shared';
+import { useI18n } from '@/modules/shared/hooks/useI18n';
+import { STRATEGY_OPTIONS } from './types';
 import {
   type ConflictStrategy,
   type ConflictRecord,
@@ -64,19 +66,26 @@ const DEFAULT_MOCK_SOURCES: ConflictSource[] = [
   },
 ];
 
-const STATUS_META: Record<string, { color: string; label: string; icon: React.ReactNode }> = {
-  pending: { color: 'default', label: '待处理', icon: <ClockCircleOutlined /> },
-  resolved: { color: 'success', label: '已解决', icon: <CheckCircleOutlined /> },
-  awaiting_human: { color: 'warning', label: '等待人工', icon: <ClockCircleOutlined /> },
+const STATUS_META: Record<string, { color: string; icon: React.ReactNode }> = {
+  pending: { color: 'default', icon: <ClockCircleOutlined /> },
+  resolved: { color: 'success', icon: <CheckCircleOutlined /> },
+  awaiting_human: { color: 'warning', icon: <ClockCircleOutlined /> },
 };
 
-const formatValue = (v: unknown): string => {
-  if (v === null || v === undefined) return '(空)';
-  if (typeof v === 'string') return v;
-  return JSON.stringify(v);
+const STATUS_LABELS: Record<string, string> = {
+  pending: 'conflict.status.pending',
+  resolved: 'conflict.status.resolved',
+  awaiting_human: 'conflict.status.awaitingHuman',
 };
 
 export default function ConflictResolver() {
+  const { t } = useI18n('ontology');
+
+  const formatValue = (v: unknown): string => {
+    if (v === null || v === undefined) return t('(空)');
+    if (typeof v === 'string') return v;
+    return JSON.stringify(v);
+  };
   // 冲突列表
   const [conflicts, setConflicts] = useState<ConflictRecord[]>([]);
   // 当前选中的冲突 ID
@@ -109,10 +118,10 @@ export default function ConflictResolver() {
     try {
       sources = JSON.parse(mockSourcesText);
       if (!Array.isArray(sources)) {
-        throw new Error('sources 必须是数组');
+        throw new Error(t('sources 必须是数组'));
       }
     } catch (e) {
-      message.error(`Mock 数据解析失败: ${(e as Error).message}`);
+      message.error(t('conflict.mockParseFailed', { msg: (e as Error).message }));
       return;
     }
 
@@ -126,12 +135,12 @@ export default function ConflictResolver() {
       setConflicts(data.conflicts || []);
       setSelectedId((data.conflicts?.[0]?.id) ?? null);
       if ((data.conflicts?.length ?? 0) === 0) {
-        message.success('未检测到冲突');
+        message.success(t('暂无冲突'));
       } else {
-        message.success(`检测到 ${data.count} 条冲突`);
+        message.success(t('conflict.conflictsDetected', { count: data.count }));
       }
     } catch (e) {
-      message.error(`冲突检测失败: ${(e as Error).message}`);
+      message.error(t('conflict.detectFailed', { msg: (e as Error).message }));
     } finally {
       setDetecting(false);
     }
@@ -146,9 +155,9 @@ export default function ConflictResolver() {
       );
       setConflicts(data.conflicts || []);
       setSelectedId((data.conflicts?.[0]?.id) ?? null);
-      message.success(`已加载 ${data.count} 条待处理冲突`);
+      message.success(t('conflict.loadedPending', { count: data.count }));
     } catch (e) {
-      message.error(`加载失败: ${(e as Error).message}`);
+      message.error(t('conflict.loadFailed', { msg: (e as Error).message }));
     } finally {
       setLoadingPending(false);
     }
@@ -170,11 +179,11 @@ export default function ConflictResolver() {
   // --------- 解决（按所选策略） ---------
   const handleResolve = useCallback(async () => {
     if (!selected) {
-      message.warning('请先选择一条冲突');
+      message.warning(t('请先选择一条冲突'));
       return;
     }
     if (selected.status !== 'pending') {
-      message.warning('该冲突已处理');
+      message.warning(t('该冲突已处理'));
       return;
     }
     setResolving(true);
@@ -196,9 +205,9 @@ export default function ConflictResolver() {
             : c,
         ),
       );
-      message.success(`冲突已 ${STATUS_META[result.status]?.label ?? result.status}`);
+      message.success(t('conflict.resolved', { status: t(STATUS_LABELS[result.status] || result.status) }));
     } catch (e) {
-      message.error(`解决失败: ${(e as Error).message}`);
+      message.error(t('conflict.resolveFailed', { msg: (e as Error).message }));
     } finally {
       setResolving(false);
     }
@@ -207,7 +216,7 @@ export default function ConflictResolver() {
   // --------- LLM 判断（独立入口） ---------
   const handleLLMJudge = useCallback(async () => {
     if (!selected) {
-      message.warning('请先选择一条冲突');
+      message.warning(t('请先选择一条冲突'));
       return;
     }
     setJudging(true);
@@ -228,9 +237,9 @@ export default function ConflictResolver() {
             : c,
         ),
       );
-      message.success('LLM 仲裁完成');
+      message.success(t('LLM 仲裁完成'));
     } catch (e) {
-      message.error(`LLM 判断失败: ${(e as Error).message}`);
+      message.error(t('conflict.llmJudgeFailed', { msg: (e as Error).message }));
     } finally {
       setJudging(false);
     }
@@ -239,45 +248,45 @@ export default function ConflictResolver() {
   // --------- 列表列 ---------
   const columns = [
     {
-      title: '冲突 ID',
+      title: t('冲突 ID'),
       dataIndex: 'id',
       key: 'id',
       width: 100,
       render: (v: string) => <Text code style={{ fontSize: 12 }}>{v.slice(0, 8)}…</Text>,
     },
-    { title: '实体', dataIndex: 'entity_id', key: 'entity_id', width: 100 },
-    { title: '类型', dataIndex: 'entity_type', key: 'entity_type', width: 110 },
+    { title: t('实体'), dataIndex: 'entity_id', key: 'entity_id', width: 100 },
+    { title: t('类型'), dataIndex: 'entity_type', key: 'entity_type', width: 110 },
     {
-      title: '字段',
+      title: t('字段'),
       dataIndex: 'field_name',
       key: 'field_name',
       width: 120,
       render: (v: string) => <Tag color="blue">{v}</Tag>,
     },
     {
-      title: '类型',
+      title: t('冲突类型'),
       dataIndex: 'conflict_type',
       key: 'conflict_type',
       width: 110,
       render: (v: string) => <Tag color="purple">{v}</Tag>,
     },
     {
-      title: '候选数',
+      title: t('候选数'),
       dataIndex: 'candidates',
       key: 'candidates',
       width: 80,
       render: (cs: ConflictCandidate[]) => cs?.length ?? 0,
     },
     {
-      title: '状态',
+      title: t('状态'),
       dataIndex: 'status',
       key: 'status',
       width: 110,
       render: (s: string) => {
-        const meta = STATUS_META[s] ?? { color: 'default', label: s, icon: null };
+        const meta = STATUS_META[s] ?? { color: 'default', icon: null };
         return (
           <Tag color={meta.color} icon={meta.icon as React.ReactElement}>
-            {meta.label}
+            {t(STATUS_LABELS[s] || s)}
           </Tag>
         );
       },
@@ -287,13 +296,13 @@ export default function ConflictResolver() {
   // --------- 候选值对比表 ---------
   const candidateColumns = [
     {
-      title: '数据源',
+      title: t('数据源'),
       dataIndex: 'source_id',
       key: 'source_id',
       render: (v: string) => <Tag color="cyan">{v}</Tag>,
     },
     {
-      title: '候选值',
+      title: t('候选值'),
       dataIndex: 'value',
       key: 'value',
       render: (v: unknown) => (
@@ -301,14 +310,14 @@ export default function ConflictResolver() {
       ),
     },
     {
-      title: '置信度',
+      title: t('置信度'),
       dataIndex: 'confidence',
       key: 'confidence',
       width: 110,
       render: (v: number) => `${(v * 100).toFixed(0)}%`,
     },
     {
-      title: '观测时间',
+      title: t('观测时间'),
       dataIndex: 'observed_at',
       key: 'observed_at',
       render: (v: string) => (v ? new Date(v).toLocaleString() : '-'),
@@ -318,10 +327,10 @@ export default function ConflictResolver() {
   return (
     <div data-testid="conflict-resolver" style={{ padding: 16 }}>
       <Title level={3} style={{ marginTop: 0 }}>
-        <ThunderboltOutlined /> 多源冲突解决
+        <ThunderboltOutlined /> {t('多源冲突解决')}
       </Title>
       <Paragraph type="secondary">
-        检测来自多个数据源的实体字段冲突，并按策略（first_wins / last_wins / llm_judge / manual）解决。
+        {t('检测来自多个数据源的实体字段冲突，并按策略（first_wins / last_wins / llm_judge / manual）解决。')}
       </Paragraph>
 
       <Tabs
@@ -329,11 +338,11 @@ export default function ConflictResolver() {
         items={[
           {
             key: 'detect',
-            label: '检测冲突',
+            label: t('检测冲突'),
             children: (
               <Space orientation="vertical" size="middle" style={{ width: '100%' }}>
                 <Card
-                  title="多源数据（演示用 mock）"
+                  title={t('多源数据（演示用 mock）')}
                   size="small"
                   extra={
                     <Space>
@@ -342,7 +351,7 @@ export default function ConflictResolver() {
                         icon={<ReloadOutlined />}
                         onClick={() => setMockSourcesText(JSON.stringify(DEFAULT_MOCK_SOURCES, null, 2))}
                       >
-                        重置
+                        {t('重置')}
                       </Button>
                     </Space>
                   }
@@ -363,21 +372,21 @@ export default function ConflictResolver() {
                     onClick={handleDetect}
                     loading={detecting}
                   >
-                    检测冲突
+                    {t('检测冲突')}
                   </Button>
                   <Button
                     icon={<ClockCircleOutlined />}
                     onClick={handleLoadPending}
                     loading={loadingPending}
                   >
-                    加载后端待处理列表
+                    {t('加载后端待处理列表')}
                   </Button>
                 </Space>
 
                 {conflicts.length === 0 ? (
-                  <Empty description="暂无冲突" />
+                  <Empty description={t('暂无冲突')} />
                 ) : (
-                  <Card title={`冲突列表 (${conflicts.length})`} size="small">
+                  <Card title={t('conflict.list', { count: conflicts.length })} size="small">
                     <AdvancedTable<ConflictRecord>
                       rowKey="id"
                       size="small"
@@ -397,31 +406,31 @@ export default function ConflictResolver() {
           },
           {
             key: 'resolve',
-            label: '解决冲突',
+            label: t('解决冲突'),
             children: selected ? (
               <Space orientation="vertical" size="middle" style={{ width: '100%' }}>
                 <Card
                   title={
                     <Space>
-                      <Text>冲突详情</Text>
+                      <Text>{t('冲突详情')}</Text>
                       <Tag color={STATUS_META[selected.status]?.color}>
-                        {STATUS_META[selected.status]?.label ?? selected.status}
+                        {t(STATUS_LABELS[selected.status] || selected.status)}
                       </Tag>
                     </Space>
                   }
                   size="small"
                 >
                   <Space wrap>
-                    <Text>实体：<Text strong>{selected.entity_id}</Text></Text>
-                    <Text>类型：<Tag>{selected.entity_type}</Tag></Text>
-                    <Text>字段：<Tag color="blue">{selected.field_name}</Tag></Text>
-                    <Text>类型：<Tag color="purple">{selected.conflict_type}</Tag></Text>
-                    <Text>检测时间：<Text type="secondary">{new Date(selected.detected_at).toLocaleString()}</Text></Text>
+                    <Text>{t('实体')}：<Text strong>{selected.entity_id}</Text></Text>
+                    <Text>{t('类型')}：<Tag>{selected.entity_type}</Tag></Text>
+                    <Text>{t('字段')}：<Tag color="blue">{selected.field_name}</Tag></Text>
+                    <Text>{t('冲突类型')}：<Tag color="purple">{selected.conflict_type}</Tag></Text>
+                    <Text>{t('检测时间')}：<Text type="secondary">{new Date(selected.detected_at).toLocaleString()}</Text></Text>
                   </Space>
 
                   <Divider style={{ margin: '12px 0' }} />
 
-                  <Title level={5}>候选值对比</Title>
+                  <Title level={5}>{t('候选值对比')}</Title>
                   <AdvancedTable<ConflictCandidate>
                     rowKey={(r) => `${r.source_id}-${r.observed_at}`}
                     size="small"
@@ -431,7 +440,7 @@ export default function ConflictResolver() {
                   />
                 </Card>
 
-                <Card title="选择策略" size="small">
+                <Card title={t('选择策略')} size="small">
                   <Radio.Group
                     value={strategy}
                     onChange={(e) => setStrategy(e.target.value as ConflictStrategy)}
@@ -460,16 +469,16 @@ export default function ConflictResolver() {
                     loading={resolving}
                     disabled={selected.status !== 'pending'}
                   >
-                    解决
+                    {t('解决冲突')}
                   </Button>
-                  <Tooltip title="使用后端 LLM 仲裁，独立于当前策略选择">
+                  <Tooltip title={t('使用后端 LLM 仲裁，独立于当前策略选择')}>
                     <Button
                       icon={<RobotOutlined />}
                       onClick={handleLLMJudge}
                       loading={judging}
                       disabled={selected.status !== 'pending'}
                     >
-                      LLM 判断
+                      {t('LLM 判断')}
                     </Button>
                   </Tooltip>
                 </Space>
@@ -482,17 +491,17 @@ export default function ConflictResolver() {
                       <Space>
                         <CheckCircleOutlined />
                         <Text strong>
-                          {lastResult.status === 'resolved' ? '冲突已解决' : '已标记为等待人工'}
+                          {lastResult.status === 'resolved' ? t('冲突已解决') : t('已标记为等待人工')}
                         </Text>
                         <Tag color="blue">strategy={lastResult.strategy_used}</Tag>
-                        <Text type="secondary">耗时 {(lastResult.duration_ms ?? 0).toFixed(2)} ms</Text>
+                        <Text type="secondary">{t('conflict.duration', { ms: (lastResult.duration_ms ?? 0).toFixed(2) })}</Text>
                       </Space>
                     }
                     description={
                       <Space orientation="vertical" size={4} style={{ width: '100%' }}>
                         {lastResult.chosen ? (
                           <Space>
-                            <Text>chosen：</Text>
+                            <Text>{t('chosen')}：</Text>
                             <Tag color="cyan">{lastResult.chosen.source_id}</Tag>
                             <Text strong style={{ fontFamily: 'monospace' }}>
                               {formatValue(lastResult.chosen.value)}
@@ -502,11 +511,11 @@ export default function ConflictResolver() {
                             </Text>
                           </Space>
                         ) : (
-                          <Text type="secondary">无 chosen（status={lastResult.status}）</Text>
+                          <Text type="secondary">{t('conflict.noChosen', { status: lastResult.status })}</Text>
                         )}
                         {lastResult.rationale && (
                           <Text>
-                            <Text type="secondary">rationale：</Text>
+                            <Text type="secondary">{t('rationale')}：</Text>
                             {lastResult.rationale}
                           </Text>
                         )}
@@ -516,7 +525,7 @@ export default function ConflictResolver() {
                 )}
               </Space>
             ) : (
-              <Empty description="请先在「检测冲突」标签页中检测并选择一条冲突" />
+              <Empty description={t('请先在「检测冲突」标签页中检测并选择一条冲突')} />
             ),
           },
         ]}

@@ -38,7 +38,7 @@ export function PolicyEditor({
           icon={isSuccess ? <CheckCircleOutlined /> : <CloseCircleOutlined />}
           color={isSuccess ? 'success' : 'error'}
         >
-          {isSuccess ? t('policy.compileSuccess') : t('policy.compileFailed')}
+          {isSuccess ? t('编译成功') : t('编译失败')}
         </Tag>
         {compileStatus.errors && compileStatus.errors.length > 0 && (
           <span style={{ fontSize: 12, color: '#ff4d4f' }}>
@@ -90,7 +90,7 @@ export function PolicyEditor({
 
   return (
     <Card
-      title={t('policy.content')}
+      title={t('策略内容')}
       size="small"
       extra={
         <Space>
@@ -100,7 +100,7 @@ export function PolicyEditor({
             icon={<EditOutlined />}
             onClick={() => setPreview(false)}
           >
-            {t('policy.edit')}
+            {t('编辑策略')}
           </Button>
           <Button
             size="small"
@@ -108,7 +108,7 @@ export function PolicyEditor({
             icon={<EyeOutlined />}
             onClick={() => setPreview(true)}
           >
-            {t('policy.preview')}
+            {t('Preview')}
           </Button>
         </Space>
       }
@@ -123,7 +123,7 @@ export function PolicyEditor({
           rows={16}
           readOnly={readOnly}
           style={{ fontFamily: 'monospace', fontSize: 13 }}
-          placeholder={t('policy.contentPlaceholderEn')}
+          placeholder={t('# Policy Title\n\n## Rules\nAllow access during working hours.\n\n## Conditions\n- Role: analyst\n- Time: 09:00-18:00\n\n## Actions\n- Allow read\n- Deny write')}
         />
       )}
       {compileStatus?.errors && compileStatus.errors.length > 0 && (

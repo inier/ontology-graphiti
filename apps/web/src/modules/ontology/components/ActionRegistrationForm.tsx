@@ -269,7 +269,7 @@ export function ActionRegistrationForm({ actionId, onClose, onSaved }: ActionReg
   return (
     <div data-testid="action-registration-form" style={{ padding: 16 }}>
       <Space style={{ marginBottom: 16, width: '100%', justifyContent: 'space-between' }} wrap>
-        <Title level={3} style={{ margin: 0 }}>{actionId ? t('action.edit') : t('action.create')}</Title>
+        <Title level={3} style={{ margin: 0 }}>{actionId ? t('编辑 Action') : t('注册新 Action')}</Title>
         {onClose && (
           <Button icon={<CloseOutlined />} onClick={onClose}>{t('action.close')}</Button>
         )}
@@ -487,7 +487,7 @@ export function ActionRegistrationForm({ actionId, onClose, onSaved }: ActionReg
             loading={saving}
             onClick={() => handleSave(false)}
           >
-            {t('action.save')}
+            {t('保存')}
           </Button>
           <Button
             type="primary"
@@ -496,7 +496,7 @@ export function ActionRegistrationForm({ actionId, onClose, onSaved }: ActionReg
             loading={saving}
             onClick={() => handleSave(true)}
           >
-            {t('action.saveAndTest')}
+            {t('保存并测试')}
           </Button>
         </Space>
       </div>

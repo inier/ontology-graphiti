@@ -45,7 +45,7 @@ interface FilterRule { field: string; op: '=' | '!=' | '>' | '<' | 'contains'; v
 interface SortRule { field: string; direction: 'asc' | 'desc'; }
 
 export function ViewDesigner({ viewId, onSaved, onClose }: ViewDesignerProps) {
-  const { t } = useI18n();
+  const { t } = useI18n('ontology');
   void t;
   const [view, setView] = useState<ObjectView | null>(null);
   const [loading, setLoading] = useState(false);

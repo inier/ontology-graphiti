@@ -23,8 +23,8 @@ export function ReasoningChain({ reasoning, evidence, steps }: ReasoningChainPro
 
   if (!reasoning && (!evidence || evidence.length === 0) && (!steps || steps.length === 0)) {
     return (
-      <Card title={t('reasoningChain')} size="small">
-        <Empty description={t('noData')} image={Empty.PRESENTED_IMAGE_SIMPLE} />
+      <Card title={t('推理链')} size="small">
+        <Empty description={t('暂无数据')} image={Empty.PRESENTED_IMAGE_SIMPLE} />
       </Card>
     );
   }
@@ -35,7 +35,7 @@ export function ReasoningChain({ reasoning, evidence, steps }: ReasoningChainPro
       label: (
         <span style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
           <BulbOutlined />
-          {t('reasoning')}
+          {t('推理过程')}
         </span>
       ),
       children: (
@@ -49,7 +49,7 @@ export function ReasoningChain({ reasoning, evidence, steps }: ReasoningChainPro
       label: (
         <span style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
           <FileSearchOutlined />
-          {t('evidence')} ({evidence?.length || 0})
+          {t('证据')} ({evidence?.length || 0})
         </span>
       ),
       children: evidence && evidence.length > 0 ? (
@@ -61,13 +61,13 @@ export function ReasoningChain({ reasoning, evidence, steps }: ReasoningChainPro
           ))}
         </div>
       ) : (
-        <Empty description={t('noData')} image={Empty.PRESENTED_IMAGE_SIMPLE} />
+        <Empty description={t('暂无数据')} image={Empty.PRESENTED_IMAGE_SIMPLE} />
       ),
     },
   ];
 
   return (
-    <Card title={t('reasoningChain')} size="small">
+    <Card title={t('推理链')} size="small">
       {steps && steps.length > 0 && (
         <Steps
           orientation="vertical"
@@ -75,7 +75,7 @@ export function ReasoningChain({ reasoning, evidence, steps }: ReasoningChainPro
           current={steps.findIndex((s) => s.status === 'process') !== -1 ? steps.findIndex((s) => s.status === 'process') : steps.length - 1}
           items={steps.map((step, index) => ({
             key: index,
-            title: step.title || `${t('step')} ${index + 1}`,
+            title: step.title || `${t('步骤')} ${index + 1}`,
             description: step.description,
             status: step.status || 'finish',
           }))}

@@ -1,0 +1,75 @@
+{
+  "app": {
+    "name": "ODAPオントロジープラットフォーム",
+    "version": "バージョン"
+  },
+  "menu": {
+    "dashboard": "ダッシュボード",
+    "ontology": "オントロジーグラフ",
+    "timeline": "タイムライン",
+    "map": "状況マップ",
+    "simulator": "シミュレーション",
+    "ingest": "データインジェスト",
+    "versions": "バージョン管理",
+    "config": "設定センター",
+    "roles": "ロール管理",
+    "policies": "OPAポリシー",
+    "audit": "監査ログ",
+    "skills": "スキル管理"
+  },
+  "common": {
+    "workspace": "ワークスペース",
+    "search": "検索",
+    "refresh": "更新",
+    "add": "追加",
+    "edit": "編集",
+    "delete": "削除",
+    "save": "保存",
+    "cancel": "キャンセル",
+    "confirm": "確認",
+    "loading": "読み込み中...",
+    "noData": "データがありません",
+    "success": "操作成功",
+    "error": "操作失敗"
+  },
+  "graph": {
+    "ontology": "オントロジーグラフ",
+    "mode": {
+      "select": "選択モード",
+      "pan": "パンモード",
+      "edit": "編集モード"
+    },
+    "filter": {
+      "all": "全て表示",
+      "unit": "ユニットのみ表示",
+      "equipment": "装備のみ表示",
+      "location": "位置のみ表示",
+      "event": "イベントのみ表示"
+    },
+    "layout": {
+      "force": "フォースディレクテッド",
+      "circular": "円形",
+      "grid": "グリッド"
+    },
+    "empty": "グラフデータがありません。データインジェストからエンティティを追加してください。",
+    "searchPlaceholder": "エンティティを検索"
+  },
+  "entity": {
+    "detail": "エンティティ詳細",
+    "id": "エンティティID",
+    "name": "名前",
+    "type": "タイプ",
+    "side": "方位",
+    "properties": "プロパティ",
+    "relations": "リレーション",
+    "history": "履歴"
+  },
+  "dashboard": {
+    "totalEntities": "エンティティ総数",
+    "totalRelations": "リレーション総数",
+    "versionCount": "バージョン数",
+    "onlineUsers": "オンラインユーザー",
+    "recentEvents": "最新イベント",
+    "versionTrend": "バージョントレンド"
+  }
+}

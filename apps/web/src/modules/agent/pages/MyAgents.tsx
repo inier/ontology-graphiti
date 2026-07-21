@@ -17,6 +17,7 @@ import { useAuthStore } from '@/modules/shared/stores/authStore';
 import { useWorkspace } from '@/modules/shared/components/LayoutContexts';
 
 import { EmptyState } from '@/modules/shared/components/organisms';
+import { useI18n } from '@/modules/shared/hooks/useI18n';
 
 
 
@@ -37,6 +38,7 @@ export function MyAgents() {
   const navigate = useNavigate();
 
   const { show: showGlobalLoading, hide: hideGlobalLoading } = useGlobalLoading();
+  const { t } = useI18n();
 
 
 
@@ -64,7 +66,7 @@ export function MyAgents() {
     const roleId = user?.role_id;
 
     setLoading(true);
-    showGlobalLoading('加载智能体列表...');
+    showGlobalLoading(t('加载智能体列表...'));
 
     try {
       let data: Agent[] = [];
@@ -128,11 +130,11 @@ export function MyAgents() {
 
         icon={<RobotOutlined />}
 
-        title="暂无可用智能体"
+        title={t('暂无可用智能体')}
 
-        description="当前角色下没有可用的数字员工，您可以创建新的智能体或加载示例数据"
+        description={t('当前角色下没有可用的数字员工，您可以创建新的智能体或加载示例数据')}
 
-        actionLabel="创建智能体"
+        actionLabel={t('创建智能体')}
 
         onAction={() => navigate('/agent-management')}
 
@@ -140,7 +142,7 @@ export function MyAgents() {
 
         onLoadSampleData={async () => {
 
-          if (!currentWorkspace) { message.warning('请先选择工作空间'); return; }
+          if (!currentWorkspace) { message.warning(t('请先选择工作空间')); return; }
 
           try {
 
@@ -148,11 +150,11 @@ export function MyAgents() {
 
             await api.generateSampleData(currentWorkspace);
 
-            message.success('示例数据已加载');
+            message.success(t('示例数据已加载'));
 
             loadAgents();
 
-          } catch (e) { message.error('加载示例数据失败'); }
+          } catch (e) { message.error(t('加载示例数据失败')); }
 
         }}
 
@@ -170,11 +172,11 @@ export function MyAgents() {
 
       <div style={{ marginBottom: 24 }}>
 
-        <h2 style={{ margin: 0, fontSize: 20, fontWeight: 600 }}>我的数字员工</h2>
+        <h2 style={{ margin: 0, fontSize: 20, fontWeight: 600 }}>{t('我的数字员工')}</h2>
 
         <p style={{ margin: '4px 0 0', color: '#8c8c8c', fontSize: 14 }}>
 
-          当前角色下共 {agents.length} 个可用数字员工，点击进入专属问答
+          {t('当前角色下共 {{count}} 个可用数字员工，点击进入专属问答', { count: agents.length })}
 
         </p>
 
@@ -199,7 +201,7 @@ export function MyAgents() {
                   icon={<EyeOutlined />}
                   onClick={(e) => { e.stopPropagation(); handleView(agent); }}
                 >
-                  查看
+                  {t('查看')}
                 </Button>,
                 <Button
                   key="chat"
@@ -207,7 +209,7 @@ export function MyAgents() {
                   icon={<MessageOutlined />}
                   onClick={(e) => { e.stopPropagation(); handleView(agent); }}
                 >
-                  对话
+                  {t('对话')}
                 </Button>,
               ]}
             >
@@ -230,7 +232,7 @@ export function MyAgents() {
 
                 >
 
-                  {agent.description || '暂无描述'}
+                  {agent.description || t('暂无描述')}
 
                 </Paragraph>
 
@@ -243,7 +245,7 @@ export function MyAgents() {
                       return <Tag key={sk} color="purple" style={{ fontSize: 11 }}>{resolvedName}</Tag>;
                     }
                     if (isUuid) {
-                      return <Tag key={sk} color="default" style={{ fontSize: 11, color: '#bfbfbf' }} title={sk}>已删除: {sk.slice(0, 8)}...</Tag>;
+                      return <Tag key={sk} color="default" style={{ fontSize: 11, color: '#bfbfbf' }} title={sk}>{t('已删除: {{id}}...', { id: sk.slice(0, 8) })}</Tag>;
                     }
                     return <Tag key={sk} color="purple" style={{ fontSize: 11 }}>{sk}</Tag>;
                   })}

@@ -12,6 +12,7 @@ import { menuConfigApi } from '@/modules/menu-config/services/menuConfigApi';
 import type { MenuItem as MenuConfigItem } from '@/modules/menu-config/services/menuConfigApi';
 import { RoleMenuAssigner, type RoleSummary } from '@/modules/menu-config';
 import { AdvancedTable } from '@/modules/shared';
+import { useI18n } from '@/modules/shared/hooks/useI18n';
 
 const { Option } = Select;
 const { TextArea } = Input;
@@ -37,6 +38,7 @@ function toTreeData(items: MenuConfigItem[]): any[] {
 }
 
 export function RoleManager() {
+  const { t } = useI18n();
   const [roles, setRoles] = useState<Role[]>([]);
   const [permissions, setPermissions] = useState<Permission[]>([]);
   const [loading, setLoading] = useState(true);
@@ -66,7 +68,7 @@ export function RoleManager() {
       setPermissions(permissionsData);
     } catch (error) {
       console.error('加载数据失败', error);
-      message.error('加载数据失败');
+      message.error(t('加载数据失败'));
     } finally {
       setLoading(false);
     }
@@ -78,9 +80,9 @@ export function RoleManager() {
       setMenuTree(data.tree || []);
       setMenuFlatItems(flattenMenuTree(data.tree || []));
     } catch (e: any) {
-      message.error('加载菜单树失败: ' + (e.message || e));
+      message.error(t('加载菜单树失败') + ': ' + (e.message || e));
     }
-  }, []);
+  }, [t]);
 
   const loadMenuRolePermissions = useCallback(async (roleId: string) => {
     setMenuRoleLoading(true);
@@ -88,12 +90,12 @@ export function RoleManager() {
       const data = await menuConfigApi.getRoleMenus(roleId);
       setMenuRoleIds(data.menu_ids || []);
     } catch (e: any) {
-      message.error('加载菜单权限失败: ' + (e.message || e));
+      message.error(t('加载菜单权限失败') + ': ' + (e.message || e));
       setMenuRoleIds([]);
     } finally {
       setMenuRoleLoading(false);
     }
-  }, []);
+  }, [t]);
 
   const openMenuPermission = async (role: Role) => {
     setMenuPermissionRole(role);
@@ -107,9 +109,9 @@ export function RoleManager() {
     setMenuRoleSaving(true);
     try {
       await menuConfigApi.setRoleMenus(menuPermissionRole.id, menuRoleIds);
-      message.success('菜单权限已保存');
+      message.success(t('菜单权限已保存'));
     } catch (e: any) {
-      message.error('保存失败: ' + (e.message || e));
+      message.error(t('保存失败') + ': ' + (e.message || e));
     } finally {
       setMenuRoleSaving(false);
     }
@@ -136,10 +138,10 @@ export function RoleManager() {
   const handleDelete = async (roleId: string) => {
     try {
       await deleteRole(roleId);
-      message.success('删除成功');
+      message.success(t('删除成功'));
       loadData();
     } catch {
-      message.error('删除失败');
+      message.error(t('删除失败'));
     }
   };
 
@@ -152,15 +154,15 @@ export function RoleManager() {
       };
       if (editingRole) {
         await updateRole(editingRole.id, roleData as RoleUpdate);
-        message.success('更新成功');
+        message.success(t('更新成功'));
       } else {
         await createRole(roleData as RoleCreate);
-        message.success('创建成功');
+        message.success(t('创建成功'));
       }
       setModalVisible(false);
       loadData();
     } catch {
-      message.error('操作失败');
+      message.error(t('操作失败'));
     }
   };
 
@@ -175,45 +177,47 @@ export function RoleManager() {
 
   const getRoleTypeLabel = (roleType: string) => {
     const labels: Record<string, string> = {
-      system_admin: '系统管理员', project_owner: '项目所有者', team_leader: '团队领导',
-      member: '成员', guest: '访客', director: '负责人', intelligence: '情报员',
-      operator: '操作员', analyst: '分析员', schema_auditor: 'Schema 审计员',
+      system_admin: t('系统管理员'), project_owner: t('项目所有者'), team_leader: t('团队领导'),
+      member: t('成员'), guest: t('访客'), director: t('负责人'), intelligence: t('情报员'),
+      operator: t('操作员'), analyst: t('分析员'), schema_auditor: t('Schema 审计员'),
     };
     return labels[roleType] || roleType;
   };
 
   const getPermissionScopeLabel = (scope: string) => {
-    const labels: Record<string, string> = { system: '系统', project: '项目', resource: '资源', data: '数据' };
+    const labels: Record<string, string> = {
+      system: t('系统'), project: t('项目'), resource: t('资源'), data: t('数据'),
+    };
     return labels[scope] || scope;
   };
 
   const columns = [
-    { title: '角色名称', dataIndex: 'name', key: 'name', width: 150 },
+    { title: t('角色名称'), dataIndex: 'name', key: 'name', width: 150 },
     {
-      title: '角色类型', dataIndex: 'role_type', key: 'role_type', width: 120,
+      title: t('角色类型'), dataIndex: 'role_type', key: 'role_type', width: 120,
       render: (type: string) => <Tag color={getRoleTypeColor(type)}>{getRoleTypeLabel(type)}</Tag>,
     },
-    { title: '描述', dataIndex: 'description', key: 'description', ellipsis: true },
+    { title: t('描述'), dataIndex: 'description', key: 'description', ellipsis: true },
     {
-      title: '权限数', dataIndex: 'permissions', key: 'permissions', width: 80,
+      title: t('权限数'), dataIndex: 'permissions', key: 'permissions', width: 80,
       render: (p: Permission[]) => p.length,
     },
     {
-      title: '创建时间', dataIndex: 'created_at', key: 'created_at', width: 180,
+      title: t('创建时间'), dataIndex: 'created_at', key: 'created_at', width: 180,
       render: (d: string) => new Date(d).toLocaleString(),
     },
     {
-      title: '操作', key: 'action', width: 260,
+      title: t('操作'), key: 'action', width: 260,
       render: (_: any, record: Role) => (
         <Space size="small">
           <Button type="primary" icon={<EditOutlined />} size="small" onClick={() => handleEdit(record)}>
-            编辑
+            {t('编辑')}
           </Button>
           <Button size="small" onClick={() => openMenuPermission(record)}>
-            菜单权限
+            {t('菜单权限')}
           </Button>
-          <Popconfirm title="确定删除？" onConfirm={() => handleDelete(record.id)}>
-            <Button danger icon={<DeleteOutlined />} size="small">删除</Button>
+          <Popconfirm title={t('确定删除？')} onConfirm={() => handleDelete(record.id)}>
+            <Button danger icon={<DeleteOutlined />} size="small">{t('删除')}</Button>
           </Popconfirm>
         </Space>
       ),
@@ -223,15 +227,15 @@ export function RoleManager() {
   return (
     <div>
       <Card
-        title="角色管理"
-        extra={<Button type="primary" icon={<PlusOutlined />} onClick={handleCreate}>新增角色</Button>}
+        title={t('角色管理')}
+        extra={<Button type="primary" icon={<PlusOutlined />} onClick={handleCreate}>{t('新增角色')}</Button>}
       >
         <Row gutter={[16, 16]} style={{ marginBottom: 24 }}>
           <Col span={6}>
-            <Card><Statistic title="角色总数" value={roles.length} /></Card>
+            <Card><Statistic title={t('角色总数')} value={roles.length} /></Card>
           </Col>
           <Col span={6}>
-            <Card><Statistic title="权限总数" value={permissions.length} /></Card>
+            <Card><Statistic title={t('权限总数')} value={permissions.length} /></Card>
           </Col>
         </Row>
 
@@ -246,34 +250,34 @@ export function RoleManager() {
 
       {/* 角色 CRUD Modal */}
       <Modal
-        title={editingRole ? '编辑角色' : '新增角色'}
+        title={editingRole ? t('编辑角色') : t('新增角色')}
         open={modalVisible}
         onOk={handleSubmit}
         onCancel={() => setModalVisible(false)}
         width={600}
       >
         <Form form={form} layout="vertical">
-          <Form.Item name="name" label="角色名称" rules={[{ required: true }]}>
+          <Form.Item name="name" label={t('角色名称')} rules={[{ required: true }]}>
             <Input />
           </Form.Item>
-          <Form.Item name="description" label="角色描述" rules={[{ required: true }]}>
+          <Form.Item name="description" label={t('角色描述')} rules={[{ required: true }]}>
             <TextArea rows={3} />
           </Form.Item>
-          <Form.Item name="role_type" label="角色类型" rules={[{ required: true }]}>
+          <Form.Item name="role_type" label={t('角色类型')} rules={[{ required: true }]}>
             <Select>
-              <Option value="system_admin">系统管理员</Option>
-              <Option value="project_owner">项目所有者</Option>
-              <Option value="team_leader">团队领导</Option>
-              <Option value="member">成员</Option>
-              <Option value="guest">访客</Option>
-              <Option value="director">负责人</Option>
-              <Option value="intelligence">情报员</Option>
-              <Option value="operator">操作员</Option>
-              <Option value="analyst">分析员</Option>
-              <Option value="schema_auditor">Schema 审计员</Option>
+              <Option value="system_admin">{t('系统管理员')}</Option>
+              <Option value="project_owner">{t('项目所有者')}</Option>
+              <Option value="team_leader">{t('团队领导')}</Option>
+              <Option value="member">{t('成员')}</Option>
+              <Option value="guest">{t('访客')}</Option>
+              <Option value="director">{t('负责人')}</Option>
+              <Option value="intelligence">{t('情报员')}</Option>
+              <Option value="operator">{t('操作员')}</Option>
+              <Option value="analyst">{t('分析员')}</Option>
+              <Option value="schema_auditor">{t('Schema 审计员')}</Option>
             </Select>
           </Form.Item>
-          <Form.Item label="权限">
+          <Form.Item label={t('权限')}>
             <div style={{ maxHeight: 300, overflowY: 'auto', border: '1px solid #f0f0f0', padding: 16, borderRadius: 4 }}>
               <Checkbox.Group
                 options={permissions.map((p) => ({
@@ -295,7 +299,7 @@ export function RoleManager() {
 
       {/* 菜单权限 Modal — 复用 RoleMenuAssigner */}
       <Modal
-        title={menuPermissionRole ? `${menuPermissionRole.name} — 菜单权限` : '菜单权限'}
+        title={menuPermissionRole ? `${menuPermissionRole.name} — ${t('菜单权限')}` : t('菜单权限')}
         open={menuModalVisible}
         onCancel={() => setMenuModalVisible(false)}
         footer={null}

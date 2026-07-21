@@ -125,7 +125,7 @@ export default function CognitionPanel({ workspaceId, scenarioId }: CognitionPan
         </Button>
       </Space>
       {!intentResult ? (
-        <Empty description={t('noData')} image={Empty.PRESENTED_IMAGE_SIMPLE} />
+        <Empty description={t('暂无数据')} image={Empty.PRESENTED_IMAGE_SIMPLE} />
       ) : (
         <Space orientation="vertical" style={{ width: '100%' }} size="middle">
           <Descriptions column={2}>
@@ -179,7 +179,7 @@ export default function CognitionPanel({ workspaceId, scenarioId }: CognitionPan
         </Button>
       </Space>
       {!explanation ? (
-        <Empty description={t('noData')} image={Empty.PRESENTED_IMAGE_SIMPLE} />
+        <Empty description={t('暂无数据')} image={Empty.PRESENTED_IMAGE_SIMPLE} />
       ) : (
         <Space orientation="vertical" style={{ width: '100%' }} size="middle">
           <Descriptions column={2}>
@@ -218,7 +218,7 @@ export default function CognitionPanel({ workspaceId, scenarioId }: CognitionPan
 
   const renderRoleViewSection = () => {
     if (!roleView) {
-      return <Empty description={t('noData')} image={Empty.PRESENTED_IMAGE_SIMPLE} />;
+      return <Empty description={t('暂无数据')} image={Empty.PRESENTED_IMAGE_SIMPLE} />;
     }
     return (
       <Descriptions column={1}>
