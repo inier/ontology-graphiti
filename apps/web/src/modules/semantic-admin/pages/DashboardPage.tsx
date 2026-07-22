@@ -17,7 +17,6 @@ import {
   message,
 } from 'antd';
 import type { ColumnsType } from 'antd/es/table';
-import type { TabsProps } from 'antd';
 import * as echarts from 'echarts';
 import { useNavigate } from 'react-router-dom';
 import {
@@ -32,7 +31,7 @@ import {
   QUALITY_TIER_LABEL,
   QUALITY_TIER_COLOR,
 } from '../types';
-import { SEMANTIC_ADMIN_TAB_ITEMS, TOP_TAB_TO_PATH } from '../constants';
+import { getSemanticAdminTabItems, TOP_TAB_TO_PATH } from '../constants';
 import { useI18n } from '@/modules/shared/hooks/useI18n';
 
 const { Title, Text } = Typography;
@@ -54,6 +53,8 @@ export function DashboardPage() {
   const [trend, setTrend] = useState<DashboardResponse | null>(null);
   const [approvals, setApprovals] = useState<DashboardResponse | null>(null);
   const [loading, setLoading] = useState(false);
+
+  const tabItems = useMemo(() => getSemanticAdminTabItems(t), [t]);
 
   const trendChartRef = useRef<HTMLDivElement>(null);
   const decisionPieRef = useRef<HTMLDivElement>(null);
@@ -80,14 +81,14 @@ export function DashboardPage() {
   const loadAll = useCallback(async () => {
     setLoading(true);
     try {
-      const [s, t, a] = await Promise.all([
+      const [summaryData, trendData, approvalsData] = await Promise.all([
         getDashboardSummary(),
         getDashboardTermsTrend(30),
         getDashboardApprovalsBreakdown(),
       ]);
-      setSummary(s);
-      setTrend(t);
-      setApprovals(a);
+      setSummary(summaryData);
+      setTrend(trendData);
+      setApprovals(approvalsData);
     } catch (e) {
       message.error(t('加载仪表盘失败: {{msg}}', { msg: (e as Error).message }));
     } finally {
@@ -383,7 +384,7 @@ export function DashboardPage() {
           const p = TOP_TAB_TO_PATH[k as keyof typeof TOP_TAB_TO_PATH];
           if (p) navigate(p);
         }}
-        items={SEMANTIC_ADMIN_TAB_ITEMS as TabsProps['items']}
+        items={tabItems}
         style={{ marginBottom: 8 }}
       />
       <Space direction="vertical" size="middle" style={{ width: '100%' }}>

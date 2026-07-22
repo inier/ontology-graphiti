@@ -8,7 +8,7 @@ import {
 import type { TableProps, TreeDataNode } from 'antd';
 import { ReloadOutlined, ClearOutlined, PlayCircleOutlined, EyeOutlined, CopyOutlined, BulbOutlined, BranchesOutlined, NodeIndexOutlined } from '@ant-design/icons';
 import { useNavigate } from 'react-router-dom';
-import { SEMANTIC_ADMIN_TAB_ITEMS, TOP_TAB_TO_PATH } from '../constants';
+import { getSemanticAdminTabItems, TOP_TAB_TO_PATH } from '../constants';
 import { useSemanticAdminStore } from '../store/useSemanticAdminStore';
 import type { CandidateFilters, PipelineRunFilters } from '../store/useSemanticAdminStore';
 import type { PipelineRun, PipelineRunStatus } from '../services/pipelineApi';
@@ -75,6 +75,7 @@ function deriveCurrentLayer(run?: PipelineRun): number {
 
 const PipelineRunsPage: React.FC = () => {
   const nav = useNavigate();
+  const { t } = useI18n();
   const prf = useSemanticAdminStore((s) => s.pipelineRunFilters);
   const setPRF = useSemanticAdminStore((s) => s.setPipelineRunFilters);
   const resetPRF = useSemanticAdminStore((s) => s.resetPipelineRunFilters);
@@ -83,6 +84,8 @@ const PipelineRunsPage: React.FC = () => {
   const [total, setTotal] = useState(0);
   const [loading, setLoading] = useState(false);
   const [dr, setDr] = useState<{ open: boolean; run?: PipelineRun }>({ open: false });
+
+  const tabItems = useMemo(() => getSemanticAdminTabItems(t), [t]);
 
   const fetchData = useCallback(async () => {
     setLoading(true);
@@ -119,7 +122,7 @@ const PipelineRunsPage: React.FC = () => {
 
   return (
     <div style={{ padding: 16 }}>
-      <Tabs activeKey="pipeline" onChange={(k) => { const p = TOP_TAB_TO_PATH[k as keyof typeof TOP_TAB_TO_PATH]; if (p) { nav(p); } }} items={SEMANTIC_ADMIN_TAB_ITEMS} style={{ marginBottom: 8 }} />
+      <Tabs activeKey="pipeline" onChange={(k) => { const p = TOP_TAB_TO_PATH[k as keyof typeof TOP_TAB_TO_PATH]; if (p) { nav(p); } }} items={tabItems} style={{ marginBottom: 8 }} />
       <Row gutter={[12, 12]} align="middle" style={{ marginBottom: 12 }}>
         <Col span={6}><Input allowClear placeholder="Workspace ID" value={prf.workspace_id} onChange={(e) => onF({ workspace_id: e.target.value })} /></Col>
         <Col span={4}><Select allowClear style={{ width: '100%' }} placeholder="Status" value={prf.status || undefined} onChange={(v) => onF({ status: v ?? '' })} options={ST_OPS} /></Col>

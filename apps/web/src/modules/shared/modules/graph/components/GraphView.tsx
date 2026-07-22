@@ -27,31 +27,27 @@ export interface GraphViewApi {
   selectNode?: (nodeId: string) => void;
   clearSelection: () => void;
   exportPng?: () => string | null;
-  /** Sigma 实例 ref（仅 sigma 引擎可用，通过 .current 取值保证实时性） */
   sigmaRef?: React.RefObject<Sigma | null>;
-  /** Graphology 实例 ref（仅 sigma 引擎可用，通过 .current 取值保证实时性） */
   graphRef?: React.RefObject<Graph | null>;
+  highlightPath?: (source: string, target: string) => boolean;
+  highlightNode?: (nodeId: string) => void;
+  applyCommunityColoring?: () => number;
+  enableCommunityMode?: (enable: boolean) => void;
 }
 
 // ─── Props ───
 
 interface GraphViewBaseProps {
-  /** 引擎类型 */
   engine?: GraphEngine;
-  /** 节点数据 */
   nodes: GraphNode[];
-  /** 边数据 */
   edges: GraphEdge[];
-  /** 容器样式 */
   className?: string;
   style?: CSSProperties;
-  /** 节点点击回调 */
   onNodeClick?: (node: GraphNode) => void;
-  /** 边点击回调 */
   onEdgeClick?: (edge: GraphEdge) => void;
-  /** 画布点击回调 */
   onCanvasClick?: () => void;
-  /** 子组件（工具栏、控件等通过 function children 获取图谱实例） */
+  onHover?: (data: { type: 'node' | 'edge'; data: GraphNode | GraphEdge; position: { x: number; y: number } }) => void;
+  onHoverEnd?: () => void;
   children?: ReactNode | ((api: GraphViewApi) => ReactNode);
 }
 
@@ -81,6 +77,8 @@ const SigmaGraphView: FC<SigmaGraphViewProps> = ({
   onNodeClick,
   onEdgeClick,
   onCanvasClick,
+  onHover,
+  onHoverEnd,
   className,
   style,
   children,
@@ -99,6 +97,10 @@ const SigmaGraphView: FC<SigmaGraphViewProps> = ({
     focusNode,
     searchNodes,
     clearSelection,
+    highlightPath,
+    highlightNode,
+    applyCommunityColoring,
+    enableCommunityMode,
   } = useSigmaGraph({
     containerRef,
     nodes,
@@ -108,6 +110,8 @@ const SigmaGraphView: FC<SigmaGraphViewProps> = ({
     onNodeClick,
     onEdgeClick,
     onCanvasClick,
+    onHover,
+    onHoverEnd,
   });
 
   return (
@@ -127,6 +131,10 @@ const SigmaGraphView: FC<SigmaGraphViewProps> = ({
             clearSelection,
             sigmaRef,
             graphRef,
+            highlightPath,
+            highlightNode,
+            applyCommunityColoring,
+            enableCommunityMode,
           })
         : children}
     </div>

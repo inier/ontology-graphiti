@@ -52,8 +52,6 @@ function invertLocale(zhData: Record<string, unknown>, enData: Record<string, un
   return { zhResources, enResources };
 }
 
-const skipInvertNamespaces = new Set(['menu-names', 'messages', 'common', 'i18n-admin']);
-
 Object.entries(localeModules).forEach(([path, module]) => {
   const match = path.match(/\/src\/modules\/([^/]+)\/locales\/([^/]+)\/([^/]+)\.json/);
   if (match) {
@@ -64,24 +62,7 @@ Object.entries(localeModules).forEach(([path, module]) => {
       resources[lang] = {};
     }
 
-    if (skipInvertNamespaces.has(namespace)) {
-      resources[lang][namespace] = data;
-    } else {
-      const zhPath = `/src/modules/${moduleName}/locales/zh-CN/${namespace}.json`;
-      const enPath = `/src/modules/${moduleName}/locales/en-US/${namespace}.json`;
-
-      if (lang === 'zh-CN' && localeModules[enPath]) {
-        const enModule = localeModules[enPath] as { default: Record<string, unknown> };
-        const { zhResources } = invertLocale(data, enModule.default);
-        resources[lang][namespace] = zhResources;
-      } else if (lang === 'en-US' && localeModules[zhPath]) {
-        const zhModule = localeModules[zhPath] as { default: Record<string, unknown> };
-        const { enResources } = invertLocale(zhModule.default, data);
-        resources[lang][namespace] = enResources;
-      } else {
-        resources[lang][namespace] = data;
-      }
-    }
+    resources[lang][namespace] = data;
 
     if (!namespaces.includes(namespace)) {
       namespaces.push(namespace);

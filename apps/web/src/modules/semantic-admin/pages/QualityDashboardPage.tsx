@@ -28,7 +28,7 @@ import {
   QuestionCircleOutlined,
 } from '@ant-design/icons';
 import { useNavigate } from 'react-router-dom';
-import { SEMANTIC_ADMIN_TAB_ITEMS } from '../constants';
+import { getSemanticAdminTabItems, TOP_TAB_TO_PATH } from '../constants';
 import { useSemanticAdminStore } from '../store/useSemanticAdminStore';
 import type { ReactNode } from 'react';
 import * as echarts from 'echarts';
@@ -193,15 +193,15 @@ export const QualityComingSoon = QualityDashboardPage;
  */
 export function SemanticAdminTabsContainer({ children }: { children: ReactNode }) {
   const navigate = useNavigate();
+  const { t } = useI18n();
+  const tabItems = useMemo(() => getSemanticAdminTabItems(t), [t]);
   return (
     <div style={{ padding: 16 }}>
       <Tabs
         size="small"
-        items={SEMANTIC_ADMIN_TAB_ITEMS}
+        items={tabItems}
         onChange={(key) => {
-          const path = (SEMANTIC_ADMIN_TAB_ITEMS || []).find((it) => it!.key === key)
-            ? `/semantic-admin/${key}`
-            : undefined;
+          const path = TOP_TAB_TO_PATH[key as keyof typeof TOP_TAB_TO_PATH];
           if (path) navigate(path);
         }}
       />

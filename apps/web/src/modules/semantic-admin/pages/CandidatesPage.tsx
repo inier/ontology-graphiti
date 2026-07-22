@@ -13,7 +13,7 @@ import CandidatesTable from '../components/CandidatesTable';
 import QualityRadarPanel from '../components/QualityRadarPanel';
 import { useSemanticAdminStore } from '../store/useSemanticAdminStore';
 import { useUslPermissions } from '../hooks/useUslPermissions';
-import { SEMANTIC_ADMIN_TAB_ITEMS, TOP_TAB_TO_PATH } from '../constants';
+import { getSemanticAdminTabItems, TOP_TAB_TO_PATH } from '../constants';
 import { useAuthStore } from '@/modules/shared/stores/authStore';
 import type { Candidate } from '../services/pipelineApi';
 import {
@@ -57,6 +57,8 @@ const CandidatesPage: React.FC = () => {
   const [reviewForm] = Form.useForm<ReviewFormData>();
   const [submitting, setSubmitting] = useState(false);
   const [activeCandidate, setActiveCandidate] = useState<Candidate | null>(null);
+
+  const tabItems = useMemo(() => getSemanticAdminTabItems(t), [t]);
 
   const fetchData = useCallback(async () => {
     setLoading(true);
@@ -137,7 +139,7 @@ const CandidatesPage: React.FC = () => {
       <Tabs
         activeKey="candidates"
         onChange={(k) => { const p = TOP_TAB_TO_PATH[k as keyof typeof TOP_TAB_TO_PATH]; if (p) { navigate(p); } }}
-        items={SEMANTIC_ADMIN_TAB_ITEMS}
+        items={tabItems}
         style={{ marginBottom: 8 }}
       />
       <Row gutter={[12, 12]} align="middle" style={{ marginBottom: 12 }}>

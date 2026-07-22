@@ -1952,6 +1952,71 @@ export const api = {
     });
   },
 
+  // ==================== 图谱查看器 API ====================
+
+  async getGraphNodes(params?: { entity_type?: string; workspace_id?: string }): Promise<Array<{
+    id: string;
+    label: string;
+    type: string;
+    properties: Record<string, unknown>;
+  }>> {
+    const query = new URLSearchParams();
+    if (params?.entity_type) query.set('entity_type', params.entity_type);
+    if (params?.workspace_id) query.set('workspace_id', params.workspace_id);
+    const queryStr = query.toString();
+    return fetchJson(`${API_BASE}/api/graph/nodes${queryStr ? `?${queryStr}` : ''}`);
+  },
+
+  async getGraphEdges(params?: { workspace_id?: string }): Promise<Array<{
+    id: string;
+    source: string;
+    target: string;
+    type: string;
+    label: string;
+    properties: Record<string, unknown>;
+  }>> {
+    const query = new URLSearchParams();
+    if (params?.workspace_id) query.set('workspace_id', params.workspace_id);
+    const queryStr = query.toString();
+    return fetchJson(`${API_BASE}/api/graph/edges${queryStr ? `?${queryStr}` : ''}`);
+  },
+
+  async getFullGraph(params?: { workspace_id?: string }): Promise<{
+    nodes: Array<{ id: string; label: string; type: string; properties: Record<string, unknown> }>;
+    edges: Array<{ id: string; source: string; target: string; type: string; label: string; properties: Record<string, unknown> }>;
+    node_count: number;
+    edge_count: number;
+  }> {
+    const query = new URLSearchParams();
+    if (params?.workspace_id) query.set('workspace_id', params.workspace_id);
+    const queryStr = query.toString();
+    return fetchJson(`${API_BASE}/api/graph/full${queryStr ? `?${queryStr}` : ''}`);
+  },
+
+  async getGraphEntity(entityId: string): Promise<{
+    id: string;
+    label: string;
+    type: string;
+    properties: Record<string, unknown>;
+    relations: Array<{ target: string; type: string; properties: Record<string, unknown> }>;
+    relation_count: number;
+  }> {
+    return fetchJson(`${API_BASE}/api/graph/entity/${entityId}`);
+  },
+
+  async getGraphStats(params?: { workspace_id?: string }): Promise<{
+    total_nodes: number;
+    total_edges: number;
+    entity_types: Record<string, number>;
+    relation_types: Record<string, number>;
+    mode: string;
+  }> {
+    const query = new URLSearchParams();
+    if (params?.workspace_id) query.set('workspace_id', params.workspace_id);
+    const queryStr = query.toString();
+    return fetchJson(`${API_BASE}/api/graph/stats${queryStr ? `?${queryStr}` : ''}`);
+  },
+
   // ==================== OSv2 对象服务 ====================
 
   async queryObjects(query: {

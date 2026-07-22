@@ -111,6 +111,17 @@ token.txt
 /app.log
 /bootstep_dev.log
 /sessions.db
+# .env.docker 包含敏感密钥（OPENAI_API_KEY/JWT_SECRET 等），禁止跟踪
+# （已被上方 .env.* 通配，此行显式文档化意图；如已被跟踪需 git rm --cached）
+/.env.docker
+# 测试运行产物（不应纳入版本控制）
+/test-output/
+# 根目录临时 i18n/抽取脚本（应归档到 scripts/archive/）
+/convert-to-chinese-key.py
+/update-en-ja-translations.py
+/check-missing-keys.py
+/create-missing-locales.py
+/test_extract.py
 # 各模块 temp/ 子目录（运行时产物，可随时清理）
 # 注：git 的 ! 例外规则无法重新包含被通配符排除的文件，因此不在
 # 根 .gitignore 中递归忽略 **/temp/。模块若需忽略 temp/，在模块

@@ -3,7 +3,7 @@ import uuid
 from typing import Dict, Any, List, Optional
 
 from fastapi import APIRouter, HTTPException, Depends
-from odap.infra.security.jwt_auth import get_current_user
+from odap.infra.security.jwt_auth import get_current_user, verify_admin
 from pydantic import BaseModel, Field
 
 from odap.biz.integration.hook_system.services.hook_service import HookService
@@ -49,7 +49,7 @@ class EnableHookRequest(BaseModel):
 
 @router.post("/register")
 async def register_hook(request: RegisterHookRequest,
-    user=Depends(get_current_user)):
+    user=Depends(verify_admin)):
     _uid = user.get("sub", "anonymous") if isinstance(user, dict) else "anonymous"
     try:
         try:
@@ -96,7 +96,7 @@ async def register_hook(request: RegisterHookRequest,
 
 @router.delete("/{hook_id}")
 async def unregister_hook(hook_id: str,
-    user=Depends(get_current_user)):
+    user=Depends(verify_admin)):
     _uid = user.get("sub", "anonymous") if isinstance(user, dict) else "anonymous"
     try:
         try:
@@ -142,7 +142,7 @@ async def list_hooks(
 
 @router.post("/{hook_id}/enable")
 async def enable_hook(hook_id: str,
-    user=Depends(get_current_user)):
+    user=Depends(verify_admin)):
     _uid = user.get("sub", "anonymous") if isinstance(user, dict) else "anonymous"
     try:
         hook = hook_service.get_hook(hook_id)
@@ -159,7 +159,7 @@ async def enable_hook(hook_id: str,
 
 @router.post("/{hook_id}/disable")
 async def disable_hook(hook_id: str,
-    user=Depends(get_current_user)):
+    user=Depends(verify_admin)):
     _uid = user.get("sub", "anonymous") if isinstance(user, dict) else "anonymous"
     try:
         hook = hook_service.get_hook(hook_id)

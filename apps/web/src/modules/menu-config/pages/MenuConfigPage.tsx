@@ -25,16 +25,16 @@ function useMenuConfigI18n() {
 
 function getMenuTypeLabels(t: (key: string) => string): Record<string, { label: string; color: string }> {
   return {
-    directory: { label: t('directory'), color: 'blue' },
-    menu: { label: t('menu'), color: 'green' },
-    action: { label: t('action'), color: 'orange' },
+    directory: { label: t('目录'), color: 'blue' },
+    menu: { label: t('菜单'), color: 'green' },
+    action: { label: t('操作'), color: 'orange' },
   };
 }
 
 function getLinkTypeLabels(t: (key: string) => string): Record<string, string> {
   return {
-    internal: t('internal'),
-    iframe: t('iframe'),
+    internal: t('内部路由'),
+    iframe: t('外部 iframe'),
   };
 }
 
@@ -101,24 +101,24 @@ function TreeNodeTitle({
           {labels[item.menu_type]?.label || item.menu_type}
         </Tag>
         {!item.is_active && (
-          <Tag color="default" style={{ fontSize: 11, flexShrink: 0 }}>{t('inactive')}</Tag>
+          <Tag color="default" style={{ fontSize: 11, flexShrink: 0 }}>{t('禁用')}</Tag>
         )}
         {!item.is_visible && item.menu_type === 'menu' && (
-          <Tag color="default" style={{ fontSize: 11, flexShrink: 0 }}>{t('hidden')}</Tag>
+          <Tag color="default" style={{ fontSize: 11, flexShrink: 0 }}>{t('隐藏')}</Tag>
         )}
         {/* 权限码已从树节点中移除，避免显示ID/code；详情面板仍保留 */}
       </span>
       <span onClick={(e) => e.stopPropagation()}>
         {item.menu_type !== 'action' && (
-          <Tooltip title={t('addChild')}>
+          <Tooltip title={t('添加子项')}>
             <Button type="text" size="small" icon={<PlusOutlined />} onClick={() => onAddChild(item)} />
           </Tooltip>
         )}
-        <Tooltip title={t('edit')}>
+        <Tooltip title={t('编辑')}>
           <Button type="text" size="small" icon={<EditOutlined />} onClick={() => onEdit(item)} />
         </Tooltip>
-        <Popconfirm title={t('confirmDelete')} onConfirm={() => onDelete(item.id)}>
-          <Tooltip title={t('delete')}>
+        <Popconfirm title={t('确认删除？子节点也会一并删除')} onConfirm={() => onDelete(item.id)}>
+          <Tooltip title={t('删除')}>
             <Button type="text" size="small" danger icon={<DeleteOutlined />} />
           </Tooltip>
         </Popconfirm>
@@ -164,7 +164,7 @@ export function MenuConfigPage() {
         if (!stillExists) setSelectedNode(null);
       }
     } catch (e: any) {
-      message.error(t('loadMenuTreeFailed') + ': ' + (e.message || e));
+      message.error(t('加载菜单树失败') + ': ' + (e.message || e));
     } finally {
       setLoading(false);
     }
@@ -185,8 +185,8 @@ export function MenuConfigPage() {
         setSelectedRoleId(summaries[0].id);
       }
     } catch (e: any) {
-      console.warn(t('loadRoleListFailed') + ' /api/roles:', e.message);
-      message.warning(t('loadRoleListFailed'));
+      console.warn(t('加载角色列表失败') + ' /api/roles:', e.message);
+      message.warning(t('加载角色列表失败'));
     }
   }, [selectedRoleId, t]);
 
@@ -227,27 +227,27 @@ export function MenuConfigPage() {
 
       if (editingItem) {
         await menuConfigApi.updateItem(editingItem.id, values);
-        message.success(t('updateSuccess'));
+        message.success(t('更新成功'));
       } else {
         await menuConfigApi.createItem(values);
-        message.success(t('createSuccess'));
+        message.success(t('创建成功'));
       }
       setModalOpen(false);
       loadTree();
     } catch (e: any) {
       if (e.errorFields) return;
-      message.error(t('saveFailed') + ': ' + (e.message || e));
+      message.error(t('保存失败') + ': ' + (e.message || e));
     }
   };
 
   const handleDelete = async (id: string) => {
     try {
       await menuConfigApi.deleteItem(id);
-      message.success(t('deleteSuccess'));
+      message.success(t('已删除'));
       setSelectedNode(null);
       loadTree();
     } catch (e: any) {
-      message.error(t('deleteFailed') + ': ' + (e.message || e));
+      message.error(t('删除失败') + ': ' + (e.message || e));
     }
   };
 
@@ -259,7 +259,7 @@ export function MenuConfigPage() {
       const data = await menuConfigApi.getRoleMenus(roleId);
       setRoleMenuIds(data.menu_ids || []);
     } catch (e: any) {
-      message.error(t('loadRoleMenuPermissionFailed') + ': ' + (e.message || e));
+      message.error(t('加载角色菜单权限失败') + ': ' + (e.message || e));
       setRoleMenuIds([]);
     } finally {
       setRoleLoading(false);
@@ -276,9 +276,9 @@ export function MenuConfigPage() {
     setRoleSaving(true);
     try {
       await menuConfigApi.setRoleMenus(selectedRoleId, roleMenuIds);
-      message.success(t('roleMenuPermissionSaved'));
+      message.success(t('角色菜单权限已保存'));
     } catch (e: any) {
-      message.error(t('saveFailed') + ': ' + (e.message || e));
+      message.error(t('保存失败') + ': ' + (e.message || e));
     } finally {
       setRoleSaving(false);
     }
@@ -319,14 +319,14 @@ export function MenuConfigPage() {
   return (
     <div style={{ padding: 24, height: '100%', display: 'flex', flexDirection: 'column' }}>
       <div style={{ marginBottom: 16, display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-        <Title level={4} style={{ margin: 0 }}>{t('menuAndPermissionConfig')}</Title>
+        <Title level={4} style={{ margin: 0 }}>{t('菜单与权限配置')}</Title>
         <Space>
           <Button icon={<ReloadOutlined />} onClick={() => { loadTree(); loadRoles(); }} loading={loading}>
             {t('refresh')}
           </Button>
           {activeTab === 'menu' && (
             <Button type="primary" icon={<PlusOutlined />} onClick={() => handleCreate()}>
-              {t('createTopLevelMenu')}
+              {t('新建顶级菜单')}
             </Button>
           )}
         </Space>
@@ -336,8 +336,8 @@ export function MenuConfigPage() {
         activeKey={activeTab}
         onChange={(k) => setActiveTab(k as 'menu' | 'role')}
         items={[
-          { key: 'menu', label: t('menuManagement') },
-          { key: 'role', label: t('rolePermissionAssignment') },
+          { key: 'menu', label: t('菜单管理') },
+          { key: 'role', label: t('角色权限分配') },
         ]}
         style={{ marginBottom: 16 }}
       />
@@ -346,14 +346,14 @@ export function MenuConfigPage() {
         <div style={{ flex: 1, display: 'flex', gap: 16, minHeight: 0 }}>
           {/* 左侧菜单树 */}
           <Card
-            title={t('menuTree')}
+            title={t('菜单树')}
             size="small"
             style={{ width: 520, flexShrink: 0, display: 'flex', flexDirection: 'column' }}
             styles={{ body: { padding: 8, overflow: 'auto', flex: 1 } }}
           >
             {loading ? (
               <div style={{ textAlign: 'center', padding: 48 }}>
-                <Text type="secondary">{t('loadingMenuTree')}</Text>
+                <Text type="secondary">{t('加载菜单树…')}</Text>
               </div>
             ) : treeNodes.length > 0 ? (
               <Tree
@@ -366,13 +366,13 @@ export function MenuConfigPage() {
                 style={{ minWidth: 420 }}
               />
             ) : (
-              <Empty description={t('emptyMenuHint')} />
+              <Empty description={t('暂无菜单项，点击右上角「新建顶级菜单」创建')} />
             )}
           </Card>
 
           {/* 右侧详情 */}
           <Card
-            title={selectedNode ? resolveMenuName(t, selectedNode.name) : t('menuDetails')}
+            title={selectedNode ? resolveMenuName(t, selectedNode.name) : t('菜单详情')}
             size="small"
             style={{ flex: 1, display: 'flex', flexDirection: 'column' }}
             styles={{ body: { overflow: 'auto', flex: 1 }}}
@@ -381,7 +381,7 @@ export function MenuConfigPage() {
               <>
                 <Descriptions column={2} bordered>
                   <Descriptions.Item label={t('name')}>{resolveMenuName(t, selectedNode.name)}</Descriptions.Item>
-                  <Descriptions.Item label={t('permissionCode')}>
+                  <Descriptions.Item label={t('权限码')}>
                     <Text code>{selectedNode.code}</Text>
                   </Descriptions.Item>
                   <Descriptions.Item label={t('type')}>
@@ -389,18 +389,18 @@ export function MenuConfigPage() {
                       {MENU_TYPE_LABELS[selectedNode.menu_type]?.label}
                     </Tag>
                   </Descriptions.Item>
-                  <Descriptions.Item label={t('linkType')}>
+                  <Descriptions.Item label={t('链接类型')}>
                     {selectedNode.menu_type === 'menu'
                       ? LINK_TYPE_LABELS[selectedNode.link_type] || selectedNode.link_type
                       : '-'}
                   </Descriptions.Item>
                   {selectedNode.path && (
-                    <Descriptions.Item label={t('routePath')} span={2}>
+                    <Descriptions.Item label={t('路由路径')} span={2}>
                       <Text code>{selectedNode.path}</Text>
                     </Descriptions.Item>
                   )}
                   {selectedNode.url && (
-                    <Descriptions.Item label={t('iframeUrl')} span={2}>
+                    <Descriptions.Item label={t('iframe URL')} span={2}>
                       <Text code>{selectedNode.url}</Text>
                     </Descriptions.Item>
                   )}
@@ -410,14 +410,14 @@ export function MenuConfigPage() {
                       <Text type="secondary">{selectedNode.icon}</Text>
                     </Space>
                   </Descriptions.Item>
-                  <Descriptions.Item label={t('sortOrder')}>{selectedNode.sort_order}</Descriptions.Item>
-                  <Descriptions.Item label={t('active')}>
-                    <Badge status={selectedNode.is_active ? 'success' : 'default'} text={selectedNode.is_active ? t('yes') : t('no')} />
+                  <Descriptions.Item label={t('排序')}>{selectedNode.sort_order}</Descriptions.Item>
+                  <Descriptions.Item label={t('启用')}>
+                    <Badge status={selectedNode.is_active ? 'success' : 'default'} text={selectedNode.is_active ? t('是') : t('否')} />
                   </Descriptions.Item>
-                  <Descriptions.Item label={t('visible')}>
-                    <Badge status={selectedNode.is_visible ? 'success' : 'default'} text={selectedNode.is_visible ? t('yes') : t('no')} />
+                  <Descriptions.Item label={t('可见')}>
+                    <Badge status={selectedNode.is_visible ? 'success' : 'default'} text={selectedNode.is_visible ? t('是') : t('否')} />
                   </Descriptions.Item>
-                  <Descriptions.Item label={t('description')} span={2}>
+                  <Descriptions.Item label={t('描述')} span={2}>
                     {selectedNode.description || '-'}
                   </Descriptions.Item>
                   <Descriptions.Item label="ID" span={2}>
@@ -426,14 +426,14 @@ export function MenuConfigPage() {
                 </Descriptions>
                 <Divider />
                 <Space>
-                  <Button icon={<EditOutlined />} onClick={() => handleEdit(selectedNode)}>{t('edit')}</Button>
-                  <Popconfirm title={t('confirmDelete')} onConfirm={() => handleDelete(selectedNode.id)}>
-                    <Button danger icon={<DeleteOutlined />}>{t('delete')}</Button>
+                  <Button icon={<EditOutlined />} onClick={() => handleEdit(selectedNode)}>{t('编辑')}</Button>
+                  <Popconfirm title={t('确认删除？子节点也会一并删除')} onConfirm={() => handleDelete(selectedNode.id)}>
+                    <Button danger icon={<DeleteOutlined />}>{t('删除')}</Button>
                   </Popconfirm>
                 </Space>
               </>
             ) : (
-              <Empty description={t('selectMenuItemHint')} />
+              <Empty description={t('选择左侧菜单项查看详情')} />
             )}
           </Card>
         </div>
@@ -455,7 +455,7 @@ export function MenuConfigPage() {
 
       {/* ── 创建/编辑 Modal ── */}
       <Modal
-        title={editingItem ? t('editMenuItem') : t('createMenuItem')}
+        title={editingItem ? t('编辑菜单项') : t('新建菜单项')}
         open={modalOpen}
         onOk={handleSubmit}
         onCancel={() => setModalOpen(false)}
@@ -463,12 +463,12 @@ export function MenuConfigPage() {
         destroyOnHidden
       >
         <Form form={form} layout="vertical" style={{ marginTop: 16 }}>
-          <Form.Item name="parent_id" label={t('parentMenu')}>
+          <Form.Item name="parent_id" label={t('父级菜单')}>
             <Select
               allowClear
-              placeholder={t('rootDirectory')}
+              placeholder={t('根目录')}
               options={[
-                { value: '__root__', label: t('rootDirectory') },
+                { value: '__root__', label: t('根目录') },
                 ...flatItems
                   .filter((i) => i.menu_type !== 'action' && i.id !== editingItem?.id)
                   .map((i) => ({
@@ -484,10 +484,10 @@ export function MenuConfigPage() {
 
           <div style={{ display: 'flex', gap: 12 }}>
             <Form.Item name="name" label={t('name')} rules={[{ required: true }]} style={{ flex: 1 }}>
-              <Input placeholder={t('namePlaceholder')} />
+              <Input placeholder={t('i18n key，如 menu.ontology.designer')} />
             </Form.Item>
-            <Form.Item name="code" label={t('permissionCode')} rules={[{ required: true }]} style={{ flex: 1 }}>
-              <Input placeholder={t('permissionCodePlaceholder')} />
+            <Form.Item name="code" label={t('权限码')} rules={[{ required: true }]} style={{ flex: 1 }}>
+              <Input placeholder={t('如 ontology:designer:view')} />
             </Form.Item>
           </div>
 
@@ -495,17 +495,17 @@ export function MenuConfigPage() {
             <Form.Item name="menu_type" label={t('type')} rules={[{ required: true }]} style={{ flex: 1 }}>
               <Select
                 options={[
-                  { value: 'directory', label: t('directoryDescription') },
-                  { value: 'menu', label: t('menuDescription') },
-                  { value: 'action', label: t('actionDescription') },
+                  { value: 'directory', label: t('目录（可折叠分组）') },
+                  { value: 'menu', label: t('菜单（可导航页面）') },
+                  { value: 'action', label: t('操作（按钮/权限点）') },
                 ]}
               />
             </Form.Item>
-            <Form.Item name="link_type" label={t('linkType')} style={{ flex: 1 }}>
+            <Form.Item name="link_type" label={t('链接类型')} style={{ flex: 1 }}>
               <Select
                 options={[
-                  { value: 'internal', label: t('internal') },
-                  { value: 'iframe', label: t('iframe') },
+                  { value: 'internal', label: t('内部路由') },
+                  { value: 'iframe', label: t('外部 iframe') },
                 ]}
               />
             </Form.Item>
@@ -517,19 +517,19 @@ export function MenuConfigPage() {
               const menuType = getFieldValue('menu_type');
               if (menuType === 'menu' && linkType === 'internal') {
                 return (
-                  <Form.Item name="path" label={t('routePath')}>
-                    <Input placeholder={t('routePathPlaceholder')} />
+                  <Form.Item name="path" label={t('路由路径')}>
+                    <Input placeholder={t('如：/users 或 /knowledge')} />
                   </Form.Item>
                 );
               }
               if (menuType === 'menu' && linkType === 'iframe') {
                 return (
                   <>
-                    <Form.Item name="path" label={t('routePath')}>
-                      <Input placeholder={t('iframePathPlaceholder')} />
+                    <Form.Item name="path" label={t('路由路径')}>
+                      <Input placeholder={t('如：/minio-console')} />
                     </Form.Item>
-                    <Form.Item name="url" label={t('iframeUrl')}>
-                      <Input placeholder={t('iframeUrlPlaceholder')} />
+                    <Form.Item name="url" label={t('iframe URL')}>
+                      <Input placeholder={t('如：http://localhost:9001')} />
                     </Form.Item>
                   </>
                 );
@@ -548,22 +548,22 @@ export function MenuConfigPage() {
                 }))}
               />
             </Form.Item>
-            <Form.Item name="sort_order" label={t('sortOrder')} style={{ flex: 1 }}>
+            <Form.Item name="sort_order" label={t('排序')} style={{ flex: 1 }}>
               <InputNumber min={0} max={999} style={{ width: '100%' }} />
             </Form.Item>
           </div>
 
           <div style={{ display: 'flex', gap: 24 }}>
-            <Form.Item name="is_active" label={t('active')} valuePropName="checked">
+            <Form.Item name="is_active" label={t('启用')} valuePropName="checked">
               <Switch />
             </Form.Item>
-            <Form.Item name="is_visible" label={t('sidebarVisible')} valuePropName="checked">
+            <Form.Item name="is_visible" label={t('侧边栏可见')} valuePropName="checked">
               <Switch />
             </Form.Item>
           </div>
 
-          <Form.Item name="description" label={t('description')}>
-            <Input.TextArea rows={2} placeholder={t('descriptionPlaceholder')} />
+          <Form.Item name="description" label={t('描述')}>
+            <Input.TextArea rows={2} placeholder={t('菜单项说明')} />
           </Form.Item>
         </Form>
       </Modal>

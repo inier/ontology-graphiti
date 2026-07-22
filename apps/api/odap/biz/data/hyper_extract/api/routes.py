@@ -6,12 +6,16 @@ Provides direct HE extraction endpoints at /api/he/:
 - POST /api/he/extract/batch — batch extraction
 - GET /api/he/progress/{session_id} — SSE progress stream
 - GET /api/he/progress/{session_id}/status — get current progress
+
+安全：所有端点均要求认证（AGENTS.md 规则：写路由必须 user=Depends(get_current_user)）。
 """
 
 import logging
 from typing import AsyncGenerator
-from fastapi import APIRouter, HTTPException
+from fastapi import APIRouter, HTTPException, Depends
 from fastapi.responses import StreamingResponse
+
+from odap.infra.security.jwt_auth import get_current_user
 
 from .schemas import ExtractRequest, ExtractResponse, TemplateResponse, BatchExtractRequest
 from ..services.extract_service import ExtractService
@@ -28,9 +32,18 @@ extract_service = ExtractService()
 template_engine = TemplateEngine(HEAdapter(), Storage())
 
 
+def _extract_operator(user) -> tuple[str, str]:
+    """从 JWT user 提取操作者信息（AGENTS.md 规则：禁止 hardcode operator_id）"""
+    if isinstance(user, dict):
+        return user.get("sub", "anonymous"), user.get("name", "anonymous")
+    return "anonymous", "anonymous"
+
+
 @router.post("/extract", response_model=ExtractResponse)
-async def extract(request: ExtractRequest):
+async def extract(request: ExtractRequest, user=Depends(get_current_user)):
     """触发知识提取：文本 → HE 提取 → 本体映射 → 双通道写入"""
+    operator_id, operator_name = _extract_operator(user)
+    logger.info("extract called by %s(%s)", operator_name, operator_id)
     try:
         result = await extract_service.extract_and_write(
             text=request.text,
@@ -49,7 +62,7 @@ async def extract(request: ExtractRequest):
 
 
 @router.get("/templates/{ontology_id}", response_model=TemplateResponse)
-async def get_template(ontology_id: str):
+async def get_template(ontology_id: str, user=Depends(get_current_user)):
     """查看本体定义自动生成的 HE 模板"""
     try:
         template = template_engine.generate_from_ontology(ontology_id)
@@ -63,8 +76,10 @@ async def get_template(ontology_id: str):
 
 
 @router.post("/extract/batch")
-async def extract_batch(request: BatchExtractRequest):
+async def extract_batch(request: BatchExtractRequest, user=Depends(get_current_user)):
     """批量并行知识提取"""
+    operator_id, operator_name = _extract_operator(user)
+    logger.info("extract_batch called by %s(%s)", operator_name, operator_id)
     try:
         result = await extract_service.extract_batch(
             texts=request.texts,
@@ -83,7 +98,7 @@ async def extract_batch(request: BatchExtractRequest):
 
 
 @router.get("/progress/{session_id}")
-async def progress_stream(session_id: str):
+async def progress_stream(session_id: str, user=Depends(get_current_user)):
     """SSE 进度流：订阅指定会话的实时进度更新"""
 
     async def event_generator() -> AsyncGenerator[str, None]:
@@ -92,7 +107,7 @@ async def progress_stream(session_id: str):
 
         try:
             while True:
-                event = await queue.get()
+                event = await queue.receive()
                 if event is None:
                     break
                 import json
@@ -113,11 +128,11 @@ async def progress_stream(session_id: str):
 
 
 @router.get("/progress/{session_id}/status")
-async def get_progress_status(session_id: str):
+async def get_progress_status(session_id: str, user=Depends(get_current_user)):
     """获取指定会话的当前进度状态"""
     try:
         pm = await get_progress_manager()
-        state = pm.get_progress(session_id)
+        state = await pm.get_state(session_id)
         if not state:
             raise HTTPException(status_code=404, detail="会话不存在或进度已过期")
         return {

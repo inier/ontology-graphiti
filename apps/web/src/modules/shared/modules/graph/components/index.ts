@@ -6,3 +6,5 @@ export { GraphToolbar } from './GraphToolbar';
 export { GraphControls } from './GraphControls';
 export { MinimapPanel } from './MinimapPanel';
 export type { MinimapPanelProps } from './MinimapPanel';
+export { PathSearchPanel } from './PathSearchPanel';
+export { GraphTooltip } from './GraphTooltip';

@@ -226,6 +226,7 @@ async def extract_from_document(
     """Extract schema from an uploaded document file."""
     import os
     import tempfile
+    import uuid
 
     try:
         ext = os.path.splitext(file.filename or "")[1].lower()
@@ -243,7 +244,12 @@ async def extract_from_document(
             )
 
         tmp_dir = tempfile.mkdtemp()
-        tmp_path = os.path.join(tmp_dir, file.filename or "upload")
+        # 安全：丢弃用户提供的 filename，使用 uuid 防止路径穿越（CRITICAL-4 修复）
+        safe_name = f"{uuid.uuid4().hex}{ext}"
+        tmp_path = os.path.join(tmp_dir, safe_name)
+        # 深度防御：断言最终路径仍在 tmp_dir 内
+        if not os.path.realpath(tmp_path).startswith(os.path.realpath(tmp_dir) + os.sep):
+            raise HTTPException(status_code=400, detail="Invalid file path")
         try:
             with open(tmp_path, "wb") as f:
                 f.write(contents)
@@ -314,18 +320,19 @@ async def extract_from_knowledge_base(
             raise HTTPException(status_code=400, detail=nl_result.get("message", "Extraction failed"))
 
         session_id = str(uuid.uuid4())
+        nl_result_data = nl_result.get("result", {})
         result = {
             "status": "ok",
             "session_id": session_id,
             "result": {
-                "entities": nl_result.get("entities", []),
-                "relations": nl_result.get("relations", []),
-                "object_types": nl_result.get("object_types", []),
-                "link_types": nl_result.get("link_types", []),
-                "action_types": nl_result.get("action_types", []),
-                "rule_types": nl_result.get("rule_types", []),
-                "process_types": nl_result.get("process_types", []),
-                "indicator_types": nl_result.get("indicator_types", []),
+                "entities": nl_result_data.get("entities", []),
+                "relations": nl_result_data.get("relations", []),
+                "object_types": nl_result_data.get("object_types", []),
+                "link_types": nl_result_data.get("link_types", []),
+                "action_types": nl_result_data.get("action_types", []),
+                "rule_types": nl_result_data.get("rule_types", []),
+                "process_types": nl_result_data.get("process_types", []),
+                "indicator_types": nl_result_data.get("indicator_types", []),
                 "conflicts": [],
             },
             "conflicts": [],
@@ -521,7 +528,7 @@ async def extraction_progress_stream(
 
         try:
             while True:
-                event = await queue.get()
+                event = await queue.receive()
                 if event is None:
                     break
                 import json
@@ -549,7 +556,7 @@ async def get_extraction_progress_status(
     """获取指定提取会话的当前进度状态"""
     try:
         pm = await get_progress_manager()
-        state = pm.get_progress(session_id)
+        state = await pm.get_state(session_id)
         if not state:
             raise HTTPException(status_code=404, detail="会话不存在或进度已过期")
         return {

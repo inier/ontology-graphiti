@@ -88,7 +88,7 @@ export default function SettingsPage() {
           <Space>
             <SettingOutlined style={{ fontSize: 20 }} />
             <Title level={4} style={{ margin: 0 }}>
-              {t('版本历史')}
+              {t('系统设置')}
             </Title>
           </Space>
           <Space>

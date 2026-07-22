@@ -6,10 +6,10 @@
  */
 import React, { useMemo } from 'react';
 import { Card, Tabs } from 'antd';
-import type { TabsProps } from 'antd';
 import { useNavigate, useLocation, Navigate } from 'react-router-dom';
 import { useSemanticAdminStore, type AdminTopTab } from '../store/useSemanticAdminStore';
-import { SEMANTIC_ADMIN_TAB_ITEMS, TOP_TAB_TO_PATH, PATH_TO_TOP_TAB } from '../constants';
+import { getSemanticAdminTabItems, TOP_TAB_TO_PATH, PATH_TO_TOP_TAB } from '../constants';
+import { useI18n } from '@/modules/shared/hooks/useI18n';
 
 export interface SemanticAdminTabsContainerProps {
   children: React.ReactNode;
@@ -19,6 +19,7 @@ export function SemanticAdminTabsContainer({ children }: SemanticAdminTabsContai
   const navigate = useNavigate();
   const location = useLocation();
   const setTopTab = useSemanticAdminStore((s) => s.setCurrentTopTab);
+  const { t } = useI18n();
 
   const activeKey = useMemo<AdminTopTab>(() => {
     const match = PATH_TO_TOP_TAB[location.pathname] || 'usl';
@@ -26,6 +27,8 @@ export function SemanticAdminTabsContainer({ children }: SemanticAdminTabsContai
     queueMicrotask(() => setTopTab(match));
     return match;
   }, [location.pathname, setTopTab]);
+
+  const tabItems = useMemo(() => getSemanticAdminTabItems(t), [t]);
 
   const handleChange = (key: string) => {
     const target = TOP_TAB_TO_PATH[key as AdminTopTab] || TOP_TAB_TO_PATH.usl;
@@ -38,7 +41,7 @@ export function SemanticAdminTabsContainer({ children }: SemanticAdminTabsContai
         <Tabs
           activeKey={activeKey}
           onChange={handleChange}
-          items={SEMANTIC_ADMIN_TAB_ITEMS as TabsProps['items']}
+          items={tabItems}
           size="large"
           style={{ marginBottom: 8 }}
         />

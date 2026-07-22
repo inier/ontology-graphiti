@@ -247,7 +247,12 @@ class EntityOpsMixin:
 
     def _query_entities_neo4j(self, entity_type=None, area=None, workspace_id=None):
         """Neo4j Driver 模式：查询实体"""
-        label = entity_type.replace(" ", "_") if entity_type else "Entity"
+        if isinstance(entity_type, str):
+            label = entity_type.replace(" ", "_")
+        elif entity_type is None:
+            label = "Entity"
+        else:
+            label = "Entity"
         self._validate_label(label)
         conditions = []
         params = {}

@@ -71,11 +71,17 @@ class ProgressState:
         self.error = error
         self.updated_at = time.time()
 
+    @property
+    def is_completed(self) -> bool:
+        """是否已完成（兼容路由层属性访问）"""
+        return self.status == "completed"
+
     def to_dict(self) -> Dict[str, Any]:
         """转换为字典用于 SSE 推送"""
         return {
             "session_id": self.session_id,
             "status": self.status,
+            "is_completed": self.status == "completed",
             "stage": self.stage,
             "message": self.message,
             "progress_percent": round(self.progress_percent, 1),
@@ -204,20 +210,22 @@ class ProgressManager:
                     del self._subscribers[session_id]
 
     async def _broadcast(self, session_id: str, state: ProgressState) -> None:
-        """广播进度事件给所有订阅者"""
-        async with self._lock:
-            subscribers = self._subscribers.get(session_id, [])
-            data = state.to_dict()
-            dead = []
+        """广播进度事件给所有订阅者
 
-            for sub in subscribers:
-                try:
-                    await sub.send(data)
-                except Exception:
-                    dead.append(sub)
+        注意：调用方必须已持有 self._lock（asyncio.Lock 不可重入，此处不再独立获取）。
+        """
+        subscribers = self._subscribers.get(session_id, [])
+        data = state.to_dict()
+        dead = []
 
-            for sub in dead:
-                subscribers.remove(sub)
+        for sub in subscribers:
+            try:
+                await sub.send(data)
+            except Exception:
+                dead.append(sub)
+
+        for sub in dead:
+            subscribers.remove(sub)
 
 
 class ProgressSubscriber:

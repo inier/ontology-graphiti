@@ -11,6 +11,7 @@ import { PageHeader } from '@/modules/shared';
 import { GraphCanvas } from '@/modules/shared/modules/graph';
 import type { GraphNode, GraphEdge, NodeStyleConfig, EdgeStyleConfig } from '@/modules/shared/modules/graph';
 import { AdvancedTable } from '@/modules/shared';
+import { api } from '@/modules/shared/services/api';
 
 const { Text } = Typography;
 
@@ -210,23 +211,23 @@ export function OntologySemanticNetwork({
 
   const loadGraphData = async () => {
     try {
-      // TODO: 替换为真实 API 调用
-      const mockNodes: SemanticNode[] = [
-        { id: '1', name: '人工智能', type: 'concept', properties: { 描述: '模拟人类智能的技术', 置信度: 0.95 } },
-        { id: '2', name: '教育行业', type: 'domain', properties: { 描述: '教育相关领域', 规模: '万亿级' } },
-        { id: '3', name: '技术应用', type: 'concept', properties: { 描述: '技术的实际应用', 应用场景: '在线教育' } },
-        { id: '4', name: '挑战', type: 'concept', properties: { 描述: '面临的问题和挑战', 优先级: '高' } },
-        { id: '5', name: '发展趋势', type: 'event', properties: { 描述: '未来发展方向', 时间范围: '2026-2030' } },
-      ];
-      const mockEdges: SemanticEdge[] = [
-        { id: 'e1', source: '1', target: '2', name: '影响', type: 'related_to' },
-        { id: 'e2', source: '2', target: '4', name: '面临', type: 'related_to' },
-        { id: 'e3', source: '1', target: '3', name: '包括', type: 'includes' },
-        { id: 'e4', source: '3', target: '5', name: '导致', type: 'causes' },
-        { id: 'e5', source: '1', target: '5', name: '促进', type: 'related_to' },
-      ];
-      setSemanticNodes(mockNodes);
-      setSemanticEdges(mockEdges);
+      const result = await api.getFullGraph();
+      const nodes: SemanticNode[] = result.nodes.map((n) => ({
+        id: n.id,
+        name: n.label,
+        type: n.type || 'concept',
+        properties: n.properties,
+      }));
+      const edges: SemanticEdge[] = result.edges.map((e) => ({
+        id: e.id,
+        source: e.source,
+        target: e.target,
+        name: e.label,
+        type: e.type,
+      }));
+      setSemanticNodes(nodes);
+      setSemanticEdges(edges);
+      message.success(`加载成功: ${result.node_count} 个节点, ${result.edge_count} 条边`);
     } catch (error) {
       console.error('加载语义网络失败', error);
       message.error('加载语义网络失败');

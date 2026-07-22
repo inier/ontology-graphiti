@@ -1,36 +1,35 @@
 /**
  * useCytoscapeGraph — Cytoscape.js 图谱实例生命周期管理 hook
  *
- * 负责：创建/销毁 Cytoscape 实例、增量更新、布局切换、事件绑定、选中高亮
+ * 负责：创建/销毁 Cytoscape 实例、增量更新、布局切换、事件绑定、选中高亮、右键菜单
  */
 import { useEffect, useRef, useCallback, useState } from 'react';
 import cytoscape from 'cytoscape';
 import dagre from 'cytoscape-dagre';
 import coseBilkent from 'cytoscape-cose-bilkent';
+import cxtmenu from 'cytoscape-cxtmenu';
 import type { GraphNode, GraphEdge, CytoscapeLayoutType, NodeStyleConfig, EdgeStyleConfig } from '../types';
 import { getNodeColor, getSideColor, getNodeShapeCytoscape, getEdgeStyle, ZOOM_STEP, ZOOM_MIN, ZOOM_MAX } from '../utils/graphStyles';
 
-// 注册扩展
 cytoscape.use(dagre);
 cytoscape.use(coseBilkent);
+cytoscape.use(cxtmenu);
 
 interface UseCytoscapeGraphOptions {
   containerRef: React.RefObject<HTMLDivElement | null>;
   nodes: GraphNode[];
   edges: GraphEdge[];
   layout?: CytoscapeLayoutType;
-  /** 节点样式映射（固定类型着色），不传则用哈希自动着色 */
   nodeStyleMap?: Record<string, NodeStyleConfig>;
-  /** 边样式映射 */
   edgeStyleMap?: Record<string, EdgeStyleConfig>;
-  /** dagre 布局方向 */
   dagreRankDir?: 'TB' | 'BT' | 'LR' | 'RL';
-  /** 节点点击回调 */
   onNodeClick?: (node: GraphNode) => void;
-  /** 边点击回调 */
   onEdgeClick?: (edge: GraphEdge) => void;
-  /** 画布点击回调 */
   onCanvasClick?: () => void;
+  onNodeEdit?: (node: GraphNode) => void;
+  onNodeDelete?: (nodeId: string) => void;
+  onEdgeEdit?: (edge: GraphEdge) => void;
+  onEdgeDelete?: (edgeId: string) => void;
 }
 
 interface UseCytoscapeGraphReturn {
@@ -59,6 +58,10 @@ export function useCytoscapeGraph({
   onNodeClick,
   onEdgeClick,
   onCanvasClick,
+  onNodeEdit,
+  onNodeDelete,
+  onEdgeEdit,
+  onEdgeDelete,
 }: UseCytoscapeGraphOptions): UseCytoscapeGraphReturn {
   const cyRef = useRef<cytoscape.Core | null>(null);
   const [zoomLevel, setZoomLevel] = useState(1);
@@ -68,9 +71,15 @@ export function useCytoscapeGraph({
   const onEdgeClickRef = useRef(onEdgeClick);
   onEdgeClickRef.current = onEdgeClick;
   const onCanvasClickRef = useRef(onCanvasClick);
-  onCanvasClickRef.current = onCanvasClick;
+  const onNodeEditRef = useRef(onNodeEdit);
+  onNodeEditRef.current = onNodeEdit;
+  const onNodeDeleteRef = useRef(onNodeDelete);
+  onNodeDeleteRef.current = onNodeDelete;
+  const onEdgeEditRef = useRef(onEdgeEdit);
+  onEdgeEditRef.current = onEdgeEdit;
+  const onEdgeDeleteRef = useRef(onEdgeDelete);
+  onEdgeDeleteRef.current = onEdgeDelete;
 
-  // ─── 构建样式表 ───
   const buildStylesheet = useCallback(() => {
     const styles: Array<{ selector: string; style: Record<string, unknown> }> = [
       {
@@ -103,7 +112,6 @@ export function useCytoscapeGraph({
           'text-background-padding': '1px',
         },
       },
-      // 选中态
       {
         selector: 'node.selected',
         style: {
@@ -150,7 +158,6 @@ export function useCytoscapeGraph({
       },
     ];
 
-    // 按节点类型注册样式
     if (nodeStyleMap) {
       for (const [type, config] of Object.entries(nodeStyleMap)) {
         styles.push({
@@ -166,7 +173,6 @@ export function useCytoscapeGraph({
         });
       }
     } else {
-      // 哈希自动着色：通过 data() 函数在元素上设置颜色
       styles.push({
         selector: 'node',
         style: {
@@ -180,7 +186,6 @@ export function useCytoscapeGraph({
       });
     }
 
-    // 按边类型注册样式
     if (edgeStyleMap) {
       for (const [type, config] of Object.entries(edgeStyleMap)) {
         const edgeStyle: Record<string, unknown> = {
@@ -212,7 +217,6 @@ export function useCytoscapeGraph({
     return styles;
   }, [nodeStyleMap, edgeStyleMap]);
 
-  // ─── 构建 Cytoscape 元素 ───
   const buildElements = useCallback((nodeList: GraphNode[], edgeList: GraphEdge[]): cytoscape.ElementDefinition[] => {
     const elements: cytoscape.ElementDefinition[] = [];
 
@@ -263,7 +267,6 @@ export function useCytoscapeGraph({
     return elements;
   }, [nodeStyleMap, edgeStyleMap]);
 
-  // ─── 获取布局配置 ───
   const getLayoutConfig = useCallback((layoutType: CytoscapeLayoutType): cytoscape.LayoutOptions => {
     switch (layoutType) {
       case 'dagre':
@@ -294,7 +297,6 @@ export function useCytoscapeGraph({
     }
   }, [dagreRankDir]);
 
-  // ─── 初始化 Cytoscape 实例 ───
   useEffect(() => {
     const container = containerRef.current;
     if (!container || nodes.length === 0) return;
@@ -312,7 +314,6 @@ export function useCytoscapeGraph({
       boxSelectionEnabled: false,
     });
 
-    // 事件绑定
     cy.on('tap', 'node', (evt) => {
       const node = evt.target;
       const nodeId = node.id();
@@ -333,14 +334,106 @@ export function useCytoscapeGraph({
       }
     });
 
-    // 缩放状态同步
     cy.on('zoom', () => {
       setZoomLevel(Math.round(cy.zoom() * 100) / 100);
     });
 
+    cy.cxtmenu({
+      selector: 'node',
+      commands: [
+        {
+          content: '<span style="font-size:12px">编辑节点</span>',
+          select: (evt) => {
+            const node = evt.target;
+            const nodeId = node.id();
+            const n = nodes.find((item) => item.id === nodeId);
+            if (n) onNodeEditRef.current?.(n);
+          },
+        },
+        {
+          content: '<span style="font-size:12px">删除节点</span>',
+          select: (evt) => {
+            const node = evt.target;
+            onNodeDeleteRef.current?.(node.id());
+          },
+        },
+        {
+          content: '<span style="font-size:12px">聚焦节点</span>',
+          select: (evt) => {
+            const node = evt.target;
+            cy.animate({ center: { eles: node } }, { duration: 300 });
+            cy.zoom({ level: 1.5, renderedPosition: { x: cy.width() / 2, y: cy.height() / 2 } });
+          },
+        },
+        {
+          content: '<span style="font-size:12px">展开子节点</span>',
+          select: (evt) => {
+            const node = evt.target;
+            const connectedEdges = node.connectedEdges();
+            const connectedNodes = connectedEdges.connectedNodes();
+            cy.fit(connectedNodes.union(node), 40);
+          },
+        },
+      ],
+    });
+
+    cy.cxtmenu({
+      selector: 'edge',
+      commands: [
+        {
+          content: '<span style="font-size:12px">编辑标签</span>',
+          select: (evt) => {
+            const edge = evt.target;
+            const edgeId = edge.id();
+            const e = edges.find((item) => item.id === edgeId);
+            if (e) onEdgeEditRef.current?.(e);
+          },
+        },
+        {
+          content: '<span style="font-size:12px">删除关系</span>',
+          select: (evt) => {
+            const edge = evt.target;
+            onEdgeDeleteRef.current?.(edge.id());
+          },
+        },
+        {
+          content: '<span style="font-size:12px">查看详情</span>',
+          select: (evt) => {
+            const edge = evt.target;
+            const edgeId = edge.id();
+            const e = edges.find((item) => item.id === edgeId);
+            if (e) onEdgeClickRef.current?.(e);
+          },
+        },
+      ],
+    });
+
+    cy.cxtmenu({
+      selector: 'core',
+      commands: [
+        {
+          content: '<span style="font-size:12px">适应视图</span>',
+          select: () => {
+            cy.fit(undefined, 40);
+          },
+        },
+        {
+          content: '<span style="font-size:12px">重置缩放</span>',
+          select: () => {
+            cy.zoom({ level: 1, renderedPosition: { x: cy.width() / 2, y: cy.height() / 2 } });
+          },
+        },
+        {
+          content: '<span style="font-size:12px">清除选择</span>',
+          select: () => {
+            cy.elements().removeClass('selected highlight dim');
+          },
+        },
+      ],
+    });
+
     cyRef.current = cy;
 
-    // 初始 fitView
     setTimeout(() => {
       cy.fit(undefined, 40);
       setZoomLevel(Math.round(cy.zoom() * 100) / 100);
@@ -353,7 +446,6 @@ export function useCytoscapeGraph({
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [nodes, edges, buildElements, buildStylesheet, getLayoutConfig]);
 
-  // ─── 布局切换 ───
   const setLayout = useCallback((layoutType: CytoscapeLayoutType) => {
     const cy = cyRef.current;
     if (!cy) return;
@@ -363,7 +455,6 @@ export function useCytoscapeGraph({
     setTimeout(() => cy.fit(undefined, 40), 500);
   }, [getLayoutConfig]);
 
-  // ─── 缩放控制 ───
   const zoomIn = useCallback(() => {
     const cy = cyRef.current;
     if (!cy) return;
@@ -388,7 +479,6 @@ export function useCytoscapeGraph({
     cy.zoom({ level: 1, renderedPosition: { x: cy.width() / 2, y: cy.height() / 2 } });
   }, []);
 
-  // ─── 搜索定位 ───
   const focusNode = useCallback((nodeId: string) => {
     const cy = cyRef.current;
     if (!cy) return;
@@ -415,28 +505,23 @@ export function useCytoscapeGraph({
     return null;
   }, [focusNode]);
 
-  // ─── 选中高亮 ───
   const selectNode = useCallback((nodeId: string) => {
     const cy = cyRef.current;
     if (!cy) return;
 
-    // 清除所有状态
     cy.elements().removeClass('selected highlight dim');
 
     const node = cy.$(`#${nodeId}`);
     if (node.length === 0) return;
 
-    // 选中节点
     node.addClass('selected');
 
-    // 高亮关联节点和边
     const connectedEdges = node.connectedEdges();
     const connectedNodes = connectedEdges.connectedNodes().not(node);
 
     connectedEdges.addClass('highlight');
     connectedNodes.addClass('highlight');
 
-    // dim 其余
     cy.nodes().not(node).not(connectedNodes).addClass('dim');
     cy.edges().not(connectedEdges).addClass('dim');
   }, []);
@@ -447,7 +532,6 @@ export function useCytoscapeGraph({
     cy.elements().removeClass('selected highlight dim');
   }, []);
 
-  // ─── 导出 PNG ───
   const exportPng = useCallback((): string | null => {
     const cy = cyRef.current;
     if (!cy) return null;

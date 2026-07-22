@@ -184,6 +184,7 @@ class OntologyMapper:
                     mapped = {
                         "entity_id": self._deterministic_entity_id(original_type, name),
                         "name": name,
+                        "display_name": ent.get("display_name", name),
                         "type": original_type,
                         "description": ent.get("description", ""),
                     }
@@ -237,6 +238,7 @@ class OntologyMapper:
             category = self._classify_entity_category(ent.get("type", ""))
             type_entry = {
                 "name": ent.get("name", ""),
+                "display_name": ent.get("display_name", ent.get("name", "")),
                 "type": ent.get("type", ""),
                 "description": ent.get("description", ""),
                 "source_template": ent.get("source_template", ""),
@@ -252,8 +254,10 @@ class OntologyMapper:
 
         # Relations → link_types
         for rel in merged_relations:
+            rel_type = rel.get("relation_type", "")
             link_types.append({
-                "name": rel.get("relation_type", ""),
+                "name": rel_type,
+                "display_name": rel.get("display_name", rel_type),
                 "source": rel.get("source", ""),
                 "target": rel.get("target", ""),
                 "source_template": rel.get("source_template", ""),
@@ -347,6 +351,7 @@ class OntologyMapper:
         return {
             "entity_id": entity_id,
             "name": entity_name,
+            "display_name": ent.get("display_name", entity_name),
             "type": entity_type,
             "description": ent.get("description", ""),
             **mapped_props,
@@ -388,6 +393,7 @@ class OntologyMapper:
             "source": source,
             "target": target,
             "relation_type": relation_type,
+            "display_name": rel.get("display_name", relation_type),
             "properties": raw_props,
         }
 

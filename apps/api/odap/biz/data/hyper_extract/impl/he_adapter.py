@@ -11,6 +11,7 @@ Key API alignments (from research.md):
 """
 
 import logging
+import os
 from typing import Any, Dict, List, Optional, Tuple
 
 from pydantic import BaseModel, Field, field_validator
@@ -649,8 +650,10 @@ class HEAdapter:
 
         if nodes:
             for node in nodes:
+                name = _coerce_str(getattr(node, "name", getattr(node, "key", "")))
                 entities.append({
-                    "name": _coerce_str(getattr(node, "name", getattr(node, "key", ""))),
+                    "name": name,
+                    "display_name": _coerce_str(getattr(node, "display_name", name)),
                     "type": _coerce_str(getattr(node, "type", "")),
                     "description": _coerce_str(getattr(node, "description", "")),
                     "properties": getattr(node, "properties", {}),

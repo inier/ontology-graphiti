@@ -7,6 +7,7 @@ import {
   bootstrapI18n,
   getCachedLocales,
 } from '../stores/i18nStore';
+import { useI18n } from '../hooks/useI18n';
 import type { LocaleInfo } from '@/modules/i18n-admin/services/i18nApi';
 
 interface LanguageSwitcherProps {
@@ -25,6 +26,7 @@ export function LanguageSwitcher({
   size = 'middle',
   showIcon = true,
 }: LanguageSwitcherProps) {
+  const { t } = useI18n();
   const [locales, setLocales] = useState<LocaleInfo[]>([]);
   const [current, setCurrent] = useState<string>(getCurrentLocale());
   const [loading, setLoading] = useState(false);
@@ -70,7 +72,7 @@ export function LanguageSwitcher({
   }));
 
   return (
-    <Tooltip title="切换语言">
+    <Tooltip title={t('切换语言')}>
       <Select
         value={current}
         onChange={handleChange}
