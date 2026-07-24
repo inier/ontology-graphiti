@@ -1,5 +1,6 @@
 """Hook管理器实现"""
 
+import ast
 import json
 import logging
 import os
@@ -49,6 +50,91 @@ _ALLOWED_SHELL_COMMANDS = frozenset({
 
 # 安全：Shell Hook 禁止的危险元字符（出现即拒绝执行）
 _SHELL_DANGEROUS_CHARS = re.compile(r"[;&|`$<>{}\n\r]")
+
+# ── Python Hook 安全策略（P0-C5 整改）──
+# 1. AST 审计：解析脚本语法树，拦截危险 import / 危险内置调用 / 属性访问
+# 2. import 白名单：仅允许无副作用的纯计算模块，禁止 os/subprocess/socket 等
+# 3. 隔离 env：执行子进程时不继承 os.environ，仅传入最小必要环境变量
+_ALLOWED_PYTHON_IMPORTS: frozenset = frozenset({
+    # 纯计算 / 数据结构
+    "json", "math", "re", "datetime", "collections", "itertools",
+    "functools", "operator", "copy", "heapq", "bisect",
+    # 文本处理
+    "string", "textwrap", "unicodedata",
+    # 统计 / 数值
+    "statistics", "random",
+    # 类型 / 工具
+    "typing", "dataclasses", "enum",
+})
+
+# 禁止调用的内置函数（即使 import 通过，这些调用也拒绝）
+_FORBIDDEN_BUILTINS_CALLS: frozenset = frozenset({
+    "exec", "eval", "compile", "__import__", "open", "input",
+    "breakpoint", "globals", "locals", "vars",
+})
+
+# 禁止访问的属性名（拦截 __import__、__builtins__、os.system 等）
+_FORBIDDEN_ATTRS: frozenset = frozenset({
+    "__import__", "__builtins__", "__subclasses__", "__bases__",
+    "__mro__", "__class__", "__globals__", "__code__",
+})
+
+
+class HookScriptValidationError(ValueError):
+    """Hook 脚本未通过 AST 安全审计。"""
+
+
+def _audit_python_script(script: str) -> None:
+    """对 Python hook 脚本做 AST 安全审计。
+
+    检查项：
+    1. 语法可解析（SyntaxError 早抛）
+    2. import 来源必须在 _ALLOWED_PYTHON_IMPORTS 白名单内
+    3. 不允许 from-import 隐藏危险模块（如 `from os import system`）
+    4. 不允许调用 _FORBIDDEN_BUILTINS_CALLS 中的内置函数
+    5. 不允许访问 _FORBIDDEN_ATTRS 中的属性（拦截反射逃逸）
+
+    Raises:
+        HookScriptValidationError: 脚本包含禁止的构造。
+        SyntaxError: 脚本语法错误。
+    """
+    tree = ast.parse(script)
+
+    for node in ast.walk(tree):
+        # ── 拦截 import 危险模块 ──
+        if isinstance(node, ast.Import):
+            for alias in node.names:
+                top_level = alias.name.split(".")[0]
+                if top_level not in _ALLOWED_PYTHON_IMPORTS:
+                    raise HookScriptValidationError(
+                        f"import '{alias.name}' not allowed. "
+                        f"Allowed top-level modules: {sorted(_ALLOWED_PYTHON_IMPORTS)}"
+                    )
+        elif isinstance(node, ast.ImportFrom):
+            # from X import Y 形式：校验 X
+            module_name = node.module or ""
+            top_level = module_name.split(".")[0] if module_name else ""
+            if top_level and top_level not in _ALLOWED_PYTHON_IMPORTS:
+                raise HookScriptValidationError(
+                    f"from '{module_name}' import not allowed. "
+                    f"Allowed top-level modules: {sorted(_ALLOWED_PYTHON_IMPORTS)}"
+                )
+
+        # ── 拦截危险内置函数调用 ──
+        elif isinstance(node, ast.Call):
+            func = node.func
+            # 直接名称调用：exec()/eval()/open() 等
+            if isinstance(func, ast.Name) and func.id in _FORBIDDEN_BUILTINS_CALLS:
+                raise HookScriptValidationError(
+                    f"Call to builtin '{func.id}' is forbidden in hook scripts."
+                )
+
+        # ── 拦截危险属性访问（反射逃逸）──
+        elif isinstance(node, ast.Attribute):
+            if node.attr in _FORBIDDEN_ATTRS:
+                raise HookScriptValidationError(
+                    f"Access to attribute '{node.attr}' is forbidden in hook scripts."
+                )
 
 
 class HookManager(IHookManager):
@@ -134,21 +220,71 @@ class HookManager(IHookManager):
             details={"hook_id": hook_id},
         )
         return False
-    
-    def list_hooks(self, filters: Dict[str, Any] = None, 
+
+    def set_enabled(self, hook_id: str, enabled: bool) -> Hook:
+        """启用/禁用 Hook（P0-C4 整改）。
+
+        原路由层 enable/disable 端点只校验存在性就返回 success，
+        实际从未修改 hook.status，是静默 no-op。本方法真正切换状态。
+        """
+        hook = self._hooks.get(hook_id)
+        if not hook:
+            _hook_audit(
+                action="hook_set_enabled",
+                result_status="failure",
+                result_message="Hook not found",
+                resource=hook_id,
+                details={"hook_id": hook_id, "enabled": enabled},
+            )
+            raise ValueError("Hook not found")
+
+        new_status = HookStatus.ACTIVE if enabled else HookStatus.INACTIVE
+        old_status = hook.status
+        hook.status = new_status
+        hook.updated_at = datetime.now()
+
+        _hook_audit(
+            action="hook_set_enabled",
+            result_status="success",
+            resource=hook_id,
+            details={
+                "hook_id": hook_id,
+                "enabled": enabled,
+                "old_status": old_status.value if hasattr(old_status, "value") else str(old_status),
+                "new_status": new_status.value,
+            },
+        )
+        return hook
+
+    def list_hooks(self, filters: Dict[str, Any] = None,
                   page: int = 1, page_size: int = 10) -> List[Hook]:
         """列出Hooks"""
         filters = filters or {}
         hooks = list(self._hooks.values())
-        
+
         if "type" in filters:
             hooks = [h for h in hooks if h.hook_type.value == filters["type"]]
         if "status" in filters:
             hooks = [h for h in hooks if h.status.value == filters["status"]]
-        
+
         start = (page - 1) * page_size
         end = start + page_size
         return hooks[start:end]
+
+    def count_hooks(self, filters: Dict[str, Any] = None) -> int:
+        """统计符合 filters 条件的 Hook 总数（P0-M3 整改）。
+
+        过滤逻辑必须与 list_hooks 保持一致。
+        """
+        filters = filters or {}
+        hooks = list(self._hooks.values())
+
+        if "type" in filters:
+            hooks = [h for h in hooks if h.hook_type.value == filters["type"]]
+        if "status" in filters:
+            hooks = [h for h in hooks if h.status.value == filters["status"]]
+
+        return len(hooks)
     
     def execute_hook(self, hook_id: str, context: Dict[str, Any] = None) -> HookExecution:
         """执行Hook
@@ -263,7 +399,28 @@ class HookManager(IHookManager):
         """在受限命名空间中执行 Python 脚本
 
         使用 subprocess 启动独立进程执行，以实现超时控制和隔离。
+
+        安全策略（P0-C5 整改）：
+        1. 执行前先做 AST 审计（_audit_python_script），拦截危险 import / 调用 / 属性
+        2. 子进程 env 不继承 os.environ，仅传入 PATH 等最小必要变量，
+           防止 hook 脚本读取 OPENAI_API_KEY/JWT_SECRET 等宿主密钥
+        3. context 通过 stdin 传入而非环境变量，避免在进程列表中暴露
         """
+        # ── 1. AST 安全审计 ──
+        try:
+            _audit_python_script(script)
+        except SyntaxError as e:
+            return {
+                "status": "error",
+                "message": f"Syntax error in hook script: {e}",
+            }
+        except HookScriptValidationError as e:
+            logger.warning(f"Hook script rejected by AST audit: {e}")
+            return {
+                "status": "error",
+                "message": f"Script rejected by security audit: {e}",
+            }
+
         context_json = json.dumps(context, default=str, ensure_ascii=False)
 
         # 包装脚本：注入 context，捕获 _output
@@ -294,6 +451,16 @@ class HookManager(IHookManager):
             tmp.write(wrapper)
             tmp_path = tmp.name
 
+        # ── 2. 隔离 env：仅传入最小必要变量，不继承宿主 os.environ ──
+        # 防止 hook 脚本通过 os.environ 读取 OPENAI_API_KEY/JWT_SECRET 等敏感配置
+        # Python 解释器需要 PATH 找到自身；HOME 避免部分库警告；其余一律不传
+        minimal_env = {
+            "PATH": os.environ.get("PATH", "/usr/local/bin:/usr/bin:/bin"),
+            "HOME": os.environ.get("HOME", "/tmp"),
+            "PYTHONDONTWRITEBYTECODE": "1",  # 不生成 .pyc
+            "PYTHONUNBUFFERED": "1",  # 实时输出
+        }
+
         try:
             proc = subprocess.run(
                 [sys.executable, tmp_path],
@@ -301,6 +468,7 @@ class HookManager(IHookManager):
                 text=True,
                 timeout=timeout_seconds,
                 cwd=tempfile.gettempdir(),
+                env=minimal_env,  # P0-C5: 隔离环境变量
             )
 
             if proc.returncode == 0:

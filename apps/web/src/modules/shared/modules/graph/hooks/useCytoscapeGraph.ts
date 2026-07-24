@@ -10,6 +10,7 @@ import coseBilkent from 'cytoscape-cose-bilkent';
 import cxtmenu from 'cytoscape-cxtmenu';
 import type { GraphNode, GraphEdge, CytoscapeLayoutType, NodeStyleConfig, EdgeStyleConfig } from '../types';
 import { getNodeColor, getSideColor, getNodeShapeCytoscape, getEdgeStyle, ZOOM_STEP, ZOOM_MIN, ZOOM_MAX } from '../utils/graphStyles';
+import { useI18n } from '@/modules/shared/hooks/useI18n';
 
 cytoscape.use(dagre);
 cytoscape.use(coseBilkent);
@@ -63,6 +64,7 @@ export function useCytoscapeGraph({
   onEdgeEdit,
   onEdgeDelete,
 }: UseCytoscapeGraphOptions): UseCytoscapeGraphReturn {
+  const { t } = useI18n();
   const cyRef = useRef<cytoscape.Core | null>(null);
   const [zoomLevel, setZoomLevel] = useState(1);
   const [currentLayout, setCurrentLayout] = useState<CytoscapeLayoutType>(initialLayout);
@@ -342,7 +344,7 @@ export function useCytoscapeGraph({
       selector: 'node',
       commands: [
         {
-          content: '<span style="font-size:12px">编辑节点</span>',
+          content: `<span style="font-size:12px">${t('编辑节点')}</span>`,
           select: (evt) => {
             const node = evt.target;
             const nodeId = node.id();
@@ -351,14 +353,14 @@ export function useCytoscapeGraph({
           },
         },
         {
-          content: '<span style="font-size:12px">删除节点</span>',
+          content: `<span style="font-size:12px">${t('删除节点')}</span>`,
           select: (evt) => {
             const node = evt.target;
             onNodeDeleteRef.current?.(node.id());
           },
         },
         {
-          content: '<span style="font-size:12px">聚焦节点</span>',
+          content: `<span style="font-size:12px">${t('聚焦节点')}</span>`,
           select: (evt) => {
             const node = evt.target;
             cy.animate({ center: { eles: node } }, { duration: 300 });
@@ -366,7 +368,7 @@ export function useCytoscapeGraph({
           },
         },
         {
-          content: '<span style="font-size:12px">展开子节点</span>',
+          content: `<span style="font-size:12px">${t('展开子节点')}</span>`,
           select: (evt) => {
             const node = evt.target;
             const connectedEdges = node.connectedEdges();
@@ -381,7 +383,7 @@ export function useCytoscapeGraph({
       selector: 'edge',
       commands: [
         {
-          content: '<span style="font-size:12px">编辑标签</span>',
+          content: `<span style="font-size:12px">${t('编辑标签')}</span>`,
           select: (evt) => {
             const edge = evt.target;
             const edgeId = edge.id();
@@ -390,14 +392,14 @@ export function useCytoscapeGraph({
           },
         },
         {
-          content: '<span style="font-size:12px">删除关系</span>',
+          content: `<span style="font-size:12px">${t('删除关系')}</span>`,
           select: (evt) => {
             const edge = evt.target;
             onEdgeDeleteRef.current?.(edge.id());
           },
         },
         {
-          content: '<span style="font-size:12px">查看详情</span>',
+          content: `<span style="font-size:12px">${t('查看详情')}</span>`,
           select: (evt) => {
             const edge = evt.target;
             const edgeId = edge.id();
@@ -412,19 +414,19 @@ export function useCytoscapeGraph({
       selector: 'core',
       commands: [
         {
-          content: '<span style="font-size:12px">适应视图</span>',
+          content: `<span style="font-size:12px">${t('适应视图')}</span>`,
           select: () => {
             cy.fit(undefined, 40);
           },
         },
         {
-          content: '<span style="font-size:12px">重置缩放</span>',
+          content: `<span style="font-size:12px">${t('重置缩放')}</span>`,
           select: () => {
             cy.zoom({ level: 1, renderedPosition: { x: cy.width() / 2, y: cy.height() / 2 } });
           },
         },
         {
-          content: '<span style="font-size:12px">清除选择</span>',
+          content: `<span style="font-size:12px">${t('清除选择')}</span>`,
           select: () => {
             cy.elements().removeClass('selected highlight dim');
           },
@@ -444,7 +446,7 @@ export function useCytoscapeGraph({
       cyRef.current = null;
     };
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [nodes, edges, buildElements, buildStylesheet, getLayoutConfig]);
+  }, [nodes, edges, buildElements, buildStylesheet, getLayoutConfig, t]);
 
   const setLayout = useCallback((layoutType: CytoscapeLayoutType) => {
     const cy = cyRef.current;

@@ -42,6 +42,14 @@ PLACEHOLDER_VALUES: FrozenSet[str] = frozenset({
     "neo4jpassword",
     "test",
     "demo",
+    # ── 已泄漏密钥黑名单（P0-C1/C2 整改）──
+    # 这些值曾在 git 历史（提交 4ec3d60/61fe24a/ad84100）中明文泄漏，
+    # 视作永久作废。即使再次设置也必须拒绝，强制运维轮换为新密钥。
+    "odap-dev-secret-key-min-32-chars-please-rotate-in-production-7f2a9c1b3e8d",
+    "VavLQFDozPRGCA/rzlWtg+loG4Yr3kq4qrS+SRqjY8k=",
+    "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",
+    "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",
+    "neo4j123456",
 })
 
 # ============ Substring patterns that indicate a default value ============
@@ -52,6 +60,9 @@ PLACEHOLDER_SUBSTRINGS: FrozenSet[str] = frozenset({
     "your-",
     "your_",
     "please-change",
+    "please-rotate",  # P0-C2: 拦截 "please-rotate-in-production" 类占位符
+    "rotate-in-production",
+    "odap-dev-secret",  # P0-C2: 拦截带项目前缀的开发占位符
     "set-me",
     "todo-",
     "todo:",

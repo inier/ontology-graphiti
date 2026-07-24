@@ -24,8 +24,9 @@ logger = logging.getLogger("progress_manager")
 class ProgressState:
     """提取任务的进度状态"""
 
-    def __init__(self, session_id: str):
+    def __init__(self, session_id: str, owner_id: Optional[str] = None):
         self.session_id = session_id
+        self.owner_id = owner_id  # P0-M1: 记录创建者 user_id，用于 SSE 订阅时 IDOR 校验
         self.status: str = "processing"
         self.stage: str = ""
         self.message: str = ""
@@ -91,25 +92,43 @@ class ProgressState:
             "updated_at": datetime.fromtimestamp(self.updated_at).isoformat(),
         }
 
+    def is_owned_by(self, user: Any) -> bool:
+        """P0-M1: 校验调用者是否为该 state 的 owner（或 admin）。
+
+        - owner_id 未记录（旧数据兼容）→ 返回 True，跳过校验
+        - user.role == "admin" → 返回 True（admin 全权）
+        - user.sub == owner_id → 返回 True
+        - 其余 → False（调用方应抛 403）
+        """
+        if not self.owner_id:
+            return True
+        if not isinstance(user, dict):
+            return False
+        if user.get("role") == "admin":
+            return True
+        return user.get("sub") == self.owner_id
+
 
 class ProgressManager:
     """全局进度管理器单例"""
 
     _instance: Optional["ProgressManager"] = None
-    _lock: asyncio.Lock = asyncio.Lock()
+    _instance_lock: asyncio.Lock = asyncio.Lock()  # P0-M6: 类级锁改名，避免与实例锁同名遮蔽
 
     def __init__(self):
         self._states: Dict[str, ProgressState] = {}
         self._subscribers: Dict[str, List["ProgressSubscriber"]] = {}
-        self._lock = asyncio.Lock()
+        self._lock = asyncio.Lock()  # 实例锁：保护 _states/_subscribers
         self._cleanup_interval = 300
-        asyncio.create_task(self._periodic_cleanup())
+        # P0-M6 fix: 持有 task 强引用，防止被 GC 静默回收
+        # （Python 官方警告：未保存引用的 Task 仅被事件循环弱引用）
+        self._cleanup_task: Optional[asyncio.Task] = asyncio.create_task(self._periodic_cleanup())
 
     @classmethod
     async def get_instance(cls) -> "ProgressManager":
         """获取单例实例"""
         if cls._instance is None:
-            async with cls._lock:
+            async with cls._instance_lock:
                 if cls._instance is None:
                     cls._instance = ProgressManager()
         return cls._instance
@@ -131,10 +150,14 @@ class ProgressManager:
             except Exception as e:
                 logger.error(f"进度清理任务异常: {e}")
 
-    async def create_state(self, session_id: str) -> ProgressState:
-        """创建新的进度状态"""
+    async def create_state(self, session_id: str, owner_id: Optional[str] = None) -> ProgressState:
+        """创建新的进度状态。
+
+        P0-M1: owner_id 记录创建者 user_id，用于后续 SSE 订阅时 IDOR 校验。
+        向后兼容：owner_id 默认 None，跳过归属校验（仅旧调用方）。
+        """
         async with self._lock:
-            state = ProgressState(session_id)
+            state = ProgressState(session_id, owner_id=owner_id)
             self._states[session_id] = state
             return state
 
@@ -250,14 +273,23 @@ class ProgressSubscriber:
         except Exception:
             self._closed = True
 
-    async def receive(self) -> Optional[Dict[str, Any]]:
-        """接收进度数据"""
+    async def receive(self, timeout: float = 60.0) -> Optional[Dict[str, Any]]:
+        """接收进度数据。
+
+        P3-M7: timeout 参数化，允许 SSE 生成器用更短超时 + 心跳保活。
+        超时返回 None，调用方可通过 is_closed 判断是真正关闭还是只是超时。
+        """
         if self._closed:
             return None
         try:
-            return await asyncio.wait_for(self._queue.get(), timeout=60)
+            return await asyncio.wait_for(self._queue.get(), timeout=timeout)
         except asyncio.TimeoutError:
             return None
+
+    @property
+    def is_closed(self) -> bool:
+        """P3-M7: 暴露关闭状态，供 SSE 生成器区分超时与真正关闭。"""
+        return self._closed
 
     def close(self) -> None:
         """关闭订阅"""

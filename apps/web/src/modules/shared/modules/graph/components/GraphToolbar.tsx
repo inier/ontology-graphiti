@@ -1,6 +1,7 @@
 import { Button, Select, Input, Dropdown, Space, Tooltip, Switch } from 'antd';
 import { ReloadOutlined, FilterOutlined } from '@ant-design/icons';
 import { SIGMA_LAYOUT_OPTIONS } from '../types';
+import { useI18n } from '@/modules/shared/hooks/useI18n';
 
 interface GraphToolbarProps {
   onRefresh?: () => void;
@@ -35,12 +36,13 @@ export function GraphToolbar({
   showAudit,
   onShowAuditChange,
 }: GraphToolbarProps) {
+  const { t } = useI18n();
   const filterItems = [
-    { key: 'all', label: '显示全部', onClick: () => onFilterChange('all') },
-    ...entityTypes.map((t) => ({
-      key: t,
-      label: t,
-      onClick: () => onFilterChange(t),
+    { key: 'all', label: t('显示全部'), onClick: () => onFilterChange('all') },
+    ...entityTypes.map((tp) => ({
+      key: tp,
+      label: tp,
+      onClick: () => onFilterChange(tp),
     })),
   ];
 
@@ -48,7 +50,7 @@ export function GraphToolbar({
     <Space wrap>
       <Dropdown menu={{ items: filterItems }}>
         <Button icon={<FilterOutlined />}>
-          {filterType === 'all' ? '筛选' : `类型: ${filterType}`}
+          {filterType === 'all' ? t('筛选') : t('类型: {{filterType}}', { filterType })}
         </Button>
       </Dropdown>
 
@@ -60,7 +62,7 @@ export function GraphToolbar({
       />
 
       <Input.Search
-        placeholder="搜索实体"
+        placeholder={t('搜索实体')}
         value={searchText}
         onChange={(e) => onSearchChange(e.target.value)}
         style={{ width: 160 }}
@@ -72,7 +74,7 @@ export function GraphToolbar({
           value={currentVersion}
           onChange={onVersionChange}
           options={[
-            { value: 'latest', label: '最新版本' },
+            { value: 'latest', label: t('最新版本') },
             ...versions.map((v) => {
               const date = v.created_at
                 ? new Date(v.created_at).toLocaleString('zh-CN', { month: '2-digit', day: '2-digit', hour: '2-digit', minute: '2-digit' })
@@ -88,19 +90,19 @@ export function GraphToolbar({
           style={{ width: 200 }}
           size="small"
           loading={versionsLoading}
-          placeholder="本体版本"
+          placeholder={t('本体版本')}
         />
       )}
 
-      <Tooltip title={showAudit ? '隐藏审计实体' : '显示审计实体'}>
+      <Tooltip title={showAudit ? t('隐藏审计实体') : t('显示审计实体')}>
         <Space size={4} style={{ cursor: 'pointer' }} onClick={() => onShowAuditChange(!showAudit)}>
           <Switch size="small" checked={showAudit} onChange={onShowAuditChange} />
-          <span style={{ fontSize: 12, color: '#666' }}>审计</span>
+          <span style={{ fontSize: 12, color: '#666' }}>{t('审计')}</span>
         </Space>
       </Tooltip>
 
       <Button icon={<ReloadOutlined />} onClick={() => onRefresh?.()}>
-        刷新
+        {t('刷新')}
       </Button>
     </Space>
   );

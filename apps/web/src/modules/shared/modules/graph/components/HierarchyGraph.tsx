@@ -12,6 +12,7 @@ import GraphView from './GraphView';
 import type { GraphViewApi } from './GraphView';
 import type { GraphNode, GraphEdge, CytoscapeLayoutType, NodeStyleConfig, EdgeStyleConfig } from '../types';
 import { CYTOSCAPE_LAYOUT_OPTIONS } from '../types';
+import { useI18n } from '@/modules/shared/hooks/useI18n';
 
 // ─── Props ───
 
@@ -65,6 +66,7 @@ export function HierarchyGraph({
   onRefresh,
   height = 600,
 }: HierarchyGraphProps) {
+  const { t } = useI18n();
   const apiRef = useRef<GraphViewApi | null>(null);
   const [layout, setLayout] = useState<CytoscapeLayoutType>(defaultLayout);
   const [searchText, setSearchText] = useState('');
@@ -121,7 +123,7 @@ export function HierarchyGraph({
     return (
       <Card style={{ borderRadius: 8 }}>
         <div style={{ height, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-          <Empty description="暂无层级关系数据" />
+          <Empty description={t('暂无层级关系数据')} />
         </div>
       </Card>
     );
@@ -135,7 +137,7 @@ export function HierarchyGraph({
       extra={
         <Space>
           <Input.Search
-            placeholder="搜索节点"
+            placeholder={t('搜索节点')}
             size="small"
             style={{ width: 160 }}
             value={searchText}
@@ -150,20 +152,20 @@ export function HierarchyGraph({
             style={{ width: 100 }}
             options={[...CYTOSCAPE_LAYOUT_OPTIONS]}
           />
-          <Tooltip title="放大">
+          <Tooltip title={t('放大')}>
             <Button size="small" icon={<ZoomInOutlined />} onClick={() => apiRef.current?.zoomIn()} />
           </Tooltip>
-          <Tooltip title="缩小">
+          <Tooltip title={t('缩小')}>
             <Button size="small" icon={<ZoomOutOutlined />} onClick={() => apiRef.current?.zoomOut()} />
           </Tooltip>
-          <Tooltip title="适应视图">
+          <Tooltip title={t('适应视图')}>
             <Button size="small" icon={<FullscreenOutlined />} onClick={() => apiRef.current?.fitView()} />
           </Tooltip>
-          <Tooltip title="导出PNG">
+          <Tooltip title={t('导出PNG')}>
             <Button size="small" icon={<ExportOutlined />} onClick={handleExportPng} />
           </Tooltip>
           {onRefresh && (
-            <Button size="small" onClick={onRefresh}>刷新</Button>
+            <Button size="small" onClick={onRefresh}>{t('刷新')}</Button>
           )}
           {toolbarExtra}
         </Space>
@@ -213,8 +215,8 @@ export function HierarchyGraph({
       {/* 底部状态栏 */}
       <div style={{ padding: '6px 16px', fontSize: 12, color: '#8c8c8c', borderTop: '1px solid #f0f0f0' }}>
         <Space size={16}>
-          <span>节点: {nodes.length} · 关系: {edges.length}</span>
-          {selectedNodeId && <Tag color="blue">已选中: {selectedNodeId}</Tag>}
+          <span>{t('节点: {{nodeCount}} · 关系: {{edgeCount}}', { nodeCount: nodes.length, edgeCount: edges.length })}</span>
+          {selectedNodeId && <Tag color="blue">{t('已选中: {{nodeId}}', { nodeId: selectedNodeId })}</Tag>}
         </Space>
       </div>
     </Card>

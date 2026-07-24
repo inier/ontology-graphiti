@@ -1,6 +1,7 @@
 import { Button, Tooltip } from 'antd';
 import { ZoomInOutlined, ZoomOutOutlined, ExpandOutlined, AimOutlined } from '@ant-design/icons';
 import { ZOOM_MIN, ZOOM_MAX } from '../utils/graphStyles';
+import { useI18n } from '@/modules/shared/hooks/useI18n';
 
 interface GraphControlsProps {
   zoomLevel: number;
@@ -21,6 +22,7 @@ export function GraphControls({
   onZoomReset,
   onToggleMinimap,
 }: GraphControlsProps) {
+  const { t } = useI18n();
   return (
     <div
       style={{
@@ -36,7 +38,7 @@ export function GraphControls({
         userSelect: 'none',
       }}
     >
-      <Tooltip title="一键居中（保持缩放）" placement="left">
+      <Tooltip title={t('一键居中（保持缩放）')} placement="left">
         <Button
           type="text"
           size="small"
@@ -45,7 +47,7 @@ export function GraphControls({
         />
       </Tooltip>
 
-      <Tooltip title="放大" placement="left">
+      <Tooltip title={t('放大')} placement="left">
         <Button
           type="text"
           size="small"
@@ -56,7 +58,7 @@ export function GraphControls({
         />
       </Tooltip>
 
-      <Tooltip title="点击重置为100%" placement="left">
+      <Tooltip title={t('点击重置为100%')} placement="left">
         <div
           onClick={onZoomReset}
           style={{
@@ -76,7 +78,7 @@ export function GraphControls({
         </div>
       </Tooltip>
 
-      <Tooltip title="缩小" placement="left">
+      <Tooltip title={t('缩小')} placement="left">
         <Button
           type="text"
           size="small"
@@ -87,7 +89,7 @@ export function GraphControls({
         />
       </Tooltip>
 
-      <Tooltip title="全局缩略图" placement="left">
+      <Tooltip title={t('全局缩略图')} placement="left">
         <Button
           type={minimapOpen ? 'primary' : 'text'}
           size="small"

@@ -15,7 +15,20 @@ export default defineConfig({
     },
   },
   optimizeDeps: {
-    include: ['jit-viewer'],
+    include: [
+      'jit-viewer',
+      'graphology',
+      'graphology-components',
+      'graphology-shortest-path',
+      'graphology-shortest-path/unweighted',
+      'graphology-shortest-path/dijkstra',
+      'graphology-communities-louvain',
+      'graphology-metrics',
+      'graphology-metrics/centrality',
+      'graphology-layout',
+      'graphology-layout-forceatlas2',
+      'graphology-layout-noverlap',
+    ],
   },
   server: {
     host: true,

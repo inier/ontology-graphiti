@@ -1,5 +1,6 @@
 from fastapi import APIRouter, HTTPException, Query, UploadFile, File, Form, Depends
 from odap.infra.security.jwt_auth import get_current_user
+from odap.infra.upload_utils import check_upload_size
 from typing import List, Optional
 from pydantic import BaseModel, Field
 import os
@@ -420,6 +421,8 @@ async def upload_document(
                 data['file_size'] = 0
 
         if file:
+            # P3-M9: 预检 Content-Length，提前拒绝超大文件（知识库文档上限 100 MB）
+            check_upload_size(file, 100 * 1024 * 1024)
             file_content = await file.read()
             data['file_type'] = file.content_type
             data['file_size'] = len(file_content)

@@ -1,4 +1,5 @@
 import type { GraphNode, GraphEdge } from '../types';
+import { useI18n } from '@/modules/shared/hooks/useI18n';
 
 interface TooltipData {
   type: 'node' | 'edge';
@@ -12,13 +13,14 @@ interface GraphTooltipProps {
 }
 
 export function GraphTooltip({ tooltipData, onClose }: GraphTooltipProps) {
+  const { t } = useI18n();
   if (!tooltipData) return null;
 
   const { type, data, position } = tooltipData;
 
   const renderNodeTooltip = (node: GraphNode) => (
-    <div style={{ 
-      maxWidth: '280px', 
+    <div style={{
+      maxWidth: '280px',
       padding: '12px',
       background: '#fff',
       borderRadius: '8px',
@@ -27,9 +29,9 @@ export function GraphTooltip({ tooltipData, onClose }: GraphTooltipProps) {
       zIndex: 1000,
     }}>
       <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '8px' }}>
-        <div style={{ 
-          width: '16px', 
-          height: '16px', 
+        <div style={{
+          width: '16px',
+          height: '16px',
           borderRadius: '4px',
           background: node.side === 'red' ? '#f5222d' : node.side === 'blue' ? '#1890ff' : '#13c2c2',
         }} />
@@ -39,37 +41,37 @@ export function GraphTooltip({ tooltipData, onClose }: GraphTooltipProps) {
       </div>
 
       <div style={{ display: 'flex', gap: '8px', marginBottom: '12px' }}>
-        <span style={{ 
-          padding: '2px 8px', 
-          background: '#f5f7fa', 
+        <span style={{
+          padding: '2px 8px',
+          background: '#f5f7fa',
           borderRadius: '4px',
           fontSize: '12px',
           color: '#666',
         }}>
           ID: {node.id}
         </span>
-        <span style={{ 
-          padding: '2px 8px', 
-          background: '#f5f7fa', 
+        <span style={{
+          padding: '2px 8px',
+          background: '#f5f7fa',
           borderRadius: '4px',
           fontSize: '12px',
           color: '#666',
         }}>
-          类型: {node.type}
+          {t('类型')}: {node.type}
         </span>
       </div>
 
       {node.properties && Object.keys(node.properties).length > 0 && (
         <div>
           <div style={{ fontSize: '12px', fontWeight: '500', color: '#666', marginBottom: '6px' }}>
-            属性
+            {t('属性')}
           </div>
           <div style={{ maxHeight: '150px', overflowY: 'auto' }}>
             {Object.entries(node.properties).map(([key, value]) => (
-              <div 
-                key={key} 
-                style={{ 
-                  display: 'flex', 
+              <div
+                key={key}
+                style={{
+                  display: 'flex',
                   justifyContent: 'space-between',
                   padding: '4px 0',
                   borderBottom: '1px solid #f5f5f5',
@@ -88,15 +90,15 @@ export function GraphTooltip({ tooltipData, onClose }: GraphTooltipProps) {
 
       {!node.properties || Object.keys(node.properties).length === 0 && (
         <div style={{ fontSize: '12px', color: '#999' }}>
-          暂无属性
+          {t('暂无属性')}
         </div>
       )}
     </div>
   );
 
   const renderEdgeTooltip = (edge: GraphEdge) => (
-    <div style={{ 
-      maxWidth: '240px', 
+    <div style={{
+      maxWidth: '240px',
       padding: '12px',
       background: '#fff',
       borderRadius: '8px',
@@ -110,17 +112,17 @@ export function GraphTooltip({ tooltipData, onClose }: GraphTooltipProps) {
 
       <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '8px' }}>
         <span style={{ padding: '2px 8px', background: '#f5f7fa', borderRadius: '4px', fontSize: '12px', color: '#666' }}>
-          类型: {edge.type}
+          {t('类型')}: {edge.type}
         </span>
       </div>
 
       <div style={{ fontSize: '12px', color: '#666' }}>
         <div style={{ display: 'flex', justifyContent: 'space-between', padding: '4px 0' }}>
-          <span style={{ color: '#999' }}>源节点</span>
+          <span style={{ color: '#999' }}>{t('源节点')}</span>
           <span style={{ color: '#333' }}>{edge.source}</span>
         </div>
         <div style={{ display: 'flex', justifyContent: 'space-between', padding: '4px 0' }}>
-          <span style={{ color: '#999' }}>目标节点</span>
+          <span style={{ color: '#999' }}>{t('目标节点')}</span>
           <span style={{ color: '#333' }}>{edge.target}</span>
         </div>
       </div>

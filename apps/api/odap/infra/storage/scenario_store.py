@@ -364,7 +364,7 @@ class ScenarioStore:
                 "synced_scenario": scenario_id,
                 "synced_entities": synced_entities,
                 "synced_events": synced_events,
-                "graph_mode": self._graph_manager._mode
+                "graph_mode": self._graph_manager.mode
             }
 
         except Exception as e:

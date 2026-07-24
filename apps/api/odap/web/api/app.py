@@ -632,6 +632,9 @@ class MockDataWebService:
         async def import_scenario(file: UploadFile = File(...), scenario_id: str = None, user=Depends(get_current_user)):
             """导入本体文档"""
             try:
+                # P3-M9: 预检 Content-Length，上限 50 MB
+                from odap.infra.upload_utils import check_upload_size
+                check_upload_size(file, 50 * 1024 * 1024)
                 content = await file.read()
                 docs = await self.doc_io.import_file(content, scenario_id=scenario_id)
 

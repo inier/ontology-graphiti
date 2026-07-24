@@ -16,6 +16,7 @@ from fastapi import APIRouter, HTTPException, Depends
 from fastapi.responses import StreamingResponse
 
 from odap.infra.security.jwt_auth import get_current_user
+from odap.infra.sse_utils import progress_event_generator, sse_response
 
 from .schemas import ExtractRequest, ExtractResponse, TemplateResponse, BatchExtractRequest
 from ..services.extract_service import ExtractService
@@ -99,42 +100,44 @@ async def extract_batch(request: BatchExtractRequest, user=Depends(get_current_u
 
 @router.get("/progress/{session_id}")
 async def progress_stream(session_id: str, user=Depends(get_current_user)):
-    """SSE 进度流：订阅指定会话的实时进度更新"""
+    """SSE 进度流：订阅指定会话的实时进度更新。
+
+    P0-M1 IDOR 整改：订阅前校验调用者是否为该 session 的 owner（或 admin）。
+    若 session 已存在则按 owner_id 校验；若不存在（尚未创建）允许订阅，
+    由后续 create_state 时记录的 owner_id 在再次访问时校验。
+    """
+    pm = await get_progress_manager()
+    existing_state = await pm.get_state(session_id)
+    if existing_state and not existing_state.is_owned_by(user):
+        operator_id, _ = _extract_operator(user)
+        logger.warning("IDOR blocked on SSE subscribe: caller=%s session=%s owner=%s",
+                       operator_id, session_id, existing_state.owner_id)
+        raise HTTPException(status_code=403, detail="无权订阅该会话的进度")
 
     async def event_generator() -> AsyncGenerator[str, None]:
-        pm = await get_progress_manager()
-        queue = await pm.subscribe(session_id)
+        # P3-M7: 使用公共生成器，带 15s 心跳保活，防止 nginx idle 超时切断
+        async for chunk in progress_event_generator(pm, session_id):
+            yield chunk
 
-        try:
-            while True:
-                event = await queue.receive()
-                if event is None:
-                    break
-                import json
-
-                yield f"data: {json.dumps(event)}\n\n"
-        finally:
-            await pm.unsubscribe(session_id, queue)
-
-    return StreamingResponse(
-        event_generator(),
-        media_type="text/event-stream",
-        headers={
-            "Cache-Control": "no-cache",
-            "Connection": "keep-alive",
-            "X-Accel-Buffering": "no",
-        },
-    )
+    return sse_response(event_generator())
 
 
 @router.get("/progress/{session_id}/status")
 async def get_progress_status(session_id: str, user=Depends(get_current_user)):
-    """获取指定会话的当前进度状态"""
+    """获取指定会话的当前进度状态。
+
+    P0-M1 IDOR 整改：非 owner 非 admin 拒绝访问。
+    """
     try:
         pm = await get_progress_manager()
         state = await pm.get_state(session_id)
         if not state:
             raise HTTPException(status_code=404, detail="会话不存在或进度已过期")
+        if not state.is_owned_by(user):
+            operator_id, _ = _extract_operator(user)
+            logger.warning("IDOR blocked on progress status: caller=%s session=%s owner=%s",
+                           operator_id, session_id, state.owner_id)
+            raise HTTPException(status_code=403, detail="无权查看该会话进度")
         return {
             "session_id": session_id,
             "stage": state.stage,

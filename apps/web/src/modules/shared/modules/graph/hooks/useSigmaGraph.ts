@@ -163,8 +163,10 @@ export function useSigmaGraph({
     const result = detectCommunities(g);
     const nodeColors = new Map<string, string>();
 
+    // P0-C3 fix: communities 类型已从 Map 改为 plain object {[node: string]: number}
+    // （见 graphAlgo.ts:17），这里改为对象索引访问，原 .get() 会抛 TypeError
     g.forEachNode((node) => {
-      const communityId = result.communities.get(node);
+      const communityId = result.communities[node];
       if (communityId !== undefined) {
         const color = result.communityColors.get(communityId) || '#999';
         g.setNodeAttribute(node, 'color', color);

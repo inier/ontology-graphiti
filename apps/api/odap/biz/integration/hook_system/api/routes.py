@@ -39,12 +39,10 @@ class RegisterHookRequest(BaseModel):
     script: str
     description: str = ""
     language: str = "python"
-    phase: str = "post"
-    priority: int = 100
 
 
-class EnableHookRequest(BaseModel):
-    hook_id: str
+# P3-M5: hook_type 严格校验 — 列出合法值供 400 错误返回
+_VALID_HOOK_TYPES = [t.value for t in HookType]
 
 
 @router.post("/register")
@@ -52,10 +50,17 @@ async def register_hook(request: RegisterHookRequest,
     user=Depends(verify_admin)):
     _uid = user.get("sub", "anonymous") if isinstance(user, dict) else "anonymous"
     try:
+        # P3-M5: 严格校验 hook_type，不再静默 fallback 到不存在的 CUSTOM
         try:
             hook_type = HookType(request.hook_type)
         except ValueError:
-            hook_type = HookType.CUSTOM
+            raise HTTPException(
+                status_code=400,
+                detail=(
+                    f"Invalid hook_type: '{request.hook_type}'. "
+                    f"Valid values: {_VALID_HOOK_TYPES}"
+                ),
+            )
 
         result = hook_service.register_hook(
             name=request.name,
@@ -64,26 +69,6 @@ async def register_hook(request: RegisterHookRequest,
             description=request.description,
             language=request.language,
         )
-
-        try:
-            from odap.biz.integration.openharness_agent.adapter.hook_adapter import HookAdapter
-            adapter = HookAdapter()
-            if request.phase == "pre":
-                adapter.register_pre_hook(
-                    event_type=request.name,
-                    handler=lambda ctx: ctx,
-                    priority=request.priority,
-                )
-            else:
-                adapter.register_post_hook(
-                    event_type=request.name,
-                    handler=lambda ctx: ctx,
-                    priority=request.priority,
-                )
-        except HTTPException:
-            raise
-        except Exception as e:
-            logging.getLogger(__name__).debug("Hook adapter registration fallback: %s", e)
 
         _audit("hook_system_register", _uid, "success", details={"name": request.name, "hook_type": request.hook_type})
         return result
@@ -99,15 +84,8 @@ async def unregister_hook(hook_id: str,
     user=Depends(verify_admin)):
     _uid = user.get("sub", "anonymous") if isinstance(user, dict) else "anonymous"
     try:
-        try:
-            from odap.biz.integration.openharness_agent.adapter.hook_adapter import HookAdapter
-            adapter = HookAdapter()
-            adapter.unregister_hook(hook_id)
-        except HTTPException:
-            raise
-        except Exception:
-            pass
-
+        # P3-M4: 移除已废弃且签名错误的 HookAdapter 调用
+        # （HookAdapter 内部以错误签名调 HookManager.register_hook，必然失败被静默吞掉）
         hook = hook_service.get_hook(hook_id)
         if hook.get("status") == "error":
             raise HTTPException(status_code=404, detail=hook.get("message", "Hook not found"))
@@ -143,13 +121,15 @@ async def list_hooks(
 @router.post("/{hook_id}/enable")
 async def enable_hook(hook_id: str,
     user=Depends(verify_admin)):
+    """启用 Hook（P0-C4 整改：调用真正的 set_enabled，不再是 no-op）。"""
     _uid = user.get("sub", "anonymous") if isinstance(user, dict) else "anonymous"
     try:
-        hook = hook_service.get_hook(hook_id)
-        if hook.get("status") == "error":
-            raise HTTPException(status_code=404, detail=hook.get("message", "Hook not found"))
-        _audit("hook_system_enable", _uid, "success", details={"hook_id": hook_id})
-        return {"status": "success", "hook_id": hook_id, "enabled": True}
+        result = hook_service.set_enabled(hook_id, True)
+        if result.get("status") == "error":
+            raise HTTPException(status_code=404, detail=result.get("message", "Hook not found"))
+        _audit("hook_system_enable", _uid, "success",
+               details={"hook_id": hook_id, "new_status": result.get("hook_status")})
+        return result
     except HTTPException:
         raise
     except Exception as e:
@@ -160,13 +140,15 @@ async def enable_hook(hook_id: str,
 @router.post("/{hook_id}/disable")
 async def disable_hook(hook_id: str,
     user=Depends(verify_admin)):
+    """禁用 Hook（P0-C4 整改：调用真正的 set_enabled，不再是 no-op）。"""
     _uid = user.get("sub", "anonymous") if isinstance(user, dict) else "anonymous"
     try:
-        hook = hook_service.get_hook(hook_id)
-        if hook.get("status") == "error":
-            raise HTTPException(status_code=404, detail=hook.get("message", "Hook not found"))
-        _audit("hook_system_disable", _uid, "success", details={"hook_id": hook_id})
-        return {"status": "success", "hook_id": hook_id, "enabled": False}
+        result = hook_service.set_enabled(hook_id, False)
+        if result.get("status") == "error":
+            raise HTTPException(status_code=404, detail=result.get("message", "Hook not found"))
+        _audit("hook_system_disable", _uid, "success",
+               details={"hook_id": hook_id, "new_status": result.get("hook_status")})
+        return result
     except HTTPException:
         raise
     except Exception as e:

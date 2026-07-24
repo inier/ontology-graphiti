@@ -1,7 +1,8 @@
 import Graph from 'graphology';
-import { dijkstra, bfs } from 'graphology-shortest-path';
+import { bidirectional as unweightedBidirectional } from 'graphology-shortest-path/unweighted';
+import { bidirectional as dijkstraBidirectional } from 'graphology-shortest-path/dijkstra';
 import louvain from 'graphology-communities-louvain';
-import { degreeCentrality, betweennessCentrality, closenessCentrality } from 'graphology-metrics/centrality';
+import { degree, betweenness, closeness } from 'graphology-metrics/centrality';
 import { connectedComponents } from 'graphology-components';
 import type { GraphNode, GraphEdge } from '../types';
 
@@ -13,15 +14,15 @@ export interface ShortestPathResult {
 }
 
 export interface CommunityResult {
-  communities: Map<string, number>;
+  communities: { [node: string]: number };
   communityColors: Map<number, string>;
   communityCount: number;
 }
 
 export interface CentralityResult {
-  degree: Map<string, number>;
-  betweenness: Map<string, number>;
-  closeness: Map<string, number>;
+  degree: { [node: string]: number };
+  betweenness: { [node: string]: number };
+  closeness: { [node: string]: number };
 }
 
 export interface ComponentResult {
@@ -45,12 +46,12 @@ export function findShortestPath(
     return { nodes: [], edges: [], distance: 0, pathFound: false };
   }
 
-  let nodePath: string[];
+  let nodePath: string[] | null;
   try {
     if (weighted) {
-      nodePath = dijkstra(graph, source, target);
+      nodePath = dijkstraBidirectional(graph, source, target);
     } else {
-      nodePath = bfs(graph, source, target);
+      nodePath = unweightedBidirectional(graph, source, target);
     }
   } catch {
     return { nodes: [], edges: [], distance: 0, pathFound: false };
@@ -62,7 +63,7 @@ export function findShortestPath(
 
   const edges: string[] = [];
   for (let i = 0; i < nodePath.length - 1; i++) {
-    const edge = graph.getEdge(nodePath[i], nodePath[i + 1]);
+    const edge = graph.edge(nodePath[i], nodePath[i + 1]);
     if (edge) edges.push(edge);
   }
 
@@ -77,8 +78,8 @@ export function findShortestPath(
 export function detectCommunities(graph: Graph): CommunityResult {
   const communities = louvain(graph);
   const communityColors = new Map<number, string>();
-  const communityIds = new Set(communities.values());
-  const sortedIds = Array.from(communityIds).sort();
+  const communityIds = new Set(Object.values(communities));
+  const sortedIds = Array.from(communityIds).sort((a, b) => a - b);
 
   sortedIds.forEach((id, index) => {
     communityColors.set(id, COMMUNITY_COLORS[index % COMMUNITY_COLORS.length]);
@@ -93,9 +94,9 @@ export function detectCommunities(graph: Graph): CommunityResult {
 
 export function calculateCentrality(graph: Graph): CentralityResult {
   return {
-    degree: degreeCentrality(graph),
-    betweenness: betweennessCentrality(graph),
-    closeness: closenessCentrality(graph),
+    degree: degree(graph),
+    betweenness: betweenness(graph),
+    closeness: closeness(graph),
   };
 }
 

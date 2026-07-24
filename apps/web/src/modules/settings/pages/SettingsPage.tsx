@@ -12,8 +12,23 @@ import type { ServiceCategory } from '../types';
 
 const { Title } = Typography;
 
+// P4-1: 常量移到组件外，避免每次渲染重建
+const CATEGORY_ORDER: ServiceCategory[] = [
+  'llm',
+  'graph_db',
+  'object_storage',
+  'search',
+  'mcp',
+  'crawl',
+  'policy_engine',
+  'cache',
+  'oauth',
+  'auth',
+  'general',
+];
+
 export default function SettingsPage() {
-  const { t } = useI18n('settings');
+  const { t, instance } = useI18n('settings');
   const {
     categories,
     loading,
@@ -26,13 +41,14 @@ export default function SettingsPage() {
   } = useConfigStore();
   const { show: showGlobalLoading, hide: hideGlobalLoading } = useGlobalLoading();
 
+  // P4-1: useMemo/useEffect 依赖用 instance.language 而非 t，避免每次渲染都重跑
   useEffect(() => {
     if (loading && categories.length === 0) {
       showGlobalLoading(t('加载配置中...'));
     } else {
       hideGlobalLoading();
     }
-  }, [loading, categories.length, showGlobalLoading, hideGlobalLoading, t]);
+  }, [loading, categories.length, showGlobalLoading, hideGlobalLoading, instance.language]);
 
   useEffect(() => {
     fetchConfigs();
@@ -53,24 +69,10 @@ export default function SettingsPage() {
     fetchConfigs();
   }, [fetchConfigs]);
 
-  // Sort categories by a defined order
-  const categoryOrder: ServiceCategory[] = [
-    'llm',
-    'graph_db',
-    'object_storage',
-    'search',
-    'mcp',
-    'crawl',
-    'policy_engine',
-    'cache',
-    'oauth',
-    'auth',
-    'general',
-  ];
-
+  // P4-1: 使用组件外常量 CATEGORY_ORDER
   const sortedCategories = [...categories].sort((a, b) => {
-    const idxA = categoryOrder.indexOf(a.category);
-    const idxB = categoryOrder.indexOf(b.category);
+    const idxA = CATEGORY_ORDER.indexOf(a.category);
+    const idxB = CATEGORY_ORDER.indexOf(b.category);
     return (idxA === -1 ? 999 : idxA) - (idxB === -1 ? 999 : idxB);
   });
 
@@ -105,16 +107,16 @@ export default function SettingsPage() {
         {error && (
           <Alert
             type="error"
-            title={error}
-            closable={{ onClose: clearError }}
-            
+            message={error}
+            closable
+            onClose={clearError}
             style={{ marginBottom: 16 }}
           />
         )}
 
         {loading && categories.length === 0 ? (
           <div style={{ minHeight: 200, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-            <Spin size="large" description={t('加载配置中...')} />
+            <Spin size="large" tip={t('加载配置中...')} />
           </div>
         ) : (
           <Collapse

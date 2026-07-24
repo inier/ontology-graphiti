@@ -378,7 +378,7 @@ class ObjectService:
             return []
         links = []
         try:
-            if hasattr(self.graph, '_mode') and self.graph._mode in ('neo4j_driver', 'graphiti'):
+            if hasattr(self.graph, 'mode') and self.graph.mode in ('neo4j_driver', 'graphiti'):
                 relationships = []
                 rels = self.graph.search(object_id, max_depth=depth)
                 if isinstance(rels, list):
@@ -390,7 +390,7 @@ class ObjectService:
                         'link_type': rel_dict.get('relation_type', rel_dict.get('type', '')),
                         'properties': {k: v for k, v in rel_dict.get('properties', {}).items() if v is not None},
                     })
-            elif hasattr(self.graph, '_mode') and self.graph._mode == 'fallback':
+            elif hasattr(self.graph, 'mode') and self.graph.mode == 'fallback':
                 links = self._get_links_fallback(object_id, depth)
         except Exception as e:
             logger.debug(f"Get links for {object_id} failed: {e}")

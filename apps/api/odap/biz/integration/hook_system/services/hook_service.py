@@ -58,12 +58,30 @@ class HookService:
             }
         except ValueError as e:
             return {"status": "error", "message": str(e)}
-    
-    def list_hooks(self, filters: Dict[str, Any] = None, 
+
+    def set_enabled(self, hook_id: str, enabled: bool) -> Dict[str, Any]:
+        """启用/禁用 Hook（P0-C4 整改）。
+
+        原 enable/disable 端点是 no-op；本方法真正调用 manager.set_enabled 切换状态。
+        """
+        try:
+            hook = self.manager.set_enabled(hook_id, enabled)
+            return {
+                "status": "success",
+                "hook_id": hook.id,
+                "enabled": enabled,
+                "hook_status": hook.status.value,
+            }
+        except ValueError as e:
+            return {"status": "error", "message": str(e)}
+
+    def list_hooks(self, filters: Dict[str, Any] = None,
                   page: int = 1, page_size: int = 10) -> Dict[str, Any]:
-        """列出Hooks"""
+        """列出Hooks（P0-M3 整改：total 返回真实总数而非当前页长度）。"""
         hooks = self.manager.list_hooks(filters, page, page_size)
-        
+        # P0-M3 fix: 用 count_hooks 取真实总数，而非 len(当前页)
+        total = self.manager.count_hooks(filters)
+
         hook_list = []
         for hook in hooks:
             hook_list.append({
@@ -72,10 +90,10 @@ class HookService:
                 "hook_type": hook.hook_type.value,
                 "status": hook.status.value
             })
-        
+
         return {
             "hooks": hook_list,
             "page": page,
             "page_size": page_size,
-            "total": len(hook_list)
+            "total": total
         }

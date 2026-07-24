@@ -24,6 +24,8 @@ from odap.biz.core.ontology.extraction.models.schemas import (
 )
 from odap.biz.data.hyper_extract.services.progress_manager import get_progress_manager
 from odap.infra.security.jwt_auth import get_current_user
+from odap.infra.sse_utils import progress_event_generator, sse_response
+from odap.infra.upload_utils import stream_upload_to_file, check_upload_size
 
 logger = logging.getLogger(__name__)
 
@@ -87,99 +89,6 @@ async def extract_from_database(
         raise HTTPException(status_code=500, detail=str(e))
 
 
-def _simple_nl_extract(text: str, is_async: bool = False) -> dict:
-    """Simple NL extraction using ChatOpenAI directly — bypasses hyper-extract.
-
-    Hyper-extract has compatibility issues with non-OpenAI endpoints (NVIDIA NIM,
-    custom proxies) due to embeddings, YAML expectations, and parallel LLM calls
-    that exhaust rate limits. This function provides a reliable fallback.
-    """
-    import json as _json
-    import os as _os
-    import uuid as _uuid
-    from langchain_openai import ChatOpenAI
-    from langchain_core.messages import HumanMessage
-
-    # Use env var directly to avoid config encryption key mismatch
-    # (config DB auto-populates from env but encrypts with a per-process key)
-    api_key = _os.environ.get("OPENAI_API_KEY", "")
-    api_base = _os.environ.get("OPENAI_API_BASE", "https://api.openai.com/v1")
-    model = _os.environ.get("OPENAI_MODEL", "gpt-4o")
-
-    if not api_key:
-        return {"status": "error", "message": "LLM API key not configured"}
-
-    llm = ChatOpenAI(
-        model=model,
-        api_key=api_key,
-        base_url=api_base,
-        temperature=0,
-    )
-
-    prompt = (
-        "你是一个本体设计专家。请从以下自然语言描述中提取结构化的类型定义。\n\n"
-        "返回一个JSON对象，包含以下键：\n"
-        '- "object_types": 对象类型列表，每个有 name (英文snake_case), display_name (中文), description\n'
-        '- "link_types": 关系类型列表，每个有 name, source_type, target_type, description\n'
-        '- "action_types": 动作类型列表，每个有 name, description\n'
-        '- "rule_types": 规则类型列表，每个有 name, description\n'
-        '- "process_types": 业务流程类型列表，每个有 name, description\n'
-        '- "indicator_types": 指标类型列表，每个有 name, indicator_type (kpi/metric/dimension), formula, unit\n\n'
-        "IMPORTANT: 只返回有效的JSON对象。不要markdown，不要解释，不要代码块。\n\n"
-        f"自然语言描述：\n{text[:3000]}"
-    )
-
-    try:
-        resp = llm.invoke([HumanMessage(content=prompt)])
-        content = resp.content if hasattr(resp, "content") else str(resp)
-    except Exception as e:
-        return {"status": "error", "message": f"LLM call failed: {type(e).__name__}: {e}"}
-
-    if not content or not content.strip():
-        return {"status": "error", "message": "LLM returned empty response"}
-
-    # Parse JSON from response (handle prefix text like "我们{...}")
-    for i, ch in enumerate(content):
-        if ch in "{[":
-            try:
-                parsed = _json.loads(content[i:])
-                break
-            except _json.JSONDecodeError:
-                continue
-    else:
-        return {"status": "error", "message": "Failed to parse LLM response as JSON", "raw": content[:200]}
-
-    if not isinstance(parsed, dict):
-        return {"status": "error", "message": "LLM response is not a JSON object"}
-
-    session_id = str(_uuid.uuid4())
-    result = {
-        "status": "ok",
-        "session_id": session_id,
-        "result": {
-            "object_types": parsed.get("object_types", []),
-            "link_types": parsed.get("link_types", []),
-            "action_types": parsed.get("action_types", []),
-            "rule_types": parsed.get("rule_types", []),
-            "process_types": parsed.get("process_types", []),
-            "indicator_types": parsed.get("indicator_types", []),
-            "entities": [],
-            "relations": [],
-            "conflicts": [],
-        },
-        "conflicts": [],
-        "source": "simple_nl_extract",
-        "summary": {
-            "object_types": len(parsed.get("object_types", [])),
-            "link_types": len(parsed.get("link_types", [])),
-            "action_types": len(parsed.get("action_types", [])),
-            "rule_types": len(parsed.get("rule_types", [])),
-            "process_types": len(parsed.get("process_types", [])),
-            "indicator_types": len(parsed.get("indicator_types", [])),
-        },
-    }
-    return result
-
 @router.post("/extract/natural-language")
 async def extract_from_natural_language(
     request: NLExtractionRequest,
@@ -191,7 +100,7 @@ async def extract_from_natural_language(
     compatibility with non-OpenAI endpoints (NVIDIA NIM, etc.).
     """
     try:
-        result = _simple_nl_extract(request.text)
+        result = _extraction_service.simple_nl_extract(request.text)
         if result.get("status") == "error":
             raise HTTPException(status_code=400, detail=result.get("message", "Extraction failed"))
 
@@ -236,12 +145,8 @@ async def extract_from_document(
                 detail=f"Unsupported file format: {ext}. Allowed: {', '.join(sorted(ALLOWED_EXTENSIONS))}",
             )
 
-        contents = await file.read()
-        if len(contents) > MAX_FILE_SIZE:
-            raise HTTPException(
-                status_code=400,
-                detail=f"File too large: {len(contents)} bytes. Maximum: {MAX_FILE_SIZE} bytes (100 MB)",
-            )
+        # P3-M9: 预检 Content-Length，提前拒绝超大文件（避免无谓的磁盘写入）
+        check_upload_size(file, MAX_FILE_SIZE)
 
         tmp_dir = tempfile.mkdtemp()
         # 安全：丢弃用户提供的 filename，使用 uuid 防止路径穿越（CRITICAL-4 修复）
@@ -251,8 +156,8 @@ async def extract_from_document(
         if not os.path.realpath(tmp_path).startswith(os.path.realpath(tmp_dir) + os.sep):
             raise HTTPException(status_code=400, detail="Invalid file path")
         try:
-            with open(tmp_path, "wb") as f:
-                f.write(contents)
+            # P3-M9: 流式分块写盘，避免大文件一次性读入内存导致 OOM
+            await stream_upload_to_file(file, tmp_path, max_size=MAX_FILE_SIZE)
 
             result = await _extraction_service.extract_from_document(
                 ontology_id=ontology_id,
@@ -313,8 +218,8 @@ async def extract_from_knowledge_base(
 
         combined_text = "\n\n".join(texts)
 
-        # Use simple NL extraction
-        nl_result = _simple_nl_extract(combined_text)
+        # Use simple NL extraction (P3-M8: 调用 service 层方法)
+        nl_result = _extraction_service.simple_nl_extract(combined_text)
 
         if nl_result.get("status") == "error":
             raise HTTPException(status_code=400, detail=nl_result.get("message", "Extraction failed"))
@@ -520,32 +425,24 @@ async def extraction_progress_stream(
     session_id: str,
     user=Depends(get_current_user),
 ):
-    """SSE 进度流：订阅指定提取会话的实时进度更新"""
+    """SSE 进度流：订阅指定提取会话的实时进度更新。
+
+    P0-M1 IDOR 整改：订阅前校验调用者是否为该 session 的 owner（或 admin）。
+    """
+    pm = await get_progress_manager()
+    existing_state = await pm.get_state(session_id)
+    if existing_state and not existing_state.is_owned_by(user):
+        logger.warning("IDOR blocked on extraction SSE: caller=%s session=%s",
+                       user.get("sub", "anonymous") if isinstance(user, dict) else "anonymous",
+                       session_id)
+        raise HTTPException(status_code=403, detail="无权订阅该会话的进度")
 
     async def event_generator() -> AsyncGenerator[str, None]:
-        pm = await get_progress_manager()
-        queue = await pm.subscribe(session_id)
+        # P3-M7: 使用公共生成器，带 15s 心跳保活，防止 nginx idle 超时切断
+        async for chunk in progress_event_generator(pm, session_id):
+            yield chunk
 
-        try:
-            while True:
-                event = await queue.receive()
-                if event is None:
-                    break
-                import json
-
-                yield f"data: {json.dumps(event)}\n\n"
-        finally:
-            await pm.unsubscribe(session_id, queue)
-
-    return StreamingResponse(
-        event_generator(),
-        media_type="text/event-stream",
-        headers={
-            "Cache-Control": "no-cache",
-            "Connection": "keep-alive",
-            "X-Accel-Buffering": "no",
-        },
-    )
+    return sse_response(event_generator())
 
 
 @router.get("/progress/{session_id}/status")
@@ -553,12 +450,20 @@ async def get_extraction_progress_status(
     session_id: str,
     user=Depends(get_current_user),
 ):
-    """获取指定提取会话的当前进度状态"""
+    """获取指定提取会话的当前进度状态。
+
+    P0-M1 IDOR 整改：非 owner 非 admin 拒绝访问。
+    """
     try:
         pm = await get_progress_manager()
         state = await pm.get_state(session_id)
         if not state:
             raise HTTPException(status_code=404, detail="会话不存在或进度已过期")
+        if not state.is_owned_by(user):
+            logger.warning("IDOR blocked on extraction progress status: caller=%s session=%s",
+                           user.get("sub", "anonymous") if isinstance(user, dict) else "anonymous",
+                           session_id)
+            raise HTTPException(status_code=403, detail="无权查看该会话进度")
         return {
             "session_id": session_id,
             "stage": state.stage,

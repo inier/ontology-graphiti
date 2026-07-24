@@ -1,5 +1,6 @@
 from fastapi import APIRouter, HTTPException, UploadFile, File, Form, Depends
 from odap.infra.security.jwt_auth import get_current_user
+from odap.infra.upload_utils import check_upload_size
 from typing import Optional
 
 from ..services.ingest_service import IngestService
@@ -16,6 +17,8 @@ async def upload_file(
     workspace_id: str = Form("default"),
     user=Depends(get_current_user)):
     try:
+        # P3-M9: 预检 Content-Length，上限 100 MB
+        check_upload_size(file, 100 * 1024 * 1024)
         file_data = await file.read()
         result = ingest_service.upload_file(
             file_name=file.filename,

@@ -30,7 +30,7 @@ interface SkillDefinition {
 
 interface SkillEditorProps {
   skill?: SkillDefinition;
-  visible: boolean;
+  open: boolean;
   onSave: (skill: SkillDefinition) => void;
   onCancel: () => void;
 }
@@ -44,7 +44,7 @@ const categoryOptions = [
   { value: 'custom', label: '自定义 (custom)' },
 ];
 
-export function SkillEditor({ skill, visible, onSave, onCancel }: SkillEditorProps) {
+export function SkillEditor({ skill, open, onSave, onCancel }: SkillEditorProps) {
   const [form] = Form.useForm();
   const [activeTab, setActiveTab] = useState('basic');
   const [inputSchemaText, setInputSchemaText] = useState('');

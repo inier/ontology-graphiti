@@ -192,6 +192,18 @@ class GraphManager(CacheMixin, EntityOpsMixin, RelationshipOpsMixin, TemporalOps
 
         GraphManager._initialized = True
 
+    @property
+    def mode(self) -> str:
+        """P4-1: 公开 mode 属性，外部调用方不应直接访问 _mode。
+
+        返回当前图谱连接模式：
+        - "graphiti": Graphiti 双时态知识图谱（核心功能）
+        - "neo4j_driver": Neo4j Driver 直连
+        - "fallback": NetworkX 内存降级（仅测试模式）
+        - "unavailable": 图数据库不可用
+        """
+        return self._mode
+
     def _connect(self):
         """
         两层连接策略：Graphiti → Neo4j Driver

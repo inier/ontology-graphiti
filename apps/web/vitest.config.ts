@@ -10,15 +10,20 @@ export default defineConfig({
       '@': path.resolve(__dirname, './src'),
     },
   },
-  esbuild: {
-    jsx: 'automatic',
-    jsxImportSource: 'react',
-  },
   test: {
     environment: 'jsdom',
     globals: true,
     setupFiles: ['./src/test/setup.ts'],
     include: ['src/**/*.test.{ts,tsx}'],
+    // P4-2: Vitest 4 + Vite 8 对 CJS/ESM 互操作更严格。
+    // @ant-design/pro-components 的 lib/*.js 使用 CJS exports 语法，
+    // 但其 package.json 声明 "type": "module"，导致 ReferenceError: exports is not defined。
+    // 通过 server.deps.inline 强制 Vitest 转换这些 CJS 依赖。
+    server: {
+      deps: {
+        inline: ['@ant-design/pro-components'],
+      },
+    },
     coverage: {
       provider: 'v8',
       reporter: ['text', 'json', 'html'],

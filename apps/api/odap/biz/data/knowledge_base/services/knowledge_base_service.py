@@ -301,7 +301,7 @@ class KnowledgeBaseService:
 
             # 检查 GraphManager 是否可用
             gm = write_proxy._get_graph_manager()
-            if gm is None or gm._mode == "unavailable":
+            if gm is None or gm.mode == "unavailable":
                 logger.warning("GraphManager 处于 unavailable 模式，无法写入图谱数据")
                 return False
 
@@ -627,7 +627,7 @@ class KnowledgeBaseService:
             from odap.infra.graph.graph_service import GraphManager
             from datetime import datetime, timezone
             graph_manager = GraphManager()
-            if graph_manager._mode in ("graphiti", "neo4j_driver") and not graph_manager._use_fallback:
+            if graph_manager.mode in ("graphiti", "neo4j_driver") and not graph_manager._use_fallback:
                 cleaned_content = doc.get("cleaned_content") or content
                 if cleaned_content and cleaned_content.strip():
                     episode_name = f"kb_doc_{doc_id}"
@@ -757,7 +757,7 @@ class KnowledgeBaseService:
         try:
             from odap.infra.graph.graph_service import GraphManager
             gm = GraphManager()
-            if gm._mode != "unavailable" and gm.neo4j_driver:
+            if gm.mode != "unavailable" and gm.neo4j_driver:
                 # 从 SQLite 收集该知识库的所有 doc_id，用于兼容旧数据（无 kb_id 属性）
                 docs = self._storage.list_documents(kb_id)
                 doc_ids = [d.get("doc_id", "") for d in docs if d.get("doc_id")]
@@ -1022,7 +1022,7 @@ class KnowledgeBaseService:
             from odap.infra.graph.graph_service import GraphManager
             graph_manager = GraphManager()
 
-            if graph_manager._mode == "graphiti" and graph_manager.graph:
+            if graph_manager.mode == "graphiti" and graph_manager.graph:
                 try:
                     edges = await graph_manager.graph.search(
                         query=query, num_results=top_k * 2
@@ -1051,7 +1051,7 @@ class KnowledgeBaseService:
                                     "score": round(getattr(edge, "score", 0.7), 3),
                                     "source": "vector",
                                 })
-            elif graph_manager._mode in ("graphiti", "neo4j_driver"):
+            elif graph_manager.mode in ("graphiti", "neo4j_driver"):
                 try:
                     hybrid_results = graph_manager.search_hybrid(
                         query_text=query, top_k=top_k

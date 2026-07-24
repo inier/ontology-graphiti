@@ -385,7 +385,7 @@ async def health_check():
     gm = GraphManager()
     graphiti_status = {
         "graphiti_core_installed": GRAPHITI_AVAILABLE,
-        "graph_mode": gm._mode,
+        "graph_mode": gm.mode,
         "connected": gm._connected,
         "use_fallback": gm._use_fallback,
     }

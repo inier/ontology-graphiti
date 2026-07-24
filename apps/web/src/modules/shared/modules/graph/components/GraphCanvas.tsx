@@ -24,9 +24,10 @@ import { GraphControls } from './GraphControls';
 import { MinimapPanel } from './MinimapPanel';
 import { PathSearchPanel } from './PathSearchPanel';
 import { GraphTooltip } from './GraphTooltip';
+import { useI18n } from '@/modules/shared/hooks/useI18n';
 
 const AUDIT_KEYWORDS = new Set(['AuditLog', 'AuditUser', 'AuditResource', 'AuditService']);
-function isAuditType(t: string) { return AUDIT_KEYWORDS.has(t); }
+function isAuditType(typeName: string) { return AUDIT_KEYWORDS.has(typeName); }
 
 interface GraphCanvasProps {
   nodes: GraphNode[];
@@ -68,6 +69,7 @@ export function GraphCanvas({
   versionsLoading,
   height: externalHeight,
 }: GraphCanvasProps) {
+  const { t } = useI18n();
   const wrapperRef = useRef<HTMLDivElement>(null);
   const apiRef = useRef<GraphViewApi | null>(null);
   const [layout, setLayout] = useState<SigmaLayoutType>('forceatlas2');
@@ -208,16 +210,16 @@ export function GraphCanvas({
       const count = apiRef.current?.applyCommunityColoring?.();
       if (count !== undefined && count > 0) {
         setCommunityMode(true);
-        message.success(`社区发现完成，共识别 ${count} 个社区`);
+        message.success(t('社区发现完成，共识别 {{count}} 个社区', { count }));
       } else {
-        message.warning('社区发现失败');
+        message.warning(t('社区发现失败'));
       }
     } else {
       apiRef.current?.enableCommunityMode?.(false);
       setCommunityMode(false);
-      message.info('已退出社区着色模式');
+      message.info(t('已退出社区着色模式'));
     }
-  }, [communityMode]);
+  }, [communityMode, t]);
 
   const handleNodeClick = useCallback((node: GraphNode) => {
     apiRef.current?.highlightNode?.(node.id);
@@ -241,7 +243,7 @@ export function GraphCanvas({
     return (
       <Card style={{ borderRadius: 8 }}>
         <div style={{ height: canvasHeight, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-          <Empty description="暂无图谱数据，请先添加对象类型和关系类型" />
+          <Empty description={t('暂无图谱数据，请先添加对象类型和关系类型')} />
         </div>
       </Card>
     );
@@ -271,27 +273,27 @@ export function GraphCanvas({
           </div>
 
           <Space size="middle">
-            <Tooltip title="最短路径搜索 (Ctrl+F)">
+            <Tooltip title={t('最短路径搜索 (Ctrl+F)')}>
               <Button
                 type={showPathSearch ? 'primary' : 'default'}
                 icon={<SearchOutlined />}
                 onClick={() => setShowPathSearch(!showPathSearch)}
               >
-                路径搜索
+                {t('路径搜索')}
               </Button>
             </Tooltip>
 
-            <Tooltip title="社区发现">
+            <Tooltip title={t('社区发现')}>
               <Button
                 type={communityMode ? 'primary' : 'default'}
                 icon={<TeamOutlined />}
                 onClick={handleCommunityToggle}
               >
-                {communityMode ? '退出社区' : '社区发现'}
+                {communityMode ? t('退出社区') : t('社区发现')}
               </Button>
             </Tooltip>
 
-            <Tooltip title="重置视图 (Ctrl+0)">
+            <Tooltip title={t('重置视图 (Ctrl+0)')}>
               <Button
                 icon={<UndoOutlined />}
                 onClick={() => {
@@ -300,11 +302,11 @@ export function GraphCanvas({
                   setCommunityMode(false);
                 }}
               >
-                重置
+                {t('重置')}
               </Button>
             </Tooltip>
 
-            <Tooltip title={fullscreen ? '退出全屏 (Esc)' : '全屏'}>
+            <Tooltip title={fullscreen ? t('退出全屏 (Esc)') : t('全屏')}>
               <Button
                 icon={fullscreen ? <FullscreenExitOutlined /> : <FullscreenOutlined />}
                 onClick={handleFullscreen}
@@ -371,16 +373,16 @@ export function GraphCanvas({
 
         <div style={{ marginTop: 0, padding: '8px 16px', fontSize: 12, color: '#8c8c8c', borderTop: '1px solid #f0f0f0' }}>
           <Space size={16}>
-            <span>滚轮缩放 · 拖动画布 · 点击节点聚焦关联</span>
-            <span>节点: {filteredNodes.length} · 关系: {filteredEdges.length}</span>
+            <span>{t('滚轮缩放 · 拖动画布 · 点击节点聚焦关联')}</span>
+            <span>{t('节点: {{nodeCount}} · 关系: {{edgeCount}}', { nodeCount: filteredNodes.length, edgeCount: filteredEdges.length })}</span>
             {filterType !== 'all' && (
-              <Tag color="blue">已筛选: {filterType} ({filteredNodes.length}个)</Tag>
+              <Tag color="blue">{t('已筛选: {{filterType}} ({{count}}个)', { filterType, count: filteredNodes.length })}</Tag>
             )}
             {communityMode && (
-              <Tag color="purple">社区着色模式</Tag>
+              <Tag color="purple">{t('社区着色模式')}</Tag>
             )}
             <span style={{ marginLeft: 'auto' }}>
-              快捷键: <kbd>Ctrl+F</kbd> 搜索路径 · <kbd>空格</kbd> 适应视图 · <kbd>Esc</kbd> 清除选择
+              {t('快捷键')}: <kbd>Ctrl+F</kbd> {t('搜索路径')} · <kbd>空格</kbd> {t('适应视图')} · <kbd>Esc</kbd> {t('清除选择')}
             </span>
           </Space>
         </div>
