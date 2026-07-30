@@ -137,7 +137,7 @@
 
 **Purpose**: 跨故事的集成验证与质量门
 
-- [ ] T020 Write integration tests for all routes (强制认证 + workspace 隔离 FR-012 + 审计不记内容 FR-013 + valid/candidate 默认过滤 FR-011 + page_size≤100 边界) in tests/integration/test_semantic_retrieval_routes.py
+- [X] T020 Write integration tests for all routes (强制认证 + workspace 隔离 FR-012 + 审计不记内容 FR-013 + valid/candidate 默认过滤 FR-011 + page_size≤100 边界) in tests/integration/test_semantic_retrieval_routes.py
 - [ ] T021 Run G-7 route exception regression + G-8 Cypher/SQL injection regression (`pytest tests/unit/test_audit_cypher_injection.py tests/unit/test_sql_injection.py -q`) + G-10 full unit suite (`pytest tests/unit/ -q`) and fix any failures (本特性涉及 Cypher 图查询，G-8 MUST)
 - [ ] T022 Run architecture-verify gate G-9 + spec consistency check G-3 (对照 specs/008-semantic-retrieval-bus/spec.md 全量验收 5 个 User Story / 16 条 FR / 7 条 SC)
 
