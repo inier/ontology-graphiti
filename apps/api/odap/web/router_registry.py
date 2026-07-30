@@ -142,6 +142,9 @@ def create_router_registry() -> List[tuple]:
     # ── 图谱查看器 ──
     from odap.biz.data.graph_viewer.api.routes import router as graph_viewer_router
 
+    # ── 语义检索服务总线（spec 008 / ADR-073）──
+    from odap.biz.core.ontology.semantic_retrieval.api.routes import router as semantic_retrieval_router
+
     # ── 语义管理 - 统一语义层（USL Iter 1）──
     from odap.biz.semantic_admin.usl_manager.api.routes import router as semantic_admin_usl_router
 
@@ -334,6 +337,9 @@ def create_router_registry() -> List[tuple]:
 
         # 图谱查看器
         (graph_viewer_router,),
+
+        # 语义检索服务总线（spec 008 / ADR-073）
+        (semantic_retrieval_router,),
 
         # 语义管理 - 统一语义层（USL Iter 1）
         (semantic_admin_usl_router,),
