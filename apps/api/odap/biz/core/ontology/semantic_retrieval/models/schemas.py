@@ -76,12 +76,19 @@ class HybridRequest(BaseModel):
     limit: int = Field(default=20, ge=1, le=200)
 
 
-class MetricRequest(BaseModel):
-    """指标查询请求（spec FR-006 / SC-002）。"""
+class TimeWindow(BaseModel):
+    """时间窗口过滤（FR-015 趋势查询边界）。"""
 
-    metric: str = Field(..., description="指标名: instance_count|relation_density|...")
+    start: Optional[str] = Field(default=None, description="起始日期 (YYYY-MM-DD)")
+    end: Optional[str] = Field(default=None, description="结束日期 (YYYY-MM-DD)")
+
+
+class MetricRequest(BaseModel):
+    """指标查询请求（spec FR-006 / SC-002 / US2 BI 工具）。"""
+
+    metric: str = Field(..., description="指标名: count|density|trend (TBox 自动派生 Phase 1)")
     object_type: Optional[str] = Field(default=None, description="按对象类型过滤")
-    time_window: Optional[str] = Field(default=None, description="时间窗口")
+    time_window: Optional[TimeWindow] = Field(default=None, description="时间窗口（趋势查询边界）")
     granularity: Optional[str] = Field(
         default=None, description="聚合粒度: day|week|month"
     )

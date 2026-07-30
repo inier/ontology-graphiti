@@ -20,7 +20,7 @@ from fastapi import APIRouter, Depends, HTTPException
 from odap.infra.security.audit_helper import extract_workspace_id
 from odap.infra.security.jwt_auth import get_current_user
 
-from ..models.schemas import SearchRequest, SearchResult
+from ..models.schemas import MetricRequest, SearchRequest, SearchResult
 from ..services.retrieval_service import RetrievalService
 
 logger = logging.getLogger("semantic_retrieval.routes")
@@ -83,4 +83,36 @@ async def nl_search(request: SearchRequest, user=Depends(get_current_user)):
         raise HTTPException(status_code=500, detail=str(exc))
     return SearchResult(
         query=request.query, mode="nl", total=raw["total"], rows=raw["rows"], explain=raw.get("explain")
+    )
+
+
+@router.post("/metric", response_model=SearchResult)
+async def metric_query(request: MetricRequest, user=Depends(get_current_user)):
+    """分项指标查询 — TBox 自动派生 count/density/trend (FR-006 / US2 BI 工具)。"""
+    workspace_id = extract_workspace_id(user)
+    tw = request.time_window.model_dump() if request.time_window is not None else None
+    try:
+        raw = await _service.metric_search(
+            workspace_id,
+            request.metric,
+            object_type=request.object_type,
+            granularity=request.granularity,
+            time_window=tw,
+            limit=20,
+        )
+    except HTTPException:
+        raise
+    except ValueError as exc:
+        raise HTTPException(status_code=400, detail=str(exc))
+    except Exception as exc:
+        logger.exception("metric query failed")
+        raise HTTPException(status_code=500, detail=str(exc))
+    metrics = raw.get("metrics", raw["rows"])
+    return SearchResult(
+        query=f"metric:{request.metric}",
+        mode="metric",
+        total=raw["total"],
+        rows=metrics,
+        components=[],
+        explain=raw.get("explain"),
     )

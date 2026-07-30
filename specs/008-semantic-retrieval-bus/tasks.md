@@ -74,11 +74,8 @@
 
 ### Tests for User Story 2 (TDD)
 
-- [ ] T011 [P] [US2] Write test for metric_engine (count 实例数 / density 连接密度 / trend 时间趋势 + 空集/时间窗口/分页边界 + granularity 校验) in tests/unit/test_metric_engine.py
-
-### Implementation for User Story 2
-
-- [ ] T012 [US2] Implement metric_engine (TBox 自动派生统计，Phase 1 不引入 MetricType 一等公民) + `/metric` endpoint + extend unified_router 路由表加入 metric in apps/api/odap/biz/core/ontology/semantic_retrieval/impl/metric_engine.py + api/routes.py (depends T011)
+- [X] T011 [P] [US2] Write test for metric_engine (count 实例数 / density 连接密度 / trend 时间趋势 + 空集/时间窗口/分页边界 + granularity 校验) in tests/unit/test_metric_engine.py
+- [X] T012 [US2] Implement metric_engine (TBox 自动派生统计，Phase 1 不引入 MetricType 一等公民) + `/metric` endpoint + extend unified_router 路由表加入 metric in apps/api/odap/biz/core/ontology/semantic_retrieval/impl/metric_engine.py + api/routes.py (depends T011)
 
 **Checkpoint**: US1 + US2 均独立可用 — P1 故事全部交付
 
