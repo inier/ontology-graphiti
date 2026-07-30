@@ -79,6 +79,12 @@ export const knowledgeApi = {
       }),
     }),
 
+  reExtractDocument: (kbId: string, docId: string, data?: Partial<GraphBuildRequest>): Promise<{ task_id: string; status: string; method?: string }> =>
+    fetchJson<{ task_id: string; status: string; method?: string }>(`${API_BASE}/api/knowledge-bases/${kbId}/documents/${docId}/re-extract`, {
+      method: 'POST',
+      body: JSON.stringify(data || {}),
+    }),
+
   getGraphBuildStatus: (taskId: string): Promise<{ status: string; progress: number; result?: any }> =>
     fetchJson<{ status: string; progress: number; result?: any }>(`${API_BASE}/api/knowledge-bases/graph-tasks/${taskId}`),
 

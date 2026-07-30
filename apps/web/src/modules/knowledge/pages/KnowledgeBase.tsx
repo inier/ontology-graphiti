@@ -23,7 +23,7 @@ import {
 
   RobotOutlined, ArrowLeftOutlined, InboxOutlined, DatabaseOutlined,
 
-  BookOutlined, TagOutlined, BarChartOutlined, ApartmentOutlined,
+  BookOutlined, TagOutlined, BarChartOutlined, ApartmentOutlined, ReloadOutlined,
 
 } from '@ant-design/icons';
 
@@ -138,6 +138,8 @@ export function KnowledgeBase() {
   const [uploadFile, setUploadFile] = useState<File | null>(null);
 
   const [buildProgress, setBuildProgress] = useState<Record<string, number>>({});
+
+  const [rebuildLoading, setRebuildLoading] = useState<Record<string, boolean>>({});
 
   const [categoryModalOpen, setCategoryModalOpen] = useState(false);
 
@@ -525,6 +527,59 @@ export function KnowledgeBase() {
 
     }
 
+  };
+
+  const handleRebuildGraph = async (doc: KnowledgeDocument) => {
+    if (!currentKb) return;
+    setRebuildLoading(prev => ({ ...prev, [doc.doc_id]: true }));
+    setBuildProgress(prev => ({ ...prev, [doc.doc_id]: 0 }));
+
+    const REQUEST_TIMEOUT = 60000;
+
+    try {
+      await Promise.race([
+        knowledgeApi.reExtractDocument(currentKb.kb_id, doc.doc_id),
+        new Promise((_, reject) =>
+          setTimeout(() => reject(new Error('timeout')), REQUEST_TIMEOUT)
+        ),
+      ]);
+
+      setRebuildLoading(prev => {
+        const next = { ...prev };
+        delete next[doc.doc_id];
+        return next;
+      });
+
+      message.success(t('重新构建任务已启动'));
+
+      let progress = 0;
+      const interval = setInterval(() => {
+        progress += 10;
+        setBuildProgress(prev => ({ ...prev, [doc.doc_id]: progress }));
+        if (progress >= 100) {
+          clearInterval(interval);
+          loadDocuments(doc.kb_id, selectedCategory || undefined);
+        }
+      }, 500);
+    } catch (e: any) {
+      setRebuildLoading(prev => {
+        const next = { ...prev };
+        delete next[doc.doc_id];
+        return next;
+      });
+
+      setBuildProgress(prev => {
+        const next = { ...prev };
+        delete next[doc.doc_id];
+        return next;
+      });
+
+      if (e?.message === 'timeout') {
+        message.error(t('重新构建超时，请稍后重试'));
+      } else {
+        message.error(t('重新构建失败'));
+      }
+    }
   };
 
   const handleViewGraph = async (kbId: string) => {
@@ -1103,34 +1158,46 @@ export function KnowledgeBase() {
 
         width: 150,
 
-        render: (built: boolean, record: KnowledgeDocument) => (
+        render: (built: boolean, record: KnowledgeDocument) => {
 
-          built ? (
-            <Space>
-              <Tag color="success">{t('已构建')}</Tag>
-              <Tooltip title={t('查看图谱')}>
-                <Button size="small" type="link" icon={<ApartmentOutlined />} onClick={() => handleViewGraph(record.kb_id)}>
-                  {t('查看')}
-                </Button>
-              </Tooltip>
-            </Space>
-          ) :
+          const isRebuilding = rebuildLoading[record.doc_id];
+          const rebuildProgress = buildProgress[record.doc_id];
 
-          buildProgress[record.doc_id] !== undefined ? (
+          if (isRebuilding || rebuildProgress !== undefined) {
+            const isComplete = rebuildProgress !== undefined && rebuildProgress >= 100;
+            return (
+              <Progress
+                percent={rebuildProgress ?? 0}
+                size="small"
+                status={isComplete ? 'success' : 'active'}
+              />
+            );
+          }
 
-            <Progress percent={buildProgress[record.doc_id]} size="small" />
+          if (built) {
+            return (
+              <Space>
+                <Tag color="success">{t('已构建')}</Tag>
+                <Tooltip title={t('查看图谱')}>
+                  <Button size="small" type="link" icon={<ApartmentOutlined />} onClick={() => handleViewGraph(record.kb_id)}>
+                    {t('查看')}
+                  </Button>
+                </Tooltip>
+                <Tooltip title={t('重新构建：从原始文件重新解析并抽取图谱')}>
+                  <Button size="small" type="link" icon={<ReloadOutlined />} onClick={() => handleRebuildGraph(record)}>
+                    {t('重新构建')}
+                  </Button>
+                </Tooltip>
+              </Space>
+            );
+          }
 
-          ) : (
-
+          return (
             <Button size="small" icon={<BuildOutlined />} onClick={() => handleBuildGraph(record)}>
-
               {t('构建图谱')}
-
             </Button>
-
-          )
-
-        ),
+          );
+        },
 
       },
 
@@ -1593,7 +1660,37 @@ export function KnowledgeBase() {
 
 
 
-              {!currentDoc.graph_built && (
+              {currentDoc.graph_built ? (
+
+                <div style={{ marginTop: 24 }}>
+
+                  <Space direction="vertical" style={{ width: '100%', alignItems: 'center' }}>
+
+                    {(() => {
+                      const progress = buildProgress[currentDoc.doc_id];
+                      const isActive = rebuildLoading[currentDoc.doc_id] || progress !== undefined;
+                      if (!isActive) {
+                        return (
+                          <Button type="primary" icon={<ReloadOutlined />} onClick={() => handleRebuildGraph(currentDoc)}>
+                            {t('重新构建知识图谱')}
+                          </Button>
+                        );
+                      }
+                      const isComplete = progress !== undefined && progress >= 100;
+                      return (
+                        <Progress
+                          percent={progress ?? 0}
+                          status={isComplete ? 'success' : 'active'}
+                          style={{ width: 240 }}
+                        />
+                      );
+                    })()}
+
+                  </Space>
+
+                </div>
+
+              ) : (
 
                 <div style={{ marginTop: 24 }}>
 

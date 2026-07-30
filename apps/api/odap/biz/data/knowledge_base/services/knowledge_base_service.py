@@ -261,7 +261,7 @@ class KnowledgeBaseService:
 
         # 实体名清理：去除噪声片段，提升与已有实体的匹配率
         _NOISE_PREFIX = re.compile(r'^[与和在为从下是](?=[\u4e00-\u9fff]{2})')
-        _NOISE_SUFFIX = re.compile(r'(?<=[\u4e00-\u9fff]{2,})[的之中]$')
+        _NOISE_SUFFIX = re.compile(r'(?<=[\u4e00-\u9fff]{2})[的之中]$')
         cleaned_entities = []
         for e in entities:
             name = e["name"].strip()
@@ -373,7 +373,10 @@ class KnowledgeBaseService:
                 if result.get("status") == "success":
                     relation_count += 1
 
-            return success_count > 0 or len(entities) == 0 or relation_count > 0
+            if not entities and not relations:
+                logger.warning(f"No entities or relations to write for doc {doc_id}")
+                return False
+            return success_count > 0 or relation_count > 0
         except Exception as e:
             logger.warning(f"GraphWriteProxy write failed: {repr(e)}", exc_info=True)
             return False
@@ -670,13 +673,14 @@ class KnowledgeBaseService:
         except Exception as e:
             logger.warning(f"Graphiti Episode indexing skipped for doc {doc_id}: {e}")
 
-        if not graph_ok and entities:
+        if not graph_ok or (not entities and not relations):
+            fail_reason = "图数据库写入失败，请检查 Neo4j 连接" if not graph_ok else "未提取到任何实体或关系"
             duration_ms = int((time.time() - start_time) * 1000)
             _audit_helper(
                 "kb_graph_build_failed",
                 user="system",
                 result_status="failure",
-                result_message="图数据库写入失败，请检查 Neo4j 连接",
+                result_message=fail_reason,
                 service="kb_service",
                 resource=doc_id,
                 details={
@@ -690,17 +694,17 @@ class KnowledgeBaseService:
                 "status": "failed",
                 "progress": 0,
                 "method": used_method,
-                "error": "图数据库写入失败，请检查 Neo4j 连接",
-                "entities_extracted": 0,
-                "relations_extracted": 0,
+                "error": fail_reason,
+                "entities_extracted": len(entities),
+                "relations_extracted": len(relations),
             }
             return {
                 "task_id": task_id,
                 "status": "failed",
                 "method": used_method,
-                "entities_extracted": 0,
-                "relations_extracted": 0,
-                "error": "图数据库写入失败，请检查 Neo4j 连接",
+                "entities_extracted": len(entities),
+                "relations_extracted": len(relations),
+                "error": fail_reason,
             }
 
         entities_extracted = len(entities)
