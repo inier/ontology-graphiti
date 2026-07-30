@@ -953,10 +953,14 @@ class OntologyService:
         """获取本体图谱数据（节点 + 边）
 
         节点来自 object_type_definitions，边来自 link_type_definitions。
+        支持 source_type/target_type 存储 type_id 或节点名称两种情况。
         """
         try:
             object_types = self.storage.list_object_types(ontology_id)
             link_types = self.storage.list_link_types(ontology_id)
+
+            node_ids = {obj["type_id"] for obj in object_types}
+            name_to_id = {obj["name"]: obj["type_id"] for obj in object_types}
 
             nodes = []
             for obj in object_types:
@@ -974,10 +978,21 @@ class OntologyService:
 
             edges = []
             for link in link_types:
+                raw_source = link.get("source_type")
+                raw_target = link.get("target_type")
+                if not raw_source or not raw_target:
+                    continue
+
+                source_id = raw_source if raw_source in node_ids else name_to_id.get(raw_source)
+                target_id = raw_target if raw_target in node_ids else name_to_id.get(raw_target)
+
+                if not source_id or not target_id:
+                    continue
+
                 edges.append({
                     "id": link["link_id"],
-                    "source": link["source_type"],
-                    "target": link["target_type"],
+                    "source": source_id,
+                    "target": target_id,
                     "name": link["name"],
                     "type": link.get("link_type", "ASSOCIATION").lower(),
                     "cardinality": link.get("cardinality", "ONE_TO_MANY"),

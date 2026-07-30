@@ -16,6 +16,7 @@ from .secret_helpers import (
     get_optional_secret,
     PLACEHOLDER_VALUES,
     SecretValidationError,
+    _is_placeholder,
 )
 
 logger = logging.getLogger(__name__)
@@ -103,17 +104,34 @@ class SecurityConfig:
         password in dev (e.g. local Docker with default config). We allow
         that in non-production only.
         """
-        try:
-            return get_required_secret("NEO4J_PASSWORD", min_length=1)
-        except SecretValidationError:
-            # Empty/missing Neo4j password is OK in dev (local Docker)
-            if os.environ.get("ENV", "").lower() in ("production", "prod", "live"):
-                raise
+        env = os.environ.get("ENV", "").lower()
+        is_production = env in ("production", "prod", "live")
+
+        password = os.getenv("NEO4J_PASSWORD")
+        if password is None:
+            if is_production:
+                raise SecretValidationError(
+                    "SECURITY: NEO4J_PASSWORD is not set in production. "
+                    "Set NEO4J_PASSWORD environment variable."
+                )
             logger.warning(
                 "NEO4J_PASSWORD is not set. This is allowed in non-production "
                 "but MUST be set in production."
             )
             return ""
+
+        if _is_placeholder(password):
+            if is_production:
+                raise SecretValidationError(
+                    f"SECURITY: NEO4J_PASSWORD has a placeholder value '{password}'. "
+                    "Replace with a real secret in production."
+                )
+            logger.warning(
+                "NEO4J_PASSWORD appears to be a placeholder value. "
+                "This is allowed in non-production but MUST be changed in production."
+            )
+
+        return password
 
     @classmethod
     def validate(cls, strict: bool = False):

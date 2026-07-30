@@ -1169,6 +1169,20 @@ export const api = {
     return fetchJson(`${API_BASE}/api/skill/categories`);
   },
 
+  async scanAndRegisterSkills(): Promise<{
+    status: string;
+    data: {
+      total_scanned: number;
+      registered: number;
+      skipped_already_registered: number;
+      errors: Array<{ name: string; error: string }>;
+    };
+  }> {
+    return fetchJson(`${API_BASE}/api/skill/scan-and-register`, {
+      method: 'POST',
+    });
+  },
+
   async registerSkill(data: {
     name: string;
     skill_type: string;
@@ -1210,6 +1224,30 @@ export const api = {
     return apiClient.upload(`${API_BASE}/api/skill/upload`, formData);
   },
 
+  async uploadSkillZip(file: File, category: string = 'custom'): Promise<{
+    status: string;
+    data: {
+      name: string;
+      category: string;
+      path: string;
+      parsed: {
+        name?: string;
+        description?: string;
+        input_schema?: Record<string, unknown>;
+        output_schema?: Record<string, unknown>;
+        sections?: Record<string, string>;
+      };
+      registered: boolean;
+      skill_id?: string;
+    };
+  }> {
+    const formData = new FormData();
+    formData.append('skill_file', file);
+    formData.append('category', category);
+
+    return apiClient.upload(`${API_BASE}/api/skill/upload-zip`, formData);
+  },
+
   async toggleSkill(skillName: string, enabled: boolean): Promise<{
     status: string;
     message?: string;
@@ -1218,6 +1256,16 @@ export const api = {
   }> {
     return fetchJson(`${API_BASE}/api/skill/toggle/${skillName}?enabled=${enabled}`, {
       method: 'POST',
+    });
+  },
+
+  async deleteSkill(skillId: string): Promise<{
+    status: string;
+    message?: string;
+    skill_id?: string;
+  }> {
+    return fetchJson(`${API_BASE}/api/skill/${skillId}`, {
+      method: 'DELETE',
     });
   },
 
