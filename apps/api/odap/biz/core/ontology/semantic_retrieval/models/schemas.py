@@ -124,6 +124,24 @@ class ChainRequest(BaseModel):
     )
 
 
+class MdlRequest(BaseModel):
+    """MDL/DSL 推理请求（spec FR-004 / US3 / Q6 决策：禁止新发明 DSL）。
+
+    query 多行字符串，复用 HE YAML 模板语法引用：
+      template: {name}
+      entity: {entity}
+      params: {json_or_kv}
+    """
+
+    query: str = Field(
+        ...,
+        description=(
+            "MDL 查询：多行字符串，首行必须 template: {name}，"
+            "次行 entity: {entity}，可选 params: {json|kv}"
+        ),
+    )
+
+
 class HybridRequest(BaseModel):
     """混合检索请求：显式编排多个组件。"""
 

@@ -20,7 +20,13 @@ from fastapi import APIRouter, Depends, HTTPException
 from odap.infra.security.audit_helper import extract_workspace_id
 from odap.infra.security.jwt_auth import get_current_user
 
-from ..models.schemas import ChainRequest, MetricRequest, SearchRequest, SearchResult
+from ..models.schemas import (
+    ChainRequest,
+    MdlRequest,
+    MetricRequest,
+    SearchRequest,
+    SearchResult,
+)
 from ..services.retrieval_service import RetrievalService
 
 logger = logging.getLogger("semantic_retrieval.routes")
@@ -142,6 +148,34 @@ async def chain_reason(request: ChainRequest, user=Depends(get_current_user)):
         mode="chain",
         total=raw["total"],
         rows=list(reasoning["steps"]),
+        components=[],
+        reasoning=reasoning,
+        warnings=list(raw.get("warnings", [])),
+    )
+
+
+@router.post("/mdl", response_model=SearchResult)
+async def mdl_reason(request: MdlRequest, user=Depends(get_current_user)):
+    """分项 MDL/DSL 推理 — 复用 HE YAML 模板引用 (FR-004 / US3 / Q6 不发明 DSL)。"""
+    workspace_id = extract_workspace_id(user)
+    try:
+        raw = await _service.mdl_search(
+            workspace_id,
+            query=request.query,
+        )
+    except HTTPException:
+        raise
+    except ValueError as exc:
+        raise HTTPException(status_code=400, detail=str(exc))
+    except Exception as exc:
+        logger.exception("mdl reason failed")
+        raise HTTPException(status_code=500, detail=str(exc))
+    reasoning = raw["reasoning"]
+    return SearchResult(
+        query=request.query,
+        mode="mdl",
+        total=raw["total"],
+        rows=[reasoning],
         components=[],
         reasoning=reasoning,
         warnings=list(raw.get("warnings", [])),

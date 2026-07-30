@@ -9,6 +9,7 @@ from typing import Any, Dict, Optional
 
 from ..impl.chain_engine import ChainEngine
 from ..impl.graph_engine import GraphEngine
+from ..impl.mdl_engine import MdlEngine
 from ..impl.metric_engine import MetricEngine
 from ..impl.nl_engine import NLEngine
 from ..impl.unified_router import UnifiedRouter
@@ -27,17 +28,20 @@ class RetrievalService:
         nl_engine: Any = None,
         metric_engine: Any = None,
         chain_engine: Any = None,
+        mdl_engine: Any = None,
         unified_router: Any = None,
     ):
         self._graph = graph_engine or GraphEngine()
         self._nl = nl_engine or NLEngine(graph_engine=self._graph)
         self._metric = metric_engine or MetricEngine()
         self._chain = chain_engine or ChainEngine()
+        self._mdl = mdl_engine or MdlEngine()
         engines = {
             "nl": self._nl,
             "graph": self._graph,
             "metric": self._metric,
             "chain": self._chain,
+            "mdl": self._mdl,
         }
         self._router = unified_router or UnifiedRouter(engines=engines)
 
@@ -124,6 +128,20 @@ class RetrievalService:
                 "rows": raw["total"],
                 "cycle": raw["reasoning"]["cycle_detected"],
                 "depth": max_depth,
+            },
+        )
+        return raw
+
+    async def mdl_search(
+        self, workspace_id: str, *, query: str
+    ) -> Dict[str, Any]:
+        """分项：MDL/DSL 推理 (FR-004 / US3 / Q6: 不发明 DSL，复用 HE 模板)。"""
+        raw = await self._mdl.reason(workspace_id, query=query)
+        audit_retrieval(
+            "mdl_search",
+            details={
+                "template": raw["reasoning"]["template"],
+                "status": raw["reasoning"]["status"],
             },
         )
         return raw
