@@ -94,28 +94,58 @@ async def extract_from_natural_language(
     request: NLExtractionRequest,
     user=Depends(get_current_user),
 ):
-    """Extract schema from natural language description using LLM.
+    """Extract schema from natural language description.
 
-    Uses simple ChatOpenAI-based extraction (not hyper-extract) for
-    compatibility with non-OpenAI endpoints (NVIDIA NIM, etc.).
+    Uses full Hyper-Extract pipeline (template assessment → multi-parse →
+    OntologyMapper merge → LLM supplement → validation) for quality.
+    Falls back to simple_nl_extract if HE is unavailable or fails.
     """
     try:
-        result = _extraction_service.simple_nl_extract(request.text)
-        if result.get("status") == "error":
-            raise HTTPException(status_code=400, detail=result.get("message", "Extraction failed"))
+        result = None
+        he_available = True
 
-        session_id = result.get("session_id", "")
-        if session_id:
-            _extraction_service.ontology_service.create_extraction_session(
-                ontology_id=request.ontology_id,
-                extraction_type="natural_language",
-                input_data={"text": request.text},
-                session_id=session_id,
-            )
-            _extraction_service.ontology_service.update_extraction_session(
-                session_id,
-                {"status": "completed", "result_data": result.get("result", {})},
-            )
+        # Check HE adapter availability
+        try:
+            from odap.biz.data.hyper_extract.impl.he_adapter import HEAdapter
+            _adapter = HEAdapter()
+            he_available = _adapter.is_available()
+        except Exception:
+            he_available = False
+
+        if he_available:
+            try:
+                result = await _extraction_service.extract_from_nl(
+                    ontology_id=request.ontology_id,
+                    text=request.text,
+                    template_id=request.template_id,
+                    method=request.method,
+                )
+                logger.info("HE pipeline succeeded for NL extraction: session_id=%s",
+                            result.get("session_id", ""))
+            except Exception as he_err:
+                logger.warning("HE pipeline failed for NL extraction: %s, falling back to simple_nl_extract", he_err)
+                he_available = False
+
+        if not he_available or result is None or result.get("status") == "error":
+            # Fallback to simple_nl_extract
+            result = _extraction_service.simple_nl_extract(request.text)
+            if result.get("status") == "error":
+                raise HTTPException(status_code=400, detail=result.get("message", "Extraction failed"))
+
+            session_id = result.get("session_id", "")
+            if session_id:
+                _extraction_service.ontology_service.create_extraction_session(
+                    ontology_id=request.ontology_id,
+                    extraction_type="natural_language",
+                    input_data={"text": request.text},
+                    session_id=session_id,
+                )
+                _extraction_service.ontology_service.update_extraction_session(
+                    session_id,
+                    {"status": "completed", "result_data": result.get("result", {})},
+                )
+
+            result["source"] = "simple_nl_extract_fallback"
 
         return result
     except HTTPException:
@@ -183,10 +213,11 @@ async def extract_from_knowledge_base(
     request: KBExtractionRequest,
     user=Depends(get_current_user),
 ):
-    """Extract schema from a knowledge base using simple LLM extraction.
+    """Extract schema from a knowledge base.
 
-    Bypasses hyper-extract due to compatibility issues with non-OpenAI endpoints.
-    Reads KB documents, concatenates text, and extracts via LLM.
+    Uses full Hyper-Extract pipeline (template assessment → multi-parse →
+    OntologyMapper merge → LLM supplement → validation) for quality.
+    Falls back to simple_nl_extract if HE is unavailable or fails.
     """
     import uuid
     try:
@@ -210,58 +241,113 @@ async def extract_from_knowledge_base(
                 continue
             content = doc.get("cleaned_content", "") or doc.get("content", "") or ""
             if content.strip():
-                texts.append(content[:2000])  # Truncate per doc to stay within limits
+                texts.append(content)
             processed_count += 1
 
         if not texts:
             raise HTTPException(status_code=400, detail="No text content found in knowledge base documents")
 
         combined_text = "\n\n".join(texts)
-
-        # Use simple NL extraction (P3-M8: 调用 service 层方法)
-        nl_result = _extraction_service.simple_nl_extract(combined_text)
-
-        if nl_result.get("status") == "error":
-            raise HTTPException(status_code=400, detail=nl_result.get("message", "Extraction failed"))
-
-        session_id = str(uuid.uuid4())
-        nl_result_data = nl_result.get("result", {})
-        result = {
-            "status": "ok",
-            "session_id": session_id,
-            "result": {
-                "entities": nl_result_data.get("entities", []),
-                "relations": nl_result_data.get("relations", []),
-                "object_types": nl_result_data.get("object_types", []),
-                "link_types": nl_result_data.get("link_types", []),
-                "action_types": nl_result_data.get("action_types", []),
-                "rule_types": nl_result_data.get("rule_types", []),
-                "process_types": nl_result_data.get("process_types", []),
-                "indicator_types": nl_result_data.get("indicator_types", []),
-                "conflicts": [],
-            },
-            "conflicts": [],
-            "source": "simple_kb_extract",
-            "summary": nl_result.get("summary", {}),
-            "provenance_summary": {
-                "kb_id": request.kb_id,
-                "total_documents": len(docs),
-                "processed_documents": processed_count,
-            },
+        provenance_summary = {
+            "kb_id": request.kb_id,
+            "total_documents": len(docs),
+            "processed_documents": processed_count,
         }
 
-        _extraction_service.ontology_service.create_extraction_session(
-            ontology_id=request.ontology_id,
-            extraction_type="knowledge_base",
-            input_data={"kb_id": request.kb_id, "document_ids": request.document_ids},
-            session_id=session_id,
-        )
-        _extraction_service.ontology_service.update_extraction_session(
-            session_id,
-            {"status": "completed", "result_data": result.get("result", {})},
-        )
+        # Try full HE pipeline first
+        he_available = True
+        try:
+            from odap.biz.data.hyper_extract.impl.he_adapter import HEAdapter
+            _adapter = HEAdapter()
+            he_available = _adapter.is_available()
+        except Exception:
+            he_available = False
 
-        return result
+        if he_available:
+            try:
+                result = await _extraction_service.extract_from_nl(
+                    ontology_id=request.ontology_id,
+                    text=combined_text,
+                    template_id=request.template_id,
+                    method=request.method,
+                )
+
+                # If HE returned an error status (not exception), fall back
+                if result and result.get("status") == "error":
+                    logger.warning("HE pipeline returned error status for KB extraction: %s, falling back",
+                                   result.get("message", ""))
+                    he_available = False
+                    result = None
+                else:
+                    result["provenance_summary"] = provenance_summary
+                    result["source"] = "he_kb_extract"
+
+                    # Merge KB metadata into session input_data (preserving existing fields)
+                    session_id = result.get("session_id", "")
+                    if session_id:
+                        existing_session = _extraction_service.get_session(session_id)
+                        existing_input = {}
+                        if existing_session.get("status") == "ok":
+                            sess_data = existing_session.get("result", {})
+                            existing_input = sess_data.get("input_data", {}) or {}
+                        merged_input = {
+                            **existing_input,
+                            "kb_id": request.kb_id,
+                            "document_ids": request.document_ids,
+                            "total_chars": len(combined_text),
+                        }
+                        _extraction_service.ontology_service.update_extraction_session(
+                            session_id,
+                            {"input_data": merged_input},
+                        )
+
+                    logger.info("HE pipeline succeeded for KB extraction: kb=%s, session_id=%s",
+                                request.kb_id, result.get("session_id", ""))
+                    return result
+            except Exception as he_err:
+                logger.warning("HE pipeline failed for KB extraction: %s, falling back to simple_nl_extract", he_err)
+
+        if not he_available or result is None:
+            # Fallback to simple_nl_extract
+            nl_result = _extraction_service.simple_nl_extract(combined_text)
+
+            if nl_result.get("status") == "error":
+                raise HTTPException(status_code=400, detail=nl_result.get("message", "Extraction failed"))
+
+            session_id = str(uuid.uuid4())
+            nl_result_data = nl_result.get("result", {})
+            result = {
+                "status": "ok",
+                "session_id": session_id,
+                "result": {
+                    "entities": nl_result_data.get("entities", []),
+                    "relations": nl_result_data.get("relations", []),
+                    "object_types": nl_result_data.get("object_types", []),
+                    "link_types": nl_result_data.get("link_types", []),
+                    "action_types": nl_result_data.get("action_types", []),
+                    "rule_types": nl_result_data.get("rule_types", []),
+                    "process_types": nl_result_data.get("process_types", []),
+                    "indicator_types": nl_result_data.get("indicator_types", []),
+                    "conflicts": [],
+                },
+                "conflicts": [],
+                "source": "simple_kb_extract_fallback",
+                "summary": nl_result.get("summary", {}),
+                "provenance_summary": provenance_summary,
+            }
+
+            _extraction_service.ontology_service.create_extraction_session(
+                ontology_id=request.ontology_id,
+                extraction_type="knowledge_base",
+                input_data={"kb_id": request.kb_id, "document_ids": request.document_ids},
+                session_id=session_id,
+            )
+            _extraction_service.ontology_service.update_extraction_session(
+                session_id,
+                {"status": "completed", "result_data": result.get("result", {})},
+            )
+
+            return result
     except HTTPException:
         raise
     except Exception as e:
