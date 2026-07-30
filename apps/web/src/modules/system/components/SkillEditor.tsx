@@ -70,10 +70,11 @@ export function SkillEditor({ skill, open, onSave, onCancel }: SkillEditorProps)
     }
   }, [skill, open, form]);
 
-  const handleSave = () => {
-    const values = form.getFieldsValue();
-    
+  const handleSave = async () => {
     try {
+      // 先验证表单
+      const values = await form.validateFields();
+      
       const inputSchema = JSON.parse(inputSchemaText);
       const outputSchema = JSON.parse(outputSchemaText);
       
@@ -81,15 +82,26 @@ export function SkillEditor({ skill, open, onSave, onCancel }: SkillEditorProps)
         name: values.name,
         description: values.description,
         category: values.category,
-        triggers: values.triggers?.split(',').map((t: string) => t.trim()).filter(Boolean) || [],
+        triggers: (values.triggers || '').split(',').map((t: string) => t.trim()).filter(Boolean),
         input_schema: inputSchema,
         output_schema: outputSchema,
-        sections: values.sections,
+        sections: values.sections || {},
       };
       
       onSave(skillDef);
-    } catch (e) {
-      message.error('JSON Schema 格式不正确，请检查');
+    } catch (e: any) {
+      // 如果是 JSON 解析错误
+      if (e instanceof SyntaxError) {
+        message.error('JSON Schema 格式不正确，请检查');
+        return;
+      }
+      // 如果是表单验证错误
+      if (e?.errorFields) {
+        message.error('请检查必填字段');
+        setActiveTab('basic');
+        return;
+      }
+      message.error('保存失败: ' + (e?.message || e));
     }
   };
 

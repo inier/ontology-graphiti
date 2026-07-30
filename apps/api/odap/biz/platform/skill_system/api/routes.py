@@ -33,11 +33,11 @@ def _audit(action: str, user_id: str, result_status: str, result_message: str = 
 
 @router.post("/skills")
 async def register_skill(
-    name: str,
-    skill_type: str,
-    description: str = "",
-    category: str = "general",
-    tags: Optional[List[str]] = None,
+    name: str = Query(...),
+    skill_type: str = Query(...),
+    description: str = Query(""),
+    category: str = Query("general"),
+    tags: Optional[List[str]] = Query(None),
     user=Depends(get_current_user)):
     """注册Skill"""
     _uid = user.get("sub", "anonymous") if isinstance(user, dict) else "anonymous"

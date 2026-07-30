@@ -1,6 +1,6 @@
 import { useState, useRef, useEffect } from 'react';
-import { Card, Button, Space, Tag, Switch, Upload, Modal, Form, Input, Select, Tabs, Row, Col, Statistic, message, Popconfirm, Empty, Descriptions, Badge, Divider, Typography } from 'antd';
-import { UploadOutlined, PlusOutlined, DeleteOutlined, CheckCircleOutlined, StopOutlined, AppstoreOutlined, FolderOutlined, FileTextOutlined, EyeOutlined, ThunderboltOutlined } from '@ant-design/icons';
+import { Card, Button, Space, Tag, Switch, Upload, Modal, Form, Input, Select, Tabs, Row, Col, Statistic, message, Popconfirm, Empty, Descriptions, Badge, Divider, Typography, Table } from 'antd';
+import { UploadOutlined, PlusOutlined, DeleteOutlined, CheckCircleOutlined, StopOutlined, AppstoreOutlined, FolderOutlined, FileTextOutlined, EyeOutlined, ThunderboltOutlined, ScanOutlined } from '@ant-design/icons';
 import { api } from '@/modules/shared';
 import { PageHeader } from '@/modules/shared';
 import { SkillEditor } from '../components/SkillEditor';
@@ -37,6 +37,8 @@ export function SkillManagement() {
   const [registeredCount, setRegisteredCount] = useState(0);
   const [categories, setCategories] = useState<Array<{ name: string; skill_count: number; path: string }>>([]);
   const [loadedSkills, setLoadedSkills] = useState<string[]>([]);
+  const [allScannedSkills, setAllScannedSkills] = useState<Skill[]>([]);
+  const [selectedCategory, setSelectedCategory] = useState<string | null>(null);
   const [selectedSkill, setSelectedSkill] = useState<Skill | null>(null);
   const [detailModalVisible, setDetailModalVisible] = useState(false);
   const [uploadModalVisible, setUploadModalVisible] = useState(false);
@@ -49,15 +51,32 @@ export function SkillManagement() {
   const scannedActionRef = useRef<ActionType>(null);
   const registeredActionRef = useRef<ActionType>(null);
 
-  // 统计数据加载（分类 + 已加载Skill）
+  // 统计数据加载（分类 + 已加载Skill + 已扫描Skills + 计数）
   const loadStats = async () => {
     try {
-      const [categoriesResult, loadedResult] = await Promise.all([
+      const [categoriesResult, loadedResult, allResult] = await Promise.all([
         api.getSkillCategories().catch(() => ({ categories: [] as { name: string; skill_count: number; path: string }[] })),
         api.getLoadedSkills().catch(() => ({ skills: [] as string[] })),
+        api.getAllSkills().catch(() => ({ registered: [] as Skill[], scanned: [] as Skill[], total_registered: 0, total_scanned: 0 })),
       ]);
       setCategories(categoriesResult.categories || []);
       setLoadedSkills(loadedResult.skills || []);
+      const registered = (allResult.registered || []) as Skill[];
+      const scanned = (allResult.scanned || []) as Skill[];
+      // 构建 name → skill_id 映射，注入到 scanned 数据中以便删除按钮可用
+      const nameToSkillId = new Map<string, string>();
+      registered.forEach((s) => {
+        if (s.name && s.skill_id) nameToSkillId.set(s.name, s.skill_id);
+      });
+      const enabledNames = new Set(registered.map((s) => s.name));
+      setAllScannedSkills(scanned.map(s => ({
+        ...s,
+        skill_id: nameToSkillId.get(s.name),
+        enabled: enabledNames.has(s.name),
+      })));
+      // 关键修复：用接口返回的 total 字段初始化计数，避免条件渲染死锁
+      setScannedCount(allResult.total_scanned ?? scanned.length);
+      setRegisteredCount(allResult.total_registered ?? registered.length);
     } catch (error) {
       console.error('加载统计数据失败:', error);
     }
@@ -73,8 +92,18 @@ export function SkillManagement() {
       api.scanSkillsDirectory().catch(() => ({ skills: [] as Skill[], total: 0 })),
       api.getAllSkills().catch(() => ({ registered: [] as Skill[], scanned: [] as Skill[], total_registered: 0, total_scanned: 0 })),
     ]);
-    const enabledNames = new Set((allResult.registered as Skill[] | undefined)?.map((s) => s.name) || []);
-    return ((scanResult.skills || []) as Skill[]).map(s => ({ ...s, enabled: enabledNames.has(s.name) }));
+    // 构建 name → skill_id 映射（从已注册列表获取 skill_id）
+    const nameToSkillId = new Map<string, string>();
+    (allResult.registered || []).forEach((s) => {
+      const sn = s as Skill;
+      if (sn.name && sn.skill_id) nameToSkillId.set(sn.name, sn.skill_id);
+    });
+    const enabledNames = new Set((allResult.registered || []).map((s) => (s as Skill).name));
+    return ((scanResult.skills || []) as Skill[]).map(s => ({
+      ...s,
+      skill_id: nameToSkillId.get(s.name),
+      enabled: enabledNames.has(s.name),
+    }));
   };
 
   const scannedRequest = async (params: { current?: number; pageSize?: number }, sort: unknown, filter: unknown) => {
@@ -101,6 +130,29 @@ export function SkillManagement() {
     loadStats();
   };
 
+  const handleScanAndRegister = async () => {
+    try {
+      const result = await api.scanAndRegisterSkills();
+      if (result.status === 'success') {
+        const data = result.data;
+        message.success(
+          t('扫描完成: 共发现 {{total}} 个Skill，新注册 {{registered}} 个', { 
+            total: data.total_scanned, 
+            registered: data.registered 
+          })
+        );
+        if (data.errors.length > 0) {
+          message.warning(
+            t('有 {{count}} 个Skill注册失败', { count: data.errors.length })
+          );
+        }
+        refreshAll();
+      }
+    } catch (error) {
+      message.error(t('扫描失败') + `: ${error}`);
+    }
+  };
+
   const handleToggleSkill = async (skill: Skill, enabled: boolean) => {
     try {
       await api.toggleSkill(skill.name, enabled);
@@ -125,11 +177,28 @@ export function SkillManagement() {
 
   const handleUploadFile = async (file: File) => {
     try {
-      const result = await api.uploadSkillFile(file, uploadCategory);
-      if (result.status === 'success') {
-        message.success(t('文件 {{name}} 上传成功', { name: file.name }));
-        setUploadModalVisible(false);
-        refreshAll();
+      if (file.name.toLowerCase().endsWith('.zip')) {
+        // ZIP上传处理
+        const result = await api.uploadSkillZip(file, uploadCategory);
+        if (result.status === 'success') {
+          const data = result.data;
+          message.success(
+            t('Skill "{{name}}" 上传并注册成功', { name: data.name || file.name })
+          );
+          if (data.parsed?.description) {
+            message.info(t('描述: {{desc}}', { desc: data.parsed.description as string }));
+          }
+          setUploadModalVisible(false);
+          refreshAll();
+        }
+      } else {
+        // 单文件上传处理
+        const result = await api.uploadSkillFile(file, uploadCategory);
+        if (result.status === 'success') {
+          message.success(t('文件 {{name}} 上传成功', { name: file.name }));
+          setUploadModalVisible(false);
+          refreshAll();
+        }
       }
     } catch (error) {
       message.error(t('上传失败') + `: ${error}`);
@@ -191,7 +260,10 @@ export function SkillManagement() {
         title={t('目录Skills')}
         extra={
           <Space>
-            <Button type="primary" icon={<UploadOutlined />} onClick={() => setUploadModalVisible(true)}>
+            <Button type="primary" icon={<ScanOutlined />} onClick={handleScanAndRegister}>
+              {t('扫描并注册')}
+            </Button>
+            <Button icon={<UploadOutlined />} onClick={() => setUploadModalVisible(true)}>
               {t('上传Skill')}
             </Button>
             <Button icon={<PlusOutlined />} onClick={() => setRegisterModalVisible(true)}>
@@ -200,15 +272,12 @@ export function SkillManagement() {
           </Space>
         }
       >
-        {scannedCount === 0 ? (
-          <Empty description={t('暂无目录Skills，请上传或扫描')} image={Empty.PRESENTED_IMAGE_SIMPLE} />
-        ) : (
-          <AdvancedTable
-            request={scannedRequest}
-            actionRef={scannedActionRef}
-            rowKey="name"
-            pagination={{ pageSize: 10 }}
-            columns={[
+        <AdvancedTable
+          request={scannedRequest}
+          actionRef={scannedActionRef}
+          rowKey="name"
+          pagination={{ pageSize: 10 }}
+          columns={[
               {
                 title: t('名称'),
                 dataIndex: 'name',
@@ -282,16 +351,22 @@ export function SkillManagement() {
                 ),
               },
             ]}
-          />
-        )}
+        />
       </Card>
     </>
   );
 
   const handleDeleteSkill = async (skill: Skill) => {
     try {
-      await api.toggleSkill(skill.name, false);
-      message.success(t('Skill "{{name}}" 已禁用并从注册列表移除', { name: skill.name }));
+      // 优先使用 skill_id 调用 DELETE 接口真正删除
+      if (skill.skill_id) {
+        await api.deleteSkill(skill.skill_id);
+        message.success(t('Skill "{{name}}" 已删除', { name: skill.name }));
+      } else {
+        // 兜底：skill_id 缺失时只禁用
+        await api.toggleSkill(skill.name, false);
+        message.success(t('Skill "{{name}}" 已禁用（无 skill_id，未真正删除）', { name: skill.name }));
+      }
       refreshAll();
     } catch (error) {
       message.error(t('删除失败') + `: ${error}`);
@@ -326,15 +401,12 @@ export function SkillManagement() {
 
   const renderRegisteredTab = () => (
     <Card title={t('已注册的Skills')}>
-      {registeredCount === 0 ? (
-        <Empty description={t('暂无注册的Skills')} image={Empty.PRESENTED_IMAGE_SIMPLE} />
-      ) : (
-        <AdvancedTable
-          request={registeredRequest}
-          actionRef={registeredActionRef}
-          rowKey="skill_id"
-          pagination={{ pageSize: 10 }}
-          columns={[
+      <AdvancedTable
+        request={registeredRequest}
+        actionRef={registeredActionRef}
+        rowKey="skill_id"
+        pagination={{ pageSize: 10 }}
+        columns={[
             {
               title: t('名称'),
               dataIndex: 'name',
@@ -387,32 +459,137 @@ export function SkillManagement() {
               ),
             },
           ]}
-        />
-      )}
+      />
     </Card>
   );
 
-  const renderCategoriesTab = () => (
-    <Card title={t('Skill分类')}>
-      {categories.length === 0 ? (
-        <Empty description={t('暂无分类')} image={Empty.PRESENTED_IMAGE_SIMPLE} />
-      ) : (
-        <Row gutter={[16, 16]}>
-          {categories.map((cat) => (
-            <Col span={8} key={cat.name}>
-              <Card size="small">
-                <Space orientation="vertical">
-                  <Text strong>{cat.name}</Text>
-                  <Tag color="blue">{cat.skill_count} Skills</Tag>
-                  <Text type="secondary" style={{ fontSize: 11 }}>{cat.path}</Text>
-                </Space>
-              </Card>
-            </Col>
-          ))}
-        </Row>
-      )}
-    </Card>
-  );
+  const renderCategoriesTab = () => {
+    const categorySkills = selectedCategory
+      ? allScannedSkills.filter(s => s.category === selectedCategory)
+      : [];
+
+    return (
+      <>
+        <Card title={t('Skill分类')} style={{ marginBottom: 16 }}>
+          {categories.length === 0 ? (
+            <Empty description={t('暂无分类')} image={Empty.PRESENTED_IMAGE_SIMPLE} />
+          ) : (
+            <Row gutter={[16, 16]}>
+              {categories.map((cat) => (
+                <Col span={8} key={cat.name}>
+                  <Card 
+                    size="small" 
+                    hoverable
+                    style={{ 
+                      cursor: 'pointer',
+                      borderColor: selectedCategory === cat.name ? '#1890ff' : undefined,
+                      boxShadow: selectedCategory === cat.name ? '0 0 0 2px rgba(24,144,255,0.2)' : undefined
+                    }}
+                    onClick={() => setSelectedCategory(cat.name)}
+                  >
+                    <Space orientation="vertical">
+                      <Text strong>{cat.name}</Text>
+                      <Tag color="blue">{cat.skill_count} Skills</Tag>
+                      <Text type="secondary" style={{ fontSize: 11 }}>{cat.path}</Text>
+                    </Space>
+                  </Card>
+                </Col>
+              ))}
+            </Row>
+          )}
+        </Card>
+
+        {selectedCategory && (
+          <Card 
+            title={t('分类 "{{cat}}" 下的Skill', { cat: selectedCategory })}
+            extra={
+              <Button size="small" onClick={() => setSelectedCategory(null)}>
+                {t('返回全部分类')}
+              </Button>
+            }
+          >
+            {categorySkills.length === 0 ? (
+              <Empty description={t('该分类下暂无Skill')} image={Empty.PRESENTED_IMAGE_SIMPLE} />
+            ) : (
+              <Table
+                rowKey="name"
+                pagination={{ pageSize: 10 }}
+                dataSource={categorySkills}
+                columns={[
+                  {
+                    title: t('名称'),
+                    dataIndex: 'name',
+                    key: 'name',
+                    render: (name: string) => <Text strong>{name}</Text>,
+                  },
+                  {
+                    title: t('描述'),
+                    dataIndex: 'description',
+                    key: 'description',
+                    render: (desc: string) => <Text type="secondary">{desc || '-'}</Text>,
+                  },
+                  {
+                    title: t('文件'),
+                    dataIndex: 'files',
+                    key: 'files',
+                    render: (files: string[]) => (
+                      <Space>
+                        {files.map((f, i) => <Tag key={i}>{f}</Tag>)}
+                      </Space>
+                    ),
+                  },
+                  {
+                    title: t('状态'),
+                    dataIndex: 'enabled',
+                    key: 'enabled',
+                    render: (enabled: boolean, record: Skill) => (
+                      <Switch
+                        checked={enabled}
+                        onChange={(checked) => handleToggleSkill(record, checked)}
+                        checkedChildren={<CheckCircleOutlined />}
+                        unCheckedChildren={<StopOutlined />}
+                      />
+                    ),
+                  },
+                  {
+                    title: t('操作'),
+                    key: 'action',
+                    render: (_: unknown, record: Skill) => (
+                      <Space>
+                        <Button
+                          type="link"
+                          icon={<EyeOutlined />}
+                          size="small"
+                          onClick={() => handleViewDetail(record)}
+                        >
+                          {t('详情')}
+                        </Button>
+                        <Button
+                          type="link"
+                          size="small"
+                          onClick={() => handleEditSkill(record)}
+                        >
+                          {t('编辑')}
+                        </Button>
+                        <Popconfirm
+                          title={t('确认删除此Skill?')}
+                          onConfirm={() => handleDeleteSkill(record)}
+                        >
+                          <Button type="link" danger icon={<DeleteOutlined />} size="small">
+                            {t('删除')}
+                          </Button>
+                        </Popconfirm>
+                      </Space>
+                    ),
+                  },
+                ]}
+              />
+            )}
+          </Card>
+        )}
+      </>
+    );
+  };
 
   return (
     <div>
@@ -515,15 +692,15 @@ export function SkillManagement() {
             style={{ width: '100%' }}
           />
           <Upload.Dragger
-            accept=".md,.yaml,.yml"
+            accept=".md,.yaml,.yml,.zip"
             beforeUpload={handleUploadFile}
             showUploadList={false}
           >
             <p className="ant-upload-drag-icon">
               <UploadOutlined />
             </p>
-            <p className="ant-upload-text">{t('点击或拖拽上传SKILL.md文件')}</p>
-            <p className="ant-upload-hint">{t('支持 .md, .yaml, .yml 格式')}</p>
+            <p className="ant-upload-text">{t('点击或拖拽上传Skill文件或压缩包')}</p>
+            <p className="ant-upload-hint">{t('支持 .md, .yaml, .yml 格式文件，或包含 SKILL.md 的 .zip 压缩包')}</p>
           </Upload.Dragger>
         </Space>
       </Modal>
