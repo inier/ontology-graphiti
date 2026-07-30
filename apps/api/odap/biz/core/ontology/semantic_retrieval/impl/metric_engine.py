@@ -138,34 +138,42 @@ class MetricEngine:
         ({metric_name, value, unit, dimensions})。"""
         if metric == "count":
             name = f"{object_type or 'entity'}_count"
-            value = (rows[0].get("value", 0) if rows else 0)
+            value = rows[0].get("value", 0) if rows else 0
             return [{"metric_name": name, "value": value, "unit": "count", "dimensions": {}}]
         if metric == "density":
-            value = (rows[0].get("value", 0.0) if rows else 0.0)
-            return [
-                {
-                    "metric_name": "graph_connection_density",
-                    "value": float(value),
-                    "unit": "edges_per_vertex",
-                    "dimensions": {},
-                }
-            ]
+            return MetricEngine._derive_density(rows)
         if metric == "trend":
-            out = []
-            for row in rows:
-                dimensions = {}
-                if "date" in row:
-                    dimensions["date"] = row["date"]
-                if granularity:
-                    dimensions["granularity"] = granularity
-                out.append(
-                    {
-                        "metric_name": f"{object_type or 'entity'}_trend",
-                        "value": row.get("value", 0),
-                        "unit": "count",
-                        "dimensions": dimensions,
-                    }
-                )
-            return out
+            return MetricEngine._derive_trend(rows, object_type, granularity)
         # 理论上 _is_unknown 已覆盖；保留安全零值
         return []
+
+    @staticmethod
+    def _derive_density(rows: List[Dict[str, Any]]) -> List[Dict[str, Any]]:
+        value = float(rows[0].get("value", 0.0)) if rows else 0.0
+        return [{
+            "metric_name": "graph_connection_density",
+            "value": value,
+            "unit": "edges_per_vertex",
+            "dimensions": {},
+        }]
+
+    @staticmethod
+    def _derive_trend(
+        rows: List[Dict[str, Any]],
+        object_type: Optional[str],
+        granularity: Optional[str],
+    ) -> List[Dict[str, Any]]:
+        out: List[Dict[str, Any]] = []
+        for row in rows:
+            dimensions: Dict[str, Any] = {}
+            if "date" in row:
+                dimensions["date"] = row["date"]
+            if granularity:
+                dimensions["granularity"] = granularity
+            out.append({
+                "metric_name": f"{object_type or 'entity'}_trend",
+                "value": row.get("value", 0),
+                "unit": "count",
+                "dimensions": dimensions,
+            })
+        return out

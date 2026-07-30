@@ -84,49 +84,70 @@ class ChainEngine:
                 f"max_depth 上限为 {MAX_DEPTH_HARD_LIMIT}，当前 {max_depth}"
             )
         rules_list = list(rules or self._default_rules)
-        steps: List[Dict[str, Any]] = []
-        warnings: List[str] = []
-        visited: List[str] = []
-        cycle_path: Optional[List[str]] = None
-        cycle_detected = False
-
         start_node = self._extract_start_node(query)
+        steps: List[Dict[str, Any]] = []
         self._append_init_step(steps, start_node)
-        visited.append(start_node)
 
-        current = start_node
-        for idx, rule_id in enumerate(rules_list):
-            if len(steps) - 1 >= max_depth:
-                warnings.append(
-                    f"推理深度达到 max_depth={max_depth}，已截断（剩余 {len(rules_list) - idx} 条规则未执行）"
-                )
-                break
-            next_step = await self._stepper.step(rule_id, current, duration_ms=50)
-            if next_step is None:
-                break
-            output = str(next_step["output"])
-            if output in visited:
-                cycle_detected = True
-                cycle_start = visited.index(output)
-                cycle_path = visited[cycle_start:] + [output]
-                warnings.append(
-                    "检测到循环依赖 "
-                    + "→".join(cycle_path)
-                    + "，推理已中止"
-                )
-                break
-            steps.append(next_step)
-            visited.append(output)
-            current = output
+        visited = [start_node]
+        cycle_ctx: Dict[str, Any] = {"cycle_detected": False, "cycle_path": None}
+        warnings = await self._run_steps(
+            rules_list, steps, visited, cycle_ctx, max_depth
+        )
 
         conflicts = self._safe_conflicts()
-        reasoning = self._build_reasoning(steps, cycle_detected, cycle_path, conflicts, query)
+        reasoning = self._build_reasoning(
+            steps, cycle_ctx["cycle_detected"], cycle_ctx["cycle_path"], conflicts, query
+        )
         return {
             "mode": "chain",
             "reasoning": reasoning,
             "warnings": warnings,
             "total": len(steps),
         }
+
+    async def _run_steps(
+        self,
+        rules_list: List[str],
+        steps: List[Dict[str, Any]],
+        visited: List[str],
+        cycle_ctx: Dict[str, Any],
+        max_depth: int,
+    ) -> List[str]:
+        """按 rules 顺序步进；检测深度超限 / 循环依赖，返回 warnings。"""
+        warnings: List[str] = []
+        current = visited[0]
+        for idx, rule_id in enumerate(rules_list):
+            if len(steps) - 1 >= max_depth:
+                warnings.append(self._depth_warning(idx, len(rules_list), max_depth))
+                break
+            next_step = await self._stepper.step(rule_id, current, duration_ms=50)
+            if next_step is None:
+                break
+            output = str(next_step["output"])
+            if output in visited:
+                self._mark_cycle(visited, output, cycle_ctx, warnings)
+                break
+            steps.append(next_step)
+            visited.append(output)
+            current = output
+        return warnings
+
+    @staticmethod
+    def _depth_warning(idx: int, total_rules: int, max_depth: int) -> str:
+        return f"推理深度达到 max_depth={max_depth}，已截断（剩余 {total_rules - idx} 条规则未执行）"
+
+    @staticmethod
+    def _mark_cycle(
+        visited: List[str],
+        output: str,
+        cycle_ctx: Dict[str, Any],
+        warnings: List[str],
+    ) -> None:
+        cycle_ctx["cycle_detected"] = True
+        cycle_start = visited.index(output)
+        cycle_path = visited[cycle_start:] + [output]
+        cycle_ctx["cycle_path"] = cycle_path
+        warnings.append("检测到循环依赖 " + "→".join(cycle_path) + "，推理已中止")
 
     async def search(
         self,
