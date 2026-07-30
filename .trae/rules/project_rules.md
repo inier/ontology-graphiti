@@ -1,8 +1,17 @@
 <!-- SPECKIT START -->
 For additional context about technologies to be used, project structure,
 shell commands, and other important information, read the current plan
-at specs/006-he-extraction-chain/plan.md and research at specs/006-he-extraction-chain/research.md,
-plus semantic admin docs at specs/007-semantic-admin-suite/spec.md
+at specs/008-semantic-retrieval-bus/plan.md and research at specs/008-semantic-retrieval-bus/research.md,
+plus ADR-073 at docs/07-adr/ADR-073_基于本体的数据服务四步落地架构.md and glossary at CONTEXT.md
+
+**Active feature branch**: `008-semantic-retrieval-bus`
+For Semantic Retrieval Service Bus (用本体阶段统一检索服务总线: 统一/分项/混合三层检索 + MCP 工具暴露) work, also read:
+- spec at `specs/008-semantic-retrieval-bus/spec.md`
+- plan at `specs/008-semantic-retrieval-bus/plan.md`
+- research at `specs/008-semantic-retrieval-bus/research.md`
+- data model at `specs/008-semantic-retrieval-bus/data-model.md`
+- quickstart at `specs/008-semantic-retrieval-bus/quickstart.md`
+- contracts under `specs/008-semantic-retrieval-bus/contracts/`
 
 **Active feature branch**: `006-he-extraction-chain`
 For current Hyper-Extract extraction chain work, also read:
