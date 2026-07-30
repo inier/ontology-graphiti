@@ -108,11 +108,11 @@
 
 ### Tests for User Story 4 (TDD)
 
-- [ ] T016 [P] [US4] Write test for hybrid_orchestrator (skip 跳过继续 / abort 中止全部 / degrade 降级返回 + 组件数≤10 + >5 警告 + 结果合并) in tests/unit/test_hybrid_orchestrator.py
+- [X] T016 [P] [US4] Write test for hybrid_orchestrator (skip 跳过继续 / abort 中止全部 / degrade 降级返回 + 组件数≤10 + >5 警告 + 结果合并) in tests/unit/test_hybrid_orchestrator.py
 
 ### Implementation for User Story 4
 
-- [ ] T017 [US4] Implement hybrid_orchestrator (adapter over PipelineService + on_failure 策略 + 结果合并) + `/hybrid` endpoint in apps/api/odap/biz/core/ontology/semantic_retrieval/impl/hybrid_orchestrator.py + api/routes.py (depends T016)
+- [X] T017 [US4] Implement hybrid_orchestrator (adapter over PipelineService + on_failure 策略 + 结果合并) + `/hybrid` endpoint in apps/api/odap/biz/core/ontology/semantic_retrieval/impl/hybrid_orchestrator.py + api/routes.py (depends T016)
 
 **Checkpoint**: US4 可用 — 混合检索支持容错编排
 

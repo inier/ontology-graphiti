@@ -22,6 +22,7 @@ from odap.infra.security.jwt_auth import get_current_user
 
 from ..models.schemas import (
     ChainRequest,
+    HybridRequest,
     MdlRequest,
     MetricRequest,
     SearchRequest,
@@ -178,5 +179,34 @@ async def mdl_reason(request: MdlRequest, user=Depends(get_current_user)):
         rows=[reasoning],
         components=[],
         reasoning=reasoning,
+        warnings=list(raw.get("warnings", [])),
+    )
+
+
+@router.post("/hybrid", response_model=SearchResult)
+async def hybrid_search(request: HybridRequest, user=Depends(get_current_user)):
+    """混合检索编排 — 多组件顺序执行 + on_failure 容错 (FR-007/008 / US4)。"""
+    workspace_id = extract_workspace_id(user)
+    components = [c.model_dump() for c in request.components]
+    try:
+        raw = await _service.hybrid_search(
+            workspace_id,
+            components,
+            merge=request.merge,
+        )
+    except HTTPException:
+        raise
+    except ValueError as exc:
+        raise HTTPException(status_code=400, detail=str(exc))
+    except Exception as exc:
+        logger.exception("hybrid search failed")
+        raise HTTPException(status_code=500, detail=str(exc))
+    return SearchResult(
+        query=f"hybrid:{len(components)}components",
+        mode="hybrid",
+        total=raw["total"],
+        rows=raw["rows"],
+        components=raw["components"],
+        explain={"request_id": raw["request_id"]},
         warnings=list(raw.get("warnings", [])),
     )

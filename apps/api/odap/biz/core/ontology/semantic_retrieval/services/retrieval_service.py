@@ -9,6 +9,7 @@ from typing import Any, Dict, Optional
 
 from ..impl.chain_engine import ChainEngine
 from ..impl.graph_engine import GraphEngine
+from ..impl.hybrid_orchestrator import HybridOrchestrator
 from ..impl.mdl_engine import MdlEngine
 from ..impl.metric_engine import MetricEngine
 from ..impl.nl_engine import NLEngine
@@ -44,6 +45,7 @@ class RetrievalService:
             "mdl": self._mdl,
         }
         self._router = unified_router or UnifiedRouter(engines=engines)
+        self._hybrid = HybridOrchestrator(engines=engines)
 
     async def search(self, workspace_id: str, request: SearchRequest) -> SearchResult:
         """统一检索入口（FR-001）：按 request.mode 路由。"""
@@ -142,6 +144,27 @@ class RetrievalService:
             details={
                 "template": raw["reasoning"]["template"],
                 "status": raw["reasoning"]["status"],
+            },
+        )
+        return raw
+
+    async def hybrid_search(
+        self,
+        workspace_id: str,
+        components: list,
+        *,
+        merge: str = "concat",
+    ) -> Dict[str, Any]:
+        """混合检索编排 (FR-007/008 / US4)：多组件顺序执行 + on_failure 容错。"""
+        raw = await self._hybrid.orchestrate(
+            workspace_id, components, merge=merge
+        )
+        audit_retrieval(
+            "hybrid_search",
+            details={
+                "components": len(components),
+                "rows": raw["total"],
+                "warnings": len(raw["warnings"]),
             },
         )
         return raw

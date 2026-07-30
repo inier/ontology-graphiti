@@ -19,6 +19,10 @@ class SearchComponent(BaseModel):
 
     type: str = Field(..., description="检索类型: chain|nl|mdl|graph|metric")
     params: Dict[str, Any] = Field(default_factory=dict, description="该组件的入参")
+    on_failure: str = Field(
+        default="skip",
+        description="失败容错策略: skip(跳过继续)|abort(中止全部)|degrade(降级返回)",
+    )
 
 
 class SearchRequest(BaseModel):
