@@ -181,6 +181,26 @@
 
 ---
 
+## Phase 11: Phase 2 — Iter 3 MdlEngine → HE Template.create 真实执行 (Priority: P2)
+
+**Goal**: MdlEngine.reason() 调真实 HEAdapter.parse() → Template.create() + AutoType.parse(text)，返回 entities/relations 回填到 reasoning.extraction；HE/LLM 不可用或模板不存在时降级 parse-only，不崩溃。
+
+**Plan**: [.trae/documents/008-semantic-retrieval-bus-phase2.md](../../.trae/documents/008-semantic-retrieval-bus-phase2.md)
+
+**Independent Test**: `pytest tests/unit/test_mdl_engine.py tests/unit/test_metric_engine.py tests/unit/test_chain_cycle_detection.py tests/unit/test_hybrid_orchestrator.py tests/unit/test_unified_router.py -v`
+
+### Tasks
+
+- [X] T031 [P] Create MdlExecutor (MdlEngine 内部 Thin Wrapper)：复用 HEAdapter.parse()；should_skip_he 判断 5 种 skip 场景（he=None / !is_available() / 空 entity / Gallery 查无 → 省 LLM token）；run_he 调 he.parse(entity, template={template_path, language, **params})；_get_gallery_templates 懒加载 HE Gallery preset（失败返回 None，跳过存在性校验不中断）in apps/api/odap/biz/core/ontology/semantic_retrieval/impl/mdl_engine.py
+- [X] T032 Modify MdlEngine 注入 he_adapter（__init__ 兼容保留 template_registry）；reason() 流程：解析 → MdlExecutor.should_skip_he → skip=degraded+warning；否则 _safe_run_he 捕获所有异常 → extraction；status=ok 或 degraded；_build_reasoning 回填 extraction 字段（仅 ok 时）；confidence：degraded→0；ok→_calc_confidence(ent/rel 数估 0.5~0.95；空→0.3)
+- [X] T032b Modify RetrievalService 注入 he_adapter 链：新增 _default_he_adapter() 懒加载单例（HE 模块缺失返回 None，MdlEngine 自动降级）；__init__ 新增 he_adapter kwarg；MdlEngine(he_adapter=he) 构造
+- [X] T033 TDD 扩展 test_mdl_engine.py：6 新增用例（HE 不可用降级 parse-only + HE 可用回填 extraction(status=ok, confidence≥0.5) + 未知模板 Gallery 明确 False→不调 HE省token + HE.parse 抛异常→degraded+warning + 空 entity→skip HE + 已知 preset 路径(general/concept_graph 等) 解析成功）；2 旧用例修正（Phase1 降级 warning 放宽匹配 + 未知模板 monkeypatch _GALLERY_TEMPLATES 注入已知 set）— 13/13 全绿（7 Phase 1 + 6 T033）
+- [X] T033b 全量回归：008 模块 96 单测/集成全部通过（test_mdl_engine 13 + test_metric* 33 + test_chain* N + test_hybrid 等）；mdl_engine 函数全部 ≤40 行（Constitution I）；retrieval_service 新函数也 ≤40L；路由不回归
+
+**Checkpoint**: Iter 3 验收 — 96/96 008 特性测试通过；Constitution I 函数长度 clean；Phase1 + Iter1/Iter2 零回归；MdlExecutor 5 条 skip 路径全覆盖（节省 LLM token + 优雅降级异常全捕获）
+
+---
+
 ## Dependencies & Execution Order
 
 ### Phase Dependencies

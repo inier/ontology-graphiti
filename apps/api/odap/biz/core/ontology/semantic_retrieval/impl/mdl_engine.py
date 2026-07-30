@@ -3,9 +3,9 @@
 设计 (Q6 决策: 禁止新发明 DSL):
   · 不发明新 DSL 语法 — 仅解析 query 字符串中的 HE YAML 模板引用
   · 复用 HE 模板体系 (packages/hyper-extract/.../templates/presets/*)
-  · Phase 1: 仅解析 + 模板存在性校验 (不调 LLM/embedder)
-  · Phase 2+: 接 Template.create(name, lang, llm, embedder) 全量执行
-  · 模板不存在 → status=degraded (不阻断, 优雅降级)
+  · Phase 2 Iter 3: 接 HEAdapter.parse() 真实执行；LLM/HE 不可用时降级 parse-only
+  · 模板不存在（Gallery 查无）→ status=degraded（省 LLM token，不调 HE）
+  · HE.parse 异常 → status=degraded + warning（不崩溃）
   · 缺 template 关键字 → ValueError (契约违反)
   · 所有函数体 ≤ 40 行 (Constitution I)
 """
@@ -20,22 +20,111 @@ from typing import Any, Dict, List, Optional
 logger = logging.getLogger("semantic_retrieval.mdl")
 
 
+# ── 模块级缓存：HE Gallery preset 列表（避免每次 import hyperextract） ──────
+
+_GALLERY_TEMPLATES: Optional[set] = None  # set[str] | None
+
+
+def _get_gallery_templates() -> Optional[set]:
+    """懒加载 HE Gallery preset 路径集合；失败返回 None（跳过存在性校验）。"""
+    global _GALLERY_TEMPLATES
+    if _GALLERY_TEMPLATES is not None:
+        return _GALLERY_TEMPLATES
+    try:
+        from hyperextract.utils.template_engine import Template
+
+        all_tpls = Template.list()
+        _GALLERY_TEMPLATES = set(all_tpls.keys()) if all_tpls else set()
+        logger.info("加载 HE Gallery preset %d 个", len(_GALLERY_TEMPLATES))
+    except Exception as exc:  # noqa: BLE001 — hyperextract 可能未安装
+        logger.warning("HE Gallery 加载失败，跳过模板存在性校验: %s", exc)
+        _GALLERY_TEMPLATES = None
+    return _GALLERY_TEMPLATES
+
+
+# ── MdlExecutor: Thin Wrapper 复用 HEAdapter ──────────────────────────────
+
+class MdlExecutor:
+    """MdlEngine 内部执行器 — 封装 HE 调用 + 降级策略（所有方法 ≤40 行）。"""
+
+    def __init__(self, *, he_adapter: Any = None):
+        self._he = he_adapter
+
+    # ── 公共 API ───────────────────────────────────────────────────────
+
+    def template_exists(self, template_name: str) -> Optional[bool]:
+        """校验模板是否在 HE Gallery preset 中。
+
+        返回值:
+          True  → 确定存在
+          False → 确定不存在
+          None  → 无法判断（hyperextract 未安装等），调用方应允许执行但加 warning
+        """
+        gallery = _get_gallery_templates()
+        if gallery is None:
+            return None
+        return template_name in gallery
+
+    def should_skip_he(self, parsed: Dict[str, Any]) -> Optional[str]:
+        """判断是否应跳过 HE 调用；返回 skip 原因（None=不跳过）。"""
+        he = self._he
+        if he is None:
+            return "HEAdapter 未注入，降级 parse-only"
+        if not getattr(he, "is_available", lambda: False)():
+            return "HE/LLM 不可用（hyperextract 未安装或依赖缺失）"
+        if not parsed.get("entity"):
+            return "entity 文本为空，跳过 HE 抽取"
+        exists = self.template_exists(parsed["template"])
+        if exists is False:
+            return (
+                f"模板 '{parsed['template']}' 未在 HE Gallery preset 中找到，"
+                "省 LLM token 跳过执行"
+            )
+        return None
+
+    def run_he(self, parsed: Dict[str, Any]) -> Optional[Dict[str, Any]]:
+        """调用 HEAdapter.parse()；异常返回 None 由调用方加 warning。"""
+        he = self._he
+        template_cfg = {
+            "template_path": parsed["template"],
+            "language": parsed.get("params", {}).get("language", "zh"),
+        }
+        # 将 params 中非保留字段追加到 template_cfg 作为 HE 参数
+        for k, v in (parsed.get("params") or {}).items():
+            if k in ("language", "template_path"):
+                continue
+            template_cfg[k] = v
+        result = he.parse(parsed["entity"], template=template_cfg)
+        return result
+
+
+# ── MdlEngine: 对外 Thin Facade ────────────────────────────────────────────
+
 class MdlEngine:
-    """MDL/DSL 推理：解析 HE YAML 模板引用 + 参数补全 (Phase 1)。"""
+    """MDL/DSL 推理：解析 HE 模板引用 + 可选真实执行 HE 抽取 (Phase 2 Iter 3)。"""
 
-    def __init__(self, *, template_registry: Any = None):
-        # Phase 2+ 注入 HE Template 体系；Phase 1 不强依赖
-        self._registry = template_registry
+    def __init__(self, *, template_registry: Any = None, he_adapter: Any = None):
+        self._registry = template_registry  # 保留向后兼容（Phase 1 用法）
+        self._executor = MdlExecutor(he_adapter=he_adapter)
 
-    # ── 公共 API ─────────────────────────────────────────────────────────
+    # ── 公共 API ───────────────────────────────────────────────────────
 
     async def reason(self, workspace_id: str, *, query: str) -> Dict[str, Any]:
-        """解析 MDL query → 结构化 reasoning。"""
-        _ = workspace_id  # Phase 2+ 透传给 HE Template.create
+        """解析 MDL query → 可选 HE 真实抽取 → 结构化 reasoning。"""
+        _ = workspace_id
         parsed = self._parse_query(query)
         warnings: List[str] = []
-        status = self._resolve_status(parsed["template"], warnings)
-        reasoning = self._build_reasoning(parsed, status)
+        extraction: Optional[Dict[str, Any]] = None
+
+        skip_reason = self._executor.should_skip_he(parsed)
+        if skip_reason:
+            warnings.append(skip_reason)
+            status = "degraded"
+        else:
+            extraction = self._safe_run_he(parsed, warnings)
+            status = "ok" if extraction is not None else "degraded"
+
+        reasoning = self._build_reasoning(parsed, status, extraction=extraction)
         return {
             "mode": "mdl",
             "reasoning": reasoning,
@@ -51,6 +140,18 @@ class MdlEngine:
         return await self.reason(workspace_id, query=query)
 
     # ── 内部辅助（Constitution I：≤ 40 行） ──────────────────────────────
+
+    def _safe_run_he(
+        self, parsed: Dict[str, Any], warnings: List[str]
+    ) -> Optional[Dict[str, Any]]:
+        """安全调用 MdlExecutor.run_he；任何异常 → warning + 返回 None。"""
+        try:
+            return self._executor.run_he(parsed)
+        except Exception as exc:  # noqa: BLE001 — HE 内部异常不中断业务
+            msg = f"HE 抽取执行异常（已降级 parse-only）: {type(exc).__name__}: {exc}"
+            logger.warning(msg)
+            warnings.append(msg)
+            return None
 
     @staticmethod
     def _parse_query(query: str) -> Dict[str, Any]:
@@ -83,13 +184,11 @@ class MdlEngine:
         raw = MdlEngine._extract_field(lines, "params")
         if not raw:
             return {}
-        # 优先 JSON
         try:
             obj = json.loads(raw)
             return obj if isinstance(obj, dict) else {"value": obj}
         except (json.JSONDecodeError, TypeError):
             pass
-        # 回退 key=value, key=value
         result: Dict[str, Any] = {}
         for kv in raw.split(","):
             kv = kv.strip()
@@ -111,31 +210,16 @@ class MdlEngine:
         except ValueError:
             return value
 
-    def _resolve_status(self, template: str, warnings: List[str]) -> str:
-        """模板存在性校验：注册表查无 → degraded + warning。"""
-        if self._registry is None:
-            # Phase 1 无注册表：所有模板引用标记为 degraded（未执行 LLM）
-            warnings.append(
-                f"模板 '{template}' 未执行 LLM 推理（Phase 1 仅解析，Phase 2+ 接 HE Template.create）"
-            )
-            return "degraded"
-        try:
-            exists = self._registry.exists(template) if hasattr(
-                self._registry, "exists"
-            ) else False
-        except Exception:  # noqa: BLE001 — registry 故障兜底
-            exists = False
-        if not exists:
-            warnings.append(f"模板 '{template}' 在 HE preset 中未找到，已降级")
-            return "degraded"
-        return "ok"
-
     @staticmethod
     def _build_reasoning(
-        parsed: Dict[str, Any], status: str
+        parsed: Dict[str, Any],
+        status: str,
+        *,
+        extraction: Optional[Dict[str, Any]] = None,
     ) -> Dict[str, Any]:
         """组装 reasoning 结构（同 /chain 结构，FR-004 契约对齐）。"""
-        return {
+        confidence = 0.0 if status == "degraded" else MdlEngine._calc_confidence(extraction)
+        base = {
             "chain_id": f"mdl-{uuid.uuid4().hex[:8]}",
             "template": parsed["template"],
             "entity": parsed["entity"],
@@ -146,7 +230,21 @@ class MdlEngine:
                 if parsed["entity"]
                 else f"模板 {parsed['template']} 已解析"
             ),
-            "confidence": 0.0 if status == "degraded" else 0.8,
+            "confidence": confidence,
             "cycle_detected": False,
             "conflicts": [],
         }
+        if extraction is not None:
+            base["extraction"] = extraction
+        return base
+
+    @staticmethod
+    def _calc_confidence(extraction: Optional[Dict[str, Any]]) -> float:
+        """根据抽取结果估 confidence：有实体/关系 ≥0.5；空 0.3。"""
+        if not extraction:
+            return 0.3
+        ent = extraction.get("entities") or []
+        rel = extraction.get("relations") or []
+        if ent or rel:
+            return min(0.95, 0.5 + 0.02 * len(ent) + 0.03 * len(rel))
+        return 0.3

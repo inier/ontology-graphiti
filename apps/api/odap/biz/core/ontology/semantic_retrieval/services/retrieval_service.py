@@ -20,6 +20,16 @@ from ..storage.audit_log import audit_retrieval
 logger = logging.getLogger("semantic_retrieval.service")
 
 
+def _default_he_adapter() -> Any:
+    """懒加载 HEAdapter 单例（hyperextract 未安装也不崩溃）。"""
+    try:
+        from odap.biz.data.hyper_extract.impl.he_adapter import HEAdapter
+
+        return HEAdapter()
+    except Exception:  # noqa: BLE001 — HE 模块缺失时返回 None，MdlEngine 自动降级
+        return None
+
+
 class RetrievalService:
     """检索编排：统一/分项/指标 入口装配。"""
 
@@ -31,12 +41,14 @@ class RetrievalService:
         chain_engine: Any = None,
         mdl_engine: Any = None,
         unified_router: Any = None,
+        he_adapter: Any = None,
     ):
         self._graph = graph_engine or GraphEngine()
         self._nl = nl_engine or NLEngine(graph_engine=self._graph)
         self._metric = metric_engine or MetricEngine()
         self._chain = chain_engine or ChainEngine()
-        self._mdl = mdl_engine or MdlEngine()
+        he = he_adapter if he_adapter is not None else _default_he_adapter()
+        self._mdl = mdl_engine or MdlEngine(he_adapter=he)
         engines = {
             "nl": self._nl,
             "graph": self._graph,
