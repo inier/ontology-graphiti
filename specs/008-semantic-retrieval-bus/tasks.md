@@ -97,7 +97,7 @@
 ### Implementation for User Story 3
 
 - [ ] T014 [US3] Implement chain_engine (adapter over DeductionEngine.simulate_chain + 循环检测层 + 规则冲突收集) + `/chain` endpoint in apps/api/odap/biz/core/ontology/semantic_retrieval/impl/chain_engine.py + api/routes.py (depends T013)
-- [ ] T015 [P] [US3] Implement mdl_engine (adapter over HE YAML 模板语法，禁止新发明 DSL per Q6 决策) + `/mdl` endpoint in apps/api/odap/biz/core/ontology/semantic_retrieval/impl/mdl_engine.py + api/routes.py
+- [ ] T015 [US3] Implement mdl_engine (adapter over HE YAML 模板语法，禁止新发明 DSL per Q6 决策) + `/mdl` endpoint in apps/api/odap/biz/core/ontology/semantic_retrieval/impl/mdl_engine.py + api/routes.py (注：mdl_engine.py 实现独立，但与 T014 共享 api/routes.py 接线，路由部分须串行；故不标 [P])
 
 **Checkpoint**: US3 可用 — 链式推理含循环防护
 
@@ -141,7 +141,7 @@
 **Purpose**: 跨故事的集成验证与质量门
 
 - [ ] T020 Write integration tests for all routes (强制认证 + workspace 隔离 FR-012 + 审计不记内容 FR-013 + valid/candidate 默认过滤 FR-011 + page_size≤100 边界) in tests/integration/test_semantic_retrieval_routes.py
-- [ ] T021 Run G-7 route exception regression + G-10 full unit suite (`pytest tests/unit/ -q`) and fix any failures
+- [ ] T021 Run G-7 route exception regression + G-8 Cypher/SQL injection regression (`pytest tests/unit/test_audit_cypher_injection.py tests/unit/test_sql_injection.py -q`) + G-10 full unit suite (`pytest tests/unit/ -q`) and fix any failures (本特性涉及 Cypher 图查询，G-8 MUST)
 - [ ] T022 Run architecture-verify gate G-9 + spec consistency check G-3 (对照 specs/008-semantic-retrieval-bus/spec.md 全量验收 5 个 User Story / 16 条 FR / 7 条 SC)
 
 ---
@@ -179,7 +179,7 @@
 - Phase 2: T002 / T003 / T004 可并行（不同文件）
 - Phase 3: T007 / T009 可并行（不同测试文件）
 - Phase 4-5: US2 与 US3 可并行（不同引擎）
-- Phase 5: T015 (mdl) 与 T014 (chain) 可并行
+- Phase 5: T014 与 T015 的引擎实现（impl/chain_engine.py 与 impl/mdl_engine.py）可并行，但 api/routes.py 路由接线须串行（已移除 T015 的 [P] 标记）
 
 ---
 

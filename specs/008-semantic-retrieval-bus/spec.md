@@ -1,6 +1,6 @@
 # Feature Specification: Semantic Retrieval Service Bus (语义检索服务总线)
 
-**Feature Branch**: `008-semantic-retrieval-bus`
+**Feature Branch**: `009-semantic-retrieval-bus`（spec 目录号 008 与 git 分支号 009 独立递增，详见 `.specify/feature.json`）
 
 **Created**: 2026-07-30
 
