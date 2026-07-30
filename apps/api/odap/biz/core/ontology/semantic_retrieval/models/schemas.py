@@ -62,6 +62,66 @@ class SearchResult(BaseModel):
         default_factory=list, description="各组件明细（混合检索时 >1）"
     )
     explain: Optional[Dict[str, Any]] = None
+    reasoning: Optional[Dict[str, Any]] = Field(
+        default=None, description="chain/nl 模式下的推理链结果（FR-014）"
+    )
+    warnings: List[str] = Field(
+        default_factory=list, description="性能/循环/降级等警告 (FR-008/FR-014)"
+    )
+
+
+# ---------------------------------------------------------------------------
+# US3 链式推理 — ChainStep / RuleConflict / ReasoningChain / ChainRequest
+# ---------------------------------------------------------------------------
+
+class ChainStep(BaseModel):
+    """推理链中的单个步骤（data-model.md §4 子结构）。"""
+
+    step_id: str = Field(..., description="步骤唯一 ID")
+    rule_id: str = Field(..., description="触发的规则 ID")
+    input: str = Field(..., description="本步输入节点")
+    output: str = Field(..., description="本步输出节点")
+    duration_ms: int = Field(default=0, ge=0, description="本步耗时毫秒")
+
+
+class RuleConflict(BaseModel):
+    """规则冲突描述（data-model.md §4 子结构）。"""
+
+    rule_a: str = Field(..., description="规则 A ID")
+    rule_b: str = Field(..., description="规则 B ID")
+    description: str = Field(..., description="冲突说明")
+
+
+class ReasoningChain(BaseModel):
+    """推理链执行结果（data-model.md §4，FR-014 必填）。"""
+
+    chain_id: str = Field(..., description="推理链唯一 ID")
+    steps: List[ChainStep] = Field(default_factory=list, description="步骤序列")
+    conclusion: str = Field(default="", description="最终结论摘要")
+    confidence: float = Field(
+        default=0.0, ge=0.0, le=1.0, description="置信度（0-1）"
+    )
+    cycle_detected: bool = Field(
+        default=False, description="是否检测到循环依赖（FR-014 必填）"
+    )
+    cycle_path: Optional[List[str]] = Field(
+        default=None, description="循环路径（cycle_detected=true 时必填）"
+    )
+    conflicts: List[RuleConflict] = Field(
+        default_factory=list, description="规则冲突列表"
+    )
+
+
+class ChainRequest(BaseModel):
+    """链式推理请求（spec FR-004 / SC-003 / US3）。"""
+
+    query: str = Field(..., description="链式推理的起始查询/起点节点")
+    rules: List[str] = Field(
+        default_factory=list, description="规则 ID 有序列表（传导路径）"
+    )
+    max_depth: int = Field(
+        default=5, ge=1, le=10, description="推理链最大深度（硬上限 10，FR-014）"
+    )
 
 
 class HybridRequest(BaseModel):

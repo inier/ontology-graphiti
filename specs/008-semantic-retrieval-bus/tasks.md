@@ -89,11 +89,11 @@
 
 ### Tests for User Story 3 (TDD)
 
-- [ ] T013 [P] [US3] Write test for chain cycle detection (A→B→C→A 中止 + cycle_path 返回 + max_depth≤10 防无限递归 + 规则冲突 conflicts 列表) in tests/unit/test_chain_cycle_detection.py
+- [X] T013 [P] [US3] Write test for chain cycle detection (A→B→C→A 中止 + cycle_path 返回 + max_depth≤10 防无限递归 + 规则冲突 conflicts 列表) in tests/unit/test_chain_cycle_detection.py
 
 ### Implementation for User Story 3
 
-- [ ] T014 [US3] Implement chain_engine (adapter over DeductionEngine.simulate_chain + 循环检测层 + 规则冲突收集) + `/chain` endpoint in apps/api/odap/biz/core/ontology/semantic_retrieval/impl/chain_engine.py + api/routes.py (depends T013)
+- [X] T014 [US3] Implement chain_engine (adapter over DeductionEngine.simulate_chain + 循环检测层 + 规则冲突收集) + `/chain` endpoint in apps/api/odap/biz/core/ontology/semantic_retrieval/impl/chain_engine.py + api/routes.py (depends T013)
 - [ ] T015 [US3] Implement mdl_engine (adapter over HE YAML 模板语法，禁止新发明 DSL per Q6 决策) + `/mdl` endpoint in apps/api/odap/biz/core/ontology/semantic_retrieval/impl/mdl_engine.py + api/routes.py (注：mdl_engine.py 实现独立，但与 T014 共享 api/routes.py 接线，路由部分须串行；故不标 [P])
 
 **Checkpoint**: US3 可用 — 链式推理含循环防护

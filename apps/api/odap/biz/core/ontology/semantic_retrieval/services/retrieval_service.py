@@ -7,6 +7,7 @@
 import logging
 from typing import Any, Dict, Optional
 
+from ..impl.chain_engine import ChainEngine
 from ..impl.graph_engine import GraphEngine
 from ..impl.metric_engine import MetricEngine
 from ..impl.nl_engine import NLEngine
@@ -25,12 +26,19 @@ class RetrievalService:
         graph_engine: Any = None,
         nl_engine: Any = None,
         metric_engine: Any = None,
+        chain_engine: Any = None,
         unified_router: Any = None,
     ):
         self._graph = graph_engine or GraphEngine()
         self._nl = nl_engine or NLEngine(graph_engine=self._graph)
         self._metric = metric_engine or MetricEngine()
-        engines = {"nl": self._nl, "graph": self._graph, "metric": self._metric}
+        self._chain = chain_engine or ChainEngine()
+        engines = {
+            "nl": self._nl,
+            "graph": self._graph,
+            "metric": self._metric,
+            "chain": self._chain,
+        }
         self._router = unified_router or UnifiedRouter(engines=engines)
 
     async def search(self, workspace_id: str, request: SearchRequest) -> SearchResult:
@@ -92,5 +100,30 @@ class RetrievalService:
         audit_retrieval(
             "metric_search",
             details={"metric": metric, "rows": raw["total"], "limit": limit},
+        )
+        return raw
+
+    async def chain_search(
+        self,
+        workspace_id: str,
+        *,
+        query: str,
+        rules: Optional[list] = None,
+        max_depth: int = 5,
+    ) -> Dict[str, Any]:
+        """分项：链式推理 + 循环检测 (FR-004/FR-014 / US3)。"""
+        raw = await self._chain.reason(
+            workspace_id,
+            query=query,
+            rules=rules or [],
+            max_depth=max_depth,
+        )
+        audit_retrieval(
+            "chain_search",
+            details={
+                "rows": raw["total"],
+                "cycle": raw["reasoning"]["cycle_detected"],
+                "depth": max_depth,
+            },
         )
         return raw

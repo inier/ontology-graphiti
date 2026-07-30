@@ -20,7 +20,7 @@ from fastapi import APIRouter, Depends, HTTPException
 from odap.infra.security.audit_helper import extract_workspace_id
 from odap.infra.security.jwt_auth import get_current_user
 
-from ..models.schemas import MetricRequest, SearchRequest, SearchResult
+from ..models.schemas import ChainRequest, MetricRequest, SearchRequest, SearchResult
 from ..services.retrieval_service import RetrievalService
 
 logger = logging.getLogger("semantic_retrieval.routes")
@@ -115,4 +115,34 @@ async def metric_query(request: MetricRequest, user=Depends(get_current_user)):
         rows=metrics,
         components=[],
         explain=raw.get("explain"),
+    )
+
+
+@router.post("/chain", response_model=SearchResult)
+async def chain_reason(request: ChainRequest, user=Depends(get_current_user)):
+    """分项链式推理 — rules[] 有序传导 + 循环检测 (FR-004/FR-014 / US3)。"""
+    workspace_id = extract_workspace_id(user)
+    try:
+        raw = await _service.chain_search(
+            workspace_id,
+            query=request.query,
+            rules=list(request.rules),
+            max_depth=request.max_depth,
+        )
+    except HTTPException:
+        raise
+    except ValueError as exc:
+        raise HTTPException(status_code=400, detail=str(exc))
+    except Exception as exc:
+        logger.exception("chain reason failed")
+        raise HTTPException(status_code=500, detail=str(exc))
+    reasoning = raw["reasoning"]
+    return SearchResult(
+        query=request.query,
+        mode="chain",
+        total=raw["total"],
+        rows=list(reasoning["steps"]),
+        components=[],
+        reasoning=reasoning,
+        warnings=list(raw.get("warnings", [])),
     )
