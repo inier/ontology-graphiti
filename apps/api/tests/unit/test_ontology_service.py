@@ -1016,8 +1016,8 @@ class TestGraphData:
 
         assert len(result["edges"]) == 1
         assert result["edges"][0]["id"] == link["link_id"]
-        assert result["edges"][0]["source"] == "Person"
-        assert result["edges"][0]["target"] == "Person"
+        assert result["edges"][0]["source"] == obj["type_id"]
+        assert result["edges"][0]["target"] == obj["type_id"]
         assert result["edges"][0]["name"] == "knows"
 
     def test_get_ontology_graph_node_properties(self, service):
@@ -1037,6 +1037,8 @@ class TestGraphData:
 
     def test_get_ontology_graph_edge_cardinality(self, service):
         oid = _create_ontology(service)["ontology_id"]
+        company = service.create_object_type(oid, {"name": "Company"})
+        person = service.create_object_type(oid, {"name": "Person"})
         service.create_link_type(oid, {
             "name": "employs",
             "source_type": "Company",
@@ -1047,6 +1049,8 @@ class TestGraphData:
 
         result = service.get_ontology_graph(oid)
         edge = result["edges"][0]
+        assert edge["source"] == company["type_id"]
+        assert edge["target"] == person["type_id"]
         assert edge["cardinality"] == "ONE_TO_ONE"
         assert edge["type"] == "composition"
 

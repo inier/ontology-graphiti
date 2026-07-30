@@ -44,12 +44,52 @@ class DocumentParser(DocumentParserInterface):
         while start < len(text):
             end = start + max_chars
             if end < len(text):
-                paragraph_break = text.rfind("\n\n", start, end)
-                if paragraph_break > start:
-                    end = paragraph_break + 2
+                cut_point = self._find_best_cut_point(text, start, end)
+                if cut_point > start:
+                    end = cut_point
             chunks.append(text[start:end])
             start = end
         return chunks
+
+    @staticmethod
+    def _find_best_cut_point(text: str, start: int, end: int) -> int:
+        """Find the best cut point within [start, end) to preserve sentence integrity.
+
+        Search order:
+        1. Paragraph break \\n\\n (highest priority)
+        2. Chinese sentence-ending punctuation: 。！？；
+        3. English sentence-ending punctuation: . ! ? ;
+        4. Newline \\n
+        5. Chinese comma ，(last resort for sentence-level)
+        6. Return end (hard cut) as ultimate fallback
+        """
+        search_range = text[start:end]
+
+        for sep in ("\n\n",):
+            pos = search_range.rfind(sep)
+            if pos > 0:
+                return start + pos + len(sep)
+
+        for sep in ("。", "！", "？", "；"):
+            pos = search_range.rfind(sep)
+            if pos > 0:
+                return start + pos + len(sep)
+
+        for sep in (". ", "! ", "? ", "; "):
+            pos = search_range.rfind(sep)
+            if pos > 0:
+                return start + pos + len(sep)
+
+        pos = search_range.rfind("\n")
+        if pos > 0:
+            return start + pos + 1
+
+        for sep in ("，", ",", ","):
+            pos = search_range.rfind(sep)
+            if pos > 0:
+                return start + pos + len(sep)
+
+        return end
 
     def _parse_pdf(self, file_path: str) -> str:
         try:

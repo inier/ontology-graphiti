@@ -20,6 +20,10 @@ from odap.infra.config_composer import get_config
 
 logger = logging.getLogger("he_adapter")
 
+_DEFAULT_TEMPLATE_YAML = os.path.join(
+    os.path.dirname(__file__), "..", "templates", "chinese_ontology_graph.yaml"
+)
+
 
 # ------------------------------------------------------------------
 # Pydantic schemas for AutoGraph (must be classes with __name__, not strings)
@@ -112,35 +116,80 @@ def _clean_json_response(text: str) -> str:
 
 
 _CUSTOM_NODE_PROMPT = (
-    "You are an expert information extraction assistant specialized in entity/node recognition. "
-    "Extract ALL relevant entities, concepts, or nodes from the following text with high precision.\n\n"
-    "Focus on:\n"
-    "- Being EXHAUSTIVE: capture all entity types mentioned\n"
-    "- Being PRECISE: extract exact entity names and descriptions\n"
-    "- Clarity: provide clear, concise descriptions for each entity\n\n"
-    "Do not attempt to extract relationships at this stage, only identify entities.\n\n"
-    "### Output Format:\n"
-    "Output ONLY a valid JSON object with an 'items' field containing an array of entity objects.\n"
-    "Do NOT add any explanations, descriptions, or additional text before or after the JSON.\n"
-    "### Source Text:\n"
+    "你是一位专业的中文本体与知识图谱抽取专家。请从以下文本中精确抽取所有相关的实体、概念或节点。\n\n"
+    "【严格抽取规则】\n"
+    "1. 实体必须是完整的名词性短语，不得残缺或截断\n"
+    "2. 实体不得以介词开头（与、在、对、为、从、向、把、被、让、给、通过、根据、关于、对于、将、使）\n"
+    "3. 实体不得以连词开头（和、及、或、并、以及）\n"
+    "4. 实体不得是动词短语（如：构建、执行、进行、完成、实现 + 名词）\n"
+    "5. 实体必须是文本中实际出现的完整名称，不得截取片段\n"
+    "6. 每个实体应有独立指代意义，排除纯代词、泛称\n"
+    "7. 同一实体在全文中保持命名一致\n\n"
+    "【实体类型白名单 — 从以下分类中选择最匹配的类型】\n"
+    "- 系统: 软件系统、信息系统、计算系统\n"
+    "- 平台: 服务平台、管理平台、交易平台\n"
+    "- 模块: 功能模块、业务模块、子系统\n"
+    "- 概念: 抽象概念、理论、模型、标准\n"
+    "- 流程: 业务流程、工作流程、操作流程\n"
+    "- 规则: 业务规则、计算规则、约束条件\n"
+    "- 数据: 数据集合、数据模型、数据库\n"
+    "- 服务: 服务接口、API、微服务\n"
+    "- 人员: 角色、用户、参与者\n"
+    "- 组织: 机构、部门、团队\n"
+    "- 产品: 商品、产品、应用\n"
+    "- 技术: 技术方法、算法、框架\n\n"
+    "【错误示例 — 以下均为不合格实体，严禁输出】\n"
+    "- ❌ '与个性化推荐系统' — 以介词'与'开头\n"
+    "- ❌ '在平台统一规则' — 以介词'在'开头\n"
+    "- ❌ '构建会员' — 动词短语，'构建'是动词\n"
+    "- ❌ '员注册与成长流程' — 残缺片段，缺少'会'字\n"
+    "- ❌ '能分账与结算系统' — 残缺片段，缺少前半部分\n"
+    "- ❌ '执行操作' — 动词短语\n"
+    "- ❌ '进行处理' — 动词短语\n\n"
+    "【正确示例】\n"
+    "- ✅ '个性化推荐系统' — 完整名词短语，类型：系统\n"
+    "- ✅ '平台统一规则' — 完整名词短语，类型：规则\n"
+    "- ✅ '会员注册与成长流程' — 完整流程名称，类型：流程\n"
+    "- ✅ '分账与结算系统' — 完整系统名称，类型：系统\n"
+    "- ✅ '会员体系' — 完整概念名称，类型：概念\n"
+    "- ✅ '对账与清算服务' — 完整服务名称，类型：服务\n\n"
+    "【输出格式】\n"
+    "仅输出有效的 JSON 对象，包含 items 字段，值为实体对象数组。\n"
+    "每个实体对象必须包含：name（实体名称）、type（实体类型，从白名单中选择）、description（简要描述）。\n"
+    "不要在 JSON 前后添加任何解释性文字。\n\n"
+    "源文本：\n"
     "{source_text}"
 )
 
 _CUSTOM_EDGE_PROMPT = (
-    "You are an expert relationship extraction assistant. "
-    "Extract relationships (edges) between the provided entities.\n\n"
-    "CRITICAL RULES:\n"
-    "1. ONLY extract edges connecting entities from the known entity list below\n"
-    "2. DO NOT invent or hallucinate new entities that are not listed\n"
-    "3. If an entity in the text is not in the known list, DO NOT create edges involving it\n"
-    "4. Focus on explicit relationships mentioned in the text\n\n"
-    "### Output Format:\n"
-    "Output ONLY a valid JSON object with an 'items' field containing an array of relationship objects.\n"
-    "Each relationship object must have: 'source' (entity name), 'target' (entity name), 'relation_type' (relationship type).\n"
-    "Do NOT add any explanations, descriptions, or additional text before or after the JSON.\n"
-    "# Provided Entities\n"
+    "你是一位专业的中文关系抽取专家。请从以下文本中抽取已提供实体之间的关系（边）。\n\n"
+    "【严格规则】\n"
+    "1. 只能连接下方已知实体列表中的实体，不得臆造新实体\n"
+    "2. 如果文本中的实体不在已知列表中，不要创建涉及它的关系\n"
+    "3. 关系的 source 和 target 必须与已知实体列表中的 name 完全一致\n"
+    "4. 仅在文本明确表达语义联系时创建关系，不要凭常识补充隐含关系\n"
+    "5. 关系方向必须与文本描述一致\n"
+    "6. 不得为不存在的实体创建关系\n\n"
+    "【关系类型白名单 — 从以下分类中选择最匹配的类型】\n"
+    "- 包含: 整体与组成部分（系统包含模块）\n"
+    "- 属于: 从属、归属（模块属于系统）\n"
+    "- 使用: 工具、方法、资源的利用（模块使用数据）\n"
+    "- 依赖: 必要条件、前置关系（流程依赖规则）\n"
+    "- 关联: 相关但非直接的联系（系统关联平台）\n"
+    "- 提供: 服务、功能、资源的交付（服务提供接口）\n"
+    "- 调用: 接口、方法的使用（模块调用服务）\n"
+    "- 基于: 基础、根据（实现基于技术）\n"
+    "- 通过: 途径、手段（流程通过规则实现）\n"
+    "- 实现: 目标与手段（模块实现功能）\n"
+    "- 管理: 管控、治理（平台管理模块）\n"
+    "- 涉及: 牵涉、关联（数据涉及流程）\n\n"
+    "【输出格式】\n"
+    "仅输出有效的 JSON 对象，包含 items 字段，值为关系对象数组。\n"
+    "每个关系对象必须包含：source（源实体名称）、target（目标实体名称）、relation_type（关系类型，从白名单中选择）。\n"
+    "不要在 JSON 前后添加任何解释性文字。\n\n"
+    "已知实体列表：\n"
     "{known_nodes}\n\n"
-    "# Source Text:\n"
+    "源文本：\n"
     "{source_text}"
 )
 
@@ -251,10 +300,16 @@ class HEAdapter:
     ) -> Optional[Dict[str, Any]]:
         """Extract structured data from text using a HE template.
 
+        Optimization: Defaults to the Chinese ontology YAML template which
+        provides entity type whitelists, proper chunk_size (4096), and
+        one_stage extraction mode for better quality. Falls back to the
+        hardcoded AutoGraph if template loading fails.
+
         Args:
             text: Input text to extract from.
             template: Template config dict with 'template_path' or full
-                      template config for AutoGraph.
+                      template config for AutoGraph. If None, uses the
+                      default Chinese ontology YAML template.
 
         Returns:
             Normalized dict {"entities": [...], "relations": [...]} or None.
@@ -271,24 +326,42 @@ class HEAdapter:
             logger.warning("Embedder creation failed, using LLM-only mode: %s", embed_err)
             embedder = None
 
-        if template and template.get("template_path"):
-            auto_type = self._Template.create(
-                source=template["template_path"],
-                language=template.get("language", "zh"),
-                llm_client=llm_client,
-                embedder=embedder,
+        auto_type = None
+        template_to_use = template or self._resolve_default_template(template)
+
+        if template_to_use and template_to_use.get("template_path"):
+            try:
+                auto_type = self._Template.create(
+                    source=template_to_use["template_path"],
+                    language=template_to_use.get("language", "zh"),
+                    llm_client=llm_client,
+                    embedder=embedder,
+                )
+                logger.info("Using YAML template: %s", template_to_use["template_path"])
+            except Exception as template_err:
+                logger.warning(
+                    "YAML template load failed (%s), falling back to hardcoded AutoGraph",
+                    template_err,
+                )
+                auto_type = None
+
+        if auto_type is None:
+            auto_type = self._build_auto_graph(
+                template_to_use or {}, llm_client, embedder
             )
-        else:
-            auto_type = self._build_auto_graph(template or {}, llm_client, embedder)
+            logger.info("Using hardcoded AutoGraph fallback")
 
         try:
             result = auto_type.parse(text)
-            return self._normalize_result(result)
+            normalized = self._normalize_result(result)
+            if normalized.get("entities"):
+                normalized = self._post_validate_entities(normalized, text)
+            return normalized
         except Exception as parse_err:
             logger.warning("Template parse failed, trying AutoGraph fallback: %s", parse_err)
             try:
                 auto_graph = self._build_auto_graph(
-                    {"language": template.get("language", "zh")} if template else {},
+                    {"language": template_to_use.get("language", "zh")} if template_to_use else {},
                     llm_client,
                     embedder,
                 )
@@ -297,6 +370,119 @@ class HEAdapter:
             except Exception as fallback_err:
                 logger.error("AutoGraph fallback also failed: %s", fallback_err)
                 return None
+
+    def _resolve_default_template(self, template: Optional[Dict[str, Any]]) -> Dict[str, Any]:
+        """Resolve the default template when none is explicitly provided.
+
+        Priority:
+        1. Explicit template with template_path → use as-is
+        2. Custom template without template_path → use as kwargs for _build_auto_graph
+        3. No template at all → use Chinese ontology YAML template if available
+        """
+        if template and template.get("template_path"):
+            return template
+
+        if template:
+            return template
+
+        if os.path.isfile(_DEFAULT_TEMPLATE_YAML):
+            return {
+                "template_path": _DEFAULT_TEMPLATE_YAML,
+                "language": "zh",
+            }
+
+        logger.warning("Default template not found at %s", _DEFAULT_TEMPLATE_YAML)
+        return {}
+
+    @staticmethod
+    def _normalize_text_for_comparison(text: str) -> str:
+        """Normalize text for entity validation comparison.
+
+        Removes whitespace, common punctuation, and normalizes to lowercase
+        for robust Chinese/English mixed text comparison.
+        """
+        import re
+        normalized = text.lower()
+        normalized = re.sub(r'[\s\u3000]+', '', normalized)
+        normalized = re.sub(r'[，。！？、；：""''（）【】《》,.;:!?\[\]()""\']+', '', normalized)
+        return normalized
+
+    @staticmethod
+    def _post_validate_entities(
+        normalized: Dict[str, Any], source_text: str
+    ) -> Dict[str, Any]:
+        """Post-validate entities against source text.
+
+        Uses lenient validation:
+        1. Hard filter: entities shorter than 2 characters
+        2. Soft check: normalize whitespace/punctuation before substring match
+           - If entity name is found in normalized source → keep
+           - If NOT found → add 'possible_hallucination' quality flag instead
+             of hard filtering (LLM may have slightly rephrased the name)
+        3. Filter relations whose endpoints are not in valid entity set
+
+        Args:
+            normalized: Normalized result with entities and relations
+            source_text: Original source text for substring validation
+
+        Returns:
+            Validated result with quality flags
+        """
+        entities = normalized.get("entities", [])
+        relations = normalized.get("relations", [])
+        normalized_source = HEAdapter._normalize_text_for_comparison(source_text)
+        valid_names = set()
+        filtered_entities = []
+
+        for entity in entities:
+            name = entity.get("name", "")
+            if not name or len(name.strip()) < 2:
+                logger.debug("Filtered entity (too short/empty): '%s'", name)
+                continue
+
+            normalized_name = HEAdapter._normalize_text_for_comparison(name)
+            found_in_source = (
+                normalized_name in normalized_source
+                or name in source_text
+            )
+
+            if not found_in_source:
+                logger.info(
+                    "Entity not found in source (soft flag): '%s' "
+                    "(normalized: '%s')",
+                    name, normalized_name,
+                )
+                entity = {**entity, "possible_hallucination": True}
+
+            filtered_entities.append(entity)
+            valid_names.add(name)
+
+        filtered_relations = []
+        for rel in relations:
+            src = rel.get("source", "")
+            tgt = rel.get("target", "")
+            if src in valid_names and tgt in valid_names:
+                filtered_relations.append(rel)
+            else:
+                logger.debug(
+                    "Filtered relation (endpoint not in valid entities): %s->%s",
+                    src,
+                    tgt,
+                )
+
+        hallucination_count = sum(
+            1 for e in filtered_entities if e.get("possible_hallucination")
+        )
+        if hallucination_count > 0:
+            logger.info(
+                "Post-validation: %d entities flagged as possible hallucination",
+                hallucination_count,
+            )
+
+        return {
+            "entities": filtered_entities,
+            "relations": filtered_relations,
+        }
 
     def parse_batch(
         self,
@@ -484,17 +670,21 @@ class HEAdapter:
         relation_types) but those are NOT used as schema classes — we use
         _ExtractionNode/_ExtractionEdge which align with _normalize_result().
 
-        The template dict may override:
-        - extraction_mode: "one_stage" (default) or "two_stage"
-        - node_key_extractor / edge_key_extractor / nodes_in_edge_extractor:
-          callable overrides (rarely needed; defaults follow the schema)
+        Critical configuration overrides (for Chinese text quality):
+        - chunk_size: 4096 chars (default 2048 is too small for Chinese, causes
+          entity truncation at word boundaries)
+        - chunk_overlap: 512 chars (provides context continuity across chunks)
+        - extraction_mode: "one_stage" (default; two_stage wastes context
+          by injecting full node list into edge extraction prompt)
         """
         node_key_extractor = template.get("node_key_extractor") or _node_key_extractor
         edge_key_extractor = template.get("edge_key_extractor") or _edge_key_extractor
         nodes_in_edge_extractor = (
             template.get("nodes_in_edge_extractor") or _nodes_in_edge_extractor
         )
-        extraction_mode = template.get("extraction_mode", "two_stage")
+        extraction_mode = template.get("extraction_mode", "one_stage")
+        chunk_size = template.get("chunk_size", 4096)
+        chunk_overlap = template.get("chunk_overlap", 512)
 
         return self._AutoGraph(
             node_schema=_ExtractionNode,
@@ -507,6 +697,8 @@ class HEAdapter:
             extraction_mode=extraction_mode,
             prompt_for_node_extraction=_CUSTOM_NODE_PROMPT,
             prompt_for_edge_extraction=_CUSTOM_EDGE_PROMPT,
+            chunk_size=chunk_size,
+            chunk_overlap=chunk_overlap,
         )
 
     def _create_llm_client(self):

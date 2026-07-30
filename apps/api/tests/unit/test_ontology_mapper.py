@@ -453,18 +453,18 @@ class TestOntologyMapperMergeAndMap:
             mapper = OntologyMapper(ontology_id="ont-1", strict=False)
             results = [
                 _make_extraction_result(
-                    entities=[{"name": "A", "type": "Organization", "properties": {}}],
+                    entities=[{"name": "EntityA", "type": "Organization", "properties": {}}],
                     source_template="t1",
                 ),
                 _make_extraction_result(
-                    entities=[{"name": "B", "type": "Organization", "properties": {}}],
+                    entities=[{"name": "EntityB", "type": "Organization", "properties": {}}],
                     source_template="t2",
                 ),
                 _make_extraction_result(
-                    entities=[{"name": "C", "type": "Organization", "properties": {}}],
+                    entities=[{"name": "EntityC", "type": "Organization", "properties": {}}],
                     source_template="t3",
                 ),
             ]
             merged = mapper.merge_and_map(results)
             names = {e["name"] for e in merged["entities"]}
-            assert names == {"A", "B", "C"}
+            assert names == {"EntityA", "EntityB", "EntityC"}

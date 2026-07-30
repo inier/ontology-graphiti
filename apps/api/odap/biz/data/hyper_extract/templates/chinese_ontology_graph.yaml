@@ -1,0 +1,201 @@
+language: [zh]
+
+name: chinese_ontology_graph
+type: graph
+tags: [chinese, ontology, graph, entity-extraction]
+
+description:
+  zh: '中文本体图谱抽取模板 - 面向中文领域文本的实体节点与关系边抽取，优化中文实体边界识别和类型判定。'
+  en: 'Chinese Ontology Graph Template - Extract entity nodes and relation edges from Chinese domain text, optimized for Chinese entity boundary detection and type classification.'
+
+output:
+  description:
+    zh: '由实体节点和关系边组成的知识图谱结果。'
+    en: 'Knowledge graph result consisting of entity nodes and relation edges.'
+  entities:
+    description:
+      zh: '文本中可独立识别、可参与关系连接的实体节点。实体必须是完整的名词性短语。'
+      en: 'Entity nodes that can be independently identified and participate in relation connections. Entities must be complete noun phrases.'
+    fields:
+    - name: name
+      type: str
+      description:
+        zh: '实体名称，使用文本中最明确、最稳定的完整称呼。不得以介词、连词或动词开头。'
+        en: 'Entity name, using the most explicit and complete designation in the text. Must not start with prepositions, conjunctions, or verbs.'
+    - name: type
+      type: str
+      description:
+        zh: |
+          实体类型，从以下分类中选择最匹配的一种：
+          - 系统: 软件系统、信息系统、计算系统、操作系统
+          - 平台: 服务平台、管理平台、交易平台、运营平台
+          - 模块: 功能模块、业务模块、技术模块、子系统
+          - 概念: 抽象概念、理论、模型、标准、规范
+          - 流程: 业务流程、工作流程、处理流程、操作流程
+          - 规则: 业务规则、计算规则、判定规则、约束条件
+          - 数据: 数据集合、数据模型、数据结构、数据库
+          - 服务: 服务接口、API、微服务、云服务
+          - 人员: 角色、用户、参与者、管理员
+          - 组织: 机构、部门、团队、公司
+          - 产品: 商品、产品、应用、组件
+          - 技术: 技术方法、算法、框架、工具
+        en: |
+          Entity type, choose the best match from:
+          - system: software systems, information systems, computing systems
+          - platform: service platforms, management platforms, trading platforms
+          - module: functional modules, business modules, technical modules
+          - concept: abstract concepts, theories, models, standards
+          - process: business processes, workflows, procedures
+          - rule: business rules, calculation rules, constraints
+          - data: data sets, data models, databases
+          - service: service interfaces, APIs, microservices
+          - person: roles, users, participants, administrators
+          - organization: institutions, departments, teams
+          - product: goods, products, applications, components
+          - technology: methods, algorithms, frameworks, tools
+    - name: description
+      type: str
+      description:
+        zh: '对实体在当前文本中含义或作用的简要说明。'
+        en: 'Brief description of the entity meaning or role in the current text.'
+      required: false
+  relations:
+    description:
+      zh: '实体之间的显式语义关系边。关系的 source 和 target 必须与已提取实体的 name 完全一致。'
+      en: 'Explicit semantic relation edges between entities. Source and target must exactly match extracted entity names.'
+    fields:
+    - name: source
+      type: str
+      description:
+        zh: '关系起点实体，必须对应已提取实体的完整名称。'
+        en: 'Source entity of the relation, must correspond to the complete name of an extracted entity.'
+    - name: target
+      type: str
+      description:
+        zh: '关系终点实体，必须对应已提取实体的完整名称。'
+        en: 'Target entity of the relation, must correspond to the complete name of an extracted entity.'
+    - name: type
+      type: str
+      description:
+        zh: |
+          关系类型，从以下分类中选择最匹配的一种：
+          - 包含: 整体与组成部分的关系
+          - 属于: 从属、归属关系
+          - 使用: 工具、方法、资源的利用关系
+          - 依赖: 必要条件、前置关系
+          - 关联: 相关但非直接的联系
+          - 提供: 服务、功能、资源的交付关系
+          - 调用: 接口、方法的使用关系
+          - 基于: 基础、根据关系
+          - 通过: 途径、手段关系
+          - 实现: 目标与手段的关系
+          - 管理: 管控、治理关系
+          - 涉及: 牵涉、关联关系
+        en: |
+          Relation type, choose the best match from:
+          - contains: whole-part relationship
+          - belongs_to: ownership, subordination
+          - uses: tool/method/resource utilization
+          - depends_on: prerequisite, required condition
+          - related_to: non-direct connection
+          - provides: service/function/resource delivery
+          - calls: interface/method invocation
+          - based_on: foundation, basis
+          - via: means, approach
+          - implements: goal and means
+          - manages: control, governance
+          - involves: involvement, connection
+
+guideline:
+  target:
+    zh: |
+      你是一位专业的中文本体与知识图谱抽取专家。你的任务是从中文领域文本中精确抽取实体和关系，构建高质量的知识图谱。
+
+      核心要求：
+      1. 实体识别：准确识别文本中的所有实体，确保实体名称完整、精准
+      2. 实体分类：为每个实体指定最合适的类型
+      3. 关系抽取：识别实体间的语义关系
+      4. 一致性：关系的 source/target 必须与实体名称完全匹配
+    en: |
+      You are an expert in Chinese ontology and knowledge graph extraction. Your task is to accurately extract entities and relationships from Chinese domain text to build a high-quality knowledge graph.
+
+      Core requirements:
+      1. Entity Recognition: Accurately identify all entities in the text, ensuring complete and precise entity names
+      2. Entity Classification: Assign the most appropriate type to each entity
+      3. Relationship Extraction: Identify semantic relationships between entities
+      4. Consistency: Source/target of relationships must exactly match entity names
+
+  rules_for_entities:
+    zh:
+    - '实体必须是完整的名词性短语，不得残缺或截断。例如"会员注册与成长流程"而非"员注册与成长流程"'
+    - '实体不得以介词开头：与、在、对、为、从、向、把、被、让、给、通过、根据、关于、对于、将、使'
+    - '实体不得以连词开头：和、及、或、并、以及'
+    - '实体不得是动词短语：构建会员、执行操作、进行处理、完成任务'
+    - '实体必须是文本中实际出现的完整名称，不得截取片段或拼接非连续文本'
+    - '每个实体应有独立指代意义，排除纯代词（它、他们）、泛称（系统、模块）'
+    - '同一实体在全文中保持命名一致，不因位置不同而变化'
+    - '优先使用文本中最具体、最完整的实体名称，而非简称或缩写'
+    - '对于复合实体（如"分账与结算系统"），保持其完整名称，不要拆分'
+    - '实体类型必须从预定义分类中选择最匹配的一种'
+    - '如果一个实体可以归入多个类型，选择最具体的那个'
+    - '忽略纯功能性描述或操作步骤，专注于实体性名词'
+    - '以下均为不合格实体，严禁输出：'
+    - '  ❌ "与个性化推荐系统" — 以介词"与"开头'
+    - '  ❌ "在平台统一规则" — 以介词"在"开头'
+    - '  ❌ "构建会员" — 动词短语'
+    - '  ❌ "员注册与成长流程" — 残缺片段'
+    - '  ❌ "能分账与结算系统" — 残缺片段'
+    - '以下为合格实体示例：'
+    - '  ✅ "个性化推荐系统" — 完整名词短语，类型：系统'
+    - '  ✅ "平台统一规则" — 完整名词短语，类型：规则'
+    - '  ✅ "会员注册与成长流程" — 完整流程名称，类型：流程'
+    - '  ✅ "分账与结算系统" — 完整系统名称，类型：系统'
+    - '  ✅ "会员体系" — 完整概念名称，类型：概念'
+    - '  ✅ "对账与清算服务" — 完整服务名称，类型：服务'
+    - '  ✅ "结算与核销系统" — 完整系统名称，类型：系统'
+    - '  ✅ "支付与对账管理" — 完整模块名称，类型：模块'
+    en:
+    - 'Entities must be complete noun phrases, not truncated or fragmented'
+    - 'Entities must not start with prepositions or conjunctions'
+    - 'Entities must not be verb phrases'
+    - 'Entities must appear in the text as complete names'
+    - 'Each entity must have independent referential meaning'
+    - 'Use consistent naming for the same entity throughout the text'
+    - 'Prefer the most specific and complete entity name'
+
+  rules_for_relations:
+    zh:
+    - '仅在文本明确表达两个实体之间存在语义联系时创建关系'
+    - '关系的 source 和 target 必须与已提取实体的 name 完全一致'
+    - '不得臆造或虚构文本中未明确表达的关系'
+    - '优先使用预定义的关系类型分类'
+    - '如果一个关系可以归入多种类型，选择最具体的那种'
+    - '避免重复关系；若同一对实体存在多种不同关系，可分别记录'
+    - '关系应反映实体间的真实语义联系，而非表面的语法关联'
+    - '关系方向必须与文本描述一致'
+    - '仅当关系两端的实体均已被识别时才创建关系'
+    - '不要为了连通图谱而创建无依据的关系'
+    en:
+    - 'Create relations only when the text explicitly expresses semantic connections'
+    - 'Source and target must exactly match extracted entity names'
+    - 'Do not hallucinate or fabricate relations'
+    - 'Prefer predefined relation type categories'
+    - 'Avoid duplicate relations'
+    - 'Relation direction must match text description'
+
+identifiers:
+  entity_id: name
+  relation_id: '{source}|{type}|{target}'
+  relation_members:
+    source: source
+    target: target
+
+options:
+  extraction_mode: one_stage
+  chunk_size: 4096
+  chunk_overlap: 512
+  max_workers: 10
+
+display:
+  entity_label: '{name} ({type})'
+  relation_label: '{type}'

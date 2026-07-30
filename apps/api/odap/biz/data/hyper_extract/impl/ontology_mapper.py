@@ -4,11 +4,144 @@ from typing import Dict, Any, List, Optional, Set, Tuple
 
 logger = logging.getLogger("ontology_mapper")
 
-
 # ODAP 5 output categories for entity classification
 _ACTION_ENTITY_KEYWORDS = ("action", "act", "buy", "sell", "execute", "transfer", "perform")
 _RULE_ENTITY_KEYWORDS = ("rule", "constraint", "policy", "regulation", "law")
 _PROCESS_ENTITY_KEYWORDS = ("process", "workflow", "procedure", "flow", "step")
+
+# Chinese prepositions that should be stripped from entity name beginnings
+_CN_PREPOSITIONS = (
+    "与", "在", "从", "向", "把", "被", "让", "给",
+    "通过", "根据", "关于", "对于", "由于", "基于", "针对", "按照",
+    "凭借", "沿着", "顺着", "往", "朝",
+)
+
+# Chinese conjunctions that should be stripped from entity name beginnings
+_CN_CONJUNCTIONS = ("和", "与", "及", "或", "并", "以及", "或是", "或者")
+
+# Chinese verbs that indicate verb phrases (not valid entity names)
+# These are STRIPPED from entity names during cleaning
+_CN_VERB_PREFIXES = (
+    "构建", "创建", "执行", "进行", "实现", "完成", "开展", "组织",
+    "管理", "提供", "支持", "配置", "部署", "安装", "集成", "对接",
+    "开发", "设计", "规划", "分析", "评估", "监控", "检测", "验证",
+    "注册", "登录", "提交", "发送", "接收", "处理", "转换",
+    "计算", "存储", "查询", "更新", "删除", "新增", "审核", "审批",
+    "分配", "调度", "同步", "异步", "触发", "响应", "操作", "维护",
+    "生成", "建立", "制定", "编制", "发布", "上线", "下线", "接入",
+    "输出", "输入", "读取", "写入", "加载", "卸载", "启动", "停止",
+    "使能", "禁用", "启用", "开启", "关闭", "连接", "断开",
+    "登记", "记录", "追踪", "日志", "报告", "通知", "告警", "预警",
+    "支付", "结算", "对账",
+    "推荐", "匹配", "推送", "分发", "路由", "转发", "代理",
+)
+
+# Single Chinese characters that are likely fragments when they appear at
+# the start of an entity name (second half of a 2-character word that was
+# truncated during text chunking).
+# E.g., "员" from "会员", "理" from "管理", "能" from "智能"
+_CN_TRUNCATION_FRAGMENT_CHARS = set(
+    "员理能识合"
+)
+
+# Minimum entity name length (Chinese characters)
+_MIN_ENTITY_NAME_LEN = 2
+
+
+def clean_entity_name(raw_name: str) -> Tuple[str, List[str]]:
+    """Clean an extracted entity name by removing Chinese function words.
+
+    Strips prepositions, conjunctions, and verb prefixes from entity names.
+    Returns (cleaned_name, list_of_issues).
+
+    Issues:
+    - "preposition_stripped": a preposition was removed from the beginning
+    - "conjunction_stripped": a conjunction was removed from the beginning
+    - "verb_phrase": entity name started with a verb prefix (now stripped)
+    - "too_short": entity name is too short to be a valid entity
+    - "fragment": entity name looks like a truncated fragment
+    - "truncated_prefix": name starts with a character that looks like
+      the second half of a truncated word (e.g., "员" from "会员")
+    """
+    if not raw_name or not raw_name.strip():
+        return (raw_name, ["empty"])
+
+    name = raw_name.strip()
+    issues: List[str] = []
+
+    if len(name) < _MIN_ENTITY_NAME_LEN:
+        issues.append("too_short")
+
+    changed = True
+    while changed:
+        changed = False
+        for prep in _CN_PREPOSITIONS:
+            if name.startswith(prep) and len(name) > len(prep):
+                name = name[len(prep):]
+                issues.append("preposition_stripped")
+                changed = True
+                break
+        if changed:
+            continue
+        for conj in _CN_CONJUNCTIONS:
+            if name.startswith(conj) and len(name) > len(conj):
+                name = name[len(conj):]
+                issues.append("conjunction_stripped")
+                changed = True
+                break
+
+    _CN_VERB_FOLLOWING_CONJUNCTIONS = ("与", "和", "及", "并", "或")
+
+    for verb in _CN_VERB_PREFIXES:
+        if name.startswith(verb):
+            rest = name[len(verb):]
+            if rest and rest.startswith(_CN_VERB_FOLLOWING_CONJUNCTIONS):
+                break
+            if rest and len(rest) >= _MIN_ENTITY_NAME_LEN:
+                name = rest
+                issues.append("verb_phrase_stripped")
+                changed = True
+            elif rest:
+                issues.append("verb_phrase")
+            break
+
+    if changed:
+        for verb in _CN_VERB_PREFIXES:
+            if name.startswith(verb):
+                rest = name[len(verb):]
+                if rest and rest.startswith(_CN_VERB_FOLLOWING_CONJUNCTIONS):
+                    break
+                if rest and len(rest) >= _MIN_ENTITY_NAME_LEN:
+                    name = rest
+                    issues.append("verb_phrase_stripped")
+                break
+
+    if name and len(name) >= 2 and name[0] in _CN_TRUNCATION_FRAGMENT_CHARS:
+        issues.append("truncated_prefix")
+
+    if len(name) < _MIN_ENTITY_NAME_LEN and len(raw_name) >= _MIN_ENTITY_NAME_LEN:
+        issues.append("fragment")
+
+    return (name, issues)
+
+
+def is_valid_entity_name(name: str) -> bool:
+    """Check if an entity name is valid after cleaning.
+
+    Returns True if the name should be kept, False if it should be filtered out.
+    """
+    if not name or not name.strip():
+        return False
+    cleaned, issues = clean_entity_name(name)
+    if "too_short" in issues or "fragment" in issues:
+        return False
+    if "truncated_prefix" in issues:
+        return False
+    if "verb_phrase" in issues:
+        return False
+    if not cleaned or len(cleaned) < _MIN_ENTITY_NAME_LEN:
+        return False
+    return True
 
 
 class OntologyMapper:
@@ -160,16 +293,57 @@ class OntologyMapper:
 
         merged_relations: List[Dict[str, Any]] = []
         seen_rel_keys: Set[Tuple[str, str, str]] = set()
+        name_mapping: Dict[str, str] = {}
 
         for result in multi_results:
             source_template = result.get("source_template", "unknown")
 
             # Merge entities
             for ent in result.get("entities", []):
-                name = ent.get("name", "")
+                raw_name = ent.get("name", "")
                 original_type = ent.get("type", "")
-                if not name or not original_type:
+                if not raw_name or not original_type:
                     continue
+
+                cleaned_name, issues = clean_entity_name(raw_name)
+
+                if "too_short" in issues or "fragment" in issues:
+                    logger.info(
+                        "实体名称质量过滤: 跳过 '%s' → '%s' (issues=%s)",
+                        raw_name, cleaned_name, issues,
+                    )
+                    continue
+
+                if "truncated_prefix" in issues:
+                    logger.info(
+                        "实体名称质量过滤: 跳过截断片段 '%s' → '%s' (issues=%s)",
+                        raw_name, cleaned_name, issues,
+                    )
+                    continue
+
+                if "verb_phrase" in issues:
+                    logger.info(
+                        "实体名称质量过滤: 跳过动词短语 '%s' → '%s' (issues=%s)",
+                        raw_name, cleaned_name, issues,
+                    )
+                    continue
+
+                if not cleaned_name or len(cleaned_name) < _MIN_ENTITY_NAME_LEN:
+                    logger.info(
+                        "实体名称质量过滤: 清洗后名称过短 '%s' → '%s'",
+                        raw_name, cleaned_name,
+                    )
+                    continue
+
+                if cleaned_name != raw_name:
+                    logger.info(
+                        "实体名称清洗: '%s' → '%s' (issues=%s)",
+                        raw_name, cleaned_name, issues,
+                    )
+                    name_mapping[raw_name] = cleaned_name
+                    ent = {**ent, "name": cleaned_name}
+
+                name = cleaned_name
 
                 # Classify by original type BEFORE mapping (which may change type)
                 category = self._classify_entity_category(original_type)
@@ -216,12 +390,19 @@ class OntologyMapper:
                 source = rel.get("source", "")
                 target = rel.get("target", "")
                 rel_type = rel.get("relation_type", "")
+
+                if source in name_mapping:
+                    source = name_mapping[source]
+                if target in name_mapping:
+                    target = name_mapping[target]
+
+                cleaned_rel = {**rel, "source": source, "target": target}
                 key = (source, rel_type, target)
 
                 if key in seen_rel_keys:
                     continue
 
-                mapped_rel = self._map_relation(rel)
+                mapped_rel = self._map_relation(cleaned_rel)
                 if mapped_rel is not None:
                     mapped_rel["source_template"] = source_template
                     seen_rel_keys.add(key)
