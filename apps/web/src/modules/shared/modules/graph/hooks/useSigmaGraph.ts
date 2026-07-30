@@ -103,16 +103,20 @@ export function useSigmaGraph({
     }
 
     for (const e of edgeList) {
-      if (e.source != null && e.target != null && g.hasNode(e.source) && g.hasNode(e.target)) {
-        const style = getEdgeStyle(e.type);
-        g.addEdge(e.source, e.target, {
-          edgeType: e.type,
-          label: e.label || e.type,
-          color: style.stroke,
-          size: style.width,
-          noArrow: e.type === 'located_at',
-        });
-      }
+      if (e.source == null || e.target == null) continue;
+      const source = String(e.source).trim();
+      const target = String(e.target).trim();
+      if (!source || !target) continue;
+      if (source === 'null' || source === 'undefined' || target === 'null' || target === 'undefined') continue;
+      if (!g.hasNode(source) || !g.hasNode(target)) continue;
+      const style = getEdgeStyle(e.type);
+      g.addEdge(source, target, {
+        edgeType: e.type,
+        label: e.label || e.type,
+        color: style.stroke,
+        size: style.width,
+        noArrow: e.type === 'located_at',
+      }, e.id);
     }
 
     return g;

@@ -62,11 +62,11 @@ export function NodeEdgeEditor({
 
   // Find the full type definition from store
   const nodeTypeDef: ObjectTypeDefinition | undefined = isNode
-    ? objectTypes.find((t) => t.id === (selectedNode as Record<string, unknown>)?.id)
+    ? objectTypes.find((t) => t.type_id === (selectedNode as Record<string, unknown>)?.id)
     : undefined;
 
   const edgeTypeDef: LinkTypeDefinition | undefined = isEdge
-    ? linkTypes.find((t) => t.id === (selectedEdge as Record<string, unknown>)?.id)
+    ? linkTypes.find((t) => t.link_id === (selectedEdge as Record<string, unknown>)?.id)
     : undefined;
 
   // Reset editing state when selection changes
@@ -101,10 +101,10 @@ export function NodeEdgeEditor({
     try {
       const values = await form.validateFields();
       if (nodeTypeDef) {
-        await updateObjectType(nodeTypeDef.id, values);
+        await updateObjectType(nodeTypeDef.type_id, values);
         message.success(t('nodeEditor.objectTypeUpdated'));
       } else if (edgeTypeDef) {
-        await updateLinkType(edgeTypeDef.id, values);
+        await updateLinkType(edgeTypeDef.link_id, values);
         message.success(t('nodeEditor.edgeTypeUpdated'));
       }
       setEditing(false);
@@ -117,10 +117,10 @@ export function NodeEdgeEditor({
   const handleDelete = useCallback(async () => {
     try {
       if (nodeTypeDef) {
-        await deleteObjectType(nodeTypeDef.id);
+        await deleteObjectType(nodeTypeDef.type_id);
         message.success(t('nodeEditor.objectTypeDeleted'));
       } else if (edgeTypeDef) {
-        await deleteLinkType(edgeTypeDef.id);
+        await deleteLinkType(edgeTypeDef.link_id);
         message.success(t('nodeEditor.edgeTypeDeleted'));
       }
       onClose();
@@ -132,7 +132,7 @@ export function NodeEdgeEditor({
 
   const objTypeOpts = objectTypes.map((t) => ({
     label: t.display_name || t.name,
-    value: t.id,
+    value: t.type_id,
   }));
 
   // ── Render: Node details (ObjectTypeDefinition) ──────────────────
@@ -145,7 +145,7 @@ export function NodeEdgeEditor({
     return (
       <>
         <Descriptions column={1}>
-          <Descriptions.Item label={t('nodeEditor.nodeId')}>{nodeTypeDef.id}</Descriptions.Item>
+          <Descriptions.Item label={t('nodeEditor.nodeId')}>{nodeTypeDef.type_id}</Descriptions.Item>
           <Descriptions.Item label={t('nodeEditor.name')}>{nodeTypeDef.name}</Descriptions.Item>
           <Descriptions.Item label={t('nodeEditor.displayName')}>{nodeTypeDef.display_name || '-'}</Descriptions.Item>
           <Descriptions.Item label={t('nodeEditor.description')}>{nodeTypeDef.description || '-'}</Descriptions.Item>
@@ -173,7 +173,7 @@ export function NodeEdgeEditor({
         <Divider orientation="left" style={{ fontSize: 13 }}>{t('nodeEditor.relatedRelations')}</Divider>
         {(() => {
           const relatedLinks = linkTypes.filter(
-            (l) => l.source_type === nodeTypeDef.id || l.target_type === nodeTypeDef.id,
+            (l) => l.source_type === nodeTypeDef.type_id || l.target_type === nodeTypeDef.type_id,
           );
           if (relatedLinks.length === 0) {
             return <div style={{ color: '#8c8c8c', fontSize: 12 }}>{t('nodeEditor.noRelatedRelations')}</div>;
@@ -181,9 +181,9 @@ export function NodeEdgeEditor({
           return (
             <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
               {relatedLinks.map((l) => (
-                <div key={l.id} style={{ fontSize: 12 }}>
+                <div key={l.link_id} style={{ fontSize: 12 }}>
                   <Tag color="purple">{l.display_name || l.name}</Tag>
-                  {l.source_type === nodeTypeDef.id ? '-> ' : '<- '}
+                  {l.source_type === nodeTypeDef.type_id ? '-> ' : '<- '}
                   {l.cardinality || ''}
                 </div>
               ))}
@@ -200,12 +200,12 @@ export function NodeEdgeEditor({
     if (!edgeTypeDef) {
       return <div style={{ padding: 16, color: '#8c8c8c' }}>{t('nodeEditor.edgeTypeNotFound')}</div>;
     }
-    const sourceObj = objectTypes.find((t) => t.id === edgeTypeDef.source_type);
-    const targetObj = objectTypes.find((t) => t.id === edgeTypeDef.target_type);
+    const sourceObj = objectTypes.find((t) => t.type_id === edgeTypeDef.source_type);
+    const targetObj = objectTypes.find((t) => t.type_id === edgeTypeDef.target_type);
     return (
       <>
         <Descriptions column={1}>
-          <Descriptions.Item label={t('nodeEditor.nodeId')}>{edgeTypeDef.id}</Descriptions.Item>
+          <Descriptions.Item label={t('nodeEditor.nodeId')}>{edgeTypeDef.link_id}</Descriptions.Item>
           <Descriptions.Item label={t('nodeEditor.name')}>{edgeTypeDef.name}</Descriptions.Item>
           <Descriptions.Item label={t('nodeEditor.displayName')}>{edgeTypeDef.display_name || '-'}</Descriptions.Item>
           <Descriptions.Item label={t('nodeEditor.description')}>{edgeTypeDef.description || '-'}</Descriptions.Item>

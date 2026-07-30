@@ -11,15 +11,10 @@ import {
 } from 'antd';
 
 import {
-
   PlusOutlined, DeleteOutlined, SearchOutlined,
-
   SwapOutlined, CheckCircleOutlined, ApartmentOutlined,
-
   HistoryOutlined, ReloadOutlined, DatabaseOutlined, MessageOutlined,
-
-  RobotOutlined,
-
+  RobotOutlined, NodeIndexOutlined, LinkOutlined,
 } from '@ant-design/icons';
 
 import { PageHeader } from '@/modules/shared/components/PageHeader';
@@ -373,7 +368,10 @@ function SimpleTypeDefEditor({ item, getId, title, extraFields, onSave }: Simple
 
   useEffect(() => {
 
-    if (item) form.setFieldsValue({ name: item.name, display_name: item.display_name || '', description: item.description || '' });
+    if (item) {
+      const { type_id, link_id, action_type_id, process_type_id, rule_type_id, function_type_id, indicator_type_id, created_at, updated_at, ...rest } = item as Record<string, unknown>;
+      form.setFieldsValue(rest);
+    }
 
     else form.resetFields();
 
@@ -478,7 +476,7 @@ export function OntologyDesignerPage() {
 
     createIndicatorType, updateIndicatorType, deleteIndicatorType,
 
-    commitVersion, loadGraph, clearCurrentOntology,
+    commitVersion, loadGraph, clearCurrentOntology, graphData,
 
   } = useOntologyStore();
 
@@ -759,17 +757,30 @@ export function OntologyDesignerPage() {
 
 
 
-  const graphNodes = useMemo(() => objectTypes.map((t) => ({ id: t.type_id, label: t.display_name || t.name, type: 'ObjectType' })), [objectTypes]);
+  const graphNodes = useMemo(() => {
+    if (graphData && Array.isArray((graphData as Record<string, unknown>).nodes)) {
+      return ((graphData as Record<string, unknown>).nodes as Array<Record<string, unknown>>).map((n) => ({
+        id: String(n.id),
+        label: String(n.display_name || n.name || n.id),
+        type: String(n.type || 'ObjectType'),
+      }));
+    }
+    return objectTypes.map((t) => ({ id: t.type_id, label: t.display_name || t.name, type: 'ObjectType' }));
+  }, [graphData, objectTypes]);
 
   const graphEdges = useMemo(() => {
-
+    if (graphData && Array.isArray((graphData as Record<string, unknown>).edges)) {
+      return ((graphData as Record<string, unknown>).edges as Array<Record<string, unknown>>).map((e) => ({
+        id: String(e.id),
+        source: String(e.source),
+        target: String(e.target),
+        type: String(e.type || e.label || 'related_to'),
+      }));
+    }
     const edges: Array<{ id: string; source: string; target: string; type: string }> = [];
-
     linkTypes.forEach((l) => { if (l.source_type && l.target_type) edges.push({ id: l.link_id, source: l.source_type, target: l.target_type, type: l.name }); });
-
     return edges;
-
-  }, [linkTypes]);
+  }, [graphData, linkTypes]);
 
 
 
@@ -1052,6 +1063,52 @@ export function OntologyDesignerPage() {
             {graphNodes.length > 0 ? (
 
               <>
+                <div style={{ display: 'flex', gap: 12, marginBottom: 12 }}>
+                  <Card size="small" style={{ flex: 1, borderRadius: 8, border: '1px solid #e6f4ff', background: 'linear-gradient(135deg, #e6f4ff 0%, #f0f5ff 100%)' }} styles={{ body: { padding: '12px 16px' } }}>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
+                      <div style={{ width: 40, height: 40, borderRadius: 8, background: '#1677ff', color: '#fff', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 20 }}>
+                        <NodeIndexOutlined />
+                      </div>
+                      <div style={{ flex: 1 }}>
+                        <div style={{ fontSize: 12, color: '#666', marginBottom: 2 }}>{t('图谱节点')}</div>
+                        <div style={{ fontSize: 24, fontWeight: 600, color: '#1677ff', lineHeight: 1.2 }}>{graphNodes.length}</div>
+                      </div>
+                    </div>
+                  </Card>
+                  <Card size="small" style={{ flex: 1, borderRadius: 8, border: '1px solid #f6ffed', background: 'linear-gradient(135deg, #f6ffed 0%, #eaffdb 100%)' }} styles={{ body: { padding: '12px 16px' } }}>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
+                      <div style={{ width: 40, height: 40, borderRadius: 8, background: '#52c41a', color: '#fff', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 20 }}>
+                        <LinkOutlined />
+                      </div>
+                      <div style={{ flex: 1 }}>
+                        <div style={{ fontSize: 12, color: '#666', marginBottom: 2 }}>{t('图谱关系')}</div>
+                        <div style={{ fontSize: 24, fontWeight: 600, color: '#52c41a', lineHeight: 1.2 }}>{graphEdges.length}</div>
+                      </div>
+                    </div>
+                  </Card>
+                  <Card size="small" style={{ flex: 1, borderRadius: 8, border: '1px solid #fff7e6', background: 'linear-gradient(135deg, #fff7e6 0%, #fff1b8 100%)' }} styles={{ body: { padding: '12px 16px' } }}>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
+                      <div style={{ width: 40, height: 40, borderRadius: 8, background: '#fa8c16', color: '#fff', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 20 }}>
+                        <DatabaseOutlined />
+                      </div>
+                      <div style={{ flex: 1 }}>
+                        <div style={{ fontSize: 12, color: '#666', marginBottom: 2 }}>{t('对象类型')}</div>
+                        <div style={{ fontSize: 24, fontWeight: 600, color: '#fa8c16', lineHeight: 1.2 }}>{objectTypes.length}</div>
+                      </div>
+                    </div>
+                  </Card>
+                  <Card size="small" style={{ flex: 1, borderRadius: 8, border: '1px solid #f9f0ff', background: 'linear-gradient(135deg, #f9f0ff 0%, #efdbff 100%)' }} styles={{ body: { padding: '12px 16px' } }}>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
+                      <div style={{ width: 40, height: 40, borderRadius: 8, background: '#722ed1', color: '#fff', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 20 }}>
+                        <SwapOutlined />
+                      </div>
+                      <div style={{ flex: 1 }}>
+                        <div style={{ fontSize: 12, color: '#666', marginBottom: 2 }}>{t('关系类型')}</div>
+                        <div style={{ fontSize: 24, fontWeight: 600, color: '#722ed1', lineHeight: 1.2 }}>{linkTypes.length}</div>
+                      </div>
+                    </div>
+                  </Card>
+                </div>
 
                 <GraphCanvas
 

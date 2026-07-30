@@ -14,6 +14,8 @@ import {
   TeamOutlined, 
   UndoOutlined,
   SearchOutlined,
+  NodeIndexOutlined,
+  LinkOutlined,
 } from '@ant-design/icons';
 import GraphView from './GraphView';
 import type { GraphViewApi } from './GraphView';
@@ -371,17 +373,30 @@ export function GraphCanvas({
 
         {detailPanel}
 
-        <div style={{ marginTop: 0, padding: '8px 16px', fontSize: 12, color: '#8c8c8c', borderTop: '1px solid #f0f0f0' }}>
-          <Space size={16}>
-            <span>{t('滚轮缩放 · 拖动画布 · 点击节点聚焦关联')}</span>
-            <span>{t('节点: {{nodeCount}} · 关系: {{edgeCount}}', { nodeCount: filteredNodes.length, edgeCount: filteredEdges.length })}</span>
+        <div style={{ marginTop: 0, padding: '10px 16px', fontSize: 13, color: '#595959', borderTop: '1px solid #f0f0f0', background: '#fafafa', display: 'flex', alignItems: 'center' }}>
+          <Space size={20}>
+            <span style={{ color: '#8c8c8c' }}>{t('滚轮缩放 · 拖动画布 · 点击节点聚焦关联')}</span>
+            <span style={{ display: 'inline-flex', alignItems: 'center', gap: 6, padding: '2px 10px', borderRadius: 4, background: '#e6f4ff', color: '#1677ff', fontWeight: 500 }}>
+              <NodeIndexOutlined />
+              {t('节点')}: {filteredNodes.length}
+              {filteredNodes.length !== nodes.length && (
+                <span style={{ color: '#8c8c8c', fontWeight: 400 }}>/ {nodes.length}</span>
+              )}
+            </span>
+            <span style={{ display: 'inline-flex', alignItems: 'center', gap: 6, padding: '2px 10px', borderRadius: 4, background: '#f6ffed', color: '#52c41a', fontWeight: 500 }}>
+              <LinkOutlined />
+              {t('关系')}: {filteredEdges.length}
+              {filteredEdges.length !== edges.length && (
+                <span style={{ color: '#8c8c8c', fontWeight: 400 }}>/ {edges.length}</span>
+              )}
+            </span>
             {filterType !== 'all' && (
               <Tag color="blue">{t('已筛选: {{filterType}} ({{count}}个)', { filterType, count: filteredNodes.length })}</Tag>
             )}
             {communityMode && (
               <Tag color="purple">{t('社区着色模式')}</Tag>
             )}
-            <span style={{ marginLeft: 'auto' }}>
+            <span style={{ marginLeft: 'auto', color: '#8c8c8c', fontSize: 12 }}>
               {t('快捷键')}: <kbd>Ctrl+F</kbd> {t('搜索路径')} · <kbd>空格</kbd> {t('适应视图')} · <kbd>Esc</kbd> {t('清除选择')}
             </span>
           </Space>

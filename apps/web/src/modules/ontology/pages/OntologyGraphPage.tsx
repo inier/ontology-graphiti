@@ -220,7 +220,7 @@ export function OntologyGraphPage() {
 
     return objectTypes.map((t) => ({
 
-      id: t.id,
+      id: t.type_id,
 
       label: t.display_name || t.name,
 
@@ -236,17 +236,14 @@ export function OntologyGraphPage() {
 
     if (graphData && Array.isArray((graphData as Record<string, unknown>).edges)) {
 
-      return ((graphData as Record<string, unknown>).edges as Array<Record<string, unknown>>).map((e) => ({
-
-        id: String(e.id),
-
-        source: String(e.source),
-
-        target: String(e.target),
-
-        type: String(e.type || e.label || 'related_to'),
-
-      }));
+      return ((graphData as Record<string, unknown>).edges as Array<Record<string, unknown>>)
+        .filter((e) => e.source != null && e.target != null && String(e.source) !== '' && String(e.target) !== '')
+        .map((e) => ({
+          id: String(e.id),
+          source: String(e.source),
+          target: String(e.target),
+          type: String(e.type || e.label || 'related_to'),
+        }));
 
     }
 
@@ -258,7 +255,7 @@ export function OntologyGraphPage() {
 
       .map((l) => ({
 
-        id: l.id,
+        id: l.link_id,
 
         source: l.source_type!,
 
