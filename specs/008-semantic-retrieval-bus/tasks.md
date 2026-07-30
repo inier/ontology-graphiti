@@ -143,6 +143,25 @@
 
 ---
 
+## Phase 9: Phase 2 — Iter 1 MetricType 计算引擎 (Priority: P1)
+
+**Goal**: MetricEngine 支持自定义 MetricDefinition（bindings + formula）；TBox 自动派生保留为 fallback。替换 Phase 1 推迟项之一（verification.md 4 项推迟）。
+
+**Plan**: [.trae/documents/008-semantic-retrieval-bus-phase2.md](../../.trae/documents/008-semantic-retrieval-bus-phase2.md)
+
+**Independent Test**: `pytest tests/unit/test_metric_definition_storage.py tests/unit/test_metric_definition_service.py tests/unit/test_metric_engine.py -v`
+
+### Tasks
+
+- [X] T023 [P] Create MetricDefinitionStorage SQLite CRUD (幂等 DDL + JSON 字段 bindings/tags 序列化 + UNIQUE name + 每次 connect/close) in apps/api/odap/biz/core/ontology/semantic_retrieval/storage/metric_definition_storage.py — 10/10 测试通过（test_metric_definition_storage.py）
+- [X] T024 [P] Create MetricDefinitionService (加载定义 + 按 bindings 调 QueryService 取属性值 + aggregation COUNT/SUM/AVG/MIN/MAX/COUNT_DISTINCT + formula AST 白名单安全求值禁止 Call/Attribute + 空集返回 0 不除零 + 危险 formula 降级首 binding 值) in apps/api/odap/biz/core/ontology/semantic_retrieval/services/metric_definition_service.py — 10/10 测试通过（test_metric_definition_service.py）
+- [X] T025 Modify MetricEngine.metric() 注入可选 metric_definition_service：命中定义走自定义路径（definition=custom）；无定义/异常/未注入均 fallback TBox 自动派生（Phase 1 行为不变）in apps/api/odap/biz/core/ontology/semantic_retrieval/impl/metric_engine.py — 向后兼容，9 个 Phase 1 测试不回归
+- [X] T026 TDD 扩展 test_metric_engine.py 覆盖自定义指标路径：4 新增用例（命中定义返回 custom 结果 + 无定义 fallback TBox + MDS 异常降级 TBox + 未注入 MDS 走 TBox）— 13/13 全绿（9 Phase 1 + 4 T026）
+
+**Checkpoint**: Iter 1 验收 — 112/113 008 特性测试通过（1 预存失败为 reasoning/chat 路由 HTTPException 缺失，与 008 无关，git stash 验证）；Constitution I 函数长度 clean 测试通过；Phase 1 行为零回归
+
+---
+
 ## Dependencies & Execution Order
 
 ### Phase Dependencies

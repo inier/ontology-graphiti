@@ -228,3 +228,105 @@ async def test_limit_negative_raises_value_error():
 
     with pytest.raises(ValueError, match="limit"):
         await engine.metric("ws-test", metric="count", limit=0)
+
+
+# ---------------------------------------------------------------------------
+# T026 (Phase 2 / Iter 1): 自定义 MetricDefinition 路径 + TBox fallback
+# ---------------------------------------------------------------------------
+
+
+def _make_mds(definition=None, raise_exc=None):
+    """构造 mock MetricDefinitionService。
+
+    - definition: resolve_and_compute 返回的自定义结果 dict（None 表示无定义）
+    - raise_exc: resolve_and_compute 抛指定异常（验证降级路径）
+    """
+    mds = MagicMock()
+
+    async def _resolve(workspace_id, metric_name):
+        if raise_exc is not None:
+            raise raise_exc
+        return definition
+    mds.resolve_and_compute = AsyncMock(side_effect=_resolve)
+    return mds
+
+
+async def test_custom_metric_definition_path_returns_custom_result():
+    """T026-1: 注入 MDS 且命中定义 → 返回 definition='custom' 结果，不走 TBox。"""
+    from odap.biz.core.ontology.semantic_retrieval.impl.metric_engine import MetricEngine
+
+    qs = _make_query_service()
+    custom_def = {
+        "metric_name": "势力人口",
+        "value": 600,
+        "unit": "万人",
+        "precision": 2,
+        "bindings": {"A": 600.0},
+    }
+    mds = _make_mds(definition=custom_def)
+    engine = MetricEngine(query_service=qs, metric_definition_service=mds)
+
+    result = await engine.metric("ws-test", metric="势力人口", limit=20)
+
+    assert result["mode"] == "metric"
+    assert result["explain"]["definition"] == "custom"
+    assert result["explain"]["status"] == "ok"
+    assert result["total"] == 1
+    metrics = result["metrics"]
+    assert metrics[0]["metric_name"] == "势力人口"
+    assert metrics[0]["value"] == 600
+    assert metrics[0]["unit"] == "万人"
+    # QueryService 不应被调用（自定义路径不经过 TBox DSL）
+    qs.execute_async.assert_not_called()
+
+
+async def test_custom_metric_not_in_storage_falls_back_to_tbox():
+    """T026-2: MDS 未命中定义（返回 None）→ fallback TBox count（Phase 1 行为）。"""
+    from odap.biz.core.ontology.semantic_retrieval.impl.metric_engine import MetricEngine
+
+    qs = _make_query_service(entities=[{"id": "e1"}, {"id": "e2"}])
+    mds = _make_mds(definition=None)  # 无定义
+    engine = MetricEngine(query_service=qs, metric_definition_service=mds)
+
+    result = await engine.metric("ws-test", metric="count", limit=20)
+
+    # 走 TBox 路径：definition 不为 'custom'
+    assert result["explain"].get("definition") is None
+    assert result["mode"] == "metric"
+    # MDS 被调用过（尝试查找），但返回 None
+    mds.resolve_and_compute.assert_awaited_once()
+    # QueryService 被调用（TBox DSL）
+    qs.execute_async.assert_awaited()
+
+
+async def test_custom_metric_exception_falls_back_to_tbox():
+    """T026-3: MDS 抛异常 → log warning + fallback TBox（不阻断）。"""
+    from odap.biz.core.ontology.semantic_retrieval.impl.metric_engine import MetricEngine
+
+    qs = _make_query_service(entities=[{"id": "e1"}])
+    mds = _make_mds(raise_exc=RuntimeError("storage down"))
+    engine = MetricEngine(query_service=qs, metric_definition_service=mds)
+
+    result = await engine.metric("ws-test", metric="count", limit=20)
+
+    # 异常被吞掉，fallback 到 TBox，不抛出
+    assert result["mode"] == "metric"
+    assert result["explain"].get("definition") is None
+    qs.execute_async.assert_awaited()
+
+
+async def test_no_mds_injected_skips_custom_path():
+    """T026-4: 未注入 MDS（Phase 1 调用方式）→ 直接走 TBox，行为不变。"""
+    from odap.biz.core.ontology.semantic_retrieval.impl.metric_engine import MetricEngine
+
+    qs = _make_query_service(entities=[{"id": "e1"}, {"id": "e2"}, {"id": "e3"}])
+    engine = MetricEngine(query_service=qs)  # 不传 metric_definition_service
+
+    result = await engine.metric("ws-test", metric="count", limit=20)
+
+    assert result["mode"] == "metric"
+    assert result["explain"].get("definition") is None
+    # TBox count 路径
+    metrics = result.get("metrics", result.get("rows", []))
+    values = [m.get("value") for m in metrics if isinstance(m, dict)]
+    assert 3 in values

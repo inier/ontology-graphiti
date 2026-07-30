@@ -1,7 +1,14 @@
 """Metric Engine — BI 工具指标查询引擎 (spec 008 / US2 / FR-006).
 
-Phase 1 不引入 MetricType 一等公民（T012 plan.md 要求），
-TBox 自动派生 {count, density, trend} 三个聚合指标。
+Phase 2 (T025) 接入 MetricDefinitionService 支持自定义指标；
+TBox 自动派生 {count, density, trend} 保留为 fallback（无定义时）。
+
+调用顺序（metric()）：
+  1. 若注入 metric_definition_service → resolve_and_compute(name)
+     - 命中自定义定义 → 返回自定义指标结果（mode=metric, definition=custom）
+     - 无定义返回 None → fallback TBox
+     - 异常 → log warning + fallback TBox（不阻断）
+  2. TBox 自动派生 count/density/trend（Phase 1 行为不变）
 
 Constitution IV:
   - 不新建 IRetrievalEngine 接口（待 Phase 2 出现第二引擎再提）
@@ -17,6 +24,7 @@ Constitution I: 函数体 ≤ 40 行。
   - 未知 metric: status='degraded' 优雅降级
   - granularity: 非 {day,week,month,None} 抛 ValueError
   - limit ≤ 0 或 > 200 抛 ValueError
+  - 自定义 MetricDefinition (T025): bindings+formula 计算，无定义 fallback TBox
 """
 
 import logging
@@ -32,10 +40,12 @@ _SEARCH_MIN = 1
 
 
 class MetricEngine:
-    """BI 指标适配器：DSL 化 QueryService → 指标值。"""
+    """BI 指标适配器：自定义 MetricDefinition + TBox 自动派生 fallback。"""
 
-    def __init__(self, query_service=None):
+    def __init__(self, query_service=None, metric_definition_service=None):
         self._qs = query_service or get_query_service()
+        # T025: 可选注入；None 时跳过自定义路径（Phase 1 行为）
+        self._mds = metric_definition_service
 
     # ------------------------------------------------------------------
     # Public: MetricEngine.metric(workspace_id, metric, **) — test 调用
@@ -51,10 +61,65 @@ class MetricEngine:
         time_window: Optional[Dict[str, Any]] = None,
         limit: int = 20,
     ) -> Dict[str, Any]:
-        """TBox 自动派生指标入口。"""
+        """自定义 MetricDefinition 优先；无定义或失败 fallback TBox 自动派生。"""
         self._validate_limit(limit)
         self._validate_granularity(granularity)
 
+        custom = await self._try_custom_metric(workspace_id, metric)
+        if custom is not None:
+            return custom
+        return await self._tbox_metric(
+            workspace_id, metric, object_type, granularity, time_window, limit
+        )
+
+    async def _try_custom_metric(
+        self, workspace_id: str, metric: str
+    ) -> Optional[Dict[str, Any]]:
+        """T025: 尝试自定义 MetricDefinition；未注入/无定义/异常均返回 None。"""
+        if self._mds is None:
+            return None
+        try:
+            result = await self._mds.resolve_and_compute(workspace_id, metric)
+        except Exception as e:
+            logger.warning(f"custom metric failed, fallback to TBox: {e}")
+            return None
+        if result is None:
+            return None
+        return self._format_custom_result(result, metric)
+
+    @staticmethod
+    def _format_custom_result(
+        result: Dict[str, Any], metric: str
+    ) -> Dict[str, Any]:
+        """将 MetricDefinitionService 结果格式化为 MetricEngine 统一返回。"""
+        metrics = [{
+            "metric_name": result.get("metric_name", metric),
+            "value": result.get("value", 0),
+            "unit": result.get("unit", ""),
+            "dimensions": {"source": "metric_definition"},
+        }]
+        return {
+            "mode": "metric",
+            "metrics": metrics,
+            "rows": metrics,
+            "total": len(metrics),
+            "explain": {
+                "source": "metric",
+                "definition": "custom",
+                "status": "ok",
+            },
+        }
+
+    async def _tbox_metric(
+        self,
+        workspace_id: str,
+        metric: str,
+        object_type: Optional[str],
+        granularity: Optional[str],
+        time_window: Optional[Dict[str, Any]],
+        limit: int,
+    ) -> Dict[str, Any]:
+        """TBox 自动派生 count/density/trend（Phase 1 行为，fallback 路径）。"""
         dsl = self._build_dsl(metric, object_type, granularity, time_window)
         raw = await self._qs.execute_async(workspace_id, dsl, limit=limit)
         rows = list(raw.rows) if hasattr(raw, "rows") else list(raw.get("rows", []))
