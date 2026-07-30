@@ -162,6 +162,25 @@
 
 ---
 
+## Phase 10: Phase 2 — Iter 2 ChainEngine → DeductionEngine 真实集成 (Priority: P2)
+
+**Goal**: ChainEngine.reason() 调真实 DeductionEngine.simulate_chain，返回真实 projected_state + risk + rule_violations；008 循环检测层保留为防护。
+
+**Plan**: [.trae/documents/008-semantic-retrieval-bus-phase2.md](../../.trae/documents/008-semantic-retrieval-bus-phase2.md)
+
+**Independent Test**: `pytest tests/unit/test_scenario_mapper.py tests/unit/test_chain_deduction_integration.py tests/unit/test_chain_cycle_detection.py -v`
+
+### Tasks
+
+- [X] T027 [P] Create ScenarioMapper (query+rules → 临时 scenario + add_execution_chain + simulate_chain + finally 清理；rules[] → ChainStep[]；清理失败不阻断) in apps/api/odap/biz/core/ontology/semantic_retrieval/impl/deduction_adapter.py — 6/6 测试通过
+- [X] T028 [P] Create ChainResultAdapter (metric_impacts → steps; rule_violations → conflicts; recommendation/projected_state → conclusion; risk_score → confidence=1-score/100 clamp 0..1) in deduction_adapter.py — 10/10 测试通过
+- [X] T029 Modify ChainEngine 注入 deduction_engine + DeductionStepper（懒加载 simulate，预计算 steps 供循环检测）；显式 stepper 优先（TDD 不覆盖）；deduction 异常/不可用 fallback _DefaultStepper + explain.status=degraded；DeductionStepper.conclusion/confidence 覆盖默认值 in apps/api/odap/biz/core/ontology/semantic_retrieval/impl/chain_engine.py — 8/8 集成测试通过
+- [X] T030 TDD tests: test_scenario_mapper.py (16 用例: ScenarioMapper happy/failure/cleanup + ChainResultAdapter steps/conflicts/conclusion/confidence) + test_chain_deduction_integration.py (8 用例: 真实 steps/violations→conflicts/conclusion 覆盖/循环检测保留/显式 stepper 优先/降级/空 impacts/无 deduction fallback) — 29/29 全绿（含 5 Phase 1 不回归）
+
+**Checkpoint**: Iter 2 验收 — 136/137 008 特性测试通过（1 预存失败为 reasoning/chat 路由，与 008 无关）；Constitution I 函数长度 clean；Phase 1 + Iter 1 零回归；DeductionEngine 临时 scenario 调用后清理（finally + try/except）
+
+---
+
 ## Dependencies & Execution Order
 
 ### Phase Dependencies

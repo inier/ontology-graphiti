@@ -3,7 +3,9 @@
 设计: Thin Adapter + 可注入 stepper
   · 循环检测层是纯装饰器（stepper 注入），与具体引擎解耦
   · TDD 用 FakeStepper（测试文件中）控制 steps/conflicts
-  · 生产环境 default_stepper 接 DeductionEngine（不兼容时优雅降级 explain.status=degraded）
+  · Phase 2 (T029): deduction_engine 注入 → DeductionStepper（真实推理）
+    不可用或异常 → fallback _DefaultStepper + explain.status=degraded
+  · 008 循环检测层保留在 DeductionStepper 之上（DeductionEngine 无此能力）
   · 所有函数体 ≤ 40 行（Constitution I）
 """
 
@@ -14,18 +16,20 @@ import time
 import uuid
 from typing import Any, Dict, List, Optional
 
+from odap.biz.core.ontology.semantic_retrieval.impl.deduction_adapter import DeductionStepper
+
 logger = logging.getLogger("semantic_retrieval.chain")
 
 MAX_DEPTH_HARD_LIMIT = 10
 
 
-# ── 默认 stepper：生产 Thin Adapter（不依赖 DeductionEngine 具体签名） ──
+# ── 默认 stepper：Phase 1 占位（无 DeductionEngine 时使用） ──
 
 class _DefaultStepper:
     """生产默认 stepper：语义不足时仅转发起点，不阻塞 API。
 
-    TODO Phase 2+：对接 DeductionEngine.simulate_chain(scenario_id, chain_id)
-    当真实传导规则通过 scenario_id + rules[] 映射后再替换本实现。
+    Phase 2: DeductionEngine 可用时由 DeductionStepper 替换；
+    不可用或未注入时 fallback 本实现 + explain.status=degraded。
     """
 
     def __init__(self):
@@ -54,7 +58,13 @@ class _DefaultStepper:
 # ── ChainEngine：循环检测层（核心） ───────────────────────────────────────
 
 class ChainEngine:
-    """链式推理：按 rules[] 有序步进，检测循环 + 深度超限 + 规则冲突 (FR-014)。"""
+    """链式推理：按 rules[] 有序步进，检测循环 + 深度超限 + 规则冲突 (FR-014)。
+
+    Stepper 优先级（T029）：
+      1. 显式 stepper（TDD 注入）优先
+      2. deduction_engine 可用 → DeductionStepper（真实推理）
+      3. 否则 _DefaultStepper（Phase 1 占位）
+    """
 
     def __init__(
         self,
@@ -63,9 +73,10 @@ class ChainEngine:
         *,
         deduction_engine: Any = None,
     ):
+        self._explicit_stepper = stepper  # None 表示未显式注入
         self._stepper = stepper or _DefaultStepper()
         self._default_rules = list(rules or [])
-        self._deduction = deduction_engine  # Phase 2+ 预留接口
+        self._deduction = deduction_engine
 
     # ── 公共 API ─────────────────────────────────────────────────────────
 
@@ -77,13 +88,34 @@ class ChainEngine:
         rules: Optional[List[str]] = None,
         max_depth: int = 5,
     ) -> Dict[str, Any]:
-        """执行推理链，返回结构 {mode, reasoning, warnings, total}。"""
+        """执行推理链，返回结构 {mode, reasoning, warnings, total, explain?}。"""
         _ = workspace_id  # 预留（Phase 2 对接 scenario_id）
         if max_depth > MAX_DEPTH_HARD_LIMIT:
             raise ValueError(
                 f"max_depth 上限为 {MAX_DEPTH_HARD_LIMIT}，当前 {max_depth}"
             )
         rules_list = list(rules or self._default_rules)
+        stepper = self._resolve_stepper(query, rules_list)
+        return await self._execute_chain(stepper, query, rules_list, max_depth)
+
+    def _resolve_stepper(
+        self, query: str, rules: List[str]
+    ) -> Any:
+        """T029: 显式 stepper 优先；否则 deduction_engine → DeductionStepper；否则默认。"""
+        if self._explicit_stepper is not None:
+            return self._stepper
+        if self._deduction is not None:
+            return DeductionStepper(self._deduction, query, rules)
+        return self._stepper
+
+    async def _execute_chain(
+        self,
+        stepper: Any,
+        query: str,
+        rules_list: List[str],
+        max_depth: int,
+    ) -> Dict[str, Any]:
+        """执行推理 + 组装结果（含 explain 降级标记）。"""
         start_node = self._extract_start_node(query)
         steps: List[Dict[str, Any]] = []
         self._append_init_step(steps, start_node)
@@ -91,22 +123,47 @@ class ChainEngine:
         visited = [start_node]
         cycle_ctx: Dict[str, Any] = {"cycle_detected": False, "cycle_path": None}
         warnings = await self._run_steps(
-            rules_list, steps, visited, cycle_ctx, max_depth
+            stepper, rules_list, steps, visited, cycle_ctx, max_depth
         )
 
-        conflicts = self._safe_conflicts()
+        conflicts = self._safe_conflicts(stepper)
         reasoning = self._build_reasoning(
             steps, cycle_ctx["cycle_detected"], cycle_ctx["cycle_path"], conflicts, query
         )
-        return {
+        self._override_from_stepper(stepper, reasoning)
+        return self._build_result(reasoning, warnings, steps, stepper)
+
+    @staticmethod
+    def _override_from_stepper(stepper: Any, reasoning: Dict[str, Any]) -> None:
+        """DeductionStepper 提供 conclusion/confidence 时覆盖默认值（真实引擎优先）。"""
+        conclusion = getattr(stepper, "conclusion", None)
+        if conclusion:
+            reasoning["conclusion"] = conclusion
+        confidence = getattr(stepper, "confidence", None)
+        if confidence is not None:
+            reasoning["confidence"] = confidence
+
+    @staticmethod
+    def _build_result(
+        reasoning: Dict[str, Any],
+        warnings: List[str],
+        steps: List[Dict[str, Any]],
+        stepper: Any,
+    ) -> Dict[str, Any]:
+        """组装最终返回；DeductionStepper 降级时附 explain.status=degraded。"""
+        result: Dict[str, Any] = {
             "mode": "chain",
             "reasoning": reasoning,
             "warnings": warnings,
             "total": len(steps),
         }
+        if getattr(stepper, "degraded", False):
+            result["explain"] = {"source": "chain", "status": "degraded"}
+        return result
 
     async def _run_steps(
         self,
+        stepper: Any,
         rules_list: List[str],
         steps: List[Dict[str, Any]],
         visited: List[str],
@@ -120,7 +177,7 @@ class ChainEngine:
             if len(steps) - 1 >= max_depth:
                 warnings.append(self._depth_warning(idx, len(rules_list), max_depth))
                 break
-            next_step = await self._stepper.step(rule_id, current, duration_ms=50)
+            next_step = await stepper.step(rule_id, current, duration_ms=50)
             if next_step is None:
                 break
             output = str(next_step["output"])
@@ -182,10 +239,11 @@ class ChainEngine:
             }
         )
 
-    def _safe_conflicts(self) -> List[Dict[str, str]]:
+    @staticmethod
+    def _safe_conflicts(stepper: Any) -> List[Dict[str, str]]:
         """收集 stepper 冲突，stepper 不支持时返回空列表（不阻断）。"""
         try:
-            raw = self._stepper.conflicts() or []
+            raw = stepper.conflicts() or []
             result = []
             for c in raw:
                 if {"rule_a", "rule_b", "description"}.issubset(c.keys()):
