@@ -1,0 +1,86 @@
+"""Semantic Retrieval API routes (spec 008 / contracts/api-contracts.md).
+
+端点（前缀 /api/semantic-retrieval）：
+- POST /query   统一检索（auto 路由）FR-001
+- POST /graph   分项图检索 FR-005
+- POST /nl      分项 NL 检索（USL 消歧）FR-003/FR-016
+
+安全（project_memory 规则）：
+- 所有端点 user=Depends(get_current_user)（强制认证，禁止 optional）
+- workspace_id 从 JWT ws_id 提取（FR-012 隔离）
+- HTTPException 透传，service ValueError → 400，其它异常 → 500
+- 审计不记明文（FR-013）
+"""
+
+import logging
+from typing import Tuple
+
+from fastapi import APIRouter, Depends, HTTPException
+
+from odap.infra.security.audit_helper import extract_workspace_id
+from odap.infra.security.jwt_auth import get_current_user
+
+from ..models.schemas import SearchRequest, SearchResult
+from ..services.retrieval_service import RetrievalService
+
+logger = logging.getLogger("semantic_retrieval.routes")
+
+router = APIRouter(prefix="/api/semantic-retrieval", tags=["semantic-retrieval"])
+
+_service = RetrievalService()
+
+
+def _extract_operator(user) -> Tuple[str, str]:
+    """从 JWT user 提取操作者（project_memory：禁止 hardcode operator_id）。"""
+    if isinstance(user, dict):
+        return user.get("sub", "anonymous"), user.get("name", "anonymous")
+    return "anonymous", "anonymous"
+
+
+@router.post("/query", response_model=SearchResult)
+async def unified_query(request: SearchRequest, user=Depends(get_current_user)):
+    """统一检索：调用方仅给 query + mode=auto，引擎自动路由（FR-001）。"""
+    workspace_id = extract_workspace_id(user)
+    _operator_id, _operator_name = _extract_operator(user)
+    try:
+        return await _service.search(workspace_id, request)
+    except HTTPException:
+        raise
+    except ValueError as exc:
+        # 不支持的 mode（如 chain/mdl/metric 尚未实现）→ 400
+        raise HTTPException(status_code=400, detail=str(exc))
+    except Exception as exc:
+        logger.exception("unified query failed")
+        raise HTTPException(status_code=500, detail=str(exc))
+
+
+@router.post("/graph", response_model=SearchResult)
+async def graph_search(request: SearchRequest, user=Depends(get_current_user)):
+    """分项图检索（FR-005）。"""
+    workspace_id = extract_workspace_id(user)
+    try:
+        raw = await _service.graph_search(workspace_id, request.query, limit=request.limit)
+    except HTTPException:
+        raise
+    except Exception as exc:
+        logger.exception("graph search failed")
+        raise HTTPException(status_code=500, detail=str(exc))
+    return SearchResult(
+        query=request.query, mode="graph", total=raw["total"], rows=raw["rows"], explain=raw.get("explain")
+    )
+
+
+@router.post("/nl", response_model=SearchResult)
+async def nl_search(request: SearchRequest, user=Depends(get_current_user)):
+    """分项 NL 检索 + USL 术语消歧（FR-003/FR-016）。"""
+    workspace_id = extract_workspace_id(user)
+    try:
+        raw = await _service.nl_search(workspace_id, request.query, limit=request.limit)
+    except HTTPException:
+        raise
+    except Exception as exc:
+        logger.exception("nl search failed")
+        raise HTTPException(status_code=500, detail=str(exc))
+    return SearchResult(
+        query=request.query, mode="nl", total=raw["total"], rows=raw["rows"], explain=raw.get("explain")
+    )

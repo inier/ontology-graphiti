@@ -26,7 +26,7 @@
 
 **Purpose**: 创建 6 层 biz 模块骨架
 
-- [ ] T001 Create 6-layer biz module directory structure (api/ models/ interfaces/ impl/ services/ storage/ + __init__.py) at apps/api/odap/biz/core/ontology/semantic_retrieval/
+- [X] T001 Create 6-layer biz module directory structure (api/ models/ interfaces/ impl/ services/ storage/ + __init__.py) at apps/api/odap/biz/core/ontology/semantic_retrieval/
 
 ---
 
@@ -36,11 +36,11 @@
 
 **⚠️ CRITICAL**: 本阶段未完成前不得开始 User Story 实现
 
-- [ ] T002 [P] Create Pydantic models (SearchRequest, SearchResult, EntityHit, RelationHit, MetricValue, TimeWindow, SearchComponent) with validation (page_size≤100, workspace_id from JWT only) in apps/api/odap/biz/core/ontology/semantic_retrieval/models/retrieval.py
-- [ ] T003 [P] Create graph_engine adapter (reuse QueryService.search_entities + valid/candidate default filter `WHERE NOT (e:USL__Candidate) AND e.valid = true` + workspace_id from JWT) in apps/api/odap/biz/core/ontology/semantic_retrieval/impl/graph_engine.py
-- [ ] T004 [P] Create audit_log storage adapter (reuse storage_audit, service="semantic_retrieval", details={query_type,result_count,duration_ms} — 禁止记录 query 内容 per FR-013) in apps/api/odap/biz/core/ontology/semantic_retrieval/storage/audit_log.py
-- [ ] T005 Create retrieval_service application service (orchestrate engines + audit埋点 + workspace 过滤 + 分页边界) in apps/api/odap/biz/core/ontology/semantic_retrieval/services/retrieval_service.py (depends T002, T003, T004)
-- [ ] T006 Register /api/semantic-retrieval/* route group scaffold with `user=Depends(get_current_user)` + JWT workspace_id extraction + `/graph` endpoint + _extract_operator helper in apps/api/odap/biz/core/ontology/semantic_retrieval/api/routes.py (depends T005)
+- [X] T002 [P] Create Pydantic models (SearchRequest, SearchResult, EntityHit, RelationHit, MetricValue, TimeWindow, SearchComponent) with validation (page_size≤100, workspace_id from JWT only) in apps/api/odap/biz/core/ontology/semantic_retrieval/models/retrieval.py
+- [X] T003 [P] Create graph_engine adapter (reuse QueryService.search_entities + valid/candidate default filter `WHERE NOT (e:USL__Candidate) AND e.valid = true` + workspace_id from JWT) in apps/api/odap/biz/core/ontology/semantic_retrieval/impl/graph_engine.py
+- [X] T004 [P] Create audit_log storage adapter (reuse storage_audit, service="semantic_retrieval", details={query_type,result_count,duration_ms} — 禁止记录 query 内容 per FR-013) in apps/api/odap/biz/core/ontology/semantic_retrieval/storage/audit_log.py
+- [X] T005 Create retrieval_service application service (orchestrate engines + audit埋点 + workspace 过滤 + 分页边界) in apps/api/odap/biz/core/ontology/semantic_retrieval/services/retrieval_service.py (depends T002, T003, T004)
+- [X] T006 Register /api/semantic-retrieval/* route group scaffold with `user=Depends(get_current_user)` + JWT workspace_id extraction + `/graph` endpoint + _extract_operator helper in apps/api/odap/biz/core/ontology/semantic_retrieval/api/routes.py (depends T005)
 
 **Checkpoint**: 基础设施就绪 — User Story 实现可并行开始
 
@@ -54,13 +54,13 @@
 
 ### Tests for User Story 1 (TDD — 写在实现前，先 FAIL)
 
-- [ ] T007 [P] [US1] Write test for nl_engine term mapping (映射成功 / 无映射原样传递 / 多映射歧义 / warnings 提示) in tests/unit/test_nl_engine.py
-- [ ] T009 [P] [US1] Write test for unified_router auto-routing (NL 输入→nl 引擎；含聚合关键词如"统计/趋势"→metric；默认→graph；dict 策略表) in tests/unit/test_unified_router.py
+- [X] T007 [P] [US1] Write test for nl_engine term mapping (映射成功 / 无映射原样传递 / 多映射歧义 / warnings 提示) in tests/unit/test_nl_engine.py
+- [X] T009 [P] [US1] Write test for unified_router auto-routing (NL 输入→nl 引擎；含聚合关键词如"统计/趋势"→metric；默认→graph；dict 策略表) in tests/unit/test_unified_router.py
 
 ### Implementation for User Story 1
 
-- [ ] T008 [US1] Implement nl_engine (call USL `get_domain_by_term` + delegate to graph_engine + 术语映射 warnings) in apps/api/odap/biz/core/ontology/semantic_retrieval/impl/nl_engine.py (depends T007, T003)
-- [ ] T010 [US1] Implement unified_router (dict 策略表，非抽象工厂) + wire `/query` (auto) + `/nl` endpoints in apps/api/odap/biz/core/ontology/semantic_retrieval/impl/unified_router.py + api/routes.py (depends T008, T009)
+- [X] T008 [US1] Implement nl_engine (call USL `get_domain_by_term` + delegate to graph_engine + 术语映射 warnings) in apps/api/odap/biz/core/ontology/semantic_retrieval/impl/nl_engine.py (depends T007, T003)
+- [X] T010 [US1] Implement unified_router (dict 策略表，非抽象工厂) + wire `/query` (auto) + `/nl` endpoints in apps/api/odap/biz/core/ontology/semantic_retrieval/impl/unified_router.py + api/routes.py (depends T008, T009)
 
 **Checkpoint**: US1 独立可用 — Agent 可通过 `/query` 或 `/nl` 用自然语言查询本体
 
