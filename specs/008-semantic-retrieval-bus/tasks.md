@@ -126,8 +126,8 @@
 
 ### Implementation for User Story 5
 
-- [ ] T018 [US5] Register ontology_query / ontology_reason / ontology_metric MCP tools (mirror existing openharness_bridge 注册模式 per ADR-026) in apps/api/odap/biz/core/ontology/mcp/semantic_retrieval_tools.py
-- [ ] T019 [US5] Write MCP integration test (工具调用结果与直接 REST 调用一致 per FR-010) in tests/integration/test_semantic_retrieval_mcp.py
+- [X] T018 [US5] Register ontology_query / ontology_reason / ontology_metric MCP tools (mirror existing openharness_bridge 注册模式 per ADR-026) in apps/api/odap/biz/core/ontology/mcp/semantic_retrieval_tools.py
+- [X] T019 [US5] Write MCP integration test (工具调用结果与直接 REST 调用一致 per FR-010) in tests/integration/test_semantic_retrieval_mcp.py
 
 **Checkpoint**: US5 可用 — MCP 工具集对外暴露
 
