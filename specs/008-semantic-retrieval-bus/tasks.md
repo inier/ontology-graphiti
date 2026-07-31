@@ -283,6 +283,25 @@
 
 ---
 
+## Phase 15: Phase 6 — MCP 工具 real RetrievalService 端到端补强 (Priority: P4)
+
+**Goal**: 补齐 Phase 5 新增 4 工具（graph/nl/mdl/hybrid）的 real RetrievalService 端到端测试，使全部 7 个 MCP 工具均有 FR-010 real service 等价验证（T035 仅覆盖 metric/reason 2 工具）。
+
+**Independent Test**: `pytest tests/integration/test_semantic_retrieval_mcp.py -k "real_service_equivalent" -v`
+
+### Tasks
+
+- [X] T042 [P] 4 新 MCP 工具 real RetrievalService 端到端 FR-010 等价验证
+  - T042-1 ontology_graph handler == direct graph_search（结构契约 rows/total/explain）
+  - T042-2 ontology_nl handler == direct nl_search（结构契约 rows/total/explain）
+  - T042-3 ontology_mdl handler == direct mdl_search（排除 chain_id UUID 后等价；reasoning 子结构契约 chain_id/template/status/conclusion）
+  - T042-4 ontology_hybrid handler == direct hybrid_search（排除 request_id UUID 后等价；结构契约 mode/request_id/rows/total/components/warnings）
+- [X] T043 [P] 全量回归 125/125 + tasks.md/verification.md 更新 + 提交
+
+**Checkpoint**: Phase 6 MCP 工具 real service 端到端补强 — 7/7 工具全部有 FR-010 real RetrievalService 等价验证（T035 metric/reason 2 + T042 graph/nl/mdl/hybrid 4 + T019 query FakeService 1）；125/125 全量回归零回归。
+
+---
+
 ## Dependencies & Execution Order
 
 ### Phase Dependencies

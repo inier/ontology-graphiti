@@ -545,3 +545,152 @@ def test_seven_tool_descriptions_document_fields():
     d = reg.tools["ontology_hybrid"]["description"].lower()
     for f in ("component", "workspace_id", "merge"):
         assert f in d, f"ontology_hybrid 描述缺 {f}"
+
+
+# ══════════════════════════════════════════════════════════════════════
+# Phase 6 T042: 4 新 MCP 工具 real RetrievalService 端到端 (FR-010 补强)
+#
+# T035 已覆盖 metric/reason 2 工具的 real service 端到端；
+# Phase 5 新增的 graph/nl/mdl/hybrid 4 工具仅有 FakeService 测试。
+# 本节补齐：handler 调用 real RetrievalService → 结果与 direct 调用等价 (FR-010)。
+# ══════════════════════════════════════════════════════════════════════
+
+
+# ── T042-1: ontology_graph handler == direct graph_search (FR-010) ──────
+
+@pytest.mark.asyncio
+async def test_mcp_ontology_graph_real_service_equivalent_to_direct():
+    """T042-1: ontology_graph handler 对 real RetrievalService → 与 direct graph_search 等价 (FR-010)。"""
+    from odap.biz.core.ontology.mcp.semantic_retrieval_tools import (
+        create_ontology_graph_handler,
+    )
+    from odap.biz.core.ontology.semantic_retrieval.services.retrieval_service import (
+        RetrievalService,
+    )
+
+    svc = RetrievalService()
+    handler = create_ontology_graph_handler(service=svc)
+    args = {"query": "测试实体", "limit": 5, "workspace_id": "ws-mcp-real"}
+
+    via_handler = await handler(args)
+    via_direct = await svc.graph_search("ws-mcp-real", "测试实体", limit=5)
+
+    # FR-010 核心断言：handler 与 direct 调用结果完全等价
+    assert via_handler == via_direct, "ontology_graph handler 与 direct 结果不一致 (FR-010)"
+    # 结构契约：rows/total/explain 必存
+    for field in ("rows", "total", "explain"):
+        assert field in via_handler, f"ontology_graph 缺字段 {field}"
+    assert isinstance(via_handler["rows"], list)
+    assert isinstance(via_handler["total"], int)
+
+
+# ── T042-2: ontology_nl handler == direct nl_search (FR-010) ────────────
+
+@pytest.mark.asyncio
+async def test_mcp_ontology_nl_real_service_equivalent_to_direct():
+    """T042-2: ontology_nl handler 对 real RetrievalService → 与 direct nl_search 等价 (FR-010)。"""
+    from odap.biz.core.ontology.mcp.semantic_retrieval_tools import (
+        create_ontology_nl_handler,
+    )
+    from odap.biz.core.ontology.semantic_retrieval.services.retrieval_service import (
+        RetrievalService,
+    )
+
+    svc = RetrievalService()
+    handler = create_ontology_nl_handler(service=svc)
+    args = {"query": "低 readiness 装备", "limit": 5, "workspace_id": "ws-mcp-real"}
+
+    via_handler = await handler(args)
+    via_direct = await svc.nl_search("ws-mcp-real", "低 readiness 装备", limit=5)
+
+    # FR-010 核心断言
+    assert via_handler == via_direct, "ontology_nl handler 与 direct 结果不一致 (FR-010)"
+    # 结构契约：rows/total/explain 必存
+    for field in ("rows", "total", "explain"):
+        assert field in via_handler, f"ontology_nl 缺字段 {field}"
+    assert isinstance(via_handler["rows"], list)
+
+
+# ── T042-3: ontology_mdl handler == direct mdl_search (FR-010) ──────────
+
+@pytest.mark.asyncio
+async def test_mcp_ontology_mdl_real_service_equivalent_to_direct():
+    """T042-3: ontology_mdl handler 对 real RetrievalService → 与 direct mdl_search 等价 (FR-010)。"""
+    from odap.biz.core.ontology.mcp.semantic_retrieval_tools import (
+        create_ontology_mdl_handler,
+    )
+    from odap.biz.core.ontology.semantic_retrieval.services.retrieval_service import (
+        RetrievalService,
+    )
+
+    svc = RetrievalService()
+    handler = create_ontology_mdl_handler(service=svc)
+    query = "template: general/concept_graph\nentity: 测试实体\nparams: {}"
+    args = {"query": query, "workspace_id": "ws-mcp-real"}
+
+    via_handler = await handler(args)
+    via_direct = await svc.mdl_search("ws-mcp-real", query=query)
+
+    # FR-010 核心断言（chain_id 是 UUID 每次不同，排除后比较）
+    h_reasoning = {k: v for k, v in via_handler["reasoning"].items() if k != "chain_id"}
+    d_reasoning = {k: v for k, v in via_direct["reasoning"].items() if k != "chain_id"}
+    assert h_reasoning == d_reasoning, (
+        "ontology_mdl handler 与 direct reasoning 不一致 (FR-010，排除 chain_id)"
+    )
+    # 非 reasoning 字段完全等价
+    for field in ("mode", "warnings", "total"):
+        assert via_handler[field] == via_direct[field], (
+            f"ontology_mdl {field} 不一致 (FR-010)"
+        )
+    # 结构契约：mode/reasoning/warnings/total 必存
+    for field in ("mode", "reasoning", "warnings", "total"):
+        assert field in via_handler, f"ontology_mdl 缺字段 {field}"
+    assert via_handler["mode"] == "mdl"
+    # reasoning 子结构契约
+    reasoning = via_handler["reasoning"]
+    for field in ("chain_id", "template", "status", "conclusion"):
+        assert field in reasoning, f"ontology_mdl reasoning 缺字段 {field}"
+
+
+# ── T042-4: ontology_hybrid handler == direct hybrid_search (FR-010) ────
+
+@pytest.mark.asyncio
+async def test_mcp_ontology_hybrid_real_service_equivalent_to_direct():
+    """T042-4: ontology_hybrid handler 对 real RetrievalService → 与 direct hybrid_search 等价 (FR-010)。"""
+    from odap.biz.core.ontology.mcp.semantic_retrieval_tools import (
+        create_ontology_hybrid_handler,
+    )
+    from odap.biz.core.ontology.semantic_retrieval.services.retrieval_service import (
+        RetrievalService,
+    )
+
+    svc = RetrievalService()
+    handler = create_ontology_hybrid_handler(service=svc)
+    components = [
+        {"type": "graph", "params": {"query": "测试"}, "on_failure": "skip"},
+        {"type": "metric", "params": {"metric": "count"}, "on_failure": "degrade"},
+    ]
+    args = {
+        "components": components,
+        "merge": "concat",
+        "workspace_id": "ws-mcp-real",
+    }
+
+    via_handler = await handler(args)
+    via_direct = await svc.hybrid_search(
+        "ws-mcp-real", components, merge="concat"
+    )
+
+    # FR-010 核心断言（request_id 是 UUID 每次不同，排除后比较）
+    handler_no_rid = {k: v for k, v in via_handler.items() if k != "request_id"}
+    direct_no_rid = {k: v for k, v in via_direct.items() if k != "request_id"}
+    assert handler_no_rid == direct_no_rid, (
+        "ontology_hybrid handler 与 direct 结果不一致 (FR-010，排除 request_id)"
+    )
+    # 结构契约：mode/request_id/rows/total/components/warnings 必存
+    for field in ("mode", "request_id", "rows", "total", "components", "warnings"):
+        assert field in via_handler, f"ontology_hybrid 缺字段 {field}"
+    assert via_handler["mode"] == "hybrid"
+    assert via_handler["request_id"].startswith("hybrid-")
+    assert isinstance(via_handler["components"], list)
+    assert len(via_handler["components"]) == 2  # 2 个组件
