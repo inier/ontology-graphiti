@@ -230,17 +230,22 @@ NL 输入 → USL `get_domain_by_term` 术语映射 → 图检索。
 
 ---
 
-## MCP 工具契约（Phase 3）
+## MCP 工具契约（Phase 3 + Phase 5 扩编）
 
 注册到现有 MCP Server（ADR-026 bridge），供 OpenHarness 等 Agent 框架调用。
+Phase 3 注册 3 个核心工具，Phase 5 扩编至 7 个，**覆盖全部 REST 端点**（FR-009 全端点覆盖）。
 
-| 工具名 | 映射端点 | input_schema 关键字段 |
-|--------|---------|----------------------|
-| `ontology_query` | POST /query | `query: str`, `filters?: dict` |
-| `ontology_reason` | POST /chain | `query: str`, `rules?: list[str]`, `max_depth?: int` |
-| `ontology_metric` | POST /metric | `metric_type: str`, `target: str`, `granularity?: str` |
+| 工具名 | 映射端点 | Phase | input_schema 关键字段 |
+|--------|---------|-------|----------------------|
+| `ontology_query` | POST /query | 3 | `query: str`, `mode?: str=auto\|chain\|nl\|mdl\|graph\|metric`, `limit?: int`, `workspace_id: str` |
+| `ontology_graph` | POST /graph | 5 | `query: str`, `limit?: int=1..200`, `workspace_id: str` |
+| `ontology_nl` | POST /nl | 5 | `query: str`, `limit?: int=1..200`, `workspace_id: str` |
+| `ontology_metric` | POST /metric | 3 | `metric: str=count\|density\|trend`, `object_type?: str`, `granularity?: str=day\|week\|month`, `workspace_id: str` |
+| `ontology_reason` | POST /chain | 3 | `query: str`, `rules?: list[str]`, `max_depth?: int=1..10`, `workspace_id: str` |
+| `ontology_mdl` | POST /mdl | 5 | `query: str` (含 `template`/`entity`/`params` YAML 段), `workspace_id: str` |
+| `ontology_hybrid` | POST /hybrid | 5 | `components: list[{type, params, on_failure}]`, `merge?: str=concat\|interleave\|rank`, `workspace_id: str` |
 
-MCP 调用结果与直接 REST API 调用完全一致（FR-010）。
+**MCP 调用结果与直接 REST API 调用完全一致（FR-010）** — 所有 handler 复用同一 `RetrievalService` 实例。
 
 ---
 

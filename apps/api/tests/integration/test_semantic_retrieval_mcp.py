@@ -258,10 +258,13 @@ async def test_mcp_ontology_reason_chain_id_conclusion_fields_exist():
     assert isinstance(via_handler.get("warnings"), list)
 
 
-# ── T035-3: MCP register_all 返回 handlers 可直接调用 3 工具 ────────────
+# ── T035-3: MCP register_all 返回 handlers 可直接调用 7 工具 ────────────
 
 def test_mcp_register_all_returns_callable_handlers():
-    """T035-3: register_all 返回 {name: async handler}，3 工具均 callable + 正确 shape。"""
+    """T035-3: register_all 返回 {name: async handler}，7 工具均 callable + 正确 shape。
+
+    Phase 5 扩编后工具数 3→7（新增 graph/nl/mdl/hybrid）；3 核心 + 4 扩展均需满足契约。
+    """
     import inspect
 
     from odap.biz.core.ontology.mcp.semantic_retrieval_tools import register_all
@@ -277,14 +280,18 @@ def test_mcp_register_all_returns_callable_handlers():
     reg = CapturingRegistry()
     handlers = register_all(registry=reg)
 
-    # 返回值 3 个
-    assert set(handlers.keys()) == {"ontology_query", "ontology_reason", "ontology_metric"}
+    # 返回值 7 个（Phase 5：3 核心 + 4 扩展）
+    expected = {
+        "ontology_query", "ontology_reason", "ontology_metric",  # 核心 3
+        "ontology_graph", "ontology_nl", "ontology_mdl", "ontology_hybrid",  # 扩展 4
+    }
+    assert set(handlers.keys()) == expected, f"工具集不符: {set(handlers.keys())}"
     for name, fn in handlers.items():
         assert callable(fn), f"{name} handler 不可调用"
         # async callable
         assert inspect.iscoroutinefunction(fn), f"{name} handler 非 async"
-    # 注册项 3 个，均带 category=semantic_retrieval
-    assert len(reg.items) == 3
+    # 注册项 7 个，均带 category=semantic_retrieval
+    assert len(reg.items) == 7
     cats = {item[3] for item in reg.items}
     assert "semantic_retrieval" in cats, f"category 缺失 semantic_retrieval: {cats}"
 
@@ -336,3 +343,205 @@ def test_mcp_descriptions_match_contract_field_names():
     # contracts L234: metric + object_type + granularity + workspace_id
     for field in ("metric", "object_type", "granularity", "workspace_id"):
         assert field in m, f"ontology_metric 描述缺 {field}"
+
+
+# ══════════════════════════════════════════════════════════════════════
+# Phase 5 T040: MCP 工具组扩编 3→7 (FR-009 全端点覆盖)
+# ══════════════════════════════════════════════════════════════════════
+
+
+# ── T040-1: 7 个 MCP 工具均已注册 ────────────────────────────────────────
+
+def test_seven_mcp_tools_registered():
+    """T040-1: register_all() 后 7 工具可发现（3 核心 + 4 扩展）。"""
+    from odap.biz.core.ontology.mcp.semantic_retrieval_tools import register_all
+
+    class FakeRegistry:
+        def __init__(self):
+            self.tools = {}
+        def register_function(self, name, description, func, category="function"):
+            self.tools[name] = {"description": description, "func": func}
+            return True
+
+    reg = FakeRegistry()
+    register_all(registry=reg)
+
+    expected = {
+        "ontology_query", "ontology_reason", "ontology_metric",  # 核心 3
+        "ontology_graph", "ontology_nl", "ontology_mdl", "ontology_hybrid",  # 扩展 4
+    }
+    actual = set(reg.tools.keys())
+    missing = expected - actual
+    assert not missing, f"未注册工具: {missing}（实际: {actual}）"
+
+
+# ── T040-2: ontology_graph 调用结果与 RetrievalService.graph_search 一致 ─
+
+@pytest.mark.asyncio
+async def test_ontology_graph_result_matches_service():
+    """T040-2: MCP ontology_graph → 结果与 RetrievalService.graph_search 一致 (FR-010)。"""
+    from odap.biz.core.ontology.mcp.semantic_retrieval_tools import (
+        create_ontology_graph_handler,
+    )
+
+    class FakeService:
+        async def graph_search(self, workspace_id, query, limit=20):
+            return {
+                "mode": "graph",
+                "total": 2,
+                "rows": [{"id": "g1"}, {"id": "g2"}],
+                "explain": {"source": "graph"},
+            }
+
+    svc = FakeService()
+    handler = create_ontology_graph_handler(service=svc)
+    args = {"query": "部署于", "limit": 50, "workspace_id": "ws-test"}
+    result = await handler(args)
+
+    assert result["mode"] == "graph"
+    assert result["total"] == 2
+    assert result["rows"] == [{"id": "g1"}, {"id": "g2"}]
+
+
+# ── T040-3: ontology_nl 调用结果与 RetrievalService.nl_search 一致 ───────
+
+@pytest.mark.asyncio
+async def test_ontology_nl_result_matches_service():
+    """T040-3: MCP ontology_nl → 结果与 RetrievalService.nl_search 一致 (FR-010)。"""
+    from odap.biz.core.ontology.mcp.semantic_retrieval_tools import (
+        create_ontology_nl_handler,
+    )
+
+    class FakeService:
+        async def nl_search(self, workspace_id, query, limit=20):
+            return {
+                "mode": "nl",
+                "total": 1,
+                "rows": [{"id": "n1"}],
+                "explain": {"source": "nl"},
+            }
+
+    svc = FakeService()
+    handler = create_ontology_nl_handler(service=svc)
+    args = {"query": "低 readiness 装备", "workspace_id": "ws-test"}
+    result = await handler(args)
+
+    assert result["mode"] == "nl"
+    assert result["total"] == 1
+    assert result["rows"] == [{"id": "n1"}]
+
+
+# ── T040-4: ontology_mdl 调用结果与 RetrievalService.mdl_search 一致 ──────
+
+@pytest.mark.asyncio
+async def test_ontology_mdl_result_matches_service():
+    """T040-4: MCP ontology_mdl → 结果与 RetrievalService.mdl_search 一致 (FR-010)。"""
+    from odap.biz.core.ontology.mcp.semantic_retrieval_tools import (
+        create_ontology_mdl_handler,
+    )
+
+    class FakeService:
+        async def mdl_search(self, workspace_id, *, query):
+            return {
+                "mode": "mdl",
+                "reasoning": {
+                    "chain_id": "mdl-test",
+                    "template": "general/concept_graph",
+                    "entity": "测试实体",
+                    "status": "ok",
+                    "conclusion": "测试结论",
+                    "confidence": 0.8,
+                    "cycle_detected": False,
+                    "conflicts": [],
+                },
+                "warnings": [],
+                "total": 1,
+            }
+
+    svc = FakeService()
+    handler = create_ontology_mdl_handler(service=svc)
+    args = {
+        "query": "template: general/concept_graph\nentity: 测试实体\nparams: {}",
+        "workspace_id": "ws-test",
+    }
+    result = await handler(args)
+
+    assert result["mode"] == "mdl"
+    assert result["reasoning"]["template"] == "general/concept_graph"
+    assert result["reasoning"]["status"] == "ok"
+
+
+# ── T040-5: ontology_hybrid 调用结果与 RetrievalService.hybrid_search 一致
+
+@pytest.mark.asyncio
+async def test_ontology_hybrid_result_matches_service():
+    """T040-5: MCP ontology_hybrid → 结果与 RetrievalService.hybrid_search 一致 (FR-010)。"""
+    from odap.biz.core.ontology.mcp.semantic_retrieval_tools import (
+        create_ontology_hybrid_handler,
+    )
+
+    class FakeService:
+        async def hybrid_search(self, workspace_id, components, *, merge="concat"):
+            return {
+                "mode": "hybrid",
+                "request_id": "hybrid-test",
+                "rows": [{"id": "h1"}],
+                "total": 1,
+                "components": [
+                    {"type": "graph", "status": "ok", "rows": [{"id": "h1"}], "total": 1}
+                ],
+                "warnings": [],
+            }
+
+    svc = FakeService()
+    handler = create_ontology_hybrid_handler(service=svc)
+    args = {
+        "components": [
+            {"type": "graph", "params": {"query": "q"}, "on_failure": "skip"}
+        ],
+        "merge": "concat",
+        "workspace_id": "ws-test",
+    }
+    result = await handler(args)
+
+    assert result["mode"] == "hybrid"
+    assert result["total"] == 1
+    assert result["rows"] == [{"id": "h1"}]
+    assert len(result["components"]) == 1
+
+
+# ── T040-6: 7 工具 description 含必需字段名 ─────────────────────────────
+
+def test_seven_tool_descriptions_document_fields():
+    """T040-6: 7 个 MCP 工具 description 文档化 input_schema 关键字段。"""
+    from odap.biz.core.ontology.mcp.semantic_retrieval_tools import register_all
+
+    class FakeRegistry:
+        def __init__(self):
+            self.tools = {}
+        def register_function(self, name, description, func, category="function"):
+            self.tools[name] = {"description": description}
+            return True
+
+    reg = FakeRegistry()
+    register_all(registry=reg)
+
+    # ontology_graph: query + workspace_id + limit
+    d = reg.tools["ontology_graph"]["description"].lower()
+    for f in ("query", "workspace_id", "limit"):
+        assert f in d, f"ontology_graph 描述缺 {f}"
+
+    # ontology_nl: query + workspace_id
+    d = reg.tools["ontology_nl"]["description"].lower()
+    for f in ("query", "workspace_id"):
+        assert f in d, f"ontology_nl 描述缺 {f}"
+
+    # ontology_mdl: query + workspace_id
+    d = reg.tools["ontology_mdl"]["description"].lower()
+    for f in ("query", "workspace_id"):
+        assert f in d, f"ontology_mdl 描述缺 {f}"
+
+    # ontology_hybrid: components + workspace_id + merge
+    d = reg.tools["ontology_hybrid"]["description"].lower()
+    for f in ("component", "workspace_id", "merge"):
+        assert f in d, f"ontology_hybrid 描述缺 {f}"

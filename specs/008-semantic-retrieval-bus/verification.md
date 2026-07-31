@@ -129,13 +129,14 @@ tests/unit/test_constitution_compliance.py   — (含于上)
 | G-7 路由异常回归 | 9 | ✅ 9/9 |
 | G-8 Cypher/SQL 注入回归 | 18 | ✅ 18/18 |
 | G-10 008 特性 unit | 133 (=57 P1 + 24 P2-I1 + 26 P2-I2 + 6 P2-I3 + 16 Phase3-4 Hybrid + 4* 其它) | ✅ 133/133 |
-| G-10 008 特性 integration | 16 (=6 P1 Routes + 10 MCP) | ✅ 16/16 |
-| **008 特性合计（四城门 G7+G8+G10）** | **176** | **✅ 176/176** |
+| G-10 008 特性 integration | 22 (=6 P1 Routes + 10 MCP Phase3 + 6 MCP Phase5) | ✅ 22/22 |
+| **008 特性合计（四城门 G7+G8+G10）** | **182** | **✅ 182/182** |
 | Constitution I 专项（008 模块 143 函数）| 143 | ✅ 143/143（全部 ≤40 行，零违规）|
 
 *Phase 3 Hybrid 新增 4 用例 + ChainEngine 契约对齐、MCP 工具新增 5 深度集成用例。
 *Phase 4 Hybrid merge 新增 5 用例（interleave/rank/unknown 回退/跳过 degraded/无 score 稳定排序）。
-*G-10 integration 从 6 → 16：含 10 条 MCP 端到端用例（T035 5 + T019 5）。
+*Phase 5 MCP 工具组扩编 3→7：新增 6 用例（T040-1 7 工具注册 + T040-2/3/4/5 graph/nl/mdl/hybrid 4 个新 handler FakeService 一致性 + T040-6 7 工具 description 字段断言）。
+*G-10 integration 从 16 → 22：含 16 条 MCP 端到端用例（T019 5 + T035 5 + T040 6）。
 *Constitution I 专项：semantic_retrieval 目录 + semantic_retrieval_tools.py 合计 143 个 function/async_fn，逐行 AST 扫瞄 max 27L（hybrid_orchestrator._validate_components +2 签名参数，但主体 22L）。
 
 ---
@@ -165,10 +166,17 @@ tests/unit/test_constitution_compliance.py   — (含于上)
   - unknown merge → 回退 concat + warning
   - contracts /hybrid 声明 merge 参数（concat/interleave/rank）
   - audit 双通道：经 log_audit()（SQLite write_sync + Graphiti write 双路 try/except）已实现，无需额外修改
+- ✅ **Phase 5 MCP 工具组扩编 3→7（FR-009 全端点覆盖）**：
+  - 新增 4 handler 工厂：create_ontology_graph_handler / _nl_handler / _mdl_handler / _hybrid_handler
+  - 4 新工具映射 REST 端点：/graph (FR-005)、/nl (FR-003/016)、/mdl (FR-004/Q6 复用 HE)、/hybrid (FR-007/008)
+  - FR-010 一致性：所有 7 handler 复用同一 `RetrievalService` 实例，结果与 REST API 等价
+  - contracts MCP 工具表扩展为 7 行（含 Phase 列 + 完整 input_schema 字段文档化）
+  - register_all 从 3 工具 → 7 工具，handlers/descs 字典同步
+  - 6 个 T040 TDD 用例 + 10 个旧 MCP 用例全部 GREEN；121/121 008 全量回归零回归
 - **预存失败全排除（与 008 零相干）**：architecture_boundary 5 项（旧 odap 路径）/ function_length snapshot 767 项 / test_agent Commander 名 等共 6+ 项预存，均与 `semantic_retrieval/` 和 `mcp/semantic_retrieval_tools.py` 零触碰（git diff --stat 证明）
 
-### 📌 Phase 5+ 可选延续项（非交付承诺）
+### 📌 Phase 6+ 可选延续项（非交付承诺）
 
 1. **SC-001/SC-002 真实性能基准**：10k 节点 Neo4j 测试集 + 100 并发压测记录
 2. **MdlEngine /chain 推理结论持久化**（simulate_chain 结果 → 到 USL Candidate 表走 HITL 飞轮）
-3. **MCP 工具组扩展**：ontology_graph / ontology_hybrid / ontology_mdl 工具（7 endpoint→7 工具）目前只暴露 3 个核心（spec contracts L232-234 = 3 核心，扩编需走 FR 变更）
+3. ~~**MCP 工具组扩展**~~（✅ Phase 5 已交付 — 7/7 工具全端点覆盖）

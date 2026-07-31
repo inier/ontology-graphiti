@@ -256,6 +256,33 @@
 
 ---
 
+## Phase 14: Phase 5 — MCP 工具组扩编 3→7 (Priority: P4)
+
+**Goal**: FR-009 全端点覆盖 — MCP 工具从 3 个（query/reason/metric）扩编至 7 个，补齐 graph/nl/mdl/hybrid 4 个新工具，覆盖全部 REST 端点；FR-010 一致性（handler 复用同一 RetrievalService 实例）。
+
+**Independent Test**: `pytest tests/integration/test_semantic_retrieval_mcp.py -v`
+
+### Tasks
+
+- [X] T040 [P] MCP 工具组扩编 3→7：在 semantic_retrieval_tools.py 新增 4 个 handler 工厂 + 4 个 description 常量 + 扩展 register_all
+  - T040-a 新增 create_ontology_graph_handler → RetrievalService.graph_search (FR-005)
+  - T040-b 新增 create_ontology_nl_handler → RetrievalService.nl_search (FR-003/FR-016)
+  - T040-c 新增 create_ontology_mdl_handler → RetrievalService.mdl_search (FR-004 / Q6 复用 HE)
+  - T040-d 新增 create_ontology_hybrid_handler → RetrievalService.hybrid_search (FR-007/008)
+  - T040-e 4 个 description 常量文档化 input_schema 关键字段（query/workspace_id/limit/components/merge）
+  - T040-f register_all 扩展为 7 工具（handlers + descs 字典同步）+ docstring 更新 3→7
+- [X] T041 [P] TDD 测试 + FR-010 一致性 + contracts 更新 + 全量回归 + 提交
+  - T041-a 6 个 TDD 用例（test_seven_mcp_tools_registered + 4 个新 handler FakeService 一致性 + 7 工具 description 字段断言）
+  - T041-b 更新 test_mcp_register_all_returns_callable_handlers 断言 3→7（Phase 5 产品演进，非回归）
+  - T041-c contracts/api-contracts.md MCP 工具表扩展为 7 工具（含 Phase 列 + 完整 input_schema 字段）
+  - T041-d 全量回归 121/121 通过（008 核心 + 集成测试零回归）
+  - T041-e Constitution I 自查：semantic_retrieval_tools.py 全函数 ≤40L
+  - T041-f 提交
+
+**Checkpoint**: Phase 5 MCP 工具组扩编 — 7/7 工具全端点覆盖（FR-009）；FR-010 一致性通过 handler 复用同一 RetrievalService 保证；6 个 T040 测试 + 10 个旧 MCP 测试全部 GREEN；contracts MCP 工具表更新为 7 行；121/121 全量回归零回归。
+
+---
+
 ## Dependencies & Execution Order
 
 ### Phase Dependencies
