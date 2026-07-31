@@ -302,6 +302,33 @@
 
 ---
 
+## Phase 16: Phase 7 — SC-001/SC-002 性能基准框架搭建 (Priority: P4)
+
+**Goal**: 为 SC-001（95% NL 查询 3s 内）和 SC-002（BI P95 5s 内）搭建可运行的性能基准测试框架。框架验证模式下确认 P95 断言逻辑 + 框架不崩溃；真实 SC 验收需接入 10k/10万级 Neo4j 数据集（Phase 7+ 生产环境验证）。
+
+**Independent Test**: `pytest -m perf tests/performance/ -v`
+
+### Tasks
+
+- [X] T044 [P] SC-001 查询延迟基准测试（tests/performance/test_sc001_query_latency.py）
+  - 10 个代表性 NL 查询样本（中文关键词/短句/长句/特殊字符）
+  - P95 百分位断言（线性插值法，无 numpy 依赖）
+  - Warmup 查询排除首次初始化开销
+  - 双模式策略：正常模式 P95 ≤ 3s / 降级模式（Neo4j 不可用）P95 ≤ 15s
+  - 结构化结果断言：每次查询返回 mode/total/rows 字段
+- [X] T045 [P] SC-002 指标延迟基准测试（tests/performance/test_sc002_metric_latency.py）
+  - 10 个指标查询样本（count/density/trend 交替 + object_type/granularity 过滤）
+  - P95 百分位断言 ≤ 5s（MetricEngine 不连 Neo4j，正常模式即可通过）
+  - 结构化结果断言：mode/total/metrics/rows/explain 字段
+- [X] T046 [P] 运行基准验证 + 文档更新 + 提交
+  - SC-001 降级模式通过（Neo4j 不可用，P95 < 15s）
+  - SC-002 正常模式通过（P95 < 5s）
+  - 008 全量回归 129/129 零回归（+4 性能测试）
+
+**Checkpoint**: Phase 7 SC-001/SC-002 性能基准框架搭建完成 — 双模式策略（正常/降级）适配当前环境；SC-001 NL 查询 P95 + SC-002 metric P95 断言逻辑就绪；4 个 @pytest.mark.perf 测试可重复运行；真实 SC 验收待 10k/10万级 Neo4j 数据集接入。
+
+---
+
 ## Dependencies & Execution Order
 
 ### Phase Dependencies
