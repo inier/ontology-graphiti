@@ -37,7 +37,7 @@ class HybridOrchestrator:
         merge: str = "concat",
     ) -> Dict[str, Any]:
         """执行混合编排，返回 {mode, rows, total, components, warnings, request_id}。"""
-        self._validate_components(components)
+        self._validate_components(components, engines=self._engines)
         warnings: List[str] = []
         if len(components) > PERFORMANCE_WARN_THRESHOLD:
             warnings.append(
@@ -57,8 +57,9 @@ class HybridOrchestrator:
     # ── 内部辅助（Constitution I：≤ 40 行） ──────────────────────────────
 
     @staticmethod
-    def _validate_components(components: List[Dict[str, Any]]) -> None:
-        """组件数边界校验：1 ≤ N ≤ 10。"""
+    def _validate_components(components: List[Dict[str, Any]],
+                              engines: Dict[str, Any] | None = None) -> None:
+        """组件数边界 (1 ≤ N ≤ 10) + 类型存在性校验（缺失抛 ValueError）。"""
         n = len(components)
         if n < 1:
             raise ValueError("组件数至少 1 个")
@@ -66,6 +67,15 @@ class HybridOrchestrator:
             raise ValueError(
                 f"组件数 {n} 超过上限 {MAX_COMPONENTS}（FR-007 边界约束）"
             )
+        if not engines:
+            return
+        registered = set(engines.keys())
+        for idx, comp in enumerate(components):
+            ctype = comp.get("type")
+            if ctype not in registered:
+                raise ValueError(
+                    f"组件 #{idx + 1} 的类型 '{ctype}' 未注册（可用引擎: {sorted(registered)}）"
+                )
 
     async def _run_components(
         self,
@@ -73,13 +83,26 @@ class HybridOrchestrator:
         components: List[Dict[str, Any]],
         warnings: List[str],
     ) -> List[Dict[str, Any]]:
-        """按顺序执行组件，应用 on_failure 策略，返回各组件 ComponentResult。"""
+        """按顺序执行组件，应用 on_failure 策略，返回各组件 ComponentResult。
+
+        若某组件因 abort 提前结束，后续未执行组件标记 not_executed，保持 results 长度 == components 长度。
+        """
         results: List[Dict[str, Any]] = []
+        aborted_at: int | None = None
         for idx, comp in enumerate(components):
+            if aborted_at is not None:
+                results.append({
+                    "type": comp.get("type", f"#{idx}"),
+                    "status": "not_executed",
+                    "rows": [],
+                    "total": 0,
+                    "error": f"因组件 #{aborted_at + 1} abort，未执行",
+                })
+                continue
             result = await self._run_one(workspace_id, comp, idx, warnings)
             results.append(result)
             if result["status"] == "aborted":
-                break  # abort 策略：中止后续组件
+                aborted_at = idx
         return results
 
     async def _run_one(
@@ -89,10 +112,10 @@ class HybridOrchestrator:
         idx: int,
         warnings: List[str],
     ) -> Dict[str, Any]:
-        """执行单个组件，捕获异常 → 应用 on_failure。"""
+        """执行单个组件，捕获异常 → 应用 on_failure（缺省 degrade 保守策略）。"""
         ctype = comp["type"]
         params = comp.get("params", {})
-        on_failure = comp.get("on_failure", "skip")
+        on_failure = comp.get("on_failure", "degrade")
         query = params.get("query", "")
         limit = int(params.get("limit", 20))
         engine = self._engines.get(ctype)

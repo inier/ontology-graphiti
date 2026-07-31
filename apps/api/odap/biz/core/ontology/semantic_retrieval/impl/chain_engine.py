@@ -127,21 +127,25 @@ class ChainEngine:
         )
 
         conflicts = self._safe_conflicts(stepper)
+        status = "degraded" if getattr(stepper, "degraded", False) else "ok"
         reasoning = self._build_reasoning(
-            steps, cycle_ctx["cycle_detected"], cycle_ctx["cycle_path"], conflicts, query
+            steps, cycle_ctx["cycle_detected"], cycle_ctx["cycle_path"],
+            conflicts, query, status=status, max_depth=max_depth,
         )
         self._override_from_stepper(stepper, reasoning)
         return self._build_result(reasoning, warnings, steps, stepper)
 
     @staticmethod
     def _override_from_stepper(stepper: Any, reasoning: Dict[str, Any]) -> None:
-        """DeductionStepper 提供 conclusion/confidence 时覆盖默认值（真实引擎优先）。"""
+        """DeductionStepper 提供 conclusion/confidence/status 时覆盖默认值（真实引擎优先）。"""
         conclusion = getattr(stepper, "conclusion", None)
         if conclusion:
             reasoning["conclusion"] = conclusion
         confidence = getattr(stepper, "confidence", None)
         if confidence is not None:
             reasoning["confidence"] = confidence
+        if getattr(stepper, "degraded", False):
+            reasoning["status"] = "degraded"
 
     @staticmethod
     def _build_result(
@@ -259,8 +263,11 @@ class ChainEngine:
         cycle_path: Optional[List[str]],
         conflicts: List[Dict[str, str]],
         query: str,
+        *,
+        status: str = "ok",
+        max_depth: Optional[int] = None,
     ) -> Dict[str, Any]:
-        """组装 ReasoningChain 结构（data-model.md §4）。"""
+        """组装 ReasoningChain 结构（data-model.md §4 + MdlEngine 对齐：status/max_depth）。"""
         last_output = steps[-1]["output"] if steps else query
         step_count = max(len(steps) - 1, 0)  # 不计 s0
         confidence = round(1.0 - (len(conflicts) * 0.15) - (0.1 if cycle_detected else 0.0), 2)
@@ -273,11 +280,14 @@ class ChainEngine:
         reasoning: Dict[str, Any] = {
             "chain_id": f"chain-{uuid.uuid4().hex[:8]}",
             "steps": list(steps),
+            "status": status,
             "conclusion": conclusion,
             "confidence": confidence,
             "cycle_detected": cycle_detected,
             "conflicts": list(conflicts),
         }
+        if max_depth is not None:
+            reasoning["max_depth"] = max_depth
         if cycle_detected and cycle_path is not None:
             reasoning["cycle_path"] = list(cycle_path)
         return reasoning

@@ -237,3 +237,162 @@ async def test_all_components_success_no_warnings():
     statuses = [c["status"] for c in result["components"]]
     assert all(s == "ok" for s in statuses), f"应全部 ok: {statuses}"
     assert result["mode"] == "hybrid"
+
+
+# ══════════════════════════════════════════════════════════════════════
+# Phase 3 T034: 混合故障注入增强 (Phase 2+ 质量门深化)
+# ══════════════════════════════════════════════════════════════════════
+
+
+# ── T034-1: 多个 on_failure 策略混合 + 多种故障类型 ───────────────────────
+
+class _FlakyEngine:
+    """可控故障引擎：奇数调抛 RuntimeError，偶数调返回成功；或逐次指定返回。"""
+
+    def __init__(self, name: str, *, raise_pattern=None, rows_per_call=None):
+        self.name = name
+        self._raise_pat = raise_pattern  # list[bool]; None=全成功; True=raise
+        self._rows = rows_per_call or [[]]
+        self.calls = []  # (ws, query, limit)
+
+    async def search(self, workspace_id: str, query: str, limit: int = 20):
+        self.calls.append((workspace_id, query, limit))
+        idx = len(self.calls) - 1
+        if self._raise_pat and idx < len(self._raise_pat) and self._raise_pat[idx]:
+            raise RuntimeError(f"{self.name} 偶发故障 #{idx}")
+        rows = self._rows[idx] if idx < len(self._rows) else list(self._rows[-1])
+        return {
+            "mode": self.name,
+            "total": len(rows),
+            "rows": list(rows),
+            "explain": {"source": self.name, "call_index": idx},
+        }
+
+
+@pytest.mark.asyncio
+async def test_mixed_strategies_with_mixed_failure_patterns():
+    """T034-1: 5 组件 on_failure 策略混合：skip/abort/degrade/skip/abort + 不同故障模式。"""
+    from odap.biz.core.ontology.semantic_retrieval.impl.hybrid_orchestrator import (
+        HybridOrchestrator,
+    )
+
+    eng_g = _FlakyEngine("graph", rows_per_call=[[{"id": "g1"}]])  # 成功
+    eng_n = _FlakyEngine("nl", raise_pattern=[True])              # 1st raise
+    eng_c = _FlakyEngine("chain", rows_per_call=[[{"id": "c1"}, {"id": "c2"}]])  # 成功
+    eng_m = _FlakyEngine("mdl", raise_pattern=[True])             # 1st raise
+    eng_t = _FlakyEngine("metric", rows_per_call=[[{"id": "t1"}]]) # 成功（若执行到）
+
+    engines = {
+        "graph": eng_g, "nl": eng_n, "chain": eng_c,
+        "mdl": eng_m, "metric": eng_t,
+    }
+    orch = HybridOrchestrator(engines=engines)
+    # on_failure: skip | abort | degrade | skip | skip
+    components = [
+        {"type": "graph", "params": {"query": "qg"}, "on_failure": "skip"},
+        {"type": "nl",    "params": {"query": "qn"}, "on_failure": "abort"},  # ← 故障且 abort
+        {"type": "chain", "params": {"query": "qc"}, "on_failure": "degrade"},
+        {"type": "mdl",   "params": {"query": "qm"}, "on_failure": "skip"},
+        {"type": "metric","params": {"query": "qt"}, "on_failure": "skip"},
+    ]
+    result = await orch.orchestrate("ws-t034", components)
+
+    # nl abort 生效：后续 chain/mdl/metric 不执行
+    assert len(eng_g.calls) == 1 and eng_n.calls, "前置执行必调"
+    assert eng_c.calls == [] and eng_m.calls == [] and eng_t.calls == [], (
+        "abort 后后续组件不执行"
+    )
+    statuses = [c["status"] for c in result["components"]]
+    # 索引 0 ok, 1 error/aborted, 2..4 未执行 (not_executed/aborted/skipped 之一)
+    assert statuses[0] == "ok"
+    assert statuses[1] in ("error", "aborted"), f"故障组件应标记 error/aborted: {statuses}"
+    for i in (2, 3, 4):
+        assert statuses[i] in ("aborted", "not_executed", "skipped", "pending"), (
+            f"abort 后组件 {i} 状态错: {statuses[i]}"
+        )
+    # warning 含 "中止/abort" 字样
+    assert any(
+        "中止" in w or "abort" in w.lower()
+        for w in result["warnings"]
+    ), f"缺少 abort 警告: {result['warnings']}"
+
+
+# ── T034-2: 降级组件结果被标记 degraded，且其 rows 不计入 total ────────────
+
+@pytest.mark.asyncio
+async def test_degraded_component_not_counted_in_total():
+    """T034-2: degrade 组件失败后，其 total 不纳入汇总，仅保留成功组件 rows。"""
+    from odap.biz.core.ontology.semantic_retrieval.impl.hybrid_orchestrator import (
+        HybridOrchestrator,
+    )
+
+    eng_g = _FlakyEngine("graph", rows_per_call=[[{"id": "g1"}, {"id": "g2"}]])
+    eng_c = _FlakyEngine("chain", raise_pattern=[True])  # degrade
+    eng_m = _FlakyEngine("metric", rows_per_call=[[{"id": "m1"}]])
+    engines = {"graph": eng_g, "chain": eng_c, "metric": eng_m}
+    orch = HybridOrchestrator(engines=engines)
+    components = [
+        {"type": "graph",  "params": {"query": "q"}, "on_failure": "degrade"},
+        {"type": "chain",  "params": {"query": "q"}, "on_failure": "degrade"},
+        {"type": "metric", "params": {"query": "q"}, "on_failure": "degrade"},
+    ]
+    result = await orch.orchestrate("ws-t034", components)
+
+    statuses = [c["status"] for c in result["components"]]
+    assert statuses == ["ok", "degraded", "ok"], statuses
+    # rows 仅 ok 组件：graph 2 行 + metric 1 行 = 3 行
+    ids = [r["id"] for r in result["rows"]]
+    assert ids == ["g1", "g2", "m1"], f"rows 应仅含 ok 组件: {ids}"
+    assert result["total"] == 3, f"total 应为 3: {result['total']}"
+
+
+# ── T034-3: 未知组件类型 → ValueError 明确提示 ─────────────────────────────
+
+@pytest.mark.asyncio
+async def test_unknown_component_type_raises_value_error():
+    """T034-3: 组件 type 不在 engines 键集中 → ValueError（避免 KeyError 吞掉上下文）。"""
+    from odap.biz.core.ontology.semantic_retrieval.impl.hybrid_orchestrator import (
+        HybridOrchestrator,
+    )
+
+    orch = HybridOrchestrator(engines={"graph": _FlakyEngine("graph")})
+    components = [
+        {"type": "graph",         "params": {"query": "q"}, "on_failure": "skip"},
+        {"type": "does_not_exist","params": {"query": "q"}, "on_failure": "skip"},
+    ]
+    with pytest.raises(ValueError) as exc:
+        await orch.orchestrate("ws-t034", components)
+    msg = str(exc.value)
+    assert "does_not_exist" in msg or "组件类型" in msg or "component" in msg.lower(), (
+        f"错误消息未标识未知类型: {msg}"
+    )
+
+
+# ── T034-4: on_failure 字段缺失 → 默认 degrade（保守策略） ────────────────
+
+@pytest.mark.asyncio
+async def test_on_failure_defaults_to_degrade():
+    """T034-4: 组件 on_failure 为空 → 按 degrade 保守策略执行（不中止后续）。"""
+    from odap.biz.core.ontology.semantic_retrieval.impl.hybrid_orchestrator import (
+        HybridOrchestrator,
+    )
+
+    eng_g = _FlakyEngine("graph", rows_per_call=[[{"id": "g1"}]])
+    eng_c = _FlakyEngine("chain", raise_pattern=[True])  # 失败
+    eng_m = _FlakyEngine("metric", rows_per_call=[[{"id": "m1"}]])
+    engines = {"graph": eng_g, "chain": eng_c, "metric": eng_m}
+    orch = HybridOrchestrator(engines=engines)
+    # 第二个组件缺 on_failure，期望按 degrade 保守策略处理：chain 失败 → degraded，metric 仍执行
+    components = [
+        {"type": "graph",  "params": {"query": "q"}, "on_failure": "skip"},
+        {"type": "chain",  "params": {"query": "q"}},                      # ← 缺 on_failure
+        {"type": "metric", "params": {"query": "q"}, "on_failure": "skip"},
+    ]
+    result = await orch.orchestrate("ws-t034", components)
+
+    assert len(eng_m.calls) == 1, "on_failure 缺失应保守 degrade，后续 metric 仍执行"
+    statuses = [c["status"] for c in result["components"]]
+    assert statuses[1] in ("degraded", "skipped"), (
+        f"on_failure 缺省策略失败组件状态错: {statuses[1]}"
+    )
+    assert statuses[2] == "ok"

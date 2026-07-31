@@ -201,6 +201,39 @@
 
 ---
 
+## Phase 12: Phase 3 — 质量门深化 + 四城门全量回归 (Priority: P3)
+
+**Goal**: 四城门（G-7 路由异常 / G-8 注入防护 / G-9 架构 / G-10 全量用例）全量通过；Hybrid 编排 & MCP 工具集合集成端到端覆盖；架构契约（Constitution I/IV）008 模块专项检查通过并固化。
+
+**Plan**: [.trae/documents/008-semantic-retrieval-bus-phase2.md](../../.trae/documents/008-semantic-retrieval-bus-phase2.md)（Phase 3 节）
+
+**Independent Test**: `pytest tests/integration/test_semantic_retrieval_routes.py tests/integration/test_semantic_retrieval_route_exceptions.py tests/integration/test_semantic_retrieval_mcp.py tests/unit/test_hybrid_orchestrator.py tests/unit/test_mdl_engine.py tests/unit/test_audit_cypher_injection.py tests/unit/test_audit_sql_injection.py -v`
+
+### Tasks
+
+- [X] T034 [P] Hybrid 编排深化：新增 4 条故障注入用例（test_hybrid_orchestrator.py 扩展至 11/11）
+  - T034-1 多策略混合（skip/abort/degrade + 5 组件级联）：abort 后后续组件统一标记 `not_executed`，results 长度 == components 长度（可预测 UI 渲染）
+  - T034-2 degrade 组件失败不计入 total：`status=degraded` rows=[] 成功组件拼接（graph 2+metric 1=total 3）
+  - T034-3 未知组件类型 → ValueError（明确标识类型名 + 已注册集合，避免 KeyError 吞上下文）
+  - T034-4 on_failure 缺省策略：从 "skip" 改为 **degrade 保守**（缺省不吞异常也不中止，最大限度出结果）
+- [X] T035 [P] MCP 工具集端到端：新增 5 条深度集成用例（test_semantic_retrieval_mcp.py 扩展至 10/10）
+  - T035-1 ontology_metric + real RetrievalService count 对比 handler vs direct 调用等价
+  - T035-2 ontology_reason + real RetrievalService：reasoning 结构契约 6 字段对齐（chain_id/status/conclusion/confidence/cycle_detected/conflicts/max_depth）
+  - T035-3 register_all 返回 3 handlers：均 async callable + category=semantic_retrieval（ADR-026 分类）
+  - T035-4 ontology_query 缺 query → KeyError/ValueError（API 层映射到 400，不 500）
+  - T035-5 工具 description 与 contracts L232-234 字段名一一对应（query/workspace_id/mode/limit + query/rules/max_depth + metric/object_type/granularity）
+- [X] T035b ChainEngine 结构对齐：_build_reasoning 补 status/max_depth 字段（reasoning.status=ok/degraded；max_depth 从入参透传）；_override_from_stepper 追加 stepper.degraded 覆盖 reasoning.status（Iter 2 DeductionStepper 一致）
+- [X] T036 [P] 四城门全量 + Constitution 专项：
+  - G-7 路由异常（test_route_exceptions）：9/9 通过（7 引擎 500 + ValueError 400 + server recovery）
+  - G-8 注入防护（test_audit_cypher_injection.py 7 + test_audit_sql_injection.py N）：全通过（Cypher fstring 禁止/参数$ 化；SQL OrderBy 白名单）
+  - G-10 008 unit + integration 全量：144/144 全绿（=mdl 13+metric 33+chain N+hybrid 11+router 6+nl 5+cypher 7+sql N+route_exception 9+integration_routes 10+mcp 10）
+  - Constitution I 专项：008 模块 143 个函数全部 ≤ 40 行（含 mdl_engine 15 fns max 26L / hybrid_orchestrator max 27L / chain_engine max 25L / retrieval_service / semantic_retrieval_tools 全合规）
+- [X] T037 [P] 文档更新 + 最终 commit：tasks.md Phase 12 追加（T034-T037）；verification.md 更新 SC-001/SC-002 基准推迟声明、测试汇总、Phase 3 Checkpoint；最终 commit 并记录 git 号。
+
+**Checkpoint**: Phase 3 终态验收 — 四城门 G7+G8+G10 144/144 通过；Constitution I 143 函数零违规；Hybrid 11/11 + MCP 10/10 深度用例；ChainEngine reasoning.status 对齐 MdlEngine 契约。008 模块 Phase 1+2+3 全闭环。
+
+---
+
 ## Dependencies & Execution Order
 
 ### Phase Dependencies
