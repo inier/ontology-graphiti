@@ -202,9 +202,16 @@ NL 输入 → USL `get_domain_by_term` 术语映射 → 图检索。
     {"type": "graph", "params": {"query": "部署于", "filters": {"object_type": "装备"}}, "on_failure": "abort"},
     {"type": "chain", "params": {"query": "风险传导", "filters": {"max_depth": 3}}, "on_failure": "skip"},
     {"type": "metric", "params": {"filters": {"metric_type": "count", "target": "object_type"}}, "on_failure": "degrade"}
-  ]
+  ],
+  "merge": "concat"
 }
 ```
+
+**merge 策略**（可选，默认 `concat`）:
+- `concat`: 各组件 rows 顺序追加（默认）
+- `interleave`: 多组件 rows 轮询交替拼接（适合多源均衡展示）
+- `rank`: 按 `row.score` 降序稳定排序（无 score 视为 0.0，适合综合排序）
+- 未知值: 回退 `concat` + `warnings` 提示
 
 **Response** (200):
 ```json

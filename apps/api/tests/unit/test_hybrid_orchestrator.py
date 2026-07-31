@@ -396,3 +396,150 @@ async def test_on_failure_defaults_to_degrade():
         f"on_failure 缺省策略失败组件状态错: {statuses[1]}"
     )
     assert statuses[2] == "ok"
+
+
+# ══════════════════════════════════════════════════════════════════════
+# Phase 4 T038: Hybrid merge=interleave/rank 实现（contracts 扩展 + 代码预留完整化）
+# ══════════════════════════════════════════════════════════════════════
+
+
+# ── T038-1: merge=interleave — 多组件 rows 交替拼接 ───────────────────────
+
+@pytest.mark.asyncio
+async def test_merge_interleave_alternates_rows_across_components():
+    """T038-1: merge=interleave → rows 按轮询交替拼接（非 concat 顺序追加）。"""
+    from odap.biz.core.ontology.semantic_retrieval.impl.hybrid_orchestrator import (
+        HybridOrchestrator,
+    )
+
+    eng1 = FakeEngine("graph", rows=[{"id": "g1"}, {"id": "g2"}, {"id": "g3"}])
+    eng2 = FakeEngine("metric", rows=[{"id": "m1"}, {"id": "m2"}])
+    engines = {"graph": eng1, "metric": eng2}
+    orch = HybridOrchestrator(engines=engines)
+    components = _make_components([
+        ("graph", {"query": "q1"}, "skip"),
+        ("metric", {"query": "q2"}, "skip"),
+    ])
+    result = await orch.orchestrate("ws-t038", components, merge="interleave")
+
+    ids = [r["id"] for r in result["rows"]]
+    # interleave: g1, m1, g2, m2, g3（轮询，短组件耗尽后剩余追加）
+    assert ids == ["g1", "m1", "g2", "m2", "g3"], (
+        f"interleave 顺序错: {ids}"
+    )
+    assert result["total"] == 5
+
+
+# ── T038-2: merge=rank — 按 row.score 降序排列 ───────────────────────────
+
+@pytest.mark.asyncio
+async def test_merge_rank_orders_by_score_descending():
+    """T038-2: merge=rank → rows 按 score 降序（无 score 视为 0 排末尾）。"""
+    from odap.biz.core.ontology.semantic_retrieval.impl.hybrid_orchestrator import (
+        HybridOrchestrator,
+    )
+
+    eng1 = FakeEngine("graph", rows=[
+        {"id": "g1", "score": 0.3},
+        {"id": "g2", "score": 0.9},
+    ])
+    eng2 = FakeEngine("metric", rows=[
+        {"id": "m1", "score": 0.7},
+        {"id": "m2"},  # 无 score → 0.0
+    ])
+    engines = {"graph": eng1, "metric": eng2}
+    orch = HybridOrchestrator(engines=engines)
+    components = _make_components([
+        ("graph", {"query": "q1"}, "skip"),
+        ("metric", {"query": "q2"}, "skip"),
+    ])
+    result = await orch.orchestrate("ws-t038", components, merge="rank")
+
+    ids = [r["id"] for r in result["rows"]]
+    # rank by score desc: g2(0.9), m1(0.7), g1(0.3), m2(0.0)
+    assert ids == ["g2", "m1", "g1", "m2"], (
+        f"rank 顺序错: {ids}"
+    )
+
+
+# ── T038-3: merge=unknown → warn 回退 concat ─────────────────────────────
+
+@pytest.mark.asyncio
+async def test_merge_unknown_falls_back_to_concat_with_warning():
+    """T038-3: merge=invalid → 回退 concat + warning 提示。"""
+    from odap.biz.core.ontology.semantic_retrieval.impl.hybrid_orchestrator import (
+        HybridOrchestrator,
+    )
+
+    eng1 = FakeEngine("graph", rows=[{"id": "g1"}])
+    eng2 = FakeEngine("metric", rows=[{"id": "m1"}])
+    engines = {"graph": eng1, "metric": eng2}
+    orch = HybridOrchestrator(engines=engines)
+    components = _make_components([
+        ("graph", {"query": "q1"}, "skip"),
+        ("metric", {"query": "q2"}, "skip"),
+    ])
+    result = await orch.orchestrate("ws-t038", components, merge="invalid_strategy")
+
+    # 回退 concat: g1, m1
+    ids = [r["id"] for r in result["rows"]]
+    assert ids == ["g1", "m1"], f"应回退 concat: {ids}"
+    # warning 含回退提示
+    assert any(
+        "concat" in w.lower() or "回退" in w or "fallback" in w.lower()
+        for w in result["warnings"]
+    ), f"缺少回退 warning: {result['warnings']}"
+
+
+# ── T038-4: interleave 跳过 degraded/skipped 组件 ─────────────────────────
+
+@pytest.mark.asyncio
+async def test_merge_interleave_skips_failed_components():
+    """T038-4: interleave 只合并 status=ok 的组件（degraded/skipped 跳过）。"""
+    from odap.biz.core.ontology.semantic_retrieval.impl.hybrid_orchestrator import (
+        HybridOrchestrator,
+    )
+
+    eng1 = FakeEngine("graph", rows=[{"id": "g1"}, {"id": "g2"}])
+    eng2 = FakeEngine("chain", raise_on=True)  # degrade
+    eng3 = FakeEngine("metric", rows=[{"id": "m1"}])
+    engines = {"graph": eng1, "chain": eng2, "metric": eng3}
+    orch = HybridOrchestrator(engines=engines)
+    components = _make_components([
+        ("graph", {"query": "q"}, "degrade"),
+        ("chain", {"query": "q"}, "degrade"),
+        ("metric", {"query": "q"}, "degrade"),
+    ])
+    result = await orch.orchestrate("ws-t038", components, merge="interleave")
+
+    # chain degraded → 不参与 interleave；只有 graph + metric
+    ids = [r["id"] for r in result["rows"]]
+    assert ids == ["g1", "m1", "g2"], (
+        f"interleave 应跳过 degraded 组件: {ids}"
+    )
+
+
+# ── T038-5: rank 所有 row 无 score → 保持原 concat 顺序 ──────────────────
+
+@pytest.mark.asyncio
+async def test_merge_rank_no_scores_preserves_order():
+    """T038-5: rank 下所有 row 均无 score → 全部 0.0，保持原 concat 顺序（稳定排序）。"""
+    from odap.biz.core.ontology.semantic_retrieval.impl.hybrid_orchestrator import (
+        HybridOrchestrator,
+    )
+
+    eng1 = FakeEngine("graph", rows=[{"id": "g1"}, {"id": "g2"}])
+    eng2 = FakeEngine("metric", rows=[{"id": "m1"}])
+    engines = {"graph": eng1, "metric": eng2}
+    orch = HybridOrchestrator(engines=engines)
+    components = _make_components([
+        ("graph", {"query": "q"}, "skip"),
+        ("metric", {"query": "q"}, "skip"),
+    ])
+    result = await orch.orchestrate("ws-t038", components, merge="rank")
+
+    ids = [r["id"] for r in result["rows"]]
+    # 无 score → 全 0.0 → 稳定排序保持原 concat 顺序
+    assert ids == ["g1", "g2", "m1"], (
+        f"无 score rank 应保持原序: {ids}"
+    )

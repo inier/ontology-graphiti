@@ -44,7 +44,7 @@ class HybridOrchestrator:
                 f"组件数 {len(components)} 超过 {PERFORMANCE_WARN_THRESHOLD}，可能影响性能"
             )
         results = await self._run_components(workspace_id, components, warnings)
-        rows = self._merge_rows(results, merge)
+        rows = self._merge_rows(results, merge, warnings)
         return {
             "mode": "hybrid",
             "request_id": f"hybrid-{uuid.uuid4().hex[:8]}",
@@ -155,12 +155,50 @@ class HybridOrchestrator:
         return {"type": ctype, "status": "skipped", "rows": [], "total": 0, "error": str(exc)}
 
     @staticmethod
-    def _merge_rows(results: List[Dict[str, Any]], merge: str) -> List[Dict[str, Any]]:
-        """合并各组件 rows。Phase 1 仅支持 concat；interleave/rank 留待 Phase 2+。"""
+    def _merge_rows(
+        results: List[Dict[str, Any]],
+        merge: str,
+        warnings: List[str] | None = None,
+    ) -> List[Dict[str, Any]]:
+        """合并各组件 rows（仅 status=ok 参与）。支持 concat/interleave/rank。"""
+        ok_results = [r for r in results if r.get("status") == "ok"]
+        if merge == "interleave":
+            return HybridOrchestrator._merge_interleave(ok_results)
+        if merge == "rank":
+            return HybridOrchestrator._merge_rank(ok_results)
         if merge != "concat":
-            logger.warning("merge=%s 暂未实现，回退 concat", merge)
+            msg = f"merge='{merge}' 未实现，回退 concat"
+            logger.warning(msg)
+            if warnings is not None:
+                warnings.append(msg)
+        return HybridOrchestrator._merge_concat(ok_results)
+
+    @staticmethod
+    def _merge_concat(ok_results: List[Dict[str, Any]]) -> List[Dict[str, Any]]:
+        """concat: 各组件 rows 顺序追加。"""
         merged: List[Dict[str, Any]] = []
-        for r in results:
-            if r.get("status") == "ok":
-                merged.extend(r.get("rows", []))
+        for r in ok_results:
+            merged.extend(r.get("rows", []))
+        return merged
+
+    @staticmethod
+    def _merge_interleave(ok_results: List[Dict[str, Any]]) -> List[Dict[str, Any]]:
+        """interleave: 多组件 rows 轮询交替拼接（短组件耗尽后剩余追加）。"""
+        row_lists = [list(r.get("rows", [])) for r in ok_results]
+        merged: List[Dict[str, Any]] = []
+        max_len = max((len(rl) for rl in row_lists), default=0)
+        for i in range(max_len):
+            for rl in row_lists:
+                if i < len(rl):
+                    merged.append(rl[i])
+        return merged
+
+    @staticmethod
+    def _merge_rank(ok_results: List[Dict[str, Any]]) -> List[Dict[str, Any]]:
+        """rank: 按 row.score 降序稳定排序（无 score 视为 0.0）。"""
+        merged: List[Dict[str, Any]] = []
+        for r in ok_results:
+            merged.extend(r.get("rows", []))
+        # 稳定排序：按 score 降序（Python sort 稳定，同分保持原序）
+        merged.sort(key=lambda row: float(row.get("score", 0.0)), reverse=True)
         return merged

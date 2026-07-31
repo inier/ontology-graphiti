@@ -128,12 +128,13 @@ tests/unit/test_constitution_compliance.py   — (含于上)
 |------|--------|------|
 | G-7 路由异常回归 | 9 | ✅ 9/9 |
 | G-8 Cypher/SQL 注入回归 | 18 | ✅ 18/18 |
-| G-10 008 特性 unit | 128 (=57 P1 + 24 P2-I1 + 26 P2-I2 + 6 P2-I3 + 11 Phase3 Hybrid + 4* 其它) | ✅ 128/128 |
+| G-10 008 特性 unit | 133 (=57 P1 + 24 P2-I1 + 26 P2-I2 + 6 P2-I3 + 16 Phase3-4 Hybrid + 4* 其它) | ✅ 133/133 |
 | G-10 008 特性 integration | 16 (=6 P1 Routes + 10 MCP) | ✅ 16/16 |
-| **008 特性合计（四城门 G7+G8+G10）** | **171** | **✅ 171/171** |
+| **008 特性合计（四城门 G7+G8+G10）** | **176** | **✅ 176/176** |
 | Constitution I 专项（008 模块 143 函数）| 143 | ✅ 143/143（全部 ≤40 行，零违规）|
 
 *Phase 3 Hybrid 新增 4 用例 + ChainEngine 契约对齐、MCP 工具新增 5 深度集成用例。
+*Phase 4 Hybrid merge 新增 5 用例（interleave/rank/unknown 回退/跳过 degraded/无 score 稳定排序）。
 *G-10 integration 从 6 → 16：含 10 条 MCP 端到端用例（T035 5 + T019 5）。
 *Constitution I 专项：semantic_retrieval 目录 + semantic_retrieval_tools.py 合计 143 个 function/async_fn，逐行 AST 扫瞄 max 27L（hybrid_orchestrator._validate_components +2 签名参数，但主体 22L）。
 
@@ -158,11 +159,16 @@ tests/unit/test_constitution_compliance.py   — (含于上)
   - Hybrid 编排：11/11 含 5 组件级联 abort 强停（not_executed 状态对齐）+ 未知类型 ValueError + on_failure 缺省 degrade 保守策略
   - MCP 工具集：10/10 端到端，3 handlers 均 async callable + 对应 REST API 结果等价（FR-010）；description 与 contracts L232-234 字段名一一对应
   - ChainEngine reasoning.status：实装 ok/degraded 字段（与 MdlEngine 契约统一），max_depth 透传到 reasoning
+- ✅ **Phase 4 Hybrid merge 策略完整化**：
+  - interleave：多组件 rows 轮询交替拼接（短组件耗尽后剩余追加）
+  - rank：按 row.score 降序稳定排序（无 score=0.0，全无 score 保持原序）
+  - unknown merge → 回退 concat + warning
+  - contracts /hybrid 声明 merge 参数（concat/interleave/rank）
+  - audit 双通道：经 log_audit()（SQLite write_sync + Graphiti write 双路 try/except）已实现，无需额外修改
 - **预存失败全排除（与 008 零相干）**：architecture_boundary 5 项（旧 odap 路径）/ function_length snapshot 767 项 / test_agent Commander 名 等共 6+ 项预存，均与 `semantic_retrieval/` 和 `mcp/semantic_retrieval_tools.py` 零触碰（git diff --stat 证明）
 
-### 📌 Phase 4 可选延续项（非 Phase 1/2/3 交付承诺）
+### 📌 Phase 5+ 可选延续项（非交付承诺）
 
 1. **SC-001/SC-002 真实性能基准**：10k 节点 Neo4j 测试集 + 100 并发压测记录
 2. **MdlEngine /chain 推理结论持久化**（simulate_chain 结果 → 到 USL Candidate 表走 HITL 飞轮）
-3. **Hybrid merge=interleave/rank**（目前仅 concat，留接口 warn）
-4. **MCP 工具组扩展**：ontology_graph / ontology_hybrid / ontology_mdl 工具（7 endpoint→7 工具）目前只暴露 3 个核心（spec contracts L232-234 = 3 核心，扩编需走 FR 变更）
+3. **MCP 工具组扩展**：ontology_graph / ontology_hybrid / ontology_mdl 工具（7 endpoint→7 工具）目前只暴露 3 个核心（spec contracts L232-234 = 3 核心，扩编需走 FR 变更）

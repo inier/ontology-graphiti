@@ -234,6 +234,28 @@
 
 ---
 
+## Phase 13: Phase 4 — Hybrid merge 策略完整化 (Priority: P4)
+
+**Goal**: 补全 HybridOrchestrator merge=interleave/rank 实现（代码预留扩展点完整化）；contracts 声明 merge 参数；audit 双通道验证（已通过 log_audit 实现，无需修改）。
+
+**Independent Test**: `pytest tests/unit/test_hybrid_orchestrator.py -v`
+
+### Tasks
+
+- [X] T038 [P] Hybrid merge=interleave/rank 实现 + TDD 5 用例（test_hybrid_orchestrator.py 16/16 全绿）
+  - T038-1 interleave: 多组件 rows 轮询交替拼接（g1,m1,g2,m2,g3）
+  - T038-2 rank: 按 row.score 降序稳定排序（无 score=0.0）
+  - T038-3 unknown merge → 回退 concat + warning
+  - T038-4 interleave 跳过 degraded/skipped 组件（仅 ok 参与）
+  - T038-5 rank 全无 score → 稳定排序保持原 concat 顺序
+  - _merge_rows 拆分为 4 子方法（_merge_concat/_merge_interleave/_merge_rank + 路由），最长 17L
+- [X] T038b contracts/api-contracts.md /hybrid Request 声明 merge 参数（concat/interleave/rank + 未知回退）
+- [X] T039 [P] 全量回归 149/149 + Constitution I（hybrid_orchestrator 11 fns 全 ≤40L）+ 提交
+
+**Checkpoint**: Phase 4 Hybrid merge 完整化 — 149/149 通过（+5 T038）；interleave/rank 两种新合并策略实装；contracts 声明 merge 参数；audit 双通道已通过 log_audit() 实现确认无需修改。
+
+---
+
 ## Dependencies & Execution Order
 
 ### Phase Dependencies
