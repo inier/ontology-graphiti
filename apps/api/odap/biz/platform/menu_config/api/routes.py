@@ -287,3 +287,25 @@ async def get_menu_roles(
         raise
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
+
+
+# ═══════════════════════════════════════════════════
+#  四步法种子数据初始化（Iter 1 / MENU_REFACTOR_PLAN.md）
+# ═══════════════════════════════════════════════════
+
+@router.post("/init-default")
+async def init_default_menu(user=Depends(get_current_user)):
+    """幂等初始化四步法默认菜单树（仅管理员）。
+
+    首次调用写入 46 个菜单项（Iter 2 后）；后续调用跳过已存在的 code。
+    不覆盖用户自定义菜单。
+    """
+    if not _is_admin(user):
+        raise HTTPException(status_code=403, detail="仅管理员可操作")
+    try:
+        return menu_config_service.init_default_menu()
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.exception("init_default_menu failed")
+        raise HTTPException(status_code=500, detail=str(e))

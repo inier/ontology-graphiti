@@ -22,6 +22,8 @@ import {
 
 } from '@ant-design/icons';
 
+import { useSearchParams } from 'react-router-dom';
+
 import type { ColumnsType } from 'antd/es/table';
 
 import type { SandboxInfo, TimelineInfo, TemplateInfo } from '../services/simulationApi';
@@ -31,8 +33,16 @@ import { useSimulationStore } from '../stores/simulationStore';
 import { EmptyState } from '@/modules/shared/components/organisms';
 
 import { useWorkspace } from '@/modules/shared/components/LayoutContexts';
+
 import { AdvancedTable } from '@/modules/shared';
+
 import { useI18n } from '@/modules/shared/hooks/useI18n';
+
+// Iter 2 (D4): 合并原独立路由 /simulator + /simulation/deduction 为内部 Tab
+
+import { default as StrategyDeduction } from './StrategyDeduction';
+
+import { default as IngestSimulator } from '@/modules/ingest/pages/Simulator';
 
 
 
@@ -73,6 +83,44 @@ const SimulationPage: React.FC = () => {
   const store = useSimulationStore();
 
   const { currentWorkspace } = useWorkspace();
+
+  // Iter 2 (D4): URL ?tab=xxx 同步（/simulator + /simulation/deduction redirect 入口）
+
+  const [searchParams, setSearchParams] = useSearchParams();
+
+  useEffect(() => {
+
+    const tab = searchParams.get('tab');
+
+    if (tab && tab !== store.activeTab) {
+
+      store.setActiveTab(tab);
+
+    }
+
+  }, [searchParams]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  const handleTabChange = useCallback((key: string) => {
+
+    store.setActiveTab(key);
+
+    setSearchParams(prev => {
+
+      if (key === 'sandbox') {
+
+        prev.delete('tab');
+
+      } else {
+
+        prev.set('tab', key);
+
+      }
+
+      return prev;
+
+    }, { replace: true });
+
+  }, [store, setSearchParams]);
 
   const [sandboxModalOpen, setSandboxModalOpen] = useState(false);
 
@@ -1268,7 +1316,7 @@ const SimulationPage: React.FC = () => {
 
         activeKey={store.activeTab}
 
-        onChange={store.setActiveTab}
+        onChange={handleTabChange}
 
         items={[
 
@@ -1289,6 +1337,46 @@ const SimulationPage: React.FC = () => {
             ),
 
             children: renderSandboxPanel(),
+
+          },
+
+          {
+
+            key: 'deduction',
+
+            label: (
+
+              <span>
+
+                <ThunderboltOutlined />
+
+                {t('策略推演')}
+
+              </span>
+
+            ),
+
+            children: <StrategyDeduction />,
+
+          },
+
+          {
+
+            key: 'simulator',
+
+            label: (
+
+              <span>
+
+                <ExperimentOutlined />
+
+                {t('模拟器')}
+
+              </span>
+
+            ),
+
+            children: <IngestSimulator />,
 
           },
 

@@ -7,8 +7,8 @@ import { OntologyDesignerPage } from '@/modules/ontology';
 import { OntologyGraphPage } from '@/modules/ontology';
 import { BlueprintDesignerPage } from '@/modules/ontology/pages/BlueprintDesignerPage';
 import { GoalKanban } from '@/modules/ontology/pages/GoalKanban';
-import { IngestPanel, Simulator } from '@/modules/ingest';
-import { StrategyDeduction, SimulationPage } from '@/modules/simulation';
+import { IngestPanel } from '@/modules/ingest';
+import { SimulationPage } from '@/modules/simulation';
 import { VersionHistory } from '@/modules/version';
 import { RoleManager } from '@/modules/roles';
 import { UserManagement } from '@/modules/roles/pages/UserManagement';
@@ -68,8 +68,9 @@ export function AppRoutes() {
         <Route path="/business/extraction" element={<Navigate to="/ingest" replace />} />
         <Route path="/ingest" element={<ProtectedRoute><IngestPanel /></ProtectedRoute>} />
         <Route path="/skills" element={<ProtectedRoute><SkillManagement /></ProtectedRoute>} />
-        <Route path="/simulator" element={<ProtectedRoute><Simulator /></ProtectedRoute>} />
-        <Route path="/simulation/deduction" element={<ProtectedRoute><StrategyDeduction /></ProtectedRoute>} />
+        {/* Iter 2 (D4): 仿真入口合并 — /simulator + /simulation/deduction redirect 到 /simulation?tab=xxx */}
+        <Route path="/simulator" element={<Navigate to="/simulation?tab=simulator" replace />} />
+        <Route path="/simulation/deduction" element={<Navigate to="/simulation?tab=deduction" replace />} />
         <Route path="/simulation" element={<ProtectedRoute><SimulationPage /></ProtectedRoute>} />
         <Route path="/knowledge" element={<ProtectedRoute><KnowledgeBase /></ProtectedRoute>} />
         <Route path="/knowledge/navigation" element={<ProtectedRoute><KnowledgePage /></ProtectedRoute>} />

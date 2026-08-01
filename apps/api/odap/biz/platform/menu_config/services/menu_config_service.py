@@ -219,3 +219,44 @@ class MenuConfigService:
         prefix = {"directory": "dir", "menu": "menu", "action": "act"}.get(menu_type, "menu")
         slug = name.lower().replace(" ", "_")[:30]
         return f"{prefix}:{slug}:{uuid.uuid4().hex[:6]}"
+
+    # ── 四步法种子数据初始化（Iter 1 / MENU_REFACTOR_PLAN.md） ──
+
+    def init_default_menu(self) -> Dict[str, Any]:
+        """幂等初始化四步法默认菜单树。
+
+        - 首次调用：写入 46 个菜单项（6 目录 + 40 菜单/子目录）
+          （Iter 2 后：演本体从 9 项减为 7 项，合并策略推演/模拟器到仿真沙盘）
+        - 后续调用：跳过已存在的 code，仅写入新增项
+        - 不覆盖用户自定义菜单（通过 code 唯一性判断）
+
+        Returns:
+            {"status": "success", "created": N, "skipped": M, "total": T}
+        """
+        from ..seeds.seed_four_steps import get_four_steps_seed_data
+
+        seed_items = get_four_steps_seed_data()
+        created = 0
+        skipped = 0
+        for item in seed_items:
+            existing = self._storage.get_menu_item_by_code(item["code"])
+            if existing:
+                skipped += 1
+                continue
+            item["created_at"] = datetime.now().isoformat()
+            item["updated_at"] = item["created_at"]
+            self._storage.save_menu_item(item)
+            created += 1
+        _menu_audit(
+            action="menu_init_default",
+            result_status="success",
+            resource="default_menu",
+            details={"created": created, "skipped": skipped,
+                     "total_seed": len(seed_items)},
+        )
+        return {
+            "status": "success",
+            "created": created,
+            "skipped": skipped,
+            "total": len(seed_items),
+        }
