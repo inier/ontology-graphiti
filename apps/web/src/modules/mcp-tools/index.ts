@@ -1,1 +1,1 @@
-export { McpToolsPage } from './pages/McpToolsPage';
+export { default as McpToolsPage } from './pages/McpToolsPage';

@@ -1,1 +1,1 @@
-export { HeExtractionPage } from './pages/HeExtractionPage';
+export { default as HeExtractionPage } from './pages/HeExtractionPage';
