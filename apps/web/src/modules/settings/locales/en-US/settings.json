@@ -110,5 +110,6 @@
   "销毁失败: {{error}}": "销毁失败: {{error}}",
   "风险: {{risk}}": "风险: {{risk}}",
   "驳回 · {{level}} 驳回 {{label}}": "驳回 · {{level}} 驳回 {{label}}",
-  "驳回@{{level}} · UI 操作": "驳回@{{level}} · UI 操作"
+  "驳回@{{level}} · UI 操作": "驳回@{{level}} · UI 操作",
+  "系统设置": "System Settings"
 }
