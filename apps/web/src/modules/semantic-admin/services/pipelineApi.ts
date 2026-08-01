@@ -26,6 +26,7 @@ export interface Candidate {
   stoplist_flag: boolean;
   confidence: number;
   source_text?: string;
+  origin?: string;
   provenance: Record<string, unknown>;
   status:
     | 'new'
@@ -179,6 +180,7 @@ export async function listCandidates(params: {
   semantic_type?: string;
   min_confidence?: number;
   keyword?: string;
+  origin?: string;
   page?: number;
   page_size?: number;
 }): Promise<PagedResponse<Candidate>> {
@@ -189,6 +191,7 @@ export async function listCandidates(params: {
     semantic_type: params.semantic_type,
     min_confidence: params.min_confidence,
     keyword: params.keyword,
+    origin: params.origin,
     page: params.page ?? 1,
     page_size: params.page_size ?? 50,
   })}`);

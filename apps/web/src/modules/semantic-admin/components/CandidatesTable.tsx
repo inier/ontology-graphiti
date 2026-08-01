@@ -8,6 +8,8 @@ import type { GraphitiWritebackStatus } from '../types';
 
 const TIER_COLOR: Record<string, string> = { HIGH: 'green', MEDIUM: 'blue', LOW: 'gold', VERY_LOW: 'red' };
 const STATUS_COLOR: Record<string, string> = { new: 'default', gated: 'default', approved: 'green', rejected: 'red', written: 'geekblue', auditor_approved: 'blue', admin_pending: 'orange', written_back: 'purple', stoplisted: 'black' };
+const ORIGIN_COLOR: Record<string, string> = { llm: 'geekblue', usl: 'green', hybrid: 'purple', human: 'blue' };
+const ORIGIN_LABEL: Record<string, string> = { llm: 'LLM', usl: 'USL', hybrid: '混合', human: '人工' };
 
 interface CTProps {
   data: Candidate[]; loading: boolean; total: number; page: number; pageSize: number;
@@ -23,6 +25,29 @@ const shortId = (id?: string): string => !id ? '-' : id.length > 10 ? `${id.slic
 const fmtDate = (s?: string): string => !s ? '-' : s.substring(0, 19).replace('T', ' ');
 const canL1 = (s: string) => ['new', 'gated', 'audited'].includes(s);
 const canL2 = (s: string) => s === 'admin_pending';
+
+const renderOrigin = (r: Candidate) => {
+  const o = r.origin || '';
+  const prov = r.provenance || {};
+  const isReasoning = prov.source === 'reasoning';
+  const chainId = prov.chain_id as string | undefined;
+  const engineMode = prov.engine_mode as string | undefined;
+  return (
+    <Space size={2} wrap>
+      {o && <Tag color={ORIGIN_COLOR[o] ?? 'default'}>{ORIGIN_LABEL[o] ?? o}</Tag>}
+      {isReasoning && <Tag color="magenta">推理</Tag>}
+      {engineMode && <Tag style={{ fontSize: 11 }}>{engineMode}</Tag>}
+      {chainId && (
+        <Tooltip title={`chain_id: ${chainId}`}>
+          <Tag style={{ fontFamily: 'monospace', fontSize: 11, marginBottom: 0 }}>
+            #{shortId(chainId)}
+          </Tag>
+        </Tooltip>
+      )}
+      {!o && !chainId && <Tag>—</Tag>}
+    </Space>
+  );
+};
 
 const renderUslTag = (r: Candidate) => {
   const id = r.provenance?.writeback_usl_term_id;
@@ -88,6 +113,7 @@ const CandidatesTable: React.FC<CTProps> = (P) => {
     { title: 'Confidence', dataIndex: 'confidence', key: 'cf', width: 160, render: (v: number) => <Progress percent={Math.round(v * 100)} size="small" /> },
     { title: 'Quality Tier', key: 't', width: 110, render: (_, r) => r.quality_report?.tier ? <Tag color={TIER_COLOR[r.quality_report.tier]}>{r.quality_report.tier}</Tag> : '-' },
     { title: 'Status', dataIndex: 'status', key: 's', width: 140, render: (v: string) => <Tag color={STATUS_COLOR[v] ?? 'default'}>{v}</Tag> },
+    { title: '来源/链', key: 'origin', width: 200, render: (_: any, r) => renderOrigin(r) },
     { title: 'USL 写回', key: 'usl_wb', width: 160, render: (_: any, r) => renderUslTag(r) },
     { title: 'Graphiti 写回', key: 'g_wb', width: 170, render: (_: any, r) => renderGraphitiTag(r) },
     { title: 'Domain ID', dataIndex: 'domain_id', key: 'did', width: 110, render: (v?: string) => <Tooltip title={v}><span style={{ fontFamily: 'monospace', fontSize: 12 }}>{shortId(v)}</span></Tooltip> },
@@ -107,7 +133,7 @@ const CandidatesTable: React.FC<CTProps> = (P) => {
   return (
     <Table<Candidate> rowKey="id" loading={P.loading} dataSource={P.data} columns={cols} rowSelection={rowSel}
       pagination={{ current: P.page, pageSize: P.pageSize, total: P.total, showSizeChanger: true, showQuickJumper: true, showTotal: (t) => `Total ${t} items`, onChange: P.onPageChange }}
-      scroll={{ x: 1680 }}
+      scroll={{ x: 1880 }}
       onRow={(r) => ({
         onClick: () => P.onRowClick?.(r),
         style: { cursor: P.onRowClick ? 'pointer' : 'default' },

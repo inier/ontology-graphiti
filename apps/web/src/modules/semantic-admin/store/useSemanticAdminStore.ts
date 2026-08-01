@@ -20,6 +20,7 @@ export interface CandidateFilters {
   semantic_type?: string;
   min_confidence?: number;
   keyword?: string;
+  origin?: string;
   page: number;
   page_size: number;
 }

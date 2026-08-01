@@ -4,10 +4,10 @@
 设计: docs/08-tasks/MENU_REFACTOR_PLAN.md Iter 1
 
 菜单树结构（6 个顶级目录）:
-  建本体 → 本体设计器/蓝图/目标/版本/数据摄入/知识库/HE抽取链/语义管理(子目录)
+  建本体 → 本体设计器/蓝图/目标/版本/数据摄入/HE抽取链/知识库/语义管理(子目录)
   见本体 → 本体图谱/图谱查看器/知识导航/仪表盘/QA管理
   演本体 → 仿真沙盘/业务流程/规则/指标/逻辑/对象管理/策略编辑器
-  用本体 → QA查询/QA评估/智能体(子目录)
+  用本体 → QA查询/QA评估/MCP工具集/智能体(子目录)
   系统管理 → 工作空间/角色/用户/审计/菜单配置/设置/渠道/国际化
   帮助 → 使用指南
 
@@ -15,6 +15,11 @@ Iter 2 变更（D4 仿真入口合并）:
   - 移除"策略推演"和"模拟器"独立菜单项
   - "/simulation"作为统一入口，内部 Tab 切换沙盘/推演/事件
   - 旧路由 /simulator + /simulation/deduction 通过 redirect 兼容
+
+Iter 3 变更（D5/D6/D7 命名消歧 + HE 关联 + MCP 入口）:
+  - D5: 见本体"本体图谱"路径 /ontology/graph → /ontology/explorer（命名消歧）
+  - D6: 建本体新增"HE 抽取链"菜单（/he/extraction）
+  - D7: 用本体新增"MCP 工具集"菜单（/mcp/tools，7 个语义检索工具）
 
 约束:
   - 所有函数体 ≤ 40 行 (Constitution I)
@@ -111,7 +116,10 @@ def _subdir(
 
 
 def _build_menus() -> List[Dict[str, Any]]:
-    """建本体：本体设计器/蓝图/目标/版本/数据摄入/知识库 + 语义管理子目录。"""
+    """建本体：本体设计器/蓝图/目标/版本/数据摄入/HE抽取链/知识库 + 语义管理子目录。
+
+    Iter 3 (D6): 新增"HE 抽取链"菜单项（/he/extraction），置于数据摄入与知识库之间。
+    """
     parent = "dir:build"
     items = [
         _menu("menu:build:designer", "本体设计器", "/ontology/designer",
@@ -124,9 +132,11 @@ def _build_menus() -> List[Dict[str, Any]]:
               "HistoryOutlined", 4, parent),
         _menu("menu:build:ingest", "数据摄入", "/ingest",
               "CloudUploadOutlined", 5, parent),
+        _menu("menu:build:he_extraction", "HE 抽取链", "/he/extraction",
+              "ExperimentOutlined", 6, parent),
         _menu("menu:build:knowledge", "知识库", "/knowledge",
-              "BookOutlined", 6, parent),
-        _subdir("dir:build:semantic", "语义管理", "BulbOutlined", 7, parent),
+              "BookOutlined", 7, parent),
+        _subdir("dir:build:semantic", "语义管理", "BulbOutlined", 8, parent),
     ]
     items.extend(_build_semantic_submenus())
     return items
@@ -153,10 +163,14 @@ def _build_semantic_submenus() -> List[Dict[str, Any]]:
 
 
 def _see_menus() -> List[Dict[str, Any]]:
-    """见本体：本体图谱/图谱查看器/知识导航/仪表盘/QA管理。"""
+    """见本体：本体图谱/图谱查看器/知识导航/仪表盘/QA管理。
+
+    Iter 3 (D5): 本体图谱路径 /ontology/graph → /ontology/explorer（命名消歧），
+    旧路由通过 AppRoutes redirect 兼容。
+    """
     parent = "dir:see"
     return [
-        _menu("menu:see:graph", "本体图谱", "/ontology/graph",
+        _menu("menu:see:graph", "本体图谱", "/ontology/explorer",
               "ShareAltOutlined", 1, parent),
         _menu("menu:see:viewer", "图谱查看器", "/iframe-viewer",
               "FundProjectionScreenOutlined", 2, parent),
@@ -203,14 +217,19 @@ def _simulate_menus() -> List[Dict[str, Any]]:
 
 
 def _use_menus() -> List[Dict[str, Any]]:
-    """用本体：QA查询/QA评估 + 智能体子目录。"""
+    """用本体：QA查询/QA评估/MCP工具集 + 智能体子目录。
+
+    Iter 3 (D7): 新增"MCP 工具集"菜单项（/mcp/tools），暴露 7 个语义检索 MCP 工具。
+    """
     parent = "dir:use"
     items = [
         _menu("menu:use:qa_query", "QA 查询", "/qa/query",
               "SearchOutlined", 1, parent),
         _menu("menu:use:qa_eval", "QA 评估", "/qa/evaluation",
               "LikeOutlined", 2, parent),
-        _subdir("dir:use:agent", "智能体", "RobotOutlined", 3, parent),
+        _menu("menu:use:mcp_tools", "MCP 工具集", "/mcp/tools",
+              "ThunderboltOutlined", 3, parent),
+        _subdir("dir:use:agent", "智能体", "RobotOutlined", 4, parent),
     ]
     items.extend(_use_agent_submenus())
     return items
@@ -275,9 +294,10 @@ def get_four_steps_seed_data() -> List[Dict[str, Any]]:
     """返回完整的四步法菜单种子数据（扁平列表，含 parent_id 关联）。
 
     顺序：顶级目录 → 建本体 → 见本体 → 演本体 → 用本体 → 系统管理 → 帮助
-    共 6 目录 + 8 子目录/菜单(建) + 5(见) + 7(演) + 3+4(用) + 8(系统) + 1(帮助) = 46 项
+    共 6 目录 + 8 子目录/菜单(建) + 5(见) + 7(演) + 4+4(用) + 8(系统) + 1(帮助) = 48 项
 
     Iter 2 变更：演本体从 9 项减为 7 项（移除策略推演/模拟器，合并到仿真沙盘）
+    Iter 3 变更：建本体新增 HE 抽取链(+1)，用本体新增 MCP 工具集(+1)，共 48 项
     """
     items: List[Dict[str, Any]] = []
     items.extend(_top_directories())

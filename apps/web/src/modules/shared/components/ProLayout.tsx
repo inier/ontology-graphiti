@@ -132,7 +132,7 @@ const primaryMenus: MenuItem[] = [
     label: '语义地图',
     children: [
       { key: '/ontology/designer', icon: <BlockOutlined />, label: '本体设计器' },
-      { key: '/ontology/graph', icon: <ApartmentOutlined />, label: '语义图谱' },
+      { key: '/ontology/explorer', icon: <ApartmentOutlined />, label: '语义图谱' },
       { key: '/business/entities', icon: <UnorderedListOutlined />, label: '对象管理' },
       { key: '/business/process', icon: <BranchesOutlined />, label: '业务过程' },
       { key: '/business/rules', icon: <FileProtectOutlined />, label: '规则' },

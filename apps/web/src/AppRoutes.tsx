@@ -24,6 +24,8 @@ import { SettingsPage } from '@/modules/settings';
 import { ChannelManagementPage } from '@/modules/channels';
 import { IframeViewerPage } from '@/modules/iframe-viewer';
 import { MenuConfigPage } from '@/modules/menu-config';
+import { HeExtractionPage } from '@/modules/hyper-extract';
+import { McpToolsPage } from '@/modules/mcp-tools';
 import { KeepAliveOutlet } from '@/modules/shared/components/KeepAliveOutlet';
 import {
   SemanticAdminIndex,
@@ -55,7 +57,9 @@ export function AppRoutes() {
         <Route path="/agent" element={<ProtectedRoute><AgentPage /></ProtectedRoute>} />
 
         <Route path="/ontology/designer" element={<ProtectedRoute><OntologyDesignerPage /></ProtectedRoute>} />
-        <Route path="/ontology/graph" element={<ProtectedRoute><OntologyGraphPage /></ProtectedRoute>} />
+        {/* Iter 3 (D5): /ontology/graph → /ontology/explorer 改名消歧，旧路由 redirect 兼容 */}
+        <Route path="/ontology/explorer" element={<ProtectedRoute><OntologyGraphPage /></ProtectedRoute>} />
+        <Route path="/ontology/graph" element={<Navigate to="/ontology/explorer" replace />} />
         <Route path="/ontology" element={<Navigate to="/ontology/designer" replace />} />
         <Route path="/ontology/goals" element={<ProtectedRoute><GoalKanban /></ProtectedRoute>} />
         <Route path="/blueprint" element={<ProtectedRoute><BlueprintDesignerPage /></ProtectedRoute>} />
@@ -67,6 +71,10 @@ export function AppRoutes() {
         <Route path="/business/entities" element={<ProtectedRoute><ObjectManagement /></ProtectedRoute>} />
         <Route path="/business/extraction" element={<Navigate to="/ingest" replace />} />
         <Route path="/ingest" element={<ProtectedRoute><IngestPanel /></ProtectedRoute>} />
+        {/* Iter 3 (D6): HE 抽取链 — 建本体下的知识抽取入口 */}
+        <Route path="/he/extraction" element={<ProtectedRoute><HeExtractionPage /></ProtectedRoute>} />
+        {/* Iter 3 (D7): MCP 工具集 — 用本体下的语义检索 MCP 工具入口 */}
+        <Route path="/mcp/tools" element={<ProtectedRoute><McpToolsPage /></ProtectedRoute>} />
         <Route path="/skills" element={<ProtectedRoute><SkillManagement /></ProtectedRoute>} />
         {/* Iter 2 (D4): 仿真入口合并 — /simulator + /simulation/deduction redirect 到 /simulation?tab=xxx */}
         <Route path="/simulator" element={<Navigate to="/simulation?tab=simulator" replace />} />

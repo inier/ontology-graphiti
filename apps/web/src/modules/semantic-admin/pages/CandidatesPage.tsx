@@ -70,6 +70,7 @@ const CandidatesPage: React.FC = () => {
         semantic_type: candidateFilters.semantic_type || undefined,
         min_confidence: candidateFilters.min_confidence,
         keyword: candidateFilters.keyword || undefined,
+        origin: candidateFilters.origin || undefined,
         page: candidateFilters.page,
         page_size: candidateFilters.page_size,
       });
@@ -143,18 +144,29 @@ const CandidatesPage: React.FC = () => {
         style={{ marginBottom: 8 }}
       />
       <Row gutter={[12, 12]} align="middle" style={{ marginBottom: 12 }}>
-        <Col span={5}>
+        <Col span={4}>
           <Select mode="multiple" allowClear style={{ width: '100%' }} placeholder="Semantic Type"
             value={candidateFilters.semantic_type ? [candidateFilters.semantic_type] : []}
             maxTagCount="responsive"
             onChange={(v) => onFilterChange({ semantic_type: v.length ? v[0] : '' })}
             options={semanticTypes.map((x) => ({ label: x, value: x }))} />
         </Col>
-        <Col span={4}>
+        <Col span={3}>
           <Select allowClear style={{ width: '100%' }} placeholder="Status"
             value={candidateFilters.status || undefined}
             onChange={(v) => onFilterChange({ status: v ?? '' })}
             options={STATUSES.map((x) => ({ label: x, value: x }))} />
+        </Col>
+        <Col span={3}>
+          <Select allowClear style={{ width: '100%' }} placeholder="来源 Origin"
+            value={candidateFilters.origin || undefined}
+            onChange={(v) => onFilterChange({ origin: v ?? '' })}
+            options={[
+              { label: 'LLM/推理生成 (llm)', value: 'llm' },
+              { label: 'USL (usl)', value: 'usl' },
+              { label: '混合 (hybrid)', value: 'hybrid' },
+              { label: '人工 (human)', value: 'human' },
+            ]} />
         </Col>
         <Col span={3}>
           <InputNumber style={{ width: '100%' }} min={0} max={1} step={0.05}
@@ -162,7 +174,7 @@ const CandidatesPage: React.FC = () => {
             value={candidateFilters.min_confidence}
             onChange={(v) => onFilterChange({ min_confidence: v == null ? undefined : v })} />
         </Col>
-        <Col span={5}>
+        <Col span={4}>
           <Input allowClear placeholder="Keyword (canonical / synonym)"
             value={candidateFilters.keyword || ''}
             onChange={(e) => onFilterChange({ keyword: e.target.value })} />

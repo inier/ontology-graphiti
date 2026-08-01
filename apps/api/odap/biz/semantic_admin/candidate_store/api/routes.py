@@ -86,6 +86,18 @@ def _user_actor(user: Any) -> str:
     return "system"
 
 
+def _to_candidate_row(c: Dict[str, Any]) -> CandidateRow:
+    """从 storage dict 构建 CandidateRow；None → 字段默认值（兼容 storage 返回 None）。"""
+    data: Dict[str, Any] = {}
+    for fname, finfo in CandidateRow.model_fields.items():
+        val = c.get(fname)
+        if val is None:
+            data[fname] = finfo.default_factory() if finfo.default_factory else finfo.default
+        else:
+            data[fname] = val
+    return CandidateRow(**data)
+
+
 # ======================================================================
 # FR-018: GET /candidates（List +分页过滤
 # ======================================================================
@@ -100,20 +112,26 @@ async def list_candidates(
     status: Optional[str] = Query(default=None),
     candidate_type: Optional[str] = Query(default=None),
     canonical_q: Optional[str] = Query(default=None, description="按 canonical 模糊搜索"),
+    keyword: Optional[str] = Query(
+        default=None, description="canonical 模糊搜索别名（前端 keyword 兼容）"
+    ),
+    origin: Optional[str] = Query(
+        default=None,
+        description="按来源过滤：usl/llm/hybrid/human（Iter 3 D8：推理结论 origin=llm）",
+    ),
     page: int = Query(default=1, ge=1),
     page_size: int = Query(default=20, ge=1, le=500),
     _user: Any = Depends(get_current_user),
 ) -> CandidateListResponse:
     try:
+        # 仅转发 storage 支持的过滤参数（workspace_id/scenario_id/level/candidate_type
+        # 由 storage 层暂不支持，留作 query 契约向后兼容；origin 为 Iter 3 D8 新增）
         result = _candidate_service.list_candidates(
-            workspace_id=workspace_id,
-            scenario_id=scenario_id,
-            domain_id=domain_id,
             pipeline_run_id=pipeline_run_id,
-            level=level,
+            domain_id=domain_id,
             status=status,
-            candidate_type=candidate_type,
-            canonical_q=canonical_q,
+            canonical_q=canonical_q or keyword,
+            origin=origin,
             page=page,
             page_size=page_size,
         )
@@ -135,7 +153,7 @@ async def list_candidates(
     items: list[CandidateRow] = []
     for c in items_raw:
         if isinstance(c, dict):
-            items.append(CandidateRow(**{k: c.get(k, "") for k in CandidateRow.model_fields}))
+            items.append(_to_candidate_row(c))
     return CandidateListResponse(items=items, total=total, page=page, page_size=page_size)
 
 

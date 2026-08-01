@@ -1,14 +1,14 @@
-"""TDD 单元测试：四步法菜单种子数据初始化（Iter 1 + Iter 2）。
+"""TDD 单元测试：四步法菜单种子数据初始化（Iter 1 + Iter 2 + Iter 3）。
 
-设计文档：docs/08-tasks/MENU_REFACTOR_PLAN.md Iter 1 & Iter 2
+设计文档：docs/08-tasks/MENU_REFACTOR_PLAN.md Iter 1 & Iter 2 & Iter 3
 
 Sandbox 策略：
   - tmp_path 真实 SQLite DB，不污染生产数据
   - 测试 init_default_menu() 幂等性 + 菜单树结构正确性
 
 测试用例：
-  T-SEED-1: 首次调用 init_default_menu() → created=46, skipped=0
-  T-SEED-2: 二次调用 init_default_menu() → created=0, skipped=46（幂等）
+  T-SEED-1: 首次调用 init_default_menu() → created=48, skipped=0
+  T-SEED-2: 二次调用 init_default_menu() → created=0, skipped=48（幂等）
   T-SEED-3: 菜单树含 6 个顶级目录（建/见/演/用/系统管理/帮助）
   T-SEED-4: 建本体目录含语义管理子目录 + 5 个子菜单
   T-SEED-5: 演本体目录含 business/* 5 个菜单项（D1 偏差修复）
@@ -18,6 +18,9 @@ Sandbox 策略：
   T-SEED-9: 演本体不含"策略推演"和"模拟器"独立菜单（Iter 2 / D4 修复）
   T-SEED-10: 演本体含"仿真沙盘"统一入口（Iter 2 / D4 修复）
   T-SEED-11: QA 菜单已拆分（/qa→见本体，/qa/query+/qa/evaluation→用本体，Iter 2 / D3 修复）
+  T-SEED-12: 建本体含"HE 抽取链"菜单（Iter 3 / D6）
+  T-SEED-13: 用本体含"MCP 工具集"菜单（Iter 3 / D7）
+  T-SEED-14: 见本体"本体图谱"路径为 /ontology/explorer（Iter 3 / D5 改名）
 """
 
 from __future__ import annotations
@@ -67,9 +70,9 @@ def test_seed_1_first_init_creates_all(menu_service: MenuConfigService):
     """T-SEED-1: 首次调用写入全部种子数据。"""
     result = menu_service.init_default_menu()
     assert result["status"] == "success"
-    assert result["created"] == 46, f"应创建 46 项，实际 {result['created']}"
+    assert result["created"] == 48, f"应创建 48 项，实际 {result['created']}"
     assert result["skipped"] == 0
-    assert result["total"] == 46
+    assert result["total"] == 48
 
 
 # =====================================================================
@@ -82,7 +85,7 @@ def test_seed_2_second_init_is_idempotent(menu_service: MenuConfigService):
     menu_service.init_default_menu()  # 第一次
     result = menu_service.init_default_menu()  # 第二次
     assert result["created"] == 0, "二次调用不应创建新项"
-    assert result["skipped"] == 46, f"应跳过 46 项，实际 {result['skipped']}"
+    assert result["skipped"] == 48, f"应跳过 48 项，实际 {result['skipped']}"
 
 
 # =====================================================================
@@ -246,3 +249,60 @@ def test_seed_11_qa_menu_split(menu_service: MenuConfigService):
     assert qa_query["path"] == "/qa/query"
     qa_eval = next(c for c in use_dir["children"] if c["name"] == "QA 评估")
     assert qa_eval["path"] == "/qa/evaluation"
+
+
+# =====================================================================
+# T-SEED-12: 建本体含"HE 抽取链"菜单（Iter 3 / D6）
+# =====================================================================
+
+
+def test_seed_12_build_has_he_extraction(menu_service: MenuConfigService):
+    """T-SEED-12: 建本体含"HE 抽取链"菜单（/he/extraction，D6 新增）。"""
+    menu_service.init_default_menu()
+    tree = menu_service.get_tree(active_only=False)
+    build_dir = next(n for n in tree if n["name"] == "建本体")
+    he = next(
+        (c for c in build_dir["children"] if c["name"] == "HE 抽取链"), None
+    )
+    assert he is not None, "建本体应含'HE 抽取链'菜单项（D6）"
+    assert he["path"] == "/he/extraction", (
+        f"HE 抽取链 path 应为 /he/extraction，实际 {he['path']}"
+    )
+
+
+# =====================================================================
+# T-SEED-13: 用本体含"MCP 工具集"菜单（Iter 3 / D7）
+# =====================================================================
+
+
+def test_seed_13_use_has_mcp_tools(menu_service: MenuConfigService):
+    """T-SEED-13: 用本体含"MCP 工具集"菜单（/mcp/tools，D7 新增）。"""
+    menu_service.init_default_menu()
+    tree = menu_service.get_tree(active_only=False)
+    use_dir = next(n for n in tree if n["name"] == "用本体")
+    mcp = next(
+        (c for c in use_dir["children"] if c["name"] == "MCP 工具集"), None
+    )
+    assert mcp is not None, "用本体应含'MCP 工具集'菜单项（D7）"
+    assert mcp["path"] == "/mcp/tools", (
+        f"MCP 工具集 path 应为 /mcp/tools，实际 {mcp['path']}"
+    )
+
+
+# =====================================================================
+# T-SEED-14: 见本体"本体图谱"路径为 /ontology/explorer（Iter 3 / D5 改名）
+# =====================================================================
+
+
+def test_seed_14_see_graph_path_renamed(menu_service: MenuConfigService):
+    """T-SEED-14: 见本体"本体图谱"路径已改为 /ontology/explorer（D5 命名消歧）。"""
+    menu_service.init_default_menu()
+    tree = menu_service.get_tree(active_only=False)
+    see_dir = next(n for n in tree if n["name"] == "见本体")
+    graph = next(
+        (c for c in see_dir["children"] if c["name"] == "本体图谱"), None
+    )
+    assert graph is not None, "见本体应含'本体图谱'菜单项"
+    assert graph["path"] == "/ontology/explorer", (
+        f"Iter 3 D5 应将本体图谱路径改为 /ontology/explorer，实际 {graph['path']}"
+    )

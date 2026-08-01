@@ -87,6 +87,7 @@ class CandidateRow(BaseModel):
     candidate_type: str = ""
     level: str = ""
     status: str = ""
+    origin: str = ""
     confidence: float = 0.0
     domain_id: Optional[str] = None
     workspace_id: Optional[str] = None
@@ -117,6 +118,7 @@ class CandidateDetailResponse(BaseModel):
     candidate_type: str = ""
     level: str = ""
     status: str = ""
+    origin: str = ""
     confidence: float = 0.0
     domain_id: Optional[str] = None
     workspace_id: Optional[str] = None
