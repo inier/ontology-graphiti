@@ -121,7 +121,7 @@ class SQLiteMenuConfigStorage:
                     item["name"], item["code"],
                     item.get("menu_type", "menu"),
                     item.get("link_type", "internal"),
-                    item.get("path"), item.get("url"),
+                    item.get("path") or "", item.get("url") or "",
                     item.get("icon", "AppstoreOutlined"),
                     item.get("sort_order", 0),
                     1 if item.get("is_active", True) else 0,

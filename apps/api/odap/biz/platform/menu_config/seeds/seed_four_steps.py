@@ -43,7 +43,10 @@ from typing import Any, Dict, List
 
 
 def _directory(code: str, name: str, icon: str, sort_order: int) -> Dict[str, Any]:
-    """构建顶级目录菜单项。"""
+    """构建顶级目录菜单项。
+
+    path/url 使用空字符串而非 None — 兼容旧版 DB schema（path NOT NULL 约束）。
+    """
     return {
         "id": code,
         "parent_id": None,
@@ -51,8 +54,8 @@ def _directory(code: str, name: str, icon: str, sort_order: int) -> Dict[str, An
         "code": code,
         "menu_type": "directory",
         "link_type": "internal",
-        "path": None,
-        "url": None,
+        "path": "",
+        "url": "",
         "icon": icon,
         "sort_order": sort_order,
         "is_active": True,
@@ -101,7 +104,10 @@ def _menu(
 def _subdir(
     code: str, name: str, icon: str, sort_order: int, parent_code: str,
 ) -> Dict[str, Any]:
-    """构建二级目录（可折叠分组）。"""
+    """构建二级目录（可折叠分组）。
+
+    path/url 使用空字符串而非 None — 兼容旧版 DB schema（path NOT NULL 约束）。
+    """
     return {
         "id": code,
         "parent_id": parent_code,
@@ -109,8 +115,8 @@ def _subdir(
         "code": code,
         "menu_type": "directory",
         "link_type": "internal",
-        "path": None,
-        "url": None,
+        "path": "",
+        "url": "",
         "icon": icon,
         "sort_order": sort_order,
         "is_active": True,
