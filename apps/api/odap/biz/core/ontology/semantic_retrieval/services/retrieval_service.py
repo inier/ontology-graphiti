@@ -13,6 +13,7 @@ from ..impl.hybrid_orchestrator import HybridOrchestrator
 from ..impl.mdl_engine import MdlEngine
 from ..impl.metric_engine import MetricEngine
 from ..impl.nl_engine import NLEngine
+from ..impl.reasoning_persistence_service import ReasoningPersistenceService
 from ..impl.unified_router import UnifiedRouter
 from ..models.schemas import SearchRequest, SearchResult
 from ..storage.audit_log import audit_retrieval
@@ -42,6 +43,7 @@ class RetrievalService:
         mdl_engine: Any = None,
         unified_router: Any = None,
         he_adapter: Any = None,
+        persistence: Optional[ReasoningPersistenceService] = None,
     ):
         self._graph = graph_engine or GraphEngine()
         self._nl = nl_engine or NLEngine(graph_engine=self._graph)
@@ -49,6 +51,7 @@ class RetrievalService:
         self._chain = chain_engine or ChainEngine()
         he = he_adapter if he_adapter is not None else _default_he_adapter()
         self._mdl = mdl_engine or MdlEngine(he_adapter=he)
+        self._persistence = persistence  # opt-in（默认 None，不持久化）
         engines = {
             "nl": self._nl,
             "graph": self._graph,
@@ -128,6 +131,7 @@ class RetrievalService:
         query: str,
         rules: Optional[list] = None,
         max_depth: int = 5,
+        persist_candidates: bool = False,
     ) -> Dict[str, Any]:
         """分项：链式推理 + 循环检测 (FR-004/FR-014 / US3)。"""
         raw = await self._chain.reason(
@@ -144,10 +148,13 @@ class RetrievalService:
                 "depth": max_depth,
             },
         )
+        if persist_candidates and self._persistence:
+            raw["candidates_meta"] = self._safe_persist(raw, workspace_id)
         return raw
 
     async def mdl_search(
-        self, workspace_id: str, *, query: str
+        self, workspace_id: str, *, query: str,
+        persist_candidates: bool = False,
     ) -> Dict[str, Any]:
         """分项：MDL/DSL 推理 (FR-004 / US3 / Q6: 不发明 DSL，复用 HE 模板)。"""
         raw = await self._mdl.reason(workspace_id, query=query)
@@ -158,7 +165,19 @@ class RetrievalService:
                 "status": raw["reasoning"]["status"],
             },
         )
+        if persist_candidates and self._persistence:
+            raw["candidates_meta"] = self._safe_persist(raw, workspace_id)
         return raw
+
+    def _safe_persist(
+        self, result: Dict[str, Any], workspace_id: str
+    ) -> Dict[str, Any]:
+        """持久化失败不阻断推理返回（fire-and-forget + 日志，设计 §6.1）。"""
+        try:
+            return self._persistence.persist(result, workspace_id)  # type: ignore[union-attr]
+        except Exception as exc:  # noqa: BLE001 — 兜底双保险
+            logger.warning("推理结论持久化失败: %s", exc)
+            return {"persisted_count": 0, "error": str(exc)}
 
     async def hybrid_search(
         self,

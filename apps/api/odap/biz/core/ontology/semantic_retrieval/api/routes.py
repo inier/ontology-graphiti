@@ -135,6 +135,7 @@ async def chain_reason(request: ChainRequest, user=Depends(get_current_user)):
             query=request.query,
             rules=list(request.rules),
             max_depth=request.max_depth,
+            persist_candidates=request.persist_candidates,
         )
     except HTTPException:
         raise
@@ -163,6 +164,7 @@ async def mdl_reason(request: MdlRequest, user=Depends(get_current_user)):
         raw = await _service.mdl_search(
             workspace_id,
             query=request.query,
+            persist_candidates=request.persist_candidates,
         )
     except HTTPException:
         raise

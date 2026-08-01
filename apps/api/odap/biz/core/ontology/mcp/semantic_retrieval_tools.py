@@ -39,7 +39,9 @@ _DESC_QUERY = (
 _DESC_REASON = (
     "本项链式推理 — rules[] 有序传导 + 循环检测 + 规则冲突收集 (FR-014)。\n"
     "input_schema: query:str (起点节点), rules?:list[str] (规则 ID 路径), "
-    "max_depth?:int=1..10 (硬上限 10), workspace_id:str"
+    "max_depth?:int=1..10 (硬上限 10), "
+    "persist_candidates?:bool=false (推理结论落盘 USL Candidate), "
+    "workspace_id:str"
 )
 
 _DESC_METRIC = (
@@ -67,6 +69,7 @@ _DESC_NL = (
 _DESC_MDL = (
     "本体分项 MDL/DSL 推理 — 复用 HE YAML 模板引用 (FR-004 / US3 / Q6 不发明 DSL)。\n"
     "input_schema: query:str (含 template/entity/params 的 YAML 段), "
+    "persist_candidates?:bool=false (推理结论落盘 USL Candidate), "
     "workspace_id:str"
 )
 
@@ -113,6 +116,7 @@ def create_ontology_reason_handler(
             query=args["query"],
             rules=list(args.get("rules", [])),
             max_depth=int(args.get("max_depth", 5)),
+            persist_candidates=bool(args.get("persist_candidates", False)),
         )
         return raw
 
@@ -185,7 +189,11 @@ def create_ontology_mdl_handler(
 
     async def handler(args: Dict[str, Any]) -> Dict[str, Any]:
         workspace_id = args.get("workspace_id", "default")
-        raw = await svc.mdl_search(workspace_id, query=args["query"])
+        raw = await svc.mdl_search(
+            workspace_id,
+            query=args["query"],
+            persist_candidates=bool(args.get("persist_candidates", False)),
+        )
         return raw
 
     return handler

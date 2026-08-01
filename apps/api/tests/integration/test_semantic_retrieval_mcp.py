@@ -91,7 +91,7 @@ async def test_ontology_reason_result_matches_service():
     )
 
     class FakeService:
-        async def chain_search(self, workspace_id, *, query, rules, max_depth):
+        async def chain_search(self, workspace_id, *, query, rules, max_depth, persist_candidates=False):
             return {
                 "mode": "chain",
                 "reasoning": {
@@ -441,7 +441,7 @@ async def test_ontology_mdl_result_matches_service():
     )
 
     class FakeService:
-        async def mdl_search(self, workspace_id, *, query):
+        async def mdl_search(self, workspace_id, *, query, persist_candidates=False):
             return {
                 "mode": "mdl",
                 "reasoning": {

@@ -35,9 +35,9 @@ def raising_client(monkeypatch):
             raise RuntimeError("nl boom")
         async def metric_search(self, ws, metric, **kw):
             raise RuntimeError("metric boom")
-        async def chain_search(self, ws, *, query, rules, max_depth):
+        async def chain_search(self, ws, *, query, rules, max_depth, persist_candidates=False):
             raise RuntimeError("chain boom")
-        async def mdl_search(self, ws, *, query):
+        async def mdl_search(self, ws, *, query, persist_candidates=False):
             raise RuntimeError("mdl boom")
         async def hybrid_search(self, ws, components, *, merge="concat"):
             raise RuntimeError("hybrid boom")

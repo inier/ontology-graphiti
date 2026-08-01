@@ -126,6 +126,10 @@ class ChainRequest(BaseModel):
     max_depth: int = Field(
         default=5, ge=1, le=10, description="推理链最大深度（硬上限 10，FR-014）"
     )
+    persist_candidates: bool = Field(
+        default=False,
+        description="是否将推理结论持久化到 USL Candidate 表（opt-in，HITL 飞轮入口）",
+    )
 
 
 class MdlRequest(BaseModel):
@@ -143,6 +147,10 @@ class MdlRequest(BaseModel):
             "MDL 查询：多行字符串，首行必须 template: {name}，"
             "次行 entity: {entity}，可选 params: {json|kv}"
         ),
+    )
+    persist_candidates: bool = Field(
+        default=False,
+        description="是否将推理结论持久化到 USL Candidate 表（opt-in，HITL 飞轮入口）",
     )
 
 
