@@ -26,6 +26,11 @@ import { IframeViewerPage } from '@/modules/iframe-viewer';
 import { MenuConfigPage } from '@/modules/menu-config';
 import { HeExtractionPage } from '@/modules/hyper-extract';
 import { McpToolsPage } from '@/modules/mcp-tools';
+import { ServiceCatalogPage } from '@/modules/ontology/pages/ServiceCatalogPage';
+import { SemanticMapPage } from '@/modules/ontology/pages/SemanticMapPage';
+import { AbutionGraphPage } from '@/modules/ontology/pages/AbutionGraphPage';
+import { MemoryDashboardPage } from '@/modules/simulation/pages/MemoryDashboardPage';
+import { PerceptionPage } from '@/modules/simulation/pages/PerceptionPage';
 import { KeepAliveOutlet } from '@/modules/shared/components/KeepAliveOutlet';
 import {
   SemanticAdminIndex,
@@ -75,6 +80,12 @@ export function AppRoutes() {
         <Route path="/he/extraction" element={<ProtectedRoute><HeExtractionPage /></ProtectedRoute>} />
         {/* Iter 3 (D7): MCP 工具集 — 用本体下的语义检索 MCP 工具入口 */}
         <Route path="/mcp/tools" element={<ProtectedRoute><McpToolsPage /></ProtectedRoute>} />
+        {/* Iter 4: P3 缺失前端页面补齐 — 5 个新路由 */}
+        <Route path="/ontology/service-catalog" element={<ProtectedRoute><ServiceCatalogPage /></ProtectedRoute>} />
+        <Route path="/ontology/semantic-map" element={<ProtectedRoute><SemanticMapPage /></ProtectedRoute>} />
+        <Route path="/ontology/abution-graph" element={<ProtectedRoute><AbutionGraphPage /></ProtectedRoute>} />
+        <Route path="/simulation/memory" element={<ProtectedRoute><MemoryDashboardPage /></ProtectedRoute>} />
+        <Route path="/simulation/perception" element={<ProtectedRoute><PerceptionPage /></ProtectedRoute>} />
         <Route path="/skills" element={<ProtectedRoute><SkillManagement /></ProtectedRoute>} />
         {/* Iter 2 (D4): 仿真入口合并 — /simulator + /simulation/deduction redirect 到 /simulation?tab=xxx */}
         <Route path="/simulator" element={<Navigate to="/simulation?tab=simulator" replace />} />

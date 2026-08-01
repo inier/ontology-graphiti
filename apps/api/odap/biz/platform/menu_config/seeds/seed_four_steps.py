@@ -21,6 +21,13 @@ Iter 3 变更（D5/D6/D7 命名消歧 + HE 关联 + MCP 入口）:
   - D6: 建本体新增"HE 抽取链"菜单（/he/extraction）
   - D7: 用本体新增"MCP 工具集"菜单（/mcp/tools，7 个语义检索工具）
 
+Iter 4 变更（P3 缺失前端页面补齐）:
+  - 见本体新增"语义地图"菜单（/ontology/semantic-map）
+  - 见本体新增"消歧图"菜单（/ontology/abution-graph）
+  - 演本体新增"本体记忆"菜单（/simulation/memory）
+  - 演本体新增"感知数据"菜单（/simulation/perception）
+  - 用本体新增"服务化目录"菜单（/ontology/service-catalog）
+
 约束:
   - 所有函数体 ≤ 40 行 (Constitution I)
   - 中文 as i18n key (project_memory)
@@ -163,10 +170,11 @@ def _build_semantic_submenus() -> List[Dict[str, Any]]:
 
 
 def _see_menus() -> List[Dict[str, Any]]:
-    """见本体：本体图谱/图谱查看器/知识导航/仪表盘/QA管理。
+    """见本体：本体图谱/图谱查看器/知识导航/仪表盘/QA管理/语义地图/消歧图。
 
     Iter 3 (D5): 本体图谱路径 /ontology/graph → /ontology/explorer（命名消歧），
     旧路由通过 AppRoutes redirect 兼容。
+    Iter 4: 新增"语义地图"和"消歧图"菜单项（P3 缺失页面补齐）。
     """
     parent = "dir:see"
     return [
@@ -180,6 +188,10 @@ def _see_menus() -> List[Dict[str, Any]]:
               "DashboardOutlined", 4, parent),
         _menu("menu:see:qa", "QA 管理", "/qa",
               "QuestionCircleOutlined", 5, parent),
+        _menu("menu:see:semantic_map", "语义地图", "/ontology/semantic-map",
+              "GlobalOutlined", 6, parent),
+        _menu("menu:see:abution_graph", "消歧图", "/ontology/abution-graph",
+              "PartitionOutlined", 7, parent),
     ]
 
 
@@ -187,11 +199,12 @@ def _see_menus() -> List[Dict[str, Any]]:
 
 
 def _simulate_menus() -> List[Dict[str, Any]]:
-    """演本体：仿真沙盘（统一入口）/业务*/策略编辑器。
+    """演本体：仿真沙盘（统一入口）/业务*/策略编辑器/本体记忆/感知数据。
 
     Iter 2 (D4): 移除独立的"策略推演"和"模拟器"菜单项，
     合并到"仿真沙盘"/simulation 统一入口（内部 Tab 切换）。
     旧路由 /simulator + /simulation/deduction 通过 redirect 兼容。
+    Iter 4: 新增"本体记忆"和"感知数据"菜单项（P3 缺失页面补齐）。
     """
     parent = "dir:simulate"
     items = [
@@ -209,6 +222,10 @@ def _simulate_menus() -> List[Dict[str, Any]]:
               "DatabaseOutlined", 6, parent),
         _menu("menu:simulate:policy", "策略编辑器", "/policy-editor",
               "SafetyCertificateOutlined", 7, parent),
+        _menu("menu:simulate:memory", "本体记忆", "/simulation/memory",
+              "BrainOutlined", 8, parent),
+        _menu("menu:simulate:perception", "感知数据", "/simulation/perception",
+              "EyeOutlined", 9, parent),
     ]
     return items
 
@@ -217,9 +234,10 @@ def _simulate_menus() -> List[Dict[str, Any]]:
 
 
 def _use_menus() -> List[Dict[str, Any]]:
-    """用本体：QA查询/QA评估/MCP工具集 + 智能体子目录。
+    """用本体：QA查询/QA评估/MCP工具集/服务化目录 + 智能体子目录。
 
     Iter 3 (D7): 新增"MCP 工具集"菜单项（/mcp/tools），暴露 7 个语义检索 MCP 工具。
+    Iter 4: 新增"服务化目录"菜单项（/ontology/service-catalog，P3 缺失页面补齐）。
     """
     parent = "dir:use"
     items = [
@@ -229,7 +247,9 @@ def _use_menus() -> List[Dict[str, Any]]:
               "LikeOutlined", 2, parent),
         _menu("menu:use:mcp_tools", "MCP 工具集", "/mcp/tools",
               "ThunderboltOutlined", 3, parent),
-        _subdir("dir:use:agent", "智能体", "RobotOutlined", 4, parent),
+        _menu("menu:use:service_catalog", "服务化目录", "/ontology/service-catalog",
+              "AppstoreOutlined", 4, parent),
+        _subdir("dir:use:agent", "智能体", "RobotOutlined", 5, parent),
     ]
     items.extend(_use_agent_submenus())
     return items

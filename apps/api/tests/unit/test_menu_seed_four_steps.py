@@ -7,8 +7,8 @@ Sandbox 策略：
   - 测试 init_default_menu() 幂等性 + 菜单树结构正确性
 
 测试用例：
-  T-SEED-1: 首次调用 init_default_menu() → created=48, skipped=0
-  T-SEED-2: 二次调用 init_default_menu() → created=0, skipped=48（幂等）
+  T-SEED-1: 首次调用 init_default_menu() → created=53, skipped=0
+  T-SEED-2: 二次调用 init_default_menu() → created=0, skipped=53（幂等）
   T-SEED-3: 菜单树含 6 个顶级目录（建/见/演/用/系统管理/帮助）
   T-SEED-4: 建本体目录含语义管理子目录 + 5 个子菜单
   T-SEED-5: 演本体目录含 business/* 5 个菜单项（D1 偏差修复）
@@ -70,13 +70,13 @@ def test_seed_1_first_init_creates_all(menu_service: MenuConfigService):
     """T-SEED-1: 首次调用写入全部种子数据。"""
     result = menu_service.init_default_menu()
     assert result["status"] == "success"
-    assert result["created"] == 48, f"应创建 48 项，实际 {result['created']}"
+    assert result["created"] == 53, f"应创建 53 项，实际 {result['created']}"
     assert result["skipped"] == 0
-    assert result["total"] == 48
+    assert result["total"] == 53
 
 
 # =====================================================================
-# T-SEED-2: 二次调用 → created=0, skipped=46（幂等）
+# T-SEED-2: 二次调用 → created=0, skipped=53（幂等）
 # =====================================================================
 
 
@@ -85,7 +85,7 @@ def test_seed_2_second_init_is_idempotent(menu_service: MenuConfigService):
     menu_service.init_default_menu()  # 第一次
     result = menu_service.init_default_menu()  # 第二次
     assert result["created"] == 0, "二次调用不应创建新项"
-    assert result["skipped"] == 48, f"应跳过 48 项，实际 {result['skipped']}"
+    assert result["skipped"] == 53, f"应跳过 53 项，实际 {result['skipped']}"
 
 
 # =====================================================================
@@ -217,9 +217,9 @@ def test_seed_10_simulate_has_sandbox_entry(menu_service: MenuConfigService):
     )
     assert sandbox is not None, "演本体应含'仿真沙盘'菜单项"
     assert sandbox["path"] == "/simulation", f"仿真沙盘 path 应为 /simulation，实际 {sandbox['path']}"
-    # 演本体应含 7 个子项（仿真沙盘 + 5 业务 + 策略编辑器）
-    assert len(simulate_dir["children"]) == 7, (
-        f"演本体应有 7 子项，实际 {len(simulate_dir['children'])}"
+    # 演本体应含 9 个子项（仿真沙盘 + 5 业务 + 策略编辑器 + 本体记忆 + 感知数据）
+    assert len(simulate_dir["children"]) == 9, (
+        f"演本体应有 9 子项，实际 {len(simulate_dir['children'])}"
     )
 
 
@@ -305,4 +305,99 @@ def test_seed_14_see_graph_path_renamed(menu_service: MenuConfigService):
     assert graph is not None, "见本体应含'本体图谱'菜单项"
     assert graph["path"] == "/ontology/explorer", (
         f"Iter 3 D5 应将本体图谱路径改为 /ontology/explorer，实际 {graph['path']}"
+    )
+
+
+# =====================================================================
+# T-SEED-15: 见本体含"语义地图"菜单（/ontology/semantic-map，Iter 4 新增）
+# =====================================================================
+
+
+def test_seed_15_see_has_semantic_map(menu_service: MenuConfigService):
+    """T-SEED-15: 见本体含"语义地图"菜单（/ontology/semantic-map，Iter 4 新增）。"""
+    menu_service.init_default_menu()
+    tree = menu_service.get_tree(active_only=False)
+    see_dir = next(n for n in tree if n["name"] == "见本体")
+    sm = next(
+        (c for c in see_dir["children"] if c["name"] == "语义地图"), None
+    )
+    assert sm is not None, "见本体应含'语义地图'菜单项（Iter 4）"
+    assert sm["path"] == "/ontology/semantic-map", (
+        f"语义地图 path 应为 /ontology/semantic-map，实际 {sm['path']}"
+    )
+
+
+# =====================================================================
+# T-SEED-16: 见本体含"消歧图"菜单（/ontology/abution-graph，Iter 4 新增）
+# =====================================================================
+
+
+def test_seed_16_see_has_abution_graph(menu_service: MenuConfigService):
+    """T-SEED-16: 见本体含"消歧图"菜单（/ontology/abution-graph，Iter 4 新增）。"""
+    menu_service.init_default_menu()
+    tree = menu_service.get_tree(active_only=False)
+    see_dir = next(n for n in tree if n["name"] == "见本体")
+    ag = next(
+        (c for c in see_dir["children"] if c["name"] == "消歧图"), None
+    )
+    assert ag is not None, "见本体应含'消歧图'菜单项（Iter 4）"
+    assert ag["path"] == "/ontology/abution-graph", (
+        f"消歧图 path 应为 /ontology/abution-graph，实际 {ag['path']}"
+    )
+
+
+# =====================================================================
+# T-SEED-17: 演本体含"本体记忆"菜单（/simulation/memory，Iter 4 新增）
+# =====================================================================
+
+
+def test_seed_17_simulate_has_memory(menu_service: MenuConfigService):
+    """T-SEED-17: 演本体含"本体记忆"菜单（/simulation/memory，Iter 4 新增）。"""
+    menu_service.init_default_menu()
+    tree = menu_service.get_tree(active_only=False)
+    sim_dir = next(n for n in tree if n["name"] == "演本体")
+    mem = next(
+        (c for c in sim_dir["children"] if c["name"] == "本体记忆"), None
+    )
+    assert mem is not None, "演本体应含'本体记忆'菜单项（Iter 4）"
+    assert mem["path"] == "/simulation/memory", (
+        f"本体记忆 path 应为 /simulation/memory，实际 {mem['path']}"
+    )
+
+
+# =====================================================================
+# T-SEED-18: 演本体含"感知数据"菜单（/simulation/perception，Iter 4 新增）
+# =====================================================================
+
+
+def test_seed_18_simulate_has_perception(menu_service: MenuConfigService):
+    """T-SEED-18: 演本体含"感知数据"菜单（/simulation/perception，Iter 4 新增）。"""
+    menu_service.init_default_menu()
+    tree = menu_service.get_tree(active_only=False)
+    sim_dir = next(n for n in tree if n["name"] == "演本体")
+    perc = next(
+        (c for c in sim_dir["children"] if c["name"] == "感知数据"), None
+    )
+    assert perc is not None, "演本体应含'感知数据'菜单项（Iter 4）"
+    assert perc["path"] == "/simulation/perception", (
+        f"感知数据 path 应为 /simulation/perception，实际 {perc['path']}"
+    )
+
+
+# =====================================================================
+# T-SEED-19: 用本体含"服务化目录"菜单（/ontology/service-catalog，Iter 4 新增）
+# =====================================================================
+
+
+def test_seed_19_use_has_service_catalog(menu_service: MenuConfigService):
+    """T-SEED-19: 用本体含"服务化目录"菜单（/ontology/service-catalog，Iter 4 新增）。"""
+    menu_service.init_default_menu()
+    tree = menu_service.get_tree(active_only=False)
+    use_dir = next(n for n in tree if n["name"] == "用本体")
+    sc = next(
+        (c for c in use_dir["children"] if c["name"] == "服务化目录"), None
+    )
+    assert sc is not None, "用本体应含'服务化目录'菜单项（Iter 4）"
+    assert sc["path"] == "/ontology/service-catalog", (
+        f"服务化目录 path 应为 /ontology/service-catalog，实际 {sc['path']}"
     )
