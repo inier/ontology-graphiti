@@ -3,7 +3,7 @@
  *
  * 顶部状态卡片 + 中部手动输入区域 + 底部观察者列表表格。
  */
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 import {
   Card, Row, Col, Table, Tag, Button, Space, Statistic, Select,
   Input, message, Empty, Spin,
@@ -203,6 +203,10 @@ function StatusCards(props: { status: PerceptionStatus | null; t: TFunc }) {
 
 export function PerceptionPage() {
   const { t } = useI18n('simulation');
+  const sourceTypeOptions = useMemo(
+    () => SOURCE_TYPE_OPTIONS.map((opt) => ({ ...opt, label: t(opt.label) })),
+    [t], // eslint-disable-line react-hooks/exhaustive-deps
+  );
   const vm = usePerception(t);
   const columns = buildColumns(
     { onToggle: vm.handleToggle, togglingName: vm.togglingName },
@@ -218,7 +222,7 @@ export function PerceptionPage() {
           <Select
             value={vm.sourceType}
             onChange={vm.setSourceType}
-            options={SOURCE_TYPE_OPTIONS}
+            options={sourceTypeOptions}
             style={{ width: 140 }}
           />
           <Button

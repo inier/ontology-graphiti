@@ -119,5 +119,8 @@
   "销毁失败: {{error}}": "销毁失败: {{error}}",
   "风险: {{risk}}": "风险: {{risk}}",
   "驳回 · {{level}} 驳回 {{label}}": "驳回 · {{level}} 驳回 {{label}}",
-  "驳回@{{level}} · UI 操作": "驳回@{{level}} · UI 操作"
+  "驳回@{{level}} · UI 操作": "驳回@{{level}} · UI 操作",
+  "文本": "Text",
+  "事件": "Event",
+  "传感器": "Sensor"
 }

@@ -4,7 +4,7 @@
  * 展示本体服务化目录列表，支持按 service_type / status 筛选，
  * 并提供健康检查、废弃、退役操作。
  */
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 import {
   Card, Table, Tag, Button, Space, Select, message, Empty,
   Modal, Spin, Popconfirm,
@@ -186,6 +186,10 @@ function useServiceCatalog(t: TFunc) {
 
 export function ServiceCatalogPage() {
   const { t } = useI18n('ontology');
+  const statusOptions = useMemo(
+    () => STATUS_OPTIONS.map((opt) => ({ ...opt, label: t(opt.label) })),
+    [t], // eslint-disable-line react-hooks/exhaustive-deps
+  );
   const vm = useServiceCatalog(t);
   const columns = buildColumns(
     { onHealthCheck: vm.handleHealthCheck, onDeprecate: vm.handleDeprecate, onRetire: vm.handleRetire },
@@ -211,7 +215,7 @@ export function ServiceCatalogPage() {
             placeholder={t('状态')}
             allowClear
             style={{ width: 140 }}
-            options={STATUS_OPTIONS}
+            options={statusOptions}
             value={vm.filterStatus}
             onChange={(v) => vm.setFilterStatus(v ?? undefined)}
           />

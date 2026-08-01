@@ -15,6 +15,20 @@ import { useI18n } from '@/modules/shared/hooks/useI18n';
 const { Paragraph, Text } = Typography;
 
 /**
+ * 递归翻译对象中所有字符串值（用于 sample 等嵌套结构）。
+ */
+function translateStrings(obj: unknown, t: (key: string) => string): unknown {
+  if (typeof obj === 'string') return t(obj);
+  if (Array.isArray(obj)) return obj.map((v) => translateStrings(v, t));
+  if (obj && typeof obj === 'object') {
+    return Object.fromEntries(
+      Object.entries(obj).map(([k, v]) => [k, translateStrings(v, t)]),
+    );
+  }
+  return obj;
+}
+
+/**
  * 7 个语义检索 MCP 工具目录（镜像后端 semantic_retrieval_tools.py register_all）。
  * FR-010 一致性：MCP 工具与 REST 端点复用同一 RetrievalService，调用结果等价。
  * 前端通过 REST 端点调用（与 MCP 结果一致），便于在浏览器内验证。
@@ -120,6 +134,15 @@ const McpToolsPage: React.FC = () => {
   const [invoking, setInvoking] = useState(false);
   const [result, setResult] = useState<unknown>(null);
 
+  // 翻译 TOOL_SPECS 中的中文文本（category/desc/schema/sample）
+  const tools = useMemo(() => TOOL_SPECS.map((tool) => ({
+    ...tool,
+    category: t(tool.category),
+    desc: t(tool.desc),
+    schema: t(tool.schema),
+    sample: translateStrings(tool.sample, t) as Record<string, unknown>,
+  })), [t]); // eslint-disable-line react-hooks/exhaustive-deps
+
   const handleOpenInvoke = (tool: ToolSpec) => {
     setInvokeTool(tool);
     setParamsText(JSON.stringify(tool.sample, null, 2));
@@ -153,7 +176,7 @@ const McpToolsPage: React.FC = () => {
     }
   };
 
-  const toolCards = useMemo(() => TOOL_SPECS.map((tool) => (
+  const toolCards = useMemo(() => tools.map((tool) => (
     <Col key={tool.name} xs={24} sm={12} lg={8} xl={6}>
       <Card
         size="small"
