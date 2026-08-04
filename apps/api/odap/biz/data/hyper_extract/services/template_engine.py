@@ -2,13 +2,19 @@
 
 Responsibilities:
 - list_presets(): dynamically enumerate HE preset templates (no hardcoding)
-- assess(): settled check → embedder pre-filter → trial_extract → score → sort
+- assess(): embedder pre-filter → trial_extract → score → sort
 - _compute_score(): scoring formula per FR-013
-- _validate_settled(): lightweight 500-char trial, score ≥ threshold * 0.8
+- select_complementary(): greedy set-cover over ODAP 5 categories
+- generate_custom() / generate_custom_with_fallback(): LLM YAML generation
+
+Iter 2.1 (ADR-074): FR-017/FR-018 "settled template" persistence has been
+removed. Application-layer template YAML sediment is superseded by the
+persistent HE Knowledge Abstract (``data/he_kb/{ws}/{ont}/``). assess()
+now always runs the full pipeline.
 
 Dependencies:
 - HEAdapter (trial_extract, _create_embedder, _Template.list)
-- SqliteTemplateStorage (get_by_ontology, update_usage_count)
+- SqliteTemplateStorage (legacy — retained for he_templates table compat)
 """
 
 import json
@@ -16,7 +22,6 @@ import logging
 import math
 import os
 import tempfile
-from datetime import datetime
 from typing import Any, Dict, List, Optional, Tuple
 
 import yaml
@@ -33,8 +38,6 @@ _W_DIVERSITY = 0.2
 
 # Default thresholds
 _DEFAULT_SCORE_THRESHOLD = 0.5
-_SETTLED_VALIDATION_RATIO = 0.8  # settled passes if score ≥ threshold * 0.8
-_SETTLED_SAMPLE_SIZE = 500
 _DEFAULT_TOP_K = 5
 
 # ODAP 5 output categories for multi-template set cover (US2)
@@ -47,7 +50,14 @@ _PROCESS_KEYWORDS = ("process", "workflow", "procedure", "flow", "step", "pipeli
 
 
 class TemplateEngine:
-    """HE template lifecycle manager — assess, score, select, settle."""
+    """HE template lifecycle manager — assess, score, select, generate.
+
+    Iter 2.1 (ADR-074): Template "settling" (FR-017/FR-018) removed.
+    Persistent knowledge now lives in the HE Knowledge Abstract, not
+    in application-layer YAML files. This class focuses on template
+    assessment and custom generation; KA persistence is handled by
+    ``HEAdapter.feed_to_kb`` / ``HEAdapter.load_from_kb``.
+    """
 
     def __init__(
         self,
@@ -124,12 +134,16 @@ class TemplateEngine:
     def assess(self, text: str, ontology_id: str) -> Dict[str, Any]:
         """Assess template suitability for given text and ontology.
 
+        Iter 2.1 (ADR-074): The "settled template" short-circuit (FR-017/FR-018)
+        has been removed. Template YAML persistence at the application layer
+        is superseded by the persistent HE Knowledge Abstract
+        (``data/he_kb/{workspace_id}/{ontology_id}/``). This method now
+        always runs the full assessment pipeline.
+
         Flow:
-            1. Check settled template → lightweight 500-char trial validation
-            2. If settled passes → return early (skip full assessment)
-            3. If no settled or fails → list_presets + embedder pre-filter top-k=5
-            4. trial_extract each top-k candidate
-            5. Score and sort descending
+            1. list_presets + embedder pre-filter top-k=5
+            2. trial_extract each top-k candidate
+            3. Score and sort descending
 
         Returns:
             {
@@ -137,26 +151,12 @@ class TemplateEngine:
                 "best_score": float,
                 "threshold": float,
                 "needs_custom": bool,
-                "settled_used": bool,
+                "settled_used": bool,  # always False (Iter 2.1)
             }
         """
         threshold = float(get_config("he.template_score_threshold", _DEFAULT_SCORE_THRESHOLD))
 
-        # Step 1: Check settled template
-        settled = self._storage.get_by_ontology(ontology_id)
-        if settled:
-            settled_result = self._validate_settled(settled, text, threshold)
-            if settled_result is not None:
-                # Settled template passes lightweight validation
-                return {
-                    "candidates": [settled_result],
-                    "best_score": settled_result["score"],
-                    "threshold": threshold,
-                    "needs_custom": settled_result["score"] < threshold,
-                    "settled_used": True,
-                }
-
-        # Step 2: Full assessment — list presets, pre-filter, trial, score
+        # Full assessment — list presets, pre-filter, trial, score
         presets = self.list_presets()
         if not presets:
             return {
@@ -167,11 +167,11 @@ class TemplateEngine:
                 "settled_used": False,
             }
 
-        # Step 3: Embedder pre-filter top-k
+        # Step 2: Embedder pre-filter top-k
         top_k = int(get_config("he.template_top_k", _DEFAULT_TOP_K))
         filtered = self._pre_filter(text, presets, top_k=top_k)
 
-        # Step 4: Trial extract each candidate
+        # Step 3: Trial extract each candidate
         trial_results: List[Tuple[Dict[str, Any], Dict[str, Any]]] = []
         for preset in filtered:
             if not isinstance(preset, dict):
@@ -190,7 +190,7 @@ class TemplateEngine:
                     "field_coverage": 0.0, "type_diversity": 0.0, "types_found": [],
                 }))
 
-        # Step 5: Score and sort
+        # Step 4: Score and sort
         max_ec = max((t["entity_count"] for _, t in trial_results), default=0)
         max_rc = max((t["relation_count"] for _, t in trial_results), default=0)
 
@@ -350,96 +350,6 @@ class TemplateEngine:
         return round(score, 4)
 
     # ------------------------------------------------------------------
-    # Settled template validation (T029)
-    # ------------------------------------------------------------------
-
-    def _validate_settled(
-        self,
-        settled: Dict[str, Any],
-        text: str,
-        threshold: float,
-    ) -> Optional[Dict[str, Any]]:
-        """Lightweight validation of settled template.
-
-        Uses 500-char trial_extract. Passes if score ≥ threshold * 0.8.
-
-        Args:
-            settled: Settled template record from storage.
-            text: Input text.
-            threshold: Score threshold (default 0.5).
-
-        Returns:
-            Candidate dict if passed, None if failed or YAML missing.
-        """
-        yaml_path = settled.get("yaml_path")
-        if not yaml_path or not os.path.exists(yaml_path):
-            # EC-013: YAML file deleted → skip settled
-            logger.info("Settled template YAML missing: %s", yaml_path)
-            return None
-
-        template_config = {
-            "template_path": yaml_path,
-            "language": "zh",
-        }
-        passing_score = threshold * _SETTLED_VALIDATION_RATIO
-        empty_trial = {
-            "entity_count": 0, "relation_count": 0,
-            "field_coverage": 0.0, "type_diversity": 0.0, "types_found": [],
-        }
-
-        try:
-            trial = self._adapter.trial_extract(
-                text, template=template_config, sample_size=_SETTLED_SAMPLE_SIZE
-            )
-        except Exception as exc:
-            # EC-016: trial_extract failed — if YAML is structurally valid
-            # (loadable as TemplateCfg), accept as degraded-pass to avoid
-            # triggering a full assessment storm under LLM rate-limiting.
-            logger.warning("Settled template trial failed (%s), checking YAML validity", exc)
-            if not self._yaml_structurally_valid(yaml_path):
-                return None
-            logger.info("Settled YAML structurally valid, using degraded-pass")
-            score = passing_score
-            trial = empty_trial
-        else:
-            # For single-candidate validation, normalize by own metrics
-            score = self._compute_score(trial, trial["entity_count"], trial["relation_count"])
-
-        if score >= passing_score:
-            # Increment usage_count for reused template
-            try:
-                self._storage.update_usage_count(settled["id"])
-            except Exception as exc:
-                logger.warning("Failed to increment usage_count: %s", exc)
-
-            return {
-                "name": settled.get("name", ""),
-                "template_path": yaml_path,
-                "description": settled.get("description", ""),
-                "source": "settled",
-                "trial_result": trial,
-                "score": round(score, 4),
-            }
-        return None
-
-    @staticmethod
-    def _yaml_structurally_valid(yaml_path: str) -> bool:
-        """Quick structural check: YAML loads + required top-level TemplateCfg keys present.
-
-        Does NOT invoke HE or the LLM. Used as a degraded-pass gate for
-        _validate_settled when the API is rate-limited (503).
-        """
-        try:
-            with open(yaml_path, "r", encoding="utf-8") as f:
-                cfg = yaml.safe_load(f)
-        except Exception:
-            return False
-        if not isinstance(cfg, dict):
-            return False
-        required = {"name", "type", "output", "guideline", "display"}
-        return required.issubset(cfg.keys())
-
-    # ------------------------------------------------------------------
     # Embedder pre-filtering
     # ------------------------------------------------------------------
 
@@ -585,77 +495,6 @@ class TemplateEngine:
             **best_preset,
             "degradation_flag": "custom_generation_failed",
         }
-
-    def settle_template(
-        self,
-        ontology_id: str,
-        name: str,
-        yaml_content: str,
-        score: float,
-        coverage: List[str],
-    ) -> str:
-        """Persist a template: YAML to disk + metadata to SQLite.
-
-        Args:
-            ontology_id: Ontology ID.
-            name: Template name.
-            yaml_content: YAML content string.
-            score: Assessment score.
-            coverage: List of covered ODAP categories.
-
-        Returns:
-            template_id from storage.
-        """
-        templates_dir = self._get_templates_dir()
-        ont_dir = os.path.join(templates_dir, ontology_id)
-        os.makedirs(ont_dir, exist_ok=True)
-
-        yaml_path = os.path.join(ont_dir, f"{name}.yaml")
-        with open(yaml_path, "w", encoding="utf-8") as f:
-            f.write(yaml_content)
-
-        now = datetime.now().isoformat()
-        record = {
-            "ontology_id": ontology_id,
-            "name": name,
-            "description": f"Custom template for {ontology_id}",
-            "source": "custom",
-            "yaml_path": yaml_path,
-            "score": score,
-            "coverage": json.dumps(coverage),
-            "created_at": now,
-            "updated_at": now,
-        }
-        return self._storage.save(record)
-
-    def get_settled_template(self, ontology_id: str) -> Optional[Dict[str, Any]]:
-        """Retrieve settled template for an ontology.
-
-        EC-013: Returns None if YAML file has been deleted.
-
-        Args:
-            ontology_id: Ontology ID.
-
-        Returns:
-            Template dict (with yaml_path, name, score) or None.
-        """
-        record = self._storage.get_by_ontology(ontology_id)
-        if not record:
-            return None
-
-        yaml_path = record.get("yaml_path")
-        if not yaml_path or not os.path.exists(yaml_path):
-            # EC-013: YAML file deleted
-            logger.info("Settled template YAML missing for %s", ontology_id)
-            return None
-
-        # Increment usage_count
-        try:
-            self._storage.update_usage_count(record["id"])
-        except Exception as exc:
-            logger.warning("Failed to increment usage_count: %s", exc)
-
-        return record
 
     # ------------------------------------------------------------------
     # Custom generation helpers
@@ -930,13 +769,6 @@ display:
         except Exception as exc:
             logger.warning("Failed to create LLM client: %s", exc)
             return None
-
-    def _get_templates_dir(self) -> str:
-        """Get the base directory for HE template YAML files."""
-        return os.path.join(
-            os.getenv("DATA_DIR", os.path.join(os.getcwd(), "data")),
-            "he_templates",
-        )
 
     # ------------------------------------------------------------------
     # Ontology-based template generation (absorbed from OntologyTemplateGenerator)

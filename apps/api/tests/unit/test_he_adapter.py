@@ -31,6 +31,7 @@ def _install_fake_hyperextract():
     client_pkg = types.ModuleType("hyperextract.utils.client")
     client_pkg.create_llm = MagicMock()
     client_pkg.create_embedder = MagicMock()
+    client_pkg._parse_client_spec = MagicMock(return_value={"model": "gpt-4", "api_key": "", "base_url": None})
     utils_pkg.client = client_pkg
     he_pkg.utils = utils_pkg
 
@@ -72,6 +73,8 @@ class TestHEAdapterParse:
             adapter._AutoGraph = MagicMock()
             adapter._create_llm_fn = MagicMock(return_value=MagicMock())
             adapter._create_embedder_fn = MagicMock(return_value=MagicMock())
+            adapter._parse_client_spec = MagicMock(return_value={"model": "gpt-4", "api_key": "", "base_url": None})
+            adapter._embedder_cache = None
         return adapter
 
     def test_parse_calls_template_create_with_correct_kwargs(self, adapter):
@@ -154,6 +157,8 @@ class TestHEAdapterParseBatch:
             adapter._AutoGraph = MagicMock()
             adapter._create_llm_fn = MagicMock(return_value=MagicMock())
             adapter._create_embedder_fn = MagicMock(return_value=MagicMock())
+            adapter._parse_client_spec = MagicMock(return_value={"model": "gpt-4", "api_key": "", "base_url": None})
+            adapter._embedder_cache = None
         return adapter
 
     def test_parse_batch_returns_list_of_results(self, adapter):
@@ -303,6 +308,8 @@ class TestHEAdapterTrialExtract:
             adapter._AutoGraph = MagicMock()
             adapter._create_llm_fn = MagicMock(return_value=MagicMock())
             adapter._create_embedder_fn = MagicMock(return_value=MagicMock())
+            adapter._parse_client_spec = MagicMock(return_value={"model": "gpt-4", "api_key": "", "base_url": None})
+            adapter._embedder_cache = None
         return adapter
 
     def test_trial_extract_truncates_text(self, adapter):

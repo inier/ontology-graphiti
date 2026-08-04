@@ -24,7 +24,7 @@ import os
 import uuid
 from typing import Any, Dict, List, Optional
 
-from ..impl.he_adapter import HEAdapter
+from ..impl.he_adapter import HEAdapter, get_kb_path
 from ..impl.ontology_mapper import OntologyMapper
 from ..impl.dual_channel_writer import DualChannelWriter
 from ..impl.provenance_tracker import ProvenanceTracker
@@ -198,7 +198,7 @@ class ExtractService:
         return result
 
     # ------------------------------------------------------------------
-    # T060: extract_from_document
+    # T060: extract_from_document — Iter 2.1: persistent kb-backed
     # ------------------------------------------------------------------
 
     async def extract_from_document(
@@ -208,23 +208,41 @@ class ExtractService:
         template_id: Optional[str] = None,
         method: Optional[str] = None,
         mode: Optional[str] = None,
+        workspace_id: str = "default",
     ) -> Dict[str, Any]:
-        """Extract from a document file with chunking.
+        """Extract from a document file via the persistent HE Knowledge Abstract.
+
+        Iter 2.1 (ADR-074): ``extract_from_document`` no longer runs an
+        ephemeral per-chunk multi-parse. Instead it feeds the document text
+        to the persistent KA at ``data/he_kb/{workspace_id}/{ontology_id}/``
+        via ``HEAdapter.feed_to_kb`` (HE native incremental evolution), then
+        reads the accumulated state back via ``HEAdapter.load_from_kb``.
+
+        This turns HE into a *continuous engine*: every document fed
+        enriches the same KA, and subsequent extractions observe the
+        accumulated knowledge rather than a single-document snapshot.
 
         Args:
-            mode: Optional mode flag. When "schema_learning", enhances schema inference
-                by including additional LLM prompts for concept discovery.
+            ontology_id: Target ontology ID.
+            file_path: Path to the document file.
+            template_id: Optional template name/path override for the KA.
+                When None, the KA uses the default Chinese ontology YAML.
+            method: Reserved for backward compatibility (unused).
+            mode: Optional mode flag. When "schema_learning", enhances
+                schema inference by including additional LLM prompts.
+            workspace_id: Workspace identifier for kb partitioning.
+                Defaults to "default".
 
         Steps:
             1. Parse document via DocumentParser
-            2. Chunk text
-            3. Create session (type="document")
-            4. Assess templates using first chunk sample
-            5. Select complementary templates (EC-011: no re-assessment per chunk)
-            6. For each chunk, multi-parse with selected templates
-            7. Merge all chunk results via OntologyMapper.merge_and_map
-            8. Validate
-            9. Update session
+            2. Create session (type="document")
+            3. Compute kb_path = data/he_kb/{workspace_id}/{ontology_id}/
+            4. feed_to_kb(kb_path, full_text) — HE incremental evolution
+            5. load_from_kb(kb_path) — read accumulated state
+            6. Merge and map to ODAP 5 classes
+            7. LLM supplement for sparse categories
+            8. Validate via 4-dimensional ValidationEngine
+            9. Detect conflicts + finalize session
 
         Returns:
             Dict with status, session_id, result, conflicts, template_used,
@@ -246,18 +264,17 @@ class ExtractService:
         if not full_text or not full_text.strip():
             return {"status": "error", "message": "文档无可提取文本"}
 
-        # Step 2: Chunk text
-        chunks = parser.chunk_text(full_text)
         source_doc_id = str(uuid.uuid4())
 
-        # Step 3: Create session
+        # Step 2: Create session
         session_result = self.storage.create_session(
             ontology_id=ontology_id,
             extraction_type="document",
             input_data={
                 "file_path": os.path.basename(file_path),
                 "source_doc_id": source_doc_id,
-                "total_chunks": len(chunks),
+                "workspace_id": workspace_id,
+                "kb_backed": True,
             },
         )
         if session_result.get("status") == "error":
@@ -270,70 +287,74 @@ class ExtractService:
         degradation_flags: List[str] = []
         ontology_schema = self._get_ontology_schema(ontology_id)
 
-        # Step 4: Assess using first chunk as sample
-        await progress_callback("模板评估", 10, "评估模板适用性")
-        sample_text = chunks[0] if chunks else full_text[:1500]
-        assess_result = self.template_engine.assess(sample_text, ontology_id)
+        # Step 3: Compute kb_path
+        kb_path = get_kb_path(workspace_id, ontology_id)
+        template_config: Optional[Dict[str, Any]] = None
+        if template_id:
+            template_config = {"template_path": template_id, "language": "zh"}
+        template_used = template_id or "default_chinese_ontology_yaml"
 
-        # Step 5: Select templates (once for all chunks — EC-011)
-        await progress_callback("模板选择", 20, "选择互补模板")
-        templates, template_used = self._select_templates(
-            assess_result, sample_text, ontology_schema, degradation_flags, template_id
-        )
+        # Step 4: Feed document text to persistent KA
+        await progress_callback("KB投喂", 20, f"投喂 {len(full_text)} 字符到持久化 KA")
+        feed_ok = False
+        try:
+            feed_ok = self.adapter.feed_to_kb(kb_path, full_text, template=template_config)
+        except Exception as feed_exc:
+            logger.error("feed_to_kb raised: %s", feed_exc)
+        if not feed_ok:
+            degradation_flags.append("kb_feed_failed")
 
-        # Step 6: Per-chunk multi-parse
-        await progress_callback("分块解析", 25, f"开始解析 {len(chunks)} 个文本块")
-        all_parse_results: List[Dict[str, Any]] = []
-        failed_chunks: List[Dict[str, Any]] = []
-        for idx, chunk in enumerate(chunks):
-            chunk_id = f"{source_doc_id}_chunk_{idx}"
-            await progress_callback(
-                "分块解析",
-                25 + int((idx / len(chunks)) * 40),
-                f"解析块 {idx + 1}/{len(chunks)}",
-            )
-            chunk_results = self._multi_parse(chunk, templates, degradation_flags)
-            if not chunk_results:
-                failed_chunks.append({"chunk_index": idx, "chunk_id": chunk_id})
-            else:
-                for r in chunk_results:
-                    r.setdefault("source_doc_id", source_doc_id)
-                    r.setdefault("chunk_id", chunk_id)
-                all_parse_results.extend(chunk_results)
+        # Step 5: Load accumulated state from KA
+        await progress_callback("KB读取", 50, "读取累积知识")
+        accumulated: Optional[Dict[str, Any]] = None
+        try:
+            accumulated = self.adapter.load_from_kb(kb_path)
+        except Exception as load_exc:
+            logger.error("load_from_kb raised: %s", load_exc)
+        if not accumulated:
+            degradation_flags.append("kb_load_failed")
+            accumulated = {"entities": [], "relations": []}
 
-        if not all_parse_results:
-            degradation_flags.append("all_chunks_failed")
+        # Step 6: Merge and map accumulated state to ODAP 5 classes
+        await progress_callback("合并映射", 65, "映射到 ODAP 5 类")
+        merged = self.ontology_mapper.merge_and_map([accumulated])
 
-        # Step 7: Merge and map
-        await progress_callback("合并映射", 68, "合并解析结果")
-        merged = self.ontology_mapper.merge_and_map(all_parse_results)
-
-        # Step 7b: LLM supplement
-        await progress_callback("LLM补充", 78, "为稀疏类别补充实体")
+        # Step 7: LLM supplement for sparse categories
+        await progress_callback("LLM补充", 75, "为稀疏类别补充实体")
         self._llm_supplement(merged, full_text[:2000], ontology_schema, degradation_flags)
 
         # Step 8: Validate
-        await progress_callback("验证", 88, "运行四维验证引擎")
+        await progress_callback("验证", 85, "运行四维验证引擎")
+        # No template assess in kb-backed path — use neutral score 0.0
         validation_report = self._run_validation(
-            merged, ontology_schema, assess_result.get("best_score", 0.0), degradation_flags
+            merged, ontology_schema, 0.0, degradation_flags
         )
 
         # Step 8b: Conflicts
-        await progress_callback("冲突检测", 95, "检测与已有类型的冲突")
+        await progress_callback("冲突检测", 92, "检测与已有类型的冲突")
         conflicts = self._detect_conflicts(ontology_id, merged)
 
         # Step 9: Finalize
         await progress_callback("完成", 98, "完成会话")
+        # Build a minimal assess_result placeholder for _finalize_session
+        assess_result = {
+            "candidates": [],
+            "best_score": 0.0,
+            "threshold": 0.5,
+            "needs_custom": False,
+            "settled_used": False,
+        }
         provenance_summary = {
             "source_doc_id": source_doc_id,
-            "total_chunks": len(chunks),
-            "successful_chunks": len(all_parse_results),
-            "failed_chunks": len(failed_chunks),
-            "failed_chunk_details": failed_chunks,
+            "kb_path": kb_path,
+            "workspace_id": workspace_id,
+            "kb_feed_ok": feed_ok,
+            "accumulated_entities": len(accumulated.get("entities", [])),
+            "accumulated_relations": len(accumulated.get("relations", [])),
         }
         self._finalize_session(
             session_id, merged, validation_report, assess_result,
-            templates, template_used, degradation_flags, conflicts,
+            [], template_used, degradation_flags, conflicts,
             provenance_summary,
         )
 
@@ -347,6 +368,20 @@ class ExtractService:
             "validation_report": validation_report,
             "provenance_summary": provenance_summary,
         }
+
+        # Iter 3.2: #2 抽取过程审计 — 写入 Graphiti (零 LLM, EpisodicNode.save)
+        await self._audit_extraction(
+            workspace_id=workspace_id,
+            ontology_id=ontology_id,
+            session_id=session_id,
+            source_doc_id=source_doc_id,
+            template_used=template_used,
+            extraction_method="he_feed_to_kb",
+            entity_count=len(accumulated.get("entities", [])),
+            relation_count=len(accumulated.get("relations", [])),
+            validation_report=validation_report,
+            degradation_flags=degradation_flags,
+        )
 
         await progress_callback("完成", 100, "提取完成")
         pm = await get_progress_manager()
@@ -859,6 +894,42 @@ class ExtractService:
             # Skip other types (None, int, etc.)
 
         return result
+
+    async def _audit_extraction(
+        self,
+        workspace_id: str,
+        ontology_id: str,
+        session_id: str,
+        source_doc_id: str = "",
+        template_used: str = "",
+        extraction_method: str = "",
+        entity_count: int = 0,
+        relation_count: int = 0,
+        validation_report: Optional[Dict[str, Any]] = None,
+        degradation_flags: Optional[List[str]] = None,
+    ) -> None:
+        """Iter 3.2: #2 抽取过程审计 — 写入 Graphiti (零 LLM, EpisodicNode.save)。
+
+        记录 HE 模板、抽取方法、LLM 参数、置信度评分、4维校验结果。
+        审计失败仅记录日志，不影响抽取产出。
+        """
+        try:
+            from odap.infra.security.graphiti_audit_writer import get_graphiti_audit_writer
+            writer = get_graphiti_audit_writer()
+            await writer.log_extraction_audit_async(
+                workspace_id=workspace_id,
+                ontology_id=ontology_id,
+                session_id=session_id,
+                source_doc_id=source_doc_id,
+                template_id=template_used,
+                extraction_method=extraction_method,
+                entity_count=entity_count,
+                relation_count=relation_count,
+                validation_report=validation_report or {},
+                degradation_flags=degradation_flags or [],
+            )
+        except Exception as exc:
+            logger.warning("抽取过程审计失败（不影响抽取产出）: %s", exc)
 
     def _run_validation(
         self,

@@ -25,6 +25,29 @@ _DEFAULT_TEMPLATE_YAML = os.path.join(
 )
 
 
+def get_kb_path(workspace_id: str, ontology_id: str) -> str:
+    """Iter 2.1: Resolve the HE Knowledge Abstract persistence path.
+
+    Convention (plan 009 §2.1):
+        data/he_kb/{workspace_id}/{ontology_id}/
+
+    The base path can be overridden via config key ``he.kb_base_path``
+    (relative paths resolve against the API working directory).
+
+    Args:
+        workspace_id: Workspace identifier (defaults to "default" upstream).
+        ontology_id: Ontology identifier.
+
+    Returns:
+        Absolute-or-relative directory path for the KA. The directory may
+        not exist yet — callers create it via ``HEAdapter.feed_to_kb``.
+    """
+    base = get_config("he.kb_base_path", "data/he_kb")
+    ws = workspace_id or "default"
+    ont = ontology_id or "default"
+    return os.path.join(base, ws, ont)
+
+
 # ------------------------------------------------------------------
 # Pydantic schemas for AutoGraph (must be classes with __name__, not strings)
 # ------------------------------------------------------------------
@@ -541,6 +564,140 @@ class HEAdapter:
         except Exception as e:
             logger.error(f"feed_text failed: {e}")
             raise
+
+    # ------------------------------------------------------------------
+    # Iter 2.1: Persistent Knowledge Abstract (kb) — continuous engine
+    # ------------------------------------------------------------------
+
+    def feed_to_kb(
+        self,
+        kb_path: str,
+        text: str,
+        template: Optional[Dict[str, Any]] = None,
+    ) -> bool:
+        """Iter 2.1: Incrementally feed text to a persistent Knowledge Abstract.
+
+        Uses HE's native Template.create() + ka.load() + ka.feed_text() +
+        ka.dump() to persist evolving knowledge to disk.
+
+        Workflow:
+            1. Resolve template (explicit > default Chinese ontology YAML).
+            2. Create KA instance via Template.create().
+            3. If kb_path/metadata.json exists → ka.load(kb_path) (accumulate).
+               Else → mkdir parents (new KA).
+            4. ka.feed_text(text) — HE handles extraction + incremental merge.
+            5. ka.dump(kb_path) — persist updated KA to disk.
+
+        Args:
+            kb_path: Directory path for the Knowledge Abstract.
+                Convention: data/he_kb/{workspace_id}/{ontology_id}/
+            text: New text to extract and merge into the KA.
+            template: Optional template config with 'template_path' and
+                'language'. If None, uses the default Chinese ontology YAML.
+
+        Returns:
+            True if the feed succeeded, False on failure.
+        """
+        if not self._available:
+            raise RuntimeError("hyperextract 未安装或不可用")
+        if not text or not text.strip():
+            logger.warning("feed_to_kb: empty text, skipping")
+            return False
+
+        llm_client = self._create_llm_client()
+        try:
+            embedder = self._create_embedder()
+        except Exception as embed_err:
+            logger.warning("Embedder creation failed, using LLM-only mode: %s", embed_err)
+            embedder = None
+
+        template_to_use = self._resolve_default_template(template)
+        source = template_to_use.get("template_path") or "general/graph"
+        language = template_to_use.get("language", "zh")
+
+        import json
+        from pathlib import Path
+
+        kb_dir = Path(kb_path)
+        metadata_file = kb_dir / "metadata.json"
+
+        try:
+            ka = self._Template.create(
+                source, language,
+                llm_client=llm_client, embedder=embedder,
+            )
+
+            if metadata_file.exists():
+                # Existing KA: load accumulated state, then feed
+                ka.load(str(kb_dir))
+                logger.info("Loaded existing KA from %s", kb_path)
+            else:
+                # New KA: ensure directory exists before dump
+                kb_dir.mkdir(parents=True, exist_ok=True)
+                logger.info("Creating new KA at %s", kb_path)
+
+            ka.feed_text(text)
+            ka.dump(str(kb_dir))
+            logger.info("Fed %d chars to KA at %s", len(text), kb_path)
+            return True
+        except Exception as e:
+            logger.error("feed_to_kb failed for %s: %s", kb_path, e)
+            return False
+
+    def load_from_kb(self, kb_path: str) -> Optional[Dict[str, Any]]:
+        """Iter 2.1: Load accumulated knowledge from a persistent KA.
+
+        Reads the KA from disk and returns its current state as a normalized
+        dict. Used by extract_from_document to read accumulated knowledge
+        instead of re-parsing from scratch.
+
+        Args:
+            kb_path: Directory path for the Knowledge Abstract.
+
+        Returns:
+            Normalized dict {"entities": [...], "relations": [...]} or None
+            if the KA does not exist or cannot be loaded.
+        """
+        if not self._available:
+            raise RuntimeError("hyperextract 未安装或不可用")
+
+        import json
+        from pathlib import Path
+
+        kb_dir = Path(kb_path)
+        metadata_file = kb_dir / "metadata.json"
+        if not metadata_file.exists():
+            logger.info("KA not found at %s, returning None", kb_path)
+            return None
+
+        # Read template info from metadata to recreate KA instance
+        try:
+            with open(metadata_file, "r", encoding="utf-8") as f:
+                metadata = json.load(f)
+        except Exception as e:
+            logger.warning("Failed to read KA metadata: %s", e)
+            metadata = {}
+
+        source = metadata.get("template", "general/graph")
+        language = metadata.get("lang", "zh")
+
+        llm_client = self._create_llm_client()
+        try:
+            embedder = self._create_embedder()
+        except Exception as embed_err:
+            logger.warning("Embedder creation failed, using LLM-only mode: %s", embed_err)
+            embedder = None
+
+        try:
+            ka = self._Template.create(
+                source, language,
+                llm_client=llm_client, embedder=embedder,
+            )
+            ka.load(str(kb_dir))
+            return self._normalize_result(ka)
+        except Exception as e:
+            logger.error("load_from_kb failed for %s: %s", kb_path, e)
+            return None
 
     # ------------------------------------------------------------------
     # Merge (manual — HE has no native graph merge API)

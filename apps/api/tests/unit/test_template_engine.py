@@ -150,110 +150,51 @@ class TestTemplateEngineListPresets:
 
 class TestTemplateEngineAssess:
     @pytest.fixture
-    def engine_with_no_settled(self):
-        """Engine where storage returns no settled template."""
+    def engine(self):
+        """Engine with mocked adapter and storage.
+
+        Iter 2.1: assess() no longer queries storage for settled templates
+        (FR-017/FR-018 removed). The storage mock is retained for
+        constructor compatibility but is not exercised by assess().
+        """
         from odap.biz.data.hyper_extract.services.template_engine import TemplateEngine
         adapter = _make_mock_adapter()
         storage = MagicMock()
-        storage.get_by_ontology.return_value = None
         return TemplateEngine(adapter, storage), adapter, storage
 
-    @pytest.fixture
-    def engine_with_passing_settled(self):
-        """Engine where settled template exists and passes lightweight validation."""
-        from odap.biz.data.hyper_extract.services.template_engine import TemplateEngine
-        adapter = _make_mock_adapter()
-        # Settled template trial returns high metrics → score ≥ threshold * 0.8
-        adapter.trial_extract.return_value = _make_trial_result(
-            entity_count=10, relation_count=8, field_coverage=0.9, type_diversity=0.7
-        )
-        storage = MagicMock()
-        storage.get_by_ontology.return_value = {
-            "id": "tpl-001",
-            "ontology_id": "ont-1",
-            "name": "settled_template",
-            "yaml_path": "/data/he_templates/ont-1/settled.yaml",
-            "score": 0.85,
-            "coverage": '["object","relation"]',
-        }
-        # Patch os.path.exists so settled YAML is treated as existing
-        with patch("odap.biz.data.hyper_extract.services.template_engine.os.path.exists", return_value=True):
-            yield TemplateEngine(adapter, storage), adapter, storage
-
-    @pytest.fixture
-    def engine_with_failing_settled(self):
-        """Engine where settled template exists but fails lightweight validation."""
-        from odap.biz.data.hyper_extract.services.template_engine import TemplateEngine
-        adapter = _make_mock_adapter()
-        # First call (settled validation) returns low metrics → fails
-        # Subsequent calls (full trial) return normal metrics
-        adapter.trial_extract.side_effect = [
-            _make_trial_result(entity_count=0, relation_count=0, field_coverage=0.0, type_diversity=0.0),
-            _make_trial_result(entity_count=5, relation_count=3, field_coverage=0.8, type_diversity=0.6),
-            _make_trial_result(entity_count=4, relation_count=2, field_coverage=0.7, type_diversity=0.5),
-            _make_trial_result(entity_count=6, relation_count=4, field_coverage=0.9, type_diversity=0.7),
-            _make_trial_result(entity_count=3, relation_count=1, field_coverage=0.6, type_diversity=0.4),
-            _make_trial_result(entity_count=2, relation_count=1, field_coverage=0.5, type_diversity=0.3),
-        ]
-        storage = MagicMock()
-        storage.get_by_ontology.return_value = {
-            "id": "tpl-001",
-            "ontology_id": "ont-1",
-            "name": "settled_template",
-            "yaml_path": "/data/he_templates/ont-1/settled.yaml",
-            "score": 0.3,
-            "coverage": '["object"]',
-        }
-        # Patch os.path.exists so settled YAML is treated as existing
-        with patch("odap.biz.data.hyper_extract.services.template_engine.os.path.exists", return_value=True):
-            yield TemplateEngine(adapter, storage), adapter, storage
-
-    def test_assess_checks_settled_template_first(self, engine_with_no_settled):
-        engine, adapter, storage = engine_with_no_settled
-        engine.assess("some text", "ont-1")
-        storage.get_by_ontology.assert_called_once_with("ont-1")
-
-    def test_assess_skips_full_trial_when_settled_passes(self, engine_with_passing_settled):
-        engine, adapter, storage = engine_with_passing_settled
-        result = engine.assess("some text", "ont-1")
-        # Settled passes → trial_extract called only once (for settled validation)
-        assert adapter.trial_extract.call_count == 1
-        # Result should indicate settled template is used
-        assert result.get("settled_used") is True
-
-    def test_assess_runs_full_trial_when_settled_fails(self, engine_with_failing_settled):
-        engine, adapter, storage = engine_with_failing_settled
-        result = engine.assess("some text", "ont-1")
-        # 1 settled validation + 5 full trial = 6 calls
-        assert adapter.trial_extract.call_count == 6
-        assert result.get("settled_used") is False
-
-    def test_assess_runs_full_trial_when_no_settled(self, engine_with_no_settled):
-        engine, adapter, storage = engine_with_no_settled
-        result = engine.assess("some text", "ont-1")
+    def test_assess_always_runs_full_trial(self, engine):
+        """Iter 2.1: assess() always runs full trial — no settled short-circuit."""
+        eng, adapter, storage = engine
+        result = eng.assess("some text", "ont-1")
         # No settled check → 5 full trial calls (top-k=5)
         assert adapter.trial_extract.call_count == 5
         assert result.get("settled_used") is False
 
-    def test_assess_pre_filters_top_k(self, engine_with_no_settled):
-        engine, adapter, storage = engine_with_no_settled
+    def test_assess_does_not_query_storage_for_settled(self, engine):
+        """Iter 2.1: assess() must NOT call storage.get_by_ontology (FR-017/018 removed)."""
+        eng, adapter, storage = engine
+        eng.assess("some text", "ont-1")
+        storage.get_by_ontology.assert_not_called()
+
+    def test_assess_pre_filters_top_k(self, engine):
+        eng, adapter, storage = engine
         # Verify embedder was used for pre-filtering
-        result = engine.assess("some text", "ont-1")
+        result = eng.assess("some text", "ont-1")
         embedder = adapter._create_embedder.return_value
         # embed_query called for input text
         embedder.embed_query.assert_called_once_with("some text")
         # embed_documents called for preset descriptions
         embedder.embed_documents.assert_called_once()
 
-    def test_assess_calls_trial_extract_for_top_k(self, engine_with_no_settled):
-        engine, adapter, storage = engine_with_no_settled
-        engine.assess("some text", "ont-1")
+    def test_assess_calls_trial_extract_for_top_k(self, engine):
+        eng, adapter, storage = engine
+        eng.assess("some text", "ont-1")
         # top-k=5 → trial_extract called 5 times
         assert adapter.trial_extract.call_count == 5
 
-    def test_assess_returns_sorted_candidates_with_score(self, engine_with_no_settled):
-        engine, adapter, storage = engine_with_no_settled
-        result = engine.assess("some text", "ont-1")
+    def test_assess_returns_sorted_candidates_with_score(self, engine):
+        eng, adapter, storage = engine
+        result = eng.assess("some text", "ont-1")
         assert "candidates" in result
         assert isinstance(result["candidates"], list)
         # All candidates have score
@@ -264,29 +205,29 @@ class TestTemplateEngineAssess:
         scores = [c["score"] for c in result["candidates"]]
         assert scores == sorted(scores, reverse=True)
 
-    def test_assess_returns_best_score_and_threshold(self, engine_with_no_settled):
-        engine, adapter, storage = engine_with_no_settled
-        result = engine.assess("some text", "ont-1")
+    def test_assess_returns_best_score_and_threshold(self, engine):
+        eng, adapter, storage = engine
+        result = eng.assess("some text", "ont-1")
         assert "best_score" in result
         assert "threshold" in result
         assert result["threshold"] == 0.5  # default
 
-    def test_assess_sets_needs_custom_when_best_below_threshold(self, engine_with_no_settled):
-        engine, adapter, storage = engine_with_no_settled
+    def test_assess_sets_needs_custom_when_best_below_threshold(self, engine):
+        eng, adapter, storage = engine
         # All trials return 0 metrics → score=0 → needs_custom=True
         adapter.trial_extract.return_value = _make_trial_result(
             entity_count=0, relation_count=0, field_coverage=0.0, type_diversity=0.0
         )
-        result = engine.assess("some text", "ont-1")
+        result = eng.assess("some text", "ont-1")
         assert result["needs_custom"] is True
         assert result["best_score"] < result["threshold"]
 
-    def test_assess_sets_needs_custom_false_when_best_above_threshold(self, engine_with_no_settled):
-        engine, adapter, storage = engine_with_no_settled
+    def test_assess_sets_needs_custom_false_when_best_above_threshold(self, engine):
+        eng, adapter, storage = engine
         adapter.trial_extract.return_value = _make_trial_result(
             entity_count=10, relation_count=8, field_coverage=0.9, type_diversity=0.7
         )
-        result = engine.assess("some text", "ont-1")
+        result = eng.assess("some text", "ont-1")
         assert result["needs_custom"] is False
         assert result["best_score"] >= result["threshold"]
 
@@ -349,93 +290,11 @@ class TestTemplateEngineScoring:
 
 
 # ---------------------------------------------------------------------------
-# T029: settled template lightweight validation
+# T029: settled template lightweight validation — REMOVED in Iter 2.1
+# FR-017/FR-018 (application-layer template sediment) superseded by
+# persistent HE Knowledge Abstract (data/he_kb/{ws}/{ont}/).
+# Settled validation tests removed: assess() always runs full pipeline.
 # ---------------------------------------------------------------------------
-
-class TestTemplateEngineSettledValidation:
-    @pytest.fixture
-    def engine(self):
-        from odap.biz.data.hyper_extract.services.template_engine import TemplateEngine
-        adapter = _make_mock_adapter()
-        storage = MagicMock()
-        return TemplateEngine(adapter, storage), adapter, storage
-
-    def test_settled_validation_uses_500_char_trial(self, engine):
-        eng, adapter, storage = engine
-        storage.get_by_ontology.return_value = {
-            "id": "tpl-001",
-            "name": "settled",
-            "yaml_path": "/path/to/yaml",
-        }
-        adapter.trial_extract.return_value = _make_trial_result(
-            entity_count=10, relation_count=8, field_coverage=0.9, type_diversity=0.7
-        )
-        long_text = "X" * 3000
-        with patch("odap.biz.data.hyper_extract.services.template_engine.os.path.exists", return_value=True):
-            eng.assess(long_text, "ont-1")
-        # First trial_extract call is for settled validation
-        first_call = adapter.trial_extract.call_args_list[0]
-        _, kwargs = first_call
-        # Verify sample_size=500 for settled validation
-        assert kwargs.get("sample_size") == 500
-
-    def test_settled_validation_passes_when_score_above_80_percent(self, engine):
-        eng, adapter, storage = engine
-        storage.get_by_ontology.return_value = {
-            "id": "tpl-001",
-            "name": "settled",
-            "yaml_path": "/path/to/yaml",
-        }
-        # High metrics → score > threshold * 0.8 = 0.4
-        adapter.trial_extract.return_value = _make_trial_result(
-            entity_count=10, relation_count=8, field_coverage=0.9, type_diversity=0.7
-        )
-        with patch("odap.biz.data.hyper_extract.services.template_engine.os.path.exists", return_value=True):
-            result = eng.assess("some text", "ont-1")
-        assert result["settled_used"] is True
-        # Only 1 trial_extract call (settled validation passed)
-        assert adapter.trial_extract.call_count == 1
-
-    def test_settled_validation_fails_when_score_below_80_percent(self, engine):
-        eng, adapter, storage = engine
-        storage.get_by_ontology.return_value = {
-            "id": "tpl-001",
-            "name": "settled",
-            "yaml_path": "/path/to/yaml",
-        }
-        # Low metrics → score < threshold * 0.8 = 0.4
-        adapter.trial_extract.side_effect = [
-            _make_trial_result(entity_count=0, relation_count=0, field_coverage=0.0, type_diversity=0.0),
-        ] + [_make_trial_result(entity_count=5, relation_count=3, field_coverage=0.8, type_diversity=0.6)] * 5
-        with patch("odap.biz.data.hyper_extract.services.template_engine.os.path.exists", return_value=True):
-            result = eng.assess("some text", "ont-1")
-        assert result["settled_used"] is False
-        # 1 settled + 5 full = 6 calls
-        assert adapter.trial_extract.call_count == 6
-
-    def test_settled_validation_skips_when_no_settled(self, engine):
-        eng, adapter, storage = engine
-        storage.get_by_ontology.return_value = None
-        eng.assess("some text", "ont-1")
-        # No settled → no 500-char trial, only full trial (5 calls)
-        for call_args in adapter.trial_extract.call_args_list:
-            _, kwargs = call_args
-            # Full trial uses default sample_size (1500), not 500
-            assert kwargs.get("sample_size", 1500) != 500
-
-    def test_settled_validation_skips_when_yaml_missing(self, engine):
-        """EC-013: If YAML file doesn't exist, settled template is skipped."""
-        eng, adapter, storage = engine
-        storage.get_by_ontology.return_value = {
-            "id": "tpl-001",
-            "name": "settled",
-            "yaml_path": "/nonexistent/path.yaml",
-        }
-        with patch("odap.biz.data.hyper_extract.services.template_engine.os.path.exists", return_value=False):
-            result = eng.assess("some text", "ont-1")
-        # Should skip settled and run full trial
-        assert result["settled_used"] is False
-        assert adapter.trial_extract.call_count == 5
 
 
 # ---------------------------------------------------------------------------
@@ -561,176 +420,12 @@ class TestTemplateEngineGenerateCustom:
 
 
 # ---------------------------------------------------------------------------
-# T031: settle_template()
+# T031/T032/T033: settle_template / get_settled_template / drift detection
+# — REMOVED in Iter 2.1 (ADR-074)
+# FR-017/FR-018 application-layer template sediment superseded by persistent
+# HE Knowledge Abstract (data/he_kb/{ws}/{ont}/). Drift detection no longer
+# applies — assess() always runs the full pipeline.
 # ---------------------------------------------------------------------------
-
-class TestTemplateEngineSettleTemplate:
-    @pytest.fixture
-    def engine(self, tmp_path):
-        from odap.biz.data.hyper_extract.services.template_engine import TemplateEngine
-        adapter = _make_mock_adapter()
-        storage = MagicMock()
-        storage.save.return_value = "tpl-settled-001"
-        eng = TemplateEngine(adapter, storage)
-        # Patch the template dir to use tmp_path
-        with patch.object(eng, "_get_templates_dir", return_value=tmp_path):
-            yield eng, adapter, storage, tmp_path
-
-    def test_settle_template_writes_yaml_file(self, engine):
-        eng, adapter, storage, tmp_path = engine
-        eng.settle_template(
-            ontology_id="ont-1",
-            name="custom_tpl",
-            yaml_content=_VALID_YAML,
-            score=0.75,
-            coverage=["object", "relation"],
-        )
-        yaml_file = tmp_path / "ont-1" / "custom_tpl.yaml"
-        assert yaml_file.exists()
-        content = yaml_file.read_text(encoding="utf-8")
-        assert "custom_test_template" in content
-
-    def test_settle_template_calls_storage_save(self, engine):
-        eng, adapter, storage, tmp_path = engine
-        eng.settle_template(
-            ontology_id="ont-1",
-            name="custom_tpl",
-            yaml_content=_VALID_YAML,
-            score=0.75,
-            coverage=["object", "relation"],
-        )
-        storage.save.assert_called_once()
-        # Verify save called with correct metadata (positional arg)
-        args, kwargs = storage.save.call_args
-        record = args[0] if args else kwargs
-        assert record["ontology_id"] == "ont-1"
-        assert record["name"] == "custom_tpl"
-        assert record["source"] == "custom"
-        assert record["score"] == 0.75
-
-    def test_settle_template_returns_template_id(self, engine):
-        eng, adapter, storage, tmp_path = engine
-        result = eng.settle_template(
-            ontology_id="ont-1",
-            name="custom_tpl",
-            yaml_content=_VALID_YAML,
-            score=0.75,
-            coverage=["object", "relation"],
-        )
-        assert result == "tpl-settled-001"
-
-
-# ---------------------------------------------------------------------------
-# T032: get_settled_template()
-# ---------------------------------------------------------------------------
-
-class TestTemplateEngineGetSettled:
-    @pytest.fixture
-    def engine(self):
-        from odap.biz.data.hyper_extract.services.template_engine import TemplateEngine
-        adapter = _make_mock_adapter()
-        storage = MagicMock()
-        return TemplateEngine(adapter, storage), adapter, storage
-
-    def test_get_settled_calls_storage(self, engine):
-        eng, adapter, storage = engine
-        storage.get_by_ontology.return_value = {
-            "id": "tpl-001",
-            "name": "settled",
-            "yaml_path": "/path/to/yaml",
-        }
-        with patch("odap.biz.data.hyper_extract.services.template_engine.os.path.exists", return_value=True):
-            eng.get_settled_template("ont-1")
-        storage.get_by_ontology.assert_called_once_with("ont-1")
-
-    def test_get_settled_returns_none_if_yaml_missing(self, engine):
-        """EC-013: Return None if YAML file deleted."""
-        eng, adapter, storage = engine
-        storage.get_by_ontology.return_value = {
-            "id": "tpl-001",
-            "name": "settled",
-            "yaml_path": "/deleted/path.yaml",
-        }
-        with patch("odap.biz.data.hyper_extract.services.template_engine.os.path.exists", return_value=False):
-            result = eng.get_settled_template("ont-1")
-        assert result is None
-
-    def test_get_settled_increments_usage_count(self, engine):
-        eng, adapter, storage = engine
-        storage.get_by_ontology.return_value = {
-            "id": "tpl-001",
-            "name": "settled",
-            "yaml_path": "/path/to/yaml",
-        }
-        with patch("odap.biz.data.hyper_extract.services.template_engine.os.path.exists", return_value=True):
-            eng.get_settled_template("ont-1")
-        storage.update_usage_count.assert_called_once_with("tpl-001")
-
-    def test_get_settled_returns_template_dict(self, engine):
-        eng, adapter, storage = engine
-        storage.get_by_ontology.return_value = {
-            "id": "tpl-001",
-            "name": "settled",
-            "yaml_path": "/path/to/yaml",
-            "score": 0.8,
-        }
-        with patch("odap.biz.data.hyper_extract.services.template_engine.os.path.exists", return_value=True):
-            result = eng.get_settled_template("ont-1")
-        assert result is not None
-        assert result["name"] == "settled"
-        assert result["yaml_path"] == "/path/to/yaml"
-
-    def test_get_settled_returns_none_when_no_settled(self, engine):
-        eng, adapter, storage = engine
-        storage.get_by_ontology.return_value = None
-        result = eng.get_settled_template("ont-1")
-        assert result is None
-
-
-# ---------------------------------------------------------------------------
-# T033: drift detection
-# ---------------------------------------------------------------------------
-
-class TestTemplateEngineDriftDetection:
-    @pytest.fixture
-    def engine(self):
-        from odap.biz.data.hyper_extract.services.template_engine import TemplateEngine
-        adapter = _make_mock_adapter()
-        storage = MagicMock()
-        storage.get_by_ontology.return_value = {
-            "id": "tpl-001",
-            "name": "settled",
-            "yaml_path": "/path/to/yaml",
-            "score": 0.85,
-        }
-        return TemplateEngine(adapter, storage), adapter, storage
-
-    def test_drift_triggers_reassess_when_score_drops(self, engine):
-        """Settled template score drops below 80% of threshold → full re-assess."""
-        eng, adapter, storage = engine
-        # Settled trial returns very low metrics → score < threshold * 0.8
-        adapter.trial_extract.side_effect = [
-            _make_trial_result(entity_count=0, relation_count=0, field_coverage=0.0, type_diversity=0.0),
-        ] + [_make_trial_result(entity_count=5, relation_count=3, field_coverage=0.8, type_diversity=0.6)] * 5
-        with patch("odap.biz.data.hyper_extract.services.template_engine.os.path.exists", return_value=True):
-            result = eng.assess("some text", "ont-1")
-        # Settled failed → full re-assess
-        assert result["settled_used"] is False
-        assert result["needs_custom"] is False  # presets have good scores
-        # 1 settled validation + 5 full trial = 6 calls
-        assert adapter.trial_extract.call_count == 6
-
-    def test_drift_does_not_trigger_when_score_stable(self, engine):
-        """Settled template score stays above 80% of threshold → no re-assess."""
-        eng, adapter, storage = engine
-        adapter.trial_extract.return_value = _make_trial_result(
-            entity_count=10, relation_count=8, field_coverage=0.9, type_diversity=0.7
-        )
-        with patch("odap.biz.data.hyper_extract.services.template_engine.os.path.exists", return_value=True):
-            result = eng.assess("some text", "ont-1")
-        assert result["settled_used"] is True
-        # Only 1 trial (settled validation passed)
-        assert adapter.trial_extract.call_count == 1
 
 
 # ---------------------------------------------------------------------------
