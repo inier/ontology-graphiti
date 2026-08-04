@@ -246,6 +246,11 @@ class OntologyDocument:
     # 构建历史
     build_history: List[Dict[str, Any]] = field(default_factory=list)
 
+    # Iter 3.1 (ADR-074 §2.1): 原始数据引用 — 指向 MinIO 持久化地址
+    # 格式: "minio://{bucket}/{key}" 或 "file:///{local_path}"（降级模式）
+    # 支持原文回溯：检索服务可通过 raw_data_ref 下载原始采集文本
+    raw_data_ref: Optional[str] = None
+
     # 内部：场景归属
     scenario_id: Optional[str] = None
     ontology_id: Optional[str] = None
@@ -270,6 +275,7 @@ class OntologyDocument:
             "transformation_steps": self.transformation_steps,
             "transformation_errors": self.transformation_errors,
             "build_history": self.build_history,
+            "raw_data_ref": self.raw_data_ref,
             "scenario_id": self.scenario_id,
             "ontology_id": self.ontology_id,
         }
@@ -348,6 +354,7 @@ class OntologyDocument:
             transformation_steps=data.get("transformation_steps", []),
             transformation_errors=data.get("transformation_errors", []),
             build_history=data.get("build_history", []),
+            raw_data_ref=data.get("raw_data_ref"),
             scenario_id=data.get("scenario_id"),
             ontology_id=data.get("ontology_id"),
         )

@@ -181,12 +181,92 @@ def graph_audit(
     )
 
 
+# ------------------------------------------------------------------
+# Iter 3.2 (ADR-074 §2.2): 操作审计便捷函数 — #3 确认 + #5 查询
+# ------------------------------------------------------------------
+
+def confirm_audit(
+    operator: str,
+    ontology_id: str,
+    session_id: str,
+    decision: str,
+    changes: Optional[Dict[str, Any]] = None,
+    workspace_id: str = "default",
+    duration_ms: Optional[int] = None,
+) -> None:
+    """#3 确认过程审计：谁确认的、何时、修改了什么。
+
+    记录到 SQLite 操作审计层（高并发、结构化查询）。
+
+    Args:
+        operator: 确认操作者（用户 ID）.
+        ontology_id: 目标本体 ID.
+        session_id: 抽取会话 ID.
+        decision: 决策 (confirmed / rejected / modified).
+        changes: 修改前后对比 (before/after diff).
+        workspace_id: 工作空间 ID.
+        duration_ms: 操作耗时.
+    """
+    audit(
+        action=f"extraction_{decision}",
+        user=operator,
+        result_status="success" if decision in ("confirmed", "modified") else "denied",
+        result_message=f"HITL {decision} for session {session_id}",
+        details={
+            "ontology_id": ontology_id,
+            "session_id": session_id,
+            "decision": decision,
+            "changes": changes or {},
+        },
+        service="hitl_confirm",
+        workspace_id=workspace_id,
+        resource=f"ontology/{ontology_id}/session/{session_id}",
+        duration_ms=duration_ms,
+    )
+
+
+def query_audit(
+    operator: str,
+    query_params: Dict[str, Any],
+    result_summary: Dict[str, Any],
+    workspace_id: str = "default",
+    duration_ms: Optional[int] = None,
+) -> None:
+    """#5 查询审计：谁查了什么、返回了什么。
+
+    记录到 SQLite 操作审计层（高频写入、低延迟）。
+
+    Args:
+        operator: 查询者（用户 ID 或 agent ID）.
+        query_params: 查询参数 (query text, filters, retrieval_type, etc.).
+        result_summary: 返回结果摘要 (count, entity_ids, confidence, etc.).
+        workspace_id: 工作空间 ID.
+        duration_ms: 查询耗时.
+    """
+    audit(
+        action="query_execute",
+        user=operator,
+        result_status="success",
+        result_message=f"Query returned {result_summary.get('count', 0)} results",
+        details={
+            "query_params": query_params,
+            "result_summary": result_summary,
+        },
+        service="retrieval_service",
+        workspace_id=workspace_id,
+        resource=f"query/{query_params.get('retrieval_type', 'unknown')}",
+        duration_ms=duration_ms,
+    )
+
+
 __all__ = [
     "audit",
     "extract_user_id",
     "extract_workspace_id",
     "storage_audit",
     "graph_audit",
+    "confirm_audit",
+    "query_audit",
     "audit_graph_write_context",
     "_in_audit_graph_write",
     "_is_audit_entity",
