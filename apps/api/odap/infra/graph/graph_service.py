@@ -85,12 +85,20 @@ load_simulation_data = _load_simulation_data_local
 # 尝试导入 graphiti-core（可选）
 try:
     from graphiti_core import Graphiti
-    from graphiti_core.nodes import EntityNode, EpisodicNode
+    from graphiti_core.nodes import EntityNode, EpisodicNode, EpisodeType
     from graphiti_core.edges import Edge, EntityEdge
     from graphiti_core.embedder.client import EmbedderClient
     GRAPHITI_AVAILABLE = True
 except ImportError as e:
     GRAPHITI_AVAILABLE = False
+    # 占位符：允许测试在不安装 graphiti-core 时 patch 这些符号
+    Graphiti = None
+    EntityNode = None
+    EpisodicNode = None
+    EpisodeType = None
+    Edge = None
+    EntityEdge = None
+    EmbedderClient = None
     logger.info(f'提示: graphiti-core 未安装 ({e})，Graphiti 模式不可用')
 
 # 尝试导入 neo4j driver（可选）
@@ -1111,6 +1119,72 @@ class GraphManager(CacheMixin, EntityOpsMixin, RelationshipOpsMixin, TemporalOps
                 result_message=str(e),
                 resource=name[:100],
                 details={"name_len": len(name), "content_len": len(content)},
+            )
+            return False
+
+    async def save_audit_episode(
+        self,
+        audit_data: Dict[str, Any],
+        valid_at: Optional[datetime] = None,
+        source_description: str = "audit_layer",
+    ) -> bool:
+        """零 LLM 调用的审计 Episode 写入（ADR-074）。
+
+        使用 EpisodicNode.save(driver) 直接保存 Episode 节点，
+        绕过 add_episode 的 LLM 抽取 pipeline（后者每次触发 3-9 次 LLM 调用）。
+
+        用于事实演化审计：数据采集审计 / 抽取过程审计 / 推理过程审计。
+
+        Args:
+            audit_data: 审计数据（将序列化为 JSON 存入 content）
+            valid_at: 事实有效时间（默认当前 UTC 时间）
+            source_description: 来源描述
+
+        Returns:
+            True 表示成功，False 表示失败（降级时不抛异常）
+        """
+        try:
+            if not GRAPHITI_AVAILABLE:
+                logger.warning("graphiti-core 未安装，审计 Episode 未保存")
+                return False
+
+            if self.graph is None or self._use_fallback or not self._connected:
+                logger.warning("图数据库未连接或处于降级模式，审计 Episode 未保存")
+                return False
+
+            if valid_at is None:
+                valid_at = datetime.now(timezone.utc)
+
+            event_type = audit_data.get("event_type", "unknown")
+            episode = EpisodicNode(
+                name=f"audit:{event_type}",
+                content=json.dumps(audit_data, ensure_ascii=False, default=str),
+                source=EpisodeType.text,
+                source_description=source_description,
+                valid_at=valid_at,
+                group_id=audit_data.get("workspace_id", "default"),
+            )
+            await episode.save(self.graph.driver)
+
+            graph_audit(
+                "graph_save_audit_episode_success",
+                resource=episode.name[:100],
+                details={
+                    "event_type": event_type,
+                    "valid_at": valid_at.isoformat(),
+                    "content_len": len(episode.content),
+                },
+            )
+            logger.info("审计 Episode 保存成功（零 LLM）: %s", event_type)
+            return True
+        except Exception as e:
+            logger.warning("审计 Episode 保存失败: %s", e)
+            graph_audit(
+                "graph_save_audit_episode_failed",
+                result_status="failure",
+                result_message=str(e),
+                resource="audit_layer",
+                details={"event_type": audit_data.get("event_type", "unknown")},
             )
             return False
 

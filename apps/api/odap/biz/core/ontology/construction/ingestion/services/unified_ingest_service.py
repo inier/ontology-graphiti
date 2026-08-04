@@ -122,7 +122,14 @@ class _WebSearchService:
     async def extract_with_llm(
         self, text: str, context: str, urls: List[str]
     ) -> List[Dict[str, Any]]:
-        return await self._news_ingester._extract_with_llm(text, context, urls)
+        """已废弃（ADR-074 §1.3）：摄入层不再做 LLM 抽取。
+
+        请改用 Hyper-Extract 的 extract_from_nl / he feed 进行结构化抽取。
+        """
+        raise NotImplementedError(
+            "extract_with_llm 已废弃（ADR-074 §1.3）：摄入层不再做 LLM 抽取。"
+            "请改用 Hyper-Extract (he feed) 进行结构化抽取。"
+        )
 
     def has_tavily_key(self) -> bool:
         return bool(self._tavily_api_key and self._tavily_api_key != "your_tavily_api_key_here")

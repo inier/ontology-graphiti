@@ -149,7 +149,7 @@ class TestManualInputHandler:
 # ─────────────────────────────────────────────────
 
 class TestNewsIngester:
-    """测试 NewsIngester 类结构和 Mock 降级行为"""
+    """测试 NewsIngester 类结构（ADR-074 §1.3 纯采集模式）"""
 
     @pytest.fixture
     def ingester(self):
@@ -162,25 +162,101 @@ class TestNewsIngester:
         assert callable(ingester.ingest)
 
     def test_news_ingester_has_search_methods(self, ingester):
-        """NewsIngester 有搜索相关方法"""
+        """NewsIngester 有搜索和汇总方法"""
         assert hasattr(ingester, "_search")
         assert hasattr(ingester, "_combine_sources")
-        assert hasattr(ingester, "_extract_with_llm")
-        assert hasattr(ingester, "_parse_json_response")
-        assert hasattr(ingester, "_generate_mock_news_docs")
+        assert hasattr(ingester, "_build_pending_doc")
 
-    def test_news_ingester_mock_mode(self, ingester):
-        """无 LLM 时使用 Mock 模式"""
-        assert ingester._use_mock is True
+    def test_news_ingester_no_extract_with_llm(self, ingester):
+        """ADR-074 §1.3: _extract_with_llm 方法已删除"""
+        assert not hasattr(ingester, "_extract_with_llm")
+
+    def test_news_ingester_no_parse_json_response(self, ingester):
+        """ADR-074 §1.3: _parse_json_response 方法已删除（不再需要解析 LLM 响应）"""
+        assert not hasattr(ingester, "_parse_json_response")
+
+    def test_news_ingester_no_use_mock_attr(self, ingester):
+        """ADR-074 §1.3: _use_mock 属性已删除（不再有 mock 模式）"""
+        assert not hasattr(ingester, "_use_mock")
 
     @pytest.mark.asyncio
-    async def test_news_ingester_mock_ingest(self, ingester):
-        """Mock 模式下 ingest 返回 Mock 文档"""
-        docs = await ingester.ingest("测试查询")
-        assert isinstance(docs, list)
-        assert len(docs) >= 1
-        assert docs[0].source.type == "news_ingest"
-        assert docs[0].source.confidence == 0.3
+    async def test_news_ingester_no_llm_call(self, ingester):
+        """ADR-074 §1.3: ingest 不调用 LLM"""
+        from odap.biz.core.ontology.design.ingestion_split.news_ingester import NewsIngester
+        # Mock _search 返回模拟检索结果
+        mock_results = [
+            {"title": "测试新闻", "content": "测试内容", "url": "http://example.com"}
+        ]
+        # 即使传入 llm_client，也不应该调用 LLM
+        ingester_with_llm = NewsIngester(llm_client=MagicMock())
+        with patch.object(ingester_with_llm, "_search", new_callable=AsyncMock, return_value=mock_results):
+            docs = await ingester_with_llm.ingest("测试查询")
+            # llm_client 不应被调用
+            ingester_with_llm._search.assert_called_once()
+            # 验证 LLM mock 未被调用（complete/chat 方法）
+            # 注意：llm_client 在 __init__ 中不再保存为 self.llm
+
+    @pytest.mark.asyncio
+    async def test_news_ingester_pending_status(self, ingester):
+        """ADR-074 §1.3: ingest 产出 transformation_status='pending' 的文档"""
+        mock_results = [
+            {"title": "测试新闻", "content": "测试内容", "url": "http://example.com"}
+        ]
+        with patch.object(ingester, "_search", new_callable=AsyncMock, return_value=mock_results):
+            docs = await ingester.ingest("测试查询")
+            assert isinstance(docs, list)
+            assert len(docs) == 1
+            doc = docs[0]
+            assert doc.transformation_status == "pending"
+
+    @pytest.mark.asyncio
+    async def test_news_ingester_empty_six_fields(self, ingester):
+        """ADR-074 §1.3: ingest 产出六字段为空的文档"""
+        mock_results = [
+            {"title": "测试新闻", "content": "测试内容", "url": "http://example.com"}
+        ]
+        with patch.object(ingester, "_search", new_callable=AsyncMock, return_value=mock_results):
+            docs = await ingester.ingest("测试查询")
+            doc = docs[0]
+            assert len(doc.entities) == 0
+            assert len(doc.relations) == 0
+            assert len(doc.events) == 0
+            assert len(doc.actions) == 0
+            assert len(doc.rules) == 0
+            assert len(doc.constraints) == 0
+
+    @pytest.mark.asyncio
+    async def test_news_ingester_source_type_news_ingest(self, ingester):
+        """ingest 产出 source.type='news_ingest' 的文档"""
+        mock_results = [
+            {"title": "测试新闻", "content": "测试内容", "url": "http://example.com"}
+        ]
+        with patch.object(ingester, "_search", new_callable=AsyncMock, return_value=mock_results):
+            docs = await ingester.ingest("测试查询")
+            doc = docs[0]
+            assert doc.source.type == "news_ingest"
+
+    @pytest.mark.asyncio
+    async def test_news_ingester_empty_search_returns_pending_doc(self, ingester):
+        """检索结果为空时仍返回 pending 态文档（不返回空列表）"""
+        with patch.object(ingester, "_search", new_callable=AsyncMock, return_value=[]):
+            docs = await ingester.ingest("无结果查询")
+            assert len(docs) == 1
+            assert docs[0].transformation_status == "pending"
+            assert len(docs[0].entities) == 0
+
+    @pytest.mark.asyncio
+    async def test_news_ingester_meta_description_contains_text(self, ingester):
+        """汇总文本存到 meta.description 供下游 HE 消费"""
+        mock_results = [
+            {"title": "新闻A", "content": "内容A内容A", "url": "http://a.com"},
+            {"title": "新闻B", "content": "内容B内容B", "url": "http://b.com"},
+        ]
+        with patch.object(ingester, "_search", new_callable=AsyncMock, return_value=mock_results):
+            docs = await ingester.ingest("测试查询")
+            doc = docs[0]
+            # meta.description 应包含汇总文本
+            assert "新闻A" in doc.meta.description or "内容A" in doc.meta.description
 
     def test_news_ingester_combine_sources(self, ingester):
         """_combine_sources 正确汇总多源文本"""
@@ -193,30 +269,13 @@ class TestNewsIngester:
         assert "新闻2" in combined
         assert "---" in combined
 
-    def test_news_ingester_parse_json_response_dict(self, ingester):
-        """_parse_json_response 正确解析 dict 响应"""
-        response = '{"doc_id": "test-001"}'
-        result = ingester._parse_json_response(response)
-        assert isinstance(result, list)
-        assert result[0]["doc_id"] == "test-001"
-
-    def test_news_ingester_parse_json_response_list(self, ingester):
-        """_parse_json_response 正确解析 list 响应"""
-        response = '[{"doc_id": "test-001"}, {"doc_id": "test-002"}]'
-        result = ingester._parse_json_response(response)
-        assert len(result) == 2
-
-    def test_news_ingester_parse_json_response_with_code_block(self, ingester):
-        """_parse_json_response 正确解析代码块包裹的 JSON"""
-        response = '```json\n{"doc_id": "test-001"}\n```'
-        result = ingester._parse_json_response(response)
-        assert len(result) == 1
-        assert result[0]["doc_id"] == "test-001"
-
-    def test_news_ingester_parse_json_response_invalid(self, ingester):
-        """_parse_json_response 处理无效 JSON"""
-        result = ingester._parse_json_response("not json at all")
-        assert result == []
+    def test_news_ingester_llm_client_deprecated_warning(self, caplog):
+        """传入 llm_client 时应记录废弃警告"""
+        from odap.biz.core.ontology.design.ingestion_split.news_ingester import NewsIngester
+        import logging
+        with caplog.at_level(logging.WARNING, logger="data_ingestion"):
+            NewsIngester(llm_client=MagicMock())
+        assert any("已废弃" in r.message for r in caplog.records)
 
 
 # ─────────────────────────────────────────────────

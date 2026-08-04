@@ -1,157 +1,309 @@
 """
 数据采集层 - 联网检索采集模块
 实现 ADR-031 L2: Data Ingestion & Normalization
+实现 ADR-074 §1.3: 摄入纯采集化（删除 LLM 抽取，产出 pending 态文档）
 
-NewsIngester: 联网检索 → LLM 归纳 → OntologyDocument
+NewsIngester: 联网检索 → 汇总文本 → pending 态 OntologyDocument
+  - 只负责数据采集和文本汇总，不做 LLM 结构化抽取
+  - 产出的 OntologyDocument 六字段为空，transformation_status="pending"
+  - 下游由 Hyper-Extract (he feed) 消费 pending 态文档进行结构化抽取
 """
 
-import json
 import uuid
 import logging
-import asyncio
-import os
 from datetime import datetime, timezone
 from typing import Any, Dict, List, Optional
 from odap.infra.config_composer import get_config
 
 from ..schema.document import (
-    OntologyDocument, OntologyDocumentSchema, SourceType, DocType,
-    make_conflict_event_document,
+    OntologyDocument, DocType,
+    SourceType, SourceInfo, DocumentMeta, VersionRef,
 )
 
 logger = logging.getLogger("data_ingestion")
 
 
-ONTOLOGY_EXTRACT_PROMPT = """
-你是一位专业的情报分析师。请从以下新闻/报道文本中提取结构化信息，
-输出符合 OntologyDocument 格式的 JSON（仅输出 JSON，不要任何解释）。
-
-【事件背景】
-{context}
-
-【文本内容】
-{text}
-
-【输出格式要求】
-{{
-  "doc_id": "evt-{date}-xxxxx",
-  "doc_type": "event",
-  "source": {{"type": "news_ingest", "url": "{url}", "collected_at": "{timestamp}", "confidence": 0.8}},
-  "meta": {{"title": "..", "description": "..", "tags": [..], "language": "zh", "classification": "SIM"}},
-  "entities": [
-    {{
-      "entity_id": "unit-xxx-001",
-      "entity_type": "Unit|Equipment|Location|Person|Organization",
-      "name": "..",
-      "name_en": "..",
-      "basic_properties": {{"side": "party_a|party_b|neutral", "location": "..", "status": ".."}},
-      "statistical_properties": {{"capability_index": 0.0-1.0, "readiness": 0.0-1.0}},
-      "capabilities": {{}},
-      "constraints": []
-    }}
-  ],
-  "relations": [
-    {{
-      "relation_id": "rel-xxx",
-      "relation_type": "engaged_with|commands|supported_by|deployed_at|supports",
-      "source_entity": "entity_id",
-      "target_entity": "entity_id",
-      "properties": {{}},
-      "temporal": {{"start_time": "{timestamp}", "is_current": true}}
-    }}
-  ],
-  "events": [
-    {{
-      "event_id": "evt-xxx",
-      "event_type": "contact|engage|withdraw|support|patrol|cease_operation",
-      "timestamp": "{timestamp}",
-      "location": "..",
-      "participants": ["entity_id_1", "entity_id_2"],
-      "description": "..",
-      "outcome": {{}},
-      "phase": ".."
-    }}
-  ],
-  "actions": [],
-  "rules": [],
-  "constraints": [],
-  "ontology_version": {{"version_id": "", "parent_version": null, "commit_message": "新闻采集归纳"}}
-}}
-
-注意: 如果文本信息不足，合理推断并标注 confidence 较低值。
-"""
-
-
 class NewsIngester:
     """
-    联网检索并归纳为 OntologyDocument
+    联网检索采集器（纯采集，ADR-074 §1.3）
 
     检索链路:
-    本地 DuckDuckGo API (首选) → Tavily API → SerpAPI → DuckDuckGo HTML 解析 (降级) → Mock (无API时)
+    本地 DuckDuckGo API (首选) → Tavily API → SerpAPI → DuckDuckGo HTML 解析 (降级)
+
+    产出: pending 态 OntologyDocument（entities/relations/events 等六字段为空），
+    下游由 Hyper-Extract 消费进行结构化抽取。
     """
 
     def __init__(self, llm_client=None, search_api_key: str = None, tavily_api_key: str = None):
-        self.llm = llm_client
+        """
+        初始化采集器。
+
+        Args:
+            llm_client: 已废弃（ADR-074 §1.3），保留参数仅为向后兼容，不再使用。
+            search_api_key: SerpAPI Key
+            tavily_api_key: Tavily API Key
+        """
+        if llm_client is not None:
+            logger.warning(
+                "NewsIngester.llm_client 已废弃（ADR-074 §1.3），"
+                "摄入层不再做 LLM 抽取，请改用 Hyper-Extract。"
+            )
         self._search_api_key = search_api_key or get_config("search.serpapi_key", "")
         self._tavily_api_key = tavily_api_key or get_config("search.tavily_api_key", "")
         self._ddg_api_url = get_config("search.ddg_api_url", "")
-        self._use_mock = (llm_client is None)
 
     async def ingest(
         self,
         query: str,
         event_context: str = "",
         max_sources: int = 5,
+        workspace_id: str = "default",
+        ontology_id: Optional[str] = None,
     ) -> List[OntologyDocument]:
         """
-        联网检索 + LLM 归纳 → OntologyDocument 列表
+        联网检索 → 汇总文本 → pending 态 OntologyDocument
+
+        纯采集模式（ADR-074 §1.3）：不做 LLM 抽取，产出 pending 态文档，
+        六字段（entities/relations/events/actions/rules/constraints）为空，
+        transformation_status="pending"，由下游 HE 消费。
+
+        Iter 2.2 (ADR-074 §2.2): 当 ontology_id 提供时，采集完成后自动将
+        汇总文本投递到 HE KA 队列（三级优先级 normal），实现采集 → 队列 →
+        HE 引擎的自动衔接。投递失败仅记录日志，不影响采集产出。
 
         Args:
             query: 检索关键词（如 "B区遭遇战 2026"）
-            event_context: 事件背景描述（辅助 LLM 理解）
+            event_context: 事件背景描述（记录到 meta.description 辅助下游 HE 理解）
             max_sources: 最大检索来源数
+            workspace_id: 工作空间ID（用于 HE kb 分区，默认 "default"）
+            ontology_id: 目标本体ID。提供时触发自动队列投递；None 时不投递
+                （向后兼容，不破坏现有调用方）。
 
         Returns:
-            List[OntologyDocument]: 验证通过的文档列表
+            List[OntologyDocument]: pending 态文档列表（六字段为空）
         """
-        logger.info(f"开始联网检索: {query}")
-
-        if self._use_mock:
-            logger.warning("未配置 LLM/Search API，使用 Mock 数据")
-            return self._generate_mock_news_docs(query, event_context)
+        logger.info(f"开始联网检索（纯采集模式）: {query}")
 
         try:
             # 步骤1: 联网检索
             search_results = await self._search(query, max_sources)
+
             if not search_results:
-                logger.warning("检索结果为空，使用 Mock")
-                return self._generate_mock_news_docs(query, event_context)
+                logger.warning("检索结果为空，产出空 pending 态文档")
+                docs = [self._build_pending_doc(query, event_context, "", [], workspace_id=workspace_id)]
+            else:
+                # 步骤2: 汇总文本
+                combined_text = self._combine_sources(search_results)
+                urls = [r.get("url", "") for r in search_results[:3]]
 
-            # 步骤2: 汇总文本
-            combined_text = self._combine_sources(search_results)
-            urls = [r.get("url", "") for r in search_results[:3]]
+                # 步骤3: 构建 pending 态文档（不做 LLM 抽取）
+                doc = self._build_pending_doc(
+                    query, event_context, combined_text, urls,
+                    workspace_id=workspace_id,
+                )
+                logger.info(
+                    f"采集完成，产出 pending 态文档: {doc.doc_id} "
+                    f"(transformation_status=pending, 文本长度={len(combined_text)}, "
+                    f"raw_data_ref={doc.raw_data_ref})"
+                )
+                docs = [doc]
 
-            # 步骤3: LLM 结构化抽取
-            raw_docs = await self._extract_with_llm(combined_text, event_context, urls)
+            # 步骤4 (Iter 2.2): 自动投递到 HE KA 队列
+            if ontology_id:
+                self._dispatch_to_queue(docs, workspace_id, ontology_id)
 
-            # 步骤4: 验证
-            validated = []
-            for doc_data in raw_docs:
-                result = OntologyDocumentSchema.validate(doc_data)
-                if result.is_valid:
-                    validated.append(OntologyDocument.from_dict(doc_data))
-                else:
-                    logger.warning(f"文档验证失败: {result.errors}")
+            # 步骤5 (Iter 3.2): #1 数据采集审计 — 写入 Graphiti (零 LLM)
+            self._audit_ingestion(docs, workspace_id, query, search_results)
 
-            logger.info(f"成功归纳 {len(validated)} 个文档")
-            return validated
+            return docs
 
         except Exception as e:
-            logger.error(f"联网检索失败: {e}，使用 Mock")
-            return self._generate_mock_news_docs(query, event_context)
+            logger.error(f"联网检索失败: {e}，产出空 pending 态文档")
+            return [self._build_pending_doc(query, event_context, "", [], workspace_id=workspace_id)]
+
+    def _audit_ingestion(
+        self,
+        docs: List[OntologyDocument],
+        workspace_id: str,
+        query: str,
+        search_results: List[Dict[str, Any]],
+    ) -> None:
+        """Iter 3.2: #1 数据采集审计 — 写入 Graphiti (零 LLM, EpisodicNode.save)。
+
+        记录何时从哪个数据源采集了什么，支持事实演化追溯。
+        审计失败仅记录日志，不影响采集产出。
+        """
+        try:
+            from odap.infra.security.graphiti_audit_writer import get_graphiti_audit_writer
+            writer = get_graphiti_audit_writer()
+            primary_url = ""
+            if search_results:
+                primary_url = search_results[0].get("url", "")
+            for doc in docs:
+                writer.log_ingestion_audit(
+                    workspace_id=workspace_id,
+                    doc_id=doc.doc_id,
+                    source_type=doc.source.type,
+                    source_url=primary_url,
+                    raw_data_ref=doc.raw_data_ref or "",
+                    query=query,
+                    text_length=len(doc.meta.description or ""),
+                )
+        except Exception as exc:
+            logger.warning("数据采集审计失败（不影响采集产出）: %s", exc)
+
+    def _dispatch_to_queue(
+        self,
+        docs: List[OntologyDocument],
+        workspace_id: str,
+        ontology_id: str,
+    ) -> None:
+        """Iter 2.2: 将采集产出投递到 HE KA 队列。
+
+        从 pending 态文档的 meta.description 中提取汇总文本，投递到
+        ``odap_queue.feed_he_kb`` 任务（默认 normal 优先级）。
+
+        投递失败仅记录日志，不影响采集产出（容错降级）。
+        """
+        try:
+            from odap.infra.queue import dispatch_ingestion_to_queue
+
+            for doc in docs:
+                text = doc.meta.description or ""
+                if not text:
+                    logger.warning(
+                        "跳过队列投递: 文档 %s 的 meta.description 为空",
+                        doc.doc_id,
+                    )
+                    continue
+
+                result = dispatch_ingestion_to_queue(
+                    workspace_id=workspace_id,
+                    ontology_id=ontology_id,
+                    text=text,
+                    source_doc_id=doc.doc_id,
+                    priority="normal",
+                )
+                logger.info(
+                    "队列投递: doc=%s mode=%s queue=%s status=%s task_id=%s",
+                    doc.doc_id,
+                    result.mode,
+                    result.queue,
+                    result.status,
+                    result.task_id,
+                )
+        except Exception as exc:
+            logger.warning(
+                "队列投递失败（不影响采集产出）: %s",
+                exc,
+            )
+
+    def _build_pending_doc(
+        self,
+        query: str,
+        event_context: str,
+        combined_text: str,
+        urls: List[str],
+        workspace_id: str = "default",
+    ) -> OntologyDocument:
+        """构建 pending 态 OntologyDocument（ADR-074 §1.3 + §2.1）。
+
+        六字段为空，transformation_status="pending"，
+        汇总文本存到 meta.description 供下游 HE 消费。
+
+        Iter 3.1 (ADR-074 §2.1): 原始文本上传 MinIO 持久化，
+        OntologyDocument 记录 raw_data_ref 支持原文回溯。
+        """
+        now = datetime.now(timezone.utc).isoformat()
+        date_str = datetime.now().strftime("%Y%m%d")
+        doc_id = f"evt-{date_str}-{uuid.uuid4().hex[:6]}"
+        primary_url = urls[0] if urls else ""
+
+        # Iter 3.1: 上传原始文本到 MinIO（或本地降级）
+        raw_data_ref = None
+        if combined_text:
+            raw_data_ref = self._upload_raw_data(
+                workspace_id=workspace_id,
+                doc_id=doc_id,
+                text=combined_text,
+                source_type="news_ingest",
+            )
+
+        # 将汇总文本截断到合理长度，作为 meta.description
+        # 下游 HE 可通过 meta.description 获取采集的原文汇总
+        # 完整原文通过 raw_data_ref 回溯
+        description = combined_text[:2000] if combined_text else (
+            f"[采集失败] 查询词: {query}，背景: {event_context or '无'}"
+        )
+
+        return OntologyDocument(
+            doc_id=doc_id,
+            doc_type=DocType.EVENT.value,
+            source=SourceInfo(
+                type=SourceType.NEWS_INGEST.value,
+                url=primary_url,
+                collected_at=now,
+                confidence=0.8,
+            ),
+            meta=DocumentMeta(
+                title=f"新闻采集: {query}",
+                description=description,
+                tags=["news_ingest", "pending"],
+                language="zh",
+                classification="SIM",
+            ),
+            # 六字段为空 — 下游 HE 负责结构化抽取
+            entities=[],
+            relations=[],
+            events=[],
+            actions=[],
+            rules=[],
+            constraints=[],
+            ontology_version=VersionRef(
+                commit_message=f"新闻采集（待 HE 抽取）: {query}",
+            ),
+            # pending 态 — 标识待下游 HE 消费
+            transformation_status="pending",
+            # Iter 3.1: 原始数据引用（MinIO 或本地降级地址）
+            raw_data_ref=raw_data_ref,
+        )
+
+    def _upload_raw_data(
+        self,
+        workspace_id: str,
+        doc_id: str,
+        text: str,
+        source_type: str = "news_ingest",
+    ) -> Optional[str]:
+        """Iter 3.1: 上传原始文本到 MinIO，返回 raw_data_ref。
+
+        失败时降级到本地磁盘，保证 raw_data_ref 始终可用。
+        """
+        try:
+            from odap.infra.storage.raw_data_storage import get_raw_data_storage
+            storage = get_raw_data_storage()
+            result = storage.upload_raw(
+                workspace_id=workspace_id,
+                doc_id=doc_id,
+                text=text,
+                source_type=source_type,
+            )
+            if result.get("status") == "success":
+                ref = result.get("raw_data_ref")
+                logger.info(
+                    "原始数据已持久化: doc=%s ref=%s mode=%s",
+                    doc_id, ref, result.get("storage_mode"),
+                )
+                return ref
+            else:
+                logger.warning("原始数据上传失败: %s", result.get("message"))
+                return None
+        except Exception as exc:
+            logger.warning("原始数据上传异常（不影响采集）: %s", exc)
+            return None
 
     async def _search(self, query: str, max_results: int) -> List[Dict[str, Any]]:
-        """执行联网检索（本地 DuckDuckGo API → Tavily → SerpAPI → DuckDuckGo HTML → Mock）"""
+        """执行联网检索（本地 DuckDuckGo API → Tavily → SerpAPI → DuckDuckGo HTML → 空结果）"""
         # 本地 DuckDuckGo API（首选）
         if self._ddg_api_url:
             try:
@@ -181,8 +333,8 @@ class NewsIngester:
         except Exception as e:
             logger.warning(f"DuckDuckGo 检索失败: {e}")
 
-        # 降级 Mock
-        logger.info("使用 Mock 检索结果")
+        # 所有检索源均失败，返回空列表（调用方产出空 pending 态文档）
+        logger.info("所有检索源均无结果")
         return []
 
     async def _search_ddg_local(self, query: str, max_results: int) -> List[Dict[str, Any]]:
@@ -351,66 +503,3 @@ class NewsIngester:
             url = r.get("url", "")
             parts.append(f"[来源{i}] {title}\nURL: {url}\n{content[:1000]}")
         return "\n\n---\n\n".join(parts)
-
-    async def _extract_with_llm(
-        self, text: str, context: str, urls: List[str]
-    ) -> List[Dict[str, Any]]:
-        """使用 LLM 将文本抽取为 OntologyDocument JSON"""
-        now = datetime.now(timezone.utc).isoformat()
-        date_str = datetime.now().strftime("%Y%m%d")
-        url_str = urls[0] if urls else ""
-
-        prompt = ONTOLOGY_EXTRACT_PROMPT.format(
-            context=context or "领域事件分析",
-            text=text,
-            date=date_str,
-            url=url_str,
-            timestamp=now,
-        )
-
-        try:
-            if hasattr(self.llm, 'complete'):
-                response = await self.llm.complete(prompt)
-            elif hasattr(self.llm, 'chat'):
-                response = await self.llm.chat([{"role": "user", "content": prompt}])
-            else:
-                return []
-
-            return self._parse_json_response(response)
-        except Exception as e:
-            logger.error(f"LLM 抽取失败: {e}")
-            return []
-
-    def _parse_json_response(self, response: str) -> List[Dict[str, Any]]:
-        """解析 LLM 响应中的 JSON"""
-        text = response.strip()
-        if "```json" in text:
-            text = text.split("```json")[1].split("```")[0].strip()
-        elif "```" in text:
-            text = text.split("```")[1].split("```")[0].strip()
-
-        try:
-            parsed = json.loads(text)
-            if isinstance(parsed, list):
-                return parsed
-            elif isinstance(parsed, dict):
-                return [parsed]
-        except Exception as e:
-            logger.debug("JSON parse fallback: %s", e)
-        return []
-
-    def _generate_mock_news_docs(self, query: str, context: str) -> List[OntologyDocument]:
-        """生成 Mock 新闻文档（无 API 时的降级）"""
-        doc = make_conflict_event_document(
-            title=f"新闻采集: {query}",
-            party_a_unit="甲方单位",
-            party_b_unit="乙方单位",
-            location="交汇区域",
-            event_type="contact",
-            source_type=SourceType.NEWS_INGEST.value,
-        )
-        doc.source.url = f"https://mock-news.local/search?q={query}"
-        doc.source.confidence = 0.3
-        doc.meta.description = f"[MOCK-DATA] 基于检索词 '{query}' 生成的 Mock 数据（{context or '无背景'}）"
-        logger.info(f"生成 Mock 新闻文档: {doc.doc_id}")
-        return [doc]

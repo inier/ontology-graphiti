@@ -7,7 +7,7 @@ logger = logging.getLogger("dual_channel_writer")
 
 class DualChannelWriter:
     """双通道写入器：Channel A 通过 GraphWriteProxy 写结构化实体/关系，
-    Channel B 通过 GraphManager.add_episode 写自然语言 Episode。
+    Channel B 通过 GraphManager.save_audit_episode 写审计 Episode（零 LLM，ADR-074）。
 
     Channel B 失败不影响 Channel A 结果。
     """
@@ -117,23 +117,26 @@ class DualChannelWriter:
                     result.get("message", "unknown"),
                 )
 
-        # ---- Channel B: Episode 写入 ----
+        # ---- Channel B: 审计 Episode 写入（零 LLM，ADR-074）----
         try:
-            episode_body = self._build_episode_text(doc)
-            if episode_body:
-                gm = self.graph_manager
-                if gm is not None:
-                    await gm.add_episode(
-                        name="hyper-extract",
-                        content=episode_body,
-                        source_description="hyper-extract",
-                        reference_time=valid_time,
-                    )
-                    logger.info("Channel B add_episode 成功")
+            audit_event = self._build_audit_event(
+                doc, entities_written, relations_written, valid_time, workspace_id
+            )
+            gm = self.graph_manager
+            if gm is not None:
+                success = await gm.save_audit_episode(
+                    audit_data=audit_event,
+                    valid_at=valid_time,
+                    source_description="hyper-extract",
+                )
+                if success:
+                    logger.info("Channel B 审计 Episode 保存成功（零 LLM）")
                 else:
-                    logger.warning("Channel B 跳过: GraphManager 不可用")
+                    logger.warning("Channel B 审计 Episode 保存失败")
+            else:
+                logger.warning("Channel B 跳过: GraphManager 不可用")
         except Exception as exc:
-            logger.warning("Channel B add_episode 失败（不影响 Channel A）: %s", exc)
+            logger.warning("Channel B 审计写入失败（不影响 Channel A）: %s", exc)
 
         return {
             "status": "ok",
@@ -142,26 +145,28 @@ class DualChannelWriter:
             "valid_time": valid_time_iso,
         }
 
-    def _build_episode_text(self, doc: Dict[str, Any]) -> str:
-        """从抽取结果构建结构化摘要文本，供 Graphiti add_episode 使用。"""
-        parts: list = []
+    def _build_audit_event(
+        self,
+        doc: Dict[str, Any],
+        entities_written: int,
+        relations_written: int,
+        valid_time: Optional[datetime],
+        workspace_id: str,
+    ) -> Dict[str, Any]:
+        """构建审计事件数据（ADR-074，替代 _build_episode_text）。
 
-        for ent in doc.get("entities") or []:
-            name = ent.get("name", "")
-            entity_type = ent.get("entity_type", "")
-            description = ent.get("description", "") or ent.get("basic_properties", {}).get("description", "")
-            line = f"实体: {name} 是一个 {entity_type}。"
-            if description:
-                line += description
-            parts.append(line)
-
-        for rel in doc.get("relations") or []:
-            source = rel.get("source", "")
-            target = rel.get("target", "")
-            relation_type = rel.get("relation_type", "")
-            parts.append(f"{source} 与 {target} 之间存在 {relation_type} 关系。")
-
-        return "\n".join(parts)
+        产出结构化审计事件，由 Graphiti EpisodicNode.save 零 LLM 保存。
+        """
+        return {
+            "event_type": "extraction_completed",
+            "workspace_id": workspace_id,
+            "entities_total": len(doc.get("entities") or []),
+            "relations_total": len(doc.get("relations") or []),
+            "entities_written": entities_written,
+            "relations_written": relations_written,
+            "valid_time": valid_time.isoformat() if valid_time else None,
+            "recorded_at": datetime.now().isoformat(),
+        }
 
     def _extract_valid_time(self, doc: Dict[str, Any]) -> Optional[datetime]:
         """从 doc 的 events 中提取有效时间，找不到则返回 None。"""

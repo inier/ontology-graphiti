@@ -1,5 +1,24 @@
 """
 
+[DEPRECATED] 此文件为拆分前的旧合并文件，已废弃（ADR-074 §1.3）。
+
+请改用 ingestion_split/ 子模块下的独立文件：
+  - news_ingester.py        — NewsIngester（纯采集模式，不再做 LLM 抽取）
+  - manual_input.py         — ManualInputHandler
+  - conflict_generator.py   — ConflictEventGenerator
+  - business_generator.py   — BusinessEventGenerator
+  - tech_generator.py       — TechEventGenerator
+  - health_generator.py     — HealthEventGenerator
+  - generator_factory.py    — RandomEventGeneratorFactory
+  - document_io.py          — OntologyDocumentIO
+  - web_scraper.py          — WebScraper
+  - free_news_ingester.py   — FreeNewsIngester
+
+注意：NewsIngester.ingest() 已改为纯采集模式（ADR-074 §1.3），
+不再调用 _extract_with_llm，产出 pending 态 OntologyDocument。
+
+======================================================================
+
 数据采集层 - 数据摄取与归纳模块
 
 实现 ADR-031 L2: Data Ingestion & Normalization
