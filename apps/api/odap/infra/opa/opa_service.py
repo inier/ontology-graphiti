@@ -186,8 +186,9 @@ class ABACPolicyEvaluator:
                 result="allow" if result.get("allow") else "deny",
                 reason=result.get("reason", ""),
             )
-        except Exception:
-            pass  # 审计写入失败不应阻断业务
+        except Exception as e:
+            # P1-02: 不再静默 pass，记录 warning 以便可观测
+            logger.warning(f"OPA 审计写入失败（不阻断业务）: {e}")
 
     def _init_policy_rules(self) -> Dict[str, Any]:
         """初始化 ABAC 策略规则"""
@@ -478,8 +479,9 @@ class OPAClient:
                 result="allow" if allowed else "deny",
                 reason=reason or ("Permission granted" if allowed else "Permission denied"),
             )
-        except Exception:
-            pass  # 审计写入失败不应阻断业务
+        except Exception as e:
+            # P1-02: 不再静默 pass，记录 warning 以便可观测
+            logger.warning(f"OPA 审计写入失败（不阻断业务）: {e}")
 
     def check_permission(self, user_role: str, action: str, resource: Dict) -> bool:
         with opa_span("check_permission", package="domain",
@@ -538,8 +540,18 @@ class OPAClient:
                 timeout=self.timeout,
             )
             response.raise_for_status()
-            return response.json().get("result", {"allow": False})
+            result = response.json().get("result", {"allow": False})
+            # P1-01: 补全 ABAC 决策审计
+            self._audit_decision(
+                user.get("id", "unknown"), action, resource,
+                result.get("allow", False), result.get("reason", "")
+            )
+            return result
         except Exception as e:
+            # P1-01: 失败路径也写审计
+            self._audit_decision(
+                user.get("id", "unknown"), action, resource, False, str(e)
+            )
             raise RuntimeError(f"ABAC 权限检查失败: {e}")
 
     def check_permissions_batch(self, requests: List[Dict]) -> List[Dict]:
@@ -679,6 +691,11 @@ class OPAManager:
             except Exception as e:
                 logger.info(f'OPA 策略加载失败: {e}')
 
+    def _audit_decision(self, subject: str, action: str, resource,
+                        allowed: bool, reason: str = ""):
+        """P1-01: OPAManager 统一审计入口，委托给 OPAClient._audit_decision"""
+        self.opa_client._audit_decision(subject, action, resource, allowed, reason)
+
     def _generate_cache_key(self, request: Dict) -> str:
         key_data = {
             "user_id": request.get("user_id"),
@@ -717,16 +734,23 @@ class OPAManager:
         self.policy_cache[key] = entry
 
     def check_permission(self, user_role: str, action: str, resource: Dict) -> bool:
+        from odap.infra.opa.metrics import record_decision
+        _start = time.monotonic()
         request = {"user_role": user_role, "action": action, "resource": resource}
         cache_key = self._generate_cache_key({"user_roles": [user_role], **request})
 
         cached = self._get_from_cache(cache_key)
         if cached is not None:
+            # P1-01: 缓存命中也写审计
+            self._audit_decision(user_role, action, resource,
+                                 cached.get("allow", False), "cache_hit=True")
             return cached.get("allow", False)
 
         if self.use_mock:
             logger.debug("Using mock OPA for permission check")
             result = self._mock_check_permission(user_role, action, resource)
+            # P1-01: mock 路径补审计
+            self._audit_decision(user_role, action, resource, result, "mock_mode")
         else:
             try:
                 result = self.opa_client.check_permission(user_role, action, resource)
@@ -739,14 +763,17 @@ class OPAManager:
                         f"OPA 异常: {e}，fallback 到 Mock (fail_mode=mock, dev/test only)"
                     )
                     result = self._mock_check_permission(user_role, action, resource)
+                    self._audit_decision(user_role, action, resource, result, f"mock_fallback: {e}")
                 else:
                     logger.error(
                         f"OPA 不可用: {e}. 拒绝 {user_role} 对 {resource} 的 {action} 权限 (fail-close)."
                     )
                     result = False  # FAIL-CLOSE
+                    self._audit_decision(user_role, action, resource, False, f"fail_close: {e}")
 
         self._add_to_cache(cache_key, {"allow": result})
         self._record_history(user_role, action, resource, result)
+        record_decision(result, (time.monotonic() - _start) * 1000, "domain.rbac", "check_permission")
         return result
 
     def check_package_permission(self, package: str, opa_input: Dict) -> bool:
@@ -763,6 +790,13 @@ class OPAManager:
 
         cached = self._get_from_cache(cache_key)
         if cached is not None:
+            # P1-01: 缓存命中也写审计
+            self._audit_decision(
+                opa_input.get("role", "unknown"),
+                opa_input.get("action", package),
+                {"package": package},
+                cached.get("allow", False), "cache_hit=True"
+            )
             return cached.get("allow", False)
 
         if self.use_mock:
@@ -770,6 +804,7 @@ class OPAManager:
             role = opa_input.get("role", "guest")
             action = opa_input.get("action", "")
             result = self._mock_check_permission(role, action, {})
+            self._audit_decision(role, action, {"package": package}, result, "mock_mode")
         else:
             try:
                 result = self.opa_client.check_package_permission(package, opa_input)
@@ -779,15 +814,23 @@ class OPAManager:
                     role = opa_input.get("role", "guest")
                     action = opa_input.get("action", "")
                     result = self._mock_check_permission(role, action, {})
+                    self._audit_decision(role, action, {"package": package}, result, f"mock_fallback: {e}")
                 else:
                     logger.error(f"OPA 包级检查不可用: {e}. 拒绝 {package} 权限 (fail-close).")
                     result = False  # FAIL-CLOSE
+                    self._audit_decision(
+                        opa_input.get("role", "unknown"),
+                        opa_input.get("action", package),
+                        {"package": package}, False, f"fail_close: {e}"
+                    )
 
         self._add_to_cache(cache_key, {"allow": result})
         return result
 
     def check_permission_abac(self, user: Dict, action: str, resource: Dict,
                              environment: Dict = None) -> Dict[str, Any]:
+        from odap.infra.opa.metrics import record_decision
+        _start = time.monotonic()
         request = {"user": user, "action": action, "resource": resource}
         cache_key = self._generate_cache_key({
             "user_id": user.get("id"),
@@ -797,10 +840,20 @@ class OPAManager:
 
         cached = self._get_from_cache(cache_key)
         if cached is not None:
+            # P1-01: 缓存命中也写审计
+            self._audit_decision(
+                user.get("id", "unknown"), action, resource,
+                cached.get("allow", False), "cache_hit=True"
+            )
             return cached
 
         if self.use_mock:
             result = self.abac_evaluator.evaluate(user, action, resource, environment)
+            # P1-01: mock 路径补审计
+            self._audit_decision(
+                user.get("id", "unknown"), action, resource,
+                result.get("allow", False), f"mock_mode: {result.get('reason', '')}"
+            )
         else:
             try:
                 result = self.opa_client.check_permission_abac(user, action, resource, environment)
@@ -811,6 +864,10 @@ class OPAManager:
                         f"OPA ABAC 异常: {e}，fallback 到本地评估 (fail_mode=mock, dev/test only)"
                     )
                     result = self.abac_evaluator.evaluate(user, action, resource, environment)
+                    self._audit_decision(
+                        user.get("id", "unknown"), action, resource,
+                        result.get("allow", False), f"mock_fallback: {e}"
+                    )
                 else:
                     logger.error(
                         f"OPA ABAC 不可用: {e}. 拒绝用户 {user.get('id')} 对 {resource} 的 {action} 权限 (fail-close)."
@@ -820,9 +877,13 @@ class OPAManager:
                         "reason": "OPA unavailable, fail-close",
                         "error": str(e),
                     }
+                    self._audit_decision(
+                        user.get("id", "unknown"), action, resource, False, f"fail_close: {e}"
+                    )
 
         self._add_to_cache(cache_key, result)
         self._record_history(user.get("id", "unknown"), action, resource, result.get("allow"))
+        record_decision(result.get("allow", False), (time.monotonic() - _start) * 1000, "domain.abac", result.get("reason", ""))
         return result
 
     def check_permissions_batch(self, requests: List[Dict]) -> List[Dict]:
@@ -1128,6 +1189,35 @@ class ABACService:
         resource: Dict[str, Any],
         env: Dict[str, Any] = None,
     ) -> Dict[str, Any]:
+        """ABAC 权限检查入口 — P1-01: 统一审计出口"""
+        result = self._evaluate_abac(subject, action, resource, env)
+        # P1-01: 所有路径统一写审计
+        self._audit_abac_decision(subject, action, resource, result)
+        return result
+
+    def _audit_abac_decision(self, subject, action, resource, result):
+        """审计 ABAC 决策结果"""
+        try:
+            from odap.infra.security.unified_audit import audit_opa_decision
+            audit_opa_decision(
+                subject=subject.get("user_id", "unknown"),
+                action=action.get("type", str(action)),
+                resource=resource.get("type", str(resource)),
+                result="allow" if result.get("allow") else "deny",
+                reason=result.get("reason", ""),
+                policy_version=result.get("policy_version", ""),
+            )
+        except Exception as e:
+            logger.warning(f"ABAC 审计写入失败（不阻断业务）: {e}")
+
+    def _evaluate_abac(
+        self,
+        subject: Dict[str, Any],
+        action: Dict[str, Any],
+        resource: Dict[str, Any],
+        env: Dict[str, Any] = None,
+    ) -> Dict[str, Any]:
+        """ABAC 评估内部实现"""
         user_id = subject.get("user_id", "")
         roles = subject.get("roles", [])
         clearance_level = subject.get("clearance_level", "public")

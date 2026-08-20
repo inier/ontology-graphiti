@@ -27,13 +27,16 @@ router = APIRouter(prefix="/api/auth", tags=["auth"])
 
 auth_service = AuthService()
 
-GLOBAL_ROLE_TO_ID = {
-    "admin": "1",
-    "commander": "2",
-    "analyst": "3",
-    "operator": "4",
-    "observer": "5",
-}
+# 用户 role_id 直接复用 global_role 字符串（一致性约定）：
+# menu_config 的 role_menus 与侧边栏 tree 接口均以 JWT payload["role"]
+# （global_role 字符串）为键，历史数字 id（"1".."5"）与全局角色 ID 永不
+# 相交是各界面角色对不上的根因。此处改为恒等映射，消除两套 ID。
+GLOBAL_ROLE_TO_ID: dict = {role.value: role.value for role in GlobalRole}
+
+
+def _role_id(global_role: str) -> str:
+    """将 global_role 映射为用户 role_id（恒等映射，未知值回落自身/observer）。"""
+    return GLOBAL_ROLE_TO_ID.get(global_role) or global_role or "observer"
 
 
 class RefreshRequest(BaseModel):
@@ -86,7 +89,7 @@ async def login(request: LoginRequest, req: Request):
             "id": user_data.get("id", ""),
             "username": user_data.get("username", ""),
             "global_role": global_role,
-            "role_id": GLOBAL_ROLE_TO_ID.get(global_role, "5"),
+            "role_id": _role_id(global_role),
         },
     }
 
@@ -183,7 +186,7 @@ async def me(user: dict = Depends(get_current_user)):
         "id": user.get("sub", ""),
         "username": user.get("name", user.get("sub", "")),
         "global_role": global_role,
-        "role_id": GLOBAL_ROLE_TO_ID.get(global_role, "5"),
+        "role_id": _role_id(global_role),
         "ws_id": user.get("ws_id", ""),
         "ws_role": user.get("ws_role", ""),
     }
@@ -193,7 +196,7 @@ async def me(user: dict = Depends(get_current_user)):
 async def list_users(admin: dict = Depends(verify_admin)):
     users = auth_service.list_users()
     for u in users:
-        u["role_id"] = GLOBAL_ROLE_TO_ID.get(u.get("global_role", ""), "5")
+        u["role_id"] = _role_id(u.get("global_role", ""))
     return {"users": users, "total": len(users)}
 
 
@@ -224,7 +227,7 @@ async def create_user(request: CreateUserRequest, admin: dict = Depends(verify_a
         "username": user.username,
         "email": user.email,
         "global_role": user.global_role.value,
-        "role_id": GLOBAL_ROLE_TO_ID.get(user.global_role.value, "5"),
+        "role_id": _role_id(user.global_role.value),
     }
 
 
@@ -254,7 +257,7 @@ async def update_user(user_id: str, request: UpdateUserRequest, admin: dict = De
            {"target_user_id": user_id,
             "changes": {"email": request.email, "global_role": request.global_role,
                         "is_active": request.is_active, "password_changed": request.password is not None}})
-    result["role_id"] = GLOBAL_ROLE_TO_ID.get(result.get("global_role", ""), "5")
+    result["role_id"] = _role_id(result.get("global_role", ""))
     return result
 
 

@@ -610,6 +610,12 @@ class AuditRetentionManager:
         if not index:
             return []
 
+        # 规范化输入时间为 UTC-aware，避免 naive vs aware 比较异常
+        if start_time.tzinfo is None:
+            start_time = start_time.replace(tzinfo=timezone.utc)
+        if end_time.tzinfo is None:
+            end_time = end_time.replace(tzinfo=timezone.utc)
+
         results: List[Dict[str, Any]] = []
         for entry in index:
             events = self._download_archive(entry)

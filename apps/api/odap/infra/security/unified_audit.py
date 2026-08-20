@@ -373,6 +373,11 @@ def log_audit(action: str, resource: str = None, user: str = None,
 
     severity_enum = AuditSeverity(severity)
 
+    # 白皮书 §5: 日志脱敏 — 写入前对敏感凭证脱敏
+    from odap.infra.security.audit_sanitizer import sanitize_audit_data
+    safe_details = sanitize_audit_data(details or {})
+    safe_context = sanitize_audit_data(details or {})
+
     event = AuditEvent(
         id=str(uuid.uuid4()),
         timestamp=utc_now(),
@@ -390,13 +395,13 @@ def log_audit(action: str, resource: str = None, user: str = None,
             "resource_type": "resource",
             "resource_id": resource or "unknown",
             "resource_name": resource or "Unknown",
-            "attributes": details or {}
+            "attributes": safe_details
         },
         result={
             "status": result_status,
             "message": result_message or ("Audit logged" if result_status == "success" else result_status),
         },
-        context=details or {},
+        context=safe_context,
         workspace_id=workspace_id,
         trace_id=get_current_trace_id() or str(uuid.uuid4()),
         parent_event_id=get_current_span_id() or None,
@@ -427,6 +432,17 @@ def audit_opa_decision(
     service: str = "opa",
     workspace_id: str = "default",
 ) -> None:
+    # 白皮书 §5: 日志脱敏 — OPA 决策审计也需脱敏
+    from odap.infra.security.audit_sanitizer import sanitize_audit_data
+    safe_context = sanitize_audit_data({
+        "subject": subject,
+        "action": action,
+        "resource": resource,
+        "result": result,
+        "reason": reason,
+        "policy_version": policy_version,
+    })
+
     event = AuditEvent(
         id=str(uuid.uuid4()),
         timestamp=utc_now(),
@@ -454,14 +470,7 @@ def audit_opa_decision(
             "status": result,
             "message": reason,
         },
-        context={
-            "subject": subject,
-            "action": action,
-            "resource": resource,
-            "result": result,
-            "reason": reason,
-            "policy_version": policy_version,
-        },
+        context=safe_context,
         workspace_id=workspace_id,
         trace_id=str(uuid.uuid4()),
         parent_event_id=None,

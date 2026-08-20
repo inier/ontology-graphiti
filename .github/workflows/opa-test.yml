@@ -1,0 +1,46 @@
+# 白皮书 §6: CI/CD 集成 — opa test 集成至 CI 流水线，实现安全左移
+name: OPA Policy Tests
+
+on:
+  push:
+    paths:
+      - 'apps/api/odap/infra/opa/policies/**'
+      - 'apps/api/odap/infra/opa/**/*.rego'
+      - '.github/workflows/opa-test.yml'
+  pull_request:
+    paths:
+      - 'apps/api/odap/infra/opa/policies/**'
+      - 'apps/api/odap/infra/opa/**/*.rego'
+
+jobs:
+  opa-test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install OPA
+        run: |
+          curl -L -o opa https://openpolicyagent.org/downloads/v0.61.0/opa_linux_amd64_static
+          chmod +x opa
+          sudo mv opa /usr/local/bin/
+
+      - name: Lint Rego policies (fmt check)
+        run: |
+          opa fmt --diff apps/api/odap/infra/opa/policies/
+          opa fmt --fail apps/api/odap/infra/opa/policies/
+
+      - name: Run OPA tests
+        run: |
+          for rego in apps/api/odap/infra/opa/policies/*.rego; do
+            echo "Checking: $rego"
+            opa check "$rego"
+          done
+
+          if find apps/api/odap/infra/opa/policies/ -name '*_test.rego' | grep -q .; then
+            opa test apps/api/odap/infra/opa/policies/ -v
+          fi
+
+      - name: Validate main policies
+        run: |
+          opa check apps/api/odap/infra/opa/opa_policy.rego
+          opa check apps/api/odap/infra/opa/policies/abac_policy.rego

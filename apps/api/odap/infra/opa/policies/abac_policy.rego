@@ -14,6 +14,7 @@ allow if {
     workspace_isolated
     action_permitted
     environment_ok
+    high_privilege_check
 }
 
 clearance_order := {
@@ -68,6 +69,23 @@ within_working_hours if {
     input.environment.time_of_day <= "18:00"
 }
 
+# 白皮书 §2.2: 高敏操作强制要求会话时长 > 5 分钟（防范 Prompt 注入秒级攻击）
+high_privilege_actions := {
+    "refund", "send_email", "delete_user", "transfer_money",
+    "approve_mission", "authorize_engagements",
+}
+
+# 非高敏操作：直接通过
+high_privilege_check if {
+    not input.action.type in high_privilege_actions
+}
+
+# 高敏操作：要求会话时长 >= 300 秒
+high_privilege_check if {
+    input.action.type in high_privilege_actions
+    input.environment.session_duration_seconds >= 300
+}
+
 deny_reasons := [reason |
     reason := "insufficient_clearance"
     not clearance_sufficient
@@ -80,4 +98,9 @@ deny if {
 deny if {
     input.environment.isolation_level == "strict"
     input.subject.workspace_id != input.resource.workspace_id
+}
+
+deny if {
+    input.action.type in high_privilege_actions
+    input.environment.session_duration_seconds < 300
 }

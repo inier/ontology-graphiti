@@ -24,9 +24,9 @@
 """
 
 import logging
-from typing import Optional
+from typing import Any, Dict, Optional
 
-from fastapi import HTTPException, status
+from fastapi import Depends, HTTPException, status
 
 logger = logging.getLogger(__name__)
 
@@ -146,3 +146,28 @@ def assert_resource_owner(
             status_code=status.HTTP_403_FORBIDDEN,
             detail="无权访问该资源",
         )
+
+
+from odap.infra.security.jwt_auth import get_current_user  # noqa: E402
+
+
+async def get_current_workspace(user: Dict[str, Any] = Depends(get_current_user)) -> str:
+    """FastAPI 依赖：从 JWT 声明解析工作空间（ADR-076 §7）。
+
+    与 assert_workspace_access 的差异：不做 user_id 兜底——决策智能数据必须归属
+    明确的工作空间，缺失或为空 → 422（fail-closed，ADR-076 非空拒绝决议）。
+
+    - 解析顺序：payload["workspace_id"] → payload["ws_id"]
+    """
+    if not isinstance(user, dict):
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Invalid authentication context",
+        )
+    workspace_id = user.get("workspace_id") or user.get("ws_id") or ""
+    if not workspace_id:
+        raise HTTPException(
+            status_code=422,
+            detail="JWT 缺少 workspace 声明（workspace_id/ws_id）",
+        )
+    return workspace_id
