@@ -1,6 +1,6 @@
 import { fetchJson } from '@/modules/shared/services/apiClient';
 import { API_BASE } from '@/config';
-import type { PagedResponse } from '../types';
+import type { PagedResponse, CandidateStatus } from '../types';
 
 export interface QualityReport {
   id: string;
@@ -28,22 +28,12 @@ export interface Candidate {
   source_text?: string;
   origin?: string;
   provenance: Record<string, unknown>;
-  status:
-    | 'new'
-    | 'gated'
-    | 'approved'
-    | 'rejected'
-    | 'written'
-    | 'auditor_approved'
-    | 'admin_pending'
-    | 'written_back'
-    | 'stoplisted';
+  /** 统一状态机（权威大写枚举，见 ../types 的 CandidateStatus） */
+  status: CandidateStatus;
   created_at: string;
   updated_at: string;
   quality_report?: QualityReport;
 }
-
-export type CandidateStatus = Candidate['status'];
 
 export interface PipelineRunStats {
   L1_tokens?: number;

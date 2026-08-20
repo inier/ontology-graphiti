@@ -21,37 +21,37 @@ import type { TFunction } from 'i18next';
 const mockT = ((key: string) => key) as unknown as TFunction;
 
 describe('constants: semantic-admin 顶层 Tab & 路径映射', () => {
-  it('TOP_TAB_TO_PATH: 必须包含 6 个顶级 Tab（含 approvals）', () => {
+  it('TOP_TAB_TO_PATH: 必须包含 7 个顶级 Tab（含 assets 与 approvals）', () => {
     const keys = Object.keys(TOP_TAB_TO_PATH) as Array<keyof typeof TOP_TAB_TO_PATH>;
     expect(keys).toEqual(
-      expect.arrayContaining(['usl', 'pipeline', 'candidates', 'quality', 'dashboard', 'approvals']),
+      expect.arrayContaining(['assets', 'usl', 'pipeline', 'candidates', 'quality', 'dashboard', 'approvals']),
     );
-    expect(keys).toHaveLength(6);
+    expect(keys).toHaveLength(7);
   });
 
   it('PATH_TO_TOP_TAB: 必须与 TOP_TAB_TO_PATH 互为逆映射', () => {
     for (const [tab, path] of Object.entries(TOP_TAB_TO_PATH)) {
       expect(PATH_TO_TOP_TAB[path]).toBe(tab);
     }
-    expect(Object.keys(PATH_TO_TOP_TAB)).toHaveLength(6);
+    expect(Object.keys(PATH_TO_TOP_TAB)).toHaveLength(7);
   });
 
-  it('SEMANTIC_ADMIN_TAB_ITEMS_KEYS: 6 个 key，与 TOP_TAB_TO_PATH 对齐', () => {
-    expect(SEMANTIC_ADMIN_TAB_ITEMS_KEYS).toHaveLength(6);
+  it('SEMANTIC_ADMIN_TAB_ITEMS_KEYS: 7 个 key，与 TOP_TAB_TO_PATH 对齐', () => {
+    expect(SEMANTIC_ADMIN_TAB_ITEMS_KEYS).toHaveLength(7);
     expect(SEMANTIC_ADMIN_TAB_ITEMS_KEYS).toEqual(
       expect.arrayContaining([
-        'usl', 'pipeline', 'candidates', 'quality', 'dashboard', 'approvals',
+        'assets', 'usl', 'pipeline', 'candidates', 'quality', 'dashboard', 'approvals',
       ]),
     );
   });
 
-  it('getSemanticAdminTabItems(t): 6 个条目，keys 与 TOP_TAB_TO_PATH 对齐', () => {
+  it('getSemanticAdminTabItems(t): 7 个条目，keys 与 TOP_TAB_TO_PATH 对齐', () => {
     const items = getSemanticAdminTabItems(mockT);
-    expect(items).toHaveLength(6);
+    expect(items).toHaveLength(7);
     const actualKeys = items.map((it) => it!.key);
     expect(actualKeys).toEqual(
       expect.arrayContaining([
-        'usl', 'pipeline', 'candidates', 'quality', 'dashboard', 'approvals',
+        'assets', 'usl', 'pipeline', 'candidates', 'quality', 'dashboard', 'approvals',
       ]),
     );
   });
@@ -59,9 +59,10 @@ describe('constants: semantic-admin 顶层 Tab & 路径映射', () => {
   it('getSemanticAdminTabItems(t): label 走 i18n（调用 t 函数）', () => {
     const spyT = vi.fn((key: string) => key) as unknown as TFunction;
     const items = getSemanticAdminTabItems(spyT);
-    // 6 个 Tab label 均应调用 t
-    expect(spyT).toHaveBeenCalledTimes(6);
-    // 至少调用了 'USL 规范配置' 和 '审批工作台'
+    // 7 个 Tab label 均应调用 t
+    expect(spyT).toHaveBeenCalledTimes(7);
+    // 至少调用了 '语义资产 Pipeline'、'USL 规范配置' 和 '审批工作台'
+    expect(spyT).toHaveBeenCalledWith('语义资产 Pipeline');
     expect(spyT).toHaveBeenCalledWith('USL 规范配置');
     expect(spyT).toHaveBeenCalledWith('审批工作台');
     // items 不为空

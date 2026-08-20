@@ -14,11 +14,13 @@ import {
   BarChartOutlined,
   DashboardOutlined,
   AuditOutlined,
+  CloudSyncOutlined,
 } from '@ant-design/icons';
 import type { AdminTopTab } from './store/useSemanticAdminStore';
 import React from 'react';
 
 export const TOP_TAB_TO_PATH: Record<AdminTopTab, string> = {
+  assets: '/semantic-admin/assets',
   usl: '/semantic-admin/usl',
   pipeline: '/semantic-admin/pipeline',
   candidates: '/semantic-admin/candidates',
@@ -28,6 +30,7 @@ export const TOP_TAB_TO_PATH: Record<AdminTopTab, string> = {
 };
 
 export const PATH_TO_TOP_TAB: Record<string, AdminTopTab> = {
+  '/semantic-admin/assets': 'assets',
   '/semantic-admin/usl': 'usl',
   '/semantic-admin/pipeline': 'pipeline',
   '/semantic-admin/candidates': 'candidates',
@@ -38,6 +41,7 @@ export const PATH_TO_TOP_TAB: Record<string, AdminTopTab> = {
 
 /** 顶层 Tab key 列表（供测试与静态校验使用，不依赖 t） */
 export const SEMANTIC_ADMIN_TAB_ITEMS_KEYS: AdminTopTab[] = [
+  'assets',
   'usl',
   'pipeline',
   'candidates',
@@ -59,6 +63,15 @@ export const SEMANTIC_ADMIN_TAB_ITEMS_KEYS: AdminTopTab[] = [
  */
 export function getSemanticAdminTabItems(t: TFunction): NonNullable<TabsProps['items']> {
   return [
+    {
+      key: 'assets',
+      label: (
+        <span>
+          <CloudSyncOutlined style={{ marginRight: 6 }} />
+          {t('语义资产 Pipeline')}
+        </span>
+      ),
+    },
     {
       key: 'usl',
       label: (

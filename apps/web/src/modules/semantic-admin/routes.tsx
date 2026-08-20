@@ -14,6 +14,7 @@ export interface SemanticAdminRouteMeta {
 
 export const semanticAdminRouteMeta: SemanticAdminRouteMeta[] = [
   { path: '/semantic-admin', component: () => null, breadcrumb: '语义管理' },
+  { path: '/semantic-admin/assets', component: () => null, breadcrumb: '语义资产 Pipeline' },
   { path: '/semantic-admin/usl', component: () => null, breadcrumb: 'USL 规范配置' },
   { path: '/semantic-admin/pipeline', component: () => null, breadcrumb: '本体学习流水线' },
   { path: '/semantic-admin/candidates', component: () => null, breadcrumb: '候选审核台' },

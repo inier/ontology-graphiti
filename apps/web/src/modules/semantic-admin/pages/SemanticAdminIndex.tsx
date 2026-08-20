@@ -52,8 +52,8 @@ export function SemanticAdminTabsContainer({ children }: SemanticAdminTabsContai
 }
 
 /**
- * /semantic-admin 根路由 → 自动跳转到 /semantic-admin/usl
+ * /semantic-admin 根路由 → 自动跳转到 /semantic-admin/assets（语义资产 Pipeline 为收敛入口）
  */
 export function SemanticAdminIndex() {
-  return <Navigate to="/semantic-admin/usl" replace />;
+  return <Navigate to="/semantic-admin/assets" replace />;
 }

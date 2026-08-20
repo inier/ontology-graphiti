@@ -22,8 +22,8 @@ import {
 import { useI18n } from '@/modules/shared/hooks/useI18n';
 
 const STATUSES: Array<Candidate['status']> = [
-  'new', 'gated', 'approved', 'rejected', 'written',
-  'auditor_approved', 'admin_pending', 'written_back', 'stoplisted',
+  'DRAFT', 'PENDING_REVIEW', 'AUDITOR_APPROVED', 'ADMIN_PENDING',
+  'APPROVED', 'REVIEWER_REJECTED', 'ADMIN_REJECTED', 'WRITTEN_BACK', 'STOPLISTED',
 ];
 
 interface ReviewFormData {

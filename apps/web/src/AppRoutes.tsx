@@ -31,6 +31,7 @@ import { SemanticMapPage } from '@/modules/ontology/pages/SemanticMapPage';
 import { AbutionGraphPage } from '@/modules/ontology/pages/AbutionGraphPage';
 import { MemoryDashboardPage } from '@/modules/simulation/pages/MemoryDashboardPage';
 import { PerceptionPage } from '@/modules/simulation/pages/PerceptionPage';
+import { DecisionIntelligencePage } from '@/modules/decision';
 import { KeepAliveOutlet } from '@/modules/shared/components/KeepAliveOutlet';
 import {
   SemanticAdminIndex,
@@ -40,6 +41,7 @@ import {
   CandidatesPage,
   PipelineRunsPage,
   DashboardPage,
+  SemanticAssetPipelinePage,
 } from '@/modules/semantic-admin';
 
 function ProtectedRoute({ children }: { children: ReactNode }) {
@@ -107,10 +109,12 @@ export function AppRoutes() {
         <Route path="/settings/channels/default" element={<ProtectedRoute><ChannelManagementPage /></ProtectedRoute>} />
         <Route path="/settings/channels/:workspaceId" element={<ProtectedRoute><ChannelManagementPage /></ProtectedRoute>} />
         <Route path="/audit" element={<ProtectedRoute><AuditLog /></ProtectedRoute>} />
+        <Route path="/decisions" element={<ProtectedRoute><DecisionIntelligencePage /></ProtectedRoute>} />
         <Route path="/admin/agents" element={<ProtectedRoute><AgentManagement /></ProtectedRoute>} />
         <Route path="/iframe-viewer" element={<ProtectedRoute><IframeViewerPage /></ProtectedRoute>} />
         <Route path="/menu-config" element={<ProtectedRoute><MenuConfigPage /></ProtectedRoute>} />
         <Route path="/semantic-admin" element={<ProtectedRoute><SemanticAdminIndex /></ProtectedRoute>} />
+        <Route path="/semantic-admin/assets" element={<ProtectedRoute><SemanticAssetPipelinePage /></ProtectedRoute>} />
         <Route path="/semantic-admin/usl" element={<ProtectedRoute><UslConfigPage /></ProtectedRoute>} />
         <Route path="/semantic-admin/pipeline" element={<ProtectedRoute><PipelineRunsPage /></ProtectedRoute>} />
         <Route path="/semantic-admin/pipeline-runs" element={<ProtectedRoute><PipelineRunsPage /></ProtectedRoute>} />

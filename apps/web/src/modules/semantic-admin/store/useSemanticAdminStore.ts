@@ -1,10 +1,17 @@
 import { create } from 'zustand';
-import type { UslDomain } from '../types';
-import type { CandidateStatus, PipelineRunStatus } from '../services/pipelineApi';
+import type { UslDomain, CandidateStatus } from '../types';
+import type { PipelineRunStatus } from '../services/pipelineApi';
 
 const DASHBOARD_TTL_MS = 5 * 60 * 1000;
 
-export type AdminTopTab = 'usl' | 'pipeline' | 'candidates' | 'quality' | 'dashboard' | 'approvals';
+export type AdminTopTab =
+  | 'assets'
+  | 'usl'
+  | 'pipeline'
+  | 'candidates'
+  | 'quality'
+  | 'dashboard'
+  | 'approvals';
 
 export type UslSubTab =
   | 'domains'

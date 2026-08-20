@@ -29,36 +29,6 @@ if TYPE_CHECKING:  # pragma: no cover
 logger = logging.getLogger(__name__)
 
 
-# 新枚举 → 旧枚举的兼容映射（service 对外层暴露旧语义）
-_STATUS_LEGACY_MAP = {
-    "DRAFT":              "new",
-    "QUALITY_GATED":      "gated",
-    "PENDING_REVIEW":     "gated",
-    "AUDITOR_APPROVED":   "auditor_approved",
-    "ADMIN_PENDING":      "admin_pending",
-    "ADMIN_APPROVED":     "approved",
-    "APPROVED":           "approved",
-    "AUDITOR_REJECTED":   "rejected",
-    "ADMIN_REJECTED":     "rejected",
-    "REJECTED":           "rejected",
-    "WRITTEN_BACK":       "written_back",
-    "STOPLISTED":         "stoplisted",
-    "ARCHIVED":           "archived",
-}
-
-
-def _translate_status_to_legacy(cand: Dict[str, Any]) -> Dict[str, Any]:
-    """把新大写枚举翻译为旧小写枚举对外暴露。"""
-    if not isinstance(cand, dict):
-        return cand
-    s = cand.get("status")
-    if isinstance(s, str) and s in _STATUS_LEGACY_MAP:
-        out = dict(cand)
-        out["status"] = _STATUS_LEGACY_MAP[s]
-        return out
-    return cand
-
-
 class CandidateService:
 
     def __init__(
@@ -80,13 +50,7 @@ class CandidateService:
     # ------------------------------------------------------------------
     def list_candidates(self, **kw) -> Dict[str, Any]:
         try:
-            result = self.storage.list_candidates(**kw)
-            if isinstance(result, dict) and isinstance(result.get("items"), list):
-                out_items = [_translate_status_to_legacy(c) for c in result["items"]]
-                out = dict(result)
-                out["items"] = out_items
-                return out
-            return result
+            return self.storage.list_candidates(**kw)
         except Exception as e:  # pragma: no cover
             return {"status": "error", "message": f"查询候选失败: {e}"}
 
@@ -98,8 +62,6 @@ class CandidateService:
             qr = self.storage.get_quality_report_by_candidate(candidate_id)
             if qr:
                 cand["quality_report"] = qr
-            # 向后兼容：把新大写枚举翻译为旧小写枚举对外暴露
-            cand = _translate_status_to_legacy(cand)
             return cand
         except Exception as e:  # pragma: no cover
             return {"status": "error", "message": f"读取候选失败: {e}"}
@@ -847,17 +809,11 @@ class CandidateService:
             )
             if isinstance(result, tuple):
                 items_raw, total = result
-                items = [
-                    _translate_status_to_legacy(c) if isinstance(c, dict) else c
-                    for c in items_raw
-                ]
+                items = [c if isinstance(c, dict) else c for c in items_raw]
                 return {"count": len(items), "total": int(total), "items": items}
             if isinstance(result, dict):
                 raw_items = list(result.get("items") or [])
-                items = [
-                    _translate_status_to_legacy(c) if isinstance(c, dict) else c
-                    for c in raw_items
-                ]
+                items = [c if isinstance(c, dict) else c for c in raw_items]
                 return {
                     "count": len(items),
                     "total": int(result.get("total") or len(items)),

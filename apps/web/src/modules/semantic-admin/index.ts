@@ -11,6 +11,7 @@ export { ApprovalsPage } from './pages/ApprovalsPage';
 export { default as CandidatesPage } from './pages/CandidatesPage';
 export { default as PipelineRunsPage } from './pages/PipelineRunsPage';
 export { default as DashboardPage } from './pages/DashboardPage';
+export { default as SemanticAssetPipelinePage } from './pages/SemanticAssetPipelinePage';
 
 export { semanticAdminRouteMeta } from './routes';
 

@@ -3,11 +3,10 @@ import { Table, Tag, Progress, Tooltip, Button, Space, Popconfirm, Descriptions 
 import type { TableProps } from 'antd';
 import { CheckOutlined, CloseOutlined, DeleteOutlined, CloudServerOutlined, PartitionOutlined } from '@ant-design/icons';
 import type { Candidate } from '../services/pipelineApi';
-import { SEMANTIC_TYPE_COLOR } from '../types';
+import { SEMANTIC_TYPE_COLOR, CANDIDATE_STATUS_COLOR, CANDIDATE_STATUS_LABEL } from '../types';
 import type { GraphitiWritebackStatus } from '../types';
 
 const TIER_COLOR: Record<string, string> = { HIGH: 'green', MEDIUM: 'blue', LOW: 'gold', VERY_LOW: 'red' };
-const STATUS_COLOR: Record<string, string> = { new: 'default', gated: 'default', approved: 'green', rejected: 'red', written: 'geekblue', auditor_approved: 'blue', admin_pending: 'orange', written_back: 'purple', stoplisted: 'black' };
 const ORIGIN_COLOR: Record<string, string> = { llm: 'geekblue', usl: 'green', hybrid: 'purple', human: 'blue' };
 const ORIGIN_LABEL: Record<string, string> = { llm: 'LLM', usl: 'USL', hybrid: '混合', human: '人工' };
 
@@ -23,8 +22,8 @@ interface CTProps {
 const sColor = (s?: string): string => !s ? 'default' : (SEMANTIC_TYPE_COLOR as Record<string, string>)[s] ?? 'default';
 const shortId = (id?: string): string => !id ? '-' : id.length > 10 ? `${id.slice(0, 6)}...${id.slice(-4)}` : id;
 const fmtDate = (s?: string): string => !s ? '-' : s.substring(0, 19).replace('T', ' ');
-const canL1 = (s: string) => ['new', 'gated', 'audited'].includes(s);
-const canL2 = (s: string) => s === 'admin_pending';
+const canL1 = (s: string) => ['DRAFT', 'PENDING_REVIEW'].includes(s);
+const canL2 = (s: string) => s === 'ADMIN_PENDING';
 
 const renderOrigin = (r: Candidate) => {
   const o = r.origin || '';
@@ -112,7 +111,11 @@ const CandidatesTable: React.FC<CTProps> = (P) => {
     { title: 'Semantic Type', dataIndex: 'semantic_type', key: 'st', width: 120, render: (v?: string) => v ? <Tag color={sColor(v)}>{v}</Tag> : '-' },
     { title: 'Confidence', dataIndex: 'confidence', key: 'cf', width: 160, render: (v: number) => <Progress percent={Math.round(v * 100)} size="small" /> },
     { title: 'Quality Tier', key: 't', width: 110, render: (_, r) => r.quality_report?.tier ? <Tag color={TIER_COLOR[r.quality_report.tier]}>{r.quality_report.tier}</Tag> : '-' },
-    { title: 'Status', dataIndex: 'status', key: 's', width: 140, render: (v: string) => <Tag color={STATUS_COLOR[v] ?? 'default'}>{v}</Tag> },
+    { title: 'Status', dataIndex: 'status', key: 's', width: 140, render: (v: string) => (
+      <Tag color={CANDIDATE_STATUS_COLOR[v as keyof typeof CANDIDATE_STATUS_COLOR] ?? 'default'}>
+        {CANDIDATE_STATUS_LABEL[v as keyof typeof CANDIDATE_STATUS_LABEL] ?? v}
+      </Tag>
+    ) },
     { title: '来源/链', key: 'origin', width: 200, render: (_: any, r) => renderOrigin(r) },
     { title: 'USL 写回', key: 'usl_wb', width: 160, render: (_: any, r) => renderUslTag(r) },
     { title: 'Graphiti 写回', key: 'g_wb', width: 170, render: (_: any, r) => renderGraphitiTag(r) },
