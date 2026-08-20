@@ -130,9 +130,6 @@ def _make_mock_components():
     template_engine.assess.return_value = _make_assess_result()
     template_engine.select_complementary.return_value = _make_selected_templates()
 
-    validation_engine = MagicMock()
-    validation_engine.validate.return_value = _make_validation_report()
-
     ontology_mapper = MagicMock()
     ontology_mapper.merge_and_map.return_value = _make_merged_result()
 
@@ -144,7 +141,6 @@ def _make_mock_components():
     return {
         "adapter": adapter,
         "template_engine": template_engine,
-        "validation_engine": validation_engine,
         "ontology_mapper": ontology_mapper,
         "storage": store,
         "writer": writer,
@@ -289,11 +285,12 @@ class TestExtractServiceExtractFromNL:
         asyncio.run(svc.extract_from_nl("test text", "ont-1"))
         comps["ontology_mapper"].merge_and_map.assert_called_once()
 
-    def test_orchestration_calls_validate(self, service):
-        """Step 5: ValidationEngine.validate() called."""
+    def test_orchestration_validation_delegated_to_007_qg(self, service):
+        """Step 8: 校验已移交 007 QG，validation_report 为 None（版块清理 2026-08-07）。"""
         svc, comps = service
-        asyncio.run(svc.extract_from_nl("test text", "ont-1"))
-        comps["validation_engine"].validate.assert_called_once()
+        result = asyncio.run(svc.extract_from_nl("test text", "ont-1"))
+        # validation_report 应为 None（校验由 007 QG 统一执行）
+        assert result.get("validation_report") is None
 
     def test_orchestration_creates_session(self, service):
         """Session is created via storage."""
@@ -380,8 +377,8 @@ class TestExtractServiceExtractFromNL:
 # T054: ValidationEngine integration
 # ---------------------------------------------------------------------------
 
-class TestExtractServiceValidationIntegration:
-    """T054: ValidationEngine integration with ExtractService."""
+class TestExtractServiceValidationDelegation:
+    """版块清理（2026-08-07）：ValidationEngine 已移交 007 QG，验证委托行为。"""
 
     @pytest.fixture
     def service(self):
@@ -389,73 +386,24 @@ class TestExtractServiceValidationIntegration:
         comps = _make_mock_components()
         return ExtractService(**comps), comps
 
-    def test_validation_report_in_session_result_data(self, service):
-        """validation_report is written to session.result_data."""
+    def test_validation_report_is_none(self, service):
+        """validation_report 为 None（校验由 007 QG 统一执行，006 不再执行校验）。"""
         svc, comps = service
-        validation = _make_validation_report(overall_status="passed")
-        comps["validation_engine"].validate.return_value = validation
-
-        asyncio.run(svc.extract_from_nl("test text", "ont-1"))
-
-        # Check session update includes validation_report
-        update_call = comps["storage"].update_session.call_args
-        args, kwargs = update_call
-        # update_session may be called with (session_id, update_dict) or (session_id, **fields)
-        update_data = args[1] if len(args) > 1 else kwargs
-        # Look for validation_report in the update data (may be nested in result_data)
-        update_str = json.dumps(update_data, default=str)
-        assert "validation_report" in update_str or "overall_status" in update_str
-
-    def test_needs_review_gates_confirm_extraction(self, service):
-        """When validation overall_status=needs_review, confirm is gated."""
-        svc, comps = service
-        validation = _make_validation_report(
-            overall_status="needs_review", needs_review_count=2
-        )
-        comps["validation_engine"].validate.return_value = validation
-
         result = asyncio.run(svc.extract_from_nl("test text", "ont-1"))
+        assert result.get("validation_report") is None
 
-        # Result should indicate needs_review status
-        assert result.get("status") == "ok"
-        # Session status should reflect needs_review
-        update_call = comps["storage"].update_session.call_args
-        args, kwargs = update_call
-        update_data = args[1] if len(args) > 1 else kwargs
-        update_str = json.dumps(update_data, default=str)
-        assert "needs_review" in update_str or "reviewing" in update_str
-
-    def test_validation_failed_does_not_block_extraction(self, service):
-        """EC-018: Validation failure returns status=error but doesn't block."""
+    def test_no_validation_skipped_degradation_flag(self, service):
+        """不再产生 validation_skipped 降级标记（校验不在 006 执行）。"""
         svc, comps = service
-        comps["validation_engine"].validate.return_value = {
-            "status": "error",
-            "message": "validation internal error",
-            "summary": {"overall_status": "error", "needs_review_count": 0},
-        }
-
         result = asyncio.run(svc.extract_from_nl("test text", "ont-1"))
-
-        # Extraction should still succeed (validation error is non-blocking)
-        assert result.get("status") == "ok"
-        # But degradation flag should be set
-        degradation_flags = result.get("degradation_flags", [])
-        assert "validation_skipped" in degradation_flags or any(
-            "validation" in str(f) for f in degradation_flags
-        )
-
-    def test_validation_passed_allows_completion(self, service):
-        """When validation passes, session can proceed to completion."""
-        svc, comps = service
-        validation = _make_validation_report(overall_status="passed")
-        comps["validation_engine"].validate.return_value = validation
-
-        result = asyncio.run(svc.extract_from_nl("test text", "ont-1"))
-
-        assert result.get("status") == "ok"
-        # No validation-related degradation flags
         degradation_flags = result.get("degradation_flags", [])
         assert "validation_skipped" not in degradation_flags
+
+    def test_extraction_succeeds_without_validation(self, service):
+        """抽取流程正常完成，不依赖 ValidationEngine。"""
+        svc, comps = service
+        result = asyncio.run(svc.extract_from_nl("test text", "ont-1"))
+        assert result.get("status") == "ok"
 
 
 # ---------------------------------------------------------------------------

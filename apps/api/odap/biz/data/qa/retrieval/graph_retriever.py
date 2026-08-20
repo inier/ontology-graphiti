@@ -16,42 +16,58 @@ _CYPHER_DANGEROUS_KEYWORDS = re.compile(
 
 
 class CypherGenerator:
-    """NL→Cypher 生成器"""
+    """NL→Cypher 生成器（**确定性模板匹配**，无 LLM）。
+
+    本体论原则（严格）：
+    - 不生成 Cypher 文本，仅从**预定义模板** + 本体 schema（实体类型/关系类型）
+      精确匹配选择模板，再填充已提取的实体名。
+    - 模板是白名单（只读 MATCH/RETURN），无任何 LLM 生成内容。
+    """
 
     def __init__(self, llm_client=None):
-        self.llm_client = llm_client
+        # llm_client 保留以兼容旧调用方，但**不再使用**（确定性模板匹配无 LLM）。
+        self.llm_client = None
 
     def generate(self, nl_query: str, schema: Optional[Dict[str, Any]] = None) -> Optional[str]:
-        """从自然语言生成 Cypher 查询。LLM 不可用时返回 None。"""
-        if not self.llm_client:
+        """确定性生成：从模板库选择并填充实体名。无法匹配时返回 None。"""
+        entity_name = _extract_entity_name(nl_query)
+        if not entity_name:
             return None
-        try:
-            schema_desc = ""
-            if schema:
-                entity_types = schema.get("entity_types", [])
-                relation_types = schema.get("relation_types", [])
-                if entity_types:
-                    schema_desc += f"实体类型: {', '.join(entity_types[:20])}\n"
-                if relation_types:
-                    schema_desc += f"关系类型: {', '.join(relation_types[:20])}\n"
 
-            prompt = (
-                "你是一个 Cypher 查询生成器。根据用户的自然语言问题和图谱 Schema，"
-                "生成一个只读的 Cypher 查询（仅 MATCH/RETURN/WHERE/ORDER BY/LIMIT）。\n"
-                f"Schema:\n{schema_desc}\n"
-                f"问题: {nl_query}\n"
-                "Cypher (仅输出查询语句，不要解释):"
-            )
-            result = self.llm_client.generate(prompt, max_tokens=256, timeout=10)
-            if result:
-                cypher = result.strip()
-                # 清理 markdown 代码块
-                cypher = re.sub(r'^```(?:cypher)?\s*', '', cypher)
-                cypher = re.sub(r'\s*```$', '', cypher)
-                if self.validate(cypher):
-                    return cypher
-        except Exception as e:
-            logger.debug(f"Cypher generation failed: {e}")
+        # 根据查询意图选择模板（确定性规则）
+        template = self._select_template(nl_query, schema)
+        if template is None:
+            return None
+
+        # path 模板含 {target} 占位符，无法确定性填充时返回 None（不猜测）
+        if "{target}" in template:
+            return None
+
+        cypher = template.format(name=entity_name, limit=10)
+        return cypher
+
+    def _select_template(self, nl_query: str, schema: Optional[Dict[str, Any]] = None) -> Optional[str]:
+        """确定性选择模板：按查询关键词 + schema 关系类型匹配"""
+        # 路径/最短 → path 模板（含 {target}，由调用方判断是否可填充）
+        if re.search(r'路径|距离|最短|之间|从.*到', nl_query):
+            return _CYPHER_TEMPLATES.get("path")
+        # 统计/聚合 → type_count 模板（需 schema 实体类型）
+        if re.search(r'多少|统计|数量|平均|最大|最小|排序|排名', nl_query):
+            # 匹配 schema 中的实体类型（确定性，非 LLM 推断）
+            label = self._match_entity_type(nl_query, schema)
+            if label:
+                return _CYPHER_TEMPLATES["type_count"].format(label=label, limit=10)
+            return None
+        # 关系/关联 → neighbors（默认）
+        return _CYPHER_TEMPLATES.get("neighbors")
+
+    def _match_entity_type(self, nl_query: str, schema: Optional[Dict[str, Any]] = None) -> Optional[str]:
+        """从 schema 中确定性匹配实体类型名（精确子串命中，非语义匹配）"""
+        if not schema:
+            return None
+        for et in schema.get("entity_types", []):
+            if et and et in nl_query:
+                return et
         return None
 
     def validate(self, cypher: str) -> bool:
@@ -82,12 +98,14 @@ class CypherGenerator:
         return []
 
 
-# 预定义 Cypher 模板（LLM 不可用时降级）
+# 预定义 Cypher 模板（确定性白名单，仅 READ）
+# 注意：type_count 使用 {label} 占位符（由 schema 精确匹配填充），
+#       其余模板使用 {name}/{limit} 占位符（由已提取实体名填充）。
 _CYPHER_TEMPLATES = {
-    "neighbors": "MATCH (n)-[r]-(m) WHERE n.name CONTAINS $name OR n.entity_id = $id RETURN n, type(r) AS rel_type, m LIMIT $limit",
-    "path": "MATCH p=shortestPath((n)-[*..3]-(m)) WHERE n.name CONTAINS $name AND m.name CONTAINS $target RETURN p LIMIT $limit",
-    "type_count": "MATCH (n:{label}) RETURN n LIMIT $limit",
-    "all_relations": "MATCH (n)-[r]->(m) WHERE n.name CONTAINS $name RETURN n, type(r) AS rel_type, m LIMIT $limit",
+    "neighbors": "MATCH (n)-[r]-(m) WHERE n.name CONTAINS '{name}' RETURN n, type(r) AS rel_type, m LIMIT {limit}",
+    "path": "MATCH p=shortestPath((n)-[*..3]-(m)) WHERE n.name CONTAINS '{name}' AND m.name CONTAINS '{target}' RETURN p LIMIT {limit}",
+    "type_count": "MATCH (n:{label}) RETURN n LIMIT {limit}",
+    "all_relations": "MATCH (n)-[r]->(m) WHERE n.name CONTAINS '{name}' RETURN n, type(r) AS rel_type, m LIMIT {limit}",
 }
 
 
@@ -138,7 +156,7 @@ class GraphRetriever:
         try:
             if hasattr(self.graph_manager, 'get_neighbors'):
                 # 尝试从查询中提取实体名
-                entity_name = self._extract_entity_name(query)
+                entity_name = _extract_entity_name(query)
                 if entity_name:
                     raw = self.graph_manager.get_neighbors(entity_name, depth=1)
                     return self._convert_graph_results(raw, "neighbors")
@@ -150,7 +168,7 @@ class GraphRetriever:
         """图遍历"""
         try:
             if hasattr(self.graph_manager, 'traverse'):
-                entity_name = self._extract_entity_name(query)
+                entity_name = _extract_entity_name(query)
                 if entity_name:
                     raw = self.graph_manager.traverse(entity_name, max_depth=3)
                     return self._convert_graph_results(raw, "traverse")
@@ -160,11 +178,11 @@ class GraphRetriever:
 
     def _search_cypher(self, query: str, top_k: int,
                        workspace_id: str, scenario_id: Optional[str]) -> List[RetrievalResult]:
-        """Cypher 查询"""
+        """Cypher 查询（确定性模板，无 LLM 生成）"""
         schema = self._get_schema(workspace_id)
         cypher = self.cypher_generator.generate(query, schema)
         if not cypher:
-            # 降级: 使用模板
+            # 降级: 使用已填充实体名的 neighbors 模板
             cypher = self._fallback_template(query, top_k)
         if not cypher:
             return []
@@ -188,19 +206,19 @@ class GraphRetriever:
         return schema
 
     def _fallback_template(self, query: str, top_k: int) -> Optional[str]:
-        """降级 Cypher 模板"""
-        entity_name = self._extract_entity_name(query)
+        """降级 Cypher 模板（返回已填充实体名的 neighbors 模板）"""
+        entity_name = _extract_entity_name(query)
         if entity_name:
-            return _CYPHER_TEMPLATES["neighbors"]
+            return _CYPHER_TEMPLATES["neighbors"].format(name=entity_name, limit=top_k)
         return None
 
-    def _extract_entity_name(self, query: str) -> Optional[str]:
-        """从查询中提取实体名（简单规则）"""
-        # 去除常见查询前缀
-        cleaned = re.sub(r'^(查找|查询|搜索|找出|列出|显示|帮我|请|有没有|哪些)', '', query)
-        cleaned = re.sub(r'(的关联|的关系|的邻居|有关|相关|连接|相连).*$', '', cleaned)
-        cleaned = cleaned.strip()
-        return cleaned if cleaned else None
+def _extract_entity_name(query: str) -> Optional[str]:
+    """从查询中提取实体名（确定性规则，非 LLM）"""
+    # 去除常见查询前缀
+    cleaned = re.sub(r'^(查找|查询|搜索|找出|列出|显示|帮我|请|有没有|哪些)', '', query)
+    cleaned = re.sub(r'(的关联|的关系|的邻居|有关|相关|连接|相连).*$', '', cleaned)
+    cleaned = cleaned.strip()
+    return cleaned if cleaned else None
 
     def _convert_graph_results(self, raw: Any, source: str) -> List[RetrievalResult]:
         """将 GraphManager 结果转为统一格式"""

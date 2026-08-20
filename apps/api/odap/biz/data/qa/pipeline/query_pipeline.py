@@ -51,6 +51,47 @@ class QueryPipeline:
         from odap.biz.data.qa.retrieval.graph_retriever import GraphRetriever, CypherGenerator
         return GraphRetriever(graph_manager, CypherGenerator(llm_client))
 
+    def _resolve_domain_id(self, scenario_id: str) -> str:
+        """解析场景 → 领域（ADR-079 §7.3 权威解析链，三跳）。
+
+        scenario_id → scenario_ontology_bindings → ontology.domain_code → domain_id。
+        任一跳失败（无绑定 / 本体无 domain_code / 领域不存在）→ 返回空串，
+        由理解层回退为"未限定领域"（原词安全降级，不猜测）。
+        """
+        if not scenario_id:
+            return ""
+        try:
+            # 第 1 跳：场景 → 本体（关联表，binding_status='active'）
+            from odap.biz.platform.workspace.services.scenario_service import ScenarioService
+            scenario_svc = ScenarioService()
+            bindings = scenario_svc.get_scenario_ontologies(scenario_id).get("bindings", [])
+            active = [b for b in bindings if b.get("binding_status", "active") == "active"]
+            if not active:
+                active = bindings  # 无 binding_status 字段时全量视为活跃（兼容）
+
+            # 第 2 跳：本体 → domain_code（权威字段）
+            from odap.biz.core.ontology.ontology_api.services.ontology_service import OntologyService
+            ontology_svc = OntologyService()
+            for binding in active:
+                ontology_id = binding.get("ontology_id")
+                if not ontology_id:
+                    continue
+                ontology = ontology_svc.get_ontology(ontology_id)
+                domain_code = (ontology or {}).get("domain_code")
+                if domain_code:
+                    # 第 3 跳：domain_code → domain_id
+                    from odap.biz.semantic_admin.usl_manager.services.usl_manager_service import (
+                        UslManagerService,
+                    )
+                    usl_svc = UslManagerService()
+                    domain = usl_svc.get_domain_by_code(domain_code)
+                    if domain and domain.get("id"):
+                        return str(domain["id"])
+            return ""
+        except Exception as e:
+            logger.debug("resolve_domain_id failed for scenario %s: %s", scenario_id, e)
+            return ""
+
     async def query(self, request: QueryRequest) -> QueryResponse:
         """五阶段查询: Understanding → Planning → Execution → Fusion → Generation"""
         start_time = time.time()
@@ -62,9 +103,14 @@ class QueryPipeline:
         )
 
         try:
-            # Stage 1: Understanding
+            # Stage 1: Understanding（解析场景→领域，供实体归一化限定领域）
+            understanding_context = dict(request.context or {})
+            if request.scenario_id:
+                domain_id = self._resolve_domain_id(request.scenario_id)
+                if domain_id:
+                    understanding_context.setdefault("domain_id", domain_id)
             understanding = self.understanding.analyze(
-                request.query, request.context
+                request.query, understanding_context
             )
             audit.intent = understanding.intent.value
             audit.extracted_entities = understanding.extracted_entities

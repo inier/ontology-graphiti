@@ -9,43 +9,69 @@ logger = logging.getLogger(__name__)
 
 
 class QueryRewriter:
-    """查询改写器: HyDE + Multi-Query"""
+    """查询改写器: 基于 USL 术语字典的**确定性改写**（同义词 → canonical）。
 
-    def __init__(self, llm_client=None):
-        self.llm_client = llm_client
+    本体论原则（严格）：
+    - 禁用 HyDE（生成假设回答）与 LLM Multi-Query（生成改写）—— 两者都引入幻觉。
+    - 改写只做一件事：把查询中命中的 USL 同义词替换为 canonical（精确字典查表）。
+    - 未命中 USL 的词保持原样（不猜测、不生成）。
+    """
+
+    def __init__(self, llm_client=None, term_resolver=None):
+        # llm_client 保留以兼容旧调用方，但**不再使用**（确定性改写无 LLM）。
+        self.llm_client = None
+        if term_resolver is None:
+            from odap.biz.semantic_admin.usl_manager.services.usl_term_resolver import (
+                UslTermResolver,
+            )
+            term_resolver = UslTermResolver()
+        self.term_resolver = term_resolver
+
+    def load_usl_terms(self, domain_id: str, terms: List[Dict[str, Any]]) -> None:
+        """加载领域 USL 术语，供确定性改写"""
+        self.term_resolver.load_terms(domain_id, terms)
 
     def hyde_rewrite(self, query: str) -> str:
-        """HyDE: 生成假设性回答用于检索。LLM 不可用时返回原查询。"""
-        if not self.llm_client:
+        """确定性改写：同义词 → canonical（等价于 rewrite，保留接口兼容）"""
+        return self.rewrite(query)
+
+    def rewrite(self, query: str, domain_id: str = "") -> str:
+        """确定性改写：将查询中命中的同义词替换为 canonical。
+
+        实现：对查询分词（中文按字符滑动匹配已知术语），
+        命中 USL 的同义词/别名替换为 canonical；未命中保持原样。
+        """
+        if not query:
             return query
-        try:
-            prompt = (
-                f"请针对以下问题，写一段详细的回答（不需要完全正确，用于语义检索）：\n"
-                f"问题：{query}\n回答："
-            )
-            result = self.llm_client.generate(prompt, max_tokens=256, timeout=5)
-            if result and len(result.strip()) > 20:
-                return result.strip()
-        except Exception as e:
-            logger.debug(f"HyDE rewrite failed: {e}")
-        return query
+        # 已知术语（canonical 之外的表达）按长度降序，优先匹配长词
+        known = self.term_resolver._maps.get(domain_id, {}) if domain_id else {}
+        if not known and not domain_id:
+            # 合并全部已加载领域
+            for m in self.term_resolver._maps.values():
+                known.update(m)
+        # 只替换"非 canonical 本身"的表达（canonical 无需替换）
+        replacements = [
+            (expr, canonical)
+            for expr, canonical in known.items()
+            if expr != canonical
+        ]
+        # 按表达长度降序，长词优先（避免子串误替换）
+        replacements.sort(key=lambda kv: len(kv[0]), reverse=True)
+
+        result = query
+        for expr, canonical in replacements:
+            if expr in result:
+                result = result.replace(expr, canonical)
+        return result
 
     def multi_query(self, query: str) -> List[str]:
-        """Multi-Query: 将原查询分解为多个子查询。LLM 不可用时返回原查询。"""
-        if not self.llm_client:
-            return [query]
-        try:
-            prompt = (
-                f"请将以下问题改写为3个不同角度的搜索查询（每行一个，不要编号）：\n"
-                f"原问题：{query}"
-            )
-            result = self.llm_client.generate(prompt, max_tokens=256, timeout=5)
-            if result:
-                lines = [l.strip() for l in result.strip().split("\n") if l.strip()]
-                if len(lines) >= 2:
-                    return [query] + lines[:3]  # 保留原查询 + 最多3个改写
-        except Exception as e:
-            logger.debug(f"Multi-query rewrite failed: {e}")
+        """确定性多查询：仅返回 [原查询, canonical 改写]，不生成新查询。
+
+        若改写后与原查询相同（无同义词命中），返回单元素 [query]。
+        """
+        rewritten = self.rewrite(query)
+        if rewritten and rewritten != query:
+            return [query, rewritten]
         return [query]
 
 

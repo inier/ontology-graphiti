@@ -3,10 +3,10 @@
 Implements the full extraction chain (T058-T065):
 - T058: LLM supplement for categories with entity_count < 2
 - T059: extract_from_nl() — assess → select_complementary → multi-parse →
-        LLM supplement → merge_and_map → validate → session update
+        LLM supplement → merge_and_map → session update
 - T060: extract_from_document() — document chunking + per-chunk extraction
 - T061: extract_from_knowledge_base() — KB document iteration
-- T062: ValidationEngine integration — validation_report in session.result_data
+- T062: ~~ValidationEngine integration~~ 已移交 007 QG（版块清理 2026-08-07）
 - T063: degradation_flags management (EC-015/016/017/018)
 - T064: confirm_extraction dual-channel write (GraphWriteProxy + Graphiti)
 - T065: _detect_conflicts (name collision + Levenshtein similarity)
@@ -14,7 +14,9 @@ Implements the full extraction chain (T058-T065):
 Rules (AGENTS.md):
 - Service layer returns Dict[str, Any], never raises HTTPException
 - EC-006: Single template failure does not block other templates
-- EC-018: Validation failure returns status="error" but does not block extraction
+- EC-018: ~~Validation failure~~ 已移交 007 QG（007 QG 异常时标记 qg_skipped）
+- 版块清理（2026-08-07）：ValidationEngine 已移除，校验由 007 QualityGateService 统一执行；
+  schema_learning 模式通过 hook 调用 007 ConceptExtractor.run_l1_l2_hook()。
 """
 
 import hashlib
@@ -29,10 +31,8 @@ from ..impl.ontology_mapper import OntologyMapper
 from ..impl.dual_channel_writer import DualChannelWriter
 from ..impl.provenance_tracker import ProvenanceTracker
 from ..services.template_engine import TemplateEngine
-from ..services.validation_engine import ValidationEngine
 from ..services.progress_manager import get_progress_manager, ProgressCallback
 from ..storage import Storage
-from ..storage.sqlite_template_storage import SqliteTemplateStorage
 
 logger = logging.getLogger("extract_service")
 
@@ -53,23 +53,23 @@ class ExtractService:
     """Orchestrates the full Hyper-Extract extraction chain.
 
     Constructor accepts injectable components for testability. In production,
-    defaults to real HEAdapter, TemplateEngine, ValidationEngine,
-    OntologyMapper, SQLiteExtractionStorage, and DualChannelWriter.
+    defaults to real HEAdapter, TemplateEngine, OntologyMapper,
+    SQLiteExtractionStorage, and DualChannelWriter.
+
+    版块清理（2026-08-07）：ValidationEngine 已移除，校验由 007 QG 统一执行。
     """
 
     def __init__(
         self,
         adapter: Optional[HEAdapter] = None,
         template_engine: Optional[TemplateEngine] = None,
-        validation_engine: Optional[ValidationEngine] = None,
         ontology_mapper: Optional[OntologyMapper] = None,
         storage: Optional[Storage] = None,
         writer: Optional[DualChannelWriter] = None,
         provenance_tracker: Optional[ProvenanceTracker] = None,
     ):
         self.adapter = adapter or HEAdapter()
-        self.template_engine = template_engine or TemplateEngine(self.adapter, SqliteTemplateStorage())
-        self.validation_engine = validation_engine or ValidationEngine()
+        self.template_engine = template_engine or TemplateEngine(self.adapter)
         self.ontology_mapper = ontology_mapper or OntologyMapper()
         self.storage = storage or Storage()
         self.writer = writer or DualChannelWriter()
@@ -155,22 +155,19 @@ class ExtractService:
         await progress_callback("LLM补充", 70, "为稀疏类别补充实体")
         self._llm_supplement(merged, text, ontology_schema, degradation_flags)
 
-        # Step 8: Validate (EC-018: non-blocking)
-        await progress_callback("验证", 80, "运行四维验证引擎")
-        template_score = assess_result.get("best_score", 0.0)
-        validation_report = self._run_validation(
-            merged, ontology_schema, template_score, degradation_flags
-        )
+        # Step 8: 校验已移交 007 QG（版块清理 2026-08-07）
+        await progress_callback("验证", 80, "校验由 007 QG 统一执行")
+        validation_report = None  # 版块清理: ValidationEngine 移交 007 QG
 
         # Step 8b: Detect conflicts
         await progress_callback("冲突检测", 90, "检测与已有类型的冲突")
         conflicts = self._detect_conflicts(ontology_id, merged)
 
-        # Step 8c: Schema learning mode — generate schema candidates
+        # Step 8c: Schema learning mode — 007 hook 优先，fallback 到内部生成
         schema_candidates = None
         if mode == "schema_learning":
             await progress_callback("Schema学习", 95, "生成Schema候选")
-            schema_candidates = self._generate_schema_candidates(merged)
+            schema_candidates = self._run_schema_learning_hook(merged)
 
         # Step 9: Finalize session
         await progress_callback("完成", 98, "完成会话")
@@ -323,12 +320,9 @@ class ExtractService:
         await progress_callback("LLM补充", 75, "为稀疏类别补充实体")
         self._llm_supplement(merged, full_text[:2000], ontology_schema, degradation_flags)
 
-        # Step 8: Validate
-        await progress_callback("验证", 85, "运行四维验证引擎")
-        # No template assess in kb-backed path — use neutral score 0.0
-        validation_report = self._run_validation(
-            merged, ontology_schema, 0.0, degradation_flags
-        )
+        # Step 8: 校验已移交 007 QG（版块清理 2026-08-07）
+        await progress_callback("验证", 85, "校验由 007 QG 统一执行")
+        validation_report = None  # 版块清理: ValidationEngine 移交 007 QG
 
         # Step 8b: Conflicts
         await progress_callback("冲突检测", 92, "检测与已有类型的冲突")
@@ -567,11 +561,9 @@ class ExtractService:
         )
         self._llm_supplement(merged, supplement_text, ontology_schema, degradation_flags)
 
-        # Step 7: Validate
-        await progress_callback("验证", 92, "运行四维验证引擎")
-        validation_report = self._run_validation(
-            merged, ontology_schema, assess_result.get("best_score", 0.0), degradation_flags
-        )
+        # Step 7: 校验已移交 007 QG（版块清理 2026-08-07）
+        await progress_callback("验证", 92, "校验由 007 QG 统一执行")
+        validation_report = None  # 版块清理: ValidationEngine 移交 007 QG
 
         # Step 7b: Conflicts
         await progress_callback("冲突检测", 96, "检测与已有类型的冲突")
@@ -931,32 +923,28 @@ class ExtractService:
         except Exception as exc:
             logger.warning("抽取过程审计失败（不影响抽取产出）: %s", exc)
 
-    def _run_validation(
-        self,
-        merged: Dict[str, Any],
-        ontology_schema: Dict[str, Any],
-        template_score: float,
-        degradation_flags: List[str],
-    ) -> Dict[str, Any]:
-        """T062: Run ValidationEngine.validate() (EC-018: non-blocking).
+    def _run_schema_learning_hook(self, merged: Dict[str, Any]) -> Dict[str, Any]:
+        """版块清理新增：schema_learning hook 入口。
 
-        Returns:
-            Validation report dict. On error, returns {"status": "error", ...}
-            and sets degradation_flag "validation_skipped".
+        优先调用 007 ConceptExtractor.run_l1_l2_hook()，若 007 模块不可用则
+        fallback 到内部 _generate_schema_candidates()（向后兼容）。
+
+        hook 异常不阻断主流程（catch + 日志 warning）。
         """
         try:
-            report = self.validation_engine.validate(
-                merged, ontology_schema, template_score=template_score
+            from odap.biz.semantic_admin.ol_pipeline.services.concept_extractor import (
+                ConceptExtractor,
             )
-            # EC-018: If validate() itself returns status="error",
-            # treat as validation skipped (non-blocking)
-            if isinstance(report, dict) and report.get("status") == "error":
-                degradation_flags.append("validation_skipped")
-            return report
+            extractor = ConceptExtractor()
+            return extractor.run_l1_l2_hook(merged)
+        except ImportError:
+            logger.warning(
+                "007 ConceptExtractor 不可用，fallback 到内部 _generate_schema_candidates()"
+            )
+            return self._generate_schema_candidates(merged)
         except Exception as e:
-            logger.warning("Validation failed (EC-018): %s", e)
-            degradation_flags.append("validation_skipped")
-            return {"status": "error", "message": str(e)}
+            logger.warning("schema_learning hook 异常（不阻断主流程）: %s", e)
+            return self._generate_schema_candidates(merged)
 
     def _finalize_session(
         self,

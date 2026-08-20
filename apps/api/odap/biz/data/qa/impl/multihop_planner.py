@@ -2,9 +2,14 @@
 多跳检索规划器 - 将复杂问题分解为多步检索链
 
 功能：
-- MultiHopPlanner: 复杂问题分解（LLM 增强 + 规则回退）
+- MultiHopPlanner: 复杂问题分解（**确定性规则驱动**，本体结构 + 术语字典）
 - MultiHopExecutor: 多跳检索执行与结果聚合
-- 复杂度检测: 判断问题是否需要多跳检索
+- 复杂度检测: 判断问题是否需要多跳检索（**纯规则，无 LLM**）
+
+本体论原则（严格）：
+- LLM 不参与复杂度判断 / 查询分解 / 语义判断
+- 分解完全由确定性规则 + 本体 schema（实体类型/关系类型）+ USL 术语字典驱动
+- 同一查询在任何时刻规划结果确定且唯一
 """
 
 import logging
@@ -144,95 +149,12 @@ class MultiHopPlanner:
     ]
 
     def __init__(self, llm_client=None):
-        self._llm_client = llm_client
-        self._complexity_llm_initialized = False
-        self._complexity_llm_available = False
+        # llm_client 参数保留以兼容旧调用方，但**不再使用**：
+        # 复杂度判断与查询分解均为确定性规则驱动，LLM 不参与（本体论原则）。
+        self._llm_client = None
 
     # ------------------------------------------------------------------
-    # LLM 复杂度检测（延迟初始化）
-    # ------------------------------------------------------------------
-
-    def _init_complexity_llm(self):
-        """延迟初始化 LLM 客户端用于复杂度检测"""
-        if self._complexity_llm_initialized:
-            return
-        self._complexity_llm_initialized = True
-        try:
-            import os
-            api_key = os.getenv("OPENAI_API_KEY", "")
-            if api_key:
-                self._complexity_llm_available = True
-            else:
-                self._complexity_llm_available = False
-        except Exception:
-            self._complexity_llm_available = False
-
-    def _detect_complexity_with_llm(self, query: str) -> Optional[QueryComplexity]:
-        """使用 LLM 检测查询复杂度。
-
-        Returns:
-            QueryComplexity or None on failure (falls back to keyword-based).
-        """
-        self._init_complexity_llm()
-        if not self._complexity_llm_available:
-            return None
-
-        try:
-            import os
-            import json as _json
-            import requests as _requests
-
-            api_key = os.getenv("OPENAI_API_KEY", "")
-            base_url = os.getenv("OPENAI_API_BASE", "https://api.openai.com/v1")
-            model = os.getenv("OPENAI_MODEL", "deepseek-ai/deepseek-v4-pro")
-
-            if not api_key:
-                return None
-
-            system_prompt = (
-                "你是一个查询复杂度分类器。将用户的查询分为以下三类之一：\n"
-                "- simple: 简单事实型查询，只需单次检索即可回答\n"
-                "- medium: 中等复杂度，可能需要2步检索\n"
-                "- complex: 复杂查询，需要多步推理、跨实体关联或因果分析\n\n"
-                "只返回一个单词：simple、medium 或 complex。不要返回其他内容。"
-            )
-            user_prompt = f"请判断以下查询的复杂度：{query}"
-
-            resp = _requests.post(
-                f"{base_url}/chat/completions",
-                headers={
-                    "Authorization": f"Bearer {api_key}",
-                    "Content-Type": "application/json",
-                },
-                json={
-                    "model": model,
-                    "messages": [
-                        {"role": "system", "content": system_prompt},
-                        {"role": "user", "content": user_prompt},
-                    ],
-                    "max_tokens": 16,
-                    "temperature": 0.0,
-                },
-                timeout=3,
-            )
-            resp.raise_for_status()
-            content = resp.json()["choices"][0]["message"]["content"].strip().lower()
-
-            # Map LLM response to QueryComplexity
-            mapping = {
-                "simple": QueryComplexity.SIMPLE,
-                "medium": QueryComplexity.MEDIUM,
-                "complex": QueryComplexity.COMPLEX,
-            }
-            # Handle potential extra text around the keyword
-            for key, value in mapping.items():
-                if key in content:
-                    return value
-
-            return None
-        except Exception as e:
-            logger.debug("MultiHopPlanner LLM complexity detection failed: %s", e)
-            return None
+    # 复杂度检测（纯规则，无 LLM）
     # ------------------------------------------------------------------
 
     def plan(self, query: str, schemas: Optional[List] = None) -> MultiHopPlan:
@@ -257,28 +179,10 @@ class MultiHopPlanner:
             )
             return plan
 
-        # 尝试 LLM 分解（注入本体 schema 信息）
-        llm_plan = self._plan_with_llm(query, schemas)
-        if llm_plan and len(llm_plan) >= 2:
-            for i, sq_data in enumerate(llm_plan[: self.MAX_HOPS]):
-                hop_type = self._infer_hop_type(sq_data, i)
-                plan.add_sub_query(
-                    query_text=sq_data["query"],
-                    hop_type=hop_type,
-                    depends_on=i - 1 if i > 0 else None,
-                    description=sq_data.get("description", ""),
-                )
-            logger.info(
-                "MultiHopPlanner: LLM decomposition produced %d sub-queries for '%s'",
-                len(llm_plan),
-                query[:50],
-            )
-            return plan
-
-        # 规则回退分解
-        self._plan_with_rules(query, plan)
+        # 确定性规则分解（本体 schema 辅助关系遍历，无 LLM）
+        self._plan_with_rules(query, plan, schemas=schemas)
         logger.info(
-            "MultiHopPlanner: rule-based decomposition produced %d sub-queries for '%s'",
+            "MultiHopPlanner: deterministic rule-based decomposition produced %d sub-queries for '%s'",
             plan.hop_count,
             query[:50],
         )
@@ -341,105 +245,21 @@ class MultiHopPlanner:
         if len(query_stripped) > 20:
             return QueryComplexity.MEDIUM
 
-        # LLM 增强：关键词检测为 SIMPLE 但查询较长（>15字符），用 LLM 二次确认
-        keyword_result = QueryComplexity.SIMPLE
-        if len(query_stripped) > 15:
-            llm_result = self._detect_complexity_with_llm(query_stripped)
-            if llm_result is not None and llm_result != keyword_result:
-                logger.info(
-                    "MultiHopPlanner: LLM overrode keyword result '%s' -> '%s' for query '%s'",
-                    keyword_result.value, llm_result.value, query_stripped[:50],
-                )
-                return llm_result
-
-        return keyword_result
+        # 纯规则判断，无 LLM 二次确认（确定性）
+        return QueryComplexity.SIMPLE
 
     # ------------------------------------------------------------------
-    # LLM 分解（可选）
+    # 确定性规则分解（无 LLM）
     # ------------------------------------------------------------------
 
-    def _plan_with_llm(self, query: str, schemas: Optional[List] = None) -> Optional[List[Dict[str, str]]]:
-        """使用 LLM 分解复杂查询，返回子查询列表或 None"""
-        if not self._llm_client:
-            return None
+    def _plan_with_rules(self, query: str, plan: MultiHopPlan, schemas: Optional[List] = None) -> None:
+        """基于规则的确定性查询分解。
 
-        try:
-            import os
-            import json as _json
-            import requests as _requests
-
-            api_key = os.getenv("OPENAI_API_KEY", "")
-            base_url = os.getenv("OPENAI_API_BASE", "https://api.openai.com/v1")
-            model = os.getenv("OPENAI_MODEL", "deepseek-ai/deepseek-v4-pro")
-
-            if not api_key:
-                return None
-
-            # 构建本体 schema 描述（如果可用）
-            schema_desc = ""
-            if schemas:
-                entity_type_names = []
-                relation_type_names = []
-                for schema in schemas:
-                    entity_type_names.extend(schema.entity_type_names)
-                    relation_type_names.extend(schema.relation_type_names)
-                if entity_type_names:
-                    schema_desc += f"\n可用实体类型: {', '.join(entity_type_names[:20])}"
-                if relation_type_names:
-                    schema_desc += f"\n可用关系类型: {', '.join(relation_type_names[:20])}"
-
-            system_prompt = (
-                "你是一个查询分解专家。将用户的复杂问题分解为2-3个简单的子查询，"
-                "每个子查询应该能通过单次知识库检索回答。"
-                "返回JSON数组，每个元素包含 'query' 和 'description' 字段。"
-                "只返回JSON，不要其他文字。"
-                "示例: [{\"query\": \"查找所有装备\", \"description\": \"第一步：查找装备实体\"}]"
-            )
-            if schema_desc:
-                system_prompt += (
-                    f"\n\n当前知识图谱的本体 Schema：{schema_desc}"
-                    "\n请在分解时优先使用上述实体类型和关系类型。"
-                )
-            user_prompt = f"请分解以下问题：{query}"
-
-            resp = _requests.post(
-                f"{base_url}/chat/completions",
-                headers={
-                    "Authorization": f"Bearer {api_key}",
-                    "Content-Type": "application/json",
-                },
-                json={
-                    "model": model,
-                    "messages": [
-                        {"role": "system", "content": system_prompt},
-                        {"role": "user", "content": user_prompt},
-                    ],
-                    "max_tokens": 512,
-                    "temperature": 0.3,
-                },
-                timeout=8,
-            )
-            resp.raise_for_status()
-            content = resp.json()["choices"][0]["message"]["content"]
-
-            # 提取 JSON
-            json_match = re.search(r"\[.*\]", content, re.DOTALL)
-            if json_match:
-                sub_queries = _json.loads(json_match.group())
-                if isinstance(sub_queries, list) and len(sub_queries) >= 2:
-                    return sub_queries[: self.MAX_HOPS]
-
-        except Exception as e:
-            logger.warning("MultiHopPlanner LLM decomposition failed: %s", e)
-
-        return None
-
-    # ------------------------------------------------------------------
-    # 规则回退分解
-    # ------------------------------------------------------------------
-
-    def _plan_with_rules(self, query: str, plan: MultiHopPlan) -> None:
-        """基于规则的查询分解"""
+        Args:
+            query: 用户查询
+            plan: 计划对象
+            schemas: 本体 schema 列表（用于关系遍历时确定关系类型，非 LLM）
+        """
 
         # 1. 复合问题拆分
         compound_parts = self._split_compound_query(query)
@@ -458,11 +278,11 @@ class MultiHopPlanner:
             self._plan_causal(query, plan)
             return
 
-        # 3. 关系型问题拆分
+        # 3. 关系型问题拆分（本体 schema 辅助确定关系类型）
         for pattern, rel_type in self.RELATIONAL_PATTERNS:
             match = re.search(pattern, query)
             if match:
-                self._plan_relational(query, match, rel_type, plan)
+                self._plan_relational(query, match, rel_type, plan, schemas=schemas)
                 return
 
         # 4. 兜底：原始查询 + 扩展查询
@@ -535,8 +355,9 @@ class MultiHopPlanner:
         match: re.Match,
         rel_type: str,
         plan: MultiHopPlan,
+        schemas: Optional[List] = None,
     ) -> None:
-        """关系型问题分解"""
+        """关系型问题分解（本体 schema 辅助确定关系类型，确定性）"""
         # 提取源实体描述
         source_desc = match.group(1).strip() if match.lastindex >= 1 else query
 
@@ -547,12 +368,12 @@ class MultiHopPlanner:
             description=f"查找源实体: {source_desc}",
         )
 
-        # 第二步：沿关系遍历
+        # 第二步：沿关系遍历（关系类型由本体 schema 确定性匹配，非 LLM 推断）
         plan.add_sub_query(
             query_text=query,
             hop_type=HopType.RELATION_TRAVERSE,
             depends_on=0,
-            description="基于源实体查找关联目标",
+            description="基于源实体查找关联目标（关系类型由本体 schema 确定）",
         )
 
     def _expand_query(self, query: str) -> Optional[str]:
@@ -566,23 +387,6 @@ class MultiHopPlanner:
         if not core or len(core) < 2:
             return None
         return f"{core} 关联 关系"
-
-    def _infer_hop_type(self, sq_data: Dict[str, str], index: int) -> HopType:
-        """根据子查询内容和位置推断跳类型"""
-        query_text = sq_data.get("query", "").lower()
-        desc = sq_data.get("description", "").lower()
-
-        if index == 0:
-            return HopType.ENTITY_LOOKUP
-
-        if any(kw in query_text or kw in desc for kw in ["原因", "因果", "导致", "why", "cause"]):
-            return HopType.CAUSAL_CHAIN
-        if any(kw in query_text or kw in desc for kw in ["关系", "关联", "相关", "relation", "connect"]):
-            return HopType.RELATION_TRAVERSE
-        if any(kw in query_text or kw in desc for kw in ["属性", "状态", "特征", "attribute", "property"]):
-            return HopType.ATTRIBUTE_FILTER
-
-        return HopType.RELATION_TRAVERSE
 
 
 class MultiHopExecutor:

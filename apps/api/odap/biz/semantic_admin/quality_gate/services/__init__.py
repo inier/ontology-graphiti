@@ -9,6 +9,12 @@ from .quality_evaluator import (
     evaluate_candidate,
     score_to_tier,
 )
+from .quality_calculator import (
+    G1_SUB_WEIGHTS_22,
+    QualityCalculator,
+    evaluate_batch_22,
+    evaluate_candidate_22,
+)
 from .quality_gate_service import (
     QualityGateService,
 )
@@ -19,6 +25,9 @@ from .dashboard_query_service import (
 __all__ = [
     "QualityEvaluator", "evaluate_candidate", "evaluate_batch",
     "score_to_tier", "ENABLE_LLM_JUDGE",
+    # 版块清理（2026-08-07）：22 子指标计算器（16 原有 + 6 项 006 移交）
+    "QualityCalculator", "evaluate_candidate_22", "evaluate_batch_22",
+    "G1_SUB_WEIGHTS_22",
     "QualityGateService",
     "DashboardQueryService",
 ]

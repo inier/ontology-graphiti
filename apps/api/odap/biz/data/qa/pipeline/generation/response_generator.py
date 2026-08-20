@@ -35,7 +35,7 @@ class SourceTracer:
 
 
 class ResponseGenerator:
-    """LLM 回答生成器"""
+    """LLM 回答生成器（ADR-079 生成层：事实锚定）"""
 
     def __init__(self, llm_client=None):
         self.llm_client = llm_client
@@ -43,23 +43,34 @@ class ResponseGenerator:
     def generate(self, query: str, result_set: RetrievalResultSet,
                  understanding: QueryUnderstanding,
                  stream: bool = False) -> str:
-        """生成回答。LLM 不可用时使用模板回答。"""
+        """生成回答。LLM 不可用时使用模板回答。
+
+        事实锚定硬约束（ADR-079 §6）：
+        - 上下文每个结果带编号 [1][2]...，LLM 回答必须用编号引用来源。
+        - 后置校验：LLM 输出若引用了不存在的来源编号 → 视为编造，降级模板回答。
+        """
         if not result_set.results:
             return self._no_result_template(query, understanding)
 
-        # 构建上下文
+        # 构建上下文（带来源编号，供事实锚定）
         context = self._build_context(result_set)
+        valid_refs = self._valid_reference_ids(result_set)
 
         if self.llm_client:
             try:
                 prompt = (
-                    f"基于以下检索结果回答用户问题。请引用来源，如果检索结果不足以回答，请说明。\n\n"
+                    f"基于以下检索结果回答用户问题。\n"
+                    f"要求：每个事实句末尾必须用方括号标注来源编号，如 [1]、[2]。\n"
+                    f"仅可引用下方给出的编号，不得编造来源；检索结果不足以回答时，明确说明。\n\n"
                     f"检索结果:\n{context}\n\n"
                     f"用户问题: {query}\n回答:"
                 )
                 result = self.llm_client.generate(prompt, max_tokens=1024, timeout=15)
                 if result and len(result.strip()) > 10:
-                    return result.strip()
+                    answer = result.strip()
+                    if self._validate_references(answer, valid_refs):
+                        return answer
+                    logger.warning("LLM 回答引用了非法来源编号，降级模板回答")
             except Exception as e:
                 logger.warning(f"LLM generation failed: {e}")
 
@@ -67,12 +78,30 @@ class ResponseGenerator:
         return self._template_answer(query, result_set, understanding)
 
     def _build_context(self, result_set: RetrievalResultSet, max_items: int = 5) -> str:
-        """构建 LLM 上下文"""
+        """构建 LLM 上下文（带来源编号 [1][2]...）"""
         parts = []
         for i, r in enumerate(result_set.results[:max_items], 1):
             source_tag = f"[{r.pillar}:{r.source}]"
-            parts.append(f"{i}. {source_tag} {r.content[:300]}")
+            parts.append(f"[{i}] {source_tag} {r.content[:300]}")
         return "\n".join(parts)
+
+    @staticmethod
+    def _valid_reference_ids(result_set: RetrievalResultSet, max_items: int = 5) -> set:
+        """合法来源编号集合"""
+        return {str(i) for i in range(1, min(len(result_set.results), max_items) + 1)}
+
+    @staticmethod
+    def _validate_references(answer: str, valid_refs: set) -> bool:
+        """校验回答中的来源引用是否都合法（防编造）。
+
+        提取形如 [数字] 的引用；若引用编号不在 valid_refs → 非法。
+        无任何引用也视为非法（事实未锚定）。
+        """
+        import re
+        refs = re.findall(r'\[(\d+)\]', answer)
+        if not refs:
+            return False
+        return all(r in valid_refs for r in refs)
 
     def _no_result_template(self, query: str, understanding: QueryUnderstanding) -> str:
         """无结果模板"""

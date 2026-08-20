@@ -3,5 +3,6 @@
 from __future__ import annotations
 
 from .pipeline_service import PipelineService
+from .concept_extractor import ConceptExtractor
 
-__all__ = ["PipelineService"]
+__all__ = ["PipelineService", "ConceptExtractor"]

@@ -306,8 +306,6 @@ class TestExtractFromDocumentKbBacked:
             "candidates": [], "best_score": 0.0,
             "threshold": 0.5, "needs_custom": False, "settled_used": False,
         }
-        validation_engine = MagicMock()
-        validation_engine.validate.return_value = {"summary": {"overall_status": "passed"}}
         ontology_mapper = MagicMock()
         ontology_mapper.merge_and_map.return_value = {
             "entities": [{"name": "ent1"}],
@@ -323,7 +321,6 @@ class TestExtractFromDocumentKbBacked:
         svc = ExtractService(
             adapter=adapter,
             template_engine=template_engine,
-            validation_engine=validation_engine,
             ontology_mapper=ontology_mapper,
             storage=storage,
             writer=writer,

@@ -199,7 +199,7 @@ class GraphitiWritebackAdapter:
 
             ontology_name = f"USL__{domain_code}"
 
-            # 3. 查是否已有同名 Ontology
+            # 3. 查是否已有对应 Ontology（优先 domain_code 权威匹配，name 约定兜底）
             svc = self._get_ontology_service()
             existing_ontology: Optional[Dict[str, Any]] = None
             try:
@@ -207,9 +207,16 @@ class GraphitiWritebackAdapter:
                 list_result = svc.list_ontologies(workspace_id=ws_filter)
                 ontologies = list_result.get("ontologies") or []
                 for ont in ontologies:
-                    if str(ont.get("name")) == ontology_name:
+                    # 权威：domain_code 精确匹配（ADR-079 §7）
+                    if domain_code and str(ont.get("domain_code")) == domain_code:
                         existing_ontology = ont
                         break
+                if existing_ontology is None:
+                    # 兜底：name 约定（历史数据未写 domain_code 时）
+                    for ont in ontologies:
+                        if str(ont.get("name")) == ontology_name:
+                            existing_ontology = ont
+                            break
             except Exception:
                 existing_ontology = None
 
@@ -223,7 +230,7 @@ class GraphitiWritebackAdapter:
                     "domain_display_name": domain_display,
                 }
 
-            # 4. 创建新 Ontology
+            # 4. 创建新 Ontology（写入 domain_code 权威关联，ADR-079 §7）
             created = svc.create_ontology(
                 name=ontology_name,
                 description=(
@@ -232,6 +239,7 @@ class GraphitiWritebackAdapter:
                 ),
                 workspace_id=workspace_id or "",
                 scenario_id=scenario_id,
+                domain_code=domain_code,
             )
             if isinstance(created, dict) and created.get("status") == "error":
                 return created

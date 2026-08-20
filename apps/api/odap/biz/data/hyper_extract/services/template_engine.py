@@ -14,7 +14,6 @@ now always runs the full pipeline.
 
 Dependencies:
 - HEAdapter (trial_extract, _create_embedder, _Template.list)
-- SqliteTemplateStorage (legacy — retained for he_templates table compat)
 """
 
 import json
@@ -62,18 +61,15 @@ class TemplateEngine:
     def __init__(
         self,
         he_adapter,
-        storage,
         embedder=None,
     ):
-        """Initialize with HEAdapter and SqliteTemplateStorage.
+        """Initialize with HEAdapter.
 
         Args:
             he_adapter: HEAdapter instance (provides trial_extract, _Template, _create_embedder).
-            storage: SqliteTemplateStorage instance (provides get_by_ontology, save, update_usage_count).
             embedder: Optional pre-built embedder. If None, lazy-loaded from he_adapter.
         """
         self._adapter = he_adapter
-        self._storage = storage
         self._embedder = embedder
         self._presets_cache: Optional[List[Dict[str, Any]]] = None
 
