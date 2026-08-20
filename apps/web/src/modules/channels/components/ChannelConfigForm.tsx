@@ -4,6 +4,7 @@ import React, { useEffect } from 'react';
 import { Form, Input, Select, Switch, Button, Space, message, Alert } from 'antd';
 import type { ChannelType, ChannelTypeInfo } from '../types';
 import { CHANNEL_TYPE_NAMES, CHANNEL_ICONS } from '../types';
+import { useI18n } from '@/modules/shared/hooks/useI18n';
 
 interface ChannelConfigFormProps {
   channelTypes: ChannelTypeInfo[];
@@ -32,6 +33,7 @@ export const ChannelConfigForm: React.FC<ChannelConfigFormProps> = ({
   onCancel,
   loading,
 }) => {
+  const { t } = useI18n('channels');
   const [form] = Form.useForm();
 
   useEffect(() => {
@@ -186,11 +188,11 @@ export const ChannelConfigForm: React.FC<ChannelConfigFormProps> = ({
 
       <Form.Item name="allow_from" label="允许访问的用户">
         <Select mode="tags" placeholder="留空表示允许所有人，或输入用户 ID">
-          <Select.Option value="*">所有人</Select.Option>
+          <Select.Option value="*">{t('所有人')}</Select.Option>
         </Select>
       </Form.Item>
 
-      <div style={{ marginBottom: 16, fontWeight: 500 }}>渠道配置</div>
+      <div style={{ marginBottom: 16, fontWeight: 500 }}>{t('渠道配置')}</div>
 
       {renderConfigFields()}
 
@@ -199,7 +201,7 @@ export const ChannelConfigForm: React.FC<ChannelConfigFormProps> = ({
           <Button type="primary" htmlType="submit" loading={loading}>
             保存
           </Button>
-          <Button onClick={onCancel}>取消</Button>
+          <Button onClick={onCancel}>{t('取消')}</Button>
         </Space>
       </Form.Item>
     </Form>

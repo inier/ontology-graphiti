@@ -37,22 +37,22 @@ export function DesignMethodSelector({ onSelect, ontologyName }: DesignMethodSel
   const methods: MethodCard[] = [
     {
       key: 'manual',
-      titleKey: 'designMethod.manual',
+      titleKey: '手动设计',
       icon: <EditOutlined style={{ fontSize: 32, color: '#1677ff' }} />,
-      descKey: 'designMethod.manualDesc',
+      descKey: '通过可视化编辑器逐一定义实体类型、属性和关系，适合对领域有清晰理解的场景',
       recommended: true,
     },
     {
       key: 'database',
-      titleKey: 'designMethod.database',
+      titleKey: '数据库导入',
       icon: <DatabaseOutlined style={{ fontSize: 32, color: '#52c41a' }} />,
-      descKey: 'designMethod.databaseDesc',
+      descKey: '从已有数据库表结构自动生成本体定义，快速映射现有数据模型',
     },
     {
       key: 'natural_language',
-      titleKey: 'designMethod.naturalLanguage',
+      titleKey: '自然语言描述',
       icon: <MessageOutlined style={{ fontSize: 32, color: '#722ed1' }} />,
-      descKey: 'designMethod.naturalLanguageDesc',
+      descKey: '用自然语言描述领域知识，由 AI 自动解析并生成本体定义',
     },
   ];
 
@@ -70,7 +70,7 @@ export function DesignMethodSelector({ onSelect, ontologyName }: DesignMethodSel
           {t('选择设计方式')}
         </h2>
         <p style={{ margin: '8px 0 0', color: '#666' }}>
-          {t('designMethod.subtitle', { name: ontologyName })}
+          {t('为「{{name}}」选择一种本体构建方式', { name: ontologyName })}
         </p>
       </div>
 

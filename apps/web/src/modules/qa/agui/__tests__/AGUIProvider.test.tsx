@@ -9,7 +9,7 @@
  */
 
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
-import { render, renderHook, act } from '@testing-library/react';
+import { render, renderHook, act, cleanup } from '@testing-library/react';
 import React from 'react';
 import { AGUIProvider, useAGUIContext, AGUIErrorBoundary } from '../AGUIProvider';
 import type { AGUIEvent } from '../agui_types';
@@ -52,10 +52,18 @@ function makeWrapper(props: React.ComponentProps<typeof AGUIProvider> = {}) {
 
 describe('AGUIProvider T067 production hardening', () => {
   beforeEach(() => {
+    // 关键：将 global.fetch 重置为全新的 vi.fn()，防止上一个测试的
+    // vi.spyOn(global, 'fetch') 产生的 spy（及其累积的 mock.calls）泄漏到当前测试。
+    // 仅靠 vi.restoreAllMocks() 恢复 spy 实现后，底层 vi.fn() 的 mock 状态仍残留。
+    global.fetch = vi.fn() as unknown as typeof fetch;
     vi.restoreAllMocks();
   });
 
   afterEach(() => {
+    // 必须显式 cleanup：卸载所有 renderHook 挂载的 AGUIProvider 组件，
+    // 清理其 retry/heartbeat 定时器，防止上一个测试的组件在后续测试中
+    // 泄漏 fetch 调用（导致 mock.calls 计数偏高、namespace 测试取到错误 URL）。
+    cleanup();
     vi.restoreAllMocks();
   });
 
@@ -328,18 +336,27 @@ describe('AGUIProvider T067 production hardening', () => {
     });
 
     it('isolates QA namespace from ontology-assistant namespace', async () => {
-      // QA 命名空间
-      const qaFetch = vi
+      // 单一 spy + 两次 mockResolvedValueOnce：对同一 global.fetch 调用 vi.spyOn
+      // 两次会返回同一个 spy，导致第二个 spy.mock.calls[0] 取到的是第一次（QA）的调用。
+      // 改用单一 spy，按 URL 前缀从所有 calls 中筛选对应命名空间的调用。
+      const fetchSpy = vi
         .spyOn(global, 'fetch')
         .mockResolvedValueOnce(
           makeSSEResponse([
             { type: 'RUN_STARTED', threadId: 't1', runId: 'r1' },
             { type: 'RUN_FINISHED', threadId: 't1', runId: 'r1', outcome: 'success' },
           ]),
+        )
+        .mockResolvedValueOnce(
+          makeSSEResponse([
+            { type: 'RUN_STARTED', threadId: 't2', runId: 'r2' },
+            { type: 'RUN_FINISHED', threadId: 't2', runId: 'r2', outcome: 'success' },
+          ]),
         );
 
+      // QA 命名空间
       const qaWrapper = makeWrapper({ namespace: 'ag-ui' });
-      const { result: qaResult } = renderHook(() => useAGUIContext(), { wrapper: qaWrapper });
+      const { result: qaResult, unmount: unmountQa } = renderHook(() => useAGUIContext(), { wrapper: qaWrapper });
 
       await act(async () => {
         qaResult.current.runAgent({
@@ -350,20 +367,7 @@ describe('AGUIProvider T067 production hardening', () => {
         await new Promise((r) => setTimeout(r, 100));
       });
 
-      const qaUrl = qaFetch.mock.calls[0][0] as string;
-      expect(qaUrl).toContain('/api/ag-ui/run');
-      expect(qaUrl).not.toContain('/api/ontology-assistant/');
-
       // 本体设计器命名空间
-      const ontologyFetch = vi
-        .spyOn(global, 'fetch')
-        .mockResolvedValueOnce(
-          makeSSEResponse([
-            { type: 'RUN_STARTED', threadId: 't2', runId: 'r2' },
-            { type: 'RUN_FINISHED', threadId: 't2', runId: 'r2', outcome: 'success' },
-          ]),
-        );
-
       const ontologyWrapper = makeWrapper({ namespace: 'ontology-assistant' });
       const { result: ontologyResult } = renderHook(() => useAGUIContext(), { wrapper: ontologyWrapper });
 
@@ -376,9 +380,21 @@ describe('AGUIProvider T067 production hardening', () => {
         await new Promise((r) => setTimeout(r, 100));
       });
 
-      const ontologyUrl = ontologyFetch.mock.calls[0][0] as string;
+      // 按 URL 路径筛选 QA 与 ontology 各自的调用
+      const qaUrl = fetchSpy.mock.calls
+        .map((c) => c[0] as string)
+        .find((url) => url.includes('/api/ag-ui/run'));
+      const ontologyUrl = fetchSpy.mock.calls
+        .map((c) => c[0] as string)
+        .find((url) => url.includes('/api/ontology-assistant/run'));
+
+      expect(qaUrl).toBeTruthy();
+      expect(qaUrl).not.toContain('/api/ontology-assistant/');
+      expect(ontologyUrl).toBeTruthy();
       expect(ontologyUrl).toContain('/api/ontology-assistant/run');
       expect(ontologyUrl).not.toContain('/api/ag-ui/');
+
+      unmountQa();
     });
   });
 });

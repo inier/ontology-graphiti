@@ -49,8 +49,7 @@ interface ComputedFormValues {
 const EXPRESSION_MAX = 80;
 
 export function ComputedPropertyList({ objectTypeId, onEdit }: ComputedPropertyListProps) {
-  const { t } = useI18n('ontology');
-  void t;
+  const { t, instance } = useI18n('ontology');
   const [items, setItems] = useState<ComputedProperty[]>([]);
   const [loading, setLoading] = useState(false);
   const [filter, setFilter] = useState<string | undefined>(objectTypeId);
@@ -85,7 +84,7 @@ export function ComputedPropertyList({ objectTypeId, onEdit }: ComputedPropertyL
       );
       setItems(data.computed || []);
     } catch (e) {
-      message.error(`加载失败: ${(e as Error).message}`);
+      message.error(t('加载失败: {{message}}', { message: (e as Error).message }));
     } finally {
       setLoading(false);
     }
@@ -141,42 +140,42 @@ export function ComputedPropertyList({ objectTypeId, onEdit }: ComputedPropertyL
       };
       if (editing) {
         await apiClient.put(`/api/ontology/computed/${editing.id}`, payload);
-        message.success('已更新');
+        message.success(t('已更新'));
       } else {
         await apiClient.post('/api/ontology/computed', payload);
-        message.success('已创建');
+        message.success(t('已创建'));
       }
       setEditOpen(false);
       void fetchItems();
     } catch (e) {
       if ((e as { errorFields?: unknown[] }).errorFields) return;
-      message.error(`保存失败: ${(e as Error).message}`);
+      message.error(t('保存失败: {{message}}', { message: (e as Error).message }));
     }
   }, [form, editing, fetchItems]);
 
   const handleDelete = useCallback(async (id: string) => {
     try {
       await apiClient.delete(`/api/ontology/computed/${id}`);
-      message.success('已删除');
+      message.success(t('已删除'));
       void fetchItems();
     } catch (e) {
-      message.error(`删除失败: ${(e as Error).message}`);
+      message.error(t('删除失败: {{message}}', { message: (e as Error).message }));
     }
-  }, [fetchItems]);
+  }, [fetchItems, t]);
 
   const handleToggleMaterialize = useCallback(async (item: ComputedProperty) => {
     try {
       if (!item.materialized) {
         await apiClient.post(`/api/ontology/computed/${item.id}/materialize`, {});
-        message.success('已触发物化');
+        message.success(t('已触发物化'));
       } else {
-        message.info('已物化（toggle 由后端支持）');
+        message.info(t('已物化（toggle 由后端支持）'));
       }
       void fetchItems();
     } catch (e) {
-      message.error(`操作失败: ${(e as Error).message}`);
+      message.error(t('操作失败: {{message}}', { message: (e as Error).message }));
     }
-  }, [fetchItems]);
+  }, [fetchItems, t]);
 
   const handleTest = useCallback(async (item: ComputedProperty) => {
     setTesting(item.id);
@@ -186,19 +185,19 @@ export function ComputedPropertyList({ objectTypeId, onEdit }: ComputedPropertyL
         {},
       );
       setTestResult({ id: item.id, result: data.result });
-      message.success('测试完成');
+      message.success(t('测试完成'));
     } catch (e) {
-      message.error(`测试失败: ${(e as Error).message}`);
+      message.error(t('测试失败: {{message}}', { message: (e as Error).message }));
     } finally {
       setTesting(null);
     }
-  }, []);
+  }, [t]);
 
   const columns: ColumnsType<ComputedProperty> = [
-    { title: '名称', dataIndex: 'name', key: 'name', render: (v: string) => <Text strong>{v}</Text> },
+    { title: t('名称'), dataIndex: 'name', key: 'name', render: (v: string) => <Text strong>{v}</Text> },
     { title: 'ObjectType', dataIndex: 'object_type_name', key: 'object_type_name', width: 140, render: (v?: string) => v ? <Tag color="blue">{v}</Tag> : '-' },
     {
-      title: '表达式',
+      title: t('表达式'),
       dataIndex: 'expression',
       key: 'expression',
       render: (v: string) => (
@@ -207,18 +206,18 @@ export function ComputedPropertyList({ objectTypeId, onEdit }: ComputedPropertyL
         </Tooltip>
       ),
     },
-    { title: '依赖数', dataIndex: 'dependencies', key: 'dependencies', width: 100, align: 'right', render: (v: string[]) => <Tag>{v?.length || 0}</Tag> },
+    { title: t('依赖数'), dataIndex: 'dependencies', key: 'dependencies', width: 100, align: 'right', render: (v: string[]) => <Tag>{v?.length || 0}</Tag> },
     {
-      title: '已物化',
+      title: t('已物化'),
       dataIndex: 'materialized',
       key: 'materialized',
       width: 90,
       render: (v: boolean) => v
-        ? <Tag color="green" icon={<CheckOutlined />}>是</Tag>
-        : <Tag color="default" icon={<CloseOutlined />}>否</Tag>,
+        ? <Tag color="green" icon={<CheckOutlined />}>{t('是')}</Tag>
+        : <Tag color="default" icon={<CloseOutlined />}>{t('否')}</Tag>,
     },
     {
-      title: '操作',
+      title: t('操作'),
       key: 'actions',
       width: 280,
       render: (_: unknown, r) => (
@@ -241,9 +240,9 @@ export function ComputedPropertyList({ objectTypeId, onEdit }: ComputedPropertyL
             {r.materialized ? 'Refresh' : 'Materialize'}
           </Button>
           <Popconfirm
-            title="确认删除？"
-            okText="删除"
-            cancelText="取消"
+            title={t('确认删除？')}
+            okText={t('删除')}
+            cancelText={t('取消')}
             onConfirm={() => handleDelete(r.id)}
           >
             <Button size="small" type="link" danger icon={<DeleteOutlined />}>Delete</Button>
@@ -256,11 +255,11 @@ export function ComputedPropertyList({ objectTypeId, onEdit }: ComputedPropertyL
   return (
     <div data-testid="computed-property-list" style={{ padding: 16 }}>
       <Space style={{ marginBottom: 16, width: '100%', justifyContent: 'space-between' }} wrap>
-        <Title level={3} style={{ margin: 0 }}>计算属性</Title>
+        <Title level={3} style={{ margin: 0 }}>{t('计算属性')}</Title>
         <Space wrap>
           <Select
             allowClear
-            placeholder="按 ObjectType 筛选"
+            placeholder={t('按 ObjectType 筛选')}
             value={filter}
             onChange={(v) => setFilter(v)}
             style={{ minWidth: 180 }}
@@ -269,13 +268,13 @@ export function ComputedPropertyList({ objectTypeId, onEdit }: ComputedPropertyL
             optionFilterProp="label"
           />
           <Input.Search
-            placeholder="搜索"
+            placeholder={t('搜索')}
             value={searchText}
             onChange={(e) => setSearchText(e.target.value)}
             style={{ width: 200 }}
             allowClear
           />
-          <Button icon={<ReloadOutlined />} onClick={() => void fetchItems()}>刷新</Button>
+          <Button icon={<ReloadOutlined />} onClick={() => void fetchItems()}>{t('刷新')}</Button>
           <Button type="primary" icon={<PlusOutlined />} onClick={openCreate}>
             New Computed Property
           </Button>
@@ -285,7 +284,7 @@ export function ComputedPropertyList({ objectTypeId, onEdit }: ComputedPropertyL
       <Card>
         <Spin spinning={loading}>
           {filtered.length === 0 ? (
-            <Empty description="暂无计算属性" />
+            <Empty description={t('暂无计算属性')} />
           ) : (
             <AdvancedTable<ComputedProperty>
               rowKey="id"
@@ -299,22 +298,22 @@ export function ComputedPropertyList({ objectTypeId, onEdit }: ComputedPropertyL
       </Card>
 
       <Modal
-        title={editing ? '编辑计算属性' : '创建计算属性'}
+        title={editing ? t('编辑计算属性') : t('创建计算属性')}
         open={editOpen}
         onOk={handleSave}
         onCancel={() => { setEditOpen(false); form.resetFields(); }}
-        okText="保存"
-        cancelText="取消"
+        okText={t('保存')}
+        cancelText={t('取消')}
         width={680}
         destroyOnHidden
       >
         <Form form={form} layout="vertical" preserve={false}>
           <Form.Item
             name="name"
-            label="名称"
+            label={t('名称')}
             rules={[
-              { required: true, message: '请输入名称' },
-              { pattern: /^[a-zA-Z][a-zA-Z0-9_]*$/, message: '以字母开头，仅允许字母数字下划线' },
+              { required: true, message: t('请输入名称') },
+              { pattern: /^[a-zA-Z][a-zA-Z0-9_]*$/, message: t('以字母开头，仅允许字母数字下划线') },
             ]}
           >
             <Input placeholder="full_name" />
@@ -322,19 +321,19 @@ export function ComputedPropertyList({ objectTypeId, onEdit }: ComputedPropertyL
           <Form.Item
             name="object_type_id"
             label="ObjectType"
-            rules={[{ required: true, message: '请选择 ObjectType' }]}
+            rules={[{ required: true, message: t('请选择 ObjectType') }]}
           >
             <Select
               showSearch
               optionFilterProp="label"
               options={objectTypeOptions}
-              placeholder="选择 ObjectType"
+              placeholder={t('选择 ObjectType')}
             />
           </Form.Item>
           <Form.Item
             name="expression"
-            label="表达式"
-            rules={[{ required: true, message: '请输入表达式' }]}
+            label={t('表达式')}
+            rules={[{ required: true, message: t('请输入表达式') }]}
           >
             <TextArea
               rows={4}
@@ -344,23 +343,23 @@ export function ComputedPropertyList({ objectTypeId, onEdit }: ComputedPropertyL
           </Form.Item>
           <Form.Item
             name="dependencies"
-            label="依赖属性（逗号分隔）"
+            label={t('依赖属性（逗号分隔）')}
           >
             <Input placeholder="first_name, last_name" />
           </Form.Item>
-          <Form.Item name="materialized" label="启用物化" valuePropName="checked">
+          <Form.Item name="materialized" label={t('启用物化')} valuePropName="checked">
             <Select
-              options={[{ value: true, label: '是' }, { value: false, label: '否' }]}
+              options={[{ value: true, label: t('是') }, { value: false, label: t('否') }]}
             />
           </Form.Item>
         </Form>
       </Modal>
 
       <Modal
-        title="测试结果"
+        title={t('测试结果')}
         open={!!testResult}
         onCancel={() => setTestResult(null)}
-        footer={<Button onClick={() => setTestResult(null)}>关闭</Button>}
+        footer={<Button onClick={() => setTestResult(null)}>{t('关闭')}</Button>}
       >
         <pre
           style={{

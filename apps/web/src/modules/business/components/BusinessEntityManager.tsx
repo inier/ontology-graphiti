@@ -16,6 +16,8 @@ import {
 
 } from '@ant-design/icons';
 
+import { useI18n } from '@/modules/shared/hooks/useI18n';
+
 import type { BusinessEntity, BusinessEntityType, BusinessEntityFormData, FlowNode, RuleCondition } from '../types';
 
 import { api as sharedApi } from '@/modules/shared/services/api';
@@ -282,6 +284,8 @@ export function BusinessEntityManager({
 
 }: BusinessEntityManagerProps) {
 
+  const { t, instance } = useI18n('business');
+
   const { currentOntologyId, currentVersionId } = useOntologyVersion();
 
   const [entities, setEntities] = useState<BusinessEntity[]>([]);
@@ -438,7 +442,7 @@ export function BusinessEntityManager({
 
     } catch (e) {
 
-      message.error(`加载${title}列表失败`);
+      message.error(t('加载{{title}}列表失败', { title }));
 
     } finally {
 
@@ -530,7 +534,7 @@ export function BusinessEntityManager({
 
       await api.delete(id);
 
-      message.success('删除成功');
+      message.success(t('删除成功'));
 
       clearOptionsCache();
 
@@ -538,7 +542,7 @@ export function BusinessEntityManager({
 
     } catch (e) {
 
-      message.error('删除失败');
+      message.error(t('删除失败'));
 
     }
 
@@ -568,13 +572,13 @@ export function BusinessEntityManager({
 
         await api.update(editingEntity.id, payload);
 
-        message.success('更新成功');
+        message.success(t('更新成功'));
 
       } else {
 
         await api.create(payload);
 
-        message.success('创建成功');
+        message.success(t('创建成功'));
 
       }
 
@@ -586,7 +590,7 @@ export function BusinessEntityManager({
 
     } catch (e) {
 
-      message.error('保存失败');
+      message.error(t('保存失败'));
 
     }
 
@@ -604,7 +608,7 @@ export function BusinessEntityManager({
 
       await api.importYaml(values.yaml);
 
-      message.success('导入成功');
+      message.success(t('导入成功'));
 
       clearOptionsCache();
 
@@ -614,7 +618,7 @@ export function BusinessEntityManager({
 
     } catch (e) {
 
-      message.error('导入失败');
+      message.error(t('导入失败'));
 
     }
 
@@ -714,7 +718,7 @@ export function BusinessEntityManager({
 
           <Input.Search
 
-            placeholder={`搜索${title}`}
+            placeholder={t('搜索{{title}}', { title })}
 
             value={searchText}
 
@@ -736,7 +740,7 @@ export function BusinessEntityManager({
 
             <Button icon={<CodeOutlined />} onClick={() => { yamlForm.resetFields(); setYamlModalOpen(true); }}>
 
-              批量导入
+              {t('批量导入')}
 
             </Button>
 
@@ -744,7 +748,7 @@ export function BusinessEntityManager({
 
           <Button type="primary" icon={<PlusOutlined />} onClick={handleCreate}>
 
-            新建
+            {t('新建')}
 
           </Button>
 
@@ -758,7 +762,7 @@ export function BusinessEntityManager({
 
       {filteredEntities.length === 0 ? (
 
-        <Empty description={`暂无${title}`} style={{ marginTop: 80 }} />
+        <Empty description={t('暂无{{title}}', { title })} style={{ marginTop: 80 }} />
 
       ) : (
 
@@ -810,7 +814,7 @@ export function BusinessEntityManager({
 
               <Text type="secondary" style={{ fontSize: 13, display: 'block', marginBottom: 12, minHeight: 40 }}>
 
-                {entity.description || '暂无描述'}
+                {entity.description || t('暂无描述')}
 
               </Text>
 
@@ -856,9 +860,9 @@ export function BusinessEntityManager({
 
                     <div key={cond.condition_id} style={{ fontSize: 12, marginBottom: 4 }}>
 
-                      <Tag color="red">当</Tag> {cond.trigger_event}
+                      <Tag color="red">{t('当')}</Tag> {cond.trigger_event}
 
-                      <Tag color="orange" style={{ marginLeft: 8 }}>必须</Tag> {cond.requirement}
+                      <Tag color="orange" style={{ marginLeft: 8 }}>{t('必须')}</Tag> {cond.requirement}
 
                     </div>
 
@@ -866,7 +870,7 @@ export function BusinessEntityManager({
 
                   {entity.rule_conditions.length > 2 && (
 
-                    <Text type="secondary" style={{ fontSize: 12 }}>+{entity.rule_conditions.length - 2} 个条件</Text>
+                    <Text type="secondary" style={{ fontSize: 12 }}>{t('+{{count}} 个条件', { count: entity.rule_conditions.length - 2 })}</Text>
 
                   )}
 
@@ -924,13 +928,13 @@ export function BusinessEntityManager({
 
                 <Space>
 
-                  <Button type="text" size="small" icon={<EyeOutlined />} onClick={(e) => { e.stopPropagation(); handleView(entity); }}>查看</Button>
+                  <Button type="text" size="small" icon={<EyeOutlined />} onClick={(e) => { e.stopPropagation(); handleView(entity); }}>{t('查看')}</Button>
 
-                  <Button type="text" size="small" icon={<EditOutlined />} onClick={(e) => { e.stopPropagation(); handleEdit(entity); }}>编辑</Button>
+                  <Button type="text" size="small" icon={<EditOutlined />} onClick={(e) => { e.stopPropagation(); handleEdit(entity); }}>{t('编辑')}</Button>
 
-                  <Popconfirm title="确认删除？" onConfirm={(e) => { e?.stopPropagation(); handleDelete(entity.id); }}>
+                  <Popconfirm title={t('确认删除？')} onConfirm={(e) => { e?.stopPropagation(); handleDelete(entity.id); }}>
 
-                    <Button type="text" size="small" danger icon={<DeleteOutlined />} onClick={(e) => e.stopPropagation()}>删除</Button>
+                    <Button type="text" size="small" danger icon={<DeleteOutlined />} onClick={(e) => e.stopPropagation()}>{t('删除')}</Button>
 
                   </Popconfirm>
 
@@ -952,7 +956,7 @@ export function BusinessEntityManager({
 
       <Modal
 
-        title={editingEntity ? `编辑${title}` : `新建${title}`}
+        title={editingEntity ? t('编辑{{title}}', { title }) : t('新建{{title}}', { title })}
 
         open={modalOpen}
 
@@ -964,39 +968,39 @@ export function BusinessEntityManager({
 
         destroyOnHidden
 
-        okText="保存"
+        okText={t('保存')}
 
-        cancelText="取消"
+        cancelText={t('取消')}
 
       >
 
         <Form form={form} layout="vertical" onFinish={handleSave}>
 
-          <Form.Item name="name" label="唯一标识名称" rules={[{ required: true, message: '请输入唯一标识名称' }]}>
+          <Form.Item name="name" label={t('唯一标识名称')} rules={[{ required: true, message: t('请输入唯一标识名称') }]}>
 
-            <Input placeholder="请输入名称（英文、数字、下划线）" />
-
-          </Form.Item>
-
-          <Form.Item name="display_name" label="展示名称" rules={[{ required: true, message: '请输入展示名称' }]}>
-
-            <Input placeholder="请输入展示名称" />
+            <Input placeholder={t('请输入名称（英文、数字、下划线）')} />
 
           </Form.Item>
 
-          <Form.Item name="schema_type_id" label="类型定义">
+          <Form.Item name="display_name" label={t('展示名称')} rules={[{ required: true, message: t('请输入展示名称') }]}>
 
-            <Select placeholder="选择类型定义（可选）" allowClear options={typeDefinitionOptions} showSearch filterOption={(input, option) => (option?.label as string)?.toLowerCase().includes(input.toLowerCase())} />
+            <Input placeholder={t('请输入展示名称')} />
 
           </Form.Item>
 
-          <Form.Item name="related_objects" label="关联对象">
+          <Form.Item name="schema_type_id" label={t('类型定义')}>
+
+            <Select placeholder={t('选择类型定义（可选）')} allowClear options={typeDefinitionOptions} showSearch filterOption={(input, option) => (option?.label as string)?.toLowerCase().includes(input.toLowerCase())} />
+
+          </Form.Item>
+
+          <Form.Item name="related_objects" label={t('关联对象')}>
 
             <Select
 
               mode="multiple"
 
-              placeholder="请选择关联对象类型"
+              placeholder={t('请选择关联对象类型')}
 
               options={objectTypeOptions}
 
@@ -1012,13 +1016,13 @@ export function BusinessEntityManager({
 
           {entityType !== 'process' && (
 
-            <Form.Item name="related_processes" label="关联业务过程">
+            <Form.Item name="related_processes" label={t('关联业务过程')}>
 
               <Select
 
                 mode="multiple"
 
-                placeholder="请选择关联业务过程"
+                placeholder={t('请选择关联业务过程')}
 
                 options={processOptions}
 
@@ -1036,13 +1040,13 @@ export function BusinessEntityManager({
 
           {entityType !== 'rule' && (
 
-            <Form.Item name="related_rules" label="关联业务规则">
+            <Form.Item name="related_rules" label={t('关联业务规则')}>
 
               <Select
 
                 mode="multiple"
 
-                placeholder="请选择关联业务规则"
+                placeholder={t('请选择关联业务规则')}
 
                 options={ruleOptions}
 
@@ -1060,13 +1064,13 @@ export function BusinessEntityManager({
 
           {entityType !== 'logic' && (
 
-            <Form.Item name="related_logics" label="关联业务逻辑">
+            <Form.Item name="related_logics" label={t('关联业务逻辑')}>
 
               <Select
 
                 mode="multiple"
 
-                placeholder="请选择关联业务逻辑"
+                placeholder={t('请选择关联业务逻辑')}
 
                 options={logicOptions}
 
@@ -1084,13 +1088,13 @@ export function BusinessEntityManager({
 
           {entityType !== 'indicator' && (
 
-            <Form.Item name="related_indicators" label="关联业务指标">
+            <Form.Item name="related_indicators" label={t('关联业务指标')}>
 
               <Select
 
                 mode="multiple"
 
-                placeholder="请选择关联业务指标"
+                placeholder={t('请选择关联业务指标')}
 
                 options={indicatorOptions}
 
@@ -1106,9 +1110,9 @@ export function BusinessEntityManager({
 
           )}
 
-          <Form.Item name="llm_description" label="核心逻辑（LLM Description）" rules={[{ required: true }]}>
+          <Form.Item name="llm_description" label={t('核心逻辑（LLM Description）')} rules={[{ required: true }]}>
 
-            <TextArea placeholder="请输入核心逻辑描述" rows={6} />
+            <TextArea placeholder={t('请输入核心逻辑描述')} rows={6} />
 
           </Form.Item>
 
@@ -1120,7 +1124,7 @@ export function BusinessEntityManager({
 
             <>
 
-              <Divider>流程节点</Divider>
+              <Divider>{t('流程节点')}</Divider>
 
               {flowNodes.map((node, index) => (
 
@@ -1134,13 +1138,13 @@ export function BusinessEntityManager({
 
                     onChange={e => updateFlowNode(index, 'name', e.target.value)}
 
-                    placeholder="节点名称"
+                    placeholder={t('节点名称')}
 
                     style={{ flex: 1 }}
 
                   />
 
-                  <Button type="text" danger onClick={() => removeFlowNode(index)}>删除</Button>
+                  <Button type="text" danger onClick={() => removeFlowNode(index)}>{t('删除')}</Button>
 
                 </div>
 
@@ -1148,7 +1152,7 @@ export function BusinessEntityManager({
 
               <Button type="dashed" block icon={<PlusOutlined />} onClick={addFlowNode} style={{ marginTop: 8 }}>
 
-                添加节点
+                {t('添加节点')}
 
               </Button>
 
@@ -1164,7 +1168,7 @@ export function BusinessEntityManager({
 
             <>
 
-              <Divider>规则条件</Divider>
+              <Divider>{t('规则条件')}</Divider>
 
               {ruleConditions.map((cond, index) => (
 
@@ -1172,7 +1176,7 @@ export function BusinessEntityManager({
 
                   <div style={{ display: 'flex', gap: 8, marginBottom: 8, alignItems: 'center' }}>
 
-                    <Tag color="red">当</Tag>
+                    <Tag color="red">{t('当')}</Tag>
 
                     <Input
 
@@ -1180,7 +1184,7 @@ export function BusinessEntityManager({
 
                       onChange={e => updateRuleCondition(index, 'trigger_event', e.target.value)}
 
-                      placeholder="触发事件"
+                      placeholder={t('触发事件')}
 
                       style={{ flex: 1 }}
 
@@ -1190,7 +1194,7 @@ export function BusinessEntityManager({
 
                   <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
 
-                    <Tag color="orange">必须</Tag>
+                    <Tag color="orange">{t('必须')}</Tag>
 
                     <Input
 
@@ -1198,13 +1202,13 @@ export function BusinessEntityManager({
 
                       onChange={e => updateRuleCondition(index, 'requirement', e.target.value)}
 
-                      placeholder="要求条件"
+                      placeholder={t('要求条件')}
 
                       style={{ flex: 1 }}
 
                     />
 
-                    <Button type="text" danger onClick={() => removeRuleCondition(index)}>删除</Button>
+                    <Button type="text" danger onClick={() => removeRuleCondition(index)}>{t('删除')}</Button>
 
                   </div>
 
@@ -1214,7 +1218,7 @@ export function BusinessEntityManager({
 
               <Button type="dashed" block icon={<PlusOutlined />} onClick={addRuleCondition} style={{ marginTop: 8 }}>
 
-                添加条件
+                {t('添加条件')}
 
               </Button>
 
@@ -1230,27 +1234,27 @@ export function BusinessEntityManager({
 
             <>
 
-              <Divider>逻辑配置</Divider>
+              <Divider>{t('逻辑配置')}</Divider>
 
-              <Form.Item name="logic_type" label="逻辑类型">
+              <Form.Item name="logic_type" label={t('逻辑类型')}>
 
-                <Select placeholder="请选择逻辑类型" options={[
+                <Select placeholder={t('请选择逻辑类型')} options={[
 
-                  { label: '过滤 (filter)', value: 'filter' },
+                  { label: t('过滤 (filter)'), value: 'filter' },
 
-                  { label: '转换 (transform)', value: 'transform' },
+                  { label: t('转换 (transform)'), value: 'transform' },
 
-                  { label: '验证 (validate)', value: 'validate' },
+                  { label: t('验证 (validate)'), value: 'validate' },
 
-                  { label: '计算 (compute)', value: 'compute' },
+                  { label: t('计算 (compute)'), value: 'compute' },
 
                 ]} allowClear />
 
               </Form.Item>
 
-              <Form.Item name="logic_expression" label="逻辑表达式">
+              <Form.Item name="logic_expression" label={t('逻辑表达式')}>
 
-                <TextArea placeholder="请输入逻辑表达式" rows={3} style={{ fontFamily: 'monospace' }} />
+                <TextArea placeholder={t('请输入逻辑表达式')} rows={3} style={{ fontFamily: 'monospace' }} />
 
               </Form.Item>
 
@@ -1266,31 +1270,31 @@ export function BusinessEntityManager({
 
             <>
 
-              <Divider>指标配置</Divider>
+              <Divider>{t('指标配置')}</Divider>
 
-              <Form.Item name="indicator_type" label="指标类型" rules={[{ required: true, message: '请选择指标类型' }]}>
+              <Form.Item name="indicator_type" label={t('指标类型')} rules={[{ required: true, message: t('请选择指标类型') }]}>
 
-                <Select placeholder="请选择指标类型" options={[
+                <Select placeholder={t('请选择指标类型')} options={[
 
-                  { label: '关键绩效指标 (KPI)', value: 'kpi' },
+                  { label: t('关键绩效指标 (KPI)'), value: 'kpi' },
 
-                  { label: '度量指标 (metric)', value: 'metric' },
+                  { label: t('度量指标 (metric)'), value: 'metric' },
 
-                  { label: '维度 (dimension)', value: 'dimension' },
+                  { label: t('维度 (dimension)'), value: 'dimension' },
 
                 ]} allowClear />
 
               </Form.Item>
 
-              <Form.Item name="calculation_formula" label="计算公式" rules={[{ required: true, message: '请输入计算公式' }]}>
+              <Form.Item name="calculation_formula" label={t('计算公式')} rules={[{ required: true, message: t('请输入计算公式') }]}>
 
-                <TextArea placeholder="请输入计算公式" rows={3} style={{ fontFamily: 'monospace' }} />
+                <TextArea placeholder={t('请输入计算公式')} rows={3} style={{ fontFamily: 'monospace' }} />
 
               </Form.Item>
 
-              <Form.Item name="unit" label="单位">
+              <Form.Item name="unit" label={t('单位')}>
 
-                <Input placeholder="请输入单位，如：元、次、%" />
+                <Input placeholder={t('请输入单位，如：元、次、%')} />
 
               </Form.Item>
 
@@ -1308,7 +1312,7 @@ export function BusinessEntityManager({
 
       <Modal
 
-        title={`YAML 批量定义 - ${title}`}
+        title={t('YAML 批量定义 - {{title}}', { title })}
 
         open={yamlModalOpen}
 
@@ -1324,7 +1328,7 @@ export function BusinessEntityManager({
 
           <Form.Item name="yaml" rules={[{ required: true }]}>
 
-            <TextArea placeholder="请输入 YAML 定义..." rows={16} style={{ fontFamily: 'monospace' }} />
+            <TextArea placeholder={t('请输入 YAML 定义...')} rows={16} style={{ fontFamily: 'monospace' }} />
 
           </Form.Item>
 
@@ -1338,7 +1342,7 @@ export function BusinessEntityManager({
 
       <Drawer
 
-        title="详情"
+        title={t('详情')}
 
         open={detailOpen}
 
@@ -1368,7 +1372,7 @@ export function BusinessEntityManager({
 
               {viewingEntity.schema_type_id && (
 
-                <Descriptions.Item label="类型定义">
+                <Descriptions.Item label={t('类型定义')}>
 
                   {(() => {
 
@@ -1382,13 +1386,13 @@ export function BusinessEntityManager({
 
               )}
 
-              <Descriptions.Item label="关联对象">
+              <Descriptions.Item label={t('关联对象')}>
 
                 <Space wrap>
 
                   {viewingEntity.related_objects?.map(obj => <Tag key={obj} color="blue">{obj}</Tag>)}
 
-                  {(!viewingEntity.related_objects || viewingEntity.related_objects.length === 0) && <Text type="secondary">无</Text>}
+                  {(!viewingEntity.related_objects || viewingEntity.related_objects.length === 0) && <Text type="secondary">{t('无')}</Text>}
 
                 </Space>
 
@@ -1396,13 +1400,13 @@ export function BusinessEntityManager({
 
               {entityType !== 'process' && (
 
-                <Descriptions.Item label="关联业务过程">
+                <Descriptions.Item label={t('关联业务过程')}>
 
                   <Space wrap>
 
                     {(viewingEntity as any).related_processes?.map((p: string) => <Tag key={p} color="green">{p}</Tag>)}
 
-                    {(!(viewingEntity as any).related_processes || (viewingEntity as any).related_processes?.length === 0) && <Text type="secondary">无</Text>}
+                    {(!(viewingEntity as any).related_processes || (viewingEntity as any).related_processes?.length === 0) && <Text type="secondary">{t('无')}</Text>}
 
                   </Space>
 
@@ -1412,13 +1416,13 @@ export function BusinessEntityManager({
 
               {entityType !== 'rule' && (
 
-                <Descriptions.Item label="关联业务规则">
+                <Descriptions.Item label={t('关联业务规则')}>
 
                   <Space wrap>
 
                     {(viewingEntity as any).related_rules?.map((r: string) => <Tag key={r} color="orange">{r}</Tag>)}
 
-                    {(!(viewingEntity as any).related_rules || (viewingEntity as any).related_rules?.length === 0) && <Text type="secondary">无</Text>}
+                    {(!(viewingEntity as any).related_rules || (viewingEntity as any).related_rules?.length === 0) && <Text type="secondary">{t('无')}</Text>}
 
                   </Space>
 
@@ -1428,13 +1432,13 @@ export function BusinessEntityManager({
 
               {entityType !== 'logic' && (
 
-                <Descriptions.Item label="关联业务逻辑">
+                <Descriptions.Item label={t('关联业务逻辑')}>
 
                   <Space wrap>
 
                     {(viewingEntity as any).related_logics?.map((l: string) => <Tag key={l} color="purple">{l}</Tag>)}
 
-                    {(!(viewingEntity as any).related_logics || (viewingEntity as any).related_logics?.length === 0) && <Text type="secondary">无</Text>}
+                    {(!(viewingEntity as any).related_logics || (viewingEntity as any).related_logics?.length === 0) && <Text type="secondary">{t('无')}</Text>}
 
                   </Space>
 
@@ -1444,13 +1448,13 @@ export function BusinessEntityManager({
 
               {entityType !== 'indicator' && (
 
-                <Descriptions.Item label="关联业务指标">
+                <Descriptions.Item label={t('关联业务指标')}>
 
                   <Space wrap>
 
                     {(viewingEntity as any).related_indicators?.map((i: string) => <Tag key={i} color="cyan">{i}</Tag>)}
 
-                    {(!(viewingEntity as any).related_indicators || (viewingEntity as any).related_indicators?.length === 0) && <Text type="secondary">无</Text>}
+                    {(!(viewingEntity as any).related_indicators || (viewingEntity as any).related_indicators?.length === 0) && <Text type="secondary">{t('无')}</Text>}
 
                   </Space>
 
@@ -1468,7 +1472,7 @@ export function BusinessEntityManager({
 
               <>
 
-                <Divider>流程节点</Divider>
+                <Divider>{t('流程节点')}</Divider>
 
                 <Steps
 
@@ -1500,7 +1504,7 @@ export function BusinessEntityManager({
 
               <>
 
-                <Divider>规则条件</Divider>
+                <Divider>{t('规则条件')}</Divider>
 
                 {viewingEntity.rule_conditions.map((cond) => (
 
@@ -1508,13 +1512,13 @@ export function BusinessEntityManager({
 
                     <div style={{ marginBottom: 4 }}>
 
-                      <Tag color="red">当</Tag> <Text>{cond.trigger_event}</Text>
+                      <Tag color="red">{t('当')}</Tag> <Text>{cond.trigger_event}</Text>
 
                     </div>
 
                     <div>
 
-                      <Tag color="orange">必须</Tag> <Text>{cond.requirement}</Text>
+                      <Tag color="orange">{t('必须')}</Tag> <Text>{cond.requirement}</Text>
 
                     </div>
 
@@ -1534,13 +1538,13 @@ export function BusinessEntityManager({
 
               <>
 
-                <Divider>逻辑配置</Divider>
+                <Divider>{t('逻辑配置')}</Divider>
 
                 <div style={{ padding: 12, background: '#f6ffed', borderRadius: 4, fontFamily: 'monospace', fontSize: 13 }}>
 
-                  <div style={{ marginBottom: 8 }}><Tag>类型</Tag> {viewingEntity.logic_type}</div>
+                  <div style={{ marginBottom: 8 }}><Tag>{t('类型')}</Tag> {viewingEntity.logic_type}</div>
 
-                  <div><Tag>表达式</Tag> {viewingEntity.logic_expression}</div>
+                  <div><Tag>{t('表达式')}</Tag> {viewingEntity.logic_expression}</div>
 
                 </div>
 
@@ -1556,15 +1560,15 @@ export function BusinessEntityManager({
 
               <>
 
-                <Divider>指标配置</Divider>
+                <Divider>{t('指标配置')}</Divider>
 
                 <div style={{ padding: 12, background: '#e6f7ff', borderRadius: 4, fontSize: 13 }}>
 
-                  <div style={{ marginBottom: 8 }}><Tag>指标类型</Tag> {viewingEntity.indicator_type}</div>
+                  <div style={{ marginBottom: 8 }}><Tag>{t('指标类型')}</Tag> {viewingEntity.indicator_type}</div>
 
-                  <div style={{ marginBottom: 8 }}><Tag>计算公式</Tag> <span style={{ fontFamily: 'monospace' }}>{viewingEntity.calculation_formula}</span></div>
+                  <div style={{ marginBottom: 8 }}><Tag>{t('计算公式')}</Tag> <span style={{ fontFamily: 'monospace' }}>{viewingEntity.calculation_formula}</span></div>
 
-                  {viewingEntity.unit && <div><Tag>单位</Tag> {viewingEntity.unit}</div>}
+                  {viewingEntity.unit && <div><Tag>{t('单位')}</Tag> {viewingEntity.unit}</div>}
 
                 </div>
 
@@ -1574,7 +1578,7 @@ export function BusinessEntityManager({
 
 
 
-            <Divider>核心逻辑</Divider>
+            <Divider>{t('核心逻辑')}</Divider>
 
             <div style={{ padding: 12, background: '#f5f7fa', borderRadius: 4, whiteSpace: 'pre-wrap' }}>
 
@@ -1588,17 +1592,17 @@ export function BusinessEntityManager({
 
             <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 8 }}>
 
-              <Button icon={<CodeOutlined />} onClick={() => { setYamlViewContent(viewingEntity.yaml_definition || ''); setYamlViewOpen(true); }}>查看 YAML 代码</Button>
+              <Button icon={<CodeOutlined />} onClick={() => { setYamlViewContent(viewingEntity.yaml_definition || ''); setYamlViewOpen(true); }}>{t('查看 YAML 代码')}</Button>
 
-              <Popconfirm title="确认删除？" onConfirm={() => handleDelete(viewingEntity.id)}>
+              <Popconfirm title={t('确认删除？')} onConfirm={() => handleDelete(viewingEntity.id)}>
 
-                <Button danger icon={<DeleteOutlined />}>删除</Button>
+                <Button danger icon={<DeleteOutlined />}>{t('删除')}</Button>
 
               </Popconfirm>
 
               <Button type="primary" icon={<EditOutlined />} onClick={() => { setDetailOpen(false); handleEdit(viewingEntity); }}>
 
-                编辑
+                {t('编辑')}
 
               </Button>
 
@@ -1614,13 +1618,13 @@ export function BusinessEntityManager({
 
       <Modal
 
-        title="YAML 定义"
+        title={t('YAML 定义')}
 
         open={yamlViewOpen}
 
         onCancel={() => setYamlViewOpen(false)}
 
-        footer={<Button onClick={() => setYamlViewOpen(false)}>关闭</Button>}
+        footer={<Button onClick={() => setYamlViewOpen(false)}>{t('关闭')}</Button>}
 
         width={640}
 
@@ -1636,7 +1640,7 @@ export function BusinessEntityManager({
 
         ) : (
 
-          <div style={{ textAlign: 'center', color: '#8c8c8c', padding: 40 }}>暂无 YAML 定义</div>
+          <div style={{ textAlign: 'center', color: '#8c8c8c', padding: 40 }}>{t('暂无 YAML 定义')}</div>
 
         )}
 

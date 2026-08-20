@@ -11,11 +11,11 @@ import {
   ReloadOutlined, SafetyOutlined,
 } from '@ant-design/icons';
 import { menuConfigApi, type MenuItem } from '../services/menuConfigApi';
-import { listRoles } from '@/modules/roles/services/rolesApi';
 import { RoleMenuAssigner, type RoleSummary } from '../components/RoleMenuAssigner';
 import { resolveIcon, ICON_OPTIONS } from '../utils/iconResolver';
 import { resolveMenuName } from '../utils/resolveMenuName';
 import { useI18n } from '@/modules/shared/hooks/useI18n';
+import { useAuthStore } from '@/modules/shared/stores/authStore';
 
 const { Title, Text } = Typography;
 
@@ -151,6 +151,11 @@ export function MenuConfigPage() {
   const [roleLoading, setRoleLoading] = useState(false);
   const [roleSaving, setRoleSaving] = useState(false);
 
+  /* ── 恢复默认菜单（管理员专属） ── */
+  const isAdmin = useAuthStore((s) => s.user?.global_role === 'admin');
+  const [initModalOpen, setInitModalOpen] = useState(false);
+  const [initLoading, setInitLoading] = useState(false);
+
   /* ── 加载菜单树 ── */
   const loadTree = useCallback(async () => {
     setLoading(true);
@@ -171,24 +176,26 @@ export function MenuConfigPage() {
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  /* ── 加载角色列表（从 /api/roles） ── */
+  /* ── 加载角色列表（内置全局角色，与 JWT role 对齐） ── */
   const loadRoles = useCallback(async () => {
     try {
-      const rolesData = await listRoles();
-      const summaries: RoleSummary[] = rolesData.map((r) => ({
+      const data = await menuConfigApi.getGlobalRoles();
+      const summaries: RoleSummary[] = (data.roles || []).map((r) => ({
         id: r.id,
         name: r.name,
         description: r.description,
       }));
       setRoles(summaries);
-      if (summaries.length > 0 && !selectedRoleId) {
-        setSelectedRoleId(summaries[0].id);
-      }
+      // 默认选中第一个非 admin 角色（admin 是全量菜单，配置无意义）
+      setSelectedRoleId((prev) => {
+        if (prev) return prev;
+        return (summaries.find((r) => r.id !== 'admin') || summaries[0])?.id || '';
+      });
     } catch (e: any) {
-      console.warn(t('加载角色列表失败') + ' /api/roles:', e.message);
+      console.warn(t('加载角色列表失败') + ' /api/menu-config/global-roles:', e.message);
       message.warning(t('加载角色列表失败'));
     }
-  }, [selectedRoleId, t]);
+  }, [t]);
 
   useEffect(() => { loadTree(); }, [loadTree]);
   useEffect(() => { loadRoles(); }, [loadRoles]);
@@ -288,6 +295,24 @@ export function MenuConfigPage() {
     setRoleMenuIds(keys);
   };
 
+  /* ── 恢复默认菜单（幂等，仅管理员可见按钮，后端另有 403 校验） ── */
+  const handleInitDefault = async () => {
+    setInitLoading(true);
+    try {
+      const res = await menuConfigApi.initDefault();
+      message.success(
+        `${t('恢复完成')}：created=${res.created ?? 0}, skipped=${res.skipped ?? 0}, role_grants=${res.role_grants ?? 0}`,
+      );
+      setInitModalOpen(false);
+      loadTree();
+      loadRoles();
+    } catch (e: any) {
+      message.error(t('恢复失败') + ': ' + (e.message || e));
+    } finally {
+      setInitLoading(false);
+    }
+  };
+
   /* ── 树节点 ── */
   const handleTreeSelect = (keys: React.Key[]) => {
     if (keys.length === 0) {
@@ -324,6 +349,13 @@ export function MenuConfigPage() {
           <Button icon={<ReloadOutlined />} onClick={() => { loadTree(); loadRoles(); }} loading={loading}>
             {t('refresh')}
           </Button>
+          {isAdmin && (
+            <Tooltip title={t('幂等恢复默认菜单树与角色默认授权，不会覆盖自定义菜单')}>
+              <Button icon={<SafetyOutlined />} onClick={() => setInitModalOpen(true)}>
+                {t('恢复默认菜单')}
+              </Button>
+            </Tooltip>
+          )}
           {activeTab === 'menu' && (
             <Button type="primary" icon={<PlusOutlined />} onClick={() => handleCreate()}>
               {t('新建顶级菜单')}
@@ -452,6 +484,22 @@ export function MenuConfigPage() {
           onReset={() => loadRoleMenus(selectedRoleId)}
         />
       )}
+
+      {/* ── 恢复默认菜单确认 Modal（管理员专属） ── */}
+      <Modal
+        title={t('恢复默认菜单')}
+        open={initModalOpen}
+        onOk={handleInitDefault}
+        onCancel={() => setInitModalOpen(false)}
+        okText={t('确认恢复')}
+        cancelText={t('取消')}
+        okButtonProps={{ loading: initLoading, danger: true }}
+        destroyOnHidden
+      >
+        <Text type="secondary">
+          {t('将幂等写入默认菜单项，并为非 admin 全局角色补全默认授权。已存在的自定义菜单不会被覆盖。')}
+        </Text>
+      </Modal>
 
       {/* ── 创建/编辑 Modal ── */}
       <Modal

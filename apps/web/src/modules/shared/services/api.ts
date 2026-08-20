@@ -686,6 +686,13 @@ export const api = {
     });
   },
 
+  async deleteWorkspaces(workspaceIds: string[]): Promise<{ status: string; message: string; deleted_count: number; not_found: string[] }> {
+    return fetchJson(`${API_BASE}/api/workspaces/batch-delete`, {
+      method: 'POST',
+      body: JSON.stringify({ ids: workspaceIds }),
+    });
+  },
+
   async getWorkspaceDeletionPreview(workspaceId: string): Promise<{
     workspace_id: string;
     workspace_name: string;
@@ -897,6 +904,13 @@ export const api = {
   async deleteScenario(workspaceId: string, scenarioId: string): Promise<{ status: string; message: string }> {
     return fetchJson(`${API_BASE}/api/workspaces/${workspaceId}/scenarios/${scenarioId}`, {
       method: 'DELETE',
+    });
+  },
+
+  async deleteScenarios(workspaceId: string, scenarioIds: string[]): Promise<{ status: string; message: string; deleted_count: number; not_found: string[] }> {
+    return fetchJson(`${API_BASE}/api/workspaces/${workspaceId}/scenarios/batch-delete`, {
+      method: 'POST',
+      body: JSON.stringify({ ids: scenarioIds }),
     });
   },
 

@@ -7,8 +7,8 @@
  * 注意：fetch mock 使用 vi.fn() 模拟；SSE 流通过 ReadableStream 模拟
  */
 
-import { describe, it, expect, vi, beforeEach } from 'vitest';
-import { renderHook, act } from '@testing-library/react';
+import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
+import { renderHook, act, cleanup } from '@testing-library/react';
 import { useAGUI } from '../useAGUI';
 import type { AGUIEvent } from '../agui_types';
 
@@ -33,6 +33,14 @@ function makeSSEResponse(events: AGUIEvent[]): Response {
 
 describe('useAGUI', () => {
   beforeEach(() => {
+    // 重置 global.fetch 为全新 vi.fn()，防止上一个测试的 spy 累积 mock.calls 泄漏。
+    global.fetch = vi.fn() as unknown as typeof fetch;
+    vi.restoreAllMocks();
+  });
+
+  afterEach(() => {
+    // 显式卸载 renderHook 挂载的组件，清理定时器，防止 fetch 调用泄漏到后续测试。
+    cleanup();
     vi.restoreAllMocks();
   });
 

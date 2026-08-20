@@ -2,6 +2,7 @@ import { useRef, useEffect, useMemo } from 'react';
 import * as echarts from 'echarts';
 import { InlineChart } from './InlineChart';
 import type { ChartSpec } from '../hooks/useQAI';
+import { useI18n } from '@/modules/shared/hooks/useI18n';
 
 type ChartType = 'line' | 'bar' | 'pie' | 'scatter' | 'radar' | 'heatmap' | 'graph' | 'map';
 
@@ -14,6 +15,7 @@ interface ChartRendererProps {
 }
 
 function GraphView({ data, title, height = 350 }: { data: Record<string, unknown>; title?: string; height?: number }) {
+  const { t } = useI18n('qa');
   const chartRef = useRef<HTMLDivElement>(null);
   const instanceRef = useRef<echarts.ECharts | null>(null);
 
@@ -63,7 +65,7 @@ function GraphView({ data, title, height = 350 }: { data: Record<string, unknown
   return (
     <div style={{ margin: '8px 0', borderRadius: 8, border: '1px solid #e5e7eb', overflow: 'hidden', background: '#fff' }}>
       <div style={{ padding: '6px 12px', background: '#fafafa', borderBottom: '1px solid #e5e7eb', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-        <span style={{ fontSize: 12, color: '#666' }}>网络图</span>
+        <span style={{ fontSize: 12, color: '#666' }}>{t('网络图')}</span>
         {title && <span style={{ fontSize: 12, fontWeight: 500 }}>{title}</span>}
       </div>
       <div ref={chartRef} style={{ width: '100%', height }} />
@@ -72,6 +74,7 @@ function GraphView({ data, title, height = 350 }: { data: Record<string, unknown
 }
 
 function MapView({ data, title, height = 350 }: { data: Record<string, unknown>; title?: string; height?: number }) {
+  const { t } = useI18n('qa');
   const chartRef = useRef<HTMLDivElement>(null);
   const instanceRef = useRef<echarts.ECharts | null>(null);
 
@@ -116,7 +119,7 @@ function MapView({ data, title, height = 350 }: { data: Record<string, unknown>;
   return (
     <div style={{ margin: '8px 0', borderRadius: 8, border: '1px solid #e5e7eb', overflow: 'hidden', background: '#fff' }}>
       <div style={{ padding: '6px 12px', background: '#fafafa', borderBottom: '1px solid #e5e7eb', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-        <span style={{ fontSize: 12, color: '#666' }}>地图</span>
+        <span style={{ fontSize: 12, color: '#666' }}>{t('地图')}</span>
         {title && <span style={{ fontSize: 12, fontWeight: 500 }}>{title}</span>}
       </div>
       <div ref={chartRef} style={{ width: '100%', height }} />

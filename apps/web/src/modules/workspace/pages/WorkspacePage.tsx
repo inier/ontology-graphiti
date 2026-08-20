@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, type Key } from 'react';
 
 import { Row, Col, Card, Tag, Modal, Form, Input, Select as AntSelect, Space, Statistic, Tabs, message, Empty } from 'antd';
 
@@ -14,6 +14,7 @@ import { useWorkspace, useScenario } from '@/modules/shared/components/LayoutCon
 
 import { useWorkspaceStore } from '../stores/workspaceStore';
 import { DeleteConfirmModal } from '../components/DeleteConfirmModal';
+import { api } from '@/modules/shared/services/api';
 
 import type { WorkspaceDetail, ScenarioDetail } from '../stores/workspaceStore';
 
@@ -103,6 +104,10 @@ export function WorkspacePage() {
   const [scenarioForm] = Form.useForm();
 
   const [activeTab, setActiveTab] = useState('workspaces');
+
+  const [selectedWorkspaceIds, setSelectedWorkspaceIds] = useState<string[]>([]);
+  const [selectedScenarioIds, setSelectedScenarioIds] = useState<string[]>([]);
+  const [batchDeleting, setBatchDeleting] = useState(false);
 
 
 
@@ -209,6 +214,66 @@ export function WorkspacePage() {
       setDeletingWorkspace(null);
     }
     reloadWorkspaces();
+  };
+
+
+
+  const handleBatchDeleteWorkspaces = async () => {
+    if (selectedWorkspaceIds.length === 0) return;
+    Modal.confirm({
+      title: t('批量删除工作空间'),
+      content: t('确定删除选中的 {{count}} 个工作空间吗？此操作不可恢复。', { count: selectedWorkspaceIds.length }),
+      okText: t('删除'),
+      cancelText: t('取消'),
+      okButtonProps: { danger: true },
+      onOk: async () => {
+        setBatchDeleting(true);
+        try {
+          const result = await api.deleteWorkspaces(selectedWorkspaceIds);
+          if (result.not_found && result.not_found.length > 0) {
+            adapter.getMessage().warning(t('部分删除成功，{{n}} 个工作空间不存在', { n: result.not_found.length }));
+          } else {
+            adapter.getMessage().success(t('批量删除成功'));
+          }
+          setSelectedWorkspaceIds([]);
+          reloadWorkspaces();
+        } catch {
+          adapter.getMessage().error(t('批量删除失败'));
+        } finally {
+          setBatchDeleting(false);
+        }
+      },
+    });
+  };
+
+
+
+  const handleBatchDeleteScenarios = async () => {
+    if (!activeWorkspaceId || selectedScenarioIds.length === 0) return;
+    Modal.confirm({
+      title: t('批量删除场景'),
+      content: t('确定删除选中的 {{count}} 个场景吗？此操作不可恢复。', { count: selectedScenarioIds.length }),
+      okText: t('删除'),
+      cancelText: t('取消'),
+      okButtonProps: { danger: true },
+      onOk: async () => {
+        setBatchDeleting(true);
+        try {
+          const result = await api.deleteScenarios(activeWorkspaceId, selectedScenarioIds);
+          if (result.not_found && result.not_found.length > 0) {
+            adapter.getMessage().warning(t('部分删除成功，{{n}} 个场景不存在', { n: result.not_found.length }));
+          } else {
+            adapter.getMessage().success(t('批量删除成功'));
+          }
+          setSelectedScenarioIds([]);
+          reloadScenarios();
+        } catch {
+          adapter.getMessage().error(t('批量删除失败'));
+        } finally {
+          setBatchDeleting(false);
+        }
+      },
+    });
   };
 
 
@@ -611,7 +676,33 @@ export function WorkspacePage() {
 
             children: (
 
-              <Card>
+              <Card
+
+                extra={
+
+                  selectedWorkspaceIds.length > 0 ? (
+
+                    <Button
+
+                      danger
+
+                      icon={<DeleteOutlined />}
+
+                      loading={batchDeleting}
+
+                      onClick={handleBatchDeleteWorkspaces}
+
+                    >
+
+                      {t('批量删除')} ({selectedWorkspaceIds.length})
+
+                    </Button>
+
+                  ) : null
+
+                }
+
+              >
 
                 <AdvancedTable
 
@@ -624,6 +715,16 @@ export function WorkspacePage() {
                   loading={loading}
 
                   pagination={{ pageSize: 10 }}
+
+                  rowSelection={{
+
+                    selectedRowKeys: selectedWorkspaceIds,
+
+                    onChange: (keys: Key[]) => setSelectedWorkspaceIds(keys.map(String)),
+
+                    preserveSelectedRowKeys: true,
+
+                  }}
 
                   onReload={() => loadWorkspaces()}
 
@@ -651,21 +752,45 @@ export function WorkspacePage() {
 
                   activeWorkspaceId ? (
 
-                    <Button
+                    <Space>
 
-                      type="primary"
+                      {selectedScenarioIds.length > 0 && (
 
-                      icon={<PlusOutlined />}
+                        <Button
 
-                      onClick={() => setScenarioModalVisible(true)}
+                          danger
 
-                      data-tour="workspace-scenario-create-btn"
+                          icon={<DeleteOutlined />}
 
-                    >
+                          loading={batchDeleting}
 
-                      {t('创建场景')}
+                          onClick={handleBatchDeleteScenarios}
 
-                    </Button>
+                        >
+
+                          {t('批量删除')} ({selectedScenarioIds.length})
+
+                        </Button>
+
+                      )}
+
+                      <Button
+
+                        type="primary"
+
+                        icon={<PlusOutlined />}
+
+                        onClick={() => setScenarioModalVisible(true)}
+
+                        data-tour="workspace-scenario-create-btn"
+
+                      >
+
+                        {t('创建场景')}
+
+                      </Button>
+
+                    </Space>
 
                   ) : null
 
@@ -686,6 +811,16 @@ export function WorkspacePage() {
                     loading={loading}
 
                     pagination={{ pageSize: 10 }}
+
+                    rowSelection={{
+
+                      selectedRowKeys: selectedScenarioIds,
+
+                      onChange: (keys: Key[]) => setSelectedScenarioIds(keys.map(String)),
+
+                      preserveSelectedRowKeys: true,
+
+                    }}
 
                     onReload={() => { if (activeWorkspaceId) loadScenarios(activeWorkspaceId); }}
 

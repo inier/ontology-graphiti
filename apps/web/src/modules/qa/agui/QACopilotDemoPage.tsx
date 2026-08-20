@@ -19,11 +19,13 @@ import { HITLPanel } from './HITLPanel';
 import { StatePanel } from './StatePanel';
 import { CardRenderer } from './CardRegistry';
 import type { CardMetadata } from './agui_types';
+import { useI18n } from '@/modules/shared/hooks/useI18n';
 
 const { Header, Sider, Content } = Layout;
 const { Text } = Typography;
 
 function CopilotInner() {
+  const { t } = useI18n('qa');
   const { flatMessages, toolCalls, status, send, cancel, pendingInterrupts, error } = useAGUIContext();
   const [input, setInput] = useState('');
 
@@ -134,7 +136,7 @@ function CopilotInner() {
             disabled={status === 'streaming'}
           />
           {status === 'streaming' ? (
-            <Button onClick={cancel}>取消</Button>
+            <Button onClick={cancel}>{t('取消')}</Button>
           ) : (
             <Button type="primary" icon={<SendOutlined />} onClick={handleSend}>
               发送

@@ -4,6 +4,7 @@ import { PlusOutlined, SearchOutlined, EditOutlined, DeleteOutlined, UserOutline
 import { fetchJson, API_BASE } from '@/modules/shared';
 import { AdvancedTable } from '@/modules/shared';
 import { useI18n } from '@/modules/shared/hooks/useI18n';
+import { GLOBAL_ROLES, getRoleLabel, getRoleColor } from '../constants';
 
 interface UserRecord {
   id: string;
@@ -27,19 +28,6 @@ export function UserManagement() {
   const [viewingUser, setViewingUser] = useState<UserRecord | null>(null);
   const [createForm] = Form.useForm();
   const [editForm] = Form.useForm();
-
-  const ROLE_OPTIONS = [
-    { value: 'system_admin', label: t('系统管理员'), color: 'red' },
-    { value: 'project_owner', label: t('项目所有者'), color: 'orange' },
-    { value: 'team_leader', label: t('团队负责人'), color: 'blue' },
-    { value: 'member', label: t('成员'), color: 'green' },
-    { value: 'guest', label: t('访客'), color: 'default' },
-    { value: 'admin', label: `${t('管理员')}(${t('旧')})`, color: 'red' },
-    { value: 'commander', label: `${t('负责人')}(${t('旧')})`, color: 'orange' },
-    { value: 'analyst', label: `${t('分析师')}(${t('旧')})`, color: 'blue' },
-    { value: 'operator', label: `${t('操作员')}(${t('旧')})`, color: 'green' },
-    { value: 'observer', label: `${t('观察者')}(${t('旧')})`, color: 'default' },
-  ];
 
   useEffect(() => {
     loadUsers();
@@ -124,9 +112,6 @@ export function UserManagement() {
     });
     setEditModalOpen(true);
   };
-
-  const getRoleLabel = (role: string) => ROLE_OPTIONS.find(r => r.value === role)?.label || role;
-  const getRoleColor = (role: string) => ROLE_OPTIONS.find(r => r.value === role)?.color || 'default';
 
   const filteredUsers = users.filter(u =>
     u.username.toLowerCase().includes(searchText.toLowerCase()) ||
@@ -252,7 +237,7 @@ export function UserManagement() {
             <Input placeholder={t('请输入邮箱（可选）')} />
           </Form.Item>
           <Form.Item name="global_role" label={t('角色')} rules={[{ required: true, message: t('请选择角色') }]} initialValue="guest">
-            <Select options={ROLE_OPTIONS.map(r => ({ value: r.value, label: r.label }))} />
+            <Select options={GLOBAL_ROLES.map(r => ({ value: r.value, label: r.label }))} />
           </Form.Item>
         </Form>
       </Modal>
@@ -271,7 +256,7 @@ export function UserManagement() {
             <Input placeholder={t('请输入邮箱')} />
           </Form.Item>
           <Form.Item name="global_role" label={t('角色')} rules={[{ required: true, message: t('请选择角色') }]}>
-            <Select options={ROLE_OPTIONS.map(r => ({ value: r.value, label: r.label }))} />
+            <Select options={GLOBAL_ROLES.map(r => ({ value: r.value, label: r.label }))} />
           </Form.Item>
           <Form.Item name="is_active" label={t('启用状态')} valuePropName="checked">
             <Switch checkedChildren={t('启用')} unCheckedChildren={t('禁用')} />

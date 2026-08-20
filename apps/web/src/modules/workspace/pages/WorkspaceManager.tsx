@@ -1,4 +1,5 @@
 import { useState, useEffect, useRef, useMemo } from 'react';
+import type { Key } from 'react';
 
 import { Card, Button, Modal, Form, Input, Space, Tag, message, Row, Col, Statistic, Tabs, Popconfirm } from 'antd';
 
@@ -80,6 +81,12 @@ export function WorkspaceManager() {
   const [deletingWorkspace, setDeletingWorkspace] = useState<Workspace | null>(null);
 
   const [deleteLoading, setDeleteLoading] = useState(false);
+
+  const [selectedWorkspaceIds, setSelectedWorkspaceIds] = useState<string[]>([]);
+
+  const [selectedScenarioIds, setSelectedScenarioIds] = useState<string[]>([]);
+
+  const [batchDeleting, setBatchDeleting] = useState(false);
 
   // 工作空间请求
   const fetchWorkspaceList = async (): Promise<Workspace[]> => {
@@ -320,6 +327,110 @@ export function WorkspaceManager() {
       message.error(t('删除失败'));
 
     }
+
+  };
+
+
+
+  const handleBatchDeleteWorkspaces = () => {
+
+    if (selectedWorkspaceIds.length === 0) return;
+
+    Modal.confirm({
+
+      title: t('批量删除工作空间'),
+
+      content: t('确定删除选中的 {{count}} 个工作空间？此操作不可恢复。', { count: selectedWorkspaceIds.length }),
+
+      okText: t('确定'),
+
+      cancelText: t('取消'),
+
+      okButtonProps: { danger: true },
+
+      onOk: async () => {
+
+        try {
+
+          setBatchDeleting(true);
+
+          const result = await api.deleteWorkspaces(selectedWorkspaceIds);
+
+          message.success(t('已删除 {{count}} 个工作空间', { count: result.deleted_count }));
+
+          setSelectedWorkspaceIds([]);
+
+          workspaceActionRef.current?.reload();
+
+          reloadWorkspaces();
+
+        } catch (error) {
+
+          console.error('批量删除失败', error);
+
+          message.error(t('删除失败'));
+
+        } finally {
+
+          setBatchDeleting(false);
+
+        }
+
+      },
+
+    });
+
+  };
+
+
+
+  const handleBatchDeleteScenarios = () => {
+
+    if (!currentWorkspace || selectedScenarioIds.length === 0) return;
+
+    Modal.confirm({
+
+      title: t('批量删除场景'),
+
+      content: t('确定删除选中的 {{count}} 个场景？此操作不可恢复。', { count: selectedScenarioIds.length }),
+
+      okText: t('确定'),
+
+      cancelText: t('取消'),
+
+      okButtonProps: { danger: true },
+
+      onOk: async () => {
+
+        try {
+
+          setBatchDeleting(true);
+
+          const result = await api.deleteScenarios(currentWorkspace, selectedScenarioIds);
+
+          message.success(t('已删除 {{count}} 个场景', { count: result.deleted_count }));
+
+          setSelectedScenarioIds([]);
+
+          scenarioActionRef.current?.reload();
+
+          reloadScenarios();
+
+        } catch (error) {
+
+          console.error('批量删除失败', error);
+
+          message.error(t('删除失败'));
+
+        } finally {
+
+          setBatchDeleting(false);
+
+        }
+
+      },
+
+    });
 
   };
 
@@ -879,19 +990,43 @@ export function WorkspaceManager() {
 
                     extra={
 
-                      <Button
+                      <Space>
 
-                        type="primary"
+                        {selectedScenarioIds.length > 0 && (
 
-                        icon={<PlusOutlined />}
+                          <Button
 
-                        onClick={() => handleCreateScenario(currentWorkspace)}
+                            danger
 
-                      >
+                            icon={<DeleteOutlined />}
 
-                        {t('创建场景')}
+                            loading={batchDeleting}
 
-                      </Button>
+                            onClick={handleBatchDeleteScenarios}
+
+                          >
+
+                            {t('批量删除 ({{count}})', { count: selectedScenarioIds.length })}
+
+                          </Button>
+
+                        )}
+
+                        <Button
+
+                          type="primary"
+
+                          icon={<PlusOutlined />}
+
+                          onClick={() => handleCreateScenario(currentWorkspace)}
+
+                        >
+
+                          {t('创建场景')}
+
+                        </Button>
+
+                      </Space>
 
                     }
 
@@ -908,6 +1043,16 @@ export function WorkspaceManager() {
                       rowKey="scenario_id"
 
                       pagination={{ pageSize: 10 }}
+
+                      rowSelection={{
+
+                        selectedRowKeys: selectedScenarioIds,
+
+                        onChange: (keys: Key[]) => setSelectedScenarioIds(keys.map(String)),
+
+                        preserveSelectedRowKeys: true,
+
+                      }}
 
                     />
 
@@ -947,11 +1092,35 @@ export function WorkspaceManager() {
 
                 extra={
 
-                  <Button type="primary" icon={<PlusOutlined />} onClick={handleCreate}>
+                  <Space>
 
-                    {t('创建工作空间')}
+                    {selectedWorkspaceIds.length > 0 && (
 
-                  </Button>
+                      <Button
+
+                        danger
+
+                        icon={<DeleteOutlined />}
+
+                        loading={batchDeleting}
+
+                        onClick={handleBatchDeleteWorkspaces}
+
+                      >
+
+                        {t('批量删除 ({{count}})', { count: selectedWorkspaceIds.length })}
+
+                      </Button>
+
+                    )}
+
+                    <Button type="primary" icon={<PlusOutlined />} onClick={handleCreate}>
+
+                      {t('创建工作空间')}
+
+                    </Button>
+
+                  </Space>
 
                 }
 
@@ -968,6 +1137,16 @@ export function WorkspaceManager() {
                   rowKey="workspace_id"
 
                   pagination={{ pageSize: 10 }}
+
+                  rowSelection={{
+
+                    selectedRowKeys: selectedWorkspaceIds,
+
+                    onChange: (keys: Key[]) => setSelectedWorkspaceIds(keys.map(String)),
+
+                    preserveSelectedRowKeys: true,
+
+                  }}
 
                 />
 

@@ -30,5 +30,7 @@ export { KnowledgeBaseSelector } from './KnowledgeBaseSelector';
 export type { KnowledgeBaseSelectorProps } from './KnowledgeBaseSelector';
 export { ProvenanceViewer } from './ProvenanceViewer';
 export type { ProvenanceViewerProps } from './ProvenanceViewer';
+export { ReasoningTracePanel } from './ReasoningTracePanel';
+export type { ReasoningTracePanelProps } from './ReasoningTracePanel';
 export { TemplateRecommender } from './TemplateRecommender';
 export type { TemplateRecommenderProps, HETemplate } from './TemplateRecommender';

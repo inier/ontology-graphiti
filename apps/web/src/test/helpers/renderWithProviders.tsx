@@ -330,9 +330,9 @@ export function setupAuthState(
         id: 'user-1',
         username: 'admin',
         global_role: 'admin',
-        role_id: '1',
+        role_id: 'admin',
       },
     ),
   );
-  localStorage.setItem('currentRoleId', (user?.role_id as string) || '1');
+  localStorage.setItem('currentRoleId', (user?.role_id as string) || 'observer');
 }

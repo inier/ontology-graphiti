@@ -4,6 +4,7 @@ import { ProForm as Form } from '@ant-design/pro-components';
 import { ProCard as Card } from '@ant-design/pro-components';
 import { PlayCircleOutlined, PauseCircleOutlined, StopOutlined, ReloadOutlined } from '@ant-design/icons';
 import * as echarts from 'echarts';
+import { useI18n } from '@/modules/shared/hooks/useI18n';
 
 interface SimulatorConsoleProps {
   onStart?: (params: SimulationParams) => void;
@@ -40,6 +41,7 @@ interface SimState {
 }
 
 export function SimulatorConsole({ onStart, onPause, onStop, onReset, initialRedPower = 78, initialBluePower = 65, initialRedCasualties = 0, initialBlueCasualties = 0, chartData }: SimulatorConsoleProps) {
+  const { t } = useI18n('ingest');
   const [status, setStatus] = useState<SimState['status']>('idle');
   const [simState, setSimState] = useState<SimState>({
     status: 'idle',
@@ -144,7 +146,7 @@ export function SimulatorConsole({ onStart, onPause, onStop, onReset, initialRed
       <Col span={12}>
         <Card title="参数配置" style={{ borderRadius: 8 }}>
           <Form layout="vertical">
-            <div style={{ marginBottom: 16, fontWeight: 500, color: '#ff4d4f' }}>基础参数</div>
+            <div style={{ marginBottom: 16, fontWeight: 500, color: '#ff4d4f' }}>{t('基础参数')}</div>
             <Form.Item label="甲方初始资源">
               <InputNumber min={0} max={1000} defaultValue={320} style={{ width: '100%' }} />
             </Form.Item>
@@ -164,7 +166,7 @@ export function SimulatorConsole({ onStart, onPause, onStop, onReset, initialRed
               />
             </Form.Item>
 
-            <div style={{ marginBottom: 16, marginTop: 24, fontWeight: 500, color: '#1890ff' }}>运营参数</div>
+            <div style={{ marginBottom: 16, marginTop: 24, fontWeight: 500, color: '#1890ff' }}>{t('运营参数')}</div>
             <Form.Item label="开火距离 (km)">
               <InputNumber min={0} max={10} defaultValue={2} style={{ width: '100%' }} />
             </Form.Item>
@@ -193,7 +195,7 @@ export function SimulatorConsole({ onStart, onPause, onStop, onReset, initialRed
                 <Button danger icon={<StopOutlined />} onClick={handleStop}>
                   停止
                 </Button>
-                <Button icon={<ReloadOutlined />} onClick={handleReset}>重置</Button>
+                <Button icon={<ReloadOutlined />} onClick={handleReset}>{t('重置')}</Button>
               </Space>
             </Form.Item>
           </Form>
@@ -233,7 +235,7 @@ export function SimulatorConsole({ onStart, onPause, onStop, onReset, initialRed
           </Row>
 
           <div style={{ marginTop: 24 }}>
-            <div style={{ fontSize: 14, color: '#8c8c8c', marginBottom: 8 }}>损耗比</div>
+            <div style={{ fontSize: 14, color: '#8c8c8c', marginBottom: 8 }}>{t('损耗比')}</div>
             <div style={{ fontSize: 24, fontWeight: 600 }}>
               <span style={{ color: '#ff4d4f' }}>{simState.partyALosses}</span>
               <span style={{ color: '#8c8c8c', margin: '0 8px' }}>:</span>
@@ -242,7 +244,7 @@ export function SimulatorConsole({ onStart, onPause, onStop, onReset, initialRed
           </div>
 
           <div style={{ marginTop: 24 }}>
-            <div style={{ fontSize: 14, color: '#8c8c8c', marginBottom: 8 }}>能力变化曲线</div>
+            <div style={{ fontSize: 14, color: '#8c8c8c', marginBottom: 8 }}>{t('能力变化曲线')}</div>
             <div ref={chartRef} style={{ width: '100%', height: 200 }} />
           </div>
         </Card>

@@ -47,7 +47,7 @@ describe('authStore', () => {
           id: 'user-1',
           username: 'admin',
           global_role: 'admin',
-          role_id: '1',
+          role_id: 'admin',
         },
       };
       (apiClient.post as ReturnType<typeof vi.fn>).mockResolvedValue(loginResponse);
@@ -59,16 +59,16 @@ describe('authStore', () => {
       expect(useAuthStore.getState().refreshToken).toBe('test-refresh-token');
       expect(useAuthStore.getState().user?.username).toBe('admin');
       expect(useAuthStore.getState().user?.global_role).toBe('admin');
-      expect(useAuthStore.getState().user?.role_id).toBe('1');
+      expect(useAuthStore.getState().user?.role_id).toBe('admin');
       expect(useAuthStore.getState().loading).toBe(false);
       expect(useAuthStore.getState().error).toBeNull();
 
       expect(localStorage.getItem('token')).toBe('test-access-token');
       expect(localStorage.getItem('refresh_token')).toBe('test-refresh-token');
-      expect(localStorage.getItem('currentRoleId')).toBe('1');
+      expect(localStorage.getItem('currentRoleId')).toBe('admin');
     });
 
-    it('maps global_role to role_id when role_id is not provided', async () => {
+    it('uses global_role as role_id when role_id is not provided', async () => {
       const loginResponse = {
         access_token: 'token',
         refresh_token: 'refresh',
@@ -78,11 +78,11 @@ describe('authStore', () => {
 
       await useAuthStore.getState().login('analyst', 'pass');
 
-      expect(useAuthStore.getState().user?.role_id).toBe('3');
-      expect(localStorage.getItem('currentRoleId')).toBe('3');
+      expect(useAuthStore.getState().user?.role_id).toBe('analyst');
+      expect(localStorage.getItem('currentRoleId')).toBe('analyst');
     });
 
-    it('defaults to observer role_id for unknown roles', async () => {
+    it('keeps non-standard global_role as role_id (identity mapping)', async () => {
       const loginResponse = {
         access_token: 'token',
         refresh_token: 'refresh',
@@ -92,7 +92,7 @@ describe('authStore', () => {
 
       await useAuthStore.getState().login('unknown', 'pass');
 
-      expect(useAuthStore.getState().user?.role_id).toBe('5');
+      expect(useAuthStore.getState().user?.role_id).toBe('custom_role');
     });
 
     it('handles login error', async () => {
@@ -194,7 +194,7 @@ describe('authStore', () => {
     });
 
     it('calls logout on refresh failure', async () => {
-      useAuthStore.setState({ refreshToken: 'bad-refresh', token: 'old-token', user: { id: '1', username: 'test', global_role: 'admin', role_id: '1' } });
+      useAuthStore.setState({ refreshToken: 'bad-refresh', token: 'old-token', user: { id: '1', username: 'test', global_role: 'admin', role_id: 'admin' } });
       (apiClient.post as ReturnType<typeof vi.fn>).mockRejectedValue(new Error('Refresh failed'));
 
       await useAuthStore.getState().refreshTokenAction();
@@ -217,7 +217,7 @@ describe('authStore', () => {
     });
 
     it('still clears state even if API call fails', async () => {
-      useAuthStore.setState({ refreshToken: 'refresh-token', token: 'token', user: { id: '1', username: 'test', global_role: 'admin', role_id: '1' } });
+      useAuthStore.setState({ refreshToken: 'refresh-token', token: 'token', user: { id: '1', username: 'test', global_role: 'admin', role_id: 'admin' } });
       (apiClient.post as ReturnType<typeof vi.fn>).mockRejectedValue(new Error('Logout API failed'));
 
       await useAuthStore.getState().logoutAction();
@@ -232,12 +232,12 @@ describe('authStore', () => {
       localStorage.setItem('token', 'some-token');
       localStorage.setItem('refresh_token', 'some-refresh');
       localStorage.setItem('user', JSON.stringify({ id: '1', username: 'test' }));
-      localStorage.setItem('currentRoleId', '1');
+      localStorage.setItem('currentRoleId', 'admin');
 
       useAuthStore.setState({
         token: 'some-token',
         refreshToken: 'some-refresh',
-        user: { id: '1', username: 'test', global_role: 'admin', role_id: '1' },
+        user: { id: '1', username: 'test', global_role: 'admin', role_id: 'admin' },
       });
 
       useAuthStore.getState().logout();
@@ -260,7 +260,7 @@ describe('authStore', () => {
         id: 'u1',
         username: 'admin',
         global_role: 'admin',
-        role_id: '1',
+        role_id: 'admin',
         ws_id: 'ws-1',
         ws_role: 'owner',
       };
@@ -310,38 +310,38 @@ describe('authStore', () => {
   describe('setCurrentRole', () => {
     it('updates current role in state and localStorage', () => {
       useAuthStore.setState({
-        user: { id: '1', username: 'admin', global_role: 'admin', role_id: '1' },
+        user: { id: '1', username: 'admin', global_role: 'admin', role_id: 'admin' },
       });
 
-      useAuthStore.getState().setCurrentRole('3');
+      useAuthStore.getState().setCurrentRole('analyst');
 
-      expect(useAuthStore.getState().user?.role_id).toBe('3');
-      expect(localStorage.getItem('currentRoleId')).toBe('3');
+      expect(useAuthStore.getState().user?.role_id).toBe('analyst');
+      expect(localStorage.getItem('currentRoleId')).toBe('analyst');
     });
 
     it('does nothing when user is null', () => {
       useAuthStore.setState({ user: null });
-      useAuthStore.getState().setCurrentRole('2');
+      useAuthStore.getState().setCurrentRole('commander');
       expect(useAuthStore.getState().user).toBeNull();
     });
   });
 
   describe('getCurrentRoleId', () => {
     it('returns stored currentRoleId from localStorage', () => {
-      localStorage.setItem('currentRoleId', '2');
-      expect(useAuthStore.getState().getCurrentRoleId()).toBe('2');
+      localStorage.setItem('currentRoleId', 'commander');
+      expect(useAuthStore.getState().getCurrentRoleId()).toBe('commander');
     });
 
     it('falls back to user role_id when localStorage is empty', () => {
       useAuthStore.setState({
-        user: { id: '1', username: 'admin', global_role: 'admin', role_id: '1' },
+        user: { id: '1', username: 'admin', global_role: 'admin', role_id: 'admin' },
       });
-      expect(useAuthStore.getState().getCurrentRoleId()).toBe('1');
+      expect(useAuthStore.getState().getCurrentRoleId()).toBe('admin');
     });
 
     it('returns default observer role_id when nothing is available', () => {
       useAuthStore.setState({ user: null });
-      expect(useAuthStore.getState().getCurrentRoleId()).toBe('5');
+      expect(useAuthStore.getState().getCurrentRoleId()).toBe('observer');
     });
   });
 });

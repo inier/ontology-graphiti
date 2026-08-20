@@ -92,8 +92,8 @@ describe('RoleManager', () => {
     render(<RoleManager />);
 
     await waitFor(() => {
-      // "系统管理员" is the role_type label rendered as a Tag
-      expect(screen.getAllByText('系统管理员').length).toBeGreaterThanOrEqual(1);
+      // "系统管理员(内部)" is the role_type label rendered as a Tag（对齐 GLOBAL_ROLES）
+      expect(screen.getAllByText('系统管理员(内部)').length).toBeGreaterThanOrEqual(1);
     });
   });
 
@@ -141,9 +141,9 @@ describe('RoleManager', () => {
     const deleteButtons = screen.getAllByText('删除');
     fireEvent.click(deleteButtons[0]);
 
-    // Verify the popconfirm text appears
+    // Verify the popconfirm text appears (component uses t('确定删除？'))
     await waitFor(() => {
-      expect(screen.getByText('确定要删除这个角色吗？')).toBeTruthy();
+      expect(screen.getByText('确定删除？')).toBeTruthy();
     });
   });
 
@@ -179,8 +179,8 @@ describe('RoleManager', () => {
     render(<RoleManager />);
 
     await waitFor(() => {
-      // The "权限数量" column header should be present
-      expect(screen.getByText('权限数量')).toBeTruthy();
+      // The "权限数" column header should be present (component uses t('权限数'))
+      expect(screen.getByText('权限数')).toBeTruthy();
     });
   });
 

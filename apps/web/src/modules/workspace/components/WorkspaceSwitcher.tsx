@@ -5,11 +5,13 @@ import { PlusOutlined, SettingOutlined } from '@ant-design/icons';
 import { api } from '@/modules/shared/services/api';
 import type { Workspace } from '@/modules/shared/services/api';
 import { useNavigate } from 'react-router-dom';
+import { useI18n } from '@/modules/shared/hooks/useI18n';
 
 export function WorkspaceSwitcher({ currentWorkspace, onWorkspaceChange }: {
   currentWorkspace: string;
   onWorkspaceChange: (workspaceId: string) => void;
 }) {
+  const { t } = useI18n('workspace');
   const [workspaces, setWorkspaces] = useState<Workspace[]>([]);
   const [loading, setLoading] = useState(true);
   const [createModalVisible, setCreateModalVisible] = useState(false);
@@ -71,7 +73,7 @@ export function WorkspaceSwitcher({ currentWorkspace, onWorkspaceChange }: {
             <Space>
               <span>{workspace.name}</span>
               {workspace.status === 'active' && (
-                <Tag color="green">活跃</Tag>
+                <Tag color="green">{t('活跃')}</Tag>
               )}
             </Space>
           ),

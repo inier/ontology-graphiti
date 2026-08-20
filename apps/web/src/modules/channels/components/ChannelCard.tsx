@@ -11,6 +11,7 @@ import {
 } from '@ant-design/icons';
 import type { ChannelConfig } from '../types';
 import { CHANNEL_TYPE_NAMES, CHANNEL_ICONS } from '../types';
+import { useI18n } from '@/modules/shared/hooks/useI18n';
 
 interface ChannelCardProps {
   channel: ChannelConfig;
@@ -29,6 +30,7 @@ export const ChannelCard: React.FC<ChannelCardProps> = ({
   onDisable,
   onTest,
 }) => {
+  const { t } = useI18n('channels');
   const statusColor = {
     connected: 'green',
     disconnected: 'default',
@@ -105,21 +107,21 @@ export const ChannelCard: React.FC<ChannelCardProps> = ({
     >
       <Space orientation="vertical" style={{ width: '100%' }}>
         <div>
-          <span style={{ color: '#888' }}>类型：</span>
+          <span style={{ color: '#888' }}>{t('类型：')}</span>
           <span>{CHANNEL_TYPE_NAMES[channel.channel_type]}</span>
         </div>
         <div>
-          <span style={{ color: '#888' }}>状态：</span>
+          <span style={{ color: '#888' }}>{t('状态：')}</span>
           <Tag color={statusColor[channel.status]}>{statusText[channel.status]}</Tag>
         </div>
         <div>
-          <span style={{ color: '#888' }}>凭证：</span>
+          <span style={{ color: '#888' }}>{t('凭证：')}</span>
           <Tag color={channel.has_credentials ? 'green' : 'orange'}>
             {channel.has_credentials ? '已配置' : '未配置'}
           </Tag>
         </div>
         <div>
-          <span style={{ color: '#888' }}>允许访问：</span>
+          <span style={{ color: '#888' }}>{t('允许访问：')}</span>
           <span>
             {channel.allow_from.includes('*')
               ? '所有人'

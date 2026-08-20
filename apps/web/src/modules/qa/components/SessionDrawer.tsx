@@ -5,6 +5,7 @@ import { useSession } from '../hooks/useSession';
 import type { Session } from '../hooks/useSession';
 import { css } from '@emotion/css';
 import { useWorkspace, useScenario } from '@/modules/shared';
+import { useI18n } from '@/modules/shared/hooks/useI18n';
 
 const { Text } = Typography;
 
@@ -88,6 +89,7 @@ function formatTime(timestamp: string | number): string {
 }
 
 export function SessionDrawer({ open, onClose, onSelectSession }: SessionDrawerProps) {
+  const { t } = useI18n('qa');
   const { currentWorkspace } = useWorkspace();
   const { currentScenario } = useScenario();
   
@@ -117,7 +119,7 @@ export function SessionDrawer({ open, onClose, onSelectSession }: SessionDrawerP
       title={
         <Space>
           <HistoryOutlined />
-          <span>历史会话</span>
+          <span>{t('历史会话')}</span>
         </Space>
       }
       placement="right"

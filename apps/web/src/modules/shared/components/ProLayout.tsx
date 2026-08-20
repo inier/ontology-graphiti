@@ -161,6 +161,7 @@ const primaryMenus: MenuItem[] = [
       { key: '/simulation', icon: <ThunderboltOutlined />, label: '沙箱推演' },
       { key: '/simulator', icon: <ExperimentOutlined />, label: '事件模拟' },
       { key: '/simulation/deduction', icon: <SafetyOutlined />, label: '策略推演' },
+      { key: '/decisions', icon: <FundOutlined />, label: '决策智能' },
     ],
   },
   {
@@ -1193,7 +1194,7 @@ export function ProLayout({ children, currentWorkspace, onWorkspaceChange }: Pro
                       {extensionPanelCollapsed ? (
                         /* Collapsed: reopen strip showing active extension icon + name */
                         <Tooltip
-                          title={activeExtensionSpec ? `展开扩展区 (${activeExtensionSpec.name})` : '展开扩展区'}
+                          title={activeExtensionSpec ? t('展开扩展区 ({{name}})', { name: activeExtensionSpec.name }) : t('展开扩展区')}
                           placement="left"
                         >
                           <div

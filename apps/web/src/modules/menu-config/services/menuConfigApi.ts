@@ -58,6 +58,13 @@ export const menuConfigApi = {
   deleteItem: (id: string): Promise<{ status: string; message: string }> =>
     fetchJson(`${BASE}/items/${id}`, { method: 'DELETE' }),
 
+  /** 获取内置全局角色列表（与 JWT role 对齐，供角色权限分配下拉使用） */
+  getGlobalRoles: (): Promise<{
+    roles: Array<{ id: string; name: string; description?: string }>;
+    total: number;
+  }> =>
+    fetchJson(`${BASE}/global-roles`),
+
   /** 设置角色的菜单权限（全量替换） */
   setRoleMenus: (roleId: string, menuItemIds: string[]): Promise<any> =>
     fetchJson(`${BASE}/role-menus`, {
@@ -73,4 +80,14 @@ export const menuConfigApi = {
   /** 获取菜单项关联的角色（反向查询） */
   getMenuRoles: (menuItemId: string): Promise<{ menu_item_id: string; role_ids: string[] }> =>
     fetchJson(`${BASE}/menu-roles/${encodeURIComponent(menuItemId)}`),
+
+  /** 幂等恢复四步法默认菜单树 + 角色默认授权（仅管理员） */
+  initDefault: (): Promise<{
+    created: number;
+    skipped: number;
+    total: number;
+    role_grants: number;
+    message?: string;
+  }> =>
+    fetchJson(`${BASE}/init-default`, { method: 'POST' }),
 };

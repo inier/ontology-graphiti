@@ -2,10 +2,12 @@ import { useState } from 'react';
 import { List, Button, Tag, Modal, Input, Space, message } from 'antd';
 import { ProCard as Card } from '@ant-design/pro-components';
 import { PlusOutlined, DeleteOutlined, ForkOutlined } from '@ant-design/icons';
+import { useI18n } from '@/modules/shared/hooks/useI18n';
 import { useBlueprintStore } from '@/modules/ontology/stores/blueprintStore';
 import { blueprintApi } from '@/modules/ontology/services/blueprintApi';
 
 export function BlueprintList() {
+  const { t, instance } = useI18n('ontology');
   const { blueprints, currentBlueprint, loadBlueprint, createBlueprint, deleteBlueprint } = useBlueprintStore();
   const [createVisible, setCreateVisible] = useState(false);
   const [newName, setNewName] = useState('');
@@ -15,34 +17,34 @@ export function BlueprintList() {
 
   const handleCreate = async () => {
     if (!newName.trim()) {
-      message.warning('请输入蓝图名称');
+      message.warning(t('请输入蓝图名称'));
       return;
     }
     try {
       await createBlueprint(newName.trim());
       setNewName('');
       setCreateVisible(false);
-      message.success('蓝图已创建');
+      message.success(t('蓝图已创建'));
     } catch {
-      message.error('创建蓝图失败');
+      message.error(t('创建蓝图失败'));
     }
   };
 
   const handleDelete = (blueprintId: string) => {
     Modal.confirm({
-      title: '确认删除',
-      content: '确定要删除此蓝图吗？此操作不可恢复。',
+      title: t('确认删除'),
+      content: t('确定要删除此蓝图吗？此操作不可恢复。'),
       okType: 'danger',
       onOk: async () => {
         await deleteBlueprint(blueprintId);
-        message.success('蓝图已删除');
+        message.success(t('蓝图已删除'));
       },
     });
   };
 
   const handleFork = async () => {
     if (!forkName.trim()) {
-      message.warning('请输入蓝图名称');
+      message.warning(t('请输入蓝图名称'));
       return;
     }
     try {
@@ -50,9 +52,9 @@ export function BlueprintList() {
       await loadBlueprint(forked.blueprint_id);
       setForkName('');
       setForkVisible(false);
-      message.success('蓝图已分叉');
+      message.success(t('蓝图已分叉'));
     } catch {
-      message.error('分叉蓝图失败');
+      message.error(t('分叉蓝图失败'));
     }
   };
 
@@ -65,9 +67,9 @@ export function BlueprintList() {
   return (
     <div>
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 8 }}>
-        <span style={{ fontSize: 13, fontWeight: 600, color: '#666' }}>蓝图列表</span>
+        <span style={{ fontSize: 13, fontWeight: 600, color: '#666' }}>{t('蓝图列表')}</span>
         <Button size="small" type="primary" icon={<PlusOutlined />} onClick={() => setCreateVisible(true)}>
-          新建
+          {t('新建')}
         </Button>
       </div>
 
@@ -100,7 +102,7 @@ export function BlueprintList() {
                 </div>
                 <Space size={4}>
                   <Tag color={item.is_published ? 'green' : 'default'} style={{ fontSize: 11, margin: 0 }}>
-                    {item.is_published ? '已发布' : '草稿'}
+                    {item.is_published ? t('已发布') : t('草稿')}
                   </Tag>
                   <Button size="small" type="text" icon={<ForkOutlined />} onClick={e => { e.stopPropagation(); openFork(item.blueprint_id); }} />
                   <Button size="small" type="text" danger icon={<DeleteOutlined />} onClick={e => { e.stopPropagation(); handleDelete(item.blueprint_id); }} />
@@ -109,15 +111,15 @@ export function BlueprintList() {
             </Card>
           </List.Item>
         )}
-        locale={{ emptyText: '暂无蓝图' }}
+        locale={{ emptyText: t('暂无蓝图') }}
       />
 
-      <Modal title="新建蓝图" open={createVisible} onOk={handleCreate} onCancel={() => setCreateVisible(false)} okText="创建" cancelText="取消">
-        <Input placeholder="请输入蓝图名称" value={newName} onChange={e => setNewName(e.target.value)} onPressEnter={handleCreate} />
+      <Modal title={t('新建蓝图')} open={createVisible} onOk={handleCreate} onCancel={() => setCreateVisible(false)} okText={t('创建')} cancelText={t('取消')}>
+        <Input placeholder={t('请输入蓝图名称')} value={newName} onChange={e => setNewName(e.target.value)} onPressEnter={handleCreate} />
       </Modal>
 
-      <Modal title="分叉蓝图" open={forkVisible} onOk={handleFork} onCancel={() => setForkVisible(false)} okText="分叉" cancelText="取消">
-        <Input placeholder="请输入新蓝图名称" value={forkName} onChange={e => setForkName(e.target.value)} onPressEnter={handleFork} />
+      <Modal title={t('分叉蓝图')} open={forkVisible} onOk={handleFork} onCancel={() => setForkVisible(false)} okText={t('分叉')} cancelText={t('取消')}>
+        <Input placeholder={t('请输入新蓝图名称')} value={forkName} onChange={e => setForkName(e.target.value)} onPressEnter={handleFork} />
       </Modal>
     </div>
   );

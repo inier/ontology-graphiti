@@ -1,26 +1,13 @@
 /**
  * 查询输入组件 - 支持模式选择和查询建议
  */
-import React, { useState } from 'react';
+import React, { useState, useMemo } from 'react';
 import { Input, Select, Slider, Space, Tag, Tooltip } from 'antd';
 import { SearchOutlined, ThunderboltOutlined, ApiOutlined, BranchesOutlined, ExperimentOutlined } from '@ant-design/icons';
 import type { QueryMode } from '../services/nlQueryApi';
+import { useI18n } from '@/modules/shared/hooks/useI18n';
 
 const { TextArea } = Input;
-
-const MODE_OPTIONS: { value: QueryMode; label: string; icon: React.ReactNode; color: string }[] = [
-  { value: 'auto', label: '自动', icon: <ThunderboltOutlined />, color: '#722ed1' },
-  { value: 'keyword', label: '关键词', icon: <SearchOutlined />, color: '#1890ff' },
-  { value: 'semantic', label: '语义', icon: <ApiOutlined />, color: '#52c41a' },
-  { value: 'graph', label: '图查询', icon: <BranchesOutlined />, color: '#fa8c16' },
-];
-
-const SUGGESTIONS = [
-  '查找与"孙悟空"相关的所有实体',
-  '哪些实体之间存在"师徒"关系？',
-  '分析本体中的核心概念和关联',
-  '搜索包含"取经"的知识条目',
-];
 
 interface QueryInputProps {
   value: string;
@@ -45,7 +32,22 @@ export function QueryInput({
   onTopKChange,
   loading,
 }: QueryInputProps) {
+  const { t, instance } = useI18n('qa');
   const [showAdvanced, setShowAdvanced] = useState(false);
+
+  const MODE_OPTIONS = useMemo<{ value: QueryMode; label: string; icon: React.ReactNode; color: string }[]>(() => [
+    { value: 'auto', label: t('自动'), icon: <ThunderboltOutlined />, color: '#722ed1' },
+    { value: 'keyword', label: t('关键词'), icon: <SearchOutlined />, color: '#1890ff' },
+    { value: 'semantic', label: t('语义'), icon: <ApiOutlined />, color: '#52c41a' },
+    { value: 'graph', label: t('图查询'), icon: <BranchesOutlined />, color: '#fa8c16' },
+  ], [instance.language]);
+
+  const SUGGESTIONS = useMemo(() => [
+    t('查找与"孙悟空"相关的所有实体'),
+    t('哪些实体之间存在"师徒"关系？'),
+    t('分析本体中的核心概念和关联'),
+    t('搜索包含"取经"的知识条目'),
+  ], [instance.language]);
 
   const handleKeyDown = (e: React.KeyboardEvent) => {
     if (e.key === 'Enter' && !e.shiftKey) {
@@ -128,7 +130,7 @@ export function QueryInput({
         {showAdvanced && (
           <div style={{ padding: '8px 12px', background: '#fff', borderRadius: 6, border: '1px solid #f0f0f0' }}>
             <div style={{ marginBottom: 8 }}>
-              <span style={{ fontSize: 12, color: '#666', marginRight: 12 }}>返回结果数 (top_k):</span>
+              <span style={{ fontSize: 12, color: '#666', marginRight: 12 }}>{t('返回结果数 (top_k):')}</span>
               <Slider
                 min={1}
                 max={50}
@@ -144,7 +146,7 @@ export function QueryInput({
         {/* 查询建议 */}
         {value === '' && !loading && (
           <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6 }}>
-            <span style={{ fontSize: 12, color: '#999', lineHeight: '24px' }}>试试：</span>
+            <span style={{ fontSize: 12, color: '#999', lineHeight: '24px' }}>{t('试试：')}</span>
             {SUGGESTIONS.map((s, i) => (
               <Tag
                 key={i}

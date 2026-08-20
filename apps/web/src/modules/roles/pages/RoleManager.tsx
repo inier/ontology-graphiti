@@ -10,9 +10,10 @@ import {
 import type { Role, RoleCreate, RoleUpdate, Permission } from '../types';
 import { menuConfigApi } from '@/modules/menu-config/services/menuConfigApi';
 import type { MenuItem as MenuConfigItem } from '@/modules/menu-config/services/menuConfigApi';
-import { RoleMenuAssigner, type RoleSummary } from '@/modules/menu-config';
+import { RoleMenuAssigner } from '@/modules/menu-config';
 import { AdvancedTable } from '@/modules/shared';
 import { useI18n } from '@/modules/shared/hooks/useI18n';
+import { ROLE_TYPE_OPTIONS, getRoleLabel, getRoleColor } from '../constants';
 
 const { Option } = Select;
 const { TextArea } = Input;
@@ -101,14 +102,16 @@ export function RoleManager() {
     setMenuPermissionRole(role);
     setMenuModalVisible(true);
     if (menuTree.length === 0) await loadMenuTree();
-    loadMenuRolePermissions(role.id);
+    // 菜单权限以 global_role 字符串为键（与侧边栏 tree 的 _user_role_ids 对齐），
+    // 自定义角色的 role_type 即其全局角色键；不能用 roles 表 id（r_xxx/数字）。
+    loadMenuRolePermissions(role.role_type);
   };
 
   const saveMenuPermission = async () => {
     if (!menuPermissionRole) return;
     setMenuRoleSaving(true);
     try {
-      await menuConfigApi.setRoleMenus(menuPermissionRole.id, menuRoleIds);
+      await menuConfigApi.setRoleMenus(menuPermissionRole.role_type, menuRoleIds);
       message.success(t('菜单权限已保存'));
     } catch (e: any) {
       message.error(t('保存失败') + ': ' + (e.message || e));
@@ -166,24 +169,6 @@ export function RoleManager() {
     }
   };
 
-  const getRoleTypeColor = (roleType: string) => {
-    const colors: Record<string, string> = {
-      system_admin: 'red', project_owner: 'orange', team_leader: 'blue',
-      member: 'green', guest: 'gray', director: 'purple', intelligence: 'cyan',
-      operator: 'geekblue', analyst: 'magenta', schema_auditor: 'volcano',
-    };
-    return colors[roleType] || 'default';
-  };
-
-  const getRoleTypeLabel = (roleType: string) => {
-    const labels: Record<string, string> = {
-      system_admin: t('系统管理员'), project_owner: t('项目所有者'), team_leader: t('团队领导'),
-      member: t('成员'), guest: t('访客'), director: t('负责人'), intelligence: t('情报员'),
-      operator: t('操作员'), analyst: t('分析员'), schema_auditor: t('Schema 审计员'),
-    };
-    return labels[roleType] || roleType;
-  };
-
   const getPermissionScopeLabel = (scope: string) => {
     const labels: Record<string, string> = {
       system: t('系统'), project: t('项目'), resource: t('资源'), data: t('数据'),
@@ -195,7 +180,7 @@ export function RoleManager() {
     { title: t('角色名称'), dataIndex: 'name', key: 'name', width: 150 },
     {
       title: t('角色类型'), dataIndex: 'role_type', key: 'role_type', width: 120,
-      render: (type: string) => <Tag color={getRoleTypeColor(type)}>{getRoleTypeLabel(type)}</Tag>,
+      render: (type: string) => <Tag color={getRoleColor(type)}>{getRoleLabel(type)}</Tag>,
     },
     { title: t('描述'), dataIndex: 'description', key: 'description', ellipsis: true },
     {
@@ -265,16 +250,9 @@ export function RoleManager() {
           </Form.Item>
           <Form.Item name="role_type" label={t('角色类型')} rules={[{ required: true }]}>
             <Select>
-              <Option value="system_admin">{t('系统管理员')}</Option>
-              <Option value="project_owner">{t('项目所有者')}</Option>
-              <Option value="team_leader">{t('团队领导')}</Option>
-              <Option value="member">{t('成员')}</Option>
-              <Option value="guest">{t('访客')}</Option>
-              <Option value="director">{t('负责人')}</Option>
-              <Option value="intelligence">{t('情报员')}</Option>
-              <Option value="operator">{t('操作员')}</Option>
-              <Option value="analyst">{t('分析员')}</Option>
-              <Option value="schema_auditor">{t('Schema 审计员')}</Option>
+              {ROLE_TYPE_OPTIONS.map((r) => (
+                <Option key={r.value} value={r.value}>{r.label}</Option>
+              ))}
             </Select>
           </Form.Item>
           <Form.Item label={t('权限')}>
@@ -310,11 +288,11 @@ export function RoleManager() {
         <div style={{ height: '65vh', display: 'flex' }}>
           <RoleMenuAssigner
             roles={[{
-              id: menuPermissionRole?.id || '',
+              id: menuPermissionRole?.role_type || '',
               name: menuPermissionRole?.name || '',
               description: menuPermissionRole?.description || '',
             }]}
-            selectedRoleId={menuPermissionRole?.id || ''}
+            selectedRoleId={menuPermissionRole?.role_type || ''}
             onSelectRole={() => {}}
             menuTreeItems={menuFlatItems}
             menuTreeNode={toTreeData(menuTree)}

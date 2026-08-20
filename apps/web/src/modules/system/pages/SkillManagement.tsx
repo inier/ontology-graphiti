@@ -68,11 +68,11 @@ export function SkillManagement() {
       registered.forEach((s) => {
         if (s.name && s.skill_id) nameToSkillId.set(s.name, s.skill_id);
       });
-      const enabledNames = new Set(registered.map((s) => s.name));
+      const enabledNames = new Set(registered.filter((s: Skill) => s.status === 'active').map((s: Skill) => s.name));
       setAllScannedSkills(scanned.map(s => ({
         ...s,
         skill_id: nameToSkillId.get(s.name),
-        enabled: enabledNames.has(s.name),
+        enabled: s.enabled ?? enabledNames.has(s.name),
       })));
       // 关键修复：用接口返回的 total 字段初始化计数，避免条件渲染死锁
       setScannedCount(allResult.total_scanned ?? scanned.length);
@@ -98,11 +98,11 @@ export function SkillManagement() {
       const sn = s as Skill;
       if (sn.name && sn.skill_id) nameToSkillId.set(sn.name, sn.skill_id);
     });
-    const enabledNames = new Set((allResult.registered || []).map((s) => (s as Skill).name));
+    const enabledNames = new Set((allResult.registered || []).filter((s: Skill) => s.status === 'active').map((s: Skill) => s.name));
     return ((scanResult.skills || []) as Skill[]).map(s => ({
       ...s,
       skill_id: nameToSkillId.get(s.name),
-      enabled: enabledNames.has(s.name),
+      enabled: s.enabled ?? enabledNames.has(s.name),
     }));
   };
 
@@ -157,6 +157,9 @@ export function SkillManagement() {
     try {
       await api.toggleSkill(skill.name, enabled);
       message.success(enabled ? t('Skill "{{name}}" 已启用', { name: skill.name }) : t('Skill "{{name}}" 已禁用', { name: skill.name }));
+      if (selectedSkill?.name === skill.name) {
+        setSelectedSkill({ ...selectedSkill, enabled, status: enabled ? 'active' : 'inactive' });
+      }
       refreshAll();
     } catch (error) {
       message.error(t('操作失败') + `: ${error}`);
@@ -313,6 +316,7 @@ export function SkillManagement() {
                 render: (enabled: boolean, record: Skill) => (
                   <Switch
                     checked={enabled}
+                    disabled={!record.skill_id}
                     onChange={(checked) => handleToggleSkill(record, checked)}
                     checkedChildren={<CheckCircleOutlined />}
                     unCheckedChildren={<StopOutlined />}
@@ -545,6 +549,7 @@ export function SkillManagement() {
                     render: (enabled: boolean, record: Skill) => (
                       <Switch
                         checked={enabled}
+                        disabled={!record.skill_id}
                         onChange={(checked) => handleToggleSkill(record, checked)}
                         checkedChildren={<CheckCircleOutlined />}
                         unCheckedChildren={<StopOutlined />}
@@ -625,20 +630,13 @@ export function SkillManagement() {
               <Descriptions.Item label={t('分类')}>
                 <Tag color="blue">{selectedSkill.category}</Tag>
               </Descriptions.Item>
-              <Descriptions.Item label={t('路径')}>
-                <Text type="secondary" style={{ fontSize: 11 }}>{selectedSkill.path}</Text>
-              </Descriptions.Item>
-              <Descriptions.Item label={t('文件')}>
-                <Space>
-                  {selectedSkill.files.map((f, i) => <Tag key={i}>{f}</Tag>)}
-                </Space>
-              </Descriptions.Item>
               <Descriptions.Item label={t('描述')}>
                 {selectedSkill.description || '-'}
               </Descriptions.Item>
               <Descriptions.Item label={t('已启用')}>
                 <Switch
                   checked={selectedSkill.enabled}
+                  disabled={!selectedSkill.skill_id}
                   onChange={(checked) => handleToggleSkill(selectedSkill, checked)}
                 />
               </Descriptions.Item>

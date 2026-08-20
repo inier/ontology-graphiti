@@ -108,10 +108,13 @@ function buildMenuTree(nodes: RawMenuNode[], parentKey: string): MenuItem[] {
     if (!isVisible) continue;
 
     if (node.menu_type === 'directory') {
-      const children = buildMenuTree(node.children || [], `${parentKey}-${node.code}`);
+      // directory 的 code 是内部标识（如 dir:build:semantic），不能直接进 URL，
+      // 这里统一转成纯内部 key（冒号替换为 -），仅作分组/展开标识，不参与导航
+      const dirCode = node.code.replace(/:/g, '-');
+      const children = buildMenuTree(node.children || [], `${parentKey}-${dirCode}`);
       if (children.length > 0) {
         items.push({
-          key: `dynamic-${parentKey}-${node.code}`,
+          key: `dynamic-${parentKey}-${dirCode}`,
           icon: resolveIcon(node.icon),
           label: node.name,
           children,
@@ -501,6 +504,13 @@ export function AdminLayout({ children }: { children: React.ReactNode }) {
 
   const parentMenuKeys = useMemo(() => allMenus.map(m => m.key), [allMenus]);
 
+  /** 递归收集所有目录分组（directory，带 children 的项）的 key —— 它们不是路由，点击只展开、绝不导航 */
+  const directoryMenuKeys = useMemo(() => {
+    const collect = (items: MenuItem[]): string[] =>
+      items.flatMap((it) => (it.children ? [it.key, ...collect(it.children)] : []));
+    return new Set<string>(collect(allMenus));
+  }, [allMenus]);
+
   /** 根据子菜单 key 反查所属的父级 group key */
   const findParentKey = useCallback((childKey: string): string | null => {
     for (const m of allMenus) {
@@ -512,6 +522,17 @@ export function AdminLayout({ children }: { children: React.ReactNode }) {
   }, [allMenus]);
 
   const handleMenuClick: MenuProps['onClick'] = ({ key }) => {
+    // 目录分组（directory）key 是内部标识，不是路由（如 dynamic-root-dir-build-dir-build-semantic）：
+    // 仅切换该分组展开/收起，不 navigate，防止地址栏出现非法 URL
+    if (directoryMenuKeys.has(key)) {
+      setLeftCollapsed(false);
+      setOpenKeys((prev) =>
+        prev.includes(key)
+          ? prev.filter((k) => k !== key)
+          : [...prev, key],
+      );
+      return;
+    }
     if (leftCollapsed) {
       // 收折态：先展开侧边栏
       setLeftCollapsed(false);
@@ -614,17 +635,19 @@ export function AdminLayout({ children }: { children: React.ReactNode }) {
     setRightPanelTitle,
   };
 
-  /* ── Menu items for Ant Design Menu ── */
-  const menuItems: MenuProps['items'] = allMenus.map((m) => ({
-    key: m.key,
-    icon: m.icon,
-    label: m.label,
-    children: m.children?.map((c) => ({
-      key: c.key,
-      icon: c.icon,
-      label: c.label,
-    })),
-  }));
+  /* ── Menu items for Ant Design Menu ──
+   *  递归映射：allMenus 可能是多层嵌套（顶级 directory → 二级 directory → menu），
+   *  必须完整保留 children，否则二级目录（如"语义管理"）的叶子菜单项会丢失，
+   *  导致点击二级目录时无子菜单可展开、表现为"点击无响应"。 */
+  const toAntdMenuItems = (items: MenuItem[]): NonNullable<MenuProps['items']> =>
+    items.map((m) => ({
+      key: m.key,
+      icon: m.icon,
+      label: m.label,
+      children: m.children ? toAntdMenuItems(m.children) : undefined,
+    }));
+
+  const menuItems: MenuProps['items'] = toAntdMenuItems(allMenus);
 
   /* ── Ant Design theme (synced with theme / colorTheme) ── */
   const antdThemeConfig = useMemo((): ThemeConfig => ({
@@ -1053,7 +1076,7 @@ export function AdminLayout({ children }: { children: React.ReactNode }) {
                       >
                         {activeExtensionComponent ? React.createElement(activeExtensionComponent) : (
                           <div style={{ padding: 16, color: 'var(--odap-color-text-secondary)', textAlign: 'center' }}>
-                            选择一个扩展
+                            {t('选择一个扩展')}
                           </div>
                         )}
                       </ExtensionPanel>

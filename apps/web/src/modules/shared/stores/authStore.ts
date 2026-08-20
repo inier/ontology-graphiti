@@ -40,14 +40,13 @@ export const useAuthStore = create<AuthState>((set, get) => ({
       const refreshToken = data.refresh_token || '';
       const userData = data.user || {};
       const globalRole = userData.global_role || 'observer';
-      const ROLE_TO_ID: Record<string, string> = {
-        admin: '1', commander: '2', analyst: '3', operator: '4', observer: '5',
-      };
       const user = {
         id: userData.id || '',
         username: userData.username || '',
         global_role: globalRole,
-        role_id: userData.role_id || ROLE_TO_ID[globalRole] || '5',
+        // role_id 与 global_role 恒等（后端 GLOBAL_ROLE_TO_ID 已统一），
+        // 菜单权限以 global_role 字符串为键，避免历史数字 id（"1".."5"）不一致。
+        role_id: userData.role_id || globalRole,
       };
 
       localStorage.setItem('token', token);
@@ -135,14 +134,11 @@ export const useAuthStore = create<AuthState>((set, get) => ({
     try {
       const data = await apiClient.get('/api/auth/me');
       const globalRole = data.global_role || data.role || 'observer';
-      const ROLE_TO_ID: Record<string, string> = {
-        admin: '1', commander: '2', analyst: '3', operator: '4', observer: '5',
-      };
       const user = {
         id: data.id || data.user_id || '',
         username: data.username || '',
         global_role: globalRole,
-        role_id: data.role_id || ROLE_TO_ID[globalRole] || '5',
+        role_id: data.role_id || globalRole,
         ws_id: data.ws_id,
         ws_role: data.ws_role,
       };
@@ -172,7 +168,7 @@ export const useAuthStore = create<AuthState>((set, get) => ({
     if (stored) return stored;
     const user = get().user;
     if (user?.role_id) return user.role_id;
-    return '5';
+    return 'observer';
   },
 }));
 
