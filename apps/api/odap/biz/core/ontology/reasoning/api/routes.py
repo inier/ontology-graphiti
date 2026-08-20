@@ -12,6 +12,7 @@ from ..services.unified_retrieve import (
     RetrieveRequest, RetrieveResult,
     get_retrieve_engine,
 )
+from ..impl.unified_reasoning_service import get_reasoning_service_v2
 
 logger = logging.getLogger(__name__)
 
@@ -86,5 +87,90 @@ async def trace_provenance(entity_id: str):
             "chain": chain.to_dict(),
             "is_complete": chain.is_complete(),
         }
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+# ── 确定性推理（ADR-075）──
+
+@router.post("/deduce")
+async def deduce(
+    goal: str,
+    ontology_id: str,
+    workspace_id: str = "default",
+    entity_type_ids: Optional[str] = None,
+    bindings: Optional[str] = None,
+):
+    """确定性推理（hybrid 降级）。
+
+    goal 示例: `path("a", X)`、`ancestor(X, Y)`
+    bindings: JSON 字符串，如 `{"X": "b"}` 的占位符绑定。
+    """
+    import json
+    try:
+        svc = get_reasoning_service_v2()
+        binding_map = None
+        if bindings:
+            binding_map = json.loads(bindings)
+        type_ids = None
+        if entity_type_ids:
+            type_ids = [t.strip() for t in entity_type_ids.split(",") if t.strip()]
+        outcome = svc.reason(
+            goal=goal,
+            ontology_id=ontology_id,
+            workspace_id=workspace_id,
+            entity_type_ids=type_ids,
+            bindings=binding_map,
+        )
+        return outcome.to_dict()
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error("deterministic deduce failed: %s", e)
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@router.get("/rules")
+async def list_rules(ontology_id: str, workspace_id: str = "default"):
+    """列出本体规则（含禁用）"""
+    try:
+        svc = get_reasoning_service_v2()
+        rules = svc.list_rules(ontology_id, workspace_id)
+        return {"rules": [r.model_dump() for r in rules], "count": len(rules)}
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@router.post("/rules")
+async def create_rule(rule: dict):
+    """创建规则（白名单校验 + 入库）"""
+    try:
+        from ..rules.models import BusinessRule
+        svc = get_reasoning_service_v2()
+        model = BusinessRule(**rule)
+        saved = svc.create_rule(model)
+        return {"rule_id": saved.rule_id, "status": "ok"}
+    except Exception as e:
+        raise HTTPException(status_code=400, detail=str(e))
+
+
+@router.post("/rules/snapshot")
+async def snapshot_rules(version_id: str, ontology_id: str, workspace_id: str = "default"):
+    """为版本创建规则快照（§3.2 回滚联动）"""
+    try:
+        svc = get_reasoning_service_v2()
+        count = svc.snapshot_rules(version_id, ontology_id, workspace_id)
+        return {"version_id": version_id, "snapshot_count": count}
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@router.post("/rules/restore/{version_id}")
+async def restore_rules(version_id: str):
+    """版本级回滚：恢复规则快照（§3.2）"""
+    try:
+        svc = get_reasoning_service_v2()
+        count = svc.restore_rules(version_id)
+        return {"version_id": version_id, "restored_count": count}
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
