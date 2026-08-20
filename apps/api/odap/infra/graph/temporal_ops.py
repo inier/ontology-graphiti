@@ -164,3 +164,53 @@ class TemporalOpsMixin:
 
     def query_at_transaction_time(self, entity_type=None, transaction_time=None) -> List[Dict]:
         return self.query_temporal(transaction_time=transaction_time, entity_type=entity_type)
+
+    def state_at(self, at_time=None, entity_type=None) -> Dict[str, Any]:
+        """图状态快照（state_at）：返回指定时刻的实体状态视图。
+
+        供确定性推理引擎 / 时态规则 valid_at 场景使用。
+
+        Args:
+            at_time: 参考时刻（datetime 或 ISO 字符串）；None 表示当前时刻。
+            entity_type: 可选，仅返回指定实体类型。
+
+        Returns:
+            {
+                "at_time": iso_str,
+                "entities": [entity_dict, ...],
+                "entity_count": int,
+                "mode": "index" | "graphiti" | "fallback",
+            }
+        """
+        at_iso = None
+        if at_time is not None:
+            if isinstance(at_time, str):
+                at_iso = at_time.replace("Z", "+00:00")
+            else:
+                at_iso = at_time.isoformat()
+        else:
+            at_iso = datetime.now(timezone.utc).isoformat()
+
+        entities = self.query_temporal(
+            valid_time=at_iso,
+            entity_type=entity_type,
+        )
+
+        if not isinstance(entities, list):
+            logger.warning("state_at: query_temporal 返回非列表（图不可用?），返回空快照")
+            entities = []
+
+        mode = "index"
+        if self._use_fallback or not self._connected:
+            mode = "fallback"
+        elif self._temporal_index:
+            mode = "index"
+        else:
+            mode = "graphiti"
+
+        return {
+            "at_time": at_iso,
+            "entities": entities,
+            "entity_count": len(entities),
+            "mode": mode,
+        }
