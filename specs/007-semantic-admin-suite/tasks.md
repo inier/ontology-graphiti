@@ -3,6 +3,17 @@
 **Input**: Design documents from `specs/007-semantic-admin-suite/`
 **Prerequisites**: plan.md (required), spec.md (required for user stories)
 
+> ## ⚠️ 版块清理说明（2026-08-07）
+>
+> 以下标记为 `done` 的任务在清理前按 **16 子指标**（G1×7/G2×4/G3×5）实现。版块清理后扩展为 **22 子指标**（G1×10/G2×7/G3×5，+6 项从 006 ValidationEngine 移交）。
+>
+> **需追加实现的增量**：
+> - I3T2 后续：QualityGateService 补充 G1.8-G1.10（fill_rate/empty_rate/orphan_count）+ G2.5-G2.7（dangling_relations/invalid_action_targets/invalid_rule_references）
+> - I3T10 后续：`/quality-gate/reports/{cand_id}` 返回 22 子指标（非 16）
+> - I3T11 后续：前端雷达图 22 轴（非 16 轴）
+>
+> 详见 `specs/REFACTORING-NOTES.md` + `specs/REFACTORING-VERIFICATION-CHECKLIST.md`。
+
 ## Task Format
 
 每条任务包含以下字段（按列对齐）：

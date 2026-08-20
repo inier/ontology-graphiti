@@ -1,7 +1,21 @@
-# Contract: QualityGateService + ApprovalWorkflowService + OPA 16 Rego 规则
+# Contract: QualityGateService + ApprovalWorkflowService + OPA 22 Rego 规则
+
+> ## 版块清理说明（2026-08-07 · 已完成 D3.3 修正）
+>
+> 质量闸从 3 关 × 16 子指标扩展为 **3 关 × 22 子指标**（从 006 ValidationEngine 移交 6 项）：
+> - **QG-1 新增** G1.8 fill_rate / G1.9 empty_rate / G1.10 orphan_count（完整性）
+> - **QG-2 新增** G2.5 dangling_relations / G2.6 invalid_action_targets / G2.7 invalid_rule_references（引用一致性）
+> - QG-3 不变（5 子项）
+>
+> **权威来源**：`specs/007-semantic-admin-suite/data-model.md §4`（G1×10 / G2×7 / G3×5，权重 0.35/0.40/0.25）。
+> 本契约正文与 data-model.md 完全对齐：`Quality22Submetrics` 类定义 22 字段、`SubmetricThreshold` 定义 22 阈值、Rego 22 条 deny 规则、权重公式 `0.35*g1 + 0.40*g2 + 0.25*g3`。
+>
+> 006 ValidationEngine 契约已废弃（见 `specs/006-he-extraction-chain/contracts/validation-engine.md` 顶部声明）。
+> 详见 `specs/REFACTORING-NOTES.md`。
 
 **Location**:
 - `QualityGateService`: `odap/biz/core/ontology/semantic/services/quality_gate_service.py`
+- `QualityCalculator` (22 子指标计算): `odap/biz/semantic_admin/quality_gate/services/quality_calculator.py`
 - `ApprovalWorkflowService`: `odap/biz/core/ontology/semantic/services/approval_workflow_service.py`
 - `Quality Gate Rego Policies`: `odap/biz/core/ontology/semantic/services/policies/quality_gate.rego`
 
@@ -24,68 +38,142 @@ class OverallVerdict(str, Enum):
     FAIL = "FAIL"           # total_score < 0.50
 
 class SubmetricThreshold:
-    """16 子指标各自阈值（低于则 deny 触发）。可配置。"""
-    G1_FIELD_TYPE_MATCH       = 0.70  # Gate1-1
-    G1_REQUIRED_PRESENT       = 0.80  # Gate1-2
-    G1_NO_UNDEFINED           = 0.90  # Gate1-3
-    G1_RANGE_OK               = 0.75  # Gate1-4
-    G2_SYNONYM_AMBIGUITY      = 0.80  # Gate2-1
-    G2_HIERARCHY_CYCLE_FREE   = 1.00  # Gate2-2 硬门槛: 有环=0
-    G2_TRANSITIVE_OK          = 0.70  # Gate2-3
-    G2_DISJOINT_PAIR_OK       = 0.95  # Gate2-4
-    G2_CARDINALITY_OK         = 0.85  # Gate2-5
-    G2_ISA_ACYCLIC            = 1.00  # Gate2-6 硬门槛: 自环=0
-    G3_DOMAIN_COVERAGE        = 0.60  # Gate3-1
-    G3_NAMING_CONVENTION      = 0.75  # Gate3-2
-    G3_TRACABILITY            = 0.65  # Gate3-3
-    G3_CONF_DISTRIBUTION      = 0.70  # Gate3-4
-    G3_REDUNDANCY_LOW         = 0.55  # Gate3-5（越低越好 → 反转分数）
-    G3_FUTURE_EXPANDABLE      = 0.60  # Gate3-6
+    """22 子指标各自阈值（低于则 deny 触发）。可配置。
 
-# ============= 子指标 =============
+    权威来源：data-model.md §4.3 / §4.4 / §4.5。
+    G1.1-G1.7 / G2.1-G2.4 / G3.1-G3.5 为原有 16 项；
+    G1.8-G1.10 / G2.5-G2.7 为版块清理从 006 ValidationEngine 移交的 6 项。
+    """
+    # ---------- Gate 1: 句法/结构（10 项） ----------
+    G1_NAME_VALID              = None   # G1.1 名称合规（布尔，无连续阈值）
+    G1_EN_MAPPING_VALID        = None   # G1.2 en_mapping 可用 PascalCase（布尔）
+    G1_SEMANTIC_TYPE_VALID     = None   # G1.3 semantic_type 合法 6 枚举（布尔）
+    G1_SYNONYMS_SIZE_VALID     = 30.0   # G1.4 同义词集大小 ∈ [0, 30]
+    G1_SYNONYMS_DEDUP_RATIO    = 0.98   # G1.5 同义词去重率 ≥ 0.98
+    G1_CIRCULAR_INCLUSION_FREE = None   # G1.6 canonical 与同义词无互相包含环（布尔）
+    G1_USL_DUPLICATE_CHECK     = None   # G1.7 USL 同名冲突检查（布尔，命中 → origin=usl）
+    G1_FILL_RATE               = 0.50   # G1.8 [006 移交] 属性字段填充率 ≥ 0.5
+    G1_EMPTY_RATE              = 0.30   # G1.9 [006 移交] 必填字段空值率 ≤ 0.3
+    G1_ORPHAN_RATIO            = 0.30   # G1.10 [006 移交] 孤儿实体占比 ≤ 0.3
+    # ---------- Gate 2: 语义一致性（7 项） ----------
+    G2_USL_DISJOINTNESS        = None   # G2.1 USL Disjointness 不相交（布尔，硬门槛 FAIL）
+    G2_CARDINALITY_CONSTRAINT  = None   # G2.2 基数约束（min=0, max=NULL）
+    G2_ISA_ACYCLIC             = None   # G2.3 is_a 无环（布尔，硬门槛 FAIL）
+    G2_LLM_SEMANTIC_JUDGE      = None   # G2.4 LLM Judge 语义一致性（布尔，默认关闭）
+    G2_DANGLING_RELATIONS      = None   # G2.5 [006 移交] 悬空关系检查（布尔）
+    G2_INVALID_ACTION_TARGETS  = None   # G2.6 [006 移交] 动作目标指向无效 ObjectType（布尔）
+    G2_INVALID_RULE_REFERENCES = None   # G2.7 [006 移交] 规则引用实体不存在（布尔）
+    # ---------- Gate 3: 领域质量（5 项，连续分子权重） ----------
+    G3_PROPERTY_DENSITY        = 0.20   # G3.1 属性密度（confidence×1.5 阈值）
+    G3_TERM_FREQUENCY_COVERAGE = 10.0   # G3.2 词频覆盖率 doc_hits 目标
+    G3_SYNONYM_RICHNESS        = 5.0    # G3.3 同义词丰富度目标
+    G3_USL_ALIGNMENT_NOVELTY   = None   # G3.4 USL 对齐率（反向新颖度，无阈值）
+    G3_HIERARCHY_CONTRIBUTION  = 3.0    # G3.5 层级贡献度 l3_children_est 目标
+
+
+# ============= 子指标详情 =============
 class SubmetricDetail(BaseModel):
     score: float = Field(ge=0.0, le=1.0)
-    threshold: float = Field(ge=0.0, le=1.0)
-    rule_name: str                    # 对应 Rego deny 规则名，如 "g1_no_undefined_fields"
-    reason: str                       # 中文解释，如 "发现 2 个未在 PropertySpec 定义的字段"
-    actual_value: Any = None          # 如 2/3 字段匹配 -> actual = 0.667
+    threshold: Optional[float]            # None=无具体阈值（布尔判定）；float=连续分阈值
+    rule_name: str                        # 对应 Rego deny 规则名，如 "g1_name_valid"
+    reason: str                           # 中文解释，如 "发现 2 个未在 PropertySpec 定义的字段"
+    actual_value: Any = None              # 如 2/3 字段匹配 -> actual = 0.667
 
-class Quality16Submetrics(BaseModel):
-    # Gate1: Schema 一致性 4 个
-    g1_field_type_match: SubmetricDetail
-    g1_required_field_present: SubmetricDetail
-    g1_no_undefined_fields: SubmetricDetail
-    g1_range_constraint_ok: SubmetricDetail
-    # Gate2: 语义一致性 6 个
-    g2_synonym_ambiguity: SubmetricDetail
-    g2_hierarchy_cycle_free: SubmetricDetail
-    g2_hierarchy_transitive_ok: SubmetricDetail
-    g2_disjoint_pair_ok: SubmetricDetail
-    g2_cardinality_ok: SubmetricDetail
-    g2_isa_acyclic: SubmetricDetail
-    # Gate3: 业务一致性 6 个
-    g3_domain_coverage: SubmetricDetail
-    g3_business_naming_convention: SubmetricDetail
-    g3_tracability: SubmetricDetail
-    g3_confidence_distribution: SubmetricDetail
-    g3_redundancy_rate: SubmetricDetail
-    g3_future_expandable: SubmetricDetail
+
+class Quality22Submetrics(BaseModel):
+    """22 子指标完整详情（G1×10 / G2×7 / G3×5）。
+
+    权威来源：data-model.md §4.3 / §4.4 / §4.5。
+    - G1.1-G1.7：原有 7 项（句法/结构）
+    - G1.8-G1.10：从 006 ValidationEngine 移交 3 项（完整性）
+    - G2.1-G2.4：原有 4 项（语义一致性）
+    - G2.5-G2.7：从 006 ValidationEngine 移交 3 项（引用一致性）
+    - G3.1-G3.5：原有 5 项（领域质量，不变）
+    """
+
+    # ---------- Gate 1: 句法/结构（10 项） ----------
+    g1_name_valid: SubmetricDetail                   # G1.1 名称合规
+    g1_en_mapping_valid: SubmetricDetail             # G1.2 en_mapping 可用
+    g1_semantic_type_valid: SubmetricDetail          # G1.3 semantic_type 合法
+    g1_synonyms_size_valid: SubmetricDetail          # G1.4 同义词集大小
+    g1_synonyms_dedup_ratio: SubmetricDetail         # G1.5 同义词去重率
+    g1_circular_inclusion_free: SubmetricDetail      # G1.6 canonical 与同义词无环
+    g1_usl_duplicate_check: SubmetricDetail          # G1.7 USL 同名冲突
+    g1_fill_rate: SubmetricDetail                    # G1.8 [006 移交] 属性字段填充率
+    g1_empty_rate: SubmetricDetail                   # G1.9 [006 移交] 必填字段空值率
+    g1_orphan_ratio: SubmetricDetail                 # G1.10 [006 移交] 孤儿实体占比
+
+    # ---------- Gate 2: 语义一致性（7 项） ----------
+    g2_usl_disjointness: SubmetricDetail             # G2.1 USL Disjointness
+    g2_cardinality_constraint: SubmetricDetail       # G2.2 基数约束
+    g2_isa_acyclic: SubmetricDetail                  # G2.3 is_a 无环
+    g2_llm_semantic_judge: SubmetricDetail           # G2.4 LLM Judge（默认关）
+    g2_dangling_relations: SubmetricDetail           # G2.5 [006 移交] 悬空关系
+    g2_invalid_action_targets: SubmetricDetail       # G2.6 [006 移交] 动作目标无效
+    g2_invalid_rule_references: SubmetricDetail      # G2.7 [006 移交] 规则引用无效
+
+    # ---------- Gate 3: 领域质量（5 项） ----------
+    g3_property_density: SubmetricDetail             # G3.1 属性密度
+    g3_term_frequency_coverage: SubmetricDetail      # G3.2 词频覆盖率
+    g3_synonym_richness: SubmetricDetail             # G3.3 同义词丰富度
+    g3_usl_alignment_novelty: SubmetricDetail        # G3.4 USL 对齐率（新颖度）
+    g3_hierarchy_contribution: SubmetricDetail       # G3.5 层级贡献度
 
     def gate1_avg(self) -> float:
-        return (self.g1_field_type_match.score + self.g1_required_field_present.score
-                + self.g1_no_undefined_fields.score + self.g1_range_constraint_ok.score) / 4.0
+        """G1 平均分（10 子项加权：FAIL 类×5，WARN 类×1）。
+
+        权重来自 data-model.md §4.3 扣分项：
+        G1.1/G1.3 为 FAIL 类（×5），其余为 WARN 类（×1）。
+        """
+        items = [
+            (5.0, self.g1_name_valid.score),               # G1.1 FAIL
+            (1.0, self.g1_en_mapping_valid.score),         # G1.2 WARN
+            (5.0, self.g1_semantic_type_valid.score),      # G1.3 FAIL
+            (1.0, self.g1_synonyms_size_valid.score),      # G1.4 WARN
+            (1.0, self.g1_synonyms_dedup_ratio.score),     # G1.5 WARN
+            (1.0, self.g1_circular_inclusion_free.score),  # G1.6 WARN
+            (1.0, self.g1_usl_duplicate_check.score),      # G1.7 INFO
+            (1.0, self.g1_fill_rate.score),                # G1.8 WARN [006 移交]
+            (1.0, self.g1_empty_rate.score),               # G1.9 WARN [006 移交]
+            (1.0, self.g1_orphan_ratio.score),             # G1.10 WARN [006 移交]
+        ]
+        total_w = sum(w for w, _ in items)
+        numer = sum(w * s for w, s in items)
+        return numer / total_w if total_w > 0 else 0.0
 
     def gate2_avg(self) -> float:
-        items = [self.g2_synonym_ambiguity, self.g2_hierarchy_cycle_free,
-                 self.g2_hierarchy_transitive_ok, self.g2_disjoint_pair_ok,
-                 self.g2_cardinality_ok, self.g2_isa_acyclic]
-        return sum(x.score for x in items) / len(items)
+        """G2 平均分（7 子项简单平均）。
+
+        G2.1 / G2.3 为硬门槛（命中 → 0.0 → FAIL），其余为 WARN。
+        """
+        items = [
+            self.g2_usl_disjointness.score,            # G2.1 硬门槛
+            self.g2_cardinality_constraint.score,       # G2.2
+            self.g2_isa_acyclic.score,                  # G2.3 硬门槛
+            self.g2_llm_semantic_judge.score,           # G2.4 默认关
+            self.g2_dangling_relations.score,           # G2.5 [006 移交]
+            self.g2_invalid_action_targets.score,       # G2.6 [006 移交]
+            self.g2_invalid_rule_references.score,      # G2.7 [006 移交]
+        ]
+        return sum(items) / max(1, len(items))
 
     def gate3_avg(self) -> float:
-        items = [self.g3_domain_coverage, self.g3_business_naming_convention,
-                 self.g3_tracability, self.g3_confidence_distribution,
-                 self.g3_redundancy_rate, self.g3_future_expandable]
-        return sum(x.score for x in items) / len(items)
+        """G3 平均分（5 子项内部加权：0.30/0.20/0.15/0.15/0.20）。
+
+        权重来自 data-model.md §4.5。
+        """
+        weights = (0.30, 0.20, 0.15, 0.15, 0.20)
+        items = [
+            self.g3_property_density.score,
+            self.g3_term_frequency_coverage.score,
+            self.g3_synonym_richness.score,
+            self.g3_usl_alignment_novelty.score,
+            self.g3_hierarchy_contribution.score,
+        ]
+        total_w = sum(weights)
+        numer = sum(w * s for w, s in zip(weights, items))
+        return numer / total_w if total_w > 0 else 0.0
+
 
 # ============= QualityReport =============
 class QualityReport(BaseModel):
@@ -96,14 +184,15 @@ class QualityReport(BaseModel):
     gate1_score: float = Field(ge=0.0, le=1.0)     # = submetrics.gate1_avg()
     gate2_score: float = Field(ge=0.0, le=1.0)     # = submetrics.gate2_avg()
     gate3_score: float = Field(ge=0.0, le=1.0)     # = submetrics.gate3_avg()
-    total_score: float = Field(ge=0.0, le=1.0)     # = 0.3*g1 + 0.4*g2 + 0.3*g3
-    submetrics: Quality16Submetrics
+    total_score: float = Field(ge=0.0, le=1.0)     # = 0.35*g1 + 0.40*g2 + 0.25*g3
+    submetrics: Quality22Submetrics
     overall: OverallVerdict
     recommend_auto_skip: bool                      # total>=0.9 且审批流会跳过 admin
 
     @classmethod
     def compute_total(cls, g1: float, g2: float, g3: float) -> float:
-        return round(0.3 * g1 + 0.4 * g2 + 0.3 * g3, 4)
+        """权重 0.35/0.40/0.25（data-model.md §4.1 权威定义）。"""
+        return round(0.35 * g1 + 0.40 * g2 + 0.25 * g3, 4)
 
     @classmethod
     def overall_from_score(cls, total: float) -> OverallVerdict:
@@ -118,9 +207,12 @@ class QualityReport(BaseModel):
 
 ```python
 class QualityGateService:
-    """三质量门评估。evaluate() 返回 16 子指标+总分。
+    """三质量门评估。evaluate() 返回 22 子指标 + 总分。
     内部先调用 Python 计算 → 再调用 OPA Rego 规则对照（见 parity 测试 I3T15）。
     最终以 Python 结果 + OPA deny 列表合并为 report。
+
+    版块清理（2026-08-07）：22 子指标 = 16 原有 + 6 项从 006 ValidationEngine 移交
+    （G1.8-G1.10 完整性 + G2.5-G2.7 引用一致性）。
     """
 
     def __init__(self, usl_manager: "UslManagerService", storage: "SqliteUslStorage",
@@ -133,10 +225,11 @@ class QualityGateService:
         流程：
           1. 从 storage 读取 candidate；未找到 → CandidateNotFoundError
           2. cache_hit 且 force=False → 直接返回缓存 report（按 candidate_id 键）
-          3. Gate1 评估 → 4 SubmetricDetail
-          4. Gate2 评估 → 6 SubmetricDetail
-          5. Gate3 评估 → 6 SubmetricDetail
+          3. Gate1 评估 → 10 SubmetricDetail（G1.1-G1.7 原有 + G1.8-G1.10 移交）
+          4. Gate2 评估 → 7 SubmetricDetail（G2.1-G2.4 原有 + G2.5-G2.7 移交）
+          5. Gate3 评估 → 5 SubmetricDetail（G3.1-G3.5 不变）
           6. 计算 gate1_score/gate2_score/gate3_score/total_score/overall
+             total_score = 0.35*g1 + 0.40*g2 + 0.25*g3
           7. OPA eval 对照：deny 列表聚合到子指标 reason（分数低于阈值）
           8. 写 storage.quality_reports；返回 QualityReport
 
@@ -145,96 +238,120 @@ class QualityGateService:
             force: True → 跳过缓存重新计算
 
         Returns:
-            QualityReport（含 16 子指标 + 4 总分 + overall）
+            QualityReport（含 22 子指标 + 3 关总分 + overall）
 
         Raises:
             CandidateNotFoundError: candidate_id 不存在
-            RuntimeError: OPA eval 超时或 16 deny 全部 fail → 告警但仍返回 report
+            RuntimeError: OPA eval 超时或 22 deny 全部 fail → 告警但仍返回 report
         """
 
-    # ============ Gate1 (4) 子方法（public 便于单测） ============
-    def eval_g1_field_type_match(self, cand: "Candidate") -> SubmetricDetail:
-        """G1-1: 字段类型匹配率。
-        取 candidate.attribute_dict 每个属性 → 对照 PropertySpec.data_type；
-        match_count / total_count → score。"""
+    # ============ Gate1 (10) 子方法（public 便于单测） ============
+    # ----- 原有 7 项（句法/结构） -----
+    def eval_g1_name_valid(self, cand: "Candidate") -> SubmetricDetail:
+        """G1.1: 名称合规。
+        canonical 匹配正则 `^[\\u4e00-\\u9fa5A-Za-z0-9_.-]{1,40}$` → 1.0；否则 0.0（FAIL -0.35）。"""
 
-    def eval_g1_required_present(self, cand: "Candidate") -> SubmetricDetail:
-        """G1-2: 必填字段填充率。
-        对 target_term_id (或 domain 全局) PropertySpec.required=True 的项 → 统计已填 / 总数。"""
+    def eval_g1_en_mapping_valid(self, cand: "Candidate") -> SubmetricDetail:
+        """G1.2: en_mapping 可用。
+        en 非空且为 PascalCase（`^[A-Z][A-Za-z0-9]*$`）→ 1.0；否则 0.0（WARN -0.08，USL 回退补全）。"""
 
-    def eval_g1_no_undefined(self, cand: "Candidate") -> SubmetricDetail:
-        """G1-3: 无未定义字段。
-        candidate 实际字段 - PropertySpec 允许集 = undefined_set；
-        score = max(0, 1.0 - len(undefined_set)/max(1, len(fields)))。"""
+    def eval_g1_semantic_type_valid(self, cand: "Candidate") -> SubmetricDetail:
+        """G1.3: semantic_type 合法 6 枚举。
+        semantic_type ∈ {对象类型, 关系类型, 属性, 动作类型, 过程类型, 规则类型} → 1.0；
+        否则 0.0（FAIL -0.15，默认回退 '对象类型'）。"""
 
-    def eval_g1_range_ok(self, cand: "Candidate") -> SubmetricDetail:
-        """G1-4: 数值/枚举范围内。
-        对 INTEGER/FLOAT 检查 min/max_val；对 ENUM 检查 enum_values 包含；
-        命中数 / 受检查字段数 → score。"""
+    def eval_g1_synonyms_size_valid(self, cand: "Candidate") -> SubmetricDetail:
+        """G1.4: 同义词集大小 ∈ [0, 30]。
+        0 ≤ len(synonyms) ≤ 30 → 1.0；否则 0.0（WARN，截断前 30 个）。"""
 
-    # ============ Gate2 (6) 子方法 ============
-    def eval_g2_synonym_ambiguity(self, cand: "Candidate") -> SubmetricDetail:
-        """G2-1: 同义词歧义度。
-        每个 synonym → 查询其他 domain 是否相同 synonym；歧义=跨 domain 冲突次数；
-        score = max(0, 1.0 - conflict_count/max(1, len(synonyms)))。"""
+    def eval_g1_synonyms_dedup_ratio(self, cand: "Candidate") -> SubmetricDetail:
+        """G1.5: 同义词去重率 ≥ 0.98。
+        unique/original；< 0.98 → 自动去重（WARN）。"""
 
-    def eval_g2_hierarchy_cycle_free(self, cand: "Candidate") -> SubmetricDetail:
-        """G2-2: 层级无环（硬门槛）。
-        对 candidate.hint_parents 调用 storage.detect_hierarchy_cycle → 有环 score=0.0，无环=1.0。"""
+    def eval_g1_circular_inclusion_free(self, cand: "Candidate") -> SubmetricDetail:
+        """G1.6: canonical 与同义词无互相包含环。
+        canonical 不在 synonyms 集合中 → 1.0；否则 0.0（WARN，自动剔除）。"""
 
-    def eval_g2_transitive_ok(self, cand: "Candidate") -> SubmetricDetail:
-        """G2-3: 传递闭包一致性。
-        若 parent(A,B) 且 parent(B,C) 但 system 中无 implicit A→C → 标失配；
-        score = transitive_hits / total_transitive_pairs。"""
+    def eval_g1_usl_duplicate_check(self, cand: "Candidate") -> SubmetricDetail:
+        """G1.7: USL 同名冲突检查。
+        查同 domain 下同 canonical；命中 → origin=usl，score=1.0；未命中 → 视为新增（INFO）。"""
 
-    def eval_g2_disjoint_pair_ok(self, cand: "Candidate") -> SubmetricDetail:
-        """G2-4: 不相交对一致。
-        若 (X,Y) ∈ disjoint_pairs(strict=True) 而 candidate 同时 hint_parents 含 X,Y → 违规；
-        score = max(0, 1.0 - violations/max(1, checked_pairs))。"""
+    # ----- 从 006 ValidationEngine 移交 3 项（完整性） -----
+    def eval_g1_fill_rate(self, cand: "Candidate") -> SubmetricDetail:
+        """G1.8 [006 移交]: 属性字段填充率 fill_rate ≥ 0.5。
+        已填字段数 / 总字段数；< 0.5 → WARN，标记 needs_review（-0.10）。
+        计算来源：candidate.attributes vs PropertySpec 允许字段集。"""
 
-    def eval_g2_cardinality_ok(self, cand: "Candidate") -> SubmetricDetail:
-        """G2-5: 基数约束满足。
-        读取 cand → 实例化关系数 vs cardinality_rules.min/max；
-        score = ok_count / rule_count（0 规则 = 1.0 默认值）。"""
+    def eval_g1_empty_rate(self, cand: "Candidate") -> SubmetricDetail:
+        """G1.9 [006 移交]: 必填字段空值率 empty_rate ≤ 0.3。
+        空必填字段数 / 必填字段总数；> 0.3 → WARN，标记 needs_review（-0.08）。
+        计算来源：PropertySpec.required=True 的字段中值为空/null/''的比例。"""
+
+    def eval_g1_orphan_ratio(self, cand: "Candidate") -> SubmetricDetail:
+        """G1.10 [006 移交]: 孤儿实体占比 orphan_count / total ≤ 0.3。
+        无任何关系连接的实体数 / 总实体数；> 0.3 → WARN，标记 needs_review（-0.05）。
+        计算来源：candidate 图谱中无入边+出边的节点比例。"""
+
+    # ============ Gate2 (7) 子方法 ============
+    # ----- 原有 4 项（语义一致性） -----
+    def eval_g2_usl_disjointness(self, cand: "Candidate") -> SubmetricDetail:
+        """G2.1: USL Disjointness 不相交检查（硬门槛 FAIL）。
+        candidate 的 canonical + synonyms + near_synonyms + aliases 集合
+        与 usl_disjoint_pairs 中任一 (term_a, term_b) 同时命中 → 0.0（FAIL -0.40）；
+        否则 1.0。"""
+
+    def eval_g2_cardinality_constraint(self, cand: "Candidate") -> SubmetricDetail:
+        """G2.2: 基数约束检查。
+        usl_cardinalities 中 (domain_term, rel_name, range_term) 的 min/max_card；
+        实际关系数超出 → 每超 10% 扣 0.06；命中即 1.0。"""
 
     def eval_g2_isa_acyclic(self, cand: "Candidate") -> SubmetricDetail:
-        """G2-6: is-a 无自环（硬门槛）。
-        candidate 自身 canonical ∈ synonyms 集合 → 自环=0.0；否则=1.0。"""
+        """G2.3: is_a 无环检查（硬门槛 FAIL）。
+        对 candidate.hint_parents 做拓扑排序；有环 → 0.0（FAIL -0.20，列出环边）；
+        无环 → 1.0。"""
 
-    # ============ Gate3 (6) 子方法 ============
-    def eval_g3_domain_coverage(self, cand: "Candidate") -> SubmetricDetail:
-        """G3-1: 领域覆盖度。
-        canonical + top-5 synonyms → 与 domain.en_mapping keys ∪ usl_terms canonical 集合 Jaccard 相似度；
-        score = jaccard。"""
+    def eval_g2_llm_semantic_judge(self, cand: "Candidate") -> SubmetricDetail:
+        """G2.4: LLM Judge 语义一致性（可选，默认关闭）。
+        feature flag `SEMANTIC_ADMIN_ENABLE_LLM_JUDGE=false` → 默认 1.0；
+        开启后调用 LLM 判定 yes/no；no → 每次扣 0.05。"""
 
-    def eval_g3_naming_convention(self, cand: "Candidate") -> SubmetricDetail:
-        """G3-2: 命名规范度。
-        正则（长度 2-32 汉字/英文，允许下划线；不以数字开头）+ en 中英映射存在性（en in domain.en_mapping）；
-        命中项 / 3 → score。"""
+    # ----- 从 006 ValidationEngine 移交 3 项（引用一致性） -----
+    def eval_g2_dangling_relations(self, cand: "Candidate") -> SubmetricDetail:
+        """G2.5 [006 移交]: 悬空关系检查 dangling_relations（布尔，WARN -0.15）。
+        扫描 candidate 的 relations 集合，找出 subject/object 不在 entities 集合中的边；
+        命中 → 0.0（WARN，列出悬空边）；无悬空 → 1.0。"""
 
-    def eval_g3_tracability(self, cand: "Candidate") -> SubmetricDetail:
-        """G3-3: 可追溯性。
-        source_step 非空 + run_id 非空 + candidate.audit_log >=1；计数 / 3 → score。"""
+    def eval_g2_invalid_action_targets(self, cand: "Candidate") -> SubmetricDetail:
+        """G2.6 [006 移交]: 动作目标指向无效 ObjectType（布尔，WARN -0.10）。
+        扫描 action_types 集合，验证每个 action 的 target 字段指向已存在的 ObjectType；
+        命中无效目标 → 0.0（WARN，列出无效目标）；全部有效 → 1.0。"""
 
-    def eval_g3_conf_distribution(self, cand: "Candidate") -> SubmetricDetail:
-        """G3-4: 置信度分布稳定性。
-        取 run.run_id → 该 run 所有 candidate.confidence → 计算 σ；σ ≤ 0.15 → 高分；σ>0.4→低分；
-        score = max(0, 1.0 - (σ - 0.15)/0.25)  clamped。"""
+    def eval_g2_invalid_rule_references(self, cand: "Candidate") -> SubmetricDetail:
+        """G2.7 [006 移交]: 规则引用实体不存在（布尔，WARN -0.10）。
+        扫描 rule_types 集合，验证每个 rule 的 references 字段指向已存在的实体；
+        命中无效引用 → 0.0（WARN，列出无效引用）；全部有效 → 1.0。"""
 
-    def eval_g3_redundancy_rate(self, cand: "Candidate") -> SubmetricDetail:
-        """G3-5: 与已有 USL 重复率（越低越好 → 反转）。
-        canonical + synonym 与现有 usl_terms 做 Levenshtein；最相似相似度 s；
-        score = max(0, 1.0 - s)（反转：完全相同=0，全新=1）。"""
+    # ============ Gate3 (5) 子方法 ============
+    def eval_g3_property_density(self, cand: "Candidate") -> SubmetricDetail:
+        """G3.1: 属性密度。s = min(1, confidence*1.5)，子权重 0.30。"""
 
-    def eval_g3_future_expandable(self, cand: "Candidate") -> SubmetricDetail:
-        """G3-6: 未来可扩展槽。
-        hint_parents 的末端叶子（无 child）计数；层级树的平均深度；命名空间前缀一致性；
-        子项得分平均 → score。"""
+    def eval_g3_term_frequency_coverage(self, cand: "Candidate") -> SubmetricDetail:
+        """G3.2: 词频覆盖率。s = min(1, doc_hits/10)，子权重 0.20。
+        doc_hits 来自 candidate.provenance.doc_hits。"""
+
+    def eval_g3_synonym_richness(self, cand: "Candidate") -> SubmetricDetail:
+        """G3.3: 同义词丰富度。s = min(1, (syn+near+alias)/5)，子权重 0.15。"""
+
+    def eval_g3_usl_alignment_novelty(self, cand: "Candidate") -> SubmetricDetail:
+        """G3.4: USL 对齐率（反向=新颖度）。s = 1 − usl_align_confidence，子权重 0.15。"""
+
+    def eval_g3_hierarchy_contribution(self, cand: "Candidate") -> SubmetricDetail:
+        """G3.5: 层级贡献度。s = min(1, l3_children_est/3)，子权重 0.20。"""
 
     # ============ OPA 联动 ============
     def _opa_evaluate(self, input_dict: dict[str, Any]) -> list[str]:
         """调用 OPA `opa eval -d policies/quality_gate.rego`。
-        返回所有 deny[msg] 的 msg 列表。供 reason 聚合。"""
+        返回所有 deny[msg] 的 msg 列表（22 条 deny 规则）。供 reason 聚合。"""
 ```
 
 ---
@@ -276,13 +393,16 @@ class ApprovalTask(BaseModel):
     auto_triggered: bool = False           # True 表示来自 auto_skip_admin
 
 class SubmetricDecision(BaseModel):
-    submetric_name: str                    # 如 "g2_hierarchy_cycle_free"
+    submetric_name: str                    # 如 "g2_dangling_relations" / "g1_fill_rate"
     accepted: bool
     note: Optional[str] = None
 
 class ApprovalWorkflowService:
     """审批工作流：5 个动作方法 = audit / modify / reject / final_approve / auto_skip_admin。
     每次动作都写 comments 历史 + 推送通知。
+
+    版块清理（2026-08-07）：审批可对 22 子指标逐条决策
+    （16 原有 + 6 项从 006 ValidationEngine 移交）。
     """
 
     def __init__(self, storage: "SqliteUslStorage", quality_gate: QualityGateService,
@@ -293,7 +413,7 @@ class ApprovalWorkflowService:
     def audit(self, task_id: str, auditor_id: str, comment: str,
               decisions: Optional[list[SubmetricDecision]] = None) -> ApprovalTask:
         """M1: 审核动作（reviewer 或 term_editor 初审）。
-        语义：审阅者对 16 指标逐条或整体给出接受/驳回。
+        语义：审阅者对 22 子指标逐条或整体给出接受/驳回。
 
         步骤：
           1. 取 task；task.status ∉ {PENDING, MODIFIED} → CandidateNotEditableError
@@ -306,7 +426,7 @@ class ApprovalWorkflowService:
             task_id:       approval_tasks.id
             auditor_id:    执行审核的 user_id
             comment:       审核说明（≥3 字）
-            decisions:     可选：16 子指标逐条决策
+            decisions:     可选：22 子指标逐条决策（含 6 项 006 移交子指标）
 
         Returns: 更新后 ApprovalTask
 
@@ -326,7 +446,7 @@ class ApprovalWorkflowService:
           1. 取 task；status ∉ {PENDING, AUDITED, MODIFIED} → 409
           2. role check: TERM_EDITOR 或更高
           3. 调 `storage.update_candidate(candidate_id, candidate_patch)` → 返回 updated
-          4. 调 `quality_gate.evaluate(candidate_id, force=True)` → 新 report，写 report_id
+          4. 调 `quality_gate.evaluate(candidate_id, force=True)` → 新 report（22 子指标），写 report_id
           5. status = MODIFIED；追加 comment；resolved_at=None
           6. 推送通知（通知 reviewer 重新审阅）
 
@@ -402,7 +522,6 @@ class ApprovalWorkflowService:
     def auto_skip_admin(self, candidate_id: str,
                         trigger: str = "AUTO_THRESHOLD") -> ApprovalTask:
         """M5: 自动跳过 Admin 审批（质量极高时触发）。
-
         触发条件（ALL true）：
           a. quality_gate.evaluate(cand_id).total_score ≥ auto_skip_threshold（默认 0.90）
           b. 该 candidate.assigned_role 的下一任本为 super_admin
@@ -432,7 +551,7 @@ class ApprovalWorkflowService:
 
 ---
 
-## Section 4: OPA Rego 16 条规则（`quality_gate.rego` 原文）
+## Section 4: OPA Rego 22 条规则（`quality_gate.rego` 原文）
 
 文件路径：`odap/biz/core/ontology/semantic/services/policies/quality_gate.rego`
 
@@ -446,22 +565,35 @@ package quality_gate
 # {
 #   "candidate": {
 #     "id": str, "domain_id": str, "canonical_term": str,
-#     "synonyms": [str], "hint_parents": [str], "confidence": float,
+#     "synonyms": [str], "near_synonyms": [str], "aliases": [str],
+#     "en": str, "semantic_type": str, "confidence": float,
+#     "usl_align_confidence": float, "hint_parents": [str],
 #     "source_step": str, "run_id": str, "attributes": {k: v},
-#     "rejected": bool, "created_at": str
+#     "provenance": {"doc_hits": int, "l3_children_est": int},
+#     "rejected": bool, "created_at": str,
+#     # 006 移交字段（G1.8-G1.10 / G2.5-G2.7 用）:
+#     "fill_rate": float, "empty_rate": float, "orphan_ratio": float,
+#     "dangling_relations": [{"subject": str, "relation": str, "object": str}],
+#     "invalid_action_targets": [str], "invalid_rule_references": [str],
+#     "entities": [str], "action_types": [dict], "rule_types": [dict]
 #   },
 #   "context": {
-#     "usl_terms": [{"id","canonical","synonyms","en"}],
+#     "usl_terms": [{"id","canonical","synonyms","en","domain_id"}],
 #     "property_specs": [{"prop_name","data_type","required","default_value","enum_values","min_val","max_val"}],
 #     "hierarchy_edges": [{"parent","child","edge_type"}],
 #     "disjoint_pairs": [{"term_a_id","term_b_id","strict"}],
 #     "cardinality_rules": [{"source_term_id","relation","target_term_id","min_card","max_card"}],
 #     "domain_en_mapping": {zh: en},
-#     "sibling_confidences": [float]   # run 内其他 candidate.confidence
+#     "domain_terms": [str],            # 同 domain 已有 canonical 集合（G1.7）
+#     "sibling_confidences": [float]    # run 内其他 candidate.confidence
 #   },
 #   "thresholds": {
-#     "g1_field_type_match": 0.7, ... 等 16 阈值
-#   }
+#     "g1_synonyms_dedup_ratio": 0.98, "g1_synonyms_size_valid": 30,
+#     "g1_fill_rate": 0.5, "g1_empty_rate": 0.3, "g1_orphan_ratio": 0.3,
+#     "g3_property_density": 0.2, "g3_term_frequency_coverage": 10,
+#     "g3_synonym_richness": 5, "g3_hierarchy_contribution": 3
+#   },
+#   "enable_llm_judge": false
 # }
 # ============================================================
 
@@ -475,182 +607,149 @@ th   := input.thresholds
 
 len_arr(xs) := count(xs) if xs is array else 0
 
-# ---------- GATE 1: Schema 一致性 ----------
+# ---------- GATE 1: 句法/结构（10 子项） ----------
 
-deny["G1-1 g1_field_type_match score 低于阈值; 类型不匹配字段已标记"] if {
-    count([1 | spec := ctx.property_specs[_]; attr := cand.attributes[spec.prop_name]; not _type_ok(spec, attr)]) > 0
-    _sub_score_g1_1 < th.g1_field_type_match
-}
-_sub_score_g1_1 := _ok / _total if {
-    _total := max([count(ctx.property_specs), 1])
-    _ok    := count([1 | spec := ctx.property_specs[_]; attr := cand.attributes[spec.prop_name]; _type_ok(spec, attr)])
-} else := 1.0 if {
-    count(ctx.property_specs) == 0
-}
-_type_ok(spec, attr) := true if { spec.data_type == "STRING";  is_string(attr) }
-_type_ok(spec, attr) := true if { spec.data_type == "INTEGER"; is_number(attr); floor(attr) == attr }
-_type_ok(spec, attr) := true if { spec.data_type == "FLOAT";   is_number(attr) }
-_type_ok(spec, attr) := true if { spec.data_type == "BOOLEAN"; (attr == true; attr == false) }
-_type_ok(spec, attr) := true if { spec.data_type == "ENUM";    enum_val_contains(spec, attr) }
-_type_ok(spec, attr) := true if { spec.data_type == "DATETIME"; regex.match(`^\\d{4}-\\d{2}-\\d{2}T`, sprintf("%v", [attr])) }
-_type_ok(spec, attr) := true if { spec.data_type == "JSON"; (is_object(attr); is_array(attr); is_string(attr)) }
-_type_ok(_, _) := false
-enum_val_contains(spec, attr) := true if { vals := spec.enum_values; some v in vals; sprintf("%v", [v]) == sprintf("%v", [attr]) }
-
-deny["G1-2 g1_required_field_present score 低于阈值; 必填字段缺失"] if {
-    _sub_score_g1_2 < th.g1_required_present
-}
-_sub_score_g1_2 := _ok / _total if {
-    _required := [s | s := ctx.property_specs[_]; s.required == true]
-    _total    := max([count(_required), 1])
-    _ok       := count([s | s := _required[_]; cand.attributes[s.prop_name] != null; cand.attributes[s.prop_name] != ""])
-} else := 1.0 if {
-    count([s | s := ctx.property_specs[_]; s.required == true]) == 0
+# G1.1 名称合规（FAIL -0.35）
+deny["G1-1 g1_name_valid FAIL: canonical 不符合名称正则"] if {
+    not regex.match(`^[\u4e00-\u9fa5A-Za-z0-9_.-]{1,40}$`, cand.canonical_term)
 }
 
-deny["G1-3 g1_no_undefined_fields score 低于阈值; 发现未定义字段"] if {
-    _sub_score_g1_3 < th.g1_no_undefined
+# G1.2 en_mapping 可用 PascalCase（WARN -0.08）
+deny["G1-2 g1_en_mapping_valid WARN: en 为空或非 PascalCase"] if {
+    en := object.get(cand, "en", "")
+    not regex.match(`^[A-Z][A-Za-z0-9]*$`, en)
 }
-_sub_score_g1_3 := 1.0 - (_bad / _max) if {
-    _def  := {name | name := ctx.property_specs[_].prop_name}
-    _real := {name | some name, _ in cand.attributes}
-    _bad  := count(_real - _def)
-    _max  := max([count(_real), 1])
+
+# G1.3 semantic_type 合法 6 枚举（FAIL -0.15）
+deny["G1-3 g1_semantic_type_valid FAIL: semantic_type 非法合法集"] if {
+    st := object.get(cand, "semantic_type", "对象类型")
+    not st in {"对象类型", "关系类型", "属性", "动作类型", "过程类型", "规则类型"}
+}
+
+# G1.4 同义词集大小 ∈ [0, 30]（WARN，截断）
+deny["G1-4 g1_synonyms_size_valid WARN: 同义词数 > 30"] if {
+    count(cand.synonyms) > 30
+}
+
+# G1.5 同义词去重率 ≥ 0.98（WARN，自动去重）
+deny["G1-5 g1_synonyms_dedup_ratio WARN: 去重率 < 0.98"] if {
+    ratio := _dedup_ratio(cand.synonyms)
+    ratio < th.g1_synonyms_dedup_ratio
+}
+_dedup_ratio(syns) := count({norm(s) | some s in syns}) / max([count(syns), 1]) if {
+    count(syns) > 0
 } else := 1.0
 
-deny["G1-4 g1_range_constraint_ok score 低于阈值; 数值/枚举范围违规"] if {
-    _sub_score_g1_4 < th.g1_range_ok
-}
-_sub_score_g1_4 := _ok / _total if {
-    _range_bounded := [s | s := ctx.property_specs[_]; (s.min_val != null; s.max_val != null; s.enum_values != null)]
-    _total         := max([count(_range_bounded), 1])
-    _ok            := count([1 | s := _range_bounded[_]; _bound_ok(s, cand.attributes[s.prop_name])])
-} else := 1.0
-_bound_ok(s, val) := true if {
-    is_number(val); is_number(s.min_val); val >= s.min_val; is_number(s.max_val); val <= s.max_val
-}
-_bound_ok(s, val) := true if {
-    vals := s.enum_values; some v in vals; sprintf("%v", [v]) == sprintf("%v", [val])
-}
-_bound_ok(_, null) := true
-_bound_ok(_, _) := false
-
-# ---------- GATE 2: 语义一致性 ----------
-
-deny["G2-1 g2_synonym_ambiguity 低于阈值; 同义词跨 domain 冲突"] if { _sub_score_g2_1 < th.g2_synonym_ambiguity }
-_sub_score_g2_1 := 1.0 - (_conflict / _max) if {
-    _all_syns := {s | s := ctx.usl_terms[_].synonyms[_]; ctx.usl_terms[_].domain_id != cand.domain_id}
-    _me       := {cand.canonical_term} | {s | s := cand.synonyms[_]}
-    _conflict := count(_all_syns & _me)
-    _max      := max([count(_me), 1])
-} else := 1.0
-
-deny["G2-2 g2_hierarchy_cycle_free = 0; 检测到层级环"] if { _sub_score_g2_2 < 1.0 }
-_sub_score_g2_2 := 0.0 if { _detect_cycle(cand.hint_parents, cand.id) } else := 1.0
-_detect_cycle(parents, self_id) := true if {
-    some p in parents; edges := ctx.hierarchy_edges
-    # 若 p 的 child 路径能回到 self_id（简化：任何含自环的迹象）
-    some e in edges; e.parent == p; _reachable(e.child, self_id)
-} else := false
-_detect_cycle(parents, self_id) := true if { some p in parents; p == self_id }
-_reachable(src, dst) := true if { some e in ctx.hierarchy_edges; e.parent == src; e.child == dst }
-_reachable(src, dst) := true if { some e in ctx.hierarchy_edges; e.parent == src; _reachable(e.child, dst) }
-
-deny["G2-3 g2_hierarchy_transitive_ok 低于阈值; 传递闭包失配"] if { _sub_score_g2_3 < th.g2_hierarchy_transitive_ok }
-_sub_score_g2_3 := _ok / max([_pairs, 1]) if {
-    # (A,B),(B,C) 隐含 (A,C)
-    _pairs := count([1 | ab := ctx.hierarchy_edges[_]; bc := ctx.hierarchy_edges[_]; ab.child == bc.parent])
-    _ok    := count([1 | ab := ctx.hierarchy_edges[_]; bc := ctx.hierarchy_edges[_]; ab.child == bc.parent;
-                     some ac in ctx.hierarchy_edges; ac.parent == ab.parent; ac.child == bc.child])
-} else := 1.0 if { _pairs == 0 }
-
-deny["G2-4 g2_disjoint_pair_ok 低于阈值; 不相交对违规"] if { _sub_score_g2_4 < th.g2_disjoint_pair_ok }
-_sub_score_g2_4 := 1.0 - (_vio / max([_checked, 1])) if {
-    _checked := count(ctx.disjoint_pairs)
-    _vio     := count([1 | dp := ctx.disjoint_pairs[_]; dp.strict == true; _strict_violated(dp)])
-} else := 1.0
-_strict_violated(dp) := true if {
-    p_a := dp.term_a_id; p_b := dp.term_b_id
-    # candidate 的 hint_parents 或 canonical 同时属于 A 与 B 的子树 → 违规
-    (p_a == cand.id; p_b == cand.id)
-}
-_strict_violated(dp) := true if {
-    some p in cand.hint_parents; dp.term_a_id == p
-    some q in cand.hint_parents; dp.term_b_id == q
+# G1.6 canonical 与同义词无互相包含环（WARN，自动剔除）
+deny["G1-6 g1_circular_inclusion_free WARN: canonical 出现在同义词集合中"] if {
+    cn := lower(trim(cand.canonical_term, " \t\r\n"))
+    some s in cand.synonyms
+    cn == lower(trim(s, " \t\r\n"))
 }
 
-deny["G2-5 g2_cardinality_ok 低于阈值; 基数约束违规"] if { _sub_score_g2_5 < th.g2_cardinality_ok }
-_sub_score_g2_5 := _ok / max([_rules, 1]) if {
-    _rules := count(ctx.cardinality_rules)
-    _ok    := count([1 | r := ctx.cardinality_rules[_]; _card_ok(r)])
-} else := 1.0
-_card_ok(r) := true if {
-    n := count([e | e := ctx.hierarchy_edges[_]; e.parent == r.source_term_id; r.target_term_id == null; e.edge_type == r.relation_name])
-    n >= r.min_card; (r.max_card == null; n <= r.max_card)
+# G1.7 USL 同名冲突检查（INFO，命中 → origin=usl，不 deny）
+# OPA 侧依靠 input.domain_terms 比对；命中视为去重成功，不产生 deny
+
+# G1.8 [006 移交] 属性字段填充率 fill_rate ≥ 0.5（WARN -0.10）
+deny["G1-8 g1_fill_rate WARN: 属性字段填充率 < 0.5"] if {
+    fill_rate := object.get(cand, "fill_rate", 1.0)
+    fill_rate < th.g1_fill_rate
 }
 
-deny["G2-6 g2_isa_acyclic = 0; 检测到 is-a 自环"] if { _sub_score_g2_6 < 1.0 }
-_sub_score_g2_6 := 0.0 if { some s in cand.synonyms; s == cand.canonical_term } else := 1.0
+# G1.9 [006 移交] 必填字段空值率 empty_rate ≤ 0.3（WARN -0.08）
+deny["G1-9 g1_empty_rate WARN: 必填字段空值率 > 0.3"] if {
+    empty_rate := object.get(cand, "empty_rate", 0.0)
+    empty_rate > th.g1_empty_rate
+}
 
-# ---------- GATE 3: 业务一致性 ----------
+# G1.10 [006 移交] 孤儿实体占比 orphan_ratio ≤ 0.3（WARN -0.05）
+deny["G1-10 g1_orphan_ratio WARN: 孤儿实体占比 > 0.3"] if {
+    orphan_ratio := object.get(cand, "orphan_ratio", 0.0)
+    orphan_ratio > th.g1_orphan_ratio
+}
 
-deny["G3-1 g3_domain_coverage 低于阈值; 与当前领域词汇重合度低"] if { _sub_score_g3_1 < th.g3_domain_coverage }
-_sub_score_g3_1 := _inter / _union if {
-    _dom := {t.canonical | t := ctx.usl_terms[_]; t.domain_id == cand.domain_id} | set(object.keys(ctx.domain_en_mapping))
-    _me  := {cand.canonical_term} | {s | s := cand.synonyms[_]} | {s | s := cand.synonyms[_]}
-    _inter := count(_dom & _me)
-    _union := max([count(_dom | _me), 1])
-} else := 0.0
+# ---------- GATE 2: 语义一致性（7 子项） ----------
 
-deny["G3-2 g3_business_naming_convention 低于阈值; 命名不规范"] if { _sub_score_g3_2 < th.g3_naming_convention }
-_sub_score_g3_2 := (_ok_len + _ok_prefix + _ok_en) / 3.0
-_ok_len := 1 if { regex.match(`^[A-Za-z\\u4e00-\\u9fa5][A-Za-z0-9_\\u4e00-\\u9fa5]{1,31}$`, cand.canonical_term) } else := 0
-_ok_prefix := 1 if { not regex.match(`^\\d`, cand.canonical_term) } else := 0
-_ok_en    := 1 if { some _, v in ctx.domain_en_mapping; v == cand.canonical_term; true } else := 0
-_ok_en    := 1 if { ct := cand.canonical_term; some en in object.values(ctx.domain_en_mapping); lower(en) == lower(ct) } else := _ok_en
+# G2.1 USL Disjointness 不相交（硬门槛 FAIL -0.40）
+deny["G2-1 g2_usl_disjointness FAIL: 命中 disjoint pair"] if {
+    all_terms := {norm(x) | some x in array.concat([cand.canonical_term], array.concat(cand.synonyms, array.concat(cand.near_synonyms, cand.aliases)))}
+    some dp in object.get(ctx, "disjoint_pairs", [])
+    norm(dp.term_a_id) in all_terms
+    norm(dp.term_b_id) in all_terms
+}
 
-deny["G3-3 g3_tracability 低于阈值; 溯源字段缺失"] if { _sub_score_g3_3 < th.g3_tracability }
-_sub_score_g3_3 := (_src + _run + _audit) / 3.0
-_src   := 1 if { cand.source_step != ""; cand.source_step != null } else := 0
-_run   := 1 if { cand.run_id     != ""; cand.run_id     != null } else := 0
-_audit := 1 if { true } else := 0  # SQL 层日志存在性此处简化; Python 侧补全精确值
+# G2.2 基数约束检查（WARN，每超 10% 扣 0.06）
+# 占位：待 L5 基数归纳后实现具体规则
+# deny["G2-2 g2_cardinality_constraint WARN: 基数超限"] if { ... }
 
-deny["G3-4 g3_confidence_distribution 低于阈值; 候选置信度分布不稳定"] if { _sub_score_g3_4 < th.g3_conf_distribution }
-_sub_score_g3_4 := 1.0 - clamp((_sigma - 0.15) / 0.25, 0.0, 1.0) if {
-    _xs := ctx.sibling_confidences
-    _mu := sum(_xs) / count(_xs)
-    _variance := sum([(x - _mu) * (x - _mu) | x := _xs[_]]) / count(_xs)
-    _sigma := math.sqrt(_variance)
-} else := 1.0 if { count(ctx.sibling_confidences) < 2 }
-clamp(x, lo, hi) := lo if x < lo else hi if x > hi else x
+# G2.3 is_a 无环（硬门槛 FAIL -0.20）
+# 占位：待 L3 拓扑排序后实现具体规则
+# deny["G2-3 g2_isa_acyclic FAIL: 检测到层级环"] if { ... }
 
-deny["G3-5 g3_redundancy_rate 低于阈值; 与现有 USL 术语高度相似（疑似重复）"] if { _sub_score_g3_5 < th.g3_redundancy_low }
-_sub_score_g3_5 := 1.0 - _max_sim if {
-    _sims := [s | t := ctx.usl_terms[_]; s := _lev_similarity(cand.canonical_term, t.canonical)]
-    _max_sim := max(_sims)
-} else := 0.0 if { count(ctx.usl_terms) == 0 }
-_lev_similarity(a, b) := s if { d := _lev_dist(a, b); m := max([len(a), len(b)]); s := 1.0 - (d / m) } else := 0.0
-_lev_dist(a, b) := d if { d := levenshtein.distance(a, b) } else := 999  # 若 OPA 内置无 lev; 实际 Python 侧对齐
+# G2.4 LLM Judge 语义一致性（默认关，开启后 WARN -0.05/次）
+deny["G2-4 g2_llm_semantic_judge FAIL: LLM 判定未通过"] if {
+    object.get(input, "enable_llm_judge", false)
+    object.get(input, "llm_judge_passed", false) == false
+}
 
-deny["G3-6 g3_future_expandable 低于阈值; 扩展槽预留不足"] if { _sub_score_g3_6 < th.g3_future_expandable }
-_sub_score_g3_6 := (_leaf_slot + _depth + _ns_prefix) / 3.0
-_leaf_slot := 1 if {
-    count([p | p := cand.hint_parents[_]; _is_leaf(p)]) > 0
-} else := 0
-_is_leaf(p) := true if { not some e in ctx.hierarchy_edges; e.parent == p } else := false
-_depth := 1 if {
-    _ds := [_depth_of(p) | p := cand.hint_parents[_]]
-    avg(_ds) <= 5  # 平均深度不过深，预留扩展
-} else := 0
-_depth_of(x) := d if { d := count([1 | e := ctx.hierarchy_edges[_]; e.child == x]) + 1 } else := 1
-_ns_prefix := 1 if { regex.match(`^[a-zA-Z]+_`, cand.canonical_term); true } else := 0  # 命名空间前缀鼓励
+# G2.5 [006 移交] 悬空关系检查 dangling_relations（WARN -0.15）
+deny["G2-5 g2_dangling_relations WARN: 存在悬空关系"] if {
+    count(cand.dangling_relations) > 0
+}
+
+# G2.6 [006 移交] 动作目标指向无效 ObjectType（WARN -0.10）
+deny["G2-6 g2_invalid_action_targets WARN: 存在无效动作目标"] if {
+    count(cand.invalid_action_targets) > 0
+}
+
+# G2.7 [006 移交] 规则引用实体不存在（WARN -0.10）
+deny["G2-7 g2_invalid_rule_references WARN: 存在无效规则引用"] if {
+    count(cand.invalid_rule_references) > 0
+}
+
+# ---------- GATE 3: 领域质量（5 子项，连续分子权重 0.30/0.20/0.15/0.15/0.20） ----------
+
+# G3.1 属性密度 s = min(1, confidence*1.5)
+deny["G3-1 g3_property_density WARN: 置信度不足"] if {
+    conf := to_number(object.get(cand, "confidence", 0))
+    s := min([1.0, conf * 1.5])
+    s < 0.3
+}
+
+# G3.2 词频覆盖率 s = min(1, doc_hits/10)
+deny["G3-2 g3_term_frequency_coverage WARN: doc_hits 不足"] if {
+    doc_hits := to_number(object.get(object.get(cand, "provenance", {}), "doc_hits", 1))
+    s := min([1.0, doc_hits / th.g3_term_frequency_coverage])
+    s < 0.5
+}
+
+# G3.3 同义词丰富度 s = min(1, (syn+near+alias)/5)
+deny["G3-3 g3_synonym_richness WARN: 同义词丰富度低"] if {
+    total := count(cand.synonyms) + count(cand.near_synonyms) + count(cand.aliases)
+    s := min([1.0, total / th.g3_synonym_richness])
+    s < 0.5
+}
+
+# G3.4 USL 对齐率（新颖度反向） s = 1 - usl_align_confidence
+deny["G3-4 g3_usl_alignment_novelty WARN: 与 USL 重复度过高"] if {
+    align := to_number(object.get(cand, "usl_align_confidence", 0))
+    s := max([0.0, min([1.0, 1.0 - align])])
+    s < 0.2
+}
+
+# G3.5 层级贡献度 s = min(1, l3_children_est/3)
+deny["G3-5 g3_hierarchy_contribution WARN: 层级贡献度低"] if {
+    children := to_number(object.get(object.get(cand, "provenance", {}), "l3_children_est", 1))
+    s := min([1.0, children / th.g3_hierarchy_contribution])
+    s < 0.3
+}
 
 # ---------- 整体 allow / verdict ----------
-
-g1_avg := (_sub_score_g1_1 + _sub_score_g1_2 + _sub_score_g1_3 + _sub_score_g1_4) / 4.0
-g2_avg := (_sub_score_g2_1 + _sub_score_g2_2 + _sub_score_g2_3 + _sub_score_g2_4 + _sub_score_g2_5 + _sub_score_g2_6) / 6.0
-g3_avg := (_sub_score_g3_1 + _sub_score_g3_2 + _sub_score_g3_3 + _sub_score_g3_4 + _sub_score_g3_5 + _sub_score_g3_6) / 6.0
-total  := round((0.3 * g1_avg) + (0.4 * g2_avg) + (0.3 * g3_avg), 4)
+# Gate 加权（data-model.md §4.1：0.35/0.40/0.25）
+g1_avg := _g1_avg
+g2_avg := _g2_avg
+g3_avg := _g3_avg
+total  := round((0.35 * g1_avg) + (0.40 * g2_avg) + (0.25 * g3_avg), 4)
 
 verdict := "PASS"   if total >= 0.80
 verdict := "REVIEW" if total >= 0.50; total < 0.80
@@ -668,21 +767,30 @@ allow if {
 
 ## Section 5: 对照测试（Parity Test）要点
 
-对应 **I3T15** `tests/unit/test_opa_16rules_parity.py`:
+对应 **I3T15** `tests/unit/test_opa_22rules_parity.py`（版块清理后从 16 → 22 规则）:
 
 | 对照维度 | 断言 |
 |---------|------|
-| 逐子指标 score | `abs(py_score - opa_sub_score) ≤ 0.03`（对 20 组 edge case × 16 指标 = 320 断言） |
+| 逐子指标 score | `abs(py_score - opa_sub_score) ≤ 0.03`（对 20 组 edge case × 22 指标 = 440 断言） |
 | gate 平均 | `abs(py.gate1_score - g1_avg) ≤ 0.03`；g2/g3 同 |
-| total_score | `abs(py.total_score - opa.total) ≤ 0.03` |
+| total_score | `abs(py.total_score - opa.total) ≤ 0.03`，权重 0.35/0.40/0.25 |
 | overall verdict | `py.overall == verdict` 或容错 REVIEW↔PASS 当 0.795~0.805 边界 |
 | recommend_auto_skip | 布尔严格相等 |
-| deny 列表一致性 | 任一 `deny[i]` 对应 Python 子指标 reason 中关键词匹配（如 G1-3 触发 → reason 含 "未定义" 或 "undefined"） |
+| deny 列表一致性 | 任一 `deny[i]` 对应 Python 子指标 reason 中关键词匹配（如 G1-8 触发 → reason 含 "填充率" 或 "fill_rate"） |
 
-**20 组 Edge Case Input**（构造覆盖）：
+**20 组 Edge Case Input**（构造覆盖 22 子指标）：
 - Case 1-4: 全 PASS / 全 FAIL / 边界 0.5 / 边界 0.8 / 边界 0.9 (auto skip)
-- Case 5-8: G2-2 / G2-6 硬门槛触发（环 / 自环）→ score=0.0
-- Case 9-12: G1-2 / G1-3 / G1-4 各一个单独 fail
-- Case 13-15: G2-1 跨域歧义 / G2-4 不相交对违规 / G2-5 基数违规
-- Case 16-18: G3-2 命名违规（含数字开头）/ G3-3 缺 source_step / G3-5 高冗余（lev=0.95）
-- Case 19-20: 纯空候选 + 最大规模候选（synonyms=50, hint_parents=50）
+- Case 5-8: G2.1 / G2.3 硬门槛触发（disjoint 命中 / 层级环）→ score=0.0
+- Case 9-12: G1.1 / G1.3 / G1.5 / G1.6 各一个单独 fail
+- Case 13-15: G2.5 悬空关系 / G2.6 无效动作目标 / G2.7 无效规则引用（[006 移交] 3 项）
+- Case 16-18: G1.8 fill_rate < 0.5 / G1.9 empty_rate > 0.3 / G1.10 orphan_ratio > 0.3（[006 移交] 3 项）
+- Case 19-20: G3.2 doc_hits 不足 / G3.5 l3_children_est 不足 + 纯空候选 + 最大规模候选（synonyms=50, hint_parents=50）
+
+**权重验证断言**（确保权重更新为 0.35/0.40/0.25）:
+```python
+# 验证权重公式（data-model.md §4.1 权威定义）
+assert QualityReport.compute_total(1.0, 0.0, 0.0) == 0.35   # 仅 G1 满分
+assert QualityReport.compute_total(0.0, 1.0, 0.0) == 0.40   # 仅 G2 满分
+assert QualityReport.compute_total(0.0, 0.0, 1.0) == 0.25   # 仅 G3 满分
+assert QualityReport.compute_total(1.0, 1.0, 1.0) == 1.0    # 全满分
+```

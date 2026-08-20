@@ -2,7 +2,8 @@
 
 ## 状态
 
-- **状态**：提议中（Proposed）
+- **状态**：**已接受（Accepted）**（2026-08-16 清算：Phase A 已上线——`core/chat/` 统一服务与 `/api/chat` 路由在役，与旧 `/api/assistant` 并行运行）
+- **落地注记**：Phase B（前端统一到 `useUnifiedChat`）未完成——前端 `useAIChat`/`useQAI` 双 Hook 仍在并行
 - **日期**：2026-07-18
 - **作者**：Software Architect
 - **影响范围**：`core/assistant/` + `data/qa/` → 合并为 `core/chat/`

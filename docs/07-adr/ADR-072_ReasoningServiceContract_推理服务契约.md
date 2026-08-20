@@ -1,7 +1,9 @@
 # ADR-072: ReasoningServiceContract —— +AI Reasoning 层推理服务契约
 
 ## Status
-Proposed
+**Accepted（2026-08-16 清算：契约已落地）**
+
+> 代码现实：`biz/core/ontology/reasoning/contract/interface.py` 已定义，`reasoning/services/unified_reasoning.py`（UnifiedReasoningService）为实现入口；确定性推理引擎实现由 ADR-075 承接。
 
 ## Context
 

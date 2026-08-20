@@ -3,6 +3,17 @@
 **Feature Branch**: `007-semantic-admin-suite`
 **Spec**: [spec.md](../spec.md)
 
+> ## ⚠️ 版块清理说明（2026-08-07）
+>
+> 以下标记为 Done 的 FR-030/FR-031/NFR-004/检查项 #3 在清理前按 **16 子指标**（G1×7/G2×4/G3×5）验收。
+> 版块清理后扩展为 **22 子指标**（G1×10/G2×7/G3×5，+6 项从 006 ValidationEngine 移交），需追加验收：
+> - FR-030：QualityReport JSON 结构改为 22 子指标
+> - FR-031：权重公式子指标数从 16 改为 22
+> - NFR-004：性能测试 22 子指标（非 16）
+> - 检查项 #3：22 子指标齐全
+>
+> 详见 `specs/REFACTORING-NOTES.md`。
+
 | ID | 需求描述 | 对应 Task | 对应 User Story | 对应单元测试 | 验收方式 | Status |
 |---|---|---|---|---|---|---|
 | FR-001 | semantic_admin/usl_manager 6 层目录结构（api/services/impl/interfaces/models/storage）就位 | I1T1 | US1 | tests/unit/test_semantic_admin_usl_manager.py::TestUSLModuleStructure | UNIT_TEST 断言 os.path.exists 6 子目录 + __init__ 存在 | Done |

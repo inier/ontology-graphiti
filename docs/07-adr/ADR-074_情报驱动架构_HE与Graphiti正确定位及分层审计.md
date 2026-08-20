@@ -276,6 +276,49 @@ MultimodalRouter
 
 5. **全部审计塞进 Graphiti**：否决——`add_episode` 每次触发 3-9 次 LLM 调用，查询审计高频写入会导致成本爆炸。分层审计（Graphiti 事实演化 + audit_helper 操作审计）是唯一可行方案。
 
+## 增补（2026-08-18，Phase 3 扩展 PROV-O 溯源）
+
+在既有分层审计（§2）基础上，增加 **W3C PROV-O 标准溯源导出**能力，使审计数据可被标准溯源工具链消费：
+
+### 1. 目标设计
+
+```
+infra/security/
+├── unified_audit.py              # (现有)
+└── provenance/                   # ★新增
+    ├── prov_o_mapper.py          #   Episode → PROV-O Entity/Activity/Agent
+    └── audit_exporter.py         #   导出 JSON-LD / CSV / RDF
+        # API: GET /api/audit/export?format=prov-o&workspace_id=...
+```
+
+### 2. PROV-O 映射规则
+
+Graphiti Episode / 审计事件映射为 PROV-O 三类核心对象：
+
+| 审计项（§2.2） | PROV-O 映射 | 说明 |
+|---|---|---|
+| #1 数据采集审计 | `prov:Activity`（采集）+ `prov:Entity`（原始数据）+ `prov:Agent`（采集器） | `prov:wasGeneratedBy` 关联 |
+| #2 抽取过程审计 | `prov:Activity`（抽取）+ `prov:Entity`（HE kb） | `prov:used` 关联模板/原文 |
+| #3 确认过程审计 | `prov:Activity`（确认）+ `prov:Agent`（操作者） | `prov:wasAssociatedWith` |
+| #4 推理过程审计 | `prov:Activity`（推理）+ `prov:Entity`（结论） | `prov:wasDerivedFrom` 关联输入事实 |
+| #5 查询审计 | `prov:Activity`（查询） | 轻量，仅导出摘要 |
+
+决策记录（ADR-076 `DecisionRecord`）天然纳入 PROV-O 的 `Activity` 体系：决策作为 `prov:Activity`，推荐选项作为 `prov:Entity`，`prov:wasInformedBy` 关联先例。
+
+### 3. 零侵入原则
+
+映射**仅发生在导出层**（`audit_exporter`），Graphiti 写入路径、`unified_audit` 写入路径均不变。导出为**只读旁路**，按需触发。
+
+### 4. 导出格式
+
+| 格式 | 序列化 | 用途 |
+|---|---|---|
+| JSON-LD | `rdflib`（`application/ld+json`） | 机器可读、Linked Data |
+| RDF/Turtle | `rdflib`（`text/turtle`） | 标准 RDF 工具链 |
+| CSV | 简化扁平导出 | 人工审计/Excel |
+
+API 按 `workspace_id` 过滤（安全要求：隔离），`format` 参数指定导出格式。
+
 ## References
 
 - [ADR-073: 基于本体的数据服务四步落地架构](./ADR-073_基于本体的数据服务四步落地架构.md)

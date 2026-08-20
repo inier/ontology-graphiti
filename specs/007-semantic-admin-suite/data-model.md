@@ -283,7 +283,9 @@ CREATE INDEX IF NOT EXISTS idx_appr_user ON usl_approval_records(approver_id);
 
 ---
 
-## 4. 质量闸公式（G1×7 / G2×4 / G3×5，权重 0.35/0.40/0.25）
+## 4. 质量闸公式（G1×10 / G2×7 / G3×5，权重 0.35/0.40/0.25）
+
+> **版块清理（2026-08-07）**：G1 从 7 项扩展到 10 项（+3 完整性，从 006 ValidationEngine 移交），G2 从 4 项扩展到 7 项（+3 引用一致性，从 006 ValidationEngine 移交），G3 不变。总计 22 子指标。
 
 > 来源：04-iter3-quality-approval-design.html §② 三关质量闸 + §③ 权重与分层
 > 本章节为**唯一权威**质量闸定义；任何冲突以本节为准。
@@ -306,7 +308,7 @@ total_score = w1 × gate1_score + w2 × gate2_score + w3 × gate3_score
 
 *阈值默认值可由 BaseSettings 全局调整：`SEMANTIC_ADMIN_GATE_WEIGHTS = '0.35,0.40,0.25'` / `SEMANTIC_ADMIN_ADMIN_SKIP_THRESHOLD = 0.7` / `SEMANTIC_ADMIN_AUTO_APPROVE_HIGH = false`*
 
-### 4.3 Gate 1 · 句法/结构闸（7 子项，w1 = 0.35）
+### 4.3 Gate 1 · 句法/结构闸（10 子项，w1 = 0.35）
 
 | 编号 | 子指标 | 阈值 | 失败动作 | 扣分项 |
 |------|--------|------|---------|--------|
@@ -317,8 +319,11 @@ total_score = w1 × gate1_score + w2 × gate2_score + w3 × gate3_score
 | G1.5 | 同义词去重率 | ≥ 0.98 | WARN，自动去重 | - |
 | G1.6 | canonical 与同义词无互相包含环 | 布尔 | WARN，自动剔除 | - |
 | G1.7 | 与 USL 同名冲突检查（去重） | 布尔 | INFO，合并 origin=usl | - |
+| G1.8 | 属性字段填充率 fill_rate [从 006 移交] | ≥ 0.5 | WARN，标记 needs_review | -0.10 |
+| G1.9 | 必填字段空值率 empty_rate [从 006 移交] | ≤ 0.3 | WARN，标记 needs_review | -0.08 |
+| G1.10 | 孤儿实体占比 orphan_count / total [从 006 移交] | ≤ 0.3 | WARN，标记 needs_review | -0.05 |
 
-### 4.4 Gate 2 · 语义一致性闸（4 子项，w2 = 0.40）
+### 4.4 Gate 2 · 语义一致性闸（7 子项，w2 = 0.40）
 
 | 编号 | 子指标 | 阈值 | 失败动作 | 扣分项 |
 |------|--------|------|---------|--------|
@@ -326,6 +331,9 @@ total_score = w1 × gate1_score + w2 × gate2_score + w3 × gate3_score
 | G2.2 | 基数约束检查 | min=0, max=NULL | WARN，每超 10% | -0.06/次 |
 | G2.3 | is_a 无环检查（L3 草稿拓扑排序） | 布尔 | FAIL，列出环边 | -0.20 |
 | **G2.4** | **LLM Judge 语义一致性（可选，默认关闭）** | yes/no | WARN，no 时 | -0.05/次 |
+| G2.5 | 悬空关系检查 dangling_relations [从 006 移交] | 布尔 | WARN，列出悬空边 | -0.15 |
+| G2.6 | 动作目标指向无效 ObjectType invalid_action_targets [从 006 移交] | 布尔 | WARN，列出无效目标 | -0.10 |
+| G2.7 | 规则引用实体不存在 invalid_rule_references [从 006 移交] | 布尔 | WARN，列出无效引用 | -0.10 |
 
 *⚠️ G2.4 默认关闭（`SEMANTIC_ADMIN_ENABLE_LLM_JUDGE=false`）；开启后单次约 +3~10s 延迟，仅 admin 手动开启。*
 

@@ -1,11 +1,16 @@
 # Contract: HEAdapter
 
+> ## 版块清理说明（2026-08-07）
+>
+> 新增 `feed_to_kb(kb_path, text, result)` 方法（FR-024），委托 009 spec FR-003 的 HE kb `he feed` 增量演化。抽取完成后调用，将知识喂入 HE kb 供后续复用。
+> 详见 `specs/REFACTORING-NOTES.md`。
+
 **Location**: `odap/biz/data/hyper_extract/impl/he_adapter.py`
-**Spec FRs**: FR-002, FR-003, FR-004, FR-005, FR-006, FR-007, FR-008, FR-009
+**Spec FRs**: FR-002, FR-003, FR-004, FR-005, FR-006, FR-007, FR-008, FR-009, **FR-024**（feed_to_kb 委托 009）
 
 ## Description
 
-唯一规范 HE 适配器，封装 Hyper-Extract Python API。合并两套重复实现，修复 API kwarg 名和 get_config import bug，补全缺失方法。
+唯一规范 HE 适配器，封装 Hyper-Extract Python API。合并两套重复实现，修复 API kwarg 名和 get_config import bug，补全缺失方法。**feed_to_kb 委托 009 HE kb 持久化**。
 
 ## Interface
 

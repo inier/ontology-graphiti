@@ -18,6 +18,7 @@
 | [ARCHITECTURE_WEB.md](ARCHITECTURE_WEB.md) | — | Web层架构 | L5-L6接口层/交互层 |
 | [ARCHITECTURE_EVOLVE.md](ARCHITECTURE_EVOLVE.md) | — | 演进架构 | 架构演进路径与决策 |
 | [ARCHITECTURE_OPS.md](ARCHITECTURE_OPS.md) | 1.0.0 | 运维架构 | 监控/日志/备份/部署拓扑 |
+| [ARCHITECTURE_TARGET_PLAN.md](ARCHITECTURE_TARGET_PLAN.md) | 1.0.0 | ⭐ 目标架构规划 | 基于 Semantica 调研的能力引入蓝图（决策智能/确定性推理/SHACL-OWL/PROV-O/图分析，ADR-075~078，4 Phase 路线图） |
 
 ## 补充文档
 

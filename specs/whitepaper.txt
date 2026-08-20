@@ -1,0 +1,48 @@
+AI Agent 零信任 ABAC 安全架构企业级落地白皮书
+基于 OpenHarness + OPA + Grafana/Loki 的全链路治理方案
+1. 架构概述与核心原则
+随着 AI Agent 在企业级场景中的大规模落地，其自主决策、动态调用工具及跨域访问的特性，使得传统的静态权限模型（如 RBAC）面临严重挑战。本架构基于 OpenHarness 极简 Agent 底盘与 Open Policy Agent (OPA) 策略引擎构建，旨在打造一套企业级的零信任安全防线。
+本方案严格遵循以下四大核心原则：
+默认拒绝，显式允许 (Default Deny)：Agent 不能自行发现或调用未声明的工具，所有操作必须经过白名单与策略引擎的双重校验。
+动态 ABAC 评估 (Dynamic ABAC)：摒弃静态授权，基于主体（Agent/用户）、资源（工具/数据）、环境（时间/网络）与上下文（会话时长/风险评分）进行实时动态决策。
+Fail-Closed 安全降级：当安全组件（如 OPA 引擎）不可用时，系统默认阻断所有请求，防止因安全防线失效导致的越权风险。
+全链路可观测 (Full Observability)：所有推理过程、策略决策依据及最终操作均生成不可篡改的审计日志，并接入可视化监控看板。
+2. 核心安全机制
+2.1 工具白名单机制 (Allow-Listed Tools)
+白名单构成了 Agent 的第一道物理防线。在 OpenHarness 的 PermissionConfig 中显式注册允许调用的工具（如 read_workspace_file, create_jira_ticket）。不在白名单内的工具调用请求，将在 PEP（策略执行点）被直接拦截，不会进入后续的 OPA 评估环节。
+2.2 OPA 策略门控 (Policy Gates)
+通过 OPA 引擎实现细粒度的 ABAC 管控。策略以代码（Rego）形式管理，支持热更新。例如：
+环境感知：高敏操作（如退款、发送邮件）强制要求会话时长 &gt; 5分钟，以防范 Prompt 注入诱导的秒级攻击。
+资源隔离：禁止 Agent 读取工作区内的 .env 环境变量文件。
+绝对红线：禁止执行任何 Shell 命令（如 rm -rf, sudo）。
+2.3 全链路审计链 (Compliance Audit Trail)
+利用 OpenHarness 的 PreToolUse 与 PostToolUse 钩子，记录完整的决策链路。每条审计日志包含：
+trace_id：全局唯一追踪标识。
+agent_id 与 action：执行主体与目标工具。
+opa_decision 与 opa_reason：OPA 引擎的最终决策及匹配的策略规则。
+input_context 与 output_artifact：操作的输入参数与最终产物。
+3. 运行时执行流
+意图生成：Agent 根据用户指令生成工具调用意图。
+白名单校验 (PEP)：校验目标工具是否在 ALLOWED_TOOLS 列表中，不在则直接返回 BLOCKED。
+上下文增强与 OPA 评估：触发 PreToolUse 钩子，将当前会话属性打包发送给 OPA 引擎进行 ABAC 评估。
+决策执行：
+若 ALLOW：放行工具调用，并在执行后触发 PostToolUse 钩子记录审计日志。
+若 DENY：拦截调用，并将拒绝原因反馈给 Agent 的上下文，引导其调整行为。
+异步采集与告警：Promtail 实时采集审计日志推送至 Loki，Grafana 进行可视化展示，异常拦截触发即时告警。
+4. 基础设施与部署架构
+本方案采用容器化部署，通过 Docker Compose 实现一键编排，包含以下核心组件：
+OPA Engine：加载 Rego 策略文件，提供 /v1/data/agent/access 决策 API，支持 --watch 热更新。
+OpenHarness Agent：业务 Agent 容器，内置 OPA 守卫与审计钩子，通过环境变量 OPA_URL 与策略引擎通信。
+Loki：轻量级日志聚合系统，接收 Promtail 推送的结构化审计日志。
+Promtail：日志采集器，解析 JSON 格式的审计日志，提取 agent_id, action, opa_decision 等标签。
+Grafana：安全运营看板，提供决策分布饼图、实时日志流、工具调用热度排行及高危拦截时序图。
+5. 数据保护与合规审计
+策略即代码 (Policy-as-Code)：所有 OPA 策略文件（Rego）必须纳入 Git 版本控制，变更需经过 Code Review，确保权限策略的可追溯性。
+日志脱敏 (Log Sanitization)：审计日志在写入前，必须对敏感凭证（如 API Key、密码）进行自动脱敏处理，防止二次泄露。
+长期留存：审计日志需支持长期存储（建议 1-2 年），以满足 GDPR、等保 2.0 等外部合规审计要求。
+自动化告警：在 Grafana 中配置 Alerting 规则，当短时间内（如 5 分钟）出现大量 DENY 决策时，自动通过 Webhook 推送至企业安全运营中心（SOC）或即时通讯工具。
+6. 演进与扩展建议
+CI/CD 集成：将 OPA 策略测试（opa test）与容器镜像构建集成至 GitHub Actions / GitLab CI 流水线，实现安全左移。
+AI 红队演练：定期部署内部 AI 红队 Agent，持续生成对抗性 Prompt，探索白名单与 OPA 策略的边界，确保安全水位随模型迭代不下降。
+JIT 权限与持续授权：在进阶阶段，可引入即时按需授权（JIT）机制，Agent 的高敏权限仅在任务执行期间有效，任务结束后自动吊销。
+(AI生成)

@@ -5,9 +5,21 @@
 
 ## Summary
 
-构建语义层管理后台完整套件（**顶级 biz 域独立新模块，不嵌套在 core/ontology 内部**）：6 个子服务松耦合 —— 🧠 usl_manager（USL 统一语义层 6 张核心表 CRUD）、⚙️ ol_pipeline（L1~L6 流水线编排 3 张运行表）、🗃️ candidate_store（候选持久化 SQLite+Neo4j 双写）、🔐 approval_workflow（2 级审批 schema_auditor+admin，含 OPA Rego 策略）、🛡️ quality_gate（3 关 × 16 子指标：句法/语义/领域密度，含质量报告 2 张表）、♻️ usl_writeback（HITL 飞轮：已批准→USL+Ontology TBox 双写 + 回写状态推进）。配套 Neo4j 双写命名空间 `USL__Candidate` 节点与层级边、10 状态 Candidate 状态机、质量闸 4 档分层（HIGH/MEDIUM/LOW/VERY_LOW）、审批加速通道（Auditor 通过 + 总分 ≥ 0.7 跳过 Admin）。后端每个子服务内部严格遵循 AGENTS.md 7 层目录规范（api/models/interfaces/impl/services/storage）；前端 modules/semantic-admin 4 个顶级路由页（/usl /pipeline /candidates /quality）。
+构建语义层管理后台完整套件（**顶级 biz 域独立新模块，不嵌套在 core/ontology 内部**）：6 个子服务松耦合 —— 🧠 usl_manager（USL 统一语义层 6 张核心表 CRUD）、⚙️ ol_pipeline（L1~L6 流水线编排 3 张运行表）、🗃️ candidate_store（候选持久化 SQLite+Neo4j 双写）、🔐 approval_workflow（2 级审批 schema_auditor+admin，含 OPA Rego 策略）、🛡️ quality_gate（3 关 × 22 子指标：句法/语义/领域密度 + 完整性 + 引用一致性，含质量报告 2 张表）、♻️ usl_writeback（HITL 飞轮：已批准→USL+Ontology TBox 双写 + 回写状态推进）。配套 Neo4j 双写命名空间 `USL__Candidate` 节点与层级边、10 状态 Candidate 状态机、质量闸 4 档分层（HIGH/MEDIUM/LOW/VERY_LOW）、审批加速通道（Auditor 通过 + 总分 ≥ 0.7 跳过 Admin）。后端每个子服务内部严格遵循 AGENTS.md 7 层目录规范（api/models/interfaces/impl/services/storage）；前端 modules/semantic-admin 4 个顶级路由页（/usl /pipeline /candidates /quality）。
 
 **总表数 = 11 张 SQLite 表**（6 USL + 3 Pipeline/Candidate + 2 Approval/Quality），无独立 Dashboard 快照表（质量面板查询直接从 quality_reports + approval_records 实时聚合，避免物化滞后）。
+
+> ## 版块清理说明（2026-08-07）
+>
+> 本次版块清理对本 plan 的影响：
+>
+> 1. **QG-1 扩展**：质量闸第 1 关在原有置信度 + Jaccard 去重基础上，**新增完整性指标**（fill_rate/empty_rate/orphan_count），从 006 ValidationEngine 移交。3 关 × 16 子指标扩展为 3 关 × 19 子指标（+3 完整性子指标）
+> 2. **QG-2 扩展**：质量闸第 2 关在原有结构一致性基础上，**新增引用一致性**（dangling_relations/invalid_action_targets/invalid_rule_references），从 006 ValidationEngine 移交。3 关 × 19 子指标扩展为 3 关 × 22 子指标（+3 引用一致性子指标）
+> 3. **US4 hook 调用**：原 US4 直接实现 ExtractService mode 参数，现改为提供 `ConceptExtractor.run_l1_l2_hook()` 接口供 006 ExtractService 调用。ExtractService 编排权归 006 FR-037
+> 4. **审计统一**：原 plan 中直接调用 `UnifiedAudit.log_action` 的地方，统一改为委托 009 分层审计（audit_helper）。usl_outbox 保留（TBox 双写专用）
+> 5. **instance 模式即时校验**：QG-1/QG-2 在 instance 模式下也调用，结果写入 ExtractionSession.validation_report
+>
+> 详见 007 spec.md 版块清理说明 + Brainstorm Log 2026-08-07 条目。
 
 **Constraints（强制执行）**:
 1. **不硬编码术语**：三国/西游等示例术语必须通过 seed migration 脚本写入，禁止在 Python 代码中直接写死字符串常量
@@ -24,7 +36,7 @@
 **Testing**: pytest 7+ (单元 + 集成), 要求 tmp_path 真实 DB、禁止 MagicMock 存储层
 **Target Platform**: Docker 容器 (Podman 运行)，Linux 服务器部署
 **Project Type**: web-service (FastAPI 后端 + React 19 前端，REST API + Ant Design Pro 组件)
-**Performance Goals**: Candidate 列表查询分页 100 条 ≤ 100ms；质量闸 16 子指标计算 ≤ 500ms/候选；Dashboard 日快照物化 ≤ 2s/日
+**Performance Goals**: Candidate 列表查询分页 100 条 ≤ 100ms；质量闸 22 子指标计算 ≤ 500ms/候选；Dashboard 日快照物化 ≤ 2s/日
 **Constraints**: 见上方 5 条强制执行约束；生产级实现无伪代码/空桩；术语 seed 化；SQLite 连接短命化；异常分层明确
 
 ## Constitution Check
@@ -33,10 +45,10 @@
 
 | Principle | Status | Notes |
 |-----------|--------|-------|
-| I. 简单 | PASS | 6 个子服务**松耦合独立部署单元**（usl_manager/ol_pipeline/candidate_store/approval_workflow/quality_gate/usl_writeback），每个子服务只做一件事；状态机用纯函数 `next_status(current, event) → new` 实现；质量闸 16 子指标公式独立函数；无嵌套循环依赖 |
+| I. 简单 | PASS | 6 个子服务**松耦合独立部署单元**（usl_manager/ol_pipeline/candidate_store/approval_workflow/quality_gate/usl_writeback），每个子服务只做一件事；状态机用纯函数 `next_status(current, event) → new` 实现；质量闸 22 子指标公式独立函数；无嵌套循环依赖 |
 | II. 可维护 | PASS | 模块依赖单向：usl_manager ← ol_pipeline ← candidate_store ← quality_gate ← approval_workflow ← usl_writeback；每个子服务内部严格 7 层（storage←impl←interfaces←services←api）；无跨子服务直接 import storage 层 |
-| III. 测试优先 | PASS | 8 个必须 TDD 单元（见下）；每个 storage 层全部 tmp_path 真实 SQLite；approval_workflow 的 OPA 策略用真实 opa eval CLI 验证（不 mock OPA）；状态机全路径 10 状态 × 事件矩阵覆盖 |
-| IV. 避免过度设计 | PASS (post-design) | 11 张表全部追溯到 FR（6 USL→FR1-2；3 Pipeline→FR3；2 Approval/Quality→FR4-5）；10 状态机为三级审批 + 驳回重试 + 加速跳过最小必要；16 子指标每一项可单独 disable 且有权重可热更新 |
+| III. 测试优先 | PASS | 9 个必须 TDD 单元（见下）；每个 storage 层全部 tmp_path 真实 SQLite；approval_workflow 的 OPA 策略用真实 opa eval CLI 验证（不 mock OPA）；状态机全路径 10 状态 × 事件矩阵覆盖 |
+| IV. 避免过度设计 | PASS (post-design) | 11 张表全部追溯到 FR（6 USL→FR1-2；3 Pipeline→FR3；2 Approval/Quality→FR4-5）；10 状态机为三级审批 + 驳回重试 + 加速跳过最小必要；22 子指标每一项可单独 disable 且有权重可热更新 |
 
 ### 6 子服务 API 路径前缀映射（后端 routes.py 注册规范）
 
@@ -45,7 +57,7 @@
 | 1 | 🧠 **usl_manager** | `odap/biz/semantic_admin/usl_manager/` | `/api/semantic-admin/usl/*` | `GET/POST /domains` · `GET/POST /terms` · `POST /hierarchy-edges` · `POST /property-specs` · `POST /cross-domain-mappings` | USL 6 张核心表 CRUD，含同义词/层级/属性/跨域映射 |
 | 2 | ⚙️ **ol_pipeline** | `odap/biz/semantic_admin/ol_pipeline/` | `/api/semantic-admin/pipeline/*` | `POST /runs` · `GET /runs` · `GET /runs/{id}` · `POST /runs/{id}/retry` · `POST /runs/{id}/cancel` | OL L1~L6 流水线编排，3 张运行表；支持手动/定时/ingest_hook 触发 |
 | 3 | 🗃️ **candidate_store** | `odap/biz/semantic_admin/candidate_store/` | `/api/semantic-admin/candidates/*` | `GET /`（列表+分页+筛选） · `GET /{id}` · `GET /{id}/graph-preview` · `GET /{id}/evidence` | 候选读服务（SQLite + Neo4j 双写由 ol_pipeline 内部触发，此处只查询） |
-| 4 | 🛡️ **quality_gate** | `odap/biz/semantic_admin/quality_gate/` | `/api/semantic-admin/quality-gate/*` | `POST /evaluate` · `GET /candidates/{id}/report` · `GET /dashboard/metrics` · `GET /weights-config` | 3 关 ×16 子指标评估，质量报告存储，Dashboard 实时只读聚合层 |
+| 4 | 🛡️ **quality_gate** | `odap/biz/semantic_admin/quality_gate/` | `/api/semantic-admin/quality-gate/*` | `POST /evaluate` · `GET /candidates/{id}/report` · `GET /dashboard/metrics` · `GET /weights-config` | 3 关 ×22 子指标评估，质量报告存储，Dashboard 实时只读聚合层 |
 | 5 | 🔐 **approval_workflow** | `odap/biz/semantic_admin/approval_workflow/` | `/api/semantic-admin/approvals/*` | `POST /candidates/{id}/audit` · `POST /candidates/{id}/final-approve` · `GET /candidates/{id}/history` · `POST /candidates/{id}/return-to-l2` | 2 级审批（schema_auditor + admin）+ 加速通道 + OPA Rego 权限策略 5 规则 |
 | 6 | ♻️ **usl_writeback** | `odap/biz/semantic_admin/usl_writeback/` | `/api/semantic-admin/writeback/*`（内部路由，仅 approval 工作流调用） | `POST /candidates/{id}/write-approved` · `POST /candidates/{id}/write-rejected` · `GET /status` · `POST /retry/{id}` | HITL 飞轮写回：APPROVED → USL + Ontology TBox 双写，幂等 + 重试队列 |
 
@@ -133,7 +145,8 @@ odap/biz/semantic_admin/             ← 顶级 biz 新域（与 core/decision/p
 │   │   ├── l6_axiom_inductor_stage.py   # L6 Apriori 关联规则（Iter4，默认跳过）
 │   │   └── pipeline_orchestrator.py # PipelineOrchestrator（asyncio.create_task 异步编排 + 幂等重试）
 │   ├── services/
-│   │   └── pipeline_service.py
+│   │   ├── pipeline_service.py
+│   │   └── concept_extractor.py    # [版块清理新增] run_l1_l2_hook() — 供 006 ExtractService mode=schema_learning 调用的后置 hook入口
 │   └── storage/
 │       ├── __init__.py
 │       └── sqlite_pipeline_storage.py # 3 张表: usl_pipeline_runs / usl_schema_candidates / usl_pipeline_layer_snapshots
@@ -151,7 +164,7 @@ odap/biz/semantic_admin/             ← 顶级 biz 新域（与 core/decision/p
 │   │   └── candidate_service.py     # 搜索/分页/详情/Cytoscape JSON 图谱预览
 │   └── storage/                     # 复用 ol_pipeline storage（SQLite 为主，Neo4j 为从，降级策略）
 │
-├── 🛡️ quality_gate/                 # 子服务 4: 3 关 × 16 子指标质量闸
+├── 🛡️ quality_gate/                 # 子服务 4: 3 关 × 22 子指标质量闸
 │   ├── api/
 │   │   ├── routes.py                # POST /quality-gate/evaluate + GET candidates/{id}/quality-report
 │   │   └── schemas.py
@@ -160,8 +173,8 @@ odap/biz/semantic_admin/             ← 顶级 biz 新域（与 core/decision/p
 │   ├── interfaces/
 │   │   └── gate.py                  # Gate ABC (evaluate(candidate, ctx) -> score, details)
 │   ├── impl/
-│   │   ├── gate1_syntactic_impl.py  # G1 × 7 子项: 名称合规/en_mapping可用/semantic_type枚举/同义词大小/去重率/环检测/USL冲突
-│   │   ├── gate2_semantic_impl.py   # G2 × 4 子项: Disjoint不相交/基数约束/is_a无环/LLM语义一致性Judge(默认关)
+│   │   ├── gate1_syntactic_impl.py  # G1 × 10 子项: 名称合规/en_mapping可用/semantic_type枚举/同义词大小/去重率/环检测/USL冲突 + 完整性(fill_rate/empty_rate/orphan_count) [后3项从006 ValidationEngine移交]
+│   │   ├── gate2_semantic_impl.py   # G2 × 7 子项: Disjoint不相交/基数约束/is_a无环/LLM语义一致性Judge(默认关) + 引用一致性(dangling_relations/invalid_action_targets/invalid_rule_references) [后3项从006 ValidationEngine移交]
 │   │   ├── gate3_domain_impl.py     # G3 × 5 子项: 属性密度/词频覆盖率/同义词丰富度/USL对齐率(反向新颖度)/层级贡献度
 │   │   ├── quality_calculator.py    # 线性加权 total = 0.35*G1 + 0.40*G2 + 0.25*G3 + 4 档 Tier 分层
 │   │   └── weight_config.py         # Pydantic BaseSettings（权重可热更新，不从代码硬编码）
@@ -217,7 +230,7 @@ frontend/src/modules/semantic-admin/  (新增语义层管理后台前端模块)
 │   ├── DisjointCardinality.tsx      # 不相交对 + 基数配置
 │   ├── CandidatePipeline.tsx        # 候选流水线（列表 + 详情 + 10 状态时间线）
 │   ├── ApprovalCenter.tsx           # 审批中心（Auditor 视图 + Admin 视图 + 加速通道标识）
-│   ├── QualityGateView.tsx          # 质量闸 3 关 16 子指标详情 + 得分雷达图
+│   ├── QualityGateView.tsx          # 质量闸 3 关 22 子指标详情 + 得分雷达图
 │   └── SemanticDashboard.tsx        # Dashboard 日快照物化指标趋势图
 ├── components/
 │   ├── DomainFormDrawer.tsx
@@ -225,7 +238,7 @@ frontend/src/modules/semantic-admin/  (新增语义层管理后台前端模块)
 │   ├── HierarchyDnDPanel.tsx
 │   ├── PropertySpecForm.tsx
 │   ├── CandidateStatusTimeline.tsx  # 10 状态可视化
-│   ├── QualityRadarChart.tsx        # 16 子指标雷达图
+│   ├── QualityRadarChart.tsx        # 22 子指标雷达图
 │   ├── ApprovalFlowDiagram.tsx      # 审批流程（加速通道高亮）
 │   └── DashboardMetricCard.tsx
 ├── hooks/
@@ -253,11 +266,12 @@ frontend/src/modules/semantic-admin/  (新增语义层管理后台前端模块)
 
 ## Execution Strategy
 
-### TDD Requirements (8 个必须 TDD 单元)
+### TDD Requirements (9 个必须 TDD 单元)
 
 - [ ] **SqliteUslStorage (Domain/Term/Hierarchy/Property/Disjoint/Cardinality)**: 6 张 USL 表 CRUD + UNIQUE 约束 + 分页查询，tmp_path 真实 SQLite，验证 connect/close 每调用独立（检查 `_conn_count` 递增）
 - [ ] **CandidateStateMachine**: 10 状态 × 事件矩阵全路径覆盖，包括 AUDITOR_MODIFIED 回退、AUDITOR_REJECTED→REJECTED→STOPLISTED 链路、加速通道触发条件（AUDITOR_APPROVED + total≥0.7 跳过 ADMIN_PENDING）
-- [ ] **QualityCalculator.16 子指标**: 每个子指标独立用例（含边界：null/空集合/除零），3 关加权公式 + 4 档分层阈值正确性验证（HIGH≥0.85 等）
+- [ ] **QualityCalculator.22 子指标**: 每个子指标独立用例（含边界：null/空集合/除零），3 关加权公式 + 4 档分层阈值正确性验证（HIGH≥0.85 等）。含从 006 移交的完整性（fill_rate/empty_rate/orphan_count）+ 引用一致性（dangling_relations/invalid_action_targets/invalid_rule_references）6 项新子指标
+- [ ] **ConceptExtractor.run_l1_l2_hook**: [版块清理新增] 验证 hook 接口可被 006 ExtractService 调用，输入 raw_extraction_result → 产出 L1-L2 概念候选 → CandidateWriter 双写；验证 hook 异常不阻断 006 主流程（catch + 日志 warning）
 - [ ] **ApprovalService**: 两级审批正常路径 + 加速通道触发 + 驳回回退 + 修改后重提，验证不抛 HTTPException（仅抛业务异常）
 - [ ] **Neo4jDualWriter**: Mock Neo4j Driver（仅此处允许 Mock，因为外部依赖）验证 USL__Candidate 节点 MERGE + USL__L2_MEMBER_OF 边 + USL__IS_A_DRAFT 边的正确 Cypher
 - [ ] **SqliteCandidateStorage (3 张表)**: PipelineRun 状态变更、SchemaCandidate 10 状态持久化、PipelineLayerSnapshot JSON 序列化/反序列化，tmp_path 真实 DB
@@ -275,7 +289,7 @@ frontend/src/modules/semantic-admin/  (新增语义层管理后台前端模块)
 1. **术语 seed 化审查** — 全量 grep `三国\|西游\|刘备\|孙悟空` 等示例词，确认仅出现在 `semantic_admin/usl_manager/impl/seed_sanguo_xiyou.py`（只读 import 原 semantic_config.py dict 后写库），Python/TS 其他文件零出现（test/fixture 除外）
 2. **SQLite connect/close 审查** — 静态检查 5 个 storage 实现（`sqlite_usl_storage.py` / `sqlite_pipeline_storage.py` / `sqlite_quality_storage.py` / `sqlite_approval_storage.py` / 复用层），每个方法首行 `connect()`、末行 `close()`，无 `self.conn` 成员变量；5 个文件都要过
 3. **状态机全路径走查** — 对照 data-model.md 10 状态图，现场演示至少 5 条路径：正常通过全链路 / 加速通道 / Auditor 驳回后修改重提 / Auditor 拒绝后加入黑名单 / Admin 打回 L2
-4. **质量闸阈值交叉验证** — 人工计算 3 组示例候选数据的 16 子指标得分与代码 TDD 结果比对，误差 ≤ 1e-6
+4. **质量闸阈值交叉验证** — 人工计算 3 组示例候选数据的 22 子指标得分与代码 TDD 结果比对，误差 ≤ 1e-6
 5. **前后端类型对齐** — TypeScript `types/index.ts` 与后端 Pydantic 模型逐字段 diff（字段名、类型、可空性、枚举值），无偏差
 
 ## §4 Acceptance Checklist（验收清单 · P0 必打勾）
@@ -303,7 +317,7 @@ frontend/src/modules/semantic-admin/  (新增语义层管理后台前端模块)
 - [ ] **SVC-04**：容器字段全部 `Field(default_factory=list|dict|set)`，零 `= []/{}`
 - [ ] **SVC-05**：`CandidateStateMachine` 10 状态 × 事件矩阵全路径覆盖，非法事件抛 ValueError
 - [ ] **SVC-06**：加速通道（AUDITOR_APPROVED + total≥0.7）正确跳过 ADMIN_PENDING
-- [ ] **SVC-07**：QualityCalculator 16 子指标 4 档 TIER 分层阈值（A≥0.85/B≥0.70/C≥0.55）与加权 0.35/0.40/0.25 完全匹配 spec
+- [ ] **SVC-07**：QualityCalculator 22 子指标 4 档 TIER 分层阈值（A≥0.85/B≥0.70/C≥0.55）与加权 0.35/0.40/0.25 完全匹配 spec
 - [ ] **SVC-08**：`except Exception` 全部带日志（logger.warning/error），零 `pass` 静默
 - [ ] **SVC-09**：OPA 策略 5 大规则（audit_candidate/final_approve/auto_skip/quality_report + deny MODIFY/REJECT 无 comment）全部在 Rego 中落地
 - [ ] **SVC-10**：WritebackService 双写通道（A: GraphWriteProxy + B: GraphManager）独立事务，B 失败不阻塞 A（记 warning）
@@ -319,7 +333,7 @@ frontend/src/modules/semantic-admin/  (新增语义层管理后台前端模块)
 - [ ] **API-03**：`/api/semantic-admin/pipeline/runs/{id}/advance` 和 `/execute-all` 正确推进 layer_status JSON
 - [ ] **API-04**：候选 5 个 API（create / list / get / update-status / approve / reject / promote-to-usl）均走 CandidateRepository 抽象，无跨 storage import
 - [ ] **API-05**：审批 5 方法（audit / modify / reject / final_approve / auto_skip_admin）全部在 `approval_service.py` 落地
-- [ ] **API-06**：质量闸报告 `/quality-gate/reports/{cand_id}` 含 3 关 16 子指标，字段名与 types/index.ts 完全对齐
+- [ ] **API-06**：质量闸报告 `/quality-gate/reports/{cand_id}` 含 3 关 22 子指标，字段名与 types/index.ts 完全对齐
 - [ ] **API-07**：USL 写回 `/writeback/candidates/{id}` + `/writeback/status/{id}` 返回 dual_write 状态（A/B 通道独立 OK/FAIL）
 - [ ] **API-08**：sa_config `/{scope}/{key}` / `/domain/{domain_code}` / `/ensure-builtin` 三读一写 API 全部存在
 - [ ] **API-09**：C1/C2/C3/C4/C5/C6/D 系列 API（AGENTS.md §附录 E 列出的全部 semantic_admin 路径）在 `odap/web/app.py` 注册且 OpenAPI 文档可见
@@ -354,7 +368,7 @@ frontend/src/modules/semantic-admin/  (新增语义层管理后台前端模块)
 
 - [ ] **11 张表 DDL**: Review before 写任何 storage 代码 — 字段命名、约束、索引与 data-model.md 完全一致（6 USL + 3 Pipeline + 2 Approval/Quality = 11）
 - [ ] **SchemaCandidate 状态机 + 审批流程接口**: Review before 写 approval_workflow/services/approval_service.py — contracts/quality-gate-approval.md + contracts/usl-manager.md 签名
-- [ ] **质量闸 16 子指标(G1×7/G2×4/G3×5)公式 + 阈值**: Review before 写 quality_gate/impl/quality_calculator.py — contracts/quality-gate-approval.md 公式编号与权重(w1=0.35 w2=0.40 w3=0.25)
+- [ ] **质量闸 22 子指标(G1×10/G2×7/G3×5)公式 + 阈值**: Review before 写 quality_gate/impl/quality_calculator.py — contracts/quality-gate-approval.md 公式编号与权重(w1=0.35 w2=0.40 w3=0.25)
 - [ ] **Neo4j 双写命名空间规范**: Review before 写 candidate_store/impl/neo4j_schema_graph_writer.py — Cypher 前缀 `USL__` 约定与索引创建
 - [ ] **Frontend API 调用层**: Review before 合并 semantic-admin 模块 — services/semanticApi.ts 请求路径与后端 routes.py 一一对应（/api/semantic-admin/* 前缀）
 
@@ -365,7 +379,7 @@ frontend/src/modules/semantic-admin/  (新增语义层管理后台前端模块)
 | # | 复杂度 | 为什么必要 (附 FR) | 更简单方案为什么被拒绝 |
 |---|--------|---------------------|------------------------|
 | 1 | **10 状态 Candidate 状态机**（而非 3-4 状态简化版） | FR4.3 要求 L1→L2→Auditor→Admin 四级角色分工 + 驳回重试 + 黑名单机制；FR5.2 加速通道依赖 AUDITOR_APPROVED 与 ADMIN_PENDING 的区分 | 简化 3 状态（DRAFT/REVIEWING/DONE）无法表达"Auditor 修改后回退到 L2 重做"、"REJECTED→STOPLISTED 加入黑名单不再抽取"等关键业务流程 |
-| 2 | **3 关 × 16 子指标质量闸**（而非 1 关总评分） | FR5.1 要求质量分层治理：结构合规关 / 语义一致关 / 覆盖完整关各有专家负责；FR5.2 加速通道依赖各维度独立加权 | 单关总评分无法定位"候选不合格到底是属性缺还是关系漏还是语义冲突"，导致审批人无法针对性修改 |
+| 2 | **3 关 × 22 子指标质量闸**（而非 1 关总评分） | FR5.1 要求质量分层治理：结构合规关 / 语义一致关 / 覆盖完整关各有专家负责；FR5.2 加速通道依赖各维度独立加权 | 单关总评分无法定位"候选不合格到底是属性缺还是关系漏还是语义冲突"，导致审批人无法针对性修改 |
 | 3 | **11 张 SQLite 表分离**（而非 2-3 张大表 + JSON） | FR1-3 要求 USL 6 核心支持事务级 CRUD 与并发编辑锁；FR4 流水线 3 表需独立索引查询；FR5 审批表需多版本审计；无 Dashboard 物化表后减少 1 张冗余 → 合计 11 张 | 合并为大表 JSON 会导致：1) 属性规范 / 同义词 UNIQUE 对无法数据库级保障；2) 审批记录按 candidate_id 聚合查询全表扫；3) 质量面板聚合查询无法使用覆盖索引，p95 ≥ 3s |
 | 4 | **Neo4j 双写命名空间（USL__Candidate 节点 + 两条边类型）**（而非仅 SQLite 存储） | FR4.4 要求语义抽取阶段可对候选做图查询预筛选；FR4.5 审批通过后 USL__IS_A_DRAFT 边删除与正式 USL 节点 MERGE 原子切换 | 仅 SQLite 存储无法支持"找出所有 DRAFT 状态候选与现有正式术语的 L2 相似度 > 0.8"这类图遍历查询，且审批通过后从候选到正式需批量回写而非边切换 |
 | 5 | **Dashboard 实时聚合层 quality_gate/services/dashboard_query_service.py**（而非日快照物化表） | FR6 要求 Dashboard 可查"今日至今"实时数据（日物化有 24h 滞后）；SQLite 对 10 万行级别的分组聚合在有覆盖索引下 < 800ms | 实时聚合的主要问题是性能，但经评估：quality_reports 建复合索引 (created_date, candidate_id) + approval_records 建 (created_date, approver_role) 即可将 14 天窗口查询压到 500ms 内；且"实时数据"是产品经理明确提出的优先级（优于物化表的性能优势） |
@@ -375,11 +389,11 @@ frontend/src/modules/semantic-admin/  (新增语义层管理后台前端模块)
 ### Phase 0: Research & Design Baseline (research.md + data-model.md + contracts/)
 
 1. **research.md**: Neo4j `USL__*` 命名空间索引最佳实践、SQLite 短连接性能基准测试（1000 次 connect/close vs 单长连接耗时比）、Pydantic v2 strict 模式与 SQLite TEXT→INT 自动转换陷阱
-2. **data-model.md** (本特性核心): **11 张**表完整 DDL（**已全部合并至 data-model.md §2 权威版**，来源 6 USL 核心表 + 3 Pipeline 运行表 + 2 Approval/Quality 表 = 11，含 CHECK/UNIQUE/FK/覆盖索引/COMMENT，对齐 design/*.html iter4-final；**不再维护独立 DDL 拆分文件**） + Neo4j Cypher `USL__*` 命名空间 + 10 状态机图 + 3 关 16 子指标公式(G1×7/G2×4/G3×5 权重 0.35/0.40/0.25) + 4 档分层阈值 + 审批加速通道权重 + 6 个 Pydantic 核心模型字段清单
+2. **data-model.md** (本特性核心): **11 张**表完整 DDL（**已全部合并至 data-model.md §2 权威版**，来源 6 USL 核心表 + 3 Pipeline 运行表 + 2 Approval/Quality 表 = 11，含 CHECK/UNIQUE/FK/覆盖索引/COMMENT，对齐 design/*.html iter4-final；**不再维护独立 DDL 拆分文件**） + Neo4j Cypher `USL__*` 命名空间 + 10 状态机图 + 3 关 22 子指标公式(G1×10/G2×7/G3×5 权重 0.35/0.40/0.25) + 4 档分层阈值 + 审批加速通道权重 + 6 个 Pydantic 核心模型字段清单
 3. **contracts/usl-manager.md**（合并原 usl-domain/term/hierarchy/property 4 个合约）: `UslManager` 统一聚合接口，含 domain(10) + term(12) + hierarchy(8,含 check_cycle) + property(8,含按域批量) 共 **38 方法**
 4. **contracts/ol-pipeline-service.md**: `OlPipelineService` 6 方法（submit/schedule_run/cancel_run/get_run_status/list_runs/resume_from_failed_step）
 5. **contracts/candidate-dual-writer.md**: `CandidateDualWriter` 8 方法（create_candidate/upsert_sqlite/write_neo4j_usl_candidate_node/write_neo4j_l2_edges/link_neo4j_draft_edge/count_sqlite_by_status/get_run_candidates/bulk_delete_duplicates）
-6. **contracts/quality-gate-approval.md**（合并原 quality-gate + approval-service 两个合约）: **3 关 16 子指标(G1×7/G2×4/G3×5)** + 3 级审批(AUDITOR_MODIFIED/AUDITOR_REJECTED/ADMIN_REJECTED 回退/加速通道) + 18 方法签名
+6. **contracts/quality-gate-approval.md**（合并原 quality-gate + approval-service 两个合约）: **3 关 22 子指标(G1×10/G2×7/G3×5)** + 3 级审批(AUDITOR_MODIFIED/AUDITOR_REJECTED/ADMIN_REJECTED 回退/加速通道) + 18 方法签名
 7. **contracts/schema-candidate-service.md**: `SchemaCandidateService` 14 方法签名（submit/promote_to_l1/promote_to_l2/submit_review + 各状态转换事件）
 8. **contracts/usl-writeback-service.md**: `UslWritebackService` 9 方法（APPROVED→MERGED idempotent writeback、同义词写回、层级/属性/跨域映射写回、更新 pipeline_runs.writeback_*、删除 Neo4j DRAFT 边）
 9. **contracts/neo4j-namespace.md**（新增）: `USL__*` 前缀命名规范、6 类节点/5 类边、索引/约束、从 DRAFT→正式 MERGE 的原子切换 Cypher 片段
@@ -406,7 +420,7 @@ frontend/src/modules/semantic-admin/  (新增语义层管理后台前端模块)
 4. **storage/sqlite_dashboard_storage.py**: 1 张日快照表 DAO + `tests/unit/test_sqlite_dashboard_storage.py`（幂等覆盖测试）
 5. **models/candidate_models.py** + **models/approval_models.py** + **models/dashboard_models.py**: SchemaCandidate / PipelineRun / PipelineLayerSnapshot / ApprovalRecord / QualityReport / DashboardDailySnapshot
 6. **impl/state_machine.py**: `CandidateStateMachine.transition(curr_status, event, context) → new_status` 纯函数 + `tests/unit/test_candidate_state_machine.py`（10 状态全路径 25+ 用例）
-7. **impl/quality_calculator.py**: 16 子指标独立函数（`calc_s1_*` 结构关 5 个 / `calc_s2_*` 语义关 6 个 / `calc_s3_*` 覆盖关 5 个）+ 加权聚合 + 4 档阈值 + `tests/unit/test_quality_calculator.py`
+7. **impl/quality_calculator.py**: 22 子指标独立函数（`calc_s1_*` 结构关 5 个 / `calc_s2_*` 语义关 6 个 / `calc_s3_*` 覆盖关 5 个）+ 加权聚合 + 4 档阈值 + `tests/unit/test_quality_calculator.py`
 8. **impl/neo4j_dual_writer.py**: Neo4jDualWriter（MERGE USL__Candidate + USL__L2_MEMBER_OF + USL__IS_A_DRAFT）+ `tests/unit/test_neo4j_dual_writer.py`（此处唯一允许 Mock Neo4j driver）
 9. **services/candidate_service.py** + **services/approval_service.py** + **services/quality_service.py** + **services/dashboard_service.py**: 4 个扩展服务实现（仅抛业务异常）
 10. **api/routes.py (补全)** + **impl/seed_migrator.py** + **impl/snapshot_builder.py**: 剩余 REST 端点 + seed 执行 CLI + 每日快照构建 Cron 入口

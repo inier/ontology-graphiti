@@ -1,7 +1,7 @@
 # 本体驱动分析决策平台 (ODAP) - 架构设计文档
 
-> **版本**: 6.0.0 | **日期**: 2026-07-18 | **状态**: 正式
-> **版本说明**: v6.0.0 = 本体模块 3+1 分层架构版（Design→Construction→+Reasoning→Application），基于 ADR-068
+> **版本**: 7.0.0 | **日期**: 2026-08-16 | **状态**: 正式
+> **版本说明**: v7.0.0 = 统一架构模型版——"一纵一横"骨架收口（§2.6）：纵向 ADR-068 3+1 业务主干 + 横向 T1-T8 技术能力层，整合 OpenHarness / Graphiti / Hyper-Extract / OPA 与 Semantica 吸收能力（ADR-075/076/077/078 + TARGET_PLAN v1.1）；继承 v6.0.0 本体 3+1 分层（§2.5 保持有效）
 >
 > **定位**: ⭐ **唯一权威架构文档入口** - 开发实现的权威参考
 >
@@ -33,6 +33,7 @@
 **参考文档**:
 
 - ARCHITECTURE_VALIDATION_REPORT.md - 架构合理性验证报告
+- [ARCHITECTURE_TARGET_PLAN.md](ARCHITECTURE_TARGET_PLAN.md) - ⭐ 目标架构规划 v1.1（Semantica 能力引入蓝图，ADR-075~078 路线）
 - [PHASE4_5_PLAN.md](PHASE4_5_PLAN.md) - Phase 4-5 演进规划（详细版）
 - [../00-00-requirements/req-ok.md](../00-requirements/req-ok.md) - 需求规格文档（上游）
 - [adr/README.md](../07-adr/README.md) - 架构决策记录
@@ -309,6 +310,8 @@
 | **OpenHarness First** | 基于 OpenHarness 作为 Agent 基础设施 | P1 |
 | **Graphiti as Memory** | Graphiti 作为双时态记忆，支撑时序推理和历史回溯 | P1 |
 | **Query First** | 所有图谱读取必须通过统一 QueryService，禁止散落的域读取端点 | P0 |
+| **审计关键路径零 LLM** | 事实演化/决策记录/推理审计等审计关键路径全部走确定性代码（ADR-074 升格为全局原则，见 §2.6） | P0 |
+| **Fail-Closed 统一安全姿态** | 权限默认拒绝 + 决策落库前门禁 + 配置缺失即拒绝服务 + 查询注入面统一消毒（见 §2.6） | P0 |
 
 #### 1.3.1 可视化配置管理详解
 
@@ -629,6 +632,53 @@ class QueryServiceWriteGuard:
 | Decide 决策 | L3 Application (runtime) + +AI Reasoning | 运行时引擎 + 一致性校验辅助决策 |
 | Perform 执行 | L3 Application (servitization, feedback) | 动作执行与状态回写 |
 
+### 2.6 统一架构模型：一纵一横（v7.0.0，2026-08-16）
+
+> **收口背景**：此前存在两套叠加视图——§2.2 的四层组件定位（L1-L4）与 §2.5 的本体 3+1 分层，"读起来都对、合起来就乱"。随 Semantica 能力引入（[TARGET_PLAN v1.1](ARCHITECTURE_TARGET_PLAN.md)），v7.0.0 将二者收口为**唯一骨架：一纵一横**。§2.2 的 L1-L4 保留为组件选型说明，其架构成位语义全部由 T 层继承。
+
+```
+纵向业务主干（领域逻辑的唯一叙事线）：
+  Design → Construction → Application，+Reasoning 贯穿（§2.5，ADR-068）
+  OADP 闭环映射见 §2.5 末表
+
+横向技术能力层（T1–T8，被业务主干调用）：
+┌────────────────────────────────────────────────────────────────────┐
+│ T1 Agent 运行时    OpenHarness (engine/swarm/hooks/MCP/memory/AG-UI)│
+│ T2 图谱与记忆      Graphiti (双时态 + state_at 时点查询 + 边失效)     │
+│ T3 抽取链          Hyper-Extract (feed 增量演化 + 4维校验 + 模板)     │
+│ T4 策略治理        OPA (权限策略 + ★决策前置规则门禁)                 │
+│ T5 确定性推理      Datalog/前向链接 + Allen 时态代数                  │
+│ T6 决策智能        DecisionRecord + 7 端点全 API 面                   │
+│ T7 图分析          Neo4j GDS / networkx 回退                         │
+│ T8 标准互操作      SHACL/OWL + PROV-O                                │
+├────────────────────────────────────────────────────────────────────┤
+│ 存储底座  Neo4j · SQLite · Redis · MinIO                            │
+│ 接口面    FastAPI · AG-UI · MCP · WebSocket · React 19              │
+└────────────────────────────────────────────────────────────────────┘
+```
+
+**T 层与既有组件/ADR 的对应**：
+
+| 层 | 能力 | 载体 | 关键 ADR | 状态 |
+|---|---|---|---|---|
+| T1 | Agent 运行时 | OpenHarness 全能力 | ADR-001/005/006/025/070 | 在役 |
+| T2 | 图谱与记忆 | Graphiti | ADR-002/074 | 在役（`state_at` 为 Phase 2 增强） |
+| T3 | 抽取链 | Hyper-Extract（git submodule） | ADR-074 | 在役 |
+| T4 | 策略治理 | OPA | ADR-003/009/028；门禁前移见 ADR-076 §4.6 | 在役 + Phase 1 扩展 |
+| T5 | 确定性推理 | pyDatalog/experta + 纯 Python Allen 代数 | ADR-075（实现 ADR-072 契约） | Phase 2 |
+| T6 | 决策智能 | `biz/decision/decision_record/` | ADR-076（修订版） | Phase 1（P0） |
+| T7 | 图分析 | `infra/graph/analytics/` | ADR-078 | Phase 4 |
+| T8 | 标准互操作 | pySHACL/owlready2/rdflib | ADR-077 + ADR-074 扩展 | Phase 3 |
+
+**四条横切原则（约束全部 T 层与业务主干）**：
+
+1. **审计关键路径零 LLM**：事实演化、决策记录、推理审计等审计关键路径全部走确定性代码（ADR-074 原则升格为全局原则）
+2. **T4 与 T5 正交**：OPA 管权限策略（能不能做），确定性推理引擎管业务演绎（事实→结论）；互不替代，可同链路先后调用
+3. **工作空间隔离横切**：全部 T 层继承 workspace 隔离语义（`group_id`/`workspace_id` 双轨），每个新 ADR 强制隔离 Checklist
+4. **Fail-closed 统一安全姿态**：权限默认拒绝、决策落库前门禁、配置缺失即拒绝服务；Cypher/SPARQL 注入面统一消毒（并入 ADR-055 硬化清单）
+
+**边界守护（不替代清单）**：Graphiti / Hyper-Extract / Semantic Admin Suite / OPA / 模拟仿真模块——守护理由见 [TARGET_PLAN §9](ARCHITECTURE_TARGET_PLAN.md)。**T 层间禁止互调**，只能经契约（ADR-071/072 模式）或被业务主干编排调用。
+
 ---
 
 ## 附录
@@ -647,6 +697,8 @@ class QueryServiceWriteGuard:
 
 | 版本 | 日期 | 说明 |
 |------|------|------|
+| v7.0.0 | 2026-08-16 | 统一架构模型（§2.6 一纵一横）：T1-T8 技术能力层收口双视图；整合 Semantica 吸收能力（TARGET_PLAN v1.1，ADR-075/076/077/078）；配套 ADR 大清算（索引单一权威化） |
+| v6.0.0 | 2026-07-18 | 本体模块 3+1 分层架构版（ADR-068） |
 | v5.1.0 | 2026-05-23 | 新增语义层架构（2.3节）：统一查询服务 + Query First 原则 + Agent Safe + 架构守卫 |
 | v4.1.0 | 2026-05-04 | 文档分片版，按架构层级拆分为6个子文档 |
 | v4.0.2 | 2026-05-04 | Phase 4-5规划拆分到独立文档 |

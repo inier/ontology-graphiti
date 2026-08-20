@@ -1,7 +1,9 @@
 # ADR-071: BuildResultContract —— L2 Construction 层构建产物契约
 
 ## Status
-Proposed
+**Accepted（2026-08-16 清算：契约已落地）**
+
+> 代码现实：`biz/core/ontology/construction/contract/interface.py`（Frozen Views + 抽象合约）与 `contract/bridge.py`（写入桥接）已实现。
 
 ## Context
 

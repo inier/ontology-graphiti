@@ -1,7 +1,7 @@
 # ADR-064: 可观测性基线（OpenTelemetry 统一追踪）
 
 ## 状态
-Accepted
+Accepted（已落地：OTel + Prometheus 依赖与 `infra/observability/` 埋点已在役；**2026-08-16 修订增补** doctor 自检与流水线进度可观测，见文末"增补"节）
 
 ## 上下文
 
@@ -40,3 +40,12 @@ ADR-046 模块化单体在规模化后最大的运维风险是"看不见"：多�
 - ADR-062（复制延迟/冷热命中监控）
 - ADR-063（租户资源监控）
 - ADR-008（审计日志带 trace_id）
+
+## 增补（2026-08-16，吸收 Semantica doctor 范式）
+
+在既有 Trace/Metrics/Log 三面基线上补充两项低成本 DFX 能力（对齐 Semantica `semantica doctor` 与 Pipeline 执行状态查询的设计）：
+
+1. **doctor 自检**：`bootstep.py` 新增 `doctor` 子命令，逐项 pass/fail 输出——Python/关键依赖版本、Neo4j/Redis/OPA/MinIO 连通性、向量后端可用性、必填环境变量与配置完整性。零新依赖（复用现有服务客户端），目标约 2-3 天，随 ARCHITECTURE_TARGET_PLAN Phase 2 交付。
+2. **流水线进度可观测**：OL 6 层流水线（ADR-061）与 HE feed（ADR-074）的执行暴露 status/progress 查询（当前阶段、完成比例、失败步骤），复用本 ADR 的 OTel 指标通道承载，不新建通道。
+
+隔离与安全要求：doctor 输出不得泄露密钥/连接串明文；progress 查询接口按 workspace 过滤。

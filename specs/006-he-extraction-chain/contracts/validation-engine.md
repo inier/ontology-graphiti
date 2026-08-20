@@ -1,7 +1,24 @@
 # Contract: ValidationEngine
 
-**Location**: `odap/biz/data/hyper_extract/services/validation_engine.py`
-**Spec FRs**: FR-024, FR-025, FR-026, FR-027, FR-028, FR-029
+> ## ⚠️ 已废弃（2026-08-07 版块清理）
+>
+> **ValidationEngine 已整体移交 007 spec QualityGateService**，本契约文件保留仅作历史参考。
+>
+> | 原 006 校验维度 | 007 承接位置 |
+> |---|---|
+> | 置信度评分 | QG-1（与 Jaccard 去重合并） |
+> | 完整性校验 | QG-1 扩展（fill_rate / empty_rate / orphan_count） |
+> | Schema 一致性 | QG-2（结构一致性） |
+> | 引用一致性 | QG-2 扩展（dangling_relations / invalid_action_targets / invalid_rule_references） |
+> | needs_review 列表 | 007 审批流统一产出 |
+>
+> 007 的权威契约见 `specs/007-semantic-admin-suite/contracts/quality-gate-approval.md`。
+> 详见 `specs/REFACTORING-NOTES.md`。
+
+---
+
+**Location**: `odap/biz/data/hyper_extract/services/validation_engine.py`（**不再新建**）
+**Spec FRs**: ~~FR-024, FR-025, FR-026, FR-027, FR-028, FR-029~~（已删除，移交 007 QG-1/QG-2）
 
 ## Description
 

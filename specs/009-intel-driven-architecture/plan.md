@@ -1,5 +1,18 @@
 # Plan 009: 情报驱动架构实施计划
 
+> ## 版块清理说明（2026-08-07）
+>
+> 本 plan 的 4 个迭代已全部完成。版块清理后新增以下职责（从 006/007 移交）：
+>
+> | 移交项 | 来源 | 对应 FR | 状态 |
+> |--------|------|---------|------|
+> | HE kb 持久化（`he feed`） | 006 SqliteTemplateStorage | FR-003 | ✅ 已实现（Iter 2） |
+> | Channel B 零 LLM 审计 | 006 dual_channel_writer | FR-001 | ✅ 已实现（Iter 1） |
+> | 操作审计统一（audit_helper） | 007 UnifiedAudit.log_action | FR-006 | ✅ 已实现（Iter 3） |
+>
+> **注意**：006/007 的代码层面需按各自 spec.md 清理后版本删除应用层模板沉淀、ValidationEngine，并改为委托本 plan 已实现的能力。
+> 详见 `specs/REFACTORING-NOTES.md` + `specs/009-intel-driven-architecture/spec.md` 顶部版块清理说明。
+
 ## 迭代总览
 
 ```

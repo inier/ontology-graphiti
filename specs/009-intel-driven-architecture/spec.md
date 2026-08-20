@@ -4,6 +4,33 @@
 
 基于 ADR-074，重新定义 Hyper-Extract 和 Graphiti 在 ODAP 项目中的定位，建立分层审计体系，使两者各归其位以支撑"基于外部动态数据实时响应的辅助决策平台（情报系统）"的根本需求。
 
+> ## 版块清理说明（2026-08-07）
+>
+> 本次版块清理将 006/007 中与 HE 持久化、Channel B 实现、操作审计相关的职责统一移交至本 spec，消除三方职责重叠：
+>
+> ### 从 006 移交的职责
+>
+> | 移交项 | 原 006 位置 | 本 spec 承接 | 说明 |
+> |---|---|---|---|
+> | HE kb 持久化与复用 | 006 FR-017/018（settle_template / get_settled_template）+ SqliteTemplateStorage | FR-003 `he feed` 增量演化 | HE 原生已支持 kb 持久化与复用，应用层重复实现造成双重持久化源。006 HEAdapter 调用 `feed_to_kb()` 委托本 spec |
+> | Channel B 实现规范 | 006 dual_channel_writer Channel B（原走 Graphiti `add_episode`，3-9 次 LLM 调用） | FR-001 `save_audit_episode`（零 LLM） | Channel B content 从"HE 结果文本化"改为"审计事件 JSON"，`EpisodicNode.save(driver)` 直接写入，零 LLM 调用 |
+>
+> ### 从 007 移交的职责
+>
+> | 移交项 | 原 007 位置 | 本 spec 承接 | 说明 |
+> |---|---|---|---|
+> | 操作审计统一 | 007 各子服务直接调用 `UnifiedAudit.log_action` | FR-006 分层审计（audit_helper SQLite 通道） | 007 保留 `usl_outbox`（TBox 双写专用），操作审计统一走本 spec 的 audit_helper |
+>
+> ### 本 spec 对 006/007 提供的能力
+>
+> | 能力 | FR | 消费方 | 接口 |
+> |---|---|---|---|
+> | HE kb 增量演化 | FR-003 | 006 HEAdapter | `HEAdapter.feed_to_kb(kb_path, text, result)` → 本 spec `feed_to_kb(kb_path, text)` |
+> | 零 LLM 审计写入 | FR-001 | 006 Channel B + 007 操作审计 | `save_audit_episode(audit_data, valid_at)` + audit_helper SQLite 通道 |
+> | 统一 AuditEvent schema | FR-006 | 006/007 全部审计埋点 | 统一 `AuditEvent` JSON schema，关键流程埋点 |
+>
+> 详见 006/007 spec.md 版块清理说明 + specs/REFACTORING-NOTES.md。
+
 ## 背景
 
 经十轮架构 grilling 审查，发现当前对 HE 和 Graphiti 的使用方式偏离了两者的设计初衷：
@@ -34,12 +61,12 @@ Graphiti 审计写入必须使用 `EpisodicNode.save(driver)`，**禁止使用 `
 
 ### FR-003: HE 持续引擎化（P1）
 
-HE 回归"知识摘要构建器"，使用 `he feed` 增量演化。
+HE 回归"知识摘要构建器"，使用 `he feed` 增量演化。**本 FR 是 HE kb 持久化的唯一规范实现**——006 spec 的应用层模板沉淀（SqliteTemplateStorage + settle_template/get_settled_template）已删除，全部委托本 FR。
 
-- 新增 `feed_to_kb(kb_path, text)` 方法
+- 新增 `feed_to_kb(kb_path, text)` 方法，供 006 HEAdapter 调用
 - HE kb 按工作空间/本体分区持久化
-- 删除 spec.md FR-017/FR-018 的应用层模板沉淀逻辑
-- 验收：同一本体多次抽取复用 HE kb
+- 删除 006 spec FR-017/FR-018 的应用层模板沉淀逻辑（SqliteTemplateStorage + he_templates 表应用层写入）
+- 验收：同一本体多次抽取复用 HE kb；006 HEAdapter.feed_to_kb() 调用本 FR 而非自建持久化
 
 ### FR-004: 数据队列（P1）
 
@@ -67,7 +94,8 @@ Celery + Redis 三级优先级队列。
 - audit_helper（SQLite）：#3 确认过程 + #5 查询过程
 - 统一 `AuditEvent` schema
 - 关键流程埋点
-- 验收：五项审计全部有记录
+- **007 semantic_admin 各子服务的操作审计统一委托本 FR 的 audit_helper 通道**（007 保留 `usl_outbox` 仅用于 TBox 双写）
+- 验收：五项审计全部有记录；007 操作审计经 audit_helper 写入 SQLite，不经 `UnifiedAudit.log_action`
 
 ### FR-007: 多模态处理（P3）
 

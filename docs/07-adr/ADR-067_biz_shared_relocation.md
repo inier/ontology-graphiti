@@ -1,7 +1,9 @@
 # ADR-067: `biz/shared` 归属问题 —— 下沉到 `infra/storage/`
 
 ## Status
-Proposed
+**Accepted（2026-08-16 清算：决策已执行完毕）**
+
+> 代码现实：`infra/storage/scenario_store.py` 已就位；`biz/shared/` 仅剩 Deprecated 重定向 `__init__.py`（发出 DeprecationWarning 指向新位置），待引用方全部迁移后可物理删除。
 
 ## Context
 

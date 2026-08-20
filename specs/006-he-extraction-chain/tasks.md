@@ -3,6 +3,24 @@
 **Input**: Design documents from `specs/006-he-extraction-chain/`
 **Prerequisites**: plan.md (required), spec.md (required for user stories)
 
+> ## ⚠️ 版块清理说明（2026-08-07）
+>
+> 以下标记为 `[X]` 的任务中，部分涉及的组件已在版块清理中**删除或移交**：
+>
+> | 已废弃任务 | 涉及组件 | 处置 | 移交目标 |
+> |-----------|---------|------|---------|
+> | T002-T005 | `SqliteTemplateStorage` + `he_templates` 表 DDL | **删除** | 009 FR-003 `he feed` |
+> | T027, T031-T032, T035-T036 | `settle_template` / `get_settled_template` | **删除** | 009 HE kb 增量演化 |
+> | T038-T049 | `ValidationEngine` 4 维校验 | **移交** | 007 QG-1/QG-2（22 子指标） |
+> | T053-T054, T059, T062 | ExtractService 中 ValidationEngine 集成 | **移除** | 006 抽取后不再校验，由 007 QG 执行 |
+>
+> **新增任务**：
+> - T066（新增）：实现 `HEAdapter.feed_to_kb()` 委托 009 FR-003
+> - T067（新增）：实现 `ExtractService mode=schema_learning` hook 调用 007 `ConceptExtractor.run_l1_l2_hook()`
+>
+> 这些 `[X]` 任务保留为历史记录，代码层面需按 spec.md/plan.md 清理后版本执行删除/迁移。
+> 详见 `specs/REFACTORING-NOTES.md`。
+
 ## Task Format
 
 ```

@@ -72,37 +72,33 @@
 3. **Given** 多模板结果集，**When** 某些类别（如规则/动作）结果为空或不足，**Then** 系统调用 LLM 从同文本补充抽取缺失类别
 4. **Given** 多模板结果 + LLM 补充结果，**When** 系统合并映射，**Then** OntologyMapper 产出 ODAP 5 类 Schema + Instance，无重复实体（按 name 去重）
 
-### User Story 3 - 自定义模板生成与沉淀复用 (Priority: P0)
+### User Story 3 - 自定义模板生成（用后即弃，不沉淀）(Priority: P0)
 
-当预设模板试抽评分不满足时，系统调用 LLM 根据输入文本 + 本体 Schema + 缺失类别生成符合 HE YAML 规范的自定义模板。生成后试抽验证质量，达标则沉淀保存（YAML 文件 + SQLite 元数据），后续对同一本体的抽取优先复用沉淀模板。
+当预设模板试抽评分不满足时，系统调用 LLM 根据输入文本 + 本体 Schema + 缺失类别生成符合 HE YAML 规范的自定义模板。生成后试抽验证质量，达标则用于本次抽取，**不沉淀到应用层**——模板的持久化与复用由 009 spec 的 HE 原生 `he feed` 增量演化能力承担（见 009 FR-003）。
 
-**Why this priority**: 沉淀复用机制避免重复评估和生成成本，是生产级抽取的必要能力。
+**Why this priority**: 自定义生成是预设不满足时的兜底能力，必须保留。但沉淀复用逻辑在应用层重复实现 HE 已有的 `he feed` 能力（见 009 research.md），故删除应用层沉淀，避免双重持久化源。
 
-**Independent Test**: 触发自定义生成后，验证 YAML 文件落盘到 `data/he_templates/{ontology_id}/`，SQLite he_templates 表有记录；二次抽取同一本体时复用沉淀模板（usage_count 递增，跳过全量试抽）。
+**Independent Test**: 触发自自定义生成后，验证生成的 YAML 符合 HE 模板规范且试抽评分达标；验证生成后**不**写 `data/he_templates/` 目录，**不**写 SQLite `he_templates` 表；验证抽取完成后调用 `HEAdapter.feed_to_kb()` 将结果喂入 HE kb（009 负责）。
 
 **Acceptance Scenarios**:
 
 1. **Given** 预设不满足 + 输入文本 + 本体 Schema + 缺失类别，**When** 系统调用 LLM 生成 HE YAML 模板，**Then** 生成的 YAML 符合 HE 模板规范（含 node_schema/edge_schema/identifiers）
-2. **Given** 生成的 YAML 模板，**When** 系统试抽验证质量，**Then** 评分达标才沉淀；不达标则 LLM 重新生成（最多 2 次），仍失败降级用最佳预设 + 标记 warning
-3. **Given** 质量达标的自定义模板，**When** 系统沉淀保存，**Then** YAML 写入 `data/he_templates/{ontology_id}/{name}.yaml`，元数据存入 SQLite he_templates 表
-4. **Given** 已沉淀模板，**When** 同一本体再次抽取，**Then** 系统优先复用沉淀模板（get_settled_template），跳过全量试抽，usage_count 递增
-5. **Given** 沉淀模板复用时，**When** 系统做轻量验证，**Then** 若沉淀模板评分下降（输入语义变化），重新触发评估
+2. **Given** 生成的 YAML 模板，**When** 系统试抽验证质量，**Then** 评分达标才用于本次抽取；不达标则 LLM 重新生成（最多 2 次），仍失败降级用最佳预设 + 标记 warning
+3. **Given** 自定义模板用于抽取完成，**When** 抽取结果产出，**Then** 系统调用 `HEAdapter.feed_to_kb(kb_path, text + result)` 将知识喂入 HE kb（009 FR-003），**不**在应用层落盘 YAML 或写 SQLite 模板表
+4. **Given** 同一本体再次抽取，**When** 系统进入模板评估，**Then** HE kb 已通过 `he feed` 增量演化（009 负责），评估时 HE 内部自动复用已有 kb 知识，应用层无 `get_settled_template` 逻辑
 
-### User Story 4 - 抽取后 4 维校验评估 (Priority: P0)
+### ~~User Story 4 - 抽取后 4 维校验评估~~ → 移交 007 QualityGateService
 
-抽取完成后，系统对结果执行 4 维校验：(1) Schema 一致性——实体字段 vs ObjectType 定义（类型匹配、必填字段已填、无未定义字段）；(2) 完整性——必填字段缺失率、空值率、孤立节点（无关系的实体）；(3) 置信度评分——每个实体/关系打 0-1 分（字段填充率 0.4 + 模板匹配度 0.3 + LLM 一致性 0.3）；(4) 引用一致性——关系引用实体是否存在、动作目标类型是否已定义、规则引用对象是否已定义。校验报告写入 ExtractionSession，低于阈值的实体标记 needs_review，用户须确认/修正后才允许 confirm。
-
-**Why this priority**: 校验评估是抽取质量的保障，当前仅有冲突检测，4 维校验是生产级必备。
-
-**Independent Test**: 给定抽取结果含字段缺失、孤立节点、悬空关系，验证 4 维校验报告正确标识所有问题项，且 needs_review 列表包含低置信度实体。
-
-**Acceptance Scenarios**:
-
-1. **Given** 抽取结果 + 本体 Schema，**When** 系统执行 Schema 一致性校验，**Then** 返回每个实体的字段违规列表（类型不匹配/必填缺失/未定义字段）
-2. **Given** 抽取结果，**When** 系统执行完整性评估，**Then** 返回 fill_rate/empty_rate/orphan_count 及孤立实体列表
-3. **Given** 抽取结果 + 模板评分，**When** 系统执行置信度评分，**Then** 每个实体/关系有 0-1 置信度分，低于阈值的列入 needs_review
-4. **Given** 抽取结果 + 本体 Schema，**When** 系统执行引用一致性检查，**Then** 返回 dangling_relations（悬空关系）和 invalid_action_targets（无效动作目标）
-5. **Given** 4 维校验报告，**When** 报告含 needs_review 项，**Then** confirm_extraction 阶段要求用户逐项确认/修正后才允许写入
+> **本版块清理决策（2026-08-07）**：4 维校验（Schema 一致性 / 完整性 / 置信度 / 引用一致性）与 007 spec 的 3 关质量闸（QG-1 置信度去重 / QG-2 结构一致性 / QG-3 LLM 语义）在置信度和结构一致性上高度重叠，needs_review 列表也重复定义。
+>
+> **移交方案**：
+> - 006 ValidationEngine **整体删除**
+> - 007 QG-1 扩展：在置信度 + Jaccard 去重基础上，加入完整性指标（fill_rate / empty_rate / orphan_count）
+> - 007 QG-2 扩展：在结构一致性基础上，加入引用一致性（dangling_relations / invalid_action_targets）
+> - 007 QG-3 保留：LLM 语义评审（006 原无此能力）
+> - `needs_review` 列表统一由 007 QG 产出，006 不再维护
+>
+> 006 抽取完成后直接产出 `raw_extraction_result`，不再执行校验；校验由 007 QG 在 Candidate 阶段统一执行（instance 模式下也调用 QG 做即时校验，结果写入 ExtractionSession）。
 
 ### User Story 5 - HE 包安装与真实 API 对齐 (Priority: P0)
 
@@ -142,17 +138,19 @@
 - **FR-009**: HEAdapter.trial_extract() 必须取文本前 N 字符试抽，返回实体数/关系数/字段覆盖率供评分
 - **FR-010**: 必须删除 `ontology/extraction/impl/he_adapter.py`（死代码）和 `ontology/extraction/impl/template_generator.py`（硬编码伪实现）
 
-**TemplateEngine（试抽评分 + 多模板选择 + 自定义生成 + 沉淀）**
+**TemplateEngine（试抽评分 + 多模板选择 + 自定义生成）**
+
+> **版块清理（2026-08-07）**：删除应用层模板沉淀逻辑（原 FR-017/018/019），改由 009 spec 的 HE 原生 `he feed` 增量演化承担。理由：HE 原生已支持 kb 持久化与复用，应用层重复实现造成双重持久化源（见 009 research.md）。
 
 - **FR-011**: TemplateEngine.list_presets() 必须调用 HE 原生 `Template.list()` 动态枚举全部预设（30+），禁止硬编码
-- **FR-012**: TemplateEngine.assess() 必须收集候选模板（已沉淀 + 本体生成 + 语义匹配预设），对每个候选调用 trial_extract 试抽，按加权评分排序。候选预筛选：对 30+ 预设先用 embedder 计算文本与模板 description 的余弦相似度取 top-k=5（避免全量试抽成本爆炸），再对 top-k 试抽
+- **FR-012**: TemplateEngine.assess() 必须收集候选模板（本体生成 + 语义匹配预设），对每个候选调用 trial_extract 试抽，按加权评分排序。候选预筛选：对 30+ 预设先用 embedder 计算文本与模板 description 的余弦相似度取 top-k=5（避免全量试抽成本爆炸），再对 top-k 试抽。**HE kb 内部已有的知识由 `he feed` 自动复用（009 FR-003），应用层不再维护 `get_settled_template`**
 - **FR-013**: 评分公式 = 0.3*entity_count + 0.3*relation_count + 0.2*field_coverage + 0.2*type_diversity（归一化到 0-1，阈值默认 0.5，可通过 `he.template_score_threshold` 配置）
 - **FR-014**: TemplateEngine.select_complementary() 必须用贪心集合覆盖算法选择多模板组合，覆盖 ODAP 5 类产出
-- **FR-015**: TemplateEngine.generate_custom() 必须调用 LLM 生成符合 HE YAML 规范的自定义模板，生成后试抽验证质量
+- **FR-015**: TemplateEngine.generate_custom() 必须调用 LLM 生成符合 HE YAML 规范的自定义模板，生成后试抽验证质量。**用后即弃，不沉淀到应用层**
 - **FR-016**: 自定义模板生成失败时 LLM 重试最多 2 次，仍失败降级用最佳预设 + 标记 warning
-- **FR-017**: TemplateEngine.settle_template() 必须将 YAML 写入 `data/he_templates/{ontology_id}/{name}.yaml` + 元数据存入 SQLite he_templates 表
-- **FR-018**: TemplateEngine.get_settled_template() 必须优先返回已沉淀模板，assess() 对已沉淀模板只做轻量验证（仅对样本前 500 字符试抽确认评分≥阈值的 80%，不重复全量试抽）
-- **FR-019**: 沉淀模板复用时若轻量验证评分下降到阈值 80% 以下（输入语义漂移），必须重新触发全量评估
+- **FR-017**: ~~TemplateEngine.settle_template()~~ **已删除**——模板持久化由 009 `HEAdapter.feed_to_kb()` 承担
+- **FR-018**: ~~TemplateEngine.get_settled_template()~~ **已删除**——模板复用由 HE kb 内部 `he feed` 增量演化承担
+- **FR-019**: ~~沉淀模板复用轻量验证~~ **已删除**——HE kb 自动管理知识演化
 
 **多模板互补抽取 + LLM 补充**
 
@@ -161,34 +159,48 @@
 - **FR-022**: OntologyMapper 必须合并多模板结果 + LLM 补充结果，映射到 ODAP 5 类 Schema + Instance，按 name 去重
 - **FR-023**: OntologyMapper 必须保留全链路溯源信息（来源模板 + 切片 ID + 提取方法 + 模板版本）
 
-**ValidationEngine（4 维校验）**
+**HE kb 喂入（新增，委托 009）**
 
-- **FR-024**: ValidationEngine 必须执行 Schema 一致性校验：实体字段 vs ObjectType 定义（类型匹配、必填字段已填、无未定义字段）
-- **FR-025**: ValidationEngine 必须执行完整性评估：必填字段缺失率、空值率、孤立节点（无关系的实体）
-- **FR-026**: ValidationEngine 必须执行置信度评分：每个实体/关系 0-1 分（字段填充率 0.4 + 模板匹配度 0.3 + LLM 一致性 0.3），低于阈值（默认 0.6，可通过 `he.confidence_threshold` 配置）列入 needs_review
-- **FR-027**: ValidationEngine 必须执行引用一致性检查：关系引用实体存在、动作目标类型已定义、规则引用对象已定义
-- **FR-028**: 校验报告必须写入 ExtractionSession.result_data.validation_report
-- **FR-029**: confirm_extraction 阶段必须要求 needs_review 项逐项确认/修正后才允许写入
+- **FR-024**: HEAdapter 必须提供 `feed_to_kb(kb_path: str, text: str, result: Dict) -> None` 方法，将抽取结果喂入 HE kb 持久化。**本方法仅作为薄委托层**，实际的 HE kb 分区、演化、复用逻辑由 009 spec FR-003 定义。006 ExtractService 在抽取完成后调用此方法，不关心 kb 内部实现
 
-**模板持久化**
+**~~ValidationEngine（4 维校验）~~ → 移交 007 QualityGateService**
 
-- **FR-030**: 系统必须在 SQLite 新建 he_templates 表（id, ontology_id, name, description, source, yaml_path, preset_name, score, coverage, usage_count, created_at, updated_at, UNIQUE(ontology_id, name)）
-- **FR-031**: 自定义/本体生成模板的 YAML 必须落盘到 `data/he_templates/{ontology_id}/{name}.yaml`，可通过 `Template.create(yaml_path, language, llm, emb)` 直接加载
+> **版块清理（2026-08-07）**：原 FR-025~030（ValidationEngine 4 维校验：Schema 一致性 / 完整性 / 置信度 / 引用一致性）整体移交 007 spec QualityGateService：
+> - 置信度评分 + 完整性指标（fill_rate/empty_rate/orphan_count）→ 合并入 007 QG-1
+> - Schema 一致性 + 引用一致性（dangling_relations/invalid_action_targets）→ 合并入 007 QG-2
+> - LLM 语义评审 → 007 QG-3（006 原无此能力）
+> - `needs_review` 列表统一由 007 QG 产出
+>
+> 006 抽取完成后直接产出 `raw_extraction_result`，不再执行校验。instance 模式下由 007 QG 做即时校验，结果写入 ExtractionSession.result_data.validation_report（由 007 负责写入）。
+
+- **FR-025**: ~~ValidationEngine Schema 一致性校验~~ **已移交 007 QG-2**
+- **FR-026**: ~~ValidationEngine 完整性评估~~ **已移交 007 QG-1**
+- **FR-027**: ~~ValidationEngine 置信度评分~~ **已移交 007 QG-1**
+- **FR-028**: ~~ValidationEngine 引用一致性检查~~ **已移交 007 QG-2**
+- **FR-029**: ~~needs_review 逐项确认~~ **已移交 007 审批流**
+
+**~~模板持久化~~ → 已删除（HE kb 原生承担）**
+
+> **版块清理（2026-08-07）**：原 FR-030/031（SQLite he_templates 表 + YAML 落盘）整体删除。HE kb 持久化由 009 FR-003 定义。
+
+- **FR-030**: ~~SQLite he_templates 表~~ **已删除**——HE kb 内部持久化
+- **FR-031**: ~~YAML 文件落盘~~ **已删除**——HE kb 内部持久化
 
 **抽取编排（保留 + 改写）**
 
 - **FR-032**: ExtractService 必须保留 3 个抽取入口（NL/Document/KB）的 session 管理逻辑
-- **FR-033**: ExtractService 必须保留 confirm_extraction 的双通道写入（Channel A: GraphWriteProxy→Neo4j, Channel B: GraphManager.add_episode→Graphiti）
+- **FR-033**: ExtractService 的 `confirm_extraction` 必须调用 `DualChannelWriter` 完成双通道写入。**Channel A: GraphWriteProxy→Neo4j（本 spec 保留）；Channel B 的内部实现规范由 009 spec FR-001 定义（`save_audit_episode` 零 LLM 审计）**，本 spec 不再描述 Channel B 的实现细节
 - **FR-034**: ExtractService 必须保留 _detect_conflicts 冲突检测
 - **FR-035**: `ontology/extraction/services/extraction_service.py` 必须改为委托 `data/hyper_extract.ExtractService`，保留 session/conflict/confirm 薄编排
 - **FR-036**: 现有 API 路径与响应结构必须保持不变，前端无需改动
+- **FR-037** (新增): ExtractService 完成抽取后，若调用方传入 `mode=schema_learning`，必须通过 **hook 机制**调用 007 spec 的 `ConceptExtractor.run_l1_l2()`（后置 hook，不阻断主流程），而非在本 spec 内实现 schema_learning 逻辑。mode 参数的语义和 Candidate 双写由 007 spec US4 定义
 
 ### Key Entities
 
-- **HETemplate**: Hyper-Extract 模板元数据，含 source(preset/ontology_generated/custom)、yaml_path、score、coverage、usage_count，关联到 ontology_id
+- **HETemplate**: Hyper-Extract 模板元数据，含 source(preset/ontology_generated/custom)、score、coverage。~~yaml_path/usage_count~~ **已删除**（HE kb 内部管理，见 009 FR-003）
 - **TemplateAssessment**: 模板评估结果，含候选列表 + 评分 + 试抽结果，关联到抽取 session
-- **ValidationReport**: 4 维校验报告，含 schema_conformance/completeness/confidence/referential_consistency + needs_review 列表
-- **ExtractionSession** (现有,增强): 新增 validation_report 字段、template_assessment 字段、degradation_flags 字段
+- ~~**ValidationReport**: 4 维校验报告~~ **已移交 007 QualityGateService**（validation_report 字段由 007 QG 写入 ExtractionSession）
+- **ExtractionSession** (现有,增强): 新增 template_assessment 字段、degradation_flags 字段。~~validation_report~~ 字段由 007 QG 写入（instance 模式下即时校验）
 - **ExtractionProvenance** (现有,增强): 新增 source_template 字段记录来源模板
 
 ## Architecture
@@ -199,16 +211,15 @@
 biz/data/hyper_extract/  (SP1 规范位置 — 唯一抽取实现)
 ├── api/routes.py                    # 现有, 保留
 ├── impl/
-│   ├── he_adapter.py                # 统一 adapter（修复 API 对齐 + 桩实现补全）
+│   ├── he_adapter.py                # 统一 adapter（修复 API 对齐 + 桩实现补全 + feed_to_kb 委托）
 │   ├── ontology_mapper.py           # 迁移+增强: 多模板结果合并映射到 ODAP 5 类
-│   ├── dual_channel_writer.py       # 复用现有
+│   ├── dual_channel_writer.py       # 复用现有（Channel B 实现规范由 009 定义）
 │   └── provenance_tracker.py        # 迁移+增强: 新增 source_template
 ├── services/
-│   ├── extract_service.py           # 重写编排: 模板评估→多模板抽取→LLM补充→校验→写入
-│   ├── template_engine.py           # 新: 试抽评分 + 30+预设动态枚举 + 自定义生成 + 沉淀复用
-│   └── validation_engine.py         # 新: 4 维校验
-└── storage/
-    └── sqlite_template_storage.py   # 新: 模板持久化
+│   ├── extract_service.py           # 重写编排: 模板评估→多模板抽取→LLM补充→映射→feed_to_kb→写入
+│   └── template_engine.py           # 试抽评分 + 30+预设动态枚举 + 自定义生成（不沉淀）
+└── (删除 validation_engine.py)      # 移交 007 QualityGateService
+    (删除 sqlite_template_storage.py) # 移交 009 HE kb
 
 biz/core/ontology/extraction/  (降级为薄编排层)
 ├── services/extraction_service.py   # 改为委托 data/hyper_extract.ExtractService
@@ -218,18 +229,26 @@ biz/core/ontology/extraction/  (降级为薄编排层)
                                      # 保留 document_parser.py
 ```
 
+> **版块清理（2026-08-07）**：架构图变更说明
+> - 删除 `services/validation_engine.py`（移交 007 QG）
+> - 删除 `storage/sqlite_template_storage.py`（移交 009 HE kb）
+> - `template_engine.py` 不再包含 `settle_template` / `get_settled_template`
+> - `dual_channel_writer.py` 的 Channel B 实现规范由 009 FR-001 定义
+
 ### 端到端数据流（NL 抽取为例）
 
 1. 输入: text + ontology_id
 2. 创建 ExtractionSession (type=natural_language)
-3. TemplateEngine.assess(): 取样本 → 收集候选（已沉淀/本体生成/语义匹配预设）→ trial_extract 试抽 → 打分排序
-4. 判定: 最高分≥阈值 → select_complementary() 选多模板组合；否则 generate_custom() LLM 生成 → 试抽验证 → 沉淀
+3. TemplateEngine.assess(): 取样本 → 收集候选（本体生成/语义匹配预设，HE kb 知识由 `he feed` 自动复用）→ trial_extract 试抽 → 打分排序
+4. 判定: 最高分≥阈值 → select_complementary() 选多模板组合；否则 generate_custom() LLM 生成 → 试抽验证（**用后即弃，不沉淀**）
 5. 多模板互补抽取: 各模板 parse(text) → 结果集列表
 6. LLM 补充: 缺失类别（规则/动作等）从同文本补充
 7. OntologyMapper.merge_and_map(): 合并多模板结果 → 映射 ODAP 5 类 (object/link/action/rule/process)
-8. ValidationEngine.validate(): 4 维校验（Schema 一致性/完整性/置信度/引用一致性）
+8. HEAdapter.feed_to_kb(): 将抽取结果喂入 HE kb 持久化（委托 009 FR-003）
 9. _detect_conflicts: 重名 + 相似度检测（现有）
-10. confirm_extraction: 双通道写入 Neo4j + Graphiti（现有, 复用）+ ProvenanceTracker 溯源
+10. ~~ValidationEngine.validate()~~ **已移交 007 QG**——instance 模式下由 007 QG 做即时校验
+11. 若 mode=schema_learning: 通过 hook 调用 007 ConceptExtractor.run_l1_l2()（007 US4 负责）
+12. confirm_extraction: 调用 DualChannelWriter 双通道写入（Channel A→Neo4j；Channel B 规范由 009 定义）+ ProvenanceTracker 溯源
 
 ### 统一 HEAdapter 接口契约
 
@@ -241,32 +260,25 @@ class HEAdapter:
     def evolve(self, ka_instance, new_text: str) -> Dict: ...
     def merge_results(self, results: List[Dict]) -> Dict: ...
     def trial_extract(self, text: str, template_config: Dict, sample_size: int = 1500) -> Dict: ...
+    def feed_to_kb(self, kb_path: str, text: str, result: Dict) -> None: ...  # 新增: 委托 009 HE kb 持久化
 ```
 
-关键修复: Template.create() 用 `llm_client=`/`embedder=`；get_config 正确 import；evolve 调真实 BaseAutoType.evolve()；merge_results 优先用 HE 原生合并。
+关键修复: Template.create() 用 `llm_client=`/`embedder=`；get_config 正确 import；evolve 调真实 BaseAutoType.evolve()；merge_results 优先用 HE 原生合并；**feed_to_kb 委托 009 的 `he feed` 增量演化（不在应用层沉淀模板）**。
 
 ### TemplateEngine 接口契约
 
 ```python
 class TemplateEngine:
     def list_presets(self) -> List[Dict]: ...           # 动态枚举 30+
-    def assess(self, text: str, ontology_id: str) -> Dict: ...  # 试抽评分
+    def assess(self, text: str, ontology_id: str) -> Dict: ...  # 试抽评分（HE kb 知识自动复用）
     def select_complementary(self, scored: List[Dict], schema: Dict) -> List[Dict]: ...  # 贪心覆盖
-    def generate_custom(self, text: str, schema: Dict, gaps: List[str]) -> Optional[Dict]: ...  # LLM 生成
-    def settle_template(self, ontology_id: str, config: Dict, yaml: str, score: float) -> str: ...  # 沉淀
-    def get_settled_template(self, ontology_id: str) -> Optional[Dict]: ...  # 复用
+    def generate_custom(self, text: str, schema: Dict, gaps: List[str]) -> Optional[Dict]: ...  # LLM 生成（用后即弃）
+    # 已删除: settle_template, get_settled_template（HE kb 原生承担，见 009 FR-003）
 ```
 
-### ValidationEngine 接口契约
+### ~~ValidationEngine 接口契约~~ → 已移交 007 QualityGateService
 
-```python
-class ValidationEngine:
-    def validate(self, result: Dict, ontology_schema: Dict, template_scores: Dict) -> Dict: ...
-    def _validate_schema(self, result, schema) -> Dict: ...       # Schema 一致性
-    def _validate_completeness(self, result) -> Dict: ...          # 完整性
-    def _score_confidence(self, result, template_scores) -> Dict:  # 置信度
-    def _validate_references(self, result, schema) -> Dict: ...    # 引用一致性
-```
+> 原 `ValidationEngine.validate() / _validate_schema() / _validate_completeness() / _score_confidence() / _validate_references()` 整体移交 007 spec `QualityGateService`，见 007 spec FR-027~030（QG-1 扩展完整性 + QG-2 扩展引用一致性）。
 
 ## Error Handling & Degradation
 
@@ -278,10 +290,11 @@ class ValidationEngine:
 | 自定义 YAML 生成失败 | LLM 重试 2 次；仍失败降级用最佳预设 + warning | EC-016 |
 | 单模板 parse 抛异常 | 捕获，该模板结果记空，继续其他；至少 1 个成功才继续 | EC-006 |
 | merge_results 失败 | 降级手工去重合并 + 降级标记 | EC-017 |
-| ValidationEngine 异常 | 校验失败不阻断，返回 status="error"，结果可 confirm 但标记"未校验" | EC-018 |
+| ~~ValidationEngine 异常~~ | ~~校验失败不阻断~~ **已移交 007 QG**（007 QG 异常时标记 qg_skipped，见 007 EC-018） | ~~EC-018~~ |
+| feed_to_kb 失败（HE kb 写入异常） | 不阻断主流程，记录 warning + degradation_flags="feed_kb_failed"，抽取结果仍可 confirm | EC-019 |
 | ontomem/ontosight 缺失 | HE 导入失败同"HE 未安装"；Dockerfile fail-fast 暴露 | EC-008 |
 
-**关键原则**: 所有降级显式标记（session.degradation_flags），不静默掩盖。前端展示"降级模式"提示。
+**关键原则**: 所有降级显式标记（session.degradation_flags），不静默掩盖。前端展示"降级模式"提示。**校验相关降级由 007 QG 负责**。
 
 ## Testing Strategy
 
@@ -289,22 +302,22 @@ class ValidationEngine:
 
 | 测试文件 | 覆盖 | Mock 策略 |
 |---|---|---|
-| test_he_adapter.py | is_available, parse, trial_extract, evolve, merge_results | Mock Template.create/ka.parse；不真实调 LLM |
-| test_template_engine.py | list_presets(动态), assess(评分逻辑), select_complementary(贪心), generate_custom(YAML), settle/get_settled | Mock trial_extract 返回固定评分；Mock LLM 返回 YAML |
-| test_validation_engine.py | 4 维校验全路径 + 边界（空结果/全违规/全通过） | 纯逻辑，无外部依赖 |
-| test_sqlite_template_storage.py | CRUD + 去重 + usage_count 递增 | tmp_path 真实 DB |
+| test_he_adapter.py | is_available, parse, trial_extract, evolve, merge_results, **feed_to_kb** | Mock Template.create/ka.parse；不真实调 LLM；feed_to_kb mock HE kb 写入 |
+| test_template_engine.py | list_presets(动态), assess(评分逻辑), select_complementary(贪心), generate_custom(YAML) | Mock trial_extract 返回固定评分；Mock LLM 返回 YAML |
+| ~~test_validation_engine.py~~ | ~~4 维校验全路径~~ **已移交 007 QG**（见 007 test_quality_gate_1_2.py） | - |
+| ~~test_sqlite_template_storage.py~~ | ~~CRUD + 去重 + usage_count~~ **已删除**（HE kb 原生承担，见 009） | - |
 | test_ontology_mapper.py | 多模板结果合并 → 5 类映射 | 纯逻辑 |
-| test_extract_service.py | 3 入口编排 + 降级路径 + session 更新 | Mock adapter/engine/writer |
+| test_extract_service.py | 3 入口编排 + 降级路径 + session 更新 + **mode=schema_learning hook 调用** | Mock adapter/engine/writer |
 
 ### 集成测试（tests/integration/，@pytest.mark.integration）
 
 | 测试 | 验证 | 前置 |
 |---|---|---|
 | test_he_real_extraction.py | 真实 HE + LLM 端到端 | 需 Neo4j + OPENAI_API_KEY |
-| test_template_settle_reuse.py | 沉淀复用（usage_count 递增，跳过全量试抽） | 同上 |
-| test_dual_channel_write.py | confirm_extraction 双通道写入 | 需 Neo4j |
+| ~~test_template_settle_reuse.py~~ | ~~沉淀复用~~ **已删除**（改为 test_he_feed_kb_reuse.py，验证 HE kb 复用，009 负责） | 同上 |
+| test_dual_channel_write.py | confirm_extraction 双通道写入（Channel B 规范由 009 定义） | 需 Neo4j |
 
-**关键**: extract_incremental 和 merge_results 必须有非桩测试——验证真实 HE API 调用（mock 层验证调用参数）。
+**关键**: extract_incremental 和 merge_results 必须有非桩测试——验证真实 HE API 调用（mock 层验证调用参数）。**feed_to_kb 需验证调用参数正确性（委托 009 实现）**。
 
 ## Docker Install & Dependency Verification
 
@@ -318,12 +331,13 @@ class ValidationEngine:
 
 ### 迁移顺序（保证可回滚）
 
-1. 先建新组件（TemplateEngine/ValidationEngine/sqlite_template_storage）+ 单元测试
-2. 修复 HEAdapter（API 对齐 + 桩实现补全）+ 单元测试
-3. 新 ExtractService 编排 + 单元测试
+1. 先建新组件（TemplateEngine）+ 单元测试（**不再建 ValidationEngine / sqlite_template_storage**）
+2. 修复 HEAdapter（API 对齐 + 桩实现补全 + **feed_to_kb 委托**）+ 单元测试
+3. 新 ExtractService 编排 + 单元测试（含 **mode=schema_learning hook** 调用 007）
 4. ontology/extraction 改为委托新服务 + 测试
 5. 删除死代码（ontology/extraction/impl/he_adapter.py, template_generator.py）
 6. 重建镜像，端到端集成测试
+7. **校验能力由 007 QG 承接**——007 扩展 QG-1/QG-2 后，instance 模式调用 QG 即时校验
 
 ### API 契约不变
 
@@ -339,9 +353,11 @@ class ValidationEngine:
 | 迁移 | ontology/extraction/impl/provenance_tracker.py → data/hyper_extract/impl/ |
 | 保留 | ontology/extraction/impl/document_parser.py |
 | 改写 | ontology/extraction/services/extraction_service.py（委托 + 保留 conflict/confirm/session） |
-| 修复 | data/hyper_extract/impl/he_adapter.py（get_config import + API 对齐） |
+| 修复 | data/hyper_extract/impl/he_adapter.py（get_config import + API 对齐 + feed_to_kb） |
 | 删除 | data/hyper_extract/services/template_generator.py（被 TemplateEngine 替代） |
 | 删除 | data/hyper_extract/services/extract_service.py 旧版（被新编排替代） |
+| ~~新建~~ | ~~data/hyper_extract/services/validation_engine.py~~ **不再新建**（移交 007 QG） |
+| ~~新建~~ | ~~data/hyper_extract/storage/sqlite_template_storage.py~~ **不再新建**（移交 009 HE kb） |
 
 ## Success Criteria *(mandatory)*
 
@@ -350,20 +366,23 @@ class ValidationEngine:
 - **SC-001**: 重建镜像后 `HEAdapter.is_available()` 返回 True，`Template.list()` 返回 30+ 预设
 - **SC-002**: 模板评估对 5 个候选模板试抽并在 30 秒内返回带评分的排序列表
 - **SC-003**: 多模板互补抽取后 5 类产出（object/relation/action/rule/process）均有结果（给定覆盖 5 类的输入文本）
-- **SC-004**: 自定义模板生成后 YAML 文件落盘 + SQLite 记录存在，二次抽取复用（usage_count 递增）
-- **SC-005**: 4 维校验报告正确标识字段缺失/孤立节点/悬空关系/低置信度实体
+- ~~**SC-004**: 自定义模板生成后 YAML 文件落盘 + SQLite 记录存在，二次抽取复用（usage_count 递增）~~ **已修改**：自定义模板生成后**不落盘**，改为调用 `HEAdapter.feed_to_kb()` 喂入 HE kb（验证 009 FR-003 的 kb 复用）
+- ~~**SC-005**: 4 维校验报告正确标识字段缺失/孤立节点/悬空关系/低置信度实体~~ **已移交 007 QG**（见 007 SC-006）
 - **SC-006**: 抽取结果中无任何 `template_used: "schema_level_fallback"` 标记（HE 真实启用）
 - **SC-007**: 单元测试全部通过（pytest tests/unit/ -v 零失败），集成测试在 Neo4j 可用时通过
 - **SC-008**: extract_incremental 和 merge_results 不再返回空桩/手工去重（除非 HE 原生 API 不可用且已标记降级）
+- **SC-009** (新增): `HEAdapter.feed_to_kb()` 调用成功，HE kb 内部知识可被后续抽取复用（验证 009 `he feed` 增量演化生效）
 
 ## Assumptions
 
 - Docker 镜像基于 python:3.11-slim（满足 HE >=3.11 要求），无需升级 Python
 - HE 及依赖（ontomem/ontosight/faiss-cpu）可从 PyPI 安装；若网络受限需配置镜像源
 - LLM 服务可用（OPENAI_API_KEY/OPENAI_API_BASE 已在 .env.docker 配置）
-- 现有 GraphWriteProxy 和 GraphManager.add_episode 双通道写入逻辑正常工作
-- 前端 ExtractionPreview 组件可扩展展示校验报告（4 维 + needs_review）
+- 现有 GraphWriteProxy 和 **Graphiti EpisodicNode.save**（009 FR-001 定义的零 LLM 审计）双通道写入逻辑正常工作
+- 前端 ExtractionPreview 组件可扩展展示校验报告（**校验报告由 007 QG 产出**，4 维 + needs_review）
 - Neo4j 与 Graphiti 服务在集成测试环境可用
+- **007 QualityGateService 已扩展 QG-1/QG-2**（合并 006 的完整性 + 引用一致性），instance 模式下可调用 QG 即时校验
+- **009 HE kb 持久化（he feed）已就绪**，`HEAdapter.feed_to_kb()` 可委托调用
 
 ## Edge Cases
 
@@ -389,16 +408,17 @@ class ValidationEngine:
 
 ### 一致性
 
-- **EC-012**: merge_results 时实体 name 冲突但属性不同 → 保留首次 + 标记冲突到校验报告
-- **EC-013**: 沉淀模板 YAML 文件被删除但 SQLite 记录存在 → get_settled_template 检测文件不存在时跳过
-- **EC-014**: 并发抽取对同一本体同时生成自定义模板 → SQLite UNIQUE 约束防重，后到的复用
+- **EC-012**: merge_results 时实体 name 冲突但属性不同 → 保留首次 + 标记冲突到校验报告（**校验报告由 007 QG 产出**）
+- ~~**EC-013**: 沉淀模板 YAML 文件被删除但 SQLite 记录存在~~ **已删除**（不再有应用层沉淀，HE kb 内部管理）
+- ~~**EC-014**: 并发抽取对同一本体同时生成自定义模板 → SQLite UNIQUE 约束防重~~ **已修改**：并发抽取时 HE kb 内部处理并发（009 负责），应用层不维护 UNIQUE 约束
 
 ### 降级场景
 
 - **EC-015**: 试抽全部低于阈值 → 触发 generate_custom()；也失败则返回最佳结果 + 低置信度标记，session.degradation_flags 记录 "template_below_threshold"
 - **EC-016**: 自定义 YAML 生成失败 → LLM 重试 2 次；仍失败降级用最佳预设 + warning，degradation_flags 记录 "custom_generation_failed"
 - **EC-017**: merge_results 失败 → 降级手工去重合并 + 降级标记，degradation_flags 记录 "merge_fallback"
-- **EC-018**: ValidationEngine 异常 → 校验失败不阻断，返回 status="error"，结果可 confirm 但标记"未校验"，degradation_flags 记录 "validation_skipped"
+- ~~**EC-018**: ValidationEngine 异常~~ **已移交 007 QG**（007 QG 异常时标记 qg_skipped）
+- **EC-019** (新增): feed_to_kb 失败（HE kb 写入异常）→ 不阻断主流程，记录 warning + degradation_flags="feed_kb_failed"，抽取结果仍可 confirm（HE kb 复用降级，不影响本次抽取）
 
 ## Brainstorm Log
 
@@ -422,3 +442,22 @@ class ValidationEngine:
 | 10 | 迁移策略 | 先建新→修复→改写委托→删死代码→重建镜像 | 保证可回滚 |
 
 **约束**: 生产级实现，不偷懒、不伪实现、不简化，按实际能生产跑的逻辑处理。
+
+### 2026-08-07 Session: 版块清理——消除 006/007/009 重叠
+
+**参与者**: User + AI
+
+**背景**: "建本体"相关 spec（006/007/009）存在 3 处严重冲突 + 5 处功能重叠，ExtractService 被三个 spec 各改一遍，模板沉淀/Channel B/校验逻辑出现互斥方案。
+
+**关键决策**:
+
+| # | 决策 | 选择 | 理由 |
+|---|------|------|------|
+| 1 | HE 模板沉淀 | **删除应用层沉淀**（FR-017/018/030/031），改委托 009 `he feed` | HE 原生支持 kb 增量演化，应用层重复实现造成双重持久化源（009 research.md 已查明） |
+| 2 | ValidationEngine 4 维校验 | **整体移交 007 QG**（FR-024~029） | 与 007 的 3 关质量闸在置信度/结构/引用上高度重叠；QG-1 扩展完整性，QG-2 扩展引用一致性，QG-3 保留 LLM 评审 |
+| 3 | ExtractService 编排权 | **统一归 006**，007/009 通过 hook 调用 | 避免三方争抢；007 mode=schema_learning 作为后置 hook，009 feed_to_kb 作为后置动作 |
+| 4 | Channel B 实现 | **规范统一归 009**（save_audit_episode 零 LLM） | 006 保留旧 add_episode 方案与 009 直接矛盾；009 research.md 已查明 add_episode 每次 3-9 次 LLM |
+| 5 | OntologyMapper vs ConceptExtractor | **职责分离**：006 映射 Instance，007 映射 Candidate | 两者目标不同，不重叠 |
+| 6 | 审计体系 | **统一归 009 分层审计** | 007 UnifiedAudit 与 009 audit_helper 重叠；007 usl_outbox 保留（TBox 双写专用） |
+
+**影响范围**: 006 删除 ~30% 内容（模板沉淀 + ValidationEngine + Channel B 实现描述）；007 扩展 QG-1/QG-2；009 明确承接移交职责。

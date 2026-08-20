@@ -6,6 +6,25 @@
 **Sub-project**: SP2 of end-to-end platform vision (SP1→SP2→SP3→SP4→SP6→SP5→SP7)
 **Input**: (原需求中文) 用户要求将本体 Schema 的硬编码实现调整为独立服务模块 + 可视化配置 + Hyper-Extract 概念抽取 + 管理员审核闭环，结合 4 个迭代。
 
+> ## 版块清理说明（2026-08-07）
+>
+> 本次版块清理从 006 spec 移交以下职责到本 spec：
+>
+> | 移交项 | 原 006 位置 | 本 spec 承接位置 | 说明 |
+> |---|---|---|---|
+> | ValidationEngine 4 维校验 | 006 FR-024~029 | FR-027 (QG-1) + FR-028 (QG-2) | 置信度 + 完整性 → QG-1；Schema 一致性 + 引用一致性 → QG-2；LLM 语义 → QG-3（本 spec 原有） |
+> | needs_review 列表 | 006 FR-029 | FR-034 审批流 | 统一由 QG 产出，审批流消费 |
+> | instance 模式即时校验 | 006 ValidationEngine | FR-027/028 扩展 | instance 模式下也调用 QG 做即时校验，结果写入 ExtractionSession |
+>
+> 同时本 spec 以下职责移交给其他 spec：
+>
+> | 移出项 | 移交目标 | 说明 |
+> |---|---|---|
+> | ExtractService mode 参数实现 | 006 FR-037 (hook) | 006 ExtractService 主导编排，本 spec US4 改为通过 hook 调用 006 |
+> | UnifiedAudit 操作审计 | 009 FR-006 分层审计 | 本 spec 保留 usl_outbox（TBox 双写），操作审计统一走 009 |
+>
+> 详见 006 spec.md Brainstorm Log 2026-08-07 条目。
+
 ---
 
 ## 关联设计文档（含架构图/DDL/UI 原型可视化稿）
@@ -17,7 +36,7 @@
 | 1 | [📐 整体架构（方案 B）+ 4 迭代交付矩阵](./design/01-architecture-planB.html) | 6 子服务松耦合 Mermaid 架构图 · 4 Iter × 6 子服务交付矩阵 · 清理/迁移/保留图例 |
 | 2 | [🔧 Iter 1 · USL 服务化 + 深度清理](./design/02-iter1-usl-design.html) | USL 6 张核心表完整 DDL · 清理迁移动作 Mermaid · 9 个 API 路由清单 · 前端 5 Tab USL 配置页原型 · 50 小步任务矩阵 |
 | 3 | [🧪 Iter 2 · L1-L2 OL 流水线 + Candidate 双写](./design/03-iter2-ol-pipeline-design.html) | L1/L2 编排 Mermaid · ExtractService mode=schema_learning 改造 · 3 Pipeline/Candidate 表 DDL + Neo4j USL__Candidate 双写 Cypher · 前端 3 栏 Pipeline 监控页 Steps 示意 · 45 小步任务矩阵 |
-| 4 | [🛡️ Iter 3 · 三关质量闸 + 二级审批 + 审核台 UI](./design/04-iter3-quality-approval-design.html) | 3 关 × 16 子指标公式 + 阈值 + 失败动作表 · 10 状态状态机 stateDiagram · usl_approval_records / usl_quality_reports DDL · semantic_admin.rego OPA 策略完整代码 · 前端审核台卡片/抽屉/雷达图原型 · 55 小步任务矩阵 |
+| 4 | [🛡️ Iter 3 · 三关质量闸 + 二级审批 + 审核台 UI](./design/04-iter3-quality-approval-design.html) | 3 关 × 22 子指标公式 + 阈值 + 失败动作表（含从 006 移交的完整性 + 引用一致性 6 项）· 10 状态状态机 stateDiagram · usl_approval_records / usl_quality_reports DDL · semantic_admin.rego OPA 策略完整代码 · 前端审核台卡片/抽屉/雷达图原型 · 55 小步任务矩阵 |
 | 5 | [♻️ Iter 4 · HITL 写回 + L3-L6 + 清理 + 质量面板](./design/05-iter4-writeback-cleanup-design.html) | HITL 飞轮写回 Mermaid · L3/L4/L5/L6 四层算法核心表 · OLPipelineConfig Pydantic 配置 · semantic_layer 目录 8 文件深度清理清单 · 前端质量面板 4 卡 + 4 图规格 · 电商脚本 --from-doc/--diff CLI + 差异报告格式 · 60 小步任务矩阵 |
 
 ---
@@ -133,17 +152,19 @@
 
 ---
 
-### User Story 4 - ExtractService mode=schema_learning 改造 (Priority: P1, Iter 2)
+### User Story 4 - schema_learning 模式通过 hook 调用 006 ExtractService (Priority: P1, Iter 2)
 
-为 `ExtractionService` 三大入口（NL/Document/KB）新增枚举参数 `mode: Literal["instance_extraction", "schema_learning"] = "instance_extraction"`。当 `mode=schema_learning` 时，抽取结果不是直接写 Instance，而是走 US3 的 L1-L2 概念抽取 → Candidate 双写路径，生成 ObjectType / RelationType / Property 三类 Schema 候选（而非实例）。具体映射：L2 规范术语 → ObjectType 候选；术语间 is-a 层级 → inheritance 候选；术语间语义关联 → RelationType 候选；FCA 共享属性 → Property 候选。
+> **版块清理（2026-08-07）**：原 US4 直接在 007 中实现 ExtractService mode 参数，与 006/009 三方争抢 ExtractService 编排权。清理后 ExtractService 编排权统一归 006（006 FR-037），本 spec 通过 **hook 机制**调用 006 ExtractService，在抽取完成后叠加 L1-L2 概念抽取 → Candidate 双写。
+
+当 `mode=schema_learning` 时，006 ExtractService 完成多模板抽取 + OntologyMapper 映射后，通过 **后置 hook** 调用本 spec 的 `ConceptExtractor.run_l1_l2()`，将抽取结果泛化为 L1-L2 概念候选，生成 ObjectType / RelationType / Property 三类 Schema 候选（而非实例）。具体映射：L2 规范术语 → ObjectType 候选；术语间 is-a 层级 → inheritance 候选；术语间语义关联 → RelationType 候选；FCA 共享属性 → Property 候选。
 
 **Why this priority**: 打通 "数据 → 自动学习 Schema" 的反向链路，解决本体 Schema 只能人工建模的痛点。P1 因为 Iter1 已有实例抽取可用。
 
-**Independent Test**: 提交 `mode=schema_learning` 的 NL 抽取请求（输入：三国演义原文 5000 字），验证 session.result_data 含 `schema_candidates` 字段，其中 ObjectType ≥ 5，RelationType ≥ 3，Property ≥ 8，且全部 candidate 可在 `usl_candidates` 表查到 `status=proposed` 记录。
+**Independent Test**: 提交 `mode=schema_learning` 的 NL 抽取请求（输入：三国演义原文 5000 字），验证 006 ExtractService 完成抽取后调用本 spec 的 ConceptExtractor hook，session.result_data 含 `schema_candidates` 字段，其中 ObjectType ≥ 5，RelationType ≥ 3，Property ≥ 8，且全部 candidate 可在 `usl_candidates` 表查到 `status=proposed` 记录。
 
 **Acceptance Scenarios**:
 
-1. **Given** 用户请求 `POST /api/extract/nl`，**When** body 带 `mode="schema_learning"` + text + ontology_id，**Then** ExtractionService 创建 session（type=schema_learning）→ 走 HE 多模板抽取 → ConceptExtractor L1-L2 → CandidateWriter 双写，session 最终 status = `reviewing_schema`，不触发 confirm_extraction 的实例写入
+1. **Given** 用户请求 `POST /api/extract/nl`，**When** body 带 `mode="schema_learning"` + text + ontology_id，**Then** 006 ExtractionService 创建 session（type=schema_learning）→ 走 HE 多模板抽取 → OntologyMapper 映射 → **调用 007 ConceptExtractor.run_l1_l2() hook** → CandidateWriter 双写，session 最终 status = `reviewing_schema`，不触发 confirm_extraction 的实例写入
 2. **Given** schema_learning session，**When** 结果映射，**Then** L2 概念 `{label, attributes}` → ObjectType 候选（name=label, properties=attributes, category=L2, source=he_schema_learning）；L2 概念 A is-a L2 概念 B → inheritance 候选（child=A, parent=B, type=is_a）；FCA 概念格中的非层级关联（共同事件/共同地点）→ RelationType 候选（name=infer_{sourceLabel}_{targetLabel}, domain=sourceL2, range=targetL2）；FCA 共享属性 → Property 候选（name={attr}, type=string/number/date，required=false）
 3. **Given** 同一份文本，**When** 分别用 mode=instance_extraction 和 mode=schema_learning 调用，**Then** 前者写 Instance 节点，后者写 usl_candidates Schema 候选，二者互不干扰（session.type 不同，Neo4j label 分别为 `Instance` vs `ConceptCandidate`）
 4. **Given** ExtractService 原有调用方（不传 mode 或显式 mode=instance_extraction），**When** 执行，**Then** 行为与 SP2 前完全一致（零回归）
@@ -242,10 +263,15 @@
 - **FR-019**: Candidate 批量操作 API：`POST /api/semantic/candidates/batch-delete`（body: ids: int[], 最大 50 条/次）、`POST /api/semantic/candidates/export`（按当前 filter 导出 JSON，≤ 10000 条/次）
 - **FR-020**: Neo4j Candidate 节点属性必须与 SQLite 字段对齐：`id, domain_id, level, candidate_type, label, confidence, status, source, created_at, updated_at`；IS_A 边属性：`from_candidate_id, to_candidate_id, inferred_by, confidence`；Neo4j 索引：`CREATE INDEX idx_candidate_domain IF NOT EXISTS FOR (n:ConceptCandidate) ON (n.domain_id, n.status, n.level)`
 
-#### 子域 D: ExtractService mode=schema_learning 改造
+#### 子域 D: schema_learning 模式通过 hook 调用 006 ExtractService
 
-- **FR-021**: ExtractionService.extract_from_nl / extract_from_document / extract_from_kb 三个方法签名必须新增 `mode: Literal["instance_extraction", "schema_learning"] = "instance_extraction"` 参数，以及 `schema_learning_config: Optional[Dict] = None`（可选覆盖：l1_min_cluster_size、l2_attr_share_threshold、auto_drop_confidence）
-- **FR-022**: mode=schema_learning 时创建 ExtractionSession 的 type 必须 = `schema_learning`，最终 session.status 流程 = `created → extracting → concept_l1 → concept_l2 → candidate_written → reviewing_schema`，任何中间失败 → status = `failed` 并记录 error_message
+> **版块清理（2026-08-07）**：原子域 D 直接在 007 中实现 ExtractionService mode 参数，与 006/009 三方争抢 ExtractService 编排权。清理后：
+> - ExtractService 编排权统一归 006（006 FR-037 定义 mode 参数路由 + hook 调用本 spec ConceptExtractor）
+> - 本子域 D 改为定义 **ConceptExtractor hook 接口**，供 006 ExtractService 在 mode=schema_learning 时调用
+> - ExtractionService 方法签名的 mode 参数由 006 负责定义和实现，本 spec 不再修改 ExtractionService 签名
+
+- **FR-021**: ConceptExtractor 必须提供 `run_l1_l2_hook(raw_extraction_result: Dict, ontology_id: str, domain_id: str, config: Optional[Dict] = None) -> Dict` 方法，供 006 ExtractService 在 mode=schema_learning 时通过 hook 调用。config 可选覆盖：l1_min_cluster_size、l2_attr_share_threshold、auto_drop_confidence。**本方法不修改 ExtractionService 签名**，mode 参数路由由 006 FR-037 定义
+- **FR-022**: mode=schema_learning 时 006 ExtractService 创建 ExtractionSession 的 type 必须 = `schema_learning`，最终 session.status 流程 = `created → extracting → concept_l1 → concept_l2 → candidate_written → reviewing_schema`，任何中间失败 → status = `failed` 并记录 error_message。**session 创建由 006 ExtractService 负责（006 FR-037），本 spec 通过 hook 在 extracting 阶段后介入**
 - **FR-023**: schema_learning 结果映射到 candidate_type 规则：(L2 概念, candidate_type="object_type", label_or_text=concept_label, parent_candidate_id=parent_concept_id if is_a else NULL)、(L2 is_a 边, candidate_type="inheritance", label_or_text=f"{child_label}_is_a_{parent_label}", parent_candidate_id=NULL)、(FCA 非层级关联概念对, candidate_type="relation_type", label_or_text=infer_{src}_{dst})、(FCA 共享属性, candidate_type="property", label_or_text=attr_name, parent_candidate_id=所属 ObjectType candidate_id)
 - **FR-024**: schema_learning_config 默认值：`{l1_min_cluster_size: 3, l2_attr_share_threshold: 0.75, auto_drop_confidence: 0.6, run_l3: false, run_l4: false}`（P2 L3-L4 单独跑，默认关闭减少耗时）；用户传入的配置会覆盖默认值
 - **FR-025**: ExtractionSession.result_data schema_learning 模式下必须额外包含：`schema_candidates: {object_type_count, relation_type_count, property_count, inheritance_count, all_candidate_ids[]}`、`l1_clusters_report: {noise_count, cluster_count, avg_cluster_size, cluster_confidence_distribution}`、`l2_fca_report: {concept_count, lattice_edge_count, dropped_small_concepts}`
@@ -253,11 +279,18 @@
 
 #### 子域 E: 3 关质量闸（Quality Gate）
 
-- **FR-027**: QG-1（置信度与去重闸）公式：`pass_qg1 = (candidate.confidence >= qg1_conf) AND (max_jaccard_existing < qg1_jaccard)`。其中 `qg1_conf = get_config("semantic.qg1_confidence_threshold", 0.65)`、`qg1_jaccard = get_config("semantic.qg1_jaccard_threshold", 0.7)`。Jaccard 计算：`J(A, B) = |A ∩ B| / |A ∪ B|`，分词（jieba）后 token 集合，max_jaccard_existing = 当前 domain 中与 candidate.label Jaccard 最大的已存在 canonical_term name
-- **FR-028**: QG-2（结构一致性闸）：
+- **FR-027**: QG-1（置信度 + 完整性 + 去重闸）公式：`pass_qg1 = (candidate.confidence >= qg1_conf) AND (max_jaccard_existing < qg1_jaccard) AND (completeness_check_passed)`。其中 `qg1_conf = get_config("semantic.qg1_confidence_threshold", 0.65)`、`qg1_jaccard = get_config("semantic.qg1_jaccard_threshold", 0.7)`。Jaccard 计算：`J(A, B) = |A ∩ B| / |A ∪ B|`，分词（jieba）后 token 集合，max_jaccard_existing = 当前 domain 中与 candidate.label Jaccard 最大的已存在 canonical_term name。
+  - **完整性检查（从 006 移交，2026-08-07）**：`completeness_check_passed = (fill_rate >= 0.5) AND (orphan_count <= len(entities) * 0.3)`，其中 fill_rate = 必填字段已填比例，orphan_count = 无关系的孤立实体数。完整性不达标时 candidate 标记 `completeness_warning=true`，不直接 fail（除非 fill_rate < 0.3），但写入 quality_gate_report 供审批参考
+  - **instance 模式即时校验（从 006 移交）**：当 006 ExtractService 以 `mode=instance_extraction` 完成抽取后，调用 QG-1 对 raw_extraction_result 做即时校验，结果写入 `ExtractionSession.result_data.validation_report.completeness`（fill_rate/empty_rate/orphan_count + 孤立实体列表）
+- **FR-028**: QG-2（结构一致性 + 引用一致性闸）：
   - object_type candidate：若 parent_candidate_id 非空 → `new_candidate.differential_attrs_json ∩ parent_candidate.mandatory_attrs_json = ∅`（子类型不得覆盖父类型必填属性，否则破坏 LSP）；若 parent 为空 → 检查与所有同级（同 level、无父）术语的重名率（Jaccard < qg1_jaccard，复用 QG-1）
   - relation_type candidate：`domain` ObjectType 必须存在（status=merged/deprecated OK，deprecated 需 warn）、`range` ObjectType 必须存在；若已有同 name 的 RelationType，检查 domain/range 是否一致（不一致 fail，一致且属性无扩展 → 标记 duplicate，qg2 特殊状态 pass_but_duplicate，审批流中高亮但不自动 reject）
   - property candidate：若绑定 ObjectType，检查属性名不与继承链上同名属性冲突（同 type 允许，冲突类型 fail + reason "属性类型冲突：父类{name}为{old_type}，新属性为{new_type}"）
+  - **引用一致性检查（从 006 移交，2026-08-07）**：
+    - `dangling_relations`：关系引用的实体不存在 → fail + reason "悬空关系：relation {rel_id} 引用不存在的实体 {entity_id}"
+    - `invalid_action_targets`：动作目标类型未在 ObjectType 中定义 → fail + reason "无效动作目标：action {action_id} 的 target_type {type} 未定义"
+    - `invalid_rule_references`：规则引用的对象未定义 → fail + reason "规则引用无效：rule {rule_id} 引用未定义对象 {obj}"
+    - **instance 模式即时校验**：当 006 ExtractService 以 `mode=instance_extraction` 完成抽取后，调用 QG-2 对 raw_extraction_result 做引用一致性检查，结果写入 `ExtractionSession.result_data.validation_report.referential_consistency`（dangling_relations 列表 + invalid_action_targets 列表 + invalid_rule_references 列表）
 - **FR-029**: QG-3（语义一致性闸）：
   - LLM 固定模型：`get_config("semantic.qg3_model", "gpt-4o-mini")`、temperature=0，max_tokens=512
   - Prompt 模板（严格）："你是资深本体 Schema 审核专家，仅输出 JSON。领域：{domain_display_name}（{domain_description}）。候选信息：level={level}, candidate_type={candidate_type}, label={label}, parent={parent_label or '无'}, 预期属性/关联={member_refs_summary_str}, confidence={confidence:.2f}。任务：判断该候选是否符合 {domain_display_name} 本体 Schema 规范，是否与已有术语语义一致，无过宽/过窄/歧义。输出：{\"pass\": true/false, \"reason\": \"≤100字中文理由\", \"risk_level\": \"low/medium/high\", \"suggested_edits\": [\"可选修改建议\"]}"
@@ -270,7 +303,7 @@
 #### 子域 F: 2 级审批流 + OPA 策略引擎
 
 - **FR-033**: OPA 策略引擎封装：`OPAService.evaluate(package: str, input: Dict) → {allowed: bool, reason: str, metrics: Dict}`。OPA 用本地进程内执行（`pip install opa-python=0.6.2`，非 HTTP sidecar，减少运维）；策略目录 `config/opa/semantic/**/*.rego` 递归 watch（watchdog），文件 mtime 变化后 5s 内自动 reload；所有策略的 package 前缀 `data.semantic.*`
-- **FR-034**: 审批流状态机（严格，非法转换抛 ValueError）：`proposed →(run QG)→ qg_passed / qg_failed`；`qg_passed →(L1 approve)→ l1_approved；qg_passed →(L1 reject)→ rejected`；`l1_approved →(L2 approve/merge)→ merged；l1_approved →(L2 reject)→ rejected`；`rejected →(L2 reopen)→ proposed`；`merged → 终态`；每一次转换必须写 `usl_approvals` 表 + `UnifiedAudit.log_action`（action="semantic_approval_transition", resource_id=candidate_id）
+- **FR-034**: 审批流状态机（严格，非法转换抛 ValueError）：`proposed →(run QG)→ qg_passed / qg_failed`；`qg_passed →(L1 approve)→ l1_approved；qg_passed →(L1 reject)→ rejected`；`l1_approved →(L2 approve/merge)→ merged；l1_approved →(L2 reject)→ rejected`；`rejected →(L2 reopen)→ proposed`；`merged → 终态`；每一次转换必须写 `usl_approvals` 表 + **通过 009 分层审计记录操作日志**（009 FR-006 定义：`audit_helper` SQLite 承载 #3 确认过程审计，action="semantic_approval_transition", resource_id=candidate_id）。**本 spec 不再直接调用 `UnifiedAudit.log_action`**，统一委托 009 audit_helper
 - **FR-035**: L1 审批 OPA 策略（`semantic.l1_approve.rego`）：allow 当且仅当 `input.user.roles contains "semantic_dom_admin" AND input.user.managed_domains contains input.candidate.domain_id AND len(input.candidate_ids) <= get_config("semantic.l1_batch_limit", 50)`；reject 需提供 comment ≥ 10 字（前端+后端双重校验）
 - **FR-036**: L2 审批 + merge OPA 策略（`semantic.l2_merge.rego`）：allow 当且仅当 `input.user.roles contains "semantic_global_admin"`；merge 操作额外限制 `len(input.candidate_ids) between 1 and 100`、`input.candidate.status must all be "l1_approved"`；merge 事务隔离级别 = SERIALIZABLE（SQLite `PRAGMA journal_mode=WAL; BEGIN IMMEDIATE`）防并发写入 USL 表
 - **FR-037**: 审批 API：`POST /api/semantic/approvals`（body: candidate_ids[], approval_level, action, comment）、`GET /api/semantic/approvals?candidate_id=&approver_id=&approval_level=&page&size`（查询审批历史）、`POST /api/semantic/approvals/defer`（L1 可 defer 候选到 "待补充材料"，status=deferred，需 comment ≥ 20 字，7 天未补自动 reject）
@@ -332,7 +365,7 @@
 - **NFR-006 可用性 - 数据持久性**：SQLite USL 表必须启用 WAL 模式 + 每日 `VACUUM INTO 'data/backups/usl_{date}.db'` 物理备份 + 每分钟 Binlog 风格（SQLite session 钩子写 `usl_wal_log` 追加表），RPO ≤ 1 分钟，RTO ≤ 10 分钟
 - **NFR-007 可扩展性 - 水平加域**：新增 1 个领域（如法律/医疗），步骤仅需：准备 seed JSON → `seed_migrate --apply --domain xxx` → 在 OPA 中给管理员配置 managed_domains → 前端新增领域标签页，不需改代码/重部署；新领域 30 分钟内可上线
 - **NFR-008 可扩展性 - 术语规模**：单 domain 术语规模 10 万、同义词 50 万 时，NFR-001 读 P95 仍 ≤ 500ms（USLCache + SQLite GIN 索引 + `CREATE VIRTUAL TABLE usl_terms_fts USING fts5(name, synonyms)` 全文索引）
-- **NFR-009 安全 - 认证鉴权**：所有 `/api/semantic/*` 接口必须走 `get_current_user` JWT 依赖；写接口强制 OPA 策略鉴权，拒绝裸 token（非登录态）访问；审计日志 UnifiedAudit 必写（即使 `_audit_available=False` 也要 logger.warning 结构化输出）
+- **NFR-009 安全 - 认证鉴权**：所有 `/api/semantic/*` 接口必须走 `get_current_user` JWT 依赖；写接口强制 OPA 策略鉴权，拒绝裸 token（非登录态）访问；审计日志必须通过 **009 分层审计**（audit_helper SQLite）记录（即使 009 audit_helper 不可用也要 logger.warning 结构化输出）。**本 spec 不再直接调用 UnifiedAudit**（版块清理后统一委托 009）
 - **NFR-010 安全 - 输入校验**：所有入参（term name ≤ 200 字、comment ≤ 2000 字、LLM prompt 注入过滤 `ignore_all_previous_instructions` 类关键词、同义词 XSS 过滤 `<script>`）严格 Pydantic Field + constr 校验，返回 422 + 详细路径
 - **NFR-011 安全 - OPA 策略文件权限**：`config/opa/semantic/*.rego` 必须文件权限 0644，禁止世界可写；启动时做 SHA-256 校验 + 和内置 baseline hash 比对，不一致则拒绝启动（防策略篡改），管理员更新策略需 L2 API `POST /api/semantic/admin/opa/reload` 带签名
 - **NFR-012 一致性 - 双写一致性**：Candidate Writer 双写 SQLite/Neo4j 不一致率（月内巡检 count 差异）≤ 0.01%；每日 3:00 AM cron 跑 `semantic-dual-write-consistency-checker`，diff 超过阈值自动发邮件/钉钉告警并列出修复脚本
@@ -764,4 +797,21 @@ class ConceptExtractor:
 
 **约束重申**: 严禁 TODO / 假实现 / 空承诺；所有算法公式接口必须给出可直接落地的定义（已在 FR 中逐条细化到公式/字段/API 签名）。
 
----
+### 2026-08-07 Session: 版块清理——从 006 移交校验职责 + 移出 ExtractService 编排权
+
+**参与者**: User + AI
+
+**背景**: "建本体"相关 spec（006/007/009）存在 3 处严重冲突 + 5 处功能重叠。本 spec 作为 QG/审批/概念抽取的承接方，需要明确从 006 移入的职责和移出的职责。
+
+**关键决策**:
+
+| # | 决策 | 方案 | 理由 |
+|---|------|------|------|
+| 1 | QG-1 扩展 | 在置信度 + Jaccard 去重基础上，加入完整性指标（fill_rate/empty_rate/orphan_count） | 从 006 ValidationEngine 移交，避免两套校验机制 |
+| 2 | QG-2 扩展 | 在结构一致性基础上，加入引用一致性（dangling_relations/invalid_action_targets/invalid_rule_references） | 从 006 ValidationEngine 移交，统一 Schema + 引用校验入口 |
+| 3 | instance 模式即时校验 | QG-1/QG-2 在 instance 模式下也调用，结果写入 ExtractionSession.validation_report | 006 不再有自己的 ValidationEngine，校验统一入口 |
+| 4 | ExtractService mode 参数 | 移出至 006 FR-037（hook 机制），本 spec 提供 `ConceptExtractor.run_l1_l2_hook()` | 避免三方争抢 ExtractService 编排权 |
+| 5 | UnifiedAudit 调用 | 移出至 009 分层审计（audit_helper），本 spec 仅保留 usl_outbox（TBox 双写） | 避免与 009 audit_helper 操作审计重叠 |
+| 6 | QG-3 保留 | LLM 语义评审仍由本 spec 负责 | 006 原无此能力，本 spec QG-3 独有 |
+
+**影响范围**: QG-1/QG-2 扩展完整性 + 引用一致性；US4/FR-021~026 改为 hook 调用 006；FR-034 审计委托 009。

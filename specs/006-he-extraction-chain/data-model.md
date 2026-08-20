@@ -3,6 +3,21 @@
 **Date**: 2026-07-11
 **Feature**: 006-he-extraction-chain
 
+> ## ⚠️ 版块清理说明（2026-08-07）
+>
+> 以下实体已废弃或移交，保留仅作历史参考：
+>
+> | 实体 | 状态 | 移交目标 | 说明 |
+> |---|---|---|---|
+> | `HETemplate`（he_templates 表） | **已删除** | 009 FR-003 `he feed` | HE kb 原生持久化，应用层不再维护模板表 |
+> | `ValidationReport`（JSON） | **已移交** | 007 QG QualityReport | 4 维校验由 007 QualityGateService 统一执行 |
+> | `settle_template()` / `get_settled_template()` | **已删除** | 009 HE kb `he feed` 增量演化 | 应用层不再沉淀/复用模板 |
+>
+> 权威 data-model 见 007 `data-model.md` §4 质量闸公式 + 009 `spec.md` FR-003。
+> 详见 `specs/REFACTORING-NOTES.md`。
+
+---
+
 ## New Entities
 
 ### HETemplate (SQLite: he_templates)

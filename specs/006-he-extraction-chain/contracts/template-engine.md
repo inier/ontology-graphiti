@@ -1,19 +1,29 @@
 # Contract: TemplateEngine
 
+> ## ⚠️ 版块清理说明（2026-08-07）
+>
+> 以下方法已**删除**，HE kb 持久化与复用由 009 spec FR-003 `he feed` 增量演化承担：
+> - `settle_template()` — 已删除（原 FR-017）
+> - `get_settled_template()` — 已删除（原 FR-018）
+> - `SqliteTemplateStorage` 依赖 — 已删除（HE kb 原生管理）
+>
+> `__init__` 不再接收 `storage: SqliteTemplateStorage` 参数。模板评估时 HE kb 内部已有的知识由 `he feed` 自动复用。
+> 详见 `specs/REFACTORING-NOTES.md`。
+
 **Location**: `odap/biz/data/hyper_extract/services/template_engine.py`
-**Spec FRs**: FR-011, FR-012, FR-013, FR-014, FR-015, FR-016, FR-017, FR-018, FR-019
+**Spec FRs**: FR-011, FR-012, FR-013, FR-014, FR-015, FR-016（~~FR-017, FR-018, FR-019 已删除~~）
 
 ## Description
 
-模板引擎：动态枚举预设、试抽评分、贪心集合覆盖选择、自定义生成、沉淀复用。
+模板引擎：动态枚举预设、试抽评分、贪心集合覆盖选择、自定义生成。**不沉淀**——模板持久化由 009 HE kb `he feed` 承担。
 
 ## Interface
 
 ```python
 class TemplateEngine:
-    def __init__(self, he_adapter: HEAdapter, storage: SqliteTemplateStorage):
+    def __init__(self, he_adapter: HEAdapter, embedder=None):
         self._adapter = he_adapter
-        self._storage = storage
+        self._embedder = embedder
 
     def list_presets(self) -> List[Dict[str, Any]]:
         """动态枚举 HE 全部预设模板（30+），禁止硬编码。
@@ -37,11 +47,11 @@ class TemplateEngine:
             }
 
         Steps:
-            1. get_settled_template(ontology_id) → 若有沉淀模板，轻量验证（500字符试抽，score≥阈值80%）
-            2. 若沉淀模板达标 → 直接返回（跳过全量试抽）
-            3. 若无沉淀或不达标 → list_presets() → embedder 余弦相似度预筛选 top-k=5
-            4. 对 top-k 候选 trial_extract 试抽
-            5. 按评分公式打分排序
+            1. list_presets() → embedder 余弦相似度预筛选 top-k=5
+            2. 对 top-k 候选 trial_extract 试抽
+            3. 按评分公式打分排序
+
+        Note: ~~get_settled_template 短路复用~~ 已删除（Iter 2.1 ADR-074），HE kb 内部知识由 `he feed` 自动复用。
         """
 
     def select_complementary(self, scored_candidates: List[Dict], ontology_schema: Dict) -> List[Dict]:
@@ -71,19 +81,8 @@ class TemplateEngine:
             - 失败重试最多 2 次 (FR-016)
         """
 
-    def settle_template(self, ontology_id: str, name: str, yaml_content: str, score: float, coverage: List[str]) -> str:
-        """沉淀模板：YAML 落盘 + SQLite 元数据写入。
-
-        Returns:
-            template_id
-
-        Implementation:
-            - YAML 写入 data/he_templates/{ontology_id}/{name}.yaml
-            - 元数据存入 he_templates 表
-        """
-
-    def get_settled_template(self, ontology_id: str) -> Optional[Dict[str, Any]]:
-        """获取已沉淀模板。若 YAML 文件不存在则返回 None（EC-013）。"""
+    # ~~settle_template()~~ 已删除（原 FR-017，HE kb `he feed` 承担）
+    # ~~get_settled_template()~~ 已删除（原 FR-018，HE kb 内部复用）
 ```
 
 ## Scoring Formula (FR-013)
@@ -97,7 +96,7 @@ score = 0.3 * normalize(entity_count) + 0.3 * normalize(relation_count) + 0.2 * 
 
 ## Dependencies
 
-- HEAdapter (trial_extract)
-- SqliteTemplateStorage (settle/get_settled)
+- HEAdapter (trial_extract, _create_embedder, _Template.list)
 - LLM client (generate_custom)
 - Embedder (预筛选余弦相似度)
+- ~~SqliteTemplateStorage~~ 已删除（HE kb 原生管理）

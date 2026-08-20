@@ -1,7 +1,9 @@
 # ADR-063: 租户感知隔离与部署蓝图
 
 ## 状态
-Accepted
+Accepted（**部分落地**，2026-08-16 清算注记）
+
+> 代码现实：`tenant_id`/`TenantIsolator` 全仓零实现，租户级隔离未启动；workspace 级隔离在役（`infra/security/workspace_access.py`），其强化修复由 ADR-076 §7 承接（路由层覆盖+非空拒绝+双轨过滤）。本 ADR 维持 Accepted 作为租户化演进的既定方向。
 
 ## 上下文
 

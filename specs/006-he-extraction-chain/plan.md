@@ -5,7 +5,13 @@
 
 ## Summary
 
-启用 Hyper-Extract (HE) 包并构建生产级抽取校验完整链路：模板试抽评分 → 多模板互补抽取 → LLM 补充 → 4 维校验 → 双通道写入。合并两套重复的 HEAdapter 为唯一规范实现，删除所有伪实现/桩代码，重建 Docker 镜像安装 HE 及依赖。技术路径为统一重构 (Approach 2)：新建 TemplateEngine + ValidationEngine + SqliteTemplateStorage 三个核心组件，修复 data/hyper_extract/impl/he_adapter.py（API 对齐 + 补全缺失方法），重写 ExtractService 编排逻辑，将 ontology/extraction 降级为薄委托层。
+启用 Hyper-Extract (HE) 包并构建生产级抽取链路：模板试抽评分 → 多模板互补抽取 → LLM 补充 → 映射 → feed_to_kb → 双通道写入。合并两套重复的 HEAdapter 为唯一规范实现，删除所有伪实现/桩代码，重建 Docker 镜像安装 HE 及依赖。技术路径为统一重构 (Approach 2)：新建 TemplateEngine 一个核心组件（试抽评分 + 多模板选择 + 自定义生成，**不沉淀**），修复 data/hyper_extract/impl/he_adapter.py（API 对齐 + 补全缺失方法 + **feed_to_kb 委托**），重写 ExtractService 编排逻辑，将 ontology/extraction 降级为薄委托层。
+
+> **版块清理（2026-08-07）**：原 plan 中的 ValidationEngine（4 维校验）和 SqliteTemplateStorage（模板持久化）已整体移交/删除：
+> - ValidationEngine → 移交 007 spec QualityGateService（QG-1 扩展完整性 + QG-2 扩展引用一致性）
+> - SqliteTemplateStorage → 删除，HE kb 持久化由 009 spec FR-003 `he feed` 承担
+> - Channel B 实现规范 → 移交 009 spec FR-001（`save_audit_episode` 零 LLM 审计）
+> - 详见 006 spec.md Brainstorm Log 2026-08-07 条目
 
 ## Technical Context
 
@@ -24,10 +30,10 @@
 
 | Principle | Status | Notes |
 |-----------|--------|-------|
-| I. 简单 | PASS | 每个新组件单一职责：TemplateEngine 管模板生命周期，ValidationEngine 管校验，HEAdapter 管 HE API 封装。函数拆分到 40 行以内 |
-| II. 可维护 | PASS | 合并两套 adapter 为唯一规范实现，消除歧义。模块依赖单向：storage ← impl ← services ← api。配置集中通过 `get_config()` |
-| III. 测试优先 | PASS | 6 个单元测试文件 + 3 个集成测试。新组件全部 TDD：先写测试定义接口行为，再实现。Mock 策略明确（Mock Template.create/ka.parse，不真实调 LLM） |
-| IV. 避免过度设计 | PASS (post-design) | 设计阶段后确认复杂度必要：4 维校验每维度有独立方法签名（contracts/validation-engine.md）；多模板互补算法明确（贪心集合覆盖，contracts/template-engine.md）；沉淀复用生命周期有状态图（data-model.md）。所有复杂度追溯到具体 FR 和用户需求 |
+| I. 简单 | PASS | 每个新组件单一职责：TemplateEngine 管模板评估与生成（不沉淀），HEAdapter 管 HE API 封装 + feed_to_kb 委托。函数拆分到 40 行以内 |
+| II. 可维护 | PASS | 合并两套 adapter 为唯一规范实现，消除歧义。模块依赖单向：impl ← services ← api。配置集中通过 `get_config()` |
+| III. 测试优先 | PASS | 4 个单元测试文件 + 2 个集成测试。新组件全部 TDD：先写测试定义接口行为，再实现。Mock 策略明确（Mock Template.create/ka.parse，不真实调 LLM） |
+| IV. 避免过度设计 | PASS (post-design) | 版块清理后复杂度进一步降低：删除 ValidationEngine（移交 007 QG）、删除 SqliteTemplateStorage（移交 009 HE kb）；多模板互补算法明确（贪心集合覆盖，contracts/template-engine.md） |
 
 ### Post-Design Re-evaluation
 
@@ -35,7 +41,7 @@
 - **I. 简单**: contracts 定义清晰接口，每方法职责单一，无过度抽象 ✓
 - **II. 可维护**: 模块边界通过 contracts 明确，依赖方向单向，无循环依赖 ✓
 - **III. 测试优先**: TDD 要求 + 测试文件清单已定义，mock 策略明确 ✓
-- **IV. 避免过度设计**: 复杂度通过 Complexity Tracking 表证明必要，每项有用户需求支撑 ✓
+- **IV. 避免过度设计**: 版块清理后删除 ValidationEngine 和 SqliteTemplateStorage，复杂度进一步降低 ✓
 
 ## Project Structure
 
@@ -61,16 +67,15 @@ odap/biz/data/hyper_extract/  (SP1 规范位置 — 唯一抽取实现)
 ├── api/
 │   └── routes.py                    # 现有, 保留
 ├── impl/
-│   ├── he_adapter.py                # 修复: get_config import + 补全 parse_batch/merge_results/trial_extract
+│   ├── he_adapter.py                # 修复: get_config import + 补全 parse_batch/merge_results/trial_extract + feed_to_kb 委托
 │   ├── ontology_mapper.py           # 迁移自 ontology/extraction + 增强: 多模板结果合并映射
-│   ├── dual_channel_writer.py       # 现有, 复用
+│   ├── dual_channel_writer.py       # 现有, 复用（Channel B 实现规范由 009 定义）
 │   └── provenance_tracker.py        # 迁移自 ontology/extraction + 增强: 新增 source_template 字段
 ├── services/
-│   ├── extract_service.py           # 重写编排: 模板评估→多模板抽取→LLM补充→校验→写入
-│   ├── template_engine.py           # 新: 试抽评分 + 30+预设动态枚举 + 自定义生成 + 沉淀复用
-│   └── validation_engine.py         # 新: 4 维校验
-└── storage/
-    └── sqlite_template_storage.py   # 新: HE 模板持久化 (he_templates 表)
+│   ├── extract_service.py           # 重写编排: 模板评估→多模板抽取→LLM补充→映射→feed_to_kb→写入 + mode=schema_learning hook
+│   └── template_engine.py           # 新: 试抽评分 + 30+预设动态枚举 + 自定义生成（不沉淀）
+│   (不再新建 validation_engine.py)    # 移交 007 QG
+│ (不再新建 storage/ 目录)             # 移交 009 HE kb
 
 odap/biz/core/ontology/extraction/  (降级为薄编排层)
 ├── api/routes.py                    # 现有, 保留
@@ -82,41 +87,44 @@ odap/biz/core/ontology/extraction/  (降级为薄编排层)
 
 tests/
 ├── unit/
-│   ├── test_he_adapter.py           # 新: is_available, parse, trial_extract, evolve, merge_results
-│   ├── test_template_engine.py      # 新: list_presets, assess, select_complementary, generate_custom, settle
-│   ├── test_validation_engine.py    # 新: 4 维校验全路径
-│   ├── test_sqlite_template_storage.py # 新: CRUD + 去重 + usage_count
+│   ├── test_he_adapter.py           # 新: is_available, parse, trial_extract, evolve, merge_results, feed_to_kb
+│   ├── test_template_engine.py      # 新: list_presets, assess, select_complementary, generate_custom
+│   (不再新建 test_validation_engine.py)  # 移交 007 QG
+│   (不再新建 test_sqlite_template_storage.py) # 移交 009 HE kb
 │   ├── test_ontology_mapper.py      # 新: 多模板结果合并 → 5 类映射
-│   └── test_extract_service.py      # 新: 3 入口编排 + 降级路径
+│   └── test_extract_service.py      # 新: 3 入口编排 + 降级路径 + mode=schema_learning hook
 └── integration/
     ├── test_he_real_extraction.py   # 新: 真实 HE + LLM 端到端
-    ├── test_template_settle_reuse.py # 新: 沉淀复用
-    └── test_dual_channel_write.py   # 新: confirm_extraction 双通道写入
+    └── test_dual_channel_write.py   # 新: confirm_extraction 双通道写入（Channel B 由 009 规范）
 ```
 
 **Structure Decision**: 采用 Approach 2 统一重构。`biz/data/hyper_extract/` 作为唯一抽取实现位置（data 域负责数据加工），`biz/core/ontology/extraction/` 降级为薄编排层（保留 session/conflict/confirm 逻辑，委托抽取给 data 域）。理由：data/hyper_extract/impl/he_adapter.py 的 API kwarg 名已正确（`llm_client=`/`embedder=`），且 data 域语义上负责数据加工。
+
+> **版块清理变更**：原 `services/validation_engine.py`（移交 007 QG）、原 `storage/sqlite_template_storage.py`（移交 009 HE kb）不再新建。
 
 ## Execution Strategy
 
 ### TDD Requirements
 
-- [ ] **HEAdapter**: 核心适配器，需 TDD——Mock Template.create/ka.parse 验证调用参数正确性，确保不再有 kwarg 名错误
+- [ ] **HEAdapter**: 核心适配器，需 TDD——Mock Template.create/ka.parse 验证调用参数正确性，确保不再有 kwarg 名错误；**feed_to_kb 需 mock HE kb 写入验证委托调用**
 - [ ] **TemplateEngine.assess()**: 评分逻辑复杂（加权公式 + 语义预筛选 + 试抽），需 TDD——先定义评分公式测试用例
 - [ ] **TemplateEngine.select_complementary()**: 贪心集合覆盖算法，需 TDD——边界用例（空候选/单模板全覆盖/无法覆盖）
-- [ ] **ValidationEngine**: 4 维校验逻辑密集，需 TDD——每维度独立测试 + 边界（空结果/全违规/全通过）
-- [ ] **SqliteTemplateStorage**: 持久化层，需 TDD——tmp_path 真实 DB，验证 CRUD + UNIQUE 约束 + usage_count 递增
+- [ ] **ExtractService mode=schema_learning hook**: 需 TDD——验证 mode 参数路由正确，hook 调用 007 ConceptExtractor 不阻断主流程
+- ~~**ValidationEngine**: 4 维校验~~ **已移交 007 QG**（见 007 plan TDD Requirements）
+- ~~**SqliteTemplateStorage**: 持久化层~~ **已删除**（HE kb 原生承担，见 009）
 
 ### Parallel Execution Opportunities
 
-- [ ] **TemplateEngine** 和 **ValidationEngine** 无共享文件或依赖，可并行开发
-- [ ] **SqliteTemplateStorage** 和 **HEAdapter 修复** 可并行（HEAdapter 不依赖 storage）
+- [ ] **HEAdapter 修复** 和 **TemplateEngine** 无共享文件或依赖，可并行开发
 - [ ] **OntologyMapper 增强** 可在 TemplateEngine 完成后并行（mapper 需要理解多模板结果格式但不需要 engine 实例）
+- ~~**TemplateEngine** 和 **ValidationEngine** 可并行~~ **已删除**（ValidationEngine 移交 007）
+- ~~**SqliteTemplateStorage** 和 **HEAdapter 修复** 可并行~~ **已删除**（SqliteTemplateStorage 移交 009）
 
 ### Human Checkpoints
 
 1. HE 安装验证 — 重建镜像后验证 `Template.list()` 返回 30+ 预设，`HEAdapter.is_available()` 返回 True
-2. TemplateEngine + ValidationEngine 完成 — 验证评分逻辑和校验报告正确
-3. ExtractService 编排完成 — 验证 3 入口端到端流程
+2. TemplateEngine 完成 — 验证评分逻辑正确
+3. ExtractService 编排完成 — 验证 3 入口端到端流程 + **mode=schema_learning hook 调用 007**
 4. 死代码删除前 — 确认无引用残留
 5. 集成测试 — 需 Neo4j + OPENAI_API_KEY 环境
 
@@ -124,18 +132,18 @@ tests/
 
 - [ ] **HEAdapter 接口**: Review before implementing TemplateEngine（TemplateEngine 依赖 HEAdapter.trial_extract）
 - [ ] **TemplateEngine 接口**: Review before implementing ExtractService（ExtractService 依赖 assess/select_complementary）
-- [ ] **数据模型变更**: Review he_templates 表 schema 和 ExtractionSession 增强字段 before migration
+- [ ] **数据模型变更**: Review ExtractionSession 增强字段 before migration（~~he_templates 表~~ 已删除）
 - [ ] **删除死代码**: Review 引用扫描结果 before deletion
 
 ## Complexity Tracking
 
-> Constitution Check IV (避免过度设计) 标记为 NEEDS ATTENTION，以下说明复杂性必要性
+> Constitution Check IV (避免过度设计) 标记为 PASS，版块清理后复杂度进一步降低
 
 | Violation | Why Needed | Simpler Alternative Rejected Because |
 |-----------|------------|-------------------------------------|
-| 4 维校验（而非简化为 1-2 维） | 用户明确要求"不能简化"，且生产级抽取质量保障需要多维度检查 | 单维校验无法捕获字段缺失、悬空关系、低置信度等不同类型问题 |
+| ~~4 维校验（而非简化为 1-2 维）~~ | ~~用户明确要求"不能简化"~~ | **已移交 007 QG**（QG-1 扩展完整性 + QG-2 扩展引用一致性 + QG-3 LLM 评审） |
 | 多模板互补抽取（而非单模板） | 单模板无法覆盖 ODAP 5 类产出（对象/关系/规则/动作/过程），HE 预设模板各有侧重 | 单模板抽取在规则/动作类别上结果为空，需 LLM 兜底，质量不可控 |
-| 模板沉淀复用机制 | 避免对同一本体重复评估和生成，控制 LLM 调用成本 | 每次抽取都全量试抽 30+ 模板，成本和耗时不可接受 |
+| ~~模板沉淀复用机制~~ | ~~避免对同一本体重复评估和生成，控制 LLM 调用成本~~ | **已删除**——HE 原生 `he feed` 增量演化承担（009 FR-003），应用层不再重复实现 |
 
 ## Phase Summary
 
@@ -150,10 +158,10 @@ tests/
 
 ### Phase 1: Design & Contracts (data-model.md, contracts/, quickstart.md)
 
-1. **data-model.md**: HETemplate 实体（含 source/yaml_path/score/coverage/usage_count 字段）、ValidationReport 结构（4 维 + needs_review）、ExtractionSession 增强（validation_report/template_assessment/degradation_flags）、ExtractionProvenance 增强（source_template）
-2. **contracts/**: 3 个接口契约文档（HEAdapter/TemplateEngine/ValidationEngine），含方法签名、参数、返回值、异常
-3. **quickstart.md**: 重建镜像 + 验证 HE 导入 + 端到端抽取示例
+1. **data-model.md**: HETemplate 实体（~~含 source/yaml_path/score/coverage/usage_count~~ 改为 source/score/coverage，HE kb 内部管理持久化）、~~ValidationReport 结构~~（移交 007）、ExtractionSession 增强（template_assessment/degradation_flags，~~validation_report~~ 由 007 QG 写入）、ExtractionProvenance 增强（source_template）
+2. **contracts/**: 2 个接口契约文档（HEAdapter 含 feed_to_kb / TemplateEngine 不含 settle/get_settled），~~ValidationEngine 契约~~ 移交 007
+3. **quickstart.md**: 重建镜像 + 验证 HE 导入 + 端到端抽取示例 + **feed_to_kb 验证**
 
 ### Phase 2: Tasks (tasks.md)
 
-由 `/speckit-tasks` 生成，按迁移顺序（先建新→修复→改写委托→删死代码→重建镜像）拆分为可独立验证的任务。
+由 `/speckit-tasks` 生成，按迁移顺序（先建新→修复→改写委托→删死代码→重建镜像）拆分为可独立验证的任务。**不再包含 ValidationEngine 和 SqliteTemplateStorage 相关任务**。
