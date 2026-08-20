@@ -9,6 +9,7 @@
 - provenance/  — 溯源追踪
 - rollback/    — 回滚机制
 - sharding/    — 分片策略
+- conflicts/   — 冲突检测与消解（标记而非覆盖 + SourceTracker）
 
 遵循 ADR-068 四层架构。
 """
@@ -30,6 +31,13 @@ from .quality.gate import QualityGate, GateLevel, GateAction, GateResult, get_qu
 from .quality.reporter import QualityReport
 
 from .rollback.rollback_manager import RollbackLevel, RollbackStatus, RollbackRecord, ConstructionRollbackManager, get_rollback_manager
+from .conflicts import (
+    Conflict, ConflictType, ConflictReport, ConflictSeverity,
+    ConflictDetector,
+    ResolutionStrategy, ConfidenceWeightedStrategy,
+    LatestWinsStrategy, MajorityVoteStrategy, resolve_conflict,
+    SourceTracker, SourceCredibility,
+)
 
 __all__ = [
     "BuildResultContract",
@@ -47,4 +55,9 @@ __all__ = [
     "QualityReport",
     "RollbackLevel", "RollbackStatus", "RollbackRecord",
     "ConstructionRollbackManager", "get_rollback_manager",
+    "Conflict", "ConflictType", "ConflictReport", "ConflictSeverity",
+    "ConflictDetector",
+    "ResolutionStrategy", "ConfidenceWeightedStrategy",
+    "LatestWinsStrategy", "MajorityVoteStrategy", "resolve_conflict",
+    "SourceTracker", "SourceCredibility",
 ]
