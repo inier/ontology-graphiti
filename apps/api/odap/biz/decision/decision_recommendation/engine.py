@@ -321,6 +321,25 @@ class DecisionRecommendationEngine:
                 confidence=self._calculate_confidence(ranked_options, request),
             )
 
+            # ADR-076 §6.2：先例引用增强（失败静默降级，不影响推荐主流程）
+            try:
+                workspace_id = (request.context or {}).get("workspace_id")
+                if workspace_id and recommendation.recommended_option:
+                    from odap.biz.decision.decision_record import get_decision_service
+                    precedents = await get_decision_service().find_similar_decisions(
+                        workspace_id=workspace_id,
+                        query=recommendation.recommended_option.name,
+                        top_k=3,
+                    )
+                    if precedents:
+                        hints = "; ".join(
+                            f"{p.decision_id}({p.outcome.value})" for p in precedents
+                        )
+                        recommendation.recommended_option.rationale += f"；先例参考: {hints}"
+                        recommendation.decision_summary += f"（参考 {len(precedents)} 条历史先例）"
+            except Exception as prec_err:
+                logger.debug("先例引用增强失败（静默降级）: %s", prec_err)
+
             logger.info(
                 f"决策推荐生成完成: {recommendation.recommendation_id}, "
                 f"候选方案: {len(ranked_options)}, "

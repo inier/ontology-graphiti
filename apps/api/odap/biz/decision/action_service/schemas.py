@@ -22,6 +22,7 @@ class ActionRequest(BaseModel):
     requested_by: str = "system"
     reason: str = ""
     agent_id: Optional[str] = None
+    decision_id: Optional[str] = None  # ADR-076：Decision -[:TRIGGERED]-> ActionRecord 穿透
 
 
 class ActionRecord(BaseModel):
@@ -34,6 +35,7 @@ class ActionRecord(BaseModel):
     requested_by: str = "system"
     reason: str = ""
     agent_id: Optional[str] = None
+    decision_id: Optional[str] = None  # ADR-076：关联决策 ID
     opa_decision: Optional[Dict[str, Any]] = None
     validation_result: Optional[Dict[str, Any]] = None
     execution_result: Optional[Dict[str, Any]] = None

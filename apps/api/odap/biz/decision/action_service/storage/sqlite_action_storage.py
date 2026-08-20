@@ -33,6 +33,11 @@ class SQLiteActionStorage(SqliteBaseStorage):
         c.execute('''CREATE INDEX IF NOT EXISTS idx_action_status ON action_records(status)''')
         c.execute('''CREATE INDEX IF NOT EXISTS idx_action_target ON action_records(target_object_id)''')
         c.execute('''CREATE INDEX IF NOT EXISTS idx_action_type ON action_records(action_type_id)''')
+        # ADR-076：decision_id 列迁移（存量库无此列时补齐）
+        existing_cols = {row[1] for row in c.execute("PRAGMA table_info(action_records)").fetchall()}
+        if 'decision_id' not in existing_cols:
+            c.execute("ALTER TABLE action_records ADD COLUMN decision_id TEXT")
+        c.execute('''CREATE INDEX IF NOT EXISTS idx_action_decision ON action_records(decision_id)''')
         conn.commit()
         conn.close()
 
@@ -60,6 +65,7 @@ class SQLiteActionStorage(SqliteBaseStorage):
             'requested_by': data.get('requested_by', 'system'),
             'reason': data.get('reason', ''),
             'agent_id': data.get('agent_id'),
+            'decision_id': data.get('decision_id'),  # ADR-076：关联决策 ID
             'opa_decision': None,
             'validation_result': None,
             'execution_result': None,
