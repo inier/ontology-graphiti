@@ -109,7 +109,7 @@ def _initialize_audit_retention() -> None:
             ),
             RetentionPolicy(
                 ws_id="*", classification="INFO",
-                retention_days=90, action=RetentionAction.ARCHIVE_TO_MINIO,
+                retention_days=180, action=RetentionAction.ARCHIVE_TO_MINIO,
                 created_at=now,
             ),
             RetentionPolicy(

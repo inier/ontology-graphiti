@@ -243,6 +243,22 @@ async def delete_menu_item(
 #  角色-菜单权限分配
 # ═══════════════════════════════════════════════════
 
+@router.get("/global-roles")
+async def list_global_roles(user=Depends(get_current_user)):
+    """返回内置全局角色列表（与 JWT payload["role"] 对齐）。
+
+    供 /menu-config 页面角色下拉使用：role_id 必须用 global_role 字符串
+    （admin/observer/analyst/...），否则保存的 role_menus 无法被侧边栏
+    tree 接口 _user_role_ids() 命中，导致"已配置的菜单与展示不一致"。
+    """
+    try:
+        return menu_config_service.list_global_roles()
+    except HTTPException:
+        raise
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+
 @router.post("/role-menus")
 async def set_role_menus(
     request: SetRoleMenusRequest,
@@ -297,8 +313,8 @@ async def get_menu_roles(
 async def init_default_menu(user=Depends(get_current_user)):
     """幂等初始化四步法默认菜单树（仅管理员）。
 
-    首次调用写入 46 个菜单项（Iter 2 后）；后续调用跳过已存在的 code。
-    不覆盖用户自定义菜单。
+    首次调用写入 54 个菜单项；后续调用跳过已存在的 code。
+    不覆盖用户自定义菜单，并同步默认角色菜单权限（与 JWT role 对齐）。
     """
     if not _is_admin(user):
         raise HTTPException(status_code=403, detail="仅管理员可操作")

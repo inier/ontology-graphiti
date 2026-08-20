@@ -50,6 +50,8 @@ def create_router_registry() -> List[tuple]:
     from odap.infra.security import audit_router
     from odap.infra.security.auth_routes import router as auth_router
     from odap.infra.security.data_classification_routes import router as data_classification_router
+    from odap.infra.security.provenance.provenance_routes import router as provenance_router
+    from odap.infra.graph.analytics.api.routes import router as graph_analytics_router
 
     # ── 技能与钩子 ──
     from odap.biz.platform.skill_system.api.routes import router as skill_router
@@ -91,6 +93,8 @@ def create_router_registry() -> List[tuple]:
     from odap.biz.decision.action_service.routes import router as action_router
     from odap.biz.decision.decision_pipeline.routes import router as decision_pipeline_router
     from odap.biz.decision.decision_recommendation.api.routes import router as decision_recommendation_router
+    # 决策智能（ADR-076）：决策作为一等公民对象，7 端点
+    from odap.biz.decision.decision_record.api.routes import decision_record_router
 
     # ── 感知 ──
     from odap.biz.data.perception.routes import router as perception_router
@@ -109,6 +113,7 @@ def create_router_registry() -> List[tuple]:
     # ── 策略 ──
     from odap.infra.opa.routes import router as policy_router
     from odap.infra.opa.markdown_routes import router as markdown_policy_router
+    from odap.infra.opa.api.routes import router as opa_api_router
 
     # ── 会话记忆 ──
     from odap.biz.platform.session_memory.api.routes import router as session_memory_router
@@ -144,6 +149,9 @@ def create_router_registry() -> List[tuple]:
 
     # ── 语义检索服务总线（spec 008 / ADR-073）──
     from odap.biz.core.ontology.semantic_retrieval.api.routes import router as semantic_retrieval_router
+
+    # ── 推理（ADR-075 确定性推理 + 统一检索/溯源）──
+    from odap.biz.core.ontology.reasoning.api.routes import router as reasoning_router
 
     # ── 语义管理 - 统一语义层（USL Iter 1）──
     from odap.biz.semantic_admin.usl_manager.api.routes import router as semantic_admin_usl_router
@@ -203,6 +211,7 @@ def create_router_registry() -> List[tuple]:
     # ── 本体 - 设计 ──
     from odap.biz.core.ontology.design.model.api.routes import router as ontology_model_router
     from odap.biz.core.ontology.design.engine.api.routes import router as ontology_engine_router
+    from odap.biz.core.ontology.design.engine.api.shacl_owl_routes import router as shacl_owl_router
     from odap.biz.core.ontology.design.ingestion.api.routes import router as ingestion_router
     from odap.biz.core.ontology.design.version.api.routes import router as ontology_version_router
 
@@ -253,6 +262,7 @@ def create_router_registry() -> List[tuple]:
         (audit_router,),
         (auth_router,),
         (data_classification_router,),
+        (provenance_router,),
 
         # 技能与钩子
         (skill_router,),
@@ -294,6 +304,7 @@ def create_router_registry() -> List[tuple]:
         (action_router,),
         (decision_pipeline_router,),
         (decision_recommendation_router,),
+        (decision_record_router,),
 
         # 感知
         (perception_router,),
@@ -312,6 +323,7 @@ def create_router_registry() -> List[tuple]:
         # 策略
         (policy_router,),
         (markdown_policy_router,),
+        (opa_api_router,),
 
         # 会话记忆
         (session_memory_router,),
@@ -343,6 +355,15 @@ def create_router_registry() -> List[tuple]:
 
         # 语义检索服务总线（spec 008 / ADR-073）
         (semantic_retrieval_router,),
+
+        # 推理（ADR-075 确定性推理 + 统一检索/溯源）
+        (reasoning_router,),
+
+        # SHACL/OWL 本体治理（ADR-077）
+        (shacl_owl_router,),
+
+        # 图分析服务（ADR-078）
+        (graph_analytics_router,),
 
         # 语义管理 - 统一语义层（USL Iter 1）
         (semantic_admin_usl_router,),

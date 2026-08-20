@@ -1,0 +1,48 @@
+{
+  "title": "OPA Security Operations Dashboard",
+  "timezone": "browser",
+  "schemaVersion": 38,
+  "panels": [
+    {
+      "title": "决策分布 (Allow vs Deny)",
+      "type": "piechart",
+      "datasource": {"type": "loki", "uid": "loki"},
+      "gridPos": {"h": 8, "w": 6, "x": 0, "y": 0},
+      "targets": [{
+        "expr": "sum by (result_status) (count_over_time({job=\"odap_audit\"} |= \"opa\" [5m]))",
+        "legendFormat": "{{result_status}}"
+      }]
+    },
+    {
+      "title": "实时审计日志流",
+      "type": "logs",
+      "datasource": {"type": "loki", "uid": "loki"},
+      "gridPos": {"h": 8, "w": 18, "x": 6, "y": 0},
+      "targets": [{
+        "expr": "{job=\"odap_audit\"} |= \"opa\""
+      }]
+    },
+    {
+      "title": "工具调用热度排行",
+      "type": "bargauge",
+      "datasource": {"type": "loki", "uid": "loki"},
+      "gridPos": {"h": 8, "w": 12, "x": 0, "y": 8},
+      "targets": [{
+        "expr": "topk(10, sum by (action) (count_over_time({job=\"odap_audit\"} [1h])))",
+        "legendFormat": "{{action}}"
+      }]
+    },
+    {
+      "title": "DENY 时序图 (5min 滚动)",
+      "type": "timeseries",
+      "datasource": {"type": "loki", "uid": "loki"},
+      "gridPos": {"h": 8, "w": 12, "x": 12, "y": 8},
+      "targets": [{
+        "expr": "sum(count_over_time({job=\"odap_audit\"} |= \"deny\" [5m]))",
+        "legendFormat": "DENY count"
+      }]
+    }
+  ],
+  "time": {"from": "now-1h", "to": "now"},
+  "refresh": "10s"
+}

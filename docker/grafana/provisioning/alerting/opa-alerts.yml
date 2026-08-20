@@ -1,0 +1,19 @@
+apiVersion: 1
+groups:
+  - name: OPA Security Alerts
+    interval: 60s
+    rules:
+      - alert: OPADenyStorm
+        expr: sum(count_over_time({job="odap_audit"} |= "deny" [5m])) > 50
+        for: 1m
+        annotations:
+          summary: "OPA DENY 风暴: 5分钟内超过 50 次拒绝"
+        labels:
+          severity: critical
+      - alert: OPAAuditFailure
+        expr: sum(count_over_time({job="odap_audit"} |= "audit_failure" [5m])) > 10
+        for: 1m
+        annotations:
+          summary: "审计写入失败超过 10 次"
+        labels:
+          severity: critical

@@ -7,8 +7,8 @@ Sandbox 策略：
   - 测试 init_default_menu() 幂等性 + 菜单树结构正确性
 
 测试用例：
-  T-SEED-1: 首次调用 init_default_menu() → created=53, skipped=0
-  T-SEED-2: 二次调用 init_default_menu() → created=0, skipped=53（幂等）
+  T-SEED-1: 首次调用 init_default_menu() → created=54, skipped=0
+  T-SEED-2: 二次调用 init_default_menu() → created=0, skipped=54（幂等）
   T-SEED-3: 菜单树含 6 个顶级目录（建/见/演/用/系统管理/帮助）
   T-SEED-4: 建本体目录含语义管理子目录 + 5 个子菜单
   T-SEED-5: 演本体目录含 business/* 5 个菜单项（D1 偏差修复）
@@ -70,13 +70,14 @@ def test_seed_1_first_init_creates_all(menu_service: MenuConfigService):
     """T-SEED-1: 首次调用写入全部种子数据。"""
     result = menu_service.init_default_menu()
     assert result["status"] == "success"
-    assert result["created"] == 53, f"应创建 53 项，实际 {result['created']}"
+    assert result["created"] == 54, f"应创建 54 项，实际 {result['created']}"
     assert result["skipped"] == 0
-    assert result["total"] == 53
+    assert result["total"] == 54
+    assert result["role_grants"] >= 1, "首次初始化应同步授予默认角色菜单权限"
 
 
 # =====================================================================
-# T-SEED-2: 二次调用 → created=0, skipped=53（幂等）
+# T-SEED-2: 二次调用 → created=0, skipped=54（幂等）
 # =====================================================================
 
 
@@ -85,7 +86,8 @@ def test_seed_2_second_init_is_idempotent(menu_service: MenuConfigService):
     menu_service.init_default_menu()  # 第一次
     result = menu_service.init_default_menu()  # 第二次
     assert result["created"] == 0, "二次调用不应创建新项"
-    assert result["skipped"] == 53, f"应跳过 53 项，实际 {result['skipped']}"
+    assert result["skipped"] == 54, f"应跳过 54 项，实际 {result['skipped']}"
+    assert result["role_grants"] == 0, "幂等：二次调用不再重复授权"
 
 
 # =====================================================================
@@ -217,9 +219,9 @@ def test_seed_10_simulate_has_sandbox_entry(menu_service: MenuConfigService):
     )
     assert sandbox is not None, "演本体应含'仿真沙盘'菜单项"
     assert sandbox["path"] == "/simulation", f"仿真沙盘 path 应为 /simulation，实际 {sandbox['path']}"
-    # 演本体应含 9 个子项（仿真沙盘 + 5 业务 + 策略编辑器 + 本体记忆 + 感知数据）
-    assert len(simulate_dir["children"]) == 9, (
-        f"演本体应有 9 子项，实际 {len(simulate_dir['children'])}"
+    # 演本体应含 10 个子项（仿真沙盘 + 5 业务 + 策略编辑器 + 本体记忆 + 感知数据 + 决策智能）
+    assert len(simulate_dir["children"]) == 10, (
+        f"演本体应有 10 子项，实际 {len(simulate_dir['children'])}"
     )
 
 
@@ -401,3 +403,40 @@ def test_seed_19_use_has_service_catalog(menu_service: MenuConfigService):
     assert sc["path"] == "/ontology/service-catalog", (
         f"服务化目录 path 应为 /ontology/service-catalog，实际 {sc['path']}"
     )
+
+
+# =====================================================================
+# T-SEED-20: 演本体含"决策智能"菜单（/decisions，ADR-076）
+# =====================================================================
+
+
+def test_seed_20_simulate_has_decision_intelligence(menu_service: MenuConfigService):
+    """T-SEED-20: 演本体含"决策智能"菜单（/decisions，ADR-076 Phase 1）。"""
+    menu_service.init_default_menu()
+    tree = menu_service.get_tree(active_only=False)
+    sim_dir = next(n for n in tree if n["name"] == "演本体")
+    dci = next(
+        (c for c in sim_dir["children"] if c["name"] == "决策智能"), None
+    )
+    assert dci is not None, "演本体应含'决策智能'菜单项（ADR-076）"
+    assert dci["path"] == "/decisions", (
+        f"决策智能 path 应为 /decisions，实际 {dci['path']}"
+    )
+
+
+# =====================================================================
+# T-SEED-21: init_default_menu 为全局角色写入默认菜单权限（与 JWT role 对齐）
+# =====================================================================
+
+
+def test_seed_21_default_role_menus_granted(menu_service: MenuConfigService):
+    """T-SEED-21: 非 admin 全局角色默认获得全部可见菜单，admin 不写 role_menus。"""
+    menu_service.init_default_menu()
+    # observer 默认拥有全部可见菜单（幂等，可重复调用）
+    observer_ids = menu_service._storage.get_role_menu_ids("observer")
+    assert len(observer_ids) > 0, "observer 应被授予默认菜单权限"
+    all_ids = [i["id"] for i in menu_service._storage.list_menu_items(active_only=True)]
+    assert set(observer_ids) == set(all_ids), "observer 默认权限应覆盖全部可见菜单"
+    # admin 无需 role_menus（tree 接口 is_admin 短路）
+    admin_ids = menu_service._storage.get_role_menu_ids("admin")
+    assert admin_ids == [], "admin 不写 role_menus（is_admin 短路）"

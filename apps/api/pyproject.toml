@@ -61,6 +61,12 @@ dependencies = [
     "faiss-cpu>=1.7.0",
     # 图谱核心 — 必需依赖（双时态知识图谱基础，不再是 optional）
     "graphiti-core>=0.28.0",
+    # 确定性推理引擎（ADR-075 spike 定案，0.17.4 为可运行版本）
+    "pyDatalog==0.17.4",
+    # SHACL/OWL 本体治理（ADR-077，按需延迟加载）
+    "pySHACL>=0.25",
+    "owlready2>=0.46",
+    "rdflib>=7.0",
 ]
 
 [project.optional-dependencies]

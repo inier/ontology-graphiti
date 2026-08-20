@@ -16,6 +16,7 @@ from .schemas import (
     CreateIsolationPolicyRequest, IsolationPolicyResponse, ResourceUsageResponse,
     ExportWorkspaceRequest, ImportWorkspaceRequest, ImportExportResponse, ImportExportStatusResponse, ImportExportListResponse,
     SuccessResponse, ErrorResponse,
+    BatchDeleteRequest, BatchDeleteResponse,
     WorkspaceType, WorkspaceStatus, IsolationLevel, ImportExportStatus,
     CreateScenarioRequest, UpdateScenarioRequest, ScenarioResponse, ScenarioListResponse,
     OntologyVersionResponse, SwitchVersionRequest,
@@ -191,6 +192,25 @@ async def update_workspace(workspace_id: str, request: UpdateWorkspaceRequest,
         raise
     except Exception as e:
         audit("workspace_update_failed", _uid, "failure", str(e), workspace_id=workspace_id)
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@router.post("/batch-delete", response_model=BatchDeleteResponse)
+async def batch_delete_workspaces(request: BatchDeleteRequest,
+    user=Depends(get_current_user)):
+    """批量删除工作空间"""
+    _uid = extract_user_id(user)
+    try:
+        result = workspace_service.delete_workspaces_batch(request.ids)
+        audit(
+            "workspace_batch_delete", _uid, "success",
+            details={"count": result["deleted_count"], "ids": request.ids},
+        )
+        return BatchDeleteResponse(**result)
+    except HTTPException:
+        raise
+    except Exception as e:
+        audit("workspace_batch_delete_failed", _uid, "failure", str(e))
         raise HTTPException(status_code=500, detail=str(e))
 
 
@@ -652,6 +672,40 @@ async def update_scenario(workspace_id: str, scenario_id: str, request: UpdateSc
         raise
     except Exception as e:
         audit("scenario_update_failed", _uid, "failure", str(e), workspace_id=workspace_id)
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@router.post("/{workspace_id}/scenarios/batch-delete", response_model=BatchDeleteResponse)
+async def batch_delete_scenarios(workspace_id: str, request: BatchDeleteRequest,
+    user=Depends(get_current_user)):
+    """批量删除场景（仅限指定工作空间下的场景）"""
+    _uid = extract_user_id(user)
+    try:
+        # 过滤：仅保留存在且属于该工作空间的场景
+        from odap.infra.storage.scenario_store import scenario_store
+        valid_ids: List[str] = []
+        for scenario_id in request.ids:
+            scenario = scenario_service.get_scenario(scenario_id)
+            if not scenario:
+                scenario = scenario_store.get_scenario(scenario_id)
+            if not scenario:
+                continue
+            scenario_ws = scenario.get("workspace_id", "")
+            if scenario_ws and scenario_ws != workspace_id and scenario_ws != "default":
+                continue
+            valid_ids.append(scenario_id)
+
+        result = scenario_service.delete_scenarios_batch(valid_ids)
+        audit(
+            "scenario_batch_delete", _uid, "success",
+            details={"count": result["deleted_count"], "ids": valid_ids},
+            workspace_id=workspace_id,
+        )
+        return BatchDeleteResponse(**result)
+    except HTTPException:
+        raise
+    except Exception as e:
+        audit("scenario_batch_delete_failed", _uid, "failure", str(e), workspace_id=workspace_id)
         raise HTTPException(status_code=500, detail=str(e))
 
 

@@ -14,6 +14,9 @@ class AgentConfig(BaseModel):
     name: str = ""
     role: AgentRole = AgentRole.INTELLIGENCE
     workspace_id: str = ""
+    # ADR-079 §7.2：智能体作为本体的"使用方"，通过 ontology_id 精确指定推理所用本体。
+    # 可空；空则回退 workspace.bound_ontology_ids 取默认（多本体场景下应显式指定）。
+    ontology_id: Optional[str] = None
     description: str = ""
     skills: List[str] = Field(default_factory=list)
     config: Dict[str, Any] = Field(default_factory=dict)

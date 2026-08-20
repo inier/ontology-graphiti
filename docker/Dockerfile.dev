@@ -25,8 +25,11 @@ COPY apps/api/pyproject.toml ./apps/api/
 COPY packages/openharness ./packages/openharness
 COPY packages/hyper-extract ./packages/hyper-extract
 
-# 开发模式装全依赖（含 dev）
-RUN uv sync --frozen --package odap
+# 开发模式装全依赖（含 dev 组：pytest-asyncio/pytest-mock/ruff/black 等）
+# 注意：--package odap 模式只装该包运行时依赖，不装 root [dependency-groups] dev，
+#       导致容器内缺 pytest-asyncio，pytest --collect-only 直接报错。
+#       改为不带 --package，让 uv sync 装全 workspace + root dev 组。
+RUN uv sync --frozen
 
 # graphiti-core 容错
 RUN pip install --no-cache-dir graphiti-core \

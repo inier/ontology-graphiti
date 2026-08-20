@@ -180,7 +180,38 @@ class WorkspaceService:
             "status": "success" if success else "error",
             "message": "Workspace deleted" if success else "Workspace not found"
         }
-    
+
+    def delete_workspaces_batch(self, workspace_ids: List[str]) -> Dict[str, Any]:
+        """批量删除工作空间
+
+        Args:
+            workspace_ids: 工作空间ID列表
+
+        Returns:
+            批量删除结果（含成功数量与未找到的ID）
+        """
+        deleted_ids: List[str] = []
+        not_found: List[str] = []
+        for workspace_id in workspace_ids:
+            success = self.manager.delete_workspace(workspace_id)
+            if success:
+                deleted_ids.append(workspace_id)
+                _ws_audit(
+                    action="workspace_delete",
+                    result_status="success",
+                    resource=workspace_id,
+                    details={"ws_id": workspace_id},
+                )
+            else:
+                not_found.append(workspace_id)
+        return {
+            "status": "success" if not not_found else "partial",
+            "message": f"Deleted {len(deleted_ids)} workspaces"
+                       + (f", {len(not_found)} not found" if not_found else ""),
+            "deleted_count": len(deleted_ids),
+            "not_found": not_found,
+        }
+
     def get_workspace_deletion_preview(self, workspace_id: str) -> Dict[str, Any]:
         """获取工作空间删除预览
         

@@ -45,8 +45,16 @@ class OntologyService:
         description: str = "",
         workspace_id: str = "",
         scenario_id: str = None,
+        domain_code: str = None,
     ) -> Dict[str, Any]:
-        """创建本体 + 初始 Schema 版本 v0.1.0"""
+        """创建本体 + 初始 Schema 版本 v0.1.0。
+
+        ADR-079 §7.2：本体是独立一等资源，仅挂 workspace 做隔离。
+        - scenario_id 为向后兼容的**可选标注**（非权威绑定）——场景通过
+          scenario_ontology_bindings 关联表单向引用本体，本体不反向持有场景。
+        - domain_code 为本体→领域的**权威关联**（引用 usl_domains.code），
+          替换原先依赖 name="USL__{code}" 命名约定反推的脆弱做法。
+        """
         try:
             if not name or not str(name).strip():
                 return {"status": "error", "message": "name is required and must be non-empty"}
@@ -60,6 +68,7 @@ class OntologyService:
                 "description": description,
                 "workspace_id": workspace_id,
                 "scenario_id": scenario_id,
+                "domain_code": domain_code,
                 "current_version": "v0.1.0",
                 "status": "draft",
                 "created_at": now,
@@ -87,6 +96,7 @@ class OntologyService:
                 "description": description,
                 "workspace_id": workspace_id,
                 "scenario_id": scenario_id,
+                "domain_code": domain_code,
                 "current_version": "v0.1.0",
                 "status": "draft",
                 "created_at": now,

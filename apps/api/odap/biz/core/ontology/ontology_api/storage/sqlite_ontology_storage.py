@@ -38,6 +38,18 @@ def _safe_json_loads(value: Any, default: Any) -> Any:
     except (TypeError, ValueError):
         return default
 
+
+def _ensure_column(conn, table: str, column: str, col_type: str) -> None:
+    """幂等迁移辅助：若表缺少指定列，则 ALTER TABLE ADD COLUMN。
+
+    用于为已存在的旧表补齐新增列（SQLite 的 CREATE TABLE IF NOT EXISTS
+    不会修改已存在表的结构，必须显式 ALTER）。
+    """
+    existing = {row[1] for row in conn.execute(f"PRAGMA table_info({table})")}
+    if column not in existing:
+        conn.execute(f"ALTER TABLE {table} ADD COLUMN {column} {col_type}")
+
+
 class SQLiteOntologyStorage(SqliteBaseStorage):
     """Ontology API 模块的 SQLite 持久化"""
 
@@ -84,6 +96,7 @@ class SQLiteOntologyStorage(SqliteBaseStorage):
             self._create_database_connections_table(conn)
             self._create_extraction_sessions_table(conn)
             self._create_indexes(conn)
+            self._migrate(conn)
             conn.commit()
         finally:
             conn.close()
@@ -97,12 +110,22 @@ class SQLiteOntologyStorage(SqliteBaseStorage):
                 description TEXT DEFAULT '',
                 workspace_id TEXT NOT NULL,
                 scenario_id TEXT,
+                domain_code TEXT,
                 current_version TEXT DEFAULT 'v0.1.0',
                 status TEXT DEFAULT 'DRAFT',
                 created_at TEXT NOT NULL,
                 updated_at TEXT NOT NULL
             )
         """)
+
+    @staticmethod
+    def _migrate(conn) -> None:
+        """轻量迁移：为已存在的旧表补齐缺失列（幂等）。
+
+        当前迁移：ontologies 表新增 domain_code 列（ADR-079 §7，
+        本体→领域权威关联，替换 USL__ 命名约定反推）。
+        """
+        _ensure_column(conn, "ontologies", "domain_code", "TEXT")
 
     @staticmethod
     def _create_schema_versions_table(conn) -> None:
@@ -457,9 +480,9 @@ class SQLiteOntologyStorage(SqliteBaseStorage):
             conn.execute(
                 """
                 INSERT OR REPLACE INTO ontologies
-                (ontology_id, name, description, workspace_id, scenario_id,
+                (ontology_id, name, description, workspace_id, scenario_id, domain_code,
                  current_version, status, created_at, updated_at)
-                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
                 """,
                 (
                     ontology_id,
@@ -467,6 +490,7 @@ class SQLiteOntologyStorage(SqliteBaseStorage):
                     ontology.get("description", ""),
                     ontology.get("workspace_id", ""),
                     ontology.get("scenario_id"),
+                    ontology.get("domain_code"),
                     ontology.get("current_version", "v0.1.0"),
                     ontology.get("status", "DRAFT"),
                     ontology.get("created_at", now),

@@ -718,7 +718,7 @@ async def toggle_skill(
         _validate_safe_name(skill_name, "skill_name")
         result = skill_service.get_skill_by_name(skill_name)
         if result.get("status") == "error":
-            return {"status": "success", "message": f"Skill '{skill_name}' not registered, treating as enabled", "enabled": True}
+            return {"status": "error", "message": f"Skill '{skill_name}' 未注册，无法{'启用' if enabled else '禁用'}"}
 
         skill_id = result.get("skill_id")
         if not skill_id:

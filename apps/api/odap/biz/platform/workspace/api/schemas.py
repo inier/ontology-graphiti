@@ -180,6 +180,19 @@ class ErrorResponse(BaseModel):
     message: str
 
 
+class BatchDeleteRequest(BaseModel):
+    """批量删除请求"""
+    ids: List[str]
+
+
+class BatchDeleteResponse(BaseModel):
+    """批量删除响应"""
+    status: str = "success"
+    message: str
+    deleted_count: int = 0
+    not_found: List[str] = Field(default_factory=list)
+
+
 # 场景相关
 class CreateScenarioRequest(BaseModel):
     """创建场景请求"""

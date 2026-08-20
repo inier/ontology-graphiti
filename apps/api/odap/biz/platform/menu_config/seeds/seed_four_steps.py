@@ -205,12 +205,13 @@ def _see_menus() -> List[Dict[str, Any]]:
 
 
 def _simulate_menus() -> List[Dict[str, Any]]:
-    """演本体：仿真沙盘（统一入口）/业务*/策略编辑器/本体记忆/感知数据。
+    """演本体：仿真沙盘（统一入口）/业务*/策略编辑器/本体记忆/感知数据/决策智能。
 
     Iter 2 (D4): 移除独立的"策略推演"和"模拟器"菜单项，
     合并到"仿真沙盘"/simulation 统一入口（内部 Tab 切换）。
     旧路由 /simulator + /simulation/deduction 通过 redirect 兼容。
     Iter 4: 新增"本体记忆"和"感知数据"菜单项（P3 缺失页面补齐）。
+    Iter 5: 新增"决策智能"菜单项（ADR-076 决策记录/先例/影响分析，/decisions）。
     """
     parent = "dir:simulate"
     items = [
@@ -232,6 +233,8 @@ def _simulate_menus() -> List[Dict[str, Any]]:
               "BrainOutlined", 8, parent),
         _menu("menu:simulate:perception", "感知数据", "/simulation/perception",
               "EyeOutlined", 9, parent),
+        _menu("menu:simulate:decision", "决策智能", "/decisions",
+              "FundOutlined", 10, parent),
     ]
     return items
 

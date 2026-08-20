@@ -41,6 +41,7 @@ services:
     volumes:
       - ../apps/api/odap:/app/apps/api/odap
       - ../apps/api/main.py:/app/apps/api/main.py
+      - ../apps/api/tests:/app/apps/api/tests
       - ../packages/openharness:/app/packages/openharness
       - ../packages/hyper-extract:/app/packages/hyper-extract
       - ../apps/api/data:/app/data
@@ -70,6 +71,7 @@ services:
       - ../apps/web/public:/app/apps/web/public
       - ../apps/web/index.html:/app/apps/web/index.html
       - ../apps/web/vite.config.ts:/app/apps/web/vite.config.ts
+      - ../apps/web/vitest.config.ts:/app/apps/web/vitest.config.ts
       - ../apps/web/tsconfig.json:/app/apps/web/tsconfig.json
       - ../apps/web/tsconfig.app.json:/app/apps/web/tsconfig.app.json
       - ../apps/web/tsconfig.node.json:/app/apps/web/tsconfig.node.json
@@ -82,7 +84,7 @@ services:
     networks:
       - graphiti-network
     restart: unless-stopped
-    command: ["sh", "-c", "cd /app/apps/web && /app/node_modules/.bin/vite --host 0.0.0.0"]
+    command: ["pnpm", "dev", "--host", "0.0.0.0"]
 
   graphiti-neo4j:
     image: localhost/neo4j:latest

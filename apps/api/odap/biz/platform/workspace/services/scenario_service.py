@@ -79,6 +79,32 @@ class ScenarioService:
         
         self.storage.delete_scenario(scenario_id)
         return True
+
+    def delete_scenarios_batch(self, scenario_ids: List[str]) -> Dict[str, Any]:
+        """批量删除场景
+
+        Args:
+            scenario_ids: 场景ID列表
+
+        Returns:
+            批量删除结果（含成功数量与未找到的ID）
+        """
+        deleted_ids: List[str] = []
+        not_found: List[str] = []
+        for scenario_id in scenario_ids:
+            scenario = self.storage.get_scenario(scenario_id)
+            if not scenario:
+                not_found.append(scenario_id)
+                continue
+            self.storage.delete_scenario(scenario_id)
+            deleted_ids.append(scenario_id)
+        return {
+            "status": "success" if not not_found else "partial",
+            "message": f"Deleted {len(deleted_ids)} scenarios"
+                       + (f", {len(not_found)} not found" if not_found else ""),
+            "deleted_count": len(deleted_ids),
+            "not_found": not_found,
+        }
     
     def bind_ontology(self, scenario_id: str, ontology_id: str, bound_by: str = 'system') -> Dict[str, Any]:
         """绑定本体（追加式）"""

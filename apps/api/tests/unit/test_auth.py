@@ -113,9 +113,9 @@ class TestAuthService:
         assert result is None
 
     def test_login_inactive_user(self, auth_service):
-        user = auth_service.register_user("inactive_user", "pass123")
+        user = auth_service.register_user("inactive_user", "pass1234")
         auth_service.update_user(user.id, is_active=False)
-        result = auth_service.login("inactive_user", "pass123", ip_address="10.0.0.4")
+        result = auth_service.login("inactive_user", "pass1234", ip_address="10.0.0.4")
         assert result is None
 
     def test_login_rate_limiter_blocks_after_max_failures(self, auth_service):
@@ -222,9 +222,9 @@ class TestAuthService:
         assert user.global_role == GlobalRole.ANALYST
 
     def test_register_duplicate_user(self, auth_service):
-        user1 = auth_service.register_user("dup_user", "pass1")
+        user1 = auth_service.register_user("dup_user", "pass1234")
         assert user1 is not None
-        user2 = auth_service.register_user("dup_user", "pass2")
+        user2 = auth_service.register_user("dup_user", "pass5678")
         assert user2 is None
 
     def test_list_users(self, auth_service):
@@ -236,24 +236,24 @@ class TestAuthService:
         assert admin["global_role"] == "admin"
 
     def test_update_user_email(self, auth_service):
-        user = auth_service.register_user("updatable", "pass123")
+        user = auth_service.register_user("updatable", "pass1234")
         result = auth_service.update_user(user.id, email="updated@test.com")
         assert result is not None
         assert result["email"] == "updated@test.com"
 
     def test_update_user_password(self, auth_service):
-        user = auth_service.register_user("pwd_user", "old_pass")
-        auth_service.update_user(user.id, password="new_pass")
+        user = auth_service.register_user("pwd_user", "old_pass1")
+        auth_service.update_user(user.id, password="new_pass1")
         # Login with new password
-        result = auth_service.login("pwd_user", "new_pass", ip_address="10.0.0.20")
+        result = auth_service.login("pwd_user", "new_pass1", ip_address="10.0.0.20")
         assert result is not None
         # Old password should fail
-        result = auth_service.login("pwd_user", "old_pass", ip_address="10.0.0.21")
+        result = auth_service.login("pwd_user", "old_pass1", ip_address="10.0.0.21")
         assert result is None
 
     def test_update_user_role(self, auth_service):
         from odap.infra.security.auth_models import GlobalRole
-        user = auth_service.register_user("role_user", "pass123")
+        user = auth_service.register_user("role_user", "pass1234")
         result = auth_service.update_user(user.id, global_role=GlobalRole.COMMANDER.value)
         assert result is not None
         assert result["global_role"] == "commander"
@@ -263,7 +263,7 @@ class TestAuthService:
         assert result is None
 
     def test_delete_user(self, auth_service):
-        user = auth_service.register_user("deletable", "pass123")
+        user = auth_service.register_user("deletable", "pass1234")
         result = auth_service.delete_user(user.id)
         assert result is True
         # Verify user is gone
@@ -286,14 +286,14 @@ class TestAuthService:
     # --- API Key ---
 
     def test_create_api_key(self, auth_service):
-        user = auth_service.register_user("apikey_user", "pass123")
+        user = auth_service.register_user("apikey_user", "pass1234")
         result = auth_service.create_api_key(user.id, "test-key")
         assert result is not None
         assert result.name == "test-key"
         assert result.user_id == user.id
 
     def test_verify_api_key(self, auth_service):
-        user = auth_service.register_user("apikey_verify", "pass123")
+        user = auth_service.register_user("apikey_verify", "pass1234")
         # Create key and get raw key from internal storage
         raw_key = f"odap_testverifykey1234567890ab"
         key_hash = hashlib.sha256(raw_key.encode()).hexdigest()
@@ -316,7 +316,7 @@ class TestAuthService:
         assert result is None
 
     def test_revoke_api_key(self, auth_service):
-        user = auth_service.register_user("apikey_revoke", "pass123")
+        user = auth_service.register_user("apikey_revoke", "pass1234")
         raw_key = f"odap_revokekey1234567890abcde"
         key_hash = hashlib.sha256(raw_key.encode()).hexdigest()
         from odap.infra.security.auth_models import APIKeyRecord
@@ -338,7 +338,7 @@ class TestAuthService:
         assert result is False
 
     def test_verify_expired_api_key(self, auth_service):
-        user = auth_service.register_user("apikey_expired", "pass123")
+        user = auth_service.register_user("apikey_expired", "pass1234")
         raw_key = f"odap_expiredkey1234567890abcd"
         key_hash = hashlib.sha256(raw_key.encode()).hexdigest()
         from odap.infra.security.auth_models import APIKeyRecord
@@ -735,7 +735,7 @@ class TestAuthRoutes:
             "/api/auth/users",
             json={
                 "username": "new_route_user",
-                "password": "pass123",
+                "password": "pass1234",
                 "email": "route@test.com",
                 "global_role": "analyst",
             },
@@ -756,13 +756,13 @@ class TestAuthRoutes:
         # Create first
         test_client.post(
             "/api/auth/users",
-            json={"username": "dup_route_user", "password": "pass123"},
+            json={"username": "dup_route_user", "password": "pass1234"},
             headers={"Authorization": f"Bearer {access_token}"},
         )
         # Create duplicate
         response = test_client.post(
             "/api/auth/users",
-            json={"username": "dup_route_user", "password": "pass456"},
+            json={"username": "dup_route_user", "password": "pass4567"},
             headers={"Authorization": f"Bearer {access_token}"},
         )
         assert response.status_code == 409
@@ -780,7 +780,7 @@ class TestAuthRoutes:
 
         response = test_client.post(
             "/api/auth/users",
-            json={"username": "fallback_role_user", "password": "pass123", "global_role": "superadmin"},
+            json={"username": "fallback_role_user", "password": "pass1234", "global_role": "superadmin"},
             headers={"Authorization": f"Bearer {access_token}"},
         )
         # GlobalRole._missing_ 回退为 observer，不会报错
@@ -797,7 +797,7 @@ class TestAuthRoutes:
         # Create a user first
         create_resp = test_client.post(
             "/api/auth/users",
-            json={"username": "updatable_route", "password": "pass123"},
+            json={"username": "updatable_route", "password": "pass1234"},
             headers={"Authorization": f"Bearer {access_token}"},
         )
         user_id = create_resp.json()["id"]
@@ -834,7 +834,7 @@ class TestAuthRoutes:
         # Create a user to delete
         create_resp = test_client.post(
             "/api/auth/users",
-            json={"username": "deletable_route", "password": "pass123"},
+            json={"username": "deletable_route", "password": "pass1234"},
             headers={"Authorization": f"Bearer {access_token}"},
         )
         user_id = create_resp.json()["id"]

@@ -693,10 +693,10 @@ class RoleViewManager:
     def _setup_default_views(self):
         """设置默认视图"""
         commander_view = RoleView(
-            view_id="director-default",
+            view_id="commander-default",
             role_type=RoleType.COMMANDER,
-            name="负责人视图",
-            description="面向负责人的全局态势视图",
+            name="指挥官视图",
+            description="面向指挥官的全局态势视图",
             capabilities=[
                 "situation_awareness",
                 "decision_support",

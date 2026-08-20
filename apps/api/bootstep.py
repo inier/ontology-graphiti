@@ -15,6 +15,7 @@ Bootstep - Graphiti 一键启动/停止脚本 (Python CLI)
     python bootstep.py logs fe     查看前端日志
     python bootstep.py pull        拉取基础镜像
     python bootstep.py clean       清理重复/dangling 镜像和未使用资源
+    python bootstep.py doctor      自检（依赖版本/服务连通性/环境变量，零新依赖）
 
 环境隔离:
   dev 使用独立的 docker-compose.dev.yml（项目名 graphiti-dev），生产用 docker-compose.yml（项目名 graphiti）。
@@ -566,6 +567,146 @@ def cmd_pull():
     pull_images()
 
 
+# ── doctor 自检（ADR-064 增补）──
+
+def cmd_doctor():
+    """逐项自检：Python/依赖版本、服务连通性、必填环境变量。
+
+    零新依赖（复用 urllib/socket + 现有环境变量），
+    不泄露密钥/连接串明文（敏感值仅显示掩码）。
+    """
+    title("ODAP Doctor 自检")
+
+    results = []
+
+    def check(name, ok_flag, detail=""):
+        results.append((name, ok_flag, detail))
+        mark = "PASS" if ok_flag else "FAIL"
+        suffix = f" - {detail}" if detail else ""
+        print(f"  [{mark}] {name}{suffix}")
+
+    # 1. Python 版本
+    import platform
+    py_ver = platform.python_version()
+    check("Python 版本", True, f"{py_ver} ({platform.python_implementation()})")
+
+    # 2. 关键依赖版本（零新依赖：直接 import 探测）
+    _check_deps(check)
+
+    # 3. 必填环境变量（敏感值掩码）
+    _check_env_vars(check)
+
+    # 4. 服务连通性（Neo4j/Redis/OPA/MinIO）
+    _check_services(check)
+
+    # 汇总
+    title("自检汇总")
+    total = len(results)
+    passed = sum(1 for _, ok, _ in results if ok)
+    failed = total - passed
+    print(f"  共 {total} 项，PASS {passed}，FAIL {failed}")
+    if failed:
+        print("  存在失败项，请根据上述 FAIL 项排查。")
+        sys.exit(1)
+    print("  全部通过。")
+
+
+def _check_deps(check):
+    """检查关键 Python 依赖是否可导入"""
+    deps = [
+        ("fastapi", "FastAPI 后端框架"),
+        ("pydantic", "Pydantic 数据校验"),
+        ("neo4j", "Neo4j 驱动"),
+        ("redis", "Redis 客户端"),
+        ("graphiti_core", "Graphiti 双时态知识图谱"),
+    ]
+    for mod, desc in deps:
+        try:
+            __import__(mod)
+            check(f"依赖 {desc} ({mod})", True)
+        except ImportError:
+            check(f"依赖 {desc} ({mod})", False, "未安装（在容器内运行时需 rebuild main）")
+
+
+def _check_env_vars(check):
+    """检查必填环境变量是否存在（不泄露明文）"""
+    required = [
+        "OPENAI_API_KEY", "OPENAI_API_BASE", "OPENAI_MODEL",
+        "NEO4J_URI", "NEO4J_USER", "NEO4J_PASSWORD",
+        "JWT_SECRET",
+    ]
+    optional = ["TAVILY_API_KEY", "OPA_URL", "REDIS_URL",
+                "MINIO_ENDPOINT", "MINIO_ACCESS_KEY", "MINIO_SECRET_KEY"]
+
+    for var in required:
+        val = os.environ.get(var)
+        if val and val.strip() and "placeholder" not in val.lower() and "xxx" not in val.lower():
+            check(f"环境变量 {var}", True, _mask_value(val))
+        else:
+            check(f"环境变量 {var}", False, "缺失或为占位符")
+
+    # JWT_SECRET 长度校验
+    jwt = os.environ.get("JWT_SECRET", "")
+    if jwt and len(jwt) < 32:
+        check("环境变量 JWT_SECRET 长度", False, f"仅 {len(jwt)} 字符（需 ≥32）")
+
+    for var in optional:
+        val = os.environ.get(var)
+        if val:
+            check(f"环境变量 {var} (可选)", True, _mask_value(val))
+
+
+def _mask_value(val: str) -> str:
+    """掩码敏感值：仅显示前 4 + 后 4 字符"""
+    if len(val) <= 8:
+        return "***"
+    return f"{val[:4]}...{val[-4:]}"
+
+
+def _check_services(check):
+    """检查 Neo4j/Redis/OPA/MinIO 连通性（宿主机端口）"""
+    import urllib.request
+    import urllib.error
+    import socket
+
+    # 端点（宿主机侧默认端口）
+    endpoints = [
+        ("Neo4j HTTP", "http://localhost:7474"),
+        ("OPA", "http://localhost:8181/v1/data"),
+        ("MinIO 健康", "http://localhost:9000/minio/health/live"),
+    ]
+
+    for name, url in endpoints:
+        try:
+            req = urllib.request.Request(url, method="GET")
+            with urllib.request.urlopen(req, timeout=3) as resp:
+                check(f"连通性 {name}", resp.status < 500, f"{url} → {resp.status}")
+        except urllib.error.URLError as e:
+            check(f"连通性 {name}", False, f"{url} 不可达（{e.reason}）")
+        except Exception as e:
+            check(f"连通性 {name}", False, f"{url} 异常（{e}）")
+
+    # Redis TCP 连通
+    try:
+        s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+        s.settimeout(2)
+        s.connect(("localhost", 6379))
+        s.close()
+        check("连通性 Redis", True, "localhost:6379 TCP 可达")
+    except Exception as e:
+        check("连通性 Redis", False, f"localhost:6379 不可达（{e}）")
+
+    # Neo4j Bolt TCP 连通
+    try:
+        s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+        s.settimeout(2)
+        s.connect(("localhost", 7687))
+        s.close()
+        check("连通性 Neo4j Bolt", True, "localhost:7687 TCP 可达")
+    except Exception as e:
+        check("连通性 Neo4j Bolt", False, f"localhost:7687 不可达（{e}）")
+
+
 def cmd_clean():
     title("清理 Podman 镜像和资源")
 
@@ -629,6 +770,7 @@ Bootstep - Graphiti 一键启动/停止脚本
   logs        查看日志（可用: fe/fedev/neo4j/redis/opa/app）
   pull        拉取基础镜像
   clean       清理重复/dangling 镜像和未使用资源
+  doctor      自检（依赖版本/服务连通性/环境变量，零新依赖）
 
 环境隔离说明:
   dev 和 up 使用独立的 compose 文件，互不干扰。
@@ -644,6 +786,7 @@ Bootstep - Graphiti 一键启动/停止脚本
   python bootstep.py rebuild frontend  # 重建前端镜像（不启动）
   python bootstep.py rebuild main      # 重建后端镜像（不启动）
   python bootstep.py rebuild           # 重建全部镜像（不启动）
+  python bootstep.py doctor            # 自检（依赖/连通性/环境变量）
   # rebuild 完成后，执行 dev 或 up 启动服务
 
 开发模式 vs 生产模式:
@@ -671,6 +814,7 @@ def main():
         "logs": lambda: cmd_logs(extra),
         "pull": lambda: cmd_pull(),
         "clean": lambda: cmd_clean(),
+        "doctor": lambda: cmd_doctor(),
     }
 
     if action in commands:

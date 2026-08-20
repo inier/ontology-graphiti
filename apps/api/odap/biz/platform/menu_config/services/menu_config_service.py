@@ -9,6 +9,23 @@ from ..storage import Storage
 
 logger = logging.getLogger(__name__)
 
+# ── 内置全局角色（与 JWT payload["role"] / GlobalRole 枚举对齐） ──
+# menu_config 的角色权限以 global_role 字符串为 role_id（与侧边栏 tree 接口
+# _user_role_ids() 的提取键一致），而非 roles 模块的自定义角色 id（r_xxx）。
+GLOBAL_ROLES: List[Dict[str, str]] = [
+    {"id": "admin", "name": "系统管理员", "description": "全部菜单权限（无需分配）"},
+    {"id": "system_admin", "name": "系统管理员(内部)", "description": "系统级管理员"},
+    {"id": "project_owner", "name": "项目负责人", "description": "项目级管理者"},
+    {"id": "team_leader", "name": "团队负责人", "description": "团队级管理者"},
+    {"id": "analyst", "name": "分析师", "description": "数据分析与决策推演"},
+    {"id": "operator", "name": "操作员", "description": "日常业务操作"},
+    {"id": "commander", "name": "指挥官", "description": "决策指挥"},
+    {"id": "observer", "name": "观察者", "description": "只读查看"},
+    {"id": "member", "name": "成员", "description": "常规成员"},
+    {"id": "guest", "name": "访客", "description": "受限访问"},
+    {"id": "schema_auditor", "name": "语义审计员", "description": "本体/语义配置审计"},
+]
+
 # ── 审计工具（懒加载 + 容错） ──
 def _menu_audit(action: str, *, result_status: str = "success",
                 result_message: str = "", resource: str = None,
@@ -174,7 +191,32 @@ class MenuConfigService:
             items = self._storage.list_menu_items(active_only=True)
         else:
             items = self._storage.get_menus_for_roles(role_ids, active_only=True)
+            items = self._ensure_parent_directories(items)
         return self._build_tree(items)
+
+    def _ensure_parent_directories(
+        self, items: List[Dict[str, Any]],
+    ) -> List[Dict[str, Any]]:
+        """补全菜单项缺失的父目录节点，确保树形结构完整。
+
+        当角色被授予某个子菜单但未显式被授予其父目录时，
+        仍需要把父目录（以及递归祖先目录）补回来，否则 _build_tree
+        会把子菜单错误地提升为顶级菜单。
+        """
+        ids = {i["id"] for i in items}
+        missing_ids = set()
+        for item in items:
+            pid = item.get("parent_id")
+            if pid and pid not in ids:
+                missing_ids.add(pid)
+        if not missing_ids:
+            return items
+        parents = self._storage.list_menu_items_by_ids(
+            list(missing_ids), active_only=True
+        )
+        # 过滤掉非 directory 的父节点（防御：防止越级授权）
+        parents = [p for p in parents if p.get("menu_type") == "directory"]
+        return items + self._ensure_parent_directories(parents)
 
     def _build_tree(self, items: List[Dict[str, Any]]) -> List[Dict[str, Any]]:
         """扁平列表 → 树形结构"""
@@ -210,6 +252,17 @@ class MenuConfigService:
         role_ids = self._storage.get_menu_role_ids(menu_item_id)
         return {"menu_item_id": menu_item_id, "role_ids": role_ids}
 
+    # ── 内置全局角色（与 JWT role 对齐的菜单权限维度） ──
+
+    def list_global_roles(self) -> Dict[str, Any]:
+        """返回内置全局角色列表（供 /menu-config 页面角色下拉使用）。
+
+        与侧边栏 tree 接口 _user_role_ids() 提取的 role 值一一对应，
+        解决"配置页角色(roles 表 r_xxx) ≠ JWT role(global_role)"导致的
+        菜单权限配置不生效问题。
+        """
+        return {"roles": GLOBAL_ROLES, "total": len(GLOBAL_ROLES)}
+
     # ── 工具方法 ──
 
     def _auto_code(self, data: Dict[str, Any]) -> str:
@@ -225,10 +278,11 @@ class MenuConfigService:
     def init_default_menu(self) -> Dict[str, Any]:
         """幂等初始化四步法默认菜单树。
 
-        - 首次调用：写入 46 个菜单项（6 目录 + 40 菜单/子目录）
-          （Iter 2 后：演本体从 9 项减为 7 项，合并策略推演/模拟器到仿真沙盘）
+        - 首次调用：写入 54 个菜单项（6 目录 + 48 菜单/子目录）
+          （Iter 5 后：演本体含决策智能 /decisions，ADR-076）
         - 后续调用：跳过已存在的 code，仅写入新增项
         - 不覆盖用户自定义菜单（通过 code 唯一性判断）
+        - 同步为内置全局角色（除 admin）写入默认 role_menus（幂等，仅当角色无任何分配）
 
         Returns:
             {"status": "success", "created": N, "skipped": M, "total": T}
@@ -247,16 +301,47 @@ class MenuConfigService:
             item["updated_at"] = item["created_at"]
             self._storage.save_menu_item(item)
             created += 1
+        role_grants = self._ensure_default_role_menus()
         _menu_audit(
             action="menu_init_default",
             result_status="success",
             resource="default_menu",
             details={"created": created, "skipped": skipped,
-                     "total_seed": len(seed_items)},
+                     "total_seed": len(seed_items), "role_grants": role_grants},
         )
         return {
             "status": "success",
             "created": created,
             "skipped": skipped,
             "total": len(seed_items),
+            "role_grants": role_grants,
         }
+
+    def _ensure_default_role_menus(self) -> int:
+        """为内置全局角色写入默认菜单权限（幂等：仅当角色尚无任何分配时）。
+
+        设计说明：menu_config 的角色权限与 JWT role（global_role 字符串）对齐，
+        配置页必须用本服务的全局角色 id 保存 role_menus，侧边栏 tree 接口才能
+        命中。非 admin 角色默认放权（全部可见菜单），管理员可在 /menu-config
+        页面收紧。返回实际写入的角色数。
+        """
+        granted = 0
+        try:
+            all_ids = [i["id"] for i in
+                       self._storage.list_menu_items(active_only=True)]
+        except Exception:  # 存储不可用时不阻断种子初始化
+            logger.warning("_ensure_default_role_menus: 读取菜单列表失败", exc_info=True)
+            return 0
+        for role in GLOBAL_ROLES:
+            role_id = role["id"]
+            if role_id == "admin":
+                continue  # admin 由 is_admin 短路，无需 role_menus
+            try:
+                if self._storage.get_role_menu_ids(role_id):
+                    continue  # 已有显式配置，不覆盖
+                self._storage.set_role_menus(role_id, all_ids)
+                granted += 1
+            except Exception:
+                logger.warning("_ensure_default_role_menus: 角色 %s 写入失败", role_id,
+                               exc_info=True)
+        return granted

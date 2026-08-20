@@ -15,6 +15,7 @@ import uuid
 import time
 
 from odap.infra.observability.instruments import agent_span
+from odap.infra.config_composer import get_config
 import logging
 from datetime import datetime, timezone
 from typing import Dict, Any, List, Optional, AsyncGenerator, Callable
