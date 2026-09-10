@@ -6,6 +6,8 @@
   T-DC-3: create_ontology 接受 domain_code 参数并返回
   T-DC-4: resolve_ontology 创建本体时写入 domain_code
   T-DC-5: resolve_ontology 二次调用按 domain_code 精确命中（不重复创建）
+  T-DC-6: 迁移——遗留行（domain_code 为空）按 USL__ 前缀一次性回填，
+          且不误匹配 USLxy 等形近名称、不覆盖已有值、可重复执行
 """
 
 from __future__ import annotations
@@ -85,6 +87,82 @@ class TestDomainCodeStorage:
         ont = {"name": "plain-ontology", "workspace_id": "ws-001"}
         saved = storage.save_ontology(ont)
         assert saved["domain_code"] is None
+
+
+class TestDomainCodeBackfill:
+    """T-DC-6: 遗留行 domain_code 回填——USL__ 命名约定只在迁移中解释一次。"""
+
+    LEGACY_ROWS = [
+        ("ont-1", "USL__sanguo", None),        # 遗留 USL 行 → 回填 sanguo
+        ("ont-2", "USL__xiyou", ""),           # 空串同样视为缺失 → 回填 xiyou
+        ("ont-3", "plain-ontology", None),     # 非 USL → 保持 NULL
+        ("ont-4", "USLxy_sanguo", None),       # 形近名称 → 不得误匹配
+        ("ont-5", "USL__", None),              # 前缀后为空 → 不得回填成空串
+        ("ont-6", "USL__manual", "manual2"),   # 已有权威值 → 不得覆盖
+    ]
+
+    def _migrate_and_read(self, tmp_path):
+        """建遗留库 → 触发 _migrate → 回读 ontology_id→domain_code 映射。"""
+        from odap.biz.core.ontology.ontology_api.storage.sqlite_ontology_storage import (
+            SQLiteOntologyStorage,
+        )
+        db_path = str(tmp_path / "legacy_backfill.db")
+        conn = sqlite3.connect(db_path)
+        conn.execute("""
+            CREATE TABLE ontologies (
+                ontology_id TEXT PRIMARY KEY,
+                name TEXT NOT NULL,
+                description TEXT DEFAULT '',
+                workspace_id TEXT NOT NULL,
+                scenario_id TEXT,
+                domain_code TEXT,
+                current_version TEXT DEFAULT 'v0.1.0',
+                status TEXT DEFAULT 'DRAFT',
+                created_at TEXT NOT NULL,
+                updated_at TEXT NOT NULL
+            )
+        """)
+        conn.executemany(
+            "INSERT INTO ontologies (ontology_id, name, workspace_id, domain_code,"
+            " created_at, updated_at) VALUES (?, ?, 'ws-001', ?, '2026-01-01', '2026-01-01')",
+            self.LEGACY_ROWS,
+        )
+        conn.commit()
+        conn.close()
+
+        SQLiteOntologyStorage(db_path=db_path)
+
+        conn = sqlite3.connect(db_path)
+        rows = dict(conn.execute("SELECT ontology_id, domain_code FROM ontologies"))
+        conn.close()
+        return db_path, rows
+
+    def test_backfills_legacy_usl_rows(self, tmp_path):
+        _, got = self._migrate_and_read(tmp_path)
+        assert got["ont-1"] == "sanguo"
+        assert got["ont-2"] == "xiyou"
+
+    def test_ignores_non_usl_and_lookalike_names(self, tmp_path):
+        """USLxy_sanguo 是 LIKE 'USL__%' 的误匹配陷阱（'_' 为单字符通配符）"""
+        _, got = self._migrate_and_read(tmp_path)
+        assert got["ont-3"] is None
+        assert got["ont-4"] is None
+        assert got["ont-5"] is None
+
+    def test_does_not_overwrite_authoritative_value(self, tmp_path):
+        _, got = self._migrate_and_read(tmp_path)
+        assert got["ont-6"] == "manual2"
+
+    def test_migration_is_idempotent(self, tmp_path):
+        from odap.biz.core.ontology.ontology_api.storage.sqlite_ontology_storage import (
+            SQLiteOntologyStorage,
+        )
+        db_path, first = self._migrate_and_read(tmp_path)
+        SQLiteOntologyStorage(db_path=db_path)
+        conn = sqlite3.connect(db_path)
+        second = dict(conn.execute("SELECT ontology_id, domain_code FROM ontologies"))
+        conn.close()
+        assert second == first
 
 
 class TestOntologyService:

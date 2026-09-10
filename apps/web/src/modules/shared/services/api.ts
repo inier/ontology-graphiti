@@ -982,8 +982,7 @@ export const api = {
     session_id: string;
     answer: string;
     sources: Array<{ source: string; excerpt: string; confidence: number }>;
-    intent: { type: string; confidence: number };
-    sources_used: string[];
+    intent: { type: string; confidence: number | null };
   }> {
     return fetchJson(`${API_BASE}/api/qa/ask`, {
       method: 'POST',

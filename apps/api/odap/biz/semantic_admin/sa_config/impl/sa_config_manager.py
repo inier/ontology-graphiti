@@ -22,21 +22,23 @@ _SEMANTIC_KEY = "semantic_layer"
 
 
 def _load_legacy_const(domain_code: str) -> Optional[Dict[str, Any]]:
-    """仅当首次启动还未落库时从旧硬编码文件加载；旧文件不存在则返回 None。"""
-    if domain_code not in _BUILTIN_SEMANTIC_SCOPES:
-        return None
-    try:
-        from odap.biz.core.ontology.semantic_layer import semantic_config  # type: ignore
-    except Exception:
-        return None
-    key = {
-        "sanguo": "SANGUO_SEMANTIC",
-        "xiyou": "XIYOU_SEMANTIC",
-        "shared": "SHARED_SEMANTIC",
-    }[domain_code]
-    value = getattr(semantic_config, key, None)
-    if isinstance(value, dict):
-        return value
+    """Legacy 硬编码常量加载路径 —— **已死**，永远返回 None。
+
+    历史：此函数曾在首次启动、DB 尚未落库时，从旧硬编码模块
+    `odap.biz.core.ontology.semantic_layer.semantic_config` 加载
+    SANGUO_SEMANTIC / XIYOU_SEMANTIC / SHARED_SEMANTIC 三个 dict。
+
+    现状：`semantic_layer` 模块在 flat→3+1 架构迁移中已被物理移除，
+    全仓 grep 亦无 `semantic_config` 符号。原实现用 `try/except Exception:
+    return None` 静默降级，直接违反 AGENTS.md 规则 14（禁止未经确认的兜底）。
+
+    Stage E 修复：删除静默 try/except，改为显式 return None，并把死因写入
+    docstring。函数签名与调用点（第 103/129 行 `legacy = _load_legacy_const(...)`
+    → `if legacy: ...`）保持兼容，行为完全等价，但不再是"隐藏的兜底"。
+
+    烧账方向：调用点在 DB 落库路径已稳定的今天，可以直接删除本函数与两处调用；
+    此次修复保守起见仅去掉静默降级，物理删除留待后续独立 PR。
+    """
     return None
 
 

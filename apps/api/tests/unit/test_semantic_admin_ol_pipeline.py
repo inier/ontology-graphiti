@@ -27,6 +27,7 @@ from pathlib import Path
 from typing import Any, Dict, List
 
 import pytest
+from unittest.mock import patch
 
 from odap.biz.semantic_admin.candidate_store.services import CandidateService
 from odap.biz.semantic_admin.candidate_store.storage import SQLiteCandidateStorage
@@ -151,6 +152,52 @@ class TestQualityGrade:
 # =====================================================================
 # 3. End-to-End Pipeline 运行
 # =====================================================================
+
+
+@pytest.fixture(autouse=True)
+def _mock_llm_l1(request):
+    """L1 默认是 LlmTermExtractor（依赖真实 LLM）。e2e 测试用 mock L1
+    产出固定 entities，专注验证 L2-L5 编排逻辑，不依赖外部 LLM。
+
+    注意：
+    - test_run_pipeline_exception_path 传入了自定义 _BadL1，不受影响
+      （patch 的是 LlmTermExtractor 类方法）。
+    - TestLlmTermExtractor 类自身测的就是 LlmTermExtractor 的
+      extract/降级行为，必须跳过此 mock（否则断言会错乱）。
+    """
+    if request.cls is not None and request.cls.__name__ == "TestLlmTermExtractor":
+        yield
+        return
+
+    from odap.biz.semantic_admin.ol_pipeline.impl.l1_llm_extractor import LlmTermExtractor
+
+    def _fake_extract(self, *, text, extra_docs=None, workspace_id=None,
+                      ontology_id=None, stopwords=None, config=None):
+        return [
+            {
+                "surface": "知识图谱", "frequency": 1, "confidence": 0.9,
+                "source_text": "知识图谱与本体管理系统",
+                "provenance": {"sample_contexts": ["知识图谱"], "entity_type": "对象类型"},
+            },
+            {
+                "surface": "本体管理", "frequency": 1, "confidence": 0.88,
+                "source_text": "知识图谱与本体管理系统",
+                "provenance": {"sample_contexts": ["本体管理"], "entity_type": "对象类型"},
+            },
+            {
+                "surface": "语义抽取", "frequency": 1, "confidence": 0.85,
+                "source_text": "语义抽取工作流",
+                "provenance": {"sample_contexts": ["语义抽取"], "entity_type": "动作类型"},
+            },
+            {
+                "surface": "概念合并", "frequency": 1, "confidence": 0.8,
+                "source_text": "概念合并分类质量闸",
+                "provenance": {"sample_contexts": ["概念合并"], "entity_type": "动作类型"},
+            },
+        ]
+
+    with patch.object(LlmTermExtractor, "extract", _fake_extract):
+        yield
 
 
 class TestRunPipeline:
@@ -349,3 +396,69 @@ class TestBgeHdbscanTermExtractor:
             assert extractor._model is not None
         except Exception:
             pytest.skip("SentenceTransformer model loading requires network")
+
+
+# =====================================================================
+# 6. LlmTermExtractor（L1 LLM 抽取器）单元测试
+# =====================================================================
+
+
+class TestLlmTermExtractor:
+    """LlmTermExtractor 转换与降级逻辑（不依赖真实 LLM）。"""
+
+    def test_entities_to_tokens_normalizes_and_dedups(self):
+        from odap.biz.semantic_admin.ol_pipeline.impl.l1_llm_extractor import LlmTermExtractor
+        entities = [
+            {"name": "刘备", "type": "人员", "description": "蜀汉主公"},
+            {"name": "关羽", "type": "人员", "description": "结义兄弟"},
+            {"name": "刘备", "type": "人员", "description": "重复"},
+            {"name": "", "type": "人员"},          # 空名 → 过滤
+            {"name": "的", "type": "概念"},         # 单字 → 过滤
+            {"name": None},                        # None → 过滤
+        ]
+        tokens = LlmTermExtractor._entities_to_tokens(entities)
+        surfaces = [t["surface"] for t in tokens]
+        assert surfaces == ["刘备", "关羽"], surfaces
+        assert tokens[0]["confidence"] == 0.85
+        assert tokens[0]["provenance"]["entity_type"] == "人员"
+
+    def test_entities_to_tokens_flags_hallucination(self):
+        from odap.biz.semantic_admin.ol_pipeline.impl.l1_llm_extractor import LlmTermExtractor
+        entities = [
+            {"name": "孙行者", "type": "人员", "possible_hallucination": True},
+        ]
+        tokens = LlmTermExtractor._entities_to_tokens(entities)
+        assert tokens[0]["confidence"] == 0.4
+        assert tokens[0]["provenance"]["possible_hallucination"] is True
+
+    def test_extract_empty_text_returns_empty(self):
+        from odap.biz.semantic_admin.ol_pipeline.impl.l1_llm_extractor import LlmTermExtractor
+        extractor = LlmTermExtractor()
+        assert extractor.extract(text="") == []
+        assert extractor.extract(text="   ", extra_docs=[]) == []
+
+    def test_extract_llm_unavailable_raises(self):
+        """LLM 不可用（adapter 为 None）时直接抛 RuntimeError，不静默降级。"""
+        import pytest
+        from odap.biz.semantic_admin.ol_pipeline.impl.l1_llm_extractor import LlmTermExtractor
+        extractor = LlmTermExtractor()
+        # 强制 adapter 为 None，模拟 hyperextract 未安装
+        extractor._adapter = None
+        extractor._adapter_tried = True
+        with pytest.raises(RuntimeError, match="LLM 抽取不可用|hyperextract"):
+            extractor.extract(text="知识图谱与本体管理系统。")
+
+    def test_protocol_compat_with_l2(self):
+        """LlmTermExtractor 产出必须能被 L2 ConceptMergeEngine 消费。"""
+        from odap.biz.semantic_admin.ol_pipeline.impl.l1_llm_extractor import LlmTermExtractor
+        from odap.biz.semantic_admin.ol_pipeline.impl.l2_concept_extraction import ConceptMergeEngine
+        entities = [
+            {"name": "刘备", "type": "人员", "description": "蜀汉主公"},
+            {"name": "关羽", "type": "人员", "description": "结义兄弟"},
+            {"name": "结义兄弟", "type": "概念", "description": "刘备关羽张飞关系"},
+        ]
+        tokens = LlmTermExtractor._entities_to_tokens(entities)
+        concepts = ConceptMergeEngine().merge(tokens)
+        assert isinstance(concepts, list)
+        canonicals = {c["canonical"] for c in concepts}
+        assert "刘备" in canonicals and "关羽" in canonicals

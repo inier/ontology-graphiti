@@ -88,7 +88,13 @@ class SemanticAssetPipeline:
     # 1. options — 前端下拉选项
     # ------------------------------------------------------------------
     def options(self, ontology_id: Optional[str] = None) -> Dict[str, Any]:
-        """返回 Pipeline 向导所需选项：数据源类型、模板列表、本体列表。"""
+        """返回 Pipeline 向导所需选项：数据源类型、模板列表、本体列表。
+
+        本体列表做了可读性整形（Iter 增强）：
+        - 以 domain_code（ADR-079 §7 权威字段）查 USL 领域，映射为可读的
+          「领域名 (code)」，并附带 domain_code / domain_display_name 供前端展示；
+        - 非 USL 本体（无 domain_code，用户手工建）保留原名。
+        """
         try:
             from odap.biz.data.hyper_extract.services.template_engine import (
                 TemplateEngine,
@@ -107,17 +113,49 @@ class SemanticAssetPipeline:
             except Exception as e:
                 logger.warning("list_presets 失败: %s", e)
 
-        ontologies: List[Dict[str, Any]] = []
+        raw_ontologies: List[Dict[str, Any]] = []
         try:
-            from odap.biz.core.ontology.ontology_api.services import OntologyService
+            from odap.biz.core.ontology.public import OntologyService
             svc = OntologyService()
             res = svc.list_ontologies() if hasattr(svc, "list_ontologies") else {}
             if isinstance(res, dict):
-                ontologies = list(res.get("ontologies") or res.get("items") or [])
+                raw_ontologies = list(res.get("ontologies") or res.get("items") or [])
             elif isinstance(res, list):
-                ontologies = res
+                raw_ontologies = res
         except Exception as e:
             logger.warning("list_ontologies 失败: %s", e)
+
+        # USL 领域 code → display_name 映射（用于把 USL__{code} 转成可读名）
+        domain_display_map: Dict[str, str] = {}
+        try:
+            from odap.biz.semantic_admin.usl_manager.services import UslManagerService
+            usl = UslManagerService()
+            usl_res = usl.list_domains(page=1, page_size=500)
+            for d in (usl_res.get("items") or []):
+                code = str(d.get("code") or "")
+                disp = str(d.get("display_name") or code)
+                if code:
+                    domain_display_map[code] = disp
+        except Exception as e:
+            logger.warning("list_domains 失败: %s", e)
+
+        ontologies: List[Dict[str, Any]] = []
+        for o in raw_ontologies:
+            if not isinstance(o, dict):
+                continue
+            item = dict(o)
+            name = str(item.get("name") or "")
+            domain_code = str(item.get("domain_code") or "")
+            if domain_code:
+                display = domain_display_map.get(domain_code)
+                item["domain_display_name"] = display or ""
+                # 可读 label：领域名 (code)；拿不到领域名则回退为 code
+                item["display_label"] = (
+                    f"{display}（{domain_code}）" if display else domain_code
+                )
+            else:
+                item["display_label"] = name
+            ontologies.append(item)
 
         return {
             "status": "ok",
@@ -128,6 +166,106 @@ class SemanticAssetPipeline:
             "templates": templates,
             "ontologies": ontologies,
         }
+
+    def list_usl_ontologies(
+        self, workspace_id: Optional[str] = None,
+    ) -> Dict[str, Any]:
+        """列出 USL 本体（用于「USL 本体管理」界面）。
+
+        返回：
+        - 仅含 domain_code 非空的系统本体（ADR-079 §7 权威关联）；
+        - 每个本体附带 domain_display_name / display_label / 类型计数；
+        - 附 domains 全量（供前端按领域筛选/联动）。
+        """
+        raw: List[Dict[str, Any]] = []
+        try:
+            from odap.biz.core.ontology.public import OntologyService
+            svc = OntologyService()
+            res = svc.list_ontologies(workspace_id=workspace_id)
+            if isinstance(res, dict):
+                raw = list(res.get("ontologies") or [])
+            elif isinstance(res, list):
+                raw = res
+        except Exception as e:
+            logger.warning("list_ontologies 失败: %s", e)
+
+        # 领域映射
+        domain_map: Dict[str, Dict[str, Any]] = {}
+        try:
+            from odap.biz.semantic_admin.usl_manager.services import UslManagerService
+            usl = UslManagerService()
+            usl_res = usl.list_domains(page=1, page_size=500)
+            for d in (usl_res.get("items") or []):
+                code = str(d.get("code") or "")
+                if code:
+                    domain_map[code] = d
+        except Exception as e:
+            logger.warning("list_domains 失败: %s", e)
+
+        items: List[Dict[str, Any]] = []
+        for o in raw:
+            if not isinstance(o, dict):
+                continue
+            name = str(o.get("name") or "")
+            domain_code = str(o.get("domain_code") or "")
+            if not domain_code:
+                continue  # 非 USL 本体，管理界面不展示
+            dom = domain_map.get(domain_code) or {}
+            oid = str(o.get("ontology_id") or o.get("id") or "")
+            type_counts = self._count_ontology_types(oid)
+            items.append({
+                "ontology_id": oid,
+                "name": name,
+                "domain_code": domain_code,
+                "domain_display_name": str(dom.get("display_name") or ""),
+                "domain_description": str(dom.get("description") or ""),
+                "display_label": (
+                    f"{dom.get('display_name')}（{domain_code}）"
+                    if dom.get("display_name") else domain_code
+                ),
+                "workspace_id": str(o.get("workspace_id") or ""),
+                "created_at": o.get("created_at"),
+                "type_counts": type_counts,
+            })
+
+        return {
+            "status": "ok",
+            "items": items,
+            "total": len(items),
+            "domains": list(domain_map.values()),
+        }
+
+    def _count_ontology_types(self, ontology_id: str) -> Dict[str, int]:
+        """统计某本体下各类类型定义的数量（尽力而为，失败回退 0）。"""
+        counts: Dict[str, int] = {}
+        if not ontology_id:
+            return counts
+        try:
+            from odap.biz.core.ontology.public import OntologyService
+            svc = OntologyService()
+            for kind, fn_name in (
+                ("object_types", "list_object_types"),
+                ("link_types", "list_link_types"),
+                ("action_types", "list_action_types"),
+                ("process_types", "list_process_types"),
+                ("rule_types", "list_rule_types"),
+            ):
+                fn = getattr(svc, fn_name, None)
+                if fn is None:
+                    counts[kind] = 0
+                    continue
+                try:
+                    r = fn(ontology_id)
+                    if isinstance(r, dict) and "count" in r:
+                        counts[kind] = int(r.get("count") or 0)
+                    else:
+                        rows = r.get("items") if isinstance(r, dict) else r
+                        counts[kind] = len(rows) if isinstance(rows, list) else 0
+                except Exception:
+                    counts[kind] = 0
+        except Exception:
+            pass
+        return counts
 
     # ------------------------------------------------------------------
     # 2. run — 统一编排入口

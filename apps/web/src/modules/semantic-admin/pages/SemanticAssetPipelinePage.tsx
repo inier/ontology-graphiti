@@ -114,7 +114,15 @@ export default function SemanticAssetPipelinePage() {
     () =>
       ontologies.map((o: AssetOntology) => ({
         value: String(o.ontology_id ?? o.id ?? ''),
-        label: String(o.name ?? o.display_name ?? o.ontology_id ?? o.id ?? ''),
+        label: String(
+          o.display_label
+            ?? o.domain_display_name
+            ?? o.display_name
+            ?? o.name
+            ?? o.ontology_id
+            ?? o.id
+            ?? '',
+        ),
       })),
     [ontologies],
   );

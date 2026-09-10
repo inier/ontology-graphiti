@@ -278,8 +278,9 @@ class MenuConfigService:
     def init_default_menu(self) -> Dict[str, Any]:
         """幂等初始化四步法默认菜单树。
 
-        - 首次调用：写入 54 个菜单项（6 目录 + 48 菜单/子目录）
+        - 首次调用：写入 55 个菜单项（6 目录 + 49 菜单/子目录）
           （Iter 5 后：演本体含决策智能 /decisions，ADR-076）
+          （含「USL 本体管理」菜单，/semantic-admin/usl-ontologies）
         - 后续调用：跳过已存在的 code，仅写入新增项
         - 不覆盖用户自定义菜单（通过 code 唯一性判断）
         - 同步为内置全局角色（除 admin）写入默认 role_menus（幂等，仅当角色无任何分配）

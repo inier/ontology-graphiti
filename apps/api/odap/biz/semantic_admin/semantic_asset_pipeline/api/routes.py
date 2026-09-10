@@ -41,6 +41,23 @@ async def pipeline_options(
     pipeline = get_semantic_asset_pipeline()
     try:
         return pipeline.options(ontology_id=ontology_id)
+    except HTTPException:
+        raise
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@router.get("/usl-ontologies")
+async def usl_ontologies(
+    workspace_id: Optional[str] = Query(default=None),
+    _user: Any = Depends(get_current_user),
+):
+    """列出 USL 系统本体（USL 本体管理界面数据源）。"""
+    pipeline = get_semantic_asset_pipeline()
+    try:
+        return pipeline.list_usl_ontologies(workspace_id=workspace_id)
+    except HTTPException:
+        raise
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
 
@@ -63,6 +80,8 @@ async def pipeline_run(
             workspace_id=body.workspace_id,
             actor=_actor(_user),
         )
+    except HTTPException:
+        raise
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
     if result.get("status") == "error":
@@ -79,6 +98,8 @@ async def pipeline_get_run(
     pipeline = get_semantic_asset_pipeline()
     try:
         result = pipeline.get_run(pipeline_run_id)
+    except HTTPException:
+        raise
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
     if result.get("status") == "error":
@@ -96,6 +117,8 @@ async def pipeline_submit(
     pipeline = get_semantic_asset_pipeline()
     try:
         result = pipeline.submit(pipeline_run_id, actor=_actor(_user))
+    except HTTPException:
+        raise
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
     if result.get("status") == "error":

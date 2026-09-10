@@ -12,6 +12,7 @@ export { default as CandidatesPage } from './pages/CandidatesPage';
 export { default as PipelineRunsPage } from './pages/PipelineRunsPage';
 export { default as DashboardPage } from './pages/DashboardPage';
 export { default as SemanticAssetPipelinePage } from './pages/SemanticAssetPipelinePage';
+export { default as UslOntologyPage } from './pages/UslOntologyPage';
 
 export { semanticAdminRouteMeta } from './routes';
 

@@ -121,7 +121,7 @@ class GraphitiWritebackAdapter:
     # ------------------------------------------------------------------
     def _get_ontology_service(self):
         if self._ontology_service is None:
-            from odap.biz.core.ontology.ontology_api.services.ontology_service import (
+            from odap.biz.core.ontology.public import (
                 OntologyService,
             )
             self._ontology_service = OntologyService()

@@ -32,6 +32,7 @@ export const TOP_TAB_TO_PATH: Record<AdminTopTab, string> = {
 export const PATH_TO_TOP_TAB: Record<string, AdminTopTab> = {
   '/semantic-admin/assets': 'assets',
   '/semantic-admin/usl': 'usl',
+  '/semantic-admin/usl-ontologies': 'usl',
   '/semantic-admin/pipeline': 'pipeline',
   '/semantic-admin/candidates': 'candidates',
   '/semantic-admin/quality': 'quality',

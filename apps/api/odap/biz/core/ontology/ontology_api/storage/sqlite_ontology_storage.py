@@ -120,12 +120,24 @@ class SQLiteOntologyStorage(SqliteBaseStorage):
 
     @staticmethod
     def _migrate(conn) -> None:
-        """轻量迁移：为已存在的旧表补齐缺失列（幂等）。
+        """轻量迁移：为已存在的旧表补齐缺失列并回填历史数据（幂等）。
 
         当前迁移：ontologies 表新增 domain_code 列（ADR-079 §7，
         本体→领域权威关联，替换 USL__ 命名约定反推）。
         """
         _ensure_column(conn, "ontologies", "domain_code", "TEXT")
+        # USL__ 命名约定只在此处解释一次：回填 ADR-079 §7 之前创建的遗留行。
+        # 回填后读路径一律以 domain_code 为准，不得再从 name 反推（规则 14）。
+        # 用 substr 而非 LIKE：SQLite 的 LIKE 中 '_' 是单字符通配符，会误匹配 USLxy 等名称。
+        conn.execute(
+            """
+            UPDATE ontologies
+               SET domain_code = substr(name, 6)
+             WHERE (domain_code IS NULL OR domain_code = '')
+               AND substr(name, 1, 5) = 'USL__'
+               AND length(name) > 5
+            """
+        )
 
     @staticmethod
     def _create_schema_versions_table(conn) -> None:

@@ -161,14 +161,16 @@ def _build_semantic_submenus() -> List[Dict[str, Any]]:
     return [
         _menu("menu:build:semantic:usl", "USL 配置", "/semantic-admin/usl",
               "SettingOutlined", 1, parent),
+        _menu("menu:build:semantic:usl_ontologies", "USL 本体管理",
+              "/semantic-admin/usl-ontologies", "ApartmentOutlined", 2, parent),
         _menu("menu:build:semantic:pipeline", "OL 流水线",
-              "/semantic-admin/pipeline", "DeploymentUnitOutlined", 2, parent),
+              "/semantic-admin/pipeline", "DeploymentUnitOutlined", 3, parent),
         _menu("menu:build:semantic:candidates", "候选管理",
-              "/semantic-admin/candidates", "UnorderedListOutlined", 3, parent),
+              "/semantic-admin/candidates", "UnorderedListOutlined", 4, parent),
         _menu("menu:build:semantic:approvals", "审批工作流",
-              "/semantic-admin/approvals", "CheckCircleOutlined", 4, parent),
+              "/semantic-admin/approvals", "CheckCircleOutlined", 5, parent),
         _menu("menu:build:semantic:quality", "质量仪表盘",
-              "/semantic-admin/quality", "DashboardOutlined", 5, parent),
+              "/semantic-admin/quality", "DashboardOutlined", 6, parent),
     ]
 
 
@@ -323,10 +325,11 @@ def get_four_steps_seed_data() -> List[Dict[str, Any]]:
     """返回完整的四步法菜单种子数据（扁平列表，含 parent_id 关联）。
 
     顺序：顶级目录 → 建本体 → 见本体 → 演本体 → 用本体 → 系统管理 → 帮助
-    共 6 目录 + 8 子目录/菜单(建) + 5(见) + 7(演) + 4+4(用) + 8(系统) + 1(帮助) = 48 项
+    共 6 目录 + 9 子目录/菜单(建) + 5(见) + 7(演) + 4+4(用) + 8(系统) + 1(帮助) = 49 项
 
     Iter 2 变更：演本体从 9 项减为 7 项（移除策略推演/模拟器，合并到仿真沙盘）
     Iter 3 变更：建本体新增 HE 抽取链(+1)，用本体新增 MCP 工具集(+1)，共 48 项
+    Iter 6 变更：建本体新增「USL 本体管理」(+1)，共 49 项（seed_items 总长 55）
     """
     items: List[Dict[str, Any]] = []
     items.extend(_top_directories())

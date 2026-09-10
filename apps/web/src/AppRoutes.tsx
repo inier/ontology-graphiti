@@ -42,6 +42,7 @@ import {
   PipelineRunsPage,
   DashboardPage,
   SemanticAssetPipelinePage,
+  UslOntologyPage,
 } from '@/modules/semantic-admin';
 
 function ProtectedRoute({ children }: { children: ReactNode }) {
@@ -116,6 +117,7 @@ export function AppRoutes() {
         <Route path="/semantic-admin" element={<ProtectedRoute><SemanticAdminIndex /></ProtectedRoute>} />
         <Route path="/semantic-admin/assets" element={<ProtectedRoute><SemanticAssetPipelinePage /></ProtectedRoute>} />
         <Route path="/semantic-admin/usl" element={<ProtectedRoute><UslConfigPage /></ProtectedRoute>} />
+        <Route path="/semantic-admin/usl-ontologies" element={<ProtectedRoute><UslOntologyPage /></ProtectedRoute>} />
         <Route path="/semantic-admin/pipeline" element={<ProtectedRoute><PipelineRunsPage /></ProtectedRoute>} />
         <Route path="/semantic-admin/pipeline-runs" element={<ProtectedRoute><PipelineRunsPage /></ProtectedRoute>} />
         <Route path="/semantic-admin/candidates" element={<ProtectedRoute><CandidatesPage /></ProtectedRoute>} />

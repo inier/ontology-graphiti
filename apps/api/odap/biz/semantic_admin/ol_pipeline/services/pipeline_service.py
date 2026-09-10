@@ -110,8 +110,8 @@ class PipelineService:
         self.usl_storage = usl_storage
 
         if l1_extractor is None:
-            from ..impl import BgeHdbscanTermExtractor, NgramTermExtractor
-            l1_extractor = NgramTermExtractor()
+            from ..impl import LlmTermExtractor
+            l1_extractor = LlmTermExtractor()
         self.l1 = l1_extractor
         if l2_merger is None:
             from ..impl import ConceptMergeEngine
@@ -251,13 +251,17 @@ class PipelineService:
                 run_id, status="running", progress=10,
             )
             l1_config = cfg.get("l1", {})
-            extractor_type = str(l1_config.get("extractor_type", "ngram"))
-            if extractor_type == "bge_hdbscan" and _BGE_HDBSCAN_AVAILABLE:
+            extractor_type = str(l1_config.get("extractor_type", "llm"))
+            if extractor_type == "ngram":
+                from ..impl import NgramTermExtractor
+                l1_extractor = NgramTermExtractor()
+            elif extractor_type == "bge_hdbscan" and _BGE_HDBSCAN_AVAILABLE:
                 from ..impl import BgeHdbscanTermExtractor
                 l1_extractor = BgeHdbscanTermExtractor()
             else:
                 if extractor_type == "bge_hdbscan":
-                    logger.warning("extractor_type=bge_hdbscan requested but hdbscan not installed; falling back to ngram")
+                    logger.warning("extractor_type=bge_hdbscan requested but hdbscan not installed; falling back to llm")
+                # 默认 llm（LLM 不可用时由 LlmTermExtractor 抛 RuntimeError，不做静默降级）
                 l1_extractor = self.l1
             tokens = l1_extractor.extract(
                 text=(text or ""),

@@ -28,6 +28,12 @@ export interface AssetOntology {
   name?: string;
   display_name?: string;
   workspace_id?: string;
+  /** 本体→领域权威关联 code（ADR-079 §7，引用 usl_domains.code） */
+  domain_code?: string;
+  /** 领域显示名（后端 options 已 join usl_domains 填充） */
+  domain_display_name?: string;
+  /** 可读标签：USL 本体为「领域名（code）」，手工本体为原名 */
+  display_label?: string;
   [key: string]: unknown;
 }
 
