@@ -31,6 +31,19 @@ def _dp_audit(action: str, *, result_status: str = "success",
         logger.warning(f"Audit write failed (decision_pipeline) action={action}: {e}")
 
 
+def _compute_retrieval_confidence(objects) -> float:
+    """从检索结果的真实相关性得分派生分析置信度。
+
+    取有效得分均值并夹到 [0,1]。用均值而非最大值：决策支撑链路上高估置信度是危险方向
+    （单个侥幸命中不该让整份分析显得可信）。无任何有效得分时返回 0.0，即 schema 默认值，
+    含义是"无证据可支撑置信度"，而非编造 0.7 之类的假精确值（规则 14）。
+    """
+    scores = [o.score for o in objects if o.score is not None]
+    if not scores:
+        return 0.0
+    return round(min(1.0, max(0.0, sum(scores) / len(scores))), 4)
+
+
 class DecisionPipeline:
     def __init__(self):
         self._semantic_retriever = None
@@ -93,9 +106,14 @@ class DecisionPipeline:
         if self._decision_engine is None:
             try:
                 from odap.biz.decision.decision_recommendation.engine import DecisionRecommendationEngine
-                self._decision_engine = DecisionRecommendationEngine()
+                from odap.infra.graph.graph_service import GraphManager
+                gm = GraphManager()
+                graphiti_client = getattr(gm, "graph", None)
+                self._decision_engine = DecisionRecommendationEngine(
+                    graphiti_client=graphiti_client,
+                )
             except Exception as e:
-                logger.warning(f"DecisionPipeline: DecisionRecommendationEngine import failed: {e}")
+                logger.warning(f"DecisionPipeline: DecisionRecommendationEngine init failed: {e}")
                 self._decision_engine = None
         return self._decision_engine
 
@@ -456,18 +474,6 @@ class DecisionPipeline:
             })
         return {"pipelines": items, "count": len(items)}
 
-
-def _current_stage(stages, stage_status) -> str:
-    """返回当前所处阶段名（首个 running 或最后的 pending 之后）"""
-    for s in stages:
-        if stage_status.get(s) == "running":
-            return s
-    # 无 running：返回第一个 pending
-    for s in stages:
-        if stage_status.get(s) in (None, "pending"):
-            return s
-    return stages[-1] if stages else ""
-
     async def _analyze(self, input_data: AnalysisInput) -> AnalysisResult:
         retrieval = await self.semantic_retriever.retrieve(input_data.query, top_k=10)
 
@@ -485,7 +491,7 @@ def _current_stage(stages, stage_status) -> str:
             entities=entities,
             patterns=[],
             risks=[],
-            confidence=0.7,
+            confidence=_compute_retrieval_confidence(retrieval.objects),
             raw_context=retrieval.answer_context,
         )
 
@@ -526,7 +532,7 @@ def _current_stage(stages, stage_status) -> str:
                         if recommendation.recommended_option
                         else getattr(recommendation, 'decision_summary', '')
                     ),
-                    confidence=getattr(recommendation, 'confidence', 0.5),
+                    confidence=recommendation.confidence,
                 )
             except Exception as e:
                 logger.warning(f"DecisionEngine recommend failed, using fallback: {e}")
@@ -534,7 +540,7 @@ def _current_stage(stages, stage_status) -> str:
         return await self._fallback_decide(analysis, input_data)
 
     async def _fallback_decide(self, analysis: AnalysisResult, input_data: AnalysisInput) -> DecisionResult:
-        from odap.biz.core.ontology.application.oms.services import get_oms_service
+        from odap.biz.core.ontology.public import get_oms_service
         oms: IDecisionOMSService = get_oms_service()
 
         options = []
@@ -562,7 +568,7 @@ def _current_stage(stages, stage_status) -> str:
             recommended_option=recommended,
             alternative_options=alternatives,
             reasoning=f"Based on analysis of {len(analysis.entities)} entities, {len(options)} actions available",
-            confidence=0.5,
+            confidence=analysis.confidence,
         )
 
     async def _validate(self, decision: DecisionResult, input_data: AnalysisInput) -> DecisionResult:
@@ -684,6 +690,18 @@ def _current_stage(stages, stage_status) -> str:
             },
             feedback_summary=feedback.get("status"),
         )
+
+
+def _current_stage(stages, stage_status) -> str:
+    """返回当前所处阶段名（首个 running 或最后的 pending 之后）"""
+    for s in stages:
+        if stage_status.get(s) == "running":
+            return s
+    # 无 running：返回第一个 pending
+    for s in stages:
+        if stage_status.get(s) in (None, "pending"):
+            return s
+    return stages[-1] if stages else ""
 
 
 _pipeline_instance = None

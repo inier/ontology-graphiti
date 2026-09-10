@@ -29,14 +29,29 @@ NOUN_PATTERNS = re.compile(r"[\u4e00-\u9fff]{2,6}|[A-Za-z]+")
 RELATION_VERBS = ["管理", "分析", "处理", "关联", "映射", "匹配", "同步", "依赖", "包含", "属于", "引用", "触发", "订阅", "推送", "调用", "访问", "监控", "校验", "转换", "聚合"]
 ACTION_VERBS = ["创建", "删除", "更新", "查询", "导入", "导出", "审批", "部署", "执行", "配置", "启动", "停止", "重启", "备份", "恢复", "迁移", "发布", "订阅", "通知", "告警"]
 
+# 工作流阶段模型（ADR-074 数据流对齐）。
+# 每个 stage 增加 blueprint_node_type 字段，映射到 BlueprintDesignerService 的节点类型，
+# 使 run_execution 产出的 workflow 能通过 _persist_workflow_blueprint 落库为可视化蓝图。
+# 对齐关系（ADR-074 §数据流）：
+#   需求分析/业务校验 -> transform（Hyper-Extract 抽取前的需求解析）
+#   etl              -> data_source（纯采集，ADR-074 §1.3 采集≠抽取）
+#   图谱映射/构建    -> ontology（OntologyMapper / OntologyBuilderService 映射构建）
+#   业务接口          -> action（业务 API / Skill 导出）
 WORKFLOW_STAGES = [
-    {"stage": "requirement_analysis", "label": "需求分析", "description": "解析自然语言需求，提取业务对象与关系"},
-    {"stage": "business_validation", "label": "业务校验", "description": "校验需求完整性与一致性"},
-    {"stage": "etl", "label": "ETL", "description": "数据抽取、转换、加载"},
-    {"stage": "graph_mapping", "label": "数据图谱映射", "description": "将业务数据映射到图谱结构"},
-    {"stage": "graph_construction", "label": "图谱构建", "description": "构建知识图谱"},
-    {"stage": "ontology_modeling", "label": "本体建模", "description": "基于图谱数据构建本体模型"},
-    {"stage": "business_interface", "label": "业务接口", "description": "生成业务API与Skill接口"},
+    {"stage": "requirement_analysis", "label": "需求分析", "description": "解析自然语言需求，提取业务对象与关系",
+     "blueprint_node_type": "transform"},
+    {"stage": "business_validation", "label": "业务校验", "description": "校验需求完整性与一致性",
+     "blueprint_node_type": "validation"},
+    {"stage": "etl", "label": "数据采集", "description": "纯数据采集（不做抽取，ADR-074 §1.3）",
+     "blueprint_node_type": "data_source"},
+    {"stage": "graph_mapping", "label": "数据图谱映射", "description": "将业务数据映射到图谱结构",
+     "blueprint_node_type": "transform"},
+    {"stage": "graph_construction", "label": "图谱构建", "description": "构建知识图谱",
+     "blueprint_node_type": "ontology"},
+    {"stage": "ontology_modeling", "label": "本体建模", "description": "基于图谱数据构建本体模型",
+     "blueprint_node_type": "ontology"},
+    {"stage": "business_interface", "label": "业务接口", "description": "生成业务API与Skill接口",
+     "blueprint_node_type": "action"},
 ]
 
 
@@ -270,6 +285,12 @@ class HarnessEngine:
                 "edges": self._generate_workflow_edges(workflow),
             },
         }
+        # 收敛（ADR-074）：把执行阶段生成的蓝图同步落库到 BlueprintDesignerService，
+        # 使其成为可视化设计器（blueprint_designs 表）可编辑/可导出的蓝图，
+        # 而非仅停留在 execution_output 的内存 dict 里。
+        blueprint_ref = self._persist_workflow_blueprint(session_id, execution_result)
+        if blueprint_ref:
+            execution_result["blueprint_id"] = blueprint_ref.get("blueprint_id")
         sub_task = SubTask(
             agent_role=AgentRole.EXECUTOR,
             description="Executor agent: generate workflow blueprint and executable code",
@@ -360,6 +381,13 @@ class HarnessEngine:
         return session_data
 
     def create_blueprint(self, name: str, description: str = "", session_id: Optional[str] = None) -> Dict[str, Any]:
+        # 分工说明（收敛 ADR-074）：
+        #   本方法是 HITL 飞轮执行阶段自动生成的"默认流水线骨架"（6 阶段线性链），
+        #   服务于 run_execution 的自动产物；它与 BlueprintDesignerService
+        #   （blueprint_designs 表，用户可视化编辑/布局/导出）职责不同、存储不同，
+        #   两者不是重复实现而是两个阶段：骨架(自动) vs 设计(人工)。
+        #   run_execution 产出的最终蓝图通过 _persist_workflow_blueprint 同步落库
+        #   到 BlueprintDesignerService，打通"执行产物 -> 可视化编辑"的衔接。
         default_nodes = [
             BlueprintNode(node_type="data_source", label="数据源", stage=HarnessStage.DATA_SELECTION, position_x=100, position_y=100),
             BlueprintNode(node_type="data_process", label="数据处理", stage=HarnessStage.DATA_PROCESSING, position_x=300, position_y=100),
@@ -392,6 +420,60 @@ class HarnessEngine:
     def list_blueprints(self, session_id: Optional[str] = None) -> Dict[str, Any]:
         blueprints = self.storage.list_blueprints(session_id=session_id)
         return {"blueprints": blueprints, "count": len(blueprints)}
+
+    def _persist_workflow_blueprint(self, session_id: str, execution_result: Dict[str, Any]) -> Optional[Dict[str, Any]]:
+        """把 run_execution 产出的 workflow 蓝图落库到 BlueprintDesignerService。
+
+        将旧骨架节点结构（node_type/label/stage/position_x/position_y）转换为
+        BlueprintDesignerService 的节点结构（node_id/node_type/name/position/config），
+        打通"执行产物 -> 可视化设计器（blueprint_designs 表）"的衔接（ADR-074 接线）。
+        失败时仅告警，不影响会话推进（HITL 飞轮不因落库失败而中断）。
+        """
+        try:
+            from odap.biz.core.ontology.application.harness.blueprint.blueprint_service import (
+                get_blueprint_designer,
+            )
+
+            designer = get_blueprint_designer()
+            bp = execution_result.get("blueprint", {})
+            raw_nodes = bp.get("nodes", []) or []
+            raw_edges = bp.get("edges", []) or []
+
+            # 转换旧节点结构 -> designer 节点结构
+            designer_nodes = []
+            for i, n in enumerate(raw_nodes):
+                designer_nodes.append({
+                    "node_id": n.get("node_id") or n.get("id") or f"node_{i}",
+                    "node_type": n.get("node_type", "transform"),
+                    "name": n.get("label") or n.get("name") or n.get("node_type", "node"),
+                    "position": {
+                        "x": float(n.get("position_x", 100 + i * 200)),
+                        "y": float(n.get("position_y", 100)),
+                    },
+                    "config": n.get("config") or {},
+                })
+            designer_edges = [
+                {
+                    "source": e.get("source_node_id", e.get("source", "")),
+                    "target": e.get("target_node_id", e.get("target", "")),
+                }
+                for e in raw_edges
+            ]
+
+            name = f"session-{session_id}-execution"
+            result = designer.create_blueprint(
+                name=name,
+                description="由 HarnessEngine.run_execution 自动生成的工作流蓝图",
+                nodes=designer_nodes,
+                edges=designer_edges,
+            )
+            if isinstance(result, dict) and result.get("status") == "success":
+                logger.info("workflow blueprint persisted: blueprint_id=%s", result.get("blueprint_id"))
+                return result
+            logger.warning("workflow blueprint persist returned unexpected: %s", result)
+        except Exception as exc:  # noqa: BLE001
+            logger.warning("failed to persist workflow blueprint for session=%s: %s", session_id, exc)
+        return None
 
     def _parse_requirement(self, requirement: str) -> Dict[str, Any]:
         nouns = list(set(NOUN_PATTERNS.findall(requirement)))
@@ -555,7 +637,7 @@ class HarnessEngine:
 
             nodes.append({
                 "node_id": f"wf-{stage_info['stage']}",
-                "node_type": stage_info["stage"],
+                "node_type": stage_info.get("blueprint_node_type", stage_info["stage"]),
                 "label": stage_info["label"],
                 "description": stage_info["description"],
                 "position_x": i * 200,

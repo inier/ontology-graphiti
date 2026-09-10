@@ -64,12 +64,30 @@ class BlueprintRuntimeEngine:
         self._blueprint_service = blueprint_service
         self._executions: Dict[str, BlueprintExecution] = {}
         self._node_handlers: Dict[str, callable] = {}
+        self._default_handlers_registered = False
 
     def register_node_handler(self, node_type: str, handler: callable):
         self._node_handlers[node_type] = handler
 
+    def register_default_handlers(self):
+        """注册 ADR-074 数据流的默认节点处理器（接线层）。
+
+        惰性导入避免与 construction 层产生模块加载期的循环依赖：
+            data_source -> 纯采集（UnifiedIngestionService）
+            transform   -> Hyper-Extract 抽取（ExtractService）
+            ontology    -> 本体构建（OntologyBuilderService）
+
+        幂等：多次调用只注册一次；用户仍可通过 register_node_handler 覆盖。
+        """
+        if self._default_handlers_registered:
+            return
+        from .blueprint_node_handlers import register_default_node_handlers
+        register_default_node_handlers(self)
+        self._default_handlers_registered = True
+
     def start_execution(self, execution_id: str, blueprint_id: str,
-                        metadata: Dict[str, Any] = None) -> Dict[str, Any]:
+                        metadata: Dict[str, Any] = None,
+                        use_default_handlers: bool = False) -> Dict[str, Any]:
         blueprint = self._load_blueprint(blueprint_id)
         if not blueprint:
             return {"status": "error", "message": "Blueprint not found"}
@@ -77,6 +95,11 @@ class BlueprintRuntimeEngine:
         edges = blueprint.get("edges", [])
         if not nodes:
             return {"status": "error", "message": "Blueprint has no nodes"}
+        # 默认不注入真实 handler，保持"无 handler 节点 skip"的既有语义；
+        # 调用方需显式 use_default_handlers=True（或自行 register_default_handlers）
+        # 才会启用 ADR-074 数据流的默认处理器（data_source/transform/ontology）。
+        if use_default_handlers:
+            self.register_default_handlers()
         execution_order = self._compute_execution_order(nodes, edges)
         node_executions = {}
         for node in nodes:

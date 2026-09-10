@@ -13,7 +13,10 @@ _engine: Optional[DecisionRecommendationEngine] = None
 def _get_engine() -> DecisionRecommendationEngine:
     global _engine
     if _engine is None:
-        _engine = DecisionRecommendationEngine()
+        from odap.infra.graph.graph_service import GraphManager
+        gm = GraphManager()
+        graphiti_client = getattr(gm, "graph", None)
+        _engine = DecisionRecommendationEngine(graphiti_client=graphiti_client)
     return _engine
 
 

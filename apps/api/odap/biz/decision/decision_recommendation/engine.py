@@ -635,13 +635,16 @@ class DecisionRecommendationEngine:
         option: DecisionOption,
         request: RecommendationRequest,
     ) -> List[str]:
+        if self.graphiti is None:
+            logger.warning("RAG 查询跳过: graphiti_client 未注入")
+            return []
         try:
             query = f"{option.name} {option.description}"
-            results = await self.graphiti.search_episodes(
+            results = await self.graphiti.search(
                 query=query,
-                limit=3,
+                num_results=3,
             )
-            return [r.entity_id for r in results] if results else []
+            return [r.uuid for r in results] if results else []
         except Exception as e:
             logger.warning(f"RAG 查询失败: {e}")
             return []

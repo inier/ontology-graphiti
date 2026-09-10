@@ -17,6 +17,7 @@ async def start_execution(request: StartExecutionRequest,
             execution_id=request.execution_id,
             blueprint_id=request.blueprint_id,
             metadata=request.metadata,
+            use_default_handlers=request.use_default_handlers,
         )
         if result.get("status") == "error":
             raise HTTPException(status_code=400, detail=result["message"])

@@ -19,3 +19,6 @@ class StartExecutionRequest(BaseModel):
     execution_id: str = Field(..., min_length=1)
     blueprint_id: str = Field(..., min_length=1)
     metadata: Dict[str, Any] = Field(default_factory=dict)
+    # 是否启用 ADR-074 数据流默认处理器（data_source->采集 / transform->HE抽取 / ontology->构建）。
+    # 默认 True：HTTP 触发的蓝图执行默认走真实能力；测试/自定义场景可显式关闭。
+    use_default_handlers: bool = True

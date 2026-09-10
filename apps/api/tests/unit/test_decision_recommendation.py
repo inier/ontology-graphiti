@@ -158,3 +158,86 @@ class TestGetHistory:
             })
         history = engine.get_history(limit=3)
         assert len(history) == 3
+
+
+# ── D4 成功路径：graphiti_client 注入 + _find_evidence 真跑 ──────────
+
+class TestFindEvidenceD4SuccessPath:
+    """D4：_find_evidence 曾调用幻影方法 search_episodes + 访问不存在的 entity_id 属性，
+    导致每次调用 AttributeError 被 except 吞掉 → supporting_evidence 恒空 → confidence
+    evidence_factor 恒为 0。修复后调用真实 search(query, num_results) 并提取 uuid。
+    """
+
+    def _make_option(self, **overrides):
+        from odap.biz.decision.decision_recommendation.models import DecisionOption
+        defaults = dict(option_id="opt-1", name="方案A", description="测试方案",
+                        action="test_action", rationale="测试理由")
+        defaults.update(overrides)
+        return DecisionOption(**defaults)
+
+    @pytest.mark.asyncio
+    async def test_find_evidence_calls_real_search_not_phantom(self):
+        """_find_evidence 必须调用 graphiti.search (非 search_episodes)"""
+        from unittest.mock import AsyncMock, MagicMock
+
+        mock_graphiti = MagicMock()
+        mock_result = MagicMock()
+        mock_result.uuid = "edge-uuid-001"
+        mock_graphiti.search = AsyncMock(return_value=[mock_result])
+
+        engine = DecisionRecommendationEngine(graphiti_client=mock_graphiti)
+        option = self._make_option()
+        request = RecommendationRequest(analysis_result={})
+
+        evidence = await engine._find_evidence(option, request)
+
+        mock_graphiti.search.assert_called_once()
+        call_kwargs = mock_graphiti.search.call_args
+        assert call_kwargs.kwargs.get("query") or call_kwargs[1].get("query")
+        assert "edge-uuid-001" in evidence
+
+    @pytest.mark.asyncio
+    async def test_find_evidence_returns_empty_when_no_client(self):
+        """graphiti_client=None 时必须显式返回空列表（非 AttributeError）"""
+        engine = DecisionRecommendationEngine(graphiti_client=None)
+        option = self._make_option()
+        request = RecommendationRequest(analysis_result={})
+
+        evidence = await engine._find_evidence(option, request)
+
+        assert evidence == []
+
+    def test_confidence_evidence_factor_nonzero_when_evidence_present(self):
+        """supporting_evidence 非空时 confidence 的 evidence_factor 必须 > 0"""
+        engine = DecisionRecommendationEngine(graphiti_client=None)
+        option = self._make_option(
+            priority_score=80,
+            supporting_evidence=["evidence-1", "evidence-2", "evidence-3"],
+        )
+        request = RecommendationRequest(analysis_result={})
+
+        confidence = engine._calculate_confidence([option], request)
+
+        option_count_factor = min(1.0, 1 / 3) * 0.2
+        score_factor = 80 / 100 * 0.5
+        evidence_factor = min(1.0, 3 / 3) * 0.3
+        expected = round(option_count_factor + score_factor + evidence_factor, 2)
+        assert confidence == expected
+        assert evidence_factor > 0
+
+    @pytest.mark.asyncio
+    async def test_pipeline_injects_graphiti_client(self):
+        """DecisionPipeline.decision_engine 必须注入 graphiti_client（非 None 当 GraphManager 可用）"""
+        from unittest.mock import MagicMock, patch
+
+        mock_graphiti = MagicMock()
+        mock_gm = MagicMock()
+        mock_gm.graph = mock_graphiti
+
+        with patch("odap.infra.graph.graph_service.GraphManager", return_value=mock_gm):
+            from odap.biz.decision.decision_pipeline.pipeline import DecisionPipeline
+            pipeline = DecisionPipeline()
+            engine = pipeline.decision_engine
+
+            assert engine is not None
+            assert engine.graphiti is mock_graphiti

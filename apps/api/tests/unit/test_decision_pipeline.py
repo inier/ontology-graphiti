@@ -190,6 +190,7 @@ def _make_pipeline_with_mocks():
                 object_type="Person",
                 properties={"name": "Target"},
                 links=[{"target_id": "obj_2", "link_type": "associated"}],
+                score=0.8,
             )
         ],
     ))
@@ -203,10 +204,13 @@ def _make_pipeline_with_mocks():
     mock_option.description = "Continue monitoring"
     mock_option.risk_level = "low"
     mock_option.expected_outcome = "Stable situation"
+    mock_option.rationale = "Low risk detected"
     mock_recommendation.recommended_option = mock_option
     mock_recommendation.reasoning = "Low risk detected"
+    mock_recommendation.decision_summary = "Low risk detected"
     mock_recommendation.confidence = 0.8
-    mock_engine.recommend = Mock(return_value=mock_recommendation)
+    # D3 对齐：生产 _decide await 的是 generate_recommendation（ADR-076），非同步 recommend。
+    mock_engine.generate_recommendation = AsyncMock(return_value=mock_recommendation)
     pipeline._decision_engine = mock_engine
 
     mock_opa = Mock()
@@ -259,7 +263,7 @@ class TestDecisionPipelineExecuteSuccess:
         pipeline = _make_pipeline_with_mocks()
         from odap.biz.decision.decision_pipeline.schemas import AnalysisInput
 
-        inp = AnalysisInput(query="test")
+        inp = AnalysisInput(query="test", workspace_id="ws_1")
         result = await pipeline.execute(inp)
         assert result.pipeline_id.startswith("dp_")
 
@@ -268,7 +272,7 @@ class TestDecisionPipelineExecuteSuccess:
         pipeline = _make_pipeline_with_mocks()
         from odap.biz.decision.decision_pipeline.schemas import AnalysisInput
 
-        inp = AnalysisInput(query="analyze threats")
+        inp = AnalysisInput(query="analyze threats", workspace_id="ws_1")
         result = await pipeline.execute(inp)
         assert len(result.analysis.entities) >= 1
         assert result.analysis.entities[0]["object_id"] == "obj_1"
@@ -285,7 +289,7 @@ class TestDecisionPipelineAnalyzeFailure:
         mock_retriever.retrieve = AsyncMock(side_effect=Exception("Retriever down"))
         pipeline._semantic_retriever = mock_retriever
 
-        inp = AnalysisInput(query="test")
+        inp = AnalysisInput(query="test", workspace_id="ws_1")
         result = await pipeline.execute(inp)
 
         assert result.stages["analyze"] == PipelineStageStatus.FAILED
@@ -309,11 +313,11 @@ class TestDecisionPipelineDecideFailure:
         pipeline._semantic_retriever = mock_retriever
 
         pipeline._decision_engine = Mock()
-        pipeline._decision_engine.recommend = Mock(side_effect=Exception("Engine error"))
+        pipeline._decision_engine.generate_recommendation = AsyncMock(side_effect=Exception("Engine error"))
 
         with patch("odap.biz.decision.decision_pipeline.pipeline.DecisionPipeline._fallback_decide",
                     new_callable=AsyncMock, side_effect=Exception("Fallback also failed")):
-            inp = AnalysisInput(query="test")
+            inp = AnalysisInput(query="test", workspace_id="ws_1")
             result = await pipeline.execute(inp)
 
         assert result.stages["decide"] == PipelineStageStatus.FAILED
@@ -330,7 +334,7 @@ class TestDecisionPipelineOPARejection:
 
         from odap.biz.decision.decision_pipeline.schemas import AnalysisInput, PipelineStageStatus
 
-        inp = AnalysisInput(query="test", agent_id="agent_1")
+        inp = AnalysisInput(query="test", agent_id="agent_1", workspace_id="ws_1")
         result = await pipeline.execute(inp)
 
         assert result.decision.opa_approved is False
@@ -365,14 +369,16 @@ class TestDecisionPipelineValidateFailClosed:
         mock_opt.description = "Do something"
         mock_opt.risk_level = "low"
         mock_opt.expected_outcome = "Good"
+        mock_opt.rationale = "test"
         mock_rec.recommended_option = mock_opt
         mock_rec.reasoning = "test"
+        mock_rec.decision_summary = "test"
         mock_rec.confidence = 0.5
-        mock_engine.recommend = Mock(return_value=mock_rec)
+        mock_engine.generate_recommendation = AsyncMock(return_value=mock_rec)
         pipeline._decision_engine = mock_engine
 
         with patch.object(type(pipeline), 'opa', new_callable=PropertyMock, return_value=None):
-            inp = AnalysisInput(query="test")
+            inp = AnalysisInput(query="test", workspace_id="ws_1")
             result = await pipeline.execute(inp)
 
         assert result.decision.opa_approved is False
@@ -389,7 +395,7 @@ class TestDecisionPipelineValidateFailClosed:
         pipeline = _make_pipeline_with_mocks()
         pipeline._opa_manager.check_permission_abac = Mock(side_effect=Exception("OPA unreachable"))
 
-        inp = AnalysisInput(query="test", agent_id="agent_1")
+        inp = AnalysisInput(query="test", agent_id="agent_1", workspace_id="ws_1")
         result = await pipeline.execute(inp)
 
         assert result.decision.opa_approved is False
@@ -409,7 +415,7 @@ class TestPipelineStagesTracking:
         mock_retriever.retrieve = AsyncMock(side_effect=Exception("fail"))
         pipeline._semantic_retriever = mock_retriever
 
-        inp = AnalysisInput(query="test")
+        inp = AnalysisInput(query="test", workspace_id="ws_1")
         result = await pipeline.execute(inp)
 
         assert "analyze" in result.stages
@@ -433,7 +439,7 @@ class TestPipelineStagesTracking:
         with patch.object(type(pipeline), 'decision_engine', new_callable=PropertyMock, return_value=None):
             with patch("odap.biz.decision.decision_pipeline.pipeline.DecisionPipeline._fallback_decide",
                         new_callable=AsyncMock, side_effect=Exception("No fallback")):
-                inp = AnalysisInput(query="test")
+                inp = AnalysisInput(query="test", workspace_id="ws_1")
                 result = await pipeline.execute(inp)
 
         assert result.stages["analyze"] == PipelineStageStatus.COMPLETED
@@ -449,7 +455,7 @@ class TestPipelineStagesTracking:
 
         from odap.biz.decision.decision_pipeline.schemas import AnalysisInput, PipelineStageStatus
 
-        inp = AnalysisInput(query="test", agent_id="agent_1")
+        inp = AnalysisInput(query="test", agent_id="agent_1", workspace_id="ws_1")
         result = await pipeline.execute(inp)
 
         assert result.stages["analyze"] == PipelineStageStatus.COMPLETED
@@ -466,7 +472,7 @@ class TestPipelineStagesTracking:
 
         from odap.biz.decision.decision_pipeline.schemas import AnalysisInput, PipelineStageStatus
 
-        inp = AnalysisInput(query="test", agent_id="agent_1")
+        inp = AnalysisInput(query="test", agent_id="agent_1", workspace_id="ws_1")
         result = await pipeline.execute(inp)
 
         assert result.stages["feedback"] == PipelineStageStatus.FAILED
@@ -489,12 +495,13 @@ class TestPipelineStagesTracking:
         mock_rec = Mock()
         mock_rec.recommended_option = None
         mock_rec.reasoning = "No options"
+        mock_rec.decision_summary = "No options"
         mock_rec.confidence = 0.1
-        mock_engine.recommend = Mock(return_value=mock_rec)
+        mock_engine.generate_recommendation = AsyncMock(return_value=mock_rec)
         pipeline._decision_engine = mock_engine
 
         with patch.object(type(pipeline), 'opa', new_callable=PropertyMock, return_value=None):
-            inp = AnalysisInput(query="test")
+            inp = AnalysisInput(query="test", workspace_id="ws_1")
             result = await pipeline.execute(inp)
 
         assert result.decision.recommended_option is None
@@ -538,6 +545,7 @@ class TestDecisionPipelineAnalyze:
                     object_type="Person",
                     properties={"name": "Alice"},
                     links=[{"target_id": "obj_2", "link_type": "knows"}],
+                    score=0.9,
                 )
             ],
         ))
@@ -566,7 +574,7 @@ class TestDecisionPipelineAnalyze:
         ))
         pipeline._semantic_retriever = mock_retriever
 
-        inp = AnalysisInput(query="test")
+        inp = AnalysisInput(query="test", workspace_id="ws_1")
         analysis = await pipeline._analyze(inp)
 
         assert len(analysis.summary) <= 500
@@ -581,7 +589,7 @@ class TestDecisionPipelineValidate:
 
         pipeline = DecisionPipeline()
         decision = DecisionResult(recommended_option=None)
-        inp = AnalysisInput(query="test")
+        inp = AnalysisInput(query="test", workspace_id="ws_1")
 
         result = await pipeline._validate(decision, inp)
         assert result.opa_approved is False
@@ -599,8 +607,107 @@ class TestDecisionPipelineValidate:
 
         option = DecisionOption(option_id="opt_1", action_type_id="act_1", target_object_id="obj_1")
         decision = DecisionResult(recommended_option=option)
-        inp = AnalysisInput(query="test", agent_id="agent_1")
+        inp = AnalysisInput(query="test", agent_id="agent_1", workspace_id="ws_1")
 
         result = await pipeline._validate(decision, inp)
         assert result.opa_approved is True
         assert result.opa_decision["allow"] is True
+
+
+# ── confidence 真算：替换硬编码 0.7 / 0.5 ─────────────────────────────
+
+class TestConfidenceDerivedNotHardcoded:
+    """_analyze 曾恒定 confidence=0.7、_fallback_decide 曾恒定 0.5，与检索到的真实证据
+    强度无关——前端把假精确值当真，违反"宁可未知绝不谎报"。修复后从 ObjectQueryResult.score
+    （Pydantic 校验的 Optional[float]）派生真实置信度。
+    """
+
+    def test_mean_of_available_scores(self):
+        from odap.biz.decision.decision_pipeline.pipeline import _compute_retrieval_confidence
+
+        objects = [Mock(score=0.8), Mock(score=0.6)]
+        assert _compute_retrieval_confidence(objects) == 0.7
+
+    def test_skips_none_scores(self):
+        """score=None 的条目不参与均值（真实语义：该条无相关性得分）"""
+        from odap.biz.decision.decision_pipeline.pipeline import _compute_retrieval_confidence
+
+        objects = [Mock(score=0.9), Mock(score=None), Mock(score=0.5)]
+        assert _compute_retrieval_confidence(objects) == 0.7
+
+    def test_no_scores_returns_zero_not_fabricated(self):
+        """全部无得分 → 0.0（"无证据可支撑置信度"），绝不回填 0.7"""
+        from odap.biz.decision.decision_pipeline.pipeline import _compute_retrieval_confidence
+
+        assert _compute_retrieval_confidence([]) == 0.0
+        assert _compute_retrieval_confidence([Mock(score=None)]) == 0.0
+
+    def test_clamps_to_unit_interval(self):
+        from odap.biz.decision.decision_pipeline.pipeline import _compute_retrieval_confidence
+
+        assert _compute_retrieval_confidence([Mock(score=1.5), Mock(score=1.5)]) == 1.0
+        assert _compute_retrieval_confidence([Mock(score=-0.5)]) == 0.0
+
+    @pytest.mark.asyncio
+    async def test_analyze_confidence_tracks_real_scores(self):
+        """_analyze 的 confidence 必须随检索得分变化，不再是常量 0.7"""
+        from odap.biz.decision.decision_pipeline.pipeline import DecisionPipeline
+        from odap.biz.decision.decision_pipeline.schemas import AnalysisInput
+
+        pipeline = DecisionPipeline()
+        mock_retriever = AsyncMock()
+        mock_retriever.retrieve = AsyncMock(return_value=Mock(
+            answer_context="ctx",
+            objects=[Mock(object_id="o1", object_type="T", properties={}, links=[], score=0.42)],
+        ))
+        pipeline._semantic_retriever = mock_retriever
+
+        analysis = await pipeline._analyze(AnalysisInput(query="q"))
+
+        assert analysis.confidence == 0.42
+        assert analysis.confidence != 0.7
+
+    @pytest.mark.asyncio
+    async def test_analyze_confidence_zero_when_no_evidence(self):
+        """检索为空 → confidence 0.0，暴露"无证据"而非伪装 0.7"""
+        from odap.biz.decision.decision_pipeline.pipeline import DecisionPipeline
+        from odap.biz.decision.decision_pipeline.schemas import AnalysisInput
+
+        pipeline = DecisionPipeline()
+        mock_retriever = AsyncMock()
+        mock_retriever.retrieve = AsyncMock(return_value=Mock(answer_context="", objects=[]))
+        pipeline._semantic_retriever = mock_retriever
+
+        analysis = await pipeline._analyze(AnalysisInput(query="q"))
+
+        assert analysis.confidence == 0.0
+
+    @pytest.mark.asyncio
+    async def test_fallback_decide_propagates_analysis_confidence(self):
+        """降级决策路径不得伪造 0.5，必须继承分析阶段的真实置信度"""
+        from odap.biz.decision.decision_pipeline.pipeline import DecisionPipeline
+        from odap.biz.decision.decision_pipeline.schemas import AnalysisInput, AnalysisResult
+
+        pipeline = DecisionPipeline()
+        analysis = AnalysisResult(entities=[], confidence=0.0)
+        inp = AnalysisInput(query="q", workspace_id="ws_1")
+
+        with patch("odap.biz.core.ontology.public.get_oms_service", return_value=Mock()):
+            decision = await pipeline._fallback_decide(analysis, inp)
+
+        assert decision.confidence == 0.0
+        assert decision.confidence != 0.5
+
+    @pytest.mark.asyncio
+    async def test_fallback_decide_keeps_real_confidence_when_evidence_exists(self):
+        from odap.biz.decision.decision_pipeline.pipeline import DecisionPipeline
+        from odap.biz.decision.decision_pipeline.schemas import AnalysisInput, AnalysisResult
+
+        pipeline = DecisionPipeline()
+        analysis = AnalysisResult(entities=[], confidence=0.33)
+        inp = AnalysisInput(query="q", workspace_id="ws_1")
+
+        with patch("odap.biz.core.ontology.public.get_oms_service", return_value=Mock()):
+            decision = await pipeline._fallback_decide(analysis, inp)
+
+        assert decision.confidence == 0.33

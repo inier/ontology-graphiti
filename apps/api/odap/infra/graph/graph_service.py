@@ -549,7 +549,12 @@ class GraphManager(CacheMixin, EntityOpsMixin, RelationshipOpsMixin, TemporalOps
         return ZhipuAIClient(config=config)
 
     def _create_embedder(self):
-        """创建 Embedder（兼容 SiliconFlow 等 OpenAI 兼容 API）"""
+        """创建 Embedder（兼容 SiliconFlow / NVIDIA NIM 等 OpenAI 兼容 API）
+
+        模型名必须来自配置（EMBEDDER_MODEL → llm.embedder_model）：硬编码某个
+        provider 专有的模型 id 会让 Embedder 构造成功、但每次 search 在嵌入阶段
+        404/410，而 /health 仍报 connected=true。
+        """
         try:
             from graphiti_core.embedder.openai import OpenAIEmbedder, OpenAIEmbedderConfig
             raw_base = OPENAI_API_BASE.rstrip('/')
@@ -557,14 +562,22 @@ class GraphManager(CacheMixin, EntityOpsMixin, RelationshipOpsMixin, TemporalOps
                 embed_base = raw_base.split('/chat/completions')[0]
             else:
                 embed_base = raw_base
+            embedding_model = get_config("llm.embedder_model", "")
+            if not embedding_model:
+                logger.warning(
+                    'Embedder 未配置: EMBEDDER_MODEL 为空，Graphiti 模式不可用 '
+                    f'(base={embed_base})'
+                )
+                return None
+            logger.info(f'创建 Embedder: model={embedding_model} base={embed_base}')
             config = OpenAIEmbedderConfig(
                 api_key=OPENAI_API_KEY,
                 base_url=embed_base,
-                embedding_model="Pro/BAAI/bge-m3"
+                embedding_model=embedding_model,
             )
             return OpenAIEmbedder(config=config)
         except Exception as e:
-            logger.info(f'创建 Embedder 失败: {e}')
+            logger.warning(f'创建 Embedder 失败: {e}')
             return None
 
     def _use_fallback_mode(self):
