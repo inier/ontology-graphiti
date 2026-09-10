@@ -1,43 +1,49 @@
 # 模块设计文档索引
 
-> **版本**: 3.0.0 | **更新日期**: 2026-07-03
+> **版本**: 3.1.0 | **更新日期**: 2026-09-06
 > 本文档索引了 ODAP（本体驱动 AI 平台）的所有模块设计文档。
+> 2026-09-06 全量对账：模块表与磁盘实际目录逐项校准（补 6 后端 + 3 前端模块、路由数 80→102），并同步 ADR-080 门面封装成果。
 
 ---
 
 ## 模块总览
 
-### 后端模块（39 个，按 9 大业务领域组织）
+### 后端模块（52 个，按 9 大业务领域组织）
 
-#### core/ — 核心领域（4 模块）
+#### core/ — 核心领域（5 模块）
 
 | 模块 | 路径 | 职责 | 状态 |
 |------|------|------|------|
 | Agent 编排 | `apps/api/odap/biz/core/agent/` | 多 Agent 协同、Swarm 调度 | ✅ 活跃 |
 | Assistant 助手 | `apps/api/odap/biz/core/assistant/` | AI 助手服务、插件系统 | ✅ 活跃 |
+| Chat 统一对话 | `apps/api/odap/biz/core/chat/` | UnifiedChatService — 合并原 ChatService 与 QAEngineV2，统一对话端点/工具执行/RAG 检索/内容渲染（SSE 流式） | ✅ 活跃 |
 | Cognition 认知 | `apps/api/odap/biz/core/cognition/` | 认知引擎、思维图谱 | ✅ 活跃 |
-| Ontology 本体 | `apps/api/odap/biz/core/ontology/` | 本体管理、版本控制、蓝图设计、语义层、服务化（17+ 子模块） | ✅ 活跃 |
+| Ontology 本体 | `apps/api/odap/biz/core/ontology/` | 本体管理、版本控制、蓝图设计、语义层、服务化（22 顶级子目录 / 540 文件）。对外封装为 `public.py`（77 符号）+ `public_routers.py`（31 路由）两个惰性门面，禁止外部 reach-in 内部实现（见 ADR-080 / C3 契约） | ✅ 活跃 |
 
-#### data/ — 数据领域（8 模块）
+#### data/ — 数据领域（10 模块）
 
 | 模块 | 路径 | 职责 | 状态 |
 |------|------|------|------|
 | Data Warehouse 数仓 | `apps/api/odap/biz/data/data_warehouse/` | 模拟数据仓库 | ✅ 活跃 |
+| Graph Viewer 图查看器 | `apps/api/odap/biz/data/graph_viewer/` | 图谱浏览模块（api/routes.py 图谱查看端点） | ✅ 活跃 |
 | Hyper Extract 超提取 | `apps/api/odap/biz/data/hyper_extract/` | 高性能实体/关系提取 | ✅ 活跃 |
 | Ingest 摄入 | `apps/api/odap/biz/data/ingest/` | 统一数据摄入 API | ✅ 活跃 |
 | Knowledge Base 知识库 | `apps/api/odap/biz/data/knowledge_base/` | 文档管理、图谱构建、双轨存储 | ✅ 活跃 |
+| Object Service 对象服务 | `apps/api/odap/biz/data/object_service/` | 多源联邦查询虚拟化层（ontology/business/agent/kb 四源聚合，Stage H 从 infra 迁入） | ✅ 活跃 |
 | Perception 感知 | `apps/api/odap/biz/data/perception/` | 观察者模式感知层 | ✅ 活跃 |
 | QA 问答 | `apps/api/odap/biz/data/qa/` | RAG 问答引擎、语义检索 | ✅ 活跃 |
 | Semantic Map 语义地图 | `apps/api/odap/biz/data/semantic_map/` | 本体可视化语义地图 | ✅ 活跃 |
 | Web Crawl 网页抓取 | `apps/api/odap/biz/data/web_crawl/` | 网页内容采集与解析 | ✅ 活跃 |
 
-#### decision/ — 决策领域（3 模块）
+#### decision/ — 决策领域（5 模块）
 
 | 模块 | 路径 | 职责 | 状态 |
 |------|------|------|------|
 | Action Service 动作服务 | `apps/api/odap/biz/decision/action_service/` | 动作执行、OPA 校验、回写 | ✅ 活跃 |
 | Decision Pipeline 管线 | `apps/api/odap/biz/decision/decision_pipeline/` | 决策流水线编排 | ✅ 活跃 |
 | Decision Recommendation 推荐 | `apps/api/odap/biz/decision/decision_recommendation/` | 方案推荐与风险评估 | ✅ 活跃 |
+| Decision Record 决策记录 | `apps/api/odap/biz/decision/decision_record/` | 决策作为一等公民对象（ADR-076）：record / trace chain / find similar / analyze impact / causal relationship / decision rules / outcome | ✅ 活跃 |
+| Interfaces 接口层 | `apps/api/odap/biz/decision/interfaces/` | ADR-065 舱壁先行 — decision 对外部依赖的唯一接触点（IDecisionOMSService / ISemanticRetriever 等抽象定义） | ✅ 活跃 |
 
 #### integration/ — 集成领域（5 模块）
 
@@ -72,17 +78,18 @@
 | Undo 撤销 | `apps/api/odap/biz/platform/undo/` | 操作撤销与回退 | ✅ 活跃 |
 | Workspace 工作空间 | `apps/api/odap/biz/platform/workspace/` | 多工作空间隔离、场景管理 | ✅ 活跃 |
 
-#### simulation/ — 仿真领域（5 模块）
+#### simulation/ — 仿真领域（6 模块）
 
 | 模块 | 路径 | 职责 | 状态 |
 |------|------|------|------|
 | Event Simulator 事件模拟器 | `apps/api/odap/biz/simulation/event_simulator/` | 事件生成与图谱演化 | ✅ 活跃 |
 | Feedback 反馈 | `apps/api/odap/biz/simulation/feedback/` | 仿真反馈收集 | ✅ 活跃 |
+| Interfaces 接口层 | `apps/api/odap/biz/simulation/interfaces/` | ADR-065 舱壁先行 — simulation 对外部依赖的唯一接触点（IOMSService / IModelService / IRuntimeService / IHookService 等抽象定义） | ✅ 活跃 |
 | Simulation Deduction 推演 | `apps/api/odap/biz/simulation/simulation_deduction/` | 策略推演引擎 | ✅ 活跃 |
 | Simulation Sandbox 沙盘 | `apps/api/odap/biz/simulation/simulation_sandbox/` | 并行沙盘推演 | ✅ 活跃 |
 | Visualization 可视化 | `apps/api/odap/biz/simulation/visualization/` | 仿真结果可视化 | ✅ 活跃 |
 
-#### semantic_admin/ — 语义管理台顶级域（7 子服务）
+#### semantic_admin/ — 语义管理台顶级域（8 子服务）
 
 | 模块 | 路径 | 职责 | 状态 |
 |------|------|------|------|
@@ -94,10 +101,11 @@
 |   - approval_workflow 审批 | `apps/api/odap/biz/semantic_admin/approval_workflow/` | 10 状态机 + OPA 二级审批 + 加速通道判定 | ✅ 活跃 |
 |   - usl_writeback 写回 | `apps/api/odap/biz/semantic_admin/usl_writeback/` | 审批通过写回本体 TBox + 同步 Neo4j 从副本 + 语义地图 + I4T8 手动触发/状态查询 API | ✅ 活跃 |
 |   - sa_config 动态配置 | `apps/api/odap/biz/semantic_admin/sa_config/` | 语义层配置从硬编码迁移到 SQLite 持久化（scoped key/value）+ ensure-builtin 内置常量化石回填 | ✅ 活跃 |
+|   - semantic_asset_pipeline 语义资产流水线 | `apps/api/odap/biz/semantic_admin/semantic_asset_pipeline/` | 端到端统一编排：结构化引入(UnifiedIngestFacade 链路A) + 非结构化抽取(ExtractService 链路B) + 候选归集(SQLiteCandidateStorage) + 提交审核，纯确定性编排不引入 LLM 判断 | ✅ 活跃 |
 
 #### shared/ — 共享工具（无子模块）
 
-### 前端模块（23 个）
+### 前端模块（26 个）
 
 | 模块 | 路径 | 职责 |
 |------|------|------|
@@ -107,11 +115,14 @@
 | Business | `apps/web/src/modules/business/` | 业务实体/规则/流程 |
 | Channels | `apps/web/src/modules/channels/` | 通信通道管理 |
 | Config | `apps/web/src/modules/config/` | 系统配置 |
+| Decision | `apps/web/src/modules/decision/` | 决策智能（路由 `/decisions`，DecisionIntelligencePage，对齐后端 ADR-076 决策记录/因果链/影响分析） |
 | Guide | `apps/web/src/modules/guide/` | 新手引导 |
+| Hyper Extract | `apps/web/src/modules/hyper-extract/` | HE 超提取（路由 `/he/extraction`，HeExtractionPage，对齐后端 data/hyper_extract） |
 | i18n Admin | `apps/web/src/modules/i18n-admin/` | 国际化管理 |
 | Iframe Viewer | `apps/web/src/modules/iframe-viewer/` | 外部页面嵌入 |
 | Ingest | `apps/web/src/modules/ingest/` | 数据摄入 |
 | Knowledge | `apps/web/src/modules/knowledge/` | 知识库文档管理 |
+| MCP Tools | `apps/web/src/modules/mcp-tools/` | MCP 工具管理（路由 `/mcp/tools`，McpToolsPage，对齐后端 integration/mcp_adapter） |
 | Menu Config | `apps/web/src/modules/menu-config/` | RBAC 菜单配置 |
 | MinIO Admin | `apps/web/src/modules/minio-admin/` | 对象存储管理 |
 | Ontology | `apps/web/src/modules/ontology/` | 本体构建、蓝图设计 |
@@ -125,9 +136,9 @@
 | Workspace | `apps/web/src/modules/workspace/` | 工作空间管理 |
 | Semantic Admin | `apps/web/src/modules/semantic-admin/` | 语义管理台（路由 /semantic-admin/*，子页：/usl /pipeline /candidates /quality） |
 
-### API 路由注册（80 个路由）
+### API 路由注册（102 个路由模块）
 
-所有后端路由通过 `apps/api/odap/web/router_registry.py` 集中注册到生产入口 `apps/api/odap/web/app.py`。
+所有后端路由通过 `apps/api/odap/web/router_registry.py` 的 `create_router_registry()`（构建 `DEFAULT_ROUTER_REGISTRY`）集中注册到生产入口 `apps/api/odap/web/app.py`（`register_routers(app, DEFAULT_ROUTER_REGISTRY)`）。当前 `DEFAULT_ROUTER_REGISTRY` 含 **102 个路由模块**，运行期展开为 OpenAPI **755 paths / 957 operations**（容器实测）。ontology 深层子包的路由经 `biz/core/ontology/public_routers.py` 惰性门面统一暴露（31 路由），router_registry 从门面导入而非直接 reach-in（见 ADR-080 / C3 契约）。
 
 ---
 

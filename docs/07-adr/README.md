@@ -95,6 +95,8 @@
 | ADR-077 | SHACL/OWL 本体治理（双轨制） | 已接受（2026-08-20 grilling 四轮裁决；SHACL/OWL 引擎已落地） | P2 | 2026-08-20 | [ADR-077](ADR-077_SHACL_OWL本体治理.md) |
 | ADR-078 | 图分析服务（中心性/社区/链路预测/路径） | 提议（2026-08-20 编写，待评审；引擎已落地） | P2 | 2026-08-20 | [ADR-078](ADR-078_图分析服务.md) |
 | ADR-079 | 本体论与 LLM 结合边界（推理/理解/生成三层治理） | 已接受（2026-08-20） | P0 | 2026-08-20 | [ADR-079](ADR-079_本体论与LLM结合边界.md) |
+| ADR-080 | core.ontology 门面封装与 import-linter 分层契约棘轮 | 已接受（2026-09-06 Stage A–G：C1/C2/C3 零债账全严格；2026-09-07 Stage H：补 C4 守卫 infra 下层，续烧 22→19→18→14；2026-09-08 Stage I：依赖倒置续烧 14→10，见 ADR-081） | P1 | 2026-09-06 | [ADR-080](ADR-080_ontology门面封装与分层契约.md) |
+| ADR-081 | infra→biz 依赖倒置 provider 注册表 seam（C4 Stage I 烧账机制） | 已接受（2026-09-08 Stage I · Group A：新增 infra/providers.py 注册表 + biz/providers_bootstrap.py 工厂注册，3 个 query source 改 resolve_provider + 删死函数 register_query_tools，C4 14→10，`lint-imports` 4 kept/0 broken，OpenAPI 755/957 零丢路由） | P1 | 2026-09-08 | [ADR-081](ADR-081_infra依赖倒置provider注册表.md) |
 
 > 预留编号：ADR-034/035（对应设计已合并至 ADR-038，永不复用）。
 
@@ -146,6 +148,8 @@
 - ADR-075 ~ ADR-076：Phase 7 Semantica 能力引入（推理引擎/决策智能，2026-08-16 修订）
 - ADR-077 ~ ADR-078：Phase 3/4 本体治理标准化（SHACL/OWL）+ 图分析服务（2026-08-20）
 - ADR-079：本体论与 LLM 结合边界（推理/理解/生成三层治理，2026-08-20）
+- ADR-080：core.ontology 门面封装与 import-linter 分层契约棘轮（ADR-068 迁移策略的实现与 CI 守卫，2026-09-06）
+- ADR-081：infra→biz 依赖倒置 provider 注册表 seam（C4 棘轮 Stage I 烧账机制，续接 ADR-080，2026-09-08）
 - 编号冲突处理：若同日提审新 ADR 时编号已被占用，**禁止采用后缀 `b/c/d`**，必须使用下一个可用编号。**永远不重命名已被外部链接引用的 ADR 文件**。
 
 ## 状态清算记录
@@ -154,3 +158,6 @@
 |------|------|------|
 | 2026-08-16 | 全面清算：索引与文件头状态对齐；4 份提议转已接受（052/053/067 + 069/070/071/072）；2 份标记取代（056/057 → 061+068）；033 → 被 066 取代；022 补边界注记；063/062/069 补落地情况注记；070 修正引用错误；索引重构为单一权威表并新增"状态核验"列 | 全量 76 份 |
 | 2026-08-20 | 登记 ADR-077/078/079；075/076 状态同步为已接受（此前 grilling 收尾/Phase 1 交付未回写索引）；新增 ADR-079 本体论与 LLM 结合边界原则 | 075~079 |
+| 2026-09-06 | 登记 ADR-080（core.ontology 门面封装 + import-linter 三契约棘轮，Stage A–G 落地，C1/C2/C3 零债账全严格） | 080 |
+| 2026-09-07 | ADR-080 Stage H：补第四条契约 C4（infra 不得直接 import biz），grimp 精确复测 22 边；分三批烧账 —— Tier1 删 2 vestigial shim（22→19）、Tier3 PermissionScope 下沉 common（19→18）、Tier2 object_service 整体迁移 biz.data（18→14）；`lint-imports` 3 kept → 4 kept/0 broken；同步 DOC_SYNC_CHECKLIST 契约审计 gate、ARCHITECTURE_INFRA、03-modules README | 080 |
+| 2026-09-08 | 登记 ADR-081（infra→biz 依赖倒置 provider 注册表 seam）；ADR-080 Stage I · Group A 烧账：新增 `infra/providers.py` 注册表 + `biz/providers_bootstrap.py` 工厂注册，3 个 query source 改 `resolve_provider` + 删死函数 `register_query_tools`，C4 14→10；反向探针验证注册表受 C4 守卫；运行期 smoke 5 provider 全解析；定向回归 139 passed；容器 OpenAPI 755/957 零丢路由；顺带修正 `SemanticObjectRetriever` 存量导入缺陷 | 080/081 |

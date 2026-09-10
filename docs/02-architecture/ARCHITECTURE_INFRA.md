@@ -76,9 +76,11 @@ ObjectService 通过 Source Fetcher 模式联邦查询多个底层存储：
 
 | 文件 | 说明 |
 |------|------|
-| `apps/api/odap/infra/object_service/schemas.py` | ObjectQuery、SemanticQuery、ObjectQueryResult 等数据模型 |
-| `apps/api/odap/infra/object_service/object_service.py` | 核心虚拟化层，多源联邦查询 + 链接遍历 + 动作发现 |
-| `apps/api/odap/infra/object_service/routes.py` | FastAPI 路由 |
+| `apps/api/odap/biz/data/object_service/schemas.py` | ObjectQuery、SemanticQuery、ObjectQueryResult 等数据模型 |
+| `apps/api/odap/biz/data/object_service/object_service.py` | 核心虚拟化层，多源联邦查询 + 链接遍历 + 动作发现 |
+| `apps/api/odap/biz/data/object_service/routes.py` | FastAPI 路由 |
+
+> **Stage H 迁移注记**：object_service 原置于 `infra/`，但其本质是编排 4 个 biz 服务的应用级聚合器（违反 C4 infra→biz 分层契约），已迁移到 `biz/data/object_service/`。
 
 ---
 

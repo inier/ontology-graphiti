@@ -18,15 +18,23 @@
 - [ ] `docs/03-modules/README.md` — 更新前端模块表
 - [ ] `agents.md` § 4.2 — 更新前端路由方案表（如有新页面路由）
 
+当 `apps/api/odap/infra/` 下新增/修改模块时（ADR-080 C4：infra 是 biz 的下层）：
+
+- [ ] **禁止 infra 直接 import biz** — 新代码不得引入 `odap.infra.* -> odap.biz.*` 的直接依赖；若确需 biz 数据，走依赖倒置（在 `odap/infra/providers.py` 注册表解析 provider，工厂在 `odap/biz/providers_bootstrap.py` 注册，见 ADR-081）或把共享类型下沉到 common
+- [ ] 若消除了 C4 存量债账（10 条之一），同步从 `apps/api/pyproject.toml` 的 C4 `ignore_imports` 删除对应行（棘轮只减不增）
+- [ ] 运行 `cd apps/api && uv run --no-sync lint-imports` — 确认 C4 未因新增 infra→biz 直接边而 BROKEN
+
 ---
 
 ## 二、路由变更检查
 
 当新增 `api/routes.py` 路由模块时：
 
-- [ ] `apps/api/odap/web/router_registry.py` — 注册新路由到 `router_registry`
-- [ ] `apps/api/odap/web/app.py` — 确认 `include_router()` 已注册（生产入口）
+- [ ] `apps/api/odap/web/router_registry.py` — 在 `create_router_registry()`（构建 `DEFAULT_ROUTER_REGISTRY`）中注册新路由
+- [ ] **ontology 路由专属**（ADR-080 C3）— ontology 深层子包的路由必须经 `biz/core/ontology/public_routers.py` 门面暴露（`_ROUTER_MAP` 加异名别名），`router_registry` 从门面导入，禁止直接 reach-in `ontology.<深层>.api.routes`
+- [ ] `apps/api/odap/web/app.py` — 确认 `register_routers(app, DEFAULT_ROUTER_REGISTRY)` 生效（生产入口）
 - [ ] `agents.md` § 附录 E — 更新关键 API 路径速查表（如有新路径前缀）
+- [ ] 运行 `cd apps/api && uv run --no-sync lint-imports` — 确认 C1/C2/C3/C4 四契约未因新路由 reach-in 而 BROKEN
 
 ---
 
@@ -86,9 +94,16 @@ ls apps/web/src/modules/ | sort
 ls docs/07-adr/ADR-*.md | sort
 # 然后与 docs/07-adr/README.md 索引表逐项对照
 
-# 路由审计
-python -c "from odap.web.router_registry import router_registry; print(f'共 {len(router_registry)} 个路由模块')"
+# 路由审计（符号是 DEFAULT_ROUTER_REGISTRY，不是 router_registry —— 见 ADR-080 Stage F）
+python -c "from odap.web.router_registry import DEFAULT_ROUTER_REGISTRY as r; print(f'共 {len(r)} 个路由模块')"
 # 然后与 docs/03-modules/README.md 路由数量对照
+
+# 分层契约审计（ADR-080：C1 common 叶子 / C2 web 顶层 / C3 ontology 门面封装 / C4 infra 下层）
+cd apps/api && uv run --no-sync lint-imports
+# 期望：Contracts: 4 kept, 0 broken
+#   · C1/C2/C3 无 "(N ignored imports)" 后缀（零债账全严格）
+#   · C4 显示 "KEPT (10 ignored imports)"（infra→biz 存量债账棘轮，只减不增；见 ADR-080 Stage H + ADR-081 Stage I）
+# 新增 biz/infra→web、common→上层、外部→ontology 深层子包、infra→biz 的直接 import 会立即 FAIL
 ```
 
 ---
