@@ -82,3 +82,210 @@ build-backend = "hatchling.build"
 
 [tool.hatch.build.targets.wheel]
 packages = ["odap"]
+
+# ─────────────────────────────────────────────────────────────────────────────
+# import-linter —— 架构适应度守护（Stage C）
+#
+# 运行方式（在 apps/api 目录下，grimp 做静态 AST 扫描，不需 DB/OPA/容器）：
+#     uv run lint-imports
+#
+# 设计原则：ratchet（棘轮）—— ignore_imports 是"存量债账"，只允许缩短不允许增长。
+# 每条 ignore 都是一个待烧掉的 TODO；任何新增的越界依赖都会让契约 FAIL，CI 拦截。
+#
+# infra 隔离已由 C4（Stage H 落地）强制：原诊断的 "24+ 条 infra→biz 系统性耦合" 经 grimp
+#   精确复测为 22 条直接边；Stage H 分三批烧账 —— Tier1 删 2 个 vestigial shim
+#   （infra.graph.thought_routes 死模块 / infra.graph.thought_graph 仅测试消费的透传壳）
+#   → 22 降 19；Tier3 把 PermissionScope 类型下沉 common 叶子层 → 18；Tier2 把
+#   infra.object_service 整体迁移到 biz.data.object_service（消 4 边）→ 14。
+#   Stage I（ADR-081）引入 infra/providers.py 依赖倒置注册表，Group A 烧 4 边 —— 删死函数
+#   register_query_tools（query_tools→tool_registry）+ 3 个 query source 改 resolve_provider
+#   （ontology_source/schema_source→ontology.public、unstructured_source→qa.semantic_retriever）→ 10。
+#   剩余 10 条固化为 C4 棘轮契约的 ignore_imports 债账（详见 C4 注释）。
+#
+# ontology reach-in 已由 C3（Stage D 落地）强制：51 个外部文件、94 条导入边已迁移
+# 到 public.py 门面，facade-able 的深边归零，剩余只有 router 聚合边（Stage F）与
+# 死导入边（Stage E）。
+# ─────────────────────────────────────────────────────────────────────────────
+[tool.importlinter]
+root_packages = ["odap"]
+
+# C1：common 是叶子层 —— 不得反向依赖 biz / infra / web。
+# 保护 Stage A.1 对 common/constants.py 的清理成果。
+#
+# Stage E · T1 烧账完成：原本 4 条 ignore（common.constants → workspace.models.*）
+# 的根因是 constants.py 顶层死再导入 5 个 workspace 枚举供 common/__init__.py 再导出，
+# 但全仓 grep 显示 odap.common 无任何消费者（apps/api + tests 均 0 命中），
+# 是纯死代码。已删除 constants.py 的 4 条 import 与 __init__.py 的 5 条再导出，
+# C1 ignore_imports 清零，契约变为**完全严格**——任何未来 common→biz/infra/web
+# 的新增依赖立即 FAIL，无祖父条款。
+[[tool.importlinter.contracts]]
+name = "C1: common is a leaf (no deps on biz/infra/web)"
+type = "forbidden"
+source_modules = ["odap.common"]
+forbidden_modules = ["odap.biz", "odap.infra", "odap.web"]
+
+# C2：web 是顶层 —— biz / infra 不得反向依赖 web。
+# Stage G · C2-1 烧账（10 → 5）：原 5 条 `biz/infra -> web.ws.event_bus` 边已消除——
+# web/ws/event_bus.py 只是 8 行的向后兼容再导出 shim，真正实现早在 infra/events/event_bus.py
+# （DomainEventBus / get_event_bus / event_bus）。已把 5 个消费者（core.agent.intelligence_agent、
+# core.agent.swarm_orchestrator、infra.opa.{pep,alerting,opa_service}）的 `get_event_bus` 导入
+# 直接改指 canonical 的 odap.infra.events.event_bus，边变为 biz→infra / infra→infra（C2 放行）。
+# shim 保留供 web 内部（web/ws/routes.py、web/ws/__init__.py）向后兼容。
+#
+# Stage G · C2-2 烧账（5 → 2）：`DictResponse`（web/api/response_models.py，25 行纯 pydantic
+# 零内部依赖的共享 schema）已下沉到 common 叶子层 odap.common.response_models；3 个 biz 消费者
+# （servitization.catalog.routes、ontology_memory.api.decay_routes、shared_workspace.api.consensus_routes）
+# 改指 common。旧路径 web/api/response_models.py 保留为向后兼容 shim（web→common，C2 放行）。
+#
+# Stage G · C2-3 烧账（2 → 0，契约完全严格）：`emit_build_progress`（原定义于 web/ws/routes.py，
+# 但只依赖 infra.events.event_bus、与 web 层零耦合，纯属"工具函数放错层"）已逐字下沉到
+# odap.infra.events.build_progress；2 个 biz 消费者（construction.ingestion.services.unified_ingest_service、
+# design.services.ingest_service）的 ingest 进度回调改指 infra。web/ws/routes.py 保留再导出 shim
+# （web→infra 向下依赖，C2 放行）。至此 C2 ignore_imports 清零，契约变为**完全严格**——
+# 任何未来 biz/infra→web 的新增依赖立即 FAIL，无祖父条款。三条契约 C1/C2/C3 全部归零严格。
+[[tool.importlinter.contracts]]
+name = "C2: web is the top layer (biz/infra must not import web)"
+type = "forbidden"
+source_modules = ["odap.biz", "odap.infra"]
+forbidden_modules = ["odap.web"]
+
+# C3：ontology 内部实现只能经 public.py 门面或包根访问 —— 禁止外部深插内部子包。
+# 这是 Stage D 的成果守护：51 个外部文件已迁移到 `from ...ontology.public import ...`，
+# facade-able 的深层 reach-in 归零。source_modules 刻意排除 ontology 自身（内部边不算
+# 违规），forbidden_modules 列举 23 个深层子包（排除 .public 门面与包根）。
+#
+# 关键开关 allow_indirect_imports = True：只把**直接**深插内部子包的导入算作违规，
+# 放行 `-> odap.biz.core.ontology`（包根）与 `-> ...ontology.public`（门面）。否则
+# forbidden 契约默认也会标记经包根 __init__ eager 导入的间接边，导致大面积误报。
+#
+# Stage F 烧账（router 聚合中心化）：原 38 条 ignore 全部是 router 聚合边
+# （web.api.app 7 + web.router_registry 31）——为注册路由而 `from ...ontology.<深层
+# 子包>.api.routes import router`。`router` 名跨 31 个模块冲突，无法塞进 public.py 的
+# 符号门面，故新增姊妹模块 `odap.biz.core.ontology.public_routers`（PEP 562 惰性
+# __getattr__ + importlib，与 public.py 同机制），为每个 ontology 路由分配唯一公共别名
+# （oms_router / action_type_router …）。38 条深层导入已 1:1 改写为
+# `from odap.biz.core.ontology.public_routers import <别名>`（位置/注释/别名/注册顺序全不动）。
+#
+# 效果：web 层 → ontology 的 router 边从 38 条深插收敛为**指向 public_routers 的允许边**
+# （public_routers 是 ontology 包根直属模块，不在 forbidden_modules 内）；public_routers →
+# 各深层 routes 是 importlib 动态边，grimp 不可见，且属 ontology 内部边（source_modules
+# 已排除 ontology 自身），不构成违规。
+#
+# C3 现为**全严格、零 ignore 债账**（与 C1 同）：ontology 内部实现（含路由）对全仓彻底封装，
+# 未来任何新增的深层 reach-in（符号或路由）都会被 CI 立即拦截。
+[[tool.importlinter.contracts]]
+name = "C3: ontology internals reachable only via public facade"
+type = "forbidden"
+allow_indirect_imports = true
+source_modules = [
+    "odap.biz.core.agent",
+    "odap.biz.core.assistant",
+    "odap.biz.core.chat",
+    "odap.biz.core.cognition",
+    "odap.biz.data",
+    "odap.biz.decision",
+    "odap.biz.integration",
+    "odap.biz.management",
+    "odap.biz.platform",
+    "odap.biz.semantic_admin",
+    "odap.biz.shared",
+    "odap.biz.simulation",
+    "odap.infra",
+    "odap.tools",
+    "odap.web",
+]
+forbidden_modules = [
+    "odap.biz.core.ontology.action",
+    "odap.biz.core.ontology.application",
+    "odap.biz.core.ontology.assistant",
+    "odap.biz.core.ontology.branch",
+    "odap.biz.core.ontology.cold_start",
+    "odap.biz.core.ontology.common",
+    "odap.biz.core.ontology.computed",
+    "odap.biz.core.ontology.conflict",
+    "odap.biz.core.ontology.construction",
+    "odap.biz.core.ontology.design",
+    "odap.biz.core.ontology.extraction",
+    "odap.biz.core.ontology.goal",
+    "odap.biz.core.ontology.health",
+    "odap.biz.core.ontology.inheritance",
+    "odap.biz.core.ontology.mcp",
+    "odap.biz.core.ontology.ontology_api",
+    "odap.biz.core.ontology.reasoning",
+    "odap.biz.core.ontology.registry",
+    "odap.biz.core.ontology.semantic_retrieval",
+    "odap.biz.core.ontology.services",
+    "odap.biz.core.ontology.sharding",
+    "odap.biz.core.ontology.view",
+]
+
+# C4：infra 是 biz 的下层 —— infra 不得向上依赖 biz。
+# 分层架构 common(叶子) ← infra ← biz ← web(顶层)。C1 守 common 叶子、C2 守 web 顶层、
+# C3 守 ontology 门面封装；C4 补齐最后一块拼图：守卫 infra/biz 层间边界。
+#
+# 契约形态：forbidden，source_modules=["odap.infra"]，forbidden_modules=["odap.biz"]，
+# allow_indirect_imports = true（只把**直接** infra→biz 边算作违规）。
+# 为何必须开 allow_indirect_imports：实测发现 infra 经 `odap.tools`（领域 Skill 层，独立
+#   顶级包）**间接**触达 biz——engine_adapter/tool_adapter/fault_tolerance → odap.tools →
+#   tools.{base,query.nl_query_skills,web.web_skills} → biz.{core.ontology.public,data.qa,
+#   data.web_crawl}。默认 forbidden 会把这些多跳链也判违规，但 infra→tools、tools→biz 各自
+#   是独立边（tools 作为 Skill 层使用 biz 服务属其本职），不应由 C4 承担。故 C4 收敛语义为
+#   "任何 infra 模块不得**直接** import biz 模块"，与 C3 的 allow_indirect_imports 用法一致。
+#   把存量直接边全部 ignore 即今日绿（落地 22 条，Stage H 烧至 14，Stage I 依赖倒置烧至 10）；任何新增的 infra→biz 直接边立即 FAIL。
+#   （tools 层的间接可达性是独立技术债，留待后续 tools 契约评估。）
+#
+# ── Stage H · Tier1 烧账（22 → 19）────────────────────────────────────────────
+# 已删除 2 个 vestigial shim（canonical 实现均在 biz.core.cognition.thought_graph）：
+#   · infra/graph/thought_routes.py —— 死模块，全仓零消费者（router_registry.py:142 早已
+#     直接从 biz canonical 导入 thought_router，此壳无人问津）。
+#   · infra/graph/thought_graph.py  —— 纯透传壳，仅 tests/unit/test_thought_graph.py 消费；
+#     已把 9 处测试导入重接到 biz canonical（.models.types / .services.thought_graph_service）。
+# 消除 3 条边（thought_routes→cognition.api.routes、thought_graph→cognition.models.types、
+# thought_graph→cognition.services.thought_graph_service）。
+#
+# ── 存量 10 条债账（分 2 tier，只减不增；原 22，Stage H 烧 1+4=5→14，Stage I 烧 1+3=4→10）──
+# Tier2 · 错放模块（应整体迁移到 biz/integration，而非删导入）——6 条：
+#   [已烧] infra.object_service.object_service（4）：已迁移到 biz.data.object_service（Stage H · C4-T2-1）。
+#   · infra.openharness.engine_adapter（4）：运行时装配 biz 的 assistant 插件/config/
+#     session_memory，属集成编排关注点，应迁往 biz.integration（有 infra 内部消费者，需装配注入）。
+#   · infra.resilience.fault_tolerance（1）：包裹 biz.core.agent.swarm_orchestrator，
+#     容错编排实为 agent 领域关注点（AgentState 下沉不足以断边，DomainSwarm 惰性 import 仍存活）。
+#   · infra.openharness.agui.retrieval_adapter（1）：经 ontology.public 门面取检索能力（可走 provider 解析）。
+# Tier3 · 真实向上取数（需依赖倒置：注入 provider 接口，最难，长期债）——原 8 条，Stage I 烧 4，剩 4 条：
+#   [已烧] infra.query.query_tools（1，tool_registry）：删死函数 register_query_tools（Stage I · C4-A1，全仓零消费者）。
+#   [已烧] infra.query.{ontology_source, sources.schema_source}（2）+ sources.unstructured_source（1）：
+#     改经 odap.infra.providers 注册表 resolve_provider 解析 biz 协作者（Stage I · C4-A3，见 ADR-081）。
+#   · infra.storage.scenario_store（2）：查询/存储 infra 需 ontology 数据，经 public 门面
+#     或包根（scenario_store:143 走包根 OntologyVersionManager，稍劣）；模块级单例 import 时即构造，
+#     惰性 provider 解析有启动顺序脆弱性 —— 缓烧，需从组合根构造注入或整体迁移。
+#   · infra.queue.tasks（2）：hyper_extract 的 he_adapter/ontology_mapper，烧账方向是任务注册表注入。
+#   [已烧] infra.opa.opa_service（1）：PermissionScope 已下沉 common（Stage H · C4-T3-1）。
+#
+# 烧账纪律：每消除一条边就从下方 ignore_imports 删除对应行；清单清空即 C4 完全严格（同 C1/C3）。
+[[tool.importlinter.contracts]]
+name = "C4: infra is below biz (infra must not import biz)"
+type = "forbidden"
+allow_indirect_imports = true
+source_modules = ["odap.infra"]
+forbidden_modules = ["odap.biz"]
+ignore_imports = [
+    # [已烧] Tier2 · object_service 已迁移到 biz.data.object_service（Stage H · C4-T2-1，4 边消除）
+    # Tier2 · openharness.engine_adapter 集成编排（应迁 biz.integration）
+    "odap.infra.openharness.engine_adapter -> odap.biz.core.assistant.plugins.ai_assistant.registry",
+    "odap.infra.openharness.engine_adapter -> odap.biz.core.assistant.plugins.ai_assistant.tools",
+    "odap.infra.openharness.engine_adapter -> odap.biz.platform.config.impl.config_manager",
+    "odap.infra.openharness.engine_adapter -> odap.biz.platform.session_memory.services.session_memory_service",
+    # Tier2 · resilience.fault_tolerance 容错编排（agent 领域）
+    "odap.infra.resilience.fault_tolerance -> odap.biz.core.agent.swarm_orchestrator",
+    # Tier2 · agui.retrieval_adapter 经门面取检索
+    "odap.infra.openharness.agui.retrieval_adapter -> odap.biz.core.ontology.public",
+    # [已烧] Tier3 · query source 三边已依赖倒置（Stage I · C4-A3）：ontology_source/schema_source/
+    #   unstructured_source 改经 odap.infra.providers 注册表解析 biz 协作者（ADR-081），不再直接 import biz。
+    # Tier3 · storage.scenario_store 真实向上取数（缓烧：模块级单例 import 时即构造，惰性 provider 解析
+    #   有启动顺序脆弱性；需从组合根构造注入或整体迁移，留待后续 Stage）
+    "odap.infra.storage.scenario_store -> odap.biz.core.ontology",
+    "odap.infra.storage.scenario_store -> odap.biz.core.ontology.public",
+    # Tier3 · queue.tasks 取 hyper_extract 适配器（应任务注册表注入）
+    "odap.infra.queue.tasks -> odap.biz.data.hyper_extract.impl.he_adapter",
+    "odap.infra.queue.tasks -> odap.biz.data.hyper_extract.impl.ontology_mapper",
+]
