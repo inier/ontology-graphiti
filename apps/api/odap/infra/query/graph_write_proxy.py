@@ -318,6 +318,22 @@ class GraphWriteProxy:
             return getattr(gm, "_mode", "unknown")
         return "unavailable"
 
+    def get_raw_graph_manager(self):
+        """[已移除] 获取原始 GraphManager 的逃逸舱。
+
+        本代理的存在意义就是强制"业务模块禁止直接操作 GraphManager 写图"
+        （见模块 docstring）。此前该方法被直接删除，导致任何残留调用者得到
+        一个语义模糊的 AttributeError——违背 AGENTS.md 规则 14"失败必须显式"。
+        这里保留一个**显式墓碑**：抛出带明确原因的 NotImplementedError，
+        让调用方立刻知道该走 add_entity/add_relationship 等代理方法，
+        而不是拿到裸 GraphManager 绕过审计与 workspace 隔离。
+        """
+        raise NotImplementedError(
+            "GraphWriteProxy.get_raw_graph_manager() has been removed; "
+            "use the proxy write methods (add_entity/add_relationship/add_episode) "
+            "so that audit logging and workspace isolation are enforced."
+        )
+
 
 # ------------------------------------------------------------------
 # 模块级单例获取函数

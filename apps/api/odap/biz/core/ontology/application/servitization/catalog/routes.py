@@ -1,6 +1,6 @@
 from fastapi import APIRouter, HTTPException, Query, Depends
 from odap.infra.security.jwt_auth import get_current_user
-from odap.web.api.response_models import DictResponse
+from odap.common.response_models import DictResponse
 from typing import Optional
 
 from .service_catalog import ServiceCatalogService

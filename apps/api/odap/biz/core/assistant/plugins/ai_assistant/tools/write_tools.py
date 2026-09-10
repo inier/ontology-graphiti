@@ -149,7 +149,7 @@ class AddPropertyTool(BaseTool):
 
     async def execute(self, arguments: AddPropertyInput, context: ToolExecutionContext) -> ToolResult:
         try:
-            from odap.biz.core.ontology.ontology_api.services.ontology_service import OntologyService
+            from odap.biz.core.ontology.public import OntologyService
 
             _, target, _ = _resolve_type_name(arguments.ontology_id, arguments.object_type_name)
             if not target:
@@ -208,7 +208,7 @@ class UpdatePropertyTool(BaseTool):
 
     async def execute(self, arguments: UpdatePropertyInput, context: ToolExecutionContext) -> ToolResult:
         try:
-            from odap.biz.core.ontology.ontology_api.services.ontology_service import OntologyService
+            from odap.biz.core.ontology.public import OntologyService
 
             _, target, _ = _resolve_type_name(arguments.ontology_id, arguments.object_type_name)
             if not target:
@@ -269,7 +269,7 @@ class RemovePropertyTool(BaseTool):
 
     async def execute(self, arguments: RemovePropertyInput, context: ToolExecutionContext) -> ToolResult:
         try:
-            from odap.biz.core.ontology.ontology_api.services.ontology_service import OntologyService
+            from odap.biz.core.ontology.public import OntologyService
 
             _, target, _ = _resolve_type_name(arguments.ontology_id, arguments.object_type_name)
             if not target:
@@ -320,7 +320,7 @@ class CreateObjectTypeTool(BaseTool):
 
     async def execute(self, arguments: CreateObjectTypeInput, context: ToolExecutionContext) -> ToolResult:
         try:
-            from odap.biz.core.ontology.ontology_api.services.ontology_service import OntologyService
+            from odap.biz.core.ontology.public import OntologyService
 
             # Check for duplicate name
             _, existing, _ = _resolve_type_name(arguments.ontology_id, arguments.name)
@@ -375,7 +375,7 @@ class DeleteObjectTypeTool(BaseTool):
 
     async def execute(self, arguments: DeleteObjectTypeInput, context: ToolExecutionContext) -> ToolResult:
         try:
-            from odap.biz.core.ontology.ontology_api.services.ontology_service import OntologyService
+            from odap.biz.core.ontology.public import OntologyService
 
             _, target, _ = _resolve_type_name(arguments.ontology_id, arguments.object_type_name)
             if not target:
@@ -418,7 +418,7 @@ class CreateLinkTypeTool(BaseTool):
 
     async def execute(self, arguments: CreateLinkTypeInput, context: ToolExecutionContext) -> ToolResult:
         try:
-            from odap.biz.core.ontology.ontology_api.services.ontology_service import OntologyService
+            from odap.biz.core.ontology.public import OntologyService
 
             # Resolve source and target types
             _, src, _ = _resolve_type_name(arguments.ontology_id, arguments.source_type)
@@ -474,7 +474,7 @@ class DeleteLinkTypeTool(BaseTool):
 
     async def execute(self, arguments: DeleteLinkTypeInput, context: ToolExecutionContext) -> ToolResult:
         try:
-            from odap.biz.core.ontology.ontology_api.services.ontology_service import OntologyService
+            from odap.biz.core.ontology.public import OntologyService
 
             svc = OntologyService()
             links_resp = svc.list_link_types(arguments.ontology_id)
@@ -526,7 +526,7 @@ class AddPropertiesBatchTool(BaseTool):
 
     async def execute(self, arguments: AddPropertiesBatchInput, context: ToolExecutionContext) -> ToolResult:
         try:
-            from odap.biz.core.ontology.ontology_api.services.ontology_service import OntologyService
+            from odap.biz.core.ontology.public import OntologyService
 
             # Parse properties
             try:

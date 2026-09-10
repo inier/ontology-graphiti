@@ -23,11 +23,13 @@ class UnstructuredSourceImpl:
     @property
     def retriever(self) -> Any:
         if self._retriever is None:
+            # C4 依赖倒置（ADR-081 · Stage I）：不再直接 import biz，改从 infra provider 注册表解析。
+            # provider "semantic_object_retriever" 由 odap.biz.providers_bootstrap 在组合根注册。
+            from odap.infra.providers import resolve_provider
             try:
-                from odap.biz.data.qa.semantic_retriever import SemanticObjectRetriever
-                self._retriever = SemanticObjectRetriever()
+                self._retriever = resolve_provider("semantic_object_retriever")
             except Exception as e:
-                logger.warning("Failed to lazy-load SemanticObjectRetriever: %s", e)
+                logger.warning("Failed to resolve semantic_object_retriever provider: %s", e)
                 raise
         return self._retriever
 

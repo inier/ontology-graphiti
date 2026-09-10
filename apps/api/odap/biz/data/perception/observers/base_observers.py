@@ -211,7 +211,8 @@ class NewsObserver(BaseObserver):
     async def observe(self) -> List[PerceptionEvent]:
         events = []
         try:
-            from odap.biz.core.ontology.ingestion_split.ingestion import NewsIngester
+            # Stage E 修复：原 ontology.ingestion_split.ingestion 已死，改经 public 门面。
+            from odap.biz.core.ontology.public import NewsIngester
             ingester = NewsIngester()
             articles = ingester.fetch_latest()
             for article in articles[:10]:
@@ -233,7 +234,8 @@ class NewsObserver(BaseObserver):
             logger.debug(f"NewsObserver: event {event_id} already acknowledged")
             return True
         try:
-            from odap.biz.core.ontology.ingestion_split.ingestion import NewsIngester
+            # Stage E 修复：原 ontology.ingestion_split.ingestion 已死，改经 public 门面。
+            from odap.biz.core.ontology.public import NewsIngester
             ingester = NewsIngester()
             ingester.mark_processed(event_id)
             self._acknowledged_ids.add(event_id)

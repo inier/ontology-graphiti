@@ -8,6 +8,8 @@ import time
 from datetime import datetime, timezone
 from typing import Any, Dict, List, Optional, Set
 from odap.infra.config_composer import get_config
+# C4 依赖倒置接线（ADR-081 · Stage I）：导入即注册 biz provider，供 infra.query source 解析。
+import odap.biz.providers_bootstrap  # noqa: F401  (side-effect: register biz providers)
 
 logger = logging.getLogger("simulator_web")
 
@@ -38,13 +40,13 @@ except ImportError:
     AUTH_AVAILABLE = False
     logger.warning("JWT auth module not available, endpoints will be unauthenticated")
 
-from odap.biz.core.ontology.design.schema.document import (
+from odap.biz.core.ontology.public import (
     OntologyDocument, OntologyDocumentSchema, OntologyValidationError,
     DocType, SourceType
 )
-from odap.biz.core.ontology.construction.pipeline.services import PipelineService as OntologyHotWritePipeline
+from odap.biz.core.ontology.public import PipelineService as OntologyHotWritePipeline
 from odap.biz.core.ontology import OntologyVersionManager
-from odap.biz.core.ontology.design.ingestion_split import NewsIngester, FreeNewsIngester, ManualInputHandler, ConflictEventGenerator, OntologyDocumentIO
+from odap.biz.core.ontology.public import NewsIngester, FreeNewsIngester, ManualInputHandler, ConflictEventGenerator, OntologyDocumentIO
 from odap.infra.graph.graph_service import GraphManager
 
 from odap.infra.storage.scenario_store import ScenarioStore, scenario_store as _shared_scenario_store
@@ -98,13 +100,13 @@ class MockDataWebService:
 
         # 构建 FastAPI 应用
         self.app = self._build_app()
-        
-        # 注册本体摄入和构建路由
-        try:
-            from odap.biz.core.ontology.application.api.routes import router as ontology_ingest_router
-            self.app.include_router(ontology_ingest_router)
-        except Exception as e:
-            logger.warning(f"本体摄入路由注册失败: {e}")
+
+        # Stage E 修复：删除已死的 ontology_ingest_router 注册块。
+        # 原路径 odap.biz.core.ontology.application.api.routes 从未存在（或已在
+        # flat→3+1 迁移中移除），旧代码用 try/except Exception 静默降级 → 每次
+        # 启动都记录一条 "本体摄入路由注册失败" 的假警告（违反规则 14）。
+        # 真实的本体摄入路由由 router_registry.py 集中注册（design.ingestion.api.routes
+        # 等），无需此处重复。
 
         # 注册统一查询服务路由 (ADR-055)
         try:
@@ -115,21 +117,21 @@ class MockDataWebService:
 
         # 注册 OMS 本体元数据路由
         try:
-            from odap.biz.core.ontology.application.oms.routes import router as oms_router
+            from odap.biz.core.ontology.public_routers import oms_router
             self.app.include_router(oms_router)
         except Exception as e:
             logger.warning(f"OMS 路由注册失败: {e}")
 
         # 注册本体 API 路由 (003-ontology-redesign)
         try:
-            from odap.biz.core.ontology.ontology_api.api import router as ontology_api_router
+            from odap.biz.core.ontology.public_routers import ontology_api_router
             self.app.include_router(ontology_api_router)
         except Exception as e:
             logger.warning(f"本体API路由注册失败: {e}")
 
         # 注册抽取路由 (003-ontology-redesign)
         try:
-            from odap.biz.core.ontology.extraction.api import router as extraction_router
+            from odap.biz.core.ontology.public_routers import extraction_router
             self.app.include_router(extraction_router)
         except Exception as e:
             logger.warning(f"抽取路由注册失败: {e}")
@@ -317,7 +319,7 @@ class MockDataWebService:
 
         # 注册对象服务路由
         try:
-            from odap.infra.object_service.routes import router as osv2_router
+            from odap.biz.data.object_service.routes import router as osv2_router
             self.app.include_router(osv2_router)
         except Exception as e:
             logger.warning(f"对象服务路由注册失败: {e}")
@@ -365,27 +367,27 @@ class MockDataWebService:
 
         # 注册本体版本管理路由
         try:
-            from odap.biz.core.ontology.design.version.api.routes import router as ontology_version_router
+            from odap.biz.core.ontology.public_routers import ontology_version_router
             self.app.include_router(ontology_version_router)
         except Exception as e:
             logger.warning(f"本体版本管理路由注册失败: {e}")
 
         # 注册本体模型路由
         try:
-            from odap.biz.core.ontology.design.model.api.routes import router as ontology_model_router
+            from odap.biz.core.ontology.public_routers import ontology_model_router
             self.app.include_router(ontology_model_router)
         except Exception as e:
             logger.warning(f"本体模型路由注册失败: {e}")
 
         # 注册蓝图设计器路由
         try:
-            from odap.biz.core.ontology.application.harness.blueprint.routes import router as blueprint_designer_router
+            from odap.biz.core.ontology.public_routers import blueprint_designer_router
             self.app.include_router(blueprint_designer_router)
         except Exception as e:
             logger.warning(f"蓝图设计器路由注册失败: {e}")
 
         try:
-            from odap.biz.core.ontology.application.harness.blueprint.api.runtime_routes import router as blueprint_runtime_router
+            from odap.biz.core.ontology.public_routers import blueprint_runtime_router
             self.app.include_router(blueprint_runtime_router)
         except Exception as e:
             logger.warning(f"蓝图运行时路由注册失败: {e}")

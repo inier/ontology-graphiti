@@ -36,11 +36,9 @@ class RoleType(str, Enum):
         return cls.GUEST
 
 
-class PermissionScope(str, Enum):
-    SYSTEM = "system"
-    PROJECT = "project"
-    RESOURCE = "resource"
-    DATA = "data"
+# Stage H · C4 Tier3 烧账：PermissionScope 下沉到 common 叶子层（infra.opa 也需使用，
+# infra→biz 违反 C4）。此处保留向后兼容再导出，内部消费者（routes/storage/tests）无需改导入。
+from odap.common.permission_scope import PermissionScope  # noqa: F401
 
 
 class Permission(BaseModel):

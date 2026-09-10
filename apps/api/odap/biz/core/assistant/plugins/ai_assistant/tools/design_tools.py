@@ -107,7 +107,7 @@ def _resolve_type_name(ontology_id: str, user_input: str, types: list | None = N
 
     Returns (resolved_name, type_dict, all_types).
     """
-    from odap.biz.core.ontology.ontology_api.services.ontology_service import OntologyService
+    from odap.biz.core.ontology.public import OntologyService
 
     if not user_input:
         return None, None, types or []
@@ -185,7 +185,7 @@ class GetOntologyContextTool(BaseTool):
 
     async def execute(self, arguments: GetOntologyContextInput, context: ToolExecutionContext) -> ToolResult:
         try:
-            from odap.biz.core.ontology.ontology_api.services.ontology_service import OntologyService
+            from odap.biz.core.ontology.public import OntologyService
 
             svc = OntologyService()
             types_resp = svc.list_object_types(arguments.ontology_id)
@@ -249,8 +249,8 @@ class SuggestPropertiesTool(BaseTool):
 
     async def execute(self, arguments: SuggestPropertiesInput, context: ToolExecutionContext) -> ToolResult:
         try:
-            from odap.biz.core.ontology.ontology_api.services.ontology_service import OntologyService
-            from odap.biz.core.ontology.assistant.rules.type_inference import TypeInferenceEngine
+            from odap.biz.core.ontology.public import OntologyService
+            from odap.biz.core.ontology.public import TypeInferenceEngine
 
             ont_svc = OntologyService()
             types_resp = ont_svc.list_object_types(arguments.ontology_id)
@@ -389,7 +389,7 @@ class SuggestRelationsTool(BaseTool):
 
     async def execute(self, arguments: SuggestRelationsInput, context: ToolExecutionContext) -> ToolResult:
         try:
-            from odap.biz.core.ontology.ontology_api.services.ontology_service import OntologyService
+            from odap.biz.core.ontology.public import OntologyService
 
             svc = OntologyService()
             types_resp = svc.list_object_types(arguments.ontology_id)
@@ -493,8 +493,8 @@ class CheckCompletenessTool(BaseTool):
 
     async def execute(self, arguments: CheckCompletenessInput, context: ToolExecutionContext) -> ToolResult:
         try:
-            from odap.biz.core.ontology.ontology_api.services.ontology_service import OntologyService
-            from odap.biz.core.ontology.assistant.tools.completeness_check import completeness_check
+            from odap.biz.core.ontology.public import OntologyService
+            from odap.biz.core.ontology.public import completeness_check
 
             svc = OntologyService()
             types_resp = svc.list_object_types(arguments.ontology_id)

@@ -281,7 +281,7 @@ async def cancel_graph_task(task_id: str,
 async def get_graph_history(limit: int = Query(20, ge=1, le=100),
     user=Depends(get_current_user)):
     try:
-        from odap.biz.core.ontology.construction.pipeline.services import get_ingest_service
+        from odap.biz.core.ontology.public import get_ingest_service
         ingest_service = get_ingest_service()
         versions = ingest_service.list_all_versions()
         history = []
@@ -311,7 +311,7 @@ async def get_graph_history(limit: int = Query(20, ge=1, le=100),
 async def get_graph_detail(graph_id: str,
     user=Depends(get_current_user)):
     try:
-        from odap.biz.core.ontology.construction.pipeline.services import get_ingest_service
+        from odap.biz.core.ontology.public import get_ingest_service
         ingest_service = get_ingest_service()
         docs = ingest_service.get_version_documents(graph_id)
         nodes = []
@@ -359,8 +359,8 @@ async def get_graph_detail(graph_id: str,
 @router.get("/ontology/schema")
 async def get_ontology_schema(user=Depends(get_current_user)):
     try:
-        from odap.biz.core.ontology.design.schema.domain import ENTITY_TYPES, ROLES, DOMAIN_CONFIG, ONTOLOGY_VERSION, ONTOLOGY_LAST_UPDATED
-        from odap.biz.core.ontology.design.schema.document import (
+        from odap.biz.core.ontology.public import ENTITY_TYPES, ROLES, DOMAIN_CONFIG, ONTOLOGY_VERSION, ONTOLOGY_LAST_UPDATED
+        from odap.biz.core.ontology.public import (
             OntologyDocument, OntologyEntity, OntologyRelation, OntologyEvent,
             OntologyAction, OntologyRule, OntologyConstraint, SourceInfo,
             DocumentMeta, TemporalInfo, VersionRef, DocType, SourceType,
@@ -418,7 +418,7 @@ async def get_ontology_schema(user=Depends(get_current_user)):
     except HTTPException:
         raise
     except Exception:
-        from odap.biz.core.ontology.design.schema.domain import ENTITY_TYPES, ROLES, DOMAIN_CONFIG, ONTOLOGY_VERSION, ONTOLOGY_LAST_UPDATED
+        from odap.biz.core.ontology.public import ENTITY_TYPES, ROLES, DOMAIN_CONFIG, ONTOLOGY_VERSION, ONTOLOGY_LAST_UPDATED
         return {
             "version": ONTOLOGY_VERSION,
             "last_updated": ONTOLOGY_LAST_UPDATED,

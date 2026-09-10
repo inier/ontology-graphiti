@@ -177,7 +177,7 @@ def get_ontology_context(ontology_id: str) -> Dict[str, Any]:
     Returns {"status": "success", "context": {...}} or {"status": "error", "message": ...}.
     """
     try:
-        from odap.biz.core.ontology.ontology_api.services.ontology_service import OntologyService
+        from odap.biz.core.ontology.public import OntologyService
 
         svc = OntologyService()
         types_resp = svc.list_object_types(ontology_id)

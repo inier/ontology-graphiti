@@ -7,10 +7,10 @@ Sandbox 策略：
   - 测试 init_default_menu() 幂等性 + 菜单树结构正确性
 
 测试用例：
-  T-SEED-1: 首次调用 init_default_menu() → created=54, skipped=0
-  T-SEED-2: 二次调用 init_default_menu() → created=0, skipped=54（幂等）
+  T-SEED-1: 首次调用 init_default_menu() → created=55, skipped=0
+  T-SEED-2: 二次调用 init_default_menu() → created=0, skipped=55（幂等）
   T-SEED-3: 菜单树含 6 个顶级目录（建/见/演/用/系统管理/帮助）
-  T-SEED-4: 建本体目录含语义管理子目录 + 5 个子菜单
+  T-SEED-4: 建本体目录含语义管理子目录 + 6 个子菜单（含 USL 本体管理）
   T-SEED-5: 演本体目录含 business/* 5 个菜单项（D1 偏差修复）
   T-SEED-6: 种子数据 code 唯一（无重复）
   T-SEED-7: get_tree() 返回可嵌套树形结构
@@ -70,9 +70,9 @@ def test_seed_1_first_init_creates_all(menu_service: MenuConfigService):
     """T-SEED-1: 首次调用写入全部种子数据。"""
     result = menu_service.init_default_menu()
     assert result["status"] == "success"
-    assert result["created"] == 54, f"应创建 54 项，实际 {result['created']}"
+    assert result["created"] == 55, f"应创建 55 项，实际 {result['created']}"
     assert result["skipped"] == 0
-    assert result["total"] == 54
+    assert result["total"] == 55
     assert result["role_grants"] >= 1, "首次初始化应同步授予默认角色菜单权限"
 
 
@@ -86,7 +86,7 @@ def test_seed_2_second_init_is_idempotent(menu_service: MenuConfigService):
     menu_service.init_default_menu()  # 第一次
     result = menu_service.init_default_menu()  # 第二次
     assert result["created"] == 0, "二次调用不应创建新项"
-    assert result["skipped"] == 54, f"应跳过 54 项，实际 {result['skipped']}"
+    assert result["skipped"] == 55, f"应跳过 55 项，实际 {result['skipped']}"
     assert result["role_grants"] == 0, "幂等：二次调用不再重复授权"
 
 
@@ -110,7 +110,7 @@ def test_seed_3_six_top_directories(menu_service: MenuConfigService):
 
 
 def test_seed_4_build_has_semantic_subdir(menu_service: MenuConfigService):
-    """T-SEED-4: 建本体 → 语义管理子目录 → 5 个子菜单。"""
+    """T-SEED-4: 建本体 → 语义管理子目录 → 6 个子菜单（含 USL 本体管理）。"""
     menu_service.init_default_menu()
     tree = menu_service.get_tree(active_only=False)
     build_dir = next(n for n in tree if n["name"] == "建本体")
@@ -118,8 +118,9 @@ def test_seed_4_build_has_semantic_subdir(menu_service: MenuConfigService):
         c for c in build_dir["children"] if c["name"] == "语义管理"
     )
     semantic_children = [c["name"] for c in semantic["children"]]
-    assert len(semantic_children) == 5, f"语义管理应有 5 子项，实际 {len(semantic_children)}"
+    assert len(semantic_children) == 6, f"语义管理应有 6 子项，实际 {len(semantic_children)}"
     assert "USL 配置" in semantic_children
+    assert "USL 本体管理" in semantic_children
     assert "候选管理" in semantic_children
     assert "审批工作流" in semantic_children
 

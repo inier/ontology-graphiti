@@ -5,8 +5,10 @@ Bridges the unified query service (`odap.infra.query`) to the design
 subsystem's contract layer. Implements the schema source protocol so
 that `QueryService` can transparently query ontology schema data.
 
-This is the ONLY place where `odap.infra.query` is allowed to import from
-`odap.biz.core.ontology.design.*`. All access goes through `design.contract`.
+C4 依赖倒置（ADR-081 · Stage I）：本模块不再直接 import `odap.biz.core.ontology.*`。
+设计契约与降级存储均通过 `odap.infra.providers` 注册表按名解析（`design_contract` /
+`action_storage` / `ontology_storage`），由 `odap.biz.providers_bootstrap` 在组合根注册
+（工厂内部仍走 `ontology.public` 门面）。如此消除 infra→biz 直接依赖边，符合 C4 契约。
 """
 import logging
 from typing import Any, Dict, List, Optional
@@ -33,10 +35,13 @@ class OntologyDesignSource:
     def __init__(self):
         if hasattr(self, "_initialized") and self._initialized:
             return
+        # C4 依赖倒置（ADR-081 · Stage I）：不再直接 import biz.core.ontology，
+        # 改从 infra provider 注册表解析设计契约。provider "design_contract"
+        # 由 odap.biz.providers_bootstrap 在组合根注册（内部仍走 ontology.public 门面）。
+        # 先解析后置 _initialized：若注册表尚未 bootstrap，解析抛错后仍可重试（不留半初始化单例）。
+        from odap.infra.providers import resolve_provider
+        self._contract = resolve_provider("design_contract")
         self._initialized = True
-        # Lazy import to keep infra/query independent of biz.core.ontology at module load
-        from odap.biz.core.ontology.design.contract import get_design_contract
-        self._contract = get_design_contract()
 
     # ============ SchemaSource protocol implementation ============
 
@@ -147,9 +152,9 @@ class OntologyDesignSource:
 
         # 2. 降级：从 action 模块的 SQLiteActionStorage 查询
         try:
-            from odap.biz.core.ontology.action.storage.sqlite_action_storage import SQLiteActionStorage
+            from odap.infra.providers import resolve_provider
 
-            storage = SQLiteActionStorage()
+            storage = resolve_provider("action_storage")
             actions = storage.list_action_types()
             return [
                 {
@@ -167,9 +172,9 @@ class OntologyDesignSource:
 
         # 3. 降级：从 ontology_api 的 SQLiteOntologyStorage 查询
         try:
-            from odap.biz.core.ontology.ontology_api.storage.sqlite_ontology_storage import SQLiteOntologyStorage
+            from odap.infra.providers import resolve_provider
 
-            storage = SQLiteOntologyStorage()
+            storage = resolve_provider("ontology_storage")
             ontology_id = filters.get("ontology_id")
             version_id = filters.get("version_id")
             if version_id:

@@ -686,7 +686,7 @@ class DomainSwarm(OODAInterface):
     def _subscribe_agent_events(self):
         """订阅 agent:task_completed 事件，将 Intelligence Agent 结果自动路由到 Director Agent"""
         try:
-            from odap.web.ws.event_bus import get_event_bus
+            from odap.infra.events.event_bus import get_event_bus
             bus = get_event_bus()
             bus.subscribe("agent:task_completed", self._on_agent_task_completed)
             logger.info("已订阅 agent:task_completed 事件")

@@ -23,14 +23,16 @@ def _build_service() -> SemanticMapService:
     generator = SemanticMapGenerator()
 
     try:
-        from odap.biz.core.ontology.design.storage.sqlite_ingest_storage import SQLiteIngestStorage
+        from odap.biz.core.ontology.public import SQLiteIngestStorage
         ingest_storage = SQLiteIngestStorage()
         generator._ingest_storage = ingest_storage
     except Exception as e:
         logger.warning(f"注入 IngestStorage 失败: {e}")
 
     try:
-        from odap.biz.core.ontology.oms.storage.sqlite_oms_storage import SQLiteOMSStorage
+        # Stage E 修复：原 ontology.oms.storage.sqlite_oms_storage 已死，
+        # 真实位置 application.oms.storage.sqlite_oms_storage，经 public 门面暴露。
+        from odap.biz.core.ontology.public import SQLiteOMSStorage
         oms_storage = SQLiteOMSStorage()
         generator._oms_storage = oms_storage
     except Exception as e:

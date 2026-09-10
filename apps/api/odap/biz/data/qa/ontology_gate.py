@@ -191,7 +191,7 @@ class OntologyGate:
 
             # 从本体定义存储中获取
             try:
-                from odap.biz.core.ontology.design.model.storage import Storage as OntologyStorage
+                from odap.biz.core.ontology.public import Storage as OntologyStorage
                 ont_storage = OntologyStorage()
                 doc = ont_storage.get_ontology_document(ontology_id)
                 if doc:

@@ -149,7 +149,7 @@ class OPAAlertManager:
     def _push_websocket(self, alert: OPAAlert):
         try:
             import asyncio
-            from odap.web.ws.event_bus import get_event_bus
+            from odap.infra.events.event_bus import get_event_bus
             bus = get_event_bus()
             data = asdict(alert)
             try:

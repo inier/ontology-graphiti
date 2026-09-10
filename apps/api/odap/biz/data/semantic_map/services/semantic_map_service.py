@@ -15,8 +15,10 @@ class SemanticMapService:
             self.generator = generator
         else:
             try:
-                from odap.biz.core.ontology.services.ingest_service import IngestService
-                from odap.biz.core.ontology.oms.services import get_oms_service
+                # Stage E 修复：原 ontology.services.ingest_service 与 ontology.oms.services 均已死
+                # （flat→3+1 迁移后真实位置为 design.services.ingest_service 与
+                # application.oms.services），两者皆已在 public 门面暴露。
+                from odap.biz.core.ontology.public import IngestService, get_oms_service
                 self.generator = SemanticMapGenerator(
                     oms_storage=get_oms_service(),
                     ingest_storage=IngestService().storage,

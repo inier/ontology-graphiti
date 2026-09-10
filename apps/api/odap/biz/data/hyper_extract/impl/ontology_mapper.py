@@ -163,7 +163,7 @@ class OntologyMapper:
     def _load_ontology_types(self) -> None:
         """从 OntologyService 加载合法的对象类型和关系类型名称"""
         try:
-            from odap.biz.core.ontology.ontology_api.services.ontology_service import OntologyService
+            from odap.biz.core.ontology.public import OntologyService
 
             svc = OntologyService()
 

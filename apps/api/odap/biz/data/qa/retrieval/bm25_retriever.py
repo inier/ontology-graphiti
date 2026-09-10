@@ -130,7 +130,7 @@ class BM25IndexManager:
 
         # SQLiteIngestStorage
         try:
-            from odap.biz.core.ontology.design.storage.sqlite_ingest_storage import SQLiteIngestStorage
+            from odap.biz.core.ontology.public import SQLiteIngestStorage
             storage = SQLiteIngestStorage()
             entities = storage.list_entities(workspace_id=workspace_id, scenario_id=scenario_id)
             for e in (entities or []):
@@ -163,7 +163,7 @@ class BM25IndexManager:
 
         # ModelStorage
         try:
-            from odap.biz.core.ontology.design.model.storage.sqlite_model_storage import SQLiteModelStorage
+            from odap.biz.core.ontology.public import SQLiteModelStorage
             storage = SQLiteModelStorage()
             instances = storage.list_instances(workspace_id=workspace_id, scenario_id=scenario_id)
             for inst in (instances or []):

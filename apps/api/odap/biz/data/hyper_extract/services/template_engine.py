@@ -797,7 +797,7 @@ display:
             return {"status": "error", "message": "ontology_id is required"}
 
         try:
-            from odap.biz.core.ontology.ontology_api.services.ontology_service import (
+            from odap.biz.core.ontology.public import (
                 OntologyService,
             )
             svc = OntologyService()

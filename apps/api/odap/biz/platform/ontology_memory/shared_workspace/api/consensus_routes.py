@@ -2,7 +2,7 @@ from fastapi import APIRouter, HTTPException
 from pydantic import BaseModel, ConfigDict, Field
 from typing import Any, List, Optional
 
-from odap.web.api.response_models import DictResponse
+from odap.common.response_models import DictResponse
 
 from ..services.consensus_engine import ConsensusEngine, ConsensusStrategy, ConflictResolutionStrategy
 

@@ -173,7 +173,7 @@ class PolicyEnforcementPoint:
         """P2-06: 白皮书 §3 — DENY 原因反馈 Agent 上下文"""
         try:
             import asyncio
-            from odap.web.ws.event_bus import get_event_bus
+            from odap.infra.events.event_bus import get_event_bus
             bus = get_event_bus()
             data = {
                 "agent_id": req.agent_id,

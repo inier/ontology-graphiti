@@ -2,7 +2,7 @@ from fastapi import APIRouter, HTTPException
 from pydantic import BaseModel, Field
 from typing import Optional
 
-from odap.web.api.response_models import DictResponse
+from odap.common.response_models import DictResponse
 
 from ..services.decay_scheduler import MemoryDecayScheduler, DecayConfig
 

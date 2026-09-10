@@ -77,7 +77,7 @@ class RetrievalAGUIAdapter:
         if self._retrieval is not None:
             return self._retrieval
         try:
-            from odap.biz.core.ontology.semantic_retrieval.services.retrieval_service import (
+            from odap.biz.core.ontology.public import (
                 RetrievalService,
             )
             self._retrieval = RetrievalService()
@@ -131,7 +131,7 @@ class RetrievalAGUIAdapter:
         try:
             # 3. 执行检索
             try:
-                from odap.biz.core.ontology.semantic_retrieval.models.schemas import (
+                from odap.biz.core.ontology.public import (
                     SearchRequest,
                 )
                 request = SearchRequest(query=query, mode=mode, limit=limit)

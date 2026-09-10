@@ -7,8 +7,10 @@ class SchemaSourceImpl:
 
     def _get_oms(self):
         if self._oms is None:
-            from odap.biz.core.ontology.application.oms.services import get_oms_service
-            self._oms = get_oms_service()
+            # C4 依赖倒置（ADR-081 · Stage I）：不再直接 import biz，改从 infra provider 注册表解析。
+            # provider "oms_service" 由 odap.biz.providers_bootstrap 在组合根注册。
+            from odap.infra.providers import resolve_provider
+            self._oms = resolve_provider("oms_service")
         return self._oms
 
     def query_object_types(self, filters: Dict[str, Any]) -> List[Dict[str, Any]]:

@@ -262,7 +262,7 @@ class EventGenerator:
 
     def _get_entity_types(self, workspace_id: str) -> List[str]:
         try:
-            from odap.biz.core.ontology.design.model.services.model_service import ModelService
+            from odap.biz.core.ontology.public import ModelService
             service: IModelService = ModelService()
             result = service.list_entity_types(filters=None, page=1, page_size=100)
             entity_types = []
@@ -368,7 +368,7 @@ class EventGenerator:
             return {}
 
         try:
-            from odap.biz.core.ontology.application.oms.services.oms_service import OMSService
+            from odap.biz.core.ontology.public import OMSService
             oms: IOMSService = OMSService.get_instance()
             action_types = oms.list_action_types()
 
@@ -418,7 +418,7 @@ class EventGenerator:
                                    ontology_id: str, workspace_id: str) -> Optional[float]:
         """从 OMS action_types 查询事件相关性。"""
         try:
-            from odap.biz.core.ontology.application.oms.services.oms_service import OMSService
+            from odap.biz.core.ontology.public import OMSService
             oms: IOMSService = OMSService.get_instance()
             action_types = oms.list_action_types()
 

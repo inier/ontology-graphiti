@@ -63,7 +63,7 @@ class PerceptionHub:
     def type_registry(self):
         """获取 TypeRegistry 单例（统一类型定义读写入口）"""
         if not hasattr(self, '_type_registry') or self._type_registry is None:
-            from odap.biz.core.ontology.registry import get_type_registry
+            from odap.biz.core.ontology.public import get_type_registry
             self._type_registry = get_type_registry()
         return self._type_registry
 
@@ -71,7 +71,10 @@ class PerceptionHub:
     def pipeline(self):
         if self._pipeline is None:
             try:
-                from odap.biz.core.ontology.services.pipeline_service import OntologyPipeline
+                # Stage E 修复：原路径 odap.biz.core.ontology.services.pipeline_service
+                # 在 flat→3+1 迁移后已不存在，真实实现位于 design.services.pipeline_service，
+                # 现统一经 public 门面访问（C3 契约要求）。
+                from odap.biz.core.ontology.public import OntologyPipeline
                 self._pipeline = OntologyPipeline()
             except Exception as e:
                 logger.warning(f"PerceptionHub: OntologyPipeline import failed: {e}")
@@ -169,7 +172,9 @@ class PerceptionHub:
             return ExtractionResult()
 
         try:
-            from odap.biz.core.ontology.services.pipeline_service import LLMExtractionStageHandler, PipelineContext
+            # Stage E 修复：原路径 odap.biz.core.ontology.services.pipeline_service 已死，
+            # 真实实现在 design.services.pipeline_service，经 public 门面统一暴露。
+            from odap.biz.core.ontology.public import LLMExtractionStageHandler, PipelineContext
             handler = LLMExtractionStageHandler()
             context = PipelineContext()
             context.original_content = text
@@ -188,7 +193,9 @@ class PerceptionHub:
             logger.warning(f"PerceptionHub LLM extraction failed: {e}")
 
         try:
-            from odap.biz.core.ontology.ingestion_split.ingestion import NewsIngester
+            # Stage E 修复：原路径 odap.biz.core.ontology.ingestion_split.ingestion 已死，
+            # 真实位置 design.ingestion_split.ingestion，NewsIngester 已在 public 门面暴露。
+            from odap.biz.core.ontology.public import NewsIngester
             ingester = NewsIngester()
             doc = ingester.extract_ontology(text)
             if doc:

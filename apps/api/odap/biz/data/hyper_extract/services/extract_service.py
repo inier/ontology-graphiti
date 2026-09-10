@@ -252,7 +252,7 @@ class ExtractService:
 
         # Step 1: Parse document
         try:
-            from odap.biz.core.ontology.extraction.impl.document_parser import DocumentParser
+            from odap.biz.core.ontology.public import DocumentParser
             parser = DocumentParser()
             full_text = parser.parse(file_path)
         except (FileNotFoundError, ValueError, ImportError) as e:
@@ -481,7 +481,7 @@ class ExtractService:
         skipped_docs: List[Dict[str, Any]] = []
 
         try:
-            from odap.biz.core.ontology.extraction.impl.document_parser import DocumentParser
+            from odap.biz.core.ontology.public import DocumentParser
             parser = DocumentParser()
         except ImportError:
             parser = None
@@ -1213,7 +1213,7 @@ class ExtractService:
             ("rule_types", ""), ("process_types", ""),
         ]}
         try:
-            from odap.biz.core.ontology.ontology_api.services import OntologyService
+            from odap.biz.core.ontology.public import OntologyService
             svc = OntologyService()
             mapping = [
                 ("object_types", "list_object_types", "object_types"),
@@ -1281,7 +1281,7 @@ class ExtractService:
     ) -> None:
         """Write imported items to OntologyService."""
         try:
-            from odap.biz.core.ontology.ontology_api.services import OntologyService
+            from odap.biz.core.ontology.public import OntologyService
             svc = OntologyService()
         except Exception as e:
             logger.warning("OntologyService unavailable, skipping ontology write: %s", e)
@@ -1385,7 +1385,9 @@ class ExtractService:
         """Channel B: Write structured summary to Graphiti."""
         try:
             from odap.infra.graph.graph_service import GraphManager
-            gm = GraphManager.get_instance()
+            # D5 修复：GraphManager 靠 __new__ 实现单例，无 get_instance() 类方法；
+            # 直接实例化即可（原调用 get_instance() 抛 AttributeError → Channel B 恒 failed）。
+            gm = GraphManager()
         except ImportError:
             return "skipped"
         except Exception as e:
@@ -1414,7 +1416,7 @@ class ExtractService:
         Returns empty dict if OntologyService unavailable.
         """
         try:
-            from odap.biz.core.ontology.ontology_api.services import OntologyService
+            from odap.biz.core.ontology.public import OntologyService
             svc = OntologyService()
             schema: Dict[str, Any] = {}
             for method_name, key in [

@@ -39,7 +39,7 @@ class SimulationSandbox:
     @property
     def oms(self) -> IOMSService:
         if self._oms is None:
-            from odap.biz.core.ontology.application.oms.services import get_oms_service
+            from odap.biz.core.ontology.public import get_oms_service
             self._oms = get_oms_service()
         return self._oms
 

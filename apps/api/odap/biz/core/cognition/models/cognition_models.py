@@ -6,7 +6,7 @@ from typing import Any, Dict, List, Optional
 from pydantic import BaseModel, Field
 
 # IntentType 统一从 ontology/common/ 导入（源定义，消除重复）
-from odap.biz.core.ontology.common.types import IntentType  # noqa: E402
+from odap.biz.core.ontology.public import IntentType  # noqa: E402
 
 
 class IntentResult(BaseModel):

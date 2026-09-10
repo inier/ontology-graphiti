@@ -56,7 +56,7 @@ class DeductionEngineImpl(IDeductionEngine):
     def oms(self) -> Optional[IOMSService]:
         if self._oms is None:
             try:
-                from odap.biz.core.ontology.application.oms.services import OMSService
+                from odap.biz.core.ontology.public import OMSService
                 self._oms = OMSService.get_instance()
             except Exception as e:
                 logger.warning(f"OMS init failed: {e}")
@@ -620,8 +620,21 @@ class DeductionEngineImpl(IDeductionEngine):
         try:
             from odap.biz.simulation.simulation_sandbox.sandbox import get_simulation_sandbox
             sandbox = get_simulation_sandbox()
-            impact_rules = sandbox._load_impact_rules(action_type_id)
+            raw = sandbox._load_impact_rules(action_type_id)
+            # D2 契约修复：_load_impact_rules 返回 {"source": .., "rules": {..}} 三层包装
+            # （sandbox.py:319/344/357 三个 return 点均是此结构）。原代码按扁平 {metric: delta}
+            # 迭代 → round("ontology", 3) TypeError → 被下方 except 吞成 warning → impacts 恒空。
+            impact_rules = raw.get("rules", {}) if isinstance(raw, dict) else {}
+            if not isinstance(impact_rules, dict):
+                impact_rules = {}
             for metric, delta in impact_rules.items():
+                # 类型防御：delta 必须是数值，字符串/None 直接跳过（不静默兜底成 0）
+                if not isinstance(delta, (int, float)):
+                    logger.warning(
+                        f"_simulate_step: non-numeric delta for metric={metric!r} "
+                        f"(action_type_id={action_type_id!r}, delta={delta!r}); skipped"
+                    )
+                    continue
                 before = current_state.get(metric)
                 if before is not None and isinstance(before, (int, float)):
                     after = before + delta * (before if before > 1 else 1)
@@ -643,7 +656,11 @@ class DeductionEngineImpl(IDeductionEngine):
                         "confidence": 0.4,
                     })
         except Exception as e:
-            logger.warning(f"Load impact rules for step failed: {e}")
+            # D2 修复：原为 logger.warning，被误认为偶发；升级为 error 让降级可观测（规则14）
+            logger.error(
+                f"_simulate_step: load impact rules failed for action_type_id={action_type_id!r}: {e}",
+                exc_info=True,
+            )
 
         for cond in chain_conditions:
             if cond.get("is_active", True) and cond.get("value") is not None:
@@ -658,7 +675,7 @@ class DeductionEngineImpl(IDeductionEngine):
     def _compute_propagation_impacts(self, action_type_id: str, step: Dict[str, Any], current_state: Dict[str, Any]) -> List[Dict[str, Any]]:
         impacts = []
         try:
-            from odap.biz.core.ontology.application.runtime.services.runtime_service import OntologyRuntimeService
+            from odap.biz.core.ontology.public import OntologyRuntimeService
             service: IRuntimeService = OntologyRuntimeService.get_instance()
             contract_result = service.get_contract_by_action(action_type_id)
             if contract_result.get("status") == "error":

@@ -11,7 +11,7 @@ def _make_thought_storage(tmp_path):
 
 
 def _make_thought_node(**overrides):
-    from odap.infra.graph.thought_graph import ThoughtNode, ThoughtType, ReasoningMethod
+    from odap.biz.core.cognition.thought_graph.models.types import ThoughtNode, ThoughtType, ReasoningMethod
     defaults = {
         "thought_type": ThoughtType.OBSERVATION,
         "content": "test thought content",
@@ -58,7 +58,7 @@ class TestThoughtGraphStorage:
 
     def test_list_thoughts_with_filters(self, tmp_path):
         storage = _make_thought_storage(tmp_path)
-        from odap.infra.graph.thought_graph import ThoughtType
+        from odap.biz.core.cognition.thought_graph.models.types import ThoughtType
         t1 = _make_thought_node(thought_id="t1", thought_type=ThoughtType.OBSERVATION, source_scenario_id="sc-1")
         t2 = _make_thought_node(thought_id="t2", thought_type=ThoughtType.INFERENCE, source_scenario_id="sc-1")
         t3 = _make_thought_node(thought_id="t3", thought_type=ThoughtType.INFERENCE, source_scenario_id="sc-2")
@@ -80,7 +80,7 @@ class TestThoughtGraphStorage:
 
     def test_chain_crud(self, tmp_path):
         storage = _make_thought_storage(tmp_path)
-        from odap.infra.graph.thought_graph import ReasoningChain
+        from odap.biz.core.cognition.thought_graph.models.types import ReasoningChain
         chain = ReasoningChain(
             chain_id="chain-test-001",
             name="Test Chain",
@@ -156,7 +156,7 @@ class TestThoughtGraphStorage:
 class TestThoughtGraphService:
     def _make_service(self, tmp_path):
         from odap.biz.core.cognition.thought_graph.storage import ThoughtGraphStorage
-        from odap.infra.graph.thought_graph import ThoughtGraphService
+        from odap.biz.core.cognition.thought_graph.services.thought_graph_service import ThoughtGraphService
         storage = ThoughtGraphStorage(db_path=str(tmp_path / "test_svc.db"))
         ThoughtGraphService._instance = None
         return ThoughtGraphService(storage=storage)
@@ -266,7 +266,7 @@ class TestThoughtGraphService:
 
     def test_enum_type_conversion(self, tmp_path):
         svc = self._make_service(tmp_path)
-        from odap.infra.graph.thought_graph import ThoughtType, ReasoningMethod
+        from odap.biz.core.cognition.thought_graph.models.types import ThoughtType, ReasoningMethod
         result = svc.add_thought(
             thought_type=ThoughtType.DECISION,
             content="decided",
@@ -280,18 +280,18 @@ class TestThoughtGraphService:
 
 class TestThoughtModels:
     def test_thought_type_enum(self):
-        from odap.infra.graph.thought_graph import ThoughtType
+        from odap.biz.core.cognition.thought_graph.models.types import ThoughtType
         assert ThoughtType.OBSERVATION.value == "observation"
         assert ThoughtType.INFERENCE.value == "inference"
         assert ThoughtType("hypothesis") == ThoughtType.HYPOTHESIS
 
     def test_reasoning_method_enum(self):
-        from odap.infra.graph.thought_graph import ReasoningMethod
+        from odap.biz.core.cognition.thought_graph.models.types import ReasoningMethod
         assert ReasoningMethod.DEDUCTIVE.value == "deductive"
         assert ReasoningMethod("abductive") == ReasoningMethod.ABDUCTIVE
 
     def test_thought_node_defaults(self):
-        from odap.infra.graph.thought_graph import ThoughtNode
+        from odap.biz.core.cognition.thought_graph.models.types import ThoughtNode
         node = ThoughtNode()
         assert node.thought_id.startswith("thought-")
         assert node.confidence == 0.5
@@ -300,7 +300,7 @@ class TestThoughtModels:
         assert node.metadata == {}
 
     def test_reasoning_chain_defaults(self):
-        from odap.infra.graph.thought_graph import ReasoningChain
+        from odap.biz.core.cognition.thought_graph.models.types import ReasoningChain
         chain = ReasoningChain()
         assert chain.chain_id.startswith("chain-")
         assert chain.thought_ids == []

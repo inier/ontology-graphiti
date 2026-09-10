@@ -73,7 +73,7 @@ class ActionExecutor:
     @property
     def oms(self) -> Optional[IDecisionOMSService]:
         if self._oms is None:
-            from odap.biz.core.ontology.application.oms.services import OMSService
+            from odap.biz.core.ontology.public import OMSService
             self._oms = OMSService.get_instance()
         return self._oms
 

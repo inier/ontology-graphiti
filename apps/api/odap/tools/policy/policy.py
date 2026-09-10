@@ -4,7 +4,7 @@ import datetime
 
 from odap.tools import register_skill
 from odap.infra.opa import OPAManager
-from odap.biz.core.ontology.design.schema.domain import ROLES, DOMAIN_CONFIG
+from odap.biz.core.ontology.public import ROLES, DOMAIN_CONFIG
 
 opa_manager = OPAManager()
 _policy_history = []

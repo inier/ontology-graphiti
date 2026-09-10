@@ -128,23 +128,8 @@ async def ontology_build_progress(websocket: WebSocket):
         _build_progress_clients.discard(websocket)
 
 
-async def emit_build_progress(
-    stage: str,
-    progress: float,
-    message: str,
-    ingest_id: str = "",
-    scenario_id: str = "",
-):
-    """向所有构建进度订阅者推送进度事件。
-
-    此函数可被 IngestService / PipelineService 的 progress_callback 调用。
-    """
-    from odap.infra.events.event_bus import get_event_bus
-    bus = get_event_bus()
-    await bus.emit("ontology:build_progress", {
-        "stage": stage,
-        "progress": progress,
-        "message": message,
-        "ingest_id": ingest_id,
-        "scenario_id": scenario_id,
-    })
+# Stage G · C2-3 烧账：emit_build_progress 已逐字下沉到 infra/events/build_progress.py
+# （它只依赖 infra.events.event_bus，与 web 层无耦合，原本放在此文件纯属工具函数放错层）。
+# 此处保留再导出 shim，使历史 `from odap.web.ws.routes import emit_build_progress`
+# 调用点仍可解析；web→infra 为向下依赖，不产生 C2 契约边。
+from odap.infra.events.build_progress import emit_build_progress  # noqa: F401

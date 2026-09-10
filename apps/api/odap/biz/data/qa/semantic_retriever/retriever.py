@@ -3,8 +3,8 @@ import re
 from typing import List, Optional, Dict, Any
 from pydantic import BaseModel, Field
 
-from odap.infra.object_service.object_service import get_object_service
-from odap.infra.object_service.schemas import (
+from odap.biz.data.object_service.object_service import get_object_service
+from odap.biz.data.object_service.schemas import (
     ObjectQueryResult, SemanticQuery, ObjectQuery,
     ObjectQueryFilter, ObjectQueryOperator,
 )

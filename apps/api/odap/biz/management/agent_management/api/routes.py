@@ -61,7 +61,7 @@ async def get_ref_options(type: str = Query(..., description="引用类型"),
     try:
         if type == "entity":
             try:
-                from odap.biz.core.ontology.application.oms.services import get_oms_service
+                from odap.biz.core.ontology.public import get_oms_service
                 oms = get_oms_service()
                 for obj in oms.list_object_types():
                     options.append({"value": obj.get("type_id", ""), "label": obj.get("display_name") or obj.get("name", "")})

@@ -7,7 +7,7 @@ from datetime import datetime
 
 from odap.tools import register_skill
 from odap.infra.graph import GraphManager
-from odap.biz.core.ontology.design.mock_data.data_generator import load_simulation_data
+from odap.biz.core.ontology.public import load_simulation_data
 
 manager = GraphManager()
 

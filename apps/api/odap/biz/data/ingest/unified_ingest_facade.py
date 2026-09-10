@@ -65,7 +65,7 @@ class UnifiedIngestFacade:
     def ingest_service(self):
         """延迟加载 IngestService"""
         if self._ingest_service is None:
-            from odap.biz.core.ontology.construction.pipeline.services import get_ingest_service
+            from odap.biz.core.ontology.public import get_ingest_service
             self._ingest_service = get_ingest_service()
         return self._ingest_service
 
@@ -81,7 +81,7 @@ class UnifiedIngestFacade:
     def type_registry(self):
         """延迟加载 TypeRegistry"""
         if self._type_registry is None:
-            from odap.biz.core.ontology.registry import get_type_registry
+            from odap.biz.core.ontology.public import get_type_registry
             self._type_registry = get_type_registry()
         return self._type_registry
 

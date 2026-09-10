@@ -711,7 +711,7 @@ async def list_process_type_definitions(
     """列出业务过程类型定义（供下拉选择）"""
     _uid = extract_user_id(user)
     try:
-        from odap.biz.core.ontology.ontology_api.services import OntologyService
+        from odap.biz.core.ontology.public import OntologyService
         ontology_service = OntologyService()
         result = ontology_service.list_process_types(ontology_id)
         if result.get("status") == "error":
@@ -740,7 +740,7 @@ async def list_rule_type_definitions(
     """列出规则类型定义（供下拉选择）"""
     _uid = extract_user_id(user)
     try:
-        from odap.biz.core.ontology.ontology_api.services import OntologyService
+        from odap.biz.core.ontology.public import OntologyService
         ontology_service = OntologyService()
         result = ontology_service.list_rule_types(ontology_id)
         if result.get("status") == "error":
@@ -769,7 +769,7 @@ async def list_function_type_definitions(
     """列出逻辑函数类型定义（供下拉选择）"""
     _uid = extract_user_id(user)
     try:
-        from odap.biz.core.ontology.ontology_api.services import OntologyService
+        from odap.biz.core.ontology.public import OntologyService
         ontology_service = OntologyService()
         result = ontology_service.list_function_types(ontology_id)
         if result.get("status") == "error":
@@ -798,7 +798,7 @@ async def list_indicator_type_definitions(
     """列出指标类型定义（供下拉选择）"""
     _uid = extract_user_id(user)
     try:
-        from odap.biz.core.ontology.ontology_api.services import OntologyService
+        from odap.biz.core.ontology.public import OntologyService
         ontology_service = OntologyService()
         result = ontology_service.list_indicator_types(ontology_id)
         if result.get("status") == "error":

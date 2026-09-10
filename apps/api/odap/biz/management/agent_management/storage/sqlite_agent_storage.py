@@ -49,7 +49,7 @@ def _resolve_names(data: Dict[str, Any]) -> Dict[str, Any]:
     # objects
     for oid in data.get("related_objects", []):
         try:
-            from odap.biz.core.ontology.application.oms.services import get_oms_service
+            from odap.biz.core.ontology.public import get_oms_service
             for obj in get_oms_service().list_object_types():
                 if obj.get("type_id") == oid or obj.get("name") == oid:
                     resolved["object_names"][oid] = obj.get("display_name") or obj.get("name", "")

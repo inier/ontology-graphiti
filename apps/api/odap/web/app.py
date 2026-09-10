@@ -15,6 +15,9 @@ from odap.infra.openharness.engine_adapter import initialize_openharness, get_op
 from odap.infra.config_composer import get_config
 from odap.infra.observability.setup import setup_observability, shutdown_observability
 from odap.infra.observability.metrics import setup_metrics, metrics_endpoint
+# C4 依赖倒置接线（ADR-081 · Stage I）：导入即把 biz 服务工厂注册进 infra provider 注册表，
+# 使 infra.query source 适配器无需直接 import biz。必须在任何查询执行前完成（组合根模块加载期）。
+import odap.biz.providers_bootstrap  # noqa: F401  (side-effect: register biz providers)
 import logging
 import asyncio
 

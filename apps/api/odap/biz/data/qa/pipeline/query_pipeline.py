@@ -70,7 +70,7 @@ class QueryPipeline:
                 active = bindings  # 无 binding_status 字段时全量视为活跃（兼容）
 
             # 第 2 跳：本体 → domain_code（权威字段）
-            from odap.biz.core.ontology.ontology_api.services.ontology_service import OntologyService
+            from odap.biz.core.ontology.public import OntologyService
             ontology_svc = OntologyService()
             for binding in active:
                 ontology_id = binding.get("ontology_id")

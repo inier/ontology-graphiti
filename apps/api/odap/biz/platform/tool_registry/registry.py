@@ -1021,7 +1021,7 @@ class ToolRegistry:
     def _evaluate_condition(self, condition: str, context: Dict) -> bool:
         """评估条件表达式（使用 AST 安全求值器替代 eval）"""
         try:
-            from odap.biz.core.ontology.application.runtime.state_machine.impl.expression_evaluator import safe_eval
+            from odap.biz.core.ontology.public import safe_eval
 
             return safe_eval(condition, {"context": context})
         except Exception:

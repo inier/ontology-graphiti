@@ -1,25 +1,11 @@
-"""Shared response models used across multiple route modules.
+"""共享响应模型 —— 从 common 层重新导出（向后兼容 shim）。
 
-Centralizing these here avoids duplicating the same ``DictResponse`` definition
-in every feature ``schemas.py`` while still giving routes a proper Pydantic
-``response_model`` (eliminating raw ``response_model=dict`` usage).
+Stage G · C2-2 下沉：``DictResponse`` 的真实定义已下沉到 ``odap.common.response_models``
+（叶子层，biz/web 均可合法依赖）。本文件保留为向后兼容再导出，使旧路径
+``odap.web.api.response_models`` 仍可导入，但**新代码请直接从 common 导入**：
+
+    from odap.common.response_models import DictResponse
 """
-from pydantic import BaseModel, ConfigDict
-from typing import Optional
-
-
-class DictResponse(BaseModel):
-    """Flexible response model that accepts arbitrary dict shapes from service layer.
-
-    Uses ``extra="allow"`` to remain backward compatible with all existing
-    service-layer dicts while still being a proper Pydantic model — so the
-    generated OpenAPI schema is well-typed and ``response_model=dict`` is no
-    longer required.
-    """
-    model_config = ConfigDict(extra="allow")
-
-    status: Optional[str] = None
-    message: Optional[str] = None
-
+from odap.common.response_models import DictResponse  # noqa: F401
 
 __all__ = ["DictResponse"]

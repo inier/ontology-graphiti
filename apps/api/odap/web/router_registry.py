@@ -79,15 +79,15 @@ def create_router_registry() -> List[tuple]:
     from odap.biz.data.hyper_extract.api.routes import router as he_router
 
     # ── 本体 - OMS 与查询 ──
-    from odap.biz.core.ontology.application.oms.routes import router as oms_router
-    from odap.biz.core.ontology.application.query_api.nl_routes import router as ontology_nl_router
-    from odap.biz.core.ontology.application.query_api.routes import router as ontology_ingest_router
+    from odap.biz.core.ontology.public_routers import oms_router
+    from odap.biz.core.ontology.public_routers import ontology_nl_router
+    from odap.biz.core.ontology.public_routers import ontology_ingest_router
 
     # ── 本体 - TypeRegistry（统一类型定义读写入口） ──
-    from odap.biz.core.ontology.registry.api.routes import router as registry_router
+    from odap.biz.core.ontology.public_routers import registry_router
 
     # ── 对象服务 ──
-    from odap.infra.object_service.routes import router as osv2_router
+    from odap.biz.data.object_service.routes import router as osv2_router
 
     # ── 决策 ──
     from odap.biz.decision.action_service.routes import router as action_router
@@ -135,7 +135,7 @@ def create_router_registry() -> List[tuple]:
     from odap.biz.core.chat.api.routes import router as unified_chat_router
 
     # ── 本体 - AI 辅助设计 ──
-    from odap.biz.core.ontology.assistant.api.routes import router as ontology_assistant_router
+    from odap.biz.core.ontology.public_routers import ontology_assistant_router
 
     # ── 认知 ──
     from odap.biz.core.cognition.api.routes import router as cognition_router
@@ -148,10 +148,10 @@ def create_router_registry() -> List[tuple]:
     from odap.biz.data.graph_viewer.api.routes import router as graph_viewer_router
 
     # ── 语义检索服务总线（spec 008 / ADR-073）──
-    from odap.biz.core.ontology.semantic_retrieval.api.routes import router as semantic_retrieval_router
+    from odap.biz.core.ontology.public_routers import semantic_retrieval_router
 
     # ── 推理（ADR-075 确定性推理 + 统一检索/溯源）──
-    from odap.biz.core.ontology.reasoning.api.routes import router as reasoning_router
+    from odap.biz.core.ontology.public_routers import reasoning_router
 
     # ── 语义管理 - 统一语义层（USL Iter 1）──
     from odap.biz.semantic_admin.usl_manager.api.routes import router as semantic_admin_usl_router
@@ -176,16 +176,16 @@ def create_router_registry() -> List[tuple]:
     from odap.biz.semantic_admin.semantic_asset_pipeline.api.routes import router as semantic_asset_pipeline_router
 
     # ── 本体 - 运行时 ──
-    from odap.biz.core.ontology.application.runtime.api.routes import router as runtime_router
-    from odap.biz.core.ontology.application.runtime.state_machine.api.routes import router as state_machine_router
+    from odap.biz.core.ontology.public_routers import runtime_router
+    from odap.biz.core.ontology.public_routers import state_machine_router
 
     # ── 本体 - 视图 ──
-    from odap.biz.core.ontology.view.api.routes import router as object_view_router
+    from odap.biz.core.ontology.public_routers import object_view_router
 
     # ── 本体 - Harness ──
-    from odap.biz.core.ontology.application.harness.api.routes import router as harness_router
-    from odap.biz.core.ontology.application.harness.blueprint.routes import router as blueprint_designer_router
-    from odap.biz.core.ontology.application.harness.blueprint.api.runtime_routes import router as blueprint_runtime_router
+    from odap.biz.core.ontology.public_routers import harness_router
+    from odap.biz.core.ontology.public_routers import blueprint_designer_router
+    from odap.biz.core.ontology.public_routers import blueprint_runtime_router
 
     # ── 本体 - 记忆 ──
     from odap.biz.platform.ontology_memory.api.routes import router as ontology_memory_router
@@ -195,37 +195,37 @@ def create_router_registry() -> List[tuple]:
     from odap.biz.platform.ontology_memory.shared_workspace.api.consensus_routes import router as consensus_router
 
     # ── 本体 - 服务化 ──
-    from odap.biz.core.ontology.application.servitization.api.routes import router as servitization_router
-    from odap.biz.core.ontology.application.servitization.api.deployment_routes import router as deployment_router
-    from odap.biz.core.ontology.application.servitization.catalog.routes import router as catalog_router
+    from odap.biz.core.ontology.public_routers import servitization_router
+    from odap.biz.core.ontology.public_routers import deployment_router
+    from odap.biz.core.ontology.public_routers import catalog_router
 
     # ── 本体 - 动作 ──
-    from odap.biz.core.ontology.action.api.routes import router as action_type_router
+    from odap.biz.core.ontology.public_routers import action_type_router
 
     # ── 本体 - 消歧图 ──
-    from odap.biz.core.ontology.application.abution_graph.api.routes import router as abution_graph_router
+    from odap.biz.core.ontology.public_routers import abution_graph_router
 
     # ── 国际化 ──
     from odap.biz.platform.i18n.api.routes import router as i18n_router
 
     # ── 本体 - 设计 ──
-    from odap.biz.core.ontology.design.model.api.routes import router as ontology_model_router
-    from odap.biz.core.ontology.design.engine.api.routes import router as ontology_engine_router
-    from odap.biz.core.ontology.design.engine.api.shacl_owl_routes import router as shacl_owl_router
-    from odap.biz.core.ontology.design.ingestion.api.routes import router as ingestion_router
-    from odap.biz.core.ontology.design.version.api.routes import router as ontology_version_router
+    from odap.biz.core.ontology.public_routers import ontology_model_router
+    from odap.biz.core.ontology.public_routers import ontology_engine_router
+    from odap.biz.core.ontology.public_routers import shacl_owl_router
+    from odap.biz.core.ontology.public_routers import ingestion_router
+    from odap.biz.core.ontology.public_routers import ontology_version_router
 
     # ── 本体 - 冲突/分支/冷启动/继承/计算 ──
-    from odap.biz.core.ontology.conflict.api.routes import router as conflict_router
-    from odap.biz.core.ontology.branch.api.routes import router as branch_router
-    from odap.biz.core.ontology.cold_start.api.routes import router as cold_start_router
-    from odap.biz.core.ontology.inheritance.api.routes import router as inheritance_router
-    from odap.biz.core.ontology.computed.api.routes import router as computed_router
+    from odap.biz.core.ontology.public_routers import conflict_router
+    from odap.biz.core.ontology.public_routers import branch_router
+    from odap.biz.core.ontology.public_routers import cold_start_router
+    from odap.biz.core.ontology.public_routers import inheritance_router
+    from odap.biz.core.ontology.public_routers import computed_router
 
     # ── 本体 - 核心 API ──
-    from odap.biz.core.ontology.ontology_api.api import router as ontology_api_router
-    from odap.biz.core.ontology.extraction.api import router as extraction_router
-    from odap.biz.core.ontology.goal.api.routes import router as goal_router
+    from odap.biz.core.ontology.public_routers import ontology_api_router
+    from odap.biz.core.ontology.public_routers import extraction_router
+    from odap.biz.core.ontology.public_routers import goal_router
 
     # ── 工具注册 ──
     from odap.biz.platform.tool_registry.api.routes import router as tool_registry_router

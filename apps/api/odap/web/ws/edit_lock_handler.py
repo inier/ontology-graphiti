@@ -12,7 +12,7 @@ import logging
 
 from fastapi import WebSocket, WebSocketDisconnect
 
-from odap.biz.core.ontology.design.services.edit_lock_service import get_edit_lock_service
+from odap.biz.core.ontology.public import get_edit_lock_service
 
 logger = logging.getLogger(__name__)
 

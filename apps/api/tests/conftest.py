@@ -13,6 +13,10 @@ for _p in (_api_dir, _root):
     if _p not in sys.path:
         sys.path.insert(0, _p)
 
+# C4 依赖倒置接线（ADR-081 · Stage I）：注册 biz provider，使 infra.query source 适配器
+# 在测试中走默认（未注入协作者）路径时也能解析。导入失败必须显式暴露，不静默降级（规则 14）。
+import odap.biz.providers_bootstrap  # noqa: F401,E402  (side-effect: register biz providers)
+
 # C3 fix: 测试环境注入 JWT_SECRET，使 app.py lifespan 的 strict 校验通过。
 # 仅当未显式设置时注入，允许单个测试用 monkeypatch 覆盖为非法值以测试 fail-fast。
 _TEST_JWT_SECRET = "test_secret_key_for_unit_tests_padded_to_32bytes"  # 43 bytes

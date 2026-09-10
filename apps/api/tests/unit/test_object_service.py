@@ -17,7 +17,7 @@ from unittest.mock import MagicMock, patch, AsyncMock
 
 import pytest
 
-from odap.infra.object_service.schemas import (
+from odap.biz.data.object_service.schemas import (
     ObjectQuery,
     ObjectQueryFilter,
     ObjectQueryOperator,
@@ -27,7 +27,7 @@ from odap.infra.object_service.schemas import (
     SemanticQuery,
     SemanticQueryResponse,
 )
-from odap.infra.object_service.object_service import ObjectService
+from odap.biz.data.object_service.object_service import ObjectService
 
 
 # ============================================================
@@ -1053,12 +1053,12 @@ class TestGetObjectServiceSingleton(unittest.TestCase):
     """get_object_service 单例模式"""
 
     def test_returns_same_instance(self):
-        from odap.infra.object_service.object_service import (
+        from odap.biz.data.object_service.object_service import (
             get_object_service,
             _object_service_instance,
         )
         # 重置单例
-        import odap.infra.object_service.object_service as mod
+        import odap.biz.data.object_service.object_service as mod
         mod._object_service_instance = None
 
         svc1 = get_object_service()

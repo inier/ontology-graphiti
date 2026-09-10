@@ -9,7 +9,7 @@ import logging
 from odap.tools import register_skill
 from odap.infra.graph import GraphManager
 from odap.infra.opa import OPAManager
-from odap.biz.core.ontology.design.mock_data.data_generator import load_simulation_data
+from odap.biz.core.ontology.public import load_simulation_data
 
 logger = logging.getLogger(__name__)
 

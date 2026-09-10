@@ -832,7 +832,7 @@ class IntelligenceAgent:
         """分析完成后广播事件"""
         try:
             import asyncio
-            from odap.web.ws.event_bus import get_event_bus
+            from odap.infra.events.event_bus import get_event_bus
             bus = get_event_bus()
             metadata = report.get("_metadata", {})
             event_data = {

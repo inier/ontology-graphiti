@@ -22,7 +22,7 @@ logger = logging.getLogger(__name__)
 def _get_model_storage():
     """获取本体模型存储"""
     try:
-        from odap.biz.core.ontology.design.model.storage.sqlite_model_storage import SQLiteModelStorage
+        from odap.biz.core.ontology.public import SQLiteModelStorage
         return SQLiteModelStorage()
     except Exception as e:
         logger.warning(f"Sanguo skill: model storage init failed: {e}")

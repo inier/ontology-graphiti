@@ -26,7 +26,7 @@ from odap.infra.config_composer import get_config
 
 logger = logging.getLogger(__name__)
 
-from odap.biz.platform.roles.api.schemas import PermissionScope
+from odap.common.permission_scope import PermissionScope  # C4 Tier3 烧账：从 common 叶子层导入
 
 import httpx
 
@@ -1087,7 +1087,7 @@ class MarkdownPolicyService:
         # 2. 通过 WebSocket event bus 推送给连接的管理员客户端
         try:
             import asyncio
-            from odap.web.ws.event_bus import get_event_bus
+            from odap.infra.events.event_bus import get_event_bus
             bus = get_event_bus()
             event_data = {
                 "policy_id": policy_id,

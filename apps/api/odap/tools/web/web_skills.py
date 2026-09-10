@@ -135,7 +135,7 @@ class WebSearchSkill(BaseSkill):
     def _do_search(self, query: str, max_results: int, search_depth: str) -> List[SearchResultItem]:
         """执行搜索，复用现有 SearchService 四级降级链"""
         try:
-            from odap.biz.core.ontology.design.services.search_service import SearchService
+            from odap.biz.core.ontology.public import SearchService
             service = SearchService()
             # SearchService.search() 是 async 方法，使用 search_sync() 同步调用
             raw_results = service.search_sync(query, max_results=max_results)
@@ -165,7 +165,7 @@ class WebSearchSkill(BaseSkill):
     def _fallback_search(self, query: str, max_results: int) -> List[SearchResultItem]:
         """降级搜索：尝试 OH WebSearchTool"""
         try:
-            from odap.biz.core.ontology.design.services.search_service import OHWebSearchProvider
+            from odap.biz.core.ontology.public import OHWebSearchProvider
             provider = OHWebSearchProvider()
             if provider.is_available():
                 import asyncio
@@ -178,7 +178,7 @@ class WebSearchSkill(BaseSkill):
     def _get_engine_name(self) -> str:
         """获取当前使用的搜索引擎名称"""
         try:
-            from odap.biz.core.ontology.design.services.search_service import SearchService
+            from odap.biz.core.ontology.public import SearchService
             service = SearchService()
             for provider in service.providers:
                 if provider.is_available():

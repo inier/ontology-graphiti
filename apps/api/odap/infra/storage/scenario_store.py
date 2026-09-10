@@ -50,7 +50,7 @@ class ScenarioStore:
         self.storage_dir = storage_dir
         os.makedirs(self.storage_dir, exist_ok=True)
         self._graph_manager = graph_manager
-        from odap.biz.core.ontology.construction.pipeline.services import IngestService
+        from odap.biz.core.ontology.public import IngestService
         self._db = IngestService().storage
         self._migrate_from_json()
 
@@ -68,7 +68,7 @@ class ScenarioStore:
             with open(json_file, 'r', encoding='utf-8') as f:
                 data = json.load(f)
 
-            from odap.biz.core.ontology.design.schema.document import deterministic_entity_id
+            from odap.biz.core.ontology.public import deterministic_entity_id
 
             for sid, scenario in data.get("scenarios", {}).items():
                 self._db.save_scenario(scenario)

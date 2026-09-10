@@ -1,9 +1,6 @@
-import logging
-from typing import Any, Dict, List, Optional
+from typing import Any, Dict, List
 
 from odap.infra.query.protocols import QuerySource
-
-logger = logging.getLogger(__name__)
 
 
 class QuerySchemaTool:
@@ -85,34 +82,3 @@ class QueryTemporalTool:
 
 
 QUERY_TOOLS = [QuerySchemaTool, QueryEntityTool, QueryTopoTool, QueryTemporalTool]
-
-
-def register_query_tools(registry=None) -> int:
-    count = 0
-    for tool_cls in QUERY_TOOLS:
-        tool = tool_cls()
-        if registry is not None:
-            try:
-                registry.register_function(
-                    name=tool.name,
-                    description=tool.description,
-                    func=tool.execute,
-                    category="query",
-                )
-                count += 1
-            except Exception as e:
-                logger.debug("register_query_tools %s fallback: %s", tool.name, e)
-        else:
-            try:
-                from odap.biz.platform.tool_registry import get_tool_registry
-                reg = get_tool_registry()
-                reg.register_function(
-                    name=tool.name,
-                    description=tool.description,
-                    func=tool.execute,
-                    category="query",
-                )
-                count += 1
-            except Exception as e:
-                logger.debug("register_query_tools %s fallback: %s", tool.name, e)
-    return count

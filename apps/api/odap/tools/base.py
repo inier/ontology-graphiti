@@ -323,7 +323,7 @@ class SkillStatus(str, Enum):
     UNLOADED = "unloaded"
 
 
-from odap.biz.core.ontology.application.servitization.services.deployment_executor import HealthStatus as _HealthStatus
+from odap.biz.core.ontology.public import HealthStatus as _HealthStatus
 
 
 import logging

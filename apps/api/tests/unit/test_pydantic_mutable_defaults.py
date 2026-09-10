@@ -139,7 +139,7 @@ def test_schemas_compile_and_import():
         AdvanceStageRequest,
         CreateHITLRequest,
     )
-    from odap.infra.object_service.schemas import ObjectQuery, ObjectQueryResult
+    from odap.biz.data.object_service.schemas import ObjectQuery, ObjectQueryResult
 
     # Verify the fields work as expected
     fn = CreateFunctionRequest(name="test", target_object_type="X")

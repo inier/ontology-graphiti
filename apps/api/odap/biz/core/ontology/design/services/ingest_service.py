@@ -746,7 +746,7 @@ class IngestService:
             # 构建 progress_callback 以推送 WebSocket 构建进度
             async def _ws_progress_callback(stage, progress: float, message: str):
                 try:
-                    from odap.web.ws.routes import emit_build_progress
+                    from odap.infra.events.build_progress import emit_build_progress
                     await emit_build_progress(
                         stage=stage.value if hasattr(stage, 'value') else str(stage),
                         progress=progress,
