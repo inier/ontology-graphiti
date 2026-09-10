@@ -116,6 +116,22 @@ token.txt
 /.env.docker
 # 测试运行产物（不应纳入版本控制）
 /test-output/
+# pytest --junitxml 报告与 vitest 输出
+apps/api/tests/report_*.xml
+vitest_*.json
+vitest_*.txt
+apps/web/vitest_*.json
+# 提交信息 / git 状态快照草稿（应直接用 git 命令，不落盘）
+/_commit_msg*.txt
+/_git_status_full.txt
+# 一次性诊断脚本与补丁草稿（规则 13：应归档到 scripts/archive/）
+/_inspect_*.py
+/*.patch
+apps/api/_test_syntax.py
+# 临时试验目录
+/.scratch/
+# 运行期在 CWD 落盘的数据库目录（规则 13：DATA_DIR 应指向 apps/api/data/）
+/data/
 # 根目录临时 i18n/抽取脚本（应归档到 scripts/archive/）
 /convert-to-chinese-key.py
 /update-en-ja-translations.py

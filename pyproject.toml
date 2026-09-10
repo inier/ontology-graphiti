@@ -23,6 +23,8 @@ dev = [
     "ruff>=0.5.0",
     "black>=23.0.0",
     "flake8>=6.1.0",
+    # 架构适应度：层间依赖 / 边界禁令静态校验（grimp 做 AST 扫描，不需运行时服务）
+    "import-linter>=2.0",
 ]
 
 [tool.pytest.ini_options]
