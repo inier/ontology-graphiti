@@ -213,29 +213,68 @@ async def nl_explain(request: NLExplainRequest, user=Depends(get_current_user)):
 
 @router.get("/retrieval/pillars", response_model=PillarStatusResponse)
 async def get_pillar_status(user=Depends(get_current_user)):
-    """查看三支柱状态和索引信息"""
-    try:
-        pillars = [
-            {"name": "bm25", "description": "精准关键词检索", "status": "available"},
-            {"name": "vector", "description": "语义相似度检索", "status": "available"},
-            {"name": "graph", "description": "图关联推理检索", "status": "available"},
-        ]
-        # 检查 Graphiti 可用性
-        try:
-            from odap.infra.graph.graph_service import GraphManager
-            gm = GraphManager()
-            if not gm.is_available():
-                pillars[1]["status"] = "unavailable"
-                pillars[2]["status"] = "unavailable"
-        except Exception:
-            pillars[1]["status"] = "unavailable"
-            pillars[2]["status"] = "unavailable"
+    """查看三支柱状态和索引信息（如实探针，不谎报）。
 
-        return PillarStatusResponse(pillars=pillars)
-    except HTTPException:
-        raise
+    判定依据：
+    - vector / graph 支柱真实依赖 GraphManager 连接，读取其公开 mode 属性
+      （graphiti / neo4j_driver = 已连接；fallback / unavailable = 未连接）。
+    - bm25 支柱基于本地倒排索引（按 workspace 惰性构建），不依赖图数据库，
+      通过实际构造 BM25Retriever 探测其可用性。
+    每个支柱返回 reason 字段说明判定依据，index_info 返回真实连接事实。
+    """
+    # 已连接的图谱模式（其余 fallback / unavailable 视为未连接）
+    _CONNECTED_MODES = ("graphiti", "neo4j_driver")
+
+    graph_mode = "unknown"
+    graph_connected = False
+    graph_reason = ""
+    try:
+        from odap.infra.graph.graph_service import GraphManager
+        gm = GraphManager()
+        # D-健康检查修复：原调用不存在的 gm.is_available() 恒抛 AttributeError；
+        # 改用真实公开的 mode 属性判定连接状态。
+        graph_mode = getattr(gm, "mode", "unknown")
+        graph_connected = graph_mode in _CONNECTED_MODES
+        graph_reason = (
+            f"GraphManager.mode={graph_mode}"
+            + ("" if graph_connected else "（未连接图数据库，vector/graph 支柱不可用）")
+        )
     except Exception as e:
-        raise HTTPException(status_code=503, detail=f"状态查询不可用: {str(e)}")
+        graph_mode = "error"
+        graph_connected = False
+        graph_reason = f"GraphManager 初始化失败: {e}"
+        logger.warning("retrieval/pillars 图谱探针失败: %s", e)
+
+    # bm25 探针：实际构造 BM25Retriever（不依赖图数据库）
+    bm25_status = "available"
+    bm25_reason = "本地倒排索引，按 workspace 惰性构建"
+    try:
+        from odap.biz.data.qa.retrieval.bm25_retriever import BM25Retriever
+        BM25Retriever()
+    except Exception as e:
+        bm25_status = "unavailable"
+        bm25_reason = f"BM25Retriever 构造失败: {e}"
+        logger.warning("retrieval/pillars BM25 探针失败: %s", e)
+
+    vector_status = "available" if graph_connected else "unavailable"
+    graph_status = "available" if graph_connected else "unavailable"
+
+    pillars = [
+        {"name": "bm25", "description": "精准关键词检索",
+         "status": bm25_status, "reason": bm25_reason},
+        {"name": "vector", "description": "语义相似度检索",
+         "status": vector_status, "reason": graph_reason},
+        {"name": "graph", "description": "图关联推理检索",
+         "status": graph_status, "reason": graph_reason},
+    ]
+
+    index_info = {
+        "graph_mode": graph_mode,
+        "graph_connected": graph_connected,
+        "connected_modes": list(_CONNECTED_MODES),
+    }
+
+    return PillarStatusResponse(pillars=pillars, index_info=index_info)
 
 
 # ── 审计路由 ──────────────────────────────────────────────────────────

@@ -29,7 +29,9 @@ class DualChannelWriter:
         """惰性加载 GraphManager 单例"""
         if self._graph_manager is None:
             from odap.infra.graph.graph_service import GraphManager
-            self._graph_manager = GraphManager.get_instance()
+            # D5 修复：GraphManager 靠 __new__ 实现单例，无 get_instance() 类方法；
+            # 直接实例化即可拿到单例（原调用 get_instance() 抛 AttributeError 被静默吞掉）。
+            self._graph_manager = GraphManager()
         return self._graph_manager
 
     async def write(

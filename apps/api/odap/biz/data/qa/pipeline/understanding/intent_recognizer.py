@@ -18,7 +18,7 @@ logger = logging.getLogger(__name__)
 
 _INTENT_RULES: List[tuple] = [
     # (意图, 正则, 权重)
-    (QueryIntent.KEYWORD_LOOKUP, re.compile(r'查找|搜索|找到|有没有|是否包含|精确匹配|叫什么'), 0.8),
+    (QueryIntent.KEYWORD_LOOKUP, re.compile(r'查找|查询|检索|搜索|找到|有没有|是否包含|精确匹配|叫什么'), 0.8),
     (QueryIntent.SEMANTIC_SEARCH, re.compile(r'什么是|解释|说明|描述|介绍|含义|概念|类似|像'), 0.7),
     (QueryIntent.GRAPH_TRAVERSE, re.compile(r'关联|关系|连接|路径|邻居|相连|从.*到|跳|层级'), 0.85),
     (QueryIntent.COMPLEX_ANALYSIS, re.compile(r'分析|对比|比较|趋势|统计|排名|分布|综合|评估'), 0.8),

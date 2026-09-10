@@ -44,7 +44,7 @@ def _parse_binary_content(file_bytes: bytes, filename: str) -> Optional[str]:
         with tempfile.NamedTemporaryFile(suffix=ext, delete=False) as tmp:
             tmp.write(file_bytes)
             tmp_path = tmp.name
-        from odap.biz.core.ontology.extraction.impl.document_parser import DocumentParser
+        from odap.biz.core.ontology.public import DocumentParser
         parser = DocumentParser()
         text = parser.parse(tmp_path)
         if text and text.strip():

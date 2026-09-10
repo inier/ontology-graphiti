@@ -29,7 +29,8 @@ def _mock_write_proxy():
 def _mock_graph_manager():
     """Factory for a mock GraphManager."""
     gm = MagicMock()
-    gm.add_episode = AsyncMock(return_value=None)
+    # ADR-074：Channel B 走零 LLM 的 save_audit_episode（返回 bool），非 add_episode。
+    gm.save_audit_episode = AsyncMock(return_value=True)
     return gm
 
 
@@ -77,14 +78,14 @@ class TestDualChannelWriter:
         assert result["relations_written"] == 1
         mock_proxy.add_entity.assert_called_once()
         mock_proxy.add_relationship.assert_called_once()
-        mock_gm.add_episode.assert_called_once()
+        mock_gm.save_audit_episode.assert_called_once()
 
     @pytest.mark.asyncio
     async def test_channel_b_failure_does_not_affect_channel_a(self):
         """Channel B (GraphManager) failure does not affect Channel A result."""
         mock_proxy = _mock_write_proxy()
         mock_gm = _mock_graph_manager()
-        mock_gm.add_episode = AsyncMock(side_effect=Exception("Graphiti error"))
+        mock_gm.save_audit_episode = AsyncMock(side_effect=Exception("Graphiti error"))
 
         writer = DualChannelWriter()
         writer._write_proxy = mock_proxy

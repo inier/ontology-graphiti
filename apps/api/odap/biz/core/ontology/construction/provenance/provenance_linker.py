@@ -185,13 +185,17 @@ class ProvenanceLinker:
     # ── 内部方法 ──
 
     def _get_build_provenance(self, entity_id: str) -> Optional[dict]:
-        """从 construction_provenance 表查询构建溯源"""
+        """从 extraction_provenance 表查询构建溯源
+
+        D5 修复：ProvenanceTracker 无 get_by_entity_id 方法，真实方法是
+        get_provenance(entity_id) -> Optional[Dict]（单条记录）。原代码调用不存在
+        方法触发 AttributeError 被 except 静默吞成 debug → 4级溯源链永远返回空壳。
+        """
         try:
             from odap.biz.data.hyper_extract.impl.provenance_tracker import ProvenanceTracker
             tracker = ProvenanceTracker()
-            records = tracker.get_by_entity_id(entity_id)
-            if records and len(records) > 0:
-                r = records[0]
+            r = tracker.get_provenance(entity_id)
+            if r:
                 return {
                     "entity_type": r.get("entity_type", ""),
                     "entity_name": r.get("entity_name", ""),
@@ -202,47 +206,73 @@ class ProvenanceLinker:
                     "batch_id": r.get("batch_id"),
                 }
         except Exception as e:
-            logger.debug("Build provenance lookup failed for %s: %s", entity_id, e)
+            logger.warning(
+                "ProvenanceLinker: build provenance lookup failed for entity_id=%s: %s",
+                entity_id, e,
+            )
         return None
 
     def _get_extraction_provenance(self, entity_id: str) -> Optional[dict]:
-        """从 extraction_provenance 表查询提取溯源"""
+        """从 extraction_provenance 表查询提取溯源
+
+        D5 修复：同 _get_build_provenance，改用 get_provenance(entity_id) 单条查询。
+        """
         try:
             from odap.biz.data.hyper_extract.impl.provenance_tracker import ProvenanceTracker
             tracker = ProvenanceTracker()
-            records = tracker.get_by_entity_id(entity_id)
-            for r in records:
-                if r.get("source_doc_id"):
-                    return {
-                        "session_id": r.get("session_id"),
-                        "method": r.get("extraction_method", "unknown"),
-                        "confidence": r.get("confidence_score"),
-                        "template": r.get("source_template"),
-                        "source_doc_id": r.get("source_doc_id"),
-                    }
+            r = tracker.get_provenance(entity_id)
+            if r and r.get("source_doc_id"):
+                return {
+                    "session_id": r.get("session_id"),
+                    "method": r.get("extraction_method", "unknown"),
+                    "confidence": r.get("confidence_score"),
+                    "template": r.get("source_template"),
+                    "source_doc_id": r.get("source_doc_id"),
+                }
         except Exception as e:
-            logger.debug("Extraction provenance lookup failed for %s: %s", entity_id, e)
+            logger.warning(
+                "ProvenanceLinker: extraction provenance lookup failed for entity_id=%s: %s",
+                entity_id, e,
+            )
         return None
 
     def _get_source_document(self, extract_info: Optional[dict]) -> Optional[dict]:
-        """从知识库查询原始文档"""
+        """从知识库查询原始文档（Level 0）。
+
+        D5 修复：原 `from odap.infra.storage.sqlite_client import get_sqlite_client`
+        是幻影——该模块/函数在整个 odap 中都不存在，import 恒抛 ModuleNotFoundError
+        被 except 吞掉 → 4级溯源链的 Level 0 永远无法解析；且旧字段名（id/name/source_url）
+        与真实 kb_documents 表（doc_id/title/file_url）不符。改用真实存储
+        SQLiteKnowledgeBaseStorage.find_document_by_id(doc_id)（仅需 doc_id）。
+        """
         if not extract_info or not extract_info.get("source_doc_id"):
             return None
+        doc_id = extract_info["source_doc_id"]
         try:
-            from odap.infra.storage.sqlite_client import get_sqlite_client
-            db = get_sqlite_client("knowledge_bases")
-            doc = db.get("kb_documents", {"id": extract_info["source_doc_id"]})
+            from odap.biz.data.knowledge_base.storage.sqlite_kb_storage import (
+                SQLiteKnowledgeBaseStorage,
+            )
+            store = SQLiteKnowledgeBaseStorage()
+            doc = store.find_document_by_id(doc_id)
             if doc:
-                content = doc.get("content", "") or doc.get("raw_content", "")
+                content = (
+                    doc.get("content")
+                    or doc.get("raw_content")
+                    or doc.get("cleaned_content")
+                    or ""
+                )
                 return {
-                    "id": doc.get("id", ""),
-                    "name": doc.get("name", ""),
-                    "type": doc.get("file_type", doc.get("content_type", "")),
+                    "id": doc.get("doc_id", ""),
+                    "name": doc.get("title", ""),
+                    "type": doc.get("file_type") or doc.get("content_type", ""),
                     "snippet": content[:200] if content else "",
-                    "url": doc.get("source_url", doc.get("file_url", "")),
+                    "url": doc.get("file_url", ""),
                 }
         except Exception as e:
-            logger.debug("Source document lookup failed: %s", e)
+            logger.warning(
+                "ProvenanceLinker: source document lookup failed for doc_id=%s: %s",
+                doc_id, e,
+            )
         return None
 
 

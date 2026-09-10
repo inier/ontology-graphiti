@@ -43,7 +43,8 @@ class AskResponse(BaseModel):
     sources: List[Dict[str, Any]] = Field(default_factory=list)
     dialog_state: str = "completed"
     intent: Dict[str, Any] = Field(default_factory=dict)
-    sources_used: List[str] = Field(default_factory=list)
+    suggested_actions: List[Dict[str, Any]] = Field(default_factory=list)
+    reasoning_chain: List[Dict[str, Any]] = Field(default_factory=list)
 
 
 class SessionResponse(BaseModel):
@@ -188,7 +189,7 @@ def _get_qa_engine() -> QAEngineV2:
 
         ingest_storage = None
         try:
-            from odap.biz.core.ontology.design.storage.sqlite_ingest_storage import SQLiteIngestStorage
+            from odap.biz.core.ontology.public import SQLiteIngestStorage
             ingest_storage = SQLiteIngestStorage()
         except Exception as e:
             logger.warning(f"SQLiteIngestStorage creation failed: {e}")
@@ -202,7 +203,7 @@ def _get_qa_engine() -> QAEngineV2:
 
         model_storage = None
         try:
-            from odap.biz.core.ontology.design.model.storage.sqlite_model_storage import SQLiteModelStorage
+            from odap.biz.core.ontology.public import SQLiteModelStorage
             model_storage = SQLiteModelStorage()
         except Exception as e:
             logger.warning(f"SQLiteModelStorage creation failed: {e}")
@@ -245,6 +246,27 @@ def _load_agent_context(agent_id: str) -> Dict[str, Any]:
         }
     except Exception:
         return {}
+
+
+_intent_recognizer = None
+
+
+def _recognize_intent(query: str) -> Dict[str, Any]:
+    """复用 pipeline 栈的确定性 IntentRecognizer 算真实意图与置信度。
+
+    规则命中返回该规则权重；无命中由识别器返回 SEMANTIC_SEARCH + 0.3（识别器自身的
+    确定性兜底，非本层猜测）。识别器不可用时返回 unknown + None，绝不编造假精确值。
+    """
+    global _intent_recognizer
+    try:
+        if _intent_recognizer is None:
+            from odap.biz.data.qa.pipeline.understanding.intent_recognizer import IntentRecognizer
+            _intent_recognizer = IntentRecognizer()
+        intent, confidence = _intent_recognizer.recognize(query)
+        return {"type": intent.value, "confidence": confidence}
+    except Exception as e:
+        logger.warning(f"Intent recognition failed: {e}")
+        return {"type": "unknown", "confidence": None}
 
 
 @router.post("/ask", response_model=AskResponse)
@@ -294,8 +316,9 @@ async def ask_question(request: AskRequest,
             answer=result.get("answer", ""),
             sources=result.get("sources", []),
             dialog_state=result.get("dialog_state", "completed"),
-            intent={"type": "query", "confidence": 0.85},
-            sources_used=["graphiti", "rag"],
+            intent=_recognize_intent(request.question),
+            suggested_actions=result.get("suggested_actions", []),
+            reasoning_chain=result.get("reasoning_chain", []),
         )
     except HTTPException:
         raise

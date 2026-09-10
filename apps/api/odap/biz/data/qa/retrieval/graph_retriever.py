@@ -152,29 +152,22 @@ class GraphRetriever:
         return "neighbors"
 
     def _search_neighbors(self, query: str, top_k: int) -> List[RetrievalResult]:
-        """邻居查询"""
-        try:
-            if hasattr(self.graph_manager, 'get_neighbors'):
-                # 尝试从查询中提取实体名
-                entity_name = _extract_entity_name(query)
-                if entity_name:
-                    raw = self.graph_manager.get_neighbors(entity_name, depth=1)
-                    return self._convert_graph_results(raw, "neighbors")
-        except Exception as e:
-            logger.debug(f"Neighbors search failed: {e}")
-        return []
+        """邻居查询：委托 _search_cypher 走 neighbors 模板。
+
+        历史实现直接调 graph_manager.get_neighbors(entity_name)，但真实签名是
+        get_neighbors(entity_id, direction, depth, workspace_id)——传名字语义不匹配，
+        恒返回空。改为委托 _search_cypher，Cypher 模板 `WHERE n.name CONTAINS '{name}'`
+        按名字查询语义正确。
+        """
+        return self._search_cypher(query, top_k, "", None)
 
     def _search_traverse(self, query: str, top_k: int) -> List[RetrievalResult]:
-        """图遍历"""
-        try:
-            if hasattr(self.graph_manager, 'traverse'):
-                entity_name = _extract_entity_name(query)
-                if entity_name:
-                    raw = self.graph_manager.traverse(entity_name, max_depth=3)
-                    return self._convert_graph_results(raw, "traverse")
-        except Exception as e:
-            logger.debug(f"Traverse search failed: {e}")
-        return []
+        """图遍历：委托 _search_cypher 走 path/neighbors 模板。
+
+        同 _search_neighbors 的原因：graph_manager.traverse(start_id) 需要 entity_id
+        而非 entity_name，直接调用恒空；委托给 Cypher 路径以按名字命中。
+        """
+        return self._search_cypher(query, top_k, "", None)
 
     def _search_cypher(self, query: str, top_k: int,
                        workspace_id: str, scenario_id: Optional[str]) -> List[RetrievalResult]:
@@ -185,6 +178,11 @@ class GraphRetriever:
             # 降级: 使用已填充实体名的 neighbors 模板
             cypher = self._fallback_template(query, top_k)
         if not cypher:
+            return []
+
+        # 安全校验：CypherGenerator.validate() 之前在真实路径上从未被调用（探查报告 D1 次生缺陷）
+        if not self.cypher_generator.validate(cypher):
+            logger.warning(f"GraphRetriever: Cypher rejected by validate(): {cypher[:120]}")
             return []
 
         records = self.cypher_generator.execute(cypher, self.graph_manager)
@@ -202,7 +200,7 @@ class GraphRetriever:
                 rels = qs._schema_source.query_link_definitions(workspace_id=workspace_id)
                 schema["relation_types"] = [r.get("name", "") for r in (rels or []) if isinstance(r, dict)]
         except Exception as e:
-            logger.debug(f"Schema load failed: {e}")
+            logger.warning(f"GraphRetriever: schema load failed (workspace_id={workspace_id!r}): {e}")
         return schema
 
     def _fallback_template(self, query: str, top_k: int) -> Optional[str]:
@@ -212,16 +210,8 @@ class GraphRetriever:
             return _CYPHER_TEMPLATES["neighbors"].format(name=entity_name, limit=top_k)
         return None
 
-def _extract_entity_name(query: str) -> Optional[str]:
-    """从查询中提取实体名（确定性规则，非 LLM）"""
-    # 去除常见查询前缀
-    cleaned = re.sub(r'^(查找|查询|搜索|找出|列出|显示|帮我|请|有没有|哪些)', '', query)
-    cleaned = re.sub(r'(的关联|的关系|的邻居|有关|相关|连接|相连).*$', '', cleaned)
-    cleaned = cleaned.strip()
-    return cleaned if cleaned else None
-
     def _convert_graph_results(self, raw: Any, source: str) -> List[RetrievalResult]:
-        """将 GraphManager 结果转为统一格式"""
+        """将 GraphManager 结果转为统一格式（原为 _extract_entity_name return 后的死代码，D1 修复复位）"""
         results: List[RetrievalResult] = []
         if not raw:
             return results
@@ -240,7 +230,7 @@ def _extract_entity_name(query: str) -> Optional[str]:
         return results
 
     def _convert_cypher_results(self, records: List[Dict], cypher: str) -> List[RetrievalResult]:
-        """将 Cypher 查询结果转为统一格式"""
+        """将 Cypher 查询结果转为统一格式（原为 _extract_entity_name return 后的死代码，D1 修复复位）"""
         results: List[RetrievalResult] = []
         for i, record in enumerate(records):
             # 尝试从记录中提取内容
@@ -259,3 +249,12 @@ def _extract_entity_name(query: str) -> Optional[str]:
                 metadata={"cypher": cypher, "record": record},
             ))
         return results
+
+
+def _extract_entity_name(query: str) -> Optional[str]:
+    """从查询中提取实体名（确定性规则，非 LLM）"""
+    # 去除常见查询前缀
+    cleaned = re.sub(r'^(查找|查询|搜索|找出|列出|显示|帮我|请|有没有|哪些)', '', query)
+    cleaned = re.sub(r'(的关联|的关系|的邻居|有关|相关|连接|相连).*$', '', cleaned)
+    cleaned = cleaned.strip()
+    return cleaned if cleaned else None
