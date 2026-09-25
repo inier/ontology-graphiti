@@ -95,8 +95,9 @@
 | ADR-077 | SHACL/OWL 本体治理（双轨制） | 已接受（2026-08-20 grilling 四轮裁决；SHACL/OWL 引擎已落地） | P2 | 2026-08-20 | [ADR-077](ADR-077_SHACL_OWL本体治理.md) |
 | ADR-078 | 图分析服务（中心性/社区/链路预测/路径） | 提议（2026-08-20 编写，待评审；引擎已落地） | P2 | 2026-08-20 | [ADR-078](ADR-078_图分析服务.md) |
 | ADR-079 | 本体论与 LLM 结合边界（推理/理解/生成三层治理） | 已接受（2026-08-20） | P0 | 2026-08-20 | [ADR-079](ADR-079_本体论与LLM结合边界.md) |
-| ADR-080 | core.ontology 门面封装与 import-linter 分层契约棘轮 | 已接受（2026-09-06 Stage A–G：C1/C2/C3 零债账全严格；2026-09-07 Stage H：补 C4 守卫 infra 下层，续烧 22→19→18→14；2026-09-08 Stage I：依赖倒置续烧 14→10，见 ADR-081） | P1 | 2026-09-06 | [ADR-080](ADR-080_ontology门面封装与分层契约.md) |
+| ADR-080 | core.ontology 门面封装与 import-linter 分层契约棘轮 | 已接受（2026-09-06 Stage A–G：C1/C2/C3 零债账全严格；2026-09-07 Stage H：补 C4 守卫 infra 下层，续烧 22→19→18→14；2026-09-08 Stage I：依赖倒置续烧 14→10，见 ADR-081；2026-09-11 Stage J：`lint-imports` 接成 ci.yml/quality-gate.yml 阻塞门禁，此前只有手工命令） | P1 | 2026-09-06 | [ADR-080](ADR-080_ontology门面封装与分层契约.md) |
 | ADR-081 | infra→biz 依赖倒置 provider 注册表 seam（C4 Stage I 烧账机制） | 已接受（2026-09-08 Stage I · Group A：新增 infra/providers.py 注册表 + biz/providers_bootstrap.py 工厂注册，3 个 query source 改 resolve_provider + 删死函数 register_query_tools，C4 14→10，`lint-imports` 4 kept/0 broken，OpenAPI 755/957 零丢路由） | P1 | 2026-09-08 | [ADR-081](ADR-081_infra依赖倒置provider注册表.md) |
+| ADR-082 | 事件源与 BI 指标的语义候选抽取入口（资产流水线扩展） | 已接受（2026-09-25 设计获批；事件源捕获 PerceptionHub 既有 ExtractionResult 不重复抽取，BI 指标→属性确定性读取，均落 semantic-assets 流水线共用候选库；实现待 writing-plans 拆片） | P0 | 2026-09-25 | [ADR-082](ADR-082_事件源与BI指标语义抽取入口.md) |
 
 > 预留编号：ADR-034/035（对应设计已合并至 ADR-038，永不复用）。
 
@@ -150,6 +151,7 @@
 - ADR-079：本体论与 LLM 结合边界（推理/理解/生成三层治理，2026-08-20）
 - ADR-080：core.ontology 门面封装与 import-linter 分层契约棘轮（ADR-068 迁移策略的实现与 CI 守卫，2026-09-06）
 - ADR-081：infra→biz 依赖倒置 provider 注册表 seam（C4 棘轮 Stage I 烧账机制，续接 ADR-080，2026-09-08）
+- ADR-082：事件源与 BI 指标的语义候选抽取入口（资产流水线扩展，补齐「散落结构化数据自动抽取业务语义」的两类入口，2026-09-25）
 - 编号冲突处理：若同日提审新 ADR 时编号已被占用，**禁止采用后缀 `b/c/d`**，必须使用下一个可用编号。**永远不重命名已被外部链接引用的 ADR 文件**。
 
 ## 状态清算记录
@@ -161,3 +163,5 @@
 | 2026-09-06 | 登记 ADR-080（core.ontology 门面封装 + import-linter 三契约棘轮，Stage A–G 落地，C1/C2/C3 零债账全严格） | 080 |
 | 2026-09-07 | ADR-080 Stage H：补第四条契约 C4（infra 不得直接 import biz），grimp 精确复测 22 边；分三批烧账 —— Tier1 删 2 vestigial shim（22→19）、Tier3 PermissionScope 下沉 common（19→18）、Tier2 object_service 整体迁移 biz.data（18→14）；`lint-imports` 3 kept → 4 kept/0 broken；同步 DOC_SYNC_CHECKLIST 契约审计 gate、ARCHITECTURE_INFRA、03-modules README | 080 |
 | 2026-09-08 | 登记 ADR-081（infra→biz 依赖倒置 provider 注册表 seam）；ADR-080 Stage I · Group A 烧账：新增 `infra/providers.py` 注册表 + `biz/providers_bootstrap.py` 工厂注册，3 个 query source 改 `resolve_provider` + 删死函数 `register_query_tools`，C4 14→10；反向探针验证注册表受 C4 守卫；运行期 smoke 5 provider 全解析；定向回归 139 passed；容器 OpenAPI 755/957 零丢路由；顺带修正 `SemanticObjectRetriever` 存量导入缺陷 | 080/081 |
+| 2026-09-11 | ADR-080 Stage J：`lint-imports` 接成 CI 阻塞门禁（`ci.yml` step + `quality-gate.yml` 独立 job 进 `needs`），补上 Stage A–I 期间「宣称有 CI 守卫、实际只有手工命令」的缺口。首版接线（`working-directory: apps/api` + `uv run --frozen lint-imports`）经干净环境实测是坏的——`import-linter`/`grimp` 在仓库根 `[dependency-groups] dev`，`uv sync --no-dev --package odap` 不装它，且从 `apps/api` 执行 `uv run` 解析到 odap 项目、闭包同样不含，门禁恒以 `Failed to spawn: lint-imports` 退出；已改为「根 `uv sync --frozen --inexact` + `cd apps/api && uv run --frozen --no-sync lint-imports`」并在空环境逐步验证退出码全 0。复测 `4 kept/0 broken`，1360 files/2380 deps，C4 棘轮仍 10 条。同轮架构缺口审计发现并修复一批「幻影调用 + 静默兜底」断链（perception hub 抽取链路恒返回空、QA 单例把 Neo4j 瞬时故障固化为进程级永久降级、executor 丢弃 GraphWriteProxy 错误状态恒报 success、rollback_manager `hasattr` 探测式假成功、graph_retriever/execution_tool 调不存在的 API、6 个 `biz/**/__init__.py` 裸 `except: pass` 再导出含 1 个幻影模块）；据此扩充 AGENTS.md 规则 14（新增 `hasattr` 探测式降级 / 幻影调用 / 无视被调方错误状态三种禁止形态，降级实例禁入长生命周期缓存，测试必须执行真实函数体） | 080 |
+| 2026-09-25 | 登记 ADR-082（事件源与 BI 指标的语义候选抽取入口）：审计确认语义构建编排器真实，但两类散落结构化数据抽不到——事件源经 PerceptionHub 真实 LLM 抽取后门面只留 extraction_confidence、丢弃整个 ExtractionResult 致候选恒 0；BI 指标（business.db）零入口进 semantic_admin。决策：宿主为 semantic-assets 资产流水线（非 text-only 的 ol_pipeline）；事件源改门面返回体透传 ExtractionResult + 新 `_collect_event_candidates`（不重复抽取、不落 OntologyDocument）；BI 指标新增 source_type `business_indicators` → `_run_indicator` 经 `BusinessService.list_indicators` 确定性读取 → 映射为 USL「属性」候选；两路复用断链 2 的 `_resolve_domain_code` 领域归属与共用候选库。sensor 因门面只入队无 event_id 暂缓（保持显式 error）；warehouse schema/本体类型定义暂缓。设计已获用户批准，实现待 writing-plans 拆片 | 082 |
