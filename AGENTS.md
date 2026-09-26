@@ -238,6 +238,8 @@ python apps/api/bootstep.py down
 | `OPENAI_API_KEY` | 是 | LLM API Key |
 | `OPENAI_API_BASE` | 是 | LLM API 基地址 |
 | `OPENAI_MODEL` | 是 | 模型名称 |
+| `EMBEDDER_MODEL` | 是 | 嵌入模型 id，必须是 `OPENAI_API_BASE` 对应 provider 上**实际存在**的模型。填错/已退役时 Embedder 构造仍成功，但每次向量检索在嵌入阶段 404/410，而 `/health` 曾长期报 `connected=true`（伪绿灯）。启动时会做一次 1-token 嵌入自检，失败即把 Graphiti 模式标记为不可用 |
+| `EMBEDDER_PROVIDER` / `EMBEDDER_LOCAL_MODEL` | 否 | 嵌入服务提供方式（auto/api/local）与本地模型名。**两条嵌入路径策略不一致**：`hyper_extract` 的 `HEAdapter._create_embedder` 实现了 local/api/auto 三分支 + 交叉回退（local 走 `HuggingFaceEmbeddings`，需 sentence-transformers）；graphiti 那条路径 `graph_service._create_embedder` **只有 api 分支**，不读 `EMBEDDER_PROVIDER` |
 | `NEO4J_URI` | 是 | 图数据库连接（容器内用 `graphiti-neo4j:7687`） |
 | `NEO4J_USER` / `NEO4J_PASSWORD` | 是 | Neo4j 认证 |
 | `JWT_SECRET` | 是 | JWT 签名密钥（≥ 32 字符） |
@@ -481,6 +483,7 @@ import type { Agent } from '../types';
 | 新增/变更环境变量 | `agents.md` § 2.3 环境变量速查 |
 | 新增/变更 compose 服务或启动命令 | `agents.md` § 2.2 启动命令 |
 | 存储层新增表或字段变更 | 对应模块 `DESIGN.md` + `agents.md` MEMORY |
+| 新增/变更 CI workflow 或 `[tool.importlinter]` 架构契约（含 C4 `ignore_imports` 棘轮增减） | `docs/07-adr/ADR-080` § 6 + Status 行 + `docs/07-adr/README.md` 索引与时间线 + `docs/09-checklists/DOC_SYNC_CHECKLIST.md` § 六/§ 七 |
 
 **执行要求**：
 - 提交代码前对照 `docs/09-checklists/DOC_SYNC_CHECKLIST.md` 逐项检查
@@ -550,12 +553,17 @@ db_path = 'sessions.db'                                          # 会写入 CWD
 - 数据缺失时静默回退到硬编码默认值或约定命名反推
 - 主服务不可用时静默切换到备选服务/本地实现
 - 解析失败时静默返回空结果或占位数据
+- **`hasattr` 探测式降级** — `deleted = await gm.delete_by_batch(b) if hasattr(gm, 'delete_by_batch') else 0`。`hasattr` 不抛异常，因此没有 `except` 可抓，绕开了上一条；更糟的是探测失败后仍按成功返回，属于**静默假成功**，危害大于静默失败（失败至少还能被上层察觉，假成功会被写进审计与反馈闭环）
+- **幻影调用（phantom call）** — 调用根本不存在的方法/模块/关键字参数（如 `NewsIngester.extract_ontology`、`GraphManager.delete_entity`、`qa_engine_v2` 模块、`entity_name=` 形参），产生的 `ImportError`/`AttributeError`/`TypeError` 被外层 `except` 吞掉。特征是"代码看起来在跑、测试全绿、功能实际全死"
+- **无视被调方返回的错误状态** — 被调方已按规则 2 返回 `{"status": "error", "message": ...}`，调用方却不读返回值、无条件报成功
 
 **要求**：
 1. **先确认再实现** — 任何兜底逻辑在编写前必须经用户确认或评审通过，明确触发条件、兜底行为与后果。
 2. **失败必须显式** — 主流程失败时应抛出错误、记录告警日志并向上层透传，由调用方显式决策，禁止静默降级。
-3. **兜底需可观测** — 若经确认确需兜底，必须记录结构化日志（含触发原因、兜底路径、影响范围），且兜底路径必须可被测试与审计。
+3. **兜底需可观测** — 若经确认确需兜底，必须记录结构化日志（含触发原因、兜底路径、影响范围），且兜底路径必须可被测试与审计。日志级别不得低于 `warning`：`logger.debug` 在生产默认 INFO 级下等于不可见。
 4. **禁止猜测性反推** — 禁止仅凭命名约定、字段名等推断并静默补全缺失数据（如用 `USL__{code}` 命名反推领域编码），缺失数据必须显式建模为字段并走确认流程。
+5. **降级实例禁止入长生命周期缓存** — 依赖构造失败时不得把降级后的对象写入模块级单例/全局缓存。否则一次瞬时故障（如 Neo4j 重启）会被冻结成整个进程生命周期的永久降级，且接口继续返回 200。正确做法：构造失败即抛出且**不写缓存**，下一次调用重新构造，瞬时故障自愈。
+6. **测试必须执行真实函数体** — 禁止用 `patch.object(obj, "broken_method")` 把待验证的逻辑整段替换掉再宣称通过。本仓历次幻影缺陷之所以能长期存活，正是因为所有测试都 mock 掉了出问题的函数（例如 `test_perception.py` 原先每个用例都 patch `_extract` 并预置 `hub._oms`，导致该函数体内三处叠加缺陷零覆盖）。至少要有一条测试走真实实现路径。
 
 ---
 

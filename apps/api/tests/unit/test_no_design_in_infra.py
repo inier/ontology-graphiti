@@ -12,7 +12,10 @@ import ast
 from pathlib import Path
 import pytest
 
-ROOT = Path(r"e:\DEMO\AI\ontology-graphiti\odap")
+# 由本文件位置反推 apps/api/odap（tests/unit/x.py → parents[2]）。
+# 曾经这里写死 e:\DEMO\AI\ontology-graphiti\odap，搬迁后 INFRA_DIR 不存在 →
+# P0-3 扫描用例静默扫 0 个文件"通过"，fixture 存在性用例报错。
+ROOT = Path(__file__).resolve().parents[2] / "odap"
 INFRA_DIR = ROOT / "infra"
 DESIGN_DIR = ROOT / "biz" / "core" / "ontology" / "design"
 DESIGN_CONTRACT_DIR = DESIGN_DIR / "contract"
@@ -69,8 +72,9 @@ def collect_imports_in_file(path: Path) -> list:
 
 def collect_infra_files():
     """Yield all Python files under odap/infra/."""
-    if not INFRA_DIR.exists():
-        return
+    # 目录缺失必须报错：静默 yield 空集会让 `assert not violations` 在扫描
+    # 0 个文件的情况下"通过"，P0-3 守卫退化成伪绿灯（规则 14）。
+    assert INFRA_DIR.is_dir(), f"infra 目录不存在（布局已变更？）: {INFRA_DIR}"
     for path in INFRA_DIR.rglob("*.py"):
         if "__pycache__" in str(path):
             continue
@@ -101,6 +105,9 @@ class TestInfraNoDesignInternalImports:
     def test_graph_service_no_longer_imports_load_simulation_data(self):
         """Specific regression: graph_service.py:47 was importing from design."""
         path = INFRA_DIR / "graph" / "graph_service.py"
+        # collect_imports_in_file 对读不到的文件返回 []，若不先断言存在，
+        # 文件搬迁后本用例会拿着空结果"通过"。
+        assert path.is_file(), f"graph_service.py 不存在（布局已变更？）: {path}"
         imports = collect_imports_in_file(path)
         forbidden = [
             (m, ln) for m, ln in imports

@@ -104,7 +104,41 @@ cd apps/api && uv run --no-sync lint-imports
 #   · C1/C2/C3 无 "(N ignored imports)" 后缀（零债账全严格）
 #   · C4 显示 "KEPT (10 ignored imports)"（infra→biz 存量债账棘轮，只减不增；见 ADR-080 Stage H + ADR-081 Stage I）
 # 新增 biz/infra→web、common→上层、外部→ontology 深层子包、infra→biz 的直接 import 会立即 FAIL
+#
+# 同一命令自 ADR-080 Stage J（2026-09-11）起也是 CI 阻塞门禁，CI 里是两条命令：
+#   uv sync --frozen --inexact                             # 仓库根：补装 dev 组（import-linter/grimp）
+#   cd apps/api && uv run --frozen --no-sync lint-imports  # apps/api：跑四契约
+#   · .github/workflows/ci.yml → step "Verify architecture contracts (import-linter C1-C4)"
+#   · .github/workflows/quality-gate.yml → job architecture-contracts，已接进汇总 gate 的 needs
+# 本地跳过也会被 CI 拦住。
+#
+# 门禁红了先按报错文本分辨三种语义，别一上来就查契约：
+#   · "Failed to spawn: lint-imports / program not found"
+#       → 依赖没装。import-linter/grimp 在【仓库根】[dependency-groups] dev，
+#         `uv sync --no-dev --package odap` 不装它；且从 apps/api 跑 uv run 解析到的是 odap
+#         项目，闭包同样不含（根 dev 组不随成员包传递）。必须在根补装，且用 --inexact
+#         （根项目无 [project.dependencies]，精确 sync 会把 odap 当外来包卸掉）。
+#   · "Could not read any configuration"
+#       → 工作目录错。[tool.importlinter] 在 apps/api/pyproject.toml，必须在 apps/api 下执行。
+#   · "BROKEN" → 契约真破，按契约名定位违规边。
 ```
+
+---
+
+## 七、CI 门禁与架构契约变更检查
+
+当变更 `.github/workflows/*.yml`、`apps/api/pyproject.toml` 的 `[tool.importlinter]`，或增删 C4 `ignore_imports` 债账时：
+
+- [ ] **门禁必须阻塞，不得降级为告警** — 新增检查项要能 fail job（非零退出 / 接进 `needs`），`continue-on-error: true` 等于没有门禁
+- [ ] **门禁工具确实在 CI 环境里可执行** — 别只看本地能跑。uv workspace 下 `[dependency-groups] dev` 属于**根项目**，不随成员包传递：CI 的 `uv sync --no-dev --package odap` 不装它，从 `apps/api` 执行 `uv run` 解析到 odap 项目、闭包同样不含。须在仓库根补一次 `uv sync --frozen --inexact`（`--inexact` 防止精确 sync 把已装的 odap 当外来包卸掉——根项目无 `[project.dependencies]`）
+- [ ] **执行目录与配置位置一致** — `[tool.importlinter]` 在 `apps/api/pyproject.toml`，门禁命令必须 `cd apps/api` 后再跑；从仓库根执行会以 `Could not read any configuration` 退出 1
+- [ ] **依赖版本锁死** — 用 `--frozen`（跑锁文件里那版工具，避免 CI 解析到新 import-linter/grimp 导致契约行为与边计数漂移）+ `--no-sync`（避免 `uv run` 的隐式 sync 再改环境）
+- [ ] **接线后必须在干净环境实测一遍** — `UV_PROJECT_ENVIRONMENT=<空目录>` 按 CI 步骤顺序逐步执行，确认每步退出码 0。首版接线就是只在已有 `.venv` 里验过（工具早就装着），CI 上恒以 `Failed to spawn: lint-imports / program not found` 失败——门禁因环境原因常红，比没有门禁更糟（会训练所有人忽略红灯）
+- [ ] 门禁失败的三种语义写进注释，便于排查：`Failed to spawn` = 依赖没装；`Could not read any configuration` = 工作目录错；`BROKEN` = 契约真破
+- [ ] `docs/07-adr/ADR-080_ontology门面封装与分层契约.md` — 接线形态变更同步 § 6；C4 债账增减同步 Status 行、「代码现实」引文与 § 5 的棘轮数字
+- [ ] `docs/07-adr/ADR-081_*` — 若通过 provider 依赖倒置烧掉 C4 存量边，同步其「剩余 C4 债账」表
+- [ ] 本清单 § 六 的审计命令块 — 期望输出（`4 kept, 0 broken`、C4 ignored 条数）随实测更新
+- [ ] **ADR 宣称与现实对齐** — ADR/文档中出现「CI 守卫」「自动拦截」「立即 FAIL」等措辞时，确认确有 workflow 在跑该检查；只有手工命令就不得这样写（规则 12：发现不符立即修正，不留 TODO）
 
 ---
 
@@ -125,7 +159,7 @@ cd apps/api && uv run --no-sync lint-imports
 
 ---
 
-## 七、文档层级与优先级
+## 九、文档层级与优先级
 
 当不同文档对同一事项描述冲突时，按以下优先级裁决：
 

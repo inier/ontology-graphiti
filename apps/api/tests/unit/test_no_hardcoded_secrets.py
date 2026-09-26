@@ -17,6 +17,7 @@ Verifies that:
 3. Production env REJECTS placeholder secrets.
 4. Dev env can use generated random secrets.
 """
+import ast
 import os
 import re
 from pathlib import Path
@@ -210,18 +211,64 @@ class TestSecretHelpers:
 # ============ Component integration tests ============
 
 class TestAuthServiceNoHardcodedPassword:
-    def test_init_default_users_does_not_have_admin123(self):
-        """The string 'admin123' must not appear in auth_service.py as a literal."""
+    def test_init_default_users_does_not_have_admin123(self, monkeypatch):
+        """默认管理员口令不得是 admin123（P0-8）。
+
+        曾经这里对整个 auth_service.py 做子串扫描，于是命中了
+        `_COMMON_WEAK_PASSWORDS` 这个 OWASP 弱口令**黑名单**里的 "admin123" 条目。
+        黑名单的含义是"拒绝它"，与"拿它当默认口令"正好相反 —— 安全门禁因此长期
+        假红（狼来了）：真出现硬编码默认口令时，也没人会再信这条断言。
+
+        现在断言两条真实属性：
+          1. 行为面：不设 ODAP_ADMIN_PASSWORD 且非生产时，解析出的口令既不为空、
+             也不落在弱口令黑名单里；
+          2. 源码面：'admin123' 字面量只允许出现在黑名单定义的行范围内，
+             文件其余任何位置出现都算违规。
+        """
+        from odap.infra.security.auth_service import (
+            _COMMON_WEAK_PASSWORDS,
+            AuthService,
+        )
+
+        monkeypatch.delenv("ODAP_ADMIN_PASSWORD", raising=False)
+        monkeypatch.delenv("ENV", raising=False)
+        service = AuthService()
+        resolved = service._resolve_admin_password()
+        assert resolved, "解析出的管理员口令不得为空"
+        assert resolved not in _COMMON_WEAK_PASSWORDS, (
+            f"管理员口令落在弱口令黑名单里: {resolved!r}"
+        )
+        assert "admin" not in service._users or service._users["admin"]["password_hash"], (
+            "默认 admin 用户必须有 password_hash"
+        )
+
         path = ROOT / "infra" / "security" / "auth_service.py"
         content = path.read_text(encoding="utf-8")
-        # The string can appear in test files but not in production code as a literal
-        assert '"admin123"' not in content, (
-            "Hardcoded admin password 'admin123' found in auth_service.py. "
-            "P0-8 violation."
+
+        tree = ast.parse(content)
+        blocklist_spans = []
+        for node in ast.walk(tree):
+            if not isinstance(node, ast.Assign):
+                continue
+            for target in node.targets:
+                if isinstance(target, ast.Name) and target.id == "_COMMON_WEAK_PASSWORDS":
+                    blocklist_spans.append((node.lineno, node.end_lineno))
+        assert blocklist_spans, (
+            "auth_service.py 里找不到 _COMMON_WEAK_PASSWORDS 黑名单定义 —— "
+            "若已重命名，请同步更新本用例的行范围排除逻辑"
         )
-        assert "'admin123'" not in content, (
-            "Hardcoded admin password 'admin123' found in auth_service.py. "
-            "P0-8 violation."
+
+        offending = []
+        for lineno, line in enumerate(content.splitlines(), start=1):
+            if "admin123" not in line:
+                continue
+            in_blocklist = any(lo <= lineno <= hi for lo, hi in blocklist_spans)
+            if not in_blocklist:
+                offending.append(f"{lineno}: {line.strip()}")
+
+        assert not offending, (
+            "auth_service.py 在弱口令黑名单之外出现了 'admin123' 字面量（P0-8 违规）：\n"
+            + "\n".join(offending)
         )
 
     def test_resolve_admin_password_uses_env_or_random(self, monkeypatch):

@@ -1,9 +1,9 @@
 # ADR-080: core.ontology 门面封装与 import-linter 分层契约棘轮
 
 ## Status
-**Accepted（2026-09-06：Stage A–G 三条契约零债账全严格；2026-09-07 Stage H 补第四条契约 C4 守卫 infra 下层边界，并续烧 C4 存量债账 22→19→14；2026-09-08 Stage I 引入 provider 注册表依赖倒置 seam 续烧 C4 14→10，见 ADR-081）**
+**Accepted（2026-09-06：Stage A–G 三条契约零债账全严格；2026-09-07 Stage H 补第四条契约 C4 守卫 infra 下层边界，并续烧 C4 存量债账 22→19→14；2026-09-08 Stage I 引入 provider 注册表依赖倒置 seam 续烧 C4 14→10，见 ADR-081；2026-09-11 Stage J 把 `lint-imports` 接成 CI 阻塞门禁，此前 § 2 宣称的「CI 守卫」只有手工命令、无任何 workflow 调用，见 § 6）**
 
-> 代码现实：`biz/core/ontology/public.py`（77 符号惰性门面）+ `public_routers.py`（31 路由惰性门面）已实现；`apps/api/pyproject.toml` 的 `[tool.importlinter]` 四条契约 C1/C2/C3/C4 全部 KEPT。C1/C2/C3 `ignore_imports` 清零（零债账全严格），C4 挂 10 条 infra→biz 存量债账（棘轮，只减不增；初始 22 条经 Tier1 删壳→19、Tier3 类型下沉→18、Tier2 object_service 迁移→14，Stage I 依赖倒置 Group A→10）。`cd apps/api && uv run lint-imports` 输出 `4 kept, 0 broken`（`Analyzed 1359 files, 2393 deps`）。
+> 代码现实：`biz/core/ontology/public.py`（77 符号惰性门面）+ `public_routers.py`（31 路由惰性门面）已实现；`apps/api/pyproject.toml` 的 `[tool.importlinter]` 四条契约 C1/C2/C3/C4 全部 KEPT。C1/C2/C3 `ignore_imports` 清零（零债账全严格），C4 挂 10 条 infra→biz 存量债账（棘轮，只减不增；初始 22 条经 Tier1 删壳→19、Tier3 类型下沉→18、Tier2 object_service 迁移→14，Stage I 依赖倒置 Group A→10）。`cd apps/api && uv run lint-imports` 输出 `4 kept, 0 broken`（Stage J 实测 `Analyzed 1360 files, 2380 deps`）；该命令同时是 `ci.yml` / `quality-gate.yml` 的阻塞步骤（§ 6），不再仅靠人工执行。
 
 ## Context
 
@@ -26,7 +26,7 @@ ADR-068 将本体模块重组为 3+1 分层架构（Design → Construction → 
 
 ### 2. import-linter 四条 forbidden 契约（棘轮 ratchet 模式）
 
-在 `apps/api/pyproject.toml` 的 `[tool.importlinter]` 定义四条 `forbidden` 契约，把 ADR-068 的分层意图固化为机器可验证的 CI 守卫。grimp 纯 AST 静态分析，host `.venv` 即可运行（`cd apps/api && uv run lint-imports`），不需 DB / OPA / 容器：
+在 `apps/api/pyproject.toml` 的 `[tool.importlinter]` 定义四条 `forbidden` 契约，把 ADR-068 的分层意图固化为机器可验证的守卫。grimp 纯 AST 静态分析，host `.venv` 即可运行（`cd apps/api && uv run lint-imports`），不需 DB / OPA / 容器。**注意：契约定义（本 Stage）与门禁接线（§ 6，Stage J）是两件事**——本节只让契约可被人工执行，直到 Stage J 才有 workflow 真正调用它：
 
 | 契约 | 语义 | source → forbidden | 关键开关 |
 |------|------|--------------------|----------|
@@ -72,6 +72,33 @@ C4 落地即挂 19 条存量边于 `ignore_imports`（棘轮，只减不增）�
 **Stage I 续烧（2026-09-08，14 → 10）**：引入 infra provider 注册表依赖倒置 seam（ADR-081），消除 Group A 的 4 条边——删死函数 `register_query_tools`（`query_tools`→`tool_registry`，1 边）+ 三个 query source 适配器改经 `odap.infra.providers` 注册表解析 biz 协作者（`ontology_source`/`schema_source`→`ontology.public`、`unstructured_source`→`qa.semantic_retriever`，3 边）。source 模块留在原处、`infra.query` 公共 API 不破（约 40 处 `QueryService` 消费者无感）。
 
 剩余 10 条 C4 边全部需依赖倒置重构（provider 接口注入 / 任务注册表注入 / 装配注入），非简单迁移或类型下沉可解：`engine_adapter`(4) + `fault_tolerance`(1) + `agui.retrieval_adapter`(1) + `scenario_store`(2，模块级单例缓烧) + `queue.tasks`(2)，留作后续 Stage 逐步烧至零（详见 ADR-081「剩余 C4 债账」表）。
+
+### 6. CI 门禁接线（Stage J，2026-09-11）
+
+§ 2 把四条契约称为「机器可验证的 CI 守卫」，Consequences 也宣称「任何新增违规在 `lint-imports` 立即 FAIL」——但落地时只写了手工命令 `cd apps/api && uv run lint-imports`，**全仓没有任何 workflow 调用过它**。即 C1–C4 在 Stage A–I 期间完全依赖人工自觉：契约本身零债账、状态健康，却对回归没有任何拦截力，一次 reach-in 提交可以静默合入。本 Stage 补上这道缺失的门禁，使 ADR 的宣称与现实一致。
+
+接线形态（两处，均为**阻塞**而非告警），每个门禁步骤都是**两条命令**：
+
+```bash
+uv sync --frozen --inexact                          # 仓库根：补装 dev 组（import-linter / grimp）
+cd apps/api && uv run --frozen --no-sync lint-imports   # apps/api：跑四契约
+```
+
+| Workflow | 位置 | 形态 |
+|----------|------|------|
+| `.github/workflows/ci.yml` | `backend-test` job 内新增 step `Verify architecture contracts (import-linter C1-C4)` | 上述两条命令，非零退出即 fail 整个 job；与同 job 的 ruff 步骤 `continue-on-error: true` 刻意相反 |
+| `.github/workflows/quality-gate.yml` | 新增独立 job `architecture-contracts`，并接进汇总门禁 `needs: [backend-test, frontend-build, architecture-contracts]` | 与测试/构建平级，契约破了则汇总 gate 一并红 |
+
+**两条命令都是承重项**，各自挡一个已实测的失败模式：
+
+1. **`uv sync --frozen --inexact`（仓库根）—— 不装就根本没有 `lint-imports` 可执行文件。** `import-linter` / `grimp` 声明在**仓库根** `pyproject.toml` 的 `[dependency-groups] dev`，而 CI 的安装步骤是 `uv sync --frozen --no-dev --package odap`，`--no-dev` 直接排除该组。更隐蔽的是：即便去掉 `--no-dev`，从 `apps/api` 执行 `uv run` 解析到的是 **odap 项目**，其依赖闭包同样不含这两个包（实测 inexact dry-run 只补 `pytest`，不补 `grimp` / `import-linter`）——因为根 dev 组属于根项目 `odap-monorepo`，不随成员包传递。首版接线正是踩在这里：干净环境下门禁恒以 `error: Failed to spawn: lint-imports / program not found` 退出码 2 失败，**每次 CI 都红，且红的原因与架构契约毫无关系**。
+   - 必须用 `--inexact`：根项目 `odap-monorepo` 没有 `[project.dependencies]`，精确 sync 只装 dev 组，会把上一步刚装好的 `odap` 当外来包**卸掉**，导致 grimp 找不到 `root_packages` 里的 `odap`。`--inexact` 语义即"不卸载环境中已有的外来包"。
+2. **`cd apps/api`—— 配置在那里。** `[tool.importlinter]` 配在 `apps/api/pyproject.toml`，从仓库根执行 `lint-imports` 读不到配置，以 `Could not read any configuration` 退出 1。故门禁失败有两种语义，排查时先看报错文本再看契约名：`Failed to spawn` = 依赖没装（本条 1）；`Could not read any configuration` = 工作目录错（本条 2）；`BROKEN` 才是契约真破。
+   - `--no-sync` 避免 `uv run` 的隐式 inexact sync 再动一次环境；`--frozen` 保证跑锁文件里那版 import-linter / grimp，防止 CI 临时解析到新依赖导致契约行为与边计数漂移。
+
+接线后在**干净环境**（`UV_PROJECT_ENVIRONMENT` 指向空目录，按 CI 顺序逐步执行）复测：step 1/2/3 退出码均 0，`lint-imports` 输出 `4 kept, 0 broken`，`Analyzed 1360 files, 2380 dependencies`，C4 仍恰好 `KEPT (10 ignored imports)`（棘轮未涨）。deps 相对 § 5 收官态下降是同日 `biz/**/__init__.py` 幻影再导出清理的副产物（见下），属期望方向——删掉的是死边，不是漏扫。
+
+> **关联清理**：同轮扫描发现 6 个 `biz/**/__init__.py` 用 `try: from ... import X / except Exception: pass` 做再导出，其中 `biz/data/__init__.py` 指向**根本不存在的模块** `qa_engine_v2`（真实模块是 `qa_engine`，类名 `QAEngineV2`）——ImportError 被吞，包初始化恒静默成功。这类裸 `except: pass` 对 grimp 同样是可见边（AST 层面 import 语句存在），既污染 deps 计数又掩盖幻影。已全部删除并以 `tests/unit/test_biz_package_inits.py` 上零容忍棘轮（AST 扫描全部 `biz/**/__init__.py`，出现裸 `except: pass` 即 FAIL）。
 
 ## Consequences
 

@@ -50,6 +50,26 @@ jobs:
         continue-on-error: true
         run: uv run ruff check apps/api/odap apps/api/tests/
 
+      - name: Verify architecture contracts (import-linter C1-C4)
+        # 阻塞门禁，与上面 ruff 的 continue-on-error 刻意相反：分层契约一旦回退必须挡在合入前。
+        # C1/C2/C3 已烧至零 ignore（完全严格），C4 是 10 条只减不增的棘轮债账。
+        # 新增任何 infra→biz 直接导入、common→上层导入、biz/infra→web 导入、
+        # 或绕过 ontology public 门面的深层 reach-in，都会在这里 FAIL。
+        #
+        # 下面两条命令都是承重项，不可合并、不可省：
+        # 1) import-linter / grimp 声明在仓库根的 [dependency-groups] dev，上面的
+        #    `uv sync --no-dev --package odap` 不会装它们；而从 apps/api 执行 `uv run`
+        #    解析到的是 odap 项目，其依赖闭包同样不含（实测 inexact dry-run 只补 pytest，
+        #    不补 grimp / import-linter）。故必须在仓库根补一次 dev 组。用 --inexact 是因为
+        #    根项目 odap-monorepo 没有 [project.dependencies]，精确 sync 会把刚装好的 odap
+        #    当外来包卸掉，导致 grimp 找不到 root_packages 里的 odap。
+        # 2) lint-imports 必须在 apps/api 下执行：[tool.importlinter] 在 apps/api/pyproject.toml，
+        #    从仓库根跑会报 "Could not read any configuration" 并以退出码 1 结束。
+        #    --no-sync 避免 uv run 的隐式 inexact sync 再动一次环境。
+        run: |
+          uv sync --frozen --inexact
+          cd apps/api && uv run --frozen --no-sync lint-imports
+
       - name: Run unit tests
         run: uv run pytest apps/api/tests/unit/ -v --cov=odap --cov-report=xml
 
