@@ -7,7 +7,7 @@ from fastapi import APIRouter, HTTPException, Query, Depends
 from pydantic import BaseModel, Field
 
 from odap.biz.data.qa.models import QueryRequest, QueryResponse, RetrievalResultSet
-from odap.biz.data.qa.pipeline.query_pipeline import QueryPipeline
+from odap.biz.data.qa.pipeline.query_pipeline import get_query_pipeline
 from odap.biz.data.qa.evaluation.audit_storage import QueryAuditStorage
 from odap.infra.security.jwt_auth import get_current_user
 
@@ -15,21 +15,7 @@ logger = logging.getLogger(__name__)
 
 router = APIRouter(prefix="/api/qa", tags=["qa-nl"])
 
-_pipeline_instance: Optional[QueryPipeline] = None
 _audit_storage_instance: Optional[QueryAuditStorage] = None
-
-
-def _get_pipeline() -> QueryPipeline:
-    global _pipeline_instance
-    if _pipeline_instance is None:
-        graph_manager = None
-        try:
-            from odap.infra.graph.graph_service import GraphManager
-            graph_manager = GraphManager()
-        except Exception:
-            pass
-        _pipeline_instance = QueryPipeline(graph_manager=graph_manager)
-    return _pipeline_instance
 
 
 def _get_audit_storage() -> QueryAuditStorage:
@@ -117,7 +103,7 @@ async def nl_query(request: NLSearchRequest, user=Depends(get_current_user)):
     if not request.query:
         raise HTTPException(status_code=400, detail="查询不能为空")
     try:
-        pipeline = _get_pipeline()
+        pipeline = get_query_pipeline()
         query_request = QueryRequest(
             query=request.query,
             workspace_id=request.workspace_id,
@@ -140,7 +126,7 @@ async def nl_search(request: NLSearchRequest, user=Depends(get_current_user)):
     if not request.query:
         raise HTTPException(status_code=400, detail="查询不能为空")
     try:
-        pipeline = _get_pipeline()
+        pipeline = get_query_pipeline()
         query_request = QueryRequest(
             query=request.query,
             workspace_id=request.workspace_id,
@@ -168,7 +154,7 @@ async def nl_plan(request: NLPlanRequest, user=Depends(get_current_user)):
     if not request.query:
         raise HTTPException(status_code=400, detail="查询不能为空")
     try:
-        pipeline = _get_pipeline()
+        pipeline = get_query_pipeline()
         query_request = QueryRequest(
             query=request.query,
             workspace_id=request.workspace_id,
@@ -190,7 +176,7 @@ async def nl_explain(request: NLExplainRequest, user=Depends(get_current_user)):
     if not request.query:
         raise HTTPException(status_code=400, detail="查询不能为空")
     try:
-        pipeline = _get_pipeline()
+        pipeline = get_query_pipeline()
         query_request = QueryRequest(
             query=request.query,
             workspace_id=request.workspace_id,

@@ -143,7 +143,9 @@ class MinIOClient:
             self._client.list_buckets()
             return True
         except Exception as e:
-            logger.debug("MinIO ping failed: %s", e)
+            # 规则 14 要求 3：降级日志不得低于 warning，debug 在生产 INFO 级下不可见，
+            # 会让 available 静默翻成 False。
+            logger.warning("MinIO ping failed at %s: %s", self._endpoint, e)
             return False
 
     def ping(self) -> Dict[str, Any]:
@@ -158,6 +160,11 @@ class MinIOClient:
             return {"status": "success", "endpoint": self._endpoint}
         except Exception as e:
             self._ping_ok = False
+            # 规则 14：兜底路径必须留痕，且级别不得低于 warning
+            # （debug 在生产默认 INFO 级下等于不可见）。
+            logger.warning(
+                "MinIO ping failed at %s: %s — available 将降级为 False", self._endpoint, e
+            )
             return {"status": "error", "endpoint": self._endpoint, "message": str(e)}
 
     def upload_object(

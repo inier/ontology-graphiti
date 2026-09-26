@@ -95,6 +95,36 @@ async def _ingest_auto_run_pipeline(
         )
 
 
+def _decide_auto_pipeline(
+    *, ws_id: Optional[str], source_type: str, req_cfg: Dict[str, Any]
+) -> "tuple[bool, str]":
+    """判定摄入后是否自动触发 OL 流水线，并返回可读原因。
+
+    规则 14：触发状态必须可观测。三条件全满足才触发——有 workspace_id、
+    开关开启（config.auto_pipeline 或 env INGEST_AUTO_PIPELINE_DEFAULT=true）、
+    source_type 为 natural_language。返回 (triggered, reason)，reason 逐个说明
+    未触发条件，由路由层写入摄入响应，避免候选列表「静默无新增」的伪成功。
+    本函数不翻转任何默认值：env 缺省仍为 false（翻默认属未经评审的行为变更）。
+    """
+    if source_type != "natural_language":
+        return False, (
+            f"source_type='{source_type}' 非自然语言摄入；OL 自动抽取仅对 "
+            "natural_language 生效（结构化源走语义资产流水线 semantic-assets）"
+        )
+    if not ws_id:
+        return False, "缺少 workspace_id，抽取产物无法归属工作空间"
+    env_default = os.environ.get("INGEST_AUTO_PIPELINE_DEFAULT", "false")
+    auto_pipeline = bool(req_cfg.get("auto_pipeline")) or (
+        str(env_default).lower() == "true"
+    )
+    if not auto_pipeline:
+        return False, (
+            "自动抽取开关未开启：需请求体 config.auto_pipeline=true "
+            "或服务端环境变量 INGEST_AUTO_PIPELINE_DEFAULT=true"
+        )
+    return True, "三条件满足，已异步触发 OL 流水线（L1~L6 本体学习，fire-and-forget）"
+
+
 class UnifiedIngestRequest(BaseModel):
     """统一摄入请求"""
     source_type: str = Field(
@@ -152,6 +182,9 @@ class UnifiedIngestResponse(BaseModel):
     routed_to: Optional[str] = None
     message: Optional[str] = None
     extraction_confidence: Optional[float] = None
+    # 规则 14：自动抽取触发状态必须可观测，杜绝「静默无新增、用户无从得知」的伪成功
+    pipeline_triggered: bool = False
+    pipeline_trigger_reason: Optional[str] = None
 
 
 @router.post("/unified", response_model=UnifiedIngestResponse)
@@ -191,23 +224,16 @@ async def unified_ingest(
 
         # -------------------------------------------------------------------
         # T2：Ingest → OL Pipeline 自动触发（fire-and-forget）
-        # 触发三条件（全部满足）：
-        #   1. 有 workspace_id
-        #   2. 开关开启：request.config.auto_pipeline=True 或
-        #      环境变量 INGEST_AUTO_PIPELINE_DEFAULT='true'
-        #   3. source_type == 'natural_language'
+        # 触发判定与「为何未触发」原因统一由 _decide_auto_pipeline 给出，
+        # 并回写入响应（pipeline_triggered / pipeline_trigger_reason），
+        # 规则 14：杜绝候选列表静默无新增、用户无从得知的伪成功。
         # -------------------------------------------------------------------
-        ws_id = request.workspace_id
-        req_cfg = request.config or {}
-        env_default = os.environ.get("INGEST_AUTO_PIPELINE_DEFAULT", "false")
-        auto_pipeline: bool = bool(req_cfg.get("auto_pipeline")) or (
-            str(env_default).lower() == "true"
+        triggered, trigger_reason = _decide_auto_pipeline(
+            ws_id=request.workspace_id,
+            source_type=source_type,
+            req_cfg=request.config or {},
         )
-        if (
-            ws_id
-            and auto_pipeline
-            and source_type == "natural_language"
-        ):
+        if triggered:
             ingest_id = str(result.get("record_id") or result.get("event_id") or "")
             extra_docs = []
             if request.event_context:
@@ -217,7 +243,7 @@ async def unified_ingest(
             # 不 await：完全 fire and forget
             asyncio.create_task(
                 _ingest_auto_run_pipeline(
-                    workspace_id=str(ws_id),
+                    workspace_id=str(request.workspace_id),
                     text=request.text or "",
                     extra_docs=extra_docs,
                     source_type="natural_language",
@@ -225,10 +251,19 @@ async def unified_ingest(
                     ontology_id=request.ontology_id,
                     triggered_by=f"ingest_{ingest_id or user_id}",
                 ),
-                name=f"ingest_auto_ol_pipeline:{ws_id}:{ingest_id}",
+                name=f"ingest_auto_ol_pipeline:{request.workspace_id}:{ingest_id}",
+            )
+        else:
+            logger.info(
+                "ingest→pipeline auto NOT triggered: ws=%s source_type=%s reason=%s",
+                request.workspace_id, source_type, trigger_reason,
             )
 
-        return UnifiedIngestResponse(**result)
+        return UnifiedIngestResponse(
+            **result,
+            pipeline_triggered=triggered,
+            pipeline_trigger_reason=trigger_reason,
+        )
     except HTTPException:
         raise
     except Exception as e:

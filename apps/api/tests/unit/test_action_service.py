@@ -181,11 +181,27 @@ class TestCheckOPA:
         assert "fail-closed" in result["reason"]
 
 
+def _ok_graph() -> MagicMock:
+    """构造符合 GraphWriteProxy 返回契约的 mock。
+
+    GraphWriteProxy 的每个写方法都返回 {"status": "success"/"error", ...}，
+    executor._do_execute 会校验该 status。裸 MagicMock 的返回值不是 dict，会被
+    判定为"无法确认是否落图"，因此写图用例必须用本 helper。
+    """
+    mock_graph = MagicMock()
+    ok = {"status": "success"}
+    mock_graph.add_entity.return_value = ok
+    mock_graph.update_entity.return_value = ok
+    mock_graph.delete_entity.return_value = ok
+    mock_graph.add_relationship.return_value = ok
+    return mock_graph
+
+
 class TestDoExecute:
     @pytest.mark.asyncio
     async def test_update_status_action(self):
         executor = ActionExecutor()
-        mock_graph = MagicMock()
+        mock_graph = _ok_graph()
         executor._graph_manager = mock_graph
 
         record = {
@@ -204,7 +220,7 @@ class TestDoExecute:
     @pytest.mark.asyncio
     async def test_create_action(self):
         executor = ActionExecutor()
-        mock_graph = MagicMock()
+        mock_graph = _ok_graph()
         executor._graph_manager = mock_graph
 
         record = {
@@ -227,7 +243,7 @@ class TestDoExecute:
     @pytest.mark.asyncio
     async def test_delete_action(self):
         executor = ActionExecutor()
-        mock_graph = MagicMock()
+        mock_graph = _ok_graph()
         executor._graph_manager = mock_graph
 
         record = {
@@ -246,7 +262,7 @@ class TestDoExecute:
     @pytest.mark.asyncio
     async def test_link_action(self):
         executor = ActionExecutor()
-        mock_graph = MagicMock()
+        mock_graph = _ok_graph()
         executor._graph_manager = mock_graph
 
         record = {
@@ -265,7 +281,7 @@ class TestDoExecute:
     @pytest.mark.asyncio
     async def test_unknown_action_with_properties(self):
         executor = ActionExecutor()
-        mock_graph = MagicMock()
+        mock_graph = _ok_graph()
         executor._graph_manager = mock_graph
 
         record = {
@@ -283,7 +299,7 @@ class TestDoExecute:
     @pytest.mark.asyncio
     async def test_unknown_action_no_properties(self):
         executor = ActionExecutor()
-        mock_graph = MagicMock()
+        mock_graph = _ok_graph()
         executor._graph_manager = mock_graph
 
         record = {
@@ -320,7 +336,7 @@ class TestDoExecute:
     @pytest.mark.asyncio
     async def test_modify_action_alias(self):
         executor = ActionExecutor()
-        mock_graph = MagicMock()
+        mock_graph = _ok_graph()
         executor._graph_manager = mock_graph
 
         record = {
@@ -338,7 +354,7 @@ class TestDoExecute:
     @pytest.mark.asyncio
     async def test_add_action_alias(self):
         executor = ActionExecutor()
-        mock_graph = MagicMock()
+        mock_graph = _ok_graph()
         executor._graph_manager = mock_graph
 
         record = {
@@ -356,7 +372,7 @@ class TestDoExecute:
     @pytest.mark.asyncio
     async def test_remove_action_alias(self):
         executor = ActionExecutor()
-        mock_graph = MagicMock()
+        mock_graph = _ok_graph()
         executor._graph_manager = mock_graph
 
         record = {
@@ -374,7 +390,7 @@ class TestDoExecute:
     @pytest.mark.asyncio
     async def test_relate_action_alias(self):
         executor = ActionExecutor()
-        mock_graph = MagicMock()
+        mock_graph = _ok_graph()
         executor._graph_manager = mock_graph
 
         record = {
@@ -388,6 +404,123 @@ class TestDoExecute:
         result = await executor._do_execute(record, action_type_def)
         assert result.success is True
         mock_graph.add_relationship.assert_called_once_with("a", "b", "depends_on", {})
+
+
+class TestDoExecuteWriteVerification:
+    """守护：写图失败必须上报 success=False（规则 14「失败必须显式」）。
+
+    此前 _do_execute 的 5 个写图分支全部无视 GraphWriteProxy 的 {"status": ...}
+    返回值并无条件 success=True，使图谱后端 unavailable、add_entity 返回 False、
+    delete_entity 抛 AttributeError 被 proxy 转成 error 时，决策动作仍上报成功，
+    进而让 _execute 里的 feedback_loop 基于假信号闭合反馈飞轮。
+    """
+
+    @staticmethod
+    def _case(action_name, params=None):
+        record = {
+            "action_record_id": "ar_test",
+            "target_object_id": "host-1",
+            "target_object_type": "Host",
+            "parameters": params or {},
+        }
+        return record, {"name": action_name}
+
+    @pytest.mark.asyncio
+    async def test_proxy_error_status_fails_create(self):
+        executor = ActionExecutor()
+        mock_graph = _ok_graph()
+        mock_graph.add_entity.return_value = {
+            "status": "error",
+            "message": "add_entity returned False",
+        }
+        executor._graph_manager = mock_graph
+
+        record, action_type_def = self._case("create", {"name": "WebServer"})
+        result = await executor._do_execute(record, action_type_def)
+        assert result.success is False
+        assert "add_entity returned False" in result.message
+
+    @pytest.mark.asyncio
+    async def test_graph_unavailable_fails_create(self):
+        executor = ActionExecutor()
+        mock_graph = _ok_graph()
+        mock_graph.add_entity.return_value = {
+            "status": "error",
+            "message": "GraphManager unavailable",
+        }
+        executor._graph_manager = mock_graph
+
+        record, action_type_def = self._case("create", {"name": "WebServer"})
+        result = await executor._do_execute(record, action_type_def)
+        assert result.success is False
+        assert "GraphManager unavailable" in result.message
+
+    @pytest.mark.asyncio
+    async def test_delete_failure_reports_not_deleted(self):
+        executor = ActionExecutor()
+        mock_graph = _ok_graph()
+        mock_graph.delete_entity.return_value = {
+            "status": "error",
+            "message": "'GraphManager' object has no attribute 'delete_entity'",
+        }
+        executor._graph_manager = mock_graph
+
+        record, action_type_def = self._case("delete")
+        result = await executor._do_execute(record, action_type_def)
+        assert result.success is False
+        assert result.data["deleted"] is False
+
+    @pytest.mark.asyncio
+    async def test_link_failure_propagates(self):
+        executor = ActionExecutor()
+        mock_graph = _ok_graph()
+        mock_graph.add_relationship.return_value = {
+            "status": "error",
+            "message": "add_relationship returned False",
+        }
+        executor._graph_manager = mock_graph
+
+        record, action_type_def = self._case(
+            "link", {"target_id": "host-2", "link_type": "connected_to"}
+        )
+        result = await executor._do_execute(record, action_type_def)
+        assert result.success is False
+        assert "connected_to" in result.message
+
+    @pytest.mark.asyncio
+    async def test_generic_handler_failure_propagates(self):
+        executor = ActionExecutor()
+        mock_graph = _ok_graph()
+        mock_graph.update_entity.return_value = {"status": "error", "message": "boom"}
+        executor._graph_manager = mock_graph
+
+        record, action_type_def = self._case("escalate", {"severity": "high"})
+        result = await executor._do_execute(record, action_type_def)
+        assert result.success is False
+        assert "generic handler" in result.message
+
+    @pytest.mark.asyncio
+    async def test_non_dict_write_result_is_not_treated_as_success(self):
+        """裸 MagicMock（非 dict）不得被当作成功——防止回归到无条件 success=True。"""
+        executor = ActionExecutor()
+        executor._graph_manager = MagicMock()
+
+        record, action_type_def = self._case("create", {"name": "WebServer"})
+        result = await executor._do_execute(record, action_type_def)
+        assert result.success is False
+        assert "无法确认是否落图" in result.message
+
+    @pytest.mark.asyncio
+    async def test_update_status_without_value_does_not_claim_success(self):
+        """value 缺失时根本没调 update_entity，不得声称 "Updated status=None"。"""
+        executor = ActionExecutor()
+        mock_graph = _ok_graph()
+        executor._graph_manager = mock_graph
+
+        record, action_type_def = self._case("update_status", {"property": "status"})
+        result = await executor._do_execute(record, action_type_def)
+        assert result.success is False
+        mock_graph.update_entity.assert_not_called()
 
 
 class TestSubmitAction:
@@ -432,7 +565,7 @@ class TestSubmitAction:
         })
         executor._oms = mock_oms
 
-        mock_graph = MagicMock()
+        mock_graph = _ok_graph()
         executor._graph_manager = mock_graph
 
         request = ActionRequest(

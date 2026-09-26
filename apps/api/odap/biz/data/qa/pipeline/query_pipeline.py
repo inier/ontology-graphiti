@@ -24,13 +24,14 @@ class QueryPipeline:
     """五阶段查询管线 - 替代 QAEngineV2 的核心逻辑"""
 
     def __init__(self, llm_client=None, graph_manager=None):
-        # 自动创建 LLM 客户端
+        # 自动创建 LLM 客户端。失败必须显式抛出（规则 14）：原先 `except Exception: pass` 把
+        # llm_client 吞成 None，随后 UnderstandingStage / GenerationStage / QueryRewriter /
+        # CypherGenerator 四处全部拿到 None，各自静默产出空结果，最终接口仍返回 200。
+        # create_llm_client() 本身是惰性构造（只读配置，真正连接推迟到 generate()），
+        # 正常不会抛；能抛出来就说明是导入或配置层面的真实缺陷。
         if llm_client is None:
-            try:
-                from odap.biz.data.qa.pipeline.llm_client import create_llm_client
-                llm_client = create_llm_client()
-            except Exception:
-                pass
+            from odap.biz.data.qa.pipeline.llm_client import create_llm_client
+            llm_client = create_llm_client()
         self.understanding = UnderstandingStage(llm_client)
         self.planning = PlanningStage()
         self.execution = ExecutionStage(UnifiedRetriever(
@@ -89,7 +90,12 @@ class QueryPipeline:
                         return str(domain["id"])
             return ""
         except Exception as e:
-            logger.debug("resolve_domain_id failed for scenario %s: %s", scenario_id, e)
+            # 必须是 warning：解析链任一跳抛异常时这里会退化成"未限定领域"，问答照样
+            # 返回 200，只是答案不再受领域约束。用 logger.debug 等于在生产 INFO 级下
+            # 完全不可见（AGENTS.md 规则 14 要求 3）。
+            logger.warning(
+                "场景 %s 的领域解析链失败，本次问答退化为未限定领域: %s", scenario_id, e
+            )
             return ""
 
     async def query(self, request: QueryRequest) -> QueryResponse:
@@ -246,3 +252,34 @@ class QueryPipeline:
             self.audit_storage.save(audit)
         except Exception as e:
             logger.error(f"Failed to save audit: {e}")
+
+
+# ---------------------------------------------------------------------------
+# 共享单例访问器
+#
+# 放在本模块而非路由模块，是为了让 tools 层（nl_query_skills）能复用同一条已接好
+# GraphManager 的管线，而不必反向依赖 biz 的 api 层。
+# ---------------------------------------------------------------------------
+
+_pipeline_singleton: Optional[QueryPipeline] = None
+
+
+def get_query_pipeline() -> QueryPipeline:
+    """返回已接好 GraphManager 的 QueryPipeline 共享单例。
+
+    依赖构造失败时显式抛出，且**不写入缓存**（规则 14）。调用方据此显式决策：
+    路由层翻译成 HTTP 503，Skill 层返回 {"status": "error"}。失败不落缓存意味着
+    瞬时故障（如 Neo4j 重启）在下一次请求即可自愈，而不是被冻结成整个进程生命周期的
+    静默降级。
+
+    此前两处各自构造，各有缺陷：
+      - nl_routes 用 `except Exception: pass` 把 graph_manager 吞成 None，却仍把降级
+        实例写进模块级单例 —— 一次 Neo4j 抖动就让向量与图谱两个支柱永久失效，接口照常 200。
+      - nl_query_skills 每次 `QueryPipeline()` 根本不传 graph_manager，Agent 侧 NL 技能
+        的两个支柱恒为空，却照样返回 status=success。
+    """
+    global _pipeline_singleton
+    if _pipeline_singleton is None:
+        from odap.infra.graph.graph_service import GraphManager
+        _pipeline_singleton = QueryPipeline(graph_manager=GraphManager())
+    return _pipeline_singleton

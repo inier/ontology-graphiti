@@ -13,7 +13,9 @@ import re
 from pathlib import Path
 import pytest
 
-ROOT = Path(r"e:\DEMO\AI\ontology-graphiti\odap")
+# 由本文件位置反推 apps/api（tests/unit/x.py → parents[2]），
+# 不写死绝对路径：仓库搬迁 / 他人 clone 到别处都会失效。
+_ROOT = Path(__file__).resolve().parents[2]
 
 # Top-12 most-used files previously audited and fixed in R-P1-004
 TOP_12_TARGETS = [
@@ -85,11 +87,18 @@ class TestSilentExceptsFixed:
 
     def test_top_12_files_have_no_silent_excepts(self):
         """The 12 files we fixed in R-P1-004 must be clean."""
+        # 目标文件必须真实存在。曾经这里是 `if not path.exists(): continue`，
+        # 于是 apps/api 搬迁后 12 个路径全部失配 → 扫描 0 个文件 → 测试"通过"，
+        # 棘轮退化成伪绿灯（规则 14：禁止静默降级）。路径漂移必须直接变红。
+        missing = [rel for rel in TOP_12_TARGETS if not (_ROOT / rel).exists()]
+        assert not missing, (
+            f"{len(missing)}/{len(TOP_12_TARGETS)} 个审计目标路径已失配"
+            f"（root={_ROOT}）：\n" + "\n".join(missing)
+        )
+
         violations = []
         for rel in TOP_12_TARGETS:
             path = _ROOT / rel
-            if not path.exists():
-                continue
             try:
                 source = path.read_text(encoding="utf-8")
             except (UnicodeDecodeError, OSError):

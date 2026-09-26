@@ -150,9 +150,10 @@ class ManualInputHandler:
         如果没有 LLM，返回明确的错误信息，不再静默降级
         """
         if self.llm is None:
-            from odap.infra.llm.llm_fallback import LLMFallback
-            fallback_result = LLMFallback.handle_unavailable("LLM", RuntimeError("LLM 客户端未初始化"))
-            raise ValueError(fallback_result["message"])
+            raise ValueError(
+                "LLM 转换失败：LLM 客户端未初始化（配置项 llm.api_key / llm.api_base / llm.model 可能未配置）。"
+                "请前往「系统设置 → 模型配置」检查后重试。"
+            )
 
         from odap.infra.llm.prompt_sanitizer import PromptSanitizer
         sanitized_text = PromptSanitizer.sanitize_input(text)
@@ -168,14 +169,16 @@ class ManualInputHandler:
                     return doc
                 logger.warning("LLM 返回空结果")
 
-            from odap.infra.llm.llm_fallback import LLMFallback
-            raise ValueError(LLMFallback.handle_unavailable("LLM", RuntimeError("LLM 返回空结果"))["message"])
+            raise ValueError(
+                "LLM 转换失败：模型返回空结果或格式不符合预期"
+                "（期望包含 entities / relations 的 JSON），请检查模型能力或输入内容。"
+            )
         except ValueError:
             raise
         except Exception as e:
             from odap.infra.llm.llm_fallback import LLMFallback
-            logger.error(f"LLM 转换失败: {e}")
-            raise ValueError(LLMFallback.handle_unavailable("LLM", e)["message"])
+            # describe() 内部会记录带堆栈的日志，并保留原始异常类型与文本，便于排查
+            raise ValueError(LLMFallback.describe("LLM", e)) from e
 
     async def _call_llm(self, prompt: str) -> Optional[dict]:
         """统一调用 LLM 客户端，返回解析后的 dict"""

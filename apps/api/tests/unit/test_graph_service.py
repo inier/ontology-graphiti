@@ -438,5 +438,146 @@ class TestSanitizeNeo4jProperties:
         assert result["coords"] == [1, 2, 3]
 
 
+# ── Embedder 配置与启动期自检（伪绿灯门禁）─────────────────────────────
+
+class _ProbeEmbedder:
+    """可编程假 Embedder：create() 按设定返回向量或抛错，并记录调用次数"""
+
+    def __init__(self, vector=None, error=None):
+        self._vector = vector if vector is not None else [0.0] * 1024
+        self._error = error
+        self.calls = 0
+
+    async def create(self, input_data):
+        self.calls += 1
+        if self._error is not None:
+            raise self._error
+        return self._vector
+
+
+class _FakeGraphiti:
+    def __init__(self, **kwargs):
+        self.kwargs = kwargs
+
+    async def build_indices_and_constraints(self, delete_existing=False):
+        return None
+
+
+def _bare_gm():
+    """构造最小可用 GraphManager 实例（绕过 __init__/单例，只补被测路径所需字段）"""
+    gm = GraphManager.__new__(GraphManager)
+    gm.graph = None
+    gm.neo4j_uri = "bolt://localhost:7687"
+    gm.neo4j_user = "neo4j"
+    gm.neo4j_password = "test"
+    gm.neo4j_driver = None
+    gm._connected = False
+    gm._use_fallback = False
+    gm._mode = "unavailable"
+    gm._load_data_to_neo4j = lambda *a, **k: None
+    gm._migrate_entities = lambda *a, **k: None
+    gm._create_llm_client = lambda *a, **k: MagicMock()
+    return gm
+
+
+class TestEmbedderModelFromConfig:
+    """模型 id 曾硬编码为 "Pro/BAAI/bge-m3"，与 .env.docker 的 EMBEDDER_MODEL 无关。
+
+    后果不是启动报错，而是 Embedder 构造成功、每次 search 在嵌入阶段 404，
+    /health 却报 connected=true。
+    """
+
+    def test_model_read_from_config_not_hardcoded(self):
+        # 宿主机 uv 环境可能没装 graphiti_core，注入轻量假模块让锚点在两种环境都真跑
+        import sys
+        import types
+
+        import odap.infra.graph.graph_service as gs
+
+        gm = _bare_gm()
+        captured = {}
+
+        class _FakeConfig:
+            def __init__(self, **kwargs):
+                self.__dict__.update(kwargs)
+
+        class _FakeEmbedder:
+            def __init__(self, config=None):
+                captured["config"] = config
+
+        fake_openai_mod = types.ModuleType("graphiti_core.embedder.openai")
+        fake_openai_mod.OpenAIEmbedder = _FakeEmbedder
+        fake_openai_mod.OpenAIEmbedderConfig = _FakeConfig
+        fake_pkg = types.ModuleType("graphiti_core.embedder")
+        fake_root = types.ModuleType("graphiti_core")
+
+        with patch.object(gs, "get_config", return_value="nvidia/nemotron-3-embed-1b"), \
+             patch.dict(sys.modules, {
+                 "graphiti_core": fake_root,
+                 "graphiti_core.embedder": fake_pkg,
+                 "graphiti_core.embedder.openai": fake_openai_mod,
+             }):
+            embedder = gm._create_embedder()
+
+        assert embedder is not None
+        assert captured["config"].embedding_model == "nvidia/nemotron-3-embed-1b"
+
+    def test_empty_model_yields_none_not_a_guessed_default(self):
+        """规则 14：配置缺失必须显式失败，不得静默回退到某个猜测的模型 id"""
+        import odap.infra.graph.graph_service as gs
+
+        gm = _bare_gm()
+        with patch.object(gs, "get_config", return_value=""):
+            assert gm._create_embedder() is None
+
+
+class TestEmbedderStartupProbe:
+    """启动期嵌入自检：构造成功 ≠ 通路可用，必须真跑一次 embedding。"""
+
+    def test_probe_failure_marks_graphiti_unavailable(self):
+        import odap.infra.graph.graph_service as gs
+
+        gm = _bare_gm()
+        boom = _ProbeEmbedder(error=RuntimeError("404 page not found"))
+        with patch.object(gm, "_create_embedder", return_value=boom), \
+             patch.object(gs, "Graphiti", _FakeGraphiti), \
+             patch.object(gs, "NEO4J_DRIVER_AVAILABLE", False):
+            ok = gm._init_graphiti_sync()
+
+        assert ok is False
+        assert boom.calls == 1
+        # 伪绿灯门禁：自检失败后不得对外宣称已连接
+        assert gm.graph is None
+        assert gm._connected is False
+
+    def test_probe_success_enables_graphiti_mode(self):
+        """成功路径锚点：自检通过才继续初始化，且只探测一次"""
+        import odap.infra.graph.graph_service as gs
+
+        gm = _bare_gm()
+        probe = _ProbeEmbedder(vector=[0.1] * 1024)
+        with patch.object(gm, "_create_embedder", return_value=probe), \
+             patch.object(gs, "Graphiti", _FakeGraphiti), \
+             patch.object(gs, "NEO4J_DRIVER_AVAILABLE", False):
+            ok = gm._init_graphiti_sync()
+
+        assert ok is True
+        assert probe.calls == 1
+        assert isinstance(gm.graph, _FakeGraphiti)
+        assert gm._connected is True
+        assert gm._use_fallback is False
+
+    def test_removing_probe_would_let_broken_embedder_pass(self):
+        """变异锚点：坏 Embedder 必须被自检拦下——若有人删掉自检，本断言变红"""
+        import odap.infra.graph.graph_service as gs
+
+        gm = _bare_gm()
+        broken = _ProbeEmbedder(error=ValueError("410 Gone: model end of life"))
+        with patch.object(gm, "_create_embedder", return_value=broken), \
+             patch.object(gs, "Graphiti", _FakeGraphiti), \
+             patch.object(gs, "NEO4J_DRIVER_AVAILABLE", False):
+            assert gm._init_graphiti_sync() is False
+
+
 if __name__ == "__main__":
     pytest.main([__file__, "-v"])

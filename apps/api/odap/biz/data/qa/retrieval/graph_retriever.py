@@ -83,19 +83,24 @@ class CypherGenerator:
 
     def execute(self, cypher: str, graph_manager=None,
                 params: Optional[Dict] = None, timeout: float = 10.0) -> List[Dict]:
-        """执行 Cypher 查询"""
+        """执行 Cypher 查询。
+
+        后端无 Cypher 通路时显式抛错（规则 14）：静默返回 [] 会让 GRAPH 支柱把
+        "后端不支持"伪装成"零命中"，fusion 层据此算出的 pillar_scores 随之失真。
+        """
         if not graph_manager:
             return []
-        try:
-            if hasattr(graph_manager, 'execute_cypher'):
-                return graph_manager.execute_cypher(cypher, params or {}, timeout=timeout)
-            if hasattr(graph_manager, '_neo4j_driver') and graph_manager._neo4j_driver:
-                with graph_manager._neo4j_driver.session() as session:
-                    result = session.run(cypher, params or {})
-                    return [record.data() for record in result]
-        except Exception as e:
-            logger.error(f"Cypher execution failed: {e}")
-        return []
+        driver = getattr(graph_manager, "neo4j_driver", None)
+        if driver is None:
+            raise RuntimeError(
+                "Cypher 执行不可用：GraphManager.neo4j_driver 为 None "
+                f"(mode={getattr(graph_manager, 'mode', 'unknown')!r})"
+            )
+        from neo4j import Query
+
+        with driver.session() as session:
+            result = session.run(Query(cypher, timeout=timeout), params or {})
+            return [record.data() for record in result]
 
 
 # 预定义 Cypher 模板（确定性白名单，仅 READ）

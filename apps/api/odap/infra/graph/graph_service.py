@@ -671,6 +671,26 @@ class GraphManager(CacheMixin, EntityOpsMixin, RelationshipOpsMixin, TemporalOps
                     logger.info('Embedder 创建失败，Graphiti 模式不可用')
                     return False
 
+                # 启动期嵌入自检：Embedder 构造成功 ≠ 嵌入通路可用。模型 id 在
+                # provider 上不存在/已退役时构造照样成功，故障要等到首次 search 才以
+                # 404/410 暴露，期间 /health 一直报 connected=true（伪绿灯）。
+                logger.info('嵌入通路自检...')
+                try:
+                    probe = await asyncio.wait_for(
+                        embedder.create("embedding connectivity probe"),
+                        timeout=30.0,
+                    )
+                except asyncio.TimeoutError:
+                    logger.warning('Embedder 自检超时(30s)，Graphiti 模式不可用')
+                    return False
+                except Exception as embed_err:
+                    logger.warning(
+                        f'Embedder 自检失败，Graphiti 模式不可用: '
+                        f'{type(embed_err).__name__}: {embed_err}'
+                    )
+                    return False
+                logger.info(f'嵌入通路自检通过: dim={len(probe)}')
+
                 logger.info(f'创建Graphiti实例连接到 {self.neo4j_uri}...')
                 self.graph = Graphiti(
                     uri=self.neo4j_uri,

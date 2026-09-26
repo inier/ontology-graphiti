@@ -15,9 +15,9 @@ def _nl_query_handler(query: str, mode: str = "auto", top_k: int = 10,
     """自然语言本体查询 Skill handler"""
     try:
         from odap.biz.data.qa.models import QueryRequest
-        from odap.biz.data.qa.pipeline.query_pipeline import QueryPipeline
+        from odap.biz.data.qa.pipeline.query_pipeline import get_query_pipeline
 
-        pipeline = QueryPipeline()
+        pipeline = get_query_pipeline()
         request = QueryRequest(
             query=query,
             mode=mode,
@@ -47,9 +47,9 @@ def _nl_search_handler(query: str, mode: str = "auto", top_k: int = 10,
     """自然语言纯检索 Skill handler"""
     try:
         from odap.biz.data.qa.models import QueryRequest
-        from odap.biz.data.qa.pipeline.query_pipeline import QueryPipeline
+        from odap.biz.data.qa.pipeline.query_pipeline import get_query_pipeline
 
-        pipeline = QueryPipeline()
+        pipeline = get_query_pipeline()
         request = QueryRequest(
             query=query,
             mode=mode,
@@ -75,9 +75,9 @@ def _nl_explain_handler(query: str, mode: str = "auto", top_k: int = 10,
     """查询解释 Skill handler"""
     try:
         from odap.biz.data.qa.models import QueryRequest
-        from odap.biz.data.qa.pipeline.query_pipeline import QueryPipeline
+        from odap.biz.data.qa.pipeline.query_pipeline import get_query_pipeline
 
-        pipeline = QueryPipeline()
+        pipeline = get_query_pipeline()
         request = QueryRequest(
             query=query,
             mode=mode,

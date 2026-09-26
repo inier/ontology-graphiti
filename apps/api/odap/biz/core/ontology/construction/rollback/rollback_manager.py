@@ -54,18 +54,29 @@ class SnapshotUndo(UndoStrategy):
 
 
 class BatchDeleteUndo(UndoStrategy):
-    """通过批次删除回滚"""
+    """通过批次删除回滚。
+
+    能力缺口：GraphManager 既无 get_graph_manager 工厂函数（它通过 __new__ 实现单例），
+    也无 delete_by_batch。原实现 `if hasattr(gm,'delete_by_batch') else 0` 恒得 0，
+    却仍返回 status="deleted" —— 属静默假成功：回滚上报"已删除"而实际一条未删。
+    按规则 14 改为显式失败；删除语义（软删/硬删、是否级联关系）待决策后再补实现。
+    """
 
     async def undo(self, step_context: Dict[str, Any]) -> Dict[str, Any]:
         batch_id = step_context.get("batch_id", "")
-        try:
-            from odap.infra.graph.graph_service import get_graph_manager
-            gm = get_graph_manager()
-            deleted = await gm.delete_by_batch(batch_id) if hasattr(gm, 'delete_by_batch') else 0
-            return {"status": "deleted", "batch_id": batch_id, "deleted_count": deleted}
-        except Exception as e:
-            logger.error("Batch delete failed for %s: %s", batch_id, e)
-            return {"status": "failed", "batch_id": batch_id, "error": str(e)}
+        logger.error(
+            "BatchDeleteUndo 不可用：GraphManager 未提供 delete_by_batch 能力 (batch_id=%s)",
+            batch_id,
+        )
+        return {
+            "status": "failed",
+            "batch_id": batch_id,
+            "deleted_count": 0,
+            "error": (
+                "批次删除回滚能力未实现：GraphManager 无 delete_by_batch。"
+                "需先决策删除语义（软删/硬删、是否级联关系）后再补实现。"
+            ),
+        }
 
 
 @dataclass
@@ -160,6 +171,13 @@ class ConstructionRollbackManager:
                     if batch_id:
                         strategy = self._undo_strategies["batch_delete"]
                         result = await strategy.undo({"batch_id": batch_id})
+                        # 只看 deleted_count 而不校验 status，会让失败的批次回滚被记成
+                        # COMPLETED；抛错复用下方 except 把 record 置为 FAILED。
+                        if result.get("status") == "failed":
+                            raise RuntimeError(
+                                f"批次 {batch_id} 图谱回滚失败: "
+                                f"{result.get('error', '未知原因')}"
+                            )
                         record.entities_affected += result.get("deleted_count", 0)
                         record.steps_undone.append("graph_write")
 
@@ -201,11 +219,15 @@ class ConstructionRollbackManager:
         try:
             strategy = self._undo_strategies["batch_delete"]
             result = await strategy.undo({"batch_id": batch_id})
+            # 同 rollback_pipeline：不校验 status 会让失败的回滚被记成 COMPLETED。
+            if result.get("status") == "failed":
+                raise RuntimeError(
+                    f"批次 {batch_id} 图谱回滚失败: {result.get('error', '未知原因')}"
+                )
             record.entities_affected = result.get("deleted_count", 0)
             record.steps_undone = ["graph_write"]
             record.status = RollbackStatus.COMPLETED
             record.completed_at = _now()
-            await self._record_rollback_audit(record)
         except Exception as e:
             logger.error("Batch rollback failed for %s: %s", batch_id, e)
             record.status = RollbackStatus.FAILED
@@ -213,6 +235,10 @@ class ConstructionRollbackManager:
             record.completed_at = _now()
 
         self._records[rollback_id] = record
+        # 审计必须在 try/except 之外：失败的回滚正是最需要留痕的场景。原先它位于成功
+        # 路径末尾，而 undo 恒返回 status="deleted" 使失败分支不可达，缺陷被假成功掩盖。
+        # 位置与 rollback_pipeline 保持一致。
+        await self._record_rollback_audit(record)
         return record
 
     async def rollback_version(

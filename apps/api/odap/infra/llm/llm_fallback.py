@@ -27,11 +27,27 @@ class LLMFallback:
 
         Returns:
             结构化错误字典，包含状态、消息、错误类型和建议重试时间
+
+        Note:
+            `detail` 字段保留原始异常的类型与文本，用于问题排查。
+            只暴露给系统内部/管理端，面向终端用户的提示仍使用 `message`。
         """
-        logger.error(f"{service_name} 服务不可用: {error}")
+        error_type = type(error).__name__
+        detail = str(error).strip() or repr(error)
+        logger.error(
+            f"{service_name} 服务不可用: [{error_type}] {detail}",
+            exc_info=True,
+        )
         return {
             "status": "error",
             "message": f"{service_name} 服务暂不可用，请稍后重试",
+            "detail": f"[{error_type}] {detail}",
             "error_type": "llm_unavailable",
             "retry_after": 30,
         }
+
+    @classmethod
+    def describe(cls, service_name: str, error: Exception) -> str:
+        """返回带原始原因的可诊断错误文案（用于写入流水线日志/错误字段）"""
+        info = cls.handle_unavailable(service_name, error)
+        return f"{info['message']}（原因：{info['detail']}）"

@@ -488,10 +488,15 @@ class LLMExtractionStageHandler(PipelineStageHandler):
             return True
 
         except Exception as e:
-            logger.error(f"LLM归纳失败: {e}")
-            self._log(context, "LLM归纳失败", {"error": str(e)},
-                     ProcessingStatus.FAILED, str(e))
-            context.error = str(e)
+            # 带上异常类型，避免只有一句模糊描述导致无法定位问题
+            error_detail = f"[{type(e).__name__}] {e}"
+            logger.error(f"LLM归纳失败: {error_detail}", exc_info=True)
+            self._log(context, "LLM归纳失败", {
+                "error": error_detail,
+                "error_type": type(e).__name__,
+                "input": {"cleaned_content": text[:200] if text else ""},
+            }, ProcessingStatus.FAILED, error_detail)
+            context.error = error_detail
             return False
 
     async def _extract_with_llm(self, text: str, context: PipelineContext) -> Tuple[List, List, List]:
@@ -511,7 +516,10 @@ class LLMExtractionStageHandler(PipelineStageHandler):
             model = get_config("llm.model", "glm-4")
 
             if not api_key:
-                raise ValueError(LLMFallback.handle_unavailable("LLM", RuntimeError("未配置 OPENAI_API_KEY"))["message"])
+                raise ValueError(
+                    "LLM 归纳失败：未配置 LLM API Key（配置项 llm.api_key 为空）。"
+                    "请前往「系统设置 → 模型配置」填写 API Key 后重试。"
+                )
 
             config = LLMConfig(
                 model=model,
@@ -595,8 +603,9 @@ class LLMExtractionStageHandler(PipelineStageHandler):
 
         except Exception as e:
             from odap.infra.llm.llm_fallback import LLMFallback
-            logger.error(f"LLM提取失败: {e}")
-            raise ValueError(LLMFallback.handle_unavailable("LLM", e)["message"])
+            # describe() 内部会记录带堆栈的 error 日志，并保留原始异常类型与文本
+            # 便于问题排查（例如 401 / timeout / 模型不存在）
+            raise ValueError(LLMFallback.describe("LLM", e)) from e
 
     def _register_entity_types_from_extraction(self, entities: List):
         # P0-4 fix (R-P0-001): do NOT import OMS directly here. Publish an

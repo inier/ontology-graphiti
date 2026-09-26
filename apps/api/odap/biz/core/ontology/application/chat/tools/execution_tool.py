@@ -154,10 +154,15 @@ class ExecutionStrategyTool:
 
         try:
             from odap.infra.query import get_query_service
-            from odap.infra.graph.graph_service import get_graph_manager
-            
+            # graph_service 中不存在 get_graph_manager 工厂函数；GraphManager 通过
+            # __new__ 实现单例，直接实例化即可（同 construction/pipeline/services/
+            # step_handlers/graph_write.py 的 D5 修复）。原代码 `from ... import
+            # get_graph_manager` 抛 ImportError 被下方 except 吞成 dependency_missing，
+            # 使全部 7 个 action 恒失败。
+            from odap.infra.graph.graph_service import GraphManager
+
             qs = get_query_service()
-            gm = get_graph_manager()
+            gm = GraphManager()
 
             if action == "query":
                 # 执行查询
@@ -175,11 +180,14 @@ class ExecutionStrategyTool:
                 eid = params.get("id", f"exec-{uuid.uuid4().hex[:8]}")
                 etype = params.get("entity_type", target)
                 name = params.get("name", target)
-                props = params.get("properties", {})
-                
+                # add_entity 真实签名为 (entity_id, entity_type, properties)，无 entity_name 形参。
+                # name 必须并入 properties：graph_retriever 的 Cypher 模板以
+                # `WHERE n.name CONTAINS` 命中节点，name 不落属性则新实体永远检索不到。
+                props = dict(params.get("properties", {}))
+                props.setdefault("name", name)
+
                 gm.add_entity(
-                    entity_id=eid, entity_type=etype,
-                    entity_name=name, properties=props,
+                    entity_id=eid, entity_type=etype, properties=props,
                 )
                 return {
                     "action": "add_entity",
@@ -206,15 +214,24 @@ class ExecutionStrategyTool:
                 }
 
             elif action == "delete_entity":
-                # 删除实体
-                eid = params.get("id", target)
-                
-                gm.delete_entity(entity_id=eid)
+                # GraphManager 无 delete_entity（公开写接口只有 add_entity /
+                # update_entity / add_relationship / clear_graph）。删除语义
+                # （软删 vs 硬删、是否须经 GraphWriteProxy 审计）尚未决策，
+                # 按规则 14 不擅自实现或猜测，显式上报能力缺口。
+                logger.warning(
+                    "Action 'delete_entity' 不可用：GraphManager 未提供实体删除能力 (target=%s)",
+                    target,
+                )
                 return {
                     "action": "delete_entity",
-                    "entity_id": eid,
+                    "target": target,
+                    "status": "unsupported",
+                    "message": (
+                        "实体删除能力未实现：GraphManager 只提供 add_entity / update_entity / "
+                        "add_relationship / clear_graph。需先决策删除语义（软删/硬删、是否经 "
+                        "GraphWriteProxy 审计）后再补实现。"
+                    ),
                     "timestamp": self._now(),
-                    "warning": "此操作不可逆",
                 }
 
             elif action == "add_relation":
@@ -226,7 +243,7 @@ class ExecutionStrategyTool:
                 
                 gm.add_relationship(
                     source_id=source, target_id=tgt,
-                    relationship_type=rtype, properties=rprops,
+                    relationship=rtype, properties=rprops,
                 )
                 return {
                     "action": "add_relation",
@@ -268,7 +285,11 @@ class ExecutionStrategyTool:
                     "action": action,
                     "target": target,
                     "status": "unsupported",
-                    "message": f"不支持的操作类型: {action}。支持: query, add_entity, update_entity, delete_entity, add_relation, check_consistency, trace_provenance",
+                    "message": (
+                        f"不支持的操作类型: {action}。支持: query, add_entity, update_entity, "
+                        f"add_relation, check_consistency, trace_provenance"
+                        f"（delete_entity 已识别但能力未实现）"
+                    ),
                     "timestamp": self._now(),
                 }
 

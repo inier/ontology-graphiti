@@ -55,8 +55,11 @@ class PerceptionHub:
     @property
     def oms(self):
         if self._oms is None:
-            from odap.biz.core.ontology import OMSStorage
-            self._oms = SQLiteOMSStorage()
+            # 必须走 public 门面：ontology/__init__._legacy_map 的 OMSStorage 条目是坏映射
+            # （指向模块路径但取不存在的类名别名），实测抛 ImportError；且原先构造的
+            # SQLiteOMSStorage 从未被导入，即使 import 成功也是 NameError。
+            from odap.biz.core.ontology.public import OMSStorage
+            self._oms = OMSStorage()
         return self._oms
 
     @property
@@ -171,44 +174,36 @@ class PerceptionHub:
         if not text:
             return ExtractionResult()
 
-        try:
-            # Stage E 修复：原路径 odap.biz.core.ontology.services.pipeline_service 已死，
-            # 真实实现在 design.services.pipeline_service，经 public 门面统一暴露。
-            from odap.biz.core.ontology.public import LLMExtractionStageHandler, PipelineContext
-            handler = LLMExtractionStageHandler()
-            context = PipelineContext()
-            context.original_content = text
-            entities, relations, events_list = await handler._extract_with_llm(text, context)
-            return ExtractionResult(
-                entities=entities,
-                relations=relations,
-                events=events_list,
-                actions=[],
-                confidence=0.8,
-            )
-        except ImportError as e:
-            logger.warning(f"PerceptionHub: LLMExtractionStageHandler import failed: {e}")
-            pass
-        except Exception as e:
-            logger.warning(f"PerceptionHub LLM extraction failed: {e}")
-
-        try:
-            # Stage E 修复：原路径 odap.biz.core.ontology.ingestion_split.ingestion 已死，
-            # 真实位置 design.ingestion_split.ingestion，NewsIngester 已在 public 门面暴露。
-            from odap.biz.core.ontology.public import NewsIngester
-            ingester = NewsIngester()
-            doc = ingester.extract_ontology(text)
-            if doc:
-                return ExtractionResult(
-                    entities=[e.__dict__ if hasattr(e, '__dict__') else dict(e) for e in doc.get('entities', [])],
-                    relations=[r.__dict__ if hasattr(r, '__dict__') else dict(r) for r in doc.get('relations', [])],
-                    events=[ev.__dict__ if hasattr(ev, '__dict__') else dict(ev) for ev in doc.get('events', [])],
-                    confidence=0.6,
-                )
-        except Exception as e:
-            logger.warning(f"PerceptionHub NewsIngester fallback failed: {e}")
-
-        return ExtractionResult(confidence=0.0)
+        # 抽取失败必须向上抛（规则 14）：process_event 已将其记为 FAILED + error 字段并
+        # 打 error 日志。原先此处 except 后降级到 NewsIngester.extract_ontology —— 该方法
+        # 不存在（NewsIngester 只有 ingest，语义是"联网检索"而非"抽取给定文本"），异常被吞后
+        # 落到 return ExtractionResult(confidence=0.0)，把"抽取链路坏了"伪装成"这段文本没有
+        # 可抽取内容"，下游 _map_to_oms / _store_to_graphiti 拿到空结果照常走完并报成功。
+        # Stage E 修复：原路径 odap.biz.core.ontology.services.pipeline_service 已死，
+        # 真实实现在 design.services.pipeline_service，经 public 门面统一暴露。
+        from odap.biz.core.ontology.public import LLMExtractionStageHandler, PipelineContext
+        handler = LLMExtractionStageHandler()
+        # PipelineContext 的 ingest_id / scenario_id 是必填位置参数，原先的 PipelineContext()
+        # 每次调用都抛 TypeError —— 正是被上面那个 except Exception 吞掉、导致整条感知抽取
+        # 链路"看起来在跑、实际恒返回空"的根因。字段全部取自 PerceptionEvent 自身，不做反推。
+        context = PipelineContext(
+            ingest_id=event.event_id,
+            scenario_id=event.scenario_id or "",
+            workspace_id=event.workspace_id or "default",
+            source=event.source_type.value,
+            source_details={"source_name": event.source_name},
+            original_content=text,
+        )
+        # 注：_extract_with_llm 当前并不读取 context（仅 execute() 用它写流水线审计日志）。
+        # 若将来它开始使用 scenario_id/workspace_id，上面的接线即成为真实语义，需同步复核。
+        entities, relations, events_list = await handler._extract_with_llm(text, context)
+        return ExtractionResult(
+            entities=entities,
+            relations=relations,
+            events=events_list,
+            actions=[],
+            confidence=0.8,
+        )
 
     def _map_to_oms(self, extraction: ExtractionResult, ontology_id: str = None) -> List[str]:
         """将抽取结果中的实体类型注册到 TypeRegistry
@@ -248,7 +243,12 @@ class PerceptionHub:
                     if result.get("status") != "error":
                         registered.append(etype)
                     else:
-                        logger.debug(f"TypeRegistry auto-register failed for {etype}: {result.get('message')}")
+                        # 规则 14「兜底需可观测」：原先是 debug 级，生产默认 INFO 下不可见，
+                        # 整批类型注册失败也会被 process_event 报成 STORED。
+                        logger.warning(
+                            "PerceptionHub: TypeRegistry 自动注册 %s 失败: %s",
+                            etype, result.get('message'),
+                        )
                 else:
                     # 降级：直接写入 OMS（向后兼容）
                     self.oms.create_object_type({
@@ -260,7 +260,7 @@ class PerceptionHub:
                     })
                     registered.append(etype)
             except Exception as e:
-                logger.debug(f"Auto-register failed for {etype}: {e}")
+                logger.warning("PerceptionHub: OMS 自动注册 %s 失败: %s", etype, e)
         return registered
 
     async def _store_to_graphiti(self, event: PerceptionEvent, extraction: ExtractionResult) -> Optional[str]:

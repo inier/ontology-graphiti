@@ -170,8 +170,10 @@ class BenchmarkRunner:
         import time as _time
 
         if not self.pipeline:
-            from odap.biz.data.qa.pipeline.query_pipeline import QueryPipeline
-            self.pipeline = QueryPipeline()
+            # 必须用接好 GraphManager 的共享单例：裸 QueryPipeline() 的向量与图谱支柱恒为空，
+            # MRR/NDCG/Recall 会全为 0.0，与"检索质量确实差"无法区分，基准测试即失去意义。
+            from odap.biz.data.qa.pipeline.query_pipeline import get_query_pipeline
+            self.pipeline = get_query_pipeline()
 
         report = EvaluationReport(dataset_name=dataset.name, total_cases=len(dataset.cases))
         latencies: List[float] = []

@@ -926,7 +926,10 @@ class HEAdapter:
         """Create SaaS API embedder using OpenAI-compatible /embeddings endpoint.
 
         Uses langchain_openai.OpenAIEmbeddings with the configured API key/base.
-        NVIDIA NIM supports baai/bge-m3; OpenAI supports text-embedding-3-small.
+        `EMBEDDER_MODEL` must name a model that actually exists on the configured
+        `OPENAI_API_BASE` provider — a retired or provider-foreign id (e.g.
+        `baai/bge-m3` on NVIDIA NIM, 410 Gone as of 2026-09) constructs fine and
+        then fails on every embedding call.
         """
         try:
             api_key = get_config("llm.api_key", "") or os.environ.get("OPENAI_API_KEY", "")

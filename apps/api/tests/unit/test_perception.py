@@ -408,3 +408,164 @@ class TestObserveAndProcess:
 
         results = await hub.observe_and_process()
         assert results == []
+
+
+# ---------------------------------------------------------------------------
+# TestOmsProperty — 真实 oms 属性
+#
+# 此前所有测试都预置 hub._oms = MagicMock()，把属性体整段跳过，因此两个叠加缺陷零覆盖：
+#   1. `from odap.biz.core.ontology import OMSStorage` 实测抛 ImportError
+#      （__init__._legacy_map 的 OMSStorage 条目映射到模块路径却取不存在的类别名）
+#   2. 随后构造的 SQLiteOMSStorage 从未被导入 → NameError
+# ---------------------------------------------------------------------------
+
+class TestOmsProperty:
+    def test_resolves_to_real_storage(self, tmp_path, monkeypatch):
+        monkeypatch.setenv("DATA_DIR", str(tmp_path))
+        hub = PerceptionHub()
+
+        oms = hub.oms
+
+        from odap.biz.core.ontology.public import OMSStorage
+        assert isinstance(oms, OMSStorage)
+        assert hub.oms is oms  # 第二次访问命中缓存，不重复建库
+
+    def test_real_storage_exposes_methods_map_to_oms_needs(self, tmp_path, monkeypatch):
+        """_map_to_oms 依赖 get_object_type / create_object_type，必须是真实可调用方法。"""
+        monkeypatch.setenv("DATA_DIR", str(tmp_path))
+        hub = PerceptionHub()
+
+        assert hub.oms.get_object_type("__no_such_type__") is None
+        assert callable(hub.oms.create_object_type)
+
+
+# ---------------------------------------------------------------------------
+# TestExtractRealPath — 真实 _extract 实现
+#
+# 此前所有测试都 patch.object(hub, "_extract", ...)，函数体从未执行，因此"幻影兜底"
+# 存活至今：except 吞掉主路径异常 → 降级到 NewsIngester.extract_ontology（该方法不存在，
+# NewsIngester 只有 ingest，且语义是"联网检索"而非"抽取给定文本"）→ 再次被 except 吞掉
+# → return ExtractionResult(confidence=0.0)，把"抽取链路坏了"伪装成"这段文本没有内容"。
+# ---------------------------------------------------------------------------
+
+class TestExtractRealPath:
+    @pytest.fixture(autouse=True)
+    def _isolate_data_dir(self, tmp_path, monkeypatch):
+        """真实 PipelineContext 的 _storage 默认工厂会建 SQLite 文件。
+
+        不隔离就会写到 pytest 的 CWD（仓库根）下，违反规则 13。
+        """
+        monkeypatch.setenv("DATA_DIR", str(tmp_path))
+
+    @staticmethod
+    def _event(text: str = "刘备在荆州集结兵力"):
+        return PerceptionEvent(
+            event_id="pe_extract",
+            source_type=PerceptionSourceType.MANUAL,
+            source_name="manual",
+            raw_content=text,
+        )
+
+    @staticmethod
+    def _patch_handler(mock_handler):
+        return patch(
+            "odap.biz.core.ontology.public.LLMExtractionStageHandler",
+            return_value=mock_handler,
+        )
+
+    @pytest.mark.asyncio
+    async def test_empty_content_short_circuits_without_llm(self):
+        hub = PerceptionHub()
+
+        result = await hub._extract(self._event(""))
+
+        assert result.entities == []
+        assert result.confidence == 0.0
+
+    @pytest.mark.asyncio
+    async def test_returns_handler_output(self):
+        hub = PerceptionHub()
+        handler = MagicMock()
+        handler._extract_with_llm = AsyncMock(return_value=(
+            [{"entity_type": "Person", "name": "刘备"}],
+            [{"source": "刘备", "target": "荆州", "relation": "位于"}],
+            [{"event_type": "集结"}],
+        ))
+
+        with self._patch_handler(handler):
+            result = await hub._extract(self._event())
+
+        assert result.entities == [{"entity_type": "Person", "name": "刘备"}]
+        assert len(result.relations) == 1
+        assert len(result.events) == 1
+        assert result.confidence == 0.8
+
+    @pytest.mark.asyncio
+    async def test_context_carries_event_identity(self):
+        """context 必须由事件自身字段接线，而不是必填参数缺失或凭命名反推。"""
+        hub = PerceptionHub()
+        handler = MagicMock()
+        handler._extract_with_llm = AsyncMock(return_value=([], [], []))
+        event = PerceptionEvent(
+            event_id="pe_ctx_1",
+            source_type=PerceptionSourceType.NEWS,
+            source_name="crawler",
+            raw_content="一些文本",
+            workspace_id="ws-9",
+            scenario_id="sc-9",
+        )
+
+        with self._patch_handler(handler):
+            await hub._extract(event)
+
+        context = handler._extract_with_llm.call_args[0][1]
+        assert context.ingest_id == "pe_ctx_1"
+        assert context.scenario_id == "sc-9"
+        assert context.workspace_id == "ws-9"
+        assert context.source == "news"
+        assert context.original_content == "一些文本"
+
+    @pytest.mark.asyncio
+    async def test_handler_failure_propagates_not_swallowed(self):
+        """规则 14：抽取失败必须显式抛出，不得降级成空结果。"""
+        hub = PerceptionHub()
+        handler = MagicMock()
+        handler._extract_with_llm = AsyncMock(side_effect=RuntimeError("LLM 不可用"))
+
+        with self._patch_handler(handler):
+            with pytest.raises(RuntimeError, match="LLM 不可用"):
+                await hub._extract(self._event())
+
+    @pytest.mark.asyncio
+    async def test_import_error_propagates_not_swallowed(self):
+        """原实现有专门的 `except ImportError` 分支，现已移除。"""
+        hub = PerceptionHub()
+
+        with patch(
+            "odap.biz.core.ontology.public.LLMExtractionStageHandler",
+            side_effect=ImportError("no such handler"),
+        ):
+            with pytest.raises(ImportError, match="no such handler"):
+                await hub._extract(self._event())
+
+    def test_phantom_fallback_target_does_not_exist(self):
+        """守卫：被删掉的兜底所依赖的方法确实不存在，防止有人"恢复"它。"""
+        from odap.biz.core.ontology.public import NewsIngester
+
+        assert not hasattr(NewsIngester, "extract_ontology")
+        assert hasattr(NewsIngester, "ingest")
+
+    @pytest.mark.asyncio
+    async def test_process_event_marks_failed_on_extract_error(self):
+        """端到端：抽取抛错 → FAILED + error 透传，而非 STORED + 空结果。"""
+        hub = PerceptionHub()
+        handler = MagicMock()
+        handler._extract_with_llm = AsyncMock(side_effect=RuntimeError("LLM 不可用"))
+
+        with self._patch_handler(handler):
+            output = await hub.process_event(self._event())
+
+        assert output.status == PerceptionStatus.FAILED
+        assert "LLM 不可用" in output.error
+        assert output.extraction.entities == []
+        assert output.graphiti_episode_id is None

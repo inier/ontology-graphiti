@@ -467,6 +467,22 @@ class ActionExecutor:
 
         return updated_record
 
+    @staticmethod
+    def _write_failure(result: Any) -> Optional[str]:
+        """校验 GraphWriteProxy 写结果，返回失败原因（None 表示确认成功）。
+
+        GraphWriteProxy 每个写方法都返回 {"status": "success"/"error", ...}，但此前
+        5 个分支全部无视该返回值并无条件 success=True：图谱后端 unavailable、
+        add_entity 返回 False、delete_entity 因 GraphManager 无该方法被 proxy 转成
+        error —— 决策动作一律上报成功，进而让 _execute 中的 feedback_loop 基于假
+        信号闭合反馈飞轮（违反规则 14「失败必须显式」）。
+        """
+        if isinstance(result, dict):
+            if result.get("status") == "success":
+                return None
+            return str(result.get("message") or f"图谱写入未成功: {result}")
+        return f"图谱写入返回非预期类型 {type(result).__name__}，无法确认是否落图"
+
     async def _do_execute(self, record: Dict[str, Any], action_type_def: Dict[str, Any]) -> ActionExecutionResult:
         action_name = action_type_def.get('name', record.get('action_type_id', ''))
         target_id = record.get('target_object_id', '')
@@ -476,8 +492,22 @@ class ActionExecutor:
             if action_name in ('update_status', 'update_property', 'modify'):
                 prop_key = params.get('property', 'status')
                 prop_val = params.get('value')
-                if prop_val is not None:
+                if prop_val is None:
+                    return ActionExecutionResult(
+                        success=False,
+                        message=(
+                            f"No value provided for property '{prop_key}' on {target_id}; "
+                            f"nothing was updated"
+                        ),
+                    )
+                failure = self._write_failure(
                     self.graph.update_entity(target_id, {prop_key: prop_val})
+                )
+                if failure:
+                    return ActionExecutionResult(
+                        success=False,
+                        message=f"Failed to update {prop_key} on {target_id}: {failure}",
+                    )
                 return ActionExecutionResult(
                     success=True,
                     message=f"Updated {prop_key}={prop_val} on {target_id}",
@@ -487,11 +517,16 @@ class ActionExecutor:
             elif action_name in ('create', 'add'):
                 entity_type = record.get('target_object_type', 'Entity')
                 name = params.get('name', f"New {entity_type}")
-                self.graph.add_entity(
+                failure = self._write_failure(self.graph.add_entity(
                     entity_id=target_id,
                     entity_type=entity_type,
                     properties=params,
-                )
+                ))
+                if failure:
+                    return ActionExecutionResult(
+                        success=False,
+                        message=f"Failed to create {entity_type} '{name}': {failure}",
+                    )
                 return ActionExecutionResult(
                     success=True,
                     message=f"Created {entity_type} '{name}'",
@@ -499,7 +534,13 @@ class ActionExecutor:
                 )
 
             elif action_name in ('delete', 'remove'):
-                self.graph.delete_entity(target_id)
+                failure = self._write_failure(self.graph.delete_entity(target_id))
+                if failure:
+                    return ActionExecutionResult(
+                        success=False,
+                        message=f"Failed to delete entity {target_id}: {failure}",
+                        data={'target_id': target_id, 'deleted': False},
+                    )
                 return ActionExecutionResult(
                     success=True,
                     message=f"Deleted entity {target_id}",
@@ -509,7 +550,17 @@ class ActionExecutor:
             elif action_name in ('link', 'relate'):
                 target2 = params.get('target_id', '')
                 link_type = params.get('link_type', 'related_to')
-                self.graph.add_relationship(target_id, target2, link_type, {})
+                failure = self._write_failure(
+                    self.graph.add_relationship(target_id, target2, link_type, {})
+                )
+                if failure:
+                    return ActionExecutionResult(
+                        success=False,
+                        message=(
+                            f"Failed to create link [{link_type}] from {target_id} "
+                            f"to {target2}: {failure}"
+                        ),
+                    )
                 return ActionExecutionResult(
                     success=True,
                     message=f"Created link [{link_type}] from {target_id} to {target2}",
@@ -520,7 +571,17 @@ class ActionExecutor:
                 logger.warning(f"Unknown action type: {action_name}, attempting generic property update")
                 properties_to_update = {k: v for k, v in params.items() if k not in ('entity_type', 'target_id', 'link_type')}
                 if properties_to_update:
-                    self.graph.update_entity(target_id, properties_to_update)
+                    failure = self._write_failure(
+                        self.graph.update_entity(target_id, properties_to_update)
+                    )
+                    if failure:
+                        return ActionExecutionResult(
+                            success=False,
+                            message=(
+                                f"Failed to update {target_id} via generic handler "
+                                f"with {list(properties_to_update.keys())}: {failure}"
+                            ),
+                        )
                     return ActionExecutionResult(
                         success=True,
                         message=f"Updated {target_id} via generic handler with {list(properties_to_update.keys())}",

@@ -30,9 +30,25 @@ class TestGraphRetrieverSuccessPath:
     """
 
     def _fake_gm(self, records):
+        """构造暴露**真实** GraphManager 读通路的假对象，返回 (gm, session)。
+
+        刻意不再 mock `execute_cypher`：GraphManager 上没有这个方法（公开写读面是
+        add_entity / update_entity / add_relationship / clear_graph + `neo4j_driver`）。
+        原先 `_fake_gm` 正是 mock 了这个幻影方法，于是被测代码每次都走
+        `hasattr(graph_manager, 'execute_cypher')` 探测失败 → 静默 `return []`，
+        而断言全写在那个从未被调用的 mock 上，测试反而"通过"——本文件要防的伪绿灯
+        出现在了本文件自己身上。
+        """
+        session = MagicMock()
+        session.run.return_value = [
+            MagicMock(data=MagicMock(return_value=r)) for r in records
+        ]
+        driver = MagicMock()
+        driver.session.return_value.__enter__.return_value = session
         gm = MagicMock()
-        gm.execute_cypher = MagicMock(return_value=records)
-        return gm
+        gm.neo4j_driver = driver
+        gm.mode = "graphiti"
+        return gm, session
 
     def test_neighbors_mode_returns_graph_results(self):
         from odap.biz.data.qa.retrieval.graph_retriever import GraphRetriever
@@ -40,7 +56,7 @@ class TestGraphRetrieverSuccessPath:
         records = [
             {"n": {"name": "Alice"}, "rel_type": "knows", "m": {"name": "Bob"}},
         ]
-        gm = self._fake_gm(records)
+        gm, session = self._fake_gm(records)
         retriever = GraphRetriever(graph_manager=gm)
 
         results = retriever.search("查询Alice的关联", top_k=5, mode="neighbors")
@@ -50,12 +66,14 @@ class TestGraphRetrieverSuccessPath:
         assert results[0].source == "cypher"
         assert "Alice" in results[0].content
         # 成功路径必须真正执行了 Cypher（证明不是恒返回 []）
-        gm.execute_cypher.assert_called_once()
+        session.run.assert_called_once()
 
     def test_traverse_mode_delegates_to_cypher(self):
         from odap.biz.data.qa.retrieval.graph_retriever import GraphRetriever
 
-        gm = self._fake_gm([{"n": {"name": "北斗"}, "rel_type": "uses", "m": {"name": "卫星"}}])
+        gm, session = self._fake_gm(
+            [{"n": {"name": "北斗"}, "rel_type": "uses", "m": {"name": "卫星"}}]
+        )
         retriever = GraphRetriever(graph_manager=gm)
 
         # traverse 关键词触发 _search_traverse → 委托 _search_cypher
@@ -63,7 +81,18 @@ class TestGraphRetrieverSuccessPath:
 
         assert len(results) == 1
         assert results[0].pillar == "graph"
-        gm.execute_cypher.assert_called_once()
+        session.run.assert_called_once()
+
+    def test_missing_driver_raises_instead_of_faking_zero_hits(self):
+        """无 Cypher 通路时必须显式抛错，不得把"后端不支持"伪装成"零命中"（规则 14）。"""
+        from odap.biz.data.qa.retrieval.graph_retriever import CypherGenerator
+
+        gm = MagicMock()
+        gm.neo4j_driver = None
+        gm.mode = "networkx"
+
+        with pytest.raises(RuntimeError, match="neo4j_driver 为 None"):
+            CypherGenerator().execute("MATCH (n) RETURN n", graph_manager=gm)
 
     def test_no_graph_manager_returns_empty(self):
         from odap.biz.data.qa.retrieval.graph_retriever import GraphRetriever
