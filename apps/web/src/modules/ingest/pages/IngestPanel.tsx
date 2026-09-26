@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback } from 'react';
-import { Card, Tabs, Button, Space, Input, Upload, message, Tag, Descriptions, Spin, Drawer, Empty, Typography, Row, Col, Steps, Timeline, Select, Statistic, Progress } from 'antd';
+import { Card, Tabs, Button, Space, Input, Upload, message, Tag, Descriptions, Spin, Drawer, Empty, Typography, Row, Col, Steps, Timeline, Select, Statistic, Progress, Alert } from 'antd';
 import { UploadOutlined, SyncOutlined, CheckCircleOutlined, LoadingOutlined, DatabaseOutlined, ApiOutlined, RobotOutlined, CloudServerOutlined, GitlabOutlined, FolderOutlined, PlusOutlined, EyeOutlined, SwapOutlined, CheckCircleFilled, CloseCircleFilled, SearchOutlined, GlobalOutlined } from '@ant-design/icons';
 import { api } from '@/modules/shared';
 import { useScenario, useWorkspace } from '@/modules/shared';
@@ -79,6 +79,7 @@ interface BuildDetail {
   relation_count: number;
   event_count: number;
   completed: boolean;
+  failed?: boolean;
 }
 
 const STAGE_COLORS: Record<string, string> = {
@@ -89,6 +90,40 @@ const STAGE_COLORS: Record<string, string> = {
   version: 'purple',
   graph: 'red',
 };
+
+/**
+ * 提取日志的错误原因。
+ * 后端有两个来源：ProcessLog.error_message（顶层字段）与 details.error（异常字符串），
+ * 两者可能只有其一存在，这里统一兜底，确保失败原因不丢失。
+ */
+export function getLogError(log: Pick<ProcessLog, 'error_message' | 'details'>): string | undefined {
+  const fromDetails = log.details && typeof log.details.error === 'string' ? log.details.error : undefined;
+  const raw = log.error_message || fromDetails;
+  return raw ? String(raw) : undefined;
+}
+
+/** 把 API 返回的原始日志标准化为 ProcessLog，保留 error_message */
+function normalizeLog(log: any): ProcessLog {
+  const details: Record<string, any> = log.details || {};
+  return {
+    id: log.id,
+    timestamp: log.timestamp,
+    stage: log.stage as ProcessLog['stage'],
+    operation: log.operation,
+    details,
+    status: log.status as ProcessLog['status'],
+    error_message: log.error_message || (typeof details.error === 'string' ? details.error : undefined),
+    duration_ms: log.duration_ms,
+  };
+}
+
+/** 从阶段列表里挑出所有失败日志，用于展示失败原因 */
+function collectFailedLogs(build: BuildDetail | null): ProcessLog[] {
+  if (!build) return [];
+  return build.stages
+    .flatMap(stage => stage.logs)
+    .filter(log => log.status === 'failed' || getLogError(log));
+}
 
 const _PIPELINE_DESCRIPTIONS: Record<string, string> = {
   collection: '从多个数据源收集原始数据',
@@ -215,18 +250,20 @@ export function IngestPanel() {
         
         // 重建构建详情，使用真实的数据
         let completedStagesCount = 0;
-        const stages = PIPELINE_STAGES.map((s, index) => {
+        let hasAnyFailure = false;
+        const stages = PIPELINE_STAGES.map(s => {
           const stageLogs = recentLogs.filter(log => log.stage === s.key);
-          let stageStatus: 'wait' | 'process' | 'finish' = 'wait';
-          
+          let stageStatus: 'wait' | 'process' | 'finish' | 'error' = 'wait';
+
           if (stageLogs.length > 0) {
             const hasCompleted = stageLogs.some(l => l.status === 'completed');
             const hasFailed = stageLogs.some(l => l.status === 'failed');
             const hasProcessing = stageLogs.some(l => l.status === 'processing');
-            
+
             if (hasFailed) {
-              stageStatus = 'finish';
-              completedStagesCount++;
+              // 失败阶段标红，不计入已完成数
+              stageStatus = 'error';
+              hasAnyFailure = true;
             } else if (hasCompleted) {
               stageStatus = 'finish';
               completedStagesCount++;
@@ -234,30 +271,23 @@ export function IngestPanel() {
               stageStatus = 'process';
             }
           }
-          
+
           return {
             ...s,
             status: stageStatus,
-            logs: stageLogs.map(log => ({
-              id: log.id,
-              timestamp: log.timestamp,
-              stage: log.stage as ProcessLog['stage'],
-              operation: log.operation,
-              details: log.details || {},
-              status: log.status as ProcessLog['status'],
-              duration_ms: log.duration_ms,
-            })),
+            logs: stageLogs.map(normalizeLog),
           };
         });
 
         buildDetail.stages = stages;
         buildDetail.current_stage = completedStagesCount;
-        
+
         // 检查是否所有阶段都完成或失败了
-        const allStagesDone = stages.every(s => s.status === 'finish');
+        const allStagesDone = stages.every(s => s.status === 'finish' || s.status === 'error');
         if (allStagesDone) {
           isBuildComplete = true;
-          buildDetail.completed = true;
+          buildDetail.completed = !hasAnyFailure;
+          buildDetail.failed = hasAnyFailure;
         }
 
         setCurrentBuild({ ...buildDetail });
@@ -296,8 +326,9 @@ export function IngestPanel() {
 
       message.success(t('构建完成！'));
     } catch (error) {
+      const reason = error instanceof Error ? error.message : String(error);
       console.error('Build pipeline failed:', error);
-      message.error(t('构建失败，请查看控制台日志'));
+      message.error(t('构建失败: {{reason}}', { reason }));
     } finally {
       setBuildingIngestId(null);
     }
@@ -371,11 +402,33 @@ export function IngestPanel() {
 
   const formatStepDetails = (details: Record<string, any>) => {
     if (!details) return null;
-    
-    const { input, output, _audit } = details;
-    
+
+    const { input, output, _audit, error } = details;
+
     return (
       <div style={{ fontSize: 11 }}>
+        {/* 失败原因 - 优先展示，便于问题排查 */}
+        {error != null && error !== '' && (
+          <div style={{ marginBottom: 6 }}>
+            <Text strong style={{ color: '#ff4d4f' }}>{t('错误详情:')}</Text>
+            <pre
+              style={{
+                margin: '2px 0 0 8px',
+                fontSize: 10,
+                whiteSpace: 'pre-wrap',
+                wordBreak: 'break-all',
+                color: '#cf1322',
+                background: '#fff2f0',
+                border: '1px solid #ffccc7',
+                borderRadius: 4,
+                padding: '4px 6px',
+              }}
+            >
+              {typeof error === 'string' ? error : JSON.stringify(error, null, 2)}
+            </pre>
+          </div>
+        )}
+
         {/* 审计信息 - 时间回溯 */}
         {_audit && (
           <div style={{ marginBottom: 6, paddingLeft: 8, borderLeft: '2px solid #d9d9d9' }}>
@@ -606,44 +659,43 @@ export function IngestPanel() {
           : fullRecord.logs;
 
         // 从API日志重建buildDetail
+        let failedStageCount = 0;
         const stages = PIPELINE_STAGES.map(s => {
           const stageLogs = recentLogs.filter(log => log.stage === s.key);
-          let stageStatus: 'wait' | 'process' | 'finish' = 'wait';
-          
+          let stageStatus: 'wait' | 'process' | 'finish' | 'error' = 'wait';
+
           if (stageLogs.length > 0) {
             const hasCompleted = stageLogs.some(l => l.status === 'completed');
             const hasFailed = stageLogs.some(l => l.status === 'failed');
-            if (hasFailed || hasCompleted) {
+            if (hasFailed) {
+              stageStatus = 'error';
+              failedStageCount++;
+            } else if (hasCompleted) {
               stageStatus = 'finish';
             }
           }
-          
+
           return {
             ...s,
             status: stageStatus,
-            logs: stageLogs.map(log => ({
-              id: log.id,
-              timestamp: log.timestamp,
-              stage: log.stage as ProcessLog['stage'],
-              operation: log.operation,
-              details: log.details || {},
-              status: log.status as ProcessLog['status'],
-              duration_ms: log.duration_ms,
-            })),
+            logs: stageLogs.map(normalizeLog),
           };
         });
+
+        const isFailed = record.build_status === 'failed' || failedStageCount > 0;
 
         const buildDetail: BuildDetail = {
           ingest_id: record.id,
           version_id: build?.version_info?.version_id || record.version_id || t('未构建'),
           source: record.source,
           start_time: buildStartTime || fullRecord.start_time || record.start_time,
-          current_stage: hasBuild ? 6 : -1,
+          current_stage: isFailed ? failedStageCount : (hasBuild ? 6 : -1),
           stages: stages,
           entity_count: build?.entity_count || record.record_count || 0,
           relation_count: build?.relation_count || 0,
           event_count: build?.event_count || 0,
-          completed: hasBuild,
+          completed: hasBuild && !isFailed,
+          failed: isFailed,
         };
 
         setCurrentBuild(buildDetail);
@@ -677,7 +729,8 @@ export function IngestPanel() {
       entity_count: build?.entity_count || record.record_count || 0,
       relation_count: build?.relation_count || 0,
       event_count: build?.event_count || 0,
-      completed: hasBuild
+      completed: hasBuild && record.build_status !== 'failed',
+      failed: record.build_status === 'failed',
     };
 
     setCurrentBuild(buildDetail);
@@ -1014,6 +1067,10 @@ export function IngestPanel() {
     },
   ];
 
+  // 失败日志汇总：用于在抽屉顶部集中展示失败原因，便于问题排查
+  const failedLogs = collectFailedLogs(currentBuild);
+  const hasFailure = Boolean(currentBuild?.failed) || failedLogs.length > 0;
+
   return (
     <PageTourWrapper pageId={PAGE_IDS.INGEST} steps={ingestTourSteps}>
     <div>
@@ -1105,13 +1162,55 @@ export function IngestPanel() {
                 {new Date(currentBuild.start_time).toLocaleString('zh-CN')}
               </Descriptions.Item>
               <Descriptions.Item label={t('状态')}>
-                {currentBuild.completed ? (
+                {hasFailure ? (
+                  <Tag color="error" icon={<CloseCircleFilled />}>{t('构建失败')}</Tag>
+                ) : currentBuild.completed ? (
                   <Tag color="success" icon={<CheckCircleFilled />}>{t('构建完成')}</Tag>
                 ) : (
                   <Tag color="processing" icon={<LoadingOutlined />}>{t('构建中')}</Tag>
                 )}
               </Descriptions.Item>
             </Descriptions>
+
+            {hasFailure && (
+              <Alert
+                type="error"
+                showIcon
+                title={t('构建失败，原因如下')}
+                description={
+                  <Space orientation="vertical" size={6} style={{ width: '100%' }}>
+                    {failedLogs.length === 0 ? (
+                      <Text style={{ fontSize: 12 }}>{t('未提供具体错误信息，请查看服务端日志')}</Text>
+                    ) : (
+                      failedLogs.map(log => (
+                        <div key={log.id} style={{ fontSize: 12 }}>
+                          <Space size={6} wrap>
+                            <Tag color={STAGE_COLORS[log.stage]}>{log.stage}</Tag>
+                            <Text strong>{log.operation}</Text>
+                          </Space>
+                          <Paragraph
+                            copyable
+                            style={{
+                              margin: '4px 0 0',
+                              fontSize: 12,
+                              whiteSpace: 'pre-wrap',
+                              wordBreak: 'break-all',
+                              color: '#cf1322',
+                              background: '#fff2f0',
+                              border: '1px solid #ffccc7',
+                              borderRadius: 4,
+                              padding: '4px 6px',
+                            }}
+                          >
+                            {getLogError(log) || t('未提供具体错误信息，请查看服务端日志')}
+                          </Paragraph>
+                        </div>
+                      ))
+                    )}
+                  </Space>
+                }
+              />
+            )}
 
             <Card title={t('构建进度')} size="small">
               <Steps
@@ -1147,6 +1246,19 @@ export function IngestPanel() {
                           {new Date(log.timestamp).toLocaleTimeString('zh-CN')}
                           {log.duration_ms && ` - ${log.duration_ms.toFixed(0)}ms`}
                         </Text>
+                        {log.status === 'failed' && (
+                          <Alert
+                            type="error"
+                            showIcon
+                            style={{ marginTop: 4 }}
+                            title={t('失败原因')}
+                            description={
+                              <Text style={{ fontSize: 11, whiteSpace: 'pre-wrap', wordBreak: 'break-all' }}>
+                                {getLogError(log) || t('未提供具体错误信息，请查看服务端日志')}
+                              </Text>
+                            }
+                          />
+                        )}
                         {log.details && Object.keys(log.details).length > 0 && formatStepDetails(log.details)}
                       </Space>
                     ),

@@ -31,7 +31,7 @@ import type {
   UslTerm,
   PropertyDataType,
 } from '../types';
-import { PROPERTY_DATA_TYPE_OPTIONS } from '../types';
+import { PROPERTY_DATA_TYPE_OPTIONS, lookupTermEn } from '../types';
 import {
   listPropertySpecs,
   createPropertySpec,
@@ -74,11 +74,12 @@ export function PropertySpecTable() {
         // 拉术语列表用于「所属术语」下拉
         listTerms(currentDomain.code, { page_size: 500, page: 1 }).catch(() => ({ items: [] as UslTerm[] })),
       ]);
-      setItems(Array.isArray(specs) ? specs : []);
+      setItems(specs.items ?? []);
       const termItems: UslTerm[] = 'items' in terms ? (terms.items as UslTerm[]) : [];
+      const enMap = currentDomain.en_mapping;
       setTermOptions(
         termItems.map((t) => ({
-          label: `${t.canonical}（${t.en || '-'}）`,
+          label: `${t.canonical}（${lookupTermEn(enMap, t.canonical) || '-'}）`,
           value: t.canonical,
         })),
       );
@@ -99,7 +100,7 @@ export function PropertySpecTable() {
   const handleCreate = () => {
     setEditing(null);
     form.resetFields();
-    form.setFieldsValue({ data_type: 'string', required: false });
+    form.setFieldsValue({ data_type: 'STRING', required: false });
     setFormOpen(true);
   };
 
@@ -110,7 +111,7 @@ export function PropertySpecTable() {
       prop_name: record.prop_name,
       data_type: record.data_type,
       unit: record.unit || '',
-      required: !!record.required,
+      required: !!record.required_flag,
       description: record.description || '',
     });
     setFormOpen(true);
@@ -135,20 +136,24 @@ export function PropertySpecTable() {
     try {
       const values = await form.validateFields();
       setSubmitting(true);
-      const payload = {
-        domain_id: currentDomain.code,
-        for_term: values.for_term,
-        prop_name: values.prop_name.trim(),
+      // 后端 UpdatePropertySpecRequest 只接受 data_type/unit/required_flag/description
+      // （extra='forbid'），更新路径必须剔除 domain_id/for_term/prop_name，否则 422。
+      const editable = {
         data_type: values.data_type,
         unit: values.unit?.trim() || undefined,
-        required: values.required,
+        required_flag: values.required,
         description: values.description?.trim() || undefined,
       };
       if (editing?.id) {
-        await updatePropertySpec(editing.id, payload);
+        await updatePropertySpec(editing.id, editable);
         message.success('属性规范已更新');
       } else {
-        await createPropertySpec(payload);
+        await createPropertySpec({
+          domain_id: currentDomain.code,
+          for_term: values.for_term,
+          prop_name: values.prop_name.trim(),
+          ...editable,
+        });
         message.success('属性规范已创建');
       }
       setFormOpen(false);
@@ -197,7 +202,7 @@ export function PropertySpecTable() {
     },
     {
       title: '必填',
-      dataIndex: 'required',
+      dataIndex: 'required_flag',
       width: 80,
       align: 'center',
       render: (v?: boolean) => (
@@ -271,7 +276,7 @@ export function PropertySpecTable() {
                 return;
               }
               void listPropertySpecs(currentDomain!.code).then((all) => {
-                setItems(all.filter((s) => s.prop_name.includes(kw) || s.for_term.includes(kw)));
+                setItems((all.items ?? []).filter((s) => s.prop_name.includes(kw) || s.for_term.includes(kw)));
               });
             }}
           />

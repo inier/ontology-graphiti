@@ -11,12 +11,16 @@ import type {
 
 const URL_PREFIX = `${API_BASE}/api/semantic-admin`;
 
+/**
+ * 拼查询串。数组用重复键（status=A&status=B），不加 `[]` 后缀 ——
+ * 后端是 FastAPI `Optional[List[str]] = Query(...)`，只认裸键名。
+ */
 function buildQuery(params: Record<string, unknown>): string {
   const q = new URLSearchParams();
   for (const [k, v] of Object.entries(params)) {
     if (v === undefined || v === null || v === '') continue;
     if (Array.isArray(v)) {
-      v.forEach((val) => q.append(`${k}[]`, String(val)));
+      v.forEach((val) => q.append(k, String(val)));
     } else {
       q.set(k, String(v));
     }
@@ -36,15 +40,15 @@ export async function listApprovalTasks(params?: {
 }): Promise<{ items: ApprovalTask[]; total: number; page: number; page_size: number }> {
   try {
     const query = params || {};
-    const statusArr = query.status;
-    const otherParams: Record<string, unknown> = { ...query };
-    delete otherParams.status;
-    const qs = buildQuery({ ...otherParams, page: query.page ?? 1, page_size: query.page_size ?? 20 });
-    const statusQS = statusArr && statusArr.length
-      ? statusArr.map((s) => `status=${encodeURIComponent(s)}`).join('&')
-      : '';
-    const sep = qs && statusQS ? '&' : '';
-    const fullQS = qs || statusQS ? `?${qs}${sep}${statusQS}` : '';
+    // 一次性拼完，不要先 buildQuery 再手工拼 status：buildQuery 的返回值已经带了
+    // 前导 `?`，再套一层 `?${qs}&${statusQS}` 会得到 `??assigned_role=...`，
+    // 首个参数名变成 `?assigned_role` 被后端丢弃 —— L1/L2 页签于是显示同一份
+    // 未过滤列表，且不报错。
+    const fullQS = buildQuery({
+      ...query,
+      page: query.page ?? 1,
+      page_size: query.page_size ?? 20,
+    });
     return await fetchJson<{ items: ApprovalTask[]; total: number; page: number; page_size: number }>(
       `${URL_PREFIX}/approval/tasks${fullQS}`,
     );

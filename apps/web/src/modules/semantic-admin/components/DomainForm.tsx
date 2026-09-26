@@ -78,14 +78,21 @@ export function DomainForm({ open, mode, initial, onCancel, onSubmitted }: Domai
                 : '',
             });
           } catch (e) {
-            console.warn('[DomainForm] getDomain fallback', e);
+            // 详情拉取失败必须显式告知：静默 console.warn 会让业务人员在
+            // 一份可能已过期的数据上编辑并保存，直接覆盖掉别人的改动。
+            console.error('[DomainForm] getDomain failed', e);
+            message.error(
+              e instanceof Error
+                ? `语义域详情刷新失败，当前表单为列表快照，保存前请重试：${e.message}`
+                : '语义域详情刷新失败，当前表单为列表快照，保存前请重试',
+            );
           }
         })();
       }
     } else {
       form.resetFields();
     }
-  }, [open, initial, mode, form]);
+  }, [open, initial, mode, form, message]);
 
   const jsonError = useMemo(() => {
     const val = form.getFieldValue('en_mapping_text') as string | undefined;

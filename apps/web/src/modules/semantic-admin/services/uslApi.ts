@@ -63,6 +63,25 @@ export async function updateDomain(
   });
 }
 
+/** 删除结果（对齐后端 DeleteResponse）。cascade_counts 为逐表级联删除行数，
+ *  仅 DELETE /domains/{ref} 会填（其余删除路由无级联，返回空对象）。 */
+export interface UslDeleteResult {
+  status: string;
+  deleted: boolean;
+  id: string;
+  cascade_counts?: Record<string, number>;
+}
+
+/** @deprecated 用 UslDeleteResult；保留别名避免既有 import 断裂 */
+export type DeleteDomainResult = UslDeleteResult;
+
+/** 删除语义域（后端级联清除该域下术语/层级/属性/不相交对/基数，不可恢复） */
+export async function deleteDomain(code: string): Promise<UslDeleteResult> {
+  return fetchJson(`${URL_PREFIX}/domains/${encodeURIComponent(code)}`, {
+    method: 'DELETE',
+  });
+}
+
 // ============================================================
 // 2. Term（规范术语）CRUD
 // ============================================================
@@ -95,10 +114,13 @@ export async function createTerm(payload: TermPayload): Promise<UslTerm> {
   });
 }
 
-/** 更新术语（含停用词开关） */
+/** 更新术语（含停用词开关）。
+ *  后端 UpdateTermRequest 是 extra="forbid"，只收
+ *  semantic_type/synonyms/near_synonyms/aliases/stoplist_flag/definition；
+ *  传 domain_id 或 canonical 会被拒 422，故 payload 用 Omit 显式排除身份字段。 */
 export async function updateTerm(
   termId: string,
-  payload: Partial<TermPayload>,
+  payload: Partial<Omit<TermPayload, 'domain_id' | 'canonical'>>,
 ): Promise<UslTerm> {
   return fetchJson(`${URL_PREFIX}/terms/${encodeURIComponent(termId)}`, {
     method: 'PUT',
@@ -107,11 +129,22 @@ export async function updateTerm(
   });
 }
 
+/** 删除术语。后端 DELETE /terms/{term_id} 一直存在（返回 DeleteResponse），
+ *  早先前端没有这个函数，TermTable 的删除按钮只弹「接口待上线」——是个假按钮。 */
+export async function deleteTerm(termId: string): Promise<UslDeleteResult> {
+  return fetchJson(`${URL_PREFIX}/terms/${encodeURIComponent(termId)}`, {
+    method: 'DELETE',
+  });
+}
+
 // ============================================================
 // 3. Hierarchy（层级结构）
 // ============================================================
 
-export async function listHierarchies(domainId: string): Promise<UslHierarchy[]> {
+/** 后端所有 list 路由都返回分页对象 {items,total,page,page_size}
+ *  （见 usl_manager/api/schemas.py 的 *ListResponse）。早先这里把返回类型标成
+ *  裸数组，组件再 Array.isArray(x)?x:[] 一判恒为 []，于是 4 张子表永远空。 */
+export async function listHierarchies(domainId: string): Promise<PagedResponse<UslHierarchy>> {
   return fetchJson(`${URL_PREFIX}/hierarchies?domain_id=${encodeURIComponent(domainId)}`);
 }
 
@@ -135,7 +168,7 @@ export async function deleteHierarchy(id: string): Promise<{ status: string }> {
 // 4. PropertySpec（属性规范）
 // ============================================================
 
-export async function listPropertySpecs(domainId: string): Promise<UslPropertySpec[]> {
+export async function listPropertySpecs(domainId: string): Promise<PagedResponse<UslPropertySpec>> {
   return fetchJson(`${URL_PREFIX}/property-specs?domain_id=${encodeURIComponent(domainId)}`);
 }
 
@@ -149,9 +182,11 @@ export async function createPropertySpec(
   });
 }
 
+/** 更新属性规范。后端 UpdatePropertySpecRequest 是 extra="forbid"，只收
+ *  data_type/unit/required_flag/description；传 domain_id/for_term/prop_name 会 422。 */
 export async function updatePropertySpec(
   id: string,
-  payload: Partial<Omit<UslPropertySpec, 'id' | 'created_at'>>,
+  payload: Partial<Pick<UslPropertySpec, 'data_type' | 'unit' | 'required_flag' | 'description'>>,
 ): Promise<UslPropertySpec> {
   return fetchJson(`${URL_PREFIX}/property-specs/${encodeURIComponent(id)}`, {
     method: 'PUT',
@@ -170,7 +205,7 @@ export async function deletePropertySpec(id: string): Promise<{ status: string }
 // 5. DisjointPair（不相交对）
 // ============================================================
 
-export async function listDisjointPairs(domainId: string): Promise<UslDisjointPair[]> {
+export async function listDisjointPairs(domainId: string): Promise<PagedResponse<UslDisjointPair>> {
   return fetchJson(`${URL_PREFIX}/disjoint-pairs?domain_id=${encodeURIComponent(domainId)}`);
 }
 
@@ -194,7 +229,7 @@ export async function deleteDisjointPair(id: string): Promise<{ status: string }
 // 6. Cardinality（关系基数）
 // ============================================================
 
-export async function listCardinalities(domainId: string): Promise<UslCardinality[]> {
+export async function listCardinalities(domainId: string): Promise<PagedResponse<UslCardinality>> {
   return fetchJson(`${URL_PREFIX}/cardinalities?domain_id=${encodeURIComponent(domainId)}`);
 }
 
@@ -208,9 +243,12 @@ export async function createCardinality(
   });
 }
 
+/** 更新关系基数。后端 UpdateCardinalityRequest 是 extra="forbid"，只收
+ *  rel_name/domain_term/range_term/min_card/max_card；传 domain_id 会 422。
+ *  max_card 为 null 表示无限（不是 -1）。 */
 export async function updateCardinality(
   id: string,
-  payload: Partial<Omit<UslCardinality, 'id' | 'created_at'>>,
+  payload: Partial<Pick<UslCardinality, 'rel_name' | 'domain_term' | 'range_term' | 'min_card' | 'max_card'>>,
 ): Promise<UslCardinality> {
   return fetchJson(`${URL_PREFIX}/cardinalities/${encodeURIComponent(id)}`, {
     method: 'PUT',

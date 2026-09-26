@@ -29,6 +29,7 @@ export type {
   HierarchyRelType,
   PropertyDataType,
   PagedResponse,
+  CandidateStatus,
 } from './types';
 export {
   SEMANTIC_TYPE_LABEL,
@@ -50,7 +51,6 @@ export * as uslApi from './services/uslApi';
 export * as pipelineApi from './services/pipelineApi';
 export type {
   Candidate,
-  CandidateStatus,
   PipelineRun,
   PipelineRunStatus,
   PipelineRunStats,

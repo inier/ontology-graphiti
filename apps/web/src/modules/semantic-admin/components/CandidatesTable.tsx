@@ -22,7 +22,13 @@ interface CTProps {
 const sColor = (s?: string): string => !s ? 'default' : (SEMANTIC_TYPE_COLOR as Record<string, string>)[s] ?? 'default';
 const shortId = (id?: string): string => !id ? '-' : id.length > 10 ? `${id.slice(0, 6)}...${id.slice(-4)}` : id;
 const fmtDate = (s?: string): string => !s ? '-' : s.substring(0, 19).replace('T', ' ');
-const canL1 = (s: string) => ['DRAFT', 'PENDING_REVIEW'].includes(s);
+// L1 审批入口状态 —— 必须与后端 _approval_helper.ALLOWED_LEVEL1_APPROVE_STATUS 逐值一致。
+// 曾经这里只收 ['DRAFT','PENDING_REVIEW']，于是质量闸后落到 QUALITY_GATED 的候选
+// 「Approve L1」按钮永久置灰（后端其实允许审），业务人员根本点不动。
+const LEVEL1_APPROVABLE: string[] = [
+  'DRAFT', 'QUALITY_GATED', 'PENDING_REVIEW', 'AUDITOR_APPROVED', 'ADMIN_PENDING',
+];
+const canL1 = (s: string) => LEVEL1_APPROVABLE.includes(s);
 const canL2 = (s: string) => s === 'ADMIN_PENDING';
 
 const renderOrigin = (r: Candidate) => {

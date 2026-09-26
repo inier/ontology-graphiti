@@ -170,7 +170,10 @@ export function ApprovalsPage() {
 
   const onAudit = async (task: ApprovalTask) => {
     try {
-      await actionAudit(task.task_id, { comment: t('L1 审核通过') });
+      // approve: true 必须显式传。后端 AuditRequest.approve 是必填字段，
+      // 早先这里只传 {comment}，后端 decisions.get("approve", False) 取到 False
+      // → 候选被写成 REVIEWER_REJECTED，而界面弹的是「L1 审核通过」。
+      await actionAudit(task.task_id, { approve: true, comment: t('L1 审核通过') });
       message.success(t('L1 审核通过'));
     } catch (e) {
       message.error(e instanceof Error ? e.message : t('审核失败'));

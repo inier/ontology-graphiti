@@ -18,6 +18,7 @@ import {
   Tag,
   Popconfirm,
   Typography,
+  Spin,
 } from 'antd';
 import type { DataNode } from 'antd/es/tree';
 import {
@@ -31,7 +32,7 @@ import type {
   UslTerm,
   HierarchyRelType,
 } from '../types';
-import { HIERARCHY_REL_OPTIONS } from '../types';
+import { HIERARCHY_REL_OPTIONS, lookupTermEn } from '../types';
 import {
   listHierarchies,
   createHierarchy,
@@ -42,6 +43,13 @@ import { useSemanticAdminStore } from '../store/useSemanticAdminStore';
 import { useUslPermissions } from '../hooks/useUslPermissions';
 
 const { Text } = Typography;
+
+/** rel_type（后端大写枚举）→ AntD Tag color */
+const REL_COLOR: Record<HierarchyRelType, string> = {
+  IS_A: 'blue',
+  PART_OF: 'green',
+  INSTANCE_OF: 'purple',
+};
 
 interface HierarchyFormValues {
   rel_type: HierarchyRelType;
@@ -70,12 +78,13 @@ export function HierarchyTree() {
         listHierarchies(currentDomain.code),
         listTerms(currentDomain.code, { page: 1, page_size: 500 }).catch(() => ({ items: [] as UslTerm[] })),
       ]);
-      const list = Array.isArray(h) ? h : [];
+      const list = h.items ?? [];
       setItems(list);
       const termList: UslTerm[] = 'items' in t ? (t.items as UslTerm[]) : [];
+      const enMap = currentDomain.en_mapping;
       setTermOptions(
         termList.map((tm) => ({
-          label: `${tm.canonical}（${tm.en || '-'}）`,
+          label: `${tm.canonical}（${lookupTermEn(enMap, tm.canonical) || '-'}）`,
           value: tm.canonical,
         })),
       );
@@ -144,7 +153,6 @@ export function HierarchyTree() {
         parent_term: v.parent_term,
         child_term: v.child_term,
         confidence: Number.isFinite(v.confidence) ? v.confidence : 0.5,
-        provenance: 'manual_usl_admin',
       });
       message.success('层级关系已创建');
       setFormOpen(false);
@@ -179,7 +187,7 @@ export function HierarchyTree() {
               type="primary"
               ghost
               disabled={!canWrite}
-              onClick={() => handleOpenCreate('is_a')}
+              onClick={() => handleOpenCreate('IS_A')}
             >
               新建 is_a 继承
             </Button>
@@ -190,7 +198,7 @@ export function HierarchyTree() {
               type="primary"
               ghost
               disabled={!canWrite}
-              onClick={() => handleOpenCreate('part_of')}
+              onClick={() => handleOpenCreate('PART_OF')}
             >
               新建 part_of 组成
             </Button>
@@ -242,19 +250,20 @@ export function HierarchyTree() {
             }
           />
         ) : (
-          <Tree
-            showLine={{ showLeafIcon: false }}
-            blockNode
-            multiple={false}
-            selectable
-            checkable={false}
-            expandedKeys={expandedKeys}
-            onExpand={(keys) => setExpandedKeys(keys)}
-            selectedKeys={selectedKeysState[0]}
-            onSelect={(keys) => selectedKeysState[1](keys)}
-            treeData={treeData}
-            loading={loading}
-          />
+          <Spin spinning={loading}>
+            <Tree
+              showLine={{ showLeafIcon: false }}
+              blockNode
+              multiple={false}
+              selectable
+              checkable={false}
+              expandedKeys={expandedKeys}
+              onExpand={(keys) => setExpandedKeys(keys)}
+              selectedKeys={selectedKeysState[0]}
+              onSelect={(keys) => selectedKeysState[1](keys)}
+              treeData={treeData}
+            />
+          </Spin>
         )}
       </div>
 
@@ -341,10 +350,10 @@ function findAllRoots(list: UslHierarchy[]): string[] {
 
 function buildTreeFromHierarchies(list: UslHierarchy[]): DataNode[] {
   // Step 1: 每个术语的直接子节点（按 rel_type 分组）
-  const parentToChildren: Map<string, Array<{ rel: UslHierarchy; relLabel: string }>> = new Map();
+  const parentToChildren: Map<string, Array<{ rel: UslHierarchy; relLabel: HierarchyRelType }>> = new Map();
   const allTerms: Set<string> = new Set();
   list.forEach((h) => {
-    const relLabel = h.rel_type === 'is_a' ? 'is_a' : 'part_of';
+    const relLabel = h.rel_type;
     allTerms.add(h.parent_term);
     allTerms.add(h.child_term);
     if (!parentToChildren.has(h.parent_term)) {
@@ -384,7 +393,7 @@ function buildTreeFromHierarchies(list: UslHierarchy[]): DataNode[] {
         key: `edge-${rel.id || `${rel.parent_term}-${rel.child_term}-${Math.random()}`}`,
         title: (
           <Space size="small">
-            <Tag color={relLabel === 'is_a' ? 'blue' : 'green'} style={{ marginRight: 8 }}>
+            <Tag color={REL_COLOR[relLabel] || 'default'} style={{ marginRight: 8 }}>
               {relLabel} <span style={{ opacity: 0.5 }}>· conf {(rel.confidence ?? 1).toFixed(2)}</span>
             </Tag>
             {toNode(rel.child_term, depth + 1).title as React.ReactNode}

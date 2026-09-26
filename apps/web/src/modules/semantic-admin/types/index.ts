@@ -11,18 +11,21 @@ export type SemanticType =
   | '过程类型'
   | '规则类型';
 
-/** 层级关系类型：is_a(继承) / part_of(组成) */
-export type HierarchyRelType = 'is_a' | 'part_of';
+/** 层级关系类型 —— 值严格对齐后端 HierarchyRel 枚举（大写）。
+ *  后端 CreateHierarchyRequest 的 rel_type 校验走 HierarchyRel(v)，传小写 'is_a'
+ *  会 ValueError → 422。故前端统一用大写，不再两边各一套。 */
+export type HierarchyRelType = 'IS_A' | 'PART_OF' | 'INSTANCE_OF';
 
-/** 属性数据类型：用于 UslPropertySpec.data_type */
+/** 属性数据类型 —— 值严格对齐后端 DataType 枚举（大写，7 值）。
+ *  后端无 'TEXT'；'string' 等小写会被 DataType(v) 拒为 422。 */
 export type PropertyDataType =
-  | 'string'
-  | 'integer'
-  | 'float'
-  | 'boolean'
-  | 'datetime'
-  | 'json'
-  | 'text';
+  | 'STRING'
+  | 'INTEGER'
+  | 'FLOAT'
+  | 'BOOLEAN'
+  | 'DATE'
+  | 'DATETIME'
+  | 'JSON';
 
 /** 分页响应泛型：与后端 PagedResponse 一致 */
 export interface PagedResponse<T> {
@@ -36,6 +39,8 @@ export interface PagedResponse<T> {
 
 /** 语义域 (UslDomain) */
 export interface UslDomain {
+  /** 内部主键 uuid。前端一律用 code 寻址（ADR-079 §7），此字段仅供展示/排障 */
+  id?: string;
   /** 唯一标识码（英文短横线，如 sanguo_common） */
   code: string;
   /** 显示中文名（如 三国通用语域） */
@@ -56,6 +61,21 @@ export interface DomainPayload {
   display_name: string;
   description?: string;
   en_mapping?: Record<string, string>;
+}
+
+/**
+ * 从语义域 en_mapping 反查术语 canonical 对应的英文。
+ * en_mapping 方向为 {英文 PascalCase: 中文 canonical}（见 DomainForm 示例
+ * {"Faction":"势力"}），而 UslTerm 本身没有 en 字段，英文只存在于 domain 上，
+ * 因此按 value(中文) 反查 key(英文)。查不到返回空串，由调用方渲染为 '-'。
+ */
+export function lookupTermEn(
+  enMapping: Record<string, string> | undefined,
+  canonical: string,
+): string {
+  if (!enMapping) return '';
+  const hit = Object.keys(enMapping).find((en) => enMapping[en] === canonical);
+  return hit ?? '';
 }
 
 /** 规范术语 (UslTerm) */
@@ -105,8 +125,6 @@ export interface UslHierarchy {
   child_term: string;
   /** 置信度 0-1 */
   confidence?: number;
-  /** 来源说明 */
-  provenance?: string;
   created_at?: string;
 }
 
@@ -122,8 +140,8 @@ export interface UslPropertySpec {
   data_type: PropertyDataType;
   /** 度量单位（可选） */
   unit?: string;
-  /** 是否必填 */
-  required?: boolean;
+  /** 是否必填（后端字段名 required_flag，非 required） */
+  required_flag?: boolean;
   /** 描述 */
   description?: string;
   created_at?: string;
@@ -146,18 +164,17 @@ export interface UslDisjointPair {
 export interface UslCardinality {
   id?: string;
   domain_id: string;
-  /** 关系名 canonical（link_type 术语） */
+  /** 关系名 canonical（semantic_type=关系类型 的术语） */
   rel_name: string;
   /** 定义域术语（源端） */
   domain_term: string;
   /** 值域术语（目标端） */
   range_term: string;
-  /** 最小基数，默认 0 */
+  /** 最小基数，默认 0（后端 ge=0） */
   min_card?: number;
-  /** 最大基数，-1 表示无限，默认 -1 */
-  max_card?: number;
-  /** 描述 */
-  description?: string;
+  /** 最大基数：null 表示无限（后端 max_card 为 Optional[int], gt=0）。
+   *  注意不是 -1 —— 后端 gt=0 会把 -1 拒为 422；∞ 必须传 null。 */
+  max_card?: number | null;
   created_at?: string;
 }
 
@@ -181,77 +198,93 @@ export const SEMANTIC_TYPE_COLOR: Record<SemanticType, string> = {
   '规则类型': 'magenta',
 };
 
-/** 属性数据类型下拉选项 */
+/** 属性数据类型下拉选项（value 严格对齐后端 DataType 大写枚举） */
 export const PROPERTY_DATA_TYPE_OPTIONS: Array<{
   label: string;
   value: PropertyDataType;
 }> = [
-  { label: '字符串', value: 'string' },
-  { label: '整数', value: 'integer' },
-  { label: '浮点', value: 'float' },
-  { label: '布尔', value: 'boolean' },
-  { label: '日期时间', value: 'datetime' },
-  { label: 'JSON', value: 'json' },
-  { label: '长文本', value: 'text' },
+  { label: '字符串', value: 'STRING' },
+  { label: '整数', value: 'INTEGER' },
+  { label: '浮点', value: 'FLOAT' },
+  { label: '布尔', value: 'BOOLEAN' },
+  { label: '日期', value: 'DATE' },
+  { label: '日期时间', value: 'DATETIME' },
+  { label: 'JSON', value: 'JSON' },
 ];
 
-/** 层级关系类型选项 */
+/** 层级关系类型选项（value 严格对齐后端 HierarchyRel 大写枚举） */
 export const HIERARCHY_REL_OPTIONS: Array<{
   label: string;
   value: HierarchyRelType;
 }> = [
-  { label: 'is_a (继承/泛化)', value: 'is_a' },
-  { label: 'part_of (组成/部分)', value: 'part_of' },
+  { label: 'IS_A (继承/泛化)', value: 'IS_A' },
+  { label: 'PART_OF (组成/部分)', value: 'PART_OF' },
+  { label: 'INSTANCE_OF (实例)', value: 'INSTANCE_OF' },
 ];
 
+/**
+ * 候选状态机 —— 与后端 candidate_store 的规范大写枚举**逐值对齐**
+ * （权威来源：SQLiteCandidateStorage._CAND_STATUS_CANONICAL）。
+ *
+ * 口径决定：后端出参只发规范大写，前端只认这一套，不两边各让一步。
+ * 注意 L3_DONE/L4_DONE/L5_DONE 是**流水线 run 的阶段状态**（见 pipelineApi
+ * 的 PipelineRun.status），候选实体永远不会处于这些状态，故不在此枚举内。
+ * ADMIN_APPROVED 在后端等价于 APPROVED（同值），因此不单列。
+ */
 export type CandidateStatus =
   | 'DRAFT'
   | 'L1_DONE'
   | 'L2_DONE'
-  | 'L3_DONE'
-  | 'L4_DONE'
-  | 'L5_DONE'
+  | 'QUALITY_GATED'
   | 'PENDING_REVIEW'
   | 'AUDITOR_APPROVED'
+  | 'AUDITOR_MODIFIED'
+  | 'AUDITOR_REJECTED'
+  | 'REVIEWER_REJECTED'
   | 'ADMIN_PENDING'
   | 'APPROVED'
-  | 'REVIEWER_REJECTED'
   | 'ADMIN_REJECTED'
+  | 'REJECTED'
   | 'WRITTEN_BACK'
-  | 'STOPLISTED';
+  | 'STOPLISTED'
+  | 'ARCHIVED';
 
 export const CANDIDATE_STATUS_LABEL: Record<CandidateStatus, string> = {
   DRAFT: '草稿',
   L1_DONE: '分词完成',
   L2_DONE: '归一化完成',
-  L3_DONE: '概念抽取完成',
-  L4_DONE: '关系抽取完成',
-  L5_DONE: '模式挖掘完成',
+  QUALITY_GATED: '质量闸通过',
   PENDING_REVIEW: '待审核',
   AUDITOR_APPROVED: '审核员已通过',
+  AUDITOR_MODIFIED: '审核员已修改',
+  AUDITOR_REJECTED: '审核员驳回',
+  REVIEWER_REJECTED: '评审驳回',
   ADMIN_PENDING: '管理员待审批',
   APPROVED: '已通过',
-  REVIEWER_REJECTED: '审核员驳回',
   ADMIN_REJECTED: '管理员驳回',
+  REJECTED: '已驳回',
   WRITTEN_BACK: '已回写',
   STOPLISTED: '已停用',
+  ARCHIVED: '已归档',
 };
 
 export const CANDIDATE_STATUS_COLOR: Record<CandidateStatus, string> = {
   DRAFT: 'default',
   L1_DONE: 'cyan',
   L2_DONE: 'cyan',
-  L3_DONE: 'cyan',
-  L4_DONE: 'cyan',
-  L5_DONE: 'cyan',
+  QUALITY_GATED: 'cyan',
   PENDING_REVIEW: 'orange',
   AUDITOR_APPROVED: 'blue',
+  AUDITOR_MODIFIED: 'purple',
+  AUDITOR_REJECTED: 'red',
+  REVIEWER_REJECTED: 'red',
   ADMIN_PENDING: 'geekblue',
   APPROVED: 'green',
-  REVIEWER_REJECTED: 'red',
   ADMIN_REJECTED: 'magenta',
+  REJECTED: 'red',
   WRITTEN_BACK: 'lime',
   STOPLISTED: 'gold',
+  ARCHIVED: 'default',
 };
 
 /** Graphiti 双写回状态（candidate.provenance.graphiti_writeback） */
@@ -367,7 +400,11 @@ export interface ApprovalTask {
 }
 
 export interface ApprovalAuditPayload {
+  /** L1 决策，必填。漏传会被后端拒为 422 —— 曾经它是可选的且后端默认 false，
+   *  于是「点通过」实际提交空 decisions、被记为 REVIEWER_REJECTED。 */
+  approve: boolean;
   comment?: string;
+  /** 附加明细（l1_fields_ok / quality_ok / ...），仅入 provenance，不参与判定 */
   decisions?: Record<string, any>;
 }
 

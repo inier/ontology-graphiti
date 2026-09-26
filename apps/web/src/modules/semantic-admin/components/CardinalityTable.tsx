@@ -9,7 +9,6 @@ import {
   Button,
   Space,
   Select,
-  Input,
   InputNumber,
   App,
   Tooltip,
@@ -29,6 +28,7 @@ import {
   MinusOutlined,
 } from '@ant-design/icons';
 import type { UslCardinality, UslTerm } from '../types';
+import { lookupTermEn } from '../types';
 import {
   listCardinalities,
   createCardinality,
@@ -47,7 +47,6 @@ interface CardFormValues {
   range_term: string;
   min_card: number;
   max_card: number;
-  description?: string;
 }
 
 const MAX_CARD_INF = -1;
@@ -73,24 +72,25 @@ export function CardinalityTable() {
         listCardinalities(currentDomain.code),
         listTerms(currentDomain.code, { page: 1, page_size: 500 }).catch(() => ({ items: [] as UslTerm[] })),
       ]);
-      setItems(Array.isArray(c) ? c : []);
+      setItems(c.items ?? []);
       const termList: UslTerm[] = 'items' in t ? (t.items as UslTerm[]) : [];
+      const enMap = currentDomain.en_mapping;
       const sorted = [...termList].sort((a, b) =>
         a.canonical.localeCompare(b.canonical, 'zh-Hans-CN'),
       );
       const allTerms = sorted.map((tm) => ({
-        label: `${tm.canonical}（${tm.en || '-'} · ${tm.semantic_type}）`,
+        label: `${tm.canonical}（${lookupTermEn(enMap, tm.canonical) || '-'} · ${tm.semantic_type}）`,
         value: tm.canonical,
       }));
       setTermOptions(allTerms);
-      // 关系名：语义类型 == link_type 的术语 canonical
+      // 关系名：语义类型 == 关系类型 的术语 canonical
       const rels = termList
-        .filter((tm) => tm.semantic_type === 'link_type')
+        .filter((tm) => tm.semantic_type === '关系类型')
         .map((tm) => ({
-          label: `${tm.canonical}（${tm.en || '-'}）`,
+          label: `${tm.canonical}（${lookupTermEn(enMap, tm.canonical) || '-'}）`,
           value: tm.canonical,
         }));
-      setRelOptions(rels.length > 0 ? rels : allTerms); // 回退：没 link_type 术语就展示所有
+      setRelOptions(rels.length > 0 ? rels : allTerms); // 回退：没关系类型术语就展示所有
     } catch (err) {
       console.warn('[CardinalityTable] fetch failed:', err);
       setItems([]);
@@ -120,7 +120,6 @@ export function CardinalityTable() {
       range_term: record.range_term,
       min_card: record.min_card ?? 0,
       max_card: record.max_card ?? MAX_CARD_INF,
-      description: record.description || '',
     });
     setFormOpen(true);
   };
@@ -149,32 +148,35 @@ export function CardinalityTable() {
         return;
       }
       setSubmitting(true);
-      const payload = {
-        domain_id: currentDomain.code,
+      // 表单用 -1 作「无限」哨兵，但后端 max_card 为 Optional[int] 且 gt=0，
+      // -1 会被拒为 422；无限必须传 null。
+      const maxCard = v.max_card === MAX_CARD_INF ? null : v.max_card;
+      // UpdateCardinalityRequest 只接受 rel_name/domain_term/range_term/min_card/max_card
+      // （extra='forbid'），更新路径不能带 domain_id。
+      const editable = {
         rel_name: v.rel_name,
         domain_term: v.domain_term,
         range_term: v.range_term,
         min_card: v.min_card,
-        max_card: v.max_card,
-        description: v.description?.trim() || undefined,
+        max_card: maxCard,
       };
       if (editing?.id) {
-        await updateCardinality(editing.id, payload);
+        await updateCardinality(editing.id, editable);
         message.success('基数约束已更新');
       } else {
         // 去重：(rel, domain, range) 三元组唯一
         const dup = items.some(
           (i) =>
-            i.rel_name === payload.rel_name &&
-            i.domain_term === payload.domain_term &&
-            i.range_term === payload.range_term,
+            i.rel_name === editable.rel_name &&
+            i.domain_term === editable.domain_term &&
+            i.range_term === editable.range_term,
         );
         if (dup) {
           message.warning('完全相同的三元组 (rel, domain, range) 已存在，改为编辑');
           setSubmitting(false);
           return;
         }
-        await createCardinality(payload);
+        await createCardinality({ domain_id: currentDomain.code, ...editable });
         message.success('基数约束已创建');
       }
       setFormOpen(false);
@@ -193,9 +195,9 @@ export function CardinalityTable() {
     [termOptions],
   );
 
-  const renderCard = (minC?: number, maxC?: number) => {
+  const renderCard = (minC?: number, maxC?: number | null) => {
     const mn = minC ?? 0;
-    const mx = (maxC === undefined || maxC === MAX_CARD_INF) ? '∞' : String(maxC);
+    const mx = (maxC == null || maxC === MAX_CARD_INF) ? '∞' : String(maxC);
     return (
       <Tag color="cyan" style={{ marginRight: 0 }}>
         {mn}
@@ -237,12 +239,6 @@ export function CardinalityTable() {
       width: 160,
       align: 'center',
       render: (_: unknown, r) => renderCard(r.min_card, r.max_card),
-    },
-    {
-      title: '描述',
-      dataIndex: 'description',
-      ellipsis: true,
-      render: (v?: string) => v || <Text type="secondary">—</Text>,
     },
     {
       title: '操作',
@@ -346,7 +342,7 @@ export function CardinalityTable() {
       >
         <Form form={form} layout="vertical" preserve={false} requiredMark="optional">
           <Form.Item
-            label="关系名 rel（建议选 link_type 语义类型的术语）"
+            label="关系名 rel（建议选 semantic_type=关系类型 的术语）"
             name="rel_name"
             rules={[{ required: true, message: '必选' }]}
           >
@@ -409,9 +405,6 @@ export function CardinalityTable() {
               <InputNumber step={1} style={{ width: '100%' }} disabled={!canWrite} />
             </Form.Item>
           </Space.Compact>
-          <Form.Item label="描述" name="description">
-            <Input.TextArea rows={2} placeholder="可选" disabled={!canWrite} />
-          </Form.Item>
         </Form>
       </Modal>
     </div>

@@ -108,9 +108,6 @@ export function DashboardPage() {
         'WRITTEN_BACK',
         'L1_DONE',
         'L2_DONE',
-        'L3_DONE',
-        'L4_DONE',
-        'L5_DONE',
       ]),
     [summary],
   );

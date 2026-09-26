@@ -28,15 +28,21 @@ describe('approvalApi.ts: 二级审批 5 个 API 导出与 URL 构造', () => {
     expect(called).toContain('page_size=20');
   });
 
-  it('listApprovalTasks 数组 status 会被拼到 query（status[] 或 status=...）', async () => {
+  it('listApprovalTasks 数组 status 用重复裸键，且整个 URL 只有一个 ?', async () => {
     await listApprovalTasks({
       status: ['PENDING_REVIEW', 'ADMIN_PENDING'],
       assigned_role: 'admin',
     });
     const called = mockFetch.mock.calls[0][0] as string;
-    expect(called).toContain('assigned_role=admin');
-    // 两种形式（status=X&status=Y 或 status[]=X&status[]=Y）只要都包含即可
-    expect(called).toMatch(/PENDING_REVIEW|ADMIN_PENDING/);
+    const qs = called.slice(called.indexOf('?') + 1);
+    const params = new URLSearchParams(qs);
+    // 后端是 Optional[List[str]] = Query(...)，只认裸键名；`status[]` 会被丢弃
+    expect(params.getAll('status')).toEqual(['PENDING_REVIEW', 'ADMIN_PENDING']);
+    expect(params.get('assigned_role')).toBe('admin');
+    // 双 `?` 会让首个参数名变成 `?assigned_role` 被后端丢弃 → 角色过滤静默失效，
+    // L1/L2 页签显示同一份未过滤列表。这里锁死只能有一个 `?`。
+    expect(called.match(/\?/g)).toHaveLength(1);
+    expect(qs).not.toContain('?');
   });
 
   it('actionAudit / actionModify / actionReject / actionFinalApprove 都存在 & 为 async 函数', () => {
@@ -46,17 +52,20 @@ describe('approvalApi.ts: 二级审批 5 个 API 导出与 URL 构造', () => {
     expect(typeof actionFinalApprove).toBe('function');
   });
 
-  it('actionAudit: 使用 POST + JSON body（含 comment）', async () => {
+  it('actionAudit: POST JSON body 必须含显式 approve 决策位', async () => {
     mockFetch.mockResolvedValueOnce({
       task_id: 't-1', candidate_id: 'c-1', new_status: 'AUDITOR_APPROVED',
     });
-    await actionAudit('t-1', { comment: '已核查 L1 合规，通过' });
+    await actionAudit('t-1', { approve: true, comment: '已核查 L1 合规，通过' });
     const [url, opts] = mockFetch.mock.calls[0];
     expect(String(url)).toContain('/approval/tasks/t-1/audit');
     expect((opts as RequestInit).method).toBe('POST');
     expect((opts as RequestInit).headers).toHaveProperty('Content-Type', 'application/json');
     const body = JSON.parse((opts as RequestInit).body as string);
     expect(body.comment).toBe('已核查 L1 合规，通过');
+    // 曾经这里只传 {comment}，后端 decisions.get("approve", False) 取到 False，
+    // 于是「点通过」把候选写成 REVIEWER_REJECTED，界面却弹「L1 审核通过」。
+    expect(body.approve).toBe(true);
   });
 
   it('actionReject: POST JSON 含 rejection reason', async () => {

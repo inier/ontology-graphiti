@@ -22,6 +22,7 @@ import {
 import type { ColumnsType } from 'antd/es/table';
 import { PlusOutlined, DeleteOutlined, ReloadOutlined } from '@ant-design/icons';
 import type { UslDisjointPair, UslTerm } from '../types';
+import { lookupTermEn } from '../types';
 import {
   listDisjointPairs,
   createDisjointPair,
@@ -59,11 +60,12 @@ export function DisjointPairTable() {
         listDisjointPairs(currentDomain.code),
         listTerms(currentDomain.code, { page: 1, page_size: 500 }).catch(() => ({ items: [] as UslTerm[] })),
       ]);
-      setItems(Array.isArray(p) ? p : []);
+      setItems(p.items ?? []);
       const termList: UslTerm[] = 'items' in t ? (t.items as UslTerm[]) : [];
+      const enMap = currentDomain.en_mapping;
       setTermOptions(
         termList.map((tm) => ({
-          label: `${tm.canonical}（${tm.en || '-'}）`,
+          label: `${tm.canonical}（${lookupTermEn(enMap, tm.canonical) || '-'}）`,
           value: tm.canonical,
         })),
       );

@@ -1,6 +1,6 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { render, screen, fireEvent, waitFor } from '@testing-library/react';
-import { IngestPanel } from './IngestPanel';
+import { IngestPanel, getLogError } from './IngestPanel';
 
 // ─── Mocks ───
 
@@ -20,6 +20,24 @@ vi.mock('@/modules/shared', () => ({
   },
   fetchJson: vi.fn(),
   API_BASE: 'http://localhost:8000',
+  // 轻量桩：按列 render 展开数据行，便于断言行内按钮
+  AdvancedTable: ({ dataSource, columns }: { dataSource: any[]; columns: any[] }) => (
+    <table>
+      <tbody>
+        {dataSource.map((record, rowIndex) => (
+          <tr key={record.id}>
+            {columns.map((col, colIndex) => (
+              <td key={colIndex}>
+                {col.render
+                  ? col.render(record[col.dataIndex], record, rowIndex)
+                  : record[col.dataIndex]}
+              </td>
+            ))}
+          </tr>
+        ))}
+      </tbody>
+    </table>
+  ),
 }));
 
 vi.mock('../hooks', () => ({
@@ -186,5 +204,136 @@ describe('IngestPanel', () => {
       expect(screen.getByText('生成随机事件')).toBeTruthy();
       expect(screen.getByText('事件类型：')).toBeTruthy();
     });
+  });
+
+  it('shows the concrete failure reason when a stage failed', async () => {
+    const shared = await import('@/modules/shared');
+    const apiMock = shared.api as unknown as Record<string, ReturnType<typeof vi.fn>>;
+
+    apiMock.getIngestHistory.mockResolvedValue([
+      {
+        id: 'ing-1',
+        source: 'manual',
+        status: 'failed',
+        record_count: 1,
+        processed_count: 0,
+        failed_count: 1,
+        start_time: '2026-09-24T10:00:00.000Z',
+        build_status: 'failed',
+        builds: [],
+      },
+    ]);
+
+    // 后端两个来源都可能带原因：error_message 与 details.error
+    apiMock.getFullIngestRecord.mockResolvedValue({
+      id: 'ing-1',
+      source: 'manual',
+      status: 'failed',
+      start_time: '2026-09-24T10:00:00.000Z',
+      logs: [
+        {
+          id: 'log-llm-1',
+          ingest_id: 'ing-1',
+          stage: 'llm',
+          operation: 'LLM归纳失败',
+          details: { error: '[ValueError] 401 Unauthorized: invalid api key' },
+          status: 'failed',
+          error_message: '[ValueError] 401 Unauthorized: invalid api key',
+          duration_ms: 12,
+          timestamp: '2026-09-24T10:00:05.000Z',
+        },
+      ],
+      builds: [],
+    });
+
+    render(<IngestPanel />);
+
+    await waitFor(() => {
+      expect(screen.getByText('详情')).toBeTruthy();
+    });
+
+    fireEvent.click(screen.getByText('详情'));
+
+    await waitFor(() => {
+      // 失败原因必须显式展示出来，而不是只显示一句“失败”
+      expect(screen.getByText('构建失败，原因如下')).toBeTruthy();
+      expect(screen.getByText('构建失败')).toBeTruthy();
+      // 汇总区与时间线详情都会展示该原因，允许出现多次
+      expect(
+        screen.getAllByText('[ValueError] 401 Unauthorized: invalid api key').length
+      ).toBeGreaterThan(0);
+    });
+  });
+
+  it('falls back to a hint when the backend provides no error text', async () => {
+    const shared = await import('@/modules/shared');
+    const apiMock = shared.api as unknown as Record<string, ReturnType<typeof vi.fn>>;
+
+    apiMock.getIngestHistory.mockResolvedValue([
+      {
+        id: 'ing-2',
+        source: 'manual',
+        status: 'failed',
+        record_count: 1,
+        processed_count: 0,
+        failed_count: 1,
+        start_time: '2026-09-24T10:00:00.000Z',
+        build_status: 'failed',
+        builds: [],
+      },
+    ]);
+
+    apiMock.getFullIngestRecord.mockResolvedValue({
+      id: 'ing-2',
+      source: 'manual',
+      status: 'failed',
+      start_time: '2026-09-24T10:00:00.000Z',
+      logs: [
+        {
+          id: 'log-llm-2',
+          ingest_id: 'ing-2',
+          stage: 'llm',
+          operation: 'LLM归纳失败',
+          details: {},
+          status: 'failed',
+          duration_ms: 5,
+          timestamp: '2026-09-24T10:00:05.000Z',
+        },
+      ],
+      builds: [],
+    });
+
+    render(<IngestPanel />);
+
+    await waitFor(() => {
+      expect(screen.getByText('详情')).toBeTruthy();
+    });
+
+    fireEvent.click(screen.getByText('详情'));
+
+    await waitFor(() => {
+      expect(screen.getByText('构建失败，原因如下')).toBeTruthy();
+      expect(
+        screen.getAllByText('未提供具体错误信息，请查看服务端日志').length
+      ).toBeGreaterThan(0);
+    });
+  });
+});
+
+describe('getLogError', () => {
+  it('prefers the top-level error_message', () => {
+    expect(getLogError({ error_message: 'E1', details: { error: 'E2' } })).toBe('E1');
+  });
+
+  it('falls back to details.error when error_message is absent', () => {
+    expect(getLogError({ details: { error: 'E2' } })).toBe('E2');
+  });
+
+  it('returns undefined when neither source has an error', () => {
+    expect(getLogError({ details: { input: { a: 1 } } })).toBeUndefined();
+  });
+
+  it('ignores a non-string details.error', () => {
+    expect(getLogError({ details: { error: { nested: true } } })).toBeUndefined();
   });
 });

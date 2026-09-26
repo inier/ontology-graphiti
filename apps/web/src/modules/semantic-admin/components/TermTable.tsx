@@ -28,10 +28,11 @@ import {
 import {
   SEMANTIC_TYPE_LABEL,
   SEMANTIC_TYPE_COLOR,
+  lookupTermEn,
   type UslTerm,
   type SemanticType,
 } from '../types';
-import { listTerms, updateTerm } from '../services/uslApi';
+import { listTerms, updateTerm, deleteTerm } from '../services/uslApi';
 import { useSemanticAdminStore } from '../store/useSemanticAdminStore';
 import { useUslPermissions } from '../hooks/useUslPermissions';
 import { TermForm, type TermFormValues } from './TermForm';
@@ -69,8 +70,7 @@ export function TermTable() {
       });
       // 前端本地过滤 stoplist：后端 list_terms 未开放 stoplist 查询参数
       const needStoplistFilter = filters.termStoplist !== null
-        && filters.termStoplist !== undefined
-        && filters.termStoplist !== '';
+        && filters.termStoplist !== undefined;
       const list = res.items || [];
       const filtered = needStoplistFilter
         ? list.filter((t) => Boolean(t.stoplist_flag) === Boolean(filters.termStoplist))
@@ -112,6 +112,11 @@ export function TermTable() {
   };
 
   const handleDelete = (record: UslTerm) => {
+    if (!record.id) {
+      message.warning('当前行无 ID，无法删除（请确认后端已持久化该术语）');
+      return;
+    }
+    const termId = record.id;
     modal.confirm({
       title: `删除术语「${record.canonical}」？`,
       icon: <ExclamationCircleFilled />,
@@ -119,9 +124,14 @@ export function TermTable() {
       okButtonProps: { danger: true },
       cancelText: '取消',
       content: '删除后同义词/近义词/别名等信息都将丢失；停用建议用 Stoplist 开关',
-      onOk: () => {
-        // 复用更新模式：后端未暴露 delete term，提示待上线
-        message.info('删除术语接口待上线；当前可使用 Stoplist 停用');
+      onOk: async () => {
+        try {
+          await deleteTerm(termId);
+          message.success(`术语「${record.canonical}」已删除`);
+          void fetchData();
+        } catch (err) {
+          message.error(`删除失败：${err instanceof Error ? err.message : String(err)}`);
+        }
       },
     });
   };
@@ -151,9 +161,12 @@ export function TermTable() {
     },
     {
       title: '英文 en',
-      dataIndex: 'en',
+      key: 'en',
       width: 160,
-      render: (v?: string) => v ? <Text code>{v}</Text> : <Text type="secondary">—</Text>,
+      render: (_: unknown, r) => {
+        const en = lookupTermEn(currentDomain?.en_mapping, r.canonical);
+        return en ? <Text code>{en}</Text> : <Text type="secondary">—</Text>;
+      },
     },
     {
       title: '同义词',

@@ -2,7 +2,7 @@ import { useState, useCallback, useMemo } from 'react';
 import {
   Tabs, Card, Button, Modal, Tag, Space, Input, Select,
   Empty, Descriptions, Alert, Popconfirm, message, Row, Col, Divider,
-  Badge, Tooltip, Radio,
+  Badge, Tooltip, Radio, Switch,
 } from 'antd';
 import { ProForm as Form } from '@ant-design/pro-components';
 import {
@@ -587,6 +587,7 @@ function IngestTab() {
   const ontologyStore = useOntologyStore();
   const [extractionMode, setExtractionMode] = useState<'constrained' | 'exploratory'>('constrained');
   const [sourceType, setSourceType] = useState('natural_language');
+  const [autoPipeline, setAutoPipeline] = useState(false);
   const [ingestText, setIngestText] = useState('');
   const [ingesting, setIngesting] = useState(false);
   const [validationResult, setValidationResult] = useState<{ valid: boolean; errors?: string[]; warnings?: string[] } | null>(null);
@@ -602,15 +603,30 @@ function IngestTab() {
     try {
       const { apiClient } = await import('@/modules/shared/services/apiClient');
       const { API_BASE } = await import('@/config');
-      const result = await apiClient.post(`${API_BASE}/api/ingest/unified`, {
+      const result = await apiClient.post<{
+        status?: string;
+        pipeline_triggered?: boolean;
+        pipeline_trigger_reason?: string;
+        [k: string]: unknown;
+      }>(`${API_BASE}/api/ingest/unified`, {
         source_type: sourceType,
         text: ingestText,
         ontology_id: ontologyId,
         extraction_mode: extractionMode,
         workspace_id: ontologyStore.currentOntology?.workspace_id,
         scenario_id: ontologyStore.currentOntology?.scenario_id,
+        config: { auto_pipeline: autoPipeline },
       });
       message.success(t('unified.ingestComplete'));
+      // 规则 14：把后端回报的自动抽取触发状态显式呈现，杜绝「静默无新增」伪成功
+      if (result.pipeline_triggered) {
+        message.info(result.pipeline_trigger_reason ?? t('已异步触发 OL 语义抽取流水线（L1~L6）'));
+      } else {
+        message.warning(
+          `${t('未触发自动语义抽取')}：${result.pipeline_trigger_reason ?? ''}`,
+          6,
+        );
+      }
       setIngestHistory((prev) => [{ ...result, _key: Date.now() }, ...prev].slice(0, 10));
       setIngestText('');
     } catch (e) {
@@ -618,7 +634,7 @@ function IngestTab() {
     } finally {
       setIngesting(false);
     }
-  }, [ingestText, ontologyId, sourceType, extractionMode, ontologyStore.currentOntology, t]);
+  }, [ingestText, ontologyId, sourceType, extractionMode, autoPipeline, ontologyStore.currentOntology, t]);
 
   const handleValidate = useCallback(async () => {
     if (!ontologyId) { message.warning(t('unified.selectOntologyWarn')); return; }
@@ -654,6 +670,16 @@ function IngestTab() {
           </Descriptions.Item>
           <Descriptions.Item label={t('unified.dataSourceType')} span={2}>
             <Select value={sourceType} onChange={setSourceType} options={SOURCE_TYPE_OPTIONS} style={{ width: 200 }} />
+          </Descriptions.Item>
+          <Descriptions.Item label={t('自动抽取业务语义')} span={2}>
+            <Space>
+              <Switch size="small" checked={autoPipeline} onChange={setAutoPipeline} />
+              <Tooltip title={t('开启后，自然语言摄入将异步触发 OL 流水线（L1~L6）自动抽取候选术语并提交审核；结构化源请走语义资产流水线')}>
+                <span style={{ color: 'var(--ant-color-text-secondary)' }}>
+                  {autoPipeline ? t('已开启（仅自然语言摄入生效）') : t('关闭（默认）')}
+                </span>
+              </Tooltip>
+            </Space>
           </Descriptions.Item>
         </Descriptions>
       </Card>

@@ -123,7 +123,15 @@ export function TermForm({ open, mode, initial, onCancel, onSubmitted }: TermFor
         const created = await createTerm(payload);
         message.success(`术语「${created.canonical}」创建成功`);
       } else if (mode === 'edit' && initial?.id) {
-        const updated = await updateTerm(initial.id, payload);
+        // 后端 UpdateTermRequest extra="forbid"，不收 domain_id/canonical（身份字段），
+        // 只收可编辑字段，否则 422。
+        const updated = await updateTerm(initial.id, {
+          semantic_type: payload.semantic_type,
+          synonyms: payload.synonyms,
+          near_synonyms: payload.near_synonyms,
+          aliases: payload.aliases,
+          stoplist_flag: payload.stoplist_flag,
+        });
         message.success(`术语「${updated.canonical}」更新成功`);
       } else if (mode === 'edit' && !initial?.id) {
         message.warning('当前行无 ID，无法更新（请确认后端已持久化该术语）');
