@@ -1,132 +1,109 @@
-"""Semantic Admin Ingest→Pipeline 单元测试（AGENTS.md §C，≤250 LOC）。"""
+"""Semantic Admin Ingest→Pipeline 单元测试。
+
+规则 14 #6：测试必须执行真实函数体。本文件直接导入并调用
+`odap.biz.data.ingest.api.routes._decide_auto_pipeline`（真实触发判定）与
+`UnifiedIngestResponse`，不再本地复刻 `_auto`/`_s2b` 自测自评——旧版正是
+「测试全绿、功能实际全死」的根源：它断言的 config-覆盖-env 语义真实代码从未实现。
+"""
 from __future__ import annotations
 
-import json
 import os
-from enum import Enum
-from typing import Any, Dict, Optional
-from unittest.mock import MagicMock, AsyncMock, patch
+from unittest.mock import patch
 
 import pytest
 
 try:
-    from pydantic import BaseModel, Field, ConfigDict
+    from odap.biz.data.ingest.api.routes import (
+        _decide_auto_pipeline,
+        UnifiedIngestResponse,
+    )
 except Exception as _exc:  # pragma: no cover
-    pytest.skip(f"Pydantic unavailable: {_exc}", allow_module_level=True)
+    pytest.skip(f"ingest routes 导入失败: {_exc}", allow_module_level=True)
 
 
-class IngestSourceType(str, Enum):
-    NATURAL_LANGUAGE = "natural_language"
-    MANUAL = "manual"
-    JSON = "json"
+class TestDecideAutoPipeline:
+    """真实触发判定：有 workspace_id + 开关开启 + natural_language 三者全满足才触发。"""
 
-
-class UnifiedIngestRequest(BaseModel):
-    """统一摄入请求 Schema（T2：新增 config 可选 Dict）。"""
-    model_config = ConfigDict(strict=False, extra="ignore")
-    workspace_id: str
-    source_type: str = IngestSourceType.NATURAL_LANGUAGE.value
-    text: Optional[str] = None
-    ontology_id: Optional[str] = None
-    scenario_id: Optional[str] = None
-    extraction_mode: str = "constrained"
-    config: Optional[Dict[str, Any]] = Field(default=None)
-
-
-def _s2b(v: Any) -> bool:
-    if isinstance(v, bool):
-        return v
-    if v is None:
-        return False
-    return str(v).strip().lower() in {"1", "true", "yes", "on"}
-
-
-def _auto(req: UnifiedIngestRequest, env_default: Optional[str] = None) -> bool:
-    cfg = req.config or {}
-    if "auto_pipeline" in cfg:
-        return bool(cfg["auto_pipeline"])
-    return _s2b(env_default)
-
-
-# 1. Schema Tests -----------------------------------------------------------
-class TestIngestRequestSchema:
-    def test_config_optional(self):
-        r1 = UnifiedIngestRequest(workspace_id="w1", text="a")
-        assert r1.config is None
-        r2 = UnifiedIngestRequest(
-            workspace_id="w1", text="a",
-            config={"auto_pipeline": True, "l1": {"n": 2}},
+    def test_natural_language_with_config_true_triggers(self):
+        triggered, reason = _decide_auto_pipeline(
+            ws_id="w1", source_type="natural_language",
+            req_cfg={"auto_pipeline": True},
         )
-        assert r2.config == {"auto_pipeline": True, "l1": {"n": 2}}
+        assert triggered is True
+        assert "触发" in reason
 
-    def test_json_roundtrip(self):
-        r = UnifiedIngestRequest(
-            workspace_id="w1", text="Hi",
-            config={"auto_pipeline": True, "x": "军事"},
+    def test_env_true_triggers_without_config(self):
+        with patch.dict(os.environ, {"INGEST_AUTO_PIPELINE_DEFAULT": "true"}):
+            triggered, _ = _decide_auto_pipeline(
+                ws_id="w1", source_type="natural_language", req_cfg={},
+            )
+        assert triggered is True
+
+    def test_config_false_does_not_override_env_true(self):
+        # 真实语义是 OR：config.auto_pipeline=False + env=true → 仍触发。
+        # 旧假测试断言此处为 False（config 覆盖 env），是生产代码从未实现的语义。
+        # 「显式 opt-out 应压过服务端默认」是待评审的行为变更，此处只固化现状。
+        with patch.dict(os.environ, {"INGEST_AUTO_PIPELINE_DEFAULT": "true"}):
+            triggered, _ = _decide_auto_pipeline(
+                ws_id="w1", source_type="natural_language",
+                req_cfg={"auto_pipeline": False},
+            )
+        assert triggered is True
+
+    def test_default_env_false_no_trigger(self):
+        with patch.dict(os.environ, {"INGEST_AUTO_PIPELINE_DEFAULT": "false"}):
+            triggered, reason = _decide_auto_pipeline(
+                ws_id="w1", source_type="natural_language", req_cfg={},
+            )
+        assert triggered is False
+        assert "开关未开启" in reason
+
+    def test_unset_env_defaults_to_false_no_trigger(self):
+        with patch.dict(os.environ, {"INGEST_AUTO_PIPELINE_DEFAULT": ""}):
+            os.environ.pop("INGEST_AUTO_PIPELINE_DEFAULT", None)
+            triggered, reason = _decide_auto_pipeline(
+                ws_id="w1", source_type="natural_language", req_cfg={},
+            )
+        assert triggered is False
+        assert "开关未开启" in reason
+
+    def test_structured_source_never_triggers(self):
+        triggered, reason = _decide_auto_pipeline(
+            ws_id="w1", source_type="json", req_cfg={"auto_pipeline": True},
         )
-        j = r.model_dump_json()
-        p = json.loads(j)
-        assert p["config"] == {"auto_pipeline": True, "x": "军事"}
-        r2 = UnifiedIngestRequest.model_validate(p)
-        assert r2.config == r.config
+        assert triggered is False
+        assert "natural_language" in reason
 
-    def test_empty_dict_and_none_both_valid(self):
-        a = UnifiedIngestRequest(workspace_id="w", text="a", config={})
-        assert a.config == {}
-        b = UnifiedIngestRequest(workspace_id="w", text="a", config=None)
-        assert b.config is None
-
-
-# 2. Auto Pipeline Switch（Env default） -------------------------------------
-_SENTINEL = object()
+    def test_missing_workspace_no_trigger(self):
+        triggered, reason = _decide_auto_pipeline(
+            ws_id=None, source_type="natural_language",
+            req_cfg={"auto_pipeline": True},
+        )
+        assert triggered is False
+        assert "workspace_id" in reason
 
 
-class TestAutoPipelineSwitch:
-    @patch("asyncio.create_task")
-    def test_env_true_triggers(self, mock_ct: MagicMock):
-        with patch.dict(os.environ, {"INGEST_AUTO_PIPELINE_DEFAULT": "true"}):
-            req = UnifiedIngestRequest(workspace_id="w1", text="三国：刘备、关羽")
-            ok = _auto(req, os.environ.get("INGEST_AUTO_PIPELINE_DEFAULT"))
-            assert ok is True
-            if ok:
-                mock_ct(AsyncMock())  # 用 AsyncMock 避免未 await 警告
-            assert mock_ct.called and mock_ct.call_count >= 1
+class TestResponseObservability:
+    """规则 14：摄入响应必须携带触发状态字段，杜绝静默伪成功。"""
 
-    @patch("asyncio.create_task")
-    def test_env_false_no_trigger(self, mock_ct: MagicMock):
-        with patch.dict(os.environ, {"INGEST_AUTO_PIPELINE_DEFAULT": "false"}):
-            req = UnifiedIngestRequest(workspace_id="w1", text="Test")
-            ok = _auto(req, os.environ.get("INGEST_AUTO_PIPELINE_DEFAULT"))
-            assert ok is False
-            if ok:
-                mock_ct(_SENTINEL)
-            assert not mock_ct.called
+    def test_response_defaults_not_triggered(self):
+        r = UnifiedIngestResponse(status="success", source_type="json")
+        assert r.pipeline_triggered is False
+        assert r.pipeline_trigger_reason is None
 
+    def test_response_carries_trigger_reason(self):
+        r = UnifiedIngestResponse(
+            status="success", source_type="natural_language",
+            pipeline_triggered=True, pipeline_trigger_reason="已触发",
+        )
+        assert r.pipeline_triggered is True
+        assert r.pipeline_trigger_reason == "已触发"
 
-# 3. Config Override Env ----------------------------------------------------
-class TestConfigSwitchOverridesEnv:
-    @patch("asyncio.create_task")
-    def test_payload_true_overrides_env_false(self, mock_ct: MagicMock):
-        with patch.dict(os.environ, {"INGEST_AUTO_PIPELINE_DEFAULT": "false"}):
-            req = UnifiedIngestRequest(
-                workspace_id="w1", text="Auto trigger",
-                config={"auto_pipeline": True},
-            )
-            ok = _auto(req, os.environ.get("INGEST_AUTO_PIPELINE_DEFAULT"))
-            assert ok is True
-            if ok:
-                mock_ct(AsyncMock())
-            assert mock_ct.called and mock_ct.call_count == 1
-
-    @patch("asyncio.create_task")
-    def test_payload_false_overrides_env_true(self, mock_ct: MagicMock):
-        with patch.dict(os.environ, {"INGEST_AUTO_PIPELINE_DEFAULT": "true"}):
-            req = UnifiedIngestRequest(
-                workspace_id="w1", text="No pipeline",
-                config={"auto_pipeline": False},
-            )
-            ok = _auto(req, os.environ.get("INGEST_AUTO_PIPELINE_DEFAULT"))
-            assert ok is False
-            if ok:
-                mock_ct(_SENTINEL)
-            assert not mock_ct.called
+    def test_extra_result_keys_ignored(self):
+        # 路由层用 UnifiedIngestResponse(**result, ...) 构造，facade 多余键须被忽略
+        r = UnifiedIngestResponse(
+            **{"status": "success", "source_type": "json", "unknown_key": 1},
+            pipeline_triggered=False, pipeline_trigger_reason="n/a",
+        )
+        assert r.status == "success"
+        assert r.pipeline_trigger_reason == "n/a"

@@ -244,29 +244,60 @@ class TestStorageDomain:
         assert got["display_name"] == "New"
         assert got["en_mapping"] == {"b": "B"}
 
-    def test_delete_domain_returns_bool(self, tmp_path: Path):
+    def test_delete_domain_reports_counts_and_removes_domain_row(self, tmp_path: Path):
         storage = SQLiteUslStorage(str(tmp_path / "t.db"))
-        assert storage.delete_domain("nope") is False
+        unknown = storage.delete_domain("nope")
+        assert unknown["deleted"] is False
+        assert unknown["resolved"] is False
         d = _make_domain(code="x")
         storage.save_domain(d)
-        assert storage.delete_domain(d["id"]) is True
+        result = storage.delete_domain(d["id"])
+        assert result["deleted"] is True
+        assert result["code"] == "x"
+        assert result["counts"]["usl_domains"] == 1
         assert storage.get_domain(d["id"]) is None
+        assert storage.get_domain("x") is None
+
+    def test_delete_domain_unknown_ref_deletes_nothing(self, tmp_path: Path):
+        """解析不到的 ref 必须一行都不删。
+
+        旧实现无条件 `DELETE FROM usl_terms WHERE domain_id = <传入值>`：传一个不存在
+        的 ref 时，任何 domain_id 字面等于它的子记录都会被清掉，而领域行一行没删、
+        还返回 False（毁数据 + 报失败）。
+        """
+        storage = SQLiteUslStorage(str(tmp_path / "t.db"))
+        d = _make_domain(code="keep")
+        storage.save_domain(d)
+        storage.save_term(_make_term("keep", canonical="T1"))
+
+        result = storage.delete_domain("ghost-code")
+
+        assert result["deleted"] is False
+        _, total = storage.list_terms(domain_id="keep", page_size=100)
+        assert total == 1
+        assert storage.get_domain("keep") is not None
 
     def test_delete_domain_cascades_all_child_tables(self, tmp_path: Path):
+        """级联必须同时清掉 code 键与历史 uuid 键写下的子记录。
+
+        子表 domain_id 列没有外键，历史上被两套值写过（前端传 code、
+        seed_sanguo_xiyou.py:554 传 uuid），所以这个用例刻意两种键都写，
+        并用裸 SQL COUNT 断言 —— 走 list_* 会被读路径的双键展开掩盖漏删。
+        """
         storage = SQLiteUslStorage(str(tmp_path / "t.db"))
         d = _make_domain(code="casc")
         storage.save_domain(d)
         did = d["id"]
-        # 写入各 2 条子记录
-        storage.save_term(_make_term(did, canonical="T1"))
-        storage.save_term(_make_term(did, canonical="T2"))
+        # 一半用 uuid 键（seed 迁移的写法），一半用 code 键（前端的写法）
+        storage.save_term(_make_term(did, canonical="T-uuid"))
+        storage.save_term(_make_term("casc", canonical="T-code"))
         storage.save_hierarchy({
             "id": str(uuid.uuid4()), "domain_id": did,
             "parent_term": "A", "child_term": "B", "rel_type": "IS_A",
             "confidence": 1.0, "created_at": datetime.now(timezone.utc).isoformat(),
         })
         storage.save_hierarchy({
-            "id": str(uuid.uuid4()), "domain_id": did,
+            "id": str(uuid.uuid4()), "domain_id": "casc",
             "parent_term": "C", "child_term": "D", "rel_type": "IS_A",
             "confidence": 1.0, "created_at": datetime.now(timezone.utc).isoformat(),
         })
@@ -276,7 +307,7 @@ class TestStorageDomain:
             "unit": None, "required_flag": 1, "description": "",
         })
         storage.save_disjoint_pair({
-            "id": str(uuid.uuid4()), "domain_id": did,
+            "id": str(uuid.uuid4()), "domain_id": "casc",
             "term_a": "T1", "term_b": "T2", "reason": "",
         })
         storage.save_cardinality({
@@ -284,22 +315,256 @@ class TestStorageDomain:
             "rel_name": "效力于", "domain_term": "T1", "range_term": "T2",
             "min_card": 0, "max_card": None,
         })
-        # 删除前有子记录
-        _, t_total = storage.list_terms(domain_id=did, page_size=100)
-        assert t_total == 2
-        # 删除
-        storage.delete_domain(did)
-        # 所有子表清空
-        _, t_total = storage.list_terms(domain_id=did, page_size=100)
-        assert t_total == 0
-        _, h_total = storage.list_hierarchies(domain_id=did, page_size=100)
-        assert h_total == 0
-        _, p_total = storage.list_property_specs(domain_id=did, page_size=100)
-        assert p_total == 0
-        _, dj_total = storage.list_disjoint_pairs(domain_id=did, page_size=100)
-        assert dj_total == 0
-        _, c_total = storage.list_cardinalities(domain_id=did, page_size=100)
-        assert c_total == 0
+
+        result = storage.delete_domain(did)
+
+        assert result["counts"]["usl_terms"] == 2
+        assert result["counts"]["usl_hierarchies"] == 2
+        assert result["counts"]["usl_property_specs"] == 1
+        assert result["counts"]["usl_disjoint_pairs"] == 1
+        assert result["counts"]["usl_cardinalities"] == 1
+        conn = sqlite3.connect(str(tmp_path / "t.db"))
+        try:
+            for table in (
+                "usl_terms",
+                "usl_hierarchies",
+                "usl_property_specs",
+                "usl_disjoint_pairs",
+                "usl_cardinalities",
+            ):
+                left = conn.execute(
+                    f"SELECT COUNT(*) FROM {table} WHERE domain_id IN (?, ?)",
+                    (did, "casc"),
+                ).fetchone()[0]
+                assert left == 0, f"{table} 仍有 {left} 条残留"
+            domains_left = conn.execute(
+                "SELECT COUNT(*) FROM usl_domains WHERE code = ? OR id = ?",
+                ("casc", did),
+            ).fetchone()[0]
+            assert domains_left == 0
+        finally:
+            conn.close()
+
+
+# =====================================================================
+# 2b. domain_ref 双键归一（code / uuid split-brain 回归）
+# =====================================================================
+
+
+def _raw_child_count(db_path: Path, table: str, domain_id: str) -> int:
+    conn = sqlite3.connect(str(db_path))
+    try:
+        return conn.execute(
+            f"SELECT COUNT(*) FROM {table} WHERE domain_id = ?", (domain_id,)
+        ).fetchone()[0]
+    finally:
+        conn.close()
+
+
+def _insert_legacy_uuid_child(db_path: Path, domain_id: str, term_id: str) -> None:
+    """绕过写入归一，直接种一条历史 uuid 键的子记录（seed 迁移留下的形态）。"""
+    conn = sqlite3.connect(str(db_path))
+    try:
+        conn.execute(
+            "INSERT INTO usl_terms (id, domain_id, canonical, semantic_type,"
+            " synonyms, near_synonyms, aliases, stoplist_flag, definition,"
+            " created_at, updated_at)"
+            " VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
+            (
+                term_id, domain_id, "legacy-uuid-term", "对象类型",
+                "[]", "[]", "[]", 0, "",
+                datetime.now(timezone.utc).isoformat(),
+                datetime.now(timezone.utc).isoformat(),
+            ),
+        )
+        conn.commit()
+    finally:
+        conn.close()
+
+
+class TestDomainRefDualKey:
+    """领域标识双键归一：读认两个键、写只落 code、删两个键都清。"""
+
+    def test_get_domain_accepts_code_and_uuid(self, tmp_path: Path):
+        storage = SQLiteUslStorage(str(tmp_path / "t.db"))
+        d = _make_domain(code="sanguo")
+        storage.save_domain(d)
+        by_code = storage.get_domain("sanguo")
+        by_uuid = storage.get_domain(d["id"])
+        assert by_code is not None and by_uuid is not None
+        assert by_code["id"] == by_uuid["id"] == d["id"]
+        assert storage.get_domain("ghost") is None
+
+    def test_resolve_domain_ref_prefers_code(self, tmp_path: Path):
+        storage = SQLiteUslStorage(str(tmp_path / "t.db"))
+        d = _make_domain(code="xiyou")
+        storage.save_domain(d)
+        assert storage.resolve_domain_ref("xiyou") == (d["id"], "xiyou")
+        assert storage.resolve_domain_ref(d["id"]) == (d["id"], "xiyou")
+        assert storage.resolve_domain_ref("") is None
+        assert storage.resolve_domain_ref("ghost") is None
+
+    def test_child_write_normalizes_uuid_to_code(self, tmp_path: Path):
+        """写入收口：即使调用方传 uuid，落库的 domain_id 也是 code。"""
+        db = tmp_path / "t.db"
+        storage = SQLiteUslStorage(str(db))
+        d = _make_domain(code="norm")
+        storage.save_domain(d)
+        did = d["id"]
+
+        saved = storage.save_term(_make_term(did, canonical="T1"))
+        assert saved["domain_id"] == "norm"
+        assert _raw_child_count(db, "usl_terms", did) == 0
+        assert _raw_child_count(db, "usl_terms", "norm") == 1
+
+        storage.save_hierarchy({
+            "id": str(uuid.uuid4()), "domain_id": did,
+            "parent_term": "A", "child_term": "B", "rel_type": "IS_A",
+            "confidence": 1.0, "created_at": datetime.now(timezone.utc).isoformat(),
+        })
+        assert _raw_child_count(db, "usl_hierarchies", "norm") == 1
+        storage.save_property_spec({
+            "id": str(uuid.uuid4()), "domain_id": did,
+            "for_term": "T1", "prop_name": "p", "data_type": "STRING",
+            "unit": None, "required_flag": 0, "description": "",
+        })
+        assert _raw_child_count(db, "usl_property_specs", "norm") == 1
+        storage.save_disjoint_pair({
+            "id": str(uuid.uuid4()), "domain_id": did,
+            "term_a": "A", "term_b": "B", "reason": "",
+        })
+        assert _raw_child_count(db, "usl_disjoint_pairs", "norm") == 1
+        storage.save_cardinality({
+            "id": str(uuid.uuid4()), "domain_id": did,
+            "rel_name": "r", "domain_term": "A", "range_term": "B",
+            "min_card": 0, "max_card": None,
+        })
+        assert _raw_child_count(db, "usl_cardinalities", "norm") == 1
+
+    def test_read_by_code_sees_legacy_uuid_rows(self, tmp_path: Path):
+        """前端用 code 查术语时，必须看见 seed 迁移用 uuid 写下的历史行。"""
+        db = tmp_path / "t.db"
+        storage = SQLiteUslStorage(str(db))
+        d = _make_domain(code="legacy")
+        storage.save_domain(d)
+        _insert_legacy_uuid_child(db, d["id"], str(uuid.uuid4()))
+        storage.save_term(_make_term("legacy", canonical="new-term"))
+
+        by_code, total_code = storage.list_terms(domain_id="legacy", page_size=100)
+        by_uuid, total_uuid = storage.list_terms(domain_id=d["id"], page_size=100)
+        assert total_code == 2
+        assert total_uuid == 2
+        assert {t["canonical"] for t in by_code} == {t["canonical"] for t in by_uuid}
+
+    def test_legacy_uuid_rows_visible_in_all_child_lists(self, tmp_path: Path):
+        db = tmp_path / "t.db"
+        storage = SQLiteUslStorage(str(db))
+        d = _make_domain(code="legacy2")
+        storage.save_domain(d)
+        did = d["id"]
+        conn = sqlite3.connect(str(db))
+        try:
+            conn.execute(
+                "INSERT INTO usl_hierarchies (id, domain_id, rel_type, parent_term,"
+                " child_term, confidence, created_at) VALUES (?, ?, ?, ?, ?, ?, ?)",
+                (str(uuid.uuid4()), did, "IS_A", "A", "B", 1.0,
+                 datetime.now(timezone.utc).isoformat()),
+            )
+            conn.commit()
+        finally:
+            conn.close()
+        _, total = storage.list_hierarchies(domain_id="legacy2", page_size=100)
+        assert total == 1
+
+    def test_unresolvable_domain_ref_is_kept_and_warned(self, tmp_path: Path, caplog):
+        """解析不到的 ref 原样保留并 warning，不按命名约定猜测归一（规则 14 要求 4）。"""
+        db = tmp_path / "t.db"
+        storage = SQLiteUslStorage(str(db))
+        with caplog.at_level("WARNING"):
+            saved = storage.save_term(_make_term("USL__ghost", canonical="T1"))
+        assert saved["domain_id"] == "USL__ghost"
+        assert _raw_child_count(db, "usl_terms", "USL__ghost") == 1
+        assert any("USL__ghost" in r.getMessage() for r in caplog.records)
+
+    def test_read_with_unknown_ref_does_not_match_other_domains(self, tmp_path: Path):
+        storage = SQLiteUslStorage(str(tmp_path / "t.db"))
+        d = _make_domain(code="real")
+        storage.save_domain(d)
+        storage.save_term(_make_term("real", canonical="T1"))
+        _, total = storage.list_terms(domain_id="ghost", page_size=100)
+        assert total == 0
+
+
+class TestFrontendDomainFlowWithCode:
+    """业务人员视角的端到端：前端全程只持有 code，必须能查、能改、能加术语。
+
+    这条链路在修复前是断的 —— get_domain 只做 `WHERE id = ?`，于是
+    GET/PUT /domains/{code} 一律 404，create_term 被 _ensure_domain_exists
+    判为「领域不存在」，前端 DomainForm 只 console.warn 后打开空表单。
+    """
+
+    def _service(self, tmp_path: Path):
+        from odap.biz.semantic_admin.usl_manager.services import UslManagerService
+
+        storage = SQLiteUslStorage(str(tmp_path / "t.db"))
+        return UslManagerService(storage=storage), storage
+
+    def test_domain_edit_and_term_creation_by_code(self, tmp_path: Path):
+        svc, _ = self._service(tmp_path)
+        created = svc.create_domain({"code": "sanguo", "display_name": "三国"})
+        assert created.get("status") != "error"
+        code = created["code"]
+
+        got = svc.get_domain(code)
+        assert got.get("status") != "error", got
+        assert got["display_name"] == "三国"
+
+        updated = svc.update_domain(code, {"display_name": "三国演义"})
+        assert updated.get("status") != "error", updated
+        assert updated["display_name"] == "三国演义"
+        assert updated["code"] == code
+        assert updated["id"] == created["id"]
+
+        term = svc.create_term({
+            "domain_id": code, "canonical": "刘备", "semantic_type": "对象类型",
+        })
+        assert term.get("status") != "error", term
+        assert term["domain_id"] == code
+
+        listed = svc.list_terms(domain_id=code, page_size=100)
+        assert listed["total"] == 1
+
+    def test_domain_flow_also_works_with_uuid(self, tmp_path: Path):
+        """uuid 调用方（seed 迁移 / QueryPipeline）不能被这次修复打断。"""
+        svc, _ = self._service(tmp_path)
+        created = svc.create_domain({"code": "xiyou", "display_name": "西游"})
+        did = created["id"]
+        assert svc.get_domain(did)["display_name"] == "西游"
+        assert svc.update_domain(did, {"display_name": "西游记"})["display_name"] == "西游记"
+        term = svc.create_term({
+            "domain_id": did, "canonical": "孙悟空", "semantic_type": "对象类型",
+        })
+        assert term.get("status") != "error", term
+        # 写入归一到 code，因此用 code 也查得到
+        assert term["domain_id"] == "xiyou"
+        assert svc.list_terms(domain_id="xiyou", page_size=100)["total"] == 1
+        assert svc.list_terms(domain_id=did, page_size=100)["total"] == 1
+
+    def test_delete_by_code_reports_cascade_counts(self, tmp_path: Path):
+        svc, _ = self._service(tmp_path)
+        created = svc.create_domain({"code": "del", "display_name": "D"})
+        svc.create_term({"domain_id": "del", "canonical": "T1"})
+        result = svc.delete_domain("del")
+        assert result["status"] == "ok"
+        assert result["deleted"] is True
+        assert result["cascade_counts"]["usl_terms"] == 1
+        assert svc.get_domain("del")["status"] == "error"
+
+    def test_delete_unknown_domain_is_404_not_silent_success(self, tmp_path: Path):
+        svc, _ = self._service(tmp_path)
+        result = svc.delete_domain("ghost")
+        assert result["status"] == "error"
+        assert "不存在" in result["message"]
 
 
 # =====================================================================

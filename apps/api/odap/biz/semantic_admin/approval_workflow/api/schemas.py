@@ -174,7 +174,12 @@ class ApprovalListResponse(BaseModel):
 # ======================================================================
 
 class AuditRequest(BaseModel):
-    """POST /tasks/{task_id}/audit（schema_auditor L1 决策）。"""
+    """POST /tasks/{task_id}/audit（schema_auditor L1 决策）。
+
+    approve 必填且无默认值：漏传就是 422，而不是被静默当成「驳回」。
+    decisions 只承载附加明细（l1_fields_ok / quality_ok / ...），不参与判定。
+    """
+    approve: bool
     comment: str = ""
     decisions: Dict[str, Any] = Field(default_factory=dict)
 

@@ -24,9 +24,12 @@
 
 from __future__ import annotations
 
+import logging
 from datetime import datetime, timedelta
 from enum import Enum
 from typing import Any, Dict, List, Optional, TYPE_CHECKING
+
+logger = logging.getLogger(__name__)
 
 if TYPE_CHECKING:  # pragma: no cover
     from odap.biz.semantic_admin.candidate_store.storage.sqlite_candidate_storage import (
@@ -471,11 +474,52 @@ class ApprovalService:
                     ),
                 }
             next_status = "APPROVED" if dec == "APPROVE" else "REJECTED"
-            self.candidate_storage.update_candidate_status(
-                candidate_id,
-                next_status,
-                provenance=dict(cand.get("provenance") or {}),
-            )
+
+            # 写回必须在状态翻转之前：promote_to_usl 失败时返回 {"status":"error"}
+            # 而不抛异常，若先把 status 置成 APPROVED，上面的 PENDING_L2 守卫会让重试
+            # 永久被拒 —— 候选卡死在「已批准但从未写回 USL」，且没有任何接口能再推进它。
+            promote_result: Optional[Dict[str, Any]] = None
+            wrote_back = False
+            if dec == "APPROVE":
+                from odap.biz.semantic_admin.candidate_store.services.candidate_service import (
+                    CandidateService,
+                )
+                cs = CandidateService(storage=self.candidate_storage)
+                promote_result = cs.promote_to_usl(
+                    candidate_id=candidate_id,
+                    admin_id=reviewer_id,
+                    force_overwrite=overwrite,
+                )
+                if (
+                    isinstance(promote_result, dict)
+                    and promote_result.get("status") == "error"
+                ):
+                    logger.error(
+                        "L2 审批通过但 USL 写回失败，candidate.status 保持 %s 以便重试: %s",
+                        current_status, promote_result.get("message"),
+                    )
+                    return {
+                        "status": "error",
+                        "code": "PROMOTE_TO_USL_FAILED_502",
+                        "message": (
+                            "L2 审批通过但写回 USL 失败，候选状态未变更，可重试: "
+                            f"{promote_result.get('message')}"
+                        ),
+                        "candidate_id": candidate_id,
+                        "promote_to_usl": promote_result,
+                    }
+                # promote_to_usl 成功时已把 status 置 WRITTEN_BACK，并写入
+                # writeback_usl_term_id / graphiti_* 溯源；此处不得再用翻转前的旧
+                # provenance 覆写，否则写回溯源会被抹掉。
+                next_status = "WRITTEN_BACK"
+                wrote_back = True
+
+            if not wrote_back:
+                self.candidate_storage.update_candidate_status(
+                    candidate_id,
+                    next_status,
+                    provenance=dict(cand.get("provenance") or {}),
+                )
             self.candidate_storage.save_approval_log({
                 "candidate_id": candidate_id,
                 "level": "L2",
@@ -496,17 +540,6 @@ class ApprovalService:
                     "to_status": next_status,
                 },
             )
-            promote_result: Optional[Dict[str, Any]] = None
-            if dec == "APPROVE":
-                from odap.biz.semantic_admin.candidate_store.services.candidate_service import (
-                    CandidateService,
-                )
-                cs = CandidateService(candidate_storage=self.candidate_storage)
-                promote_result = cs.promote_to_usl(
-                    candidate_id=candidate_id,
-                    overwrite=overwrite,
-                    approver_id=reviewer_id,
-                )
             return {
                 "candidate_id": candidate_id,
                 "level": "L2",
@@ -741,6 +774,7 @@ class ApprovalService:
         *,
         task_id: str,
         approver_id: str,
+        approve: bool,
         comment: str = "",
         decisions: Optional[Dict[str, Any]] = None,
     ) -> Dict[str, Any]:
@@ -748,8 +782,12 @@ class ApprovalService:
 
         - task_id = "appr-task-<cand_id>"
         - candidate.status 必须是 PENDING_REVIEW（否则 409 STATUS_NOT_PENDING_REVIEW_409）
-        - decisions 格式：{approve: bool, l1_fields_ok: bool, quality_ok: bool,
-                           suggestions_ok: bool, ...} 可空
+        - approve 是**必填**的显式决策，不给默认值。历史上它藏在
+          decisions["approve"] 里且默认 False，于是前端只传 {comment} 就能让
+          「点通过」变成「实际驳回」，界面还弹「L1 审核通过」（规则 14 禁止的
+          猜测性默认 + 静默错误动作）。现在漏传直接 TypeError，不可能静默。
+        - decisions 仅承载附加明细（l1_fields_ok / quality_ok / suggestions_ok
+          等），写入 provenance 供追溯，不参与决策判定
         - 状态流转：
             * HIGH/VERY_HIGH + approve=True → ADMIN_PENDING（需要 L2 admin）
             * approve=True（其他 tier）→ AUDITOR_APPROVED（单级通过）
@@ -782,8 +820,7 @@ class ApprovalService:
                     ),
                 }
 
-            dec = decisions or {}
-            approve = bool(dec.get("approve", False))
+            dec = dict(decisions or {})
             tier = str(cand.get("quality_tier") or "").upper()
 
             if approve:
@@ -799,6 +836,7 @@ class ApprovalService:
             new_prov = dict(old_prov)
             new_prov["l1_audited_at"] = datetime.now().isoformat()
             new_prov["l1_audited_by"] = str(approver_id)
+            new_prov["l1_approve"] = bool(approve)
             new_prov["l1_decisions"] = dict(dec)
             self.candidate_storage.update_candidate_status(
                 candidate_id, new_status, provenance=new_prov,
@@ -926,7 +964,7 @@ class ApprovalService:
             from odap.biz.semantic_admin.candidate_store.services.candidate_service import (
                 CandidateService,
             )
-            cs = CandidateService(candidate_storage=self.candidate_storage)
+            cs = CandidateService(storage=self.candidate_storage)
             modify_result = cs.modify_candidate(
                 candidate_id,
                 patch=storage_patch,
@@ -1110,9 +1148,60 @@ class ApprovalService:
                         f"当前={cur_status!r}"
                     ),
                 }
+            if auto_promote and not writeback_now:
+                # promote_to_usl 的语义就是「立即写回 USL」，没有延迟写回分支。
+                # auto_promote=True + writeback_now=False 是自相矛盾的调用，
+                # 不能猜调用方想要哪一个（规则 14：禁止猜测性反推）。
+                return {
+                    "status": "error",
+                    "code": "CONTRADICTORY_WRITEBACK_FLAGS_400",
+                    "message": (
+                        "auto_promote=True 表示立即写回 USL，与 writeback_now=False 冲突；"
+                        "若要「只批准不写回」请传 auto_promote=False"
+                    ),
+                }
+
+            # 写回必须在状态翻转之前：promote_to_usl 失败时返回 {"status":"error"}
+            # 而不抛异常，若先把 status 置成 APPROVED，上面的状态守卫
+            # （ADMIN_PENDING / AUDITOR_APPROVED）会让重试永久被拒 —— 候选卡死在
+            # 「已终审通过但从未写回 USL」，且没有任何接口能再推进它。
+            promote_to_usl_result: Optional[Dict[str, Any]] = None
             new_status = "APPROVED"
-            old_prov = dict(cand.get("provenance") or {})
-            new_prov = dict(old_prov)
+            if auto_promote:
+                from odap.biz.semantic_admin.candidate_store.services.candidate_service import (
+                    CandidateService,
+                )
+                cs = CandidateService(storage=self.candidate_storage)
+                promote_to_usl_result = cs.promote_to_usl(
+                    candidate_id=candidate_id,
+                    admin_id=str(approver_id),
+                    force_overwrite=False,
+                )
+                if (
+                    isinstance(promote_to_usl_result, dict)
+                    and promote_to_usl_result.get("status") == "error"
+                ):
+                    logger.error(
+                        "终审通过但 USL 写回失败，candidate.status 保持 %s 以便重试: %s",
+                        cur_status, promote_to_usl_result.get("message"),
+                    )
+                    return {
+                        "status": "error",
+                        "code": "PROMOTE_TO_USL_FAILED_502",
+                        "message": (
+                            "终审通过但写回 USL 失败，候选状态未变更，可重试: "
+                            f"{promote_to_usl_result.get('message')}"
+                        ),
+                        "task_id": task_id,
+                        "candidate_id": candidate_id,
+                        "promote_to_usl_result": promote_to_usl_result,
+                    }
+                new_status = "WRITTEN_BACK"
+
+            # 写回成功时 promote_to_usl 已写入 writeback_usl_term_id / graphiti_* 溯源，
+            # 必须重读候选再合并，否则终审溯源会覆盖掉写回溯源。
+            fresh = self.candidate_storage.get_candidate(candidate_id) or cand
+            new_prov = dict(fresh.get("provenance") or {})
             new_prov["final_approved_at"] = datetime.now().isoformat()
             new_prov["final_approved_by"] = str(approver_id)
             new_prov["auto_promote"] = bool(auto_promote)
@@ -1147,24 +1236,10 @@ class ApprovalService:
                 },
             )
 
-            # auto_promote：调用 CandidateService.promote_to_usl
-            promote_to_usl_result: Optional[Dict[str, Any]] = None
-            if auto_promote:
-                from odap.biz.semantic_admin.candidate_store.services.candidate_service import (
-                    CandidateService,
-                )
-                cs = CandidateService(candidate_storage=self.candidate_storage)
-                promote_to_usl_result = cs.promote_to_usl(
-                    candidate_id=candidate_id,
-                    approver_id=str(approver_id),
-                    overwrite=False,
-                    force_writeback=bool(writeback_now),
-                )
-
             return {
                 "task_id": task_id,
                 "candidate_id": candidate_id,
-                "new_status": "APPROVED",
+                "new_status": new_status,
                 "approver_id": str(approver_id),
                 "comment": str(comment or ""),
                 "auto_promote": bool(auto_promote),

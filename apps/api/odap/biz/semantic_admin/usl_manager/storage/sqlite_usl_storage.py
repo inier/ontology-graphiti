@@ -17,12 +17,14 @@ datetime 字段（created_at / updated_at）→ isoformat 字符串。
 from __future__ import annotations
 
 import json
+import logging
 import os
 import sqlite3
 import uuid
 from datetime import datetime, timezone
 from typing import Any, Dict, List, Optional, Tuple
 
+logger = logging.getLogger(__name__)
 
 DEFAULT_USL_DB_DIR: str = os.environ.get("DATA_DIR", os.path.join(os.getcwd(), "data"))
 DEFAULT_USL_DB_PATH: str = os.path.join(DEFAULT_USL_DB_DIR, "usl.db")
@@ -330,17 +332,12 @@ class SQLiteUslStorage:
         finally:
             conn.close()
 
-    def get_domain(self, domain_id: str) -> Optional[Dict[str, Any]]:
-        conn = sqlite3.connect(self.db_path)
-        try:
-            conn.row_factory = sqlite3.Row
-            cur = conn.execute("SELECT * FROM usl_domains WHERE id = ?", (domain_id,))
-            row = cur.fetchone()
-            if not row:
-                return None
-            return self._domain_row_to_model(dict(row))
-        finally:
-            conn.close()
+    def get_domain(self, domain_ref: str) -> Optional[Dict[str, Any]]:
+        """按 code 或 id 取领域（code 优先，见 resolve_domain_ref）。"""
+        keys = self.resolve_domain_ref(domain_ref)
+        if keys is None:
+            return None
+        return self.get_domain_by_code(keys[1])
 
     def get_domain_by_code(self, code: str) -> Optional[Dict[str, Any]]:
         conn = sqlite3.connect(self.db_path)
@@ -354,6 +351,77 @@ class SQLiteUslStorage:
         finally:
             conn.close()
 
+    # -----------------------------------------------------------------
+    # domain_ref 解析：code 与 uuid 双键归一
+    # -----------------------------------------------------------------
+    #
+    # 历史包袱：usl_domains.code 是 ADR-079 §7 认定的权威字段，但子表
+    # （usl_terms / usl_hierarchies / usl_property_specs / usl_disjoint_pairs /
+    # usl_cardinalities）的 domain_id 列**没有外键**，历史上被两套值写过：
+    #   - 前端 5 个子表写入组件 + 领域下拉框 → 传 code
+    #   - migrations/seed_sanguo_xiyou.py:554 → 传 save_domain 返回的 uuid
+    # 于是同一个领域的子记录被劈成两半，读 code 看不见 seed 数据，读 uuid 看不见
+    # 前端录入数据；delete_domain 更会「删光子表 + 删不掉领域行」。
+    #
+    # 处理策略（不做数据迁移，不改已落库的行）：
+    #   - 写入路径：在存储层这个唯一收口处把 domain_id 归一为 code
+    #     （_canonical_domain_key），劈叉不再增长；
+    #   - 读取路径：把 ref 展开成 (code, uuid) 两个键一起查
+    #     （_domain_key_clause），历史 uuid 行依然可见；
+    #   - 删除路径：两个键都级联删（delete_domain）。
+    # 归一失败时**不猜**（规则 14 要求 4：禁止按命名约定反推），原样保留并
+    # warning 记录，让悬空引用暴露出来而不是被静默改写成另一个值。
+
+    def resolve_domain_ref(self, domain_ref: str) -> Optional[Tuple[str, str]]:
+        """把 code 或 uuid 解析为 (id, code)；都查不到返回 None。
+
+        code 优先：code 上有 UNIQUE 约束且是权威字段，uuid 只是内部主键。
+        """
+        if not domain_ref:
+            return None
+        conn = sqlite3.connect(self.db_path)
+        try:
+            conn.row_factory = sqlite3.Row
+            # 两次独立查询而不是 WHERE code = ? OR id = ?：OR 不保证优先级，
+            # 万一某个领域的 code 恰好等于另一个领域的 id，结果就取决于查询计划。
+            for column in ("code", "id"):
+                cur = conn.execute(
+                    f"SELECT id, code FROM usl_domains WHERE {column} = ? LIMIT 1",
+                    (domain_ref,),
+                )
+                row = cur.fetchone()
+                if row:
+                    return (str(row["id"]), str(row["code"]))
+            return None
+        finally:
+            conn.close()
+
+    def _canonical_domain_key(self, domain_id: str) -> str:
+        """写入前把 domain_id 归一为领域 code；解析不到则原样返回并告警。"""
+        if not domain_id:
+            return domain_id
+        resolved = self.resolve_domain_ref(domain_id)
+        if resolved is None:
+            logger.warning(
+                "USL 子记录引用了不存在的领域 %r，已按原值写入（悬空引用，"
+                "不会猜测归一）",
+                domain_id,
+            )
+            return domain_id
+        return resolved[1]
+
+    def _domain_key_clause(
+        self, domain_ref: str, column: str = "domain_id"
+    ) -> Tuple[str, Tuple[Any, ...]]:
+        """读取用的 domain_id 过滤片段，同时命中 code 与历史 uuid 行。"""
+        resolved = self.resolve_domain_ref(domain_ref)
+        if resolved is None:
+            return f"{column} = ?", (domain_ref,)
+        domain_id, code = resolved
+        if domain_id == code:
+            return f"{column} = ?", (code,)
+        return f"{column} IN (?, ?)", (code, domain_id)
+
     def list_domains(
         self, page: int = 1, page_size: int = 50
     ) -> Tuple[List[Dict[str, Any]], int]:
@@ -366,30 +434,72 @@ class SQLiteUslStorage:
         finally:
             conn.close()
 
-    def delete_domain(self, domain_id: str) -> bool:
-        """级联删除领域及其所有子数据。"""
+    # 领域级联删除涉及的子表（domain_id 列均无外键，必须手工级联）
+    _DOMAIN_CHILD_TABLES: Tuple[str, ...] = (
+        "usl_terms",
+        "usl_hierarchies",
+        "usl_property_specs",
+        "usl_disjoint_pairs",
+        "usl_cardinalities",
+    )
+
+    def delete_domain(self, domain_ref: str) -> Dict[str, Any]:
+        """级联删除领域及其所有子数据，返回逐表删除计数。
+
+        domain_ref 可以是 code 或 uuid。旧实现直接按传入值删，于是：传 uuid →
+        领域行删掉但 5 张子表全变孤儿；传 code → 子表被清空、领域行一行没删、还返回
+        False（毁数据 + 报失败）。现在先解析出该领域**实际存在的两个键**再级联；
+        解析不到时一行都不删，避免误清别人的子记录。
+        """
+        resolved = self.resolve_domain_ref(domain_ref)
+        if resolved is None:
+            logger.warning("delete_domain: 领域 %r 不存在，未删除任何数据", domain_ref)
+            return {
+                "deleted": False,
+                "resolved": False,
+                "domain_ref": domain_ref,
+                "counts": {},
+            }
+        domain_id, code = resolved
+        keys: Tuple[str, ...] = (code,) if code == domain_id else (code, domain_id)
+        counts = self._cascade_delete_domain(keys)
+        logger.info(
+            "delete_domain(%s) 级联删除完成 code=%s id=%s counts=%s",
+            domain_ref,
+            code,
+            domain_id,
+            counts,
+        )
+        return {
+            "deleted": counts.get("usl_domains", 0) > 0,
+            "resolved": True,
+            "id": domain_id,
+            "code": code,
+            "counts": counts,
+        }
+
+    def _cascade_delete_domain(self, keys: Tuple[str, ...]) -> Dict[str, int]:
+        """单事务内按给定键集合删除领域行与全部子表行，返回逐表删除行数。"""
+        placeholders = ", ".join("?" for _ in keys)
+        counts: Dict[str, int] = {}
         conn = sqlite3.connect(self.db_path)
         try:
-            conn.execute(
-                "DELETE FROM usl_terms           WHERE domain_id = ?", (domain_id,)
+            for table in self._DOMAIN_CHILD_TABLES:
+                cur = conn.execute(
+                    f"DELETE FROM {table} WHERE domain_id IN ({placeholders})", keys
+                )
+                counts[table] = cur.rowcount
+            cur = conn.execute(
+                f"DELETE FROM usl_domains WHERE id IN ({placeholders})", keys
             )
-            conn.execute(
-                "DELETE FROM usl_hierarchies     WHERE domain_id = ?", (domain_id,)
-            )
-            conn.execute(
-                "DELETE FROM usl_property_specs  WHERE domain_id = ?", (domain_id,)
-            )
-            conn.execute(
-                "DELETE FROM usl_disjoint_pairs  WHERE domain_id = ?", (domain_id,)
-            )
-            conn.execute(
-                "DELETE FROM usl_cardinalities   WHERE domain_id = ?", (domain_id,)
-            )
-            cur = conn.execute("DELETE FROM usl_domains   WHERE id = ?", (domain_id,))
+            counts["usl_domains"] = cur.rowcount
             conn.commit()
-            return cur.rowcount > 0
+        except Exception:
+            conn.rollback()
+            raise
         finally:
             conn.close()
+        return counts
 
     @staticmethod
     def _domain_row_to_model(row: Dict[str, Any]) -> Dict[str, Any]:
@@ -421,7 +531,7 @@ class SQLiteUslStorage:
             t.setdefault("created_at", now)
             t["updated_at"] = now
 
-            domain_id = t.get("domain_id", "")
+            domain_id = self._canonical_domain_key(t.get("domain_id", ""))
             canonical = t.get("canonical", "")
 
             conn.execute("DELETE FROM usl_terms WHERE id = ?", (t["id"],))
@@ -494,8 +604,9 @@ class SQLiteUslStorage:
             params: List[Any] = []
 
             if domain_id:
-                where_clauses.append("t.domain_id = ?")
-                params.append(domain_id)
+                clause, clause_params = self._domain_key_clause(domain_id, "t.domain_id")
+                where_clauses.append(clause)
+                params.extend(clause_params)
             if semantic_type:
                 where_clauses.append("t.semantic_type = ?")
                 params.append(semantic_type)
@@ -568,7 +679,7 @@ class SQLiteUslStorage:
                 h["id"] = str(uuid.uuid4())
             h.setdefault("created_at", _utc_now_iso())
 
-            domain_id = h.get("domain_id", "")
+            domain_id = self._canonical_domain_key(h.get("domain_id", ""))
             rel_type = h.get("rel_type", "IS_A")
             parent_term = h.get("parent_term", "")
             child_term = h.get("child_term", "")
@@ -635,8 +746,9 @@ class SQLiteUslStorage:
             where_sql = ""
             params: Tuple[Any, ...] = ()
             if domain_id:
-                where_sql = " WHERE domain_id = ?"
-                params = (domain_id,)
+                clause, clause_params = self._domain_key_clause(domain_id)
+                where_sql = f" WHERE {clause}"
+                params = clause_params
             total_sql = f"SELECT COUNT(*) FROM usl_hierarchies {where_sql}"
             list_sql = (
                 f"SELECT * FROM usl_hierarchies {where_sql} ORDER BY created_at DESC"
@@ -685,7 +797,7 @@ class SQLiteUslStorage:
             if not s.get("id"):
                 s["id"] = str(uuid.uuid4())
 
-            domain_id = s.get("domain_id", "")
+            domain_id = self._canonical_domain_key(s.get("domain_id", ""))
             for_term = s.get("for_term", "")
             prop_name = s.get("prop_name", "")
 
@@ -751,8 +863,9 @@ class SQLiteUslStorage:
             where_clauses: List[str] = []
             params: List[Any] = []
             if domain_id:
-                where_clauses.append("domain_id = ?")
-                params.append(domain_id)
+                clause, clause_params = self._domain_key_clause(domain_id)
+                where_clauses.append(clause)
+                params.extend(clause_params)
             if for_term:
                 where_clauses.append("for_term = ?")
                 params.append(for_term)
@@ -814,7 +927,7 @@ class SQLiteUslStorage:
             if not p.get("id"):
                 p["id"] = str(uuid.uuid4())
 
-            domain_id = p.get("domain_id", "")
+            domain_id = self._canonical_domain_key(p.get("domain_id", ""))
             term_a = p.get("term_a", "")
             term_b = p.get("term_b", "")
 
@@ -871,8 +984,9 @@ class SQLiteUslStorage:
             where_sql = ""
             params: Tuple[Any, ...] = ()
             if domain_id:
-                where_sql = " WHERE domain_id = ?"
-                params = (domain_id,)
+                clause, clause_params = self._domain_key_clause(domain_id)
+                where_sql = f" WHERE {clause}"
+                params = clause_params
             total_sql = f"SELECT COUNT(*) FROM usl_disjoint_pairs {where_sql}"
             list_sql = (
                 f"SELECT * FROM usl_disjoint_pairs {where_sql} ORDER BY term_a, term_b"
@@ -919,7 +1033,7 @@ class SQLiteUslStorage:
             if not c.get("id"):
                 c["id"] = str(uuid.uuid4())
 
-            domain_id = c.get("domain_id", "")
+            domain_id = self._canonical_domain_key(c.get("domain_id", ""))
             rel_name = c.get("rel_name", "")
             domain_term = c.get("domain_term", "")
             range_term = c.get("range_term", "")
@@ -989,8 +1103,9 @@ class SQLiteUslStorage:
             where_clauses: List[str] = []
             params: List[Any] = []
             if domain_id:
-                where_clauses.append("domain_id = ?")
-                params.append(domain_id)
+                clause, clause_params = self._domain_key_clause(domain_id)
+                where_clauses.append(clause)
+                params.extend(clause_params)
             if rel_name:
                 where_clauses.append("rel_name = ?")
                 params.append(rel_name)

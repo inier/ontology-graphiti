@@ -225,8 +225,9 @@ class TestRunPipeline:
         # Candidate 质量：每个 candidate 有 synonyms（JSON decoded
         cands = cand_svc.list_candidates(pipeline_run_id=rid, page=1, page_size=1000)
         statuses = {c["status"] for c in cands["items"]}
-        # 至少含 gated / rejected 之一
-        assert statuses & {"gated", "approved", "rejected"}
+        # 至少含一个已定级的终态/半终态（出参统一规范大写枚举）
+        assert statuses & {"QUALITY_GATED", "APPROVED", "REJECTED",
+                           "WRITTEN_BACK", "STOPLISTED"}
 
     def test_workspace_isolation(self, pipeline_svc: PipelineService, cand_svc: CandidateService):
         r1 = pipeline_svc.run_pipeline(workspace_id="ws-A", text="本体抽取工作流。")
@@ -289,7 +290,7 @@ class TestCandidateApproval:
         assert cands["total"] > 0, "期望至少有 gated candidate"
         c0 = cands["items"][0]
         out = cand_svc.approve(c0["id"], reviewer="alice", comment="OK", level=1)
-        assert out.get("status") == "approved"
+        assert out.get("status") == "WRITTEN_BACK"
         # approval_tasks：至少有一个状态为 approved（不管level）
         tasks = cand_svc.list_approval_tasks(candidate_id=c0["id"])
         assert tasks["total"] >= 1
@@ -303,7 +304,7 @@ class TestCandidateApproval:
         remain = [x for x in cands["items"] if x["id"] != c0["id"]]
         target = remain[0] if remain else cands["items"][0]
         r = cand_svc.reject(target["id"], reviewer="bob", comment="不规范")
-        assert r.get("status") == "rejected"
+        assert r.get("status") == "REJECTED"
         tasks2 = cand_svc.list_approval_tasks(candidate_id=target["id"])
         assert any(t["status"] == "rejected" for t in tasks2["items"])
 

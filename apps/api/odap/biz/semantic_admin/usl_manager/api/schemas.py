@@ -367,6 +367,10 @@ class DeleteResponse(BaseModel):
     status: str = "ok"
     deleted: bool = True
     id: str
+    # 级联删除的逐表行数，仅 DELETE /domains/{ref} 会填（其余删除路由无级联）。
+    # 删领域是破坏性操作，业务人员需要看到"连带删了多少术语/层级/属性"，
+    # 只写日志等于让前端无法复核（规则 14 要求 3：兜底/破坏路径必须可观测）。
+    cascade_counts: Dict[str, int] = Field(default_factory=dict)
 
 
 __all__ = [

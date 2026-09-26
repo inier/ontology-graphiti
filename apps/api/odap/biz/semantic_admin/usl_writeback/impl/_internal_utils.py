@@ -53,9 +53,21 @@ def _update_candidate_row(
     provenance_patch: Optional[Dict[str, Any]] = None,
     stoplist_flag: Optional[int] = None,
 ) -> bool:
-    """UPDATE usl_schema_candidates（支持 provenance_json merge + stoplist_flag）。"""
+    """UPDATE usl_schema_candidates（支持 provenance_json merge + stoplist_flag）。
+
+    这里是唯一绕过 SQLiteCandidateStorage 直接写 status 列的地方，所以必须自己
+    归一：storage 的 save_candidate / update_candidate_status 都会把 status 写成
+    规范大写枚举，而 list_candidates 的 WHERE 也用同一套大写值。若这里照抄调用方
+    传进来的 "written_back"，该行就会在按状态过滤时永久查不到（写回后的候选从
+    「已写回」列表里消失）。函数内 import 是为了避开 usl_writeback ↔
+    candidate_store 的包级循环导入。
+    """
+    from ...candidate_store.storage.sqlite_candidate_storage import (
+        SQLiteCandidateStorage as _CS,
+    )
+
     fields = ["status = ?", "updated_at = ?"]
-    values: list = [status, datetime.now().isoformat()]
+    values: list = [_CS._norm_cand_status(status), datetime.now().isoformat()]
 
     if provenance_patch:
         conn = sqlite3.connect(db_path)

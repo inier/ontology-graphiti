@@ -126,6 +126,7 @@ async def action_audit(
         result = _approval_service.action_audit(
             task_id=task_id,
             approver_id=_actor(_user),
+            approve=body.approve,
             comment=body.comment,
             decisions=body.decisions,
         )

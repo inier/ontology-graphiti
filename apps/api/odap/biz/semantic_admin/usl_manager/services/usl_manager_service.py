@@ -90,11 +90,12 @@ class UslManagerService:
             logger.exception("create_domain failed")
             return {"status": "error", "message": f"创建领域失败: {e}"}
 
-    def get_domain(self, domain_id: str) -> Dict[str, Any]:
+    def get_domain(self, domain_ref: str) -> Dict[str, Any]:
+        """按 code 或 uuid 获取领域（前端传 code，见 ADR-079 §7）。"""
         try:
-            d = self.repository.get_domain(domain_id)
+            d = self.repository.get_domain(domain_ref)
             if not d:
-                return {"status": "error", "message": f"领域不存在: {domain_id}"}
+                return {"status": "error", "message": f"领域不存在: {domain_ref}"}
             return d.model_dump(mode="json")
         except ValueError as e:
             return {"status": "error", "message": str(e)}
@@ -127,11 +128,11 @@ class UslManagerService:
             logger.exception("list_domains failed")
             return {"status": "error", "message": f"列出领域失败: {e}"}
 
-    def update_domain(self, domain_id: str, payload: Dict[str, Any]) -> Dict[str, Any]:
+    def update_domain(self, domain_ref: str, payload: Dict[str, Any]) -> Dict[str, Any]:
         try:
-            current = self.repository.get_domain(domain_id)
+            current = self.repository.get_domain(domain_ref)
             if not current:
-                return {"status": "error", "message": f"领域不存在: {domain_id}"}
+                return {"status": "error", "message": f"领域不存在: {domain_ref}"}
             # 合并：payload 覆盖 current（id/code 不可改）
             merged = current.model_dump(mode="json")
             for k in ("display_name", "description", "en_mapping"):
@@ -146,13 +147,26 @@ class UslManagerService:
             logger.exception("update_domain failed")
             return {"status": "error", "message": f"更新领域失败: {e}"}
 
-    def delete_domain(self, domain_id: str) -> Dict[str, Any]:
+    def delete_domain(self, domain_ref: str) -> Dict[str, Any]:
         try:
-            current = self.repository.get_domain(domain_id)
+            current = self.repository.get_domain(domain_ref)
             if not current:
-                return {"status": "error", "message": f"领域不存在: {domain_id}"}
-            ok = self.repository.delete_domain(domain_id)
-            return {"status": "ok", "deleted": ok, "id": domain_id}
+                return {"status": "error", "message": f"领域不存在: {domain_ref}"}
+            result = self.repository.delete_domain(domain_ref)
+            counts = result.get("counts") or {}
+            logger.info(
+                "delete_domain(%s) 级联删除 code=%s id=%s 逐表计数=%s",
+                domain_ref,
+                result.get("code"),
+                result.get("id"),
+                counts,
+            )
+            return {
+                "status": "ok",
+                "deleted": bool(result.get("deleted")),
+                "id": domain_ref,
+                "cascade_counts": {str(k): int(v) for k, v in counts.items()},
+            }
         except ValueError as e:
             return {"status": "error", "message": str(e)}
         except Exception as e:

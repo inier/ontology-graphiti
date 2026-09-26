@@ -189,13 +189,13 @@ class TestCandidates:
         assert isinstance(g1["near_synonyms"], list) and g1["near_synonyms"] == ["武将"]
         assert isinstance(g1["examples"], list) and len(g1["examples"]) == 3
         assert isinstance(g1["provenance"], dict) and g1["provenance"]["a"] == "b"
-        assert g1["status"] == "new"  # DRAFT(存储层) → new(legacy)
+        assert g1["status"] == "DRAFT"  # 出参统一规范大写枚举
         assert g1["stoplist_flag"] is False
         assert 0.749 < g1["confidence"] < 0.751
 
         g2 = storage.get_candidate(out[1]["id"])
         assert g2["semantic_type"] == "关系类型"
-        assert g2["status"] == "gated"  # QUALITY_GATED → gated(legacy)
+        assert g2["status"] == "QUALITY_GATED"
         assert g2["confidence"] == pytest.approx(0.3, 1e-3)
         assert g2["near_synonyms"] == ["盟友", "联盟"]
 
@@ -207,9 +207,73 @@ class TestCandidates:
         c, = storage.bulk_insert_candidates([_candidate(r["id"], "A")])
         assert storage.update_candidate_status(c["id"], "APPROVED") is True
         got = storage.get_candidate(c["id"])
-        assert got["status"] == "approved"  # APPROVED → approved(legacy)
+        assert got["status"] == "APPROVED"
         assert got["updated_at"] >= c["updated_at"]
         assert storage.update_candidate_status("nope", "APPROVED") is False
+
+    def test_status_vocabulary_is_canonical_uppercase(self, storage: SQLiteCandidateStorage):
+        """入参容忍旧小写，出参只发规范大写 —— 全状态覆盖，不许有漏网的。
+
+        曾经出参走 _legacy_status 反查表翻成小写，但那张表是残缺的
+        （WRITTEN_BACK / ARCHIVED / REVIEWER_REJECTED 不在表里，原样透出大写），
+        于是同一个接口同时发大小写两套词汇：前端 canL1 判 'PENDING_REVIEW'
+        恒 false，审核按钮永久置灰，状态标签也查不到中文。
+        """
+        r = storage.create_pipeline_run(**_run())
+        legacy_to_canonical = {
+            "new": "DRAFT",
+            "gated": "QUALITY_GATED",
+            "pending": "PENDING_REVIEW",
+            "auditor_approved": "AUDITOR_APPROVED",
+            "admin_pending": "ADMIN_PENDING",
+            "reviewer_rejected": "REVIEWER_REJECTED",
+            "admin_rejected": "ADMIN_REJECTED",
+            "auditor_modified": "AUDITOR_MODIFIED",
+            "written": "WRITTEN_BACK",
+            "written_back": "WRITTEN_BACK",
+            "stoplisted": "STOPLISTED",
+            "archived": "ARCHIVED",
+        }
+        rows = [_candidate(r["id"], f"C-{k}", status=k) for k in legacy_to_canonical]
+        out = storage.bulk_insert_candidates(rows)
+        assert len(out) == len(legacy_to_canonical)
+        for row, (legacy, canonical) in zip(out, legacy_to_canonical.items()):
+            got = storage.get_candidate(row["id"])
+            assert got is not None
+            assert got["status"] == canonical, f"{legacy} 应归一为 {canonical}"
+            # 列表接口也必须发同一套词汇，否则前端两个页面判法不一致
+            listed = storage.list_candidates(status=canonical)
+            assert row["id"] in {x["id"] for x in listed["items"]}
+
+    def test_legacy_lowercase_rows_are_migrated_and_filterable(self, tmp_path: Path):
+        """存量库里的旧小写 status 必须被迁移，否则按状态过滤永远查不到。
+
+        裸 SQL 写回路径（usl_writeback._update_candidate_row）历史上直接落
+        "written_back"，而 list_candidates 的 WHERE 用规范大写 —— 写回成功的
+        候选于是从列表里凭空消失，且不报错。
+        """
+        import sqlite3
+
+        db = tmp_path / "legacy.db"
+        first = SQLiteCandidateStorage(db_path=str(db))
+        r = first.create_pipeline_run(**_run())
+        c, = first.bulk_insert_candidates([_candidate(r["id"], "Legacy")])
+        conn = sqlite3.connect(str(db))
+        try:
+            conn.execute(
+                "UPDATE usl_schema_candidates SET status = 'written_back' WHERE id = ?",
+                (c["id"],),
+            )
+            conn.commit()
+        finally:
+            conn.close()
+
+        # 重新构造触发 _init_db 迁移
+        reopened = SQLiteCandidateStorage(db_path=str(db))
+        assert reopened.get_candidate(c["id"])["status"] == "WRITTEN_BACK"
+        pg = reopened.list_candidates(status="WRITTEN_BACK")
+        assert pg["total"] == 1
+        assert pg["items"][0]["canonical"] == "Legacy"
 
     def test_list_candidates_four_filters(self, storage: SQLiteCandidateStorage):
         r1 = storage.create_pipeline_run(**_run(ws="w1"))

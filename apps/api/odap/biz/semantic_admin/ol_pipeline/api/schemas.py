@@ -26,19 +26,6 @@ class PipelineRunStatus(str, Enum):
     FAILED = "failed"
 
 
-class CandidateStatus(str, Enum):
-    NEW = "new"
-    GATED = "gated"
-    APPROVED = "approved"
-    REJECTED = "rejected"
-    WRITTEN = "written"
-    # ---- T1: 2 级审批 + Writeback 新增状态 ----
-    AUDITOR_APPROVED = "auditor_approved"
-    ADMIN_PENDING = "admin_pending"
-    WRITTEN_BACK = "written_back"
-    STOPLISTED = "stoplisted"
-
-
 class ApprovalStatus(str, Enum):
     PENDING = "pending"
     APPROVED = "approved"
@@ -246,7 +233,7 @@ class PromoteToUslResponse(BaseModel):
 # ol_pipeline/schemas/__all__（可选，仅用于显式导出）
 __all__ = [
     # Enum
-    "PipelineRunStatus", "CandidateStatus", "ApprovalStatus", "QualityGrade",
+    "PipelineRunStatus", "ApprovalStatus", "QualityGrade",
     # Runs
     "CreatePipelineRunRequest", "PipelineRunResponse", "PipelineRunListResponse",
     # Candidates

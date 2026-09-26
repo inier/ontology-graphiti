@@ -76,7 +76,7 @@ class TestWriteApprovedIdempotent:
         assert uid and len(uid) > 0
         assert _cnt(us.db_path) == b0 + 1
         upd = cs.get_candidate(c["id"]) or {}
-        assert upd["status"] == "written_back"
+        assert upd["status"] == "WRITTEN_BACK"
         assert (upd.get("provenance") or {}).get("writeback_usl_term_id") == uid
 
         r2 = wb.write_approved(c["id"], executed_by="u2")
@@ -121,7 +121,7 @@ class TestWriteRejectedStoplist:
         r = wb.write_rejected(c["id"], reason_code="bad",
                               add_to_stoplist=True, executed_by="a")
         assert r["status"] == "ok"
-        assert r["candidate_status"] == "stoplisted"
+        assert r["candidate_status"] == "STOPLISTED"
         sid = r["stoplist_usl_term_id"]
         assert sid
         assert _cnt(us.db_path) == b0 + 1
@@ -131,7 +131,7 @@ class TestWriteRejectedStoplist:
         assert st["stoplist_flag"] is True
         assert st["synonyms"] == ["A", "B", "C"]
         upd = cs.get_candidate(c["id"]) or {}
-        assert upd["status"] == "stoplisted"
+        assert upd["status"] == "STOPLISTED"
         assert upd["stoplist_flag"] is True
 
 
@@ -148,7 +148,9 @@ class TestWriteApprovedDomainAutoCreate:
         assert dom is not None and dom["code"] == "GENERAL"
         term = us.get_term(r["usl_term_id"])
         assert term is not None
-        assert term["domain_id"] == dom["id"]
+        # 子表 domain_id 的规范值是领域 code（ADR-079 §7），存储层写入时归一：
+        # _resolve_or_create_domain_id 交下来的是 uuid，落库必须变成 "GENERAL"。
+        assert term["domain_id"] == dom["code"] == "GENERAL"
 
     def test_missing_did_reuses_general(
         self, h: UslWritebackHandler, cs: SQLiteCandidateStorage, us: SQLiteUslStorage
@@ -205,7 +207,7 @@ class TestWritebackGetStatus:
         r = wb.get_writeback_status(c["id"])
         assert r["status"] == "ok"
         assert r["candidate_id"] == c["id"]
-        assert r["candidate_status"] == "approved"
+        assert r["candidate_status"] == "APPROVED"
         assert r["phase"] == "approved_pending"
         assert r["phase_ok"] is True
 
@@ -266,7 +268,7 @@ class TestWritebackErrorHandling:
             assert _cnt(us.db_path) == b0
 
             upd = cs.get_candidate(c["id"]) or {}
-            assert upd.get("status") == "approved"
+            assert upd.get("status") == "APPROVED"
 
     def test_writeback_without_candidate_returns_404(
         self, wb: WritebackService, cs: SQLiteCandidateStorage

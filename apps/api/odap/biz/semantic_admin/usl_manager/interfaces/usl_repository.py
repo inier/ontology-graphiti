@@ -12,7 +12,7 @@
 from __future__ import annotations
 
 from abc import ABC, abstractmethod
-from typing import List, Optional, Tuple
+from typing import Any, Dict, List, Optional, Tuple
 
 from ..models import (
     UslCardinality,
@@ -37,8 +37,8 @@ class UslRepository(ABC):
         raise NotImplementedError
 
     @abstractmethod
-    def get_domain(self, domain_id: str) -> Optional[UslDomain]:
-        """根据 ID 获取领域；不存在返回 None。"""
+    def get_domain(self, domain_ref: str) -> Optional[UslDomain]:
+        """按 code 或 uuid 获取领域（code 优先）；不存在返回 None。"""
         raise NotImplementedError
 
     @abstractmethod
@@ -56,8 +56,12 @@ class UslRepository(ABC):
         raise NotImplementedError
 
     @abstractmethod
-    def delete_domain(self, domain_id: str) -> bool:
-        """删除领域（级联删除该领域下所有术语/层级/属性/不相交/基数）；返回是否成功。"""
+    def delete_domain(self, domain_ref: str) -> Dict[str, Any]:
+        """删除领域（级联删除该领域下所有术语/层级/属性/不相交/基数）。
+
+        domain_ref 接受 code 或 uuid。返回 {"deleted": bool, "counts": {表: 行数}, ...}；
+        解析不到领域时不删任何数据并返回 deleted=False。
+        """
         raise NotImplementedError
 
     # ================================================================

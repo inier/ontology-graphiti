@@ -36,3 +36,8 @@ class PipelineRunResponse(BaseModel):
     degradation_flags: List[str] = Field(default_factory=list)
     ingest: Optional[Dict[str, Any]] = None
     message: Optional[str] = None
+    # 结构化链路（链路 A）归集统计与告警。必须显式建模：Pydantic 默认
+    # extra="ignore"，未声明的字段会在 API 边界被静默丢弃，服务层辛苦报出的
+    # 「部分本体文档读不回，归集结果不完整」之类告警前端永远看不到（规则 14）。
+    collection_stats: Optional[Dict[str, Any]] = None
+    collection_warnings: List[str] = Field(default_factory=list)

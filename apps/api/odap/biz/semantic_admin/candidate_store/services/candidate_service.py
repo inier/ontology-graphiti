@@ -17,6 +17,7 @@ from ._approval_helper import (
     run_fastpath_approve,
     run_level2_approve,
     run_low_admin_pending,
+    run_reject,
     score_to_tier,
 )
 
@@ -129,67 +130,10 @@ class CandidateService:
                add_to_stoplist=False):
         """任何状态都可 reject；同步 writeback.write_rejected（USL 停用词可选）。"""
         try:
-            cand = self.storage.get_candidate(candidate_id)
-            if not cand:
-                return {"status": "error", "message": f"候选 {candidate_id} 不存在"}
-            level_i = int(level)
-            task = self.storage.create_approval_task(
-                candidate_id=candidate_id, level=level_i, assignee=reviewer,
+            return run_reject(
+                self, candidate_id, reviewer=reviewer, comment=comment,
+                level=int(level), add_to_stoplist=bool(add_to_stoplist),
             )
-            self.storage.update_approval_task(
-                task["id"], status="rejected", reviewer=reviewer, comment=comment,
-            )
-            wb = self.writeback.write_rejected(
-                candidate_id,
-                reason_code=comment or "rejected_by_auditor",
-                add_to_stoplist=bool(add_to_stoplist),
-                executed_by=reviewer or "system",
-            )
-            # ----- 兼容 STOPLIST 新状态 -----
-            if add_to_stoplist:
-                # 先拿到现有的 provenance 合并 stoplist_added=True，且 status → STOPLISTED
-                existing_prov = dict(cand.get("provenance") or {})
-                merged_prov = dict(existing_prov)
-                merged_prov["stoplist_added"] = True
-                merged_prov["stoplist_by"] = reviewer or "system"
-                merged_prov["stoplist_reason"] = comment or ""
-                self.storage.update_candidate_status(
-                    candidate_id, "STOPLISTED",
-                    stoplist_flag=True,
-                    provenance=merged_prov,
-                )
-            self.storage.append_audit_log(
-                action="candidate_rejected",
-                actor=reviewer or "system", candidate_id=candidate_id,
-                approval_task_id=task.get("id"),
-                payload={
-                    "level": level_i, "comment": comment or "",
-                    "add_to_stoplist": bool(add_to_stoplist), "writeback": wb,
-                },
-            )
-            # stoplist 相关审计：保证 list_audit_logs 过滤 stoplist 命中
-            if add_to_stoplist:
-                self.storage.append_audit_log(
-                    action="candidate_stoplist_added",
-                    actor=reviewer or "system", candidate_id=candidate_id,
-                    approval_task_id=task.get("id"),
-                    payload={
-                        "level": level_i, "comment": comment or "",
-                        "reason": comment or "rejected_by_auditor",
-                    },
-                )
-            # 若 STOPLIST，重新 get_candidate 返回 STOPLISTED 状态
-            updated = self.get_candidate(candidate_id)
-            if isinstance(updated, dict) and "id" in updated:
-                updated["writeback"] = wb
-                # 向后兼容：对外层 caller 暴露 status=rejected 或 stoplisted
-                if add_to_stoplist:
-                    updated["status"] = "stoplisted"  # 兼容旧枚举：STOPLISTED → stoplisted
-                elif not updated.get("status") or updated["status"] not in (
-                    "STOPLISTED", "stoplisted",
-                ):
-                    updated["status"] = "rejected"  # 默认 rejected
-            return updated
         except Exception as e:  # pragma: no cover
             return {"status": "error", "message": f"驳回失败: {e}"}
 
@@ -225,12 +169,6 @@ class CandidateService:
     # ======================================================================
     # A5-2: modify_candidate + promote_to_usl（B5 + B7 契约）
     # ======================================================================
-
-    _EDITABLE_STATUS = {
-        "DRAFT", "L1_DONE", "L2_DONE", "PENDING_REVIEW", "AUDITOR_MODIFIED",
-        # 旧枚举兼容
-        "new", "gated", "pending", "auditor_modified",
-    }
 
     _MODIFY_ALLOWED_FIELDS = {
         # 原字段
@@ -268,12 +206,13 @@ class CandidateService:
             if not cand:
                 return {"status": "error", "message": f"候选 {candidate_id} 不存在",
                         "code": "CANDIDATE_NOT_FOUND_404"}
-            # 翻译：cand 的 status 经 _deserialize → 已经是旧枚举（如 gated/new）
-            # 需要通过 storage._norm_cand_status 转成新枚举检查
+            # storage 出参已是规范大写枚举，_norm_cand_status 在这里是幂等的；
+            # 保留它是为了让「直接构造 dict 塞进来」的调用方也被归一，而不是
+            # 拿原值去比 editable_norms 后静默判成不可编辑。
             cur_status_raw = str(cand.get("status") or "")
             cur_norm = self.storage._norm_cand_status(cur_status_raw)
 
-            # 可编辑状态检查（新枚举 + 旧枚举双重检查）
+            # 可编辑状态检查
             editable_norms = {"DRAFT", "L1_DONE", "L2_DONE", "PENDING_REVIEW",
                               "AUDITOR_MODIFIED", "QUALITY_GATED"}
             if cur_norm not in editable_norms:
@@ -455,31 +394,57 @@ class CandidateService:
 
             # 步骤 2：查重（先手动查同 domain + canonical）
             domain_id = cand.get("domain_id") or None
-            canonical = str(cand.get("canonical") or "")
+            canonical = str(cand.get("canonical") or "").strip()
             existing_term: Optional[Dict[str, Any]] = None
             if domain_id and canonical:
+                # 这里曾经传 canonical_q=，而 SQLiteUslStorage.list_terms 根本没有
+                # 这个形参 → TypeError 被下面的 except 吞成 existing_term=None，
+                # 于是查重永久失效：TERM_EXISTS_409 与 force_overwrite 的 UPDATE
+                # 分支全成死代码，每次 promote 都走 INSERT，再被 save_term 的
+                # ON CONFLICT(domain_id, canonical) DO UPDATE 静默覆盖既有术语
+                # （规则 14：幻影调用 + 静默吞异常 + 破坏性写入无告知）。
+                # list_terms 的 synonym_keyword 会 LIKE 匹配 t.canonical，
+                # 用它做粗筛，再由下面的循环做精确匹配。
+                _DEDUP_PAGE_SIZE = 500
                 try:
-                    # list_terms by domain + canonical_q（storage 返回 Tuple[List,int] 或 dict）
                     result = usl.list_terms(
-                        domain_id=domain_id, canonical_q=canonical,
-                        page=1, page_size=10,
+                        domain_id=domain_id, synonym_keyword=canonical,
+                        page=1, page_size=_DEDUP_PAGE_SIZE,
                     )
-                    if isinstance(result, tuple):
-                        items, _t = result
-                    elif isinstance(result, dict):
-                        items = result.get("items") or []
-                    else:
-                        items = []
-                    for t in items:
-                        t_canon = str(t.get("canonical") or "").strip()
-                        t_dom = str(t.get("domain_id") or "")
-                        if t_canon == canonical.strip() and (
-                            not domain_id or t_dom == domain_id or not t_dom
-                        ):
-                            existing_term = t
-                            break
-                except Exception:
-                    existing_term = None
+                except Exception as e:
+                    # 查重跑不动就不能当作「无重复」继续写回 —— 那会把覆盖既有
+                    # 术语的破坏性操作伪装成新建成功。
+                    return {
+                        "status": "error",
+                        "code": "USL_DEDUP_QUERY_FAILED_500",
+                        "message": f"USL 查重失败，已中止写回以免覆盖既有术语: {e}",
+                    }
+                if isinstance(result, tuple):
+                    items, total = result
+                elif isinstance(result, dict):
+                    items = result.get("items") or []
+                    total = int(result.get("total") or len(items))
+                else:
+                    items = []
+                    total = 0
+                if int(total or 0) > len(items):
+                    return {
+                        "status": "error",
+                        "code": "USL_DEDUP_TRUNCATED_500",
+                        "message": (
+                            f"USL 查重命中 {total} 条但只取回 {len(items)} 条"
+                            f"（page_size={_DEDUP_PAGE_SIZE}），无法判定是否重复，"
+                            f"已中止写回以免覆盖既有术语"
+                        ),
+                    }
+                for t in items:
+                    t_canon = str(t.get("canonical") or "").strip()
+                    t_dom = str(t.get("domain_id") or "")
+                    if t_canon == canonical and (
+                        not domain_id or t_dom == domain_id or not t_dom
+                    ):
+                        existing_term = t
+                        break
 
             created_new = False
             overwrote_existing = False

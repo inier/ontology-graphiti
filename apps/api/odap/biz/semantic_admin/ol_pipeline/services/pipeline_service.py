@@ -143,11 +143,31 @@ class PipelineService:
             l6_axiom_deriver = AxiomDeriver()
         self.l6_axioms = l6_axiom_deriver
 
+        # 规则 14 #5：GraphManager 仅用于 Neo4j 镜像写（SQLite 候选库才是主存），
+        # 属可选依赖。此处不在 __init__ 急切构造并把降级结果 None 冻结进模块级单例
+        # （见 ol_pipeline/api/routes.py:88），改为惰性构造 + 失败不缓存，使 Neo4j
+        # 瞬时故障下一次 run_pipeline 即自愈。构造逻辑见 _get_graph_manager。
+        self._graph_manager = None
+
+    def _get_graph_manager(self):
+        """惰性构造并缓存 GraphManager（Neo4j 镜像写用，可选依赖）。
+
+        规则 14 #5：成功才写缓存；构造失败记 warning 并返回 None 但**不缓存**，
+        下一次调用重新尝试，瞬时故障自愈。返回 None 表示本次镜像写不可用，
+        调用方须显式记日志跳过（失败必须显式），SQLite 主存不受影响。
+        """
+        if self._graph_manager is not None:
+            return self._graph_manager
         try:
             from odap.infra.graph.graph_service import GraphManager
-            self.graph_manager = GraphManager()
-        except Exception:
-            self.graph_manager = None
+            self._graph_manager = GraphManager()
+            return self._graph_manager
+        except Exception as exc:
+            logger.warning(
+                "GraphManager 构造失败，本次跳过 Neo4j 镜像写（不缓存降级，下次调用重试）: %s",
+                exc,
+            )
+            return None
 
     def create_run(self, **kwargs) -> Dict[str, Any]:
         """创建 pipeline run。kwargs 对齐 storage.create_pipeline_run 签名。
@@ -403,7 +423,14 @@ class PipelineService:
             # 批量写入 candidate（每个 candidate 然后生成quality_report
             inserted = self.candidate_storage.bulk_insert_candidates(merged_candidates)
 
-            if self.graph_manager:
+            gm = self._get_graph_manager()
+            if gm is None:
+                # 规则 14：镜像写整体不可用必须显式可观测，而非静默跳过
+                logger.warning(
+                    "Neo4j 镜像写整体跳过：GraphManager 不可用（run=%s, candidates=%d；SQLite 主存已写入，不影响候选落库）",
+                    run_id, len(inserted),
+                )
+            else:
                 for cand in inserted:
                     try:
                         cand_id = cand.get("id", "")
@@ -417,7 +444,7 @@ class PipelineService:
                             "origin": cand.get("origin", ""),
                             "stoplist_flag": bool(cand.get("stoplist_flag")),
                         }
-                        self.graph_manager.add_entity(cand_id, "USL__Candidate", props)
+                        gm.add_entity(cand_id, "USL__Candidate", props)
                     except Exception as e:
                         logger.warning(f"Neo4j write failed for candidate {cand_id}: {e}")
             for c, cand in zip(merged_candidates, inserted):

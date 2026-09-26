@@ -25,7 +25,7 @@ from __future__ import annotations
 
 from typing import Any, Dict, Optional
 
-from fastapi import APIRouter, Depends, HTTPException, Query, status
+from fastapi import APIRouter, Depends, HTTPException, Path, Query, status
 
 from odap.infra.security.jwt_auth import get_current_user
 
@@ -165,14 +165,16 @@ async def create_domain(
         raise HTTPException(status_code=500, detail=str(e))
 
 
-@router.get("/domains/{domain_id}", response_model=DomainResponse)
+@router.get("/domains/{domain_ref}", response_model=DomainResponse)
 async def get_domain(
-    domain_id: str,
+    domain_ref: str = Path(
+        ..., description="领域 code（权威字段，ADR-079 §7）或内部 uuid"
+    ),
     _auth: Dict[str, Any] = Depends(get_current_user),
 ):
-    """按 ID 获取单个领域。"""
+    """获取单个领域，路径参数接受 code 或 uuid。"""
     try:
-        result = usl_service.get_domain(domain_id)
+        result = usl_service.get_domain(domain_ref)
         if result.get("status") == "error":
             raise HTTPException(status_code=404, detail=result["message"])
         return result
@@ -182,16 +184,18 @@ async def get_domain(
         raise HTTPException(status_code=500, detail=str(e))
 
 
-@router.put("/domains/{domain_id}", response_model=DomainResponse)
+@router.put("/domains/{domain_ref}", response_model=DomainResponse)
 async def update_domain(
-    domain_id: str,
     request: UpdateDomainRequest,
+    domain_ref: str = Path(
+        ..., description="领域 code（权威字段，ADR-079 §7）或内部 uuid"
+    ),
     _auth: Dict[str, Any] = Depends(verify_semantic_writer),
 ):
-    """更新领域（PUT 仅 admin）。"""
+    """更新领域（PUT 仅 admin），路径参数接受 code 或 uuid。"""
     try:
         payload = {k: v for k, v in request.model_dump().items() if v is not None}
-        result = usl_service.update_domain(domain_id, payload)
+        result = usl_service.update_domain(domain_ref, payload)
         if result.get("status") == "error":
             status_code = 404 if "不存在" in str(result["message"]) else 400
             raise HTTPException(status_code=status_code, detail=result["message"])
@@ -202,14 +206,20 @@ async def update_domain(
         raise HTTPException(status_code=500, detail=str(e))
 
 
-@router.delete("/domains/{domain_id}", response_model=DeleteResponse)
+@router.delete("/domains/{domain_ref}", response_model=DeleteResponse)
 async def delete_domain(
-    domain_id: str,
+    domain_ref: str = Path(
+        ..., description="领域 code（权威字段，ADR-079 §7）或内部 uuid"
+    ),
     _auth: Dict[str, Any] = Depends(verify_semantic_admin_only),
 ):
-    """删除领域（级联删除其子资源，仅 admin 终审级可删）。"""
+    """删除领域（级联删除其子资源，仅 admin 终审级可删）。
+
+    级联按 code 与 uuid **两个键**执行：子表 domain_id 列历史上被两套值写过，
+    只删一个键会留下孤儿子记录。响应里的 cascade_counts 给出逐表删除行数。
+    """
     try:
-        result = usl_service.delete_domain(domain_id)
+        result = usl_service.delete_domain(domain_ref)
         if result.get("status") == "error":
             raise HTTPException(status_code=404, detail=result["message"])
         return result

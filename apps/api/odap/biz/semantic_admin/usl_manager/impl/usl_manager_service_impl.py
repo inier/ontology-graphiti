@@ -14,7 +14,7 @@ AGENTS.md 规则：
 from __future__ import annotations
 
 from datetime import datetime, timezone
-from typing import List, Optional, Tuple
+from typing import Any, Dict, List, Optional, Tuple
 
 from ..interfaces import UslRepository
 from ..models import (
@@ -62,8 +62,8 @@ class UslManagerServiceImpl(UslRepository):
         saved = self.storage.save_domain(d)
         return UslDomain(**saved)
 
-    def get_domain(self, domain_id: str) -> Optional[UslDomain]:
-        row = self.storage.get_domain(domain_id)
+    def get_domain(self, domain_ref: str) -> Optional[UslDomain]:
+        row = self.storage.get_domain(domain_ref)
         return UslDomain(**row) if row else None
 
     def get_domain_by_code(self, code: str) -> Optional[UslDomain]:
@@ -76,8 +76,8 @@ class UslManagerServiceImpl(UslRepository):
         rows, total = self.storage.list_domains(page=page, page_size=page_size)
         return [UslDomain(**r) for r in rows], total
 
-    def delete_domain(self, domain_id: str) -> bool:
-        return self.storage.delete_domain(domain_id)
+    def delete_domain(self, domain_ref: str) -> Dict[str, Any]:
+        return self.storage.delete_domain(domain_ref)
 
     # =================================================================
     # Term

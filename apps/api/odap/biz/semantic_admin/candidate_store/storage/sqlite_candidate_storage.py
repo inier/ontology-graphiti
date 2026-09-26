@@ -18,12 +18,15 @@ AGENTS.md §C SQLite 存储规则：
 from __future__ import annotations
 
 import json
+import logging
 import os
 import re
 import sqlite3
 import uuid
 from datetime import datetime
 from typing import Any, Dict, Iterable, List, Optional, Tuple
+
+logger = logging.getLogger(__name__)
 
 # ======================================================================
 # 阶段 A2：枚举统一（全文件所有常量改英文大写）
@@ -76,6 +79,7 @@ REJECTED         = CAND_REJECTED
 WRITTEN_BACK     = CAND_WRITTEN_BACK
 STOPLISTED       = CAND_STOPLISTED
 ARCHIVED         = "ARCHIVED"         # 额外：归档
+REVIEWER_REJECTED = "REVIEWER_REJECTED"  # approval_workflow L1 驳回用的状态名
 
 # 旧 9 状态别名 → 映射到新状态机（保持测试 & 上游代码兼容）
 CAND_NEW      = CAND_DRAFT             # 旧 "new" → DRAFT
@@ -252,8 +256,31 @@ class SQLiteCandidateStorage:
         "admin_pending":    ADMIN_PENDING,
         "rejected":         REJECTED,
         "auditor_rejected": AUDITOR_REJECTED,
+        "reviewer_rejected": REVIEWER_REJECTED,
+        "admin_rejected":   ADMIN_REJECTED,
+        "auditor_modified": AUDITOR_MODIFIED,
         "stoplisted":       STOPLISTED,
+        "written":          WRITTEN_BACK,
+        "written_back":     WRITTEN_BACK,
+        "archived":         ARCHIVED,
     }
+
+    # 全部合法状态值。_norm_cand_status 用它判断「已经是规范值」，不能只用
+    # _CAND_STATUS_COMPAT.values()：ARCHIVED / WRITTEN_BACK / ADMIN_REJECTED /
+    # AUDITOR_MODIFIED / REVIEWER_REJECTED 曾经不在映射值里，于是这些状态读写一轮
+    # 后原样透出小写，让候选列表 API 同时发出大小写两套词汇，前端怎么判都判不对。
+    #
+    # REVIEWER_REJECTED 与 AUDITOR_REJECTED 并存是历史事实：approval_workflow 用
+    # 前者（它的 _norm_status 把 REJECTED 也归到前者），本模块的驳回路径用后者。
+    # 合并它们要同时改 dashboard 计数、审批状态机和写回幂等判定，不在这次范围内；
+    # 这里只保证两者都被承认为规范值，不被半归一地透出。
+    _CAND_STATUS_CANONICAL = frozenset({
+        DRAFT, CAND_L1_DONE, CAND_L2_DONE,
+        QUALITY_GATED, PENDING_REVIEW, AUDITOR_APPROVED,
+        AUDITOR_REJECTED, REVIEWER_REJECTED, AUDITOR_MODIFIED,
+        ADMIN_PENDING, ADMIN_APPROVED, ADMIN_REJECTED, APPROVED,
+        REJECTED, WRITTEN_BACK, STOPLISTED, ARCHIVED,
+    })
 
     _APPR_STATUS_COMPAT = {
         "pending":  APPR_PENDING,
@@ -269,30 +296,6 @@ class SQLiteCandidateStorage:
         "return_back": RETURN_BACK,
         "escalate": ESCALATE,
     }
-
-    # ----- 新枚举 → 旧枚举（反查，出参时翻译） -----
-    _CAND_STATUS_NEW_TO_LEGACY = {
-        DRAFT:              "new",
-        QUALITY_GATED:      "gated",
-        PENDING_REVIEW:     "pending",
-        AUDITOR_APPROVED:   "auditor_approved",
-        ADMIN_PENDING:      "admin_pending",
-        ADMIN_APPROVED:     "approved",
-        APPROVED:           "approved",
-        AUDITOR_REJECTED:   "rejected",
-        ADMIN_REJECTED:     "rejected",
-        REJECTED:           "rejected",
-        WRITTEN_BACK:       "written_back",
-        STOPLISTED:         "stoplisted",
-        ARCHIVED:           "archived",
-    }
-
-    @classmethod
-    def _legacy_status(cls, s: Optional[str]) -> str:
-        """把新枚举翻译为旧枚举对外暴露。如果不认识就原样返回。"""
-        if s is None:
-            return "new"
-        return cls._CAND_STATUS_NEW_TO_LEGACY.get(s, str(s))
 
     @classmethod
     def _norm_run_status(cls, s: Optional[str]) -> str:
@@ -316,8 +319,11 @@ class SQLiteCandidateStorage:
         if lower in cls._CAND_STATUS_COMPAT:
             return cls._CAND_STATUS_COMPAT[lower]
         up = s2.upper().replace("-", "_")
-        if up in set(cls._CAND_STATUS_COMPAT.values()):
+        if up in cls._CAND_STATUS_CANONICAL:
             return up
+        logger.warning(
+            "候选状态 %r 不在已知状态机内，按原值透出（不猜测归一）", s2,
+        )
         return s2
 
     @classmethod
@@ -516,9 +522,40 @@ class SQLiteCandidateStorage:
                 except sqlite3.OperationalError:
                     pass  # 列已存在
 
+            # ---------- 迁移：status 列就地归一为规范大写枚举（幂等） ----------
+            self._normalize_legacy_status_values(cur)
+
             conn.commit()
         finally:
             conn.close()
+
+    # ------------------------------------------------------------------
+    # 迁移辅助：存量 status 归一
+    # ------------------------------------------------------------------
+    def _normalize_legacy_status_values(self, cur: sqlite3.Cursor) -> None:
+        """把库里残留的旧小写 status 就地改成规范大写枚举（幂等）。
+
+        写入侧长期有两套：本 storage 写规范大写，而 usl_writeback 的
+        _update_candidate_row 走裸 SQL 写 "written_back"/"stoplisted"/"rejected"。
+        list_candidates 的 WHERE 用规范大写，所以那些行按状态过滤永远查不到 ——
+        写回成功的候选会从「已写回」列表里凭空消失，且没有任何报错。
+        """
+        cur.execute(
+            "SELECT name FROM sqlite_master "
+            "WHERE type='table' AND name='usl_schema_candidates'"
+        )
+        if cur.fetchone() is None:
+            return
+        cur.execute("SELECT DISTINCT status FROM usl_schema_candidates")
+        for (raw,) in cur.fetchall():
+            if raw is None:  # 不猜：NULL 保持 NULL，读出时才落 DRAFT
+                continue
+            canonical = self._norm_cand_status(str(raw))
+            if canonical != raw:
+                cur.execute(
+                    "UPDATE usl_schema_candidates SET status = ? WHERE status = ?",
+                    (canonical, raw),
+                )
 
     # ------------------------------------------------------------------
     # 迁移辅助：旧表名 → 新表名（数据复制 + 删旧表）
@@ -1340,8 +1377,12 @@ class SQLiteCandidateStorage:
         # en / en_mapping
         if "en_mapping" not in d:
             d["en_mapping"] = d.get("en") or ""
-        # 过渡期：DB 内新大写枚举 → 对外暴露旧小写枚举
-        d["status"] = cls._legacy_status(d.get("status"))
+        # 出参统一归一为规范大写枚举。曾经是反向翻成旧小写（_legacy_status），
+        # 但那张反查表是残缺的（REVIEWER_REJECTED / ARCHIVED / WRITTEN_BACK 等
+        # 不在表里，会原样透出大写），于是同一个接口同时发出大小写两套词汇：
+        # 前端 canL1 判 'PENDING_REVIEW' 恒 false（审核按钮永久置灰），
+        # 状态标签也查不到中文只能显示原始英文。
+        d["status"] = cls._norm_cand_status(d.get("status"))
         return d
 
     # ==================================================================

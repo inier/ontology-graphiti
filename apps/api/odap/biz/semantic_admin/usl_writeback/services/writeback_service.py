@@ -11,11 +11,68 @@
 from __future__ import annotations
 
 import uuid
-from typing import Any, Dict, Optional, TYPE_CHECKING
+from typing import Any, Dict, Optional, Tuple, TYPE_CHECKING
+
+from ...candidate_store.storage.sqlite_candidate_storage import (
+    ADMIN_PENDING,
+    ADMIN_REJECTED,
+    APPROVED,
+    AUDITOR_APPROVED,
+    AUDITOR_MODIFIED,
+    AUDITOR_REJECTED,
+    CAND_L1_DONE,
+    CAND_L2_DONE,
+    DRAFT,
+    PENDING_REVIEW,
+    QUALITY_GATED,
+    REJECTED,
+    REVIEWER_REJECTED,
+    STOPLISTED,
+    WRITTEN_BACK,
+)
 
 if TYPE_CHECKING:  # pragma: no cover
     from ...usl_manager.storage.sqlite_usl_storage import SQLiteUslStorage
     from ...candidate_store.storage.sqlite_candidate_storage import SQLiteCandidateStorage
+
+
+# I4T8 phase 契约值。这是**对外契约字符串**，刻意保持小写，不要和
+# candidate.status 的规范大写枚举混为一谈：前者是写回阶段，后者是审批状态机。
+_PHASE_WRITTEN_BACK = "written_back"
+_PHASE_APPROVED_PENDING = "approved_pending"
+_PHASE_REJECTED = "rejected"
+_PHASE_IN_PIPELINE = "in_pipeline"
+_PHASE_UNKNOWN = "unknown"
+
+# 已终批、等待写回。AUDITOR_APPROVED 不在内：HIGH/VERY_HIGH 档还需 L2 admin 终审，
+# 此时它仍在审批流水线里（原先这里落到 unknown，会把正常在审候选报成异常）。
+_PENDING_WRITEBACK = frozenset({APPROVED})
+
+_REJECTED_LIKE = frozenset({
+    REJECTED, AUDITOR_REJECTED, REVIEWER_REJECTED, ADMIN_REJECTED, STOPLISTED,
+})
+
+_IN_APPROVAL = frozenset({
+    DRAFT, CAND_L1_DONE, CAND_L2_DONE, QUALITY_GATED, PENDING_REVIEW,
+    AUDITOR_MODIFIED, AUDITOR_APPROVED, ADMIN_PENDING,
+})
+
+
+def _classify_phase(cand_status: str, provenance: Dict[str, Any]) -> Tuple[str, bool]:
+    """candidate.status（规范大写枚举）→ I4T8 phase 契约值。
+
+    状态机外的值显式返回 ("unknown", False)，不猜一个 phase 兜底（规则 14 禁止
+    猜测性反推）——让调用方从 phase_ok=False 看见状态漂移，而不是看见假绿灯。
+    """
+    if cand_status == WRITTEN_BACK and provenance.get("writeback_usl_term_id"):
+        return _PHASE_WRITTEN_BACK, True
+    if cand_status in _PENDING_WRITEBACK:
+        return _PHASE_APPROVED_PENDING, True
+    if cand_status in _REJECTED_LIKE:
+        return _PHASE_REJECTED, True
+    if cand_status in _IN_APPROVAL:
+        return _PHASE_IN_PIPELINE, True
+    return _PHASE_UNKNOWN, False
 
 
 def _is_missing_table_error(exc: Exception) -> bool:
@@ -158,22 +215,7 @@ class WritebackService:
             cand_status = str(cand.get("status") or "")
             provenance: Dict[str, Any] = cand.get("provenance") or {}
 
-            # Phase 分类（严格按 I4T8 契约）
-            if cand_status in {"written_back", "written"} and provenance.get("writeback_usl_term_id"):
-                phase = "written_back"
-                ok = True
-            elif cand_status == "approved":
-                phase = "approved_pending"
-                ok = True
-            elif cand_status in {"rejected", "stoplisted"}:
-                phase = "rejected"
-                ok = True
-            elif cand_status.endswith("_done") or cand_status in {"pending", "running", "draft", "l1_done", "l2_done", "l3_done", "l4_done", "l5_done", "l6_done", "quality_gated", "approved_pending_l1", "approved_pending_l2"}:
-                phase = "in_pipeline"
-                ok = True
-            else:
-                phase = "unknown"
-                ok = False
+            phase, ok = _classify_phase(cand_status, provenance)
 
             resp: Dict[str, Any] = {
                 "status": "ok",
@@ -189,7 +231,7 @@ class WritebackService:
                 resp["written_at"] = provenance["written_at"]
             if provenance.get("writeback_executed_by"):
                 resp["executed_by"] = provenance["writeback_executed_by"]
-            if cand_status == "rejected" and provenance.get("reject_reason"):
+            if phase == _PHASE_REJECTED and provenance.get("reject_reason"):
                 resp["reject_reason"] = provenance["reject_reason"]
 
             return resp

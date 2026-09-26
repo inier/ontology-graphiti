@@ -23,6 +23,11 @@ from ._internal_utils import (
     _resolve_or_create_domain_id,
     _update_candidate_row,
 )
+from ...candidate_store.storage.sqlite_candidate_storage import (
+    REJECTED as CAND_REJECTED,
+    STOPLISTED as CAND_STOPLISTED,
+    WRITTEN_BACK as CAND_WRITTEN_BACK,
+)
 
 if TYPE_CHECKING:  # pragma: no cover
     from ...usl_manager.storage.sqlite_usl_storage import SQLiteUslStorage
@@ -74,10 +79,13 @@ class UslWritebackHandler:
                     "message": f"候选 {candidate_id} 不存在"}
 
         # 幂等：已 written_back 直接返回写入过的 usl_term_id
+        # get_candidate 出参已归一为规范大写枚举，所以这里必须比大写常量。
+        # 曾经比 {"written_back","written"} —— 出参统一大写后恒不命中，
+        # 于是每次重复写回都会新建一条 USL 术语（幂等保证静默失效）。
         current_status = str(cand.get("status") or "")
         provenance: Dict[str, Any] = cand.get("provenance") or {}
         if (
-            current_status in {"written_back", "written"}
+            current_status == CAND_WRITTEN_BACK
             and isinstance(provenance, dict)
             and provenance.get("writeback_usl_term_id")
         ):
@@ -111,7 +119,7 @@ class UslWritebackHandler:
         written_at = _dt.now().isoformat()
         ok = _update_candidate_row(
             candidate_id,
-            status="written_back",
+            status=CAND_WRITTEN_BACK,
             db_path=self._candidate_db_path,
             provenance_patch={
                 "writeback_usl_term_id": usl_term_id,
@@ -121,7 +129,8 @@ class UslWritebackHandler:
             stoplist_flag=0,
         )
         if not ok:  # pragma: no cover
-            return {"status": "error", "message": "更新 candidate.status=written_back 失败"}
+            return {"status": "error",
+                    "message": f"更新 candidate.status={CAND_WRITTEN_BACK} 失败"}
 
         # 3) audit_logs
         _append_candidate_audit(
@@ -149,7 +158,7 @@ class UslWritebackHandler:
             return {"status": "error", "code": "CANDIDATE_NOT_FOUND_404",
                     "message": f"候选 {candidate_id} 不存在"}
 
-        new_status = "stoplisted" if add_to_stoplist else "rejected"
+        new_status = CAND_STOPLISTED if add_to_stoplist else CAND_REJECTED
         stop_int = 1 if add_to_stoplist else 0
         usl_term_id: Optional[str] = None
 
