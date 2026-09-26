@@ -859,6 +859,27 @@ class SemanticAssetPipeline:
             )
         return {"documents": documents, "unreadable_doc_ids": unreadable, "error": None}
 
+    def _persist_records(
+        self, records: List[Dict[str, Any]], label: str
+    ) -> Optional[Dict[str, Any]]:
+        """候选批量落库。成功或空记录 → None；失败 → 显式 error dict。
+
+        规则 14：落库失败绝不能当成成功，否则调用方报出 candidate_count>0
+        而 get_run 再查时一条都没有（假成功）。三个归集器共用此逻辑，
+        标签词（结构化/事件/BI 指标）经 label 原样注入日志与 message。
+        """
+        if not records:
+            return None
+        try:
+            self.candidate_storage.bulk_insert_candidates(records)
+        except Exception as e:
+            logger.error("%s候选归集落库失败: %s", label, e)
+            return {
+                "status": "error",
+                "message": f"{label}候选落库失败（{len(records)} 条未持久化）: {e}",
+            }
+        return None
+
     def _collect_structured_candidates(
         self,
         ingest_result: Dict[str, Any],
@@ -1035,17 +1056,9 @@ class SemanticAssetPipeline:
                 f"归集结果不完整: {resolved['unreadable_doc_ids'][:10]}"
             )
 
-        if records:
-            # 落库失败绝不能当成成功：返回未持久化的候选会让调用方报出
-            # candidate_count>0，而 get_run 再查时一条都没有（规则 14：假成功）。
-            try:
-                self.candidate_storage.bulk_insert_candidates(records)
-            except Exception as e:
-                logger.error("结构化候选归集落库失败: %s", e)
-                return {
-                    "status": "error",
-                    "message": f"结构化候选落库失败（{len(records)} 条未持久化）: {e}",
-                }
+        persist_err = self._persist_records(records, "结构化")
+        if persist_err:
+            return persist_err
 
         return {
             "status": "ok",
@@ -1232,15 +1245,9 @@ class SemanticAssetPipeline:
                 "（请检查事件原文是否含可抽取内容）"
             )
 
-        if records:
-            try:
-                self.candidate_storage.bulk_insert_candidates(records)
-            except Exception as e:
-                logger.error("事件候选归集落库失败: %s", e)
-                return {
-                    "status": "error",
-                    "message": f"事件候选落库失败（{len(records)} 条未持久化）: {e}",
-                }
+        persist_err = self._persist_records(records, "事件")
+        if persist_err:
+            return persist_err
 
         return {
             "status": "ok",
@@ -1331,15 +1338,9 @@ class SemanticAssetPipeline:
                 "（请确认该本体/版本已定义指标）"
             )
 
-        if records:
-            try:
-                self.candidate_storage.bulk_insert_candidates(records)
-            except Exception as e:
-                logger.error("BI 指标候选归集落库失败: %s", e)
-                return {
-                    "status": "error",
-                    "message": f"BI 指标候选落库失败（{len(records)} 条未持久化）: {e}",
-                }
+        persist_err = self._persist_records(records, "BI 指标")
+        if persist_err:
+            return persist_err
 
         return {
             "status": "ok",

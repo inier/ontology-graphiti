@@ -1504,3 +1504,52 @@ class TestOptionsExposeIndicatorSource:
         # 既有两组不回归
         assert "webhook" in st["structured"]
         assert "natural_language" in st["unstructured"]
+
+
+class TestPersistRecordsHelper:
+    """_persist_records 直测：空→None / 成功→None / 失败→显式 error dict。
+
+    走真实函数体（规则 14 第 6 条）—— 仅在存储边界 patch
+    bulk_insert_candidates，绝不 patch 被测方法 _persist_records 本身。
+    """
+
+    def test_empty_records_returns_none_without_touching_storage(
+        self, pipeline, monkeypatch,
+    ):
+        def _boom(_records):
+            raise AssertionError("空记录不应触发落库")
+
+        monkeypatch.setattr(
+            pipeline.candidate_storage, "bulk_insert_candidates", _boom, raising=True,
+        )
+        assert pipeline._persist_records([], "结构化") is None
+
+    def test_success_returns_none_and_writes_records(self, pipeline, monkeypatch):
+        seen = {}
+
+        def _capture(records):
+            seen["records"] = records
+
+        monkeypatch.setattr(
+            pipeline.candidate_storage, "bulk_insert_candidates", _capture, raising=True,
+        )
+        records = [{"canonical": "c1"}, {"canonical": "c2"}]
+        assert pipeline._persist_records(records, "事件") is None
+        assert seen["records"] is records
+
+    def test_failure_returns_explicit_error_with_label_and_count(
+        self, pipeline, monkeypatch,
+    ):
+        def _boom(_records):
+            raise RuntimeError("disk full")
+
+        monkeypatch.setattr(
+            pipeline.candidate_storage, "bulk_insert_candidates", _boom, raising=True,
+        )
+        records = [{"canonical": "c1"}, {"canonical": "c2"}, {"canonical": "c3"}]
+        out = pipeline._persist_records(records, "BI 指标")
+        assert out is not None
+        assert out["status"] == "error", out
+        assert "disk full" in out["message"]
+        assert "BI 指标" in out["message"]
+        assert "3 条未持久化" in out["message"]
