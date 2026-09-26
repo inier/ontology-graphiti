@@ -173,3 +173,69 @@ class TestIngest:
         result = await facade.ingest("json", raw_json='{"key": "value"}')
         assert result["status"] == "ok"
         assert result["source_type"] == "json"
+
+
+class TestEventIngestExtractionPassthrough:
+    """规则 14：门面必须把 PerceptionHub 的抽取结果透传上来，且不得无视 FAILED。
+
+    用真实 PerceptionOutput / ExtractionResult（非 MagicMock）驱动，确保
+    `output.status == PerceptionStatus.FAILED` 判定与 `extraction.model_dump()`
+    走真实对象路径（规则 14 要求 6：测试执行真实函数体）。
+    """
+
+    @pytest.mark.asyncio
+    async def test_ingest_event_returns_extraction_payload(self, facade):
+        from odap.biz.data.perception.schemas import (
+            PerceptionOutput, PerceptionStatus, ExtractionResult,
+        )
+
+        real_output = PerceptionOutput(
+            event_id="evt-001",
+            extraction=ExtractionResult(
+                entities=[{"entity_id": "e1", "entity_type": "Unit", "name": "红方装甲营"}],
+                relations=[{"relation_id": "r1", "relation_type": "隶属于",
+                            "source_entity": "红方装甲营", "target_entity": "红方第1师"}],
+                events=[{"event_id": "ev1", "event_type": "装甲推进"}],
+                actions=[],
+                confidence=0.8,
+            ),
+            status=PerceptionStatus.STORED,
+        )
+        mock_hub = AsyncMock()
+        mock_hub.process_event = AsyncMock(return_value=real_output)
+        mock_hub.ingest_webhook = MagicMock(return_value="evt-001")
+        facade._perception_hub = mock_hub
+
+        result = await facade.ingest("webhook", payload={"key": "value"})
+
+        assert result["status"] == "ok", result
+        assert result["routed_to"] == "PerceptionHub"
+        ext = result["extraction"]
+        assert ext["confidence"] == 0.8
+        assert ext["entities"][0]["name"] == "红方装甲营"
+        assert ext["relations"][0]["relation_type"] == "隶属于"
+        assert ext["events"][0]["event_type"] == "装甲推进"
+        assert ext["actions"] == []
+
+    @pytest.mark.asyncio
+    async def test_ingest_event_propagates_failed_status(self, facade):
+        from odap.biz.data.perception.schemas import (
+            PerceptionOutput, PerceptionStatus, ExtractionResult,
+        )
+
+        failed = PerceptionOutput(
+            event_id="evt-002",
+            extraction=ExtractionResult(),
+            status=PerceptionStatus.FAILED,
+            error="LLM 抽取超时",
+        )
+        mock_hub = AsyncMock()
+        mock_hub.process_event = AsyncMock(return_value=failed)
+        mock_hub.ingest_webhook = MagicMock(return_value="evt-002")
+        facade._perception_hub = mock_hub
+
+        result = await facade.ingest("webhook", payload={"key": "value"})
+
+        assert result["status"] == "error", result
+        assert "LLM 抽取超时" in result["message"]
+        assert result["event_id"] == "evt-002"

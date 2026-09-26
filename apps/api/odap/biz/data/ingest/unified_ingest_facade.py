@@ -234,7 +234,7 @@ class UnifiedIngestFacade:
         """路由到 PerceptionHub（事件驱动源）"""
         try:
             from odap.biz.data.perception.schemas import (
-                PerceptionEvent, PerceptionSourceType,
+                PerceptionEvent, PerceptionSourceType, PerceptionStatus,
             )
 
             # 映射 source_type 字符串到 PerceptionSourceType
@@ -287,12 +287,31 @@ class UnifiedIngestFacade:
                 event, ontology_id=kwargs.get("ontology_id")
             )
 
+            # 规则 14：不得无视被调方错误状态。process_event 内部异常会返回
+            # status=FAILED + error 字段（而非抛出），此前门面照报 status=ok，
+            # 把"感知抽取链路坏了"伪装成"这段文本没有可抽取内容"。
+            if output.status == PerceptionStatus.FAILED:
+                logger.error(
+                    "UnifiedIngestFacade event perception failed (%s, event_id=%s): %s",
+                    source_type, output.event_id, output.error,
+                )
+                return {
+                    "status": "error",
+                    "source_type": source_type,
+                    "event_id": output.event_id,
+                    "routed_to": "PerceptionHub",
+                    "message": f"事件感知处理失败: {output.error}",
+                }
+
             return {
                 "status": "ok",
                 "source_type": source_type,
                 "event_id": output.event_id,
                 "routed_to": "PerceptionHub",
                 "extraction_confidence": output.extraction.confidence,
+                # 透传 PerceptionHub 已产出的抽取结果，供上游归集业务语义候选，
+                # 避免为拿实体清单而重复抽取一次（ADR-082 §1）。
+                "extraction": output.extraction.model_dump(),
             }
         except Exception as e:
             logger.error(f"UnifiedIngestFacade event ingest failed ({source_type}): {e}")

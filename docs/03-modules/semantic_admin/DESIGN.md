@@ -192,6 +192,22 @@ PipelineService 通过 `_STEP_ORDER = [DRAFT, RUNNING, L1_DONE, L2_DONE, L3_DONE
 3. L3/L4/L5/L6 每步 stats_patch 以 merge 方式写入（update_pipeline_run_stats(..., merge=True)），不覆盖 L1/L2 已有的统计。
 4. 「run_pipeline → status=succeeded」 到 「execute_all 推进 L3~L6」的兼容：SQLiteCandidateStorage._RUN_STATUS_COMPAT 将 `succeeded` 归一化 `COMPLETED` 会导致 range(cur_idx+1, 8) 空循环。PipelineService 会在推进前检查 L3~L6 四层是否有未完成标记，必要时强制回退 cur_idx 到 L2_DONE (index=3) 之后再推进，保证状态机不会被旧值"短路"。
 
+### 4.5 语义资产流水线候选归集（semantic_asset_pipeline，ADR-082）
+
+`semantic_asset_pipeline/services/pipeline_service.py`（`SemanticAssetPipeline`）是端到端统一编排服务，按数据源分链路把外部数据归集为待审候选（写入 `SQLiteCandidateStorage`）：链路 A 结构化引入、链路 B 非结构化抽取、链路 C 事件源与 BI 指标（ADR-082 新增）。`run()` 分派顺序为 unstructured → indicator → structured → else。
+
+- **事件源候选归集（ADR-082 §1）**：`webhook/mcp/file/api` 经 `UnifiedIngestFacade._ingest_event`
+  路由到 PerceptionHub，门面把 `ExtractionResult` 透传上来（`ingest_result["extraction"]`），
+  `SemanticAssetPipeline._collect_event_candidates` 将实体→对象类型+属性、关系→关系类型、
+  事件→过程类型归集为待审候选（`origin="llm"`、置信度取抽取置信度）；`actions` 当前恒为空，
+  如实产出 0 条动作候选。`sensor` 源延后（ADR-082 §5），保持其既有显式行为。
+- **BI 指标候选归集（ADR-082 §2）**：新增 `business_indicators` 源类型，`_run_indicator`
+  经 `BusinessService.list_indicators(ontology_id, version_id)` 拉取指标，
+  `_collect_indicator_candidates` 将每条指标映射为一条「属性」候选
+  （`canonical=display_name|name`、`attribute_of=related_objects[0]`（空落空串）、
+  `confidence=1.0`、`origin="structured"`）；`related_objects/processes/rules` 不另发为
+  独立候选，避免循环归类。缺 `ontology_id` 或拉取异常均显式报错（规则 14）。
+
 ---
 
 ## 5. 存储设计

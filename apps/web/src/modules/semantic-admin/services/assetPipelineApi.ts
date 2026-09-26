@@ -10,6 +10,8 @@ const URL_PREFIX = `${API_BASE}/api/semantic-assets/pipeline`;
 export interface AssetSourceTypes {
   structured: string[];
   unstructured: string[];
+  /** BI 业务指标源（ADR-082 §2/§6），后端 options() 暴露 */
+  indicator?: string[];
 }
 
 export interface AssetTemplate {

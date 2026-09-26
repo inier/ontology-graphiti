@@ -71,6 +71,7 @@ export default function SemanticAssetPipelinePage() {
   });
   const [textPayload, setTextPayload] = useState('');
   const [jsonPayload, setJsonPayload] = useState('');
+  const [versionPayload, setVersionPayload] = useState('');
   const [result, setResult] = useState<AssetPipelineRunResult | null>(null);
   const [submitResult, setSubmitResult] = useState<{ submitted: number; skipped: number } | null>(null);
 
@@ -98,6 +99,10 @@ export default function SemanticAssetPipelinePage() {
     () => options?.source_types?.unstructured ?? [],
     [options],
   );
+  const indicatorSourceTypes = useMemo(
+    () => options?.source_types?.indicator ?? [],
+    [options],
+  );
   const templates = useMemo(() => options?.templates ?? [], [options]);
   const ontologies = useMemo(() => options?.ontologies ?? [], [options]);
 
@@ -108,6 +113,10 @@ export default function SemanticAssetPipelinePage() {
   const isUnstructured = useMemo(
     () => unstructuredSourceTypes.includes(state.sourceType ?? ''),
     [unstructuredSourceTypes, state.sourceType],
+  );
+  const isIndicator = useMemo(
+    () => indicatorSourceTypes.includes(state.sourceType ?? ''),
+    [indicatorSourceTypes, state.sourceType],
   );
 
   const ontologyOptions = useMemo(
@@ -141,6 +150,10 @@ export default function SemanticAssetPipelinePage() {
   };
 
   const buildPayload = useCallback((): Record<string, unknown> => {
+    if (isIndicator) {
+      // BI 指标：ontology_id 走请求顶层字段，payload 只带可选 version_id
+      return versionPayload ? { version_id: versionPayload } : {};
+    }
     if (isUnstructured) {
       if (state.sourceType === 'natural_language') {
         return { text: textPayload, mode: 'schema_learning' };
@@ -163,7 +176,7 @@ export default function SemanticAssetPipelinePage() {
       return { text: textPayload, content: textPayload };
     }
     return {};
-  }, [isUnstructured, isStructured, state.sourceType, textPayload, jsonPayload]);
+  }, [isIndicator, isUnstructured, isStructured, state.sourceType, textPayload, jsonPayload, versionPayload]);
 
   const handleRun = useCallback(async () => {
     if (!state.sourceType) {
@@ -299,6 +312,17 @@ export default function SemanticAssetPipelinePage() {
                 onChange={(v) => setState((s) => ({ ...s, sourceType: v }))}
                 options={unstructuredSourceTypes.map((s) => ({ value: s, label: s }))}
               />
+              <Text strong>{t('BI 业务指标抽取')}</Text>
+              <Paragraph type="secondary">
+                {t('业务指标抽取需先在 Step 0 选择目标本体；指标将归集为「属性」候选')}
+              </Paragraph>
+              <Select
+                style={{ maxWidth: 520 }}
+                placeholder={t('选择业务指标数据源')}
+                value={isIndicator ? state.sourceType : undefined}
+                onChange={(v) => setState((s) => ({ ...s, sourceType: v }))}
+                options={indicatorSourceTypes.map((s) => ({ value: s, label: s }))}
+              />
               <Space>
                 <Button onClick={() => setCurrent(0)}>{t('上一步')}</Button>
                 <Button type="primary" onClick={() => setCurrent(2)} disabled={!state.sourceType}>
@@ -358,6 +382,18 @@ export default function SemanticAssetPipelinePage() {
                       value={textPayload}
                       onChange={(e) => setTextPayload(e.target.value)}
                       placeholder={t('URL、查询词或表单内容')}
+                    />
+                  </Form.Item>
+                </Form>
+              )}
+              {isIndicator && (
+                <Form layout="vertical">
+                  <Form.Item label={t('本体版本（可选）')}>
+                    <Input
+                      style={{ maxWidth: 520 }}
+                      value={versionPayload}
+                      onChange={(e) => setVersionPayload(e.target.value)}
+                      placeholder={t('留空则抽取该本体全部版本的指标')}
                     />
                   </Form.Item>
                 </Form>
