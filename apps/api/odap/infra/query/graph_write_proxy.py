@@ -126,40 +126,32 @@ class GraphWriteProxy:
             logger.warning("GraphWriteProxy.update_entity failed: %s", e)
             return {"status": "error", "message": str(e)}
 
-    def delete_entity(
-        self,
-        entity_id: str,
-        workspace_id: str = "",
-    ) -> Dict[str, Any]:
-        """删除实体。
+    def delete_entity(self, entity_id: str, workspace_id: str = "") -> Dict[str, Any]:
+        """软删除实体：透传 GraphManager.delete_entity 的真实结果（规则 2）。
 
-        Returns:
-            {"status": "success"/"error", ...}
+        结构化审计由 GraphManager 层 graph_audit 负责，此处仅记文本操作日志，
+        避免双层重复审计。
         """
         gm = self._get_graph_manager()
         if gm is None:
+            self._log_write(
+                "delete_entity", workspace_id=workspace_id,
+                entity_id=entity_id, success=False, reason="graph_manager_unavailable",
+            )
             return {"status": "error", "message": "GraphManager unavailable"}
-
-        # GraphManager 未提供实体删除能力（公开写接口只有 add_entity / update_entity /
-        # add_relationship / clear_graph）。删除语义——软删 vs 硬删、是否级联关系、
-        # 是否须保留双时态历史——尚未决策，按规则 14 不擅自实现或猜测，显式上报缺口。
-        # 原代码直接调 gm.delete_entity(entity_id)，AttributeError 在 _log_write 之前
-        # 抛出，使这条带审计的合规删除通道 100% 失败且删除尝试无痕。
-        # 审计仍须落一条：删除尝试本身是安全相关事件。
+        try:
+            result = gm.delete_entity(entity_id, workspace_id=workspace_id)
+        except Exception as e:
+            self._log_write(
+                "delete_entity", workspace_id=workspace_id,
+                entity_id=entity_id, success=False, reason=str(e),
+            )
+            return {"status": "error", "message": str(e)}
         self._log_write(
-            "delete_entity_unsupported",
-            workspace_id=workspace_id,
-            entity_id=entity_id,
-            success=False,
+            "delete_entity", workspace_id=workspace_id,
+            entity_id=entity_id, success=result.get("status") == "success",
         )
-        return {
-            "status": "error",
-            "message": (
-                "实体删除能力未实现：GraphManager 只提供 add_entity / update_entity / "
-                "add_relationship / clear_graph。需先决策删除语义（软删/硬删、是否级联关系、"
-                "是否保留双时态历史）后再补实现。"
-            ),
-        }
+        return result
 
     def add_relationship(
         self,

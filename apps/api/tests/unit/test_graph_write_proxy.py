@@ -57,9 +57,11 @@ def proxy_with_mock_gm(proxy):
     mock_gm = MagicMock()
     mock_gm.add_entity.return_value = True
     mock_gm.update_entity.return_value = True
-    # GraphManager 无 delete_entity（公开写接口只有 add_entity / update_entity /
-    # add_relationship / clear_graph），故此处不配置该返回值——配了会让用例误以为
-    # 删除能力存在。见 TestDeleteEntity。
+    mock_gm.delete_entity.return_value = {
+        "status": "success", "entity_id": "e1",
+        "entities_invalidated": 1, "relations_invalidated": 0,
+        "invalid_at": "2026-09-28T10:00:00+00:00",
+    }
     mock_gm.add_relationship.return_value = True
     mock_gm.add_episode = AsyncMock(return_value=True)
     mock_gm.add_episodes_batch.return_value = {"success": 3, "failed": 0}
@@ -164,29 +166,37 @@ class TestUpdateEntity:
 # ---------------------------------------------------------------------------
 
 class TestDeleteEntity:
-    def test_reports_unsupported(self, proxy_with_mock_gm):
-        """GraphManager 无 delete_entity：必须显式上报能力缺口，不得假成功。"""
+    def test_success_passthrough(self, proxy_with_mock_gm):
+        """delete_entity 应调 gm.delete_entity 并透传 success。"""
         proxy, mock_gm = proxy_with_mock_gm
         result = proxy.delete_entity("e1", workspace_id="ws1")
-        assert result["status"] == "error"
-        assert "实体删除能力未实现" in result["message"]
+        assert result["status"] == "success"
+        assert result["entity_id"] == "e1"
+        mock_gm.delete_entity.assert_called_once()
 
-    def test_does_not_call_phantom_delete(self, proxy_with_mock_gm):
-        """不得再调用 GraphManager 上不存在的 delete_entity（幻影方法）。"""
+    def test_passes_workspace_id(self, proxy_with_mock_gm):
         proxy, mock_gm = proxy_with_mock_gm
-        proxy.delete_entity("e1")
-        mock_gm.delete_entity.assert_not_called()
+        proxy.delete_entity("e1", workspace_id="ws_abc")
+        _, kwargs = mock_gm.delete_entity.call_args
+        assert kwargs.get("workspace_id") == "ws_abc" or "ws_abc" in str(mock_gm.delete_entity.call_args)
 
-    def test_logs_audit_even_when_unsupported(self, proxy_with_mock_gm):
-        """删除尝试必须留审计痕迹：原实现 AttributeError 在 _log_write 之前抛出，无痕。"""
+    def test_error_passthrough(self, proxy_with_mock_gm):
+        """gm 返回 error 时透传，不得假成功（规则 14）。"""
+        proxy, mock_gm = proxy_with_mock_gm
+        mock_gm.delete_entity.return_value = {"status": "error", "message": "entity not found: e1"}
+        result = proxy.delete_entity("e1")
+        assert result["status"] == "error"
+
+    def test_logs_audit(self, proxy_with_mock_gm):
+        """删除必须留审计痕迹。"""
         proxy, mock_gm = proxy_with_mock_gm
         with patch.object(proxy, "_log_write") as mock_log:
             proxy.delete_entity("e1", workspace_id="ws1")
         mock_log.assert_called_once()
-        assert mock_log.call_args[0][0] == "delete_entity_unsupported"
+        assert mock_log.call_args[0][0] == "delete_entity"
 
     def test_unavailable(self, proxy):
-        """GraphManager 不可用"""
+        """GraphManager 不可用 -> error。"""
         proxy._graph_manager = None
         with patch.object(proxy, "_get_graph_manager", return_value=None):
             result = proxy.delete_entity("e1")
