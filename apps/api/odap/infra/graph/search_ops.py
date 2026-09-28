@@ -703,6 +703,17 @@ class SearchOpsMixin:
 
     def _traverse_fallback(self, start_id: str, max_depth: int) -> Dict[str, Any]:
         """回退模式：图遍历"""
+        # 软删过滤：与 Neo4j 版收敛——失效起点仅返回占位节点且不遍历其边
+        # （_traverse_neo4j 对失效起点：路径查询要求 a.invalid_at IS NULL 故子图为空，
+        #   get_entity 过滤失效返回 None，最终插入 {id, type:"Unknown", name:""} 占位）
+        start_props = self.fallback_graph.nodes.get(start_id)
+        if start_props is not None and not is_active(start_props):
+            return {
+                "nodes": [{"id": start_id, "type": "Unknown", "name": ""}],
+                "edges": [],
+                "start_id": start_id,
+                "max_depth": max_depth,
+            }
         visited_nodes = {}
         visited_edges = []
         queue = [(start_id, 0)]

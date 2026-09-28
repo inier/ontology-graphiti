@@ -541,20 +541,24 @@ class EntityOpsMixin:
                 if self._neo4j_probe_entity_count(session, ws_clause, params) == 0:
                     return {"status": "error", "message": f"entity not found: {entity_id}"}
 
-                # 节点失效（仅对未失效节点 SET，保证幂等）
-                session.run(
+                # 节点失效（仅对未失效节点 SET，保证幂等）；RETURN 真实写入行数：
+                # 首删=1，重删=0（已失效节点匹配 0 行，不再硬编码 1，对齐 fallback 与审计真实）
+                set_rec = session.run(
                     f"MATCH (n:Entity {{id: $eid}}){ws_clause} "
-                    "WHERE n.invalid_at IS NULL SET n.invalid_at = $ts",
+                    "WHERE n.invalid_at IS NULL SET n.invalid_at = $ts "
+                    "RETURN count(n) AS invalidated",
                     **params,
-                )
+                ).single()
+                entities_invalidated = set_rec["invalidated"] if set_rec else 0
 
                 relations_invalidated = (
                     self._neo4j_cascade_invalidate_relations(session, params) if cascade else 0
                 )
-                # 幂等 no-op 由上方 WHERE n.invalid_at IS NULL 保证（已失效节点不重复覆盖 ts）
+                # 幂等 no-op 由上方 WHERE n.invalid_at IS NULL 保证（已失效节点不重复覆盖 ts）；
+                # no-op 时 invalid_at 返回本次 ts（probe 已确认节点存在；Cypher 文本受护栏约束不回读原 ts）
                 return {
                     "status": "success", "entity_id": entity_id,
-                    "entities_invalidated": 1,
+                    "entities_invalidated": entities_invalidated,
                     "relations_invalidated": relations_invalidated,
                     "invalid_at": ts,
                 }

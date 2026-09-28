@@ -122,17 +122,36 @@ class TestDeleteEntityNeo4j:
         gm = self._neo4j_gm()
         session = MagicMock()
         gm.neo4j_driver.session.return_value.__enter__.return_value = session
-        # 探测存在 -> count=1；SET 节点；cascade 边 count=2
+        # 探测存在 -> count=1；SET 节点 -> 真实写入 1 行；cascade 边 count=2
         session.run.side_effect = [
-            MagicMock(single=lambda: {"cnt": 1}),   # 存在性探测
-            MagicMock(),                            # SET 节点
+            MagicMock(single=lambda: {"cnt": 1}),          # 存在性探测
+            MagicMock(single=lambda: {"invalidated": 1}),  # SET 节点（RETURN count(n)）
             MagicMock(single=lambda: {"invalidated": 2}),  # cascade 边计数
         ]
         result = gm.delete_entity("e1")
         assert result["status"] == "success"
+        assert result["entities_invalidated"] == 1
         assert result["relations_invalidated"] == 2
         cyphers = " ".join(str(c.args[0]) for c in session.run.call_args_list)
         assert "invalid_at" in cyphers
+        # 无向 cascade 护栏：级联必须用 -[r]-() 匹配出入两侧边；
+        # 若回退为有向 )-[r]->()，入边级联失效，此断言必红（spec:174）
+        assert ")-[r]-()" in cyphers
+
+    def test_neo4j_second_delete_is_noop(self):
+        """重删幂等：probe=1（节点存在）但 SET=0（已失效）→ success 且真实计数 0。"""
+        gm = self._neo4j_gm()
+        session = MagicMock()
+        gm.neo4j_driver.session.return_value.__enter__.return_value = session
+        session.run.side_effect = [
+            MagicMock(single=lambda: {"cnt": 1}),          # 存在性探测（不过滤 invalid_at）
+            MagicMock(single=lambda: {"invalidated": 0}),  # SET 节点：已失效，匹配 0 行
+            MagicMock(single=lambda: {"invalidated": 0}),  # cascade 边：无活跃边
+        ]
+        result = gm.delete_entity("e1")
+        assert result["status"] == "success"
+        assert result["entities_invalidated"] == 0
+        assert result["relations_invalidated"] == 0
 
     def test_not_found_when_count_zero(self):
         gm = self._neo4j_gm()

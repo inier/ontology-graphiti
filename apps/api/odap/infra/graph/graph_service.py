@@ -22,6 +22,7 @@ from collections import deque
 
 from odap.infra.config_composer import get_config
 from odap.infra.security.audit_helper import graph_audit
+from odap.infra.graph._soft_delete import is_active
 from ._utils import _run_async
 from .cache_mixin import CacheMixin
 from .entity_ops import EntityOpsMixin
@@ -828,10 +829,11 @@ class GraphManager(CacheMixin, EntityOpsMixin, RelationshipOpsMixin, TemporalOps
         return self.get_statistics()
 
     def _get_statistics_fallback(self) -> Dict[str, Any]:
-        """回退模式：获取统计信息"""
+        """回退模式：获取统计信息（软删过滤：仅计活跃节点/边，与 Neo4j 统计口径一致）"""
+        g = self.fallback_graph
         return {
-            "total_entities": self.fallback_graph.number_of_nodes(),
-            "total_relationships": self.fallback_graph.number_of_edges(),
+            "total_entities": sum(1 for _, d in g.nodes(data=True) if is_active(d)),
+            "total_relationships": sum(1 for _, _, d in g.edges(data=True) if is_active(d)),
             "entity_types": self._count_entity_types(),
             "mode": "fallback"
         }
@@ -887,9 +889,11 @@ class GraphManager(CacheMixin, EntityOpsMixin, RelationshipOpsMixin, TemporalOps
         return _run_async(get_stats())
 
     def _count_entity_types(self) -> Dict[str, int]:
-        """统计各类型实体数量"""
+        """统计各类型实体数量（软删过滤：仅计活跃节点，与 Neo4j 统计口径一致）"""
         counts = {}
         for _, data in self.fallback_graph.nodes(data=True):
+            if not is_active(data):
+                continue
             entity_type = data.get("entity_type", "Unknown")
             counts[entity_type] = counts.get(entity_type, 0) + 1
         return counts

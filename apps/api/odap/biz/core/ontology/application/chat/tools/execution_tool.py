@@ -153,6 +153,30 @@ class ExecutionStrategyTool:
         workspace_id = input_data.workspace_id
 
         try:
+            if action == "delete_entity":
+                # 经 GraphWriteProxy 软删（合规 + 审计），透传真实结果（规则 2/14）。
+                # 不再直接拿裸 GraphManager；proxy 恒 error 的历史墓碑已在 #13a 移除。
+                # 短路：delete 不需要 get_query_service/裸 GraphManager，提前分派避免
+                # 无关依赖构造失败被宽 except 吞为 failed（评审 Min-9）。
+                from odap.infra.query import get_graph_write_proxy
+                proxy = get_graph_write_proxy()
+                del_result = proxy.delete_entity(target, workspace_id=workspace_id)
+                status = del_result.get("status")
+                if status != "success":
+                    logger.warning(
+                        "Action 'delete_entity' 失败 (target=%s): %s",
+                        target, del_result.get("message"),
+                    )
+                return {
+                    "action": "delete_entity",
+                    "target": target,
+                    "status": status,
+                    "message": del_result.get("message", ""),
+                    "invalid_at": del_result.get("invalid_at"),
+                    "relations_invalidated": del_result.get("relations_invalidated", 0),
+                    "timestamp": self._now(),
+                }
+
             from odap.infra.query import get_query_service
             # graph_service 中不存在 get_graph_manager 工厂函数；GraphManager 通过
             # __new__ 实现单例，直接实例化即可（同 construction/pipeline/services/
@@ -211,28 +235,6 @@ class ExecutionStrategyTool:
                     "updated_properties": list(props.keys()),
                     "timestamp": self._now(),
                     "verification_hint": f"调用 .entity with(search='{eid}') 验证更新结果",
-                }
-
-            elif action == "delete_entity":
-                # 经 GraphWriteProxy 软删（合规 + 审计），透传真实结果（规则 2/14）。
-                # 不再直接拿裸 GraphManager；proxy 恒 error 的历史墓碑已在 #13a 移除。
-                from odap.infra.query import get_graph_write_proxy
-                proxy = get_graph_write_proxy()
-                del_result = proxy.delete_entity(target, workspace_id=workspace_id)
-                status = del_result.get("status")
-                if status != "success":
-                    logger.warning(
-                        "Action 'delete_entity' 失败 (target=%s): %s",
-                        target, del_result.get("message"),
-                    )
-                return {
-                    "action": "delete_entity",
-                    "target": target,
-                    "status": status,
-                    "message": del_result.get("message", ""),
-                    "invalid_at": del_result.get("invalid_at"),
-                    "relations_invalidated": del_result.get("relations_invalidated", 0),
-                    "timestamp": self._now(),
                 }
 
             elif action == "add_relation":

@@ -1,6 +1,23 @@
 """Neo4j 读路径 Cypher 必须含 invalid_at IS NULL 谓词（mock driver）。"""
+import pytest
 from unittest.mock import patch, MagicMock
 from odap.infra.graph.graph_service import GraphManager
+
+
+@pytest.fixture(autouse=True)
+def _reset_gm_singleton():
+    """GraphManager 是进程级单例；读路径成功时会经 graph_audit 再次构造 GraphManager()。
+
+    每个用例前后重置单例与 _initialized，避免 __init__ 复位内部状态
+    造成的跨用例/跨文件状态泄漏（对齐 test_graph_soft_delete_read_filter.py 的既有惯用法）。
+    """
+    GraphManager._instance = None
+    GraphManager._initialized = False
+    GraphManager._test_mode = False
+    yield
+    GraphManager._instance = None
+    GraphManager._initialized = False
+    GraphManager._test_mode = False
 
 
 def _neo4j_gm():

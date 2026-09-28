@@ -20,4 +20,5 @@ def is_active(props: dict | None) -> bool:
 
 def now_iso() -> str:
     """统一失效时间戳：ISO-8601 UTC 字符串（含 +00:00）。"""
+    # WHY 必须用本函数产出：invalid_at/valid_time 仅允许等长同格式 ISO-8601 UTC 串——时态 as-of 依赖字符串序比较（valid_time <= vt < invalid_at），若混入 Z 后缀或 +08:00 偏移会错序。
     return datetime.now(timezone.utc).isoformat()

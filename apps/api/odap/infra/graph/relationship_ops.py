@@ -203,6 +203,11 @@ class RelationshipOpsMixin:
         for source, target, data in self.fallback_graph.edges(data=True):
             if not is_active(data):
                 continue
+            # 软删过滤：与 Neo4j 版收敛——两端节点也须活跃，消除 cascade=False 软删后的悬空边
+            src_props = self.fallback_graph.nodes[source]
+            tgt_props = self.fallback_graph.nodes[target]
+            if not is_active(src_props) or not is_active(tgt_props):
+                continue
             if workspace_id:
                 src_ws = self.fallback_graph.nodes[source].get("workspace_id", "")
                 tgt_ws = self.fallback_graph.nodes[target].get("workspace_id", "")
@@ -264,20 +269,24 @@ class RelationshipOpsMixin:
     def _get_entity_relations_fallback(self, entity_id: str) -> List[Dict]:
         """回退模式：获取实体关系"""
         result = []
-        # 出边
+        # 出边（软删过滤：与 Neo4j 版收敛，对端节点也须活跃）
         for target in self.fallback_graph.successors(entity_id):
             data = self.fallback_graph.edges[entity_id, target]
             if not is_active(data):
+                continue
+            if not is_active(self.fallback_graph.nodes[target]):
                 continue
             result.append({
                 "target": target,
                 "type": data.get("relationship", "RELATES_TO"),
                 "direction": "out"
             })
-        # 入边
+        # 入边（软删过滤：与 Neo4j 版收敛，对端节点也须活跃）
         for source in self.fallback_graph.predecessors(entity_id):
             data = self.fallback_graph.edges[source, entity_id]
             if not is_active(data):
+                continue
+            if not is_active(self.fallback_graph.nodes[source]):
                 continue
             result.append({
                 "target": source,
