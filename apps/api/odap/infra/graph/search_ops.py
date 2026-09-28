@@ -13,6 +13,7 @@ from odap.infra.observability.instruments import graphiti_span
 
 from ._utils import _run_async
 from odap.infra.security.audit_helper import graph_audit
+from odap.infra.graph._soft_delete import is_active, ACTIVE_NODE_PREDICATE, ACTIVE_REL_PREDICATE
 
 
 
@@ -91,6 +92,8 @@ class SearchOpsMixin:
         query_lower = query.lower()
 
         for node_id, data in self.fallback_graph.nodes(data=True):
+            if not is_active(data):
+                continue
             text = f"{node_id} {data.get('name', '')} {data.get('entity_type', '')}".lower()
             if query_lower in text:
                 results.append({
@@ -534,26 +537,38 @@ class SearchOpsMixin:
             for nid in current_level:
                 if direction in ("out", "both"):
                     for succ in self.fallback_graph.successors(nid):
+                        # 跳过失效边与失效节点：软删后不再作为邻居或遍历桥梁
+                        edge_data = self.fallback_graph.edges[nid, succ]
+                        if not is_active(edge_data):
+                            continue
+                        ndata = self.fallback_graph.nodes.get(succ, {})
+                        if not is_active(ndata):
+                            continue
                         if succ not in visited:
                             visited.add(succ)
                             next_level.add(succ)
-                            data = self.fallback_graph.nodes.get(succ, {})
                             neighbors.append({
                                 "id": succ,
-                                "type": data.get("entity_type", "Unknown"),
-                                "name": data.get("name", succ),
+                                "type": ndata.get("entity_type", "Unknown"),
+                                "name": ndata.get("name", succ),
                                 "distance": d,
                             })
                 if direction in ("in", "both"):
                     for pred in self.fallback_graph.predecessors(nid):
+                        # 跳过失效边与失效节点：软删后不再作为邻居或遍历桥梁
+                        edge_data = self.fallback_graph.edges[pred, nid]
+                        if not is_active(edge_data):
+                            continue
+                        ndata = self.fallback_graph.nodes.get(pred, {})
+                        if not is_active(ndata):
+                            continue
                         if pred not in visited:
                             visited.add(pred)
                             next_level.add(pred)
-                            data = self.fallback_graph.nodes.get(pred, {})
                             neighbors.append({
                                 "id": pred,
-                                "type": data.get("entity_type", "Unknown"),
-                                "name": data.get("name", pred),
+                                "type": ndata.get("entity_type", "Unknown"),
+                                "name": ndata.get("name", pred),
                                 "distance": d,
                             })
             current_level = next_level
@@ -686,6 +701,12 @@ class SearchOpsMixin:
                 continue
             for succ in self.fallback_graph.successors(nid):
                 edge_data = self.fallback_graph.edges[nid, succ]
+                # 跳过失效边与失效节点：软删后不参与遍历
+                if not is_active(edge_data):
+                    continue
+                succ_data = self.fallback_graph.nodes.get(succ, {})
+                if not is_active(succ_data):
+                    continue
                 visited_edges.append({
                     "source": nid,
                     "target": succ,
@@ -697,6 +718,12 @@ class SearchOpsMixin:
                     queue.append((succ, dist + 1))
             for pred in self.fallback_graph.predecessors(nid):
                 edge_data = self.fallback_graph.edges[pred, nid]
+                # 跳过失效边与失效节点：软删后不参与遍历
+                if not is_active(edge_data):
+                    continue
+                pred_data = self.fallback_graph.nodes.get(pred, {})
+                if not is_active(pred_data):
+                    continue
                 visited_edges.append({
                     "source": pred,
                     "target": nid,

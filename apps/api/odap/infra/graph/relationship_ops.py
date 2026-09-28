@@ -9,6 +9,7 @@ from typing import Dict, Any, List
 
 from ._utils import _run_async
 from odap.infra.security.audit_helper import graph_audit
+from odap.infra.graph._soft_delete import is_active
 
 
 
@@ -197,6 +198,8 @@ class RelationshipOpsMixin:
         """回退模式：获取所有关系"""
         result = []
         for source, target, data in self.fallback_graph.edges(data=True):
+            if not is_active(data):
+                continue
             if workspace_id:
                 src_ws = self.fallback_graph.nodes[source].get("workspace_id", "")
                 tgt_ws = self.fallback_graph.nodes[target].get("workspace_id", "")
@@ -258,6 +261,8 @@ class RelationshipOpsMixin:
         # 出边
         for target in self.fallback_graph.successors(entity_id):
             data = self.fallback_graph.edges[entity_id, target]
+            if not is_active(data):
+                continue
             result.append({
                 "target": target,
                 "type": data.get("relationship", "RELATES_TO"),
@@ -266,6 +271,8 @@ class RelationshipOpsMixin:
         # 入边
         for source in self.fallback_graph.predecessors(entity_id):
             data = self.fallback_graph.edges[source, entity_id]
+            if not is_active(data):
+                continue
             result.append({
                 "target": source,
                 "type": data.get("relationship", "RELATES_TO"),

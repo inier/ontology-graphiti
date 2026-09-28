@@ -289,6 +289,8 @@ class EntityOpsMixin:
         result = []
 
         for node_id, node_data in self.fallback_graph.nodes(data=True):
+            if not is_active(node_data):
+                continue
             if entity_type and node_data.get("entity_type") != entity_type:
                 continue
             if area and node_data.get("area") != area:
@@ -554,21 +556,22 @@ class EntityOpsMixin:
     # ------------------------------------------------------------------
     # get_entity
     # ------------------------------------------------------------------
-    def get_entity(self, entity_id: str) -> Optional[Dict]:
+    def get_entity(self, entity_id: str, include_deleted: bool = False) -> Optional[Dict]:
         """
         获取单个实体
 
         Args:
             entity_id: 实体ID
+            include_deleted: 是否包含已软删（invalid_at 非空）的实体，默认排除
 
         Returns:
             实体信息
         """
         try:
             if self._mode in ("neo4j_driver", "graphiti") and self.neo4j_driver:
-                result = self._get_entity_neo4j(entity_id)
+                result = self._get_entity_neo4j(entity_id, include_deleted=include_deleted)
             elif self._test_mode and self._use_fallback:
-                result = self._get_entity_fallback(entity_id)
+                result = self._get_entity_fallback(entity_id, include_deleted=include_deleted)
             else:
                 result = None
             if isinstance(result, dict) and result:
@@ -588,12 +591,14 @@ class EntityOpsMixin:
             )
             raise
 
-    def _get_entity_neo4j(self, entity_id: str) -> Optional[Dict]:
-        """Neo4j Driver 模式：获取单个实体"""
+    def _get_entity_neo4j(self, entity_id: str, include_deleted: bool = False) -> Optional[Dict]:
+        """Neo4j Driver 模式：获取单个实体（默认排除已软删）"""
         try:
             with self.neo4j_driver.session() as session:
+                where = "" if include_deleted else " WHERE n.invalid_at IS NULL"
                 result = session.run(
-                    "MATCH (n:Entity {id: $eid}) RETURN n.id AS id, labels(n) AS labels, properties(n) AS props",
+                    f"MATCH (n:Entity {{id: $eid}}){where} "
+                    "RETURN n.id AS id, labels(n) AS labels, properties(n) AS props",
                     eid=entity_id
                 )
                 record = result.single()
@@ -608,10 +613,12 @@ class EntityOpsMixin:
             logger.info(f'Neo4j 获取实体失败: {e}')
             return None
 
-    def _get_entity_fallback(self, entity_id: str) -> Optional[Dict]:
-        """回退模式：获取单个实体"""
+    def _get_entity_fallback(self, entity_id: str, include_deleted: bool = False) -> Optional[Dict]:
+        """回退模式：获取单个实体（默认排除已软删）。"""
         if entity_id in self.fallback_graph:
             data = self.fallback_graph.nodes[entity_id]
+            if not include_deleted and not is_active(data):
+                return None
             return {
                 "id": entity_id,
                 "type": data.get("entity_type"),
