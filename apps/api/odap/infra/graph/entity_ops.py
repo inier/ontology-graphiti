@@ -509,6 +509,24 @@ class EntityOpsMixin:
             "invalid_at": ts,
         }
 
+    def _neo4j_probe_entity_count(self, session, ws_clause: str, params: Dict[str, Any]) -> int:
+        """存在性探测：返回匹配节点数（区分 not_found / 幂等 no-op）。"""
+        probe = session.run(
+            f"MATCH (n:Entity {{id: $eid}}){ws_clause} RETURN count(n) AS cnt",
+            **params,
+        ).single()
+        return probe["cnt"] if probe else 0
+
+    def _neo4j_cascade_invalidate_relations(self, session, params: Dict[str, Any]) -> int:
+        """级联失效关系边：返回本次打标的边数。"""
+        rel = session.run(
+            "MATCH (n:Entity {id: $eid})-[r]-() "
+            "WHERE r.invalid_at IS NULL SET r.invalid_at = $ts "
+            "RETURN count(r) AS invalidated",
+            **params,
+        ).single()
+        return rel["invalidated"] if rel else 0
+
     def _delete_entity_neo4j(
         self, entity_id: str, workspace_id: str = "", cascade: bool = True
     ) -> Dict[str, Any]:
@@ -520,39 +538,23 @@ class EntityOpsMixin:
             if workspace_id:
                 params["ws"] = workspace_id
             with self.neo4j_driver.session() as session:
-                # 1) 存在性探测（区分 not_found / 幂等 no-op）
-                probe = session.run(
-                    f"MATCH (n:Entity {{id: $eid}}){ws_clause} RETURN count(n) AS cnt",
-                    **params,
-                ).single()
-                cnt = probe["cnt"] if probe else 0
-                if cnt == 0:
+                if self._neo4j_probe_entity_count(session, ws_clause, params) == 0:
                     return {"status": "error", "message": f"entity not found: {entity_id}"}
 
-                # 2) 节点失效（仅对未失效节点 SET，保证幂等）
+                # 节点失效（仅对未失效节点 SET，保证幂等）
                 session.run(
                     f"MATCH (n:Entity {{id: $eid}}){ws_clause} "
                     "WHERE n.invalid_at IS NULL SET n.invalid_at = $ts",
                     **params,
                 )
 
-                # 3) 级联失效关系边
-                relations_invalidated = 0
-                if cascade:
-                    rel = session.run(
-                        "MATCH (n:Entity {id: $eid})-[r]-() "
-                        "WHERE r.invalid_at IS NULL SET r.invalid_at = $ts "
-                        "RETURN count(r) AS invalidated",
-                        **params,
-                    ).single()
-                    relations_invalidated = rel["invalidated"] if rel else 0
-
-                # 4) 幂等 no-op 由步骤 2 的 WHERE n.invalid_at IS NULL 保证
-                #    （已失效节点不会被重复覆盖 ts），故 Neo4j 分支 entities_invalidated 恒为 1
-                entities_invalidated = 1
+                relations_invalidated = (
+                    self._neo4j_cascade_invalidate_relations(session, params) if cascade else 0
+                )
+                # 幂等 no-op 由上方 WHERE n.invalid_at IS NULL 保证（已失效节点不重复覆盖 ts）
                 return {
                     "status": "success", "entity_id": entity_id,
-                    "entities_invalidated": entities_invalidated,
+                    "entities_invalidated": 1,
                     "relations_invalidated": relations_invalidated,
                     "invalid_at": ts,
                 }
