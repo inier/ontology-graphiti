@@ -13,7 +13,7 @@ from odap.infra.observability.instruments import graphiti_span
 
 from ._utils import _run_async
 from odap.infra.security.audit_helper import graph_audit
-from odap.infra.graph._soft_delete import is_active, ACTIVE_NODE_PREDICATE, ACTIVE_REL_PREDICATE
+from odap.infra.graph._soft_delete import is_active, ACTIVE_NODE_PREDICATE
 
 
 
@@ -65,8 +65,10 @@ class SearchOpsMixin:
         """Neo4j Driver 模式：全文搜索"""
         try:
             with self.neo4j_driver.session() as session:
+                # 软删过滤：仅返回活跃节点（谓词来自 _soft_delete 共享真源）
                 cypher = (
-                    "MATCH (n) WHERE n.id CONTAINS $q OR n.name CONTAINS $q "
+                    "MATCH (n) WHERE (n.id CONTAINS $q OR n.name CONTAINS $q) "
+                    f"AND {ACTIVE_NODE_PREDICATE} "
                     "RETURN n.id AS id, labels(n) AS labels, properties(n) AS props LIMIT $lmt"
                 )
                 result = session.run(cypher, q=query, lmt=limit)
@@ -127,9 +129,11 @@ class SearchOpsMixin:
 
         try:
             with self.neo4j_driver.session() as session:
+                # 软删过滤：仅返回活跃节点（谓词来自 _soft_delete 共享真源）
                 cypher = (
                     "MATCH (n) "
-                    "WHERE n.id CONTAINS $q OR n.name CONTAINS $q "
+                    "WHERE (n.id CONTAINS $q OR n.name CONTAINS $q) "
+                    f"AND {ACTIVE_NODE_PREDICATE} "
                     "RETURN n.id AS id, labels(n) AS labels, properties(n) AS props "
                     "LIMIT $lmt"
                 )
@@ -230,18 +234,22 @@ class SearchOpsMixin:
                         try:
                             with self.neo4j_driver.session() as session:
                                 if ontology_ids or entity_types:
+                                    # 软删过滤：仅返回活跃节点（谓词来自 _soft_delete 共享真源）
                                     cypher = (
                                         "MATCH (n) "
                                         "WHERE (n.id CONTAINS $q OR n.name CONTAINS $q) "
                                         "AND (n.ontology_id IN $ontology_ids OR n.entity_type IN $entity_types) "
+                                        f"AND {ACTIVE_NODE_PREDICATE} "
                                         "RETURN n.id AS id, labels(n) AS labels, properties(n) AS props LIMIT $lmt"
                                     )
                                     result = session.run(cypher, q=query_text, lmt=top_k,
                                                          ontology_ids=ontology_ids or [],
                                                          entity_types=entity_types or [])
                                 else:
+                                    # 软删过滤：仅返回活跃节点（谓词来自 _soft_delete 共享真源）
                                     cypher = (
-                                        "MATCH (n) WHERE n.id CONTAINS $q OR n.name CONTAINS $q "
+                                        "MATCH (n) WHERE (n.id CONTAINS $q OR n.name CONTAINS $q) "
+                                        f"AND {ACTIVE_NODE_PREDICATE} "
                                         "RETURN n.id AS id, labels(n) AS labels, properties(n) AS props LIMIT $lmt"
                                     )
                                     result = session.run(cypher, q=query_text, lmt=top_k)
@@ -402,9 +410,11 @@ class SearchOpsMixin:
         """Neo4j Driver 模式：Cypher 全文匹配"""
         try:
             with self.neo4j_driver.session() as session:
+                # 软删过滤：仅返回活跃节点（谓词来自 _soft_delete 共享真源）
                 cypher = (
                     "MATCH (n) "
-                    "WHERE n.id CONTAINS $q OR n.name CONTAINS $q OR n.properties.name CONTAINS $q "
+                    "WHERE (n.id CONTAINS $q OR n.name CONTAINS $q OR n.properties.name CONTAINS $q) "
+                    f"AND {ACTIVE_NODE_PREDICATE} "
                     "RETURN n.id AS id, labels(n) AS labels, properties(n) AS props "
                     "LIMIT $lmt"
                 )
@@ -497,9 +507,12 @@ class SearchOpsMixin:
                 pattern = "(a:Entity {id: $eid})<-[r*1..{d}]-(b)"
             else:
                 pattern = "(a:Entity {id: $eid})-[r*1..{d}]-(b)"
+            # 软删过滤：起点/终点节点须活跃，变长路径 r 为关系列表，逐边要求 invalid_at IS NULL
             query = f"""
                 MATCH {pattern}
                 WHERE NOT b:Episode{ws_filter}
+                  AND a.invalid_at IS NULL AND b.invalid_at IS NULL
+                  AND ALL(x IN r WHERE x.invalid_at IS NULL)
                 RETURN DISTINCT b.id AS id, b.entity_type AS type,
                        b.name AS name, length(r) AS distance
                 ORDER BY distance
@@ -625,17 +638,24 @@ class SearchOpsMixin:
         """Neo4j Driver 模式：图遍历"""
         try:
             ws_filter = " AND b.workspace_id = $workspace_id" if workspace_id else ""
+            # 软删过滤：起点/终点节点须活跃，变长路径 r 为关系列表，逐边要求 invalid_at IS NULL
             node_query = f"""
                 MATCH (a:Entity {{id: $eid}})-[r*1..{max_depth}]-(b:Entity)
                 WHERE NOT b:Episode{ws_filter}
+                  AND a.invalid_at IS NULL AND b.invalid_at IS NULL
+                  AND ALL(x IN r WHERE x.invalid_at IS NULL)
                 RETURN DISTINCT b.id AS id, b.entity_type AS type, b.name AS name,
                        properties(b) AS props
             """
+            # 软删过滤：路径段同上；单跳具名边 e 直接要求 e.invalid_at IS NULL
             edge_query = f"""
                 MATCH (a:Entity {{id: $eid}})-[r*1..{max_depth}]-(b:Entity)
                 WHERE NOT b:Episode
+                  AND a.invalid_at IS NULL AND b.invalid_at IS NULL
+                  AND ALL(x IN r WHERE x.invalid_at IS NULL)
                 WITH DISTINCT a, b
                 MATCH (a)-[e]->(b)
+                WHERE e.invalid_at IS NULL
                 RETURN a.id AS source, type(e) AS type, b.id AS target, properties(e) AS props
             """
             params = {"eid": start_id}

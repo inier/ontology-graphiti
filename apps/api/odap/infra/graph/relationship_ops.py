@@ -170,15 +170,18 @@ class RelationshipOpsMixin:
         """Neo4j Driver 模式：获取所有关系"""
         try:
             with self.neo4j_driver.session() as session:
+                # 软删过滤：边与两端节点均须活跃（invalid_at IS NULL）
                 if workspace_id:
                     result = session.run("""
                         MATCH (a)-[r]->(b)
                         WHERE a.workspace_id = $workspace_id AND b.workspace_id = $workspace_id
+                          AND r.invalid_at IS NULL AND a.invalid_at IS NULL AND b.invalid_at IS NULL
                         RETURN a.id AS source, b.id AS target, type(r) AS type, properties(r) AS props
                     """, workspace_id=workspace_id)
                 else:
                     result = session.run("""
                         MATCH (a)-[r]->(b)
+                        WHERE r.invalid_at IS NULL AND a.invalid_at IS NULL AND b.invalid_at IS NULL
                         RETURN a.id AS source, b.id AS target, type(r) AS type, properties(r) AS props
                     """)
                 return [
@@ -236,11 +239,14 @@ class RelationshipOpsMixin:
         """Neo4j Driver 模式：获取实体关系"""
         try:
             with self.neo4j_driver.session() as session:
+                # 软删过滤：UNION 两段均要求边活跃，且返回的对端节点活跃
                 result = session.run("""
                     MATCH (a:Entity {id: $eid})-[r]->(b)
+                    WHERE r.invalid_at IS NULL AND b.invalid_at IS NULL
                     RETURN b.id AS target, type(r) AS type, properties(r) AS props
                     UNION
                     MATCH (a)-[r]->(b:Entity {id: $eid})
+                    WHERE r.invalid_at IS NULL AND a.invalid_at IS NULL
                     RETURN a.id AS target, type(r) AS type, properties(r) AS props
                 """, eid=entity_id)
                 return [

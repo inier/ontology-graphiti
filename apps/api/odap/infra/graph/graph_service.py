@@ -840,9 +840,13 @@ class GraphManager(CacheMixin, EntityOpsMixin, RelationshipOpsMixin, TemporalOps
         """Neo4j Driver 模式：获取统计信息"""
         try:
             with self.neo4j_driver.session() as session:
-                total = session.run("MATCH (n:Entity) RETURN count(n) AS cnt").single()["cnt"]
+                # 软删过滤：统计仅计活跃节点（invalid_at IS NULL），总数与类型分布口径一致
+                total = session.run(
+                    "MATCH (n:Entity) WHERE n.invalid_at IS NULL RETURN count(n) AS cnt"
+                ).single()["cnt"]
                 type_result = session.run(
                     "MATCH (n:Entity) "
+                    "WHERE n.invalid_at IS NULL "
                     "UNWIND labels(n) AS lbl "
                     "WITH lbl, count(n) AS cnt "
                     "WHERE lbl <> 'Entity' "

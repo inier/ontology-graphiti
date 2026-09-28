@@ -255,7 +255,8 @@ class EntityOpsMixin:
         else:
             label = "Entity"
         self._validate_label(label)
-        conditions = []
+        # 软删过滤：恒定排除已软删实体（invalid_at 非空），conditions 恒非空故总带 WHERE
+        conditions = ["n.invalid_at IS NULL"]
         params = {}
         if area:
             conditions.append("n.area = $area")
