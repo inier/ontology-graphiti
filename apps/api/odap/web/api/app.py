@@ -365,6 +365,48 @@ class MockDataWebService:
         except Exception as e:
             logger.warning(f"USL写回路由注册失败: {e}")
 
+        # 注册语义管理台 - USL 统一语义层（对齐生产入口 router_registry）
+        try:
+            from odap.biz.semantic_admin.usl_manager.api.routes import router as semantic_admin_usl_router
+            self.app.include_router(semantic_admin_usl_router)
+        except Exception as e:
+            logger.warning(f"USL管理路由注册失败: {e}")
+
+        # 注册语义管理台 - OL Pipeline + Candidates
+        try:
+            from odap.biz.semantic_admin.ol_pipeline.api.routes import router as semantic_admin_pipeline_router
+            self.app.include_router(semantic_admin_pipeline_router)
+        except Exception as e:
+            logger.warning(f"OL Pipeline路由注册失败: {e}")
+
+        # 注册语义管理台 - QualityGate 质量闸
+        try:
+            from odap.biz.semantic_admin.quality_gate.api.routes import router as semantic_admin_quality_gate_router
+            self.app.include_router(semantic_admin_quality_gate_router)
+        except Exception as e:
+            logger.warning(f"质量闸路由注册失败: {e}")
+
+        # 注册语义管理台 - 2 级审批工作流
+        try:
+            from odap.biz.semantic_admin.approval_workflow.api.routes import router as semantic_admin_approval_router
+            self.app.include_router(semantic_admin_approval_router)
+        except Exception as e:
+            logger.warning(f"审批工作流路由注册失败: {e}")
+
+        # 注册语义管理台 - Candidate CRUD
+        try:
+            from odap.biz.semantic_admin.candidate_store.api.routes import router as semantic_admin_candidate_router
+            self.app.include_router(semantic_admin_candidate_router)
+        except Exception as e:
+            logger.warning(f"候选存储路由注册失败: {e}")
+
+        # 注册语义管理台 - 语义资产统一编排 Pipeline
+        try:
+            from odap.biz.semantic_admin.semantic_asset_pipeline.api.routes import router as semantic_asset_pipeline_router
+            self.app.include_router(semantic_asset_pipeline_router)
+        except Exception as e:
+            logger.warning(f"语义资产管线路由注册失败: {e}")
+
         # 注册本体版本管理路由
         try:
             from odap.biz.core.ontology.public_routers import ontology_version_router
