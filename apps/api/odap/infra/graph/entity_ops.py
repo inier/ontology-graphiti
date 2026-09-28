@@ -11,6 +11,7 @@ from typing import Optional, List, Dict, Any
 
 from ._utils import _run_async
 from odap.infra.security.audit_helper import graph_audit
+from odap.infra.graph._soft_delete import is_active, now_iso
 
 
 
@@ -423,6 +424,132 @@ class EntityOpsMixin:
             return _run_async(update())
         except RuntimeError:
             return _run_async(update())
+
+    # ------------------------------------------------------------------
+    # delete_entity —— 软删除（invalid_at 失效，保留双时态历史）
+    # ------------------------------------------------------------------
+    def delete_entity(
+        self,
+        entity_id: str,
+        workspace_id: str = "",
+        cascade: bool = True,
+        actor: str = "",
+    ) -> Dict[str, Any]:
+        """软删除实体：给节点打 invalid_at 失效，级联失效其关系边。
+
+        - 节点不存在 / workspace 不匹配 -> {"status":"error","message":...}
+        - 已失效 -> 幂等 success no-op（entities_invalidated=0）
+        - cascade=True -> 对所有 invalid_at 为空的关联边打标
+        - 写后 invalidate_cache()；经 graph_audit 落结构化审计
+        """
+        if self._mode in ("neo4j_driver", "graphiti") and self.neo4j_driver:
+            result = self._delete_entity_neo4j(entity_id, workspace_id, cascade)
+        elif self._test_mode and self._use_fallback:
+            result = self._delete_entity_fallback(entity_id, workspace_id, cascade)
+        else:
+            result = {"status": "error", "message": "图数据库服务不可用，无法删除实体"}
+
+        if result.get("status") == "success":
+            self.invalidate_cache()
+        graph_audit(
+            "graph_delete_entity_success" if result.get("status") == "success"
+            else "graph_delete_entity_failed",
+            result_status="success" if result.get("status") == "success" else "failure",
+            result_message=result.get("message", ""),
+            resource=entity_id,
+            details={
+                "entity_id": entity_id,
+                "workspace_id": workspace_id,
+                "cascade": cascade,
+                "actor": actor,
+                "entities_invalidated": result.get("entities_invalidated", 0),
+                "relations_invalidated": result.get("relations_invalidated", 0),
+            },
+        )
+        return result
+
+    def _delete_entity_fallback(
+        self, entity_id: str, workspace_id: str = "", cascade: bool = True
+    ) -> Dict[str, Any]:
+        """回退模式：NetworkX 图上打 invalid_at。"""
+        g = self.fallback_graph
+        if g is None or entity_id not in g:
+            return {"status": "error", "message": f"entity not found: {entity_id}"}
+        node = g.nodes[entity_id]
+        if workspace_id and node.get("workspace_id") and node.get("workspace_id") != workspace_id:
+            return {"status": "error", "message": f"workspace mismatch for entity: {entity_id}"}
+        if not is_active(node):
+            # 幂等：已失效，no-op
+            return {
+                "status": "success", "entity_id": entity_id,
+                "entities_invalidated": 0, "relations_invalidated": 0,
+                "invalid_at": node.get("invalid_at"),
+            }
+        ts = now_iso()
+        node["invalid_at"] = ts
+        entities_invalidated = 1
+        relations_invalidated = 0
+        if cascade:
+            for _src, _tgt, data in list(g.edges(entity_id, data=True)):
+                if is_active(data):
+                    data["invalid_at"] = ts
+                    relations_invalidated += 1
+        return {
+            "status": "success", "entity_id": entity_id,
+            "entities_invalidated": entities_invalidated,
+            "relations_invalidated": relations_invalidated,
+            "invalid_at": ts,
+        }
+
+    def _delete_entity_neo4j(
+        self, entity_id: str, workspace_id: str = "", cascade: bool = True
+    ) -> Dict[str, Any]:
+        """Neo4j Driver 模式：Cypher 打 invalid_at。"""
+        try:
+            ts = now_iso()
+            ws_clause = " AND n.workspace_id = $ws" if workspace_id else ""
+            params = {"eid": entity_id, "ts": ts}
+            if workspace_id:
+                params["ws"] = workspace_id
+            with self.neo4j_driver.session() as session:
+                # 1) 存在性探测（区分 not_found / 幂等 no-op）
+                probe = session.run(
+                    f"MATCH (n:Entity {{id: $eid}}){ws_clause} RETURN count(n) AS cnt",
+                    **params,
+                ).single()
+                cnt = probe["cnt"] if probe else 0
+                if cnt == 0:
+                    return {"status": "error", "message": f"entity not found: {entity_id}"}
+
+                # 2) 节点失效（仅对未失效节点 SET，保证幂等）
+                session.run(
+                    f"MATCH (n:Entity {{id: $eid}}){ws_clause} "
+                    "WHERE n.invalid_at IS NULL SET n.invalid_at = $ts",
+                    **params,
+                )
+
+                # 3) 级联失效关系边
+                relations_invalidated = 0
+                if cascade:
+                    rel = session.run(
+                        "MATCH (n:Entity {id: $eid})-[r]-() "
+                        "WHERE r.invalid_at IS NULL SET r.invalid_at = $ts "
+                        "RETURN count(r) AS invalidated",
+                        **params,
+                    ).single()
+                    relations_invalidated = rel["invalidated"] if rel else 0
+
+                # 4) 幂等 no-op 由步骤 2 的 WHERE n.invalid_at IS NULL 保证
+                #    （已失效节点不会被重复覆盖 ts），故 Neo4j 分支 entities_invalidated 恒为 1
+                entities_invalidated = 1
+                return {
+                    "status": "success", "entity_id": entity_id,
+                    "entities_invalidated": entities_invalidated,
+                    "relations_invalidated": relations_invalidated,
+                    "invalid_at": ts,
+                }
+        except Exception as e:
+            return {"status": "error", "message": str(e)}
 
     # ------------------------------------------------------------------
     # get_entity
