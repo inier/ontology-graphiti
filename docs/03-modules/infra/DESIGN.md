@@ -97,6 +97,35 @@ class GraphManager:
         """获取图谱统计信息"""
 ```
 
+#### 实体软删除语义（ADR-083）
+
+图谱实体删除为**软删除**：节点与关系边统一打 `invalid_at`（ISO-8601 UTC 字符串）标记失效时刻，保留双时态历史，不开放硬删业务通道。共享活跃谓词单一真源为 `infra/graph/_soft_delete.py`（`ACTIVE_NODE_PREDICATE` / `ACTIVE_REL_PREDICATE` / `is_active(props)` / `now_iso()`）。
+
+**接口契约**（`entity_ops.py`，EntityOpsMixin）：
+
+```python
+def delete_entity(
+    self, entity_id: str, workspace_id: str = "",
+    cascade: bool = True, actor: str = "",
+) -> Dict[str, Any]:
+    """软删除实体：节点打 invalid_at，级联失效其全部关系边。
+
+    - 节点不存在 / workspace 不匹配 -> {"status":"error","message":...}
+    - 已失效 -> 幂等 success no-op（entities_invalidated=0）
+    - cascade=True -> 对所有 invalid_at 为空的关联边打标（in_edges+out_edges 并集）
+    - 写后 invalidate_cache()；经 graph_audit 落结构化审计
+    """
+    # 成功返回：
+    # {"status":"success","entity_id":str,"entities_invalidated":int,
+    #  "relations_invalidated":int,"invalid_at":str}
+```
+
+**读路径过滤**：全部读路径（get/query/search/hybrid/RAG/neighbors/traverse/relations/统计）默认排除失效节点与失效边；`get_entity(entity_id, include_deleted=False)` 提供 opt-in 查看已删实体。
+
+**时态 as-of**：`state_at(vt)` 语义 = `valid_time <= vt < invalid_at`——时态索引在既有 `valid_time` 下界基础上追加 `invalid_at` 上界，失效时刻之后不再计入。
+
+**合规删除通道**：业务侧删除必须经 `GraphWriteProxy.delete_entity`（`infra/query/graph_write_proxy.py`，透传 GraphManager 真实结果），禁止绕 proxy 拿裸 GraphManager；结构化审计由 GraphManager 层 `graph_audit` 负责。删除路径接通与已知边界（Graphiti 向量检索 fact 层不联动软删）详见 [ADR-083](../../07-adr/ADR-083_图谱实体软删除语义.md)。
+
 ### 3.2 核心方法
 
 | 方法 | 说明 | 返回值 |

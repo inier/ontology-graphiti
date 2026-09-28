@@ -554,7 +554,7 @@ db_path = 'sessions.db'                                          # 会写入 CWD
 - 主服务不可用时静默切换到备选服务/本地实现
 - 解析失败时静默返回空结果或占位数据
 - **`hasattr` 探测式降级** — `deleted = await gm.delete_by_batch(b) if hasattr(gm, 'delete_by_batch') else 0`。`hasattr` 不抛异常，因此没有 `except` 可抓，绕开了上一条；更糟的是探测失败后仍按成功返回，属于**静默假成功**，危害大于静默失败（失败至少还能被上层察觉，假成功会被写进审计与反馈闭环）
-- **幻影调用（phantom call）** — 调用根本不存在的方法/模块/关键字参数（如 `NewsIngester.extract_ontology`、`GraphManager.delete_entity`、`qa_engine_v2` 模块、`entity_name=` 形参），产生的 `ImportError`/`AttributeError`/`TypeError` 被外层 `except` 吞掉。特征是"代码看起来在跑、测试全绿、功能实际全死"
+- **幻影调用（phantom call）** — 调用根本不存在的方法/模块/关键字参数（如 `NewsIngester.extract_ontology`、`qa_engine_v2` 模块、`entity_name=` 形参），产生的 `ImportError`/`AttributeError`/`TypeError` 被外层 `except` 吞掉。特征是"代码看起来在跑、测试全绿、功能实际全死"
 - **无视被调方返回的错误状态** — 被调方已按规则 2 返回 `{"status": "error", "message": ...}`，调用方却不读返回值、无条件报成功
 
 **要求**：
