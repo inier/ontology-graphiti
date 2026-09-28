@@ -61,19 +61,23 @@ class CacheMixin:
                     result = session.run(
                         "MATCH (n:Entity) WHERE n.valid_time IS NOT NULL "
                         "RETURN n.id AS id, n.valid_time AS valid_time, "
-                        "n.transaction_time AS transaction_time, labels(n) AS labels, properties(n) AS props "
+                        "n.transaction_time AS transaction_time, n.invalid_at AS invalid_at, "
+                        "labels(n) AS labels, properties(n) AS props "
                         "ORDER BY n.valid_time"
                     )
                     for record in result:
                         vt = str(record.get("valid_time", ""))
                         if vt not in self._temporal_index:
                             self._temporal_index[vt] = []
+                        # 软删除失效时刻：缺失/空 = 活跃（None），供 as-of 查询上界过滤
+                        inv = record.get("invalid_at")
                         self._temporal_index[vt].append({
                             "id": record["id"],
                             "type": [l for l in record["labels"] if l != "Entity"][0] if len(record["labels"]) > 1 else "Entity",
                             "properties": record["props"],
                             "valid_time": vt,
                             "transaction_time": str(record.get("transaction_time", "")),
+                            "invalid_at": str(inv) if inv else None,
                         })
             self._temporal_index_built = True
         except Exception as e:

@@ -78,6 +78,10 @@ class TemporalOpsMixin:
                 for idx_vt, entries in self._temporal_index.items():
                     if idx_vt <= vt_str:
                         for entry in entries:
+                            # 失效上界：valid_time <= vt < invalid_at，缺失/空 = 活跃
+                            inv = entry.get("invalid_at")
+                            if inv and inv <= vt_str:
+                                continue  # 在 as-of 时刻之前已失效，不可见
                             if entity_type and entry.get("type", "").lower() != entity_type.lower():
                                 continue
                             if transaction_time:
