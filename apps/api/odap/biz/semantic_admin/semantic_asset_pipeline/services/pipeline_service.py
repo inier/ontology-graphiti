@@ -1109,7 +1109,9 @@ class SemanticAssetPipeline:
         base_prov = {
             "source_kind": source_kind,
             "ontology_id": ontology_id,
-            "event_id": event_id,
+            # 运行级摄入事件 id 用 ingest_event_id，避免与过程类型候选 extra_prov
+            # 的 per-event event_id 共用键被 update 覆盖（ADR-082 backlog b）。
+            "ingest_event_id": event_id,
             "source_type": ingest_result.get("source_type", ""),
         }
 

@@ -1194,7 +1194,7 @@ class TestEventCandidateCollection:
         assert obj["origin"] == "llm"
         assert obj["confidence"] == 0.8
         assert obj["definition"] == "红方主力装甲部队"
-        assert obj["provenance"]["event_id"] == "evt-1"
+        assert obj["provenance"]["ingest_event_id"] == "evt-1"
         assert obj["provenance"]["entity_type"] == "Unit"
         # 属性槽位（basic/statistical）归为「属性」，capabilities/constraints 不入候选
         attrs = {a["canonical"] for a in grouped["属性"]}
@@ -1256,6 +1256,28 @@ class TestEventCandidateCollection:
         assert out["status"] == "error", out
         assert "disk full" in out["message"]
         assert _persisted(pipeline, "run-ev6") == []
+
+    def test_run_level_and_per_event_ids_do_not_collide(self, pipeline):
+        """运行级摄入 event_id 与 per-event 本体 event_id 必须并存不互相覆盖。
+
+        ADR-082 backlog(b)：base_prov 的运行级 event_id 与过程类型候选 extra_prov
+        的 per-event event_id 曾共用键 "event_id"，prov.update 后运行级被覆盖丢失，
+        导致无法追溯"这条过程类型候选由哪次摄入产生"。运行级改名 ingest_event_id。
+        """
+        out = pipeline._collect_event_candidates(
+            {"status": "ok", "event_id": "evt-run-1", "extraction": _extraction()},
+            run_id="run-ev-distinct", ontology_id=None, source_kind="event",
+        )
+        assert out["status"] == "ok", out
+        grouped = _by_type(out["records"])
+        proc = grouped["过程类型"][0]
+        # 过程类型：per-event event_id 保留，运行级另存 ingest_event_id，二者并存
+        assert proc["provenance"]["event_id"] == "ev1"
+        assert proc["provenance"]["ingest_event_id"] == "evt-run-1"
+        # 非过程类型候选：运行级摄入 id 统一落在 ingest_event_id 键下
+        obj = grouped["对象类型"][0]
+        assert obj["provenance"]["ingest_event_id"] == "evt-run-1"
+        assert "event_id" not in obj["provenance"]
 
 
 # ──────────────────────────────────────────────────────────────────────
