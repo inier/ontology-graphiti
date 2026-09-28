@@ -214,23 +214,24 @@ class ExecutionStrategyTool:
                 }
 
             elif action == "delete_entity":
-                # GraphManager 无 delete_entity（公开写接口只有 add_entity /
-                # update_entity / add_relationship / clear_graph）。删除语义
-                # （软删 vs 硬删、是否须经 GraphWriteProxy 审计）尚未决策，
-                # 按规则 14 不擅自实现或猜测，显式上报能力缺口。
-                logger.warning(
-                    "Action 'delete_entity' 不可用：GraphManager 未提供实体删除能力 (target=%s)",
-                    target,
-                )
+                # 经 GraphWriteProxy 软删（合规 + 审计），透传真实结果（规则 2/14）。
+                # 不再直接拿裸 GraphManager；proxy 恒 error 的历史墓碑已在 #13a 移除。
+                from odap.infra.query import get_graph_write_proxy
+                proxy = get_graph_write_proxy()
+                del_result = proxy.delete_entity(target, workspace_id=workspace_id)
+                status = del_result.get("status")
+                if status != "success":
+                    logger.warning(
+                        "Action 'delete_entity' 失败 (target=%s): %s",
+                        target, del_result.get("message"),
+                    )
                 return {
                     "action": "delete_entity",
                     "target": target,
-                    "status": "unsupported",
-                    "message": (
-                        "实体删除能力未实现：GraphManager 只提供 add_entity / update_entity / "
-                        "add_relationship / clear_graph。需先决策删除语义（软删/硬删、是否经 "
-                        "GraphWriteProxy 审计）后再补实现。"
-                    ),
+                    "status": status,
+                    "message": del_result.get("message", ""),
+                    "invalid_at": del_result.get("invalid_at"),
+                    "relations_invalidated": del_result.get("relations_invalidated", 0),
                     "timestamp": self._now(),
                 }
 
@@ -287,8 +288,7 @@ class ExecutionStrategyTool:
                     "status": "unsupported",
                     "message": (
                         f"不支持的操作类型: {action}。支持: query, add_entity, update_entity, "
-                        f"add_relation, check_consistency, trace_provenance"
-                        f"（delete_entity 已识别但能力未实现）"
+                        f"delete_entity, add_relation, check_consistency, trace_provenance"
                     ),
                     "timestamp": self._now(),
                 }
