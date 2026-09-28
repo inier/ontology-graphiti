@@ -492,7 +492,12 @@ class EntityOpsMixin:
         entities_invalidated = 1
         relations_invalidated = 0
         if cascade:
-            for _src, _tgt, data in list(g.edges(entity_id, data=True)):
+            # DiGraph.edges(nbunch) 只含出边；cascade 须失效所有触及边，故并上 in_edges。
+            # 自环会同时出现在两侧，is_active 幂等 guard 保证不重复计数。
+            touched = list(g.in_edges(entity_id, data=True)) + list(
+                g.out_edges(entity_id, data=True)
+            )
+            for _src, _tgt, data in touched:
                 if is_active(data):
                     data["invalid_at"] = ts
                     relations_invalidated += 1
