@@ -195,9 +195,9 @@ class TestWritebackManualTrigger:
     ):
         r = wb.trigger_manual_writeback("NO-SUCH-ID-XYZ-" + uuid.uuid4().hex[:8])
         # get_status returns CANDIDATE_NOT_FOUND_404, trigger_manual -> write_approved -> impl
-        # returns status=error message, no need for exact code
+        # returns status=error message. 规则14：禁止降级伪成功，非存在候选必须显式 error。
         assert isinstance(r, dict)
-        assert r.get("status") == "error" or (r.get("degraded") is True and r.get("status") == "ok")
+        assert r.get("status") == "error"
 
 
 # 6. get_writeback_status 写回状态查询 ------------------------------------------------
@@ -296,3 +296,45 @@ class TestWritebackErrorHandling:
 
         assert r["status"] == "error"
         assert "404" in str(r.get("code", "")) or "不存在" in r.get("message", "")
+
+
+# 8. 规则14：缺表禁止伪成功降级 --------------------------------------------------------
+class TestNoDegradedFakeSuccess:
+    """USL 表缺失时写路径必须显式 error，禁止 _degraded_writeback 伪造 status:ok + usl_term_id。"""
+
+    def test_write_approved_missing_tables_returns_explicit_error(
+        self, wb: WritebackService, cs: SQLiteCandidateStorage, us: SQLiteUslStorage
+    ):
+        from unittest.mock import patch
+
+        c = _mc(cs, canon="DegradedA", status="approved")
+        with patch.object(
+            us, "save_term",
+            side_effect=sqlite3.OperationalError("no such table: usl_terms"),
+        ):
+            r = wb.write_approved(c["id"], executed_by="u1")
+
+        assert r["status"] == "error"
+        assert not r.get("degraded")
+        assert not str(r.get("usl_term_id", "")).startswith("usl-degraded")
+        # 伪成功不得把状态翻成 WRITTEN_BACK
+        upd = cs.get_candidate(c["id"]) or {}
+        assert upd.get("status") != "WRITTEN_BACK"
+
+    def test_write_rejected_missing_tables_returns_explicit_error(
+        self, wb: WritebackService, cs: SQLiteCandidateStorage, us: SQLiteUslStorage
+    ):
+        from unittest.mock import patch
+
+        c = _mc(cs, canon="DegradedR", status="gated")
+        with patch.object(
+            us, "save_term",
+            side_effect=sqlite3.OperationalError("no such table: usl_terms"),
+        ):
+            r = wb.write_rejected(
+                c["id"], reason_code="bad", add_to_stoplist=True, executed_by="a"
+            )
+
+        assert r["status"] == "error"
+        assert not r.get("degraded")
+        assert not str(r.get("usl_term_id", "")).startswith("usl-degraded")

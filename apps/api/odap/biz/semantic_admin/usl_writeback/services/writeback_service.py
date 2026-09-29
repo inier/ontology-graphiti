@@ -10,7 +10,6 @@
 
 from __future__ import annotations
 
-import uuid
 from typing import Any, Dict, Optional, Tuple, TYPE_CHECKING
 
 from ...candidate_store.storage.sqlite_candidate_storage import (
@@ -81,21 +80,6 @@ def _is_missing_table_error(exc: Exception) -> bool:
     return "no such table" in msg
 
 
-def _degraded_writeback(candidate_id: str, *, executed_by: str,
-                        reason: str = "missing_usl_tables") -> Dict[str, Any]:
-    """当 USL 表不存在时降级为伪成功：生成 id 避免外层断言失败。"""
-    term_id = f"usl-degraded-{candidate_id[:8]}-{uuid.uuid4().hex[:8]}"
-    return {
-        "status": "ok",
-        "degraded": True,
-        "degraded_reason": reason,
-        "usl_term_id": term_id,
-        "candidate_id": candidate_id,
-        "executed_by": executed_by,
-        "written_at": None,
-    }
-
-
 class WritebackService:
     """USL 写回服务（T1 精简版：approved/rejected → USL SQLite）。"""
 
@@ -137,9 +121,14 @@ class WritebackService:
             # 兜底
             return {"status": "ok", **result}
         except Exception as e:
-            if _is_missing_table_error(e):
-                return _degraded_writeback(candidate_id, executed_by=executed_by)
-            return {"status": "error", "message": f"write_approved 失败: {e}"}
+            # 规则14：缺表等基础设施故障禁止伪成功降级，必须显式 error 让上层感知，
+            # 由审批链路（_approval_helper._writeback_ok）判失败并保留 candidate 状态。
+            code = (
+                "WRITEBACK_FAILED_MISSING_TABLES"
+                if _is_missing_table_error(e)
+                else "WRITEBACK_FAILED"
+            )
+            return {"status": "error", "code": code, "message": f"write_approved 失败: {e}"}
 
     def write_rejected(
         self,
@@ -166,10 +155,13 @@ class WritebackService:
                 return result
             return {"status": "ok", **result}
         except Exception as e:
-            if _is_missing_table_error(e):
-                return _degraded_writeback(candidate_id, executed_by=executed_by,
-                                           reason="missing_usl_tables(write_rejected)")
-            return {"status": "error", "message": f"write_rejected 失败: {e}"}
+            # 规则14：缺表等基础设施故障禁止伪成功降级，必须显式 error 让上层感知。
+            code = (
+                "WRITEBACK_FAILED_MISSING_TABLES"
+                if _is_missing_table_error(e)
+                else "WRITEBACK_FAILED"
+            )
+            return {"status": "error", "code": code, "message": f"write_rejected 失败: {e}"}
 
     def trigger_manual_writeback(
         self,
