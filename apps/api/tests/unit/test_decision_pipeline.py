@@ -2,6 +2,28 @@ import pytest
 from unittest.mock import Mock, patch, AsyncMock, MagicMock, PropertyMock
 
 
+@pytest.fixture(autouse=True)
+def _stub_decision_persistence():
+    """单测隔离：execute() 经 get_decision_service() 触达真实 Neo4j 决策存储
+    （pipeline.py:250 record_decision / :621 link_triggered_action / :682
+    update_decision_outcome）。容器停时 Neo4jDecisionStore 自建 driver 按
+    max_transaction_retry_time 默认 30s 逐操作重试，串行多操作累积阻塞数分钟，
+    而外层 try/except 抓不住网络阻塞（非异常）→ 永久挂死。
+
+    在存储边界打桩（规则 14 #6：仅在 infra/存储边界 stub，被测 SUT
+    DecisionPipeline.execute 仍走真实函数体——阶段流转/OPA 门禁/perform/feedback
+    全部真实执行）。这些用例本就断言编排结果而非持久化副作用，故打桩不削弱任何断言。
+    """
+    svc = MagicMock()
+    saved = MagicMock()
+    saved.decision_id = "dec_stub"
+    svc.record_decision = AsyncMock(return_value=saved)
+    svc.update_decision_outcome = AsyncMock(return_value=True)
+    svc.link_triggered_action = AsyncMock(return_value=None)
+    with patch("odap.biz.decision.decision_record.get_decision_service", return_value=svc):
+        yield svc
+
+
 class TestPipelineStageStatus:
     def test_pending(self):
         from odap.biz.decision.decision_pipeline.schemas import PipelineStageStatus
@@ -711,3 +733,29 @@ class TestConfidenceDerivedNotHardcoded:
             decision = await pipeline._fallback_decide(analysis, inp)
 
         assert decision.confidence == 0.33
+
+
+class TestExecuteNoBlockingInfra:
+    """回归护栏：execute() 是单测，容器不可达时也必须快速完成，绝不阻塞。
+
+    根因（faulthandler + asyncio 任务栈定位到 pipeline.py:250）：ADR-076 在 execute()
+    加了决策持久化（:250 record_decision）与结果回填（:323 update_decision_outcome），
+    二者经 get_decision_service() 触达真实 Neo4jDecisionStore。容器停时 Neo4j driver 按
+    max_transaction_retry_time 默认 30s 逐操作重试，record_decision 串行多次调用累积阻塞
+    数分钟；外层 try/except 只能抓异常，抓不住网络阻塞（非异常）→ 表现为永久挂死。
+
+    本护栏用 asyncio.wait_for 把"execute 再次泄漏到阻塞基建"从静默挂死转为响亮失败
+    （TimeoutError），是 fixture 被误删/新增未打桩 infra 调用时的绊线。
+    """
+
+    @pytest.mark.asyncio
+    async def test_execute_completes_without_blocking_on_store(self):
+        import asyncio
+        pipeline = _make_pipeline_with_mocks()
+        from odap.biz.decision.decision_pipeline.schemas import AnalysisInput, PipelineStageStatus
+
+        inp = AnalysisInput(query="analyze threats", workspace_id="ws_1", agent_id="agent_1")
+        result = await asyncio.wait_for(pipeline.execute(inp), timeout=10)
+
+        assert result.error is None
+        assert result.stages["feedback"] == PipelineStageStatus.COMPLETED
