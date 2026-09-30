@@ -199,13 +199,16 @@ class ManualInputHandler:
         try:
             from graphiti_core.prompts.models import Message
             messages = [Message(role="user", content=prompt)]
+            # 超时与 pipeline_service 对齐：推理类模型单次抽取需 40~90s，
+            # 30s 会必然超时导致「LLM归纳失败」。
+            # max_tokens 同理放大，避免思维链打满配额截断 JSON（表现为抽取为空）。
             result, _, _ = await asyncio.wait_for(
-                self.llm._generate_response(messages),
-                timeout=30.0
+                self.llm._generate_response(messages, max_tokens=16000),
+                timeout=180.0
             )
             return result
         except asyncio.TimeoutError:
-            logger.error("LLM 调用超时（30s）")
+            logger.error("LLM 调用超时（180s）")
             return None
         except Exception as e:
             logger.error(f"graphiti LLM 调用失败: {e}")

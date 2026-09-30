@@ -15,6 +15,7 @@
 import uuid
 import asyncio
 import logging
+import os
 import time
 from datetime import datetime, timezone
 from typing import Dict, Any, List, Optional, Callable, Awaitable, Tuple
@@ -511,9 +512,15 @@ class LLMExtractionStageHandler(PipelineStageHandler):
             events = []
             actions = []
 
-            api_key = get_config("llm.api_key", "")
-            api_base = get_config("llm.api_base", "https://open.bigmodel.cn/api/paas/v4")
-            model = get_config("llm.model", "glm-4")
+            # 环境变量优先于 get_config：get_config 的 DB 层值可能因
+            # CONFIG_ENCRYPTION_KEY 轮换/未持久化而无法解密，返回的是密文，
+            # 直接当 API Key 发出会得到 401 Unauthorized（表现为「LLM归纳失败」）。
+            # 取法与 odap/infra/openharness/engine_adapter.py 保持一致。
+            api_key = os.environ.get("OPENAI_API_KEY", "") or get_config("llm.api_key", "")
+            api_base = os.environ.get("OPENAI_API_BASE", "") or get_config(
+                "llm.api_base", "https://open.bigmodel.cn/api/paas/v4"
+            )
+            model = os.environ.get("OPENAI_MODEL", "") or get_config("llm.model", "glm-4")
 
             if not api_key:
                 raise ValueError(
@@ -582,9 +589,17 @@ class LLMExtractionStageHandler(PipelineStageHandler):
             from graphiti_core.prompts.models import Message
 
             messages = [Message(role="user", content=prompt)]
+            # 超时说明：早期设为 30s，但实测可用模型（openai/gpt-oss-20b 等推理类模型）
+            # 单次抽取需 40~90s，30s 会导致必然超时 → 归纳失败。此处放宽到 180s，
+            # 与 odap/infra/llm/llm_service.py 中 httpx 的 180s 客户端超时保持同量级。
+            #
+            # max_tokens 说明：本提示词要求输出实体(+4 组属性)/关系/事件/动作，输出量大。
+            # 推理类模型的思维链实测在 5400~9100 字符间波动，默认 4096 会被**偶发打满**
+            # → finish_reason=length → content 中的 JSON 被截断 → 解析兜底成 {"response": ...}
+            # → 表现为「归纳成功但 0 实体」。故此处显式放大到 16000 留足余量。
             result, _, _ = await asyncio.wait_for(
-                llm_client._generate_response(messages),
-                timeout=30.0
+                llm_client._generate_response(messages, max_tokens=16000),
+                timeout=180.0
             )
 
             if result and 'entities' in result:

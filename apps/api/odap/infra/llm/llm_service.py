@@ -118,7 +118,10 @@ class ZhipuAIClient(OpenAIClient):
             "max_tokens": max_tokens
         }
 
-        async with httpx.AsyncClient(timeout=120.0) as http_client:
+        # 超时与调用方（pipeline_service / manual_input 的 asyncio.wait_for 180s）对齐，
+        # 避免内层先超时把真实原因掩盖成 "API request failed"。
+        # 实测推理类模型（openai/gpt-oss-20b）单次抽取需 40~90s。
+        async with httpx.AsyncClient(timeout=180.0) as http_client:
             response = await http_client.post(url, headers=headers, json=payload)
 
             if response.status_code != 200:
@@ -129,15 +132,37 @@ class ZhipuAIClient(OpenAIClient):
             # 提取响应内容
             if 'choices' in result and len(result['choices']) > 0:
                 content = result['choices'][0]['message']['content']
+                finish_reason = result['choices'][0].get('finish_reason')
             else:
                 content = str(result)
+                finish_reason = None
 
             # 提取 token 使用量
             prompt_tokens = result.get('usage', {}).get('prompt_tokens', 0)
             completion_tokens = result.get('usage', {}).get('completion_tokens', 0)
 
+            # 截断检测：推理类模型的思维链可能吃满 max_tokens，使 content 中的 JSON
+            # 被截断。此时 _extract_json 会兜底成 {"response": <残文>}，调用方会读到
+            # 「空结果」而看不到真实原因。这里显式告警，避免静默失败。
+            if finish_reason == 'length':
+                logger.warning(
+                    "LLM 输出被 max_tokens 截断（model=%s, max_tokens=%s, completion_tokens=%s, "
+                    "content_len=%s）——JSON 可能不完整，调用方将得到空/降级结果。"
+                    "请增大 max_tokens 或简化提示词。",
+                    self.model, max_tokens, completion_tokens, len(content or ''),
+                )
+
             # 解析 JSON 响应
             response_dict = self._extract_json(content)
+
+            # 解析兜底告警：_extract_json 全部失败时返回 {"response": 原文}，
+            # 调用方读不到业务字段。显式记录，便于区分「模型返回空」与「解析失败」。
+            if isinstance(response_dict, dict) and set(response_dict.keys()) == {'response'}:
+                logger.warning(
+                    "LLM 响应无法解析为业务 JSON（model=%s, finish_reason=%s, content_len=%s），"
+                    "已降级为 {'response': <原文>}。原文片段: %s",
+                    self.model, finish_reason, len(content or ''), (content or '')[:300],
+                )
 
             # 当有 response_model 时，校正 LLM 返回的字段名以匹配 Pydantic schema
             # （部分非 OpenAI 模型会自创字段名如 entity_name 代替 name）
