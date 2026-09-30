@@ -1,10 +1,10 @@
 {
-  "version": "1.0.1790360111",
-  "revision": "cc961c96",
+  "version": "1.0.1790628328",
+  "revision": "a66d9566",
   "policies": {
     "domain.rego": "package domain\nallow { true }"
   },
   "metadata": {},
-  "created_at": "2026-09-26T02:15:11.480464",
+  "created_at": "2026-09-29T04:45:28.023641",
   "checksum": "be31460bb4888b40eff4fdf8339fee78e97d72e5a81b1e2e7354c4a8a5b3170a"
 }
