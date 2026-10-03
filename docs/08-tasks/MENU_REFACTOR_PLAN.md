@@ -176,6 +176,39 @@
 
 ---
 
+## 6A. Iter 5–7：增量演进（决策智能 / USL 本体管理 / 去重消歧）
+
+> Iter 5、Iter 6 已在种子数据落地但当时未回填本计划，此处一并补记；Iter 7 为本次
+> 依据 [MENU_DEDUP_PLAN.md](MENU_DEDUP_PLAN.md) 执行的去重/消歧 + 决策主线显性化。
+
+### 6A.1 Iter 5（ADR-076 决策智能入口）
+
+- 演本体新增「决策智能」菜单（`/decisions`，`menu:simulate:decision`），承载决策记录/先例/影响分析。
+
+### 6A.2 Iter 6（USL 本体管理）
+
+- 建本体 > 语义管理新增「USL 本体管理」（`/semantic-admin/usl-ontologies`，`menu:build:semantic:usl_ontologies`）。
+
+### 6A.3 Iter 7（去重/消歧 + 决策主线显性化）— 本次
+
+**动机**：菜单相似项多，根因是执行层把同一功能领域按"阶段"硬拆到不同目录，且部分命名不体现职责区别；同时"基于本体的辅助决策"这一平台核心价值的入口（决策智能）被压在演本体末位，IA 上不可见。
+
+**目标树要点**（种子总数 55 → **57**，全部 code 稳定）：
+
+- **消歧改名**：本体设计器→本体类型设计、蓝图设计器→蓝图编排、数据摄入→数据摄入管道、HE 抽取链→HE 文本抽取、知识库→知识库·管理、知识导航→知识库·浏览、本体图谱→本体图谱浏览、语义地图→语义映射管理、消歧图→消歧快照管理、QA 管理→智能问答、QA 查询→检索查询台、QA 评估→检索评估、智能体对话→智能体调度、管理后台→智能体管理。
+- **新增 4 个分组子目录**：建本体「数据接入」(`dir:build:ingest`)、见本体「图谱与映射」(`dir:see:graph`)、演本体「业务建模」(`dir:simulate:business`)、用本体「问答检索」(`dir:use:qa`)。
+- **移位**：QA 三项 见本体→用本体「问答检索」（`menu:see:qa` code 保持不变）；策略编辑器 演本体→系统管理（`menu:simulate:policy` code 保持不变，OPA 权限域）。
+- **移除**：图谱查看器 `/iframe-viewer`（通用 iframe 容器伪菜单，固定入口点进去必空）+ 总览仪表盘 `/semantic-admin/dashboard`（与质量仪表盘同后端 API）从种子移除；dashboard 路由 redirect 到 quality，两条路由本身保留。
+- **决策主线显性化**：演本体「决策智能」`/decisions` 从 sort 10 提升到 **sort 1**，使辅助决策价值在演本体首屏一眼可见。
+
+**落地机制**：因 `init_default_menu()` 对已存在 code 直接 skip，改名/移位对既有 DB 无效，配套一次性迁移脚本 `apps/api/odap/biz/platform/menu_config/migrations/iter7_dedup.py`（按 code `INSERT OR REPLACE` 就地对齐 + 软删移除项，幂等，code/id 稳定故 role_menus 授权不丢；新分组子目录由服务层 `_ensure_parent_directories` 建树时自动补全，无需迁移 role_menus）。
+
+**执行方式**：`python -m odap.biz.platform.menu_config.migrations.iter7_dedup`（或在部署初始化流程中调用 `migrate_iter7_dedup(storage)`）。
+
+**同步项**：种子测试 `test_menu_seed_four_steps.py`（25 用例，计数/结构/改名/移位全量更新）、迁移测试 `test_menu_migration_iter7.py`（6 用例）、前端 `AppRoutes.tsx` dashboard redirect、i18n `menu-names`（zh/en/ja 各新增 19 键）、`ARCHITECTURE_FOUR_STEPS.md` §7 菜单树、`MENU_DEDUP_PLAN.md` 状态。离线单测 31 passed。
+
+---
+
 ## 7. 风险与缓解
 
 | 风险 | 概率 | 影响 | 缓解措施 |
@@ -258,3 +291,4 @@ Iter 1（P0 菜单归集）
 | 版本 | 日期 | 变更 |
 |------|------|------|
 | v1.0 | 2026-08-01 | 初始版本：4 个 Iteration，覆盖 8 偏差 + 5 缺失 |
+| v1.1 | 2026-10-02 | 补记 Iter 5–6，新增 §6A.3 Iter 7（去重/消歧 + 决策主线显性化 + 迁移脚本，种子 55→57） |

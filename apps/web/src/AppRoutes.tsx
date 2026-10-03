@@ -40,7 +40,6 @@ import {
   ApprovalsPage,
   CandidatesPage,
   PipelineRunsPage,
-  DashboardPage,
   SemanticAssetPipelinePage,
   UslOntologyPage,
 } from '@/modules/semantic-admin';
@@ -122,7 +121,8 @@ export function AppRoutes() {
         <Route path="/semantic-admin/pipeline-runs" element={<ProtectedRoute><PipelineRunsPage /></ProtectedRoute>} />
         <Route path="/semantic-admin/candidates" element={<ProtectedRoute><CandidatesPage /></ProtectedRoute>} />
         <Route path="/semantic-admin/quality" element={<ProtectedRoute><QualityDashboardPage /></ProtectedRoute>} />
-        <Route path="/semantic-admin/dashboard" element={<ProtectedRoute><DashboardPage /></ProtectedRoute>} />
+        {/* Iter7 C3: 总览仪表盘与质量仪表盘调用同一组后端 API，合并到 quality，旧路由 redirect 兼容书签 */}
+        <Route path="/semantic-admin/dashboard" element={<Navigate to="/semantic-admin/quality" replace />} />
         <Route path="/semantic-admin/approvals" element={<ProtectedRoute><ApprovalsPage /></ProtectedRoute>} />
         <Route path="/guide" element={<ProtectedRoute><GuidePage /></ProtectedRoute>} />
         <Route path="/" element={<ProtectedRoute><GuidePage /></ProtectedRoute>} />

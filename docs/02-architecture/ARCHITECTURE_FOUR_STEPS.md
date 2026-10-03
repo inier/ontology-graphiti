@@ -274,6 +274,20 @@ USL (Unified Semantic Layer) = 横向语义规范总线（独立于本体，贯�
 
 ## 7. 菜单结构总览（目标树形）
 
+> ⚠️ **本节为 v1.0（2026-08-01）架构梳理期的目标树，已被后续迭代超越，仅作历史参考。**
+> **当前权威菜单树**以种子数据 `apps/api/odap/biz/platform/menu_config/seeds/seed_four_steps.py` 为准，
+> 结构说明见 [MENU_DEDUP_PLAN.md §3](../08-tasks/MENU_DEDUP_PLAN.md) 与 [MENU_REFACTOR_PLAN.md §6A](../08-tasks/MENU_REFACTOR_PLAN.md)。
+>
+> **相较下方 v1.0 树的关键差异（Iter 2–7 累计）**：
+> - Iter 2：移除独立「策略推演」「模拟器」，合并到「仿真沙盘」`/simulation`。
+> - Iter 3：「本体图谱」路径 `/ontology/graph` → `/ontology/explorer`；新增「HE 抽取链」「MCP 工具集」。
+> - Iter 7（去重/消歧 + 决策主线显性化，种子 55→57）：
+>   - 新增 4 个分组子目录：建本体「数据接入」、见本体「图谱与映射」、演本体「业务建模」、用本体「问答检索」。
+>   - 消歧改名：本体设计器→本体类型设计、蓝图设计器→蓝图编排、本体图谱→本体图谱浏览、语义地图→语义映射管理、消歧图→消歧快照管理、QA 管理→智能问答、QA 查询→检索查询台、QA 评估→检索评估、智能体对话→智能体调度、管理后台→智能体管理、数据摄入→数据摄入管道、HE 抽取链→HE 文本抽取、知识库→知识库·管理、知识导航→知识库·浏览。
+>   - 移位：QA 三项 见本体→用本体「问答检索」；「策略编辑器」演本体→系统管理。
+>   - 移除：「图谱查看器」`/iframe-viewer`（通用容器伪菜单）、「总览仪表盘」`/semantic-admin/dashboard`（与质量仪表盘同 API，路由 redirect 到 quality）。
+>   - 「决策智能」`/decisions` 提升到演本体**首位**（辅助决策价值兑现在 IA 显性化，ADR-073/ADR-076）。
+
 ```
 ├── 建本体
 │   ├── 本体设计器          (/ontology/designer)
