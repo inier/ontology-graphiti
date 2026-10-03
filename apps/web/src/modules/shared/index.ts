@@ -1,7 +1,6 @@
 export { useWorkspace, useScenario, useRightPanel, useOntologyVersion } from './components/LayoutContexts';
 export type { Workspace, Scenario, WorkspaceContextType, ScenarioContextType, OntologyVersionContextType, RightPanelContextType } from './components/LayoutContexts';
 export { WorkspaceContext, ScenarioContext, OntologyVersionContext, RightPanelContext } from './components/LayoutContexts';
-export { ProLayout } from './components/ProLayout';
 export { AdvancedTable, wrapRequest } from './components/AdvancedTable';
 export type { AdvancedTableProps } from './components/AdvancedTable';
 export { DocumentViewer } from './components/DocumentViewer';
