@@ -129,8 +129,13 @@ def score_to_tier(s: float) -> str:
 
 
 def _mk(submetric: str, score: float, reason: str,
-        rule_name: str, threshold: Optional[float]) -> SubMetric:
-    """构造规范化 SubMetric dict（score 限制 0~1）。"""
+        rule_name: str, threshold: Optional[float],
+        evaluated: bool = True) -> SubMetric:
+    """构造规范化 SubMetric dict（score 限制 0~1）。
+
+    evaluated=False（ADR-084 F2）标记占位/未真正评估的子项：其 score 仍保留
+    （供展示与向后兼容），但不计入所属 gate 的均分，避免伪绿 KPI。
+    """
     try:
         s = float(score)
     except (TypeError, ValueError):
@@ -142,7 +147,20 @@ def _mk(submetric: str, score: float, reason: str,
         "reason": reason,
         "rule_name": rule_name,
         "threshold": threshold,
+        "evaluated": bool(evaluated),
     }
+
+
+def _mean_evaluated(subs: List[SubMetric]) -> float:
+    """仅对 evaluated=True 的子项求简单平均（ADR-084 F2）。
+
+    占位/未评估子项（evaluated=False）不计入分母。若无任何已评估子项，
+    返回 0.0（诚实归零，禁止回退满分）。
+    """
+    scored = [s for s in subs if s.get("evaluated", True)]
+    if not scored:
+        return 0.0
+    return sum(s["score"] for s in scored) / len(scored)
 
 
 # ======================================================================
@@ -331,6 +349,89 @@ def _collect_synonyms_plus_canonical(c: Dict[str, Any]) -> List[str]:
     return [x for x in out if x]
 
 
+def _extract_items(page: Any) -> Optional[List[Any]]:
+    """从 USL 存储分页返回值中提取 items 列表（ADR-085 S4c）。
+
+    SQLiteUslStorage 的 list_* 方法返回 ``(items, total)`` 二元组，而 service 层
+    可能返回 ``{"items": [...]}``，个别路径直接返回裸 list。统一在此解包，避免
+    把 ``(items, total)`` 当成 items 迭代（会对 list/int 调 .get 触发 AttributeError
+    被静默吞掉 → 规则 14 禁止的隐性假成功）。
+
+    Returns:
+        items 列表（查到空结果返回 ``[]``）；形态无法识别或入参为 None 返回 ``None``
+        （None 与 [] 语义不同：None=没查成/无数据源，[]=查过但为空）。
+    """
+    if page is None:
+        return None
+    if isinstance(page, dict):
+        items = page.get("items")
+        return list(items) if isinstance(items, (list, tuple)) else None
+    if isinstance(page, (list, tuple)):
+        # (items, total) 二元组：首元素为 list/tuple 且次元素为 int
+        if (
+            len(page) == 2
+            and isinstance(page[0], (list, tuple))
+            and isinstance(page[1], int)
+        ):
+            return list(page[0])
+        return list(page)
+    return None
+
+
+def _find_isa_cycle(
+    graph: Dict[str, set], roots: Iterable[str]
+) -> Optional[List[str]]:
+    """从 roots 沿 child→parent 边收集可达子图，用 Kahn 拓扑排序检测环（ADR-085 S4c）。
+
+    candidate-centric：只看候选术语的祖先链是否成环（对齐 specs/007 I3T4「父链 DFS
+    不回到自身」）；域内与候选无关的环不误伤该候选。迭代实现，无递归深度限制。
+
+    Args:
+        graph: child(lower) → {parent(lower), ...} 的 is_a 邻接表
+        roots: 候选术语集合（canonical + 同义词，已 lower）
+
+    Returns:
+        环涉及的节点列表（自环返回 ``[x, x]``）；无环返回 ``None``。
+    """
+    # 1. 收集从 roots 可达的节点（沿 child→parent 向上）
+    reachable: set = set()
+    stack: List[str] = [r for r in roots if r]
+    while stack:
+        n = stack.pop()
+        if n in reachable:
+            continue
+        reachable.add(n)
+        for p in graph.get(n, ()):
+            if p not in reachable:
+                stack.append(p)
+    if not reachable:
+        return None
+    # 2. 自环判定（可达节点中任一 n ∈ graph[n]）
+    for n in reachable:
+        if n in graph.get(n, ()):
+            return [n, n]
+    # 3. Kahn 拓扑排序（可达子图内，排除已判定的自环边）
+    indeg: Dict[str, int] = {n: 0 for n in reachable}
+    adj: Dict[str, List[str]] = {n: [] for n in reachable}
+    for child in reachable:
+        for parent in graph.get(child, ()):
+            if parent in reachable and parent != child:
+                adj[child].append(parent)
+                indeg[parent] += 1
+    queue: List[str] = [n for n in reachable if indeg[n] == 0]
+    visited = 0
+    while queue:
+        n = queue.pop()
+        visited += 1
+        for m in adj[n]:
+            indeg[m] -= 1
+            if indeg[m] == 0:
+                queue.append(m)
+    if visited != len(reachable):
+        return sorted(n for n in reachable if indeg[n] > 0)
+    return None
+
+
 def _gate2_subscores(
     c: Dict[str, Any],
     usl_storage: Any,
@@ -338,9 +439,11 @@ def _gate2_subscores(
 ) -> Tuple[float, List[SubMetric]]:
     """
     G2.1 Disjointness：查 disjoint pair 是否命中 candidate 的同义词对
-    G2.2 基数约束：占位 1.0（待 L5 基数归纳）
-    G2.3 is_a 无环：占位 1.0（待 L3 拓扑排序）
+    G2.2 基数约束：读 usl_cardinalities，候选涉及的基数约束须可满足（min≤max）
+    G2.3 is_a 无环：读 usl_hierarchies，候选父链 Kahn 拓扑排序检测环/自环
     G2.4 LLM Judge：feature flag 关闭时默认 1.0
+    G2.2/G2.3 仅在注入真实数据源（usl_storage + domain_id）时 evaluated=True；
+    无数据源时诚实保持 evaluated=False（ADR-084 F2 / ADR-085 S4c）。
     返回：(g2_score 简单平均, 4 条子项详情)
     """
     terms = _collect_synonyms_plus_canonical(c)
@@ -386,40 +489,137 @@ def _gate2_subscores(
         threshold=None,
     )
 
-    # G2.2 基数约束占位
+    # G2.2 基数约束真值（ADR-085 S4c）：读 usl_cardinalities，检查候选涉及的基数
+    #   约束是否可满足（min_card ≤ max_card）。evaluated=True 仅当真的查到数据源；
+    #   无数据源（usl_storage=None / 缺 domain_id / 查询失败）→ 诚实保持 evaluated=False。
+    g2_2_score = 1.0
+    g2_2_evaluated = False
+    g2_2_reason = ("[未评估] 无 USL 基数数据源（usl_storage 未注入或候选缺 "
+                   "domain_id），占位分不计入均分")
+    card_fn = (
+        getattr(usl_storage, "list_cardinalities", None)
+        if usl_storage is not None else None
+    )
+    if card_fn is not None and c.get("domain_id"):
+        try:
+            items = _extract_items(
+                card_fn(domain_id=c["domain_id"], page=1, page_size=500)
+            )
+        except Exception as e:  # 查询失败显式记录，不静默伪绿（规则 14.2）
+            items = None
+            g2_2_reason = f"[未评估] USL 基数查询失败: {e}"
+        if items is not None:
+            g2_2_evaluated = True
+            contradictions: List[str] = []
+            involved = 0
+            for it in items:
+                if not isinstance(it, dict):
+                    continue
+                dt = str(it.get("domain_term") or "").strip().lower()
+                rt = str(it.get("range_term") or "").strip().lower()
+                if not (dt in term_set or rt in term_set):
+                    continue
+                involved += 1
+                min_c = _safe_int(it.get("min_card"), default=0, non_negative=False)
+                max_raw = it.get("max_card")
+                if max_raw is None:
+                    continue  # 无上界，min≥0 即可满足
+                max_c = _safe_int(max_raw, default=0, non_negative=False)
+                if min_c > max_c or min_c < 0:
+                    contradictions.append(
+                        f"{it.get('rel_name')}({dt}→{rt}) min={min_c}>max={max_c}"
+                    )
+            if contradictions:
+                g2_2_score = 0.0
+                g2_2_reason = (
+                    f"命中矛盾基数约束: {contradictions[:3]}（min>max 不可满足，FAIL）"
+                )
+            elif involved:
+                g2_2_reason = f"候选涉及 {involved} 条基数约束，均可满足（min≤max）"
+            else:
+                g2_2_reason = "候选未涉及基数约束，平凡满足（已查 USL 基数表）"
     g2_2 = _mk(
         submetric="g2_cardinality_constraint",
-        score=1.0,
-        reason="待 L5 基数归纳后复核（当前无候选基数）",
-        rule_name=f"{RULE_PREFIX}_g2_2_card_placeholder",
+        score=g2_2_score,
+        reason=g2_2_reason,
+        rule_name=f"{RULE_PREFIX}_g2_2_cardinality",
         threshold=None,
+        evaluated=g2_2_evaluated,
     )
 
-    # G2.3 is_a 无环占位
+    # G2.3 is_a 无环真值（ADR-085 S4c）：读 usl_hierarchies，从候选术语沿 child→parent
+    #   收集可达子图做 Kahn 拓扑排序，检测父链是否成环/自环。evaluated=True 仅当真的
+    #   查到数据源；无数据源（usl_storage=None / 缺 domain_id / 查询失败）→ 诚实 evaluated=False。
+    g2_3_score = 1.0
+    g2_3_evaluated = False
+    g2_3_reason = ("[未评估] 无 USL 层级数据源（usl_storage 未注入或候选缺 "
+                   "domain_id），占位分不计入均分")
+    hier_fn = (
+        getattr(usl_storage, "list_hierarchies", None)
+        if usl_storage is not None else None
+    )
+    if hier_fn is not None and c.get("domain_id"):
+        try:
+            h_items = _extract_items(
+                hier_fn(domain_id=c["domain_id"], page=1, page_size=500)
+            )
+        except Exception as e:  # 查询失败显式记录，不静默伪绿（规则 14.2）
+            h_items = None
+            g2_3_reason = f"[未评估] USL 层级查询失败: {e}"
+        if h_items is not None:
+            g2_3_evaluated = True
+            graph: Dict[str, set] = {}
+            edge_count = 0
+            for it in h_items:
+                if not isinstance(it, dict):
+                    continue
+                if str(it.get("rel_type") or "IS_A").upper() != "IS_A":
+                    continue
+                child = str(it.get("child_term") or "").strip().lower()
+                parent = str(it.get("parent_term") or "").strip().lower()
+                if not child or not parent:
+                    continue
+                graph.setdefault(child, set()).add(parent)
+                edge_count += 1
+            cycle = _find_isa_cycle(graph, term_set)
+            if cycle:
+                g2_3_score = 0.0
+                g2_3_reason = (
+                    f"is_a 父链成环: {'→'.join(cycle)}（拓扑排序失败，FAIL）"
+                )
+            elif edge_count:
+                g2_3_reason = (
+                    f"is_a 层级无环（已查 {edge_count} 条 is_a 边，候选父链拓扑排序通过）"
+                )
+            else:
+                g2_3_reason = "无 is_a 层级边，平凡无环（已查 USL 层级表）"
     g2_3 = _mk(
         submetric="g2_isa_acyclic",
-        score=1.0,
-        reason="待 L3 分类层级草稿就绪后做拓扑排序（当前无层级）",
-        rule_name=f"{RULE_PREFIX}_g2_3_isa_placeholder",
+        score=g2_3_score,
+        reason=g2_3_reason,
+        rule_name=f"{RULE_PREFIX}_g2_3_isa_acyclic",
         threshold=None,
+        evaluated=g2_3_evaluated,
     )
 
-    # G2.4 LLM Judge
+    # G2.4 LLM Judge（ADR-084 F2：feature flag 关闭或未接入调用时均未真正评估）
     g2_4_score = 1.0
+    g2_4_evaluated = False
     if not ENABLE_LLM_JUDGE:
-        g2_4_reason = "feature flag SEMANTIC_ADMIN_ENABLE_LLM_JUDGE=false，LLM Judge 关闭"
+        g2_4_reason = "[未评估] feature flag SEMANTIC_ADMIN_ENABLE_LLM_JUDGE=false，LLM Judge 关闭（占位分不计入均分）"
     else:
-        g2_4_reason = "LLM Judge 调用未接入，默认 1.0（后续接入 LLM client）"
+        g2_4_reason = "[未评估] LLM Judge 调用未接入，占位分不计入均分（后续接入 LLM client）"
     g2_4 = _mk(
         submetric="g2_llm_semantic_judge",
         score=g2_4_score,
         reason=g2_4_reason,
         rule_name=f"{RULE_PREFIX}_g2_4_llm_judge",
         threshold=None,
+        evaluated=g2_4_evaluated,
     )
 
     subs = [g2_1, g2_2, g2_3, g2_4]
-    g2_score = sum(s["score"] for s in subs) / max(1, len(subs))
+    g2_score = _mean_evaluated(subs)
     return round(g2_score, 6), subs
 
 

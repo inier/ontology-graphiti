@@ -24,6 +24,7 @@
 | **quality_gate** | `quality_gate/` | Candidate + 预取验证结果 | 16 指标评分 + 综合分 | P95 < 100ms / 百条 |
 | **approval_workflow** | `approval_workflow/` | 审批动作（通过/驳回/回退） | 状态流转 + 审计日志 | P95 < 80ms |
 | **usl_writeback** | `usl_writeback/` | APPROVED_WRITEBACK 状态 Candidate | 本体 TBox 写入 + 语义地图同步 | P95 < 2s |
+| **shacl_store** | `shacl_store/` | 本体版本类型定义 + USL 约束 + L6 公理 | `sa_shacl_shape` 版本键控派生缓存 + `sa_derived_axiom` L6 公理持久化（ADR-085 D1/D2，供 G2.2 基数真值/治理读取） | P95 < 50ms |
 
 ---
 
@@ -184,7 +185,7 @@ PipelineService 通过 `_STEP_ORDER = [DRAFT, RUNNING, L1_DONE, L2_DONE, L3_DONE
 | **L3 形式概念分析 (FCA)** | [impl/l3_formal_concept.py](file:///e:/DEMO/AI/ontology-graphiti/apps/api/odap/biz/semantic_admin/ol_pipeline/impl/l3_formal_concept.py) | 形式背景 (G,M,I) 构建 + BordNet 属性概念枚举 + 稳定性过滤 + 直接子概念层级边 | `L3=ok, l3_concept_count, l3_suggested_edges, l3_context_size (objects/attributes/incidence)` |
 | **L4 关系分类** | [impl/l4_relation_extraction.py](file:///e:/DEMO/AI/ontology-graphiti/apps/api/odap/biz/semantic_admin/ol_pipeline/impl/l4_relation_extraction.py) | 关键词规则 (是一种/part-of/具有/关联) + 词频 → 4 类关系 {is_a, part_of, attribute_of, related_to} + provenance 三元组 | `L4=ok, l4_relation_count, l4_relations_by_type (Dict[str,int])` |
 | **L5 本体融合** | [impl/l5_ontology_fusion.py](file:///e:/DEMO/AI/ontology-graphiti/apps/api/odap/biz/semantic_admin/ol_pipeline/impl/l5_ontology_fusion.py) | 加权相似度 (Jaccard 0.4 + 编辑距离 0.3 + 同义词重叠 0.3) + 同名 boost → 三分类决策 {merge, keep-as-new, flag-conflict}，阈值 0.82/0.55 | `L5=ok, l5_merged_count, l5_kept_new_count, l5_flagged_count` |
-| **L6 公理推导** | [impl/l6_axiom_deriver.py](file:///e:/DEMO/AI/ontology-graphiti/apps/api/odap/biz/semantic_admin/ol_pipeline/impl/l6_axiom_deriver.py) | 层级边 → subClassOf(直传+传递闭包)；同父兄弟 → disjointClasses；L4 关系三元组 → object_property_domain/range/cardinality(min=0 max=*) | `L6=ok, l6_axiom_total, l6_axioms_by_type (5 类 breakdown)` |
+| **L6 公理推导** | [impl/l6_axiom_deriver.py](file:///e:/DEMO/AI/ontology-graphiti/apps/api/odap/biz/semantic_admin/ol_pipeline/impl/l6_axiom_deriver.py) | 层级边 → subClassOf(直传+传递闭包)；同父兄弟 → disjointClasses；L4 关系三元组 → object_property_domain/range/cardinality(min=0 max=*) | `L6=ok, l6_axiom_total, l6_axioms_by_type (5 类 breakdown)`；公理按 run 幂等持久化到 `sa_derived_axiom`（ADR-085 D2/F7-c，`pipeline_service.execute_l6` 内 `replace_axioms_for_run`，不再仅留计数） |
 
 **关键设计**：
 1. 纯 Python 零外部依赖 — L3 FCA 的 BordNet 枚举无需 `concept_analysis` pip 包，`RuleBasedRelationExtractor` 纯关键词规则无 `sklearn`；保证纯逻辑部分能在无 graphiti/openharness 容器独立跑通（解决 `openharness.tools` 缺失导致的 `ImportError`）。
@@ -207,6 +208,29 @@ PipelineService 通过 `_STEP_ORDER = [DRAFT, RUNNING, L1_DONE, L2_DONE, L3_DONE
   （`canonical=display_name|name`、`attribute_of=related_objects[0]`（空落空串）、
   `confidence=1.0`、`origin="structured"`）；`related_objects/processes/rules` 不另发为
   独立候选，避免循环归类。缺 `ontology_id` 或拉取异常均显式报错（规则 14）。
+
+### 4.6 摄入车道 open 层实体归集（knowledge_base，ADR-084 F1/F3）
+
+`biz/data/knowledge_base/services/knowledge_base_service.py`（`KnowledgeBaseService`）在写图前
+对抽取实体做**类型分流**（`_partition_entities_by_type`），把「未受治理类型」的实体转成
+`candidate_store` 待审候选，而非在图谱里自由落 `zh_type` 中文类型节点：
+
+- **两层事实模型（ADR-084 D1）**：抽取实体的原始类型串先经 `UslTermResolver.canonical_of`
+  归一（F3）。命中 USL canonical 且归一后的 `type_id` 为 ASCII → 落 **typed 层**（受治理，
+  正常写图）；未命中、类型为空、或归一后仍含中文（非 ASCII）→ 落 **open 层**，
+  **不进图谱**，改由 `_stage_open_layer_entities` 建 `source_type="ingest"` 的 pipeline run
+  并批量转候选（`origin="llm"`、`semantic_type="对象类型"`）。
+- **provenance 溯源字段**：open 层候选的 `provenance` 记 `source="kb_ingest_open_layer"`、
+  `raw_type`（原始类型串）、`usl_canonical`（归一结果或空）、`unresolved_term`
+  （USL 未命中布尔，纯 resolver miss，不与「非 ASCII」混淆）、`open_reason`
+  （`empty_type` / `non_ascii_type`）、`open_layer=True`。
+- **关系延迟**：`_resolve_entity_id` 对无法解析的实体名返回 `None`（不再合成 id），
+  触及 open 层端点的关系被延迟（`deferred_relations` 计数），等候选治理为 typed 后再落图。
+- **失败显式（规则 14）**：`candidate_store` 不可用时 `logger.warning` 记录未转候选的数量与
+  kb/doc 上下文，不静默丢弃；构造失败不写长生命周期缓存，下次调用重新构造。
+- **依赖边**：新增 `biz.data.knowledge_base → biz.semantic_admin.candidate_store`（惰性 import）
+  与 `→ biz.semantic_admin.usl_manager`。属 biz 子域间调用，不触 import-linter C1–C4 分层契约
+  （实测 `4 kept, 0 broken`，C4 债账仍 10 条未增）。
 
 ---
 

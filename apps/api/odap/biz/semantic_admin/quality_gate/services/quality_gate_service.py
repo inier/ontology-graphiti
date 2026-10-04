@@ -57,6 +57,9 @@ def _flatten_submetrics(
                 "reason": str(it.get("reason") or ""),
                 "rule_name": str(it.get("rule_name") or ""),
                 "threshold": it.get("threshold"),
+                # ADR-084 F2：透传占位标记，供前端/dashboard 显示「未评估」。
+                # 缺省 True（旧报告行无此字段时视为已评估）。
+                "evaluated": bool(it.get("evaluated", True)),
             }
             out.append(d)
         return out

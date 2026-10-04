@@ -23,6 +23,10 @@ class SubMetric(TypedDict, total=False):
     rule_name: str       # 规则名：如 semadm_g1_1_name_regex / semadm_g3_2_doc_hits
     threshold: Optional[float]  # 阈值（None=无具体阈值）
     extras: Optional[Dict[str, Any]]  # G3.5 可放 risk_tags/suggestions/checker
+    # ADR-084 F2：evaluated=False 表示该子项当前为占位/未真正评估（如 G2.2 基数、
+    # G2.3 is_a 无环、G2.4 LLM Judge 未接入），其 score 不计入所属 gate 的均分，
+    # 以免未评估项以满分抬高 KPI（伪绿）。缺省视为 True（向后兼容既有子项）。
+    evaluated: bool
 
 
 class QualityReport(TypedDict, total=False):

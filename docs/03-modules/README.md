@@ -89,7 +89,7 @@
 | Simulation Sandbox 沙盘 | `apps/api/odap/biz/simulation/simulation_sandbox/` | 并行沙盘推演 | ✅ 活跃 |
 | Visualization 可视化 | `apps/api/odap/biz/simulation/visualization/` | 仿真结果可视化 | ✅ 活跃 |
 
-#### semantic_admin/ — 语义管理台顶级域（8 子服务）
+#### semantic_admin/ — 语义管理台顶级域（9 子服务）
 
 | 模块 | 路径 | 职责 | 状态 |
 |------|------|------|------|
@@ -102,6 +102,7 @@
 |   - usl_writeback 写回 | `apps/api/odap/biz/semantic_admin/usl_writeback/` | 审批通过写回本体 TBox + 同步 Neo4j 从副本 + 语义地图 + I4T8 手动触发/状态查询 API | ✅ 活跃 |
 |   - sa_config 动态配置 | `apps/api/odap/biz/semantic_admin/sa_config/` | 语义层配置从硬编码迁移到 SQLite 持久化（scoped key/value）+ ensure-builtin 内置常量化石回填 | ✅ 活跃 |
 |   - semantic_asset_pipeline 语义资产流水线 | `apps/api/odap/biz/semantic_admin/semantic_asset_pipeline/` | 端到端统一编排：结构化引入(UnifiedIngestFacade 链路A) + 非结构化抽取(ExtractService 链路B) + 候选归集(SQLiteCandidateStorage) + 提交审核，纯确定性编排不引入 LLM 判断 | ✅ 活跃 |
+|   - shacl_store SHACL 形状/公理存储 | `apps/api/odap/biz/semantic_admin/shacl_store/` | ADR-085 D1/D2：`sa_shacl_shape` 版本键派生缓存（ontology_version_id + constraint_revision + target_type，实时生成不持久化陈旧副本，ADR-077 裁决1 操作化）+ `sa_derived_axiom` L6 公理持久化（供 G2.2 基数真值/治理读取）。纯 stdlib SQLite，不深插 ontology.design（守 import-linter C3） | ✅ 活跃 |
 
 #### shared/ — 共享工具（无子模块）
 

@@ -1,0 +1,76 @@
+// ODAP 对照《The Ontology Pipeline》评审风险关系图
+// 生成：risk-quality-reviewer + graphviz（2026-10-03）
+// 配套叙述：REVIEW_ONTOLOGY_PIPELINE_2026-10-03.md
+// 置信度标注：[high]/[medium] 对应报告证据等级；dashed = 推断/未确认路径
+digraph review_risk_map {
+  rankdir=TB;
+  node [fontname="Microsoft YaHei", fontsize=11];
+  edge [fontname="Microsoft YaHei", fontsize=9];
+
+  subgraph cluster_pipeline {
+    label="Talisman 六阶段（ODAP 当前态成熟度）";
+    style=rounded; color=gray;
+    s1 [label="① 受控词表 USL\n成熟度 4/5 [high]", shape=box, style=filled, fillcolor="#d9ead3"];
+    s2 [label="② 元数据标准\n成熟度 2/5 [high]", shape=box, style=filled, fillcolor="#f4cccc"];
+    s3 [label="③ 分类法 IS_A/FCA\n成熟度 3.5/5 [high]", shape=box, style=filled, fillcolor="#fff2cc"];
+    s4 [label="④ 叙词表\n成熟度 3/5 [high]", shape=box, style=filled, fillcolor="#fff2cc"];
+    s5 [label="⑤ 本体 Pydantic+L6公理\n成熟度 4/5 [high]", shape=box, style=filled, fillcolor="#d9ead3"];
+    s6 [label="⑥ 知识图谱 LPG双时态\n成熟度 3.5/5 [high]", shape=box, style=filled, fillcolor="#fff2cc"];
+    s1 -> s2 -> s3 -> s4 -> s5 -> s6 [label="递进", style=dotted];
+  }
+
+  subgraph cluster_lanes {
+    label="两条执行车道";
+    style=rounded; color=gray;
+    lane_gov [label="治理车道\nOL L1-L6 → 质量闸 → 两级审批 → 写回", shape=box, style=filled, fillcolor="#cfe2f3"];
+    lane_ing [label="摄入车道\nKB建图 / 感知事件 → 直接写图", shape=box, style=filled, fillcolor="#f4cccc"];
+  }
+
+  subgraph cluster_risks {
+    label="评审发现";
+    style=rounded; color=red;
+    f1 [label="F1 双车道强制不一致\n摄入绕过本体强制(zh_type自由写)", shape=octagon, style=filled, fillcolor="#e06666", fontcolor=white];
+    f2 [label="F2 度量完整性失真\nG2.2/G2.3占位1.0进KPI", shape=octagon, style=filled, fillcolor="#e06666", fontcolor=white];
+    f3 [label="F3 词表归一未接写入链\n仅检索侧改写补救", shape=octagon, style=filled, fillcolor="#e69138"];
+    f4 [label="F4 元数据标准阶段薄", shape=octagon, style=filled, fillcolor="#e69138"];
+    f5 [label="F5 设计文档-代码漂移", shape=octagon, style=filled, fillcolor="#e69138"];
+    f7 [label="F7 SHACL不持久化\n且不在写图路径", shape=octagon, style=filled, fillcolor="#e69138"];
+  }
+
+  subgraph cluster_impact {
+    label="受影响的能力/承诺";
+    style=rounded; color=gray;
+    cap_consistency [label="图谱语义一致性\n(USL批准集 vs 图谱实际集)", shape=box, style=filled, fillcolor="#d9d2e9"];
+    cap_retrieval [label="RAG 检索准确率\n(词对齐)", shape=box, style=filled, fillcolor="#d9d2e9"];
+    cap_decision [label="审批/汇报决策依据\n(度量可信)", shape=box, style=filled, fillcolor="#d9d2e9"];
+    cap_doc [label="设计文档证据价值", shape=box, style=filled, fillcolor="#d9d2e9"];
+    cap_framework [label="框架承诺：可度量\n可强制", shape=box, style=filled, fillcolor="#d9d2e9"];
+  }
+
+  // 车道与阶段的关系
+  lane_gov -> s1 [label="产出/治理"];
+  lane_gov -> s5 [label="写回 TBox"];
+  lane_gov -> s6 [label="受控写入"];
+  lane_ing -> s6 [label="自由写入(跳①-④)", color=red];
+
+  // 风险成因
+  lane_ing -> f1 [label="无schema校验\nzh_type降级"];
+  s6 -> f1 [label="承载未治理节点"];
+  f7 -> f1 [label="约束不在写图路径"];
+  s2 -> f4 [label="阶段缺位"];
+  s1 -> f3 [label="归一器未接写入链"];
+  lane_gov -> f2 [label="质量闸占位子项"];
+
+  // 风险影响
+  f1 -> cap_consistency [label="侵蚀"];
+  f3 -> cap_consistency [label="写入侧不对齐"];
+  f3 -> cap_retrieval [label="靠查询改写补救"];
+  f2 -> cap_decision [label="KPI系统性偏高"];
+  f2 -> cap_framework [label="度量不可信"];
+  f1 -> cap_framework [label="强制不完整"];
+  f5 -> cap_doc [label="文档失去证据价值"];
+  f4 -> cap_consistency [label="对齐地基弱", style=dashed];
+
+  // 未知路径（报告 U2）
+  lane_ing -> f1 [label="感知车道同绕过?[U2 medium]", style=dashed];
+}

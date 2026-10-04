@@ -24,9 +24,23 @@ class KnowledgeBaseService:
             cls._instance = cls()
         return cls._instance
 
-    def __init__(self, storage: SQLiteKnowledgeBaseStorage = None):
+    def __init__(
+        self,
+        storage: SQLiteKnowledgeBaseStorage = None,
+        candidate_storage: Any = None,
+        usl_resolver: Any = None,
+        usl_domain_id: str = "",
+    ):
         self._storage = storage or SQLiteKnowledgeBaseStorage()
         self._graph_tasks: Dict[str, Dict[str, Any]] = {}
+        # ADR-084 F1/F3：可选依赖注入（便于测试用真实 tmp_path 库装配）。
+        #   candidate_storage —— open 层未治理类型实体转候选的落库（semantic_admin.candidate_store）
+        #   usl_resolver      —— 写前 USL 归一器（canonical_of），None 时退化为 ASCII 启发式
+        #   usl_domain_id     —— 归一所用领域；KB 车道当前无强绑定，默认空
+        # 三者均为 None 时按需惰性构造（构造失败不缓存，遵 AGENTS.md 规则 14）。
+        self._candidate_storage = candidate_storage
+        self._usl_resolver = usl_resolver
+        self._usl_domain_id = usl_domain_id
 
     def _create_llm_client(self):
         api_key = os.getenv("OPENAI_API_KEY", "")
@@ -289,11 +303,182 @@ class KnowledgeBaseService:
 
         return {"entities": entities, "relations": relations}
 
-    def _write_to_graph(self, kb_id: str, doc_id: str, entities: List[Dict], relations: List[Dict]) -> bool:
-        """将抽取的实体和关系写入 Neo4j 图谱。
+    # ==================================================================
+    # ADR-084 F1/F3：open/typed 双层 + 写前 USL 归一
+    # ==================================================================
+    def _get_candidate_storage(self) -> Optional[Any]:
+        """惰性获取 candidate_store 存储（open 层实体转候选的落库）。
+
+        构造失败不缓存（AGENTS.md 规则 14：降级实例禁入长生命周期缓存），
+        返回 None 由调用方显式处理，不静默吞。
+        """
+        if self._candidate_storage is not None:
+            return self._candidate_storage
+        try:
+            from odap.biz.semantic_admin.candidate_store.storage import (
+                SQLiteCandidateStorage,
+            )
+            self._candidate_storage = SQLiteCandidateStorage()
+            return self._candidate_storage
+        except Exception as e:
+            logger.warning("candidate_store 初始化失败，open 层实体无法转候选: %r", e)
+            return None
+
+    def _get_usl_resolver(self):
+        """返回 (resolver, domain_id)。resolver 可能为 None（无 USL 上下文）。
+
+        惰性从 SQLite USL 存储构造（可脱离 Neo4j）。构造失败不缓存、返回 None，
+        由 _partition_entities_by_type 退化为 ASCII 启发式（不静默假装归一成功）。
+        """
+        if self._usl_resolver is not None:
+            return self._usl_resolver, self._usl_domain_id
+        try:
+            from odap.biz.semantic_admin.usl_manager.services.usl_term_resolver import (
+                load_resolver_from_storage,
+            )
+            resolver = load_resolver_from_storage(self._usl_domain_id or "")
+            self._usl_resolver = resolver
+            return resolver, self._usl_domain_id
+        except Exception as e:
+            logger.warning(
+                "UslTermResolver 构造失败，写前归一退化为 ASCII 启发式（不静默降级为已归一）: %r",
+                e,
+            )
+            return None, self._usl_domain_id
+
+    def _partition_entities_by_type(
+        self,
+        entities: List[Dict],
+        resolver: Any = None,
+        domain_id: str = "",
+    ):
+        """按类型治理状态二分实体（ADR-084 F1，纯逻辑，无副作用，不产生 zh_type）。
+
+        typed 层：类型标识为非空 ASCII 安全串（可作图谱类型/受控标识符）。
+        open 层：类型含中文、为空，或经 USL 归一明确未命中——不自由落 typed 图，
+                 改由 _stage_open_layer_entities 转候选队列走治理车道。
+
+        resolver 命中时用 canonical 作为类型基准；未命中（canonical_of 返回 None）
+        打 unresolved_term=True。resolver 为 None 时退化为「ASCII=typed / CJK=open」。
+
+        返回：(typed, open_layer)
+          typed:      List[(entity, type_id)]
+          open_layer: List[{"entity", "raw_type", "canonical", "unresolved_term"}]
+        """
+        typed: List[Any] = []
+        open_layer: List[Dict[str, Any]] = []
+        for entity in entities:
+            raw_type = str(entity.get("type") or "").strip()
+            canonical: Optional[str] = None
+            if resolver is not None and raw_type:
+                try:
+                    canonical = resolver.canonical_of(raw_type, domain_id)
+                except Exception as e:
+                    # 归一器异常按「未归一」处理并显式告警，不静默当作命中（规则 14）
+                    logger.warning("USL canonical_of 异常，按未归一处理: %r", e)
+                    canonical = None
+            unresolved_term = bool(resolver is not None and canonical is None)
+            basis = canonical or raw_type
+            type_id = basis.lower().replace(' ', '_')
+            ascii_safe = bool(type_id) and not re.search(r'[\u4e00-\u9fff]', type_id)
+            if ascii_safe:
+                typed.append((entity, type_id))
+            else:
+                # open 层归置原因与「USL 是否识别」是两个正交维度：
+                #   unresolved_term —— resolver 明确未命中（USL 不认识该类型）
+                #   open_reason     —— 为何进 open 层（non_ascii_type / empty_type）
+                open_layer.append({
+                    "entity": entity,
+                    "raw_type": raw_type,
+                    "canonical": canonical,
+                    "unresolved_term": unresolved_term,
+                    "open_reason": "empty_type" if not raw_type else "non_ascii_type",
+                })
+        return typed, open_layer
+
+    def _stage_open_layer_entities(
+        self,
+        open_items: List[Dict[str, Any]],
+        kb_id: str,
+        doc_id: str,
+        workspace_id: str = "default",
+    ) -> List[str]:
+        """把 open 层（未治理类型）实体转 candidate_store 候选（ADR-084 F1）。
+
+        不写 typed 图；建一条 source_type="ingest" 的 pipeline run 承载候选。
+        返回新建候选 id 列表。任何失败均显式 warning 并返回已落库部分（不静默）。
+        """
+        if not open_items:
+            return []
+        storage = self._get_candidate_storage()
+        if storage is None:
+            logger.warning(
+                "candidate_store 不可用，%d 个 open 层实体未转候选（kb=%s doc=%s）——"
+                "typed 图不受影响，但这些未治理类型暂无法进入治理车道",
+                len(open_items), kb_id, doc_id,
+            )
+            return []
+        try:
+            run = storage.create_pipeline_run(
+                workspace_id=workspace_id,
+                source_type="ingest",
+                source_ref=f"kb:{kb_id}/doc:{doc_id}",
+                triggered_by="kb_open_layer_stage",
+            )
+            run_id = run.get("id")
+        except Exception as e:
+            logger.warning("创建 ingest pipeline run 失败，open 层实体未落候选: %r", e)
+            return []
+
+        cands: List[Dict[str, Any]] = []
+        for item in open_items:
+            ent = item.get("entity") or {}
+            name = str(ent.get("name") or "").strip()
+            if not name:
+                continue
+            cands.append({
+                "run_id": run_id,
+                "canonical": name,
+                "semantic_type": "对象类型",
+                "origin": "llm",
+                "domain_id": self._usl_domain_id or None,
+                "source_text": name,
+                "provenance": {
+                    "source": "kb_ingest_open_layer",
+                    "kb_id": kb_id,
+                    "doc_id": doc_id,
+                    "raw_type": item.get("raw_type"),
+                    "usl_canonical": item.get("canonical"),
+                    "unresolved_term": bool(item.get("unresolved_term")),
+                    "open_reason": item.get("open_reason"),
+                    "open_layer": True,
+                },
+            })
+        if not cands:
+            return []
+        try:
+            saved = storage.bulk_insert_candidates(cands)
+        except Exception as e:
+            logger.warning("open 层实体写候选失败: %r", e)
+            return []
+        logger.warning(
+            "摄入车道 open 层：%d 个未治理类型实体已转候选（未落 typed 图），"
+            "kb=%s doc=%s run=%s", len(saved), kb_id, doc_id, run_id,
+        )
+        return [c.get("id") for c in saved if isinstance(c, dict)]
+
+    def _write_to_graph(
+        self, kb_id: str, doc_id: str, entities: List[Dict], relations: List[Dict],
+        workspace_id: str = "default",
+    ) -> bool:
+        """将抽取的实体和关系写入 Neo4j 图谱（ADR-084：open/typed 双层）。
 
         使用 GraphWriteProxy（架构规则：业务模块禁止直接使用 GraphManager 写操作）。
         实体 ID 格式: kb_{kb_id}_{entity_name}，确保跨文档去重。
+
+        ADR-084 F1：类型含中文/未治理的实体不再塌缩成 zh_type 桶直写图谱，而是
+        经 open 层转 candidate_store 候选，走治理车道；typed 图只含受治理事实。
+        ADR-084 F3：写前经 UslTermResolver 归一类型，未命中打 unresolved_term。
         """
         try:
             from odap.infra.query.graph_write_proxy import get_graph_write_proxy
@@ -305,7 +490,16 @@ class KnowledgeBaseService:
                 logger.warning("GraphManager 处于 unavailable 模式，无法写入图谱数据")
                 return False
 
-            # 写入实体，建立 name→entity_id 映射供关系引用
+            # ADR-084 F1/F3：先按类型治理状态二分，open 层转候选（不落 typed 图）
+            resolver, domain_id = self._get_usl_resolver()
+            typed, open_layer = self._partition_entities_by_type(
+                entities, resolver, domain_id,
+            )
+            staged_ids = self._stage_open_layer_entities(
+                open_layer, kb_id, doc_id, workspace_id,
+            )
+
+            # 写入 typed 实体，建立 name→entity_id 映射供关系引用
             name_to_id: Dict[str, str] = {}
             success_count = 0
 
@@ -326,17 +520,11 @@ class KnowledgeBaseService:
             except Exception as e:
                 logger.debug(f"加载已有实体名失败（将仅使用本次抽取的名称）: {e}")
 
-            for entity in entities:
+            for entity, entity_type_id in typed:
                 name = entity.get("name", "")
-                etype = entity.get("type", "unknown")
                 entity_id = f"kb_{kb_id}_{name}"
                 if name not in name_to_id:
                     name_to_id[name] = entity_id
-
-                # 生成 type_id（ASCII 安全标识符）
-                entity_type_id = etype.lower().replace(' ', '_')
-                if re.search(r'[\u4e00-\u9fff]', entity_type_id):
-                    entity_type_id = "zh_type"
 
                 props = {
                     **entity.get("properties", {}),
@@ -345,20 +533,23 @@ class KnowledgeBaseService:
                     "name": name,
                     "entity_type_id": entity_type_id,
                 }
-                result = write_proxy.add_entity(entity_id, etype, props)
+                result = write_proxy.add_entity(entity_id, entity_type_id, props)
                 if result.get("status") == "success":
                     success_count += 1
 
-            # 写入关系，通过 name_to_id 解析 source/target（含模糊匹配）
+            # 写入关系：仅当 source/target 都能解析到 typed/已有实体时才写，
+            # 触达 open 层（未治理）实体的关系被推迟（不合成幻影端点，规则 14）。
             relation_count = 0
-            def _resolve_entity_id(name: str) -> str:
+            deferred_relations = 0
+
+            def _resolve_entity_id(name: str) -> Optional[str]:
                 if name in name_to_id:
                     return name_to_id[name]
                 # 模糊匹配：关系中的名称可能是实体的子串或近似表达
                 for entity_name, eid in name_to_id.items():
                     if name in entity_name or entity_name in name:
                         return eid
-                return f"kb_{kb_id}_{name}"
+                return None
 
             for rel in relations:
                 source_name = rel.get("source", "").strip()
@@ -367,16 +558,25 @@ class KnowledgeBaseService:
                     continue
                 source_id = _resolve_entity_id(source_name)
                 target_id = _resolve_entity_id(target_name)
+                if source_id is None or target_id is None:
+                    deferred_relations += 1
+                    continue
                 rel_type = rel.get("type", "related_to")
                 props = {k: v for k, v in rel.items() if k not in ("source", "target", "type")}
                 result = write_proxy.add_relationship(source_id, target_id, rel_type, props)
                 if result.get("status") == "success":
                     relation_count += 1
 
+            if open_layer:
+                logger.warning(
+                    "doc=%s: %d 个实体类型未治理→open 层转候选 %d 条；推迟关系 %d 条（触达 open 层端点）",
+                    doc_id, len(open_layer), len(staged_ids), deferred_relations,
+                )
+
             if not entities and not relations:
                 logger.warning(f"No entities or relations to write for doc {doc_id}")
                 return False
-            return success_count > 0 or relation_count > 0
+            return success_count > 0 or relation_count > 0 or bool(staged_ids)
         except Exception as e:
             logger.warning(f"GraphWriteProxy write failed: {repr(e)}", exc_info=True)
             return False

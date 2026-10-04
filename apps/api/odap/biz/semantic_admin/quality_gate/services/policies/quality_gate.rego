@@ -168,13 +168,38 @@ deny_gate2_1_disjoint_hit contains msg if {
   msg := sprintf("semadm_g2_1_disjoint_check FAIL: 命中 disjoint pair (%s,%s)", [a, b])
 }
 
-# G2.2 基数约束：占位 1.0（待 L5 基数归纳，OPA 侧无需 deny）
-deny_gate2_2_cardinality contains msg if { false }
+# G2.2 基数约束（ADR-085 S4c）：消费 input.cardinalities，候选术语集合涉及的基数约束
+#   若 min_card > max_card（max 非 null）即矛盾不可满足 → FAIL。与 Python _gate2_subscores
+#   G2.2 对齐（仅检查 canonical+同义词涉及的约束）。无 input.cardinalities → 不 deny
+#   （等价 Python 无数据源时 evaluated=False）。
+deny_gate2_2_cardinality contains msg if {
+  canon := object.get(input.candidate, "canonical", "")
+  syns := object.get(input.candidate, "synonyms", [])
+  near := object.get(input.candidate, "near_synonyms", [])
+  alias := object.get(input.candidate, "aliases", [])
+  terms := {norm(x) | some x in array.concat([canon], array.concat(syns, array.concat(near, alias))); norm(x) != ""}
+  some spec in object.get(input, "cardinalities", [])
+  dt := norm(object.get(spec, "domain_term", ""))
+  rt := norm(object.get(spec, "range_term", ""))
+  count({dt, rt} & terms) > 0
+  min_c := to_number(object.get(spec, "min_card", 0))
+  max_raw := object.get(spec, "max_card", null)
+  max_raw != null
+  min_c > to_number(max_raw)
+  msg := sprintf("semadm_g2_2_cardinality FAIL: 矛盾基数 %s(%s->%s) min=%d>max=%d 不可满足",
+                 [object.get(spec, "rel_name", ""), dt, rt, min_c, to_number(max_raw)])
+}
 
-# G2.3 is_a 无环：占位 1.0（待 L3 拓扑排序，OPA 侧无需 deny）
-deny_gate2_3_isa_acyclic contains msg if { false }
+# G2.3 is_a 无环（ADR-085 S4c）：消费 Python 侧 Kahn 拓扑排序预算的环证据 input.isa_cycle
+#   （非空节点列表 → FAIL）。rego 不重实现图算法，与 G2.1 消费 input.disjoint_pairs 同构：
+#   Python 算真值、rego 做策略判定。无 input.isa_cycle → 不 deny（等价 evaluated=False）。
+deny_gate2_3_isa_acyclic contains msg if {
+  cycle := object.get(input, "isa_cycle", [])
+  count(cycle) > 0
+  msg := sprintf("semadm_g2_3_isa_acyclic FAIL: is_a 父链成环 %v 拓扑排序失败", [cycle])
+}
 
-# G2.4 LLM Judge：feature flag input.enable_llm_judge=true 时生效（默认关闭 → 不产生 deny）
+# G2.4 LLM Judge：feature flag input.enable_llm_judge=true 时生效（默认关闭 → not_evaluated，ADR-084 F2：Python 侧标 evaluated=False 且不计入均分）
 deny_gate2_4_llm_judge contains msg if {
   object.get(input, "enable_llm_judge", false)
   object.get(input, "llm_judge_passed", false) == false
@@ -250,7 +275,7 @@ all_gate_denials := array.concat(
 num_denials := count([x | some g in all_gate_denials; some x in g])
 denial_messages := [msg | some g in all_gate_denials; some msg in g]
 
-# allow：没有 FAIL 类 deny（G1.1/G1.3/G2.1/G2.4 为 FAIL；其他 WARN 类可放行）
+# allow：没有 FAIL 类 deny（G1.1/G1.3/G2.1/G2.2/G2.3/G2.4 为 FAIL；其他 WARN 类可放行）
 fatal_denials := [m | some m in denial_messages; contains(m, "FAIL")]
 
 allow if {

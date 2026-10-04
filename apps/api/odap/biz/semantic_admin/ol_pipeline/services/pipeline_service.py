@@ -89,6 +89,7 @@ class PipelineService:
         *,
         candidate_storage: Optional["SQLiteCandidateStorage"] = None,
         usl_storage: Optional["SQLiteUslStorage"] = None,
+        shacl_storage: Optional[Any] = None,
         l1_extractor: Optional["L1TermExtractor"] = None,
         l2_merger: Optional["L2ConceptExtractor"] = None,
         l3_classifier: Optional["L3Classifier"] = None,
@@ -108,6 +109,11 @@ class PipelineService:
             from odap.biz.semantic_admin.usl_manager.storage import Storage as _US
             usl_storage = _US()
         self.usl_storage = usl_storage
+
+        if shacl_storage is None:
+            from odap.biz.semantic_admin.shacl_store.storage import Storage as _SS
+            shacl_storage = _SS()
+        self.shacl_storage = shacl_storage
 
         if l1_extractor is None:
             from ..impl import LlmTermExtractor
@@ -841,10 +847,21 @@ class PipelineService:
             disjoint_pair_hints=disjoint_hints,
             term_semantic_types=term_semantic_types,
         )
+        axioms = result.get("axioms", [])
+        # ADR-085 D2 / F7-c：L6 公理不再仅落统计计数，持久化到 sa_derived_axiom
+        # （供 G2.2 基数真值 / 治理读取）。按 run 幂等替换，重复推进同一 run 不追加。
+        # workspace_id 取自 run 记录；domain_id/ontology_version_id 一个 run 跨多域，
+        # 不在此猜测（规则 14 #4）。持久化失败必须显式上抛，不静默吞（规则 14 #2）。
+        run_doc = ins.get("run") or {}
+        self.shacl_storage.replace_axioms_for_run(
+            axioms,
+            pipeline_run_id=run_id,
+            workspace_id=str(run_doc.get("workspace_id") or ""),
+        )
         return {
             "status": "ok",
             "level": "L6",
-            "axioms": result.get("axioms", []),
+            "axioms": axioms,
             "total": int(result.get("total", 0)),
             "counts_by_type": dict(result.get("counts_by_type", {})),
             "stats_patch": {

@@ -45,6 +45,9 @@ class SubMetricRow(BaseModel):
     reason: str = ""
     rule_name: str = ""
     threshold: Any = None
+    # ADR-084 F2：evaluated=False 表示占位/未真正评估的子项，其 score 不计入 gate 均分。
+    # 前端/dashboard 据此显示「未评估」标记，避免伪绿 KPI。缺省 True 向后兼容。
+    evaluated: bool = True
 
 
 class SubMetricsGroup(BaseModel):

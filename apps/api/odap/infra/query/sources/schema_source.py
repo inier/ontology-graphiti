@@ -118,39 +118,6 @@ class SchemaSourceImpl:
 
         return errors
 
-    def validate_cardinality(
-        self,
-        source_type: str,
-        link_name: str,
-        current_count: int,
-    ) -> bool:
-        """
-        校验关系基数是否合规
-
-        Args:
-            source_type: 源实体类型
-            link_name: 关系名称
-            current_count: 当前已存在的关系数量
-
-        Returns:
-            True 如果基数合规
-        """
-        oms = self._get_oms()
-        type_def = oms.get_object_type(source_type)
-        if not type_def:
-            return True
-
-        for link in type_def.get("links", []):
-            if link.get("name") == link_name:
-                cardinality = link.get("cardinality", "many_to_many")
-                if cardinality in ("one_to_one", "ONE_TO_ONE") and current_count >= 1:
-                    return False
-                if cardinality in ("one_to_many", "ONE_TO_MANY") and current_count >= 1:
-                    pass
-                break
-
-        return True
-
     @staticmethod
     def _check_value_type(key: str, value: Any, expected_type: str) -> List[str]:
         """检查值类型是否匹配"""
