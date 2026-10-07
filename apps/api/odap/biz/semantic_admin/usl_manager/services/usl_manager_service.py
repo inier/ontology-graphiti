@@ -185,7 +185,14 @@ class UslManagerService:
                 return {"status": "error", "message": "canonical 不能为空"}
             term = UslTerm(**payload)
             saved = self.repository.save_term(term)
-            return saved.model_dump(mode="json")
+            result = saved.model_dump(mode="json")
+            from odap.biz.semantic_admin.drift_scan.services.snapshot_writer import (
+                record_term_history,
+            )
+            record_term_history(
+                term_id=result.get("id"), domain_id=result.get("domain_id"),
+                op="create", after=result)
+            return result
         except ValueError as e:
             return {"status": "error", "message": str(e)}
         except Exception as e:
@@ -233,6 +240,8 @@ class UslManagerService:
             current = self.repository.get_term(term_id)
             if not current:
                 return {"status": "error", "message": f"术语不存在: {term_id}"}
+            # 漂移检测侧道：更新前快照（current 未被 merged 的修改影响）
+            before = current.model_dump(mode="json")
             merged = current.model_dump(mode="json")
             allowed_keys = (
                 "semantic_type",
@@ -247,7 +256,14 @@ class UslManagerService:
                     merged[k] = payload[k]
             updated = UslTerm(**merged)
             saved = self.repository.save_term(updated)
-            return saved.model_dump(mode="json")
+            after = saved.model_dump(mode="json")
+            from odap.biz.semantic_admin.drift_scan.services.snapshot_writer import (
+                record_term_history,
+            )
+            record_term_history(
+                term_id=after.get("id"), domain_id=after.get("domain_id"),
+                op="update", before=before, after=after)
+            return after
         except ValueError as e:
             return {"status": "error", "message": str(e)}
         except Exception as e:
@@ -259,7 +275,16 @@ class UslManagerService:
             current = self.repository.get_term(term_id)
             if not current:
                 return {"status": "error", "message": f"术语不存在: {term_id}"}
+            # 漂移检测侧道：删除前快照
+            before = current.model_dump(mode="json")
             ok = self.repository.delete_term(term_id)
+            if ok:
+                from odap.biz.semantic_admin.drift_scan.services.snapshot_writer import (
+                    record_term_history,
+                )
+                record_term_history(
+                    term_id=before.get("id"), domain_id=before.get("domain_id"),
+                    op="delete", before=before)
             return {"status": "ok", "deleted": ok, "id": term_id}
         except ValueError as e:
             return {"status": "error", "message": str(e)}

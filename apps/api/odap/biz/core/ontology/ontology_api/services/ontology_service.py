@@ -156,7 +156,16 @@ class OntologyService:
             self.storage.delete_process_types_by_ontology(ontology_id)
             self.storage.delete_rule_types_by_ontology(ontology_id)
             self.storage.delete_function_types_by_ontology(ontology_id)
+            # 漂移检测侧道：级联删除前先取 before 快照，删除后逐条记录 op=delete
+            before_indicators = self.storage.list_indicator_types(ontology_id)
             self.storage.delete_indicator_types_by_ontology(ontology_id)
+            from odap.biz.semantic_admin.drift_scan.services.snapshot_writer import (
+                record_indicator_snapshot,
+            )
+            for item in before_indicators:
+                record_indicator_snapshot(
+                    indicator_id=item.get("type_id"), ontology_id=ontology_id,
+                    definition=item, change_op="delete")
             self.storage.delete_schema_versions_by_ontology(ontology_id)
             self.storage.delete_extraction_sessions_by_ontology(ontology_id)
 
@@ -912,6 +921,12 @@ class OntologyService:
                 "created_at": now,
             }
             self.storage.save_indicator_type(indicator_type)
+            from odap.biz.semantic_admin.drift_scan.services.snapshot_writer import (
+                record_indicator_snapshot,
+            )
+            record_indicator_snapshot(
+                indicator_id=indicator_type["type_id"], ontology_id=ontology_id,
+                definition=indicator_type, change_op="create")
             return indicator_type
         except Exception as exc:
             return {"status": "error", "message": f"create_indicator_type failed: {exc}"}
@@ -941,6 +956,13 @@ class OntologyService:
                     indicator_type[field] = updates[field]
 
             self.storage.save_indicator_type(indicator_type)
+            from odap.biz.semantic_admin.drift_scan.services.snapshot_writer import (
+                record_indicator_snapshot,
+            )
+            record_indicator_snapshot(
+                indicator_id=indicator_type["type_id"],
+                ontology_id=indicator_type.get("ontology_id"),
+                definition=indicator_type, change_op="update")
             return indicator_type
         except Exception as exc:
             return {"status": "error", "message": f"update_indicator_type failed: {exc}"}
