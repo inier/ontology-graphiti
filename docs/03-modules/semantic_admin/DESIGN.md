@@ -25,6 +25,7 @@
 | **approval_workflow** | `approval_workflow/` | 审批动作（通过/驳回/回退） | 状态流转 + 审计日志 | P95 < 80ms |
 | **usl_writeback** | `usl_writeback/` | APPROVED_WRITEBACK 状态 Candidate | 本体 TBox 写入 + 语义地图同步 | P95 < 2s |
 | **shacl_store** | `shacl_store/` | 本体版本类型定义 + USL 约束 + L6 公理 | `sa_shacl_shape` 版本键控派生缓存 + `sa_derived_axiom` L6 公理持久化（ADR-085 D1/D2，供 G2.2 基数真值/治理读取） | P95 < 50ms |
+| **gap_pool** | `gap_pool/` | 四类运行时未答信号（term_resolve_miss / mapping_failure / qa_unanswered / nl_query_unanswered，经同步 gap_emitter 汇聚，绝不阻塞主响应） | `concept_gaps` 带 heat 缺口池 + 晋升候选（复用审批飞轮，ADR-086） | P95 < 100ms（同步 emitter 不阻塞主响应） |
 
 ---
 
@@ -71,6 +72,8 @@ apps/api/odap/biz/semantic_admin/
     ├── __init__.py                        # Storage = SQLiteSemanticAdminStorage (别名导出)
     └── sqlite_semantic_admin_storage.py   # 12 张表 DDL + DML，每次 connect/close
 ```
+
+> 注：`usl_writeback`、`sa_config`、`semantic_asset_pipeline`、`shacl_store`、`gap_pool`（ADR-086 概念缺口回路）等子服务均遵循同一 7 层标准目录树（api/models/interfaces/impl/services/storage），上图仅绘制顶级聚合骨架，不逐一展开。
 
 ### 2.1 接口契约引用
 
@@ -236,7 +239,7 @@ PipelineService 通过 `_STEP_ORDER = [DRAFT, RUNNING, L1_DONE, L2_DONE, L3_DONE
 
 ## 5. 存储设计
 
-### 5.1 SQLite 12 表清单（sa_ 前缀，每次 connect/close）
+### 5.1 SQLite 13 表清单（12 张 sa_ 前缀 + gap_pool 的 concept_gaps，每次 connect/close）
 
 | 表名 | 主键 | 核心字段 | JSON TEXT 字段 | 用途 |
 |------|------|---------|---------------|------|
@@ -252,6 +255,7 @@ PipelineService 通过 `_STEP_ORDER = [DRAFT, RUNNING, L1_DONE, L2_DONE, L3_DONE
 | `sa_config` | `config_key` | config_value, updated_by, updated_at | — | 运行时配置（替换 semantic_config.py 硬编码） |
 | `sa_version_snapshot` | `snapshot_id` | usl_id (FK), version_semver, diff_from_prev, created_by, created_at | `snapshot_data JSON` | USL 版本快照（发布/回滚） |
 | `sa_workspace_setting` | `ws_id` | fast_track_enabled, quality_threshold, notify_channels, created_at | `custom_quality_weights JSON` | 工作空间级个性化设置 |
+| `concept_gaps` | `id` | expression, scope_key, heat, status(open/promoted/adopted/rejected), first_seen, last_seen, promoted_candidate_id, resolved_term_id, dismiss_reason | `source_counts_json`, `sources_json` | 概念缺口池（ADR-086，`gap_pool/storage/sqlite_gap_storage.py`）。**注：不带 `sa_` 前缀**（沿用 spec 锁定表名），落**独立 `concept_gaps.db` 文件**（`DATA_DIR` 下，非 semantic_admin 主库），唯一索引 `(expression, scope_key)` |
 
 ### 5.2 Neo4j USL__* 命名空间 Cypher 示例
 
@@ -285,11 +289,11 @@ MERGE (u)-[:USL__MAPS_TO {writeback_at: $ts, version: $ver}]->(ot)
 MATCH (n) WHERE n:USL__Candidate OR n:USL__Category OR n:USL__SynonymCluster
 DETACH DELETE n;
 ```
-→ 然后以 SQLite 12 表为源全量重写。
+→ 然后以 SQLite 12 张 sa_ 表为源全量重写（`concept_gaps` 仅存 SQLite，不参与 Neo4j USL__* 重建）。
 
 ---
 
-## 6. API 清单（3 组，共 21 接口）
+## 6. API 清单（4 组，共 27 接口）
 
 ### 6.1 组 1：USL 管理（9 接口）
 
@@ -326,6 +330,17 @@ DETACH DELETE n;
 | 19 | POST | `/api/semantic-admin/approval/{candidate_id}/action` | 审批动作（approve / reject / rollback） | `approval.first_review` 或 `approval.final_review` |
 | 20 | GET | `/api/semantic-admin/approval/queue` | 审批队列（按我待审 / 工作空间 / 全局） | `semantic_admin.approval.read_queue` |
 | 21 | GET | `/api/semantic-admin/approval/history/{candidate_id}` | 审批历史 + 状态迁移审计链 | `semantic_admin.approval.read` |
+
+### 6.4 组 4：概念缺口回路（6 接口，ADR-086，`gap_pool/api/routes.py`）
+
+| # | 方法 | 路径 | 作用 | 权限（OPA） |
+|---|------|------|------|------------|
+| 22 | GET | `/api/semantic-admin/gaps` | 缺口池分页列表（过滤 status/source/workspace_id，默认 heat 降序） | `get_current_user`（读） |
+| 23 | GET | `/api/semantic-admin/gaps/stats` | 缺口统计（total/by_status/by_source/emit_failures/top_heat/adoption_rate，分母 0 返回 null 不造数；路由声明先于 `/{gap_id}`） | `get_current_user`（读） |
+| 24 | GET | `/api/semantic-admin/gaps/{gap_id}` | 缺口详情（sources 时间线 + 状态 + promoted_candidate_id/resolved_term_id 关联） | `get_current_user`（读） |
+| 25 | POST | `/api/semantic-admin/gaps/{gap_id}/promote` | 晋升为候选（`create_candidate_from_gap` 复用审批飞轮，幂等 already_promoted） | `verify_semantic_writer` |
+| 26 | POST | `/api/semantic-admin/gaps/{gap_id}/dismiss` | 驳回缺口（body 带 reason，open→rejected） | `verify_semantic_writer` |
+| 27 | GET | `/api/semantic-admin/gaps/{gap_id}/resolve-check` | 现场可解析判定（term 类经 UslTermResolver.canonical_of；非 term 类如实返回 resolvable=False） | `get_current_user`（读） |
 
 ---
 

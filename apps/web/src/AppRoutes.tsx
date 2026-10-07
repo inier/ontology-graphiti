@@ -42,6 +42,9 @@ import {
   PipelineRunsPage,
   SemanticAssetPipelinePage,
   UslOntologyPage,
+  GapPoolPage,
+  GapDetailPage,
+  GapStatsPage,
 } from '@/modules/semantic-admin';
 
 function ProtectedRoute({ children }: { children: ReactNode }) {
@@ -124,6 +127,10 @@ export function AppRoutes() {
         {/* Iter7 C3: 总览仪表盘与质量仪表盘调用同一组后端 API，合并到 quality，旧路由 redirect 兼容书签 */}
         <Route path="/semantic-admin/dashboard" element={<Navigate to="/semantic-admin/quality" replace />} />
         <Route path="/semantic-admin/approvals" element={<ProtectedRoute><ApprovalsPage /></ProtectedRoute>} />
+        {/* 概念缺口回路：缺口池 / 缺口统计 / 缺口详情 */}
+        <Route path="/semantic-admin/gaps" element={<ProtectedRoute><GapPoolPage /></ProtectedRoute>} />
+        <Route path="/semantic-admin/gaps/stats" element={<ProtectedRoute><GapStatsPage /></ProtectedRoute>} />
+        <Route path="/semantic-admin/gaps/:id" element={<ProtectedRoute><GapDetailPage /></ProtectedRoute>} />
         <Route path="/guide" element={<ProtectedRoute><GuidePage /></ProtectedRoute>} />
         <Route path="/" element={<ProtectedRoute><GuidePage /></ProtectedRoute>} />
         <Route path="/admin" element={<Navigate to="/ontology/designer" replace />} />

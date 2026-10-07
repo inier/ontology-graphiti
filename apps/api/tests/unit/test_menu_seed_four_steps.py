@@ -8,7 +8,7 @@ Sandbox 策略：
   - tmp_path 真实 SQLite DB，不污染生产数据
   - 测试 init_default_menu() 幂等性 + 菜单树结构正确性
 
-Iter 7 结构要点（57 项）：
+Iter 7 结构要点（59 项，含概念缺口回路新增 2 项）：
   - 新增 4 个分组子目录：数据接入 / 图谱与映射 / 业务建模 / 问答检索
   - QA 三项从见本体移到用本体「问答检索」；策略编辑器从演本体移到系统管理
   - iframe-viewer(图谱查看器) + semantic-admin/dashboard(总览仪表盘) 从种子移除
@@ -33,8 +33,8 @@ from odap.biz.platform.menu_config.storage.sqlite_menu_config_storage import (
     SQLiteMenuConfigStorage,
 )
 
-# Iter 7 后的种子总数（6 目录 + 51 菜单/子目录）
-TOTAL_SEED = 57
+# Iter 7 后 + 概念缺口回路 2 项的种子总数（6 目录 + 53 菜单/子目录）
+TOTAL_SEED = 59
 
 
 # =====================================================================
@@ -101,7 +101,7 @@ def _flatten_names(node: Dict[str, Any]) -> List[str]:
 
 
 def test_seed_1_first_init_creates_all(menu_service: MenuConfigService):
-    """T-SEED-1: 首次调用写入全部种子数据（Iter 7 后 57 项）。"""
+    """T-SEED-1: 首次调用写入全部种子数据（Iter 7 + 概念缺口后 59 项）。"""
     result = menu_service.init_default_menu()
     assert result["status"] == "success"
     assert result["created"] == TOTAL_SEED, f"应创建 {TOTAL_SEED} 项，实际 {result['created']}"
@@ -132,17 +132,18 @@ def test_seed_3_six_top_directories(tree: List[Dict[str, Any]]):
 
 
 # =====================================================================
-# T-SEED-4: 建本体 > 语义管理子目录（6 项，含 USL 本体管理）
+# T-SEED-4: 建本体 > 语义管理子目录（8 项，含 USL 本体管理 + 概念缺口回路）
 # =====================================================================
 
 
 def test_seed_4_build_has_semantic_subdir(tree: List[Dict[str, Any]]):
-    """T-SEED-4: 建本体 → 语义管理子目录 → 6 个子菜单。"""
+    """T-SEED-4: 建本体 → 语义管理子目录 → 8 个子菜单。"""
     build = _top(tree, "建本体")
     semantic = _require_child(build, "语义管理")
     children = _names(semantic)
-    assert len(children) == 6, f"语义管理应有 6 子项，实际 {children}"
-    for expected in ["USL 配置", "USL 本体管理", "OL 流水线", "候选管理", "审批工作流", "质量仪表盘"]:
+    assert len(children) == 8, f"语义管理应有 8 子项，实际 {children}"
+    for expected in ["USL 配置", "USL 本体管理", "OL 流水线", "候选管理", "审批工作流",
+                     "质量仪表盘", "概念缺口", "缺口统计"]:
         assert expected in children, f"语义管理应含 '{expected}'"
 
 

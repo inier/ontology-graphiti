@@ -1319,6 +1319,10 @@ class QAEngineV2:
                 )
 
             if "未找到相关信息" in answer:
+                from odap.biz.semantic_admin.gap_pool.services.gap_emitter import report_gap_signal
+                from odap.biz.semantic_admin.gap_pool.models import GapSignalSource
+                report_gap_signal(GapSignalSource.QA_UNANSWERED, query,
+                                  workspace_id=workspace_id, ref="qa_engine")
                 traces = []
             else:
                 traces = self.source_tracer.trace(answer, query, rag_results)

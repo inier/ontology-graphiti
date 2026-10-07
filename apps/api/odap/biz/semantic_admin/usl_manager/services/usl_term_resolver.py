@@ -102,16 +102,37 @@ class UslTermResolver:
             return expr in self._maps.get(domain_id, {})
         return any(expr in m for m in self._maps.values())
 
-    def canonical_of(self, expression: str, domain_id: str = "") -> Optional[str]:
-        """返回 canonical，未命中返回 None（区别于 resolve 的原词回退）"""
+    def canonical_of(self, expression: str, domain_id: str = "",
+                     *, emit: bool = True) -> Optional[str]:
+        """返回 canonical，未命中返回 None（区别于 resolve 的原词回退）。
+
+        emit=True（默认）：未命中时发 TERM_RESOLVE_MISS 缺口信号——运行时归因路径。
+        emit=False：只读查询、不发信号——供 resolve-check 等「读侧判定」调用，
+        避免读操作反向污染 heat 排名 / 复活已裁决缺口（ADR-086 终审 M1 回归守卫）。
+        """
         expr = (expression or "").strip()
         if not expr:
             return None
         if domain_id:
-            return self._maps.get(domain_id, {}).get(expr)
+            hit = self._maps.get(domain_id, {}).get(expr)
+            if hit is None and emit:
+                from odap.biz.semantic_admin.gap_pool.services.gap_emitter import (
+                    report_gap_signal,
+                )
+                from odap.biz.semantic_admin.gap_pool.models import GapSignalSource
+                report_gap_signal(GapSignalSource.TERM_RESOLVE_MISS, expr,
+                                  domain_id=domain_id, ref="usl_term_resolver")
+            return hit
         for mapping in self._maps.values():
             if expr in mapping:
                 return mapping[expr]
+        if emit:
+            from odap.biz.semantic_admin.gap_pool.services.gap_emitter import (
+                report_gap_signal,
+            )
+            from odap.biz.semantic_admin.gap_pool.models import GapSignalSource
+            report_gap_signal(GapSignalSource.TERM_RESOLVE_MISS, expr,
+                              ref="usl_term_resolver")
         return None
 
     def clear(self) -> None:

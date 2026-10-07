@@ -13,6 +13,9 @@ export { default as PipelineRunsPage } from './pages/PipelineRunsPage';
 export { default as DashboardPage } from './pages/DashboardPage';
 export { default as SemanticAssetPipelinePage } from './pages/SemanticAssetPipelinePage';
 export { default as UslOntologyPage } from './pages/UslOntologyPage';
+export { GapPoolPage } from './pages/GapPoolPage';
+export { GapDetailPage } from './pages/GapDetailPage';
+export { GapStatsPage } from './pages/GapStatsPage';
 
 export { semanticAdminRouteMeta } from './routes';
 

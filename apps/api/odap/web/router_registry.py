@@ -172,6 +172,9 @@ def create_router_registry() -> List[tuple]:
     from odap.biz.semantic_admin.sa_config.api.routes import router as semantic_admin_sa_config_router
     from odap.biz.semantic_admin.usl_writeback.api.routes import router as semantic_admin_writeback_router
 
+    # ── 语义管理 - 概念缺口回路（gap_pool）──
+    from odap.biz.semantic_admin.gap_pool.api.routes import router as semantic_admin_gap_pool_router
+
     # ── 语义管理 - 语义资产统一编排 Pipeline（结构化/非结构化 → 候选 → 审核）──
     from odap.biz.semantic_admin.semantic_asset_pipeline.api.routes import router as semantic_asset_pipeline_router
 
@@ -383,6 +386,9 @@ def create_router_registry() -> List[tuple]:
         # 语义管理 - 动态配置（sa_config，内置常量落库）
         (semantic_admin_sa_config_router,),
         (semantic_admin_writeback_router,),
+
+        # 语义管理 - 概念缺口回路（gap_pool）
+        (semantic_admin_gap_pool_router,),
 
         # 语义管理 - 语义资产统一编排 Pipeline
         (semantic_asset_pipeline_router,),

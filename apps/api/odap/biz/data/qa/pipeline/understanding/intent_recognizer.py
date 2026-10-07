@@ -160,6 +160,11 @@ class EntityExtractor:
             canonical = self._normalize_entity(e, domain_id)
             if canonical is None:
                 # 未命中本体（LLM 幻觉 / 未知实体 / 非本场景）→ 丢弃，不采纳
+                from odap.biz.semantic_admin.gap_pool.services.gap_emitter import report_gap_signal
+                from odap.biz.semantic_admin.gap_pool.models import GapSignalSource
+                report_gap_signal(GapSignalSource.MAPPING_FAILURE, e,
+                                  domain_id=domain_id,
+                                  detail="未命中本体集合，丢弃", ref="intent_recognizer")
                 continue
             if canonical not in seen:
                 seen.add(canonical)

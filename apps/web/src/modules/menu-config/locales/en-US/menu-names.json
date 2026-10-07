@@ -111,5 +111,7 @@
   "检索查询台": "Retrieval Console",
   "检索评估": "Retrieval Evaluation",
   "智能体调度": "Agent Dispatch",
-  "智能体管理": "Agent Management"
+  "智能体管理": "Agent Management",
+  "概念缺口": "Concept Gaps",
+  "缺口统计": "Gap Statistics"
 }

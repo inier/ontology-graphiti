@@ -175,7 +175,7 @@ def _build_ingest_submenus() -> List[Dict[str, Any]]:
 
 
 def _build_semantic_submenus() -> List[Dict[str, Any]]:
-    """语义管理子目录：USL配置/USL本体管理/流水线/候选/审批/质量仪表盘。
+    """语义管理子目录：USL配置/USL本体管理/流水线/候选/审批/质量仪表盘/概念缺口/缺口统计。
 
     Iter 7: 见本体"总览仪表盘"(dashboard) 与本目录"质量仪表盘"调用同一组后端 API，
     已从种子移除，dashboard 路由 redirect 到 quality，语义管理页面全部聚合在建本体。
@@ -194,6 +194,10 @@ def _build_semantic_submenus() -> List[Dict[str, Any]]:
               "/semantic-admin/approvals", "CheckCircleOutlined", 5, parent),
         _menu("menu:build:semantic:quality", "质量仪表盘",
               "/semantic-admin/quality", "DashboardOutlined", 6, parent),
+        _menu("menu:build:semantic:gaps", "概念缺口", "/semantic-admin/gaps",
+              "WarningOutlined", 7, parent),
+        _menu("menu:build:semantic:gap-stats", "缺口统计", "/semantic-admin/gaps/stats",
+              "BarChartOutlined", 8, parent),
     ]
 
 
@@ -386,15 +390,16 @@ def get_four_steps_seed_data() -> List[Dict[str, Any]]:
 
     顺序：顶级目录 → 建本体 → 见本体 → 演本体 → 用本体 → 系统管理 → 帮助
 
-    Iter 7 后共 57 项：
+    Iter 7 后共 59 项：
       6 顶级目录
-      + 15 建本体（7 直属含2子目录 + 2 数据接入 + 6 语义管理）
+      + 17 建本体（7 直属含2子目录 + 2 数据接入 + 8 语义管理）
       +  5 见本体（2 直属含1子目录 + 3 图谱与映射）
       + 10 演本体（5 直属含1子目录 + 5 业务建模）
       + 11 用本体（4 直属含2子目录 + 3 问答检索 + 4 智能体）
       +  9 系统管理
       +  1 帮助
-    （Iter 7 移除 iframe-viewer + dashboard 两项，新增 4 个分组子目录）
+    （Iter 7 移除 iframe-viewer + dashboard 两项，新增 4 个分组子目录；
+     概念缺口回路新增 2 项：概念缺口/缺口统计，挂在语义管理子目录下）
     """
     items: List[Dict[str, Any]] = []
     items.extend(_top_directories())

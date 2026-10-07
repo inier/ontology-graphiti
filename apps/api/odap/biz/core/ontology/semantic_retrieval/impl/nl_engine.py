@@ -65,6 +65,9 @@ class NLEngine:
             logger.warning("USL disambiguation failed for %r: %s", term_text, exc)
             return {"status": "degraded"}
         if not terms:
+            from odap.biz.semantic_admin.gap_pool.services.gap_emitter import report_gap_signal
+            from odap.biz.semantic_admin.gap_pool.models import GapSignalSource
+            report_gap_signal(GapSignalSource.NL_QUERY_UNANSWERED, term_text, ref="nl_engine")
             return None
         t = terms[0]
         return {

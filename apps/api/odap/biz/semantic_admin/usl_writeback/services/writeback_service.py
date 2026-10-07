@@ -10,6 +10,7 @@
 
 from __future__ import annotations
 
+import logging
 from typing import Any, Dict, Optional, Tuple, TYPE_CHECKING
 
 from ...candidate_store.storage.sqlite_candidate_storage import (
@@ -33,6 +34,8 @@ from ...candidate_store.storage.sqlite_candidate_storage import (
 if TYPE_CHECKING:  # pragma: no cover
     from ...usl_manager.storage.sqlite_usl_storage import SQLiteUslStorage
     from ...candidate_store.storage.sqlite_candidate_storage import SQLiteCandidateStorage
+
+logger = logging.getLogger(__name__)
 
 
 # I4T8 phase 契约值。这是**对外契约字符串**，刻意保持小写，不要和
@@ -105,6 +108,16 @@ class WritebackService:
             )
         return self._handler
 
+    def _notify_gap_resolved(self, candidate_id: str, outcome: str,
+                             *, term_id: str | None = None) -> None:
+        """侧道回调 gap_pool，推进缺口状态机。惰性导入规避环；异常绝不影响 writeback。"""
+        try:
+            from odap.biz.semantic_admin.gap_pool.services.gap_service import GapService
+            GapService().on_candidate_resolved(candidate_id, outcome, term_id=term_id)
+        except Exception as e:
+            logger.warning("gap 回调失败(candidate=%s, outcome=%s): %s",
+                           candidate_id, outcome, e)
+
     # ------------------------------------------------------------------
     # Public API
     # ------------------------------------------------------------------
@@ -117,6 +130,11 @@ class WritebackService:
             result = handler.write_approved(candidate_id, executed_by=executed_by)
             # impl 已经是 {"status":"error"/"ok", ...} 格式；直接返回
             if isinstance(result, dict) and result.get("status") in ("ok", "error"):
+                if result.get("status") == "ok":
+                    self._notify_gap_resolved(
+                        candidate_id, "adopted",
+                        term_id=result.get("usl_term_id"),
+                    )
                 return result
             # 兜底
             return {"status": "ok", **result}
@@ -152,6 +170,8 @@ class WritebackService:
                 executed_by=executed_by,
             )
             if isinstance(result, dict) and result.get("status") in ("ok", "error"):
+                if result.get("status") == "ok":
+                    self._notify_gap_resolved(candidate_id, "rejected")
                 return result
             return {"status": "ok", **result}
         except Exception as e:

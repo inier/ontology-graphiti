@@ -22,4 +22,7 @@ export const semanticAdminRouteMeta: SemanticAdminRouteMeta[] = [
   { path: '/semantic-admin/quality', component: () => null, breadcrumb: '质量指标面板' },
   { path: '/semantic-admin/dashboard', component: () => null, breadcrumb: '治理仪表盘' },
   { path: '/semantic-admin/approvals', component: () => null, breadcrumb: '审批工作台' },
+  { path: '/semantic-admin/gaps', component: () => null, breadcrumb: '概念缺口' },
+  { path: '/semantic-admin/gaps/stats', component: () => null, breadcrumb: '缺口统计' },
+  { path: '/semantic-admin/gaps/:id', component: () => null, breadcrumb: '缺口详情' },
 ];

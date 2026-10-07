@@ -672,6 +672,50 @@ class CandidateService:
             return {"status": "error", "message": f"promote_to_usl 失败: {e}",
                     "code": "PROMOTE_FAILED_500"}
 
+    def create_candidate_from_gap(self, payload: Dict[str, Any]) -> Dict[str, Any]:
+        """从概念缺口创建候选（复用既有 pipeline_run + candidate 结构）。
+
+        payload: {expression, workspace_id?, domain_id?, gap_id, triggered_by,
+                  semantic_type?, definition?}
+        candidate 需要 run_id（storage 强制），故先建一条 source_type='concept_gap'
+        的 pipeline run，再把 candidate 挂上去。gap 溯源写入 provenance_json。
+        """
+        try:
+            expression = str(payload.get("expression") or "").strip()
+            if not expression:
+                return {"status": "error", "message": "expression 不能为空"}
+            workspace_id = payload.get("workspace_id") or "-"
+            run = self.storage.create_pipeline_run(
+                workspace_id=workspace_id,
+                domain_id=payload.get("domain_id"),
+                source_type="concept_gap",
+                source_ref=payload.get("gap_id"),
+                triggered_by=payload.get("triggered_by") or "system",
+                status="PENDING",
+            )
+            run_id = run.get("id")
+            if not run_id:
+                return {"status": "error", "message": "创建 pipeline run 失败"}
+            cand = self.storage.save_candidate({
+                "run_id": run_id,
+                "canonical": expression,
+                "semantic_type": payload.get("semantic_type") or "对象类型",
+                "domain_id": payload.get("domain_id"),
+                "status": "DRAFT",
+                "origin": "concept_gap",
+                "source_text": expression,
+                "definition": payload.get("definition"),
+                "provenance": {
+                    "source_type": "concept_gap",
+                    "gap_id": payload.get("gap_id"),
+                    "triggered_by": payload.get("triggered_by") or "system",
+                },
+            })
+            return {"status": "ok", "candidate_id": cand["id"], "run_id": run_id}
+        except Exception as e:  # pragma: no cover
+            logger.warning("create_candidate_from_gap 失败: %s", e, exc_info=True)
+            return {"status": "error", "message": f"从缺口创建候选失败: {e}"}
+
     # ======================================================================
     # FR-019: 批量操作（batch_delete ≤50 条 + export ≤10000 条 JSON）
     # ======================================================================

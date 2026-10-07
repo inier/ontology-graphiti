@@ -275,7 +275,7 @@ odap/
 │   ├── data/                      #   data_warehouse + knowledge_base + perception + qa + semantic_map
 │   ├── simulation/                #   event_simulator + simulation_sandbox + feedback + simulation_deduction
 │   ├── management/                #   agent_management + business
-│   └── semantic_admin/            #   usl_manager + ol_pipeline + candidate_store + quality_gate + approval_workflow + usl_writeback（7 层 6 子服务）
+│   └── semantic_admin/            #   usl_manager + ol_pipeline + candidate_store + quality_gate + approval_workflow + usl_writeback + sa_config + semantic_asset_pipeline + shacl_store + gap_pool（7 层标准目录，10 子服务）
 ├── infra/                         # 基础设施（可横向复用）
 │   ├── graph/                     #   GraphManager（Neo4j 生产 / NetworkX 回退）
 │   ├── query/                     #   统一查询服务 (ADR-055)
@@ -1070,6 +1070,12 @@ Step 10: 智能问答
 | 语义管理台 D 系列 2 级审批工作流 | `/api/semantic-admin/approval/tasks` · `/tasks/{id}/audit|modify|reject|final-approve` |
 | 语义管理台 I4T8 USL 写回触发与状态 | `/api/semantic-admin/writeback/candidates/{id}` · `/writeback/status/{id}` |
 | 语义管理台 Sa 动态配置 | `/api/semantic-admin/config` · `/{scope}/{key}` · `/domain/{domain_code}` · `/ensure-builtin` |
+| 语义管理台 概念缺口列表 | `/api/semantic-admin/gaps` |
+| 语义管理台 缺口统计 | `/api/semantic-admin/gaps/stats` |
+| 语义管理台 缺口详情 | `/api/semantic-admin/gaps/{gap_id}` |
+| 语义管理台 缺口晋升候选 | `/api/semantic-admin/gaps/{gap_id}/promote` |
+| 语义管理台 缺口驳回 | `/api/semantic-admin/gaps/{gap_id}/dismiss` |
+| 语义管理台 缺口可解析判定 | `/api/semantic-admin/gaps/{gap_id}/resolve-check` |
 
 ### F. Git 提交规范
 
