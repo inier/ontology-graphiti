@@ -3,7 +3,7 @@ from __future__ import annotations
 
 from typing import Any, Dict, List
 
-from ..models.drift import DriftKind
+from ..models.drift import DriftKind, EvolutionSource
 
 
 def _expressions_of(term: Dict[str, Any]) -> List[str]:
@@ -64,3 +64,136 @@ def fork_scan(terms: List[Dict[str, Any]], scope: Dict[str, Any]) -> List[Dict[s
             })
     findings.sort(key=lambda f: f["subject"])
     return findings
+
+
+_ENTITY_FIELDS = ("name", "name_en", "aliases", "basic_properties",
+                  "statistical_properties", "capabilities", "constraints")
+_RELATION_FIELDS = ("source_entity", "target_entity", "relation_type", "properties")
+_RULE_FIELDS = ("condition", "consequence", "priority")
+_CONSTRAINT_FIELDS = ("constraint_type", "description", "scope",
+                      "violation_consequence", "legal_basis")
+_TERM_FIELDS = ("canonical", "synonyms", "near_synonyms", "aliases",
+                "definition", "semantic_type", "stoplist_flag")
+
+
+def _index_by(items, key):
+    out = {}
+    for it in (items or []):
+        k = it.get(key)
+        if k is not None:
+            out[k] = it
+    return out
+
+
+def _diff_bodies(idx_a, idx_b, fields, *, kind_source, version_ref, label_fn):
+    """通用字段级 diff：返回 finding dict 列表（新增/删除/字段变更）。"""
+    findings = []
+    for k, b in idx_b.items():
+        if k not in idx_a:
+            findings.append({
+                "kind": DriftKind.EVOLUTION.value, "source": kind_source,
+                "subject": str(k), "subject_label": label_fn(b),
+                "field": "__added__", "old_value_json": None, "new_value_json": b,
+                "version_ref_json": version_ref,
+            })
+            continue
+        a = idx_a[k]
+        for fld in fields:
+            av, bv = a.get(fld), b.get(fld)
+            if av != bv:
+                findings.append({
+                    "kind": DriftKind.EVOLUTION.value, "source": kind_source,
+                    "subject": str(k), "subject_label": label_fn(b),
+                    "field": fld, "old_value_json": av, "new_value_json": bv,
+                    "version_ref_json": version_ref,
+                })
+    for k, a in idx_a.items():
+        if k not in idx_b:
+            findings.append({
+                "kind": DriftKind.EVOLUTION.value, "source": kind_source,
+                "subject": str(k), "subject_label": label_fn(a),
+                "field": "__removed__", "old_value_json": a, "new_value_json": None,
+                "version_ref_json": version_ref,
+            })
+    return findings
+
+
+def diff_version_snapshots(snap_a: Dict[str, Any], snap_b: Dict[str, Any], *,
+                           version_a: str, version_b: str) -> List[Dict[str, Any]]:
+    """相邻版本 doc_snapshot 字段级 diff（entities/relations/rules/constraints）。
+
+    actions/events 为运行时数据，明示不进 diff。
+    """
+    vref = {"version_a": version_a, "version_b": version_b}
+    src = EvolutionSource.VERSION_SNAPSHOT.value
+    out: List[Dict[str, Any]] = []
+    out += _diff_bodies(_index_by(snap_a.get("entities"), "entity_id"),
+                        _index_by(snap_b.get("entities"), "entity_id"),
+                        _ENTITY_FIELDS, kind_source=src, version_ref=vref,
+                        label_fn=lambda x: x.get("name") or x.get("entity_id"))
+    out += _diff_bodies(_index_by(snap_a.get("relations"), "relation_id"),
+                        _index_by(snap_b.get("relations"), "relation_id"),
+                        _RELATION_FIELDS, kind_source=src, version_ref=vref,
+                        label_fn=lambda x: x.get("relation_id"))
+    out += _diff_bodies(_index_by(snap_a.get("rules"), "rule_id"),
+                        _index_by(snap_b.get("rules"), "rule_id"),
+                        _RULE_FIELDS, kind_source=src, version_ref=vref,
+                        label_fn=lambda x: x.get("description") or x.get("rule_id"))
+    out += _diff_bodies(_index_by(snap_a.get("constraints"), "constraint_id"),
+                        _index_by(snap_b.get("constraints"), "constraint_id"),
+                        _CONSTRAINT_FIELDS, kind_source=src, version_ref=vref,
+                        label_fn=lambda x: x.get("description") or x.get("constraint_id"))
+    return out
+
+
+def diff_indicator_snapshots(rows: List[Dict[str, Any]]) -> List[Dict[str, Any]]:
+    """indicator 口径快照按 captured_at 序相邻 diff definition_json 键级。"""
+    src = EvolutionSource.INDICATOR_CALIBER.value
+    ordered = sorted(rows or [], key=lambda r: r.get("captured_at") or "")
+    out: List[Dict[str, Any]] = []
+    for prev, cur in zip(ordered, ordered[1:]):
+        vref = {"prev_at": prev.get("captured_at"), "cur_at": cur.get("captured_at")}
+        pid = cur.get("indicator_id") or prev.get("indicator_id")
+        pdef, cdef = prev.get("definition_json") or {}, cur.get("definition_json") or {}
+        op = cur.get("change_op", "update")
+        if op == "delete":
+            out.append({"kind": DriftKind.EVOLUTION.value, "source": src,
+                        "subject": str(pid), "subject_label": str(pid),
+                        "field": "__removed__", "old_value_json": pdef,
+                        "new_value_json": None, "version_ref_json": vref})
+            continue
+        if prev.get("change_op") == "create" and op == "create":
+            continue
+        for fld in sorted(set(pdef) | set(cdef)):
+            if pdef.get(fld) != cdef.get(fld):
+                out.append({"kind": DriftKind.EVOLUTION.value, "source": src,
+                            "subject": str(pid), "subject_label": str(pid),
+                            "field": fld, "old_value_json": pdef.get(fld),
+                            "new_value_json": cdef.get(fld), "version_ref_json": vref})
+    return out
+
+
+def diff_term_history(rows: List[Dict[str, Any]]) -> List[Dict[str, Any]]:
+    """USL 术语历史按 at 序相邻 diff before/after 的关键字段。"""
+    src = EvolutionSource.USL_TERM.value
+    ordered = sorted(rows or [], key=lambda r: r.get("at") or "")
+    out: List[Dict[str, Any]] = []
+    for prev, cur in zip(ordered, ordered[1:]):
+        vref = {"prev_at": prev.get("at"), "cur_at": cur.get("at")}
+        tid = cur.get("term_id") or prev.get("term_id")
+        before = cur.get("before_json") or prev.get("after_json") or {}
+        after = cur.get("after_json") or {}
+        if cur.get("op") == "delete":
+            out.append({"kind": DriftKind.EVOLUTION.value, "source": src,
+                        "subject": str(tid), "subject_label": str(before.get("canonical") or tid),
+                        "field": "__removed__", "old_value_json": before,
+                        "new_value_json": None, "version_ref_json": vref})
+            continue
+        for fld in _TERM_FIELDS:
+            if before.get(fld) != after.get(fld):
+                out.append({"kind": DriftKind.EVOLUTION.value, "source": src,
+                            "subject": str(tid),
+                            "subject_label": str(after.get("canonical") or tid),
+                            "field": fld, "old_value_json": before.get(fld),
+                            "new_value_json": after.get(fld), "version_ref_json": vref})
+    return out
