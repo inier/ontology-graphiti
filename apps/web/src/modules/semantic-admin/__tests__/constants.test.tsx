@@ -29,11 +29,21 @@ describe('constants: semantic-admin 顶层 Tab & 路径映射', () => {
     expect(keys).toHaveLength(7);
   });
 
-  it('PATH_TO_TOP_TAB: 必须与 TOP_TAB_TO_PATH 互为逆映射', () => {
+  it('PATH_TO_TOP_TAB: 主路径互为逆映射；别名路径（如 usl-ontologies）值必须为合法 tab', () => {
+    // 主路径：TOP_TAB_TO_PATH 的每个 (tab, path) 在 PATH_TO_TOP_TAB 中反向映射回同一 tab
     for (const [tab, path] of Object.entries(TOP_TAB_TO_PATH)) {
       expect(PATH_TO_TOP_TAB[path]).toBe(tab);
     }
-    expect(Object.keys(PATH_TO_TOP_TAB)).toHaveLength(7);
+    // PATH_TO_TOP_TAB 是主映射的超集：允许把子路由别名（/semantic-admin/usl-ontologies
+    // → 'usl'）指向所属 tab；每条记录的值都必须是 TOP_TAB_TO_PATH 的合法 tab key。
+    const tabKeys = new Set(Object.keys(TOP_TAB_TO_PATH));
+    for (const [path, tab] of Object.entries(PATH_TO_TOP_TAB)) {
+      expect(tabKeys.has(tab as string)).toBe(true);
+      expect(path.startsWith('/semantic-admin/')).toBe(true);
+    }
+    // 别名条目 = 总条目 − 主路径条目（当前 1 条：usl-ontologies → usl）
+    expect(Object.keys(PATH_TO_TOP_TAB)).toHaveLength(8);
+    expect(PATH_TO_TOP_TAB['/semantic-admin/usl-ontologies']).toBe('usl');
   });
 
   it('SEMANTIC_ADMIN_TAB_ITEMS_KEYS: 7 个 key，与 TOP_TAB_TO_PATH 对齐', () => {
