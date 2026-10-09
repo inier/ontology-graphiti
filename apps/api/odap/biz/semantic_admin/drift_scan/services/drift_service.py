@@ -44,10 +44,8 @@ class DriftService:
         规则 14：失败显式抛异常，由 run_scan 记入 source_errors；
         禁止 hasattr 探测式降级，禁止静默返回空。
         """
-        # 函数内导入避免循环依赖
-        from odap.biz.core.ontology.ontology_api.services.ontology_service import (
-            OntologyService,
-        )
+        # 函数内导入避免循环依赖；经 public 门面（C3 契约），不深插 ontology_api
+        from odap.biz.core.ontology.public import OntologyService
         res = OntologyService().list_schema_versions(ontology_id)
         if not isinstance(res, dict) or res.get("status") == "error":
             raise RuntimeError(
