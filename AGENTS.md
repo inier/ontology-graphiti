@@ -1076,6 +1076,8 @@ Step 10: 智能问答
 | 语义管理台 缺口晋升候选 | `/api/semantic-admin/gaps/{gap_id}/promote` |
 | 语义管理台 缺口驳回 | `/api/semantic-admin/gaps/{gap_id}/dismiss` |
 | 语义管理台 缺口可解析判定 | `/api/semantic-admin/gaps/{gap_id}/resolve-check` |
+| 语义管理台 缺口回归集构建/列表/详情 | `/api/semantic-admin/gap-regression/sets/build` · `/sets` · `/sets/{set_id}` |
+| 语义管理台 配对回放与报告 | `/api/semantic-admin/gap-regression/sets/{set_id}/replay` · `/reports` · `/reports/{report_id}` |
 
 ### F. Git 提交规范
 

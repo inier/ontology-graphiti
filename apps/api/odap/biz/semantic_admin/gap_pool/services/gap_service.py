@@ -19,12 +19,13 @@ class GapService:
                       workspace_id: Optional[str] = None,
                       domain_id: Optional[str] = None,
                       ref: Optional[str] = None,
-                      detail: Optional[str] = None) -> Dict[str, Any]:
+                      detail: Optional[str] = None,
+                      attribution: Optional[Dict[str, Any]] = None) -> Dict[str, Any]:
         try:
             gap = self.storage.record_signal(
                 source=source, expression=expression,
                 workspace_id=workspace_id, domain_id=domain_id,
-                ref=ref, detail=detail,
+                ref=ref, detail=detail, attribution=attribution,
             )
             return {"status": "ok", "gap": gap}
         except ValueError as e:
@@ -65,13 +66,20 @@ class GapService:
             return {"status": "ok", "candidate_id": gap["promoted_candidate_id"],
                     "already_promoted": True}
         cs = self._candidate_service()
-        r = cs.create_candidate_from_gap({
+        payload = {
             "expression": gap["expression"],
             "workspace_id": workspace_id or gap.get("workspace_id"),
             "domain_id": domain_id or gap.get("domain_id"),
             "gap_id": gap_id,
             "triggered_by": actor,
-        })
+        }
+        # ADR-088 D9 归因透传：content 层 attribution 的 target_kind 传给
+        # create_candidate_from_gap 的 semantic_type；无归因时不传（候选侧
+        # 维持"对象类型"默认，行为不变）。不触碰审批链。
+        target_kind = self._content_target_kind(gap)
+        if target_kind:
+            payload["semantic_type"] = target_kind
+        r = cs.create_candidate_from_gap(payload)
         if r.get("status") != "ok":
             return r
         cid = r["candidate_id"]
@@ -87,6 +95,20 @@ class GapService:
         self.storage.update_status(gap_id, GapStatus.REJECTED.value,
                                    dismiss_reason=reason or "")
         return {"status": "ok", "id": gap_id, "actor": actor}
+
+    @staticmethod
+    def _content_target_kind(gap: Dict[str, Any]) -> Optional[str]:
+        """从 occurrence 时间线找最近的 content 层归因 target_kind（无则 None）。
+
+        attribution_counts 只存 {layer: count}，target_kind 在 occurrence 的
+        attribution 键里；倒序扫描（最近优先），sources 截断 50 条内的最新归因
+        足够 promote 场景使用。无归因 / 仅 tool·schema 层 → None，不造数。
+        """
+        for occ in reversed(gap.get("sources_json") or []):
+            attr = occ.get("attribution") or {}
+            if attr.get("layer") == "content" and attr.get("target_kind"):
+                return str(attr["target_kind"])
+        return None
 
     def on_candidate_resolved(self, candidate_id: str, outcome: str,
                               *, term_id: Optional[str] = None) -> None:
@@ -145,6 +167,7 @@ class GapService:
                 "total": sum(by_status.values()),
                 "by_status": by_status,
                 "by_source": self.storage.count_by_source(),
+                "by_layer": self.storage.count_by_layer(),
                 "emit_failures": get_emit_failures(),
                 "top_heat": self.storage.top_heat(10),
                 "adoption_rate": (adopted / denom) if denom else None,

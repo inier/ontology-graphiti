@@ -1320,9 +1320,16 @@ class QAEngineV2:
 
             if "未找到相关信息" in answer:
                 from odap.biz.semantic_admin.gap_pool.services.gap_emitter import report_gap_signal
-                from odap.biz.semantic_admin.gap_pool.models import GapSignalSource
-                report_gap_signal(GapSignalSource.QA_UNANSWERED, query,
-                                  workspace_id=workspace_id, ref="qa_engine")
+                from odap.biz.semantic_admin.gap_pool.models import GapLayer, GapSignalSource
+                # fallback 分支无法区分术语缺失还是引擎能力弱——layer 只填能确定的
+                # tool 层（engine），不造数（ADR-088 D2 最佳努力归因）。
+                report_gap_signal(
+                    GapSignalSource.QA_UNANSWERED, query,
+                    workspace_id=workspace_id, ref="qa_engine",
+                    attribution={"layer": GapLayer.TOOL.value,
+                                 "target_kind": "engine",
+                                 "target_ref": "qa_engine.fallback"},
+                )
                 traces = []
             else:
                 traces = self.source_tracer.trace(answer, query, rag_results)

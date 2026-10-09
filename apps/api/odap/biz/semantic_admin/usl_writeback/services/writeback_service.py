@@ -117,6 +117,51 @@ class WritebackService:
         except Exception as e:
             logger.warning("gap 回调失败(candidate=%s, outcome=%s): %s",
                            candidate_id, outcome, e)
+        if outcome == "adopted":
+            self._maybe_auto_replay(candidate_id)
+
+    def _maybe_auto_replay(self, candidate_id: str) -> None:
+        """writeback 成功后侧道自动回放（ADR-088 D8）。
+
+        开关 GAP_REGRESSION_AUTO_REPLAY（默认 off）：回放成本未实测前不默认开。
+        绝不传播 writeback 主路径：无事件循环/无回归集 → 显式 warning 或 no-op；
+        回放任务内部异常只 logger.warning。
+        """
+        import os
+        if os.environ.get("GAP_REGRESSION_AUTO_REPLAY", "").lower() not in (
+                "1", "true", "on", "yes"):
+            return
+        try:
+            import asyncio
+            from odap.biz.semantic_admin.gap_pool.services.gap_service import GapService
+            from odap.biz.semantic_admin.gap_pool.regression.service import (
+                RegressionService,
+            )
+            try:
+                loop = asyncio.get_running_loop()
+            except RuntimeError:
+                # writeback 可能在同步上下文被调（如审批脚本）：无循环无法
+                # create_task，显式 warning（规则 14：不静默吞）
+                logger.warning(
+                    "GAP_REGRESSION_AUTO_REPLAY=on 但当前无事件循环，"
+                    "跳过自动回放(candidate=%s)", candidate_id)
+                return
+            reg_svc = RegressionService()
+            gap_svc = GapService()
+
+            async def _replay() -> None:
+                try:
+                    gap = gap_svc.storage.get_by_candidate_id(candidate_id)
+                    if not gap:
+                        return
+                    await reg_svc.auto_replay_for_scope(gap["scope_key"])
+                except Exception as e:
+                    logger.warning("自动回放失败(candidate=%s): %s",
+                                   candidate_id, e)
+
+            loop.create_task(_replay())
+        except Exception as e:
+            logger.warning("自动回放侧道异常(candidate=%s): %s", candidate_id, e)
 
     # ------------------------------------------------------------------
     # Public API

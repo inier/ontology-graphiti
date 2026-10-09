@@ -119,9 +119,13 @@ class UslTermResolver:
                 from odap.biz.semantic_admin.gap_pool.services.gap_emitter import (
                     report_gap_signal,
                 )
-                from odap.biz.semantic_admin.gap_pool.models import GapSignalSource
-                report_gap_signal(GapSignalSource.TERM_RESOLVE_MISS, expr,
-                                  domain_id=domain_id, ref="usl_term_resolver")
+                from odap.biz.semantic_admin.gap_pool.models import GapLayer, GapSignalSource
+                report_gap_signal(
+                    GapSignalSource.TERM_RESOLVE_MISS, expr,
+                    domain_id=domain_id, ref="usl_term_resolver",
+                    attribution={"layer": GapLayer.CONTENT.value,
+                                 "target_kind": "term", "target_ref": expr},
+                )
             return hit
         for mapping in self._maps.values():
             if expr in mapping:
@@ -130,9 +134,13 @@ class UslTermResolver:
             from odap.biz.semantic_admin.gap_pool.services.gap_emitter import (
                 report_gap_signal,
             )
-            from odap.biz.semantic_admin.gap_pool.models import GapSignalSource
-            report_gap_signal(GapSignalSource.TERM_RESOLVE_MISS, expr,
-                              ref="usl_term_resolver")
+            from odap.biz.semantic_admin.gap_pool.models import GapLayer, GapSignalSource
+            report_gap_signal(
+                GapSignalSource.TERM_RESOLVE_MISS, expr,
+                ref="usl_term_resolver",
+                attribution={"layer": GapLayer.CONTENT.value,
+                             "target_kind": "term", "target_ref": expr},
+            )
         return None
 
     def clear(self) -> None:

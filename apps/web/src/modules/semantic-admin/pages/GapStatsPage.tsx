@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react';
-import { Card, Col, Row, Statistic, Table, Alert, message } from 'antd';
+import { Card, Col, Row, Statistic, Table, Alert, message, Space, Tag } from 'antd';
 import { gapApi, type GapStats } from '../services/gapApi';
 
 export const GapStatsPage: React.FC = () => {
@@ -31,6 +31,15 @@ export const GapStatsPage: React.FC = () => {
             { title: '状态', dataIndex: 'status' },
           ]} />
       </Card>
+      {s.by_layer && Object.keys(s.by_layer).length > 0 && (
+        <Card title="归因分层（by_layer，最佳努力——上下文不足的信号无归因）"
+          style={{ marginTop: 16 }}>
+          <Space wrap>
+            {Object.entries(s.by_layer).map(([k, v]) => (
+              <Tag key={k} color="geekblue">{k}: {v}</Tag>))}
+          </Space>
+        </Card>
+      )}
     </div>
   );
 };

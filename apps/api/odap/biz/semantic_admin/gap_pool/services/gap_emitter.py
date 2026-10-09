@@ -7,7 +7,7 @@
 from __future__ import annotations
 
 import logging
-from typing import Optional
+from typing import Any, Dict, Optional
 
 logger = logging.getLogger(__name__)
 
@@ -31,14 +31,21 @@ def report_gap_signal(source, expression: str, *,
                       workspace_id: Optional[str] = None,
                       domain_id: Optional[str] = None,
                       ref: Optional[str] = None,
-                      detail: Optional[str] = None) -> None:
-    """同步上报一条缺口信号。任何异常都被吞为 warning + 计数，绝不 raise。"""
+                      detail: Optional[str] = None,
+                      attribution: Optional[Dict[str, Any]] = None) -> None:
+    """同步上报一条缺口信号。任何异常都被吞为 warning + 计数，绝不 raise。
+
+    attribution（ADR-088 子项目 A，可选）：{"layer": schema|content|tool,
+    "target_kind": ..., "target_ref": ...}——归因最佳努力，上下文不足时省略（None），
+    绝不造数。默认 None，既有四类接线点零改动也兼容。
+    """
     global _emit_failures
     try:
         svc = _get_service()
         svc.record_signal(
             source, expression, workspace_id=workspace_id,
             domain_id=domain_id, ref=ref, detail=detail,
+            attribution=attribution,
         )
     except Exception as e:
         _emit_failures += 1

@@ -9,7 +9,7 @@ import uuid
 from datetime import datetime, timezone
 from typing import Any, Dict, List, Optional, Tuple
 
-from ..models.gap import GapStatus, make_scope_key
+from ..models.gap import GapLayer, GapStatus, make_scope_key
 
 logger = logging.getLogger(__name__)
 
@@ -45,6 +45,7 @@ class SQLiteGapStorage:
                     heat INTEGER NOT NULL DEFAULT 1,
                     source_counts_json TEXT NOT NULL DEFAULT '{}',
                     sources_json TEXT NOT NULL DEFAULT '[]',
+                    attribution_counts_json TEXT NOT NULL DEFAULT '{}',
                     status TEXT NOT NULL DEFAULT 'open',
                     first_seen TEXT NOT NULL,
                     last_seen TEXT NOT NULL,
@@ -61,6 +62,15 @@ class SQLiteGapStorage:
                 CREATE INDEX IF NOT EXISTS idx_gap_heat   ON concept_gaps(heat DESC);
                 """
             )
+            # 旧库迁移（ADR-088 子项目 A）：无 attribution_counts_json 列时幂等加列。
+            # 旧数据该列为 NULL → 读侧 _safe_json 回退 {}（既有容错已覆盖）。
+            cols = {r[1] for r in conn.execute(
+                "PRAGMA table_info(concept_gaps)").fetchall()}
+            if "attribution_counts_json" not in cols:
+                conn.execute(
+                    "ALTER TABLE concept_gaps "
+                    "ADD COLUMN attribution_counts_json TEXT"
+                )
             conn.commit()
         finally:
             conn.close()
@@ -82,13 +92,42 @@ class SQLiteGapStorage:
         d = dict(row)
         d["source_counts_json"] = self._safe_json(d.get("source_counts_json"), {})
         d["sources_json"] = self._safe_json(d.get("sources_json"), [])
+        # 旧库迁移行该列为 NULL → 回退 {}（attribution 归因缺失 = 无归因，不造数）
+        d["attribution_counts_json"] = self._safe_json(
+            d.get("attribution_counts_json"), {})
         return d
+
+    # ---- 归因清洗（ADR-088 D2：最佳努力、不造数） ----
+    @staticmethod
+    def _sanitize_attribution(attribution: Any) -> Optional[Dict[str, Any]]:
+        """校验 attribution：非 dict 或 layer 非法 → None（warning 可观测，规则 14）。
+
+        只保留 layer / target_kind / target_ref 三个已知键，其余丢弃。
+        """
+        if attribution is None:
+            return None
+        if not isinstance(attribution, dict):
+            logger.warning("attribution 非 dict，忽略: %r", attribution)
+            return None
+        layer = attribution.get("layer")
+        try:
+            layer_val = GapLayer(str(layer)).value
+        except ValueError:
+            logger.warning("attribution.layer 非法，忽略: %r", attribution)
+            return None
+        out: Dict[str, Any] = {"layer": layer_val}
+        for k in ("target_kind", "target_ref"):
+            v = attribution.get(k)
+            if v is not None:
+                out[k] = str(v)
+        return out
 
     # ---- 写 ----
     def record_signal(
         self, source, expression: str, *,
         workspace_id: Optional[str] = None, domain_id: Optional[str] = None,
         ref: Optional[str] = None, detail: Optional[str] = None,
+        attribution: Optional[Dict[str, Any]] = None,
     ) -> Dict[str, Any]:
         source_val = str(getattr(source, "value", source))
         expr = (expression or "").strip()
@@ -97,6 +136,10 @@ class SQLiteGapStorage:
         scope_key = make_scope_key(workspace_id, domain_id)
         now = _utc_now_iso()
         occurrence = {"source": source_val, "ref": ref, "at": now, "detail": detail}
+        attr = self._sanitize_attribution(attribution)
+        if attr is not None:
+            # 仅在归因有效时携带 attribution 键——旧签名路径（None）保持旧 shape
+            occurrence["attribution"] = attr
 
         conn = sqlite3.connect(self.db_path)
         try:
@@ -108,15 +151,18 @@ class SQLiteGapStorage:
             if row is None:
                 gap_id = str(uuid.uuid4())
                 counts = {source_val: 1}
+                attr_counts = {attr["layer"]: 1} if attr else {}
                 conn.execute(
                     """INSERT INTO concept_gaps (
                         id, expression, scope_key, heat, source_counts_json,
-                        sources_json, status, first_seen, last_seen, updated_at,
+                        sources_json, attribution_counts_json,
+                        status, first_seen, last_seen, updated_at,
                         workspace_id, domain_id
-                    ) VALUES (?,?,?,?,?,?,?,?,?,?,?,?)""",
+                    ) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?)""",
                     (gap_id, expr, scope_key, 1,
                      json.dumps(counts, ensure_ascii=False),
                      json.dumps([occurrence], ensure_ascii=False),
+                     json.dumps(attr_counts, ensure_ascii=False),
                      GapStatus.OPEN.value, now, now, now, workspace_id, domain_id),
                 )
                 conn.commit()
@@ -127,6 +173,10 @@ class SQLiteGapStorage:
             gap_id = row["id"]
             counts = self._safe_json(row["source_counts_json"], {})
             counts[source_val] = counts.get(source_val, 0) + 1
+            attr_counts = self._safe_json(row["attribution_counts_json"], {})
+            if attr:
+                # 归因全量计数（镜像 source_counts 模式；无归因信号不计入 by_layer）
+                attr_counts[attr["layer"]] = attr_counts.get(attr["layer"], 0) + 1
             sources = self._safe_json(row["sources_json"], [])
             sources.append(occurrence)
             sources = sources[-_SOURCES_CAP:]
@@ -141,10 +191,12 @@ class SQLiteGapStorage:
             conn.execute(
                 f"""UPDATE concept_gaps
                    SET heat=heat+1, source_counts_json=?, sources_json=?,
+                       attribution_counts_json=?,
                        status=?, last_seen=?, updated_at=?{dismiss_clause}
                    WHERE id=?""",
                 (json.dumps(counts, ensure_ascii=False),
                  json.dumps(sources, ensure_ascii=False),
+                 json.dumps(attr_counts, ensure_ascii=False),
                  new_status, now, now, gap_id),
             )
             conn.commit()
@@ -209,6 +261,7 @@ class SQLiteGapStorage:
 
     def list_gaps(
         self, *, status: Optional[str] = None, source: Optional[str] = None,
+        layer: Optional[str] = None,
         workspace_id: Optional[str] = None, page: int = 1, page_size: int = 20,
     ) -> Tuple[List[Dict[str, Any]], int]:
         where, params = [], []
@@ -218,6 +271,13 @@ class SQLiteGapStorage:
         if source:  # source 过滤在 SQL 侧一致计算（JSON1 json_extract），total 与分页同源
             where.append("json_extract(source_counts_json, ?) > 0")
             params.append(f"$.{source}")
+        if layer:  # layer 过滤同 source 模式（ADR-088 子项目 A）
+            try:
+                layer_val = GapLayer(str(layer)).value
+            except ValueError:
+                return [], 0  # 非法 layer 显式空结果（不造数、不猜）
+            where.append("json_extract(attribution_counts_json, ?) > 0")
+            params.append(f"$.{layer_val}")
         if workspace_id:
             where.append("workspace_id=?")
             params.append(workspace_id)
@@ -261,6 +321,21 @@ class SQLiteGapStorage:
             out: Dict[str, int] = {}
             for r in rows:
                 for k, v in self._safe_json(r["source_counts_json"], {}).items():
+                    out[k] = out.get(k, 0) + int(v)
+            return out
+        finally:
+            conn.close()
+
+    def count_by_layer(self) -> Dict[str, int]:
+        """归因层全量计数（ADR-088）。只统计真实记录的归因，无归因信号不计入。"""
+        conn = sqlite3.connect(self.db_path)
+        try:
+            conn.row_factory = sqlite3.Row
+            rows = conn.execute(
+                "SELECT attribution_counts_json FROM concept_gaps").fetchall()
+            out: Dict[str, int] = {}
+            for r in rows:
+                for k, v in self._safe_json(r["attribution_counts_json"], {}).items():
                     out[k] = out.get(k, 0) + int(v)
             return out
         finally:

@@ -175,6 +175,9 @@ def create_router_registry() -> List[tuple]:
     # ── 语义管理 - 概念缺口回路（gap_pool）──
     from odap.biz.semantic_admin.gap_pool.api.routes import router as semantic_admin_gap_pool_router
 
+    # ── 语义管理 - 缺口回归集与配对回放（gap_pool/regression，ADR-088）──
+    from odap.biz.semantic_admin.gap_pool.regression.api.routes import router as semantic_admin_gap_regression_router
+
     # ── 语义管理 - 语义资产统一编排 Pipeline（结构化/非结构化 → 候选 → 审核）──
     from odap.biz.semantic_admin.semantic_asset_pipeline.api.routes import router as semantic_asset_pipeline_router
 
@@ -389,6 +392,9 @@ def create_router_registry() -> List[tuple]:
 
         # 语义管理 - 概念缺口回路（gap_pool）
         (semantic_admin_gap_pool_router,),
+
+        # 语义管理 - 缺口回归集与配对回放（gap_pool/regression，ADR-088）
+        (semantic_admin_gap_regression_router,),
 
         # 语义管理 - 语义资产统一编排 Pipeline
         (semantic_asset_pipeline_router,),
