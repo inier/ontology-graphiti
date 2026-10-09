@@ -66,14 +66,21 @@ def fork_scan(terms: List[Dict[str, Any]], scope: Dict[str, Any]) -> List[Dict[s
     return findings
 
 
-_ENTITY_FIELDS = ("name", "name_en", "aliases", "basic_properties",
-                  "statistical_properties", "capabilities", "constraints")
-_RELATION_FIELDS = ("source_entity", "target_entity", "relation_type", "properties")
-_RULE_FIELDS = ("condition", "consequence", "priority")
-_CONSTRAINT_FIELDS = ("constraint_type", "description", "scope",
-                      "violation_consequence", "legal_basis")
 _TERM_FIELDS = ("canonical", "synonyms", "near_synonyms", "aliases",
                 "definition", "semantic_type", "stoplist_flag")
+
+# schema_snapshot 七大类型分类 → 主键字段
+# （与 ontology_service.diff_schema_versions 的 category_key_map 对齐）
+_SCHEMA_CATEGORY_PKS = (
+    ("object_types", "type_id"),
+    ("link_types", "link_id"),
+    ("action_types", "action_type_id"),
+    ("process_types", "type_id"),
+    ("rule_types", "type_id"),
+    ("function_types", "type_id"),
+    ("indicator_types", "type_id"),
+)
+_SCHEMA_IGNORED_FIELDS = frozenset({"created_at", "updated_at"})
 
 
 def _index_by(items, key):
@@ -85,64 +92,69 @@ def _index_by(items, key):
     return out
 
 
-def _diff_bodies(idx_a, idx_b, fields, *, kind_source, version_ref, label_fn):
-    """通用字段级 diff：返回 finding dict 列表（新增/删除/字段变更）。"""
+def _diff_schema_categories(idx_a, idx_b, *, kind_source, version_ref):
+    """schema 分类级 diff：新增/删除/共有主键动态键并集字段级比较。
+
+    与固定字段元组 diff 不同，schema 条目字段随类型定义演进，
+    故按键并集（排除 created_at/updated_at 时间戳）动态比较。
+    顺序确定：先 __added__（按 b 插入序）、再 __removed__（按 a 插入序）、
+    再字段变更（按 b 插入序 × 键名排序）。
+    """
+    def _label(a_item, b_item, pk):
+        b_item = b_item or {}
+        a_item = a_item or {}
+        return str(b_item.get("name") or b_item.get("display_name")
+                   or a_item.get("name") or pk)
+
     findings = []
-    for k, b in idx_b.items():
-        if k not in idx_a:
+    for pk, b_item in idx_b.items():
+        if pk not in idx_a:
             findings.append({
                 "kind": DriftKind.EVOLUTION.value, "source": kind_source,
-                "subject": str(k), "subject_label": label_fn(b),
-                "field": "__added__", "old_value_json": None, "new_value_json": b,
+                "subject": str(pk), "subject_label": _label(None, b_item, pk),
+                "field": "__added__", "old_value_json": None, "new_value_json": b_item,
                 "version_ref_json": version_ref,
             })
+    for pk, a_item in idx_a.items():
+        if pk not in idx_b:
+            findings.append({
+                "kind": DriftKind.EVOLUTION.value, "source": kind_source,
+                "subject": str(pk), "subject_label": _label(a_item, None, pk),
+                "field": "__removed__", "old_value_json": a_item, "new_value_json": None,
+                "version_ref_json": version_ref,
+            })
+    for pk, b_item in idx_b.items():
+        a_item = idx_a.get(pk)
+        if a_item is None:
             continue
-        a = idx_a[k]
-        for fld in fields:
-            av, bv = a.get(fld), b.get(fld)
+        for fld in sorted((set(a_item) | set(b_item)) - _SCHEMA_IGNORED_FIELDS):
+            av, bv = a_item.get(fld), b_item.get(fld)
             if av != bv:
                 findings.append({
                     "kind": DriftKind.EVOLUTION.value, "source": kind_source,
-                    "subject": str(k), "subject_label": label_fn(b),
+                    "subject": str(pk), "subject_label": _label(a_item, b_item, pk),
                     "field": fld, "old_value_json": av, "new_value_json": bv,
                     "version_ref_json": version_ref,
                 })
-    for k, a in idx_a.items():
-        if k not in idx_b:
-            findings.append({
-                "kind": DriftKind.EVOLUTION.value, "source": kind_source,
-                "subject": str(k), "subject_label": label_fn(a),
-                "field": "__removed__", "old_value_json": a, "new_value_json": None,
-                "version_ref_json": version_ref,
-            })
     return findings
 
 
 def diff_version_snapshots(snap_a: Dict[str, Any], snap_b: Dict[str, Any], *,
                            version_a: str, version_b: str) -> List[Dict[str, Any]]:
-    """相邻版本 doc_snapshot 字段级 diff（entities/relations/rules/constraints）。
+    """相邻 committed 版本 schema_snapshot 字段级 diff（七大类型分类）。
 
-    actions/events 为运行时数据，明示不进 diff。
+    快照结构为 commit_schema_version 写入的 _build_schema_snapshot 形态：
+    object_types / link_types / action_types / process_types /
+    rule_types / function_types / indicator_types。
     """
     vref = {"version_a": version_a, "version_b": version_b}
     src = EvolutionSource.VERSION_SNAPSHOT.value
     out: List[Dict[str, Any]] = []
-    out += _diff_bodies(_index_by(snap_a.get("entities"), "entity_id"),
-                        _index_by(snap_b.get("entities"), "entity_id"),
-                        _ENTITY_FIELDS, kind_source=src, version_ref=vref,
-                        label_fn=lambda x: x.get("name") or x.get("entity_id"))
-    out += _diff_bodies(_index_by(snap_a.get("relations"), "relation_id"),
-                        _index_by(snap_b.get("relations"), "relation_id"),
-                        _RELATION_FIELDS, kind_source=src, version_ref=vref,
-                        label_fn=lambda x: x.get("relation_id"))
-    out += _diff_bodies(_index_by(snap_a.get("rules"), "rule_id"),
-                        _index_by(snap_b.get("rules"), "rule_id"),
-                        _RULE_FIELDS, kind_source=src, version_ref=vref,
-                        label_fn=lambda x: x.get("description") or x.get("rule_id"))
-    out += _diff_bodies(_index_by(snap_a.get("constraints"), "constraint_id"),
-                        _index_by(snap_b.get("constraints"), "constraint_id"),
-                        _CONSTRAINT_FIELDS, kind_source=src, version_ref=vref,
-                        label_fn=lambda x: x.get("description") or x.get("constraint_id"))
+    for category, pk_field in _SCHEMA_CATEGORY_PKS:
+        out += _diff_schema_categories(
+            _index_by((snap_a or {}).get(category), pk_field),
+            _index_by((snap_b or {}).get(category), pk_field),
+            kind_source=src, version_ref=vref)
     return out
 
 

@@ -263,6 +263,14 @@ class OntologyService:
                 except Exception as adapter_exc:
                     logger.warning("OntologyService: version_adapter notification failed: %s", adapter_exc)
 
+            # 语义漂移侧道自动扫描（规则 14：异常绝不传播 commit 路径）
+            try:
+                from odap.biz.semantic_admin.drift_scan.services import DriftService
+                DriftService().on_ontology_committed(ontology_id)
+            except Exception as drift_exc:
+                logger.warning("drift 自动触发调度失败 ontology=%s: %s",
+                               ontology_id, drift_exc)
+
             return {
                 "version_id": current_working["version_id"] if current_working else new_version_id,
                 "version_number": old_version_number,

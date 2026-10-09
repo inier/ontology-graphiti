@@ -4,30 +4,69 @@ from odap.biz.semantic_admin.drift_scan.services.scanners import (
 from odap.biz.semantic_admin.drift_scan.models import EvolutionSource
 
 
+_CATEGORIES = ("object_types", "link_types", "action_types", "process_types",
+               "rule_types", "function_types", "indicator_types")
+
+
+def _snap(**overrides):
+    """构造真实 schema_snapshot 结构（_build_schema_snapshot 的 7 大类型分类）。"""
+    base = {c: [] for c in _CATEGORIES}
+    base.update(overrides)
+    return base
+
+
 def test_version_diff_field_change():
-    a = {"entities": [{"entity_id": "e1", "name": "势力", "name_en": "force"}],
-         "relations": [], "rules": [], "constraints": []}
-    b = {"entities": [{"entity_id": "e1", "name": "势力", "name_en": "faction"}],
-         "relations": [], "rules": [], "constraints": []}
+    a = _snap(object_types=[{"type_id": "o1", "name": "势力", "name_en": "force"}])
+    b = _snap(object_types=[{"type_id": "o1", "name": "势力", "name_en": "faction"}])
     fs = diff_version_snapshots(a, b, version_a="v1", version_b="v2")
     assert len(fs) == 1
     assert fs[0]["field"] == "name_en"
     assert fs[0]["old_value_json"] == "force"
     assert fs[0]["new_value_json"] == "faction"
+    assert fs[0]["subject"] == "o1"
+    assert fs[0]["subject_label"] == "势力"
     assert fs[0]["version_ref_json"] == {"version_a": "v1", "version_b": "v2"}
     assert fs[0]["source"] == EvolutionSource.VERSION_SNAPSHOT.value
 
 
-def test_version_diff_added_removed_entity():
-    a = {"entities": [{"entity_id": "e1", "name": "势力"}], "relations": [], "rules": [], "constraints": []}
-    b = {"entities": [{"entity_id": "e2", "name": "人物"}], "relations": [], "rules": [], "constraints": []}
+def test_version_diff_added_removed_type():
+    a = _snap(object_types=[{"type_id": "o1", "name": "势力"}])
+    b = _snap(object_types=[{"type_id": "o2", "name": "人物"}])
     fs = diff_version_snapshots(a, b, version_a="v1", version_b="v2")
     fields = {f["field"] for f in fs}
     assert "__removed__" in fields and "__added__" in fields
+    added = next(f for f in fs if f["field"] == "__added__")
+    assert added["subject"] == "o2"
+    assert added["new_value_json"] == {"type_id": "o2", "name": "人物"}
+    assert added["old_value_json"] is None
+    removed = next(f for f in fs if f["field"] == "__removed__")
+    assert removed["subject"] == "o1"
+    assert removed["old_value_json"] == {"type_id": "o1", "name": "势力"}
+    assert removed["new_value_json"] is None
+
+
+def test_version_diff_link_types_uses_link_id_pk():
+    # link_types 的主键是 link_id（与 ontology_service.diff_schema_versions 对齐）
+    a = _snap(link_types=[{"link_id": "l1", "name": "隶属于"}])
+    b = _snap(link_types=[{"link_id": "l1", "name": "归属于"}])
+    fs = diff_version_snapshots(a, b, version_a="v1", version_b="v2")
+    assert len(fs) == 1
+    assert fs[0]["subject"] == "l1"
+    assert fs[0]["field"] == "name"
+    assert fs[0]["old_value_json"] == "隶属于"
+    assert fs[0]["new_value_json"] == "归属于"
+
+
+def test_version_diff_ignores_timestamp_fields():
+    a = _snap(object_types=[{"type_id": "o1", "name": "势力",
+                             "created_at": "2026-01-01", "updated_at": "2026-01-02"}])
+    b = _snap(object_types=[{"type_id": "o1", "name": "势力",
+                             "created_at": "2026-01-01", "updated_at": "2026-03-04"}])
+    assert diff_version_snapshots(a, b, version_a="v1", version_b="v2") == []
 
 
 def test_version_diff_no_change_is_empty():
-    a = {"entities": [{"entity_id": "e1", "name": "势力"}], "relations": [], "rules": [], "constraints": []}
+    a = _snap(object_types=[{"type_id": "o1", "name": "势力"}])
     assert diff_version_snapshots(a, a, version_a="v1", version_b="v2") == []
 
 
