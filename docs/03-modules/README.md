@@ -89,7 +89,7 @@
 | Simulation Sandbox 沙盘 | `apps/api/odap/biz/simulation/simulation_sandbox/` | 并行沙盘推演 | ✅ 活跃 |
 | Visualization 可视化 | `apps/api/odap/biz/simulation/visualization/` | 仿真结果可视化 | ✅ 活跃 |
 
-#### semantic_admin/ — 语义管理台顶级域（10 子服务）
+#### semantic_admin/ — 语义管理台顶级域（11 子服务）
 
 | 模块 | 路径 | 职责 | 状态 |
 |------|------|------|------|
@@ -103,8 +103,9 @@
 |   - sa_config 动态配置 | `apps/api/odap/biz/semantic_admin/sa_config/` | 语义层配置从硬编码迁移到 SQLite 持久化（scoped key/value）+ ensure-builtin 内置常量化石回填 | ✅ 活跃 |
 |   - semantic_asset_pipeline 语义资产流水线 | `apps/api/odap/biz/semantic_admin/semantic_asset_pipeline/` | 端到端统一编排：结构化引入(UnifiedIngestFacade 链路A) + 非结构化抽取(ExtractService 链路B) + 候选归集(SQLiteCandidateStorage) + 提交审核，纯确定性编排不引入 LLM 判断 | ✅ 活跃 |
 |   - shacl_store SHACL 形状/公理存储 | `apps/api/odap/biz/semantic_admin/shacl_store/` | ADR-085 D1/D2：`sa_shacl_shape` 版本键派生缓存（ontology_version_id + constraint_revision + target_type，实时生成不持久化陈旧副本，ADR-077 裁决1 操作化）+ `sa_derived_axiom` L6 公理持久化（供 G2.2 基数真值/治理读取）。纯 stdlib SQLite，不深插 ontology.design（守 import-linter C3） | ✅ 活跃 |
-|   - gap_pool 概念缺口回路 | `apps/api/odap/biz/semantic_admin/gap_pool/` | ADR-086：四类运行时未答信号（term_resolve_miss / mapping_failure / qa_unanswered / nl_query_unanswered）经同步 emitter（绝不 raise、异常→warning+emit_failures 计数）汇聚成带 heat 的缺口池（`concept_gaps` 表，不带 sa_ 前缀）+ 人工裁决 promote/dismiss，晋升经 create_candidate_from_gap 复用审批飞轮 + writeback side-channel 回调闭环；6 端点 `/api/semantic-admin/gaps` | ✅ 活跃 |
+|   - gap_pool 概念缺口回路 | `apps/api/odap/biz/semantic_admin/gap_pool/` | ADR-086：四类运行时未答信号（term_resolve_miss / mapping_failure / qa_unanswered / nl_query_unanswered）经同步 emitter（绝不 raise、异常→warning+emit_failures 计数）汇聚成带 heat 的缺口池（`concept_gaps` 表，不带 sa_ 前缀）+ 人工裁决 promote/dismiss，晋升经 create_candidate_from_gap 复用审批飞轮 + writeback side-channel 回调闭环；7 端点 `/api/semantic-admin/gaps`（ADR-090 新增 `GET /{gap_id}/route-preview`） | ✅ 活跃 |
 |   - gap_pool/regression 缺口回归集与配对回放 | `apps/api/odap/biz/semantic_admin/gap_pool/regression/` | ADR-088 子项目 B：缺口 occurrence 固化为**不可变**回归集（`gap_regression.db` 两表，缺口即现成 held-out 验证集）+ 配对回放（before=捕获证据 / after=现场回放，信号收集器判定 answered——回放期间绝不写 concept_gaps）+ `verdict=pass ⇔ 回归 0 ∧ 修复≥1` 差分报告（模型指纹 model_id+prompt_version，cost 记录）；**门控归人不归模型**——报告只作人工裁决证据不自动接受；writeback 侧道自动回放开关 `GAP_REGRESSION_AUTO_REPLAY` 默认 off；6 端点 `/api/semantic-admin/gap-regression`（resolve-check fast 语义不动，paired 独立端点） | ✅ 活跃 |
+|   - routing_tickets 路由工单 | `apps/api/odap/biz/semantic_admin/routing_tickets/` | ADR-090 子项目 D：tool 层缺口的**完整工程债工作流**——6 态状态机（open→assigned→in_progress→resolved→closed，另 rejected 终态，resolved 可复开）+ 优先级 P0~P3 与 SLA（4/24/72/168h，`sla_breached` 读时计算）+ 事件审计表 `tool_routing_ticket_events`（只 INSERT，created/assigned/transitioned/commented/priority_changed）+ 指派/改优先级/评论；两表 `tool_routing_tickets` / `tool_routing_ticket_events`；7 端点 `/api/semantic-admin/routing-tickets` | ✅ 活跃 |
 
 #### shared/ — 共享工具（无子模块）
 
@@ -139,9 +140,9 @@
 | Workspace | `apps/web/src/modules/workspace/` | 工作空间管理 |
 | Semantic Admin | `apps/web/src/modules/semantic-admin/` | 语义管理台（路由 /semantic-admin/*，子页：/usl /pipeline /candidates /quality /gaps） |
 
-### API 路由注册（103 个路由模块）
+### API 路由注册（105 个路由模块）
 
-所有后端路由通过 `apps/api/odap/web/router_registry.py` 的 `create_router_registry()`（构建 `DEFAULT_ROUTER_REGISTRY`）集中注册到生产入口 `apps/api/odap/web/app.py`（`register_routers(app, DEFAULT_ROUTER_REGISTRY)`）。当前 `DEFAULT_ROUTER_REGISTRY` 含 **104 个路由模块**（ADR-086 概念缺口回路 gap_pool 新增 1 个；ADR-088 gap_pool/regression 再新增 1 个）。gap_pool 路由含 **6 个端点**（`GET /` · `GET /stats` · `GET /{gap_id}` · `POST /{gap_id}/promote` · `POST /{gap_id}/dismiss` · `GET /{gap_id}/resolve-check`）；gap-regression 路由含 **6 个端点**（`POST /sets/build` · `GET /sets` · `GET /sets/{set_id}` · `POST /sets/{set_id}/replay` · `GET /reports` · `GET /reports/{report_id}`）；OpenAPI 全量展开数（此前容器实测 **755 paths / 957 operations**，为 gap_pool 接入前的值）待在容器内重测后更新。ontology 深层子包的路由经 `biz/core/ontology/public_routers.py` 惰性门面统一暴露（31 路由），router_registry 从门面导入而非直接 reach-in（见 ADR-080 / C3 契约）。
+所有后端路由通过 `apps/api/odap/web/router_registry.py` 的 `create_router_registry()`（构建 `DEFAULT_ROUTER_REGISTRY`）集中注册到生产入口 `apps/api/odap/web/app.py`（`register_routers(app, DEFAULT_ROUTER_REGISTRY)`）。当前 `DEFAULT_ROUTER_REGISTRY` 含 **106 个路由模块**（ADR-086 概念缺口回路 gap_pool 新增 1 个；ADR-088 gap_pool/regression 再新增 1 个；ADR-089 子项目 C 新增 extractor-mode 1 个；ADR-090 子项目 D 新增 routing-tickets 1 个）。gap_pool 路由含 **7 个端点**（`GET /` · `GET /stats` · `GET /{gap_id}` · `POST /{gap_id}/promote` · `POST /{gap_id}/dismiss` · `GET /{gap_id}/resolve-check` · `GET /{gap_id}/route-preview`）；gap-regression 路由含 **6 个端点**（`POST /sets/build` · `GET /sets` · `GET /sets/{set_id}` · `POST /sets/{set_id}/replay` · `GET /reports` · `GET /reports/{report_id}`）；routing-tickets 路由含 **7 个端点**（`GET /` · `GET /stats` · `GET /{ticket_id}` · `GET /{ticket_id}/events` · `POST /{ticket_id}/assign` · `POST /{ticket_id}/transition` · `POST /{ticket_id}/comment`）；OpenAPI 全量展开数（此前容器实测 **755 paths / 957 operations**，为 gap_pool 接入前的值）待在容器内重测后更新。ontology 深层子包的路由经 `biz/core/ontology/public_routers.py` 惰性门面统一暴露（31 路由），router_registry 从门面导入而非直接 reach-in（见 ADR-080 / C3 契约）。
 
 ---
 

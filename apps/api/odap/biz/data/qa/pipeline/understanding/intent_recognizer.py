@@ -7,10 +7,15 @@
 """
 
 import logging
+import os
 import re
+import time
 from typing import Any, Dict, List, Optional
 
 from odap.biz.data.qa.models import QueryIntent, QueryUnderstanding
+from odap.biz.data.qa.pipeline.understanding.extractor_mode import (
+    resolve_extractor_mode,
+)
 
 logger = logging.getLogger(__name__)
 
@@ -103,6 +108,45 @@ class IntentRecognizer:
             return None
 
 
+class SemanticsProvider:
+    """按需查询本体语义（同步）——query 模式的查询后端（ADR-089 C-D3/C-D4）。
+
+    「查询优于注入」：每次只查当前 expression 对应的 USL 术语，不预加载全量字典。
+    查询经 allowed 路径（semantic_admin.usl_manager），不深插 ontology 内部（C3）。
+    失败绝不抛：返回 canonical=None（由调用方决定兜底，规则 14）。
+    """
+
+    def __init__(self, query_fn=None):
+        # query_fn(expression, domain_id, kinds) -> {"content": {...}}；测试可注入
+        self._query_fn = query_fn
+
+    def query(self, expression: str, domain_id: str = "",
+              kinds=("content",)) -> Dict[str, Any]:
+        if self._query_fn is not None:
+            return self._query_fn(expression, domain_id, list(kinds))
+        try:
+            from odap.biz.semantic_admin.usl_manager.services import (
+                UslManagerService,
+            )
+            res = UslManagerService().list_terms(
+                domain_id=domain_id or None,
+                synonym_keyword=expression, page_size=5)
+            items = (res or {}).get("items", []) if isinstance(res, dict) else []
+        except Exception as e:  # 规则 14：可观测降级
+            logger.warning("SemanticsProvider 查询失败(%s): %s", expression, e)
+            items = []
+        if not items:
+            return {"content": {"canonical": None}}
+        t = items[0]
+        return {"content": {
+            "canonical": t.get("canonical"),
+            "synonyms": list(t.get("synonyms") or []),
+            "near_synonyms": list(t.get("near_synonyms") or []),
+            "semantic_type": t.get("semantic_type"),
+            "domain_id": t.get("domain_id"),
+        }}
+
+
 class EntityExtractor:
     """实体提取器: 从自然语言中提取查询实体。
 
@@ -110,17 +154,51 @@ class EntityExtractor:
     - 规则提取优先（引号/「的」/大写英文），确定性。
     - LLM 实体提取是「选择」兜底：输出必须经 USL 术语归一化 + 本体实体集合过滤，
       未命中本体集合的候选**丢弃**（不采纳幻觉实体）。
+
+    三模式（ADR-089）：
+    - off：原词直通（历史行为，可回滚）
+    - inject：预加载 term_resolver + entity_set 后注入（对照/兼容）
+    - query：按需查询（SemanticsProvider），归一化 + 幻觉过滤（默认）
     """
 
-    def __init__(self, llm_client=None, term_resolver=None, entity_set=None):
+    def __init__(self, llm_client=None, term_resolver=None, entity_set=None,
+                 mode: Optional[str] = None, semantics_provider=None):
         self.llm_client = llm_client
         self.term_resolver = term_resolver
         self.entity_set = entity_set  # 本体实体 canonical 集合（可选）
+        # mode 未显式指定 → 按注入的上下文推导（保持 ADR-079 历史行为，零回归）：
+        #   注入 term_resolver / entity_set → inject（领域内归一化 + 本体集合过滤）
+        #   两者皆无                        → off（原词安全直通，不过滤不误删）
+        # 显式 mode= 或 set_entity_context(mode=...) 时以显式为准（ADR-089 三模式）。
+        self.mode = mode or (
+            "inject"
+            if (term_resolver is not None or entity_set is not None)
+            else "off"
+        )
+        self.semantics_provider = semantics_provider
+        self._cache: Dict[tuple, Optional[str]] = {}
 
-    def set_entity_context(self, term_resolver=None, entity_set=None) -> None:
-        """注入本体上下文：USL 术语解析器 + 实体 canonical 集合"""
-        self.term_resolver = term_resolver
-        self.entity_set = entity_set
+    def set_entity_context(self, term_resolver=None, entity_set=None, *,
+                           mode: Optional[str] = None,
+                           semantics_provider=None) -> None:
+        """注入本体上下文：USL 术语解析器 + 实体 canonical 集合（inject 模式）。
+
+        mode 缺省走三级解析（sa_config > env > query）。
+        """
+        self.mode = mode or resolve_extractor_mode()
+        if self.mode == "inject":
+            self.term_resolver = term_resolver
+            self.entity_set = entity_set
+            self.semantics_provider = None
+        elif self.mode == "query":
+            self.term_resolver = None
+            self.entity_set = None
+            self.semantics_provider = semantics_provider or SemanticsProvider()
+            self._cache = {}
+        else:  # off
+            self.term_resolver = None
+            self.entity_set = None
+            self.semantics_provider = None
 
     def extract(self, query: str, domain_id: str = "") -> List[str]:
         """提取查询中的实体名（规则优先 + LLM 选择兜底，经本体归一化）。
@@ -131,6 +209,7 @@ class EntityExtractor:
                        跨场景不猜测。空串表示未指定场景（回退全领域）。
         """
         entities: List[str] = []
+        self._cache = {}   # query 模式：per-extract 缓存（ADR-089 C-D10）
 
         # 规则提取: 引号内的内容
         quoted = re.findall(r'[""「」『』](.+?)[""「」『』]', query)
@@ -177,12 +256,20 @@ class EntityExtractor:
         return result
 
     def _normalize_entity(self, entity: str, domain_id: str = "") -> Optional[str]:
-        """将实体归一化到 canonical（场景内 USL 字典 / 本体集合校验）。
+        """将实体归一化到 canonical（三模式分派，ADR-089）。
 
-        - 无 term_resolver 且无 entity_set → 原词（未注入本体上下文时不做过滤）
-        - 有 term_resolver → 在 domain_id 领域内归一化；canonical 不在 entity_set → None
-        - 仅 entity_set → 精确命中才返回，否则 None
+        - off    → 原词直通（历史行为）
+        - inject → 领域内 USL 归一化 + entity_set 集合过滤
+        - query  → 按需查询（SemanticsProvider）：命中 canonical 采纳，未命中 None
         """
+        if self.mode == "off":
+            return entity
+        if self.mode == "inject":
+            return self._normalize_inject(entity, domain_id)
+        return self._normalize_query(entity, domain_id)
+
+    def _normalize_inject(self, entity: str, domain_id: str) -> Optional[str]:
+        """inject 模式：预加载 USL 字典 + 实体集合过滤。"""
         if self.term_resolver is not None:
             canonical = self.term_resolver.resolve(entity, domain_id=domain_id)
             if self.entity_set is not None:
@@ -192,6 +279,47 @@ class EntityExtractor:
         if self.entity_set is not None:
             return entity if entity in self.entity_set else None
         return entity
+
+    def _normalize_query(self, entity: str, domain_id: str) -> Optional[str]:
+        """query 模式：按需查询本体语义（per-extract 缓存；失败原词兜底）。"""
+        key = (entity, domain_id)
+        if key in self._cache:
+            return self._cache[key]
+        provider = self.semantics_provider or SemanticsProvider()
+        t0 = time.perf_counter()
+        try:
+            r = provider.query(entity, domain_id=domain_id, kinds=["content"])
+        except Exception as e:  # 客户端侧兜底（规则 14）
+            logger.warning("ontology_semantics 调用失败(%s): %s", entity, e)
+            self._record_cost(entity, domain_id, round_trips=1,
+                              wall_ms=(time.perf_counter() - t0) * 1000.0,
+                              error=str(e))
+            return entity
+        canonical = (r or {}).get("content", {}).get("canonical")
+        self._cache[key] = canonical
+        self._record_cost(entity, domain_id, round_trips=1,
+                          wall_ms=(time.perf_counter() - t0) * 1000.0, error=None)
+        return canonical
+
+    @staticmethod
+    def _record_cost(entity: str, domain_id: str, *, round_trips: int,
+                     wall_ms: float, error) -> None:
+        """成本对账（ADR-089 C-D5）。热路径默认关闭，COST_AUDIT_ENABLED=1 时开启。
+
+        DB 写入绝不阻塞/破坏提取：任何异常吞为 debug（规则 14.6 边界）。
+        """
+        if os.environ.get("COST_AUDIT_ENABLED") != "1":
+            return
+        try:
+            from odap.biz.data.qa.evaluation.cost_audit import CostAuditStorage
+            CostAuditStorage().record(
+                call_kind="entity_extract", mode="query",
+                scope_key=f"{domain_id or '-'}", expression=entity,
+                cost={"round_trips": round_trips, "wall_ms": round(wall_ms, 3),
+                      "error": error},
+            )
+        except Exception as e:  # noqa: BLE001
+            logger.debug("cost_audit 记录失败（不影响提取）：%s", e)
 
     def _llm_extract(self, query: str) -> Optional[List[str]]:
         """LLM 实体提取（「选择」：只产出候选，不保证正确，后续经本体归一化过滤）"""
@@ -230,6 +358,9 @@ class UnderstandingStage:
     def __init__(self, llm_client=None):
         self.intent_recognizer = IntentRecognizer(llm_client)
         self.entity_extractor = EntityExtractor(llm_client)
+        # ADR-089 C-D14：生产接线——按运行时配置（默认 query）启用按需查询归一化。
+        # 此前 set_entity_context 从未被调用，实体归一化在生产形同虚设。
+        self.entity_extractor.set_entity_context(mode=resolve_extractor_mode())
 
     def analyze(self, query: str, context: Optional[Dict[str, Any]] = None) -> QueryUnderstanding:
         """分析查询: 意图识别 + 实体提取 + 澄清检测。

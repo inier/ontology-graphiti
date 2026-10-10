@@ -1076,8 +1076,12 @@ Step 10: 智能问答
 | 语义管理台 缺口晋升候选 | `/api/semantic-admin/gaps/{gap_id}/promote` |
 | 语义管理台 缺口驳回 | `/api/semantic-admin/gaps/{gap_id}/dismiss` |
 | 语义管理台 缺口可解析判定 | `/api/semantic-admin/gaps/{gap_id}/resolve-check` |
+| 语义管理台 缺口路由预览（无副作用，ADR-090） | `/api/semantic-admin/gaps/{gap_id}/route-preview` |
 | 语义管理台 缺口回归集构建/列表/详情 | `/api/semantic-admin/gap-regression/sets/build` · `/sets` · `/sets/{set_id}` |
 | 语义管理台 配对回放与报告 | `/api/semantic-admin/gap-regression/sets/{set_id}/replay` · `/reports` · `/reports/{report_id}` |
+| 语义管理台 路由工单列表/统计/详情/事件（ADR-090） | `/api/semantic-admin/routing-tickets` · `/stats` · `/{ticket_id}` · `/{ticket_id}/events` |
+| 语义管理台 路由工单操作（指派/流转/评论，ADR-090） | `/api/semantic-admin/routing-tickets/{ticket_id}/assign` · `/transition` · `/comment` |
+| 语义管理台 实体提取模式（ADR-089） | `/api/semantic-admin/extractor-mode` |
 
 ### F. Git 提交规范
 

@@ -246,6 +246,17 @@ _PUBLIC_MAP: dict[str, tuple[str, str]] = {
     "RetrievalService": ("odap.biz.core.ontology.semantic_retrieval.services.retrieval_service", "RetrievalService"),
     "SearchRequest": ("odap.biz.core.ontology.semantic_retrieval.models.schemas", "SearchRequest"),
 
+    # ── Goal 驱动的结构变更提案（缺口 → ChangeProposal，ADR-090 子项目 D）──
+    # 消费者：odap.biz.semantic_admin.gap_pool.services.gap_service（C3 门面唯一合法入口）
+    "create_schema_proposal": (
+        "odap.biz.core.ontology.goal.services.schema_proposal",
+        "create_schema_proposal",
+    ),
+    "get_goal_storage": (
+        "odap.biz.core.ontology.goal.storage",
+        "get_goal_storage",
+    ),
+
     # ── 助手能力（assistant.rules / assistant.tools）──
     "TypeInferenceEngine": ("odap.biz.core.ontology.assistant.rules.type_inference", "TypeInferenceEngine"),
     "completeness_check": ("odap.biz.core.ontology.assistant.tools.completeness_check", "completeness_check"),
@@ -379,6 +390,8 @@ if TYPE_CHECKING:  # pragma: no cover
     from odap.biz.core.ontology.design.mock_data.data_generator import load_simulation_data
     from odap.biz.core.ontology.semantic_retrieval.services.retrieval_service import RetrievalService
     from odap.biz.core.ontology.semantic_retrieval.models.schemas import SearchRequest
+    from odap.biz.core.ontology.goal.services.schema_proposal import create_schema_proposal
+    from odap.biz.core.ontology.goal.storage import get_goal_storage
     from odap.biz.core.ontology.assistant.rules.type_inference import TypeInferenceEngine
     from odap.biz.core.ontology.assistant.tools.completeness_check import completeness_check
     from odap.biz.core.ontology.action.storage.sqlite_action_storage import SQLiteActionStorage

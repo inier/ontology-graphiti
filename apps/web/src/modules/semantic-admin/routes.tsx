@@ -25,4 +25,6 @@ export const semanticAdminRouteMeta: SemanticAdminRouteMeta[] = [
   { path: '/semantic-admin/gaps', component: () => null, breadcrumb: '概念缺口' },
   { path: '/semantic-admin/gaps/stats', component: () => null, breadcrumb: '缺口统计' },
   { path: '/semantic-admin/gaps/:id', component: () => null, breadcrumb: '缺口详情' },
+  { path: '/semantic-admin/routing-tickets', component: () => null, breadcrumb: '路由工单' },
+  { path: '/semantic-admin/routing-tickets/:id', component: () => null, breadcrumb: '工单详情' },
 ];

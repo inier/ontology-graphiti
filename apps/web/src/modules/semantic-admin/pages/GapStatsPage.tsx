@@ -1,6 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import { Card, Col, Row, Statistic, Table, Alert, message, Space, Tag } from 'antd';
 import { gapApi, type GapStats } from '../services/gapApi';
+import { ExtractorModeCard } from '../components/ExtractorModeCard';
 
 export const GapStatsPage: React.FC = () => {
   const [s, setS] = useState<GapStats | null>(null);
@@ -13,6 +14,7 @@ export const GapStatsPage: React.FC = () => {
   if (!s) return null;
   return (
     <div style={{ padding: 16 }}>
+      <ExtractorModeCard />
       {s.emit_failures > 0 && (
         <Alert type="warning" showIcon style={{ marginBottom: 12 }}
           message={`emitter 累计失败 ${s.emit_failures} 次（内存计数，重启归零）`} />)}

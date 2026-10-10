@@ -51,6 +51,8 @@ class SQLiteGapStorage:
                     last_seen TEXT NOT NULL,
                     updated_at TEXT NOT NULL,
                     promoted_candidate_id TEXT,
+                    promoted_proposal_id TEXT,
+                    promoted_ticket_id TEXT,
                     resolved_term_id TEXT,
                     dismiss_reason TEXT,
                     workspace_id TEXT,
@@ -71,6 +73,13 @@ class SQLiteGapStorage:
                     "ALTER TABLE concept_gaps "
                     "ADD COLUMN attribution_counts_json TEXT"
                 )
+            # 旧库迁移（ADR-090 子项目 D）：按 layer 路由的两条回填列。
+            # 旧行该列为 NULL → promote 幂等判定视为「未 promote」（行为同今天）。
+            for col in ("promoted_proposal_id", "promoted_ticket_id"):
+                if col not in cols:
+                    conn.execute(
+                        f"ALTER TABLE concept_gaps ADD COLUMN {col} TEXT"
+                    )
             conn.commit()
         finally:
             conn.close()
@@ -102,7 +111,11 @@ class SQLiteGapStorage:
     def _sanitize_attribution(attribution: Any) -> Optional[Dict[str, Any]]:
         """校验 attribution：非 dict 或 layer 非法 → None（warning 可观测，规则 14）。
 
-        只保留 layer / target_kind / target_ref 三个已知键，其余丢弃。
+        只保留已知键（其余丢弃）：
+          layer / target_kind / target_ref —— ADR-088 三个基础键
+          parent —— ADR-090 子项目 D 追加：schema 层 property 缺口需要「父对象类型」
+                    才能推导 RFC 6902 路径（否则只能落到 /object_types/Unknown/...，
+                    不可用）。仍是白名单已知键，不放行任意字段。
         """
         if attribution is None:
             return None
@@ -116,7 +129,7 @@ class SQLiteGapStorage:
             logger.warning("attribution.layer 非法，忽略: %r", attribution)
             return None
         out: Dict[str, Any] = {"layer": layer_val}
-        for k in ("target_kind", "target_ref"):
+        for k in ("target_kind", "target_ref", "parent"):
             v = attribution.get(k)
             if v is not None:
                 out[k] = str(v)
@@ -207,7 +220,10 @@ class SQLiteGapStorage:
             conn.close()
 
     def update_status(self, gap_id: str, status: str, **fields) -> bool:
-        allowed = {"promoted_candidate_id", "resolved_term_id", "dismiss_reason"}
+        allowed = {
+            "promoted_candidate_id", "promoted_proposal_id",
+            "promoted_ticket_id", "resolved_term_id", "dismiss_reason",
+        }
         sets = ["status=?", "updated_at=?"]
         params: List[Any] = [status, _utc_now_iso()]
         for k, v in fields.items():

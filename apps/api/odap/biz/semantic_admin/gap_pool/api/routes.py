@@ -81,7 +81,23 @@ async def promote_gap(gap_id: str, body: PromoteRequest = PromoteRequest(),
     try:
         actor = (user or {}).get("sub") or (user or {}).get("username") or "system"
         r = _svc().promote(gap_id, actor=actor,
-                           domain_id=body.domain_id, workspace_id=body.workspace_id)
+                           domain_id=body.domain_id, workspace_id=body.workspace_id,
+                           force_layer=body.force_layer)
+        if r.get("status") == "error":
+            code = 404 if r.get("code") == "GAP_NOT_FOUND_404" else 500
+            raise HTTPException(status_code=code, detail=r["message"])
+        return r
+    except HTTPException:
+        raise
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@router.get("/{gap_id}/route-preview")
+async def route_preview(gap_id: str, _user=Depends(get_current_user)):
+    """预览 promote 将路由到哪（无副作用，ADR-090 D-D15）。"""
+    try:
+        r = _svc().route_preview(gap_id)
         if r.get("status") == "error":
             code = 404 if r.get("code") == "GAP_NOT_FOUND_404" else 500
             raise HTTPException(status_code=code, detail=r["message"])

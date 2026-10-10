@@ -45,6 +45,8 @@ import {
   GapPoolPage,
   GapDetailPage,
   GapStatsPage,
+  RoutingTicketsPage,
+  RoutingTicketDetailPage,
 } from '@/modules/semantic-admin';
 
 function ProtectedRoute({ children }: { children: ReactNode }) {
@@ -131,6 +133,9 @@ export function AppRoutes() {
         <Route path="/semantic-admin/gaps" element={<ProtectedRoute><GapPoolPage /></ProtectedRoute>} />
         <Route path="/semantic-admin/gaps/stats" element={<ProtectedRoute><GapStatsPage /></ProtectedRoute>} />
         <Route path="/semantic-admin/gaps/:id" element={<ProtectedRoute><GapDetailPage /></ProtectedRoute>} />
+        {/* 子项目 D：tool 层缺口路由工单（子路由，非顶层 Tab） */}
+        <Route path="/semantic-admin/routing-tickets" element={<ProtectedRoute><RoutingTicketsPage /></ProtectedRoute>} />
+        <Route path="/semantic-admin/routing-tickets/:id" element={<ProtectedRoute><RoutingTicketDetailPage /></ProtectedRoute>} />
         <Route path="/guide" element={<ProtectedRoute><GuidePage /></ProtectedRoute>} />
         <Route path="/" element={<ProtectedRoute><GuidePage /></ProtectedRoute>} />
         <Route path="/admin" element={<Navigate to="/ontology/designer" replace />} />

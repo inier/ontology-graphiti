@@ -279,6 +279,36 @@ async def hybrid_search(request: HybridRequest, user=Depends(get_current_user)):
     )
 
 
+@router.post("/semantics")
+async def semantics_lookup(body: Dict[str, Any], user=Depends(get_current_user)):
+    """本体语义查询（诊断/parity）— 与 MCP 工具 ontology_semantics 结果一致（FR-010 / ADR-089）。
+
+    body: {expression:str, domain_id?:str, kinds?:list[str]}
+    返回三层语义 + cost 对账块；handler 失败降级（不 500）。
+    """
+    from ..mcp.semantics_tools import create_ontology_semantics_handler
+    try:
+        handler = create_ontology_semantics_handler()
+        result = await handler(body or {})
+        # 成本对账（ADR-089 C-D5）：诊断端点常开记录
+        try:
+            from odap.biz.data.qa.evaluation.cost_audit import CostAuditStorage
+            CostAuditStorage().record(
+                call_kind="ontology_semantics", mode="query",
+                scope_key=(body or {}).get("domain_id") or "-",
+                expression=(body or {}).get("expression"),
+                cost=result.get("cost"),
+            )
+        except Exception as _e:  # 记录失败不影响响应
+            logger.warning("cost_audit 记录失败（不影响响应）: %s", _e)
+        return result
+    except HTTPException:
+        raise
+    except Exception as exc:  # 规则 14：显式失败，但为诊断端点仍返回可读结构
+        logger.exception("semantics lookup failed")
+        raise HTTPException(status_code=500, detail=str(exc))
+
+
 # ------------------------------------------------------------------
 # Iter 4.2: AG-UI 流式检索端点（SSE）
 # ------------------------------------------------------------------

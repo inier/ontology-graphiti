@@ -1,4 +1,11 @@
-"""GapService —— 缺口池编排层（规则 2：返回 dict；规则 6：routes→services→storage）。"""
+"""GapService —— 缺口池编排层（规则 2：返回 dict；规则 6：routes→services→storage）。
+
+`promote` 为**薄壳调度**（ADR-090 D-D8）：按 `promote_router.route()` 决定的 layer
+把缺口分派到三条互斥路径——
+  content → candidate_store（USL 候选，行为与 ADR-086 完全一致）
+  schema  → change_proposal（结构变更提案，经 ontology 门面，C3 合规）
+  tool    → tool_routing（路由工单，完整工作流）
+"""
 from __future__ import annotations
 
 import logging
@@ -6,6 +13,8 @@ from typing import Any, Dict, Optional
 
 from ..models.gap import GapStatus
 from ..storage.sqlite_gap_storage import SQLiteGapStorage
+from .promote_router import RouteResult
+from .promote_router import route as route_promote
 
 logger = logging.getLogger(__name__)
 
@@ -14,6 +23,8 @@ class GapService:
     def __init__(self, storage: Optional[SQLiteGapStorage] = None):
         self.storage = storage or SQLiteGapStorage()
         self._candidate_service_factory = None
+        self._goal_storage_factory = None
+        self._ticket_service_factory = None
 
     def record_signal(self, source, expression: str, *,
                       workspace_id: Optional[str] = None,
@@ -40,6 +51,19 @@ class GapService:
         from odap.biz.semantic_admin.candidate_store.services import CandidateService
         return CandidateService()
 
+    def _goal_storage(self):
+        """结构变更提案的持久化存储——经 C3 门面获取，不直连 ontology 内部。"""
+        if self._goal_storage_factory is not None:
+            return self._goal_storage_factory()
+        from odap.biz.core.ontology.public import get_goal_storage
+        return get_goal_storage()
+
+    def _ticket_service(self):
+        if self._ticket_service_factory is not None:
+            return self._ticket_service_factory()
+        from odap.biz.semantic_admin.routing_tickets.services import get_ticket_service
+        return get_ticket_service()
+
     def list_gaps(self, **filters) -> Dict[str, Any]:
         try:
             items, total = self.storage.list_gaps(**filters)
@@ -57,25 +81,56 @@ class GapService:
 
     def promote(self, gap_id: str, *, actor: str,
                 domain_id: Optional[str] = None,
-                workspace_id: Optional[str] = None) -> Dict[str, Any]:
+                workspace_id: Optional[str] = None,
+                force_layer: Optional[str] = None) -> Dict[str, Any]:
+        """薄壳：按 layer 分派三条路径（ADR-090 D-D1/D-D8）。"""
         gap = self.storage.get_gap(gap_id)
         if not gap:
             return {"status": "error", "message": f"缺口 {gap_id} 不存在",
                     "code": "GAP_NOT_FOUND_404"}
-        if gap["status"] == GapStatus.PROMOTED.value and gap.get("promoted_candidate_id"):
-            return {"status": "ok", "candidate_id": gap["promoted_candidate_id"],
-                    "already_promoted": True}
+        if gap.get("status") == GapStatus.PROMOTED.value:
+            refs = self._promoted_refs(gap)
+            if refs:
+                return {"status": "ok", "already_promoted": True, **refs}
+        routed = route_promote(gap, force_layer=force_layer)
+        if routed.routed_to == "candidate_store":
+            return self._route_to_candidate(gap, actor, routed,
+                                            domain_id=domain_id,
+                                            workspace_id=workspace_id)
+        if routed.routed_to == "change_proposal":
+            return self._route_to_proposal(gap, actor, routed)
+        if routed.routed_to == "tool_routing":
+            return self._route_to_ticket(gap, actor, routed)
+        # 规则 14：未知路由目标显式失败，不静默吞
+        raise RuntimeError(f"未知 routed_to: {routed.routed_to}")
+
+    # ---- promote 三路实现 ----
+
+    @staticmethod
+    def _promoted_refs(gap: Dict[str, Any]) -> Dict[str, Any]:
+        """已 promote 的产物引用（三路幂等回显）。"""
+        out: Dict[str, Any] = {}
+        if gap.get("promoted_candidate_id"):
+            out["candidate_id"] = gap["promoted_candidate_id"]
+        if gap.get("promoted_proposal_id"):
+            out["proposal_id"] = gap["promoted_proposal_id"]
+        if gap.get("promoted_ticket_id"):
+            out["ticket_id"] = gap["promoted_ticket_id"]
+        return out
+
+    def _route_to_candidate(self, gap: Dict[str, Any], actor: str,
+                            routed: RouteResult, *,
+                            domain_id: Optional[str] = None,
+                            workspace_id: Optional[str] = None) -> Dict[str, Any]:
+        """content 路径：USL 候选（ADR-088 D9 归因透传，行为零变化）。"""
         cs = self._candidate_service()
         payload = {
             "expression": gap["expression"],
             "workspace_id": workspace_id or gap.get("workspace_id"),
             "domain_id": domain_id or gap.get("domain_id"),
-            "gap_id": gap_id,
+            "gap_id": gap["id"],
             "triggered_by": actor,
         }
-        # ADR-088 D9 归因透传：content 层 attribution 的 target_kind 传给
-        # create_candidate_from_gap 的 semantic_type；无归因时不传（候选侧
-        # 维持"对象类型"默认，行为不变）。不触碰审批链。
         target_kind = self._content_target_kind(gap)
         if target_kind:
             payload["semantic_type"] = target_kind
@@ -83,9 +138,69 @@ class GapService:
         if r.get("status") != "ok":
             return r
         cid = r["candidate_id"]
-        self.storage.update_status(gap_id, GapStatus.PROMOTED.value,
+        self.storage.update_status(gap["id"], GapStatus.PROMOTED.value,
                                    promoted_candidate_id=cid)
-        return {"status": "ok", "candidate_id": cid}
+        return {"status": "ok", "layer": routed.layer,
+                "routed_to": routed.routed_to, "candidate_id": cid}
+
+    def _route_to_proposal(self, gap: Dict[str, Any], actor: str,
+                           routed: RouteResult) -> Dict[str, Any]:
+        """schema 路径：结构变更提案（RFC 6902），落 change_proposals（D-D4/D-D5）。"""
+        from odap.biz.core.ontology.public import create_schema_proposal
+        r = create_schema_proposal(
+            origin_gap_id=gap["id"],
+            expression=gap.get("expression") or "",
+            changes=routed.payload.get("changes") or [],
+            proposed_by=actor,
+            scope_key=gap.get("scope_key"),
+            workspace_id=gap.get("workspace_id"),
+            domain_id=gap.get("domain_id"),
+            storage=self._goal_storage(),
+        )
+        if r.get("status") != "ok":
+            return r
+        pid = r["proposal_id"]
+        self.storage.update_status(gap["id"], GapStatus.PROMOTED.value,
+                                   promoted_proposal_id=pid)
+        return {"status": "ok", "layer": routed.layer,
+                "routed_to": routed.routed_to, "proposal_id": pid,
+                "goal_id": r.get("goal_id"),
+                "changes_count": r.get("changes_count")}
+
+    def _route_to_ticket(self, gap: Dict[str, Any], actor: str,
+                         routed: RouteResult) -> Dict[str, Any]:
+        """tool 路径：路由工单（完整工作流），open/P2 + created 事件（D-D6）。"""
+        engine = routed.payload.get("engine") or "unknown_engine"
+        r = self._ticket_service().create_from_gap(gap, actor=actor, engine=engine)
+        if r.get("status") != "ok":
+            return r
+        ticket = r["ticket"]
+        tid = ticket["id"]
+        self.storage.update_status(gap["id"], GapStatus.PROMOTED.value,
+                                   promoted_ticket_id=tid)
+        return {"status": "ok", "layer": routed.layer,
+                "routed_to": routed.routed_to, "ticket_id": tid,
+                "engine": ticket.get("engine"),
+                "priority": ticket.get("priority"),
+                "ticket_status": ticket.get("status")}
+
+    def route_preview(self, gap_id: str) -> Dict[str, Any]:
+        """无副作用预览：该缺口 promote 将路由到哪（ADR-090 D-D15）。"""
+        gap = self.storage.get_gap(gap_id)
+        if not gap:
+            return {"status": "error", "message": f"缺口 {gap_id} 不存在",
+                    "code": "GAP_NOT_FOUND_404"}
+        routed = route_promote(gap)
+        out: Dict[str, Any] = {
+            "status": "ok", "layer": routed.layer,
+            "routed_to": routed.routed_to, "target_kind": routed.target_kind,
+            "already_promoted": bool(self._promoted_refs(gap)),
+        }
+        if routed.layer == "schema":
+            out["changes"] = routed.payload.get("changes") or []
+        if routed.layer == "tool":
+            out["engine"] = routed.payload.get("engine")
+        return out
 
     def dismiss(self, gap_id: str, *, reason: str, actor: str) -> Dict[str, Any]:
         gap = self.storage.get_gap(gap_id)

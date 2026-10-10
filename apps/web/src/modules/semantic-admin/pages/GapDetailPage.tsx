@@ -1,29 +1,64 @@
-import React, { useEffect, useState } from 'react';
-import { useParams } from 'react-router-dom';
+import React, { useCallback, useEffect, useState } from 'react';
+import { useParams, useNavigate } from 'react-router-dom';
 import { Descriptions, Timeline, Tag, Card, Spin, message, Typography,
-         Button, Alert, Space, Statistic } from 'antd';
-import { PlayCircleOutlined } from '@ant-design/icons';
-import { gapApi, gapRegressionApi, type GapItem, type ReplayReport } from '../services/gapApi';
+         Button, Alert, Space, Statistic, Dropdown } from 'antd';
+import { PlayCircleOutlined, RocketOutlined } from '@ant-design/icons';
+import { gapApi, gapRegressionApi, type GapItem, type ReplayReport,
+         type RoutePreview, type PromoteResult } from '../services/gapApi';
 
 const VERDICT_COLOR: Record<string, string> = {
   pass: 'green', fail: 'orange', error: 'red',
 };
 
+/** 路由层展示（ADR-090）：layer → 中文产物名。 */
+const LAYER_LABEL: Record<string, string> = {
+  content: 'USL 候选（术语）',
+  schema: '结构变更提案（ChangeProposal）',
+  tool: '路由工单（工程债）',
+};
+
 export const GapDetailPage: React.FC = () => {
   const { id } = useParams<{ id: string }>();
+  const navigate = useNavigate();
   const [gap, setGap] = useState<GapItem | null>(null);
   const [loading, setLoading] = useState(true);
   const [replaying, setReplaying] = useState(false);
   const [report, setReport] = useState<ReplayReport | null>(null);
+  const [preview, setPreview] = useState<RoutePreview | null>(null);
+  const [promoting, setPromoting] = useState(false);
+  const [result, setResult] = useState<PromoteResult | null>(null);
+
+  const reload = useCallback(async () => {
+    if (!id) return;
+    setGap(await gapApi.get(id));
+  }, [id]);
 
   useEffect(() => {
     (async () => {
       if (!id) { setLoading(false); return; }
-      try { setGap(await gapApi.get(id)); }
-      catch (e) { message.error((e as Error).message || '加载失败'); }
+      try {
+        const [g, pv] = await Promise.all([gapApi.get(id), gapApi.routePreview(id)]);
+        setGap(g);
+        setPreview(pv);
+      } catch (e) { message.error((e as Error).message || '加载失败'); }
       finally { setLoading(false); }
     })();
   }, [id]);
+
+  const runPromote = async (forceLayer?: 'content' | 'schema' | 'tool') => {
+    if (!gap) return;
+    setPromoting(true);
+    try {
+      const r = await gapApi.promote(gap.id,
+        forceLayer ? { force_layer: forceLayer } : {});
+      setResult(r);
+      message.success(`已路由到：${LAYER_LABEL[r.layer || ''] || r.routed_to}`);
+      await reload();
+      setPreview(await gapApi.routePreview(gap.id));
+    } catch (e) {
+      message.error((e as Error).message || 'promote 失败');
+    } finally { setPromoting(false); }
+  };
 
   const runReplay = async () => {
     if (!gap) return;
@@ -50,10 +85,27 @@ export const GapDetailPage: React.FC = () => {
   return (
     <div style={{ padding: 16 }}>
       <Card title={gap.expression} extra={<Tag>{gap.status}</Tag>}
-        actions={[<Button key="replay" type="primary" ghost icon={<PlayCircleOutlined />}
-          loading={replaying} onClick={runReplay}>
-          构建回归集并配对回放
-        </Button>]}>
+        actions={[
+          <Dropdown key="promote" menu={{
+            items: [
+              { key: 'auto', label: '按归因自动路由' },
+              { key: 'content', label: '强制 → USL 候选' },
+              { key: 'schema', label: '强制 → 结构提案' },
+              { key: 'tool', label: '强制 → 路由工单' },
+            ],
+            onClick: ({ key }) => void runPromote(
+              key === 'auto' ? undefined : (key as 'content' | 'schema' | 'tool')),
+          }}>
+            <Button type="primary" icon={<RocketOutlined />} loading={promoting}
+              disabled={gap.status === 'promoted'}>
+              Promote（按 layer 路由）
+            </Button>
+          </Dropdown>,
+          <Button key="replay" type="primary" ghost icon={<PlayCircleOutlined />}
+            loading={replaying} onClick={runReplay}>
+            构建回归集并配对回放
+          </Button>,
+        ]}>
         <Descriptions column={2}>
           <Descriptions.Item label="热度">{gap.heat}</Descriptions.Item>
           <Descriptions.Item label="scope">{gap.scope_key}</Descriptions.Item>
@@ -65,12 +117,64 @@ export const GapDetailPage: React.FC = () => {
                   用内部 activeCandidate 状态），故仅展示 ID，不做死链跳转 */}
               <Typography.Text copyable code>{gap.promoted_candidate_id}</Typography.Text>
             </Descriptions.Item>)}
+          {gap.promoted_proposal_id && (
+            <Descriptions.Item label="结构提案 ID">
+              <Typography.Text copyable code>{gap.promoted_proposal_id}</Typography.Text>
+            </Descriptions.Item>)}
+          {gap.promoted_ticket_id && (
+            <Descriptions.Item label="路由工单">
+              <a onClick={() => navigate(`/semantic-admin/routing-tickets/${gap.promoted_ticket_id}`)}>
+                查看工单
+              </a>
+            </Descriptions.Item>)}
           {gap.resolved_term_id && (
             <Descriptions.Item label="已解析术语">{gap.resolved_term_id}</Descriptions.Item>)}
           {gap.dismiss_reason && (
             <Descriptions.Item label="忽略原因">{gap.dismiss_reason}</Descriptions.Item>)}
         </Descriptions>
       </Card>
+      {preview && (
+        <Card title="路由预览（无副作用）" style={{ marginTop: 12 }}>
+          <Space wrap>
+            <Tag color="geekblue">layer: {preview.layer}</Tag>
+            <Tag>routed_to: {preview.routed_to}</Tag>
+            <Tag>target_kind: {preview.target_kind}</Tag>
+            {preview.already_promoted && <Tag color="green">已 promote</Tag>}
+          </Space>
+          {preview.layer === 'schema' && preview.changes?.length ? (
+            <Alert type="info" showIcon style={{ marginTop: 8 }}
+              message={`将生成 ${preview.changes.length} 条 RFC 6902 变更`}
+              description={<pre>
+                {preview.changes.map((c) => `${c.op} ${c.path}`).join('\n')}
+              </pre>} />
+          ) : null}
+          {preview.layer === 'tool' && (
+            <Typography.Paragraph type="secondary" style={{ marginTop: 8 }}>
+              目标检索引擎：{preview.engine || 'unknown_engine'}（无则落 unknown，不造数）
+            </Typography.Paragraph>)}
+        </Card>
+      )}
+      {result && (
+        <Card title="Promote 结果" style={{ marginTop: 12 }}>
+          <Space wrap>
+            <Tag color="green">{LAYER_LABEL[result.layer || ''] || result.routed_to}</Tag>
+            {result.candidate_id && (
+              <Typography.Text copyable code>候选 {result.candidate_id}</Typography.Text>)}
+            {result.proposal_id && (
+              <Typography.Text copyable code>提案 {result.proposal_id}</Typography.Text>)}
+            {result.ticket_id && (
+              <a onClick={() => navigate(`/semantic-admin/routing-tickets/${result.ticket_id}`)}>
+                打开工单 {result.ticket_id}
+              </a>)}
+          </Space>
+          {result.layer === 'schema' && (
+            <Alert type="warning" showIcon style={{ marginTop: 8 }}
+              message="结构提案已创建为 draft，需人工审批后才会变更本体（门控归人）。" />)}
+          {result.layer === 'tool' && (
+            <Alert type="info" showIcon style={{ marginTop: 8 }}
+              message={`工单优先级 ${result.priority}（${result.ticket_status}），按 SLA 跟踪至闭环。`} />)}
+        </Card>
+      )}
       <Card title="来源计数" style={{ marginTop: 12 }}>
         <Space wrap>
           {Object.entries(gap.source_counts_json || {}).map(([k, v]) => (

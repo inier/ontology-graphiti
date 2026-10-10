@@ -18,8 +18,36 @@ export interface GapItem {
   first_seen: string;
   last_seen: string;
   promoted_candidate_id?: string | null;
+  promoted_proposal_id?: string | null;
+  promoted_ticket_id?: string | null;
   resolved_term_id?: string | null;
   dismiss_reason?: string | null;
+}
+
+/** promote 结果（ADR-090：按 layer 路由到候选 / 结构提案 / 工单）。 */
+export interface PromoteResult {
+  status: string;
+  layer?: 'content' | 'schema' | 'tool';
+  routed_to?: 'candidate_store' | 'change_proposal' | 'tool_routing';
+  already_promoted?: boolean;
+  candidate_id?: string;
+  proposal_id?: string;
+  goal_id?: string;
+  changes_count?: number;
+  ticket_id?: string;
+  engine?: string;
+  priority?: string;
+  ticket_status?: string;
+}
+
+/** route-preview 结果（无副作用，promote 前预览）。 */
+export interface RoutePreview {
+  layer: 'content' | 'schema' | 'tool';
+  routed_to: 'candidate_store' | 'change_proposal' | 'tool_routing';
+  target_kind: string;
+  already_promoted: boolean;
+  changes?: Array<{ op: string; path: string; value?: unknown }>;
+  engine?: string;
 }
 
 export interface GapStats {
@@ -88,9 +116,12 @@ export const gapApi = {
     return fetchJson<{ items: GapItem[]; total: number }>(`${BASE}/?${qs}`);
   },
   get: (id: string) => fetchJson<GapItem>(`${BASE}/${id}`),
-  promote: (id: string, body: { domain_id?: string; workspace_id?: string } = {}) =>
-    fetchJson<{ candidate_id: string }>(`${BASE}/${id}/promote`,
+  promote: (id: string, body: { domain_id?: string; workspace_id?: string;
+                                force_layer?: 'content' | 'schema' | 'tool' } = {}) =>
+    fetchJson<PromoteResult>(`${BASE}/${id}/promote`,
       { method: 'POST', body: JSON.stringify(body) }),
+  routePreview: (id: string) =>
+    fetchJson<RoutePreview>(`${BASE}/${id}/route-preview`),
   dismiss: (id: string, reason: string) =>
     fetchJson<{ status: string }>(`${BASE}/${id}/dismiss`,
       { method: 'POST', body: JSON.stringify({ reason }) }),

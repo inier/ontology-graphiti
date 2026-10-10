@@ -2,7 +2,7 @@
 
 - **状态**：已实现（2026-10-09 ADR-088 落稿后，子项目 A/B 以 TDD 实现完毕：7 个新测试文件全绿、既有 test_gap_* 6 文件零回归；待 dev 容器手验 spec §7 第 2 项）
 - **日期**：2026-10-08（定稿 2026-10-09；实现 2026-10-09）
-- **范围**：子项目 A —— gap_pool 归因分层（attribution）；子项目 B —— 缺口回归集 + 配对回放门控（paired replay）。子项目 C（按需查询替代注入）、D（类型化编辑提案）为后续立项（§4.3 仅立项框）
+- **范围**：子项目 A —— gap_pool 归因分层（attribution）；子项目 B —— 缺口回归集 + 配对回放门控（paired replay）。子项目 C（按需查询替代注入）、D（类型化编辑提案）为后续立项（§4.3 仅立项框）——**均已于 2026-10-09 立项并实施**（C→ADR-089，D→ADR-090）。
 - **关联**：ADR-086 概念缺口回路（本设计是其增量演进）、ADR-087 语义漂移检测（"报告即不可变证据"纪律）、spec 008 语义检索 / FR-010、FR-026 结构化语义层；外部参照 **EvoOntology**（RUC，arXiv 2609.15779，`ruc-datalab/EvoOntology`，MIT）——借鉴其 attribution-guided typed edits 与 backbone-conditional paired evaluation 两个机制，**明确不采纳其自动接受（auto-accept）**
 - **规则约束**：AGENTS.md 规则 2（服务层返回 `{"status","message"}` dict）、规则 6（routes→services→storage）、规则 8（SQLite 每次 connect/close、JSON TEXT、ISO 时间）、规则 9（新模块零测试不提交）、规则 12（架构级决策需 ADR + 文档同步）、规则 14（失败显式、兜底可观测、禁止幻影调用/hasattr 探测式降级、测试必须执行真实函数体）
 
@@ -153,16 +153,20 @@ regression/
 
 **前端**（无新页面）：gaps 详情页加"配对回放"入口 + 最新 report 块（verdict / fixed / regressed / cost）；stats 页加 `by_layer` 卡片。
 
-### 4.3 后续立项（本期不实现，仅立项框）
+### 4.3 后续立项（已于 2026-10-09 立项并实施）
 
-**子项目 C：按需查询替代全量注入（P1，需 ADR）**
+> **状态更新（2026-10-09）**：子项目 C 与 D 均已立项落 ADR 并完成实现——C 见 [ADR-089](../../07-adr/ADR-089_子项目C_ontology_semantics%20MCP工具_按需查询替代全量注入.md) 与 spec `2026-10-09-subproject-c-ontology-semantics-tool-design.md`；D 见 [ADR-090](../../07-adr/ADR-090_子项目D_promote按attribution_layer路由_类型化编辑.md) 与 spec `2026-10-09-subproject-d-promote-routing-design.md`。以下为当初的立项框原文（保留作溯源）。
+
+**子项目 C：按需查询替代全量注入（P1，需 ADR）** ✅ 已实施
 - 新 MCP 工具 `ontology_semantics`（`biz/core/ontology/mcp/`）：`(expression, domain_id, kinds) → {canonical, synonyms, object_type, properties, relation_types, engines}`——schema/content/tool 三层的"导航面"；现有 7 工具全是检索执行器，三层中仅 content 有查询入口（nl_engine 消歧）。
 - `EntityExtractor.set_entity_context`（`intent_recognizer.py:120`）由全量 entity_set 注入改为查询式 provider，全量集合保留为小规模快路径/降级。
 - 验收：用 `benchmark.py` 现有基准跑注入 vs 查询两版，对比 F1 与延迟——**必须实测**，EvoOntology 未对账 token 节省与 round-trip/prefix-cache 代价。
+- **实施补充**：落成三模式 `off/inject/query`（默认 `query`，`sa_config`(`entity_extractor.mode`) > `EXTRACTOR_MODE` env > `query` 三级解析）+ 前端 `ExtractorModeCard` 切换卡 + `cost_audit` 不可变成本对账。
 
-**子项目 D：类型化编辑提案（P1，需 ADR，依赖子项目 A）**
+**子项目 D：类型化编辑提案（P1，需 ADR，依赖子项目 A）** ✅ 已实施
 - `promote()` 按 `attribution.layer` 路由：`content` → 现有 USL candidate 路径不变；`schema` → 生成 `ChangeProposal`（RFC 6902 JSON Patch 打到 doc_snapshot 路径），复用 `ImpactAnalyzer` 算爆炸半径，人工审批后走 Branch&Merge（FR-037 OntoFlow 全链路已有）；`tool` → 落 unified_router 路由规则 / MDL 模板，或产出工单，不自动改。
 - 不新造机制，纯接线 gap_pool / goal / branch-merge 三套既有设施。
+- **实施补充**：优先级定为 `schema > tool > content` 风险倒序（体系化，根因优先）；`tool` 路径升级为**完整工单工作流**（6 态状态机 + P0~P3 SLA + 事件审计 + 前端界面，新子服务 `routing_tickets`）；`schema` 路径经 C3 门面 `create_schema_proposal` 落 `change_proposals`（draft 门控，不立即跑 ImpactAnalyzer）；新增 `route-preview` 无副作用预览端点。
 
 ## 5. 测试策略（规则 9 / 14.6）
 
@@ -196,7 +200,7 @@ regression/
 ## 8. 非目标（Out of Scope）
 
 - **自动接受/驳回**：EvoOntology auto-accept 明确不采纳（OPA 权限 / 审计关键路径 / 版本不可定的爆炸半径不同）；paired 报告只作人工裁决证据。
-- 子项目 C / D 的实现（本 spec 仅立项，见 §4.3）。
+- 子项目 C / D 的实现（本 spec 仅立项，见 §4.3）。**注：2026-10-09 已分别以 ADR-089 / ADR-090 立项并实施，其实现范围见对应 spec。**
 - gap 跨 workspace 回归集合并视图。
 - 轨迹级归因（从 agent 执行 trace 归因）——待运行时具备 trace 存储后另议。
 - 回归集定时自动巡检（本期仅手动 build/replay + writeback 侧道开关）。

@@ -10,6 +10,8 @@ class DismissRequest(BaseModel):
 class PromoteRequest(BaseModel):
     domain_id: Optional[str] = None
     workspace_id: Optional[str] = None
+    # ADR-090 D-D1：None = 按 attribution 自动路由；显式指定则覆盖（content/schema/tool）
+    force_layer: Optional[str] = None
 
 
 class GapItem(BaseModel):

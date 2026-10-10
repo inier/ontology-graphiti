@@ -64,6 +64,8 @@ class ConceptGap:
     last_seen: str = field(default_factory=_utc_now_iso)
     updated_at: str = field(default_factory=_utc_now_iso)
     promoted_candidate_id: Optional[str] = None
+    promoted_proposal_id: Optional[str] = None
+    promoted_ticket_id: Optional[str] = None
     resolved_term_id: Optional[str] = None
     dismiss_reason: Optional[str] = None
     workspace_id: Optional[str] = None
@@ -83,6 +85,8 @@ class ConceptGap:
             "last_seen": self.last_seen,
             "updated_at": self.updated_at,
             "promoted_candidate_id": self.promoted_candidate_id,
+            "promoted_proposal_id": self.promoted_proposal_id,
+            "promoted_ticket_id": self.promoted_ticket_id,
             "resolved_term_id": self.resolved_term_id,
             "dismiss_reason": self.dismiss_reason,
             "workspace_id": self.workspace_id,

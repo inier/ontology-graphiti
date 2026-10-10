@@ -57,6 +57,9 @@ def test_old_db_without_attribution_column_migrates(tmp_path):
     assert got is not None                     # 既有数据完好
     assert got["attribution_counts_json"] == {}  # 旧数据 NULL → 回退 {}
     assert got["heat"] == 3
+    # ADR-090 子项目 D：两条 promote 路由回填列也被幂等迁入（旧行为=NULL）
+    assert got["promoted_proposal_id"] is None
+    assert got["promoted_ticket_id"] is None
 
     s2 = SQLiteGapStorage(db_path=db)          # 二次启动 → 幂等不报错
     assert s2.get_gap("g1")["heat"] == 3
@@ -67,6 +70,21 @@ def test_layer_column_exists_in_fresh_db(store):
     cols = [r[1] for r in conn.execute("PRAGMA table_info(concept_gaps)").fetchall()]
     conn.close()
     assert "attribution_counts_json" in cols
+    assert "promoted_proposal_id" in cols
+    assert "promoted_ticket_id" in cols
+
+
+def test_sanitize_keeps_parent_key_for_schema_property(store):
+    """ADR-090：schema 层 property 缺口需保留 parent 用于 RFC 6902 路径推导。"""
+    g = store.record_signal(
+        GapSignalSource.MAPPING_FAILURE, "寿命",
+        workspace_id="ws1", domain_id="d1",
+        attribution={"layer": "schema", "target_kind": "property",
+                     "parent": "人物", "unknown_key": "丢"},
+    )
+    attr = g["sources_json"][-1]["attribution"]
+    assert attr["parent"] == "人物"
+    assert "unknown_key" not in attr
 
 
 # ── attribution 计数累加（双层结构，E-b） ────────────────────────────────
