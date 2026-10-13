@@ -185,6 +185,9 @@ def create_router_registry() -> List[tuple]:
     # ── 语义管理 - 语义资产统一编排 Pipeline（结构化/非结构化 → 候选 → 审核）──
     from odap.biz.semantic_admin.semantic_asset_pipeline.api.routes import router as semantic_asset_pipeline_router
 
+    # ── 语义管理 - 语义漂移检测（drift_scan，ADR-087）──
+    from odap.biz.semantic_admin.drift_scan.api.routes import router as semantic_admin_drift_router
+
     # ── 本体 - 运行时 ──
     from odap.biz.core.ontology.public_routers import runtime_router
     from odap.biz.core.ontology.public_routers import state_machine_router
@@ -406,6 +409,9 @@ def create_router_registry() -> List[tuple]:
 
         # 语义管理 - 语义资产统一编排 Pipeline
         (semantic_asset_pipeline_router,),
+
+        # 语义管理 - 语义漂移检测（drift_scan）
+        (semantic_admin_drift_router,),
 
         # 本体 - 运行时
         (runtime_router,),
