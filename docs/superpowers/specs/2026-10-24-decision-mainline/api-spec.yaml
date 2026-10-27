@@ -1,0 +1,1493 @@
+openapi: 3.0.3
+info:
+  title: ODAP 决策主线 API
+  version: 1.7.0
+  description: |
+    决策主线贯通（ADR-0XX）新增端点 + `DecisionRecord` 扩展字段。
+    本文件是前后端联调的唯一契约：前端据此手写 TypeScript 类型与 MSW mock，后端据此实现。
+
+    **1.7.0 相对 1.6.0 的变更（命名统一，是破坏性变更——但 1.6.0 未流出）**：
+    ⑩ **`error.code` 全部统一为 `lower_snake_case`**：`NOT_FOUND` → `not_found`、
+       `FORBIDDEN` → `forbidden`、`UNPROCESSABLE` → `unprocessable`，其余 11 个本来就是小写。
+       同时**禁止任何大小写归一化**（`code.toLowerCase()`、`switch` 前统一 case）——
+       归一化能"抹平"当下，但后端哪天统一风格时它不会报错、只会静默错位：
+       键和值都归一化过，看起来永远匹配得上，实际业务映射已经错。
+       **前端照字面匹配**，TS union 从本文档抄字面量即可在编译期兜住。
+    ⑪ **422 的四个"用户可修"码补上 `details.field` 指向**（`batch_empty` / `batch_size_invalid`
+       → `decision_ids`；`reason_required` → `reason`），判据统一为：
+       **用户能不能通过改这个字段跨过限制**。
+
+    **1.6.0 相对 1.5.0 的变更**：
+    ⑧ **AC-17 的范围按文字扩到三个 router 模块**（`decision_hub` / `decision_record` /
+       `decision_recommendation`）。前版门禁只扫 `decision_hub/`，另两个模块共 14 处
+       `HTTPException` 被"绿着放过"——**判据的覆盖范围比规范窄，绿是判据的属性**。
+       新增一个 422 码（现名 `unprocessable`）对应这两模块的模块级输入拒绝。
+    ⑨ **`error.details` 收紧为"不存在或非空对象"**：不再允许 `null`，也不允许 `{}`。
+       两种写法表示同一语义会让断言裂开——`details is not None` 会把 `{}` 判成"有详情"。
+
+    **1.5.0 相对 1.4.0 的变更（对齐 AC-17，无行为变化）**：
+    ⑥ `ErrorResponse` 更名为 **`ErrorEnvelope`**，与 AC-17 的措辞对齐（1.4.0 未流出，
+       改名不留别名——两套名字并存正是"一个语义两个名字"的老问题）；
+    ⑦ 按 AC-17 锁定：**决策模块路由体内抛出的错误一律走 `APIError` 家族，不得再用
+       `HTTPException`**。两处例外见 `ErrorDetail` / `ValidationFailure` 的描述——
+       它们由**共享基础设施依赖**在进入路由体之前抛出，决策模块无法改写。
+
+    **1.4.0 相对 1.3.0 的变更（错误信封，后向兼容）**：
+    ① 新增 `ErrorEnvelope` / `ErrorInfo`：中间件产出的 `{"error": {type, code, message,
+       request_id, path, details?}}`。`code` 取 `error_code`，**仅 `APIError` 家族有值**；
+    ② `StepRejectDetail` / `ConflictDetail` 改为该信封的具体化（`allOf` + example），
+       原因码从顶层 `reason_code` 迁到 `error.code`，冲突明细迁到 `error.details`；
+    ③ 显式承认本域**三套错误体并存**（见 `Unprocessable` 与 `ErrorDetail` 的说明），
+       前端必须单点封装读取，不得各调用点自行猜字段；
+    ④ 新增 `responses/ServerError`，写端点声明 500（`status × outcome` 非法 → 内部不变量）；
+    ⑤ **推翻 1.2.0 ③ 在"列表侧"的适用范围**：`PendingDecisionItem` **不再承载「状态同步中」**，
+       该表述只在详情页成立。本 DTO 只有 `status` 与 `action_record_id`，没有"回写是否完成"
+       的信息；唯一可用信号（`action_record_id` 非空）在每一次正常执行里都成立，
+       据此猜"同步中"会在正常路径上闪，把真正的异常淹掉。要放进列表必须新增显式布尔字段
+       （`status_sync_pending`），**本期不加**（见 architecture.md §3.2）。
+       1.2.0 ③ 的超时降级要求继续有效，适用范围收窄为**详情页**。
+
+    **1.3.0 相对 1.2.0 的变更（后向兼容）**：
+    ① `outcome_details` 由"零结构承诺"改为**显式声明**：`action_record_id` / `action_status` /
+       `feedback_pipeline` / `achieved_items` / `rolled_back_items` 五个键成为契约承诺，
+       `additionalProperties` 仍为 `true`（容纳历史键与扩展）；
+    ② 新增 `ActionRequestStatus` schema（8 态），`action_status` 复用该枚举；
+    ③ 明确 `outcome_details.action_status` 是**回写快照、不是实时状态**，
+       残留窗口内它正是缺失的那一项，**不得用它判断"回写是否完成"**（详见 §5.3.1）。
+
+    **1.2.0 相对 1.1.0 的变更（设计侧第 6 轮反馈，均无破坏性）**：
+    ① 新增 `StepRejectDetail` schema，`POST /{id}/reasoning-steps` 的 422 带 `reason_code`，
+       前端据此区分「系统容量上限（200 条）」与「用户输入错误」两类 422，**不得统一提示"操作失败"**；
+    ② `entry_source` 查询参数明确为**单值**（不做多选，前端不实现多选框）；
+    ③ `PendingDecisionItem` 的「状态同步中」呈现要求补充超时降级（默认 10 分钟，
+       超时显示「状态可能未同步，请检查执行记录」），该阈值在前端单点常量，不入契约。
+
+    新增端点 7 个，按能力族拆为 5 + 2：
+    - 台账/队列/执行族 5 个：`GET /api/decisions`、`GET /api/decisions/pending`、
+      `POST /{id}/resolve`、`POST /{id}/execute`、`POST /batch-resolve`
+    - 推理步骤族 2 个：`GET|POST /{id}/reasoning-steps`。二者不是净新增能力，
+      而是 `POST|GET /api/agent/decisions/{id}/steps` 下线后的等价承接，故能力口径记 5、路径口径记 7。
+
+    **本期不做（P1）**：`GET /api/decisions/export.csv`（CSV 导出）、
+    台账 `sort=evidence_count`、队列 `sort_by=evidence_count_asc`。
+    这三项已从本契约移除，前端**不得渲染对应控件**——渲染一个点了没反应的按钮比不渲染更伤信任。
+
+    删除端点 5 个：`/api/agent/decisions` 的 list / create / get / chain / steps
+    （跨空间列表泄露 + 单条读取 IDOR，整体下线，迁移映射见 architecture.md §3.8）。
+
+    既有 7 个端点中，本期**行为不变**、仅被 `decision_hub` 复用的三个只读端点：
+    `GET /api/decisions/{id}/chain`、`GET /api/decisions/{id}/impact`、`GET /api/decisions/similar`。
+    它们不改造、不迁移、不新增参数；`chain` 的 `evidence_entities[].name` 稳定返回。
+    `POST /api/decisions` 仅新增可选字段 `entry_source`，其余 6 个端点零变化。
+
+    隔离约定：全部端点不提供任何 workspace 入参，`workspace_id` 由后端从 JWT 声明
+    （`workspace_id` / `ws_id`）解析；声明缺失返回 422。
+    跨工作空间命中一律返回 **404**（与"不存在"不可区分，不泄漏存在性）；
+    仅"确认属于当前空间但无操作权限"返回 **403**。
+
+servers:
+  - url: /
+
+tags:
+  - name: 决策台账
+  - name: 待决策队列
+  - name: 决策裁决
+  - name: 决策执行
+  - name: 决策写入
+
+paths:
+  /api/decisions:
+    get:
+      tags: [决策台账]
+      summary: 决策台账（分页 + 筛选 + 排序）
+      operationId: listDecisionLedger
+      security:
+        - bearerAuth: []
+      parameters:
+        - $ref: '#/components/parameters/Page'
+        - $ref: '#/components/parameters/PageSize'
+        - name: status
+          in: query
+          description: 可重复传入以多选
+          style: form
+          explode: true
+          schema:
+            type: array
+            maxItems: 6
+            items:
+              $ref: '#/components/schemas/DecisionStatus'
+        - name: outcome
+          in: query
+          description: |
+            可重复传入以多选。单值表达不了「执行成功 + 部分成功」同时勾选的情形
+            （两者同为 status=executed，只差 outcome），故必须支持多值。
+          style: form
+          explode: true
+          schema:
+            type: array
+            maxItems: 5
+            items:
+              $ref: '#/components/schemas/DecisionOutcome'
+        - name: entry_source
+          in: query
+          description: |
+            **单值，本期不做多选**（答复设计侧 2026-10-25 提问）。理由不是"做不到"，
+            而是没有需求支撑且不封路：
+            - 7 个取值里流量高度集中在 `manual` / `pipeline`，真实用法是"看某一条链的产物"，
+              一次一个来源就够；`status` / `outcome` 之所以必须多值，是因为界面存在
+              "执行成功 + 部分成功"这类**跨值域的组合诉求**，来源没有对应诉求。
+            - 把标量参数改成可重复参数是**向后兼容**扩展：将来真需要时后端加 `List[...]`、
+              前端把单选换多选，旧请求不受影响。所以此刻不做不构成返工。
+            - **注意**：多选确实能表达"只看 manual 或 pipeline"这类 OR，它不是"不传"的同义——
+              本端点只是本期不提供该能力，不要在前端用"全选"之类控件模拟。
+            要看来源构成，用台账按来源分组统计。
+            **另：`legacy` 是来源标签，`status_assumed` 才是"状态是推定的"标记，两者不可互相替代。**
+          schema:
+            $ref: '#/components/schemas/DecisionEntrySource'
+        - name: decision_type
+          in: query
+          schema:
+            type: string
+            maxLength: 64
+        - name: agent_id
+          in: query
+          description: |
+            Agent 页决策 Tab 的唯一数据源（替代已下线的 `/api/agent/decisions` 列表）。
+            **空间内收窄维度，不是租户边界**——查询仍先由 `group_id = $ws` 锁定空间。
+          schema:
+            type: string
+            maxLength: 64
+        - name: min_confidence
+          in: query
+          description: 置信度下界（闭区间）
+          schema:
+            type: number
+            format: float
+            minimum: 0
+            maximum: 1
+        - name: max_confidence
+          in: query
+          description: 置信度上界（闭区间）；`min_confidence > max_confidence` 返回 422
+          schema:
+            type: number
+            format: float
+            minimum: 0
+            maximum: 1
+        - name: q
+          in: query
+          description: |
+            对 `context_summary` / `recommended_option` 做包含匹配。
+            **不含 `reasoning`**：推理全文命中率低、噪音大，且会把每次关键词搜索变成
+            大字段全扫（PRD §4.2 明确"不搜推理全文"）。
+          schema:
+            type: string
+            maxLength: 100
+        - name: created_from
+          in: query
+          description: 闭区间下界（ISO8601，服务端归一化为 UTC）
+          schema:
+            type: string
+            format: date-time
+        - name: created_to
+          in: query
+          description: 闭区间上界
+          schema:
+            type: string
+            format: date-time
+        - name: sort
+          in: query
+          schema:
+            type: string
+            enum: [created_at, updated_at, confidence]
+            default: created_at
+        - name: order
+          in: query
+          schema:
+            type: string
+            enum: [asc, desc]
+            default: desc
+      responses:
+        '200':
+          description: 台账分页
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/DecisionLedgerPage'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '422':
+          $ref: '#/components/responses/Unprocessable'
+    post:
+      tags: [决策写入]
+      summary: 决策落库（唯一写入口）
+      operationId: recordDecision
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/DecisionRecordCreate'
+      responses:
+        '200':
+          description: 已落库的决策记录（新记录 status 恒为 pending，进入待裁定队列）
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/DecisionRecord'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          description: |
+            非 admin 在 body 中指定了非本空间的 workspace_id。
+            `error.code = "forbidden"`（`APIError` 直出 403，AC-17）。
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorEnvelope'
+        '422':
+          $ref: '#/components/responses/Unprocessable'
+
+  /api/decisions/pending:
+    get:
+      tags: [待决策队列]
+      summary: 待决策队列（待办域 = pending + decided + executing，服务端按 group 二分）
+      description: |
+        本端点**不是**按单一 `status` 过滤，而是按"是否进入待办域"过滤：
+        服务端硬编码注入 `statuses = (pending, decided, executing)`，请求参数里不存在
+        `status` 字段，客户端无法用 status 绕过队列语义。
+
+        `group` 的二分条件与 `counts` 的两个计数**由同一处派生**，不允许两处各写一遍
+        （否则会出现"分组为空但计数非零"的自相矛盾）。
+      operationId: listPendingDecisions
+      security:
+        - bearerAuth: []
+      parameters:
+        - $ref: '#/components/parameters/Page'
+        - $ref: '#/components/parameters/PageSize'
+        - name: group
+          in: query
+          description: 在两值内收窄，不能扩大取值域
+          schema:
+            type: string
+            enum: [all, to_resolve, to_execute]
+            default: all
+        - name: entry_source
+          in: query
+          description: |
+            **单值，本期不做多选**（答复设计侧 2026-10-25 提问）。理由不是"做不到"，
+            而是没有需求支撑且不封路：
+            - 7 个取值里流量高度集中在 `manual` / `pipeline`，真实用法是"看某一条链的产物"，
+              一次一个来源就够；`status` / `outcome` 之所以必须多值，是因为界面存在
+              "执行成功 + 部分成功"这类**跨值域的组合诉求**，来源没有对应诉求。
+            - 把标量参数改成可重复参数是**向后兼容**扩展：将来真需要时后端加 `List[...]`、
+              前端把单选换多选，旧请求不受影响。所以此刻不做不构成返工。
+            - **注意**：多选确实能表达"只看 manual 或 pipeline"这类 OR，它不是"不传"的同义——
+              本端点只是本期不提供该能力，不要在前端用"全选"之类控件模拟。
+            要看来源构成，用台账按来源分组统计。
+            **另：`legacy` 是来源标签，`status_assumed` 才是"状态是推定的"标记，两者不可互相替代。**
+          schema:
+            $ref: '#/components/schemas/DecisionEntrySource'
+        - name: decision_type
+          in: query
+          schema:
+            type: string
+            maxLength: 64
+        - name: sort_by
+          in: query
+          description: |
+            `waited_desc` = 按 `waited_minutes` 降序（等待最久的在最上，默认）；
+            `created_asc` = 按创建时间升序；
+            `confidence_asc` = 按置信度升序（低置信优先处理），只对 `to_resolve` 组有意义，
+            `to_execute` 组内固定按 `waited_minutes` 降序。
+          schema:
+            type: string
+            enum: [waited_desc, created_asc, confidence_asc]
+            default: waited_desc
+      responses:
+        '200':
+          description: 待决策队列分页
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PendingQueuePage'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '422':
+          $ref: '#/components/responses/Unprocessable'
+
+  /api/decisions/{decision_id}/resolve:
+    post:
+      tags: [决策裁决]
+      summary: 裁决决策（approve → decided / reject → rejected）
+      description: |
+        动作集合为 3 个：采纳（approve）/ 驳回（reject）/ 查看详情（无接口）。
+        「改选备选」不做（PRD §7 第 8 条），因此请求体**不预留任何选择备选的字段**。
+      operationId: resolveDecision
+      security:
+        - bearerAuth: []
+      parameters:
+        - $ref: '#/components/parameters/DecisionId'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ResolveDecisionRequest'
+      responses:
+        '200':
+          description: 迁移后的决策记录
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/DecisionRecord'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          description: |
+            决策属于当前空间但无裁决权限（OPA fail-closed）。`error.code = "forbidden"`。
+            **跨空间不走这里**——跨空间一律 404（不泄漏存在性）。
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorEnvelope'
+        '404':
+          description: |
+            决策不存在或不属于当前工作空间（两者不区分，不泄漏存在性）。
+            `error.code = "not_found"`（`NotFoundError` 直出，AC-17）。
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorEnvelope'
+        '409':
+          description: |
+            非法状态迁移（例如对已 executed 的决策再次裁决）。
+            `error.code === "illegal_transition"`，`error.details.handler_name` 给出
+            当前处理人姓名（取自已写入的 `resolution.by`，无则 null），
+            供前端展示"已被张三处理"。**前端按 `code` 分支，不按 message 文案匹配。**
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ConflictDetail'
+        '422':
+          $ref: '#/components/responses/Unprocessable'
+        '500':
+          $ref: '#/components/responses/ServerError'
+
+  /api/decisions/{decision_id}/execute:
+    post:
+      tags: [决策执行]
+      summary: 执行决策（提交 ActionRequest 并映射决策状态）
+      description: |
+        允许从 `decided` 与 `failed` 发起：
+        - `decided` = 人已拍板、等待落地，它是执行的前置态而非终态。若不允许，
+          "已裁决未执行（需催办）"这一档就变成只能看不能动的死档。
+        - `failed` = 重试执行。
+        - `pending` **不得**直接进入执行（未裁决不许执行），返回 409。
+
+        幂等：同一 decision 重复调用不会创建第二条 ActionRecord。第二次请求返回既有
+        `action_record` 并置 `idempotent_replay: true`。并发下由 CAS 抢占
+        （`status IN (decided, failed) → executing`）保证只有一个请求真正派发，
+        未抢到且 `action_record_id` 仍为空者返回 409 `execute_in_progress`。
+      operationId: executeDecision
+      security:
+        - bearerAuth: []
+      parameters:
+        - $ref: '#/components/parameters/DecisionId'
+      requestBody:
+        required: false
+        description: 字段全部可选，缺省回落到决策记录的 recommended_action
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ExecuteDecisionRequest'
+      responses:
+        '200':
+          description: 执行提交结果（含幂等重放）
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/DecisionExecuteResult'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '404':
+          description: |
+            决策不存在或不属于当前工作空间。`error.code = "not_found"`。
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorEnvelope'
+        '409':
+          description: |
+            当前状态不允许执行（仅 decided / failed 可执行；pending 需先裁决；
+            executing / executed / rejected 为不可执行态）→ `error.code = illegal_transition`；
+            或另一请求正在派发中 → `error.code = execute_in_progress`。
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ConflictDetail'
+        '422':
+          description: |
+            缺少可执行载荷（body 与 `recommended_action` 均为空）。
+            `error.code = "missing_action_payload"`。**这是模块自己判的，不是字段校验**，
+            所以走信封而不是框架的 `{"detail": [...]}`（AC-17）。
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorEnvelope'
+        '500':
+          $ref: '#/components/responses/ServerError'
+
+  /api/decisions/batch-resolve:
+    post:
+      tags: [决策裁决]
+      summary: 批量裁决（逐条独立 CAS，部分失败不回滚）
+      operationId: batchResolveDecisions
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/BatchResolveRequest'
+      responses:
+        '200':
+          description: 逐条结果（整体恒 200，单条失败体现在 results 内）
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/BatchResolveResult'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '422':
+          description: |
+            模块级校验，走信封（AC-17），三个 `error.code`：
+            `batch_empty`（`decision_ids` 为空）/ `batch_size_invalid`（>50 条）/
+            `reason_required`（`action=reject` 但 `reason` 缺失或 <5 字）。
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorEnvelope'
+        '500':
+          $ref: '#/components/responses/ServerError'
+
+  /api/decisions/{decision_id}/reasoning-steps:
+    get:
+      tags: [决策裁决]
+      summary: 读取推理步骤（按 timestamp 升序）
+      description: |
+        替代已下线的 `GET /api/agent/decisions/{id}/steps`。
+        详情页若已拉 `GET /{id}/chain`（该响应已含 `reasoning_trace`），无需再调本端点；
+        本端点用于 Agent Tab 的"只看推理步骤"区块与增量刷新。
+      operationId: listReasoningSteps
+      security:
+        - bearerAuth: []
+      parameters:
+        - $ref: '#/components/parameters/DecisionId'
+      responses:
+        '200':
+          description: 推理步骤列表
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ReasoningStepsPage'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '404':
+          description: |
+            决策不存在或不属于当前工作空间。`error.code = "not_found"`。
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorEnvelope'
+        '422':
+          $ref: '#/components/responses/Unprocessable'
+    post:
+      tags: [决策裁决]
+      summary: 追加推理步骤
+      description: |
+        替代已下线的 `POST /api/agent/decisions/{id}/steps`。
+        `step_id` 与 `timestamp` 由服务端生成，不接受客户端传入
+        （客户端传的时间会让审计时序失真）。
+        单决策上限 200 条，超出返回 422，防止无界增长把决策节点撑大。
+      operationId: appendReasoningStep
+      security:
+        - bearerAuth: []
+      parameters:
+        - $ref: '#/components/parameters/DecisionId'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ReasoningStepCreate'
+      responses:
+        '200':
+          description: 追加结果
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ReasoningStepCreated'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          description: |
+            决策属于当前空间但无修改权限（与裁决同一 OPA 判定）。`error.code = "forbidden"`。
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorEnvelope'
+        '404':
+          description: |
+            决策不存在或不属于当前工作空间。`error.code = "not_found"`。
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorEnvelope'
+        '409':
+          description: 并发追加冲突且重试一次后仍失败（不静默丢步骤）。`error.code = concurrent_append_conflict`
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ConflictDetail'
+        '422':
+          description: |
+            请求被拒。**必须按 `error.code` 分流文案，不得统一显示"操作失败"**——
+            否则用户会把"系统容量上限"误认为自己填错了：
+            - `step_limit_reached`：该决策推理步骤已达 200 条（**非用户输入错误**）。
+              提示「该决策的推理步骤已达上限（200 条），无法继续追加」，
+              且**已存在的步骤不得渲染成失败状态**。`error.details.field` 为 `null`。
+            - `invalid_phase` / `description_too_long` / `evidence_too_many`：
+              用户输入问题，按 `error.details.field` 定位到具体表单项。
+
+            这四种原因**不能靠 Pydantic 字段约束产生**（那会走 FastAPI 默认的
+            `{"detail": [...]}` 数组体，前端按 `error` 读会得到 `undefined`），
+            必须写在处理函数里。见 architecture.md §3.7。
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/StepRejectDetail'
+        '500':
+          $ref: '#/components/responses/ServerError'
+
+components:
+  securitySchemes:
+    bearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+
+  parameters:
+    Page:
+      name: page
+      in: query
+      description: 页码上限 100；超出返回 422（深翻页 SKIP 代价与"跳末页"在估算态下无意义）
+      schema:
+        type: integer
+        minimum: 1
+        maximum: 100
+        default: 1
+    PageSize:
+      name: page_size
+      in: query
+      schema:
+        type: integer
+        minimum: 1
+        maximum: 100
+        default: 20
+    DecisionId:
+      name: decision_id
+      in: path
+      required: true
+      schema:
+        type: string
+        pattern: '^dec_[0-9a-f]{12}$'
+
+  responses:
+    Unauthorized:
+      description: 缺少或无效 Bearer token（`HTTPException`，形状 `{"detail": "<字符串>"}`）
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ErrorDetail'
+    Unprocessable:
+      description: |
+        422 在本域**有三种体形状**，来源不同、形状不同，前端必须都认：
+
+        | 情形 | 形状 | 读法 |
+        |---|---|---|
+        | JWT 缺少 workspace 声明（fail-closed，不回落 default、不做 user_id 兜底） | `{"detail": "<字符串>"}` | `detail` |
+        | FastAPI 字段级校验失败（`page > 100`、`min_confidence > max_confidence`） | `{"detail": [ ... ]}` | `detail[0].msg` |
+        | 本域显式拒绝（推理步骤上限等） | `{"error": {"code": ..., "details": ...}}` | `error.code` |
+
+        **这是本期的分批结果，不是遗漏**：只把"前端需要按字段分流"的错误迁到信封，
+        其余保持原形状，避免跨域重构。代价是前端读取必须**单点封装**
+        （architecture.md §7「错误读取必须只有一处封装」）。
+      content:
+        application/json:
+          schema:
+            oneOf:
+              - $ref: '#/components/schemas/ErrorDetail'
+              - $ref: '#/components/schemas/ValidationFailure'
+              - $ref: '#/components/schemas/ErrorEnvelope'
+    ServerError:
+      description: |
+        500。目前只有一种来源：**`status` × `outcome` 非法组合**——四个写入方都是服务端代码，
+        正常请求不可达，触发即内部不变量被破坏，是 bug。
+        **`error.code` 在这里刻意缺失**：500 不应让前端分支处理，前端只显示通用文案 + `request_id`。
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ErrorEnvelope'
+
+  schemas:
+    ErrorDetail:
+      type: object
+      description: |
+        `{"detail": "<字符串>"}`。**AC-17 之后仍会出现的唯一非信封形状（例外一）。**
+
+        它全部由**共享基础设施依赖**产出，且在**进入路由体之前**抛出，决策模块改不了：
+        - `infra/security/jwt_auth.get_current_user` → 401（token 无效）/ 403（权限）
+        - `infra/security/workspace_access.get_current_workspace` → 401 / **422（缺
+          workspace 声明）**
+        - `infra/security/workspace_access.assert_workspace_access` → 403 / 404
+
+        **AC-17 的适用范围是"决策模块路由体内抛出的错误"**，覆盖 `decision_hub` /
+        `decision_record` / `decision_recommendation` **三个** router 模块（不是新增的那一个）；要让它们也走信封，
+        得改 `infra/security/*` 四个函数——那是全仓所有域共用的路径，回归面覆盖每一个端点，
+        与本次"能局部解决就不要全局改"的判据直接冲突。**因此这条例外是刻意的、有边界的，
+        不是漏改。** 前端必须兼容它（见「错误读取必须只有一处封装」）。
+      required: [detail]
+      properties:
+        detail:
+          type: string
+
+    ValidationFailure:
+      type: object
+      description: |
+        **AC-17 明确保留的例外二**：框架参数校验 422，`{"detail": [ ... ]}`。
+        本仓**没有** `RequestValidationError` 处理器，所以它一定长这样，且不由业务代码产生。
+        `detail` 是**数组**，与 `ErrorDetail.detail`（字符串）不是同一个类型——
+        前端若统一按 `res.detail` 当字符串用，会得到 `[object Object]`。
+        正确的写法是在 `parseApiError` 里判 `Array.isArray(res.detail)`。
+      required: [detail]
+      properties:
+        detail:
+          type: array
+          items:
+            type: object
+            required: [type, loc, msg]
+            properties:
+              type:
+                type: string
+                example: string_too_long
+              loc:
+                type: array
+                items: {}
+                example: [body, description]
+              msg:
+                type: string
+              input:
+                nullable: true
+
+    ErrorInfo:
+      type: object
+      description: |
+        中间件构造的错误对象（`ExceptionHandlerMiddleware._handle_exception`）。
+        **业务代码不得自己拼**这个结构，只 `raise APIError` 家族，由中间件统一出。
+
+        **AC-17 纪律**：决策模块路由体内**禁止 `raise HTTPException`**。理由是"同一接口的
+        错误体形状"必须由接口语义决定，不能由后端随手选了哪个异常类决定——否则前端要对每条
+        路径各写一套兼容分支，那不叫兼容，叫没有契约。
+
+        三个来源对应三种键组合：
+        - `APIError` 家族（`ConflictError` / `StepRejectError` / `NotFoundError` / `ValidationError`）：
+          有 `code`，`details` 视是否传了 `details` 而定；
+        - `ValueError` → 400、`PermissionError` → 403、其他未捕获异常 → 500：
+          **无 `code`**、无 `details`；
+        - 生产环境的 500：`type` 恒为 `InternalServerError`，`message` 恒为 `Internal server error`。
+      required: [type, message]
+      properties:
+        type:
+          type: string
+          description: 异常类名（生产环境 500 统一为 `InternalServerError`）
+          example: ConflictError
+        code:
+          type: string
+          nullable: true
+          description: |
+            机器可读原因码，取 `APIError.error_code`。**仅 `APIError` 家族有值**。
+            **命名统一 `lower_snake_case`**，前端**照字面匹配、禁止大小写归一化**（见 `ErrorCodeCatalog`）。
+            前端按它分支，**不得按 `message` 文案匹配**——改一句话就会静默失效。
+            **缺失 ≠ 成功**：缺失只说明该分支没有机器可读原因，走通用文案 + `request_id`。
+        message:
+          type: string
+          description: 可直接展示给用户的一句话（生产环境已排除堆栈与内部标识）
+        request_id:
+          type: string
+          description: 取自请求头 `X-Request-ID`，缺省为 `unknown`；用于对日志
+        path:
+          type: string
+        details:
+          type: object
+          additionalProperties: true
+          description: |
+            分支明细（如冲突的 `handler_name`、步骤上限的 `step_count`）。
+
+            **只有两种形态：键不存在，或非空对象。** 不出现 `null`，也不出现 `{}`——
+            中间件只在 `details` 为真值时才带这个键（`if exc.details: body["details"] = ...`），
+            而 `APIError.__init__` 里 `details or {}` 已把 `None` 归一成空 dict。
+            收紧要写进契约的理由：**同一语义两种写法，断言必然裂开**——
+            `details is not None` 会把 `{}` 判成"有详情"，而 `{}` 与"没有"在人看来没区别。
+            前端读法是 `const d = err.details ?? {}`，对"不存在"安全，对 `null` 也安全。
+
+    ErrorCodeCatalog:
+      type: object
+      description: |
+        本域 `error.code` 的全集（前端据此做穷举映射，**不要按 `message` 文案匹配**）。
+        新增码必须同时更新本表与前端 `parseApiError` 的映射，否则前端会落到通用文案。
+
+        | `error.code` | 状态码 | 含义 |
+        |---|---|---|
+        | `illegal_transition` | 409 | 状态已被人抢先改了 / 当前状态不允许该动作 |
+        | `execute_in_progress` | 409 | 另一请求正在派发，`action_record_id` 尚未写回 |
+        | `concurrent_append_conflict` | 409 | 并发追加推理步骤撞车 |
+        | `not_found` | 404 | 不存在或跨空间（**两者不区分**，不泄漏存在性） |
+        | `forbidden` | 403 | 属于当前空间但无操作权限（跨空间不走这里） |
+        | `missing_action_payload` | 422 | 执行请求缺载荷（body 与 `recommended_action` 均空） |
+        | `batch_empty` | 422 | `decision_ids` 为空（`details.field = "decision_ids"`） |
+        | `batch_size_invalid` | 422 | `decision_ids` 超过 50 条（`details.field = "decision_ids"`） |
+        | `reason_required` | 422 | `action=reject` 但 `reason` 缺失或 <5 字（`details.field = "reason"`） |
+        | `unprocessable` | 422 | 既有两模块（`decision_record` / `decision_recommendation`）的模块级输入拒绝。**不要用 `ValidationError` 顶替**——它是 400，会把 422 静默改掉 |
+        | `step_limit_reached` | 422 | 推理步骤达 200 条上限（**系统容量，非用户输入错误**） |
+        | `invalid_phase` | 422 | `phase` 取值不合法 |
+        | `description_too_long` | 422 | `description` 超 1000 字 |
+        | `evidence_too_many` | 422 | `evidence` 超 20 条 |
+
+        **不在这张表里的 `code` 一律按"未知原因"处理**（通用文案 + `request_id`），
+        不得猜测、不得当成成功。500 与共享依赖产出的错误**没有 `code`**，见 `ErrorDetail`。
+
+        **`code` 缺失时按 `status_code` 分档，不得一律回落成"操作失败"**：
+        `404` → 「找不到该内容」/ `403` → 「没有权限」/ `409` → 「已被其他人改动，请刷新」/
+        `500` → 「服务异常，请提供 `request_id`」（`request_id` 必须可复制，不得放进 Tooltip）。
+        原因是 `code` 覆盖面不均：同一个 `404`，在决策模块带 `not_found`、在别的域不带码。
+        统一回落会让**同类错误在两个页面呈现两种体验**——用户不会说"这个接口没迁移"，
+        只会说"这系统一会儿正常一会儿抽风"。
+
+        **本表必须与实现双向一致，且要机检**：表中键集合 **==** 代码里所有
+        `code=` / `error_code=` 字面量集合。单向会漏两类——
+        **表里有但没人抛**（假规格，读者会以为存在这条路径）、
+        **抛了但表里没有**（前端按未知处理，体验降级）。检查命令见
+        `architecture.md` §10 门禁。
+
+    ErrorEnvelope:
+      type: object
+      description: |
+        中间件信封。凡是"前端需要读除一句文案以外的字段"的错误都走这里。
+        与 `ErrorDetail` 并存是本期的分批结果，**不是过渡期临时状态**
+        （architecture.md §11「已知边界 · 错误信封的边界」）。
+      required: [error]
+      properties:
+        error:
+          $ref: '#/components/schemas/ErrorInfo'
+
+    StepRejectDetail:
+      description: |
+        `POST /{id}/reasoning-steps` 的 422。走 `{"error": {...}}` 信封。
+
+        **读法**：`error.code` 是原因，`error.details` 是明细。
+        `error.code` 四值：`step_limit_reached`（系统容量上限，**非用户错误**）/
+        `invalid_phase` / `description_too_long` / `evidence_too_many`。
+        四者共用 422 是刻意的（都不是 409 冲突），但**不能用同一句文案**——
+        `step_limit_reached` 用户改什么都没用。
+
+        `error.details` 三键**恒存在**（不适用给 `null`）。不用"键是否存在"表达分支：
+        前端读 `details.field` 时不该先判 `in`，那正是会漏判的地方。
+      allOf:
+        - $ref: '#/components/schemas/ErrorEnvelope'
+      example:
+        error:
+          type: StepRejectError
+          code: step_limit_reached
+          message: 该决策的推理步骤已达上限（200 条），无法继续追加
+          request_id: 0f3a1b2c
+          path: /api/decisions/dec_ab12cd34ef56/reasoning-steps
+          details:
+            field: null
+            step_count: 200
+            limit: 200
+
+    ConflictDetail:
+      description: |
+        409。走 `{"error": {...}}` 信封。三种 `error.code`：
+
+        | `error.code` | `error.details` | 含义 |
+        |---|---|---|
+        | `illegal_transition` | `{handler_name, current_status}` | 状态已被人抢先改了（含 `pending` 直接执行、`decided → rejected`） |
+        | `execute_in_progress` | `{}` | 另一个请求正在派发，`action_record_id` 尚未写回 |
+        | `concurrent_append_conflict` | `{}` | 并发追加推理步骤撞车 |
+
+        `handler_name` 用于"已被张三处理"提示，取自已写入的 `resolution.by`，无则 `null`。
+
+        **必须 `raise ConflictError(msg, code=..., details={...})`**，不能
+        `HTTPException(409, detail=<dict>)`——后者会被 FastAPI 再包一层成
+        `{"detail": {...}}`，前端读 `res.error` 得到 `undefined`。
+        见 architecture.md §3.7 / §5.1.2。
+      allOf:
+        - $ref: '#/components/schemas/ErrorEnvelope'
+      example:
+        error:
+          type: ConflictError
+          code: illegal_transition
+          message: 该决策已被张三处理，请刷新后重试
+          request_id: 0f3a1b2c
+          path: /api/decisions/dec_ab12cd34ef56/resolve
+          details:
+            handler_name: 张三
+            current_status: decided
+
+    DecisionStatus:
+      type: string
+      description: |
+        决策流程状态（服务端产生，客户端不可写）。
+        界面只出 5 类结果标签，6 态不直接暴露：
+        pending → 待裁定；decided + executing → 待执行确认；
+        executed + outcome(success|partial_success) → 执行成功 / 部分成功；
+        failed → 执行失败；rejected → 已驳回。
+        **注意 `executed` 必须配合 `outcome` 才能区分"执行成功"与"部分成功"**，
+        前端映射函数签名必须是 `toDisplayLabel(status, outcome)`，只吃 status 会丢掉"部分成功"。
+      enum: [pending, decided, executing, executed, failed, rejected]
+
+    ActionRequestStatus:
+      type: string
+      description: |
+        执行记录（ActionRecord）侧的状态，8 态，与 `DecisionStatus`（6 态）**不是一回事**，
+        不得互相赋值。对应代码枚举 `ActionRequestStatus`（`action_service/schemas.py:6-14`）。
+        详情页展示"精确动作状态"时读 `outcome_details.action_status`；
+        **残留判定不得用它**——理由见 `outcome_details.action_status` 的描述与 architecture.md §5.3.1。
+      enum: [pending, validating, approved, rejected, executing, completed, failed, rolled_back]
+
+    DecisionOutcome:
+      type: string
+      description: |
+        执行结果五态，本期零变更（ADR-076 §3 契约不变）。
+
+        **与 `status` 的组合约束**（服务端写侧断言，非法组合返回 409）：
+        `partial_success` **只与 `status=executed` 组合出现**，是界面「部分成功」标签的唯一来源，
+        语义为"事情做成了，只是没做全"。
+        "执行后又被回滚"记 `failure` + `status=failed`，部分达成的事实写在
+        `outcome_details.achieved_items / rolled_back_items` 里，**不占用本枚举**——
+        否则同一个 outcome 值会映射出两个界面标签，用户按"部分成功"筛选会看到"执行失败"的行。
+      enum: [success, partial_success, failure, pending, rejected]
+
+    DecisionEntrySource:
+      type: string
+      enum: [manual, pipeline, recommendation, qa, agent, import, legacy]
+
+    RecommendedAction:
+      type: object
+      description: 可执行载荷。落库时随决策一起保存，`execute` 缺省取此值。
+      required: [action_type_id, target_object_id, target_object_type]
+      properties:
+        action_type_id:
+          type: string
+        target_object_id:
+          type: string
+        target_object_type:
+          type: string
+        parameters:
+          type: object
+          additionalProperties: true
+
+    Resolution:
+      type: object
+      description: |
+        裁决留痕（PRD G4）。独立字段而非塞进 outcome_details——
+        outcome_details 会被 pipeline 的反馈回填覆写，裁决信息放进去会被冲掉。
+        `actor_type=system` 表示策略门禁自动拒绝（`by` 显示"系统（策略门禁）"，
+        `reason` 为门禁摘要）；`actor_type=user` 为人工裁决。
+        二者不得共用同一字段互相覆盖：复盘时"系统规则拦下"与"人的判断"结论完全不同。
+      required: [action, actor_type, at]
+      properties:
+        action:
+          type: string
+          enum: [approve, reject]
+        actor_type:
+          type: string
+          enum: [user, system]
+        by:
+          type: string
+          nullable: true
+          description: 裁决人显示名；actor_type=system 时为"系统（策略门禁）"
+        at:
+          type: string
+          format: date-time
+        reason:
+          type: string
+          nullable: true
+
+    ReasoningStep:
+      type: object
+      required: [step_id, phase, timestamp]
+      properties:
+        step_id:
+          type: string
+        phase:
+          type: string
+          enum: [observe, orient, decide, act]
+        description:
+          type: string
+        evidence:
+          type: array
+          items:
+            type: object
+            additionalProperties: true
+        timestamp:
+          type: string
+          format: date-time
+
+    DecisionRecord:
+      type: object
+      required:
+        - decision_id
+        - workspace_id
+        - status
+        - entry_source
+        - outcome
+        - created_at
+        - updated_at
+      properties:
+        decision_id:
+          type: string
+          pattern: '^dec_[0-9a-f]{12}$'
+        workspace_id:
+          type: string
+          description: 由服务端从 JWT 解析并写入；仅回显当前空间，跨空间数据不会出现在任何响应中
+        context_summary:
+          type: string
+        constraints:
+          type: object
+          additionalProperties: true
+        reasoning:
+          type: string
+        reasoning_trace:
+          type: array
+          items:
+            $ref: '#/components/schemas/ReasoningStep'
+        confidence:
+          type: number
+          format: float
+          minimum: 0
+          maximum: 1
+        evidence_episode_ids:
+          type: array
+          items:
+            type: string
+        evidence_entity_ids:
+          type: array
+          items:
+            type: string
+        recommended_option:
+          type: string
+        alternative_options:
+          type: array
+          items:
+            type: string
+        decision_method:
+          type: string
+        decision_type:
+          type: string
+        parent_decision_id:
+          type: string
+          nullable: true
+        root_goal_id:
+          type: string
+          nullable: true
+        precedent_decision_ids:
+          type: array
+          items:
+            type: string
+        action_record_id:
+          type: string
+          nullable: true
+          description: 已关联的执行记录 ID。也是 `execute` 幂等判定的依据。
+        status:
+          $ref: '#/components/schemas/DecisionStatus'
+        status_assumed:
+          type: boolean
+          default: false
+          description: |
+            true = 该记录的 status 是迁移时为存量数据**推定**的，不是真实流程状态。
+            这类记录**不进待决策队列**（否则队列一上线就被历史数据污染），
+            详情页须显式标注"历史数据，流程状态未记录"。
+        entry_source:
+          $ref: '#/components/schemas/DecisionEntrySource'
+        recommended_action:
+          allOf:
+            - $ref: '#/components/schemas/RecommendedAction'
+          nullable: true
+        resolution:
+          allOf:
+            - $ref: '#/components/schemas/Resolution'
+          nullable: true
+        outcome:
+          $ref: '#/components/schemas/DecisionOutcome'
+        outcome_details:
+          type: object
+          nullable: true
+          description: |
+            执行结果的**结构化明细**。`additionalProperties: true` 保留以容纳历史键与后续扩展，
+            但**下列键从本版起是契约承诺**，不再允许"生产代码事实上写了、契约不保证"的状态——
+            那种状态下前端只能 `?.` 可选访问，断言在字段缺失时静默通过，等于没测。
+
+            **这些键是回写时刻的快照，不是实时状态。** 在"执行已提交、决策侧尚未回写"的残留窗口里，
+            `action_status` 恰恰是缺失或过期的——它正是没能写进去的那一项。
+            因此**不得用 `action_status` 判断"回写是否完成"**，残留只能用时间判（详见 architecture.md §5.3.1）。
+          properties:
+            action_record_id:
+              type: string
+              nullable: true
+              description: 对应执行记录 ID。`null` 表示该决策从未派发执行，**不等于"执行失败"**
+            action_status:
+              allOf:
+                - $ref: '#/components/schemas/ActionRequestStatus'
+              nullable: true
+              description: |
+                写入时刻执行记录的状态快照（8 态）。`null` 表示"回填时未取到动作状态"，
+                **不得解释为"未执行"**。终态：`completed` / `failed` / `rejected` / `rolled_back`。
+                详情页展示"精确动作状态（排队/校验中/已批准/执行中/已完成/失败/已回滚）"读本字段。
+            feedback_pipeline:
+              type: object
+              additionalProperties: true
+              nullable: true
+              description: 反馈流水线（`FeedbackLoop.close_loop`）的返回摘要；`null` 表示未跑或无结果
+            achieved_items:
+              type: array
+              items:
+                type: string
+              description: 已达成项。回滚时与 `rolled_back_items` 成对出现，用于解释"做了哪些、撤了哪些"
+            rolled_back_items:
+              type: array
+              items:
+                type: string
+              description: 被撤销项。仅 `action_status=rolled_back` 时有值
+        feedback_summary:
+          type: string
+          nullable: true
+        agent_id:
+          type: string
+          nullable: true
+        opa_approved:
+          type: boolean
+          nullable: true
+        opa_decision:
+          type: object
+          nullable: true
+          additionalProperties: true
+        created_at:
+          type: string
+          format: date-time
+        updated_at:
+          type: string
+          format: date-time
+        valid_at:
+          type: string
+          format: date-time
+        invalid_at:
+          type: string
+          format: date-time
+          nullable: true
+
+    DecisionRecordCreate:
+      type: object
+      properties:
+        entry_source:
+          allOf:
+            - $ref: '#/components/schemas/DecisionEntrySource'
+          default: manual
+          description: 入口来源标签（新增可选字段，缺省 manual，向后兼容）
+        context_summary:
+          type: string
+        constraints:
+          type: object
+          additionalProperties: true
+        reasoning:
+          type: string
+        reasoning_trace:
+          type: array
+          items:
+            $ref: '#/components/schemas/ReasoningStep'
+        confidence:
+          type: number
+          format: float
+          minimum: 0
+          maximum: 1
+          default: 0
+        evidence_episode_ids:
+          type: array
+          items:
+            type: string
+        evidence_entity_ids:
+          type: array
+          items:
+            type: string
+        recommended_option:
+          type: string
+        alternative_options:
+          type: array
+          items:
+            type: string
+        decision_method:
+          type: string
+          default: manual
+        decision_type:
+          type: string
+          default: general
+        parent_decision_id:
+          type: string
+          nullable: true
+        root_goal_id:
+          type: string
+          nullable: true
+        precedent_decision_ids:
+          type: array
+          items:
+            type: string
+          description: 服务端据此自动建 `PRECEDENT_FOR` 边（先例留痕零改动）
+        recommended_action:
+          allOf:
+            - $ref: '#/components/schemas/RecommendedAction'
+          nullable: true
+          description: 采纳后能否执行的前提；不传则 `execute` 只能依赖请求体自带载荷
+        agent_id:
+          type: string
+          nullable: true
+        workspace_id:
+          type: string
+          nullable: true
+          description: 既有行为，仅 admin 可指定；非 admin 传值触发 403（assert_workspace_access）
+
+    DecisionLedgerPage:
+      type: object
+      required: [items, total, total_is_estimate, page, page_size, has_more]
+      properties:
+        items:
+          type: array
+          items:
+            $ref: '#/components/schemas/DecisionRecord'
+        total:
+          type: integer
+        total_is_estimate:
+          type: boolean
+          description: |
+            true 表示 `total` 是探测值（= 探测上限 5000），并非精确总数。
+            前端在此态显示"约 N 条"并关闭"跳末页"。本字段恒返回，前端无需分支判空。
+        page:
+          type: integer
+        page_size:
+          type: integer
+        has_more:
+          type: boolean
+
+    PendingDecisionItem:
+      type: object
+      description: |
+        待办域的一条记录。**注意本 DTO 刻意不包含"回写是否完成"的信息**：
+        它只有 `decision.status` 与 `decision.action_record_id`，两者合起来**无法**区分
+        "已派发正在跑"与"执行已终结但决策侧尚未回写"。因此列表**不得**渲染「状态同步中」
+        或任何等价的不确定态——猜出来的不确定比不显示更糟（正常执行时它会闪，
+        把真正卡住的那条淹掉）。精确的 8 态执行状态与残留判定只在**详情页**做，
+        且必须实时读 `GET /api/actions/records/{id}`，不能用 `outcome_details.action_status`
+        快照冒充（残留窗口内它恰是缺失的那一项）。
+      required:
+        - decision
+        - group
+        - waited_minutes
+        - decided_waited_minutes
+        - sla_state
+        - available_operations
+        - executable
+      properties:
+        decision:
+          $ref: '#/components/schemas/DecisionRecord'
+        group:
+          type: string
+          enum: [to_resolve, to_execute]
+          description: |
+            to_resolve = 待裁定（status=pending，可裁决）；
+            to_execute = 待执行确认（status=decided|executing）。
+            to_execute 内部再分两档，由 `decision.status` 区分：
+            decided = 已裁决未派发（需催办，`available_operations` 含 execute）；
+            executing = 执行中（只读，`available_operations` 为空）。
+        waited_minutes:
+          type: integer
+          minimum: 0
+          description: |
+            自 `created_at` 起算（不取 updated_at，避免任何一次编辑把等待时长重置为 0）。
+            **这一列服务 `to_resolve` 档**（待裁定：等了多久没人拍板）。
+            `to_execute` 档必须用 `decided_waited_minutes`，不要拿本字段顶替——
+            两者差一整个待裁定周期，用错了会把"昨天裁决的"显示成"等了 5 天"。
+        decided_waited_minutes:
+          type: integer
+          minimum: 0
+          nullable: true
+          description: |
+            自 `resolution.at`（裁决时刻）起算，`status ∈ {decided, executing}` 时有值，否则 `null`。
+            **这一列服务 `to_execute` 档**（待执行确认：拍完板多久没落地）。
+            若某条 `to_execute` 记录缺 `resolution.at`（历史或异常数据），回落 `updated_at` 并打 warning，
+            不让前端拿 `null` 自行猜。
+        sla_state:
+          type: string
+          enum: [ok, warning, breached]
+          description: |
+            ok ≤ 24h；warning 24–72h（"等待较久"）；breached > 72h（"已超时"）。
+            阈值走服务端配置，为契约常量而非入参——客户端不得自定义 SLA 口径。
+            **计时基准按分档取**：`to_resolve` 用 `created_at`，`to_execute` 用 `resolution.at`。
+            同一行里 `sla_state` 与哪个 `*_waited_minutes` 配对，由 `group` 决定，两者必须一致。
+        available_operations:
+          type: array
+          description: |
+            该记录当前可执行的操作，由状态机单点派生（前端不自行推断）：
+            pending → [approve, reject]；decided → [execute]；failed → [retry]；
+            executing / executed / rejected → []。
+            **`retry` 与 `execute` 打的是同一个端点 `POST /api/decisions/{decision_id}/execute`**
+            （该端点接受 `status ∈ {decided, failed}`）。分成两个名字是为了让界面能分别
+            显示「派发执行」与「重试执行」——同一个接口、两种处境，文案不该一样；
+            但**不要据此去找第 4 个端点**，它不存在。
+            为空时前端**不渲染按钮组**（不是渲染禁用态）——"对谁都不存在的动作"
+            与"你没权限"是两种语义，前者不该出现在界面上。
+            注意与 `RecommendedAction` 区分：后者是要执行的命令对象，本字段是用户可做的动作。
+          items:
+            type: string
+            enum: [approve, reject, execute, retry]
+        executable:
+          type: boolean
+          description: recommended_action 非空时为 true（仅表示"有载荷"，不代表当前状态允许执行）
+
+    PendingQueuePage:
+      type: object
+      required: [items, total, counts, page, page_size, has_more]
+      properties:
+        items:
+          type: array
+          items:
+            $ref: '#/components/schemas/PendingDecisionItem'
+        total:
+          type: integer
+          description: 待办域（pending + decided + executing）总条数，精确值（队列量天然小）
+        counts:
+          type: object
+          description: |
+            四个计数由与 `items` 完全相同的过滤条件派生、**不受分页影响、全库口径**
+            （页内算出来的计数会让用户以为"只有 3 条超时"）。前端零二次请求。
+            分组条件与 `group` 字段同源；两个 SLA 计数的计时基准也按分档取
+            （`to_resolve` 用 `created_at`，`to_execute` 用 `resolution.at`），
+            与 `sla_state` 严格一致。
+          required: [to_resolve, to_execute, sla_warning, sla_breached]
+          properties:
+            to_resolve:
+              type: integer
+              description: 待裁定条目数（status=pending 且非历史推定）
+            to_execute:
+              type: integer
+              description: |
+                待执行确认条目数（status ∈ {decided, executing}）。
+                **与 `items` 中 `group=to_execute` 的条数必须一致**：
+                `to_execute > 0` 时该分组不得为空，反之亦然。两者走同一 `grp` 表达式。
+            sla_warning:
+              type: integer
+              description: 等待 24–72h 的条目数（跨两档合计，各按自己的计时基准）
+            sla_breached:
+              type: integer
+              description: 等待 > 72h 的条目数（跨两档合计，各按自己的计时基准）
+        page:
+          type: integer
+        page_size:
+          type: integer
+        has_more:
+          type: boolean
+
+    ResolveDecisionRequest:
+      type: object
+      required: [action]
+      properties:
+        action:
+          type: string
+          enum: [approve, reject]
+        reason:
+          type: string
+          maxLength: 500
+          description: action=reject 时必填且 ≥5 字；action=approve 时可选
+
+    ExecuteDecisionRequest:
+      type: object
+      description: 字段全部可选；缺省逐个回落到决策记录的 recommended_action
+      properties:
+        action_type_id:
+          type: string
+        target_object_id:
+          type: string
+        target_object_type:
+          type: string
+        parameters:
+          type: object
+          additionalProperties: true
+
+    ReasoningStepCreate:
+      type: object
+      required: [phase, description]
+      properties:
+        phase:
+          type: string
+          enum: [observe, orient, decide, act]
+        description:
+          type: string
+          maxLength: 1000
+        evidence:
+          type: array
+          maxItems: 20
+          items:
+            type: object
+            additionalProperties: true
+
+    ReasoningStepCreated:
+      type: object
+      required: [decision_id, step_id, phase, timestamp, step_count]
+      properties:
+        decision_id:
+          type: string
+        step_id:
+          type: string
+        phase:
+          type: string
+        timestamp:
+          type: string
+          format: date-time
+        step_count:
+          type: integer
+
+    ReasoningStepsPage:
+      type: object
+      required: [decision_id, steps, total]
+      properties:
+        decision_id:
+          type: string
+        steps:
+          type: array
+          items:
+            $ref: '#/components/schemas/ReasoningStep'
+        total:
+          type: integer
+
+    ActionRecord:
+      type: object
+      description: 与 odap.biz.decision.action_service.schemas.ActionRecord 对齐
+      properties:
+        action_record_id:
+          type: string
+        action_type_id:
+          type: string
+        target_object_id:
+          type: string
+        target_object_type:
+          type: string
+        parameters:
+          type: object
+          additionalProperties: true
+        status:
+          type: string
+          enum:
+            [pending, validating, approved, rejected, executing, completed, failed, rolled_back]
+        requested_by:
+          type: string
+        reason:
+          type: string
+        agent_id:
+          type: string
+          nullable: true
+        decision_id:
+          type: string
+          nullable: true
+        created_at:
+          type: string
+        updated_at:
+          type: string
+
+    DecisionExecuteResult:
+      type: object
+      required: [decision, decision_status, decision_outcome, idempotent_replay]
+      properties:
+        decision:
+          $ref: '#/components/schemas/DecisionRecord'
+        action_record:
+          allOf:
+            - $ref: '#/components/schemas/ActionRecord'
+          nullable: true
+        decision_status:
+          $ref: '#/components/schemas/DecisionStatus'
+        decision_outcome:
+          $ref: '#/components/schemas/DecisionOutcome'
+        idempotent_replay:
+          type: boolean
+          description: true 表示该决策已执行过，本次未创建新 ActionRecord，返回的是既有记录
+
+    BatchResolveRequest:
+      type: object
+      required: [decision_ids, action]
+      properties:
+        decision_ids:
+          type: array
+          minItems: 1
+          maxItems: 50
+          items:
+            type: string
+            pattern: '^dec_[0-9a-f]{12}$'
+        action:
+          type: string
+          enum: [approve, reject]
+        reason:
+          type: string
+          maxLength: 500
+          description: action=reject 时必填且 ≥5 字
+
+    BatchResolveItemResult:
+      type: object
+      required: [decision_id, ok]
+      properties:
+        decision_id:
+          type: string
+        ok:
+          type: boolean
+        status:
+          allOf:
+            - $ref: '#/components/schemas/DecisionStatus'
+          nullable: true
+        error:
+          type: object
+          nullable: true
+          required: [code, message]
+          properties:
+            code:
+              type: string
+              enum: [not_found, conflict, permission]
+              description: not_found 同时覆盖"不存在"与"不属于当前工作空间"（不泄漏存在性）
+            message:
+              type: string
+            handler_name:
+              type: string
+              nullable: true
+
+    BatchResolveResult:
+      type: object
+      required: [succeeded, failed, results]
+      properties:
+        succeeded:
+          type: integer
+        failed:
+          type: integer
+        results:
+          type: array
+          items:
+            $ref: '#/components/schemas/BatchResolveItemResult'

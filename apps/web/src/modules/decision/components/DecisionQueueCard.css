@@ -1,0 +1,59 @@
+/* 队列条目卡片（uiux §5.2）：1px 边框表达层级，不用阴影 */
+.dsi-queue-card {
+  border: 1px solid var(--odap-color-border);
+  border-radius: var(--odap-radius-md);
+  background: var(--odap-color-bg-primary);
+  padding: var(--odap-spacing-md);
+  transition: border-color var(--odap-transition-fast);
+}
+
+.dsi-queue-card:hover {
+  border-color: var(--odap-color-primary-300);
+}
+
+.dsi-queue-card__summary {
+  font-size: var(--odap-font-size-base);
+  color: var(--odap-color-text-primary);
+  margin: var(--odap-spacing-sm) 0;
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+
+.dsi-queue-card__meta {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--odap-spacing-md);
+  font-size: var(--odap-font-size-sm);
+  color: var(--odap-color-text-secondary);
+}
+
+.dsi-queue-card__meta-mono {
+  font-family: var(--odap-font-family-mono);
+  font-variant-numeric: tabular-nums;
+}
+
+.dsi-queue-card__footer {
+  display: flex;
+  justify-content: flex-end;
+  align-items: center;
+  gap: var(--odap-spacing-sm);
+  margin-top: var(--odap-spacing-md);
+}
+
+.dsi-queue-card__progress {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--odap-spacing-xs);
+  color: var(--odap-color-text-secondary);
+  font-size: var(--odap-font-size-sm);
+}
+
+.dsi-queue-section-title {
+  margin: var(--odap-spacing-lg) 0 var(--odap-spacing-sm);
+  font-size: var(--odap-font-size-base);
+  font-weight: 600;
+  color: var(--odap-color-text-primary);
+}

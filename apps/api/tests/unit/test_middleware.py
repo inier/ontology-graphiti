@@ -94,19 +94,21 @@ class TestAuditMiddleware:
         assert "PATCH" in _WRITE_METHODS
 
     def test_extract_user_anonymous(self):
-        """无 Authorization 头时应返回 anonymous"""
+        """无 Authorization 头时应返回 anonymous + default 空间"""
         from odap.infra.middleware.audit_middleware import _extract_user_from_request
         req = _make_request()
-        user = _extract_user_from_request(req)
+        user, workspace_id = _extract_user_from_request(req)
         assert user == "anonymous"
+        assert workspace_id == "default"
 
     def test_extract_user_with_bearer_token(self):
         """有 Bearer Token 时应尝试解析用户"""
         from odap.infra.middleware.audit_middleware import _extract_user_from_request
         # 使用无效 token，应返回 anonymous（解析失败）
         req = _make_request(headers={"Authorization": "Bearer invalid_token"})
-        user = _extract_user_from_request(req)
+        user, workspace_id = _extract_user_from_request(req)
         assert user == "anonymous"
+        assert workspace_id == "default"
 
     @pytest.mark.asyncio
     async def test_non_api_path_skipped(self):
@@ -263,6 +265,55 @@ class TestExceptionHandlerMiddleware:
         assert response.status_code == 500
         data = response.json()
         assert data["error"]["message"] == "unexpected"
+
+    # ---- APIError 家族必须真的映射到自己的状态码（此前全是 500） ----
+
+    def _client_raising(self, exc):
+        from odap.infra.middleware.exception_handler import ExceptionHandlerMiddleware
+
+        app = FastAPI()
+
+        @app.get("/api/boom")
+        async def boom_endpoint():
+            raise exc
+
+        app.add_middleware(ExceptionHandlerMiddleware)
+        return TestClient(app, raise_server_exceptions=False)
+
+    def test_not_found_error_maps_to_404(self):
+        """跨空间"命中"必须 404——不能变成 500 让客户端以为服务器炸了。"""
+        from odap.infra.middleware.exception_handler import NotFoundError
+
+        response = self._client_raising(NotFoundError("决策不存在")).get("/api/boom")
+        assert response.status_code == 404
+        assert response.json()["error"]["code"] == "NOT_FOUND"
+
+    def test_conflict_error_maps_to_409(self):
+        from odap.infra.middleware.exception_handler import ConflictError
+
+        response = self._client_raising(ConflictError("状态已被他人修改")).get("/api/boom")
+        assert response.status_code == 409
+        assert response.json()["error"]["code"] == "CONFLICT"
+
+    def test_conflict_error_carries_illegal_transition_code(self):
+        """前端要靠 code 区分「被抢先改了」和其他 409，不能读文案。"""
+        from odap.infra.middleware.exception_handler import ConflictError
+
+        exc = ConflictError("非法状态迁移: executed -> executing", code="illegal_transition")
+        response = self._client_raising(exc).get("/api/boom")
+        assert response.status_code == 409
+        assert response.json()["error"]["code"] == "illegal_transition"
+
+    def test_api_error_envelope_is_readable(self):
+        """统一信封：type/code/message/request_id/path 五个键必须齐。"""
+        from odap.infra.middleware.exception_handler import ConflictError
+
+        response = self._client_raising(ConflictError("x", details={"current": "executed"})).get(
+            "/api/boom"
+        )
+        error = response.json()["error"]
+        assert set(error) >= {"type", "code", "message", "request_id", "path"}
+        assert error["details"] == {"current": "executed"}
 
     def test_error_response_includes_path(self):
         """错误响应应包含请求路径"""

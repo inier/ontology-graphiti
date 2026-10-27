@@ -321,6 +321,45 @@ class AuthService:
             expires_in=int(self.jwt.ACCESS_TTL.total_seconds()),
         )
 
+    def issue_tokens_for_workspace(self, user_id: str, workspace_id: str) -> Optional[TokenPair]:
+        """按 user_id 重签 access + refresh（工作空间切换，T1）。
+
+        必须同时签出 refresh：只换 access 的话，15 分钟后 `/api/auth/refresh`
+        会按旧 refresh 里的空 `ws_id` 重新签出，静默退回无空间状态。
+        """
+        user = self._get_user_by_id(user_id)
+        if not user or not user.get("is_active"):
+            return None
+        access = self.jwt.issue_access_token(
+            user["id"], user["username"], user["global_role"], workspace_id=workspace_id
+        )
+        refresh = self.register_refresh_token(user["id"], workspace_id)
+        return TokenPair(
+            access_token=access,
+            refresh_token=refresh,
+            token_type="Bearer",
+            expires_in=int(self.jwt.ACCESS_TTL.total_seconds()),
+        )
+
+    def register_refresh_token(self, user_id: str, workspace_id: str) -> str:
+        """签出 refresh token 并登记到本实例的 token 存储，返回 token 明文。
+
+        `/api/auth/refresh` 只认已登记的 refresh（rotation + 吊销依赖它），
+        所以任何"重签 refresh"的路径都必须走这里，不能只签不登记。
+        """
+        refresh = self.jwt.issue_refresh_token(user_id, workspace_id)
+        token_hash = hashlib.sha256(refresh.encode()).hexdigest()
+        record = RefreshTokenRecord(
+            id=str(uuid.uuid4()),
+            user_id=user_id,
+            token_hash=token_hash,
+            workspace_id=workspace_id,
+            expires_at=datetime.now(timezone.utc) + self.jwt.REFRESH_TTL,
+        )
+        with self._lock:
+            self._refresh_tokens[token_hash] = record
+        return refresh
+
     def logout(self, refresh_token: str) -> bool:
         token_hash = hashlib.sha256(refresh_token.encode()).hexdigest()
         with self._lock:

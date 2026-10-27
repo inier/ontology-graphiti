@@ -43,6 +43,27 @@ class ExceptionHandlerMiddleware(BaseHTTPMiddleware):
         request_id = request.headers.get("X-Request-ID", "unknown")
         is_prod = _is_production_env()
 
+        # APIError 及其子类：自带 status_code / error_code，必须原样透出。
+        # 曾经这里没有这一支，导致 ConflictError(409)/NotFoundError(404) 全部
+        # 掉进通用分支变成 500——"资源不存在"被客户端读成"服务器炸了"。
+        if isinstance(exc, APIError):
+            logger.warning(
+                f"[{request_id}] APIError {exc.error_code} on {request.url.path}: {exc.message}"
+            )
+            body = {
+                "type": exc.__class__.__name__,
+                "code": exc.error_code,
+                "message": exc.message,
+                "request_id": request_id,
+                "path": str(request.url.path),
+            }
+            if exc.details:
+                body["details"] = exc.details
+            return JSONResponse(
+                status_code=exc.status_code,
+                content={"error": body},
+            )
+
         # ValueError: 业务校验错误，返回简短描述（不含堆栈）
         if isinstance(exc, ValueError):
             logger.warning(
@@ -169,12 +190,16 @@ class NotFoundError(APIError):
 
 
 class ConflictError(APIError):
-    """资源冲突错误"""
+    """资源冲突错误
 
-    def __init__(self, message: str, details: Union[dict, None] = None):
+    `code` 可覆盖：契约要求前端按 `illegal_transition` 区分"状态被人抢先改了"
+    与其他 409，而这一类必须能从响应里读出来，不能靠猜文案。
+    """
+
+    def __init__(self, message: str, details: Union[dict, None] = None, code: str = "CONFLICT"):
         super().__init__(
             message=message,
-            error_code="CONFLICT",
+            error_code=code,
             status_code=409,
             details=details
         )

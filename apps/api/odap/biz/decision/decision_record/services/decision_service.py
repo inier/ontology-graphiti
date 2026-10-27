@@ -17,6 +17,7 @@ from odap.biz.decision.decision_record.models import (
     DecisionImpact,
     DecisionOutcome,
     DecisionRecord,
+    StatusOutcomePatch,
 )
 
 logger = logging.getLogger(__name__)
@@ -234,13 +235,11 @@ class DecisionService:
         self,
         decision_id: str,
         workspace_id: str,
-        outcome: DecisionOutcome,
-        outcome_details: Dict[str, Any],
+        patch: StatusOutcomePatch,
         feedback_summary: Optional[str] = None,
     ) -> bool:
-        return await self.store.update_outcome(
-            decision_id, workspace_id, outcome, outcome_details, feedback_summary
-        )
+        """状态与结果回填。收整份 patch，写侧只有这一条路径（E34 原子写）。"""
+        return await self.store.update_outcome(decision_id, workspace_id, patch, feedback_summary)
 
     # ---------------- TRIGGERED 边（pipeline 集成） ----------------
 

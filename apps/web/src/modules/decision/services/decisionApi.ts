@@ -1,19 +1,24 @@
 /**
- * 决策智能 API 封装（ADR-076：7 端点）
- * workspace_id 由后端从 JWT 声明解析，前端无需也不应透传
+ * 决策主线 API 封装（ADR-091）
+ *
+ * 契约：docs/superpowers/specs/2026-10-24-decision-mainline/api-spec.yaml
+ * - `workspace_id` 一律不传：后端从 JWT 声明解析（ADR-076 §7 信任模型）
+ * - 断言：本文件内不得出现 `workspace_id` 入参
  */
-import { fetchJson } from '@/modules/shared/services/apiClient';
-import { API_BASE } from '@/config';
 import type {
   CausalLinkType,
   DecisionChain,
+  DecisionExecuteResult,
   DecisionGateResult,
   DecisionImpact,
+  DecisionLedgerPage,
   DecisionOutcome,
   DecisionRecord,
+  PendingQueuePage,
 } from '../types';
+import { decisionRequest } from './decisionRequest';
 
-const URL_PREFIX = `${API_BASE}/api/decisions`;
+const URL_PREFIX = '/api/decisions';
 
 export interface DecisionRecordCreatePayload {
   context_summary: string;
@@ -26,36 +31,90 @@ export interface DecisionRecordCreatePayload {
   decision_type?: string;
   parent_decision_id?: string;
   precedent_decision_ids?: string[];
+  entry_source?: string;
 }
 
-/** POST /api/decisions — 决策落库 */
+/** POST /api/decisions — 决策落库（新记录 status 恒为 pending） */
 export async function recordDecision(
   payload: DecisionRecordCreatePayload,
 ): Promise<DecisionRecord> {
-  return fetchJson(URL_PREFIX, {
+  return decisionRequest<DecisionRecord>(URL_PREFIX, {
     method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify(payload),
   });
 }
 
-/** GET /api/decisions/{id}/chain — 因果链追溯 */
-export async function getDecisionChain(decisionId: string): Promise<DecisionChain> {
-  return fetchJson(`${URL_PREFIX}/${encodeURIComponent(decisionId)}/chain`);
+/** GET /api/decisions — 决策台账（分页 + 筛选 + 排序） */
+export async function listDecisionLedger(params: URLSearchParams): Promise<DecisionLedgerPage> {
+  return decisionRequest<DecisionLedgerPage>(`${URL_PREFIX}?${params.toString()}`);
 }
 
-/** GET /api/decisions/similar — 先例搜索 */
+/** GET /api/decisions/pending — 待决策队列（待办域三分组，服务端二分） */
+export async function listPendingDecisions(params: URLSearchParams): Promise<PendingQueuePage> {
+  return decisionRequest<PendingQueuePage>(`${URL_PREFIX}/pending?${params.toString()}`);
+}
+
+/** POST /api/decisions/{id}/resolve — 裁决（approve → decided / reject → rejected） */
+export async function resolveDecision(
+  decisionId: string,
+  payload: { action: 'approve' | 'reject'; reason?: string },
+): Promise<DecisionRecord> {
+  return decisionRequest<DecisionRecord>(
+    `${URL_PREFIX}/${encodeURIComponent(decisionId)}/resolve`,
+    { method: 'POST', body: JSON.stringify(payload) },
+  );
+}
+
+/** POST /api/decisions/{id}/execute — 发起执行（允许 decided / failed，幂等） */
+export async function executeDecision(decisionId: string): Promise<DecisionExecuteResult> {
+  return decisionRequest<DecisionExecuteResult>(
+    `${URL_PREFIX}/${encodeURIComponent(decisionId)}/execute`,
+    { method: 'POST', body: JSON.stringify({}) },
+  );
+}
+
+/** POST /api/decisions/batch-resolve — 批量裁决（≤50，逐条独立结果） */
+export async function batchResolveDecisions(payload: {
+  decision_ids: string[];
+  action: 'approve' | 'reject';
+  reason?: string;
+}): Promise<{
+  succeeded: number;
+  failed: number;
+  results: Array<{
+    decision_id: string;
+    ok: boolean;
+    status?: string | null;
+    error?: { code: string; message: string; handler_name?: string | null } | null;
+  }>;
+}> {
+  return decisionRequest(`${URL_PREFIX}/batch-resolve`, {
+    method: 'POST',
+    body: JSON.stringify(payload),
+  });
+}
+
+/** GET /api/decisions/{id}/chain — 因果链追溯（本期行为不变） */
+export async function getDecisionChain(decisionId: string): Promise<DecisionChain> {
+  return decisionRequest<DecisionChain>(
+    `${URL_PREFIX}/${encodeURIComponent(decisionId)}/chain`,
+  );
+}
+
+/** GET /api/decisions/similar — 先例搜索（本期行为不变） */
 export async function findSimilarDecisions(
   context: string,
   topK = 5,
 ): Promise<DecisionRecord[]> {
   const qs = new URLSearchParams({ context, top_k: String(topK) });
-  return fetchJson(`${URL_PREFIX}/similar?${qs.toString()}`);
+  return decisionRequest<DecisionRecord[]>(`${URL_PREFIX}/similar?${qs.toString()}`);
 }
 
-/** GET /api/decisions/{id}/impact — 影响分析 */
+/** GET /api/decisions/{id}/impact — 影响分析（本期行为不变） */
 export async function analyzeDecisionImpact(decisionId: string): Promise<DecisionImpact> {
-  return fetchJson(`${URL_PREFIX}/${encodeURIComponent(decisionId)}/impact`);
+  return decisionRequest<DecisionImpact>(
+    `${URL_PREFIX}/${encodeURIComponent(decisionId)}/impact`,
+  );
 }
 
 /** POST /api/decisions/{id}/causal-links — 显式建立因果边 */
@@ -64,9 +123,8 @@ export async function addCausalLink(
   toDecisionId: string,
   linkType: CausalLinkType,
 ): Promise<{ success: boolean }> {
-  return fetchJson(`${URL_PREFIX}/${encodeURIComponent(decisionId)}/causal-links`, {
+  return decisionRequest(`${URL_PREFIX}/${encodeURIComponent(decisionId)}/causal-links`, {
     method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({ to_decision_id: toDecisionId, link_type: linkType }),
   });
 }
@@ -77,9 +135,8 @@ export async function checkDecisionRules(payload: {
   resource: Record<string, unknown>;
   environment?: Record<string, unknown>;
 }): Promise<DecisionGateResult> {
-  return fetchJson(`${URL_PREFIX}/check-rules`, {
+  return decisionRequest(`${URL_PREFIX}/check-rules`, {
     method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify(payload),
   });
 }
@@ -91,13 +148,15 @@ export async function updateDecisionOutcome(
   outcomeDetails: Record<string, unknown> = {},
   feedbackSummary?: string,
 ): Promise<DecisionRecord> {
-  return fetchJson(`${URL_PREFIX}/${encodeURIComponent(decisionId)}/outcome`, {
-    method: 'PATCH',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({
-      outcome,
-      outcome_details: outcomeDetails,
-      feedback_summary: feedbackSummary,
-    }),
-  });
+  return decisionRequest<DecisionRecord>(
+    `${URL_PREFIX}/${encodeURIComponent(decisionId)}/outcome`,
+    {
+      method: 'PATCH',
+      body: JSON.stringify({
+        outcome,
+        outcome_details: outcomeDetails,
+        feedback_summary: feedbackSummary,
+      }),
+    },
+  );
 }

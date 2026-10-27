@@ -658,37 +658,23 @@ class DecisionPipeline:
 
     async def _backfill_decision_outcome(self, result: PipelineResult, workspace_id: str) -> None:
         """ADR-076 §6.3：按 action 执行状态回填决策结果（rejected 路径必须留痕）。"""
-        from odap.biz.decision.decision_record import DecisionOutcome, get_decision_service
+        from odap.biz.decision.decision_record import get_decision_service
+
+        from .outcome_mapping import patch_for
 
         decision = result.decision
         ar = result.action_record
         if ar is not None and not isinstance(ar, dict):
             ar = ar.model_dump()
-        ar = ar or {}
-        status = str(ar.get("status", ""))
-
-        if not decision.opa_approved and not ar:
-            outcome = DecisionOutcome.REJECTED
-        elif status == "completed":
-            outcome = DecisionOutcome.SUCCESS
-        elif status == "rejected":
-            outcome = DecisionOutcome.REJECTED
-        elif status == "failed":
-            outcome = DecisionOutcome.FAILURE
-        else:
-            outcome = DecisionOutcome.PENDING
-
-        feedback = result.feedback if isinstance(result.feedback, dict) else {}
+        # status 与 outcome 同批写入：一处散写就会绕开 7/23 矩阵（E34）
+        patch = patch_for(ar, decision.opa_approved, result.feedback)
         await get_decision_service().update_decision_outcome(
             decision_id=decision.decision_id,
             workspace_id=workspace_id or "",
-            outcome=outcome,
-            outcome_details={
-                "action_record_id": ar.get("action_record_id"),
-                "action_status": status or None,
-                "feedback_pipeline": feedback,
-            },
-            feedback_summary=feedback.get("status"),
+            patch=patch,
+            feedback_summary=(result.feedback or {}).get("status")
+            if isinstance(result.feedback, dict)
+            else None,
         )
 
 

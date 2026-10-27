@@ -13,6 +13,7 @@ from fastapi import APIRouter, Depends, HTTPException, Query
 from pydantic import BaseModel, Field
 
 from odap.infra.security.jwt_auth import get_current_user
+from odap.infra.middleware.exception_handler import APIError
 from odap.infra.security.workspace_access import assert_workspace_access, get_current_workspace
 
 from odap.biz.decision.decision_record.models import (
@@ -22,7 +23,10 @@ from odap.biz.decision.decision_record.models import (
     DecisionImpact,
     DecisionOutcome,
     DecisionRecord,
+    DecisionStatus,
+    StatusOutcomePatch,
 )
+from odap.biz.decision.decision_record.models.status_matrix import DecisionInvariantError
 from odap.biz.decision.decision_record.services import get_decision_service
 
 logger = logging.getLogger(__name__)
@@ -74,8 +78,12 @@ class CheckRulesRequest(BaseModel):
 
 
 class OutcomeUpdate(BaseModel):
-    """update_decision_outcome 请求体（ADR-076 §4.7）"""
+    """update_decision_outcome 请求体（ADR-076 §4.7 + ADR-091 §5.2.1）
 
+    `status` 必填：只给 `outcome` 的写入无法校验 7/23 矩阵，等于绕开写侧守门。
+    """
+
+    status: DecisionStatus
     outcome: DecisionOutcome
     outcome_details: Dict[str, Any] = Field(default_factory=dict)
     feedback_summary: Optional[str] = None
@@ -109,6 +117,8 @@ async def record_decision(body: DecisionRecordCreate, user=Depends(get_current_u
     try:
         service = get_decision_service()
         return await service.record_decision(record)
+    except (APIError, DecisionInvariantError):
+        raise  # 409/422 的码与信封由中间件原样透出，不得压成 422 纯字符串或 500
     except ValueError as e:
         raise HTTPException(status_code=422, detail=str(e))
     except Exception as e:
@@ -162,6 +172,8 @@ async def add_causal_link(
             workspace_id=workspace_id,
         )
         return {"success": True, "link": link.model_dump(mode="json")}
+    except (APIError, DecisionInvariantError):
+        raise  # 409/422 的码与信封由中间件原样透出，不得压成 422 纯字符串或 500
     except ValueError as e:
         raise HTTPException(status_code=422, detail=str(e))
     except Exception as e:
@@ -182,6 +194,8 @@ async def check_decision_rules(body: CheckRulesRequest, user=Depends(get_current
             resource=body.resource,
             environment=body.environment,
         )
+    except (APIError, DecisionInvariantError):
+        raise  # 409/422 的码与信封由中间件原样透出，不得压成 422 纯字符串或 500
     except ValueError as e:
         raise HTTPException(status_code=422, detail=str(e))
     except Exception as e:
@@ -193,13 +207,15 @@ async def check_decision_rules(body: CheckRulesRequest, user=Depends(get_current
 async def update_decision_outcome(
     decision_id: str, body: OutcomeUpdate, workspace_id: str = Depends(get_current_workspace)
 ):
-    """结果回填（含 rejected 路径，更新条件含双条件）。"""
+    """状态与结果回填（status + outcome 同一次原子写，更新条件含双条件）。"""
     service = get_decision_service()
+    patch = StatusOutcomePatch(
+        status=body.status, outcome=body.outcome, details=body.outcome_details
+    )
     ok = await service.update_decision_outcome(
         decision_id=decision_id,
         workspace_id=workspace_id,
-        outcome=body.outcome,
-        outcome_details=body.outcome_details,
+        patch=patch,
         feedback_summary=body.feedback_summary,
     )
     if not ok:

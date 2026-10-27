@@ -54,9 +54,9 @@ class TestIntentRouter:
         assert result["confidence"] > 0
 
     def test_route_commander_keyword(self, intent_router):
-        """包含决策关键词应路由到 commander agent"""
+        """包含决策关键词应路由到 director agent（原 commander，已更名）"""
         result = intent_router.route("制定决策方案")
-        assert result["agent"] == "commander"
+        assert result["agent"] == "director"
 
     def test_route_operations_keyword(self, intent_router):
         """包含执行关键词应路由到 operations agent"""
@@ -94,8 +94,8 @@ class TestSubAgentPlanner:
         assert "gather_intelligence" in task_actions
 
     def test_plan_for_commander_agent(self, sub_agent_planner):
-        """commander agent 应规划情报收集、态势分析和决策任务"""
-        tasks = sub_agent_planner.plan("制定决策", "commander")
+        """director agent 应规划情报收集、态势分析和决策任务"""
+        tasks = sub_agent_planner.plan("制定决策", "director")
         assert len(tasks) >= 2
         task_actions = [t["action"] for t in tasks]
         assert "analyze_situation" in task_actions
@@ -107,7 +107,7 @@ class TestSubAgentPlanner:
         assert len(tasks) >= 3
         task_sub_agents = [t["sub_agent"] for t in tasks]
         assert "intelligence" in task_sub_agents
-        assert "commander" in task_sub_agents
+        assert "director" in task_sub_agents
         assert "operations" in task_sub_agents
 
 
@@ -176,7 +176,9 @@ class TestDecisionService:
 
     def test_record_step(self, decision_service):
         """记录决策步骤应返回步骤信息"""
-        create_result = decision_service.create_decision(task_id="task-001")
+        create_result = decision_service.create_decision(
+            workspace_id="ws-001", task_id="task-001"
+        )
         decision_id = create_result["decision_id"]
 
         from odap.biz.core.agent.models.decision_chain import DecisionPhase
@@ -184,6 +186,7 @@ class TestDecisionService:
             decision_id=decision_id,
             phase=DecisionPhase.OBSERVE,
             description="感知阶段完成",
+            workspace_id="ws-001",
             evidence=[{"source": "sensor", "data": "态势信息"}],
         )
         assert step_result["decision_id"] == decision_id
@@ -194,34 +197,49 @@ class TestDecisionService:
         """获取决策链应返回所有步骤"""
         from odap.biz.core.agent.models.decision_chain import DecisionPhase
 
-        create_result = decision_service.create_decision(task_id="task-001")
+        create_result = decision_service.create_decision(
+            workspace_id="ws-001", task_id="task-001"
+        )
         decision_id = create_result["decision_id"]
 
-        decision_service.record_step(decision_id, DecisionPhase.OBSERVE, "感知")
-        decision_service.record_step(decision_id, DecisionPhase.DECIDE, "决策")
+        decision_service.record_step(decision_id, DecisionPhase.OBSERVE, "感知", "ws-001")
+        decision_service.record_step(decision_id, DecisionPhase.DECIDE, "决策", "ws-001")
 
-        chain = decision_service.get_decision_chain(decision_id)
+        chain = decision_service.get_decision_chain(decision_id, "ws-001")
         assert "steps" in chain
         assert len(chain["steps"]) == 2
         assert chain["steps"][0]["phase"] == "observe"
         assert chain["steps"][1]["phase"] == "decide"
 
     def test_get_nonexistent_decision_returns_error(self, decision_service):
-        """获取不存在的决策应返回错误"""
-        result = decision_service.get_decision("nonexistent-id")
-        assert result["status"] == "error"
+        """不存在的决策必须抛 `DecisionScopeError`，且不区分"不存在"与"不属本空间"。"""
+        from odap.biz.core.agent.services.decision_service import DecisionScopeError
+
+        with pytest.raises(DecisionScopeError):
+            decision_service.get_decision("nonexistent-id", "ws-001")
 
     def test_list_decisions(self, decision_service):
-        """列出决策应返回分页结果"""
+        """列出决策应返回**本空间**分页结果，且不得看到其他空间的记录"""
         decision_service.create_decision(task_id="task-001", workspace_id="ws-001")
         decision_service.create_decision(task_id="task-002", workspace_id="ws-001")
         decision_service.create_decision(task_id="task-003", workspace_id="ws-002")
 
         result = decision_service.list_decisions(workspace_id="ws-001")
         assert result["total"] == 2
+        assert all(d["workspace_id"] == "ws-001" for d in result["decisions"])
 
-        all_result = decision_service.list_decisions()
-        assert all_result["total"] == 3
+    def test_list_decisions_requires_workspace(self, decision_service):
+        """空间参数必须显式传入：**不存在"不传即全量"的降级分支**。
+
+        这条断言保护的是 IDOR 修复本身。旧实现 `if workspace_id:` 在参数为 None 时
+        不过滤，一条 `list_decisions()` 就能读出全部空间的数据；如果把本条写成
+        「不传就返回全部」，等于把漏洞编码成预期行为，修复会被测试反向锁死。
+        """
+        with pytest.raises(TypeError):
+            decision_service.list_decisions()
+
+        with pytest.raises(ValueError):
+            decision_service.list_decisions(workspace_id="")
 
     def test_record_step_creates_decision_automatically(self, decision_service):
         """record_step 对不存在的 decision_id 应自动创建决策链"""
@@ -231,9 +249,10 @@ class TestDecisionService:
             decision_id="auto-created-id",
             phase=DecisionPhase.ACT,
             description="自动创建",
+            workspace_id="ws-001",
         )
         assert result["decision_id"] == "auto-created-id"
 
         # 验证决策链已创建
-        chain = decision_service.get_decision_chain("auto-created-id")
+        chain = decision_service.get_decision_chain("auto-created-id", "ws-001")
         assert len(chain["steps"]) == 1

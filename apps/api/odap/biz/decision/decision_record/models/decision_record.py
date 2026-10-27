@@ -1,38 +1,79 @@
-"""决策一等公民数据模型（ADR-076 §3）
+"""决策一等公民数据模型（ADR-076 §3 + ADR-091 §4.1）
 
 DecisionRecord 是跨 Agent/会话引用的结构化决策记录，
 承载"谁、何时、基于什么证据、选择了什么、结果如何"的完整信息。
+
+ADR-091 新增 5 个字段（`outcome` 五态零变更）：
+- `status` 6 态流程位置（服务端产生）
+- `entry_source` 7 值入口来源
+- `recommended_action` 可执行载荷（补齐 execute 的数据缺口）
+- `resolution` 裁决留痕（独立字段，不塞 `outcome_details`——后者会被 pipeline 覆写）
+- `status_assumed` 存量推定标记（true 不进待决策队列）
 """
 
 import json
 import uuid
-from datetime import datetime, timezone
-from enum import Enum
-from typing import Any, Dict, List, Optional
+from datetime import datetime
+from typing import Any, Dict, List, Optional, Tuple
 
 from pydantic import BaseModel, Field
 
-
-def _utcnow() -> datetime:
-    return datetime.now(timezone.utc)
-
-
-class DecisionOutcome(str, Enum):
-    """决策结果（ADR-076 §3：含 partial_success 五值，OPA 拒绝路径必填 rejected）"""
-
-    SUCCESS = "success"
-    PARTIAL_SUCCESS = "partial_success"
-    FAILURE = "failure"
-    PENDING = "pending"
-    REJECTED = "rejected"
+from odap.biz.decision.decision_record.models.enums import (
+    CausalLinkType,
+    DecisionEntrySource,
+    DecisionOutcome,
+    DecisionStatus,
+)
+from odap.biz.decision.decision_record.models.status_matrix import reconcile_on_read
+from odap.biz.decision.decision_record.models.timestamps import iso_utc, parse_iso, utcnow
 
 
-class CausalLinkType(str, Enum):
-    """决策间因果边类型（ADR-076 §4.5，对齐 Semantica CAUSED/INFLUENCED/PRECEDENT_FOR）"""
+def _load_json(value: Any, default: Any) -> Any:
+    """宽松 JSON 解析：已是容器直接返回，字符串解析失败回落默认值。"""
+    if value is None:
+        return default
+    if isinstance(value, (list, dict)):
+        return value
+    try:
+        return json.loads(value)
+    except (TypeError, ValueError):
+        return default
 
-    CAUSED_BY = "CAUSED_BY"          # 直接导致（父决策语义）
-    INFLUENCED_BY = "INFLUENCED_BY"  # 弱影响（上下文参考但未直接采纳）
-    PRECEDENT_FOR = "PRECEDENT_FOR"  # 先例引用留痕（旧决策 → 新决策）
+
+def _coerce_enum(raw: Any, enum_cls: Any, fallback: Any) -> Any:
+    try:
+        return enum_cls(raw)
+    except (ValueError, TypeError):
+        return fallback
+
+
+def _resolution_at_iso(resolution: Optional[Dict[str, Any]]) -> Optional[str]:
+    """`resolution.at` 的标量副本。
+
+    `resolution` 在图上存的是 JSON **字符串**，无法用 `n.resolution.at` 做区间
+    过滤；而 `to_execute` 档的 SLA 计时与计数都要按裁决时刻取区间，故写时派生
+    一个定宽 UTC 标量 `decided_at`（与 `evidence_count` 同一处理方式）。
+    """
+    if not isinstance(resolution, dict):
+        return None
+    return iso_utc(parse_iso(resolution.get("at")))
+
+
+def _parse_state(props: Dict[str, Any]) -> Tuple[DecisionStatus, DecisionEntrySource, bool]:
+    """解析流程状态三元组（status / entry_source / status_assumed），缺失即回落。
+
+    读侧默认值刻意与写侧默认值不同：缺失 `entry_source` 说明这条记录早于
+    ADR-091，标 `LEGACY`（来源不明），不伪装成 `manual`。
+    """
+    status = _coerce_enum(
+        props.get("status") or DecisionStatus.PENDING.value, DecisionStatus, DecisionStatus.PENDING
+    )
+    entry_source = _coerce_enum(
+        props.get("entry_source") or DecisionEntrySource.LEGACY.value,
+        DecisionEntrySource,
+        DecisionEntrySource.LEGACY,
+    )
+    return status, entry_source, bool(props.get("status_assumed") or False)
 
 
 class DecisionRecord(BaseModel):
@@ -71,6 +112,21 @@ class DecisionRecord(BaseModel):
     decision_method: str = Field(default="recommendation_engine", description="决策方法")
     decision_type: str = Field(default="general", description="决策类型")
 
+    # 流程（ADR-091）
+    status: DecisionStatus = Field(default=DecisionStatus.PENDING, description="流程位置（服务端产生）")
+    status_assumed: bool = Field(
+        default=False, description="true = status 系存量推定，非真实流程状态（不进队列）"
+    )
+    entry_source: DecisionEntrySource = Field(
+        default=DecisionEntrySource.MANUAL, description="入口来源"
+    )
+    recommended_action: Optional[Dict[str, Any]] = Field(
+        default=None, description="可执行载荷 action_type_id/target_object_id/target_object_type/parameters"
+    )
+    resolution: Optional[Dict[str, Any]] = Field(
+        default=None, description="裁决留痕 action/actor_type/by/at/reason"
+    )
+
     # 因果链
     parent_decision_id: Optional[str] = Field(None, description="父决策（CAUSED_BY 链）")
     root_goal_id: Optional[str] = Field(None, description="根目标 ID")
@@ -91,17 +147,22 @@ class DecisionRecord(BaseModel):
     agent_id: Optional[str] = Field(None, description="决策 Agent")
     opa_approved: Optional[bool] = Field(None, description="OPA 门禁批准（落库前校验）")
     opa_decision: Optional[Dict[str, Any]] = Field(None, description="OPA 完整决策详情")
-    created_at: datetime = Field(default_factory=_utcnow, description="创建时间（业务时态锚点）")
-    updated_at: datetime = Field(default_factory=_utcnow, description="更新时间")
-    valid_at: datetime = Field(default_factory=_utcnow, description="生效时间（业务时态）")
+    created_at: datetime = Field(default_factory=utcnow, description="创建时间（业务时态锚点）")
+    updated_at: datetime = Field(default_factory=utcnow, description="更新时间")
+    valid_at: datetime = Field(default_factory=utcnow, description="生效时间（业务时态）")
     invalid_at: Optional[datetime] = Field(None, description="失效时间（业务时态）")
 
+    # ---------------- 图节点序列化 ----------------
+
     def to_node_properties(self) -> Dict[str, Any]:
-        """转为图节点扩展属性（复杂结构序列化为 JSON 字符串）"""
+        """转为图节点扩展属性（复杂结构序列化为 JSON 字符串）。"""
+        props: Dict[str, Any] = {}
+        props.update(self._input_properties())
+        props.update(self._output_properties())
+        props.update(self._meta_properties())
+        return props
 
-        def _dt(v: Optional[datetime]) -> Optional[str]:
-            return v.isoformat() if v else None
-
+    def _input_properties(self) -> Dict[str, Any]:
         return {
             "decision_id": self.decision_id,
             "workspace_id": self.workspace_id,
@@ -112,10 +173,26 @@ class DecisionRecord(BaseModel):
             "confidence": self.confidence,
             "evidence_episode_ids": json.dumps(self.evidence_episode_ids),
             "evidence_entity_ids": json.dumps(self.evidence_entity_ids),
+            # 排序键：evidence_entity_ids 在图上是 JSON 字符串，size() 无效，写时算一次
+            "evidence_count": len(self.evidence_entity_ids),
+        }
+
+    def _output_properties(self) -> Dict[str, Any]:
+        return {
             "recommended_option": self.recommended_option,
             "alternative_options": json.dumps(self.alternative_options, ensure_ascii=False),
             "decision_method": self.decision_method,
             "decision_type": self.decision_type,
+            "status": self.status.value,
+            "status_assumed": self.status_assumed,
+            "entry_source": self.entry_source.value,
+            "recommended_action": json.dumps(self.recommended_action, ensure_ascii=False, default=str)
+            if self.recommended_action is not None
+            else None,
+            "resolution": json.dumps(self.resolution, ensure_ascii=False, default=str)
+            if self.resolution is not None
+            else None,
+            "decided_at": _resolution_at_iso(self.resolution),
             "parent_decision_id": self.parent_decision_id,
             "root_goal_id": self.root_goal_id,
             "precedent_decision_ids": json.dumps(self.precedent_decision_ids),
@@ -123,121 +200,86 @@ class DecisionRecord(BaseModel):
             "outcome": self.outcome.value,
             "outcome_details": json.dumps(self.outcome_details, ensure_ascii=False, default=str),
             "feedback_summary": self.feedback_summary,
+        }
+
+    def _meta_properties(self) -> Dict[str, Any]:
+        return {
             "agent_id": self.agent_id,
             "opa_approved": self.opa_approved,
             "opa_decision": json.dumps(self.opa_decision, ensure_ascii=False, default=str)
             if self.opa_decision is not None
             else None,
-            "created_at": _dt(self.created_at),
-            "updated_at": _dt(self.updated_at),
-            "valid_at": _dt(self.valid_at),
-            "invalid_at": _dt(self.invalid_at),
+            "created_at": iso_utc(self.created_at),
+            "updated_at": iso_utc(self.updated_at),
+            "valid_at": iso_utc(self.valid_at),
+            "invalid_at": iso_utc(self.invalid_at),
         }
+
+    # ---------------- 反序列化 ----------------
 
     @classmethod
     def from_node_properties(cls, props: Dict[str, Any]) -> "DecisionRecord":
-        """从图节点属性还原（容忍缺失字段）"""
-
-        def _json(v: Any, default: Any) -> Any:
-            if v is None:
-                return default
-            if isinstance(v, (list, dict)):
-                return v
-            try:
-                return json.loads(v)
-            except (TypeError, ValueError):
-                return default
-
-        def _dt(v: Any) -> Optional[datetime]:
-            if v is None:
-                return None
-            if isinstance(v, datetime):
-                return v
-            try:
-                return datetime.fromisoformat(str(v))
-            except ValueError:
-                return None
-
-        outcome_raw = props.get("outcome") or DecisionOutcome.PENDING.value
-        try:
-            outcome = DecisionOutcome(outcome_raw)
-        except ValueError:
-            outcome = DecisionOutcome.PENDING
-
-        return cls(
-            decision_id=props.get("decision_id") or props.get("uuid", ""),
-            workspace_id=props.get("workspace_id") or props.get("group_id", ""),
-            context_summary=props.get("context_summary") or "",
-            constraints=_json(props.get("constraints"), {}),
-            reasoning=props.get("reasoning") or "",
-            reasoning_trace=_json(props.get("reasoning_trace"), []),
-            confidence=float(props.get("confidence") or 0.0),
-            evidence_episode_ids=_json(props.get("evidence_episode_ids"), []),
-            evidence_entity_ids=_json(props.get("evidence_entity_ids"), []),
-            recommended_option=props.get("recommended_option") or "",
-            alternative_options=_json(props.get("alternative_options"), []),
-            decision_method=props.get("decision_method") or "recommendation_engine",
-            decision_type=props.get("decision_type") or "general",
-            parent_decision_id=props.get("parent_decision_id"),
-            root_goal_id=props.get("root_goal_id"),
-            precedent_decision_ids=_json(props.get("precedent_decision_ids"), []),
-            action_record_id=props.get("action_record_id"),
-            outcome=outcome,
-            outcome_details=_json(props.get("outcome_details"), {}),
-            feedback_summary=props.get("feedback_summary"),
-            agent_id=props.get("agent_id"),
-            opa_approved=props.get("opa_approved"),
-            opa_decision=_json(props.get("opa_decision"), None),
-            created_at=_dt(props.get("created_at")) or _utcnow(),
-            updated_at=_dt(props.get("updated_at")) or _utcnow(),
-            valid_at=_dt(props.get("valid_at")) or _utcnow(),
-            invalid_at=_dt(props.get("invalid_at")),
+        """从图节点属性还原（容忍缺失字段；非法 status/outcome 只告警不抛错）。"""
+        status, entry_source, assumed = _parse_state(props)
+        outcome = _coerce_enum(
+            props.get("outcome") or DecisionOutcome.PENDING.value,
+            DecisionOutcome,
+            DecisionOutcome.PENDING,
         )
+        reconcile_on_read(
+            status.value, outcome.value, props.get("decision_id") or props.get("uuid", "")
+        )
+        return cls(**_record_kwargs(props, status, entry_source, assumed, outcome))
 
 
-class DecisionCausalLink(BaseModel):
-    """决策间因果边（ADR-076 §4.5）"""
+def _record_kwargs(
+    props: Dict[str, Any],
+    status: DecisionStatus,
+    entry_source: DecisionEntrySource,
+    assumed: bool,
+    outcome: DecisionOutcome,
+) -> Dict[str, Any]:
+    """把图节点属性映射成构造参数（缺失字段一律回落默认值，不抛错）。"""
+    kwargs: Dict[str, Any] = {
+        "decision_id": props.get("decision_id") or props.get("uuid", ""),
+        "workspace_id": props.get("workspace_id") or props.get("group_id", ""),
+        "context_summary": props.get("context_summary") or "",
+        "constraints": _load_json(props.get("constraints"), {}),
+        "reasoning": props.get("reasoning") or "",
+        "reasoning_trace": _load_json(props.get("reasoning_trace"), []),
+        "confidence": float(props.get("confidence") or 0.0),
+        "evidence_episode_ids": _load_json(props.get("evidence_episode_ids"), []),
+        "evidence_entity_ids": _load_json(props.get("evidence_entity_ids"), []),
+        "recommended_option": props.get("recommended_option") or "",
+        "alternative_options": _load_json(props.get("alternative_options"), []),
+        "decision_method": props.get("decision_method") or "recommendation_engine",
+        "decision_type": props.get("decision_type") or "general",
+        "status": status,
+        "status_assumed": assumed,
+        "entry_source": entry_source,
+        "recommended_action": _load_json(props.get("recommended_action"), None),
+        "resolution": _load_json(props.get("resolution"), None),
+        "parent_decision_id": props.get("parent_decision_id"),
+        "root_goal_id": props.get("root_goal_id"),
+        "precedent_decision_ids": _load_json(props.get("precedent_decision_ids"), []),
+        "action_record_id": props.get("action_record_id"),
+        "outcome": outcome,
+        "outcome_details": _load_json(props.get("outcome_details"), {}),
+        "feedback_summary": props.get("feedback_summary"),
+        "agent_id": props.get("agent_id"),
+        "opa_approved": props.get("opa_approved"),
+        "opa_decision": _load_json(props.get("opa_decision"), None),
+    }
+    kwargs.update(_time_kwargs(props))
+    return kwargs
 
-    from_decision_id: str = Field(description="边起点决策（子决策/被影响方/新决策）")
-    to_decision_id: str = Field(description="边终点决策（父决策/影响方/先例）")
-    link_type: CausalLinkType = Field(description="因果边类型")
-    workspace_id: str = Field(description="工作空间（两端必须同空间）")
-    created_at: datetime = Field(default_factory=_utcnow)
 
+def _time_kwargs(props: Dict[str, Any]) -> Dict[str, Any]:
+    """时态字段（缺失即取当前时间，保证 `created_at` 永不为空）。"""
+    return {
+        "created_at": parse_iso(props.get("created_at")) or utcnow(),
+        "updated_at": parse_iso(props.get("updated_at")) or utcnow(),
+        "valid_at": parse_iso(props.get("valid_at")) or utcnow(),
+        "invalid_at": parse_iso(props.get("invalid_at")),
+    }
 
-class DecisionGateResult(BaseModel):
-    """落库前规则门禁结果（ADR-076 §4.6）"""
-
-    approved: bool = Field(description="门禁是否通过")
-    gate: str = Field(default="opa", description="门禁来源（opa / business_rule / hybrid）")
-    details: Dict[str, Any] = Field(default_factory=dict, description="门禁完整判定详情")
-
-
-class DecisionChain(BaseModel):
-    """决策因果链（ADR-076 §4.2）"""
-
-    decision: DecisionRecord
-    evidence_entities: List[Dict[str, Any]] = Field(default_factory=list)
-    evidence_episodes: List[Dict[str, Any]] = Field(default_factory=list)
-    parent_chain: List[DecisionRecord] = Field(default_factory=list)
-    precedents: List[DecisionRecord] = Field(default_factory=list)
-    reasoning_trace: List[Dict[str, Any]] = Field(default_factory=list)
-
-
-class DecisionImpact(BaseModel):
-    """决策影响分析（ADR-076 §4.4，返回结构标注完整性）"""
-
-    decision_id: str
-    derived_decisions: List[Dict[str, Any]] = Field(
-        default_factory=list, description="下游决策（CAUSED_BY 反向遍历 ≤3 跳）"
-    )
-    target_changes: List[Dict[str, Any]] = Field(
-        default_factory=list, description="生效后目标对象的图变化"
-    )
-    co_evidence_decisions: List[Dict[str, Any]] = Field(
-        default_factory=list, description="共享证据实体的其他决策"
-    )
-    impact_completeness: str = Field(
-        default="full",
-        description="完整性标注：full / degraded_target_resolution / partial",
-    )

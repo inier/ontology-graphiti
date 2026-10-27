@@ -1,0 +1,49 @@
+/* 决策状态标签 —— 色值全部走 CSS 变量，JS 侧只传状态枚举（uiux §2.6） */
+.dsi-status {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--odap-spacing-xs);
+  padding: 0 var(--odap-spacing-sm);
+  height: 22px;
+  border: 1px solid currentColor;
+  border-radius: var(--odap-radius-sm);
+  background: var(--odap-color-bg-tertiary);
+  font-size: var(--odap-font-size-xs);
+  line-height: 1;
+  white-space: nowrap;
+  transition: border-color var(--odap-transition-fast);
+}
+
+.dsi-status .anticon {
+  font-size: 16px;
+  line-height: 1;
+}
+
+/* 结果只允许 4 个色系：success（含 partial）/ warning（待定）/ error / 中性 */
+.dsi-status--success { color: var(--odap-color-success); }
+.dsi-status--partial { color: var(--odap-color-success); }
+.dsi-status--failure { color: var(--odap-color-error); }
+.dsi-status--pending { color: var(--odap-color-warning); }
+.dsi-status--rejected,
+.dsi-status--unknown {
+  color: var(--odap-color-text-secondary);
+  border-color: var(--odap-color-border);
+}
+
+.dsi-status-conflict {
+  margin-left: var(--odap-spacing-xs);
+  color: var(--odap-color-warning);
+  font-size: 16px;
+  cursor: help;
+}
+
+/* 历史数据标注：不做胶囊、不加底色（胶囊会被读成第七种状态） */
+.dsi-legacy-note {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--odap-spacing-xs);
+  margin-left: var(--odap-spacing-sm);
+  color: var(--odap-color-text-tertiary);
+  font-size: var(--odap-font-size-xs);
+  line-height: 1;
+}

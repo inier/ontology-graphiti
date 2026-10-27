@@ -1,8 +1,13 @@
-"""决策存储抽象接口（ADR-076 §5.1 可替换原则）"""
+"""决策存储抽象接口（ADR-076 §5.1 可替换原则 / ADR-091 §5.2）
+
+读侧新增 `list_decisions` / `count_decisions`：台账与待决策队列的唯一数据入口。
+两者共用 `DecisionQuery`，保证"列表为空但总数非零"这类自相矛盾不会出现。
+"""
 
 from abc import ABC, abstractmethod
-from typing import Any, Dict, List, Optional
+from typing import Any, Dict, List, Optional, Tuple
 
+from odap.biz.decision.decision_record.interfaces.decision_query import DecisionQuery
 from odap.biz.decision.decision_record.models import (
     CausalLinkType,
     DecisionCausalLink,
@@ -10,6 +15,7 @@ from odap.biz.decision.decision_record.models import (
     DecisionImpact,
     DecisionOutcome,
     DecisionRecord,
+    StatusOutcomePatch,
 )
 
 
@@ -75,11 +81,31 @@ class IDecisionStore(ABC):
         self,
         decision_id: str,
         workspace_id: str,
-        outcome: DecisionOutcome,
-        outcome_details: Dict[str, Any],
+        patch: StatusOutcomePatch,
         feedback_summary: Optional[str] = None,
     ) -> bool:
-        """结果回填。更新条件必须含 decision_id AND workspace_id。"""
+        """状态 + 结果回填。更新条件必须含 decision_id AND workspace_id。
+
+        只收整份 `StatusOutcomePatch`：写 `status` 的代码路径只有这一条，
+        散写 `SET n.status = ...` 会绕过 7/23 矩阵，也让 `updated_at` 出现多种写法。
+        实现必须一次 `SET n += $patch`，不得逐字段 SET。
+        """
+
+    @abstractmethod
+    async def list_decisions(
+        self, query: DecisionQuery, skip: int = 0, limit: int = 20
+    ) -> List[DecisionRecord]:
+        """分页列表（台账 / 待决策队列共用）。MATCH 必须强制 `group_id = $ws`。"""
+
+    @abstractmethod
+    async def count_decisions(
+        self, query: DecisionQuery, probe: int = 5000
+    ) -> Tuple[int, bool]:
+        """返回 (count, is_estimate)。
+
+        `probe > 0`：命中 ≤ probe 时为精确值；超限返回 (probe, True)（前端显示"约 N 条"）。
+        `probe = 0`：精确计数（待决策队列的四个计数必须精确，否则"已超时 N 条"会骗人）。
+        """
 
     @abstractmethod
     def edge_type_values(self) -> List[str]:

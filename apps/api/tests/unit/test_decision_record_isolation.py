@@ -19,6 +19,7 @@ from odap.biz.decision.decision_record.models import (
     DecisionCausalLink,
     DecisionOutcome,
     DecisionRecord,
+    StatusOutcomePatch,
 )
 from odap.biz.decision.decision_record.services import DecisionService
 from odap.infra.security.workspace_access import get_current_workspace
@@ -71,13 +72,25 @@ class FakeDecisionStore(IDecisionStore):
     async def analyze_impact(self, decision_id, workspace_id, max_hops: int = 3):
         return None
 
-    async def update_outcome(self, decision_id, workspace_id, outcome, outcome_details, feedback_summary=None) -> bool:
-        self.calls.append(("update_outcome", decision_id, workspace_id, outcome))
+    async def update_outcome(self, decision_id, workspace_id, patch, feedback_summary=None) -> bool:
+        # 写侧只收整份 patch：status 与 outcome 必须同批落库（E34 原子写）
+        self.calls.append(("update_outcome", decision_id, workspace_id, patch.status))
         rec = await self.get_decision(decision_id, workspace_id)
         if rec is None:
             return False
-        rec.outcome = outcome
+        rec.status = patch.status
+        rec.outcome = patch.outcome
         return True
+
+    async def list_decisions(self, query, skip: int = 0, limit: int = 20) -> List[DecisionRecord]:
+        # ADR-091 §5.2 新增抽象方法的最小内存实现（隔离用例不依赖排序/筛选细节）
+        self.calls.append(("list", query.workspace_id, skip, limit))
+        rows = [r for r in self.nodes.values() if r.workspace_id == query.workspace_id]
+        return rows[skip : skip + limit]
+
+    async def count_decisions(self, query, probe: int = 5000):
+        self.calls.append(("count", query.workspace_id))
+        return len([r for r in self.nodes.values() if r.workspace_id == query.workspace_id]), False
 
     def edge_type_values(self) -> List[str]:
         return [t.value for t in CausalLinkType]
@@ -139,13 +152,10 @@ async def test_record_then_read_carries_workspace(service: DecisionService, stor
 @pytest.mark.asyncio
 async def test_update_outcome_requires_matching_workspace(service: DecisionService, store: FakeDecisionStore):
     rec = await service.record_decision(_record("ws-a"))
-    ok = await service.update_decision_outcome(
-        rec.decision_id, "ws-b", DecisionOutcome.SUCCESS, {}
-    )
+    patch = StatusOutcomePatch(status="executed", outcome="success")
+    ok = await service.update_decision_outcome(rec.decision_id, "ws-b", patch)
     assert ok is False  # 跨空间更新被拒绝（返回 False → 路由层 404）
-    ok = await service.update_decision_outcome(
-        rec.decision_id, "ws-a", DecisionOutcome.SUCCESS, {}
-    )
+    ok = await service.update_decision_outcome(rec.decision_id, "ws-a", patch)
     assert ok is True
 
 

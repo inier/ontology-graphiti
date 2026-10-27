@@ -31,7 +31,11 @@ import { SemanticMapPage } from '@/modules/ontology/pages/SemanticMapPage';
 import { AbutionGraphPage } from '@/modules/ontology/pages/AbutionGraphPage';
 import { MemoryDashboardPage } from '@/modules/simulation/pages/MemoryDashboardPage';
 import { PerceptionPage } from '@/modules/simulation/pages/PerceptionPage';
-import { DecisionIntelligencePage } from '@/modules/decision';
+import {
+  DecisionLedgerPage,
+  DecisionQueuePage,
+  DecisionDetailPage,
+} from '@/modules/decision';
 import { KeepAliveOutlet } from '@/modules/shared/components/KeepAliveOutlet';
 import {
   SemanticAdminIndex,
@@ -114,7 +118,11 @@ export function AppRoutes() {
         <Route path="/settings/channels/default" element={<ProtectedRoute><ChannelManagementPage /></ProtectedRoute>} />
         <Route path="/settings/channels/:workspaceId" element={<ProtectedRoute><ChannelManagementPage /></ProtectedRoute>} />
         <Route path="/audit" element={<ProtectedRoute><AuditLog /></ProtectedRoute>} />
-        <Route path="/decisions" element={<ProtectedRoute><DecisionIntelligencePage /></ProtectedRoute>} />
+        {/* 决策主线（ADR-091）：一级菜单仍只有「决策智能」一项，视图切换在路由内 */}
+        <Route path="/decisions" element={<Navigate to="/decisions/ledger" replace />} />
+        <Route path="/decisions/ledger" element={<ProtectedRoute><DecisionLedgerPage /></ProtectedRoute>} />
+        <Route path="/decisions/queue" element={<ProtectedRoute><DecisionQueuePage /></ProtectedRoute>} />
+        <Route path="/decisions/detail/:decisionId" element={<ProtectedRoute><DecisionDetailPage /></ProtectedRoute>} />
         <Route path="/admin/agents" element={<ProtectedRoute><AgentManagement /></ProtectedRoute>} />
         <Route path="/iframe-viewer" element={<ProtectedRoute><IframeViewerPage /></ProtectedRoute>} />
         <Route path="/menu-config" element={<ProtectedRoute><MenuConfigPage /></ProtectedRoute>} />

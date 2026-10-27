@@ -42,7 +42,7 @@ class FeedbackCollector:
 
         return ActionFeedback(
             action_id=action_record.get('action_record_id', ''),
-            decision_id=action_record.get('agent_id'),
+            decision_id=action_record.get('decision_id'),
             outcome=outcome,
             result_data=data,
             error_message=error_message,
