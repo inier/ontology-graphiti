@@ -12,7 +12,7 @@
 测试目标：
   1. 22 子指标完整产出（gate1_details 10 项 + gate2_details 7 项 + gate3_details 5 项）
   2. 6 项新子指标的边界判定（PASS / WARN 各档）
-  3. 缺失字段（非 006 移交场景）的默认通过行为
+  3. 缺失/非法字段标 evaluated=False 并从 gate 均分剔除（ADR-084 F2），不再默认满分
   4. 权重公式：total_score = 0.35*g1 + 0.40*g2 + 0.25*g3
   5. tier 边界（HIGH≥0.85 / MEDIUM≥0.70 / LOW≥0.50 / VERY_LOW<0.50）
   6. G1 加权（FAIL 类×5 / WARN 类×1）对 gate1_score 的影响
@@ -198,24 +198,25 @@ class TestG18FillRate:
         sub = _sub_by_name(rep["gate1_details"], "g1_fill_rate")
         assert sub["score"] == 1.0
 
-    def test_fill_rate_non_numeric_string_no_crash(self):
-        """fill_rate='abc' 不应 crash，降级为 default=1.0。"""
+    def test_fill_rate_non_numeric_string_marked_not_evaluated(self):
+        """fill_rate='abc' 不应 crash；无法解析 → evaluated=False + score 0.0。"""
         cand = _base_cand(fill_rate="abc")
         ok, rep = _evaluate_safely(cand)
         assert ok, f"fill_rate='abc' 不应 crash: {rep}"
         sub = _sub_by_name(rep["gate1_details"], "g1_fill_rate")
-        # 非数字字符串 _safe_float 默认 1.0 → clamp 1.0
-        assert sub["score"] == 1.0
+        assert sub["score"] == 0.0
+        assert sub["evaluated"] is False
 
-    def test_fill_rate_absent_defaults_to_pass(self):
-        """candidate 不含 fill_rate 字段（非 006 移交场景）→ 默认 1.0 + INFO。"""
+    def test_fill_rate_absent_marked_not_evaluated(self):
+        """candidate 不含 fill_rate → evaluated=False，不得默认满分（ADR-084 F2）。"""
         cand = _base_cand()
         assert "fill_rate" not in cand
         ok, rep = _evaluate_safely(cand)
         assert ok
         sub = _sub_by_name(rep["gate1_details"], "g1_fill_rate")
-        assert sub["score"] == 1.0
-        assert "非 006 移交" in sub["reason"]
+        assert sub["score"] == 0.0
+        assert sub["evaluated"] is False
+        assert "[未评估]" in sub["reason"]
 
 
 # ======================================================================
@@ -267,14 +268,15 @@ class TestG19EmptyRate:
         sub = _sub_by_name(rep["gate1_details"], "g1_empty_rate")
         assert sub["score"] == 0.0
 
-    def test_empty_rate_absent_defaults_to_pass(self):
+    def test_empty_rate_absent_marked_not_evaluated(self):
         cand = _base_cand()
         assert "empty_rate" not in cand
         ok, rep = _evaluate_safely(cand)
         assert ok
         sub = _sub_by_name(rep["gate1_details"], "g1_empty_rate")
-        assert sub["score"] == 1.0
-        assert "非 006 移交" in sub["reason"]
+        assert sub["score"] == 0.0
+        assert sub["evaluated"] is False
+        assert "[未评估]" in sub["reason"]
 
 
 # ======================================================================
@@ -315,14 +317,15 @@ class TestG110OrphanRatio:
         sub = _sub_by_name(rep["gate1_details"], "g1_orphan_ratio")
         assert sub["score"] == 0.0
 
-    def test_orphan_ratio_absent_defaults_to_pass(self):
+    def test_orphan_ratio_absent_marked_not_evaluated(self):
         cand = _base_cand()
         assert "orphan_ratio" not in cand
         ok, rep = _evaluate_safely(cand)
         assert ok
         sub = _sub_by_name(rep["gate1_details"], "g1_orphan_ratio")
-        assert sub["score"] == 1.0
-        assert "非 006 移交" in sub["reason"]
+        assert sub["score"] == 0.0
+        assert sub["evaluated"] is False
+        assert "[未评估]" in sub["reason"]
 
 
 # ======================================================================
@@ -367,30 +370,33 @@ class TestG25DanglingRelations:
         assert sub["score"] == 0.0
         assert "1 条悬空关系" in sub["reason"]
 
-    def test_dangling_invalid_json_string_fallback(self):
-        """非法 JSON 字符串应降级为空列表（pass）。"""
+    def test_dangling_invalid_json_string_marked_not_evaluated(self):
+        """非法 JSON 字符串无法解析 → evaluated=False（不得当成"无悬空"）。"""
         cand = _base_cand(dangling_relations="not-json")
         ok, rep = _evaluate_safely(cand)
         assert ok
         sub = _sub_by_name(rep["gate2_details"], "g2_dangling_relations")
-        assert sub["score"] == 1.0  # 解析失败 → 空列表 → pass
+        assert sub["score"] == 0.0
+        assert sub["evaluated"] is False
 
-    def test_dangling_invalid_type_fallback(self):
-        """dangling_relations=123 应降级为空列表。"""
+    def test_dangling_invalid_type_marked_not_evaluated(self):
+        """dangling_relations=123 不是列表 → evaluated=False，不得当成"无悬空"。"""
         cand = _base_cand(dangling_relations=123)
         ok, rep = _evaluate_safely(cand)
         assert ok
         sub = _sub_by_name(rep["gate2_details"], "g2_dangling_relations")
-        assert sub["score"] == 1.0
+        assert sub["score"] == 0.0
+        assert sub["evaluated"] is False
 
-    def test_dangling_absent_defaults_to_pass(self):
+    def test_dangling_absent_marked_not_evaluated(self):
         cand = _base_cand()
         assert "dangling_relations" not in cand
         ok, rep = _evaluate_safely(cand)
         assert ok
         sub = _sub_by_name(rep["gate2_details"], "g2_dangling_relations")
-        assert sub["score"] == 1.0
-        assert "非 006 移交" in sub["reason"]
+        assert sub["score"] == 0.0
+        assert sub["evaluated"] is False
+        assert "[未评估]" in sub["reason"]
 
 
 # ======================================================================
@@ -427,14 +433,15 @@ class TestG26InvalidActionTargets:
         assert sub["score"] == 0.0
         assert "1 个无效动作目标" in sub["reason"]
 
-    def test_invalid_action_targets_absent_defaults_to_pass(self):
+    def test_invalid_action_targets_absent_marked_not_evaluated(self):
         cand = _base_cand()
         assert "invalid_action_targets" not in cand
         ok, rep = _evaluate_safely(cand)
         assert ok
         sub = _sub_by_name(rep["gate2_details"], "g2_invalid_action_targets")
-        assert sub["score"] == 1.0
-        assert "非 006 移交" in sub["reason"]
+        assert sub["score"] == 0.0
+        assert sub["evaluated"] is False
+        assert "[未评估]" in sub["reason"]
 
 
 # ======================================================================
@@ -471,14 +478,15 @@ class TestG27InvalidRuleReferences:
         assert sub["score"] == 0.0
         assert "3 个无效规则引用" in sub["reason"]
 
-    def test_invalid_rule_references_absent_defaults_to_pass(self):
+    def test_invalid_rule_references_absent_marked_not_evaluated(self):
         cand = _base_cand()
         assert "invalid_rule_references" not in cand
         ok, rep = _evaluate_safely(cand)
         assert ok
         sub = _sub_by_name(rep["gate2_details"], "g2_invalid_rule_references")
-        assert sub["score"] == 1.0
-        assert "非 006 移交" in sub["reason"]
+        assert sub["score"] == 0.0
+        assert sub["evaluated"] is False
+        assert "[未评估]" in sub["reason"]
 
 
 # ======================================================================
@@ -696,15 +704,12 @@ class TestInternalScoreComputation:
         # G1.1 失败影响更大
         assert s_g11_fail < s_g18_fail
 
-    def test_compute_gate1_score_short_details_pads_zero(self):
-        """传入 <10 项时，缺失项按 0.0 处理。"""
+    def test_compute_gate1_score_short_details_ignores_missing(self):
+        """传入 <10 项时，缺失项视为"未评估"而不参与分母（不按 0 分惩罚）。"""
         details = [{"submetric": "g1_1", "score": 1.0}]
         s = CALC._compute_gate1_score_22(details)
-        # 仅 G1.1=1.0，其余 9 项=0.0（按权重补齐）
-        # G1_SUB_WEIGHTS_22 = (5,1,5,1,1,1,1,1,1,1) → total_w = 5+1+5+1*7 = 18
-        # weighted = 5*1 + 0+0+0+0+0+0+0+0+0 = 5
-        # gate1_score = 5/18 ≈ 0.2778
-        assert s == pytest.approx(5.0 / 18.0, rel=1e-3)
+        # 只有 G1.1 已评估（权重 5.0，得分 1.0）→ 5/5 = 1.0
+        assert s == pytest.approx(1.0)
 
     def test_compute_gate2_score_average(self):
         """G2 × 7 子项简单平均。"""
@@ -794,7 +799,7 @@ class TestEdgeCases:
         assert "o999" not in sub["reason"]
 
     def test_none_value_for_list_fields_no_crash(self):
-        """list 字段传 None 应不 crash（视为空列表）。"""
+        """list 字段传 None 应不 crash，且标记 evaluated=False（不得当成"无问题"）。"""
         cand = _base_cand(
             dangling_relations=None,
             invalid_action_targets=None,
@@ -802,11 +807,11 @@ class TestEdgeCases:
         )
         ok, rep = _evaluate_safely(cand)
         assert ok, f"None 值不应 crash: {rep}"
-        # None 视为"非 006 移交场景"，默认通过
         for name in (
             "g2_dangling_relations",
             "g2_invalid_action_targets",
             "g2_invalid_rule_references",
         ):
             sub = _sub_by_name(rep["gate2_details"], name)
-            assert sub["score"] == 1.0
+            assert sub["score"] == 0.0
+            assert sub["evaluated"] is False

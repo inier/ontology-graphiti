@@ -30,7 +30,7 @@ from __future__ import annotations
 
 import logging
 import math
-from typing import Any, Dict, Iterable, List, Optional, Tuple
+from typing import Any, Callable, Dict, Iterable, List, Optional, Tuple
 
 from .quality_evaluator import (
     QualityEvaluator,
@@ -73,6 +73,11 @@ G2_8_SHACL_COMPLIANCE_THRESHOLD = 0.85  # ≥ 0.85（与质量闸 HIGH 档对齐
 # 规则名前缀（与现有 quality_evaluator.py 保持一致）
 _RULE_PREFIX = "semadm"
 
+# G2.8 SHACL 合规率提供者：接收 candidate，返回 [0,1] 合规率；
+# 返回 None 表示"当前无法评估"（无形状、无实例图），此时该子项标记未评估，
+# 禁止用默认满分冒充合规（ADR-084 F2 / F7）。
+ShaclComplianceProvider = Callable[[Dict[str, Any]], Optional[float]]
+
 
 # ======================================================================
 # 6 项新子指标计算函数（从 006 ValidationEngine 移交）
@@ -85,19 +90,27 @@ def _eval_g1_fill_rate(candidate: Dict[str, Any]) -> Dict[str, Any]:
     评分：score = fill_rate（直接使用预计算值）
     失败动作：fill_rate < 0.5 → WARN，标记 needs_review（-0.10）
 
-    若 candidate 无 fill_rate 字段（非 006 移交场景），默认 1.0 + INFO reason。
+    若 candidate 无 fill_rate 字段或值非法（非 006 移交场景），标记
+    ``evaluated=False`` 且 score=0.0：该子项不参与 gate1 均分，禁止以占位满分
+    抬高 gate 分数（ADR-084 F2）。
     """
-    fill_rate = _safe_float(
-        candidate.get("fill_rate"),
-        default=1.0,
-        clamp_01=True,
-    )
-    has_field = "fill_rate" in candidate
-    if not has_field:
+    raw = candidate.get("fill_rate")
+    if raw is None:
         return _mk(
             submetric="g1_fill_rate",
-            score=1.0,
-            reason="无 fill_rate 数据（非 006 移交场景），默认通过",
+            score=0.0,
+            evaluated=False,
+            reason="[未评估] 缺少 fill_rate 数据（非 006 移交场景）",
+            rule_name=f"{_RULE_PREFIX}_g1_8_fill_rate",
+            threshold=G1_8_FILL_RATE_THRESHOLD,
+        )
+    fill_rate = _safe_float(raw, default=None, clamp_01=True)
+    if fill_rate is None:
+        return _mk(
+            submetric="g1_fill_rate",
+            score=0.0,
+            evaluated=False,
+            reason=f"[未评估] fill_rate 非数值: {raw!r}",
             rule_name=f"{_RULE_PREFIX}_g1_8_fill_rate",
             threshold=G1_8_FILL_RATE_THRESHOLD,
         )
@@ -122,19 +135,26 @@ def _eval_g1_empty_rate(candidate: Dict[str, Any]) -> Dict[str, Any]:
     评分：score = 1.0 - empty_rate（反转：空值率越低分数越高）
     失败动作：empty_rate > 0.3 → WARN，标记 needs_review（-0.08）
 
-    若 candidate 无 empty_rate 字段，默认 0.0 + INFO reason（视为无空值）。
+    若 candidate 无 empty_rate 字段或值非法，标记 ``evaluated=False`` 且
+    score=0.0（不参与 gate1 均分）。
     """
-    empty_rate = _safe_float(
-        candidate.get("empty_rate"),
-        default=0.0,
-        clamp_01=True,
-    )
-    has_field = "empty_rate" in candidate
-    if not has_field:
+    raw = candidate.get("empty_rate")
+    if raw is None:
         return _mk(
             submetric="g1_empty_rate",
-            score=1.0,
-            reason="无 empty_rate 数据（非 006 移交场景），默认通过",
+            score=0.0,
+            evaluated=False,
+            reason="[未评估] 缺少 empty_rate 数据（非 006 移交场景）",
+            rule_name=f"{_RULE_PREFIX}_g1_9_empty_rate",
+            threshold=G1_9_EMPTY_RATE_THRESHOLD,
+        )
+    empty_rate = _safe_float(raw, default=None, clamp_01=True)
+    if empty_rate is None:
+        return _mk(
+            submetric="g1_empty_rate",
+            score=0.0,
+            evaluated=False,
+            reason=f"[未评估] empty_rate 非数值: {raw!r}",
             rule_name=f"{_RULE_PREFIX}_g1_9_empty_rate",
             threshold=G1_9_EMPTY_RATE_THRESHOLD,
         )
@@ -160,19 +180,26 @@ def _eval_g1_orphan_ratio(candidate: Dict[str, Any]) -> Dict[str, Any]:
     评分：score = 1.0 - orphan_ratio（反转：孤儿率越低分数越高）
     失败动作：orphan_ratio > 0.3 → WARN，标记 needs_review（-0.05）
 
-    若 candidate 无 orphan_ratio 字段，默认 0.0 + INFO reason（视为无孤儿）。
+    若 candidate 无 orphan_ratio 字段或值非法，标记 ``evaluated=False`` 且
+    score=0.0（不参与 gate1 均分）。
     """
-    orphan_ratio = _safe_float(
-        candidate.get("orphan_ratio"),
-        default=0.0,
-        clamp_01=True,
-    )
-    has_field = "orphan_ratio" in candidate
-    if not has_field:
+    raw = candidate.get("orphan_ratio")
+    if raw is None:
         return _mk(
             submetric="g1_orphan_ratio",
-            score=1.0,
-            reason="无 orphan_ratio 数据（非 006 移交场景），默认通过",
+            score=0.0,
+            evaluated=False,
+            reason="[未评估] 缺少 orphan_ratio 数据（非 006 移交场景）",
+            rule_name=f"{_RULE_PREFIX}_g1_10_orphan_ratio",
+            threshold=G1_10_ORPHAN_RATIO_THRESHOLD,
+        )
+    orphan_ratio = _safe_float(raw, default=None, clamp_01=True)
+    if orphan_ratio is None:
+        return _mk(
+            submetric="g1_orphan_ratio",
+            score=0.0,
+            evaluated=False,
+            reason=f"[未评估] orphan_ratio 非数值: {raw!r}",
             rule_name=f"{_RULE_PREFIX}_g1_10_orphan_ratio",
             threshold=G1_10_ORPHAN_RATIO_THRESHOLD,
         )
@@ -199,26 +226,41 @@ def _eval_g2_dangling_relations(candidate: Dict[str, Any]) -> Dict[str, Any]:
     评分：无悬空 → 1.0；存在悬空 → 0.0
     失败动作：存在悬空边 → WARN，列出悬空边（-0.15）
 
-    若 candidate 无 dangling_relations 字段，默认空列表 + INFO reason。
+    若 candidate 无 dangling_relations 字段或值不可解析，标记 ``evaluated=False``
+    （不参与 gate2 均分），禁止把"没数据"当成"没有悬空关系"。
     """
     raw = candidate.get("dangling_relations")
     if raw is None:
         return _mk(
             submetric="g2_dangling_relations",
-            score=1.0,
-            reason="无 dangling_relations 数据（非 006 移交场景），默认通过",
+            score=0.0,
+            evaluated=False,
+            reason="[未评估] 缺少 dangling_relations 数据（非 006 移交场景）",
             rule_name=f"{_RULE_PREFIX}_g2_5_dangling_relations",
             threshold=None,
         )
     if isinstance(raw, str):
-        # JSON 字符串容错
         import json as _json
         try:
             raw = _json.loads(raw)
         except Exception:
-            raw = []
+            return _mk(
+                submetric="g2_dangling_relations",
+                score=0.0,
+                evaluated=False,
+                reason=f"[未评估] dangling_relations 非法 JSON: {raw!r}",
+                rule_name=f"{_RULE_PREFIX}_g2_5_dangling_relations",
+                threshold=None,
+            )
     if not isinstance(raw, (list, tuple)):
-        raw = []
+        return _mk(
+            submetric="g2_dangling_relations",
+            score=0.0,
+            evaluated=False,
+            reason=f"[未评估] dangling_relations 类型非法: {type(raw).__name__}",
+            rule_name=f"{_RULE_PREFIX}_g2_5_dangling_relations",
+            threshold=None,
+        )
     dangling_count = len(raw)
     ok = dangling_count == 0
     return _mk(
@@ -242,14 +284,15 @@ def _eval_g2_invalid_action_targets(candidate: Dict[str, Any]) -> Dict[str, Any]
     评分：无无效目标 → 1.0；存在无效目标 → 0.0
     失败动作：存在无效目标 → WARN，列出无效目标（-0.10）
 
-    若 candidate 无 invalid_action_targets 字段，默认空列表 + INFO reason。
+    若 candidate 无 invalid_action_targets 字段或值不可解析，标记 ``evaluated=False``。
     """
     raw = candidate.get("invalid_action_targets")
     if raw is None:
         return _mk(
             submetric="g2_invalid_action_targets",
-            score=1.0,
-            reason="无 invalid_action_targets 数据（非 006 移交场景），默认通过",
+            score=0.0,
+            evaluated=False,
+            reason="[未评估] 缺少 invalid_action_targets 数据（非 006 移交场景）",
             rule_name=f"{_RULE_PREFIX}_g2_6_invalid_action_targets",
             threshold=None,
         )
@@ -258,9 +301,23 @@ def _eval_g2_invalid_action_targets(candidate: Dict[str, Any]) -> Dict[str, Any]
         try:
             raw = _json.loads(raw)
         except Exception:
-            raw = []
+            return _mk(
+                submetric="g2_invalid_action_targets",
+                score=0.0,
+                evaluated=False,
+                reason=f"[未评估] invalid_action_targets 非法 JSON: {raw!r}",
+                rule_name=f"{_RULE_PREFIX}_g2_6_invalid_action_targets",
+                threshold=None,
+            )
     if not isinstance(raw, (list, tuple)):
-        raw = []
+        return _mk(
+            submetric="g2_invalid_action_targets",
+            score=0.0,
+            evaluated=False,
+            reason=f"[未评估] invalid_action_targets 类型非法: {type(raw).__name__}",
+            rule_name=f"{_RULE_PREFIX}_g2_6_invalid_action_targets",
+            threshold=None,
+        )
     invalid_count = len(raw)
     ok = invalid_count == 0
     return _mk(
@@ -284,14 +341,15 @@ def _eval_g2_invalid_rule_references(candidate: Dict[str, Any]) -> Dict[str, Any
     评分：无无效引用 → 1.0；存在无效引用 → 0.0
     失败动作：存在无效引用 → WARN，列出无效引用（-0.10）
 
-    若 candidate 无 invalid_rule_references 字段，默认空列表 + INFO reason。
+    若 candidate 无 invalid_rule_references 字段或值不可解析，标记 ``evaluated=False``。
     """
     raw = candidate.get("invalid_rule_references")
     if raw is None:
         return _mk(
             submetric="g2_invalid_rule_references",
-            score=1.0,
-            reason="无 invalid_rule_references 数据（非 006 移交场景），默认通过",
+            score=0.0,
+            evaluated=False,
+            reason="[未评估] 缺少 invalid_rule_references 数据（非 006 移交场景）",
             rule_name=f"{_RULE_PREFIX}_g2_7_invalid_rule_references",
             threshold=None,
         )
@@ -300,9 +358,23 @@ def _eval_g2_invalid_rule_references(candidate: Dict[str, Any]) -> Dict[str, Any
         try:
             raw = _json.loads(raw)
         except Exception:
-            raw = []
+            return _mk(
+                submetric="g2_invalid_rule_references",
+                score=0.0,
+                evaluated=False,
+                reason=f"[未评估] invalid_rule_references 非法 JSON: {raw!r}",
+                rule_name=f"{_RULE_PREFIX}_g2_7_invalid_rule_references",
+                threshold=None,
+            )
     if not isinstance(raw, (list, tuple)):
-        raw = []
+        return _mk(
+            submetric="g2_invalid_rule_references",
+            score=0.0,
+            evaluated=False,
+            reason=f"[未评估] invalid_rule_references 类型非法: {type(raw).__name__}",
+            rule_name=f"{_RULE_PREFIX}_g2_7_invalid_rule_references",
+            threshold=None,
+        )
     invalid_count = len(raw)
     ok = invalid_count == 0
     return _mk(
@@ -318,29 +390,62 @@ def _eval_g2_invalid_rule_references(candidate: Dict[str, Any]) -> Dict[str, Any
     )
 
 
-def _eval_g2_shacl_compliance(candidate: Dict[str, Any]) -> Dict[str, Any]:
+def _eval_g2_shacl_compliance(
+    candidate: Dict[str, Any],
+    provider: Optional[ShaclComplianceProvider] = None,
+) -> Dict[str, Any]:
     """G2.8 [ADR-077 §5]: SHACL 合规率 shacl_compliance ≥ 0.85。
 
-    输入：candidate.shacl_compliance（float 0-1，由 SHACL 校验器计算通过率）
-    评分：score = shacl_compliance（直接使用预计算值）
-    失败动作：shacl_compliance < 0.85 → WARN，标记 needs_review（-0.10）
-
-    若 candidate 无 shacl_compliance 字段（未接入 SHACL 校验），默认 1.0 + INFO reason。
+    取值优先级：
+      1. candidate["shacl_compliance"]（调用方预计算）
+      2. provider(candidate)（注入的 SHACL 校验器）
+    两者都拿不到 → ``evaluated=False`` + score=0.0，**不再默认通过**。
     """
-    shacl_compliance = _safe_float(
-        candidate.get("shacl_compliance"),
-        default=1.0,
-        clamp_01=True,
-    )
-    has_field = "shacl_compliance" in candidate
-    if not has_field:
+    rule_name = f"{_RULE_PREFIX}_g2_8_shacl_compliance"
+
+    raw = candidate.get("shacl_compliance")
+    if raw is not None:
+        shacl_compliance = _safe_float(raw, default=None, clamp_01=True)
+        if shacl_compliance is None:
+            return _mk(
+                submetric="g2_shacl_compliance",
+                score=0.0,
+                evaluated=False,
+                reason=f"[未评估] shacl_compliance 非数值: {raw!r}",
+                rule_name=rule_name,
+                threshold=G2_8_SHACL_COMPLIANCE_THRESHOLD,
+            )
+    elif provider is not None:
+        computed = provider(candidate)
+        if computed is None:
+            return _mk(
+                submetric="g2_shacl_compliance",
+                score=0.0,
+                evaluated=False,
+                reason="[未评估] SHACL provider 无法产出合规率（无形状或无实例图）",
+                rule_name=rule_name,
+                threshold=G2_8_SHACL_COMPLIANCE_THRESHOLD,
+            )
+        shacl_compliance = _safe_float(computed, default=None, clamp_01=True)
+        if shacl_compliance is None:
+            return _mk(
+                submetric="g2_shacl_compliance",
+                score=0.0,
+                evaluated=False,
+                reason=f"[未评估] SHACL provider 返回非数值: {computed!r}",
+                rule_name=rule_name,
+                threshold=G2_8_SHACL_COMPLIANCE_THRESHOLD,
+            )
+    else:
         return _mk(
             submetric="g2_shacl_compliance",
-            score=1.0,
-            reason="无 shacl_compliance 数据（未接入 SHACL 校验），默认通过",
-            rule_name=f"{_RULE_PREFIX}_g2_8_shacl_compliance",
+            score=0.0,
+            evaluated=False,
+            reason="[未评估] 未接入 SHACL 校验（无 shacl_compliance 字段且未注入 provider）",
+            rule_name=rule_name,
             threshold=G2_8_SHACL_COMPLIANCE_THRESHOLD,
         )
+
     ok = shacl_compliance >= G2_8_SHACL_COMPLIANCE_THRESHOLD
     return _mk(
         submetric="g2_shacl_compliance",
@@ -350,7 +455,7 @@ def _eval_g2_shacl_compliance(candidate: Dict[str, Any]) -> Dict[str, Any]:
             if ok
             else f"shacl_compliance={shacl_compliance:.3f} < {G2_8_SHACL_COMPLIANCE_THRESHOLD}，标记 needs_review（-0.10）"
         ),
-        rule_name=f"{_RULE_PREFIX}_g2_8_shacl_compliance",
+        rule_name=rule_name,
         threshold=G2_8_SHACL_COMPLIANCE_THRESHOLD,
     )
 
@@ -388,14 +493,18 @@ class QualityCalculator:
     def __init__(
         self,
         base_evaluator: Optional[QualityEvaluator] = None,
+        shacl_provider: Optional[ShaclComplianceProvider] = None,
     ) -> None:
         """初始化 QualityCalculator。
 
         Args:
             base_evaluator: 可选的 QualityEvaluator 实例（用于计算 16 原有子指标）。
                 若为 None，自动创建默认 QualityEvaluator。
+            shacl_provider: 可选的 SHACL 合规率提供者。返回 None 表示无法评估，
+                该子项将标记 ``evaluated=False``（不计入均分），不会默认满分。
         """
         self.base = base_evaluator or QualityEvaluator()
+        self.shacl_provider = shacl_provider
 
     # ------------------------------------------------------------------
     def evaluate_candidate(
@@ -447,7 +556,7 @@ class QualityCalculator:
         g2_5 = _eval_g2_dangling_relations(candidate)
         g2_6 = _eval_g2_invalid_action_targets(candidate)
         g2_7 = _eval_g2_invalid_rule_references(candidate)
-        g2_8 = _eval_g2_shacl_compliance(candidate)
+        g2_8 = _eval_g2_shacl_compliance(candidate, self.shacl_provider)
 
         # Step 3: 合并 gate1_details (7→10) / gate2_details (4→8)
         gate1_details: List[Dict[str, Any]] = list(
@@ -464,6 +573,19 @@ class QualityCalculator:
         gate1_score = self._compute_gate1_score_22(gate1_details)
         gate2_score = self._compute_gate2_score_22(gate2_details)
         gate3_score = float(base_report.get("gate3_score") or 0.0)
+
+        # Step 4.1: 评估完整度（ADR-084 F2）
+        # 未评估子项已不计入 gate 均分；这里把"缺了什么"显式写进报告，
+        # 避免上游只看到一个小数就当成"全部评估过"。
+        all_details = gate1_details + gate2_details + gate3_details
+        not_evaluated = [
+            str(d.get("submetric") or "")
+            for d in all_details
+            if not d.get("evaluated", True)
+        ]
+        evaluation_complete = bool(all_details) and all(
+            d.get("evaluated", True) for d in all_details
+        )
 
         # Step 5: 重新计算 total_score + tier
         total_score = round(
@@ -484,6 +606,8 @@ class QualityCalculator:
             "gate3_details": gate3_details,
             "total_score": total_score,
             "tier": tier,
+            "evaluation_complete": evaluation_complete,
+            "not_evaluated_submetrics": not_evaluated,
             "created_at": base_report.get("created_at"),
         }
 
@@ -516,41 +640,44 @@ class QualityCalculator:
     def _compute_gate1_score_22(
         self, gate1_details: List[Dict[str, Any]]
     ) -> float:
-        """计算 G1 × 10 子项加权平均分。
+        """计算 G1 × 10 子项加权平均分（仅统计已评估子项）。
 
-        权重 G1_SUB_WEIGHTS_22 = (5,1,5,1,1,1,1,1,1,1)
-        G1.1/G1.3 FAIL 类（×5），其余 WARN/INFO 类（×1）。
-
-        若 details 不足 10 项，缺失项按 0.0 处理（保守降级）。
+        权重 G1_SUB_WEIGHTS_22 = (5,1,5,1,1,1,1,1,1,1)。
+        ``evaluated=False`` 的子项同时从分子和分母剔除——既不算 0 分拉低，
+        也不算 1 分抬高（ADR-084 F2）。全部未评估 → 0.0（诚实归零）。
         """
         if not gate1_details:
             return 0.0
-        # 取前 10 项（防御性：避免传入过多项导致权重错位）
+        # 取前 10 项（防御性：避免传入过多项导致权重错位）；权重按原始下标取，
+        # 保证剔除未评估项后权重不错位。
         details = gate1_details[:10]
-        scores = [float(d.get("score") or 0.0) for d in details]
-        # 补齐到 10 项（缺失项默认 0.0）
-        while len(scores) < 10:
-            scores.append(0.0)
-        weights = self.g1_sub_weights_22
-        total_w = sum(weights)
+        pairs = [
+            (self.g1_sub_weights_22[i], float(d.get("score") or 0.0))
+            for i, d in enumerate(details)
+            if d.get("evaluated", True)
+        ]
+        total_w = sum(w for w, _ in pairs)
         if total_w <= 0:
             return 0.0
-        numer = sum(w * s for w, s in zip(weights, scores))
-        return numer / total_w
+        return sum(w * s for w, s in pairs) / total_w
 
     def _compute_gate2_score_22(
         self, gate2_details: List[Dict[str, Any]]
     ) -> float:
-        """计算 G2 × 8 子项简单平均分。
+        """计算 G2 × 8 子项简单平均分（仅统计已评估子项）。
 
-        G2.1-G2.8 各 1.0 权重（硬门槛 G2.1/G2.3 命中即 0.0 → 拉低平均；
-        G2.8 shacl_compliance 为 ADR-077 §5 新增）。
+        ``evaluated=False`` 的子项从分母剔除；全部未评估 → 0.0。
         """
         if not gate2_details:
             return 0.0
-        details = gate2_details[:8]
-        scores = [float(d.get("score") or 0.0) for d in details]
-        return sum(scores) / max(1, len(scores))
+        scored = [
+            float(d.get("score") or 0.0)
+            for d in gate2_details[:8]
+            if d.get("evaluated", True)
+        ]
+        if not scored:
+            return 0.0
+        return sum(scored) / len(scored)
 
 
 # ======================================================================
