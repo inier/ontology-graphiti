@@ -319,6 +319,11 @@ app.add_middleware(XSSMiddleware)
 
 register_exception_handler(app)
 
+# SPEC-v2 §5 统一错误契约（{error_code, message, detail, trace_id}）：
+# ApiError 由 biz service 抛出，此处只做处理器装配（AC-56 禁止模糊错误文案）。
+from odap.infra.middleware.api_error_handler import register_api_error_handler
+register_api_error_handler(app)
+
 # ADR-064: OpenTelemetry FastAPI auto-instrument + 自定义追踪中间件
 try:
     from opentelemetry.instrumentation.fastapi import FastAPIInstrumentor

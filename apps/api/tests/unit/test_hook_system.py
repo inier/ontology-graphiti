@@ -527,3 +527,56 @@ class TestHookMonitor:
     def test_get_metrics_not_found(self, monitor):
         result = monitor.get_metrics("nonexistent")
         assert result is None
+
+
+class TestHookServiceDelete:
+    """DELETE /api/hooks/{hook_id} 的真实语义回归。
+
+    历史缺陷：路由只调 get_hook 做存在性校验就返回 success，从未调用
+    manager.delete_hook —— 前端「删除」按钮看起来成功，Hook 仍在列表里。
+    这里锁定 service 层真的把 Hook 从管理器移除。
+    """
+
+    @pytest.fixture
+    def service(self):
+        from odap.biz.integration.hook_system.services.hook_service import HookService
+
+        return HookService()
+
+    def test_delete_removes_hook_from_manager(self, service):
+        created = service.register_hook(
+            name="disposable_hook",
+            hook_type=HookType.POST_EXECUTE,
+            script="output = 'ok'",
+        )
+        hook_id = created["hook_id"]
+        assert service.get_hook(hook_id).get("status") != "error"
+
+        result = service.delete_hook(hook_id)
+
+        assert result["status"] == "success"
+        assert result["deleted"] is True
+        # 关键断言：删除后真的查不到，而不是"报告成功但还在"
+        assert service.get_hook(hook_id).get("status") == "error"
+        assert all(h["hook_id"] != hook_id for h in service.list_hooks({}, 1, 100)["hooks"])
+
+    def test_delete_unknown_hook_reports_error(self, service):
+        result = service.delete_hook("no-such-hook")
+
+        assert result["status"] == "error"
+        assert "not found" in result["message"].lower()
+
+    def test_list_hooks_exposes_enabled_derived_from_status(self, service):
+        active = service.register_hook(
+            name="active_hook", hook_type=HookType.PRE_EXECUTE, script="output = 1"
+        )
+        inactive = service.register_hook(
+            name="inactive_hook", hook_type=HookType.PRE_EXECUTE, script="output = 2"
+        )
+        service.set_enabled(inactive["hook_id"], False)
+
+        rows = {h["hook_id"]: h for h in service.list_hooks({}, 1, 100)["hooks"]}
+
+        # 后端没有 enabled 字段，列表接口派生出来，前端开关才不会把 undefined 当"已启用"
+        assert rows[active["hook_id"]]["enabled"] is True
+        assert rows[inactive["hook_id"]]["enabled"] is False

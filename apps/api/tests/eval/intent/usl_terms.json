@@ -1,0 +1,50 @@
+{
+  "_comment": "评测用 USL 术语快照（仓储/零售/供应商域）。评测必须可复现，故不依赖本地 usl.db；生产环境的真源仍是 SQLiteUslStorage。semantic_type 决定 IntentRouter 的意图映射，synonyms/near_synonyms 参与 L1 精确匹配。",
+  "version": "2026-10-17",
+  "terms": [
+    {"canonical": "退货率", "semantic_type": "对象类型", "domain_id": "dom-aftersales", "synonyms": ["退货比例", "退货占比"], "near_synonyms": ["退款率"]},
+    {"canonical": "库存周转率", "semantic_type": "对象类型", "domain_id": "dom-inventory", "synonyms": ["存货周转率", "周转次数"]},
+    {"canonical": "履约率", "semantic_type": "对象类型", "domain_id": "dom-supply", "synonyms": ["按时交付率", "交付达成率"]},
+    {"canonical": "客单价", "semantic_type": "对象类型", "domain_id": "dom-sales", "synonyms": ["平均订单金额", "单均金额"]},
+    {"canonical": "缺货率", "semantic_type": "对象类型", "domain_id": "dom-inventory", "synonyms": ["断货率"]},
+    {"canonical": "毛利率", "semantic_type": "对象类型", "domain_id": "dom-finance", "synonyms": ["毛利水平"]},
+    {"canonical": "库存量", "semantic_type": "对象类型", "domain_id": "dom-inventory", "synonyms": ["在库数量"]},
+    {"canonical": "销售额", "semantic_type": "对象类型", "domain_id": "dom-sales", "synonyms": ["营收额"]},
+
+    {"canonical": "订单", "semantic_type": "对象类型", "domain_id": "dom-sales", "synonyms": ["交易单"]},
+    {"canonical": "退货单", "semantic_type": "对象类型", "domain_id": "dom-aftersales", "synonyms": ["退货申请"]},
+    {"canonical": "供应商", "semantic_type": "对象类型", "domain_id": "dom-supply", "synonyms": ["供货商", "厂商"]},
+    {"canonical": "品类", "semantic_type": "对象类型", "domain_id": "dom-merchandise", "synonyms": ["类目", "商品类别"]},
+    {"canonical": "仓库", "semantic_type": "对象类型", "domain_id": "dom-logistics", "synonyms": ["库房"]},
+    {"canonical": "门店", "semantic_type": "对象类型", "domain_id": "dom-retail", "synonyms": ["实体店"]},
+    {"canonical": "库存", "semantic_type": "对象类型", "domain_id": "dom-inventory", "synonyms": []},
+    {"canonical": "采购单", "semantic_type": "对象类型", "domain_id": "dom-procurement", "synonyms": ["采购订单"]},
+    {"canonical": "促销活动", "semantic_type": "对象类型", "domain_id": "dom-marketing", "synonyms": ["促销"]},
+
+    {"canonical": "下单方", "semantic_type": "关系类型", "domain_id": "dom-sales", "synonyms": ["购买方"]},
+    {"canonical": "供货方", "semantic_type": "关系类型", "domain_id": "dom-supply", "synonyms": []},
+    {"canonical": "所属品类", "semantic_type": "关系类型", "domain_id": "dom-merchandise", "synonyms": []},
+
+    {"canonical": "退货审批", "semantic_type": "过程类型", "domain_id": "dom-aftersales", "synonyms": ["退货审核"]},
+    {"canonical": "入库上架", "semantic_type": "过程类型", "domain_id": "dom-logistics", "synonyms": []},
+    {"canonical": "出库拣货", "semantic_type": "过程类型", "domain_id": "dom-logistics", "synonyms": ["拣货"]},
+    {"canonical": "结算对账", "semantic_type": "过程类型", "domain_id": "dom-finance", "synonyms": ["对账"]},
+
+    {"canonical": "退货时限规则", "semantic_type": "规则类型", "domain_id": "dom-aftersales", "synonyms": []},
+    {"canonical": "供应商准入规则", "semantic_type": "规则类型", "domain_id": "dom-supply", "synonyms": []},
+    {"canonical": "库存预警规则", "semantic_type": "规则类型", "domain_id": "dom-inventory", "synonyms": []},
+
+    {"canonical": "单价", "semantic_type": "属性", "domain_id": "dom-sales", "synonyms": ["商品单价"]},
+    {"canonical": "安全库存", "semantic_type": "属性", "domain_id": "dom-inventory", "synonyms": []},
+    {"canonical": "供应商等级", "semantic_type": "属性", "domain_id": "dom-supply", "synonyms": []},
+    {"canonical": "订单状态", "semantic_type": "属性", "domain_id": "dom-sales", "synonyms": []},
+
+    {"canonical": "删除订单", "semantic_type": "动作类型", "domain_id": "dom-sales", "synonyms": ["清除订单"]},
+    {"canonical": "导出报表", "semantic_type": "动作类型", "domain_id": "dom-bi", "synonyms": ["导出数据"]},
+    {"canonical": "冻结供应商", "semantic_type": "动作类型", "domain_id": "dom-supply", "synonyms": []},
+    {"canonical": "调整安全库存", "semantic_type": "动作类型", "domain_id": "dom-inventory", "synonyms": []},
+    {"canonical": "下发补货单", "semantic_type": "动作类型", "domain_id": "dom-inventory", "synonyms": ["生成补货单"]},
+
+    {"canonical": "已停用旧称", "semantic_type": "对象类型", "domain_id": "dom-legacy", "stoplist_flag": true, "synonyms": ["老系统叫法"]}
+  ]
+}

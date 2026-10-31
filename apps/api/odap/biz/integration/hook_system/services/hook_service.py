@@ -3,7 +3,7 @@
 from typing import Dict, Any, List
 from ..impl.hook_manager import HookManager
 from ..impl.sandbox import Sandbox
-from ..models.hook import HookType
+from ..models.hook import HookType, HookStatus
 
 
 class HookService:
@@ -59,6 +59,17 @@ class HookService:
         except ValueError as e:
             return {"status": "error", "message": str(e)}
 
+    def delete_hook(self, hook_id: str) -> Dict[str, Any]:
+        """注销 Hook（真正从管理器删除）。
+
+        与 set_enabled 同属 P0-C4 整改：此前 DELETE /api/hooks/{hook_id}
+        只做存在性校验就返回 success，从未调用 manager.delete_hook，是静默 no-op，
+        前端「删除」按钮看起来成功但 Hook 仍在。本方法接通真实删除。
+        """
+        if self.manager.delete_hook(hook_id):
+            return {"status": "success", "hook_id": hook_id, "deleted": True}
+        return {"status": "error", "message": f"Hook {hook_id} not found"}
+
     def set_enabled(self, hook_id: str, enabled: bool) -> Dict[str, Any]:
         """启用/禁用 Hook（P0-C4 整改）。
 
@@ -88,7 +99,10 @@ class HookService:
                 "hook_id": hook.id,
                 "name": hook.name,
                 "hook_type": hook.hook_type.value,
-                "status": hook.status.value
+                "status": hook.status.value,
+                # 前端开关据此渲染：HookStatus 只有 active/inactive/error，
+                # 没有 enabled 字段。派生出来避免前端把 undefined 当成"已启用"。
+                "enabled": hook.status == HookStatus.ACTIVE,
             })
 
         return {

@@ -1,0 +1,4718 @@
+{
+  "_comment": "由 build_cases.py 确定性生成，勿手改；改动请改生成器后重跑。",
+  "version": "2026-10-17",
+  "usl_snapshot": "usl_terms.json",
+  "counts": {
+    "synonym": 210,
+    "cross_domain": 110,
+    "composite": 110,
+    "distractor": 110,
+    "total": 540
+  },
+  "cases": [
+    {
+      "id": "syn-0001",
+      "category": "synonym",
+      "query": "上季度华东区退货率是多少",
+      "expected_intent": "metric_query",
+      "expected_terms": [
+        "退货率"
+      ]
+    },
+    {
+      "id": "syn-0002",
+      "category": "synonym",
+      "query": "帮我查一下华东区上季度的退货率",
+      "expected_intent": "metric_query",
+      "expected_terms": [
+        "退货率"
+      ]
+    },
+    {
+      "id": "syn-0003",
+      "category": "synonym",
+      "query": "上季度退货率怎么样",
+      "expected_intent": "metric_query",
+      "expected_terms": [
+        "退货率"
+      ]
+    },
+    {
+      "id": "syn-0004",
+      "category": "synonym",
+      "query": "看一下上季度退货率的变化趋势",
+      "expected_intent": "metric_query",
+      "expected_terms": [
+        "退货率"
+      ]
+    },
+    {
+      "id": "syn-0005",
+      "category": "synonym",
+      "query": "线上渠道上季度退货率如何",
+      "expected_intent": "metric_query",
+      "expected_terms": [
+        "退货率"
+      ]
+    },
+    {
+      "id": "syn-0006",
+      "category": "synonym",
+      "query": "上季度华东区退货率同比情况",
+      "expected_intent": "metric_query",
+      "expected_terms": [
+        "退货率"
+      ]
+    },
+    {
+      "id": "syn-0007",
+      "category": "synonym",
+      "query": "退货率在上季度的表现如何",
+      "expected_intent": "metric_query",
+      "expected_terms": [
+        "退货率"
+      ]
+    },
+    {
+      "id": "syn-0008",
+      "category": "synonym",
+      "query": "统计上季度华东区的退货率",
+      "expected_intent": "metric_query",
+      "expected_terms": [
+        "退货率"
+      ]
+    },
+    {
+      "id": "syn-0009",
+      "category": "synonym",
+      "query": "我要看上季度退货率",
+      "expected_intent": "metric_query",
+      "expected_terms": [
+        "退货率"
+      ]
+    },
+    {
+      "id": "syn-0010",
+      "category": "synonym",
+      "query": "上季度华东区退货率环比上升了吗",
+      "expected_intent": "metric_query",
+      "expected_terms": [
+        "退货率"
+      ]
+    },
+    {
+      "id": "syn-0011",
+      "category": "synonym",
+      "query": "帮我算下上季度退货率",
+      "expected_intent": "metric_query",
+      "expected_terms": [
+        "退货率"
+      ]
+    },
+    {
+      "id": "syn-0012",
+      "category": "synonym",
+      "query": "上季度线上退货率排名前十的是哪些",
+      "expected_intent": "metric_query",
+      "expected_terms": [
+        "退货率"
+      ]
+    },
+    {
+      "id": "syn-0013",
+      "category": "synonym",
+      "query": "上季度华东区退货比例是多少",
+      "expected_intent": "metric_query",
+      "expected_terms": [
+        "退货比例"
+      ]
+    },
+    {
+      "id": "syn-0014",
+      "category": "synonym",
+      "query": "帮我查一下华东区上季度的退货比例",
+      "expected_intent": "metric_query",
+      "expected_terms": [
+        "退货比例"
+      ]
+    },
+    {
+      "id": "syn-0015",
+      "category": "synonym",
+      "query": "上季度退货比例怎么样",
+      "expected_intent": "metric_query",
+      "expected_terms": [
+        "退货比例"
+      ]
+    },
+    {
+      "id": "syn-0016",
+      "category": "synonym",
+      "query": "看一下上季度退货比例的变化趋势",
+      "expected_intent": "metric_query",
+      "expected_terms": [
+        "退货比例"
+      ]
+    },
+    {
+      "id": "syn-0017",
+      "category": "synonym",
+      "query": "线上渠道上季度退货比例如何",
+      "expected_intent": "metric_query",
+      "expected_terms": [
+        "退货比例"
+      ]
+    },
+    {
+      "id": "syn-0018",
+      "category": "synonym",
+      "query": "上季度华东区退货比例同比情况",
+      "expected_intent": "metric_query",
+      "expected_terms": [
+        "退货比例"
+      ]
+    },
+    {
+      "id": "syn-0019",
+      "category": "synonym",
+      "query": "退货比例在上季度的表现如何",
+      "expected_intent": "metric_query",
+      "expected_terms": [
+        "退货比例"
+      ]
+    },
+    {
+      "id": "syn-0020",
+      "category": "synonym",
+      "query": "统计上季度华东区的退货比例",
+      "expected_intent": "metric_query",
+      "expected_terms": [
+        "退货比例"
+      ]
+    },
+    {
+      "id": "syn-0021",
+      "category": "synonym",
+      "query": "我要看上季度退货比例",
+      "expected_intent": "metric_query",
+      "expected_terms": [
+        "退货比例"
+      ]
+    },
+    {
+      "id": "syn-0022",
+      "category": "synonym",
+      "query": "上季度华东区退货比例环比上升了吗",
+      "expected_intent": "metric_query",
+      "expected_terms": [
+        "退货比例"
+      ]
+    },
+    {
+      "id": "syn-0023",
+      "category": "synonym",
+      "query": "帮我算下上季度退货比例",
+      "expected_intent": "metric_query",
+      "expected_terms": [
+        "退货比例"
+      ]
+    },
+    {
+      "id": "syn-0024",
+      "category": "synonym",
+      "query": "上季度线上退货比例排名前十的是哪些",
+      "expected_intent": "metric_query",
+      "expected_terms": [
+        "退货比例"
+      ]
+    },
+    {
+      "id": "syn-0025",
+      "category": "synonym",
+      "query": "上季度华东区退货占比是多少",
+      "expected_intent": "metric_query",
+      "expected_terms": [
+        "退货占比"
+      ]
+    },
+    {
+      "id": "syn-0026",
+      "category": "synonym",
+      "query": "帮我查一下华东区上季度的退货占比",
+      "expected_intent": "metric_query",
+      "expected_terms": [
+        "退货占比"
+      ]
+    },
+    {
+      "id": "syn-0027",
+      "category": "synonym",
+      "query": "上季度退货占比怎么样",
+      "expected_intent": "metric_query",
+      "expected_terms": [
+        "退货占比"
+      ]
+    },
+    {
+      "id": "syn-0028",
+      "category": "synonym",
+      "query": "看一下上季度退货占比的变化趋势",
+      "expected_intent": "metric_query",
+      "expected_terms": [
+        "退货占比"
+      ]
+    },
+    {
+      "id": "syn-0029",
+      "category": "synonym",
+      "query": "线上渠道上季度退货占比如何",
+      "expected_intent": "metric_query",
+      "expected_terms": [
+        "退货占比"
+      ]
+    },
+    {
+      "id": "syn-0030",
+      "category": "synonym",
+      "query": "上季度华东区退货占比同比情况",
+      "expected_intent": "metric_query",
+      "expected_terms": [
+        "退货占比"
+      ]
+    },
+    {
+      "id": "syn-0031",
+      "category": "synonym",
+      "query": "退货占比在上季度的表现如何",
+      "expected_intent": "metric_query",
+      "expected_terms": [
+        "退货占比"
+      ]
+    },
+    {
+      "id": "syn-0032",
+      "category": "synonym",
+      "query": "统计上季度华东区的退货占比",
+      "expected_intent": "metric_query",
+      "expected_terms": [
+        "退货占比"
+      ]
+    },
+    {
+      "id": "syn-0033",
+      "category": "synonym",
+      "query": "我要看上季度退货占比",
+      "expected_intent": "metric_query",
+      "expected_terms": [
+        "退货占比"
+      ]
+    },
+    {
+      "id": "syn-0034",
+      "category": "synonym",
+      "query": "上季度华东区退货占比环比上升了吗",
+      "expected_intent": "metric_query",
+      "expected_terms": [
+        "退货占比"
+      ]
+    },
+    {
+      "id": "syn-0035",
+      "category": "synonym",
+      "query": "帮我算下上季度退货占比",
+      "expected_intent": "metric_query",
+      "expected_terms": [
+        "退货占比"
+      ]
+    },
+    {
+      "id": "syn-0036",
+      "category": "synonym",
+      "query": "上季度线上退货占比排名前十的是哪些",
+      "expected_intent": "metric_query",
+      "expected_terms": [
+        "退货占比"
+      ]
+    },
+    {
+      "id": "syn-0037",
+      "category": "synonym",
+      "query": "上季度华东区库存周转率是多少",
+      "expected_intent": "metric_query",
+      "expected_terms": [
+        "库存周转率"
+      ]
+    },
+    {
+      "id": "syn-0038",
+      "category": "synonym",
+      "query": "帮我查一下华东区上季度的库存周转率",
+      "expected_intent": "metric_query",
+      "expected_terms": [
+        "库存周转率"
+      ]
+    },
+    {
+      "id": "syn-0039",
+      "category": "synonym",
+      "query": "上季度库存周转率怎么样",
+      "expected_intent": "metric_query",
+      "expected_terms": [
+        "库存周转率"
+      ]
+    },
+    {
+      "id": "syn-0040",
+      "category": "synonym",
+      "query": "看一下上季度库存周转率的变化趋势",
+      "expected_intent": "metric_query",
+      "expected_terms": [
+        "库存周转率"
+      ]
+    },
+    {
+      "id": "syn-0041",
+      "category": "synonym",
+      "query": "线上渠道上季度库存周转率如何",
+      "expected_intent": "metric_query",
+      "expected_terms": [
+        "库存周转率"
+      ]
+    },
+    {
+      "id": "syn-0042",
+      "category": "synonym",
+      "query": "上季度华东区库存周转率同比情况",
+      "expected_intent": "metric_query",
+      "expected_terms": [
+        "库存周转率"
+      ]
+    },
+    {
+      "id": "syn-0043",
+      "category": "synonym",
+      "query": "库存周转率在上季度的表现如何",
+      "expected_intent": "metric_query",
+      "expected_terms": [
+        "库存周转率"
+      ]
+    },
+    {
+      "id": "syn-0044",
+      "category": "synonym",
+      "query": "统计上季度华东区的库存周转率",
+      "expected_intent": "metric_query",
+      "expected_terms": [
+        "库存周转率"
+      ]
+    },
+    {
+      "id": "syn-0045",
+      "category": "synonym",
+      "query": "我要看上季度库存周转率",
+      "expected_intent": "metric_query",
+      "expected_terms": [
+        "库存周转率"
+      ]
+    },
+    {
+      "id": "syn-0046",
+      "category": "synonym",
+      "query": "上季度华东区库存周转率环比上升了吗",
+      "expected_intent": "metric_query",
+      "expected_terms": [
+        "库存周转率"
+      ]
+    },
+    {
+      "id": "syn-0047",
+      "category": "synonym",
+      "query": "帮我算下上季度库存周转率",
+      "expected_intent": "metric_query",
+      "expected_terms": [
+        "库存周转率"
+      ]
+    },
+    {
+      "id": "syn-0048",
+      "category": "synonym",
+      "query": "上季度线上库存周转率排名前十的是哪些",
+      "expected_intent": "metric_query",
+      "expected_terms": [
+        "库存周转率"
+      ]
+    },
+    {
+      "id": "syn-0049",
+      "category": "synonym",
+      "query": "上季度华东区存货周转率是多少",
+      "expected_intent": "metric_query",
+      "expected_terms": [
+        "存货周转率"
+      ]
+    },
+    {
+      "id": "syn-0050",
+      "category": "synonym",
+      "query": "帮我查一下华东区上季度的存货周转率",
+      "expected_intent": "metric_query",
+      "expected_terms": [
+        "存货周转率"
+      ]
+    },
+    {
+      "id": "syn-0051",
+      "category": "synonym",
+      "query": "上季度存货周转率怎么样",
+      "expected_intent": "metric_query",
+      "expected_terms": [
+        "存货周转率"
+      ]
+    },
+    {
+      "id": "syn-0052",
+      "category": "synonym",
+      "query": "看一下上季度存货周转率的变化趋势",
+      "expected_intent": "metric_query",
+      "expected_terms": [
+        "存货周转率"
+      ]
+    },
+    {
+      "id": "syn-0053",
+      "category": "synonym",
+      "query": "线上渠道上季度存货周转率如何",
+      "expected_intent": "metric_query",
+      "expected_terms": [
+        "存货周转率"
+      ]
+    },
+    {
+      "id": "syn-0054",
+      "category": "synonym",
+      "query": "上季度华东区存货周转率同比情况",
+      "expected_intent": "metric_query",
+      "expected_terms": [
+        "存货周转率"
+      ]
+    },
+    {
+      "id": "syn-0055",
+      "category": "synonym",
+      "query": "存货周转率在上季度的表现如何",
+      "expected_intent": "metric_query",
+      "expected_terms": [
+        "存货周转率"
+      ]
+    },
+    {
+      "id": "syn-0056",
+      "category": "synonym",
+      "query": "统计上季度华东区的存货周转率",
+      "expected_intent": "metric_query",
+      "expected_terms": [
+        "存货周转率"
+      ]
+    },
+    {
+      "id": "syn-0057",
+      "category": "synonym",
+      "query": "我要看上季度存货周转率",
+      "expected_intent": "metric_query",
+      "expected_terms": [
+        "存货周转率"
+      ]
+    },
+    {
+      "id": "syn-0058",
+      "category": "synonym",
+      "query": "上季度华东区存货周转率环比上升了吗",
+      "expected_intent": "metric_query",
+      "expected_terms": [
+        "存货周转率"
+      ]
+    },
+    {
+      "id": "syn-0059",
+      "category": "synonym",
+      "query": "帮我算下上季度存货周转率",
+      "expected_intent": "metric_query",
+      "expected_terms": [
+        "存货周转率"
+      ]
+    },
+    {
+      "id": "syn-0060",
+      "category": "synonym",
+      "query": "上季度线上存货周转率排名前十的是哪些",
+      "expected_intent": "metric_query",
+      "expected_terms": [
+        "存货周转率"
+      ]
+    },
+    {
+      "id": "syn-0061",
+      "category": "synonym",
+      "query": "上季度华东区周转次数是多少",
+      "expected_intent": "metric_query",
+      "expected_terms": [
+        "周转次数"
+      ]
+    },
+    {
+      "id": "syn-0062",
+      "category": "synonym",
+      "query": "帮我查一下华东区上季度的周转次数",
+      "expected_intent": "metric_query",
+      "expected_terms": [
+        "周转次数"
+      ]
+    },
+    {
+      "id": "syn-0063",
+      "category": "synonym",
+      "query": "上季度周转次数怎么样",
+      "expected_intent": "metric_query",
+      "expected_terms": [
+        "周转次数"
+      ]
+    },
+    {
+      "id": "syn-0064",
+      "category": "synonym",
+      "query": "看一下上季度周转次数的变化趋势",
+      "expected_intent": "metric_query",
+      "expected_terms": [
+        "周转次数"
+      ]
+    },
+    {
+      "id": "syn-0065",
+      "category": "synonym",
+      "query": "线上渠道上季度周转次数如何",
+      "expected_intent": "metric_query",
+      "expected_terms": [
+        "周转次数"
+      ]
+    },
+    {
+      "id": "syn-0066",
+      "category": "synonym",
+      "query": "上季度华东区周转次数同比情况",
+      "expected_intent": "metric_query",
+      "expected_terms": [
+        "周转次数"
+      ]
+    },
+    {
+      "id": "syn-0067",
+      "category": "synonym",
+      "query": "周转次数在上季度的表现如何",
+      "expected_intent": "metric_query",
+      "expected_terms": [
+        "周转次数"
+      ]
+    },
+    {
+      "id": "syn-0068",
+      "category": "synonym",
+      "query": "统计上季度华东区的周转次数",
+      "expected_intent": "metric_query",
+      "expected_terms": [
+        "周转次数"
+      ]
+    },
+    {
+      "id": "syn-0069",
+      "category": "synonym",
+      "query": "我要看上季度周转次数",
+      "expected_intent": "metric_query",
+      "expected_terms": [
+        "周转次数"
+      ]
+    },
+    {
+      "id": "syn-0070",
+      "category": "synonym",
+      "query": "上季度华东区周转次数环比上升了吗",
+      "expected_intent": "metric_query",
+      "expected_terms": [
+        "周转次数"
+      ]
+    },
+    {
+      "id": "syn-0071",
+      "category": "synonym",
+      "query": "帮我算下上季度周转次数",
+      "expected_intent": "metric_query",
+      "expected_terms": [
+        "周转次数"
+      ]
+    },
+    {
+      "id": "syn-0072",
+      "category": "synonym",
+      "query": "上季度线上周转次数排名前十的是哪些",
+      "expected_intent": "metric_query",
+      "expected_terms": [
+        "周转次数"
+      ]
+    },
+    {
+      "id": "syn-0073",
+      "category": "synonym",
+      "query": "上季度华东区履约率是多少",
+      "expected_intent": "metric_query",
+      "expected_terms": [
+        "履约率"
+      ]
+    },
+    {
+      "id": "syn-0074",
+      "category": "synonym",
+      "query": "帮我查一下华东区上季度的履约率",
+      "expected_intent": "metric_query",
+      "expected_terms": [
+        "履约率"
+      ]
+    },
+    {
+      "id": "syn-0075",
+      "category": "synonym",
+      "query": "上季度履约率怎么样",
+      "expected_intent": "metric_query",
+      "expected_terms": [
+        "履约率"
+      ]
+    },
+    {
+      "id": "syn-0076",
+      "category": "synonym",
+      "query": "看一下上季度履约率的变化趋势",
+      "expected_intent": "metric_query",
+      "expected_terms": [
+        "履约率"
+      ]
+    },
+    {
+      "id": "syn-0077",
+      "category": "synonym",
+      "query": "线上渠道上季度履约率如何",
+      "expected_intent": "metric_query",
+      "expected_terms": [
+        "履约率"
+      ]
+    },
+    {
+      "id": "syn-0078",
+      "category": "synonym",
+      "query": "上季度华东区履约率同比情况",
+      "expected_intent": "metric_query",
+      "expected_terms": [
+        "履约率"
+      ]
+    },
+    {
+      "id": "syn-0079",
+      "category": "synonym",
+      "query": "履约率在上季度的表现如何",
+      "expected_intent": "metric_query",
+      "expected_terms": [
+        "履约率"
+      ]
+    },
+    {
+      "id": "syn-0080",
+      "category": "synonym",
+      "query": "统计上季度华东区的履约率",
+      "expected_intent": "metric_query",
+      "expected_terms": [
+        "履约率"
+      ]
+    },
+    {
+      "id": "syn-0081",
+      "category": "synonym",
+      "query": "我要看上季度履约率",
+      "expected_intent": "metric_query",
+      "expected_terms": [
+        "履约率"
+      ]
+    },
+    {
+      "id": "syn-0082",
+      "category": "synonym",
+      "query": "上季度华东区履约率环比上升了吗",
+      "expected_intent": "metric_query",
+      "expected_terms": [
+        "履约率"
+      ]
+    },
+    {
+      "id": "syn-0083",
+      "category": "synonym",
+      "query": "帮我算下上季度履约率",
+      "expected_intent": "metric_query",
+      "expected_terms": [
+        "履约率"
+      ]
+    },
+    {
+      "id": "syn-0084",
+      "category": "synonym",
+      "query": "上季度线上履约率排名前十的是哪些",
+      "expected_intent": "metric_query",
+      "expected_terms": [
+        "履约率"
+      ]
+    },
+    {
+      "id": "syn-0085",
+      "category": "synonym",
+      "query": "上季度华东区按时交付率是多少",
+      "expected_intent": "metric_query",
+      "expected_terms": [
+        "按时交付率"
+      ]
+    },
+    {
+      "id": "syn-0086",
+      "category": "synonym",
+      "query": "帮我查一下华东区上季度的按时交付率",
+      "expected_intent": "metric_query",
+      "expected_terms": [
+        "按时交付率"
+      ]
+    },
+    {
+      "id": "syn-0087",
+      "category": "synonym",
+      "query": "上季度按时交付率怎么样",
+      "expected_intent": "metric_query",
+      "expected_terms": [
+        "按时交付率"
+      ]
+    },
+    {
+      "id": "syn-0088",
+      "category": "synonym",
+      "query": "看一下上季度按时交付率的变化趋势",
+      "expected_intent": "metric_query",
+      "expected_terms": [
+        "按时交付率"
+      ]
+    },
+    {
+      "id": "syn-0089",
+      "category": "synonym",
+      "query": "线上渠道上季度按时交付率如何",
+      "expected_intent": "metric_query",
+      "expected_terms": [
+        "按时交付率"
+      ]
+    },
+    {
+      "id": "syn-0090",
+      "category": "synonym",
+      "query": "上季度华东区按时交付率同比情况",
+      "expected_intent": "metric_query",
+      "expected_terms": [
+        "按时交付率"
+      ]
+    },
+    {
+      "id": "syn-0091",
+      "category": "synonym",
+      "query": "按时交付率在上季度的表现如何",
+      "expected_intent": "metric_query",
+      "expected_terms": [
+        "按时交付率"
+      ]
+    },
+    {
+      "id": "syn-0092",
+      "category": "synonym",
+      "query": "统计上季度华东区的按时交付率",
+      "expected_intent": "metric_query",
+      "expected_terms": [
+        "按时交付率"
+      ]
+    },
+    {
+      "id": "syn-0093",
+      "category": "synonym",
+      "query": "我要看上季度按时交付率",
+      "expected_intent": "metric_query",
+      "expected_terms": [
+        "按时交付率"
+      ]
+    },
+    {
+      "id": "syn-0094",
+      "category": "synonym",
+      "query": "上季度华东区按时交付率环比上升了吗",
+      "expected_intent": "metric_query",
+      "expected_terms": [
+        "按时交付率"
+      ]
+    },
+    {
+      "id": "syn-0095",
+      "category": "synonym",
+      "query": "帮我算下上季度按时交付率",
+      "expected_intent": "metric_query",
+      "expected_terms": [
+        "按时交付率"
+      ]
+    },
+    {
+      "id": "syn-0096",
+      "category": "synonym",
+      "query": "上季度线上按时交付率排名前十的是哪些",
+      "expected_intent": "metric_query",
+      "expected_terms": [
+        "按时交付率"
+      ]
+    },
+    {
+      "id": "syn-0097",
+      "category": "synonym",
+      "query": "上季度华东区交付达成率是多少",
+      "expected_intent": "metric_query",
+      "expected_terms": [
+        "交付达成率"
+      ]
+    },
+    {
+      "id": "syn-0098",
+      "category": "synonym",
+      "query": "帮我查一下华东区上季度的交付达成率",
+      "expected_intent": "metric_query",
+      "expected_terms": [
+        "交付达成率"
+      ]
+    },
+    {
+      "id": "syn-0099",
+      "category": "synonym",
+      "query": "上季度交付达成率怎么样",
+      "expected_intent": "metric_query",
+      "expected_terms": [
+        "交付达成率"
+      ]
+    },
+    {
+      "id": "syn-0100",
+      "category": "synonym",
+      "query": "看一下上季度交付达成率的变化趋势",
+      "expected_intent": "metric_query",
+      "expected_terms": [
+        "交付达成率"
+      ]
+    },
+    {
+      "id": "syn-0101",
+      "category": "synonym",
+      "query": "线上渠道上季度交付达成率如何",
+      "expected_intent": "metric_query",
+      "expected_terms": [
+        "交付达成率"
+      ]
+    },
+    {
+      "id": "syn-0102",
+      "category": "synonym",
+      "query": "上季度华东区交付达成率同比情况",
+      "expected_intent": "metric_query",
+      "expected_terms": [
+        "交付达成率"
+      ]
+    },
+    {
+      "id": "syn-0103",
+      "category": "synonym",
+      "query": "交付达成率在上季度的表现如何",
+      "expected_intent": "metric_query",
+      "expected_terms": [
+        "交付达成率"
+      ]
+    },
+    {
+      "id": "syn-0104",
+      "category": "synonym",
+      "query": "统计上季度华东区的交付达成率",
+      "expected_intent": "metric_query",
+      "expected_terms": [
+        "交付达成率"
+      ]
+    },
+    {
+      "id": "syn-0105",
+      "category": "synonym",
+      "query": "我要看上季度交付达成率",
+      "expected_intent": "metric_query",
+      "expected_terms": [
+        "交付达成率"
+      ]
+    },
+    {
+      "id": "syn-0106",
+      "category": "synonym",
+      "query": "上季度华东区交付达成率环比上升了吗",
+      "expected_intent": "metric_query",
+      "expected_terms": [
+        "交付达成率"
+      ]
+    },
+    {
+      "id": "syn-0107",
+      "category": "synonym",
+      "query": "帮我算下上季度交付达成率",
+      "expected_intent": "metric_query",
+      "expected_terms": [
+        "交付达成率"
+      ]
+    },
+    {
+      "id": "syn-0108",
+      "category": "synonym",
+      "query": "上季度线上交付达成率排名前十的是哪些",
+      "expected_intent": "metric_query",
+      "expected_terms": [
+        "交付达成率"
+      ]
+    },
+    {
+      "id": "syn-0109",
+      "category": "synonym",
+      "query": "上季度华东区客单价是多少",
+      "expected_intent": "metric_query",
+      "expected_terms": [
+        "客单价"
+      ]
+    },
+    {
+      "id": "syn-0110",
+      "category": "synonym",
+      "query": "帮我查一下华东区上季度的客单价",
+      "expected_intent": "metric_query",
+      "expected_terms": [
+        "客单价"
+      ]
+    },
+    {
+      "id": "syn-0111",
+      "category": "synonym",
+      "query": "上季度客单价怎么样",
+      "expected_intent": "metric_query",
+      "expected_terms": [
+        "客单价"
+      ]
+    },
+    {
+      "id": "syn-0112",
+      "category": "synonym",
+      "query": "看一下上季度客单价的变化趋势",
+      "expected_intent": "metric_query",
+      "expected_terms": [
+        "客单价"
+      ]
+    },
+    {
+      "id": "syn-0113",
+      "category": "synonym",
+      "query": "线上渠道上季度客单价如何",
+      "expected_intent": "metric_query",
+      "expected_terms": [
+        "客单价"
+      ]
+    },
+    {
+      "id": "syn-0114",
+      "category": "synonym",
+      "query": "上季度华东区客单价同比情况",
+      "expected_intent": "metric_query",
+      "expected_terms": [
+        "客单价"
+      ]
+    },
+    {
+      "id": "syn-0115",
+      "category": "synonym",
+      "query": "客单价在上季度的表现如何",
+      "expected_intent": "metric_query",
+      "expected_terms": [
+        "客单价"
+      ]
+    },
+    {
+      "id": "syn-0116",
+      "category": "synonym",
+      "query": "统计上季度华东区的客单价",
+      "expected_intent": "metric_query",
+      "expected_terms": [
+        "客单价"
+      ]
+    },
+    {
+      "id": "syn-0117",
+      "category": "synonym",
+      "query": "我要看上季度客单价",
+      "expected_intent": "metric_query",
+      "expected_terms": [
+        "客单价"
+      ]
+    },
+    {
+      "id": "syn-0118",
+      "category": "synonym",
+      "query": "上季度华东区客单价环比上升了吗",
+      "expected_intent": "metric_query",
+      "expected_terms": [
+        "客单价"
+      ]
+    },
+    {
+      "id": "syn-0119",
+      "category": "synonym",
+      "query": "帮我算下上季度客单价",
+      "expected_intent": "metric_query",
+      "expected_terms": [
+        "客单价"
+      ]
+    },
+    {
+      "id": "syn-0120",
+      "category": "synonym",
+      "query": "上季度线上客单价排名前十的是哪些",
+      "expected_intent": "metric_query",
+      "expected_terms": [
+        "客单价"
+      ]
+    },
+    {
+      "id": "syn-0121",
+      "category": "synonym",
+      "query": "上季度华东区平均订单金额是多少",
+      "expected_intent": "metric_query",
+      "expected_terms": [
+        "平均订单金额"
+      ]
+    },
+    {
+      "id": "syn-0122",
+      "category": "synonym",
+      "query": "帮我查一下华东区上季度的平均订单金额",
+      "expected_intent": "metric_query",
+      "expected_terms": [
+        "平均订单金额"
+      ]
+    },
+    {
+      "id": "syn-0123",
+      "category": "synonym",
+      "query": "上季度平均订单金额怎么样",
+      "expected_intent": "metric_query",
+      "expected_terms": [
+        "平均订单金额"
+      ]
+    },
+    {
+      "id": "syn-0124",
+      "category": "synonym",
+      "query": "看一下上季度平均订单金额的变化趋势",
+      "expected_intent": "metric_query",
+      "expected_terms": [
+        "平均订单金额"
+      ]
+    },
+    {
+      "id": "syn-0125",
+      "category": "synonym",
+      "query": "线上渠道上季度平均订单金额如何",
+      "expected_intent": "metric_query",
+      "expected_terms": [
+        "平均订单金额"
+      ]
+    },
+    {
+      "id": "syn-0126",
+      "category": "synonym",
+      "query": "上季度华东区平均订单金额同比情况",
+      "expected_intent": "metric_query",
+      "expected_terms": [
+        "平均订单金额"
+      ]
+    },
+    {
+      "id": "syn-0127",
+      "category": "synonym",
+      "query": "平均订单金额在上季度的表现如何",
+      "expected_intent": "metric_query",
+      "expected_terms": [
+        "平均订单金额"
+      ]
+    },
+    {
+      "id": "syn-0128",
+      "category": "synonym",
+      "query": "统计上季度华东区的平均订单金额",
+      "expected_intent": "metric_query",
+      "expected_terms": [
+        "平均订单金额"
+      ]
+    },
+    {
+      "id": "syn-0129",
+      "category": "synonym",
+      "query": "我要看上季度平均订单金额",
+      "expected_intent": "metric_query",
+      "expected_terms": [
+        "平均订单金额"
+      ]
+    },
+    {
+      "id": "syn-0130",
+      "category": "synonym",
+      "query": "上季度华东区平均订单金额环比上升了吗",
+      "expected_intent": "metric_query",
+      "expected_terms": [
+        "平均订单金额"
+      ]
+    },
+    {
+      "id": "syn-0131",
+      "category": "synonym",
+      "query": "帮我算下上季度平均订单金额",
+      "expected_intent": "metric_query",
+      "expected_terms": [
+        "平均订单金额"
+      ]
+    },
+    {
+      "id": "syn-0132",
+      "category": "synonym",
+      "query": "上季度线上平均订单金额排名前十的是哪些",
+      "expected_intent": "metric_query",
+      "expected_terms": [
+        "平均订单金额"
+      ]
+    },
+    {
+      "id": "syn-0133",
+      "category": "synonym",
+      "query": "上季度华东区单均金额是多少",
+      "expected_intent": "metric_query",
+      "expected_terms": [
+        "单均金额"
+      ]
+    },
+    {
+      "id": "syn-0134",
+      "category": "synonym",
+      "query": "帮我查一下华东区上季度的单均金额",
+      "expected_intent": "metric_query",
+      "expected_terms": [
+        "单均金额"
+      ]
+    },
+    {
+      "id": "syn-0135",
+      "category": "synonym",
+      "query": "上季度单均金额怎么样",
+      "expected_intent": "metric_query",
+      "expected_terms": [
+        "单均金额"
+      ]
+    },
+    {
+      "id": "syn-0136",
+      "category": "synonym",
+      "query": "看一下上季度单均金额的变化趋势",
+      "expected_intent": "metric_query",
+      "expected_terms": [
+        "单均金额"
+      ]
+    },
+    {
+      "id": "syn-0137",
+      "category": "synonym",
+      "query": "线上渠道上季度单均金额如何",
+      "expected_intent": "metric_query",
+      "expected_terms": [
+        "单均金额"
+      ]
+    },
+    {
+      "id": "syn-0138",
+      "category": "synonym",
+      "query": "上季度华东区单均金额同比情况",
+      "expected_intent": "metric_query",
+      "expected_terms": [
+        "单均金额"
+      ]
+    },
+    {
+      "id": "syn-0139",
+      "category": "synonym",
+      "query": "单均金额在上季度的表现如何",
+      "expected_intent": "metric_query",
+      "expected_terms": [
+        "单均金额"
+      ]
+    },
+    {
+      "id": "syn-0140",
+      "category": "synonym",
+      "query": "统计上季度华东区的单均金额",
+      "expected_intent": "metric_query",
+      "expected_terms": [
+        "单均金额"
+      ]
+    },
+    {
+      "id": "syn-0141",
+      "category": "synonym",
+      "query": "我要看上季度单均金额",
+      "expected_intent": "metric_query",
+      "expected_terms": [
+        "单均金额"
+      ]
+    },
+    {
+      "id": "syn-0142",
+      "category": "synonym",
+      "query": "上季度华东区单均金额环比上升了吗",
+      "expected_intent": "metric_query",
+      "expected_terms": [
+        "单均金额"
+      ]
+    },
+    {
+      "id": "syn-0143",
+      "category": "synonym",
+      "query": "帮我算下上季度单均金额",
+      "expected_intent": "metric_query",
+      "expected_terms": [
+        "单均金额"
+      ]
+    },
+    {
+      "id": "syn-0144",
+      "category": "synonym",
+      "query": "上季度线上单均金额排名前十的是哪些",
+      "expected_intent": "metric_query",
+      "expected_terms": [
+        "单均金额"
+      ]
+    },
+    {
+      "id": "syn-0145",
+      "category": "synonym",
+      "query": "上季度华东区缺货率是多少",
+      "expected_intent": "metric_query",
+      "expected_terms": [
+        "缺货率"
+      ]
+    },
+    {
+      "id": "syn-0146",
+      "category": "synonym",
+      "query": "帮我查一下华东区上季度的缺货率",
+      "expected_intent": "metric_query",
+      "expected_terms": [
+        "缺货率"
+      ]
+    },
+    {
+      "id": "syn-0147",
+      "category": "synonym",
+      "query": "上季度缺货率怎么样",
+      "expected_intent": "metric_query",
+      "expected_terms": [
+        "缺货率"
+      ]
+    },
+    {
+      "id": "syn-0148",
+      "category": "synonym",
+      "query": "看一下上季度缺货率的变化趋势",
+      "expected_intent": "metric_query",
+      "expected_terms": [
+        "缺货率"
+      ]
+    },
+    {
+      "id": "syn-0149",
+      "category": "synonym",
+      "query": "线上渠道上季度缺货率如何",
+      "expected_intent": "metric_query",
+      "expected_terms": [
+        "缺货率"
+      ]
+    },
+    {
+      "id": "syn-0150",
+      "category": "synonym",
+      "query": "上季度华东区缺货率同比情况",
+      "expected_intent": "metric_query",
+      "expected_terms": [
+        "缺货率"
+      ]
+    },
+    {
+      "id": "syn-0151",
+      "category": "synonym",
+      "query": "缺货率在上季度的表现如何",
+      "expected_intent": "metric_query",
+      "expected_terms": [
+        "缺货率"
+      ]
+    },
+    {
+      "id": "syn-0152",
+      "category": "synonym",
+      "query": "统计上季度华东区的缺货率",
+      "expected_intent": "metric_query",
+      "expected_terms": [
+        "缺货率"
+      ]
+    },
+    {
+      "id": "syn-0153",
+      "category": "synonym",
+      "query": "我要看上季度缺货率",
+      "expected_intent": "metric_query",
+      "expected_terms": [
+        "缺货率"
+      ]
+    },
+    {
+      "id": "syn-0154",
+      "category": "synonym",
+      "query": "上季度华东区缺货率环比上升了吗",
+      "expected_intent": "metric_query",
+      "expected_terms": [
+        "缺货率"
+      ]
+    },
+    {
+      "id": "syn-0155",
+      "category": "synonym",
+      "query": "帮我算下上季度缺货率",
+      "expected_intent": "metric_query",
+      "expected_terms": [
+        "缺货率"
+      ]
+    },
+    {
+      "id": "syn-0156",
+      "category": "synonym",
+      "query": "上季度线上缺货率排名前十的是哪些",
+      "expected_intent": "metric_query",
+      "expected_terms": [
+        "缺货率"
+      ]
+    },
+    {
+      "id": "syn-0157",
+      "category": "synonym",
+      "query": "上季度华东区断货率是多少",
+      "expected_intent": "metric_query",
+      "expected_terms": [
+        "断货率"
+      ]
+    },
+    {
+      "id": "syn-0158",
+      "category": "synonym",
+      "query": "帮我查一下华东区上季度的断货率",
+      "expected_intent": "metric_query",
+      "expected_terms": [
+        "断货率"
+      ]
+    },
+    {
+      "id": "syn-0159",
+      "category": "synonym",
+      "query": "上季度断货率怎么样",
+      "expected_intent": "metric_query",
+      "expected_terms": [
+        "断货率"
+      ]
+    },
+    {
+      "id": "syn-0160",
+      "category": "synonym",
+      "query": "看一下上季度断货率的变化趋势",
+      "expected_intent": "metric_query",
+      "expected_terms": [
+        "断货率"
+      ]
+    },
+    {
+      "id": "syn-0161",
+      "category": "synonym",
+      "query": "线上渠道上季度断货率如何",
+      "expected_intent": "metric_query",
+      "expected_terms": [
+        "断货率"
+      ]
+    },
+    {
+      "id": "syn-0162",
+      "category": "synonym",
+      "query": "上季度华东区断货率同比情况",
+      "expected_intent": "metric_query",
+      "expected_terms": [
+        "断货率"
+      ]
+    },
+    {
+      "id": "syn-0163",
+      "category": "synonym",
+      "query": "断货率在上季度的表现如何",
+      "expected_intent": "metric_query",
+      "expected_terms": [
+        "断货率"
+      ]
+    },
+    {
+      "id": "syn-0164",
+      "category": "synonym",
+      "query": "统计上季度华东区的断货率",
+      "expected_intent": "metric_query",
+      "expected_terms": [
+        "断货率"
+      ]
+    },
+    {
+      "id": "syn-0165",
+      "category": "synonym",
+      "query": "我要看上季度断货率",
+      "expected_intent": "metric_query",
+      "expected_terms": [
+        "断货率"
+      ]
+    },
+    {
+      "id": "syn-0166",
+      "category": "synonym",
+      "query": "上季度华东区断货率环比上升了吗",
+      "expected_intent": "metric_query",
+      "expected_terms": [
+        "断货率"
+      ]
+    },
+    {
+      "id": "syn-0167",
+      "category": "synonym",
+      "query": "帮我算下上季度断货率",
+      "expected_intent": "metric_query",
+      "expected_terms": [
+        "断货率"
+      ]
+    },
+    {
+      "id": "syn-0168",
+      "category": "synonym",
+      "query": "上季度线上断货率排名前十的是哪些",
+      "expected_intent": "metric_query",
+      "expected_terms": [
+        "断货率"
+      ]
+    },
+    {
+      "id": "syn-0169",
+      "category": "synonym",
+      "query": "上季度华东区毛利率是多少",
+      "expected_intent": "metric_query",
+      "expected_terms": [
+        "毛利率"
+      ]
+    },
+    {
+      "id": "syn-0170",
+      "category": "synonym",
+      "query": "帮我查一下华东区上季度的毛利率",
+      "expected_intent": "metric_query",
+      "expected_terms": [
+        "毛利率"
+      ]
+    },
+    {
+      "id": "syn-0171",
+      "category": "synonym",
+      "query": "上季度毛利率怎么样",
+      "expected_intent": "metric_query",
+      "expected_terms": [
+        "毛利率"
+      ]
+    },
+    {
+      "id": "syn-0172",
+      "category": "synonym",
+      "query": "看一下上季度毛利率的变化趋势",
+      "expected_intent": "metric_query",
+      "expected_terms": [
+        "毛利率"
+      ]
+    },
+    {
+      "id": "syn-0173",
+      "category": "synonym",
+      "query": "线上渠道上季度毛利率如何",
+      "expected_intent": "metric_query",
+      "expected_terms": [
+        "毛利率"
+      ]
+    },
+    {
+      "id": "syn-0174",
+      "category": "synonym",
+      "query": "上季度华东区毛利率同比情况",
+      "expected_intent": "metric_query",
+      "expected_terms": [
+        "毛利率"
+      ]
+    },
+    {
+      "id": "syn-0175",
+      "category": "synonym",
+      "query": "毛利率在上季度的表现如何",
+      "expected_intent": "metric_query",
+      "expected_terms": [
+        "毛利率"
+      ]
+    },
+    {
+      "id": "syn-0176",
+      "category": "synonym",
+      "query": "统计上季度华东区的毛利率",
+      "expected_intent": "metric_query",
+      "expected_terms": [
+        "毛利率"
+      ]
+    },
+    {
+      "id": "syn-0177",
+      "category": "synonym",
+      "query": "我要看上季度毛利率",
+      "expected_intent": "metric_query",
+      "expected_terms": [
+        "毛利率"
+      ]
+    },
+    {
+      "id": "syn-0178",
+      "category": "synonym",
+      "query": "上季度华东区毛利率环比上升了吗",
+      "expected_intent": "metric_query",
+      "expected_terms": [
+        "毛利率"
+      ]
+    },
+    {
+      "id": "syn-0179",
+      "category": "synonym",
+      "query": "帮我算下上季度毛利率",
+      "expected_intent": "metric_query",
+      "expected_terms": [
+        "毛利率"
+      ]
+    },
+    {
+      "id": "syn-0180",
+      "category": "synonym",
+      "query": "上季度线上毛利率排名前十的是哪些",
+      "expected_intent": "metric_query",
+      "expected_terms": [
+        "毛利率"
+      ]
+    },
+    {
+      "id": "syn-0181",
+      "category": "synonym",
+      "query": "上季度华东区毛利水平是多少",
+      "expected_intent": "metric_query",
+      "expected_terms": [
+        "毛利水平"
+      ]
+    },
+    {
+      "id": "syn-0182",
+      "category": "synonym",
+      "query": "帮我查一下华东区上季度的毛利水平",
+      "expected_intent": "metric_query",
+      "expected_terms": [
+        "毛利水平"
+      ]
+    },
+    {
+      "id": "syn-0183",
+      "category": "synonym",
+      "query": "上季度毛利水平怎么样",
+      "expected_intent": "metric_query",
+      "expected_terms": [
+        "毛利水平"
+      ]
+    },
+    {
+      "id": "syn-0184",
+      "category": "synonym",
+      "query": "看一下上季度毛利水平的变化趋势",
+      "expected_intent": "metric_query",
+      "expected_terms": [
+        "毛利水平"
+      ]
+    },
+    {
+      "id": "syn-0185",
+      "category": "synonym",
+      "query": "线上渠道上季度毛利水平如何",
+      "expected_intent": "metric_query",
+      "expected_terms": [
+        "毛利水平"
+      ]
+    },
+    {
+      "id": "syn-0186",
+      "category": "synonym",
+      "query": "上季度华东区毛利水平同比情况",
+      "expected_intent": "metric_query",
+      "expected_terms": [
+        "毛利水平"
+      ]
+    },
+    {
+      "id": "syn-0187",
+      "category": "synonym",
+      "query": "毛利水平在上季度的表现如何",
+      "expected_intent": "metric_query",
+      "expected_terms": [
+        "毛利水平"
+      ]
+    },
+    {
+      "id": "syn-0188",
+      "category": "synonym",
+      "query": "统计上季度华东区的毛利水平",
+      "expected_intent": "metric_query",
+      "expected_terms": [
+        "毛利水平"
+      ]
+    },
+    {
+      "id": "syn-0189",
+      "category": "synonym",
+      "query": "我要看上季度毛利水平",
+      "expected_intent": "metric_query",
+      "expected_terms": [
+        "毛利水平"
+      ]
+    },
+    {
+      "id": "syn-0190",
+      "category": "synonym",
+      "query": "上季度华东区毛利水平环比上升了吗",
+      "expected_intent": "metric_query",
+      "expected_terms": [
+        "毛利水平"
+      ]
+    },
+    {
+      "id": "syn-0191",
+      "category": "synonym",
+      "query": "帮我算下上季度毛利水平",
+      "expected_intent": "metric_query",
+      "expected_terms": [
+        "毛利水平"
+      ]
+    },
+    {
+      "id": "syn-0192",
+      "category": "synonym",
+      "query": "上季度线上毛利水平排名前十的是哪些",
+      "expected_intent": "metric_query",
+      "expected_terms": [
+        "毛利水平"
+      ]
+    },
+    {
+      "id": "syn-0193",
+      "category": "synonym",
+      "query": "上季度华东区销售额是多少",
+      "expected_intent": "metric_query",
+      "expected_terms": [
+        "销售额"
+      ]
+    },
+    {
+      "id": "syn-0194",
+      "category": "synonym",
+      "query": "帮我查一下华东区上季度的销售额",
+      "expected_intent": "metric_query",
+      "expected_terms": [
+        "销售额"
+      ]
+    },
+    {
+      "id": "syn-0195",
+      "category": "synonym",
+      "query": "上季度销售额怎么样",
+      "expected_intent": "metric_query",
+      "expected_terms": [
+        "销售额"
+      ]
+    },
+    {
+      "id": "syn-0196",
+      "category": "synonym",
+      "query": "看一下上季度销售额的变化趋势",
+      "expected_intent": "metric_query",
+      "expected_terms": [
+        "销售额"
+      ]
+    },
+    {
+      "id": "syn-0197",
+      "category": "synonym",
+      "query": "线上渠道上季度销售额如何",
+      "expected_intent": "metric_query",
+      "expected_terms": [
+        "销售额"
+      ]
+    },
+    {
+      "id": "syn-0198",
+      "category": "synonym",
+      "query": "上季度华东区销售额同比情况",
+      "expected_intent": "metric_query",
+      "expected_terms": [
+        "销售额"
+      ]
+    },
+    {
+      "id": "syn-0199",
+      "category": "synonym",
+      "query": "销售额在上季度的表现如何",
+      "expected_intent": "metric_query",
+      "expected_terms": [
+        "销售额"
+      ]
+    },
+    {
+      "id": "syn-0200",
+      "category": "synonym",
+      "query": "统计上季度华东区的销售额",
+      "expected_intent": "metric_query",
+      "expected_terms": [
+        "销售额"
+      ]
+    },
+    {
+      "id": "syn-0201",
+      "category": "synonym",
+      "query": "我要看上季度销售额",
+      "expected_intent": "metric_query",
+      "expected_terms": [
+        "销售额"
+      ]
+    },
+    {
+      "id": "syn-0202",
+      "category": "synonym",
+      "query": "上季度华东区销售额环比上升了吗",
+      "expected_intent": "metric_query",
+      "expected_terms": [
+        "销售额"
+      ]
+    },
+    {
+      "id": "syn-0203",
+      "category": "synonym",
+      "query": "帮我算下上季度销售额",
+      "expected_intent": "metric_query",
+      "expected_terms": [
+        "销售额"
+      ]
+    },
+    {
+      "id": "syn-0204",
+      "category": "synonym",
+      "query": "上季度线上销售额排名前十的是哪些",
+      "expected_intent": "metric_query",
+      "expected_terms": [
+        "销售额"
+      ]
+    },
+    {
+      "id": "syn-0205",
+      "category": "synonym",
+      "query": "上季度华东区营收额是多少",
+      "expected_intent": "metric_query",
+      "expected_terms": [
+        "营收额"
+      ]
+    },
+    {
+      "id": "syn-0206",
+      "category": "synonym",
+      "query": "帮我查一下华东区上季度的营收额",
+      "expected_intent": "metric_query",
+      "expected_terms": [
+        "营收额"
+      ]
+    },
+    {
+      "id": "syn-0207",
+      "category": "synonym",
+      "query": "上季度营收额怎么样",
+      "expected_intent": "metric_query",
+      "expected_terms": [
+        "营收额"
+      ]
+    },
+    {
+      "id": "syn-0208",
+      "category": "synonym",
+      "query": "看一下上季度营收额的变化趋势",
+      "expected_intent": "metric_query",
+      "expected_terms": [
+        "营收额"
+      ]
+    },
+    {
+      "id": "syn-0209",
+      "category": "synonym",
+      "query": "线上渠道上季度营收额如何",
+      "expected_intent": "metric_query",
+      "expected_terms": [
+        "营收额"
+      ]
+    },
+    {
+      "id": "syn-0210",
+      "category": "synonym",
+      "query": "上季度华东区营收额同比情况",
+      "expected_intent": "metric_query",
+      "expected_terms": [
+        "营收额"
+      ]
+    },
+    {
+      "id": "xdm-0001",
+      "category": "cross_domain",
+      "query": "电商业务里动销率怎么算",
+      "expected_intent": "metric_query",
+      "expected_terms": [
+        "动销率"
+      ]
+    },
+    {
+      "id": "xdm-0002",
+      "category": "cross_domain",
+      "query": "电商业务关注的动销率最近怎么样",
+      "expected_intent": "metric_query",
+      "expected_terms": [
+        "动销率"
+      ]
+    },
+    {
+      "id": "xdm-0003",
+      "category": "cross_domain",
+      "query": "电商业务看板上的动销率是多少",
+      "expected_intent": "metric_query",
+      "expected_terms": [
+        "动销率"
+      ]
+    },
+    {
+      "id": "xdm-0004",
+      "category": "cross_domain",
+      "query": "上季度电商业务的动销率",
+      "expected_intent": "metric_query",
+      "expected_terms": [
+        "动销率"
+      ]
+    },
+    {
+      "id": "xdm-0005",
+      "category": "cross_domain",
+      "query": "电商业务这块动销率有没有变化",
+      "expected_intent": "metric_query",
+      "expected_terms": [
+        "动销率"
+      ]
+    },
+    {
+      "id": "xdm-0006",
+      "category": "cross_domain",
+      "query": "电商业务里售罄率怎么算",
+      "expected_intent": "metric_query",
+      "expected_terms": [
+        "售罄率"
+      ]
+    },
+    {
+      "id": "xdm-0007",
+      "category": "cross_domain",
+      "query": "电商业务关注的售罄率最近怎么样",
+      "expected_intent": "metric_query",
+      "expected_terms": [
+        "售罄率"
+      ]
+    },
+    {
+      "id": "xdm-0008",
+      "category": "cross_domain",
+      "query": "电商业务看板上的售罄率是多少",
+      "expected_intent": "metric_query",
+      "expected_terms": [
+        "售罄率"
+      ]
+    },
+    {
+      "id": "xdm-0009",
+      "category": "cross_domain",
+      "query": "上季度电商业务的售罄率",
+      "expected_intent": "metric_query",
+      "expected_terms": [
+        "售罄率"
+      ]
+    },
+    {
+      "id": "xdm-0010",
+      "category": "cross_domain",
+      "query": "电商业务这块售罄率有没有变化",
+      "expected_intent": "metric_query",
+      "expected_terms": [
+        "售罄率"
+      ]
+    },
+    {
+      "id": "xdm-0011",
+      "category": "cross_domain",
+      "query": "电商业务里滞销率怎么算",
+      "expected_intent": "metric_query",
+      "expected_terms": [
+        "滞销率"
+      ]
+    },
+    {
+      "id": "xdm-0012",
+      "category": "cross_domain",
+      "query": "电商业务关注的滞销率最近怎么样",
+      "expected_intent": "metric_query",
+      "expected_terms": [
+        "滞销率"
+      ]
+    },
+    {
+      "id": "xdm-0013",
+      "category": "cross_domain",
+      "query": "电商业务看板上的滞销率是多少",
+      "expected_intent": "metric_query",
+      "expected_terms": [
+        "滞销率"
+      ]
+    },
+    {
+      "id": "xdm-0014",
+      "category": "cross_domain",
+      "query": "上季度电商业务的滞销率",
+      "expected_intent": "metric_query",
+      "expected_terms": [
+        "滞销率"
+      ]
+    },
+    {
+      "id": "xdm-0015",
+      "category": "cross_domain",
+      "query": "电商业务这块滞销率有没有变化",
+      "expected_intent": "metric_query",
+      "expected_terms": [
+        "滞销率"
+      ]
+    },
+    {
+      "id": "xdm-0016",
+      "category": "cross_domain",
+      "query": "电商业务里存销比怎么算",
+      "expected_intent": "metric_query",
+      "expected_terms": [
+        "存销比"
+      ]
+    },
+    {
+      "id": "xdm-0017",
+      "category": "cross_domain",
+      "query": "电商业务关注的存销比最近怎么样",
+      "expected_intent": "metric_query",
+      "expected_terms": [
+        "存销比"
+      ]
+    },
+    {
+      "id": "xdm-0018",
+      "category": "cross_domain",
+      "query": "电商业务看板上的存销比是多少",
+      "expected_intent": "metric_query",
+      "expected_terms": [
+        "存销比"
+      ]
+    },
+    {
+      "id": "xdm-0019",
+      "category": "cross_domain",
+      "query": "上季度电商业务的存销比",
+      "expected_intent": "metric_query",
+      "expected_terms": [
+        "存销比"
+      ]
+    },
+    {
+      "id": "xdm-0020",
+      "category": "cross_domain",
+      "query": "电商业务这块存销比有没有变化",
+      "expected_intent": "metric_query",
+      "expected_terms": [
+        "存销比"
+      ]
+    },
+    {
+      "id": "xdm-0021",
+      "category": "cross_domain",
+      "query": "电商业务里库销比怎么算",
+      "expected_intent": "metric_query",
+      "expected_terms": [
+        "库销比"
+      ]
+    },
+    {
+      "id": "xdm-0022",
+      "category": "cross_domain",
+      "query": "电商业务关注的库销比最近怎么样",
+      "expected_intent": "metric_query",
+      "expected_terms": [
+        "库销比"
+      ]
+    },
+    {
+      "id": "xdm-0023",
+      "category": "cross_domain",
+      "query": "电商业务看板上的库销比是多少",
+      "expected_intent": "metric_query",
+      "expected_terms": [
+        "库销比"
+      ]
+    },
+    {
+      "id": "xdm-0024",
+      "category": "cross_domain",
+      "query": "上季度电商业务的库销比",
+      "expected_intent": "metric_query",
+      "expected_terms": [
+        "库销比"
+      ]
+    },
+    {
+      "id": "xdm-0025",
+      "category": "cross_domain",
+      "query": "电商业务这块库销比有没有变化",
+      "expected_intent": "metric_query",
+      "expected_terms": [
+        "库销比"
+      ]
+    },
+    {
+      "id": "xdm-0026",
+      "category": "cross_domain",
+      "query": "电商业务里资金周转率怎么算",
+      "expected_intent": "metric_query",
+      "expected_terms": [
+        "资金周转率"
+      ]
+    },
+    {
+      "id": "xdm-0027",
+      "category": "cross_domain",
+      "query": "电商业务关注的资金周转率最近怎么样",
+      "expected_intent": "metric_query",
+      "expected_terms": [
+        "资金周转率"
+      ]
+    },
+    {
+      "id": "xdm-0028",
+      "category": "cross_domain",
+      "query": "电商业务看板上的资金周转率是多少",
+      "expected_intent": "metric_query",
+      "expected_terms": [
+        "资金周转率"
+      ]
+    },
+    {
+      "id": "xdm-0029",
+      "category": "cross_domain",
+      "query": "上季度电商业务的资金周转率",
+      "expected_intent": "metric_query",
+      "expected_terms": [
+        "资金周转率"
+      ]
+    },
+    {
+      "id": "xdm-0030",
+      "category": "cross_domain",
+      "query": "电商业务这块资金周转率有没有变化",
+      "expected_intent": "metric_query",
+      "expected_terms": [
+        "资金周转率"
+      ]
+    },
+    {
+      "id": "xdm-0031",
+      "category": "cross_domain",
+      "query": "电商业务里坪效怎么算",
+      "expected_intent": "metric_query",
+      "expected_terms": [
+        "坪效"
+      ]
+    },
+    {
+      "id": "xdm-0032",
+      "category": "cross_domain",
+      "query": "电商业务关注的坪效最近怎么样",
+      "expected_intent": "metric_query",
+      "expected_terms": [
+        "坪效"
+      ]
+    },
+    {
+      "id": "xdm-0033",
+      "category": "cross_domain",
+      "query": "电商业务看板上的坪效是多少",
+      "expected_intent": "metric_query",
+      "expected_terms": [
+        "坪效"
+      ]
+    },
+    {
+      "id": "xdm-0034",
+      "category": "cross_domain",
+      "query": "上季度电商业务的坪效",
+      "expected_intent": "metric_query",
+      "expected_terms": [
+        "坪效"
+      ]
+    },
+    {
+      "id": "xdm-0035",
+      "category": "cross_domain",
+      "query": "电商业务这块坪效有没有变化",
+      "expected_intent": "metric_query",
+      "expected_terms": [
+        "坪效"
+      ]
+    },
+    {
+      "id": "xdm-0036",
+      "category": "cross_domain",
+      "query": "电商业务里人效怎么算",
+      "expected_intent": "metric_query",
+      "expected_terms": [
+        "人效"
+      ]
+    },
+    {
+      "id": "xdm-0037",
+      "category": "cross_domain",
+      "query": "电商业务关注的人效最近怎么样",
+      "expected_intent": "metric_query",
+      "expected_terms": [
+        "人效"
+      ]
+    },
+    {
+      "id": "xdm-0038",
+      "category": "cross_domain",
+      "query": "电商业务看板上的人效是多少",
+      "expected_intent": "metric_query",
+      "expected_terms": [
+        "人效"
+      ]
+    },
+    {
+      "id": "xdm-0039",
+      "category": "cross_domain",
+      "query": "上季度电商业务的人效",
+      "expected_intent": "metric_query",
+      "expected_terms": [
+        "人效"
+      ]
+    },
+    {
+      "id": "xdm-0040",
+      "category": "cross_domain",
+      "query": "电商业务这块人效有没有变化",
+      "expected_intent": "metric_query",
+      "expected_terms": [
+        "人效"
+      ]
+    },
+    {
+      "id": "xdm-0041",
+      "category": "cross_domain",
+      "query": "电商业务里退货处理时长怎么算",
+      "expected_intent": "metric_query",
+      "expected_terms": [
+        "退货处理时长"
+      ]
+    },
+    {
+      "id": "xdm-0042",
+      "category": "cross_domain",
+      "query": "电商业务关注的退货处理时长最近怎么样",
+      "expected_intent": "metric_query",
+      "expected_terms": [
+        "退货处理时长"
+      ]
+    },
+    {
+      "id": "xdm-0043",
+      "category": "cross_domain",
+      "query": "电商业务看板上的退货处理时长是多少",
+      "expected_intent": "metric_query",
+      "expected_terms": [
+        "退货处理时长"
+      ]
+    },
+    {
+      "id": "xdm-0044",
+      "category": "cross_domain",
+      "query": "上季度电商业务的退货处理时长",
+      "expected_intent": "metric_query",
+      "expected_terms": [
+        "退货处理时长"
+      ]
+    },
+    {
+      "id": "xdm-0045",
+      "category": "cross_domain",
+      "query": "电商业务这块退货处理时长有没有变化",
+      "expected_intent": "metric_query",
+      "expected_terms": [
+        "退货处理时长"
+      ]
+    },
+    {
+      "id": "xdm-0046",
+      "category": "cross_domain",
+      "query": "电商业务里供应商协同评分怎么算",
+      "expected_intent": "metric_query",
+      "expected_terms": [
+        "供应商协同评分"
+      ]
+    },
+    {
+      "id": "xdm-0047",
+      "category": "cross_domain",
+      "query": "电商业务关注的供应商协同评分最近怎么样",
+      "expected_intent": "metric_query",
+      "expected_terms": [
+        "供应商协同评分"
+      ]
+    },
+    {
+      "id": "xdm-0048",
+      "category": "cross_domain",
+      "query": "电商业务看板上的供应商协同评分是多少",
+      "expected_intent": "metric_query",
+      "expected_terms": [
+        "供应商协同评分"
+      ]
+    },
+    {
+      "id": "xdm-0049",
+      "category": "cross_domain",
+      "query": "上季度电商业务的供应商协同评分",
+      "expected_intent": "metric_query",
+      "expected_terms": [
+        "供应商协同评分"
+      ]
+    },
+    {
+      "id": "xdm-0050",
+      "category": "cross_domain",
+      "query": "电商业务这块供应商协同评分有没有变化",
+      "expected_intent": "metric_query",
+      "expected_terms": [
+        "供应商协同评分"
+      ]
+    },
+    {
+      "id": "xdm-0051",
+      "category": "cross_domain",
+      "query": "电商业务里订单履约成本怎么算",
+      "expected_intent": "metric_query",
+      "expected_terms": [
+        "订单履约成本"
+      ]
+    },
+    {
+      "id": "xdm-0052",
+      "category": "cross_domain",
+      "query": "电商业务关注的订单履约成本最近怎么样",
+      "expected_intent": "metric_query",
+      "expected_terms": [
+        "订单履约成本"
+      ]
+    },
+    {
+      "id": "xdm-0053",
+      "category": "cross_domain",
+      "query": "电商业务看板上的订单履约成本是多少",
+      "expected_intent": "metric_query",
+      "expected_terms": [
+        "订单履约成本"
+      ]
+    },
+    {
+      "id": "xdm-0054",
+      "category": "cross_domain",
+      "query": "上季度电商业务的订单履约成本",
+      "expected_intent": "metric_query",
+      "expected_terms": [
+        "订单履约成本"
+      ]
+    },
+    {
+      "id": "xdm-0055",
+      "category": "cross_domain",
+      "query": "电商业务这块订单履约成本有没有变化",
+      "expected_intent": "metric_query",
+      "expected_terms": [
+        "订单履约成本"
+      ]
+    },
+    {
+      "id": "xdm-0056",
+      "category": "cross_domain",
+      "query": "电商业务里仓容利用率怎么算",
+      "expected_intent": "metric_query",
+      "expected_terms": [
+        "仓容利用率"
+      ]
+    },
+    {
+      "id": "xdm-0057",
+      "category": "cross_domain",
+      "query": "电商业务关注的仓容利用率最近怎么样",
+      "expected_intent": "metric_query",
+      "expected_terms": [
+        "仓容利用率"
+      ]
+    },
+    {
+      "id": "xdm-0058",
+      "category": "cross_domain",
+      "query": "电商业务看板上的仓容利用率是多少",
+      "expected_intent": "metric_query",
+      "expected_terms": [
+        "仓容利用率"
+      ]
+    },
+    {
+      "id": "xdm-0059",
+      "category": "cross_domain",
+      "query": "上季度电商业务的仓容利用率",
+      "expected_intent": "metric_query",
+      "expected_terms": [
+        "仓容利用率"
+      ]
+    },
+    {
+      "id": "xdm-0060",
+      "category": "cross_domain",
+      "query": "电商业务这块仓容利用率有没有变化",
+      "expected_intent": "metric_query",
+      "expected_terms": [
+        "仓容利用率"
+      ]
+    },
+    {
+      "id": "xdm-0061",
+      "category": "cross_domain",
+      "query": "电商业务里二次销售率怎么算",
+      "expected_intent": "metric_query",
+      "expected_terms": [
+        "二次销售率"
+      ]
+    },
+    {
+      "id": "xdm-0062",
+      "category": "cross_domain",
+      "query": "电商业务关注的二次销售率最近怎么样",
+      "expected_intent": "metric_query",
+      "expected_terms": [
+        "二次销售率"
+      ]
+    },
+    {
+      "id": "xdm-0063",
+      "category": "cross_domain",
+      "query": "电商业务看板上的二次销售率是多少",
+      "expected_intent": "metric_query",
+      "expected_terms": [
+        "二次销售率"
+      ]
+    },
+    {
+      "id": "xdm-0064",
+      "category": "cross_domain",
+      "query": "上季度电商业务的二次销售率",
+      "expected_intent": "metric_query",
+      "expected_terms": [
+        "二次销售率"
+      ]
+    },
+    {
+      "id": "xdm-0065",
+      "category": "cross_domain",
+      "query": "电商业务这块二次销售率有没有变化",
+      "expected_intent": "metric_query",
+      "expected_terms": [
+        "二次销售率"
+      ]
+    },
+    {
+      "id": "xdm-0066",
+      "category": "cross_domain",
+      "query": "电商业务里缺货天数怎么算",
+      "expected_intent": "metric_query",
+      "expected_terms": [
+        "缺货天数"
+      ]
+    },
+    {
+      "id": "xdm-0067",
+      "category": "cross_domain",
+      "query": "电商业务关注的缺货天数最近怎么样",
+      "expected_intent": "metric_query",
+      "expected_terms": [
+        "缺货天数"
+      ]
+    },
+    {
+      "id": "xdm-0068",
+      "category": "cross_domain",
+      "query": "电商业务看板上的缺货天数是多少",
+      "expected_intent": "metric_query",
+      "expected_terms": [
+        "缺货天数"
+      ]
+    },
+    {
+      "id": "xdm-0069",
+      "category": "cross_domain",
+      "query": "上季度电商业务的缺货天数",
+      "expected_intent": "metric_query",
+      "expected_terms": [
+        "缺货天数"
+      ]
+    },
+    {
+      "id": "xdm-0070",
+      "category": "cross_domain",
+      "query": "电商业务这块缺货天数有没有变化",
+      "expected_intent": "metric_query",
+      "expected_terms": [
+        "缺货天数"
+      ]
+    },
+    {
+      "id": "xdm-0071",
+      "category": "cross_domain",
+      "query": "电商业务里安全库存水位怎么算",
+      "expected_intent": "property_lookup",
+      "expected_terms": [
+        "安全库存水位"
+      ]
+    },
+    {
+      "id": "xdm-0072",
+      "category": "cross_domain",
+      "query": "电商业务关注的安全库存水位最近怎么样",
+      "expected_intent": "property_lookup",
+      "expected_terms": [
+        "安全库存水位"
+      ]
+    },
+    {
+      "id": "xdm-0073",
+      "category": "cross_domain",
+      "query": "电商业务看板上的安全库存水位是多少",
+      "expected_intent": "property_lookup",
+      "expected_terms": [
+        "安全库存水位"
+      ]
+    },
+    {
+      "id": "xdm-0074",
+      "category": "cross_domain",
+      "query": "上季度电商业务的安全库存水位",
+      "expected_intent": "property_lookup",
+      "expected_terms": [
+        "安全库存水位"
+      ]
+    },
+    {
+      "id": "xdm-0075",
+      "category": "cross_domain",
+      "query": "电商业务这块安全库存水位有没有变化",
+      "expected_intent": "property_lookup",
+      "expected_terms": [
+        "安全库存水位"
+      ]
+    },
+    {
+      "id": "xdm-0076",
+      "category": "cross_domain",
+      "query": "电商业务里供应商结算账期怎么算",
+      "expected_intent": "property_lookup",
+      "expected_terms": [
+        "供应商结算账期"
+      ]
+    },
+    {
+      "id": "xdm-0077",
+      "category": "cross_domain",
+      "query": "电商业务关注的供应商结算账期最近怎么样",
+      "expected_intent": "property_lookup",
+      "expected_terms": [
+        "供应商结算账期"
+      ]
+    },
+    {
+      "id": "xdm-0078",
+      "category": "cross_domain",
+      "query": "电商业务看板上的供应商结算账期是多少",
+      "expected_intent": "property_lookup",
+      "expected_terms": [
+        "供应商结算账期"
+      ]
+    },
+    {
+      "id": "xdm-0079",
+      "category": "cross_domain",
+      "query": "上季度电商业务的供应商结算账期",
+      "expected_intent": "property_lookup",
+      "expected_terms": [
+        "供应商结算账期"
+      ]
+    },
+    {
+      "id": "xdm-0080",
+      "category": "cross_domain",
+      "query": "电商业务这块供应商结算账期有没有变化",
+      "expected_intent": "property_lookup",
+      "expected_terms": [
+        "供应商结算账期"
+      ]
+    },
+    {
+      "id": "xdm-0081",
+      "category": "cross_domain",
+      "query": "电商业务的退货率上季度是多少",
+      "expected_intent": "metric_query",
+      "expected_terms": [
+        "退货率"
+      ]
+    },
+    {
+      "id": "xdm-0082",
+      "category": "cross_domain",
+      "query": "电商业务里供应商的退货率上季度怎么样",
+      "expected_intent": "metric_query",
+      "expected_terms": [
+        "退货率"
+      ]
+    },
+    {
+      "id": "xdm-0083",
+      "category": "cross_domain",
+      "query": "电商业务的退货比例上季度是多少",
+      "expected_intent": "metric_query",
+      "expected_terms": [
+        "退货比例"
+      ]
+    },
+    {
+      "id": "xdm-0084",
+      "category": "cross_domain",
+      "query": "电商业务里供应商的退货比例上季度怎么样",
+      "expected_intent": "metric_query",
+      "expected_terms": [
+        "退货比例"
+      ]
+    },
+    {
+      "id": "xdm-0085",
+      "category": "cross_domain",
+      "query": "电商业务的退货占比上季度是多少",
+      "expected_intent": "metric_query",
+      "expected_terms": [
+        "退货占比"
+      ]
+    },
+    {
+      "id": "xdm-0086",
+      "category": "cross_domain",
+      "query": "电商业务里供应商的退货占比上季度怎么样",
+      "expected_intent": "metric_query",
+      "expected_terms": [
+        "退货占比"
+      ]
+    },
+    {
+      "id": "xdm-0087",
+      "category": "cross_domain",
+      "query": "电商业务的库存周转率上季度是多少",
+      "expected_intent": "metric_query",
+      "expected_terms": [
+        "库存周转率"
+      ]
+    },
+    {
+      "id": "xdm-0088",
+      "category": "cross_domain",
+      "query": "电商业务里供应商的库存周转率上季度怎么样",
+      "expected_intent": "metric_query",
+      "expected_terms": [
+        "库存周转率"
+      ]
+    },
+    {
+      "id": "xdm-0089",
+      "category": "cross_domain",
+      "query": "电商业务的存货周转率上季度是多少",
+      "expected_intent": "metric_query",
+      "expected_terms": [
+        "存货周转率"
+      ]
+    },
+    {
+      "id": "xdm-0090",
+      "category": "cross_domain",
+      "query": "电商业务里供应商的存货周转率上季度怎么样",
+      "expected_intent": "metric_query",
+      "expected_terms": [
+        "存货周转率"
+      ]
+    },
+    {
+      "id": "xdm-0091",
+      "category": "cross_domain",
+      "query": "电商业务的周转次数上季度是多少",
+      "expected_intent": "metric_query",
+      "expected_terms": [
+        "周转次数"
+      ]
+    },
+    {
+      "id": "xdm-0092",
+      "category": "cross_domain",
+      "query": "电商业务里供应商的周转次数上季度怎么样",
+      "expected_intent": "metric_query",
+      "expected_terms": [
+        "周转次数"
+      ]
+    },
+    {
+      "id": "xdm-0093",
+      "category": "cross_domain",
+      "query": "电商业务的履约率上季度是多少",
+      "expected_intent": "metric_query",
+      "expected_terms": [
+        "履约率"
+      ]
+    },
+    {
+      "id": "xdm-0094",
+      "category": "cross_domain",
+      "query": "电商业务里供应商的履约率上季度怎么样",
+      "expected_intent": "metric_query",
+      "expected_terms": [
+        "履约率"
+      ]
+    },
+    {
+      "id": "xdm-0095",
+      "category": "cross_domain",
+      "query": "电商业务的按时交付率上季度是多少",
+      "expected_intent": "metric_query",
+      "expected_terms": [
+        "按时交付率"
+      ]
+    },
+    {
+      "id": "xdm-0096",
+      "category": "cross_domain",
+      "query": "电商业务里供应商的按时交付率上季度怎么样",
+      "expected_intent": "metric_query",
+      "expected_terms": [
+        "按时交付率"
+      ]
+    },
+    {
+      "id": "xdm-0097",
+      "category": "cross_domain",
+      "query": "电商业务的交付达成率上季度是多少",
+      "expected_intent": "metric_query",
+      "expected_terms": [
+        "交付达成率"
+      ]
+    },
+    {
+      "id": "xdm-0098",
+      "category": "cross_domain",
+      "query": "电商业务里供应商的交付达成率上季度怎么样",
+      "expected_intent": "metric_query",
+      "expected_terms": [
+        "交付达成率"
+      ]
+    },
+    {
+      "id": "xdm-0099",
+      "category": "cross_domain",
+      "query": "电商业务的客单价上季度是多少",
+      "expected_intent": "metric_query",
+      "expected_terms": [
+        "客单价"
+      ]
+    },
+    {
+      "id": "xdm-0100",
+      "category": "cross_domain",
+      "query": "电商业务里供应商的客单价上季度怎么样",
+      "expected_intent": "metric_query",
+      "expected_terms": [
+        "客单价"
+      ]
+    },
+    {
+      "id": "xdm-0101",
+      "category": "cross_domain",
+      "query": "电商业务的平均订单金额上季度是多少",
+      "expected_intent": "metric_query",
+      "expected_terms": [
+        "平均订单金额"
+      ]
+    },
+    {
+      "id": "xdm-0102",
+      "category": "cross_domain",
+      "query": "电商业务里供应商的平均订单金额上季度怎么样",
+      "expected_intent": "metric_query",
+      "expected_terms": [
+        "平均订单金额"
+      ]
+    },
+    {
+      "id": "xdm-0103",
+      "category": "cross_domain",
+      "query": "电商业务的单均金额上季度是多少",
+      "expected_intent": "metric_query",
+      "expected_terms": [
+        "单均金额"
+      ]
+    },
+    {
+      "id": "xdm-0104",
+      "category": "cross_domain",
+      "query": "电商业务里供应商的单均金额上季度怎么样",
+      "expected_intent": "metric_query",
+      "expected_terms": [
+        "单均金额"
+      ]
+    },
+    {
+      "id": "xdm-0105",
+      "category": "cross_domain",
+      "query": "电商业务的缺货率上季度是多少",
+      "expected_intent": "metric_query",
+      "expected_terms": [
+        "缺货率"
+      ]
+    },
+    {
+      "id": "xdm-0106",
+      "category": "cross_domain",
+      "query": "电商业务里供应商的缺货率上季度怎么样",
+      "expected_intent": "metric_query",
+      "expected_terms": [
+        "缺货率"
+      ]
+    },
+    {
+      "id": "xdm-0107",
+      "category": "cross_domain",
+      "query": "电商业务的断货率上季度是多少",
+      "expected_intent": "metric_query",
+      "expected_terms": [
+        "断货率"
+      ]
+    },
+    {
+      "id": "xdm-0108",
+      "category": "cross_domain",
+      "query": "电商业务里供应商的断货率上季度怎么样",
+      "expected_intent": "metric_query",
+      "expected_terms": [
+        "断货率"
+      ]
+    },
+    {
+      "id": "xdm-0109",
+      "category": "cross_domain",
+      "query": "电商业务的毛利率上季度是多少",
+      "expected_intent": "metric_query",
+      "expected_terms": [
+        "毛利率"
+      ]
+    },
+    {
+      "id": "xdm-0110",
+      "category": "cross_domain",
+      "query": "电商业务里供应商的毛利率上季度怎么样",
+      "expected_intent": "metric_query",
+      "expected_terms": [
+        "毛利率"
+      ]
+    },
+    {
+      "id": "cmp-0001",
+      "category": "composite",
+      "query": "上季度退货率是多少，然后删除订单",
+      "expected_intent": "metric_query",
+      "expected_terms": [
+        "退货率",
+        "删除订单"
+      ]
+    },
+    {
+      "id": "cmp-0002",
+      "category": "composite",
+      "query": "上季度退货率是多少，并且导出报表",
+      "expected_intent": "metric_query",
+      "expected_terms": [
+        "退货率",
+        "导出报表"
+      ]
+    },
+    {
+      "id": "cmp-0003",
+      "category": "composite",
+      "query": "上季度退货率是多少，同时冻结供应商",
+      "expected_intent": "metric_query",
+      "expected_terms": [
+        "退货率",
+        "冻结供应商"
+      ]
+    },
+    {
+      "id": "cmp-0004",
+      "category": "composite",
+      "query": "上季度退货率是多少，顺便调整安全库存",
+      "expected_intent": "metric_query",
+      "expected_terms": [
+        "退货率",
+        "调整安全库存"
+      ]
+    },
+    {
+      "id": "cmp-0005",
+      "category": "composite",
+      "query": "上季度退货率是多少，还要看门店的单价",
+      "expected_intent": "metric_query",
+      "expected_terms": [
+        "退货率"
+      ]
+    },
+    {
+      "id": "cmp-0006",
+      "category": "composite",
+      "query": "上季度退货率是多少，并且对比订单的安全库存",
+      "expected_intent": "metric_query",
+      "expected_terms": [
+        "退货率"
+      ]
+    },
+    {
+      "id": "cmp-0007",
+      "category": "composite",
+      "query": "上季度退货率是多少，同时关注出库拣货",
+      "expected_intent": "metric_query",
+      "expected_terms": [
+        "退货率"
+      ]
+    },
+    {
+      "id": "cmp-0008",
+      "category": "composite",
+      "query": "上季度退货比例是多少，然后冻结供应商",
+      "expected_intent": "metric_query",
+      "expected_terms": [
+        "退货比例",
+        "冻结供应商"
+      ]
+    },
+    {
+      "id": "cmp-0009",
+      "category": "composite",
+      "query": "上季度退货比例是多少，并且调整安全库存",
+      "expected_intent": "metric_query",
+      "expected_terms": [
+        "退货比例",
+        "调整安全库存"
+      ]
+    },
+    {
+      "id": "cmp-0010",
+      "category": "composite",
+      "query": "上季度退货比例是多少，同时下发补货单",
+      "expected_intent": "metric_query",
+      "expected_terms": [
+        "退货比例",
+        "下发补货单"
+      ]
+    },
+    {
+      "id": "cmp-0011",
+      "category": "composite",
+      "query": "上季度退货比例是多少，顺便删除订单",
+      "expected_intent": "metric_query",
+      "expected_terms": [
+        "退货比例",
+        "删除订单"
+      ]
+    },
+    {
+      "id": "cmp-0012",
+      "category": "composite",
+      "query": "上季度退货比例是多少，还要看供应商的订单状态",
+      "expected_intent": "metric_query",
+      "expected_terms": [
+        "退货比例"
+      ]
+    },
+    {
+      "id": "cmp-0013",
+      "category": "composite",
+      "query": "上季度退货比例是多少，并且对比品类的单价",
+      "expected_intent": "metric_query",
+      "expected_terms": [
+        "退货比例"
+      ]
+    },
+    {
+      "id": "cmp-0014",
+      "category": "composite",
+      "query": "上季度退货比例是多少，同时关注入库上架",
+      "expected_intent": "metric_query",
+      "expected_terms": [
+        "退货比例"
+      ]
+    },
+    {
+      "id": "cmp-0015",
+      "category": "composite",
+      "query": "上季度退货占比是多少，然后下发补货单",
+      "expected_intent": "metric_query",
+      "expected_terms": [
+        "退货占比",
+        "下发补货单"
+      ]
+    },
+    {
+      "id": "cmp-0016",
+      "category": "composite",
+      "query": "上季度退货占比是多少，并且删除订单",
+      "expected_intent": "metric_query",
+      "expected_terms": [
+        "退货占比",
+        "删除订单"
+      ]
+    },
+    {
+      "id": "cmp-0017",
+      "category": "composite",
+      "query": "上季度退货占比是多少，同时导出报表",
+      "expected_intent": "metric_query",
+      "expected_terms": [
+        "退货占比",
+        "导出报表"
+      ]
+    },
+    {
+      "id": "cmp-0018",
+      "category": "composite",
+      "query": "上季度退货占比是多少，顺便冻结供应商",
+      "expected_intent": "metric_query",
+      "expected_terms": [
+        "退货占比",
+        "冻结供应商"
+      ]
+    },
+    {
+      "id": "cmp-0019",
+      "category": "composite",
+      "query": "上季度退货占比是多少，还要看仓库的供应商等级",
+      "expected_intent": "metric_query",
+      "expected_terms": [
+        "退货占比"
+      ]
+    },
+    {
+      "id": "cmp-0020",
+      "category": "composite",
+      "query": "上季度退货占比是多少，并且对比门店的订单状态",
+      "expected_intent": "metric_query",
+      "expected_terms": [
+        "退货占比"
+      ]
+    },
+    {
+      "id": "cmp-0021",
+      "category": "composite",
+      "query": "上季度退货占比是多少，同时关注退货审批",
+      "expected_intent": "metric_query",
+      "expected_terms": [
+        "退货占比"
+      ]
+    },
+    {
+      "id": "cmp-0022",
+      "category": "composite",
+      "query": "上季度库存周转率是多少，然后导出报表",
+      "expected_intent": "metric_query",
+      "expected_terms": [
+        "库存周转率",
+        "导出报表"
+      ]
+    },
+    {
+      "id": "cmp-0023",
+      "category": "composite",
+      "query": "上季度库存周转率是多少，并且冻结供应商",
+      "expected_intent": "metric_query",
+      "expected_terms": [
+        "库存周转率",
+        "冻结供应商"
+      ]
+    },
+    {
+      "id": "cmp-0024",
+      "category": "composite",
+      "query": "上季度库存周转率是多少，同时调整安全库存",
+      "expected_intent": "metric_query",
+      "expected_terms": [
+        "库存周转率",
+        "调整安全库存"
+      ]
+    },
+    {
+      "id": "cmp-0025",
+      "category": "composite",
+      "query": "上季度库存周转率是多少，顺便下发补货单",
+      "expected_intent": "metric_query",
+      "expected_terms": [
+        "库存周转率",
+        "下发补货单"
+      ]
+    },
+    {
+      "id": "cmp-0026",
+      "category": "composite",
+      "query": "上季度库存周转率是多少，还要看订单的安全库存",
+      "expected_intent": "metric_query",
+      "expected_terms": [
+        "库存周转率"
+      ]
+    },
+    {
+      "id": "cmp-0027",
+      "category": "composite",
+      "query": "上季度库存周转率是多少，并且对比供应商的供应商等级",
+      "expected_intent": "metric_query",
+      "expected_terms": [
+        "库存周转率"
+      ]
+    },
+    {
+      "id": "cmp-0028",
+      "category": "composite",
+      "query": "上季度库存周转率是多少，同时关注结算对账",
+      "expected_intent": "metric_query",
+      "expected_terms": [
+        "库存周转率"
+      ]
+    },
+    {
+      "id": "cmp-0029",
+      "category": "composite",
+      "query": "上季度存货周转率是多少，然后调整安全库存",
+      "expected_intent": "metric_query",
+      "expected_terms": [
+        "存货周转率",
+        "调整安全库存"
+      ]
+    },
+    {
+      "id": "cmp-0030",
+      "category": "composite",
+      "query": "上季度存货周转率是多少，并且下发补货单",
+      "expected_intent": "metric_query",
+      "expected_terms": [
+        "存货周转率",
+        "下发补货单"
+      ]
+    },
+    {
+      "id": "cmp-0031",
+      "category": "composite",
+      "query": "上季度存货周转率是多少，同时删除订单",
+      "expected_intent": "metric_query",
+      "expected_terms": [
+        "存货周转率",
+        "删除订单"
+      ]
+    },
+    {
+      "id": "cmp-0032",
+      "category": "composite",
+      "query": "上季度存货周转率是多少，顺便导出报表",
+      "expected_intent": "metric_query",
+      "expected_terms": [
+        "存货周转率",
+        "导出报表"
+      ]
+    },
+    {
+      "id": "cmp-0033",
+      "category": "composite",
+      "query": "上季度存货周转率是多少，还要看品类的单价",
+      "expected_intent": "metric_query",
+      "expected_terms": [
+        "存货周转率"
+      ]
+    },
+    {
+      "id": "cmp-0034",
+      "category": "composite",
+      "query": "上季度存货周转率是多少，并且对比仓库的安全库存",
+      "expected_intent": "metric_query",
+      "expected_terms": [
+        "存货周转率"
+      ]
+    },
+    {
+      "id": "cmp-0035",
+      "category": "composite",
+      "query": "上季度存货周转率是多少，同时关注出库拣货",
+      "expected_intent": "metric_query",
+      "expected_terms": [
+        "存货周转率"
+      ]
+    },
+    {
+      "id": "cmp-0036",
+      "category": "composite",
+      "query": "上季度周转次数是多少，然后删除订单",
+      "expected_intent": "metric_query",
+      "expected_terms": [
+        "周转次数",
+        "删除订单"
+      ]
+    },
+    {
+      "id": "cmp-0037",
+      "category": "composite",
+      "query": "上季度周转次数是多少，并且导出报表",
+      "expected_intent": "metric_query",
+      "expected_terms": [
+        "周转次数",
+        "导出报表"
+      ]
+    },
+    {
+      "id": "cmp-0038",
+      "category": "composite",
+      "query": "上季度周转次数是多少，同时冻结供应商",
+      "expected_intent": "metric_query",
+      "expected_terms": [
+        "周转次数",
+        "冻结供应商"
+      ]
+    },
+    {
+      "id": "cmp-0039",
+      "category": "composite",
+      "query": "上季度周转次数是多少，顺便调整安全库存",
+      "expected_intent": "metric_query",
+      "expected_terms": [
+        "周转次数",
+        "调整安全库存"
+      ]
+    },
+    {
+      "id": "cmp-0040",
+      "category": "composite",
+      "query": "上季度周转次数是多少，还要看门店的订单状态",
+      "expected_intent": "metric_query",
+      "expected_terms": [
+        "周转次数"
+      ]
+    },
+    {
+      "id": "cmp-0041",
+      "category": "composite",
+      "query": "上季度周转次数是多少，并且对比订单的单价",
+      "expected_intent": "metric_query",
+      "expected_terms": [
+        "周转次数"
+      ]
+    },
+    {
+      "id": "cmp-0042",
+      "category": "composite",
+      "query": "上季度周转次数是多少，同时关注入库上架",
+      "expected_intent": "metric_query",
+      "expected_terms": [
+        "周转次数"
+      ]
+    },
+    {
+      "id": "cmp-0043",
+      "category": "composite",
+      "query": "上季度履约率是多少，然后冻结供应商",
+      "expected_intent": "metric_query",
+      "expected_terms": [
+        "履约率",
+        "冻结供应商"
+      ]
+    },
+    {
+      "id": "cmp-0044",
+      "category": "composite",
+      "query": "上季度履约率是多少，并且调整安全库存",
+      "expected_intent": "metric_query",
+      "expected_terms": [
+        "履约率",
+        "调整安全库存"
+      ]
+    },
+    {
+      "id": "cmp-0045",
+      "category": "composite",
+      "query": "上季度履约率是多少，同时下发补货单",
+      "expected_intent": "metric_query",
+      "expected_terms": [
+        "履约率",
+        "下发补货单"
+      ]
+    },
+    {
+      "id": "cmp-0046",
+      "category": "composite",
+      "query": "上季度履约率是多少，顺便删除订单",
+      "expected_intent": "metric_query",
+      "expected_terms": [
+        "履约率",
+        "删除订单"
+      ]
+    },
+    {
+      "id": "cmp-0047",
+      "category": "composite",
+      "query": "上季度履约率是多少，还要看供应商的供应商等级",
+      "expected_intent": "metric_query",
+      "expected_terms": [
+        "履约率"
+      ]
+    },
+    {
+      "id": "cmp-0048",
+      "category": "composite",
+      "query": "上季度履约率是多少，并且对比品类的订单状态",
+      "expected_intent": "metric_query",
+      "expected_terms": [
+        "履约率"
+      ]
+    },
+    {
+      "id": "cmp-0049",
+      "category": "composite",
+      "query": "上季度履约率是多少，同时关注退货审批",
+      "expected_intent": "metric_query",
+      "expected_terms": [
+        "履约率"
+      ]
+    },
+    {
+      "id": "cmp-0050",
+      "category": "composite",
+      "query": "上季度按时交付率是多少，然后下发补货单",
+      "expected_intent": "metric_query",
+      "expected_terms": [
+        "按时交付率",
+        "下发补货单"
+      ]
+    },
+    {
+      "id": "cmp-0051",
+      "category": "composite",
+      "query": "上季度按时交付率是多少，并且删除订单",
+      "expected_intent": "metric_query",
+      "expected_terms": [
+        "按时交付率",
+        "删除订单"
+      ]
+    },
+    {
+      "id": "cmp-0052",
+      "category": "composite",
+      "query": "上季度按时交付率是多少，同时导出报表",
+      "expected_intent": "metric_query",
+      "expected_terms": [
+        "按时交付率",
+        "导出报表"
+      ]
+    },
+    {
+      "id": "cmp-0053",
+      "category": "composite",
+      "query": "上季度按时交付率是多少，顺便冻结供应商",
+      "expected_intent": "metric_query",
+      "expected_terms": [
+        "按时交付率",
+        "冻结供应商"
+      ]
+    },
+    {
+      "id": "cmp-0054",
+      "category": "composite",
+      "query": "上季度按时交付率是多少，还要看仓库的安全库存",
+      "expected_intent": "metric_query",
+      "expected_terms": [
+        "按时交付率"
+      ]
+    },
+    {
+      "id": "cmp-0055",
+      "category": "composite",
+      "query": "上季度按时交付率是多少，并且对比门店的供应商等级",
+      "expected_intent": "metric_query",
+      "expected_terms": [
+        "按时交付率"
+      ]
+    },
+    {
+      "id": "cmp-0056",
+      "category": "composite",
+      "query": "上季度按时交付率是多少，同时关注结算对账",
+      "expected_intent": "metric_query",
+      "expected_terms": [
+        "按时交付率"
+      ]
+    },
+    {
+      "id": "cmp-0057",
+      "category": "composite",
+      "query": "上季度交付达成率是多少，然后导出报表",
+      "expected_intent": "metric_query",
+      "expected_terms": [
+        "交付达成率",
+        "导出报表"
+      ]
+    },
+    {
+      "id": "cmp-0058",
+      "category": "composite",
+      "query": "上季度交付达成率是多少，并且冻结供应商",
+      "expected_intent": "metric_query",
+      "expected_terms": [
+        "交付达成率",
+        "冻结供应商"
+      ]
+    },
+    {
+      "id": "cmp-0059",
+      "category": "composite",
+      "query": "上季度交付达成率是多少，同时调整安全库存",
+      "expected_intent": "metric_query",
+      "expected_terms": [
+        "交付达成率",
+        "调整安全库存"
+      ]
+    },
+    {
+      "id": "cmp-0060",
+      "category": "composite",
+      "query": "上季度交付达成率是多少，顺便下发补货单",
+      "expected_intent": "metric_query",
+      "expected_terms": [
+        "交付达成率",
+        "下发补货单"
+      ]
+    },
+    {
+      "id": "cmp-0061",
+      "category": "composite",
+      "query": "上季度交付达成率是多少，还要看订单的单价",
+      "expected_intent": "metric_query",
+      "expected_terms": [
+        "交付达成率"
+      ]
+    },
+    {
+      "id": "cmp-0062",
+      "category": "composite",
+      "query": "上季度交付达成率是多少，并且对比供应商的安全库存",
+      "expected_intent": "metric_query",
+      "expected_terms": [
+        "交付达成率"
+      ]
+    },
+    {
+      "id": "cmp-0063",
+      "category": "composite",
+      "query": "上季度交付达成率是多少，同时关注出库拣货",
+      "expected_intent": "metric_query",
+      "expected_terms": [
+        "交付达成率"
+      ]
+    },
+    {
+      "id": "cmp-0064",
+      "category": "composite",
+      "query": "上季度客单价是多少，然后调整安全库存",
+      "expected_intent": "metric_query",
+      "expected_terms": [
+        "客单价",
+        "调整安全库存"
+      ]
+    },
+    {
+      "id": "cmp-0065",
+      "category": "composite",
+      "query": "上季度客单价是多少，并且下发补货单",
+      "expected_intent": "metric_query",
+      "expected_terms": [
+        "客单价",
+        "下发补货单"
+      ]
+    },
+    {
+      "id": "cmp-0066",
+      "category": "composite",
+      "query": "上季度客单价是多少，同时删除订单",
+      "expected_intent": "metric_query",
+      "expected_terms": [
+        "客单价",
+        "删除订单"
+      ]
+    },
+    {
+      "id": "cmp-0067",
+      "category": "composite",
+      "query": "上季度客单价是多少，顺便导出报表",
+      "expected_intent": "metric_query",
+      "expected_terms": [
+        "客单价",
+        "导出报表"
+      ]
+    },
+    {
+      "id": "cmp-0068",
+      "category": "composite",
+      "query": "上季度客单价是多少，还要看品类的订单状态",
+      "expected_intent": "metric_query",
+      "expected_terms": [
+        "客单价"
+      ]
+    },
+    {
+      "id": "cmp-0069",
+      "category": "composite",
+      "query": "上季度客单价是多少，并且对比仓库的单价",
+      "expected_intent": "metric_query",
+      "expected_terms": [
+        "客单价"
+      ]
+    },
+    {
+      "id": "cmp-0070",
+      "category": "composite",
+      "query": "上季度客单价是多少，同时关注入库上架",
+      "expected_intent": "metric_query",
+      "expected_terms": [
+        "客单价"
+      ]
+    },
+    {
+      "id": "cmp-0071",
+      "category": "composite",
+      "query": "上季度平均订单金额是多少，然后删除订单",
+      "expected_intent": "metric_query",
+      "expected_terms": [
+        "平均订单金额",
+        "删除订单"
+      ]
+    },
+    {
+      "id": "cmp-0072",
+      "category": "composite",
+      "query": "上季度平均订单金额是多少，并且导出报表",
+      "expected_intent": "metric_query",
+      "expected_terms": [
+        "平均订单金额",
+        "导出报表"
+      ]
+    },
+    {
+      "id": "cmp-0073",
+      "category": "composite",
+      "query": "上季度平均订单金额是多少，同时冻结供应商",
+      "expected_intent": "metric_query",
+      "expected_terms": [
+        "平均订单金额",
+        "冻结供应商"
+      ]
+    },
+    {
+      "id": "cmp-0074",
+      "category": "composite",
+      "query": "上季度平均订单金额是多少，顺便调整安全库存",
+      "expected_intent": "metric_query",
+      "expected_terms": [
+        "平均订单金额",
+        "调整安全库存"
+      ]
+    },
+    {
+      "id": "cmp-0075",
+      "category": "composite",
+      "query": "上季度平均订单金额是多少，还要看门店的供应商等级",
+      "expected_intent": "metric_query",
+      "expected_terms": [
+        "平均订单金额"
+      ]
+    },
+    {
+      "id": "cmp-0076",
+      "category": "composite",
+      "query": "上季度平均订单金额是多少，并且对比订单的订单状态",
+      "expected_intent": "metric_query",
+      "expected_terms": [
+        "平均订单金额"
+      ]
+    },
+    {
+      "id": "cmp-0077",
+      "category": "composite",
+      "query": "上季度平均订单金额是多少，同时关注退货审批",
+      "expected_intent": "metric_query",
+      "expected_terms": [
+        "平均订单金额"
+      ]
+    },
+    {
+      "id": "cmp-0078",
+      "category": "composite",
+      "query": "上季度单均金额是多少，然后冻结供应商",
+      "expected_intent": "metric_query",
+      "expected_terms": [
+        "单均金额",
+        "冻结供应商"
+      ]
+    },
+    {
+      "id": "cmp-0079",
+      "category": "composite",
+      "query": "上季度单均金额是多少，并且调整安全库存",
+      "expected_intent": "metric_query",
+      "expected_terms": [
+        "单均金额",
+        "调整安全库存"
+      ]
+    },
+    {
+      "id": "cmp-0080",
+      "category": "composite",
+      "query": "上季度单均金额是多少，同时下发补货单",
+      "expected_intent": "metric_query",
+      "expected_terms": [
+        "单均金额",
+        "下发补货单"
+      ]
+    },
+    {
+      "id": "cmp-0081",
+      "category": "composite",
+      "query": "上季度单均金额是多少，顺便删除订单",
+      "expected_intent": "metric_query",
+      "expected_terms": [
+        "单均金额",
+        "删除订单"
+      ]
+    },
+    {
+      "id": "cmp-0082",
+      "category": "composite",
+      "query": "上季度单均金额是多少，还要看供应商的安全库存",
+      "expected_intent": "metric_query",
+      "expected_terms": [
+        "单均金额"
+      ]
+    },
+    {
+      "id": "cmp-0083",
+      "category": "composite",
+      "query": "上季度单均金额是多少，并且对比品类的供应商等级",
+      "expected_intent": "metric_query",
+      "expected_terms": [
+        "单均金额"
+      ]
+    },
+    {
+      "id": "cmp-0084",
+      "category": "composite",
+      "query": "上季度单均金额是多少，同时关注结算对账",
+      "expected_intent": "metric_query",
+      "expected_terms": [
+        "单均金额"
+      ]
+    },
+    {
+      "id": "cmp-0085",
+      "category": "composite",
+      "query": "上季度缺货率是多少，然后下发补货单",
+      "expected_intent": "metric_query",
+      "expected_terms": [
+        "缺货率",
+        "下发补货单"
+      ]
+    },
+    {
+      "id": "cmp-0086",
+      "category": "composite",
+      "query": "上季度缺货率是多少，并且删除订单",
+      "expected_intent": "metric_query",
+      "expected_terms": [
+        "缺货率",
+        "删除订单"
+      ]
+    },
+    {
+      "id": "cmp-0087",
+      "category": "composite",
+      "query": "上季度缺货率是多少，同时导出报表",
+      "expected_intent": "metric_query",
+      "expected_terms": [
+        "缺货率",
+        "导出报表"
+      ]
+    },
+    {
+      "id": "cmp-0088",
+      "category": "composite",
+      "query": "上季度缺货率是多少，顺便冻结供应商",
+      "expected_intent": "metric_query",
+      "expected_terms": [
+        "缺货率",
+        "冻结供应商"
+      ]
+    },
+    {
+      "id": "cmp-0089",
+      "category": "composite",
+      "query": "上季度缺货率是多少，还要看仓库的单价",
+      "expected_intent": "metric_query",
+      "expected_terms": [
+        "缺货率"
+      ]
+    },
+    {
+      "id": "cmp-0090",
+      "category": "composite",
+      "query": "上季度缺货率是多少，并且对比门店的安全库存",
+      "expected_intent": "metric_query",
+      "expected_terms": [
+        "缺货率"
+      ]
+    },
+    {
+      "id": "cmp-0091",
+      "category": "composite",
+      "query": "上季度缺货率是多少，同时关注出库拣货",
+      "expected_intent": "metric_query",
+      "expected_terms": [
+        "缺货率"
+      ]
+    },
+    {
+      "id": "cmp-0092",
+      "category": "composite",
+      "query": "上季度断货率是多少，然后导出报表",
+      "expected_intent": "metric_query",
+      "expected_terms": [
+        "断货率",
+        "导出报表"
+      ]
+    },
+    {
+      "id": "cmp-0093",
+      "category": "composite",
+      "query": "上季度断货率是多少，并且冻结供应商",
+      "expected_intent": "metric_query",
+      "expected_terms": [
+        "断货率",
+        "冻结供应商"
+      ]
+    },
+    {
+      "id": "cmp-0094",
+      "category": "composite",
+      "query": "上季度断货率是多少，同时调整安全库存",
+      "expected_intent": "metric_query",
+      "expected_terms": [
+        "断货率",
+        "调整安全库存"
+      ]
+    },
+    {
+      "id": "cmp-0095",
+      "category": "composite",
+      "query": "上季度断货率是多少，顺便下发补货单",
+      "expected_intent": "metric_query",
+      "expected_terms": [
+        "断货率",
+        "下发补货单"
+      ]
+    },
+    {
+      "id": "cmp-0096",
+      "category": "composite",
+      "query": "上季度断货率是多少，还要看订单的订单状态",
+      "expected_intent": "metric_query",
+      "expected_terms": [
+        "断货率"
+      ]
+    },
+    {
+      "id": "cmp-0097",
+      "category": "composite",
+      "query": "上季度断货率是多少，并且对比供应商的单价",
+      "expected_intent": "metric_query",
+      "expected_terms": [
+        "断货率"
+      ]
+    },
+    {
+      "id": "cmp-0098",
+      "category": "composite",
+      "query": "上季度断货率是多少，同时关注入库上架",
+      "expected_intent": "metric_query",
+      "expected_terms": [
+        "断货率"
+      ]
+    },
+    {
+      "id": "cmp-0099",
+      "category": "composite",
+      "query": "上季度毛利率是多少，然后调整安全库存",
+      "expected_intent": "metric_query",
+      "expected_terms": [
+        "毛利率",
+        "调整安全库存"
+      ]
+    },
+    {
+      "id": "cmp-0100",
+      "category": "composite",
+      "query": "上季度毛利率是多少，并且下发补货单",
+      "expected_intent": "metric_query",
+      "expected_terms": [
+        "毛利率",
+        "下发补货单"
+      ]
+    },
+    {
+      "id": "cmp-0101",
+      "category": "composite",
+      "query": "上季度毛利率是多少，同时删除订单",
+      "expected_intent": "metric_query",
+      "expected_terms": [
+        "毛利率",
+        "删除订单"
+      ]
+    },
+    {
+      "id": "cmp-0102",
+      "category": "composite",
+      "query": "上季度毛利率是多少，顺便导出报表",
+      "expected_intent": "metric_query",
+      "expected_terms": [
+        "毛利率",
+        "导出报表"
+      ]
+    },
+    {
+      "id": "cmp-0103",
+      "category": "composite",
+      "query": "上季度毛利率是多少，还要看品类的供应商等级",
+      "expected_intent": "metric_query",
+      "expected_terms": [
+        "毛利率"
+      ]
+    },
+    {
+      "id": "cmp-0104",
+      "category": "composite",
+      "query": "上季度毛利率是多少，并且对比仓库的订单状态",
+      "expected_intent": "metric_query",
+      "expected_terms": [
+        "毛利率"
+      ]
+    },
+    {
+      "id": "cmp-0105",
+      "category": "composite",
+      "query": "上季度毛利率是多少，同时关注退货审批",
+      "expected_intent": "metric_query",
+      "expected_terms": [
+        "毛利率"
+      ]
+    },
+    {
+      "id": "cmp-0106",
+      "category": "composite",
+      "query": "上季度毛利水平是多少，然后删除订单",
+      "expected_intent": "metric_query",
+      "expected_terms": [
+        "毛利水平",
+        "删除订单"
+      ]
+    },
+    {
+      "id": "cmp-0107",
+      "category": "composite",
+      "query": "上季度毛利水平是多少，并且导出报表",
+      "expected_intent": "metric_query",
+      "expected_terms": [
+        "毛利水平",
+        "导出报表"
+      ]
+    },
+    {
+      "id": "cmp-0108",
+      "category": "composite",
+      "query": "上季度毛利水平是多少，同时冻结供应商",
+      "expected_intent": "metric_query",
+      "expected_terms": [
+        "毛利水平",
+        "冻结供应商"
+      ]
+    },
+    {
+      "id": "cmp-0109",
+      "category": "composite",
+      "query": "上季度毛利水平是多少，顺便调整安全库存",
+      "expected_intent": "metric_query",
+      "expected_terms": [
+        "毛利水平",
+        "调整安全库存"
+      ]
+    },
+    {
+      "id": "cmp-0110",
+      "category": "composite",
+      "query": "上季度毛利水平是多少，还要看门店的安全库存",
+      "expected_intent": "metric_query",
+      "expected_terms": [
+        "毛利水平"
+      ]
+    },
+    {
+      "id": "dis-0001",
+      "category": "distractor",
+      "query": "今天食堂有什么菜",
+      "expected_intent": "unknown",
+      "expected_terms": []
+    },
+    {
+      "id": "dis-0002",
+      "category": "distractor",
+      "query": "麻烦问一下，今天食堂有什么菜",
+      "expected_intent": "unknown",
+      "expected_terms": []
+    },
+    {
+      "id": "dis-0003",
+      "category": "distractor",
+      "query": "请问一下，今天食堂有什么菜",
+      "expected_intent": "unknown",
+      "expected_terms": []
+    },
+    {
+      "id": "dis-0004",
+      "category": "distractor",
+      "query": "帮我确认下：今天食堂有什么菜",
+      "expected_intent": "unknown",
+      "expected_terms": []
+    },
+    {
+      "id": "dis-0005",
+      "category": "distractor",
+      "query": "想问下今天食堂有什么菜",
+      "expected_intent": "unknown",
+      "expected_terms": []
+    },
+    {
+      "id": "dis-0006",
+      "category": "distractor",
+      "query": "帮我订一张去上海的机票",
+      "expected_intent": "unknown",
+      "expected_terms": []
+    },
+    {
+      "id": "dis-0007",
+      "category": "distractor",
+      "query": "麻烦问一下，帮我订一张去上海的机票",
+      "expected_intent": "unknown",
+      "expected_terms": []
+    },
+    {
+      "id": "dis-0008",
+      "category": "distractor",
+      "query": "请问一下，帮我订一张去上海的机票",
+      "expected_intent": "unknown",
+      "expected_terms": []
+    },
+    {
+      "id": "dis-0009",
+      "category": "distractor",
+      "query": "帮我确认下：帮我订一张去上海的机票",
+      "expected_intent": "unknown",
+      "expected_terms": []
+    },
+    {
+      "id": "dis-0010",
+      "category": "distractor",
+      "query": "想问下帮我订一张去上海的机票",
+      "expected_intent": "unknown",
+      "expected_terms": []
+    },
+    {
+      "id": "dis-0011",
+      "category": "distractor",
+      "query": "这个月的社保基数调整了吗",
+      "expected_intent": "unknown",
+      "expected_terms": []
+    },
+    {
+      "id": "dis-0012",
+      "category": "distractor",
+      "query": "麻烦问一下，这个月的社保基数调整了吗",
+      "expected_intent": "unknown",
+      "expected_terms": []
+    },
+    {
+      "id": "dis-0013",
+      "category": "distractor",
+      "query": "请问一下，这个月的社保基数调整了吗",
+      "expected_intent": "unknown",
+      "expected_terms": []
+    },
+    {
+      "id": "dis-0014",
+      "category": "distractor",
+      "query": "帮我确认下：这个月的社保基数调整了吗",
+      "expected_intent": "unknown",
+      "expected_terms": []
+    },
+    {
+      "id": "dis-0015",
+      "category": "distractor",
+      "query": "想问下这个月的社保基数调整了吗",
+      "expected_intent": "unknown",
+      "expected_terms": []
+    },
+    {
+      "id": "dis-0016",
+      "category": "distractor",
+      "query": "员工报销流程怎么走",
+      "expected_intent": "unknown",
+      "expected_terms": []
+    },
+    {
+      "id": "dis-0017",
+      "category": "distractor",
+      "query": "麻烦问一下，员工报销流程怎么走",
+      "expected_intent": "unknown",
+      "expected_terms": []
+    },
+    {
+      "id": "dis-0018",
+      "category": "distractor",
+      "query": "请问一下，员工报销流程怎么走",
+      "expected_intent": "unknown",
+      "expected_terms": []
+    },
+    {
+      "id": "dis-0019",
+      "category": "distractor",
+      "query": "帮我确认下：员工报销流程怎么走",
+      "expected_intent": "unknown",
+      "expected_terms": []
+    },
+    {
+      "id": "dis-0020",
+      "category": "distractor",
+      "query": "想问下员工报销流程怎么走",
+      "expected_intent": "unknown",
+      "expected_terms": []
+    },
+    {
+      "id": "dis-0021",
+      "category": "distractor",
+      "query": "公司停车位怎么申请",
+      "expected_intent": "unknown",
+      "expected_terms": []
+    },
+    {
+      "id": "dis-0022",
+      "category": "distractor",
+      "query": "麻烦问一下，公司停车位怎么申请",
+      "expected_intent": "unknown",
+      "expected_terms": []
+    },
+    {
+      "id": "dis-0023",
+      "category": "distractor",
+      "query": "请问一下，公司停车位怎么申请",
+      "expected_intent": "unknown",
+      "expected_terms": []
+    },
+    {
+      "id": "dis-0024",
+      "category": "distractor",
+      "query": "帮我确认下：公司停车位怎么申请",
+      "expected_intent": "unknown",
+      "expected_terms": []
+    },
+    {
+      "id": "dis-0025",
+      "category": "distractor",
+      "query": "想问下公司停车位怎么申请",
+      "expected_intent": "unknown",
+      "expected_terms": []
+    },
+    {
+      "id": "dis-0026",
+      "category": "distractor",
+      "query": "明天团建几点集合",
+      "expected_intent": "unknown",
+      "expected_terms": []
+    },
+    {
+      "id": "dis-0027",
+      "category": "distractor",
+      "query": "麻烦问一下，明天团建几点集合",
+      "expected_intent": "unknown",
+      "expected_terms": []
+    },
+    {
+      "id": "dis-0028",
+      "category": "distractor",
+      "query": "请问一下，明天团建几点集合",
+      "expected_intent": "unknown",
+      "expected_terms": []
+    },
+    {
+      "id": "dis-0029",
+      "category": "distractor",
+      "query": "帮我确认下：明天团建几点集合",
+      "expected_intent": "unknown",
+      "expected_terms": []
+    },
+    {
+      "id": "dis-0030",
+      "category": "distractor",
+      "query": "想问下明天团建几点集合",
+      "expected_intent": "unknown",
+      "expected_terms": []
+    },
+    {
+      "id": "dis-0031",
+      "category": "distractor",
+      "query": "帮我把这份简历投递到招聘网站",
+      "expected_intent": "unknown",
+      "expected_terms": []
+    },
+    {
+      "id": "dis-0032",
+      "category": "distractor",
+      "query": "麻烦问一下，帮我把这份简历投递到招聘网站",
+      "expected_intent": "unknown",
+      "expected_terms": []
+    },
+    {
+      "id": "dis-0033",
+      "category": "distractor",
+      "query": "请问一下，帮我把这份简历投递到招聘网站",
+      "expected_intent": "unknown",
+      "expected_terms": []
+    },
+    {
+      "id": "dis-0034",
+      "category": "distractor",
+      "query": "帮我确认下：帮我把这份简历投递到招聘网站",
+      "expected_intent": "unknown",
+      "expected_terms": []
+    },
+    {
+      "id": "dis-0035",
+      "category": "distractor",
+      "query": "想问下帮我把这份简历投递到招聘网站",
+      "expected_intent": "unknown",
+      "expected_terms": []
+    },
+    {
+      "id": "dis-0036",
+      "category": "distractor",
+      "query": "服务器机房的温度是不是太高了",
+      "expected_intent": "unknown",
+      "expected_terms": []
+    },
+    {
+      "id": "dis-0037",
+      "category": "distractor",
+      "query": "麻烦问一下，服务器机房的温度是不是太高了",
+      "expected_intent": "unknown",
+      "expected_terms": []
+    },
+    {
+      "id": "dis-0038",
+      "category": "distractor",
+      "query": "请问一下，服务器机房的温度是不是太高了",
+      "expected_intent": "unknown",
+      "expected_terms": []
+    },
+    {
+      "id": "dis-0039",
+      "category": "distractor",
+      "query": "帮我确认下：服务器机房的温度是不是太高了",
+      "expected_intent": "unknown",
+      "expected_terms": []
+    },
+    {
+      "id": "dis-0040",
+      "category": "distractor",
+      "query": "想问下服务器机房的温度是不是太高了",
+      "expected_intent": "unknown",
+      "expected_terms": []
+    },
+    {
+      "id": "dis-0041",
+      "category": "distractor",
+      "query": "这个季度的团建预算还剩多少",
+      "expected_intent": "unknown",
+      "expected_terms": []
+    },
+    {
+      "id": "dis-0042",
+      "category": "distractor",
+      "query": "麻烦问一下，这个季度的团建预算还剩多少",
+      "expected_intent": "unknown",
+      "expected_terms": []
+    },
+    {
+      "id": "dis-0043",
+      "category": "distractor",
+      "query": "请问一下，这个季度的团建预算还剩多少",
+      "expected_intent": "unknown",
+      "expected_terms": []
+    },
+    {
+      "id": "dis-0044",
+      "category": "distractor",
+      "query": "帮我确认下：这个季度的团建预算还剩多少",
+      "expected_intent": "unknown",
+      "expected_terms": []
+    },
+    {
+      "id": "dis-0045",
+      "category": "distractor",
+      "query": "想问下这个季度的团建预算还剩多少",
+      "expected_intent": "unknown",
+      "expected_terms": []
+    },
+    {
+      "id": "dis-0046",
+      "category": "distractor",
+      "query": "怎么修改登录密码",
+      "expected_intent": "unknown",
+      "expected_terms": []
+    },
+    {
+      "id": "dis-0047",
+      "category": "distractor",
+      "query": "麻烦问一下，怎么修改登录密码",
+      "expected_intent": "unknown",
+      "expected_terms": []
+    },
+    {
+      "id": "dis-0048",
+      "category": "distractor",
+      "query": "请问一下，怎么修改登录密码",
+      "expected_intent": "unknown",
+      "expected_terms": []
+    },
+    {
+      "id": "dis-0049",
+      "category": "distractor",
+      "query": "帮我确认下：怎么修改登录密码",
+      "expected_intent": "unknown",
+      "expected_terms": []
+    },
+    {
+      "id": "dis-0050",
+      "category": "distractor",
+      "query": "想问下怎么修改登录密码",
+      "expected_intent": "unknown",
+      "expected_terms": []
+    },
+    {
+      "id": "dis-0051",
+      "category": "distractor",
+      "query": "单据怎么打印",
+      "expected_intent": "unknown",
+      "expected_terms": []
+    },
+    {
+      "id": "dis-0052",
+      "category": "distractor",
+      "query": "麻烦问一下，单据怎么打印",
+      "expected_intent": "unknown",
+      "expected_terms": []
+    },
+    {
+      "id": "dis-0053",
+      "category": "distractor",
+      "query": "请问一下，单据怎么打印",
+      "expected_intent": "unknown",
+      "expected_terms": []
+    },
+    {
+      "id": "dis-0054",
+      "category": "distractor",
+      "query": "帮我确认下：单据怎么打印",
+      "expected_intent": "unknown",
+      "expected_terms": []
+    },
+    {
+      "id": "dis-0055",
+      "category": "distractor",
+      "query": "想问下单据怎么打印",
+      "expected_intent": "unknown",
+      "expected_terms": []
+    },
+    {
+      "id": "dis-0056",
+      "category": "distractor",
+      "query": "那张纸质凭证放哪了",
+      "expected_intent": "unknown",
+      "expected_terms": []
+    },
+    {
+      "id": "dis-0057",
+      "category": "distractor",
+      "query": "麻烦问一下，那张纸质凭证放哪了",
+      "expected_intent": "unknown",
+      "expected_terms": []
+    },
+    {
+      "id": "dis-0058",
+      "category": "distractor",
+      "query": "请问一下，那张纸质凭证放哪了",
+      "expected_intent": "unknown",
+      "expected_terms": []
+    },
+    {
+      "id": "dis-0059",
+      "category": "distractor",
+      "query": "帮我确认下：那张纸质凭证放哪了",
+      "expected_intent": "unknown",
+      "expected_terms": []
+    },
+    {
+      "id": "dis-0060",
+      "category": "distractor",
+      "query": "想问下那张纸质凭证放哪了",
+      "expected_intent": "unknown",
+      "expected_terms": []
+    },
+    {
+      "id": "dis-0061",
+      "category": "distractor",
+      "query": "这批货的物流单号是多少",
+      "expected_intent": "unknown",
+      "expected_terms": []
+    },
+    {
+      "id": "dis-0062",
+      "category": "distractor",
+      "query": "麻烦问一下，这批货的物流单号是多少",
+      "expected_intent": "unknown",
+      "expected_terms": []
+    },
+    {
+      "id": "dis-0063",
+      "category": "distractor",
+      "query": "请问一下，这批货的物流单号是多少",
+      "expected_intent": "unknown",
+      "expected_terms": []
+    },
+    {
+      "id": "dis-0064",
+      "category": "distractor",
+      "query": "帮我确认下：这批货的物流单号是多少",
+      "expected_intent": "unknown",
+      "expected_terms": []
+    },
+    {
+      "id": "dis-0065",
+      "category": "distractor",
+      "query": "想问下这批货的物流单号是多少",
+      "expected_intent": "unknown",
+      "expected_terms": []
+    },
+    {
+      "id": "dis-0066",
+      "category": "distractor",
+      "query": "合作的第三方联系人电话是多少",
+      "expected_intent": "unknown",
+      "expected_terms": []
+    },
+    {
+      "id": "dis-0067",
+      "category": "distractor",
+      "query": "麻烦问一下，合作的第三方联系人电话是多少",
+      "expected_intent": "unknown",
+      "expected_terms": []
+    },
+    {
+      "id": "dis-0068",
+      "category": "distractor",
+      "query": "请问一下，合作的第三方联系人电话是多少",
+      "expected_intent": "unknown",
+      "expected_terms": []
+    },
+    {
+      "id": "dis-0069",
+      "category": "distractor",
+      "query": "帮我确认下：合作的第三方联系人电话是多少",
+      "expected_intent": "unknown",
+      "expected_terms": []
+    },
+    {
+      "id": "dis-0070",
+      "category": "distractor",
+      "query": "想问下合作的第三方联系人电话是多少",
+      "expected_intent": "unknown",
+      "expected_terms": []
+    },
+    {
+      "id": "dis-0071",
+      "category": "distractor",
+      "query": "地下储物间的门禁卡在哪领",
+      "expected_intent": "unknown",
+      "expected_terms": []
+    },
+    {
+      "id": "dis-0072",
+      "category": "distractor",
+      "query": "麻烦问一下，地下储物间的门禁卡在哪领",
+      "expected_intent": "unknown",
+      "expected_terms": []
+    },
+    {
+      "id": "dis-0073",
+      "category": "distractor",
+      "query": "请问一下，地下储物间的门禁卡在哪领",
+      "expected_intent": "unknown",
+      "expected_terms": []
+    },
+    {
+      "id": "dis-0074",
+      "category": "distractor",
+      "query": "帮我确认下：地下储物间的门禁卡在哪领",
+      "expected_intent": "unknown",
+      "expected_terms": []
+    },
+    {
+      "id": "dis-0075",
+      "category": "distractor",
+      "query": "想问下地下储物间的门禁卡在哪领",
+      "expected_intent": "unknown",
+      "expected_terms": []
+    },
+    {
+      "id": "dis-0076",
+      "category": "distractor",
+      "query": "电子发票怎么开",
+      "expected_intent": "unknown",
+      "expected_terms": []
+    },
+    {
+      "id": "dis-0077",
+      "category": "distractor",
+      "query": "麻烦问一下，电子发票怎么开",
+      "expected_intent": "unknown",
+      "expected_terms": []
+    },
+    {
+      "id": "dis-0078",
+      "category": "distractor",
+      "query": "请问一下，电子发票怎么开",
+      "expected_intent": "unknown",
+      "expected_terms": []
+    },
+    {
+      "id": "dis-0079",
+      "category": "distractor",
+      "query": "帮我确认下：电子发票怎么开",
+      "expected_intent": "unknown",
+      "expected_terms": []
+    },
+    {
+      "id": "dis-0080",
+      "category": "distractor",
+      "query": "想问下电子发票怎么开",
+      "expected_intent": "unknown",
+      "expected_terms": []
+    },
+    {
+      "id": "dis-0081",
+      "category": "distractor",
+      "query": "结算清单什么时候寄出",
+      "expected_intent": "unknown",
+      "expected_terms": []
+    },
+    {
+      "id": "dis-0082",
+      "category": "distractor",
+      "query": "麻烦问一下，结算清单什么时候寄出",
+      "expected_intent": "unknown",
+      "expected_terms": []
+    },
+    {
+      "id": "dis-0083",
+      "category": "distractor",
+      "query": "请问一下，结算清单什么时候寄出",
+      "expected_intent": "unknown",
+      "expected_terms": []
+    },
+    {
+      "id": "dis-0084",
+      "category": "distractor",
+      "query": "帮我确认下：结算清单什么时候寄出",
+      "expected_intent": "unknown",
+      "expected_terms": []
+    },
+    {
+      "id": "dis-0085",
+      "category": "distractor",
+      "query": "想问下结算清单什么时候寄出",
+      "expected_intent": "unknown",
+      "expected_terms": []
+    },
+    {
+      "id": "dis-0086",
+      "category": "distractor",
+      "query": "货架上的标签谁负责换",
+      "expected_intent": "unknown",
+      "expected_terms": []
+    },
+    {
+      "id": "dis-0087",
+      "category": "distractor",
+      "query": "麻烦问一下，货架上的标签谁负责换",
+      "expected_intent": "unknown",
+      "expected_terms": []
+    },
+    {
+      "id": "dis-0088",
+      "category": "distractor",
+      "query": "请问一下，货架上的标签谁负责换",
+      "expected_intent": "unknown",
+      "expected_terms": []
+    },
+    {
+      "id": "dis-0089",
+      "category": "distractor",
+      "query": "帮我确认下：货架上的标签谁负责换",
+      "expected_intent": "unknown",
+      "expected_terms": []
+    },
+    {
+      "id": "dis-0090",
+      "category": "distractor",
+      "query": "想问下货架上的标签谁负责换",
+      "expected_intent": "unknown",
+      "expected_terms": []
+    },
+    {
+      "id": "dis-0091",
+      "category": "distractor",
+      "query": "茶水间的咖啡机坏了找谁修",
+      "expected_intent": "unknown",
+      "expected_terms": []
+    },
+    {
+      "id": "dis-0092",
+      "category": "distractor",
+      "query": "麻烦问一下，茶水间的咖啡机坏了找谁修",
+      "expected_intent": "unknown",
+      "expected_terms": []
+    },
+    {
+      "id": "dis-0093",
+      "category": "distractor",
+      "query": "请问一下，茶水间的咖啡机坏了找谁修",
+      "expected_intent": "unknown",
+      "expected_terms": []
+    },
+    {
+      "id": "dis-0094",
+      "category": "distractor",
+      "query": "帮我确认下：茶水间的咖啡机坏了找谁修",
+      "expected_intent": "unknown",
+      "expected_terms": []
+    },
+    {
+      "id": "dis-0095",
+      "category": "distractor",
+      "query": "想问下茶水间的咖啡机坏了找谁修",
+      "expected_intent": "unknown",
+      "expected_terms": []
+    },
+    {
+      "id": "dis-0096",
+      "category": "distractor",
+      "query": "这份合同的法务审核到哪一步了",
+      "expected_intent": "unknown",
+      "expected_terms": []
+    },
+    {
+      "id": "dis-0097",
+      "category": "distractor",
+      "query": "麻烦问一下，这份合同的法务审核到哪一步了",
+      "expected_intent": "unknown",
+      "expected_terms": []
+    },
+    {
+      "id": "dis-0098",
+      "category": "distractor",
+      "query": "请问一下，这份合同的法务审核到哪一步了",
+      "expected_intent": "unknown",
+      "expected_terms": []
+    },
+    {
+      "id": "dis-0099",
+      "category": "distractor",
+      "query": "帮我确认下：这份合同的法务审核到哪一步了",
+      "expected_intent": "unknown",
+      "expected_terms": []
+    },
+    {
+      "id": "dis-0100",
+      "category": "distractor",
+      "query": "想问下这份合同的法务审核到哪一步了",
+      "expected_intent": "unknown",
+      "expected_terms": []
+    },
+    {
+      "id": "dis-0101",
+      "category": "distractor",
+      "query": "下周的值班表排好了吗",
+      "expected_intent": "unknown",
+      "expected_terms": []
+    },
+    {
+      "id": "dis-0102",
+      "category": "distractor",
+      "query": "麻烦问一下，下周的值班表排好了吗",
+      "expected_intent": "unknown",
+      "expected_terms": []
+    },
+    {
+      "id": "dis-0103",
+      "category": "distractor",
+      "query": "请问一下，下周的值班表排好了吗",
+      "expected_intent": "unknown",
+      "expected_terms": []
+    },
+    {
+      "id": "dis-0104",
+      "category": "distractor",
+      "query": "帮我确认下：下周的值班表排好了吗",
+      "expected_intent": "unknown",
+      "expected_terms": []
+    },
+    {
+      "id": "dis-0105",
+      "category": "distractor",
+      "query": "想问下下周的值班表排好了吗",
+      "expected_intent": "unknown",
+      "expected_terms": []
+    },
+    {
+      "id": "dis-0106",
+      "category": "distractor",
+      "query": "新同事的门禁权限开通了吗",
+      "expected_intent": "unknown",
+      "expected_terms": []
+    },
+    {
+      "id": "dis-0107",
+      "category": "distractor",
+      "query": "麻烦问一下，新同事的门禁权限开通了吗",
+      "expected_intent": "unknown",
+      "expected_terms": []
+    },
+    {
+      "id": "dis-0108",
+      "category": "distractor",
+      "query": "请问一下，新同事的门禁权限开通了吗",
+      "expected_intent": "unknown",
+      "expected_terms": []
+    },
+    {
+      "id": "dis-0109",
+      "category": "distractor",
+      "query": "帮我确认下：新同事的门禁权限开通了吗",
+      "expected_intent": "unknown",
+      "expected_terms": []
+    },
+    {
+      "id": "dis-0110",
+      "category": "distractor",
+      "query": "想问下新同事的门禁权限开通了吗",
+      "expected_intent": "unknown",
+      "expected_terms": []
+    }
+  ]
+}

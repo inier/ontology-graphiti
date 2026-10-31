@@ -1,11 +1,19 @@
 """API数据结构"""
 
+from enum import Enum
+
 from pydantic import BaseModel, Field
 from typing import Dict, Any, List, Optional
 from datetime import datetime
 
-from ..model.s.ontology import OntologyStatus
-from ..model.s.audit import DataSource, ProcessingStatus
+# 旧导入路径 `..model.s.ontology` 是 models→model 改名时被误替换留下的产物，
+# 指向一个从未存在的包，使本模块 import 期即 ModuleNotFoundError（且下面还用到了未导入的 Enum）。
+# 这里改为真实位置（design/models/*），避免成为后续引用的地雷。
+from odap.biz.core.ontology.design.models.ontology import OntologyStatus  # noqa: F401
+from odap.biz.core.ontology.design.models.audit import (  # noqa: F401
+    DataSource,
+    ProcessingStatus,
+)
 
 
 class ValidationSeverity(str, Enum):

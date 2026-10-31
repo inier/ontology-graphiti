@@ -55,6 +55,17 @@ def _ontology_storage_factory():
     return SQLiteOntologyStorage()
 
 
+def _agent_swarm_factory():
+    """容错编排（infra.resilience.fault_tolerance）协作者：Agent 群体编排器。
+
+    W0-4（SPEC-v2 §2.1）：fault_tolerance 原模块级 import biz 的 DomainSwarm，
+    构成 infra→biz 直接边（C4 违规）。改为 infra 经本注册表按名解析，
+    biz→infra 是合法下行依赖。
+    """
+    from odap.biz.core.agent.public import get_domain_swarm
+    return get_domain_swarm()
+
+
 def bootstrap() -> None:
     """注册全部 biz provider。幂等：重复调用以后者为准。"""
     register_provider("oms_service", _oms_service_factory)
@@ -62,6 +73,7 @@ def bootstrap() -> None:
     register_provider("design_contract", _design_contract_factory)
     register_provider("action_storage", _action_storage_factory)
     register_provider("ontology_storage", _ontology_storage_factory)
+    register_provider("agent_swarm", _agent_swarm_factory)
 
 
 # 导入即注册（组合根 `import odap.biz.providers_bootstrap` 完成接线）

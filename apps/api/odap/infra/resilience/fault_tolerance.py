@@ -14,7 +14,8 @@ from dataclasses import dataclass, field
 from enum import Enum
 from typing import Dict, Any, List, Optional, Callable
 
-from odap.biz.core.agent.swarm_orchestrator import AgentState
+from odap.common.agent_types import AgentState
+from odap.infra.providers import resolve_provider
 from odap.infra.resilience.circuit_breaker import CircuitBreaker, get_circuit_breaker, CircuitOpenError
 
 logger = logging.getLogger("fault_tolerance")
@@ -294,10 +295,11 @@ class FaultRecoveryManager:
         restart_successful = False
         restart_method = None
 
-        # 尝试从 DomainSwarm 获取 Agent 实例并调用其重置方法
+        # 尝试从 DomainSwarm 获取 Agent 实例并调用其重置方法。
+        # C4（ADR-081）：infra 不得 import biz —— 经 infra.providers 注册表依赖倒置解析，
+        # provider 由组合根 `odap.biz.providers_bootstrap` 注册（biz→infra 合法下行）。
         try:
-            from odap.biz.core.agent.swarm_orchestrator import DomainSwarm
-            swarm = DomainSwarm()
+            swarm = resolve_provider("agent_swarm")
             agent = swarm.agents.get(agent_id)
             if agent is not None:
                 if hasattr(agent, 'reset') and callable(getattr(agent, 'reset')):

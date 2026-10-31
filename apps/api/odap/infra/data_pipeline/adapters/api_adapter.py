@@ -3,7 +3,7 @@ import logging
 from typing import Dict, Any, Iterator, Optional
 from urllib.parse import urlparse
 
-from ..data_pipeline import DataSourceConnector, DataRecord, DataFormat
+from ..core import DataFormat, DataRecord, DataSourceConnector
 
 logger = logging.getLogger(__name__)
 

@@ -185,6 +185,7 @@ source_modules = [
     "odap.biz.data",
     "odap.biz.decision",
     "odap.biz.integration",
+    "odap.biz.knowledge",
     "odap.biz.management",
     "odap.biz.platform",
     "odap.biz.semantic_admin",
@@ -211,6 +212,7 @@ forbidden_modules = [
     "odap.biz.core.ontology.inheritance",
     "odap.biz.core.ontology.mcp",
     "odap.biz.core.ontology.ontology_api",
+    "odap.biz.core.ontology.orchestration",
     "odap.biz.core.ontology.reasoning",
     "odap.biz.core.ontology.registry",
     "odap.biz.core.ontology.semantic_retrieval",
@@ -275,8 +277,10 @@ ignore_imports = [
     "odap.infra.openharness.engine_adapter -> odap.biz.core.assistant.plugins.ai_assistant.tools",
     "odap.infra.openharness.engine_adapter -> odap.biz.platform.config.impl.config_manager",
     "odap.infra.openharness.engine_adapter -> odap.biz.platform.session_memory.services.session_memory_service",
-    # Tier2 · resilience.fault_tolerance 容错编排（agent 领域）
-    "odap.infra.resilience.fault_tolerance -> odap.biz.core.agent.swarm_orchestrator",
+    # [已烧] Tier2 · resilience.fault_tolerance（W0-4，SPEC-v2 §2.1）：原「AgentState 下沉不足以断边，
+    #   DomainSwarm 惰性 import 仍存活」已彻底解决 —— AgentType/AgentState 下沉 odap.common.agent_types，
+    #   DomainSwarm 改为经 odap.infra.providers 注册表 resolve_provider("agent_swarm") 依赖倒置，
+    #   工厂注册在 odap.biz.providers_bootstrap（biz→infra 合法下行）。该条直接边消除。
     # Tier2 · agui.retrieval_adapter 经门面取检索
     "odap.infra.openharness.agui.retrieval_adapter -> odap.biz.core.ontology.public",
     # [已烧] Tier3 · query source 三边已依赖倒置（Stage I · C4-A3）：ontology_source/schema_source/

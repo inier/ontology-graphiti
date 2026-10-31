@@ -5,7 +5,7 @@ import os
 from datetime import datetime, timezone
 from typing import Dict, Any, List, Iterator, Optional
 
-from ..data_pipeline import DataSourceConnector, DataRecord, DataFormat
+from ..core import DataFormat, DataRecord, DataSourceConnector
 
 logger = logging.getLogger(__name__)
 

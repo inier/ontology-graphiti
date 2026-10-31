@@ -84,13 +84,15 @@ async def unregister_hook(hook_id: str,
     user=Depends(verify_admin)):
     _uid = user.get("sub", "anonymous") if isinstance(user, dict) else "anonymous"
     try:
-        # P3-M4: 移除已废弃且签名错误的 HookAdapter 调用
-        # （HookAdapter 内部以错误签名调 HookManager.register_hook，必然失败被静默吞掉）
-        hook = hook_service.get_hook(hook_id)
-        if hook.get("status") == "error":
-            raise HTTPException(status_code=404, detail=hook.get("message", "Hook not found"))
+        # P0-C4 同类整改：此前本端点只做存在性校验就返回 success，
+        # 从未调用 manager.delete_hook，前端「删除」是静默 no-op。
+        result = hook_service.delete_hook(hook_id)
+        if result.get("status") == "error":
+            _audit("hook_system_unregister_failed", _uid, "failure",
+                   result.get("message", "Hook not found"), details={"hook_id": hook_id})
+            raise HTTPException(status_code=404, detail=result.get("message", "Hook not found"))
         _audit("hook_system_unregister", _uid, "success", details={"hook_id": hook_id})
-        return {"status": "success", "hook_id": hook_id}
+        return result
     except HTTPException:
         raise
     except Exception as e:

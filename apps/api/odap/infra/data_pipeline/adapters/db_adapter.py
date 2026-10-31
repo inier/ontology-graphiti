@@ -2,7 +2,7 @@ import uuid
 import logging
 from typing import Dict, Any, Iterator
 
-from ..data_pipeline import DataSourceConnector, DataRecord, DataFormat
+from ..core import DataFormat, DataRecord, DataSourceConnector
 
 logger = logging.getLogger(__name__)
 

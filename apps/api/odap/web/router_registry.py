@@ -77,6 +77,10 @@ def create_router_registry() -> List[tuple]:
     # ── 知识库 ──
     from odap.biz.data.knowledge_base.api.routes import router as kb_router
 
+    # ── LLM Wiki + 文档治理（F1/F2/F3，SPEC-v2 §5 /api/v1/wiki、/api/v1/docs/governance）──
+    from odap.biz.knowledge.wiki.api.routes import router as wiki_router
+    from odap.biz.knowledge.governance.api.routes import router as doc_governance_router
+
     # ── Hyper-Extract 知识提取（ADR-066） ──
     from odap.biz.data.hyper_extract.api.routes import router as he_router
 
@@ -87,6 +91,9 @@ def create_router_registry() -> List[tuple]:
 
     # ── 本体 - TypeRegistry（统一类型定义读写入口） ──
     from odap.biz.core.ontology.public_routers import registry_router
+
+    # ── 本体约束编排层（F6/F8：/api/v1/ontology/qa + provenance，ADR-094） ──
+    from odap.biz.core.ontology.public_routers import orchestration_router
 
     # ── 对象服务 ──
     from odap.biz.data.object_service.routes import router as osv2_router
@@ -231,6 +238,9 @@ def create_router_registry() -> List[tuple]:
     from odap.biz.core.ontology.public_routers import shacl_owl_router
     from odap.biz.core.ontology.public_routers import ingestion_router
     from odap.biz.core.ontology.public_routers import ontology_version_router
+
+    # ── 本体 - 质量健康度 ──
+    from odap.biz.core.ontology.public_routers import health_router
 
     # ── 本体 - 冲突/分支/冷启动/继承/计算 ──
     from odap.biz.core.ontology.public_routers import conflict_router
@@ -458,6 +468,9 @@ def create_router_registry() -> List[tuple]:
         (ingestion_router,),
         (ontology_version_router,),
 
+        # 本体 - 质量健康度（规则 CRUD / 扫描 / 报告）
+        (health_router,),
+
         # 本体 - 冲突/分支/冷启动/继承/计算
         (conflict_router,),
         (branch_router,),
@@ -494,6 +507,13 @@ def create_router_registry() -> List[tuple]:
         # WebSocket 与监控
         (ws_router,),
         (monitoring_router,),
+
+        # LLM Wiki + 文档治理（SPEC-v2 §5，v1 前缀）
+        (wiki_router,),
+        (doc_governance_router,),
+
+        # 本体约束编排层（F6/F8，v1 前缀）
+        (orchestration_router,),
     ]
 
 

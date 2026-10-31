@@ -12,6 +12,8 @@
 - POST   /{goal_id}/propose-change      创建 ChangeProposal + ImpactAnalysis
 - GET    /{goal_id}/proposals           列出该 Goal 的所有 Proposal
 - GET    /{goal_id}/lineage             获取 Goal 血缘
+- GET    /proposals/{proposal_id}       获取单个 Proposal
+- GET    /impacts/{impact_id}           获取变更影响分析
 - POST   /proposals/{proposal_id}/review  审批 Proposal
 """
 from __future__ import annotations
@@ -216,6 +218,42 @@ async def get_goal_lineage(goal_id: str):
     """获取 Goal 血缘（祖先 + 子 + 关联 Proposal）"""
     try:
         result = goal_service.get_goal_lineage(goal_id)
+        if result.get("status") == "error":
+            raise HTTPException(status_code=404, detail=result["message"])
+        return result
+    except HTTPException:
+        raise
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@router.get("/proposals/{proposal_id}", response_model=ProposalResponse)
+async def get_proposal(proposal_id: str):
+    """获取单个 ChangeProposal。
+
+    仓储 `get_proposal` 与 `_proposal_to_dict` 早就存在，但 service 与 HTTP 层
+    都没暴露 —— 前端展开提案详情时打本路径恒 404。
+    """
+    try:
+        result = goal_service.get_proposal(proposal_id)
+        if result.get("status") == "error":
+            raise HTTPException(status_code=404, detail=result["message"])
+        return result
+    except HTTPException:
+        raise
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@router.get("/impacts/{impact_id}", response_model=ImpactResponse)
+async def get_impact(impact_id: str):
+    """获取变更影响分析（ImpactAnalysis）。
+
+    与 get_proposal 同因：仓储 `get_impact` 存在、`_impact_to_dict` 也写好了，
+    但没有任何对外通道，前端 `GET /goals/impacts/{id}` 恒 404。
+    """
+    try:
+        result = goal_service.get_impact(impact_id)
         if result.get("status") == "error":
             raise HTTPException(status_code=404, detail=result["message"])
         return result

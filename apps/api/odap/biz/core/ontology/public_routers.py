@@ -91,6 +91,11 @@ _ROUTER_MAP: dict[str, tuple[str, str]] = {
     "ontology_model_router": ("odap.biz.core.ontology.design.model.api.routes", "router"),
     "ontology_version_router": ("odap.biz.core.ontology.design.version.api.routes", "router"),
 
+    # ── 本体 - 质量健康度（规则 CRUD / 扫描 / 报告）──
+    # 历史遗漏：health/api/routes.py 有 9 个端点，但既不在本映射表也不在
+    # web/router_registry.py 的注册清单里 —— 代码在、线没接，前端打过去恒 404。
+    "health_router": ("odap.biz.core.ontology.health.api.routes", "router"),
+
     # ── 本体 - 抽取 / 目标 / 核心 API ──
     "extraction_router": ("odap.biz.core.ontology.extraction.api", "router"),
     "goal_router": ("odap.biz.core.ontology.goal.api.routes", "router"),
@@ -101,6 +106,9 @@ _ROUTER_MAP: dict[str, tuple[str, str]] = {
     "registry_router": ("odap.biz.core.ontology.registry.api.routes", "router"),
     "semantic_retrieval_router": ("odap.biz.core.ontology.semantic_retrieval.api.routes", "router"),
     "object_view_router": ("odap.biz.core.ontology.view.api.routes", "router"),
+
+    # ── 本体约束编排层（ADR-094 / F6 / F8）：/api/v1/ontology/qa 与 provenance ──
+    "orchestration_router": ("odap.biz.core.ontology.orchestration.api.routes", "router"),
 }
 
 
@@ -169,4 +177,5 @@ if TYPE_CHECKING:  # pragma: no cover
     from odap.biz.core.ontology.reasoning.api.routes import router as reasoning_router
     from odap.biz.core.ontology.registry.api.routes import router as registry_router
     from odap.biz.core.ontology.semantic_retrieval.api.routes import router as semantic_retrieval_router
+    from odap.biz.core.ontology.orchestration.api.routes import router as orchestration_router
     from odap.biz.core.ontology.view.api.routes import router as object_view_router

@@ -399,6 +399,54 @@ class GoalService:
         self.repository.save_proposal(proposal)
         return impact
 
+    def get_proposal(self, proposal_id: str) -> Dict[str, Any]:
+        """获取单个 ChangeProposal。
+
+        仓储层 `get_proposal` 一直存在（goal_repository_impl.py），但 service 与
+        HTTP 层都没有暴露 —— 前端 ChangeProposalCard 展开详情时打
+        `GET /api/ontology/goals/proposals/{id}` 恒 404。
+        """
+        action = "goal.get_proposal"
+        try:
+            proposal = self.repository.get_proposal(proposal_id)
+            if not proposal:
+                _audit_failure(action, msg="proposal not found", resource=proposal_id,
+                               details={"proposal_id": proposal_id})
+                return {"status": "error", "message": f"proposal not found: {proposal_id}"}
+            _audit_success(action, resource=proposal_id,
+                           details={"proposal_id": proposal_id,
+                                    "status": proposal.status.value,
+                                    "has_impact": bool(proposal.impact_analysis_id)})
+            return self._proposal_to_dict(proposal)
+        except Exception as exc:
+            _audit_failure(action, msg=str(exc), resource=proposal_id,
+                           details={"proposal_id": proposal_id})
+            return {"status": "error", "message": f"get_proposal failed: {exc}"}
+
+    def get_impact(self, impact_id: str) -> Dict[str, Any]:
+        """获取 ImpactAnalysis。
+
+        与 get_proposal 同因：仓储 `get_impact` 存在、`_impact_to_dict` 也写好了，
+        但没有任何对外通道，前端 `GET /goals/impacts/{id}` 恒 404 ——
+        「变更影响分析」这个 P0 能力实际上不可达。
+        """
+        action = "goal.get_impact"
+        try:
+            impact = self.repository.get_impact(impact_id)
+            if not impact:
+                _audit_failure(action, msg="impact not found", resource=impact_id,
+                               details={"impact_id": impact_id})
+                return {"status": "error", "message": f"impact not found: {impact_id}"}
+            _audit_success(action, resource=impact_id,
+                           details={"impact_id": impact_id,
+                                    "risk_level": impact.risk_level.value,
+                                    "breaking_count": len(impact.breaking_changes or [])})
+            return self._impact_to_dict(impact)
+        except Exception as exc:
+            _audit_failure(action, msg=str(exc), resource=impact_id,
+                           details={"impact_id": impact_id})
+            return {"status": "error", "message": f"get_impact failed: {exc}"}
+
     def list_proposals(
         self,
         goal_id: Optional[str] = None,

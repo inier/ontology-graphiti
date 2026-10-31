@@ -39,13 +39,25 @@ class SessionSummary(BaseModel):
 
 class SessionStore:
     def __init__(self, db_path: Optional[str] = None):
-        # 默认写入 DATA_DIR/sessions.db，避免污染项目根目录（规则 13）
+        # 默认写入 <apps/api>/data/sessions.db，避免污染项目根目录（规则 13）。
+        #
+        # 原实现用 `os.getcwd()/apps/api/data`，隐含「进程 CWD 必须是仓库根」这一前提：
+        # 从 apps/api 启动时路径变成 apps/api/apps/api/data，目录不存在 → sqlite
+        # 直接抛「unable to open database file」，而调用方是 import 期创建的单例，
+        # 于是整个 web.app / router_registry 都无法 import。这里改为按模块位置推断，
+        # 并确保目录存在，使启动路径与 CWD 解耦。
         if db_path is None:
             data_dir = os.environ.get(
                 'DATA_DIR',
-                os.path.join(os.getcwd(), 'apps', 'api', 'data'),
+                os.path.join(
+                    os.path.dirname(os.path.dirname(os.path.dirname(
+                        os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+                    ))),
+                    'data',
+                ),
             )
             db_path = os.path.join(data_dir, 'sessions.db')
+        os.makedirs(os.path.dirname(os.path.abspath(db_path)) or '.', exist_ok=True)
         self.db_path = db_path
         self._init_db()
 

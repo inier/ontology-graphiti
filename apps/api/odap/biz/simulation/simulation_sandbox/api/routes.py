@@ -62,6 +62,30 @@ async def run_simulation(sandbox_id: str, params: Dict[str, Any] = None,
         raise HTTPException(status_code=500, detail=str(e))
 
 
+@router.post("/{sandbox_id}/stop")
+async def stop_simulation(sandbox_id: str,
+    user=Depends(get_current_user)):
+    """停止沙箱。
+
+    `SandboxManager.stop_sandbox` 早已实现，但过去既没有 service 转发也没有 HTTP 路由；
+    而 `destroy_sandbox` 对 running 状态会明确拒绝 —— 结果是「运行中的沙箱既停不下也删不掉」。
+    """
+    _uid = user.get("sub", "anonymous") if isinstance(user, dict) else "anonymous"
+    try:
+        result = sandbox_service.stop_sandbox(sandbox_id)
+        if result.get("status") == "error":
+            _audit("sandbox_stop_failed", _uid, "failure", result.get("message", ""),
+                   details={"sandbox_id": sandbox_id})
+            raise HTTPException(status_code=400, detail=result.get("message", ""))
+        _audit("sandbox_stop", _uid, "success", details={"sandbox_id": sandbox_id})
+        return result
+    except HTTPException:
+        raise
+    except Exception as e:
+        _audit("sandbox_stop_failed", _uid, "failure", str(e), details={"sandbox_id": sandbox_id})
+        raise HTTPException(status_code=500, detail=str(e))
+
+
 @router.get("/{sandbox_id}/status")
 async def get_sandbox_status(sandbox_id: str,
     user=Depends(get_current_user)):

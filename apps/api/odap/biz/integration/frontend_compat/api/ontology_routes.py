@@ -149,13 +149,32 @@ async def export_query_results(data: Dict[str, Any],
 async def generate_graph(data: Dict[str, Any],
     user=Depends(get_current_user)):
     try:
-        from odap.tasks import generate_graph_task
+        from odap.tasks import generate_graph_task, graph_generation_capability
 
         scenario_id = data.get("scenario_id")
         config = data.get("config", {})
 
         if not scenario_id:
-            raise HTTPException(status_code=400, detail="scenario_id is required")
+            raise HTTPException(status_code=400, detail={
+                "error_code": "SCENARIO_REQUIRED",
+                "message": "scenario_id is required",
+            })
+
+        # W0-2（SPEC-v2 §2.1）：真实图谱抽取能力不存在时必须显式 501，
+        # 禁止排队一个注定返回假计数的任务。
+        cap = graph_generation_capability()
+        if not cap["available"]:
+            _fc_audit(
+                action="frontend_compat_graph_generate",
+                result_status="failure",
+                result_message=cap["reason"][:200],
+                resource="",
+                details={"scenario_id": scenario_id, "error_code": cap["error_code"]},
+            )
+            raise HTTPException(status_code=501, detail={
+                "error_code": cap["error_code"],
+                "message": cap["reason"],
+            })
 
         task_id = f"graph_task_{uuid.uuid4().hex[:12]}"
 
@@ -206,35 +225,84 @@ async def get_graph_progress(task_id: str,
     try:
         try:
             from celery.result import AsyncResult
-            task_result = AsyncResult(task_id)
-            if task_result.ready():
-                result = task_result.get()
-                return {
-                    "task_id": task_id,
-                    "status": "completed",
-                    "progress": 100,
-                    "entities_generated": result.get("entities_generated", 0) if isinstance(result, dict) else 0,
-                    "relations_generated": result.get("relations_generated", 0) if isinstance(result, dict) else 0,
-                }
+        except ImportError as exc:
+            # W0-2：Celery 不可用**不是**「已完成」。旧实现返回 completed/100 属假成功。
+            logger.error(
+                "graph progress unavailable: error_code=CELERY_UNAVAILABLE task_id=%s error=%s",
+                task_id, exc,
+            )
+            raise HTTPException(status_code=503, detail={
+                "error_code": "CELERY_UNAVAILABLE",
+                "message": f"Celery 运行时不可用，无法查询任务进度：{exc}",
+            })
+
+        task_result = AsyncResult(task_id)
+        if not task_result.ready():
             return {
                 "task_id": task_id,
                 "status": "pending",
-                "progress": 50,
+                "progress": 0,
                 "entities_generated": 0,
                 "relations_generated": 0,
             }
-        except ImportError:
+
+        try:
+            result = task_result.get()
+        except Exception as exc:
+            logger.error(
+                "graph task failed: error_code=GRAPH_TASK_FAILED task_id=%s error_type=%s error=%s",
+                task_id, type(exc).__name__, exc,
+            )
             return {
                 "task_id": task_id,
-                "status": "completed",
-                "progress": 100,
+                "status": "failed",
+                "error_code": "GRAPH_TASK_FAILED",
+                "error": f"{type(exc).__name__}: {exc}",
+                "progress": 0,
                 "entities_generated": 0,
                 "relations_generated": 0,
             }
+
+        if not isinstance(result, dict):
+            return {
+                "task_id": task_id,
+                "status": "failed",
+                "error_code": "GRAPH_TASK_BAD_RESULT",
+                "error": f"任务返回值类型非法：{type(result).__name__}",
+                "progress": 0,
+                "entities_generated": 0,
+                "relations_generated": 0,
+            }
+
+        if result.get("status") != "completed":
+            return {
+                "task_id": task_id,
+                "status": result.get("status", "failed"),
+                "error_code": result.get("error_code", "GRAPH_TASK_FAILED"),
+                "error": result.get("error", ""),
+                "progress": 0,
+                "entities_generated": 0,
+                "relations_generated": 0,
+            }
+
+        return {
+            "task_id": task_id,
+            "status": "completed",
+            "progress": 100,
+            "entities_generated": int(result.get("entities_generated", 0)),
+            "relations_generated": int(result.get("relations_generated", 0)),
+        }
     except HTTPException:
         raise
     except Exception as e:
-        raise HTTPException(status_code=500, detail=str(e))
+        logger.error(
+            "get_graph_progress failed: error_code=GRAPH_PROGRESS_FAILED task_id=%s error_type=%s error=%s",
+            task_id, type(e).__name__, e, exc_info=True,
+        )
+        raise HTTPException(status_code=500, detail={
+            "error_code": "GRAPH_PROGRESS_FAILED",
+            "message": f"查询任务进度失败：{type(e).__name__}: {e}",
+        })
 
 
 @router.post("/graph/cancel/{task_id}")
@@ -243,10 +311,19 @@ async def cancel_graph_task(task_id: str,
     try:
         try:
             from celery.result import AsyncResult
-            task_result = AsyncResult(task_id)
-            task_result.revoke(terminate=True)
-        except ImportError:
-            pass
+        except ImportError as exc:
+            # W0-3：禁止 `except ImportError: pass` 后假报 cancelled。
+            logger.error(
+                "graph cancel unavailable: error_code=CELERY_UNAVAILABLE task_id=%s error=%s",
+                task_id, exc,
+            )
+            raise HTTPException(status_code=503, detail={
+                "error_code": "CELERY_UNAVAILABLE",
+                "message": f"Celery 运行时不可用，无法撤销任务：{exc}",
+            })
+
+        task_result = AsyncResult(task_id)
+        task_result.revoke(terminate=True)
         _fc_audit(
             action="frontend_compat_graph_cancel",
             result_status="success",
@@ -299,12 +376,16 @@ async def get_graph_history(limit: int = Query(20, ge=1, le=100),
         }
     except HTTPException:
         raise
-    except Exception:
-        return {
-            "history": [],
-            "limit": limit,
-            "total": 0,
-        }
+    except Exception as e:
+        # W0-3：禁止用空列表冒充「历史为空」——必须暴露失败原因。
+        logger.error(
+            "get_graph_history failed: error_code=GRAPH_HISTORY_FAILED error_type=%s error=%s",
+            type(e).__name__, e, exc_info=True,
+        )
+        raise HTTPException(status_code=500, detail={
+            "error_code": "GRAPH_HISTORY_FAILED",
+            "message": f"读取图谱历史失败：{type(e).__name__}: {e}",
+        })
 
 
 @router.get("/graph/{graph_id}")

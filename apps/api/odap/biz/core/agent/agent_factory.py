@@ -21,19 +21,10 @@ from collections import defaultdict, deque
 
 sys.path.append(os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))))
 
-class AgentType(str, Enum):
-    DIRECTOR = "director"
-    INTELLIGENCE = "intelligence"
-    OPERATIONS = "operations"
-
-
-class AgentState(str, Enum):
-    IDLE = "idle"
-    RUNNING = "running"
-    FAILED = "failed"
-    DEGRADED = "degraded"
-    RECOVERING = "recovering"
-    SUSPENDED = "suspended"
+# W0-4（SPEC-v2 §2.1）：AgentType / AgentState 是纯枚举，已下沉到 common 叶子层，
+# 使 infra（fault_tolerance）无需 import biz 即可取用（C4）。本模块再导出以保持
+# 所有历史导入路径（agent_factory / swarm_orchestrator）继续可用。
+from odap.common.agent_types import AgentState, AgentType  # noqa: F401  (re-export)
 
 
 try:

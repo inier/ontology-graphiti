@@ -246,6 +246,21 @@ _PUBLIC_MAP: dict[str, tuple[str, str]] = {
     "RetrievalService": ("odap.biz.core.ontology.semantic_retrieval.services.retrieval_service", "RetrievalService"),
     "SearchRequest": ("odap.biz.core.ontology.semantic_retrieval.models.schemas", "SearchRequest"),
 
+    # ── 本体约束编排层（ADR-094 / F6 / F8）──
+    "QaPipeline": ("odap.biz.core.ontology.orchestration.pipeline", "QaPipeline"),
+    "AnswerEnvelope": ("odap.biz.core.ontology.orchestration.contracts", "AnswerEnvelope"),
+    "Provenance": ("odap.biz.core.ontology.orchestration.provenance", "Provenance"),
+    "validate_provenance": (
+        "odap.biz.core.ontology.orchestration.provenance", "validate_provenance",
+    ),
+    "TBoxCatalog": ("odap.biz.core.ontology.orchestration.tbox", "TBoxCatalog"),
+    "DefaultEvidenceResolver": (
+        "odap.biz.core.ontology.orchestration.evidence", "DefaultEvidenceResolver",
+    ),
+    "QaTraceRepository": (
+        "odap.biz.core.ontology.orchestration.repositories.trace_repo", "QaTraceRepository",
+    ),
+
     # ── Goal 驱动的结构变更提案（缺口 → ChangeProposal，ADR-090 子项目 D）──
     # 消费者：odap.biz.semantic_admin.gap_pool.services.gap_service（C3 门面唯一合法入口）
     "create_schema_proposal": (
