@@ -91,7 +91,7 @@ export function AttributeCard({ attr }: AttributeCardProps) {
           </div>
         ) : attr.type === 'array' ? (
           <div>
-            <Text type="secondary">{t('attributeCard.arrayItems', { count: (attr.value as any[]).length })}</Text>
+            <Text type="secondary">{t('attributeCard.arrayItems', { count: (attr.value as unknown[]).length })}</Text>
             <pre style={{ margin: 0, whiteSpace: 'pre-wrap', fontSize: 12 }}>
               {JSON.stringify(attr.value, null, 2)}
             </pre>

@@ -1,10 +1,35 @@
 import { create } from 'zustand';
 import { registryApi } from '../services/registryApi';
 import type {
+  CreateActionTypeRequest,
+  CreateLinkTypeRequest,
+  CreateObjectTypeRequest,
+  UpdateActionTypeRequest,
+  UpdateLinkTypeRequest,
+  UpdateObjectTypeRequest,
+} from '../services/registryApi';
+import {
+  toActionTypeDefinition,
+  toConsistencyResult,
+  toLinkTypeDefinition,
+  toList,
+  toObjectTypeDefinition,
+} from '../services/registryAdapters';
+import type {
+  ActionType,
+  LinkType,
+  ObjectType,
+} from '../services/registryApi';
+import type {
   ObjectTypeDefinition,
   LinkTypeDefinition,
   ActionTypeDefinition,
 } from './ontologyStore';
+
+/** `ontology_id` is injected by the store from `currentOntologyId`, callers never pass it. */
+export type NewObjectType = Omit<CreateObjectTypeRequest, 'ontology_id'>;
+export type NewActionType = Omit<CreateActionTypeRequest, 'ontology_id'>;
+export type NewLinkType = Omit<CreateLinkTypeRequest, 'ontology_id'>;
 
 // ─── Consistency validation result ──────────────────────────────────
 
@@ -31,14 +56,14 @@ interface RegistryState {
   loadObjectTypes: () => Promise<void>;
   loadLinkTypes: () => Promise<void>;
   loadActionTypes: () => Promise<void>;
-  createObjectType: (data: unknown) => Promise<void>;
-  updateObjectType: (typeId: string, data: unknown) => Promise<void>;
+  createObjectType: (data: NewObjectType) => Promise<void>;
+  updateObjectType: (typeId: string, data: UpdateObjectTypeRequest) => Promise<void>;
   deleteObjectType: (typeId: string) => Promise<void>;
-  createActionType: (data: unknown) => Promise<void>;
-  updateActionType: (actionTypeId: string, data: unknown) => Promise<void>;
+  createActionType: (data: NewActionType) => Promise<void>;
+  updateActionType: (actionTypeId: string, data: UpdateActionTypeRequest) => Promise<void>;
   deleteActionType: (actionTypeId: string) => Promise<void>;
-  createLinkType: (data: unknown) => Promise<void>;
-  updateLinkType: (linkId: string, data: unknown) => Promise<void>;
+  createLinkType: (data: NewLinkType) => Promise<void>;
+  updateLinkType: (linkId: string, data: UpdateLinkTypeRequest) => Promise<void>;
   deleteLinkType: (linkId: string) => Promise<void>;
   commitVersion: (changelog: string) => Promise<void>;
   validateConsistency: () => Promise<void>;
@@ -86,11 +111,8 @@ export const useRegistryStore = create<RegistryState>((set, get) => ({
   loadObjectTypes: async () => {
     try {
       const ontologyId = requireOntologyId(get().currentOntologyId);
-      const result = await registryApi.objectTypes.list(ontologyId);
-      const list = Array.isArray(result)
-        ? result
-        : ((result as Record<string, unknown>)?.object_types as ObjectTypeDefinition[]) ?? [];
-      set({ objectTypes: list });
+      const rows = await registryApi.objectTypes.list(ontologyId);
+      set({ objectTypes: toList<ObjectType>(rows).map(toObjectTypeDefinition) });
     } catch (e) {
       set({ error: (e as Error).message });
     }
@@ -100,8 +122,8 @@ export const useRegistryStore = create<RegistryState>((set, get) => ({
     set({ loading: true, error: null });
     try {
       const ontologyId = requireOntologyId(get().currentOntologyId);
-      const result = await registryApi.objectTypes.create(ontologyId, data);
-      const newType = result as ObjectTypeDefinition;
+      const result = await registryApi.objectTypes.create({ ...data, ontology_id: ontologyId });
+      const newType = toObjectTypeDefinition(result);
       set((state) => ({
         objectTypes: [...state.objectTypes, newType],
         loading: false,
@@ -115,7 +137,7 @@ export const useRegistryStore = create<RegistryState>((set, get) => ({
     set({ loading: true, error: null });
     try {
       const result = await registryApi.objectTypes.update(typeId, data);
-      const updated = result as ObjectTypeDefinition;
+      const updated = toObjectTypeDefinition(result);
       set((state) => ({
         objectTypes: state.objectTypes.map((t) =>
           t.type_id === typeId ? updated : t,
@@ -143,11 +165,8 @@ export const useRegistryStore = create<RegistryState>((set, get) => ({
   loadActionTypes: async () => {
     try {
       const ontologyId = requireOntologyId(get().currentOntologyId);
-      const result = await registryApi.actionTypes.list(ontologyId);
-      const list = Array.isArray(result)
-        ? result
-        : ((result as Record<string, unknown>)?.action_types as ActionTypeDefinition[]) ?? [];
-      set({ actionTypes: list });
+      const rows = await registryApi.actionTypes.list(ontologyId);
+      set({ actionTypes: toList<ActionType>(rows).map(toActionTypeDefinition) });
     } catch (e) {
       set({ error: (e as Error).message });
     }
@@ -157,8 +176,8 @@ export const useRegistryStore = create<RegistryState>((set, get) => ({
     set({ loading: true, error: null });
     try {
       const ontologyId = requireOntologyId(get().currentOntologyId);
-      const result = await registryApi.actionTypes.create(ontologyId, data);
-      const newType = result as ActionTypeDefinition;
+      const result = await registryApi.actionTypes.create({ ...data, ontology_id: ontologyId });
+      const newType = toActionTypeDefinition(result);
       set((state) => ({
         actionTypes: [...state.actionTypes, newType],
         loading: false,
@@ -172,7 +191,7 @@ export const useRegistryStore = create<RegistryState>((set, get) => ({
     set({ loading: true, error: null });
     try {
       const result = await registryApi.actionTypes.update(actionTypeId, data);
-      const updated = result as ActionTypeDefinition;
+      const updated = toActionTypeDefinition(result);
       set((state) => ({
         actionTypes: state.actionTypes.map((t) =>
           t.action_type_id === actionTypeId ? updated : t,
@@ -200,11 +219,8 @@ export const useRegistryStore = create<RegistryState>((set, get) => ({
   loadLinkTypes: async () => {
     try {
       const ontologyId = requireOntologyId(get().currentOntologyId);
-      const result = await registryApi.linkTypes.list(ontologyId);
-      const list = Array.isArray(result)
-        ? result
-        : ((result as Record<string, unknown>)?.link_types as LinkTypeDefinition[]) ?? [];
-      set({ linkTypes: list });
+      const rows = await registryApi.linkTypes.list(ontologyId);
+      set({ linkTypes: toList<LinkType>(rows).map(toLinkTypeDefinition) });
     } catch (e) {
       set({ error: (e as Error).message });
     }
@@ -214,8 +230,8 @@ export const useRegistryStore = create<RegistryState>((set, get) => ({
     set({ loading: true, error: null });
     try {
       const ontologyId = requireOntologyId(get().currentOntologyId);
-      const result = await registryApi.linkTypes.create(ontologyId, data);
-      const newType = result as LinkTypeDefinition;
+      const result = await registryApi.linkTypes.create({ ...data, ontology_id: ontologyId });
+      const newType = toLinkTypeDefinition(result);
       set((state) => ({
         linkTypes: [...state.linkTypes, newType],
         loading: false,
@@ -229,7 +245,7 @@ export const useRegistryStore = create<RegistryState>((set, get) => ({
     set({ loading: true, error: null });
     try {
       const result = await registryApi.linkTypes.update(linkId, data);
-      const updated = result as LinkTypeDefinition;
+      const updated = toLinkTypeDefinition(result);
       set((state) => ({
         linkTypes: state.linkTypes.map((t) =>
           t.link_id === linkId ? updated : t,
@@ -269,9 +285,9 @@ export const useRegistryStore = create<RegistryState>((set, get) => ({
     set({ loading: true, error: null });
     try {
       const ontologyId = requireOntologyId(get().currentOntologyId);
-      const result = await registryApi.validateConsistency(ontologyId);
+      const result = await registryApi.validateIngest(ontologyId);
       set({
-        consistencyResult: result as ConsistencyResult,
+        consistencyResult: toConsistencyResult(result),
         loading: false,
       });
     } catch (e) {

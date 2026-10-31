@@ -1,7 +1,19 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { knowledgeApi } from './knowledgeApi';
+import type {
+  GraphBuildRequest,
+  KnowledgeBase,
+  KnowledgeCategory,
+  KnowledgeDocument,
+  DocumentUploadData,
+  RAGQueryResult,
+} from '../types';
 
-const API_BASE = 'http://localhost:8000';
+/**
+ * 后端 `rag-query` 实际还返回 `confidence`，但 `RAGQueryResult` 未声明该字段。
+ * 这里显式建模差异（已登记为契约待裁定），而不是用它反过来污染共享类型。
+ */
+type RagQueryResponseWithConfidence = RAGQueryResult & { confidence: number };
 
 function mockFetchResponse<T>(data: T, status = 200) {
   (globalThis.fetch as ReturnType<typeof vi.fn>).mockResolvedValueOnce({
@@ -30,12 +42,16 @@ beforeEach(() => {
 // ─── Knowledge Base CRUD ───────────────────────────────────────
 
 describe('knowledgeApi - Knowledge Base CRUD', () => {
-  const mockKB = {
-    id: 'kb-1',
+  const mockKB: KnowledgeBase = {
+    kb_id: 'kb-1',
     name: 'Test KB',
     description: 'A test knowledge base',
+    knowledge_count: 0,
+    category_count: 0,
     created_at: '2026-01-01',
     updated_at: '2026-01-01',
+    created_by: 'tester',
+    status: 'active',
   };
 
   it('listKnowledgeBases calls GET /api/knowledge-bases', async () => {
@@ -47,7 +63,7 @@ describe('knowledgeApi - Knowledge Base CRUD', () => {
       expect.any(Object),
     );
     expect(result).toHaveLength(1);
-    expect(result[0].id).toBe('kb-1');
+    expect(result[0].kb_id).toBe('kb-1');
   });
 
   it('getKnowledgeBase calls GET /api/knowledge-bases/:id', async () => {
@@ -58,14 +74,14 @@ describe('knowledgeApi - Knowledge Base CRUD', () => {
       expect.stringContaining('/api/knowledge-bases/kb-1'),
       expect.any(Object),
     );
-    expect(result.id).toBe('kb-1');
+    expect(result.kb_id).toBe('kb-1');
   });
 
   it('createKnowledgeBase sends POST with correct body', async () => {
     const formData = { name: 'New KB', description: 'desc' };
-    mockFetchResponse({ id: 'kb-new', ...formData });
+    mockFetchResponse({ kb_id: 'kb-new', ...formData });
 
-    const result = await knowledgeApi.createKnowledgeBase(formData as any);
+    const result = await knowledgeApi.createKnowledgeBase(formData);
     expect(fetch).toHaveBeenCalledWith(
       expect.stringContaining('/api/knowledge-bases'),
       expect.objectContaining({
@@ -73,14 +89,14 @@ describe('knowledgeApi - Knowledge Base CRUD', () => {
         body: JSON.stringify(formData),
       }),
     );
-    expect(result.id).toBe('kb-new');
+    expect(result.kb_id).toBe('kb-new');
   });
 
   it('updateKnowledgeBase sends PUT with correct body', async () => {
     const formData = { name: 'Updated KB', description: 'new desc' };
-    mockFetchResponse({ id: 'kb-1', ...formData });
+    mockFetchResponse({ kb_id: 'kb-1', ...formData });
 
-    const result = await knowledgeApi.updateKnowledgeBase('kb-1', formData as any);
+    const result = await knowledgeApi.updateKnowledgeBase('kb-1', formData);
     expect(fetch).toHaveBeenCalledWith(
       expect.stringContaining('/api/knowledge-bases/kb-1'),
       expect.objectContaining({
@@ -105,11 +121,12 @@ describe('knowledgeApi - Knowledge Base CRUD', () => {
 // ─── Categories ────────────────────────────────────────────────
 
 describe('knowledgeApi - Categories', () => {
-  const mockCategory = {
-    id: 'cat-1',
+  const mockCategory: KnowledgeCategory = {
+    category_id: 'cat-1',
+    kb_id: 'kb-1',
     name: 'General',
-    parent_id: null,
-    created_at: '2026-01-01',
+    document_count: 0,
+    updated_at: '2026-01-01',
   };
 
   it('listCategories calls GET /api/knowledge-bases/:kbId/categories', async () => {
@@ -125,7 +142,7 @@ describe('knowledgeApi - Categories', () => {
 
   it('createCategory sends POST with correct body', async () => {
     const data = { name: 'New Category', parent_id: 'cat-1' };
-    mockFetchResponse({ id: 'cat-new', ...data });
+    mockFetchResponse({ category_id: 'cat-new', ...data });
 
     const result = await knowledgeApi.createCategory('kb-1', data);
     expect(fetch).toHaveBeenCalledWith(
@@ -135,12 +152,12 @@ describe('knowledgeApi - Categories', () => {
         body: JSON.stringify(data),
       }),
     );
-    expect(result.id).toBe('cat-new');
+    expect(result.category_id).toBe('cat-new');
   });
 
   it('createCategory works without parent_id', async () => {
     const data = { name: 'Root Category' };
-    mockFetchResponse({ id: 'cat-root', name: 'Root Category' });
+    mockFetchResponse({ category_id: 'cat-root', name: 'Root Category' });
 
     await knowledgeApi.createCategory('kb-1', data);
     const callOptions = (fetch as ReturnType<typeof vi.fn>).mock.calls[0][1] as Record<string, unknown>;
@@ -161,11 +178,14 @@ describe('knowledgeApi - Categories', () => {
 // ─── Documents ─────────────────────────────────────────────────
 
 describe('knowledgeApi - Documents', () => {
-  const mockDoc = {
-    id: 'doc-1',
+  const mockDoc: KnowledgeDocument = {
+    doc_id: 'doc-1',
+    kb_id: 'kb-1',
     title: 'Test Document',
     content_type: 'text',
-    kb_id: 'kb-1',
+    keywords: [],
+    status: 'indexed',
+    graph_built: false,
     created_at: '2026-01-01',
     updated_at: '2026-01-01',
   };
@@ -205,7 +225,7 @@ describe('knowledgeApi - Documents', () => {
       expect.stringContaining('/api/knowledge-bases/kb-1/documents/doc-1'),
       expect.any(Object),
     );
-    expect(result.id).toBe('doc-1');
+    expect(result.doc_id).toBe('doc-1');
   });
 
   it('deleteDocument sends DELETE request', async () => {
@@ -219,15 +239,15 @@ describe('knowledgeApi - Documents', () => {
   });
 
   it('uploadDocument sends POST with FormData', async () => {
-    const uploadData = {
+    const uploadData: DocumentUploadData = {
       kb_id: 'kb-1',
       content_type: 'text',
       title: 'Upload Test',
       content: 'Hello world',
     };
-    mockFetchResponse({ id: 'doc-new', title: 'Upload Test' });
+    mockFetchResponse({ doc_id: 'doc-new', title: 'Upload Test' });
 
-    const result = await knowledgeApi.uploadDocument(uploadData as any);
+    const result = await knowledgeApi.uploadDocument(uploadData);
     expect(fetch).toHaveBeenCalledWith(
       expect.stringContaining('/api/knowledge-bases/kb-1/documents'),
       expect.objectContaining({
@@ -237,20 +257,20 @@ describe('knowledgeApi - Documents', () => {
     // Verify FormData body is sent (not JSON string)
     const callOptions = (fetch as ReturnType<typeof vi.fn>).mock.calls[0][1] as Record<string, unknown>;
     expect(callOptions.body).toBeInstanceOf(FormData);
-    expect(result.id).toBe('doc-new');
+    expect(result.doc_id).toBe('doc-new');
   });
 
   it('uploadDocument includes optional fields in FormData', async () => {
-    const uploadData = {
+    const uploadData: DocumentUploadData = {
       kb_id: 'kb-1',
       category_id: 'cat-1',
       content_type: 'file',
       title: 'File Upload',
       web_url: 'https://example.com',
     };
-    mockFetchResponse({ id: 'doc-url' });
+    mockFetchResponse({ doc_id: 'doc-url' });
 
-    await knowledgeApi.uploadDocument(uploadData as any);
+    await knowledgeApi.uploadDocument(uploadData);
     const callOptions = (fetch as ReturnType<typeof vi.fn>).mock.calls[0][1] as Record<string, unknown>;
     const formData = callOptions.body as FormData;
     expect(formData.get('kb_id')).toBe('kb-1');
@@ -265,14 +285,14 @@ describe('knowledgeApi - Documents', () => {
 
 describe('knowledgeApi - Graph Build', () => {
   it('buildGraph sends POST with extraction config', async () => {
-    const data = {
+    const data: GraphBuildRequest = {
       doc_id: 'doc-1',
       extraction_method: 'auto',
       entity_types: ['Person', 'Organization'],
     };
     mockFetchResponse({ task_id: 'task-1', status: 'running', method: 'auto' });
 
-    const result = await knowledgeApi.buildGraph(data as any);
+    const result = await knowledgeApi.buildGraph(data);
     expect(fetch).toHaveBeenCalledWith(
       expect.stringContaining('/api/knowledge-bases/documents/doc-1/build-graph'),
       expect.objectContaining({ method: 'POST' }),
@@ -285,7 +305,7 @@ describe('knowledgeApi - Graph Build', () => {
     const data = { doc_id: 'doc-2' };
     mockFetchResponse({ task_id: 'task-2', status: 'running' });
 
-    await knowledgeApi.buildGraph(data as any);
+    await knowledgeApi.buildGraph(data);
     const callOptions = (fetch as ReturnType<typeof vi.fn>).mock.calls[0][1] as Record<string, unknown>;
     const body = JSON.parse(callOptions.body as string);
     expect(body.extraction_method).toBe('auto');
@@ -299,7 +319,7 @@ describe('knowledgeApi - Graph Build', () => {
     };
     mockFetchResponse({ task_id: 'task-3', status: 'running' });
 
-    await knowledgeApi.buildGraph(data as any);
+    await knowledgeApi.buildGraph(data);
     const callOptions = (fetch as ReturnType<typeof vi.fn>).mock.calls[0][1] as Record<string, unknown>;
     const body = JSON.parse(callOptions.body as string);
     expect(body.entity_types).toEqual(['Event']);
@@ -324,7 +344,7 @@ describe('knowledgeApi - RAG Query', () => {
   it('ragQuery sends POST with query data', async () => {
     const data = {
       kb_id: 'kb-1',
-      question: 'What is ontology?',
+      query: 'What is ontology?',
     };
     const mockResult = {
       answer: 'Ontology is a knowledge representation framework.',
@@ -333,7 +353,7 @@ describe('knowledgeApi - RAG Query', () => {
     };
     mockFetchResponse(mockResult);
 
-    const result = await knowledgeApi.ragQuery(data as any);
+    const result = (await knowledgeApi.ragQuery(data)) as RagQueryResponseWithConfidence;
     expect(fetch).toHaveBeenCalledWith(
       expect.stringContaining('/api/knowledge-bases/kb-1/rag-query'),
       expect.objectContaining({
@@ -399,13 +419,15 @@ describe('knowledgeApi - Error Handling', () => {
   it('throws on 400 error for invalid input', async () => {
     mockFetchError(400, 'Bad Request');
 
-    await expect(knowledgeApi.createKnowledgeBase({} as any)).rejects.toThrow('HTTP 400');
+    await expect(knowledgeApi.createKnowledgeBase({ name: '', description: '' })).rejects.toThrow(
+      'HTTP 400',
+    );
   });
 
   it('throws on 422 for validation error', async () => {
     mockFetchError(422, 'Unprocessable Entity');
 
-    await expect(knowledgeApi.ragQuery({} as any)).rejects.toThrow('HTTP 422');
+    await expect(knowledgeApi.ragQuery({ kb_id: 'kb-1', query: '' })).rejects.toThrow('HTTP 422');
   });
 });
 
@@ -431,14 +453,14 @@ describe('knowledgeApi - Auth Headers', () => {
   });
 
   it('uploadDocument includes Authorization but not Content-Type (FormData sets it)', async () => {
-    const uploadData = {
+    const uploadData: DocumentUploadData = {
       kb_id: 'kb-1',
       content_type: 'text',
       title: 'Test',
     };
-    mockFetchResponse({ id: 'doc-1' });
+    mockFetchResponse({ doc_id: 'doc-1' });
 
-    await knowledgeApi.uploadDocument(uploadData as any);
+    await knowledgeApi.uploadDocument(uploadData);
     const callOptions = (fetch as ReturnType<typeof vi.fn>).mock.calls[0][1] as Record<string, unknown>;
     const headers = callOptions.headers as Record<string, string>;
     expect(headers['Authorization']).toBe('Bearer test-jwt-token');

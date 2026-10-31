@@ -15,7 +15,7 @@ import {
   routingTicketApi, TICKET_TRANSITIONS, PRIORITY_SLA_HOURS,
   type RoutingTicket, type TicketEvent, type TicketStatus, type TicketPriority,
 } from '../services/routingTicketApi';
-import { statusMeta } from './RoutingTicketsPage';
+import { statusMeta } from './routingTicketStatus';
 
 const { Text } = Typography;
 
@@ -50,7 +50,9 @@ export const RoutingTicketDetailPage: React.FC = () => {
     }
   }, [id]);
 
-  useEffect(() => { void load(); }, [load]);
+  useEffect(() => {   void (async () => {
+    void load();
+  })(); }, [load]);
 
   const run = async (fn: () => Promise<unknown>, ok: string) => {
     setBusy(true);

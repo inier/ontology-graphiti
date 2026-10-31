@@ -2,7 +2,7 @@ import { useState, useEffect } from 'react';
 
 import { Card, Button, Input, Modal, Form, message, Avatar, Tag, Space, Popconfirm, Select, Divider, Descriptions, Row, Col, Typography, Tooltip, Spin } from 'antd';
 
-import { PlusOutlined, SearchOutlined, EditOutlined, DeleteOutlined, EyeOutlined, RobotOutlined, MoreOutlined } from '@ant-design/icons';
+import { PlusOutlined, SearchOutlined, EditOutlined, DeleteOutlined, EyeOutlined, RobotOutlined } from '@ant-design/icons';
 
 import { agentApi } from '../services/agentApi';
 
@@ -118,25 +118,11 @@ export function AgentManagement() {
 
 
 
-  useEffect(() => {
-
-    loadAgents();
-
-    loadRefOptions();
-
-  }, []);
+  
 
 
 
-  useEffect(() => {
-
-    if (currentScenario) {
-
-      loadEntityOptions();
-
-    }
-
-  }, [currentScenario]);
+  
 
 
 
@@ -150,7 +136,7 @@ export function AgentManagement() {
 
       setAgents(data);
 
-    } catch (e) {
+    } catch {
 
       message.error(t('加载智能体列表失败'));
 
@@ -161,6 +147,8 @@ export function AgentManagement() {
     }
 
   };
+
+  
 
 
 
@@ -194,9 +182,9 @@ export function AgentManagement() {
 
       const typeSet = new Set<string>();
 
-      (result.entities || []).forEach((e: any) => {
+      (result.entities || []).forEach((e) => {
 
-        const t = e.type || e.entity_type;
+        const t = e.type;
 
         if (t) typeSet.add(t);
 
@@ -215,6 +203,18 @@ export function AgentManagement() {
     }
 
   };
+
+  useEffect(() => {
+
+        void (async () => {
+      if (currentScenario) {
+
+        loadEntityOptions();
+
+      }
+    })();
+
+  }, [currentScenario]);
 
 
 
@@ -244,51 +244,50 @@ export function AgentManagement() {
 
         processApi.list().catch(() => []).then(items =>
 
-          items.map((p: any) => ({ id: p.process_id || p.name, name: p.display_name || p.name }))
+          items.map((p) => ({ id: p.process_id || p.name, name: p.display_name || p.name }))
 
         ),
 
         ruleApi.list().catch(() => []).then(items =>
 
-          items.map((r: any) => ({ id: r.rule_id || r.name, name: r.display_name || r.name }))
+          items.map((r) => ({ id: r.rule_id || r.name, name: r.display_name || r.name }))
 
         ),
 
         logicApi.list().catch(() => []).then(items =>
 
-          items.map((l: any) => ({ id: l.logic_id || l.name, name: l.display_name || l.name }))
+          items.map((l) => ({ id: l.logic_id || l.name, name: l.display_name || l.name }))
 
         ),
 
         indicatorApi.list().catch(() => []).then(items =>
 
-          items.map((i: any) => ({ id: i.indicator_id || i.name, name: i.display_name || i.name }))
+          items.map((i) => ({ id: i.indicator_id || i.name, name: i.display_name || i.name }))
 
         ),
 
         api.listSkills().catch(() => ({ skills: [] })).then(r =>
 
-          r.skills.map((s: any) => ({ id: s.skill_id || s.name, name: s.name }))
+          r.skills.map((s) => ({ id: s.skill_id || s.name, name: s.name }))
 
         ),
 
         knowledgeApi.listKnowledgeBases().catch(() => []).then(items =>
 
-          items.map((k: any) => ({ id: k.kb_id, name: k.name }))
+          items.map((k) => ({ id: k.kb_id, name: k.name }))
 
         ),
 
-        api.listRoles().catch(() => []).then((r: any) => {
+        // api.listRoles 已把 `Role[] | { roles }` 归一成 `Role[]`，此处无需再判数组
+        api.listRoles().catch(() => []).then(roles =>
 
-          const roles = Array.isArray(r) ? r : (r.roles || []);
+          roles.map((role) => ({ id: role.role_id, name: role.name }))
 
-          return roles.map((role: any) => ({ id: role.role_id || role.id, name: role.name }));
-
-        }),
+        ),
 
         api.listWorkspaces().catch(() => []).then(items =>
 
-          items.map((w: any) => ({ id: w.workspace_id || w.id, name: w.name }))
+          items.map((w) => ({ id: w.workspace_id, name: w.name }))
 
         ),
 
@@ -319,6 +318,18 @@ export function AgentManagement() {
     }
 
   };
+
+  useEffect(() => {
+
+        void (async () => {
+      loadAgents();
+    })();
+
+        void (async () => {
+      loadRefOptions();
+    })();
+
+  }, []);
 
 
 
@@ -416,7 +427,7 @@ export function AgentManagement() {
 
       loadAgents();
 
-    } catch (e) {
+    } catch {
 
       message.error(t('删除失败'));
 
@@ -450,11 +461,13 @@ export function AgentManagement() {
 
       loadAgents();
 
-    } catch (e: any) {
+    } catch (e) {
+
+      const errMessage = e instanceof Error ? e.message : String(e);
 
       console.error('保存智能体失败:', e);
 
-      message.error(t('保存失败: {{message}}', { message: e?.message || t('未知错误') }));
+      message.error(t('保存失败: {{message}}', { message: errMessage || t('未知错误') }));
 
     }
 

@@ -1,7 +1,140 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { processApi, ruleApi, logicApi, indicatorApi, entityApi, processTypeDefinitions, ruleTypeDefinitions, functionTypeDefinitions, indicatorTypeDefinitions } from './businessApi';
 
-const API_BASE = 'http://localhost:8000';
+import type {
+  BusinessProcess,
+  BusinessProcessFormData,
+  BusinessRule,
+  BusinessRuleFormData,
+  BusinessLogic,
+  BusinessLogicFormData,
+  BusinessIndicator,
+  BusinessIndicatorFormData,
+  BusinessEntity,
+} from '../types';
+
+/**
+ * 真实 DTO 形状的 fixture。
+ *
+ * 早前用例用 `as unknown` 把 `{ name, description, steps }` 这类「看起来像就行」的对象硬塞给
+ * `processApi.create`，把参数类型检查整条绕开；一旦后端字段改名，测试依然全绿。
+ * 这里改成先构造合法 DTO，再用 overrides 覆写关心的字段。
+ */
+function processForm(overrides: Partial<BusinessProcessFormData> = {}): BusinessProcessFormData {
+  return {
+    name: 'Order Process',
+    display_name: '订单流程',
+    description: 'desc',
+    related_objects: [],
+    llm_description: '',
+    flow_nodes: [],
+    ...overrides,
+  };
+}
+
+function processRecord(overrides: Partial<BusinessProcess> = {}): BusinessProcess {
+  return {
+    ...processForm(),
+    process_id: 'proc-1',
+    status: 'draft',
+    created_by: 'tester',
+    created_at: '2026-01-01',
+    updated_at: '2026-01-01',
+    ...overrides,
+  };
+}
+
+function ruleForm(overrides: Partial<BusinessRuleFormData> = {}): BusinessRuleFormData {
+  return {
+    name: 'Validation Rule',
+    display_name: '校验规则',
+    description: 'desc',
+    related_objects: [],
+    llm_description: '',
+    rule_conditions: [],
+    ...overrides,
+  };
+}
+
+function ruleRecord(overrides: Partial<BusinessRule> = {}): BusinessRule {
+  return {
+    ...ruleForm(),
+    rule_id: 'rule-1',
+    status: 'draft',
+    created_by: 'tester',
+    created_at: '2026-01-01',
+    updated_at: '2026-01-01',
+    ...overrides,
+  };
+}
+
+function logicForm(overrides: Partial<BusinessLogicFormData> = {}): BusinessLogicFormData {
+  return {
+    name: 'Calculation Logic',
+    display_name: '计算逻辑',
+    description: 'desc',
+    related_objects: [],
+    llm_description: '',
+    logic_type: 'compute',
+    logic_expression: 'x + y',
+    ...overrides,
+  };
+}
+
+function logicRecord(overrides: Partial<BusinessLogic> = {}): BusinessLogic {
+  return {
+    ...logicForm(),
+    logic_id: 'logic-1',
+    status: 'draft',
+    created_by: 'tester',
+    created_at: '2026-01-01',
+    updated_at: '2026-01-01',
+    ...overrides,
+  };
+}
+
+function indicatorForm(overrides: Partial<BusinessIndicatorFormData> = {}): BusinessIndicatorFormData {
+  return {
+    name: 'Revenue Indicator',
+    display_name: '收入指标',
+    description: 'desc',
+    related_objects: [],
+    llm_description: '',
+    indicator_type: 'kpi',
+    calculation_formula: 'sum(revenue)',
+    unit: 'CNY',
+    ...overrides,
+  };
+}
+
+function indicatorRecord(overrides: Partial<BusinessIndicator> = {}): BusinessIndicator {
+  return {
+    ...indicatorForm(),
+    indicator_id: 'ind-1',
+    status: 'draft',
+    created_by: 'tester',
+    created_at: '2026-01-01',
+    updated_at: '2026-01-01',
+    ...overrides,
+  };
+}
+
+function entityRecord(overrides: Partial<BusinessEntity> = {}): BusinessEntity {
+  return {
+    id: 'ent-1',
+    name: 'Customer',
+    display_name: '客户',
+    description: 'desc',
+    related_objects: [],
+    llm_description: '',
+    entity_type: 'process',
+    status: 'draft',
+    created_by: 'tester',
+    created_at: '2026-01-01',
+    updated_at: '2026-01-01',
+    ...overrides,
+  };
+}
 
 function mockFetchResponse<T>(data: T, status = 200) {
   (globalThis.fetch as ReturnType<typeof vi.fn>).mockResolvedValueOnce({
@@ -30,14 +163,7 @@ beforeEach(() => {
 // ─── Process API ───────────────────────────────────────────────
 
 describe('processApi', () => {
-  const mockProcess = {
-    id: 'proc-1',
-    name: 'Order Process',
-    description: 'desc',
-    steps: [],
-    created_at: '2026-01-01',
-    updated_at: '2026-01-01',
-  };
+  const mockProcess = processRecord();
 
   it('list calls GET /api/business-processes', async () => {
     mockFetchResponse([mockProcess]);
@@ -76,14 +202,14 @@ describe('processApi', () => {
       expect.stringContaining('/api/business-processes/proc-1'),
       expect.any(Object),
     );
-    expect(result.id).toBe('proc-1');
+    expect(result.process_id).toBe('proc-1');
   });
 
   it('create sends POST with correct body', async () => {
-    const formData = { name: 'New Process', description: 'desc', steps: [] };
-    mockFetchResponse({ id: 'proc-new', ...formData });
+    const formData = processForm({ name: 'New Process' });
+    mockFetchResponse({ process_id: 'proc-new', ...formData });
 
-    const result = await processApi.create(formData as any);
+    await processApi.create(formData);
     expect(fetch).toHaveBeenCalledWith(
       expect.stringContaining('/api/business-processes'),
       expect.objectContaining({
@@ -94,19 +220,19 @@ describe('processApi', () => {
   });
 
   it('create passes ontology_id and version_id in body', async () => {
-    const formData = { name: 'New', ontology_id: 'ont-1', version_id: 'v-1' };
-    mockFetchResponse({ id: 'proc-new', ...formData });
+    const formData = { ...processForm({ name: 'New' }), ontology_id: 'ont-1', version_id: 'v-1' };
+    mockFetchResponse({ process_id: 'proc-new', ...formData });
 
-    await processApi.create(formData as any);
+    await processApi.create(formData);
     const callOptions = (fetch as ReturnType<typeof vi.fn>).mock.calls[0][1] as Record<string, unknown>;
     expect(JSON.parse(callOptions.body as string)).toEqual(formData);
   });
 
   it('update sends PUT with correct body', async () => {
-    const formData = { name: 'Updated Process', description: 'new desc', steps: [] };
-    mockFetchResponse({ id: 'proc-1', ...formData });
+    const formData = processForm({ name: 'Updated Process', description: 'new desc' });
+    mockFetchResponse({ process_id: 'proc-1', ...formData });
 
-    await processApi.update('proc-1', formData as any);
+    await processApi.update('proc-1', formData);
     expect(fetch).toHaveBeenCalledWith(
       expect.stringContaining('/api/business-processes/proc-1'),
       expect.objectContaining({
@@ -145,14 +271,7 @@ describe('processApi', () => {
 // ─── Rule API ──────────────────────────────────────────────────
 
 describe('ruleApi', () => {
-  const mockRule = {
-    id: 'rule-1',
-    name: 'Validation Rule',
-    description: 'desc',
-    conditions: [],
-    created_at: '2026-01-01',
-    updated_at: '2026-01-01',
-  };
+  const mockRule = ruleRecord();
 
   it('list calls GET /api/business-rules', async () => {
     mockFetchResponse([mockRule]);
@@ -178,14 +297,14 @@ describe('ruleApi', () => {
     mockFetchResponse(mockRule);
 
     const result = await ruleApi.get('rule-1');
-    expect(result.id).toBe('rule-1');
+    expect(result.rule_id).toBe('rule-1');
   });
 
   it('create sends POST with correct body', async () => {
-    const formData = { name: 'New Rule', description: 'desc', conditions: [] };
-    mockFetchResponse({ id: 'rule-new', ...formData });
+    const formData = ruleForm({ name: 'New Rule' });
+    mockFetchResponse({ rule_id: 'rule-new', ...formData });
 
-    await ruleApi.create(formData as any);
+    await ruleApi.create(formData);
     expect(fetch).toHaveBeenCalledWith(
       expect.stringContaining('/api/business-rules'),
       expect.objectContaining({ method: 'POST' }),
@@ -193,10 +312,10 @@ describe('ruleApi', () => {
   });
 
   it('update sends PUT with correct body', async () => {
-    const formData = { name: 'Updated Rule', description: 'new', conditions: [] };
-    mockFetchResponse({ id: 'rule-1', ...formData });
+    const formData = ruleForm({ name: 'Updated Rule', description: 'new' });
+    mockFetchResponse({ rule_id: 'rule-1', ...formData });
 
-    await ruleApi.update('rule-1', formData as any);
+    await ruleApi.update('rule-1', formData);
     expect(fetch).toHaveBeenCalledWith(
       expect.stringContaining('/api/business-rules/rule-1'),
       expect.objectContaining({ method: 'PUT' }),
@@ -227,14 +346,7 @@ describe('ruleApi', () => {
 // ─── Logic API ─────────────────────────────────────────────────
 
 describe('logicApi', () => {
-  const mockLogic = {
-    id: 'logic-1',
-    name: 'Calculation Logic',
-    description: 'desc',
-    expressions: [],
-    created_at: '2026-01-01',
-    updated_at: '2026-01-01',
-  };
+  const mockLogic = logicRecord();
 
   it('list calls GET /api/business-logics', async () => {
     mockFetchResponse([mockLogic]);
@@ -260,14 +372,14 @@ describe('logicApi', () => {
     mockFetchResponse(mockLogic);
 
     const result = await logicApi.get('logic-1');
-    expect(result.id).toBe('logic-1');
+    expect(result.logic_id).toBe('logic-1');
   });
 
   it('create sends POST with correct body', async () => {
-    const formData = { name: 'New Logic', description: 'desc', expressions: [] };
-    mockFetchResponse({ id: 'logic-new', ...formData });
+    const formData = logicForm({ name: 'New Logic' });
+    mockFetchResponse({ logic_id: 'logic-new', ...formData });
 
-    await logicApi.create(formData as any);
+    await logicApi.create(formData);
     expect(fetch).toHaveBeenCalledWith(
       expect.stringContaining('/api/business-logics'),
       expect.objectContaining({ method: 'POST' }),
@@ -275,10 +387,10 @@ describe('logicApi', () => {
   });
 
   it('update sends PUT with correct body', async () => {
-    const formData = { name: 'Updated Logic', description: 'new', expressions: [] };
-    mockFetchResponse({ id: 'logic-1', ...formData });
+    const formData = logicForm({ name: 'Updated Logic', description: 'new' });
+    mockFetchResponse({ logic_id: 'logic-1', ...formData });
 
-    await logicApi.update('logic-1', formData as any);
+    await logicApi.update('logic-1', formData);
     expect(fetch).toHaveBeenCalledWith(
       expect.stringContaining('/api/business-logics/logic-1'),
       expect.objectContaining({ method: 'PUT' }),
@@ -309,14 +421,7 @@ describe('logicApi', () => {
 // ─── Indicator API ─────────────────────────────────────────────
 
 describe('indicatorApi', () => {
-  const mockIndicator = {
-    id: 'ind-1',
-    name: 'Revenue Indicator',
-    description: 'desc',
-    formula: '',
-    created_at: '2026-01-01',
-    updated_at: '2026-01-01',
-  };
+  const mockIndicator = indicatorRecord();
 
   it('list calls GET /api/business-indicators', async () => {
     mockFetchResponse([mockIndicator]);
@@ -342,14 +447,14 @@ describe('indicatorApi', () => {
     mockFetchResponse(mockIndicator);
 
     const result = await indicatorApi.get('ind-1');
-    expect(result.id).toBe('ind-1');
+    expect(result.indicator_id).toBe('ind-1');
   });
 
   it('create sends POST with correct body', async () => {
-    const formData = { name: 'New Indicator', description: 'desc', formula: 'x + y' };
-    mockFetchResponse({ id: 'ind-new', ...formData });
+    const formData = indicatorForm({ name: 'New Indicator', calculation_formula: 'x + y' });
+    mockFetchResponse({ indicator_id: 'ind-new', ...formData });
 
-    await indicatorApi.create(formData as any);
+    await indicatorApi.create(formData);
     expect(fetch).toHaveBeenCalledWith(
       expect.stringContaining('/api/business-indicators'),
       expect.objectContaining({ method: 'POST' }),
@@ -357,10 +462,10 @@ describe('indicatorApi', () => {
   });
 
   it('update sends PUT with correct body', async () => {
-    const formData = { name: 'Updated Indicator', description: 'new', formula: 'x * y' };
-    mockFetchResponse({ id: 'ind-1', ...formData });
+    const formData = indicatorForm({ name: 'Updated Indicator', calculation_formula: 'x * y' });
+    mockFetchResponse({ indicator_id: 'ind-1', ...formData });
 
-    await indicatorApi.update('ind-1', formData as any);
+    await indicatorApi.update('ind-1', formData);
     expect(fetch).toHaveBeenCalledWith(
       expect.stringContaining('/api/business-indicators/ind-1'),
       expect.objectContaining({ method: 'PUT' }),
@@ -392,7 +497,7 @@ describe('indicatorApi', () => {
 
 describe('entityApi', () => {
   it('listAll calls GET /api/business-entities', async () => {
-    const mockEntities = [{ id: 'ent-1', name: 'Customer' }];
+    const mockEntities: BusinessEntity[] = [entityRecord()];
     mockFetchResponse(mockEntities);
 
     const result = await entityApi.listAll();
@@ -464,13 +569,13 @@ describe('businessApi - Error Handling', () => {
   it('ruleApi throws on error', async () => {
     mockFetchError(400, 'Bad Request');
 
-    await expect(ruleApi.create({} as any)).rejects.toThrow('HTTP 400');
+    await expect(ruleApi.create(ruleForm())).rejects.toThrow('HTTP 400');
   });
 
   it('logicApi throws on error', async () => {
     mockFetchError(422, 'Unprocessable Entity');
 
-    await expect(logicApi.create({} as any)).rejects.toThrow('HTTP 422');
+    await expect(logicApi.create(logicForm())).rejects.toThrow('HTTP 422');
   });
 
   it('indicatorApi throws on error', async () => {

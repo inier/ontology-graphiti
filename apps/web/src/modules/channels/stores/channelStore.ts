@@ -8,6 +8,7 @@ import type {
   UpdateChannelRequest,
 } from '../types';
 import * as channelApi from '../services/channelApi';
+import { getApiErrorDetail } from '@/modules/shared/utils/errors';
 
 interface ChannelState {
   // 数据
@@ -35,7 +36,7 @@ interface ChannelState {
   clearError: () => void;
 }
 
-export const useChannelStore = create<ChannelState>((set, get) => ({
+export const useChannelStore = create<ChannelState>((set) => ({
   // 初始状态
   channels: [],
   channelTypes: [],
@@ -53,9 +54,9 @@ export const useChannelStore = create<ChannelState>((set, get) => ({
         currentWorkspaceId: workspaceId,
         loading: false,
       });
-    } catch (error: any) {
+    } catch (error) {
       set({
-        error: error.response?.data?.detail || '获取渠道列表失败',
+        error: getApiErrorDetail(error, '获取渠道列表失败'),
         loading: false,
       });
     }
@@ -66,9 +67,9 @@ export const useChannelStore = create<ChannelState>((set, get) => ({
     try {
       const types = await channelApi.listChannelTypes();
       set({ channelTypes: types });
-    } catch (error: any) {
+    } catch (error) {
       set({
-        error: error.response?.data?.detail || '获取渠道类型失败',
+        error: getApiErrorDetail(error, '获取渠道类型失败'),
       });
     }
   },
@@ -83,9 +84,9 @@ export const useChannelStore = create<ChannelState>((set, get) => ({
         loading: false,
       }));
       return channel;
-    } catch (error: any) {
+    } catch (error) {
       set({
-        error: error.response?.data?.detail || '创建渠道失败',
+        error: getApiErrorDetail(error, '创建渠道失败'),
         loading: false,
       });
       throw error;
@@ -107,9 +108,9 @@ export const useChannelStore = create<ChannelState>((set, get) => ({
         loading: false,
       }));
       return channel;
-    } catch (error: any) {
+    } catch (error) {
       set({
-        error: error.response?.data?.detail || '更新渠道失败',
+        error: getApiErrorDetail(error, '更新渠道失败'),
         loading: false,
       });
       throw error;
@@ -125,9 +126,9 @@ export const useChannelStore = create<ChannelState>((set, get) => ({
         channels: state.channels.filter((c) => c.id !== channelId),
         loading: false,
       }));
-    } catch (error: any) {
+    } catch (error) {
       set({
-        error: error.response?.data?.detail || '删除渠道失败',
+        error: getApiErrorDetail(error, '删除渠道失败'),
         loading: false,
       });
       throw error;
@@ -139,10 +140,10 @@ export const useChannelStore = create<ChannelState>((set, get) => ({
     try {
       const result = await channelApi.testConnection(channelId);
       return result;
-    } catch (error: any) {
+    } catch (error) {
       return {
         success: false,
-        message: error.response?.data?.detail || '测试连接失败',
+        message: getApiErrorDetail(error, '测试连接失败'),
       };
     }
   },
@@ -158,9 +159,9 @@ export const useChannelStore = create<ChannelState>((set, get) => ({
           ),
         }));
       }
-    } catch (error: any) {
+    } catch (error) {
       set({
-        error: error.response?.data?.detail || '启用渠道失败',
+        error: getApiErrorDetail(error, '启用渠道失败'),
       });
       throw error;
     }
@@ -177,9 +178,9 @@ export const useChannelStore = create<ChannelState>((set, get) => ({
           ),
         }));
       }
-    } catch (error: any) {
+    } catch (error) {
       set({
-        error: error.response?.data?.detail || '停用渠道失败',
+        error: getApiErrorDetail(error, '停用渠道失败'),
       });
       throw error;
     }

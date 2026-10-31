@@ -12,6 +12,7 @@ import {
 } from '@ant-design/icons';
 import { useLayoutStore, type TaskTab } from '@/modules/shared/stores/layoutStore';
 import { useI18n } from '@/modules/shared/hooks/useI18n';
+import { Icon } from '@/modules/shared/components/Icon';
 
 /**
  * TaskPanel — 任务区面板
@@ -213,7 +214,7 @@ export function TaskPanel({ onTabClick, onTabRefresh }: TaskPanelProps) {
                   onDragEnd={handleDragEnd}
                   onClick={() => handleClick(tab)}
                 >
-                  <span className="odap-task-item-icon">{tab.icon || '📄'}</span>
+                  <span className="odap-task-item-icon">{tab.icon ?? <Icon role="document" size={16} />}</span>
                   <span className="odap-task-item-title">{tab.title}</span>
                   <button
                     className="odap-task-item-close"
@@ -243,7 +244,7 @@ export function TaskPanel({ onTabClick, onTabRefresh }: TaskPanelProps) {
                   onClick={() => handleClick(tab)}
                 >
                   <div className="odap-task-card-header">
-                    <span className="odap-task-card-icon">{tab.icon || '📄'}</span>
+                    <span className="odap-task-card-icon">{tab.icon ?? <Icon role="document" size={16} />}</span>
                     <span className="odap-task-card-title">{tab.title}</span>
                     <button
                       className="odap-task-card-close"

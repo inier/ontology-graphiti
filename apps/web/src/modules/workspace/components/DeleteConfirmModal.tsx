@@ -38,17 +38,11 @@ export function DeleteConfirmModal({
 }: DeleteConfirmModalProps) {
   const [preview, setPreview] = useState<DeletionPreview | null>(null);
   const [previewLoading, setPreviewLoading] = useState(false);
-  const [confirmed, setConfirmed] = useState(false);
+  const [confirmedState, setConfirmed] = useState(false);
+  // 二次确认只在弹窗打开且已加载预览时有效 —— 关闭即派生为 false，无需 effect 重置
+  const confirmed = open && !!workspaceId && confirmedState;
 
-  useEffect(() => {
-    if (open && workspaceId) {
-      setConfirmed(false);
-      loadPreview();
-    } else {
-      setPreview(null);
-      setConfirmed(false);
-    }
-  }, [open, workspaceId]);
+  
 
   const loadPreview = async () => {
     setPreviewLoading(true);
@@ -62,6 +56,13 @@ export function DeleteConfirmModal({
       setPreviewLoading(false);
     }
   };
+
+  useEffect(() => {
+    if (!open || !workspaceId) return;
+    void (async () => {
+      await loadPreview();
+    })();
+  }, [open, workspaceId]);
 
   const handleConfirm = async () => {
     if (!confirmed) {
@@ -77,6 +78,7 @@ export function DeleteConfirmModal({
 
   const handleCancel = () => {
     setConfirmed(false);
+    setPreview(null);
     onCancel();
   };
 

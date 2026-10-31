@@ -96,13 +96,15 @@ export function ChangeProposalCard({ proposalId, onReview }: ChangeProposalCardP
         setImpact(null);
       }
     } catch (e) {
-      message.error(t('changeProposalCard.loadFailed', { msg: (e as Error).message }));
+      message.error(t('加载失败', { msg: (e as Error).message }));
     } finally {
       setLoading(false);
     }
   }, [proposalId, t]);
 
-  useEffect(() => { void fetchProposal(); }, [fetchProposal]);
+  useEffect(() => {   void (async () => {
+    void fetchProposal();
+  })(); }, [fetchProposal]);
 
   const openReview = useCallback((d: 'approve' | 'reject') => {
     setDecision(d);
@@ -118,13 +120,13 @@ export function ChangeProposalCard({ proposalId, onReview }: ChangeProposalCardP
         decision,
         reviewer_notes: v.reviewer_notes || '',
       });
-      message.success(decision === 'approve' ? t('changeProposalCard.approved') : t('changeProposalCard.rejected'));
+      message.success(decision === 'approve' ? t('已批准') : t('已拒绝'));
       setReviewOpen(false);
       onReview?.(decision);
       void fetchProposal();
     } catch (e) {
       if ((e as { errorFields?: unknown[] }).errorFields) return;
-      message.error(t('changeProposalCard.operationFailed', { msg: (e as Error).message }));
+      message.error(t('操作失败', { msg: (e as Error).message }));
     } finally {
       setReviewing(false);
     }
@@ -178,11 +180,11 @@ export function ChangeProposalCard({ proposalId, onReview }: ChangeProposalCardP
           items={[
             {
               key: 'details',
-              label: t('changeProposalCard.tabDetails'),
+              label: t('详情'),
               children: (
                 <Space orientation="vertical" size="middle" style={{ width: '100%' }}>
                   <div>
-                    <Text type="secondary">{t('changeProposalCard.description')}</Text>
+                    <Text type="secondary">{t('描述')}</Text>
                     <div style={{ marginTop: 4 }}>
                       {proposal.description || <Text type="secondary">-</Text>}
                     </div>
@@ -212,7 +214,7 @@ export function ChangeProposalCard({ proposalId, onReview }: ChangeProposalCardP
             },
             {
               key: 'changes',
-              label: t('changeProposalCard.tabChanges', { count: changes.length }),
+              label: t('变更', { count: changes.length }),
               children: changes.length === 0 ? (
                 <Empty description={t('changeProposalCard.noChanges')} image={Empty.PRESENTED_IMAGE_SIMPLE} />
               ) : (
@@ -275,7 +277,7 @@ export function ChangeProposalCard({ proposalId, onReview }: ChangeProposalCardP
                     </Col>
                   </Row>
 
-                  <Card size="small" title={t('changeProposalCard.migrationCost')}>
+                  <Card size="small" title={t('迁移成本')}>
                     <Space>
                       <Tag color={impact.estimated_migration_cost === 'low' ? 'green' : impact.estimated_migration_cost === 'medium' ? 'orange' : 'red'}>
                         {impact.estimated_migration_cost.toUpperCase()}
@@ -293,7 +295,7 @@ export function ChangeProposalCard({ proposalId, onReview }: ChangeProposalCardP
                     </Space>
                   </Card>
 
-                  <Card size="small" title={t('changeProposalCard.riskLevel')}>
+                  <Card size="small" title={t('风险等级')}>
                     <Space>
                       <Tag color={impact.risk_level === 'low' ? 'green' : impact.risk_level === 'medium' ? 'orange' : impact.risk_level === 'high' ? 'volcano' : 'red'}>
                         {impact.risk_level.toUpperCase()}
@@ -339,7 +341,7 @@ export function ChangeProposalCard({ proposalId, onReview }: ChangeProposalCardP
                   icon={<CloseOutlined />}
                   onClick={() => openReview('reject')}
                 >
-                  {t('changeProposalCard.rejectBtn')}
+                  {t('拒绝')}
                 </Button>
                 <Button
                   size="small"
@@ -347,7 +349,7 @@ export function ChangeProposalCard({ proposalId, onReview }: ChangeProposalCardP
                   icon={<CheckOutlined />}
                   onClick={() => openReview('approve')}
                 >
-                  {t('changeProposalCard.approveBtn')}
+                  {t('批准')}
                 </Button>
               </>
             )}
@@ -361,7 +363,7 @@ export function ChangeProposalCard({ proposalId, onReview }: ChangeProposalCardP
         onOk={() => void handleReview()}
         onCancel={() => setReviewOpen(false)}
         confirmLoading={reviewing}
-        okText={decision === 'approve' ? t('changeProposalCard.approveOk') : t('changeProposalCard.rejectOk')}
+        okText={decision === 'approve' ? t('changeProposalCard.approveOk') : t('已拒绝')}
         cancelText={t('changeProposalCard.cancelOk')}
         destroyOnHidden
       >

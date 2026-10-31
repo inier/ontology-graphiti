@@ -10,13 +10,25 @@ import Graph from 'graphology';
 import forceAtlas2 from 'graphology-layout-forceatlas2';
 import { circular as circularLayout } from 'graphology-layout';
 import type { GraphNode, GraphEdge, SigmaLayoutType } from '../types';
-import { getNodeColor, getSideColor, getNodeShapeSigma, getEdgeStyle, LOD_LABEL_THRESHOLD } from '../utils/graphStyles';
+import { getNodeColor, getSideColor, getNodeShapeSigma, getEdgeStyle } from '../utils/graphStyles';
 import { findShortestPath, detectCommunities } from '../utils/graphAlgo';
 
 export interface HoverData {
   type: 'node' | 'edge';
   data: GraphNode | GraphEdge;
   position: { x: number; y: number };
+}
+
+/**
+ * sigma v3 hands a `MouseCoords` object to event handlers, not the raw DOM event.
+ * `original` is a `MouseEvent | TouchEvent`, so clients must narrow before reading
+ * client coordinates (a touch has no `clientX` on the base `TouchEvent`).
+ */
+function clientPoint(coords: { original: MouseEvent | TouchEvent }): { x: number; y: number } | null {
+  const original = coords.original;
+  if ('clientX' in original) return { x: original.clientX, y: original.clientY };
+  const touch = original.touches[0] ?? original.changedTouches[0];
+  return touch ? { x: touch.clientX, y: touch.clientY } : null;
 }
 
 interface UseSigmaGraphOptions {
@@ -70,15 +82,19 @@ export function useSigmaGraph({
   const [currentLayout, setCurrentLayout] = useState<SigmaLayoutType>(initialLayout);
   const [communityMode, setCommunityMode] = useState(false);
   const [communityColors, setCommunityColors] = useState<Map<string, string>>(new Map());
+  // 回调只通过 ref 交给 sigma 的事件处理，更新放在 effect 里（渲染期不写 ref）
   const onNodeClickRef = useRef(onNodeClick);
-  onNodeClickRef.current = onNodeClick;
   const onEdgeClickRef = useRef(onEdgeClick);
-  onEdgeClickRef.current = onEdgeClick;
   const onCanvasClickRef = useRef(onCanvasClick);
   const onHoverRef = useRef(onHover);
-  onHoverRef.current = onHover;
   const onHoverEndRef = useRef(onHoverEnd);
-  onHoverEndRef.current = onHoverEnd;
+  useEffect(() => {
+    onNodeClickRef.current = onNodeClick;
+    onEdgeClickRef.current = onEdgeClick;
+    onCanvasClickRef.current = onCanvasClick;
+    onHoverRef.current = onHover;
+    onHoverEndRef.current = onHoverEnd;
+  }, [onNodeClick, onEdgeClick, onCanvasClick, onHover, onHoverEnd]);
 
   const buildGraph = useCallback((nodeList: GraphNode[], edgeList: GraphEdge[]): Graph => {
     const g = new Graph({ multi: false, type: 'directed' });
@@ -110,13 +126,13 @@ export function useSigmaGraph({
       if (source === 'null' || source === 'undefined' || target === 'null' || target === 'undefined') continue;
       if (!g.hasNode(source) || !g.hasNode(target)) continue;
       const style = getEdgeStyle(e.type);
-      g.addEdge(source, target, {
+      g.addEdgeWithKey(e.id, source, target, {
         edgeType: e.type,
         label: e.label || e.type,
         color: style.stroke,
         size: style.width,
         noArrow: e.type === 'located_at',
-      }, e.id);
+      });
     }
 
     return g;
@@ -140,7 +156,7 @@ export function useSigmaGraph({
       case 'circular': {
         try {
           circularLayout.assign(g);
-        } catch { /* ignore */ }
+        } catch { /* 忽略：失败时保持当前状态 */  /* ignore */ }
         break;
       }
       case 'grid': {
@@ -157,7 +173,7 @@ export function useSigmaGraph({
       case 'radial': {
         try {
           circularLayout.assign(g);
-        } catch { /* ignore */ }
+        } catch { /* 忽略：失败时保持当前状态 */  /* ignore */ }
         break;
       }
     }
@@ -203,8 +219,10 @@ export function useSigmaGraph({
       defaultNodeColor: '#999',
       defaultEdgeColor: '#ccc',
       allowInvalidContainer: true,
-      touchEnabled: true,
-      mouseEnabled: true,
+      // sigma v3 replaced the old `touchEnabled` / `mouseEnabled` switches with
+      // per-gesture flags; the captors serve mouse *and* touch through these.
+      enableCameraZooming: true,
+      enableCameraPanning: true,
     });
 
     sigma.on('clickNode', ({ node }) => {
@@ -223,11 +241,12 @@ export function useSigmaGraph({
 
     sigma.on('enterNode', ({ node, event }) => {
       const n = nodes.find((item) => item.id === node);
-      if (n && event) {
+      const position = event ? clientPoint(event) : null;
+      if (n && position) {
         onHoverRef.current?.({
           type: 'node',
           data: n,
-          position: { x: event.clientX, y: event.clientY },
+          position,
         });
       }
     });
@@ -238,11 +257,12 @@ export function useSigmaGraph({
 
     sigma.on('enterEdge', ({ edge, event }) => {
       const e = edges.find((item) => item.id === edge);
-      if (e && event) {
+      const position = event ? clientPoint(event) : null;
+      if (e && position) {
         onHoverRef.current?.({
           type: 'edge',
           data: e,
-          position: { x: event.clientX, y: event.clientY },
+          position,
         });
       }
     });
@@ -260,16 +280,18 @@ export function useSigmaGraph({
 
       sigma.on('downNode', ({ node, event }) => {
         draggedNode = node;
-        event?.preventDefault();
-        event?.stopPropagation();
+        event?.preventSigmaDefault();
       });
 
-      sigma.on('mousemove', ({ event }) => {
+      sigma.on('moveBody', ({ event }) => {
         if (!draggedNode || !event) return;
 
+        const point = clientPoint(event);
+        if (!point) return;
+
         const containerRect = container.getBoundingClientRect();
-        const x = ((event.clientX - containerRect.left) / containerRect.width) * 2 - 1;
-        const y = -((event.clientY - containerRect.top) / containerRect.height) * 2 + 1;
+        const x = ((point.x - containerRect.left) / containerRect.width) * 2 - 1;
+        const y = -((point.y - containerRect.top) / containerRect.height) * 2 + 1;
 
         const graphCoords = sigma.viewportToGraph({ x, y });
         g.setNodeAttribute(draggedNode, 'x', graphCoords.x);
@@ -280,7 +302,7 @@ export function useSigmaGraph({
         draggedNode = null;
       });
 
-      sigma.on('mouseup', () => {
+      sigma.on('upStage', () => {
         draggedNode = null;
       });
     }

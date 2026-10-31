@@ -10,21 +10,21 @@ import {
   Select,
   InputNumber,
   message,
-  Switch,
-  Descriptions,
+  
+  
   Statistic,
   Row,
   Col,
   Timeline,
   Tabs,
   Badge,
-  Popconfirm,
+  
   Tooltip,
-  Progress,
-  Spin,
+  
+  
   Empty,
   Divider,
-  Result,
+  
 } from 'antd';
 import {
   PlayCircleOutlined,
@@ -36,7 +36,7 @@ import {
   CheckCircleOutlined,
   ClockCircleOutlined,
   PlusOutlined,
-  DeleteOutlined,
+  
   SettingOutlined,
   ExperimentOutlined,
   DashboardOutlined,
@@ -94,7 +94,7 @@ const Simulator: React.FC = () => {
   const [loading, setLoading] = useState(false);
   const [generateModalOpen, setGenerateModalOpen] = useState(false);
   const [templateModalOpen, setTemplateModalOpen] = useState(false);
-  const [selectedEventType, setSelectedEventType] = useState<string | null>(null);
+  const [, ] = useState<string | null>(null);
   const [simulationLog, setSimulationLog] = useState<Array<{ time: string; message: string; type: 'info' | 'success' | 'error' }>>([]);
   const logEndRef = useRef<HTMLDivElement>(null);
 
@@ -129,9 +129,15 @@ const Simulator: React.FC = () => {
   }, []);
 
   useEffect(() => {
-    fetchEvents();
-    fetchTemplates();
-    fetchStatus();
+        void (async () => {
+      fetchEvents();
+    })();
+        void (async () => {
+      fetchTemplates();
+    })();
+        void (async () => {
+      fetchStatus();
+    })();
     const interval = setInterval(fetchStatus, 3000);
     return () => clearInterval(interval);
   }, [fetchEvents, fetchTemplates, fetchStatus]);
@@ -147,7 +153,7 @@ const Simulator: React.FC = () => {
   const handleTimeControl = async (action: 'start' | 'pause' | 'resume' | 'stop') => {
     try {
       setLoading(true);
-      const response = await apiService.controlSimulationTime({ action });
+      await apiService.controlSimulationTime({ action });
       addLog(t('时间控制: {{action}}', { action }), 'info');
       const actionMsg = action === 'start' ? t('已开始') : action === 'pause' ? t('已暂停') : action === 'resume' ? t('已恢复') : t('已停止');
       message.success(t('模拟{{state}}', { state: actionMsg }));
@@ -239,16 +245,6 @@ const Simulator: React.FC = () => {
       fetchStatus();
     } catch (error) {
       message.error(t('批量采纳失败: {{error}}', { error: String(error) }));
-    }
-  };
-
-  const getStatusColor = (status: string) => {
-    switch (status) {
-      case 'adopted': return 'green';
-      case 'pending': return 'gold';
-      case 'processing': return 'blue';
-      case 'rejected': return 'red';
-      default: return 'default';
     }
   };
 

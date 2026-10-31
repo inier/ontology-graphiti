@@ -113,7 +113,9 @@ const QualityRadarPanel: React.FC<Props> = ({
   candidateId, candidate, inlineReport, forceEvaluate,
   canWrite, onLoaded, onModified,
 }) => {
-  const [report, setReport] = useState<QualityReport | null>(inlineReport ?? null);
+  // 外部传入的报告优先，其次才是拉取结果 —— 由 props 派生，不再用 effect 回写
+  const [fetchedReport, setFetchedReport] = useState<QualityReport | null>(null);
+  const report: QualityReport | null = inlineReport ?? fetchedReport;
   const [loading, setLoading] = useState<boolean>(false);
   const [err, setErr] = useState<string>('');
   const chartRef = React.useRef<HTMLDivElement>(null);
@@ -124,17 +126,16 @@ const QualityRadarPanel: React.FC<Props> = ({
   const [forceKey, setForceKey] = useState(0);
 
   useEffect(() => {
-    setReport(inlineReport ?? null);
-    setErr('');
     const cid = candidateId ?? candidate?.id;
     if ((inlineReport && !forceEvaluate) || !cid) return;
     let alive = true;
     (async () => {
+      setErr('');
       setLoading(true);
       try {
         const r = await getQualityReport(cid, !!forceEvaluate || forceKey > 0);
         if (!alive) return;
-        setReport(r);
+        setFetchedReport(r);
         onLoaded?.(r);
       } catch (e) {
         if (!alive) return;
@@ -252,7 +253,7 @@ const QualityRadarPanel: React.FC<Props> = ({
   const openModify = () => {
     modifyForm.setFieldsValue({
       term: candidate?.canonical,
-      canonical_label: (candidate as any)?.canonical_label,
+      canonical_label: candidate?.canonical_label,
       term_type: candidate?.semantic_type,
       synonyms: candidate?.synonyms ?? [],
       definition: candidate?.definition,

@@ -99,7 +99,9 @@ export function MergeDiffViewer({ branchId, baseVersionId, onMerged }: MergeDiff
     }
   }, []);
 
-  useEffect(() => { void fetchVersions(); }, [fetchVersions]);
+  useEffect(() => {   void (async () => {
+    void fetchVersions();
+  })(); }, [fetchVersions]);
 
   const fetchDiff = useCallback(async () => {
     if (!baseVersion || !oursVersion || !theirsVersion) return;
@@ -122,7 +124,9 @@ export function MergeDiffViewer({ branchId, baseVersionId, onMerged }: MergeDiff
     }
   }, [baseVersion, oursVersion, theirsVersion, branchId]);
 
-  useEffect(() => { void fetchDiff(); }, [fetchDiff]);
+  useEffect(() => {   void (async () => {
+    void fetchDiff();
+  })(); }, [fetchDiff]);
 
   const resolutionKey = useCallback(
     (objectType: string, propName: string) => `${objectType}::${propName}`,

@@ -50,18 +50,18 @@
 
 .advanced-table-toolbar-btn:hover {
   background-color: rgba(0, 0, 0, 0.04);
-  color: #1677ff;
+  color: var(--odap-color-accent);
   border-color: rgba(22, 119, 255, 0.2);
 }
 
 .advanced-table-toolbar-btn:active {
   transform: scale(0.95);
   background-color: rgba(22, 119, 255, 0.1);
-  color: #1677ff;
+  color: var(--odap-color-accent);
 }
 
 .advanced-table-toolbar-btn:focus-visible {
-  border-color: #1677ff;
+  border-color: var(--odap-color-accent);
   box-shadow: 0 0 0 2px rgba(22, 119, 255, 0.15);
 }
 
@@ -103,7 +103,7 @@
 
 .advanced-table-container .ant-pro-table-list-toolbar-setting-item:hover {
   background-color: rgba(0, 0, 0, 0.04);
-  color: #1677ff;
+  color: var(--odap-color-accent);
 }
 
 .advanced-table-container .ant-pro-table-list-toolbar-setting-item .anticon {
@@ -312,6 +312,6 @@
 
 /* 密度下拉菜单项选中高亮 */
 .ant-dropdown-menu-item-selected.ant-dropdown-menu-item {
-  color: #1677ff;
+  color: var(--odap-color-accent);
   font-weight: 500;
 }

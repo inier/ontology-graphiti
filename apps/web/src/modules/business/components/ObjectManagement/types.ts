@@ -1,3 +1,62 @@
+/**
+ * 属性值：由后端 JSONB 原样透传的「任意 JSON 值」。
+ *
+ * 用递归联合类型而不是 `any`：既能表达结构化对象/数组，又能在使用处强制先收窄
+ * （`typeof` / `Array.isArray`），避免把抽取结果当任意类型随手传递。
+ */
+export type AttributeValue =
+  | string
+  | number
+  | boolean
+  | null
+  | AttributeValue[]
+  | { [key: string]: AttributeValue };
+
+/**
+ * 把后端 JSONB 原值收窄成 `AttributeValue`。
+ *
+ * 不合法值（`undefined` / 函数 / symbol）统一折叠成 `null`，因此调用方拿到的一定是可
+ * 安全渲染的值；这也让「后端字段类型未声明」与「前端已声明类型」之间的转换有唯一入口。
+ */
+export function toAttributeValue(value: unknown): AttributeValue {
+  if (value === null || value === undefined) return null;
+  const kind = typeof value;
+  if (kind === 'string' || kind === 'number' || kind === 'boolean') {
+    return value as string | number | boolean;
+  }
+  if (Array.isArray(value)) return value.map(toAttributeValue);
+  if (kind === 'object') {
+    const out: Record<string, AttributeValue> = {};
+    for (const [key, inner] of Object.entries(value as Record<string, unknown>)) {
+      out[key] = toAttributeValue(inner);
+    }
+    return out;
+  }
+  return null;
+}
+
+/**
+ * `unknown` → 属性记录；值不是对象时返回 `undefined`。
+ *
+ * 保留 `undefined` 语义是为了支持「缺省则回退到另一个来源」的写法
+ * （`a ?? b` 形式的逐级兜底）。
+ */
+export function toAttributeRecordOrUndefined(
+  value: unknown,
+): Record<string, AttributeValue> | undefined {
+  if (value === null || value === undefined) return undefined;
+  const converted = toAttributeValue(value);
+  if (converted === null || typeof converted !== 'object' || Array.isArray(converted)) {
+    return undefined;
+  }
+  return converted;
+}
+
+/** `unknown` → 属性记录；值不是对象时返回空对象（用于必填位置） */
+export function toAttributeRecord(value: unknown): Record<string, AttributeValue> {
+  return toAttributeRecordOrUndefined(value) ?? {};
+}
+
 export interface AttributeSemantic {
   description: string;
   category: 'basic' | 'statistical' | 'capability' | 'constraint' | 'meta' | 'vector';
@@ -7,7 +66,7 @@ export interface AttributeSemantic {
 export interface EntityAttribute {
   name: string;
   type: 'string' | 'number' | 'date' | 'boolean' | 'vector' | 'json' | 'array';
-  value: any;
+  value: AttributeValue;
   source: 'structured' | 'unstructured' | 'computed' | 'inferred';
   semantic: AttributeSemantic;
   vector_id?: string;
@@ -27,10 +86,10 @@ export interface ManagedEntity {
   source_doc?: string;
   source_type?: string;
   confidence?: number;
-  basic_properties?: Record<string, any>;
-  statistical_properties?: Record<string, any>;
-  capabilities?: Record<string, any>;
-  constraints?: any[];
+  basic_properties?: Record<string, AttributeValue>;
+  statistical_properties?: Record<string, AttributeValue>;
+  capabilities?: Record<string, AttributeValue>;
+  constraints?: AttributeValue[];
 }
 
 export interface ExtractionSource {
@@ -182,7 +241,7 @@ export function getAttributeSemantic(name: string): AttributeSemantic {
   return { description: name, category, dataOrigin };
 }
 
-export function detectValueType(value: any): EntityAttribute['type'] {
+export function detectValueType(value: AttributeValue): EntityAttribute['type'] {
   if (value === null || value === undefined) return 'string';
   if (typeof value === 'number') return 'number';
   if (typeof value === 'boolean') return 'boolean';
@@ -198,7 +257,7 @@ export function detectValueType(value: any): EntityAttribute['type'] {
 }
 
 export function parsePropertiesToAttributes(
-  properties: Record<string, any>,
+  properties: Record<string, AttributeValue>,
   parentPrefix: string = ''
 ): EntityAttribute[] {
   const attrs: EntityAttribute[] = [];

@@ -68,7 +68,8 @@ export const useAuditStore = create<AuditState>((set, get) => ({
       const data = await apiClient.get<{ policies: Policy[] }>(`${API_BASE}/api/policies?limit=100`);
       set({ policies: data.policies || [], loading: false });
     } catch (error) {
-      set({ error: error instanceof Error ? error.message : '加载策略失败', loading: false });
+      const errMessage = error instanceof Error ? error.message : String(error);
+      set({ error: error instanceof Error ? errMessage : '加载策略失败', loading: false });
     }
   },
 
@@ -77,7 +78,8 @@ export const useAuditStore = create<AuditState>((set, get) => ({
       const data = await apiClient.get<{ versions: PolicyVersion[] }>(`${API_BASE}/api/policy/markdown/${policyId}/versions`);
       set({ policyVersions: data.versions || [] });
     } catch (error) {
-      set({ error: error instanceof Error ? error.message : '加载版本历史失败' });
+      const errMessage = error instanceof Error ? error.message : String(error);
+      set({ error: error instanceof Error ? errMessage : '加载版本历史失败' });
     }
   },
 
@@ -89,7 +91,8 @@ export const useAuditStore = create<AuditState>((set, get) => ({
       set({ loading: false });
       return result;
     } catch (error) {
-      set({ error: error instanceof Error ? error.message : '保存策略失败', loading: false });
+      const errMessage = error instanceof Error ? error.message : String(error);
+      set({ error: error instanceof Error ? errMessage : '保存策略失败', loading: false });
       return null;
     }
   },
@@ -104,10 +107,11 @@ export const useAuditStore = create<AuditState>((set, get) => ({
         },
       }));
     } catch (error) {
+      const errMessage = error instanceof Error ? error.message : String(error);
       set((state) => ({
         compileStatus: {
           ...state.compileStatus,
-          [policyId]: { status: 'error', errors: [error instanceof Error ? error.message : '编译失败'] },
+          [policyId]: { status: 'error', errors: [error instanceof Error ? errMessage : '编译失败'] },
         },
       }));
     }
@@ -123,7 +127,8 @@ export const useAuditStore = create<AuditState>((set, get) => ({
       await get().getCompileStatus(policyId);
       set({ loading: false });
     } catch (error) {
-      set({ error: error instanceof Error ? error.message : '热更新失败', loading: false });
+      const errMessage = error instanceof Error ? error.message : String(error);
+      set({ error: error instanceof Error ? errMessage : '热更新失败', loading: false });
     }
   },
 
@@ -139,7 +144,8 @@ export const useAuditStore = create<AuditState>((set, get) => ({
       const data = await apiClient.get<{ items: AuditLog[]; total: number }>(`${API_BASE}/api/audit/logs?${searchParams.toString()}`);
       set({ auditLogs: data.items || [], loading: false });
     } catch (error) {
-      set({ error: error instanceof Error ? error.message : '加载审计日志失败', loading: false });
+      const errMessage = error instanceof Error ? error.message : String(error);
+      set({ error: error instanceof Error ? errMessage : '加载审计日志失败', loading: false });
     }
   },
 
@@ -153,10 +159,11 @@ export const useAuditStore = create<AuditState>((set, get) => ({
         },
       }));
     } catch (error) {
+      const errMessage = error instanceof Error ? error.message : String(error);
       set((state) => ({
         compileStatus: {
           ...state.compileStatus,
-          [policyId]: { status: 'error', errors: [error instanceof Error ? error.message : '获取状态失败'] },
+          [policyId]: { status: 'error', errors: [error instanceof Error ? errMessage : '获取状态失败'] },
         },
       }));
     }

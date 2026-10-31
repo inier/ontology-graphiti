@@ -13,19 +13,28 @@ import {
 import {
   PlusOutlined, DeleteOutlined, SearchOutlined,
   SwapOutlined, CheckCircleOutlined, ApartmentOutlined,
-  HistoryOutlined, ReloadOutlined, DatabaseOutlined, MessageOutlined,
+  HistoryOutlined, DatabaseOutlined, MessageOutlined,
   RobotOutlined, NodeIndexOutlined, LinkOutlined,
 } from '@ant-design/icons';
 
 import { PageHeader } from '@/modules/shared/components/PageHeader';
 
 import { useWorkspace } from '@/modules/shared/components/LayoutContexts';
+import { useAuthStore } from '@/modules/shared/stores/authStore';
 
 import { useOntologyStore } from '../stores/ontologyStore';
 
 import { useI18n } from '@/modules/shared/hooks/useI18n';
 
-import type { ObjectTypeDefinition } from '../stores/ontologyStore';
+import type {
+  ActionTypeDefinition,
+  FunctionTypeDefinition,
+  IndicatorTypeDefinition,
+  LinkTypeDefinition,
+  ObjectTypeDefinition,
+  ProcessTypeDefinition,
+  RuleTypeDefinition,
+} from '../stores/ontologyStore';
 
 import { OntologySelector } from '../components/OntologySelector';
 
@@ -50,6 +59,11 @@ import { NodeEdgeEditor } from '../components/NodeEdgeEditor';
 import { DatabaseExtractor } from '../components/DatabaseExtractor';
 
 import { NLExtractor } from '../components/NLExtractor';
+import { ReasoningTracePanel } from '../components/ReasoningTracePanel';
+import { EditLockIndicator } from '../components/EditLockIndicator';
+import { AISuggestionList } from '../components/AISuggestionList';
+
+import DocumentImporter from '../components/DocumentImporter';
 
 import { PageTourWrapper, ontologyDesignerTourSteps, PAGE_IDS } from '@/modules/guide';
 
@@ -74,7 +88,12 @@ const OBJ_TYPE_OPTS = (objectTypes: ObjectTypeDefinition[]) =>
 
 
 
-interface TypeDefListProps<T extends { name: string; display_name?: string; description?: string }> {
+/** Minimal shape every *TypeDefinition shares — keeps list/editor panels structurally typed. */
+interface TypeDefBase { name: string; display_name?: string; description?: string }
+
+
+
+interface TypeDefListProps<T extends TypeDefBase> {
 
   items: T[]; selectedId: string | null; onSelect: (id: string) => void; onDelete: (id: string) => void;
 
@@ -86,7 +105,7 @@ interface TypeDefListProps<T extends { name: string; display_name?: string; desc
 
 
 
-function TypeDefList<T extends { name: string; display_name?: string; description?: string }>({
+function TypeDefList<T extends TypeDefBase>({
   items, selectedId, onSelect, onDelete, getId, extra, searchPlaceholder,
 }: TypeDefListProps<T>) {
 
@@ -228,25 +247,11 @@ function ObjectTypeEditor({ item, objectTypes, onSave }: ObjectTypeEditorProps) 
     { label: t('继承'), value: 'INHERITANCE' },
   ];
 
-  const [properties, setProperties] = useState<Array<Record<string, unknown>>>([]);
+  const [properties, setProperties] = useState<Array<Record<string, unknown>>>(() => (item?.properties as Array<Record<string, unknown>>) || []);
 
   const [links, setLinks] = useState<Array<Record<string, unknown>>>([]);
 
-
-
-  useEffect(() => {
-
-    if (item) {
-
-      form.setFieldsValue({ name: item.name, display_name: item.display_name || '', description: item.description || '', classification_level: item.classification_level || 'U' });
-
-      setProperties((item.properties as Array<Record<string, unknown>>) || []);
-
-      setLinks([]);
-
-    } else { form.resetFields(); setProperties([]); setLinks([]); }
-
-  }, [item, form]);
+  // item 变化时由调用方的 key={item.type_id} 触发整体重挂载，无需 effect 同步表单与列表
 
 
 
@@ -275,11 +280,12 @@ function ObjectTypeEditor({ item, objectTypes, onSave }: ObjectTypeEditorProps) 
     <Card title={item.display_name || item.name} extra={<AntButton type="primary" onClick={handleSave}>{t('保存')}</AntButton>}
       style={{ height: '100%', overflow: 'auto' }}>
 
-      <Form form={form} layout="vertical">
+      <Form form={form} layout="vertical"
+        initialValues={{ name: item.name, display_name: item.display_name || '', description: item.description || '', classification_level: item.classification_level || 'U' }}>
 
         <Row gutter={16}>
 
-          <Col span={8}><Form.Item name="name" label={t('名称')} rules={[{ required: true, message: t('名称') + ' ' + t('entityType.required') }]}><Input /></Form.Item></Col>
+          <Col span={8}><Form.Item name="name" label={t('名称')} rules={[{ required: true, message: t('名称') + ' ' + t('必填') }]}><Input /></Form.Item></Col>
 
           <Col span={8}><Form.Item name="display_name" label={t('显示名称')}><Input /></Form.Item></Col>
 
@@ -347,11 +353,11 @@ function ObjectTypeEditor({ item, objectTypes, onSave }: ObjectTypeEditorProps) 
 
 
 
-interface SimpleTypeDefEditorProps {
+interface SimpleTypeDefEditorProps<T extends TypeDefBase> {
 
-  item: { name: string; display_name?: string; description?: string; [key: string]: unknown } | null;
+  item: T | null;
 
-  getId: (item: NonNullable<SimpleTypeDefEditorProps['item']>) => string;
+  getId: (item: T) => string;
 
   title: string; extraFields?: React.ReactNode;
 
@@ -360,8 +366,20 @@ interface SimpleTypeDefEditorProps {
 }
 
 
+/** Fields that identify / audit a type definition and must not be edited as form data. */
+const TYPE_DEF_SYSTEM_KEYS = new Set([
+  'type_id',
+  'link_id',
+  'action_type_id',
+  'process_type_id',
+  'rule_type_id',
+  'function_type_id',
+  'indicator_type_id',
+  'created_at',
+  'updated_at',
+]);
 
-function SimpleTypeDefEditor({ item, getId, title, extraFields, onSave }: SimpleTypeDefEditorProps) {
+function SimpleTypeDefEditor<T extends TypeDefBase>({ item, getId, title, extraFields, onSave }: SimpleTypeDefEditorProps<T>) {
 
   const { t } = useI18n('ontology');
   const [form] = Form.useForm();
@@ -369,8 +387,11 @@ function SimpleTypeDefEditor({ item, getId, title, extraFields, onSave }: Simple
   useEffect(() => {
 
     if (item) {
-      const { type_id, link_id, action_type_id, process_type_id, rule_type_id, function_type_id, indicator_type_id, created_at, updated_at, ...rest } = item as Record<string, unknown>;
-      form.setFieldsValue(rest);
+      const editable: Record<string, unknown> = {};
+      for (const [key, value] of Object.entries(item)) {
+        if (!TYPE_DEF_SYSTEM_KEYS.has(key)) editable[key] = value;
+      }
+      form.setFieldsValue(editable);
     }
 
     else form.resetFields();
@@ -394,7 +415,7 @@ function SimpleTypeDefEditor({ item, getId, title, extraFields, onSave }: Simple
 
         <Row gutter={16}>
 
-          <Col span={12}><Form.Item name="name" label={t('名称')} rules={[{ required: true, message: t('名称') + ' ' + t('entityType.required') }]}><Input /></Form.Item></Col>
+          <Col span={12}><Form.Item name="name" label={t('名称')} rules={[{ required: true, message: t('名称') + ' ' + t('必填') }]}><Input /></Form.Item></Col>
 
           <Col span={12}><Form.Item name="display_name" label={t('显示名称')}><Input /></Form.Item></Col>
 
@@ -421,16 +442,11 @@ function SimpleTypeDefEditor({ item, getId, title, extraFields, onSave }: Simple
 export function OntologyDesignerPage() {
 
   const { currentWorkspace } = useWorkspace();
+  const authUser = useAuthStore((s) => s.user);
+  // 编辑锁以 user_id 为键；未登录时传空串，Indicator 内部会跳过连接
+  const currentUserId = authUser?.id || '';
 
   const { t } = useI18n('ontology');
-
-  const CLASSIFICATION_OPTIONS = [
-
-    { label: `TS - ${t('绝密')}`, value: 'TS' }, { label: `S - ${t('机密')}`, value: 'S' },
-
-    { label: `C - ${t('秘密')}`, value: 'C' }, { label: `U - ${t('公开')}`, value: 'U' },
-
-  ];
 
   const CARDINALITY_OPTIONS = [
 
@@ -460,7 +476,7 @@ export function OntologyDesignerPage() {
 
     processTypes, ruleTypes, functionTypes, indicatorTypes,
 
-    loading, error, selectOntology, createOntology,
+    loading, error, selectOntology, 
 
     createObjectType, updateObjectType, deleteObjectType,
 
@@ -482,7 +498,7 @@ export function OntologyDesignerPage() {
 
 
 
-  const [selectorOpen, setSelectorOpen] = useState(false);
+  const [selectorOpen, setSelectorOpen] = useState(!currentOntology);
 
   const [selectorCreate, setSelectorCreate] = useState(false);
 
@@ -527,45 +543,24 @@ export function OntologyDesignerPage() {
 
 
 
-  useEffect(() => { if (!currentOntology) { setSelectorOpen(true); setSelectorCreate(false); } }, [currentOntology]);
-
-  // 工作空间切换时，如果当前本体不属于新工作空间，清空选择
-
+  // 工作空间切换时，如果当前本体不属于新工作空间，清空选择（同步外部 store，非 UI 状态）
   useEffect(() => {
-
     if (currentWorkspace && currentOntology && currentOntology.workspace_id && currentOntology.workspace_id !== currentWorkspace) {
-
       clearCurrentOntology();
-
-      setSelectorOpen(true);
-
-      setSelectorCreate(false);
-
     }
-
   }, [currentWorkspace]);
 
-
-
-  // 本体已有类型数据时，直接进入手工设计视图（查看已有内容）
-
-  useEffect(() => {
-
-    if (currentOntology && !designMethod) {
-
-      const hasTypes = objectTypes.length > 0 || linkTypes.length > 0 || actionTypes.length > 0
-
-        || processTypes.length > 0 || ruleTypes.length > 0 || functionTypes.length > 0 || indicatorTypes.length > 0;
-
-      if (hasTypes) {
-
-        setDesignMethod('manual');
-
-      }
-
-    }
-
-  }, [currentOntology, objectTypes, linkTypes, actionTypes, processTypes, ruleTypes, functionTypes, indicatorTypes, designMethod]);
+  // 本体已有类型数据时，直接进入手工设计视图；由数据派生而非 effect 回写 state
+  const hasExistingTypes =
+    objectTypes.length > 0 ||
+    linkTypes.length > 0 ||
+    actionTypes.length > 0 ||
+    processTypes.length > 0 ||
+    ruleTypes.length > 0 ||
+    functionTypes.length > 0 ||
+    indicatorTypes.length > 0;
+  const effectiveDesignMethod: DesignMethod | null =
+    designMethod ?? (currentOntology && hasExistingTypes ? 'manual' : null);
 
 
 
@@ -597,7 +592,7 @@ export function OntologyDesignerPage() {
 
       commitForm.resetFields();
 
-    } catch { /* validation */ }
+    } catch { /* 忽略：失败时保持当前状态 */  /* validation */ }
 
   }, [commitVersion, commitForm]);
 
@@ -625,7 +620,7 @@ export function OntologyDesignerPage() {
 
     } catch (e) {
 
-      message.error(t('manual.versionCompareFailed', { msg: (e as Error).message }));
+      message.error(t('版本对比失败', { msg: (e as Error).message }));
 
     } finally {
 
@@ -639,7 +634,7 @@ export function OntologyDesignerPage() {
 
   // ── Version rollback handler ──────────────────────────────────────
 
-  const handleRollback = useCallback(async (_versionId: string) => {
+  const handleRollback = useCallback(async () => {
 
     // Reload all type definitions after rollback
 
@@ -804,7 +799,7 @@ export function OntologyDesignerPage() {
 
 
 
-  const twoPanel = (tab: string, items: Array<{ name: string; display_name?: string; description?: string; [key: string]: unknown }>, editor: React.ReactNode, getId: (item: typeof items[0]) => string) => (
+  const twoPanel = <T extends TypeDefBase>(tab: string, items: T[], editor: React.ReactNode, getId: (item: T) => string) => (
 
     <div style={{ height: 'calc(100vh - 200px)', overflow: 'hidden' }}>
 
@@ -863,7 +858,7 @@ export function OntologyDesignerPage() {
 
   // ── Step 2: Ontology selected, no design method
 
-  if (!designMethod) {
+  if (!effectiveDesignMethod) {
 
     return (
 
@@ -885,7 +880,7 @@ export function OntologyDesignerPage() {
 
   // ── Step 3a/3b: Extractor components
 
-  if (designMethod === 'database') {
+  if (effectiveDesignMethod === 'database') {
 
     return (
 
@@ -913,7 +908,7 @@ export function OntologyDesignerPage() {
 
 
 
-  if (designMethod === 'natural_language') {
+  if (effectiveDesignMethod === 'natural_language') {
 
     return (
 
@@ -959,6 +954,9 @@ export function OntologyDesignerPage() {
 
             <Tag color="blue">{currentOntology.status === 'ACTIVE' ? t('活跃') : t('草稿')}</Tag>
 
+            {/* 编辑锁：设计器本身就是「编辑中」，锁冲突要一眼可见，而不是等到保存被拒 */}
+            <EditLockIndicator ontologyId={currentOntology.ontology_id} userId={currentUserId} editing />
+
             <AntButton icon={<DatabaseOutlined />} onClick={() => setDesignMethod('database')}>{t('数据库抽取')}</AntButton>
 
             <AntButton icon={<MessageOutlined />} onClick={() => setDesignMethod('natural_language')}>{t('自然语言提取')}</AntButton>
@@ -968,7 +966,7 @@ export function OntologyDesignerPage() {
             <AntButton icon={<SwapOutlined />} onClick={switchOntology}>{t('切换本体')}</AntButton>
 
             <AntButton icon={<RobotOutlined />} onClick={() => setAiDrawerOpen(true)}
-              style={{ background: 'var(--odap-layout-primary-gradient, linear-gradient(135deg, #6366F1, #818CF8))', color: '#fff', border: 'none' }}>
+              style={{ background: 'var(--odap-color-accent)', color: '#fff', border: 'none' }}>
               {t('AI 助手')}
             </AntButton>
 
@@ -986,11 +984,11 @@ export function OntologyDesignerPage() {
 
       <Tabs activeKey={activeTab} onChange={setActiveTab} style={{ flex: 1, overflow: 'hidden' }} items={[
 
-        { key: 'object', label: t('对象类型'), children: twoPanel('object', objectTypes, <ObjectTypeEditor item={selObj} objectTypes={objectTypes} onSave={(id, d) => handleUpdate('object', id, d)} />, (t: ObjectTypeDefinition) => t.type_id) },
+        { key: 'object', label: t('对象类型'), children: twoPanel('object', objectTypes, <ObjectTypeEditor key={selObj?.type_id ?? 'none'} item={selObj} objectTypes={objectTypes} onSave={(id, d) => handleUpdate('object', id, d)} />, (t: ObjectTypeDefinition) => t.type_id) },
 
         { key: 'link', label: t('关系类型'), children: twoPanel('link', linkTypes,
 
-          <SimpleTypeDefEditor item={selLink} getId={(i) => (i as LinkTypeDefinition).link_id} title={t('关系类型')} extraFields={<>
+          <SimpleTypeDefEditor item={selLink} getId={(i) => i.link_id} title={t('关系类型')} extraFields={<>
 
             <Row gutter={16}>
 
@@ -1012,7 +1010,7 @@ export function OntologyDesignerPage() {
 
         { key: 'action', label: t('动作类型'), children: twoPanel('action', actionTypes,
 
-          <SimpleTypeDefEditor item={selAction} getId={(i) => (i as ActionTypeDefinition).action_type_id} title={t('动作类型')} extraFields={
+          <SimpleTypeDefEditor item={selAction} getId={(i) => i.action_type_id} title={t('动作类型')} extraFields={
             <Row gutter={16}>
               <Col span={12}><Form.Item name="target_object_type" label={t('目标对象类型')}><AntSelect options={objOpts} /></Form.Item></Col>
               <Col span={12}><Form.Item name="confirmation_required" label={t('需要确认')} initialValue={true}><AntSelect options={[{ label: t('接受 (Tab)'), value: true }, { label: t('忽略'), value: false }]} /></Form.Item></Col>
@@ -1021,13 +1019,13 @@ export function OntologyDesignerPage() {
 
         { key: 'process', label: t('业务过程'), children: twoPanel('process', processTypes,
 
-          <SimpleTypeDefEditor item={selProcess} getId={(i) => (i as ProcessTypeDefinition).process_type_id} title={t('业务过程')} extraFields={
+          <SimpleTypeDefEditor item={selProcess} getId={(i) => i.process_type_id} title={t('业务过程')} extraFields={
             <Form.Item name="related_object_types" label={t('关联对象类型')}><AntSelect mode="multiple" options={objOpts} /></Form.Item>
           } onSave={(id, d) => handleUpdate('process', id, d)} />, (t: ProcessTypeDefinition) => t.process_type_id) },
 
         { key: 'rule', label: t('规则'), children: twoPanel('rule', ruleTypes,
 
-          <SimpleTypeDefEditor item={selRule} getId={(i) => (i as RuleTypeDefinition).rule_type_id} title={t('规则')} extraFields={<>
+          <SimpleTypeDefEditor item={selRule} getId={(i) => i.rule_type_id} title={t('规则')} extraFields={<>
             <Row gutter={16}>
               <Col span={12}><Form.Item name="condition" label={t('触发条件')}><Input.TextArea rows={2} /></Form.Item></Col>
               <Col span={12}><Form.Item name="action" label={t('约束动作')}><Input.TextArea rows={2} /></Form.Item></Col>
@@ -1037,7 +1035,7 @@ export function OntologyDesignerPage() {
 
         { key: 'function', label: t('逻辑函数'), children: twoPanel('function', functionTypes,
 
-          <SimpleTypeDefEditor item={selFunc} getId={(i) => (i as FunctionTypeDefinition).function_type_id} title={t('逻辑函数')} extraFields={<>
+          <SimpleTypeDefEditor item={selFunc} getId={(i) => i.function_type_id} title={t('逻辑函数')} extraFields={<>
             <Row gutter={16}>
               <Col span={12}><Form.Item name="logic_types" label={t('逻辑类型')}><AntSelect mode="multiple" options={['filter', 'transform', 'validate', 'compute'].map((t) => ({ label: t, value: t }))} /></Form.Item></Col>
               <Col span={12}><Form.Item name="return_type" label={t('返回类型')}><AntSelect options={PROPERTY_TYPE_OPTIONS} /></Form.Item></Col>
@@ -1047,7 +1045,7 @@ export function OntologyDesignerPage() {
 
         { key: 'indicator', label: t('指标'), children: twoPanel('indicator', indicatorTypes,
 
-          <SimpleTypeDefEditor item={selInd} getId={(i) => (i as IndicatorTypeDefinition).indicator_type_id} title={t('指标')} extraFields={<>
+          <SimpleTypeDefEditor item={selInd} getId={(i) => i.indicator_type_id} title={t('指标')} extraFields={<>
             <Row gutter={16}>
               <Col span={8}><Form.Item name="indicator_types" label={t('指标类型')}><AntSelect mode="multiple" options={['kpi', 'metric', 'dimension'].map((t) => ({ label: t, value: t }))} /></Form.Item></Col>
               <Col span={8}><Form.Item name="formula" label={t('计算公式')}><Input /></Form.Item></Col>
@@ -1055,6 +1053,14 @@ export function OntologyDesignerPage() {
             </Row>
             <Form.Item name="related_object_types" label={t('关联对象类型')}><AntSelect mode="multiple" options={objOpts} /></Form.Item>
           </>} onSave={(id, d) => handleUpdate('indicator', id, d)} />, (t: IndicatorTypeDefinition) => t.indicator_type_id) },
+
+        // 推理追踪：规则就是在设计器里编的，编完就地验证 Datalog 命中路径
+        { key: 'reasoning', label: t('推理追踪'), children: (
+          <ReasoningTracePanel
+            ontologyId={currentOntology?.ontology_id}
+            workspaceId={currentWorkspace || 'default'}
+          />
+        ) },
 
         { key: 'graph', label: t('图谱'), icon: <ApartmentOutlined />, children: (
 
@@ -1132,6 +1138,12 @@ export function OntologyDesignerPage() {
 
           </div>
 
+        ) },
+
+        { key: 'document', label: t('文档导入导出'), icon: <SwapOutlined />, children: (
+          <div style={{ padding: '8px 0' }}>
+            <DocumentImporter ontologyId={currentOntology.ontology_id} />
+          </div>
         ) },
 
       ]} />
@@ -1245,22 +1257,52 @@ export function OntologyDesignerPage() {
         onClose={() => setAiDrawerOpen(false)}
         styles={{ body: { padding: 0, height: '100%' } }}
       >
-        <AIChatPanel
-          ontologyId={currentOntology.ontology_id}
-          workspaceId={currentWorkspace}
-          context={{
-            object_type: selObj?.name,
-            page: 'ontology_designer',
-            selected_types: objectTypes.map(t => t.name),
-          }}
-          onOntologyChanged={() => {
-            // AI 执行写操作后，重新加载本体数据
-            selectOntology(currentOntology.ontology_id).then(() => {
-              message.success(t('保存成功'));
-            }).catch(() => {
-              message.warning(t('刷新失败，请手动刷新页面'));
-            });
-          }}
+        {/* 一个抽屉两个关注点：对话是「我要它做事」，建议是「它发现可以改进的地方」 */}
+        <Tabs
+          defaultActiveKey="chat"
+          style={{ height: '100%' }}
+          items={[
+            {
+              key: 'chat',
+              label: t('AI 对话'),
+              children: (
+                <AIChatPanel
+                  ontologyId={currentOntology.ontology_id}
+                  workspaceId={currentWorkspace}
+                  context={{
+                    object_type: selObj?.name,
+                    page: 'ontology_designer',
+                    selected_types: objectTypes.map(t => t.name),
+                  }}
+                  onOntologyChanged={() => {
+                    // AI 执行写操作后，重新加载本体数据
+                    selectOntology(currentOntology.ontology_id).then(() => {
+                      message.success(t('保存成功'));
+                    }).catch(() => {
+                      message.warning(t('刷新失败，请手动刷新页面'));
+                    });
+                  }}
+                />
+              ),
+            },
+            {
+              key: 'suggestions',
+              label: t('AI 建议'),
+              children: (
+                <div style={{ padding: 12 }}>
+                  <AISuggestionList
+                    ontologyId={currentOntology.ontology_id}
+                    onAccept={() => {
+                      // 接受建议等同于一次写操作，同样要重载本体
+                      selectOntology(currentOntology.ontology_id).catch(() => {
+                        message.warning(t('刷新失败，请手动刷新页面'));
+                      });
+                    }}
+                  />
+                </div>
+              ),
+            },
+          ]}
         />
       </Drawer>
 

@@ -111,7 +111,8 @@ export function AISuggestionList({
           ),
         );
       } catch (err) {
-        message.error(t('aiSuggestion.acceptFailed', { error: err instanceof Error ? err.message : String(err) }));
+        const errMessage = err instanceof Error ? err.message : String(err);
+        message.error(t('aiSuggestion.acceptFailed', { error: err instanceof Error ? errMessage : String(err) }));
       }
     },
     [onAccept],
@@ -137,7 +138,8 @@ export function AISuggestionList({
           ),
         );
       } catch (err) {
-        message.error(t('aiSuggestion.rejectFailed', { error: err instanceof Error ? err.message : String(err) }));
+        const errMessage = err instanceof Error ? err.message : String(err);
+        message.error(t('aiSuggestion.rejectFailed', { error: err instanceof Error ? errMessage : String(err) }));
       }
     },
     [onReject],
@@ -194,7 +196,7 @@ export function AISuggestionList({
             { label: t('common.message.all', '全部'), value: 'all' },
           ]}
         />
-        <Tooltip title={t('common.button.refresh')}>
+        <Tooltip title={t('刷新')}>
           <Button
             size="small"
             type="text"
@@ -231,7 +233,7 @@ export function AISuggestionList({
                           onConfirm={() => handleReject(suggestion.suggestion_id)}
                         >
                           <Button size="small" danger icon={<CloseOutlined />}>
-                            {t('aiSuggestion.reject', '拒绝')}
+                            {t('拒绝', '拒绝')}
                           </Button>
                         </Popconfirm>,
                         <Button

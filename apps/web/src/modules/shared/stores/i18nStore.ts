@@ -15,47 +15,10 @@ type LocaleResources = Record<string, Record<string, Record<string, unknown>>>;
 const resources: LocaleResources = {};
 const namespaces: string[] = [];
 
-function flattenObject(obj: Record<string, unknown>, prefix: string = ''): Record<string, unknown> {
-  const result: Record<string, unknown> = {};
-  for (const [key, value] of Object.entries(obj)) {
-    const newKey = prefix ? `${prefix}.${key}` : key;
-    if (typeof value === 'object' && value !== null && !Array.isArray(value)) {
-      Object.assign(result, flattenObject(value as Record<string, unknown>, newKey));
-    } else {
-      result[newKey] = value;
-    }
-  }
-  return result;
-}
-
-function invertLocale(zhData: Record<string, unknown>, enData: Record<string, unknown>): {
-  zhResources: Record<string, unknown>;
-  enResources: Record<string, unknown>;
-} {
-  const zhFlat = flattenObject(zhData);
-  const enFlat = flattenObject(enData);
-
-  const zhResources: Record<string, unknown> = {};
-  const enResources: Record<string, unknown> = {};
-
-  for (const [oldKey, zhValue] of Object.entries(zhFlat)) {
-    if (typeof zhValue === 'string') {
-      const newKey = zhValue;
-      zhResources[newKey] = newKey;
-      const enValue = enFlat[oldKey];
-      if (typeof enValue === 'string') {
-        enResources[newKey] = enValue;
-      }
-    }
-  }
-
-  return { zhResources, enResources };
-}
-
 Object.entries(localeModules).forEach(([path, module]) => {
   const match = path.match(/\/src\/modules\/([^/]+)\/locales\/([^/]+)\/([^/]+)\.json/);
   if (match) {
-    const [, moduleName, lang, namespace] = match;
+    const [, , lang, namespace] = match;
     const data = (module as { default: Record<string, unknown> }).default;
 
     if (!resources[lang]) {
@@ -78,6 +41,10 @@ i18n
     fallbackLng: 'zh-CN',
     ns: namespaces,
     defaultNS: 'common',
+    // 缺失的键先到 common 命名空间找一次：`common.*` 是跨模块共用词表
+    // （按钮/标签/提示），各模块直接写 t('状态') 即可解析，
+    // 不必把同一批文案复制进每个模块的语言包。
+    fallbackNS: 'common',
     interpolation: {
       escapeValue: false,
     },

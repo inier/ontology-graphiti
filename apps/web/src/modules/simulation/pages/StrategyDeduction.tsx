@@ -207,7 +207,9 @@ const StrategyDeduction: React.FC = () => {
   }, []);
 
   useEffect(() => {
-    fetchScenarioList();
+        void (async () => {
+      fetchScenarioList();
+    })();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
@@ -1348,7 +1350,7 @@ const StrategyDeduction: React.FC = () => {
                 try {
                   const parsed = e.target.value ? JSON.parse(e.target.value) : {};
                   handleStepChange(step.step_id, 'parameters', parsed);
-                } catch {
+                } catch { /* 忽略：失败时保持当前状态 */ 
                   // ignore parse errors during typing
                 }
               }}

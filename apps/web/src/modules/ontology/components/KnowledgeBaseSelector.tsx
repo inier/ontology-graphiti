@@ -1,4 +1,3 @@
-/* eslint-disable @typescript-eslint/no-explicit-any */
 import { useState, useCallback } from 'react';
 import {
   Card, List, Checkbox, Space, Tag, Spin, Alert, Input, Button, Progress, message, Empty,
@@ -8,13 +7,29 @@ import {
 } from '@ant-design/icons';
 import { apiClient } from '@/modules/shared/services/apiClient';
 import { ontologyApi } from '../services/ontologyApi';
+import type { ExtractionSessionResult } from '../services/ontologyApi';
 import { useExtractionProgress } from '../hooks/useExtractionProgress';
 import { useI18n } from '@/modules/shared/hooks/useI18n';
 
 export interface KnowledgeBaseSelectorProps {
   ontologyId: string;
-  onExtractionComplete?: (result: any) => void;
+  onExtractionComplete?: (result: ExtractionSessionResult) => void;
 }
+
+/**
+ * 知识库列表信封：后端历史上有 `knowledge_bases` 与 `data` 两种键名，
+ * 也可能直接返回裸数组，这里三种都建模。
+ */
+type KnowledgeBaseListResponse = {
+  knowledge_bases?: KnowledgeBaseItem[];
+  data?: KnowledgeBaseItem[];
+};
+
+/** 文档列表信封：同上 */
+type DocumentListResponse = {
+  documents?: DocumentItem[];
+  data?: DocumentItem[];
+};
 
 interface KnowledgeBaseItem {
   kb_id: string;
@@ -52,8 +67,8 @@ export function KnowledgeBaseSelector({ ontologyId, onExtractionComplete }: Know
   const loadKnowledgeBases = useCallback(async () => {
     setLoading(true);
     try {
-      const result = await apiClient.get('/api/knowledge-bases') as any;
-      const list = result?.knowledge_bases || result?.data || result || [];
+      const result = await apiClient.get<KnowledgeBaseListResponse>('/api/knowledge-bases');
+      const list = result.knowledge_bases ?? result.data ?? [];
       setKnowledgeBases(Array.isArray(list) ? list : []);
       setLoaded(true);
     } catch {
@@ -67,8 +82,10 @@ export function KnowledgeBaseSelector({ ontologyId, onExtractionComplete }: Know
     setSelectedKbId(kbId);
     setSelectedDocIds(new Set());
     try {
-      const result = await apiClient.get(`/api/knowledge-bases/${kbId}/documents`) as any;
-      const docs = result?.documents || result?.data || result || [];
+      const result = await apiClient.get<DocumentListResponse>(
+        `/api/knowledge-bases/${kbId}/documents`,
+      );
+      const docs = result.documents ?? result.data ?? [];
       setDocuments(Array.isArray(docs) ? docs : []);
       setSelectedDocIds(new Set(Array.isArray(docs) ? docs.map((d: DocumentItem) => d.doc_id) : []));
     } catch {
@@ -182,7 +199,7 @@ export function KnowledgeBaseSelector({ ontologyId, onExtractionComplete }: Know
 
       {selectedKbId && documents.length > 0 && (
         <Card
-          title={t('extraction.docList', { selected: selectedDocIds.size, total: documents.length })}
+          title={t('文档列表', { selected: selectedDocIds.size, total: documents.length })}
           size="small"
           extra={
             <Space>

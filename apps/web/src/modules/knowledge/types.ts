@@ -58,11 +58,17 @@ export interface GraphBuildRequest {
   doc_id: string;
   extraction_method?: 'regex' | 'llm' | 'auto';
   entity_types?: string[];
-  extraction_config: {
-    extract_entities: boolean;
-    extract_relations: boolean;
-    entity_types: string[];
-    relation_types: string[];
+  /**
+   * 细粒度抽取配置。
+   *
+   * `knowledgeApi.buildGraph` 只消费 `entity_types`（顶层 `entity_types` 缺省时才回退到这里），
+   * 其余字段交由后端解释；实现里对整块用了 `?.`，故这里按可选声明，避免调用方被迫编造字段。
+   */
+  extraction_config?: {
+    extract_entities?: boolean;
+    extract_relations?: boolean;
+    entity_types?: string[];
+    relation_types?: string[];
   };
 }
 

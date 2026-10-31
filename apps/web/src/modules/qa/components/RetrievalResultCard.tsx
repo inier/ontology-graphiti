@@ -8,7 +8,7 @@ import {
   SearchOutlined,
   ApiOutlined,
   BranchesOutlined,
-  LinkOutlined,
+  
 } from '@ant-design/icons';
 import type { RetrievalResult, SourceReference } from '../services/nlQueryApi';
 import { useI18n } from '@/modules/shared/hooks/useI18n';
@@ -46,7 +46,7 @@ export function RetrievalResultCard({ result, rank, showEntities = true }: Retri
               {result.pillar.toUpperCase()}
             </Tag>
             <Tag style={{ margin: 0, fontSize: 11 }}>{result.source}</Tag>
-            <Tooltip title={t('retrieval.confidence', { value: (result.score * 100).toFixed(1) })}>
+            <Tooltip title={t('置信度', { value: (result.score * 100).toFixed(1) })}>
               <Text style={{ fontSize: 11, color: result.score > 0.7 ? '#52c41a' : result.score > 0.4 ? '#faad14' : '#999' }}>
                 {(result.score * 100).toFixed(1)}%
               </Text>
@@ -56,7 +56,7 @@ export function RetrievalResultCard({ result, rank, showEntities = true }: Retri
           {/* 内容 */}
           <Paragraph
             style={{ margin: 0, fontSize: 13, lineHeight: 1.6 }}
-            ellipsis={{ rows: 3, expandable: true, symbol: t('retrieval.expand') }}
+            ellipsis={{ rows: 3, expandable: true, symbol: t('展开') }}
           >
             {result.content}
           </Paragraph>

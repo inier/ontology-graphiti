@@ -53,7 +53,8 @@ export async function listApprovalTasks(params?: {
       `${URL_PREFIX}/approval/tasks${fullQS}`,
     );
   } catch (e) {
-    const msg = e instanceof Error ? e.message : String(e);
+    const errMessage = e instanceof Error ? e.message : String(e);
+    const msg = e instanceof Error ? errMessage : String(e);
     throw new Error(`Failed to list approval tasks: ${msg}`);
   }
 }
@@ -72,7 +73,8 @@ export async function actionAudit(
       },
     );
   } catch (e) {
-    const msg = e instanceof Error ? e.message : String(e);
+    const errMessage = e instanceof Error ? e.message : String(e);
+    const msg = e instanceof Error ? errMessage : String(e);
     throw new Error(`Failed to audit approval task: ${msg}`);
   }
 }
@@ -91,7 +93,8 @@ export async function actionModify(
       },
     );
   } catch (e) {
-    const msg = e instanceof Error ? e.message : String(e);
+    const errMessage = e instanceof Error ? e.message : String(e);
+    const msg = e instanceof Error ? errMessage : String(e);
     throw new Error(`Failed to modify approval task: ${msg}`);
   }
 }
@@ -110,7 +113,8 @@ export async function actionReject(
       },
     );
   } catch (e) {
-    const msg = e instanceof Error ? e.message : String(e);
+    const errMessage = e instanceof Error ? e.message : String(e);
+    const msg = e instanceof Error ? errMessage : String(e);
     throw new Error(`Failed to reject approval task: ${msg}`);
   }
 }
@@ -129,7 +133,8 @@ export async function actionFinalApprove(
       },
     );
   } catch (e) {
-    const msg = e instanceof Error ? e.message : String(e);
+    const errMessage = e instanceof Error ? e.message : String(e);
+    const msg = e instanceof Error ? errMessage : String(e);
     throw new Error(`Failed to final approve approval task: ${msg}`);
   }
 }

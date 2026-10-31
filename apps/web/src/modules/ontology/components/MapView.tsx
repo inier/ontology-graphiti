@@ -12,9 +12,7 @@ export function MapView({ units }: MapViewProps) {
   const [isDragging, setIsDragging] = useState(false);
   const [dragStart, setDragStart] = useState({ x: 0, y: 0 });
 
-  useEffect(() => {
-    drawMap();
-  }, [units, scale, offset]);
+  
 
   const drawMap = () => {
     const canvas = canvasRef.current;
@@ -69,6 +67,10 @@ export function MapView({ units }: MapViewProps) {
       ctx.fill();
     });
   };
+
+  useEffect(() => {
+    drawMap();
+  }, [units, scale, offset]);
 
   const handleWheel = (e: React.WheelEvent<HTMLDivElement>) => {
     e.preventDefault();

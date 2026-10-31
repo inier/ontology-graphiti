@@ -5,11 +5,12 @@
  * 展示当前 memory、active_skills、recent_sessions
  */
 
-import React, { useEffect, useState } from 'react';
+import React, { useMemo } from 'react';
 import { List, Tag, Typography } from 'antd';
 import { ProCard as Card } from '@ant-design/pro-components';
 import { useAGUIContext } from './AGUIProvider';
-import type { StateDeltaEvent, StateSnapshotEvent } from './agui_types';
+import type { StateDeltaEvent } from './agui_types';
+import { Icon } from '@/modules/shared/components/Icon';
 
 const { Text } = Typography;
 
@@ -20,18 +21,18 @@ export interface StatePanelProps {
 
 export function StatePanel({ watchPath = '/memory/facts' }: StatePanelProps) {
   const { events } = useAGUIContext();
-  const [snapshot, setSnapshot] = useState<Record<string, unknown> | null>(null);
-  const [deltas, setDeltas] = useState<StateDeltaEvent[]>([]);
-
-  useEffect(() => {
+  // snapshot / deltas 完全由 events 派生，无需用 effect 累加进 state
+  const snapshot = useMemo<Record<string, unknown> | null>(() => {
+    let latest: Record<string, unknown> | null = null;
     for (const event of events) {
-      if (event.type === 'STATE_SNAPSHOT') {
-        setSnapshot(event.snapshot);
-      } else if (event.type === 'STATE_DELTA') {
-        setDeltas((prev) => [...prev, event]);
-      }
+      if (event.type === 'STATE_SNAPSHOT') latest = event.snapshot;
     }
+    return latest;
   }, [events]);
+  const deltas = useMemo(
+    () => events.filter((event): event is StateDeltaEvent => event.type === 'STATE_DELTA'),
+    [events],
+  );
 
   // 简单解析：从 snapshot / delta 提取 watchPath
   const extractValue = () => {
@@ -52,7 +53,7 @@ export function StatePanel({ watchPath = '/memory/facts' }: StatePanelProps) {
   const value = extractValue();
 
   return (
-    <Card title="📊 Shared State" size="small" style={{ width: 280 }}>
+    <Card title={<span style={{ display: 'inline-flex', alignItems: 'center', gap: 6 }}><Icon role="chart" size={20} />Shared State</span>} size="small" style={{ width: 280 }}>
       <Text type="secondary" style={{ fontSize: 12 }}>
         监听路径: <code>{watchPath}</code>
       </Text>

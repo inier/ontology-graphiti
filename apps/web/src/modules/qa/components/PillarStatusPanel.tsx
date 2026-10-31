@@ -65,7 +65,7 @@ export function PillarStatusPanel({ pillars, loading }: PillarStatusPanelProps) 
                 </span>
                 <div>
                   <Text strong style={{ fontSize: 13 }}>
-                    {p.name === 'bm25' ? t('pillar.bm25') : p.name === 'vector' ? t('pillar.vector') : t('pillar.graph')}
+                    {p.name === 'bm25' ? t('pillar.bm25') : p.name === 'vector' ? t('pillar.vector') : t('图谱')}
                   </Text>
                   <br />
                   <Text type="secondary" style={{ fontSize: 11 }}>{p.description}</Text>

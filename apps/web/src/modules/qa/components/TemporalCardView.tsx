@@ -1,7 +1,7 @@
 import React from 'react';
 import { Tag, Typography, Space } from 'antd';
 import { ClockCircleOutlined } from '@ant-design/icons';
-import type { TemporalCard } from '../hooks/useQAI';
+import type { TemporalCard } from '../types';
 
 const { Text, Paragraph } = Typography;
 

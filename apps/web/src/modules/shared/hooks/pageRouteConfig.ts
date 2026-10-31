@@ -15,6 +15,11 @@ import type { PageContext } from './usePageContext';
 /** 路由匹配模式类型 */
 type RoutePattern = string;
 
+/** 只能承接 URL 字符串参数的上下文字段（其余字段类型不兼容） */
+export type StringContextField = {
+  [K in keyof PageContext]-?: PageContext[K] extends string | undefined ? K : never;
+}[keyof PageContext];
+
 /** 页面元信息 */
 export interface PageMetadata {
   pageId: string;
@@ -25,8 +30,8 @@ export interface PageMetadata {
   requiresOntology?: boolean;
   /** 是否需要工作空间上下文 */
   requiresWorkspace?: boolean;
-  /** URL参数映射到上下文字段 */
-  paramMap?: Record<string, keyof PageContext>;
+  /** URL参数映射到上下文字段（仅限字符串字段） */
+  paramMap?: Record<string, StringContextField>;
   /** 自定义上下文提取器 */
   extractContext?: (params: Record<string, string>) => Partial<PageContext>;
 }

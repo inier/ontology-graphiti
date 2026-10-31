@@ -7,11 +7,12 @@ import { AppRoutes } from './AppRoutes';
 import { api } from '@/modules/shared/services/api';
 import { useGlobalLoading } from '@/modules/shared/stores/globalLoadingStore';
 import EmptyState from '@/modules/shared/components/organisms/EmptyState';
+import { PageContextProvider } from '@/modules/shared/hooks/PageContextProvider';
 import {
   WorkspaceContext,
   ScenarioContext,
-  OntologyVersionContext,
-  RightPanelContext,
+  
+  
   type Workspace,
   type Scenario,
 } from '@/modules/shared/components/LayoutContexts';
@@ -104,12 +105,13 @@ function AppContent() {
         setLoadError('当前没有可用的工作空间，请先创建或检查后端服务。');
       }
     } catch (err) {
+      const errMessage = err instanceof Error ? err.message : String(err);
       if (signal.aborted) return;
 
       const isTimeoutAbort =
         controllerTimeout.signal.aborted ||
         (err instanceof DOMException && err.name === 'AbortError') ||
-        (err instanceof Error && (err.name === 'AbortError' || err.message.includes('aborted')));
+        (err instanceof Error && (err.name === 'AbortError' || errMessage.includes('aborted')));
 
       if (isTimeoutAbort) {
         if (!signal.aborted) {
@@ -151,12 +153,16 @@ function AppContent() {
   useEffect(() => {
     if (isLoginPage) return;
     const controller = new AbortController();
-    void loadWorkspaces(controller.signal);
+        void (async () => {
+      void loadWorkspaces(controller.signal);
+    })();
     return () => controller.abort();
   }, [isLoginPage, loadWorkspaces]);
 
   useEffect(() => {
-    if (currentWorkspace) void loadScenarios(currentWorkspace);
+        void (async () => {
+      if (currentWorkspace) void loadScenarios(currentWorkspace);
+    })();
   }, [currentWorkspace, loadScenarios]);
 
   /* ── WorkspaceContext 回调（供 Layout 内组件触发刷新） ── */
@@ -239,15 +245,19 @@ function AppContent() {
   return (
     <WorkspaceContext.Provider value={workspaceContextValue}>
       <ScenarioContext.Provider value={scenarioContextValue}>
-        {isAgentMode ? (
-          <AgentLayout>
-            <AppRoutes />
-          </AgentLayout>
-        ) : (
-          <AdminLayout>
-            <AppRoutes />
-          </AdminLayout>
-        )}
+        {/* 页面上下文：AIChatPanel 通过 useAIContext() 读取「当前页面 / 选中本体 / 选中类型」，
+            此前从未挂载 Provider，AI 助手只能拿到 store 兜底值、拿不到页面级信息 */}
+        <PageContextProvider>
+          {isAgentMode ? (
+            <AgentLayout>
+              <AppRoutes />
+            </AgentLayout>
+          ) : (
+            <AdminLayout>
+              <AppRoutes />
+            </AdminLayout>
+          )}
+        </PageContextProvider>
       </ScenarioContext.Provider>
     </WorkspaceContext.Provider>
   );

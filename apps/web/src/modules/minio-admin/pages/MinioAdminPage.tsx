@@ -2,9 +2,10 @@ import { useState } from 'react';
 import { Card, Tabs, Alert, Button, Typography, Space, Spin } from 'antd';
 import {
   CloudServerOutlined, ReloadOutlined, ExpandOutlined,
-  DatabaseOutlined, InboxOutlined,
+  DatabaseOutlined, InboxOutlined, TableOutlined,
 } from '@ant-design/icons';
 import { useI18n } from '@/modules/shared/hooks/useI18n';
+import StorageBrowser from '../components/StorageBrowser';
 
 const { Title, Text } = Typography;
 
@@ -45,8 +46,19 @@ export function MinioAdminPage() {
       </div>
 
       <Tabs
-        defaultActiveKey="console"
+        defaultActiveKey="storage"
         items={[
+          {
+            // 默认页签放「存储浏览」而不是 iframe：iframe 依赖后端 /minio-console/
+            // 反向代理与容器内 Console，代理不通就是一片空白；结构化端点不受此影响。
+            key: 'storage',
+            label: (
+              <span>
+                <TableOutlined /> {t('存储浏览')}
+              </span>
+            ),
+            children: <StorageBrowser />,
+          },
           {
             key: 'console',
             label: (

@@ -81,14 +81,17 @@ export default function SemanticAssetPipelinePage() {
       const opts = await getAssetPipelineOptions(state.ontologyId);
       setOptions(opts);
     } catch (e) {
-      message.error(e instanceof Error ? e.message : '加载选项失败');
+      const errMessage = e instanceof Error ? e.message : String(e);
+      message.error(e instanceof Error ? errMessage : '加载选项失败');
     } finally {
       setLoadingOptions(false);
     }
   }, [state.ontologyId]);
 
   useEffect(() => {
-    loadOptions();
+        void (async () => {
+      loadOptions();
+    })();
   }, [loadOptions]);
 
   const structuredSourceTypes = useMemo(
@@ -203,7 +206,8 @@ export default function SemanticAssetPipelinePage() {
       setCurrent(3);
       message.success(t('抽取完成，共归集候选') + ` ${res.candidate_count} ` + t('条'));
     } catch (e) {
-      message.error(e instanceof Error ? e.message : '执行失败');
+      const errMessage = e instanceof Error ? e.message : String(e);
+      message.error(e instanceof Error ? errMessage : '执行失败');
     } finally {
       setRunning(false);
     }
@@ -221,7 +225,8 @@ export default function SemanticAssetPipelinePage() {
       setSubmitResult({ submitted: res.submitted, skipped: res.skipped });
       message.success(t('已提交审核'));
     } catch (e) {
-      message.error(e instanceof Error ? e.message : '提交审核失败');
+      const errMessage = e instanceof Error ? e.message : String(e);
+      message.error(e instanceof Error ? errMessage : '提交审核失败');
     } finally {
       setSubmitting(false);
     }

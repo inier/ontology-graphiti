@@ -34,7 +34,10 @@ interface UseCytoscapeGraphOptions {
 }
 
 interface UseCytoscapeGraphReturn {
-  cy: cytoscape.Core | null;
+  /**
+   * 不再暴露 `cy`（原 `cy: cyRef.current` 属渲染期读取 ref，且全仓库无消费方）。
+   * 需要命令式访问 Cytoscape 实例时，请通过本 hook 暴露的方法操作。
+   */
   zoomLevel: number;
   setLayout: (layout: CytoscapeLayoutType) => void;
   zoomIn: () => void;
@@ -68,19 +71,23 @@ export function useCytoscapeGraph({
   const cyRef = useRef<cytoscape.Core | null>(null);
   const [zoomLevel, setZoomLevel] = useState(1);
   const [currentLayout, setCurrentLayout] = useState<CytoscapeLayoutType>(initialLayout);
+  // 回调只通过 ref 交给 cytoscape 的事件处理，更新放在 effect 里（渲染期不写 ref）
   const onNodeClickRef = useRef(onNodeClick);
-  onNodeClickRef.current = onNodeClick;
   const onEdgeClickRef = useRef(onEdgeClick);
-  onEdgeClickRef.current = onEdgeClick;
   const onCanvasClickRef = useRef(onCanvasClick);
   const onNodeEditRef = useRef(onNodeEdit);
-  onNodeEditRef.current = onNodeEdit;
   const onNodeDeleteRef = useRef(onNodeDelete);
-  onNodeDeleteRef.current = onNodeDelete;
   const onEdgeEditRef = useRef(onEdgeEdit);
-  onEdgeEditRef.current = onEdgeEdit;
   const onEdgeDeleteRef = useRef(onEdgeDelete);
-  onEdgeDeleteRef.current = onEdgeDelete;
+  useEffect(() => {
+    onNodeClickRef.current = onNodeClick;
+    onEdgeClickRef.current = onEdgeClick;
+    onCanvasClickRef.current = onCanvasClick;
+    onNodeEditRef.current = onNodeEdit;
+    onNodeDeleteRef.current = onNodeDelete;
+    onEdgeEditRef.current = onEdgeEdit;
+    onEdgeDeleteRef.current = onEdgeDelete;
+  }, [onNodeClick, onEdgeClick, onCanvasClick, onNodeEdit, onNodeDelete, onEdgeEdit, onEdgeDelete]);
 
   const buildStylesheet = useCallback(() => {
     const styles: Array<{ selector: string; style: Record<string, unknown> }> = [
@@ -541,7 +548,6 @@ export function useCytoscapeGraph({
   }, []);
 
   return {
-    cy: cyRef.current,
     zoomLevel,
     setLayout,
     zoomIn,

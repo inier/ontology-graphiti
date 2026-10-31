@@ -1,6 +1,6 @@
 import { useState, useEffect, useCallback } from 'react';
 import { Card, Tag, Modal, Form, Input, Select as AntSelect, Space, Button as AntButton, Row, Col, Popconfirm, Alert, Typography, Divider, Upload } from 'antd';
-import { CheckOutlined, RobotOutlined, PlusOutlined, ImportOutlined, ScanOutlined, DeleteOutlined, ExportOutlined, DownloadOutlined, UploadOutlined, InboxOutlined } from '@ant-design/icons';
+import { CheckOutlined, RobotOutlined, PlusOutlined, ImportOutlined, ScanOutlined, DeleteOutlined, ExportOutlined, DownloadOutlined, InboxOutlined } from '@ant-design/icons';
 import { useTranslation } from 'react-i18next';
 import adapter from '@/modules/shared/components/adapter';
 import { PageHeader } from '@/modules/shared/components/PageHeader';
@@ -77,7 +77,7 @@ export function I18nAdminPage() {
     loadModules();
     loadLocales();
     loadTranslations({ module: filterModule, locale: filterLocale, page: 1, page_size: currentPageSize });
-    setCurrentPage(1);
+    // currentPage 初值即 1，首次加载无需重置
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
@@ -104,7 +104,7 @@ export function I18nAdminPage() {
       editForm.resetFields();
       adapter.getMessage().success(t('saveSuccess'));
       handleFilter();
-    } catch {
+    } catch { /* 忽略：失败时保持当前状态 */ 
       // validation error
     }
   }, [editForm, saveTranslation, handleFilter, t]);
@@ -132,7 +132,7 @@ export function I18nAdminPage() {
       autoTranslateForm.resetFields();
       adapter.getMessage().success(t('autoTranslateTitle'));
       handleFilter();
-    } catch {
+    } catch { /* 忽略：失败时保持当前状态 */ 
       // validation error
     }
   }, [autoTranslateForm, autoTranslate, handleFilter, t]);
@@ -153,7 +153,7 @@ export function I18nAdminPage() {
       } else {
         adapter.getMessage().error(t('addFailed'));
       }
-    } catch {
+    } catch { /* 忽略：失败时保持当前状态 */ 
       // validation error
     }
   }, [addLocaleForm, t]);
@@ -199,7 +199,7 @@ export function I18nAdminPage() {
       } else {
         adapter.getMessage().error(t('importFailed'));
       }
-    } catch {
+    } catch { /* 忽略：失败时保持当前状态 */ 
       // validation error
     }
   }, [bulkImportForm, saveTranslationsBulk, handleFilter, t]);
@@ -214,7 +214,7 @@ export function I18nAdminPage() {
       } else {
         adapter.getMessage().error(t('scanFailed'));
       }
-    } catch {
+    } catch { /* 忽略：失败时保持当前状态 */ 
       // validation error
     }
   }, [scanMissingForm, scanMissing, t]);

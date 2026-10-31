@@ -32,7 +32,9 @@ export const ExtractorModeCard: React.FC = () => {
     }
   }, []);
 
-  useEffect(() => { void load(); }, [load]);
+  useEffect(() => {   void (async () => {
+    void load();
+  })(); }, [load]);
 
   const onChange = useCallback(async (mode: ExtractorMode) => {
     if (!info || mode === info.effective_mode) return;

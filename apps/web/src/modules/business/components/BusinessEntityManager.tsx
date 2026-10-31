@@ -34,6 +34,212 @@ const { Title, Text } = Typography;
 
 
 
+/** 后端 `*-type-definitions` 返回行：四种实体类型共用 `type_id` / `name` / `display_name` */
+interface TypeDefinitionRow {
+
+  type_id?: string;
+
+  name?: string;
+
+  display_name?: string;
+
+}
+
+/**
+ * 后端业务实体行里的反向关联数组。
+ *
+ * 这四个字段没有进 `business/types.ts` 的正式契约（`BusinessEntity` 只声明本体字段），
+ * 但详情抽屉按 `entityType` 互斥展示它们，故在此以可选字段承载：缺省即渲染「无」。
+ */
+interface BusinessEntityRelations {
+
+  related_processes?: string[];
+
+  related_rules?: string[];
+
+  related_logics?: string[];
+
+  related_indicators?: string[];
+
+}
+
+/** 列表行 = 本体字段 + 反向关联 */
+type BusinessEntityRow = BusinessEntity & BusinessEntityRelations;
+
+/** 表单值 = 表单字段 + 反向关联（编辑回填需要） */
+type BusinessEntityFormValues = BusinessEntityFormData & BusinessEntityRelations;
+
+function asRecord(value: unknown): Record<string, unknown> | undefined {
+
+  return value !== null && typeof value === 'object' && !Array.isArray(value)
+
+    ? (value as Record<string, unknown>)
+
+    : undefined;
+
+}
+
+function asString(value: unknown): string {
+
+  return typeof value === 'string' ? value : '';
+
+}
+
+function asStringList(value: unknown): string[] {
+
+  return Array.isArray(value)
+
+    ? value.filter((item): item is string => typeof item === 'string')
+
+    : [];
+
+}
+
+function asStatus(value: unknown): BusinessEntity['status'] {
+
+  return value === 'published' || value === 'deprecated' ? value : 'draft';
+
+}
+
+function asFlowNodes(value: unknown): FlowNode[] | undefined {
+
+  if (!Array.isArray(value)) return undefined;
+
+  return value.flatMap((raw): FlowNode[] => {
+
+    const record = asRecord(raw);
+
+    if (!record) return [];
+
+    const nodeType = record.type;
+
+    const type: FlowNode['type'] =
+
+      nodeType === 'start' || nodeType === 'task' || nodeType === 'decision' || nodeType === 'end'
+
+        ? nodeType
+
+        : 'task';
+
+    return [{
+
+      node_id: asString(record.node_id),
+
+      name: asString(record.name),
+
+      order: typeof record.order === 'number' ? record.order : 0,
+
+      type,
+
+      description: asString(record.description) || undefined,
+
+    }];
+
+  });
+
+}
+
+function asRuleConditions(value: unknown): RuleCondition[] | undefined {
+
+  if (!Array.isArray(value)) return undefined;
+
+  return value.flatMap((raw): RuleCondition[] => {
+
+    const record = asRecord(raw);
+
+    if (!record) return [];
+
+    return [{
+
+      condition_id: asString(record.condition_id),
+
+      trigger_event: asString(record.trigger_event),
+
+      requirement: asString(record.requirement),
+
+      order: typeof record.order === 'number' ? record.order : 0,
+
+    }];
+
+  });
+
+}
+
+/**
+ * 把后端任意业务实体行归一成 `BusinessEntityRow`。
+ *
+ * 各实体类型的列表端点主键名不同（`process_id` / `rule_id` / `logic_id` / `indicator_id`），
+ * 由 `entityIdField` 指定；同时补齐 `BusinessEntity` 要求但后端行可能缺省的展示字段。
+ */
+function toBusinessEntityRow(
+
+  raw: unknown,
+
+  entityIdField: string,
+
+  entityType: BusinessEntityType,
+
+): BusinessEntityRow {
+
+  const record = asRecord(raw) ?? {};
+
+  return {
+
+    id: asString(record[entityIdField]) || asString(record.id) || asString(record.name),
+
+    name: asString(record.name),
+
+    display_name: asString(record.display_name) || asString(record.name),
+
+    description: asString(record.description),
+
+    related_objects: asStringList(record.related_objects),
+
+    llm_description: asString(record.llm_description),
+
+    entity_type: entityType,
+
+    // 列表卡片与详情都不展示 status：后端缺省时给 'draft' 只为满足 BusinessEntity 必填约束
+    status: asStatus(record.status),
+
+    created_by: asString(record.created_by),
+
+    created_at: asString(record.created_at),
+
+    updated_at: asString(record.updated_at),
+
+    yaml_definition: asString(record.yaml_definition) || undefined,
+
+    schema_type_id: asString(record.schema_type_id) || undefined,
+
+    flow_nodes: asFlowNodes(record.flow_nodes),
+
+    rule_conditions: asRuleConditions(record.rule_conditions),
+
+    logic_type: asString(record.logic_type) || undefined,
+
+    logic_expression: asString(record.logic_expression) || undefined,
+
+    indicator_type: asString(record.indicator_type) || undefined,
+
+    calculation_formula: asString(record.calculation_formula) || undefined,
+
+    unit: asString(record.unit) || undefined,
+
+    related_processes: asStringList(record.related_processes),
+
+    related_rules: asStringList(record.related_rules),
+
+    related_logics: asStringList(record.related_logics),
+
+    related_indicators: asStringList(record.related_indicators),
+
+  };
+
+}
+
+
+
 let cachedProcessOptions: {label: string; value: string}[] | null = null;
 
 let cachedRuleOptions: {label: string; value: string}[] | null = null;
@@ -43,8 +249,6 @@ let cachedLogicOptions: {label: string; value: string}[] | null = null;
 let cachedIndicatorOptions: {label: string; value: string}[] | null = null;
 
 let cachedObjectTypeOptions: {label: string; value: string}[] | null = null;
-
-let optionsLoading = false;
 
 let optionsPromise: Promise<void> | null = null;
 
@@ -124,7 +328,6 @@ async function ensureOptionsLoaded(): Promise<{
 
 
 
-  optionsLoading = true;
 
   optionsPromise = (async () => {
 
@@ -134,9 +337,9 @@ async function ensureOptionsLoaded(): Promise<{
 
       const typeSet = new Set<string>();
 
-      (result.entities || []).forEach((e: any) => {
+      (result.entities || []).forEach((e) => {
 
-        const t = e.type || e.entity_type;
+        const t = e.type;
 
         if (t) typeSet.add(t);
 
@@ -166,33 +369,33 @@ async function ensureOptionsLoaded(): Promise<{
 
       const processes = await processApi.list();
 
-      cachedProcessOptions = processes.map((p: any) => ({ label: p.display_name || p.name, value: p.name }));
+      cachedProcessOptions = processes.map((p) => ({ label: p.display_name || p.name, value: p.name }));
 
-    } catch (e) { /* ignore */ }
+    } catch { /* 忽略：失败时保持当前状态 */  /* ignore */ }
 
     try {
 
       const rules = await ruleApi.list();
 
-      cachedRuleOptions = rules.map((r: any) => ({ label: r.display_name || r.name, value: r.name }));
+      cachedRuleOptions = rules.map((r) => ({ label: r.display_name || r.name, value: r.name }));
 
-    } catch (e) { /* ignore */ }
+    } catch { /* 忽略：失败时保持当前状态 */  /* ignore */ }
 
     try {
 
       const logics = await logicApi.list();
 
-      cachedLogicOptions = logics.map((l: any) => ({ label: l.display_name || l.name, value: l.name }));
+      cachedLogicOptions = logics.map((l) => ({ label: l.display_name || l.name, value: l.name }));
 
-    } catch (e) { /* ignore */ }
+    } catch { /* 忽略：失败时保持当前状态 */  /* ignore */ }
 
     try {
 
       const indicators = await indicatorApi.list();
 
-      cachedIndicatorOptions = indicators.map((i: any) => ({ label: i.display_name || i.name, value: i.name }));
+      cachedIndicatorOptions = indicators.map((i) => ({ label: i.display_name || i.name, value: i.name }));
 
-    } catch (e) { /* ignore */ }
+    } catch { /* 忽略：失败时保持当前状态 */  /* ignore */ }
 
   })();
 
@@ -232,17 +435,26 @@ interface BusinessEntityManagerProps {
 
   tagText: string;
 
+  /**
+   * 各业务实体类型的 CRUD 端点。
+   *
+   * 用函数简写（method）签名而非函数属性：`strictFunctionTypes` 只对函数属性启用逆变检查，
+   * 各类型的具体载荷（`BusinessProcessFormData` 等）与 `BusinessEntityFormData` 并不互相兼容，
+   * 函数属性签名会让四处调用方全部报类型错误。
+   * 返回 `unknown` 是为了让各端点各自的具体行类型都可赋值进来，行数据统一由
+   * `toBusinessEntityRow` 归一。
+   */
   api: {
 
-    list: (ontologyId?: string, versionId?: string) => Promise<any[]>;
+    list(ontologyId?: string, versionId?: string): Promise<unknown[]>;
 
-    create: (data: any) => Promise<any>;
+    create(data: BusinessEntityFormData): Promise<unknown>;
 
-    update: (id: string, data: any) => Promise<any>;
+    update(id: string, data: BusinessEntityFormData): Promise<unknown>;
 
-    delete: (id: string) => Promise<void>;
+    delete(id: string): Promise<void>;
 
-    importYaml?: (yaml: string) => Promise<any[]>;
+    importYaml?(yaml: string): Promise<unknown[]>;
 
   };
 
@@ -284,11 +496,11 @@ export function BusinessEntityManager({
 
 }: BusinessEntityManagerProps) {
 
-  const { t, instance } = useI18n('business');
+  const { t } = useI18n('business');
 
   const { currentOntologyId, currentVersionId } = useOntologyVersion();
 
-  const [entities, setEntities] = useState<BusinessEntity[]>([]);
+  const [entities, setEntities] = useState<BusinessEntityRow[]>([]);
 
   const [, setLoading] = useState(false);
 
@@ -304,11 +516,11 @@ export function BusinessEntityManager({
 
   const [yamlViewContent, setYamlViewContent] = useState('');
 
-  const [editingEntity, setEditingEntity] = useState<BusinessEntity | null>(null);
+  const [editingEntity, setEditingEntity] = useState<BusinessEntityRow | null>(null);
 
-  const [viewingEntity, setViewingEntity] = useState<BusinessEntity | null>(null);
+  const [viewingEntity, setViewingEntity] = useState<BusinessEntityRow | null>(null);
 
-  const [form] = Form.useForm<BusinessEntityFormData>();
+  const [form] = Form.useForm<BusinessEntityFormValues>();
 
   const [yamlForm] = Form.useForm<{ yaml: string }>();
 
@@ -326,21 +538,13 @@ export function BusinessEntityManager({
 
   const [indicatorOptions, setIndicatorOptions] = useState<{label: string; value: string}[]>([]);
 
-  const [typeDefinitions, setTypeDefinitions] = useState<any[]>([]);
+  const [typeDefinitions, setTypeDefinitions] = useState<TypeDefinitionRow[]>([]);
 
   const [typeDefinitionOptions, setTypeDefinitionOptions] = useState<{label: string; value: string}[]>([]);
 
 
 
-  useEffect(() => {
-
-    loadEntities();
-
-    loadOptions();
-
-    loadTypeDefinitions();
-
-  }, [currentOntologyId, currentVersionId]);
+  
 
 
 
@@ -358,7 +562,8 @@ export function BusinessEntityManager({
 
     try {
 
-      let result: any;
+      // `*-type-definitions` 端点在 apiClient 里未声明返回类型（`get<T = any>`），按 unknown 收窄
+      let result: unknown;
 
       switch (entityType) {
 
@@ -388,15 +593,17 @@ export function BusinessEntityManager({
 
       }
 
-      const items = Array.isArray(result) ? result : [];
+      const items: TypeDefinitionRow[] = Array.isArray(result)
+        ? result.filter((row): row is TypeDefinitionRow => row !== null && typeof row === 'object')
+        : [];
 
       setTypeDefinitions(items);
 
-      setTypeDefinitionOptions(items.map((td: any) => ({
+      setTypeDefinitionOptions(items.map((td) => ({
 
-        label: td.display_name || td.name || td.type_id,
+        label: td.display_name || td.name || td.type_id || '',
 
-        value: td.type_id,
+        value: td.type_id || '',
 
       })));
 
@@ -438,9 +645,9 @@ export function BusinessEntityManager({
 
       const data = await api.list(currentOntologyId || undefined, currentVersionId || undefined);
 
-      setEntities(data.map(item => ({ ...item, entity_type: entityType, id: item[entityIdField] })));
+      setEntities(data.map((item) => toBusinessEntityRow(item, entityIdField, entityType)));
 
-    } catch (e) {
+    } catch {
 
       message.error(t('加载{{title}}列表失败', { title }));
 
@@ -451,6 +658,22 @@ export function BusinessEntityManager({
     }
 
   };
+
+  useEffect(() => {
+
+        void (async () => {
+      loadEntities();
+    })();
+
+        void (async () => {
+      loadOptions();
+    })();
+
+        void (async () => {
+      loadTypeDefinitions();
+    })();
+
+  }, [currentOntologyId, currentVersionId]);
 
 
 
@@ -470,7 +693,7 @@ export function BusinessEntityManager({
 
 
 
-  const handleEdit = (entity: BusinessEntity) => {
+  const handleEdit = (entity: BusinessEntityRow) => {
 
     setEditingEntity(entity);
 
@@ -484,13 +707,13 @@ export function BusinessEntityManager({
 
       related_objects: entity.related_objects,
 
-      related_processes: (entity as any).related_processes || [],
+      related_processes: entity.related_processes || [],
 
-      related_rules: (entity as any).related_rules || [],
+      related_rules: entity.related_rules || [],
 
-      related_logics: (entity as any).related_logics || [],
+      related_logics: entity.related_logics || [],
 
-      related_indicators: (entity as any).related_indicators || [],
+      related_indicators: entity.related_indicators || [],
 
       llm_description: entity.llm_description,
 
@@ -506,7 +729,7 @@ export function BusinessEntityManager({
 
       schema_type_id: entity.schema_type_id,
 
-    } as any);
+    });
 
     setFlowNodes(entity.flow_nodes || []);
 
@@ -518,7 +741,7 @@ export function BusinessEntityManager({
 
 
 
-  const handleView = (entity: BusinessEntity) => {
+  const handleView = (entity: BusinessEntityRow) => {
 
     setViewingEntity(entity);
 
@@ -540,7 +763,7 @@ export function BusinessEntityManager({
 
       loadEntities();
 
-    } catch (e) {
+    } catch {
 
       message.error(t('删除失败'));
 
@@ -550,7 +773,7 @@ export function BusinessEntityManager({
 
 
 
-  const handleSave = async (values: BusinessEntityFormData) => {
+  const handleSave = async (values: BusinessEntityFormValues) => {
 
     try {
 
@@ -588,7 +811,7 @@ export function BusinessEntityManager({
 
       loadEntities();
 
-    } catch (e) {
+    } catch {
 
       message.error(t('保存失败'));
 
@@ -616,7 +839,7 @@ export function BusinessEntityManager({
 
       loadEntities();
 
-    } catch (e) {
+    } catch {
 
       message.error(t('导入失败'));
 
@@ -644,7 +867,7 @@ export function BusinessEntityManager({
 
 
 
-  const updateFlowNode = (index: number, field: keyof FlowNode, value: any) => {
+  const updateFlowNode = (index: number, field: keyof FlowNode, value: FlowNode[keyof FlowNode]) => {
 
     setFlowNodes(prev => prev.map((node, i) => i === index ? { ...node, [field]: value } : node));
 
@@ -798,7 +1021,7 @@ export function BusinessEntityManager({
 
                   {entity.schema_type_id && (() => {
 
-                    const matched = typeDefinitions.find((td: any) => td.type_id === entity.schema_type_id);
+                    const matched = typeDefinitions.find((td) => td.type_id === entity.schema_type_id);
 
                     return matched ? <Tag color="geekblue">{matched.display_name || matched.name}</Tag> : <Tag>{entity.schema_type_id}</Tag>;
 
@@ -1376,7 +1599,7 @@ export function BusinessEntityManager({
 
                   {(() => {
 
-                    const matched = typeDefinitions.find((td: any) => td.type_id === viewingEntity.schema_type_id);
+                    const matched = typeDefinitions.find((td) => td.type_id === viewingEntity.schema_type_id);
 
                     return matched ? <Tag color="geekblue">{matched.display_name || matched.name}</Tag> : <Tag>{viewingEntity.schema_type_id}</Tag>;
 
@@ -1404,9 +1627,9 @@ export function BusinessEntityManager({
 
                   <Space wrap>
 
-                    {(viewingEntity as any).related_processes?.map((p: string) => <Tag key={p} color="green">{p}</Tag>)}
+                    {viewingEntity.related_processes?.map((p) => <Tag key={p} color="green">{p}</Tag>)}
 
-                    {(!(viewingEntity as any).related_processes || (viewingEntity as any).related_processes?.length === 0) && <Text type="secondary">{t('无')}</Text>}
+                    {(!viewingEntity.related_processes || viewingEntity.related_processes?.length === 0) && <Text type="secondary">{t('无')}</Text>}
 
                   </Space>
 
@@ -1420,9 +1643,9 @@ export function BusinessEntityManager({
 
                   <Space wrap>
 
-                    {(viewingEntity as any).related_rules?.map((r: string) => <Tag key={r} color="orange">{r}</Tag>)}
+                    {viewingEntity.related_rules?.map((r) => <Tag key={r} color="orange">{r}</Tag>)}
 
-                    {(!(viewingEntity as any).related_rules || (viewingEntity as any).related_rules?.length === 0) && <Text type="secondary">{t('无')}</Text>}
+                    {(!viewingEntity.related_rules || viewingEntity.related_rules?.length === 0) && <Text type="secondary">{t('无')}</Text>}
 
                   </Space>
 
@@ -1436,9 +1659,9 @@ export function BusinessEntityManager({
 
                   <Space wrap>
 
-                    {(viewingEntity as any).related_logics?.map((l: string) => <Tag key={l} color="purple">{l}</Tag>)}
+                    {viewingEntity.related_logics?.map((l) => <Tag key={l} color="purple">{l}</Tag>)}
 
-                    {(!(viewingEntity as any).related_logics || (viewingEntity as any).related_logics?.length === 0) && <Text type="secondary">{t('无')}</Text>}
+                    {(!viewingEntity.related_logics || viewingEntity.related_logics?.length === 0) && <Text type="secondary">{t('无')}</Text>}
 
                   </Space>
 
@@ -1452,9 +1675,9 @@ export function BusinessEntityManager({
 
                   <Space wrap>
 
-                    {(viewingEntity as any).related_indicators?.map((i: string) => <Tag key={i} color="cyan">{i}</Tag>)}
+                    {viewingEntity.related_indicators?.map((i) => <Tag key={i} color="cyan">{i}</Tag>)}
 
-                    {(!(viewingEntity as any).related_indicators || (viewingEntity as any).related_indicators?.length === 0) && <Text type="secondary">{t('无')}</Text>}
+                    {(!viewingEntity.related_indicators || viewingEntity.related_indicators?.length === 0) && <Text type="secondary">{t('无')}</Text>}
 
                   </Space>
 

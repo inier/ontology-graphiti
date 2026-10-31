@@ -19,9 +19,7 @@ import {
 } from '@ant-design/icons';
 import GraphView from './GraphView';
 import type { GraphViewApi } from './GraphView';
-import type { GraphNode, GraphEdge, SigmaLayoutType, NodeStyleConfig, EdgeStyleConfig } from '../types';
-import { SIGMA_LAYOUT_OPTIONS } from '../types';
-import { GraphToolbar } from './GraphToolbar';
+import type { GraphNode, GraphEdge, SigmaLayoutType, NodeStyleConfig, EdgeStyleConfig } from '../types';import { GraphToolbar } from './GraphToolbar';
 import { GraphControls } from './GraphControls';
 import { MinimapPanel } from './MinimapPanel';
 import { PathSearchPanel } from './PathSearchPanel';
@@ -58,8 +56,6 @@ interface GraphCanvasProps {
 export function GraphCanvas({
   nodes,
   edges,
-  nodeStyleMap,
-  edgeStyleMap,
   detailPanel,
   legend,
   onNodeClick,
@@ -78,9 +74,11 @@ export function GraphCanvas({
   const [searchText, setSearchText] = useState('');
   const [filterType, setFilterType] = useState('all');
   const [showAudit, setShowAudit] = useState(false);
-  const [canvasHeight, setCanvasHeight] = useState<number | string>(() =>
-    externalHeight ?? (typeof window !== 'undefined' ? window.innerHeight - 200 : 700)
+  // 外部显式高度优先，否则用测量值（派生，避免 effect 回写 state）
+  const [measuredHeight, setMeasuredHeight] = useState<number | string>(() =>
+    typeof window !== 'undefined' ? window.innerHeight - 200 : 700
   );
+  const canvasHeight: number | string = externalHeight ?? measuredHeight;
   const [minimapOpen, setMinimapOpen] = useState(false);
   const [fullscreen, setFullscreen] = useState(false);
   const [showPathSearch, setShowPathSearch] = useState(false);
@@ -88,16 +86,13 @@ export function GraphCanvas({
   const [tooltipData, setTooltipData] = useState<{ type: 'node' | 'edge'; data: GraphNode | GraphEdge; position: { x: number; y: number } } | null>(null);
 
   useEffect(() => {
-    if (externalHeight !== undefined) {
-      setCanvasHeight(externalHeight);
-      return;
-    }
+    if (externalHeight !== undefined) return;
     const wrapper = wrapperRef.current;
     if (!wrapper) return;
     const updateHeight = () => {
       const rect = wrapper.getBoundingClientRect();
       const available = window.innerHeight - rect.top - 16 * 2 - 64 - 8;
-      setCanvasHeight(Math.max(400, available));
+      setMeasuredHeight(Math.max(400, available));
     };
     updateHeight();
     const ro = new ResizeObserver(updateHeight);
@@ -105,6 +100,54 @@ export function GraphCanvas({
     window.addEventListener('resize', updateHeight);
     return () => { ro.disconnect(); window.removeEventListener('resize', updateHeight); };
   }, [externalHeight]);
+
+  
+
+  const entityTypes = useMemo(() => {
+    const typeSet = new Set<string>();
+    nodes.forEach((n) => typeSet.add(n.type));
+    return Array.from(typeSet).sort();
+  }, [nodes]);
+
+  const filteredNodes = useMemo(() => {
+    let result = nodes;
+    if (!showAudit) result = result.filter((n) => !isAuditType(n.type));
+    if (filterType !== 'all') result = result.filter((n) => n.type === filterType);
+    return result;
+  }, [nodes, filterType, showAudit]);
+
+  const filteredEdges = useMemo(() => {
+    const nodeIds = new Set(filteredNodes.map((n) => n.id));
+    return edges.filter((e) => nodeIds.has(e.source) && nodeIds.has(e.target));
+  }, [edges, filteredNodes]);
+
+  const handleLayoutChange = useCallback((newLayout: string) => {
+    setLayout(newLayout as SigmaLayoutType);
+    apiRef.current?.setLayout(newLayout);
+  }, []);
+
+  const handleZoomIn = useCallback(() => apiRef.current?.zoomIn(), []);
+  const handleZoomOut = useCallback(() => apiRef.current?.zoomOut(), []);
+  const handleCenterView = useCallback(() => apiRef.current?.fitView(), []);
+  const handleZoomReset = useCallback(() => apiRef.current?.resetZoom(), []);
+
+  useEffect(() => {
+    if (searchText.trim()) {
+      apiRef.current?.searchNodes(searchText);
+    } else {
+      apiRef.current?.clearSelection();
+    }
+  }, [searchText]);
+
+  const handleFullscreen = useCallback(() => {
+    if (!document.fullscreenElement) {
+      document.documentElement.requestFullscreen?.();
+      setFullscreen(true);
+    } else {
+      document.exitFullscreen?.();
+      setFullscreen(false);
+    }
+  }, []);
 
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
@@ -148,56 +191,6 @@ export function GraphCanvas({
     window.addEventListener('keydown', handleKeyDown);
     return () => window.removeEventListener('keydown', handleKeyDown);
   }, [fullscreen, tooltipData]);
-
-  const entityTypes = useMemo(() => {
-    const typeSet = new Set<string>();
-    nodes.forEach((n) => typeSet.add(n.type));
-    return Array.from(typeSet).sort();
-  }, [nodes]);
-
-  const filteredNodes = useMemo(() => {
-    let result = nodes;
-    if (!showAudit) result = result.filter((n) => !isAuditType(n.type));
-    if (filterType !== 'all') result = result.filter((n) => n.type === filterType);
-    return result;
-  }, [nodes, filterType, showAudit]);
-
-  const filteredEdges = useMemo(() => {
-    const nodeIds = new Set(filteredNodes.map((n) => n.id));
-    return edges.filter((e) => nodeIds.has(e.source) && nodeIds.has(e.target));
-  }, [edges, filteredNodes]);
-
-  const handleSearch = useCallback((kw: string) => {
-    return apiRef.current?.searchNodes(kw) ?? null;
-  }, []);
-
-  const handleLayoutChange = useCallback((newLayout: string) => {
-    setLayout(newLayout as SigmaLayoutType);
-    apiRef.current?.setLayout(newLayout);
-  }, []);
-
-  const handleZoomIn = useCallback(() => apiRef.current?.zoomIn(), []);
-  const handleZoomOut = useCallback(() => apiRef.current?.zoomOut(), []);
-  const handleCenterView = useCallback(() => apiRef.current?.fitView(), []);
-  const handleZoomReset = useCallback(() => apiRef.current?.resetZoom(), []);
-
-  useEffect(() => {
-    if (searchText.trim()) {
-      apiRef.current?.searchNodes(searchText);
-    } else {
-      apiRef.current?.clearSelection();
-    }
-  }, [searchText]);
-
-  const handleFullscreen = useCallback(() => {
-    if (!document.fullscreenElement) {
-      document.documentElement.requestFullscreen?.();
-      setFullscreen(true);
-    } else {
-      document.exitFullscreen?.();
-      setFullscreen(false);
-    }
-  }, []);
 
   useEffect(() => {
     const handleFullscreenChange = () => {
@@ -342,27 +335,29 @@ export function GraphCanvas({
             style={{ height: '100%', background: '#f5f7fa' }}
           >
             {(api: GraphViewApi) => {
+              // api 是 GraphView 每次渲染产出的最新对象（zoomLevel 等均为其内部 state），
+              // 直接在渲染产物里消费它，避免在 GraphCanvas 渲染期读取 ref.current 造成显示滞后
               apiRef.current = api;
-              return null;
+              return (
+                <div style={{ position: 'absolute', bottom: 20, right: 20, zIndex: 10, display: 'flex', flexDirection: 'row-reverse', alignItems: 'flex-end' }}>
+                  <GraphControls
+                    zoomLevel={api.zoomLevel}
+                    minimapOpen={minimapOpen}
+                    onCenterView={handleCenterView}
+                    onZoomIn={handleZoomIn}
+                    onZoomOut={handleZoomOut}
+                    onZoomReset={handleZoomReset}
+                    onToggleMinimap={() => setMinimapOpen((v) => !v)}
+                  />
+                  <MinimapPanel
+                    visible={minimapOpen}
+                    sigmaRef={api.sigmaRef}
+                    graphRef={api.graphRef}
+                  />
+                </div>
+              );
             }}
           </GraphView>
-
-          <div style={{ position: 'absolute', bottom: 20, right: 20, zIndex: 10, display: 'flex', flexDirection: 'row-reverse', alignItems: 'flex-end' }}>
-            <GraphControls
-              zoomLevel={apiRef.current?.zoomLevel ?? 1}
-              minimapOpen={minimapOpen}
-              onCenterView={handleCenterView}
-              onZoomIn={handleZoomIn}
-              onZoomOut={handleZoomOut}
-              onZoomReset={handleZoomReset}
-              onToggleMinimap={() => setMinimapOpen((v) => !v)}
-            />
-            <MinimapPanel
-              visible={minimapOpen}
-              sigmaRef={apiRef.current?.sigmaRef}
-              graphRef={apiRef.current?.graphRef}
-            />
-          </div>
 
           {legend && (
             <div style={{ position: 'absolute', top: 12, left: 12, zIndex: 10 }}>

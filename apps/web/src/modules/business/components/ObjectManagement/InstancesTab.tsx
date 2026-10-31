@@ -21,7 +21,8 @@ interface InstancesTabProps {
     byCategory: Record<string, number>;
   };
   extractionSources: ExtractionSource[];
-  currentScenario: Record<string, unknown>;
+  /** 当前场景 ID（空串表示未选择场景） */
+  currentScenario: string;
   searchText: string;
   onSearchTextChange: (text: string) => void;
   typeFilter: string;
@@ -45,7 +46,7 @@ export function InstancesTab({
   onSourceFilterChange,
   onViewEntity,
 }: InstancesTabProps) {
-  const { t, instance } = useI18n('business');
+  const { t } = useI18n('business');
   const entityTypes = Array.from(new Set(entities.map(e => e.type)));
 
   const filteredEntities = entities.filter(e => {

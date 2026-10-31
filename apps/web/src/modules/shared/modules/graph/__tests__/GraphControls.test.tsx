@@ -1,9 +1,16 @@
-import { render, screen, fireEvent, waitFor } from '@testing-library/react';
+import { render, screen, fireEvent } from '@testing-library/react';
 import { describe, it, expect, vi, beforeEach } from 'vitest';
-import { createRef } from 'react';
+import { createRef, type ComponentProps, type RefObject } from 'react';
 import Graph from 'graphology';
 import { GraphControls } from '../components/GraphControls';
 import { MinimapPanel } from '../components/MinimapPanel';
+
+/** sigmaRef 的实参类型：从组件 props 反推，避免手写 Sigma 的三个泛型参数 */
+type SigmaInstance = NonNullable<ComponentProps<typeof MinimapPanel>['sigmaRef']> extends RefObject<
+  infer V
+>
+  ? V
+  : never;
 
 // ─── GraphControls ───
 
@@ -112,7 +119,7 @@ describe('MinimapPanel', () => {
   });
 
   it('accepts sigmaRef and graphRef props and falls back to canvas', () => {
-    const sigmaRef = createRef();
+    const sigmaRef = createRef<SigmaInstance>();
     const graphRef = createRef<Graph | null>();
     const { container } = render(
       <MinimapPanel visible={true} sigmaRef={sigmaRef} graphRef={graphRef} />
@@ -122,7 +129,7 @@ describe('MinimapPanel', () => {
   });
 
   it('draws nodes from graph in canvas fallback mode', () => {
-    const sigmaRef = createRef();
+    const sigmaRef = createRef<SigmaInstance>();
     const graphRef = createRef<Graph | null>();
 
     const g = new Graph({ multi: false, type: 'directed' });
@@ -145,7 +152,7 @@ describe('MinimapPanel', () => {
     // In jsdom there is no WebGL, so importing MiniMap causes ReferenceError.
     // This path is verified manually in the browser instead.
     // Here we just verify the component structure when no sigma is available (canvas fallback).
-    const sigmaRef = createRef();
+    const sigmaRef = createRef<SigmaInstance>();
     const graphRef = createRef<Graph | null>();
 
     const g = new Graph({ multi: false, type: 'directed' });

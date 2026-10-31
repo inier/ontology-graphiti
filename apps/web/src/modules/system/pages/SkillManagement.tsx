@@ -1,12 +1,14 @@
-import { useState, useRef, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { Card, Button, Space, Tag, Switch, Upload, Modal, Form, Input, Select, Tabs, Row, Col, Statistic, message, Popconfirm, Empty, Descriptions, Badge, Divider, Typography, Table } from 'antd';
 import { UploadOutlined, PlusOutlined, DeleteOutlined, CheckCircleOutlined, StopOutlined, AppstoreOutlined, FolderOutlined, FileTextOutlined, EyeOutlined, ThunderboltOutlined, ScanOutlined } from '@ant-design/icons';
 import { api } from '@/modules/shared';
 import { PageHeader } from '@/modules/shared';
 import { SkillEditor } from '../components/SkillEditor';
+import ToolRegistry from '../components/ToolRegistry';
+import HookManager from '../components/HookManager';
+import MCPManager from '../components/MCPManager';
 import { AdvancedTable, wrapRequest } from '@/modules/shared';
 import { useI18n } from '@/modules/shared/hooks/useI18n';
-import type { ActionType } from '@ant-design/pro-components';
 
 const { Text } = Typography;
 const { TextArea } = Input;
@@ -48,11 +50,15 @@ export function SkillManagement() {
   const [skillEditorVisible, setSkillEditorVisible] = useState(false);
   const [editingSkill, setEditingSkill] = useState<Skill | null>(null);
 
-  const scannedActionRef = useRef<ActionType>(null);
-  const registeredActionRef = useRef<ActionType>(null);
+  /**
+   * 表格刷新令牌：AdvancedTable 的 `params` 变更会触发 ProTable 重新发起 request。
+   * 相比持有 ProTable 的 ActionType ref，这样做不产生渲染期 ref 读取，
+   * 也让刷新动作可以由任意 async 处理函数触发。
+   */
+  const [reloadToken, setReloadToken] = useState(0);
 
   // 统计数据加载（分类 + 已加载Skill + 已扫描Skills + 计数）
-  const loadStats = async () => {
+  const loadStats = useCallback(async () => {
     try {
       const [categoriesResult, loadedResult, allResult] = await Promise.all([
         api.getSkillCategories().catch(() => ({ categories: [] as { name: string; skill_count: number; path: string }[] })),
@@ -80,29 +86,39 @@ export function SkillManagement() {
     } catch (error) {
       console.error('加载统计数据失败:', error);
     }
-  };
+  }, []);
 
   useEffect(() => {
-    loadStats();
+        void (async () => {
+      loadStats();
+    })();
   }, []);
 
   // 目录Skills请求
   const fetchScannedSkills = async (): Promise<Skill[]> => {
     const [scanResult, allResult] = await Promise.all([
       api.scanSkillsDirectory().catch(() => ({ skills: [] as Skill[], total: 0 })),
-      api.getAllSkills().catch(() => ({ registered: [] as Skill[], scanned: [] as Skill[], total_registered: 0, total_scanned: 0 })),
+      api.getAllSkills().catch(() => ({
+        registered: [] as Array<Record<string, unknown>>,
+        scanned: [] as Array<Record<string, unknown>>,
+        total_registered: 0,
+        total_scanned: 0,
+      })),
     ]);
-    // 构建 name → skill_id 映射（从已注册列表获取 skill_id）
+    // /api/skill/all 的 registered 是未建模的裸对象，逐字段取值而非整体断言
+    const registered = allResult.registered || [];
     const nameToSkillId = new Map<string, string>();
-    (allResult.registered || []).forEach((s) => {
-      const sn = s as Skill;
-      if (sn.name && sn.skill_id) nameToSkillId.set(sn.name, sn.skill_id);
-    });
-    const enabledNames = new Set((allResult.registered || []).filter((s: Skill) => s.status === 'active').map((s: Skill) => s.name));
-    return ((scanResult.skills || []) as Skill[]).map(s => ({
+    const enabledNames = new Set<string>();
+    for (const raw of registered) {
+      const name = typeof raw.name === 'string' ? raw.name : '';
+      if (!name) continue;
+      if (typeof raw.skill_id === 'string') nameToSkillId.set(name, raw.skill_id);
+      if (raw.status === 'active') enabledNames.add(name);
+    }
+    return (scanResult.skills || []).map(s => ({
       ...s,
       skill_id: nameToSkillId.get(s.name),
-      enabled: s.enabled ?? enabledNames.has(s.name),
+      enabled: enabledNames.has(s.name),
     }));
   };
 
@@ -124,11 +140,10 @@ export function SkillManagement() {
     return result;
   };
 
-  const refreshAll = () => {
-    scannedActionRef.current?.reload();
-    registeredActionRef.current?.reload();
-    loadStats();
-  };
+  const refreshAll = useCallback(() => {
+    setReloadToken((n) => n + 1);
+    void loadStats();
+  }, [loadStats]);
 
   const handleScanAndRegister = async () => {
     try {
@@ -153,18 +168,19 @@ export function SkillManagement() {
     }
   };
 
-  const handleToggleSkill = async (skill: Skill, enabled: boolean) => {
+  const handleToggleSkill = useCallback(async (skill: Skill, enabled: boolean) => {
     try {
       await api.toggleSkill(skill.name, enabled);
       message.success(enabled ? t('Skill "{{name}}" 已启用', { name: skill.name }) : t('Skill "{{name}}" 已禁用', { name: skill.name }));
-      if (selectedSkill?.name === skill.name) {
-        setSelectedSkill({ ...selectedSkill, enabled, status: enabled ? 'active' : 'inactive' });
-      }
+      // 函数式更新：避免闭包捕获 selectedSkill，同时让 useCallback 依赖收敛为稳定函数
+      setSelectedSkill((prev) =>
+        prev && prev.name === skill.name ? { ...prev, enabled, status: enabled ? 'active' : 'inactive' } : prev,
+      );
       refreshAll();
     } catch (error) {
       message.error(t('操作失败') + `: ${error}`);
     }
-  };
+  }, [refreshAll, t]);
 
   const handleRegisterSkill = async (values: { name: string; skill_type: string; description: string; category: string }) => {
     try {
@@ -277,7 +293,7 @@ export function SkillManagement() {
       >
         <AdvancedTable
           request={scannedRequest}
-          actionRef={scannedActionRef}
+          params={{ reloadToken }}
           rowKey="name"
           pagination={{ pageSize: 10 }}
           columns={[
@@ -407,7 +423,7 @@ export function SkillManagement() {
     <Card title={t('已注册的Skills')}>
       <AdvancedTable
         request={registeredRequest}
-        actionRef={registeredActionRef}
+        params={{ reloadToken }}
         rowKey="skill_id"
         pagination={{ pageSize: 10 }}
         columns={[
@@ -440,7 +456,7 @@ export function SkillManagement() {
             {
               title: t('操作'),
               key: 'action',
-              render: (_: unknown, record: any) => (
+              render: (_: unknown, record: Skill) => (
                 <Space>
                   {record.status !== 'active' ? (
                     <Button
@@ -607,6 +623,13 @@ export function SkillManagement() {
           { key: 'directory', label: t('目录Skills'), children: renderDirectoryTab() },
           { key: 'registered', label: t('已注册'), children: renderRegisteredTab() },
           { key: 'categories', label: t('分类'), children: renderCategoriesTab() },
+          // 工具与钩子是技能体系的另外两层：技能声明"做什么"，
+          // 工具是可供调用的实现，钩子是执行前后的拦截点。三者共用 /api/skill|tools|hooks。
+          { key: 'tools', label: t('工具注册表'), children: <ToolRegistry /> },
+          { key: 'hooks', label: t('钩子管理'), children: <HookManager /> },
+          // MCP 服务器是「工具从哪来」的上一层：工具注册表登记本仓工具，
+          // MCP 管理登记外部 server 及其暴露的 tool（/api/mcp/servers 全套端点）。
+          { key: 'mcp', label: t('MCP 服务器'), children: <MCPManager /> },
         ]}
       />
 
@@ -745,6 +768,7 @@ export function SkillManagement() {
 
       {/* Skill 可视化编辑器 */}
       <SkillEditor
+        key={skillEditorVisible ? (editingSkill?.name ?? '__new__') : '__closed__'}
         open={skillEditorVisible}
         skill={editingSkill ? {
           name: editingSkill.name,

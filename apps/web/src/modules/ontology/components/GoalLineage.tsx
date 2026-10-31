@@ -5,10 +5,10 @@
  * 保留：Goal 状态着色、Proposal 边点击 Drawer、搜索、导出 PNG、Legend
  */
 import { useCallback, useEffect, useMemo, useState } from 'react';
-import { Space, Typography, Tag, Drawer, message } from 'antd';
+import { Space, Typography, Drawer, message } from 'antd';
 import { HierarchyGraph } from '@/modules/shared/modules/graph';
 import type { GraphNode, GraphEdge, NodeStyleConfig, EdgeStyleConfig } from '@/modules/shared/modules/graph';
-import { goalApi, type Goal, type GoalLineage as GoalLineageData, type ChangeProposal, type GoalStatus } from '../services/goalApi';
+import { goalApi, type GoalLineage as GoalLineageData, type ChangeProposal, type GoalStatus } from '../services/goalApi';
 import { ChangeProposalCard } from './ChangeProposalCard';
 
 const { Text } = Typography;
@@ -56,7 +56,7 @@ const EDGE_STYLE_MAP: Record<string, EdgeStyleConfig> = {
 
 export function GoalLineage({ goalId, height }: GoalLineageProps) {
   const [lineageData, setLineageData] = useState<GoalLineageData | null>(null);
-  const [loading, setLoading] = useState(true);
+  const [, setLoading] = useState(true);
   const [selectedProposal, setSelectedProposal] = useState<ChangeProposal | null>(null);
 
   // ─── 加载数据 ───
@@ -73,7 +73,9 @@ export function GoalLineage({ goalId, height }: GoalLineageProps) {
     }
   }, [goalId]);
 
-  useEffect(() => { loadData(); }, [loadData]);
+  useEffect(() => {   void (async () => {
+    loadData();
+  })(); }, [loadData]);
 
   // ─── 转换为通用 GraphNode/GraphEdge ───
   const graphNodes: GraphNode[] = useMemo(() => {

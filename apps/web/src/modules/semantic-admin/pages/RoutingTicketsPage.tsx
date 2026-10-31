@@ -17,27 +17,11 @@ import {
   PRIORITY_SLA_HOURS,
   type RoutingTicket,
   type TicketStats,
-  type TicketStatus,
   type TicketPriority,
 } from '../services/routingTicketApi';
+import { STATUS_META, PRIORITY_COLOR, statusMeta } from './routingTicketStatus';
 
 const { Text } = Typography;
-
-const STATUS_META: Record<TicketStatus, { color: string; text: string }> = {
-  open: { color: 'default', text: '待处理' },
-  assigned: { color: 'blue', text: '已指派' },
-  in_progress: { color: 'processing', text: '处理中' },
-  resolved: { color: 'success', text: '已解决' },
-  rejected: { color: 'error', text: '已驳回' },
-  closed: { color: 'default', text: '已关闭' },
-};
-
-const PRIORITY_COLOR: Record<TicketPriority, string> = {
-  P0: 'red', P1: 'orange', P2: 'blue', P3: 'default',
-};
-
-export const statusMeta = (s: string) =>
-  STATUS_META[s as TicketStatus] ?? { color: 'default', text: s };
 
 export const RoutingTicketsPage: React.FC = () => {
   const navigate = useNavigate();
@@ -65,7 +49,9 @@ export const RoutingTicketsPage: React.FC = () => {
     }
   }, [status, priority]);
 
-  useEffect(() => { void load(); }, [load]);
+  useEffect(() => {   void (async () => {
+    void load();
+  })(); }, [load]);
 
   const columns: ColumnsType<RoutingTicket> = [
     {

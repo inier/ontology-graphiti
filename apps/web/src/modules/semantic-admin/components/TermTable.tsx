@@ -106,7 +106,8 @@ export function TermTable() {
       message.success(`术语「${record.canonical}」已${checked ? '加入' : '移出'}停用词表`);
       void fetchData();
     } catch (err) {
-      message.error(`切换失败：${err instanceof Error ? err.message : String(err)}`);
+      const errMessage = err instanceof Error ? err.message : String(err);
+      message.error(`切换失败：${err instanceof Error ? errMessage : String(err)}`);
       void fetchData(); // 回滚 UI
     }
   };
@@ -130,7 +131,8 @@ export function TermTable() {
           message.success(`术语「${record.canonical}」已删除`);
           void fetchData();
         } catch (err) {
-          message.error(`删除失败：${err instanceof Error ? err.message : String(err)}`);
+          const errMessage = err instanceof Error ? err.message : String(err);
+          message.error(`删除失败：${err instanceof Error ? errMessage : String(err)}`);
         }
       },
     });

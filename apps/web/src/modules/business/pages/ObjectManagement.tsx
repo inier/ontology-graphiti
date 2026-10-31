@@ -12,13 +12,91 @@ import { InstancesTab } from '../components/ObjectManagement/InstancesTab';
 
 import { EntityDetailDrawer } from '../components/ObjectManagement/EntityDetailDrawer';
 
-import type { ObjectType, ManagedEntity, ExtractionSource } from '../components/ObjectManagement/types';
+import type { ObjectType, ManagedEntity, ExtractionSource, AttributeValue } from '../components/ObjectManagement/types';
 
-import { parsePropertiesToAttributes, getAttributeSemantic, detectValueType } from '../components/ObjectManagement/types';
+import {
+  parsePropertiesToAttributes,
+  toAttributeRecord,
+  toAttributeRecordOrUndefined,
+  toAttributeValue,
+} from '../components/ObjectManagement/types';
 
 import { PageTourWrapper, objectManagementTourSteps, PAGE_IDS } from '@/modules/guide';
 
 import { useI18n } from '@/modules/shared/hooks/useI18n';
+
+/** `getOntologyDocuments` 返回 `Record<string, unknown>`：文档字段一律按 unknown 收窄后再读 */
+type OntologyDoc = Record<string, unknown>;
+
+/** 归一化后的实体行：`queryEntities` / `getEntities` 两条来源先落到同一形状再渲染 */
+interface NormalizedEntity {
+  entity_id: string;
+  name: string;
+  type: string;
+  properties: Record<string, AttributeValue>;
+}
+
+/** 文档里内嵌的实体（可选字段，缺省表示该文档没带这个字段） */
+interface EmbeddedEntity {
+  name_en?: string;
+  confidence?: number;
+  basic_properties?: Record<string, AttributeValue>;
+  statistical_properties?: Record<string, AttributeValue>;
+  capabilities?: Record<string, AttributeValue>;
+  constraints?: AttributeValue[];
+  /** 内嵌实体来自哪份文档 */
+  _doc?: OntologyDoc;
+}
+
+function asString(value: unknown): string {
+  return typeof value === 'string' ? value : '';
+}
+
+function asNumber(value: unknown): number | undefined {
+  return typeof value === 'number' ? value : undefined;
+}
+
+function asRecord(value: unknown): Record<string, unknown> | undefined {
+  return value !== null && typeof value === 'object' && !Array.isArray(value)
+    ? (value as Record<string, unknown>)
+    : undefined;
+}
+
+/** 按路径读嵌套字符串：任一层缺失或类型不符都返回空串 */
+function nestedString(source: Record<string, unknown> | undefined, ...path: string[]): string {
+  let cursor: unknown = source;
+  for (const key of path) {
+    const record = asRecord(cursor);
+    if (!record) return '';
+    cursor = record[key];
+  }
+  return asString(cursor);
+}
+
+/** 按路径读嵌套数字：任一层缺失或类型不符都返回 undefined */
+function nestedNumber(source: Record<string, unknown> | undefined, ...path: string[]): number | undefined {
+  let cursor: unknown = source;
+  for (const key of path) {
+    const record = asRecord(cursor);
+    if (!record) return undefined;
+    cursor = record[key];
+  }
+  return asNumber(cursor);
+}
+
+/** 从属性记录里读字符串字段 */
+function attrString(properties: Record<string, AttributeValue>, key: string): string {
+  const value = properties[key];
+  return typeof value === 'string' ? value : '';
+}
+
+/** 审计类实体不计入业务实体列表 */
+const AUDIT_ENTITY_ID_PREFIXES = ['audit_', 'user_', 'resource_', 'service_'];
+
+function isAuditEntity(entity: NormalizedEntity): boolean {
+  if (entity.type.startsWith('Audit')) return true;
+  return AUDIT_ENTITY_ID_PREFIXES.some((prefix) => entity.entity_id.startsWith(prefix));
+}
 
 
 
@@ -90,7 +168,9 @@ export function ObjectManagement() {
 
   useEffect(() => {
 
-    if (activeTab === 'types') loadObjectTypes();
+        void (async () => {
+      if (activeTab === 'types') loadObjectTypes();
+    })();
 
   }, [activeTab]);
 
@@ -116,7 +196,7 @@ export function ObjectManagement() {
 
 
 
-  const handleSubmitType = async (values: any, editingType: ObjectType | null) => {
+  const handleSubmitType = async (values: unknown, editingType: ObjectType | null) => {
 
     if (editingType) {
 
@@ -138,17 +218,7 @@ export function ObjectManagement() {
 
 
 
-  useEffect(() => {
-
-    if (currentScenario) {
-
-      loadEntities();
-
-      loadExtractionSources();
-
-    }
-
-  }, [currentScenario, currentVersionId]);
+  
 
 
 
@@ -160,51 +230,93 @@ export function ObjectManagement() {
 
     try {
 
-      let result: any = null;
+      let rawEntities: NormalizedEntity[] = [];
 
-      try { result = await api.queryEntities({}, currentWorkspace || undefined); } catch {}
+      try {
+
+        const result = await api.queryEntities({}, currentWorkspace || undefined);
+
+        rawEntities = result.entities.map((e) => ({
+
+          entity_id: e.entity_id, name: e.name, type: e.type,
+
+          properties: toAttributeRecord(e.properties),
+
+        }));
+
+      } catch { /* 忽略：queryEntities 失败时走 getEntities 兜底 */ }
 
 
 
-      let rawEntities: any[] = [];
-
-      if (result?.entities?.length > 0) {
-
-        rawEntities = result.entities;
-
-      } else {
+      if (rawEntities.length === 0) {
 
         try {
 
-          const oldResult = await api.getEntities(currentScenario);
+          // `getEntities` 的返回类型是 `shared/types.ts:Entity`
+          // （`{ id, name, type, properties? }`，不是 `entity_id`/`entity_type`）
+          const legacyEntities = await api.getEntities(currentScenario);
 
-          rawEntities = oldResult.map((e: any) => ({
+          rawEntities = legacyEntities.map((e) => ({
 
-            entity_id: e.id || e.entity_id, name: e.name, type: e.type || e.entity_type,
+            entity_id: e.id, name: e.name, type: e.type,
 
-            properties: e.properties || { basic: e.basic_properties, statistical: e.statistical_properties, capabilities: e.capabilities },
+            properties: toAttributeRecord(e.properties),
 
           }));
 
-        } catch {}
+        } catch { /* 忽略：失败时保持当前状态 */ }
 
       }
 
 
 
-      let ontologyDocs: any[] = [];
+      let ontologyDocs: OntologyDoc[] = [];
 
-      try { ontologyDocs = await api.getOntologyDocuments(currentScenario, 50); } catch {}
+      try { ontologyDocs = await api.getOntologyDocuments(currentScenario, 50); } catch { /* 忽略：失败时保持当前状态 */ }
 
 
 
-      const docMap = new Map<string, any>();
+      const docMap = new Map<string, EmbeddedEntity>();
 
-      ontologyDocs.forEach((doc: any) => {
+      ontologyDocs.forEach((doc) => {
 
-        if (doc.doc_id) docMap.set(doc.doc_id, doc);
+        const docId = asString(doc.doc_id);
 
-        if (doc.entities) doc.entities.forEach((e: any) => { if (e.entity_id) docMap.set(e.entity_id, { ...e, _doc: doc }); });
+        if (docId) docMap.set(docId, { _doc: doc });
+
+        const embeddedEntities = Array.isArray(doc.entities) ? doc.entities : [];
+
+        for (const raw of embeddedEntities) {
+
+          const record = asRecord(raw);
+
+          const entityId = record ? asString(record.entity_id) : '';
+
+          if (!record || !entityId) continue;
+
+          docMap.set(entityId, {
+
+            name_en: asString(record.name_en) || undefined,
+
+            confidence: asNumber(record.confidence),
+
+            basic_properties: toAttributeRecordOrUndefined(record.basic_properties),
+
+            statistical_properties: toAttributeRecordOrUndefined(record.statistical_properties),
+
+            capabilities: toAttributeRecordOrUndefined(record.capabilities),
+
+            constraints: Array.isArray(record.constraints)
+
+              ? record.constraints.map((item) => toAttributeValue(item))
+
+              : undefined,
+
+            _doc: doc,
+
+          });
+
+        }
 
       });
 
@@ -212,43 +324,48 @@ export function ObjectManagement() {
 
       const mapped: ManagedEntity[] = rawEntities
 
-        .filter((e: any) => {
+        .filter((entity) => !isAuditEntity(entity))
 
-          const et = e.type || e.entity_type;
+        .map((entity) => {
 
-          const eid = e.entity_id || e.id;
+          const attrs = parsePropertiesToAttributes(entity.properties);
 
-          return !(et?.startsWith('Audit') || eid?.startsWith('audit_') || eid?.startsWith('user_') || eid?.startsWith('resource_') || eid?.startsWith('service_'));
+          const embedded = docMap.get(entity.entity_id);
 
-        })
-
-        .map((e: any) => {
-
-          const attrs = parsePropertiesToAttributes(e.properties || {});
-
-          const originalEntity = docMap.get(e.entity_id);
-
-          const doc = originalEntity?._doc;
+          const doc = embedded?._doc;
 
           return {
 
-            entity_id: e.entity_id || e.id, name: e.name, type: e.type || e.entity_type || 'Unknown',
+            entity_id: entity.entity_id,
 
-            name_en: originalEntity?.name_en || e.name_en, attributes: attrs, relation_count: e.relation_count || 0,
+            name: entity.name,
 
-            created_at: doc?.source?.collected_at || new Date().toISOString(), updated_at: new Date().toISOString(),
+            type: entity.type || 'Unknown',
 
-            source_doc: doc?.doc_id, source_type: e.properties?.source_type || doc?.source?.type || 'random',
+            name_en: embedded?.name_en || undefined,
 
-            confidence: doc?.source?.confidence || originalEntity?.confidence,
+            attributes: attrs,
 
-            basic_properties: originalEntity?.basic_properties || e.properties?.basic,
+            // `queryEntities` 与 `getEntities` 都没声明 relation_count，保持 0
+            relation_count: 0,
 
-            statistical_properties: originalEntity?.statistical_properties || e.properties?.statistical,
+            created_at: nestedString(doc, 'source', 'collected_at') || new Date().toISOString(),
 
-            capabilities: originalEntity?.capabilities || e.properties?.capabilities,
+            updated_at: new Date().toISOString(),
 
-            constraints: originalEntity?.constraints,
+            source_doc: asString(doc?.doc_id) || undefined,
+
+            source_type: attrString(entity.properties, 'source_type') || nestedString(doc, 'source', 'type') || 'random',
+
+            confidence: nestedNumber(doc, 'source', 'confidence') ?? embedded?.confidence,
+
+            basic_properties: embedded?.basic_properties ?? toAttributeRecordOrUndefined(entity.properties.basic),
+
+            statistical_properties: embedded?.statistical_properties ?? toAttributeRecordOrUndefined(entity.properties.statistical),
+
+            capabilities: embedded?.capabilities ?? toAttributeRecordOrUndefined(entity.properties.capabilities),
+
+            constraints: embedded?.constraints,
 
           };
 
@@ -294,6 +411,8 @@ export function ObjectManagement() {
 
   };
 
+  
+
 
 
   const loadExtractionSources = async () => {
@@ -304,21 +423,51 @@ export function ObjectManagement() {
 
       const docs = await api.getOntologyDocuments(currentScenario, 20);
 
-      setExtractionSources(docs.map((doc: any) => ({
+      setExtractionSources(docs.map((doc): ExtractionSource => {
 
-        doc_id: doc.doc_id || doc.id, doc_type: doc.doc_type || 'unknown',
+        const source = asRecord(doc.source);
 
-        source_type: doc.source?.type || 'unknown', title: doc.meta?.title || t('未命名'),
+        const meta = asRecord(doc.meta);
 
-        description: doc.meta?.description || '', collected_at: doc.source?.collected_at || '',
+        return {
 
-        confidence: doc.source?.confidence || 1.0, url: doc.source?.url,
+          doc_id: asString(doc.doc_id) || asString(doc.id),
 
-      })));
+          doc_type: asString(doc.doc_type) || 'unknown',
 
-    } catch {}
+          source_type: asString(source?.type) || 'unknown',
+
+          title: asString(meta?.title) || t('未命名'),
+
+          description: asString(meta?.description),
+
+          collected_at: asString(source?.collected_at),
+
+          confidence: asNumber(source?.confidence) ?? 1.0,
+
+          url: asString(source?.url) || undefined,
+
+        };
+
+      }));
+
+    } catch { /* 忽略：失败时保持当前状态 */ }
 
   };
+
+  useEffect(() => {
+
+        void (async () => {
+      if (currentScenario) {
+
+        loadEntities();
+
+        loadExtractionSources();
+
+      }
+    })();
+
+  }, [currentScenario, currentVersionId]);
 
 
 

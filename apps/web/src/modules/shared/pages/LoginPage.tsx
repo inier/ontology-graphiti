@@ -16,27 +16,27 @@ export function LoginPage() {
   const [loading, setLoading] = useState(false);
   const [ssoProviders, setSsoProviders] = useState<{ provider_id: string; display_name: string }[]>([]);
 
-  useEffect(() => {
-    const code = searchParams.get('code');
-    const state = searchParams.get('state');
-    const provider = searchParams.get('provider');
-    if (code && state && provider) {
-      handleSSOCallback(provider, code, state);
-    }
-  }, [searchParams]);
+  
 
-  useEffect(() => {
-    fetchSSOProviders();
-  }, []);
+  
 
   const fetchSSOProviders = async () => {
     try {
-      const data = await apiClient.get('/api/auth/sso/providers', { skipAuth: true });
+      const data = await apiClient.get<{ providers?: { provider_id: string; display_name: string }[] }>(
+        '/api/auth/sso/providers',
+        { skipAuth: true },
+      );
       setSsoProviders(data.providers || []);
-    } catch {
+    } catch { /* 忽略：失败时保持当前状态 */ 
       // SSO providers not available
     }
   };
+
+  useEffect(() => {
+        void (async () => {
+      fetchSSOProviders();
+    })();
+  }, []);
 
   const handleSSOCallback = async (provider: string, code: string, state: string) => {
     setLoading(true);
@@ -50,6 +50,17 @@ export function LoginPage() {
       setLoading(false);
     }
   };
+
+  useEffect(() => {
+    const code = searchParams.get('code');
+    const state = searchParams.get('state');
+    const provider = searchParams.get('provider');
+        void (async () => {
+      if (code && state && provider) {
+        handleSSOCallback(provider, code, state);
+      }
+    })();
+  }, [searchParams]);
 
   const onFinish = async (values: { username: string; password: string }) => {
     setLoading(true);
@@ -66,9 +77,11 @@ export function LoginPage() {
 
   const handleSSOLogin = async (providerId: string) => {
     try {
-      const data = await apiClient.get(`/api/auth/sso/${providerId}`, { skipAuth: true });
+      const data = await apiClient.get<{ authorize_url?: string }>(`/api/auth/sso/${providerId}`, {
+        skipAuth: true,
+      });
       if (data.authorize_url) {
-        window.location.href = data.authorize_url;
+        window.location.assign(data.authorize_url);
       }
     } catch {
       message.error(t('获取SSO登录地址失败'));

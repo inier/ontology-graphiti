@@ -207,7 +207,8 @@ describe('审计日志 API', () => {
       page_size: 20,
     })
 
-    const result = await api.listAuditEvents({ page: 1, page_size: 20 })
+    // listAuditEvents 的入参契约是 limit/offset（无 page/page_size），此处用真实分页参数
+    const result = await api.listAuditEvents({ limit: 20, offset: 0 })
     expect(result.events).toHaveLength(1)
   })
 

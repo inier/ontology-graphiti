@@ -37,7 +37,7 @@ interface KnowledgeState {
   clearError: () => void;
 }
 
-export const useKnowledgeStore = create<KnowledgeState>((set, get) => ({
+export const useKnowledgeStore = create<KnowledgeState>((set) => ({
   activeTab: 'navigation',
   navigationResults: null,
   synonyms: {},

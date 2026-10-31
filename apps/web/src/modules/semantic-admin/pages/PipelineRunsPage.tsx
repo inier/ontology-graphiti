@@ -145,8 +145,19 @@ const PipelineRunsPage: React.FC = () => {
 function RunDrawerContent({ run }: { run?: PipelineRun }) {
   const { t } = useI18n();
   const currentLayer = useMemo(() => deriveCurrentLayer(run), [run]);
-  const stats = (run?.stats || {}) as Record<string, number | Record<string, number>>;
-  const layerCounts = LAYER_KEYS.map((k) => ({ key: k, count: (stats?.grades?.[k] ?? stats?.[k] ?? null as number | null) }));
+  // 后端 stats 既可能是 { L1_tokens: 12 } 也可能是 { grades: { A: ... } }，
+  // 统一摊平成字符串键的只读视图，避免在 JSX 里反复做联合类型判断。
+  const statsView: Record<string, unknown> = Object.fromEntries(Object.entries(run?.stats ?? {}));
+  const gradeView: Record<string, number> =
+    statsView.grades && typeof statsView.grades === 'object'
+      ? Object.fromEntries(Object.entries(statsView.grades))
+      : {};
+  const layerCount = (key: string): number | null => {
+    if (typeof gradeView[key] === 'number') return gradeView[key];
+    const direct = statsView[key];
+    return typeof direct === 'number' ? direct : null;
+  };
+  const layerCounts = LAYER_KEYS.map((k) => ({ key: k, count: layerCount(k) }));
 
   const layerLabels: Record<string, { title: string; desc: string; icon: React.ReactNode }> = useMemo(() => ({
     L1_tokens: { title: t('L1 Tokens 归一'), desc: t('同义词合并 / 规范校正 / 词频过滤'), icon: <BulbOutlined /> },
@@ -190,7 +201,8 @@ function RunDrawerContent({ run }: { run?: PipelineRun }) {
     },
   ], [t]);
 
-  const layerSteps = useMemo(() => LAYER_KEYS.map((k, i) => {
+  // 交给 React Compiler 自动记忆化：手写 useMemo 的依赖无法被编译器保留（preserve-manual-memoization）
+  const layerSteps = LAYER_KEYS.map((k, i) => {
     const meta = layerLabels[k];
     const done = currentLayer > i;
     const active = currentLayer === i + 1;
@@ -210,7 +222,7 @@ function RunDrawerContent({ run }: { run?: PipelineRun }) {
       status: (run?.status === 'failed' && active ? 'error' : done ? 'finish' : active ? 'process' : 'wait') as 'error' | 'finish' | 'process' | 'wait',
       icon: meta.icon,
     };
-  }), [currentLayer, layerCounts, run?.status, layerLabels]);
+  });
 
   return (
     <Space direction="vertical" size="middle" style={{ width: '100%' }}>
@@ -236,12 +248,12 @@ function RunDrawerContent({ run }: { run?: PipelineRun }) {
                   />
                 </Card>
                 <Card size="small" title={<Space><BulbOutlined />Per-layer counts</Space>}>
-                  {LAYER_KEYS.every((k) => stats?.[k] == null && stats?.grades?.[k] == null) ? (
+                  {LAYER_KEYS.every((k) => layerCount(k) == null) ? (
                     <Empty image={Empty.PRESENTED_IMAGE_SIMPLE} description={t('暂无层级统计数据')} />
                   ) : (
                     <Row gutter={[8, 8]}>
                       {LAYER_KEYS.map((k) => {
-                        const n = stats?.grades?.[k] ?? stats?.[k] ?? '-';
+                        const n = layerCount(k) ?? '-';
                         return (
                           <Col key={k} xs={12} md={8}>
                             <Card size="small" style={{ borderLeft: `3px solid ${layerIndexOf(k) < currentLayer ? '#52c41a' : layerIndexOf(k) + 1 === currentLayer ? '#1677ff' : '#d9d9d9'}` }}>

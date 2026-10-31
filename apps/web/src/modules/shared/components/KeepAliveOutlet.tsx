@@ -40,9 +40,10 @@ export function KeepAliveOutlet() {
   const { tabs } = useLayoutStore();
 
   const [cache, setCache] = useState<Map<string, CacheEntry>>(new Map());
-  const [prevPathname, setPrevPathname] = useState<string>('');
-  const [prevRefreshToken, setPrevRefreshToken] = useState<number>(0);
-  const [prevTabPaths, setPrevTabPaths] = useState<string>('');
+  // 上一轮的路径 / refreshToken / tab 集合只作比较用途，不参与渲染 → 用 ref 保存，避免 effect 内的同步 setState
+  const prevPathnameRef = useRef<string>('');
+  const prevRefreshTokenRef = useRef<number>(0);
+  const prevTabPathsRef = useRef<string>('');
 
   /* 当前路由对应的 refreshToken */
   const currentTab = tabs.find((t) => t.path === location.pathname);
@@ -56,12 +57,12 @@ export function KeepAliveOutlet() {
   useEffect(() => {
     if (!outlet) return;
     
-    if (location.pathname !== prevPathname || currentRefreshToken !== prevRefreshToken) {
-      setPrevPathname(location.pathname);
-      setPrevRefreshToken(currentRefreshToken);
+    if (location.pathname !== prevPathnameRef.current || currentRefreshToken !== prevRefreshTokenRef.current) {
+      prevPathnameRef.current = location.pathname;
+      prevRefreshTokenRef.current = currentRefreshToken;
       setCache((prev) => {
         const existing = prev.get(location.pathname);
-        // ✅ 已有缓存且 refreshToken 未变 → 不覆盖（保持组件 alive）
+        // 已有缓存且 refreshToken 未变 → 不覆盖（保持组件 alive）
         if (existing && existing.refreshToken === currentRefreshToken) {
           return prev;
         }
@@ -71,13 +72,12 @@ export function KeepAliveOutlet() {
         return next;
       });
     }
-  }, [outlet, location.pathname, currentRefreshToken, prevPathname, prevRefreshToken]);
+  }, [outlet, location.pathname, currentRefreshToken]);
 
   /* 2. tab 列表变化时清理已关闭 tab 的缓存（始终保留当前路由） */
   useEffect(() => {
-    if (currentTabPaths === prevTabPaths) return;
-    
-    setPrevTabPaths(currentTabPaths);
+    if (currentTabPaths === prevTabPathsRef.current) return;
+    prevTabPathsRef.current = currentTabPaths;
     setCache((prev) => {
       const tabPaths = new Set(tabs.map((t) => t.path));
       tabPaths.add(location.pathname);
@@ -92,14 +92,14 @@ export function KeepAliveOutlet() {
       }
       return changed ? next : prev;
     });
-  }, [currentTabPaths, prevTabPaths, tabs, location.pathname]);
+  }, [currentTabPaths, tabs, location.pathname]);
 
   /* 2b. 刷新时重置该 tab 的滚动位置 */
   useEffect(() => {
-    if (currentRefreshToken > prevRefreshToken && location.pathname === prevPathname) {
+    if (currentRefreshToken > prevRefreshTokenRef.current && location.pathname === prevPathnameRef.current) {
       scrollPositions.current.delete(location.pathname);
     }
-  }, [currentRefreshToken, prevRefreshToken, location.pathname, prevPathname]);
+  }, [currentRefreshToken, location.pathname]);
 
   /* 3. 渲染所有缓存元素，用 <Activity> 控制可见性
    *    key 包含 refreshToken，刷新时 key 变化 → React 卸载旧实例、挂载新实例 */

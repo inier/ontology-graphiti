@@ -1,21 +1,23 @@
+/**
+ * EditLockIndicator —— 本体编辑锁状态徽章
+ *
+ * 契约（后端真实存在，勿再以「无 API」判定为伪实现）：
+ *   WS /ws/ontology/edit-lock/{ontology_id}?user_id=   （odap/web/ws/routes.py 注册）
+ *   服务端每 30s 未收到心跳即释放锁；客户端每 15s 发 heartbeat。
+ *   锁状态持久化在 `edit_locks.db`（design/services/edit_lock_service.py）。
+ *
+ * 挂载点：本体设计器页头 —— 设计器本来就是「编辑中」状态，锁冲突必须让人一眼看见。
+ */
 import React, { useEffect, useRef, useCallback, useState } from 'react';
 import { Tag, Tooltip, message } from 'antd';
 import { LockOutlined, UnlockOutlined } from '@ant-design/icons';
 import { useI18n } from '@/modules/shared/hooks/useI18n';
 
-interface EditLockIndicatorProps {
+export interface EditLockIndicatorProps {
   ontologyId: string;
   userId: string;
   /** 是否正在编辑（为 true 时自动获取锁） */
   editing?: boolean;
-}
-
-interface LockInfo {
-  ontology_id: string;
-  user_id: string;
-  session_id: string;
-  acquired_at: string;
-  last_heartbeat: string;
 }
 
 const WS_BASE = (() => {
@@ -23,7 +25,7 @@ const WS_BASE = (() => {
   return `${proto}//${window.location.host}`;
 })();
 
-const EditLockIndicator: React.FC<EditLockIndicatorProps> = ({
+export const EditLockIndicator: React.FC<EditLockIndicatorProps> = ({
   ontologyId,
   userId,
   editing = false,
@@ -46,12 +48,15 @@ const EditLockIndicator: React.FC<EditLockIndicatorProps> = ({
     if (wsRef.current) {
       try {
         wsRef.current.send(JSON.stringify({ type: 'release' }));
-      } catch {
+      } catch { /* 忽略：失败时保持当前状态 */ 
         // ignore
       }
       wsRef.current.close();
       wsRef.current = null;
     }
+    // 连接已断开 → 本地锁状态必然失效，统一在此清理，避免调用方各自重复重置
+    setLockHolder(null);
+    setLockAcquiredAt(null);
   }, [clearHeartbeat]);
 
   const connectWs = useCallback(() => {
@@ -95,7 +100,7 @@ const EditLockIndicator: React.FC<EditLockIndicatorProps> = ({
         } else if (msg.type === 'heartbeat_ack') {
           // 心跳确认，无需处理
         }
-      } catch {
+      } catch { /* 忽略：失败时保持当前状态 */ 
         // ignore parse errors
       }
     };
@@ -113,13 +118,13 @@ const EditLockIndicator: React.FC<EditLockIndicatorProps> = ({
 
   // 编辑状态变化时连接/断开 WebSocket
   useEffect(() => {
-    if (editing && ontologyId && userId) {
-      connectWs();
-    } else {
-      disconnectWs();
-      setLockHolder(null);
-      setLockAcquiredAt(null);
-    }
+        void (async () => {
+      if (editing && ontologyId && userId) {
+        connectWs();
+      } else {
+        disconnectWs();
+      }
+    })();
 
     return () => {
       disconnectWs();

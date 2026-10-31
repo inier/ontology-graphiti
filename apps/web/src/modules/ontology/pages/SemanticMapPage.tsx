@@ -75,7 +75,9 @@ function useSemanticMap(t: TFunc) {
     }
   }, [t]);
 
-  useEffect(() => { fetchMaps(); }, [fetchMaps]);
+  useEffect(() => {   void (async () => {
+    fetchMaps();
+  })(); }, [fetchMaps]);
 
   const handleViewGraph = useCallback(async (id: string, name: string) => {
     try {

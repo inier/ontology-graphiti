@@ -25,6 +25,29 @@ interface AuthState {
   getCurrentRoleId: () => string;
 }
 
+/**
+ * 用户字段：`/api/auth/me` 与 `login` 响应里的 `user` 共用同一批键，
+ * 且后端同时存在 `id` / `user_id`、`global_role` / `role` 两种历史键名。
+ */
+interface AuthUserFields {
+  id?: string;
+  user_id?: string;
+  username?: string;
+  global_role?: string;
+  role?: string;
+  role_id?: string;
+  ws_id?: string;
+  ws_role?: string;
+}
+
+/** `POST /api/auth/login`、`/sso/:provider`、`/refresh` 的返回体 */
+interface AuthTokenResponse {
+  access_token?: string;
+  token?: string;
+  refresh_token?: string;
+  user?: AuthUserFields;
+}
+
 export const useAuthStore = create<AuthState>((set, get) => ({
   token: localStorage.getItem('token'),
   refreshToken: localStorage.getItem('refresh_token'),
@@ -35,7 +58,11 @@ export const useAuthStore = create<AuthState>((set, get) => ({
   login: async (username: string, password: string) => {
     set({ loading: true, error: null });
     try {
-      const data = await apiClient.post('/api/auth/login', { username, password }, { skipAuth: true });
+      const data = await apiClient.post<AuthTokenResponse>(
+        '/api/auth/login',
+        { username, password },
+        { skipAuth: true },
+      );
       const token = data.access_token || data.token || '';
       const refreshToken = data.refresh_token || '';
       const userData = data.user || {};
@@ -56,8 +83,9 @@ export const useAuthStore = create<AuthState>((set, get) => ({
 
       set({ token, refreshToken, user, loading: false });
     } catch (error) {
+      const errMessage = error instanceof Error ? error.message : String(error);
       set({
-        error: error instanceof Error ? error.message : 'Login failed',
+        error: error instanceof Error ? errMessage : 'Login failed',
         loading: false,
       });
     }
@@ -66,7 +94,11 @@ export const useAuthStore = create<AuthState>((set, get) => ({
   loginSSO: async (provider: string, code: string, state: string) => {
     set({ loading: true, error: null });
     try {
-      const data = await apiClient.post(`/api/auth/sso/${provider}`, { provider, code, state }, { skipAuth: true });
+      const data = await apiClient.post<AuthTokenResponse>(
+        `/api/auth/sso/${provider}`,
+        { provider, code, state },
+        { skipAuth: true },
+      );
       const token = data.access_token || '';
       const refreshToken = data.refresh_token || '';
 
@@ -76,8 +108,9 @@ export const useAuthStore = create<AuthState>((set, get) => ({
       set({ token, refreshToken, loading: false });
       await get().loadUser();
     } catch (error) {
+      const errMessage = error instanceof Error ? error.message : String(error);
       set({
-        error: error instanceof Error ? error.message : 'SSO login failed',
+        error: error instanceof Error ? errMessage : 'SSO login failed',
         loading: false,
       });
     }
@@ -88,7 +121,11 @@ export const useAuthStore = create<AuthState>((set, get) => ({
     if (!currentRefreshToken) return;
 
     try {
-      const data = await apiClient.post('/api/auth/refresh', { refresh_token: currentRefreshToken }, { skipAuth: true, skipAuthError: true });
+      const data = await apiClient.post<AuthTokenResponse>(
+        '/api/auth/refresh',
+        { refresh_token: currentRefreshToken },
+        { skipAuth: true, skipAuthError: true },
+      );
       const token = data.access_token || '';
       const refreshToken = data.refresh_token || '';
 
@@ -106,7 +143,7 @@ export const useAuthStore = create<AuthState>((set, get) => ({
     if (currentRefreshToken) {
       try {
         await apiClient.post('/api/auth/logout', { refresh_token: currentRefreshToken });
-      } catch {
+      } catch { /* 忽略：失败时保持当前状态 */ 
         // Ignore logout API errors
       }
     }
@@ -132,7 +169,7 @@ export const useAuthStore = create<AuthState>((set, get) => ({
 
     set({ loading: true, error: null });
     try {
-      const data = await apiClient.get('/api/auth/me');
+      const data = await apiClient.get<AuthUserFields>('/api/auth/me');
       const globalRole = data.global_role || data.role || 'observer';
       const user = {
         id: data.id || data.user_id || '',
@@ -146,8 +183,9 @@ export const useAuthStore = create<AuthState>((set, get) => ({
       localStorage.setItem('user', JSON.stringify(user));
       set({ user, loading: false });
     } catch (error) {
+      const errMessage = error instanceof Error ? error.message : String(error);
       set({
-        error: error instanceof Error ? error.message : 'Failed to load user',
+        error: error instanceof Error ? errMessage : 'Failed to load user',
         loading: false,
       });
     }

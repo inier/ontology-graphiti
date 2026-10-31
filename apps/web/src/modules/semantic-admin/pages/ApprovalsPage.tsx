@@ -70,7 +70,8 @@ export function ApprovalsPage() {
       });
       setTasks(res.items ?? []);
     } catch (e) {
-      message.error(e instanceof Error ? e.message : t('加载审批任务失败'));
+      const errMessage = e instanceof Error ? e.message : String(e);
+      message.error(e instanceof Error ? errMessage : t('加载审批任务失败'));
       setTasks([]);
     } finally {
       setLoading(false);
@@ -78,7 +79,9 @@ export function ApprovalsPage() {
   }, [role, t]);
 
   useEffect(() => {
-    void load();
+        void (async () => {
+      void load();
+    })();
   }, [load]);
 
   const statusLabel = useMemo(
@@ -138,7 +141,8 @@ export function ApprovalsPage() {
           });
           message.success(t('已提交修改'));
         } catch (e) {
-          message.error(e instanceof Error ? e.message : t('修改失败'));
+          const errMessage = e instanceof Error ? e.message : String(e);
+          message.error(e instanceof Error ? errMessage : t('修改失败'));
         }
         void load();
       },
@@ -161,7 +165,8 @@ export function ApprovalsPage() {
           await actionReject(task.task_id, { reason: t('不合规'), close_task: true });
           message.success(t('已驳回'));
         } catch (e) {
-          message.error(e instanceof Error ? e.message : t('驳回失败'));
+          const errMessage = e instanceof Error ? e.message : String(e);
+          message.error(e instanceof Error ? errMessage : t('驳回失败'));
         }
         void load();
       },
@@ -176,7 +181,8 @@ export function ApprovalsPage() {
       await actionAudit(task.task_id, { approve: true, comment: t('L1 审核通过') });
       message.success(t('L1 审核通过'));
     } catch (e) {
-      message.error(e instanceof Error ? e.message : t('审核失败'));
+      const errMessage = e instanceof Error ? e.message : String(e);
+      message.error(e instanceof Error ? errMessage : t('审核失败'));
     }
     void load();
   };
@@ -186,7 +192,8 @@ export function ApprovalsPage() {
       await actionFinalApprove(task.task_id, { comment: t('L2 终审通过'), auto_promote: true });
       message.success(t('L2 终审通过 → 触发 USL 写回'));
     } catch (e) {
-      message.error(e instanceof Error ? e.message : t('终审失败'));
+      const errMessage = e instanceof Error ? e.message : String(e);
+      message.error(e instanceof Error ? errMessage : t('终审失败'));
     }
     void load();
   };

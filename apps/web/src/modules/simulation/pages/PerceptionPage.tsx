@@ -132,8 +132,12 @@ function usePerception(t: TFunc) {
   }, [t]);
 
   useEffect(() => {
-    fetchStatus();
-    fetchObservers();
+        void (async () => {
+      fetchStatus();
+    })();
+        void (async () => {
+      fetchObservers();
+    })();
   }, [fetchStatus, fetchObservers]);
 
   const handleToggle = useCallback(async (name: string, enabled: boolean) => {
@@ -205,7 +209,7 @@ export function PerceptionPage() {
   const { t } = useI18n('simulation');
   const sourceTypeOptions = useMemo(
     () => SOURCE_TYPE_OPTIONS.map((opt) => ({ ...opt, label: t(opt.label) })),
-    [t], // eslint-disable-line react-hooks/exhaustive-deps
+    [t],  
   );
   const vm = usePerception(t);
   const columns = buildColumns(

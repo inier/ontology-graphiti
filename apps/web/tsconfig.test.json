@@ -1,0 +1,12 @@
+{
+  "//": "测试文件类型门禁：`tsconfig.app.json` 显式 exclude 了 `src/test` 与 `**/*.test.*`，",
+  "//2": "导致测试代码的错误进不了 `check:types`。本配置把它们纳入 tsc 检查（不产出文件）。",
+  "extends": "./tsconfig.app.json",
+  "compilerOptions": {
+    "tsBuildInfoFile": "./node_modules/.tmp/tsconfig.test.tsbuildinfo",
+    "types": ["vite/client", "vitest/globals", "node"],
+    "noEmit": true
+  },
+  "include": ["src"],
+  "exclude": []
+}

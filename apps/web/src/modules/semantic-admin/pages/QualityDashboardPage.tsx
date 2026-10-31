@@ -18,7 +18,6 @@ import {
   Typography,
   Spin,
   message,
-  Tag,
 } from 'antd';
 import {
   DashboardOutlined,
@@ -110,15 +109,10 @@ export function QualityDashboardPage() {
 
   return (
     <SemanticAdminTabsContainer>
-      <Spin spinning={loading} tip={t('拉取 Dashboard 3 API...')}>
+      <Spin spinning={loading} tip={t('unified.loading')}>
         <Card
           title={
-            <Space size="middle">
-              <span>{t('质量总览 · Quality Dashboard')}</span>
-              <Tag color="geekblue" style={{ marginInlineStart: 8 }}>
-                {t('P0-4 重命名落地：QualityComingSoon → QualityDashboardPage')}
-              </Tag>
-            </Space>
+            <span>{t('质量总览 · Quality Dashboard')}</span>
           }
           extra={
             <Space>
@@ -183,8 +177,6 @@ export function QualityDashboardPage() {
     </SemanticAdminTabsContainer>
   );
 }
-
-export const QualityComingSoon = QualityDashboardPage;
 
 /**
  * SemanticAdminTabsContainer:

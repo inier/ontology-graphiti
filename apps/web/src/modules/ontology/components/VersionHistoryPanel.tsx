@@ -50,7 +50,7 @@ export function VersionHistoryPanel({ ontologyId, onRollback, onDiff }: VersionH
       await loadSchemaVersions();
       onRollback?.(versionId);
     } catch (e) {
-      message.error(t('version.rollbackFailed', { msg: (e as Error).message }));
+      message.error(t('回滚失败', { msg: (e as Error).message }));
     }
   }, [ontologyId, loadSchemaVersions, onRollback]);
 
@@ -130,11 +130,11 @@ export function VersionHistoryPanel({ ontologyId, onRollback, onDiff }: VersionH
           fontSize: 13,
           color: '#666',
         }}>
-          {t('请选择两个版本进行对比')}（{t('version.selectedCount', { selected: selectedIds.length, total: 2 })}）
+          {t('请选择两个版本进行对比')}（{t('version.selectedCount', { n: selectedIds.length })}）
           {selectedIds.length > 0 && (
             <div style={{ marginTop: 4 }}>
               {selectedIds.map((id, idx) => {
-                const v = schemaVersions.find((sv) => sv.id === id);
+                const v = schemaVersions.find((sv) => sv.version_id === id);
                 return v ? (
                   <Tag key={id} color="blue" style={{ marginRight: 4 }}>
                     {idx === 0 ? 'A' : 'B'}: v{v.version_number}
@@ -154,15 +154,15 @@ export function VersionHistoryPanel({ ontologyId, onRollback, onDiff }: VersionH
             color: isStable(version) ? 'green' : 'blue',
             children: (
               <div
-                onClick={() => handleSelect(version.id)}
+                onClick={() => handleSelect(version.version_id)}
                 style={{
                   padding: '8px 12px',
                   borderRadius: 6,
-                  border: compareMode && selectedIds.includes(version.id)
+                  border: compareMode && selectedIds.includes(version.version_id)
                     ? '2px solid #1890ff'
                     : '1px solid #f0f0f0',
                   cursor: compareMode ? 'pointer' : 'default',
-                  background: compareMode && selectedIds.includes(version.id)
+                  background: compareMode && selectedIds.includes(version.version_id)
                     ? '#e6f7ff'
                     : '#fff',
                   transition: 'all 0.2s',
@@ -186,7 +186,7 @@ export function VersionHistoryPanel({ ontologyId, onRollback, onDiff }: VersionH
                   <Popconfirm
                     title={t('确认回滚到此版本？')}
                     description={t('仅回滚类型定义，不影响实例数据')}
-                    onConfirm={() => handleRollback(version.id)}
+                    onConfirm={() => handleRollback(version.version_id)}
                     okText={t('确认回滚')}
                     cancelText={t('取消')}
                   >

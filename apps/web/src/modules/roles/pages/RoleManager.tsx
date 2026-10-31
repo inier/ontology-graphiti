@@ -1,11 +1,12 @@
+import type { TreeDataNode } from 'antd';
 import { useState, useEffect, useCallback } from 'react';
 import {
   Card, Button, Modal, Form, Input, Select, Space, Tag, Popconfirm, message, Row, Col,
-  Statistic, Checkbox, Tabs,
+  Statistic, Checkbox, 
 } from 'antd';
 import { PlusOutlined, EditOutlined, DeleteOutlined } from '@ant-design/icons';
 import {
-  listRoles, getRole, createRole, updateRole, deleteRole, listPermissions,
+  listRoles, createRole, updateRole, deleteRole, listPermissions,
 } from '../services/rolesApi';
 import type { Role, RoleCreate, RoleUpdate, Permission } from '../types';
 import { menuConfigApi } from '@/modules/menu-config/services/menuConfigApi';
@@ -30,7 +31,7 @@ function flattenMenuTree(items: MenuConfigItem[]): MenuConfigItem[] {
   return result;
 }
 
-function toTreeData(items: MenuConfigItem[]): any[] {
+function toTreeData(items: MenuConfigItem[]): TreeDataNode[] {
   return items.map((item) => ({
     key: item.id,
     title: item.name,
@@ -57,7 +58,7 @@ export function RoleManager() {
   const [menuRoleLoading, setMenuRoleLoading] = useState(false);
   const [menuRoleSaving, setMenuRoleSaving] = useState(false);
 
-  useEffect(() => { loadData(); }, []);
+  
 
   const loadData = async () => {
     try {
@@ -75,13 +76,18 @@ export function RoleManager() {
     }
   };
 
+  useEffect(() => {   void (async () => {
+    loadData();
+  })(); }, []);
+
   const loadMenuTree = useCallback(async () => {
     try {
       const data = await menuConfigApi.getFullTree();
       setMenuTree(data.tree || []);
       setMenuFlatItems(flattenMenuTree(data.tree || []));
-    } catch (e: any) {
-      message.error(t('加载菜单树失败') + ': ' + (e.message || e));
+    } catch (e) {
+      const errMessage = e instanceof Error ? e.message : String(e);
+      message.error(t('加载菜单树失败') + ': ' + (errMessage || e));
     }
   }, [t]);
 
@@ -90,8 +96,9 @@ export function RoleManager() {
     try {
       const data = await menuConfigApi.getRoleMenus(roleId);
       setMenuRoleIds(data.menu_ids || []);
-    } catch (e: any) {
-      message.error(t('加载菜单权限失败') + ': ' + (e.message || e));
+    } catch (e: unknown) {
+      const errMessage = e instanceof Error ? e.message : String(e);
+      message.error(t('加载菜单权限失败') + ': ' + (errMessage || e));
       setMenuRoleIds([]);
     } finally {
       setMenuRoleLoading(false);
@@ -113,8 +120,9 @@ export function RoleManager() {
     try {
       await menuConfigApi.setRoleMenus(menuPermissionRole.role_type, menuRoleIds);
       message.success(t('菜单权限已保存'));
-    } catch (e: any) {
-      message.error(t('保存失败') + ': ' + (e.message || e));
+    } catch (e: unknown) {
+      const errMessage = e instanceof Error ? e.message : String(e);
+      message.error(t('保存失败') + ': ' + (errMessage || e));
     } finally {
       setMenuRoleSaving(false);
     }
@@ -193,7 +201,7 @@ export function RoleManager() {
     },
     {
       title: t('操作'), key: 'action', width: 260,
-      render: (_: any, record: Role) => (
+      render: (_: unknown, record: Role) => (
         <Space size="small">
           <Button type="primary" icon={<EditOutlined />} size="small" onClick={() => handleEdit(record)}>
             {t('编辑')}
@@ -226,7 +234,7 @@ export function RoleManager() {
 
         <AdvancedTable
           columns={columns}
-          dataSource={roles as unknown as readonly Record<string, unknown>[]}
+          dataSource={roles}
           rowKey="id"
           loading={loading}
           pagination={{ pageSize: 10 }}

@@ -66,7 +66,7 @@ export const menuConfigApi = {
     fetchJson(`${BASE}/global-roles`),
 
   /** 设置角色的菜单权限（全量替换） */
-  setRoleMenus: (roleId: string, menuItemIds: string[]): Promise<any> =>
+  setRoleMenus: (roleId: string, menuItemIds: string[]): Promise<unknown> =>
     fetchJson(`${BASE}/role-menus`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },

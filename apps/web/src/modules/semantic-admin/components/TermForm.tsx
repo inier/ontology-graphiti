@@ -138,8 +138,9 @@ export function TermForm({ open, mode, initial, onCancel, onSubmitted }: TermFor
       }
       onSubmitted();
     } catch (err) {
-      if (err instanceof Error && !String(err.message).includes('validate')) {
-        message.error(err.message || '提交失败');
+      const errMessage = err instanceof Error ? err.message : String(err);
+      if (err instanceof Error && !String(errMessage).includes('validate')) {
+        message.error(errMessage || '提交失败');
       }
     } finally {
       setSubmitting(false);

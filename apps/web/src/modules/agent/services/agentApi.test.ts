@@ -1,6 +1,28 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { agentApi } from './agentApi';
+
+/** 真实的 `AgentFormData`：不再用 `as unknown` 绕开参数类型检查 */
+function agentForm(overrides: Partial<AgentFormData> = {}): AgentFormData {
+  return {
+    name: 'New Agent',
+    display_name: '新智能体',
+    avatar: '',
+    description: '',
+    main_object: '',
+    related_objects: [],
+    related_processes: [],
+    related_rules: [],
+    related_business_logic: [],
+    related_indicators: [],
+    related_skills: [],
+    related_knowledge_bases: [],
+    allowed_roles: [],
+    workspace_id: 'ws-1',
+    ...overrides,
+  };
+}
 import type { DispatchResult, TaskStatusResult, DecisionChainResult, DecisionDetail, DecisionListResult } from './agentApi';
+import type { AgentFormData } from '../types';
 
 const API_BASE = 'http://localhost:8000';
 
@@ -79,11 +101,11 @@ describe('agentApi - Agent CRUD', () => {
   });
 
   it('createAgent sends POST with correct body', async () => {
-    const formData = { name: 'New Agent', display_name: 'New', workspace_id: 'ws-1' };
+    const formData = agentForm({ name: 'New Agent', display_name: 'New' });
     const mockResponse = { id: 'agent-new', ...formData };
     mockFetchResponse(mockResponse);
 
-    const result = await agentApi.createAgent(formData as any);
+    const result = await agentApi.createAgent(formData);
     expect(fetch).toHaveBeenCalledWith(
       `${API_BASE}/api/agent-management`,
       expect.objectContaining({
@@ -95,11 +117,11 @@ describe('agentApi - Agent CRUD', () => {
   });
 
   it('updateAgent sends PUT with correct body', async () => {
-    const formData = { name: 'Updated Agent', display_name: 'Updated', workspace_id: 'ws-1' };
+    const formData = agentForm({ name: 'Updated Agent', display_name: 'Updated' });
     const mockResponse = { id: 'agent-1', ...formData };
     mockFetchResponse(mockResponse);
 
-    const result = await agentApi.updateAgent('agent-1', formData as any);
+    const result = await agentApi.updateAgent('agent-1', formData);
     expect(fetch).toHaveBeenCalledWith(
       `${API_BASE}/api/agent-management/agent-1`,
       expect.objectContaining({

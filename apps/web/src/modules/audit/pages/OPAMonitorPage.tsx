@@ -17,24 +17,30 @@ interface OPAMetrics {
 }
 
 export function OPAMonitorPage() {
-  const { t } = useI18n();
+  const { t } = useI18n('audit');
   const [metrics, setMetrics] = useState<OPAMetrics | null>(null);
   const [loading, setLoading] = useState(false);
+  const [loadError, setLoadError] = useState<string | null>(null);
 
   const loadMetrics = async () => {
     setLoading(true);
     try {
       const data = await apiClient.get<OPAMetrics>('/api/opa/metrics?window=300');
       setMetrics(data);
-    } catch {
-      // 静默
+      setLoadError(null);
+    } catch (e) {
+      // 此前是空 catch：拉不到指标时页面静默停在 0，看起来像"策略从未被调用"。
+      // 现在把失败原因留在页面上，并保留上一次成功的数据。
+      setLoadError((e as Error).message);
     } finally {
       setLoading(false);
     }
   };
 
   useEffect(() => {
-    loadMetrics();
+        void (async () => {
+      loadMetrics();
+    })();
     const timer = setInterval(loadMetrics, 10000);
     return () => clearInterval(timer);
   }, []);
@@ -50,11 +56,26 @@ export function OPAMonitorPage() {
         </Button>
       </Space>
 
+      {loadError && (
+        <Alert
+          type="warning"
+          showIcon
+          title={t('策略运行时指标拉取失败')}
+          description={`${t('失败原因')}：${loadError}`}
+          action={
+            <Button size="small" onClick={() => void loadMetrics()}>
+              {t('重试')}
+            </Button>
+          }
+          style={{ marginBottom: 16 }}
+        />
+      )}
+
       {denyRate > 30 && (
         <Alert
           type="error"
-          message={t('DENY 率异常')}
-          description={`${denyRate}% 的请求被拒绝，请检查策略配置`}
+          title={t('DENY 率异常')}
+          description={t('{{rate}}% 的请求被拒绝，请检查策略配置', { rate: denyRate })}
           showIcon
           icon={<WarningOutlined />}
           style={{ marginBottom: 16 }}

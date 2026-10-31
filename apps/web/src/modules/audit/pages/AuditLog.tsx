@@ -35,14 +35,9 @@ export function AuditLog() {
     pageSize: 20,
   });
 
-  useEffect(() => {
-    loadStats();
-    loadEvents();
-  }, [pagination.current, pagination.pageSize]);
+  
 
-  useEffect(() => {
-    loadEvents();
-  }, [filters]);
+  
 
   const loadStats = async () => {
     try {
@@ -52,6 +47,8 @@ export function AuditLog() {
       console.error('加载统计失败', error);
     }
   };
+
+  
 
   const loadEvents = async () => {
     try {
@@ -70,6 +67,21 @@ export function AuditLog() {
       setLoading(false);
     }
   };
+
+  useEffect(() => {
+        void (async () => {
+      loadStats();
+    })();
+        void (async () => {
+      loadEvents();
+    })();
+  }, [pagination.current, pagination.pageSize]);
+
+  useEffect(() => {
+        void (async () => {
+      loadEvents();
+    })();
+  }, [filters]);
 
   const handleFilterChange = (key: keyof typeof filters, value: string | undefined) => {
     setFilters(prev => ({ ...prev, [key]: value }));

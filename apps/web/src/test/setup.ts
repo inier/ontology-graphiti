@@ -1,4 +1,3 @@
-import React from 'react'
 import { vi } from 'vitest'
 import '@testing-library/jest-dom/vitest'
 
@@ -30,6 +29,20 @@ class ResizeObserverMock {
 global.ResizeObserver = ResizeObserverMock as unknown as typeof ResizeObserver
 
 Element.prototype.scrollIntoView = vi.fn()
+
+// ─── Blob/File.text() polyfill ───
+// jsdom 未实现 Blob.prototype.text（浏览器早已支持），组件里 `await file.text()`
+// 在测试环境会抛 TypeError，导致「文件解析失败」这类假阴性。用 FileReader 兜底。
+if (typeof Blob.prototype.text !== 'function') {
+  Blob.prototype.text = function blobText(this: Blob): Promise<string> {
+    return new Promise<string>((resolve, reject) => {
+      const reader = new FileReader()
+      reader.onload = () => resolve(String(reader.result ?? ''))
+      reader.onerror = () => reject(reader.error ?? new Error('FileReader failed'))
+      reader.readAsText(this)
+    })
+  }
+}
 
 // ─── Sigma.js WebGL stub ───
 // sigma.js references WebGL2RenderingContext and WebGLRenderingContext at module level,

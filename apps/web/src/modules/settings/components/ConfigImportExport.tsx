@@ -3,7 +3,7 @@ import { Button, Space, Upload, message } from 'antd';
 import {
   ExportOutlined,
   ImportOutlined,
-  UploadOutlined,
+  
 } from '@ant-design/icons';
 import { configApi } from '../services/configApi';
 import { useI18n } from '@/modules/shared/hooks/useI18n';

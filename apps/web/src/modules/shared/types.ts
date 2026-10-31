@@ -1,19 +1,34 @@
+/**
+ * 场景（Scenario）—— 对齐后端 `ScenarioResponse`
+ * （apps/api/odap/biz/platform/workspace/api/schemas.py:231）。
+ *
+ * 必需字段与后端逐项一致，缺字段会让 App / 场景列表只能靠 `as` 断言通过。
+ */
 export interface Scenario {
   scenario_id: string;
   name: string;
-  description?: string;
+  description: string;
+  workspace_id: string;
+  status: string;
+  tags?: string[];
+  ontology_id?: string;
+  ontology_ids?: string[];
+  current_ontology_version?: string;
   created_at: string;
   updated_at: string;
-  metadata?: Record<string, any>;
+  metadata?: Record<string, unknown>;
   entity_count?: number;
   doc_count?: number;
+  event_count?: number;
 }
 
 export interface Entity {
   id: string;
   name: string;
+  /** 可选展示名（部分接口返回 name_en / display_name） */
+  display_name?: string;
   type: string;
-  properties?: Record<string, any>;
+  properties?: Record<string, unknown>;
   created_at: string;
   updated_at: string;
 }
@@ -33,7 +48,7 @@ export interface Version {
   description: string;
   created_at: string;
   created_by: string;
-  metadata?: Record<string, any>;
+  metadata?: Record<string, unknown>;
 }
 
 export interface DiffResult {
@@ -51,7 +66,7 @@ export interface DiffResult {
     type: string;
     id: string;
     name: string;
-    changes: Record<string, any>;
+    changes: Record<string, unknown>;
   }>;
 }
 

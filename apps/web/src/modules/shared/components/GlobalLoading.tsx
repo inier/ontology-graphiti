@@ -11,7 +11,7 @@ import { Spin } from 'antd';
 import { useGlobalLoading } from '../stores/globalLoadingStore';
 
 export function GlobalLoading() {
-  const { visible, tip, delay } = useGlobalLoading();
+  const { visible, delay } = useGlobalLoading();
 
   if (!visible) return null;
 

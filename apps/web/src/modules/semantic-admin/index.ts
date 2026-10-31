@@ -5,12 +5,14 @@ export {
   SemanticAdminTabsContainer,
   QualityKpiCards,
   QualityChartRow,
-  QualityComingSoon,
 } from './pages/QualityDashboardPage';
 export { ApprovalsPage } from './pages/ApprovalsPage';
 export { default as CandidatesPage } from './pages/CandidatesPage';
 export { default as PipelineRunsPage } from './pages/PipelineRunsPage';
-export { default as DashboardPage } from './pages/DashboardPage';
+// DashboardPage 已删除：与 QualityDashboardPage 打同一组端点
+// （/api/semantic-admin/dashboard/{summary,terms-trend,approvals-breakdown}），
+// 且 legacyRedirects 早已把 /semantic-admin/dashboard 收敛到 /semantic-admin/quality。
+// 归档：.workbuddy/archive/zero-ref-2026-10-20/modules/semantic-admin/pages/DashboardPage.tsx
 export { default as SemanticAssetPipelinePage } from './pages/SemanticAssetPipelinePage';
 export { default as UslOntologyPage } from './pages/UslOntologyPage';
 export { GapPoolPage } from './pages/GapPoolPage';

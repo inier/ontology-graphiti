@@ -1,4 +1,3 @@
-/* eslint-disable @typescript-eslint/no-explicit-any */
 import { useState, useMemo, useCallback } from 'react';
 import {
   Card, Tabs, Tag, Space, Button, Alert, Radio,
@@ -11,6 +10,7 @@ import {
   CloseCircleOutlined,
 } from '@ant-design/icons';
 import { ontologyApi } from '../services/ontologyApi';
+import type { ExtractedTypeItem, ExtractionTypeBuckets } from '../services/ontologyApi';
 import { AdvancedTable } from '@/modules/shared';
 import { useI18n } from '@/modules/shared/hooks/useI18n';
 
@@ -18,23 +18,18 @@ import { useI18n } from '@/modules/shared/hooks/useI18n';
 /*  Types                                                              */
 /* ------------------------------------------------------------------ */
 
-export interface ExtractionResult {
-  object_types?: any[];
-  link_types?: any[];
-  action_types?: any[];
-  rule_types?: any[];
-  process_types?: any[];
-  function_types?: any[];
-  indicator_types?: any[];
-}
+/**
+ * 抽取结果 = 七个类型桶。
+ *
+ * 直接复用 `ontologyApi` 里对后端返回体的建模，避免同一形状在本文件再写一份 `any[]`。
+ */
+export type ExtractionResult = ExtractionTypeBuckets;
 
-export interface ExtractionConflict {
-  type: string;
-  name: string;
-  existing_name?: string;
-  field?: string;
-  message?: string;
-}
+export type { ExtractedTypeItem };
+
+// 契约类型归 services 层，此处仅再导出，避免同一接口两处定义。
+import type { ExtractionConflict } from '../services/ontologyApi';
+export type { ExtractionConflict };
 
 export interface ExtractionEntity {
   id: string;
@@ -73,9 +68,10 @@ interface ChannelProgress {
 
 interface EditableItem {
   name: string;
-  display_name: string;
-  description: string;
-  [key: string]: any;
+  display_name?: string;
+  description?: string;
+  /** 其余字段随类型而变（如 `db_type` / `source`），按透传处理 */
+  [key: string]: unknown;
 }
 
 /* ------------------------------------------------------------------ */
@@ -328,13 +324,13 @@ export function ExtractionPreview({
   const { t } = useI18n('ontology');
   const [mergeStrategy, setMergeStrategy] = useState<MergeStrategy>('skip');
   const [selectedMap, setSelectedMap] = useState<Record<string, string[]>>({
-    object: result.object_types?.map((t: any) => t.name) || [],
-    link: result.link_types?.map((t: any) => t.name) || [],
-    action: result.action_types?.map((t: any) => t.name) || [],
-    rule: result.rule_types?.map((t: any) => t.name) || [],
-    process: result.process_types?.map((t: any) => t.name) || [],
-    function: result.function_types?.map((t: any) => t.name) || [],
-    indicator: result.indicator_types?.map((t: any) => t.name) || [],
+    object: result.object_types?.map((item) => item.name) || [],
+    link: result.link_types?.map((item) => item.name) || [],
+    action: result.action_types?.map((item) => item.name) || [],
+    rule: result.rule_types?.map((item) => item.name) || [],
+    process: result.process_types?.map((item) => item.name) || [],
+    function: result.function_types?.map((item) => item.name) || [],
+    indicator: result.indicator_types?.map((item) => item.name) || [],
   });
 
   const [selectedEntityIds, setSelectedEntityIds] = useState<string[]>(
@@ -350,7 +346,7 @@ export function ExtractionPreview({
   const [importing, setImporting] = useState(false);
   const [channelProgress, setChannelProgress] = useState<ChannelProgress | null>(null);
 
-  const [localData, setLocalData] = useState<Record<string, any[]>>({
+  const [localData, setLocalData] = useState<Record<string, EditableItem[]>>({
     object: result.object_types || [],
     link: result.link_types || [],
     action: result.action_types || [],
@@ -423,7 +419,7 @@ export function ExtractionPreview({
   const handleDelete = (tabKey: string) => (name: string) => {
     setLocalData((prev) => ({
       ...prev,
-      [editTabKey]: prev[tabKey].filter((it) => it.name !== name),
+      [tabKey]: prev[tabKey].filter((it) => it.name !== name),
     }));
     setSelectedMap((prev) => ({
       ...prev,
@@ -457,7 +453,7 @@ export function ExtractionPreview({
           function_types: localData.function || [],
           indicator_types: localData.indicator || [],
         },
-      }) as Record<string, any>;
+      });
 
       const aStatus: ChannelStatus =
         res.channel_a_status === 'failed' ? 'failed' : 'success';
@@ -475,7 +471,7 @@ export function ExtractionPreview({
       onImportComplete?.();
     } catch (e) {
       setChannelProgress({ channelA: 'failed', channelB: 'failed' });
-      message.error(t('extraction.preview.importFailed', { msg: (e as Error).message }));
+      message.error(t('导入失败', { msg: (e as Error).message }));
     } finally {
       setImporting(false);
     }
@@ -517,7 +513,7 @@ export function ExtractionPreview({
           rowKey="name"
           size="small"
           dataSource={localData.action}
-          columns={makeColumns(selectedMap.action || [], (n) => toggleSelect('action', n), handleEdit('操作'), handleDelete('action'), t)}
+          columns={makeColumns(selectedMap.action || [], (n) => toggleSelect('action', n), handleEdit('action'), handleDelete('action'), t)}
           pagination={false}
         />
       ),

@@ -1,8 +1,8 @@
 import { useState, useEffect, type Key } from 'react';
 
-import { Row, Col, Card, Tag, Modal, Form, Input, Select as AntSelect, Space, Statistic, Tabs, message, Empty } from 'antd';
+import { Row, Col, Card, Tag, Modal, Form, Input, Select as AntSelect, Space, Statistic, Tabs, Empty } from 'antd';
 
-import { PlusOutlined, EditOutlined, DeleteOutlined, ExportOutlined, ImportOutlined, PlayCircleOutlined, StopOutlined } from '@ant-design/icons';
+import { PlusOutlined, EditOutlined, DeleteOutlined, ExportOutlined, PlayCircleOutlined } from '@ant-design/icons';
 
 import adapter from '@/modules/shared/components/adapter';
 
@@ -16,7 +16,8 @@ import { useWorkspaceStore } from '../stores/workspaceStore';
 import { DeleteConfirmModal } from '../components/DeleteConfirmModal';
 import { api } from '@/modules/shared/services/api';
 
-import type { WorkspaceDetail, ScenarioDetail } from '../stores/workspaceStore';
+import type { WorkspaceDetail } from '../stores/workspaceStore';
+import type { Scenario } from '@/modules/shared/types';
 
 import { PageTourWrapper, workspaceTourSteps, PAGE_IDS } from '@/modules/guide';
 import { AdvancedTable } from '@/modules/shared';
@@ -145,7 +146,7 @@ export function WorkspacePage() {
 
       adapter.getMessage().success(t('创建成功'));
 
-    } catch {
+    } catch { /* 忽略：失败时保持当前状态 */ 
 
       // validation error
 
@@ -193,7 +194,7 @@ export function WorkspacePage() {
 
       adapter.getMessage().success(t('更新成功'));
 
-    } catch {
+    } catch { /* 忽略：失败时保持当前状态 */ 
 
       // validation error
 
@@ -324,7 +325,7 @@ export function WorkspacePage() {
 
       reloadScenarios();
 
-    } catch {
+    } catch { /* 忽略：失败时保持当前状态 */ 
 
       // validation error
 
@@ -564,7 +565,7 @@ export function WorkspacePage() {
 
       width: 160,
 
-      render: (_: unknown, record: ScenarioDetail) => (
+      render: (_: unknown, record: Scenario) => (
 
         <Space size="small">
 

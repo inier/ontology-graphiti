@@ -42,24 +42,22 @@ export function MyAgents() {
 
 
 
-  useEffect(() => {
-    if (!user) return;
-    loadSkills();
-    loadAgents();
-  }, [user, currentWorkspace]);
+  
 
 
   const loadSkills = async () => {
     try {
-      const res = await api.get<{ skills: Array<{ skill_id: string; name: string }> }>('/api/skill/skills?page_size=200');
+      const res = await api.listSkills({ page_size: 200 });
       const map: Record<string, string> = {};
       for (const s of res.skills || []) {
         if (s.skill_id) map[s.skill_id] = s.name;
       }
       setSkillMap(map);
-    } catch (_) {
+    } catch { /* 忽略：失败时保持当前状态 */ 
     }
   };
+
+  
 
 
   const loadAgents = async () => {
@@ -74,17 +72,17 @@ export function MyAgents() {
       if (roleId) {
         try {
           data = await agentApi.listAgentsByRole(roleId, currentWorkspace);
-        } catch (_) {
+        } catch {
           try {
             data = await agentApi.listAgents({ roleId, workspaceId: currentWorkspace });
-          } catch (__) {
+          } catch {
             data = [];
           }
         }
       } else {
         try {
           data = await agentApi.listAgents({ workspaceId: currentWorkspace });
-        } catch (_) {
+        } catch {
           data = [];
         }
       }
@@ -92,7 +90,7 @@ export function MyAgents() {
       if (data.length === 0 && currentWorkspace) {
         try {
           data = await agentApi.listAgents({});
-        } catch (_) {
+        } catch {
           data = [];
         }
       }
@@ -103,6 +101,16 @@ export function MyAgents() {
       hideGlobalLoading();
     }
   };
+
+  useEffect(() => {
+    if (!user) return;
+        void (async () => {
+      loadSkills();
+    })();
+        void (async () => {
+      loadAgents();
+    })();
+  }, [user, currentWorkspace]);
 
 
 
@@ -154,7 +162,7 @@ export function MyAgents() {
 
             loadAgents();
 
-          } catch (e) { message.error(t('加载示例数据失败')); }
+          } catch { message.error(t('加载示例数据失败')); }
 
         }}
 

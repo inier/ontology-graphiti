@@ -70,7 +70,7 @@ export function useBuildProgress(scenarioId?: string) {
               });
             }
           }
-        } catch {
+        } catch { /* 忽略：失败时保持当前状态 */ 
           // ignore parse errors
         }
       };

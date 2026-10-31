@@ -44,7 +44,7 @@ function ThrowOnRender({ error }: { error: Error }): null {
 
 // === Wrapper 工厂：确保 children 正确传递 ===
 
-function makeWrapper(props: React.ComponentProps<typeof AGUIProvider> = {}) {
+function makeWrapper(props: Omit<React.ComponentProps<typeof AGUIProvider>, 'children'> = {}) {
   return function Wrapper({ children }: { children: React.ReactNode }) {
     return <AGUIProvider apiBase="http://test" {...props}>{children}</AGUIProvider>;
   };
@@ -55,7 +55,7 @@ describe('AGUIProvider T067 production hardening', () => {
     // 关键：将 global.fetch 重置为全新的 vi.fn()，防止上一个测试的
     // vi.spyOn(global, 'fetch') 产生的 spy（及其累积的 mock.calls）泄漏到当前测试。
     // 仅靠 vi.restoreAllMocks() 恢复 spy 实现后，底层 vi.fn() 的 mock 状态仍残留。
-    global.fetch = vi.fn() as unknown as typeof fetch;
+    vi.stubGlobal('fetch', vi.fn());
     vi.restoreAllMocks();
   });
 

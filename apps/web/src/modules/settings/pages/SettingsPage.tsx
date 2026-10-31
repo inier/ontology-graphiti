@@ -3,7 +3,7 @@ import { Collapse, Space, Button, Spin, Alert, Typography } from 'antd';
 import { ProCard as Card } from '@ant-design/pro-components';
 import { HistoryOutlined, SettingOutlined } from '@ant-design/icons';
 import { useConfigStore } from '../stores/configStore';
-import { ConfigGroup } from '../components/ConfigGroup';
+import { buildConfigPanel } from '../components/ConfigGroup';
 import { ConfigHistoryDrawer } from '../components/ConfigHistoryDrawer';
 import { ConfigImportExport } from '../components/ConfigImportExport';
 import { useGlobalLoading } from '@/modules/shared/stores/globalLoadingStore';
@@ -122,14 +122,13 @@ export default function SettingsPage() {
           <Collapse
             defaultActiveKey={sortedCategories.map((c) => c.category)}
             style={{ background: 'transparent' }}
-            items={sortedCategories.map((config) => (
-              <ConfigGroup
-                key={config.category}
-                config={config}
-                onSave={handleSave}
-                saving={loading}
-              />
-            ))}
+            items={sortedCategories.map((config) =>
+              buildConfigPanel({
+                config,
+                onSave: handleSave,
+                saving: loading,
+              }),
+            )}
           />
         )}
       </Card>

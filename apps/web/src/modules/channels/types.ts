@@ -1,4 +1,5 @@
 /** 渠道配置类型定义 */
+import type { IconRole } from '@/modules/shared/components/iconRegistry';
 
 export type ChannelType =
   | 'telegram'
@@ -21,7 +22,7 @@ export interface ChannelConfig {
   name: string;
   enabled: boolean;
   allow_from: string[];
-  config: Record<string, any>;
+  config: Record<string, unknown>;
   status: ChannelStatus;
   has_credentials: boolean;
   created_at: string;
@@ -34,12 +35,12 @@ export interface CreateChannelRequest {
   workspace_id: string;
   enabled?: boolean;
   allow_from?: string[];
-  config: Record<string, any>;
+  config: Record<string, unknown>;
 }
 
 export interface UpdateChannelRequest {
   name?: string;
-  config?: Record<string, any>;
+  config?: Record<string, unknown>;
   enabled?: boolean;
   allow_from?: string[];
 }
@@ -74,23 +75,29 @@ export const CHANNEL_TYPE_NAMES: Record<ChannelType, string> = {
   discord: 'Discord',
   feishu: '飞书',
   dingtalk: '钉钉',
-  email: 'Email',
+  email: '邮件',
   qq: 'QQ',
   matrix: 'Matrix',
   whatsapp: 'WhatsApp',
   mochat: 'Mochat',
 };
 
-// 渠道图标映射
-export const CHANNEL_ICONS: Record<ChannelType, string> = {
-  telegram: '📱',
-  slack: '💬',
-  discord: '🎮',
-  feishu: '✈️',
-  dingtalk: '💬',
-  email: '📧',
-  qq: '🐧',
-  matrix: '💭',
-  whatsapp: '📞',
-  mochat: '💼',
+// 渠道图标语义角色映射（P0-1：禁止 emoji 作功能图标）
+// 设计侧 §5.2 未单列渠道族图标，本轮统一使用已登记的 `channel` 语义角色；
+// 若要按渠道区分图标，须走「提交 → 设计终审 → 回签」后再扩充注册表。
+export const CHANNEL_ICON_ROLES: Record<ChannelType, IconRole> = {
+  telegram: 'channel',
+  slack: 'channel',
+  discord: 'channel',
+  feishu: 'channel',
+  dingtalk: 'channel',
+  email: 'channel',
+  qq: 'channel',
+  matrix: 'channel',
+  whatsapp: 'channel',
+  mochat: 'channel',
 };
+
+
+/** @deprecated 使用 CHANNEL_ICON_ROLES + <Icon role={...} /> */
+export const CHANNEL_ICONS = CHANNEL_ICON_ROLES;

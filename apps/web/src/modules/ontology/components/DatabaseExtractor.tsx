@@ -1,4 +1,3 @@
-/* eslint-disable @typescript-eslint/no-explicit-any */
 import { useState, useCallback } from 'react';
 import {
   Card, Input, InputNumber, Select, Button, Switch,
@@ -84,7 +83,7 @@ export function DatabaseExtractor({ ontologyId, onImportComplete }: DatabaseExtr
         payload.password = values.password;
       }
 
-      const result = await ontologyApi.extraction.testConnection(payload) as any;
+      const result = await ontologyApi.extraction.testConnection(payload);
 
       if (result?.status === 'ok' || result?.tables) {
         setConnectionOk(true);
@@ -94,11 +93,11 @@ export function DatabaseExtractor({ ontologyId, onImportComplete }: DatabaseExtr
         setCurrentStep(1);
         message.success(t('数据库连接成功'));
       } else {
-        message.error(result?.message || t('databaseExtract.connectFailed', { msg: '' }));
+        message.error(result?.message || t('连接失败', { msg: '' }));
       }
     } catch (e) {
-      if ((e as any)?.errorFields) return; // form validation
-      message.error(t('databaseExtract.connectFailed', { msg: (e as Error).message }));
+      if (typeof e === 'object' && e !== null && 'errorFields' in e) return; // form validation
+      message.error(t('连接失败', { msg: (e as Error).message }));
     } finally {
       setTesting(false);
     }
@@ -128,7 +127,7 @@ export function DatabaseExtractor({ ontologyId, onImportComplete }: DatabaseExtr
         payload.password = formValues.password;
       }
 
-      const result = await ontologyApi.extraction.extractDatabase(payload) as any;
+      const result = await ontologyApi.extraction.extractDatabase(payload);
 
       setSessionId(result?.session_id || '');
       setExtractionResult({
@@ -141,7 +140,7 @@ export function DatabaseExtractor({ ontologyId, onImportComplete }: DatabaseExtr
       setCurrentStep(2);
       message.success(t('提取成功'));
     } catch (e) {
-      message.error(t('databaseExtract.extractFailed', { msg: (e as Error).message }));
+      message.error(t('抽取失败', { msg: (e as Error).message }));
     } finally {
       setExtracting(false);
     }

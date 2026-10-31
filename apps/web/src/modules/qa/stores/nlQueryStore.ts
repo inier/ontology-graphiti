@@ -109,7 +109,8 @@ export const useNLQueryStore = create<NLQueryState>((set, get) => ({
       });
       set({ queryResult: result, queryLoading: false });
     } catch (err) {
-      const message = err instanceof Error ? err.message : '查询失败';
+      const errMessage = err instanceof Error ? err.message : String(err);
+      const message = err instanceof Error ? errMessage : '查询失败';
       set({ queryError: message, queryLoading: false });
     }
   },
@@ -127,7 +128,8 @@ export const useNLQueryStore = create<NLQueryState>((set, get) => ({
       });
       set({ searchResult: result, searchLoading: false });
     } catch (err) {
-      const message = err instanceof Error ? err.message : '检索失败';
+      const errMessage = err instanceof Error ? err.message : String(err);
+      const message = err instanceof Error ? errMessage : '检索失败';
       set({ searchError: message, searchLoading: false });
     }
   },
@@ -145,7 +147,8 @@ export const useNLQueryStore = create<NLQueryState>((set, get) => ({
       });
       set({ explainResult: result, explainLoading: false });
     } catch (err) {
-      const message = err instanceof Error ? err.message : '解释失败';
+      const errMessage = err instanceof Error ? err.message : String(err);
+      const message = err instanceof Error ? errMessage : '解释失败';
       set({ explainError: message, explainLoading: false });
     }
   },
@@ -154,7 +157,7 @@ export const useNLQueryStore = create<NLQueryState>((set, get) => ({
     try {
       const result = await getPillarStatus();
       set({ pillarStatus: result });
-    } catch {
+    } catch { /* 忽略：失败时保持当前状态 */ 
       // 静默失败
     }
   },
@@ -173,7 +176,7 @@ export const useNLQueryStore = create<NLQueryState>((set, get) => ({
     try {
       const result = await getAuditStats(workspaceId);
       set({ auditStats: result });
-    } catch {
+    } catch { /* 忽略：失败时保持当前状态 */ 
       // 静默失败
     }
   },
@@ -184,7 +187,8 @@ export const useNLQueryStore = create<NLQueryState>((set, get) => ({
       const result = await runEvaluation();
       set({ evalResult: result, evalLoading: false });
     } catch (err) {
-      const message = err instanceof Error ? err.message : '评估失败';
+      const errMessage = err instanceof Error ? err.message : String(err);
+      const message = err instanceof Error ? errMessage : '评估失败';
       set({ evalError: message, evalLoading: false });
     }
   },

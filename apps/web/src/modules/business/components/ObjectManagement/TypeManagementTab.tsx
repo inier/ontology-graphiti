@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { Card, Button, Input, Tag, Space, Popconfirm, Modal, Form, Switch, message } from 'antd';
+import { Button, Input, Tag, Space, Popconfirm, Modal, Form, Switch, message } from 'antd';
 import { PlusOutlined, EditOutlined, DeleteOutlined } from '@ant-design/icons';
 import { useI18n } from '@/modules/shared/hooks/useI18n';
 import type { ObjectType } from './types';
@@ -11,18 +11,16 @@ interface TypeManagementTabProps {
   onCreateType: () => void;
   onEditType: (record: ObjectType) => void;
   onDeleteType: (typeId: string) => void;
-  onSubmitType: (values: any, editingType: ObjectType | null) => Promise<void>;
+  onSubmitType: (values: unknown, editingType: ObjectType | null) => Promise<void>;
 }
 
 export function TypeManagementTab({
   objectTypes,
   loading,
-  onCreateType,
-  onEditType,
   onDeleteType,
   onSubmitType,
 }: TypeManagementTabProps) {
-  const { t, instance } = useI18n('business');
+  const { t } = useI18n('business');
   const [typeModalVisible, setTypeModalVisible] = useState(false);
   const [editingType, setEditingType] = useState<ObjectType | null>(null);
   const [typeForm] = Form.useForm();

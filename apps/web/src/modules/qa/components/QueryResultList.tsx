@@ -2,7 +2,7 @@
  * 查询结果列表 - 展示检索结果和回答
  */
 import React from 'react';
-import { Empty, Spin, Typography, Divider, Space, Tag, Progress, Tabs } from 'antd';
+import { Empty, Typography, Divider, Space, Tag, Progress, Tabs } from 'antd';
 import { ProCard as Card } from '@ant-design/pro-components';
 import { FileSearchOutlined, CheckCircleOutlined } from '@ant-design/icons';
 import { OverlaySpin } from '@/modules/shared/components/OverlaySpin';
@@ -94,7 +94,7 @@ export function QueryResultList({ queryResult, searchResult, loading, error }: Q
       },
       {
         key: 'sources',
-        label: t('result.sourcesLabel', { count: queryResult!.sources.length }),
+        label: t('来源', { count: queryResult!.sources.length }),
         children: (
           <div>
             {queryResult!.sources.map((s: SourceReference, i: number) => (
@@ -119,7 +119,7 @@ export function QueryResultList({ queryResult, searchResult, loading, error }: Q
         <div style={{ marginBottom: 8 }}>
           <Space>
             <Text strong>{t('result.searchResults')}</Text>
-            <Tag>{t('result.resultCount', { count: searchResult!.total })}</Tag>
+            <Tag>{t('结果数')}：{searchResult!.total}</Tag>
           </Space>
         </div>
         {renderPillarContributions(searchResult!.pillar_scores)}

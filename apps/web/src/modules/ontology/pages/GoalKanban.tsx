@@ -19,6 +19,7 @@ import {
 } from '@ant-design/icons';
 import * as echarts from 'echarts';
 import { goalApi, type Goal, type GoalStatus, type ChangeProposal, type GoalLineage } from '../services/goalApi';
+import GoalLineageGraph from '../components/GoalLineage';
 import { useI18n } from '@/modules/shared/hooks/useI18n';
 import { useWorkspaceStore } from '@/modules/workspace/stores/workspaceStore';
 
@@ -29,11 +30,13 @@ const { TextArea } = Input;
 interface KanbanColumn {
   status: GoalStatus;
   titleKey: string;
+  /** 已翻译的列标题（由 COLUMN_DEFS 映射生成） */
+  title: string;
   color: string;
   bg: string;
 }
 
-const COLUMN_DEFS: KanbanColumn[] = [
+const COLUMN_DEFS: Omit<KanbanColumn, 'title'>[] = [
   { status: 'proposed', titleKey: 'column.proposed', color: '#d48806', bg: '#fffbe6' },
   { status: 'approved', titleKey: 'column.approved', color: '#1677ff', bg: '#e6f4ff' },
   { status: 'in-progress', titleKey: 'column.inProgress', color: '#52c41a', bg: '#f6ffed' },
@@ -58,7 +61,9 @@ export function GoalKanban() {
     [t],
   );
 
-  const [workspaceId, setWorkspaceId] = useState<string | undefined>(currentWorkspace?.workspace_id);
+  // 用户在下拉框中显式选择的 workspace；未选择时回落到当前上下文 workspace（派生，无需 effect 同步）
+  const [selectedWorkspaceId, setWorkspaceId] = useState<string | undefined>(undefined);
+  const workspaceId = selectedWorkspaceId ?? currentWorkspace?.workspace_id;
   const [searchText, setSearchText] = useState('');
   const [goals, setGoals] = useState<Goal[]>([]);
   const [loading, setLoading] = useState(false);
@@ -72,6 +77,8 @@ export function GoalKanban() {
   const [lineageLoading, setLineageLoading] = useState(false);
   const [goalProposals, setGoalProposals] = useState<ChangeProposal[]>([]);
   const [proposalsLoading, setProposalsLoading] = useState(false);
+  // 血缘图谱（GoalLineage 组件此前零引用，能力只有 Tag 列表版）
+  const [graphOpen, setGraphOpen] = useState(false);
 
   const [timelineMode, setTimelineMode] = useState(false);
   const timelineRef = useRef<HTMLDivElement>(null);
@@ -85,26 +92,22 @@ export function GoalKanban() {
     if (workspaces.length === 0) void loadWorkspaces();
   }, [workspaces.length, loadWorkspaces]);
 
-  useEffect(() => {
-    if (!workspaceId && currentWorkspace) {
-      setWorkspaceId(currentWorkspace.workspace_id);
-    }
-  }, [workspaceId, currentWorkspace]);
-
   const fetchGoals = useCallback(async (wsId: string) => {
     setLoading(true);
     try {
       const data = await goalApi.list({ workspace_id: wsId, page_size: 200 });
       setGoals(data.goals || []);
     } catch (e) {
-      message.error(`${t('goal.loadFailed')}: ${(e as Error).message}`);
+      message.error(`${t('加载失败')}: ${(e as Error).message}`);
     } finally {
       setLoading(false);
     }
   }, [t]);
 
   useEffect(() => {
-    if (workspaceId) void fetchGoals(workspaceId);
+        void (async () => {
+      if (workspaceId) void fetchGoals(workspaceId);
+    })();
   }, [workspaceId, fetchGoals]);
 
   const goalsByColumn = useMemo(() => {
@@ -164,7 +167,7 @@ export function GoalKanban() {
       void fetchGoals(workspaceId);
     } catch (e) {
       if ((e as { errorFields?: unknown[] }).errorFields) return;
-      message.error(`${t('goal.createFailed')}: ${(e as Error).message}`);
+      message.error(`${t('创建失败')}: ${(e as Error).message}`);
     } finally {
       setCreating(false);
     }
@@ -241,7 +244,7 @@ export function GoalKanban() {
   useEffect(() => {
     if (!timelineMode || !timelineRef.current) return;
     if (timelineChart.current) {
-      try { timelineChart.current.dispose(); } catch { /* noop */ }
+      try { timelineChart.current.dispose(); } catch { /* 忽略：失败时保持当前状态 */  /* noop */ }
     }
     timelineChart.current = echarts.init(timelineRef.current);
     const items = goals.map((g, idx) => ({
@@ -337,10 +340,10 @@ export function GoalKanban() {
           <Col xs={24} md={8} style={{ textAlign: 'right' }}>
             <Space>
               <Space size={4}>
-                <Text type="secondary">{t('goal.timeline')}</Text>
+                <Text type="secondary">{t('时间线')}</Text>
                 <Switch checked={timelineMode} onChange={setTimelineMode} />
               </Space>
-              <Button icon={<ReloadOutlined />} onClick={handleRefresh}>{t('goal.refresh')}</Button>
+              <Button icon={<ReloadOutlined />} onClick={handleRefresh}>{t('刷新')}</Button>
               <Button type="primary" icon={<PlusOutlined />} onClick={handleNewGoal}>
                 {t('goal.newGoalBtn')}
               </Button>
@@ -351,11 +354,11 @@ export function GoalKanban() {
 
       <Spin spinning={loading}>
         {!workspaceId ? (
-          <Empty description={t('goal.selectWorkspaceFirst')} />
+          <Empty description={t('请先选择工作空间')} />
         ) : timelineMode ? (
           <Card size="small" title={t('goal.ganttTitle')}>
             <div ref={timelineRef} style={{ width: '100%', height: 500 }} />
-            {goals.length === 0 && <Empty description={t('goal.noData')} />}
+            {goals.length === 0 && <Empty description={t('无数据')} />}
           </Card>
         ) : (
           <Row gutter={8}>
@@ -442,20 +445,20 @@ export function GoalKanban() {
             <Space orientation="vertical" size="middle" style={{ width: '100%' }}>
               <Card size="small">
                 <Descriptions column={1}>
-                  <Descriptions.Item label={t('goal.labelTitle')}>{selectedGoal.title}</Descriptions.Item>
-                  <Descriptions.Item label={t('goal.labelBusinessObjective')}>{selectedGoal.business_objective}</Descriptions.Item>
-                  <Descriptions.Item label={t('goal.labelDescription')}>{selectedGoal.description || '-'}</Descriptions.Item>
-                  <Descriptions.Item label={t('goal.labelStatus')}>
+                  <Descriptions.Item label={t('标题')}>{selectedGoal.title}</Descriptions.Item>
+                  <Descriptions.Item label={t('业务目标')}>{selectedGoal.business_objective}</Descriptions.Item>
+                  <Descriptions.Item label={t('描述')}>{selectedGoal.description || '-'}</Descriptions.Item>
+                  <Descriptions.Item label={t('状态')}>
                     <Tag color={COLUMNS.find((c) => c.status === selectedGoal.status)?.color || 'default'}>
                       {selectedGoal.status}
                     </Tag>
                   </Descriptions.Item>
-                  <Descriptions.Item label={t('goal.labelWorkspace')}>{selectedGoal.workspace_id}</Descriptions.Item>
+                  <Descriptions.Item label={t('工作空间')}>{selectedGoal.workspace_id}</Descriptions.Item>
                   <Descriptions.Item label={t('goal.labelCreatedBy')}>{selectedGoal.created_by}</Descriptions.Item>
-                  <Descriptions.Item label={t('goal.labelTags')}>
+                  <Descriptions.Item label={t('标签')}>
                     {(selectedGoal.tags || []).map((tag) => <Tag key={tag}>{tag}</Tag>)}
                   </Descriptions.Item>
-                  <Descriptions.Item label={t('goal.labelCreatedAt')}>
+                  <Descriptions.Item label={t('创建时间')}>
                     {new Date(selectedGoal.created_at).toLocaleString()}
                   </Descriptions.Item>
                 </Descriptions>
@@ -496,6 +499,17 @@ export function GoalKanban() {
                 <Space>
                   <ApartmentOutlined /> {t('goal.lineageTitle')}
                 </Space>
+              } extra={
+                selectedGoal ? (
+                  <Button
+                    size="small"
+                    type="link"
+                    icon={<ApartmentOutlined />}
+                    onClick={() => setGraphOpen(true)}
+                  >
+                    {t('血缘图谱')}
+                  </Button>
+                ) : null
               }>
                 {lineage ? (
                   <Space orientation="vertical" size="small" style={{ width: '100%' }}>
@@ -550,35 +564,51 @@ export function GoalKanban() {
         onOk={() => void handleCreate()}
         onCancel={() => setCreateOpen(false)}
         confirmLoading={creating}
-        okText={t('goal.createOk')}
-        cancelText={t('goal.createCancel')}
+        okText={t('创建成功')}
+        cancelText={t('取消')}
         destroyOnHidden
       >
         <Form<CreateFormValues> form={createForm} layout="vertical">
           <Form.Item
             name="title"
-            label={t('goal.labelTitle')}
+            label={t('标题')}
             rules={[{ required: true, message: t('goal.titleRequired') }]}
           >
             <Input placeholder={t('goal.titlePlaceholder')} />
           </Form.Item>
           <Form.Item
             name="business_objective"
-            label={t('goal.labelBusinessObjective')}
+            label={t('业务目标')}
             rules={[{ required: true, message: t('goal.businessObjectiveRequired') }]}
           >
             <TextArea rows={2} placeholder={t('goal.businessObjectivePlaceholder')} />
           </Form.Item>
-          <Form.Item name="description" label={t('goal.labelDescription')}>
+          <Form.Item name="description" label={t('描述')}>
             <TextArea rows={2} placeholder={t('goal.descriptionOptional')} />
           </Form.Item>
           <Form.Item name="parent_goal_id" label={t('goal.parentGoalIdOptional')}>
             <Input placeholder={t('goal.parentGoalIdPlaceholder')} />
           </Form.Item>
-          <Form.Item name="tags" label={`${t('goal.labelTags')}${t('（逗号分隔）')}`}>
+          <Form.Item name="tags" label={`${t('标签')}${t('（逗号分隔）')}`}>
             <Input placeholder={t('goal.tagsPlaceholder')} />
           </Form.Item>
         </Form>
+      </Modal>
+
+      {/* 血缘图谱：Goal 父子关系 + ChangeProposal 边，Cytoscape dagre 布局 */}
+      <Modal
+        title={selectedGoal ? `${t('goal.lineageTitle')} · ${selectedGoal.title}` : t('goal.lineageTitle')}
+        open={graphOpen}
+        onCancel={() => setGraphOpen(false)}
+        footer={null}
+        width={980}
+        destroyOnHidden
+      >
+        {selectedGoal ? (
+          <GoalLineageGraph goalId={selectedGoal.id} height={520} />
+        ) : (
+          <Empty description={t('goal.lineageEmpty')} image={Empty.PRESENTED_IMAGE_SIMPLE} />
+        )}
       </Modal>
     </div>
   );

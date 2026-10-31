@@ -20,7 +20,7 @@ import { configApi } from '../services/configApi';
 import { useI18n } from '@/modules/shared/hooks/useI18n';
 import type { ConfigRevision, ConfigChange } from '../types';
 
-const { Text, Paragraph } = Typography;
+const { Text } = Typography;
 
 interface ConfigHistoryDrawerProps {
   open: boolean;
@@ -51,9 +51,11 @@ export function ConfigHistoryDrawer({
   }, [t]);
 
   useEffect(() => {
-    if (open) {
-      fetchHistory();
-    }
+        void (async () => {
+      if (open) {
+        fetchHistory();
+      }
+    })();
   }, [open, fetchHistory]);
 
   const handleRollback = async (revisionNumber: number) => {

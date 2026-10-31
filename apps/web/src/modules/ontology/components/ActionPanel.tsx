@@ -1,36 +1,58 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import {
   Card, Button, Modal, Form, Select, Input, Tag, Space,
-  Descriptions, Badge, message, Tooltip, Drawer,
+  Descriptions, Badge, message, Drawer, Typography,
 } from 'antd';
 import {
   ThunderboltOutlined, CheckCircleOutlined, CloseCircleOutlined,
   ClockCircleOutlined, ExclamationCircleOutlined, SyncOutlined,
 } from '@ant-design/icons';
 import { api } from '@/modules/shared/services/api';
+import type { ActionRecordRow, OmsActionType } from '@/modules/shared/services/api';
 import { AdvancedTable } from '@/modules/shared';
 import { useI18n } from '@/modules/shared/hooks/useI18n';
 
-const STATUS_ICONS: Record<string, { color: string; icon: React.ReactNode }> = {
-  pending: { color: 'default', icon: <ClockCircleOutlined /> },
-  validating: { color: 'processing', icon: <SyncOutlined spin /> },
-  approved: { color: 'blue', icon: <CheckCircleOutlined /> },
-  rejected: { color: 'red', icon: <CloseCircleOutlined /> },
-  executing: { color: 'processing', icon: <SyncOutlined spin /> },
-  completed: { color: 'success', icon: <CheckCircleOutlined /> },
-  failed: { color: 'error', icon: <CloseCircleOutlined /> },
-  rolled_back: { color: 'warning', icon: <ExclamationCircleOutlined /> },
+/**
+ * 状态与后端 ActionRequestStatus 一一对应（odap/biz/decision/action_service/schemas.py）。
+ *
+ * 关键语义：`pending → validating → approved|rejected` 由后端在 submit 时依据 OPA 策略
+ * **自动裁决**，不存在人工"批准/拒绝"接口；`POST /api/actions/{id}/approve` 的语义是
+ * **批准并执行**，且只接受已处于 `approved` 状态的记录（executor.approve_and_execute）。
+ * 因此前端只在 `approved` 上给「执行」按钮，其余状态只读。
+ */
+const STATUS_META: Record<
+  string,
+  { color: 'default' | 'processing' | 'success' | 'error' | 'warning'; icon: React.ReactNode; label: string }
+> = {
+  pending: { color: 'default', icon: <ClockCircleOutlined />, label: '待策略裁决' },
+  validating: { color: 'processing', icon: <SyncOutlined spin />, label: '校验中' },
+  approved: { color: 'processing', icon: <CheckCircleOutlined />, label: '待执行' },
+  rejected: { color: 'error', icon: <CloseCircleOutlined />, label: '策略已拒绝' },
+  executing: { color: 'processing', icon: <SyncOutlined spin />, label: '执行中' },
+  completed: { color: 'success', icon: <CheckCircleOutlined />, label: '已完成' },
+  failed: { color: 'error', icon: <CloseCircleOutlined />, label: '执行失败' },
+  rolled_back: { color: 'warning', icon: <ExclamationCircleOutlined />, label: '已回滚' },
 };
+
+const { Text } = Typography;
+
+/** 提交动作表单的字段（parameters 在表单里是 JSON 文本，提交前解析） */
+interface SubmitActionFormValues {
+  action_type_id: string;
+  target_object_id: string;
+  parameters?: string;
+  requested_by?: string;
+  reason?: string;
+}
 
 const ActionPanel: React.FC = () => {
   const { t } = useI18n('ontology');
-  const [records, setRecords] = useState<any[]>([]);
-  const [actionTypes, setActionTypes] = useState<any[]>([]);
-  const [objectTypes, setObjectTypes] = useState<any[]>([]);
+  const [records, setRecords] = useState<ActionRecordRow[]>([]);
+  const [actionTypes, setActionTypes] = useState<OmsActionType[]>([]);
   const [loading, setLoading] = useState(false);
   const [submitOpen, setSubmitOpen] = useState(false);
   const [detailOpen, setDetailOpen] = useState(false);
-  const [currentRecord, setCurrentRecord] = useState<any>(null);
+  const [currentRecord, setCurrentRecord] = useState<ActionRecordRow | null>(null);
   const [statusFilter, setStatusFilter] = useState<string | undefined>();
   const [form] = Form.useForm();
 
@@ -55,53 +77,70 @@ const ActionPanel: React.FC = () => {
     }
   }, []);
 
-  const loadObjectTypes = useCallback(async () => {
-    try {
-      const data = await api.listObjectTypes();
-      setObjectTypes(Array.isArray(data) ? data : []);
-    } catch {
-      setObjectTypes([]);
-    }
-  }, []);
-
   useEffect(() => {
-    loadRecords();
-    loadActionTypes();
-    loadObjectTypes();
-  }, [loadRecords, loadActionTypes, loadObjectTypes]);
+    void (async () => {
+      loadRecords();
+    })();
+    void (async () => {
+      loadActionTypes();
+    })();
+  }, [loadRecords, loadActionTypes]);
 
-  const handleSubmit = async (values: any) => {
+  const handleSubmit = async (values: SubmitActionFormValues) => {
+    const selectedAction = actionTypes.find((a) => a.action_type_id === values.action_type_id);
+    // 目标类型来自动作类型定义（OmsActionType.target_type），不再用魔法兜底
+    const targetObjectType = selectedAction?.target_type;
+    if (!targetObjectType) {
+      message.error(t('所选动作类型缺少目标类型定义，无法提交'));
+      return;
+    }
+    let parameters: Record<string, unknown> = {};
+    if (values.parameters) {
+      try {
+        const parsed: unknown = JSON.parse(values.parameters);
+        if (!parsed || typeof parsed !== 'object' || Array.isArray(parsed)) {
+          message.error(t('参数必须是 JSON 对象'));
+          return;
+        }
+        parameters = parsed as Record<string, unknown>;
+      } catch (e) {
+        message.error(`${t('参数不是合法 JSON')}: ${e instanceof Error ? e.message : String(e)}`);
+        return;
+      }
+    }
     try {
-      const selectedAction = actionTypes.find(a => a.action_type_id === values.action_type_id);
       await api.submitAction({
         action_type_id: values.action_type_id,
         target_object_id: values.target_object_id,
-        target_object_type: selectedAction?.target_object_type || 'Unit',
-        parameters: values.parameters ? JSON.parse(values.parameters) : {},
+        target_object_type: targetObjectType,
+        parameters,
         requested_by: values.requested_by || 'user',
         reason: values.reason || '',
       });
       message.success(t('动作已提交'));
       setSubmitOpen(false);
       form.resetFields();
-      loadRecords();
-    } catch (e: any) {
-      message.error(e?.message || t('提交失败'));
+      void loadRecords();
+    } catch (e) {
+      const errMessage = e instanceof Error ? e.message : String(e);
+      message.error(errMessage || t('提交失败'));
     }
   };
 
-  const handleApprove = async (recordId: string, approved: boolean) => {
+  /** 后端 `/{id}/approve` = 批准并执行，仅对 approved 记录有效 */
+  const handleExecute = async (recordId: string) => {
     try {
       await api.approveAction(recordId, {
-        approved,
+        approved: true,
         approver: 'user',
-        comment: approved ? t('已审批通过') : t('已拒绝'),
+        comment: t('在前端触发执行'),
       });
-      message.success(approved ? t('已审批通过') : t('已拒绝'));
-      loadRecords();
+      message.success(t('已触发执行'));
+      void loadRecords();
       setDetailOpen(false);
-    } catch (e: any) {
-      message.error(e?.message || t('操作失败'));
+    } catch (e: unknown) {
+      const errMessage = e instanceof Error ? e.message : String(e);
+      message.error(errMessage || t('操作失败'));
     }
   };
 
@@ -111,7 +150,7 @@ const ActionPanel: React.FC = () => {
       dataIndex: 'action_record_id',
       key: 'id',
       width: 140,
-      render: (id: string) => <a onClick={() => { setCurrentRecord(records.find(r => r.action_record_id === id)); setDetailOpen(true); }}>{id.slice(0, 16)}…</a>,
+      render: (id: string) => <a onClick={() => { setCurrentRecord(records.find(r => r.action_record_id === id) ?? null); setDetailOpen(true); }}>{id.slice(0, 16)}…</a>,
     },
     {
       title: t('动作类型'),
@@ -134,14 +173,13 @@ const ActionPanel: React.FC = () => {
       width: 90,
     },
     {
-      title: t('common.label.status'),
+      title: t('状态'),
       dataIndex: 'status',
       key: 'status',
       width: 100,
       render: (status: string) => {
-        const cfg = STATUS_ICONS[status] || { color: 'default', icon: null };
-        const label = t(`actionPanel.statuses.${status}`, status);
-        return <Tag icon={cfg.icon} color={cfg.color}>{label}</Tag>;
+        const meta = STATUS_META[status];
+        return <Tag icon={meta?.icon} color={meta?.color ?? 'default'}>{meta ? t(meta.label) : status}</Tag>;
       },
     },
     {
@@ -158,26 +196,19 @@ const ActionPanel: React.FC = () => {
       render: (t: string) => t ? new Date(t).toLocaleString() : '-',
     },
     {
-      title: t('common.label.actions'),
+      title: t('操作'),
       key: 'action',
       width: 100,
-      render: (_: any, record: any) => {
+      render: (_: unknown, record: ActionRecordRow) => {
+        // 只有 approved（策略放行后待执行）可触发执行；pending/validating 由后端自动裁决
         if (record.status === 'approved') {
           return (
-            <Button size="small" type="primary" onClick={() => handleApprove(record.action_record_id, true)}>
+            <Button size="small" type="primary" onClick={() => void handleExecute(record.action_record_id)}>
               {t('执行')}
             </Button>
           );
         }
-        if (record.status === 'pending') {
-          return (
-            <Space size="small">
-              <Button size="small" type="primary" onClick={() => handleApprove(record.action_record_id, true)}>{t('批准')}</Button>
-              <Button size="small" danger onClick={() => handleApprove(record.action_record_id, false)}>{t('拒绝')}</Button>
-            </Space>
-          );
-        }
-        return null;
+        return <Text type="secondary">{t('无需操作')}</Text>;
       },
     },
   ];
@@ -196,8 +227,8 @@ const ActionPanel: React.FC = () => {
               value={statusFilter}
               onChange={setStatusFilter}
             >
-              {Object.entries(STATUS_ICONS).map(([k]) => (
-                <Select.Option key={k} value={k}>{t(`actionPanel.statuses.${k}`, k)}</Select.Option>
+              {Object.entries(STATUS_META).map(([k, meta]) => (
+                <Select.Option key={k} value={k}>{t(meta.label)}</Select.Option>
               ))}
             </Select>
             <Button type="primary" icon={<ThunderboltOutlined />} onClick={() => setSubmitOpen(true)}>
@@ -228,7 +259,7 @@ const ActionPanel: React.FC = () => {
             <Select placeholder={t('选择动作类型')}>
               {actionTypes.map(a => (
                 <Select.Option key={a.action_type_id} value={a.action_type_id}>
-                  {a.display_name || a.name} → {a.target_object_type}
+                  {a.display_name || a.name} → {a.target_type}
                 </Select.Option>
               ))}
             </Select>
@@ -262,11 +293,12 @@ const ActionPanel: React.FC = () => {
             </Descriptions.Item>
             <Descriptions.Item label={t('目标对象')}>{currentRecord.target_object_id}</Descriptions.Item>
             <Descriptions.Item label={t('目标类型')}>{currentRecord.target_object_type}</Descriptions.Item>
-            <Descriptions.Item label={t('common.label.status')}>
+            <Descriptions.Item label={t('状态')}>
               {(() => {
-                const cfg = STATUS_ICONS[currentRecord.status] || { color: 'default', icon: null };
-                const label = t(`actionPanel.statuses.${currentRecord.status}`, { defaultValue: currentRecord.status });
-                return <Badge status={cfg.color as any} text={label} />;
+                const meta = STATUS_META[currentRecord.status];
+                // Badge 只接受 success/processing/error/warning/default 之一，映射后传入
+                const badgeStatus = (meta?.color ?? 'default') as 'success' | 'processing' | 'error' | 'warning' | 'default';
+                return <Badge status={badgeStatus} text={meta ? t(meta.label) : currentRecord.status} />;
               })()}
             </Descriptions.Item>
             <Descriptions.Item label={t('请求者')}>{currentRecord.requested_by}</Descriptions.Item>

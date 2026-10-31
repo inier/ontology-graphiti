@@ -1,164 +1,81 @@
-/* ============================================================
- * Color Theme CSS Variable Manager
+/**
+ * 主题运行时适配层（W0-1）
  *
- * Sets ODAP custom CSS properties on <html> (inline style)
- * when colorTheme changes. Only manages --odap-color-* and
- * --odap-gradient-* variables used by global.css overrides.
+ * 背景：v1 在此文件用内联 `--odap-gradient-brand` 生成「跨色相紫→品红」渐变，
+ * 命中团队 P0-2 红线。v2 起主题由 Token 真源驱动：
  *
- * Ant Design 6 components are themed via ConfigProvider
- * with cssVar: true + token.colorPrimary (official approach).
- * ============================================================ */
+ *   <html data-appearance="luminous|nebula" data-accent="cobalt|teal|indigo|graphite">
+ *
+ * 真源：docs/04-ui/design-tokens.css（镜像 apps/web/src/modules/shared/styles/design-tokens.css）
+ * 本文件只负责把旧 store 的 `colorTheme + isDark` 翻译成上述两个 data 属性，
+ * 并清理旧版本残留的内联变量（否则内联值会遮蔽 Token 层）。
+ */
 
-interface ColorPalette {
-  primary: Record<string, string>;
-  accent: Record<string, string>;
-  glowRgba: string;
-  sidebar: { gradientStart: string; gradientEnd: string };
-  logoAccent: { light: string; dark: string };
-}
+/** Token 真源定义的 4 个强调色相（violet/amber 已退役，见 UIUX §3.4） */
+export type AccentHue = 'cobalt' | 'teal' | 'indigo' | 'graphite';
 
-const PALETTES: Record<string, ColorPalette> = {
-  indigo: {
-    primary: {
-      '50': '#EEF2FF', '100': '#E0E7FF', '200': '#C7D2FE',
-      '300': '#A5B4FC', '400': '#818CF8', '500': '#6366F1',
-      '600': '#4F46E5', '700': '#4338CA', '800': '#3730A3',
-      '900': '#312E81',
-    },
-    accent: {
-      '50': '#F5F3FF', '100': '#EDE9FE', '200': '#DDD6FE',
-      '300': '#C4B5FD', '400': '#A78BFA', '500': '#8B5CF6',
-      '600': '#7C3AED',
-    },
-    glowRgba: '99,102,241',
-    sidebar: { gradientStart: '#1E1B4B', gradientEnd: '#0F0F1A' },
-    logoAccent: { light: '#818CF8', dark: '#A78BFA' },
-  },
-  blue: {
-    primary: {
-      '50': '#EFF6FF', '100': '#DBEAFE', '200': '#BFDBFE',
-      '300': '#93C5FD', '400': '#60A5FA', '500': '#3B82F6',
-      '600': '#2563EB', '700': '#1D4ED8', '800': '#1E40AF',
-      '900': '#1E3A8A',
-    },
-    accent: {
-      '50': '#ECFEFF', '100': '#CFFAFE', '200': '#A5F3FC',
-      '300': '#67E8F9', '400': '#22D3EE', '500': '#06B6D4',
-      '600': '#0891B2',
-    },
-    glowRgba: '59,130,246',
-    sidebar: { gradientStart: '#172554', gradientEnd: '#0F1729' },
-    logoAccent: { light: '#60A5FA', dark: '#38BDF8' },
-  },
-  green: {
-    primary: {
-      '50': '#ECFDF5', '100': '#D1FAE5', '200': '#A7F3D0',
-      '300': '#6EE7B7', '400': '#34D399', '500': '#10B981',
-      '600': '#059669', '700': '#047857', '800': '#065F46',
-      '900': '#064E3B',
-    },
-    accent: {
-      '50': '#F0FDFA', '100': '#CCFBF1', '200': '#99F6E4',
-      '300': '#5EEAD4', '400': '#2DD4BF', '500': '#14B8A6',
-      '600': '#0D9488',
-    },
-    glowRgba: '16,185,129',
-    sidebar: { gradientStart: '#022C22', gradientEnd: '#001210' },
-    logoAccent: { light: '#34D399', dark: '#2DD4BF' },
-  },
-  violet: {
-    primary: {
-      '50': '#F5F3FF', '100': '#EDE9FE', '200': '#DDD6FE',
-      '300': '#C4B5FD', '400': '#A78BFA', '500': '#8B5CF6',
-      '600': '#7C3AED', '700': '#6D28D9', '800': '#5B21B6',
-      '900': '#4C1D95',
-    },
-    accent: {
-      '50': '#FDF4FF', '100': '#FAE8FF', '200': '#F5D0FE',
-      '300': '#F0ABFC', '400': '#E879F9', '500': '#D946EF',
-      '600': '#C026D3',
-    },
-    glowRgba: '139,92,246',
-    sidebar: { gradientStart: '#2B0B3A', gradientEnd: '#15081E' },
-    logoAccent: { light: '#A78BFA', dark: '#E879F9' },
-  },
-  amber: {
-    primary: {
-      '50': '#FFFBEB', '100': '#FEF3C7', '200': '#FDE68A',
-      '300': '#FCD34D', '400': '#FBBF24', '500': '#F59E0B',
-      '600': '#D97706', '700': '#B45309', '800': '#92400E',
-      '900': '#78350F',
-    },
-    accent: {
-      '50': '#FFF7ED', '100': '#FFEDD5', '200': '#FED7AA',
-      '300': '#FDBA74', '400': '#FB923C', '500': '#F97316',
-      '600': '#EA580C',
-    },
-    glowRgba: '245,158,11',
-    sidebar: { gradientStart: '#271A00', gradientEnd: '#141000' },
-    logoAccent: { light: '#FBBF24', dark: '#FB923C' },
-  },
-};
+/** Token 真源定义的双外观 */
+export type Appearance = 'luminous' | 'nebula';
 
-const THEME_DARK_BRIGHTER: Record<string, string> = {
-  '500': '500',
-  '600': '500',
-};
+/** 旧 store 的取值域（layoutStore.ColorTheme），保留以兼容持久化数据 */
+export type LegacyColorTheme = 'indigo' | 'blue' | 'green' | 'violet' | 'amber';
 
 /**
- * Apply the current color theme by setting CSS custom properties
- * on <html> (inline style).
- *
- * Only manages --odap-color-* and --odap-gradient-* variables
- * used by custom global.css overrides.
- *
- * Ant Design 6 components are themed via ConfigProvider
- * with cssVar: true + token.colorPrimary, which generates
- * scoped --ant-* variables automatically.
+ * 旧色相 → 新强调色相。to 语义最接近的纯色族，不含跨色相渐变。
+ * violet 已退役（P0-2 的渐变色相来源），降级映射到 indigo 纯色。
+ */
+const LEGACY_TO_ACCENT: Record<LegacyColorTheme, AccentHue> = {
+  indigo: 'indigo',
+  blue: 'cobalt',
+  green: 'teal',
+  violet: 'indigo',
+  amber: 'graphite',
+};
+
+/** 旧实现写入的内联变量清单 —— 必须清除，避免遮蔽 Token 层 */
+const LEGACY_INLINE_PROPS = [
+  '--odap-gradient-brand',
+  '--odap-gradient-brand-hover',
+  '--odap-shadow-glow',
+  '--odap-color-primary',
+  '--odap-gradient-sidebar',
+  '--odap-sidebar-bg',
+  '--odap-sidebar-logo-bg',
+  '--odap-sidebar-logo-text',
+  '--odap-sidebar-logo-color',
+  '--odap-sidebar-border',
+  '--odap-sidebar-border-strong',
+  '--odap-sidebar-text',
+  '--odap-sidebar-text-hover',
+];
+
+const SHADE_KEYS = ['50', '100', '200', '300', '400', '500', '600', '700', '800', '900'];
+
+export function resolveAccent(colorTheme: string): AccentHue {
+  return LEGACY_TO_ACCENT[colorTheme as LegacyColorTheme] ?? 'cobalt';
+}
+
+export function resolveAppearance(isDark: boolean): Appearance {
+  return isDark ? 'nebula' : 'luminous';
+}
+
+function clearLegacyInlineProps(root: HTMLElement): void {
+  for (const prop of LEGACY_INLINE_PROPS) {
+    root.style.removeProperty(prop);
+  }
+  for (const shade of SHADE_KEYS) {
+    root.style.removeProperty(`--odap-color-primary-${shade}`);
+    root.style.removeProperty(`--odap-color-accent-${shade}`);
+  }
+}
+
+/**
+ * 应用主题：只写 data 属性，不写任何内联颜色/渐变。
+ * 颜色切换的唯一切换点是 design-tokens.css 的 semantic 层。
  */
 export function applyColorTheme(colorTheme: string, isDark: boolean): void {
-  const palette = PALETTES[colorTheme];
-  if (!palette) return;
-
   const root = document.documentElement;
-  const { primary, accent, glowRgba, sidebar, logoAccent } = palette;
-
-  const p = (shade: string) =>
-    isDark ? primary[THEME_DARK_BRIGHTER[shade] || shade] : primary[shade];
-
-  // Set primary shades
-  Object.entries(primary).forEach(([shade]) => {
-    root.style.setProperty(`--odap-color-primary-${shade}`, p(shade));
-  });
-
-  // Set accent shades
-  Object.entries(accent).forEach(([shade, value]) => {
-    root.style.setProperty(`--odap-color-accent-${shade}`, value);
-  });
-
-  // Derived aliases
-  root.style.setProperty('--odap-color-primary', p('600'));
-  root.style.setProperty('--odap-shadow-glow', `0 0 0 3px rgba(${glowRgba},0.12)`);
-  root.style.setProperty('--odap-gradient-brand',
-    `linear-gradient(135deg, ${p('600')} 0%, ${accent['500']} 100%)`
-  );
-  root.style.setProperty('--odap-gradient-brand-hover',
-    `linear-gradient(135deg, ${p('700')} 0%, ${accent['600']} 100%)`
-  );
-
-  // Sidebar
-  root.style.setProperty('--odap-sidebar-bg',
-    `linear-gradient(180deg, ${sidebar.gradientStart} 0%, ${sidebar.gradientEnd} 100%)`
-  );
-  root.style.setProperty('--odap-sidebar-logo-bg',
-    `linear-gradient(135deg, ${logoAccent.light}33, ${logoAccent.dark}1A)`
-  );
-  root.style.setProperty('--odap-sidebar-logo-text',
-    `linear-gradient(135deg, ${logoAccent.light}, ${logoAccent.dark})`
-  );
-  root.style.setProperty('--odap-sidebar-logo-color', logoAccent.light);
-  root.style.setProperty('--odap-sidebar-border', '1px solid rgba(255,255,255,0.06)');
-  root.style.setProperty('--odap-sidebar-border-strong', '1px solid rgba(255,255,255,0.1)');
-  root.style.setProperty('--odap-sidebar-text', 'rgba(255,255,255,0.4)');
-  root.style.setProperty('--odap-sidebar-text-hover', 'rgba(255,255,255,0.75)');
+  clearLegacyInlineProps(root);
+  root.setAttribute('data-accent', resolveAccent(colorTheme));
+  root.setAttribute('data-appearance', resolveAppearance(isDark));
 }

@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, {  } from 'react';
 import { CloseOutlined, DownOutlined, PushpinOutlined, PushpinFilled } from '@ant-design/icons';
 import { Dropdown, Tooltip } from 'antd';
 import type { ExtensionSpec } from '../stores/layoutStore';

@@ -18,24 +18,6 @@ import {
 import './AdvancedTable.css';
 
 /**
- * 工具函数：将简单的数据获取函数包装为 ProTable request 格式。
- * 各页面只需传入返回 T[] 的异步函数，即可让 ProTable 接管 loading + 刷新。
- */
-function wrapRequest<T>(
-  fetcher: () => Promise<T[]>,
-): (params: { current?: number; pageSize?: number }, sort: unknown, filter: unknown) => Promise<{ data: T[]; success: boolean; total: number }> {
-  return async () => {
-    try {
-      const data = await fetcher();
-      return { data, success: true, total: data.length };
-    } catch (error) {
-      console.error('[AdvancedTable] request error:', error);
-      return { data: [], success: false, total: 0 };
-    }
-  };
-}
-
-/**
  * AdvancedTable — 基于 ProTable 的封装，兼容原有 antd Table API。
  *
  * 内部使用 @ant-design/pro-components v3 的 ProTable（antd v6 适配），
@@ -47,6 +29,29 @@ function wrapRequest<T>(
  */
 
 // ---- types ----------------------------------------------------------------
+
+/**
+ * 分页回调载荷 —— 与 antd `TablePaginationConfig` 的常用字段对齐。
+ * ProTable 传入的是完整 config，这里只声明页面真正会读的字段。
+ */
+/**
+ * ProTable 工具栏自定义渲染函数的签名（避免在调用处 `as any`）。
+ *
+ * 声明为泛型：ProTable 的 `optionsRender` 形参是 `ToolBarProps<T>`，
+ * 非泛型签名在泛型组件上传参会因逆变检查报错；这里刻意不消费该形参。
+ */
+type ProTableOptionsRender = <TD extends object>(
+  // `TD | unknown` 归一为 unknown：形参在实现里不使用，但需要保留泛型参数
+  // 以便与 ProTable<T> 的 ToolBarProps<T> 形参做逆变匹配
+  toolbarProps: TD | unknown,
+  defaultDom: React.ReactNode[],
+) => React.ReactNode[];
+
+export interface TablePaginationInfo {
+  current?: number;
+  pageSize?: number;
+  total?: number;
+}
 
 export interface AdvancedTableProps<T extends object = object> {
   // ========== 与 antd Table 兼容的核心 props ==========
@@ -64,8 +69,15 @@ export interface AdvancedTableProps<T extends object = object> {
     onChange?: (page: number, pageSize: number) => void;
   };
   size?: 'small' | 'middle' | 'large';
-  onChange?: (pagination: unknown, filters: unknown, sorter: unknown) => void;
-  onRow?: (record: T, index?: number) => Record<string, unknown>;
+  /** 外层容器附加类名 */
+  className?: string;
+  /** 外层容器内联样式（页面用于控制高度/边距） */
+  style?: React.CSSProperties;
+  /** 与 antd Table 对齐的外边框开关 */
+  bordered?: boolean;
+  onChange?: (pagination: TablePaginationInfo, filters: unknown, sorter: unknown) => void;
+  /** 行属性（与 antd Table / ProTable 的 GetComponentProps 对齐） */
+  onRow?: (record: T, index?: number) => React.HTMLAttributes<HTMLElement>;
   rowSelection?: Record<string, unknown>;
   expandable?: Record<string, unknown>;
   footer?: React.ReactNode | ((currentPageData: readonly T[]) => React.ReactNode);
@@ -77,6 +89,11 @@ export interface AdvancedTableProps<T extends object = object> {
   locale?: Record<string, unknown>;
 
   // ========== ProTable 请求模式 ==========
+  /**
+   * request 查询参数。变更会触发 ProTable 重新发起 request，
+   * 是「不持有 ActionType ref 也能刷新表格」的正规入口（见 SkillManagement 的 reloadToken）。
+   */
+  params?: Record<string, unknown>;
   request?: (params: { current?: number; pageSize?: number }, sort: unknown, filter: unknown) => Promise<{
     data: T[];
     success: boolean;
@@ -106,6 +123,49 @@ export interface AdvancedTableProps<T extends object = object> {
 
 const COL_MIN_WIDTH = 60;
 
+/** ProTable 工具栏节点的可读属性子集，用于识别 setting 按钮 */
+interface ToolbarNodeProps {
+  key?: string;
+  className?: unknown;
+  children?: React.ReactNode;
+  'aria-label'?: string;
+}
+
+/**
+ * 在 ReactNode 数组中递归查找 setting 按钮。
+ *
+ * 放在模块作用域：纯函数、不依赖组件状态，避免组件内自引用导致的
+ * `react-hooks/immutability`（Cannot access variable before it is declared）。
+ */
+function findSettingButton(nodes: React.ReactNode[] | undefined): React.ReactNode | null {
+  if (!Array.isArray(nodes)) return null;
+  for (const node of nodes) {
+    if (!React.isValidElement(node)) continue;
+    const el = node as React.ReactElement<ToolbarNodeProps>;
+    const elProps = el.props;
+    if (el.key === 'setting' || elProps.key === 'setting') return node;
+    if (elProps['aria-label'] === 'setting') return node;
+    const children = elProps.children;
+    if (Array.isArray(children)) {
+      if (findSettingButton(children as React.ReactNode[])) return node;
+    } else if (React.isValidElement(children)) {
+      const child = children as React.ReactElement<ToolbarNodeProps>;
+      const childType = child.type as { displayName?: string; name?: string };
+      if (
+        child.props['aria-label'] === 'setting' ||
+        child.type === SettingOutlined ||
+        typeof childType?.displayName === 'string' && childType.displayName.includes('Setting') ||
+        typeof childType?.name === 'string' && childType.name.includes('Setting')
+      ) {
+        return node;
+      }
+    }
+    const childHtml = (children as React.ReactElement<ToolbarNodeProps> | undefined)?.props?.className;
+    if (typeof childHtml === 'string' && childHtml.includes('setting')) return node;
+  }
+  return null;
+}
+
 /**
  * 列宽拖拽 hook
  *
@@ -113,29 +173,29 @@ const COL_MIN_WIDTH = 60;
  * 而是直接修改每个 column 的 title，内嵌一个可拖拽的 resize handle。
  */
 function useColumnResize<T>(columns: ProColumns<T>[]) {
-  const [columnWidths, setColumnWidths] = useState<Record<string, number>>({});
+  // 只保存用户拖拽产生的覆盖值；列自身声明的 width 作为基线，在渲染期合并（派生，无需 effect 回写）
+  const [widthOverrides, setWidthOverrides] = useState<Record<string, number>>({});
   const dragging = useRef<{ colKey: string; startX: number; startWidth: number } | null>(null);
   // 缓存列 keys（只在 columns 结构变化时重算）
+  // 列结构签名：仅在 key/dataIndex 组合变化时重算，避免每帧重建宽度表
+  const columnSignature = columns
+    .map((c, i) => String(c.key ?? c.dataIndex ?? `col-${i}`))
+    .join(',');
   const stableKeys = useMemo(
     () => columns.map((c, i) => String(c.key ?? c.dataIndex ?? `col-${i}`)),
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-    [columns.map(c => c.key ?? c.dataIndex).join(',')],
+    [columnSignature],
   );
 
-  // 从 columns 的 width 属性初始化
-  useEffect(() => {
-    const initial: Record<string, number> = {};
+  const columnWidths = useMemo(() => {
+    const base: Record<string, number> = {};
     columns.forEach((col, i) => {
       const key = stableKeys[i];
       if (col.width !== undefined && col.width !== null) {
-        initial[key] = Number(col.width);
+        base[key] = Number(col.width);
       }
     });
-    setColumnWidths(prev => {
-      const merged = { ...prev, ...initial };
-      return JSON.stringify(merged) === JSON.stringify(prev) ? prev : merged;
-    });
-  }, [columns, stableKeys]);
+    return { ...base, ...widthOverrides };
+  }, [columns, stableKeys, widthOverrides]);
 
   const handleResizeStart = useCallback(
     (colKey: string, e: React.MouseEvent) => {
@@ -150,7 +210,7 @@ function useColumnResize<T>(columns: ProColumns<T>[]) {
         const delta = ev.clientX - dragging.current.startX;
         const newWidth = Math.max(COL_MIN_WIDTH, dragging.current.startWidth + delta);
         const key = dragging.current.colKey;
-        setColumnWidths(prev => ({ ...prev, [key]: newWidth }));
+        setWidthOverrides(prev => ({ ...prev, [key]: newWidth }));
       };
 
       const onMouseUp = () => {
@@ -246,6 +306,9 @@ function AdvancedTableInner<T extends object>(
     loading,
     pagination,
     size: externalSize,
+    className,
+    style,
+    bordered,
     onChange,
     onRow,
     rowSelection,
@@ -257,6 +320,7 @@ function AdvancedTableInner<T extends object>(
     rowClassName,
     showHeader,
     locale,
+    params,
     request,
     enableColumnResize = true,
     enableDensity = true,
@@ -314,18 +378,10 @@ function AdvancedTableInner<T extends object>(
     return () => document.removeEventListener('fullscreenchange', onFsChange);
   }, []);
 
-  // 密度状态管理（内部管理，避免外部 size 覆盖）
-  const [internalDensity, setInternalDensity] = useState<'small' | 'middle' | 'large'>(
-    densitySize ?? externalSize ?? 'middle'
-  );
-
-  // 当 densitySize 或 externalSize 变化时同步内部密度
-  useEffect(() => {
-    const newSize = densitySize ?? externalSize;
-    if (newSize) {
-      setInternalDensity(newSize);
-    }
-  }, [densitySize, externalSize]);
+  // 密度状态管理（用户覆盖优先，其次外部 size，最后默认 middle —— 全部派生，无 effect 回写）
+  const [densityOverride, setDensityOverride] = useState<'small' | 'middle' | 'large' | null>(null);
+  const internalDensity: 'small' | 'middle' | 'large' =
+    densityOverride ?? densitySize ?? externalSize ?? 'middle';
 
   // ===== 自定义 reload =====
   const handleReload = useCallback(async () => {
@@ -375,7 +431,7 @@ function AdvancedTableInner<T extends object>(
           setIsFullscreen(false);
         }
       }
-    } catch (err) {
+    } catch {
       // Fullscreen API 被拒绝（如非用户手势触发、iframe 限制等），降级到 CSS 全屏
       setIsFullscreen(prev => !prev);
     }
@@ -387,41 +443,6 @@ function AdvancedTableInner<T extends object>(
     { key: 'middle', label: '中等' },
     { key: 'small', label: '紧凑' },
   ];
-
-  // ===== 辅助：在 ReactNode 数组中找到 setting 按钮 =====
-  const findSettingButton = useCallback(
-    (nodes: React.ReactNode[] | undefined): React.ReactNode | null => {
-      if (!Array.isArray(nodes)) return null;
-      for (const node of nodes) {
-        if (!React.isValidElement(node)) continue;
-        const el = node as React.ReactElement<any>;
-        // 直接匹配 key
-        if ((el as any).key === 'setting' || el.props?.key === 'setting') return node;
-        // 匹配子元素中的 Setting 图标 / aria-label
-        const children = el.props?.children;
-        if (el.props?.['aria-label'] === 'setting') return node;
-        if (Array.isArray(children)) {
-          const nested = findSettingButton(children as React.ReactNode[]);
-          if (nested) return node;
-        } else if (React.isValidElement(children)) {
-          const child = children as React.ReactElement<any>;
-          if (
-            child.props?.['aria-label'] === 'setting' ||
-            child.type === SettingOutlined ||
-            (child.type as any)?.displayName?.includes?.('Setting') ||
-            (child.type as any)?.name?.includes?.('Setting')
-          ) {
-            return node;
-          }
-        }
-        // 简单的 className 匹配：anticon-setting
-        const childHtml = (children as any)?.props?.className ?? '';
-        if (typeof childHtml === 'string' && childHtml.includes('setting')) return node;
-      }
-      return null;
-    },
-    []
-  );
 
   // ===== 构造自定义 optionsRender：完全接管工具栏按钮，确保各功能生效 =====
   // ProTable v3 ToolBar 签名：optionsRender(toolbarProps, defaultDom: ReactNode[])
@@ -462,7 +483,7 @@ function AdvancedTableInner<T extends object>(
             selectedKeys: [internalDensity],
             onClick: ({ key }) => {
               const newDensity = key as 'small' | 'middle' | 'large';
-              setInternalDensity(newDensity);
+              setDensityOverride(newDensity);
             },
           }}
         >
@@ -544,9 +565,8 @@ function AdvancedTableInner<T extends object>(
       : false;
 
   // optionsRender：作为 ProTable 的顶层 prop（不是 options 嵌套）。自定义顺序：刷新/密度/设置/全屏
-  const optionsRenderProp:
-    | ((_props: unknown, defaultDom: React.ReactNode[]) => React.ReactNode[])
-    | undefined = options !== false ? optionsRender : undefined;
+  const optionsRenderProp: ProTableOptionsRender | undefined =
+    options !== false ? optionsRender : undefined;
 
   // 工具栏渲染 - 仅在有额外内容时提供，避免覆盖默认工具栏
   const toolBarRender = toolbarExtra
@@ -557,25 +577,30 @@ function AdvancedTableInner<T extends object>(
   const resolvedTitle: React.ReactNode =
     typeof title === 'function' ? title() : title;
 
+  // ProTable 的 footer 只接受 `(data) => ReactNode`，静态节点需要包一层
+  const resolvedFooter: ((data: readonly T[]) => React.ReactNode) | undefined =
+    footer === undefined
+      ? undefined
+      : typeof footer === 'function'
+        ? footer
+        : () => footer;
+
   // 默认大小：用内部管理的密度
   const tableSize = internalDensity;
 
   // 计算容器 CSS 类
-  // 注意：必须显式检查 document.fullscreenElement 不为 null，避免初始化时 null === null 返回 true
-  const fullscreenByApi =
-    typeof document !== 'undefined' &&
-    !!document.fullscreenElement &&
-    document.fullscreenElement === containerRef.current;
+  // isFullscreen 由上面的 fullscreenchange 监听同步（仅在 document.fullscreenElement === 本容器时置 true），
+  // 因此无需在渲染期再比对 containerRef.current
   const containerClass = [
     'advanced-table-container',
     `advanced-table-density-${tableSize}`,
-    isFullscreen || fullscreenByApi ? 'advanced-table-fullscreen' : '',
+    isFullscreen ? 'advanced-table-fullscreen' : '',
   ]
     .filter(Boolean)
     .join(' ');
 
   return (
-    <div ref={containerRef} className={containerClass}>
+    <div ref={containerRef} className={[containerClass, className].filter(Boolean).join(' ')} style={style}>
       <ProTable<T>
         columns={enableColumnResize ? resolvedColumns : proColumns}
         dataSource={dataSource as readonly T[]}
@@ -584,20 +609,22 @@ function AdvancedTableInner<T extends object>(
         pagination={pagination}
         size={tableSize}
         defaultSize={tableSize}
+        bordered={bordered}
         onChange={onChange}
-        onRow={onRow as any}
+        onRow={onRow}
         rowSelection={rowSelection as never}
         expandable={expandable as never}
-        footer={footer}
+        footer={resolvedFooter}
         summary={summary}
         sticky={sticky}
         scroll={scroll}
         rowClassName={rowClassName}
         showHeader={showHeader}
         locale={locale}
+        params={params}
         request={request}
         options={options}
-        optionsRender={optionsRenderProp as any}
+        optionsRender={optionsRenderProp}
         search={false}
         headerTitle={resolvedTitle}
         toolBarRender={toolBarRender}
@@ -613,5 +640,5 @@ const AdvancedTable = React.forwardRef(AdvancedTableInner) as <
   props: AdvancedTableProps<T> & { ref?: React.Ref<HTMLDivElement> },
 ) => React.ReactElement;
 
-export { AdvancedTable, wrapRequest };
+export { AdvancedTable };
 export default AdvancedTable;

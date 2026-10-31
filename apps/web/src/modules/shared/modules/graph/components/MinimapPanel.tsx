@@ -156,7 +156,7 @@ function CanvasMinimap({ sigmaRef, graphRef, width, height }: CanvasMinimapProps
         ctx.strokeStyle = 'rgba(24, 144, 255, 0.8)';
         ctx.lineWidth = 1.5;
         ctx.strokeRect(vpMinX, vpMinY, vpMaxX - vpMinX, vpMaxY - vpMinY);
-      } catch { /* sigma not ready */ }
+      } catch { /* 忽略：失败时保持当前状态 */  /* sigma not ready */ }
     }
   }, [sigmaRef, graphRef]);
 

@@ -8,9 +8,8 @@
 import React from 'react';
 import { Button, Space, Typography } from 'antd';
 import { ProCard as Card } from '@ant-design/pro-components';
-import { useAGUIContext } from './AGUIProvider';
-import { CardRenderer } from './CardRegistry';
-import type { Interrupt } from './agui_types';
+import { useAGUIContext } from './AGUIProvider';import type { Interrupt } from './agui_types';
+import { Icon } from '@/modules/shared/components/Icon';
 
 const { Text } = Typography;
 
@@ -26,7 +25,12 @@ export function HITLPanel({ onConfirm }: HITLPanelProps) {
 
   return (
     <Card
-      title="⚠️ 需要您的确认"
+      title={
+        <span style={{ display: 'inline-flex', alignItems: 'center', gap: 6 }}>
+          <Icon role="warning" size={16} />
+          需要您的确认
+        </span>
+      }
       size="small"
       style={{
         position: 'fixed',
@@ -59,7 +63,7 @@ export function HITLPanel({ onConfirm }: HITLPanelProps) {
                   }
                 }}
               >
-                ✓ 确认
+                <Icon role="confirm" size={16} /> 确认
               </Button>
               <Button
                 size="small"
@@ -71,7 +75,7 @@ export function HITLPanel({ onConfirm }: HITLPanelProps) {
                   }
                 }}
               >
-                ✗ 拒绝
+                <Icon role="cancel" size={16} /> 拒绝
               </Button>
             </div>
           </Card>

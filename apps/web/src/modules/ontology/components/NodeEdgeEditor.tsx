@@ -19,13 +19,10 @@ const CARDINALITY_OPTIONS = [
   { label: 'N:M', value: 'MANY_TO_MANY_ALT' },
 ];
 
-const PROPERTY_TYPE_OPTIONS = ['STRING', 'INTEGER', 'FLOAT', 'BOOLEAN', 'DATETIME', 'GEOPOINT', 'JSON', 'REFERENCE']
-  .map((t) => ({ label: t, value: t }));
-
 /* ── Props ──────────────────────────────────────────────────────────── */
 
 export interface NodeEdgeEditorProps {
-  visible: boolean;
+  open: boolean;
   onClose: () => void;
   selectedNode?: Record<string, unknown>; // GraphNode data
   selectedEdge?: Record<string, unknown>; // GraphEdge data
@@ -40,11 +37,9 @@ export function NodeEdgeEditor({
   onClose,
   selectedNode,
   selectedEdge,
-  ontologyId,
   onUpdate,
 }: NodeEdgeEditorProps) {
   const { t } = useI18n('ontology');
-  const [editing, setEditing] = useState(false);
   const [form] = Form.useForm();
 
   const {
@@ -60,6 +55,12 @@ export function NodeEdgeEditor({
   const isNode = !!selectedNode;
   const isEdge = !!selectedEdge && !selectedNode;
 
+  // 当前选中对象的 id —— 编辑态与它绑定，选择变化时编辑态自动失效（派生，无需 effect 重置）
+  const currentEntityId = String(selectedNode?.id ?? selectedEdge?.id ?? '');
+  const [editingId, setEditingId] = useState<string | null>(null);
+  const editing = editingId !== null && editingId === currentEntityId && currentEntityId !== '';
+  const setEditing = (next: boolean) => setEditingId(next ? currentEntityId : null);
+
   // Find the full type definition from store
   const nodeTypeDef: ObjectTypeDefinition | undefined = isNode
     ? objectTypes.find((t) => t.type_id === (selectedNode as Record<string, unknown>)?.id)
@@ -69,15 +70,11 @@ export function NodeEdgeEditor({
     ? linkTypes.find((t) => t.link_id === (selectedEdge as Record<string, unknown>)?.id)
     : undefined;
 
-  // Reset editing state when selection changes
-  useEffect(() => {
-    setEditing(false);
-    form.resetFields();
-  }, [selectedNode, selectedEdge, form]);
-
   // Populate form when entering edit mode
   useEffect(() => {
     if (!editing) return;
+    // 进入编辑态先清空上一轮残留字段，再按当前对象填充
+    form.resetFields();
     if (nodeTypeDef) {
       form.setFieldsValue({
         name: nodeTypeDef.name,
@@ -109,7 +106,7 @@ export function NodeEdgeEditor({
       }
       setEditing(false);
       onUpdate?.();
-    } catch {
+    } catch { /* 忽略：失败时保持当前状态 */ 
       // validation error, do nothing
     }
   }, [nodeTypeDef, edgeTypeDef, updateObjectType, updateLinkType, form, onUpdate, t]);
@@ -126,7 +123,7 @@ export function NodeEdgeEditor({
       onClose();
       onUpdate?.();
     } catch {
-      message.error(t('nodeEditor.deleteFailed'));
+      message.error(t('删除失败'));
     }
   }, [nodeTypeDef, edgeTypeDef, deleteObjectType, deleteLinkType, onClose, onUpdate, t]);
 
@@ -145,18 +142,18 @@ export function NodeEdgeEditor({
     return (
       <>
         <Descriptions column={1}>
-          <Descriptions.Item label={t('nodeEditor.nodeId')}>{nodeTypeDef.type_id}</Descriptions.Item>
-          <Descriptions.Item label={t('nodeEditor.name')}>{nodeTypeDef.name}</Descriptions.Item>
-          <Descriptions.Item label={t('nodeEditor.displayName')}>{nodeTypeDef.display_name || '-'}</Descriptions.Item>
-          <Descriptions.Item label={t('nodeEditor.description')}>{nodeTypeDef.description || '-'}</Descriptions.Item>
-          <Descriptions.Item label={t('nodeEditor.classification')}>
+          <Descriptions.Item label={t('节点ID')}>{nodeTypeDef.type_id}</Descriptions.Item>
+          <Descriptions.Item label={t('名称')}>{nodeTypeDef.name}</Descriptions.Item>
+          <Descriptions.Item label={t('显示名称')}>{nodeTypeDef.display_name || '-'}</Descriptions.Item>
+          <Descriptions.Item label={t('描述')}>{nodeTypeDef.description || '-'}</Descriptions.Item>
+          <Descriptions.Item label={t('分类')}>
             <Tag color={nodeTypeDef.classification_level === 'TS' ? 'red' : nodeTypeDef.classification_level === 'S' ? 'orange' : nodeTypeDef.classification_level === 'C' ? 'blue' : 'green'}>
               {nodeTypeDef.classification_level || 'U'}
             </Tag>
           </Descriptions.Item>
         </Descriptions>
 
-        <Divider orientation="left" style={{ fontSize: 13 }}>{t('nodeEditor.propertiesList', { count: props.length })}</Divider>
+        <Divider titlePlacement="left" style={{ fontSize: 13 }}>{t('属性列表', { count: props.length })}</Divider>
         {props.length === 0 ? (
           <div style={{ color: '#8c8c8c', fontSize: 12 }}>{t('nodeEditor.noProperties')}</div>
         ) : (
@@ -170,7 +167,7 @@ export function NodeEdgeEditor({
           </div>
         )}
 
-        <Divider orientation="left" style={{ fontSize: 13 }}>{t('nodeEditor.relatedRelations')}</Divider>
+        <Divider titlePlacement="left" style={{ fontSize: 13 }}>{t('关联关系')}</Divider>
         {(() => {
           const relatedLinks = linkTypes.filter(
             (l) => l.source_type === nodeTypeDef.type_id || l.target_type === nodeTypeDef.type_id,
@@ -205,25 +202,25 @@ export function NodeEdgeEditor({
     return (
       <>
         <Descriptions column={1}>
-          <Descriptions.Item label={t('nodeEditor.nodeId')}>{edgeTypeDef.link_id}</Descriptions.Item>
-          <Descriptions.Item label={t('nodeEditor.name')}>{edgeTypeDef.name}</Descriptions.Item>
-          <Descriptions.Item label={t('nodeEditor.displayName')}>{edgeTypeDef.display_name || '-'}</Descriptions.Item>
-          <Descriptions.Item label={t('nodeEditor.description')}>{edgeTypeDef.description || '-'}</Descriptions.Item>
-          <Descriptions.Item label={t('nodeEditor.sourceObjectType')}>
+          <Descriptions.Item label={t('节点ID')}>{edgeTypeDef.link_id}</Descriptions.Item>
+          <Descriptions.Item label={t('名称')}>{edgeTypeDef.name}</Descriptions.Item>
+          <Descriptions.Item label={t('显示名称')}>{edgeTypeDef.display_name || '-'}</Descriptions.Item>
+          <Descriptions.Item label={t('描述')}>{edgeTypeDef.description || '-'}</Descriptions.Item>
+          <Descriptions.Item label={t('源对象类型')}>
             {sourceObj ? (
               <Tag color="blue">{sourceObj.display_name || sourceObj.name}</Tag>
             ) : (
               <Tag>{edgeTypeDef.source_type || '-'}</Tag>
             )}
           </Descriptions.Item>
-          <Descriptions.Item label={t('nodeEditor.targetObjectType')}>
+          <Descriptions.Item label={t('目标对象类型')}>
             {targetObj ? (
               <Tag color="green">{targetObj.display_name || targetObj.name}</Tag>
             ) : (
               <Tag>{edgeTypeDef.target_type || '-'}</Tag>
             )}
           </Descriptions.Item>
-          <Descriptions.Item label={t('nodeEditor.cardinality')}>
+          <Descriptions.Item label={t('基数')}>
             <Tag color="orange">{edgeTypeDef.cardinality || '-'}</Tag>
           </Descriptions.Item>
         </Descriptions>
@@ -235,16 +232,16 @@ export function NodeEdgeEditor({
 
   const renderNodeEdit = () => (
     <>
-      <Form.Item name="name" label={t('nodeEditor.name')} rules={[{ required: true, message: t('nodeEditor.required') }]}>
+      <Form.Item name="name" label={t('名称')} rules={[{ required: true, message: t('必填') }]}>
         <Input />
       </Form.Item>
-      <Form.Item name="display_name" label={t('nodeEditor.displayName')}>
+      <Form.Item name="display_name" label={t('显示名称')}>
         <Input />
       </Form.Item>
-      <Form.Item name="description" label={t('nodeEditor.description')}>
+      <Form.Item name="description" label={t('描述')}>
         <Input.TextArea rows={2} />
       </Form.Item>
-      <Form.Item name="classification_level" label={t('nodeEditor.classification')} initialValue="U">
+      <Form.Item name="classification_level" label={t('分类')} initialValue="U">
         <Select
           options={[
             { label: t('nodeEditor.classificationOptions.TS'), value: 'TS' },
@@ -261,22 +258,22 @@ export function NodeEdgeEditor({
 
   const renderEdgeEdit = () => (
     <>
-      <Form.Item name="name" label={t('nodeEditor.name')} rules={[{ required: true, message: t('nodeEditor.required') }]}>
+      <Form.Item name="name" label={t('名称')} rules={[{ required: true, message: t('必填') }]}>
         <Input />
       </Form.Item>
-      <Form.Item name="display_name" label={t('nodeEditor.displayName')}>
+      <Form.Item name="display_name" label={t('显示名称')}>
         <Input />
       </Form.Item>
-      <Form.Item name="description" label={t('nodeEditor.description')}>
+      <Form.Item name="description" label={t('描述')}>
         <Input.TextArea rows={2} />
       </Form.Item>
-      <Form.Item name="source_type" label={t('nodeEditor.sourceObjectType')}>
+      <Form.Item name="source_type" label={t('源对象类型')}>
         <Select options={objTypeOpts} allowClear placeholder={t('nodeEditor.selectSourceType')} />
       </Form.Item>
-      <Form.Item name="target_type" label={t('nodeEditor.targetObjectType')}>
+      <Form.Item name="target_type" label={t('目标对象类型')}>
         <Select options={objTypeOpts} allowClear placeholder={t('nodeEditor.selectTargetType')} />
       </Form.Item>
-      <Form.Item name="cardinality" label={t('nodeEditor.cardinality')}>
+      <Form.Item name="cardinality" label={t('基数')}>
         <Select options={CARDINALITY_OPTIONS} />
       </Form.Item>
     </>
@@ -285,10 +282,10 @@ export function NodeEdgeEditor({
   // ── Title ────────────────────────────────────────────────────────
 
   const title = isNode
-    ? t('nodeEditor.objectTypeTitle', { name: nodeTypeDef?.display_name || nodeTypeDef?.name || (selectedNode as Record<string, unknown>)?.name || '' })
+    ? t('对象类型', { name: nodeTypeDef?.display_name || nodeTypeDef?.name || (selectedNode as Record<string, unknown>)?.name || '' })
     : isEdge
       ? t('nodeEditor.edgeTypeTitle', { name: edgeTypeDef?.display_name || edgeTypeDef?.name || (selectedEdge as Record<string, unknown>)?.type || '' })
-      : t('nodeEditor.nodeDetail');
+      : t('节点详情');
 
   return (
     <Drawer
@@ -307,14 +304,14 @@ export function NodeEdgeEditor({
                 icon={<SaveOutlined />}
                 onClick={handleSave}
               >
-                {t('nodeEditor.save')}
+                {t('保存')}
               </Button>
               <Button
                 size="small"
                 icon={<CloseOutlined />}
                 onClick={() => setEditing(false)}
               >
-                {t('nodeEditor.cancel')}
+                {t('取消')}
               </Button>
             </>
           ) : (
@@ -326,14 +323,14 @@ export function NodeEdgeEditor({
                 onClick={() => setEditing(true)}
                 disabled={!nodeTypeDef && !edgeTypeDef}
               >
-                {t('nodeEditor.edit')}
+                {t('编辑')}
               </Button>
               <Popconfirm
                 title={t('nodeEditor.deleteConfirmTitle')}
                 description={t('nodeEditor.deleteConfirmDesc')}
                 onConfirm={handleDelete}
-                okText={t('nodeEditor.confirm')}
-                cancelText={t('nodeEditor.cancel')}
+                okText={t('确认')}
+                cancelText={t('取消')}
               >
                 <Button
                   danger
@@ -341,7 +338,7 @@ export function NodeEdgeEditor({
                   icon={<DeleteOutlined />}
                   disabled={!nodeTypeDef && !edgeTypeDef}
                 >
-                  {t('nodeEditor.delete')}
+                  {t('删除')}
                 </Button>
               </Popconfirm>
             </>

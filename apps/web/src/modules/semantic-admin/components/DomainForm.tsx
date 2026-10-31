@@ -3,7 +3,7 @@
  * 字段：code / display_name / description / en_mapping JSON Editor
  */
 import React, { useEffect, useMemo } from 'react';
-import { Modal, Form, Input, App, Space, Alert, Typography } from 'antd';
+import { Modal, Form, Input, App, Space, Alert, Typography, Button } from 'antd';
 import type { FormInstance } from 'antd';
 import type { UslDomain, DomainPayload } from '../types';
 import { createDomain, updateDomain, getDomain } from '../services/uslApi';
@@ -39,8 +39,9 @@ function tryParseEnMapping(
     }
     return { _error: 'en_mapping 必须是 JSON Object（Key: 英文 PascalCase，Value: 中文）' };
   } catch (e) {
+    const errMessage = e instanceof Error ? e.message : String(e);
     return {
-      _error: `JSON 解析失败：${e instanceof Error ? e.message : String(e)}`,
+      _error: `JSON 解析失败：${e instanceof Error ? errMessage : String(e)}`,
     };
   }
 }
@@ -78,12 +79,13 @@ export function DomainForm({ open, mode, initial, onCancel, onSubmitted }: Domai
                 : '',
             });
           } catch (e) {
+            const errMessage = e instanceof Error ? e.message : String(e);
             // 详情拉取失败必须显式告知：静默 console.warn 会让业务人员在
             // 一份可能已过期的数据上编辑并保存，直接覆盖掉别人的改动。
             console.error('[DomainForm] getDomain failed', e);
             message.error(
               e instanceof Error
-                ? `语义域详情刷新失败，当前表单为列表快照，保存前请重试：${e.message}`
+                ? `语义域详情刷新失败，当前表单为列表快照，保存前请重试：${errMessage}`
                 : '语义域详情刷新失败，当前表单为列表快照，保存前请重试',
             );
           }
@@ -130,9 +132,10 @@ export function DomainForm({ open, mode, initial, onCancel, onSubmitted }: Domai
       }
       onSubmitted();
     } catch (err) {
+      const errMessage = err instanceof Error ? err.message : String(err);
       // Form validateFields 错误已在 UI 展示，其他错误弹 message
-      if (err instanceof Error && !String(err.message).includes('validate')) {
-        message.error(err.message || '提交失败');
+      if (err instanceof Error && !String(errMessage).includes('validate')) {
+        message.error(errMessage || '提交失败');
       }
     } finally {
       setSubmitting(false);
@@ -152,13 +155,13 @@ export function DomainForm({ open, mode, initial, onCancel, onSubmitted }: Domai
       onCancel={onCancel}
       destroyOnHidden
       width={640}
-      footer={(_, { OkBtn, CancelBtn }) => (
+      footer={(_, { CancelBtn }) => (
         <Space>
           <CancelBtn />
           {!readOnly && (
-            <OkBtn disabled={!canWrite} loading={submitting} onClick={handleOk}>
+            <Button type="primary" disabled={!canWrite} loading={submitting} onClick={handleOk}>
               {mode === 'create' ? '创建' : '保存'}
-            </OkBtn>
+            </Button>
           )}
         </Space>
       )}

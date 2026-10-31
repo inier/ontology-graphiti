@@ -1,5 +1,4 @@
-/* eslint-disable @typescript-eslint/no-explicit-any */
-import { useState, useCallback, useEffect } from 'react';
+import { useState, useCallback } from 'react';
 import {
   Card, Input, Switch, Button, Space, Alert, Spin, Steps, Tabs, Select, message, Progress,
 } from 'antd';
@@ -13,6 +12,7 @@ import { ExtractionPreview } from './ExtractionPreview';
 import { DocumentUploader } from './DocumentUploader';
 import { KnowledgeBaseSelector } from './KnowledgeBaseSelector';
 import { useExtractionProgress } from '../hooks/useExtractionProgress';
+import type { ExtractionSessionResult } from '../services/ontologyApi';
 import type { ExtractionResult, ExtractionConflict } from './ExtractionPreview';
 
 export interface NLExtractorProps {
@@ -62,7 +62,7 @@ export function NLExtractor({ ontologyId, onImportComplete }: NLExtractorProps) 
         template_id: selectedTemplate || undefined,
       };
 
-      const result = await ontologyApi.extraction.extractNL(payload) as any;
+      const result = await ontologyApi.extraction.extractNL(payload);
       const newSessionId = result?.session_id || '';
       setSessionId(newSessionId);
 
@@ -79,13 +79,19 @@ export function NLExtractor({ ontologyId, onImportComplete }: NLExtractorProps) 
       setCurrentStep(1);
       message.success(t('提取完成'));
     } catch (e) {
-      message.error(t('extraction.extractFailed', { msg: (e as Error).message }));
+      message.error(t('抽取失败', { msg: (e as Error).message }));
     } finally {
       setExtracting(false);
     }
   }, [text, autoSearch, ontologyId, selectedMethod, selectedTemplate]);
 
-  const handleExtractionComplete = useCallback((result: any) => {
+  const handleExtractionComplete = useCallback((payload: ExtractionSessionResult | ExtractionSessionResult[]) => {
+    // 文档上传支持多文件：此时的回调载荷是逐文件会话结果的数组。
+    // 约定：当前会话取最后一个（预览展示最近一次抽取），冲突项取全部文件的并集——
+    // 若只取单个，批量场景下前面文件的冲突会被静默丢失，导入时就会漏确认。
+    const results = Array.isArray(payload) ? payload : [payload];
+    if (results.length === 0) return;
+    const result = results[results.length - 1];
     setSessionId(result?.session_id || '');
     setExtractionResult({
       object_types: result?.result?.object_types || result?.object_types || [],
@@ -96,15 +102,8 @@ export function NLExtractor({ ontologyId, onImportComplete }: NLExtractorProps) 
       function_types: result?.result?.function_types || [],
       indicator_types: result?.result?.indicator_types || [],
     });
-    setExtractionConflicts(result?.conflicts || []);
+    setExtractionConflicts(results.flatMap((r) => r?.conflicts || []));
     setCurrentStep(1);
-  }, []);
-
-  const handleReset = useCallback(() => {
-    setCurrentStep(0);
-    setExtractionResult(null);
-    setExtractionConflicts([]);
-    setSessionId('');
   }, []);
 
   const handleReextract = useCallback(() => {

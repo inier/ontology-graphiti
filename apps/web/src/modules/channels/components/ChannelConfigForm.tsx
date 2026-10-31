@@ -3,8 +3,18 @@
 import React, { useEffect } from 'react';
 import { Form, Input, Select, Switch, Button, Space, message, Alert } from 'antd';
 import type { ChannelType, ChannelTypeInfo } from '../types';
-import { CHANNEL_TYPE_NAMES, CHANNEL_ICONS } from '../types';
+import { CHANNEL_ICON_ROLES } from '../types';
+import { Icon } from '@/modules/shared/components/Icon';
 import { useI18n } from '@/modules/shared/hooks/useI18n';
+
+/** 表单提交值（config 由动态配置项组成，键值均来自后端 schema） */
+interface ChannelConfigFormValues {
+  name: string;
+  channel_type: ChannelType;
+  enabled?: boolean;
+  allow_from?: string[];
+  config?: Record<string, unknown>;
+}
 
 interface ChannelConfigFormProps {
   channelTypes: ChannelTypeInfo[];
@@ -13,14 +23,14 @@ interface ChannelConfigFormProps {
     channel_type?: ChannelType;
     enabled?: boolean;
     allow_from?: string[];
-    config?: Record<string, any>;
+    config?: Record<string, unknown>;
   };
   onSubmit: (values: {
     name: string;
     channel_type: ChannelType;
     enabled: boolean;
     allow_from: string[];
-    config: Record<string, any>;
+    config: Record<string, unknown>;
   }) => Promise<void>;
   onCancel: () => void;
   loading?: boolean;
@@ -46,7 +56,7 @@ export const ChannelConfigForm: React.FC<ChannelConfigFormProps> = ({
 
   const currentTypeInfo = channelTypes.find((t) => t.type === selectedType);
 
-  const handleFinish = async (values: any) => {
+  const handleFinish = async (values: ChannelConfigFormValues) => {
     try {
       await onSubmit({
         name: values.name,
@@ -174,7 +184,7 @@ export const ChannelConfigForm: React.FC<ChannelConfigFormProps> = ({
           {channelTypes.map((type) => (
             <Select.Option key={type.type} value={type.type}>
               <Space>
-                <span>{CHANNEL_ICONS[type.type]}</span>
+                <Icon role={CHANNEL_ICON_ROLES[type.type]} size={16} />
                 <span>{type.name}</span>
               </Space>
             </Select.Option>

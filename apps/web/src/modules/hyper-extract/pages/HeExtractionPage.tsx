@@ -6,11 +6,14 @@ import {
 import {
   ThunderboltOutlined, EyeOutlined, ClearOutlined, DatabaseOutlined,
   ClusterOutlined, ClockCircleOutlined, ExperimentOutlined,
+  FileSearchOutlined, PartitionOutlined,
 } from '@ant-design/icons';
 import { apiClient } from '@/modules/shared/services/apiClient';
 import { useWorkspace } from '@/modules/shared/components/LayoutContexts';
 import { useOntologyStore } from '@/modules/ontology/stores/ontologyStore';
 import { useI18n } from '@/modules/shared/hooks/useI18n';
+import TemplateRecommender, { type HETemplate } from '@/modules/ontology/components/TemplateRecommender';
+import ProvenanceViewer from '@/modules/ontology/components/ProvenanceViewer';
 
 const { TextArea } = Input;
 const { Text, Paragraph } = Typography;
@@ -50,6 +53,13 @@ const HeExtractionPage: React.FC = () => {
   const [batchTexts, setBatchTexts] = useState<string>('');
   const [batching, setBatching] = useState(false);
   const [batchResult, setBatchResult] = useState<BatchResult | null>(null);
+
+  // 抽取溯源：输入实体 ID 后打开 Drawer（Drawer 挂在页面根部，切 Tab 不会卸载）
+  const [provenanceEntityId, setProvenanceEntityId] = useState('');
+  const [provenanceOpen, setProvenanceOpen] = useState(false);
+
+  // 模板推荐选中的模板（与「查看 HE 模板」Modal 独立：这里是待用模板，那里是本体现有模板）
+  const [pickedTemplate, setPickedTemplate] = useState<HETemplate | null>(null);
 
   useEffect(() => {
     loadOntologies(currentWorkspace || undefined);
@@ -257,9 +267,75 @@ const HeExtractionPage: React.FC = () => {
                 </Space>
               ),
             },
+            {
+              // 模板推荐：此前 TemplateRecommender 有实现、有真实契约（/api/extraction/templates/recommend），
+              // 但全站零引用 —— 用户只能在抽取后「查看本体现有模板」，没法在抽取前选模板。
+              key: 'templates',
+              label: <span><ExperimentOutlined /> {t('模板推荐')}</span>,
+              children: (
+                <Space direction="vertical" style={{ width: '100%' }} size="middle">
+                  <Text type="secondary">
+                    {t('推荐基于上方「单文本抽取」里输入的文本；也可先在那里粘贴一段描述再回到本页推荐。')}
+                  </Text>
+                  <TemplateRecommender
+                    ontologyId={ontologyId}
+                    text={text}
+                    onSelect={(tpl) => {
+                      setPickedTemplate(tpl);
+                      message.success(t('已选用模板 {{name}}', { name: tpl.name }));
+                    }}
+                  />
+                  {pickedTemplate ? (
+                    <Card size="small" title={t('当前选用模板')}>
+                      <Descriptions size="small" column={3} bordered>
+                        <Descriptions.Item label={t('模板')}>{pickedTemplate.name}</Descriptions.Item>
+                        <Descriptions.Item label={t('路径')}>{pickedTemplate.template_path || '-'}</Descriptions.Item>
+                        <Descriptions.Item label={t('得分')}>
+                          {typeof pickedTemplate.score === 'number' ? pickedTemplate.score.toFixed(3) : '-'}
+                        </Descriptions.Item>
+                      </Descriptions>
+                    </Card>
+                  ) : null}
+                </Space>
+              ),
+            },
+            {
+              // 抽取溯源：ProvenanceViewer 此前同样是零引用，且字段读错（confidence vs confidence_score）
+              key: 'provenance',
+              label: <span><FileSearchOutlined /> {t('抽取溯源')}</span>,
+              children: (
+                <Space direction="vertical" style={{ width: '100%' }} size="middle">
+                  <Text type="secondary">
+                    {t('输入实体 ID，查看它来自哪份文档、哪个向量切片、用哪个模板抽取、置信度多少，并可反查同源实体。')}
+                  </Text>
+                  <Space.Compact style={{ width: '100%' }}>
+                    <Input
+                      placeholder={t('实体 ID（entity_id）')}
+                      value={provenanceEntityId}
+                      onChange={(e) => setProvenanceEntityId(e.target.value)}
+                      onPressEnter={() => { if (provenanceEntityId.trim()) setProvenanceOpen(true); }}
+                    />
+                    <Button
+                      type="primary"
+                      icon={<PartitionOutlined />}
+                      disabled={!provenanceEntityId.trim()}
+                      onClick={() => setProvenanceOpen(true)}
+                    >
+                      {t('查看溯源')}
+                    </Button>
+                  </Space.Compact>
+                </Space>
+              ),
+            },
           ]}
         />
       </Card>
+
+      <ProvenanceViewer
+        entityId={provenanceEntityId.trim()}
+        visible={provenanceOpen}
+        onClose={() => setProvenanceOpen(false)}
+      />
 
       <Modal
         title={t('HE 模板（由本体定义生成）')}

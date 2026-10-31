@@ -7,7 +7,7 @@ import {
 import type { TreeDataNode } from 'antd';
 import {
   PlusOutlined, EditOutlined, DeleteOutlined,
-  FolderOutlined, FileOutlined, ThunderboltOutlined,
+  
   ReloadOutlined, SafetyOutlined,
 } from '@ant-design/icons';
 import { menuConfigApi, type MenuItem } from '../services/menuConfigApi';
@@ -141,7 +141,7 @@ export function MenuConfigPage() {
   const [selectedNode, setSelectedNode] = useState<MenuItem | null>(null);
   const [modalOpen, setModalOpen] = useState(false);
   const [editingItem, setEditingItem] = useState<MenuItem | null>(null);
-  const [parentId, setParentId] = useState<string | null>(null);
+  const [, setParentId] = useState<string | null>(null);
   const [form] = Form.useForm();
 
   /* ── 角色权限状态 ── */
@@ -168,8 +168,9 @@ export function MenuConfigPage() {
         const stillExists = flat.find((i) => i.id === selectedNode.id);
         if (!stillExists) setSelectedNode(null);
       }
-    } catch (e: any) {
-      message.error(t('加载菜单树失败') + ': ' + (e.message || e));
+    } catch (e) {
+      const errMessage = e instanceof Error ? e.message : String(e);
+      message.error(t('加载菜单树失败') + ': ' + (errMessage || e));
     } finally {
       setLoading(false);
     }
@@ -191,14 +192,19 @@ export function MenuConfigPage() {
         if (prev) return prev;
         return (summaries.find((r) => r.id !== 'admin') || summaries[0])?.id || '';
       });
-    } catch (e: any) {
-      console.warn(t('加载角色列表失败') + ' /api/menu-config/global-roles:', e.message);
+    } catch (e: unknown) {
+      const errMessage = e instanceof Error ? e.message : String(e);
+      console.warn(t('加载角色列表失败') + ' /api/menu-config/global-roles:', errMessage);
       message.warning(t('加载角色列表失败'));
     }
   }, [t]);
 
-  useEffect(() => { loadTree(); }, [loadTree]);
-  useEffect(() => { loadRoles(); }, [loadRoles]);
+  useEffect(() => {   void (async () => {
+    loadTree();
+  })(); }, [loadTree]);
+  useEffect(() => {   void (async () => {
+    loadRoles();
+  })(); }, [loadRoles]);
 
   /* ── 创建/编辑菜单项 ── */
   const handleCreate = (parent?: string, menuType?: string) => {
@@ -241,9 +247,10 @@ export function MenuConfigPage() {
       }
       setModalOpen(false);
       loadTree();
-    } catch (e: any) {
-      if (e.errorFields) return;
-      message.error(t('保存失败') + ': ' + (e.message || e));
+    } catch (e: unknown) {
+      const errMessage = e instanceof Error ? e.message : String(e);
+      if (e && typeof e === 'object' && 'errorFields' in e) return;
+      message.error(t('保存失败') + ': ' + (errMessage || String(e)));
     }
   };
 
@@ -253,8 +260,9 @@ export function MenuConfigPage() {
       message.success(t('已删除'));
       setSelectedNode(null);
       loadTree();
-    } catch (e: any) {
-      message.error(t('删除失败') + ': ' + (e.message || e));
+    } catch (e: unknown) {
+      const errMessage = e instanceof Error ? e.message : String(e);
+      message.error(t('删除失败') + ': ' + (errMessage || e));
     }
   };
 
@@ -265,8 +273,9 @@ export function MenuConfigPage() {
     try {
       const data = await menuConfigApi.getRoleMenus(roleId);
       setRoleMenuIds(data.menu_ids || []);
-    } catch (e: any) {
-      message.error(t('加载角色菜单权限失败') + ': ' + (e.message || e));
+    } catch (e: unknown) {
+      const errMessage = e instanceof Error ? e.message : String(e);
+      message.error(t('加载角色菜单权限失败') + ': ' + (errMessage || e));
       setRoleMenuIds([]);
     } finally {
       setRoleLoading(false);
@@ -274,9 +283,11 @@ export function MenuConfigPage() {
   }, [t]);
 
   useEffect(() => {
-    if (activeTab === 'role' && selectedRoleId) {
-      loadRoleMenus(selectedRoleId);
-    }
+        void (async () => {
+      if (activeTab === 'role' && selectedRoleId) {
+        loadRoleMenus(selectedRoleId);
+      }
+    })();
   }, [activeTab, selectedRoleId, loadRoleMenus]);
 
   const handleSaveRoleMenus = async () => {
@@ -284,8 +295,9 @@ export function MenuConfigPage() {
     try {
       await menuConfigApi.setRoleMenus(selectedRoleId, roleMenuIds);
       message.success(t('角色菜单权限已保存'));
-    } catch (e: any) {
-      message.error(t('保存失败') + ': ' + (e.message || e));
+    } catch (e: unknown) {
+      const errMessage = e instanceof Error ? e.message : String(e);
+      message.error(t('保存失败') + ': ' + (errMessage || e));
     } finally {
       setRoleSaving(false);
     }
@@ -306,8 +318,9 @@ export function MenuConfigPage() {
       setInitModalOpen(false);
       loadTree();
       loadRoles();
-    } catch (e: any) {
-      message.error(t('恢复失败') + ': ' + (e.message || e));
+    } catch (e: unknown) {
+      const errMessage = e instanceof Error ? e.message : String(e);
+      message.error(t('恢复失败') + ': ' + (errMessage || e));
     } finally {
       setInitLoading(false);
     }

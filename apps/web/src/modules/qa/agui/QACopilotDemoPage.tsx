@@ -7,10 +7,10 @@
  * - StatePanel（Shared State）
  * - CardRegistry（Generative UI）
  *
- * 路由：/qa/copilot（待 Phase 5 注册）
+ * 路由：/qa/copilot
  */
 
-import React, { useState } from 'react';
+import React, { useMemo, useRef, useState } from 'react';
 import { Button, Input, Layout, Space, Typography } from 'antd';
 import { ProCard as Card } from '@ant-design/pro-components';
 import { SendOutlined, ThunderboltOutlined } from '@ant-design/icons';
@@ -20,20 +20,39 @@ import { StatePanel } from './StatePanel';
 import { CardRenderer } from './CardRegistry';
 import type { CardMetadata } from './agui_types';
 import { useI18n } from '@/modules/shared/hooks/useI18n';
+import { Icon } from '@/modules/shared/components/Icon';
+import { useAuthStore } from '@/modules/shared/stores/authStore';
+import { useOntologyStore } from '@/modules/ontology/stores/ontologyStore';
 
 const { Header, Sider, Content } = Layout;
 const { Text } = Typography;
 
 function CopilotInner() {
   const { t } = useI18n('qa');
-  const { flatMessages, toolCalls, status, send, cancel, pendingInterrupts, error } = useAGUIContext();
+  const { messages, status, runAgent, cancel, pendingInterrupts, error } = useAGUIContext();
   const [input, setInput] = useState('');
+  const threadIdRef = useRef<string | null>(null);
+
+  // Provider 以 messageId 累积文本（Map），页面侧摊平成可渲染列表
+  const flatMessages = useMemo(
+    () => Array.from(messages.entries()).map(([id, m]) => ({ id, role: m.role, content: m.content })),
+    [messages],
+  );
+  const toolCalls = useMemo(
+    () => Array.from(messages.values()).flatMap((m) => m.toolCalls ?? []),
+    [messages],
+  );
 
   const handleSend = () => {
-    if (input.trim()) {
-      send(input.trim());
-      setInput('');
-    }
+    const text = input.trim();
+    if (!text) return;
+    runAgent({
+      // 线程 ID 在首次发送时惰性生成，避免在渲染期调用 Date.now()
+      threadId: (threadIdRef.current ??= `thread-${Date.now()}`),
+      runId: `run-${Date.now()}`,
+      messages: [{ id: `msg-${Date.now()}`, role: 'user', content: text }],
+    });
+    setInput('');
   };
 
   return (
@@ -51,7 +70,7 @@ function CopilotInner() {
       <Layout>
         <Sider width={320} style={{ background: '#fff', padding: 16, overflow: 'auto' }}>
           <StatePanel watchPath="/memory/facts" />
-          <Card title="🔧 Tool Calls" size="small" style={{ marginTop: 16 }}>
+          <Card title={<span style={{ display: 'inline-flex', alignItems: 'center', gap: 6 }}><Icon role="runtime" size={20} />Tool Calls</span>} size="small" style={{ marginTop: 16 }}>
             {toolCalls.length === 0 ? (
               <Text type="secondary">(无)</Text>
             ) : (
@@ -157,8 +176,18 @@ export interface QACopilotDemoPageProps {
 }
 
 export function QACopilotDemoPage({ apiBase, token, workspaceId }: QACopilotDemoPageProps) {
+  // 后端 `/api/ag-ui/run` 走 `Depends(get_current_user)`，而 AG-UI 客户端用的是
+  // 裸 fetch + EventSource —— 绕过了 apiClient 的鉴权拦截器。不显式传 token
+  // 就是必然 401，页面看起来「能打开但发不出消息」。
+  const storeToken = useAuthStore((s) => s.token);
+  const currentOntology = useOntologyStore((s) => s.currentOntology);
+
   return (
-    <AGUIProvider apiBase={apiBase} token={token} workspaceId={workspaceId}>
+    <AGUIProvider
+      apiBase={apiBase}
+      token={token ?? storeToken ?? undefined}
+      workspaceId={workspaceId ?? currentOntology?.workspace_id}
+    >
       <CopilotInner />
     </AGUIProvider>
   );

@@ -111,7 +111,7 @@ const CandidatesPage: React.FC = () => {
               await rejectCandidate(id, payload);
             }
             ok += 1;
-          } catch { /* skip */ }
+          } catch { /* 忽略：失败时保持当前状态 */  /* skip */ }
         }
         message.success(`${reviewModal.mode === 'approve' ? 'Approved' : 'Rejected'} ${ok}/${ids.length}`);
       } else if (reviewModal.candidate) {
@@ -251,7 +251,7 @@ const CandidatesPage: React.FC = () => {
         <QualityRadarPanel
           candidate={activeCandidate}
           candidateId={activeCandidate?.id}
-          inlineReport={(activeCandidate as any)?.quality_report}
+          inlineReport={activeCandidate?.quality_report}
           canWrite={canWrite}
           onModified={() => void fetchData()}
         />

@@ -2,6 +2,7 @@ import { ClockCircleOutlined, LinkOutlined, FieldTimeOutlined, ReloadOutlined, P
 import { Button, Tooltip, Tag } from 'antd';
 import { useLayoutStore } from '@/modules/shared/stores/layoutStore';
 import { useI18n } from '@/modules/shared/hooks/useI18n';
+import { Icon } from '@/modules/shared/components/Icon';
 
 export function TabDetailPreview() {
   const { t, instance } = useI18n('common');
@@ -11,7 +12,7 @@ export function TabDetailPreview() {
   if (!tab) {
     return (
       <div style={{ padding: 32, textAlign: 'center', color: 'var(--odap-color-text-tertiary)' }}>
-        <div style={{ fontSize: 40, marginBottom: 12, opacity: 0.4 }}>📋</div>
+        <div style={{ marginBottom: 12, opacity: 0.4 }}><Icon role="task" size={24} /></div>
         <div style={{ fontSize: 13 }}>{t('在左侧任务区点击 tab 查看详情')}</div>
       </div>
     );
@@ -38,7 +39,7 @@ export function TabDetailPreview() {
           gap: 8,
         }}
       >
-        <span style={{ fontSize: 18 }}>{tab.icon || '📄'}</span>
+        <span style={{ display: 'inline-flex' }}>{tab.icon ?? <Icon role="document" size={20} />}</span>
         {tab.title}
       </div>
 

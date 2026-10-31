@@ -1,11 +1,8 @@
 import React from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
-import { Button, Empty, Typography } from 'antd';
+import { Button, Empty } from 'antd';
 import { QAPage } from '@/modules/qa/pages/QAPage';
 import { useI18n } from '@/modules/shared/hooks/useI18n';
-
-const { Text } = Typography;
-
 export function AgentChat() {
   const { agentId } = useParams<{ agentId: string }>();
   const navigate = useNavigate();

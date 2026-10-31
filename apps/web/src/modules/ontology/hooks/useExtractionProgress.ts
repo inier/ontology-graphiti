@@ -53,7 +53,8 @@ export function useExtractionProgress(sessionId: string | null) {
         }
       }
     } catch (e) {
-      setError(e instanceof Error ? e.message : 'Unknown error');
+      const errMessage = e instanceof Error ? e.message : String(e);
+      setError(e instanceof Error ? errMessage : 'Unknown error');
     } finally {
       setIsLoading(false);
     }
@@ -71,10 +72,12 @@ export function useExtractionProgress(sessionId: string | null) {
   }, [sessionId]);
 
   useEffect(() => {
-    if (sessionId) {
-      getStatus();
-      subscribe();
-    }
+        void (async () => {
+      if (sessionId) {
+        getStatus();
+        subscribe();
+      }
+    })();
 
     return () => {
       if (eventSourceRef.current) {

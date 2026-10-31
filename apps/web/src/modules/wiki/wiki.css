@@ -1,0 +1,313 @@
+/* ============================================================
+   LLM Wiki 模块样式（全部引用 design-tokens，零硬编码色值）
+   ============================================================ */
+
+.wiki-page {
+  display: flex;
+  flex-direction: column;
+  gap: var(--odap-space-4);
+  max-width: var(--odap-container-max);
+}
+
+/* ── mock 横幅：显式标注"演示数据"，绝不冒充真实后端返回 ── */
+.wiki-banner {
+  display: flex;
+  align-items: center;
+  gap: var(--odap-space-2);
+  padding: var(--odap-space-2) var(--odap-space-3);
+  border-radius: var(--odap-radius-md);
+  border: 1px solid var(--odap-color-warn);
+  background: var(--odap-color-warn-bg);
+  color: var(--odap-color-warn);
+  font-size: var(--odap-font-size-xs);
+  letter-spacing: var(--odap-tracking-wide);
+}
+
+/* ── 工具栏 ── */
+.wiki-toolbar {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--odap-space-3);
+  padding: var(--odap-space-3);
+  background: var(--odap-color-surface);
+  border: 1px solid var(--odap-color-border);
+  border-radius: var(--odap-radius-lg);
+}
+
+.wiki-toolbar__spacer { flex: 1 1 auto; }
+
+/* ── 主从布局 ── */
+.wiki-grid {
+  display: grid;
+  gap: var(--odap-space-4);
+  grid-template-columns: minmax(0, 1fr);
+}
+
+@media (min-width: 1280px) {
+  .wiki-grid--split {
+    grid-template-columns: minmax(0, 1fr) var(--odap-inspector-width);
+    align-items: start;
+  }
+}
+
+/* ── 卡片视图 ── */
+.wiki-card-list {
+  display: grid;
+  gap: var(--odap-space-3);
+  grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+}
+
+.wiki-card {
+  display: flex;
+  flex-direction: column;
+  gap: var(--odap-space-2);
+  padding: var(--odap-space-4);
+  background: var(--odap-card-bg);
+  border: var(--odap-card-border);
+  border-radius: var(--odap-card-radius);
+  transition:
+    border-color var(--odap-duration-fast) var(--odap-ease-standard),
+    box-shadow var(--odap-duration-fast) var(--odap-ease-standard);
+  cursor: pointer;
+}
+
+.wiki-card:hover {
+  border-color: var(--odap-card-hover-border);
+  box-shadow: var(--odap-elevation-sm);
+}
+
+.wiki-card__title {
+  font-size: var(--odap-font-size-base);
+  font-weight: var(--odap-font-weight-emphasize);
+  line-height: var(--odap-leading-snug);
+  color: var(--odap-color-fg);
+  letter-spacing: var(--odap-tracking-tight);
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+
+.wiki-meta {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--odap-space-2);
+  font-size: var(--odap-font-size-2xs);
+  color: var(--odap-color-fg-muted);
+}
+
+.wiki-meta__num {
+  font-family: var(--odap-font-mono);
+  font-variant-numeric: tabular-nums;
+  color: var(--odap-color-fg-secondary);
+}
+
+/* ── 阅读器 ── */
+.wiki-reader {
+  padding: var(--odap-space-6);
+  background: var(--odap-color-surface);
+  border: 1px solid var(--odap-color-border);
+  border-radius: var(--odap-radius-lg);
+  max-width: var(--odap-content-max);
+  font-size: var(--odap-font-size-base);
+  line-height: var(--odap-leading-relaxed);
+  color: var(--odap-color-fg);
+}
+
+.wiki-reader h1 {
+  font-family: var(--odap-font-display);
+  font-size: var(--odap-font-size-3xl);
+  font-weight: var(--odap-font-weight-announce);
+  letter-spacing: var(--odap-tracking-tight);
+  line-height: var(--odap-leading-tight);
+  margin-bottom: var(--odap-space-4);
+}
+
+.wiki-reader h2 {
+  font-size: var(--odap-font-size-xl);
+  font-weight: var(--odap-font-weight-emphasize);
+  margin: var(--odap-space-5) 0 var(--odap-space-2);
+}
+
+.wiki-reader p { margin-bottom: var(--odap-space-3); max-width: 72ch; }
+.wiki-reader li { margin-left: var(--odap-space-5); margin-bottom: var(--odap-space-1); }
+.wiki-reader code {
+  font-family: var(--odap-font-mono);
+  font-size: var(--odap-font-size-sm);
+  background: var(--odap-code-bg);
+  color: var(--odap-code-keyword);
+  border-radius: var(--odap-code-radius);
+  padding: 1px var(--odap-space-1);
+}
+
+/* ── 检查器 ── */
+.wiki-inspector {
+  position: sticky;
+  top: var(--odap-space-4);
+  padding: var(--odap-space-4);
+  background: var(--odap-color-surface);
+  border: 1px solid var(--odap-color-border);
+  border-radius: var(--odap-radius-lg);
+}
+
+/* ── 版本时间线（竖向，节点为图标，不用侧条纹） ── */
+.wiki-timeline { display: flex; flex-direction: column; gap: var(--odap-space-3); }
+
+.wiki-timeline__item {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr);
+  gap: var(--odap-space-3);
+  align-items: start;
+}
+
+.wiki-timeline__rail {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: var(--odap-space-1);
+  color: var(--odap-color-accent);
+}
+
+.wiki-timeline__line {
+  width: 1px;
+  flex: 1 1 auto;
+  min-height: var(--odap-space-6);
+  background: var(--odap-color-border);
+}
+
+.wiki-timeline__version {
+  font-family: var(--odap-font-mono);
+  font-size: var(--odap-font-size-xs);
+  color: var(--odap-color-fg);
+}
+
+.wiki-timeline__note {
+  font-size: var(--odap-font-size-xs);
+  color: var(--odap-color-fg-secondary);
+  line-height: var(--odap-leading-snug);
+}
+
+/* ── 引用图（列表形态，不引入新图库） ── */
+.wiki-ref-group { display: flex; flex-direction: column; gap: var(--odap-space-2); }
+
+.wiki-ref-group__title {
+  font-size: var(--odap-font-size-2xs);
+  letter-spacing: var(--odap-tracking-caps);
+  color: var(--odap-color-fg-muted);
+}
+
+.wiki-ref-item {
+  display: flex;
+  align-items: center;
+  gap: var(--odap-space-2);
+  padding: var(--odap-space-2);
+  border-radius: var(--odap-radius-sm);
+  border: 1px solid var(--odap-color-border-subtle);
+  background: var(--odap-color-bg-subtle);
+  font-size: var(--odap-font-size-xs);
+  color: var(--odap-color-fg-secondary);
+}
+
+.wiki-ref-item__ref {
+  font-family: var(--odap-font-mono);
+  font-size: var(--odap-font-size-2xs);
+  color: var(--odap-color-fg-muted);
+}
+
+/* ── 去重左右对照 ── */
+.wiki-diff {
+  display: grid;
+  gap: var(--odap-space-3);
+  grid-template-columns: minmax(0, 1fr);
+}
+
+@media (min-width: 1024px) {
+  .wiki-diff { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+}
+
+.wiki-diff__col {
+  padding: var(--odap-space-4);
+  background: var(--odap-color-surface);
+  border: 1px solid var(--odap-color-border);
+  border-radius: var(--odap-radius-lg);
+  min-width: 0;
+}
+
+.wiki-diff__col--conflict { border-color: var(--odap-color-warn); background: var(--odap-color-warn-bg); }
+
+.wiki-diff__label {
+  font-size: var(--odap-font-size-2xs);
+  letter-spacing: var(--odap-tracking-caps);
+  color: var(--odap-color-fg-muted);
+  margin-bottom: var(--odap-space-2);
+}
+
+.wiki-diff__field {
+  display: flex;
+  align-items: baseline;
+  gap: var(--odap-space-2);
+  padding: var(--odap-space-1) 0;
+  border-bottom: 1px solid var(--odap-color-border-subtle);
+  font-size: var(--odap-font-size-xs);
+}
+
+.wiki-diff__field--conflict { color: var(--odap-color-warn); font-weight: var(--odap-font-weight-medium); }
+
+/* ── 状态块（Loading / Empty / Error） ── */
+.wiki-state {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: var(--odap-space-3);
+  padding: var(--odap-space-12) var(--odap-space-6);
+  text-align: center;
+  border: 1px dashed var(--odap-color-border-strong);
+  border-radius: var(--odap-radius-lg);
+  background: var(--odap-color-bg-subtle);
+}
+
+.wiki-state__title {
+  font-size: var(--odap-font-size-lg);
+  font-weight: var(--odap-font-weight-emphasize);
+  color: var(--odap-color-fg);
+}
+
+.wiki-state__desc {
+  font-size: var(--odap-font-size-sm);
+  color: var(--odap-color-fg-muted);
+  max-width: 60ch;
+}
+
+/* 错误态必须可诊断：error_code 用等宽字体单列 */
+.wiki-state__code {
+  font-family: var(--odap-font-mono);
+  font-size: var(--odap-font-size-xs);
+  color: var(--odap-color-danger);
+  background: var(--odap-color-danger-bg);
+  border: 1px solid var(--odap-color-danger);
+  border-radius: var(--odap-radius-xs);
+  padding: 2px var(--odap-space-2);
+}
+
+.wiki-state__trace {
+  font-family: var(--odap-font-mono);
+  font-size: var(--odap-font-size-2xs);
+  color: var(--odap-color-fg-subtle);
+}
+
+.wiki-skeleton {
+  height: var(--odap-space-16);
+  border-radius: var(--odap-radius-md);
+  background: var(--odap-skeleton-bg);
+  animation: odap-shimmer var(--odap-duration-loop) var(--odap-ease-linear) infinite;
+  background-image: linear-gradient(
+    90deg,
+    var(--odap-skeleton-bg) 0%,
+    var(--odap-skeleton-highlight) 40%,
+    var(--odap-skeleton-bg) 80%
+  );
+  background-size: 200% 100%;
+}

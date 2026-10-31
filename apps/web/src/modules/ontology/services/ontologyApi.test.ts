@@ -167,7 +167,7 @@ describe('ontologyApi - Instance CRUD', () => {
     const data = { name: 'Charlie' };
     mockFetchResponse({ ...mockInstance, properties: { name: 'Charlie' } });
 
-    const result = await ontologyApi.updateInstance('doc-1', 'type-1', 'inst-1', data);
+    await ontologyApi.updateInstance('doc-1', 'type-1', 'inst-1', data);
     expect(fetch).toHaveBeenCalledWith(
       `${BASE}/doc-1/entity-types/type-1/instances/inst-1`,
       expect.objectContaining({
@@ -250,7 +250,7 @@ describe('ontologyApi.ontologies - CRUD', () => {
   it('list calls GET /api/ontologies', async () => {
     mockFetchResponse([]);
 
-    const result = await ontologyApi.ontologies.list();
+    await ontologyApi.ontologies.list();
     expect(fetch).toHaveBeenCalledWith(
       expect.stringContaining('/api/ontologies'),
       expect.objectContaining({ method: 'GET' }),

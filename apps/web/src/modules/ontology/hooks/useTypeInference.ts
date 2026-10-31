@@ -89,9 +89,10 @@ export function useTypeInference(): UseTypeInferenceResult {
         constraints: result.constraints,
       });
     } catch (err) {
+      const errMessage = err instanceof Error ? err.message : String(err);
       if (controller.signal.aborted) return;
       // 静默失败：AI 推断不可用不应阻断手动编辑
-      const msg = err instanceof Error ? err.message : String(err);
+      const msg = err instanceof Error ? errMessage : String(err);
       setError(msg);
       setInference(null);
     } finally {
@@ -127,8 +128,9 @@ export function useTypeInference(): UseTypeInferenceResult {
         const result = await ontologyApi.aiAssistant.suggestConstraints(propertyName, dataType);
         setConstraintSuggestions(result.constraints || []);
       } catch (err) {
+        const errMessage = err instanceof Error ? err.message : String(err);
         // 静默失败
-        const msg = err instanceof Error ? err.message : String(err);
+        const msg = err instanceof Error ? errMessage : String(err);
         setError(msg);
         setConstraintSuggestions([]);
       } finally {

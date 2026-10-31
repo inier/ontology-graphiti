@@ -1,27 +1,64 @@
 import { useState, useEffect, useCallback } from 'react';
 import { Card, Tabs, Button, Space, Input, Upload, message, Tag, Descriptions, Spin, Drawer, Empty, Typography, Row, Col, Steps, Timeline, Select, Statistic, Progress, Alert } from 'antd';
-import { UploadOutlined, SyncOutlined, CheckCircleOutlined, LoadingOutlined, DatabaseOutlined, ApiOutlined, RobotOutlined, CloudServerOutlined, GitlabOutlined, FolderOutlined, PlusOutlined, EyeOutlined, SwapOutlined, CheckCircleFilled, CloseCircleFilled, SearchOutlined, GlobalOutlined } from '@ant-design/icons';
+import type { UploadProps } from 'antd';
+import { UploadOutlined, SyncOutlined, LoadingOutlined, DatabaseOutlined, ApiOutlined, RobotOutlined, CloudServerOutlined, GitlabOutlined, FolderOutlined, PlusOutlined, EyeOutlined, SwapOutlined, CheckCircleFilled, CloseCircleFilled } from '@ant-design/icons';
 import { api } from '@/modules/shared';
 import { useScenario, useWorkspace } from '@/modules/shared';
 import { useBuildProgress } from '../hooks';
 import WebSearchPanel from '../components/WebSearchPanel';
 import WebCrawlPanel from '../components/WebCrawlPanel';
+import BatchImporter from '../components/BatchImporter';
 import { PageTourWrapper, ingestTourSteps, PAGE_IDS } from '@/modules/guide';
 import { AdvancedTable } from '@/modules/shared';
 import { useI18n } from '@/modules/shared/hooks/useI18n';
+import { getLogError } from '../utils/logError';
 const { Dragger } = Upload;
 const { TextArea } = Input;
 const { Text, Paragraph } = Typography;
+
+type StepAudit = { start_time?: string; end_time?: string; duration_ms?: number };
+
+/** 步骤明细：后端把 input/output/_audit/error 混在同一个 JSONB 里下发 */
+type StepDetails = {
+  input?: unknown;
+  output?: unknown;
+  _audit?: StepAudit;
+  error?: unknown;
+};
 
 interface ProcessLog {
   id: string;
   timestamp: string;
   stage: 'collection' | 'cleaning' | 'llm' | 'ontology' | 'version' | 'graph';
   operation: string;
-  details: Record<string, any>;
+  details: StepDetails;
   status: 'pending' | 'processing' | 'completed' | 'failed';
   error_message?: string;
   duration_ms?: number;
+}
+
+/** 后端 /api/ontology/ingest/{id}/full 返回的原始日志条目 */
+type RawProcessLog = Awaited<ReturnType<typeof api.getFullIngestRecord>>['logs'][number];
+
+/** 收窄 _audit：字段存在时必须是期望的标量类型，否则视为缺失 */
+function isStepAudit(value: unknown): value is StepAudit {
+  if (typeof value !== 'object' || value === null) return false;
+  const v = value as Record<string, unknown>;
+  return (
+    (v.start_time === undefined || typeof v.start_time === 'string') &&
+    (v.end_time === undefined || typeof v.end_time === 'string') &&
+    (v.duration_ms === undefined || typeof v.duration_ms === 'number')
+  );
+}
+
+function toStepDetails(raw: Record<string, unknown> | undefined): StepDetails {
+  const source = raw ?? {};
+  return {
+    input: source.input,
+    output: source.output,
+    error: source.error,
+    _audit: isStepAudit(source._audit) ? source._audit : undefined,
+  };
 }
 
 interface IngestRecord {
@@ -91,20 +128,9 @@ const STAGE_COLORS: Record<string, string> = {
   graph: 'red',
 };
 
-/**
- * 提取日志的错误原因。
- * 后端有两个来源：ProcessLog.error_message（顶层字段）与 details.error（异常字符串），
- * 两者可能只有其一存在，这里统一兜底，确保失败原因不丢失。
- */
-export function getLogError(log: Pick<ProcessLog, 'error_message' | 'details'>): string | undefined {
-  const fromDetails = log.details && typeof log.details.error === 'string' ? log.details.error : undefined;
-  const raw = log.error_message || fromDetails;
-  return raw ? String(raw) : undefined;
-}
-
 /** 把 API 返回的原始日志标准化为 ProcessLog，保留 error_message */
-function normalizeLog(log: any): ProcessLog {
-  const details: Record<string, any> = log.details || {};
+function normalizeLog(log: RawProcessLog): ProcessLog {
+  const details = toStepDetails(log.details);
   return {
     id: log.id,
     timestamp: log.timestamp,
@@ -112,7 +138,7 @@ function normalizeLog(log: any): ProcessLog {
     operation: log.operation,
     details,
     status: log.status as ProcessLog['status'],
-    error_message: log.error_message || (typeof details.error === 'string' ? details.error : undefined),
+    error_message: log.error_message || getLogError({ details }),
     duration_ms: log.duration_ms,
   };
 }
@@ -124,15 +150,6 @@ function collectFailedLogs(build: BuildDetail | null): ProcessLog[] {
     .flatMap(stage => stage.logs)
     .filter(log => log.status === 'failed' || getLogError(log));
 }
-
-const _PIPELINE_DESCRIPTIONS: Record<string, string> = {
-  collection: '从多个数据源收集原始数据',
-  cleaning: '清洗和标准化原始数据',
-  llm: '使用大语言模型提取结构化信息',
-  ontology: '生成OntologyDocument并验证',
-  version: '创建版本记录并存储',
-  graph: '构建Neo4j图谱',
-};
 
 export function IngestPanel() {
   const { t } = useI18n();
@@ -174,12 +191,9 @@ export function IngestPanel() {
   const [buildDetailVisible, setBuildDetailVisible] = useState(false);
   const [currentBuild, setCurrentBuild] = useState<BuildDetail | null>(null);
   const [buildingIngestId, setBuildingIngestId] = useState<string | null>(null);
-  const [uploadLoading, setUploadLoading] = useState(false);
+  const [, setUploadLoading] = useState(false);
 
-  useEffect(() => {
-    loadHistory();
-    loadGeneratorTypes();
-  }, [currentScenario]);
+  
 
   const loadHistory = useCallback(async () => {
     setLoadingHistory(true);
@@ -195,6 +209,8 @@ export function IngestPanel() {
     }
   }, [currentScenario]);
 
+  
+
   const loadGeneratorTypes = async () => {
     try {
       const result = await api.getRandomGeneratorTypes();
@@ -206,6 +222,15 @@ export function IngestPanel() {
       console.error('加载生成器类型失败:', error);
     }
   };
+
+  useEffect(() => {
+        void (async () => {
+      loadHistory();
+    })();
+        void (async () => {
+      loadGeneratorTypes();
+    })();
+  }, [currentScenario]);
 
   const runBuildPipeline = async (ingestId: string, source: string) => {
     setBuildingIngestId(ingestId);
@@ -326,7 +351,8 @@ export function IngestPanel() {
 
       message.success(t('构建完成！'));
     } catch (error) {
-      const reason = error instanceof Error ? error.message : String(error);
+      const errMessage = error instanceof Error ? error.message : String(error);
+      const reason = error instanceof Error ? errMessage : String(error);
       console.error('Build pipeline failed:', error);
       message.error(t('构建失败: {{reason}}', { reason }));
     } finally {
@@ -334,7 +360,7 @@ export function IngestPanel() {
     }
   };
 
-  const getStepDetails = (stage: string, index: number): Record<string, any> => {
+  const getStepDetails = (stage: string): StepDetails => {
     const mockTexts: Record<string, { input: string; output: string }> = {
       collection: {
         input: '{"source": "manual", "format": "text/plain"}',
@@ -400,7 +426,7 @@ export function IngestPanel() {
     }
   };
 
-  const formatStepDetails = (details: Record<string, any>) => {
+  const formatStepDetails = (details: StepDetails) => {
     if (!details) return null;
 
     const { input, output, _audit, error } = details;
@@ -430,7 +456,7 @@ export function IngestPanel() {
         )}
 
         {/* 审计信息 - 时间回溯 */}
-        {_audit && (
+        {_audit ? (
           <div style={{ marginBottom: 6, paddingLeft: 8, borderLeft: '2px solid #d9d9d9' }}>
             <Text strong style={{ color: '#722ed1' }}>{t('审计信息:')}</Text>
             <div style={{ marginTop: 2, fontSize: 10 }}>
@@ -454,10 +480,10 @@ export function IngestPanel() {
               )}
             </div>
           </div>
-        )}
+        ) : null}
 
         {/* 输入输出信息 */}
-        {input && (
+        {input != null && (
           <div style={{ marginBottom: 4 }}>
             <Text strong style={{ color: '#1890ff' }}>{t('输入:')}</Text>
             <pre style={{ margin: '2px 0 0 8px', fontSize: 10 }}>
@@ -465,7 +491,7 @@ export function IngestPanel() {
             </pre>
           </div>
         )}
-        {output && (
+        {output != null && (
           <div>
             <Text strong style={{ color: '#52c41a' }}>{t('输出:')}</Text>
             <pre style={{ margin: '2px 0 0 8px', fontSize: 10 }}>
@@ -492,7 +518,7 @@ export function IngestPanel() {
       message.success(t('文本摄入成功，摄入ID: {{id}}', { id: result.ingest_id }));
       setText('');
       await loadHistory();
-    } catch (error) {
+    } catch {
       message.error(t('文本摄入失败'));
     } finally {
       setLoading(false);
@@ -514,7 +540,7 @@ export function IngestPanel() {
       message.success(t('新闻摄入成功，摄入ID: {{id}}', { id: result.ingest_id }));
       setUrl('');
       await loadHistory();
-    } catch (error) {
+    } catch {
       message.error(t('新闻摄入失败'));
     } finally {
       setLoading(false);
@@ -536,7 +562,7 @@ export function IngestPanel() {
       message.success(t('JSON摄入成功，摄入ID: {{id}}', { id: result.ingest_id }));
       setJsonData('');
       await loadHistory();
-    } catch (error) {
+    } catch {
       message.error(t('JSON摄入失败'));
     } finally {
       setLoading(false);
@@ -558,7 +584,7 @@ export function IngestPanel() {
       message.success(t('自然语言摄入成功，摄入ID: {{id}}', { id: result.ingest_id }));
       setNlDescription('');
       await loadHistory();
-    } catch (error) {
+    } catch {
       message.error(t('自然语言摄入失败'));
     } finally {
       setLoading(false);
@@ -578,7 +604,7 @@ export function IngestPanel() {
       });
       message.success(t('随机事件生成成功，摄入ID: {{id}}', { id: result.ingest_id }));
       await loadHistory();
-    } catch (error) {
+    } catch {
       message.error(t('随机事件生成失败'));
     } finally {
       setLoading(false);
@@ -600,27 +626,29 @@ export function IngestPanel() {
       message.success(t('手动录入成功，摄入ID: {{id}}', { id: result.ingest_id }));
       setManualData({ title: '', description: '' });
       await loadHistory();
-    } catch (error) {
+    } catch {
       message.error(t('手动录入失败'));
     } finally {
       setLoading(false);
     }
   };
 
-  const uploadProps = {
+  const uploadProps: UploadProps = {
     name: 'file',
     multiple: false,
-    customRequest: async (options: any) => {
+    customRequest: async (options) => {
       const { file, onSuccess, onError } = options;
+      // UploadRequestFile 可能是 string / Blob / RcFile，取展示名时需按类型区分
+      const fileName = typeof file === 'string' ? file : 'name' in file ? String(file.name) : 'file';
       try {
         setUploadLoading(true);
         await api.ingestFile(file, currentScenario || undefined);
-        onSuccess();
-        message.success(t('{{name}} 文件上传成功', { name: file.name }));
+        onSuccess?.({}, file);
+        message.success(t('{{name}} 文件上传成功', { name: fileName }));
         await loadHistory();
-      } catch (error) {
-        onError();
-        message.error(t('{{name}} 文件上传失败', { name: file.name }));
+      } catch (err) {
+        onError?.(err instanceof Error ? err : new Error(String(err)));
+        message.error(t('{{name}} 文件上传失败', { name: fileName }));
       } finally {
         setUploadLoading(false);
       }
@@ -721,7 +749,7 @@ export function IngestPanel() {
           timestamp: record.end_time || record.start_time,
           stage: s.key as ProcessLog['stage'],
           operation: t('{{stage}}完成', { stage: s.title }),
-          details: getStepDetails(s.key, 0),
+          details: getStepDetails(s.key),
           status: 'completed' as const,
           duration_ms: 500,
         }] : []
@@ -854,8 +882,6 @@ export function IngestPanel() {
       render: (_: unknown, record: IngestRecord) => {
         const hasBuild = record.builds && record.builds.length > 0;
         // 使用根级的 build_status 字段更准确
-        const buildFailed = record.build_status === 'failed';
-
         return (
           <Space>
             <Button
@@ -957,6 +983,13 @@ export function IngestPanel() {
           </Space>
         </Card>
       ),
+    },
+    {
+      // 结构化批量导入：CSV/JSON 文件 → 指定对象类型（/api/ontology/ingestion/batch）。
+      // 与上面「JSON数据」的区别：这是文件 + 目标类型 + 逐行错误回执，适合系统表/指标落库。
+      key: 'batch',
+      label: t('批量导入'),
+      children: <BatchImporter workspaceId={currentWorkspace} />,
     },
     {
       key: 'natural_language',

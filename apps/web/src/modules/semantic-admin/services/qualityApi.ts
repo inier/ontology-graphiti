@@ -1,6 +1,6 @@
 import { fetchJson } from '@/modules/shared/services/apiClient';
 import { API_BASE } from '@/config';
-import type { QualityReport, DashboardResponse } from '../types';
+import type { QualityReport } from '../types';
 
 const URL_PREFIX = `${API_BASE}/api/semantic-admin`;
 
@@ -23,7 +23,8 @@ export async function getQualityReport(
       `${URL_PREFIX}/quality-gate/reports/${encodeURIComponent(candidateId)}${buildQuery({ force })}`,
     );
   } catch (e) {
-    const msg = e instanceof Error ? e.message : String(e);
+    const errMessage = e instanceof Error ? e.message : String(e);
+    const msg = e instanceof Error ? errMessage : String(e);
     throw new Error(`Failed to get quality report: ${msg}`);
   }
 }
@@ -32,56 +33,16 @@ export async function batchEvaluateReports(
   candidate_ids: string[],
   sync: boolean = true,
   actor_id: string = '',
-): Promise<any> {
+): Promise<unknown> {
   try {
-    return await fetchJson<any>(`${URL_PREFIX}/quality-gate/reports`, {
+    return await fetchJson<unknown>(`${URL_PREFIX}/quality-gate/reports`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ candidate_ids, sync, actor_id }),
     });
   } catch (e) {
-    const msg = e instanceof Error ? e.message : String(e);
+    const errMessage = e instanceof Error ? e.message : String(e);
+    const msg = e instanceof Error ? errMessage : String(e);
     throw new Error(`Failed to batch evaluate reports: ${msg}`);
-  }
-}
-
-export async function getDashboardSummary(
-  workspace_id?: string,
-): Promise<DashboardResponse> {
-  try {
-    return await fetchJson<DashboardResponse>(
-      `${URL_PREFIX}/dashboard/summary${buildQuery({ workspace_id })}`,
-    );
-  } catch (e) {
-    const msg = e instanceof Error ? e.message : String(e);
-    throw new Error(`Failed to get dashboard summary: ${msg}`);
-  }
-}
-
-export async function getDashboardTermsTrend(
-  days: number = 30,
-  domain_id?: string,
-  workspace_id?: string,
-): Promise<DashboardResponse> {
-  try {
-    return await fetchJson<DashboardResponse>(
-      `${URL_PREFIX}/dashboard/terms-trend${buildQuery({ days, domain_id, workspace_id })}`,
-    );
-  } catch (e) {
-    const msg = e instanceof Error ? e.message : String(e);
-    throw new Error(`Failed to get dashboard terms trend: ${msg}`);
-  }
-}
-
-export async function getDashboardApprovalsBreakdown(
-  workspace_id?: string,
-): Promise<DashboardResponse> {
-  try {
-    return await fetchJson<DashboardResponse>(
-      `${URL_PREFIX}/dashboard/approvals-breakdown${buildQuery({ workspace_id })}`,
-    );
-  } catch (e) {
-    const msg = e instanceof Error ? e.message : String(e);
-    throw new Error(`Failed to get dashboard approvals breakdown: ${msg}`);
   }
 }

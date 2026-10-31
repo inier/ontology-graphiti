@@ -1,4 +1,34 @@
 import { useState, useEffect, useRef, useCallback } from 'react';
+import type { UploadFile } from 'antd';
+
+declare global {
+  interface Window {
+    /** 运行时按需加载的 echarts 实例（避免首屏体积） */
+    echarts?: typeof import('echarts');
+  }
+}
+
+/** ECharts tooltip 回调里实际用到的字段（图谱节点/边） */
+type GraphTooltipParams = {
+  dataType?: 'node' | 'edge';
+  data: {
+    id?: string;
+    name?: string;
+    source?: string;
+    target?: string;
+    label?: { formatter?: string };
+  };
+};
+
+/** antd UploadFile.originFileObj 的运行时类型（File + uid） */
+type UploadOriginFile = NonNullable<UploadFile['originFileObj']>;
+
+const UPLOAD_TABS = ['file', 'online_doc', 'text', 'web'] as const;
+type UploadTab = (typeof UPLOAD_TABS)[number];
+
+function isUploadTab(value: unknown): value is UploadTab {
+  return typeof value === 'string' && (UPLOAD_TABS as readonly string[]).includes(value);
+}
 
 import {
 
@@ -7,9 +37,9 @@ import {
 
   Space, Tag, Tooltip, Tree, Upload, Tabs, Progress, Spin,
 
-  Empty, Divider, Select, Radio, Descriptions, Badge, Drawer,
+  Empty, Divider, Select, Descriptions, Badge, Drawer,
 
-  List, Typography, Alert, Row, Col, Statistic,
+  Typography, Alert, 
 
 } from 'antd';
 
@@ -17,18 +47,15 @@ import {
 
   PlusOutlined, SearchOutlined, EditOutlined, DeleteOutlined,
 
-  FolderOutlined, FileOutlined, UploadOutlined, GlobalOutlined,
+  FolderOutlined, FileOutlined, GlobalOutlined,
 
   FileTextOutlined, LinkOutlined, BuildOutlined, EyeOutlined,
 
-  RobotOutlined, ArrowLeftOutlined, InboxOutlined, DatabaseOutlined,
+  ArrowLeftOutlined, InboxOutlined, DatabaseOutlined,
 
-  BookOutlined, TagOutlined, BarChartOutlined, ApartmentOutlined, ReloadOutlined,
+  BookOutlined, ApartmentOutlined, ReloadOutlined,
 
 } from '@ant-design/icons';
-
-import type { UploadProps } from 'antd';
-
 import { knowledgeApi } from '../services/knowledgeApi';
 
 import type {
@@ -44,6 +71,7 @@ import { EmptyState } from '@/modules/shared/components/organisms';
 import { useWorkspace } from '@/modules/shared/components/LayoutContexts';
 import { AdvancedTable, DocumentViewer } from '@/modules/shared';
 import { useI18n } from '@/modules/shared/hooks/useI18n';
+import type { ECharts } from 'echarts';
 
 
 
@@ -135,7 +163,7 @@ export function KnowledgeBase() {
 
   const [uploadTab, setUploadTab] = useState<'file' | 'online_doc' | 'text' | 'web'>('file');
 
-  const [uploadFile, setUploadFile] = useState<File | null>(null);
+  const [uploadFile, setUploadFile] = useState<UploadOriginFile | null>(null);
 
   const [buildProgress, setBuildProgress] = useState<Record<string, number>>({});
 
@@ -153,7 +181,7 @@ export function KnowledgeBase() {
 
   const graphChartRef = useRef<HTMLDivElement>(null);
 
-  const echartsInstanceRef = useRef<any>(null);
+  const echartsInstanceRef = useRef<ECharts | null>(null);
 
   const MIME_FRIENDLY: Record<string, string> = {
     'application/pdf': 'PDF',
@@ -189,11 +217,7 @@ export function KnowledgeBase() {
 
 
 
-  useEffect(() => {
-
-    loadKnowledgeBases();
-
-  }, []);
+  
 
   // 组件卸载时清理 ECharts 实例
   useEffect(() => {
@@ -217,7 +241,7 @@ export function KnowledgeBase() {
 
       setKnowledgeBases(data);
 
-    } catch (e) {
+    } catch {
 
       message.error(t('加载知识库列表失败'));
 
@@ -228,6 +252,14 @@ export function KnowledgeBase() {
     }
 
   };
+
+  useEffect(() => {
+
+        void (async () => {
+      loadKnowledgeBases();
+    })();
+
+  }, []);
 
 
 
@@ -315,7 +347,7 @@ export function KnowledgeBase() {
 
       loadKnowledgeBases();
 
-    } catch (e) {
+    } catch {
 
       message.error(t('保存失败'));
 
@@ -335,7 +367,7 @@ export function KnowledgeBase() {
 
       loadKnowledgeBases();
 
-    } catch (e) {
+    } catch {
 
       message.error(t('删除失败'));
 
@@ -465,7 +497,7 @@ export function KnowledgeBase() {
 
       loadKnowledgeBases();
 
-    } catch (e) {
+    } catch {
 
       message.error(t('上传失败'));
 
@@ -481,7 +513,7 @@ export function KnowledgeBase() {
 
       setBuildProgress(prev => ({ ...prev, [doc.doc_id]: 0 }));
 
-      const result = await knowledgeApi.buildGraph({
+      await knowledgeApi.buildGraph({
 
         doc_id: doc.doc_id,
 
@@ -521,7 +553,7 @@ export function KnowledgeBase() {
 
       }, 500);
 
-    } catch (e) {
+    } catch {
 
       message.error(t('图谱构建失败'));
 
@@ -561,7 +593,8 @@ export function KnowledgeBase() {
           loadDocuments(doc.kb_id, selectedCategory || undefined);
         }
       }, 500);
-    } catch (e: any) {
+    } catch (e) {
+      const errMessage = e instanceof Error ? e.message : String(e);
       setRebuildLoading(prev => {
         const next = { ...prev };
         delete next[doc.doc_id];
@@ -574,7 +607,7 @@ export function KnowledgeBase() {
         return next;
       });
 
-      if (e?.message === 'timeout') {
+      if (errMessage === 'timeout') {
         message.error(t('重新构建超时，请稍后重试'));
       } else {
         message.error(t('重新构建失败'));
@@ -598,25 +631,9 @@ export function KnowledgeBase() {
     }
   };
 
-  const renderGraph = useCallback((data: KbGraphData) => {
-    if (!graphChartRef.current) return;
-    // 清理旧实例
-    if (echartsInstanceRef.current) {
-      echartsInstanceRef.current.dispose();
-    }
-    const echarts = (window as any).echarts;
-    if (!echarts) {
-      // 动态加载 echarts
-      import('echarts').then((ec) => {
-        (window as any).echarts = ec;
-        doRender(ec, data);
-      });
-      return;
-    }
-    doRender(echarts, data);
-  }, []);
+  
 
-  const doRender = (echarts: any, data: KbGraphData) => {
+  const doRender = (echarts: typeof import('echarts'), data: KbGraphData) => {
     if (!graphChartRef.current) return;
     const chart = echarts.init(graphChartRef.current);
     echartsInstanceRef.current = chart;
@@ -651,7 +668,7 @@ export function KnowledgeBase() {
     chart.setOption({
       tooltip: {
         trigger: 'item',
-        formatter: (params: any) => {
+        formatter: (params: GraphTooltipParams) => {
           if (params.dataType === 'node') {
             const node = data.nodes.find(n => n.id === params.data.id);
             return `<b>${node?.name || params.data.name}</b><br/>${t('类型')}: ${node?.type || '—'}`;
@@ -696,6 +713,24 @@ export function KnowledgeBase() {
     chart.on('disposed', () => window.removeEventListener('resize', resizeHandler));
   };
 
+  const renderGraph = useCallback((data: KbGraphData) => {
+    if (!graphChartRef.current) return;
+    // 清理旧实例
+    if (echartsInstanceRef.current) {
+      echartsInstanceRef.current.dispose();
+    }
+    const echarts = window.echarts;
+    if (!echarts) {
+      // 动态加载 echarts
+      import('echarts').then((ec) => {
+        window.echarts = ec;
+        doRender(ec, data);
+      });
+      return;
+    }
+    doRender(echarts, data);
+  }, []);
+
 
 
   const handleViewDoc = async (doc: KnowledgeDocument) => {
@@ -715,7 +750,7 @@ export function KnowledgeBase() {
             ? { ...prev, presigned_url: freshDoc.presigned_url }
             : prev);
         }
-      } catch {
+      } catch { /* 忽略：失败时保持当前状态 */ 
         // 静默降级：使用列表返回的 presigned_url
       }
     }
@@ -736,7 +771,7 @@ export function KnowledgeBase() {
 
       loadDocuments(currentKb.kb_id, selectedCategory || undefined);
 
-    } catch (e) {
+    } catch {
 
       message.error(t('删除失败'));
 
@@ -848,7 +883,7 @@ export function KnowledgeBase() {
 
         render: (status: string) => {
 
-          const statusMap: Record<string, { color: string; text: string }> = {
+          const statusMap: Record<string, { color: 'default' | 'success' | 'processing' | 'error' | 'warning'; text: string }> = {
 
             active: { color: 'success', text: t('正常') },
 
@@ -860,7 +895,7 @@ export function KnowledgeBase() {
 
           const s = statusMap[status] || { color: 'default', text: status };
 
-          return <Badge status={s.color as any} text={s.text} />;
+          return <Badge status={s.color} text={s.text} />;
 
         },
 
@@ -972,7 +1007,7 @@ export function KnowledgeBase() {
 
                 loadKnowledgeBases();
 
-              } catch (e) { message.error(t('加载示例数据失败')); }
+              } catch { message.error(t('加载示例数据失败')); }
 
             }}
 
@@ -1363,7 +1398,7 @@ export function KnowledgeBase() {
 
 
 
-            <Tabs activeKey={uploadTab} onChange={k => setUploadTab(k as any)} items={[
+            <Tabs activeKey={uploadTab} onChange={(k) => { if (isUploadTab(k)) setUploadTab(k); }} items={[
 
               {
 
@@ -1379,7 +1414,7 @@ export function KnowledgeBase() {
 
                     maxCount={1}
 
-                    fileList={uploadFile ? [{ uid: '-1', name: uploadFile.name, status: 'done', originFileObj: uploadFile as any }] : []}
+                    fileList={uploadFile ? [{ uid: '-1', name: uploadFile.name, status: 'done', originFileObj: uploadFile }] : []}
 
                     onRemove={() => setUploadFile(null)}
 

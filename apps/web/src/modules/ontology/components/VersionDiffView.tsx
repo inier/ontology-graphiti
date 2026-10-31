@@ -32,8 +32,6 @@ const CHANGE_COLORS: Record<string, string> = {
   deleted: 'red',
 };
 
-const CHANGE_TYPE_KEYS = ['added', 'modified', 'deleted'];
-
 /* ── Helper: extract diff items from a category ───────────────────── */
 
 function extractDiffItems(
@@ -174,7 +172,7 @@ export function VersionDiffView({ diffData, versionA, versionB }: VersionDiffVie
       <div style={{ marginBottom: 16 }}>
         <Space>
           <span style={{ fontWeight: 500 }}>
-            {t('diff.diffBetween', { a: versionA, b: versionB })}
+            {t('diff.diffBetween', { version1: versionA, version2: versionB })}
           </span>
           <Tag color="green">+{totalAdded} {t('新增')}</Tag>
           <Tag color="gold">~{totalModified} {t('修改')}</Tag>

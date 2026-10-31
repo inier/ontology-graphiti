@@ -1,20 +1,21 @@
-/* eslint-disable @typescript-eslint/no-explicit-any */
 import { useState, useCallback } from 'react';
 import {
-  Upload, Button, Space, Alert, Progress, message, Card, Spin,
+  Upload, Button, Space, Alert, Progress, message, Card, 
 } from 'antd';
+import type { UploadFile } from 'antd';
 import {
   InboxOutlined, FileTextOutlined, ClearOutlined,
 } from '@ant-design/icons';
 import { useI18n } from '@/modules/shared/hooks/useI18n';
 import { ontologyApi } from '../services/ontologyApi';
+import type { ExtractionSessionResult } from '../services/ontologyApi';
 import { useExtractionProgress } from '../hooks/useExtractionProgress';
 
 const { Dragger } = Upload;
 
 export interface DocumentUploaderProps {
   ontologyId: string;
-  onExtractionComplete?: (result: any) => void;
+  onExtractionComplete?: (result: ExtractionSessionResult | ExtractionSessionResult[]) => void;
 }
 
 const ACCEPTED_FORMATS = [
@@ -28,7 +29,7 @@ const MAX_FILE_SIZE_MB = 100;
 
 export function DocumentUploader({ ontologyId, onExtractionComplete }: DocumentUploaderProps) {
   const { t } = useI18n('ontology');
-  const [fileList, setFileList] = useState<any[]>([]);
+  const [fileList, setFileList] = useState<UploadFile[]>([]);
   const [uploading, setUploading] = useState(false);
   const [currentFileIndex, setCurrentFileIndex] = useState(0);
   const [sessionId, setSessionId] = useState<string>('');
@@ -59,12 +60,15 @@ export function DocumentUploader({ ontologyId, onExtractionComplete }: DocumentU
     setSessionId('');
 
     try {
-      const results: any[] = [];
+      const results: ExtractionSessionResult[] = [];
       for (let i = 0; i < fileList.length; i++) {
         setCurrentFileIndex(i);
         const formData = new FormData();
         formData.append('ontology_id', ontologyId);
-        formData.append('file', fileList[i].originFileObj || fileList[i]);
+        // antd 在 beforeUpload 返回 false 时把原始文件挂在 originFileObj 上
+        const originFile = fileList[i]?.originFileObj;
+        if (!originFile) continue;
+        formData.append('file', originFile);
 
         const result = await ontologyApi.extraction.extractDocument(formData);
         setSessionId(result?.session_id || '');

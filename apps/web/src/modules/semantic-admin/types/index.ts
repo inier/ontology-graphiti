@@ -306,7 +306,33 @@ export interface GraphitiWritebackStatus {
   /** Graphiti 类型 ID */
   type_id?: string;
   /** 原始 payload（可选） */
-  payload?: Record<string, any>;
+  payload?: Record<string, unknown>;
+}
+
+/**
+ * 候选术语溯源元数据（candidate.provenance）。
+ *
+ * 后端 `candidate_service` 在流水线、审批、双写回各阶段往里追加键，因此保留
+ * 开放索引位；已知键在此显式声明，避免页面上到处 `as string`。
+ */
+export interface CandidateProvenance {
+  [key: string]: unknown;
+  /** 抽取来源：llm / usl / hybrid / human / reasoning */
+  source?: string;
+  /** 推理链 ID（source=reasoning 时存在） */
+  chain_id?: string;
+  /** 引擎模式标记 */
+  engine_mode?: string;
+  /** USL 写回术语 ID */
+  writeback_usl_term_id?: string;
+  /** Graphiti（Ontology）双写回状态 */
+  graphiti_writeback?: GraphitiWritebackStatus;
+  /** 若 Graphiti 写入成功，自动创建或关联的 Ontology ID */
+  graphiti_ontology_id?: string;
+  /** 若 Graphiti 写入成功，写入的 ObjectType/LinkType/ActionType 等 ID */
+  graphiti_type_id?: string;
+  /** 操作人（admin ID） */
+  promoted_by_admin?: string;
 }
 
 export interface Candidate {
@@ -321,20 +347,8 @@ export interface Candidate {
   quality_tier?: QualityTier;
   total_score?: number;
   run_id?: string;
-  provenance?: {
-    [k: string]: any;
-    /** USL 写回术语 ID */
-    writeback_usl_term_id?: string;
-    /** Graphiti（Ontology）双写回状态 */
-    graphiti_writeback?: GraphitiWritebackStatus;
-    /** 若 Graphiti 写入成功，自动创建或关联的 Ontology ID */
-    graphiti_ontology_id?: string;
-    /** 若 Graphiti 写入成功，写入的 ObjectType/LinkType/ActionType 等 ID */
-    graphiti_type_id?: string;
-    /** 操作人（admin ID） */
-    promoted_by_admin?: string;
-  };
-  custom_attributes?: Record<string, any>;
+  provenance?: CandidateProvenance;
+  custom_attributes?: Record<string, unknown>;
   created_at: string;
   updated_at: string;
 }
@@ -405,11 +419,11 @@ export interface ApprovalAuditPayload {
   approve: boolean;
   comment?: string;
   /** 附加明细（l1_fields_ok / quality_ok / ...），仅入 provenance，不参与判定 */
-  decisions?: Record<string, any>;
+  decisions?: Record<string, unknown>;
 }
 
 export interface ApprovalModifyPayload {
-  candidate_patch: Record<string, any>;
+  candidate_patch: Record<string, unknown>;
   editor_comment?: string;
 }
 
@@ -429,7 +443,7 @@ export interface ApprovalTaskResponse {
   candidate_id: string;
   new_status: string;
   message?: string;
-  promote_to_usl?: Record<string, any>;
+  promote_to_usl?: Record<string, unknown>;
   updated_fields?: string[];
   close_task?: boolean;
 }

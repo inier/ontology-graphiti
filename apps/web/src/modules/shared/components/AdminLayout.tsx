@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useCallback, useRef, useMemo, useContext } from 'react';
-import { Layout, Menu, Select, Spin, App, Button, Tooltip, Dropdown, Badge, ConfigProvider, theme as antdTheme, Drawer } from 'antd';
+import { Layout, Menu, App, Button, Tooltip, Badge, ConfigProvider, theme as antdTheme, Drawer } from 'antd';
 import { useNavigate, useLocation } from 'react-router-dom';
 import {
   RobotOutlined,
@@ -8,57 +8,43 @@ import {
   SwitcherOutlined,
   MenuFoldOutlined,
   MenuUnfoldOutlined,
-  LogoutOutlined,
-  UserOutlined,
-  CompassOutlined,
-  QuestionCircleOutlined,
   RightOutlined,
   LeftOutlined,
-  MessageOutlined,
 } from '@ant-design/icons';
 import type { MenuProps, ThemeConfig } from 'antd';
-import { api } from '../services/api';
 import { useAuthStore } from '../stores/authStore';
-import { applyColorTheme } from '../styles/colorThemeUtils';
+import { useThemeRuntime } from '../styles/useThemeRuntime';
 import { resolveIcon } from '@/modules/menu-config/utils/iconResolver';
 import { resolveMenuName } from '@/modules/menu-config/utils/resolveMenuName';
-import { menuConfigApi, type MenuItem as MenuConfigItem } from '@/modules/menu-config/services/menuConfigApi';
+import { menuConfigApi } from '@/modules/menu-config/services/menuConfigApi';
 import { useI18n } from '@/modules/shared/hooks/useI18n';
 import { GlobalLoading } from './GlobalLoading';
 import { TaskPanel } from './TaskPanel';
 import { QuickActionBar } from './QuickActionBar';
 import { ExtensionPanel } from './ExtensionPanel';
 import { LayoutHeader } from './LayoutHeader';
+import { WorkspaceRail } from './WorkspaceRail';
+import { Icon } from './Icon';
+import { WORKSPACES } from '../navigation/workspaces';
 import { TabDetailPreview } from './TabDetailPreview';
 import { AIChatPanel } from '@/modules/ai-assistant';
-import { useLayoutStore, type TaskTab, type QuickAction, type ColorTheme, type ExtensionSpec } from '../stores/layoutStore';
+import { useLayoutStore, type TaskTab, type QuickAction, type ExtensionSpec } from '../stores/layoutStore';
 import { useTourStore } from '@/modules/guide';
 import {
   WorkspaceContext,
   ScenarioContext,
   OntologyVersionContext,
   RightPanelContext,
-  type Workspace,
-  type Scenario,
 } from './LayoutContexts';
 import './OdapLayout.css';
 
-const { Header, Sider } = Layout;
+const { Sider } = Layout;
 
 /* ── Extension icon resolution (iconName → React element) ──
  *   新增扩展只需在此处添加映射条目 */
 const EXTENSION_ICON_MAP: Record<string, React.ReactNode> = {
   robot: <RobotOutlined />,
   'file-text': <FileTextOutlined />,
-};
-
-/** Map colorTheme → primary color (kept in sync with global.css) */
-const COLOR_THEME_PRIMARY: Record<string, string> = {
-  indigo: '#6366F1',
-  blue:   '#3B82F6',
-  green:  '#10B981',
-  violet: '#8B5CF6',
-  amber:  '#F59E0B',
 };
 
 /** extension id → component mapping ── 新增扩展在此注册渲染组件 */
@@ -81,8 +67,32 @@ interface MenuItem {
   children?: { key: string; icon?: React.ReactNode; label: string }[];
 }
 
+type Translate = (key: string, options?: Record<string, unknown>) => string;
+interface MenuLeaf { key: string; icon?: React.ReactNode; label: string }
+/** 一级菜单项与二级叶子项的联合，供递归遍历使用（MenuItem 结构上可赋给 MenuLeaf）。 */
+type MenuNode = MenuItem | MenuLeaf;
+
 const primaryMenus: MenuItem[] = [];
-// 所有菜单项已由后端 /api/menu-config 统一管理，primaryMenus 保留为空以兼容
+// F4（SPEC §7 / AC-19）：全局导航收敛为 6 个工作区，见下方 WORKSPACE_MENUS。
+// primaryMenus 保留为空以兼容历史结构；后端 /api/menu-config 下发的菜单追加在 6 个工作区之后，
+// 不会覆盖工作区分组（前端导航真源是 navigation/workspaces.ts）。
+
+/**
+ * 6 个工作区 → 侧栏菜单分组
+ *
+ * 数据结构与既有 MenuItem 完全一致，因此 tab 标题、选中态、展开态、面包屑逻辑无需改动。
+ * 单一真源：navigation/workspaces.ts（路由一致性测试同时遍历它，防止菜单指向不存在的页面）。
+ */
+const WORKSPACE_MENUS: MenuItem[] = WORKSPACES.map((ws) => ({
+  key: `ws:${ws.id}`,
+  icon: <Icon role={ws.iconRole} size={20} />,
+  label: ws.label,
+  children: ws.items.map((item) => ({
+    key: item.path,
+    icon: <Icon role={item.iconRole} size={20} />,
+    label: item.label,
+  })),
+}));
 
 /* Build flat route → tab info map (动态更新) */
 const routeTabInfo: Record<string, { title: string }> = {};
@@ -134,15 +144,24 @@ function buildMenuTree(nodes: RawMenuNode[], parentKey: string): MenuItem[] {
   return items;
 }
 
-function translateMenuItems(items: MenuItem[], t: (key: string, options?: Record<string, any>) => string): MenuItem[] {
+function translateMenuItems(items: MenuItem[], t: Translate): MenuItem[] {
   return items.map(item => {
     const translatedLabel = resolveMenuName(t, item.label);
     routeTabInfo[item.key] = { title: translatedLabel };
     return {
       ...item,
       label: translatedLabel,
-      children: item.children ? translateMenuItems(item.children, t) : undefined,
+      children: item.children ? translateMenuLeaves(item.children, t) : undefined,
     };
+  });
+}
+
+/** 二级菜单项不强制要求图标，单独翻译以免影响 `MenuItem` 的必填 `icon`。 */
+function translateMenuLeaves(items: MenuLeaf[], t: Translate): MenuLeaf[] {
+  return items.map(item => {
+    const translatedLabel = resolveMenuName(t, item.label);
+    routeTabInfo[item.key] = { title: translatedLabel };
+    return { ...item, label: translatedLabel };
   });
 }
 
@@ -203,10 +222,6 @@ function ResizeHandle({
   onToggle,
   collapsed = false,
 }: ResizeHandleProps) {
-  // ref 保持最新的起始尺寸，避免 useCallback 闭包捕获旧值
-  const startSizeRef = useRef(startSizePercent);
-  startSizeRef.current = startSizePercent;
-
   const handleMouseDown = useCallback(
     (e: React.MouseEvent) => {
       if (collapsed) return;
@@ -219,8 +234,8 @@ function ResizeHandle({
       const rect = container.getBoundingClientRect();
       const startPos = direction === 'horizontal' ? e.clientX : e.clientY;
       const containerSize = direction === 'horizontal' ? rect.width : rect.height;
-      // 🔧 关键修复：mousedown 时锁定起始尺寸，绝对计算避免累积误差
-      const lockedStartSize = startSizeRef.current;
+      // 关键修复：mousedown 时锁定起始尺寸，绝对计算避免累积误差
+      const lockedStartSize = startSizePercent;
 
       const handleMouseMove = (ev: MouseEvent) => {
         const currentPos = direction === 'horizontal' ? ev.clientX : ev.clientY;
@@ -245,7 +260,7 @@ function ResizeHandle({
       document.body.style.cursor = direction === 'horizontal' ? 'col-resize' : 'row-resize';
       document.body.style.userSelect = 'none';
     },
-    [onResize, direction, collapsed, invert],
+    [onResize, direction, collapsed, invert, startSizePercent],
   );
 
   return (
@@ -308,15 +323,29 @@ export function AdminLayout({ children }: { children: React.ReactNode }) {
   /* ── 初始加载（仅当 Context 中数据为空时） ── */
   useEffect(() => {
     if (workspaces.length === 0) {
-      setLoading(true);
-      reloadWorkspaces().finally(() => setLoading(false));
+      // 显式 async 边界：加载态在微任务里切换，避免 effect 内同步 setState 触发级联渲染
+      void (async () => {
+        setLoading(true);
+        try {
+          await reloadWorkspaces();
+        } finally {
+          setLoading(false);
+        }
+      })();
     }
   }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
   useEffect(() => {
     if (activeWorkspaceId && scenarios.length === 0) {
-      setScenariosLoading(true);
-      reloadScenarios().finally(() => setScenariosLoading(false));
+      // 同上：把加载过程整体放进 async 边界
+      void (async () => {
+        setScenariosLoading(true);
+        try {
+          await reloadScenarios();
+        } finally {
+          setScenariosLoading(false);
+        }
+      })();
     }
   }, [activeWorkspaceId]); // eslint-disable-line react-hooks/exhaustive-deps
 
@@ -351,7 +380,7 @@ export function AdminLayout({ children }: { children: React.ReactNode }) {
     setTheme,
     colorTheme,
     setColorTheme,
-    previewTabId,
+    
     setPreviewTab,
     tabs,
     extensionSpecs,
@@ -371,9 +400,7 @@ export function AdminLayout({ children }: { children: React.ReactNode }) {
 
   /* Sync color theme to DOM + CSS variables */
   useEffect(() => {
-    document.documentElement.setAttribute('data-color-theme', colorTheme);
     localStorage.setItem('odap-color-theme', colorTheme);
-    applyColorTheme(colorTheme, theme === 'dark');
   }, [colorTheme, theme]);
 
   /* Register built-in extensions on mount */
@@ -422,9 +449,9 @@ export function AdminLayout({ children }: { children: React.ReactNode }) {
   /* ── Dynamic menu items from backend API ── */
   const dynamicMenus = useDynamicMenuItems();
 
-  /* ── Merge static + dynamic menus ── */
+  /* ── Merge 6 工作区 + 后端动态菜单 ── */
   const allMenus = useMemo(
-    () => [...primaryMenus, ...dynamicMenus],
+    () => [...primaryMenus, ...WORKSPACE_MENUS, ...dynamicMenus],
     [dynamicMenus],
   );
 
@@ -506,8 +533,8 @@ export function AdminLayout({ children }: { children: React.ReactNode }) {
 
   /** 递归收集所有目录分组（directory，带 children 的项）的 key —— 它们不是路由，点击只展开、绝不导航 */
   const directoryMenuKeys = useMemo(() => {
-    const collect = (items: MenuItem[]): string[] =>
-      items.flatMap((it) => (it.children ? [it.key, ...collect(it.children)] : []));
+    const collect = (items: MenuNode[]): string[] =>
+      items.flatMap((it) => ('children' in it && it.children ? [it.key, ...collect(it.children)] : []));
     return new Set<string>(collect(allMenus));
   }, [allMenus]);
 
@@ -639,56 +666,64 @@ export function AdminLayout({ children }: { children: React.ReactNode }) {
    *  递归映射：allMenus 可能是多层嵌套（顶级 directory → 二级 directory → menu），
    *  必须完整保留 children，否则二级目录（如"语义管理"）的叶子菜单项会丢失，
    *  导致点击二级目录时无子菜单可展开、表现为"点击无响应"。 */
-  const toAntdMenuItems = (items: MenuItem[]): NonNullable<MenuProps['items']> =>
+  const toAntdMenuItems = (items: MenuNode[]): NonNullable<MenuProps['items']> =>
     items.map((m) => ({
       key: m.key,
       icon: m.icon,
       label: m.label,
-      children: m.children ? toAntdMenuItems(m.children) : undefined,
+      children: 'children' in m && m.children ? toAntdMenuItems(m.children) : undefined,
     }));
 
   const menuItems: MenuProps['items'] = toAntdMenuItems(allMenus);
 
   /* ── Ant Design theme (synced with theme / colorTheme) ── */
+  const tokens = useThemeRuntime(theme, colorTheme);
+
+  /* ── Ant Design theme：全部取 Token 投影值，组件层零 hex ── */
   const antdThemeConfig = useMemo((): ThemeConfig => ({
     cssVar: {},
     algorithm: theme === 'dark' ? antdTheme.darkAlgorithm : antdTheme.defaultAlgorithm,
     token: {
-      colorPrimary: COLOR_THEME_PRIMARY[colorTheme] || '#6366F1',
+      colorPrimary: tokens.accentSolid,
+      colorSuccess: tokens.success,
+      colorWarning: tokens.warn,
+      colorError: tokens.danger,
+      colorInfo: tokens.info,
+      colorText: tokens.fg,
+      colorTextSecondary: tokens.fgSecondary,
+      colorBgContainer: tokens.bgContainer,
+      colorBgElevated: tokens.bgElevated,
+      colorBgLayout: tokens.bgLayout,
+      colorBorder: tokens.border,
       borderRadius: 8,
-      colorBgContainer: theme === 'dark' ? '#1F1F1F' : '#FFFFFF',
-      colorBgElevated: theme === 'dark' ? '#262626' : '#FFFFFF',
-      colorBgLayout: theme === 'dark' ? '#141414' : '#F8F9FC',
     },
     components: {
       Menu: {
         darkItemBg: 'transparent',
-        darkSubMenuItemBg: 'rgba(255,255,255,0.04)',
-        darkItemSelectedBg: `${COLOR_THEME_PRIMARY[colorTheme] || '#6366F1'}40`,
-        darkItemHoverBg: 'rgba(255,255,255,0.08)',
-        darkItemColor: 'rgba(255,255,255,0.65)',
-        darkItemHoverColor: '#ffffff',
-        darkItemSelectedColor: '#ffffff',
-        itemBg: theme === 'dark' ? 'transparent' : '#FFFFFF',
-        subMenuItemBg: theme === 'dark' ? 'rgba(255,255,255,0.04)' : '#F8F9FC',
-        itemSelectedBg: `${COLOR_THEME_PRIMARY[colorTheme] || '#6366F1'}20`,
-        itemHoverBg: `${COLOR_THEME_PRIMARY[colorTheme] || '#6366F1'}10`,
-        itemColor: theme === 'dark' ? 'rgba(255,255,255,0.65)' : 'rgba(0,0,0,0.88)',
-        itemHoverColor: theme === 'dark' ? '#ffffff' : (COLOR_THEME_PRIMARY[colorTheme] || '#6366F1'),
-        itemSelectedColor: theme === 'dark' ? '#ffffff' : (COLOR_THEME_PRIMARY[colorTheme] || '#6366F1'),
+        darkSubMenuItemBg: 'transparent',
+        darkItemSelectedBg: tokens.accentSubtle,
+        darkItemHoverBg: tokens.accentSubtle,
+        darkItemColor: tokens.fgSecondary,
+        darkItemHoverColor: tokens.fg,
+        darkItemSelectedColor: tokens.accent,
+        itemBg: 'transparent',
+        subMenuItemBg: 'transparent',
+        itemSelectedBg: tokens.accentSubtle,
+        itemHoverBg: tokens.accentSubtle,
+        itemColor: tokens.fgSecondary,
+        itemHoverColor: tokens.fg,
+        itemSelectedColor: tokens.accent,
       },
-      Button: {
-        primaryShadow: `0 2px 8px ${(COLOR_THEME_PRIMARY[colorTheme] || '#6366F1')}40`,
-      },
+      Button: { primaryShadow: 'none' },
       Input: {
-        activeBorderColor: COLOR_THEME_PRIMARY[colorTheme] || '#6366F1',
-        hoverBorderColor: COLOR_THEME_PRIMARY[colorTheme] || '#6366F1',
+        activeBorderColor: tokens.accent,
+        hoverBorderColor: tokens.accentBorder,
       },
       Select: {
-        optionSelectedBg: `${COLOR_THEME_PRIMARY[colorTheme] || '#6366F1'}10`,
+        optionSelectedBg: tokens.accentSubtle,
       },
     },
-  }), [theme, colorTheme]);
+  }), [theme, tokens]);
 
   const leftSiderWidth = leftCollapsed ? 48 : 200;
 
@@ -714,13 +749,13 @@ export function AdminLayout({ children }: { children: React.ReactNode }) {
                     zIndex: 100,
                     background: 'var(--odap-sidebar-bg)',
                     borderRight: 'var(--odap-sidebar-border)',
-                    transition: 'width 350ms cubic-bezier(0.4, 0, 0.2, 1)',
+                    transition: 'width var(--odap-duration-slow) var(--odap-ease-standard)',
                     overflow: 'hidden',
                   }}
                 >
                   {/* Flex wrapper: ensures layout works regardless of Ant Design internal wrapper */}
                   <div style={{ display: 'flex', flexDirection: 'column', height: '100%' }}>
-                  {/* Logo */}
+                  {/* Logo（v2：纯色强调色，删除渐变文字与背景裁剪） */}
                   <div
                     style={{
                       height: 48,
@@ -728,7 +763,7 @@ export function AdminLayout({ children }: { children: React.ReactNode }) {
                       display: 'flex',
                       alignItems: 'center',
                       justifyContent: 'center',
-                      color: '#ffffff',
+                      color: 'var(--odap-sidebar-logo-color)',
                       fontSize: leftCollapsed ? 16 : 18,
                       fontWeight: 700,
                       letterSpacing: '0.05em',
@@ -736,25 +771,14 @@ export function AdminLayout({ children }: { children: React.ReactNode }) {
                       cursor: 'pointer',
                       whiteSpace: 'nowrap',
                       overflow: 'hidden',
-                      background: leftCollapsed
-                        ? 'transparent'
-                        : 'var(--odap-sidebar-logo-bg)',
                     }}
                     onClick={handleLogoClick}
                   >
-                    <span
-                      style={{
-                        background: leftCollapsed
-                          ? 'none'
-                          : 'var(--odap-sidebar-logo-text)',
-                        WebkitBackgroundClip: leftCollapsed ? 'none' : 'text',
-                        WebkitTextFillColor: leftCollapsed ? 'var(--odap-sidebar-logo-color)' : 'transparent',
-                        backgroundClip: leftCollapsed ? 'none' : 'text',
-                      }}
-                    >
-                      {leftCollapsed ? 'O' : 'ODAP'}
-                    </span>
+                    {leftCollapsed ? 'O' : 'ODAP'}
                   </div>
+
+                  {/* 6 个工作区导轨（F4 / AC-19） */}
+                  <WorkspaceRail collapsed={leftCollapsed} />
 
                   {/* Menu scroll area: fills remaining space, scrolls internally */}
                   <div
@@ -811,7 +835,7 @@ export function AdminLayout({ children }: { children: React.ReactNode }) {
               <Layout
                 style={{
                   marginLeft: isFullWidthMode ? 0 : leftSiderWidth,
-                  transition: 'margin-left 350ms cubic-bezier(0.4, 0, 0.2, 1)',
+                  transition: 'margin-left var(--odap-duration-slow) var(--odap-ease-standard)',
                 }}
               >
                 {/* ── Global Header ── */}

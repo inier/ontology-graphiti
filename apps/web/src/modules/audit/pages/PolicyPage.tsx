@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   Card,
   Button,
@@ -12,20 +12,20 @@ import {
   Badge,
   Tooltip,
   Empty,
-  Divider,
-  Switch,
+  
+  
   Tabs,
   Timeline,
-  Row,
-  Col,
+  
+  
 } from 'antd';
 import {
   PlusOutlined,
   ReloadOutlined,
   EditOutlined,
-  EyeOutlined,
-  CheckCircleOutlined,
-  CloseCircleOutlined,
+  
+  
+  
   SafetyCertificateOutlined,
   CodeOutlined,
   ThunderboltOutlined,
@@ -160,7 +160,7 @@ const PolicyPage: React.FC = () => {
       title: t('策略名称'),
       dataIndex: 'name',
       key: 'name',
-      render: (name, record) => (
+      render: (name) => (
         <Space>
           <SafetyCertificateOutlined style={{ color: '#1890ff' }} />
           <span>{name as string}</span>

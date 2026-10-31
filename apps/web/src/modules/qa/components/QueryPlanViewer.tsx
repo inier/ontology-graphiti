@@ -84,10 +84,10 @@ export function QueryPlanViewer({ understanding, plan, explanation, loading }: Q
       children: understanding ? (
         <Descriptions column={1}>
           <Descriptions.Item label={t('plan.originalQuery')}>{understanding.original_query}</Descriptions.Item>
-          <Descriptions.Item label={t('plan.intent')}>
+          <Descriptions.Item label={t('意图')}>
             <Tag color={intentInfo?.color}>{intentInfo?.label}</Tag>
             <Text type="secondary" style={{ fontSize: 12, marginLeft: 8 }}>
-              {t('plan.confidence', { value: (understanding.confidence * 100).toFixed(0) })}
+              {t('置信度', { value: (understanding.confidence * 100).toFixed(0) })}
             </Text>
           </Descriptions.Item>
           {understanding.extracted_entities.length > 0 && (

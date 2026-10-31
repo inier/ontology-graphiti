@@ -22,10 +22,10 @@ interface MCPServer {
 }
 
 interface MCPTool {
-  tool_id: string;
+  /** MCP 协议里工具的唯一标识就是 name；tool_id 是旧实现的虚构字段 */
   name: string;
-  description: string;
-  parameters: Record<string, unknown>;
+  description?: string;
+  inputSchema?: Record<string, unknown>;
 }
 
 const STATUS_BADGE: Record<string, 'success' | 'error' | 'default' | 'processing'> = {
@@ -42,6 +42,8 @@ function MCPManager() {
   const [invokeTool, setInvokeTool] = useState<MCPTool | null>(null);
   const [invokeParams, setInvokeParams] = useState('');
   const [selectedServerTools, setSelectedServerTools] = useState<MCPTool[]>([]);
+  // 调用工具的真实路径是 /servers/{server_id}/tools/{tool_name}，必须记住 server
+  const [toolsServerId, setToolsServerId] = useState<string>('');
   const [toolsOpen, setToolsOpen] = useState(false);
   const [form] = Form.useForm();
 
@@ -54,13 +56,13 @@ function MCPManager() {
 
   const handleRegister = async (values: Record<string, unknown>) => {
     try {
-      await apiClient.post('/api/mcp/servers/register', values);
-      message.success(t('mcp.registered', 'MCP server registered'));
+      await apiClient.post('/api/mcp/servers', values);
+      message.success(t('已注册', 'MCP server registered'));
       setRegisterOpen(false);
       form.resetFields();
       actionRef.current?.reload();
     } catch (e) {
-      message.error(`${t('mcp.registerFailed', 'Registration failed')}: ${(e as Error).message}`);
+      message.error(`${t('注册失败', 'Registration failed')}: ${(e as Error).message}`);
     }
   };
 
@@ -78,6 +80,7 @@ function MCPManager() {
     try {
       const data = await apiClient.get<{ tools: MCPTool[] }>(`/api/mcp/servers/${serverId}/tools`);
       setSelectedServerTools(data.tools || []);
+      setToolsServerId(serverId);
       setToolsOpen(true);
     } catch (e) {
       message.error(`${t('mcp.toolsFailed', 'Failed to list tools')}: ${(e as Error).message}`);
@@ -96,7 +99,10 @@ function MCPManager() {
       }
     }
     try {
-      const result = await apiClient.post(`/api/mcp/tools/${invokeTool.tool_id}/invoke`, { params });
+      const result = await apiClient.post(
+        `/api/mcp/servers/${encodeURIComponent(toolsServerId)}/tools/${encodeURIComponent(invokeTool.name)}`,
+        { arguments: params },
+      );
       message.success(t('mcp.invoked', 'Tool invoked successfully'));
       Modal.info({
         title: t('mcp.invokeResult', 'Invocation Result'),
@@ -113,7 +119,7 @@ function MCPManager() {
 
   const columns = [
     {
-      title: t('mcp.name', 'Name'),
+      title: t('名称', 'Name'),
       dataIndex: 'name',
       key: 'name',
       ellipsis: true,
@@ -126,7 +132,7 @@ function MCPManager() {
       render: (url: string) => <Text copyable style={{ fontSize: 12 }}>{url}</Text>,
     },
     {
-      title: t('mcp.status', 'Status'),
+      title: t('状态', 'Status'),
       dataIndex: 'status',
       key: 'status',
       width: 120,
@@ -154,7 +160,7 @@ function MCPManager() {
       render: (v: string) => v || '-',
     },
     {
-      title: t('mcp.actions', 'Actions'),
+      title: t('动作', 'Actions'),
       key: 'actions',
       width: 200,
       render: (_: unknown, record: MCPServer) => (
@@ -219,7 +225,7 @@ function MCPManager() {
       extra={
         <Space>
           <Button type="primary" size="small" icon={<PlusOutlined />} onClick={() => setRegisterOpen(true)}>
-            {t('mcp.register', 'Register Server')}
+            {t('注册', 'Register Server')}
           </Button>
         </Space>
       }
@@ -240,13 +246,13 @@ function MCPManager() {
         onOk={() => form.submit()}
       >
         <Form form={form} layout="vertical" onFinish={handleRegister}>
-          <Form.Item name="name" label={t('mcp.name', 'Name')} rules={[{ required: true }]}>
+          <Form.Item name="name" label={t('名称', 'Name')} rules={[{ required: true }]}>
             <Input />
           </Form.Item>
           <Form.Item name="url" label={t('mcp.url', 'URL')} rules={[{ required: true }]}>
             <Input placeholder="http://localhost:8080/mcp" />
           </Form.Item>
-          <Form.Item name="description" label={t('mcp.description', 'Description')}>
+          <Form.Item name="description" label={t('描述', 'Description')}>
             <Input.TextArea rows={2} />
           </Form.Item>
         </Form>
@@ -262,7 +268,7 @@ function MCPManager() {
         <AdvancedTable
           dataSource={selectedServerTools}
           columns={toolColumns}
-          rowKey="tool_id"
+          rowKey="name"
           size="small"
           pagination={false}
         />

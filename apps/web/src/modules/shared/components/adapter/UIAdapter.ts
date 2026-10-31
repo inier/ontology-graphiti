@@ -23,12 +23,34 @@ export interface InputProps {
   className?: string;
 }
 
-export interface TableProps<T = any> {
-  columns: any[];
-  dataSource: T[];
+/** 适配层列定义：刻意与 antd/ProTable 的可赋值面保持一致，避免实现侧强转 */
+export interface TableColumn<T = unknown> {
+  title?: ReactNode;
+  dataIndex?: string;
+  key?: string;
+  width?: number | string;
+  fixed?: 'left' | 'right';
+  align?: 'left' | 'center' | 'right';
+  ellipsis?: boolean;
+  sorter?: boolean | ((a: T, b: T) => number);
+  render?: (value: unknown, record: T, index: number) => ReactNode;
+}
+
+export interface TablePaginationConfig {
+  current?: number;
+  pageSize?: number;
+  total?: number;
+  showSizeChanger?: boolean;
+  showTotal?: (total: number) => string;
+  onChange?: (page: number, pageSize: number) => void;
+}
+
+export interface TableProps<T = unknown> {
+  columns?: TableColumn<T>[];
+  dataSource?: T[];
   loading?: boolean;
-  pagination?: any;
-  onChange?: (pagination: any, filters: any, sorter: any) => void;
+  pagination?: false | TablePaginationConfig;
+  onChange?: (pagination: unknown, filters: unknown, sorter: unknown) => void;
   rowKey?: string | ((record: T) => string);
   className?: string;
 }
@@ -45,16 +67,16 @@ export interface ModalProps {
 }
 
 export interface FormProps {
-  onFinish?: (values: any) => void;
+  onFinish?: (values: Record<string, unknown>) => void;
   children: ReactNode;
   layout?: 'horizontal' | 'vertical' | 'inline';
   className?: string;
 }
 
 export interface SelectProps {
-  value?: any;
-  onChange?: (value: any) => void;
-  options: { label: string; value: any }[];
+  value?: unknown;
+  onChange?: (value: unknown) => void;
+  options: { label: string; value: unknown }[];
   placeholder?: string;
   disabled?: boolean;
   mode?: 'multiple' | 'tags';
@@ -90,7 +112,7 @@ export interface NotificationInstance {
 export interface UIAdapter {
   getButton(): ComponentType<ButtonProps>;
   getInput(): ComponentType<InputProps>;
-  getTable(): <T = any>(props: TableProps<T>) => ReactElement;
+  getTable(): <T extends object = Record<string, unknown>>(props: TableProps<T>) => ReactElement;
   getModal(): ComponentType<ModalProps>;
   getForm(): ComponentType<FormProps>;
   getSelect(): ComponentType<SelectProps>;

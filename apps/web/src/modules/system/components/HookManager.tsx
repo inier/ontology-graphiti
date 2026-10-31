@@ -1,158 +1,200 @@
-import { useState, useRef, useMemo } from 'react';
+/**
+ * 钩子管理：/api/hooks 的管理界面。
+ *
+ * 契约（后端 odap/biz/integration/hook_system/api/routes.py）：
+ *   GET    /api/hooks?hook_type=&page=&page_size=
+ *          → {hooks: [{hook_id, name, hook_type, status, enabled}], page, page_size, total}
+ *   POST   /api/hooks/register  → RegisterHookRequest{name, hook_type, script, description?, language?}
+ *   DELETE /api/hooks/{hook_id} → 真正删除（本组件挂载时一并修复了后端 no-op 删除）
+ *   POST   /api/hooks/{hook_id}/enable | /disable → {status, hook_id, enabled, hook_status}
+ *
+ * 三个必须对齐后端而非"看起来合理"的点：
+ *   1. hook_type 只能是 HookType 枚举值，后端严格校验并 400；此前组件用的是
+ *      event/data/validation/... 一组后端根本不存在的值。
+ *   2. 后端没有 phase / priority 字段（既不在 RegisterHookRequest 里，也不在列表返回里），
+ *      因此不做这两列——否则表格永远渲染 undefined。
+ *   3. 状态枚举是 active/inactive/error；开关读的是服务端派生的 enabled，
+ *      不能用 `checked={v !== false}` 猜（undefined 会被当成已启用）。
+ */
+import { useCallback, useMemo, useRef, useState } from 'react';
 import { Switch, Button, Modal, Select, Card, Tag, Space, message, Popconfirm, Form, Input } from 'antd';
 import { PlusOutlined, DeleteOutlined } from '@ant-design/icons';
 import { apiClient } from '@/modules/shared/services/apiClient';
 import { AdvancedTable, wrapRequest } from '@/modules/shared';
+import { useI18n } from '@/modules/shared/hooks/useI18n';
 import type { ActionType } from '@ant-design/pro-components';
+import type { ColumnsType } from 'antd/es/table';
 
 interface HookRecord {
   hook_id: string;
   name: string;
   hook_type: string;
-  script: string;
-  description: string;
-  language: string;
-  phase: string;
-  priority: number;
+  status?: string;
   enabled?: boolean;
 }
 
-const PHASE_COLORS: Record<string, string> = {
-  pre: 'blue',
-  post: 'green',
+/** 与后端 HookType 枚举逐项对齐 */
+const HOOK_TYPE_VALUES = [
+  'pre_execute',
+  'post_execute',
+  'on_error',
+  'on_timeout',
+  'pre_commit',
+  'post_commit',
+] as const;
+
+const STATUS_COLORS: Record<string, string> = {
+  active: 'green',
+  inactive: 'default',
+  error: 'red',
 };
-
-const TYPE_COLORS: Record<string, string> = {
-  event: 'cyan',
-  data: 'purple',
-  validation: 'orange',
-  transformation: 'geekblue',
-  notification: 'magenta',
-  custom: 'default',
-};
-
-const HOOK_TYPE_OPTIONS = [
-  { value: 'event', label: 'Event' },
-  { value: 'data', label: 'Data' },
-  { value: 'validation', label: 'Validation' },
-  { value: 'transformation', label: 'Transformation' },
-  { value: 'notification', label: 'Notification' },
-  { value: 'custom', label: 'Custom' },
-];
-
-const PHASE_OPTIONS = [
-  { value: 'pre', label: 'Pre' },
-  { value: 'post', label: 'Post' },
-];
 
 export default function HookManager() {
+  const { t } = useI18n('system');
   const actionRef = useRef<ActionType>(null);
   const [typeFilter, setTypeFilter] = useState('');
   const [registerOpen, setRegisterOpen] = useState(false);
   const [form] = Form.useForm();
 
-  const fetchHooks = async (): Promise<HookRecord[]> => {
-    const qs = typeFilter ? `?hook_type=${encodeURIComponent(typeFilter)}` : '';
-    const data = await apiClient.get<{ hooks: HookRecord[]; total: number }>(`/api/hooks${qs}`);
-    return data.hooks || [];
-  };
+  const typeLabel = useCallback(
+    (value: string) => {
+      switch (value) {
+        case 'pre_execute':
+          return t('执行前');
+        case 'post_execute':
+          return t('执行后');
+        case 'on_error':
+          return t('出错时');
+        case 'on_timeout':
+          return t('超时时');
+        case 'pre_commit':
+          return t('提交前');
+        case 'post_commit':
+          return t('提交后');
+        default:
+          return value;
+      }
+    },
+    [t],
+  );
 
-  const request = useMemo(() => wrapRequest(fetchHooks), [typeFilter]);
+  const statusLabel = useCallback(
+    (value?: string) => {
+      switch (value) {
+        case 'active':
+          return t('已启用');
+        case 'inactive':
+          return t('已禁用');
+        case 'error':
+          return t('异常');
+        default:
+          return value || '-';
+      }
+    },
+    [t],
+  );
+
+  const HOOK_TYPE_OPTIONS = useMemo(
+    () => HOOK_TYPE_VALUES.map((v) => ({ value: v, label: typeLabel(v) })),
+    [typeLabel],
+  );
+
+  const fetchHooks = useCallback(async (): Promise<HookRecord[]> => {
+    try {
+      const params = new URLSearchParams({ page_size: '100' });
+      if (typeFilter) params.set('hook_type', typeFilter);
+      const data = await apiClient.get<{ hooks: HookRecord[]; total: number }>(`/api/hooks?${params.toString()}`);
+      return data.hooks ?? [];
+    } catch (e) {
+      message.error(`${t('获取钩子列表失败')}: ${(e as Error).message}`);
+      throw e;
+    }
+  }, [typeFilter, t]);
+
+  const request = useMemo(() => wrapRequest(fetchHooks), [fetchHooks]);
 
   const handleTypeFilter = (value: string) => {
     setTypeFilter(value);
     setTimeout(() => actionRef.current?.reload(), 0);
   };
 
-  const handleRegister = async (values: { name: string; hook_type: string; script: string; description: string; language: string; phase: string; priority: number }) => {
+  const handleRegister = async (values: {
+    name: string;
+    hook_type: string;
+    script: string;
+    description?: string;
+    language?: string;
+  }) => {
     try {
       await apiClient.post('/api/hooks/register', values);
-      message.success('Hook registered');
+      message.success(t('钩子已注册'));
       setRegisterOpen(false);
       form.resetFields();
       actionRef.current?.reload();
     } catch (e) {
-      message.error(`Register failed: ${(e as Error).message}`);
+      message.error(`${t('注册失败')}: ${(e as Error).message}`);
     }
   };
 
   const handleUnregister = async (hookId: string) => {
     try {
-      await apiClient.delete(`/api/hooks/${hookId}`);
-      message.success('Hook unregistered');
+      await apiClient.delete(`/api/hooks/${encodeURIComponent(hookId)}`);
+      message.success(t('钩子已注销'));
       actionRef.current?.reload();
     } catch (e) {
-      message.error(`Unregister failed: ${(e as Error).message}`);
+      message.error(`${t('注销失败')}: ${(e as Error).message}`);
     }
   };
 
-  const handleToggle = async (hookId: string, enabled: boolean) => {
+  const handleToggle = async (record: HookRecord, enabled: boolean) => {
     try {
       const endpoint = enabled ? 'enable' : 'disable';
-      await apiClient.post(`/api/hooks/${hookId}/${endpoint}`);
-      message.success(`Hook ${enabled ? 'enabled' : 'disabled'}`);
+      await apiClient.post(`/api/hooks/${encodeURIComponent(record.hook_id)}/${endpoint}`);
+      message.success(enabled ? t('钩子已启用') : t('钩子已禁用'));
       actionRef.current?.reload();
     } catch (e) {
-      message.error(`Toggle failed: ${(e as Error).message}`);
+      message.error(`${t('切换失败')}: ${(e as Error).message}`);
     }
   };
 
-  const columns = [
+  const columns: ColumnsType<HookRecord> = [
+    { title: t('名称'), dataIndex: 'name', key: 'name', ellipsis: true },
     {
-      title: 'Name',
-      dataIndex: 'name',
-      key: 'name',
-      ellipsis: true,
-    },
-    {
-      title: 'Type',
+      title: t('类型'),
       dataIndex: 'hook_type',
       key: 'hook_type',
-      width: 110,
-      render: (v: string) => <Tag color={TYPE_COLORS[v] || 'default'}>{v}</Tag>,
+      width: 120,
+      render: (v: string) => <Tag color="blue">{typeLabel(v)}</Tag>,
     },
     {
-      title: 'Phase',
-      dataIndex: 'phase',
-      key: 'phase',
-      width: 80,
-      render: (v: string) => <Tag color={PHASE_COLORS[v] || 'default'}>{v}</Tag>,
+      title: t('状态'),
+      dataIndex: 'status',
+      key: 'status',
+      width: 100,
+      render: (v?: string) => <Tag color={STATUS_COLORS[v || ''] || 'default'}>{statusLabel(v)}</Tag>,
     },
     {
-      title: 'Priority',
-      dataIndex: 'priority',
-      key: 'priority',
-      width: 80,
-      sorter: (a: HookRecord, b: HookRecord) => a.priority - b.priority,
-    },
-    {
-      title: 'Language',
-      dataIndex: 'language',
-      key: 'language',
-      width: 90,
-      render: (v: string) => <Tag>{v}</Tag>,
-    },
-    {
-      title: 'Enabled',
+      title: t('启用'),
       dataIndex: 'enabled',
       key: 'enabled',
-      width: 80,
-      render: (v: boolean, record: HookRecord) => (
+      width: 90,
+      render: (v: boolean | undefined, record) => (
         <Switch
-          checked={v !== false}
+          checked={v === true}
           size="small"
-          onChange={(checked) => handleToggle(record.hook_id, checked)}
+          aria-label={`${t('启用')} ${record.name}`}
+          onChange={(checked) => void handleToggle(record, checked)}
         />
       ),
     },
     {
-      title: 'Actions',
+      title: t('操作'),
       key: 'actions',
       width: 100,
-      render: (_: unknown, record: HookRecord) => (
-        <Popconfirm title="Unregister this hook?" onConfirm={() => handleUnregister(record.hook_id)}>
+      render: (_: unknown, record) => (
+        <Popconfirm title={t('确定注销此钩子？')} onConfirm={() => void handleUnregister(record.hook_id)}>
           <Button size="small" danger icon={<DeleteOutlined />}>
-            Remove
+            {t('移除')}
           </Button>
         </Popconfirm>
       ),
@@ -160,21 +202,22 @@ export default function HookManager() {
   ];
 
   return (
-    <div>
+    <div data-testid="hook-manager">
       <Card
-        title="Hook Manager"
+        title={t('钩子管理')}
         extra={
-          <Space>
+          <Space wrap>
             <Select
               value={typeFilter}
               onChange={handleTypeFilter}
-              placeholder="Filter by type"
-              style={{ width: 150 }}
+              placeholder={t('按类型筛选')}
+              style={{ width: 160 }}
               allowClear
-              options={[{ value: '', label: 'All' }, ...HOOK_TYPE_OPTIONS]}
+              aria-label={t('按类型筛选')}
+              options={[{ value: '', label: t('全部') }, ...HOOK_TYPE_OPTIONS]}
             />
             <Button type="primary" icon={<PlusOutlined />} onClick={() => setRegisterOpen(true)}>
-              Register
+              {t('注册钩子')}
             </Button>
           </Space>
         }
@@ -190,34 +233,34 @@ export default function HookManager() {
       </Card>
 
       <Modal
-        title="Register Hook"
+        title={t('注册钩子')}
         open={registerOpen}
-        onCancel={() => { setRegisterOpen(false); form.resetFields(); }}
+        onCancel={() => {
+          setRegisterOpen(false);
+          form.resetFields();
+        }}
         onOk={() => form.submit()}
+        destroyOnHidden
       >
         <Form form={form} layout="vertical" onFinish={handleRegister}>
-          <Form.Item name="name" label="Name" rules={[{ required: true }]}>
+          <Form.Item name="name" label={t('名称')} rules={[{ required: true, message: t('请填写名称') }]}>
             <Input />
           </Form.Item>
-          <Form.Item name="hook_type" label="Type" rules={[{ required: true }]}>
-            <Select options={HOOK_TYPE_OPTIONS} />
+          <Form.Item name="hook_type" label={t('类型')} rules={[{ required: true, message: t('请选择类型') }]}>
+            <Select aria-label={t('类型')} options={HOOK_TYPE_OPTIONS} />
           </Form.Item>
-          <Form.Item name="phase" label="Phase" initialValue="post">
-            <Select options={PHASE_OPTIONS} />
-          </Form.Item>
-          <Form.Item name="priority" label="Priority" initialValue={100}>
-            <Input type="number" />
-          </Form.Item>
-          <Form.Item name="script" label="Script" rules={[{ required: true }]}>
+          <Form.Item name="script" label={t('脚本')} rules={[{ required: true, message: t('请填写脚本') }]}>
             <Input.TextArea rows={4} style={{ fontFamily: 'monospace' }} />
           </Form.Item>
-          <Form.Item name="language" label="Language" initialValue="python">
-            <Select options={[
-              { value: 'python', label: 'Python' },
-              { value: 'javascript', label: 'JavaScript' },
-            ]} />
+          <Form.Item name="language" label={t('语言')} initialValue="python">
+            <Select
+              options={[
+                { value: 'python', label: 'Python' },
+                { value: 'javascript', label: 'JavaScript' },
+              ]}
+            />
           </Form.Item>
-          <Form.Item name="description" label="Description">
+          <Form.Item name="description" label={t('描述')}>
             <Input.TextArea rows={2} />
           </Form.Item>
         </Form>

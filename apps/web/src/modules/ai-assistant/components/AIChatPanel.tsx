@@ -10,17 +10,18 @@
  */
 
 import { useState, useRef, useEffect, useCallback } from 'react';
-import { Button, Input, Tooltip, Drawer, Avatar, Empty, Spin, Tag } from 'antd';
+import { Button, Input, Tooltip, Drawer, Avatar, Empty, Tag } from 'antd';
 import {
   SendOutlined, RobotOutlined, UserOutlined, ClearOutlined, LoadingOutlined,
-  SearchOutlined, ApartmentOutlined, CheckCircleOutlined, PlusOutlined,
-  DeleteOutlined, HistoryOutlined, MenuOutlined, CloseOutlined,
+  CheckCircleOutlined, PlusOutlined,
+  DeleteOutlined, MenuOutlined, CloseOutlined,
 } from '@ant-design/icons';
 import { css } from '@emotion/css';
 import { useAIChat } from '../hooks/useAIChat';
 import { useAIContext } from '@/modules/shared/hooks/usePageContext';
 import { useI18n } from '@/modules/shared/hooks/useI18n';
 import type { ChatMessage, ChatSession } from '../hooks/useAIChat';
+import { Icon } from '@/modules/shared/components/Icon';
 
 // ═══════════════════════════════════════════════════════════════
 // Props
@@ -195,7 +196,7 @@ const fullStyles = css`
     position: relative;
 
     &.user {
-      background: var(--odap-layout-primary-gradient, linear-gradient(135deg, #6366F1, #818CF8));
+      background: var(--odap-color-accent);
       color: white;
       border-bottom-right-radius: 4px;
     }
@@ -255,14 +256,16 @@ function SessionSidebar({
   onToggleCollapse: () => void;
 }) {
   const { t } = useI18n('ai-assistant');
+  // 渲染期读取 Date.now() 属于不纯操作：挂载时取一次快照，后续按快照计算相对时间
+  const [nowSnapshot] = useState(() => Date.now());
   const formatDate = (ts: string) => {
     const date = new Date(ts);
-    const diff = Date.now() - date.getTime();
+    const diff = nowSnapshot - date.getTime();
     const hours = Math.floor(diff / (1000 * 60 * 60));
     if (hours < 1) return t('刚刚');
-    if (hours < 24) return t('relativeTime.hoursAgo', { hours });
+    if (hours < 24) return t('relativeTime.hoursAgo', { n: hours });
     const days = Math.floor(hours / 24);
-    if (days < 30) return t('relativeTime.daysAgo', { days });
+    if (days < 30) return t('relativeTime.daysAgo', { n: days });
     return date.toLocaleDateString(undefined, { month: 'short', day: 'numeric' });
   };
 
@@ -378,7 +381,7 @@ function MessageList({
               justifyContent: 'center',
               flexShrink: 0,
               background: msg.role === 'assistant'
-                ? 'var(--odap-layout-primary-gradient, linear-gradient(135deg, #6366F1, #818CF8))'
+                ? 'var(--odap-color-accent)'
                 : 'var(--odap-color-bg-secondary, #f5f5f5)',
               color: msg.role === 'assistant' ? '#fff' : 'var(--odap-color-text-secondary, #666)',
               fontSize: compact ? 10 : 16,
@@ -399,7 +402,7 @@ function MessageList({
               wordBreak: 'break-word',
               background: msg.role === 'assistant'
                 ? 'var(--odap-color-bg-secondary, #f5f5f5)'
-                : 'var(--odap-layout-primary-gradient, linear-gradient(135deg, #6366F1, #818CF8))',
+                : 'var(--odap-color-accent)',
               color: msg.role === 'assistant' ? 'var(--odap-color-text-primary, #333)' : '#fff',
               borderTopLeftRadius: msg.role === 'assistant' ? 4 : (compact ? 8 : 16),
               borderTopRightRadius: msg.role === 'user' ? 4 : (compact ? 8 : 16),
@@ -415,7 +418,7 @@ function MessageList({
                     {tc.status === 'pending' ? <LoadingOutlined spin /> : <CheckCircleOutlined />}
                     <span>{tc.tool_name}</span>
                     <span style={{ color: tc.status === 'done' ? 'var(--ant-color-success, #52c41a)' : 'var(--ant-color-warning, #faad14)' }}>
-                      {tc.status === 'done' ? '✓' : '...'}
+                      {tc.status === 'done' ? <Icon role="confirm" size={16} /> : '...'}
                     </span>
                   </div>
                 ))}
@@ -463,7 +466,7 @@ function MessageList({
         <div style={{ display: 'flex', gap: compact ? 6 : 12, alignItems: 'center' }}>
           <div style={{
             width: compact ? 22 : 40, height: compact ? 22 : 40, borderRadius: '50%',
-            background: 'var(--odap-layout-primary-gradient, linear-gradient(135deg, #6366F1, #818CF8))',
+            background: 'var(--odap-color-accent)',
             display: 'flex', alignItems: 'center', justifyContent: 'center',
             color: '#fff', fontSize: compact ? 10 : 16,
           }}>
@@ -548,29 +551,11 @@ export function AIChatPanel({
 
   // 欢迎消息
   const defaultWelcome = (() => {
-    const base = '你好！我是 ODAP AI 助手。\n\n我可以帮你：\n🔍 查询数据（实体、关系）\n🔧 分析本体完整性';
+    const base = '你好！我是 ODAP AI 助手。\n\n我可以帮你：\n- 查询数据（实体、关系）\n- 分析本体完整性';
     if (!ontologyId) return base + '\n\n请用自然语言提问！';
-    if (currentTypeName) return base + `\n💡 建议「${currentTypeName}」的属性和关系\n\n请用自然语言提问！`;
+    if (currentTypeName) return base + `\n- 建议「${currentTypeName}」的属性和关系\n\n请用自然语言提问！`;
     return base + '\n\n请用自然语言提问！';
   })();
-
-  // 初始化欢迎消息
-  useEffect(() => {
-    if (ai.messages.length === 0) {
-      let welcome = welcomeMessage || defaultWelcome;
-      // 追加本体上下文
-      if (ai.ontologyContext) {
-        const ctx = ai.ontologyContext as Record<string, unknown>;
-        const types = (ctx.object_types as Array<Record<string, unknown>>) || [];
-        if (types.length > 0) {
-          const typeList = types.map(t => `${t.name}(${t.property_count ?? ((t.properties as string[])?.length ?? 0)})`);
-          welcome += `\n\n📋 **当前本体** (${types.length} 个类型):\n${typeList.map((t: string) => `  • ${t}`).join('\n')}`;
-        }
-      }
-      // 手动设置欢迎消息
-      ai.sendMessage(''); // 触发空消息不会发送，我们需要另一种方式
-    }
-  }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
   // 快捷操作
   const quickActions = (() => {
@@ -599,7 +584,7 @@ export function AIChatPanel({
         let formatted = '';
         if (qa.toolName === 'suggest_properties') {
           const sugg = (result as Record<string, unknown>).suggestions as Array<Record<string, unknown>> || [];
-          formatted = `💡 **「${currentTypeName}」属性建议**\n\n`;
+          formatted = `**「${currentTypeName}」属性建议**\n\n`;
           if (sugg.length === 0) {
             formatted += (result as Record<string, unknown>).hint as string || '该类型已具备常用属性，暂无额外建议。';
           } else {
@@ -610,7 +595,7 @@ export function AIChatPanel({
           }
         } else if (qa.toolName === 'suggest_relations') {
           const sugg = (result as Record<string, unknown>).suggestions as Array<Record<string, unknown>> || [];
-          formatted = `🔗 **「${currentTypeName}」关系建议**\n\n`;
+          formatted = `**「${currentTypeName}」关系建议**\n\n`;
           if (sugg.length === 0) {
             formatted += (result as Record<string, unknown>).hint as string || '暂无明显关系建议。';
           } else {
@@ -625,10 +610,9 @@ export function AIChatPanel({
 
         // 添加为用户+助手消息
         ai.sendMessage(qa.msg).then(() => {
-          // 在发送后追加格式化结果
+          // 工具结果回填输入框：用户可直接确认或修改后再发送
+          setInputValue(formatted);
         });
-        // 直接追加工具结果
-        setInputValue('');
       } catch {
         // 失败则回退到输入框
         setInputValue(qa.msg);
@@ -667,7 +651,7 @@ export function AIChatPanel({
           <div>
             <div style={{
               width: compact ? 48 : 80, height: compact ? 48 : 80, margin: '0 auto',
-              background: 'var(--odap-layout-primary-gradient, linear-gradient(135deg, #6366F1, #818CF8))',
+              background: 'var(--odap-color-accent)',
               borderRadius: compact ? 12 : 24,
               display: 'flex', alignItems: 'center', justifyContent: 'center',
               color: 'white', fontSize: compact ? 24 : 40,
@@ -684,7 +668,7 @@ export function AIChatPanel({
                 const types = (ctx.object_types as Array<Record<string, unknown>>) || [];
                 if (types.length === 0) return null;
                 const typeList = types.map(t => `${t.name}(${t.property_count ?? ((t.properties as string[])?.length ?? 0)})`);
-                return `\n\n📋 **当前本体** (${types.length} 个类型):\n${typeList.map((t: string) => `  • ${t}`).join('\n')}`;
+                return `\n\n**当前本体** (${types.length} 个类型):\n${typeList.map((t: string) => `  • ${t}`).join('\n')}`;
               })()}
             </div>
           </div>
@@ -740,7 +724,7 @@ export function AIChatPanel({
             onClick={handleSend}
             disabled={!inputValue.trim() || ai.sending}
             style={{
-              background: 'var(--odap-layout-primary-gradient, linear-gradient(135deg, #6366F1, #818CF8))',
+              background: 'var(--odap-color-accent)',
               border: 'none',
             }}
           />
@@ -774,7 +758,7 @@ export function AIChatPanel({
         <div className="chat-area">
           <div className="chat-header">
             <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-              <Avatar icon={<RobotOutlined />} style={{ background: 'var(--odap-layout-primary-gradient, linear-gradient(135deg, #6366F1, #818CF8))' }} />
+              <Avatar icon={<RobotOutlined />} style={{ background: 'var(--odap-color-accent)' }} />
               <div>
                 <div style={{ fontSize: 15, fontWeight: 600 }}>{panelTitle}</div>
                 {ai.currentSessionId && (

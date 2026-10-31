@@ -1,4 +1,4 @@
-import { useState, useRef, useMemo } from 'react';
+import { useState, useRef, useMemo, type Key } from 'react';
 
 import { Card, Button, Space, Tag, Popconfirm, message, Modal } from 'antd';
 
@@ -18,6 +18,11 @@ import type { ActionType } from '@ant-design/pro-components';
 interface VersionItem {
 
   version_id: string;
+
+  /** 版本所属文档 ID —— 回滚 / diff 接口的必填参数 */
+  doc_id: string;
+
+  doc_type?: string;
 
   ontology_id?: string;
 
@@ -57,12 +62,20 @@ export function VersionHistory() {
 
   const { currentWorkspace } = useWorkspace();
 
+  /** 最近一次拉取的版本列表，用于按 version_id 反查 doc_id */
+  const [versionRows, setVersionRows] = useState<VersionItem[]>([]);
+
   const fetchVersions = async (): Promise<VersionItem[]> => {
     if (currentWorkspace && currentScenario) {
-      return await api.getScenarioOntologyVersions(currentWorkspace, currentScenario);
+      const rows = await api.getScenarioOntologyVersions(currentWorkspace, currentScenario);
+      setVersionRows(rows);
+      return rows;
     }
     return [];
   };
+
+  const docIdOf = (versionId: string): string | undefined =>
+    versionRows.find((v) => v.version_id === versionId)?.doc_id;
 
   const request = useMemo(() => wrapRequest(fetchVersions), [currentScenario, currentWorkspace]);
 
@@ -78,7 +91,14 @@ export function VersionHistory() {
 
       } else {
 
-        await api.rollback(versionId);
+        const docId = docIdOf(versionId);
+
+        if (!docId) {
+          message.warning(t('版本信息缺失，请刷新后重试'));
+          return;
+        }
+
+        await api.rollback(docId, versionId);
 
       }
 
@@ -110,7 +130,19 @@ export function VersionHistory() {
 
     try {
 
-      const diff = await api.diffVersions(selectedVersions[0], selectedVersions[1]);
+      const [versionA, versionB] = selectedVersions;
+
+      const docId = docIdOf(versionA) ?? docIdOf(versionB);
+
+      if (!docId) {
+
+        message.warning(t('版本信息缺失，请刷新后重试'));
+
+        return;
+
+      }
+
+      const diff = await api.diffVersions(docId, versionA, versionB);
 
       setComparisonResult(diff);
 
@@ -348,7 +380,7 @@ export function VersionHistory() {
 
             selectedRowKeys: selectedVersions,
 
-            onChange: (selectedKeys) => setSelectedVersions(selectedKeys as string[]),
+            onChange: (selectedKeys: Key[]) => setSelectedVersions(selectedKeys.map(String)),
 
           }}
 

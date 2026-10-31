@@ -1,6 +1,24 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { render, screen, fireEvent, waitFor } from '@testing-library/react';
-import { IngestPanel, getLogError } from './IngestPanel';
+import { IngestPanel } from './IngestPanel';
+import { getLogError } from '../utils/logError';
+import type { ReactNode } from 'react';
+
+/**
+ * `@/modules/shared` 里 AdvancedTable 的测试桩形状。
+ *
+ * 只用到 `dataSource` 与 `columns[].render/dataIndex`，用真实形状替代 `unknown[]`，
+ * 否则桩内部每次取值都要额外断言。
+ */
+interface StubColumn {
+  dataIndex: string;
+  render?: (value: unknown, record: Record<string, unknown>, index: number) => ReactNode;
+}
+
+interface StubTableProps {
+  dataSource: Array<Record<string, unknown>>;
+  columns: StubColumn[];
+}
 
 // ─── Mocks ───
 
@@ -21,18 +39,21 @@ vi.mock('@/modules/shared', () => ({
   fetchJson: vi.fn(),
   API_BASE: 'http://localhost:8000',
   // 轻量桩：按列 render 展开数据行，便于断言行内按钮
-  AdvancedTable: ({ dataSource, columns }: { dataSource: any[]; columns: any[] }) => (
+  AdvancedTable: ({ dataSource, columns }: StubTableProps) => (
     <table>
       <tbody>
         {dataSource.map((record, rowIndex) => (
-          <tr key={record.id}>
-            {columns.map((col, colIndex) => (
-              <td key={colIndex}>
-                {col.render
-                  ? col.render(record[col.dataIndex], record, rowIndex)
-                  : record[col.dataIndex]}
-              </td>
-            ))}
+          <tr key={String(record.id ?? rowIndex)}>
+            {columns.map((col, colIndex) => {
+              const cellValue = record[col.dataIndex];
+              const display =
+                typeof cellValue === 'string' || typeof cellValue === 'number' ? cellValue : null;
+              return (
+                <td key={colIndex}>
+                  {col.render ? col.render(cellValue, record, rowIndex) : display}
+                </td>
+              );
+            })}
           </tr>
         ))}
       </tbody>

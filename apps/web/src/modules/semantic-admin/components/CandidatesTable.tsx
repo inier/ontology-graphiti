@@ -3,8 +3,8 @@ import { Table, Tag, Progress, Tooltip, Button, Space, Popconfirm, Descriptions 
 import type { TableProps } from 'antd';
 import { CheckOutlined, CloseOutlined, DeleteOutlined, CloudServerOutlined, PartitionOutlined } from '@ant-design/icons';
 import type { Candidate } from '../services/pipelineApi';
-import { SEMANTIC_TYPE_COLOR, CANDIDATE_STATUS_COLOR, CANDIDATE_STATUS_LABEL } from '../types';
-import type { GraphitiWritebackStatus } from '../types';
+import { SEMANTIC_TYPE_COLOR, CANDIDATE_STATUS_COLOR, CANDIDATE_STATUS_LABEL } from '../types';import { Icon } from '@/modules/shared/components/Icon';
+import type { IconRole } from '@/modules/shared/components/iconRegistry';
 
 const TIER_COLOR: Record<string, string> = { HIGH: 'green', MEDIUM: 'blue', LOW: 'gold', VERY_LOW: 'red' };
 const ORIGIN_COLOR: Record<string, string> = { llm: 'geekblue', usl: 'green', hybrid: 'purple', human: 'blue' };
@@ -35,8 +35,8 @@ const renderOrigin = (r: Candidate) => {
   const o = r.origin || '';
   const prov = r.provenance || {};
   const isReasoning = prov.source === 'reasoning';
-  const chainId = prov.chain_id as string | undefined;
-  const engineMode = prov.engine_mode as string | undefined;
+  const chainId = prov.chain_id;
+  const engineMode = prov.engine_mode;
   return (
     <Space size={2} wrap>
       {o && <Tag color={ORIGIN_COLOR[o] ?? 'default'}>{ORIGIN_LABEL[o] ?? o}</Tag>}
@@ -69,9 +69,9 @@ const renderUslTag = (r: Candidate) => {
 };
 
 const renderGraphitiTag = (r: Candidate) => {
-  const gw = r.provenance?.graphiti_writeback as GraphitiWritebackStatus | undefined;
-  const oid = r.provenance?.graphiti_ontology_id as string | undefined;
-  const tid = r.provenance?.graphiti_type_id as string | undefined;
+  const gw = r.provenance?.graphiti_writeback;
+  const oid = r.provenance?.graphiti_ontology_id;
+  const tid = r.provenance?.graphiti_type_id;
   if (!gw && !oid && !tid) {
     return <Tag>—</Tag>;
   }
@@ -84,7 +84,7 @@ const renderGraphitiTag = (r: Candidate) => {
     skipped: 'gold',
     error: 'red',
   };
-  const iconMap: Record<string, string> = { ok: '✓', skipped: '∘', error: '✗' };
+  const iconRoleMap: Record<string, IconRole> = { ok: 'confirm', skipped: 'info', error: 'failed' };
   const labelMap: Record<string, string> = { ok: '写入', skipped: '跳过', error: '失败' };
   const methodBadge = gw?.method ? <Tag style={{ marginLeft: 4, padding: '0 4px' }}>{gw.method}</Tag> : null;
   const tip = [
@@ -97,7 +97,7 @@ const renderGraphitiTag = (r: Candidate) => {
   return (
     <Tooltip title={tip || undefined}>
       <Tag color={colorMap[st] ?? 'default'} icon={<PartitionOutlined />}>
-        {iconMap[st] ?? ''} {labelMap[st] ?? st}
+        {iconRoleMap[st] ? <Icon role={iconRoleMap[st]} size={16} /> : null} {labelMap[st] ?? st}
         {methodBadge}
       </Tag>
     </Tooltip>
@@ -122,9 +122,9 @@ const CandidatesTable: React.FC<CTProps> = (P) => {
         {CANDIDATE_STATUS_LABEL[v as keyof typeof CANDIDATE_STATUS_LABEL] ?? v}
       </Tag>
     ) },
-    { title: '来源/链', key: 'origin', width: 200, render: (_: any, r) => renderOrigin(r) },
-    { title: 'USL 写回', key: 'usl_wb', width: 160, render: (_: any, r) => renderUslTag(r) },
-    { title: 'Graphiti 写回', key: 'g_wb', width: 170, render: (_: any, r) => renderGraphitiTag(r) },
+    { title: '来源/链', key: 'origin', width: 200, render: (_: unknown, r) => renderOrigin(r) },
+    { title: 'USL 写回', key: 'usl_wb', width: 160, render: (_: unknown, r) => renderUslTag(r) },
+    { title: 'Graphiti 写回', key: 'g_wb', width: 170, render: (_: unknown, r) => renderGraphitiTag(r) },
     { title: 'Domain ID', dataIndex: 'domain_id', key: 'did', width: 110, render: (v?: string) => <Tooltip title={v}><span style={{ fontFamily: 'monospace', fontSize: 12 }}>{shortId(v)}</span></Tooltip> },
     { title: 'Created', dataIndex: 'created_at', key: 'ca', width: 160, render: (v: string) => fmtDate(v) },
     { title: 'Actions', key: 'a', width: 260, fixed: 'right', render: (_, r) => (
@@ -148,7 +148,7 @@ const CandidatesTable: React.FC<CTProps> = (P) => {
         style: { cursor: P.onRowClick ? 'pointer' : 'default' },
       })}
       expandable={{ expandedRowRender: (r) => {
-        const gw = r.provenance?.graphiti_writeback as GraphitiWritebackStatus | undefined;
+        const gw = r.provenance?.graphiti_writeback;
         const uslTid = r.provenance?.writeback_usl_term_id;
         const oid = r.provenance?.graphiti_ontology_id;
         const tid = r.provenance?.graphiti_type_id;
@@ -161,10 +161,10 @@ const CandidatesTable: React.FC<CTProps> = (P) => {
             {r.near_synonyms?.length > 0 && <div style={{ margin: '4px 0' }}><strong>Near-synonyms: </strong>{r.near_synonyms.map((s) => <Tag key={s} color="default" style={{ margin: 2 }}>{s}</Tag>)}</div>}
             {(uslTid || oid || tid || gw || promotedBy) ? (
               <Descriptions size="small" column={2} bordered style={{ marginTop: 8 }} title="双写回状态 (Writeback)">
-                {promotedBy && <Descriptions.Item label="操作人">{String(promotedBy)}</Descriptions.Item>}
+                {promotedBy && <Descriptions.Item label="操作人">{promotedBy}</Descriptions.Item>}
                 {uslTid && <Descriptions.Item label="USL Term ID" contentStyle={{ fontFamily: 'monospace', fontSize: 12 }}>{uslTid}</Descriptions.Item>}
-                {oid && <Descriptions.Item label="Ontology ID" contentStyle={{ fontFamily: 'monospace', fontSize: 12 }}>{String(oid)}</Descriptions.Item>}
-                {tid && <Descriptions.Item label="Graphiti Type ID" contentStyle={{ fontFamily: 'monospace', fontSize: 12 }}>{String(tid)}</Descriptions.Item>}
+                {oid && <Descriptions.Item label="Ontology ID" contentStyle={{ fontFamily: 'monospace', fontSize: 12 }}>{oid}</Descriptions.Item>}
+                {tid && <Descriptions.Item label="Graphiti Type ID" contentStyle={{ fontFamily: 'monospace', fontSize: 12 }}>{tid}</Descriptions.Item>}
                 {gw?.method && <Descriptions.Item label="写入方法">{gw.method}</Descriptions.Item>}
                 {gw && <Descriptions.Item label="写入结果">
                   {gw.status === 'ok' && <Tag color="green">成功</Tag>}

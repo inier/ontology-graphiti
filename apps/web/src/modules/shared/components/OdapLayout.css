@@ -13,21 +13,21 @@
  *   └──────┴──────────┴──────────────────────┴──────────────────┘
  * ═══════════════════════════════════════════════════════════════ */
 
-/* ── Layout Variables ── */
+/* ── Layout Variables（全部引用 Token，零字面色值） ── */
 :root {
-  --odap-layout-header-height: 48px;
-  --odap-layout-menu-width-collapsed: 48px;
-  --odap-layout-menu-width-expanded: 220px;
-  --odap-layout-divider-width: 6px;
-  --odap-layout-divider-hover: 4px;
-  --odap-layout-border-color: var(--odap-color-border-light, #e8e8e8);
-  --odap-layout-bg: var(--odap-color-bg-primary, #fff);
-  --odap-layout-bg-secondary: var(--odap-color-bg-secondary, #fafafa);
-  --odap-layout-text: var(--odap-color-text, rgba(0,0,0,0.88));
-  --odap-layout-text-secondary: var(--odap-color-text-secondary, rgba(0,0,0,0.45));
-  --odap-layout-primary: var(--odap-color-primary, #6366F1);
-  --odap-layout-transition: 0.2s ease;
-  --odap-layout-workspace-padding: 24px;
+  --odap-layout-header-height: var(--odap-header-height);
+  --odap-layout-menu-width-collapsed: var(--odap-nav-collapsed-width);
+  --odap-layout-menu-width-expanded: var(--odap-nav-width);
+  --odap-layout-divider-width: var(--odap-space-1);
+  --odap-layout-divider-hover: var(--odap-space-1);
+  --odap-layout-border-color: var(--odap-color-border);
+  --odap-layout-bg: var(--odap-color-surface);
+  --odap-layout-bg-secondary: var(--odap-color-bg);
+  --odap-layout-text: var(--odap-color-fg);
+  --odap-layout-text-secondary: var(--odap-color-fg-secondary);
+  --odap-layout-primary: var(--odap-color-accent);
+  --odap-layout-transition: var(--odap-duration-base) var(--odap-ease-standard);
+  --odap-layout-workspace-padding: var(--odap-space-6);
 }
 
 /* ── Main Layout Container ── */
@@ -571,13 +571,14 @@
 
 /* ── Keep-Alive: React 19 <Activity> 处理可见性，此处仅保留布局样式 ── */
 
-/* ── Dark Mode ── */
-[data-theme="dark"] {
-  --odap-layout-bg: #141414;
-  --odap-layout-bg-secondary: #1f1f1f;
-  --odap-layout-text: rgba(255, 255, 255, 0.85);
-  --odap-layout-text-secondary: rgba(255, 255, 255, 0.45);
-  --odap-layout-border-color: #303030;
+/* ── Dark Mode（跟随 Token 外观轴，不再本地定义色值） ── */
+[data-theme="dark"],
+[data-appearance="nebula"] {
+  --odap-layout-bg: var(--odap-color-surface);
+  --odap-layout-bg-secondary: var(--odap-color-bg);
+  --odap-layout-text: var(--odap-color-fg);
+  --odap-layout-text-secondary: var(--odap-color-fg-secondary);
+  --odap-layout-border-color: var(--odap-color-border);
 }
 
 /* ── Sidebar Menu: collapsed state — click-only, no hover popup ── */
@@ -589,36 +590,13 @@
 /* ── Sidebar Menu: submenu expand animation ── */
 .ant-menu-inline .ant-menu-submenu-expand,
 .ant-menu-inline .ant-menu-submenu-collapse {
-  transition: height 300ms cubic-bezier(0.4, 0, 0.2, 1), opacity 200ms ease;
+  transition:
+    height var(--odap-duration-slow) var(--odap-ease-standard),
+    opacity var(--odap-duration-base) var(--odap-ease-standard);
 }
 
-/* ── Color Themes ── */
-[data-color-theme="indigo"] {
-  --odap-layout-primary: #6366F1;
-  --odap-layout-primary-light: rgba(99, 102, 241, 0.12);
-  --odap-layout-primary-gradient: linear-gradient(135deg, #6366F1, #818CF8);
-}
-
-[data-color-theme="blue"] {
-  --odap-layout-primary: #3B82F6;
-  --odap-layout-primary-light: rgba(59, 130, 246, 0.12);
-  --odap-layout-primary-gradient: linear-gradient(135deg, #3B82F6, #60A5FA);
-}
-
-[data-color-theme="green"] {
-  --odap-layout-primary: #10B981;
-  --odap-layout-primary-light: rgba(16, 185, 129, 0.12);
-  --odap-layout-primary-gradient: linear-gradient(135deg, #10B981, #34D399);
-}
-
-[data-color-theme="violet"] {
-  --odap-layout-primary: #8B5CF6;
-  --odap-layout-primary-light: rgba(139, 92, 246, 0.12);
-  --odap-layout-primary-gradient: linear-gradient(135deg, #8B5CF6, #A78BFA);
-}
-
-[data-color-theme="amber"] {
-  --odap-layout-primary: #F59E0B;
-  --odap-layout-primary-light: rgba(245, 158, 11, 0.12);
-  --odap-layout-primary-gradient: linear-gradient(135deg, #F59E0B, #FBBF24);
-}
+/* ── Color Themes ──
+ * v2：强调色由 design-tokens.css 的 data-accent 插槽统一供给。
+ * 旧的 5 套调色板（含 violet）与 --odap-layout-primary-gradient 已删除（P0-2）。
+ * 此处无需任何色值定义，--odap-layout-primary 已在 :root 指向 --odap-color-accent。
+ */

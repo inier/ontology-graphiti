@@ -104,10 +104,8 @@ export function DocumentViewer({
   const supported = fetchUrl && isPreviewSupported(fileUrl, fileType, filename);
 
   useEffect(() => {
-    if (!supported) {
-      setStatus('unsupported');
-      return;
-    }
+    // 不支持的格式在上方渲染层已整体短路，无需再写 status 状态
+    if (!supported) return;
 
     if (!containerRef.current || !fetchUrl) return;
 
@@ -149,9 +147,10 @@ export function DocumentViewer({
         viewerRef.current = viewer;
         await viewer.mount();
       } catch (e: unknown) {
+        const errMessage = e instanceof Error ? e.message : String(e);
         if (mounted) {
           setStatus('error');
-          setErrorMsg(e instanceof Error ? e.message : '文档预览初始化失败');
+          setErrorMsg(e instanceof Error ? errMessage : '文档预览初始化失败');
         }
       }
     };

@@ -141,7 +141,7 @@ const McpToolsPage: React.FC = () => {
     desc: t(tool.desc),
     schema: t(tool.schema),
     sample: translateStrings(tool.sample, t) as Record<string, unknown>,
-  })), [t]); // eslint-disable-line react-hooks/exhaustive-deps
+  })), [t]);  
 
   const handleOpenInvoke = (tool: ToolSpec) => {
     setInvokeTool(tool);

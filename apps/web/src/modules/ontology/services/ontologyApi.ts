@@ -1,7 +1,90 @@
 import { fetchJson, apiClient } from '@/modules/shared/services/apiClient';
 import { API_BASE } from '@/config';
+import type { ExtractionProgress } from '../components/types';
 
 const BASE = `${API_BASE}/api/ontology/model`;
+
+/**
+ * 抽取产出的类型集合。
+ *
+ * 四个抽取入口（文档 / 自然语言 / 数据库 / 知识库）返回结构一致；
+ * 单项字段随类型而变，故按 `ExtractedTypeItem` 建模后逐字段收窄。
+ */
+export interface ExtractedTypeItem {
+  name: string;
+  display_name?: string;
+  description?: string;
+  [key: string]: unknown;
+}
+
+export interface ExtractionTypeBuckets {
+  object_types?: ExtractedTypeItem[];
+  link_types?: ExtractedTypeItem[];
+  action_types?: ExtractedTypeItem[];
+  rule_types?: ExtractedTypeItem[];
+  process_types?: ExtractedTypeItem[];
+  function_types?: ExtractedTypeItem[];
+  indicator_types?: ExtractedTypeItem[];
+}
+
+/**
+ * 抽取冲突项（导入前需人工确认）。
+ *
+ * 归属说明：本类型描述的是**接口返回结构**，故定义在 services 层；
+ * `components/ExtractionPreview` 只做再导出供组件使用。
+ * 早前为消除 `any` 把它改成 `unknown[]`，导致 `setExtractionConflicts(result.conflicts)` 类型不通——
+ * 用 `unknown` 消 `any` 只是把错误从 lint 挪到了 tsc，必须收敛到真实结构。
+ */
+export interface ExtractionConflict {
+  type: string;
+  name: string;
+  existing_name?: string;
+  field?: string;
+  message?: string;
+}
+
+/**
+ * 抽取会话返回值。
+ *
+ * 后端把产出同时放在顶层与 `result` 内（历史前端两处都读），故两种位置都保留。
+ */
+export interface ExtractionSessionResult extends ExtractionTypeBuckets {
+  session_id?: string;
+  status?: string;
+  result?: ExtractionTypeBuckets;
+  /** 抽取冲突项（导入前需人工确认） */
+  conflicts?: ExtractionConflict[];
+  /** 数据库连接测试等非抽取入口的错误说明 */
+  message?: string;
+}
+
+/** 数据库连接测试结果 */
+export interface DbTestConnectionResult {
+  status?: string;
+  message?: string;
+  tables?: string[];
+}
+
+/** 抽取结果导入返回：A=图数据库通道，B=向量索引通道 */
+export interface ExtractionImportResult {
+  channel_a_status?: string;
+  channel_b_status?: string;
+}
+
+/** 模板列表信封：模板字段由调用方类型决定，这里只约定 `templates` / `data` 两个位置 */
+export interface TemplateListEnvelope<T> {
+  templates?: T[];
+  data?: T[];
+  /** `POST /api/extraction/templates/recommend` 会额外返回评估摘要（TemplateEngine.assess） */
+  assessment?: {
+    best_score?: number;
+    threshold?: number;
+    /** true 表示没有候选达到阈值，应提示用户走「联网生成」 */
+    needs_custom?: boolean;
+    settled_used?: boolean;
+  };
+}
+
 
 export interface PropertyDefinition {
   name: string;
@@ -235,14 +318,14 @@ export const ontologyApi = {
   // ─── Extraction ─────────────────────────────────────────────────
   extraction: {
     testConnection: (data: Record<string, unknown>) =>
-      apiClient.post('/api/extraction/test-connection', data),
+      apiClient.post<DbTestConnectionResult>('/api/extraction/test-connection', data),
     extractDatabase: (data: Record<string, unknown>) =>
-      apiClient.post('/api/extraction/extract/database', data),
+      apiClient.post<ExtractionSessionResult>('/api/extraction/extract/database', data),
     extractNL: (data: Record<string, unknown>) =>
-      apiClient.post('/api/extraction/extract/natural-language', data),
+      apiClient.post<ExtractionSessionResult>('/api/extraction/extract/natural-language', data),
     getSession: (sessionId: string) =>
       apiClient.get(`/api/extraction/sessions/${sessionId}`),
-    extractDocument: (formData: FormData) =>
+    extractDocument: (formData: FormData): Promise<ExtractionSessionResult> =>
       fetch(`${API_BASE}/api/extraction/extract/document`, {
         method: 'POST',
         headers: {
@@ -253,22 +336,26 @@ export const ontologyApi = {
         body: formData,
       }).then(async (res) => {
         if (!res.ok) throw new Error(await res.text());
-        return res.json();
+        // 该端点绕过了 apiClient，故在此显式断言后端契约
+        return (await res.json()) as ExtractionSessionResult;
       }),
     extractKB: (data: Record<string, unknown>) =>
-      apiClient.post('/api/extraction/extract/knowledge-base', data),
+      apiClient.post<ExtractionSessionResult>('/api/extraction/extract/knowledge-base', data),
     listTemplates: () =>
       apiClient.get('/api/extraction/templates'),
-    recommendTemplates: (data: Record<string, unknown>) =>
-      apiClient.post('/api/extraction/templates/recommend', data),
-    generateTemplateWebSearch: (data: Record<string, unknown>) =>
-      apiClient.post('/api/extraction/templates/generate-web-search', data),
+    recommendTemplates: <T = Record<string, unknown>>(data: Record<string, unknown>) =>
+      apiClient.post<TemplateListEnvelope<T>>('/api/extraction/templates/recommend', data),
+    generateTemplateWebSearch: <T = Record<string, unknown>>(data: Record<string, unknown>) =>
+      apiClient.post<{ template?: T; data?: T }>(
+        '/api/extraction/templates/generate-web-search',
+        data,
+      ),
     getProvenance: (entityId: string) =>
       apiClient.get(`/api/extraction/provenance/${entityId}`),
     getProvenanceBySource: (docId: string) =>
       apiClient.get(`/api/extraction/provenance/by-source/${docId}`),
     confirm: (sessionId: string, data: Record<string, unknown>) =>
-      apiClient.post(`/api/extraction/sessions/${sessionId}/confirm`, data),
+      apiClient.post<ExtractionImportResult>(`/api/extraction/sessions/${sessionId}/confirm`, data),
     progressStream: (sessionId: string): Promise<Response> => {
       const token = localStorage.getItem('token');
       return fetch(`${API_BASE}/api/extraction/progress/${sessionId}`, {
@@ -280,7 +367,7 @@ export const ontologyApi = {
       });
     },
     progressStatus: (sessionId: string) =>
-      apiClient.get(`/api/extraction/progress/${sessionId}/status`),
+      apiClient.get<ExtractionProgress>(`/api/extraction/progress/${sessionId}/status`),
   },
 
   // ─── AI Assistant (T077) ─────────────────────────────────────────

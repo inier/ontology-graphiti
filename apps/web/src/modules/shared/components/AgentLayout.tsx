@@ -1,45 +1,28 @@
-import React, { useState, useEffect, useCallback, useMemo, useContext } from 'react';
-import { Layout, Select, Button, App, ConfigProvider, theme as antdTheme } from 'antd';
-import { useNavigate, useLocation, Outlet } from 'react-router-dom';
-import { RobotOutlined, MenuFoldOutlined, MenuUnfoldOutlined } from '@ant-design/icons';
-import { api } from '../services/api';
+import React, { useState, useEffect, useMemo, useContext } from 'react';
+import { Layout, Button, App, ConfigProvider, theme as antdTheme } from 'antd';
+import { useNavigate, Outlet } from 'react-router-dom';
+import { MenuFoldOutlined } from '@ant-design/icons';
 import { useAuthStore } from '../stores/authStore';
-import { useI18n } from '@/modules/shared/hooks/useI18n';
-import { GlobalLoading } from './GlobalLoading';
 import { LayoutHeader } from './LayoutHeader';
-import { useLayoutStore, type ColorTheme } from '../stores/layoutStore';
-import { WorkspaceContext, ScenarioContext, type Workspace, type Scenario } from './LayoutContexts';
-import { applyColorTheme } from '../styles/colorThemeUtils';
+import { useLayoutStore } from '../stores/layoutStore';
+import { useTourStore } from '@/modules/guide';
+import { WorkspaceContext, ScenarioContext } from './LayoutContexts';
+import { useThemeRuntime } from '../styles/useThemeRuntime';
 import './OdapLayout.css';
-
-const { Header, Sider } = Layout;
-
-/** colorTheme → Ant Design primary color (OKLCH-based) */
-const COLOR_THEME_PRIMARY: Record<string, string> = {
-  indigo:  '#6366F1',
-  violet:  '#8B5CF6',
-  emerald: '#10B981',
-  rose:    '#F43F5E',
-  amber:   '#F59E0B',
-};
-
-/** Agent 模式下需要创建 tab 的路由（动态更新） */
-const agentRouteTabInfo: Record<string, { title: string }> = {};
-
 /* ──────────────────────────────────────────
  * AgentLayoutInner — 渲染在 <App> 内部，
  * 可以安全使用 App.useApp() 获取 message/notification/modal
  * ────────────────────────────────────────── */
-function AgentLayoutInner() {
+function AgentLayoutInner({ children }: { children?: React.ReactNode }) {
   const navigate = useNavigate();
-  const location = useLocation();
   const { message } = App.useApp();
 
   /* ── Auth ── */
   const { user, logout } = useAuthStore();
 
   /* ── Theme ── */
-  const { theme, colorTheme, setColorTheme, setTheme, setShowTour, showTour } = useLayoutStore();
+  const { theme, colorTheme, setColorTheme, setTheme } = useLayoutStore();
+  const { resetGuideTour } = useTourStore();
 
   const toggleTheme = () => setTheme(theme === 'light' ? 'dark' : 'light');
 
@@ -67,15 +50,29 @@ function AgentLayoutInner() {
   /* ── 初始加载（仅当 Context 中数据为空时） ── */
   useEffect(() => {
     if (workspaces.length === 0) {
-      setLoading(true);
-      reloadWorkspaces().finally(() => setLoading(false));
+      // 显式 async 边界：加载态在微任务里切换，避免 effect 内同步 setState 触发级联渲染
+      void (async () => {
+        setLoading(true);
+        try {
+          await reloadWorkspaces();
+        } finally {
+          setLoading(false);
+        }
+      })();
     }
   }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
   useEffect(() => {
     if (activeWorkspaceId && scenarios.length === 0) {
-      setScenariosLoading(true);
-      reloadScenarios().finally(() => setScenariosLoading(false));
+      // 同上：把加载过程整体放进 async 边界
+      void (async () => {
+        setScenariosLoading(true);
+        try {
+          await reloadScenarios();
+        } finally {
+          setScenariosLoading(false);
+        }
+      })();
     }
   }, [activeWorkspaceId]); // eslint-disable-line react-hooks/exhaustive-deps
 
@@ -95,7 +92,7 @@ function AgentLayoutInner() {
   };
 
   const handleResetTour = () => {
-    setShowTour(true);
+    resetGuideTour();
     navigate('/guide');
   };
 
@@ -113,29 +110,36 @@ function AgentLayoutInner() {
   );
 
   /* ── Ant Design theme (synced with theme / colorTheme) ── */
+  const tokens = useThemeRuntime(theme, colorTheme);
+
   const antdThemeConfig = useMemo(() => ({
     cssVar: {},
     algorithm: theme === 'dark' ? antdTheme.darkAlgorithm : antdTheme.defaultAlgorithm,
     token: {
-      colorPrimary: COLOR_THEME_PRIMARY[colorTheme] || '#6366F1',
+      colorPrimary: tokens.accentSolid,
+      colorSuccess: tokens.success,
+      colorWarning: tokens.warn,
+      colorError: tokens.danger,
+      colorInfo: tokens.info,
+      colorText: tokens.fg,
+      colorTextSecondary: tokens.fgSecondary,
+      colorBgContainer: tokens.bgContainer,
+      colorBgElevated: tokens.bgElevated,
+      colorBgLayout: tokens.bgLayout,
+      colorBorder: tokens.border,
       borderRadius: 8,
-      colorBgContainer: theme === 'dark' ? '#1F1F1F' : '#FFFFFF',
-      colorBgElevated: theme === 'dark' ? '#262626' : '#FFFFFF',
-      colorBgLayout: theme === 'dark' ? '#141414' : '#F8F9FC',
     },
     components: {
-      Button: {
-        primaryShadow: `0 2px 8px ${COLOR_THEME_PRIMARY[colorTheme] || '#6366F1'}40`,
-      },
+      Button: { primaryShadow: 'none' },
       Input: {
-        activeBorderColor: COLOR_THEME_PRIMARY[colorTheme] || '#6366F1',
-        hoverBorderColor: COLOR_THEME_PRIMARY[colorTheme] || '#6366F1',
+        activeBorderColor: tokens.accent,
+        hoverBorderColor: tokens.accentBorder,
       },
       Select: {
-        optionSelectedBg: `${COLOR_THEME_PRIMARY[colorTheme] || '#6366F1'}10`,
+        optionSelectedBg: tokens.accentSubtle,
       },
     },
-  }), [theme, colorTheme]);
+  }), [theme, tokens]);
 
   return (
     <ConfigProvider theme={antdThemeConfig}>
@@ -171,7 +175,9 @@ function AgentLayoutInner() {
             padding: 'var(--odap-layout-workspace-padding, 24px)',
           }}
         >
-          <Outlet />
+          {/* App.tsx 以 `<AgentLayout><AppRoutes/></AgentLayout>` 方式挂载时用 children；
+              作为路由 layout 使用时退回 <Outlet/>。 */}
+          {children ?? <Outlet />}
         </div>
       </Layout>
     </ConfigProvider>
@@ -181,20 +187,17 @@ function AgentLayoutInner() {
 /* ──────────────────────────────────────────
  * AgentLayout — 外层壳，提供 <App> 上下文
  * ────────────────────────────────────────── */
-export function AgentLayout() {
+export function AgentLayout({ children }: { children?: React.ReactNode }) {
   /* ── 全局 theme 副作用（独立于 <App> 上下文） ── */
   const { theme, colorTheme } = useLayoutStore();
 
   useEffect(() => {
-    document.documentElement.setAttribute('data-theme', theme);
-    document.documentElement.setAttribute('data-color-theme', colorTheme);
     localStorage.setItem('odap-color-theme', colorTheme);
-    applyColorTheme(colorTheme, theme === 'dark');
   }, [theme, colorTheme]);
 
   return (
     <App>
-      <AgentLayoutInner />
+      <AgentLayoutInner>{children}</AgentLayoutInner>
     </App>
   );
 }

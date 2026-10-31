@@ -1,6 +1,6 @@
 import { useMemo } from 'react';
 import { useSearchParams } from 'react-router-dom';
-import { Spin, Typography, Empty, Button, Space } from 'antd';
+import { Typography, Empty, Button, Space } from 'antd';
 import { ReloadOutlined, ExpandOutlined } from '@ant-design/icons';
 
 const { Title } = Typography;
@@ -48,7 +48,7 @@ export function IframeViewerPage() {
             icon={<ReloadOutlined />}
             onClick={() => {
               const iframe = document.getElementById('odap-iframe') as HTMLIFrameElement;
-              if (iframe) iframe.src = iframe.src;
+              if (iframe) iframe.setAttribute('src', iframe.getAttribute('src') ?? '');
             }}
           >
             刷新

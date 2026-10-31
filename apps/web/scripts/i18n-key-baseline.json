@@ -1,0 +1,5 @@
+{
+  "_comment": "i18n 既存欠债基线。violations = 阻断级语言包违规（占位译文 / 幽灵键）；missingKeys = 代码引用了但本模块命名空间与 common 都缺失的点号键。两者都只允许减少：新增即 CI 失败。修复后请用 `node scripts/check-i18n-keys.mjs --update-baseline` 重生成，并在提交信息里写明减少量。",
+  "violations": [],
+  "missingKeys": []
+}

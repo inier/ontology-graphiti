@@ -5,14 +5,19 @@ const BASE = `${API_BASE}/api/ontology/registry`;
 
 // ─── Shared Types ────────────────────────────────────────────────────
 
-export interface PropertyDefinition {
+/**
+ * NOTE: declared as a `type` (not `interface`) on purpose — type aliases of object
+ * literals carry an implicit index signature, so `PropertyDefinition` is assignable
+ * to the `Record<string, unknown>` property bags used by the store view models.
+ */
+export type PropertyDefinition = {
   name: string;
   data_type: 'string' | 'integer' | 'float' | 'boolean' | 'date' | 'datetime' | 'json' | 'array';
   required: boolean;
   default_value?: string;
   classification_level?: 'TS' | 'S' | 'C' | 'U';
   description?: string;
-}
+};
 
 // ─── Object Type ─────────────────────────────────────────────────────
 

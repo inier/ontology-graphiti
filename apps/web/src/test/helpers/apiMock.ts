@@ -103,6 +103,7 @@ export function createErrorResponse(message: string, status: number = 500, detai
   return {
     status: 'error',
     message,
+    code: String(status),
     ...(detail !== undefined && { detail }),
   };
 }
@@ -126,7 +127,7 @@ export function createErrorResponse(message: string, status: number = 500, detai
  * ```
  */
 export function createMockFetch(overrides: MockResponseOverrides = {}): typeof fetch {
-  return vi.fn(async (input: RequestInfo | URL, init?: RequestInit): Promise<Response> => {
+  return vi.fn(async (input: RequestInfo | URL): Promise<Response> => {
     const url = typeof input === 'string' ? input : input instanceof URL ? input.href : input.url;
     const path = extractPath(url);
 

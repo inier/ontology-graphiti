@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState } from 'react';
 import {
   Modal, Input, Select, Tabs, Button, Space, Typography,
   Divider, Card, Collapse, message
@@ -47,28 +47,15 @@ const categoryOptions = [
 export function SkillEditor({ skill, open, onSave, onCancel }: SkillEditorProps) {
   const [form] = Form.useForm();
   const [activeTab, setActiveTab] = useState('basic');
-  const [inputSchemaText, setInputSchemaText] = useState('');
-  const [outputSchemaText, setOutputSchemaText] = useState('');
+  // 打开时由父级 key 触发重挂载 → 初值直接用 skill 派生，不需要 effect 回写表单与文本域
+  const [inputSchemaText, setInputSchemaText] = useState(() =>
+    skill ? JSON.stringify(skill.input_schema || {}, null, 2) : '{\n  \n}'
+  );
+  const [outputSchemaText, setOutputSchemaText] = useState(() =>
+    skill ? JSON.stringify(skill.output_schema || {}, null, 2) : '{\n  \n}'
+  );
 
   const formValues = Form.useWatch([], form) ?? {};
-
-  useEffect(() => {
-    if (skill) {
-      form.setFieldsValue({
-        name: skill.name,
-        description: skill.description,
-        category: skill.category,
-        triggers: skill.triggers?.join(', '),
-        sections: skill.sections || {},
-      });
-      setInputSchemaText(JSON.stringify(skill.input_schema || {}, null, 2));
-      setOutputSchemaText(JSON.stringify(skill.output_schema || {}, null, 2));
-    } else {
-      form.resetFields();
-      setInputSchemaText('{\n  \n}');
-      setOutputSchemaText('{\n  \n}');
-    }
-  }, [skill, open, form]);
 
   const handleSave = async () => {
     try {
@@ -89,19 +76,20 @@ export function SkillEditor({ skill, open, onSave, onCancel }: SkillEditorProps)
       };
       
       onSave(skillDef);
-    } catch (e: any) {
+    } catch (e) {
+      const errMessage = e instanceof Error ? e.message : String(e);
       // 如果是 JSON 解析错误
       if (e instanceof SyntaxError) {
         message.error('JSON Schema 格式不正确，请检查');
         return;
       }
       // 如果是表单验证错误
-      if (e?.errorFields) {
+      if (typeof e === 'object' && e !== null && 'errorFields' in e) {
         message.error('请检查必填字段');
         setActiveTab('basic');
         return;
       }
-      message.error('保存失败: ' + (e?.message || e));
+      message.error('保存失败: ' + (errMessage || e));
     }
   };
 
@@ -168,7 +156,17 @@ ${values.sections.notes}` : ''}
             key: 'basic',
             label: '基本信息',
             children: (
-              <Form form={form} layout="vertical">
+              <Form
+                form={form}
+                layout="vertical"
+                initialValues={{
+                  name: skill?.name,
+                  description: skill?.description,
+                  category: skill?.category,
+                  triggers: skill?.triggers?.join(', '),
+                  sections: skill?.sections || {},
+                }}
+              >
                 <Form.Item
                   name="name"
                   label="Skill 名称"
@@ -224,7 +222,7 @@ ${values.sections.notes}` : ''}
                         const current = JSON.parse(inputSchemaText);
                         current['new_field'] = { type: 'string', description: 'TODO' };
                         setInputSchemaText(JSON.stringify(current, null, 2));
-                      } catch {
+                      } catch { /* 忽略：失败时保持当前状态 */ 
                         // ignore
                       }
                     }}

@@ -50,7 +50,7 @@ interface WorkspaceState {
   clearError: () => void;
 }
 
-export const useWorkspaceStore = create<WorkspaceState>((set, get) => ({
+export const useWorkspaceStore = create<WorkspaceState>((set) => ({
   workspaces: [],
   currentWorkspace: null,
   scenarios: [],

@@ -142,7 +142,9 @@ function useServiceCatalog(t: TFunc) {
     }
   }, [filterType, filterStatus, t]);
 
-  useEffect(() => { fetchCatalog(); }, [fetchCatalog]);
+  useEffect(() => {   void (async () => {
+    fetchCatalog();
+  })(); }, [fetchCatalog]);
 
   const handleHealthCheck = useCallback(async (id: string, name: string) => {
     try {
@@ -188,7 +190,7 @@ export function ServiceCatalogPage() {
   const { t } = useI18n('ontology');
   const statusOptions = useMemo(
     () => STATUS_OPTIONS.map((opt) => ({ ...opt, label: t(opt.label) })),
-    [t], // eslint-disable-line react-hooks/exhaustive-deps
+    [t],  
   );
   const vm = useServiceCatalog(t);
   const columns = buildColumns(

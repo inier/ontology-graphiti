@@ -1,26 +1,36 @@
+/**
+ * 强调色相选择器（W0-1 / AC-44）
+ *
+ * v2 变更：
+ *  - 删除 5 套旧调色板（含 violet）与全部线性渐变（P0-2）
+ *  - 选项色块直接读 Token 变量，纯色圆点；选中态为描边环 + 对勾图标
+ *  - 过渡改用 Token 缓动，无过冲（AC-46）
+ */
 import { Dropdown, Tooltip } from 'antd';
-import { BgColorsOutlined, CheckOutlined } from '@ant-design/icons';
 import type { ColorTheme } from '@/modules/shared/stores/layoutStore';
 import { useLayoutStore } from '@/modules/shared/stores/layoutStore';
+import { Icon } from './Icon';
+import { resolveAccent, type AccentHue } from '../styles/colorThemeUtils';
 
 interface ThemeOption {
   key: ColorTheme;
   label: string;
-  color: string;
-  gradient: string;
+  hue: AccentHue;
 }
 
+/** 仅 4 个纯色色相（UIUX §3.4）；violet 已退役，旧持久化值由 resolveAccent 兜底映射到 indigo */
 const themeOptions: ThemeOption[] = [
-  { key: 'indigo', label: '靛蓝 Indigo', color: '#6366F1', gradient: 'linear-gradient(135deg, #6366F1, #818CF8)' },
-  { key: 'blue', label: '海蓝 Blue', color: '#3B82F6', gradient: 'linear-gradient(135deg, #3B82F6, #60A5FA)' },
-  { key: 'green', label: '翠绿 Green', color: '#10B981', gradient: 'linear-gradient(135deg, #10B981, #34D399)' },
-  { key: 'violet', label: '紫罗兰 Violet', color: '#8B5CF6', gradient: 'linear-gradient(135deg, #8B5CF6, #A78BFA)' },
-  { key: 'amber', label: '琥珀 Amber', color: '#F59E0B', gradient: 'linear-gradient(135deg, #F59E0B, #FBBF24)' },
+  { key: 'indigo', label: '靛蓝 Indigo', hue: 'indigo' },
+  { key: 'blue', label: '钴蓝 Cobalt', hue: 'cobalt' },
+  { key: 'green', label: '青绿 Teal', hue: 'teal' },
+  { key: 'amber', label: '石墨 Graphite', hue: 'graphite' },
 ];
+
+const swatch = (hue: AccentHue) => `var(--odap-primitive-${hue}-600)`;
 
 export function ThemeColorPicker() {
   const { colorTheme, setColorTheme } = useLayoutStore();
-  const current = themeOptions.find((t) => t.key === colorTheme) || themeOptions[0];
+  const currentHue = resolveAccent(colorTheme);
 
   const items = themeOptions.map((opt) => ({
     key: opt.key,
@@ -32,54 +42,51 @@ export function ThemeColorPicker() {
               display: 'inline-block',
               width: 14,
               height: 14,
-              borderRadius: '50%',
-              background: opt.gradient,
-              boxShadow: `0 0 6px ${opt.color}44`,
+              borderRadius: 'var(--odap-radius-pill)',
+              background: swatch(opt.hue),
             }}
           />
           {opt.label}
         </span>
-        {colorTheme === opt.key && (
-          <CheckOutlined style={{ color: opt.color, fontSize: 12 }} />
-        )}
+        {currentHue === opt.hue && <Icon role="confirm" size={16} />}
       </div>
     ),
     onClick: () => {
       setColorTheme(opt.key);
-      document.documentElement.setAttribute('data-color-theme', opt.key);
-      localStorage.setItem('odap-color-theme', opt.key);
+      // applyColorTheme 由 layout 的 effect 统一写入 data-accent / data-appearance
     },
   }));
 
   return (
     <Dropdown menu={{ items }} trigger={['click']} placement="bottomRight">
-      <Tooltip title="主题色">
-        <span
+      <Tooltip title="强调色">
+        <button
+          type="button"
+          aria-label="选择强调色"
           style={{
             display: 'inline-flex',
             alignItems: 'center',
             justifyContent: 'center',
             cursor: 'pointer',
-            width: 28,
-            height: 28,
-            borderRadius: '50%',
-            background: current.gradient,
-            boxShadow: `0 0 8px ${current.color}33`,
-            transition: 'transform 200ms cubic-bezier(0.34, 1.56, 0.64, 1), box-shadow 200ms',
-            fontSize: 14,
-            color: '#fff',
+            width: 'var(--odap-size-control-md)',
+            height: 'var(--odap-size-control-md)',
+            padding: 0,
+            borderRadius: 'var(--odap-radius-pill)',
+            background: swatch(currentHue),
+            border: 'none',
+            color: 'var(--odap-color-accent-on)',
+            transition:
+              'transform var(--odap-duration-fast) var(--odap-ease-standard), box-shadow var(--odap-duration-fast) var(--odap-ease-standard)',
           }}
           onMouseEnter={(e) => {
-            e.currentTarget.style.transform = 'scale(1.15)';
-            e.currentTarget.style.boxShadow = `0 0 12px ${current.color}55`;
+            e.currentTarget.style.boxShadow = 'var(--odap-focus-ring)';
           }}
           onMouseLeave={(e) => {
-            e.currentTarget.style.transform = 'scale(1)';
-            e.currentTarget.style.boxShadow = `0 0 8px ${current.color}33`;
+            e.currentTarget.style.boxShadow = 'none';
           }}
         >
-          <BgColorsOutlined />
-        </span>
+          <Icon role="palette" size={16} />
+        </button>
       </Tooltip>
     </Dropdown>
   );

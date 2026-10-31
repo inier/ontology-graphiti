@@ -10,7 +10,8 @@ import {
   ApiOutlined,
 } from '@ant-design/icons';
 import type { ChannelConfig } from '../types';
-import { CHANNEL_TYPE_NAMES, CHANNEL_ICONS } from '../types';
+import { CHANNEL_TYPE_NAMES, CHANNEL_ICON_ROLES } from '../types';
+import { Icon } from '@/modules/shared/components/Icon';
 import { useI18n } from '@/modules/shared/hooks/useI18n';
 
 interface ChannelCardProps {
@@ -61,7 +62,7 @@ export const ChannelCard: React.FC<ChannelCardProps> = ({
       style={{ marginBottom: 12 }}
       title={
         <Space>
-          <span style={{ fontSize: 18 }}>{CHANNEL_ICONS[channel.channel_type]}</span>
+          <Icon role={CHANNEL_ICON_ROLES[channel.channel_type]} size={20} />
           <span>{channel.name}</span>
           <Tag color={channel.enabled ? 'green' : 'default'}>
             {channel.enabled ? '已启用' : '已停用'}

@@ -5,7 +5,7 @@
  */
 import { useCallback, useEffect, useState } from 'react';
 import {
-  Card, Table, Tag, Button, Space, message, Empty,
+  Card, Table, Button, Space, message, Empty,
   Modal, Spin, Popconfirm, Descriptions,
 } from 'antd';
 import type { TableColumnsType } from 'antd';
@@ -114,7 +114,9 @@ function useAbutionGraph(t: TFunc) {
     }
   }, [t]);
 
-  useEffect(() => { fetchSnapshots(); }, [fetchSnapshots]);
+  useEffect(() => {   void (async () => {
+    fetchSnapshots();
+  })(); }, [fetchSnapshots]);
 
   const handleViewDetail = useCallback(async (id: string, name: string) => {
     try {

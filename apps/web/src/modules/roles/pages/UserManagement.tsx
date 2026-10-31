@@ -29,9 +29,7 @@ export function UserManagement() {
   const [createForm] = Form.useForm();
   const [editForm] = Form.useForm();
 
-  useEffect(() => {
-    loadUsers();
-  }, []);
+  
 
   const loadUsers = async () => {
     setLoading(true);
@@ -45,6 +43,12 @@ export function UserManagement() {
     }
   };
 
+  useEffect(() => {
+        void (async () => {
+      loadUsers();
+    })();
+  }, []);
+
   const handleCreate = async () => {
     try {
       const values = await createForm.validateFields();
@@ -56,13 +60,15 @@ export function UserManagement() {
       setModalOpen(false);
       createForm.resetFields();
       loadUsers();
-    } catch (e: any) {
-      if (e.message?.includes('409')) {
+    } catch (e) {
+      const errMessage = e instanceof Error ? e.message : String(e);
+      if (errMessage.includes('409')) {
         message.error(t('用户名已存在'));
-      } else if (e.errorFields) {
+      } else if (typeof e === 'object' && e !== null && 'errorFields' in e) {
+        // 表单校验失败：错误已由 Form 渲染，这里直接返回
         return;
       } else {
-        message.error(t('创建失败') + ': ' + (e.message || t('未知错误')));
+        message.error(t('创建失败') + ': ' + (errMessage || t('未知错误')));
       }
     }
   };
@@ -71,7 +77,7 @@ export function UserManagement() {
     if (!editingUser) return;
     try {
       const values = await editForm.validateFields();
-      const payload: Record<string, any> = {};
+      const payload: Record<string, unknown> = {};
       if (values.email !== undefined) payload.email = values.email;
       if (values.global_role !== undefined) payload.global_role = values.global_role;
       if (values.is_active !== undefined) payload.is_active = values.is_active;
@@ -86,9 +92,10 @@ export function UserManagement() {
       setEditingUser(null);
       editForm.resetFields();
       loadUsers();
-    } catch (e: any) {
-      if (e.errorFields) return;
-      message.error(t('更新失败') + ': ' + (e.message || t('未知错误')));
+    } catch (e: unknown) {
+      const errMessage = e instanceof Error ? e.message : String(e);
+      if (e && typeof e === 'object' && 'errorFields' in e) return;
+      message.error(t('更新失败') + ': ' + (errMessage || t('未知错误')));
     }
   };
 
@@ -97,8 +104,9 @@ export function UserManagement() {
       await fetchJson(`${API_BASE}/api/auth/users/${userId}`, { method: 'DELETE' });
       message.success(t('用户已删除'));
       loadUsers();
-    } catch (e: any) {
-      message.error(t('删除失败') + ': ' + (e.message || t('未知错误')));
+    } catch (e: unknown) {
+      const errMessage = e instanceof Error ? e.message : String(e);
+      message.error(t('删除失败') + ': ' + (errMessage || t('未知错误')));
     }
   };
 
@@ -123,7 +131,7 @@ export function UserManagement() {
     {
       title: t('用户'),
       key: 'user',
-      render: (_: any, record: UserRecord) => (
+      render: (_: unknown, record: UserRecord) => (
         <Space>
           <Avatar size="small" style={{ backgroundColor: record.is_active ? '#1677ff' : '#d9d9d9' }}>
             {record.username[0]?.toUpperCase()}
@@ -159,7 +167,7 @@ export function UserManagement() {
     {
       title: t('操作'),
       key: 'actions',
-      render: (_: any, record: UserRecord) => (
+      render: (_: unknown, record: UserRecord) => (
         <Space>
           <Button type="link" size="small" icon={<EditOutlined />} onClick={() => openEdit(record)}>
             {t('编辑')}

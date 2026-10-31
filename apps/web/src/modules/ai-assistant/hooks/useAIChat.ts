@@ -50,6 +50,42 @@ export interface AnalysisResult {
   timestamp: number;
 }
 
+/** 工具调用返回的上下文结果 */
+interface ToolResultPayload {
+  context?: Record<string, unknown>;
+  /** 工具返回的其余字段由各工具自行定义，按透传处理 */
+  [key: string]: unknown;
+}
+
+/** `POST /api/assistant/tools/execute`：`result` 可能在 `data` 内，也可能与响应同层 */
+interface ToolExecuteResponse extends ToolResultPayload {
+  data?: { result?: ToolResultPayload };
+  result?: ToolResultPayload;
+}
+
+/** 会话列表：`data` 内或顶层 `sessions` 内两种位置都兼容 */
+interface SessionListResponse {
+  data?: ChatSession[] | { sessions?: ChatSession[] };
+  sessions?: ChatSession[];
+}
+
+/** 会话详情：`messages` 可能在 `data` 内，也可能与响应同层 */
+interface SessionDetailPayload {
+  messages?: Array<Record<string, unknown>>;
+}
+
+interface SessionDetailResponse extends SessionDetailPayload {
+  data?: SessionDetailPayload;
+}
+
+/** 把会话列表响应的两种可能位置归一成数组 */
+function toSessionList(response: SessionListResponse): ChatSession[] {
+  const inner = response.data;
+  if (Array.isArray(inner)) return inner;
+  if (inner && Array.isArray(inner.sessions)) return inner.sessions;
+  return response.sessions ?? [];
+}
+
 export interface UseAIChatOptions {
   /** 本体 ID（可选，本体设计器场景传入） */
   ontologyId?: string;
@@ -110,7 +146,9 @@ export function useAIChat(options: UseAIChatOptions = {}): UseAIChatReturn {
   const [currentSessionId, setCurrentSessionId] = useState<string | null>(null);
   const [sessions, setSessions] = useState<ChatSession[]>([]);
   const [analysisResults, setAnalysisResults] = useState<AnalysisResult[]>([]);
-  const [ontologyContext, setOntologyContext] = useState<Record<string, unknown> | null>(null);
+  const [ontologyContextState, setOntologyContext] = useState<Record<string, unknown> | null>(null);
+  // 未绑定本体时上下文必然为空——由 ontologyId 派生，省掉 effect 里的同步重置
+  const ontologyContext = ontologyId ? ontologyContextState : null;
 
   const abortRef = useRef<AbortController | null>(null);
 
@@ -119,20 +157,19 @@ export function useAIChat(options: UseAIChatOptions = {}): UseAIChatReturn {
   // ═══════════════════════════════════════════════════════════════
   useEffect(() => {
     if (!ontologyId) {
-      setOntologyContext(null);
       return;
     }
     let cancelled = false;
     (async () => {
       try {
-        const resp = await apiClient.post('/api/assistant/tools/execute', {
+        const resp = await apiClient.post<ToolExecuteResponse>('/api/assistant/tools/execute', {
           tool_name: 'get_ontology_context',
           parameters: { ontology_id: ontologyId },
         });
         if (cancelled) return;
-        const result = resp.data?.result || resp.result || resp;
+        const result = resp.data?.result ?? resp.result ?? resp;
         setOntologyContext(result.context || {});
-      } catch {
+      } catch { /* 忽略：失败时保持当前状态 */ 
         // 静默失败
       }
     })();
@@ -145,25 +182,28 @@ export function useAIChat(options: UseAIChatOptions = {}): UseAIChatReturn {
   const loadSessions = useCallback(async () => {
     if (!enableSessions) return;
     try {
-      const resp = await apiClient.get(`/api/qa/sessions?workspace_id=${workspaceId}`);
-      const data = resp.data || resp;
-      setSessions(Array.isArray(data) ? data : (data.sessions || []));
-    } catch {
+      const resp = await apiClient.get<SessionListResponse>(
+        `/api/qa/sessions?workspace_id=${workspaceId}`,
+      );
+      setSessions(toSessionList(resp));
+    } catch { /* 忽略：失败时保持当前状态 */ 
       // 静默失败
     }
   }, [enableSessions, workspaceId]);
 
   useEffect(() => {
-    if (enableSessions) {
-      loadSessions();
-    }
+        void (async () => {
+      if (enableSessions) {
+        loadSessions();
+      }
+    })();
   }, [enableSessions, loadSessions]);
 
   const selectSession = useCallback(async (sessionId: string) => {
     setCurrentSessionId(sessionId);
     try {
-      const resp = await apiClient.get(`/api/qa/sessions/${sessionId}`);
-      const data = resp.data || resp;
+      const resp = await apiClient.get<SessionDetailResponse>(`/api/qa/sessions/${sessionId}`);
+      const data = resp.data ?? resp;
       const msgs = data.messages || [];
       setMessages(msgs.map((m: Record<string, unknown>) => ({
         id: (m.id as string) || (m.message_id as string) || `${m.timestamp || ''}-${Math.random().toString(36).slice(2, 8)}`,
@@ -171,7 +211,7 @@ export function useAIChat(options: UseAIChatOptions = {}): UseAIChatReturn {
         content: (m.content as string) || (m.text as string) || '',
         timestamp: m.timestamp ? new Date(m.timestamp as string).getTime() : Date.now(),
       })));
-    } catch {
+    } catch { /* 忽略：失败时保持当前状态 */ 
       // 静默失败
     }
   }, []);
@@ -184,7 +224,7 @@ export function useAIChat(options: UseAIChatOptions = {}): UseAIChatReturn {
         setMessages([]);
         setCurrentSessionId(null);
       }
-    } catch {
+    } catch { /* 忽略：失败时保持当前状态 */ 
       // 静默失败
     }
   }, [currentSessionId]);
@@ -304,7 +344,7 @@ export function useAIChat(options: UseAIChatOptions = {}): UseAIChatReturn {
                   }
                   // 追加分析摘要到消息内容
                   const summary = (result as Record<string, unknown>).summary as Record<string, number> || {};
-                  const lines: string[] = ['\n📊 **分析结果**'];
+                  const lines: string[] = ['\n**分析结果**'];
                   if (summary.total_object_types !== undefined) lines.push(`对象类型: ${summary.total_object_types} 个`);
                   if (summary.orphan_count !== undefined) lines.push(`孤儿类型: ${summary.orphan_count} 个`);
                   if (summary.missing_audit_count !== undefined) lines.push(`缺失审计字段: ${summary.missing_audit_count} 个`);
@@ -314,7 +354,7 @@ export function useAIChat(options: UseAIChatOptions = {}): UseAIChatReturn {
                   ));
                 }
                 if (event.custom_type === 'ONTOLOGY_CHANGED') {
-                  contentBody += `\n\n✅ **${event.message || '本体已更新'}**`;
+                  contentBody += `\n\n**${event.message || '本体已更新'}**`;
                   setMessages(prev => prev.map(m =>
                     m.id === assistantMsgId ? { ...m, content: contentBody } : m
                   ));
@@ -326,13 +366,13 @@ export function useAIChat(options: UseAIChatOptions = {}): UseAIChatReturn {
                 break;
 
               case 'ERROR':
-                contentBody += `\n\n❌ 错误: ${event.message}`;
+                contentBody += `\n\n错误：${event.message}`;
                 setMessages(prev => prev.map(m =>
                   m.id === assistantMsgId ? { ...m, content: contentBody } : m
                 ));
                 break;
             }
-          } catch {
+          } catch { /* 忽略：失败时保持当前状态 */ 
             // 跳过格式错误的 SSE 数据
           }
         }
@@ -350,8 +390,9 @@ export function useAIChat(options: UseAIChatOptions = {}): UseAIChatReturn {
         loadSessions();
       }
     } catch (err: unknown) {
+      const errMessage = err instanceof Error ? err.message : String(err);
       if ((err as Error).name === 'AbortError') return;
-      const errorMsg = err instanceof Error ? err.message : '请求失败';
+      const errorMsg = err instanceof Error ? errMessage : '请求失败';
       setError(errorMsg);
       setMessages(prev => prev.map(m =>
         m.id === assistantMsgId
@@ -368,11 +409,11 @@ export function useAIChat(options: UseAIChatOptions = {}): UseAIChatReturn {
   // 直接工具调用（不经过 LLM）
   // ═══════════════════════════════════════════════════════════════
   const executeTool = useCallback(async (toolName: string, params: Record<string, unknown>) => {
-    const resp = await apiClient.post('/api/assistant/tools/execute', {
+    const resp = await apiClient.post<ToolExecuteResponse>('/api/assistant/tools/execute', {
       tool_name: toolName,
       parameters: params,
     });
-    return resp.data?.result || resp.result || resp;
+    return resp.data?.result ?? resp.result ?? resp;
   }, []);
 
   // ═══════════════════════════════════════════════════════════════

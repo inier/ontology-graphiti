@@ -131,7 +131,8 @@ export function CardinalityTable() {
       message.success(`已删除基数约束 ${record.rel_name}`);
       void fetchData();
     } catch (err) {
-      message.error(`删除失败：${err instanceof Error ? err.message : String(err)}`);
+      const errMessage = err instanceof Error ? err.message : String(err);
+      message.error(`删除失败：${err instanceof Error ? errMessage : String(err)}`);
     }
   };
 
@@ -182,8 +183,9 @@ export function CardinalityTable() {
       setFormOpen(false);
       void fetchData();
     } catch (err) {
-      if (err instanceof Error && !String(err.message).includes('validate')) {
-        message.error(err.message || '提交失败');
+      const errMessage = err instanceof Error ? err.message : String(err);
+      if (err instanceof Error && !String(errMessage).includes('validate')) {
+        message.error(errMessage || '提交失败');
       }
     } finally {
       setSubmitting(false);

@@ -25,17 +25,11 @@ describe('API 服务模块', () => {
   })
 })
 
-describe('共享类型模块', () => {
-  it('导出类型定义', async () => {
-    const types = await import('@/modules/shared/types')
-    expect(types).toBeDefined()
-  })
-})
-
 describe('共享 Store 模块', () => {
-  it('导出 useAppStore 和 useAuditStore', async () => {
-    const stores = await import('@/modules/shared/stores')
-    expect(stores.useAppStore).toBeDefined()
-    expect(stores.useAuditStore).toBeDefined()
+  it('各 store 按全路径可直接引入（不再依赖已移除的 barrel）', async () => {
+    const { useAuthStore } = await import('@/modules/shared/stores/authStore')
+    const { useLayoutStore } = await import('@/modules/shared/stores/layoutStore')
+    expect(useAuthStore).toBeDefined()
+    expect(useLayoutStore).toBeDefined()
   })
 })

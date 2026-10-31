@@ -334,6 +334,7 @@ export function AGUIProvider({
           if (heartbeatTimerRef.current) clearTimeout(heartbeatTimerRef.current);
         }
       } catch (err) {
+        const errMessage = err instanceof Error ? err.message : String(err);
         if (err instanceof Error && err.name === 'AbortError') {
           setStatus('cancelled');
           return;
@@ -341,7 +342,7 @@ export function AGUIProvider({
 
         // v3.0: 401 不重试（鉴权失败重试无意义）
         const isUnauthorized =
-          err instanceof Error && err.message.includes('401');
+          err instanceof Error && errMessage.includes('401');
 
         // v3.0: 最多重试 maxRetries 次（默认 2 次），间隔 1s/3s
         if (autoReconnect && !isUnauthorized && lastInputRef.current && retryCountRef.current < maxRetries) {

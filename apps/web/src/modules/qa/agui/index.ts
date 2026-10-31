@@ -11,10 +11,10 @@ export type {
   AGUINamespace,
   AGUIErrorBoundaryProps,
 } from './AGUIProvider';
-export { useAGUI } from './useAGUI';
-export type { UseAGUIOptions, UseAGUIReturn } from './useAGUI';
-export { CardRenderer, getRegisteredCardTypes } from './CardRegistry';
-export type { CardRendererProps } from './CardRegistry';
+// useAGUI 已删除：与 AGUIProvider 重复的第二套客户端实现，全站零引用
+export { CardRenderer } from './CardRegistry';
+export { getRegisteredCardTypes } from './cardRegistryTable';
+export type { CardRendererProps } from './cardComponents';
 export { HITLPanel } from './HITLPanel';
 export type { HITLPanelProps } from './HITLPanel';
 export { StatePanel } from './StatePanel';

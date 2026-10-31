@@ -75,9 +75,10 @@ export function DomainTable() {
       setItems(filtered.slice(start, start + pageSize));
       setTotal(filtered.length);
     } catch (err) {
+      const errMessage = err instanceof Error ? err.message : String(err);
       // 不白屏，但必须让业务人员知道"空表 = 接口失败"而不是"确实没有语义域"
       console.error('[DomainTable] listDomains failed:', err);
-      message.error(err instanceof Error ? `语义域列表加载失败：${err.message}` : '语义域列表加载失败');
+      message.error(err instanceof Error ? `语义域列表加载失败：${errMessage}` : '语义域列表加载失败');
       setItems([]);
       setTotal(0);
     } finally {
@@ -137,8 +138,9 @@ export function DomainTable() {
       }
       void fetchData();
     } catch (err) {
+      const errMessage = err instanceof Error ? err.message : String(err);
       console.error('[DomainTable] deleteDomain failed:', err);
-      message.error(err instanceof Error ? `删除失败：${err.message}` : '删除失败');
+      message.error(err instanceof Error ? `删除失败：${errMessage}` : '删除失败');
     }
   };
 

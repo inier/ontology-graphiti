@@ -70,7 +70,7 @@ export function BranchList({ workspaceId, onViewDiff, onSelectBranch }: BranchLi
       );
       setBranches(data.branches || []);
     } catch (e) {
-      message.error(t('branch.loadFailed', { msg: (e as Error).message }));
+      message.error(t('加载失败', { msg: (e as Error).message }));
     } finally {
       setLoading(false);
     }
@@ -93,8 +93,12 @@ export function BranchList({ workspaceId, onViewDiff, onSelectBranch }: BranchLi
   }, []);
 
   useEffect(() => {
-    void fetchBranches();
-    void fetchVersions();
+        void (async () => {
+      void fetchBranches();
+    })();
+        void (async () => {
+      void fetchVersions();
+    })();
   }, [fetchBranches, fetchVersions]);
 
   const filtered = useMemo(() => {
@@ -122,7 +126,7 @@ export function BranchList({ workspaceId, onViewDiff, onSelectBranch }: BranchLi
         // 表单校验错误
         return;
       }
-      message.error(t('branch.createFailed', { msg: (e as Error).message }));
+      message.error(t('创建失败', { msg: (e as Error).message }));
     } finally {
       setCreating(false);
     }
@@ -164,7 +168,7 @@ export function BranchList({ workspaceId, onViewDiff, onSelectBranch }: BranchLi
       message.success(t('分支已删除'));
       void fetchBranches();
     } catch (e) {
-      message.error(t('branch.deleteFailed', { msg: (e as Error).message }));
+      message.error(t('删除失败', { msg: (e as Error).message }));
     }
   }, [fetchBranches, t]);
 

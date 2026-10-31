@@ -6,7 +6,7 @@ import {
 
   Descriptions, Statistic, Progress, Tabs, Space, message, Popconfirm,
 
-  Empty, Tooltip, Row, Col, Badge, Divider, Alert, Spin, Slider, InputNumber,
+  Empty, Tooltip, Row, Col, Badge, Alert, Spin, Slider, InputNumber,
 
 } from 'antd';
 
@@ -828,7 +828,7 @@ const SimulationPage: React.FC = () => {
 
                   store.fetchSandboxes();
 
-                } catch (e) { message.error(t('加载示例数据失败')); }
+                } catch { message.error(t('加载示例数据失败')); }
 
               }}
 
@@ -950,11 +950,11 @@ const SimulationPage: React.FC = () => {
 
                       key: 'delta',
 
-                      render: (v) => v != null ? (
+                      render: (v: number | null | undefined) => v != null ? (
 
-                        <span style={{ color: (v as number) >= 0 ? '#52c41a' : '#ff4d4f' }}>
+                        <span style={{ color: v >= 0 ? '#52c41a' : '#ff4d4f' }}>
 
-                          {(v as number) >= 0 ? '+' : ''}{(v as number).toFixed(3)}
+                          {v >= 0 ? '+' : ''}{v.toFixed(3)}
 
                         </span>
 
@@ -1178,9 +1178,9 @@ const SimulationPage: React.FC = () => {
 
                 { title: t('事件 ID'), dataIndex: 'event_id', key: 'event_id', ellipsis: true },
 
-                { title: t('类型'), dataIndex: 'event_type', key: 'event_type', render: (tp) => <Tag>{tp as string}</Tag> },
+                { title: t('类型'), dataIndex: 'event_type', key: 'event_type', render: (tp: string) => <Tag>{tp}</Tag> },
 
-                { title: t('目标类型'), dataIndex: 'target_entity_type', key: 'target_entity_type', render: (tp) => <Tag color="blue">{tp as string}</Tag> },
+                { title: t('目标类型'), dataIndex: 'target_entity_type', key: 'target_entity_type', render: (tp: string) => <Tag color="blue">{tp}</Tag> },
 
                 { title: t('时间'), dataIndex: 'timestamp', key: 'timestamp', ellipsis: true, width: 160 },
 
@@ -1194,9 +1194,9 @@ const SimulationPage: React.FC = () => {
 
                   width: 100,
 
-                  render: (v) => (
+                  render: (v: number) => (
 
-                    <Progress percent={Math.round((v as number) * 100)} size="small" strokeColor={(v as number) > 0.7 ? '#52c41a' : (v as number) > 0.4 ? '#faad14' : '#ff4d4f'} />
+                    <Progress percent={Math.round(v * 100)} size="small" strokeColor={v > 0.7 ? '#52c41a' : v > 0.4 ? '#faad14' : '#ff4d4f'} />
 
                   ),
 

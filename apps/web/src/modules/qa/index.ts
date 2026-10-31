@@ -1,10 +1,7 @@
-export { useQAI } from './hooks/useQAI';
-export type { QAMessage, UseQAIOptions, UseQAIReturn } from './hooks/useQAI';
-export { useSession } from './hooks/useSession';
-export type { Session, UseSessionOptions, UseSessionReturn } from './hooks/useSession';
 export { QAPage } from './pages/QAPage';
-export { default as ChartRenderer } from './components/ChartRenderer';
-export { useQAStore } from './stores/qaStore';
+
+// 卡片数据类型（图表 / 时序 / 报告链接），与对话引擎解耦
+export type { ChartSpec, TemporalCard, ReportLink } from './types';
 
 // NL 本体查询服务（三检索支柱 + 五阶段管线）
 export { QueryPage } from './pages/QueryPage';
@@ -19,9 +16,13 @@ export { QueryAuditTimeline } from './components/QueryAuditTimeline';
 export { CypherPreview } from './components/CypherPreview';
 export { NLQueryAuditPanel } from './components/NLQueryAuditPanel';
 
-// AG-UI 协议集成（v2.0 扩展，与 useQAI 共存）
+// AG-UI 协议集成（v2.0 扩展）
+// 注：useQAI / useChatStorage / qaStore / qaApi / QAIProvider / ChartRenderer 已删除 ——
+// 它们是 QA v1 的独立对话栈，被 ai-assistant 的 useAIChat + AIChatPanel 取代
+// （QAPage 直接渲染 AIChatPanel）。复活它等于造出第二套对话引擎。
+// 卡片渲染（InlineChart / TemporalCardView / ReportLinkView）依赖的类型
+// 已迁至 ./types，与其解耦后继续服务 AG-UI 生成式卡片。
 export {
-  useAGUI,
   AGUIProvider,
   useAGUIContext,
   CardRenderer,
@@ -31,8 +32,6 @@ export {
   getRegisteredCardTypes,
 } from './agui';
 export type {
-  UseAGUIOptions,
-  UseAGUIReturn,
   AGUIProviderProps,
   AGUIProviderConfig,
   AGUIContextValue,

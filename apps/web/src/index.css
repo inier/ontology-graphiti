@@ -1,42 +1,39 @@
 /* ============================================================
-   ODAP v2 — Application Entry Styles
-   Imports design token system from shared/styles/global.css
+   ODAP v2 — 应用入口补充样式
+   全部数值来自 design-tokens（main.tsx 已先引入 design-tokens.css）
    ============================================================ */
 
-/* Design tokens are imported via main.tsx -> shared/styles/global.css */
-
-:root {
-  font-family: 'DM Sans', system-ui, -apple-system, BlinkMacSystemFont, sans-serif;
-  font-size: 14px;
-  line-height: 1.5;
-  color-scheme: light dark;
-  font-synthesis: none;
+body {
+  margin: 0;
+  font-family: var(--odap-font-body);
+  font-size: var(--odap-font-size-base);
+  line-height: var(--odap-leading-normal);
   text-rendering: optimizeLegibility;
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
 }
-
-body { margin: 0; }
 
 #root {
   width: 100%;
   min-height: 100vh;
 }
 
-h1, h2 {
-  font-weight: 700;
-  color: var(--odap-color-text-primary);
-  letter-spacing: -0.02em;
+h1,
+h2 {
+  font-family: var(--odap-font-display);
+  font-weight: var(--odap-font-weight-announce);
+  color: var(--odap-color-fg);
+  letter-spacing: var(--odap-tracking-tight);
 }
 
-h1 { font-size: 32px; }
-h2 { font-size: 24px; }
+h1 { font-size: var(--odap-font-size-4xl); }
+h2 { font-size: var(--odap-font-size-3xl); }
 
 code {
-  font-family: var(--odap-font-family-mono, 'JetBrains Mono', monospace);
-  font-size: 13px;
-  padding: 2px 6px;
-  border-radius: 4px;
-  background: var(--odap-color-gray-100, #F3F4F6);
-  color: var(--odap-color-primary-700, #4338CA);
+  font-family: var(--odap-font-mono);
+  font-size: var(--odap-font-size-sm);
+  padding: 2px var(--odap-space-1);
+  border-radius: var(--odap-radius-xs);
+  background: var(--odap-code-bg);
+  color: var(--odap-code-keyword);
 }

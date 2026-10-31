@@ -46,11 +46,7 @@ export default function FeedbackPanel({ taskId, ontologyId }: FeedbackPanelProps
   const [aggregation, setAggregation] = useState<AggregatedFeedback | null>(null);
   const [loading, setLoading] = useState(false);
 
-  useEffect(() => {
-    if (taskId) loadAnalysis(taskId);
-    if (ontologyId) loadAggregation(ontologyId);
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [taskId, ontologyId]);
+  
 
   const loadAnalysis = async (id: string) => {
     setLoading(true);
@@ -64,6 +60,8 @@ export default function FeedbackPanel({ taskId, ontologyId }: FeedbackPanelProps
     }
   };
 
+  
+
   const loadAggregation = async (id: string) => {
     try {
       const data = await apiClient.get<AggregatedFeedback>(`/api/feedback/aggregate?ontology_id=${encodeURIComponent(id)}`);
@@ -72,6 +70,16 @@ export default function FeedbackPanel({ taskId, ontologyId }: FeedbackPanelProps
       setAggregation(null);
     }
   };
+
+  useEffect(() => {
+        void (async () => {
+      if (taskId) loadAnalysis(taskId);
+    })();
+        void (async () => {
+      if (ontologyId) loadAggregation(ontologyId);
+    })();
+     
+  }, [taskId, ontologyId]);
 
   const handleCloseLoop = async () => {
     const sourceId = taskId || ontologyId || '';
@@ -178,7 +186,7 @@ export default function FeedbackPanel({ taskId, ontologyId }: FeedbackPanelProps
     return (
       <Space orientation="vertical" style={{ width: '100%' }} size="middle">
         <Descriptions column={2}>
-          <Descriptions.Item label={t('feedback.ontologyId')}>{aggregation.ontology_id}</Descriptions.Item>
+          <Descriptions.Item label={t('本体ID')}>{aggregation.ontology_id}</Descriptions.Item>
           <Descriptions.Item label={t('feedback.totalFeedbacks')}>{aggregation.total_feedbacks}</Descriptions.Item>
         </Descriptions>
 
@@ -192,7 +200,7 @@ export default function FeedbackPanel({ taskId, ontologyId }: FeedbackPanelProps
                   <Space>
                     <Tag color="blue">{item.key}</Tag>
                     <Text>{typeof item.value === 'string' ? item.value : JSON.stringify(item.value)}</Text>
-                    <Tag>{t('feedback.countLabel')}{item.count}</Tag>
+                    <Tag>{t('数量')}{item.count}</Tag>
                   </Space>
                 </List.Item>
               )}

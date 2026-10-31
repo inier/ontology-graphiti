@@ -2,11 +2,11 @@
 
 import React, { useEffect, useState, useContext } from 'react';
 import {
-  Card,
+  
   Button,
   Modal,
   Space,
-  Breadcrumb,
+  
   Alert,
   message,
 } from 'antd';
@@ -23,7 +23,7 @@ import { useChannelStore } from '../stores/channelStore';
 import { useGlobalLoading } from '@/modules/shared/stores/globalLoadingStore';
 import { WorkspaceContext } from '@/modules/shared/components/LayoutContexts';
 import { useI18n } from '@/modules/shared/hooks/useI18n';
-import type { ChannelConfig, CreateChannelRequest } from '../types';
+import type { ChannelConfig, ChannelType, CreateChannelRequest } from '../types';
 
 export const ChannelManagementPage: React.FC = () => {
   const { t } = useI18n();
@@ -91,7 +91,7 @@ export const ChannelManagementPage: React.FC = () => {
     try {
       await deleteChannel(channelId);
       message.success(t('删除成功'));
-    } catch {
+    } catch { /* 忽略：失败时保持当前状态 */ 
       // error handled by store
     }
   };
@@ -100,7 +100,7 @@ export const ChannelManagementPage: React.FC = () => {
     try {
       await enableChannel(channelId);
       message.success(t('启用成功'));
-    } catch {
+    } catch { /* 忽略：失败时保持当前状态 */ 
       // error handled by store
     }
   };
@@ -109,7 +109,7 @@ export const ChannelManagementPage: React.FC = () => {
     try {
       await disableChannel(channelId);
       message.success(t('停用成功'));
-    } catch {
+    } catch { /* 忽略：失败时保持当前状态 */ 
       // error handled by store
     }
   };
@@ -125,10 +125,10 @@ export const ChannelManagementPage: React.FC = () => {
 
   const handleSubmit = async (values: {
     name: string;
-    channel_type: any;
+    channel_type: ChannelType;
     enabled: boolean;
     allow_from: string[];
-    config: Record<string, any>;
+    config: Record<string, unknown>;
   }) => {
     if (!effectiveWorkspaceId) return;
 

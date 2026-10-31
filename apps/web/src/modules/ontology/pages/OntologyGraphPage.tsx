@@ -36,7 +36,7 @@ export function OntologyGraphPage() {
 
     linkTypes,
 
-    loading,
+    
 
     loadOntologies,
 
@@ -50,11 +50,10 @@ export function OntologyGraphPage() {
 
 
 
-  const [selectedOntologyId, setSelectedOntologyId] = useState<string | undefined>(
+  const [selectedOntologyIdState, setSelectedOntologyId] = useState<string | undefined>(undefined);
 
-    currentOntology?.ontology_id || undefined,
-
-  );
+  // 未手动选择时回落到当前本体 —— 派生，省掉 effect 里的自动选中
+  const selectedOntologyId = selectedOntologyIdState ?? currentOntology?.ontology_id;
 
   const [graphLoading, setGraphLoading] = useState(false);
 
@@ -82,16 +81,6 @@ export function OntologyGraphPage() {
 
   // Auto-select current ontology
 
-  useEffect(() => {
-
-    if (currentOntology && !selectedOntologyId) {
-
-      setSelectedOntologyId(currentOntology.ontology_id);
-
-    }
-
-  }, [currentOntology, selectedOntologyId]);
-
 
 
   const handleOntologyChange = useCallback(async (ontologyId: string) => {
@@ -114,13 +103,23 @@ export function OntologyGraphPage() {
 
   useEffect(() => {
 
-    if (currentOntology) {
+    if (!currentOntology) return;
+
+    void (async () => {
 
       setGraphLoading(true);
 
-      loadGraph().finally(() => setGraphLoading(false));
+      try {
 
-    }
+        await loadGraph();
+
+      } finally {
+
+        setGraphLoading(false);
+
+      }
+
+    })();
 
   }, [currentOntology?.ontology_id]); // eslint-disable-line react-hooks/exhaustive-deps
 

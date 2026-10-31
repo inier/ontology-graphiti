@@ -7,7 +7,7 @@ import { useBlueprintStore } from '@/modules/ontology/stores/blueprintStore';
 import { blueprintApi } from '@/modules/ontology/services/blueprintApi';
 
 export function BlueprintList() {
-  const { t, instance } = useI18n('ontology');
+  const { t } = useI18n('ontology');
   const { blueprints, currentBlueprint, loadBlueprint, createBlueprint, deleteBlueprint } = useBlueprintStore();
   const [createVisible, setCreateVisible] = useState(false);
   const [newName, setNewName] = useState('');

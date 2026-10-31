@@ -1,6 +1,6 @@
 /** 渠道配置 API 服务 */
 
-import { fetchJson, apiClient } from '@/modules/shared/services/apiClient';
+import { fetchJson } from '@/modules/shared/services/apiClient';
 import { API_BASE } from '@/config';
 import type {
   ChannelConfig,

@@ -4,10 +4,10 @@
  * 合并了 InheritanceGraph + GoalLineage 的能力
  * 支持：dagre/force/circular 布局、节点选中高亮、边点击、搜索、导出PNG、侧面板 slot
  */
-import { useEffect, useRef, useState, useCallback, useMemo } from 'react';
+import { useEffect, useRef, useState, useCallback } from 'react';
 import { Empty, Space, Tag, Select, Input, Button, Tooltip } from 'antd';
 import { ProCard as Card } from '@ant-design/pro-components';
-import { ZoomInOutlined, ZoomOutOutlined, FullscreenOutlined, ExportOutlined, SearchOutlined } from '@ant-design/icons';
+import { ZoomInOutlined, ZoomOutOutlined, FullscreenOutlined, ExportOutlined } from '@ant-design/icons';
 import GraphView from './GraphView';
 import type { GraphViewApi } from './GraphView';
 import type { GraphNode, GraphEdge, CytoscapeLayoutType, NodeStyleConfig, EdgeStyleConfig } from '../types';

@@ -85,8 +85,8 @@ export const knowledgeApi = {
       body: JSON.stringify(data || {}),
     }),
 
-  getGraphBuildStatus: (taskId: string): Promise<{ status: string; progress: number; result?: any }> =>
-    fetchJson<{ status: string; progress: number; result?: any }>(`${API_BASE}/api/knowledge-bases/graph-tasks/${taskId}`),
+  getGraphBuildStatus: (taskId: string): Promise<{ status: string; progress: number; result?: unknown }> =>
+    fetchJson<{ status: string; progress: number; result?: unknown }>(`${API_BASE}/api/knowledge-bases/graph-tasks/${taskId}`),
 
   ragQuery: (data: RAGQueryRequest): Promise<RAGQueryResult> =>
     fetchJson<RAGQueryResult>(`${API_BASE}/api/knowledge-bases/${data.kb_id}/rag-query`, {

@@ -1,22 +1,20 @@
 import { fetchJson } from '@/modules/shared/services/apiClient';
 import { API_BASE } from '@/config';
-import type { PagedResponse, CandidateStatus } from '../types';
+import type { PagedResponse, CandidateStatus, CandidateProvenance, QualityReport } from '../types';
 
-export interface QualityReport {
-  id: string;
-  gate1_score: number;
-  gate2_score: number;
-  gate3_score: number;
-  total_score: number;
-  tier: 'HIGH' | 'MEDIUM' | 'LOW' | 'VERY_LOW';
-  grades?: { A: number; B: number; C: number; D: number };
-}
+/**
+ * QualityReport 的唯一权威定义在 `../types`（含 report_id / submetrics / overall 等后端真实字段）。
+ * 此处曾重复定义过一份精简版，与质量雷达面板使用的类型不一致，已统一。
+ */
+export type { QualityReport };
 
 export interface Candidate {
   id: string;
   pipeline_run_id: string;
   domain_id?: string;
   canonical: string;
+  /** 展示用标签（可经 PATCH candidates/{id} 的 canonical_label 修改） */
+  canonical_label?: string;
   semantic_type?: string;
   synonyms: string[];
   aliases: string[];
@@ -27,7 +25,7 @@ export interface Candidate {
   confidence: number;
   source_text?: string;
   origin?: string;
-  provenance: Record<string, unknown>;
+  provenance: CandidateProvenance;
   /** 统一状态机（权威大写枚举，见 ../types 的 CandidateStatus） */
   status: CandidateStatus;
   created_at: string;
@@ -226,7 +224,7 @@ export interface CandidatePatch {
   synonyms?: string[];
   domain_id?: string;
   definition?: string;
-  custom_attributes?: Record<string, any>;
+  custom_attributes?: Record<string, unknown>;
   status?: string;
 }
 

@@ -8,7 +8,15 @@ import {
   getCachedLocales,
 } from '../stores/i18nStore';
 import { useI18n } from '../hooks/useI18n';
+import type { Locale } from '../stores/i18nStore';
 import type { LocaleInfo } from '@/modules/i18n-admin/services/i18nApi';
+
+/** 与 `i18nStore.Locale` 保持一致的运行时白名单。 */
+const SUPPORTED_LOCALES = new Set<string>(['zh-CN', 'en-US', 'ja-JP']);
+
+function isSupportedLocale(value: string): value is Locale {
+  return SUPPORTED_LOCALES.has(value);
+}
 
 interface LanguageSwitcherProps {
   size?: 'small' | 'middle' | 'large';
@@ -53,6 +61,12 @@ export function LanguageSwitcher({
   }, []);
 
   const handleChange = useCallback((value: string) => {
+    // 语言列表来自后端 /api/i18n/locales，可能包含前端 bundle 尚未支持的语言；
+    // 未知语言直接忽略，避免 i18n.changeLanguage 落到空 bundle 上。
+    if (!isSupportedLocale(value)) {
+      console.warn(`LanguageSwitcher: unsupported locale "${value}" ignored`);
+      return;
+    }
     setLocale(value);
     setCurrent(value);
   }, []);

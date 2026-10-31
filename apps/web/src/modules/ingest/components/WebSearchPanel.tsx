@@ -1,12 +1,9 @@
 import React, { useState } from 'react';
 import { Input, Button, Select, Typography, Space, Alert, Spin, Tag, Divider } from 'antd';
 import { ProCard as Card } from '@ant-design/pro-components';
-import { SearchOutlined, LinkOutlined, GlobalOutlined } from '@ant-design/icons';
+import { SearchOutlined, GlobalOutlined } from '@ant-design/icons';
 import { api } from '@/modules/shared';
-import { useI18n } from '@/modules/shared/hooks/useI18n';
-
-const { TextArea } = Input;
-const { Text, Paragraph } = Typography;
+import { useI18n } from '@/modules/shared/hooks/useI18n';const { Text, Paragraph } = Typography;
 
 interface SearchResult {
   title: string;
@@ -36,8 +33,9 @@ const WebSearchPanel: React.FC = () => {
       setResults(res.results || []);
       setTotalCount(res.total_count || 0);
       setEngineUsed(res.engine_used || 'unknown');
-    } catch (e: any) {
-      setError(e.message || t('webSearch.searchFailed'));
+    } catch (e: unknown) {
+      const errMessage = e instanceof Error ? e.message : String(e);
+      setError(errMessage || t('搜索失败'));
     } finally {
       setLoading(false);
     }
@@ -58,14 +56,14 @@ const WebSearchPanel: React.FC = () => {
           <span>{t('webSearch.resultCount')}</span>
           <Select value={maxResults} onChange={setMaxResults} style={{ width: 80 }} size="small"
             options={[1, 3, 5, 10, 20].map(n => ({ value: n, label: n }))} />
-          <span>{t('webSearch.depth')}</span>
+          <span>{t('深度')}</span>
           <Select value={searchDepth} onChange={setSearchDepth} style={{ width: 100 }} size="small"
             options={[
-              { value: 'basic', label: t('webSearch.depthBasic') },
+              { value: 'basic', label: t('基础') },
               { value: 'advanced', label: t('webSearch.depthAdvanced') },
             ]} />
           <Button type="primary" icon={<SearchOutlined />} onClick={handleSearch} loading={loading}>
-            {t('webSearch.searchBtn')}
+            {t('搜索')}
           </Button>
         </Space>
 

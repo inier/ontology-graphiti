@@ -1,18 +1,12 @@
 import React, { useState, useEffect } from 'react';
-import { Input, Button, Select, Typography, Space, Alert, Spin, Tag, Divider, Badge } from 'antd';
+import { Input, Button, Select, Typography, Space, Alert, Spin, Tag, Divider } from 'antd';
 import { ProCard as Card } from '@ant-design/pro-components';
-import { RobotOutlined, LinkOutlined, CheckCircleOutlined, WarningOutlined } from '@ant-design/icons';
+import { RobotOutlined, LinkOutlined } from '@ant-design/icons';
 import { api } from '@/modules/shared';
-import { useI18n } from '@/modules/shared/hooks/useI18n';
+import type { WebCrawlHealth, WebCrawlLink, WebCrawlResult } from '@/modules/shared/services/api';
+import { useI18n } from '@/modules/shared/hooks/useI18n';const { Text, Paragraph } = Typography;
 
-const { TextArea } = Input;
-const { Text, Paragraph } = Typography;
-
-interface LinkItem {
-  text: string;
-  href: string;
-  link_type: string;
-}
+type LinkItem = WebCrawlLink;
 
 const WebCrawlPanel: React.FC = () => {
   const { t } = useI18n('ingest');
@@ -21,9 +15,9 @@ const WebCrawlPanel: React.FC = () => {
   const [cssSelector, setCssSelector] = useState('');
   const [timeout, setTimeout_] = useState(30);
   const [loading, setLoading] = useState(false);
-  const [result, setResult] = useState<any>(null);
+  const [result, setResult] = useState<WebCrawlResult | null>(null);
   const [error, setError] = useState('');
-  const [health, setHealth] = useState<any>(null);
+  const [health, setHealth] = useState<WebCrawlHealth | null>(null);
 
   useEffect(() => {
     api.webCrawlHealth().then(setHealth).catch(() => {});
@@ -37,8 +31,9 @@ const WebCrawlPanel: React.FC = () => {
     try {
       const res = await api.webCrawl(url, outputFormat, cssSelector || undefined, timeout);
       setResult(res);
-    } catch (e: any) {
-      setError(e.message || t('webCrawl.crawlFailed'));
+    } catch (e) {
+      const errMessage = e instanceof Error ? e.message : String(e);
+      setError(errMessage || t('爬取失败'));
     } finally {
       setLoading(false);
     }
@@ -56,13 +51,13 @@ const WebCrawlPanel: React.FC = () => {
           size="large"
         />
         <Space wrap>
-          <span>{t('webCrawl.format')}</span>
+          <span>{t('格式')}</span>
           <Select value={outputFormat} onChange={setOutputFormat} style={{ width: 130 }} size="small"
             options={[
               { value: 'markdown', label: 'Markdown' },
               { value: 'fit_markdown', label: t('webCrawl.fitMarkdown') },
               { value: 'html', label: 'HTML' },
-              { value: 'text', label: t('webCrawl.plainText') },
+              { value: 'text', label: t('纯文本') },
             ]} />
           <span>{t('webCrawl.cssSelector')}</span>
           <Input placeholder={t('webCrawl.cssSelectorPlaceholder')} value={cssSelector} onChange={e => setCssSelector(e.target.value)}
@@ -71,17 +66,17 @@ const WebCrawlPanel: React.FC = () => {
           <Select value={timeout} onChange={setTimeout_} style={{ width: 80 }} size="small"
             options={[10, 30, 60, 120].map(n => ({ value: n, label: `${n}s` }))} />
           <Button type="primary" icon={<RobotOutlined />} onClick={handleCrawl} loading={loading}>
-            {t('webCrawl.crawlBtn')}
+            {t('爬取')}
           </Button>
         </Space>
 
         {health && (
           <Space>
             <Tag color={health.crawl4ai_available ? 'green' : 'default'}>
-              Crawl4AI: {health.crawl4ai_available ? t('webCrawl.available') : t('webCrawl.unavailable')}
+              Crawl4AI: {health.crawl4ai_available ? t('可用') : t('不可用')}
             </Tag>
             <Tag color={health.fallback_available ? 'green' : 'red'}>
-              {t('webCrawl.fallback')} {health.fallback_available ? t('webCrawl.available') : t('webCrawl.unavailable')}
+              {t('webCrawl.fallback')} {health.fallback_available ? t('可用') : t('不可用')}
             </Tag>
           </Space>
         )}
@@ -95,10 +90,10 @@ const WebCrawlPanel: React.FC = () => {
             <Space>
               <Text strong>{result.title || url}</Text>
               <Tag color={result.crawl_method === 'crawl4ai' ? 'blue' : 'orange'}>
-                {result.crawl_method === 'crawl4ai' ? t('webCrawl.jsRendered') : t('webCrawl.staticFallback')}
+                {result.crawl_method === 'crawl4ai' ? t('webCrawl.jsRendered') : t('静态降级')}
               </Tag>
               <Tag color={result.confidence === 'medium' ? 'green' : 'gold'}>
-                {t('webCrawl.confidence')} {result.confidence === 'medium' ? t('webCrawl.confidenceMedium') : t('webCrawl.confidenceLow')}
+                {t('置信度')} {result.confidence === 'medium' ? t('webCrawl.confidenceMedium') : t('webCrawl.confidenceLow')}
               </Tag>
             </Space>
           }>
@@ -110,7 +105,7 @@ const WebCrawlPanel: React.FC = () => {
                 <Text type="secondary">{t('webCrawl.urlLabel')}</Text>
                 <a href={result.url} target="_blank" rel="noopener noreferrer">{result.url}</a>
               </Paragraph>
-              <Divider style={{ margin: '4px 0' }}>{t('webCrawl.content')}</Divider>
+              <Divider style={{ margin: '4px 0' }}>{t('内容')}</Divider>
               <div style={{
                 maxHeight: 400, overflow: 'auto', padding: 8,
                 background: '#fafafa', borderRadius: 4, fontSize: 13,

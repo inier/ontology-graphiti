@@ -1,18 +1,11 @@
-import { Layout, Select, message, Button, Tooltip, Dropdown } from 'antd';
-import {
-  SwitcherOutlined,
-  QuestionCircleOutlined,
-  LogoutOutlined,
-  GlobalOutlined,
-} from '@ant-design/icons';
-import { useNavigate } from 'react-router-dom';
+import { Layout, Select, Button, Tooltip, Dropdown } from 'antd';
+import { QuestionCircleOutlined, LogoutOutlined } from '@ant-design/icons';
 import { useTranslation } from 'react-i18next';
-import { api } from '../services/api';
-import { useAuthStore } from '../stores/authStore';
 import { LanguageSwitcher } from './LanguageSwitcher';
 import { ThemeColorPicker } from './ThemeColorPicker';
 import type { Workspace, Scenario } from './LayoutContexts';
 import type { ColorTheme } from '../stores/layoutStore';
+import { Icon } from '@/modules/shared/components/Icon';
 
 const { Header } = Layout;
 
@@ -39,12 +32,15 @@ interface LayoutHeaderProps {
   onScenarioChange: (value: string) => void;
   /** 主题 */
   theme: string;
-  /** 主题色 */
-  colorTheme: ColorTheme;
+  /**
+   * 主题色（兼容保留：主题色已由 Token 体系接管，
+   * ThemeColorPicker 直接写 html[data-accent]，不再需要受控入参）
+   */
+  colorTheme?: ColorTheme;
   /** 切换主题回调 */
   onToggleTheme: () => void;
-  /** 设置主题色回调 */
-  onColorThemeChange: (c: ColorTheme) => void;
+  /** 设置主题色回调（同上，兼容保留） */
+  onColorThemeChange?: (c: ColorTheme) => void;
   /** 重置引导 tour */
   onResetTour: () => void;
   /** 用户名 */
@@ -70,14 +66,11 @@ export function LayoutHeader({
   onWorkspaceChange,
   onScenarioChange,
   theme,
-  colorTheme,
   onToggleTheme,
-  onColorThemeChange,
   onResetTour,
   username,
   onLogout,
 }: LayoutHeaderProps) {
-  const navigate = useNavigate();
   const { t } = useTranslation();
 
   return (
@@ -144,13 +137,13 @@ export function LayoutHeader({
       <div className="odap-header-right">
         <LanguageSwitcher size="small" />
 
-        <ThemeColorPicker value={colorTheme} onChange={onColorThemeChange} size="small" />
+        <ThemeColorPicker />
 
         <Tooltip title={theme === 'light' ? t('切换暗色模式') : t('切换亮色模式')}>
           <Button
             type="text"
             size="small"
-            icon={theme === 'light' ? <span style={{ fontSize: 14 }}>🌙</span> : <span style={{ fontSize: 14 }}>☀️</span>}
+            icon={theme === 'light' ? <Icon role="appearanceDark" size={16} /> : <Icon role="appearanceLight" size={16} />}
             onClick={onToggleTheme}
             style={{ color: 'var(--odap-color-text-secondary)' }}
           />
@@ -187,7 +180,7 @@ export function LayoutHeader({
                 width: 28,
                 height: 28,
                 borderRadius: '50%',
-                background: 'linear-gradient(135deg, var(--odap-color-primary-600), var(--odap-color-accent-500))',
+                background: 'var(--odap-color-accent)',
                 color: '#fff',
                 display: 'flex',
                 alignItems: 'center',

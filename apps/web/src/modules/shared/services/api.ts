@@ -38,6 +38,59 @@ export interface Workspace {
   tags?: string[];
 }
 
+/** 角色列表/详情的最小字段集（后端 GET /api/roles 返回体） */
+export type Role = {
+  role_id: string;
+  name: string;
+  description?: string;
+  role_type?: string;
+  permissions?: string[];
+  created_at?: string;
+  updated_at?: string;
+};
+
+/** 动作审批记录（GET /api/actions/records 返回行） */
+export type ActionRecordRow = {
+  action_record_id: string;
+  action_type_id?: string;
+  status: string;
+  target_object_id?: string;
+  target_object_type?: string;
+  requested_by?: string;
+  reason?: string;
+  parameters?: Record<string, unknown>;
+  opa_decision?: string;
+  execution_result?: Record<string, unknown>;
+  writeback_result?: Record<string, unknown>;
+  created_at?: string;
+  updated_at?: string;
+};
+
+/** OMS 只读元数据：对象类型（GET /api/ontology/oms/object-types） */
+export type OmsObjectType = {
+  type_id: string;
+  name: string;
+  display_name: string;
+  description: string;
+  properties: Array<{ name: string; property_type: string; required: boolean }>;
+  links: Array<{ name: string; source_type: string; target_type: string }>;
+  actions: string[];
+  is_active: boolean;
+  icon: string;
+  color: string;
+};
+
+/** OMS 只读元数据：动作类型（GET /api/ontology/oms/action-types） */
+export type OmsActionType = {
+  action_type_id: string;
+  name: string;
+  display_name?: string;
+  description?: string;
+  target_type: string;
+  parameters?: Array<{ name: string; type: string; required?: boolean }>;
+  requires_approval?: boolean;
+};
+
 export interface AuditEvent {
   id: string;
   timestamp: string;
@@ -237,11 +290,13 @@ export const api = {
    * });
    * ```
    */
-  async ingest(options: {
-    type: 'news' | 'manual' | 'json' | 'natural_language' | 'random';
-    data: any;
-    scenario_id?: string;
-  }): Promise<{ 
+  async ingest(options:
+    | { type: 'news'; data: string | { url?: string; query?: string; event_context?: string; max_sources?: number }; scenario_id?: string }
+    | { type: 'manual'; data: string | Record<string, unknown>; scenario_id?: string }
+    | { type: 'json'; data: string; scenario_id?: string }
+    | { type: 'natural_language'; data: string; scenario_id?: string }
+    | { type: 'random'; data: { parties: string[]; scenario_context?: Record<string, unknown>; count?: number; generator_type?: string }; scenario_id?: string }
+  ): Promise<{ 
     ingest_id: string; 
     status: string;
     source_details?: Record<string, unknown>;
@@ -270,8 +325,11 @@ export const api = {
           data: options.data,
           scenario_id: options.scenario_id
         });
-      default:
-        throw new Error(`Unknown ingest type: ${options.type}`);
+      default: {
+        // 穷尽性守卫：type 联合新增成员时此处会编译报错，避免静默落到未知分支
+        const unreachable: never = options;
+        throw new Error(`Unknown ingest type: ${JSON.stringify(unreachable)}`);
+      }
     }
   },
 
@@ -602,7 +660,7 @@ export const api = {
     });
   },
 
-  async ingestFile(file: File, scenarioId?: string): Promise<{ success: boolean; task_id: string; filename: string; file_size: number }> {
+  async ingestFile(file: Blob | string, scenarioId?: string): Promise<{ success: boolean; task_id: string; filename: string; file_size: number }> {
     const formData = new FormData();
     formData.append('file', file);
     if (scenarioId) {
@@ -1541,6 +1599,20 @@ export const api = {
 
   // ==================== 系统监控 API ====================
 
+  /**
+   * @deprecated 返回类型与后端实际响应不一致，**不要在新代码里使用**。
+   *
+   * 后端 `GET /api/v1/monitoring/performance` 真实返回的是「按指标分组的耗时统计」：
+   * `{ llm_calls | database_queries | api_requests | tool_executions:
+   *    { count, mean, median, min, max, p95, p99 } }`（单位秒；无采样时该组为 `{}`）。
+   *
+   * 下面声明的 `cpu_percent` / `memory_percent` / ... 七个字段**后端从不返回**，
+   * 之前按这份形状写过的面板拿到的永远是 `undefined`。
+   * 需要真实 CPU/内存指标要后端先新增 psutil 端点，属于新需求。
+   *
+   * 保留现状的原因：形状变更已转后端裁定权威契约，此处不单方面改写（也不伪造新字段）。
+   * 当前仓内暂无调用方。
+   */
   async getSystemMetrics(): Promise<{
     cpu_percent: number;
     memory_percent: number;
@@ -1572,13 +1644,15 @@ export const api = {
   async listRoles(params?: {
     page?: number;
     page_size?: number;
-  }): Promise<any[]> {
+  }): Promise<Role[]> {
     const searchParams = new URLSearchParams();
     if (params?.page) searchParams.set('page', String(params.page));
     if (params?.page_size) searchParams.set('page_size', String(params.page_size));
     const queryString = searchParams.toString();
-    const data = await fetchJson<any>(`${API_BASE}/api/roles${queryString ? `?${queryString}` : ''}`);
-    return Array.isArray(data) ? data : (data.roles || []);
+    const data = await fetchJson<Role[] | { roles?: Role[] }>(
+      `${API_BASE}/api/roles${queryString ? `?${queryString}` : ''}`,
+    );
+    return Array.isArray(data) ? data : (data.roles ?? []);
   },
 
   async createRole(data: {
@@ -1687,85 +1761,85 @@ export const api = {
 
   // ==================== OMS 本体元数据服务（只读） ====================
 
-  async listObjectTypes(activeOnly = true): Promise<any[]> {
+  async listObjectTypes(activeOnly = true): Promise<OmsObjectType[]> {
     return fetchJson(`${API_BASE}/api/ontology/oms/object-types?active_only=${activeOnly}`);
   },
 
-  async getObjectType(typeId: string): Promise<any> {
+  async getObjectType(typeId: string): Promise<OmsObjectType> {
     return fetchJson(`${API_BASE}/api/ontology/oms/object-types/${typeId}`);
   },
 
-  async listActionTypes(targetType?: string): Promise<any[]> {
+  async listActionTypes(targetType?: string): Promise<OmsActionType[]> {
     const params = targetType ? `?target_type=${targetType}` : '';
     return fetchJson(`${API_BASE}/api/ontology/oms/action-types${params}`);
   },
 
-  async getActionType(actionTypeId: string): Promise<any> {
+  async getActionType(actionTypeId: string): Promise<OmsActionType> {
     return fetchJson(`${API_BASE}/api/ontology/oms/action-types/${actionTypeId}`);
   },
 
   // ==================== TypeRegistry 统一类型定义服务 ====================
 
-  async registryCreateObjectType(ontologyId: string, data: any): Promise<any> {
+  async registryCreateObjectType(ontologyId: string, data: Record<string, unknown>): Promise<unknown> {
     return fetchJson(`${API_BASE}/api/ontology/registry/object-types`, {
       method: 'POST',
       body: JSON.stringify({ ...data, ontology_id: ontologyId }),
     });
   },
 
-  async registryGetObjectType(typeId: string): Promise<any> {
+  async registryGetObjectType(typeId: string): Promise<unknown> {
     return fetchJson(`${API_BASE}/api/ontology/registry/object-types/${typeId}`);
   },
 
-  async registryListObjectTypes(ontologyId: string): Promise<any> {
+  async registryListObjectTypes(ontologyId: string): Promise<unknown> {
     return fetchJson(`${API_BASE}/api/ontology/registry/ontologies/${ontologyId}/object-types`);
   },
 
-  async registryUpdateObjectType(typeId: string, data: any): Promise<any> {
+  async registryUpdateObjectType(typeId: string, data: unknown): Promise<unknown> {
     return fetchJson(`${API_BASE}/api/ontology/registry/object-types/${typeId}`, {
       method: 'PUT',
       body: JSON.stringify(data),
     });
   },
 
-  async registryDeleteObjectType(typeId: string): Promise<any> {
+  async registryDeleteObjectType(typeId: string): Promise<unknown> {
     return fetchJson(`${API_BASE}/api/ontology/registry/object-types/${typeId}`, { method: 'DELETE' });
   },
 
-  async registryCreateActionType(ontologyId: string, data: any): Promise<any> {
+  async registryCreateActionType(ontologyId: string, data: Record<string, unknown>): Promise<unknown> {
     return fetchJson(`${API_BASE}/api/ontology/registry/action-types`, {
       method: 'POST',
       body: JSON.stringify({ ...data, ontology_id: ontologyId }),
     });
   },
 
-  async registryListActionTypes(ontologyId: string): Promise<any> {
+  async registryListActionTypes(ontologyId: string): Promise<unknown> {
     return fetchJson(`${API_BASE}/api/ontology/registry/ontologies/${ontologyId}/action-types`);
   },
 
-  async registryUpdateActionType(actionTypeId: string, data: any): Promise<any> {
+  async registryUpdateActionType(actionTypeId: string, data: unknown): Promise<unknown> {
     return fetchJson(`${API_BASE}/api/ontology/registry/action-types/${actionTypeId}`, {
       method: 'PUT',
       body: JSON.stringify(data),
     });
   },
 
-  async registryDeleteActionType(actionTypeId: string): Promise<any> {
+  async registryDeleteActionType(actionTypeId: string): Promise<unknown> {
     return fetchJson(`${API_BASE}/api/ontology/registry/action-types/${actionTypeId}`, { method: 'DELETE' });
   },
 
-  async registryCreateLinkType(ontologyId: string, data: any): Promise<any> {
+  async registryCreateLinkType(ontologyId: string, data: Record<string, unknown>): Promise<unknown> {
     return fetchJson(`${API_BASE}/api/ontology/registry/link-types`, {
       method: 'POST',
       body: JSON.stringify({ ...data, ontology_id: ontologyId }),
     });
   },
 
-  async registryListLinkTypes(ontologyId: string): Promise<any> {
+  async registryListLinkTypes(ontologyId: string): Promise<unknown> {
     return fetchJson(`${API_BASE}/api/ontology/registry/ontologies/${ontologyId}/link-types`);
   },
 
-  async registryCommitVersion(ontologyId: string, changelog: string = ''): Promise<any> {
+  async registryCommitVersion(ontologyId: string, changelog: string = ''): Promise<unknown> {
     return fetchJson(`${API_BASE}/api/ontology/registry/ontologies/${ontologyId}/commit`, {
       method: 'POST',
       body: JSON.stringify({ changelog }),
@@ -1775,7 +1849,7 @@ export const api = {
   // ==================== OMS 写入（已弃用，请使用 Registry API） ====================
 
   /** @deprecated 使用 registryCreateObjectType */
-  async createObjectType(data: any): Promise<any> {
+  async createObjectType(data: unknown): Promise<unknown> {
     return fetchJson(`${API_BASE}/api/ontology/oms/object-types`, {
       method: 'POST',
       body: JSON.stringify(data),
@@ -1783,7 +1857,7 @@ export const api = {
   },
 
   /** @deprecated 使用 registryUpdateObjectType */
-  async updateObjectType(typeId: string, data: any): Promise<any> {
+  async updateObjectType(typeId: string, data: unknown): Promise<unknown> {
     return fetchJson(`${API_BASE}/api/ontology/oms/object-types/${typeId}`, {
       method: 'PUT',
       body: JSON.stringify(data),
@@ -1796,7 +1870,7 @@ export const api = {
   },
 
   /** @deprecated 使用 registryCreateActionType */
-  async createActionType(data: any): Promise<any> {
+  async createActionType(data: unknown): Promise<unknown> {
     return fetchJson(`${API_BASE}/api/ontology/oms/action-types`, {
       method: 'POST',
       body: JSON.stringify(data),
@@ -1804,7 +1878,7 @@ export const api = {
   },
 
   /** @deprecated 使用 registryUpdateActionType */
-  async updateActionType(actionTypeId: string, data: any): Promise<any> {
+  async updateActionType(actionTypeId: string, data: unknown): Promise<unknown> {
     return fetchJson(`${API_BASE}/api/ontology/oms/action-types/${actionTypeId}`, {
       method: 'PUT',
       body: JSON.stringify(data),
@@ -1975,6 +2049,8 @@ export const api = {
       id: string;
       entity_id: string;
       name: string;
+      /** 可选展示名；旧数据可能没有，UI 需回退到 name */
+      display_name?: string;
       type: string;
       cluster: string | null;
       properties: Record<string, unknown>;
@@ -2001,7 +2077,7 @@ export const api = {
     return fetchJson(`${API_BASE}/api/semantic-map/${mapId}/graph`);
   },
 
-  async regenerateSemanticMap(mapId: string): Promise<any> {
+  async regenerateSemanticMap(mapId: string): Promise<{ id: string; status?: string; message?: string }> {
     return fetchJson(`${API_BASE}/api/semantic-map/${mapId}/regenerate`, {
       method: 'POST',
     });
@@ -2082,12 +2158,12 @@ export const api = {
 
   async queryObjects(query: {
     object_type?: string;
-    filters?: any[];
+    filters?: unknown[];
     limit?: number;
     offset?: number;
     include_links?: boolean;
     include_actions?: boolean;
-  }): Promise<{ results: any[]; total: number; limit: number; offset: number }> {
+  }): Promise<{ results: unknown[]; total: number; limit: number; offset: number }> {
     return fetchJson(`${API_BASE}/api/objects/query`, {
       method: 'POST',
       body: JSON.stringify(query),
@@ -2099,14 +2175,14 @@ export const api = {
     object_type?: string;
     top_k?: number;
     include_links?: boolean;
-  }): Promise<{ results: any[]; total: number }> {
+  }): Promise<{ results: unknown[]; total: number }> {
     return fetchJson(`${API_BASE}/api/objects/semantic`, {
       method: 'POST',
       body: JSON.stringify(query),
     });
   },
 
-  async getObject(objectId: string, objectType?: string): Promise<any> {
+  async getObject(objectId: string, objectType?: string): Promise<unknown> {
     const params = objectType ? `?object_type=${objectType}` : '';
     return fetchJson(`${API_BASE}/api/objects/${objectId}${params}`);
   },
@@ -2117,74 +2193,87 @@ export const api = {
     action_type_id: string;
     target_object_id: string;
     target_object_type: string;
-    parameters?: Record<string, any>;
+    parameters?: Record<string, unknown>;
     requested_by?: string;
     reason?: string;
     agent_id?: string;
-  }): Promise<any> {
+  }): Promise<unknown> {
     return fetchJson(`${API_BASE}/api/actions/submit`, {
       method: 'POST',
       body: JSON.stringify(request),
     });
   },
 
+  /**
+   * 批准并执行动作记录：`POST /api/actions/{record_id}/approve`。
+   *
+   * 注意两点（见 odap/biz/decision/action_service/executor.py:approve_and_execute）：
+   *   1) 请求体字段 `action_record_id` 在 ActionApproval 中是**必填**，缺失会 422；
+   *   2) 后端只对已处于 `approved` 状态的记录执行，`approved` 字段仅做契约占位，
+   *      `pending/validating` 的状态流转由 submit 时的 OPA 裁决自动完成，无人工拒绝接口。
+   */
   async approveAction(recordId: string, approval: {
     approved: boolean;
     approver?: string;
     comment?: string;
-  }): Promise<any> {
+  }): Promise<unknown> {
     return fetchJson(`${API_BASE}/api/actions/${recordId}/approve`, {
       method: 'POST',
-      body: JSON.stringify(approval),
+      body: JSON.stringify({
+        action_record_id: recordId,
+        approved: approval.approved,
+        approver: approval.approver ?? '',
+        comment: approval.comment ?? '',
+      }),
     });
   },
 
-  async listActionRecords(status?: string, limit = 50, offset = 0): Promise<any[]> {
+  async listActionRecords(status?: string, limit = 50, offset = 0): Promise<ActionRecordRow[]> {
     const params = new URLSearchParams({ limit: String(limit), offset: String(offset) });
     if (status) params.set('status', status);
     return fetchJson(`${API_BASE}/api/actions/records?${params}`);
   },
 
-  async getActionRecord(recordId: string): Promise<any> {
+  async getActionRecord(recordId: string): Promise<ActionRecordRow> {
     return fetchJson(`${API_BASE}/api/actions/records/${recordId}`);
   },
 
-  async listActionsByTarget(targetObjectId: string, limit = 20): Promise<any[]> {
+  async listActionsByTarget(targetObjectId: string, limit = 20): Promise<ActionRecordRow[]> {
     return fetchJson(`${API_BASE}/api/actions/target/${targetObjectId}?limit=${limit}`);
   },
 
   // ==================== Perception Hub 感知服务 ====================
 
-  async ingestPerception(event: { source_type: string; raw_content: string; metadata?: any; workspace_id?: string }): Promise<any> {
+  async ingestPerception(event: { source_type: string; raw_content: string; metadata?: unknown; workspace_id?: string }): Promise<unknown> {
     return fetchJson(`${API_BASE}/api/perception/ingest`, {
       method: 'POST',
       body: JSON.stringify(event),
     });
   },
 
-  async ingestManualV2(content: string, sourceType = 'manual', metadata?: any): Promise<any> {
+  async ingestManualV2(content: string, sourceType = 'manual', metadata?: unknown): Promise<unknown> {
     return fetchJson(`${API_BASE}/api/perception/ingest/manual`, {
       method: 'POST',
       body: JSON.stringify({ content, source_type: sourceType, metadata }),
     });
   },
 
-  async ingestWebhook(payload: any): Promise<any> {
+  async ingestWebhook(payload: unknown): Promise<unknown> {
     return fetchJson(`${API_BASE}/api/perception/ingest/webhook`, {
       method: 'POST',
       body: JSON.stringify(payload),
     });
   },
 
-  async observeAndProcess(): Promise<any[]> {
+  async observeAndProcess(): Promise<unknown[]> {
     return fetchJson(`${API_BASE}/api/perception/observe`, { method: 'POST' });
   },
 
-  async getPerceptionStatus(): Promise<any> {
+  async getPerceptionStatus(): Promise<unknown> {
     return fetchJson(`${API_BASE}/api/perception/status`);
   },
 
-  async toggleObserver(name: string, enabled: boolean): Promise<any> {
+  async toggleObserver(name: string, enabled: boolean): Promise<unknown> {
     return fetchJson(`${API_BASE}/api/perception/observers/${name}/toggle`, {
       method: 'POST',
       body: JSON.stringify({ enabled }),
@@ -2195,18 +2284,18 @@ export const api = {
 
   async executeDecisionPipeline(input: {
     query: string;
-    context?: any;
+    context?: unknown;
     workspace_id?: string;
     scenario_id?: string;
     agent_id?: string;
-  }): Promise<any> {
+  }): Promise<unknown> {
     return fetchJson(`${API_BASE}/api/decision-pipeline/execute`, {
       method: 'POST',
       body: JSON.stringify(input),
     });
   },
 
-  async analyzeOnly(input: { query: string; context?: any }): Promise<any> {
+  async analyzeOnly(input: { query: string; context?: unknown }): Promise<unknown> {
     return fetchJson(`${API_BASE}/api/decision-pipeline/analyze`, {
       method: 'POST',
       body: JSON.stringify(input),
@@ -2219,16 +2308,16 @@ export const api = {
     action_type_id: string;
     target_object_id: string;
     target_object_type: string;
-    parameters?: any;
-    variant_parameters?: any[];
-  }): Promise<any> {
+    parameters?: unknown;
+    variant_parameters?: unknown[];
+  }): Promise<unknown> {
     return fetchJson(`${API_BASE}/api/simulation/whatif/simulate`, {
       method: 'POST',
       body: JSON.stringify(scenario),
     });
   },
 
-  async compareWhatIfScenarios(scenarios: any[]): Promise<any> {
+  async compareWhatIfScenarios(scenarios: unknown[]): Promise<unknown> {
     return fetchJson(`${API_BASE}/api/simulation/whatif/compare`, {
       method: 'POST',
       body: JSON.stringify(scenarios),
@@ -2238,13 +2327,13 @@ export const api = {
   async createDeductionScenario(data: {
     name: string; description?: string; source_recommendation_id?: string;
     source_analysis_id?: string; target_object_id?: string; target_object_type?: string;
-  }): Promise<any> {
+  }): Promise<unknown> {
     return fetchJson(`${API_BASE}/api/simulation/deduction/scenarios`, {
       method: 'POST', body: JSON.stringify(data),
     });
   },
 
-  async listDeductionScenarios(params?: { page?: number; page_size?: number; status?: string; name?: string; target_object_type?: string }): Promise<any> {
+  async listDeductionScenarios(params?: { page?: number; page_size?: number; status?: string; name?: string; target_object_type?: string }): Promise<unknown> {
     const query = new URLSearchParams();
     if (params?.page) query.set('page', String(params.page));
     if (params?.page_size) query.set('page_size', String(params.page_size));
@@ -2255,49 +2344,49 @@ export const api = {
     return fetchJson(`${API_BASE}/api/simulation/deduction/scenarios${qs ? '?' + qs : ''}`);
   },
 
-  async getDeductionScenario(scenarioId: string): Promise<any> {
+  async getDeductionScenario(scenarioId: string): Promise<unknown> {
     return fetchJson(`${API_BASE}/api/simulation/deduction/scenarios/${scenarioId}`);
   },
 
-  async deleteDeductionScenario(scenarioId: string): Promise<any> {
+  async deleteDeductionScenario(scenarioId: string): Promise<unknown> {
     return fetchJson(`${API_BASE}/api/simulation/deduction/scenarios/${scenarioId}`, {
       method: 'DELETE',
     });
   },
 
-  async loadDeductionConditions(scenarioId: string): Promise<any> {
+  async loadDeductionConditions(scenarioId: string): Promise<unknown> {
     return fetchJson(`${API_BASE}/api/simulation/deduction/scenarios/${scenarioId}/conditions`, {
       method: 'POST',
     });
   },
 
-  async updateDeductionCondition(scenarioId: string, conditionId: string, value: any): Promise<any> {
+  async updateDeductionCondition(scenarioId: string, conditionId: string, value: unknown): Promise<unknown> {
     return fetchJson(`${API_BASE}/api/simulation/deduction/scenarios/${scenarioId}/conditions/${conditionId}`, {
       method: 'PUT', body: JSON.stringify({ value }),
     });
   },
 
   async addDeductionChain(scenarioId: string, data: {
-    name: string; description?: string; steps: any[]; conditions?: any[];
-  }): Promise<any> {
+    name: string; description?: string; steps: unknown[]; conditions?: unknown[];
+  }): Promise<unknown> {
     return fetchJson(`${API_BASE}/api/simulation/deduction/scenarios/${scenarioId}/chains`, {
       method: 'POST', body: JSON.stringify(data),
     });
   },
 
-  async simulateDeductionChain(scenarioId: string, chainId: string): Promise<any> {
+  async simulateDeductionChain(scenarioId: string, chainId: string): Promise<unknown> {
     return fetchJson(`${API_BASE}/api/simulation/deduction/scenarios/${scenarioId}/chains/${chainId}/simulate`, {
       method: 'POST',
     });
   },
 
-  async simulateAllDeductionChains(scenarioId: string): Promise<any> {
+  async simulateAllDeductionChains(scenarioId: string): Promise<unknown> {
     return fetchJson(`${API_BASE}/api/simulation/deduction/scenarios/${scenarioId}/simulate-all`, {
       method: 'POST',
     });
   },
 
-  async compareDeductionChains(scenarioId: string, chainIds: string[]): Promise<any> {
+  async compareDeductionChains(scenarioId: string, chainIds: string[]): Promise<unknown> {
     return fetchJson(`${API_BASE}/api/simulation/deduction/scenarios/${scenarioId}/compare`, {
       method: 'POST', body: JSON.stringify({ chain_ids: chainIds }),
     });
@@ -2307,24 +2396,64 @@ export const api = {
   // Web 数据采集 API
   // ============================================================
 
-  async webSearch(query: string, maxResults: number = 5, searchDepth: string = 'basic'): Promise<any> {
+  async webSearch(query: string, maxResults: number = 5, searchDepth: string = 'basic'): Promise<{
+    results: Array<{
+      title: string;
+      url: string;
+      snippet: string;
+      source_domain: string;
+      published_date: string;
+    }>;
+    total_count: number;
+    engine_used: string;
+  }> {
     return fetchJson(`${API_BASE}/api/web/search`, {
       method: 'POST',
       body: JSON.stringify({ query, max_results: maxResults, search_depth: searchDepth }),
     });
   },
 
-  async webCrawl(url: string, outputFormat: string = 'markdown', cssSelector?: string, timeout: number = 30): Promise<any> {
+  async webCrawl(url: string, outputFormat: string = 'markdown', cssSelector?: string, timeout: number = 30): Promise<WebCrawlResult> {
     return fetchJson(`${API_BASE}/api/web/crawl`, {
       method: 'POST',
       body: JSON.stringify({ url, output_format: outputFormat, css_selector: cssSelector || null, timeout }),
     });
   },
 
-  async webCrawlHealth(): Promise<any> {
+  async webCrawlHealth(): Promise<WebCrawlHealth> {
     return fetchJson(`${API_BASE}/api/web/crawl/health`);
   },
 };
 
 export const apiService = api;
 export default api;
+
+/* ──────────────────────────────────────────────────────────────────
+ * 网页抓取（web crawl）DTO
+ * ────────────────────────────────────────────────────────────────── */
+
+/** 抓取结果中的链接条目 */
+export interface WebCrawlLink {
+  text: string;
+  href: string;
+  link_type: string;
+}
+
+/** POST /api/web/crawl 响应 */
+export interface WebCrawlResult {
+  url: string;
+  title?: string;
+  content?: string;
+  /** crawl4ai（JS 渲染）或静态兜底抓取 */
+  crawl_method?: string;
+  /** 抓取置信度：medium / low */
+  confidence?: string;
+  sanitize_warnings?: string[];
+  links?: WebCrawlLink[];
+}
+
+/** GET /api/web/crawl/health 响应 */
+export interface WebCrawlHealth {
+  crawl4ai_available?: boolean;
+  fallback_available?: boolean;
+}

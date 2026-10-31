@@ -5,6 +5,7 @@
  * 消除 ProLayout → AppLayout 的循环依赖。
  */
 import { createContext, useContext, type ReactNode } from 'react';
+import type { Scenario as ApiScenario } from '@/modules/shared/types';
 
 /* ═══════════════════════════════════════════════════════════
  * 类型定义
@@ -15,14 +16,11 @@ export interface Workspace {
   name: string;
 }
 
-export interface Scenario {
-  scenario_id: string;
-  name: string;
-  description?: string;
-  workspace_id: string;
-  ontology_id?: string;
-  current_ontology_version?: string;
-}
+/**
+ * 场景 —— 与接口契约同形（`shared/types.Scenario`，对齐后端 ScenarioResponse）。
+ * 这里只做别名，避免 Context 与接口层出现两份互不兼容的场景类型。
+ */
+export type Scenario = ApiScenario;
 
 export interface WorkspaceContextType {
   currentWorkspace: string;

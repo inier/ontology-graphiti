@@ -3,6 +3,7 @@ import { Tooltip, Empty } from 'antd';
 import { CloseOutlined } from '@ant-design/icons';
 import { useLayoutStore, type QuickAction } from '@/modules/shared/stores/layoutStore';
 import { useI18n } from '@/modules/shared/hooks/useI18n';
+import { Icon } from '@/modules/shared/components/Icon';
 
 /**
  * QuickActionBar — 快捷操作区
@@ -19,7 +20,7 @@ interface QuickActionBarProps {
 }
 
 export function QuickActionBar({ onQuickActionClick }: QuickActionBarProps) {
-  const { quickActions, addQuickAction, removeQuickAction, tabs } = useLayoutStore();
+  const { quickActions, addQuickAction, removeQuickAction } = useLayoutStore();
   const { t } = useI18n();
   const [dragOver, setDragOver] = useState(false);
 
@@ -84,7 +85,7 @@ export function QuickActionBar({ onQuickActionClick }: QuickActionBarProps) {
                   handleRemove(e as unknown as React.MouseEvent, action.id);
                 }}
               >
-                <span className="odap-quick-action-icon">{action.icon || '📌'}</span>
+                <span className="odap-quick-action-icon">{action.icon ?? <Icon role="pin" size={16} />}</span>
                 <span className="odap-quick-action-label">{action.title}</span>
                 <button
                   className="odap-quick-action-close"

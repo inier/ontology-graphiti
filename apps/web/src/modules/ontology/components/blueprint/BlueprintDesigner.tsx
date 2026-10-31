@@ -126,7 +126,8 @@ function BlueprintDesignerInner() {
   );
 
   const onNodeDragStop = useCallback(
-    (_event: React.MouseEvent, node: Node) => {
+    // React Flow 在触屏设备上会传 TouchEvent，事件参数必须按联合类型声明
+    (_event: MouseEvent | TouchEvent, node: Node) => {
       updateNodePosition(node.id, node.position);
     },
     [updateNodePosition]

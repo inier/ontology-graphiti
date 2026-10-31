@@ -1,18 +1,22 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
-import {
-  getQualityReport,
-  batchEvaluateReports,
-  getDashboardSummary,
-  getDashboardTermsTrend,
-  getDashboardApprovalsBreakdown,
-} from '../services/qualityApi';
+import { getQualityReport, batchEvaluateReports } from '../services/qualityApi';
 
 const mockFetch = vi.fn();
 vi.mock('@/modules/shared/services/apiClient', () => ({
   fetchJson: (...args: unknown[]) => mockFetch(...args),
 }));
 
-describe('qualityApi.ts: 质量闸 & 仪表盘 5 个 API URL 构造', () => {
+/**
+ * 注：本文件原先还测 3 个 `getDashboard*` 函数。它们只服务于
+ * `semantic-admin/pages/DashboardPage.tsx`，而后者与 `QualityDashboardPage`
+ * 打同一组端点（`/api/semantic-admin/dashboard/*`），`legacyRedirects` 也已把
+ * `/semantic-admin/dashboard` 收敛到 `/semantic-admin/quality` —— 页面与函数
+ * 一并删除，这里同步收敛为「质量闸」两个方法的 URL 契约。
+ *
+ * 仪表盘三端点仍在使用（QualityDashboardPage 直接 fetch），其 URL 断言见
+ * `pages/QualityDashboardPage` 相关测试。
+ */
+describe('qualityApi.ts: 质量闸 2 个 API URL 构造', () => {
   beforeEach(() => {
     mockFetch.mockReset();
   });
@@ -37,28 +41,5 @@ describe('qualityApi.ts: 质量闸 & 仪表盘 5 个 API URL 构造', () => {
     expect(body.candidate_ids).toEqual(['c1', 'c2', 'c3']);
     expect(body.sync).toBe(true);
     expect(body.actor_id).toBe('admin-1');
-  });
-
-  it('getDashboardSummary / getDashboardTermsTrend / getDashboardApprovalsBreakdown 存在并返回 Promise', async () => {
-    mockFetch.mockResolvedValue({
-      total_candidates: 0, by_status: {}, by_tier: {}, avg_gate_scores: {
-        gate1_avg: 0, gate2_avg: 0, gate3_avg: 0, total_avg: 0,
-      }, approval_times: {
-        l1_avg_secs: 0, l2_avg_secs: 0, total_avg_secs: 0, l1_samples: 0, l2_samples: 0, total_samples: 0,
-      },
-    });
-    const [s, t, b] = await Promise.all([
-      getDashboardSummary('ws-1'),
-      getDashboardTermsTrend(7, 'domain-x'),
-      getDashboardApprovalsBreakdown('ws-1'),
-    ]);
-    expect(mockFetch).toHaveBeenCalledTimes(3);
-    expect(s).toBeDefined();
-    expect(t).toBeDefined();
-    expect(b).toBeDefined();
-    // 3 次调用 url 分别正确
-    expect(String(mockFetch.mock.calls[0][0])).toContain('/dashboard/summary');
-    expect(String(mockFetch.mock.calls[1][0])).toContain('/dashboard/terms-trend');
-    expect(String(mockFetch.mock.calls[2][0])).toContain('/dashboard/approvals-breakdown');
   });
 });

@@ -16,7 +16,7 @@ interface EntityDetailDrawerProps {
 }
 
 export function EntityDetailDrawer({ open, entity, onClose }: EntityDetailDrawerProps) {
-  const { t, instance } = useI18n('business');
+  const { t } = useI18n('business');
   if (!entity) return null;
 
   return (

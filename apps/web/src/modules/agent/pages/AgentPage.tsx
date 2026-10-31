@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { Card, Input, Button, Timeline, Tag, Space, Spin, Typography, Tabs, Descriptions, Tooltip } from 'antd';
+import { Card, Input, Button, Timeline, Tag, Space, Typography, Tabs, Descriptions, Tooltip } from 'antd';
 import { SendOutlined, ThunderboltOutlined, BranchesOutlined } from '@ant-design/icons';
 import { useAgentStore } from '../stores/agentStore';
 import type { DecisionStep } from '../services/agentApi';
@@ -31,7 +31,7 @@ const PHASE_COLORS: Record<string, string> = {
 export function AgentPage() {
   const [intent, setIntent] = useState('');
   const { lastDispatch, currentChain, decisions, loading, error, dispatch, getDecisionChain, loadDecisions } = useAgentStore();
-  const [selectedDecisionId, setSelectedDecisionId] = useState<string | null>(null);
+  const [, setSelectedDecisionId] = useState<string | null>(null);
 
   const handleDispatch = async () => {
     if (!intent.trim()) return;

@@ -2,7 +2,7 @@
  * 评估管理页面 - 评估仪表盘 + 基准测试
  */
 import React, { useEffect } from 'react';
-import { Button, Space, Typography, Statistic, Row, Col, Tag, Divider, Spin, Empty, Progress } from 'antd';
+import { Button, Space, Typography, Statistic, Row, Col, Tag, Divider, Empty, Progress } from 'antd';
 import { ProCard as Card } from '@ant-design/pro-components';
 import {
   PlayCircleOutlined,

@@ -17,7 +17,7 @@
  */
 
 import { createStore } from 'zustand/vanilla';
-import type { StoreApi } from 'zustand';
+import type { StateCreator, StoreApi } from 'zustand';
 
 // ─── 类型定义 ───
 
@@ -26,7 +26,7 @@ import type { StoreApi } from 'zustand';
  *
  * 与 `create<T>((set, get) => ({...}))` 中传入的工厂函数一致
  */
-export type StoreCreator<T> = (set: StoreSetter<T>, get: StoreGetter<T>) => T;
+export type StoreCreator<T> = StateCreator<T>;
 
 /** Zustand set 函数签名 */
 export type StoreSetter<T> = (
@@ -45,11 +45,7 @@ export type StoreGetter<T> = () => T;
  * type AuthState = ExtractStoreState<typeof useAuthStore>;
  * ```
  */
-export type ExtractStoreState<T> = T extends (selector: (state: infer S) => infer R) => R
-  ? S
-  : T extends { getState: () => infer S }
-    ? S
-    : never;
+export type ExtractStoreState<T> = T extends { getState: () => infer S } ? S : never;
 
 // ─── 核心工具函数 ───
 
@@ -113,26 +109,29 @@ export function resetStore<T extends Record<string, unknown>>(
   const state = store.getState();
 
   // 优先使用 store 自定义的 _reset 方法
-  if (typeof (state as Record<string, unknown>)._reset === 'function') {
-    (state as Record<string, unknown>)._reset as () => void)();
+  const reset = (state as Record<string, unknown>)._reset;
+  if (typeof reset === 'function') {
+    reset.call(state);
     return;
   }
 
   // 如果提供了初始状态，用它来重置
   if (initialState) {
-    store.setState(initialState as Partial<T>, true);
+    // replace=true 要求返回完整状态：在现有状态上覆盖传入的部分字段
+    store.setState((prev) => ({ ...prev, ...initialState }), true);
     return;
   }
 
   // 最后手段：尝试将所有非函数属性设为 undefined
   // 这不是理想的重置方式，仅作为兜底
-  const resetState: Record<string, unknown> = {};
-  for (const key of Object.keys(state)) {
-    if (typeof (state as Record<string, unknown>)[key] !== 'function') {
-      resetState[key] = undefined;
+  store.setState((prev) => {
+    const next: Record<string, unknown> = { ...prev };
+    for (const key of Object.keys(prev)) {
+      if (typeof prev[key] !== 'function') next[key] = undefined;
     }
-  }
-  store.setState(resetState as Partial<T>, true);
+    // 兜底重置：全部非函数字段置 undefined 后整体替换，故此处断言回完整状态
+    return next as T;
+  }, true);
 }
 
 // ─── Store 断言工具 ───

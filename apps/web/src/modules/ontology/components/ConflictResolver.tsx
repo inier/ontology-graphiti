@@ -157,7 +157,7 @@ export default function ConflictResolver() {
       setSelectedId((data.conflicts?.[0]?.id) ?? null);
       message.success(t('conflict.loadedPending', { count: data.count }));
     } catch (e) {
-      message.error(t('conflict.loadFailed', { msg: (e as Error).message }));
+      message.error(t('加载失败', { msg: (e as Error).message }));
     } finally {
       setLoadingPending(false);
     }
@@ -205,7 +205,7 @@ export default function ConflictResolver() {
             : c,
         ),
       );
-      message.success(t('conflict.resolved', { status: t(STATUS_LABELS[result.status] || result.status) }));
+      message.success(t('已解决', { status: t(STATUS_LABELS[result.status] || result.status) }));
     } catch (e) {
       message.error(t('conflict.resolveFailed', { msg: (e as Error).message }));
     } finally {
@@ -494,7 +494,7 @@ export default function ConflictResolver() {
                           {lastResult.status === 'resolved' ? t('冲突已解决') : t('已标记为等待人工')}
                         </Text>
                         <Tag color="blue">strategy={lastResult.strategy_used}</Tag>
-                        <Text type="secondary">{t('conflict.duration', { ms: (lastResult.duration_ms ?? 0).toFixed(2) })}</Text>
+                        <Text type="secondary">{t('耗时', { ms: (lastResult.duration_ms ?? 0).toFixed(2) })}</Text>
                       </Space>
                     }
                     description={

@@ -141,8 +141,12 @@ function useMemoryDashboard(t: TFunc) {
   }, [t]);
 
   useEffect(() => {
-    fetchStats();
-    fetchMemories();
+        void (async () => {
+      fetchStats();
+    })();
+        void (async () => {
+      fetchMemories();
+    })();
   }, [fetchStats, fetchMemories]);
 
   const handleDecay = useCallback(async () => {

@@ -1,4 +1,4 @@
-import { useState, useRef, useEffect, useCallback } from 'react';
+import { useState, useRef } from 'react';
 import {
   Button, Modal, Form, Input, Select, Tag,
   Card, Space, Typography, Descriptions, message, Popconfirm, Empty,
@@ -9,6 +9,7 @@ import {
 } from '@ant-design/icons';
 import type { ColumnsType } from 'antd/es/table';
 import { apiClient } from '@/modules/shared/services/apiClient';
+import { useOntologyStore } from '@/modules/ontology/stores/ontologyStore';
 import { useI18n } from '@/modules/shared/hooks/useI18n';
 import { AdvancedTable, wrapRequest } from '@/modules/shared';
 import type { ActionType } from '@ant-design/pro-components';
@@ -53,7 +54,10 @@ const SandboxManager: React.FC = () => {
   const [createOpen, setCreateOpen] = useState(false);
   const [resultOpen, setResultOpen] = useState(false);
   const [currentResult, setCurrentResult] = useState<SandboxResult | null>(null);
-  const [ontologies, setOntologies] = useState<Array<{ id: string; name: string }>>([]);
+  // 本体候选来自全局 store：后端没有 `GET /api/ontology` 这个列表端点，
+  // 原来那段请求必然 404（且被空 catch 吞掉，下拉永远为空）。
+  const storeOntologies = useOntologyStore((state) => state.ontologies);
+  const ontologies = (storeOntologies ?? []).map((o) => ({ id: o.ontology_id, name: o.name }));
   const [form] = Form.useForm();
 
   const fetchSandboxList = async (): Promise<SandboxRecord[]> => {
@@ -62,19 +66,6 @@ const SandboxManager: React.FC = () => {
   };
 
   const request = wrapRequest(fetchSandboxList);
-
-  const fetchOntologies = useCallback(async () => {
-    try {
-      const data = await apiClient.get<{ ontologies: Array<{ id: string; name: string }> }>('/api/ontology');
-      setOntologies(data.ontologies || []);
-    } catch {
-      setOntologies([]);
-    }
-  }, []);
-
-  useEffect(() => {
-    fetchOntologies();
-  }, [fetchOntologies]);
 
   const handleCreate = async (values: Record<string, unknown>) => {
     try {

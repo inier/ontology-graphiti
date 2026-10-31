@@ -1,7 +1,7 @@
 import React from 'react';
 import { Typography, Space } from 'antd';
 import { FileTextOutlined, ArrowRightOutlined } from '@ant-design/icons';
-import type { ReportLink } from '../hooks/useQAI';
+import type { ReportLink } from '../types';
 
 const { Text } = Typography;
 

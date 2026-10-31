@@ -5,7 +5,8 @@ import { Collapse, Button, Empty, Spin } from 'antd';
 import { PlusOutlined } from '@ant-design/icons';
 import { ChannelCard } from './ChannelCard';
 import type { ChannelConfig } from '../types';
-import { CHANNEL_TYPE_NAMES, CHANNEL_ICONS } from '../types';
+import { CHANNEL_TYPE_NAMES, CHANNEL_ICON_ROLES } from '../types';
+import { Icon } from '@/modules/shared/components/Icon';
 
 interface ChannelListProps {
   channels: ChannelConfig[];
@@ -62,9 +63,11 @@ export const ChannelList: React.FC<ChannelListProps> = ({
     key: type,
     label: (
       <span>
-        <span style={{ marginRight: 8 }}>{CHANNEL_ICONS[type as keyof typeof CHANNEL_ICONS]}</span>
+        <span style={{ marginRight: 8 }}>
+          <Icon role={CHANNEL_ICON_ROLES[type as keyof typeof CHANNEL_ICON_ROLES]} size={16} />
+        </span>
         <span>{CHANNEL_TYPE_NAMES[type as keyof typeof CHANNEL_TYPE_NAMES]}</span>
-        <span style={{ color: '#888', marginLeft: 8 }}>
+        <span style={{ color: 'var(--odap-color-text-tertiary)', marginLeft: 8 }}>
           ({groupedChannels[type].length})
         </span>
       </span>

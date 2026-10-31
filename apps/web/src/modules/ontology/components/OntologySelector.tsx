@@ -74,7 +74,9 @@ export function OntologySelector({ open, onClose, onSelect, workspaceId, initial
   const [ontologies, setOntologies] = useState<OntologyItem[]>([]);
   const [loading, setLoading] = useState(false);
   const [searchText, setSearchText] = useState('');
-  const [showCreateForm, setShowCreateForm] = useState(false);
+  // 是否展示内联新建表单：默认跟随 initialCreate，用户可临时切换（派生，避免 effect 回写）
+  const [createFormOverride, setCreateFormOverride] = useState<boolean | null>(null);
+  const showCreateForm = createFormOverride ?? !!initialCreate;
   const [createForm] = Form.useForm();
   const [creating, setCreating] = useState(false);
 
@@ -93,11 +95,11 @@ export function OntologySelector({ open, onClose, onSelect, workspaceId, initial
   }, [workspaceId]);
 
   useEffect(() => {
-    if (open) {
-      loadOntologies();
-      setShowCreateForm(!!initialCreate);
-    }
-  }, [open, loadOntologies, initialCreate]);
+    if (!open) return;
+    void (async () => {
+      await loadOntologies();
+    })();
+  }, [open, loadOntologies]);
 
   // ---- Create ontology ----
   const handleCreate = useCallback(async () => {
@@ -110,7 +112,7 @@ export function OntologySelector({ open, onClose, onSelect, workspaceId, initial
         workspace_id: values.workspace_id || workspaceId || '',
       });
       message.success(t('本体创建成功'));
-      setShowCreateForm(false);
+      setCreateFormOverride(false);
       createForm.resetFields();
       // Refresh list then auto-select
       await loadOntologies();
@@ -198,7 +200,10 @@ export function OntologySelector({ open, onClose, onSelect, workspaceId, initial
     <Modal
       title={t('选择本体')}
       open={open}
-      onCancel={onClose}
+      onCancel={() => {
+        setCreateFormOverride(null);
+        onClose();
+      }}
       footer={null}
       width={800}
       destroyOnHidden
@@ -217,8 +222,9 @@ export function OntologySelector({ open, onClose, onSelect, workspaceId, initial
           type="primary"
           icon={<PlusOutlined />}
           onClick={() => {
-            setShowCreateForm((prev) => !prev);
-            if (!showCreateForm) {
+            const next = !showCreateForm;
+            setCreateFormOverride(next);
+            if (next) {
               createForm.resetFields();
             }
           }}

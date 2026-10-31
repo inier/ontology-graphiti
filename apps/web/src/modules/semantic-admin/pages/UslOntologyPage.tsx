@@ -42,7 +42,7 @@ import {
 } from '../services/uslOntologyApi';
 import { useI18n } from '@/modules/shared/hooks/useI18n';
 
-const { Text, Title } = Typography;
+const { Text } = Typography;
 
 const TYPE_COUNT_META: Array<{ key: string; label: string; color: string }> = [
   { key: 'object_types', label: '对象类型', color: 'blue' },
@@ -83,7 +83,9 @@ export default function UslOntologyPage() {
   }, []);
 
   useEffect(() => {
-    void fetchData();
+        void (async () => {
+      void fetchData();
+    })();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
@@ -95,9 +97,9 @@ export default function UslOntologyPage() {
   const totalTypes = useMemo(
     () =>
       filtered.reduce((acc, o) => {
-        const c = o.type_counts || {};
+        const c = o.type_counts;
         TYPE_COUNT_META.forEach((m) => {
-          acc[m.key] = (acc[m.key] || 0) + (Number(c[m.key]) || 0);
+          acc[m.key] = (acc[m.key] || 0) + (Number(c?.[m.key]) || 0);
         });
         return acc;
       }, {} as Record<string, number>),
@@ -139,12 +141,12 @@ export default function UslOntologyPage() {
       title: '类型分布',
       key: 'type_counts',
       render: (_, r) => {
-        const c = r.type_counts || {};
+        const c = r.type_counts;
         return (
           <Space size={4} wrap>
             {TYPE_COUNT_META.map((m) => (
-              <Tag key={m.key} color={Number(c[m.key]) > 0 ? m.color : 'default'}>
-                {m.label} {Number(c[m.key]) || 0}
+              <Tag key={m.key} color={Number(c?.[m.key]) > 0 ? m.color : 'default'}>
+                {m.label} {Number(c?.[m.key]) || 0}
               </Tag>
             ))}
           </Space>
