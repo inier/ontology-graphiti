@@ -167,6 +167,14 @@ _PUBLIC_MAP: dict[str, tuple[str, str]] = {
     "ProcessingStatus": (
         "odap.biz.core.ontology.common.types", "ProcessingStatus",
     ),
+    # 被 application 层 reach-in 的 design 枚举：收口到门面，
+    # 否则 test_architecture_boundary 的「application 不得摸 design 内部」棘轮会红。
+    "OntologyStatus": (
+        "odap.biz.core.ontology.design.models.ontology", "OntologyStatus",
+    ),
+    "DataSource": (
+        "odap.biz.core.ontology.design.models.audit", "DataSource",
+    ),
 
     # ── L3 应用层：被外部 reach-in 的通用能力，正式提升为公共 API ──
     "DocumentParser": (
@@ -354,6 +362,8 @@ if TYPE_CHECKING:  # pragma: no cover
     from odap.biz.core.ontology.reasoning.contract import ReasoningServiceContract
     from odap.biz.core.ontology.registry import TypeRegistry, get_type_registry
     from odap.biz.core.ontology.common.types import IntentType, ProcessingStatus
+    from odap.biz.core.ontology.design.models.ontology import OntologyStatus
+    from odap.biz.core.ontology.design.models.audit import DataSource
     from odap.biz.core.ontology.extraction.impl.document_parser import DocumentParser
     from odap.biz.core.ontology.application.runtime.state_machine.impl.expression_evaluator import (
         safe_eval,
