@@ -7,6 +7,10 @@
 - json-ld: rdflib JSON-LD 序列化
 - turtle:  rdflib Turtle 序列化
 - csv:     简化扁平导出（人工审计）
+
+完整性（P0-3）：每条 Activity 附带 ``odap:sha256`` 内容指纹，并额外生成一个
+``prov:Collection`` 清单节点，其 ``odap:sha256`` 是有序摘要集合的聚合指纹。
+接收方可用同样的规范化 JSON 复算，判断导出内容是否被改动。
 """
 
 from __future__ import annotations
@@ -16,9 +20,24 @@ import io
 import logging
 from typing import Any, Dict, List, Optional
 
-from .prov_o_mapper import ProvOMapper
+from .integrity import collection_digest, event_digest
+from .prov_o_mapper import ODAP, PROV, ProvOMapper
 
 logger = logging.getLogger(__name__)
+
+_RDF_TYPE = "http://www.w3.org/1999/02/22-rdf-syntax-ns#type"
+
+# 宾语是 IRI（资源）而非字面量的谓词。显式列举，避免用 endswith 猜测。
+_OBJECT_PROPERTIES = frozenset({
+    _RDF_TYPE,
+    f"{PROV}wasAssociatedWith",
+    f"{PROV}wasGeneratedBy",
+    f"{PROV}used",
+    f"{PROV}wasDerivedFrom",
+    f"{PROV}wasInformedBy",
+    f"{PROV}hadMember",
+    f"{ODAP}partOfExport",
+})
 
 
 class AuditExporter:
@@ -49,22 +68,41 @@ class AuditExporter:
             raise RuntimeError("rdflib 未安装，无法导出 PROV-O") from e
 
         g = Graph()
-        PROV = Namespace("http://www.w3.org/ns/prov#")
-        g.bind("prov", PROV)
+        PROV_NS = Namespace(PROV)
+        ODAP_NS = Namespace(ODAP)
+        g.bind("prov", PROV_NS)
+        g.bind("odap", ODAP_NS)
+
+        digests: List[str] = []
+        activities: List[str] = []
 
         for event in events:
             mapped = self.mapper.map_event(event)
-            for subj, pred, obj in mapped["triples"]:
+            digest = event_digest(event)
+            digests.append(digest)
+            activities.append(mapped["activity"])
+
+            triples = list(mapped["triples"]) + [
+                (mapped["activity"], f"{ODAP}sha256", digest),
+            ]
+            for subj, pred, obj in triples:
                 s = URIRef(subj)
                 p = URIRef(pred)
-                if pred.endswith("type") or pred.endswith("wasAssociatedWith") or \
-                   pred.endswith("wasGeneratedBy") or pred.endswith("used") or \
-                   pred.endswith("wasDerivedFrom") or pred.endswith("wasInformedBy"):
+                if pred in _OBJECT_PROPERTIES:
                     o = URIRef(obj)
                 else:
                     # 字面量
                     o = Literal(str(obj).strip('"'))
                 g.add((s, p, o))
+
+        # 导出清单：聚合指纹 + 成员关系
+        manifest_iri = f"{ODAP}export/{collection_digest(digests)}"
+        g.add((URIRef(manifest_iri), URIRef(_RDF_TYPE), URIRef(f"{PROV}Collection")))
+        g.add((URIRef(manifest_iri), URIRef(f"{ODAP}sha256"),
+               Literal(collection_digest(digests))))
+        g.add((URIRef(manifest_iri), URIRef(f"{ODAP}memberCount"), Literal(len(digests))))
+        for activity in activities:
+            g.add((URIRef(activity), URIRef(f"{ODAP}partOfExport"), URIRef(manifest_iri)))
 
         fmt_map = {
             "json-ld": "json-ld",
@@ -81,7 +119,7 @@ class AuditExporter:
         writer.writerow([
             "event_id", "event_type", "action", "actor_id", "actor_name",
             "resource_type", "resource_id", "workspace_id", "timestamp",
-            "activity_iri", "agent_iri", "entity_iri",
+            "activity_iri", "agent_iri", "entity_iri", "event_digest",
         ])
         for event in events:
             mapped = self.mapper.map_event(event)
@@ -100,6 +138,7 @@ class AuditExporter:
                 mapped["activity"],
                 mapped["agent"],
                 mapped["entity"],
+                event_digest(event),
             ])
         return output.getvalue()
 

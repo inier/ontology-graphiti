@@ -14,14 +14,15 @@ import os
 import json
 import time
 import asyncio
-import hashlib
 import threading
 from typing import Dict, Any, List, Optional, Callable
-from dataclasses import dataclass, field
+from dataclasses import dataclass, field, asdict
 from datetime import datetime, timezone
 from collections import deque
 from enum import Enum
 from concurrent.futures import ThreadPoolExecutor
+
+from odap.infra.security.provenance.integrity import chain_digest, event_digest
 
 
 import logging
@@ -311,9 +312,14 @@ class HashChainV2:
             self._sequence = int(events[0].event_id.split("-")[-1]) if "-" in events[0].event_id else 0
 
     def compute_hash(self, event: AuditEventV2) -> str:
-        """计算事件哈希"""
-        data = f"{event.event_id}|{event.timestamp}|{event.event_type}|{event.actor_id}|{event.action}|{event.result}|{self._last_hash or ''}"
-        return hashlib.sha256(data.encode()).hexdigest()
+        """计算事件哈希。
+
+        历史上用 ``f"{a}|{b}|..."`` 拼接后取 SHA-256：字段里含 ``|`` 时不同
+        事件会得到同一摘要（拼接碰撞）。现改为「规范化 JSON 内容指纹 +
+        长度前缀链式摘要」，编码是单射的。
+        """
+        content_digest = event_digest(asdict(event))
+        return chain_digest(self._last_hash or "", content_digest)
 
     def add_event(self, event: AuditEventV2) -> AuditEventV2:
         """添加事件并计算哈希"""
