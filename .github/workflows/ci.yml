@@ -73,6 +73,19 @@ jobs:
       - name: Run unit tests
         run: uv run pytest apps/api/tests/unit/ -v --cov=odap --cov-report=xml
 
+      # F7 意图评测回归门禁（SPEC-v2 AC-32~AC-35）：
+      # 1) acceptance 模式守绝对阈值（Acc@1≥0.90 / Slot-F1≥0.85 / Gen-Gap≤0.10），
+      #    三级漏斗（L1 词典 → L2 形态/动词组合/向量 → L3 受限消歧，ADR-095）已达标；
+      # 2) baseline 模式守回归（任指标准劣于基线超容差即失败）。
+      - name: Intent eval gate (F7)
+        run: |
+          uv run python scripts/eval_intent.py --mode acceptance
+          uv run python scripts/eval_intent.py --mode baseline
+
+      # 留出集（holdout）泛化门禁：人工撰写的真实问法，防止实现被 cases.json 模板拟合。
+      - name: Intent holdout gate (F7)
+        run: uv run pytest apps/api/tests/eval/intent -q
+
       - name: Run integration tests
         run: |
           uv run pytest apps/api/tests/integration/ -v
@@ -80,6 +93,32 @@ jobs:
           NEO4J_URI: bolt://localhost:7687
           NEO4J_USER: neo4j
           NEO4J_PASSWORD: test123
+
+  # 文档治理门禁（ADR-097 R1~R14）：
+  # 校验 277 份纳管文档的 front-matter 是否齐全、权威是否唯一、取代链是否悬空、
+  # 归档是否有溯源证据、产物文件是否登记。error 级即阻断。
+  # 文档元数据真相源是各文档自身的 front-matter，规则见 docs/DOC-GOVERNANCE-POLICY.yaml。
+  docs-governance:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+
+      - name: Install PyYAML
+        run: python -m pip install --quiet pyyaml
+
+      - name: Validate document governance (R1-R14)
+        run: python scripts/doc_governance.py audit --ci
+
+      # 死链只扫 docs/（设计文档集）。specs/ 下 6 条 spec-kit 历史残留链接
+      # （指向已删除的 .trae/.specify 路径）为存量债务，登记于 OPEN-DECISIONS，
+      # 不纳入门禁以免掩盖新增死链。
+      - name: Check dangling doc links (docs/ only)
+        run: python scripts/check_dangling_doc_links.py --ci --roots docs
 
   frontend-test:
     runs-on: ubuntu-latest
