@@ -145,3 +145,13 @@ apps/api/_test_syntax.py
 # 控制，使用 git add -f 强制添加（详见 AGENTS.md 规则 13）。
 # 归档目录不忽略（scripts/archive/ 需跟踪）
 !scripts/archive/
+
+# 本地一次性分析/修复产物（不应入库）
+/apps/web/.fix*.py
+/apps/web/.rep*.mjs
+/apps/web/.ana.mjs
+/apps/web/.eslint-*.json
+/apps/web/.tsc*.txt
+/eslint-report*.json
+/tsc-errors.txt
+
