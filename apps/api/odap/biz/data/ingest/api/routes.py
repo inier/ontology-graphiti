@@ -182,6 +182,22 @@ class UnifiedIngestResponse(BaseModel):
     routed_to: Optional[str] = None
     message: Optional[str] = None
     extraction_confidence: Optional[float] = None
+    # P0-2 摄入元数据：来源定位 / 内容指纹 / 增量水位
+    source_uri: Optional[str] = Field(
+        None, description="来源定位（请求未提供任何可定位字段时为 null）",
+    )
+    content_hash: Optional[str] = Field(
+        None,
+        description="本次请求负载的规范化 SHA-256；handler 自行抓取的源（url/news）"
+                    "为请求参数指纹，接入真实两段式后为正文指纹",
+    )
+    watermark: Optional[str] = Field(None, description="摄入水位（默认本次抓取时间）")
+    bytes_len: Optional[int] = Field(None, description="参与哈希的负载字节数")
+    mime: Optional[str] = Field(None, description="负载 MIME 类型")
+    # 规则 14：未知来源时回传可用取值，调用方无需再查文档
+    supported_source_types: Optional[List[str]] = Field(
+        None, description="Unknown source type 时返回全部可用取值",
+    )
     # 规则 14：自动抽取触发状态必须可观测，杜绝「静默无新增、用户无从得知」的伪成功
     pipeline_triggered: bool = False
     pipeline_trigger_reason: Optional[str] = None

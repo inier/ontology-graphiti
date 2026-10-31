@@ -3,35 +3,43 @@
 UnifiedIngestFacade 是所有数据摄入的统一入口，
 根据 source_type 路由到 PerceptionHub（事件驱动）或 IngestService（文档驱动）。
 
+路由由 ``IngestorRegistry`` 驱动（P0-2 端口化）：每个 source_type 绑定一个
+``IngestorPort``，支持列表与路由结果同源，不再维护两套 if/elif。
+
 摄入契约（Phase 2）：
 - ontology_id: 约束性抽取时必填，指定数据归属的本体
 - extraction_mode: constrained（约束性）| exploratory（探索性）
   - constrained: entity_type 必须在本体类型定义中已存在
   - exploratory: 允许推断新类型结构，生成 draft 候选
+
+错误契约（AGENTS.md 规则 14）：未知来源、契约校验失败、实体类型校验失败
+一律显式返回 error / 抛异常，禁止「校验失败也算通过」的静默假成功。
 """
 
 import logging
-from typing import Dict, Any, Optional, List
+from typing import Dict, Any, List
+
+from .ports.ingestor import (
+    DOCUMENT_DRIVEN,
+    EVENT_DRIVEN,
+    ExtractionMode,
+    IngestRequest,
+    SourceCategory,
+)
+from .registry import FacadeIngestor, IngestorRegistry
 
 logger = logging.getLogger(__name__)
 
-
-class SourceCategory:
-    """数据源分类常量"""
-    DOCUMENT_DRIVEN = frozenset({
-        "url", "news", "tavily", "manual", "json",
-        "natural_language", "random_events", "database",
-        "kb_upload", "ontology_document",
-    })
-    EVENT_DRIVEN = frozenset({
-        "webhook", "sensor", "mcp", "file", "api",
-    })
+__all__ = [
+    "UnifiedIngestFacade",
+    "SourceCategory",
+    "ExtractionMode",
+    "get_unified_ingest_facade",
+]
 
 
-class ExtractionMode:
-    """抽取模式常量"""
-    CONSTRAINED = "constrained"    # 约束性：entity_type 必须已定义
-    EXPLORATORY = "exploratory"    # 探索性：允许推断新类型结构
+class EntityTypeValidationError(ValueError):
+    """实体类型校验无法完成（本体服务不可用等），区别于「类型确实未定义」。"""
 
 
 class UnifiedIngestFacade:
@@ -60,6 +68,17 @@ class UnifiedIngestFacade:
         self._ingest_service = None
         self._perception_hub = None
         self._type_registry = None
+        self._registry = IngestorRegistry()
+        self._registry.register(FacadeIngestor(
+            category=DOCUMENT_DRIVEN,
+            source_types=SourceCategory.DOCUMENT_DRIVEN,
+            handler=self._ingest_document,
+        ))
+        self._registry.register(FacadeIngestor(
+            category=EVENT_DRIVEN,
+            source_types=SourceCategory.EVENT_DRIVEN,
+            handler=self._ingest_event,
+        ))
 
     @property
     def ingest_service(self):
@@ -96,7 +115,24 @@ class UnifiedIngestFacade:
 
         Returns:
             Dict[str, Any]: 摄入结果
+
+        Raises:
+            ValueError: source_type 未注册（由调用方决定如何呈现）
         """
+        port = self._registry.resolve(source_type)
+        if port is None:
+            supported = self._registry.all_source_types()
+            logger.warning("UnifiedIngestFacade rejected unknown source_type: %s", source_type)
+            return {
+                "status": "error",
+                "source_type": source_type,
+                "message": (
+                    f"Unknown source type: {source_type}; "
+                    f"supported: {', '.join(supported)}"
+                ),
+                "supported_source_types": supported,
+            }
+
         ontology_id = kwargs.get("ontology_id")
         extraction_mode = kwargs.get("extraction_mode", ExtractionMode.CONSTRAINED)
 
@@ -104,20 +140,20 @@ class UnifiedIngestFacade:
         if extraction_mode == ExtractionMode.CONSTRAINED and ontology_id:
             validation = self._validate_ingest_contract(ontology_id)
             if validation.get("status") == "error":
+                validation.setdefault("source_type", source_type)
                 return validation
 
-        if source_type in SourceCategory.DOCUMENT_DRIVEN:
-            return await self._ingest_document(source_type, **kwargs)
-        elif source_type in SourceCategory.EVENT_DRIVEN:
-            return await self._ingest_event(source_type, **kwargs)
-        else:
-            return {"status": "error", "message": f"Unknown source type: {source_type}"}
+        return await port.ingest(IngestRequest(source_type=source_type, kwargs=dict(kwargs)))
 
     def _validate_ingest_contract(self, ontology_id: str) -> Dict[str, Any]:
         """摄入契约校验：验证本体存在且有类型定义
 
         Returns:
             {"status": "ok"} 或 {"status": "error", "message": "..."}
+
+        规则 14：校验过程本身失败（本体服务不可用、接口形态变化）必须显式
+        报错。历史实现 ``except -> {"status": "ok"}`` 会把「校验没跑成」伪装成
+        「校验通过」，让错误的本体 ID 一路流入抽取与写图。
         """
         try:
             ontology = self.type_registry.ontology_service.get_ontology(ontology_id)
@@ -133,8 +169,11 @@ class UnifiedIngestFacade:
                 }
             return {"status": "ok", "type_count": type_count}
         except Exception as exc:
-            logger.warning("Ingest contract validation failed: %s", exc)
-            return {"status": "ok"}  # 校验失败不阻塞摄入
+            logger.error("Ingest contract validation failed for ontology %s: %s", ontology_id, exc)
+            return {
+                "status": "error",
+                "message": f"摄入契约校验失败（本体服务不可用）: {exc}",
+            }
 
     def validate_entity_type(self, ontology_id: str, entity_type: str) -> Dict[str, Any]:
         """验证 entity_type 是否在本体类型定义中已存在
@@ -143,6 +182,10 @@ class UnifiedIngestFacade:
 
         Returns:
             {"valid": True/False, "type_id": "...", "message": "..."}
+
+        Raises:
+            EntityTypeValidationError: 校验无法执行（本体服务不可用），
+                不得伪装成 ``{"valid": True}`` 放行。
         """
         try:
             types = self.type_registry.list_object_types(ontology_id)
@@ -151,8 +194,13 @@ class UnifiedIngestFacade:
                     return {"valid": True, "type_id": obj_type["type_id"]}
             return {"valid": False, "message": f"entity_type '{entity_type}' 未在本体 {ontology_id} 中定义"}
         except Exception as exc:
-            logger.warning("Entity type validation failed: %s", exc)
-            return {"valid": True}  # 校验失败不阻塞
+            logger.error(
+                "Entity type validation failed (ontology=%s, entity_type=%s): %s",
+                ontology_id, entity_type, exc,
+            )
+            raise EntityTypeValidationError(
+                f"实体类型校验失败（本体服务不可用）: {exc}"
+            ) from exc
 
     async def _ingest_document(self, source_type: str, **kwargs) -> Dict[str, Any]:
         """路由到 IngestService（文档驱动源）"""
@@ -448,11 +496,11 @@ class UnifiedIngestFacade:
             return {"status": "error", "message": str(e)}
 
     def get_supported_source_types(self) -> Dict[str, List[str]]:
-        """返回所有支持的源类型分类"""
-        return {
-            "document_driven": sorted(SourceCategory.DOCUMENT_DRIVEN),
-            "event_driven": sorted(SourceCategory.EVENT_DRIVEN),
-        }
+        """返回所有支持的源类型分类
+
+        直接由注册表生成，保证「列表里有」与「路由能走到」不会漂移。
+        """
+        return self._registry.supported()
 
     async def scan_conflicts(self, ontology_id: str = None) -> Dict[str, Any]:
         """扫描指定本体的数据冲突
