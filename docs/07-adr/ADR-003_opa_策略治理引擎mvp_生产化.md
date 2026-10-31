@@ -1,3 +1,17 @@
+---
+id: odap.l7.adr-003-opa-策略治理引擎mvp-生产化
+status: active
+owner: architect
+version: ''
+layer: L7
+concern: adr
+lifecycle: frozen
+superseded_by: ''
+supersedes: []
+last_verified: '2026-10-17'
+citations: []
+---
+
 # ADR-003: OPA 策略治理引擎（MVP + 生产化）
 
 > **来源**: `docs/ARCHITECTURE.md` 第 17 章

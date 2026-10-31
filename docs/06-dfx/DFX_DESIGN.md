@@ -1,3 +1,18 @@
+---
+id: odap.l6.dfx-design
+status: authoritative
+owner: qa
+version: ''
+layer: L6
+concern: dfx
+lifecycle: living
+superseded_by: ''
+supersedes: []
+last_verified: '2026-10-17'
+citations: []
+governance_reason: DFX 设计唯一成篇
+---
+
 # DFX 设计文档 (Design for eXcellence)
 
 > **版本**: 1.0.0 | **日期**: 2026-04-19

@@ -1,3 +1,18 @@
+---
+id: odap.l2.subsystems-ai-assistant-operations-manual-schema
+status: active
+owner: architect
+version: ''
+layer: L2
+concern: architecture-subsystem
+lifecycle: living
+superseded_by: ''
+supersedes: []
+last_verified: '2026-10-17'
+citations: []
+governance_reason: 子系统边界与独立化设计，与总体架构不同关注点，仍为实施依据
+---
+
 # 操作手册知识库 Schema v1.0
 
 > **文档定位**：定义操作手册的 Markdown 格式规范、结构化 JSON Schema、入库 Pipeline 设计。

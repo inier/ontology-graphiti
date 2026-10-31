@@ -1,3 +1,17 @@
+---
+id: odap.l7.adr-082-事件源与bi指标语义抽取入口
+status: active
+owner: architect
+version: ''
+layer: L7
+concern: adr
+lifecycle: frozen
+superseded_by: ''
+supersedes: []
+last_verified: '2026-10-17'
+citations: []
+---
+
 # ADR-082: 事件源与 BI 指标的语义候选抽取入口（资产流水线扩展）
 
 ## Status

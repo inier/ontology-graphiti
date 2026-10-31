@@ -1,3 +1,19 @@
+---
+id: odap.l11.audit-slimming-report-2026-07-08
+status: archived
+owner: archivist
+version: ''
+layer: L11
+concern: archive
+lifecycle: historical
+superseded_by: ''
+supersedes: []
+last_verified: '2026-10-17'
+citations: []
+governance_reason: 一次性审计报告，结论已并入现行设计文档
+governance_evidence: docs/11-archive/README.md 归档说明；报告标题含审计日期
+---
+
 # 规格与架构文档瘦身报告（2026-07-08）
 
 ## 结论

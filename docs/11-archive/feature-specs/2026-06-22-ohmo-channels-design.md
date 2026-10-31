@@ -1,3 +1,19 @@
+---
+id: odap.l11.feature-specs-2026-06-22-ohmo-channels-design
+status: archived
+owner: archivist
+version: ''
+layer: L11
+concern: archive
+lifecycle: historical
+superseded_by: ''
+supersedes: []
+last_verified: '2026-10-17'
+citations: []
+governance_reason: 特性设计已实现落地，实现与决策分别由代码与 ADR 承载
+governance_evidence: docs/11-archive/README.md 归档说明；文件名日期戳标示落地时间
+---
+
 # OHMO Channels 可视化配置管理 - 设计文档
 
 **日期**：2026-06-22

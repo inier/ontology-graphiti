@@ -1,3 +1,19 @@
+---
+id: odap.l2.architecture
+status: superseded
+owner: architect
+version: ''
+layer: L2
+concern: architecture
+lifecycle: living
+superseded_by: docs/02-architecture/ARCHITECTURE-v2.md
+supersedes: []
+last_verified: '2026-10-17'
+citations: []
+governance_reason: 与 v2 同属「总体架构」关注点，v2 为目标架构唯一真相源（ADR-097 第 1 条）
+governance_evidence: ADR-097_docs-governance-provenance.md:25；ARCHITECTURE-v2.md:1 声明为目标架构 v2
+---
+
 # 本体驱动分析决策平台 (ODAP) - 架构设计文档
 
 > **版本**: 7.0.0 | **日期**: 2026-08-16 | **状态**: 正式

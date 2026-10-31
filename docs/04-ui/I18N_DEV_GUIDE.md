@@ -1,3 +1,18 @@
+---
+id: odap.l4.i18n-dev-guide
+status: active
+owner: designer
+version: ''
+layer: L4
+concern: i18n
+lifecycle: living
+superseded_by: ''
+supersedes: []
+last_verified: '2026-10-17'
+citations: []
+governance_reason: 国际化开发指南，唯一成篇
+---
+
 # 前端国际化开发指南 (I18n Dev Guide)
 
 > 适用范围：`apps/web` 前端应用

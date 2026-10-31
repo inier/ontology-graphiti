@@ -1,3 +1,18 @@
+---
+id: odap.l0.spec-kb-doc-mgmt
+status: active
+owner: pm
+version: ''
+layer: L0
+concern: kb-doc-mgmt
+lifecycle: living
+superseded_by: ''
+supersedes: []
+last_verified: '2026-10-17'
+citations: []
+governance_reason: 知识库文档管理与图谱构建增强规格，独立于 SPEC-v2 的功能域
+---
+
 # SPEC-KB-DOC-MGMT: 知识库文档管理与图谱构建增强
 
 > **版本**: 1.0.0 | **日期**: 2026-06-30 | **状态**: 已批准  

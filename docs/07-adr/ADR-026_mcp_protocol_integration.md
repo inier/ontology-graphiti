@@ -1,3 +1,17 @@
+---
+id: odap.l7.adr-026-mcp-protocol-integration
+status: active
+owner: architect
+version: ''
+layer: L7
+concern: adr
+lifecycle: frozen
+superseded_by: ''
+supersedes: []
+last_verified: '2026-10-17'
+citations: []
+---
+
 # ADR-026: 采用MCP协议作为外部系统集成标准
 
 ## 状态

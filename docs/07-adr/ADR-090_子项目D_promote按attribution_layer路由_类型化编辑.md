@@ -1,3 +1,17 @@
+---
+id: odap.l7.adr-090-子项目d-promote按attribution-layer路由-类型化编辑
+status: active
+owner: architect
+version: ''
+layer: L7
+concern: adr
+lifecycle: frozen
+superseded_by: ''
+supersedes: []
+last_verified: '2026-10-17'
+citations: []
+---
+
 # ADR-090: 子项目 D · `promote` 按 attribution.layer 路由——类型化编辑
 
 ## Status

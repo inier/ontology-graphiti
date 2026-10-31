@@ -1,3 +1,17 @@
+---
+id: odap.l7.adr-039-qa-engine-architecture
+status: active
+owner: architect
+version: ''
+layer: L7
+concern: adr
+lifecycle: frozen
+superseded_by: ''
+supersedes: []
+last_verified: '2026-10-17'
+citations: []
+---
+
 # ADR-039: 问答引擎架构
 
 ## 状态
@@ -198,7 +212,10 @@ const DEBOUNCE_MS = 500;
 
 ### OpenHarness Provider 集成
 
+> **被 ADR-099 取代（2026-10-22）**：本节描述的 `@openharness/react` 集成路线已废弃。前端 Agent 集成唯一协议为 AG-UI，由 `apps/web/src/modules/qa/agui/AGUIProvider.tsx` 承担；`QAIProvider.tsx` 已删除，`@openharness/react` 与 `ai` 两个依赖已移除（在 `apps/web/src` 零引用，且 SDK 只解析 AI SDK 5 data stream 协议，与后端 AG-UI 不兼容）。本 ADR 其余决策不受影响，以下代码仅作历史记录，**不可直接使用**。
+
 ```tsx
+// 历史方案（已废弃，见 ADR-099）
 import { OpenHarnessProvider } from '@openharness/react';
 
 function QAIProvider({ children }: QAIProviderProps) {

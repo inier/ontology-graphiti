@@ -1,3 +1,19 @@
+---
+id: odap.l14.docs-document-baseline-v1-0-0
+status: superseded
+owner: architect
+version: ''
+layer: L14
+concern: doc-governance
+lifecycle: living
+superseded_by: docs/DOCUMENT_MANAGEMENT.md
+supersedes: []
+last_verified: '2026-10-17'
+citations: []
+governance_reason: 文件名 v1.0.0 与正文标题 v1.1.0 版本不一致；ADR 计数停滞在 001-054，落后实际 001-098
+governance_evidence: 本文件 :1 标题「文档基线 v1.1.0」与文件名冲突；:19-21 自述 ADR 001-054；实际 docs/07-adr/ 共 97 文件覆盖 001-098
+---
+
 # 文档基线 v1.1.0
 
 > **版本**: 1.1.0 | **日期**: 2026-05-07 | **状态**: 正式

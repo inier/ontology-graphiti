@@ -1,3 +1,17 @@
+---
+id: odap.l7.adr-036-palantir-ontology-reference
+status: active
+owner: architect
+version: ''
+layer: L7
+concern: adr
+lifecycle: frozen
+superseded_by: ''
+supersedes: []
+last_verified: '2026-10-17'
+citations: []
+---
+
 # ADR-036: Palantir AIP Ontology 参考架构
 
 > **优先级**: P0 | **相关 ADR**: ADR-032, ADR-002

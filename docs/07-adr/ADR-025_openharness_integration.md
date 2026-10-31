@@ -1,3 +1,18 @@
+---
+id: odap.l7.adr-025-openharness-integration
+status: active
+owner: architect
+version: ''
+layer: L7
+concern: adr
+lifecycle: frozen
+superseded_by: ''
+supersedes: []
+last_verified: '2026-10-17'
+citations: []
+governance_reason: 状态段声明部分取代（部分取代），整体决策仍生效
+---
+
 # ADR-025: 基于 OpenHarness 实现多智能体协同
 
 ## 状态

@@ -1,3 +1,19 @@
+---
+id: odap.l10.api-spec
+status: active
+owner: backend
+version: ''
+layer: L10
+concern: ontology-build-api
+lifecycle: frozen
+superseded_by: ''
+supersedes: []
+last_verified: '2026-10-17'
+citations: []
+governance_reason: 智能问答驱动本体构建系统的 API 说明（人读）；机器可验契约以 openapi-v2.yaml 为准
+governance_evidence: DOC-GOVERNANCE-POLICY.yaml §四 openapi-v2.yaml 条目 note
+---
+
 # 智能问答驱动的本体构建系统 API 规范
 
 > **版本**: v3.0.0 | **基础路径**: `/api`

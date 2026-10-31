@@ -1,3 +1,17 @@
+---
+id: odap.l7.adr-047-tool-registry-p0-phased-implementation
+status: active
+owner: architect
+version: ''
+layer: L7
+concern: adr
+lifecycle: frozen
+superseded_by: ''
+supersedes: []
+last_verified: '2026-10-17'
+citations: []
+---
+
 # ADR-047: 工具注册表（M-11）升级为 P0 并分步实现
 
 ## 状态

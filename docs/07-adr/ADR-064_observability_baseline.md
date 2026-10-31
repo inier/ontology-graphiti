@@ -1,3 +1,17 @@
+---
+id: odap.l7.adr-064-observability-baseline
+status: active
+owner: architect
+version: ''
+layer: L7
+concern: adr
+lifecycle: frozen
+superseded_by: ''
+supersedes: []
+last_verified: '2026-10-17'
+citations: []
+---
+
 # ADR-064: 可观测性基线（OpenTelemetry 统一追踪）
 
 ## 状态

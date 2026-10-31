@@ -1,3 +1,19 @@
+---
+id: odap.l4.ui-design
+status: superseded
+owner: designer
+version: ''
+layer: L4
+concern: ui-design
+lifecycle: living
+superseded_by: docs/04-ui/UIUX-DESIGN-v2.md
+supersedes: []
+last_verified: '2026-10-17'
+citations: []
+governance_reason: v1 设计稿：主色
+governance_evidence: UIUX-DESIGN-v2.md:41（#1890ff）、:61（12 个 emoji 菜单图标）逐条举证
+---
+
 # ODAP 前端 UI 设计稿
 
 > **版本**: 2.0.0 | **日期**: 2026-05-18
@@ -536,7 +552,7 @@
 
 - [ADR-007: 前端采用 React + Ant Design 技术栈](../07-adr/ADR-007_前端采用_react_ant_design_技术栈.md)
 - [ADR-031: 模拟器 Web 可视化与实时本体热写入](../07-adr/ADR-031_simulator_web_visualization_realtime_ontology.md)
-- [Web 模块设计](../03-modules/web_apps/web/DESIGN.md)
+- [Web 模块设计](../03-modules/web_frontend/DESIGN.md)
 - [前端组件设计文档](./FRONTEND_COMPONENT_DESIGN.md)
 - [组件规范](./COMPONENT_SPEC.md)
 - [组件层级](./COMPONENT_HIERARCHY.md)

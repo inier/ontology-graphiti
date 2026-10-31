@@ -1,3 +1,17 @@
+---
+id: odap.l7.adr-089-子项目c-ontology-semantics-mcp工具-按需查询替代全量注入
+status: active
+owner: architect
+version: ''
+layer: L7
+concern: adr
+lifecycle: frozen
+superseded_by: ''
+supersedes: []
+last_verified: '2026-10-17'
+citations: []
+---
+
 # ADR-089: 子项目 C · `ontology_semantics` MCP 工具——按需查询替代全量注入
 
 ## Status

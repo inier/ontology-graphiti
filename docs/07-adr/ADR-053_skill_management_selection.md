@@ -1,3 +1,17 @@
+---
+id: odap.l7.adr-053-skill-management-selection
+status: active
+owner: architect
+version: ''
+layer: L7
+concern: adr
+lifecycle: frozen
+superseded_by: ''
+supersedes: []
+last_verified: '2026-10-17'
+citations: []
+---
+
 # ADR-053: Skill 可视化管理开源方案选型
 
 ## 状态

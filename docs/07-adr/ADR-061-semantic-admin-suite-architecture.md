@@ -1,3 +1,17 @@
+---
+id: odap.l7.adr-061-semantic-admin-suite-architecture
+status: active
+owner: architect
+version: ''
+layer: L7
+concern: adr
+lifecycle: frozen
+superseded_by: ''
+supersedes: []
+last_verified: '2026-10-17'
+citations: []
+---
+
 # ADR-061: Semantic Admin Suite 架构决策
 
 ## 标题

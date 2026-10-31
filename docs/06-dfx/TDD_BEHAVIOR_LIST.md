@@ -1,3 +1,18 @@
+---
+id: odap.l6.tdd-behavior-list
+status: active
+owner: qa
+version: ''
+layer: L6
+concern: tdd-behavior
+lifecycle: living
+superseded_by: ''
+supersedes: []
+last_verified: '2026-10-17'
+citations: []
+governance_reason: 三国/西游本体构建的 TDD 行为清单，为具体用例来源
+---
+
 # 三国演义 & 西游记本体构建：TDD 行为列表
 
 > 基于 TDD 红绿重构流程，以下为完整的行为列表（Behavior List）。

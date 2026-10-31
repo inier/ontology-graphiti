@@ -1,3 +1,19 @@
+---
+id: odap.l11.checklist-v1
+status: archived
+owner: archivist
+version: ''
+layer: L11
+concern: archive
+lifecycle: historical
+superseded_by: ''
+supersedes: []
+last_verified: '2026-10-17'
+citations: []
+governance_reason: 已被后续版本取代的历史设计或清理清单
+governance_evidence: docs/11-archive/README.md 归档说明；文件名或正文含版本号/日期
+---
+
 # ODAP 完整 Checklist v1.0
 
 > **版本**: 1.0 | **日期**: 2026-04-19 | **基于**: ARCHITECTURE_PLAN v4 + req-ok v2.0.0

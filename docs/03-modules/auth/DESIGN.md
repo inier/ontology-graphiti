@@ -1,3 +1,17 @@
+---
+id: odap.l3.auth-design
+status: active
+owner: module-owner
+version: ''
+layer: L3
+concern: module-design
+lifecycle: living
+superseded_by: ''
+supersedes: []
+last_verified: '2026-10-17'
+citations: []
+---
+
 # 身份认证模块 (Authentication) - 设计文档
 
 > **模块 ID**: M-20 | **优先级**: P0 | **相关 ADR**: ADR-003, ADR-028

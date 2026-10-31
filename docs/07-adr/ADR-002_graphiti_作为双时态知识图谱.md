@@ -1,3 +1,17 @@
+---
+id: odap.l7.adr-002-graphiti-作为双时态知识图谱
+status: active
+owner: architect
+version: ''
+layer: L7
+concern: adr
+lifecycle: frozen
+superseded_by: ''
+supersedes: []
+last_verified: '2026-10-17'
+citations: []
+---
+
 # ADR-002: Graphiti 作为双时态知识图谱
 
 > **来源**: `docs/ARCHITECTURE.md` 第 17 章

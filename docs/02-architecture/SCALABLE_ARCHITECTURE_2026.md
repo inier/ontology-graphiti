@@ -1,3 +1,18 @@
+---
+id: odap.l2.scalable-architecture-2026
+status: active
+owner: architect
+version: ''
+layer: L2
+concern: scalability
+lifecycle: living
+superseded_by: ''
+supersedes: []
+last_verified: '2026-10-17'
+citations: []
+governance_reason: 可扩展系统架构设计（2026-2027）唯一成篇方案
+---
+
 # ODAP 可扩展系统架构设计（2026–2027）
 
 > **版本**: 1.0 | **日期**: 2026-07-08 | **作者**: 软件架构师

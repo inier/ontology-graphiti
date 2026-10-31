@@ -1,3 +1,17 @@
+---
+id: odap.l3.openharness-bridge-design
+status: active
+owner: module-owner
+version: ''
+layer: L3
+concern: module-design
+lifecycle: living
+superseded_by: ''
+supersedes: []
+last_verified: '2026-10-17'
+citations: []
+---
+
 # OpenHarness 桥接模块设计文档
 
 > ⏸️ **DEFERRED — 推迟至 Phase 4** (ADR-030, 2026-04-19)

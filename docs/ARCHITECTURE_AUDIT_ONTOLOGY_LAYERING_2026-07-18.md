@@ -1,3 +1,19 @@
+---
+id: odap.l14.docs-architecture-audit-ontology-layering-2026-07-18
+status: reference
+owner: architect
+version: ''
+layer: L14
+concern: architecture-analysis
+lifecycle: historical
+superseded_by: ''
+supersedes: []
+last_verified: '2026-10-17'
+citations: []
+governance_reason: 本体模块 3+1 分层模型决策的审计依据，决策已落 ADR-068
+governance_evidence: docs/07-adr/ADR-068_本体模块四层分层架构.md
+---
+
 # 本体模块架构审计 — 3+1 分层模型决策
 
 > **日期**: 2026-07-18 | **状态**: 已完成 — 最终架构已采纳

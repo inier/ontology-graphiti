@@ -1,3 +1,19 @@
+---
+id: odap.l2.architecture-infra
+status: active
+owner: architect
+version: ''
+layer: L2
+concern: architecture-infra
+lifecycle: living
+superseded_by: ''
+supersedes: []
+last_verified: '2026-10-17'
+citations: []
+governance_reason: L1 基础设施层详细设计（1052 行），v2 未承接同等深度
+governance_evidence: 本文件 1052 行，含各中间件部署细节
+---
+
 # 本体驱动分析决策平台 (ODAP) - L1 基础设施层
 > **部分**: OpenHarness + Graphiti + OPA + 审计日志 + 对象服务 + 本体元数据 + 统一查询服务
 > **版本**: 5.1.0 | **日期**: 2026-05-23

@@ -1,3 +1,17 @@
+---
+id: odap.l4.readme
+status: active
+owner: designer
+version: ''
+layer: L4
+concern: ui-design
+lifecycle: living
+superseded_by: ''
+supersedes: []
+last_verified: '2026-10-17'
+citations: []
+---
+
 # 04-UI设计 (UI/UX Design)
 
 > **所属层次**: SDD 第6层 — UI设计

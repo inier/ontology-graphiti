@@ -1,3 +1,17 @@
+---
+id: odap.l7.adr-004-统一-skill-体系架构
+status: active
+owner: architect
+version: ''
+layer: L7
+concern: adr
+lifecycle: frozen
+superseded_by: ''
+supersedes: []
+last_verified: '2026-10-17'
+citations: []
+---
+
 # ADR-004: 统一 Skill 体系架构
 
 > **来源**: `docs/ARCHITECTURE.md` 第 17 章

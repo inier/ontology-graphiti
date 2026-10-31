@@ -1,3 +1,17 @@
+---
+id: odap.l7.adr-072-reasoningservicecontract-推理服务契约
+status: active
+owner: architect
+version: ''
+layer: L7
+concern: adr
+lifecycle: frozen
+superseded_by: ''
+supersedes: []
+last_verified: '2026-10-17'
+citations: []
+---
+
 # ADR-072: ReasoningServiceContract —— +AI Reasoning 层推理服务契约
 
 ## Status

@@ -1,3 +1,17 @@
+---
+id: odap.l3.qa-engine-api
+status: active
+owner: module-owner
+version: ''
+layer: L3
+concern: module-design
+lifecycle: living
+superseded_by: ''
+supersedes: []
+last_verified: '2026-10-17'
+citations: []
+---
+
 # 问答引擎模块 (QA Engine) - API 使用文档
 
 > **文档版本**: 1.0.0 | **日期**: 2026-04-28 | **模块**: M-12
@@ -589,55 +603,32 @@ async function submitFeedback(sessionId: string, rating: number, comment: string
 await submitFeedback('SESSION-ABC12345', 5, '回答很准确！');
 ```
 
-### 5.5 React Hooks 集成
+### 5.5 React 集成
 
-```typescript
-import { useQAI, QAMessage } from '@/modules/qa/hooks/useQAI';
+> **2026-10-21 更新**：本节原先给出 `useQAI()` 的用法示例，该 hook 连同 `useChatStorage`、`qaStore`、`qaApi`、`QAIProvider`、`ChartRenderer` 已一并删除（共 6 个文件 / 782 行）。
+>
+> 原因：`useQAI` 是 **QA v1 的独立对话栈**，走 `/api/qa/ask` 的 SSE；而 `pages/QAPage.tsx` 已改为直接渲染 `AIChatPanel`，走 `/api/assistant/chat` 的 AG-UI 协议。两套引擎并存会让维护者选错实现。`useQAI()` 在全站零调用点。详见 `docs/decisions/OPEN-DECISIONS.md` 的 RESOLVED 条目「QA 旧栈整组删除」。
 
-function QAComponent() {
-  const {
-    messages,
-    sendMessage,
-    status,
-    isLoading,
-    sessionId,
-    clearMessages
-  } = useQAI();
+现行集成方式：
 
+```tsx
+import { AIChatPanel } from '@/modules/ai-assistant';
+
+export function QAPage({ agentId }: { agentId?: string }) {
   return (
-    <div>
-      {/* 消息列表 */}
-      <div className="messages">
-        {messages.map((msg: QAMessage) => (
-          <div key={msg.id} className={`message ${msg.role}`}>
-            <div className="content">{msg.content}</div>
-            {msg.sources && (
-              <div className="sources">
-                来源: {msg.sources.map(s => s.source).join(', ')}
-              </div>
-            )}
-          </div>
-        ))}
-      </div>
-
-      {/* 输入框 */}
-      <input
-        type="text"
-        onKeyPress={(e) => {
-          if (e.key === 'Enter') {
-            sendMessage(e.currentTarget.value);
-          }
-        }}
-        disabled={isLoading}
-      />
-
-      {/* 状态显示 */}
-      <div>状态: {status}</div>
-      {isLoading && <div>加载中...</div>}
-    </div>
+    <AIChatPanel
+      mode="full"
+      title="智能问答"
+      workspaceId="default"
+      context={agentId ? { agent_id: agentId } : undefined}
+    />
   );
 }
 ```
+
+底层 hook 为 `modules/ai-assistant/hooks/useAIChat.ts`，处理 AG-UI 标准事件：`RUN_STARTED` / `TEXT_MESSAGE_CONTENT` / `TOOL_CALL_START` / `TOOL_CALL_END` / `CUSTOM` / `RUN_FINISHED` / `ERROR`。
+
+**已知能力差异**：`qa_engine` 会在流里发 `{type: "chart"}` / `{type: "temporal"}` 自定义事件，`AIChatPanel` 目前**不消费**这两类内容（`useAIChat` 的类型里保留了 `charts?` / `temporal?` 字段，但无渲染逻辑）。图表渲染器 `InlineChart` 仍然可用，入口是 AG-UI 生成式卡片（`CardType = 'chart'`），支持 line / bar / pie / scatter / radar / heatmap 六类；`map` / `network` 会显式报「不支持」而不是静默降级。
 
 ---
 
@@ -662,6 +653,9 @@ function QAComponent() {
 | POST /api/qa/ask | 60 请求 | 1 分钟 |
 | GET /api/qa/sessions | 100 请求 | 1 分钟 |
 | 其他接口 | 200 请求 | 1 分钟 |
+
+> **注（2026-10-21）**：`POST /api/qa/ask`、`POST /api/qa/chart`、`POST /api/qa/ask/temporal` 三个端点的实现与注册均在线，但**前端已无消费者** —— 对话前端改走 `/api/assistant/chat`。`QAEngineV2` 引擎本身仍被 `/api/assistant/chat` 的检索段复用（`chat/tools/qa_retriever_tool.py`），死的是这三个 HTTP 端点。是否下线待决，下线需同步 `router_registry.py`。
+
 
 ---
 

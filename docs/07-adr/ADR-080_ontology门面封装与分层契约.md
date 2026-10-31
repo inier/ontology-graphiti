@@ -1,3 +1,17 @@
+---
+id: odap.l7.adr-080-ontology门面封装与分层契约
+status: active
+owner: architect
+version: ''
+layer: L7
+concern: adr
+lifecycle: frozen
+superseded_by: ''
+supersedes: []
+last_verified: '2026-10-17'
+citations: []
+---
+
 # ADR-080: core.ontology 门面封装与 import-linter 分层契约棘轮
 
 ## Status

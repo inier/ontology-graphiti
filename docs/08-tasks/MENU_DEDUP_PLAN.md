@@ -1,3 +1,19 @@
+---
+id: odap.l8.menu-dedup-plan
+status: reference
+owner: pm
+version: ''
+layer: L8
+concern: menu-refactor
+lifecycle: historical
+superseded_by: ''
+supersedes: []
+last_verified: '2026-10-17'
+citations: []
+governance_reason: 菜单去重方案标题自述「已落地」，仅留执行留痕
+governance_evidence: 本文件标题「菜单相似项去重方案（已落地）」
+---
+
 # 菜单相似项去重方案（已落地）
 
 > **版本**: v1.0（2026-10-02）— 已按方案执行落地（种子 55→57，配套迁移脚本 + 测试 + redirect + i18n + 文档同步）

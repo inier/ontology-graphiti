@@ -1,3 +1,17 @@
+---
+id: odap.l3.audit-log-design
+status: active
+owner: module-owner
+version: ''
+layer: L3
+concern: module-design
+lifecycle: living
+superseded_by: ''
+supersedes: []
+last_verified: '2026-10-17'
+citations: []
+---
+
 # 审计日志模块 (Audit Logger) - 设计文档
 
 > **模块 ID**: M-07 | **优先级**: P0 | **相关 ADR**: ADR-008, ADR-042, GRAPHITI_INTEGRATION

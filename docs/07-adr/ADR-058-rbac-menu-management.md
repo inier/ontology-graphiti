@@ -1,3 +1,17 @@
+---
+id: odap.l7.adr-058-rbac-menu-management
+status: active
+owner: architect
+version: ''
+layer: L7
+concern: adr
+lifecycle: frozen
+superseded_by: ''
+supersedes: []
+last_verified: '2026-10-17'
+citations: []
+---
+
 # ADR-058: RBAC 三级菜单管理架构
 
 ## 状态

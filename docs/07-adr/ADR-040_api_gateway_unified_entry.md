@@ -1,3 +1,17 @@
+---
+id: odap.l7.adr-040-api-gateway-unified-entry
+status: active
+owner: architect
+version: ''
+layer: L7
+concern: adr
+lifecycle: frozen
+superseded_by: ''
+supersedes: []
+last_verified: '2026-10-17'
+citations: []
+---
+
 # ADR-040: API 网关统一入口
 
 ## 状态

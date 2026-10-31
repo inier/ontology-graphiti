@@ -1,3 +1,19 @@
+---
+id: odap.l2.architecture-target-plan
+status: reference
+owner: architect
+version: ''
+layer: L2
+concern: architecture-target-plan
+lifecycle: historical
+superseded_by: ''
+supersedes: []
+last_verified: '2026-10-17'
+citations: []
+governance_reason: Semantica 能力引入版总体规划，目标态已由 ARCHITECTURE-v2 承接
+governance_evidence: ARCHITECTURE-v2.md:1「ODAP 目标架构 v2」；ADR-097:25 指定 v2 为唯一真相源
+---
+
 # ODAP 目标架构总体规划（Semantica 能力引入版）
 
 > **版本**: 1.1.0 | **日期**: 2026-08-16 | **状态**: 规划草案（v1.1 经 2026-08-16 架构 grilling 三轮决议修订）

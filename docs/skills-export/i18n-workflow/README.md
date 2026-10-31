@@ -1,3 +1,17 @@
+---
+id: odap.l16.i18n-workflow-readme
+status: vendor
+owner: vendor
+version: ''
+layer: L16
+concern: vendor-skill
+lifecycle: frozen
+superseded_by: ''
+supersedes: []
+last_verified: '2026-10-17'
+citations: []
+---
+
 # i18n-workflow（通用版）
 
 适用于 **React + i18next** 项目的国际化工作流技能，采用「中文作为 i18n key」方案。

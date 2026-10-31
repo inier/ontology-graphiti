@@ -1,3 +1,17 @@
+---
+id: odap.l3.user-cognition-engine-design
+status: active
+owner: module-owner
+version: ''
+layer: L3
+concern: module-design
+lifecycle: living
+superseded_by: ''
+supersedes: []
+last_verified: '2026-10-17'
+citations: []
+---
+
 # 用户认知引擎模块设计文档
 
 > **优先级**: P0 | **相关 ADR**: ADR-038, ADR-049

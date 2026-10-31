@@ -1,3 +1,19 @@
+---
+id: odap.l15.specs-2026-10-09-subproject-c-ontology-semantics-tool-design
+status: reference
+owner: architect
+version: ''
+layer: L15
+concern: design-spec-record
+lifecycle: frozen
+superseded_by: ''
+supersedes: []
+last_verified: '2026-10-17'
+citations: []
+governance_reason: superpowers 设计规格存档，结论已落 ADR 或代码，规格本身冻结
+governance_evidence: docs/07-adr/README.md 各 ADR 的 specs 引用（如 ADR-087 引用 2026-10-07-semantic-drift-detection-design）
+---
+
 # 子项目 C · `ontology_semantics` MCP 工具——按需查询替代全量注入
 
 - **状态**：**已实施**（v2，2026-10-09 纳入用户三项指示；已按本 spec 以 TDD 落地，见 ADR-089「Status & Verification」）

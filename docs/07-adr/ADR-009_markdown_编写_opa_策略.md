@@ -1,3 +1,17 @@
+---
+id: odap.l7.adr-009-markdown-编写-opa-策略
+status: active
+owner: architect
+version: ''
+layer: L7
+concern: adr
+lifecycle: frozen
+superseded_by: ''
+supersedes: []
+last_verified: '2026-10-17'
+citations: []
+---
+
 # ADR-009: Markdown 编写 OPA 策略
 
 > **来源**: `docs/ARCHITECTURE.md` 第 17 章

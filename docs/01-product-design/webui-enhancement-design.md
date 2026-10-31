@@ -1,3 +1,19 @@
+---
+id: odap.l1.webui-enhancement-design
+status: reference
+owner: pm
+version: ''
+layer: L1
+concern: webui-enhancement
+lifecycle: frozen
+superseded_by: ''
+supersedes: []
+last_verified: '2026-10-17'
+citations: []
+governance_reason: WebUI 增强设计的历史方案；前端信息架构已由 UIUX-DESIGN-v2 §6.5 与 routeManifest 承接
+governance_evidence: docs/04-ui/UIUX-DESIGN-v2.md:586「全局导航与主题切换入口（60+ 路由收敛后的信息架构）」
+---
+
 # ODAP WebUI 增强设计方案
 
 **项目**: ODAP (Ontology-Driven Analytics Platform)  
@@ -18,7 +34,7 @@
 | **UI 组件库** | Ant Design | 6.3.5 | ✅ 企业级组件 |
 | **状态管理** | Zustand | 5.0.12 | ✅ 轻量高效 |
 | **图可视化** | @antv/g6 | 5.1.0 | ✅ 成熟方案 |
-| **AI 集成** | Vercel AI SDK + @openharness/react | - | ✅ 集成良好 |
+| **AI 集成** | AG-UI（自研客户端 `AGUIProvider` + `useAIChat`） | - | ⚠️ 2026-10-22 更正：原记「Vercel AI SDK + @openharness/react — ✅ 集成良好」不实 —— 二者在 `apps/web/src` 零引用且与后端 AG-UI 协议不兼容，依赖已移除，见 ADR-099 |
 
 ### 1.2 当前问题
 
@@ -544,10 +560,12 @@ interface SkillDefinition {
 
 #### Phase 3: 问答增强 (1 周)
 
+> **2026-10-21 更新**：本表原指向 `QAChatPage.tsx` 与 `useQAI.ts`。二者均已不存在 —— QA 页统一为 `AIChatPanel`，`useQAI` 所属的 QA v1 独立对话栈整组删除（见 `docs/decisions/OPEN-DECISIONS.md`）。下表已按现行文件更新。
+
 | 任务 | 文件 | 优先级 |
 |------|------|--------|
-| 右栏建议展示 | `QAChatPage.tsx` | P0 |
-| 本体上下文注入 | `useQAI.ts` | P1 |
+| 右栏建议展示 | `apps/web/src/modules/ai-assistant/components/AIChatPanel.tsx` | P0 |
+| 本体上下文注入 | `apps/web/src/modules/ai-assistant/hooks/useAIChat.ts` | P1 |
 | 动作执行集成 | 待定 | P2 |
 
 #### Phase 4: Skill 可视化 (2 周)

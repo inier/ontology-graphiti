@@ -1,3 +1,17 @@
+---
+id: odap.l10.readme
+status: active
+owner: backend
+version: ''
+layer: L10
+concern: api-contract
+lifecycle: living
+superseded_by: ''
+supersedes: []
+last_verified: '2026-10-17'
+citations: []
+---
+
 # 10-API规范 (API Specs)
 
 > **所属层次**: SDD 第12层 — API契约

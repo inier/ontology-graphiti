@@ -1,3 +1,17 @@
+---
+id: odap.l3.workspace-design
+status: active
+owner: module-owner
+version: ''
+layer: L3
+concern: module-design
+lifecycle: living
+superseded_by: ''
+supersedes: []
+last_verified: '2026-10-17'
+citations: []
+---
+
 # 工作空间管理模块 (Workspace Manager) - 设计文档
 
 > **模块 ID**: M-04 | **优先级**: P0 | **相关 ADR**: ADR-023, ADR-041

@@ -1,3 +1,17 @@
+---
+id: odap.l3.web-frontend-design
+status: active
+owner: module-owner
+version: ''
+layer: L3
+concern: module-design
+lifecycle: living
+superseded_by: ''
+supersedes: []
+last_verified: '2026-10-17'
+citations: []
+---
+
 # Web 前端模块 (Web Frontend) - 设计文档
 
 > **模块 ID**: M-17 | **优先级**: P0 | **相关 ADR**: ADR-033

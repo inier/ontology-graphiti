@@ -1,3 +1,17 @@
+---
+id: odap.l7.adr-029-tool-registry-architecture
+status: active
+owner: architect
+version: ''
+layer: L7
+concern: adr
+lifecycle: frozen
+superseded_by: ''
+supersedes: []
+last_verified: '2026-10-17'
+citations: []
+---
+
 # ADR-029: 采用统一工具注册表架构管理AI Agent工具
 
 ## 状态

@@ -1,3 +1,19 @@
+---
+id: odap.l2.architecture-tools
+status: active
+owner: architect
+version: ''
+layer: L2
+concern: architecture-tools
+lifecycle: living
+superseded_by: ''
+supersedes: []
+last_verified: '2026-10-17'
+citations: []
+governance_reason: L2 领域工具层设计（159 行），v2 未展开工具层清单
+governance_evidence: 本文件 159 行，为工具层唯一成篇描述
+---
+
 # 本体驱动分析决策平台 (ODAP) - L2 领域工具层
 > **部分**: Python Skills
 > **版本**: 4.1.0 | **日期**: 2026-05-04

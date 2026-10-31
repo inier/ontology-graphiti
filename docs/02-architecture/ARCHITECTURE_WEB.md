@@ -1,3 +1,19 @@
+---
+id: odap.l2.architecture-web
+status: active
+owner: architect
+version: ''
+layer: L2
+concern: architecture-web
+lifecycle: living
+superseded_by: ''
+supersedes: []
+last_verified: '2026-10-17'
+citations: []
+governance_reason: L5-L6 接口层详细设计（1091 行），v2 未承接同等深度
+governance_evidence: 本文件 1091 行，含路由与接口契约细节
+---
+
 # 本体驱动分析决策平台 (ODAP) - L5-L6 接口层
 > **部分**: 前端界面 + 管理后台 + API端点
 > **版本**: 5.0.0 | **日期**: 2026-05-19

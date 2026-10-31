@@ -1,3 +1,17 @@
+---
+id: odap.l3.test-design
+status: active
+owner: module-owner
+version: ''
+layer: L3
+concern: module-design
+lifecycle: living
+superseded_by: ''
+supersedes: []
+last_verified: '2026-10-17'
+citations: []
+---
+
 # 测试策略设计文档
 
 > **模块 ID**: M-22 | **优先级**: P1 | **相关 ADR**: ADR-044

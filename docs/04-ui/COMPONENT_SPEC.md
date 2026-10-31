@@ -1,3 +1,19 @@
+---
+id: odap.l4.component-spec
+status: active
+owner: designer
+version: ''
+layer: L4
+concern: ontology-build-component-spec
+lifecycle: living
+superseded_by: ''
+supersedes: []
+last_verified: '2026-10-17'
+citations: []
+governance_reason: 10 类组件级规格（ProgressTracker/SourceDataPanel/GraphCanvas 等），v2 无组件 API 层，内容未被承接
+governance_evidence: 本文件 §1-§10 组件章节目录；UIUX-DESIGN-v2.md 章节止于页面级规格（§6），无组件 props 表
+---
+
 # 组件规范详细说明
 
 > **版本**: 1.0.0 | **日期**: 2026-04-26

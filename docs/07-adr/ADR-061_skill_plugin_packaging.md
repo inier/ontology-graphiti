@@ -1,3 +1,17 @@
+---
+id: odap.l7.adr-061-skill-plugin-packaging
+status: active
+owner: architect
+version: ''
+layer: L7
+concern: adr
+lifecycle: frozen
+superseded_by: ''
+supersedes: []
+last_verified: '2026-10-17'
+citations: []
+---
+
 # ADR-061: 领域 Skill 插件化打包与契约测试
 
 ## 状态

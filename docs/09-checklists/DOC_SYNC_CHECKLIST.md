@@ -1,3 +1,18 @@
+---
+id: odap.l9.doc-sync-checklist
+status: active
+owner: qa
+version: ''
+layer: L9
+concern: doc-sync
+lifecycle: living
+superseded_by: ''
+supersedes: []
+last_verified: '2026-10-17'
+citations: []
+governance_reason: 文档同步检查清单，与本次文档治理配套
+---
+
 # 文档同步检查清单 (DOC_CHECKLIST)
 
 > **用途**: 提交代码前逐项检查，确保文档与代码一致。

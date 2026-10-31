@@ -1,3 +1,17 @@
+---
+id: odap.l7.adr-067-biz-shared-relocation
+status: active
+owner: architect
+version: ''
+layer: L7
+concern: adr
+lifecycle: frozen
+superseded_by: ''
+supersedes: []
+last_verified: '2026-10-17'
+citations: []
+---
+
 # ADR-067: `biz/shared` 归属问题 —— 下沉到 `infra/storage/`
 
 ## Status

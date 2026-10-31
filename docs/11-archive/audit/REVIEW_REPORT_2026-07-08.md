@@ -1,6 +1,22 @@
+---
+id: odap.l11.audit-review-report-2026-07-08
+status: archived
+owner: archivist
+version: ''
+layer: L11
+concern: archive
+lifecycle: historical
+superseded_by: ''
+supersedes: []
+last_verified: '2026-10-17'
+citations: []
+governance_reason: 一次性审计报告，结论已并入现行设计文档
+governance_evidence: docs/11-archive/README.md 归档说明；报告标题含审计日期
+---
+
 # 规格文档复查与修复报告（2026-07-08 二次审计）
 
-> 关联决策：[ADR-049 规格与架构文档瘦身](07-adr/ADR-049_规格与架构文档瘦身.md)
+> 关联决策：[ADR-049 规格与架构文档瘦身](07-adr/ADR-054_规格与架构文档瘦身.md)
 > 触发：用户对首轮瘦身结果进行"残缺与冗余"复查
 
 ## 1. 复查范围与方法

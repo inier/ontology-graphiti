@@ -1,3 +1,17 @@
+---
+id: odap.l7.adr-088-evoontology借鉴采纳-归因分层与配对回放门控
+status: active
+owner: architect
+version: ''
+layer: L7
+concern: adr
+lifecycle: frozen
+superseded_by: ''
+supersedes: []
+last_verified: '2026-10-17'
+citations: []
+---
+
 # ADR-088: EvoOntology 借鉴采纳——归因分层与配对回放门控（attribution + paired replay）
 
 ## Status

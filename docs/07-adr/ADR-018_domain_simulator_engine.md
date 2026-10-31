@@ -1,3 +1,17 @@
+---
+id: odap.l7.adr-018-domain-simulator-engine
+status: active
+owner: architect
+version: ''
+layer: L7
+concern: adr
+lifecycle: frozen
+superseded_by: ''
+supersedes: []
+last_verified: '2026-10-17'
+citations: []
+---
+
 # ADR-018: 领域模拟推演引擎（Domain Simulator Engine）
 
 > **来源**: `docs/ARCHITECTURE.md` 第 17 章

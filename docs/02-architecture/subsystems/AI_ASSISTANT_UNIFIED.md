@@ -1,3 +1,18 @@
+---
+id: odap.l2.subsystems-ai-assistant-unified
+status: active
+owner: architect
+version: ''
+layer: L2
+concern: architecture-subsystem
+lifecycle: living
+superseded_by: ''
+supersedes: []
+last_verified: '2026-10-17'
+citations: []
+governance_reason: 子系统边界与独立化设计，与总体架构不同关注点，仍为实施依据
+---
+
 # AI 助手统一架构设计 v1.0
 
 > **文档定位**：定义 ODAP 平台 AI 助手的分层架构、平台功能本体模型、前端组件化方案、操作手册知识库接入规范。

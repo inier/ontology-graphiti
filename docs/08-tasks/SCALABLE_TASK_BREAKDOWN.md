@@ -1,3 +1,18 @@
+---
+id: odap.l8.scalable-task-breakdown
+status: active
+owner: pm
+version: ''
+layer: L8
+concern: scalability-tasks
+lifecycle: living
+superseded_by: ''
+supersedes: []
+last_verified: '2026-10-17'
+citations: []
+governance_reason: 可扩展性硬化的专项任务清单，与总体任务拆分不同关注点
+---
+
 # ODAP 可扩展性硬化 — 任务拆分与工作项清单
 
 > **版本**: 1.0 | **日期**: 2026-07-08 | **基于**: SCALABLE_ARCHITECTURE_2026.md + ADR-061~065

@@ -1,3 +1,17 @@
+---
+id: odap.l1.readme
+status: active
+owner: pm
+version: ''
+layer: L1
+concern: product-design
+lifecycle: living
+superseded_by: ''
+supersedes: []
+last_verified: '2026-10-17'
+citations: []
+---
+
 # 01-产品设计 (Product Design)
 
 > **所属层次**: SDD 第3层 — 产品设计

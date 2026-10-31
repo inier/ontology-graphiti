@@ -1,3 +1,19 @@
+---
+id: odap.l8.task-breakdown
+status: authoritative
+owner: pm
+version: ''
+layer: L8
+concern: task-breakdown
+lifecycle: living
+superseded_by: ''
+supersedes: []
+last_verified: '2026-10-17'
+citations: []
+governance_reason: 任务拆分唯一权威
+governance_evidence: DOCUMENT_MANAGEMENT v2 §1.1 列为任务层核心文档
+---
+
 # ODAP 任务拆分与工作项清单
 
 > **版本**: 3.0 | **日期**: 2026-04-19 | **基于**: ARCHITECTURE_PLAN v4.0.0 + req-ok v2.0.0 + 18 模块 DESIGN.md

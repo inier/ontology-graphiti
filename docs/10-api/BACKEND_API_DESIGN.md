@@ -1,3 +1,18 @@
+---
+id: odap.l10.backend-api-design
+status: active
+owner: backend
+version: ''
+layer: L10
+concern: backend-api-design
+lifecycle: living
+superseded_by: ''
+supersedes: []
+last_verified: '2026-10-17'
+citations: []
+governance_reason: 后端接口设计说明（人读），冲突以 openapi-v2.yaml 为准
+---
+
 # ODAP 后端接口设计文档
 
 > **版本**: 1.0.0 | **日期**: 2026-05-18

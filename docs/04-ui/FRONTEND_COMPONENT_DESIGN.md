@@ -1,3 +1,19 @@
+---
+id: odap.l4.frontend-component-design
+status: active
+owner: designer
+version: ''
+layer: L4
+concern: frontend-architecture
+lifecycle: living
+superseded_by: ''
+supersedes: []
+last_verified: '2026-10-17'
+citations: []
+governance_reason: 前端整体设计（路由/模块组件/服务层/状态管理）；其中路由章节已由 routeManifest 收敛取代，以 ADR-098 为准
+governance_evidence: 本文件 §2 路由配置；apps/web/src/routes/routeManifest.ts 为现行路由单一来源
+---
+
 # ODAP 前端组件设计文档
 
 > **版本**: 1.0.0 | **日期**: 2026-05-18

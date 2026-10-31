@@ -1,3 +1,17 @@
+---
+id: odap.l7.adr-041-workspace-resource-isolation
+status: active
+owner: architect
+version: ''
+layer: L7
+concern: adr
+lifecycle: frozen
+superseded_by: ''
+supersedes: []
+last_verified: '2026-10-17'
+citations: []
+---
+
 # ADR-041: 工作空间资源隔离
 
 > **权威设计参考**: [ARCHITECTURE.md §1.2 工作空间隔离](../02-architecture/ARCHITECTURE.md)

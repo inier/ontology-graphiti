@@ -1,3 +1,18 @@
+---
+id: odap.l9.checklist-v2
+status: authoritative
+owner: qa
+version: 2.0.0
+layer: L9
+concern: checklist
+lifecycle: living
+superseded_by: ''
+supersedes: []
+last_verified: '2026-10-17'
+citations: []
+governance_reason: 交付检查清单唯一权威
+---
+
 # ODAP 完整 Checklist v2.0
 
 > **版本**: 2.0.0 | **日期**: 2026-05-03 | **状态**: 正式

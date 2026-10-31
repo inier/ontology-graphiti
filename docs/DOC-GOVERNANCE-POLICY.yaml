@@ -1,0 +1,327 @@
+# ODAP 文档治理策略（DOC-GOVERNANCE-POLICY）
+#
+# 定位：**规则**文件，不是**事实**文件。
+#   - 本文件只声明「层如何划分、状态如何推导、哪些算产物文件」。
+#   - 每份文档的 status / owner / superseded_by 等**事实**，唯一存放地为该文档自身的
+#     YAML front-matter（ADR-097 第 2 条）。本文件不得登记单篇文档状态，否则形成第二真相源。
+#
+# 校验器：scripts/doc_governance.py（audit 子命令），进 CI 门禁。
+# 依据：ADR-097（文档治理与溯源机制）、ADR-096（LLM Wiki 存储与同步）。
+#
+# 三元正交模型（避免「归档」既当状态又当位置的歧义）：
+#   layer      = 文档**在哪**（目录归属，物理位置）
+#   status     = 文档**有多大权威**（authoritative > active > reference > superseded = archived = vendor）
+#   lifecycle  = 文档**是否还在维护**（living 持续更新 / frozen 冻结 / historical 历史）
+# 例：02-architecture/REVIEW_REPORT_20260505.md → layer=L2, status=reference, lifecycle=historical
+#     （物理上仍在 L2，但既不权威也不再维护；不等于「已归档到 11-archive」）
+
+schema_version: "1.0"
+updated: "2026-10-17"
+
+# ─────────────────────────────────────────────────────────────
+# 一、层定义。dir 支持前缀匹配；最长前缀优先（故 L14=docs 为兜底层）。
+# ─────────────────────────────────────────────────────────────
+layers:
+  - id: L0
+    dir: docs/00-requirements
+    name: 需求层
+    owner_role: pm
+    concern: requirements
+  - id: L1
+    dir: docs/01-product-design
+    name: 产品设计层
+    owner_role: pm
+    concern: product-design
+  - id: L2
+    dir: docs/02-architecture
+    name: 架构层
+    owner_role: architect
+    concern: architecture
+  - id: L3
+    dir: docs/03-modules
+    name: 模块设计层
+    owner_role: module-owner
+    concern: module-design
+  - id: L4
+    dir: docs/04-ui
+    name: UI/UX 层
+    owner_role: designer
+    concern: ui-design
+  - id: L5
+    dir: docs/05-security
+    name: 安全层
+    owner_role: architect
+    concern: security
+  - id: L6
+    dir: docs/06-dfx
+    name: DFX 层
+    owner_role: qa
+    concern: dfx
+  - id: L7
+    dir: docs/07-adr
+    name: 决策记录层
+    owner_role: architect
+    concern: adr
+  - id: L8
+    dir: docs/08-tasks
+    name: 任务层
+    owner_role: pm
+    concern: task-breakdown
+  - id: L9
+    dir: docs/09-checklists
+    name: 检查层
+    owner_role: qa
+    concern: checklist
+  - id: L10
+    dir: docs/10-api
+    name: 契约层
+    owner_role: backend
+    concern: api-contract
+  - id: L11
+    dir: docs/11-archive
+    name: 归档层
+    owner_role: archivist
+    concern: archive
+  - id: L12
+    dir: docs/12-evaluation
+    name: 评估层
+    owner_role: pm
+    concern: evaluation
+  - id: L13
+    dir: docs/decisions
+    name: 决策登记
+    owner_role: architect
+    concern: open-decisions
+  - id: L15
+    dir: docs/superpowers
+    name: 设计规格存档
+    owner_role: architect
+    concern: design-spec-record
+  - id: L16
+    dir: docs/skills-export
+    name: 技能导出
+    owner_role: vendor
+    concern: vendor-skill
+  - id: L14
+    dir: docs
+    name: 文档中心（根）
+    owner_role: architect
+    concern: doc-governance
+
+# ─────────────────────────────────────────────────────────────
+# 二、按层的默认状态。文档未在种子/前文中显式声明时按此推导。
+# 推导顺序：front-matter 显式值 > 层默认 > 兜底 active。
+# ─────────────────────────────────────────────────────────────
+layer_defaults:
+  L0: { status: active, lifecycle: living, owner_role: pm }
+  L1: { status: active, lifecycle: living, owner_role: pm }
+  L2: { status: active, lifecycle: living, owner_role: architect }
+  L3: { status: active, lifecycle: living, owner_role: module-owner }
+  L4: { status: active, lifecycle: living, owner_role: designer }
+  L5: { status: active, lifecycle: living, owner_role: architect }
+  L6: { status: active, lifecycle: living, owner_role: qa }
+  L7: { status: active, lifecycle: frozen, owner_role: architect }
+  L8: { status: active, lifecycle: living, owner_role: pm }
+  L9: { status: active, lifecycle: living, owner_role: qa }
+  L10: { status: active, lifecycle: living, owner_role: backend }
+  L11: { status: archived, lifecycle: historical, owner_role: archivist }
+  L12: { status: active, lifecycle: frozen, owner_role: pm }
+  L13: { status: active, lifecycle: living, owner_role: architect }
+  L14: { status: reference, lifecycle: living, owner_role: architect }
+  L15: { status: reference, lifecycle: frozen, owner_role: architect }
+  L16: { status: vendor, lifecycle: frozen, owner_role: vendor }
+
+# ─────────────────────────────────────────────────────────────
+# 三、归档层按子目录给出成组溯源证据（R5 要求 archived 必有 reason + evidence）。
+# 逐篇重复同一段文字没有信息量，故按子目录归组；归属由最长路径前缀决定。
+# ─────────────────────────────────────────────────────────────
+archive_groups:
+  - prefix: docs/11-archive/specs
+    reason: spec-kit 规格件已交付或已废弃，正文由对应 ADR/模块设计承接
+    evidence: "docs/11-archive/README.md 归档说明；spec-kit 流程产物（spec/tasks/checklist 三件套）"
+  - prefix: docs/11-archive/feature-specs
+    reason: 特性设计已实现落地，实现与决策分别由代码与 ADR 承载
+    evidence: "docs/11-archive/README.md 归档说明；文件名日期戳标示落地时间"
+  - prefix: docs/11-archive/audit
+    reason: 一次性审计报告，结论已并入现行设计文档
+    evidence: "docs/11-archive/README.md 归档说明；报告标题含审计日期"
+  - prefix: docs/11-archive
+    reason: 已被后续版本取代的历史设计或清理清单
+    evidence: "docs/11-archive/README.md 归档说明；文件名或正文含版本号/日期"
+
+# ─────────────────────────────────────────────────────────────
+# 四、产物文件（无法承载 front-matter 的数据/契约文件）。
+# 必须逐项登记 owner 与生成方式，否则 R1 判 FAIL——防止「随手丢个 json 进 docs/」。
+# ─────────────────────────────────────────────────────────────
+artifacts:
+  - path: docs/04-ui/design-tokens.json
+    owner_role: designer
+    status: authoritative
+    concern: design-tokens
+    generated_by: "人工维护的 Token 真源（与 design-tokens.css 双写出）"
+    note: "Design Token 三层结构的机器可读真源"
+  - path: docs/04-ui/design-tokens.css
+    owner_role: designer
+    status: active
+    concern: design-tokens
+    generated_by: "由 design-tokens.json 同步产出的构建产物（双写协议见 docs/04-ui/TOKEN-MIGRATION-MAP.md）"
+    note: "441 条声明 / 370 个唯一变量；源为 design-tokens.json，故本身不作 authoritative"
+  - path: docs/02-architecture/openapi-v2.yaml
+    owner_role: backend
+    status: authoritative
+    concern: api-contract
+    generated_by: "架构师人工维护的 OpenAPI 3.0 契约"
+    note: "API 契约唯一机器可验来源；docs/10-api/*.md 为人读说明，冲突以本文件为准"
+  - path: docs/09-checklists/api-contract-matrix.csv
+    owner_role: qa
+    status: reference
+    concern: api-contract-matrix
+    generated_by: "scripts/check_api_contract.py（自动生成，勿手改）"
+    note: "前后端三向对账矩阵的机器可读形态"
+  - path: docs/11-archive/antd_deprecation_audit.json
+    owner_role: archivist
+    status: archived
+    concern: archive
+    generated_by: "scripts/audit_antd_deprecations.py（一次性审计输出）"
+    note: "AntD 弃用 API 审计原始数据"
+    reason: 一次性审计数据，结论已并入 ANTD_DEPRECATION_CLEANUP.md
+    evidence: "docs/11-archive/ANTD_DEPRECATION_CLEANUP.md 为同一轮审计的结论文档"
+  # 治理机制自身的配置与种子文件（非人读文档，但必须纳管，否则「随手丢 yaml 进 docs/」无门禁）
+  - path: docs/DOC-GOVERNANCE-POLICY.yaml
+    owner_role: architect
+    status: active
+    concern: doc-governance-mechanism
+    generated_by: "人工维护的治理规则文件"
+    note: "层定义/状态推导/产物登记规则；由 scripts/doc_governance.py 消费"
+  - path: docs/DOC-GOVERNANCE-SEED.yaml
+    owner_role: architect
+    status: active
+    concern: doc-governance-mechanism
+    generated_by: "一次性迁移种子（迁移后仅作审计留痕，不再改）"
+    note: "记录逐篇裁决理由；真相已落各文档 front-matter"
+  # 生成物：由脚本产出，**不加 front-matter**（加了会被下次生成覆盖，形成无意义抖动）。
+  # 出现在本清单即同时满足 R13，且迁移脚本会自动跳过。
+  - path: docs/DOC-INDEX.md
+    owner_role: architect
+    status: reference
+    concern: doc-index
+    generated_by: "scripts/doc_governance.py index（生成物，禁手改）"
+    note: "文档集投影索引；真相为各文档 front-matter"
+  - path: docs/09-checklists/doc-inventory.csv
+    owner_role: qa
+    status: reference
+    concern: doc-index
+    generated_by: "scripts/doc_governance.py index（生成物，禁手改）"
+    note: "文档清单的机器可读形态"
+
+# ─────────────────────────────────────────────────────────────
+# 五、ADR 状态推导规则。ADR 文件用「## 状态 / ## Status」散文声明，不是 front-matter，
+# 故迁移时按标记词推导，避免人工逐篇填写 97 份。
+# ─────────────────────────────────────────────────────────────
+adr_derivation:
+  glob: "docs/07-adr/ADR-*.md"
+  # 判定优先级（高 → 低），务必按此顺序，否则「部分取代/部分落地」会被误判为整体取代/提议：
+  partial_superseded_markers: ["Superseded in part", "部分取代"]
+  superseded_markers: ["已被取代", "已废弃", "Superseded by", "Deprecated"]
+  partial_landed_markers: ["部分落地"]
+  proposed_markers: ["提议", "Proposed"]
+  accepted_markers: ["已接受", "Accepted", "已采纳", "部分落地"]
+  # 「Superseded by ADR-068」这类正文声明，迁移时解析出接任者编号并解析到具体文件
+  superseded_by_pattern: "ADR-(\\d{3})"
+  # 只在「状态段」内匹配（## 状态 / ## Status 标题块，退化到首 40 行内的「状态:」行），
+  # 全文匹配会产生误判（见 scripts/doc_governance.py _adr_status docstring 的三例实测）
+
+# ─────────────────────────────────────────────────────────────
+# 六、允许取值（R6）。新增取值必须先改这里，防止状态词随手发明。
+# ─────────────────────────────────────────────────────────────
+status_values: [authoritative, active, proposed, reference, superseded, archived, vendor]
+lifecycle_values: [living, frozen, historical]
+owner_roles: [pm, architect, designer, backend, frontend, qa, devops, module-owner, archivist, vendor]
+
+# ─────────────────────────────────────────────────────────────
+# 七、校验规则与严重级别。CI 中 error 即阻断。
+# ─────────────────────────────────────────────────────────────
+rules:
+  R1:
+    level: error
+    desc: "纳管文档必须存在 front-matter 且必填字段齐全（无疏漏）"
+  R2:
+    level: error
+    desc: "front-matter 引用的路径 / superseded_by 必须存在（无幽灵）"
+  R3:
+    level: error
+    desc: "同一 (层, 关注点) 只能有一个 authoritative（权威唯一）"
+  R4:
+    level: error
+    desc: "superseded 必须有接任者且取代链不得悬空（接任者自身不得已被取代/归档）；非 superseded 不得声明接任者"
+  R5:
+    level: error
+    desc: "archived 必须有 reason + evidence（归档溯源）"
+  R6:
+    level: error
+    desc: "status / lifecycle / owner 取值必须在允许集合内"
+  R7:
+    level: error
+    desc: "front-matter 声明的 layer 必须与目录归属一致"
+  R8:
+    level: error
+    desc: "层目录的数字前缀不得重复"
+  R9:
+    level: warn
+    desc: "front-matter 版本必须与正文声明版本一致"
+  R10:
+    level: error
+    desc: "citations 中的 ref 若指向本仓库文档则必须存在（悬空引用）"
+  R11:
+    level: warn
+    desc: "孤立文档（无出入引用且非索引/归档）需人工确认"
+  R12:
+    level: warn
+    desc: "ADR 必须可解析出状态（未声明者为存量债务）"
+  R13:
+    level: error
+    desc: "产物文件必须登记且不得与 front-matter 文档重名冲突"
+  R14:
+    level: error
+    desc: "front-matter id 必须全局唯一"
+
+# ─────────────────────────────────────────────────────────────
+# 八、与产品侧 Wiki 治理的状态词表映射（跨模块契约，2026-10-17 项目总监裁定）
+#
+# 问题（实证）:
+#   产品侧 `DocStatus`（apps/api/odap/biz/knowledge/models/common.py:18-25）只有
+#   draft / review / published / superseded / archived 五值；
+#   sync_service.import_from_repo（:109-116）对未知 status 直接抛 400。
+#   而 ADR-097 的 front-matter 用**权威度**词表：authoritative/active/reference/proposed/
+#   superseded/archived/vendor。两者不是同一个维度：
+#     - 产品侧表达「文档处在生命周期哪一步」；
+#     - 本文档表达「这份文档有多大权威」——`published` 无法区分 authoritative 与 active，
+#       而 R3 权威唯一校验必须区分。
+#   若不映射，导入会对 277 份中的 273 份报 400，且 export_to_repo 回写时
+#   `serialize_document` 只保留 MANAGED_FIELDS，会**静默丢弃** layer/concern/lifecycle，
+#   造成仓库侧元数据被产品侧回写抹掉（双向同步的数据丢失）。
+#
+# 裁定:
+#   1. 两套词表**都保留**，各管一件事，不强行合并。
+#   2. 同步边界做单向映射（docs → 产品），权威度另以 tag 承载，不丢信息：
+#        authoritative → published   + tag `authority:authoritative`
+#        active        → published   + tag `authority:active`
+#        reference     → published   + tag `authority:reference`
+#        proposed      → draft       + tag `authority:proposed`
+#        superseded    → superseded  + tag `authority:superseded`
+#        archived      → archived    + tag `authority:archived`
+#        vendor        → published   + tag `authority:vendor`
+#   3. 回写（export_to_repo）必须保留 `layer/concern/lifecycle/authority` 四个键，
+#      即 frontmatter.MANAGED_FIELDS 需扩展，否则往返丢字段。
+#   4. 状态由谁改：仓库侧以 front-matter 为准（开发过程面），产品侧以审核流程为准
+#      （治理面）；回写冲突按 ADR-096 的 content_hash 检测，保留双侧 + 人工合并，不静默覆盖。
+status_mapping_to_product:
+  authoritative: published
+  active: published
+  reference: published
+  proposed: draft
+  superseded: superseded
+  archived: archived
+  vendor: published
+authority_tag_prefix: "authority:"
+roundtrip_preserved_keys: [layer, concern, lifecycle, authority]

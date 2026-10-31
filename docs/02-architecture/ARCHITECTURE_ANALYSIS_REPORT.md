@@ -1,3 +1,19 @@
+---
+id: odap.l2.architecture-analysis-report
+status: reference
+owner: architect
+version: ''
+layer: L2
+concern: architecture-analysis
+lifecycle: historical
+superseded_by: ''
+supersedes: []
+last_verified: '2026-10-17'
+citations: []
+governance_reason: 一次性「文档特点与项目匹配度」分析报告
+governance_evidence: 标题含「分析报告」；结论已并入 docs/12-evaluation/ARCHITECTURE-EVALUATION.md
+---
+
 # 架构文档特点与项目匹配度分析报告
 
 > **生成时间**: 2026-05-04  

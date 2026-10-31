@@ -1,3 +1,17 @@
+---
+id: odap.l3.session-memory-design
+status: active
+owner: module-owner
+version: ''
+layer: L3
+concern: module-design
+lifecycle: living
+superseded_by: ''
+supersedes: []
+last_verified: '2026-10-17'
+citations: []
+---
+
 # 会话记忆与思维链可视化模块 (Session Memory & CoT Visualization) - 设计文档
 
 > **模块 ID**: M-21 | **优先级**: P1 | **相关 ADR**: ADR-030, ADR-039

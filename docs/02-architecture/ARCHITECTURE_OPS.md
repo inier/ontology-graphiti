@@ -1,3 +1,19 @@
+---
+id: odap.l2.architecture-ops
+status: active
+owner: architect
+version: ''
+layer: L2
+concern: architecture-ops
+lifecycle: living
+superseded_by: ''
+supersedes: []
+last_verified: '2026-10-17'
+citations: []
+governance_reason: 运维架构设计（535 行），属运行态关注点，v2 未覆盖
+governance_evidence: 本文件 535 行，主题为部署/监控/值班
+---
+
 # ODAP 运维架构设计
 
 > **版本**: 1.0.0 | **日期**: 2026-05-07 | **状态**: 设计稿

@@ -1,3 +1,18 @@
+---
+id: odap.l6.test-design
+status: authoritative
+owner: qa
+version: ''
+layer: L6
+concern: test-design
+lifecycle: living
+superseded_by: ''
+supersedes: []
+last_verified: '2026-10-17'
+citations: []
+governance_reason: 测试设计唯一成篇（ADR-044 测试策略框架的落地设计）
+---
+
 # 测试设计文档 (Test Design)
 
 > **版本**: 1.0.0 | **日期**: 2026-04-19

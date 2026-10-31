@@ -1,3 +1,19 @@
+---
+id: odap.l4.component-hierarchy
+status: reference
+owner: designer
+version: ''
+layer: L4
+concern: component-hierarchy
+lifecycle: frozen
+superseded_by: ''
+supersedes: []
+last_verified: '2026-10-17'
+citations: []
+governance_reason: 描述的目录结构 apps/web/src/components/{atoms,molecules,...} 与实际 modules/<domain> 不符，不可再作实施依据
+governance_evidence: UIUX-DESIGN-v2.md:87 指出实际为 apps/web/src/modules/<domain>/{components,pages,stores,services}（28 个业务模块）
+---
+
 # ODAP 前端组件分级管理规范
 
 > **版本**: 1.0.0 | **日期**: 2026-04-17

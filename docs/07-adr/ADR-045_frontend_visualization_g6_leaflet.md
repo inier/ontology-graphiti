@@ -1,3 +1,17 @@
+---
+id: odap.l7.adr-045-frontend-visualization-g6-leaflet
+status: active
+owner: architect
+version: ''
+layer: L7
+concern: adr
+lifecycle: frozen
+superseded_by: ''
+supersedes: []
+last_verified: '2026-10-17'
+citations: []
+---
+
 # ADR-045: 前端可视化选型 — G6 + Leaflet
 
 ## 状态

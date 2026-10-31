@@ -1,3 +1,19 @@
+---
+id: odap.l11.readme
+status: archived
+owner: archivist
+version: ''
+layer: L11
+concern: archive
+lifecycle: historical
+superseded_by: ''
+supersedes: []
+last_verified: '2026-10-17'
+citations: []
+governance_reason: 已被后续版本取代的历史设计或清理清单
+governance_evidence: docs/11-archive/README.md 归档说明；文件名或正文含版本号/日期
+---
+
 # 11-归档 (Archive)
 
 > **所属层次**: 历史归档 — 保留作为体系演进依据，不作为当前设计参考

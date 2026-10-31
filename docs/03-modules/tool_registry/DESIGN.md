@@ -1,3 +1,17 @@
+---
+id: odap.l3.tool-registry-design
+status: active
+owner: module-owner
+version: ''
+layer: L3
+concern: module-design
+lifecycle: living
+superseded_by: ''
+supersedes: []
+last_verified: '2026-10-17'
+citations: []
+---
+
 # 工具注册表模块 (Tool Registry) - 设计文档
 
 > **模块 ID**: M-11 | **优先级**: P0 | **相关 ADR**: ADR-004, ADR-010, ADR-043

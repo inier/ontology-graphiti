@@ -1,3 +1,17 @@
+---
+id: odap.l9.readme
+status: active
+owner: qa
+version: ''
+layer: L9
+concern: checklist
+lifecycle: living
+superseded_by: ''
+supersedes: []
+last_verified: '2026-10-17'
+citations: []
+---
+
 # 09-检查清单 (Checklists)
 
 > **所属层次**: SDD 第11层 — 检查清单

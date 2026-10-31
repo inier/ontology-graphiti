@@ -1,3 +1,18 @@
+---
+id: odap.l10.database-design
+status: active
+owner: backend
+version: ''
+layer: L10
+concern: database-design
+lifecycle: living
+superseded_by: ''
+supersedes: []
+last_verified: '2026-10-17'
+citations: []
+governance_reason: 数据库设计唯一成篇
+---
+
 # ODAP 数据库设计文档
 
 > **版本**: 1.0.0 | **日期**: 2026-05-18

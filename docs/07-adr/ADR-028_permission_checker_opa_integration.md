@@ -1,3 +1,17 @@
+---
+id: odap.l7.adr-028-permission-checker-opa-integration
+status: active
+owner: architect
+version: ''
+layer: L7
+concern: adr
+lifecycle: frozen
+superseded_by: ''
+supersedes: []
+last_verified: '2026-10-17'
+citations: []
+---
+
 # ADR-028: 采用OPA作为统一权限校验引擎
 
 ## 状态

@@ -1,3 +1,17 @@
+---
+id: odap.l7.adr-050-oadp业务语义体系架构
+status: active
+owner: architect
+version: ''
+layer: L7
+concern: adr
+lifecycle: frozen
+superseded_by: ''
+supersedes: []
+last_verified: '2026-10-17'
+citations: []
+---
+
 # ADR-050: OADP 业务语义体系架构
 
 ## 状态

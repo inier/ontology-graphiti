@@ -1,3 +1,17 @@
+---
+id: odap.l3.readme
+status: active
+owner: module-owner
+version: ''
+layer: L3
+concern: module-design
+lifecycle: living
+superseded_by: ''
+supersedes: []
+last_verified: '2026-10-17'
+citations: []
+---
+
 # 模块设计文档索引
 
 > **版本**: 3.1.0 | **更新日期**: 2026-09-06

@@ -1,3 +1,17 @@
+---
+id: odap.l7.adr-059-dev-prod-environment-isolation
+status: active
+owner: architect
+version: ''
+layer: L7
+concern: adr
+lifecycle: frozen
+superseded_by: ''
+supersedes: []
+last_verified: '2026-10-17'
+citations: []
+---
+
 # ADR-059: Dev/Prod 开发生产环境隔离架构
 
 ## 状态

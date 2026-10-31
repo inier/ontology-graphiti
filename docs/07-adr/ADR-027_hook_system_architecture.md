@@ -1,3 +1,17 @@
+---
+id: odap.l7.adr-027-hook-system-architecture
+status: active
+owner: architect
+version: ''
+layer: L7
+concern: adr
+lifecycle: frozen
+superseded_by: ''
+supersedes: []
+last_verified: '2026-10-17'
+citations: []
+---
+
 # ADR-027: 采用Hook系统作为可扩展性核心架构
 
 ## 状态

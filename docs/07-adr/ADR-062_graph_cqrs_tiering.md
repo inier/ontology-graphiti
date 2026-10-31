@@ -1,3 +1,17 @@
+---
+id: odap.l7.adr-062-graph-cqrs-tiering
+status: active
+owner: architect
+version: ''
+layer: L7
+concern: adr
+lifecycle: frozen
+superseded_by: ''
+supersedes: []
+last_verified: '2026-10-17'
+citations: []
+---
+
 # ADR-062: 知识图谱读写分离与冷热分层
 
 ## 状态

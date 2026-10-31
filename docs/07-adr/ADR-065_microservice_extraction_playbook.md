@@ -1,3 +1,17 @@
+---
+id: odap.l7.adr-065-microservice-extraction-playbook
+status: active
+owner: architect
+version: ''
+layer: L7
+concern: adr
+lifecycle: frozen
+superseded_by: ''
+supersedes: []
+last_verified: '2026-10-17'
+citations: []
+---
+
 # ADR-065: 微服务拆分演进预案与触发条件
 
 ## 状态

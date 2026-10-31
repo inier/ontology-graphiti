@@ -1,3 +1,18 @@
+---
+id: odap.l2.subsystems-ontology-subsystem-boundary
+status: active
+owner: architect
+version: ''
+layer: L2
+concern: architecture-subsystem
+lifecycle: living
+superseded_by: ''
+supersedes: []
+last_verified: '2026-10-17'
+citations: []
+governance_reason: 子系统边界与独立化设计，与总体架构不同关注点，仍为实施依据
+---
+
 # 本体子系统隔离架构
 
 ## 概述
@@ -120,7 +135,7 @@ entity.name = "new"  # ❌ FrozenInstanceError
 
 ## 自动化测试
 
-[test_architecture_boundary.py](../../../tests/unit/test_architecture_boundary.py) 强制执行以下规则：
+[test_architecture_boundary.py](../../../apps/api/tests/unit/test_architecture_boundary.py) 强制执行以下规则：
 
 1. `test_application_does_not_import_design_internals` — 应用层不得导入设计层内部
 2. `test_design_does_not_import_application` — 设计层不得依赖应用层

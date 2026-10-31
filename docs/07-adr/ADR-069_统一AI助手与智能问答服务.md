@@ -1,3 +1,17 @@
+---
+id: odap.l7.adr-069-统一ai助手与智能问答服务
+status: active
+owner: architect
+version: ''
+layer: L7
+concern: adr
+lifecycle: frozen
+superseded_by: ''
+supersedes: []
+last_verified: '2026-10-17'
+citations: []
+---
+
 # ADR-069: 统一 AI 助手与智能问答后端服务
 
 ## 状态

@@ -1,3 +1,19 @@
+---
+id: odap.l15.specs-2026-10-08-evoontology-adoption-design
+status: reference
+owner: architect
+version: ''
+layer: L15
+concern: design-spec-record
+lifecycle: frozen
+superseded_by: ''
+supersedes: []
+last_verified: '2026-10-17'
+citations: []
+governance_reason: superpowers 设计规格存档，结论已落 ADR 或代码，规格本身冻结
+governance_evidence: docs/07-adr/README.md 各 ADR 的 specs 引用（如 ADR-087 引用 2026-10-07-semantic-drift-detection-design）
+---
+
 # EvoOntology 借鉴采纳设计（归因分层 + 配对回放门控）
 
 - **状态**：已实现（2026-10-09 ADR-088 落稿后，子项目 A/B 以 TDD 实现完毕：7 个新测试文件全绿、既有 test_gap_* 6 文件零回归；待 dev 容器手验 spec §7 第 2 项）

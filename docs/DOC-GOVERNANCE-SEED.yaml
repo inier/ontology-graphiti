@@ -1,0 +1,486 @@
+# ODAP 文档治理迁移种子（DOC-GOVERNANCE-SEED）
+#
+# ⚠ 定位声明：本文件是**一次性迁移输入**，不是真相源。
+#   迁移脚本把下列判定写入各文档自身的 front-matter 后，本文件即完成历史使命，
+#   仅作为「当初为什么这么判」的审计留痕保留（用户要求冗余归档须给溯源证据）。
+#   任何后续状态变更**只改文档 front-matter**，不得回改本文件。
+#
+# 判定优先级（从高到低）：
+#   1. overrides 精确路径
+#   2. groups 最长前缀匹配
+#   3. ADR 状态推导（见 DOC-GOVERNANCE-POLICY.yaml §五）
+#   4. layer_defaults 层默认
+#
+# 裁决原则（本项目总结，供后续复用）：
+#   P1 同关注点才谈取代。「总体架构」与「L3-L4 业务层详设」不是同一关注点，
+#      462 行的 v2 无法取代 1801 行的分层详设——强行取代等于丢文档。
+#   P2 取代需双向证据：被取代方正文自认，或接任方明文声明覆盖范围。
+#      仅凭「文件名看起来更新」不构成证据。
+#   P3 声称覆盖但实际未覆盖的内容，不得标 superseded。
+#      例：UIUX-DESIGN-v2:14 要求把 7 篇 v1 文档标为历史，但 v2 全文无组件 API 层，
+#      故 COMPONENT_SPEC.md（10 类组件规格）保留 active，只取代其色彩/动效/导航部分所属的两篇。
+#   P4 状态（权威度）与位置（目录）、生命周期（是否维护）三者正交，不可混用。
+
+schema_version: "1.0"
+updated: "2026-10-17"
+
+# ─────────────────────────────────────────────────────────────
+# 一、前缀分组：同目录同性质的一批文档共用判定
+# ─────────────────────────────────────────────────────────────
+groups:
+  - match: docs/02-architecture/reports/
+    status: reference
+    lifecycle: historical
+    reason: 一次性架构审计/评审/研究报告，结论已并入现行架构文档
+    evidence: "docs/02-architecture/README.md 目录说明；文件名含审计日期或 REPORT/AUDIT 标识"
+
+  - match: docs/02-architecture/subsystems/
+    status: active
+    lifecycle: living
+    concern: architecture-subsystem
+    reason: 子系统边界与独立化设计，与总体架构不同关注点，仍为实施依据
+
+  - match: docs/superpowers/specs/
+    status: reference
+    lifecycle: frozen
+    reason: superpowers 设计规格存档，结论已落 ADR 或代码，规格本身冻结
+    evidence: "docs/07-adr/README.md 各 ADR 的 specs 引用（如 ADR-087 引用 2026-10-07-semantic-drift-detection-design）"
+
+  - match: docs/superpowers/plans/
+    status: reference
+    lifecycle: historical
+    reason: superpowers 实施计划存档，计划已执行，保留为执行留痕
+    evidence: "docs/superpowers/specs/ 存在同名 design 文档（spec/plan 成对）"
+
+  - match: docs/00-requirements/archive/
+    status: archived
+    lifecycle: historical
+    reason: 早期需求草案，已被 req-ok.md 定稿承接
+    evidence: "docs/00-requirements/README.md 层说明；同目录 req-ok.md 标题为「需求规格说明书（定稿）」"
+
+  - match: docs/00-requirements/backlog/
+    status: reference
+    lifecycle: historical
+    reason: 历史待优化清单，条目已分流至 SPEC-v2 或已裁决关闭
+    evidence: "docs/00-requirements/README.md 层说明；文件名日期戳 2026-05-03"
+
+  - match: docs/00-requirements/documents/
+    status: reference
+    lifecycle: historical
+    reason: 阶段性前端实现对照/计划文档，结论已并入 PRD-v2 与 SPEC-v2
+    evidence: "docs/00-requirements/README.md 层说明"
+
+# ─────────────────────────────────────────────────────────────
+# 二、逐篇裁决
+# ─────────────────────────────────────────────────────────────
+overrides:
+  # ── L0 需求层 ──
+  - path: docs/00-requirements/SPEC-v2.md
+    status: authoritative
+    concern: dev-spec
+    version: "2.0.0"
+    reason: 本次交付唯一开发权威（13 节 + AC-01~AC-56）
+    evidence: "本文件 §1 权威声明；docs/09-checklists/contract-rulings.md 以其为仲裁依据"
+
+  - path: docs/00-requirements/req-ok.md
+    status: authoritative
+    concern: requirements-scope
+    reason: 原始需求范围定稿。与 SPEC-v2 关注点不同：本文件定「做什么」，SPEC-v2 定「怎么做、如何验收」
+    evidence: "标题「需求规格说明书（定稿）」；DOCUMENT_MANAGEMENT v2 §1.2 列为需求定稿"
+
+  - path: docs/00-requirements/PRD-v2.md
+    status: authoritative
+    concern: product-requirements
+    version: "2.0.0"
+    reason: 产品需求与 RICE 排序唯一权威
+    evidence: "PRD-v2.md:8 声明上游为 PRODUCT-EVALUATION，整改项一一对应"
+
+  - path: docs/00-requirements/SPEC-KB-DOC-MGMT.md
+    status: active
+    concern: kb-doc-mgmt
+    reason: 知识库文档管理与图谱构建增强规格，独立于 SPEC-v2 的功能域
+
+  # ── L1 产品设计层 ──
+  - path: docs/01-product-design/ODAP综合优化设计文档.md
+    status: active
+    concern: product-design-optimization
+    lifecycle: living
+
+  - path: docs/01-product-design/OPERATION_GUIDE.md
+    status: active
+    concern: operation-guide
+    lifecycle: living
+
+  - path: docs/01-product-design/webui-enhancement-design.md
+    status: reference
+    lifecycle: frozen
+    concern: webui-enhancement
+    reason: WebUI 增强设计的历史方案；前端信息架构已由 UIUX-DESIGN-v2 §6.5 与 routeManifest 承接
+    evidence: "docs/04-ui/UIUX-DESIGN-v2.md:586「全局导航与主题切换入口（60+ 路由收敛后的信息架构）」"
+
+  # ── L2 架构层（ADR-097 第 1 条细化裁决） ──
+  - path: docs/02-architecture/ARCHITECTURE-v2.md
+    status: authoritative
+    concern: architecture
+    version: "2.0"
+    reason: 目标架构唯一真相源
+    evidence: "ADR-097:25；本文件标题「ODAP 目标架构 v2」"
+
+  - path: docs/02-architecture/ARCHITECTURE.md
+    status: superseded
+    concern: architecture
+    superseded_by: docs/02-architecture/ARCHITECTURE-v2.md
+    reason: 与 v2 同属「总体架构」关注点，v2 为目标架构唯一真相源（ADR-097 第 1 条）
+    evidence: "ADR-097_docs-governance-provenance.md:25；ARCHITECTURE-v2.md:1 声明为目标架构 v2"
+
+  # 以下 5 篇为**分层详细设计**，与「总体架构」不是同一关注点。
+  # 462 行的 v2 未承接其深度（BIZ 1801 行 / WEB 1091 行 / INFRA 1052 行），
+  # 故按 P1/P3 保留 active——这是对 ADR-097 第 1 条「其余 10 篇」表述的收窄，
+  # 已在 ADR-097 修订记录与本文件 P1/P3 中留痕。
+  - path: docs/02-architecture/ARCHITECTURE_BIZ.md
+    status: active
+    lifecycle: living
+    concern: architecture-biz
+    reason: L3-L4 业务层详细设计（1801 行），v2 未承接同等深度
+    evidence: "本文件 1801 行；ARCHITECTURE-v2.md 全文 462 行，无 L3-L4 逐模块设计"
+
+  - path: docs/02-architecture/ARCHITECTURE_INFRA.md
+    status: active
+    lifecycle: living
+    concern: architecture-infra
+    reason: L1 基础设施层详细设计（1052 行），v2 未承接同等深度
+    evidence: "本文件 1052 行，含各中间件部署细节"
+
+  - path: docs/02-architecture/ARCHITECTURE_WEB.md
+    status: active
+    lifecycle: living
+    concern: architecture-web
+    reason: L5-L6 接口层详细设计（1091 行），v2 未承接同等深度
+    evidence: "本文件 1091 行，含路由与接口契约细节"
+
+  - path: docs/02-architecture/ARCHITECTURE_TOOLS.md
+    status: active
+    lifecycle: living
+    concern: architecture-tools
+    reason: L2 领域工具层设计（159 行），v2 未展开工具层清单
+    evidence: "本文件 159 行，为工具层唯一成篇描述"
+
+  - path: docs/02-architecture/ARCHITECTURE_OPS.md
+    status: active
+    lifecycle: living
+    concern: architecture-ops
+    reason: 运维架构设计（535 行），属运行态关注点，v2 未覆盖
+    evidence: "本文件 535 行，主题为部署/监控/值班"
+
+  - path: docs/02-architecture/ARCHITECTURE_FULL_CHAIN.md
+    status: active
+    lifecycle: living
+    concern: architecture-full-chain
+    reason: 端到端全链路设计，与 v2 §2 六步流水线互补（本篇给链路视图，v2 给契约视图）
+
+  - path: docs/02-architecture/ARCHITECTURE_FOUR_STEPS.md
+    status: reference
+    lifecycle: frozen
+    concern: four-steps-mapping
+    reason: 四步法菜单归集的过程产物，落地结果见 08-tasks/MENU_REFACTOR_PLAN.md
+    evidence: "docs/08-tasks/MENU_REFACTOR_PLAN.md 标题「菜单重构实施计划：基于四步法（建/见/演/用）归集」"
+
+  - path: docs/02-architecture/ARCHITECTURE_EVOLVE.md
+    status: reference
+    lifecycle: historical
+    concern: architecture-evolution
+    reason: 架构演进与决策的历史版本，已被 v2 与 ADR 集取代其结论
+    evidence: "docs/07-adr/ 下 ADR-091~098 为最新演进决策"
+
+  - path: docs/02-architecture/ARCHITECTURE_TARGET_PLAN.md
+    status: reference
+    lifecycle: historical
+    concern: architecture-target-plan
+    reason: Semantica 能力引入版总体规划，目标态已由 ARCHITECTURE-v2 承接
+    evidence: "ARCHITECTURE-v2.md:1「ODAP 目标架构 v2」；ADR-097:25 指定 v2 为唯一真相源"
+
+  - path: docs/02-architecture/ARCHITECTURE_ANALYSIS_REPORT.md
+    status: reference
+    lifecycle: historical
+    concern: architecture-analysis
+    reason: 一次性「文档特点与项目匹配度」分析报告
+    evidence: "标题含「分析报告」；结论已并入 docs/12-evaluation/ARCHITECTURE-EVALUATION.md"
+
+  - path: docs/02-architecture/DEEP_REVIEW_REPORT_20260505.md
+    status: reference
+    lifecycle: historical
+    concern: architecture-review
+    reason: 一次性架构文档深度审查报告（第二轮，2026-05-05）
+    evidence: "文件名日期戳 20260505；docs/12-evaluation/ARCHITECTURE-EVALUATION.md 为现行评估"
+
+  - path: docs/02-architecture/REVIEW_REPORT_20260505.md
+    status: superseded
+    lifecycle: historical
+    concern: architecture-review
+    superseded_by: docs/02-architecture/DEEP_REVIEW_REPORT_20260505.md
+    reason: 同日第一轮审查（68 行），已由同日第二轮深度审查（230 行）细化承接
+    evidence: "两文件同名日期戳 20260505；DEEP_REVIEW 标题标明「第二轮」且篇幅为其 3.4 倍"
+
+  - path: docs/02-architecture/SCALABLE_ARCHITECTURE_2026.md
+    status: active
+    lifecycle: living
+    concern: scalability
+    reason: 可扩展系统架构设计（2026-2027）唯一成篇方案
+
+  - path: docs/02-architecture/SCALABLE_ARCHITECTURE_OVERVIEW.md
+    status: reference
+    lifecycle: frozen
+    concern: scalability
+    reason: 30 行摘要，正文结论已并入 SCALABLE_ARCHITECTURE_2026.md
+    evidence: "本文件 30 行 vs SCALABLE_ARCHITECTURE_2026.md 192 行，前者为摘要"
+
+  - path: docs/02-architecture/PHASE4_5_PLAN.md
+    status: reference
+    lifecycle: historical
+    concern: architecture-rollout-plan
+    reason: Phase 4-5 演进规划，执行期已过
+    evidence: "文件名 Phase4_5；docs/07-adr/ 中 Phase 4 相关决策已落 ADR-034/035（预留，设计并入 ADR-038）"
+
+  # ── L4 UI/UX 层 ──
+  - path: docs/04-ui/UIUX-DESIGN-v2.md
+    status: authoritative
+    concern: ui-design
+    version: "2.0.0"
+    reason: 前端设计单一真源
+    evidence: "UIUX-DESIGN-v2.md:14 自述「本文档是 ODAP 前端设计的单一真源」"
+
+  - path: docs/04-ui/UI_DESIGN.md
+    status: superseded
+    concern: ui-design
+    superseded_by: docs/04-ui/UIUX-DESIGN-v2.md
+    reason: v1 设计稿：主色 #1890ff、导航以 emoji 充当图标、边框 #d9d9d9，均被 v2 推翻
+    evidence: "UIUX-DESIGN-v2.md:41（#1890ff）、:61（12 个 emoji 菜单图标）逐条举证"
+
+  - path: docs/04-ui/05-ODAP-V2-DESIGN-SYSTEM.md
+    status: superseded
+    concern: ui-design
+    superseded_by: docs/04-ui/UIUX-DESIGN-v2.md
+    reason: 「蓝紫渐变 · 玻璃态」方向与 v2 相反；--ease-spring 过冲曲线违反 P0 动效规则
+    evidence: "UIUX-DESIGN-v2.md:42（Indigo→Violet 渐变）、:55（glass-panel 默认）、:69（ease-spring 控制点>1）"
+
+  - path: docs/04-ui/COMPONENT_HIERARCHY.md
+    status: reference
+    lifecycle: frozen
+    concern: component-hierarchy
+    reason: 描述的目录结构 apps/web/src/components/{atoms,molecules,...} 与实际 modules/<domain> 不符，不可再作实施依据
+    evidence: "UIUX-DESIGN-v2.md:87 指出实际为 apps/web/src/modules/<domain>/{components,pages,stores,services}（28 个业务模块）"
+
+  - path: docs/04-ui/COMPONENT_SPEC.md
+    status: active
+    lifecycle: living
+    concern: ontology-build-component-spec
+    reason: 10 类组件级规格（ProgressTracker/SourceDataPanel/GraphCanvas 等），v2 无组件 API 层，内容未被承接
+    evidence: "本文件 §1-§10 组件章节目录；UIUX-DESIGN-v2.md 章节止于页面级规格（§6），无组件 props 表"
+
+  - path: docs/04-ui/FRONTEND_COMPONENT_DESIGN.md
+    status: active
+    lifecycle: living
+    concern: frontend-architecture
+    reason: 前端整体设计（路由/模块组件/服务层/状态管理）；其中路由章节已由 routeManifest 收敛取代，以 ADR-098 为准
+    evidence: "本文件 §2 路由配置；apps/web/src/routes/routeManifest.ts 为现行路由单一来源"
+
+  - path: docs/04-ui/MOBILE_FIRST_DESIGN.md
+    status: active
+    lifecycle: living
+    concern: mobile-first
+    reason: 移动优先补充设计，v2 未覆盖移动端，ADR-037 为依据
+
+  - path: docs/04-ui/ONTOLOGY_BUILD_UI.md
+    status: active
+    lifecycle: living
+    concern: ontology-build-ui
+    reason: 智能问答驱动本体构建的专篇 UI 设计，v2 仅给页面级规格
+
+  - path: docs/04-ui/I18N_DEV_GUIDE.md
+    status: active
+    lifecycle: living
+    concern: i18n
+    reason: 国际化开发指南，唯一成篇
+
+  - path: docs/04-ui/TOKEN-MIGRATION-MAP.md
+    status: active
+    lifecycle: living
+    concern: token-migration
+    reason: Token 双写协议与迁移映射，W0-1 交付物
+
+  # ── L5 安全层 ──
+  - path: docs/05-security/SECURITY.md
+    status: authoritative
+    concern: security
+    reason: 安全策略唯一成篇
+
+  # ── L6 DFX 层 ──
+  - path: docs/06-dfx/DFX_DESIGN.md
+    status: authoritative
+    concern: dfx
+    reason: DFX 设计唯一成篇
+
+  - path: docs/06-dfx/TEST_DESIGN.md
+    status: authoritative
+    concern: test-design
+    reason: 测试设计唯一成篇（ADR-044 测试策略框架的落地设计）
+
+  - path: docs/06-dfx/TDD_BEHAVIOR_LIST.md
+    status: active
+    lifecycle: living
+    concern: tdd-behavior
+    reason: 三国/西游本体构建的 TDD 行为清单，为具体用例来源
+
+  # ── L8 任务层 ──
+  - path: docs/08-tasks/TASK_BREAKDOWN.md
+    status: authoritative
+    concern: task-breakdown
+    reason: 任务拆分唯一权威
+    evidence: "DOCUMENT_MANAGEMENT v2 §1.1 列为任务层核心文档"
+
+  - path: docs/08-tasks/SCALABLE_TASK_BREAKDOWN.md
+    status: active
+    lifecycle: living
+    concern: scalability-tasks
+    reason: 可扩展性硬化的专项任务清单，与总体任务拆分不同关注点
+
+  - path: docs/08-tasks/MENU_REFACTOR_PLAN.md
+    status: reference
+    lifecycle: historical
+    concern: menu-refactor
+    reason: 菜单重构计划已落地（标题自述实施计划），现行信息架构见 workspaces.ts
+    evidence: "apps/web/src/navigation/workspaces.ts 为 6 工作区现行来源"
+
+  - path: docs/08-tasks/MENU_DEDUP_PLAN.md
+    status: reference
+    lifecycle: historical
+    concern: menu-refactor
+    reason: 菜单去重方案标题自述「已落地」，仅留执行留痕
+    evidence: "本文件标题「菜单相似项去重方案（已落地）」"
+
+  # ── L9 检查层 ──
+  - path: docs/09-checklists/CHECKLIST_v2.md
+    status: authoritative
+    concern: checklist
+    version: "2.0.0"
+    reason: 交付检查清单唯一权威
+
+  - path: docs/09-checklists/contract-rulings.md
+    status: authoritative
+    concern: contract-rulings
+    reason: 前后端契约裁定唯一权威，前端据此执行
+    evidence: "标题「前后端契约裁定（2026-10-17，后端裁定，前端执行）」"
+
+  - path: docs/09-checklists/api-contract-matrix.md
+    status: active
+    lifecycle: living
+    concern: api-contract-matrix
+    reason: 三向对账矩阵的人读形态，由 scripts/check_api_contract.py 生成
+
+  - path: docs/09-checklists/DOC_SYNC_CHECKLIST.md
+    status: active
+    lifecycle: living
+    concern: doc-sync
+    reason: 文档同步检查清单，与本次文档治理配套
+
+  # ── L10 契约层 ──
+  - path: docs/10-api/API_SPEC.md
+    status: active
+    lifecycle: frozen
+    concern: ontology-build-api
+    reason: 智能问答驱动本体构建系统的 API 说明（人读）；机器可验契约以 openapi-v2.yaml 为准
+    evidence: "DOC-GOVERNANCE-POLICY.yaml §四 openapi-v2.yaml 条目 note"
+
+  - path: docs/10-api/BACKEND_API_DESIGN.md
+    status: active
+    lifecycle: living
+    concern: backend-api-design
+    reason: 后端接口设计说明（人读），冲突以 openapi-v2.yaml 为准
+
+  - path: docs/10-api/DATABASE_DESIGN.md
+    status: active
+    lifecycle: living
+    concern: database-design
+    reason: 数据库设计唯一成篇
+
+  - path: docs/10-api/INGEST_API_SPEC.md
+    status: active
+    lifecycle: living
+    concern: ingest-api
+    reason: 数据摄入 API 专项规范
+
+  # ── L12 评估层 ──
+  - path: docs/12-evaluation/PRODUCT-EVALUATION.md
+    status: authoritative
+    concern: evaluation-product
+    reason: 产品设计合理性评估唯一权威，问题编号（P0-x/P1-xx）的原始出处
+    evidence: "PRD-v2.md:15 引用其问题总表编号体系"
+
+  - path: docs/12-evaluation/ARCHITECTURE-EVALUATION.md
+    status: authoritative
+    concern: evaluation-architecture
+    reason: 架构评估唯一权威，ADR-091~098 的诊断来源
+
+  # ── L13 决策登记 ──
+  - path: docs/decisions/OPEN-DECISIONS.md
+    status: authoritative
+    concern: open-decisions
+    reason: 悬而未决项唯一登记册
+
+  # ── L14 文档中心（根） ──
+  - path: docs/README.md
+    status: reference
+    lifecycle: living
+    concern: doc-index
+    reason: 文档中心导航索引
+
+  - path: docs/DOCUMENT_MANAGEMENT.md
+    status: authoritative
+    concern: doc-governance
+    version: "3.0.0"
+    reason: 文档治理规范（front-matter 机制、防腐策略）唯一权威
+    evidence: "本文件与 DOC-GOVERNANCE-POLICY.yaml、scripts/doc_governance.py 构成机制三件套"
+
+  - path: docs/DOCUMENT_RELATIONSHIP.md
+    status: active
+    lifecycle: living
+    concern: doc-relationship
+    reason: 文档体系关系图，与治理规范配套
+
+  - path: docs/DOCUMENT_BASELINE_v1.0.0.md
+    status: superseded
+    concern: doc-governance
+    superseded_by: docs/DOCUMENT_MANAGEMENT.md
+    reason: 文件名 v1.0.0 与正文标题 v1.1.0 版本不一致；ADR 计数停滞在 001-054，落后实际 001-098
+    evidence: "本文件 :1 标题「文档基线 v1.1.0」与文件名冲突；:19-21 自述 ADR 001-054；实际 docs/07-adr/ 共 97 文件覆盖 001-098"
+
+  - path: docs/ARCHITECTURE_AUDIT_FULL_2026-07-19.md
+    status: reference
+    lifecycle: historical
+    concern: architecture-analysis
+    reason: 全栈架构审计与优化方案（一次性），结论已并入 12-evaluation 与 ADR 集
+    evidence: "文件名日期戳 2026-07-19；docs/12-evaluation/ARCHITECTURE-EVALUATION.md 为现行评估"
+
+  - path: docs/ARCHITECTURE_AUDIT_ONTOLOGY_LAYERING_2026-07-18.md
+    status: reference
+    lifecycle: historical
+    concern: architecture-analysis
+    reason: 本体模块 3+1 分层模型决策的审计依据，决策已落 ADR-068
+    evidence: "docs/07-adr/ADR-068_本体模块四层分层架构.md"
+
+# ─────────────────────────────────────────────────────────────
+# 三、已知遗留（不掩盖，供后续跟踪）
+# ─────────────────────────────────────────────────────────────
+known_debts:
+  - id: DEBT-DOC-001
+    desc: ADR-061 一号两文（semantic-admin-suite-architecture / skill_plugin_packaging），重编须先核清引用方（ADR-097 第 5 条）
+    status: open
+  - id: DEBT-DOC-002
+    desc: 28 篇 ADR 未声明状态段落，R12 会持续 WARN
+    status: open
+  - id: DEBT-DOC-003
+    desc: 前端渲染依赖仍含 7 个库（@antv/g6/cytoscape/leaflet/sigma/@xyflow/react/echarts/graphology），F11 收敛未执行，ADR-091 决策待落地
+    status: open
+  - id: DEBT-DOC-004
+    desc: design-tokens.css 未列入 DOC_EXT 扫描范围，改由 artifacts 登记（若后续需要正文校验需扩展）
+    status: accepted

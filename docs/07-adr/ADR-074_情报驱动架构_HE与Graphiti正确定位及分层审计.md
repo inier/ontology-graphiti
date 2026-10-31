@@ -1,3 +1,17 @@
+---
+id: odap.l7.adr-074-情报驱动架构-he与graphiti正确定位及分层审计
+status: proposed
+owner: architect
+version: ''
+layer: L7
+concern: adr
+lifecycle: frozen
+superseded_by: ''
+supersedes: []
+last_verified: '2026-10-17'
+citations: []
+---
+
 # ADR-074: 情报驱动架构——HE 与 Graphiti 的正确定位及分层审计
 
 ## Status

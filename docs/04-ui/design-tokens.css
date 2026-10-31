@@ -1,0 +1,625 @@
+/* ============================================================================
+ * ODAP Design Tokens v2 — single source of truth (CSS layer)
+ * ----------------------------------------------------------------------------
+ * 三层结构:  primitive  ->  semantic  ->  component
+ * 配  design-tokens.json 使用, 二者必须完全一致.
+ *
+ * 应用方式 (html 属性, 由 useThemeRuntime 写入):
+ *   <html data-appearance="luminous|nebula" data-accent="cobalt|teal|indigo|graphite">
+ *
+ * 硬性约束 (团队 P0):
+ *   - 禁止 emoji 作为功能图标 (图标由 Spec 锁定的统一描边 SVG 图标库提供)
+ *   - 禁止跨色相渐变 (尤其 紫->粉/品红). 渐变只允许同色相深浅.
+ *   - 禁止硬编码色值散落在组件中, 一律引用本文件 token.
+ *   - 禁止弹跳/过冲缓动 (无 spring/overshoot).
+ * ==========================================================================*/
+
+@import url('https://fonts.googleapis.com/css2?family=Manrope:wght@400;500;600;700;800&family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;600&family=Noto+Sans+SC:wght@400;500;700&display=swap');
+
+/* ============================================================================
+ * 1. PRIMITIVE LAYER (A1-identity + A1-structure) — 原始值, 不含语义
+ * ==========================================================================*/
+:root {
+  /* ---- 1.1 中性色: 冷调 slate (亮色面) ---- */
+  --odap-primitive-neutral-0:   #FFFFFF;
+  --odap-primitive-neutral-25:  #FCFDFE;
+  --odap-primitive-neutral-50:  #F7F9FB;
+  --odap-primitive-neutral-100: #EFF3F7;
+  --odap-primitive-neutral-200: #E2E8F0;
+  --odap-primitive-neutral-300: #CBD5E1;
+  --odap-primitive-neutral-400: #94A3B8;
+  --odap-primitive-neutral-500: #64748B;
+  --odap-primitive-neutral-600: #475569;
+  --odap-primitive-neutral-700: #334155;
+  --odap-primitive-neutral-800: #1E293B;
+  --odap-primitive-neutral-900: #0F172A;
+
+  /* ---- 1.2 中性色: ink 面 (暗色面, 用亮度递进表达层级) ---- */
+  --odap-primitive-ink-1000: #0B0E14;   /* L1 页面底 */
+  --odap-primitive-ink-900:  #12161F;   /* L2 面板/侧栏 */
+  --odap-primitive-ink-800:  #1A1F2B;   /* L3 卡片/浮层 */
+  --odap-primitive-ink-700:  #222836;   /* L4 hover / 悬浮 */
+  --odap-primitive-ink-600:  #2B3242;   /* L5 实心控件底 */
+  --odap-primitive-ink-500:  #3A4256;   /* 边界高亮 */
+  --odap-primitive-ink-000:  #F2F5FA;   /* 暗面正文 */
+  --odap-primitive-ink-100:  #D3DAE6;   /* 暗面次级 */
+  --odap-primitive-ink-200:  #9AA4B2;   /* 暗面三级/muted */
+  --odap-primitive-ink-300:  #6B7686;   /* 暗面禁用 */
+
+  /* ---- 1.3 品牌强调色族: cobalt (品牌默认) ---- */
+  --odap-primitive-cobalt-50:  #EFF4FF;
+  --odap-primitive-cobalt-100: #DBE6FF;
+  --odap-primitive-cobalt-200: #BDCFFF;
+  --odap-primitive-cobalt-300: #92AEFF;
+  --odap-primitive-cobalt-400: #6285FF;
+  --odap-primitive-cobalt-500: #2D5BFF;
+  --odap-primitive-cobalt-600: #1E45DB;
+  --odap-primitive-cobalt-700: #1736AD;
+  --odap-primitive-cobalt-800: #162C85;
+  --odap-primitive-cobalt-900: #14265F;
+
+  /* ---- 1.4 强调色族: teal ---- */
+  --odap-primitive-teal-50:  #EAFBF7;
+  --odap-primitive-teal-100: #CFF5EC;
+  --odap-primitive-teal-200: #A0EBD9;
+  --odap-primitive-teal-300: #6BDCC3;
+  --odap-primitive-teal-400: #34C6A9;
+  --odap-primitive-teal-500: #12A98E;
+  --odap-primitive-teal-600: #0B8A74;
+  --odap-primitive-teal-700: #0A6E5D;
+  --odap-primitive-teal-800: #0B5749;
+  --odap-primitive-teal-900: #0A473C;
+
+  /* ---- 1.5 强调色族: indigo (纯色使用, 禁跨色相渐变) ---- */
+  --odap-primitive-indigo-50:  #EEF2FF;
+  --odap-primitive-indigo-100: #E0E7FF;
+  --odap-primitive-indigo-200: #C7D2FE;
+  --odap-primitive-indigo-300: #A5B4FC;
+  --odap-primitive-indigo-400: #818CF8;
+  --odap-primitive-indigo-500: #6366F1;
+  --odap-primitive-indigo-600: #4F46E5;
+  --odap-primitive-indigo-700: #4338CA;
+  --odap-primitive-indigo-800: #3730A3;
+  --odap-primitive-indigo-900: #312E81;
+
+  /* ---- 1.6 强调色族: graphite (单色专业模式) ---- */
+  --odap-primitive-graphite-50:  #F4F6F9;
+  --odap-primitive-graphite-100: #E8ECF2;
+  --odap-primitive-graphite-200: #D3DAE6;
+  --odap-primitive-graphite-300: #AAB4C4;
+  --odap-primitive-graphite-400: #7B8798;
+  --odap-primitive-graphite-500: #566274;
+  --odap-primitive-graphite-600: #3F4A5C;
+  --odap-primitive-graphite-700: #334155;
+  --odap-primitive-graphite-800: #232E40;
+  --odap-primitive-graphite-900: #161E2C;
+
+  /* ---- 1.7 语义色族 ---- */
+  --odap-primitive-green-50:   #EAF8EF;
+  --odap-primitive-green-500:  #16A34A;
+  --odap-primitive-green-600:  #128A3F;
+  --odap-primitive-green-400:  #3FB950;
+  --odap-primitive-amber-50:   #FFF8EB;
+  --odap-primitive-amber-500:  #D97706;
+  --odap-primitive-amber-600:  #B45309;
+  --odap-primitive-amber-400:  #D29922;
+  --odap-primitive-red-50:     #FDECEC;
+  --odap-primitive-red-500:    #DC2626;
+  --odap-primitive-red-600:    #B91C1C;
+  --odap-primitive-red-400:    #F85149;
+  --odap-primitive-sky-50:     #E7F6FB;
+  --odap-primitive-sky-500:    #0891B2;
+  --odap-primitive-sky-600:    #0E7490;
+  --odap-primitive-sky-400:    #22D3EE;
+  --odap-primitive-rose-500:   #D6336C;   /* 图表/图谱分类用, 非 UI 强调色 */
+  --odap-primitive-vermilion-500: #E0563F;
+  --odap-primitive-sky-blue-500:  #0EA5E9;
+  --odap-primitive-lime-500:      #65A30D;
+  --odap-primitive-violet-500:    #8B5CF6; /* 图表分类用, 纯色 */
+
+  /* ---- 1.8 间距 (4px 基准网格) ---- */
+  --odap-space-0:  0;
+  --odap-space-1:  4px;
+  --odap-space-2:  8px;
+  --odap-space-3:  12px;
+  --odap-space-4:  16px;
+  --odap-space-5:  20px;
+  --odap-space-6:  24px;
+  --odap-space-8:  32px;
+  --odap-space-10: 40px;
+  --odap-space-12: 48px;
+  --odap-space-16: 64px;
+  --odap-space-20: 80px;
+
+  /* ---- 1.9 圆角 (卡片上限 16px) ---- */
+  --odap-radius-none: 0;
+  --odap-radius-xs:   4px;
+  --odap-radius-sm:   6px;
+  --odap-radius-md:   8px;
+  --odap-radius-lg:   12px;
+  --odap-radius-xl:   16px;
+  --odap-radius-pill: 9999px;
+
+  /* ---- 1.10 阴影 (亮色面用边框+微阴影, 暗色面用亮度递进) ---- */
+  --odap-elevation-none:       none;
+  --odap-elevation-hairline-l: 0 0 0 1px rgba(15, 23, 42, 0.06);
+  --odap-elevation-xs:         0 1px 2px rgba(15, 23, 42, 0.04);
+  --odap-elevation-sm:         0 1px 3px rgba(15, 23, 42, 0.06), 0 1px 2px rgba(15, 23, 42, 0.04);
+  --odap-elevation-md:         0 4px 10px -2px rgba(15, 23, 42, 0.08), 0 2px 4px -2px rgba(15, 23, 42, 0.05);
+  --odap-elevation-lg:         0 12px 24px -6px rgba(15, 23, 42, 0.12), 0 4px 8px -4px rgba(15, 23, 42, 0.06);
+  --odap-elevation-xl:         0 24px 48px -12px rgba(15, 23, 42, 0.18);
+  --odap-elevation-hairline-d: 0 0 0 1px rgba(255, 255, 255, 0.07);
+  --odap-elevation-xs-d:       0 1px 2px rgba(0, 0, 0, 0.40);
+  --odap-elevation-sm-d:       0 2px 6px rgba(0, 0, 0, 0.45);
+  --odap-elevation-md-d:       0 8px 20px rgba(0, 0, 0, 0.50);
+  --odap-elevation-lg-d:       0 16px 36px rgba(0, 0, 0, 0.55);
+  --odap-elevation-xl-d:       0 28px 60px rgba(0, 0, 0, 0.60);
+
+  /* ---- 1.11 字体族 ---- */
+  --odap-font-display: "Manrope", "Noto Sans SC", system-ui, -apple-system, "Segoe UI", sans-serif;
+  --odap-font-body:    "Inter", "Noto Sans SC", system-ui, -apple-system, "Segoe UI", sans-serif;
+  --odap-font-mono:    "JetBrains Mono", ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+
+  /* ---- 1.12 字号阶梯 ---- */
+  --odap-font-size-2xs: 11px;
+  --odap-font-size-xs:  12px;
+  --odap-font-size-sm:  13px;
+  --odap-font-size-base:14px;
+  --odap-font-size-lg:  16px;
+  --odap-font-size-xl:  18px;
+  --odap-font-size-2xl: 20px;
+  --odap-font-size-3xl: 24px;
+  --odap-font-size-4xl: 32px;
+  --odap-font-size-5xl: 40px;
+
+  /* ---- 1.13 字重 (三级语义: read/emphasize/announce) ---- */
+  --odap-font-weight-read:      400;
+  --odap-font-weight-medium:    500;
+  --odap-font-weight-emphasize: 590;
+  --odap-font-weight-announce:  700;
+
+  /* ---- 1.14 行高 ---- */
+  --odap-leading-tight:   1.2;
+  --odap-leading-snug:    1.35;
+  --odap-leading-normal:  1.5;
+  --odap-leading-relaxed: 1.65;
+
+  /* ---- 1.15 字距 ---- */
+  --odap-tracking-tighter: -0.03em;
+  --odap-tracking-tight:   -0.02em;
+  --odap-tracking-normal:  0em;
+  --odap-tracking-wide:    0.01em;
+  --odap-tracking-caps:    0.06em;
+
+  /* ---- 1.16 动效时长 (150ms 为收敛基准, 全部 <=400ms) ---- */
+  --odap-duration-instant: 80ms;
+  --odap-duration-fast:    150ms;
+  --odap-duration-base:    200ms;
+  --odap-duration-slow:    300ms;
+  --odap-duration-page:    240ms;
+  --odap-duration-loop:    1400ms;
+
+  /* ---- 1.17 缓动 (无 spring / 无过冲) ---- */
+  --odap-ease-standard:   cubic-bezier(0.2, 0, 0, 1);
+  --odap-ease-decelerate: cubic-bezier(0.05, 0.7, 0.1, 1);
+  --odap-ease-accelerate: cubic-bezier(0.3, 0, 0.8, 0.15);
+  --odap-ease-linear:     linear;
+
+  /* ---- 1.18 层叠 ---- */
+  --odap-z-base:     0;
+  --odap-z-sticky:   100;
+  --odap-z-dropdown: 1000;
+  --odap-z-overlay:  1040;
+  --odap-z-drawer:   1100;
+  --odap-z-modal:    1200;
+  --odap-z-popover:  1250;
+  --odap-z-tooltip:  1300;
+  --odap-z-toast:    1400;
+
+  /* ---- 1.19 断点 (仅文档化, CSS 媒体查询须用字面量) ---- */
+  --odap-bp-xs:  480px;
+  --odap-bp-sm:  640px;
+  --odap-bp-md:  768px;
+  --odap-bp-lg:  1024px;
+  --odap-bp-xl:  1280px;
+  --odap-bp-2xl: 1536px;
+  --odap-bp-3xl: 1920px;
+
+  /* ---- 1.20 尺寸 ---- */
+  --odap-size-control-xs: 24px;
+  --odap-size-control-sm: 28px;
+  --odap-size-control-md: 32px;
+  --odap-size-control-lg: 36px;
+  --odap-size-control-xl: 44px;   /* 触摸最小目标 */
+  --odap-size-icon-inline: 16px;
+  --odap-size-icon-button: 20px;
+  --odap-size-icon-standalone: 24px;
+  --odap-size-icon-stroke: 1.5;   /* SVG stroke-width @24px 网格 */
+
+  /* ---- 1.21 布局 ---- */
+  --odap-container-max:    1440px;
+  --odap-container-wide:   1600px;
+  --odap-content-max:      1200px;   /* 文档/表单阅读宽度 */
+  --odap-content-max-narrow: 720px;
+  --odap-gutter-desktop: 24px;
+  --odap-gutter-tablet:  16px;
+  --odap-gutter-phone:   12px;
+  --odap-section-y-desktop: 48px;
+  --odap-section-y-tablet:  32px;
+  --odap-section-y-phone:   24px;
+  --odap-rail-width:          56px;   /* 一级图标导航栏 */
+  --odap-nav-width:           232px;  /* 二级导航 */
+  --odap-nav-collapsed-width: 64px;
+  --odap-inspector-width:     320px;  /* 右侧检查器 */
+  --odap-header-height:       52px;
+}
+
+/* ============================================================================
+ * 2. SEMANTIC LAYER (A2) — 语义别名, 按 appearance 映射
+ * ==========================================================================*/
+
+/* ---- 2.0 强调色族插槽 (由 data-accent 填充) ---- */
+:root,
+[data-accent="cobalt"] {
+  --odap-accent-50:  var(--odap-primitive-cobalt-50);
+  --odap-accent-100: var(--odap-primitive-cobalt-100);
+  --odap-accent-200: var(--odap-primitive-cobalt-200);
+  --odap-accent-300: var(--odap-primitive-cobalt-300);
+  --odap-accent-400: var(--odap-primitive-cobalt-400);
+  --odap-accent-500: var(--odap-primitive-cobalt-500);
+  --odap-accent-600: var(--odap-primitive-cobalt-600);
+  --odap-accent-700: var(--odap-primitive-cobalt-700);
+  --odap-accent-800: var(--odap-primitive-cobalt-800);
+  --odap-accent-900: var(--odap-primitive-cobalt-900);
+  --odap-accent-solid: var(--odap-primitive-cobalt-600); /* 白字 >= 7:1 */
+  --odap-accent-on:    #FFFFFF;
+}
+[data-accent="teal"] {
+  --odap-accent-50:  var(--odap-primitive-teal-50);
+  --odap-accent-100: var(--odap-primitive-teal-100);
+  --odap-accent-200: var(--odap-primitive-teal-200);
+  --odap-accent-300: var(--odap-primitive-teal-300);
+  --odap-accent-400: var(--odap-primitive-teal-400);
+  --odap-accent-500: var(--odap-primitive-teal-500);
+  --odap-accent-600: var(--odap-primitive-teal-600);
+  --odap-accent-700: var(--odap-primitive-teal-700);
+  --odap-accent-800: var(--odap-primitive-teal-800);
+  --odap-accent-900: var(--odap-primitive-teal-900);
+  --odap-accent-solid: var(--odap-primitive-teal-700);  /* 白字 >= 6:1 */
+  --odap-accent-on:    #FFFFFF;
+}
+[data-accent="indigo"] {
+  --odap-accent-50:  var(--odap-primitive-indigo-50);
+  --odap-accent-100: var(--odap-primitive-indigo-100);
+  --odap-accent-200: var(--odap-primitive-indigo-200);
+  --odap-accent-300: var(--odap-primitive-indigo-300);
+  --odap-accent-400: var(--odap-primitive-indigo-400);
+  --odap-accent-500: var(--odap-primitive-indigo-500);
+  --odap-accent-600: var(--odap-primitive-indigo-600);
+  --odap-accent-700: var(--odap-primitive-indigo-700);
+  --odap-accent-800: var(--odap-primitive-indigo-800);
+  --odap-accent-900: var(--odap-primitive-indigo-900);
+  --odap-accent-solid: var(--odap-primitive-indigo-600); /* 白字 >= 6:1 */
+  --odap-accent-on:    #FFFFFF;
+}
+[data-accent="graphite"] {
+  --odap-accent-50:  var(--odap-primitive-graphite-50);
+  --odap-accent-100: var(--odap-primitive-graphite-100);
+  --odap-accent-200: var(--odap-primitive-graphite-200);
+  --odap-accent-300: var(--odap-primitive-graphite-300);
+  --odap-accent-400: var(--odap-primitive-graphite-400);
+  --odap-accent-500: var(--odap-primitive-graphite-500);
+  --odap-accent-600: var(--odap-primitive-graphite-600);
+  --odap-accent-700: var(--odap-primitive-graphite-700);
+  --odap-accent-800: var(--odap-primitive-graphite-800);
+  --odap-accent-900: var(--odap-primitive-graphite-900);
+  --odap-accent-solid: var(--odap-primitive-graphite-700); /* 白字 >= 10:1 */
+  --odap-accent-on:    #FFFFFF;
+}
+
+/* ---- 2.1 外观: luminous (清爽专业, 亮色面) ---- */
+:root,
+[data-appearance="luminous"] {
+  color-scheme: light;
+
+  --odap-color-bg:              var(--odap-primitive-neutral-50);
+  --odap-color-bg-subtle:       var(--odap-primitive-neutral-100);
+  --odap-color-surface:         var(--odap-primitive-neutral-0);
+  --odap-color-surface-raised:  var(--odap-primitive-neutral-0);
+  --odap-color-surface-sunken:  var(--odap-primitive-neutral-100);
+  --odap-color-surface-overlay: var(--odap-primitive-neutral-0);
+  --odap-color-surface-scrim:   rgba(15, 23, 42, 0.36);
+
+  --odap-color-fg:           var(--odap-primitive-neutral-900);
+  --odap-color-fg-strong:    var(--odap-primitive-neutral-900);
+  --odap-color-fg-secondary: var(--odap-primitive-neutral-600);
+  --odap-color-fg-muted:     var(--odap-primitive-neutral-500);
+  --odap-color-fg-subtle:    var(--odap-primitive-neutral-400);
+  --odap-color-fg-disabled:  var(--odap-primitive-neutral-300);
+  --odap-color-fg-inverse:   var(--odap-primitive-neutral-0);
+
+  --odap-color-border:        var(--odap-primitive-neutral-200);
+  --odap-color-border-strong: var(--odap-primitive-neutral-300);
+  --odap-color-border-subtle: var(--odap-primitive-neutral-100);
+
+  --odap-color-accent:         var(--odap-accent-600);
+  --odap-color-accent-hover:   var(--odap-accent-700);
+  --odap-color-accent-active:  var(--odap-accent-800);
+  --odap-color-accent-subtle:  var(--odap-accent-50);
+  --odap-color-accent-border:  var(--odap-accent-200);
+  --odap-color-accent-solid:   var(--odap-accent-solid);
+  --odap-color-accent-on:      var(--odap-accent-on);
+
+  --odap-color-success:      var(--odap-primitive-green-500);
+  --odap-color-success-bg:   var(--odap-primitive-green-50);
+  --odap-color-warn:         var(--odap-primitive-amber-500);
+  --odap-color-warn-bg:      var(--odap-primitive-amber-50);
+  --odap-color-danger:       var(--odap-primitive-red-500);
+  --odap-color-danger-bg:    var(--odap-primitive-red-50);
+  --odap-color-info:         var(--odap-primitive-sky-500);
+  --odap-color-info-bg:      var(--odap-primitive-sky-50);
+
+  --odap-focus-ring:       0 0 0 3px color-mix(in srgb, var(--odap-accent-500) 32%, transparent);
+  --odap-focus-ring-inset: inset 0 0 0 2px var(--odap-accent-600);
+  --odap-shadow-token:     var(--odap-elevation-sm);
+}
+
+/* ---- 2.2 外观: nebula (深邃科技, 暗色面) ---- */
+[data-appearance="nebula"] {
+  color-scheme: dark;
+
+  --odap-color-bg:              var(--odap-primitive-ink-1000);
+  --odap-color-bg-subtle:       var(--odap-primitive-ink-900);
+  --odap-color-surface:         var(--odap-primitive-ink-900);
+  --odap-color-surface-raised:  var(--odap-primitive-ink-800);
+  --odap-color-surface-sunken:  var(--odap-primitive-ink-1000);
+  --odap-color-surface-overlay: var(--odap-primitive-ink-700);
+  --odap-color-surface-scrim:   rgba(3, 5, 9, 0.68);
+
+  --odap-color-fg:           var(--odap-primitive-ink-000);
+  --odap-color-fg-strong:    #FFFFFF;
+  --odap-color-fg-secondary: var(--odap-primitive-ink-100);
+  --odap-color-fg-muted:     var(--odap-primitive-ink-200);
+  --odap-color-fg-subtle:    var(--odap-primitive-ink-300);
+  --odap-color-fg-disabled:  var(--odap-primitive-ink-500);
+  --odap-color-fg-inverse:   var(--odap-primitive-ink-1000);
+
+  --odap-color-border:        rgba(255, 255, 255, 0.08);
+  --odap-color-border-strong: rgba(255, 255, 255, 0.14);
+  --odap-color-border-subtle: rgba(255, 255, 255, 0.05);
+
+  --odap-color-accent:         var(--odap-accent-400);
+  --odap-color-accent-hover:   var(--odap-accent-300);
+  --odap-color-accent-active:  var(--odap-accent-200);
+  --odap-color-accent-subtle:  color-mix(in srgb, var(--odap-accent-500) 16%, transparent);
+  --odap-color-accent-border:  color-mix(in srgb, var(--odap-accent-500) 38%, transparent);
+  --odap-color-accent-solid:   var(--odap-accent-solid);
+  --odap-color-accent-on:      var(--odap-accent-on);
+
+  --odap-color-success:      var(--odap-primitive-green-400);
+  --odap-color-success-bg:   color-mix(in srgb, var(--odap-primitive-green-400) 14%, transparent);
+  --odap-color-warn:         var(--odap-primitive-amber-400);
+  --odap-color-warn-bg:      color-mix(in srgb, var(--odap-primitive-amber-400) 14%, transparent);
+  --odap-color-danger:       var(--odap-primitive-red-400);
+  --odap-color-danger-bg:    color-mix(in srgb, var(--odap-primitive-red-400) 14%, transparent);
+  --odap-color-info:         var(--odap-primitive-sky-400);
+  --odap-color-info-bg:      color-mix(in srgb, var(--odap-primitive-sky-400) 14%, transparent);
+
+  --odap-focus-ring:       0 0 0 3px color-mix(in srgb, var(--odap-accent-400) 40%, transparent);
+  --odap-focus-ring-inset: inset 0 0 0 2px var(--odap-accent-400);
+  --odap-shadow-token:     var(--odap-elevation-sm-d);
+}
+
+/* ============================================================================
+ * 3. COMPONENT LAYER (B-slot + C-extension)
+ * ==========================================================================*/
+:root {
+  /* ---- 3.1 Button ---- */
+  --odap-button-radius:          var(--odap-radius-sm);
+  --odap-button-height-sm:       var(--odap-size-control-sm);
+  --odap-button-height-md:       var(--odap-size-control-md);
+  --odap-button-height-lg:       var(--odap-size-control-lg);
+  --odap-button-padding-x-sm:    var(--odap-space-3);
+  --odap-button-padding-x-md:    var(--odap-space-4);
+  --odap-button-padding-x-lg:    var(--odap-space-5);
+  --odap-button-font-weight:     var(--odap-font-weight-medium);
+  --odap-button-primary-bg:      var(--odap-color-accent-solid);
+  --odap-button-primary-fg:      var(--odap-color-accent-on);
+  --odap-button-primary-bg-hover:var(--odap-color-accent-hover);
+  --odap-button-primary-bg-active: var(--odap-color-accent-active);
+  --odap-button-default-bg:      var(--odap-color-surface);
+  --odap-button-default-fg:      var(--odap-color-fg);
+  --odap-button-default-border:  var(--odap-color-border-strong);
+  --odap-button-ghost-bg-hover:  var(--odap-color-bg-subtle);
+  --odap-button-danger-bg:       var(--odap-color-danger);
+  --odap-button-danger-fg:       #FFFFFF;
+  --odap-button-disabled-opacity: 0.45;
+
+  /* ---- 3.2 Input / Select ---- */
+  --odap-input-height-sm:     var(--odap-size-control-sm);
+  --odap-input-height-md:     var(--odap-size-control-md);
+  --odap-input-height-lg:     var(--odap-size-control-lg);
+  --odap-input-bg:            var(--odap-color-surface);
+  --odap-input-bg-disabled:   var(--odap-color-bg-subtle);
+  --odap-input-border:        var(--odap-color-border-strong);
+  --odap-input-border-hover:  var(--odap-color-fg-subtle);
+  --odap-input-border-focus:  var(--odap-color-accent);
+  --odap-input-border-error:  var(--odap-color-danger);
+  --odap-input-radius:        var(--odap-radius-sm);
+  --odap-input-placeholder:   var(--odap-color-fg-subtle);
+  --odap-input-padding-x:     var(--odap-space-3);
+
+  /* ---- 3.3 Card / Panel ---- */
+  --odap-card-bg:           var(--odap-color-surface);
+  --odap-card-border:       1px solid var(--odap-color-border);
+  --odap-card-radius:       var(--odap-radius-lg);
+  --odap-card-padding:      var(--odap-space-5);
+  --odap-card-padding-sm:   var(--odap-space-4);
+  --odap-card-shadow:       var(--odap-elevation-none);
+  --odap-card-hover-border: var(--odap-color-border-strong);
+  --odap-panel-title-size:  var(--odap-font-size-lg);
+  --odap-panel-title-weight:var(--odap-font-weight-emphasize);
+
+  /* ---- 3.4 Table (信息密集) ---- */
+  --odap-table-header-height:   36px;
+  --odap-table-row-height:      36px;   /* compact 默认 */
+  --odap-table-row-height-comfortable: 44px;
+  --odap-table-row-height-dense:       28px;
+  --odap-table-header-bg:       var(--odap-color-bg-subtle);
+  --odap-table-header-fg:       var(--odap-color-fg-muted);
+  --odap-table-row-hover-bg:    var(--odap-color-accent-subtle);
+  --odap-table-row-selected-bg: var(--odap-color-accent-subtle);
+  --odap-table-border:          1px solid var(--odap-color-border-subtle);
+  --odap-table-cell-padding-x:  var(--odap-space-3);
+  --odap-table-numeric-font:    var(--odap-font-mono);
+
+  /* ---- 3.5 Navigation ---- */
+  --odap-nav-bg:            var(--odap-color-surface);
+  --odap-nav-border:        1px solid var(--odap-color-border);
+  --odap-nav-item-height:   34px;
+  --odap-nav-item-radius:   var(--odap-radius-sm);
+  --odap-nav-item-fg:       var(--odap-color-fg-secondary);
+  --odap-nav-item-fg-hover: var(--odap-color-fg);
+  --odap-nav-item-bg-hover: var(--odap-color-bg-subtle);
+  --odap-nav-item-bg-active: var(--odap-color-accent-subtle);
+  --odap-nav-item-fg-active: var(--odap-color-accent);
+  --odap-rail-bg:           var(--odap-color-surface-sunken);
+  --odap-rail-item-active-indicator: var(--odap-color-accent);
+
+  /* ---- 3.6 Badge / Tag ---- */
+  --odap-badge-radius:   var(--odap-radius-xs);
+  --odap-badge-height:   20px;
+  --odap-badge-font-size:var(--odap-font-size-2xs);
+  --odap-badge-padding-x:var(--odap-space-2);
+
+  /* ---- 3.7 Tooltip / Popover / Modal / Drawer ---- */
+  --odap-tooltip-bg:        var(--odap-color-fg-strong);
+  --odap-tooltip-fg:        var(--odap-color-fg-inverse);
+  --odap-tooltip-radius:    var(--odap-radius-sm);
+  --odap-modal-bg:          var(--odap-color-surface-overlay);
+  --odap-modal-radius:      var(--odap-radius-xl);
+  --odap-modal-shadow:      var(--odap-elevation-xl);
+  --odap-modal-scrim:       var(--odap-color-surface-scrim);
+  --odap-drawer-radius:     var(--odap-radius-lg);
+
+  /* ---- 3.8 Feedback ---- */
+  --odap-skeleton-bg:       var(--odap-color-bg-subtle);
+  --odap-skeleton-highlight:var(--odap-color-surface);
+  --odap-progress-track:    var(--odap-color-bg-subtle);
+  --odap-progress-fill:     var(--odap-color-accent);
+  --odap-empty-art-tint:    var(--odap-color-accent-subtle);
+  --odap-empty-title-fg:    var(--odap-color-fg);
+  --odap-empty-desc-fg:     var(--odap-color-fg-muted);
+
+  /* ---- 3.9 Code / Mono ---- */
+  --odap-code-bg:      var(--odap-color-bg-subtle);
+  --odap-code-fg:      var(--odap-color-fg);
+  --odap-code-radius:  var(--odap-radius-xs);
+  --odap-code-keyword: var(--odap-color-accent);
+  --odap-code-string:  var(--odap-color-success);
+
+  /* ---- 3.10 图谱 (Graph Explorer / Ontology Designer) ----
+   * 颜色承载语义: 对象类型 / 链接类型 / 动作类型 / 实例 / 事件 / 指标 / 规则 / 智能体
+   * 颜色之外必须叠加 shape+icon 冗余编码, 不得仅靠颜色区分. */
+  --odap-graph-canvas-bg:        var(--odap-color-surface);
+  --odap-graph-grid-line:        var(--odap-color-border-subtle);
+  --odap-graph-cluster-bg:       var(--odap-color-accent-subtle);
+  --odap-graph-cluster-border:   var(--odap-color-accent-border);
+  --odap-graph-node-radius:      var(--odap-radius-md);
+  --odap-graph-node-border-width:1.5px;
+  --odap-graph-node-fg:          var(--odap-color-fg);
+  --odap-graph-node-label:       var(--odap-color-fg-secondary);
+  --odap-graph-node-shadow:      var(--odap-elevation-sm);
+  --odap-graph-node-hover-ring:  var(--odap-focus-ring);
+  --odap-graph-node-selected-ring: 0 0 0 2px var(--odap-color-accent), 0 0 0 5px color-mix(in srgb, var(--odap-color-accent) 24%, transparent);
+  --odap-graph-edge-default:     var(--odap-primitive-neutral-300);
+  --odap-graph-edge-emphasis:    var(--odap-primitive-neutral-500);
+  --odap-graph-edge-selected:    var(--odap-color-accent);
+  --odap-graph-edge-label:       var(--odap-color-fg-muted);
+  --odap-graph-edge-width:       1.25px;
+  --odap-graph-edge-width-emphasis: 2px;
+  --odap-graph-marquee-border:   var(--odap-color-accent);
+  --odap-graph-marquee-fill:     color-mix(in srgb, var(--odap-color-accent) 12%, transparent);
+  --odap-graph-minimap-bg:       var(--odap-color-bg-subtle);
+  --odap-graph-minimap-viewport: var(--odap-color-accent-border);
+  /* 节点分类色 (8 类, 与 chart-series 独立) */
+  --odap-graph-node-object-type: var(--odap-primitive-cobalt-500);
+  --odap-graph-node-link-type:   var(--odap-primitive-teal-500);
+  --odap-graph-node-action-type: var(--odap-primitive-amber-500);
+  --odap-graph-node-instance:    var(--odap-primitive-neutral-500);
+  --odap-graph-node-event:       var(--odap-primitive-rose-500);
+  --odap-graph-node-metric:      var(--odap-primitive-sky-blue-500);
+  --odap-graph-node-rule:        var(--odap-primitive-violet-500);
+  --odap-graph-node-agent:       var(--odap-primitive-lime-500);
+
+  /* ---- 3.11 图表 (ECharts / 通用) ---- */
+  --odap-chart-axis-line:   var(--odap-color-border);
+  --odap-chart-grid-line:   var(--odap-color-border-subtle);
+  --odap-chart-axis-label:  var(--odap-color-fg-muted);
+  --odap-chart-legend-fg:   var(--odap-color-fg-secondary);
+  --odap-chart-tooltip-bg:  var(--odap-color-surface-overlay);
+  --odap-chart-tooltip-border: 1px solid var(--odap-color-border-strong);
+  --odap-chart-threshold:   var(--odap-color-warn);
+  --odap-chart-positive:    var(--odap-color-success);
+  --odap-chart-negative:    var(--odap-color-danger);
+  --odap-chart-series-1: var(--odap-primitive-cobalt-500);
+  --odap-chart-series-2: var(--odap-primitive-teal-500);
+  --odap-chart-series-3: var(--odap-primitive-amber-500);
+  --odap-chart-series-4: var(--odap-primitive-violet-500);
+  --odap-chart-series-5: var(--odap-primitive-vermilion-500);
+  --odap-chart-series-6: var(--odap-primitive-sky-blue-500);
+  --odap-chart-series-7: var(--odap-primitive-lime-500);
+  --odap-chart-series-8: var(--odap-primitive-neutral-500);
+}
+
+/* ============================================================================
+ * 4. BASE + ACCESSIBILITY
+ * ==========================================================================*/
+*,
+*::before,
+*::after { box-sizing: border-box; }
+
+html, body, #root { height: 100%; }
+
+body {
+  margin: 0;
+  font-family: var(--odap-font-body);
+  font-size: var(--odap-font-size-base);
+  line-height: var(--odap-leading-normal);
+  color: var(--odap-color-fg);
+  background-color: var(--odap-color-bg);
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+  font-variant-numeric: tabular-nums;
+}
+
+:focus-visible {
+  outline: none;
+  box-shadow: var(--odap-focus-ring);
+  border-radius: var(--odap-radius-sm);
+}
+
+::selection {
+  background: color-mix(in srgb, var(--odap-color-accent) 26%, transparent);
+}
+
+* { scrollbar-width: thin; scrollbar-color: var(--odap-color-border-strong) transparent; }
+::-webkit-scrollbar { width: 8px; height: 8px; }
+::-webkit-scrollbar-track { background: transparent; }
+::-webkit-scrollbar-thumb {
+  background: var(--odap-color-border-strong);
+  border-radius: var(--odap-radius-pill);
+  border: 2px solid transparent;
+  background-clip: content-box;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
+}

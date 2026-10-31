@@ -1,3 +1,19 @@
+---
+id: odap.l8.menu-refactor-plan
+status: reference
+owner: pm
+version: ''
+layer: L8
+concern: menu-refactor
+lifecycle: historical
+superseded_by: ''
+supersedes: []
+last_verified: '2026-10-17'
+citations: []
+governance_reason: 菜单重构计划已落地（标题自述实施计划），现行信息架构见 workspaces.ts
+governance_evidence: apps/web/src/navigation/workspaces.ts 为 6 工作区现行来源
+---
+
 # 菜单重构实施计划：基于四步法（建/见/演/用）归集
 
 > **版本**: v1.0 (2026-08-01)

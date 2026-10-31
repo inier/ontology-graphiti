@@ -1,3 +1,17 @@
+---
+id: odap.l7.adr-066-monorepo-restructure
+status: active
+owner: architect
+version: ''
+layer: L7
+concern: adr
+lifecycle: frozen
+superseded_by: ''
+supersedes: []
+last_verified: '2026-10-17'
+citations: []
+---
+
 # ADR-066：Monorepo 重构（uv workspace + pnpm workspace）
 
 > **状态**：已接受  

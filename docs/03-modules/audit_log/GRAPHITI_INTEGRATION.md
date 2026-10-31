@@ -1,3 +1,17 @@
+---
+id: odap.l3.audit-log-graphiti-integration
+status: active
+owner: module-owner
+version: ''
+layer: L3
+concern: module-design
+lifecycle: living
+superseded_by: ''
+supersedes: []
+last_verified: '2026-10-17'
+citations: []
+---
+
 # 审计日志与Graphiti整合方案
 
 ## 背景

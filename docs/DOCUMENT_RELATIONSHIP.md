@@ -1,3 +1,18 @@
+---
+id: odap.l14.docs-document-relationship
+status: active
+owner: architect
+version: ''
+layer: L14
+concern: doc-relationship
+lifecycle: living
+superseded_by: ''
+supersedes: []
+last_verified: '2026-10-17'
+citations: []
+governance_reason: 文档体系关系图，与治理规范配套
+---
+
 # ODAP 文档体系关系图
 
 > **版本**: 2.0.0 | **日期**: 2026-05-07 | **状态**: 正式 | **优先级**: P0
@@ -10,10 +25,10 @@
 
 | 角色 | 推荐阅读路径 |
 |------|-------------|
-| 新成员 | [README.md](./README.md) → [需求定稿](00-requirements/req-ok.md) → [核心架构](02-architecture/ARCHITECTURE.md) |
-| 前端开发 | [ADR-007](07-adr/ADR-007_前端采用_react_ant_design_技术栈.md) → [ADR-037](07-adr/ADR-037_frontend_mobile_first_i18n.md) → [ADR-045](07-adr/ADR-045_frontend_visualization_g6_leaflet.md) → [04-UI设计](04-ui/) → [web_frontend](03-modules/web_apps/web/DESIGN.md) |
-| 后端开发 | [核心架构](02-architecture/ARCHITECTURE.md) → [03-模块设计](03-modules/) → [07-ADR](07-adr/) → [08-任务分解](08-tasks/TASK_BREAKDOWN.md) |
-| 架构师 | [需求定稿](00-requirements/req-ok.md) → [核心架构](02-architecture/ARCHITECTURE.md) → [07-ADR](07-adr/) → [09-检查清单](09-checklists/CHECKLIST_v2.md) |
+| 新成员 | [README.md](./README.md) → [需求定稿](00-requirements/req-ok.md) → [核心架构](02-architecture/ARCHITECTURE-v2.md) |
+| 前端开发 | [ADR-007](07-adr/ADR-007_前端采用_react_ant_design_技术栈.md) → [ADR-037](07-adr/ADR-037_frontend_mobile_first_i18n.md) → [ADR-045](07-adr/ADR-045_frontend_visualization_g6_leaflet.md) → [04-UI设计](04-ui/) → [web_frontend](03-modules/web_frontend/DESIGN.md) |
+| 后端开发 | [核心架构](02-architecture/ARCHITECTURE-v2.md) → [03-模块设计](03-modules/) → [07-ADR](07-adr/) → [08-任务分解](08-tasks/TASK_BREAKDOWN.md) |
+| 架构师 | [需求定稿](00-requirements/req-ok.md) → [核心架构](02-architecture/ARCHITECTURE-v2.md) → [07-ADR](07-adr/) → [09-检查清单](09-checklists/CHECKLIST_v2.md) |
 | 产品经理 | [需求定稿](00-requirements/req-ok.md) → [产品设计](01-product-design/ODAP综合优化设计文档.md) → [09-检查清单](09-checklists/CHECKLIST_v2.md) |
 | 文档维护者 | [文档管理规范](./DOCUMENT_MANAGEMENT.md) → 本文档 |
 
@@ -43,7 +58,7 @@ docs/
 │   └── webui-enhancement-design.md       # WebUI增强设计
 │
 ├── 02-architecture/                      # ⭐ 架构设计
-│   ├── ARCHITECTURE.md                   # ⭐ 核心架构（v4.0，唯一权威）
+│   ├── ARCHITECTURE-v2.md                   # ⭐ 核心架构（v4.0，唯一权威）
 │   ├── ARCHITECTURE_ANALYSIS_REPORT.md
 │   ├── ARCHITECTURE_BIZ.md               # 业务架构
 │   ├── ARCHITECTURE_EVOLVE.md            # 演进架构
@@ -58,7 +73,7 @@ docs/
 │   ├── REVIEW_REPORT_20260505.md
 │   └── reports/                          # 历史审查报告
 │
-├── 03-modules/                           # ⭐ 模块设计（25个模块）
+├── 03-modules/                           # ⭐ 模块设计（26个模块）
 │   ├── agent/DESIGN.md
 │   ├── api_gateway/DESIGN.md
 │   ├── audit_log/DESIGN.md
@@ -100,7 +115,7 @@ docs/
 │   ├── DFX_DESIGN.md                     # DFX综合设计
 │   └── TEST_DESIGN.md                    # 测试架构设计
 │
-├── 07-adr/                               # 架构决策记录（54个ADR）
+├── 07-adr/                               # 架构决策记录（97个ADR）
 │   ├── ADR-001 ~ ADR-053                 # 所有ADR文档
 │   └── README.md                         # ADR索引
 │
@@ -137,7 +152,7 @@ docs/
 ┌──────────────────────────┐    ┌──────────────────────────┐
 │   01-product-design/     │    │   02-architecture/       │
 │   产品设计                │    │   架构设计 ⭐             │
-│   ODAP综合优化设计文档    │    │   ARCHITECTURE.md        │
+│   ODAP综合优化设计文档    │    │   ARCHITECTURE-v2.md        │
 └──────────────────────────┘    └──────────────────────────┘
                     │                               │
         ┌───────────┼───────────┬───────────┬───────┤
@@ -145,7 +160,7 @@ docs/
 ┌──────────┐ ┌──────────┐ ┌──────────┐ ┌──────────┐ ┌──────────┐
 │03-modules│ │  04-ui   │ │05-security│ │ 06-dfx   │ │  07-adr  │
 │ 模块设计 │ │  UI设计   │ │  安全设计  │ │ DFX设计  │ │ 决策记录  │
-│25个DESIGN│ │  5个文件  │ │ SECURITY  │ │DFX+TEST  │ │ 54个ADR  │
+│26个DESIGN│ │  5个文件  │ │ SECURITY  │ │DFX+TEST  │ │ 97个ADR  │
 └──────────┘ └──────────┘ └──────────┘ └──────────┘ └──────────┘
         │                                               │
         └───────────────┬───────────────────────────────┘
@@ -172,27 +187,27 @@ docs/
 ```
 1. README.md                                  文档体系入口
 2. 00-requirements/req-ok.md                  需求定稿
-3. 02-architecture/ARCHITECTURE.md            核心架构文档
+3. 02-architecture/ARCHITECTURE-v2.md            核心架构文档
 4. 09-checklists/CHECKLIST_v2.md              完整验收清单
 ```
 
 ### 3.2 前端开发路径
 
 ```
-1. 02-architecture/ARCHITECTURE.md §11         前端界面架构
+1. 02-architecture/ARCHITECTURE-v2.md §11         前端界面架构
 2. 07-adr/ADR-007_前端技术栈.md                  技术选型
 3. 07-adr/ADR-037_frontend_mobile_first_i18n.md  移动优先+国际化
 4. 07-adr/ADR-045_frontend_visualization_g6_leaflet.md  可视化选型
 5. 04-ui/UI_DESIGN.md                             UI设计稿
 6. 04-ui/MOBILE_FIRST_DESIGN.md                   移动优先规范
 7. 04-ui/COMPONENT_HIERARCHY.md                   组件分级管理
-8. 03-modules/web_apps/web/DESIGN.md              前端模块设计
+8. 03-modules/web_frontend/DESIGN.md              前端模块设计
 ```
 
 ### 3.3 后端开发路径
 
 ```
-1. 02-architecture/ARCHITECTURE.md               核心架构文档
+1. 02-architecture/ARCHITECTURE-v2.md               核心架构文档
 2. 08-tasks/TASK_BREAKDOWN.md                    任务拆分
 3. 03-modules/*/DESIGN.md                        相关模块设计
 4. 07-adr/                                       新增架构决策
@@ -202,7 +217,7 @@ docs/
 
 ```
 1. 00-requirements/req-ok.md                    需求定稿
-2. 02-architecture/ARCHITECTURE.md              核心架构（全文精读）
+2. 02-architecture/ARCHITECTURE-v2.md              核心架构（全文精读）
 3. 07-adr/README.md                              ADR索引
 4. 09-checklists/CHECKLIST_v2.md                 完整验收清单
 ```
@@ -213,15 +228,15 @@ docs/
 
 | 上游 | 下游 | 关系 |
 |------|------|:----:|
-| `00-requirements/req-ok.md` | `02-architecture/ARCHITECTURE.md` | 需求→架构 |
-| `02-architecture/ARCHITECTURE.md` | `08-tasks/TASK_BREAKDOWN.md` | 架构→任务 |
-| `02-architecture/ARCHITECTURE.md` | `03-modules/*/DESIGN.md` | 架构→模块 |
-| `02-architecture/ARCHITECTURE.md` | `04-ui/UI_DESIGN.md` | 架构→UI |
-| `02-architecture/ARCHITECTURE.md` | `07-adr/*` | 架构→决策 |
+| `00-requirements/req-ok.md` | `02-architecture/ARCHITECTURE-v2.md` | 需求→架构 |
+| `02-architecture/ARCHITECTURE-v2.md` | `08-tasks/TASK_BREAKDOWN.md` | 架构→任务 |
+| `02-architecture/ARCHITECTURE-v2.md` | `03-modules/*/DESIGN.md` | 架构→模块 |
+| `02-architecture/ARCHITECTURE-v2.md` | `04-ui/UI_DESIGN.md` | 架构→UI |
+| `02-architecture/ARCHITECTURE-v2.md` | `07-adr/*` | 架构→决策 |
 | `07-adr/ADR-007` | `04-ui/UI_DESIGN.md` | 技术选型→UI |
 | `07-adr/ADR-037` | `04-ui/MOBILE_FIRST_DESIGN.md` | 响应式→移动 |
-| `07-adr/ADR-045` | `03-modules/web_apps/web/DESIGN.md` | 可视化→前端 |
-| `01-product-design/ODAP综合优化设计文档.md` | `02-architecture/ARCHITECTURE.md` | 产品→架构 |
+| `07-adr/ADR-045` | `03-modules/web_frontend/DESIGN.md` | 可视化→前端 |
+| `01-product-design/ODAP综合优化设计文档.md` | `02-architecture/ARCHITECTURE-v2.md` | 产品→架构 |
 | CHANGELOG | 最新变更跟踪 | — |
 
 ---
@@ -318,7 +333,7 @@ docs/
 | Test | `03-modules/test/DESIGN.md` | — |
 | Tool Registry | `03-modules/tool_registry/DESIGN.md` | L2 |
 | Visualization | `03-modules/visualization/DESIGN.md` | L4 |
-| Web Frontend | `03-modules/web_apps/web/DESIGN.md` | L6 |
+| Web Frontend | `03-modules/web_frontend/DESIGN.md` | L6 |
 | Workspace | `03-modules/workspace/DESIGN.md` | L1 |
 
 ---
@@ -327,11 +342,11 @@ docs/
 
 | 变更场景 | 必须同步更新 |
 |----------|:------------|
-| 需求变更 | `00-requirements/req-ok.md` → `02-architecture/ARCHITECTURE.md` → `08-tasks/TASK_BREAKDOWN.md` |
-| 架构调整 | `02-architecture/ARCHITECTURE.md` → `07-adr/*` → `03-modules/*/DESIGN.md` |
+| 需求变更 | `00-requirements/req-ok.md` → `02-architecture/ARCHITECTURE-v2.md` → `08-tasks/TASK_BREAKDOWN.md` |
+| 架构调整 | `02-architecture/ARCHITECTURE-v2.md` → `07-adr/*` → `03-modules/*/DESIGN.md` |
 | UI 变更 | `04-ui/UI_DESIGN.md` → `04-ui/MOBILE_FIRST_DESIGN.md` |
 | 新增 ADR | `ADR-xxx.md` → `07-adr/README.md` → 本文档 |
-| 模块设计变更 | `03-modules/*/DESIGN.md` → `02-architecture/ARCHITECTURE.md` |
+| 模块设计变更 | `03-modules/*/DESIGN.md` → `02-architecture/ARCHITECTURE-v2.md` |
 | 文档体系变更 | `DOCUMENT_MANAGEMENT.md` → 本文档 |
 | 文档归档 | 移至 `11-archive/` → 更新本文档 |
 
@@ -343,7 +358,7 @@ docs/
 - [防腐维护指南](./DOCUMENT_MANAGEMENT.md)
 - [文档基线 v1.0.0](./DOCUMENT_BASELINE_v1.0.0.md)
 - [需求定稿](./00-requirements/req-ok.md)
-- [核心架构](./02-architecture/ARCHITECTURE.md)
+- [核心架构](./02-architecture/ARCHITECTURE-v2.md)
 - [全链路深入](./02-architecture/ARCHITECTURE_FULL_CHAIN.md)
 - [ADR 索引](./07-adr/README.md)
 - [验收清单](./09-checklists/CHECKLIST_v2.md)

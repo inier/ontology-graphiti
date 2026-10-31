@@ -1,3 +1,18 @@
+---
+id: odap.l7.adr-085-shacl形状持久化与写路径校验不变量
+status: active
+owner: architect
+version: ''
+layer: L7
+concern: adr
+lifecycle: frozen
+superseded_by: ''
+supersedes: []
+last_verified: '2026-10-17'
+citations: []
+governance_reason: 状态段声明部分落地，已在生效
+---
+
 # ADR-085: SHACL 形状持久化与写路径校验不变量（关 F7 / ADR-084 切片 S4）
 
 ## Status

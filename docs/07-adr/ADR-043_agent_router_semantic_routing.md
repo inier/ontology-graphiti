@@ -1,3 +1,17 @@
+---
+id: odap.l7.adr-043-agent-router-semantic-routing
+status: active
+owner: architect
+version: ''
+layer: L7
+concern: adr
+lifecycle: frozen
+superseded_by: ''
+supersedes: []
+last_verified: '2026-10-17'
+citations: []
+---
+
 # ADR-043: Agent Router 语义路由
 
 ## 状态

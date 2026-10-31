@@ -1,3 +1,17 @@
+---
+id: odap.l1.odap综合优化设计文档
+status: active
+owner: pm
+version: ''
+layer: L1
+concern: product-design-optimization
+lifecycle: living
+superseded_by: ''
+supersedes: []
+last_verified: '2026-10-17'
+citations: []
+---
+
 # 本体驱动分析决策平台(ODAP) 综合优化设计文档
 
 > **版本**: 2.2.0 | **日期**: 2026-05-07 | **状态**: 设计稿
@@ -728,7 +742,7 @@ interface SkillAPI {
 - [ADR-054: 全链路深入实现设计](02-architecture/ARCHITECTURE_FULL_CHAIN.md)
 
 **模块设计文档**：
-- [Web前端设计文档](../03-modules/web_apps/web/DESIGN.md)
+- [Web前端设计文档](../03-modules/web_frontend/DESIGN.md)
 - [图谱可视化优化设计](03-modules/visualization/DESIGN_GRAPH_OPTIMIZATION.md)
 - [问答引擎设计文档](03-modules/qa_engine/DESIGN.md)
 - [Skill模块设计文档](03-modules/skills/DESIGN.md)

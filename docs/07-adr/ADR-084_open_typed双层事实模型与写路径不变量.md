@@ -1,3 +1,17 @@
+---
+id: odap.l7.adr-084-open-typed双层事实模型与写路径不变量
+status: proposed
+owner: architect
+version: ''
+layer: L7
+concern: adr
+lifecycle: frozen
+superseded_by: ''
+supersedes: []
+last_verified: '2026-10-17'
+citations: []
+---
+
 # ADR-084: open/typed 双层事实模型与写路径不变量（借鉴 utopia）
 
 ## Status

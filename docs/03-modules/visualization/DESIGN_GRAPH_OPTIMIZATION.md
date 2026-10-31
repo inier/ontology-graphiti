@@ -1,3 +1,17 @@
+---
+id: odap.l3.visualization-design-graph-optimization
+status: active
+owner: module-owner
+version: ''
+layer: L3
+concern: module-design
+lifecycle: living
+superseded_by: ''
+supersedes: []
+last_verified: '2026-10-17'
+citations: []
+---
+
 # 本体图谱可视化优化设计文档
 
 > **版本**: 2.0.0 | **日期**: 2026-05-06 | **状态**: 设计稿

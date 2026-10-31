@@ -1,3 +1,17 @@
+---
+id: odap.l7.adr-031-simulator-web-visualization-realtime-ontology
+status: active
+owner: architect
+version: ''
+layer: L7
+concern: adr
+lifecycle: frozen
+superseded_by: ''
+supersedes: []
+last_verified: '2026-10-17'
+citations: []
+---
+
 # ADR-031: 模拟器 Web 可视化与实时本体热写入架构
 
 ## 状态

@@ -1,3 +1,17 @@
+---
+id: odap.l8.readme
+status: active
+owner: pm
+version: ''
+layer: L8
+concern: task-breakdown
+lifecycle: living
+superseded_by: ''
+supersedes: []
+last_verified: '2026-10-17'
+citations: []
+---
+
 # 08-任务分解 (Tasks)
 
 > **所属层次**: SDD 第10层 — 任务分解

@@ -1,3 +1,19 @@
+---
+id: odap.l2.phase4-5-plan
+status: reference
+owner: architect
+version: ''
+layer: L2
+concern: architecture-rollout-plan
+lifecycle: historical
+superseded_by: ''
+supersedes: []
+last_verified: '2026-10-17'
+citations: []
+governance_reason: Phase 4-5 演进规划，执行期已过
+governance_evidence: 文件名 Phase4_5；docs/07-adr/ 中 Phase 4 相关决策已落 ADR-034/035（预留，设计并入 ADR-038）
+---
+
 # Phase 4-5 架构演进规划
 
 > **原位置**: `doARCHITECTURE.md` 附录E  

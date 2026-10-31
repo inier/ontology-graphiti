@@ -1,3 +1,18 @@
+---
+id: odap.l10.ingest-api-spec
+status: active
+owner: backend
+version: ''
+layer: L10
+concern: ingest-api
+lifecycle: living
+superseded_by: ''
+supersedes: []
+last_verified: '2026-10-17'
+citations: []
+governance_reason: 数据摄入 API 专项规范
+---
+
 # 数据摄入 API 设计规范
 
 > **版本**: v1.0.0 | **状态**: 生效 | **最后更新**: 2026-04-26

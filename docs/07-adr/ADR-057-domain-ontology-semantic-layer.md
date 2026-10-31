@@ -1,3 +1,19 @@
+---
+id: odap.l7.adr-057-domain-ontology-semantic-layer
+status: superseded
+owner: architect
+version: ''
+layer: L7
+concern: adr
+lifecycle: frozen
+superseded_by: docs/07-adr/ADR-061-semantic-admin-suite-architecture.md
+supersedes: []
+last_verified: '2026-10-17'
+citations: []
+governance_reason: 状态段自述已被取代
+governance_evidence: '`docs/07-adr/ADR-057-domain-ontology-semantic-layer.md` 状态段落自述 已被取代'
+---
+
 # ADR-057: 四大名著领域本体设计——统一语义层与中英映射
 
 ## 状态

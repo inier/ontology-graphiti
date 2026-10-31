@@ -1,3 +1,19 @@
+---
+id: odap.l15.plans-2026-10-07-semantic-drift-detection
+status: reference
+owner: architect
+version: ''
+layer: L15
+concern: design-spec-record
+lifecycle: historical
+superseded_by: ''
+supersedes: []
+last_verified: '2026-10-17'
+citations: []
+governance_reason: superpowers 实施计划存档，计划已执行，保留为执行留痕
+governance_evidence: docs/superpowers/specs/ 存在同名 design 文档（spec/plan 成对）
+---
+
 # 语义漂移检测（semantic drift detection）Implementation Plan
 
 > **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.

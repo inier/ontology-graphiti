@@ -1,3 +1,17 @@
+---
+id: odap.l7.adr-079-本体论与llm结合边界
+status: active
+owner: architect
+version: ''
+layer: L7
+concern: adr
+lifecycle: frozen
+superseded_by: ''
+supersedes: []
+last_verified: '2026-10-17'
+citations: []
+---
+
 # ADR-079: 本体论与 LLM 结合边界（推理层 / 理解层 / 生成层三层治理）
 
 ## 状态

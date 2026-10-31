@@ -1,3 +1,19 @@
+---
+id: odap.l2.architecture-evolve
+status: reference
+owner: architect
+version: ''
+layer: L2
+concern: architecture-evolution
+lifecycle: historical
+superseded_by: ''
+supersedes: []
+last_verified: '2026-10-17'
+citations: []
+governance_reason: 架构演进与决策的历史版本，已被 v2 与 ADR 集取代其结论
+governance_evidence: docs/07-adr/ 下 ADR-091~098 为最新演进决策
+---
+
 # 本体驱动分析决策平台 (ODAP) - 演进与决策
 > **部分**: 技术选型 + ADR + 需求追溯 + 演进路线图 + 文件结构 + 环境变量
 > **版本**: 5.0.0 | **日期**: 2026-05-19

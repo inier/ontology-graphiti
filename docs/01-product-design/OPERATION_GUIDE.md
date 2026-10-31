@@ -1,3 +1,17 @@
+---
+id: odap.l1.operation-guide
+status: active
+owner: pm
+version: ''
+layer: L1
+concern: operation-guide
+lifecycle: living
+superseded_by: ''
+supersedes: []
+last_verified: '2026-10-17'
+citations: []
+---
+
 # ODAP 本体设计系统完整操作指南
 
 ## 功能操作顺序

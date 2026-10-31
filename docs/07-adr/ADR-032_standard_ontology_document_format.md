@@ -1,3 +1,17 @@
+---
+id: odap.l7.adr-032-standard-ontology-document-format
+status: active
+owner: architect
+version: ''
+layer: L7
+concern: adr
+lifecycle: frozen
+superseded_by: ''
+supersedes: []
+last_verified: '2026-10-17'
+citations: []
+---
+
 # ADR-032: 标准化本体文档格式（OntologyDocument）
 
 ## 状态

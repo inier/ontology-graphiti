@@ -1,3 +1,17 @@
+---
+id: odap.l7.adr-021-qa-driven-ontology-building
+status: active
+owner: architect
+version: ''
+layer: L7
+concern: adr
+lifecycle: frozen
+superseded_by: ''
+supersedes: []
+last_verified: '2026-10-17'
+citations: []
+---
+
 # 架构决策记录 (ADR)
 
 ## ADR-001: 智能问答驱动的本体构建架构

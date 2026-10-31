@@ -1,3 +1,17 @@
+---
+id: odap.l0.readme
+status: active
+owner: pm
+version: ''
+layer: L0
+concern: requirements
+lifecycle: living
+superseded_by: ''
+supersedes: []
+last_verified: '2026-10-17'
+citations: []
+---
+
 # 00-需求 (Requirements)
 
 > **所属层次**: SDD 第1层 — 原始需求 / 第2层 — 开发需求

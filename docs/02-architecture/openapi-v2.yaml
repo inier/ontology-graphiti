@@ -1,0 +1,1435 @@
+openapi: 3.0.3
+info:
+  title: ODAP API v2
+  version: 2.0.0
+  description: >
+    ODAP（Ontology-Driven Analysis & Decision Platform）本轮新增/变更核心端点的 API 契约。
+    覆盖四大域：LLM Wiki（产品模块 + 仓库文档治理双向打通）、本体约束问答（本体约束编排层，
+    输入输出均受 TBox 约束）、溯源查询（provenance 可机械校验）、文档治理。
+    本契约为前后端唯一联调依据：前端据此生成 TypeScript 类型与 MSW mock，后端据此实现。
+    所有端点带版本前缀 /api/v1/。统一响应包络 { code, data, message }。认证使用
+    Authorization: Bearer <jwt>。契约变更须同步本文档并经 Team Lead 通知前后端。
+    本契约不使用 emoji。
+servers:
+  - url: /api/v1
+    description: API v1（URL 路径版本）
+
+tags:
+  - name: LLM Wiki
+    description: LLM Wiki 产品模块（知识条目 CRUD、版本、发布、引用关系）
+  - name: Ontology QA
+    description: 本体约束问答（受 TBox 约束的输入输出编排管线）
+  - name: Provenance
+    description: 溯源查询（编排管线六步证据链）
+  - name: Doc Governance
+    description: 仓库文档治理（纳管、核验、去重合并、真相源）
+
+paths:
+  # ============================ LLM Wiki ============================
+  /wiki/entries:
+    get:
+      tags: [LLM Wiki]
+      summary: 列出 Wiki 条目
+      operationId: listWikiEntries
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: status
+          in: query
+          schema:
+            $ref: '#/components/schemas/DocStatus'
+        - name: owner
+          in: query
+          schema:
+            type: string
+        - name: q
+          in: query
+          description: 关键词搜索（标题/正文）
+          schema:
+            type: string
+        - name: page
+          in: query
+          schema:
+            type: integer
+            minimum: 1
+            default: 1
+        - name: limit
+          in: query
+          schema:
+            type: integer
+            minimum: 1
+            maximum: 100
+            default: 20
+      responses:
+        '200':
+          description: 成功
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/Envelope'
+                  - type: object
+                    properties:
+                      data:
+                        $ref: '#/components/schemas/WikiEntryPage'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+    post:
+      tags: [LLM Wiki]
+      summary: 创建 Wiki 条目
+      operationId: createWikiEntry
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/WikiEntryCreate'
+      responses:
+        '201':
+          description: 创建成功
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/Envelope'
+                  - type: object
+                    properties:
+                      data:
+                        $ref: '#/components/schemas/WikiEntry'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+
+  /wiki/entries/{entry_id}:
+    get:
+      tags: [LLM Wiki]
+      summary: 获取 Wiki 条目详情
+      operationId: getWikiEntry
+      security:
+        - bearerAuth: []
+      parameters:
+        - $ref: '#/components/parameters/EntryId'
+      responses:
+        '200':
+          description: 成功
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/Envelope'
+                  - type: object
+                    properties:
+                      data:
+                        $ref: '#/components/schemas/WikiEntry'
+        '404':
+          $ref: '#/components/responses/NotFound'
+    patch:
+      tags: [LLM Wiki]
+      summary: 部分更新 Wiki 条目
+      operationId: updateWikiEntry
+      security:
+        - bearerAuth: []
+      parameters:
+        - $ref: '#/components/parameters/EntryId'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/WikiEntryUpdate'
+      responses:
+        '200':
+          description: 成功
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/Envelope'
+                  - type: object
+                    properties:
+                      data:
+                        $ref: '#/components/schemas/WikiEntry'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '404':
+          $ref: '#/components/responses/NotFound'
+    delete:
+      tags: [LLM Wiki]
+      summary: 归档 Wiki 条目（软删除，不物理删除）
+      operationId: archiveWikiEntry
+      security:
+        - bearerAuth: []
+      parameters:
+        - $ref: '#/components/parameters/EntryId'
+      responses:
+        '200':
+          description: 成功
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Envelope'
+
+  /wiki/entries/{entry_id}/publish:
+    post:
+      tags: [LLM Wiki]
+      summary: 发布 Wiki 条目（进入 published 状态，要求 owner 与内容核验）
+      operationId: publishWikiEntry
+      security:
+        - bearerAuth: []
+      parameters:
+        - $ref: '#/components/parameters/EntryId'
+      responses:
+        '200':
+          description: 成功
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/Envelope'
+                  - type: object
+                    properties:
+                      data:
+                        $ref: '#/components/schemas/WikiEntry'
+        '409':
+          description: 状态冲突（如缺 owner 或内容哈希未核验）
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Envelope'
+
+  /wiki/entries/{entry_id}/versions:
+    get:
+      tags: [LLM Wiki]
+      summary: 列出版本历史
+      operationId: listWikiEntryVersions
+      security:
+        - bearerAuth: []
+      parameters:
+        - $ref: '#/components/parameters/EntryId'
+      responses:
+        '200':
+          description: 成功
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/Envelope'
+                  - type: object
+                    properties:
+                      data:
+                        type: array
+                        items:
+                          $ref: '#/components/schemas/DocVersion'
+
+  /wiki/entries/{entry_id}/references:
+    get:
+      tags: [LLM Wiki]
+      summary: 查询条目引用关系（谁引用了它 / 它引用了谁）
+      operationId: getWikiEntryReferences
+      security:
+        - bearerAuth: []
+      parameters:
+        - $ref: '#/components/parameters/EntryId'
+      responses:
+        '200':
+          description: 成功
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/Envelope'
+                  - type: object
+                    properties:
+                      data:
+                        $ref: '#/components/schemas/ReferenceGraph'
+
+  /wiki/sync/import:
+    post:
+      tags: [LLM Wiki]
+      summary: 从仓库 docs/ 导入文档为 Wiki 条目（保留 source_ref）
+      operationId: importFromRepo
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [source_ref]
+              properties:
+                source_ref:
+                  type: string
+                  description: 仓库相对路径，形如 repo:docs/07-adr/ADR-091_*.md
+                  example: repo:docs/07-adr/ADR-091_graph-render-stack-consolidation.md
+      responses:
+        '201':
+          description: 导入成功
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/Envelope'
+                  - type: object
+                    properties:
+                      data:
+                        $ref: '#/components/schemas/WikiEntry'
+
+  /wiki/sync/export:
+    post:
+      tags: [LLM Wiki]
+      summary: 将 Wiki 条目回写为仓库 md（受写权限与审批约束）
+      operationId: exportToRepo
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [entry_id, target_path]
+              properties:
+                entry_id:
+                  type: string
+                target_path:
+                  type: string
+                  example: docs/03-modules/wiki/overview.md
+      responses:
+        '200':
+          description: 回写成功
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/Envelope'
+                  - type: object
+                    properties:
+                      data:
+                        type: object
+                        properties:
+                          target_path:
+                            type: string
+                          content_hash:
+                            type: string
+
+  # ============================ Ontology QA ============================
+  /ontology/qa:
+    post:
+      tags: [Ontology QA]
+      summary: 本体约束问答（输入输出均受 TBox 约束）
+      description: >
+        执行本体约束编排管线：意图识别 -> 本体映射 -> 规则校验(OPA+公理) -> 检索/推理执行
+        -> 生成 -> 输出契约校验。若意图低置信度则返回澄清问句（clarify）；若槽位无法映射到
+        TBox 则返回缺口项（unmapped）；若证据不足则返回 no_answer，不编造。
+      operationId: ontologyQa
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/QaRequest'
+      responses:
+        '200':
+          description: 成功（可能为 answered / clarify / no_answer / blocked）
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/Envelope'
+                  - type: object
+                    properties:
+                      data:
+                        $ref: '#/components/schemas/QaResponse'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+
+  # ============================ Provenance ============================
+  /ontology/qa/{trace_id}/provenance:
+    get:
+      tags: [Provenance]
+      summary: 查询溯源证据链
+      description: 返回编排管线六步的证据记录（可机械校验：步骤齐全、引用可解析、TBox 版本一致）。
+      operationId: getProvenance
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: trace_id
+          in: path
+          required: true
+          schema:
+            type: string
+            example: urn:odap:trace:01J9...
+      responses:
+        '200':
+          description: 成功
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/Envelope'
+                  - type: object
+                    properties:
+                      data:
+                        $ref: '#/components/schemas/Provenance'
+        '404':
+          $ref: '#/components/responses/NotFound'
+
+  # ============================ Actions / HITL ============================
+  /ontology/qa/{trace_id}/actions:
+    get:
+      tags: [Actions]
+      summary: 列出该次问答派生出的动作（含 HITL 状态）
+      description: >
+        AC-40/AC-42：问答响应里的 `suggested_actions[]` 每条都会落 `qa_actions`，
+        与本 trace 关联。本端点按创建时间升序返回，供前端渲染执行建议面板与审批状态。
+      operationId: listQaActions
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: trace_id
+          in: path
+          required: true
+          schema:
+            type: string
+            example: urn:odap:trace:01J9...
+      responses:
+        '200':
+          description: 成功
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/Envelope'
+                  - type: object
+                    properties:
+                      data:
+                        type: object
+                        required: [trace_id, actions]
+                        properties:
+                          trace_id:
+                            type: string
+                          actions:
+                            type: array
+                            items:
+                              $ref: '#/components/schemas/QaAction'
+        '404':
+          $ref: '#/components/responses/NotFound'
+
+  /ontology/qa/actions/{action_id}/approve:
+    post:
+      tags: [Actions]
+      summary: HITL 审批（批准 / 驳回高风险动作）
+      description: >
+        AC-41：`risk_level=high` 的动作必须经此端点确认后才允许执行。
+        审批鉴权复用 OPA 策略 `semantic_admin_approval.rego`（映射为写动作 `modify`），
+        OPA 不可用时返回 503 `APPROVAL_SERVICE_UNAVAILABLE`（fail-closed，绝不默认放行）。
+        `risk_level=low` 的动作调用本端点返回 409 `ACTION_HITL_NOT_APPLICABLE`。
+      operationId: decideQaAction
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: action_id
+          in: path
+          required: true
+          schema:
+            type: string
+            example: act-01J9ZK8P3Q7N2M4R5T6V7W8X9A
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/QaActionDecision'
+      responses:
+        '200':
+          description: 审批结果（`approved` / `rejected`）
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/Envelope'
+                  - type: object
+                    properties:
+                      data:
+                        $ref: '#/components/schemas/QaAction'
+        '403':
+          description: 审批被策略拒绝（`APPROVAL_DENIED`）
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Envelope'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '409':
+          description: 动作无需审批或状态不可迁移（`ACTION_HITL_NOT_APPLICABLE` / `ACTION_ALREADY_SETTLED`）
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Envelope'
+        '503':
+          description: 审批服务不可用（`APPROVAL_SERVICE_UNAVAILABLE`，fail-closed）
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Envelope'
+
+  /ontology/qa/actions/{action_id}/execute:
+    post:
+      tags: [Actions]
+      summary: 执行动作（高风险必须已审批）
+      description: >
+        `low` 风险（只读/预览）可直接执行；`high` 风险未 `approved` 时返回
+        409 `ACTION_HITL_REQUIRED`，**禁止自动执行**（AC-41）。
+        执行结果写回 `qa_actions.status=executed` 并带 `executed_at`（AC-42）。
+        本轮未建执行路径的动作（如 `export_answer_wiki`）返回
+        501 `ACTION_EXECUTION_NOT_IMPLEMENTED`，不返回假成功。
+      operationId: executeQaAction
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: action_id
+          in: path
+          required: true
+          schema:
+            type: string
+            example: act-01J9ZK8P3Q7N2M4R5T6V7W8X9A
+      responses:
+        '200':
+          description: 执行成功（含动作终态与执行结果）
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/Envelope'
+                  - type: object
+                    properties:
+                      data:
+                        type: object
+                        required: [action, action_type, result]
+                        properties:
+                          action:
+                            $ref: '#/components/schemas/QaAction'
+                          action_type:
+                            type: string
+                          result:
+                            type: object
+                            additionalProperties: true
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '409':
+          description: 高风险未审批 / 已执行 / 已驳回（`ACTION_HITL_REQUIRED` 等）
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Envelope'
+        '501':
+          description: 该动作执行路径未实现（`ACTION_EXECUTION_NOT_IMPLEMENTED`）
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Envelope'
+
+  # ============================ Doc Governance ============================
+  /docs/governance/documents:
+    get:
+      tags: [Doc Governance]
+      summary: 列出纳管文档（仓库 docs/ + Wiki 条目统一视角）
+      operationId: listGovernedDocs
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: status
+          in: query
+          schema:
+            $ref: '#/components/schemas/DocStatus'
+        - name: stale
+          in: query
+          description: 仅返回 last_verified 过期文档
+          schema:
+            type: boolean
+        - name: no_owner
+          in: query
+          description: 仅返回无 owner 文档（不合格项）
+          schema:
+            type: boolean
+        - name: page
+          in: query
+          schema:
+            type: integer
+            minimum: 1
+            default: 1
+        - name: limit
+          in: query
+          schema:
+            type: integer
+            minimum: 1
+            maximum: 100
+            default: 20
+      responses:
+        '200':
+          description: 成功
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/Envelope'
+                  - type: object
+                    properties:
+                      data:
+                        $ref: '#/components/schemas/GovernedDocPage'
+
+  /docs/governance/documents/{doc_id}:
+    get:
+      tags: [Doc Governance]
+      summary: 获取纳管文档详情（含 front-matter）
+      operationId: getGovernedDoc
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: doc_id
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: 成功
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/Envelope'
+                  - type: object
+                    properties:
+                      data:
+                        $ref: '#/components/schemas/GovernedDoc'
+        '404':
+          $ref: '#/components/responses/NotFound'
+
+  /docs/governance/documents/{doc_id}/supersede:
+    post:
+      tags: [Doc Governance]
+      summary: 标记文档被取代（设 superseded_by，不删除，保留真相源链）
+      operationId: supersedeDoc
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: doc_id
+          in: path
+          required: true
+          schema:
+            type: string
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [superseded_by]
+              properties:
+                superseded_by:
+                  type: string
+                  description: canonical 文档 id
+      responses:
+        '200':
+          description: 成功
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/Envelope'
+                  - type: object
+                    properties:
+                      data:
+                        $ref: '#/components/schemas/GovernedDoc'
+        '404':
+          $ref: '#/components/responses/NotFound'
+
+  /docs/governance/verify:
+    post:
+      tags: [Doc Governance]
+      summary: 机械校验文档治理（悬空引用、缺 owner、孤立文档、陈旧文档）
+      description: >
+        对纳管文档集合执行可机械校验的治理检查：引用图悬空引用、缺 owner、孤立文档、
+        last_verified 过期、重复 content_hash。返回问题清单，供 CI 门禁消费。
+      operationId: verifyDocGovernance
+      security:
+        - bearerAuth: []
+      responses:
+        '200':
+          description: 成功
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/Envelope'
+                  - type: object
+                    properties:
+                      data:
+                        $ref: '#/components/schemas/DocGovernanceReport'
+
+  /docs/governance/dedupe:
+    get:
+      tags: [Doc Governance]
+      summary: 去重合并候选（按 content_hash 判重 + embedding 相似度）
+      operationId: listDedupeCandidates
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: threshold
+          in: query
+          schema:
+            type: number
+            format: float
+            minimum: 0
+            maximum: 1
+            default: 0.9
+      responses:
+        '200':
+          description: 成功
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/Envelope'
+                  - type: object
+                    properties:
+                      data:
+                        type: array
+                        items:
+                          $ref: '#/components/schemas/DedupeCandidate'
+
+  /monitoring/performance:
+    get:
+      tags: [Monitoring]
+      summary: 获取进程内性能指标统计（按指标类型分组）
+      description: >
+        返回 process-local 性能计数器聚合结果，按指标类型分组，每组给出
+        count/mean/median/min/max/p95/p99（单位秒）。指标类型固定为
+        llm_calls / database_queries / api_requests / tool_executions；
+        尚无采样记录的指标类型返回空对象。
+
+        注意：本端点属于运维观测面，响应体不走统一 Envelope
+        （{code, data, message}），沿用既有原始对象结构以兼容
+        运维看板与前端 api.ts 消费方。TODO(SPEC-v2 AC-56)：后续波次
+        统一收敛到 Envelope。
+      operationId: getPerformanceMetrics
+      security:
+        - bearerAuth: []
+      responses:
+        '200':
+          description: 成功
+          content:
+            application/json:
+              schema:
+                type: object
+                description: 键为指标类型，值为该类型的统计聚合
+                additionalProperties:
+                  $ref: '#/components/schemas/PerformanceStats'
+              example:
+                llm_calls:
+                  count: 128
+                  mean: 0.7321
+                  median: 0.6894
+                  min: 0.2103
+                  max: 3.4507
+                  p95: 1.8821
+                  p99: 2.9104
+                database_queries: {}
+                api_requests:
+                  count: 942
+                  mean: 0.0432
+                  median: 0.0387
+                  min: 0.0091
+                  max: 0.2611
+                  p95: 0.0918
+                  p99: 0.1342
+                tool_executions: {}
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+
+  /monitoring/performance/reset:
+    post:
+      tags: [Monitoring]
+      summary: 重置进程内性能指标
+      description: >
+        清空所有指标类型的采样缓冲。仅管理员可调用。重置后
+        GET /monitoring/performance 各指标类型返回空对象。
+        同样不走统一 Envelope，见 /monitoring/performance 的说明。
+      operationId: resetPerformanceMetrics
+      security:
+        - bearerAuth: []
+      responses:
+        '200':
+          description: 成功
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [message]
+                properties:
+                  message:
+                    type: string
+                    example: Performance metrics reset successfully
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+
+components:
+  securitySchemes:
+    bearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+
+  parameters:
+    EntryId:
+      name: entry_id
+      in: path
+      required: true
+      schema:
+        type: string
+        example: doc-01J9ZK8P3Q7N2M
+
+  responses:
+    BadRequest:
+      description: 请求参数非法
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Envelope'
+    Unauthorized:
+      description: 未认证或令牌失效
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Envelope'
+    NotFound:
+      description: 资源不存在
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Envelope'
+
+  schemas:
+    Envelope:
+      type: object
+      required: [code, message]
+      properties:
+        code:
+          type: integer
+          description: 0 表示成功，非 0 为错误码
+          example: 0
+        message:
+          type: string
+          description: 错误时的人类可读描述；成功时为空串
+          example: ""
+        data:
+          nullable: true
+
+    DocStatus:
+      type: string
+      enum: [draft, review, published, superseded, archived]
+
+    DocVersion:
+      type: object
+      required: [version, created_at, content_hash]
+      properties:
+        version:
+          type: string
+          example: 2.0.0
+        created_at:
+          type: string
+          format: date-time
+        content_hash:
+          type: string
+          example: sha256:9f2c...
+        author_id:
+          type: string
+        change_note:
+          type: string
+
+    Citation:
+      type: object
+      required: [kind, ref]
+      properties:
+        kind:
+          type: string
+          enum: [doc, tbox_node, opa_decision, graph_edge, metric]
+        ref:
+          type: string
+          example: doc:kb/123#chunk-4
+        asof:
+          type: string
+          format: date-time
+          nullable: true
+
+    WikiEntryCreate:
+      type: object
+      required: [title, content, owner]
+      properties:
+        title:
+          type: string
+          minLength: 1
+        content:
+          type: string
+          description: Markdown 正文
+          minLength: 1
+        owner:
+          type: string
+          description: 责任人（user/role id），必填
+        tags:
+          type: array
+          items:
+            type: string
+          default: []
+        concept_refs:
+          type: array
+          description: 关联的 TBox 概念引用（ObjectType/术语 id）
+          items:
+            type: string
+          default: []
+        citations:
+          type: array
+          items:
+            $ref: '#/components/schemas/Citation'
+          default: []
+
+    WikiEntryUpdate:
+      type: object
+      properties:
+        title:
+          type: string
+          minLength: 1
+        content:
+          type: string
+          minLength: 1
+        owner:
+          type: string
+        tags:
+          type: array
+          items:
+            type: string
+        concept_refs:
+          type: array
+          items:
+            type: string
+        citations:
+          type: array
+          items:
+            $ref: '#/components/schemas/Citation'
+        change_note:
+          type: string
+
+    WikiEntry:
+      type: object
+      required: [id, title, status, owner, version, content_hash, created_at, updated_at]
+      properties:
+        id:
+          type: string
+          example: doc-01J9ZK8P3Q7N2M
+        title:
+          type: string
+        content:
+          type: string
+        status:
+          $ref: '#/components/schemas/DocStatus'
+        owner:
+          type: string
+        version:
+          type: string
+        source_ref:
+          type: string
+          nullable: true
+          description: 若由仓库导入，指向仓库路径
+        superseded_by:
+          type: string
+          nullable: true
+        supersedes:
+          type: array
+          items:
+            type: string
+        content_hash:
+          type: string
+        last_verified:
+          type: string
+          format: date
+          nullable: true
+        tags:
+          type: array
+          items:
+            type: string
+        concept_refs:
+          type: array
+          items:
+            type: string
+        citations:
+          type: array
+          items:
+            $ref: '#/components/schemas/Citation'
+        created_at:
+          type: string
+          format: date-time
+        updated_at:
+          type: string
+          format: date-time
+
+    WikiEntryPage:
+      type: object
+      required: [items, total, page, limit, hasMore]
+      properties:
+        items:
+          type: array
+          items:
+            $ref: '#/components/schemas/WikiEntry'
+        total:
+          type: integer
+        page:
+          type: integer
+        limit:
+          type: integer
+        hasMore:
+          type: boolean
+
+    ReferenceLink:
+      type: object
+      required: [from_id, to_id]
+      properties:
+        from_id:
+          type: string
+        to_id:
+          type: string
+        kind:
+          type: string
+          enum: [cites, supersedes, related]
+
+    ReferenceGraph:
+      type: object
+      required: [nodes, links]
+      properties:
+        nodes:
+          type: array
+          items:
+            type: object
+            required: [id, title]
+            properties:
+              id:
+                type: string
+              title:
+                type: string
+              status:
+                $ref: '#/components/schemas/DocStatus'
+        links:
+          type: array
+          items:
+            $ref: '#/components/schemas/ReferenceLink'
+
+    QaRequest:
+      type: object
+      required: [query]
+      properties:
+        query:
+          type: string
+          minLength: 1
+          example: 上季度退货率最高的三个品类是什么，依据是什么
+        workspace_id:
+          type: string
+          nullable: true
+        mode:
+          type: string
+          description: 检索模式；auto=统一检索自动路由
+          enum: [auto, chain, nl, mdl, graph, metric]
+          default: auto
+        allow_actions:
+          type: boolean
+          description: 是否允许在回答后进入 Action 层给出执行建议
+          default: false
+        locale:
+          type: string
+          default: zh-CN
+
+    QaStatus:
+      type: string
+      enum: [answered, clarify, no_answer, blocked]
+
+    SubIntent:
+      type: object
+      required: [intent_type]
+      description: 复合问句里的子意图（槽位归属到各自子意图，不混进主槽位袋）
+      properties:
+        intent_type:
+          type: string
+        terms:
+          type: array
+          items:
+            type: string
+        text:
+          type: string
+          description: 该子意图对应的原始子句文本
+        confidence:
+          type: number
+          format: float
+          minimum: 0
+          maximum: 1
+
+    IntentFrame:
+      type: object
+      required: [intent_type, confidence]
+      properties:
+        intent_type:
+          type: string
+        primary_intent:
+          type: string
+          description: 主意图（与 intent_type 同值；复合问句里区分于 sub_intents）
+        sub_intents:
+          type: array
+          items:
+            $ref: '#/components/schemas/SubIntent'
+        slots:
+          type: object
+          additionalProperties: true
+        confidence:
+          type: number
+          format: float
+          minimum: 0
+          maximum: 1
+        level:
+          type: string
+          enum: [L0, L1, L2, L3]
+          description: 该帧由哪一层漏斗产出（L0 = 澄清）
+        clarify_question:
+          type: string
+          nullable: true
+
+    MappedRef:
+      type: object
+      required: [slot, kind, ref]
+      properties:
+        slot:
+          type: string
+        kind:
+          type: string
+          enum: [ObjectType, RelationType, Property, ActionType, metric]
+        ref:
+          type: string
+          example: ObjectType:Order
+
+    UnmappedSlot:
+      type: object
+      required: [slot, raw]
+      properties:
+        slot:
+          type: string
+        raw:
+          type: string
+        suggested_gap_id:
+          type: string
+          nullable: true
+          description: 已进入概念缺口回路（gap_pool）的缺口 id
+
+    SuggestedAction:
+      type: object
+      required: [action_type, risk_level, requires_hitl, executable, status]
+      properties:
+        action_id:
+          type: string
+          nullable: true
+          description: 落库后的动作 id（用于审批 / 执行），未落库时为 null
+          example: act-01J9ZK8P3Q7N2M4R5T6V7W8X9A
+        action_type:
+          type: string
+          enum: [open_provenance, view_citations, submit_gap_fill, export_answer_wiki]
+        risk_level:
+          type: string
+          enum: [low, high]
+          description: |
+            `low` = 只读/预览，无副作用，可一键执行；
+            `high` = 写入/对外发布/不可逆，必须 HITL 确认（AC-41）。
+        requires_hitl:
+          type: boolean
+          description: 恒等于 `risk_level == "high"`（AC-41）
+        executable:
+          type: boolean
+          description: 该动作本轮是否有真实执行路径；false 时执行返回 501
+        status:
+          type: string
+          enum: [proposed, approved, rejected, executed]
+        summary:
+          type: string
+        payload:
+          type: object
+          additionalProperties: true
+        execution_error_code:
+          type: string
+          nullable: true
+
+    QaAction:
+      type: object
+      description: "qa_actions 表的一行（AC-42：与 trace_id 关联）"
+      required: [id, trace_id, action_type, risk_level, status, created_at]
+      properties:
+        id:
+          type: string
+          example: act-01J9ZK8P3Q7N2M4R5T6V7W8X9A
+        trace_id:
+          type: string
+          example: urn:odap:trace:01J9...
+        action_type:
+          type: string
+        risk_level:
+          type: string
+          enum: [low, high]
+        payload:
+          type: object
+          additionalProperties: true
+        status:
+          type: string
+          enum: [proposed, approved, rejected, executed]
+        approved_by:
+          type: string
+          nullable: true
+        executed_at:
+          type: string
+          nullable: true
+        created_at:
+          type: string
+
+    QaActionDecision:
+      type: object
+      required: [approved]
+      properties:
+        approved:
+          type: boolean
+        note:
+          type: string
+          nullable: true
+          maxLength: 500
+
+    QaResponse:
+      type: object
+      required: [status, trace_id, contract_ok]
+      properties:
+        status:
+          $ref: '#/components/schemas/QaStatus'
+        trace_id:
+          type: string
+          example: urn:odap:trace:01J9...
+        answer:
+          type: string
+          nullable: true
+        intent:
+          $ref: '#/components/schemas/IntentFrame'
+        mapped_refs:
+          type: array
+          items:
+            $ref: '#/components/schemas/MappedRef'
+        unmapped:
+          type: array
+          items:
+            $ref: '#/components/schemas/UnmappedSlot'
+        clarify_question:
+          type: string
+          nullable: true
+        citations:
+          type: array
+          items:
+            $ref: '#/components/schemas/Citation'
+        suggested_actions:
+          type: array
+          items:
+            $ref: '#/components/schemas/SuggestedAction'
+        contract_ok:
+          type: boolean
+          description: 输出是否通过 TBox/SHACL 输出契约校验
+        blocked_reasons:
+          type: array
+          items:
+            type: string
+        degraded:
+          type: boolean
+          description: 是否发生降级（如 OPA/Neo4j 不可用）
+        degraded_engines:
+          type: array
+          items:
+            type: string
+
+    ProvenanceStep:
+      type: object
+      required: [step, component, version, ts]
+      properties:
+        step:
+          type: string
+          enum: [intent, map, guard, retrieve, compose, contract]
+        component:
+          type: string
+        version:
+          type: string
+        evidence:
+          type: array
+          items:
+            $ref: '#/components/schemas/Citation'
+        ts:
+          type: string
+          format: date-time
+
+    Provenance:
+      type: object
+      required: [trace_id, steps, tbox_version, contract_ok]
+      properties:
+        trace_id:
+          type: string
+        steps:
+          type: array
+          items:
+            $ref: '#/components/schemas/ProvenanceStep'
+        citations:
+          type: array
+          items:
+            $ref: '#/components/schemas/Citation'
+        tbox_version:
+          type: string
+          description: 本次使用的 TBox 快照哈希（版本锚定）
+          example: sha256:ab12...
+        contract_ok:
+          type: boolean
+
+    GovernedDoc:
+      type: object
+      required: [id, title, status, owner, version, content_hash]
+      properties:
+        id:
+          type: string
+        title:
+          type: string
+        status:
+          $ref: '#/components/schemas/DocStatus'
+        owner:
+          type: string
+          nullable: true
+        version:
+          type: string
+        source_ref:
+          type: string
+          nullable: true
+        superseded_by:
+          type: string
+          nullable: true
+        supersedes:
+          type: array
+          items:
+            type: string
+        content_hash:
+          type: string
+        last_verified:
+          type: string
+          format: date
+          nullable: true
+        citations:
+          type: array
+          items:
+            $ref: '#/components/schemas/Citation'
+
+    GovernedDocPage:
+      type: object
+      required: [items, total, page, limit, hasMore]
+      properties:
+        items:
+          type: array
+          items:
+            $ref: '#/components/schemas/GovernedDoc'
+        total:
+          type: integer
+        page:
+          type: integer
+        limit:
+          type: integer
+        hasMore:
+          type: boolean
+
+    DocGovernanceIssue:
+      type: object
+      required: [code, severity, doc_id]
+      properties:
+        code:
+          type: string
+          enum: [dangling_reference, missing_owner, orphan_doc, stale_verified, duplicate_hash]
+        severity:
+          type: string
+          enum: [error, warning]
+        doc_id:
+          type: string
+        detail:
+          type: string
+
+    DocGovernanceReport:
+      type: object
+      required: [checked, issues]
+      properties:
+        checked:
+          type: integer
+          description: 检查的文档总数
+        issues:
+          type: array
+          items:
+            $ref: '#/components/schemas/DocGovernanceIssue'
+        pass:
+          type: boolean
+          description: 无 error 级问题即 true
+
+    DedupeCandidate:
+      type: object
+      required: [doc_ids, similarity]
+      properties:
+        doc_ids:
+          type: array
+          items:
+            type: string
+        similarity:
+          type: number
+          format: float
+        reason:
+          type: string
+          enum: [same_hash, high_similarity]
+        canonical_id:
+          type: string
+          nullable: true
+
+    PerformanceStats:
+      type: object
+      description: >
+        单一指标类型的采样聚合。无采样记录时为空对象（没有任何字段）。
+      properties:
+        count:
+          type: integer
+          description: 采样条数
+        mean:
+          type: number
+          format: float
+          description: 均值，单位秒
+        median:
+          type: number
+          format: float
+          description: 中位数，单位秒
+        min:
+          type: number
+          format: float
+          description: 最小值，单位秒
+        max:
+          type: number
+          format: float
+          description: 最大值，单位秒
+        p95:
+          type: number
+          format: float
+          description: 95 分位，单位秒
+        p99:
+          type: number
+          format: float
+          description: 99 分位，单位秒

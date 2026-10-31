@@ -1,3 +1,18 @@
+---
+id: odap.l2.subsystems-ai-assistant-platform-ontology
+status: active
+owner: architect
+version: ''
+layer: L2
+concern: architecture-subsystem
+lifecycle: living
+superseded_by: ''
+supersedes: []
+last_verified: '2026-10-17'
+citations: []
+governance_reason: 子系统边界与独立化设计，与总体架构不同关注点，仍为实施依据
+---
+
 # 平台功能本体建模 v1.0
 
 > **文档定位**：定义 ODAP 平台功能本体的 EntityType、RelationType、属性、实例数据填充策略。

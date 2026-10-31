@@ -1,3 +1,17 @@
+---
+id: odap.l7.adr-071-buildresultcontract-构建产物契约
+status: active
+owner: architect
+version: ''
+layer: L7
+concern: adr
+lifecycle: frozen
+superseded_by: ''
+supersedes: []
+last_verified: '2026-10-17'
+citations: []
+---
+
 # ADR-071: BuildResultContract —— L2 Construction 层构建产物契约
 
 ## Status

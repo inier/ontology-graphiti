@@ -1,3 +1,19 @@
+---
+id: odap.l11.code-cleanup-list
+status: archived
+owner: archivist
+version: ''
+layer: L11
+concern: archive
+lifecycle: historical
+superseded_by: ''
+supersedes: []
+last_verified: '2026-10-17'
+citations: []
+governance_reason: 已被后续版本取代的历史设计或清理清单
+governance_evidence: docs/11-archive/README.md 归档说明；文件名或正文含版本号/日期
+---
+
 # ODAP 无用代码清理清单
 
 > **版本**: 4.1.0 | **日期**: 2026-05-23

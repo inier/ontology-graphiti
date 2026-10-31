@@ -1,3 +1,17 @@
+---
+id: odap.l7.adr-046-modular-monolith-deployment
+status: active
+owner: architect
+version: ''
+layer: L7
+concern: adr
+lifecycle: frozen
+superseded_by: ''
+supersedes: []
+last_verified: '2026-10-17'
+citations: []
+---
+
 # ADR-046: Phase 4 采用模块化单体部署架构
 
 ## 状态

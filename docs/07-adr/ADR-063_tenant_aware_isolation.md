@@ -1,3 +1,18 @@
+---
+id: odap.l7.adr-063-tenant-aware-isolation
+status: active
+owner: architect
+version: ''
+layer: L7
+concern: adr
+lifecycle: frozen
+superseded_by: ''
+supersedes: []
+last_verified: '2026-10-17'
+citations: []
+governance_reason: 状态段声明部分落地，已在生效
+---
+
 # ADR-063: 租户感知隔离与部署蓝图
 
 ## 状态

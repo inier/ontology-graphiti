@@ -1,3 +1,19 @@
+---
+id: odap.l0.archive-req-beta
+status: archived
+owner: pm
+version: ''
+layer: L0
+concern: requirements
+lifecycle: historical
+superseded_by: ''
+supersedes: []
+last_verified: '2026-10-17'
+citations: []
+governance_reason: 早期需求草案，已被 req-ok.md 定稿承接
+governance_evidence: docs/00-requirements/README.md 层说明；同目录 req-ok.md 标题为「需求规格说明书（定稿）」
+---
+
 # 需求规格说明书 v1.1.0
 
 > **版本**: 1.1.0 | **日期**: 2026-05-03 | **状态**: 📦 归档

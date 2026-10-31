@@ -1,3 +1,18 @@
+---
+id: odap.l4.ontology-build-ui
+status: active
+owner: designer
+version: ''
+layer: L4
+concern: ontology-build-ui
+lifecycle: living
+superseded_by: ''
+supersedes: []
+last_verified: '2026-10-17'
+citations: []
+governance_reason: 智能问答驱动本体构建的专篇 UI 设计，v2 仅给页面级规格
+---
+
 # 智能问答驱动的本体构建系统 - 前端UI设计稿
 
 > **版本**: 1.0.0 | **日期**: 2026-04-26

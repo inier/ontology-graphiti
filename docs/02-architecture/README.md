@@ -1,3 +1,17 @@
+---
+id: odap.l2.readme
+status: active
+owner: architect
+version: ''
+layer: L2
+concern: architecture
+lifecycle: living
+superseded_by: ''
+supersedes: []
+last_verified: '2026-10-17'
+citations: []
+---
+
 # 02-架构设计 (Architecture)
 
 > **所属层次**: SDD 第4层 — 架构设计

@@ -1,3 +1,17 @@
+---
+id: odap.l5.readme
+status: active
+owner: architect
+version: ''
+layer: L5
+concern: security
+lifecycle: living
+superseded_by: ''
+supersedes: []
+last_verified: '2026-10-17'
+citations: []
+---
+
 # 05-安全设计 (Security)
 
 > **所属层次**: SDD 第7层 — 安全设计

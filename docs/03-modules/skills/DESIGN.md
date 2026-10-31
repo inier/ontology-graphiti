@@ -1,3 +1,17 @@
+---
+id: odap.l3.skills-design
+status: active
+owner: module-owner
+version: ''
+layer: L3
+concern: module-design
+lifecycle: living
+superseded_by: ''
+supersedes: []
+last_verified: '2026-10-17'
+citations: []
+---
+
 # Skills 领域工具层设计文档
 
 > **优先级**: P0 | **相关 ADR**: ADR-004, ADR-014

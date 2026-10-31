@@ -1,3 +1,17 @@
+---
+id: odap.l7.adr-070-基于openharness全能力的ai助手架构
+status: active
+owner: architect
+version: ''
+layer: L7
+concern: adr
+lifecycle: frozen
+superseded_by: ''
+supersedes: []
+last_verified: '2026-10-17'
+citations: []
+---
+
 # ADR-070: 基于 OpenHarness 全能力的 AI 助手架构
 
 ## 状态
@@ -324,7 +338,7 @@ OpenHarness 是 ODAP AI 助手的**正确运行时**。当前集成只用了 Que
 
 ## 相关文档
 
-- [ADR-050 统一 AI 助手与智能问答服务](./ADR-050_统一AI助手与智能问答服务.md)
+- [ADR-050 统一 AI 助手与智能问答服务](./ADR-050_OADP业务语义体系架构.md)
 - [ADR-048 本体管理引擎架构决策](./ADR-048_本体管理引擎架构决策.md)
 - [ADR-049 用户认知引擎架构决策](./ADR-049_用户认知引擎架构决策.md)
 - [OpenHarness README](../../packages/openharness/README.md)

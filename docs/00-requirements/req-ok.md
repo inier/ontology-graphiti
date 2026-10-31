@@ -1,3 +1,19 @@
+---
+id: odap.l0.req-ok
+status: authoritative
+owner: pm
+version: ''
+layer: L0
+concern: requirements-scope
+lifecycle: living
+superseded_by: ''
+supersedes: []
+last_verified: '2026-10-17'
+citations: []
+governance_reason: 原始需求范围定稿。与 SPEC-v2 关注点不同：本文件定「做什么」，SPEC-v2 定「怎么做、如何验收」
+governance_evidence: 标题「需求规格说明书（定稿）」；DOCUMENT_MANAGEMENT v2 §1.2 列为需求定稿
+---
+
 # 需求规格说明书（定稿）
 
 > **版本**: 2.0.0 | **日期**: 2026-05-03 | **状态**: 正式

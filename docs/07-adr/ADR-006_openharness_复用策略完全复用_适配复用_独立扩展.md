@@ -1,3 +1,17 @@
+---
+id: odap.l7.adr-006-openharness-复用策略完全复用-适配复用-独立扩展
+status: active
+owner: architect
+version: ''
+layer: L7
+concern: adr
+lifecycle: frozen
+superseded_by: ''
+supersedes: []
+last_verified: '2026-10-17'
+citations: []
+---
+
 # ADR-006: OpenHarness 复用策略（完全复用 + 适配复用 + 独立扩展）
 
 > **来源**: `docs/ARCHITECTURE.md` 第 17 章

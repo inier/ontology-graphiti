@@ -1,3 +1,18 @@
+---
+id: odap.l14.docs-readme
+status: reference
+owner: architect
+version: ''
+layer: L14
+concern: doc-index
+lifecycle: living
+superseded_by: ''
+supersedes: []
+last_verified: '2026-10-17'
+citations: []
+governance_reason: 文档中心导航索引
+---
+
 # ODAP 文档中心
 
 > **项目**: ODAP (Ontology-Driven Analysis Platform) — 本体驱动分析决策平台

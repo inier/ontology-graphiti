@@ -1,3 +1,19 @@
+---
+id: odap.l11.specs-openharness-react-integration-spec
+status: archived
+owner: archivist
+version: ''
+layer: L11
+concern: archive
+lifecycle: historical
+superseded_by: ''
+supersedes: []
+last_verified: '2026-10-17'
+citations: []
+governance_reason: spec-kit 规格件已交付或已废弃，正文由对应 ADR/模块设计承接
+governance_evidence: docs/11-archive/README.md 归档说明；spec-kit 流程产物（spec/tasks/checklist 三件套）
+---
+
 # 智能问答功能升级 - OpenHarness React 集成规范
 
 ## 1. 概述

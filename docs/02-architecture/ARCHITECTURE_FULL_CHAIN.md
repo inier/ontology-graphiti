@@ -1,3 +1,18 @@
+---
+id: odap.l2.architecture-full-chain
+status: active
+owner: architect
+version: ''
+layer: L2
+concern: architecture-full-chain
+lifecycle: living
+superseded_by: ''
+supersedes: []
+last_verified: '2026-10-17'
+citations: []
+governance_reason: 端到端全链路设计，与 v2 §2 六步流水线互补（本篇给链路视图，v2 给契约视图）
+---
+
 # 全链路架构设计：数据摄入→本体构建→用户问答→Skill执行
 
 > **版本**: 1.0.0 | **日期**: 2026-05-06 | **状态**: 设计稿

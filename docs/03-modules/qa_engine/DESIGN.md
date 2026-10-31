@@ -1,3 +1,17 @@
+---
+id: odap.l3.qa-engine-design
+status: active
+owner: module-owner
+version: ''
+layer: L3
+concern: module-design
+lifecycle: living
+superseded_by: ''
+supersedes: []
+last_verified: '2026-10-17'
+citations: []
+---
+
 # 问答引擎模块 (QA Engine) - 设计文档
 
 > **模块 ID**: M-12 | **优先级**: P0 | **相关 ADR**: ADR-002, ADR-044
@@ -873,10 +887,20 @@ async function switchSession(targetSessionId: string) {
 
 ## 12. OpenHarness 集成设计
 
+> **⚠️ 整章已被 [ADR-099](../../07-adr/ADR-099_frontend-agent-protocol-agui.md) 取代（2026-10-22）**
+>
+> 本章描述的 `@openharness/react` / AI SDK 5 data stream 集成路线已废弃：该 SDK 在 `apps/web/src` 零引用，且其 `createOHTransport` 只解析 AI SDK 5 协议，与后端实现的 AG-UI 不兼容，依赖已移除。
+>
+> **现行集成方案见 [INTEGRATION.md v2.0](./INTEGRATION.md)**（AG-UI 协议 + `AGUIProvider` + `useAIChat` + `AIChatPanel`）。以下 12.1~12.3 仅作设计演进记录保留，**不可作为实现依据**。
+
 ### 12.1 Provider 配置
 
+> **2026-10-22 状态**：本节描述的 `QAIProvider.tsx` 已删除（全站零消费，且它是 `@openharness/react` 的唯一 import 点），该依赖亦已移除 —— 详见 [ADR-099](../../07-adr/ADR-099_frontend-agent-protocol-agui.md)。项目实际的 Provider 层是 `apps/web/src/modules/qa/agui/AGUIProvider.tsx`，具备 heartbeat / autoReconnect / namespace / AGUIErrorBoundary 等 QAIProvider 没有的能力。
+>
+> 以下代码保留作为设计演进记录，**不可直接使用**。
+
 ```typescript
-// QAIProvider.tsx
+// QAIProvider.tsx（已删除，仅存档）
 import { OpenHarnessProvider } from '@openharness/react';
 
 export function QAIProvider({ children }: QAIProviderProps) {

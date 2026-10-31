@@ -1,3 +1,17 @@
+---
+id: odap.l7.adr-005-分层-agent-架构openharness-原生-领域扩展
+status: active
+owner: architect
+version: ''
+layer: L7
+concern: adr
+lifecycle: frozen
+superseded_by: ''
+supersedes: []
+last_verified: '2026-10-17'
+citations: []
+---
+
 # ADR-005: 分层 Agent 架构（OpenHarness 原生 + 领域扩展）
 
 > **来源**: `docs/ARCHITECTURE.md` 第 17 章

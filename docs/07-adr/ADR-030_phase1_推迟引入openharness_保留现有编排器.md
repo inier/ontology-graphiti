@@ -1,3 +1,17 @@
+---
+id: odap.l7.adr-030-phase1-推迟引入openharness-保留现有编排器
+status: active
+owner: architect
+version: ''
+layer: L7
+concern: adr
+lifecycle: frozen
+superseded_by: ''
+supersedes: []
+last_verified: '2026-10-17'
+citations: []
+---
+
 # ADR-030: Phase 1 推迟引入 OpenHarness，保留现有编排器
 
 ## 状态

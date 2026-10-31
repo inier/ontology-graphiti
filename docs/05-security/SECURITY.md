@@ -1,3 +1,18 @@
+---
+id: odap.l5.security
+status: authoritative
+owner: architect
+version: ''
+layer: L5
+concern: security
+lifecycle: living
+superseded_by: ''
+supersedes: []
+last_verified: '2026-10-17'
+citations: []
+governance_reason: 安全策略唯一成篇
+---
+
 # 安全策略文档
 
 **版本**: 1.0.0 | **日期**: 2026-04-13 | **作者**: 平台安全组

@@ -1,3 +1,17 @@
+---
+id: odap.l6.readme
+status: active
+owner: qa
+version: ''
+layer: L6
+concern: dfx
+lifecycle: living
+superseded_by: ''
+supersedes: []
+last_verified: '2026-10-17'
+citations: []
+---
+
 # 06-DFX设计 (Design for X)
 
 > **所属层次**: SDD 第8层 — DFX设计

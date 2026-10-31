@@ -1,3 +1,17 @@
+---
+id: odap.l7.readme
+status: active
+owner: architect
+version: ''
+layer: L7
+concern: adr
+lifecycle: frozen
+superseded_by: ''
+supersedes: []
+last_verified: '2026-10-17'
+citations: []
+---
+
 # 架构决策记录（ADR）
 
 本目录存放所有架构决策记录（Architecture Decision Records）。
@@ -107,8 +121,23 @@
 | ADR-089 | 子项目 C：`ontology_semantics` MCP 工具按需查询替代全量注入 | 已接受并实施（2026-10-09；三模式 off/inject/query 默认 query + 前端切换卡 + `sa_config` 三级解析 + cost 对账；实测新增 44 个 C 相关单测全绿；落稿时同步修复 EntityExtractor 构造默认值对 ADR-079 上下文驱动行为的覆盖回归） | P1 | 2026-10-09 | [ADR-089](ADR-089_子项目C_ontology_semantics%20MCP工具_按需查询替代全量注入.md) |
 | ADR-090 | 子项目 D：`promote` 按 attribution.layer 路由（类型化编辑 + 完整路由工单工作流） | 已接受并实施（2026-10-09；`schema>tool>content` 风险倒序 + 三路薄壳调度 + `schema` 走 ChangeProposal（draft 门控）+ `tool` 走完整工单工作流（6 态状态机/P0~P3 SLA/事件审计/前端界面）+ `route-preview` 无副作用端点；gap 存储幂等加 `promoted_proposal_id`/`promoted_ticket_id`；C3 门面新增 `create_schema_proposal`/`get_goal_storage`） | P1 | 2026-10-09 | [ADR-090](ADR-090_子项目D_promote按attribution_layer路由_类型化编辑.md) |
 | ADR-091 | 语义发布生命周期与本体单一写入通道 | **提议**（2026-10-28 提交，设计待复审；USL 草案/变更集/审核/发布版本四态 + 发布快照不可变与消费方版本固定 + `OntologyWriteGateway` 单一写入通道 + AI 只提案 + 一个工作台四区三视图；含 C5 import-linter 契约与 `USL_CONSUMPTION_MODE` 迁移开关） | P0 | 2026-10-28 | [ADR-091](ADR-091_语义发布生命周期与本体单一写入通道.md) |
+| ADR-092 | 图标库锁定为 lucide-react（统一描边 SVG） | 已接受（2026-10-17；`@ant-design/icons` 为填充式 SVG 且无 stroke-width/linecap 控制，无法满足 1.5px 统一描边，改锁 lucide-react；描边单点收敛在 `Icon.tsx`，16px 复杂度门禁进 CI） | P0 | 2026-10-17 | [ADR-092](ADR-092_icon-library-lock.md) |
+| ADR-093 | Design Token 分层与多主题切换机制 | 已接受（2026-10-17；三层 primitive→semantic→component；`data-appearance`(luminous/nebula) × `data-accent`(cobalt/teal/indigo/graphite) × `data-density` 正交切换） | P0 | 2026-10-17 | [ADR-093](ADR-093_design-token-theming.md) |
+| ADR-094 | 本体约束编排层（六步管线）选型 | 已接受（2026-10-17；`IntentRouter → OntologyAligner → RuleGuard → RetrievalExecutor → AnswerComposer → OutputContractGate`，每步输入/输出契约与降级路径明确，OPA fail-closed） | P0 | 2026-10-17 | [ADR-094](ADR-094_ontology-constraint-orchestration.md) |
+| ADR-095 | 意图识别分层方案与泛化度量 | 已接受（2026-10-17；L1 词典/别名 → L2 语义路由 → L3 受限 LLM 消歧 → L4 本体槽位填充四级漏斗；度量口径 Intent-Acc@1 / Slot-F1 / Gen-Gap / Clarify-Rate） | P0 | 2026-10-17 | [ADR-095](ADR-095_intent-recognition-generalization.md) |
+| ADR-096 | LLM Wiki 存储与双向同步方案 | 已接受（2026-10-17；统一 front-matter 纳管模型 + 状态机 `draft→review→published→superseded|archived` + `content_hash` 冲突检测） | P1 | 2026-10-17 | [ADR-096](ADR-096_llm-wiki-storage-sync.md) |
+| ADR-097 | 文档治理与溯源机制（真相源 + 可机械校验） | 已接受（2026-10-17；front-matter 为元数据唯一真相源；`DOCUMENT_MANAGEMENT.md` 升 v3、`DOC-GOVERNANCE-POLICY.yaml` 定规则、`scripts/doc_governance.py` 校验 R1~R14；第 1 条「其余 10 篇 ARCHITECTURE_* 全标 superseded」经复核收窄为「仅 `ARCHITECTURE.md`」，分层详设 5 篇保留 active） | P0 | 2026-10-17 | [ADR-097](ADR-097_docs-governance-provenance.md) |
+| ADR-098 | frontend_compat 兼容层收敛与下线 | 已接受（2026-10-17；兼容层保留但只做形状适配，不承载业务逻辑；新功能一律走 `/api/v1` 原生契约） | P1 | 2026-10-17 | [ADR-098](ADR-098_frontend-compat-convergence.md) |
+| ADR-099 | 前端 Agent 集成协议收敛为 AG-UI（放弃 AI SDK Data Stream 路线） | 已接受（2026-10-22；前端唯一协议为 AG-UI，移除 `@openharness/react` + `ai` 两个零引用且协议不兼容的依赖；取代 ADR-039 中的 Provider 集成片段） | P1 | 2026-10-22 | [ADR-099](ADR-099_frontend-agent-protocol-agui.md) |
+| ADR-100 | 图谱与图表渲染栈收敛（拓扑浏览唯一化） | 已接受（2026-10-17；7 套渲染栈收敛为 3：sigma+@react-sigma/core+graphology 做拓扑浏览、@xyflow/react 做编辑、echarts 做统计；cytoscape 例外不再保留；原拟用 ADR-091，与「语义发布生命周期」撞号后改为 ADR-100） | P0 | 2026-10-17 | [ADR-100](ADR-100_graph-render-stack-consolidation.md) |
 
-> 预留编号：ADR-034/035（对应设计已合并至 ADR-038，永不复用）；ADR-087（语义漂移检测，spec 已定稿，ADR 落稿时启用该编号）。
+> **编号基线核对表（ADR-097 第 6 条）**
+>
+> - 已用：ADR-001 ~ ADR-033、ADR-036 ~ ADR-086、ADR-088 ~ ADR-100（共 97 个编号，99 个文件）
+> - 预留永不复用：ADR-034、ADR-035（设计已合并至 ADR-038）
+> - 待启用：ADR-087（语义漂移检测 spec 已定稿，ADR 落稿时启用）
+> - **重号债务**：ADR-061 一号两文（`ADR-061-semantic-admin-suite-architecture.md` / `ADR-061_skill_plugin_packaging.md`），重编须先核清引用方；跨目录撞号 `docs/02-architecture/reports/ADR-065_BULKHEAD_AUDIT.md` 与 `ADR-065_microservice_extraction_playbook.md`；**ADR-091 一号两文待收口**（`ADR-091_语义发布生命周期与本体单一写入通道.md` 已在用，决策主线代码注释引用的「ADR-091 §5.x」属另一篇，需单独立项重编）
+> - 机械校验：`python scripts/doc_governance.py audit` 的 R8（层编号唯一）与 R12（ADR 状态可解析）
 
 ---
 

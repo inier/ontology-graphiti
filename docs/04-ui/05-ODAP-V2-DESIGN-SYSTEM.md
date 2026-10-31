@@ -1,3 +1,19 @@
+---
+id: odap.l4.05-odap-v2-design-system
+status: superseded
+owner: designer
+version: ''
+layer: L4
+concern: ui-design
+lifecycle: living
+superseded_by: docs/04-ui/UIUX-DESIGN-v2.md
+supersedes: []
+last_verified: '2026-10-17'
+citations: []
+governance_reason: 「蓝紫渐变 · 玻璃态」方向与 v2 相反；--ease-spring 过冲曲线违反 P0 动效规则
+governance_evidence: UIUX-DESIGN-v2.md:42（Indigo→Violet 渐变）、:55（glass-panel 默认）、:69（ease-spring 控制点>1）
+---
+
 # ODAP v2 — UI Design System
 
 > **设计版本**: v2.0  

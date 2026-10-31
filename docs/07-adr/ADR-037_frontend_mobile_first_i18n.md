@@ -1,3 +1,17 @@
+---
+id: odap.l7.adr-037-frontend-mobile-first-i18n
+status: active
+owner: architect
+version: ''
+layer: L7
+concern: adr
+lifecycle: frozen
+superseded_by: ''
+supersedes: []
+last_verified: '2026-10-17'
+citations: []
+---
+
 # ADR-037: 前端移动优先、响应式设计与国际化策略
 
 > **来源**: 前端架构设计

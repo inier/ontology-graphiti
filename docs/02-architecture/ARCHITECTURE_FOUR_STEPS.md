@@ -1,3 +1,19 @@
+---
+id: odap.l2.architecture-four-steps
+status: reference
+owner: architect
+version: ''
+layer: L2
+concern: four-steps-mapping
+lifecycle: frozen
+superseded_by: ''
+supersedes: []
+last_verified: '2026-10-17'
+citations: []
+governance_reason: 四步法菜单归集的过程产物，落地结果见 08-tasks/MENU_REFACTOR_PLAN.md
+governance_evidence: docs/08-tasks/MENU_REFACTOR_PLAN.md 标题「菜单重构实施计划：基于四步法（建/见/演/用）归集」
+---
+
 # 基于本体四步法（建/见/演/用）的项目功能梳理与菜单归集
 
 > **版本**: v1.0 (2026-08-01)

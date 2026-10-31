@@ -1,3 +1,19 @@
+---
+id: odap.l2.deep-review-report-20260505
+status: reference
+owner: architect
+version: ''
+layer: L2
+concern: architecture-review
+lifecycle: historical
+superseded_by: ''
+supersedes: []
+last_verified: '2026-10-17'
+citations: []
+governance_reason: 一次性架构文档深度审查报告（第二轮，2026-05-05）
+governance_evidence: 文件名日期戳 20260505；docs/12-evaluation/ARCHITECTURE-EVALUATION.md 为现行评估
+---
+
 # 架构文档深度审查报告（第二轮）
 > **日期**: 2026-05-05
 > **审查范围**: 全部6个子文档（ARCHITECTURE.md + 5个层级文档）

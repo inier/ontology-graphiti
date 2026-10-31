@@ -1,3 +1,19 @@
+---
+id: odap.l15.specs-2026-07-16-monorepo-restructure-design
+status: reference
+owner: architect
+version: ''
+layer: L15
+concern: design-spec-record
+lifecycle: frozen
+superseded_by: ''
+supersedes: []
+last_verified: '2026-10-17'
+citations: []
+governance_reason: superpowers 设计规格存档，结论已落 ADR 或代码，规格本身冻结
+governance_evidence: docs/07-adr/README.md 各 ADR 的 specs 引用（如 ADR-087 引用 2026-10-07-semantic-drift-detection-design）
+---
+
 # Monorepo 重构设计文档
 
 > **文档版本**：v1.0  

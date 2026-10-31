@@ -1,3 +1,17 @@
+---
+id: odap.l7.adr-081-infra依赖倒置provider注册表
+status: active
+owner: architect
+version: ''
+layer: L7
+concern: adr
+lifecycle: frozen
+superseded_by: ''
+supersedes: []
+last_verified: '2026-10-17'
+citations: []
+---
+
 # ADR-081: infra→biz 依赖倒置 provider 注册表 seam（C4 Stage I 烧账机制）
 
 ## Status

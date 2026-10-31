@@ -1,6 +1,17 @@
 ---
 name: i18n-workflow
 description: 前端国际化工作流技能，用于处理中文作为 key 的 i18n 方案。包含翻译 key 提取、locale 文件创建、语言同步等辅助脚本。当用户需要国际化新页面、添加新语言支持、提取翻译 key、同步 locale 文件时使用此技能。
+id: odap.l16.i18n-workflow-skill
+status: vendor
+owner: vendor
+version: ''
+layer: L16
+concern: vendor-skill
+lifecycle: frozen
+superseded_by: ''
+supersedes: []
+last_verified: '2026-10-17'
+citations: []
 ---
 
 # 国际化工作流技能 (i18n-workflow)

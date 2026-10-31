@@ -1,3 +1,19 @@
+---
+id: odap.l2.review-report-20260505
+status: superseded
+owner: architect
+version: ''
+layer: L2
+concern: architecture-review
+lifecycle: historical
+superseded_by: docs/02-architecture/DEEP_REVIEW_REPORT_20260505.md
+supersedes: []
+last_verified: '2026-10-17'
+citations: []
+governance_reason: 同日第一轮审查（68 行），已由同日第二轮深度审查（230 行）细化承接
+governance_evidence: 两文件同名日期戳 20260505；DEEP_REVIEW 标题标明「第二轮」且篇幅为其 3.4 倍
+---
+
 # 架构文档深度审查报告
 > **日期**: 2026-05-05
 > **审查范围**: 全部6个子文档

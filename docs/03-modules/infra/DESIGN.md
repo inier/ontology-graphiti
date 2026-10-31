@@ -1,3 +1,17 @@
+---
+id: odap.l3.infra-design
+status: active
+owner: module-owner
+version: ''
+layer: L3
+concern: module-design
+lifecycle: living
+superseded_by: ''
+supersedes: []
+last_verified: '2026-10-17'
+citations: []
+---
+
 # Infrastructure 基础设施模块 - 设计文档
 
 > **优先级**: P0 | **相关 ADR**: ADR-002, ADR-003

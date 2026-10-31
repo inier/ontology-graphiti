@@ -1,3 +1,19 @@
+---
+id: odap.l15.specs-2026-10-07-concept-gap-loop-design
+status: reference
+owner: architect
+version: ''
+layer: L15
+concern: design-spec-record
+lifecycle: frozen
+superseded_by: ''
+supersedes: []
+last_verified: '2026-10-17'
+citations: []
+governance_reason: superpowers 设计规格存档，结论已落 ADR 或代码，规格本身冻结
+governance_evidence: docs/07-adr/README.md 各 ADR 的 specs 引用（如 ADR-087 引用 2026-10-07-semantic-drift-detection-design）
+---
+
 # 概念缺口回路（concept gap pool）设计
 
 > **⚠️ 实现前设计快照（historical）**：本文是编码开始前的设计稿，其「状态：待复审」及 §4.3 接线点位、§5 测试口径等以设计时点的理解写成，**实现落地时已有出入**。**权威的 as-built 记录以 [ADR-086](../../07-adr/ADR-086_概念缺口回路.md) 为准**（已批准，含最终接线点位勘验、resolve-check 只读回归守卫 M1、`canonical_of` 发信 blast radius 登记等）。阅读本 spec 时请以 ADR-086 校正实现细节；本文正文保留为设计演进留痕，不再逐条回填。

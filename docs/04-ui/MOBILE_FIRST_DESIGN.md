@@ -1,3 +1,18 @@
+---
+id: odap.l4.mobile-first-design
+status: active
+owner: designer
+version: ''
+layer: L4
+concern: mobile-first
+lifecycle: living
+superseded_by: ''
+supersedes: []
+last_verified: '2026-10-17'
+citations: []
+governance_reason: 移动优先补充设计，v2 未覆盖移动端，ADR-037 为依据
+---
+
 # ODAP 前端移动优先设计补充说明
 
 > **版本**: 1.0.0 | **日期**: 2026-04-17
@@ -203,4 +218,4 @@ padding-inline-end: 16px;
 
 - [ADR-007: 前端技术栈](../07-adr/ADR-007_前端采用_react_ant_design_技术栈.md)
 - [ADR-037: 移动优先与国际化策略](../07-adr/ADR-037_frontend_mobile_first_i18n.md)
-- [Web 模块设计](../03-modules/web_apps/web/DESIGN.md)
+- [Web 模块设计](../03-modules/web_frontend/DESIGN.md)

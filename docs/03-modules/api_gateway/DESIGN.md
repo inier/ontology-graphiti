@@ -1,3 +1,17 @@
+---
+id: odap.l3.api-gateway-design
+status: active
+owner: module-owner
+version: ''
+layer: L3
+concern: module-design
+lifecycle: living
+superseded_by: ''
+supersedes: []
+last_verified: '2026-10-17'
+citations: []
+---
+
 # API 网关模块 (API Gateway) - 设计文档
 
 > **模块 ID**: M-16 | **优先级**: P0 | **相关 ADR**: ADR-040

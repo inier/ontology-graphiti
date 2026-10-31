@@ -1,3 +1,19 @@
+---
+id: odap.l2.scalable-architecture-overview
+status: reference
+owner: architect
+version: ''
+layer: L2
+concern: scalability
+lifecycle: frozen
+superseded_by: ''
+supersedes: []
+last_verified: '2026-10-17'
+citations: []
+governance_reason: 30 行摘要，正文结论已并入 SCALABLE_ARCHITECTURE_2026.md
+governance_evidence: 本文件 30 行 vs SCALABLE_ARCHITECTURE_2026.md 192 行，前者为摘要
+---
+
 # ODAP 可扩展架构设计 — Overview（2026-07-08）
 
 ## 交付物

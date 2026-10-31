@@ -1,3 +1,19 @@
+---
+id: odap.l2.architecture-biz
+status: active
+owner: architect
+version: ''
+layer: L2
+concern: architecture-biz
+lifecycle: living
+superseded_by: ''
+supersedes: []
+last_verified: '2026-10-17'
+citations: []
+governance_reason: L3-L4 业务层详细设计（1801 行），v2 未承接同等深度
+governance_evidence: 本文件 1801 行；ARCHITECTURE-v2.md 全文 462 行，无 L3-L4 逐模块设计
+---
+
 # 本体驱动分析决策平台 (ODAP) - L3-L4 业务层
 > **部分**: Agent协同 + OADP + 数据架构 + 本体管理(3+1分层) + 角色权限 + 配置 + 动作服务 + 反馈闭环 + 语义检索
 > **版本**: 6.0.0 | **日期**: 2026-07-18

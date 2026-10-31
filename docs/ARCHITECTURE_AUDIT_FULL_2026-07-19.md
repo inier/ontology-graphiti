@@ -1,3 +1,19 @@
+---
+id: odap.l14.docs-architecture-audit-full-2026-07-19
+status: reference
+owner: architect
+version: ''
+layer: L14
+concern: architecture-analysis
+lifecycle: historical
+superseded_by: ''
+supersedes: []
+last_verified: '2026-10-17'
+citations: []
+governance_reason: 全栈架构审计与优化方案（一次性），结论已并入 12-evaluation 与 ADR 集
+governance_evidence: 文件名日期戳 2026-07-19；docs/12-evaluation/ARCHITECTURE-EVALUATION.md 为现行评估
+---
+
 # ODAP 本体驱动分析决策平台 — 全栈架构审计与优化方案
 
 > 审计日期：2026-07-19

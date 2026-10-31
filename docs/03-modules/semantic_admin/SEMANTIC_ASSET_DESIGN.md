@@ -1,3 +1,17 @@
+---
+id: odap.l3.semantic-admin-semantic-asset-design
+status: active
+owner: module-owner
+version: ''
+layer: L3
+concern: module-design
+lifecycle: living
+superseded_by: ''
+supersedes: []
+last_verified: '2026-10-17'
+citations: []
+---
+
 # 语义资产管理（Semantic Asset Management）设计方案
 
 > 目标：梳理并统一当前「语义抽取 + 语义资产定义（含同义词）+ 角色化审核」的混乱现状，形成**一条清晰的端到端 Pipeline**，让用户用同一套心智模型完成**结构化**与**非结构化**两类语义定义：
