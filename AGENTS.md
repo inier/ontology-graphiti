@@ -1055,6 +1055,10 @@ Step 10: 智能问答
 | 本体图谱 | `/api/ontologies/{oid}/graph` |
 | 版本提交 | `/api/ontologies/{oid}/commit` |
 | 统一摄入 | `/api/ingest/unified` |
+| 摄入源类型列表 | `/api/ingest/source-types` |
+| 审计 PROV-O 导出 | `/api/audit/export` |
+| 审计溯源链封存（追加式） | `/api/audit/provenance/seal` |
+| 审计溯源链校验（复算指纹） | `/api/audit/provenance/verify` |
 | Agent 管理 | `/api/agent-management` |
 | Agent 对话 | `/api/agent/chat` |
 | Agent 编排 | `/api/agent/orchestrate` |
