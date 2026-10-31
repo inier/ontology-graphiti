@@ -39,6 +39,7 @@ import argparse
 import re
 import sys
 from pathlib import Path
+from urllib.parse import unquote
 
 # 匹配 markdown 链接: [text](target) 或 [text](target "title")
 LINK_RE = re.compile(r"\[(?P<text>[^\]]*)\]\((?P<target>[^)\s]+)(?:\s+\"[^\"]*\")?\)")
@@ -69,8 +70,13 @@ def is_external(target: str) -> bool:
 
 
 def target_exists(target: str, base_dir: Path, repo_root: Path) -> bool:
-    """判断链接目标是否存在，兼容多种项目链接约定。"""
-    path_part = target.split("#", 1)[0].strip()
+    """判断链接目标是否存在，兼容多种项目链接约定。
+
+    注意：markdown 规范允许对目标做百分号编码，含空格的文件名必须写成 `%20`
+    （本仓真实案例：`ADR-089_子项目C_ontology_semantics MCP工具_...md`）。
+    不做 unquote 会把这类**合法链接**误报为死链，故此处先解码再判存在。
+    """
+    path_part = unquote(target).split("#", 1)[0].strip()
     if not path_part or path_part == "/":
         return True  # 纯锚点或根，跳过
     candidates = []

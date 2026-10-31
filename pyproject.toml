@@ -39,6 +39,7 @@ markers = [
     "regression: 回归测试",
     "perf: 性能基准测试",
     "docker: 需要 Docker/Podman 容器的测试",
+    "requires_infra: 需要外部基础设施（OPA/Neo4j/向量库等）的测试，缺失时跳过而非假通过",
 ]
 addopts = "-v --tb=short --strict-markers"
 filterwarnings = ["ignore::DeprecationWarning"]
