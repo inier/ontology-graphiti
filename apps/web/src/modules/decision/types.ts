@@ -1,5 +1,5 @@
 /**
- * 决策主线类型定义（ADR-091 / ADR-076）
+ * 决策主线类型定义（ADR-101 / ADR-076）
  * 唯一依据：docs/superpowers/specs/2026-10-24-decision-mainline/api-spec.yaml
  * 字段名逐字对齐契约，不自行改名（`available_operations` 不是 `available_actions`）。
  */

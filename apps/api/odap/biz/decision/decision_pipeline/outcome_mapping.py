@@ -1,4 +1,4 @@
-"""`ActionRecord` 状态 -> 决策 `outcome` 的单一映射出口（ADR-091 §5.3）
+"""`ActionRecord` 状态 -> 决策 `outcome` 的单一映射出口（ADR-101 §5.3）
 
 `_backfill_decision_outcome` 是 outcome 的**唯一回填出口**，映射表单独成模块，
 使 8 个 `ActionRequestStatus` 各自落到哪儿能被单测逐行对照，而不是散在

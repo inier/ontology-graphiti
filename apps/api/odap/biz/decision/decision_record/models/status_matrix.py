@@ -1,4 +1,4 @@
-"""`status` × `outcome` 合法组合矩阵（ADR-091 §5.1.2 / E33 / E34）
+"""`status` × `outcome` 合法组合矩阵（ADR-101 §5.1.2 / E33 / E34）
 
 两个状态字段并存的最大风险是出现 `status=executed` 但 `outcome=pending`
 这类矛盾态——谁都不知道该信哪个。故把 6 × 5 = 30 个组合穷举成常量表：

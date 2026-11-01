@@ -130,13 +130,14 @@ citations: []
 | ADR-098 | frontend_compat 兼容层收敛与下线 | 已接受（2026-10-17；兼容层保留但只做形状适配，不承载业务逻辑；新功能一律走 `/api/v1` 原生契约） | P1 | 2026-10-17 | [ADR-098](ADR-098_frontend-compat-convergence.md) |
 | ADR-099 | 前端 Agent 集成协议收敛为 AG-UI（放弃 AI SDK Data Stream 路线） | 已接受（2026-10-22；前端唯一协议为 AG-UI，移除 `@openharness/react` + `ai` 两个零引用且协议不兼容的依赖；取代 ADR-039 中的 Provider 集成片段） | P1 | 2026-10-22 | [ADR-099](ADR-099_frontend-agent-protocol-agui.md) |
 | ADR-100 | 图谱与图表渲染栈收敛（拓扑浏览唯一化） | 已接受（2026-10-17；7 套渲染栈收敛为 3：sigma+@react-sigma/core+graphology 做拓扑浏览、@xyflow/react 做编辑、echarts 做统计；cytoscape 例外不再保留；原拟用 ADR-091，与「语义发布生命周期」撞号后改为 ADR-100） | P0 | 2026-10-17 | [ADR-100](ADR-100_graph-render-stack-consolidation.md) |
+| ADR-101 | 决策主线贯通：决策台账与待决策队列 | 已接受（2026-10-24 提出 / 2026-10-31 落地；唯一写入口 `DecisionService.record_decision`，新增 `decision_hub` 读侧编排包 + `DecisionRecord` 5 字段（`status`/`entry_source`/`recommended_action`/`resolution`/`status_assumed`）+ `status×outcome` 合法矩阵写侧断言 + CAS 状态迁移 + 7 个新端点；agent 链**保留端点并补齐工作空间隔离**（原定整体下线，属预留替代路径，偏差见该 ADR「落地偏差」一节）。编号取自原草稿拟用的 ADR-091，与语义发布 ADR 撞号后收口为 101） | P0 | 2026-10-31 | [ADR-101](ADR-101_决策主线贯通_决策台账与待决策队列.md) |
 
 > **编号基线核对表（ADR-097 第 6 条）**
 >
-> - 已用：ADR-001 ~ ADR-033、ADR-036 ~ ADR-086、ADR-088 ~ ADR-100（共 97 个编号，99 个文件）
+> - 已用：ADR-001 ~ ADR-033、ADR-036 ~ ADR-086、ADR-088 ~ ADR-101（共 98 个编号，100 个文件）
 > - 预留永不复用：ADR-034、ADR-035（设计已合并至 ADR-038）
 > - 待启用：ADR-087（语义漂移检测 spec 已定稿，ADR 落稿时启用）
-> - **重号债务**：ADR-061 一号两文（`ADR-061-semantic-admin-suite-architecture.md` / `ADR-061_skill_plugin_packaging.md`），重编须先核清引用方；跨目录撞号 `docs/02-architecture/reports/ADR-065_BULKHEAD_AUDIT.md` 与 `ADR-065_microservice_extraction_playbook.md`；**ADR-091 一号两文待收口**（`ADR-091_语义发布生命周期与本体单一写入通道.md` 已在用，决策主线代码注释引用的「ADR-091 §5.x」属另一篇，需单独立项重编）
+> - **重号债务**：ADR-061 一号两文（`ADR-061-semantic-admin-suite-architecture.md` / `ADR-061_skill_plugin_packaging.md`），重编须先核清引用方；跨目录撞号 `docs/02-architecture/reports/ADR-065_BULKHEAD_AUDIT.md` 与 `ADR-065_microservice_extraction_playbook.md`；~~ADR-091 一号两文~~ **已于 2026-11-01 收口**：`ADR-091` 归「语义发布生命周期与本体单一写入通道」；决策主线那篇按草稿 §11 落为 **ADR-101**，`biz/decision/**`、`biz/core/agent/**`、前端 decision 模块与路由清单里 32 处注释同步改写（`ADR-101 §x` 的章节号指 `docs/superpowers/specs/2026-10-24-decision-mainline/architecture.md` 同号章节，口径写在该 ADR 的 Status 段）
 > - 机械校验：`python scripts/doc_governance.py audit` 的 R8（层编号唯一）与 R12（ADR 状态可解析）
 
 ---
@@ -197,6 +198,7 @@ citations: []
 - ADR-087（预留）：语义漂移检测（spec/plans 2026-10-07 定稿，ADR 待其复审通过后落稿）
 - ADR-088：EvoOntology 借鉴采纳——归因分层与配对回放门控（gap 加 attribution 双层结构（schema/content/tool 三层枚举，最佳努力不造数）+ 缺口回归集固化不可变 + 配对回放 answered 差分判定（verdict=pass ⇔ 回归 0 且修复≥1）+ 模型指纹与 cost 记录；借鉴 EvoOntology 归因引导编辑与 backbone-conditional 配对评估两机制，auto-accept 明确不采纳——门控归人不归模型，2026-10-09）
 - ADR-091：语义发布生命周期与本体单一写入通道（USL 草案/变更集/审核/发布四态 + 不可变发布快照与消费方版本固定 + `OntologyWriteGateway` 唯一写入通道 + AI 只提案 + 一个工作台四区三视图；含 C5 import-linter 契约、`USL_CONSUMPTION_MODE` 迁移开关与现有域 bootstrap v1，2026-10-28）
+- ADR-101：决策主线贯通——决策台账与待决策队列（唯一写入口 `DecisionService.record_decision` + 新增 `decision_hub` 读侧编排包（台账/队列/状态机/SLA/执行触发）+ `DecisionRecord` 5 字段 + `status×outcome` 合法矩阵写侧断言 + CAS 状态迁移防双审批 + 7 个新端点；agent 链保留端点并补齐工作空间隔离（原定下线，属预留替代路径）。草稿见 `docs/superpowers/specs/2026-10-24-decision-mainline/architecture.md` §11，2026-10-31 落地）
 - 编号冲突处理：若同日提审新 ADR 时编号已被占用，**禁止采用后缀 `b/c/d`**，必须使用下一个可用编号。**永远不重命名已被外部链接引用的 ADR 文件**。
 
 ## 状态清算记录

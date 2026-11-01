@@ -1,5 +1,5 @@
 /**
- * 决策主线 API 封装（ADR-091）
+ * 决策主线 API 封装（ADR-101）
  *
  * 契约：docs/superpowers/specs/2026-10-24-decision-mainline/api-spec.yaml
  * - `workspace_id` 一律不传：后端从 JWT 声明解析（ADR-076 §7 信任模型）

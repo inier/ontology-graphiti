@@ -104,7 +104,7 @@ def create_router_registry() -> List[tuple]:
     from odap.biz.decision.decision_recommendation.api.routes import router as decision_recommendation_router
     # 决策智能（ADR-076）：决策作为一等公民对象，7 端点
     from odap.biz.decision.decision_record.api.routes import decision_record_router
-    # 决策读侧（ADR-091）：台账 / 待决策队列，须注册在 decision_record_router 之后
+    # 决策读侧（ADR-101）：台账 / 待决策队列，须注册在 decision_record_router 之后
     from odap.biz.decision.decision_hub.api.routes import decision_hub_router
 
     # ── 感知 ──

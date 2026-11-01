@@ -83,7 +83,7 @@ describe('导航与路由的一致性', () => {
 
   it('每个静态页面都能从某个工作区菜单进入（无孤儿页面）', () => {
     const menuPaths = new Set(WORKSPACES.flatMap((ws) => ws.items.map((item) => item.path)));
-    // 决策主线（ADR-091）：一级菜单仍只有「决策情报」一项，/decisions/queue 由台账页内切换进入
+    // 决策主线（ADR-101）：一级菜单仍只有「决策情报」一项，/decisions/queue 由台账页内切换进入
     const INTRA_PAGE_VIEWS = new Set<string>(['/decisions/queue']);
     // 详情页（含 :param）由列表页进入，不要求出现在菜单里
     const orphans = PAGE_MANIFEST.filter(

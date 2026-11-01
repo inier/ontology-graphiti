@@ -1,9 +1,9 @@
-"""决策一等公民数据模型（ADR-076 §3 + ADR-091 §4.1）
+"""决策一等公民数据模型（ADR-076 §3 + ADR-101 §4.1）
 
 DecisionRecord 是跨 Agent/会话引用的结构化决策记录，
 承载"谁、何时、基于什么证据、选择了什么、结果如何"的完整信息。
 
-ADR-091 新增 5 个字段（`outcome` 五态零变更）：
+ADR-101 新增 5 个字段（`outcome` 五态零变更）：
 - `status` 6 态流程位置（服务端产生）
 - `entry_source` 7 值入口来源
 - `recommended_action` 可执行载荷（补齐 execute 的数据缺口）
@@ -63,7 +63,7 @@ def _parse_state(props: Dict[str, Any]) -> Tuple[DecisionStatus, DecisionEntrySo
     """解析流程状态三元组（status / entry_source / status_assumed），缺失即回落。
 
     读侧默认值刻意与写侧默认值不同：缺失 `entry_source` 说明这条记录早于
-    ADR-091，标 `LEGACY`（来源不明），不伪装成 `manual`。
+    ADR-101，标 `LEGACY`（来源不明），不伪装成 `manual`。
     """
     status = _coerce_enum(
         props.get("status") or DecisionStatus.PENDING.value, DecisionStatus, DecisionStatus.PENDING
@@ -112,7 +112,7 @@ class DecisionRecord(BaseModel):
     decision_method: str = Field(default="recommendation_engine", description="决策方法")
     decision_type: str = Field(default="general", description="决策类型")
 
-    # 流程（ADR-091）
+    # 流程（ADR-101）
     status: DecisionStatus = Field(default=DecisionStatus.PENDING, description="流程位置（服务端产生）")
     status_assumed: bool = Field(
         default=False, description="true = status 系存量推定，非真实流程状态（不进队列）"

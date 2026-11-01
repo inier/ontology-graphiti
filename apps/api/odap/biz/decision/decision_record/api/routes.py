@@ -78,7 +78,7 @@ class CheckRulesRequest(BaseModel):
 
 
 class OutcomeUpdate(BaseModel):
-    """update_decision_outcome 请求体（ADR-076 §4.7 + ADR-091 §5.2.1）
+    """update_decision_outcome 请求体（ADR-076 §4.7 + ADR-101 §5.2.1）
 
     `status` 必填：只给 `outcome` 的写入无法校验 7/23 矩阵，等于绕开写侧守门。
     """

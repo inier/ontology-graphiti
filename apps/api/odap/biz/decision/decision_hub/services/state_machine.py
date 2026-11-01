@@ -1,4 +1,4 @@
-"""决策流程状态机（ADR-091 §5.1）
+"""决策流程状态机（ADR-101 §5.1）
 
 手写 dict，零新增依赖（不引 `transitions` / `python-statemachine`）。
 

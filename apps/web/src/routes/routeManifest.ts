@@ -146,7 +146,7 @@ export const PAGE_MANIFEST: readonly PageEntry[] = [
   { path: '/qa/memory', workspace: 'ask', element: 'qaMemory' },
   // AG-UI 协议对话（POST /api/ag-ui/run + SSE）：与常规问答并列的 Copilot 形态
   { path: '/qa/copilot', workspace: 'ask', element: 'qaCopilot' },
-  // 决策主线（ADR-091）：一级菜单仍只有「决策智能」一项，视图切换在路由内
+  // 决策主线（ADR-101）：一级菜单仍只有「决策智能」一项，视图切换在路由内
   { path: '/decisions/ledger', workspace: 'ask', element: 'decisionsLedger' },
   { path: '/decisions/queue', workspace: 'ask', element: 'decisionsQueue' },
   { path: '/decisions/detail/:decisionId', workspace: 'ask', element: 'decisionsDetail' },

@@ -1,4 +1,4 @@
-"""决策领域枚举（ADR-076 §3 + ADR-091）
+"""决策领域枚举（ADR-076 §3 + ADR-101）
 
 单独成文件的原因：`DecisionRecord` 模型已逼近 300 行硬上限，把值域定义
 抽出来既便于 `status × outcome` 矩阵独立引用，也避免模型文件继续膨胀。
@@ -8,7 +8,7 @@ from enum import Enum
 
 
 class DecisionOutcome(str, Enum):
-    """决策执行结果（ADR-076 §3：五态，ADR-091 零变更）"""
+    """决策执行结果（ADR-076 §3：五态，ADR-101 零变更）"""
 
     SUCCESS = "success"
     PARTIAL_SUCCESS = "partial_success"
@@ -26,7 +26,7 @@ class CausalLinkType(str, Enum):
 
 
 class DecisionStatus(str, Enum):
-    """决策流程位置（ADR-091 §5.1）
+    """决策流程位置（ADR-101 §5.1）
 
     与 `DecisionOutcome` 职责分离：`outcome` 是执行结果，`status` 是流程位置。
     服务端产生，客户端不可写；界面 6 态不直接暴露（收敛为 5 类标签）。
@@ -41,7 +41,7 @@ class DecisionStatus(str, Enum):
 
 
 class DecisionEntrySource(str, Enum):
-    """决策入口来源（ADR-091 A3）
+    """决策入口来源（ADR-101 A3）
 
     `LEGACY` 表示迁移前就存在的记录，来源不可考——不伪装成 `manual`。
     """

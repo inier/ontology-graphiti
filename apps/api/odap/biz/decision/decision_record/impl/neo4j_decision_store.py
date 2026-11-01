@@ -1,4 +1,4 @@
-"""决策 Neo4j 存储实现（ADR-076 §5.2 / ADR-091 §5.6）
+"""决策 Neo4j 存储实现（ADR-076 §5.2 / ADR-101 §5.6）
 
 - 自带 Graphiti Neo4jDriver 模块级单例（见 `neo4j_driver`），避免与 GraphManager 内部实例生命周期耦合
 - EntityNode 三步法（generate_name_embedding + save）已在 graphiti-core 0.29.2 核验

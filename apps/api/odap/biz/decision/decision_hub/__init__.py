@@ -1,4 +1,4 @@
-"""决策读侧编排包（ADR-091）
+"""决策读侧编排包（ADR-101）
 
 台账 / 待决策队列 / 裁决 / 执行 的读侧与编排门面。**不重写**既有
 pipeline / recommendation / agent 链，只复用 `DecisionService.store`。
