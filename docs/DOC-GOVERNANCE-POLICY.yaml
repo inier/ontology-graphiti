@@ -178,6 +178,13 @@ artifacts:
     concern: api-contract-matrix
     generated_by: "scripts/check_api_contract.py（自动生成，勿手改）"
     note: "前后端三向对账矩阵的机器可读形态"
+  # 决策主线规格件的机器可读契约（2026-10-24 落库时漏登记，2026-11-01 补）
+  - path: docs/superpowers/specs/2026-10-24-decision-mainline/api-spec.yaml
+    owner_role: architect
+    status: reference
+    concern: design-spec-record
+    generated_by: "决策主线 spec 阶段人工编写的端点契约（OpenAPI 片段）"
+    note: "决策台账/待裁决队列等 7 个新端点的唯一契约依据；已被 ADR-101 收编，实现以代码为准"
   - path: docs/11-archive/antd_deprecation_audit.json
     owner_role: archivist
     status: archived

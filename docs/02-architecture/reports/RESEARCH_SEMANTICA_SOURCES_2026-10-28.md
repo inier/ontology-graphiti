@@ -1,3 +1,19 @@
+---
+id: odap.l2.reports-research-semantica-sources-2026-10-28
+status: reference
+owner: architect
+version: ''
+layer: L2
+concern: architecture
+lifecycle: historical
+superseded_by: ''
+supersedes: []
+last_verified: '2026-10-17'
+citations: []
+governance_reason: 一次性架构审计/评审/研究报告，结论已并入现行架构文档
+governance_evidence: docs/02-architecture/README.md 目录说明；文件名含审计日期或 REPORT/AUDIT 标识
+---
+
 # 主源调研：Semantica 0.7.0 与 ODAP 嵌入可行性（2026-10 复核）
 
 > **调研日期**：2026-10-28

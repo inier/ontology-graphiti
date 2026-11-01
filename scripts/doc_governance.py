@@ -409,9 +409,15 @@ def cmd_migrate(args: argparse.Namespace) -> int:
                         changed = True
             else:
                 for k in MANAGED_KEYS:
-                    if k not in merged or merged.get(k) in ("", None):
-                        merged[k] = new_fm[k]
-                        changed = True
+                    # 「缺失/空值」只是**待补齐的候选**：若推导值与现值相同则不算变更。
+                    # 否则每份 `superseded_by: ''` 的文档都会被计成「补齐字段」（实测 287 份假计数，
+                    # 而字节完全相同的写入还会把 migrate 变成"永远有改动"的假警报，掩盖真实漂移）。
+                    if not (k not in merged or merged.get(k) in ("", None)):
+                        continue
+                    if merged.get(k) == new_fm[k]:
+                        continue
+                    merged[k] = new_fm[k]
+                    changed = True
                 for k in ("governance_reason", "governance_evidence"):
                     if k in new_fm and k not in merged:
                         merged[k] = new_fm[k]

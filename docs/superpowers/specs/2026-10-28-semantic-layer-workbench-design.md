@@ -1,3 +1,19 @@
+---
+id: odap.l15.specs-2026-10-28-semantic-layer-workbench-design
+status: reference
+owner: architect
+version: ''
+layer: L15
+concern: design-spec-record
+lifecycle: frozen
+superseded_by: ''
+supersedes: []
+last_verified: '2026-10-17'
+citations: []
+governance_reason: superpowers 设计规格存档，结论已落 ADR 或代码，规格本身冻结
+governance_evidence: docs/07-adr/README.md 各 ADR 的 specs 引用（如 ADR-087 引用 2026-10-07-semantic-drift-detection-design）
+---
+
 # 统一语义层工作台设计（USL 发布生命周期 + 本体单一写入通道）
 
 - **状态**：待复审（设计基线；复审通过后由 `superpowers:writing-plans` 拆实施计划）

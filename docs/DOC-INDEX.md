@@ -4,9 +4,9 @@
 > 真相源：各文档自身的 YAML front-matter（ADR-097 第 2 条）。
 > 规则：`docs/DOC-GOVERNANCE-POLICY.yaml`。校验：`python scripts/doc_governance.py audit --ci`。
 
-纳管文档 **277** 份，产物文件 **9** 份。
+纳管文档 **288** 份，产物文件 **10** 份。
 
-治理校验：error **0** / warn **15**
+治理校验：error **0** / warn **17**
 
 ## 1. 状态图例
 
@@ -44,7 +44,7 @@
 | `README.md` | active | pm | product-design | — |  |
 | `webui-enhancement-design.md` | reference | pm | webui-enhancement | — |  |
 
-## L2 架构层（34）
+## L2 架构层（37）
 
 | 文档 | 状态 | 归属 | 关注点 | 版本 | 取代/被取代 |
 |------|------|------|--------|------|-------------|
@@ -73,6 +73,9 @@
 | `reports/AUDIT_REPORT.md` | reference | architect | architecture | — |  |
 | `reports/COMPLETENESS_REPORT.md` | reference | architect | architecture | — |  |
 | `reports/RESEARCH_SEMANTICA_COMPARISON_2026-08-14.md` | reference | architect | architecture | — |  |
+| `reports/RESEARCH_SEMANTICA_SOURCES_2026-10-28.md` | reference | architect | architecture | — |  |
+| `reports/RESEARCH_TRUSTGRAPH_SEMANTICA_FIT_2026-10-28.md` | reference | architect | architecture | — |  |
+| `reports/RESEARCH_TRUSTGRAPH_SOURCES_2026-10-28.md` | reference | architect | architecture | — |  |
 | `reports/RESTRUCTURE_PLAN.md` | reference | architect | architecture | — |  |
 | `reports/REVIEW_ONTOLOGY_PIPELINE_2026-10-03.md` | reference | architect | architecture | — |  |
 | `reports/TEST_REPORT.md` | reference | architect | architecture | — |  |
@@ -152,7 +155,7 @@
 | `TDD_BEHAVIOR_LIST.md` | active | qa | tdd-behavior | — |  |
 | `TEST_DESIGN.md` | authoritative | qa | test-design | — |  |
 
-## L7 决策记录层（97）
+## L7 决策记录层（100）
 
 | 文档 | 状态 | 归属 | 关注点 | 版本 | 取代/被取代 |
 |------|------|------|--------|------|-------------|
@@ -244,7 +247,7 @@
 | `ADR-088_EvoOntology借鉴采纳_归因分层与配对回放门控.md` | active | architect | adr | — |  |
 | `ADR-089_子项目C_ontology_semantics MCP工具_按需查询替代全量注入.md` | active | architect | adr | — |  |
 | `ADR-090_子项目D_promote按attribution_layer路由_类型化编辑.md` | active | architect | adr | — |  |
-| `ADR-091_graph-render-stack-consolidation.md` | active | architect | adr | — |  |
+| `ADR-091_语义发布生命周期与本体单一写入通道.md` | proposed | architect | adr | — |  |
 | `ADR-092_icon-library-lock.md` | active | architect | adr | — |  |
 | `ADR-093_design-token-theming.md` | active | architect | adr | — |  |
 | `ADR-094_ontology-constraint-orchestration.md` | active | architect | adr | — |  |
@@ -252,6 +255,9 @@
 | `ADR-096_llm-wiki-storage-sync.md` | active | architect | adr | — |  |
 | `ADR-097_docs-governance-provenance.md` | active | architect | adr | — |  |
 | `ADR-098_frontend-compat-convergence.md` | active | architect | adr | — |  |
+| `ADR-099_frontend-agent-protocol-agui.md` | active | architect | adr | — |  |
+| `ADR-100_graph-render-stack-consolidation.md` | active | architect | adr | — |  |
+| `ADR-101_决策主线贯通_决策台账与待决策队列.md` | active | architect | adr | — |  |
 | `README.md` | active | architect | adr | — |  |
 
 ## L8 任务层（5）
@@ -346,7 +352,7 @@
 |------|------|------|--------|------|-------------|
 | `OPEN-DECISIONS.md` | authoritative | architect | open-decisions | — |  |
 
-## L15 设计规格存档（13）
+## L15 设计规格存档（18）
 
 | 文档 | 状态 | 归属 | 关注点 | 版本 | 取代/被取代 |
 |------|------|------|--------|------|-------------|
@@ -363,6 +369,11 @@
 | `specs/2026-10-08-evoontology-adoption-design.md` | reference | architect | design-spec-record | — |  |
 | `specs/2026-10-09-subproject-c-ontology-semantics-tool-design.md` | reference | architect | design-spec-record | — |  |
 | `specs/2026-10-09-subproject-d-promote-routing-design.md` | reference | architect | design-spec-record | — |  |
+| `specs/2026-10-24-decision-mainline/architecture.md` | reference | architect | design-spec-record | — |  |
+| `specs/2026-10-24-decision-mainline/prd.md` | reference | architect | design-spec-record | — |  |
+| `specs/2026-10-24-decision-mainline/spec.md` | reference | architect | design-spec-record | — |  |
+| `specs/2026-10-24-decision-mainline/uiux.md` | reference | architect | design-spec-record | — |  |
+| `specs/2026-10-28-semantic-layer-workbench-design.md` | reference | architect | design-spec-record | — |  |
 
 ## L16 技能导出（2）
 

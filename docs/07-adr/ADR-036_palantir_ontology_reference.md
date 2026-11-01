@@ -20,6 +20,13 @@ citations: []
 
 ---
 
+## Status
+
+**已接受（2026-04-16）**。本条为对 Palantir AIP Ontology 的参考吸收，结论已落 ADR-032 的
+`OntologyDocument` 结构；2026-05-31 的 Amendment 属补充说明，未改变本条的结论与适用边界。
+
+---
+
 ## 1. 概述
 
 本文档参考 Palantir AIP Ontology 的设计理念，定义领域本体的标准结构。

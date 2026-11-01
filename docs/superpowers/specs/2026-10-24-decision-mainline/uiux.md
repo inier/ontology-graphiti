@@ -1,3 +1,19 @@
+---
+id: odap.l15.specs-2026-10-24-decision-mainline-uiux
+status: reference
+owner: architect
+version: ''
+layer: L15
+concern: design-spec-record
+lifecycle: frozen
+superseded_by: ''
+supersedes: []
+last_verified: '2026-10-17'
+citations: []
+governance_reason: superpowers 设计规格存档，结论已落 ADR 或代码，规格本身冻结
+governance_evidence: docs/07-adr/README.md 各 ADR 的 specs 引用（如 ADR-087 引用 2026-10-07-semantic-drift-detection-design）
+---
+
 # 决策主线贯通 — UI/UX 设计规格
 
 > 版本：v1.12 ｜ 2026-10-24（对齐 `api-spec.yaml` **v1.5.0** + 矩阵收窄 7/23 / PRD 39 条）｜ v1.9 出口改为恒定列（对齐 Spec AC-15，含未超窗）、补「失败方向安全」判据、门禁脚本 `check_doc.py` 落地 ｜ v1.10 门禁加自测与变异测试、加「跳过代码块」「表头 vs 分隔行」「反引号切断」三条判据 ｜ v1.11 新增 §10.6「错误读取单点封装」 ｜ **v1.12 AC-17 落地：403/404 迁进信封，`parseApiError` 加 `status`（401 无 `code`）、`ErrorCode` 按 `ErrorCodeCatalog` 全 13 码穷举、标注大小写不一致陷阱；门禁改为「先自检再他检」（`main()` 与 `--all` 都被闸门拦，EXIT=2 拒绝出报告），用例单一来源 ｜ v1.13 新增团队规则 **R3：在别人正在编辑的文件上不报绝对数字**（同一文件三段统计得到 40/41/42 张表，架构师同时段报 39——差异在快照不在判据）**
